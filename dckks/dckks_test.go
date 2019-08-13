@@ -100,7 +100,7 @@ func Test_DBFVScheme(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	pk1 = pk1
+	_ = pk1
 
 	// Encryptors
 	encryptor_pk0, err := ckkscontext.NewEncryptor(pk0)
@@ -119,7 +119,7 @@ func Test_DBFVScheme(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	decryptor_sk1 = decryptor_sk1
+	_ = decryptor_sk1
 
 	// Reference ciphertext
 	ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)

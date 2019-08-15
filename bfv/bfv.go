@@ -13,7 +13,7 @@ type BfvContext struct {
 	// Plaintext Modulus
 	t uint64
 
-	// floor(Q/t) mod each Qi in montgomeryform
+	// floor(Q/T) mod each Qi in montgomeryform
 	DeltaMont []uint64
 	Delta     []uint64
 
@@ -39,7 +39,7 @@ type BfvContext struct {
 	galElRotColLeft  []uint64
 	galElRotColRight []uint64
 
-	// Checksum of [n, [modulies]]
+	// Checksum of [N, [modulies]]
 	checksum []byte
 }
 

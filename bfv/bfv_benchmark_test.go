@@ -7,7 +7,7 @@ import (
 
 func BenchmarkBFVScheme(b *testing.B) {
 
-	paramSets := ParamSets60
+	paramSets := DefaultParams
 
 	bitDecomps := []uint64{60}
 

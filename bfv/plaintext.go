@@ -2,7 +2,7 @@ package bfv
 
 import (
 	"errors"
-	"github.com/lca1/lattigo-private/ring"
+	"github.com/lca1/lattigo/ring"
 )
 
 // The plaintext is a ring of N coefficients with two contexts.

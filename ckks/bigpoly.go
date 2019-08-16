@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"github.com/lca1/lattigo-private/ring"
+	"github.com/lca1/lattigo/ring"
 )
 
 type BigPoly struct {

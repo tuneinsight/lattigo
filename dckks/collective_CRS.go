@@ -3,7 +3,7 @@ package dckks
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/lca1/lattigo-private/ring"
+	"github.com/lca1/lattigo/ring"
 	"golang.org/x/crypto/blake2b"
 	"hash"
 	"math/bits"

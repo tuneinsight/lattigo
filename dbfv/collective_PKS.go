@@ -1,7 +1,7 @@
 package dbfv
 
 import (
-	"github.com/lca1/lattigo-private/ring"
+	"github.com/lca1/lattigo/ring"
 	//"fmt"
 )
 

@@ -3,7 +3,7 @@ package bfv
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/lca1/lattigo/ring"
+	"github.com/lca1/lattigo-private/ring"
 	"math"
 	"math/bits"
 )

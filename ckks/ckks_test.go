@@ -2,7 +2,7 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/lca1/lattigo/ring"
+	"github.com/lca1/lattigo-private/ring"
 	"log"
 	"math/cmplx"
 	"math/rand"

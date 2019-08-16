@@ -1,8 +1,8 @@
 package dckks
 
 import (
-	"github.com/lca1/lattigo/ckks"
-	"github.com/lca1/lattigo/ring"
+	"github.com/lca1/lattigo-private/ckks"
+	"github.com/lca1/lattigo-private/ring"
 )
 
 type CKG struct {

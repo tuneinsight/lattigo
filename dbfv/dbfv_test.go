@@ -10,7 +10,7 @@ import (
 
 func Test_DBFVScheme(t *testing.T) {
 
-	paramSets := bfv.DefaultParams[0:1]
+	paramSets := bfv.DefaultParams[0:2]
 	bitDecomps := []uint64{60}
 	nParties := []int{5}
 

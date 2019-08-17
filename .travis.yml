@@ -9,5 +9,10 @@ env:
 script:
   - env GO111MODULE=on make test
 
+branches:
+  only:
+    - master
+    - dev
+
 notifications:
   email: false

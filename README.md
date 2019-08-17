@@ -1,4 +1,5 @@
 # Lattigo: lattice-based cryptographic library in Go
+
 _The Lattigo library unleashes the potential of lattice-based cryptography in secure multiparty computation for modern software stacks._
 
 [![Build Status](https://travis-ci.com/lca1/lattigo.svg?token=kz1BaknyyJcURGZurf6m&branch=master)](https://travis-ci.com/lca1/lattigo)
@@ -11,7 +12,8 @@ The library features:
 
 Lattigo aims at enabling fast prototyping of secure-multiparty computation solutions based on distributed homomorphic cryptosystems, by harnessing Go's natural concurrency model.
 
-##Library overview
+## Library overview
+
 The library comprises the following sub-packages:
 
 - `lattigo/ring`: RNS-accelerated modular arithmetic operations for polynomials, including: RNS basis extension; RNS rescaling;  number theoretic transform (NTT); uniform, Gaussian and ternary sampling.
@@ -28,25 +30,33 @@ The library comprises the following sub-packages:
 - `lattigo/utils`: Supporting structures and functions.
 
 ## Roadmap
+
 ### v1.0b (17 Aug. 2019)
+
 - First public beta release
+
 ### v1.0 (Sept. 2019)
+
 - Full godoc documentation
 - Memory optimizations
 
 
 ### Upcoming features
+
 - Bootstrapping for CKKS
 - Network layer implementation of SMC-supporting protocols
 
 
 ## Disclaimer
+
 The library is still at an experimental stage and should be used for research purposes only.
 
 ## License
+
 Lattigo is licenced under the Apache 2.0 License.
 
 ## Contact
+
 If you want to contribute to Lattigo or you have any suggestion, do not hesitate to contact us at [lattigo@listes.epfl.ch](mailto:lattigo@listes.epfl.ch).
 
 ## Citing
@@ -64,6 +74,7 @@ Please use the following BibTex entry for citing Lattigo:
 
 
 ## References
+
 1. Somewhat Practical Fully Homomorphic Encryption (<https://eprint.iacr.org/2012/144>).
 1. A Full RNS Variant of FV Like Somewhat Homomorphic Encryption Schemes (<https://eprint.iacr.org/2016/510>)
 1. An Improved RNS Variant of the BFV Homomorphic Encryption Scheme (<https://eprint.iacr.org/2018/117>)

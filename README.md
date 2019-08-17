@@ -1,5 +1,9 @@
 # Lattigo: lattice-based cryptographic library in Go
 
+<p align="center">
+	<img src="https://i.ibb.co/5vXt5mj/logo.png" />
+</p>
+
 _The Lattigo library unleashes the potential of lattice-based cryptography in secure multiparty computation for modern software stacks._
 
 [![Build Status](https://travis-ci.com/lca1/lattigo.svg?token=kz1BaknyyJcURGZurf6m&branch=master)](https://travis-ci.com/lca1/lattigo)

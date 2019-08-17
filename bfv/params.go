@@ -147,3 +147,54 @@ func (p *Parameters) UnMarshalBinary(data []byte) error {
 	b.ReadUint64Slice(p.Pi)
 	return nil
 }
+
+// Equals compares two sets of parameters for equality
+func (p *Parameters) Equals(other *Parameters) bool {
+	if p == other {
+		return true
+	}
+	return p.N == other.N && EqualSlice(p.Qi, other.Qi) && EqualSlice(p.Pi, other.Pi) && p.Sigma == other.Sigma
+}
+
+// MarshalBinary returns a []byte representation of the parameter set
+func (p *Parameters) MarshalBinary() ([]byte, error) {
+	if p.N == 0 { // if N is 0, then p is the zero value
+		return []byte{}, nil
+	}
+	b := utils.NewBuffer(make([]byte, 0, 3+((2+len(p.Qi)+len(p.Pi))<<3)))
+	b.WriteUint8(uint8(bits.Len64(p.N) - 1))
+	b.WriteUint8(uint8(len(p.Qi)))
+	b.WriteUint8(uint8(len(p.Pi)))
+	b.WriteUint64(p.T)
+	b.WriteUint64(uint64(p.Sigma * (1 << 32)))
+	b.WriteUint64Slice(p.Qi)
+	b.WriteUint64Slice(p.Pi)
+	return b.Bytes(), nil
+}
+
+// UnMarshalBinary decodes a []byte into a parameter set struct
+func (p *Parameters) UnMarshalBinary(data []byte) error {
+	if len(data) < 3 {
+		return errors.New("invalid parameters encoding")
+	}
+	b := utils.NewBuffer(data)
+	p.N = 1 << uint64(b.ReadUint8())
+	if p.N > MaxN {
+		return errors.New("polynomial degree is too large")
+	}
+	lenQi := uint64(b.ReadUint8())
+	if lenQi > MaxModuliCount {
+		return fmt.Errorf("len(Qi) is larger than %d", MaxModuliCount)
+	}
+	lenPi := uint64(b.ReadUint8())
+	if lenPi > MaxModuliCount {
+		return fmt.Errorf("len(Pi) is larger than %d", MaxModuliCount)
+	}
+	p.T = b.ReadUint64()
+	p.Sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
+	p.Qi = make([]uint64, lenQi, lenQi)
+	p.Pi = make([]uint64, lenPi, lenPi)
+	b.ReadUint64Slice(p.Qi)
+	b.ReadUint64Slice(p.Pi)
+	return nil
+}

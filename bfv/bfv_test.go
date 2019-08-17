@@ -22,7 +22,7 @@ func Test_BFV(t *testing.T) {
 
 	var err error
 
-	paramSets := DefaultParams
+  paramSets := DefaultParams[0:2]
 
 	bitDecomps := []uint64{60}
 

@@ -2,7 +2,6 @@ package ring
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"math/bits"
 )
@@ -171,8 +170,6 @@ func (parameters *SimpleScaler) ScaleFloat(p1 *Poly, coeffs []complex128) {
 			if coeff > int64(qi>>1) {
 				coeff -= int64(qi)
 			}
-
-			fmt.Println(coeff)
 
 			a += float64(int64(parameters.wi[j]) * coeff)
 
@@ -375,21 +372,33 @@ func (parameters *ComplexScaler) Scale(p1, p2 *Poly) {
 		// part to the integer part (this prevents occasional rounding errors when the second floating element is negative)
 		aFloat = uint64(tmp[0]*4096) + uint64(math.Round((tmp[0]*4096)-float64(uint64(tmp[0]*4096))+tmp[1]*4096))
 
+		var reduce uint64
+
 		for u, qi := range parameters.contextQ.Modulus {
 
 			aInt = aFloat
 
+			reduce = 1
+
 			for i := range parameters.contextQ.Modulus {
 
-				aInt = CRed(aInt+MRed(yi[i], parameters.wiiMont[u][i], qi, parameters.contextQ.mredParams[u]), qi)
+				aInt += MRed(yi[i], parameters.wiiMont[u][i], qi, parameters.contextQ.mredParams[u])
+
+				if reduce&7 == 7 {
+					aInt = BRedAdd(aInt, qi, parameters.contextQ.bredParams[u])
+				}
 			}
 
 			for j := range parameters.contextP.Modulus {
 
-				aInt = CRed(aInt+MRed(yj[j], parameters.sijMont[j][u], qi, parameters.contextQ.mredParams[u]), qi)
+				aInt += MRed(yj[j], parameters.sijMont[j][u], qi, parameters.contextQ.mredParams[u])
+
+				if reduce&7 == 7 {
+					aInt = BRedAdd(aInt, qi, parameters.contextQ.bredParams[u])
+				}
 			}
 
-			p2.Coeffs[u][x] = CRed(aInt+parameters.li[u][v], qi)
+			p2.Coeffs[u][x] = BRedAdd(aInt+parameters.li[u][v], qi, parameters.contextQ.bredParams[u])
 		}
 	}
 

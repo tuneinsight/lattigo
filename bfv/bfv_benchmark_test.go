@@ -58,7 +58,7 @@ func BenchmarkBFVScheme(b *testing.B) {
 		})
 
 		// Decryption
-		decryptor, err := bfvContext.NewDecryptor(sk, 1)
+		decryptor, err := bfvContext.NewDecryptor(sk)
 		if err != nil {
 			b.Error(err)
 		}

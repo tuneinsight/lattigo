@@ -181,10 +181,6 @@ func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint
 		return nil, err
 	}
 
-	if bitDecomp > keygen.bfvcontext.maxBit || bitDecomp == 0 {
-		bitDecomp = keygen.bfvcontext.maxBit
-	}
-
 	rotKey = new(RotationKeys)
 	rotKey.bfvcontext = keygen.bfvcontext
 	rotKey.bitDecomp = bitDecomp
@@ -219,10 +215,6 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, bitDecomp 
 
 	if err = keygen.check_sk(sk_output); err != nil {
 		return nil, err
-	}
-
-	if bitDecomp > keygen.bfvcontext.maxBit || bitDecomp == 0 {
-		bitDecomp = keygen.bfvcontext.maxBit
 	}
 
 	rotKey = new(RotationKeys)

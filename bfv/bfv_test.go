@@ -50,7 +50,7 @@ func Test_BFV(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		bfvTest.decryptor, err = bfvTest.bfvcontext.NewDecryptor(bfvTest.sk, 10)
+		bfvTest.decryptor, err = bfvTest.bfvcontext.NewDecryptor(bfvTest.sk)
 
 		if err != nil {
 			log.Fatal(err)
@@ -68,7 +68,7 @@ func Test_BFV(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		//test_Marshaler(bfvTest, t)
+		test_Marshaler(bfvTest, t)
 		test_EncodeDecode(bfvTest, t)
 		test_PlaintextBatchEncodeDecode(bfvTest, t)
 		test_EncryptDecrypt(bfvTest, t)
@@ -822,7 +822,7 @@ func test_SubWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	})
 }
 
-//HOMOMORPHIC MULTIPLICATION WITH RELINEARIZATION BASE Qi AND w
+//HOMOMORPHIC MULTIPLICATION
 func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	bfvContext := bfvTest.bfvcontext
@@ -845,7 +845,6 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
 		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
-
 	})
 
 	t.Run(fmt.Sprintf("N=%d/T=%d/Qi=%dx%dbit/Pi=%dx%dbit/MulNew", bfvTest.bfvcontext.n,
@@ -861,6 +860,7 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
 		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
+
 	})
 }
 
@@ -913,7 +913,7 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 
 	for _, bitDecomp := range bitDecomps {
 
-		rlk, err := kgen.NewRelinKey(bfvTest.sk, 2, bitDecomp)
+		rlk, err := kgen.NewRelinKey(bfvTest.sk, 1, bitDecomp)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -939,6 +939,7 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 			}
 
 			verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
+
 		})
 
 		t.Run(fmt.Sprintf("N=%d/T=%d/Qi=%dx%dbit/Pi=%dx%dbit/bitDecomp=%d/RelinearizeNew", bfvTest.bfvcontext.n,
@@ -946,8 +947,6 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 			len(bfvTest.bfvcontext.contextQ.Modulus), 60,
 			len(bfvTest.bfvcontext.contextP.Modulus), 60,
 			bitDecomp), func(t *testing.T) {
-
-			t.Skip() // TODO: investigae this test case
 
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 			coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
@@ -965,6 +964,7 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 			}
 
 			verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
+
 		})
 	}
 }
@@ -979,7 +979,7 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 
 	SkNew := kgen.NewSecretKey()
 
-	decryptor_SkNew, err := bfvContext.NewDecryptor(SkNew, 1)
+	decryptor_SkNew, err := bfvContext.NewDecryptor(SkNew)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1016,6 +1016,7 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 			if EqualSlice(coeffs0.Coeffs[0], coeffsTest) != true {
 				t.Errorf("error : switchingKey encrypt/decrypt")
 			}
+
 		})
 
 		t.Run(fmt.Sprintf("N=%d/T=%d/Qi=%dx%dbit/Pi=%dx%dbit/bitDecomp=%d/SwitchKeysNew", bfvTest.bfvcontext.n,

@@ -31,7 +31,7 @@ func Plaintext_Batching() {
 
 	Sk := kgen.NewSecretKey()
 
-	Decryptor, err := bfvContext.NewDecryptor(Sk, 3)
+	Decryptor, err := bfvContext.NewDecryptor(Sk)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -253,7 +253,7 @@ func Homomorphic_Inner_product() {
 		log.Fatal(err)
 	}
 
-	Decryptor, err := bfvContext.NewDecryptor(Sk, 2)
+	Decryptor, err := bfvContext.NewDecryptor(Sk)
 	if err != nil {
 		log.Fatal(err)
 	}

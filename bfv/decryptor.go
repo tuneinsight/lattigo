@@ -11,7 +11,7 @@ type Decryptor struct {
 	polypool   *ring.Poly
 }
 
-func (bfvcontext *BfvContext) NewDecryptor(sk *SecretKey, maxDegree int) (*Decryptor, error) {
+func (bfvcontext *BfvContext) NewDecryptor(sk *SecretKey) (*Decryptor, error) {
 
 	if sk.sk.GetDegree() != int(bfvcontext.n) {
 		return nil, errors.New("error : secret_key degree must match context degree")

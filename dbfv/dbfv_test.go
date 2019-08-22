@@ -96,12 +96,12 @@ func Test_DBFVScheme(t *testing.T) {
 			//}
 
 			// Decryptors
-			decryptor_sk0, err := bfvContext.NewDecryptor(sk0, 1)
+			decryptor_sk0, err := bfvContext.NewDecryptor(sk0)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			decryptor_sk1, err := bfvContext.NewDecryptor(sk1, 1)
+			decryptor_sk1, err := bfvContext.NewDecryptor(sk1)
 			if err != nil {
 				log.Fatal(err)
 			}

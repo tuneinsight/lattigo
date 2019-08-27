@@ -7,20 +7,25 @@ import (
 	"math/bits"
 )
 
+// SecretKey is a structure that stores the secret-key
 type SecretKey struct {
 	sk *ring.Poly
 }
 
+// PublicKey is a structure that stores the public-key
 type PublicKey struct {
 	pk [2]*ring.Poly
 }
 
+// KeyGenerator is a structure that stores the elements required to create new keys,
+// as well as a small memory pool for intermediate values.
 type KeyGenerator struct {
 	bfvcontext *BfvContext
 	context    *ring.Context
 	polypool   *ring.Poly
 }
 
+// RotationKeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
 	bfvcontext       *BfvContext
 	bitDecomp        uint64
@@ -29,15 +34,18 @@ type RotationKeys struct {
 	evakey_rot_row   *SwitchingKey
 }
 
+// EvaluationKey is a structure that stores the switching-keys required during the relinearization.
 type EvaluationKey struct {
 	evakey []*SwitchingKey
 }
 
+// SwitchingKey is a structure that stores the switching-keys required during the key-switching.
 type SwitchingKey struct {
 	bitDecomp uint64
 	evakey    [][][2]*ring.Poly
 }
 
+// NewKeyGenerator creates a new KeyGenerator from the target bfvcontext.
 func (bfvcontext *BfvContext) NewKeyGenerator() (keygen *KeyGenerator) {
 	keygen = new(KeyGenerator)
 	keygen.bfvcontext = bfvcontext
@@ -46,6 +54,7 @@ func (bfvcontext *BfvContext) NewKeyGenerator() (keygen *KeyGenerator) {
 	return
 }
 
+// NewSecretKey creates a new secretkey with uniform distribution in [-1, 0, 1].
 func (keygen *KeyGenerator) NewSecretKey() *SecretKey {
 
 	sk := new(SecretKey)
@@ -54,14 +63,17 @@ func (keygen *KeyGenerator) NewSecretKey() *SecretKey {
 	return sk
 }
 
+// Get returns the polynomial of the target secret-key.
 func (sk *SecretKey) Get() *ring.Poly {
 	return sk.sk
 }
 
+// Set sets the polynomial of the target secret key as the input polynomial.
 func (sk *SecretKey) Set(poly *ring.Poly) {
 	sk.sk = poly.CopyNew()
 }
 
+// check_sk checks if the input secret-key complies with the keygenerator context.
 func (keygen *KeyGenerator) check_sk(sk_output *SecretKey) error {
 
 	if sk_output.Get().GetDegree() != int(keygen.context.N) {
@@ -75,13 +87,14 @@ func (keygen *KeyGenerator) check_sk(sk_output *SecretKey) error {
 	return nil
 }
 
-func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (*PublicKey, error) {
+// NewPublicKey generates a new publickkey from the provided secret-key
+func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err error) {
 
-	if err := keygen.check_sk(sk); err != nil {
+	if err = keygen.check_sk(sk); err != nil {
 		return nil, err
 	}
 
-	pk := new(PublicKey)
+	pk = new(PublicKey)
 
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
@@ -94,31 +107,27 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (*PublicKey, error) {
 	return pk, nil
 }
 
+// Get returns the polynomials of the public-key.
 func (pk *PublicKey) Get() [2]*ring.Poly {
 	return pk.pk
 }
 
+// Set sets the polynomial of the public-key as the input polynomials.
 func (pk *PublicKey) Set(p [2]*ring.Poly) {
 	pk.pk[0] = p[0].CopyNew()
 	pk.pk[1] = p[1].CopyNew()
 }
 
-func (keygen *KeyGenerator) SetPublicKey(p [2]*ring.Poly) (*PublicKey, error) {
-
-	pk := new(PublicKey)
-
-	pk.pk[0] = p[0].CopyNew()
-	pk.pk[1] = p[1].CopyNew()
-
-	return pk, nil
-}
-
+// NewKeyPair generates a new (secret-key, public-key) pair.
 func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey, err error) {
 	sk = keygen.NewSecretKey()
 	pk, err = keygen.NewPublicKey(sk)
 	return
 }
 
+// NewRelinKey generates a new evaluation key from the provided secret-key. It will be used to relinearize a ciphertext (encrypted under a public-key generated from the provided secret-key)
+// of degree > 1 to a ciphertext of degree 1. Max degree is the maximum degree of the ciphertext allowed to relinearize. Bitdecomp is the power of two binary decomposition of the key.
+// A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
 func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree, bitDecomp uint64) (newEvakey *EvaluationKey, err error) {
 
 	newEvakey = new(EvaluationKey)
@@ -133,13 +142,13 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree, bitDecomp uint
 	return newEvakey, nil
 }
 
+// Get returns the slice of switchingkeys of the evaluation-key.
 func (evk *EvaluationKey) Get() []*SwitchingKey {
 	return evk.evakey
 }
 
-func (keygen *KeyGenerator) SetRelinKeys(rlk [][][][2]*ring.Poly, bitDecomp uint64) (*EvaluationKey, error) {
-
-	newevakey := new(EvaluationKey)
+// SetRelinKeys sets the polynomial of the target evaluation-key as the input polynomials.
+func (newevakey *EvaluationKey) SetRelinKeys(rlk [][][][2]*ring.Poly, bitDecomp uint64) {
 
 	newevakey.evakey = make([]*SwitchingKey, len(rlk))
 	for i := range rlk {
@@ -154,10 +163,10 @@ func (keygen *KeyGenerator) SetRelinKeys(rlk [][][][2]*ring.Poly, bitDecomp uint
 			}
 		}
 	}
-
-	return newevakey, nil
 }
 
+// NewSwitchingKey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key. Bitdecomp
+// is the power of two binary decomposition of the key. A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
 func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitDecomp uint64) (newevakey *SwitchingKey, err error) {
 
 	if err = keygen.check_sk(sk_input); err != nil {
@@ -175,9 +184,12 @@ func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitD
 	return
 }
 
-func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint64, rotLeft []uint64, rotRight []uint64, conjugate bool) (rotKey *RotationKeys, err error) {
+// NewRotationKeys generates a new struct of rotationkeys storing the keys for the specified rotations. The provided secret-key must be the secret-key used to generate the public-key under
+// which the ciphertexts to rotate are encrypted under. Bitdecomp is the power of two binary decomposition of the key. A higher bigdecomp will induce smaller keys, faster key-switching,
+// but at the cost of more noise. rotLeft and rotRight must be a slice of uint64 rotations, row is a boolean value indicating if the key for the row rotation must be generated.
+func (keygen *KeyGenerator) NewRotationKeys(sk *SecretKey, bitDecomp uint64, rotLeft []uint64, rotRight []uint64, row bool) (rotKey *RotationKeys, err error) {
 
-	if err = keygen.check_sk(sk_output); err != nil {
+	if err = keygen.check_sk(sk); err != nil {
 		return nil, err
 	}
 
@@ -189,7 +201,7 @@ func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint
 		rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 		for _, n := range rotLeft {
 			if rotKey.evakey_rot_col_L[n] == nil && n != 0 {
-				rotKey.evakey_rot_col_L[n] = genrotkey(keygen, sk_output.Get(), keygen.bfvcontext.galElRotColLeft[n], bitDecomp)
+				rotKey.evakey_rot_col_L[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColLeft[n], bitDecomp)
 			}
 		}
 	}
@@ -198,22 +210,25 @@ func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint
 		rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 		for _, n := range rotRight {
 			if rotKey.evakey_rot_col_R[n] == nil && n != 0 {
-				rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk_output.Get(), keygen.bfvcontext.galElRotColRight[n], bitDecomp)
+				rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColRight[n], bitDecomp)
 			}
 		}
 	}
 
-	if conjugate {
-		rotKey.evakey_rot_row = genrotkey(keygen, sk_output.Get(), keygen.bfvcontext.galElRotRow, bitDecomp)
+	if row {
+		rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow, bitDecomp)
 	}
 
 	return rotKey, nil
 
 }
 
-func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, bitDecomp uint64, conjugate bool) (rotKey *RotationKeys, err error) {
+// NewRotationKeys generates a new struct of rotationkeys storing the keys of all the left and right powers of two rotations. The provided secret-key must be the secret-key used to generate the public-key under
+// which the ciphertexts to rotate are encrypted under. rows is a boolean value indicatig if the keys for the row rotation have to be generated. Bitdecomp is the power of two binary decomposition of the key.
+// A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
+func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey, bitDecomp uint64, row bool) (rotKey *RotationKeys, err error) {
 
-	if err = keygen.check_sk(sk_output); err != nil {
+	if err = keygen.check_sk(sk); err != nil {
 		return nil, err
 	}
 
@@ -226,27 +241,29 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, bitDecomp 
 
 	for n := uint64(1); n < rotKey.bfvcontext.n>>1; n <<= 1 {
 
-		rotKey.evakey_rot_col_L[n] = genrotkey(keygen, sk_output.Get(), keygen.bfvcontext.galElRotColLeft[n], bitDecomp)
-		rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk_output.Get(), keygen.bfvcontext.galElRotColRight[n], bitDecomp)
+		rotKey.evakey_rot_col_L[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColLeft[n], bitDecomp)
+		rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColRight[n], bitDecomp)
 	}
 
-	if conjugate {
-		rotKey.evakey_rot_row = genrotkey(keygen, sk_output.Get(), keygen.bfvcontext.galElRotRow, bitDecomp)
+	if row {
+		rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow, bitDecomp)
 	}
 
 	return
 }
 
-func genrotkey(keygen *KeyGenerator, sk_output *ring.Poly, gen, bitDecomp uint64) (switchingkey *SwitchingKey) {
+// genrotkey is a methode used in the rotation-keys generation.
+func genrotkey(keygen *KeyGenerator, sk *ring.Poly, gen, bitDecomp uint64) (switchingkey *SwitchingKey) {
 
-	ring.PermuteNTT(sk_output, gen, keygen.polypool)
-	keygen.context.Sub(keygen.polypool, sk_output, keygen.polypool)
-	switchingkey = newswitchingkey(keygen.bfvcontext, keygen.polypool, sk_output, bitDecomp)
+	ring.PermuteNTT(sk, gen, keygen.polypool)
+	keygen.context.Sub(keygen.polypool, sk, keygen.polypool)
+	switchingkey = newswitchingkey(keygen.bfvcontext, keygen.polypool, sk, bitDecomp)
 	keygen.polypool.Zero()
 
 	return
 }
 
+// newswitchingkey is a generic methode to generate key-switching keys used in the evaluation, key-switching and rotation-keys generation.
 func newswitchingkey(bfvcontext *BfvContext, sk_in, sk_out *ring.Poly, bitDecomp uint64) (switchingkey *SwitchingKey) {
 
 	if bitDecomp > bfvcontext.maxBit || bitDecomp == 0 {
@@ -283,7 +300,7 @@ func newswitchingkey(bfvcontext *BfvContext, sk_in, sk_out *ring.Poly, bitDecomp
 			// e + sk_in * (qiBarre*qiStar) * 2^w
 			// (qiBarre*qiStar)%qi = 1, else 0
 			for w := uint64(0); w < context.N; w++ {
-				switchingkey.evakey[i][j][0].Coeffs[i][w] += PowerOf2(sk_in.Coeffs[i][w], bitDecomp*j, qi, mredParams[i])
+				switchingkey.evakey[i][j][0].Coeffs[i][w] += ring.PowerOf2(sk_in.Coeffs[i][w], bitDecomp*j, qi, mredParams[i])
 			}
 
 			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e

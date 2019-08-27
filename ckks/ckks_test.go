@@ -88,19 +88,31 @@ func Test_CKKS(t *testing.T) {
 	test_Encoder(ckksTest, t)
 
 	test_EncryptDecrypt(ckksTest, t)
+
 	test_Add(ckksTest, t)
 	test_Sub(ckksTest, t)
+
 	test_AddConst(ckksTest, t)
 	test_MulConst(ckksTest, t)
 	test_MultByConstAndAdd(ckksTest, t)
+
 	test_ComplexOperations(ckksTest, t)
+
 	test_Rescaling(ckksTest, t)
 	test_Mul(ckksTest, t)
+
 	test_Functions(ckksTest, t)
+
 	test_SwitchKeys(ckksTest, t)
 	test_Conjugate(ckksTest, t)
 	test_RotColumns(ckksTest, t)
+
 	test_MarshalCiphertext(ckksTest, t)
+	test_MarshalSecretKey(ckksTest, t)
+	test_MarshalPublicKey(ckksTest, t)
+	test_MarshalEvaluationKey(ckksTest, t)
+	test_MarshalSwitchingKey(ckksTest, t)
+	test_MarshalRotationKey(ckksTest, t)
 
 
 }
@@ -1587,12 +1599,11 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_MarshalCiphertext(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/MarshalCiphertext", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MarshalCiphertext", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
-		values, _, ciphertext, err := new_test_vectors_reals(params, 0.1, 1)
+		_, _, ciphertext, err := new_test_vectors_reals(params, 0.1, 1)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -1602,17 +1613,191 @@ func test_MarshalCiphertext(params *CKKSTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		newCT := params.ckkscontext.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale())
-		newCT.SetScale(ciphertext.Scale())
+		newCT := params.ckkscontext.NewCiphertext(ciphertext.Degree(), ciphertext.Level(), 0)
 
 		err = newCT.UnMarshalBinary(b)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		if err := verify_test_vectors(params, values, newCT, t); err != nil {
-			log.Fatal(err)
+		if !params.ckkscontext.keyscontext.Equal(ciphertext.Value()[0], newCT.Value()[0]) {
+			t.Errorf("marshal binary ciphertext[0]")
+		}
+
+		if !params.ckkscontext.keyscontext.Equal(ciphertext.Value()[1], newCT.Value()[1]) {
+			t.Errorf("marshal binary ciphertext[1]")
 		}
 	})
 
 }
+
+func test_MarshalSecretKey(params *CKKSTESTPARAMS, t *testing.T) {
+
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MarshalSK", params.ckkscontext.logN,
+		params.ckkscontext.logQ,
+		params.ckkscontext.levels), func(t *testing.T) {
+
+		b, _ := params.sk.MarshalBinary(params.ckkscontext)
+
+		newSK := params.kgen.NewSecretKeyEmpty()
+		if err := newSK.UnMarshalBinary(b, params.ckkscontext); err != nil {
+			log.Fatal(err)
+		}
+
+		if !params.ckkscontext.keyscontext.Equal(params.sk.sk, newSK.sk) {
+			t.Errorf("marshal binary sk")
+		}
+	})
+}
+
+func test_MarshalPublicKey(params *CKKSTESTPARAMS, t *testing.T) {
+
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MarshalPK", params.ckkscontext.logN,
+		params.ckkscontext.logQ,
+		params.ckkscontext.levels), func(t *testing.T) {
+
+		b, _ := params.pk.MarshalBinary()
+
+		newPK := params.kgen.NewPublicKeyEmpty()
+		if err := newPK.UnMarshalBinary(b); err != nil {
+			log.Fatal(err)
+		}
+
+		if !params.ckkscontext.keyscontext.Equal(params.pk.pk[0], newPK.pk[0]) {
+			t.Errorf("marshal binary pk[0]")
+		}
+
+		if !params.ckkscontext.keyscontext.Equal(params.pk.pk[1], newPK.pk[1]) {
+			t.Errorf("marshal binary pk[1]")
+		}
+	})
+}
+
+func test_MarshalEvaluationKey(params *CKKSTESTPARAMS, t *testing.T) {
+
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MarshalRlk", params.ckkscontext.logN,
+		params.ckkscontext.logQ,
+		params.ckkscontext.levels), func(t *testing.T) {
+
+		b, _ := params.rlk.MarshalBinary()
+
+		newRlk := params.kgen.NewRelinKeyEmpty(params.rlk.evakey.bitDecomp)
+		if err := newRlk.UnMarshalBinary(b); err != nil {
+			log.Fatal(err)
+		}
+
+		for x := range newRlk.evakey.evakey {
+			for j := range newRlk.evakey.evakey[x] {
+				if !params.ckkscontext.keyscontext.Equal(newRlk.evakey.evakey[x][j][0], params.rlk.evakey.evakey[x][j][0]) {
+					t.Errorf("marshal binary rlk[0]")
+					break
+				}
+
+				if !params.ckkscontext.keyscontext.Equal(newRlk.evakey.evakey[x][j][1], params.rlk.evakey.evakey[x][j][1]) {
+					t.Errorf("marshal binary rlk[1]")
+					break
+				}
+			}
+		}
+	})
+}
+
+func test_MarshalSwitchingKey(params *CKKSTESTPARAMS, t *testing.T) {
+
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MarshalSwitchingKey", params.ckkscontext.logN,
+		params.ckkscontext.logQ,
+		params.ckkscontext.levels), func(t *testing.T) {
+
+		bitDecomp := uint64(15)
+
+		s1 := params.kgen.NewSecretKey()
+
+		switchkey, _ := params.kgen.NewSwitchingKey(params.sk, s1, bitDecomp)
+
+		b, _ := switchkey.MarshalBinary()
+
+		newSwKey := params.kgen.NewSwitchingKeyEmpty(bitDecomp)
+		if err := newSwKey.UnMarshalBinary(b); err != nil {
+			log.Fatal(err)
+		}
+
+		for x := range newSwKey.evakey {
+			for j := range newSwKey.evakey[x] {
+				if !params.ckkscontext.keyscontext.Equal(newSwKey.evakey[x][j][0], switchkey.evakey[x][j][0]) {
+					t.Errorf("marshal binary switchingkey[0]")
+					break
+				}
+
+				if !params.ckkscontext.keyscontext.Equal(newSwKey.evakey[x][j][1], switchkey.evakey[x][j][1]) {
+					t.Errorf("marshal binary switchingkey[1]")
+					break
+				}
+			}
+		}
+
+	})
+}
+
+func test_MarshalRotationKey(params *CKKSTESTPARAMS, t *testing.T) {
+
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MarshalRotKey", params.ckkscontext.logN,
+		params.ckkscontext.logQ,
+		params.ckkscontext.levels), func(t *testing.T) {
+
+		b, _ := params.rotkey.MarshalBinary()
+
+		newRotKey := params.kgen.NewRotationKeysEmpty()
+		if err := newRotKey.UnMarshalBinary(b); err != nil {
+			log.Fatal(err)
+		}
+
+		for i := range params.rotkey.evakey_rot_col_L {
+			for x := range params.rotkey.evakey_rot_col_L[i].evakey {
+				for j := range params.rotkey.evakey_rot_col_L[i].evakey[x] {
+					if !params.ckkscontext.keyscontext.Equal(params.rotkey.evakey_rot_col_L[i].evakey[x][j][0], newRotKey.evakey_rot_col_L[i].evakey[x][j][0]) {
+						t.Errorf("marshal binary rotkeyLeft[0]")
+						break
+					}
+
+					if !params.ckkscontext.keyscontext.Equal(params.rotkey.evakey_rot_col_L[i].evakey[x][j][1], newRotKey.evakey_rot_col_L[i].evakey[x][j][1]) {
+						t.Errorf("marshal binary rotkeyLeft[1]")
+						break
+					}
+				}
+			}
+		}
+
+		for i := range params.rotkey.evakey_rot_col_R {
+			for x := range params.rotkey.evakey_rot_col_R[i].evakey {
+				for j := range params.rotkey.evakey_rot_col_R[i].evakey[x] {
+					if !params.ckkscontext.keyscontext.Equal(params.rotkey.evakey_rot_col_R[i].evakey[x][j][0], newRotKey.evakey_rot_col_R[i].evakey[x][j][0]) {
+						t.Errorf("marshal binary rotkeyRight[0]")
+						break
+					}
+
+					if !params.ckkscontext.keyscontext.Equal(params.rotkey.evakey_rot_col_R[i].evakey[x][j][1], newRotKey.evakey_rot_col_R[i].evakey[x][j][1]) {
+						t.Errorf("marshal binary rotkeyRight[1]")
+						break
+					}
+				}
+			}
+		}
+
+		if params.rotkey.evakey_rot_row != nil {
+			for x := range params.rotkey.evakey_rot_row.evakey {
+				for j := range params.rotkey.evakey_rot_row.evakey[x] {
+					if !params.ckkscontext.keyscontext.Equal(params.rotkey.evakey_rot_row.evakey[x][j][0], newRotKey.evakey_rot_row.evakey[x][j][0]) {
+						t.Errorf("marshal binary rotkeyConjugate[0]")
+						break
+					}
+
+					if !params.ckkscontext.keyscontext.Equal(params.rotkey.evakey_rot_row.evakey[x][j][1], newRotKey.evakey_rot_row.evakey[x][j][1]) {
+						t.Errorf("marshal binary rotkeyConjugate[1]")
+						break
+					}
+				}
+			}
+		}
+	})
+}
+

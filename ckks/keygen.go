@@ -68,6 +68,12 @@ func (keygen *KeyGenerator) NewSecretKey() *SecretKey {
 	return sk
 }
 
+func (keygen *KeyGenerator) NewSecretKeyEmpty() *SecretKey {
+	sk := new(SecretKey)
+	sk.sk = keygen.context.NewPoly()
+	return sk
+}
+
 // Get returns the secret key value of the secret key.
 func (sk *SecretKey) Get() *ring.Poly {
 	return sk.sk
@@ -96,6 +102,15 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err erro
 	keygen.context.Neg(pk.pk[0], pk.pk[0])
 
 	return pk, nil
+}
+
+func (keygen *KeyGenerator) NewPublicKeyEmpty() (pk *PublicKey) {
+	pk = new(PublicKey)
+
+	pk.pk[0] = keygen.context.NewPoly()
+	pk.pk[1] = keygen.context.NewPoly()
+
+	return
 }
 
 // Get returns the value of the the public key.
@@ -134,6 +149,38 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, bitDecomp uint64) (evakey
 	return
 }
 
+func (keygen *KeyGenerator) NewRelinKeyEmpty(bitDecomp uint64) (evakey *EvaluationKey) {
+	evakey = new(EvaluationKey)
+	evakey.evakey = new(SwitchingKey)
+
+	if bitDecomp > keygen.ckkscontext.maxBit || bitDecomp == 0 {
+		bitDecomp = keygen.ckkscontext.maxBit
+	}
+
+	context := keygen.ckkscontext.keyscontext
+
+	evakey.evakey.bitDecomp = bitDecomp
+
+	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
+	var bitLog uint64
+
+	evakey.evakey.evakey = make([][][2]*ring.Poly, len(context.Modulus))
+
+	for i, qi := range context.Modulus {
+
+		bitLog = uint64(math.Ceil(float64(bits.Len64(qi)) / float64(bitDecomp)))
+
+		evakey.evakey.evakey[i] = make([][2]*ring.Poly, bitLog)
+
+		for j := uint64(0); j < bitLog; j++ {
+			evakey.evakey.evakey[i][j][0] = context.NewPoly()
+			evakey.evakey.evakey[i][j][1] = context.NewPoly()
+		}
+	}
+
+	return
+}
+
 func (keygen *KeyGenerator) SetRelinKeys(rlk [][][2]*ring.Poly, bitDecomp uint64) (*EvaluationKey, error) {
 
 	newevakey := new(EvaluationKey)
@@ -167,6 +214,37 @@ func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitD
 	keygen.context.Sub(sk_input.Get(), sk_output.Get(), keygen.polypool)
 	newevakey = newswitchingkey(keygen.ckkscontext, keygen.polypool, sk_output.Get(), bitDecomp)
 	keygen.polypool.Zero()
+
+	return
+}
+
+func (keygen *KeyGenerator) NewSwitchingKeyEmpty(bitDecomp uint64) (evakey *SwitchingKey) {
+	evakey = new(SwitchingKey)
+
+	if bitDecomp > keygen.ckkscontext.maxBit || bitDecomp == 0 {
+		bitDecomp = keygen.ckkscontext.maxBit
+	}
+
+	context := keygen.ckkscontext.keyscontext
+
+	evakey.bitDecomp = bitDecomp
+
+	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
+	var bitLog uint64
+
+	evakey.evakey = make([][][2]*ring.Poly, len(context.Modulus))
+
+	for i, qi := range context.Modulus {
+
+		bitLog = uint64(math.Ceil(float64(bits.Len64(qi)) / float64(bitDecomp)))
+
+		evakey.evakey[i] = make([][2]*ring.Poly, bitLog)
+
+		for j := uint64(0); j < bitLog; j++ {
+			evakey.evakey[i][j][0] = context.NewPoly()
+			evakey.evakey[i][j][1] = context.NewPoly()
+		}
+	}
 
 	return
 }
@@ -209,6 +287,17 @@ func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint
 	}
 
 	return rotKey, nil
+
+}
+
+// NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
+// Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
+func (keygen *KeyGenerator) NewRotationKeysEmpty() (rotKey *RotationKey) {
+
+	rotKey = new(RotationKey)
+	rotKey.ckkscontext = keygen.ckkscontext
+
+	return rotKey
 
 }
 

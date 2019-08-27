@@ -114,7 +114,7 @@ func new_test_vectors(params *CKKSTESTPARAMS, a, b float64) (values []complex128
 
 	plaintext = params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-	if err = plaintext.EncodeComplex(values); err != nil {
+	if err = plaintext.EncodeComplex(params.ckkscontext, values); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -140,7 +140,7 @@ func new_test_vectors_reals(params *CKKSTESTPARAMS, a, b float64) (values []comp
 
 	plaintext = params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-	if err = plaintext.EncodeComplex(values); err != nil {
+	if err = plaintext.EncodeComplex(params.ckkscontext, values); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -168,7 +168,7 @@ func verify_test_vectors(params *CKKSTESTPARAMS, valuesWant []complex128, elemen
 		}
 	}
 
-	valuesTest = plaintextTest.DecodeComplex()
+	valuesTest = plaintextTest.DecodeComplex(params.ckkscontext)
 
 	var DeltaReal0, DeltaImag0, DeltaReal1, DeltaImag1 float64
 
@@ -226,7 +226,7 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 
 		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-		if err := plaintext.EncodeFloat(valuesWant); err != nil {
+		if err := plaintext.EncodeFloat(params.ckkscontext, valuesWant); err != nil {
 			log.Fatal(err)
 		}
 
@@ -249,7 +249,7 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 
 		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-		if err := plaintext.EncodeComplex(valuesWant); err != nil {
+		if err := plaintext.EncodeComplex(params.ckkscontext, valuesWant); err != nil {
 			log.Fatal(err)
 		}
 
@@ -277,7 +277,7 @@ func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 
 		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-		if err = plaintext.EncodeComplex(valuesWant); err != nil {
+		if err = plaintext.EncodeComplex(params.ckkscontext, valuesWant); err != nil {
 			log.Fatal(err)
 		}
 
@@ -1382,7 +1382,7 @@ func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 
 		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-		if err := plaintext.EncodeComplex(valuesWant); err != nil {
+		if err := plaintext.EncodeComplex(params.ckkscontext, valuesWant); err != nil {
 			log.Fatal(err)
 		}
 
@@ -1412,7 +1412,7 @@ func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		valuesTest := plaintextTest.DecodeComplex()
+		valuesTest := plaintextTest.DecodeComplex(params.ckkscontext)
 
 		var DeltaReal0, DeltaImag0, DeltaReal1, DeltaImag1 float64
 

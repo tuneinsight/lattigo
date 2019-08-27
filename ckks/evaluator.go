@@ -155,10 +155,6 @@ func (evaluator *Evaluator) SubNoModNew(c0 CkksElement, c1 CkksElement) (cOut Ck
 
 func evaluateInPlace(evaluator *Evaluator, c0, c1, cOut CkksElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) (err error) {
 
-	if !checkContext([]CkksElement{c0, c1, cOut}) {
-		return errors.New("cannot evaluate -> input elements do not share the same ckkscontext")
-	}
-
 	var tmp0, tmp1 CkksElement // TODO : use evaluator mem pool
 
 	maxDegree := max([]uint64{c0.Degree(), c1.Degree()})
@@ -169,7 +165,7 @@ func evaluateInPlace(evaluator *Evaluator, c0, c1, cOut CkksElement, evaluate fu
 		return errors.New("cannot evaluate(c0, c1 cOut) -> cOut is a plaintext (or an invalid ciphertext of degree 0) while c1 and/or c2 are ciphertexts of degree >= 1")
 	} else {
 		// Else resizes the receiver element
-		cOut.Resize(maxDegree)
+		cOut.Resize(evaluator.ckkscontext, maxDegree)
 		evaluator.DropLevel(cOut, cOut.Level()-min([]uint64{c0.Level(), c1.Level()}))
 	}
 
@@ -266,10 +262,6 @@ func evaluateInPlace(evaluator *Evaluator, c0, c1, cOut CkksElement, evaluate fu
 
 func evaluateNew(c0 CkksElement, c1 CkksElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly), ckkscontext *CkksContext, level uint64) (cOut CkksElement, err error) {
 
-	if !checkContext([]CkksElement{c0, c1, cOut}) {
-		return nil, errors.New("cannot evaluate -> input elements do not share the same ckkscontext")
-	}
-
 	if c0.Degree() >= c1.Degree() {
 
 		cOut = c0.CopyNew()
@@ -292,10 +284,6 @@ func evaluateNew(c0 CkksElement, c1 CkksElement, evaluate func(*ring.Poly, *ring
 
 // Neg negates the input element and returns the result on the provided receiver element.
 func (evaluator *Evaluator) Neg(c0 CkksElement, cOut CkksElement) (err error) {
-
-	if !checkContext([]CkksElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
 
 	minlevel := min([]uint64{c0.Level(), cOut.Level()})
 
@@ -411,10 +399,6 @@ func (evaluator *Evaluator) RemoveRealNew(c0 *Ciphertext, evakey *RotationKey) (
 // Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
 func (evaluator *Evaluator) RemoveReal(c0 *Ciphertext, evakey *RotationKey, cOut *Ciphertext) (err error) {
 
-	if !checkContext([]CkksElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
-
 	if c0 != cOut {
 
 		if err = evaluator.Conjugate(c0, evakey, cOut); err != nil {
@@ -457,10 +441,6 @@ func (evaluator *Evaluator) RemoveImagNew(c0 *Ciphertext, evakey *RotationKey) (
 // Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
 func (evaluator *Evaluator) RemoveImag(c0 *Ciphertext, evakey *RotationKey, cOut *Ciphertext) (err error) {
 
-	if !checkContext([]CkksElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
-
 	if c0 != cOut {
 
 		if err = evaluator.Conjugate(c0, evakey, cOut); err != nil {
@@ -500,10 +480,6 @@ func (evaluator *Evaluator) AddConstNew(c0 CkksElement, constant interface{}) (c
 func (evaluator *Evaluator) AddConst(c0 CkksElement, constant interface{}, cOut CkksElement) (err error) {
 
 	var level uint64
-
-	if !checkContext([]CkksElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
 
 	if level, err = checkLevels([]CkksElement{c0, cOut}); err != nil {
 		return err
@@ -580,10 +556,6 @@ func (evaluator *Evaluator) AddConst(c0 CkksElement, constant interface{}, cOut 
 func (evaluator *Evaluator) MultByConstAndAdd(c0 CkksElement, constant interface{}, cOut CkksElement) (err error) {
 
 	var level uint64
-
-	if !checkContext([]CkksElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
 
 	level = min([]uint64{c0.Level(), cOut.Level()})
 
@@ -747,10 +719,6 @@ func (evaluator *Evaluator) MultConstNew(c0 CkksElement, constant interface{}) (
 func (evaluator *Evaluator) MultConst(c0 CkksElement, constant interface{}, cOut CkksElement) (err error) {
 
 	var level uint64
-
-	if !checkContext([]CkksElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
 
 	level = min([]uint64{c0.Level(), cOut.Level()})
 
@@ -1027,10 +995,6 @@ func (evaluator *Evaluator) ReduceNew(c0 CkksElement) (cOut CkksElement) {
 // To be used in conjonction with function not applying modular reduction.
 func (evaluator *Evaluator) Reduce(c0 CkksElement, cOut CkksElement) error {
 
-	if !checkContext([]CkksElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
-
 	if c0.Degree() != cOut.Degree() {
 		return errors.New("error : invalide ciphertext receiver (degree doesn't match c0.Degree")
 	}
@@ -1071,7 +1035,7 @@ func (evaluator *Evaluator) DropLevel(c0 CkksElement, levels uint64) error {
 	}
 
 	for i := uint64(0); i < levels; i++ {
-		c0.CurrentModulus().DivRound(c0.CurrentModulus(), ring.NewUint(c0.CkksContext().modulie[level-i]))
+		c0.CurrentModulus().DivRound(c0.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.modulie[level-i]))
 	}
 
 	return nil
@@ -1101,10 +1065,6 @@ func (evaluator *Evaluator) RescaleNew(c0 CkksElement) (cOut CkksElement, err er
 // some error.
 func (evaluator *Evaluator) Rescale(c0, c1 CkksElement) (err error) {
 
-	if !checkContext([]CkksElement{c0, c1}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
-
 	if c0.Level() != c1.Level() {
 		return errors.New("invalid receiver : ciphertexts not on the same level")
 	}
@@ -1125,7 +1085,7 @@ func (evaluator *Evaluator) Rescale(c0, c1 CkksElement) (err error) {
 
 		for c1.Scale() >= evaluator.ckkscontext.logScale+evaluator.ckkscontext.logQ && c1.Level() > 0 {
 
-			c1.CurrentModulus().DivRound(c1.CurrentModulus(), ring.NewUint(c1.CkksContext().modulie[c1.Level()]))
+			c1.CurrentModulus().DivRound(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.modulie[c1.Level()]))
 
 			for i := range c1.Value() {
 				rescale(evaluator, c1.Value()[i], c1.Value()[i])
@@ -1186,10 +1146,6 @@ func rescale(evaluator *Evaluator, p0, p1 *ring.Poly) {
 // the resulting ciphertext will be of degree two. This function only accepts plaintexts (degree zero) and/or ciphertexts of degree one.
 func (evaluator *Evaluator) MulRelinNew(ct0, ct1 CkksElement, evakey *EvaluationKey) (cOut CkksElement, err error) {
 
-	if !checkContext([]CkksElement{ct0, ct1}) {
-		return nil, errors.New("input elements are not using the same ckkscontext")
-	}
-
 	minlevel := min([]uint64{ct0.Level(), ct1.Level()})
 
 	if ct0.Degree()+ct1.Degree() == 0 {
@@ -1211,10 +1167,6 @@ func (evaluator *Evaluator) MulRelinNew(ct0, ct1 CkksElement, evakey *Evaluation
 // required when the two inputs elements are ciphertexts. If not evaluationkey is provided and the input elements are two ciphertexts,
 // the resulting ciphertext will be of degree two. This function only accepts plaintexts (degree zero) and/or ciphertexts of degree one.
 func (evaluator *Evaluator) MulRelin(ct0, ct1 CkksElement, evakey *EvaluationKey, cOut CkksElement) error {
-
-	if !checkContext([]CkksElement{ct0, ct1}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
 
 	minlevel := min([]uint64{ct0.Level(), ct1.Level()})
 
@@ -1267,7 +1219,7 @@ func (evaluator *Evaluator) MulRelin(ct0, ct1 CkksElement, evakey *EvaluationKey
 			// resizes the cipher text to a degree 2 ciphertext
 			if evakey == nil {
 
-				cOut.Resize(2)
+				cOut.Resize(evaluator.ckkscontext, 2)
 				c2 = cOut.Value()[2]
 
 				// If there is however an evaluation key, then
@@ -1312,7 +1264,7 @@ func (evaluator *Evaluator) MulRelin(ct0, ct1 CkksElement, evakey *EvaluationKey
 
 		} else { // Or copies the result on the output ciphertext if it was one of the inputs
 			if cOut == ct0 || cOut == ct1 {
-				cOut.Resize(2)
+				cOut.Resize(evaluator.ckkscontext, 2)
 				c0.Copy(cOut.Value()[0])
 				c1.Copy(cOut.Value()[1])
 				c2.Copy(cOut.Value()[2])
@@ -1371,7 +1323,7 @@ func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, 
 		cOut.SetScale(cIn.Scale())
 	}
 	switchKeys(evaluator, cIn.value[0], cIn.value[1], cIn.value[2], evakey.evakey, cOut)
-	cOut.Resize(1)
+	cOut.Resize(evaluator.ckkscontext, 1)
 
 	return nil
 }

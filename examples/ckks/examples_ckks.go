@@ -81,7 +81,7 @@ func chebyshevinterpolation() {
 
 	// Plaintext creation and encoding process
 	plaintext := ckkscontext.NewPlaintext(levels-1, scale)
-	if err = plaintext.EncodeComplex(values); err != nil {
+	if err = plaintext.EncodeComplex(ckkscontext, values); err != nil {
 		log.Fatal(err)
 	}
 
@@ -105,7 +105,7 @@ func chebyshevinterpolation() {
 	}
 
 	// Decoding process
-	valuesTest := plaintext.DecodeComplex()
+	valuesTest := plaintext.DecodeComplex(ckkscontext)
 
 	// Computation of the reference values
 	for i := range values {

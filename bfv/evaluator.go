@@ -42,7 +42,7 @@ func (bfvcontext *BfvContext) NewEvaluator() (*Evaluator, error) {
 // Requires a receiver of correct type and degree.
 func (evaluator *Evaluator) Add(c0, c1, cOut BfvElement) (err error) {
 
-	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.Add); err != nil {
+	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.Add, evaluator.bfvcontext); err != nil {
 		return err
 	}
 
@@ -53,7 +53,7 @@ func (evaluator *Evaluator) Add(c0, c1, cOut BfvElement) (err error) {
 // Requires a receiver of correct type and degree.
 func (evaluator *Evaluator) AddNoMod(c0, c1, cOut BfvElement) (err error) {
 
-	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.AddNoMod); err != nil {
+	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.AddNoMod, evaluator.bfvcontext); err != nil {
 		return err
 	}
 
@@ -86,7 +86,7 @@ func (evaluator *Evaluator) AddNoModNew(c0, c1 BfvElement) (cOut BfvElement, err
 // Requires a receiver of correct type and degree.
 func (evaluator *Evaluator) Sub(c0, c1, cOut BfvElement) (err error) {
 
-	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.Sub); err != nil {
+	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.Sub, evaluator.bfvcontext); err != nil {
 		return err
 	}
 
@@ -97,7 +97,7 @@ func (evaluator *Evaluator) Sub(c0, c1, cOut BfvElement) (err error) {
 // Requires a receiver of correct type and degree.
 func (evaluator *Evaluator) SubNoMod(c0, c1, cOut BfvElement) (err error) {
 
-	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.SubNoMod); err != nil {
+	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.SubNoMod, evaluator.bfvcontext); err != nil {
 		return err
 	}
 
@@ -127,11 +127,7 @@ func (evaluator *Evaluator) SubNoModNew(c0, c1 BfvElement) (cOut BfvElement, err
 }
 
 // evaluateInPlace applies the provided function in place on c0 and c1 and returns the result in cOut
-func evaluateInPlace(c0, c1, cOut BfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) (err error) {
-
-	if !checkContext([]BfvElement{c0, c1, cOut}) {
-		return errors.New("cannot evaluate -> input elements do not share the same ckkscontext")
-	}
+func evaluateInPlace(c0, c1, cOut BfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly), bfvcontext *BfvContext) (err error) {
 
 	maxDegree := max([]uint64{c0.Degree(), c1.Degree()})
 	minDegree := min([]uint64{c0.Degree(), c1.Degree()})
@@ -141,7 +137,7 @@ func evaluateInPlace(c0, c1, cOut BfvElement, evaluate func(*ring.Poly, *ring.Po
 		return errors.New("cannot evaluate(c0, c1 cOut) -> cOut is a plaintext (or an invalid ciphertext of degree 0) while c1 and/or c2 are ciphertexts of degree >= 1")
 	} else {
 		// Else resizes the receiver element
-		cOut.Resize(maxDegree)
+		cOut.Resize(bfvcontext, maxDegree)
 	}
 
 	for i := uint64(0); i < minDegree+1; i++ {
@@ -167,10 +163,6 @@ func evaluateInPlace(c0, c1, cOut BfvElement, evaluate func(*ring.Poly, *ring.Po
 // evaluateNew applies the provided function on c0 and c1 and returns the result on a new element cOut.
 func evaluateNew(c0, c1 BfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly), bfvcontext *BfvContext) (cOut BfvElement, err error) {
 
-	if !checkContext([]BfvElement{c0, c1, cOut}) {
-		return nil, errors.New("cannot evaluate -> input elements do not share the same ckkscontext")
-	}
-
 	if c0.Degree() >= c1.Degree() {
 
 		cOut = c0.CopyNew()
@@ -194,10 +186,6 @@ func evaluateNew(c0, c1 BfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.
 // Neg negates the input element.
 // Requiers a receiver of the correct type and degree.
 func (evaluator *Evaluator) Neg(c0, cOut BfvElement) error {
-
-	if !checkContext([]BfvElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
 
 	if c0.Degree() != cOut.Degree() {
 		return errors.New("error : invalid receiver ciphertext (degree not equal to input ciphertext")
@@ -231,10 +219,6 @@ func (evaluator *Evaluator) NegNew(c0 BfvElement) (cOut BfvElement) {
 // Requires a receiver element of the correct type and degree.
 func (evaluator *Evaluator) Reduce(c0, cOut BfvElement) error {
 
-	if !checkContext([]BfvElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
-
 	if c0.Degree() != cOut.Degree() {
 		return errors.New("error : invalide ciphertext receiver (degree doesn't match c0.Degree")
 	}
@@ -265,10 +249,6 @@ func (evaluator *Evaluator) ReduceNew(c0 BfvElement) (cOut BfvElement) {
 // Requirese a receiver of the correct type and degree.
 func (evaluator *Evaluator) MulScalar(c0 BfvElement, scalar uint64, cOut BfvElement) error {
 
-	if !checkContext([]BfvElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
-
 	if c0.Degree() != cOut.Degree() {
 		return errors.New("error : invalide ciphertext receiver (degree doesn't match c0.Degree")
 	}
@@ -298,10 +278,6 @@ func (evaluator *Evaluator) MulScalarNew(c0 BfvElement, scalar uint64) (cOut Bfv
 // Mul multiplies the first element by the second element.
 // Requirese a receiver of the correct type and degree.
 func (evaluator *Evaluator) Mul(c0, c1, cOut BfvElement) (err error) {
-
-	if !checkContext([]BfvElement{c0, cOut}) {
-		return errors.New("input elements are not using the same ckkscontext")
-	}
 
 	tensorAndRescale(evaluator, c0.Value(), c1.Value(), cOut.Value())
 
@@ -432,9 +408,9 @@ func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingK
 	} else {
 		c2 = cIn.Value()[1]
 	}
-	cIn.NTT(cOut)
+	cIn.NTT(evaluator.bfvcontext, cOut)
 	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], c2, switchingKey, cOut)
-	cOut.InvNTT(cOut)
+	cOut.InvNTT(evaluator.bfvcontext, cOut)
 
 	return nil
 }
@@ -447,9 +423,9 @@ func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *Switchi
 
 	cOut := evaluator.bfvcontext.NewCiphertext(1)
 
-	cIn.NTT(cOut)
+	cIn.NTT(evaluator.bfvcontext, cOut)
 	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], cIn.Value()[1], switchingKey, cOut)
-	cOut.InvNTT(cOut)
+	cOut.InvNTT(evaluator.bfvcontext, cOut)
 
 	return cOut, nil
 }

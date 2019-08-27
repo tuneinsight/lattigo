@@ -10,7 +10,6 @@ type Ciphertext BigPoly
 // NewCiphertext creates a new ciphertext of degree n
 func (bfvcontext *BfvContext) NewCiphertext(degree uint64) *Ciphertext {
 	ciphertext := new(Ciphertext)
-	ciphertext.bfvcontext = bfvcontext
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
 		ciphertext.value[i] = bfvcontext.contextQ.NewPoly()
@@ -23,8 +22,6 @@ func (bfvcontext *BfvContext) NewCiphertext(degree uint64) *Ciphertext {
 // NewCiphertext creates a new ciphertext of degree n
 func (bfvcontext *BfvContext) NewCiphertextBig(degree uint64) *Ciphertext {
 	ciphertext := new(Ciphertext)
-	ciphertext.bfvcontext = bfvcontext
-
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
 		ciphertext.value[i] = bfvcontext.contextQP.NewPoly()
@@ -36,8 +33,6 @@ func (bfvcontext *BfvContext) NewCiphertextBig(degree uint64) *Ciphertext {
 
 func (bfvcontext *BfvContext) NewRandomCiphertext(degree uint64) *Ciphertext {
 	ciphertext := new(Ciphertext)
-	ciphertext.bfvcontext = bfvcontext
-
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
 		ciphertext.value[i] = bfvcontext.contextQ.NewUniformPoly()
@@ -45,10 +40,6 @@ func (bfvcontext *BfvContext) NewRandomCiphertext(degree uint64) *Ciphertext {
 	ciphertext.isNTT = false
 
 	return ciphertext
-}
-
-func (ctx *Ciphertext) BfvContext() *BfvContext {
-	return ctx.bfvcontext
 }
 
 func (ctx *Ciphertext) Value() []*ring.Poly {
@@ -63,12 +54,12 @@ func (ctx *Ciphertext) Degree() uint64 {
 	return uint64(len(ctx.value) - 1)
 }
 
-func (ctx *Ciphertext) Resize(degree uint64) {
+func (ctx *Ciphertext) Resize(bfvcontext *BfvContext, degree uint64) {
 	if ctx.Degree() > degree {
 		ctx.value = ctx.value[:degree]
 	} else if ctx.Degree() < degree {
 		for ctx.Degree() < degree {
-			ctx.value = append(ctx.value, []*ring.Poly{ctx.bfvcontext.contextQ.NewPoly()}...)
+			ctx.value = append(ctx.value, []*ring.Poly{bfvcontext.contextQ.NewPoly()}...)
 		}
 	}
 }
@@ -90,7 +81,6 @@ func (ctx *Ciphertext) CopyNew() BfvElement {
 	for i := range ctx.value {
 		ctxCopy.value[i] = ctx.value[i].CopyNew()
 	}
-	ctxCopy.bfvcontext = ctx.bfvcontext
 	ctxCopy.isNTT = ctx.isNTT
 
 	return ctxCopy
@@ -98,10 +88,6 @@ func (ctx *Ciphertext) CopyNew() BfvElement {
 
 // Copies the value of the ciphertext on a reciever ciphertext of the same format
 func (ctx *Ciphertext) Copy(ctxCopy BfvElement) error {
-
-	if !checkContext([]BfvElement{ctx, ctxCopy}) {
-		return errors.New("input ciphertext are not using the same bfvcontext")
-	}
 
 	for i := range ctxCopy.Value() {
 		ctxCopy.Value()[i].Copy(ctx.Value()[i])
@@ -111,26 +97,26 @@ func (ctx *Ciphertext) Copy(ctxCopy BfvElement) error {
 	return nil
 }
 
-func (ctx *Ciphertext) NTT(c BfvElement) error {
+func (ctx *Ciphertext) NTT(bfvcontext *BfvContext, c BfvElement) error {
 	if ctx.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}
 	if ctx.IsNTT() != true {
 		for i := range ctx.value {
-			ctx.bfvcontext.contextQ.NTT(ctx.Value()[i], c.Value()[i])
+			bfvcontext.contextQ.NTT(ctx.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(true)
 	}
 	return nil
 }
 
-func (ctx *Ciphertext) InvNTT(c BfvElement) error {
+func (ctx *Ciphertext) InvNTT(bfvcontext *BfvContext,c BfvElement) error {
 	if ctx.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}
 	if ctx.IsNTT() != false {
 		for i := range ctx.value {
-			ctx.bfvcontext.contextQ.InvNTT(ctx.Value()[i], c.Value()[i])
+			bfvcontext.contextQ.InvNTT(ctx.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(false)
 	}

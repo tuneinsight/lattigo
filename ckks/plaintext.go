@@ -16,7 +16,6 @@ type Plaintext BigPoly
 // NewPlaintext creates a new plaintext of level level and scale scale.
 func (ckkscontext *CkksContext) NewPlaintext(level uint64, scale uint64) *Plaintext {
 	plaintext := new(Plaintext)
-	plaintext.ckkscontext = ckkscontext
 	plaintext.value = []*ring.Poly{ckkscontext.contextLevel[level].NewPoly()}
 	plaintext.scale = scale
 	plaintext.currentModulus = ring.Copy(ckkscontext.contextLevel[level].ModulusBigint)
@@ -35,18 +34,8 @@ func (P *Plaintext) SetValue(value []*ring.Poly) {
 }
 
 // Resize does nothing on a plaintext since it is always of degree 0.
-func (P *Plaintext) Resize(degree uint64) {
+func (P *Plaintext) Resize(ckkscontext *CkksContext, degree uint64) {
 
-}
-
-// CkksContext returns the ckkscontext of the plaintext.
-func (P *Plaintext) CkksContext() *CkksContext {
-	return P.ckkscontext
-}
-
-// SetCkksContext assigns a new ckkscontext to the plaintext.
-func (P *Plaintext) SetCkksContext(ckkscontext *CkksContext) {
-	P.ckkscontext = ckkscontext
 }
 
 // CurrentModulus returns the current modulus of the plaintext.
@@ -94,11 +83,11 @@ func (P *Plaintext) SetIsNTT(isNTT bool) {
 
 // NTT applies the NTT transform to a plaintext and returns the result on the receiver element.
 // Can only be used if the plaintext is not already in the NTT domain.
-func (P *Plaintext) NTT(ct0 CkksElement) {
+func (P *Plaintext) NTT(ckkscontext *CkksContext, ct0 CkksElement) {
 
 	if P.isNTT != true {
 		for i := range ct0.Value() {
-			P.ckkscontext.contextLevel[P.Level()].NTT(P.value[i], ct0.Value()[i])
+			ckkscontext.contextLevel[P.Level()].NTT(P.value[i], ct0.Value()[i])
 		}
 		ct0.SetIsNTT(true)
 	}
@@ -106,11 +95,11 @@ func (P *Plaintext) NTT(ct0 CkksElement) {
 
 // InvNTT applies the inverse NTT transform to a plaintext and returns the result on the receiver element.
 // Can only be used it the plaintext is in the NTT domain
-func (P *Plaintext) InvNTT(ct0 CkksElement) {
+func (P *Plaintext) InvNTT(ckkscontext *CkksContext,ct0 CkksElement) {
 
 	if P.isNTT != false {
 		for i := range ct0.Value() {
-			P.ckkscontext.contextLevel[P.Level()].InvNTT(P.value[i], ct0.Value()[i])
+			ckkscontext.contextLevel[P.Level()].InvNTT(P.value[i], ct0.Value()[i])
 		}
 		ct0.SetIsNTT(false)
 	}
@@ -118,138 +107,126 @@ func (P *Plaintext) InvNTT(ct0 CkksElement) {
 
 // CopyNew creates a new plaintext with the same value and same parameters.
 func (P *Plaintext) CopyNew() CkksElement {
-
 	PCopy := new(Plaintext)
-
 	PCopy.value = make([]*ring.Poly, 1)
 	PCopy.value[0] = P.value[0].CopyNew()
-	PCopy.ckkscontext = P.ckkscontext
 	P.CopyParams(PCopy)
-
 	return PCopy
 }
 
 // Copy copies the value and parameters of the reference plaintext ot the receiver plaintext.
 func (P *Plaintext) Copy(PCopy CkksElement) error {
-
-	if !checkContext([]CkksElement{P, PCopy}) {
-		return errors.New("input ciphertext are not using the same ckkscontext")
-	}
-
 	P.value[0].Copy(PCopy.Value()[0])
-
 	P.CopyParams(PCopy)
-
 	return nil
 }
 
 // CopyParams copies the parameters of the reference plaintext to the receiver plaintext.
 func (P *Plaintext) CopyParams(ckkselement CkksElement) {
-
 	ckkselement.SetCurrentModulus(P.CurrentModulus())
 	ckkselement.SetScale(P.Scale())
 	ckkselement.SetIsNTT(P.IsNTT())
 }
 
 // EncodeFloat encode a float64 slice of at most N/2 values.
-func (plaintext *Plaintext) EncodeFloat(coeffs []float64) error {
+func (plaintext *Plaintext) EncodeFloat(ckkscontext *CkksContext, coeffs []float64) error {
 
-	if len(coeffs) > (len(plaintext.ckkscontext.indexMatrix)>>1)/int(plaintext.ckkscontext.gap) {
+	if len(coeffs) > (len(ckkscontext.indexMatrix)>>1)/int(ckkscontext.gap) {
 		return errors.New("error : invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
-	if len(plaintext.value[0].Coeffs[0]) != len(plaintext.ckkscontext.indexMatrix) {
+	if len(plaintext.value[0].Coeffs[0]) != len(ckkscontext.indexMatrix) {
 		return errors.New("error : invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
 	}
 
-	values := make([]complex128, len(coeffs)*int(plaintext.ckkscontext.gap))
+	values := make([]complex128, len(coeffs)*int(ckkscontext.gap))
 
 	for i := range coeffs {
 
-		values[i*int(plaintext.ckkscontext.gap)] = complex(coeffs[i], 0)
+		values[i*int(ckkscontext.gap)] = complex(coeffs[i], 0)
 
-		for j := 0; j < int(plaintext.ckkscontext.gap)-1; j++ {
-			values[i*int(plaintext.ckkscontext.gap)+j+1] = complex(0, 0)
+		for j := 0; j < int(ckkscontext.gap)-1; j++ {
+			values[i*int(ckkscontext.gap)+j+1] = complex(0, 0)
 		}
 
 	}
 
-	encodeFromComplex(values, plaintext)
+	encodeFromComplex(values, plaintext, ckkscontext)
 
 	return nil
 }
 
 // EncodeFloat encode a complex128 slice of at most N/2 values.
-func (plaintext *Plaintext) EncodeComplex(coeffs []complex128) error {
+func (plaintext *Plaintext) EncodeComplex(ckkscontext *CkksContext, coeffs []complex128) error {
 
-	if len(coeffs) > (len(plaintext.ckkscontext.indexMatrix)>>1)/int(plaintext.ckkscontext.gap) {
+	if len(coeffs) > (len(ckkscontext.indexMatrix)>>1)/int(ckkscontext.gap) {
 		return errors.New("error : invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
-	if len(plaintext.value[0].Coeffs[0]) != len(plaintext.ckkscontext.indexMatrix) {
+	if len(plaintext.value[0].Coeffs[0]) != len(ckkscontext.indexMatrix) {
 		return errors.New("error : invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
 	}
 
-	values := make([]complex128, len(coeffs)*int(plaintext.ckkscontext.gap))
+	values := make([]complex128, len(coeffs)*int(ckkscontext.gap))
 
 	for i := range coeffs {
-		values[i*int(plaintext.ckkscontext.gap)] = coeffs[i]
+		values[i*int(ckkscontext.gap)] = coeffs[i]
 
-		for j := 0; j < int(plaintext.ckkscontext.gap)-1; j++ {
-			values[i*int(plaintext.ckkscontext.gap)+j+1] = complex(0, 0)
+		for j := 0; j < int(ckkscontext.gap)-1; j++ {
+			values[i*int(ckkscontext.gap)+j+1] = complex(0, 0)
 		}
 
 	}
 
-	encodeFromComplex(values, plaintext)
+	encodeFromComplex(values, plaintext, ckkscontext)
 
 	return nil
 }
 
 // DecodeFloat decodes the plaintext to a slice of float64 values of size at most N/2.
-func (plaintext *Plaintext) DecodeFloat() (res []float64) {
+func (plaintext *Plaintext) DecodeFloat(ckkscontext *CkksContext) (res []float64) {
 
-	values := decodeToComplex(plaintext.value[0], plaintext.currentModulus, plaintext.ckkscontext.contextLevel[plaintext.Level()], plaintext.ckkscontext.roots, plaintext.scale)
+	values := decodeToComplex(plaintext.value[0], plaintext.currentModulus, ckkscontext.contextLevel[plaintext.Level()], ckkscontext.roots, plaintext.scale)
 
-	res = make([]float64, int(plaintext.ckkscontext.slots)/int(plaintext.ckkscontext.gap))
+	res = make([]float64, int(ckkscontext.slots)/int(ckkscontext.gap))
 
 	for i := range res {
-		res[i] = real(values[plaintext.ckkscontext.indexMatrix[i*int(plaintext.ckkscontext.gap)]])
+		res[i] = real(values[ckkscontext.indexMatrix[i*int(ckkscontext.gap)]])
 	}
 
 	return
 }
 
 // DecodeFloat decodes the plaintext to a slice of complex128 values of size at most N/2.
-func (plaintext *Plaintext) DecodeComplex() (res []complex128) {
+func (plaintext *Plaintext) DecodeComplex(ckkscontext *CkksContext) (res []complex128) {
 
-	values := decodeToComplex(plaintext.value[0], plaintext.currentModulus, plaintext.ckkscontext.contextLevel[plaintext.Level()], plaintext.ckkscontext.roots, plaintext.scale)
+	values := decodeToComplex(plaintext.value[0], plaintext.currentModulus, ckkscontext.contextLevel[plaintext.Level()], ckkscontext.roots, plaintext.scale)
 
-	res = make([]complex128, int(plaintext.ckkscontext.slots)/int(plaintext.ckkscontext.gap))
+	res = make([]complex128, int(ckkscontext.slots)/int(ckkscontext.gap))
 
 	for i := range res {
-		res[i] = values[plaintext.ckkscontext.indexMatrix[i*int(plaintext.ckkscontext.gap)]]
+		res[i] = values[ckkscontext.indexMatrix[i*int(ckkscontext.gap)]]
 	}
 
 	return
 }
 
-func encodeFromComplex(coeffs []complex128, plaintext *Plaintext) {
+func encodeFromComplex(coeffs []complex128, plaintext *Plaintext, ckkscontext *CkksContext) {
 
-	values := make([]complex128, plaintext.ckkscontext.n)
+	values := make([]complex128, ckkscontext.n)
 
 	for i := 0; i < len(coeffs); i++ {
-		values[plaintext.ckkscontext.indexMatrix[i]] = coeffs[i]
-		values[plaintext.ckkscontext.indexMatrix[i+int(plaintext.ckkscontext.slots)]] = cmplx.Conj(coeffs[i])
+		values[ckkscontext.indexMatrix[i]] = coeffs[i]
+		values[ckkscontext.indexMatrix[i+int(ckkscontext.slots)]] = cmplx.Conj(coeffs[i])
 	}
 
-	invfft(values, plaintext.ckkscontext.inv_roots)
+	invfft(values, ckkscontext.inv_roots)
 
-	for i, qi := range plaintext.ckkscontext.modulie {
+	for i, qi := range ckkscontext.modulie {
 
-		for j := uint64(0); j < plaintext.ckkscontext.n; j++ {
+		for j := uint64(0); j < ckkscontext.n; j++ {
 
-			tmp := real(values[j]) / float64(plaintext.ckkscontext.n)
+			tmp := real(values[j]) / float64(ckkscontext.n)
 
 			if tmp != 0 {
 				plaintext.value[0].Coeffs[i][j] = scaleUp(tmp, plaintext.scale, qi)
@@ -259,7 +236,7 @@ func encodeFromComplex(coeffs []complex128, plaintext *Plaintext) {
 		}
 	}
 
-	plaintext.ckkscontext.contextLevel[plaintext.Level()].NTT(plaintext.value[0], plaintext.value[0])
+	ckkscontext.contextLevel[plaintext.Level()].NTT(plaintext.value[0], plaintext.value[0])
 }
 
 func decodeToComplex(pol *ring.Poly, Q *ring.Int, context *ring.Context, roots []complex128, scale uint64) (values []complex128) {

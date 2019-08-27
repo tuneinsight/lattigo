@@ -28,23 +28,6 @@ func VerifyHash(hash0, hash1 []byte) bool {
 	}
 }
 
-func checkContext(inputs []BfvElement) bool {
-
-	var value []byte
-
-	value = inputs[0].BfvContext().checksum
-
-	for i := range inputs[1:] {
-
-		if res := VerifyHash(value, inputs[i].BfvContext().checksum); res != true {
-			return false
-		}
-
-	}
-
-	return true
-}
-
 func EqualSlice(a, b []uint64) bool {
 
 	if len(a) != len(b) {

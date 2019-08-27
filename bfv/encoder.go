@@ -66,11 +66,11 @@ func (batchencoder *BatchEncoder) EncodeUint(coeffs []uint64, plaintext *Plainte
 		plaintext.value[0].Coeffs[0][batchencoder.indexMatrix[i]] = 0
 	}
 
-	if err := plaintext.EMB(); err != nil {
+	if err := plaintext.EMB(batchencoder.bfvcontext); err != nil {
 		return err
 	}
 
-	plaintext.Lift()
+	plaintext.Lift(batchencoder.bfvcontext)
 
 	return nil
 }
@@ -88,7 +88,7 @@ func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext
 	for i := 0; i < len(coeffs); i++ {
 
 		if coeffs[i] < 0 {
-			plaintext.value[0].Coeffs[0][batchencoder.indexMatrix[i]] = uint64(int64(plaintext.bfvcontext.t) + coeffs[i])
+			plaintext.value[0].Coeffs[0][batchencoder.indexMatrix[i]] = uint64(int64(batchencoder.bfvcontext.t) + coeffs[i])
 		} else {
 			plaintext.value[0].Coeffs[0][batchencoder.indexMatrix[i]] = uint64(coeffs[i])
 		}
@@ -98,11 +98,11 @@ func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext
 		plaintext.value[0].Coeffs[0][batchencoder.indexMatrix[i]] = 0
 	}
 
-	if err := plaintext.EMB(); err != nil {
+	if err := plaintext.EMB(batchencoder.bfvcontext); err != nil {
 		return err
 	}
 
-	plaintext.Lift()
+	plaintext.Lift(batchencoder.bfvcontext)
 
 	return nil
 }
@@ -165,24 +165,26 @@ func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) ([]int64, erro
 type IntEncoder struct {
 	base         int64
 	simplescaler *ring.SimpleScaler
+	bfvcontext   *BfvContext
 }
 
 func (bfvcontext *BfvContext) NewIntEncoder(base int64) *IntEncoder {
 	encoder := new(IntEncoder)
 	encoder.base = base
+	encoder.bfvcontext = bfvcontext
 	encoder.simplescaler, _ = ring.NewSimpleScaler(bfvcontext.t, bfvcontext.contextQ)
 	return encoder
 }
 
 func (encoder *IntEncoder) Encode(msg int64, plaintext *Plaintext) {
-	plaintext.value[0].Coeffs[0] = intEncode(msg, encoder.base, int64(plaintext.bfvcontext.t), plaintext.value[0].Coeffs[0])
-	plaintext.Lift()
+	plaintext.value[0].Coeffs[0] = intEncode(msg, encoder.base, int64(encoder.bfvcontext.t), plaintext.value[0].Coeffs[0])
+	plaintext.Lift(encoder.bfvcontext)
 }
 
 func (encoder *IntEncoder) Decode(plaintext *Plaintext) int64 {
-	tmp := plaintext.bfvcontext.contextQ.NewPoly()
+	tmp := encoder.bfvcontext.contextQ.NewPoly()
 	encoder.simplescaler.Scale(plaintext.value[0], tmp)
-	return intDecode(tmp.Coeffs[0], encoder.base, int64(plaintext.bfvcontext.t))
+	return intDecode(tmp.Coeffs[0], encoder.base, int64(encoder.bfvcontext.t))
 }
 
 // Encodes an integer on a ring F given a base W.

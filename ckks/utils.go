@@ -120,23 +120,6 @@ func checkLevels(inputs []CkksElement) (uint64, error) {
 	return levels[0], nil
 }
 
-func checkContext(inputs []CkksElement) bool {
-
-	var value []byte
-
-	value = inputs[0].CkksContext().checksum
-
-	for i := range inputs[1:] {
-
-		if res := VerifyHash(value, inputs[i].CkksContext().checksum); res != true {
-			return false
-		}
-
-	}
-
-	return true
-}
-
 func GenerateNTTPrime(logQ, logN uint64) (uint64, error) {
 
 	if logQ > 62 {

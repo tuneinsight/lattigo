@@ -55,7 +55,7 @@ func Test_DBFVScheme(t *testing.T) {
 	}
 
 	plaintextWant := ckkscontext.NewPlaintext(levels-1, logScale)
-	if err = plaintextWant.EncodeComplex(coeffsWant); err != nil {
+	if err = plaintextWant.EncodeComplex(ckkscontext, coeffsWant); err != nil {
 		log.Fatal(err)
 	}
 
@@ -220,7 +220,7 @@ func Test_DBFVScheme(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		verify_test_vectors(decryptor_sk0, coeffsMul, ciphertextTest, t)
+		verify_test_vectors(ckkscontext, decryptor_sk0, coeffsMul, ciphertextTest, t)
 
 	})
 
@@ -243,7 +243,7 @@ func Test_DBFVScheme(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		verify_test_vectors(decryptor_sk0, coeffsMul, ciphertextTest, t)
+		verify_test_vectors(ckkscontext, decryptor_sk0, coeffsMul, ciphertextTest, t)
 	})
 
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKG", parties, logN, logQ, levels, logScale), func(t *testing.T) {
@@ -293,7 +293,7 @@ func Test_DBFVScheme(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		verify_test_vectors(decryptor_sk0, coeffsWant, ciphertextTest, t)
+		verify_test_vectors(ckkscontext, decryptor_sk0, coeffsWant, ciphertextTest, t)
 
 	})
 
@@ -329,7 +329,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 		for i := uint64(0); i < parties; i++ {
 
-			verify_test_vectors(decryptor_sk1, coeffsWant, ciphertexts[i], t)
+			verify_test_vectors(ckkscontext, decryptor_sk1, coeffsWant, ciphertexts[i], t)
 		}
 	})
 
@@ -361,7 +361,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 		for i := uint64(0); i < parties; i++ {
 
-			verify_test_vectors(decryptor_sk1, coeffsWant, ciphertexts[i], t)
+			verify_test_vectors(ckkscontext, decryptor_sk1, coeffsWant, ciphertexts[i], t)
 
 		}
 	})
@@ -424,7 +424,7 @@ func test_EKG_Protocol(parties uint64, ekgProtocols []*EkgProtocol, sk []*ckks.S
 	return collectiveEvaluationKey
 }
 
-func verify_test_vectors(decryptor *ckks.Decryptor, valuesWant []complex128, element ckks.CkksElement, t *testing.T) (err error) {
+func verify_test_vectors(ckkscontext *ckks.CkksContext, decryptor *ckks.Decryptor, valuesWant []complex128, element ckks.CkksElement, t *testing.T) (err error) {
 
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128
@@ -440,7 +440,7 @@ func verify_test_vectors(decryptor *ckks.Decryptor, valuesWant []complex128, ele
 		}
 	}
 
-	valuesTest = plaintextTest.DecodeComplex()
+	valuesTest = plaintextTest.DecodeComplex(ckkscontext)
 
 	var DeltaReal0, DeltaImag0, DeltaReal1, DeltaImag1 float64
 

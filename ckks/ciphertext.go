@@ -11,12 +11,10 @@ type Ciphertext BigPoly
 // NewCiphertext creates a new ciphertext parametised by degree, level and scale.
 func (ckkscontext *CkksContext) NewCiphertext(degree uint64, level uint64, scale uint64) *Ciphertext {
 	ciphertext := new(Ciphertext)
-	ciphertext.ckkscontext = ckkscontext
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
 		ciphertext.value[i] = ckkscontext.contextLevel[level].NewPoly()
 	}
-
 	ciphertext.scale = scale
 	ciphertext.currentModulus = ring.Copy(ckkscontext.contextLevel[level].ModulusBigint)
 	ciphertext.isNTT = true
@@ -36,24 +34,14 @@ func (ctx *Ciphertext) SetValue(value []*ring.Poly) {
 
 // Resize resize the degree of a ciphertext, by allocating or removing polynomial.
 // To be used to format a receiver of the wrong degree to a receiver of the correct degree.
-func (ctx *Ciphertext) Resize(degree uint64) {
+func (ctx *Ciphertext) Resize(ckkscontext *CkksContext, degree uint64) {
 	if ctx.Degree() > degree {
 		ctx.value = ctx.value[:degree+1]
 	} else if ctx.Degree() < degree {
 		for ctx.Degree() < degree {
-			ctx.value = append(ctx.value, []*ring.Poly{ctx.ckkscontext.contextLevel[ctx.Level()].NewPoly()}...)
+			ctx.value = append(ctx.value, []*ring.Poly{ckkscontext.contextLevel[ctx.Level()].NewPoly()}...)
 		}
 	}
-}
-
-// CkksContext returns the ckkscontext of the ciphertext.
-func (ctx *Ciphertext) CkksContext() *CkksContext {
-	return ctx.ckkscontext
-}
-
-// Set CkksContext assign a new ckkscontext to the ciphertext.
-func (ctx *Ciphertext) SetCkksContext(ckkscontext *CkksContext) {
-	ctx.ckkscontext = ckkscontext
 }
 
 // CurrentModulus returns the current modulus of the ciphertext.
@@ -104,11 +92,11 @@ func (ctx *Ciphertext) SetIsNTT(isNTT bool) {
 
 // NTT computes the NTT of the ciphertext and copies it on the receiver element.
 // Can only be used if the reference ciphertext is not already in the NTT domain.
-func (ctx *Ciphertext) NTT(ct0 CkksElement) {
+func (ctx *Ciphertext) NTT(ckkscontext *CkksContext, ct0 CkksElement) {
 
 	if ctx.isNTT != true {
 		for i := range ct0.Value() {
-			ctx.ckkscontext.contextLevel[ctx.Level()].NTT(ctx.value[i], ct0.Value()[i])
+			ckkscontext.contextLevel[ctx.Level()].NTT(ctx.value[i], ct0.Value()[i])
 		}
 		ct0.SetIsNTT(true)
 	}
@@ -116,11 +104,11 @@ func (ctx *Ciphertext) NTT(ct0 CkksElement) {
 
 // InvNTT computes the inverse NTT of the ciphertext and copies it on the receiver element.
 // Can only be used if the reference ciphertext is in the NTT domain.
-func (ctx *Ciphertext) InvNTT(ct0 CkksElement) {
+func (ctx *Ciphertext) InvNTT(ckkscontext *CkksContext, ct0 CkksElement) {
 
 	if ctx.isNTT != false {
 		for i := range ct0.Value() {
-			ctx.ckkscontext.contextLevel[ctx.Level()].InvNTT(ctx.value[i], ct0.Value()[i])
+			ckkscontext.contextLevel[ctx.Level()].InvNTT(ctx.value[i], ct0.Value()[i])
 		}
 		ct0.SetIsNTT(false)
 	}
@@ -129,7 +117,6 @@ func (ctx *Ciphertext) InvNTT(ct0 CkksElement) {
 // NewRandoMCiphertext generates a new uniformely distributed ciphertext of degree, level and scale.
 func (ckkscontext *CkksContext) NewRandomCiphertext(degree, level, scale uint64) *Ciphertext {
 	ciphertext := new(Ciphertext)
-	ciphertext.ckkscontext = ckkscontext
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -153,7 +140,7 @@ func (ctx *Ciphertext) CopyNew() CkksElement {
 	for i := range ctx.value {
 		ctxCopy.value[i] = ctx.value[i].CopyNew()
 	}
-	ctxCopy.ckkscontext = ctx.ckkscontext
+
 	ctx.CopyParams(ctxCopy)
 
 	return ctxCopy
@@ -161,12 +148,6 @@ func (ctx *Ciphertext) CopyNew() CkksElement {
 
 // Copy copies the reference ciphertext and its parameters on the receiver ciphertext.
 func (ctx *Ciphertext) Copy(ctxCopy CkksElement) error {
-
-	if !checkContext([]CkksElement{ctx, ctxCopy}) {
-		return errors.New("input ciphertext are not using the same ckkscontext")
-	}
-
-	ctxCopy.Resize(ctx.Degree())
 
 	for i := range ctxCopy.Value() {
 		ctx.value[i].Copy(ctxCopy.Value()[i])

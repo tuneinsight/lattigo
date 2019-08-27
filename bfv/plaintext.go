@@ -15,8 +15,6 @@ type Plaintext BigPoly
 func (bfvcontext *BfvContext) NewPlaintext() *Plaintext {
 
 	plaintext := new(Plaintext)
-
-	plaintext.bfvcontext = bfvcontext
 	plaintext.value = []*ring.Poly{bfvcontext.contextQ.NewPoly()}
 	plaintext.isNTT = false
 
@@ -31,29 +29,25 @@ func (bfvcontext *BfvContext) NewRandomPlaintextCoeffs() (coeffs []uint64) {
 	return
 }
 
-func (P *Plaintext) SetCoefficientsInt64(coeffs []int64) {
+func (P *Plaintext) SetCoefficientsInt64(bfvcontext *BfvContext, coeffs []int64) {
 	for i, coeff := range coeffs {
-		for j := range P.bfvcontext.contextQ.Modulus {
-			P.value[0].Coeffs[j][i] = uint64((coeff%int64(P.bfvcontext.t))+int64(P.bfvcontext.t)) % P.bfvcontext.t
+		for j := range bfvcontext.contextQ.Modulus {
+			P.value[0].Coeffs[j][i] = uint64((coeff%int64(bfvcontext.t))+int64(bfvcontext.t)) % bfvcontext.t
 		}
 	}
 }
 
-func (P *Plaintext) SetCoefficientsUint64(coeffs []uint64) {
+func (P *Plaintext) SetCoefficientsUint64(bfvcontext *BfvContext, coeffs []uint64) {
 
 	for i, coeff := range coeffs {
-		for j := range P.bfvcontext.contextQ.Modulus {
-			P.value[0].Coeffs[j][i] = coeff % P.bfvcontext.t
+		for j := range bfvcontext.contextQ.Modulus {
+			P.value[0].Coeffs[j][i] = coeff % bfvcontext.t
 		}
 	}
 }
 
 func (P *Plaintext) GetCoefficients() [][]uint64 {
 	return P.value[0].GetCoefficients()
-}
-
-func (P *Plaintext) BfvContext() *BfvContext {
-	return P.bfvcontext
 }
 
 func (P *Plaintext) Value() []*ring.Poly {
@@ -76,88 +70,88 @@ func (P *Plaintext) Degree() uint64 {
 	return uint64(len(P.value) - 1)
 }
 
-func (P *Plaintext) Lift() {
-	context := P.bfvcontext.contextQ
-	for j := uint64(0); j < P.bfvcontext.n; j++ {
+func (P *Plaintext) Lift(bfvcontext *BfvContext) {
+	context := bfvcontext.contextQ
+	for j := uint64(0); j < bfvcontext.n; j++ {
 		for i := len(context.Modulus) - 1; i >= 0; i-- {
-			P.value[0].Coeffs[i][j] = ring.MRed(P.value[0].Coeffs[0][j], P.bfvcontext.DeltaMont[i], context.Modulus[i], context.GetMredParams()[i])
+			P.value[0].Coeffs[i][j] = ring.MRed(P.value[0].Coeffs[0][j], bfvcontext.DeltaMont[i], context.Modulus[i], context.GetMredParams()[i])
 		}
 	}
 }
 
-func (P *Plaintext) Resize(degree uint64) {
+func (P *Plaintext) Resize(bfvcontext *BfvContext, degree uint64) {
 	if P.Degree() > degree {
 		P.value = P.value[:degree]
 	} else if P.Degree() < degree {
 		for P.Degree() < degree {
-			P.value = append(P.value, []*ring.Poly{P.bfvcontext.contextQ.NewPoly()}...)
+			P.value = append(P.value, []*ring.Poly{bfvcontext.contextQ.NewPoly()}...)
 		}
 	}
 }
 
-func (P *Plaintext) Add(p0, p1 *Plaintext) {
-	P.bfvcontext.contextT.Add(p0.value[0], p1.value[0], P.value[0])
+func (P *Plaintext) Add(bfvcontext *BfvContext, p0, p1 *Plaintext) {
+	bfvcontext.contextT.Add(p0.value[0], p1.value[0], P.value[0])
 }
 
-func (P *Plaintext) Sub(p0, p1 *Plaintext) {
-	P.bfvcontext.contextT.Sub(p0.value[0], p1.value[0], P.value[0])
+func (P *Plaintext) Sub(bfvcontext *BfvContext, p0, p1 *Plaintext) {
+	bfvcontext.contextT.Sub(p0.value[0], p1.value[0], P.value[0])
 }
 
-func (P *Plaintext) Mul(p0, p1 *Plaintext) {
+func (P *Plaintext) Mul(bfvcontext *BfvContext, p0, p1 *Plaintext) {
 
 	// Checks if the plaintext contexts has been validated (allowing NTT)
 	// Else performe the multiplication with a naive convolution
 
-	if P.bfvcontext.contextT.IsValidated() {
-		P.bfvcontext.contextT.MulPoly(p0.value[0], p1.value[0], P.value[0])
+	if bfvcontext.contextT.IsValidated() {
+		bfvcontext.contextT.MulPoly(p0.value[0], p1.value[0], P.value[0])
 	} else {
-		P.bfvcontext.contextT.MulPolyNaive(p0.value[0], p1.value[0], P.value[0])
+		bfvcontext.contextT.MulPolyNaive(p0.value[0], p1.value[0], P.value[0])
 	}
 }
 
-func (P *Plaintext) NTT(p BfvElement) error {
+func (P *Plaintext) NTT(bfvcontext *BfvContext, p BfvElement) error {
 	if P.Degree() != p.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}
 	if P.IsNTT() != true {
 		for i := range P.value {
-			P.bfvcontext.contextQ.NTT(P.Value()[i], p.Value()[i])
+			bfvcontext.contextQ.NTT(P.Value()[i], p.Value()[i])
 		}
 		p.SetIsNTT(true)
 	}
 	return nil
 }
 
-func (P *Plaintext) InvNTT(p BfvElement) error {
+func (P *Plaintext) InvNTT(bfvcontext *BfvContext, p BfvElement) error {
 	if P.Degree() != p.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}
 	if P.IsNTT() != false {
 		for i := range P.value {
-			P.bfvcontext.contextQ.InvNTT(P.Value()[i], p.Value()[i])
+			bfvcontext.contextQ.InvNTT(P.Value()[i], p.Value()[i])
 		}
 		p.SetIsNTT(false)
 	}
 	return nil
 }
 
-func (P *Plaintext) EMBInv() error {
+func (P *Plaintext) EMBInv(bfvcontext *BfvContext) error {
 
-	if P.bfvcontext.contextT.IsValidated() != true {
+	if bfvcontext.contextT.IsValidated() != true {
 		return errors.New("plaintext context doesn't allow a valid NTT")
 	}
 
-	P.bfvcontext.contextT.NTT(P.value[0], P.value[0])
+	bfvcontext.contextT.NTT(P.value[0], P.value[0])
 
 	return nil
 }
 
-func (P *Plaintext) EMB() error {
-	if P.bfvcontext.contextT.IsValidated() != true {
+func (P *Plaintext) EMB(bfvcontext *BfvContext) error {
+	if bfvcontext.contextT.IsValidated() != true {
 		return errors.New("plaintext context doesn't allow a valid InvNTT")
 	}
 
-	P.bfvcontext.contextT.InvNTT(P.value[0], P.value[0])
+	bfvcontext.contextT.InvNTT(P.value[0], P.value[0])
 
 	return nil
 }
@@ -171,7 +165,7 @@ func (P *Plaintext) CopyNew() BfvElement {
 	for i := range P.value {
 		PCopy.value[i] = P.value[i].CopyNew()
 	}
-	PCopy.bfvcontext = P.bfvcontext
+
 	PCopy.isNTT = P.isNTT
 
 	return PCopy
@@ -179,10 +173,6 @@ func (P *Plaintext) CopyNew() BfvElement {
 
 // Copies the value of the ciphertext on a reciever ciphertext of the same format
 func (P *Plaintext) Copy(PCopy BfvElement) error {
-
-	if !checkContext([]BfvElement{P, PCopy}) {
-		return errors.New("input ciphertext are not using the same bfvcontext")
-	}
 
 	for i := range P.value {
 		PCopy.Value()[i].Copy(P.Value()[i])

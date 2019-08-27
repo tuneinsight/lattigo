@@ -1605,7 +1605,7 @@ func test_MarshalCiphertext(params *CKKSTESTPARAMS, t *testing.T) {
 		newCT := params.ckkscontext.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale())
 		newCT.SetScale(ciphertext.Scale())
 
-		err = newCT.UnmarshalBinary(b)
+		err = newCT.UnMarshalBinary(b)
 		if err != nil {
 			log.Fatal(err)
 		}

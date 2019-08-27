@@ -1,9 +1,7 @@
 package ckks
 
 import (
-	"errors"
 	"github.com/lca1/lattigo/ring"
-	"math/bits"
 )
 
 type Ciphertext BigPoly
@@ -166,62 +164,3 @@ func (ctx *Ciphertext) CopyParams(ckkselement CkksElement) {
 	ckkselement.SetIsNTT(ctx.IsNTT())
 }
 
-// MarshalBinary converts a ciphertext to an array of bytes
-func (ctx *Ciphertext) MarshalBinary() ([]byte, error) {
-	var err error
-
-	N := uint64(len(ctx.value[0].Coeffs[0]))
-	numberModuli := uint64(len(ctx.value[0].Coeffs))
-	degree := uint64(len(ctx.value))
-
-	if numberModuli > 0xFF {
-		return nil, errors.New("error : ciphertext numberModuli overflows uint8")
-	}
-
-	if degree > 0xFF {
-		return nil, errors.New("error : ciphertext degree overflows uint8")
-	}
-
-	data := make([]byte, 3+((N*numberModuli*degree)<<3))
-
-	data[0] = uint8(bits.Len64(uint64(N)) - 1)
-	data[1] = uint8(numberModuli)
-	data[2] = uint8(degree)
-
-	pointer := uint64(3)
-
-	for i := uint64(0); i < degree; i++ {
-		if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, ctx.value[i].Coeffs, data); err != nil {
-			return nil, err
-		}
-	}
-
-	return data, nil
-}
-
-// UnmarshalBinary converts an array of bytes to a ciphertext
-func (ctx *Ciphertext) UnmarshalBinary(data []byte) error {
-
-	N := uint64(1 << data[0])
-	numberModuli := uint64(data[1])
-	degree := uint64(data[2])
-
-	ctx.value = make([]*ring.Poly, degree)
-
-	for i := uint64(0); i < degree; i++ {
-		ctx.value[i] = new(ring.Poly)
-		ctx.value[i].Coeffs = make([][]uint64, numberModuli)
-	}
-
-	pointer := uint64(3)
-
-	if ((uint64(len(data)) - pointer) >> 3) != N*numberModuli*degree {
-		return errors.New("error : invalid PublicKey encoding")
-	}
-
-	for x := uint64(0); x < degree; x++ {
-		pointer, _ = ring.DecodeCoeffs(pointer, N, numberModuli, ctx.value[x].Coeffs, data)
-	}
-
-	return nil
-}

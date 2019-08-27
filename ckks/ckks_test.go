@@ -84,7 +84,6 @@ func Test_CKKS(t *testing.T) {
 
 	ckksTest.evaluator = ckksTest.ckkscontext.NewEvaluator()
 
-
 	test_Encoder(ckksTest, t)
 
 	test_EncryptDecrypt(ckksTest, t)
@@ -113,7 +112,6 @@ func Test_CKKS(t *testing.T) {
 	test_MarshalEvaluationKey(ckksTest, t)
 	test_MarshalSwitchingKey(ckksTest, t)
 	test_MarshalRotationKey(ckksTest, t)
-
 
 }
 
@@ -1490,15 +1488,14 @@ func test_Conjugate(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 
-	slots := uint64(1 << (params.ckkscontext.logN - 1))
-	mask := (params.ckkscontext.n >> 1) - 1
+	mask := params.ckkscontext.slots - 1
 
 	values, plaintext, ciphertext, err := new_test_vectors_reals(params, 0.1, 1)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	valuesWant := make([]complex128, params.ckkscontext.n>>1)
+	valuesWant := make([]complex128, params.ckkscontext.slots)
 
 	plaintextTest := params.ckkscontext.NewPlaintext(ciphertext.Level(), ciphertext.Scale())
 	ciphertextTest := params.ckkscontext.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale())
@@ -1509,10 +1506,10 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 		params.ckkscontext.levels,
 		params.ckkscontext.logPrecision), func(t *testing.T) {
 
-		for n := uint64(1); n < params.ckkscontext.n>>1; n <<= 1 {
+		for n := uint64(1); n < params.ckkscontext.slots; n <<= 1 {
 
 			// Applies the column rotation to the values
-			for i := uint64(0); i < uint64(slots); i++ {
+			for i := uint64(0); i < params.ckkscontext.slots; i++ {
 				valuesWant[i] = values[(i+n)&mask]
 			}
 
@@ -1531,12 +1528,12 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 		params.ckkscontext.levels,
 		params.ckkscontext.logPrecision), func(t *testing.T) {
 
-		for n := uint64(1); n < params.ckkscontext.n>>1; n <<= 1 {
+		for n := uint64(1); n < params.ckkscontext.slots; n <<= 1 {
 
-			rand := ring.RandUniform(params.ckkscontext.n >> 1)
+			rand := ring.RandUniform(params.ckkscontext.slots, mask)
 
 			// Applies the column rotation to the values
-			for i := uint64(0); i < uint64(slots); i++ {
+			for i := uint64(0); i < params.ckkscontext.slots; i++ {
 				valuesWant[i] = values[(i+rand)&mask]
 			}
 
@@ -1555,10 +1552,10 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 		params.ckkscontext.levels,
 		params.ckkscontext.logPrecision), func(t *testing.T) {
 
-		for n := uint64(1); n < params.ckkscontext.n>>1; n <<= 1 {
+		for n := uint64(1); n < params.ckkscontext.slots; n <<= 1 {
 
 			// Applies the column rotation to the values
-			for i := uint64(0); i < uint64(slots); i++ {
+			for i := uint64(0); i < params.ckkscontext.slots; i++ {
 				valuesWant[i] = values[(i+n)&mask]
 			}
 
@@ -1577,12 +1574,12 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 		params.ckkscontext.levels,
 		params.ckkscontext.logPrecision), func(t *testing.T) {
 
-		for n := uint64(1); n < params.ckkscontext.n>>1; n <<= 1 {
+		for n := uint64(1); n < params.ckkscontext.slots; n <<= 1 {
 
-			rand := ring.RandUniform(params.ckkscontext.n >> 1)
+			rand := ring.RandUniform(params.ckkscontext.slots, params.ckkscontext.slots-1)
 
 			// Applies the column rotation to the values
-			for i := uint64(0); i < uint64(slots); i++ {
+			for i := uint64(0); i < params.ckkscontext.slots; i++ {
 				valuesWant[i] = values[(i+rand)&mask]
 			}
 
@@ -1800,4 +1797,3 @@ func test_MarshalRotationKey(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 }
-

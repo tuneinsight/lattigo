@@ -1,22 +1,21 @@
 package ckks
 
-import(
+import (
 	"errors"
-	"math/cmplx"
-	"math/bits"
 	"github.com/lca1/lattigo/ring"
+	"math/bits"
+	"math/cmplx"
 )
 
 type Encoder struct {
-	ckkscontext *CkksContext
-	values []complex128
+	ckkscontext   *CkksContext
+	values        []complex128
 	bigint_coeffs []*ring.Int
-	q_half *ring.Int
-	polypool *ring.Poly
+	q_half        *ring.Int
+	polypool      *ring.Poly
 }
 
-
-func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder){
+func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
 	encoder = new(Encoder)
 	encoder.ckkscontext = ckkscontext
 	encoder.values = make([]complex128, ckkscontext.n)
@@ -47,18 +46,17 @@ func preprocessFloat(coeffs []float64, encoder *Encoder) {
 	for i := 0; i < len(coeffs); i++ {
 
 		encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap)]] = complex(coeffs[i], 0)
-		encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap) + int(encoder.ckkscontext.slots)]] = complex(coeffs[i], 0)
-
+		encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap)+int(encoder.ckkscontext.slots)]] = complex(coeffs[i], 0)
 
 		for j := 0; j < int(encoder.ckkscontext.gap)-1; j++ {
-			encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap) + j + 1]] = complex(0, 0)
-			encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap) + int(encoder.ckkscontext.slots) + j + 1]] = complex(0, 0)
+			encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap)+j+1]] = complex(0, 0)
+			encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap)+int(encoder.ckkscontext.slots)+j+1]] = complex(0, 0)
 		}
 	}
 
-	for i := len(coeffs)*int(encoder.ckkscontext.gap) ; i < int(encoder.ckkscontext.slots) ; i++ {
+	for i := len(coeffs) * int(encoder.ckkscontext.gap); i < int(encoder.ckkscontext.slots); i++ {
 		encoder.values[encoder.ckkscontext.indexMatrix[i]] = complex(0, 0)
-		encoder.values[encoder.ckkscontext.indexMatrix[i + int(encoder.ckkscontext.slots)]] = complex(0, 0)
+		encoder.values[encoder.ckkscontext.indexMatrix[i+int(encoder.ckkscontext.slots)]] = complex(0, 0)
 	}
 
 	return
@@ -160,18 +158,17 @@ func preprocessCmplx(coeffs []complex128, encoder *Encoder) {
 	for i := 0; i < len(coeffs); i++ {
 
 		encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap)]] = coeffs[i]
-		encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap) + int(encoder.ckkscontext.slots)]] = cmplx.Conj(coeffs[i])
-
+		encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap)+int(encoder.ckkscontext.slots)]] = cmplx.Conj(coeffs[i])
 
 		for j := 0; j < int(encoder.ckkscontext.gap)-1; j++ {
-			encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap) + j + 1]] = complex(0, 0)
-			encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap) + int(encoder.ckkscontext.slots) + j + 1]] = complex(0, 0)
+			encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap)+j+1]] = complex(0, 0)
+			encoder.values[encoder.ckkscontext.indexMatrix[i*int(encoder.ckkscontext.gap)+int(encoder.ckkscontext.slots)+j+1]] = complex(0, 0)
 		}
 	}
 
-	for i := len(coeffs)*int(encoder.ckkscontext.gap) ; i < int(encoder.ckkscontext.slots) ; i++ {
+	for i := len(coeffs) * int(encoder.ckkscontext.gap); i < int(encoder.ckkscontext.slots); i++ {
 		encoder.values[encoder.ckkscontext.indexMatrix[i]] = complex(0, 0)
-		encoder.values[encoder.ckkscontext.indexMatrix[i + int(encoder.ckkscontext.slots)]] = complex(0, 0)
+		encoder.values[encoder.ckkscontext.indexMatrix[i+int(encoder.ckkscontext.slots)]] = complex(0, 0)
 	}
 
 	return
@@ -183,7 +180,7 @@ func invfft(values, inv_roots []complex128) {
 	var u, v, psi complex128
 
 	logN = uint64(bits.Len64(uint64(len(values))) - 1)
-	N = 1<<logN
+	N = 1 << logN
 
 	t = 1
 
@@ -212,7 +209,7 @@ func invfft(values, inv_roots []complex128) {
 		t <<= 1
 	}
 
-	for i := uint64(0) ; i < N ; i++ {
+	for i := uint64(0); i < N; i++ {
 		values[i] /= complex(float64(N), 0)
 	}
 }

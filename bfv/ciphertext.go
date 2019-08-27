@@ -110,7 +110,7 @@ func (ctx *Ciphertext) NTT(bfvcontext *BfvContext, c BfvElement) error {
 	return nil
 }
 
-func (ctx *Ciphertext) InvNTT(bfvcontext *BfvContext,c BfvElement) error {
+func (ctx *Ciphertext) InvNTT(bfvcontext *BfvContext, c BfvElement) error {
 	if ctx.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/lca1/lattigo/bfv"
 	"github.com/lca1/lattigo/ring"
 	"log"
+	"math/bits"
 )
 
 var N uint64
@@ -67,13 +68,14 @@ func Plaintext_Batching() {
 	fmt.Println()
 
 	maxvalue := uint64(880)
+	mask := uint64(1<<uint64(bits.Len64(maxvalue))) - 1
 
 	//			       (i, x, y)
-	Driver1 := []int64{0, int64(ring.RandUniform(maxvalue)), int64(ring.RandUniform(maxvalue))}
-	Driver2 := []int64{1, int64(ring.RandUniform(maxvalue)), int64(ring.RandUniform(maxvalue))}
-	Driver3 := []int64{2, int64(ring.RandUniform(maxvalue)), int64(ring.RandUniform(maxvalue))}
-	Driver4 := []int64{3, int64(ring.RandUniform(maxvalue)), int64(ring.RandUniform(maxvalue))}
-	Rider := []int64{int64(ring.RandUniform(maxvalue)), int64(ring.RandUniform(maxvalue))}
+	Driver1 := []int64{0, int64(ring.RandUniform(maxvalue, mask)), int64(ring.RandUniform(maxvalue, mask))}
+	Driver2 := []int64{1, int64(ring.RandUniform(maxvalue, mask)), int64(ring.RandUniform(maxvalue, mask))}
+	Driver3 := []int64{2, int64(ring.RandUniform(maxvalue, mask)), int64(ring.RandUniform(maxvalue, mask))}
+	Driver4 := []int64{3, int64(ring.RandUniform(maxvalue, mask)), int64(ring.RandUniform(maxvalue, mask))}
+	Rider := []int64{int64(ring.RandUniform(maxvalue, mask)), int64(ring.RandUniform(maxvalue, mask))}
 
 	coeffsD1 := []int64{0, 0, 0, 0, 0, 0, 0, 0}
 	coeffsD2 := []int64{0, 0, 0, 0, 0, 0, 0, 0}
@@ -275,12 +277,12 @@ func Homomorphic_Inner_product() {
 	var tmp0, tmp1, sign1, sign2 int64
 
 	for i := int64(0); i < 784; i++ {
-		tmp0 = int64(ring.RandUniform(2))
-		tmp1 = int64(ring.RandUniform(2))
+		tmp0 = int64(ring.RandUniform(2, 3))
+		tmp1 = int64(ring.RandUniform(2, 3))
 		sign1 = (tmp0 * -1) ^ (tmp0 ^ 1)
 		sign2 = (tmp1 * -1) ^ (tmp1 ^ 1)
-		coeffsD1[i] = int64(ring.RandUniform(500000)) * sign1
-		coeffsD2[i] = int64(ring.RandUniform(500000)) * sign2
+		coeffsD1[i] = int64(ring.RandUniform(500000, 0x7ffff)) * sign1
+		coeffsD2[i] = int64(ring.RandUniform(500000, 0x7ffff)) * sign2
 	}
 
 	fmt.Printf("a : [")

@@ -92,7 +92,7 @@ func (P *Plaintext) NTT(ckkscontext *CkksContext, ct0 CkksElement) {
 
 // InvNTT applies the inverse NTT transform to a plaintext and returns the result on the receiver element.
 // Can only be used it the plaintext is in the NTT domain
-func (P *Plaintext) InvNTT(ckkscontext *CkksContext,ct0 CkksElement) {
+func (P *Plaintext) InvNTT(ckkscontext *CkksContext, ct0 CkksElement) {
 
 	if P.isNTT != false {
 		for i := range ct0.Value() {

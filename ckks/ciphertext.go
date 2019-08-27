@@ -163,4 +163,3 @@ func (ctx *Ciphertext) CopyParams(ckkselement CkksElement) {
 	ckkselement.SetScale(ctx.Scale())
 	ckkselement.SetIsNTT(ctx.IsNTT())
 }
-

@@ -291,16 +291,12 @@ func test_Marshaler(context *Context, t *testing.T) {
 
 func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 
-	context.NewGaussPoly(sigma)
-
 	bound := int(sigma * 6)
 	KYS := context.NewKYSampler(sigma, bound)
 	pol := context.NewPoly()
 
 	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/NewGaussPoly", context.N, len(context.Modulus), 60), func(t *testing.T) {
 		KYS.Sample(pol)
-		context.NewUniformPoly()
-		context.NewTernaryPoly()
 	})
 }
 

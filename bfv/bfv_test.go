@@ -105,7 +105,7 @@ func test_EncodeDecode(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			plaintext := bfvcontext.NewPlaintext()
 
 			//Generates a base between 2 and T/2
-			base = int64(ring.RandUniform(256) % (T >> 1))
+			base = int64(ring.RandUniform(256, 255) % (T >> 1))
 			if base < 2 {
 				base = 2
 			}
@@ -113,10 +113,10 @@ func test_EncodeDecode(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			encoder := bfvcontext.NewIntEncoder(base)
 
 			//Generates a value which can fit in the ring given the base
-			value = int64(ring.RandUniform(0xFFFFFFFF))
+			value = int64(ring.RandUniform(0xFFFFFFFF+1, 0xFFFFFFFF))
 
 			if T != 2 {
-				sign = uint32(ring.RandUniform(2) & 1)
+				sign = uint32(ring.RandUniform(2, 3) & 1)
 				if sign&1 == 1 {
 					value *= -1
 				}
@@ -1097,7 +1097,7 @@ func test_GaloisEnd(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 
 		for n := uint64(1); n < bfvContext.n>>1; n <<= 2 {
 
-			rand := ring.RandUniform(mask + 1)
+			rand := ring.RandUniform(mask+1, mask)
 
 			for i := uint64(0); i < slots; i++ {
 				coeffsWantRotateCol.Coeffs[0][i] = coeffs.Coeffs[0][(i+rand)&mask]

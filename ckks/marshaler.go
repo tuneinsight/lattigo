@@ -186,7 +186,7 @@ func (pk *PublicKey) UnMarshalBinary(data []byte) error {
 		return errors.New("error : invalid publickey[1] receiver (level do not match data)")
 	}
 
-	if ((uint64(len(data)) - pointer) >> 4) != (N*levels) {
+	if ((uint64(len(data)) - pointer) >> 4) != (N * levels) {
 		return errors.New("error : invalid PublicKey encoding")
 	}
 

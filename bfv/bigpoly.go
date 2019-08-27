@@ -5,8 +5,8 @@ import (
 )
 
 type BigPoly struct {
-	value      []*ring.Poly
-	isNTT      bool
+	value []*ring.Poly
+	isNTT bool
 }
 
 type BfvElement interface {

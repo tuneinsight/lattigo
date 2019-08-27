@@ -8,7 +8,9 @@ import (
 //===== CRT BASIS EXTENSION PARAMETERS =====
 //==========================================
 
-//Algorithm from https://eprint.iacr.org/2018/117.pdf
+// BasisExtender is the structure keeping all the pre-computed constant required to apply
+// a basis extendion of a polynomial in basis Q to a polynomial in basis Q + P
+// Algorithm from https://eprint.iacr.org/2018/117.pdf
 type BasisExtender struct {
 	contextQ *Context
 	contextP *Context
@@ -25,6 +27,7 @@ type BasisExtender struct {
 	qiFloat128 []Float128
 }
 
+// NewBasisExtender creates a new BasisExtender, that will be used to extend a polynomial in basis Q to a polynomial in basis Q + P.
 func NewBasisExtender(contextQ, contextP *Context) (*BasisExtender, error) {
 
 	if contextQ.validated != true || contextP.validated != true {
@@ -86,8 +89,8 @@ func NewBasisExtender(contextQ, contextP *Context) (*BasisExtender, error) {
 	return newParams, nil
 }
 
-// Extends the basis of a ring
-// Given a ring with coefficients in basis {Q0,Q1....Qi}
+// ExtendBasis extends the basis of a polynomial from Q to Q + P.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qi}
 // Extends its basis from {Q0,Q1....Qi} to {Q0,Q1....Qi,P0,P1...Pj}
 func (Parameters *BasisExtender) ExtendBasis(p1, p2 *Poly) {
 
@@ -149,9 +152,9 @@ func (Parameters *BasisExtender) ExtendBasis(p1, p2 *Poly) {
 	}
 }
 
-// Approximate basis extension (returns the value + some multiple of Q (equal to the correction term v) in the basis QP)
-// The algorithm is identical to the ExtendBasis, except it doesn't make use of the correction term v to remove the additional multiplie of Q
-// introduced during the basis extension.
+// ExtendBasisApproximate approximates the basis extension (returns the value + some multiple of Q (equal to the correction term v) in the basis QP)
+// The algorithm is identical to the ExtendBasis, except it doesn't make use of the correction term v that removes the additional multiplie of Q
+// introduced during the basis extension in the new basis P.
 func (Parameters *BasisExtender) ExtendBasisApproximate(p1, p2 *Poly) {
 
 	var xpj uint64

@@ -8,6 +8,7 @@ import (
 
 type EkgProtocol struct {
 	context         *ring.Context
+	ternarySampler  *ring.TernarySampler
 	gaussianSampler *ring.KYSampler
 	bitDecomp       uint64
 	bitLog          uint64
@@ -17,6 +18,7 @@ type EkgProtocol struct {
 func NewEkgProtocol(context *ring.Context, bitDecomp uint64) *EkgProtocol {
 	ekg := new(EkgProtocol)
 	ekg.context = context
+	ekg.ternarySampler = context.NewTernarySampler()
 	ekg.gaussianSampler = context.NewKYSampler(3.19, 19)
 	ekg.bitDecomp = bitDecomp
 	ekg.bitLog = uint64(math.Ceil(float64(60) / float64(bitDecomp)))
@@ -26,9 +28,7 @@ func NewEkgProtocol(context *ring.Context, bitDecomp uint64) *EkgProtocol {
 
 // Ephemeral Key u (needs to be stored among the 3 first round)
 func (ekg *EkgProtocol) NewEphemeralKey() (ephemeralKey *ring.Poly) {
-	ephemeralKey = ekg.context.NewTernaryPoly()
-	ekg.context.NTT(ephemeralKey, ephemeralKey)
-	ekg.context.MForm(ephemeralKey, ephemeralKey)
+	ephemeralKey = ekg.ternarySampler.SampleMontgomeryNTTNew()
 	return
 }
 

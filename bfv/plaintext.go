@@ -3,6 +3,7 @@ package bfv
 import (
 	"errors"
 	"github.com/lca1/lattigo/ring"
+	"math/bits"
 )
 
 // The plaintext is a ring of N coefficients with two contexts.
@@ -23,8 +24,9 @@ func (bfvcontext *BfvContext) NewPlaintext() *Plaintext {
 
 func (bfvcontext *BfvContext) NewRandomPlaintextCoeffs() (coeffs []uint64) {
 	coeffs = make([]uint64, bfvcontext.n)
+	mask := uint64(1<<uint64(bits.Len64(bfvcontext.t))) - 1
 	for i := uint64(0); i < bfvcontext.n; i++ {
-		coeffs[i] = ring.RandUniform(bfvcontext.t)
+		coeffs[i] = ring.RandUniform(bfvcontext.t, mask)
 	}
 	return
 }

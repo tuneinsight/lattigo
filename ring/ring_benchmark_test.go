@@ -33,8 +33,6 @@ func Benchmark_POLYNOMIAL(b *testing.B) {
 		contextQP := NewContext()
 		contextQP.Merge(contextQ, contextP)
 
-		benchmark_GaussPoly(sigma, contextQ, b)
-
 		benchmark_KYSGaussPoly(sigma, contextQ, b)
 
 		benchmark_TernaryPoly(contextQ, b)
@@ -104,15 +102,6 @@ func benchmark_Marshaler(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_GaussPoly(sigma float64, context *Context, b *testing.B) {
-
-	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/NewGaussPoly", context.N, len(context.Modulus), 60), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.NewGaussPoly(sigma)
-		}
-	})
-}
-
 func benchmark_KYSGaussPoly(sigma float64, context *Context, b *testing.B) {
 
 	bound := int(sigma * 6)
@@ -139,12 +128,6 @@ func benchmark_TernaryPoly(context *Context, b *testing.B) {
 	ternarySampler := context.NewTernarySampler()
 
 	pol := context.NewPoly()
-
-	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/context.TernaryPoly", context.N, len(context.Modulus), 60), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.NewTernaryPoly()
-		}
-	})
 
 	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/ternarySampler.Sample", context.N, len(context.Modulus), 60), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

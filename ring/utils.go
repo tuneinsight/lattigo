@@ -5,7 +5,7 @@ import (
 	"math/bits"
 )
 
-// Returns (x*2^n)%q where x is in montgomery form
+// PowerOf2 returns (x*2^n)%q where x is in montgomery form
 func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 	ahi, alo := x>>(64-n), x<<n
 	R := alo * qInv
@@ -21,20 +21,8 @@ func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 //=== MODULAR EXPONENTIATION ===
 //==============================
 
-// modexp performes the modular exponentiation x^e mod p,
+// Modexp performes the modular exponentiation x^e mod p,
 // x and p are required to be a most 64 bits to avoid an overflow.
-func modexp(x, e, p uint64) (result uint64) {
-	params := BRedParams(p)
-	result = 1
-	for i := e; i > 0; i >>= 1 {
-		if i&1 == 1 {
-			result = BRed(result, x, p, params)
-		}
-		x = BRed(x, x, p, params)
-	}
-	return result
-}
-
 func ModExp(x, e, p uint64) (result uint64) {
 	params := BRedParams(p)
 	result = 1
@@ -47,9 +35,8 @@ func ModExp(x, e, p uint64) (result uint64) {
 	return result
 }
 
-// modexp performes the modular exponentiation x^e mod p,
-// where x is in montgomery form, and returns x^2 in
-// montgomery form
+// modexpMontgomery performes the modular exponentiation x^e mod p,
+// where x is in montgomery form, and returns x^2 in montgomery form.
 func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64) {
 
 	result = MForm(1, q, bredParams)
@@ -67,8 +54,7 @@ func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64)
 //===      BITREVERSE     ===
 //===========================
 
-// bitReverse calculates the bit-reverse index.
-// for example, given index=6 (110) and its bit-length bitLen=3, the indexReverse would be 3 (011)
+// bitReverse calculates the bit-reverse index. For example, given index=6 (110) and its bit-length bitLen=3, the indexReverse would be 3 (011)
 func bitReverse64(index, bitLen uint64) uint64 {
 	return bits.Reverse64(index) >> (64 - bitLen)
 }
@@ -77,6 +63,7 @@ func bitReverse64(index, bitLen uint64) uint64 {
 //===         GCD         ===
 //===========================
 
+// gcd compues gcd(a,b) for a,b uint64 variables
 func gcd(a, b uint64) uint64 {
 	if a == 0 || b == 0 {
 		return 0
@@ -87,6 +74,7 @@ func gcd(a, b uint64) uint64 {
 	return a
 }
 
+// gcdInt64 compues gcd(a,b) for a,b int64 variables.
 func gcdInt64(a, b int64) int64 {
 	if a == 0 || b == 0 {
 		return 0
@@ -100,7 +88,7 @@ func gcdInt64(a, b int64) int64 {
 //===========================
 //===     MILLER-RABIN    ===
 //===========================
-
+// IsPrime applies a Miller-Rabin test on the given uint64 variable, returning true if num is probably prime, else false.
 func IsPrime(num uint64) bool {
 
 	if num < 2 {
@@ -127,10 +115,12 @@ func IsPrime(num uint64) bool {
 	}
 
 	bredParams := BRedParams(num)
+	var mask uint64
+	mask = (1 << uint64(bits.Len64(num))) - 1
 
 	for trial := 0; trial < 50; trial++ {
-		b := randUniform(num - 1)
-		x := modexp(b, s, num)
+		b := RandUniform(num-1, mask)
+		x := ModExp(b, s, num)
 		if x != 1 {
 			i := 0
 			for x != num-1 {
@@ -146,7 +136,7 @@ func IsPrime(num uint64) bool {
 	return true
 }
 
-// Generates "n" primes of bitlen "bitLen", stuited for NTT with "N",
+// GenerateNTTPrimes generates "n" primes of bitlen "bitLen", stuited for NTT with "N",
 // starting from the integer "start" (which must be 1 mod 2N) and increasing (true) / decreasing (false) order
 func GenerateNTTPrimes(N, start, n, bitLen uint64, sign bool) ([]uint64, error) {
 	var x, v uint64
@@ -195,7 +185,7 @@ func GenerateNTTPrimes(N, start, n, bitLen uint64, sign bool) ([]uint64, error) 
 //===    PRIMITIVE ROOT   ===
 //===========================
 
-// Computes one primitive root (the smallest) of for the given prime q
+// primitiveRoot computes one primitive root (the smallest) of for the given prime q
 func primitiveRoot(q uint64) uint64 {
 	var tmp uint64
 	var g uint64
@@ -211,7 +201,7 @@ func primitiveRoot(q uint64) uint64 {
 		for _, factor := range factors {
 			tmp = (q - 1) / factor
 			// if for any factor of q-1, g^(q-1)/factor = 1 mod q, g is not a primitive root
-			if modexp(g, tmp, q) == 1 {
+			if ModExp(g, tmp, q) == 1 {
 				notFoundPrimitiveRoot = true
 				break
 			}
@@ -228,7 +218,7 @@ func primitiveRoot(q uint64) uint64 {
 // polynomialPollardsRho calculates x1^2 + c mod x2, and is used in factorizationPollardsRho
 func polynomialPollardsRho(x1, x2, c uint64) uint64 {
 
-	z := modexp(x1, 2, x2) // x1^2 mod x2
+	z := ModExp(x1, 2, x2) // x1^2 mod x2
 	z += c                 // (x1^2 mod x2) + 1
 	z %= x2                // (x1^2 + 1) mod x2
 	return z
@@ -264,7 +254,7 @@ func factorizationPollardsRho(m uint64) uint64 {
 	return d
 }
 
-// getFactors returns all the prime factors of m
+// getFactors returns all the prime factors of m.
 func getFactors(n uint64) []uint64 {
 	var factor uint64
 	var factors []uint64

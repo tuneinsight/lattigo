@@ -546,7 +546,8 @@ func (context *Context) SetCoefficientsBigint(coeffs []*Int, p1 *Poly) error {
 //Returns an string array containing the reconstructed coefficients
 func (context *Context) PolyToString(p1 *Poly) []string {
 
-	coeffsBigint := context.PolyToBigint(p1)
+	coeffsBigint := make([]*Int, context.N)
+	context.PolyToBigint(p1, coeffsBigint)
 	coeffsString := make([]string, len(coeffsBigint))
 
 	for i := range coeffsBigint {
@@ -557,11 +558,9 @@ func (context *Context) PolyToString(p1 *Poly) []string {
 }
 
 //Returns an string array containing the reconstructed coefficients
-func (context *Context) PolyToBigint(p1 *Poly) []*Int {
+func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*Int) {
 
 	tmp := NewInt(0)
-
-	coeffsBigint := make([]*Int, context.N)
 
 	for x := uint64(0); x < context.N; x++ {
 
@@ -574,8 +573,6 @@ func (context *Context) PolyToBigint(p1 *Poly) []*Int {
 
 		coeffsBigint[x].Mod(coeffsBigint[x], context.ModulusBigint)
 	}
-
-	return coeffsBigint
 }
 
 // Returns an array containing the coefficients of Pol

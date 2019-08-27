@@ -18,6 +18,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 
 	var err error
 	var ckkscontext *CkksContext
+	var encoder *Encoder
 	var kgen *KeyGenerator
 	var sk *SecretKey
 	var pk *PublicKey
@@ -53,6 +54,8 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		if ckkscontext, err = NewCkksContext(logN, logQ, logScale, levels, sigma); err != nil {
 			b.Error(err)
 		}
+
+		encoder = ckkscontext.NewEncoder()
 
 		kgen = ckkscontext.NewKeyGenerator()
 
@@ -93,7 +96,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 			plaintext = ckkscontext.NewPlaintext(levels-1, logScale)
 
 			for i := 0; i < b.N; i++ {
-				if err = plaintext.EncodeComplex(ckkscontext, values); err != nil {
+				if err = encoder.EncodeComplex(plaintext, values); err != nil {
 					b.Error(err)
 				}
 			}
@@ -101,7 +104,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Decode", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if values = plaintext.DecodeComplex(ckkscontext); err != nil {
+				if values = encoder.DecodeComplex(plaintext); err != nil {
 					b.Error(err)
 				}
 			}

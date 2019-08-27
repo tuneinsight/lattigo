@@ -12,6 +12,7 @@ import (
 
 type CKKSTESTPARAMS struct {
 	ckkscontext *CkksContext
+	encoder     *Encoder
 	levels      uint64
 	logScale    uint64
 	kgen        *KeyGenerator
@@ -55,6 +56,8 @@ func Test_CKKS(t *testing.T) {
 		log.Fatal(err)
 	}
 
+	ckksTest.encoder = ckksTest.ckkscontext.NewEncoder()
+
 	ckksTest.kgen = ckksTest.ckkscontext.NewKeyGenerator()
 
 	if ckksTest.sk, ckksTest.pk, err = ckksTest.kgen.NewKeyPair(); err != nil {
@@ -81,8 +84,9 @@ func Test_CKKS(t *testing.T) {
 
 	ckksTest.evaluator = ckksTest.ckkscontext.NewEvaluator()
 
-	test_GenerateCKKSPrimes(logN, logQ, levels, t)
+
 	test_Encoder(ckksTest, t)
+
 	test_EncryptDecrypt(ckksTest, t)
 	test_Add(ckksTest, t)
 	test_Sub(ckksTest, t)
@@ -97,6 +101,7 @@ func Test_CKKS(t *testing.T) {
 	test_Conjugate(ckksTest, t)
 	test_RotColumns(ckksTest, t)
 	test_MarshalCiphertext(ckksTest, t)
+
 
 }
 
@@ -114,7 +119,7 @@ func new_test_vectors(params *CKKSTESTPARAMS, a, b float64) (values []complex128
 
 	plaintext = params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-	if err = plaintext.EncodeComplex(params.ckkscontext, values); err != nil {
+	if err = params.encoder.EncodeComplex(plaintext, values); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -140,7 +145,7 @@ func new_test_vectors_reals(params *CKKSTESTPARAMS, a, b float64) (values []comp
 
 	plaintext = params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-	if err = plaintext.EncodeComplex(params.ckkscontext, values); err != nil {
+	if err = params.encoder.EncodeComplex(plaintext, values); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -168,7 +173,7 @@ func verify_test_vectors(params *CKKSTESTPARAMS, valuesWant []complex128, elemen
 		}
 	}
 
-	valuesTest = plaintextTest.DecodeComplex(params.ckkscontext)
+	valuesTest = params.encoder.DecodeComplex(plaintextTest)
 
 	var DeltaReal0, DeltaImag0, DeltaReal1, DeltaImag1 float64
 
@@ -198,17 +203,6 @@ func verify_test_vectors(params *CKKSTESTPARAMS, valuesWant []complex128, elemen
 	return nil
 }
 
-func test_GenerateCKKSPrimes(logN, logQ, levels uint64, t *testing.T) {
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/GenerateCKKSPrimes", logN, logQ, levels), func(t *testing.T) {
-		_, _, err := GenerateCKKSPrimes(logQ, logN, levels)
-
-		if err != nil {
-			t.Errorf("error : %s", err)
-		}
-	})
-}
-
 func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 
 	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/EncodeDecodeFloat64", params.ckkscontext.logN,
@@ -226,7 +220,7 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 
 		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-		if err := plaintext.EncodeFloat(params.ckkscontext, valuesWant); err != nil {
+		if err := params.encoder.EncodeFloat(plaintext, valuesWant); err != nil {
 			log.Fatal(err)
 		}
 
@@ -249,7 +243,7 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 
 		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-		if err := plaintext.EncodeComplex(params.ckkscontext, valuesWant); err != nil {
+		if err := params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
 			log.Fatal(err)
 		}
 
@@ -277,7 +271,7 @@ func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 
 		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-		if err = plaintext.EncodeComplex(params.ckkscontext, valuesWant); err != nil {
+		if err = params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
 			log.Fatal(err)
 		}
 
@@ -1382,7 +1376,7 @@ func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 
 		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
 
-		if err := plaintext.EncodeComplex(params.ckkscontext, valuesWant); err != nil {
+		if err := params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
 			log.Fatal(err)
 		}
 
@@ -1412,7 +1406,7 @@ func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		valuesTest := plaintextTest.DecodeComplex(params.ckkscontext)
+		valuesTest := params.encoder.DecodeComplex(plaintextTest)
 
 		var DeltaReal0, DeltaImag0, DeltaReal1, DeltaImag1 float64
 

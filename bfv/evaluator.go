@@ -5,18 +5,20 @@ import (
 	"github.com/lca1/lattigo/ring"
 )
 
+// Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
+// It also holds a small memory pool used to store intermediate computations.
 type Evaluator struct {
 	bfvcontext    *BfvContext
 	basisextender *ring.BasisExtender
 	complexscaler *ring.ComplexScaler
-	polypool      [10]*ring.Poly
+	polypool      [4]*ring.Poly
 	ctxpool       [3]*Ciphertext
 }
 
-func (bfvcontext *BfvContext) NewEvaluator() (*Evaluator, error) {
-	var err error
+// NewEvaluator creates a new Evaluator from the target bfvcontext.
+func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator, err error) {
 
-	evaluator := new(Evaluator)
+	evaluator = new(Evaluator)
 	evaluator.bfvcontext = bfvcontext
 
 	if evaluator.basisextender, err = ring.NewBasisExtender(bfvcontext.contextQ, bfvcontext.contextP); err != nil {
@@ -27,19 +29,18 @@ func (bfvcontext *BfvContext) NewEvaluator() (*Evaluator, error) {
 		return nil, err
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 4; i++ {
 		evaluator.polypool[i] = bfvcontext.contextQ.NewPoly()
 	}
 
-	evaluator.ctxpool[0] = bfvcontext.NewCiphertextBig(10)
-	evaluator.ctxpool[1] = bfvcontext.NewCiphertextBig(10)
-	evaluator.ctxpool[2] = bfvcontext.NewCiphertextBig(10)
+	evaluator.ctxpool[0] = bfvcontext.NewCiphertextBig(5)
+	evaluator.ctxpool[1] = bfvcontext.NewCiphertextBig(5)
+	evaluator.ctxpool[2] = bfvcontext.NewCiphertextBig(5)
 
 	return evaluator, nil
 }
 
-// AddNoMod adds the second element to the first element.
-// Requires a receiver of correct type and degree.
+// Add adds c0 to c1 and returns the result on cOut.
 func (evaluator *Evaluator) Add(c0, c1, cOut BfvElement) (err error) {
 
 	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.Add, evaluator.bfvcontext); err != nil {
@@ -49,8 +50,7 @@ func (evaluator *Evaluator) Add(c0, c1, cOut BfvElement) (err error) {
 	return nil
 }
 
-// AddNoMod adds the second element to the first element without modular reduction.
-// Requires a receiver of correct type and degree.
+// AddNoMod adds c0 to c1 without modular reduction, and returns the result on cOut.
 func (evaluator *Evaluator) AddNoMod(c0, c1, cOut BfvElement) (err error) {
 
 	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.AddNoMod, evaluator.bfvcontext); err != nil {
@@ -60,8 +60,7 @@ func (evaluator *Evaluator) AddNoMod(c0, c1, cOut BfvElement) (err error) {
 	return nil
 }
 
-// AddNew adds the second elements to the first element and creates a new element storing the result.
-// Be aware that an element of type ciphertext is always returned, even if two plaintexts where given as input.
+// AddNew adds c0 to c1 and creates a new element to store the result.
 func (evaluator *Evaluator) AddNew(c0, c1 BfvElement) (cOut BfvElement, err error) {
 
 	if cOut, err = evaluateNew(c0, c1, evaluator.bfvcontext.contextQ.Add, evaluator.bfvcontext); err != nil {
@@ -71,8 +70,7 @@ func (evaluator *Evaluator) AddNew(c0, c1 BfvElement) (cOut BfvElement, err erro
 	return
 }
 
-// AddNoModNew adds the second elements to the first element without modular reduction and creates a new element storing the result.
-// Be aware that an element of type ciphertext is always returned, even if two plaintexts where given as input.
+// AddNoModNew adds c0 to c1 without modular reduction and creates a new element to store the result.
 func (evaluator *Evaluator) AddNoModNew(c0, c1 BfvElement) (cOut BfvElement, err error) {
 
 	if cOut, err = evaluateNew(c0, c1, evaluator.bfvcontext.contextQ.AddNoMod, evaluator.bfvcontext); err != nil {
@@ -82,8 +80,7 @@ func (evaluator *Evaluator) AddNoModNew(c0, c1 BfvElement) (cOut BfvElement, err
 	return
 }
 
-// Sub subtract the second element to the first element.
-// Requires a receiver of correct type and degree.
+// Sub subtracts c1 to c0 and returns the result on cOut.
 func (evaluator *Evaluator) Sub(c0, c1, cOut BfvElement) (err error) {
 
 	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.Sub, evaluator.bfvcontext); err != nil {
@@ -93,8 +90,7 @@ func (evaluator *Evaluator) Sub(c0, c1, cOut BfvElement) (err error) {
 	return nil
 }
 
-// Sub subtract the second element to the first element without modular reduction.
-// Requires a receiver of correct type and degree.
+// SubNoMod subtracts c1 to c0 without modular reduction and returns the result on cOut.
 func (evaluator *Evaluator) SubNoMod(c0, c1, cOut BfvElement) (err error) {
 
 	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.SubNoMod, evaluator.bfvcontext); err != nil {
@@ -104,8 +100,7 @@ func (evaluator *Evaluator) SubNoMod(c0, c1, cOut BfvElement) (err error) {
 	return nil
 }
 
-// SubNew subtracts the second elements to the first element and creates a new element storing the result.
-// Be aware that an element of type ciphertext is always returned, even if two plaintexts where given as input.
+// SubNew subtracts c1 to c0 and creates a new element to store the result.
 func (evaluator *Evaluator) SubNew(c0, c1 BfvElement) (cOut BfvElement, err error) {
 
 	if cOut, err = evaluateNew(c0, c1, evaluator.bfvcontext.contextQ.Sub, evaluator.bfvcontext); err != nil {
@@ -115,8 +110,7 @@ func (evaluator *Evaluator) SubNew(c0, c1 BfvElement) (cOut BfvElement, err erro
 	return
 }
 
-// SubNoModNew subtracts the second elements to the first element without modular reduction and creates a new element storing the result.
-// Be aware that an element of type ciphertext is always returned, even if two plaintexts where given as input.
+// SubNoModNew subtracts c1 to c0 without modular reductionand creates a new element to store the result.
 func (evaluator *Evaluator) SubNoModNew(c0, c1 BfvElement) (cOut BfvElement, err error) {
 
 	if cOut, err = evaluateNew(c0, c1, evaluator.bfvcontext.contextQ.SubNoMod, evaluator.bfvcontext); err != nil {
@@ -183,8 +177,7 @@ func evaluateNew(c0, c1 BfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.
 	return cOut, nil
 }
 
-// Neg negates the input element.
-// Requiers a receiver of the correct type and degree.
+// Neg negates c0 and returns the result on cOut.
 func (evaluator *Evaluator) Neg(c0, cOut BfvElement) error {
 
 	if c0.Degree() != cOut.Degree() {
@@ -198,8 +191,7 @@ func (evaluator *Evaluator) Neg(c0, cOut BfvElement) error {
 	return nil
 }
 
-// NegNew negates the input element and returns a new element storing the result.
-// Be aware that an element of type ciphertext is always returned, even if two plaintexts where given as input.
+// Neg negates c0 and creates a new element to store the result.
 func (evaluator *Evaluator) NegNew(c0 BfvElement) (cOut BfvElement) {
 
 	if c0.Degree() == 0 {
@@ -215,8 +207,7 @@ func (evaluator *Evaluator) NegNew(c0 BfvElement) (cOut BfvElement) {
 	return nil
 }
 
-// Reduce applies a modular reduction on the input element.
-// Requires a receiver element of the correct type and degree.
+// Reduce applies a modular reduction on c0 and returns the result on cOut.
 func (evaluator *Evaluator) Reduce(c0, cOut BfvElement) error {
 
 	if c0.Degree() != cOut.Degree() {
@@ -230,8 +221,7 @@ func (evaluator *Evaluator) Reduce(c0, cOut BfvElement) error {
 	return nil
 }
 
-// Reduce applies a modular reduction on the input element and returns a new element storing the result.
-// Be aware that an element of type ciphertext is always returned, even if two plaintexts where given as input.
+// Reduce applies a modular reduction on c0 and creates a new element to store the result.
 func (evaluator *Evaluator) ReduceNew(c0 BfvElement) (cOut BfvElement) {
 
 	if c0.Degree() == 0 {
@@ -245,8 +235,7 @@ func (evaluator *Evaluator) ReduceNew(c0 BfvElement) (cOut BfvElement) {
 	return
 }
 
-// MulScalar multiplies the input by the given scalar.
-// Requirese a receiver of the correct type and degree.
+// MulScalar multiplies c0 by an uint64 scalar and returns the result on cOut.
 func (evaluator *Evaluator) MulScalar(c0 BfvElement, scalar uint64, cOut BfvElement) error {
 
 	if c0.Degree() != cOut.Degree() {
@@ -260,8 +249,7 @@ func (evaluator *Evaluator) MulScalar(c0 BfvElement, scalar uint64, cOut BfvElem
 	return nil
 }
 
-// MulScalar multiplies the input by the given scalar and returns an new elemnent storing the result.
-// Be aware that an element of type ciphertext is always returned, even if two plaintexts where given as input.
+// MulScalarNew multiplies c0 by an uint64 scalar and creates a new element to store the result.
 func (evaluator *Evaluator) MulScalarNew(c0 BfvElement, scalar uint64) (cOut BfvElement) {
 
 	if c0.Degree() == 0 {
@@ -275,9 +263,12 @@ func (evaluator *Evaluator) MulScalarNew(c0 BfvElement, scalar uint64) (cOut Bfv
 	return
 }
 
-// Mul multiplies the first element by the second element.
-// Requirese a receiver of the correct type and degree.
+// Mul multiplies c0 by c1 and returns the result on cOut.
 func (evaluator *Evaluator) Mul(c0, c1, cOut BfvElement) (err error) {
+
+	if cOut.Degree() < c0.Degree()+c1.Degree() {
+		return errors.New("cannot Mul -> cOut (receiver) degree is to small to store the result")
+	}
 
 	tensorAndRescale(evaluator, c0.Value(), c1.Value(), cOut.Value())
 
@@ -299,8 +290,7 @@ func (evaluator *Evaluator) MulNew(c0, c1 BfvElement) (cOut BfvElement) {
 	return cOut
 }
 
-// tensorAndRescales applies a tensoring operation between the first elent and the second element, followed by a
-// rescaling.
+// tensorAndRescales computes (ct0 x ct1) * (t/Q) and stores the result on cOut.
 func tensorAndRescale(evaluator *Evaluator, ct0, ct1, cOut []*ring.Poly) {
 
 	// Prepares the ciphertexts for the Tensoring by extending their
@@ -342,6 +332,10 @@ func tensorAndRescale(evaluator *Evaluator, ct0, ct1, cOut []*ring.Poly) {
 	}
 }
 
+// Relinearize relinearize cIn of degree > 1 until it is of degree 1 and returns the result on cOut.
+// Requires a correct evaluation key as additional input :
+// - it must match the secret-key that was used to create the public key under which the current ciphertext is encrypted
+// - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts)
 func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, cOut *Ciphertext) error {
 
 	if int(cIn.Degree()-1) > len(evakey.evakey) {
@@ -357,7 +351,11 @@ func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, 
 	return nil
 }
 
-func (evaluator *Evaluator) RelinearizeNew(cIn *Ciphertext, evakey *EvaluationKey) (*Ciphertext, error) {
+// Relinearize relinearize cIn of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
+// Requires a correct evaluation key as additional input :
+// - it must match the secret-key that was used to create the public key under which the current ciphertext is encrypted
+// - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts)
+func (evaluator *Evaluator) RelinearizeNew(cIn *Ciphertext, evakey *EvaluationKey) (cOut *Ciphertext, err error) {
 
 	if int(cIn.Degree()-1) > len(evakey.evakey) {
 		return nil, errors.New("error : ciphertext degree too large to allow relinearization")
@@ -367,13 +365,14 @@ func (evaluator *Evaluator) RelinearizeNew(cIn *Ciphertext, evakey *EvaluationKe
 		return nil, errors.New("error : ciphertext is already of degree 1 or 0")
 	}
 
-	cOut := evaluator.bfvcontext.NewCiphertext(1)
+	cOut = evaluator.bfvcontext.NewCiphertext(1)
 
 	relinearize(evaluator, cIn, evakey, cOut)
 
 	return cOut, nil
 }
 
+// relinearize is a methode common to Relinearize and RelinearizeNew. It switches cIn out in the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
 func relinearize(evaluator *Evaluator, cIn *Ciphertext, evakey *EvaluationKey, cOut *Ciphertext) {
 
 	evaluator.bfvcontext.contextQ.NTT(cIn.Value()[0], cOut.Value()[0])
@@ -391,7 +390,9 @@ func relinearize(evaluator *Evaluator, cIn *Ciphertext, evakey *EvaluationKey, c
 	evaluator.bfvcontext.contextQ.InvNTT(cOut.Value()[1], cOut.Value()[1])
 }
 
-func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingKey, cOut *Ciphertext) error {
+// SwitchKeys applies the key-switching procedure to cIn and returns the result on cOut. It requires as an additional input a correct evaluation key :
+// - it must encrypt the target key under the public key under which the ciphertext is currently encrypted.
+func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingKey, cOut *Ciphertext) (err error) {
 
 	if cIn.Degree() != 1 {
 		return errors.New("error : ciphertext must be of degree 1 to allow key switching")
@@ -415,13 +416,15 @@ func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingK
 	return nil
 }
 
-func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *SwitchingKey) (*Ciphertext, error) {
+// SwitchKeys applies the key-switching procedure to cIn and creates a new ciphertext to store the result. It requires as an additional input a correct evaluation key :
+// - it must encrypt the target key under the public key under which the ciphertext is currently encrypted.
+func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *SwitchingKey) (cOut *Ciphertext, err error) {
 
 	if cIn.Degree() > 1 {
 		return nil, errors.New("error : ciphertext must be of degree 1 to allow key switching")
 	}
 
-	cOut := evaluator.bfvcontext.NewCiphertext(1)
+	cOut = evaluator.bfvcontext.NewCiphertext(1)
 
 	cIn.NTT(evaluator.bfvcontext, cOut)
 	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], cIn.Value()[1], switchingKey, cOut)
@@ -430,7 +433,10 @@ func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *Switchi
 	return cOut, nil
 }
 
-// RotateColumns homomorphically rotates the columns of the ciphertext to the left
+// RotateColumns rotates the columns of c0 by k position to the left and returns the result on c1. As an additional input it requires rotationkeys :
+// - it must either store all the left and right power of 2 rotations or the specific rotation that is asked.
+// If only the power of two rotations are stored, the numbers k (= n/2-k rotations to the right) will be decomposed in binary (powers of 2) and the rotation with the least
+// hamming weight will be chosen, then the specific rotation will be computed as a sum of powers of two rotations.
 func (evaluator *Evaluator) RotateColumns(c0 BfvElement, k uint64, evakey *RotationKeys, c1 BfvElement) (err error) {
 
 	k &= ((evaluator.bfvcontext.n >> 1) - 1)
@@ -521,7 +527,7 @@ func (evaluator *Evaluator) RotateColumns(c0 BfvElement, k uint64, evakey *Rotat
 				}
 			}
 
-			// If yes, computes the least amount of rotation between left and right required to apply the demanded rotation
+			// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
 			if has_pow2_rotations {
 
 				if hammingWeight64(k) <= hammingWeight64((evaluator.bfvcontext.n>>1)-k) {
@@ -540,16 +546,17 @@ func (evaluator *Evaluator) RotateColumns(c0 BfvElement, k uint64, evakey *Rotat
 	}
 }
 
-// Applies the Galois Automorphism on the Ciphertext, using the Plaintext Primitive Roots
+// rotateColumnsLPow2 applies the Galois Automorphism on the element, rotating the element by k positions to the left.
 func rotateColumnsLPow2(evaluator *Evaluator, c0 BfvElement, k uint64, evakey *RotationKeys, c1 BfvElement) {
 	rotateColumnsPow2(evaluator, c0, evaluator.bfvcontext.gen, k, evakey.evakey_rot_col_L, c1)
 }
 
-// Applies the Galois Endomorphism on the Ciphertext, using the Plaintext Primitive Roots
+// rotateColumnsRPow2 applies the Galois Endomorphism on the element, rotating the element by k positions to the right.
 func rotateColumnsRPow2(evaluator *Evaluator, c0 BfvElement, k uint64, evakey *RotationKeys, c1 BfvElement) {
 	rotateColumnsPow2(evaluator, c0, evaluator.bfvcontext.genInv, k, evakey.evakey_rot_col_R, c1)
 }
 
+// rotateColumnsPow2 rotates c0 by k position (left or right depending on the input), decomposing k as a sum of power of 2 rotations, and returns the result on c1.
 func rotateColumnsPow2(evaluator *Evaluator, c0 BfvElement, generator, k uint64, evakey_rot_col map[uint64]*SwitchingKey, c1 BfvElement) {
 
 	var mask, evakey_index uint64
@@ -606,7 +613,7 @@ func rotateColumnsPow2(evaluator *Evaluator, c0 BfvElement, generator, k uint64,
 	}
 }
 
-// Applies the Galois Endomorphism on the Ciphertext, using the Plaintext Primitive Roots
+// RotateRows swaps the rows of c0 and returns the result on c1.
 func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 BfvElement) error {
 
 	if c1.Degree() != c0.Degree() {
@@ -712,6 +719,8 @@ func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 B
 	return nil
 }
 
+// InnerSum computs the inner sum of c0 and returns the result on c1. It requires a rotation key storing all the left power of two rotations.
+// The resulting vector will be of the form [sum, sum, .., sum, sum ].
 func (evaluator *Evaluator) InnerSum(c0 *Ciphertext, evakey *RotationKeys, c1 *Ciphertext) error {
 	if c0.Degree() != 1 {
 		return errors.New("error : ciphertext must be of degree 1 to allow Galois Auotomorphism (required for inner sum)")
@@ -745,11 +754,12 @@ func (evaluator *Evaluator) InnerSum(c0 *Ciphertext, evakey *RotationKeys, c1 *C
 
 }
 
+// switchKeys compute cOut = [c0 + c2*evakey[0], c1 + c2*evakey[1]].
 func switchKeys(evaluator *Evaluator, c0, c1, c2 *ring.Poly, evakey *SwitchingKey, cOut *Ciphertext) {
 
 	var mask, reduce, bitLog uint64
 
-	c2_qi_w := evaluator.polypool[4]
+	c2_qi_w := evaluator.polypool[3]
 
 	mask = uint64(((1 << evakey.bitDecomp) - 1))
 

@@ -1,7 +1,6 @@
 package dbfv
 
 import (
-	"github.com/lca1/lattigo/bfv"
 	"github.com/lca1/lattigo/ring"
 	"math"
 )
@@ -53,7 +52,7 @@ func (ekg *EkgProtocol) GenSamples(u, sk *ring.Poly, crp [][]*ring.Poly) (h [][]
 
 			// h = sk*CrtBaseDecompQi + e
 			for j := uint64(0); j < ekg.context.N; j++ {
-				h[i][w].Coeffs[i][j] += bfv.PowerOf2(sk.Coeffs[i][j], ekg.bitDecomp*w, qi, mredParams[i])
+				h[i][w].Coeffs[i][j] += ring.PowerOf2(sk.Coeffs[i][j], ekg.bitDecomp*w, qi, mredParams[i])
 			}
 
 			// h = sk*CrtBaseDecompQi + -u*a + e

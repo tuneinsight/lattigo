@@ -196,10 +196,8 @@ func Test_DBFVScheme(t *testing.T) {
 
 					evk := test_EKG_Protocol(parties, ekg, sk0_shards, ephemeralKeys, crp)
 
-					rlk, err := kgen.SetRelinKeys([][][][2]*ring.Poly{evk[0]}, bitDecomp)
-					if err != nil {
-						log.Fatal(err)
-					}
+					rlk := new(bfv.EvaluationKey)
+					rlk.SetRelinKeys([][][][2]*ring.Poly{evk[0]}, bitDecomp)
 
 					if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
 						log.Fatal(err)
@@ -235,10 +233,8 @@ func Test_DBFVScheme(t *testing.T) {
 
 					evk := test_EKG_Protocol_Naive(parties, sk0_shards, pk0, ekgNaive)
 
-					rlk, err := kgen.SetRelinKeys([][][][2]*ring.Poly{evk[0]}, bitDecomp)
-					if err != nil {
-						log.Fatal(err)
-					}
+					rlk := new(bfv.EvaluationKey)
+					rlk.SetRelinKeys([][][][2]*ring.Poly{evk[0]}, bitDecomp)
 
 					if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
 						log.Fatal(err)

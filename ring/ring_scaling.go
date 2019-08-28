@@ -146,7 +146,7 @@ func (parameters *SimpleScaler) Scale(p1, p2 *Poly) {
 
 		p2.Coeffs[0][i] = parameters.reducealgoAdd(a)
 
-		for j := 1; j < len(parameters.context.Modulus); j++ {
+		for j := 1; j < len(p2.Coeffs); j++ {
 			p2.Coeffs[j][i] = 0
 		}
 	}

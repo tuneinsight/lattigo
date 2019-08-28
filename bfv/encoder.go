@@ -6,12 +6,15 @@ import (
 	"math/bits"
 )
 
+// BatchEncoder is a structure storing the parameters encode values on a plaintext in a SIMD fashion.
 type BatchEncoder struct {
 	indexMatrix  []uint64
 	bfvcontext   *BfvContext
 	simplescaler *ring.SimpleScaler
+	polypool     *ring.Poly
 }
 
+// NewBatchEncoder creates a new BatchEncoder from the target bfvcontext.
 func (bfvcontext *BfvContext) NewBatchEncoder() *BatchEncoder {
 
 	var m, gen, pos, index1, index2 uint64
@@ -44,10 +47,12 @@ func (bfvcontext *BfvContext) NewBatchEncoder() *BatchEncoder {
 	}
 
 	batchencoder.simplescaler, _ = ring.NewSimpleScaler(bfvcontext.t, bfvcontext.contextQ)
+	batchencoder.polypool = bfvcontext.contextT.NewPoly()
 
 	return batchencoder
 }
 
+// EncodeUint encode the provided coefficients on the provided plaintext. The coefficients must be provided as a slice of uint64 variables of size at most N.
 func (batchencoder *BatchEncoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) error {
 
 	if len(coeffs) > len(batchencoder.indexMatrix) {
@@ -75,6 +80,9 @@ func (batchencoder *BatchEncoder) EncodeUint(coeffs []uint64, plaintext *Plainte
 	return nil
 }
 
+// EncodeUint encode the provided coefficients on the provided plaintext. The coefficients must be provided as a slice of int64 variables of size at most N.
+// Also encode the sign of the given integer (as its inverse modulo the plaintext modulus). The sign will be kept during computation as long as the absolute value
+// does not go above half of the plaintext modulus.
 func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext) error {
 
 	if len(coeffs) > len(batchencoder.indexMatrix) {
@@ -107,28 +115,29 @@ func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext
 	return nil
 }
 
-func (batchencoder *BatchEncoder) DecodeUint(plaintext *Plaintext) ([]uint64, error) {
+// DecodeUint decodes a batched plaintext and returns the coefficients as a slice of uint64.
+func (batchencoder *BatchEncoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64, err error) {
 
 	if len(plaintext.value[0].Coeffs[0]) != len(batchencoder.indexMatrix) {
 		return nil, errors.New("error : invalid plaintext to decode (number of coefficients does not match the context of the encoder")
 	}
 
-	tmp := batchencoder.bfvcontext.contextQ.NewPoly()
+	batchencoder.simplescaler.Scale(plaintext.value[0], batchencoder.polypool)
 
-	batchencoder.simplescaler.Scale(plaintext.value[0], tmp)
+	batchencoder.bfvcontext.contextT.NTT(batchencoder.polypool, batchencoder.polypool)
 
-	batchencoder.bfvcontext.contextT.NTT(tmp, tmp)
-
-	coeffs := make([]uint64, batchencoder.bfvcontext.n)
+	coeffs = make([]uint64, batchencoder.bfvcontext.n)
 
 	for i := uint64(0); i < batchencoder.bfvcontext.n; i++ {
-		coeffs[i] = tmp.Coeffs[0][batchencoder.indexMatrix[i]]
+		coeffs[i] = batchencoder.polypool.Coeffs[0][batchencoder.indexMatrix[i]]
 	}
 
 	return coeffs, nil
 
 }
 
+// DecodeInt decodes a batched plaintext and returns the coefficients as a slice of int64. Also decodes the sign (by centering the values around the plaintext
+// modulus, i.e. if a value is above half of the plaintext modulus, then its inverse is returned).
 func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) ([]int64, error) {
 
 	var value int64
@@ -137,11 +146,9 @@ func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) ([]int64, erro
 		return nil, errors.New("error : invalid plaintext to decode (number of coefficients does not match the context of the encoder")
 	}
 
-	tmp := batchencoder.bfvcontext.contextQ.NewPoly()
+	batchencoder.simplescaler.Scale(plaintext.value[0], batchencoder.polypool)
 
-	batchencoder.simplescaler.Scale(plaintext.value[0], tmp)
-
-	batchencoder.bfvcontext.contextT.NTT(tmp, tmp)
+	batchencoder.bfvcontext.contextT.NTT(batchencoder.polypool, batchencoder.polypool)
 
 	coeffs := make([]int64, batchencoder.bfvcontext.n)
 
@@ -149,7 +156,7 @@ func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) ([]int64, erro
 
 	for i := uint64(0); i < batchencoder.bfvcontext.n; i++ {
 
-		value = int64(tmp.Coeffs[0][batchencoder.indexMatrix[i]])
+		value = int64(batchencoder.polypool.Coeffs[0][batchencoder.indexMatrix[i]])
 
 		coeffs[i] = value
 
@@ -162,12 +169,16 @@ func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) ([]int64, erro
 
 }
 
+// IntEncoder is a structure holding the parameters to encode single integers on a plaintext. It uses
+// base decomposition to encode the values.
 type IntEncoder struct {
 	base         int64
 	simplescaler *ring.SimpleScaler
 	bfvcontext   *BfvContext
 }
 
+// NewIntEncoder creates a new IntEncoder fromt the target bfvcontext. The base given as input will be used to decompose the
+// values to encode before putting them in the polynomial plaintext.
 func (bfvcontext *BfvContext) NewIntEncoder(base int64) *IntEncoder {
 	encoder := new(IntEncoder)
 	encoder.base = base
@@ -176,18 +187,20 @@ func (bfvcontext *BfvContext) NewIntEncoder(base int64) *IntEncoder {
 	return encoder
 }
 
+// Encode encodes the input value on the input plaintext, by decomposing the value with the base w and putting each power of the base w in a coefficient.
 func (encoder *IntEncoder) Encode(msg int64, plaintext *Plaintext) {
 	plaintext.value[0].Coeffs[0] = intEncode(msg, encoder.base, int64(encoder.bfvcontext.t), plaintext.value[0].Coeffs[0])
 	plaintext.Lift(encoder.bfvcontext)
 }
 
+// Decode reconstructs a value from the input plaintext coefficients, treating each of its coefficients as a power of the base w.
 func (encoder *IntEncoder) Decode(plaintext *Plaintext) int64 {
 	tmp := encoder.bfvcontext.contextQ.NewPoly()
 	encoder.simplescaler.Scale(plaintext.value[0], tmp)
 	return intDecode(tmp.Coeffs[0], encoder.base, int64(encoder.bfvcontext.t))
 }
 
-// Encodes an integer on a ring F given a base W.
+// intEncode encodes an integer on a ring F given a base W.
 // Decomposes the integer in base W, then set the coefficients
 // of F accordingly.
 // One has to be carefule about two things :
@@ -222,7 +235,7 @@ func intEncode(msg, base, modulus int64, coeffs []uint64) []uint64 {
 	return coeffs
 }
 
-// Decodes a integer from a ring F given a base W
+// intDecode decodes a integer from a ring F given a base W
 // This is equivalent to evaluating F with the base W
 // This evaluation is done with Horner's method (O(N))
 func intDecode(coeffs []uint64, base, modulus int64) (msg int64) {

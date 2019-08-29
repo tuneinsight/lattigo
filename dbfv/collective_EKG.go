@@ -5,6 +5,7 @@ import (
 	"math"
 )
 
+// EkgProtocol is a structure storing the parameters for the collective evaluation-key generation.
 type EkgProtocol struct {
 	context         *ring.Context
 	ternarySampler  *ring.TernarySampler
@@ -14,6 +15,8 @@ type EkgProtocol struct {
 	polypool        *ring.Poly
 }
 
+// NewEkgProtocol creates a new EkgProtocol object that will be used to generate a collective evaluation-key
+// among j parties in the given context with the given bit-decomposition.
 func NewEkgProtocol(context *ring.Context, bitDecomp uint64) *EkgProtocol {
 	ekg := new(EkgProtocol)
 	ekg.context = context
@@ -25,22 +28,26 @@ func NewEkgProtocol(context *ring.Context, bitDecomp uint64) *EkgProtocol {
 	return ekg
 }
 
-// Ephemeral Key u (needs to be stored among the 3 first round)
+// NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first round).
+// Each party is required to pre-compute a secret additional ephemeral key in addition to its share
+// of the collective secret-key.
 func (ekg *EkgProtocol) NewEphemeralKey() *ring.Poly {
 	ephemeralKey := ekg.ternarySampler.SampleMontgomeryNTTNew()
 	return ephemeralKey
 }
 
-// Ephemeral Key u (needs to be stored among the 3 first round)
+// GenSamples is the first of three rounds of the EkgProtocol protocol. Each party generates a pseudo encryption of
+// its secret share of the key s_i under its ephemeral key u_i : [-u_i*a + s_i*w + e_i] and broadcasts it to the other
+// j-1 parties.
 func (ekg *EkgProtocol) GenSamples(u, sk *ring.Poly, crp [][]*ring.Poly) (h [][]*ring.Poly) {
 
 	h = make([][]*ring.Poly, len(ekg.context.Modulus))
 
 	mredParams := ekg.context.GetMredParams()
 
-	// Given a base decomposition w_i (here the CRT decomposition)
-	// computes [-u*a_i + s*w_i + e_i]
-	// where a_i = crp_i
+	// Given a base decomposition w (here the CRT decomposition)
+	// computes [-u_i*a + s_i*w + e_i]
+	// where a = crp
 	for i, qi := range ekg.context.Modulus {
 
 		h[i] = make([]*ring.Poly, ekg.bitLog)
@@ -63,7 +70,12 @@ func (ekg *EkgProtocol) GenSamples(u, sk *ring.Poly, crp [][]*ring.Poly) (h [][]
 	return
 }
 
-// Round 2
+// Aggregate is the second of three rounds of the EkgProtocol protocol. Uppon received the j-1 shares, each party computes :
+//
+//   [s_i * sum([-u_j*a + s_j*w + e_j]) + e_i1, s_i*a + e_i2]
+// = [s_i * (-u*a + s*w + e) + e_i1, s_i*a + e_i2]
+//
+// and broadcasts both values to the other j-1 parties.
 func (ekg *EkgProtocol) Aggregate(sk *ring.Poly, samples [][][]*ring.Poly, crp [][]*ring.Poly) (h [][][2]*ring.Poly) {
 
 	h = make([][][2]*ring.Poly, len(ekg.context.Modulus))
@@ -117,9 +129,11 @@ func (ekg *EkgProtocol) Aggregate(sk *ring.Poly, samples [][][]*ring.Poly, crp [
 	return
 }
 
-// Round 3
-
-//Part 1
+// Sum is the first part of the third and last round of the EkgProtocol protocol. Uppon receiving the j-1 elements, each party
+// computues :
+//
+//   [sum(s_j * (-u*a + s*w + e) + e_j1), sum(s_j*a + e_j2)]
+// = [s * (-u*a + s*w + e) + e_1, s*a + e_2].
 func (ekg *EkgProtocol) Sum(samples [][][][2]*ring.Poly) (h [][][2]*ring.Poly) {
 
 	h = make([][][2]*ring.Poly, len(ekg.context.Modulus))
@@ -152,7 +166,12 @@ func (ekg *EkgProtocol) Sum(samples [][][][2]*ring.Poly) (h [][][2]*ring.Poly) {
 	return
 }
 
-// Part 2
+// KeySwitch is the second pard of the third and last round of the EkgProtocol protocol. Each party operates a key-switch on [s*a + e_2],
+// by computing :
+//
+// [(u_i - s_i)*(s*a + e_2)]
+//
+// and broadcasts the result the other j-1 parties.
 func (ekg *EkgProtocol) KeySwitch(u, sk *ring.Poly, samples [][][2]*ring.Poly) (h1 [][]*ring.Poly) {
 
 	h1 = make([][]*ring.Poly, len(ekg.context.Modulus))
@@ -176,8 +195,15 @@ func (ekg *EkgProtocol) KeySwitch(u, sk *ring.Poly, samples [][][2]*ring.Poly) (
 	return h1
 }
 
-// Round 4
-
+// ComputeEVK is third part ot the third and last round of the EkgProtocol protocol. Uppon receiving the other j-1 elements, each party computes :
+//
+//   [s * (-u*a + s*w + e) + e_1 + sum([(u_j - s_j)*(s*a + e_2)])]
+// = [s * (-u*a + s*w + e) + e_1 + (u - s)*(s*a + e_2)]
+// = [-s*u*a + s^2*w + s*e + e_1 + s*u*a -s^2*a + (u - s)*e_2]
+// = [-s^2*a + s^2*w + e_1 + (u - s)*e_2]
+// = [-s^2*a + s^2*w + e]
+//
+// The evaluation key is therefor : [-s*b + s^2*w + e, s*b]
 func (ekg *EkgProtocol) ComputeEVK(h1 [][][]*ring.Poly, h [][][2]*ring.Poly) (collectiveEVK [][][2]*ring.Poly) {
 
 	collectiveEVK = make([][][2]*ring.Poly, len(ekg.context.Modulus))

@@ -9,14 +9,16 @@ import (
 	"math/bits"
 )
 
+// PRNG is a structure storing the parameters used to securely and deterministicaly generate shared
+// random bytes among different parties using the hash function blake2b.
 type PRNG struct {
 	clock uint64
 	seed  []byte
 	hash  hash.Hash
 }
 
-// NewPRNG creates a new instance of PRNG
-// Accepts an optional key, if no key, call with key=nill
+// NewPRNG creates a new instance of PRNG.
+// Accepts an optional key, else set key=nil.
 func NewPRNG(key []byte) (*PRNG, error) {
 	var err error
 	prng := new(PRNG)
@@ -25,7 +27,7 @@ func NewPRNG(key []byte) (*PRNG, error) {
 	return prng, err
 }
 
-// GetClock returns the value of the clock cycle of the PRNG
+// GetClock returns the value of the clock cycle of the PRNG.
 func (prng *PRNG) GetClock() uint64 {
 	return prng.clock
 }
@@ -44,9 +46,9 @@ func (prng *PRNG) GetSeed() []byte {
 	return prng.seed[:]
 }
 
-// Clock returns the right part of the digest value
+// Clock returns the right 32 bytes of the digest value
 // of the current PRNG state and reseeds the PRNG with the
-// left part of the digest value. Increases the clock cycle by 1.
+// left 32 bytes of the digest value. Also increases the clock cycle by 1.
 func (prng *PRNG) Clock() []byte {
 	tmp := prng.hash.Sum(nil)
 	prng.hash.Write(tmp[:32])
@@ -54,8 +56,9 @@ func (prng *PRNG) Clock() []byte {
 	return tmp[32:]
 }
 
-// Sets the clock cycle of the PRNG to a given number. Returns an error if
-// the target clock cycle is smaller than the current clock cycle.
+// SetClock sets the clock cycle of the PRNG to a given number by calling Clock until
+// the clock cycle reaches the desired number. Returns an error if the target clock
+// cycle is smaller than the current clock cycle.
 func (prng *PRNG) SetClock(n uint64) error {
 	if prng.clock > n {
 		return errors.New("error : cannot set prng clock to a previous state")
@@ -69,13 +72,17 @@ func (prng *PRNG) SetClock(n uint64) error {
 	return nil
 }
 
-// Common Reference Polynomial Generator
+// CRPGenerator is the structure storing the parameters for deterministicaly securely
+// generating random polynomials using the structure PRNG.
 type CRPGenerator struct {
 	prng    *PRNG
 	context *ring.Context
 	masks   []uint64
 }
 
+// NewCRPGenerator creates a new CRPGenerator, that will deterministicaly and securely generate uniform polynomials
+// in the input context using the hash function blake2b. The PRNG can be instantiated with a key on top
+// of the public seed. If not key is used, set key=nil.
 func NewCRPGenerator(key []byte, context *ring.Context) (*CRPGenerator, error) {
 	var err error
 	crpgenerator := new(CRPGenerator)
@@ -88,18 +95,24 @@ func NewCRPGenerator(key []byte, context *ring.Context) (*CRPGenerator, error) {
 	return crpgenerator, err
 }
 
+// GetClock returns the current clock of the CRPGenerator.
 func (crpgenerator *CRPGenerator) GetClock() uint64 {
 	return crpgenerator.prng.clock
 }
 
+// Seed resets the CRPGenerator and instantiate it with a new seed. Does not change the key.
 func (crpgenerator *CRPGenerator) Seed(seed []byte) {
 	crpgenerator.prng.Seed(seed)
 }
 
+// GetSeed returns the seed of the CRPGenerator.
 func (crpgenerator *CRPGenerator) GetSeed() []byte {
 	return crpgenerator.prng.seed[:]
 }
 
+// SetClock sets the clock of the CRPGenerator to the given input by clocking it until the
+// clock cycle reach the desired number. If the given input is smaller than the current clock,
+// it will return an error.
 func (crpgenerator *CRPGenerator) SetClock(n uint64) error {
 	if err := crpgenerator.prng.SetClock(n); err != nil {
 		return err
@@ -108,6 +121,7 @@ func (crpgenerator *CRPGenerator) SetClock(n uint64) error {
 	return nil
 }
 
+// Clock generates and returns a new uniform polynomial. Also increases the clock cycle by 1.
 func (crpgenerator *CRPGenerator) Clock() *ring.Poly {
 	var coeff uint64
 	var randomBytes []byte
@@ -139,7 +153,7 @@ func (crpgenerator *CRPGenerator) Clock() *ring.Poly {
 				}
 			}
 
-			// Assigns coeff to the ring crp coefficient
+			// Assigns the coeff to the polynomial
 			crp.Coeffs[j][i] = coeff
 		}
 	}

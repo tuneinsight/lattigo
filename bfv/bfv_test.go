@@ -10,7 +10,7 @@ import (
 type BFVTESTPARAMS struct {
 	bfvcontext   *BfvContext
 	batchencoder *BatchEncoder
-	kgen         *KeyGenerator
+	kgen         *keygenerator
 	sk           *SecretKey
 	pk           *PublicKey
 	encryptor    *Encryptor
@@ -199,12 +199,13 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		len(bfvTest.bfvcontext.contextQ.Modulus), 60), func(t *testing.T) {
 		state = true
 
-		SkBytes, err := Sk.MarshalBinary()
+		SkBytes, err := Sk.MarshalBinary(bfvTest.bfvcontext)
 		if err != nil {
 
 		}
-		SkTest := new(SecretKey)
-		SkTest.UnMarshalBinary(SkBytes)
+
+		SkTest := bfvTest.kgen.NewSecretKeyEmpty()
+		SkTest.UnMarshalBinary(SkBytes, bfvTest.bfvcontext)
 
 		if bfvContext.contextQ.Equal(Sk.sk, SkTest.sk) != true {
 			t.Errorf("error : binarymarshal secretkey")
@@ -220,7 +221,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		PkTest := new(PublicKey)
+		PkTest := bfvTest.kgen.NewPublicKeyEmpty()
 		PkTest.UnMarshalBinary(PkBytes)
 
 		for i := range Pk.pk {
@@ -242,7 +243,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		PxTest := new(Plaintext)
+		PxTest := bfvContext.NewPlaintext()
 		PxTest.UnMarshalBinary(PxBytes)
 
 		if bfvContext.contextT.Equal(PxTest.Value()[0], Px.Value()[0]) != true {
@@ -260,8 +261,8 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		CtxTest := new(Ciphertext)
-		if err = CtxTest.UnmarshalBinary(CtxBytes); err != nil {
+		CtxTest := bfvContext.NewCiphertext(4)
+		if err = CtxTest.UnMarshalBinary(CtxBytes); err != nil {
 			log.Fatal(err)
 		}
 
@@ -288,7 +289,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		rlkTest := new(EvaluationKey)
+		rlkTest := bfvTest.kgen.NewRelinKeyEmpty(5, 15)
 		rlkTest.UnMarshalBinary(rlkBytes)
 
 		state = true
@@ -334,8 +335,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 		rotKeyBytes, err := rotKey.MarshalBinary()
 
-		rotKeyTest := new(RotationKeys)
-
+		rotKeyTest := bfvTest.kgen.NewRotationKeysEmpty()
 		rotKeyTest.UnMarshalBinary(rotKeyBytes)
 
 		state = true

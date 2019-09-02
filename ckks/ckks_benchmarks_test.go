@@ -19,7 +19,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	var err error
 	var ckkscontext *CkksContext
 	var encoder *Encoder
-	var kgen *KeyGenerator
+	var kgen *keygenerator
 	var sk *SecretKey
 	var pk *PublicKey
 	var rlk *EvaluationKey

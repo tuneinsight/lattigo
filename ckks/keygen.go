@@ -7,18 +7,18 @@ import (
 	"math/bits"
 )
 
+type keygenerator struct {
+	ckkscontext *CkksContext
+	context     *ring.Context
+	polypool    *ring.Poly
+}
+
 type SecretKey struct {
 	sk *ring.Poly
 }
 
 type PublicKey struct {
 	pk [2]*ring.Poly
-}
-
-type KeyGenerator struct {
-	ckkscontext *CkksContext
-	context     *ring.Context
-	polypool    *ring.Poly
 }
 
 type RotationKey struct {
@@ -40,15 +40,15 @@ type SwitchingKey struct {
 
 // NewKeyGenerator instantiates a new keygenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
-func (ckkscontext *CkksContext) NewKeyGenerator() (keygen *KeyGenerator) {
-	keygen = new(KeyGenerator)
+func (ckkscontext *CkksContext) NewKeyGenerator() (keygen *keygenerator) {
+	keygen = new(keygenerator)
 	keygen.ckkscontext = ckkscontext
 	keygen.context = ckkscontext.keyscontext
 	keygen.polypool = ckkscontext.keyscontext.NewPoly()
 	return
 }
 
-func (keygen *KeyGenerator) check_sk(sk_output *SecretKey) error {
+func (keygen *keygenerator) check_sk(sk_output *SecretKey) error {
 
 	if sk_output.Get().GetDegree() != int(keygen.context.N) {
 		return errors.New("error : pol degree sk != ckkscontext.n")
@@ -62,13 +62,13 @@ func (keygen *KeyGenerator) check_sk(sk_output *SecretKey) error {
 }
 
 // NewSecretKey generates a new secret key.
-func (keygen *KeyGenerator) NewSecretKey() *SecretKey {
+func (keygen *keygenerator) NewSecretKey() *SecretKey {
 	sk := new(SecretKey)
 	sk.sk = keygen.ckkscontext.ternarySampler.SampleMontgomeryNTTNew()
 	return sk
 }
 
-func (keygen *KeyGenerator) NewSecretKeyEmpty() *SecretKey {
+func (keygen *keygenerator) NewSecretKeyEmpty() *SecretKey {
 	sk := new(SecretKey)
 	sk.sk = keygen.context.NewPoly()
 	return sk
@@ -85,7 +85,7 @@ func (sk *SecretKey) Set(poly *ring.Poly) {
 }
 
 // NewPublicKey generates a new public key from the provided secret key.
-func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err error) {
+func (keygen *keygenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err error) {
 
 	if err = keygen.check_sk(sk); err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err erro
 	return pk, nil
 }
 
-func (keygen *KeyGenerator) NewPublicKeyEmpty() (pk *PublicKey) {
+func (keygen *keygenerator) NewPublicKeyEmpty() (pk *PublicKey) {
 	pk = new(PublicKey)
 
 	pk.pk[0] = keygen.context.NewPoly()
@@ -125,7 +125,7 @@ func (pk *PublicKey) Set(poly [2]*ring.Poly) {
 }
 
 // NewKeyPair generates a new secretkey and a corresponding public key.
-func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey, err error) {
+func (keygen *keygenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey, err error) {
 	sk = keygen.NewSecretKey()
 	pk, err = keygen.NewPublicKey(sk)
 	return
@@ -135,7 +135,7 @@ func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey, err erro
 // Bitdecomposition aims at reducing the added noise at the expense of more storage needed for the keys and more computation
 // during the relinearization. However for relinearization this bitdecomp value can be set to maximum as the encrypted value
 // are also scaled up during the multiplication.
-func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, bitDecomp uint64) (evakey *EvaluationKey, err error) {
+func (keygen *keygenerator) NewRelinKey(sk *SecretKey, bitDecomp uint64) (evakey *EvaluationKey, err error) {
 
 	if err = keygen.check_sk(sk); err != nil {
 		return nil, err
@@ -149,7 +149,7 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, bitDecomp uint64) (evakey
 	return
 }
 
-func (keygen *KeyGenerator) NewRelinKeyEmpty(bitDecomp uint64) (evakey *EvaluationKey) {
+func (keygen *keygenerator) NewRelinKeyEmpty(bitDecomp uint64) (evakey *EvaluationKey) {
 	evakey = new(EvaluationKey)
 	evakey.evakey = new(SwitchingKey)
 
@@ -181,7 +181,7 @@ func (keygen *KeyGenerator) NewRelinKeyEmpty(bitDecomp uint64) (evakey *Evaluati
 	return
 }
 
-func (keygen *KeyGenerator) SetRelinKeys(rlk [][][2]*ring.Poly, bitDecomp uint64) (*EvaluationKey, error) {
+func (keygen *keygenerator) SetRelinKeys(rlk [][][2]*ring.Poly, bitDecomp uint64) (*EvaluationKey, error) {
 
 	newevakey := new(EvaluationKey)
 
@@ -201,7 +201,7 @@ func (keygen *KeyGenerator) SetRelinKeys(rlk [][][2]*ring.Poly, bitDecomp uint64
 
 // NewSwitchingKey generated a new keyswitching key, that will re-encrypt a ciphertext encrypted under the input key to the output key.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitDecomp uint64) (newevakey *SwitchingKey, err error) {
+func (keygen *keygenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitDecomp uint64) (newevakey *SwitchingKey, err error) {
 
 	if err = keygen.check_sk(sk_input); err != nil {
 		return nil, err
@@ -218,7 +218,7 @@ func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitD
 	return
 }
 
-func (keygen *KeyGenerator) NewSwitchingKeyEmpty(bitDecomp uint64) (evakey *SwitchingKey) {
+func (keygen *keygenerator) NewSwitchingKeyEmpty(bitDecomp uint64) (evakey *SwitchingKey) {
 	evakey = new(SwitchingKey)
 
 	if bitDecomp > keygen.ckkscontext.maxBit || bitDecomp == 0 {
@@ -251,7 +251,7 @@ func (keygen *KeyGenerator) NewSwitchingKeyEmpty(bitDecomp uint64) (evakey *Swit
 
 // NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint64, rotLeft []uint64, rotRight []uint64, conjugate bool) (rotKey *RotationKey, err error) {
+func (keygen *keygenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint64, rotLeft []uint64, rotRight []uint64, conjugate bool) (rotKey *RotationKey, err error) {
 
 	if err = keygen.check_sk(sk_output); err != nil {
 		return nil, err
@@ -292,7 +292,7 @@ func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint
 
 // NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewRotationKeysEmpty() (rotKey *RotationKey) {
+func (keygen *keygenerator) NewRotationKeysEmpty() (rotKey *RotationKey) {
 
 	rotKey = new(RotationKey)
 	rotKey.ckkscontext = keygen.ckkscontext
@@ -303,7 +303,7 @@ func (keygen *KeyGenerator) NewRotationKeysEmpty() (rotKey *RotationKey) {
 
 // NewRotationkeysPow2 generates a new rotation key with all the power of two rotation to the left and right, as well as the conjugation
 // key if asked. Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, bitDecomp uint64, conjugate bool) (rotKey *RotationKey, err error) {
+func (keygen *keygenerator) NewRotationKeysPow2(sk_output *SecretKey, bitDecomp uint64, conjugate bool) (rotKey *RotationKey, err error) {
 
 	if err = keygen.check_sk(sk_output); err != nil {
 		return nil, err
@@ -332,7 +332,7 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, bitDecomp 
 	return
 }
 
-func genrotkey(keygen *KeyGenerator, sk_output *ring.Poly, gen, bitDecomp uint64) (switchingkey *SwitchingKey) {
+func genrotkey(keygen *keygenerator, sk_output *ring.Poly, gen, bitDecomp uint64) (switchingkey *SwitchingKey) {
 
 	ring.PermuteNTT(sk_output, gen, keygen.polypool)
 	keygen.context.Sub(keygen.polypool, sk_output, keygen.polypool)

@@ -563,11 +563,11 @@ func (rotationkey *RotationKey) UnMarshalBinary(data []byte) error {
 
 				rotationkey.evakey_rot_row.evakey[j][x][0] = new(ring.Poly)
 				rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs = make([][]uint64, level)
-				pointer, _ = ring.DecodeCoeffs(pointer, N, level, rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs, data)
+				pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs, data)
 
 				rotationkey.evakey_rot_row.evakey[j][x][1] = new(ring.Poly)
 				rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs = make([][]uint64, level)
-				pointer, _ = ring.DecodeCoeffs(pointer, N, level, rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs, data)
+				pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs, data)
 			}
 		}
 	}
@@ -593,11 +593,11 @@ func (rotationkey *RotationKey) UnMarshalBinary(data []byte) error {
 
 					rotationkey.evakey_rot_col_L[i].evakey[j][x][0] = new(ring.Poly)
 					rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs = make([][]uint64, level)
-					pointer, _ = ring.DecodeCoeffs(pointer, N, level, rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs, data)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs, data)
 
 					rotationkey.evakey_rot_col_L[i].evakey[j][x][1] = new(ring.Poly)
 					rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs = make([][]uint64, level)
-					pointer, _ = ring.DecodeCoeffs(pointer, N, level, rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs, data)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs, data)
 				}
 			}
 		}
@@ -624,11 +624,11 @@ func (rotationkey *RotationKey) UnMarshalBinary(data []byte) error {
 
 					rotationkey.evakey_rot_col_R[i].evakey[j][x][0] = new(ring.Poly)
 					rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs = make([][]uint64, level)
-					pointer, _ = ring.DecodeCoeffs(pointer, N, level, rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs, data)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs, data)
 
 					rotationkey.evakey_rot_col_R[i].evakey[j][x][1] = new(ring.Poly)
 					rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs = make([][]uint64, level)
-					pointer, _ = ring.DecodeCoeffs(pointer, N, level, rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs, data)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs, data)
 				}
 			}
 		}

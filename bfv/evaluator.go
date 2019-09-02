@@ -467,7 +467,7 @@ func relinearize(evaluator *Evaluator, cIn *Ciphertext, evakey *EvaluationKey, c
 
 // SwitchKeys applies the key-switching procedure to cIn and returns the result on cOut. It requires as an additional input a correct evaluation key :
 // - it must encrypt the target key under the public key under which the ciphertext is currently encrypted.
-func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingKey, cOut *Ciphertext) (err error) {
+func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchkey *SwitchingKey, cOut *Ciphertext) (err error) {
 
 	if cIn.Degree() != 1 {
 		return errors.New("error : ciphertext must be of degree 1 to allow key switching")
@@ -485,7 +485,7 @@ func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingK
 		c2 = cIn.Value()[1]
 	}
 	cIn.NTT(evaluator.bfvcontext, cOut)
-	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], c2, switchingKey, cOut)
+	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], c2, switchkey, cOut)
 	cOut.InvNTT(evaluator.bfvcontext, cOut)
 
 	return nil
@@ -493,7 +493,7 @@ func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingK
 
 // SwitchKeys applies the key-switching procedure to cIn and creates a new ciphertext to store the result. It requires as an additional input a correct evaluation key :
 // - it must encrypt the target key under the public key under which the ciphertext is currently encrypted.
-func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *SwitchingKey) (cOut *Ciphertext, err error) {
+func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchkey *SwitchingKey) (cOut *Ciphertext, err error) {
 
 	if cIn.Degree() > 1 {
 		return nil, errors.New("error : ciphertext must be of degree 1 to allow key switching")
@@ -502,7 +502,7 @@ func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *Switchi
 	cOut = evaluator.bfvcontext.NewCiphertext(1)
 
 	cIn.NTT(evaluator.bfvcontext, cOut)
-	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], cIn.Value()[1], switchingKey, cOut)
+	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], cIn.Value()[1], switchkey, cOut)
 	cOut.InvNTT(evaluator.bfvcontext, cOut)
 
 	return cOut, nil

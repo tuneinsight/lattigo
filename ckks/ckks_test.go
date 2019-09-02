@@ -15,7 +15,7 @@ type CKKSTESTPARAMS struct {
 	encoder     *Encoder
 	levels      uint64
 	logScale    uint64
-	kgen        *KeyGenerator
+	kgen        *keygenerator
 	sk          *SecretKey
 	pk          *PublicKey
 	rlk         *EvaluationKey

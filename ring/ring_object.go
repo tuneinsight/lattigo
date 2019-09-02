@@ -121,6 +121,19 @@ func WriteCoeffsTo(pointer, N, numberModuli uint64, coeffs [][]uint64, data []by
 func DecodeCoeffs(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
 	tmp := N << 3
 	for i := uint64(0); i < numberModuli; i++ {
+		for j := uint64(0); j < N; j++ {
+			coeffs[i][j] = binary.BigEndian.Uint64(data[pointer+(j<<3) : pointer+((j+1)<<3)])
+		}
+		pointer += tmp
+	}
+
+	return pointer, nil
+}
+
+// DecodeCoeffs converts a byte array to a matrix of coefficients.
+func DecodeCoeffsNew(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
+	tmp := N << 3
+	for i := uint64(0); i < numberModuli; i++ {
 		coeffs[i] = make([]uint64, N)
 		for j := uint64(0); j < N; j++ {
 			coeffs[i][j] = binary.BigEndian.Uint64(data[pointer+(j<<3) : pointer+((j+1)<<3)])
@@ -161,8 +174,6 @@ func (Pol *Poly) UnMarshalBinary(data []byte) (*Poly, error) {
 	N := uint64(int(1 << data[0]))
 	numberModulies := uint64(int(data[1]))
 
-	Coeffs := make([][]uint64, numberModulies)
-
 	var pointer uint64
 
 	pointer = 2
@@ -171,11 +182,9 @@ func (Pol *Poly) UnMarshalBinary(data []byte) (*Poly, error) {
 		return nil, errors.New("error : invalid polynomial encoding")
 	}
 
-	if _, err := DecodeCoeffs(pointer, N, numberModulies, Coeffs, data); err != nil {
+	if _, err := DecodeCoeffs(pointer, N, numberModulies, Pol.Coeffs, data); err != nil {
 		return nil, err
 	}
-
-	Pol = &Poly{Coeffs}
 
 	return Pol, nil
 }

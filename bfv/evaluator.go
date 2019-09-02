@@ -30,7 +30,7 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator, err error) {
 	}
 
 	for i := 0; i < 4; i++ {
-		evaluator.polypool[i] = bfvcontext.contextQ.NewPoly()
+		evaluator.polypool[i] = bfvcontext.contextQP.NewPoly()
 	}
 
 	evaluator.ctxpool[0] = bfvcontext.NewCiphertextBig(5)
@@ -270,7 +270,7 @@ func (evaluator *Evaluator) Mul(c0, c1, cOut BfvElement) (err error) {
 		return errors.New("cannot Mul -> cOut (receiver) degree is to small to store the result")
 	}
 
-	tensorAndRescale(evaluator, c0.Value(), c1.Value(), cOut.Value())
+	tensorAndRescale(evaluator, c0, c1, cOut)
 
 	return nil
 }
@@ -285,13 +285,13 @@ func (evaluator *Evaluator) MulNew(c0, c1 BfvElement) (cOut BfvElement) {
 		cOut = evaluator.bfvcontext.NewCiphertext(c0.Degree() + c1.Degree())
 	}
 
-	tensorAndRescale(evaluator, c0.Value(), c1.Value(), cOut.Value())
+	tensorAndRescale(evaluator, c0, c1, cOut)
 
 	return cOut
 }
 
 // tensorAndRescales computes (ct0 x ct1) * (t/Q) and stores the result on cOut.
-func tensorAndRescale(evaluator *Evaluator, ct0, ct1, cOut []*ring.Poly) {
+func tensorAndRescale(evaluator *Evaluator, ct0, ct1, cOut BfvElement) {
 
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them in NTT form
@@ -299,36 +299,111 @@ func tensorAndRescale(evaluator *Evaluator, ct0, ct1, cOut []*ring.Poly) {
 	c1 := evaluator.ctxpool[1]
 	tmpCout := evaluator.ctxpool[2]
 
-	for i := range ct0 {
-		evaluator.basisextender.ExtendBasis(ct0[i], c0.Value()[i])
-		evaluator.bfvcontext.contextQP.NTT(c0.Value()[i], c0.Value()[i])
-	}
+	if ct0 == ct1 {
 
-	for i := range ct1 {
-		evaluator.basisextender.ExtendBasis(ct1[i], c1.Value()[i])
-		evaluator.bfvcontext.contextQP.NTT(c1.Value()[i], c1.Value()[i])
+		for i := range ct0.Value() {
+			evaluator.basisextender.ExtendBasis(ct0.Value()[i], c0.Value()[i])
+			evaluator.bfvcontext.contextQP.NTT(c0.Value()[i], c0.Value()[i])
+		}
+
+	} else {
+
+		for i := range ct0.Value() {
+			evaluator.basisextender.ExtendBasis(ct0.Value()[i], c0.Value()[i])
+			evaluator.bfvcontext.contextQP.NTT(c0.Value()[i], c0.Value()[i])
+		}
+
+		for i := range ct1.Value() {
+			evaluator.basisextender.ExtendBasis(ct1.Value()[i], c1.Value()[i])
+			evaluator.bfvcontext.contextQP.NTT(c1.Value()[i], c1.Value()[i])
+		}
 	}
 
 	// Tensoring : multiplies each elements of the ciphertexts together
 	// and adds them to their correspongint position in the new ciphertext
 	// based on their respective degree
 
-	for i := 0; i < len(ct0)+len(ct1); i++ {
-		tmpCout.Value()[i].Zero()
-	}
+	// Case where both BfvElements are of degree 1
+	if ct0.Degree() == 1 && ct1.Degree() == 1 {
 
-	for i := range ct0 {
-		evaluator.bfvcontext.contextQP.MForm(c0.Value()[i], c0.Value()[i])
-		for j := range ct1 {
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAdd(c0.Value()[i], c1.Value()[j], tmpCout.Value()[i+j])
+		c_00 := evaluator.polypool[0]
+		c_01 := evaluator.polypool[1]
+
+		d0 := tmpCout.Value()[0]
+		d1 := tmpCout.Value()[1]
+		d2 := tmpCout.Value()[2]
+
+		evaluator.bfvcontext.contextQP.MForm(c0.Value()[0], c_00)
+		evaluator.bfvcontext.contextQP.MForm(c0.Value()[1], c_01)
+
+		// Squaring case
+		if ct0 == ct1 {
+
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.Value()[0], d0) // c0 = c[0]*c[0]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.Value()[1], d1) // c1 = 2*c[0]*c[1]
+			evaluator.bfvcontext.contextQP.Add(d1, d1, d1)
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c0.Value()[1], d2) // c2 = c[1]*c[1]
+
+			// Normal case
+		} else {
+
+			d1a := evaluator.polypool[2]
+			d1b := evaluator.polypool[3]
+
+			evaluator.bfvcontext.contextQP.Add(c_00, c_01, d1a)
+			evaluator.bfvcontext.contextQP.Add(c1.Value()[0], c1.Value()[1], d1b)
+
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c1.Value()[0], d0) // c0 = c0[0]*c1[0]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(d1a, d1b, d1)            // c1 = c0[0]*c1[0] + c0[0]*c1[1] + c0[1]*c1[0] + c0[1]*c1[1]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c1.Value()[1], d2) // c2 = c0[1]*c1[1]
+
+			evaluator.bfvcontext.contextQP.Sub(d1, d0, d1) // c2 = c0[0]*c1[1] + c0[1]*c1[0] + c0[1]*c1[1]
+			evaluator.bfvcontext.contextQP.Sub(d1, d2, d1) // c2 = c0[0]*c1[1] + c0[1]*c1[0]
+		}
+
+		// Case where both BfvElements are not of degree 1
+	} else {
+
+		for i := 0; i < len(ct0.Value())+len(ct1.Value()); i++ {
+			tmpCout.Value()[i].Zero()
+		}
+
+		// Squaring case
+		if ct0 == ct1 {
+
+			c_00 := evaluator.ctxpool[1]
+
+			for i := range ct0.Value() {
+				evaluator.bfvcontext.contextQP.MForm(c0.Value()[i], c_00.Value()[i])
+			}
+
+			for i := uint64(0); i < ct0.Degree()+1; i++ {
+				for j := i + 1; j < ct0.Degree()+1; j++ {
+					evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00.Value()[i], c0.Value()[j], tmpCout.Value()[i+j])
+					evaluator.bfvcontext.contextQP.Add(tmpCout.Value()[i+j], tmpCout.Value()[i+j], tmpCout.Value()[i+j])
+				}
+			}
+
+			for i := uint64(0); i < ct0.Degree()+1; i++ {
+				evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAdd(c_00.Value()[i], c0.Value()[i], tmpCout.Value()[i<<1])
+			}
+
+			// Normal case
+		} else {
+			for i := range ct0.Value() {
+				evaluator.bfvcontext.contextQP.MForm(c0.Value()[i], c0.Value()[i])
+				for j := range ct1.Value() {
+					evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAdd(c0.Value()[i], c1.Value()[j], tmpCout.Value()[i+j])
+				}
+			}
 		}
 	}
 
 	// Applies the inverse NTT to the ciphertext, scales the down ciphertext
 	// by t/q and reduces its basis from QP to Q
-	for i := range cOut {
+	for i := range cOut.Value() {
 		evaluator.bfvcontext.contextQP.InvNTT(tmpCout.Value()[i], tmpCout.Value()[i])
-		evaluator.complexscaler.Scale(tmpCout.Value()[i], cOut[i])
+		evaluator.complexscaler.Scale(tmpCout.Value()[i], cOut.Value()[i])
 	}
 }
 
@@ -479,7 +554,7 @@ func (evaluator *Evaluator) RotateColumns(c0 BfvElement, k uint64, evakey *Rotat
 				context.Permute(c0.Value()[0], evaluator.bfvcontext.galElRotColLeft[k], evaluator.polypool[0])
 			}
 
-			evaluator.polypool[0].Copy(c1.Value()[0])
+			context.Copy(evaluator.polypool[0], c1.Value()[0])
 		}
 
 		return nil
@@ -493,8 +568,8 @@ func (evaluator *Evaluator) RotateColumns(c0 BfvElement, k uint64, evakey *Rotat
 				ring.PermuteNTT(c0.Value()[0], evaluator.bfvcontext.galElRotColLeft[k], evaluator.polypool[0])
 				ring.PermuteNTT(c0.Value()[1], evaluator.bfvcontext.galElRotColLeft[k], evaluator.polypool[1])
 
-				evaluator.polypool[0].Copy(c1.Value()[0])
-				evaluator.polypool[1].Copy(c1.Value()[1])
+				context.Copy(evaluator.polypool[0], c1.Value()[0])
+				context.Copy(evaluator.polypool[1], c1.Value()[1])
 
 				context.InvNTT(evaluator.polypool[1], evaluator.polypool[1])
 
@@ -583,15 +658,15 @@ func rotateColumnsPow2(evaluator *Evaluator, c0 BfvElement, generator, k uint64,
 			if c0.Degree() == 0 {
 
 				ring.PermuteNTT(c1.Value()[0], generator, evaluator.polypool[0])
-				evaluator.polypool[0].Copy(c1.Value()[0])
+				context.Copy(evaluator.polypool[0], c1.Value()[0])
 
 			} else {
 
 				ring.PermuteNTT(c1.Value()[0], generator, evaluator.polypool[0])
 				ring.PermuteNTT(c1.Value()[1], generator, evaluator.polypool[1])
 
-				evaluator.polypool[0].Copy(c1.Value()[0])
-				evaluator.polypool[1].Copy(c1.Value()[1])
+				context.Copy(evaluator.polypool[0], c1.Value()[0])
+				context.Copy(evaluator.polypool[1], c1.Value()[1])
 				context.InvNTT(evaluator.polypool[1], evaluator.polypool[2])
 
 				switchKeys(evaluator, evaluator.polypool[0], evaluator.polypool[1], evaluator.polypool[2], evakey_rot_col[evakey_index], c1.(*Ciphertext))
@@ -641,7 +716,7 @@ func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 B
 			} else {
 
 				ring.PermuteNTT(c0.Value()[0], evaluator.bfvcontext.galElRotRow, evaluator.polypool[0])
-				evaluator.polypool[0].Copy(c1.Value()[0])
+				context.Copy(evaluator.polypool[0], c1.Value()[0])
 			}
 
 		} else {
@@ -653,7 +728,7 @@ func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 B
 			} else {
 
 				context.Permute(c0.Value()[0], evaluator.bfvcontext.galElRotRow, evaluator.polypool[0])
-				evaluator.polypool[0].Copy(c1.Value()[0])
+				context.Copy(evaluator.polypool[0], c1.Value()[0])
 			}
 		}
 
@@ -675,8 +750,8 @@ func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 B
 				ring.PermuteNTT(c0.Value()[0], evaluator.bfvcontext.galElRotRow, evaluator.polypool[0])
 				ring.PermuteNTT(c0.Value()[1], evaluator.bfvcontext.galElRotRow, evaluator.polypool[1])
 
-				evaluator.polypool[0].Copy(c1.Value()[0])
-				evaluator.polypool[1].Copy(c1.Value()[1])
+				context.Copy(evaluator.polypool[0], c1.Value()[0])
+				context.Copy(evaluator.polypool[1], c1.Value()[1])
 
 				context.InvNTT(evaluator.polypool[1], evaluator.polypool[1])
 
@@ -690,7 +765,7 @@ func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 B
 				context.Permute(c0.Value()[0], evaluator.bfvcontext.galElRotRow, c1.Value()[0])
 				context.Permute(c0.Value()[1], evaluator.bfvcontext.galElRotRow, c1.Value()[1])
 
-				c1.Value()[1].Copy(evaluator.polypool[1])
+				context.Copy(c1.Value()[1], evaluator.polypool[1])
 
 				context.NTT(c1.Value()[0], c1.Value()[0])
 				context.NTT(c1.Value()[1], c1.Value()[1])

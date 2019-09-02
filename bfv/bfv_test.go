@@ -22,7 +22,7 @@ func Test_BFV(t *testing.T) {
 
 	var err error
 
-	paramSets := DefaultParams[0:2]
+	paramSets := DefaultParams[0:1]
 
 	bitDecomps := []uint64{60}
 
@@ -862,6 +862,24 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
 
 	})
+
+	t.Run(fmt.Sprintf("N=%d/T=%d/Qi=%dx%dbit/Pi=%dx%dbit/Square", bfvTest.bfvcontext.n,
+		bfvTest.bfvcontext.t,
+		len(bfvTest.bfvcontext.contextQ.Modulus), 60,
+		len(bfvTest.bfvcontext.contextP.Modulus), 60), func(t *testing.T) {
+
+		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
+
+		receiverCiphertext := evaluator.MulNew(ciphertext0, ciphertext0)
+		receiverCiphertext = evaluator.MulNew(receiverCiphertext, receiverCiphertext)
+
+		bfvContext.contextT.MulCoeffs(coeffs0, coeffs0, coeffs0)
+		bfvContext.contextT.MulCoeffs(coeffs0, coeffs0, coeffs0)
+
+		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
+
+	})
+
 }
 
 //HOMOMORPHIC MULTIPLICATION WITH RELINEARIZATION BASE Qi AND w
@@ -913,7 +931,7 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 
 	for _, bitDecomp := range bitDecomps {
 
-		rlk, err := kgen.NewRelinKey(bfvTest.sk, 1, bitDecomp)
+		rlk, err := kgen.NewRelinKey(bfvTest.sk, 2, bitDecomp)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -927,18 +945,21 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 			coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
-			receiverCiphertext := evaluator.MulNew(ciphertext0, ciphertext1)
+			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).(*Ciphertext)
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
-			if err := evaluator.Relinearize(receiverCiphertext.(*Ciphertext), rlk, receiverCiphertext.(*Ciphertext)); err != nil {
+			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).(*Ciphertext)
+			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
+
+			if err := evaluator.Relinearize(ciphertext0, rlk, ciphertext0); err != nil {
 				log.Fatal(err)
 			}
 
-			if len(receiverCiphertext.Value()) > 2 {
+			if len(ciphertext0.Value()) > 2 {
 				t.Errorf("error : Relinearize")
 			}
 
-			verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
+			verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 
 		})
 
@@ -951,19 +972,22 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 			coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
-			receiverCiphertext := evaluator.MulNew(ciphertext0, ciphertext1)
+			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).(*Ciphertext)
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
-			receiverCiphertext, err := evaluator.RelinearizeNew(receiverCiphertext.(*Ciphertext), rlk)
+			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).(*Ciphertext)
+			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
+
+			ciphertext0, err := evaluator.RelinearizeNew(ciphertext0, rlk)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			if len(receiverCiphertext.Value()) > 2 {
+			if len(ciphertext0.Value()) > 2 {
 				t.Errorf("error : RelinearizeNew")
 			}
 
-			verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
+			verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 
 		})
 	}

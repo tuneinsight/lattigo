@@ -7,7 +7,7 @@ import (
 
 type Evaluator struct {
 	ckkscontext *CkksContext
-	ringpool    [10]*ring.Poly
+	ringpool    [7]*ring.Poly
 	ctxpool     *Ciphertext
 }
 
@@ -21,7 +21,7 @@ func (ckkscontext *CkksContext) NewEvaluator() (evaluator *Evaluator) {
 
 	context := ckkscontext.contextLevel[ckkscontext.levels-1]
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 7; i++ {
 		evaluator.ringpool[i] = context.NewPoly()
 	}
 
@@ -1238,10 +1238,11 @@ func (evaluator *Evaluator) MulRelin(ct0, ct1 CkksElement, evakey *EvaluationKey
 			c2 = evaluator.ringpool[4]
 		}
 
+		context.MForm(ct0.Value()[0], c_00)
+		context.MForm(ct0.Value()[1], c_01)
+
 		if ct0 == ct1 { // squaring case
 
-			context.MForm(ct0.Value()[0], c_00)
-			context.MForm(ct0.Value()[1], c_01)
 			context.MulCoeffsMontgomery(c_00, ct1.Value()[0], c0) // c0 = c[0]*c[0]
 			context.MulCoeffsMontgomery(c_00, ct1.Value()[1], c1) // c1 = 2*c[0]*c[1]
 			context.Add(c1, c1, c1)
@@ -1249,18 +1250,25 @@ func (evaluator *Evaluator) MulRelin(ct0, ct1 CkksElement, evakey *EvaluationKey
 
 		} else { // regular case
 
-			context.MForm(ct0.Value()[0], c_00)
-			context.MForm(ct0.Value()[1], c_01)
-			context.MulCoeffsMontgomery(c_00, ct1.Value()[0], c0) // c0 = c0[0]*c0[0]
-			context.MulCoeffsMontgomery(c_00, ct1.Value()[1], c1)
-			context.MulCoeffsMontgomeryAndAddNoMod(c_01, ct1.Value()[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
-			context.MulCoeffsMontgomery(c_01, ct1.Value()[1], c2)            // c2 = c0[1]*c1[1]
+			c1a := evaluator.ringpool[5]
+			c1b := evaluator.ringpool[6]
+
+			context.Add(c_00, c_01, c1a)
+			context.Add(ct1.Value()[0], ct1.Value()[1], c1b)
+
+			context.MulCoeffsMontgomery(c_00, ct1.Value()[0], c0) // c0 = c0[0]*c1[0]
+			context.MulCoeffsMontgomery(c1a, c1b, c1)             // c1 = c0[0]*c1[0] + c0[0]*c1[1] + c0[1]*c1[0] + c0[1]*c1[1]
+			context.MulCoeffsMontgomery(c_01, ct1.Value()[1], c2) // c2 = c0[1]*c1[1]
+
+			context.Sub(c1, c0, c1) // c2 = c0[0]*c1[1] + c0[1]*c1[0] + c0[1]*c1[1]
+			context.Sub(c1, c2, c1) // c2 = c0[0]*c1[1] + c0[1]*c1[0]
+
 		}
 
 		// Relinearize if a key was provided
 		if evakey != nil {
 
-			switchKeys(evaluator, c0, c1, c2, evakey.evakey, cOut.(*Ciphertext))
+			switchKeys(evaluator, c0, c1, c2, evakey.evakey, cOut.(*Ciphertext).value[0], cOut.(*Ciphertext).value[1])
 
 		} else { // Or copies the result on the output ciphertext if it was one of the inputs
 			if cOut == ct0 || cOut == ct1 {
@@ -1307,7 +1315,7 @@ func (evaluator *Evaluator) RelinearizeNew(cIn *Ciphertext, evakey *EvaluationKe
 
 	cOut = evaluator.ckkscontext.NewCiphertext(1, cIn.Level(), cIn.Scale())
 
-	switchKeys(evaluator, cIn.value[0], cIn.value[1], cIn.value[2], evakey.evakey, cOut)
+	switchKeys(evaluator, cIn.value[0], cIn.value[1], cIn.value[2], evakey.evakey, cOut.value[0], cOut.value[1])
 
 	return
 }
@@ -1322,7 +1330,7 @@ func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, 
 	if cOut != cIn {
 		cOut.SetScale(cIn.Scale())
 	}
-	switchKeys(evaluator, cIn.value[0], cIn.value[1], cIn.value[2], evakey.evakey, cOut)
+	switchKeys(evaluator, cIn.value[0], cIn.value[1], cIn.value[2], evakey.evakey, cOut.value[0], cOut.value[1])
 	cOut.Resize(evaluator.ckkscontext, 1)
 
 	return nil
@@ -1339,7 +1347,7 @@ func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *Switchi
 
 	cOut = evaluator.ckkscontext.NewCiphertext(cIn.Degree(), cIn.Level(), cIn.Scale())
 
-	switchKeys(evaluator, cIn.value[0], cIn.value[1], cIn.value[1], switchingKey, cOut)
+	switchKeys(evaluator, cIn.value[0], cIn.value[1], cIn.value[1], switchingKey, cOut.value[0], cOut.value[1])
 
 	return cOut, nil
 }
@@ -1357,7 +1365,7 @@ func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingK
 		return errors.New("error : receiver ciphertext must be of degree 1 to allow key switching")
 	}
 
-	switchKeys(evaluator, cIn.value[0], cIn.value[1], cIn.value[1], switchingKey, cOut)
+	switchKeys(evaluator, cIn.value[0], cIn.value[1], cIn.value[1], switchingKey, cOut.value[0], cOut.value[1])
 
 	return nil
 }
@@ -1450,7 +1458,7 @@ func (evaluator *Evaluator) RotateColumns(c0 CkksElement, k uint64, evakey *Rota
 				evaluator.ringpool[1].Copy(c1.Value()[1])
 			}
 
-			switchKeys(evaluator, c1.Value()[0], c1.Value()[1], c1.Value()[1], evakey.evakey_rot_col_L[k], c1.(*Ciphertext))
+			switchKeys(evaluator, c1.Value()[0], c1.Value()[1], c1.Value()[1], evakey.evakey_rot_col_L[k], c1.(*Ciphertext).value[0], c1.(*Ciphertext).value[1])
 
 			return nil
 		}
@@ -1519,7 +1527,7 @@ func rotateColumnsPow2(evaluator *Evaluator, c0 CkksElement, generator, k uint64
 				evaluator.ringpool[0].Copy(c1.Value()[0])
 				evaluator.ringpool[1].Copy(c1.Value()[1])
 
-				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], c1.Value()[1], evakey_rot_col[evakey_index], c1.(*Ciphertext))
+				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], c1.Value()[1], evakey_rot_col[evakey_index], c1.(*Ciphertext).value[0], c1.(*Ciphertext).value[1])
 			}
 		}
 
@@ -1584,30 +1592,30 @@ func (evaluator *Evaluator) Conjugate(c0 CkksElement, evakey *RotationKey, c1 Ck
 		ring.PermuteNTT(c0.Value()[0], evaluator.ckkscontext.galElRotRow, cTmp0)
 		ring.PermuteNTT(c0.Value()[1], evaluator.ckkscontext.galElRotRow, cTmp1)
 
-		switchKeys(evaluator, cTmp0, cTmp1, cTmp1, evakey.evakey_rot_row, c1.(*Ciphertext))
+		switchKeys(evaluator, cTmp0, cTmp1, cTmp1, evakey.evakey_rot_row, c1.(*Ciphertext).value[0], c1.(*Ciphertext).value[1])
 	}
 
 	return nil
 }
 
 // Applies the general keyswitching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
-func switchKeys(evaluator *Evaluator, c0, c1, cx *ring.Poly, evakey *SwitchingKey, cOut *Ciphertext) {
+func switchKeys(evaluator *Evaluator, c0, c1, cx *ring.Poly, evakey *SwitchingKey, c0Out, c1Out *ring.Poly) {
 
 	var level, mask, reduce, bitLog uint64
 
-	level = uint64(len(cOut.value[0].Coeffs)) - 1
+	level = uint64(len(c0Out.Coeffs)) - 1
 	context := evaluator.ckkscontext.contextLevel[level]
 
 	c2_qi_w := evaluator.ringpool[5]
 	c2 := evaluator.ringpool[4]
 	context.InvNTT(cx, c2)
 
-	if c0 != cOut.value[0] {
-		context.Copy(c0, cOut.value[0])
+	if c0 != c0Out {
+		context.Copy(c0, c0Out)
 	}
 
-	if c1 != cOut.value[1] {
-		context.Copy(c1, cOut.value[1])
+	if c1 != c1Out {
+		context.Copy(c1, c1Out)
 	}
 
 	mask = uint64(((1 << evakey.bitDecomp) - 1))
@@ -1628,12 +1636,12 @@ func switchKeys(evaluator *Evaluator, c0, c1, cx *ring.Poly, evakey *SwitchingKe
 
 			context.NTT(c2_qi_w, c2_qi_w)
 
-			context.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][0], c2_qi_w, cOut.value[0])
-			context.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][1], c2_qi_w, cOut.value[1])
+			context.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][0], c2_qi_w, c0Out)
+			context.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][1], c2_qi_w, c1Out)
 
 			if reduce&7 == 7 {
-				context.Reduce(cOut.value[0], cOut.value[0])
-				context.Reduce(cOut.value[1], cOut.value[1])
+				context.Reduce(c0Out, c0Out)
+				context.Reduce(c1Out, c1Out)
 			}
 
 			reduce += 1
@@ -1641,7 +1649,7 @@ func switchKeys(evaluator *Evaluator, c0, c1, cx *ring.Poly, evakey *SwitchingKe
 	}
 
 	if (reduce-1)&7 != 7 {
-		context.Reduce(cOut.value[0], cOut.value[0])
-		context.Reduce(cOut.value[1], cOut.value[1])
+		context.Reduce(c0Out, c0Out)
+		context.Reduce(c1Out, c1Out)
 	}
 }

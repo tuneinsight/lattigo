@@ -47,4 +47,4 @@ The set of security parameters are defined by the three parameters ![equation](h
 - {14, 441, 3.2}
 - {15, 885, 3.2}
 
-Contrary to BFV we have chosen to not hardcode those parameters. Instead the user must chose logN, the size of each moduli and the number of moduli and make sure that the product of all the moduli is compliant with the security parameters (which are the same as for BFV). For example, if logN = 14 is chosen, the user must make sure that total bisize of its modulus (the product of all the moduli) does not exceed 441. This can be estimated by computing number of modulie times the bitsize of each moduli.
+Contrary to BFV we have chosen to not hardcode those parameters. Instead the user must chose logN, the size of each moduli and the number of moduli and make sure that the product of all the moduli is compliant with the security parameters (which are the same as for BFV). For example, if logN = 14 is chosen, the user must make sure that total bisize of its modulus (the product of all the moduli) does not exceed 441. This can be estimated by computing number of moduli times the bitsize of each modulus.

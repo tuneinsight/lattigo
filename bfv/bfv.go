@@ -1,3 +1,4 @@
+// Package bfv implements a RNS-accelerated Fan-Vercauteren version of Brakerski's scale invariant homomorphic encryption scheme. It provides modular arithmetic over the integers.
 package bfv
 
 import (
@@ -52,11 +53,17 @@ func NewBfvContext() *BfvContext {
 
 // NewBfvContextWithParam creates a new BfvContext with the given parameters. Returns an error if one of the parameters would not ensure the
 // correctness of the scheme (however it doesn't check for security).
+//
 // Parameters :
+//
 // - N        : the ring degree (must be a power of 2).
+//
 // - t        : the plaintext modulus (must be a prime congruent to 1 mod 2N to enable batching).
+//
 // - ModulieQ : the ciphertext modulus composed primes congruent to 1 mod 2N.
+//
 // - ModulieP : the secondary ciphertext modulus used during the multiplication, composed of primes congruent to 1 mod 2N. Must be bigger than ModulieQ by a margin of ~20 bits.
+//
 // - sigma    : the variance of the gaussian sampling.
 func NewBfvContextWithParam(N, t uint64, ModulieQ, ModulieP []uint64, sigma float64) (newbfvcontext *BfvContext, err error) {
 	newbfvcontext = new(BfvContext)
@@ -68,11 +75,17 @@ func NewBfvContextWithParam(N, t uint64, ModulieQ, ModulieP []uint64, sigma floa
 
 // SetParameters populates a new BfvContext with the given parameters. Returns an error if one of the parameters would not ensure the
 // correctness of the scheme (however it doesn't check for security).
+//
 // Parameters :
+//
 // - N        : the ring degree (must be a power of 2).
+//
 // - t        : the plaintext modulus (must be a prime congruent to 1 mod 2N to enable batching).
+//
 // - ModulieQ : the ciphertext modulus composed primes congruent to 1 mod 2N.
+//
 // - ModulieP : the secondary ciphertext modulus used during the multiplication, composed of primes congruent to 1 mod 2N. Must be bigger than ModulieQ by a margin of ~20 bits.
+//
 // - sigma    : the variance of the gaussian sampling.
 func (bfvContext *BfvContext) SetParameters(N, t uint64, ModulieQ, ModulieP []uint64, sigma float64) (err error) {
 
@@ -165,14 +178,14 @@ func (bfvContext *BfvContext) SetParameters(N, t uint64, ModulieQ, ModulieP []ui
 		toHash[i] = ModulieQ[i-1]
 	}
 
-	if bfvContext.checksum, err = Hash(toHash); err != nil {
+	if bfvContext.checksum, err = hash(toHash); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// GetN returns N which is the degree of the Ring, of the target bfvcontext.
+// GetN returns N which is the degree of the ring, of the target bfvcontext.
 func (bfvContext *BfvContext) GetN() uint64 {
 	return bfvContext.n
 }
@@ -182,7 +195,7 @@ func (bfvContext *BfvContext) GetPlaintextModulus() uint64 {
 	return bfvContext.t
 }
 
-// GetDelta returns t/Q, modulo each Qi un montgomery form (cf. Ring -> MForm), where t is the plaintext modulus, Q is the product of all the Qi, of the target bfvcontext.
+// GetDelta returns t/Q, modulo each Qi in montgomery form (cf. Ring -> MForm), where t is the plaintext modulus, Q is the product of all the Qi, of the target bfvcontext.
 func (bfvContext *BfvContext) GetDelta() []uint64 {
 	return bfvContext.DeltaMont
 }
@@ -202,12 +215,12 @@ func (bfvContext *BfvContext) GetContextQ() *ring.Context {
 	return bfvContext.contextQ
 }
 
-// GetContextP returns the polynomial (ring) context of the secondary (during multiplication) ciphertext modulus, of the target bfvcontext.
+// GetContextP returns the polynomial (ring) context of the secondary ciphertext modulus, of the target bfvcontext.
 func (bfvContext *BfvContext) GetContextP() *ring.Context {
 	return bfvContext.contextP
 }
 
-// GetContextQP returns the polynomial (ring) context of the extended (during multiplication) ciphertext modulus, of the target bfvcontext.
+// GetContextQP returns the polynomial (ring) context of the extended ciphertext modulus, of the target bfvcontext.
 func (bfvContext *BfvContext) GetContextQP() *ring.Context {
 	return bfvContext.contextQP
 }

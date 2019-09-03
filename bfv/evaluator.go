@@ -110,7 +110,7 @@ func (evaluator *Evaluator) SubNew(c0, c1 BfvElement) (cOut BfvElement, err erro
 	return
 }
 
-// SubNoModNew subtracts c1 to c0 without modular reductionand creates a new element to store the result.
+// SubNoModNew subtracts c1 to c0 without modular reduction and creates a new element to store the result.
 func (evaluator *Evaluator) SubNoModNew(c0, c1 BfvElement) (cOut BfvElement, err error) {
 
 	if cOut, err = evaluateNew(c0, c1, evaluator.bfvcontext.contextQ.SubNoMod, evaluator.bfvcontext); err != nil {
@@ -275,8 +275,7 @@ func (evaluator *Evaluator) Mul(c0, c1, cOut BfvElement) (err error) {
 	return nil
 }
 
-// MulNew multiplies the first element by the second element and returns the result in a new element.
-// Be aware that an element of type ciphertext is always returned, even if two plaintexts where given as input.
+// MulNew multiplies c0 by c1 and creates a new element to store the result.
 func (evaluator *Evaluator) MulNew(c0, c1 BfvElement) (cOut BfvElement) {
 
 	if c0.Degree()+c1.Degree() == 0 {
@@ -407,10 +406,14 @@ func tensorAndRescale(evaluator *Evaluator, ct0, ct1, cOut BfvElement) {
 	}
 }
 
-// Relinearize relinearize cIn of degree > 1 until it is of degree 1 and returns the result on cOut.
+// Relinearize relinearize the ciphertext cIn of degree > 1 until it is of degree 1 and returns the result on cOut.
+//
 // Requires a correct evaluation key as additional input :
-// - it must match the secret-key that was used to create the public key under which the current ciphertext is encrypted
-// - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts)
+//
+// - it must match the secret-key that was used to create the public key under which the current cIn is encrypted.
+//
+// - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext 
+//of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
 func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, cOut *Ciphertext) error {
 
 	if int(cIn.Degree()-1) > len(evakey.evakey) {
@@ -426,10 +429,14 @@ func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, 
 	return nil
 }
 
-// Relinearize relinearize cIn of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
+// Relinearize relinearize the ciphertext cIn of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
+//
 // Requires a correct evaluation key as additional input :
-// - it must match the secret-key that was used to create the public key under which the current ciphertext is encrypted
-// - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts)
+//
+// - it must match the secret-key that was used to create the public key under which the current cIn is encrypted
+//
+// - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext 
+// of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
 func (evaluator *Evaluator) RelinearizeNew(cIn *Ciphertext, evakey *EvaluationKey) (cOut *Ciphertext, err error) {
 
 	if int(cIn.Degree()-1) > len(evakey.evakey) {
@@ -465,8 +472,8 @@ func relinearize(evaluator *Evaluator, cIn *Ciphertext, evakey *EvaluationKey, c
 	evaluator.bfvcontext.contextQ.InvNTT(cOut.Value()[1], cOut.Value()[1])
 }
 
-// SwitchKeys applies the key-switching procedure to cIn and returns the result on cOut. It requires as an additional input a correct evaluation key :
-// - it must encrypt the target key under the public key under which the ciphertext is currently encrypted.
+// SwitchKeys applies the key-switching procedure to the ciphertext cIn and returns the result on cOut. It requires as an additional input a valide switching-key :
+// it must encrypt the target key under the public key under which cIn is currently encrypted.
 func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchkey *SwitchingKey, cOut *Ciphertext) (err error) {
 
 	if cIn.Degree() != 1 {
@@ -491,8 +498,8 @@ func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchkey *SwitchingKey,
 	return nil
 }
 
-// SwitchKeys applies the key-switching procedure to cIn and creates a new ciphertext to store the result. It requires as an additional input a correct evaluation key :
-// - it must encrypt the target key under the public key under which the ciphertext is currently encrypted.
+// SwitchKeys applies the key-switching procedure to the ciphertext cIn and creates a new ciphertext to store the result. It requires as an additional input a valide switching-key :
+// it must encrypt the target key under the public key under which cIn is currently encrypted.
 func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchkey *SwitchingKey) (cOut *Ciphertext, err error) {
 
 	if cIn.Degree() > 1 {
@@ -508,9 +515,11 @@ func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchkey *SwitchingK
 	return cOut, nil
 }
 
-// RotateColumns rotates the columns of c0 by k position to the left and returns the result on c1. As an additional input it requires rotationkeys :
+// RotateColumns rotates the columns of c0 by k position to the left and returns the result on c1. As an additional input it requires a rotationkeys :
+//
 // - it must either store all the left and right power of 2 rotations or the specific rotation that is asked.
-// If only the power of two rotations are stored, the numbers k (= n/2-k rotations to the right) will be decomposed in binary (powers of 2) and the rotation with the least
+//
+// If only the power of two rotations are stored, the numbers k and n/2-k will be decomposed in base 2 and the rotation with the least
 // hamming weight will be chosen, then the specific rotation will be computed as a sum of powers of two rotations.
 func (evaluator *Evaluator) RotateColumns(c0 BfvElement, k uint64, evakey *RotationKeys, c1 BfvElement) (err error) {
 

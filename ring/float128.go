@@ -1,6 +1,9 @@
+package ring
+
+
 // ==== Initial package ====
 // This package implements 128-bit ("double double") floating point using
-// a pair of 64-bit hardware floating point values and standard hardware
+// a pair of 64-bit hardware floating asaspoint values and standard hardware
 // floating point operations. It is based directly on libqd by Yozo Hida,
 // Xiaoye S. Li, David H. Bailey, Yves Renard and E. Jason Riedy. Source:
 // http://crd.lbl.gov/~dhbailey/mpdist/qd-2.3.13.tar.gz
@@ -8,7 +11,6 @@
 // It has been modified and adapted for a use in the BFV. Unused
 // functions have been removed, and some functions simplified to save
 // computation (full precision is not needed).
-package ring
 
 import (
 	"math"

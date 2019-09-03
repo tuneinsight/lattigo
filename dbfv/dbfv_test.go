@@ -213,7 +213,7 @@ func Test_DBFVScheme(t *testing.T) {
 						log.Fatal(err)
 					}
 
-					if bfv.EqualSlice(coeffsMul.Coeffs[0], coeffsTest) != true {
+					if equalslice(coeffsMul.Coeffs[0], coeffsTest) != true {
 						t.Errorf("error : ekg rlk bad decrypt")
 					}
 
@@ -250,7 +250,7 @@ func Test_DBFVScheme(t *testing.T) {
 						log.Fatal(err)
 					}
 
-					if bfv.EqualSlice(coeffsMul.Coeffs[0], coeffsTest) != true {
+					if equalslice(coeffsMul.Coeffs[0], coeffsTest) != true {
 						t.Errorf("error : ekg_naive rlk bad decrypt")
 					}
 				})
@@ -313,7 +313,7 @@ func Test_DBFVScheme(t *testing.T) {
 					log.Fatal(err)
 				}
 
-				if bfv.EqualSlice(coeffsWant.Coeffs[0], coeffsTest) != true {
+				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
 					t.Errorf("error : ckg protocol, cpk encrypt/decrypt test")
 				}
 
@@ -358,7 +358,7 @@ func Test_DBFVScheme(t *testing.T) {
 						log.Fatal(err)
 					}
 
-					if bfv.EqualSlice(coeffsWant.Coeffs[0], coeffsTest) != true {
+					if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
 						t.Errorf("error : CKS")
 					}
 
@@ -399,7 +399,7 @@ func Test_DBFVScheme(t *testing.T) {
 						log.Fatal(err)
 					}
 
-					if bfv.EqualSlice(coeffsWant.Coeffs[0], coeffsTest) != true {
+					if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
 						t.Errorf("error : PCKS")
 					}
 				}

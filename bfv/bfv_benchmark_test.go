@@ -43,7 +43,7 @@ func BenchmarkBFVScheme(b *testing.B) {
 
 		ptcoeffs := bfvContext.NewRandomPlaintextCoeffs()
 		pt := bfvContext.NewPlaintext()
-		pt.SetCoefficientsUint64(bfvContext, ptcoeffs)
+		pt.setCoefficientsUint64(bfvContext, ptcoeffs)
 		b.Run(fmt.Sprintf("params=%d/EncryptNew", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_, _ = encryptor.EncryptNew(pt)

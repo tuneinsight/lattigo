@@ -42,7 +42,7 @@ func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 	return plaintext, nil
 }
 
-// Decrypt decrypts the input ciphertext and returns the value on the provided receiver plaintext.
+// Decrypt decrypts the input ciphertext and returns the result on the provided receiver plaintext.
 func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) (err error) {
 
 	decryptor.bfvcontext.contextQ.NTT(ciphertext.value[ciphertext.Degree()], plaintext.value[0])

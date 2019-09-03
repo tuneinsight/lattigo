@@ -7,7 +7,7 @@ import (
 	"math/bits"
 )
 
-// keygenerator is a structure that stores the elements required to create new keys,
+// Keygenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
 type keygenerator struct {
 	bfvcontext *BfvContext
@@ -15,17 +15,17 @@ type keygenerator struct {
 	polypool   *ring.Poly
 }
 
-// secretkey is a structure that stores the secret-key
+// Secretkey is a structure that stores the secret-key
 type SecretKey struct {
 	sk *ring.Poly
 }
 
-// publickey is a structure that stores the public-key
+// Publickey is a structure that stores the public-key
 type PublicKey struct {
 	pk [2]*ring.Poly
 }
 
-// rotationkeys is a structure that stores the switching-keys required during the homomorphic rotations.
+// Rotationkeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
 	bfvcontext       *BfvContext
 	bitDecomp        uint64
@@ -34,18 +34,18 @@ type RotationKeys struct {
 	evakey_rot_row   *SwitchingKey
 }
 
-// evaluationkey is a structure that stores the switching-keys required during the relinearization.
+// Evaluationkey is a structure that stores the switching-keys required during the relinearization.
 type EvaluationKey struct {
 	evakey []*SwitchingKey
 }
 
-// switchingkey is a structure that stores the switching-keys required during the key-switching.
+// Switchingkey is a structure that stores the switching-keys required during the key-switching.
 type SwitchingKey struct {
 	bitDecomp uint64
 	evakey    [][][2]*ring.Poly
 }
 
-// Newkeygenerator creates a new keygenerator from the target bfvcontext.
+// Newkeygenerator creates a new KeyGenerator from the target bfvcontext.
 func (bfvcontext *BfvContext) NewKeyGenerator() (keygen *keygenerator) {
 	keygen = new(keygenerator)
 	keygen.bfvcontext = bfvcontext
@@ -54,7 +54,7 @@ func (bfvcontext *BfvContext) NewKeyGenerator() (keygen *keygenerator) {
 	return
 }
 
-// Newsecretkey creates a new secretkey with uniform distribution in [-1, 0, 1].
+// Newsecretkey creates a new SecretKey with uniform distribution in [-1, 0, 1].
 func (keygen *keygenerator) NewSecretKey() *SecretKey {
 
 	sk := new(SecretKey)
@@ -63,6 +63,7 @@ func (keygen *keygenerator) NewSecretKey() *SecretKey {
 	return sk
 }
 
+// NewSecretKeyEmpty creates a new SecretKey with all coeffcients set to zero, ready to received a marshaled SecretKey.
 func (keygen *keygenerator) NewSecretKeyEmpty() *SecretKey {
 	sk := new(SecretKey)
 	sk.sk = keygen.context.NewPoly()

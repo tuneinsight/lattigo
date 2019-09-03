@@ -5,7 +5,7 @@ import (
 	"github.com/lca1/lattigo/ring"
 )
 
-// Ciphertext is a BigPoly of degree > 0
+// Ciphertext is a BigPoly of degree > 0.
 type Ciphertext BigPoly
 
 // NewCiphertext creates a new empty ciphertext of degree degree.
@@ -20,7 +20,7 @@ func (bfvcontext *BfvContext) NewCiphertext(degree uint64) *Ciphertext {
 	return ciphertext
 }
 
-// NewCiphertext creates a new empty ciphertext of degree degree in the extended ciphertext context (Q + P).
+// NewCiphertextBig creates a new empty ciphertext of degree degree in the extended ciphertext context (Q + P).
 func (bfvcontext *BfvContext) NewCiphertextBig(degree uint64) *Ciphertext {
 	ciphertext := new(Ciphertext)
 	ciphertext.value = make([]*ring.Poly, degree+1)
@@ -49,12 +49,12 @@ func (ctx *Ciphertext) Value() []*ring.Poly {
 	return ctx.value
 }
 
-// SetValue assigns the input slice of polynomial to the target ciphertext value.
+// SetValue assigns the input slice of polynomials to the target ciphertext value.
 func (ctx *Ciphertext) SetValue(value []*ring.Poly) {
 	ctx.value = value
 }
 
-// Degree returns the target ciphertext degree.
+// Degree returns the degree of the target ciphertext.
 func (ctx *Ciphertext) Degree() uint64 {
 	return uint64(len(ctx.value) - 1)
 }
@@ -97,7 +97,7 @@ func (ctx *Ciphertext) CopyNew() BfvElement {
 	return ctxCopy
 }
 
-// Copy copies the value of the target ciphertext on the reciever ciphertext.
+// Copy copies the value and parameters of the target ciphertext on the reciever ciphertext.
 func (ctx *Ciphertext) Copy(ctxCopy BfvElement) error {
 
 	for i := range ctxCopy.Value() {

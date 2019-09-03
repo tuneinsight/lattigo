@@ -8,25 +8,27 @@ import (
 	"math/bits"
 )
 
+// MarshalBinary marshals a bfvcontext into bytes. It only encodes the minimum parameters
+// to be able to reconstruct it. The total size in byte is 3 + 8 * (2 + numberModuliQ + numberModuliP).
 func (bfvContext *BfvContext) MarshalBinary() ([]byte, error) {
 
 	N := bfvContext.n
-	numberModuliesQ := len(bfvContext.contextQ.Modulus)
-	numberModuliesP := len(bfvContext.contextP.Modulus)
+	numberModuliQ := len(bfvContext.contextQ.Modulus)
+	numberModuliP := len(bfvContext.contextP.Modulus)
 
-	if numberModuliesQ > 0xFF {
-		return nil, errors.New("error : bfvcontext numberModuliesQ overflow uint8")
+	if numberModuliQ > 0xFF {
+		return nil, errors.New("cannot marshal bfvcontext -> numberModuliQ overflow uint8")
 	}
 
-	if numberModuliesP > 0xFF {
-		return nil, errors.New("error : bfvcontext numberModuliesP overflow uint8")
+	if numberModuliP > 0xFF {
+		return nil, errors.New("cannot marshal bfvcontext -> numberModuliP overflow uint8")
 	}
 
-	data := make([]byte, 3+((2+numberModuliesQ+numberModuliesP)<<3))
+	data := make([]byte, 3+((2+numberModuliQ+numberModuliP)<<3))
 
 	data[0] = uint8(bits.Len64(N) - 1)
-	data[1] = uint8(numberModuliesQ)
-	data[2] = uint8(numberModuliesP)
+	data[1] = uint8(numberModuliQ)
+	data[2] = uint8(numberModuliP)
 
 	pointer := 3
 
@@ -36,12 +38,12 @@ func (bfvContext *BfvContext) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint64(data[pointer:pointer+8], bfvContext.contextT.Modulus[0])
 	pointer += 8
 
-	for i := 0; i < numberModuliesQ; i++ {
+	for i := 0; i < numberModuliQ; i++ {
 		binary.BigEndian.PutUint64(data[pointer:pointer+8], bfvContext.contextQ.Modulus[i])
 		pointer += 8
 	}
 
-	for i := 0; i < numberModuliesP; i++ {
+	for i := 0; i < numberModuliP; i++ {
 		binary.BigEndian.PutUint64(data[pointer:pointer+8], bfvContext.contextP.Modulus[i])
 		pointer += 8
 	}
@@ -49,17 +51,20 @@ func (bfvContext *BfvContext) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decodes a previously marshaled bfvcontext on the target bfvcontext.
+// Since only the minimum amount of information is encoded in the bytes, it will need to 
+// re-compute all the internal variables and parameters.
 func (bfvContext *BfvContext) UnMarshalBinary(data []byte) error {
 	//var err error
 
 	N := uint64(1 << data[0])
-	numberModuliesQ := int(data[1])
-	numberModuliesP := int(data[2])
+	numberModuliQ := int(data[1])
+	numberModuliP := int(data[2])
 
 	pointer := 3
 
-	if ((len(data) - pointer) >> 3) != (2 + numberModuliesQ + numberModuliesP) {
-		return errors.New("error : invalid publickey encoding")
+	if ((len(data) - pointer) >> 3) != (2 + numberModuliQ + numberModuliP) {
+		return errors.New("cannot unmarshal bfvcontext -> invlid encoding")
 	}
 
 	sigma := math.Round((float64(binary.BigEndian.Uint64(data[pointer:pointer+8]))/float64(1<<32))*100) / 100
@@ -68,14 +73,14 @@ func (bfvContext *BfvContext) UnMarshalBinary(data []byte) error {
 	t := binary.BigEndian.Uint64(data[pointer : pointer+8])
 	pointer += 8
 
-	ModuliesQ := make([]uint64, numberModuliesQ)
-	for i := 0; i < numberModuliesQ; i++ {
+	ModuliesQ := make([]uint64, numberModuliQ)
+	for i := 0; i < numberModuliQ; i++ {
 		ModuliesQ[i] = binary.BigEndian.Uint64(data[pointer : pointer+8])
 		pointer += 8
 	}
 
-	ModuliesP := make([]uint64, numberModuliesP)
-	for i := 0; i < numberModuliesP; i++ {
+	ModuliesP := make([]uint64, numberModuliP)
+	for i := 0; i < numberModuliP; i++ {
 		ModuliesP[i] = binary.BigEndian.Uint64(data[pointer : pointer+8])
 		pointer += 8
 	}
@@ -85,46 +90,13 @@ func (bfvContext *BfvContext) UnMarshalBinary(data []byte) error {
 	return nil
 }
 
-func (P *Plaintext) MarshalBinary() ([]byte, error) {
-
-	var err error
-
-	N := uint64(len(P.value[0].Coeffs[0]))
-
-	data := make([]byte, 1+(N<<3))
-
-	data[0] = uint8(bits.Len64(uint64(N)) - 1)
-
-	pointer := uint64(1)
-
-	if _, err = ring.WriteCoeffsTo(pointer, N, 1, P.value[0].Coeffs, data); err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
-
-func (P *Plaintext) UnMarshalBinary(data []byte) error {
-
-	N := uint64(1 << data[0])
-
-	P.value = make([]*ring.Poly, 1)
-	P.value[0] = new(ring.Poly)
-	P.value[0].Coeffs = make([][]uint64, 1)
-	P.value[0].Coeffs[0] = make([]uint64, N)
-
-	pointer := uint64(1)
-
-	if ((uint64(len(data)) - pointer) >> 3) != N {
-		return errors.New("error : invalid Plaintext encoding")
-	}
-
-	pointer, _ = ring.DecodeCoeffs(pointer, N, 1, P.value[0].Coeffs, data)
-
-	return nil
-}
-
+// MarshalBinary encodes a ciphertext on a byte slice. The total size
+// in byte is 4 + 8* N * numberModuliQ * (degree + 1).
 func (ciphertext *Ciphertext) MarshalBinary() ([]byte, error) {
+
+	if ciphertext.IsNTT() {
+		return nil, errors.New("cannot marshal ciphertext -> ciphertext is in the NTT domain")
+	}
 
 	var err error
 
@@ -133,11 +105,11 @@ func (ciphertext *Ciphertext) MarshalBinary() ([]byte, error) {
 	degree := ciphertext.Degree()
 
 	if level > 0xFF {
-		return nil, errors.New("error : ciphertext numberModulies overflow uint8")
+		return nil, errors.New("cannot marshal ciphertext -> ciphertext numberModuli overflow uint8")
 	}
 
 	if degree > 0xFF {
-		return nil, errors.New("error : ciphertext degree overflow uint8")
+		return nil, errors.New("cannot marshal ciphertext -> ciphertext degree overflow uint8")
 	}
 
 	data := make([]byte, 4+((N*level*(degree+1))<<3))
@@ -157,6 +129,9 @@ func (ciphertext *Ciphertext) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decodes a previously marshaled ciphertext on the target ciphertext.
+// The target ciphertext must be of the appropriate format and size, it can be created with the
+// methode NewCiphertext(uint64).
 func (ciphertext *Ciphertext) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -166,15 +141,15 @@ func (ciphertext *Ciphertext) UnMarshalBinary(data []byte) error {
 	pointer := uint64(3)
 
 	if ciphertext.Degree() != degree {
-		return errors.New("error : invalid ciphertext encoding (unexpected degree)")
+		return errors.New("cannot unmarshal ciphertext -> invalid ciphertext encoding (unexpected degree)")
 	}
 
 	if uint64(len(ciphertext.Value()[0].Coeffs)) != level {
-		return errors.New("error : invalid ciphertext encoding (unexpected level)")
+		return errors.New("cannot unmarshal ciphertext -> invalid ciphertext encoding (unexpected number of moduli)")
 	}
 
 	if ((uint64(len(data)) - pointer) >> 3) != N*level*(degree+1) {
-		return errors.New("error : invalid ciphertext encoding (unexpected data length)")
+		return errors.New("cannot unmarshal ciphertext -> invalid ciphertext encoding (unexpected data length)")
 	}
 
 	for x := uint64(0); x < degree+1; x++ {
@@ -184,6 +159,7 @@ func (ciphertext *Ciphertext) UnMarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalBinary encodes a secret-key on a byte slice. The total size in byte is 1 + N/4.
 func (sk *SecretKey) MarshalBinary(bfvcontext *BfvContext) ([]byte, error) {
 
 	var Q, x uint64
@@ -206,13 +182,15 @@ func (sk *SecretKey) MarshalBinary(bfvcontext *BfvContext) ([]byte, error) {
 		x = ((coeff + 1) - Q)
 
 		data[1+(i>>2)] <<= 2
-		// encode 0 = 0b00, 1 = 0b01, -1 = 0b10
+		// encodes 0 = 0b00, 1 = 0b01, -1 = 0b10
 		data[1+(i>>2)] |= uint8(((x>>63)^1)<<1 | x&1)
 	}
 
 	return data, nil
 }
 
+// UnMarshalBinary decode a previously marshaled secret-key on the target secret-key.
+// The target secret-key must be of the appropriate format, it can be created with the methode NewSecretKeyEmpty().
 func (sk *SecretKey) UnMarshalBinary(data []byte, bfvcontext *BfvContext) error {
 
 	var N, coeff uint64
@@ -242,78 +220,83 @@ func (sk *SecretKey) UnMarshalBinary(data []byte, bfvcontext *BfvContext) error 
 	return nil
 }
 
-// PK
+// MarshalBinary encodes a public-key on a byte slice. The total size is 2 + 16 * N * numberModuliQ.
 func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 
 	var err error
 
 	N := uint64(len(pk.pk[0].Coeffs[0]))
-	numberModulies := uint64(len(pk.pk[0].Coeffs))
+	numberModuli := uint64(len(pk.pk[0].Coeffs))
 
-	if numberModulies > 0xFF {
+	if numberModuli > 0xFF {
 		return nil, errors.New("error : max degree uint16 overflow")
 	}
 
-	data := make([]byte, 2+((N*numberModulies)<<4))
+	data := make([]byte, 2+((N*numberModuli)<<4))
 
 	data[0] = uint8((bits.Len64(uint64(N)) - 1))
-	data[1] = uint8(numberModulies)
+	data[1] = uint8(numberModuli)
 
 	pointer := uint64(2)
 
-	if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModulies, pk.pk[0].Coeffs, data); err != nil {
+	if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, pk.pk[0].Coeffs, data); err != nil {
 		return nil, err
 	}
 
-	if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModulies, pk.pk[1].Coeffs, data); err != nil {
+	if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, pk.pk[1].Coeffs, data); err != nil {
 		return nil, err
 	}
 
 	return data, nil
 }
 
+// UnMarshalBinary decodes a previously marshaled public-key on the target public-key.
+// The target public-key must have the appropriate format and size, it can be created with
+// the methode NewPublicKeyEmpty().
 func (pk *PublicKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
-	numberModulies := uint64(data[1])
+	numberModuli := uint64(data[1])
 
 	pointer := uint64(2)
 
-	if ((uint64(len(data)) - pointer) >> 4) != (N * numberModulies) {
+	if ((uint64(len(data)) - pointer) >> 4) != (N * numberModuli) {
 		return errors.New("error : invalid publickey encoding")
 	}
 
-	pointer, _ = ring.DecodeCoeffs(pointer, N, numberModulies, pk.pk[0].Coeffs, data)
-	pointer, _ = ring.DecodeCoeffs(pointer, N, numberModulies, pk.pk[1].Coeffs, data)
+	pointer, _ = ring.DecodeCoeffs(pointer, N, numberModuli, pk.pk[0].Coeffs, data)
+	pointer, _ = ring.DecodeCoeffs(pointer, N, numberModuli, pk.pk[1].Coeffs, data)
 
 	return nil
 }
 
+// MarshalBinary encodes an evaluation key on a byte slice. The total size depends on each modulus size and the bit decomp.
+// It will approximately be 5 + maxDegree * numberModuli * ( 1 + 2 * 8 * N * numberModuli * logQi/bitDecomp).
 func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 
 	var err error
 
 	N := uint64(len(evaluationkey.evakey[0].evakey[0][0][0].Coeffs[0]))
-	numberModulies := uint64(len(evaluationkey.evakey[0].evakey[0][0][0].Coeffs))
-	decomposition := numberModulies
+	numberModuli := uint64(len(evaluationkey.evakey[0].evakey[0][0][0].Coeffs))
+	decomposition := numberModuli
 	bitDecomp := evaluationkey.evakey[0].bitDecomp
 
 	maxDegree := uint64(len(evaluationkey.evakey))
 
-	if numberModulies > 0xFF {
-		return nil, errors.New("error : max number modulies uint16 overflow")
+	if numberModuli > 0xFF {
+		return nil, errors.New("cannot marshal evaluationkey -> max number moduli uint16 overflow")
 	}
 
 	if decomposition > 0xFF {
-		return nil, errors.New("error : max decomposition uint16 overflow")
+		return nil, errors.New("cannot marshal evaluationkey -> max decomposition uint16 overflow")
 	}
 
 	if bitDecomp > 0xFF {
-		return nil, errors.New("error : max bitDecomp uint16 overflow")
+		return nil, errors.New("cannot marshal evaluationkey -> max bitDecomp uint16 overflow")
 	}
 
 	if maxDegree > 0xFF {
-		return nil, errors.New("error : max degree uint16 overflow")
+		return nil, errors.New("cannot marshal evaluationkey -> max degree uint16 overflow")
 	}
 
 	var dataLen uint64
@@ -321,14 +304,14 @@ func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 	for i := uint64(0); i < maxDegree; i++ {
 		for j := uint64(0); j < decomposition; j++ {
 			dataLen += 1                                                                                                       //Information about the size of the bitdecomposition
-			dataLen += 2 * 8 * N * numberModulies * decomposition * maxDegree * uint64(len(evaluationkey.evakey[i].evakey[j])) // nb coefficients * 8
+			dataLen += 2 * 8 * N * numberModuli * uint64(len(evaluationkey.evakey[i].evakey[j])) // nb coefficients * 8
 		}
 	}
 
 	data := make([]byte, dataLen)
 
 	data[0] = uint8(bits.Len64(uint64(N)) - 1)
-	data[1] = uint8(numberModulies)
+	data[1] = uint8(numberModuli)
 	data[2] = uint8(decomposition)
 	data[3] = uint8(bitDecomp)
 	data[4] = uint8(maxDegree)
@@ -342,11 +325,11 @@ func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 			data[pointer] = bitLog
 			pointer += 1
 			for x := uint8(0); x < bitLog; x++ {
-				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModulies, evaluationkey.evakey[i].evakey[j][x][0].Coeffs, data); err != nil {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, evaluationkey.evakey[i].evakey[j][x][0].Coeffs, data); err != nil {
 					return nil, err
 				}
 
-				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModulies, evaluationkey.evakey[i].evakey[j][x][1].Coeffs, data); err != nil {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, evaluationkey.evakey[i].evakey[j][x][1].Coeffs, data); err != nil {
 					return nil, err
 				}
 			}
@@ -356,10 +339,12 @@ func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decodes a previously marshaled evaluation-key on the target evaluation-key. The target evaluation-key 
+// must have the appropriate format and size, it can be created with the methode NewRelinKeyEmpty(uint64, uint64).
 func (evaluationkey *EvaluationKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
-	numberModulies := uint64(data[1])
+	numberModuli := uint64(data[1])
 	decomposition := uint64(data[2])
 	bitDecomp := uint64(data[3])
 	maxDegree := uint64(data[4])
@@ -377,16 +362,16 @@ func (evaluationkey *EvaluationKey) UnMarshalBinary(data []byte) error {
 
 			for x := uint64(0); x < bitLog; x++ {
 
-				if uint64(len(evaluationkey.evakey[i].evakey[j][x][0].Coeffs)) != numberModulies {
-					return errors.New("error : evaluationkey receiver (level do not match data)")
+				if uint64(len(evaluationkey.evakey[i].evakey[j][x][0].Coeffs)) != numberModuli {
+					return errors.New("cannot unmarshal evaluation-key -> receiver (numberModuli does not match data)")
 				}
 
-				if uint64(len(evaluationkey.evakey[i].evakey[j][x][1].Coeffs)) != numberModulies {
-					return errors.New("error : evaluationkey receiver (level do not match data)")
+				if uint64(len(evaluationkey.evakey[i].evakey[j][x][1].Coeffs)) != numberModuli {
+					return errors.New("cannot unmarshal evaluation-key -> receiver (numberModuli does not match data)")
 				}
 
-				pointer, _ = ring.DecodeCoeffs(pointer, N, numberModulies, evaluationkey.evakey[i].evakey[j][x][0].Coeffs, data)
-				pointer, _ = ring.DecodeCoeffs(pointer, N, numberModulies, evaluationkey.evakey[i].evakey[j][x][1].Coeffs, data)
+				pointer, _ = ring.DecodeCoeffs(pointer, N, numberModuli, evaluationkey.evakey[i].evakey[j][x][0].Coeffs, data)
+				pointer, _ = ring.DecodeCoeffs(pointer, N, numberModuli, evaluationkey.evakey[i].evakey[j][x][1].Coeffs, data)
 			}
 		}
 	}
@@ -394,6 +379,7 @@ func (evaluationkey *EvaluationKey) UnMarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalBinary encodes an switching-key on a byte slice. The total size in byte will be approximately 5 + numberModuli * ( 1 + 2 * 8 * N * numberModuli * logQi/bitDecomp).
 func (switchkey *SwitchingKey) MarshalBinary() ([]byte, error) {
 
 	var err error
@@ -404,15 +390,15 @@ func (switchkey *SwitchingKey) MarshalBinary() ([]byte, error) {
 	bitDecomp := switchkey.bitDecomp
 
 	if level > 0xFF {
-		return nil, errors.New("error : max number modulies uint8 overflow")
+		return nil, errors.New("cannot marshal switching-key -> max number modulie uint8 overflow")
 	}
 
 	if decomposition > 0xFF {
-		return nil, errors.New("error : max decomposition uint8 overflow")
+		return nil, errors.New("cannot marshal switching-key -> max decomposition uint8 overflow")
 	}
 
 	if bitDecomp > 0xFF {
-		return nil, errors.New("error : max bitDecomp uint8 overflow")
+		return nil, errors.New("cannot marshal switching-key -> max bitDecomp uint8 overflow")
 	}
 
 	var dataLen uint64
@@ -452,6 +438,8 @@ func (switchkey *SwitchingKey) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decode a previously marshaled switching-key on the target switching-key.
+// The target switching-key must have the appropriate format and size, it can be created with the methode NewSwitchingKeyEmpty(uint64).
 func (switchkey *SwitchingKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -470,6 +458,16 @@ func (switchkey *SwitchingKey) UnMarshalBinary(data []byte) error {
 		pointer += 1
 
 		for x := uint64(0); x < bitLog; x++ {
+
+			if uint64(len(switchkey.evakey[j][x][0].Coeffs)) != decomposition {
+				return errors.New("cannot unmarshal switching-key -> receiver (numberModuli does not match data)")
+			}
+
+			if uint64(len(switchkey.evakey[j][x][1].Coeffs)) != decomposition {
+				return errors.New("cannot unmarshal switching-key -> receiver (numberModuli does not match data)")
+			}
+
+
 			pointer, _ = ring.DecodeCoeffs(pointer, N, level, switchkey.evakey[j][x][0].Coeffs, data)
 			pointer, _ = ring.DecodeCoeffs(pointer, N, level, switchkey.evakey[j][x][1].Coeffs, data)
 		}
@@ -478,19 +476,21 @@ func (switchkey *SwitchingKey) UnMarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalBinary encodes a rotationkeys structure on a byte slice. The total size in byte is approximately
+// 5 + 4*(nb left rot + num right rot) + (nb left rot + num right rot + 1 (if rotate row)) * maxDegree * numberModuli * ( 1 + 2 * 8 * N * numberModuli * logQi/bitDecomp).
 func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 
 	var err error
 
 	N := uint64(rotationkey.bfvcontext.n)
-	numberModulies := uint64(len(rotationkey.bfvcontext.contextQ.Modulus))
-	decomposition := numberModulies
+	numberModuli := uint64(len(rotationkey.bfvcontext.contextQ.Modulus))
+	decomposition := numberModuli
 	bitDecomp := rotationkey.bitDecomp
 	mappingRow := 0
 	mappingColL := []uint64{}
 	mappingColR := []uint64{}
 
-	if numberModulies > 0xFF {
+	if numberModuli > 0xFF {
 		return nil, errors.New("error : max number modulies uint16 overflow")
 	}
 
@@ -512,7 +512,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 
 			for j := uint64(0); j < decomposition; j++ {
 				dataLen += 1                                                                                                   //Information about the size of the bitdecomposition
-				dataLen += 2 * 8 * N * numberModulies * decomposition * uint64(len(rotationkey.evakey_rot_col_L[i].evakey[j])) // nb coefficients * 8
+				dataLen += 2 * 8 * N * numberModuli * decomposition * uint64(len(rotationkey.evakey_rot_col_L[i].evakey[j])) // nb coefficients * 8
 			}
 		}
 
@@ -522,7 +522,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 
 			for j := uint64(0); j < decomposition; j++ {
 				dataLen += 1                                                                                                   //Information about the size of the bitdecomposition
-				dataLen += 2 * 8 * N * numberModulies * decomposition * uint64(len(rotationkey.evakey_rot_col_L[i].evakey[j])) // nb coefficients * 8
+				dataLen += 2 * 8 * N * numberModuli * decomposition * uint64(len(rotationkey.evakey_rot_col_L[i].evakey[j])) // nb coefficients * 8
 			}
 		}
 	}
@@ -531,7 +531,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 		mappingRow = 1
 		for j := uint64(0); j < decomposition; j++ {
 			dataLen += 1                                                                                              //Information about the size of the bitdecomposition
-			dataLen += 2 * 8 * N * numberModulies * decomposition * uint64(len(rotationkey.evakey_rot_row.evakey[j])) // nb coefficients * 8
+			dataLen += 2 * 8 * N * numberModuli * decomposition * uint64(len(rotationkey.evakey_rot_row.evakey[j])) // nb coefficients * 8
 		}
 	}
 
@@ -540,7 +540,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 	data := make([]byte, dataLen)
 
 	data[0] = uint8(bits.Len64(uint64(N)) - 1)
-	data[1] = uint8(numberModulies)
+	data[1] = uint8(numberModuli)
 	data[2] = uint8(decomposition)
 	data[3] = uint8(bitDecomp)
 	data[4] = uint8(mappingRow)
@@ -575,11 +575,11 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 			data[pointer] = bitLog
 			pointer += 1
 			for x := uint8(0); x < bitLog; x++ {
-				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModulies, rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs, data); err != nil {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs, data); err != nil {
 					return nil, err
 				}
 
-				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModulies, rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs, data); err != nil {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs, data); err != nil {
 					return nil, err
 				}
 			}
@@ -592,11 +592,11 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 			data[pointer] = bitLog
 			pointer += 1
 			for x := uint8(0); x < bitLog; x++ {
-				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModulies, rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs, data); err != nil {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs, data); err != nil {
 					return nil, err
 				}
 
-				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModulies, rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs, data); err != nil {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs, data); err != nil {
 					return nil, err
 				}
 			}
@@ -609,11 +609,11 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 			data[pointer] = bitLog
 			pointer += 1
 			for x := uint8(0); x < bitLog; x++ {
-				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModulies, rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs, data); err != nil {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs, data); err != nil {
 					return nil, err
 				}
 
-				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModulies, rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs, data); err != nil {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs, data); err != nil {
 					return nil, err
 				}
 			}
@@ -623,10 +623,14 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decodes a previously marshaled rotation-keys on the target rotation-keys. In contrary to all
+// the other structures, the unmarshaling for rotationkeys only need an empty receiver, as it is not possible to
+// create receiver of the correct format and size without knowing all the content of the marshaled rotationkeys. The memory 
+// will be allocated on the fly.
 func (rotationkey *RotationKeys) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
-	numberModulies := uint64(data[1])
+	numberModuli := uint64(data[1])
 	decomposition := uint64(data[2])
 	bitDecomp := uint64(data[3])
 	mappingRow := uint64(data[4])
@@ -667,12 +671,12 @@ func (rotationkey *RotationKeys) UnMarshalBinary(data []byte) error {
 			for x := uint64(0); x < bitLog; x++ {
 
 				rotationkey.evakey_rot_row.evakey[j][x][0] = new(ring.Poly)
-				rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs = make([][]uint64, numberModulies)
-				pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModulies, rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs, data)
+				rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs = make([][]uint64, numberModuli)
+				pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModuli, rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs, data)
 
 				rotationkey.evakey_rot_row.evakey[j][x][1] = new(ring.Poly)
-				rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs = make([][]uint64, numberModulies)
-				pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModulies, rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs, data)
+				rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs = make([][]uint64, numberModuli)
+				pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModuli, rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs, data)
 			}
 		}
 	}
@@ -697,12 +701,12 @@ func (rotationkey *RotationKeys) UnMarshalBinary(data []byte) error {
 				for x := uint64(0); x < bitLog; x++ {
 
 					rotationkey.evakey_rot_col_L[i].evakey[j][x][0] = new(ring.Poly)
-					rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs = make([][]uint64, numberModulies)
-					pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModulies, rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs, data)
+					rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs = make([][]uint64, numberModuli)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModuli, rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs, data)
 
 					rotationkey.evakey_rot_col_L[i].evakey[j][x][1] = new(ring.Poly)
-					rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs = make([][]uint64, numberModulies)
-					pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModulies, rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs, data)
+					rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs = make([][]uint64, numberModuli)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModuli, rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs, data)
 				}
 			}
 		}
@@ -728,12 +732,12 @@ func (rotationkey *RotationKeys) UnMarshalBinary(data []byte) error {
 				for x := uint64(0); x < bitLog; x++ {
 
 					rotationkey.evakey_rot_col_R[i].evakey[j][x][0] = new(ring.Poly)
-					rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs = make([][]uint64, numberModulies)
-					pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModulies, rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs, data)
+					rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs = make([][]uint64, numberModuli)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModuli, rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs, data)
 
 					rotationkey.evakey_rot_col_R[i].evakey[j][x][1] = new(ring.Poly)
-					rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs = make([][]uint64, numberModulies)
-					pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModulies, rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs, data)
+					rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs = make([][]uint64, numberModuli)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, numberModuli, rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs, data)
 				}
 			}
 		}

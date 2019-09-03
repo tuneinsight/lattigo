@@ -29,8 +29,8 @@ func (bfvcontext *BfvContext) NewRandomPlaintextCoeffs() (coeffs []uint64) {
 	return
 }
 
-// SetCoefficientsInt64 Sets the coefficients of a plaintext with the provided slice of int64.
-func (P *Plaintext) SetCoefficientsInt64(bfvcontext *BfvContext, coeffs []int64) {
+// SetCoefficientsInt64 sets the coefficients of a plaintext with the provided slice of int64.
+func (P *Plaintext) setCoefficientsInt64(bfvcontext *BfvContext, coeffs []int64) {
 	for i, coeff := range coeffs {
 		for j := range bfvcontext.contextQ.Modulus {
 			P.value[0].Coeffs[j][i] = uint64((coeff%int64(bfvcontext.t))+int64(bfvcontext.t)) % bfvcontext.t
@@ -38,8 +38,8 @@ func (P *Plaintext) SetCoefficientsInt64(bfvcontext *BfvContext, coeffs []int64)
 	}
 }
 
-// SetCoefficientsInt64 Sets the coefficients of a plaintext with the provided slice of uint64.
-func (P *Plaintext) SetCoefficientsUint64(bfvcontext *BfvContext, coeffs []uint64) {
+// SetCoefficientsInt64 sets the coefficients of a plaintext with the provided slice of uint64.
+func (P *Plaintext) setCoefficientsUint64(bfvcontext *BfvContext, coeffs []uint64) {
 
 	for i, coeff := range coeffs {
 		for j := range bfvcontext.contextQ.Modulus {
@@ -78,7 +78,8 @@ func (P *Plaintext) Degree() uint64 {
 	return uint64(len(P.value) - 1)
 }
 
-// Lift scales the coefficient of the plaintext by Q/t (ciphertext modulus / plaintext modulus).
+// Lift scales the coefficient of the plaintext by Q/t (ciphertext modulus / plaintext modulus) and switches
+// its modulus from t to Q.
 func (P *Plaintext) Lift(bfvcontext *BfvContext) {
 	context := bfvcontext.contextQ
 	for j := uint64(0); j < bfvcontext.n; j++ {
@@ -93,17 +94,17 @@ func (P *Plaintext) Resize(bfvcontext *BfvContext, degree uint64) {
 
 }
 
-// Add adds p0 to p1 within the plaintext modulus and returns the result the target P.
+// Add adds p0 to p1 within the plaintext modulus and returns the result on the target plaintext.
 func (P *Plaintext) Add(bfvcontext *BfvContext, p0, p1 *Plaintext) {
 	bfvcontext.contextT.Add(p0.value[0], p1.value[0], P.value[0])
 }
 
-// Sub subtracts p1 to p0 within the plaintext modulus and returns the result the target P.
+// Sub subtracts p1 to p0 within the plaintext modulus and returns the result on the target plaintext.
 func (P *Plaintext) Sub(bfvcontext *BfvContext, p0, p1 *Plaintext) {
 	bfvcontext.contextT.Sub(p0.value[0], p1.value[0], P.value[0])
 }
 
-// Mul multiplies p0 by p1 within the plaintext modulus and returns the result on the target P.
+// Mul multiplies p0 by p1 within the plaintext modulus and returns the result on the target plaintext.
 func (P *Plaintext) Mul(bfvcontext *BfvContext, p0, p1 *Plaintext) {
 
 	// Checks if the plaintext contexts has been validated (allowing NTT)
@@ -116,7 +117,7 @@ func (P *Plaintext) Mul(bfvcontext *BfvContext, p0, p1 *Plaintext) {
 	}
 }
 
-// NTT puts lifted (the NTT is applied with the ciphertet modulus) plaintext in the NTT domain, sets its isNTT flag to true, and returns the result on p. If the isNTT flag is true does nothing.
+// NTT puts a lifted plaintext in the NTT domain (the NTT is applied within the ciphertet modulus), sets its isNTT flag to true, and returns the result on p. If the isNTT flag is true does nothing.
 func (P *Plaintext) NTT(bfvcontext *BfvContext, p BfvElement) error {
 	if P.Degree() != p.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
@@ -130,7 +131,7 @@ func (P *Plaintext) NTT(bfvcontext *BfvContext, p BfvElement) error {
 	return nil
 }
 
-// InvNTT puts a lifted plaintext outside of the NTT domain (the InvNTT is applied with the ciphertext modulus), and sets its isNTT flag to false, and returns the result on p. If the isNTT flag is flase, does nothing.
+// InvNTT puts a lifted plaintext outside of the NTT domain (the InvNTT is applied within the ciphertext modulus), and sets its isNTT flag to false, and returns the result on p. If the isNTT flag is flase, does nothing.
 func (P *Plaintext) InvNTT(bfvcontext *BfvContext, p BfvElement) error {
 	if P.Degree() != p.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")

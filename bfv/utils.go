@@ -6,21 +6,21 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-// Hash hashes a slice of uint64 values (data) and returns the digest in bytes.
-func Hash(data []uint64) (value []byte, err error) {
+// hash hashes a slice of uint64 values (data) and returns the digest in bytes.
+func hash(data []uint64) (digest []byte, err error) {
 	hash, err := blake2b.New512(nil)
 	buff := make([]byte, 8)
 	for _, x := range data {
 		binary.BigEndian.PutUint64(buff, x)
 		hash.Write(buff)
 	}
-	value = hash.Sum(nil)
+	digest = hash.Sum(nil)
 	return
 
 }
 
-// VerifyHash compares to byte slices and return true if they are equal, else false.
-func VerifyHash(hash0, hash1 []byte) bool {
+// verifyHash compares to byte slices and return true if they are equal, else false.
+func verifyHash(hash0, hash1 []byte) bool {
 	if res := bytes.Compare(hash0, hash1); res != 0 {
 		return false
 	} else {
@@ -28,8 +28,8 @@ func VerifyHash(hash0, hash1 []byte) bool {
 	}
 }
 
-// EqualSlice compares two slices of uint64 values, and return true if they are equal, else false.
-func EqualSlice(a, b []uint64) bool {
+// equalslice compares two slices of uint64 values, and return true if they are equal, else false.
+func equalslice(a, b []uint64) bool {
 
 	if len(a) != len(b) {
 		return false

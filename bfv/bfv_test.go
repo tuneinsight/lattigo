@@ -139,7 +139,6 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	state := true
 
 	bfvContext := bfvTest.bfvcontext
-	encoder := bfvTest.batchencoder
 	Sk := bfvTest.sk
 	Pk := bfvTest.pk
 
@@ -229,25 +228,6 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 				t.Errorf("error : binarymarshal publickey")
 				break
 			}
-		}
-	})
-
-	t.Run(fmt.Sprintf("N=%d/T=%d/Qi=%dx%dbit/MarshalPlaintext", bfvTest.bfvcontext.n,
-		bfvTest.bfvcontext.t,
-		len(bfvTest.bfvcontext.contextQ.Modulus), 60), func(t *testing.T) {
-		coeffs := bfvContext.NewRandomPlaintextCoeffs()
-		Px := bfvContext.NewPlaintext()
-		encoder.EncodeUint(coeffs, Px)
-		PxBytes, err := Px.MarshalBinary()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		PxTest := bfvContext.NewPlaintext()
-		PxTest.UnMarshalBinary(PxBytes)
-
-		if bfvContext.contextT.Equal(PxTest.Value()[0], Px.Value()[0]) != true {
-			t.Errorf("error : binarymarshal plaintext")
 		}
 	})
 
@@ -424,7 +404,7 @@ func test_PlaintextBatchEncodeDecode(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		if EqualSlice(coeffsWant.Coeffs[0], coeffsTest) != true {
+		if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
 			t.Errorf("error : plaintext lift/rescale")
 		}
 
@@ -473,7 +453,7 @@ func verifyTestVectors(bfvTest *BFVTESTPARAMS, coeffs *ring.Poly, element BfvEle
 		}
 	}
 
-	if EqualSlice(coeffs.Coeffs[0], coeffsTest) != true {
+	if equalslice(coeffs.Coeffs[0], coeffsTest) != true {
 		t.Errorf("decryption error")
 	}
 }
@@ -1037,7 +1017,7 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 				log.Fatal(err)
 			}
 
-			if EqualSlice(coeffs0.Coeffs[0], coeffsTest) != true {
+			if equalslice(coeffs0.Coeffs[0], coeffsTest) != true {
 				t.Errorf("error : switchingKey encrypt/decrypt")
 			}
 
@@ -1066,7 +1046,7 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 				log.Fatal(err)
 			}
 
-			if EqualSlice(coeffs0.Coeffs[0], coeffsTest) != true {
+			if equalslice(coeffs0.Coeffs[0], coeffsTest) != true {
 				t.Errorf("error : switchingKeyNew encrypt/decrypt")
 			}
 		})

@@ -52,7 +52,7 @@ func (bfvcontext *BfvContext) NewBatchEncoder() *BatchEncoder {
 	return batchencoder
 }
 
-// EncodeUint encode the provided coefficients on the provided plaintext. The coefficients must be provided as a slice of uint64 variables of size at most N.
+// EncodeUint encodes an uint64 slice of size at most N on a plaintext.
 func (batchencoder *BatchEncoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) error {
 
 	if len(coeffs) > len(batchencoder.indexMatrix) {
@@ -80,9 +80,8 @@ func (batchencoder *BatchEncoder) EncodeUint(coeffs []uint64, plaintext *Plainte
 	return nil
 }
 
-// EncodeUint encode the provided coefficients on the provided plaintext. The coefficients must be provided as a slice of int64 variables of size at most N.
-// Also encode the sign of the given integer (as its inverse modulo the plaintext modulus). The sign will be kept during computation as long as the absolute value
-// does not go above half of the plaintext modulus.
+// EncodeInt encodes an int64 slice of size at most N on a plaintext. Also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
+// The sign will correctly decode as long as the absolute value of the coefficient do not exceed half of the plaintext modulus.
 func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext) error {
 
 	if len(coeffs) > len(batchencoder.indexMatrix) {
@@ -115,7 +114,7 @@ func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext
 	return nil
 }
 
-// DecodeUint decodes a batched plaintext and returns the coefficients as a slice of uint64.
+// DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.
 func (batchencoder *BatchEncoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64, err error) {
 
 	if len(plaintext.value[0].Coeffs[0]) != len(batchencoder.indexMatrix) {
@@ -136,8 +135,8 @@ func (batchencoder *BatchEncoder) DecodeUint(plaintext *Plaintext) (coeffs []uin
 
 }
 
-// DecodeInt decodes a batched plaintext and returns the coefficients as a slice of int64. Also decodes the sign (by centering the values around the plaintext
-// modulus, i.e. if a value is above half of the plaintext modulus, then its inverse is returned).
+// DecodeInt decodes a batched plaintext and returns the coefficients in an int64 slice. Also decodes the sign (by centering the values around the plaintext
+// modulus).
 func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) ([]int64, error) {
 
 	var value int64

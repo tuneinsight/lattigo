@@ -71,7 +71,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 			b.Error(err)
 		}
 
-		if encryptor, err = ckkscontext.NewEncryptor(pk); err != nil {
+		if encryptor, err = ckkscontext.NewEncryptor(pk, sk); err != nil {
 			b.Error(err)
 		}
 
@@ -130,9 +130,18 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		})
 
 		// Encrypt
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Encrypt", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/EncryptPk", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = encryptor.Encrypt(plaintext, ciphertext); err != nil {
+				if err = encryptor.EncryptFromPk(plaintext, ciphertext); err != nil {
+					b.Error(err)
+				}
+			}
+		})
+
+		// Encrypt
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/EncryptSk", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if err = encryptor.EncryptFromSk(plaintext, ciphertext); err != nil {
 					b.Error(err)
 				}
 			}

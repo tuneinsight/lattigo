@@ -74,7 +74,7 @@ func Test_CKKS(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	if ckksTest.encryptor, err = ckksTest.ckkscontext.NewEncryptor(ckksTest.pk); err != nil {
+	if ckksTest.encryptor, err = ckksTest.ckkscontext.NewEncryptor(ckksTest.pk, ckksTest.sk); err != nil {
 		log.Fatal(err)
 	}
 
@@ -133,7 +133,7 @@ func new_test_vectors(params *CKKSTESTPARAMS, a, b float64) (values []complex128
 		return nil, nil, nil, err
 	}
 
-	ciphertext, err = params.encryptor.EncryptNew(plaintext)
+	ciphertext, err = params.encryptor.EncryptFromPkNew(plaintext)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -159,7 +159,7 @@ func new_test_vectors_reals(params *CKKSTESTPARAMS, a, b float64) (values []comp
 		return nil, nil, nil, err
 	}
 
-	ciphertext, err = params.encryptor.EncryptNew(plaintext)
+	ciphertext, err = params.encryptor.EncryptFromPkNew(plaintext)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -265,7 +265,7 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/EncryptDecrypt", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/EncryptFromPk", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
 		params.ckkscontext.levels,
 		params.ckkscontext.logPrecision), func(t *testing.T) {
@@ -285,7 +285,37 @@ func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		ciphertext, err := params.encryptor.EncryptNew(plaintext)
+		ciphertext, err := params.encryptor.EncryptFromPkNew(plaintext)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if err := verify_test_vectors(params, valuesWant, ciphertext, t); err != nil {
+			log.Fatal(err)
+		}
+	})
+
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/EncryptFromSk", params.ckkscontext.logN,
+		params.ckkscontext.logQ,
+		params.ckkscontext.levels,
+		params.ckkscontext.logPrecision), func(t *testing.T) {
+		var err error
+
+		slots := 1 << (params.ckkscontext.logN - 1)
+
+		valuesWant := make([]complex128, slots)
+
+		for i := 0; i < slots; i++ {
+			valuesWant[i] = randomComplex(0, 5)
+		}
+
+		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
+
+		if err = params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
+			log.Fatal(err)
+		}
+
+		ciphertext, err := params.encryptor.EncryptFromSkNew(plaintext)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -1390,7 +1420,7 @@ func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		ciphertext, err := params.encryptor.EncryptNew(plaintext)
+		ciphertext, err := params.encryptor.EncryptFromPkNew(plaintext)
 		if err != nil {
 			log.Fatal(err)
 		}

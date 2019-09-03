@@ -44,27 +44,20 @@ func Test_BFV(t *testing.T) {
 
 		bfvTest.batchencoder = bfvTest.bfvcontext.NewBatchEncoder()
 
-		bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair()
-
-		if err != nil {
+		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair() ; err != nil {
 			log.Fatal(err)
 		}
 
-		bfvTest.decryptor, err = bfvTest.bfvcontext.NewDecryptor(bfvTest.sk)
-
-		if err != nil {
+		if bfvTest.decryptor, err = bfvTest.bfvcontext.NewDecryptor(bfvTest.sk) ; err != nil {
 			log.Fatal(err)
 		}
 
-		bfvTest.encryptor, err = bfvTest.bfvcontext.NewEncryptor(bfvTest.pk)
 
-		if err != nil {
+		if bfvTest.encryptor, err = bfvTest.bfvcontext.NewEncryptor(bfvTest.pk, bfvTest.sk) ; err != nil {
 			log.Fatal(err)
 		}
 
-		bfvTest.evaluator, err = bfvTest.bfvcontext.NewEvaluator()
-
-		if err != nil {
+		if bfvTest.evaluator, err = bfvTest.bfvcontext.NewEvaluator() ; err != nil {
 			log.Fatal(err)
 		}
 
@@ -422,7 +415,7 @@ func newTestVectors(bfvTest *BFVTESTPARAMS) (coeffs *ring.Poly, plaintext *Plain
 		return nil, nil, nil, err
 	}
 
-	if ciphertext, err = bfvTest.encryptor.EncryptNew(plaintext); err != nil {
+	if ciphertext, err = bfvTest.encryptor.EncryptFromPkNew(plaintext); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -460,12 +453,37 @@ func verifyTestVectors(bfvTest *BFVTESTPARAMS, coeffs *ring.Poly, element BfvEle
 
 func test_EncryptDecrypt(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/Qi=%dx%dbit/Pi=%dx%dbit/Encrypt/Decrypt", bfvTest.bfvcontext.n,
+	t.Run(fmt.Sprintf("N=%d/T=%d/Qi=%dx%dbit/Pi=%dx%dbit/EncryptPk", bfvTest.bfvcontext.n,
 		bfvTest.bfvcontext.t,
 		len(bfvTest.bfvcontext.contextQ.Modulus), 60,
 		len(bfvTest.bfvcontext.contextP.Modulus), 60), func(t *testing.T) {
 
 		coeffs, _, ciphertext, _ := newTestVectors(bfvTest)
+		verifyTestVectors(bfvTest, coeffs, ciphertext, t)
+	})
+
+	t.Run(fmt.Sprintf("N=%d/T=%d/Qi=%dx%dbit/Pi=%dx%dbit/EncryptSk", bfvTest.bfvcontext.n,
+		bfvTest.bfvcontext.t,
+		len(bfvTest.bfvcontext.contextQ.Modulus), 60,
+		len(bfvTest.bfvcontext.contextP.Modulus), 60), func(t *testing.T) {
+
+		var err error
+		var coeffs *ring.Poly
+		var plaintext *Plaintext
+		var ciphertext *Ciphertext
+
+		coeffs = bfvTest.bfvcontext.contextT.NewUniformPoly()
+
+		plaintext = bfvTest.bfvcontext.NewPlaintext()
+
+		if err = bfvTest.batchencoder.EncodeUint(coeffs.Coeffs[0], plaintext); err != nil {
+			log.Fatal(err)
+		}
+
+		if ciphertext, err = bfvTest.encryptor.EncryptFromSkNew(plaintext); err != nil {
+			log.Fatal(err)
+		}
+
 		verifyTestVectors(bfvTest, coeffs, ciphertext, t)
 	})
 }

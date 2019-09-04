@@ -4,9 +4,10 @@ import (
 	"github.com/lca1/lattigo/ring"
 )
 
+// Ciphertext is a BigPoly of degree > 0.
 type Ciphertext BigPoly
 
-// NewCiphertext creates a new ciphertext parametised by degree, level and scale.
+// NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
 func (ckkscontext *CkksContext) NewCiphertext(degree uint64, level uint64, scale uint64) *Ciphertext {
 	ciphertext := new(Ciphertext)
 	ciphertext.value = make([]*ring.Poly, degree+1)
@@ -25,7 +26,7 @@ func (ctx *Ciphertext) Value() []*ring.Poly {
 	return ctx.value
 }
 
-// SetValue assigns a polynomial to a ciphertext value.
+// SetValue assigns a slice of polynomials to a ciphertext value.
 func (ctx *Ciphertext) SetValue(value []*ring.Poly) {
 	ctx.value = value
 }
@@ -49,7 +50,7 @@ func (ctx *Ciphertext) CurrentModulus() *ring.Int {
 }
 
 // SetCurrentModulus assigns a new modulus to the ciphertext. This
-// value is only used at the decryption process.
+// value is only used during the decryption process.
 func (ctx *Ciphertext) SetCurrentModulus(modulus *ring.Int) {
 	ctx.currentModulus = ring.Copy(modulus)
 }
@@ -71,7 +72,7 @@ func (ctx *Ciphertext) Scale() uint64 {
 
 // SetScale assigns a new scale to the ciphertext.
 // Assagning a new scale to a ciphertext can be used
-// to obtain free division or multiplication by 2^n.
+// to obtain free division or multiplication by 2^scale.
 func (ctx *Ciphertext) SetScale(scale uint64) {
 	ctx.scale = scale
 }
@@ -89,7 +90,7 @@ func (ctx *Ciphertext) SetIsNTT(isNTT bool) {
 }
 
 // NTT computes the NTT of the ciphertext and copies it on the receiver element.
-// Can only be used if the reference ciphertext is not already in the NTT domain.
+// Can only be used if the target ciphertext is not already in the NTT domain.
 func (ctx *Ciphertext) NTT(ckkscontext *CkksContext, ct0 CkksElement) {
 
 	if ctx.isNTT != true {
@@ -101,7 +102,7 @@ func (ctx *Ciphertext) NTT(ckkscontext *CkksContext, ct0 CkksElement) {
 }
 
 // InvNTT computes the inverse NTT of the ciphertext and copies it on the receiver element.
-// Can only be used if the reference ciphertext is in the NTT domain.
+// Can only be used if the target ciphertext is in the NTT domain.
 func (ctx *Ciphertext) InvNTT(ckkscontext *CkksContext, ct0 CkksElement) {
 
 	if ctx.isNTT != false {
@@ -113,8 +114,8 @@ func (ctx *Ciphertext) InvNTT(ckkscontext *CkksContext, ct0 CkksElement) {
 }
 
 // NewRandoMCiphertext generates a new uniformely distributed ciphertext of degree, level and scale.
-func (ckkscontext *CkksContext) NewRandomCiphertext(degree, level, scale uint64) *Ciphertext {
-	ciphertext := new(Ciphertext)
+func (ckkscontext *CkksContext) NewRandomCiphertext(degree, level, scale uint64) (ciphertext *Ciphertext) {
+	ciphertext = new(Ciphertext)
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -128,8 +129,8 @@ func (ckkscontext *CkksContext) NewRandomCiphertext(degree, level, scale uint64)
 	return ciphertext
 }
 
-// CopyNew generates a new copy of the reference ciphertext, with the
-// same value and same parameters.
+// CopyNew creates a new ciphertext which is a copy of the target ciphertext. Returns the value as
+// a CkksElement.
 func (ctx *Ciphertext) CopyNew() CkksElement {
 
 	ctxCopy := new(Ciphertext)
@@ -144,8 +145,8 @@ func (ctx *Ciphertext) CopyNew() CkksElement {
 	return ctxCopy
 }
 
-// Copy copies the reference ciphertext and its parameters on the receiver ciphertext.
-func (ctx *Ciphertext) Copy(ctxCopy CkksElement) error {
+// Copy copies the target ciphertext and its parameters on the receiver ciphertext.
+func (ctx *Ciphertext) Copy(ctxCopy CkksElement) (err error) {
 
 	for i := range ctxCopy.Value() {
 		ctx.value[i].Copy(ctxCopy.Value()[i])
@@ -156,7 +157,7 @@ func (ctx *Ciphertext) Copy(ctxCopy CkksElement) error {
 	return nil
 }
 
-// CopyParams copies the reference ciphertext parameters on the
+// CopyParams copies the target ciphertext parameters on the
 // receiver ciphertext.
 func (ctx *Ciphertext) CopyParams(ckkselement CkksElement) {
 	ckkselement.SetCurrentModulus(ctx.CurrentModulus())

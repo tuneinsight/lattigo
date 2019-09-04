@@ -7,6 +7,8 @@ import (
 	"math/bits"
 )
 
+// MarshalBinary encodes a ciphertext on a byte slice. The total size
+// in byte is 4 + 2 * 8 * N * (level + 1).
 func (ciphertext *Ciphertext) MarshalBinary() ([]byte, error) {
 
 	var err error
@@ -17,7 +19,7 @@ func (ciphertext *Ciphertext) MarshalBinary() ([]byte, error) {
 	scale := ciphertext.Scale()
 
 	if level > 0xFF {
-		return nil, errors.New("error : ciphertext numberModulies overflow uint8")
+		return nil, errors.New("error : ciphertext level overflow uint8")
 	}
 
 	if degree > 0xFF {
@@ -46,6 +48,9 @@ func (ciphertext *Ciphertext) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decodes a previously marshaled ciphertext on the target ciphertext.
+// The target ciphertext must be of the appropriate format and size, it can be created with the
+// methode NewCiphertext(uint64, uin64t, uint64).
 func (ciphertext *Ciphertext) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -75,6 +80,7 @@ func (ciphertext *Ciphertext) UnMarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalBinary encodes a secret-key on a byte slice. The total size in byte is 1 + N/4.
 func (sk *SecretKey) MarshalBinary(ckkscontext *CkksContext) ([]byte, error) {
 
 	var Q, x uint64
@@ -104,6 +110,8 @@ func (sk *SecretKey) MarshalBinary(ckkscontext *CkksContext) ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decode a previously marshaled secret-key on the target secret-key.
+// The target secret-key must be of the appropriate format, it can be created with the methode NewSecretKeyEmpty().
 func (sk *SecretKey) UnMarshalBinary(data []byte, ckkscontext *CkksContext) error {
 
 	var N, coeff uint64
@@ -122,8 +130,8 @@ func (sk *SecretKey) UnMarshalBinary(data []byte, ckkscontext *CkksContext) erro
 
 		coeff = uint64(data[1+(i>>2)]>>(6-((i<<1)&7))) & 3
 
-		for j := range ckkscontext.modulie {
-			sk.sk.Coeffs[j][i] = (ckkscontext.modulie[j]-1)*(coeff>>1) | (coeff & 1)
+		for j := range ckkscontext.moduli {
+			sk.sk.Coeffs[j][i] = (ckkscontext.moduli[j]-1)*(coeff>>1) | (coeff & 1)
 		}
 	}
 
@@ -133,7 +141,7 @@ func (sk *SecretKey) UnMarshalBinary(data []byte, ckkscontext *CkksContext) erro
 	return nil
 }
 
-// PK
+// MarshalBinary encodes a public-key on a byte slice. The total size is 2 + 16 * N * (level + 1).
 func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 
 	var err error
@@ -163,6 +171,9 @@ func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decodes a previously marshaled public-key on the target public-key.
+// The target public-key must have the appropriate format and size, it can be created with
+// the methode NewPublicKeyEmpty().
 func (pk *PublicKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -196,6 +207,8 @@ func (pk *PublicKey) UnMarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalBinary encodes an evaluation key on a byte slice. The total size depends on each modulus size and the bit decomp.
+// It will approximately be 5 + (level + 1) * ( 1 + 2 * 8 * N * (level + 1) * logQi/bitDecomp).
 func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 
 	var err error
@@ -206,7 +219,7 @@ func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 	bitDecomp := evaluationkey.evakey.bitDecomp
 
 	if levels > 0xFF {
-		return nil, errors.New("error : max number modulies uint8 overflow")
+		return nil, errors.New("error : max number modulis uint8 overflow")
 	}
 
 	if decomposition > 0xFF {
@@ -254,6 +267,8 @@ func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decodes a previously marshaled evaluation-key on the target evaluation-key. The target evaluation-key
+// must have the appropriate format and size, it can be created with the methode NewRelinKeyEmpty(uint64, uint64).
 func (evaluationkey *EvaluationKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -289,6 +304,7 @@ func (evaluationkey *EvaluationKey) UnMarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalBinary encodes an switching-key on a byte slice. The total size in byte will be approximately 5 + (level + 1) * ( 1 + 2 * 8 * N * (level + 1) * logQi/bitDecomp).
 func (switchingkey *SwitchingKey) MarshalBinary() ([]byte, error) {
 
 	var err error
@@ -299,7 +315,7 @@ func (switchingkey *SwitchingKey) MarshalBinary() ([]byte, error) {
 	bitDecomp := switchingkey.bitDecomp
 
 	if level > 0xFF {
-		return nil, errors.New("error : max number modulies uint8 overflow")
+		return nil, errors.New("error : max number modulis uint8 overflow")
 	}
 
 	if decomposition > 0xFF {
@@ -347,6 +363,8 @@ func (switchingkey *SwitchingKey) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decode a previously marshaled switching-key on the target switching-key.
+// The target switching-key must have the appropriate format and size, it can be created with the methode NewSwitchingKeyEmpty(uint64).
 func (switchingkey *SwitchingKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -373,6 +391,8 @@ func (switchingkey *SwitchingKey) UnMarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalBinary encodes a rotationkeys structure on a byte slice. The total size in byte is approximately
+// 5 + 4*(nb left rot + num right rot) + (nb left rot + num right rot + 1 (if rotate row)) * (level + 1) * ( 1 + 2 * 8 * N * (level + 1) * logQi/bitDecomp).
 func (rotationkey *RotationKey) MarshalBinary() ([]byte, error) {
 
 	var err error
@@ -386,7 +406,7 @@ func (rotationkey *RotationKey) MarshalBinary() ([]byte, error) {
 	mappingColR := []uint64{}
 
 	if level > 0xFF {
-		return nil, errors.New("error : max number modulies uint8 overflow")
+		return nil, errors.New("error : max number modulis uint8 overflow")
 	}
 
 	if decomposition > 0xFF {
@@ -518,6 +538,10 @@ func (rotationkey *RotationKey) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decodes a previously marshaled rotation-keys on the target rotation-keys. In contrary to all
+// the other structures, the unmarshaling for rotationkeys only need an empty receiver, as it is not possible to
+// create receiver of the correct format and size without knowing all the content of the marshaled rotationkeys. The memory
+// will be allocated on the fly.
 func (rotationkey *RotationKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])

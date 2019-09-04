@@ -7,6 +7,7 @@ import (
 	"math/cmplx"
 )
 
+// Encoder is a struct storing the necessary parameters to encode a slice of complex number on a plaintext.
 type Encoder struct {
 	ckkscontext   *CkksContext
 	values        []complex128
@@ -15,6 +16,7 @@ type Encoder struct {
 	polypool      *ring.Poly
 }
 
+// NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
 func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
 	encoder = new(Encoder)
 	encoder.ckkscontext = ckkscontext
@@ -25,6 +27,7 @@ func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
 	return
 }
 
+// EncodeFloat takes a slice of float64 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
 func (encoder *Encoder) EncodeFloat(plaintext *Plaintext, coeffs []float64) (err error) {
 
 	if len(coeffs) > (len(encoder.ckkscontext.indexMatrix)>>1)/int(encoder.ckkscontext.gap) {
@@ -62,7 +65,7 @@ func preprocessFloat(coeffs []float64, encoder *Encoder) {
 	return
 }
 
-// EncodeFloat encode a complex128 slice of at most N/2 values.
+// EncodeFloat takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
 func (encoder *Encoder) EncodeComplex(plaintext *Plaintext, coeffs []complex128) (err error) {
 
 	if len(coeffs) > (len(encoder.ckkscontext.indexMatrix)>>1)/int(encoder.ckkscontext.gap) {
@@ -79,7 +82,7 @@ func (encoder *Encoder) EncodeComplex(plaintext *Plaintext, coeffs []complex128)
 	return nil
 }
 
-// DecodeFloat decodes the plaintext to a slice of float64 values of size at most N/2.
+// DecodeFloat decodes the plaintext values to a slice of float64 values of size at most N/2.
 func (encoder *Encoder) DecodeFloat(plaintext *Plaintext) (res []float64) {
 
 	decodeToComplex(plaintext, encoder)
@@ -93,7 +96,7 @@ func (encoder *Encoder) DecodeFloat(plaintext *Plaintext) (res []float64) {
 	return
 }
 
-// DecodeFloat decodes the plaintext to a slice of complex128 values of size at most N/2.
+// DecodeFloat decodes the plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *Encoder) DecodeComplex(plaintext *Plaintext) (res []complex128) {
 
 	decodeToComplex(plaintext, encoder)
@@ -111,7 +114,7 @@ func encodeFromComplex(plaintext *Plaintext, encoder *Encoder) {
 
 	invfft(encoder.values, encoder.ckkscontext.inv_roots)
 
-	for i, qi := range encoder.ckkscontext.modulie {
+	for i, qi := range encoder.ckkscontext.moduli {
 
 		for j := uint64(0); j < encoder.ckkscontext.n; j++ {
 

@@ -4,6 +4,8 @@ import (
 	"github.com/lca1/lattigo/ring"
 )
 
+// BigPoly is a common struct between plaintexts and ciphertexts. It stores a value
+// as a slice of polynomials, and an isNTT flag indicatig if the element is in the NTT domain.
 type BigPoly struct {
 	value          []*ring.Poly
 	scale          uint64
@@ -11,6 +13,7 @@ type BigPoly struct {
 	isNTT          bool
 }
 
+// CkksElement is an interface implementing common methodes on plaintext and ciphertexts.
 type CkksElement interface {
 	Value() []*ring.Poly
 	SetValue([]*ring.Poly)

@@ -906,7 +906,7 @@ func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 		coeffsWant := make([]*ring.Int, params.ckkscontext.contextLevel[params.levels-1].N)
 		for i := range coeffs {
 			coeffsWant[i] = ring.Copy(coeffs[i])
-			coeffsWant[i].Div(coeffsWant[i], ring.NewUint(params.ckkscontext.modulie[len(params.ckkscontext.modulie)-1]))
+			coeffsWant[i].Div(coeffsWant[i], ring.NewUint(params.ckkscontext.moduli[len(params.ckkscontext.moduli)-1]))
 		}
 
 		polTest := params.ckkscontext.contextLevel[params.levels-1].NewPoly()
@@ -921,7 +921,7 @@ func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 		rescale(params.evaluator, polTest, polTest)
 
 		for i := uint64(0); i < params.ckkscontext.n; i++ {
-			for j := 0; j < len(params.ckkscontext.modulie)-1; j++ {
+			for j := 0; j < len(params.ckkscontext.moduli)-1; j++ {
 				if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
 					t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
 					break
@@ -1193,7 +1193,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 				valuesWant[j] *= valuesWant[j]
 			}
 
-			if err = params.evaluator.Square(ciphertext1, params.rlk, ciphertext1); err != nil {
+			if err = params.evaluator.MulRelin(ciphertext1, ciphertext1, params.rlk, ciphertext1); err != nil {
 				log.Fatal(err)
 			}
 

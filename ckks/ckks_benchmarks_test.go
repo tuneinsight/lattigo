@@ -28,7 +28,8 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	var decryptor *Decryptor
 	var evaluator *Evaluator
 	var plaintext *Plaintext
-	var ciphertext *Ciphertext
+	var ciphertext1 *Ciphertext
+	var ciphertext2 *Ciphertext
 
 	params := []benchParams{
 		//{logN: 10, logQ: 30, levels:  1, logScale : 20, sigma: 3.19, bdc : 60},
@@ -83,7 +84,8 @@ func BenchmarkCKKSScheme(b *testing.B) {
 
 		_ = rotkey
 
-		ciphertext = ckkscontext.NewCiphertext(1, levels-1, logScale)
+		ciphertext1 = ckkscontext.NewCiphertext(1, levels-1, logScale)
+		ciphertext2 = ckkscontext.NewCiphertext(1, levels-1, logScale)
 
 		var values []complex128
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/Levels=%d/decomp=%d/sigma=%.2f/Encode", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
@@ -132,7 +134,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Encrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/EncryptPk", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = encryptor.EncryptFromPk(plaintext, ciphertext); err != nil {
+				if err = encryptor.EncryptFromPk(plaintext, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -141,7 +143,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Encrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/EncryptSk", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = encryptor.EncryptFromSk(plaintext, ciphertext); err != nil {
+				if err = encryptor.EncryptFromSk(plaintext, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -150,7 +152,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Decrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Decrypt", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = decryptor.Decrypt(ciphertext, plaintext); err != nil {
+				if err = decryptor.Decrypt(ciphertext1, plaintext); err != nil {
 					b.Error(err)
 				}
 			}
@@ -159,7 +161,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Add
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Add", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.Add(ciphertext, ciphertext, ciphertext); err != nil {
+				if err = evaluator.Add(ciphertext1, ciphertext2, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -168,7 +170,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Add Scalar
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/AddScalar", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.AddConst(ciphertext, complex(3.1415, -1.4142), ciphertext); err != nil {
+				if err = evaluator.AddConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -177,7 +179,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Mult Scalar
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/MultScalar", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.MultConst(ciphertext, complex(3.1415, -1.4142), ciphertext); err != nil {
+				if err = evaluator.MultConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -187,7 +189,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		receiver := ckkscontext.NewRandomCiphertext(2, levels-1, logScale)
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Multiply", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.MulRelin(ciphertext, ciphertext, nil, receiver); err != nil {
+				if err = evaluator.MulRelin(ciphertext1, ciphertext2, nil, receiver); err != nil {
 					b.Error(err)
 				}
 			}
@@ -196,16 +198,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Mul Relin
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/MulRelin", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext); err != nil {
-					b.Error(err)
-				}
-			}
-		})
-
-		// Square
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Square", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				if err = evaluator.Square(ciphertext, nil, receiver); err != nil {
+				if err = evaluator.MulRelin(ciphertext1, ciphertext2, rlk, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -214,7 +207,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Square Relin
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/SquareRelin", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.Square(ciphertext, rlk, ciphertext); err != nil {
+				if err = evaluator.MulRelin(ciphertext1, ciphertext1, rlk, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -224,7 +217,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Relin", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.Relinearize(receiver, rlk, ciphertext); err != nil {
+				if err = evaluator.Relinearize(receiver, rlk, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -233,15 +226,15 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Rescale
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Rescale", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				rescale(evaluator, ciphertext.Value()[0], receiver.Value()[0])
-				rescale(evaluator, ciphertext.Value()[1], receiver.Value()[1])
+				rescale(evaluator, ciphertext1.Value()[0], receiver.Value()[0])
+				rescale(evaluator, ciphertext1.Value()[1], receiver.Value()[1])
 			}
 		})
 
 		// Conjugate / Rotate
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Conjugate", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.Conjugate(ciphertext, rotkey, ciphertext); err != nil {
+				if err = evaluator.Conjugate(ciphertext1, rotkey, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -250,7 +243,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Rotate Cols
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/RotateCols", logN, logQ, levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.RotateColumns(ciphertext, 1, rotkey, ciphertext); err != nil {
+				if err = evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}

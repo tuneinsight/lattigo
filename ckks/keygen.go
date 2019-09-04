@@ -7,20 +7,25 @@ import (
 	"math/bits"
 )
 
+// Keygenerator is a structure that stores the elements required to create new keys,
+// as well as a small memory pool for intermediate values.
 type keygenerator struct {
 	ckkscontext *CkksContext
 	context     *ring.Context
 	polypool    *ring.Poly
 }
 
+// Secretkey is a structure that stores the secret-key
 type SecretKey struct {
 	sk *ring.Poly
 }
 
+// Publickey is a structure that stores the public-key
 type PublicKey struct {
 	pk [2]*ring.Poly
 }
 
+// Rotationkeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKey struct {
 	ckkscontext      *CkksContext
 	bitDecomp        uint64
@@ -29,16 +34,18 @@ type RotationKey struct {
 	evakey_rot_row   *SwitchingKey
 }
 
+// Evaluationkey is a structure that stores the switching-keys required during the relinearization.
 type EvaluationKey struct {
 	evakey *SwitchingKey
 }
 
+// Switchingkey is a structure that stores the switching-keys required during the key-switching.
 type SwitchingKey struct {
 	bitDecomp uint64
 	evakey    [][][2]*ring.Poly
 }
 
-// NewKeyGenerator instantiates a new keygenerator, from which the secret and public keys, as well as the evaluation,
+// NewKeyGenerator creates a new keygenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
 func (ckkscontext *CkksContext) NewKeyGenerator() (keygen *keygenerator) {
 	keygen = new(keygenerator)
@@ -48,6 +55,7 @@ func (ckkscontext *CkksContext) NewKeyGenerator() (keygen *keygenerator) {
 	return
 }
 
+// check_sk checks if the input secret-key complies with the keygenerator context.
 func (keygen *keygenerator) check_sk(sk_output *SecretKey) error {
 
 	if sk_output.Get().GetDegree() != int(keygen.context.N) {

@@ -7,6 +7,8 @@ import (
 	"math"
 )
 
+// CkksContext is a struct which contains all the elements required to instantiate the CKKS Scheme. This includes the parameters (N, ciphertext modulus,
+// sampling, polynomial contexts and other parameters required for the homomorphic operations).
 type CkksContext struct {
 
 	// Context parameters
@@ -17,14 +19,14 @@ type CkksContext struct {
 	n            uint64
 	slots        uint64
 
-	// Uperbound in bits of the modulie
+	// Uperbound in bits of the moduli
 	maxBit uint64
 
 	// Number of avaliable levels
 	levels uint64
 
-	// Modulie chain
-	modulie []uint64
+	// moduli chain
+	moduli []uint64
 
 	// Contexts chain
 	contextLevel []*ring.Context
@@ -56,13 +58,22 @@ type CkksContext struct {
 	gap         uint64
 	roots       []complex128
 	inv_roots   []complex128
-
-	// Checksum of [n, [modulies]]
-	checksum []byte
 }
 
-// NewCkksContext generates a new ckkscontext, given the parameters logN, logQ, logScale (in base 2),
-// levels and sigma.
+// NewCkksContext creates a new CkksContext with the given parameters. Returns an error if one of the parameters would not ensure the
+// correctness of the scheme (however it doesn't check for security).
+//
+// Parameters :
+//
+// - logN     : the ring degree (must be a power of 2).
+//
+// - logQ     : the size of the moduli of the ciphertext.
+//
+// - logScale : the reference scale of the ciphertext.
+//
+// - levels   : the number of moduli of the ciphertext.
+//
+// - sigma    : the variance of the gaussian sampling.
 func NewCkksContext(logN, logQ, logScale, levels uint64, sigma float64) (*CkksContext, error) {
 
 	var err error
@@ -80,7 +91,7 @@ func NewCkksContext(logN, logQ, logScale, levels uint64, sigma float64) (*CkksCo
 
 	// ========== START < PRIMES GENERATION > START ===============
 	// Search for suitable primes
-	if ckkscontext.modulie, ckkscontext.logPrecision, err = GenerateCKKSPrimes(logQ, logN, levels); err != nil {
+	if ckkscontext.moduli, ckkscontext.logPrecision, err = GenerateCKKSPrimes(logQ, logN, levels); err != nil {
 		return nil, err
 	}
 
@@ -89,7 +100,7 @@ func NewCkksContext(logN, logQ, logScale, levels uint64, sigma float64) (*CkksCo
 	if logQ < ckkscontext.maxBit {
 		tmp, _, _ = GenerateCKKSPrimes(ckkscontext.maxBit, logN, 1)
 
-		ckkscontext.modulie[0] = tmp[0]
+		ckkscontext.moduli[0] = tmp[0]
 	}
 	// ========== END < PRIMES GENERATION > END ===============
 
@@ -98,7 +109,7 @@ func NewCkksContext(logN, logQ, logScale, levels uint64, sigma float64) (*CkksCo
 
 	ckkscontext.contextLevel[0] = ring.NewContext()
 
-	if err = ckkscontext.contextLevel[0].SetParameters(1<<logN, ckkscontext.modulie[:1]); err != nil {
+	if err = ckkscontext.contextLevel[0].SetParameters(1<<logN, ckkscontext.moduli[:1]); err != nil {
 		return nil, err
 	}
 
@@ -110,7 +121,7 @@ func NewCkksContext(logN, logQ, logScale, levels uint64, sigma float64) (*CkksCo
 
 		ckkscontext.contextLevel[i] = ring.NewContext()
 
-		if err = ckkscontext.contextLevel[i].SetParameters(1<<logN, ckkscontext.modulie[i:i+1]); err != nil {
+		if err = ckkscontext.contextLevel[i].SetParameters(1<<logN, ckkscontext.moduli[i:i+1]); err != nil {
 			return nil, err
 		}
 
@@ -137,13 +148,13 @@ func NewCkksContext(logN, logQ, logScale, levels uint64, sigma float64) (*CkksCo
 
 		ckkscontext.rescalParams[j-1] = make([]uint64, j)
 
-		Ql = ckkscontext.modulie[j]
+		Ql = ckkscontext.moduli[j]
 
 		bredParams := ckkscontext.contextLevel[j-1].GetBredParams()
 
 		for i := uint64(0); i < j; i++ {
 
-			Qi = ckkscontext.modulie[i]
+			Qi = ckkscontext.moduli[i]
 
 			ckkscontext.rescalParams[j-1][i] = ring.MForm(modexp(Ql, Qi-2, Qi), Qi, bredParams[i])
 		}
@@ -221,32 +232,15 @@ func NewCkksContext(logN, logQ, logScale, levels uint64, sigma float64) (*CkksCo
 	}
 	// ========== END < ENCODER PARAMETERS > END ================
 
-	// =========== START < CHECKSUM > =============
-	toHash := make([]uint64, 1+levels)
-	toHash[0] = logN
-	for i := 1; i < len(toHash); i++ {
-		toHash[i] = ckkscontext.modulie[i-1]
-	}
-
-	if ckkscontext.checksum, err = hash(toHash); err != nil {
-		return nil, err
-	}
-	// ========== END < CHECKSUM > END
-
 	return ckkscontext, nil
-
 }
 
-func (ckkscontext *CkksContext) Precision() uint64 {
-	return ckkscontext.logPrecision
-}
-
+// ContextKeys returns the ring context under which the keys are created.
 func (ckkscontext *CkksContext) ContextKeys() *ring.Context {
 	return ckkscontext.keyscontext
 }
 
+// Slots returns the number of slots that the scheme can encrypt at the same time.
 func (ckkscontext *CkksContext) Slots() uint64 {
 	return (1 << (ckkscontext.logN - 1))
 }
-
-// TODO Get parameters

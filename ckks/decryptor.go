@@ -4,13 +4,14 @@ import (
 	"errors"
 )
 
+// Decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type Decryptor struct {
 	ckkscontext *CkksContext
 	sk          *SecretKey
 }
 
 // NewDecryptor instanciates a new decryptor that will be able to decrypt ciphertext
-// encrypted under the provided key.
+// encrypted under the provided secret-key.
 func (ckkscontext *CkksContext) NewDecryptor(sk *SecretKey) (*Decryptor, error) {
 
 	if sk.sk.GetDegree() != int(ckkscontext.n) {
@@ -27,6 +28,7 @@ func (ckkscontext *CkksContext) NewDecryptor(sk *SecretKey) (*Decryptor, error) 
 }
 
 // DecryptNew decrypts the ciphertext and returns a newly created plaintext.
+// A Horner methode is used for evaluating the decryption.
 func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext, err error) {
 
 	plaintext = decryptor.ckkscontext.NewPlaintext(ciphertext.Level(), ciphertext.Scale())

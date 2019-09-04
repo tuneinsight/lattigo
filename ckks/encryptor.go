@@ -3,9 +3,9 @@ package ckks
 import (
 	"errors"
 	"github.com/lca1/lattigo/ring"
-	//"fmt"
 )
 
+// Encreyptor is a struct used to encrypt plaintext and storing the public-key and/or secret-key.
 type Encryptor struct {
 	ckkscontext *CkksContext
 	pk          *PublicKey
@@ -13,8 +13,8 @@ type Encryptor struct {
 	polypool    *ring.Poly
 }
 
-// NewEncryptor instanciates a new Encryptor with the provided public key.
-// This encryptor can be used to encrypt plaintexts, using its the stored public key.
+// NewEncryptor creates a new Encryptor with the input public-key and/or secret-key.
+// This encryptor can be used to encrypt plaintexts, using the stored keys.
 func (ckkscontext *CkksContext) NewEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
 
 	if uint64(pk.pk[0].GetDegree()+pk.pk[1].GetDegree())>>1 != ckkscontext.n {
@@ -33,8 +33,10 @@ func (ckkscontext *CkksContext) NewEncryptor(pk *PublicKey, sk *SecretKey) (encr
 	return encryptor, nil
 }
 
-// EncryptFromPkNew encrypts the provided plaintext using the stored public-key and returns
-// the ciphertext on a newly created element.
+// EncryptFromPkNew encrypts the input plaintext using the stored public-key and returns
+// the result on a newly created ciphertext.
+//
+// ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
 func (encryptor *Encryptor) EncryptFromPkNew(plaintext *Plaintext) (ciphertext *Ciphertext, err error) {
 
 	if encryptor.pk == nil {
@@ -52,8 +54,10 @@ func (encryptor *Encryptor) EncryptFromPkNew(plaintext *Plaintext) (ciphertext *
 	return ciphertext, nil
 }
 
-// EncryptFromPk encrypts the provided plaintext using the stored public-key, and returns the result
-// on the provided reciver ciphertext.
+// EncryptFromPk encrypts the input plaintext using the stored public-key, and returns the result
+// on the reciver ciphertext.
+//
+// ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
 func (encryptor *Encryptor) EncryptFromPk(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
 
 	if encryptor.pk == nil {
@@ -75,8 +79,11 @@ func (encryptor *Encryptor) EncryptFromPk(plaintext *Plaintext, ciphertext *Ciph
 	return nil
 }
 
-// EncryptFromSkNew encrypts the provided plaintext using the stored secret-key and returns
-// the ciphertext on a newly created element.
+// EncryptFromSkNew encrypts the input plaintext using the stored secret-key and returns
+// the result on a newly created ciphertext. Encrypting with the secret-key introduces less noise than encrypting
+// with the public-key.
+//
+// ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) EncryptFromSkNew(plaintext *Plaintext) (ciphertext *Ciphertext, err error) {
 
 	if encryptor.sk == nil {
@@ -94,8 +101,11 @@ func (encryptor *Encryptor) EncryptFromSkNew(plaintext *Plaintext) (ciphertext *
 	return ciphertext, nil
 }
 
-// EncryptFromSk encrypts the provided plaintext using the stored secret-key, and returns the result
-// on the provided reciver ciphertext.
+// EncryptFromSk encrypts the input plaintext using the stored secret-key, and returns the result
+// on the reciever ciphertext. Encrypting with the secret-key introduces less noise than encrypting
+// with the public-key.
+//
+// ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) EncryptFromSk(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
 
 	if encryptor.sk == nil {

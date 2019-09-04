@@ -5,15 +5,17 @@ import (
 	"github.com/lca1/lattigo/ring"
 )
 
+// Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
+// It also holds a small memory pool used to store intermediate computations.
 type Evaluator struct {
 	ckkscontext *CkksContext
 	ringpool    [7]*ring.Poly
 	ctxpool     *Ciphertext
 }
 
-// NewEvaluator instanciates a new Evaluator, that can be used to conduct homomorphic
+// NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on the ciphertexts and/or plaintexts. It stores a small pool of polynomials
-// and ciphertexts that will be used to store intermediate values.
+// and ciphertexts that will be used for intermediate values.
 func (ckkscontext *CkksContext) NewEvaluator() (evaluator *Evaluator) {
 
 	evaluator = new(Evaluator)
@@ -30,7 +32,7 @@ func (ckkscontext *CkksContext) NewEvaluator() (evaluator *Evaluator) {
 	return evaluator
 }
 
-// Add adds the first element to the second element and returns the result on the third element.
+// Add adds c1 to c0 and returns the result on cOut.
 func (evaluator *Evaluator) Add(c0 CkksElement, c1 CkksElement, cOut CkksElement) (err error) {
 
 	minLevel := min([]uint64{c0.Level(), c1.Level(), cOut.Level()})
@@ -42,8 +44,7 @@ func (evaluator *Evaluator) Add(c0 CkksElement, c1 CkksElement, cOut CkksElement
 	return nil
 }
 
-// AddNoMod adds the first element to the second element and returns the result on the third element, without
-// conducting modular reduction.
+// AddNoMod adds c1 to c0 and returns the result on cOut, without modular reduction.
 func (evaluator *Evaluator) AddNoMod(c0 *Ciphertext, c1 CkksElement, cOut *Ciphertext) (err error) {
 
 	minlevel := min([]uint64{c0.Level(), c1.Level(), cOut.Level()})
@@ -54,7 +55,7 @@ func (evaluator *Evaluator) AddNoMod(c0 *Ciphertext, c1 CkksElement, cOut *Ciphe
 	return nil
 }
 
-// Add adds the first element to the second element and returns the result on a newly created element.
+// Add adds c1 to c0 and returns the result on a newly created element.
 func (evaluator *Evaluator) AddNew(c0 CkksElement, c1 CkksElement) (cOut CkksElement, err error) {
 
 	minlevel := min([]uint64{c0.Level(), c1.Level()})
@@ -66,8 +67,7 @@ func (evaluator *Evaluator) AddNew(c0 CkksElement, c1 CkksElement) (cOut CkksEle
 	return
 }
 
-// Add adds the first element to the second element without conducting modular reduction,
-// and returns the result on a newly created element.
+// Add adds c1 to c0 without modular reduction, and returns the result on a newly created element.
 func (evaluator *Evaluator) AddNoModNew(c0 CkksElement, c1 CkksElement) (cOut CkksElement, err error) {
 
 	minlevel := min([]uint64{c0.Level(), c1.Level()})
@@ -79,7 +79,7 @@ func (evaluator *Evaluator) AddNoModNew(c0 CkksElement, c1 CkksElement) (cOut Ck
 	return
 }
 
-// Sub subtracts second element to the the first element and returns the result on the third element.
+// Sub subtracts c1 to c0 and returns the result on cOut.
 func (evaluator *Evaluator) Sub(c0 CkksElement, c1 CkksElement, cOut CkksElement) (err error) {
 
 	minlevel := min([]uint64{c0.Level(), c1.Level(), cOut.Level()})
@@ -97,8 +97,7 @@ func (evaluator *Evaluator) Sub(c0 CkksElement, c1 CkksElement, cOut CkksElement
 	return nil
 }
 
-// SubNoMod subtracts second element to the the first element and returns the result on the third element, without
-// conducting modular reduction.
+// SubNoMod subtracts c1 to c0 and returns the result on cOut, without modular reduction.
 func (evaluator *Evaluator) SubNoMod(c0 CkksElement, c1 CkksElement, cOut CkksElement) (err error) {
 
 	minlevel := min([]uint64{c0.Level(), c1.Level(), cOut.Level()})
@@ -116,7 +115,7 @@ func (evaluator *Evaluator) SubNoMod(c0 CkksElement, c1 CkksElement, cOut CkksEl
 	return nil
 }
 
-// SubNew subtracts second element to the the first element and returns the result on a newly created element.
+// SubNew subtracts c1 to c0 and returns the result on a newly created element.
 func (evaluator *Evaluator) SubNew(c0 CkksElement, c1 CkksElement) (cOut CkksElement, err error) {
 
 	minlevel := min([]uint64{c0.Level(), c1.Level()})
@@ -134,8 +133,7 @@ func (evaluator *Evaluator) SubNew(c0 CkksElement, c1 CkksElement) (cOut CkksEle
 	return
 }
 
-// SubNoModNew subtracts second element to the the first element withotu conducting modular reduction,
-// and returns the result on a newly created element.
+// SubNoModNew subtracts c1 to c0 without modular reduction, and returns the result on a newly created element.
 func (evaluator *Evaluator) SubNoModNew(c0 CkksElement, c1 CkksElement) (cOut CkksElement, err error) {
 
 	minlevel := min([]uint64{c0.Level(), c1.Level()})
@@ -282,7 +280,7 @@ func evaluateNew(c0 CkksElement, c1 CkksElement, evaluate func(*ring.Poly, *ring
 	return cOut, nil
 }
 
-// Neg negates the input element and returns the result on the provided receiver element.
+// Neg negates the c0 and returns the result on cOut.
 func (evaluator *Evaluator) Neg(c0 CkksElement, cOut CkksElement) (err error) {
 
 	minlevel := min([]uint64{c0.Level(), cOut.Level()})
@@ -298,7 +296,7 @@ func (evaluator *Evaluator) Neg(c0 CkksElement, cOut CkksElement) (err error) {
 	return nil
 }
 
-// Neg negates the input element and returns the result on a newly created element.
+// Neg negates c0 and returns the result on a newly created element.
 func (evaluator *Evaluator) NegNew(c0 CkksElement) (cOut CkksElement) {
 
 	if c0.Degree() == 0 {
@@ -314,9 +312,8 @@ func (evaluator *Evaluator) NegNew(c0 CkksElement) (cOut CkksElement) {
 	return cOut
 }
 
-// ExtractImagNew sets the real part to the imaginary part and sets the imaginary part to zero,
-// i.e. a + b*i -> b + 0*i. The result is returned on a newly created element. Requires a rotationkey
-// for which the conjugate key has been generated. Scale is increased by one.
+// ExtractImagNew sets the real part of c0 to the imaginary part of c0 and sets the imaginary part of c0 to zero, and returns the result on a new element.
+// ex. f(a + b*i) = b. Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
 func (evaluator *Evaluator) ExtractImagNew(c0 *Ciphertext, evakey *RotationKey) (cOut *Ciphertext, err error) {
 
 	cOut = evaluator.ckkscontext.NewCiphertext(c0.Degree(), c0.Level(), c0.Scale())
@@ -328,9 +325,8 @@ func (evaluator *Evaluator) ExtractImagNew(c0 *Ciphertext, evakey *RotationKey) 
 	return cOut, nil
 }
 
-// ExtractImag sets the real part to the imaginary part and sets the imaginary part to zero,
-// i.e. a + b*i -> b + 0*i. The result is returned on the provided receiver element. Requires a rotationkey
-// for which the conjugate key has been generated. Scale is increased by one.
+// ExtractImag sets the real part of c0 to the imaginary part of c0 and sets the imaginary part of c0 to zero, and returns the result on cOut.
+// ex. f(a + b*i) = b. Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
 func (evaluator *Evaluator) ExtractImag(c0 *Ciphertext, evakey *RotationKey, cOut *Ciphertext) (err error) {
 
 	if err = evaluator.Conjugate(c0, evakey, evaluator.ctxpool); err != nil {
@@ -354,8 +350,8 @@ func (evaluator *Evaluator) ExtractImag(c0 *Ciphertext, evakey *RotationKey, cOu
 	return nil
 }
 
-// SwapRealImagNew swaps the real and imaginary parts and returns the result on a newly created element, i.e.
-// a + b*i -> b + a * i. Requires a rotationkey for which the conjugate key has been generated.
+// SwapRealImagNew swaps the real and imaginary parts of c0and returns the result on a newly created element, ex.
+// f(a + b*i) = b + a * i. Requires a rotationkey for which the conjugate key has been generated.
 func (evaluator *Evaluator) SwapRealImagNew(c0 *Ciphertext, evakey *RotationKey) (cOut *Ciphertext, err error) {
 
 	cOut = evaluator.ckkscontext.NewCiphertext(c0.Degree(), c0.Level(), c0.Scale())
@@ -367,8 +363,8 @@ func (evaluator *Evaluator) SwapRealImagNew(c0 *Ciphertext, evakey *RotationKey)
 	return cOut, nil
 }
 
-// SwapRealImagNew swaps the real and imaginary parts and returns the result on the provided receiver element, i.e.
-// a + b*i -> b + a * i. Requires a rotationkey for which the conjugate key has been generated.
+// SwapRealImagNew swaps the real and imaginary parts of c0 and returns the result on cOut, ex.
+// f(a + b*i) = b + a * i. Requires a rotationkey for which the conjugate key has been generated.
 func (evaluator *Evaluator) SwapRealImag(c0 *Ciphertext, evakey *RotationKey, cOut *Ciphertext) (err error) {
 
 	if err = evaluator.DivByi(c0, cOut); err != nil {
@@ -382,7 +378,7 @@ func (evaluator *Evaluator) SwapRealImag(c0 *Ciphertext, evakey *RotationKey, cO
 	return nil
 }
 
-// RemoveRealNew sets the real part to zero and returns the result on a newly created element, i.e. a + b*i -> b*i.
+// RemoveRealNew sets the real part of c0 to zero and returns the result on a newly created element, ex. f(a + b*i) = b*i.
 // Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
 func (evaluator *Evaluator) RemoveRealNew(c0 *Ciphertext, evakey *RotationKey) (cOut *Ciphertext, err error) {
 
@@ -395,7 +391,7 @@ func (evaluator *Evaluator) RemoveRealNew(c0 *Ciphertext, evakey *RotationKey) (
 	return cOut, nil
 }
 
-// RemoveReal sets the real part to zero and returns the result on the provided receiver element, i.e. a + b*i -> b*i.
+// RemoveReal sets the real part of c0 to zero and returns the result on cOut, ex. f(a + b*i) = b*i.
 // Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
 func (evaluator *Evaluator) RemoveReal(c0 *Ciphertext, evakey *RotationKey, cOut *Ciphertext) (err error) {
 
@@ -424,7 +420,7 @@ func (evaluator *Evaluator) RemoveReal(c0 *Ciphertext, evakey *RotationKey, cOut
 	return nil
 }
 
-// RemoveImagNew sets the imag part to zero and returns the result on a newly created element, i.e. a + b*i -> a.
+// RemoveImagNew sets the imaginary part of c0 to zero and returns the result on a newly created element, ex. f(a + b*i) = a.
 // Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
 func (evaluator *Evaluator) RemoveImagNew(c0 *Ciphertext, evakey *RotationKey) (cOut *Ciphertext, err error) {
 
@@ -437,7 +433,7 @@ func (evaluator *Evaluator) RemoveImagNew(c0 *Ciphertext, evakey *RotationKey) (
 	return cOut, nil
 }
 
-// RemoveImag sets the imag part to zero and returns the result on the provided receiver element, i.e. a + b*i -> a.
+// RemoveImag sets the imaginary part of c0 to zero and returns the result on cOut, ex. f(a + b*i) = a.
 // Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
 func (evaluator *Evaluator) RemoveImag(c0 *Ciphertext, evakey *RotationKey, cOut *Ciphertext) (err error) {
 
@@ -467,16 +463,14 @@ func (evaluator *Evaluator) RemoveImag(c0 *Ciphertext, evakey *RotationKey, cOut
 	return nil
 }
 
-// AddConstNew adds the provided constant, which can be an uint64, int64, float64 or complex128. The result
-// is returned on a newly created element.
+// AddConstNew adds the input constant (which can be an uint64, int64, float64 or complex128) to c0 and returns the result on a new element.
 func (evaluator *Evaluator) AddConstNew(c0 CkksElement, constant interface{}) (cOut CkksElement) {
 	cOut = c0.CopyNew()
 	evaluator.AddConst(c0, constant, cOut)
 	return cOut
 }
 
-// AddConstNew adds the provided constant, which can be an uint64, int64, float64 or complex128. The result
-// is returned on the provided receiver element.
+// AddConstNew adds the input constant (which can be an uint64, int64, float64 or complex128) to c0 and returns the result on cOut.
 func (evaluator *Evaluator) AddConst(c0 CkksElement, constant interface{}, cOut CkksElement) (err error) {
 
 	var level uint64
@@ -523,17 +517,17 @@ func (evaluator *Evaluator) AddConst(c0 CkksElement, constant interface{}, cOut 
 		scaled_const = 0
 
 		if c_real != 0 {
-			scaled_const_real = scaleUp(c_real, c0.Scale(), evaluator.ckkscontext.modulie[i])
+			scaled_const_real = scaleUp(c_real, c0.Scale(), evaluator.ckkscontext.moduli[i])
 			scaled_const = scaled_const_real
 		}
 
 		if c_imag != 0 {
-			scaled_const_imag = ring.MRed(scaleUp(c_imag, c0.Scale(), evaluator.ckkscontext.modulie[i]), context.GetNttPsi()[i][1], context.Modulus[i], context.GetMredParams()[i])
+			scaled_const_imag = ring.MRed(scaleUp(c_imag, c0.Scale(), evaluator.ckkscontext.moduli[i]), context.GetNttPsi()[i][1], context.Modulus[i], context.GetMredParams()[i])
 			scaled_const = ring.CRed(scaled_const+scaled_const_imag, context.Modulus[i])
 		}
 
 		for j := uint64(0); j < evaluator.ckkscontext.n>>1; j++ {
-			cOut.Value()[0].Coeffs[i][j] = ring.CRed(c0.Value()[0].Coeffs[i][j]+scaled_const, evaluator.ckkscontext.modulie[i])
+			cOut.Value()[0].Coeffs[i][j] = ring.CRed(c0.Value()[0].Coeffs[i][j]+scaled_const, evaluator.ckkscontext.moduli[i])
 		}
 
 		if c_imag != 0 {
@@ -541,15 +535,15 @@ func (evaluator *Evaluator) AddConst(c0 CkksElement, constant interface{}, cOut 
 		}
 
 		for j := evaluator.ckkscontext.n >> 1; j < evaluator.ckkscontext.n; j++ {
-			cOut.Value()[0].Coeffs[i][j] = ring.CRed(c0.Value()[0].Coeffs[i][j]+scaled_const, evaluator.ckkscontext.modulie[i])
+			cOut.Value()[0].Coeffs[i][j] = ring.CRed(c0.Value()[0].Coeffs[i][j]+scaled_const, evaluator.ckkscontext.moduli[i])
 		}
 	}
 
 	return nil
 }
 
-// MultByConstAndAdd multiplies the input element by the constant, and adds it to the receiver element (does not modify the input
-// element), i.e. cOut(x) = cOut(x) + c0(x) * (a+bi). This functions  removes the need of storing intermediate value c(x) * (a+bi).
+// MultByConstAndAdd multiplies c0 by the input constant, and adds it to the receiver element (does not modify the input
+// element), ex. cOut(x) = cOut(x) + c0(x) * (a+bi). This functions  removes the need of storing the intermediate value c(x) * (a+bi).
 // This function will modifie the level and the scale of the receiver element depending on the level and the scale of the input
 // element and the type of the constant. The level of the receiver element will be set to min(input.level, receiver.level).
 // The scale of the receiver element will be set to the scale that the input element would have after the multiplication by the constant.
@@ -665,12 +659,12 @@ func (evaluator *Evaluator) MultByConstAndAdd(c0 CkksElement, constant interface
 		scaled_const = 0
 
 		if c_real != 0 {
-			scaled_const_real = scaleUp(c_real, scale, evaluator.ckkscontext.modulie[i])
+			scaled_const_real = scaleUp(c_real, scale, evaluator.ckkscontext.moduli[i])
 			scaled_const = scaled_const_real
 		}
 
 		if c_imag != 0 {
-			scaled_const_imag = scaleUp(c_imag, scale, evaluator.ckkscontext.modulie[i])
+			scaled_const_imag = scaleUp(c_imag, scale, evaluator.ckkscontext.moduli[i])
 			scaled_const_imag = ring.MRed(scaled_const_imag, context.GetNttPsi()[i][1], context.Modulus[i], context.GetMredParams()[i])
 			scaled_const = ring.CRed(scaled_const+scaled_const_imag, context.Modulus[i])
 		}
@@ -699,7 +693,7 @@ func (evaluator *Evaluator) MultByConstAndAdd(c0 CkksElement, constant interface
 
 }
 
-// MultConstNew multiplies the input element by a constant and returns the result on a newly created element.
+// MultConstNew multiplies c0 by the input constant and returns the result on a newly created element.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
 // needs to be scaled (its rational part is not zero)). The constant can be an uint64, int64, float64 or complex128.
 func (evaluator *Evaluator) MultConstNew(c0 CkksElement, constant interface{}) (cOut CkksElement, err error) {
@@ -713,7 +707,7 @@ func (evaluator *Evaluator) MultConstNew(c0 CkksElement, constant interface{}) (
 	return cOut, nil
 }
 
-// MultConstNew multiplies the input element by a constant and returns the result on the receiver element.
+// MultConstNew multiplies c0 by the input constant and returns the result on cOut.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
 // needs to be scaled (its rational part is not zero)). The constant can be an uint64, int64, float64 or complex128.
 func (evaluator *Evaluator) MultConst(c0 CkksElement, constant interface{}, cOut CkksElement) (err error) {
@@ -789,12 +783,12 @@ func (evaluator *Evaluator) MultConst(c0 CkksElement, constant interface{}, cOut
 		scaled_const = 0
 
 		if c_real != 0 {
-			scaled_const_real = scaleUp(c_real, scale, evaluator.ckkscontext.modulie[i])
+			scaled_const_real = scaleUp(c_real, scale, evaluator.ckkscontext.moduli[i])
 			scaled_const = scaled_const_real
 		}
 
 		if c_imag != 0 {
-			scaled_const_imag = scaleUp(c_imag, scale, evaluator.ckkscontext.modulie[i])
+			scaled_const_imag = scaleUp(c_imag, scale, evaluator.ckkscontext.moduli[i])
 			scaled_const_imag = ring.MRed(scaled_const_imag, context.GetNttPsi()[i][1], context.Modulus[i], context.GetMredParams()[i])
 			scaled_const = ring.CRed(scaled_const+scaled_const_imag, context.Modulus[i])
 		}
@@ -824,7 +818,7 @@ func (evaluator *Evaluator) MultConst(c0 CkksElement, constant interface{}, cOut
 	return nil
 }
 
-// MultByiNew multiplies the input element by the imaginary number i, and returns the result on a newly created element.
+// MultByiNew multiplies c0 by the imaginary number i, and returns the result on a newly created element.
 // Does not change the scale.
 func (evaluator *Evaluator) MultByiNew(c0 CkksElement) (c1 CkksElement, err error) {
 	c1 = evaluator.ckkscontext.NewCiphertext(1, c0.Level(), c0.Scale())
@@ -836,7 +830,7 @@ func (evaluator *Evaluator) MultByiNew(c0 CkksElement) (c1 CkksElement, err erro
 	return c1, nil
 }
 
-// MultByiNew multiplies the input element by the imaginary number i, and returns the result on the receiver element.
+// MultByiNew multiplies c0 by the imaginary number i, and returns the result on c1.
 // Does not change the scale.
 func (evaluator *Evaluator) MultByi(c0 CkksElement, c1 CkksElement) (err error) {
 
@@ -874,7 +868,7 @@ func (evaluator *Evaluator) MultByi(c0 CkksElement, c1 CkksElement) (err error) 
 	return nil
 }
 
-// MultByiNew multiplies the input element by the imaginary number 1/i, and returns the result on a newly created element.
+// DivByiNew multiplies c0 by the imaginary number 1/i = -i, and returns the result on a newly created element.
 // Does not change the scale.
 func (evaluator *Evaluator) DivByiNew(c0 CkksElement) (c1 CkksElement, err error) {
 	c1 = evaluator.ckkscontext.NewCiphertext(1, c0.Level(), c0.Scale())
@@ -886,7 +880,7 @@ func (evaluator *Evaluator) DivByiNew(c0 CkksElement) (c1 CkksElement, err error
 	return c1, nil
 }
 
-// MultByiNew multiplies the input element by the imaginary number 1/i, and returns the result on the receiver element.
+// DivByi multiplies c0 by the imaginary number 1/i = -i, and returns the result on c1.
 // Does not change the scale.
 func (evaluator *Evaluator) DivByi(c0 CkksElement, c1 CkksElement) (err error) {
 
@@ -924,7 +918,7 @@ func (evaluator *Evaluator) DivByi(c0 CkksElement, c1 CkksElement) (err error) {
 
 }
 
-// ScaleUpNew multiplies the input element by 2^n and sets its scale to its previous scale
+// ScaleUpNew multiplies c0 by 2^scale and sets its scale to its previous scale
 // plus 2^n. Returns the result on a newly created element.
 func (evaluator *Evaluator) ScaleUpNew(c0 CkksElement, scale uint64) (cOut CkksElement, err error) {
 
@@ -936,8 +930,8 @@ func (evaluator *Evaluator) ScaleUpNew(c0 CkksElement, scale uint64) (cOut CkksE
 	return cOut, nil
 }
 
-// ScaleUpNew multiplies the input element by 2^n and sets its scale to its previous scale
-// plus 2^n. Returns the result on the provided receiver element.
+// ScaleUpNew multiplies c0 by 2^scale and sets its scale to its previous scale
+// plus 2^n. Returns the result on cOut.
 func (evaluator *Evaluator) ScaleUp(c0 CkksElement, scale uint64, cOut CkksElement) (err error) {
 	if err = evaluator.MulByPow2(c0, scale, cOut); err != nil {
 		return err
@@ -946,7 +940,7 @@ func (evaluator *Evaluator) ScaleUp(c0 CkksElement, scale uint64, cOut CkksEleme
 	return nil
 }
 
-// MutByPow2New multiplies the input element by 2^n and returns the result on a newly created element.
+// MutByPow2New multiplies the c0 by 2^pow2 and returns the result on a newly created element.
 func (evaluator *Evaluator) MulByPow2New(c0 CkksElement, pow2 uint64) (cOut CkksElement, err error) {
 
 	cOut = evaluator.ckkscontext.NewCiphertext(1, c0.Level(), c0.Scale())
@@ -958,7 +952,7 @@ func (evaluator *Evaluator) MulByPow2New(c0 CkksElement, pow2 uint64) (cOut Ckks
 	return cOut, nil
 }
 
-// MutByPow2New multiplies the input element by 2^n and returns the result on the provided receiver element.
+// MutByPow2New multiplies c0 by 2^pow2 and returns the result on cOut.
 func (evaluator *Evaluator) MulByPow2(c0 CkksElement, pow2 uint64, cOut CkksElement) (err error) {
 
 	var level uint64
@@ -974,7 +968,7 @@ func (evaluator *Evaluator) MulByPow2(c0 CkksElement, pow2 uint64, cOut CkksElem
 	return nil
 }
 
-// Reduce applies a modular reduction on the input element and returns the result on a newly created element.
+// Reduce applies a modular reduction c0 and returns the result on a newly created element.
 // To be used in conjonction with function not applying modular reduction.
 func (evaluator *Evaluator) ReduceNew(c0 CkksElement) (cOut CkksElement) {
 
@@ -991,7 +985,7 @@ func (evaluator *Evaluator) ReduceNew(c0 CkksElement) (cOut CkksElement) {
 	return nil
 }
 
-// Reduce applies a modular reduction on the input element and returns the result on the receiver element.
+// Reduce applies a modular reduction c0 and returns the result on cOut.
 // To be used in conjonction with function not applying modular reduction.
 func (evaluator *Evaluator) Reduce(c0 CkksElement, cOut CkksElement) error {
 
@@ -1006,7 +1000,7 @@ func (evaluator *Evaluator) Reduce(c0 CkksElement, cOut CkksElement) error {
 	return nil
 }
 
-// DropLevel reduces the level of the input element by levels and returns the result on a newly created element.
+// DropLevel reduces the level of c0 by levels and returns the result on a newly created element.
 // No rescaling is applied during this procedure.
 func (evaluator *Evaluator) DropLevelNew(c0 CkksElement, levels uint64) (cOut CkksElement, err error) {
 
@@ -1020,7 +1014,7 @@ func (evaluator *Evaluator) DropLevelNew(c0 CkksElement, levels uint64) (cOut Ck
 	return cOut, nil
 }
 
-// DropLevel reduces the level of the input element by levels and returns the result on the provided receiver element.
+// DropLevel reduces the level of c0 by levels and returns the result on c0.
 // No rescaling is applied during this procedure.
 func (evaluator *Evaluator) DropLevel(c0 CkksElement, levels uint64) error {
 
@@ -1035,15 +1029,15 @@ func (evaluator *Evaluator) DropLevel(c0 CkksElement, levels uint64) error {
 	}
 
 	for i := uint64(0); i < levels; i++ {
-		c0.CurrentModulus().DivRound(c0.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.modulie[level-i]))
+		c0.CurrentModulus().DivRound(c0.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[level-i]))
 	}
 
 	return nil
 }
 
-// RescaleNew divides the input element by the last modulus in the modulus chain, and repeats this
-// procedure until the scale reaches the original scale or would go below it, and returns the result
-// on a newly created element. Since all the modulie in the modulus chain are generated to be close to the
+// RescaleNew divides c0 by the last modulus in the modulus chain, repeats this
+// procedure (each time consuming a level) until the scale reaches the original scale or would go below it, and returns the result
+// on a newly created element. Since all the moduli in the modulus chain are generated to be close to the
 // original scale, this procedure is equivalement to dividing the input element by the scale and adding
 // some error.
 func (evaluator *Evaluator) RescaleNew(c0 CkksElement) (cOut CkksElement, err error) {
@@ -1058,9 +1052,9 @@ func (evaluator *Evaluator) RescaleNew(c0 CkksElement) (cOut CkksElement, err er
 	return cOut, nil
 }
 
-// RescaleNew divides the input element by the last modulus in the modulus chain, and repeats this
-// procedure until the scale reaches the original scale or would go below it, and returns the result
-// on the provided receiver element. Since all the modulie in the modulus chain are generated to be close to the
+// RescaleNew divides c0 by the last modulus in the modulus chain, repeats this
+// procedure (each time consuming a level) until the scale reaches the original scale or would go below it, and returns the result
+// on c1. Since all the moduli in the modulus chain are generated to be close to the
 // original scale, this procedure is equivalement to dividing the input element by the scale and adding
 // some error.
 func (evaluator *Evaluator) Rescale(c0, c1 CkksElement) (err error) {
@@ -1085,7 +1079,7 @@ func (evaluator *Evaluator) Rescale(c0, c1 CkksElement) (err error) {
 
 		for c1.Scale() >= evaluator.ckkscontext.logScale+evaluator.ckkscontext.logQ && c1.Level() > 0 {
 
-			c1.CurrentModulus().DivRound(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.modulie[c1.Level()]))
+			c1.CurrentModulus().DivRound(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[c1.Level()]))
 
 			for i := range c1.Value() {
 				rescale(evaluator, c1.Value()[i], c1.Value()[i])
@@ -1127,7 +1121,7 @@ func rescale(evaluator *Evaluator, p0, p1 *ring.Poly) {
 
 		ring.NTT(p0.Coeffs[level], p_tmp.Coeffs[0], context.N, context.GetNttPsi()[i], context.Modulus[i], context.GetMredParams()[i], context.GetBredParams()[i])
 
-		Qi = evaluator.ckkscontext.modulie[i]
+		Qi = evaluator.ckkscontext.moduli[i]
 		InvQl = evaluator.ckkscontext.rescalParams[level-1][i]
 
 		for j := uint64(0); j < evaluator.ckkscontext.n; j++ {
@@ -1139,7 +1133,7 @@ func rescale(evaluator *Evaluator, p0, p1 *ring.Poly) {
 	p1.Coeffs = p1.Coeffs[:level]
 }
 
-// MulRelinNew multiplies the two provided elements and returns the result on a newly created element. The new scale is
+// MulRelinNew multiplies ct0 by ct1 and returns the result on a newly created element. The new scale is
 // the multiplication between scales of the input elements (addition when the scale is represented in log2). An evaluation
 // key can be provided to apply a relinearization step and reduce the degree of the output element. This evaluation key is only
 // required when the two inputs elements are ciphertexts. If not evaluationkey is provided and the input elements are two ciphertexts,
@@ -1161,7 +1155,7 @@ func (evaluator *Evaluator) MulRelinNew(ct0, ct1 CkksElement, evakey *Evaluation
 	return cOut, nil
 }
 
-// MulRelinNew multiplies the two provided elements and returns the result on the provided receiver element.
+// MulRelinNew multiplies ct0 by ct1 and returns the result on cOut. The new scale is
 // the multiplication between scales of the input elements (addition when the scale is represented in log2). An evaluation
 // key can be provided to apply a relinearization step and reduce the degree of the output element. This evaluation key is only
 // required when the two inputs elements are ciphertexts. If not evaluationkey is provided and the input elements are two ciphertexts,
@@ -1305,8 +1299,8 @@ func (evaluator *Evaluator) MulRelin(ct0, ct1 CkksElement, evakey *EvaluationKey
 	return nil
 }
 
-// RelinearizeNew applies the relinearization procedure on the provided ciphertext and returns the result on a newly
-// created ciphertext. Requirese the input ciphertext to be of degree two.
+// RelinearizeNew applies the relinearization procedure on cIn and returns the result on a newly
+// created ciphertext. Requires the input ciphertext to be of degree two.
 func (evaluator *Evaluator) RelinearizeNew(cIn *Ciphertext, evakey *EvaluationKey) (cOut *Ciphertext, err error) {
 
 	if cIn.Degree() < 2 || cIn.Degree() > 2 {
@@ -1320,8 +1314,7 @@ func (evaluator *Evaluator) RelinearizeNew(cIn *Ciphertext, evakey *EvaluationKe
 	return
 }
 
-// RelinearizeNew applies the relinearization procedure on the provided ciphertext and returns the result on the provided
-// receiver ciphertext. Requirese the input ciphertext to be of degree two.
+// RelinearizeNew applies the relinearization procedure on cIn and returns the result on cOut. Requires the input ciphertext to be of degree two.
 func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, cOut *Ciphertext) (err error) {
 	if cIn.Degree() != 2 {
 		return errors.New("cannot relinearize -> input is not of degree 2")
@@ -1336,8 +1329,8 @@ func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, 
 	return nil
 }
 
-// Switchkeys re-encrypts the input ciphertext under a different key and returns the result on a newly created element.
-// Requirese a switchinkey, which is computed from the key under which the ciphertext is currently encrypted,
+// Switchkeys re-encrypts cIn under a different key and returns the result on a newly created element.
+// Requires a switchinkey, which is computed from the key under which the ciphertext is currently encrypted,
 // and the key under which the ciphertext will be re-encrypted.
 func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *SwitchingKey) (cOut *Ciphertext, err error) {
 
@@ -1352,8 +1345,8 @@ func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *Switchi
 	return cOut, nil
 }
 
-// Switchkeys re-encrypts the input ciphertext under a different key and returns the result on the receiver element.
-// Requirese a switchinkey, which is computed from the key under which the ciphertext is currently encrypted,
+// Switchkeys re-encrypts cIn under a different key and returns the result on cOut.
+// Requires a switchinkey, which is computed from the key under which the ciphertext is currently encrypted,
 // and the key under which the ciphertext will be re-encrypted.
 func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingKey, cOut *Ciphertext) error {
 
@@ -1370,7 +1363,7 @@ func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingK
 	return nil
 }
 
-// RotateColumnsNew rotates the columns of the provided element by k position to the left, and returns the result on a newly created element.
+// RotateColumnsNew rotates the columns of c0 by k position to the left, and returns the result on a newly created element.
 // If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key for the specific rotation needs to be provided.
 func (evaluator *Evaluator) RotateColumnsNew(c0 CkksElement, k uint64, evakey *RotationKey) (cOut CkksElement, err error) {
 
@@ -1400,7 +1393,7 @@ func (evaluator *Evaluator) RotateColumnsNew(c0 CkksElement, k uint64, evakey *R
 	return cOut, nil
 }
 
-// RotateColumns rotates the columns of the provided element by k position to the left and returns the result on the provided receiver.
+// RotateColumns rotates the columns of c0 by k position to the left and returns the result on the provided receiver.
 // If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key for the specific rotation needs to be provided.
 func (evaluator *Evaluator) RotateColumns(c0 CkksElement, k uint64, evakey *RotationKey, c1 CkksElement) (err error) {
 
@@ -1539,7 +1532,7 @@ func rotateColumnsPow2(evaluator *Evaluator, c0 CkksElement, generator, k uint64
 	}
 }
 
-// ConjugateNew conjugates the input element (which is equivalement to a row rotation) and returns the result on a newly
+// ConjugateNew conjugates c0 (which is equivalement to a row rotation) and returns the result on a newly
 // created element. If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key
 // for the row rotation needs to be provided.
 func (evaluator *Evaluator) ConjugateNew(c0 CkksElement, evakey *RotationKey) (cOut CkksElement, err error) {
@@ -1562,7 +1555,7 @@ func (evaluator *Evaluator) ConjugateNew(c0 CkksElement, evakey *RotationKey) (c
 
 }
 
-// ConjugateNew conjugates the input element (which is equivalement to a row rotation) and returns the result on the provided receiver element.
+// ConjugateNew conjugates c0 (which is equivalement to a row rotation) and returns the result on c1.
 // If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key for the row rotation needs to be provided.
 func (evaluator *Evaluator) Conjugate(c0 CkksElement, evakey *RotationKey, c1 CkksElement) error {
 

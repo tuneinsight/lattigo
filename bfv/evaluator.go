@@ -15,7 +15,9 @@ type Evaluator struct {
 	ctxpool       [3]*Ciphertext
 }
 
-// NewEvaluator creates a new Evaluator from the target bfvcontext.
+// NewEvaluator creates a new Evaluator, that can be used to do homomorphic
+// operations on the ciphertexts and/or plaintexts. It stores a small pool of polynomials
+// and ciphertexts that will be used for intermediate values.
 func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator, err error) {
 
 	evaluator = new(Evaluator)

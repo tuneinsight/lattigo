@@ -120,28 +120,7 @@ func checkLevels(inputs []CkksElement) (uint64, error) {
 	return levels[0], nil
 }
 
-func GenerateNTTPrime(logQ, logN uint64) (uint64, error) {
-
-	if logQ > 62 {
-		return 0, errors.New("error : logQ must be between 1 and 62")
-	}
-
-	var x, Qpow2, _2N uint64
-
-	Qpow2 = 1 << logQ
-
-	_2N = 2 << logN
-
-	x = Qpow2 + 1
-
-	for ring.IsPrime(x) != true {
-		x += _2N
-	}
-
-	return x, nil
-}
-
-func GeneratePrimesList(logQ, logN, logP uint64) ([]uint64, error) {
+func generateprimeslist(logQ, logN, logP uint64) ([]uint64, error) {
 
 	if logQ > 62 {
 		return nil, errors.New("error : logQ must be between 1 and 62")
@@ -177,10 +156,9 @@ func GeneratePrimesList(logQ, logN, logP uint64) ([]uint64, error) {
 	return primes, nil
 }
 
-// Generates CKKS Primes byed on logQ = size of the primes, logN = size of N and level, the number
+// Generates CKKS Primes given logQ = size of the primes, logN = size of N and level, the number
 // of levels we require. Will return all the appropriate primes, up to the number of level, with the
 // best avaliable precision for the given level.
-// TODO : choose between sorting the primes by size or by precision
 func GenerateCKKSPrimes(logQ, logN, level uint64) ([]uint64, uint64, error) {
 
 	var err error
@@ -197,7 +175,7 @@ func GenerateCKKSPrimes(logQ, logN, level uint64) ([]uint64, uint64, error) {
 
 	for precision > 0 {
 
-		primes, err = GeneratePrimesList(logQ, logN, precision)
+		primes, err = generateprimeslist(logQ, logN, precision)
 
 		if err != nil {
 			return nil, 0, err

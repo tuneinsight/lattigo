@@ -476,7 +476,7 @@ func (switchkey *SwitchingKey) UnMarshalBinary(data []byte) error {
 }
 
 // MarshalBinary encodes a rotationkeys structure on a byte slice. The total size in byte is approximately
-// 5 + 4*(nb left rot + num right rot) + (nb left rot + num right rot + 1 (if rotate row)) * maxDegree * numberModuli * ( 1 + 2 * 8 * N * numberModuli * logQi/bitDecomp).
+// 5 + 4*(nb left rot + num right rot) + (nb left rot + num right rot + 1 (if rotate row)) * numberModuli * ( 1 + 2 * 8 * N * numberModuli * logQi/bitDecomp).
 func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 
 	var err error

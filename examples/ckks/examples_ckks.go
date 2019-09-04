@@ -75,7 +75,7 @@ func chebyshevinterpolation() {
 		values[i] = complex(randomFloat(-1, 1), randomFloat(-0.1, 0.1))
 	}
 
-	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d (%d bits), logPrecision = %d, logScale = %d, sigma = %f \n", logN, logQ, levels, 60+(levels-1)*logQ, ckkscontext.Precision(), scale, sigma)
+	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d (%d bits), logScale = %d, sigma = %f \n", logN, logQ, levels, 60+(levels-1)*logQ, scale, sigma)
 
 	fmt.Println()
 	fmt.Printf("Values     : %6f %6f %6f %6f...\n", round(values[0]), round(values[1]), round(values[2]), round(values[3]))

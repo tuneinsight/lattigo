@@ -4,10 +4,7 @@ import (
 	"github.com/lca1/lattigo/ring"
 )
 
-// The plaintext is a ring of N coefficients with two contexts.
-// The first context is defined by the BFV parameters. The second
-// context defines a NTT around its modulus it it permits it.
-
+// Plaintext is BigPoly of degree 0.
 type Plaintext BigPoly
 
 // NewPlaintext creates a new plaintext of level level and scale scale.
@@ -111,14 +108,14 @@ func (P *Plaintext) CopyNew() CkksElement {
 	return PCopy
 }
 
-// Copy copies the value and parameters of the reference plaintext ot the receiver plaintext.
+// Copy copies the value and parameters of the target plaintext ot the receiver plaintext.
 func (P *Plaintext) Copy(PCopy CkksElement) error {
 	P.value[0].Copy(PCopy.Value()[0])
 	P.CopyParams(PCopy)
 	return nil
 }
 
-// CopyParams copies the parameters of the reference plaintext to the receiver plaintext.
+// CopyParams copies the parameters of the target plaintext to the receiver plaintext.
 func (P *Plaintext) CopyParams(ckkselement CkksElement) {
 	ckkselement.SetCurrentModulus(P.CurrentModulus())
 	ckkselement.SetScale(P.Scale())

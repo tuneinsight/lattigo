@@ -45,7 +45,8 @@ type SwitchingKey struct {
 	evakey    [][][2]*ring.Poly
 }
 
-// Newkeygenerator creates a new KeyGenerator from the target bfvcontext.
+// NewKeyGenerator creates a new keygenerator, from which the secret and public keys, as well as the evaluation,
+// rotation and switching keys can be generated.
 func (bfvcontext *BfvContext) NewKeyGenerator() (keygen *keygenerator) {
 	keygen = new(keygenerator)
 	keygen.bfvcontext = bfvcontext

@@ -72,7 +72,8 @@ func (ekg *EkgProtocol) GenSamples(u, sk *ring.Poly, crp [][]*ring.Poly) (h [][]
 
 // Aggregate is the second of three rounds of the EkgProtocol protocol. Uppon received the j-1 shares, each party computes :
 //
-//   [s_i * sum([-u_j*a + s_j*w + e_j]) + e_i1, s_i*a + e_i2]
+// [s_i * sum([-u_j*a + s_j*w + e_j]) + e_i1, s_i*a + e_i2]
+//
 // = [s_i * (-u*a + s*w + e) + e_i1, s_i*a + e_i2]
 //
 // and broadcasts both values to the other j-1 parties.
@@ -132,7 +133,8 @@ func (ekg *EkgProtocol) Aggregate(sk *ring.Poly, samples [][][]*ring.Poly, crp [
 // Sum is the first part of the third and last round of the EkgProtocol protocol. Uppon receiving the j-1 elements, each party
 // computues :
 //
-//   [sum(s_j * (-u*a + s*w + e) + e_j1), sum(s_j*a + e_j2)]
+// [sum(s_j * (-u*a + s*w + e) + e_j1), sum(s_j*a + e_j2)]
+//
 // = [s * (-u*a + s*w + e) + e_1, s*a + e_2].
 func (ekg *EkgProtocol) Sum(samples [][][][2]*ring.Poly) (h [][][2]*ring.Poly) {
 
@@ -197,10 +199,14 @@ func (ekg *EkgProtocol) KeySwitch(u, sk *ring.Poly, samples [][][2]*ring.Poly) (
 
 // ComputeEVK is third part ot the third and last round of the EkgProtocol protocol. Uppon receiving the other j-1 elements, each party computes :
 //
-//   [s * (-u*a + s*w + e) + e_1 + sum([(u_j - s_j)*(s*a + e_2)])]
+// [s * (-u*a + s*w + e) + e_1 + sum([(u_j - s_j)*(s*a + e_2)])]
+//
 // = [s * (-u*a + s*w + e) + e_1 + (u - s)*(s*a + e_2)]
+//
 // = [-s*u*a + s^2*w + s*e + e_1 + s*u*a -s^2*a + (u - s)*e_2]
+//
 // = [-s^2*a + s^2*w + e_1 + (u - s)*e_2]
+//
 // = [-s^2*a + s^2*w + e]
 //
 // The evaluation key is therefor : [-s*b + s^2*w + e, s*b]

@@ -74,12 +74,14 @@ func (ekg *EkgProtocolNaive) GenSamples(sk *ring.Poly, pk [2]*ring.Poly) (h [][]
 
 // Aggregate is the first part of the second and last round of the naive EKG protocol. Uppon receiving the j-1 elements, each party computes :
 //
-//   [sum(cpk[0]*u_j + s_j * w + e_0j), sum(cpk[1]*u_j + e_1j)]
+// [sum(cpk[0]*u_j + s_j * w + e_0j), sum(cpk[1]*u_j + e_1j)]
+//
 // = [cpk[0]*u + s * w + e_0, cpk[1]*u + e_1]
 //
 // Using this intermediate result, each party computes :
 //
-//  [s_i * (cpk[0]*u + s * w + e_0) + v_i*cpk[0] + e_2i, s_i*(cpk[1]*u + e_1) + cpk[1] * v_i + e_3i]
+// [s_i * (cpk[0]*u + s * w + e_0) + v_i*cpk[0] + e_2i, s_i*(cpk[1]*u + e_1) + cpk[1] * v_i + e_3i]
+//
 // = [ cpk[0] * (u*s_i) + (s*s_i) * w + (s_i*e_0) + v_i*cpk[0] + e_2i, cpk[1]*u*s_i + (s_i*e_1) + cpk[1] * v_i + e_3i]
 //
 // And party broadcast this last result to the other j-1 parties.
@@ -145,8 +147,10 @@ func (ekg *EkgProtocolNaive) Aggregate(sk *ring.Poly, pk [2]*ring.Poly, samples 
 // Finalize is the second part of the second and last round of the naive EKG protocol. Uppon receiving the j-1 elements,
 // each party computes :
 //
-//  [ sum(cpk[0] * (u*s_i) + (s*s_i) * w + (s_i*e_0) + v_i*cpk[0] + e_2i), sum(cpk[1]*u*s_i + (s_i*e_1) + cpk[1] * v_i + e_3i)]
+// [ sum(cpk[0] * (u*s_i) + (s*s_i) * w + (s_i*e_0) + v_i*cpk[0] + e_2i), sum(cpk[1]*u*s_i + (s_i*e_1) + cpk[1] * v_i + e_3i)]
+//
 // = [cpk[0] * (s*u + v) + (s^2 * w) + s*e_0 + e_2, ckp[1] * (s*u + v) + s*e_1 + e_3]
+//
 // = [-s*b + s^2 * w - (s*u + b) * e_cpk + s*e_0 + e_2, b + s*e_1 + e_3]
 func (ekg *EkgProtocolNaive) Finalize(h [][][][2]*ring.Poly) (evaluationKey [][][2]*ring.Poly) {
 

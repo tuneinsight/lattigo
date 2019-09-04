@@ -509,6 +509,24 @@ func (context *Context) MultByMonomial(p1 *Poly, monomialDeg uint64, p2 *Poly) {
 	}
 }
 
+// MulByVector multiplies p1 by a vector of uint64 coefficients and returns the result on p2.
+func (context *Context) MulByVectorMontgomery(p1 *Poly, vector []uint64, p2 *Poly) {
+	for i, qi := range context.Modulus {
+		for j := uint64(0); j < context.N; j++ {
+			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j], vector[j], qi, context.mredParams[i])
+		}
+	}
+}
+
+// MulByVector multiplies p1 by a vector of uint64 coefficients and adds the result on p2 without modular reduction.
+func (context *Context) MulByVectorMontgomeryAndAddNoMod(p1 *Poly, vector []uint64, p2 *Poly) {
+	for i, qi := range context.Modulus {
+		for j := uint64(0); j < context.N; j++ {
+			p2.Coeffs[i][j] += MRed(p1.Coeffs[i][j], vector[j], qi, context.mredParams[i])
+		}
+	}
+}
+
 // BitReverse applies a bit reverse permutation the coefficients of the input polynomial and returns the result on the receiver polynomial.
 // Can safely be used for inplace permutation.
 func (context *Context) BitReverse(p1, p2 *Poly) {

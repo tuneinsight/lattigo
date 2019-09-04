@@ -76,7 +76,7 @@ func scaleDown(coeff *ring.Int, n uint64) (x float64) {
 	return
 }
 
-func Hash(data []uint64) (value []byte, err error) {
+func hash(data []uint64) (value []byte, err error) {
 	hash, err := blake2b.New512(nil)
 	buff := make([]byte, 8)
 	for _, x := range data {
@@ -88,7 +88,7 @@ func Hash(data []uint64) (value []byte, err error) {
 
 }
 
-func VerifyHash(hash0, hash1 []byte) bool {
+func verifyhash(hash0, hash1 []byte) bool {
 	if res := bytes.Compare(hash0, hash1); res != 0 {
 		return false
 	} else {
@@ -213,7 +213,7 @@ func GenerateCKKSPrimes(logQ, logN, level uint64) ([]uint64, uint64, error) {
 	return nil, 0, nil
 }
 
-func EqualSlice(a, b []uint64) bool {
+func equalslice(a, b []uint64) bool {
 
 	if len(a) != len(b) {
 		return false
@@ -269,16 +269,4 @@ func modexp(x, e, p uint64) (result uint64) {
 		x = ring.BRed(x, x, p, params)
 	}
 	return result
-}
-
-// Returns (x*2^n)%q where x is in montgomery form
-func PowerOf2(x, n, q, qInv uint64) (r uint64) {
-	ahi, alo := x>>(64-n), x<<n
-	R := alo * qInv
-	H, _ := bits.Mul64(R, q)
-	r = ahi - H + q
-	if r >= q {
-		r -= q
-	}
-	return
 }

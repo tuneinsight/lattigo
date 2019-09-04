@@ -20,8 +20,8 @@ func (ckkscontext *CkksContext) NewEncryptor(pk *PublicKey, sk *SecretKey) (encr
 	if uint64(pk.pk[0].GetDegree()+pk.pk[1].GetDegree())>>1 != ckkscontext.n {
 		return nil, errors.New("error : pk ring degree doesn't match ckkscontext ring degree")
 	}
-	
-	if uint64(sk.sk.GetDegree()) != ckkscontext.n {
+
+	if sk != nil && uint64(sk.sk.GetDegree()) != ckkscontext.n {
 		return nil, errors.New("error : sk ring degree doesn't match ckkscontext ring degree")
 	}
 
@@ -151,6 +151,5 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 	// ct = [-s*a + m + e, a]
 	context.Add(ciphertext.value[0], plaintext.value[0], ciphertext.value[0])
-
 
 }

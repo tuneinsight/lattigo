@@ -52,7 +52,7 @@ func (bfvContext *BfvContext) MarshalBinary() ([]byte, error) {
 }
 
 // UnMarshalBinary decodes a previously marshaled bfvcontext on the target bfvcontext.
-// Since only the minimum amount of information is encoded in the bytes, it will need to 
+// Since only the minimum amount of information is encoded in the bytes, it will need to
 // re-compute all the internal variables and parameters.
 func (bfvContext *BfvContext) UnMarshalBinary(data []byte) error {
 	//var err error
@@ -303,7 +303,7 @@ func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 	dataLen = 5
 	for i := uint64(0); i < maxDegree; i++ {
 		for j := uint64(0); j < decomposition; j++ {
-			dataLen += 1                                                                                                       //Information about the size of the bitdecomposition
+			dataLen += 1                                                                         //Information about the size of the bitdecomposition
 			dataLen += 2 * 8 * N * numberModuli * uint64(len(evaluationkey.evakey[i].evakey[j])) // nb coefficients * 8
 		}
 	}
@@ -339,7 +339,7 @@ func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-// UnMarshalBinary decodes a previously marshaled evaluation-key on the target evaluation-key. The target evaluation-key 
+// UnMarshalBinary decodes a previously marshaled evaluation-key on the target evaluation-key. The target evaluation-key
 // must have the appropriate format and size, it can be created with the methode NewRelinKeyEmpty(uint64, uint64).
 func (evaluationkey *EvaluationKey) UnMarshalBinary(data []byte) error {
 
@@ -467,7 +467,6 @@ func (switchkey *SwitchingKey) UnMarshalBinary(data []byte) error {
 				return errors.New("cannot unmarshal switching-key -> receiver (numberModuli does not match data)")
 			}
 
-
 			pointer, _ = ring.DecodeCoeffs(pointer, N, level, switchkey.evakey[j][x][0].Coeffs, data)
 			pointer, _ = ring.DecodeCoeffs(pointer, N, level, switchkey.evakey[j][x][1].Coeffs, data)
 		}
@@ -511,7 +510,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 			mappingColL = append(mappingColL, i)
 
 			for j := uint64(0); j < decomposition; j++ {
-				dataLen += 1                                                                                                   //Information about the size of the bitdecomposition
+				dataLen += 1                                                                                                 //Information about the size of the bitdecomposition
 				dataLen += 2 * 8 * N * numberModuli * decomposition * uint64(len(rotationkey.evakey_rot_col_L[i].evakey[j])) // nb coefficients * 8
 			}
 		}
@@ -521,7 +520,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 			mappingColR = append(mappingColR, i)
 
 			for j := uint64(0); j < decomposition; j++ {
-				dataLen += 1                                                                                                   //Information about the size of the bitdecomposition
+				dataLen += 1                                                                                                 //Information about the size of the bitdecomposition
 				dataLen += 2 * 8 * N * numberModuli * decomposition * uint64(len(rotationkey.evakey_rot_col_L[i].evakey[j])) // nb coefficients * 8
 			}
 		}
@@ -530,7 +529,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 	if rotationkey.evakey_rot_row != nil {
 		mappingRow = 1
 		for j := uint64(0); j < decomposition; j++ {
-			dataLen += 1                                                                                              //Information about the size of the bitdecomposition
+			dataLen += 1                                                                                            //Information about the size of the bitdecomposition
 			dataLen += 2 * 8 * N * numberModuli * decomposition * uint64(len(rotationkey.evakey_rot_row.evakey[j])) // nb coefficients * 8
 		}
 	}
@@ -625,7 +624,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 
 // UnMarshalBinary decodes a previously marshaled rotation-keys on the target rotation-keys. In contrary to all
 // the other structures, the unmarshaling for rotationkeys only need an empty receiver, as it is not possible to
-// create receiver of the correct format and size without knowing all the content of the marshaled rotationkeys. The memory 
+// create receiver of the correct format and size without knowing all the content of the marshaled rotationkeys. The memory
 // will be allocated on the fly.
 func (rotationkey *RotationKeys) UnMarshalBinary(data []byte) error {
 

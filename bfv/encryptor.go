@@ -19,7 +19,7 @@ func (bfvcontext *BfvContext) NewEncryptor(pk *PublicKey, sk *SecretKey) (*Encry
 		return nil, errors.New("error : pk ring degree doesn't match bfvcontext ring degree")
 	}
 
-	if uint64(sk.sk.GetDegree()) != bfvcontext.n {
+	if sk != nil && uint64(sk.sk.GetDegree()) != bfvcontext.n {
 		return nil, errors.New("error : sk ring degree doesn't match bfvcontext ring degree")
 	}
 
@@ -107,7 +107,6 @@ func (encryptor *Encryptor) EncryptFromSk(plaintext *Plaintext, ciphertext *Ciph
 	return nil
 }
 
-
 func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	context := encryptor.bfvcontext.contextQ
@@ -137,7 +136,6 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 	encryptor.polypool.Zero()
 }
-
 
 func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
 

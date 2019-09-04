@@ -13,7 +13,12 @@ func Benchmark_POLYNOMIAL(b *testing.B) {
 		N := uint64(2 << (12 + i))
 		T := uint64(65537)
 
+		N = 1 << 16
+
 		Qi := Qi60[uint64(len(Qi60))-2<<i:]
+
+		Qi = Qi60[uint64(len(Qi60))-32:]
+
 		Pi := Pi60[uint64(len(Pi60))-((2<<i)+1):]
 
 		sigma := 3.19
@@ -32,6 +37,8 @@ func Benchmark_POLYNOMIAL(b *testing.B) {
 
 		contextQP := NewContext()
 		contextQP.Merge(contextQ, contextP)
+
+		benchmark_Context(N, Qi, b)
 
 		benchmark_KYSGaussPoly(sigma, contextQ, b)
 
@@ -78,6 +85,17 @@ func Benchmark_POLYNOMIAL(b *testing.B) {
 		benchmark_MRed(b)
 
 	}
+}
+
+func benchmark_Context(N uint64, Qi []uint64, b *testing.B) {
+	var context *Context
+	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/Context", N, len(Qi), 60), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context = NewContext()
+			context.SetParameters(N, Qi)
+			context.ValidateParameters()
+		}
+	})
 }
 
 func benchmark_UnMarshaler(context *Context, b *testing.B) {

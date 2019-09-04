@@ -412,7 +412,7 @@ func tensorAndRescale(evaluator *Evaluator, ct0, ct1, cOut BfvElement) {
 //
 // - it must match the secret-key that was used to create the public key under which the current cIn is encrypted.
 //
-// - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext 
+// - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext
 //of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
 func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, cOut *Ciphertext) error {
 
@@ -435,7 +435,7 @@ func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, 
 //
 // - it must match the secret-key that was used to create the public key under which the current cIn is encrypted
 //
-// - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext 
+// - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
 func (evaluator *Evaluator) RelinearizeNew(cIn *Ciphertext, evakey *EvaluationKey) (cOut *Ciphertext, err error) {
 

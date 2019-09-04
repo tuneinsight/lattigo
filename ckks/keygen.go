@@ -377,7 +377,7 @@ func newswitchingkey(ckkscontext *CkksContext, sk_in, sk_out *ring.Poly, bitDeco
 			// e + sk_in * (qiBarre*qiStar) * 2^w
 			// (qiBarre*qiStar)%qi = 1, else 0
 			for w := uint64(0); w < context.N; w++ {
-				switchingkey.evakey[i][j][0].Coeffs[i][w] += PowerOf2(sk_in.Coeffs[i][w], bitDecomp*j, qi, mredParams[i])
+				switchingkey.evakey[i][j][0].Coeffs[i][w] += ring.PowerOf2(sk_in.Coeffs[i][w], bitDecomp*j, qi, mredParams[i])
 			}
 
 			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e

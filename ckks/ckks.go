@@ -1,4 +1,4 @@
-//Package ckks implements a RNS-accelerated version of the Homomorphic Encryption for Arithmetic for Approximate Numbers 
+//Package ckks implements a RNS-accelerated version of the Homomorphic Encryption for Arithmetic for Approximate Numbers
 //(HEAAN, a.k.a. CKKS) scheme. It provides approximate arithmetic over the complex numbers.
 package ckks
 
@@ -228,7 +228,7 @@ func NewCkksContext(logN, logQ, logScale, levels uint64, sigma float64) (*CkksCo
 		toHash[i] = ckkscontext.modulie[i-1]
 	}
 
-	if ckkscontext.checksum, err = Hash(toHash); err != nil {
+	if ckkscontext.checksum, err = hash(toHash); err != nil {
 		return nil, err
 	}
 	// ========== END < CHECKSUM > END

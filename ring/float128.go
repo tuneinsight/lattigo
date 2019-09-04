@@ -1,6 +1,5 @@
 package ring
 
-
 // ==== Initial package ====
 // This package implements 128-bit ("double double") floating point using
 // a pair of 64-bit hardware floating asaspoint values and standard hardware

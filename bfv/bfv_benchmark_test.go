@@ -57,7 +57,6 @@ func BenchmarkBFVScheme(b *testing.B) {
 			}
 		})
 
-
 		b.Run(fmt.Sprintf("params=%d/EncryptFromSkNew", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_, _ = encryptor.EncryptFromSkNew(pt)

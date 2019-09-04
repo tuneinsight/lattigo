@@ -44,20 +44,19 @@ func Test_BFV(t *testing.T) {
 
 		bfvTest.batchencoder = bfvTest.bfvcontext.NewBatchEncoder()
 
-		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair() ; err != nil {
+		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair(); err != nil {
 			log.Fatal(err)
 		}
 
-		if bfvTest.decryptor, err = bfvTest.bfvcontext.NewDecryptor(bfvTest.sk) ; err != nil {
+		if bfvTest.decryptor, err = bfvTest.bfvcontext.NewDecryptor(bfvTest.sk); err != nil {
 			log.Fatal(err)
 		}
 
-
-		if bfvTest.encryptor, err = bfvTest.bfvcontext.NewEncryptor(bfvTest.pk, bfvTest.sk) ; err != nil {
+		if bfvTest.encryptor, err = bfvTest.bfvcontext.NewEncryptor(bfvTest.pk, bfvTest.sk); err != nil {
 			log.Fatal(err)
 		}
 
-		if bfvTest.evaluator, err = bfvTest.bfvcontext.NewEvaluator() ; err != nil {
+		if bfvTest.evaluator, err = bfvTest.bfvcontext.NewEvaluator(); err != nil {
 			log.Fatal(err)
 		}
 

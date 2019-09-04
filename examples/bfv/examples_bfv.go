@@ -44,7 +44,7 @@ func Plaintext_Batching() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		encryptors[i], err = bfvContext.NewEncryptor(pks[i])
+		encryptors[i], err = bfvContext.NewEncryptor(pks[i], nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -142,27 +142,27 @@ func Plaintext_Batching() {
 
 	fmt.Println()
 
-	CtD1, err := encryptors[0].EncryptNew(mD1)
+	CtD1, err := encryptors[0].EncryptFromPkNew(mD1)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	CtD2, err := encryptors[1].EncryptNew(mD2)
+	CtD2, err := encryptors[1].EncryptFromPkNew(mD2)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	CtD3, err := encryptors[2].EncryptNew(mD3)
+	CtD3, err := encryptors[2].EncryptFromPkNew(mD3)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	CtD4, err := encryptors[3].EncryptNew(mD4)
+	CtD4, err := encryptors[3].EncryptFromPkNew(mD4)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	CtR, err := encryptors[4].EncryptNew(mR)
+	CtR, err := encryptors[4].EncryptFromPkNew(mR)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -260,7 +260,7 @@ func Homomorphic_Inner_product() {
 		log.Fatal(err)
 	}
 
-	Encryptor, err := bfvContext.NewEncryptor(Pk)
+	Encryptor, err := bfvContext.NewEncryptor(Pk, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -318,13 +318,13 @@ func Homomorphic_Inner_product() {
 	}
 
 	// Encrypts the first plaintext
-	CtD1, err := Encryptor.EncryptNew(mD1)
+	CtD1, err := Encryptor.EncryptFromPkNew(mD1)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Encrypts the second plaintext
-	CtD2, err := Encryptor.EncryptNew(mD2)
+	CtD2, err := Encryptor.EncryptFromPkNew(mD2)
 	if err != nil {
 		log.Fatal(err)
 	}

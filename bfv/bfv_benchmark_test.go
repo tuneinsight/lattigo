@@ -119,7 +119,7 @@ func BenchmarkBFVScheme(b *testing.B) {
 		ctd2 := bfvContext.NewCiphertext(2)
 		b.Run(fmt.Sprintf("params=%d/Multiply", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = evaluator.Mul(ct1, ct2, ctd2) //The receiver needs to be in QP, and will be returned in Q.
+				_ = evaluator.Mul(ct1, ct2, ctd2)
 			}
 		})
 

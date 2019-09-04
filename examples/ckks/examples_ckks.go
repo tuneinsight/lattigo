@@ -23,14 +23,14 @@ func chebyshevinterpolation() {
 
 	// Scheme params
 	logN = 14
-	logQ = 40
-	levels = 8
-	scale = logQ
+	moduli := []uint64{59, 54, 54, 54, 54, 54, 54, 54}
+	levels = uint64(len(moduli))
+	scale = 54
 	sigma := 3.19
 
 	// Context
 	var ckkscontext *ckks.CkksContext
-	if ckkscontext, err = ckks.NewCkksContext(logN, logQ, scale, levels, sigma); err != nil {
+	if ckkscontext, err = ckks.NewCkksContext(logN, moduli, scale, sigma); err != nil {
 		log.Fatal(err)
 	}
 

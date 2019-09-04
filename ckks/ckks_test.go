@@ -39,22 +39,23 @@ func Test_CKKS(t *testing.T) {
 
 	var err error
 
-	var logN, logQ, levels uint64
+	var logN, levels uint64
 
 	logN = 9
-	logQ = 49
-	levels = 12
 	sigma := 3.19
+
+	modulichain := []uint64{50, 45, 45, 45, 45, 45, 45, 45, 45, 45}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
-	ckksTest.levels = levels
-	ckksTest.logScale = logQ
+	ckksTest.levels = uint64(len(modulichain))
+	ckksTest.logScale = 45
 
-	log.Printf("Generating CkksContext for logN=%d/logQ=%d/levels=%d/sigma=%f", logN, logQ, levels, sigma)
-	if ckksTest.ckkscontext, err = NewCkksContext(logN, logQ, ckksTest.logScale, levels, sigma); err != nil {
+	if ckksTest.ckkscontext, err = NewCkksContext(logN, modulichain, ckksTest.logScale, sigma); err != nil {
 		log.Fatal(err)
 	}
+
+	log.Printf("Generating CkksContext for logN=%d/logQ=%d/levels=%d/sigma=%f", logN, ckksTest.ckkscontext.LogQ(), levels, sigma)
 
 	ckksTest.encoder = ckksTest.ckkscontext.NewEncoder()
 
@@ -215,10 +216,9 @@ func verify_test_vectors(params *CKKSTESTPARAMS, valuesWant []complex128, elemen
 
 func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/EncodeDecodeFloat64", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/EncodeDecodeFloat64", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 		slots := 1 << (params.ckkscontext.logN - 1)
 
 		valuesWant := make([]float64, slots)
@@ -239,10 +239,9 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/EncodeDecodeComplex128", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/EncodeDecodeComplex128", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 		slots := 1 << (params.ckkscontext.logN - 1)
 
 		valuesWant := make([]complex128, slots)
@@ -265,10 +264,9 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/EncryptFromPk", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/EncryptFromPk", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 		var err error
 
 		slots := 1 << (params.ckkscontext.logN - 1)
@@ -295,10 +293,9 @@ func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/EncryptFromSk", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/EncryptFromSk", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 		var err error
 
 		slots := 1 << (params.ckkscontext.logN - 1)
@@ -328,10 +325,9 @@ func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/AddCtCtInPlace", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/AddCtCtInPlace", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -357,10 +353,9 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/AddCtCt", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/AddCtCt", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -388,10 +383,9 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Add(Ct,Plain)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Add(Ct,Plain)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -417,10 +411,9 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Add(Plain,Ct)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Add(Plain,Ct)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -446,10 +439,9 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Add(Plain,Plain)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Add(Plain,Plain)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -478,10 +470,9 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Sub(Ct,Ct)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Sub(Ct,Ct)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -507,10 +498,9 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Sub(Ct,Plain)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Sub(Ct,Plain)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -536,10 +526,9 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Sub(Plain,Ct)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Sub(Plain,Ct)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -565,10 +554,9 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Sub(Plain,Plain)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Sub(Plain,Plain)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -597,10 +585,9 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_AddConst(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/AddCmplx(Ct,complex128)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/AddCmplx(Ct,complex128)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -623,10 +610,9 @@ func test_AddConst(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/AddCmplx(Plain,complex128)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/AddCmplx(Plain,complex128)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -652,10 +638,9 @@ func test_AddConst(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/MultCmplx(Ct,complex128)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MultCmplx(Ct,complex128)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -5, 5)
 		if err != nil {
@@ -678,10 +663,9 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/MultCmplx(Plain,complex128)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MultCmplx(Plain,complex128)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -704,10 +688,9 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/MultByi", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MultByi", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -729,10 +712,9 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/DivByi", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/DivByi", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -757,10 +739,9 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_MultByConstAndAdd(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/MultByCmplxAndAdd(Ct0, complex128, Ct1)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MultByCmplxAndAdd(Ct0, complex128, Ct1)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -797,10 +778,9 @@ func test_MultByConstAndAdd(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/ExtractImag", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/ExtractImag", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -820,10 +800,9 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/SwapRealImag", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/SwapRealImag", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -843,10 +822,9 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/RemoveReal", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/RemoveReal", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -866,10 +844,9 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/RemoveImag", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/RemoveImag", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -892,10 +869,9 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Rescaling", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Rescaling", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		coeffs := make([]*ring.Int, params.ckkscontext.n)
 		for i := uint64(0); i < params.ckkscontext.n; i++ {
@@ -933,10 +909,9 @@ func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Mul(Ct,Ct)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Mul(Ct,Ct)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -964,10 +939,9 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Relinearize", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Relinearize", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -999,10 +973,9 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/MulRelin(Ct,Ct)->Rescale", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MulRelin(Ct,Ct)->Rescale", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -1041,10 +1014,9 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/MulRelin(Ct,Plain)->Rescale", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MulRelin(Ct,Plain)->Rescale", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -1083,10 +1055,9 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/MulRelin(Plain,Ct)->Rescale", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MulRelin(Plain,Ct)->Rescale", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -1125,10 +1096,9 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/MulRelin(Plain,Plain)->Rescale", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/MulRelin(Plain,Plain)->Rescale", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -1170,10 +1140,9 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Square", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Square", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -1206,10 +1175,9 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/PowerOf2", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/PowerOf2", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -1246,10 +1214,9 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Power", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Power", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -1292,10 +1259,9 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Inverse", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Inverse", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors_reals(params, 0.1, 1)
 		if err != nil {
@@ -1317,10 +1283,9 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/sin(x) [-1-1i, 1+1i] deg16", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sin(x) [-1-1i, 1+1i] deg16", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
@@ -1344,10 +1309,9 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/exp(2*pi*i*x) [-1, 1] deg60", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/exp(2*pi*i*x) [-1, 1] deg60", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors_reals(params, -1, 1)
 		if err != nil {
@@ -1371,10 +1335,9 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/sin(2*pi*x)/(2*pi) [-15, 15] deg128", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sin(2*pi*x)/(2*pi) [-15, 15] deg128", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors_reals(params, -15, 15)
 		if err != nil {
@@ -1401,10 +1364,9 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/SwitchKeys", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/SwitchKeys", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		slots := 1 << (params.ckkscontext.logN - 1)
 
@@ -1487,10 +1449,9 @@ func test_Conjugate(params *CKKSTESTPARAMS, t *testing.T) {
 		valuesWant[i] = complex(real(values[i]), -imag(values[i]))
 	}
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Conjugate(Ct)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Conjugate(Ct)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		if err := params.evaluator.Conjugate(ciphertext, params.rotkey, ciphertext); err != nil {
 			log.Fatal(err)
@@ -1501,10 +1462,9 @@ func test_Conjugate(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/Conjugate(Plain)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Conjugate(Plain)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		if err := params.evaluator.Conjugate(plaintext, params.rotkey, plaintext); err != nil {
 			log.Fatal(err)
@@ -1531,10 +1491,9 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 	ciphertextTest := params.ckkscontext.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale())
 	ciphertextTest.SetScale(ciphertext.Scale())
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/RotColumnsPow2(Ct)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/RotColumnsPow2(Ct)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		for n := uint64(1); n < params.ckkscontext.slots; n <<= 1 {
 
@@ -1553,10 +1512,9 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/RotColumnsRandom(Ct)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/RotColumnsRandom(Ct)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		for n := uint64(1); n < params.ckkscontext.slots; n <<= 1 {
 
@@ -1577,10 +1535,9 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/RotColumnsPow2(Plain)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/RotColumnsPow2(Plain)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		for n := uint64(1); n < params.ckkscontext.slots; n <<= 1 {
 
@@ -1599,10 +1556,9 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logPrecision=%d/RotColumnsRandom(Plain)", params.ckkscontext.logN,
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/RotColumnsRandom(Plain)", params.ckkscontext.logN,
 		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.logPrecision), func(t *testing.T) {
+		params.ckkscontext.levels), func(t *testing.T) {
 
 		for n := uint64(1); n < params.ckkscontext.slots; n <<= 1 {
 

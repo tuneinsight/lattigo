@@ -27,21 +27,22 @@ func Test_DBFVScheme(t *testing.T) {
 
 	var err error
 
-	var parties, logN, logQ, levels, logScale, bdc uint64
+	var parties, logN, levels, logScale, bdc uint64
 	parties = 5
-	logN = 9
-	logQ = 49
-	levels = 12
+	logN = 13
+	moduli := []uint64{55, 49, 49, 49, 49, 49, 49}
+	levels = uint64(len(moduli))
 	sigma := 3.19
-	logScale = 40
-	bdc = 20
+	logScale = 49
+	bdc = 25
 
 	var ckkscontext *ckks.CkksContext
 
-	log.Printf("Generating CkksContext for logN=%d/logQ=%d/levels=%d/logScale=%d/sigma=%f", logN, logQ, levels, logScale, sigma)
-	if ckkscontext, err = ckks.NewCkksContext(logN, logQ, logScale, levels, sigma); err != nil {
+	if ckkscontext, err = ckks.NewCkksContext(logN, moduli, logScale, sigma); err != nil {
 		log.Fatal(err)
 	}
+
+	log.Printf("Generating CkksContext for logN=%d/logQ=%d/levels=%d/logScale=%d/sigma=%f", logN, ckkscontext.LogQ(), levels, logScale, sigma)
 
 	encoder := ckkscontext.NewEncoder()
 
@@ -136,7 +137,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 	evaluator.MulRelin(ciphertext, ciphertext, nil, ciphertext)
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CRS_PRNG", parties, logN, logQ, levels, logScale), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CRS_PRNG", parties, logN, ckkscontext.LogQ(), levels, logScale), func(t *testing.T) {
 
 		Ha, _ := NewPRNG([]byte{})
 		Hb, _ := NewPRNG([]byte{})
@@ -188,7 +189,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 	// EKG_Naive
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/bdc=%d/EKG", parties, logN, logQ, levels, logScale, bdc), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/bdc=%d/EKG", parties, logN, ckkscontext.LogQ(), levels, logScale, bdc), func(t *testing.T) {
 
 		bitLog := uint64(math.Ceil(float64(60) / float64(bdc)))
 
@@ -226,7 +227,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/bdc=%d/EKG_NAIVE", parties, logN, logQ, levels, logScale, bdc), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/bdc=%d/EKG_NAIVE", parties, logN, ckkscontext.LogQ(), levels, logScale, bdc), func(t *testing.T) {
 
 		// Each party instantiate an ekg naive protocole
 		ekgNaive := make([]*EkgProtocolNaive, parties)
@@ -248,7 +249,7 @@ func Test_DBFVScheme(t *testing.T) {
 		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsMul, ciphertextTest, t)
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKG", parties, logN, logQ, levels, logScale), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKG", parties, logN, ckkscontext.LogQ(), levels, logScale), func(t *testing.T) {
 
 		crp := make([]*ring.Poly, parties)
 		for i := uint64(0); i < parties; i++ {
@@ -299,7 +300,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKS", parties, logN, logQ, levels, logScale), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKS", parties, logN, ckkscontext.LogQ(), levels, logScale), func(t *testing.T) {
 
 		ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
 		if err != nil {
@@ -335,7 +336,7 @@ func Test_DBFVScheme(t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/PCKS", parties, logN, logQ, levels, logScale), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/PCKS", parties, logN, ckkscontext.LogQ(), levels, logScale), func(t *testing.T) {
 
 		ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
 		if err != nil {

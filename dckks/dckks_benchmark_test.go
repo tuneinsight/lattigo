@@ -2,18 +2,18 @@ package dckks
 
 import (
 	"fmt"
-	"github.com/lca1/lattigo/ckks"
-	"github.com/lca1/lattigo/ring"
 	"log"
 	"math"
 	"testing"
+
+	"github.com/lca1/lattigo/ckks"
+	"github.com/lca1/lattigo/ring"
 )
 
 type benchParams struct {
 	parties       uint64
 	logN          uint64
-	logQ          uint64
-	levels        uint64
+	moduli        []uint64
 	logScale      uint64
 	sigma         float64
 	sigmaSmudging float64
@@ -35,18 +35,26 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 
 	params := []benchParams{
 
-		{parties: 5, logN: 14, logQ: 40, levels: 8, logScale: 40, sigma: 3.2, sigmaSmudging: 6.4, bdc: 60},
-		//{parties : 5, logN: 15, logQ: 40, levels: 16, logScale: 40, sigma: 3.2, bdc: 60},
+		{parties: 5, logN: 14, moduli: []uint64{40, 40, 40, 40, 40, 40, 40, 40}, logScale: 40, sigma: 3.2, sigmaSmudging: 6.4, bdc: 60},
+		//{parties : 5, logN: 15, moduli: []uint64{40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, logScale: 40, sigma: 3.2, bdc: 60},
 	}
 
 	for _, param := range params {
 
 		benchcontext := new(benchContext)
 
-		log.Printf("Benchmarks for parties=%d/logN=%d/logQ=%d/levels=%d/sigma=%.2f/sigmaSmudging=%.2f/bdc=%d", param.logN, param.logQ, param.logScale, param.levels, param.sigma, param.sigmaSmudging, param.bdc)
-		if benchcontext.ckkscontext, err = ckks.NewCkksContext(param.logN, param.logQ, param.logScale, param.levels, param.sigma); err != nil {
+		if benchcontext.ckkscontext, err = ckks.NewCkksContext(param.logN, param.moduli, param.logScale, param.sigma); err != nil {
 			log.Fatal(err)
 		}
+
+		log.Printf("Benchmarks for parties=%d/logN=%d/logQ=%d/levels=%d/sigma=%.2f/sigmaSmudging=%.2f/bdc=%d",
+			benchcontext.ckkscontext.LogN(),
+			benchcontext.ckkscontext.LogQ(),
+			benchcontext.ckkscontext.LogScale(),
+			benchcontext.ckkscontext.Levels(),
+			param.sigma,
+			param.sigmaSmudging,
+			param.bdc)
 
 		kgen := benchcontext.ckkscontext.NewKeyGenerator()
 
@@ -82,9 +90,9 @@ func bench_EKG(params benchParams, context *benchContext, b *testing.B) {
 
 	EkgProtocol := NewEkgProtocol(context.ckkscontext.ContextKeys(), params.bdc)
 
-	crp := make([][]*ring.Poly, params.levels)
+	crp := make([][]*ring.Poly, context.ckkscontext.Levels())
 
-	for i := uint64(0); i < params.levels; i++ {
+	for i := uint64(0); i < context.ckkscontext.Levels(); i++ {
 		crp[i] = make([]*ring.Poly, bitLog)
 		for j := uint64(0); j < bitLog; j++ {
 			crp[i][j] = context.cprng.Clock()
@@ -93,7 +101,7 @@ func bench_EKG(params benchParams, context *benchContext, b *testing.B) {
 
 	samples := make([][][]*ring.Poly, params.parties)
 	for i := uint64(0); i < params.parties; i++ {
-		samples[i] = make([][]*ring.Poly, params.levels)
+		samples[i] = make([][]*ring.Poly, context.ckkscontext.Levels())
 		samples[i] = EkgProtocol.GenSamples(context.sk0.Get(), context.sk1.Get(), crp)
 	}
 
@@ -207,7 +215,7 @@ func bench_CKS(params benchParams, context *benchContext, b *testing.B) {
 
 	cksInstance := NewCKS(context.sk0.Get(), context.sk1.Get(), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
 
-	ciphertext := context.ckkscontext.NewRandomCiphertext(1, params.levels-1, params.logScale)
+	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels(), params.logScale)
 
 	hi := make([]*ring.Poly, params.parties)
 	for i := uint64(0); i < params.parties; i++ {
@@ -233,7 +241,7 @@ func bench_PCKS(params benchParams, context *benchContext, b *testing.B) {
 	//CKS_Trustless
 	pcks := NewPCKS(context.sk0.Get(), context.pk1.Get(), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
 
-	ciphertext := context.ckkscontext.NewRandomCiphertext(1, params.levels-1, params.logScale)
+	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels()-1, params.logScale)
 
 	hi := make([][2]*ring.Poly, params.parties)
 	for i := uint64(0); i < params.parties; i++ {

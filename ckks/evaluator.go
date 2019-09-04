@@ -9,7 +9,7 @@ import (
 // It also holds a small memory pool used to store intermediate computations.
 type Evaluator struct {
 	ckkscontext *CkksContext
-	ringpool    [7]*ring.Poly
+	ringpool    [6]*ring.Poly
 	ctxpool     *Ciphertext
 }
 
@@ -23,7 +23,7 @@ func (ckkscontext *CkksContext) NewEvaluator() (evaluator *Evaluator) {
 
 	context := ckkscontext.contextLevel[ckkscontext.levels-1]
 
-	for i := 0; i < 7; i++ {
+	for i := 0; i < 6; i++ {
 		evaluator.ringpool[i] = context.NewPoly()
 	}
 
@@ -1245,18 +1245,10 @@ func (evaluator *Evaluator) MulRelin(ct0, ct1 CkksElement, evakey *EvaluationKey
 
 		} else { // regular case
 
-			c1a := evaluator.ringpool[5]
-			c1b := evaluator.ringpool[6]
-
-			context.Add(c_00, c_01, c1a)
-			context.Add(ct1.Value()[0], ct1.Value()[1], c1b)
-
-			context.MulCoeffsMontgomery(c_00, ct1.Value()[0], c0) // c0 = c0[0]*c1[0]
-			context.MulCoeffsMontgomery(c1a, c1b, c1)             // c1 = c0[0]*c1[0] + c0[0]*c1[1] + c0[1]*c1[0] + c0[1]*c1[1]
-			context.MulCoeffsMontgomery(c_01, ct1.Value()[1], c2) // c2 = c0[1]*c1[1]
-
-			context.Sub(c1, c0, c1) // c2 = c0[0]*c1[1] + c0[1]*c1[0] + c0[1]*c1[1]
-			context.Sub(c1, c2, c1) // c2 = c0[0]*c1[1] + c0[1]*c1[0]
+			context.MulCoeffsMontgomery(c_00, ct1.Value()[0], c0) // c0 = c0[0]*c0[0]
+			context.MulCoeffsMontgomery(c_00, ct1.Value()[1], c1)
+			context.MulCoeffsMontgomeryAndAddNoMod(c_01, ct1.Value()[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
+			context.MulCoeffsMontgomery(c_01, ct1.Value()[1], c2)            // c2 = c0[1]*c1[1]
 
 		}
 

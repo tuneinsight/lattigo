@@ -340,26 +340,18 @@ func tensorAndRescale(evaluator *Evaluator, ct0, ct1, cOut BfvElement) {
 		// Squaring case
 		if ct0 == ct1 {
 
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.Value()[0], d0) // c0 = c[0]*c[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.Value()[1], d1) // c1 = 2*c[0]*c[1]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.Value()[0], d0) // c0 = c0[0]*c0[0]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.Value()[1], d1) // c1 = 2*c0[0]*0[1]
 			evaluator.bfvcontext.contextQP.Add(d1, d1, d1)
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c0.Value()[1], d2) // c2 = c[1]*c[1]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c0.Value()[1], d2) // c2 = c0[1]*c0[1]
 
 			// Normal case
 		} else {
 
-			d1a := evaluator.polypool[2]
-			d1b := evaluator.polypool[3]
-
-			evaluator.bfvcontext.contextQP.Add(c_00, c_01, d1a)
-			evaluator.bfvcontext.contextQP.Add(c1.Value()[0], c1.Value()[1], d1b)
-
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c1.Value()[0], d0) // c0 = c0[0]*c1[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(d1a, d1b, d1)            // c1 = c0[0]*c1[0] + c0[0]*c1[1] + c0[1]*c1[0] + c0[1]*c1[1]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c1.Value()[1], d2) // c2 = c0[1]*c1[1]
-
-			evaluator.bfvcontext.contextQP.Sub(d1, d0, d1) // c2 = c0[0]*c1[1] + c0[1]*c1[0] + c0[1]*c1[1]
-			evaluator.bfvcontext.contextQP.Sub(d1, d2, d1) // c2 = c0[0]*c1[1] + c0[1]*c1[0]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c1.Value()[0], d0) // c0 = c0[0]*c0[0]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c1.Value()[1], d1)
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAddNoMod(c_01, c1.Value()[0], d1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c1.Value()[1], d2)            // c2 = c0[1]*c1[1]
 		}
 
 		// Case where both BfvElements are not of degree 1

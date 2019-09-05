@@ -13,8 +13,6 @@ import (
 type CKKSTESTPARAMS struct {
 	ckkscontext *CkksContext
 	encoder     *Encoder
-	levels      uint64
-	logScale    uint64
 	kgen        *keygenerator
 	sk          *SecretKey
 	pk          *PublicKey
@@ -39,23 +37,15 @@ func Test_CKKS(t *testing.T) {
 
 	var err error
 
-	var logN, levels uint64
-
-	logN = 9
-	sigma := 3.19
-
-	modulichain := []uint64{50, 45, 45, 45, 45, 45, 45, 45, 45, 45}
+	params := Parameters{9, []uint64{55, 49, 49, 49, 49, 49, 49, 49, 49, 49}, 49, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
-	ckksTest.levels = uint64(len(modulichain))
-	ckksTest.logScale = 45
-
-	if ckksTest.ckkscontext, err = NewCkksContext(logN, modulichain, ckksTest.logScale, sigma); err != nil {
+	if ckksTest.ckkscontext, err = NewCkksContext(&params); err != nil {
 		log.Fatal(err)
 	}
 
-	log.Printf("Generating CkksContext for logN=%d/logQ=%d/levels=%d/sigma=%f", logN, ckksTest.ckkscontext.LogQ(), levels, sigma)
+	log.Printf("Generating CkksContext for logN=%d/logQ=%d/levels=%d/sigma=%f", ckksTest.ckkscontext.LogN(), ckksTest.ckkscontext.LogQ(), ckksTest.ckkscontext.Levels(), ckksTest.ckkscontext.Sigma())
 
 	ckksTest.encoder = ckksTest.ckkscontext.NewEncoder()
 
@@ -66,12 +56,12 @@ func Test_CKKS(t *testing.T) {
 	}
 
 	log.Printf("Generating relinearization keys")
-	if ckksTest.rlk, err = ckksTest.kgen.NewRelinKey(ckksTest.sk, 40); err != nil {
+	if ckksTest.rlk, err = ckksTest.kgen.NewRelinKey(ckksTest.sk, ckksTest.ckkscontext.Scale()); err != nil {
 		log.Fatal(err)
 	}
 
 	log.Printf("Generating rotation keys for conjugate and powers of 2")
-	if ckksTest.rotkey, err = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk, 10, true); err != nil {
+	if ckksTest.rotkey, err = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk, 15, true); err != nil {
 		log.Fatal(err)
 	}
 
@@ -101,7 +91,11 @@ func Test_CKKS(t *testing.T) {
 	test_Rescaling(ckksTest, t)
 	test_Mul(ckksTest, t)
 
-	test_Functions(ckksTest, t)
+	if ckksTest.ckkscontext.Levels() > 8 {
+		test_Functions(ckksTest, t)
+	} else {
+		log.Printf("skipping test_Functions (not enough levels)")
+	}
 
 	test_SwitchKeys(ckksTest, t)
 	test_Conjugate(ckksTest, t)
@@ -128,7 +122,7 @@ func new_test_vectors(params *CKKSTESTPARAMS, a, b float64) (values []complex128
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
+	plaintext = params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 	if err = params.encoder.EncodeComplex(plaintext, values); err != nil {
 		return nil, nil, nil, err
@@ -154,7 +148,7 @@ func new_test_vectors_reals(params *CKKSTESTPARAMS, a, b float64) (values []comp
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
+	plaintext = params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 	if err = params.encoder.EncodeComplex(plaintext, values); err != nil {
 		return nil, nil, nil, err
@@ -228,7 +222,7 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWantCmplx[i] = complex(valuesWant[i], 0)
 		}
 
-		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
+		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 		if err := params.encoder.EncodeFloat(plaintext, valuesWant); err != nil {
 			log.Fatal(err)
@@ -250,7 +244,7 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = randomComplex(0, 5)
 		}
 
-		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
+		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 		if err := params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
 			log.Fatal(err)
@@ -277,7 +271,7 @@ func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = randomComplex(0, 5)
 		}
 
-		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
+		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 		if err = params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
 			log.Fatal(err)
@@ -306,7 +300,7 @@ func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = randomComplex(0, 5)
 		}
 
-		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
+		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 		if err = params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
 			log.Fatal(err)
@@ -875,24 +869,24 @@ func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 
 		coeffs := make([]*ring.Int, params.ckkscontext.n)
 		for i := uint64(0); i < params.ckkscontext.n; i++ {
-			coeffs[i] = ring.RandInt(params.ckkscontext.contextLevel[params.levels-1].ModulusBigint)
+			coeffs[i] = ring.RandInt(params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].ModulusBigint)
 			coeffs[i].Div(coeffs[i], ring.NewUint(10))
 		}
 
-		coeffsWant := make([]*ring.Int, params.ckkscontext.contextLevel[params.levels-1].N)
+		coeffsWant := make([]*ring.Int, params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].N)
 		for i := range coeffs {
 			coeffsWant[i] = ring.Copy(coeffs[i])
 			coeffsWant[i].Div(coeffsWant[i], ring.NewUint(params.ckkscontext.moduli[len(params.ckkscontext.moduli)-1]))
 		}
 
-		polTest := params.ckkscontext.contextLevel[params.levels-1].NewPoly()
-		polWant := params.ckkscontext.contextLevel[params.levels-1].NewPoly()
+		polTest := params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].NewPoly()
+		polWant := params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].NewPoly()
 
-		params.ckkscontext.contextLevel[params.levels-1].SetCoefficientsBigint(coeffs, polTest)
-		params.ckkscontext.contextLevel[params.levels-1].SetCoefficientsBigint(coeffsWant, polWant)
+		params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].SetCoefficientsBigint(coeffs, polTest)
+		params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].SetCoefficientsBigint(coeffsWant, polWant)
 
-		params.ckkscontext.contextLevel[params.levels-1].NTT(polTest, polTest)
-		params.ckkscontext.contextLevel[params.levels-1].NTT(polWant, polWant)
+		params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].NTT(polTest, polTest)
+		params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].NTT(polWant, polWant)
 
 		rescale(params.evaluator, polTest, polTest)
 
@@ -994,7 +988,7 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = values1[i]
 		}
 
-		for i := uint64(0); i < params.levels-1; i++ {
+		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
 
 			for i := 0; i < len(valuesWant); i++ {
 				valuesWant[i] *= values2[i]
@@ -1035,7 +1029,7 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = values1[i]
 		}
 
-		for i := uint64(0); i < params.levels-1; i++ {
+		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
 
 			for i := 0; i < len(valuesWant); i++ {
 				valuesWant[i] *= values2[i]
@@ -1076,7 +1070,7 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = values2[i]
 		}
 
-		for i := uint64(0); i < params.levels-1; i++ {
+		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
 
 			for i := 0; i < len(valuesWant); i++ {
 				valuesWant[i] *= values1[i]
@@ -1117,7 +1111,7 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = values1[i]
 		}
 
-		for i := uint64(0); i < params.levels-1; i++ {
+		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
 
 			for i := 0; i < len(valuesWant); i++ {
 				valuesWant[i] *= values2[i]
@@ -1376,7 +1370,7 @@ func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = randomComplex(0, 5)
 		}
 
-		plaintext := params.ckkscontext.NewPlaintext(params.levels-1, params.logScale)
+		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 		if err := params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
 			log.Fatal(err)

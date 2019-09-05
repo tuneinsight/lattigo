@@ -20,7 +20,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 		// nParties data indpendant element
 		bfvContext := bfv.NewBfvContext()
-		if err := bfvContext.SetParameters(params.N, params.T, params.Qi, params.Pi, params.Sigma); err != nil {
+		if err := bfvContext.SetParameters(&params); err != nil {
 			log.Fatal(err)
 		}
 
@@ -31,9 +31,9 @@ func Test_DBFVScheme(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		context := bfvContext.GetContextQ()
+		context := bfvContext.ContextQ()
 
-		contextT := bfvContext.GetContextT()
+		contextT := bfvContext.ContextT()
 
 		encoder := bfvContext.NewBatchEncoder()
 
@@ -163,7 +163,7 @@ func Test_DBFVScheme(t *testing.T) {
 				p0 := crs_generator_1.Clock()
 				p1 := crs_generator_2.Clock()
 
-				if bfvContext.GetContextQ().Equal(p0, p1) != true {
+				if bfvContext.ContextQ().Equal(p0, p1) != true {
 					t.Errorf("error : crs prng generator")
 				}
 			})
@@ -286,7 +286,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 				// Verifies that all parties have the same share collective public key
 				for i := 1; i < parties; i++ {
-					if context.Equal(pkTest[0].Get()[0], pkTest[i].Get()[0]) != true || bfvContext.GetContextQ().Equal(pkTest[0].Get()[1], pkTest[i].Get()[1]) != true {
+					if context.Equal(pkTest[0].Get()[0], pkTest[i].Get()[0]) != true || bfvContext.ContextQ().Equal(pkTest[0].Get()[1], pkTest[i].Get()[1]) != true {
 						t.Errorf("error : ckg protocol, cpk establishement")
 					}
 				}

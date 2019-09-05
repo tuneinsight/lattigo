@@ -6,11 +6,8 @@ import (
 )
 
 type benchParams struct {
-	logN     uint64
-	moduli   []uint64
-	logScale uint64
-	sigma    float64
-	bdc      uint64
+	params *Parameters
+	bdc    uint64
 }
 
 func BenchmarkCKKSScheme(b *testing.B) {
@@ -31,12 +28,10 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	var ciphertext2 *Ciphertext
 
 	params := []benchParams{
-		//{logN: 10, logQ: 30, levels:  1, logScale : 20, sigma: 3.19, bdc : 60},
-		//{logN: 11, logQ: 60, levels:  1, logScale : 40, sigma: 3.19, bdc : 60},
-		//{logN: 12, moduli: []uint64{40, 40}, logScale: 40, sigma: 3.2, bdc: 60},
-		//{logN: 13, moduli: []uint64{40, 40, 40, 40}, logScale: 40, sigma: 3.2, bdc: 60},
-		{logN: 14, moduli: []uint64{40, 40, 40, 40, 40, 40, 40, 40}, logScale: 40, sigma: 3.2, bdc: 60},
-		//{logN: 15, moduli: []uint64{40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, logScale: 40, sigma: 3.2, bdc: 60},
+		{params: DefaultParams[12], bdc: 60},
+		{params: DefaultParams[13], bdc: 60},
+		{params: DefaultParams[14], bdc: 60},
+		{params: DefaultParams[15], bdc: 60},
 	}
 
 	var logN, logScale, levels, bdc uint64
@@ -44,13 +39,13 @@ func BenchmarkCKKSScheme(b *testing.B) {
 
 	for _, param := range params {
 
-		logN = param.logN
-		logScale = param.logScale
-		sigma = param.sigma
+		logN = param.params.logN
+		logScale = param.params.logScale
+		sigma = param.params.sigma
 		bdc = param.bdc
-		levels = uint64(len(param.moduli))
+		levels = uint64(len(param.params.modulichain))
 
-		if ckkscontext, err = NewCkksContext(logN, param.moduli, logScale, sigma); err != nil {
+		if ckkscontext, err = NewCkksContext(param.params); err != nil {
 			b.Error(err)
 		}
 

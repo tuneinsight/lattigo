@@ -84,7 +84,7 @@ func (P *Plaintext) Lift(bfvcontext *BfvContext) {
 	context := bfvcontext.contextQ
 	for j := uint64(0); j < bfvcontext.n; j++ {
 		for i := len(context.Modulus) - 1; i >= 0; i-- {
-			P.value[0].Coeffs[i][j] = ring.MRed(P.value[0].Coeffs[0][j], bfvcontext.DeltaMont[i], context.Modulus[i], context.GetMredParams()[i])
+			P.value[0].Coeffs[i][j] = ring.MRed(P.value[0].Coeffs[0][j], bfvcontext.deltaMont[i], context.Modulus[i], context.GetMredParams()[i])
 		}
 	}
 }

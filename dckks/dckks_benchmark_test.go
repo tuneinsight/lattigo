@@ -12,10 +12,7 @@ import (
 
 type benchParams struct {
 	parties       uint64
-	logN          uint64
-	moduli        []uint64
-	logScale      uint64
-	sigma         float64
+	params        *ckks.Parameters
 	sigmaSmudging float64
 	bdc           uint64
 }
@@ -35,24 +32,23 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 
 	params := []benchParams{
 
-		{parties: 5, logN: 14, moduli: []uint64{40, 40, 40, 40, 40, 40, 40, 40}, logScale: 40, sigma: 3.2, sigmaSmudging: 6.4, bdc: 60},
-		//{parties : 5, logN: 15, moduli: []uint64{40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, logScale: 40, sigma: 3.2, bdc: 60},
+		{parties: 5, params: ckks.DefaultParams[14], sigmaSmudging: 6.4, bdc: 60},
 	}
 
 	for _, param := range params {
 
 		benchcontext := new(benchContext)
 
-		if benchcontext.ckkscontext, err = ckks.NewCkksContext(param.logN, param.moduli, param.logScale, param.sigma); err != nil {
+		if benchcontext.ckkscontext, err = ckks.NewCkksContext(param.params); err != nil {
 			log.Fatal(err)
 		}
 
 		log.Printf("Benchmarks for parties=%d/logN=%d/logQ=%d/levels=%d/sigma=%.2f/sigmaSmudging=%.2f/bdc=%d",
+			param.parties,
 			benchcontext.ckkscontext.LogN(),
 			benchcontext.ckkscontext.LogQ(),
-			benchcontext.ckkscontext.LogScale(),
 			benchcontext.ckkscontext.Levels(),
-			param.sigma,
+			benchcontext.ckkscontext.Sigma(),
 			param.sigmaSmudging,
 			param.bdc)
 
@@ -215,7 +211,7 @@ func bench_CKS(params benchParams, context *benchContext, b *testing.B) {
 
 	cksInstance := NewCKS(context.sk0.Get(), context.sk1.Get(), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
 
-	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels(), params.logScale)
+	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels(), context.ckkscontext.Scale())
 
 	hi := make([]*ring.Poly, params.parties)
 	for i := uint64(0); i < params.parties; i++ {
@@ -241,7 +237,7 @@ func bench_PCKS(params benchParams, context *benchContext, b *testing.B) {
 	//CKS_Trustless
 	pcks := NewPCKS(context.sk0.Get(), context.pk1.Get(), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
 
-	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels()-1, params.logScale)
+	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels()-1, context.ckkscontext.Scale())
 
 	hi := make([][2]*ring.Poly, params.parties)
 	for i := uint64(0); i < params.parties; i++ {

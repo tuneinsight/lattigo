@@ -17,11 +17,11 @@ func Benchmark_DBFVScheme(b *testing.B) {
 	for _, params := range paramSets {
 
 		bfvContext := bfv.NewBfvContext()
-		if err := bfvContext.SetParameters(params.N, params.T, params.Qi, params.Pi, params.Sigma); err != nil {
+		if err := bfvContext.SetParameters(&params); err != nil {
 			log.Fatal(err)
 		}
 
-		context := bfvContext.GetContextQ()
+		context := bfvContext.ContextQ()
 
 		kgen := bfvContext.NewKeyGenerator()
 

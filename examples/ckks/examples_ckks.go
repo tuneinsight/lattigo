@@ -19,18 +19,13 @@ func randomComplex(min, max float64) complex128 {
 
 func chebyshevinterpolation() {
 	var err error
-	var logN, logQ, levels, scale uint64
 
 	// Scheme params
-	logN = 14
-	moduli := []uint64{59, 54, 54, 54, 54, 54, 54, 54}
-	levels = uint64(len(moduli))
-	scale = 54
-	sigma := 3.19
+	params := ckks.DefaultParams[14]
 
 	// Context
 	var ckkscontext *ckks.CkksContext
-	if ckkscontext, err = ckks.NewCkksContext(logN, moduli, scale, sigma); err != nil {
+	if ckkscontext, err = ckks.NewCkksContext(params); err != nil {
 		log.Fatal(err)
 	}
 
@@ -47,7 +42,7 @@ func chebyshevinterpolation() {
 
 	// Relinearization key
 	var rlk *ckks.EvaluationKey
-	if rlk, err = kgen.NewRelinKey(sk, logQ); err != nil {
+	if rlk, err = kgen.NewRelinKey(sk, ckkscontext.Scale()); err != nil {
 		log.Fatal(err)
 	}
 
@@ -70,19 +65,19 @@ func chebyshevinterpolation() {
 	}
 
 	// Values to encrypt
-	values := make([]complex128, 1<<(logN-1))
+	values := make([]complex128, ckkscontext.Slots())
 	for i := range values {
 		values[i] = complex(randomFloat(-1, 1), randomFloat(-0.1, 0.1))
 	}
 
-	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d (%d bits), logScale = %d, sigma = %f \n", logN, logQ, levels, 60+(levels-1)*logQ, scale, sigma)
+	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d, logScale = %d, sigma = %f \n", ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale(), ckkscontext.Sigma())
 
 	fmt.Println()
 	fmt.Printf("Values     : %6f %6f %6f %6f...\n", round(values[0]), round(values[1]), round(values[2]), round(values[3]))
 	fmt.Println()
 
 	// Plaintext creation and encoding process
-	plaintext := ckkscontext.NewPlaintext(levels-1, scale)
+	plaintext := ckkscontext.NewPlaintext(ckkscontext.Levels()-1, ckkscontext.Scale())
 	if err = encoder.EncodeComplex(plaintext, values); err != nil {
 		log.Fatal(err)
 	}
@@ -99,7 +94,7 @@ func chebyshevinterpolation() {
 	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Done... Consumed levels :", levels-1-ciphertext.Level())
+	fmt.Println("Done... Consumed levels :", ckkscontext.Levels()-1-ciphertext.Level())
 
 	// Decryption process
 	if plaintext, err = decryptor.DecryptNew(ciphertext); err != nil {

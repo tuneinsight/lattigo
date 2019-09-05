@@ -16,9 +16,12 @@ type BfvContext struct {
 	// Plaintext Modulus
 	t uint64
 
+	logQ uint64
+	logP uint64
+
 	// floor(Q/T) mod each Qi in montgomeryform
-	DeltaMont []uint64
-	Delta     []uint64
+	deltaMont []uint64
+	delta     []uint64
 
 	// Ternary and Gaussian samplers
 	sigma           float64
@@ -60,14 +63,14 @@ func NewBfvContext() *BfvContext {
 //
 // - t        : the plaintext modulus (must be a prime congruent to 1 mod 2N to enable batching).
 //
-// - ModulieQ : the ciphertext modulus composed primes congruent to 1 mod 2N.
+// - ModuliQ : the ciphertext modulus composed primes congruent to 1 mod 2N.
 //
-// - ModulieP : the secondary ciphertext modulus used during the multiplication, composed of primes congruent to 1 mod 2N. Must be bigger than ModulieQ by a margin of ~20 bits.
+// - ModuliP : the secondary ciphertext modulus used during the multiplication, composed of primes congruent to 1 mod 2N. Must be bigger than ModuliQ by a margin of ~20 bits.
 //
 // - sigma    : the variance of the gaussian sampling.
-func NewBfvContextWithParam(N, t uint64, ModulieQ, ModulieP []uint64, sigma float64) (newbfvcontext *BfvContext, err error) {
+func NewBfvContextWithParam(params *Parameters) (newbfvcontext *BfvContext, err error) {
 	newbfvcontext = new(BfvContext)
-	if err := newbfvcontext.SetParameters(N, t, ModulieQ, ModulieP, sigma); err != nil {
+	if err := newbfvcontext.SetParameters(params); err != nil {
 		return nil, err
 	}
 	return
@@ -82,17 +85,23 @@ func NewBfvContextWithParam(N, t uint64, ModulieQ, ModulieP []uint64, sigma floa
 //
 // - t        : the plaintext modulus (must be a prime congruent to 1 mod 2N to enable batching).
 //
-// - ModulieQ : the ciphertext modulus composed primes congruent to 1 mod 2N.
+// - ModuliQ : the ciphertext modulus composed primes congruent to 1 mod 2N.
 //
-// - ModulieP : the secondary ciphertext modulus used during the multiplication, composed of primes congruent to 1 mod 2N. Must be bigger than ModulieQ by a margin of ~20 bits.
+// - ModuliP : the secondary ciphertext modulus used during the multiplication, composed of primes congruent to 1 mod 2N. Must be bigger than ModuliQ by a margin of ~20 bits.
 //
 // - sigma    : the variance of the gaussian sampling.
-func (bfvContext *BfvContext) SetParameters(N, t uint64, ModulieQ, ModulieP []uint64, sigma float64) (err error) {
+func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 
 	contextT := ring.NewContext()
 	contextQ := ring.NewContext()
 	contextP := ring.NewContext()
 	contextQP := ring.NewContext()
+
+	N := params.N
+	t := params.T
+	ModuliQ := params.Qi
+	ModuliP := params.Pi
+	sigma := params.Sigma
 
 	// Plaintext NTT Parameters
 	// We do not check for an error since the plaintext NTT is optional
@@ -101,7 +110,7 @@ func (bfvContext *BfvContext) SetParameters(N, t uint64, ModulieQ, ModulieP []ui
 	contextT.ValidateParameters()
 	// ========================
 
-	if err := contextQ.SetParameters(N, ModulieQ); err != nil {
+	if err := contextQ.SetParameters(N, ModuliQ); err != nil {
 		return err
 	}
 
@@ -109,7 +118,7 @@ func (bfvContext *BfvContext) SetParameters(N, t uint64, ModulieQ, ModulieP []ui
 		return err
 	}
 
-	if err := contextP.SetParameters(N, ModulieP); err != nil {
+	if err := contextP.SetParameters(N, ModuliP); err != nil {
 		return err
 	}
 
@@ -125,13 +134,16 @@ func (bfvContext *BfvContext) SetParameters(N, t uint64, ModulieQ, ModulieP []ui
 
 	bfvContext.t = t
 
+	bfvContext.logQ = uint64(contextQ.ModulusBigint.Value.BitLen())
+	bfvContext.logP = uint64(contextP.ModulusBigint.Value.BitLen())
+
 	delta := ring.NewUint(1).Div(contextQ.ModulusBigint, ring.NewUint(t))
 	tmpBig := ring.NewUint(1)
-	bfvContext.DeltaMont = make([]uint64, len(ModulieQ))
-	bfvContext.Delta = make([]uint64, len(ModulieQ))
-	for i, Qi := range ModulieQ {
-		bfvContext.Delta[i] = tmpBig.Mod(delta, ring.NewUint(Qi)).Uint64()
-		bfvContext.DeltaMont[i] = ring.MForm(bfvContext.Delta[i], Qi, contextQ.GetBredParams()[i])
+	bfvContext.deltaMont = make([]uint64, len(ModuliQ))
+	bfvContext.delta = make([]uint64, len(ModuliQ))
+	for i, Qi := range ModuliQ {
+		bfvContext.delta[i] = tmpBig.Mod(delta, ring.NewUint(Qi)).Uint64()
+		bfvContext.deltaMont[i] = ring.MForm(bfvContext.delta[i], Qi, contextQ.GetBredParams()[i])
 	}
 
 	bfvContext.sigma = sigma
@@ -141,8 +153,8 @@ func (bfvContext *BfvContext) SetParameters(N, t uint64, ModulieQ, ModulieP []ui
 
 	bfvContext.maxBit = 0
 
-	for i := range ModulieQ {
-		tmp := uint64(bits.Len64(ModulieQ[i]))
+	for i := range ModuliQ {
+		tmp := uint64(bits.Len64(ModuliQ[i]))
 		if tmp > bfvContext.maxBit {
 			bfvContext.maxBit = tmp
 		}
@@ -172,10 +184,10 @@ func (bfvContext *BfvContext) SetParameters(N, t uint64, ModulieQ, ModulieP []ui
 
 	bfvContext.galElRotRow = (N << 1) - 1
 
-	toHash := make([]uint64, len(ModulieQ)+1)
+	toHash := make([]uint64, len(ModuliQ)+1)
 	toHash[0] = N
 	for i := 1; i < len(toHash); i++ {
-		toHash[i] = ModulieQ[i-1]
+		toHash[i] = ModuliQ[i-1]
 	}
 
 	if bfvContext.checksum, err = hash(toHash); err != nil {
@@ -185,42 +197,52 @@ func (bfvContext *BfvContext) SetParameters(N, t uint64, ModulieQ, ModulieP []ui
 	return nil
 }
 
-// GetN returns N which is the degree of the ring, of the target bfvcontext.
-func (bfvContext *BfvContext) GetN() uint64 {
+// N returns N which is the degree of the ring, of the target bfvcontext.
+func (bfvContext *BfvContext) N() uint64 {
 	return bfvContext.n
 }
 
-// GetPlaintextModulus returns the plaintext modulus of the target bfvcontext.
-func (bfvContext *BfvContext) GetPlaintextModulus() uint64 {
+// LogQ returns logQ which is the total bitzise of the ciphertext modulus.
+func (bfvContext *BfvContext) LogQ() uint64 {
+	return bfvContext.logQ
+}
+
+// LogP returns logQ which is the total bitzise of the secondary ciphertext modulus.
+func (bfvContext *BfvContext) LogP() uint64 {
+	return bfvContext.logP
+}
+
+// PlaintextModulus returns the plaintext modulus of the target bfvcontext.
+func (bfvContext *BfvContext) T() uint64 {
 	return bfvContext.t
 }
 
-// GetDelta returns t/Q, modulo each Qi in montgomery form (cf. Ring -> MForm), where t is the plaintext modulus, Q is the product of all the Qi, of the target bfvcontext.
-func (bfvContext *BfvContext) GetDelta() []uint64 {
-	return bfvContext.DeltaMont
+// Delta returns t/Q, modulo each Qi, where t is the plaintext modulus, Q is the product of all the Qi, of the target bfvcontext.
+func (bfvContext *BfvContext) Delta() []uint64 {
+	return bfvContext.delta
 }
 
-// GetSigma returns sigma, which is the variance used for the gaussian sampling of the target bfvcontext.
-func (bfvContext *BfvContext) GetSigma() float64 {
+// Sigma returns sigma, which is the variance used for the gaussian sampling of the target bfvcontext.
+func (bfvContext *BfvContext) Sigma() float64 {
 	return bfvContext.sigma
 }
 
-// GetContextT returns the polynomial (ring) context of the plaintext modulus, of the target bfvcontext.
-func (bfvContext *BfvContext) GetContextT() *ring.Context {
+// ContextT returns the polynomial (ring) context of the plaintext modulus, of the target bfvcontext.
+func (bfvContext *BfvContext) ContextT() *ring.Context {
 	return bfvContext.contextT
 }
 
-// GetContextQ returns the polynomial (ring) context of the ciphertext modulus, of the target bfvcontext.
-func (bfvContext *BfvContext) GetContextQ() *ring.Context {
+// ContextQ returns the polynomial (ring) context of the ciphertext modulus, of the target bfvcontext.
+func (bfvContext *BfvContext) ContextQ() *ring.Context {
 	return bfvContext.contextQ
 }
 
-// GetContextP returns the polynomial (ring) context of the secondary ciphertext modulus, of the target bfvcontext.
-func (bfvContext *BfvContext) GetContextP() *ring.Context {
+// ContextP returns the polynomial (ring) context of the secondary ciphertext modulus, of the target bfvcontext.
+func (bfvContext *BfvContext) ContextP() *ring.Context {
 	return bfvContext.contextP
 }
 
-// GetContextQP returns the polynomial (ring) context of the extended ciphertext modulus, of the target bfvcontext.
-func (bfvContext *BfvContext) GetContextQP() *ring.Context {
+// ContextQP returns the polynomial (ring) context of the extended ciphertext modulus, of the target bfvcontext.
+func (bfvContext *BfvContext) ContextQP() *ring.Context {
 	return bfvContext.contextQP
 }

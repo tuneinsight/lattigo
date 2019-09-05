@@ -41,10 +41,10 @@ The CKKS scheme supports official parameters chosen to offer a security of 128 b
 
 The set of security parameters are defined by the three parameters ![equation](https://latex.codecogs.com/gif.latex?%5C%7Blog_2%28N%29%2C%20log_2%28Q%29%2C%20%5Csigma%5C%7D) :
 
-- {11, 56, 3.2}
-- {12, 110, 3.2}
-- {13, 219, 3.2}
-- {14, 441, 3.2}
-- {15, 885, 3.2}
+- {11, 54, 3.2}
+- {12, 109, 3.2}
+- {13, 218, 3.2}
+- {14, 438, 3.2}
+- {15, 881, 3.2}
 
-Contrary to BFV we have chosen to not hardcode those parameters. Instead the user must chose logN, the size of each moduli and the number of moduli and make sure that the product of all the moduli is compliant with the security parameters (which are the same as for BFV). For example, if logN = 14 is chosen, the user must make sure that total bisize of its modulus (the product of all the moduli) does not exceed 441. This can be estimated by computing number of moduli times the bitsize of each modulus.
+Setting parameters for CKKS is much more application dependant than for BFV. This is why default parameters might not be of much use. We however provide a set of default params for CKKS ensuring 128 bit security. The user might want to use different values in the modulie chain optimized for a specific application. As long as the total modulus is equal or below the above values, the scheme will provite a security of 128 bits.

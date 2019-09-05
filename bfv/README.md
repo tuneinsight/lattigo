@@ -45,10 +45,10 @@ The BFV scheme supports official parameters chosen to offer a security of 128 bi
 
 Each set of parameter is defined by ![equation](https://latex.codecogs.com/gif.latex?%5C%7Blog_2%28N%29%2C%20log_2%28Q%29%2C%20%5Csigma%5C%7D) :
 
-- {11, 56, 3.2}
-- {12, 110, 3.2}
-- {13, 219, 3.2}
-- {14, 441, 3.2}
-- {15, 885, 3.2}
+- {11, 54, 3.2}
+- {12, 109, 3.2}
+- {13, 218, 3.2}
+- {14, 438, 3.2}
+- {15, 881, 3.2}
 
 Those parameters are hardcoded in the file [params.go](https://github.com/lca1/lattigo/blob/master/bfv/params.go). By default the variance shoud always be set to 3.2 unless the user is perfectly aware of the security implication.

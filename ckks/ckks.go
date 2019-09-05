@@ -65,42 +65,30 @@ type CkksContext struct {
 
 // NewCkksContext creates a new CkksContext with the given parameters. Returns an error if one of the parameters would not ensure the
 // correctness of the scheme (however it doesn't check for security).
-//
-// Parameters :
-//
-// - logN     : the ring degree (must be a power of 2).
-//
-// - modulichain : a custom chain of moduli in bit size.
-//
-// - logScale : the reference scale of the ciphertext.
-//
-// - sigma    : the variance of the gaussian sampling.
-func NewCkksContext(logN uint64, modulichain []uint64, logScale uint64, sigma float64) (*CkksContext, error) {
+func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
-	var err error
+	ckkscontext = new(CkksContext)
 
-	ckkscontext := new(CkksContext)
-
-	ckkscontext.logN = logN
-	ckkscontext.n = 1 << logN
-	ckkscontext.slots = 1 << (logN - 1)
-	ckkscontext.logScale = logScale
-	ckkscontext.levels = uint64(len(modulichain))
+	ckkscontext.logN = params.logN
+	ckkscontext.n = 1 << params.logN
+	ckkscontext.slots = 1 << (params.logN - 1)
+	ckkscontext.logScale = params.logScale
+	ckkscontext.levels = uint64(len(params.modulichain))
 
 	ckkscontext.maxBit = 60 // The first prime is always 60 bits to ensure some bits of precision for integers.
 
 	// ========== START < PRIMES GENERATION > START ===============
-	ckkscontext.scalechain = make([]uint64, len(modulichain))
+	ckkscontext.scalechain = make([]uint64, ckkscontext.levels)
 
 	primesbitlen := make(map[uint64]uint64)
 
-	for i := range modulichain {
+	for i := range params.modulichain {
 
-		primesbitlen[modulichain[i]] += 1
+		primesbitlen[params.modulichain[i]] += 1
 
-		ckkscontext.scalechain[i] = modulichain[i]
+		ckkscontext.scalechain[i] = params.modulichain[i]
 
-		if modulichain[i] > 60 {
+		if params.modulichain[i] > 60 {
 			return nil, errors.New("error : provided moduli must be smaller than 60")
 		}
 	}
@@ -108,14 +96,14 @@ func NewCkksContext(logN uint64, modulichain []uint64, logScale uint64, sigma fl
 	primes := make(map[uint64][]uint64)
 
 	for key, value := range primesbitlen {
-		primes[key], _ = GenerateCKKSPrimes(key, logN, value)
+		primes[key], _ = GenerateCKKSPrimes(key, params.logN, value)
 	}
 
-	ckkscontext.moduli = make([]uint64, len(modulichain))
+	ckkscontext.moduli = make([]uint64, ckkscontext.levels)
 
-	for i := range modulichain {
-		ckkscontext.moduli[i] = primes[modulichain[i]][0]
-		primes[modulichain[i]] = primes[modulichain[i]][1:]
+	for i := range params.modulichain {
+		ckkscontext.moduli[i] = primes[params.modulichain[i]][0]
+		primes[params.modulichain[i]] = primes[params.modulichain[i]][1:]
 
 		if uint64(bits.Len64(ckkscontext.moduli[i])) > ckkscontext.maxBit {
 			ckkscontext.maxBit = uint64(bits.Len64(ckkscontext.moduli[i]))
@@ -129,7 +117,7 @@ func NewCkksContext(logN uint64, modulichain []uint64, logScale uint64, sigma fl
 
 	ckkscontext.contextLevel[0] = ring.NewContext()
 
-	if err = ckkscontext.contextLevel[0].SetParameters(1<<logN, ckkscontext.moduli[:1]); err != nil {
+	if err = ckkscontext.contextLevel[0].SetParameters(1<<params.logN, ckkscontext.moduli[:1]); err != nil {
 		return nil, err
 	}
 
@@ -141,7 +129,7 @@ func NewCkksContext(logN uint64, modulichain []uint64, logScale uint64, sigma fl
 
 		ckkscontext.contextLevel[i] = ring.NewContext()
 
-		if err = ckkscontext.contextLevel[i].SetParameters(1<<logN, ckkscontext.moduli[i:i+1]); err != nil {
+		if err = ckkscontext.contextLevel[i].SetParameters(1<<params.logN, ckkscontext.moduli[i:i+1]); err != nil {
 			return nil, err
 		}
 
@@ -183,9 +171,9 @@ func NewCkksContext(logN uint64, modulichain []uint64, logScale uint64, sigma fl
 	// ========== END < RESCALE PRE-COMPUATION PARAMETERS > END ===============
 
 	// default variance
-	ckkscontext.sigma = sigma
+	ckkscontext.sigma = params.sigma
 
-	ckkscontext.gaussianSampler = ckkscontext.keyscontext.NewKYSampler(sigma, int(6*sigma))
+	ckkscontext.gaussianSampler = ckkscontext.keyscontext.NewKYSampler(params.sigma, int(6*params.sigma))
 	ckkscontext.ternarySampler = ckkscontext.keyscontext.NewTernarySampler()
 
 	// ========== START < ROTATION ELEMENTS > START ===============
@@ -276,8 +264,8 @@ func (ckkscontext *CkksContext) Levels() uint64 {
 	return ckkscontext.levels
 }
 
-// LogScale returns the default scalt of the ckkscontext.
-func (ckkscontext *CkksContext) LogScale() uint64 {
+// Scale returns the default scalt of the ckkscontext.
+func (ckkscontext *CkksContext) Scale() uint64 {
 	return ckkscontext.logScale
 }
 
@@ -289,4 +277,9 @@ func (ckkscontext *CkksContext) ContextKeys() *ring.Context {
 // Slots returns the number of slots that the scheme can encrypt at the same time.
 func (ckkscontext *CkksContext) Slots() uint64 {
 	return (1 << (ckkscontext.logN - 1))
+}
+
+// Sigma returns the variance used by the target context to sample gaussian polynomials.
+func (ckkscontext *CkksContext) Sigma() float64 {
+	return ckkscontext.sigma
 }

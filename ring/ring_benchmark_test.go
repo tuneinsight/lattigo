@@ -164,6 +164,13 @@ func benchmark_TernaryPoly(context *Context, b *testing.B) {
 			ternarySampler.SampleMontgomeryNTT(pol)
 		}
 	})
+
+	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/SampleTernary(0.66)", context.N, len(context.Modulus), 60), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			SampleTernary(context.N, 0.5)
+		}
+	})
+
 }
 
 func benchmark_UniformPoly(context *Context, b *testing.B) {

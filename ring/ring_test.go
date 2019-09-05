@@ -3,6 +3,7 @@ package ring
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"math/bits"
 	"math/rand"
 	"os"
@@ -293,10 +294,40 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 
 	bound := int(sigma * 6)
 	KYS := context.NewKYSampler(sigma, bound)
+
 	pol := context.NewPoly()
 
 	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/NewGaussPoly", context.N, len(context.Modulus), 60), func(t *testing.T) {
 		KYS.Sample(pol)
+	})
+
+	countOne := 0
+	countZer := 0
+	countMOn := 0
+	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/NewTernaryPoly", context.N, len(context.Modulus), 60), func(t *testing.T) {
+		coeffs, err := SampleTernary(1024, 1.0/3)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for i := range coeffs {
+			if coeffs[i] == -1 {
+				countMOn += 1
+			}
+
+			if coeffs[i] == 0 {
+				countZer += 1
+			}
+
+			if coeffs[i] == 1 {
+				countOne += 1
+			}
+		}
+
+		//fmt.Println("-1 :", countMOn)
+		//fmt.Println(" 0 :", countZer)
+		//fmt.Println(" 1 :", countOne)
 	})
 }
 

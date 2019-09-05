@@ -3,6 +3,7 @@ package ring
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"math"
 )
 
@@ -192,6 +193,8 @@ type TernarySampler struct {
 	context          *Context
 	Matrix           [][]uint64
 	MatrixMontgomery [][]uint64
+
+	KYMatrix [][]uint8
 }
 
 // NewTernarySampler creates a new TernarySampler from the target context.
@@ -219,14 +222,80 @@ func (context *Context) NewTernarySampler() *TernarySampler {
 	return sampler
 }
 
-// SampleNew samples a new polynomial with ternary distribution.
-func (sampler *TernarySampler) SampleNew() (pol *Poly) {
-	pol = sampler.context.NewPoly()
-	sampler.Sample(pol)
-	return pol
+func computeMatrixTernary(p float64) (M [][]uint8) {
+	var g float64
+	var x uint64
+
+	precision := uint64(56)
+
+	M = make([][]uint8, 2)
+
+	g = 1 - p
+	g *= math.Exp2(float64(precision))
+	x = uint64(g)
+
+	M[0] = make([]uint8, precision-1)
+	for j := uint64(0); j < precision-1; j++ {
+		M[0][j] = uint8((x >> (precision - j - 1)) & 1)
+	}
+
+	g = p
+	g *= math.Exp2(float64(precision))
+	x = uint64(g)
+
+	M[1] = make([]uint8, precision-1)
+	for j := uint64(0); j < precision-1; j++ {
+		M[1][j] = uint8((x >> (precision - j - 1)) & 1)
+	}
+
+	return M
 }
 
-// Sample samples coefficients with ternary distribution on the target polynomial.
+func isZero(x uint8) uint8 {
+
+	x |= x >> 4
+	x |= x >> 2
+	x |= x >> 1
+
+	return (x & 1) ^ 1
+
+}
+
+func SampleTernary(N uint64, p float64) (coeffs []int64, err error) {
+
+	if (N&(N-1)) != 0 && N != 0 {
+		return nil, errors.New("invalid N (must be a power of 2)")
+	}
+
+	if p == 0 {
+		return nil, errors.New("cannot sample -> p = 0")
+	}
+
+	var coeff uint64
+	var sign uint64
+
+	coeffs = make([]int64, N)
+
+	matrix := computeMatrixTernary(p)
+
+	randomBytes := make([]byte, 8)
+
+	pointer := uint8(0)
+
+	if _, err := rand.Read(randomBytes); err != nil {
+		panic("crypto rand error")
+	}
+
+	for i := uint64(0); i < N; i++ {
+
+		coeff, sign, randomBytes, pointer = kysampling(matrix, randomBytes, pointer)
+
+		coeffs[i] = int64(coeff*(sign^1)) | -int64(coeff*sign)
+	}
+
+	return coeffs, nil
+}
+
 func (sampler *TernarySampler) Sample(pol *Poly) {
 	var coeff uint64
 	for j := uint64(0); j < sampler.context.N; j++ {
@@ -235,6 +304,13 @@ func (sampler *TernarySampler) Sample(pol *Poly) {
 			pol.Coeffs[i][j] = sampler.Matrix[i][coeff]
 		}
 	}
+}
+
+// SampleNew samples a new polynomial with ternary distribution.
+func (sampler *TernarySampler) SampleNew() (pol *Poly) {
+	pol = sampler.context.NewPoly()
+	sampler.Sample(pol)
+	return pol
 }
 
 // SampleMontgomeryNew samples a new polynomial with ternary distribution in montgomery form.

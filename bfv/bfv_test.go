@@ -49,7 +49,7 @@ func Test_BFV(t *testing.T) {
 
 		bfvTest.batchencoder = bfvTest.bfvcontext.NewBatchEncoder()
 
-		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair(); err != nil {
+		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair(1.0 / 3); err != nil {
 			log.Fatal(err)
 		}
 
@@ -1006,7 +1006,7 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 	Sk := bfvTest.sk
 	evaluator := bfvTest.evaluator
 
-	SkNew := kgen.NewSecretKey()
+	SkNew, _ := kgen.NewSecretKey(1.0 / 3)
 
 	decryptor_SkNew, err := bfvContext.NewDecryptor(SkNew)
 	if err != nil {

@@ -50,18 +50,10 @@ func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64)
 	return result
 }
 
-//===========================
-//===      BITREVERSE     ===
-//===========================
-
 // bitReverse calculates the bit-reverse index. For example, given index=6 (110) and its bit-length bitLen=3, the indexReverse would be 3 (011)
 func bitReverse64(index, bitLen uint64) uint64 {
 	return bits.Reverse64(index) >> (64 - bitLen)
 }
-
-//===========================
-//===         GCD         ===
-//===========================
 
 // gcd compues gcd(a,b) for a,b uint64 variables
 func gcd(a, b uint64) uint64 {

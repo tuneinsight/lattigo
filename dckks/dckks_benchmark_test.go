@@ -54,12 +54,12 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 
 		kgen := benchcontext.ckkscontext.NewKeyGenerator()
 
-		benchcontext.sk0, benchcontext.pk0, err = kgen.NewKeyPair()
+		benchcontext.sk0, benchcontext.pk0, err = kgen.NewKeyPair(1.0 / 3)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		benchcontext.sk1, benchcontext.pk1, err = kgen.NewKeyPair()
+		benchcontext.sk1, benchcontext.pk1, err = kgen.NewKeyPair(1.0 / 3)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -46,6 +46,8 @@ func Benchmark_POLYNOMIAL(b *testing.B) {
 
 		benchmark_UniformPoly(contextQ, b)
 
+		benchmark_MForm(contextQ, b)
+
 		benchmark_NTT(contextQ, b)
 
 		benchmark_InvNTT(contextQ, b)
@@ -147,21 +149,28 @@ func benchmark_TernaryPoly(context *Context, b *testing.B) {
 
 	pol := context.NewPoly()
 
-	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/ternarySampler.Sample", context.N, len(context.Modulus), 60), func(b *testing.B) {
+	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/SampleTernary(0.5)", context.N, len(context.Modulus), 60), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.Sample(pol)
+			ternarySampler.Sample(0.5, pol)
 		}
 	})
 
-	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/ternarySampler.SampleMontgomery", context.N, len(context.Modulus), 60), func(b *testing.B) {
+	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/SampleTernary(0.5)MontgomeryNTT", context.N, len(context.Modulus), 60), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.SampleMontgomery(pol)
+			ternarySampler.SampleMontgomeryNTT(0.5, pol)
 		}
 	})
 
-	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/ternarySampler.SampleMontgomeryNTT", context.N, len(context.Modulus), 60), func(b *testing.B) {
+	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/SampleTernary(1/3)", context.N, len(context.Modulus), 60), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.SampleMontgomeryNTT(pol)
+			ternarySampler.Sample(1.0/3, pol)
+		}
+	})
+
+	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/SampleTernary(1/3)MontgomeryNTT", context.N, len(context.Modulus), 60), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ternarySampler.SampleMontgomeryNTT(1.0/3, pol)
+
 		}
 	})
 }
@@ -171,6 +180,17 @@ func benchmark_UniformPoly(context *Context, b *testing.B) {
 	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/NewUniformPoly", context.N, len(context.Modulus), 60), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			context.NewUniformPoly()
+		}
+	})
+}
+
+func benchmark_MForm(context *Context, b *testing.B) {
+
+	p := context.NewUniformPoly()
+
+	b.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/MForm", context.N, len(context.Modulus), 60), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context.MForm(p, p)
 		}
 	})
 }

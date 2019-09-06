@@ -3,6 +3,7 @@ package ring
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"math"
 )
 
@@ -167,7 +168,6 @@ func (kys *KYSampler) Sample(Pol *Poly) {
 		coeff, sign, randomBytes, pointer = kysampling(kys.Matrix, randomBytes, pointer)
 
 		for j, qi := range kys.context.Modulus {
-
 			Pol.Coeffs[j][i] = (coeff & (sign * 0xFFFFFFFFFFFFFFFF)) | ((qi - coeff) & ((sign ^ 1) * 0xFFFFFFFFFFFFFFFF))
 
 		}
@@ -192,6 +192,8 @@ type TernarySampler struct {
 	context          *Context
 	Matrix           [][]uint64
 	MatrixMontgomery [][]uint64
+
+	KYMatrix [][]uint8
 }
 
 // NewTernarySampler creates a new TernarySampler from the target context.
@@ -206,80 +208,173 @@ func (context *Context) NewTernarySampler() *TernarySampler {
 	for i, Qi := range context.Modulus {
 
 		sampler.Matrix[i] = make([]uint64, 3)
-		sampler.Matrix[i][0] = Qi - 1
-		sampler.Matrix[i][1] = 0
-		sampler.Matrix[i][2] = 1
+		sampler.Matrix[i][0] = 0
+		sampler.Matrix[i][1] = 1
+		sampler.Matrix[i][2] = Qi - 1
 
 		sampler.MatrixMontgomery[i] = make([]uint64, 3)
-		sampler.MatrixMontgomery[i][0] = MForm(Qi-1, Qi, context.bredParams[i])
-		sampler.MatrixMontgomery[i][1] = 0
-		sampler.MatrixMontgomery[i][2] = MForm(1, Qi, context.bredParams[i])
+		sampler.MatrixMontgomery[i][0] = 0
+		sampler.MatrixMontgomery[i][1] = MForm(1, Qi, context.bredParams[i])
+		sampler.MatrixMontgomery[i][2] = MForm(Qi-1, Qi, context.bredParams[i])
 	}
 
 	return sampler
 }
 
-// SampleNew samples a new polynomial with ternary distribution.
-func (sampler *TernarySampler) SampleNew() (pol *Poly) {
-	pol = sampler.context.NewPoly()
-	sampler.Sample(pol)
-	return pol
-}
+func computeMatrixTernary(p float64) (M [][]uint8) {
+	var g float64
+	var x uint64
 
-// Sample samples coefficients with ternary distribution on the target polynomial.
-func (sampler *TernarySampler) Sample(pol *Poly) {
-	var coeff uint64
-	for j := uint64(0); j < sampler.context.N; j++ {
-		coeff = randUint3()
-		for i := range sampler.context.Modulus {
-			pol.Coeffs[i][j] = sampler.Matrix[i][coeff]
-		}
+	precision := uint64(56)
+
+	M = make([][]uint8, 2)
+
+	g = 1 - p
+	g *= math.Exp2(float64(precision))
+	x = uint64(g)
+
+	M[0] = make([]uint8, precision-1)
+	for j := uint64(0); j < precision-1; j++ {
+		M[0][j] = uint8((x >> (precision - j - 1)) & 1)
 	}
-}
 
-// SampleMontgomeryNew samples a new polynomial with ternary distribution in montgomery form.
-func (sampler *TernarySampler) SampleMontgomeryNew() (pol *Poly) {
-	pol = sampler.context.NewPoly()
-	sampler.SampleMontgomery(pol)
-	return pol
+	g = p
+	g *= math.Exp2(float64(precision))
+	x = uint64(g)
+
+	M[1] = make([]uint8, precision-1)
+	for j := uint64(0); j < precision-1; j++ {
+		M[1][j] = uint8((x >> (precision - j - 1)) & 1)
+	}
+
+	return M
 }
 
 // SampleMontgomeryNew samples coefficients with ternary distribution in montgomery form on the target polynomial.
-func (sampler *TernarySampler) SampleMontgomery(pol *Poly) {
+func sample(context *Context, samplerMatrix [][]uint64, p float64, pol *Poly) (err error) {
+
+	if p == 0 {
+		return errors.New("cannot sample -> p = 0")
+	}
+
 	var coeff uint64
-	for j := uint64(0); j < sampler.context.N; j++ {
-		coeff = randUint3()
-		for i := range sampler.context.Modulus {
-			pol.Coeffs[i][j] = sampler.MatrixMontgomery[i][coeff]
+	var sign uint64
+
+	if p == 0.5 {
+
+		randomBytesCoeffs := make([]byte, context.N>>3)
+		randomBytesSign := make([]byte, context.N>>3)
+
+		if _, err := rand.Read(randomBytesCoeffs); err != nil {
+			panic("crypto rand error")
+		}
+
+		if _, err := rand.Read(randomBytesSign); err != nil {
+			panic("crypto rand error")
+		}
+
+		for i := uint64(0); i < context.N; i++ {
+			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
+			sign = uint64(uint8(randomBytesSign[i>>3])>>(i&7)) & 1
+
+			for j := range context.Modulus {
+				pol.Coeffs[j][i] = samplerMatrix[j][(coeff&(sign^1))|((sign&coeff)<<1)] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+			}
+		}
+
+	} else {
+
+		matrix := computeMatrixTernary(p)
+
+		randomBytes := make([]byte, 8)
+
+		pointer := uint8(0)
+
+		if _, err := rand.Read(randomBytes); err != nil {
+			panic("crypto rand error")
+		}
+
+		for i := uint64(0); i < context.N; i++ {
+
+			coeff, sign, randomBytes, pointer = kysampling(matrix, randomBytes, pointer)
+
+			for j := range context.Modulus {
+				pol.Coeffs[j][i] = samplerMatrix[j][(coeff&(sign^1))|((sign&coeff)<<1)] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+			}
 		}
 	}
+
+	return nil
+}
+
+func (sampler *TernarySampler) Sample(p float64, pol *Poly) (err error) {
+	if err = sample(sampler.context, sampler.Matrix, p, pol); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sampler *TernarySampler) SampleMontgomery(p float64, pol *Poly) (err error) {
+	if err = sample(sampler.context, sampler.MatrixMontgomery, p, pol); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SampleNew samples a new polynomial with ternary distribution.
+func (sampler *TernarySampler) SampleNew(p float64) (pol *Poly, err error) {
+	pol = sampler.context.NewPoly()
+	if err = sampler.Sample(p, pol); err != nil {
+		return nil, err
+	}
+	return pol, nil
+}
+
+// SampleMontgomeryNew samples a new polynomial with ternary distribution in montgomery form.
+func (sampler *TernarySampler) SampleMontgomeryNew(p float64) (pol *Poly, err error) {
+	pol = sampler.context.NewPoly()
+	if err = sampler.SampleMontgomery(p, pol); err != nil {
+		return nil, err
+	}
+	return pol, nil
 }
 
 // SampleNTTNew samples a new polynomial with ternary distribution in the NTT domain.
-func (sampler *TernarySampler) SampleNTTNew() (pol *Poly) {
+func (sampler *TernarySampler) SampleNTTNew(p float64) (pol *Poly, err error) {
 	pol = sampler.context.NewPoly()
-	sampler.Sample(pol)
+	if err = sampler.Sample(p, pol); err != nil {
+		return nil, err
+	}
 	sampler.context.NTT(pol, pol)
-	return pol
+	return pol, nil
 }
 
 // SampleNTT samples coefficients with ternary distribution in the NTT domain on the target polynomial.
-func (sampler *TernarySampler) SampleNTT(pol *Poly) {
-	sampler.Sample(pol)
+func (sampler *TernarySampler) SampleNTT(p float64, pol *Poly) (err error) {
+	if err = sampler.Sample(p, pol); err != nil {
+		return err
+	}
 	sampler.context.NTT(pol, pol)
+
+	return nil
 }
 
 // SampleNTTNew samples a new polynomial with ternary distribution in the NTT domain and in montgomery form.
-func (sampler *TernarySampler) SampleMontgomeryNTTNew() (pol *Poly) {
-	pol = sampler.SampleMontgomeryNew()
+func (sampler *TernarySampler) SampleMontgomeryNTTNew(p float64) (pol *Poly, err error) {
+	if pol, err = sampler.SampleMontgomeryNew(p); err != nil {
+		return nil, err
+	}
 	sampler.context.NTT(pol, pol)
-	return pol
+	return pol, nil
 }
 
 // SampleNTT samples coefficients with ternary distribution in the NTT domain and in montgomery form on the target polynomial.
-func (sampler *TernarySampler) SampleMontgomeryNTT(pol *Poly) {
-	sampler.SampleMontgomery(pol)
+func (sampler *TernarySampler) SampleMontgomeryNTT(p float64, pol *Poly) (err error) {
+	if err = sampler.SampleMontgomery(p, pol); err != nil {
+		return err
+	}
 	sampler.context.NTT(pol, pol)
+	return nil
 }
 
 // RandUniform samples a uniform randomInt variable in the range [0, mask] until randomInt is in the range [0, v-1].

@@ -57,7 +57,7 @@ func (ekg *EkgProtocolNaive) GenSamples(sk *ring.Poly, pk [2]*ring.Poly) [][][2]
 			}
 
 			// u
-			ekg.ternarySampler.SampleMontgomeryNTT(ekg.polypool)
+			ekg.ternarySampler.SampleMontgomeryNTT(0.5, ekg.polypool)
 
 			// h_0 = pk_0 * u + e0 + sk*w*(qiBarre*qiStar)%qi
 			ekg.context.MulCoeffsMontgomeryAndAdd(pk[0], ekg.polypool, h[i][w][0])
@@ -121,7 +121,7 @@ func (ekg *EkgProtocolNaive) Aggregate(sk *ring.Poly, pk [2]*ring.Poly, samples 
 			ekg.context.MulCoeffsMontgomery(h[i][w][1], sk, h[i][w][1])
 
 			// v
-			ekg.ternarySampler.SampleMontgomeryNTT(ekg.polypool)
+			ekg.ternarySampler.SampleMontgomeryNTT(0.5, ekg.polypool)
 
 			// h_0 = sum(samples[0]) * sk + pk0 * v
 			ekg.context.MulCoeffsMontgomeryAndAdd(pk[0], ekg.polypool, h[i][w][0])

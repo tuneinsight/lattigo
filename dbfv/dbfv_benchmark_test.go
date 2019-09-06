@@ -25,12 +25,12 @@ func Benchmark_DBFVScheme(b *testing.B) {
 
 		kgen := bfvContext.NewKeyGenerator()
 
-		sk0, pk0, err := kgen.NewKeyPair()
+		sk0, pk0, err := kgen.NewKeyPair(1.0 / 3)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		sk1, pk1, err := kgen.NewKeyPair()
+		sk1, pk1, err := kgen.NewKeyPair(1.0 / 3)
 		if err != nil {
 			log.Fatal(err)
 		}

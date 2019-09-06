@@ -52,7 +52,7 @@ func (pcks *PCKS) KeySwitch(ct1 *ring.Poly) (h [2]*ring.Poly) {
 	h[1] = pcks.pkOutput[1].CopyNew()
 
 	//u_i
-	pcks.ternarySampler.SampleMontgomeryNTT(pcks.polypool)
+	pcks.ternarySampler.SampleMontgomeryNTT(0.5, pcks.polypool)
 
 	// h_0 = u_i * pk_0 (NTT)
 	pcks.context.MulCoeffsMontgomery(h[0], pcks.polypool, h[0])

@@ -56,12 +56,14 @@ func (bfvcontext *BfvContext) NewKeyGenerator() (keygen *keygenerator) {
 }
 
 // Newsecretkey creates a new SecretKey with uniform distribution in [-1, 0, 1].
-func (keygen *keygenerator) NewSecretKey() *SecretKey {
+func (keygen *keygenerator) NewSecretKey(p float64) (sk *SecretKey, err error) {
 
-	sk := new(SecretKey)
-	sk.sk = keygen.bfvcontext.ternarySampler.SampleMontgomeryNTTNew()
+	sk = new(SecretKey)
+	if sk.sk, err = keygen.bfvcontext.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
+		return nil, err
+	}
 
-	return sk
+	return sk, nil
 }
 
 // NewSecretKeyEmpty creates a new SecretKey with all coeffcients set to zero, ready to received a marshaled SecretKey.
@@ -136,9 +138,13 @@ func (pk *PublicKey) Set(p [2]*ring.Poly) {
 }
 
 // NewKeyPair generates a new (secret-key, public-key) pair.
-func (keygen *keygenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey, err error) {
-	sk = keygen.NewSecretKey()
-	pk, err = keygen.NewPublicKey(sk)
+func (keygen *keygenerator) NewKeyPair(p float64) (sk *SecretKey, pk *PublicKey, err error) {
+	if sk, err = keygen.NewSecretKey(p); err != nil {
+		return nil, nil, err
+	}
+	if pk, err = keygen.NewPublicKey(sk); err != nil {
+		return nil, nil, err
+	}
 	return
 }
 

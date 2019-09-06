@@ -47,4 +47,4 @@ The set of security parameters are defined by the three parameters ![equation](h
 - {14, 438, 3.2}
 - {15, 881, 3.2}
 
-Setting parameters for CKKS is much more application dependant than for BFV. This is why default parameters might not be of much use. We however provide a set of default params for CKKS ensuring 128 bit security. The user might want to use different values in the modulie chain optimized for a specific application. As long as the total modulus is equal or below the above values, the scheme will provite a security of 128 bits.
+Setting parameters for CKKS is much more application dependant than for BFV. This is why default parameters might not be of much use. We however provide a set of default params for CKKS ensuring 128 bit security. The user might want to use different values in the moduli chain optimized for a specific application. As long as the total modulus is equal or below the above values for a given logN, the scheme will provite a security of 128 bits.

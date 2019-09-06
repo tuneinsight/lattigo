@@ -39,11 +39,11 @@ func BenchmarkCKKSScheme(b *testing.B) {
 
 	for _, param := range params {
 
-		logN = param.params.logN
-		logScale = param.params.logScale
-		sigma = param.params.sigma
+		logN = uint64(param.params.LogN)
+		logScale = uint64(param.params.Logscale)
+		sigma = param.params.Sigma
 		bdc = param.bdc
-		levels = uint64(len(param.params.modulichain))
+		levels = uint64(len(param.params.Modulichain))
 
 		if ckkscontext, err = NewCkksContext(param.params); err != nil {
 			b.Error(err)

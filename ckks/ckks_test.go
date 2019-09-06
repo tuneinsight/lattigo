@@ -37,7 +37,7 @@ func Test_CKKS(t *testing.T) {
 
 	var err error
 
-	params := Parameters{9, []uint64{55, 49, 49, 49, 49, 49, 49, 49, 49, 49}, 49, 3.2}
+	params := Parameters{9, []uint8{55, 49, 49, 49, 49, 49, 49, 49, 49, 49}, 49, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 

@@ -69,11 +69,11 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 	ckkscontext = new(CkksContext)
 
-	ckkscontext.logN = params.logN
-	ckkscontext.n = 1 << params.logN
-	ckkscontext.slots = 1 << (params.logN - 1)
-	ckkscontext.logScale = params.logScale
-	ckkscontext.levels = uint64(len(params.modulichain))
+	ckkscontext.logN = uint64(params.LogN)
+	ckkscontext.n = 1 << uint64(params.LogN)
+	ckkscontext.slots = 1 << (uint64(params.LogN) - 1)
+	ckkscontext.logScale = uint64(params.Logscale)
+	ckkscontext.levels = uint64(len(params.Modulichain))
 
 	ckkscontext.maxBit = 60 // The first prime is always 60 bits to ensure some bits of precision for integers.
 
@@ -82,13 +82,13 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 	primesbitlen := make(map[uint64]uint64)
 
-	for i := range params.modulichain {
+	for i := range params.Modulichain {
 
-		primesbitlen[params.modulichain[i]] += 1
+		primesbitlen[uint64(params.Modulichain[i])] += 1
 
-		ckkscontext.scalechain[i] = params.modulichain[i]
+		ckkscontext.scalechain[i] = uint64(params.Modulichain[i])
 
-		if params.modulichain[i] > 60 {
+		if uint64(params.Modulichain[i]) > 60 {
 			return nil, errors.New("error : provided moduli must be smaller than 60")
 		}
 	}
@@ -96,14 +96,14 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 	primes := make(map[uint64][]uint64)
 
 	for key, value := range primesbitlen {
-		primes[key], _ = GenerateCKKSPrimes(key, params.logN, value)
+		primes[key], _ = GenerateCKKSPrimes(key, uint64(params.LogN), value)
 	}
 
 	ckkscontext.moduli = make([]uint64, ckkscontext.levels)
 
-	for i := range params.modulichain {
-		ckkscontext.moduli[i] = primes[params.modulichain[i]][0]
-		primes[params.modulichain[i]] = primes[params.modulichain[i]][1:]
+	for i := range params.Modulichain {
+		ckkscontext.moduli[i] = primes[uint64(params.Modulichain[i])][0]
+		primes[uint64(params.Modulichain[i])] = primes[uint64(params.Modulichain[i])][1:]
 
 		if uint64(bits.Len64(ckkscontext.moduli[i])) > ckkscontext.maxBit {
 			ckkscontext.maxBit = uint64(bits.Len64(ckkscontext.moduli[i]))
@@ -117,7 +117,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 	ckkscontext.contextLevel[0] = ring.NewContext()
 
-	if err = ckkscontext.contextLevel[0].SetParameters(1<<params.logN, ckkscontext.moduli[:1]); err != nil {
+	if err = ckkscontext.contextLevel[0].SetParameters(1<<uint64(params.LogN), ckkscontext.moduli[:1]); err != nil {
 		return nil, err
 	}
 
@@ -129,7 +129,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 		ckkscontext.contextLevel[i] = ring.NewContext()
 
-		if err = ckkscontext.contextLevel[i].SetParameters(1<<params.logN, ckkscontext.moduli[i:i+1]); err != nil {
+		if err = ckkscontext.contextLevel[i].SetParameters(1<<uint64(params.LogN), ckkscontext.moduli[i:i+1]); err != nil {
 			return nil, err
 		}
 
@@ -171,9 +171,9 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 	// ========== END < RESCALE PRE-COMPUATION PARAMETERS > END ===============
 
 	// default variance
-	ckkscontext.sigma = params.sigma
+	ckkscontext.sigma = params.Sigma
 
-	ckkscontext.gaussianSampler = ckkscontext.keyscontext.NewKYSampler(params.sigma, int(6*params.sigma))
+	ckkscontext.gaussianSampler = ckkscontext.keyscontext.NewKYSampler(params.Sigma, int(6*params.Sigma))
 	ckkscontext.ternarySampler = ckkscontext.keyscontext.NewTernarySampler()
 
 	// ========== START < ROTATION ELEMENTS > START ===============

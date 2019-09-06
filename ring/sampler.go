@@ -192,8 +192,6 @@ type TernarySampler struct {
 	context          *Context
 	Matrix           [][]uint64
 	MatrixMontgomery [][]uint64
-
-	KYMatrix [][]uint8
 }
 
 // NewTernarySampler creates a new TernarySampler from the target context.

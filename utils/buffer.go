@@ -32,6 +32,12 @@ func (b *Buffer) WriteUint64Slice(s []uint64) {
 	}
 }
 
+func (b *Buffer) WriteUint8Slice(s []uint8) {
+	for _, v := range s {
+		b.WriteUint8(v)
+	}
+}
+
 func (b *Buffer) ReadUint8() byte {
 	v := b.buf[0]
 	b.buf = b.buf[1:]
@@ -48,6 +54,12 @@ func (b *Buffer) ReadUint64() uint64 {
 func (b *Buffer) ReadUint64Slice(rec []uint64) {
 	for i := range rec {
 		rec[i] = b.ReadUint64()
+	}
+}
+
+func (b *Buffer) ReadUint8Slice(rec []uint8) {
+	for i := range rec {
+		rec[i] = b.ReadUint8()
 	}
 }
 

@@ -27,7 +27,7 @@ func BenchmarkBFVScheme(b *testing.B) {
 		// Public Key Generation
 		b.Run(fmt.Sprintf("params=%d/KeyGen", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				sk, pk, err = kgen.NewKeyPair()
+				sk, pk, err = kgen.NewKeyPair(1.0 / 3)
 				if err != nil {
 					b.Error(err)
 				}

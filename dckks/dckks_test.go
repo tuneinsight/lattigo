@@ -78,8 +78,8 @@ func Test_DBFVScheme(t *testing.T) {
 	tmp1 := context.NewPoly()
 
 	for i := uint64(0); i < parties; i++ {
-		sk0_shards[i] = kgen.NewSecretKey()
-		sk1_shards[i] = kgen.NewSecretKey()
+		sk0_shards[i], _ = kgen.NewSecretKey(1.0 / 3)
+		sk1_shards[i], _ = kgen.NewSecretKey(1.0 / 3)
 		context.Add(tmp0, sk0_shards[i].Get(), tmp0)
 		context.Add(tmp1, sk1_shards[i].Get(), tmp1)
 	}
@@ -199,7 +199,7 @@ func Test_DBFVScheme(t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 
 			ekg[i] = NewEkgProtocol(context, bdc)
-			ephemeralKeys[i] = ekg[i].NewEphemeralKey()
+			ephemeralKeys[i], _ = ekg[i].NewEphemeralKey(1.0 / 3)
 			crp[i] = make([][]*ring.Poly, len(context.Modulus))
 
 			for j := 0; j < len(context.Modulus); j++ {

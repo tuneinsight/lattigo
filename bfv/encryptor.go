@@ -127,7 +127,7 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	context := encryptor.bfvcontext.contextQ
 
 	// u
-	encryptor.bfvcontext.ternarySampler.SampleMontgomeryNTT(encryptor.polypool)
+	encryptor.bfvcontext.ternarySampler.SampleMontgomeryNTT(0.5, encryptor.polypool)
 
 	// ct[0] = pk[0]*u
 	// ct[1] = pk[1]*u

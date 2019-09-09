@@ -294,6 +294,7 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 
 	bound := int(sigma * 6)
 	KYS := context.NewKYSampler(sigma, bound)
+	TS := context.NewTernarySampler()
 
 	pol := context.NewPoly()
 
@@ -305,22 +306,22 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 	countZer := 0
 	countMOn := 0
 	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/NewTernaryPoly", context.N, len(context.Modulus), 60), func(t *testing.T) {
-		coeffs, err := SampleTernary(1024, 1.0/3)
-
-		if err != nil {
+		if err := TS.Sample(1.0/3, pol); err != nil {
 			log.Fatal(err)
 		}
 
-		for i := range coeffs {
-			if coeffs[i] == -1 {
+		//fmt.Println(pol.Coeffs[0])
+
+		for i := range pol.Coeffs[0] {
+			if pol.Coeffs[0][i] == context.Modulus[0]-1 {
 				countMOn += 1
 			}
 
-			if coeffs[i] == 0 {
+			if pol.Coeffs[0][i] == 0 {
 				countZer += 1
 			}
 
-			if coeffs[i] == 1 {
+			if pol.Coeffs[0][i] == 1 {
 				countOne += 1
 			}
 		}

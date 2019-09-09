@@ -70,10 +70,12 @@ func (keygen *keygenerator) check_sk(sk_output *SecretKey) error {
 }
 
 // NewSecretKey generates a new secret key.
-func (keygen *keygenerator) NewSecretKey() *SecretKey {
-	sk := new(SecretKey)
-	sk.sk = keygen.ckkscontext.ternarySampler.SampleMontgomeryNTTNew()
-	return sk
+func (keygen *keygenerator) NewSecretKey(p float64) (sk *SecretKey, err error) {
+	sk = new(SecretKey)
+	if sk.sk, err = keygen.ckkscontext.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
+		return nil, err
+	}
+	return sk, nil
 }
 
 func (keygen *keygenerator) NewSecretKeyEmpty() *SecretKey {
@@ -133,9 +135,13 @@ func (pk *PublicKey) Set(poly [2]*ring.Poly) {
 }
 
 // NewKeyPair generates a new secretkey and a corresponding public key.
-func (keygen *keygenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey, err error) {
-	sk = keygen.NewSecretKey()
-	pk, err = keygen.NewPublicKey(sk)
+func (keygen *keygenerator) NewKeyPair(p float64) (sk *SecretKey, pk *PublicKey, err error) {
+	if sk, err = keygen.NewSecretKey(p); err != nil {
+		return nil, nil, err
+	}
+	if pk, err = keygen.NewPublicKey(sk); err != nil {
+		return nil, nil, err
+	}
 	return
 }
 

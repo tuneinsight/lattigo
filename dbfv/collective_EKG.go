@@ -31,9 +31,11 @@ func NewEkgProtocol(context *ring.Context, bitDecomp uint64) *EkgProtocol {
 // NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first round).
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
-func (ekg *EkgProtocol) NewEphemeralKey() *ring.Poly {
-	ephemeralKey := ekg.ternarySampler.SampleMontgomeryNTTNew()
-	return ephemeralKey
+func (ekg *EkgProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly, err error) {
+	if ephemeralKey, err = ekg.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
+		return nil, err
+	}
+	return
 }
 
 // GenSamples is the first of three rounds of the EkgProtocol protocol. Each party generates a pseudo encryption of

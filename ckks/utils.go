@@ -164,7 +164,22 @@ func GenerateCKKSPrimes(logQ, logN, levels uint64) ([]uint64, error) {
 	return primes, nil
 }
 
-func equalslice(a, b []uint64) bool {
+func equalslice64(a, b []uint64) bool {
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func equalslice8(a, b []uint8) bool {
 
 	if len(a) != len(b) {
 		return false

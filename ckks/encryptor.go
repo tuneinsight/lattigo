@@ -154,7 +154,7 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 	// ct = [e, a]
 	ciphertext.value[1] = context.NewUniformPoly()
-	encryptor.ckkscontext.gaussianSampler.SampleNTT(ciphertext.value[1])
+	encryptor.ckkscontext.gaussianSampler.SampleNTT(ciphertext.value[0])
 
 	// ct = [-s*a + e, a]
 	context.MulCoeffsMontgomeryAndSub(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])

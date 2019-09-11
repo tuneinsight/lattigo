@@ -134,4 +134,3 @@ func (el *bfvElement) Plaintext() *Plaintext {
 	}
 	return &Plaintext{el, el.value[0]}
 }
-

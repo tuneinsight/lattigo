@@ -43,9 +43,9 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator, err error) {
 }
 
 // Add adds c0 to c1 and returns the result on cOut.
-func (evaluator *Evaluator) Add(c0, c1, cOut BfvElement) (err error) {
+func (evaluator *Evaluator) Add(c0, c1, cOut Operand) (err error) {
 
-	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.Add, evaluator.bfvcontext); err != nil {
+	if err = evaluateInPlace(c0.Element(), c1.Element(), cOut.Element(), evaluator.bfvcontext.contextQ.Add, evaluator.bfvcontext); err != nil {
 		return err
 	}
 
@@ -53,9 +53,9 @@ func (evaluator *Evaluator) Add(c0, c1, cOut BfvElement) (err error) {
 }
 
 // AddNoMod adds c0 to c1 without modular reduction, and returns the result on cOut.
-func (evaluator *Evaluator) AddNoMod(c0, c1, cOut BfvElement) (err error) {
+func (evaluator *Evaluator) AddNoMod(c0, c1, cOut Operand) (err error) {
 
-	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.AddNoMod, evaluator.bfvcontext); err != nil {
+	if err = evaluateInPlace(c0.Element(), c1.Element(), cOut.Element(), evaluator.bfvcontext.contextQ.AddNoMod, evaluator.bfvcontext); err != nil {
 		return err
 	}
 
@@ -63,9 +63,9 @@ func (evaluator *Evaluator) AddNoMod(c0, c1, cOut BfvElement) (err error) {
 }
 
 // AddNew adds c0 to c1 and creates a new element to store the result.
-func (evaluator *Evaluator) AddNew(c0, c1 BfvElement) (cOut BfvElement, err error) {
+func (evaluator *Evaluator) AddNew(c0, c1 Operand) (cOut *bfvElement, err error) {
 
-	if cOut, err = evaluateNew(c0, c1, evaluator.bfvcontext.contextQ.Add, evaluator.bfvcontext); err != nil {
+	if cOut, err = evaluateNew(c0.Element(), c1.Element(), evaluator.bfvcontext.contextQ.Add, evaluator.bfvcontext); err != nil {
 		return nil, err
 	}
 
@@ -73,9 +73,9 @@ func (evaluator *Evaluator) AddNew(c0, c1 BfvElement) (cOut BfvElement, err erro
 }
 
 // AddNoModNew adds c0 to c1 without modular reduction and creates a new element to store the result.
-func (evaluator *Evaluator) AddNoModNew(c0, c1 BfvElement) (cOut BfvElement, err error) {
+func (evaluator *Evaluator) AddNoModNew(c0, c1 Operand) (cOut *bfvElement, err error) {
 
-	if cOut, err = evaluateNew(c0, c1, evaluator.bfvcontext.contextQ.AddNoMod, evaluator.bfvcontext); err != nil {
+	if cOut, err = evaluateNew(c0.Element(), c1.Element(), evaluator.bfvcontext.contextQ.AddNoMod, evaluator.bfvcontext); err != nil {
 		return nil, err
 	}
 
@@ -83,9 +83,9 @@ func (evaluator *Evaluator) AddNoModNew(c0, c1 BfvElement) (cOut BfvElement, err
 }
 
 // Sub subtracts c1 to c0 and returns the result on cOut.
-func (evaluator *Evaluator) Sub(c0, c1, cOut BfvElement) (err error) {
+func (evaluator *Evaluator) Sub(c0, c1, cOut Operand) (err error) {
 
-	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.Sub, evaluator.bfvcontext); err != nil {
+	if err = evaluateInPlace(c0.Element(), c1.Element(), cOut.Element(), evaluator.bfvcontext.contextQ.Sub, evaluator.bfvcontext); err != nil {
 		return err
 	}
 
@@ -93,9 +93,9 @@ func (evaluator *Evaluator) Sub(c0, c1, cOut BfvElement) (err error) {
 }
 
 // SubNoMod subtracts c1 to c0 without modular reduction and returns the result on cOut.
-func (evaluator *Evaluator) SubNoMod(c0, c1, cOut BfvElement) (err error) {
+func (evaluator *Evaluator) SubNoMod(op0, op1, opOut Operand) (err error) {
 
-	if err = evaluateInPlace(c0, c1, cOut, evaluator.bfvcontext.contextQ.SubNoMod, evaluator.bfvcontext); err != nil {
+	if err = evaluateInPlace(op0.Element(), op1.Element(), opOut.Element(), evaluator.bfvcontext.contextQ.SubNoMod, evaluator.bfvcontext); err != nil {
 		return err
 	}
 
@@ -103,8 +103,9 @@ func (evaluator *Evaluator) SubNoMod(c0, c1, cOut BfvElement) (err error) {
 }
 
 // SubNew subtracts c1 to c0 and creates a new element to store the result.
-func (evaluator *Evaluator) SubNew(c0, c1 BfvElement) (cOut BfvElement, err error) {
+func (evaluator *Evaluator) SubNew(op0, op1 Operand) (cOut *bfvElement, err error) {
 
+	c0, c1 := op0.Element(), op1.Element()
 	if cOut, err = evaluateNew(c0, c1, evaluator.bfvcontext.contextQ.Sub, evaluator.bfvcontext); err != nil {
 		return nil, err
 	}
@@ -113,9 +114,9 @@ func (evaluator *Evaluator) SubNew(c0, c1 BfvElement) (cOut BfvElement, err erro
 }
 
 // SubNoModNew subtracts c1 to c0 without modular reduction and creates a new element to store the result.
-func (evaluator *Evaluator) SubNoModNew(c0, c1 BfvElement) (cOut BfvElement, err error) {
+func (evaluator *Evaluator) SubNoModNew(op0, op1 Operand) (cOut *bfvElement, err error) {
 
-	if cOut, err = evaluateNew(c0, c1, evaluator.bfvcontext.contextQ.SubNoMod, evaluator.bfvcontext); err != nil {
+	if cOut, err = evaluateNew(op0.Element(), op1.Element(), evaluator.bfvcontext.contextQ.SubNoMod, evaluator.bfvcontext); err != nil {
 		return nil, err
 	}
 
@@ -123,7 +124,7 @@ func (evaluator *Evaluator) SubNoModNew(c0, c1 BfvElement) (cOut BfvElement, err
 }
 
 // evaluateInPlace applies the provided function in place on c0 and c1 and returns the result in cOut
-func evaluateInPlace(c0, c1, cOut BfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly), bfvcontext *BfvContext) (err error) {
+func evaluateInPlace(c0, c1, cOut *bfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly), bfvcontext *BfvContext) (err error) {
 
 	maxDegree := max([]uint64{c0.Degree(), c1.Degree()})
 	minDegree := min([]uint64{c0.Degree(), c1.Degree()})
@@ -157,7 +158,7 @@ func evaluateInPlace(c0, c1, cOut BfvElement, evaluate func(*ring.Poly, *ring.Po
 }
 
 // evaluateNew applies the provided function on c0 and c1 and returns the result on a new element cOut.
-func evaluateNew(c0, c1 BfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly), bfvcontext *BfvContext) (cOut BfvElement, err error) {
+func evaluateNew(c0, c1 *bfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly), bfvcontext *BfvContext) (cOut *bfvElement, err error) {
 
 	if c0.Degree() >= c1.Degree() {
 
@@ -180,7 +181,9 @@ func evaluateNew(c0, c1 BfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.
 }
 
 // Neg negates c0 and returns the result on cOut.
-func (evaluator *Evaluator) Neg(c0, cOut BfvElement) error {
+func (evaluator *Evaluator) Neg(op0, opOut Operand) error {
+
+	c0, cOut := op0.Element(), opOut.Element()
 
 	if c0.Degree() != cOut.Degree() {
 		return errors.New("error : invalid receiver ciphertext (degree not equal to input ciphertext")
@@ -194,13 +197,9 @@ func (evaluator *Evaluator) Neg(c0, cOut BfvElement) error {
 }
 
 // Neg negates c0 and creates a new element to store the result.
-func (evaluator *Evaluator) NegNew(c0 BfvElement) (cOut BfvElement) {
+func (evaluator *Evaluator) NegNew(c0 *bfvElement) (cOut *bfvElement) {
 
-	if c0.Degree() == 0 {
-		cOut = evaluator.bfvcontext.NewPlaintext()
-	} else {
-		cOut = evaluator.bfvcontext.NewCiphertext(c0.Degree())
-	}
+	cOut = evaluator.bfvcontext.NewBfvElement(c0.Degree())
 
 	for i := range c0.Value() {
 		evaluator.bfvcontext.contextQ.Neg(c0.Value()[i], cOut.Value()[i])
@@ -210,7 +209,9 @@ func (evaluator *Evaluator) NegNew(c0 BfvElement) (cOut BfvElement) {
 }
 
 // Reduce applies a modular reduction on c0 and returns the result on cOut.
-func (evaluator *Evaluator) Reduce(c0, cOut BfvElement) error {
+func (evaluator *Evaluator) Reduce(op, opOut Operand) error {
+
+	c0, cOut := op.Element(), opOut.Element()
 
 	if c0.Degree() != cOut.Degree() {
 		return errors.New("error : invalide ciphertext receiver (degree doesn't match c0.Degree")
@@ -224,13 +225,9 @@ func (evaluator *Evaluator) Reduce(c0, cOut BfvElement) error {
 }
 
 // Reduce applies a modular reduction on c0 and creates a new element to store the result.
-func (evaluator *Evaluator) ReduceNew(c0 BfvElement) (cOut BfvElement) {
+func (evaluator *Evaluator) ReduceNew(c0 *bfvElement) (cOut *bfvElement) {
 
-	if c0.Degree() == 0 {
-		cOut = evaluator.bfvcontext.NewPlaintext()
-	} else {
-		cOut = evaluator.bfvcontext.NewCiphertext(c0.Degree())
-	}
+	cOut = evaluator.bfvcontext.NewBfvElement(c0.Degree())
 
 	evaluator.Reduce(c0, cOut)
 
@@ -238,7 +235,7 @@ func (evaluator *Evaluator) ReduceNew(c0 BfvElement) (cOut BfvElement) {
 }
 
 // MulScalar multiplies c0 by an uint64 scalar and returns the result on cOut.
-func (evaluator *Evaluator) MulScalar(c0 BfvElement, scalar uint64, cOut BfvElement) error {
+func (evaluator *Evaluator) MulScalar(c0 *bfvElement, scalar uint64, cOut *bfvElement) error {
 
 	if c0.Degree() != cOut.Degree() {
 		return errors.New("error : invalide ciphertext receiver (degree doesn't match c0.Degree")
@@ -252,13 +249,9 @@ func (evaluator *Evaluator) MulScalar(c0 BfvElement, scalar uint64, cOut BfvElem
 }
 
 // MulScalarNew multiplies c0 by an uint64 scalar and creates a new element to store the result.
-func (evaluator *Evaluator) MulScalarNew(c0 BfvElement, scalar uint64) (cOut BfvElement) {
+func (evaluator *Evaluator) MulScalarNew(c0 *bfvElement, scalar uint64) (cOut *bfvElement) {
 
-	if c0.Degree() == 0 {
-		cOut = evaluator.bfvcontext.NewPlaintext()
-	} else {
-		cOut = evaluator.bfvcontext.NewCiphertext(c0.Degree())
-	}
+	cOut = evaluator.bfvcontext.NewBfvElement(c0.Degree())
 
 	evaluator.MulScalar(c0, scalar, cOut)
 
@@ -266,33 +259,33 @@ func (evaluator *Evaluator) MulScalarNew(c0 BfvElement, scalar uint64) (cOut Bfv
 }
 
 // Mul multiplies c0 by c1 and returns the result on cOut.
-func (evaluator *Evaluator) Mul(c0, c1, cOut BfvElement) (err error) {
+func (evaluator *Evaluator) Mul(op0, op1, opOut Operand) (err error) {
 
-	if cOut.Degree() < c0.Degree()+c1.Degree() {
-		return errors.New("cannot Mul -> cOut (receiver) degree is to small to store the result")
+	el0, el1, elOut := op0.Element(), op1.Element(), opOut.Element()
+
+	if elOut.Degree() < el0.Degree()+el1.Degree() {
+		return errors.New("cannot Mul -> opOut (receiver) degree is to small to store the result")
 	}
 
-	tensorAndRescale(evaluator, c0, c1, cOut)
+	tensorAndRescale(evaluator, el0, el1, elOut)
 
 	return nil
 }
 
 // MulNew multiplies c0 by c1 and creates a new element to store the result.
-func (evaluator *Evaluator) MulNew(c0, c1 BfvElement) (cOut BfvElement) {
+func (evaluator *Evaluator) MulNew(op0, op1 Operand) (opOut *bfvElement) {
 
-	if c0.Degree()+c1.Degree() == 0 {
-		cOut = evaluator.bfvcontext.NewPlaintext()
-	} else {
-		cOut = evaluator.bfvcontext.NewCiphertext(c0.Degree() + c1.Degree())
-	}
+	el0, el1 := op0.Element(), op1.Element()
 
-	tensorAndRescale(evaluator, c0, c1, cOut)
+	opOut = evaluator.bfvcontext.NewBfvElement(el0.Degree() + el1.Degree())
 
-	return cOut
+	tensorAndRescale(evaluator, el0, el1, opOut.Element())
+
+	return opOut
 }
 
 // tensorAndRescales computes (ct0 x ct1) * (t/Q) and stores the result on cOut.
-func tensorAndRescale(evaluator *Evaluator, ct0, ct1, cOut BfvElement) {
+func tensorAndRescale(evaluator *Evaluator, ct0, ct1, cOut *bfvElement) {
 
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them in NTT form
@@ -455,7 +448,7 @@ func relinearize(evaluator *Evaluator, cIn *Ciphertext, evakey *EvaluationKey, c
 	evaluator.bfvcontext.contextQ.NTT(cIn.Value()[1], cOut.Value()[1])
 
 	for deg := uint64(cIn.Degree()); deg > 1; deg-- {
-		switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], cIn.Value()[deg], evakey.evakey[deg-2], cOut)
+		switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], cIn.Value()[deg], evakey.evakey[deg-2], cOut.bfvElement)
 	}
 
 	if len(cOut.Value()) > 2 {
@@ -485,9 +478,9 @@ func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchkey *SwitchingKey,
 	} else {
 		c2 = cIn.Value()[1]
 	}
-	cIn.NTT(evaluator.bfvcontext, cOut)
-	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], c2, switchkey, cOut)
-	cOut.InvNTT(evaluator.bfvcontext, cOut)
+	cIn.NTT(evaluator.bfvcontext, cOut.bfvElement)
+	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], c2, switchkey, cOut.bfvElement)
+	cOut.InvNTT(evaluator.bfvcontext, cOut.bfvElement)
 
 	return nil
 }
@@ -502,9 +495,9 @@ func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchkey *SwitchingK
 
 	cOut = evaluator.bfvcontext.NewCiphertext(1)
 
-	cIn.NTT(evaluator.bfvcontext, cOut)
-	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], cIn.Value()[1], switchkey, cOut)
-	cOut.InvNTT(evaluator.bfvcontext, cOut)
+	cIn.NTT(evaluator.bfvcontext, cOut.bfvElement)
+	switchKeys(evaluator, cOut.Value()[0], cOut.Value()[1], cIn.Value()[1], switchkey, cOut.bfvElement)
+	cOut.InvNTT(evaluator.bfvcontext, cOut.bfvElement)
 
 	return cOut, nil
 }
@@ -515,7 +508,9 @@ func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchkey *SwitchingK
 //
 // If only the power of two rotations are stored, the numbers k and n/2-k will be decomposed in base 2 and the rotation with the least
 // hamming weight will be chosen, then the specific rotation will be computed as a sum of powers of two rotations.
-func (evaluator *Evaluator) RotateColumns(c0 BfvElement, k uint64, evakey *RotationKeys, c1 BfvElement) (err error) {
+func (evaluator *Evaluator) RotateColumns(op Operand, k uint64, evakey *RotationKeys, opOut Operand) (err error) {
+
+	c0, c1 := op.Element(), opOut.Element()
 
 	k &= ((evaluator.bfvcontext.n >> 1) - 1)
 
@@ -576,7 +571,7 @@ func (evaluator *Evaluator) RotateColumns(c0 BfvElement, k uint64, evakey *Rotat
 
 				context.InvNTT(evaluator.polypool[1], evaluator.polypool[1])
 
-				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_col_L[k], c1.(*Ciphertext))
+				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_col_L[k], c1)
 
 			} else {
 
@@ -586,7 +581,7 @@ func (evaluator *Evaluator) RotateColumns(c0 BfvElement, k uint64, evakey *Rotat
 				context.NTT(evaluator.polypool[0], c1.Value()[0])
 				context.NTT(evaluator.polypool[1], c1.Value()[1])
 
-				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_col_L[k], c1.(*Ciphertext))
+				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_col_L[k], c1)
 
 				context.InvNTT(c1.Value()[0], c1.Value()[0])
 				context.InvNTT(c1.Value()[1], c1.Value()[1])
@@ -625,17 +620,17 @@ func (evaluator *Evaluator) RotateColumns(c0 BfvElement, k uint64, evakey *Rotat
 }
 
 // rotateColumnsLPow2 applies the Galois Automorphism on the element, rotating the element by k positions to the left.
-func rotateColumnsLPow2(evaluator *Evaluator, c0 BfvElement, k uint64, evakey *RotationKeys, c1 BfvElement) {
+func rotateColumnsLPow2(evaluator *Evaluator, c0 *bfvElement, k uint64, evakey *RotationKeys, c1 *bfvElement) {
 	rotateColumnsPow2(evaluator, c0, evaluator.bfvcontext.gen, k, evakey.evakey_rot_col_L, c1)
 }
 
 // rotateColumnsRPow2 applies the Galois Endomorphism on the element, rotating the element by k positions to the right.
-func rotateColumnsRPow2(evaluator *Evaluator, c0 BfvElement, k uint64, evakey *RotationKeys, c1 BfvElement) {
+func rotateColumnsRPow2(evaluator *Evaluator, c0 *bfvElement, k uint64, evakey *RotationKeys, c1 *bfvElement) {
 	rotateColumnsPow2(evaluator, c0, evaluator.bfvcontext.genInv, k, evakey.evakey_rot_col_R, c1)
 }
 
 // rotateColumnsPow2 rotates c0 by k position (left or right depending on the input), decomposing k as a sum of power of 2 rotations, and returns the result on c1.
-func rotateColumnsPow2(evaluator *Evaluator, c0 BfvElement, generator, k uint64, evakey_rot_col map[uint64]*SwitchingKey, c1 BfvElement) {
+func rotateColumnsPow2(evaluator *Evaluator, c0 *bfvElement, generator, k uint64, evakey_rot_col map[uint64]*SwitchingKey, c1 *bfvElement) {
 
 	var mask, evakey_index uint64
 
@@ -672,7 +667,7 @@ func rotateColumnsPow2(evaluator *Evaluator, c0 BfvElement, generator, k uint64,
 				context.Copy(evaluator.polypool[1], c1.Value()[1])
 				context.InvNTT(evaluator.polypool[1], evaluator.polypool[2])
 
-				switchKeys(evaluator, evaluator.polypool[0], evaluator.polypool[1], evaluator.polypool[2], evakey_rot_col[evakey_index], c1.(*Ciphertext))
+				switchKeys(evaluator, evaluator.polypool[0], evaluator.polypool[1], evaluator.polypool[2], evakey_rot_col[evakey_index], c1)
 			}
 
 		}
@@ -692,7 +687,9 @@ func rotateColumnsPow2(evaluator *Evaluator, c0 BfvElement, generator, k uint64,
 }
 
 // RotateRows swaps the rows of c0 and returns the result on c1.
-func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 BfvElement) error {
+func (evaluator *Evaluator) RotateRows(op Operand, evakey *RotationKeys, opOut Operand) error {
+
+	c0, c1 := op.Element(), opOut.Element()
 
 	if c1.Degree() != c0.Degree() {
 		return errors.New("cannot rotate -> receiver degree doesn't match input degree ")
@@ -746,7 +743,7 @@ func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 B
 
 				context.InvNTT(c1.Value()[1], evaluator.polypool[1])
 
-				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_row, c1.(*Ciphertext))
+				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_row, c1)
 
 			} else {
 
@@ -758,7 +755,7 @@ func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 B
 
 				context.InvNTT(evaluator.polypool[1], evaluator.polypool[1])
 
-				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_row, c1.(*Ciphertext))
+				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_row, c1)
 			}
 
 		} else {
@@ -773,7 +770,7 @@ func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 B
 				context.NTT(c1.Value()[0], c1.Value()[0])
 				context.NTT(c1.Value()[1], c1.Value()[1])
 
-				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_row, c1.(*Ciphertext))
+				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_row, c1)
 
 				context.InvNTT(c1.Value()[0], c1.Value()[0])
 				context.InvNTT(c1.Value()[1], c1.Value()[1])
@@ -786,7 +783,7 @@ func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 B
 				context.NTT(evaluator.polypool[0], c1.Value()[0])
 				context.NTT(evaluator.polypool[1], c1.Value()[1])
 
-				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_row, c1.(*Ciphertext))
+				switchKeys(evaluator, c1.Value()[0], c1.Value()[1], evaluator.polypool[1], evakey.evakey_rot_row, c1)
 
 				context.InvNTT(c1.Value()[0], c1.Value()[0])
 				context.InvNTT(c1.Value()[1], c1.Value()[1])
@@ -799,7 +796,7 @@ func (evaluator *Evaluator) RotateRows(c0 BfvElement, evakey *RotationKeys, c1 B
 
 // InnerSum computs the inner sum of c0 and returns the result on c1. It requires a rotation key storing all the left power of two rotations.
 // The resulting vector will be of the form [sum, sum, .., sum, sum ].
-func (evaluator *Evaluator) InnerSum(c0 *Ciphertext, evakey *RotationKeys, c1 *Ciphertext) error {
+func (evaluator *Evaluator) InnerSum(c0 *bfvElement, evakey *RotationKeys, c1 *bfvElement) error {
 	if c0.Degree() != 1 {
 		return errors.New("error : ciphertext must be of degree 1 to allow Galois Auotomorphism (required for inner sum)")
 	}
@@ -817,23 +814,23 @@ func (evaluator *Evaluator) InnerSum(c0 *Ciphertext, evakey *RotationKeys, c1 *C
 	}
 
 	for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
-		if err := evaluator.RotateColumns(c1, i, evakey, cTmp); err != nil {
+		if err := evaluator.RotateColumns(c1, i, evakey, cTmp.bfvElement); err != nil {
 			return err
 		}
-		evaluator.Add(cTmp, c1, c1)
+		evaluator.Add(cTmp.bfvElement, c1, c1)
 	}
 
-	if err := evaluator.RotateRows(c1, evakey, cTmp); err != nil {
+	if err := evaluator.RotateRows(c1, evakey, cTmp.bfvElement); err != nil {
 		return err
 	}
-	evaluator.Add(c1, cTmp, c1)
+	evaluator.Add(c1, cTmp.bfvElement, c1)
 
 	return nil
 
 }
 
 // switchKeys compute cOut = [c0 + c2*evakey[0], c1 + c2*evakey[1]].
-func switchKeys(evaluator *Evaluator, c0, c1, c2 *ring.Poly, evakey *SwitchingKey, cOut *Ciphertext) {
+func switchKeys(evaluator *Evaluator, c0, c1, c2 *ring.Poly, evakey *SwitchingKey, cOut *bfvElement) {
 
 	var mask, reduce, bitLog uint64
 

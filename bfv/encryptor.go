@@ -42,7 +42,7 @@ func (encryptor *Encryptor) EncryptFromPkNew(plaintext *Plaintext) (ciphertext *
 		return nil, errors.New("cannot encrypt -> public-key has not been set")
 	}
 
-	if uint64(plaintext.value[0].GetDegree()) != encryptor.bfvcontext.n {
+	if uint64(plaintext.value.GetDegree()) != encryptor.bfvcontext.n {
 		return nil, errors.New("cannot encrypt -> plaintext ring degree doesn't match encryptor bfvcontext ring degree")
 	}
 
@@ -63,7 +63,7 @@ func (encryptor *Encryptor) EncryptFromPk(plaintext *Plaintext, ciphertext *Ciph
 		return errors.New("cannot encrypt -> public-key has not been set")
 	}
 
-	if uint64(plaintext.value[0].GetDegree()) != encryptor.bfvcontext.n {
+	if uint64(plaintext.value.GetDegree()) != encryptor.bfvcontext.n {
 		return errors.New("cannot encrypt -> plaintext ring degree doesn't match encryptor bfvcontext ring degree")
 	}
 
@@ -87,7 +87,7 @@ func (encryptor *Encryptor) EncryptFromSkNew(plaintext *Plaintext) (ciphertext *
 		return nil, errors.New("cannot encrypt -> secret-key has not been set")
 	}
 
-	if uint64(plaintext.value[0].GetDegree()) != encryptor.bfvcontext.n {
+	if uint64(plaintext.value.GetDegree()) != encryptor.bfvcontext.n {
 		return nil, errors.New("cannot encrypt -> plaintext ring degree doesn't match encryptor bfvcontext ring degree")
 	}
 
@@ -109,7 +109,7 @@ func (encryptor *Encryptor) EncryptFromSk(plaintext *Plaintext, ciphertext *Ciph
 		return errors.New("cannot encrypt -> secret-key has not been set")
 	}
 
-	if uint64(plaintext.value[0].GetDegree()) != encryptor.bfvcontext.n {
+	if uint64(plaintext.value.GetDegree()) != encryptor.bfvcontext.n {
 		return errors.New("cannot encrypt -> plaintext ring degree doesn't match encryptor bfvcontext ring degree")
 	}
 
@@ -147,7 +147,7 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
-	context.Add(ciphertext.value[0], plaintext.value[0], ciphertext.value[0])
+	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
 	encryptor.polypool.Zero()
 }
@@ -168,7 +168,7 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	context.Add(ciphertext.value[0], encryptor.polypool, ciphertext.value[0])
 
 	// ct = [-a*s + m + e , a]
-	context.Add(ciphertext.value[0], plaintext.value[0], ciphertext.value[0])
+	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
 	encryptor.polypool.Zero()
 }

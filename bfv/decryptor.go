@@ -45,23 +45,23 @@ func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 // Decrypt decrypts the input ciphertext and returns the result on the provided receiver plaintext.
 func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) (err error) {
 
-	decryptor.bfvcontext.contextQ.NTT(ciphertext.value[ciphertext.Degree()], plaintext.value[0])
+	decryptor.bfvcontext.contextQ.NTT(ciphertext.value[ciphertext.Degree()], plaintext.value)
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
-		decryptor.bfvcontext.contextQ.MulCoeffsMontgomery(plaintext.value[0], decryptor.sk.sk, plaintext.value[0])
+		decryptor.bfvcontext.contextQ.MulCoeffsMontgomery(plaintext.value, decryptor.sk.sk, plaintext.value)
 		decryptor.bfvcontext.contextQ.NTT(ciphertext.value[i-1], decryptor.polypool)
-		decryptor.bfvcontext.contextQ.Add(plaintext.value[0], decryptor.polypool, plaintext.value[0])
+		decryptor.bfvcontext.contextQ.Add(plaintext.value, decryptor.polypool, plaintext.value)
 
 		if i&7 == 7 {
-			decryptor.bfvcontext.contextQ.Reduce(plaintext.value[0], plaintext.value[0])
+			decryptor.bfvcontext.contextQ.Reduce(plaintext.value, plaintext.value)
 		}
 	}
 
 	if (ciphertext.Degree())&7 != 7 {
-		decryptor.bfvcontext.contextQ.Reduce(plaintext.value[0], plaintext.value[0])
+		decryptor.bfvcontext.contextQ.Reduce(plaintext.value, plaintext.value)
 	}
 
-	decryptor.bfvcontext.contextQ.InvNTT(plaintext.value[0], plaintext.value[0])
+	decryptor.bfvcontext.contextQ.InvNTT(plaintext.value, plaintext.value)
 
 	return nil
 }

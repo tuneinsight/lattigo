@@ -379,26 +379,24 @@ func newTestVectors(bfvTest *BFVTESTPARAMS) (coeffs *ring.Poly, plaintext *Plain
 	return coeffs, plaintext, ciphertext, nil
 }
 
-func verifyTestVectors(bfvTest *BFVTESTPARAMS, coeffs *ring.Poly, element BfvElement, t *testing.T) {
+func verifyTestVectors(bfvTest *BFVTESTPARAMS, coeffs *ring.Poly, element Operand, t *testing.T) {
 
 	var coeffsTest []uint64
 	var err error
 
-	switch element.(type) {
-	case *Ciphertext:
+	el := element.Element()
 
+	if el.Degree() == 0 {
+		if coeffsTest, err = bfvTest.batchencoder.DecodeUint(el.Plaintext()); err != nil {
+			log.Fatal(err)
+		}
+	} else {
 		var plaintext *Plaintext
-		if plaintext, err = bfvTest.decryptor.DecryptNew(element.(*Ciphertext)); err != nil {
+		if plaintext, err = bfvTest.decryptor.DecryptNew(el.Ciphertext()); err != nil {
 			log.Fatal(err)
 		}
 
 		if coeffsTest, err = bfvTest.batchencoder.DecodeUint(plaintext); err != nil {
-			log.Fatal(err)
-		}
-
-	case *Plaintext:
-
-		if coeffsTest, err = bfvTest.batchencoder.DecodeUint(element.(*Plaintext)); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -454,7 +452,7 @@ func test_HomomorphicAddition(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
 
-	var ciphertextTest BfvElement
+	var ciphertextTest *bfvElement
 	var err error
 
 	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/Add", bfvTest.bfvcontext.N(),
@@ -551,7 +549,7 @@ func test_AddWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
 
-	var ciphertextTest BfvElement
+	var ciphertextTest *bfvElement
 	var err error
 
 	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/AddWithPlaintext", bfvTest.bfvcontext.N(),
@@ -637,7 +635,7 @@ func test_HomomorphicSubtraction(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
 
-	var ciphertextTest BfvElement
+	var ciphertextTest *bfvElement
 	var err error
 
 	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/Sub", bfvTest.bfvcontext.N(),
@@ -734,7 +732,7 @@ func test_SubWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
 
-	var ciphertextTest BfvElement
+	var ciphertextTest *bfvElement
 	var err error
 
 	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/SubWithPlaintext", bfvTest.bfvcontext.N(),
@@ -948,10 +946,10 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 			coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
-			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).(*Ciphertext)
+			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).Ciphertext()
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
-			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).(*Ciphertext)
+			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).Ciphertext()
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
 			if err := evaluator.Relinearize(ciphertext0, rlk, ciphertext0); err != nil {
@@ -977,10 +975,10 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 			coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
-			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).(*Ciphertext)
+			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).Ciphertext()
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
-			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).(*Ciphertext)
+			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).Ciphertext()
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
 			ciphertext0, err := evaluator.RelinearizeNew(ciphertext0, rlk)

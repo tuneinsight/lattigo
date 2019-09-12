@@ -848,7 +848,7 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
-		receiverCiphertext := evaluator.MulNew(ciphertext0, ciphertext1)
+		receiverCiphertext, _ := evaluator.MulNew(ciphertext0, ciphertext1)
 
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
@@ -865,8 +865,8 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 
-		receiverCiphertext := evaluator.MulNew(ciphertext0, ciphertext0)
-		receiverCiphertext = evaluator.MulNew(receiverCiphertext, receiverCiphertext)
+		receiverCiphertext, _ := evaluator.MulNew(ciphertext0, ciphertext0)
+		receiverCiphertext, _ = evaluator.MulNew(receiverCiphertext, receiverCiphertext)
 
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs0, coeffs0)
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs0, coeffs0)
@@ -914,7 +914,7 @@ func test_MulWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
 
-		receiverCiphertext := evaluator.MulNew(ciphertext0, plaintext1)
+		receiverCiphertext, _ := evaluator.MulNew(ciphertext0, plaintext1)
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
 		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
@@ -946,10 +946,12 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 			coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
-			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).Ciphertext()
+			res, _ := evaluator.MulNew(ciphertext0, ciphertext1)
+			ciphertext0 = res.Ciphertext()
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
-			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).Ciphertext()
+			res, _ = evaluator.MulNew(ciphertext0, ciphertext1)
+			ciphertext0 = res.Ciphertext()
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
 			if err := evaluator.Relinearize(ciphertext0, rlk, ciphertext0); err != nil {
@@ -975,10 +977,12 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 			coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
-			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).Ciphertext()
+			res, _ := evaluator.MulNew(ciphertext0, ciphertext1)
+			ciphertext0 = res.Ciphertext()
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
-			ciphertext0 = evaluator.MulNew(ciphertext0, ciphertext1).Ciphertext()
+			res, _ = evaluator.MulNew(ciphertext0, ciphertext1)
+			ciphertext0 = res.Ciphertext()
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
 			ciphertext0, err := evaluator.RelinearizeNew(ciphertext0, rlk)

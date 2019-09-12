@@ -7,6 +7,7 @@ import (
 
 type Operand interface {
 	Element() *bfvElement
+	Degree() uint64
 }
 
 // bfvElement is a common struct between plaintexts and ciphertexts. It stores a value

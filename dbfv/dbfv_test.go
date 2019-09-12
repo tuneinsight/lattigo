@@ -114,7 +114,8 @@ func Test_DBFVScheme(t *testing.T) {
 
 			coeffsMul := contextT.NewPoly()
 			for i := 0; i < 1; i++ {
-				ciphertext = evaluator.MulNew(ciphertext, ciphertext).Ciphertext()
+				res, _ := evaluator.MulNew(ciphertext, ciphertext)
+				ciphertext = res.Ciphertext()
 				contextT.MulCoeffs(coeffsWant, coeffsWant, coeffsMul)
 			}
 

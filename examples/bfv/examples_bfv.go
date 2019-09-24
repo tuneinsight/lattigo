@@ -124,7 +124,8 @@ func ObliviousRiding() {
 		}
 	}
 
-	RiderCiphertext = evaluator.MulNew(RiderCiphertext, RiderCiphertext).(*bfv.Ciphertext)
+	res, _ := evaluator.MulNew(RiderCiphertext, RiderCiphertext)
+	RiderCiphertext = res.Ciphertext()
 
 	RiderCiphertext, err = evaluator.RelinearizeNew(RiderCiphertext, evalKey)
 	if err != nil {

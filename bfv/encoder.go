@@ -59,16 +59,16 @@ func (batchencoder *BatchEncoder) EncodeUint(coeffs []uint64, plaintext *Plainte
 		return errors.New("error : invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
-	if len(plaintext.value[0].Coeffs[0]) != len(batchencoder.indexMatrix) {
+	if len(plaintext.value.Coeffs[0]) != len(batchencoder.indexMatrix) {
 		return errors.New("error : invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
-		plaintext.value[0].Coeffs[0][batchencoder.indexMatrix[i]] = coeffs[i]
+		plaintext.value.Coeffs[0][batchencoder.indexMatrix[i]] = coeffs[i]
 	}
 
 	for i := len(coeffs); i < len(batchencoder.indexMatrix); i++ {
-		plaintext.value[0].Coeffs[0][batchencoder.indexMatrix[i]] = 0
+		plaintext.value.Coeffs[0][batchencoder.indexMatrix[i]] = 0
 	}
 
 	if err := plaintext.EMB(batchencoder.bfvcontext); err != nil {
@@ -88,21 +88,21 @@ func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext
 		return errors.New("error : invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
-	if len(plaintext.value[0].Coeffs[0]) != len(batchencoder.indexMatrix) {
+	if len(plaintext.value.Coeffs[0]) != len(batchencoder.indexMatrix) {
 		return errors.New("error : invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
 
 		if coeffs[i] < 0 {
-			plaintext.value[0].Coeffs[0][batchencoder.indexMatrix[i]] = uint64(int64(batchencoder.bfvcontext.t) + coeffs[i])
+			plaintext.value.Coeffs[0][batchencoder.indexMatrix[i]] = uint64(int64(batchencoder.bfvcontext.t) + coeffs[i])
 		} else {
-			plaintext.value[0].Coeffs[0][batchencoder.indexMatrix[i]] = uint64(coeffs[i])
+			plaintext.value.Coeffs[0][batchencoder.indexMatrix[i]] = uint64(coeffs[i])
 		}
 	}
 
 	for i := len(coeffs); i < len(batchencoder.indexMatrix); i++ {
-		plaintext.value[0].Coeffs[0][batchencoder.indexMatrix[i]] = 0
+		plaintext.value.Coeffs[0][batchencoder.indexMatrix[i]] = 0
 	}
 
 	if err := plaintext.EMB(batchencoder.bfvcontext); err != nil {
@@ -117,11 +117,11 @@ func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext
 // DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.
 func (batchencoder *BatchEncoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64, err error) {
 
-	if len(plaintext.value[0].Coeffs[0]) != len(batchencoder.indexMatrix) {
+	if len(plaintext.value.Coeffs[0]) != len(batchencoder.indexMatrix) {
 		return nil, errors.New("error : invalid plaintext to decode (number of coefficients does not match the context of the encoder")
 	}
 
-	batchencoder.simplescaler.Scale(plaintext.value[0], batchencoder.polypool)
+	batchencoder.simplescaler.Scale(plaintext.value, batchencoder.polypool)
 
 	batchencoder.bfvcontext.contextT.NTT(batchencoder.polypool, batchencoder.polypool)
 
@@ -141,11 +141,11 @@ func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) ([]int64, erro
 
 	var value int64
 
-	if len(plaintext.value[0].Coeffs[0]) != len(batchencoder.indexMatrix) {
+	if len(plaintext.value.Coeffs[0]) != len(batchencoder.indexMatrix) {
 		return nil, errors.New("error : invalid plaintext to decode (number of coefficients does not match the context of the encoder")
 	}
 
-	batchencoder.simplescaler.Scale(plaintext.value[0], batchencoder.polypool)
+	batchencoder.simplescaler.Scale(plaintext.value, batchencoder.polypool)
 
 	batchencoder.bfvcontext.contextT.NTT(batchencoder.polypool, batchencoder.polypool)
 
@@ -188,14 +188,14 @@ func (bfvcontext *BfvContext) NewIntEncoder(base int64) *IntEncoder {
 
 // Encode encodes the input value on the input plaintext, by decomposing the value with the base w and putting each power of the base w in a coefficient.
 func (encoder *IntEncoder) Encode(msg int64, plaintext *Plaintext) {
-	plaintext.value[0].Coeffs[0] = intEncode(msg, encoder.base, int64(encoder.bfvcontext.t), plaintext.value[0].Coeffs[0])
+	plaintext.value.Coeffs[0] = intEncode(msg, encoder.base, int64(encoder.bfvcontext.t), plaintext.value.Coeffs[0])
 	plaintext.Lift(encoder.bfvcontext)
 }
 
 // Decode reconstructs a value from the input plaintext coefficients, treating each of its coefficients as a power of the base w.
 func (encoder *IntEncoder) Decode(plaintext *Plaintext) int64 {
 	tmp := encoder.bfvcontext.contextQ.NewPoly()
-	encoder.simplescaler.Scale(plaintext.value[0], tmp)
+	encoder.simplescaler.Scale(plaintext.value, tmp)
 	return intDecode(tmp.Coeffs[0], encoder.base, int64(encoder.bfvcontext.t))
 }
 

@@ -44,25 +44,19 @@ func equalslice(a, b []uint64) bool {
 }
 
 // min returns the minimum value of the input slice of uint64 values.
-func min(values []uint64) (r uint64) {
-	r = values[0]
-	for _, i := range values[1:] {
-		if i < r {
-			r = i
-		}
+func min(a, b uint64) (r uint64) {
+	if a <= b {
+		return a
 	}
-	return
+	return b
 }
 
 // max returns the maximum value of the input slice of uint64 values.
-func max(values []uint64) (r uint64) {
-	r = values[0]
-	for _, i := range values[1:] {
-		if i > r {
-			r = i
-		}
+func max(a, b uint64) (r uint64) {
+	if a >= b {
+		return a
 	}
-	return
+	return b
 }
 
 // bitReverse64 returns the bit-reverse value of the input value, within a context of 2^bitLen.

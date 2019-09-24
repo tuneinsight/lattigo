@@ -114,7 +114,8 @@ func Test_DBFVScheme(t *testing.T) {
 
 			coeffsMul := contextT.NewPoly()
 			for i := 0; i < 1; i++ {
-				ciphertext = evaluator.MulNew(ciphertext, ciphertext).(*bfv.Ciphertext)
+				res, _ := evaluator.MulNew(ciphertext, ciphertext)
+				ciphertext = res.Ciphertext()
 				contextT.MulCoeffs(coeffsWant, coeffsWant, coeffsMul)
 			}
 
@@ -328,7 +329,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 				ciphertexts := make([]*bfv.Ciphertext, parties)
 				for i := 0; i < parties; i++ {
-					ciphertexts[i] = ciphertext.CopyNew().(*bfv.Ciphertext)
+					ciphertexts[i] = ciphertext.CopyNew().Ciphertext()
 				}
 
 				// Each party creates its CKS instance with deltaSk = si-si'
@@ -374,7 +375,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 				ciphertexts := make([]*bfv.Ciphertext, parties)
 				for i := 0; i < parties; i++ {
-					ciphertexts[i] = ciphertext.CopyNew().(*bfv.Ciphertext)
+					ciphertexts[i] = ciphertext.CopyNew().Ciphertext()
 				}
 
 				pcks := make([]*PCKS, parties)

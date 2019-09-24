@@ -144,7 +144,7 @@ func (ekg *EkgProtocolNaive) Aggregate(sk *ring.Poly, pk [2]*ring.Poly, samples 
 	return
 }
 
-// Finalize is the second part of the second and last round of the naive EKG protocol. Uppon receiving the j-1 elements,
+// GetAggregatedKey is the second part of the second and last round of the naive EKG protocol. Uppon receiving the j-1 elements,
 // each party computes :
 //
 // [ sum(cpk[0] * (u*s_i) + (s*s_i) * w + (s_i*e_0) + v_i*cpk[0] + e_2i), sum(cpk[1]*u*s_i + (s_i*e_1) + cpk[1] * v_i + e_3i)]

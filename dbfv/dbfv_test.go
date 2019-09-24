@@ -257,19 +257,19 @@ func Test_DBFVScheme(t *testing.T) {
 				})
 			}
 
-			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/CKG", context.N, len(context.Modulus), 60), func(t *testing.T) {
+			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/ckgProtocolState", context.N, len(context.Modulus), 60), func(t *testing.T) {
 
 				crp := make([]*ring.Poly, parties)
 				for i := 0; i < parties; i++ {
 					crp[i] = crpGenerators[i].Clock()
 				}
 
-				ckg := make([]*CKG, parties)
+				ckg := make([]*ckgProtocolState, parties)
 				for i := 0; i < parties; i++ {
-					ckg[i] = NewCKG(context, crp[i])
+					ckg[i] = NewCKGProtocol(bfvContext, crp[i])
 				}
 
-				// Each party creates a new CKG instance
+				// Each party creates a new ckgProtocolState instance
 				shares := make([]*ring.Poly, parties)
 				for i := 0; i < parties; i++ {
 					ckg[i].GenShare(sk0_shards[i].Get())
@@ -279,7 +279,7 @@ func Test_DBFVScheme(t *testing.T) {
 				pkTest := make([]*bfv.PublicKey, parties)
 				for i := 0; i < parties; i++ {
 					ckg[i].AggregateShares(shares)
-					pkTest[i], err = ckg[i].Finalize()
+					pkTest[i] = ckg[i].GetAggregatedKey()
 					if err != nil {
 						log.Fatal(err)
 					}

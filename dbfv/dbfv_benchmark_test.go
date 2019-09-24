@@ -149,10 +149,10 @@ func Benchmark_DBFVScheme(b *testing.B) {
 			}
 		}
 
-		//CKG
+		//ckgProtocolState
 		for _, parties := range nParties {
 
-			ckgInstance := NewCKG(context, crpGenerator.Clock())
+			ckgInstance := NewCKGProtocol(bfvContext, crpGenerator.Clock())
 			ckgInstance.GenShare(sk0.Get())
 
 			shares := make([]*ring.Poly, parties)
@@ -171,7 +171,7 @@ func Benchmark_DBFVScheme(b *testing.B) {
 			b.Run(fmt.Sprintf("params=%d/parties=%d/CKG_Round1", params.N, parties), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ckgInstance.AggregateShares(shares)
-					//ckgInstance.Finalize()
+					//ckgInstance.GetAggregatedKey()
 				}
 			})
 		}

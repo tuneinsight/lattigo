@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/lca1/lattigo/ckks"
+	"github.com/ldsec/lattigo/ckks"
 	"log"
 	"math"
 	"math/cmplx"

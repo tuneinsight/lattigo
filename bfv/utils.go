@@ -3,7 +3,7 @@ package bfv
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ring"
 	"golang.org/x/crypto/blake2b"
 	"math/bits"
 )

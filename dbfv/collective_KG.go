@@ -1,8 +1,8 @@
 package dbfv
 
 import (
-	"github.com/lca1/lattigo/bfv"
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/ring"
 )
 
 type CKG struct {

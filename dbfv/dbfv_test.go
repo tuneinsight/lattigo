@@ -255,41 +255,39 @@ func Test_DBFVScheme(t *testing.T) {
 
 			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/CKG", context.N, len(context.Modulus), 60), func(t *testing.T) {
 
-				crp := make([]*ring.Poly, parties)
-				for i := 0; i < parties; i++ {
-					crp[i] = crpGenerators[i].Clock()
+				crp := crpGenerators[0].Clock()
+
+				type Party struct {
+					*ckgProtocolState
+					s *ring.Poly
+					s1 ckgShare
 				}
 
-				ckg := make([]*ckgProtocolState, parties)
+				ckgParties := make([]*Party, parties)
 				for i := 0; i < parties; i++ {
-					ckg[i] = NewCKGProtocol(bfvContext, crp[i])
+					p := new(Party)
+					p.ckgProtocolState = NewCKGProtocol(bfvContext)
+					p.s = sk0_shards[i].Get()
+					p.s1 = p.AllocateShares()
+					ckgParties[i] = p
 				}
+				P0 := ckgParties[0]
 
 				// Each party creates a new ckgProtocolState instance
-				shares := make([]*ring.Poly, parties)
-				for i := 0; i < parties; i++ {
-					ckg[i].GenShare(sk0_shards[i].Get())
-					shares[i] = ckg[i].GetShare()
-				}
-
-				pkTest := make([]*bfv.PublicKey, parties)
-				for i := 0; i < parties; i++ {
-					ckg[i].AggregateShares(shares)
-					pkTest[i] = ckg[i].GetAggregatedKey()
-					if err != nil {
-						log.Fatal(err)
+				for i, p := range ckgParties {
+					p.GenShare(p.s, crp, p.s1)
+					if i > 0 {
+						P0.AggregateShare(p.s1, P0.s1, P0.s1)
 					}
 				}
 
-				// Verifies that all parties have the same share collective public key
-				for i := 1; i < parties; i++ {
-					if context.Equal(pkTest[0].Get()[0], pkTest[i].Get()[0]) != true || bfvContext.ContextQ().Equal(pkTest[0].Get()[1], pkTest[i].Get()[1]) != true {
-						t.Errorf("error : ckg protocol, cpk establishement")
-					}
-				}
+				pk := &bfv.PublicKey{}
+				P0.GetAggregatedKey(P0.s1, crp, pk)
+
+
 
 				// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-				encryptorTest, err := bfvContext.NewEncryptor(pkTest[0], nil)
+				encryptorTest, err := bfvContext.NewEncryptor(pk, nil)
 				if err != nil {
 					log.Fatal(err)
 				}

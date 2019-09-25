@@ -2,8 +2,8 @@
 package dbfv
 
 import (
-	"github.com/lca1/lattigo/bfv"
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/ring"
 )
 
 // CKG is the structure storing the parameters for the collective key generation protocol.

@@ -3,7 +3,7 @@ package ckks
 import (
 	"errors"
 	"fmt"
-	"github.com/lca1/lattigo/utils"
+	"github.com/ldsec/lattigo/utils"
 	"math"
 )
 

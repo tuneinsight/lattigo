@@ -2,7 +2,7 @@ package bfv
 
 import (
 	"errors"
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ring"
 )
 
 // Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.

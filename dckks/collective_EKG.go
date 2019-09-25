@@ -1,7 +1,7 @@
 package dckks
 
 import (
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ring"
 	"math"
 )
 

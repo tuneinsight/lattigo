@@ -6,7 +6,7 @@
 
 _The Lattigo library unleashes the potential of lattice-based cryptography in secure multiparty computation for modern software stacks._
 
-[![Build Status](https://travis-ci.com/lca1/lattigo.svg?token=kz1BaknyyJcURGZurf6m&branch=master)](https://travis-ci.com/lca1/lattigo)
+[![Build Status](https://travis-ci.com/ldsec/lattigo.svg?token=kz1BaknyyJcURGZurf6m&branch=master)](https://travis-ci.com/ldsec/lattigo)
 
 Lattigo is a Go package implementing lattice-based cryptographic primitives.
 The library features:
@@ -69,10 +69,10 @@ Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
 	    title = {Lattigo 1.0},
-	    howpublished = {Online: \url{http://github.com/lca1/lattigo}},
+	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
 	    month = aug,
 	    year = 2019,
-	    note = {EPFL-LCA1}
+	    note = {EPFL-LDS}
     }
     
 

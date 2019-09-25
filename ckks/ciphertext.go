@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ring"
 )
 
 // Ciphertext is a BigPoly of degree > 0.

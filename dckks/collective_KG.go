@@ -2,8 +2,8 @@
 package dckks
 
 import (
-	"github.com/lca1/lattigo/ckks"
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ckks"
+	"github.com/ldsec/lattigo/ring"
 )
 
 // CKG is the structure storing the parameters for the collective key generation protocol.

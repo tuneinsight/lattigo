@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ring"
 	"golang.org/x/crypto/blake2b"
 	"math"
 	"math/big"

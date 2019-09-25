@@ -6,8 +6,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/lca1/lattigo/ckks"
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ckks"
+	"github.com/ldsec/lattigo/ring"
 )
 
 type benchParams struct {

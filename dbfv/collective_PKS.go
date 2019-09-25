@@ -37,7 +37,7 @@ func NewPCKS(skInput *ring.Poly, pkOutput [2]*ring.Poly, context *ring.Context, 
 	return pcks
 }
 
-// KeySwitch is the first part of the unique round of the PCKS protocol. Each party computes the following :
+// GenShareRound3 is the first part of the unique round of the PCKS protocol. Each party computes the following :
 //
 // [s_i * ctx[0] + u_i * pk[0] + e_0i, u_i * pk[1] + e_1i]
 //
@@ -77,7 +77,7 @@ func (pcks *PCKS) KeySwitch(ct1 *ring.Poly) (h [2]*ring.Poly) {
 	return h
 }
 
-// Aggregate is the second part of the first and unique round of the PCKS protocol. Each party uppon receiving the j-1 elements from the
+// GenShareRoundTwo is the second part of the first and unique round of the PCKS protocol. Each party uppon receiving the j-1 elements from the
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]

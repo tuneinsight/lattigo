@@ -248,6 +248,11 @@ func (bfvContext *BfvContext) ContextQP() *ring.Context {
 }
 
 // GaussianSampler returns the context's gaussian sampler instance
-func (BfvContext *BfvContext) GaussianSampler() *ring.KYSampler {
-	return BfvContext.gaussianSampler
+func (bfvContext *BfvContext) GaussianSampler() *ring.KYSampler {
+	return bfvContext.gaussianSampler
+}
+
+// TernarySampler returns the context's ternary sampler instance
+func (bfvcontext *BfvContext) TernarySampler() *ring.TernarySampler {
+	return bfvcontext.ternarySampler
 }

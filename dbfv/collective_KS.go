@@ -30,7 +30,7 @@ func NewCKS(skInput, skOutput *ring.Poly, context *ring.Context, sigmaSmudging f
 	return cks
 }
 
-// KeySwitch is the first and unique round of the CKS protocol. Each party holding a ciphertext ctx encrypted under a collective publick-key musth
+// GenShareRound3 is the first and unique round of the CKS protocol. Each party holding a ciphertext ctx encrypted under a collective publick-key musth
 // compute the following :
 //
 // [(skInput_i - skOutput_i) * ctx[0] + e_i]
@@ -48,7 +48,7 @@ func (cks *CKS) KeySwitch(c1 *ring.Poly) *ring.Poly {
 	return h
 }
 
-// Aggregate is the second part of the unique round of the CKS protocol. Uppon receiving the j-1 elements each party computes :
+// GenShareRoundTwo is the second part of the unique round of the CKS protocol. Uppon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
 func (cks *CKS) Aggregate(c0 *ring.Poly, h []*ring.Poly) {

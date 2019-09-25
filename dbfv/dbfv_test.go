@@ -177,28 +177,24 @@ func Test_DBFVScheme(t *testing.T) {
 					bitLog := uint64((60 + (60 % bitDecomp)) / bitDecomp)
 
 					// Each party instantiate an ekg naive protocole
-					ekg := make([]*EkgProtocol, parties)
+					ekg := make([]*rkgProtocolState, parties)
 					ephemeralKeys := make([]*ring.Poly, parties)
-					crp := make([][][]*ring.Poly, parties)
 
-					for i := 0; i < parties; i++ {
-
-						ekg[i] = NewEkgProtocol(context, bitDecomp)
-						ephemeralKeys[i], _ = ekg[i].NewEphemeralKey(1.0 / 3)
-						crp[i] = make([][]*ring.Poly, len(context.Modulus))
-
-						for j := 0; j < len(context.Modulus); j++ {
-							crp[i][j] = make([]*ring.Poly, bitLog)
-							for u := uint64(0); u < bitLog; u++ {
-								crp[i][j][u] = crpGenerators[i].Clock()
-							}
+					crp := make([][]*ring.Poly, len(context.Modulus))
+					for j := 0; j < len(context.Modulus); j++ {
+						crp[j] = make([]*ring.Poly, bitLog)
+						for u := uint64(0); u < bitLog; u++ {
+							crp[j][u] = crpGenerators[0].Clock()
 						}
 					}
 
-					evk := test_EKG_Protocol(parties, ekg, sk0_shards, ephemeralKeys, crp)
 
-					rlk := new(bfv.EvaluationKey)
-					rlk.SetRelinKeys([][][][2]*ring.Poly{evk[0]}, bitDecomp)
+					for i := 0; i < parties; i++ {
+						ekg[i] = NewEkgProtocol(bfvContext, bitDecomp)
+						ephemeralKeys[i], _ = ekg[i].NewEphemeralKey(1.0 / 3)
+					}
+
+					rlk := test_EKG_Protocol(parties, ekg, sk0_shards, ephemeralKeys, crp)
 
 					if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
 						log.Fatal(err)
@@ -257,7 +253,7 @@ func Test_DBFVScheme(t *testing.T) {
 				})
 			}
 
-			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/ckgProtocolState", context.N, len(context.Modulus), 60), func(t *testing.T) {
+			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/CKG", context.N, len(context.Modulus), 60), func(t *testing.T) {
 
 				crp := make([]*ring.Poly, parties)
 				for i := 0; i < parties; i++ {
@@ -435,33 +431,55 @@ func test_EKG_Protocol_Naive(parties int, sk []*bfv.SecretKey, collectivePk *bfv
 	return evk
 }
 
-func test_EKG_Protocol(parties int, ekgProtocols []*EkgProtocol, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][][]*ring.Poly) [][][][2]*ring.Poly {
+func test_EKG_Protocol(parties int, ekgProtocols []*rkgProtocolState, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) *bfv.EvaluationKey {
 
-	// ROUND 1
-	samples := make([][][]*ring.Poly, parties)
-	for i := 0; i < parties; i++ {
-		samples[i] = ekgProtocols[i].GenSamples(ephemeralKeys[i], sk[i].Get(), crp[i])
+	type Party struct{*rkgProtocolState
+		u *ring.Poly
+		s *ring.Poly
+		share1 rkgShareRoundOne
+		share2 rkgShareRoundTwo
+		share3 rkgShareRoundThree}
+
+	rkgParties := make([]*Party, parties)
+
+
+	for i := range rkgParties {
+		p := new(Party)
+		p.rkgProtocolState = ekgProtocols[i]
+		p.u = ephemeralKeys[i]
+		p.s = sk[i].Get()
+		p.share1, p.share2, p.share3 = p.rkgProtocolState.AllocateShares()
+		rkgParties[i] = p
 	}
 
+	P0 := rkgParties[0]
+
+	// ROUND 1
+	for i, p := range rkgParties {
+		p.GenShareRoundOne(p.u, p.s, crp, p.share1)
+		if i > 0 {
+			P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
+		}
+	}
+
+
 	//ROUND 2
-	aggregatedSamples := make([][][][2]*ring.Poly, parties)
-	for i := 0; i < parties; i++ {
-		aggregatedSamples[i] = ekgProtocols[i].Aggregate(sk[i].Get(), samples, crp[i])
+	for i, p := range rkgParties {
+		p.GenShareRoundTwo(P0.share1, p.s, crp, p.share2)
+		if i > 0 {
+			P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
+		}
 	}
 
 	// ROUND 3
-	keySwitched := make([][][]*ring.Poly, parties)
-	sum := make([][][][2]*ring.Poly, parties)
-	for i := 0; i < parties; i++ {
-		sum[i] = ekgProtocols[i].Sum(aggregatedSamples)
-		keySwitched[i] = ekgProtocols[i].KeySwitch(ephemeralKeys[i], sk[i].Get(), sum[i])
+	for i, p := range rkgParties {
+		p.GenShareRound3(P0.share2, p.u, p.s, p.share3)
+		if i > 0 {
+			P0.AggregateShareRound3(p.share3, P0.share3, P0.share3)
+		}
 	}
 
-	// ROUND 4
-	collectiveEvaluationKey := make([][][][2]*ring.Poly, parties)
-	for i := 0; i < parties; i++ {
-		collectiveEvaluationKey[i] = ekgProtocols[i].ComputeEVK(keySwitched, sum[i])
-	}
-
-	return collectiveEvaluationKey
+	evk := new(bfv.EvaluationKey)
+	P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
+	return evk
 }

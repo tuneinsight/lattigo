@@ -28,7 +28,7 @@ func NewEkgProtocolNaive(context *ring.Context, bitDecomp uint64) *EkgProtocolNa
 	return ekg
 }
 
-// GenSamples is the first of two rounds of the naive EKG protocol. Using the shared public key "cpk",
+// GenShareRoundOne is the first of two rounds of the naive EKG protocol. Using the shared public key "cpk",
 // each party generates a pseudo-encryption of s*w of the form :
 //
 // [cpk[0]*u_i + s_i * w + e_0i, cpk[1]*u_i + e_1i]
@@ -72,7 +72,7 @@ func (ekg *EkgProtocolNaive) GenSamples(sk *ring.Poly, pk [2]*ring.Poly) (h [][]
 
 }
 
-// Aggregate is the first part of the second and last round of the naive EKG protocol. Uppon receiving the j-1 elements, each party computes :
+// GenShareRoundTwo is the first part of the second and last round of the naive EKG protocol. Uppon receiving the j-1 elements, each party computes :
 //
 // [sum(cpk[0]*u_j + s_j * w + e_0j), sum(cpk[1]*u_j + e_1j)]
 //

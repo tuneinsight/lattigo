@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ring"
 )
 
 // BigPoly is a common struct between plaintexts and ciphertexts. It stores a value

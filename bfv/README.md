@@ -51,4 +51,4 @@ Each set of parameter is defined by ![equation](https://latex.codecogs.com/gif.l
 - {14, 438, 3.2}
 - {15, 881, 3.2}
 
-Those parameters are hardcoded in the file [params.go](https://github.com/lca1/lattigo/blob/master/bfv/params.go). By default the variance shoud always be set to 3.2 unless the user is perfectly aware of the security implication.
+Those parameters are hardcoded in the file [params.go](https://github.com/ldsec/lattigo/blob/master/bfv/params.go). By default the variance shoud always be set to 3.2 unless the user is perfectly aware of the security implication.

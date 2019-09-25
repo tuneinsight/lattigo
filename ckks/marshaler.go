@@ -3,7 +3,7 @@ package ckks
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ring"
 	"math/bits"
 )
 

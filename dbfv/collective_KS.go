@@ -1,7 +1,7 @@
 package dbfv
 
 import (
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ring"
 )
 
 // CKS is a structure storing the parameters for the collective key-switching protocol.

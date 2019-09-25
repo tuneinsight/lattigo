@@ -1,7 +1,7 @@
 package dbfv
 
 import (
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ring"
 )
 
 // PCKS is the structure storing the parameters for the collective public key-switching.

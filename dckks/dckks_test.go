@@ -2,8 +2,8 @@ package dckks
 
 import (
 	"fmt"
-	"github.com/lca1/lattigo/ckks"
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ckks"
+	"github.com/ldsec/lattigo/ring"
 	"log"
 	"math"
 	"math/rand"

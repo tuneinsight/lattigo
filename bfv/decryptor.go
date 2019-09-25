@@ -2,7 +2,7 @@ package bfv
 
 import (
 	"errors"
-	"github.com/lca1/lattigo/ring"
+	"github.com/ldsec/lattigo/ring"
 )
 
 // Decryptor is a structure used to decrypt ciphertext. It stores the secret-key.

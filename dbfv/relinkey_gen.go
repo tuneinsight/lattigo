@@ -6,9 +6,9 @@ import (
 	"math"
 )
 
-// rkgProtocol is the structure storing the parameters and state for a party in the collective relinearization key
+// RKGProtocol is the structure storing the parameters and state for a party in the collective relinearization key
 // generation protocol.
-type rkgProtocol struct {
+type RKGProtocol struct {
 	ringContext     *ring.Context
 	ternarySampler  *ring.TernarySampler
 	gaussianSampler *ring.KYSampler
@@ -18,11 +18,11 @@ type rkgProtocol struct {
 	tmpPoly2        *ring.Poly
 }
 
-type rkgShareRoundOne [][]*ring.Poly
-type rkgShareRoundTwo [][][2]*ring.Poly
-type rkgShareRoundThree [][]*ring.Poly
+type RKGShareRoundOne [][]*ring.Poly
+type RKGShareRoundTwo [][][2]*ring.Poly
+type RKGShareRoundThree [][]*ring.Poly
 
-func (ekg *rkgProtocol) AllocateShares() (r1 rkgShareRoundOne, r2 rkgShareRoundTwo, r3 rkgShareRoundThree) {
+func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundTwo, r3 RKGShareRoundThree) {
 	r1 = make([][]*ring.Poly, len(ekg.ringContext.Modulus))
 	r2 = make([][][2]*ring.Poly, len(ekg.ringContext.Modulus))
 	r3 = make([][]*ring.Poly, len(ekg.ringContext.Modulus))
@@ -40,10 +40,10 @@ func (ekg *rkgProtocol) AllocateShares() (r1 rkgShareRoundOne, r2 rkgShareRoundT
 	return
 }
 
-// NewEkgProtocol creates a new rkgProtocol object that will be used to generate a collective evaluation-key
+// NewEkgProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
-func NewEkgProtocol(context *bfv.BfvContext, bitDecomp uint64) *rkgProtocol {
-	ekg := new(rkgProtocol)
+func NewEkgProtocol(context *bfv.BfvContext, bitDecomp uint64) *RKGProtocol {
+	ekg := new(RKGProtocol)
 	ekg.ringContext = context.ContextQ()
 	ekg.ternarySampler = context.TernarySampler()
 	ekg.gaussianSampler = context.GaussianSampler()
@@ -57,17 +57,17 @@ func NewEkgProtocol(context *bfv.BfvContext, bitDecomp uint64) *rkgProtocol {
 // NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first round).
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
-func (ekg *rkgProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly, err error) {
+func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly, err error) {
 	if ephemeralKey, err = ekg.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
 		return nil, err
 	}
 	return
 }
 
-// GenShareRoundOne is the first of three rounds of the rkgProtocol protocol. Each party generates a pseudo encryption of
+// GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
 // its secret share of the key s_i under its ephemeral key u_i : [-u_i*a + s_i*w + e_i] and broadcasts it to the other
 // j-1 parties.
-func (ekg *rkgProtocol) GenShareRoundOne(u, sk *ring.Poly, crp [][]*ring.Poly, shareOut rkgShareRoundOne) {
+func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp [][]*ring.Poly, shareOut RKGShareRoundOne) {
 
 	mredParams := ekg.ringContext.GetMredParams()
 
@@ -94,7 +94,7 @@ func (ekg *rkgProtocol) GenShareRoundOne(u, sk *ring.Poly, crp [][]*ring.Poly, s
 	return
 }
 
-func (ekg *rkgProtocol) AggregateShareRoundOne(share1, share2, shareOut rkgShareRoundOne) {
+func (ekg *RKGProtocol) AggregateShareRoundOne(share1, share2, shareOut RKGShareRoundOne) {
 
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
@@ -103,14 +103,14 @@ func (ekg *rkgProtocol) AggregateShareRoundOne(share1, share2, shareOut rkgShare
 	}
 }
 
-// GenShareRoundTwo is the second of three rounds of the rkgProtocol protocol. Uppon received the j-1 shares, each party computes :
+// GenShareRoundTwo is the second of three rounds of the RKGProtocol protocol. Uppon received the j-1 shares, each party computes :
 //
 // [s_i * sum([-u_j*a + s_j*w + e_j]) + e_i1, s_i*a + e_i2]
 //
 // = [s_i * (-u*a + s*w + e) + e_i1, s_i*a + e_i2]
 //
 // and broadcasts both values to the other j-1 parties.
-func (ekg *rkgProtocol) GenShareRoundTwo(round1 rkgShareRoundOne, sk *ring.Poly, crp [][]*ring.Poly, shareOut rkgShareRoundTwo) {
+func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly, crp [][]*ring.Poly, shareOut RKGShareRoundTwo) {
 
 	// Each sample is of the form [-u*a_i + s*w_i + e_i]
 	// So for each element of the base decomposition w_i :
@@ -135,13 +135,13 @@ func (ekg *rkgProtocol) GenShareRoundTwo(round1 rkgShareRoundOne, sk *ring.Poly,
 	}
 }
 
-// AggregateShareRoundTwo is the first part of the third and last round of the rkgProtocol protocol. Uppon receiving the j-1 elements, each party
+// AggregateShareRoundTwo is the first part of the third and last round of the RKGProtocol protocol. Uppon receiving the j-1 elements, each party
 // computues :
 //
 // [sum(s_j * (-u*a + s*w + e) + e_j1), sum(s_j*a + e_j2)]
 //
 // = [s * (-u*a + s*w + e) + e_1, s*a + e_2].
-func (ekg *rkgProtocol) AggregateShareRoundTwo(share1, share2, shareOut rkgShareRoundTwo) {
+func (ekg *RKGProtocol) AggregateShareRoundTwo(share1, share2, shareOut RKGShareRoundTwo) {
 
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
@@ -151,13 +151,13 @@ func (ekg *rkgProtocol) AggregateShareRoundTwo(share1, share2, shareOut rkgShare
 	}
 }
 
-// GenShareRoundThree is the second pard of the third and last round of the rkgProtocol protocol. Each party operates a key-switch on [s*a + e_2],
+// GenShareRoundThree is the second pard of the third and last round of the RKGProtocol protocol. Each party operates a key-switch on [s*a + e_2],
 // by computing :
 //
 // [(u_i - s_i)*(s*a + e_2)]
 //
 // and broadcasts the result the other j-1 parties.
-func (ekg *rkgProtocol) GenShareRoundThree(round2 rkgShareRoundTwo, u, sk *ring.Poly, shareOut rkgShareRoundThree) {
+func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.Poly, shareOut RKGShareRoundThree) {
 
 	// (u_i - s_i)
 	ekg.ringContext.Sub(u, sk, ekg.tmpPoly1)
@@ -171,7 +171,7 @@ func (ekg *rkgProtocol) GenShareRoundThree(round2 rkgShareRoundTwo, u, sk *ring.
 	}
 }
 
-func (ekg *rkgProtocol) AggregateShareRound3(share1, share2, shareOut rkgShareRoundThree) {
+func (ekg *RKGProtocol) AggregateShareRoundThree(share1, share2, shareOut RKGShareRoundThree) {
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
 			ekg.ringContext.Add(share1[i][w], share2[i][w], shareOut[i][w])
@@ -179,7 +179,7 @@ func (ekg *rkgProtocol) AggregateShareRound3(share1, share2, shareOut rkgShareRo
 	}
 }
 
-func (ekg *rkgProtocol) GenRelinearizationKey(round2 rkgShareRoundTwo, round3 rkgShareRoundThree, evalKeyOut *bfv.EvaluationKey) {
+func (ekg *RKGProtocol) GenRelinearizationKey(round2 RKGShareRoundTwo, round3 RKGShareRoundThree, evalKeyOut *bfv.EvaluationKey) {
 
 	key := evalKeyOut.Get()[0].Get()
 	for i := range ekg.ringContext.Modulus {

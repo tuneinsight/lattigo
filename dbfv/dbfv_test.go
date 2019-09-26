@@ -177,7 +177,7 @@ func Test_DBFVScheme(t *testing.T) {
 					bitLog := uint64((60 + (60 % bitDecomp)) / bitDecomp)
 
 					// Each party instantiate an ekg naive protocole
-					ekg := make([]*rkgProtocol, parties)
+					ekg := make([]*RKGProtocol, parties)
 					ephemeralKeys := make([]*ring.Poly, parties)
 
 					crp := make([][]*ring.Poly, len(context.Modulus))
@@ -257,22 +257,22 @@ func Test_DBFVScheme(t *testing.T) {
 				crp := crpGenerators[0].Clock()
 
 				type Party struct {
-					*ckgProtocol
+					*CKGProtocol
 					s  *ring.Poly
-					s1 ckgShare
+					s1 CKGShare
 				}
 
 				ckgParties := make([]*Party, parties)
 				for i := 0; i < parties; i++ {
 					p := new(Party)
-					p.ckgProtocol = NewCKGProtocol(bfvContext)
+					p.CKGProtocol = NewCKGProtocol(bfvContext)
 					p.s = sk0_shards[i].Get()
 					p.s1 = p.AllocateShares()
 					ckgParties[i] = p
 				}
 				P0 := ckgParties[0]
 
-				// Each party creates a new ckgProtocol instance
+				// Each party creates a new CKGProtocol instance
 				for i, p := range ckgParties {
 					p.GenShare(p.s, crp, p.s1)
 					if i > 0 {
@@ -311,19 +311,19 @@ func Test_DBFVScheme(t *testing.T) {
 
 			})
 
-			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/cksProtocol", context.N, len(context.Modulus), 60), func(t *testing.T) {
+			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/CKSProtocol", context.N, len(context.Modulus), 60), func(t *testing.T) {
 
 				type Party struct {
-					*cksProtocol
+					*CKSProtocol
 					s0    *ring.Poly
 					s1    *ring.Poly
-					share cksShare
+					share CKSShare
 				}
 
 				cksParties := make([]*Party, parties)
 				for i := 0; i < parties; i++ {
 					p := new(Party)
-					p.cksProtocol = NewCKSProtocol(bfvContext, 6.36)
+					p.CKSProtocol = NewCKSProtocol(bfvContext, 6.36)
 					p.s0 = sk0_shards[i].Get()
 					p.s1 = sk1_shards[i].Get()
 					p.share = p.AllocateShare()
@@ -337,7 +337,7 @@ func Test_DBFVScheme(t *testing.T) {
 					log.Fatal(err)
 				}
 
-				// Each party creates its cksProtocol instance with tmp = si-si'
+				// Each party creates its CKSProtocol instance with tmp = si-si'
 				for i, p := range cksParties {
 					p.GenShare(p.s0, p.s1, ciphertext, p.share)
 					if i > 0 {
@@ -362,15 +362,15 @@ func Test_DBFVScheme(t *testing.T) {
 			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/PCKS", context.N, len(context.Modulus), 60), func(t *testing.T) {
 
 				type Party struct {
-					*pcksProtocol
+					*PCKSProtocol
 					s     *ring.Poly
-					share pcksShare
+					share PCKSShare
 				}
 
 				pcksParties := make([]*Party, parties)
 				for i := 0; i < parties; i++ {
 					p := new(Party)
-					p.pcksProtocol = NewPCKSProtocol(bfvContext, 6.36)
+					p.PCKSProtocol = NewPCKSProtocol(bfvContext, 6.36)
 					p.s = sk0_shards[i].Get()
 					p.share = p.AllocateShares()
 					pcksParties[i] = p
@@ -457,25 +457,25 @@ func test_EKG_Protocol_Naive(parties int, sk []*bfv.SecretKey, collectivePk *bfv
 	return evk
 }
 
-func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ekgProtocols []*rkgProtocol, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) *bfv.EvaluationKey {
+func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ekgProtocols []*RKGProtocol, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) *bfv.EvaluationKey {
 
 	type Party struct {
-		*rkgProtocol
+		*RKGProtocol
 		u      *ring.Poly
 		s      *ring.Poly
-		share1 rkgShareRoundOne
-		share2 rkgShareRoundTwo
-		share3 rkgShareRoundThree
+		share1 RKGShareRoundOne
+		share2 RKGShareRoundTwo
+		share3 RKGShareRoundThree
 	}
 
 	rkgParties := make([]*Party, parties)
 
 	for i := range rkgParties {
 		p := new(Party)
-		p.rkgProtocol = ekgProtocols[i]
+		p.RKGProtocol = ekgProtocols[i]
 		p.u = ephemeralKeys[i]
 		p.s = sk[i].Get()
-		p.share1, p.share2, p.share3 = p.rkgProtocol.AllocateShares()
+		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
 		rkgParties[i] = p
 	}
 
@@ -501,7 +501,7 @@ func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ek
 	for i, p := range rkgParties {
 		p.GenShareRoundThree(P0.share2, p.u, p.s, p.share3)
 		if i > 0 {
-			P0.AggregateShareRound3(p.share3, P0.share3, P0.share3)
+			P0.AggregateShareRoundThree(p.share3, P0.share3, P0.share3)
 		}
 	}
 

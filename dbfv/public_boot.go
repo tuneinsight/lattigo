@@ -16,9 +16,9 @@ func GenBootShares(sk *bfv.SecretKey, ciphertext *bfv.Ciphertext, bfvcontext *bf
 
 	sampler := bfvcontext.ContextQ().NewKYSampler(3.19, 19)
 
-	coeffs := bfvcontext.ContextT().NewUniformPoly()
-	mask := bfvcontext.NewPlaintext()
-	encoder.EncodeUint(coeffs.Coeffs[0], mask)
+	mask := bfvcontext.ContextQ().NewUniformPoly()
+	//mask := bfvcontext.NewPlaintext()
+	//encoder.EncodeUint(coeffs.Coeffs[0], mask)
 
 	// h0, h1 = e, e'
 	bootshares.h0 = sampler.SampleNTTNew()
@@ -26,8 +26,8 @@ func GenBootShares(sk *bfv.SecretKey, ciphertext *bfv.Ciphertext, bfvcontext *bf
 
 	// h0 = e + mask
 	// h1 = e' - mask
-	bfvcontext.ContextQ().Add(bootshares.h0, mask.Value()[0], bootshares.h0)
-	bfvcontext.ContextQ().Sub(bootshares.h1, mask.Value()[0], bootshares.h1)
+	bfvcontext.ContextQ().Add(bootshares.h0, mask, bootshares.h0)
+	bfvcontext.ContextQ().Sub(bootshares.h1, mask, bootshares.h1)
 
 	// h0 = s*ct[1] - mask + e
 	bfvcontext.ContextQ().NTT(ciphertext.Value()[1], ciphertext.Value()[1])

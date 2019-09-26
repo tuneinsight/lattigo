@@ -40,14 +40,12 @@ func (cks *cksProtocol) AllocateShare() cksShare {
 // [(skInput_i - skOutput_i) * ctx[0] + e_i]
 //
 // Each party then broadcast the result of this computation to the other j-1 parties.
-func (cks *cksProtocol) GenShare(skInput, skOutput  *ring.Poly, ct *bfv.Ciphertext, shareOut cksShare) {
+func (cks *cksProtocol) GenShare(skInput, skOutput *ring.Poly, ct *bfv.Ciphertext, shareOut cksShare) {
 	cks.ringContext.Sub(skInput, skOutput, cks.tmpDelta)
 	cks.GenShareDelta(cks.tmpDelta, ct, shareOut)
 }
 
-
-
-func (cks *cksProtocol) GenShareDelta(skDelta  *ring.Poly, ct *bfv.Ciphertext, shareOut cksShare) {
+func (cks *cksProtocol) GenShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, shareOut cksShare) {
 
 	cks.gaussianSampler.Sample(shareOut)
 
@@ -58,14 +56,12 @@ func (cks *cksProtocol) GenShareDelta(skDelta  *ring.Poly, ct *bfv.Ciphertext, s
 	cks.ringContext.Add(cks.tmpNtt, shareOut, shareOut)
 }
 
-
 // AggregateShares is the second part of the unique round of the cksProtocol protocol. Uppon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
 func (cks *cksProtocol) AggregateShares(share1, share2, shareOut cksShare) {
 	cks.ringContext.Add(share1, share2, shareOut)
 }
-
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (cks *cksProtocol) KeySwitch(combined cksShare, ct *bfv.Ciphertext, ctOut *bfv.Ciphertext) {

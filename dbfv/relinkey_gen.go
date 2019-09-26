@@ -171,7 +171,6 @@ func (ekg *rkgProtocol) GenShareRound3(round2 rkgShareRoundTwo, u, sk *ring.Poly
 	}
 }
 
-
 func (ekg *rkgProtocol) AggregateShareRound3(share1, share2, shareOut rkgShareRoundThree) {
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
@@ -180,9 +179,7 @@ func (ekg *rkgProtocol) AggregateShareRound3(share1, share2, shareOut rkgShareRo
 	}
 }
 
-
 func (ekg *rkgProtocol) GenRelinearizationKey(round2 rkgShareRoundTwo, round3 rkgShareRoundThree, evalKeyOut *bfv.EvaluationKey) {
-
 
 	key := evalKeyOut.Get()[0].Get()
 	for i := range ekg.ringContext.Modulus {

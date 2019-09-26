@@ -258,7 +258,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 				type Party struct {
 					*ckgProtocol
-					s *ring.Poly
+					s  *ring.Poly
 					s1 ckgShare
 				}
 
@@ -282,8 +282,6 @@ func Test_DBFVScheme(t *testing.T) {
 
 				pk := &bfv.PublicKey{}
 				P0.GetPublicKey(P0.s1, crp, pk)
-
-
 
 				// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
 				encryptorTest, err := bfvContext.NewEncryptor(pk, nil)
@@ -314,7 +312,6 @@ func Test_DBFVScheme(t *testing.T) {
 			})
 
 			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/cksProtocol", context.N, len(context.Modulus), 60), func(t *testing.T) {
-
 
 				type Party struct {
 					*cksProtocol
@@ -364,7 +361,6 @@ func Test_DBFVScheme(t *testing.T) {
 
 			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/PCKS", context.N, len(context.Modulus), 60), func(t *testing.T) {
 
-
 				type Party struct {
 					*pcksProtocol
 					s     *ring.Poly
@@ -386,7 +382,6 @@ func Test_DBFVScheme(t *testing.T) {
 				if err != nil {
 					log.Fatal(err)
 				}
-
 
 				for i, p := range pcksParties {
 					p.GenShare(p.s, pk1, ciphertext, p.share)
@@ -439,15 +434,16 @@ func test_EKG_Protocol_Naive(parties int, sk []*bfv.SecretKey, collectivePk *bfv
 
 func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ekgProtocols []*rkgProtocol, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) *bfv.EvaluationKey {
 
-	type Party struct{*rkgProtocol
-		u *ring.Poly
-		s *ring.Poly
+	type Party struct {
+		*rkgProtocol
+		u      *ring.Poly
+		s      *ring.Poly
 		share1 rkgShareRoundOne
 		share2 rkgShareRoundTwo
-		share3 rkgShareRoundThree}
+		share3 rkgShareRoundThree
+	}
 
 	rkgParties := make([]*Party, parties)
-
 
 	for i := range rkgParties {
 		p := new(Party)
@@ -467,7 +463,6 @@ func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ek
 			P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
 		}
 	}
-
 
 	//ROUND 2
 	for i, p := range rkgParties {

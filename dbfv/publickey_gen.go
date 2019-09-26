@@ -31,7 +31,7 @@ func (ckg *ckgProtocol) AllocateShares() ckgShare {
 // crs*s_i + e_i
 //
 // for the receiver protocol. Has no effect is the share was already generated.
-func (ckg *ckgProtocol) GenShare(sk *ring.Poly,  crs *ring.Poly, shareOut ckgShare) {
+func (ckg *ckgProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut ckgShare) {
 	ckg.gaussianSampler.SampleNTT(shareOut)
 	ckg.context.MulCoeffsMontgomeryAndSub(sk, crs, shareOut)
 }
@@ -42,6 +42,6 @@ func (ckg *ckgProtocol) AggregateShares(share1, share2, shareOut ckgShare) {
 }
 
 // GetPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
-func (ckg *ckgProtocol) GetPublicKey(roundShare ckgShare, crs *ring.Poly, pubkey  *bfv.PublicKey) {
+func (ckg *ckgProtocol) GetPublicKey(roundShare ckgShare, crs *ring.Poly, pubkey *bfv.PublicKey) {
 	pubkey.Set([2]*ring.Poly{roundShare, crs})
 }

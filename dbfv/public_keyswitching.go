@@ -72,8 +72,6 @@ func (pcks *pcksProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	pcks.tmp.Zero()
 }
 
-
-
 // GenShareRoundTwo is the second part of the first and unique round of the pcksProtocol protocol. Each party uppon receiving the j-1 elements from the
 // other parties computes :
 //
@@ -82,7 +80,6 @@ func (pcks *pcksProtocol) AggregateShares(share1, share2, shareOut pcksShare) {
 	pcks.ringContext.Add(share1[0], share2[0], shareOut[0])
 	pcks.ringContext.Add(share1[1], share2[1], shareOut[1])
 }
-
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *pcksProtocol) KeySwitch(combined pcksShare, ct, ctOut *bfv.Ciphertext) {

@@ -45,6 +45,11 @@ type SwitchingKey struct {
 	evakey    [][][2]*ring.Poly
 }
 
+// Get returns the switching key backing slice
+func (swk *SwitchingKey) Get() [][][2]*ring.Poly {
+	return swk.evakey
+}
+
 // NewKeyGenerator creates a new keygenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
 func (bfvcontext *BfvContext) NewKeyGenerator() (keygen *keygenerator) {

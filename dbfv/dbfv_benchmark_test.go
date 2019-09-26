@@ -60,21 +60,21 @@ func Benchmark_DBFVScheme(b *testing.B) {
 			}
 
 			//EKG_V2_Naive_Round_0
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Naive_Round0", params.N,  bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Naive_Round0", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekgV2Naive.GenSamples(sk0.Get(), pk1.Get())
 				}
 			})
 
 			//EKG_V2_Naive_Round_1
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Naive_Round1", params.N,  bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Naive_Round1", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekgV2Naive.Aggregate(sk0.Get(), pk1.Get(), samples)
 				}
 			})
 
 			//EKG_V2_Naive_Round_2
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Naive_Round2", params.N,  bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Naive_Round2", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekgV2Naive.Finalize(aggregatedSamples)
 				}
@@ -98,27 +98,26 @@ func Benchmark_DBFVScheme(b *testing.B) {
 			ekg := NewEkgProtocol(bfvContext, bitDecomp)
 			share1, share2, share3 := ekg.AllocateShares()
 
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_1", params.N,  bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_1", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekg.GenShareRoundOne(sk0.Get(), sk1.Get(), crp, share1)
 				}
 			})
 
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_2", params.N,  bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_2", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekg.GenShareRoundTwo(share1, sk0.Get(), crp, share2)
 				}
 			})
 
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_3", params.N,  bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_3", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekg.GenShareRoundThree(share2, sk1.Get(), sk1.Get(), share3)
 				}
 			})
 
-
 			evk := bfvContext.NewRelinKey(1, bitDecomp)
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_GenGey", params.N,  bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_GenGey", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekg.GenRelinearizationKey(share2, share3, evk)
 				}
@@ -152,13 +151,13 @@ func Benchmark_DBFVScheme(b *testing.B) {
 		delta := bfvContext.ContextQ().NewPoly()
 		bfvContext.ContextQ().Sub(sk0.Get(), sk1.Get(), delta)
 
-		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/CKS_Round_1", params.N,  sigmaSmudging), func(b *testing.B) {
+		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/CKS_Round_1", params.N, sigmaSmudging), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				cks.GenShareDelta(delta, ciphertext, cksShare)
 			}
 		})
 
-		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/CKS_KeySwitch", params.N,  sigmaSmudging), func(b *testing.B) {
+		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/CKS_KeySwitch", params.N, sigmaSmudging), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				cks.KeySwitch(cksShare, ciphertext, ciphertext)
 			}
@@ -168,13 +167,13 @@ func Benchmark_DBFVScheme(b *testing.B) {
 		pcks := NewPCKSProtocol(bfvContext, sigmaSmudging)
 		pcksShare := pcks.AllocateShares()
 
-		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/PCKS_Round_1", params.N,  sigmaSmudging), func(b *testing.B) {
+		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/PCKS_Round_1", params.N, sigmaSmudging), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				pcks.GenShare(sk0.Get(), pk0, ciphertext, pcksShare)
 			}
 		})
 
-		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/PCKS_KeySwitch", params.N,  sigmaSmudging), func(b *testing.B) {
+		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/PCKS_KeySwitch", params.N, sigmaSmudging), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				pcks.KeySwitch(pcksShare, ciphertext, ciphertext)
 			}

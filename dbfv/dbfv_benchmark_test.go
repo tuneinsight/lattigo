@@ -57,7 +57,7 @@ package dbfv
 //
 //				aggregatedSamples := make([][][][2]*ring.Poly, parties)
 //				for i := 0; i < parties; i++ {
-//					aggregatedSamples[i] = ekgV2Naive.Aggregate(sk0.Get(), pk0.Get(), samples)
+//					aggregatedSamples[i] = ekgV2Naive.AggregateShares(sk0.Get(), pk0.Get(), samples)
 //				}
 //
 //				//EKG_V2_Naive_Round_0
@@ -70,7 +70,7 @@ package dbfv
 //				//EKG_V2_Naive_Round_1
 //				b.Run(fmt.Sprintf("params=%d/parties=%d/decomp=%d/EKG_Naive_Round1", params.N, parties, bitDecomp), func(b *testing.B) {
 //					for i := 0; i < b.N; i++ {
-//						ekgV2Naive.Aggregate(sk0.Get(), pk1.Get(), samples)
+//						ekgV2Naive.AggregateShares(sk0.Get(), pk1.Get(), samples)
 //					}
 //				})
 //
@@ -100,13 +100,13 @@ package dbfv
 //				}
 //
 //
-//				rkgParties := make([]struct{*rkgProtocolState
+//				rkgParties := make([]struct{*rkgProtocol
 //				share1 rkgShareRoundOne
 //				share2 rkgShareRoundTwo
 //				share3 rkgShareRoundThree}, parties)
 //
 //				for i := 0; i < parties; i++ {
-//					rkgParties[i].rkgProtocolState = NewEkgProtocol(bfvContext, bitDecomp)
+//					rkgParties[i].rkgProtocol = NewEkgProtocol(bfvContext, bitDecomp)
 //				}
 //
 //				//EKG_V2_Round_0
@@ -173,7 +173,7 @@ package dbfv
 //			}
 //		}
 //
-//		//ckgProtocolState
+//		//ckgProtocol
 //		for _, parties := range nParties {
 //
 //			ckgInstance := NewCKGProtocol(bfvContext, crpGenerator.Clock())
@@ -195,35 +195,35 @@ package dbfv
 //			b.Run(fmt.Sprintf("params=%d/parties=%d/CKG_Round1", params.N, parties), func(b *testing.B) {
 //				for i := 0; i < b.N; i++ {
 //					ckgInstance.AggregateShares(shares)
-//					//ckgInstance.GetAggregatedKey()
+//					//ckgInstance.GetPublicKey()
 //				}
 //			})
 //		}
 //
-//		//CKS
+//		//cksProtocol
 //		sigmaSmudging := 3.19
 //		for _, parties := range nParties {
 //
-//			cksInstance := NewCKS(sk0.Get(), sk1.Get(), context, sigmaSmudging)
+//			cksInstance := NewCKSProtocol(sk0.Get(), sk1.Get(), context, sigmaSmudging)
 //
 //			ciphertext := bfvContext.NewRandomCiphertext(1)
 //
 //			hi := make([]*ring.Poly, parties)
 //			for i := 0; i < parties; i++ {
-//				hi[i] = cksInstance.KeySwitch(ciphertext.Value()[1])
+//				hi[i] = cksInstance.GenShare(ciphertext.Value()[1])
 //			}
 //
 //			// CKS_Round_0
 //			b.Run(fmt.Sprintf("params=%d/parties=%d/sigmaSmudging=%f/CKS_Round0", params.N, parties, sigmaSmudging), func(b *testing.B) {
 //				for i := 0; i < b.N; i++ {
-//					cksInstance.KeySwitch(ciphertext.Value()[1])
+//					cksInstance.GenShare(ciphertext.Value()[1])
 //				}
 //			})
 //
 //			// CKS_Round_1
 //			b.Run(fmt.Sprintf("params=%d/parties=%d/sigmaSmudging=%f/CKS_Round1", params.N, parties, sigmaSmudging), func(b *testing.B) {
 //				for i := 0; i < b.N; i++ {
-//					cksInstance.Aggregate(ciphertext.Value()[0], hi)
+//					cksInstance.AggregateShares(ciphertext.Value()[0], hi)
 //				}
 //			})
 //		}
@@ -231,26 +231,26 @@ package dbfv
 //		//CKS_Trustless
 //		for _, parties := range nParties {
 //
-//			pcks := NewPCKS(sk0.Get(), pk1.Get(), context, sigmaSmudging)
+//			pcks := NewPCKSProtocol(sk0.Get(), pk1.Get(), context, sigmaSmudging)
 //
 //			ciphertext := bfvContext.NewRandomCiphertext(1)
 //
 //			hi := make([][2]*ring.Poly, parties)
 //			for i := 0; i < parties; i++ {
-//				hi[i] = pcks.KeySwitch(ciphertext.Value()[1])
+//				hi[i] = pcks.GenShare(ciphertext.Value()[1])
 //			}
 //
 //			// CKS_Trustless_Round_0
 //			b.Run(fmt.Sprintf("params=%d/parties=%d/sigmaSmudging=%f/PCKS_Round0", params.N, parties, sigmaSmudging), func(b *testing.B) {
 //				for i := 0; i < b.N; i++ {
-//					pcks.KeySwitch(ciphertext.Value()[1])
+//					pcks.GenShare(ciphertext.Value()[1])
 //				}
 //			})
 //
 //			// CKS_Trustless_Round_1
 //			b.Run(fmt.Sprintf("params=%d/parties=%d/sigmaSmudging=%f/PCKS_Round1", params.N, parties, sigmaSmudging), func(b *testing.B) {
 //				for i := 0; i < b.N; i++ {
-//					pcks.Aggregate(ciphertext.Value(), hi)
+//					pcks.AggregateShares(ciphertext.Value(), hi)
 //				}
 //			})
 //		}

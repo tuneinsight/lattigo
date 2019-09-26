@@ -177,7 +177,7 @@ func Test_DBFVScheme(t *testing.T) {
 					bitLog := uint64((60 + (60 % bitDecomp)) / bitDecomp)
 
 					// Each party instantiate an ekg naive protocole
-					ekg := make([]*rkgProtocolState, parties)
+					ekg := make([]*rkgProtocol, parties)
 					ephemeralKeys := make([]*ring.Poly, parties)
 
 					crp := make([][]*ring.Poly, len(context.Modulus))
@@ -257,7 +257,7 @@ func Test_DBFVScheme(t *testing.T) {
 				crp := crpGenerators[0].Clock()
 
 				type Party struct {
-					*ckgProtocolState
+					*ckgProtocol
 					s *ring.Poly
 					s1 ckgShare
 				}
@@ -265,23 +265,23 @@ func Test_DBFVScheme(t *testing.T) {
 				ckgParties := make([]*Party, parties)
 				for i := 0; i < parties; i++ {
 					p := new(Party)
-					p.ckgProtocolState = NewCKGProtocol(bfvContext)
+					p.ckgProtocol = NewCKGProtocol(bfvContext)
 					p.s = sk0_shards[i].Get()
 					p.s1 = p.AllocateShares()
 					ckgParties[i] = p
 				}
 				P0 := ckgParties[0]
 
-				// Each party creates a new ckgProtocolState instance
+				// Each party creates a new ckgProtocol instance
 				for i, p := range ckgParties {
 					p.GenShare(p.s, crp, p.s1)
 					if i > 0 {
-						P0.AggregateShare(p.s1, P0.s1, P0.s1)
+						P0.AggregateShares(p.s1, P0.s1, P0.s1)
 					}
 				}
 
 				pk := &bfv.PublicKey{}
-				P0.GetAggregatedKey(P0.s1, crp, pk)
+				P0.GetPublicKey(P0.s1, crp, pk)
 
 
 
@@ -313,89 +313,98 @@ func Test_DBFVScheme(t *testing.T) {
 
 			})
 
-			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/CKS", context.N, len(context.Modulus), 60), func(t *testing.T) {
+			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/cksProtocol", context.N, len(context.Modulus), 60), func(t *testing.T) {
+
+
+				type Party struct {
+					*cksProtocol
+					s0    *ring.Poly
+					s1    *ring.Poly
+					share cksShare
+				}
+
+				cksParties := make([]*Party, parties)
+				for i := 0; i < parties; i++ {
+					p := new(Party)
+					p.cksProtocol = NewCKSProtocol(bfvContext, 6.36)
+					p.s0 = sk0_shards[i].Get()
+					p.s1 = sk1_shards[i].Get()
+					p.share = p.AllocateShare()
+					cksParties[i] = p
+				}
+				P0 := cksParties[0]
 
 				ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+				switchedCiphertext := bfvContext.NewCiphertext(1)
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				ciphertexts := make([]*bfv.Ciphertext, parties)
-				for i := 0; i < parties; i++ {
-					ciphertexts[i] = ciphertext.CopyNew().Ciphertext()
-				}
-
-				// Each party creates its CKS instance with deltaSk = si-si'
-				cks := make([]*CKS, parties)
-				for i := 0; i < parties; i++ {
-					cks[i] = NewCKS(sk0_shards[i].Get(), sk1_shards[i].Get(), context, 6.36)
-				}
-
-				// Each party computes its hi share from the shared ciphertext
-				// Each party encodes its share and sends it to the other n-1 parties
-				hi := make([]*ring.Poly, parties)
-				for i := 0; i < parties; i++ {
-					hi[i] = cks[i].KeySwitch(ciphertexts[i].Value()[1])
-				}
-				// Each party receive the shares n-1 shares from the other parties and decodes them
-				for i := 0; i < parties; i++ {
-					// Then keyswitch the ciphertext with the decoded shares
-					cks[i].Aggregate(ciphertexts[i].Value()[0], hi)
-				}
-
-				for i := 0; i < parties; i++ {
-
-					plaintextHave, _ := decryptor_sk1.DecryptNew(ciphertexts[i])
-
-					coeffsTest, err := encoder.DecodeUint(plaintextHave)
-					if err != nil {
-						log.Fatal(err)
+				// Each party creates its cksProtocol instance with tmp = si-si'
+				for i, p := range cksParties {
+					p.GenShare(p.s0, p.s1, ciphertext, p.share)
+					if i > 0 {
+						P0.AggregateShares(p.share, P0.share, P0.share)
 					}
+				}
 
-					if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
-						t.Errorf("error : CKS")
-					}
+				P0.KeySwitch(P0.share, ciphertext, switchedCiphertext)
 
+				plaintextHave, _ := decryptor_sk1.DecryptNew(switchedCiphertext)
+
+				coeffsTest, err := encoder.DecodeUint(plaintextHave)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
+					t.Errorf("error : decryption error")
 				}
 			})
 
 			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/PCKS", context.N, len(context.Modulus), 60), func(t *testing.T) {
 
+
+				type Party struct {
+					*pcksProtocol
+					s     *ring.Poly
+					share pcksShare
+				}
+
+				pcksParties := make([]*Party, parties)
+				for i := 0; i < parties; i++ {
+					p := new(Party)
+					p.pcksProtocol = NewPCKSProtocol(bfvContext, 6.36)
+					p.s = sk0_shards[i].Get()
+					p.share = p.AllocateShares()
+					pcksParties[i] = p
+				}
+				P0 := pcksParties[0]
+
 				ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+				ciphertextSwitched := bfvContext.NewCiphertext(1)
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				ciphertexts := make([]*bfv.Ciphertext, parties)
-				for i := 0; i < parties; i++ {
-					ciphertexts[i] = ciphertext.CopyNew().Ciphertext()
-				}
 
-				pcks := make([]*PCKS, parties)
-				for i := 0; i < parties; i++ {
-					pcks[i] = NewPCKS(sk0_shards[i].Get(), pk1.Get(), context, 6.36)
-				}
-
-				hi := make([][2]*ring.Poly, parties)
-				for i := 0; i < parties; i++ {
-					hi[i] = pcks[i].KeySwitch(ciphertexts[i].Value()[1])
-				}
-
-				for i := 0; i < parties; i++ {
-					pcks[i].Aggregate(ciphertexts[i].Value(), hi)
-				}
-
-				for i := 0; i < parties; i++ {
-					plaintextHave, _ := decryptor_sk1.DecryptNew(ciphertexts[i])
-
-					coeffsTest, err := encoder.DecodeUint(plaintextHave)
-					if err != nil {
-						log.Fatal(err)
+				for i, p := range pcksParties {
+					p.GenShare(p.s, pk1, ciphertext, p.share)
+					if i > 0 {
+						P0.AggregateShares(p.share, P0.share, P0.share)
 					}
+				}
 
-					if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
-						t.Errorf("error : PCKS")
-					}
+				P0.KeySwitch(P0.share, ciphertext, ciphertextSwitched)
+				plaintextHave, _ := decryptor_sk1.DecryptNew(ciphertextSwitched)
+
+				coeffsTest, err := encoder.DecodeUint(plaintextHave)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
+					t.Errorf("error : PCKS")
 				}
 			})
 		}
@@ -428,9 +437,9 @@ func test_EKG_Protocol_Naive(parties int, sk []*bfv.SecretKey, collectivePk *bfv
 	return evk
 }
 
-func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ekgProtocols []*rkgProtocolState, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) *bfv.EvaluationKey {
+func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ekgProtocols []*rkgProtocol, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) *bfv.EvaluationKey {
 
-	type Party struct{*rkgProtocolState
+	type Party struct{*rkgProtocol
 		u *ring.Poly
 		s *ring.Poly
 		share1 rkgShareRoundOne
@@ -442,10 +451,10 @@ func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ek
 
 	for i := range rkgParties {
 		p := new(Party)
-		p.rkgProtocolState = ekgProtocols[i]
+		p.rkgProtocol = ekgProtocols[i]
 		p.u = ephemeralKeys[i]
 		p.s = sk[i].Get()
-		p.share1, p.share2, p.share3 = p.rkgProtocolState.AllocateShares()
+		p.share1, p.share2, p.share3 = p.rkgProtocol.AllocateShares()
 		rkgParties[i] = p
 	}
 

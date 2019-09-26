@@ -1,104 +1,92 @@
 package dbfv
 
 import (
+	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 )
 
-// PCKS is the structure storing the parameters for the collective public key-switching.
-type PCKS struct {
-	context *ring.Context
+// pcksProtocol is the structure storing the parameters for the collective public key-switching.
+type pcksProtocol struct {
+	ringContext *ring.Context
 
 	sigmaSmudging         float64
 	gaussianSamplerSmudge *ring.KYSampler
 	gaussianSampler       *ring.KYSampler
 	ternarySampler        *ring.TernarySampler
 
-	skInput  *ring.Poly
-	pkOutput [2]*ring.Poly
-
-	polypool *ring.Poly
+	tmp *ring.Poly
 }
 
-// NewPCKS creates a new PCKS object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key mong j parties under a new
+type pcksShare [2]*ring.Poly
+
+// NewPCKSProtocol creates a new pcksProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key mong j parties under a new
 // collective public-key.
-func NewPCKS(skInput *ring.Poly, pkOutput [2]*ring.Poly, context *ring.Context, sigmaSmudging float64) *PCKS {
+func NewPCKSProtocol(bfvContext *bfv.BfvContext, sigmaSmudging float64) *pcksProtocol {
 
-	pcks := new(PCKS)
-	pcks.context = context
-	pcks.sigmaSmudging = sigmaSmudging
+	pcks := new(pcksProtocol)
+	pcks.ringContext = bfvContext.ContextQ()
+	pcks.gaussianSamplerSmudge = pcks.ringContext.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	pcks.gaussianSampler = bfvContext.GaussianSampler()
+	pcks.ternarySampler = bfvContext.TernarySampler()
 
-	pcks.gaussianSamplerSmudge = context.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
-	pcks.gaussianSampler = context.NewKYSampler(3.19, 19)
-	pcks.ternarySampler = context.NewTernarySampler()
-
-	pcks.skInput = skInput
-	pcks.pkOutput = pkOutput
-	pcks.polypool = context.NewPoly()
+	pcks.tmp = pcks.ringContext.NewPoly()
 	return pcks
 }
 
-// GenShareRound3 is the first part of the unique round of the PCKS protocol. Each party computes the following :
+func (pcks *pcksProtocol) AllocateShares() (s pcksShare) {
+	s[0] = pcks.ringContext.NewPoly()
+	s[1] = pcks.ringContext.NewPoly()
+	return
+}
+
+// GenShareRound3 is the first part of the unique round of the pcksProtocol protocol. Each party computes the following :
 //
 // [s_i * ctx[0] + u_i * pk[0] + e_0i, u_i * pk[1] + e_1i]
 //
 // and broadcasts the result to the other j-1 parties.
-func (pcks *PCKS) KeySwitch(ct1 *ring.Poly) (h [2]*ring.Poly) {
-
-	// h_0 = pk_0 (NTT)
-	h[0] = pcks.pkOutput[0].CopyNew()
-	// h_1 = pk_1 (NTT)
-	h[1] = pcks.pkOutput[1].CopyNew()
+func (pcks *pcksProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Ciphertext, shareOut pcksShare) {
 
 	//u_i
-	pcks.ternarySampler.SampleMontgomeryNTT(0.5, pcks.polypool)
+	_ = pcks.ternarySampler.SampleMontgomeryNTT(0.5, pcks.tmp)
 
 	// h_0 = u_i * pk_0 (NTT)
-	pcks.context.MulCoeffsMontgomery(h[0], pcks.polypool, h[0])
+	pcks.ringContext.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], shareOut[0])
 	// h_1 = u_i * pk_1 (NTT)
-	pcks.context.MulCoeffsMontgomery(h[1], pcks.polypool, h[1])
+	pcks.ringContext.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], shareOut[1])
 
 	// h0 = u_i * pk_0 + s_i*c_1 (NTT)
-	pcks.context.NTT(ct1, pcks.polypool)
-	pcks.context.MulCoeffsMontgomeryAndAdd(pcks.polypool, pcks.skInput, h[0])
+	pcks.ringContext.NTT(ct.Value()[1], pcks.tmp)
+	pcks.ringContext.MulCoeffsMontgomeryAndAdd(sk, pcks.tmp, shareOut[0])
 
-	pcks.context.InvNTT(h[0], h[0])
-	pcks.context.InvNTT(h[1], h[1])
+	pcks.ringContext.InvNTT(shareOut[0], shareOut[0])
+	pcks.ringContext.InvNTT(shareOut[1], shareOut[1])
 
 	// h_0 = InvNTT(s_i*c_1 + u_i * pk_0) + e0
-	pcks.gaussianSamplerSmudge.Sample(pcks.polypool)
-	pcks.context.Add(h[0], pcks.polypool, h[0])
+	pcks.gaussianSamplerSmudge.Sample(pcks.tmp)
+	pcks.ringContext.Add(shareOut[0], pcks.tmp, shareOut[0])
 
 	// h_1 = InvNTT(u_i * pk_1) + e1
-	pcks.gaussianSampler.Sample(pcks.polypool)
-	pcks.context.Add(h[1], pcks.polypool, h[1])
+	pcks.gaussianSampler.Sample(pcks.tmp)
+	pcks.ringContext.Add(shareOut[1], pcks.tmp, shareOut[1])
 
-	pcks.polypool.Zero()
-
-	return h
+	pcks.tmp.Zero()
 }
 
-// GenShareRoundTwo is the second part of the first and unique round of the PCKS protocol. Each party uppon receiving the j-1 elements from the
+
+
+// GenShareRoundTwo is the second part of the first and unique round of the pcksProtocol protocol. Each party uppon receiving the j-1 elements from the
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
-func (pcks *PCKS) Aggregate(ct []*ring.Poly, h [][2]*ring.Poly) {
+func (pcks *pcksProtocol) AggregateShares(share1, share2, shareOut pcksShare) {
+	pcks.ringContext.Add(share1[0], share2[0], shareOut[0])
+	pcks.ringContext.Add(share1[1], share2[1], shareOut[1])
+}
 
-	pcks.context.AddNoMod(ct[0], h[0][0], ct[0])
-	ct[1] = h[0][1].CopyNew()
 
-	for i := 1; i < len(h); i++ {
-		pcks.context.AddNoMod(ct[0], h[i][0], ct[0])
-		pcks.context.AddNoMod(ct[1], h[i][1], ct[1])
+// KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
+func (pcks *pcksProtocol) KeySwitch(combined pcksShare, ct, ctOut *bfv.Ciphertext) {
 
-		if i&7 == 7 {
-			pcks.context.Reduce(ct[0], ct[0])
-			pcks.context.Reduce(ct[1], ct[1])
-		}
-	}
-
-	if len(h)&7 != 7 {
-		pcks.context.Reduce(ct[0], ct[0])
-		pcks.context.Reduce(ct[1], ct[1])
-	}
-
+	pcks.ringContext.Add(ct.Value()[0], combined[0], ctOut.Value()[0])
+	_ = combined[1].Copy(ctOut.Value()[1])
 }

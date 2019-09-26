@@ -6,23 +6,23 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// ckgProtocolState is the structure storing the parameters and state for a party in the collective key generation protocol.
-type ckgProtocolState struct {
+// ckgProtocol is the structure storing the parameters and state for a party in the collective key generation protocol.
+type ckgProtocol struct {
 	context         *ring.Context
 	gaussianSampler *ring.KYSampler
 }
 
 type ckgShare *ring.Poly
 
-// NewCKGProtocol creates a new ckgProtocolState instance
-func NewCKGProtocol(bfvCtx *bfv.BfvContext) *ckgProtocolState {
-	ckg := new(ckgProtocolState)
+// NewCKGProtocol creates a new ckgProtocol instance
+func NewCKGProtocol(bfvCtx *bfv.BfvContext) *ckgProtocol {
+	ckg := new(ckgProtocol)
 	ckg.context = bfvCtx.ContextQ()
 	ckg.gaussianSampler = bfvCtx.GaussianSampler()
 	return ckg
 }
 
-func (ckg *ckgProtocolState) AllocateShares() ckgShare {
+func (ckg *ckgProtocol) AllocateShares() ckgShare {
 	return ckg.context.NewPoly()
 }
 
@@ -31,17 +31,17 @@ func (ckg *ckgProtocolState) AllocateShares() ckgShare {
 // crs*s_i + e_i
 //
 // for the receiver protocol. Has no effect is the share was already generated.
-func (ckg *ckgProtocolState) GenShare(sk *ring.Poly,  crs *ring.Poly, shareOut ckgShare) {
+func (ckg *ckgProtocol) GenShare(sk *ring.Poly,  crs *ring.Poly, shareOut ckgShare) {
 	ckg.gaussianSampler.SampleNTT(shareOut)
 	ckg.context.MulCoeffsMontgomeryAndSub(sk, crs, shareOut)
 }
 
-// AggregateShare aggregates a new share to the aggregate key
-func (ckg *ckgProtocolState) AggregateShare(share1, share2, shareOut ckgShare) {
+// AggregateShares aggregates a new share to the aggregate key
+func (ckg *ckgProtocol) AggregateShares(share1, share2, shareOut ckgShare) {
 	ckg.context.Add(share1, share2, shareOut)
 }
 
-// GetAggregatedKey return the current aggregation of the received shares as a bfv.PublicKey.
-func (ckg *ckgProtocolState) GetAggregatedKey(roundShare ckgShare, crs *ring.Poly, pubkey  *bfv.PublicKey) {
+// GetPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
+func (ckg *ckgProtocol) GetPublicKey(roundShare ckgShare, crs *ring.Poly, pubkey  *bfv.PublicKey) {
 	pubkey.Set([2]*ring.Poly{roundShare, crs})
 }

@@ -165,14 +165,14 @@ func (keygen *keygenerator) NewRelinKey(sk *SecretKey, maxDegree, bitDecomp uint
 	return newEvakey, nil
 }
 
-func (keygen *keygenerator) NewRelinKeyEmpty(maxDegree, bitDecomp uint64) (evakey *EvaluationKey) {
+func (bfvcontext *BfvContext) NewRelinKey(maxDegree, bitDecomp uint64) (evakey *EvaluationKey) {
 	evakey = new(EvaluationKey)
 
-	if bitDecomp > keygen.bfvcontext.maxBit || bitDecomp == 0 {
-		bitDecomp = keygen.bfvcontext.maxBit
+	if bitDecomp > bfvcontext.maxBit || bitDecomp == 0 {
+		bitDecomp = bfvcontext.maxBit
 	}
 
-	context := keygen.bfvcontext.contextQ
+	context := bfvcontext.contextQ
 
 	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
 	var bitLog uint64

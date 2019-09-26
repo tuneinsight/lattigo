@@ -217,7 +217,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		rlkTest := bfvTest.kgen.NewRelinKeyEmpty(5, 15)
+		rlkTest := bfvContext.NewRelinKey(5, 15)
 		rlkTest.UnMarshalBinary(rlkBytes)
 
 		state = true

@@ -127,7 +127,6 @@ func NewSimpleScaler(t uint64, context *Context) (*SimpleScaler, error) {
 func (parameters *SimpleScaler) Scale(p1, p2 *Poly) {
 
 	var a uint64
-
 	var b Float128
 
 	for i := uint64(0); i < parameters.context.N; i++ {
@@ -143,11 +142,10 @@ func (parameters *SimpleScaler) Scale(p1, p2 *Poly) {
 		}
 
 		a += Float128ToUint64(b)
+		a = parameters.reducealgoAdd(a)
 
-		p2.Coeffs[0][i] = parameters.reducealgoAdd(a)
-
-		for j := 1; j < len(p2.Coeffs); j++ {
-			p2.Coeffs[j][i] = 0
+		for j := 0; j < len(p2.Coeffs); j++ {
+			p2.Coeffs[j][i] = a
 		}
 	}
 }

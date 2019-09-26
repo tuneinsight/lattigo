@@ -217,9 +217,14 @@ func (bfvContext *BfvContext) T() uint64 {
 	return bfvContext.t
 }
 
-// Delta returns t/Q, modulo each Qi, where t is the plaintext modulus, Q is the product of all the Qi, of the target bfvcontext.
+// Delta returns Q/t, modulo each Qi, where t is the plaintext modulus, Q is the product of all the Qi, of the target bfvcontext.
 func (bfvContext *BfvContext) Delta() []uint64 {
 	return bfvContext.delta
+}
+
+// Delta returns Q/t, modulo each Qi, where t is the plaintext modulus, Q is the product of all the Qi, of the target bfvcontext.
+func (bfvContext *BfvContext) DeltaMont() []uint64 {
+	return bfvContext.deltaMont
 }
 
 // Sigma returns sigma, which is the variance used for the gaussian sampling of the target bfvcontext.

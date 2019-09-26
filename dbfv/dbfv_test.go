@@ -10,7 +10,7 @@ import (
 
 func Test_DBFVScheme(t *testing.T) {
 
-	paramSets := bfv.DefaultParams[0:2]
+	paramSets := bfv.DefaultParams[0:1]
 	bitDecomps := []uint64{60}
 	nParties := []int{5}
 
@@ -400,6 +400,31 @@ func Test_DBFVScheme(t *testing.T) {
 
 				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
 					t.Errorf("error : PCKS")
+				}
+			})
+
+			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/BOOT", context.N, len(context.Modulus), 60), func(t *testing.T) {
+
+				ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+
+				crp := crpGenerators[0].Clock()
+
+				bootshares := make([]*BootShares, parties)
+
+				for i := 0; i < parties; i++ {
+					bootshares[i] = GenBootShares(sk0_shards[i], ciphertext, bfvContext, crp, encoder)
+				}
+
+				Bootstrapp(ciphertext, sk0.Get(), bootshares, bfvContext, crp, encoder)
+
+				plaintextHave, _ := decryptor_sk0.DecryptNew(ciphertext)
+				coeffsTest, err := encoder.DecodeUint(plaintextHave)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
+					t.Errorf("error : BOOT")
 				}
 			})
 		}

@@ -151,13 +151,13 @@ func (ekg *rkgProtocol) AggregateShareRoundTwo(share1, share2, shareOut rkgShare
 	}
 }
 
-// GenShareRound3 is the second pard of the third and last round of the rkgProtocol protocol. Each party operates a key-switch on [s*a + e_2],
+// GenShareRoundThree is the second pard of the third and last round of the rkgProtocol protocol. Each party operates a key-switch on [s*a + e_2],
 // by computing :
 //
 // [(u_i - s_i)*(s*a + e_2)]
 //
 // and broadcasts the result the other j-1 parties.
-func (ekg *rkgProtocol) GenShareRound3(round2 rkgShareRoundTwo, u, sk *ring.Poly, shareOut rkgShareRoundThree) {
+func (ekg *rkgProtocol) GenShareRoundThree(round2 rkgShareRoundTwo, u, sk *ring.Poly, shareOut rkgShareRoundThree) {
 
 	// (u_i - s_i)
 	ekg.ringContext.Sub(u, sk, ekg.tmpPoly1)

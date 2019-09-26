@@ -39,7 +39,7 @@ func (pcks *pcksProtocol) AllocateShares() (s pcksShare) {
 	return
 }
 
-// GenShareRound3 is the first part of the unique round of the pcksProtocol protocol. Each party computes the following :
+// GenShareRoundThree is the first part of the unique round of the pcksProtocol protocol. Each party computes the following :
 //
 // [s_i * ctx[0] + u_i * pk[0] + e_0i, u_i * pk[1] + e_1i]
 //

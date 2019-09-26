@@ -122,12 +122,10 @@ func (keygen *keygenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err erro
 	return pk, nil
 }
 
-func (keygen *keygenerator) NewPublicKeyEmpty() (pk *PublicKey) {
+func (bfvContext *BfvContext) NewPublicKey() (pk *PublicKey) {
 	pk = new(PublicKey)
-
-	pk.pk[0] = keygen.context.NewPoly()
-	pk.pk[1] = keygen.context.NewPoly()
-
+	pk.pk[0] = bfvContext.contextQ.NewPoly()
+	pk.pk[1] = bfvContext.contextQ.NewPoly()
 	return
 }
 

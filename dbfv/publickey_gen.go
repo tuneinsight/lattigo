@@ -41,7 +41,7 @@ func (ckg *ckgProtocol) AggregateShares(share1, share2, shareOut ckgShare) {
 	ckg.context.Add(share1, share2, shareOut)
 }
 
-// GetPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
-func (ckg *ckgProtocol) GetPublicKey(roundShare ckgShare, crs *ring.Poly, pubkey *bfv.PublicKey) {
+// GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
+func (ckg *ckgProtocol) GenPublicKey(roundShare ckgShare, crs *ring.Poly, pubkey *bfv.PublicKey) {
 	pubkey.Set([2]*ring.Poly{roundShare, crs})
 }

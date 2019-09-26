@@ -281,7 +281,7 @@ func Test_DBFVScheme(t *testing.T) {
 				}
 
 				pk := &bfv.PublicKey{}
-				P0.GetPublicKey(P0.s1, crp, pk)
+				P0.GenPublicKey(P0.s1, crp, pk)
 
 				// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
 				encryptorTest, err := bfvContext.NewEncryptor(pk, nil)
@@ -474,7 +474,7 @@ func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ek
 
 	// ROUND 3
 	for i, p := range rkgParties {
-		p.GenShareRound3(P0.share2, p.u, p.s, p.share3)
+		p.GenShareRoundThree(P0.share2, p.u, p.s, p.share3)
 		if i > 0 {
 			P0.AggregateShareRound3(p.share3, P0.share3, P0.share3)
 		}

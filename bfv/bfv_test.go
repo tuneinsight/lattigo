@@ -168,7 +168,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		PkTest := bfvTest.kgen.NewPublicKeyEmpty()
+		PkTest := bfvTest.bfvcontext.NewPublicKey()
 		PkTest.UnMarshalBinary(PkBytes)
 
 		for i := range Pk.pk {

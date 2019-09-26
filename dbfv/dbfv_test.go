@@ -188,13 +188,12 @@ func Test_DBFVScheme(t *testing.T) {
 						}
 					}
 
-
 					for i := 0; i < parties; i++ {
 						ekg[i] = NewEkgProtocol(bfvContext, bitDecomp)
 						ephemeralKeys[i], _ = ekg[i].NewEphemeralKey(1.0 / 3)
 					}
 
-					rlk := test_EKG_Protocol(parties, ekg, sk0_shards, ephemeralKeys, crp)
+					rlk := test_EKG_Protocol(bfvContext, parties, bitDecomp, ekg, sk0_shards, ephemeralKeys, crp)
 
 					if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
 						log.Fatal(err)
@@ -429,7 +428,7 @@ func test_EKG_Protocol_Naive(parties int, sk []*bfv.SecretKey, collectivePk *bfv
 	return evk
 }
 
-func test_EKG_Protocol(parties int, ekgProtocols []*rkgProtocolState, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) *bfv.EvaluationKey {
+func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ekgProtocols []*rkgProtocolState, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) *bfv.EvaluationKey {
 
 	type Party struct{*rkgProtocolState
 		u *ring.Poly
@@ -477,7 +476,7 @@ func test_EKG_Protocol(parties int, ekgProtocols []*rkgProtocolState, sk []*bfv.
 		}
 	}
 
-	evk := new(bfv.EvaluationKey)
+	evk := bfvCtx.NewRelinKey(1, bitDecomp)
 	P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
 	return evk
 }

@@ -133,7 +133,6 @@ func (ekg *rkgProtocolState) GenShareRoundTwo(round1 rkgShareRoundOne, sk *ring.
 			ekg.ringContext.MulCoeffsMontgomeryAndAdd(sk, crp[i][w], shareOut[i][w][1])
 		}
 	}
-	ekg.tmpPoly1.Zero()
 }
 
 // AggregateShareRoundTwo is the first part of the third and last round of the rkgProtocolState protocol. Uppon receiving the j-1 elements, each party
@@ -173,10 +172,10 @@ func (ekg *rkgProtocolState) GenShareRound3(round2 rkgShareRoundTwo, u, sk *ring
 }
 
 
-func (ekg *rkgProtocolState) AggregateShareRound3(share1, share2, share3 rkgShareRoundThree) {
+func (ekg *rkgProtocolState) AggregateShareRound3(share1, share2, shareOut rkgShareRoundThree) {
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
-			ekg.ringContext.Add(share1[i][w], share2[i][w], share3[i][w])
+			ekg.ringContext.Add(share1[i][w], share2[i][w], shareOut[i][w])
 		}
 	}
 }
@@ -184,20 +183,15 @@ func (ekg *rkgProtocolState) AggregateShareRound3(share1, share2, share3 rkgShar
 
 func (ekg *rkgProtocolState) GenRelinearizationKey(round2 rkgShareRoundTwo, round3 rkgShareRoundThree, evalKeyOut *bfv.EvaluationKey) {
 
-	evk := [][][][2]*ring.Poly{make([][][2]*ring.Poly, len(ekg.ringContext.Modulus))}
-	key := evk[0]
-	for i := range ekg.ringContext.Modulus {
-		key[i] = make([][2]*ring.Poly, ekg.bitLog)
-		for w := uint64(0); w < ekg.bitLog; w++ {
-			key[i][w][0] = ekg.ringContext.NewPoly()
-			ekg.ringContext.Add(round2[i][w][0], round3[i][w], key[i][w][0])
-			key[i][w][1] = round2[i][w][1] // A propper copy will be done by evk.SetRelinKeys
 
+	key := evalKeyOut.Get()[0].Get()
+	for i := range ekg.ringContext.Modulus {
+		for w := uint64(0); w < ekg.bitLog; w++ {
+			ekg.ringContext.Add(round2[i][w][0], round3[i][w], key[i][w][0])
+			_ = round2[i][w][1].Copy(key[i][w][1])
 
 			ekg.ringContext.MForm(key[i][w][0], key[i][w][0])
 			ekg.ringContext.MForm(key[i][w][1], key[i][w][1])
 		}
 	}
-
-	evalKeyOut.SetRelinKeys(evk, ekg.bitLog)
 }

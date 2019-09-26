@@ -20,29 +20,30 @@ func GenBootShares(sk *bfv.SecretKey, ciphertext *bfv.Ciphertext, bfvcontext *bf
 	//mask := bfvcontext.NewPlaintext()
 	//encoder.EncodeUint(coeffs.Coeffs[0], mask)
 
-	// h0, h1 = e, e'
 	bootshares.h0 = bfvcontext.ContextQ().NewPoly() 
 	bootshares.h1 = bfvcontext.ContextQ().NewPoly() 
 
-	// h0 = e + mask
-	// h1 = e' - mask
+	// h0 =  mask
+	// h1 = - mask
 	bfvcontext.ContextQ().Add(bootshares.h0, polypool, bootshares.h0)
 	bfvcontext.ContextQ().Sub(bootshares.h1, polypool, bootshares.h1)
 
-	// h0 = s*ct[1] - mask + e
+	// h0 = s*ct[1] - mask
 	bfvcontext.ContextQ().NTT(ciphertext.Value()[1], polypool)
 	bfvcontext.ContextQ().MulCoeffsMontgomeryAndAdd(sk.Get(), polypool, bootshares.h0)
 
-	// h1 = s*a + mask + e'
+	// h1 = s*a + mask 
 	bfvcontext.ContextQ().NTT(crs, polypool)
 	bfvcontext.ContextQ().MulCoeffsMontgomeryAndSub(sk.Get(), polypool, bootshares.h1)
 
 	bfvcontext.ContextQ().InvNTT(bootshares.h0, bootshares.h0)
 	bfvcontext.ContextQ().InvNTT(bootshares.h1, bootshares.h1)
 
+	// h0 = s*ct[1] - mask + e
 	sampler.Sample(polypool)
 	bfvcontext.ContextQ().Add(bootshares.h0, polypool, bootshares.h0)
 
+	// h1 = s*a - mask + e'
 	sampler.Sample(polypool)
 	bfvcontext.ContextQ().Add(bootshares.h1, polypool, bootshares.h1)
 
@@ -73,6 +74,7 @@ func Bootstrapp(ciphertext *bfv.Ciphertext, sk *ring.Poly, bootshares []*BootSha
 		bfvcontext.ContextQ().Add(ciphertext.Value()[0], bootshares[i].h1, ciphertext.Value()[0])
 	}
 
+	// ct[1] = a
 	ciphertext.Value()[1] = crs.CopyNew()
 
 }

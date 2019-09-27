@@ -472,8 +472,8 @@ func Test_DBFVScheme(t *testing.T) {
 					log.Fatal(err)
 				}
 
-				t.Logf("Average simulated error before boot (log2): %d", average_simulated_error.Value.BitLen())
-				t.Logf("Average residual error after boot (log2): %d", average_residual_error.Value.BitLen())
+				t.Logf("Average simulated error before refresh (log2): %d", average_simulated_error.Value.BitLen())
+				t.Logf("Average residual error after refresh (log2): %d", average_residual_error.Value.BitLen())
 
 				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
 					t.Errorf("error : BOOT")

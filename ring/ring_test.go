@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 var folder = "test_data/"
@@ -40,6 +41,8 @@ var filesNTT_60 = []string{
 
 func Test_POLYNOMIAL(t *testing.T) {
 
+	rand.Seed(time.Now().UnixNano())
+
 	for i := uint64(0); i < 1; i++ {
 
 		N := uint64(2 << (12 + i))
@@ -52,15 +55,15 @@ func Test_POLYNOMIAL(t *testing.T) {
 
 		contextT := NewContext()
 		contextT.SetParameters(N, []uint64{T})
-		contextT.ValidateParameters()
+		contextT.GenNTTParams()
 
 		contextQ := NewContext()
 		contextQ.SetParameters(N, Qi)
-		contextQ.ValidateParameters()
+		contextQ.GenNTTParams()
 
 		contextP := NewContext()
 		contextP.SetParameters(N, Pi)
-		contextP.ValidateParameters()
+		contextP.GenNTTParams()
 
 		contextQP := NewContext()
 		contextQP.Merge(contextQ, contextP)
@@ -147,7 +150,7 @@ func constructContextFromString(vs []string) *Context {
 	// Generate the context from N and Qi
 	context := NewContext()
 	context.SetParameters(N, Modulus)
-	context.ValidateParameters()
+	context.GenNTTParams()
 
 	return context
 }
@@ -507,7 +510,7 @@ func test_ExtendBasis(contextQ, contextP, contextQP *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/Pi=%dx%d/ExtendBasis", contextQ.N, len(contextQ.Modulus), 60, len(contextP.Modulus), 60), func(t *testing.T) {
 
-		basisextender, _ := NewBasisExtender(contextQ, contextP)
+		basisextender := NewBasisExtender(contextQ, contextP)
 
 		coeffs := make([]*Int, contextQ.N)
 		for i := uint64(0); i < contextQ.N; i++ {
@@ -537,7 +540,7 @@ func test_SimpleScaling(T uint64, contextT, contextQ *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/T=%v/SimpleScaling", contextQ.N, len(contextQ.Modulus), 60, T), func(t *testing.T) {
 
-		rescaler, _ := NewSimpleScaler(T, contextQ)
+		rescaler := NewSimpleScaler(T, contextQ)
 
 		coeffs := make([]*Int, contextQ.N)
 		for i := uint64(0); i < contextQ.N; i++ {
@@ -574,7 +577,7 @@ func test_ComplexScaling(T uint64, contextQ, contextP, contextQP *Context, t *te
 
 	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/Pi=%dx%d/T=%d/ComplexScaling", contextQ.N, len(contextQ.Modulus), 60, len(contextP.Modulus), 60, T), func(t *testing.T) {
 
-		complexRescaler, _ := NewComplexScaler(T, contextQ, contextP)
+		complexRescaler := NewComplexScaler(T, contextQ, contextP)
 
 		coeffs := make([]*Int, contextQ.N)
 		for i := uint64(0); i < contextQ.N; i++ {

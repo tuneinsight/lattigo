@@ -18,18 +18,13 @@ type Evaluator struct {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on the ciphertexts and/or plaintexts. It stores a small pool of polynomials
 // and ciphertexts that will be used for intermediate values.
-func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator, err error) {
+func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator) {
 
 	evaluator = new(Evaluator)
 	evaluator.bfvcontext = bfvcontext
 
-	if evaluator.basisextender, err = ring.NewBasisExtender(bfvcontext.contextQ, bfvcontext.contextP); err != nil {
-		return nil, err
-	}
-
-	if evaluator.complexscaler, err = ring.NewComplexScaler(bfvcontext.t, bfvcontext.contextQ, bfvcontext.contextP); err != nil {
-		return nil, err
-	}
+	evaluator.basisextender = ring.NewBasisExtender(bfvcontext.contextQ, bfvcontext.contextP)
+	evaluator.complexscaler = ring.NewComplexScaler(bfvcontext.t, bfvcontext.contextQ, bfvcontext.contextP)
 
 	for i := 0; i < 4; i++ {
 		evaluator.polypool[i] = bfvcontext.contextQP.NewPoly()
@@ -39,7 +34,7 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator, err error) {
 	evaluator.ctxpool[1] = bfvcontext.NewCiphertextBig(5)
 	evaluator.ctxpool[2] = bfvcontext.NewCiphertextBig(5)
 
-	return evaluator, nil
+	return evaluator
 }
 
 func (evaluator *Evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *bfvElement, err error) {

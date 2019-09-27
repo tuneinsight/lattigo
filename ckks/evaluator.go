@@ -475,9 +475,7 @@ func (evaluator *Evaluator) AddConst(c0 CkksElement, constant interface{}, cOut 
 
 	var level uint64
 
-	if level, err = checkLevels([]CkksElement{c0, cOut}); err != nil {
-		return err
-	}
+	level = min([]uint64{c0.Level(), cOut.Level()})
 
 	var c_real, c_imag float64
 
@@ -836,9 +834,7 @@ func (evaluator *Evaluator) MultByi(c0 CkksElement, c1 CkksElement) (err error) 
 
 	var level uint64
 
-	if level, err = checkLevels([]CkksElement{c0, c1}); err != nil {
-		return err
-	}
+	level = min([]uint64{c0.Level(), c1.Level()})
 
 	context := evaluator.ckkscontext.contextLevel[level]
 
@@ -886,9 +882,7 @@ func (evaluator *Evaluator) DivByi(c0 CkksElement, c1 CkksElement) (err error) {
 
 	var level uint64
 
-	if level, err = checkLevels([]CkksElement{c0, c1}); err != nil {
-		return err
-	}
+	level = min([]uint64{c0.Level(), c1.Level()})
 
 	context := evaluator.ckkscontext.contextLevel[level]
 
@@ -957,9 +951,7 @@ func (evaluator *Evaluator) MulByPow2(c0 CkksElement, pow2 uint64, cOut CkksElem
 
 	var level uint64
 
-	if level, err = checkLevels([]CkksElement{c0, cOut}); err != nil {
-		return err
-	}
+	level = min([]uint64{c0.Level(), cOut.Level()})
 
 	for i := range cOut.Value() {
 		evaluator.ckkscontext.contextLevel[level].MulByPow2(c0.Value()[i], pow2, cOut.Value()[i])

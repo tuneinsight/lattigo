@@ -1,33 +1,5 @@
 package bfv
 
-import (
-	"bytes"
-	"encoding/binary"
-	"golang.org/x/crypto/blake2b"
-)
-
-// hash hashes a slice of uint64 values (data) and returns the digest in bytes.
-func hash(data []uint64) (digest []byte, err error) {
-	hash, err := blake2b.New512(nil)
-	buff := make([]byte, 8)
-	for _, x := range data {
-		binary.BigEndian.PutUint64(buff, x)
-		hash.Write(buff)
-	}
-	digest = hash.Sum(nil)
-	return
-
-}
-
-// verifyHash compares to byte slices and return true if they are equal, else false.
-func verifyHash(hash0, hash1 []byte) bool {
-	if res := bytes.Compare(hash0, hash1); res != 0 {
-		return false
-	} else {
-		return true
-	}
-}
-
 // equalslice compares two slices of uint64 values, and return true if they are equal, else false.
 func equalslice(a, b []uint64) bool {
 

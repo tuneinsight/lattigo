@@ -15,11 +15,15 @@ type BatchEncoder struct {
 }
 
 // NewBatchEncoder creates a new BatchEncoder from the target bfvcontext.
-func (bfvcontext *BfvContext) NewBatchEncoder() *BatchEncoder {
+func (bfvcontext *BfvContext) NewBatchEncoder() (batchencoder *BatchEncoder, err error) {
+
+	if bfvcontext.contextT.AllowsNTT() != true {
+		return nil, errors.New("cannot create batch encoder : plaintext modulus does not allow NTT")
+	}
 
 	var m, gen, pos, index1, index2 uint64
 
-	batchencoder := new(BatchEncoder)
+	batchencoder = new(BatchEncoder)
 
 	batchencoder.bfvcontext = bfvcontext
 
@@ -46,10 +50,10 @@ func (bfvcontext *BfvContext) NewBatchEncoder() *BatchEncoder {
 		pos &= (m - 1)
 	}
 
-	batchencoder.simplescaler, _ = ring.NewSimpleScaler(bfvcontext.t, bfvcontext.contextQ)
+	batchencoder.simplescaler = ring.NewSimpleScaler(bfvcontext.t, bfvcontext.contextQ)
 	batchencoder.polypool = bfvcontext.contextT.NewPoly()
 
-	return batchencoder
+	return batchencoder, nil
 }
 
 // EncodeUint encodes an uint64 slice of size at most N on a plaintext.
@@ -182,7 +186,7 @@ func (bfvcontext *BfvContext) NewIntEncoder(base int64) *IntEncoder {
 	encoder := new(IntEncoder)
 	encoder.base = base
 	encoder.bfvcontext = bfvcontext
-	encoder.simplescaler, _ = ring.NewSimpleScaler(bfvcontext.t, bfvcontext.contextQ)
+	encoder.simplescaler = ring.NewSimpleScaler(bfvcontext.t, bfvcontext.contextQ)
 	return encoder
 }
 

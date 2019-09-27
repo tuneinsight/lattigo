@@ -51,10 +51,7 @@ func ObliviousRiding() {
 		log.Fatal(err)
 	}
 
-	evaluator, err := bfvContext.NewEvaluator()
-	if err != nil {
-		log.Fatal(err)
-	}
+	evaluator := bfvContext.NewEvaluator()
 
 	fmt.Println("===========================================")
 	fmt.Println("Homomorphic computations on batched integers")
@@ -83,7 +80,10 @@ func ObliviousRiding() {
 		Rider[(i<<1)+1] = riderposition[1]
 	}
 
-	batchEncoder := bfvContext.NewBatchEncoder()
+	batchEncoder, err := bfvContext.NewBatchEncoder()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	DriversPlaintexts := make([]*bfv.Plaintext, NbDrivers)
 

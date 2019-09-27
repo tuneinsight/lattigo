@@ -25,15 +25,15 @@ func Benchmark_POLYNOMIAL(b *testing.B) {
 
 		contextT := NewContext()
 		contextT.SetParameters(N, []uint64{T})
-		contextT.ValidateParameters()
+		contextT.GenNTTParams()
 
 		contextQ := NewContext()
 		contextQ.SetParameters(N, Qi)
-		contextQ.ValidateParameters()
+		contextQ.GenNTTParams()
 
 		contextP := NewContext()
 		contextP.SetParameters(N, Pi)
-		contextP.ValidateParameters()
+		contextP.GenNTTParams()
 
 		contextQP := NewContext()
 		contextQP.Merge(contextQ, contextP)
@@ -95,7 +95,7 @@ func benchmark_Context(N uint64, Qi []uint64, b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			context = NewContext()
 			context.SetParameters(N, Qi)
-			context.ValidateParameters()
+			context.GenNTTParams()
 		}
 	})
 }
@@ -343,7 +343,7 @@ func benchmark_MulScalar(context *Context, b *testing.B) {
 
 func benchmark_ExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B) {
 
-	BasisExtenderQP, _ := NewBasisExtender(contextQ, contextP)
+	BasisExtenderQP := NewBasisExtender(contextQ, contextP)
 
 	p0 := contextQ.NewUniformPoly()
 	p1 := contextQP.NewPoly()
@@ -365,7 +365,7 @@ func benchmark_ExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B)
 
 func benchmark_SimpleScaling(T uint64, context *Context, b *testing.B) {
 
-	SimpleScaler, _ := NewSimpleScaler(T, context)
+	SimpleScaler := NewSimpleScaler(T, context)
 
 	p0 := context.NewUniformPoly()
 	p1 := context.NewPoly()
@@ -381,7 +381,7 @@ func benchmark_SimpleScaling(T uint64, context *Context, b *testing.B) {
 
 func benchmark_ComplexScaling(T uint64, contextQ, contextP, contextQP *Context, b *testing.B) {
 
-	ComplexScalerQP, _ := NewComplexScaler(T, contextQ, contextP)
+	ComplexScalerQP := NewComplexScaler(T, contextQ, contextP)
 
 	p0 := contextQP.NewUniformPoly()
 	p1 := contextQ.NewUniformPoly()

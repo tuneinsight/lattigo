@@ -44,9 +44,6 @@ type BfvContext struct {
 	galElRotRow      uint64
 	galElRotColLeft  []uint64
 	galElRotColRight []uint64
-
-	// Checksum of [N, [modulies]]
-	checksum []byte
 }
 
 // NewBfvContext creates a new empty BfvContext.
@@ -107,14 +104,14 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	// We do not check for an error since the plaintext NTT is optional
 	// it will still compute the other relevant parameters
 	contextT.SetParameters(N, []uint64{t})
-	contextT.ValidateParameters()
+	contextT.GenNTTParams()
 	// ========================
 
 	if err := contextQ.SetParameters(N, ModuliQ); err != nil {
 		return err
 	}
 
-	if err := contextQ.ValidateParameters(); err != nil {
+	if err := contextQ.GenNTTParams(); err != nil {
 		return err
 	}
 
@@ -122,7 +119,7 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 		return err
 	}
 
-	if err := contextP.ValidateParameters(); err != nil {
+	if err := contextP.GenNTTParams(); err != nil {
 		return err
 	}
 
@@ -183,16 +180,6 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	}
 
 	bfvContext.galElRotRow = (N << 1) - 1
-
-	toHash := make([]uint64, len(ModuliQ)+1)
-	toHash[0] = N
-	for i := 1; i < len(toHash); i++ {
-		toHash[i] = ModuliQ[i-1]
-	}
-
-	if bfvContext.checksum, err = hash(toHash); err != nil {
-		return err
-	}
 
 	return nil
 }

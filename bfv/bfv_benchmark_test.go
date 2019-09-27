@@ -82,10 +82,7 @@ func BenchmarkBFVScheme(b *testing.B) {
 			_ = ptp
 		})
 
-		evaluator, err := bfvContext.NewEvaluator()
-		if err != nil {
-			b.Error(err)
-		}
+		evaluator := bfvContext.NewEvaluator()
 
 		ct1, err := encryptor.EncryptFromSkNew(pt)
 		if err != nil {

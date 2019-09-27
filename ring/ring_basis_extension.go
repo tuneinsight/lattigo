@@ -1,9 +1,5 @@
 package ring
 
-import (
-	"errors"
-)
-
 //==========================================
 //===== CRT BASIS EXTENSION PARAMETERS =====
 //==========================================
@@ -28,13 +24,9 @@ type BasisExtender struct {
 }
 
 // NewBasisExtender creates a new BasisExtender, that will be used to extend a polynomial in basis Q to a polynomial in basis Q + P.
-func NewBasisExtender(contextQ, contextP *Context) (*BasisExtender, error) {
+func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 
-	if contextQ.validated != true || contextP.validated != true {
-		return nil, errors.New("error : both contexts need to be valiated before instantiating a new basis extender")
-	}
-
-	newParams := new(BasisExtender)
+	newParams = new(BasisExtender)
 
 	var PjB Int
 	var QiB Int
@@ -86,7 +78,7 @@ func NewBasisExtender(contextQ, contextP *Context) (*BasisExtender, error) {
 		}
 	}
 
-	return newParams, nil
+	return
 }
 
 // ExtendBasis extends the basis of a polynomial from Q to Q + P.

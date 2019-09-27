@@ -47,7 +47,9 @@ func Test_BFV(t *testing.T) {
 
 		bfvTest.kgen = bfvTest.bfvcontext.NewKeyGenerator()
 
-		bfvTest.batchencoder = bfvTest.bfvcontext.NewBatchEncoder()
+		if bfvTest.batchencoder, err = bfvTest.bfvcontext.NewBatchEncoder(); err != nil {
+			log.Fatal(err)
+		}
 
 		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair(1.0 / 3); err != nil {
 			log.Fatal(err)
@@ -61,9 +63,7 @@ func Test_BFV(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		if bfvTest.evaluator, err = bfvTest.bfvcontext.NewEvaluator(); err != nil {
-			log.Fatal(err)
-		}
+		bfvTest.evaluator = bfvTest.bfvcontext.NewEvaluator()
 
 		test_EncodeDecode(bfvTest, t)
 		test_PlaintextBatchEncodeDecode(bfvTest, t)

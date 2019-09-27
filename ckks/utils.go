@@ -1,11 +1,8 @@
 package ckks
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"github.com/ldsec/lattigo/ring"
-	"golang.org/x/crypto/blake2b"
 	"math"
 	"math/big"
 	"math/bits"
@@ -74,50 +71,6 @@ func scaleDown(coeff *ring.Int, n uint64) (x float64) {
 	x /= float64(uint64(1 << n))
 
 	return
-}
-
-func hash(data []uint64) (value []byte, err error) {
-	hash, err := blake2b.New512(nil)
-	buff := make([]byte, 8)
-	for _, x := range data {
-		binary.BigEndian.PutUint64(buff, x)
-		hash.Write(buff)
-	}
-	value = hash.Sum(nil)
-	return
-
-}
-
-func verifyhash(hash0, hash1 []byte) bool {
-	if res := bytes.Compare(hash0, hash1); res != 0 {
-		return false
-	} else {
-		return true
-	}
-}
-
-func getLevels(inputs []CkksElement) (levels []uint64) {
-
-	levels = make([]uint64, len(inputs))
-
-	for i := range inputs {
-		levels[i] = inputs[i].Level()
-	}
-
-	return
-}
-
-func checkLevels(inputs []CkksElement) (uint64, error) {
-
-	levels := getLevels(inputs)
-
-	for i := 1; i < len(levels); i++ {
-		if levels[0] != levels[i] {
-			return 0, errors.New("error : inputs need to be on the same level")
-		}
-	}
-
-	return levels[0], nil
 }
 
 // Generates CKKS Primes given logQ = size of the primes, logN = size of N and level, the number
@@ -223,16 +176,4 @@ func hammingWeight64(x uint64) uint64 {
 	x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333)
 	x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0f
 	return ((x * 0x0101010101010101) & 0xffffffffffffffff) >> 56
-}
-
-func modexp(x, e, p uint64) (result uint64) {
-	params := ring.BRedParams(p)
-	result = 1
-	for i := e; i > 0; i >>= 1 {
-		if i&1 == 1 {
-			result = ring.BRed(result, x, p, params)
-		}
-		x = ring.BRed(x, x, p, params)
-	}
-	return result
 }

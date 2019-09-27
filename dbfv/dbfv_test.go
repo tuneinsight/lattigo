@@ -26,16 +26,16 @@ func Test_DBFVScheme(t *testing.T) {
 
 		kgen := bfvContext.NewKeyGenerator()
 
-		evaluator, err := bfvContext.NewEvaluator()
-		if err != nil {
-			log.Fatal(err)
-		}
+		evaluator := bfvContext.NewEvaluator()
 
 		context := bfvContext.ContextQ()
 
 		contextT := bfvContext.ContextT()
 
-		encoder := bfvContext.NewBatchEncoder()
+		encoder, err := bfvContext.NewBatchEncoder()
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		coeffsWant := contextT.NewUniformPoly()
 		plaintextWant := bfvContext.NewPlaintext()

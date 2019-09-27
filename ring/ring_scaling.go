@@ -1,7 +1,6 @@
 package ring
 
 import (
-	"errors"
 	"math"
 	"math/bits"
 )
@@ -28,13 +27,9 @@ type SimpleScaler struct {
 
 // NewSimpleScaler creates a new SimpleScaler from t (the modulus under which the reconstruction is returned) and context (the context in which the polynomial
 // to reconstruct will be represented).
-func NewSimpleScaler(t uint64, context *Context) (*SimpleScaler, error) {
+func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 
-	if context.validated != true {
-		return nil, errors.New("error : context must be validated before instantiating a new simple scaler")
-	}
-
-	newParams := new(SimpleScaler)
+	newParams = new(SimpleScaler)
 
 	var tmp Float128
 	var QiB Int     // Qi
@@ -120,7 +115,7 @@ func NewSimpleScaler(t uint64, context *Context) (*SimpleScaler, error) {
 		newParams.ti[i] = Float128Div(Float128SetUint64(QiBarre.Uint64()), Float128SetUint64(qi)) //floor( ([Q/Qi]^(-1))_{Qi} * t/Qi ) - ( ([Q/Qi]^(-1))_{Qi} * t/Qi )
 	}
 
-	return newParams, nil
+	return
 }
 
 // Scale returns the reconstruction of p1 scaled by a factor t/Q and mod t on the reciever p2.
@@ -194,13 +189,9 @@ type ComplexScaler struct {
 }
 
 // NewComplexScaler creates a new ComplexScaler from t and the provided contexts.
-func NewComplexScaler(t uint64, contextQ, contextP *Context) (*ComplexScaler, error) {
+func NewComplexScaler(t uint64, contextQ, contextP *Context) (newParams *ComplexScaler) {
 
-	if contextQ.validated != true || contextP.validated != true {
-		return nil, errors.New("error : both contexts must be validated before instantiating a new simple scaler")
-	}
-
-	newParams := new(ComplexScaler)
+	newParams = new(ComplexScaler)
 
 	newParams.contextQ = contextQ
 	newParams.contextP = contextP
@@ -286,7 +277,7 @@ func NewComplexScaler(t uint64, contextQ, contextP *Context) (*ComplexScaler, er
 		newParams.pjFloat128[j] = Float128SetUint64(pj)
 	}
 
-	return newParams, nil
+	return newParams
 }
 
 // Scale takes a polynomial in basis {Q0,Q1....Qi,P0,P1...Pj}, rescales it by a factor t/Q and returns the result in basis {Q0,Q1....Qi}.

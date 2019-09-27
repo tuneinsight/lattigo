@@ -259,6 +259,7 @@ func sample(context *Context, samplerMatrix [][]uint64, p float64, pol *Poly) (e
 
 	var coeff uint64
 	var sign uint64
+	var index uint64
 
 	if p == 0.5 {
 
@@ -277,8 +278,10 @@ func sample(context *Context, samplerMatrix [][]uint64, p float64, pol *Poly) (e
 			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
 			sign = uint64(uint8(randomBytesSign[i>>3])>>(i&7)) & 1
 
+			index = (coeff&(sign^1))|((sign&coeff)<<1)
+
 			for j := range context.Modulus {
-				pol.Coeffs[j][i] = samplerMatrix[j][(coeff&(sign^1))|((sign&coeff)<<1)] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+				pol.Coeffs[j][i] = samplerMatrix[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
 			}
 		}
 
@@ -298,8 +301,10 @@ func sample(context *Context, samplerMatrix [][]uint64, p float64, pol *Poly) (e
 
 			coeff, sign, randomBytes, pointer = kysampling(matrix, randomBytes, pointer)
 
+			index = (coeff&(sign^1))|((sign&coeff)<<1)
+
 			for j := range context.Modulus {
-				pol.Coeffs[j][i] = samplerMatrix[j][(coeff&(sign^1))|((sign&coeff)<<1)] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+				pol.Coeffs[j][i] = samplerMatrix[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
 			}
 		}
 	}

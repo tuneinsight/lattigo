@@ -415,10 +415,10 @@ func Test_DBFVScheme(t *testing.T) {
 				// ===== Boot instance =====
 				crp := crpGenerators[0].Clock()
 
-				bootshares := make([]*BootShares, parties)
+				refreshShares := make([]*RefreshShares, parties)
 
 				for i := 0; i < parties; i++ {
-					bootshares[i] = GenBootShares(sk0_shards[i], ciphertext, bfvContext, crp, encoder)
+					refreshShares[i] = GenRefreshShares(sk0_shards[i], ciphertext, bfvContext, crp, encoder)
 				}
 				// =========================
 
@@ -451,7 +451,7 @@ func Test_DBFVScheme(t *testing.T) {
 				// =======================================================================================
 
 				// We boot the ciphertext with the simulated error
-				Bootstrapp(ciphertext, sk0.Get(), bootshares, bfvContext, crp, encoder)
+				Refresh(ciphertext, sk0.Get(), refreshShares, bfvContext, crp, encoder)
 
 				// We decrypt and compare with the original plaintext
 				plaintextHave, _ = decryptor_sk0.DecryptNew(ciphertext)

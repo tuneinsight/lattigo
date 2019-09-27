@@ -6,14 +6,14 @@ import (
 	//"fmt"
 )
 
-type BootShares struct {
+type RefreshShares struct {
 	h0 *ring.Poly
 	h1 *ring.Poly
 }
 
-func GenBootShares(sk *bfv.SecretKey, ciphertext *bfv.Ciphertext, bfvcontext *bfv.BfvContext, crs *ring.Poly, encoder *bfv.BatchEncoder) (bootshares *BootShares) {
+func GenRefreshShares(sk *bfv.SecretKey, ciphertext *bfv.Ciphertext, bfvcontext *bfv.BfvContext, crs *ring.Poly, encoder *bfv.BatchEncoder) (refreshShares *RefreshShares) {
 
-	bootshares = new(BootShares)
+	refreshShares = new(RefreshShares)
 
 	sampler := bfvcontext.ContextQ().NewKYSampler(3.19, 19)
 
@@ -23,52 +23,52 @@ func GenBootShares(sk *bfv.SecretKey, ciphertext *bfv.Ciphertext, bfvcontext *bf
 	mask := bfvcontext.NewPlaintext()
 	encoder.EncodeUint(coeffs.Coeffs[0], mask)
 
-	bootshares.h0 = bfvcontext.ContextQ().NewPoly()
-	bootshares.h1 = bfvcontext.ContextQ().NewPoly()
+	refreshShares.h0 = bfvcontext.ContextQ().NewPoly()
+	refreshShares.h1 = bfvcontext.ContextQ().NewPoly()
 
 	// h0 = s*ct[1]
 	bfvcontext.ContextQ().NTT(ciphertext.Value()[1], polypool)
-	bfvcontext.ContextQ().MulCoeffsMontgomeryAndAdd(sk.Get(), polypool, bootshares.h0)
+	bfvcontext.ContextQ().MulCoeffsMontgomeryAndAdd(sk.Get(), polypool, refreshShares.h0)
 
 	// h1 = -s*a
 	bfvcontext.ContextQ().NTT(crs, polypool)
-	bfvcontext.ContextQ().MulCoeffsMontgomeryAndSub(sk.Get(), polypool, bootshares.h1)
+	bfvcontext.ContextQ().MulCoeffsMontgomeryAndSub(sk.Get(), polypool, refreshShares.h1)
 
-	bfvcontext.ContextQ().InvNTT(bootshares.h0, bootshares.h0)
-	bfvcontext.ContextQ().InvNTT(bootshares.h1, bootshares.h1)
+	bfvcontext.ContextQ().InvNTT(refreshShares.h0, refreshShares.h0)
+	bfvcontext.ContextQ().InvNTT(refreshShares.h1, refreshShares.h1)
 
 	// h0 = s*ct[1] - mask + e
 	sampler.Sample(polypool)
-	bfvcontext.ContextQ().Add(bootshares.h0, polypool, bootshares.h0)
+	bfvcontext.ContextQ().Add(refreshShares.h0, polypool, refreshShares.h0)
 
 	// h1 = s*a - mask + e'
 	sampler.Sample(polypool)
-	bfvcontext.ContextQ().Add(bootshares.h1, polypool, bootshares.h1)
+	bfvcontext.ContextQ().Add(refreshShares.h1, polypool, refreshShares.h1)
 
 	// h0 = s*ct[1] + mask
-	bfvcontext.ContextQ().Add(bootshares.h0, mask.Value()[0], bootshares.h0)
+	bfvcontext.ContextQ().Add(refreshShares.h0, mask.Value()[0], refreshShares.h0)
 
 	// h0 = -s*a - mask
-	bfvcontext.ContextQ().Sub(bootshares.h1, mask.Value()[0], bootshares.h1)
+	bfvcontext.ContextQ().Sub(refreshShares.h1, mask.Value()[0], refreshShares.h1)
 
 	return
 }
 
-func Bootstrapp(ciphertext *bfv.Ciphertext, sk *ring.Poly, bootshares []*BootShares, bfvcontext *bfv.BfvContext, crs *ring.Poly, encoder *bfv.BatchEncoder) {
+func Refresh(ciphertext *bfv.Ciphertext, sk *ring.Poly, refreshShares []*RefreshShares, bfvcontext *bfv.BfvContext, crs *ring.Poly, encoder *bfv.BatchEncoder) {
 
 	simplescaler, _ := ring.NewSimpleScaler(bfvcontext.T(), bfvcontext.ContextQ())
 
 	// ct[0] += sum(h0_i)
-	for i := range bootshares {
-		bfvcontext.ContextQ().Add(ciphertext.Value()[0], bootshares[i].h0, ciphertext.Value()[0])
+	for i := range refreshShares {
+		bfvcontext.ContextQ().Add(ciphertext.Value()[0], refreshShares[i].h0, ciphertext.Value()[0])
 	}
 
 	// (floor(ct[0] * T / Q) % T) * Q/T
 	reencode(ciphertext.Value()[0], ciphertext.Value()[0], simplescaler, bfvcontext)
 
 	// ct[0] += sum(h1_i)
-	for i := range bootshares {
-		bfvcontext.ContextQ().Add(ciphertext.Value()[0], bootshares[i].h1, ciphertext.Value()[0])
+	for i := range refreshShares {
+		bfvcontext.ContextQ().Add(ciphertext.Value()[0], refreshShares[i].h1, ciphertext.Value()[0])
 	}
 
 	// ct[1] = a

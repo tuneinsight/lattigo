@@ -332,16 +332,9 @@ func (evaluator *Evaluator) MulNew(op0, op1 Operand) (ctOut *Ciphertext, err err
 }
 
 // switchKeys compute cOut = [c0 + c2*evakey[0], c1 + c2*evakey[1]].
-func (evaluator *Evaluator) switchKeys(c0, c1, c2 *ring.Poly, evakey *SwitchingKey, elOut *bfvElement) {
+func (evaluator *Evaluator) switchKeys(c2 *ring.Poly, evakey *SwitchingKey, elOut *bfvElement) {
 
 	var mask, reduce, bitLog uint64
-
-	if c0 != elOut.value[0] {
-		c0.Copy(elOut.value[0])
-	}
-	if c1 != elOut.value[1] {
-		c1.Copy(elOut.value[1])
-	}
 
 	c2_qi_w := evaluator.polypool[3]
 
@@ -388,7 +381,7 @@ func (evaluator *Evaluator) relinearize(el *bfvElement, evakey *EvaluationKey, e
 	evaluator.bfvcontext.contextQ.NTT(el.value[1], elOut.value[1])
 
 	for deg := uint64(el.Degree()); deg > 1; deg-- {
-		evaluator.switchKeys(elOut.value[0], elOut.value[1], el.value[deg], evakey.evakey[deg-2], elOut)
+		evaluator.switchKeys(el.value[deg], evakey.evakey[deg-2], elOut)
 	}
 
 	if len(elOut.value) > 2 {
@@ -463,7 +456,7 @@ func (evaluator *Evaluator) SwitchKeys(op Operand, switchkey *SwitchingKey, ctOu
 		c2 = el.value[1]
 	}
 	_ = el.NTT(evaluator.bfvcontext, elOut)
-	evaluator.switchKeys(elOut.value[0], elOut.value[1], c2, switchkey, elOut)
+	evaluator.switchKeys(c2, switchkey, elOut)
 	_ = elOut.InvNTT(evaluator.bfvcontext, elOut)
 
 	return nil
@@ -510,89 +503,45 @@ func (evaluator *Evaluator) RotateColumns(op Operand, k uint64, evakey *Rotation
 		return errors.New("cannot rotate -> input and or output degree not 0 or 1")
 	}
 
-	context := evaluator.bfvcontext.contextQ
+	// Looks in the rotationkey if the corresponding rotation has been generated or if the input is a plaintext
+	if evakey.evakey_rot_col_L[k] != nil || el.Degree() == uint64(0) {
 
-	if el.Degree() == 0 {
+		if el.IsNTT() {
 
-		if elOut != el {
-
-			if el.IsNTT() {
-				ring.PermuteNTT(el.value[0], evaluator.bfvcontext.galElRotColLeft[k], elOut.value[0])
-			} else {
-				context.Permute(el.value[0], evaluator.bfvcontext.galElRotColLeft[k], elOut.value[0])
-			}
+			evaluator.permuteNTT(el, elOut, evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k])
 
 		} else {
 
-			if el.IsNTT() {
-				ring.PermuteNTT(el.value[0], evaluator.bfvcontext.galElRotColLeft[k], evaluator.polypool[0])
-			} else {
-				context.Permute(el.value[0], evaluator.bfvcontext.galElRotColLeft[k], evaluator.polypool[0])
-			}
-
-			context.Copy(evaluator.polypool[0], elOut.value[0])
+			evaluator.permute(el, elOut, evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k])
 		}
 
 		return nil
 
 	} else {
-		// Looks in the rotationkey if the corresponding rotation has been generated
-		if evakey.evakey_rot_col_L[k] != nil {
 
-			if el.IsNTT() {
+		// If not looks if the left and right pow2 rotations have been generated
+		has_pow2_rotations := true
+		for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
+			if evakey.evakey_rot_col_L[i] == nil || evakey.evakey_rot_col_R[i] == nil {
+				has_pow2_rotations = false
+				break
+			}
+		}
 
-				ring.PermuteNTT(el.value[0], evaluator.bfvcontext.galElRotColLeft[k], evaluator.polypool[0])
-				ring.PermuteNTT(el.value[1], evaluator.bfvcontext.galElRotColLeft[k], evaluator.polypool[1])
+		// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
+		if has_pow2_rotations {
 
-				context.Copy(evaluator.polypool[0], elOut.value[0])
-				context.Copy(evaluator.polypool[1], elOut.value[1])
-
-				context.InvNTT(evaluator.polypool[1], evaluator.polypool[1])
-
-				evaluator.switchKeys(elOut.value[0], elOut.value[1], evaluator.polypool[1], evakey.evakey_rot_col_L[k], elOut)
-
+			if hammingWeight64(k) <= hammingWeight64((evaluator.bfvcontext.n>>1)-k) {
+				evaluator.rotateColumnsLPow2(el, k, evakey, elOut)
 			} else {
-
-				context.Permute(el.value[0], evaluator.bfvcontext.galElRotColLeft[k], evaluator.polypool[0])
-				context.Permute(el.value[1], evaluator.bfvcontext.galElRotColLeft[k], evaluator.polypool[1])
-
-				context.NTT(evaluator.polypool[0], elOut.value[0])
-				context.NTT(evaluator.polypool[1], elOut.value[1])
-
-				evaluator.switchKeys(elOut.value[0], elOut.value[1], evaluator.polypool[1], evakey.evakey_rot_col_L[k], elOut)
-
-				context.InvNTT(elOut.value[0], elOut.value[0])
-				context.InvNTT(elOut.value[1], elOut.value[1])
+				evaluator.rotateColumnsRPow2(el, (evaluator.bfvcontext.n>>1)-k, evakey, elOut)
 			}
 
 			return nil
 
+			// Else returns an error indicating that the keys have not been generated
 		} else {
-
-			// If not looks if the left and right pow2 rotations have been generated
-			has_pow2_rotations := true
-			for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
-				if evakey.evakey_rot_col_L[i] == nil || evakey.evakey_rot_col_R[i] == nil {
-					has_pow2_rotations = false
-					break
-				}
-			}
-
-			// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
-			if has_pow2_rotations {
-
-				if hammingWeight64(k) <= hammingWeight64((evaluator.bfvcontext.n>>1)-k) {
-					evaluator.rotateColumnsLPow2(el, k, evakey, elOut)
-				} else {
-					evaluator.rotateColumnsRPow2(el, (evaluator.bfvcontext.n>>1)-k, evakey, elOut)
-				}
-
-				return nil
-
-				// Else returns an error indicating that the keys have not been generated
-			} else {
-				return errors.New("error : specific rotation and pow2 rotations have not been generated")
-			}
+			return errors.New("error : specific rotation and pow2 rotations have not been generated")
 		}
 	}
 }
@@ -631,23 +580,7 @@ func (evaluator *Evaluator) rotateColumnsPow2(c0 *bfvElement, generator, k uint6
 
 		if k&1 == 1 {
 
-			if c0.Degree() == 0 {
-
-				ring.PermuteNTT(c1.value[0], generator, evaluator.polypool[0])
-				context.Copy(evaluator.polypool[0], c1.value[0])
-
-			} else {
-
-				ring.PermuteNTT(c1.value[0], generator, evaluator.polypool[0])
-				ring.PermuteNTT(c1.value[1], generator, evaluator.polypool[1])
-
-				context.Copy(evaluator.polypool[0], c1.value[0])
-				context.Copy(evaluator.polypool[1], c1.value[1])
-				context.InvNTT(evaluator.polypool[1], evaluator.polypool[2])
-
-				evaluator.switchKeys(evaluator.polypool[0], evaluator.polypool[1], evaluator.polypool[2], evakey_rot_col[evakey_index], c1)
-			}
-
+			evaluator.permuteNTT(c1, c1, generator, evakey_rot_col[evakey_index])
 		}
 
 		generator *= generator
@@ -681,95 +614,105 @@ func (evaluator *Evaluator) RotateRows(op Operand, evakey *RotationKeys, ctOut *
 		return errors.New("error : rows rotation key not generated")
 	}
 
+	if c0.IsNTT() {
+
+		evaluator.permuteNTT(c0, c1, evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row)
+
+	} else {
+
+		evaluator.permute(c0, c1, evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row)
+	}
+
+	return nil
+}
+
+func (evaluator *Evaluator) permuteNTT(c0, c1 *bfvElement, generator uint64, evakey *SwitchingKey) {
+
 	context := evaluator.bfvcontext.contextQ
 
 	if c0.Degree() == 0 {
 
-		if c0.IsNTT() {
+		if c0 != c1 {
 
-			if c0 != c1 {
-
-				ring.PermuteNTT(c0.value[0], evaluator.bfvcontext.galElRotRow, c1.value[0])
-
-			} else {
-
-				ring.PermuteNTT(c0.value[0], evaluator.bfvcontext.galElRotRow, evaluator.polypool[0])
-				context.Copy(evaluator.polypool[0], c1.value[0])
-			}
+			ring.PermuteNTT(c0.value[0], generator, c1.value[0])
 
 		} else {
 
-			if c0 != c1 {
-
-				context.Permute(c0.value[0], evaluator.bfvcontext.galElRotRow, c1.value[0])
-
-			} else {
-
-				context.Permute(c0.value[0], evaluator.bfvcontext.galElRotRow, evaluator.polypool[0])
-				context.Copy(evaluator.polypool[0], c1.value[0])
-			}
+			ring.PermuteNTT(c0.value[0], generator, evaluator.polypool[0])
+			context.Copy(evaluator.polypool[0], c1.value[0])
 		}
 
 	} else {
 
-		if c0.IsNTT() {
+		if c0 != c1 {
 
-			if c0 != c1 {
+			ring.PermuteNTT(c0.value[0], generator, c1.value[0])
+			ring.PermuteNTT(c0.value[1], generator, c1.value[1])
 
-				ring.PermuteNTT(c0.value[0], evaluator.bfvcontext.galElRotRow, c1.value[0])
-				ring.PermuteNTT(c0.value[1], evaluator.bfvcontext.galElRotRow, c1.value[1])
+			context.InvNTT(c1.value[1], evaluator.polypool[1])
 
-				context.InvNTT(c1.value[1], evaluator.polypool[1])
-
-				evaluator.switchKeys(c1.value[0], c1.value[1], evaluator.polypool[1], evakey.evakey_rot_row, c1)
-
-			} else {
-
-				ring.PermuteNTT(c0.value[0], evaluator.bfvcontext.galElRotRow, evaluator.polypool[0])
-				ring.PermuteNTT(c0.value[1], evaluator.bfvcontext.galElRotRow, evaluator.polypool[1])
-
-				context.Copy(evaluator.polypool[0], c1.value[0])
-				context.Copy(evaluator.polypool[1], c1.value[1])
-
-				context.InvNTT(evaluator.polypool[1], evaluator.polypool[1])
-
-				evaluator.switchKeys(c1.value[0], c1.value[1], evaluator.polypool[1], evakey.evakey_rot_row, c1)
-			}
+			evaluator.switchKeys(evaluator.polypool[1], evakey, c1)
 
 		} else {
 
-			if c0 != c1 {
+			ring.PermuteNTT(c0.value[0], generator, evaluator.polypool[0])
+			ring.PermuteNTT(c0.value[1], generator, evaluator.polypool[1])
 
-				context.Permute(c0.value[0], evaluator.bfvcontext.galElRotRow, c1.value[0])
-				context.Permute(c0.value[1], evaluator.bfvcontext.galElRotRow, c1.value[1])
+			context.Copy(evaluator.polypool[0], c1.value[0])
+			context.Copy(evaluator.polypool[1], c1.value[1])
+			context.InvNTT(evaluator.polypool[1], evaluator.polypool[1])
 
-				context.Copy(c1.value[1], evaluator.polypool[1])
-
-				context.NTT(c1.value[0], c1.value[0])
-				context.NTT(c1.value[1], c1.value[1])
-
-				evaluator.switchKeys(c1.value[0], c1.value[1], evaluator.polypool[1], evakey.evakey_rot_row, c1)
-
-				context.InvNTT(c1.value[0], c1.value[0])
-				context.InvNTT(c1.value[1], c1.value[1])
-
-			} else {
-
-				context.Permute(c0.value[0], evaluator.bfvcontext.galElRotRow, evaluator.polypool[0])
-				context.Permute(c0.value[1], evaluator.bfvcontext.galElRotRow, evaluator.polypool[1])
-
-				context.NTT(evaluator.polypool[0], c1.value[0])
-				context.NTT(evaluator.polypool[1], c1.value[1])
-
-				evaluator.switchKeys(c1.value[0], c1.value[1], evaluator.polypool[1], evakey.evakey_rot_row, c1)
-
-				context.InvNTT(c1.value[0], c1.value[0])
-				context.InvNTT(c1.value[1], c1.value[1])
-			}
+			evaluator.switchKeys(evaluator.polypool[1], evakey, c1)
 		}
 	}
+}
 
-	return nil
+func (evaluator *Evaluator) permute(c0, c1 *bfvElement, generator uint64, evakey *SwitchingKey) {
+
+	context := evaluator.bfvcontext.contextQ
+
+	if c0.Degree() == 0 {
+
+		if c0 != c1 {
+
+			context.Permute(c0.value[0], generator, c1.value[0])
+
+		} else {
+
+			context.Permute(c0.value[0], generator, evaluator.polypool[0])
+			context.Copy(evaluator.polypool[0], c1.value[0])
+		}
+
+	} else {
+
+		if c0 != c1 {
+
+			context.Permute(c0.value[0], generator, c1.value[0])
+			context.Permute(c0.value[1], generator, c1.value[1])
+
+			context.Copy(c1.value[1], evaluator.polypool[1])
+			context.NTT(c1.value[0], c1.value[0])
+			context.NTT(c1.value[1], c1.value[1])
+
+			evaluator.switchKeys(evaluator.polypool[1], evakey, c1)
+
+			context.InvNTT(c1.value[0], c1.value[0])
+			context.InvNTT(c1.value[1], c1.value[1])
+
+		} else {
+
+			context.Permute(c0.value[0], generator, evaluator.polypool[0])
+			context.Permute(c0.value[1], generator, evaluator.polypool[1])
+
+			context.NTT(evaluator.polypool[0], c1.value[0])
+			context.NTT(evaluator.polypool[1], c1.value[1])
+
+			evaluator.switchKeys(evaluator.polypool[1], evakey, c1)
+
+			context.InvNTT(c1.value[0], c1.value[0])
+			context.InvNTT(c1.value[1], c1.value[1])
+		}
+	}
 }
 
 // InnerSum computs the inner sum of c0 and returns the result on c1. It requires a rotation key storing all the left power of two rotations.

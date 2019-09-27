@@ -13,7 +13,8 @@ type BFVTESTPARAMS struct {
 	kgen         *keygenerator
 	sk           *SecretKey
 	pk           *PublicKey
-	encryptor    *Encryptor
+	encryptorSk    *Encryptor
+	encryptorPk  *Encryptor
 	decryptor    *Decryptor
 	evaluator    *Evaluator
 }
@@ -51,7 +52,7 @@ func Test_BFV(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair(1.0 / 3); err != nil {
+		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair(1.0/3.0); err != nil {
 			log.Fatal(err)
 		}
 
@@ -59,7 +60,11 @@ func Test_BFV(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		if bfvTest.encryptor, err = bfvTest.bfvcontext.NewEncryptor(bfvTest.pk, bfvTest.sk); err != nil {
+		if bfvTest.encryptorPk, err = bfvTest.bfvcontext.NewEncryptorFromPk(bfvTest.pk); err != nil {
+			log.Fatal(err)
+		}
+
+		if bfvTest.encryptorSk, err = bfvTest.bfvcontext.NewEncryptorFromSk(bfvTest.sk); err != nil {
 			log.Fatal(err)
 		}
 
@@ -372,7 +377,7 @@ func newTestVectors(bfvTest *BFVTESTPARAMS) (coeffs *ring.Poly, plaintext *Plain
 		return nil, nil, nil, err
 	}
 
-	if ciphertext, err = bfvTest.encryptor.EncryptFromPkNew(plaintext); err != nil {
+	if ciphertext, err = bfvTest.encryptorPk.EncryptNew(plaintext); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -439,7 +444,7 @@ func test_EncryptDecrypt(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			log.Fatal(err)
 		}
 
-		if ciphertext, err = bfvTest.encryptor.EncryptFromSkNew(plaintext); err != nil {
+		if ciphertext, err = bfvTest.encryptorSk.EncryptNew(plaintext); err != nil {
 			log.Fatal(err)
 		}
 

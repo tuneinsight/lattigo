@@ -82,7 +82,7 @@ func (el *bfvElement) CopyNew() *bfvElement {
 	return ctxCopy
 }
 
-// Copy copies the value and parameters of the target ciphertext on the reciever ciphertext.
+// Copy copies the value and parameters of the input on the target ciphertext.
 func (el *bfvElement) Copy(ctxCopy *bfvElement) error {
 
 	for i := range ctxCopy.Value() {

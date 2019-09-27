@@ -35,7 +35,8 @@ func BenchmarkBFVScheme(b *testing.B) {
 		})
 
 		// Encryption
-		encryptor, err := bfvContext.NewEncryptor(pk, sk)
+		encryptorPk, err := bfvContext.NewEncryptorFromPk(pk)
+		encryptorSk, err := bfvContext.NewEncryptorFromSk(sk)
 
 		if err != nil {
 			b.Error(err)
@@ -46,26 +47,26 @@ func BenchmarkBFVScheme(b *testing.B) {
 		pt.setCoefficientsUint64(bfvContext, ptcoeffs)
 		b.Run(fmt.Sprintf("params=%d/EncryptFromPkNew", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, _ = encryptor.EncryptFromPkNew(pt)
+				_, _ = encryptorPk.EncryptNew(pt)
 			}
 		})
 
 		ctd1 := bfvContext.NewCiphertext(1)
 		b.Run(fmt.Sprintf("params=%d/EncryptFromPk", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = encryptor.EncryptFromPk(pt, ctd1)
+				_ = encryptorPk.Encrypt(pt, ctd1)
 			}
 		})
 
 		b.Run(fmt.Sprintf("params=%d/EncryptFromSkNew", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, _ = encryptor.EncryptFromSkNew(pt)
+				_, _ = encryptorSk.EncryptNew(pt)
 			}
 		})
 
 		b.Run(fmt.Sprintf("params=%d/EncryptFromSk", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = encryptor.EncryptFromSk(pt, ctd1)
+				_ = encryptorSk.Encrypt(pt, ctd1)
 			}
 		})
 
@@ -84,12 +85,12 @@ func BenchmarkBFVScheme(b *testing.B) {
 
 		evaluator := bfvContext.NewEvaluator()
 
-		ct1, err := encryptor.EncryptFromSkNew(pt)
+		ct1, err := encryptorSk.EncryptNew(pt)
 		if err != nil {
 			b.Error(err)
 		}
 
-		ct2, err := encryptor.EncryptFromSkNew(pt)
+		ct2, err := encryptorSk.EncryptNew(pt)
 		if err != nil {
 			b.Error(err)
 		}

@@ -10,7 +10,7 @@ import (
 
 func Test_DBFVScheme(t *testing.T) {
 
-	paramSets := bfv.DefaultParams[0:1]
+	paramSets := bfv.DefaultParams[0:2]
 	bitDecomps := []uint64{60}
 	nParties := []int{5}
 
@@ -405,8 +405,14 @@ func Test_DBFVScheme(t *testing.T) {
 
 			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/BOOT", context.N, len(context.Modulus), 60), func(t *testing.T) {
 
+				// We store the plaintext coeffs as bigint for a reference to quantify the error
+				coeffs_plaintext_bigint_fresh := make([]*ring.Int, bfvContext.N())
+				bfvContext.ContextQ().PolyToBigint(plaintextWant.Value()[0], coeffs_plaintext_bigint_fresh)
+
+				// We encrypt the plaintext
 				ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
 
+				// ===== Boot instance =====
 				crp := crpGenerators[0].Clock()
 
 				bootshares := make([]*BootShares, parties)
@@ -414,14 +420,60 @@ func Test_DBFVScheme(t *testing.T) {
 				for i := 0; i < parties; i++ {
 					bootshares[i] = GenBootShares(sk0_shards[i], ciphertext, bfvContext, crp, encoder)
 				}
+				// =========================
 
-				Bootstrapp(ciphertext, sk0.Get(), bootshares, bfvContext, crp, encoder)
+				// ==== We simulated added error of size Q/(T^2) and addit to the fresh ciphertext ====
+				coeffs_bigint := make([]*ring.Int, bfvContext.N())
+				bfvContext.ContextQ().PolyToBigint(ciphertext.Value()[0], coeffs_bigint)
+
+				error_range := ring.Copy(bfvContext.ContextQ().ModulusBigint)
+				error_range.Div(error_range, bfvContext.ContextT().ModulusBigint)
+				error_range.Div(error_range, bfvContext.ContextT().ModulusBigint)
+
+				for i := uint64(0); i < bfvContext.N(); i++ {
+					coeffs_bigint[i].Add(coeffs_bigint[i], ring.RandInt(error_range))
+				}
+
+				bfvContext.ContextQ().SetCoefficientsBigint(coeffs_bigint, ciphertext.Value()[0])
 
 				plaintextHave, _ := decryptor_sk0.DecryptNew(ciphertext)
+				coeffs_plaintext_bigint_error := make([]*ring.Int, bfvContext.N())
+				bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_error)
+
+				average_simulated_error := new(ring.Int)
+				for i := uint64(0); i < bfvContext.N(); i++ {
+					average_simulated_error.Add(average_simulated_error, coeffs_plaintext_bigint_fresh[i])
+					average_simulated_error.Sub(average_simulated_error, coeffs_plaintext_bigint_error[i])
+				}
+
+				average_simulated_error.Value.Abs(&average_simulated_error.Value)
+				average_simulated_error.Div(average_simulated_error, ring.NewUint(bfvContext.N()))
+				// =======================================================================================
+
+				// We boot the ciphertext with the simulated error
+				Bootstrapp(ciphertext, sk0.Get(), bootshares, bfvContext, crp, encoder)
+
+				// We decrypt and compare with the original plaintext
+				plaintextHave, _ = decryptor_sk0.DecryptNew(ciphertext)
+				coeffs_plaintext_bigint_booted := make([]*ring.Int, bfvContext.N())
+				bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_booted)
+
+				average_residual_error := new(ring.Int)
+				for i := uint64(0); i < bfvContext.N(); i++ {
+					average_residual_error.Add(average_residual_error, coeffs_plaintext_bigint_fresh[i])
+					average_residual_error.Sub(average_residual_error, coeffs_plaintext_bigint_booted[i])
+				}
+
+				average_residual_error.Value.Abs(&average_residual_error.Value)
+				average_residual_error.Div(average_residual_error, ring.NewUint(bfvContext.N()))
+
 				coeffsTest, err := encoder.DecodeUint(plaintextHave)
 				if err != nil {
 					log.Fatal(err)
 				}
+
+				t.Logf("Average simulated error before boot (log2): %d", average_simulated_error.Value.BitLen())
+				t.Logf("Average residual error after boot (log2): %d", average_residual_error.Value.BitLen())
 
 				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
 					t.Errorf("error : BOOT")

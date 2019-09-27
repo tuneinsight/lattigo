@@ -13,7 +13,7 @@ type BFVTESTPARAMS struct {
 	kgen         *keygenerator
 	sk           *SecretKey
 	pk           *PublicKey
-	encryptorSk    *Encryptor
+	encryptorSk  *Encryptor
 	encryptorPk  *Encryptor
 	decryptor    *Decryptor
 	evaluator    *Evaluator
@@ -52,7 +52,7 @@ func Test_BFV(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair(1.0/3.0); err != nil {
+		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair(1.0 / 3.0); err != nil {
 			log.Fatal(err)
 		}
 

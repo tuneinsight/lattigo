@@ -365,7 +365,7 @@ func sampleOnArray(values []uint64, p float64) (err error) {
 	return nil
 }
 
-func (sampler *TernarySampler) SampleOnArray(values []uint64, p float64) (err error){
+func (sampler *TernarySampler) SampleOnArray(values []uint64, p float64) (err error) {
 	return sampleOnArray(values, p)
 }
 

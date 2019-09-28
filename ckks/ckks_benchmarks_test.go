@@ -145,9 +145,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Decrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Decrypt", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = decryptor.Decrypt(ciphertext1, plaintext); err != nil {
-					b.Error(err)
-				}
+				decryptor.Decrypt(ciphertext1, plaintext)
 			}
 		})
 

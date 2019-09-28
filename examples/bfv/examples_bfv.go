@@ -48,10 +48,7 @@ func ObliviousRiding() {
 		log.Fatal(err)
 	}
 
-	evalKey, err := kgen.NewRelinKey(Sk, 1, 60)
-	if err != nil {
-		log.Fatal(err)
-	}
+	evalKey := kgen.NewRelinKey(Sk, 1, 60)
 
 	evaluator := bfvContext.NewEvaluator()
 
@@ -134,15 +131,7 @@ func ObliviousRiding() {
 		log.Fatal(err)
 	}
 
-	DistancePlaintext, err := Decryptor.DecryptNew(RiderCiphertext)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	result, err := batchEncoder.DecodeUint(DistancePlaintext)
-	if err != nil {
-		log.Fatal(err)
-	}
+	result := batchEncoder.DecodeUint(Decryptor.DecryptNew(RiderCiphertext))
 
 	errors := 0
 	closest := []uint64{0, params.T, params.T, params.T}

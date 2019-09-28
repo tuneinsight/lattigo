@@ -94,13 +94,8 @@ func chebyshevinterpolation() {
 	}
 	fmt.Println("Done... Consumed levels :", ckkscontext.Levels()-1-ciphertext.Level())
 
-	// Decryption process
-	if plaintext, err = decryptor.DecryptNew(ciphertext); err != nil {
-		log.Fatal(err)
-	}
-
-	// Decoding process
-	valuesTest := encoder.DecodeComplex(plaintext)
+	// Decryption process + Decoding process
+	valuesTest := encoder.DecodeComplex(decryptor.DecryptNew(ciphertext))
 
 	// Computation of the reference values
 	for i := range values {

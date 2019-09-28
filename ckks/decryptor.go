@@ -29,20 +29,18 @@ func (ckkscontext *CkksContext) NewDecryptor(sk *SecretKey) (*Decryptor, error) 
 
 // DecryptNew decrypts the ciphertext and returns a newly created plaintext.
 // A Horner methode is used for evaluating the decryption.
-func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext, err error) {
+func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
 
 	plaintext = decryptor.ckkscontext.NewPlaintext(ciphertext.Level(), ciphertext.Scale())
 
-	if err = decryptor.Decrypt(ciphertext, plaintext); err != nil {
-		return nil, err
-	}
+	decryptor.Decrypt(ciphertext, plaintext)
 
-	return plaintext, nil
+	return
 }
 
 // Decrypt decrypts the ciphertext and returns the result on the provided receiver plaintext.
 // A Horner methode is used for evaluating the decryption.
-func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) (err error) {
+func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
 	level := ciphertext.Level()
 
@@ -64,6 +62,4 @@ func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 	if (ciphertext.Degree())&7 != 7 {
 		decryptor.ckkscontext.contextLevel[level].Reduce(plaintext.value, plaintext.value)
 	}
-
-	return nil
 }

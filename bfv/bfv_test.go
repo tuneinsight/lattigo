@@ -210,10 +210,8 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		bfvTest.bfvcontext.t,
 		len(bfvTest.bfvcontext.contextQ.Modulus),
 		15), func(t *testing.T) {
-		rlk, err := bfvTest.kgen.NewRelinKey(bfvTest.sk, 5, 15)
-		if err != nil {
-			log.Fatal(err)
-		}
+
+		rlk := bfvTest.kgen.NewRelinKey(bfvTest.sk, 5, 15)
 
 		rlkBytes, err := rlk.MarshalBinary()
 		if err != nil {
@@ -259,12 +257,13 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		bfvTest.bfvcontext.t,
 		len(bfvTest.bfvcontext.contextQ.Modulus),
 		15), func(t *testing.T) {
-		rotKey, err := bfvTest.kgen.NewRotationKeysPow2(Sk, 15, true)
-		if err != nil {
-			log.Fatal(err)
-		}
+
+		rotKey := bfvTest.kgen.NewRotationKeysPow2(Sk, 15, true)
 
 		rotKeyBytes, err := rotKey.MarshalBinary()
+		if err != nil {
+			t.Error(err)
+		}
 
 		rotKeyTest := bfvTest.kgen.NewRotationKeysEmpty()
 		rotKeyTest.UnMarshalBinary(rotKeyBytes)
@@ -352,12 +351,7 @@ func test_PlaintextBatchEncodeDecode(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 		encoder.EncodeUint(coeffsWant.Coeffs[0], plaintextWant)
 
-		coeffsTest, err := encoder.DecodeUint(plaintextWant)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
+		if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(plaintextWant)) != true {
 			t.Errorf("error : plaintext lift/rescale")
 		}
 
@@ -385,23 +379,16 @@ func newTestVectors(bfvTest *BFVTESTPARAMS) (coeffs *ring.Poly, plaintext *Plain
 func verifyTestVectors(bfvTest *BFVTESTPARAMS, coeffs *ring.Poly, element Operand, t *testing.T) {
 
 	var coeffsTest []uint64
-	var err error
 
 	el := element.Element()
 
 	if el.Degree() == 0 {
-		if coeffsTest, err = bfvTest.batchencoder.DecodeUint(el.Plaintext()); err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		var plaintext *Plaintext
-		if plaintext, err = bfvTest.decryptor.DecryptNew(el.Ciphertext()); err != nil {
-			log.Fatal(err)
-		}
 
-		if coeffsTest, err = bfvTest.batchencoder.DecodeUint(plaintext); err != nil {
-			log.Fatal(err)
-		}
+		coeffsTest = bfvTest.batchencoder.DecodeUint(el.Plaintext())
+
+	} else {
+
+		coeffsTest = bfvTest.batchencoder.DecodeUint(bfvTest.decryptor.DecryptNew(el.Ciphertext()))
 	}
 
 	if equalslice(coeffs.Coeffs[0], coeffsTest) != true {
@@ -933,10 +920,7 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 
 	for _, bitDecomp := range bitDecomps {
 
-		rlk, err := kgen.NewRelinKey(bfvTest.sk, 2, bitDecomp)
-		if err != nil {
-			log.Fatal(err)
-		}
+		rlk := kgen.NewRelinKey(bfvTest.sk, 2, bitDecomp)
 
 		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/bitDecomp=%d/Relinearize", bfvTest.bfvcontext.N(),
 			bfvTest.bfvcontext.T(),
@@ -1016,10 +1000,7 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 
 	for _, bitDecomp := range bitDecomps {
 
-		switching_key, err := kgen.NewSwitchingKey(Sk, SkNew, bitDecomp)
-		if err != nil {
-			log.Fatal(err)
-		}
+		switching_key := kgen.NewSwitchingKey(Sk, SkNew, bitDecomp)
 
 		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/bitDecomp=%d/SwitchKeys", bfvTest.bfvcontext.N(),
 			bfvTest.bfvcontext.T(),
@@ -1035,17 +1016,7 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 				log.Fatal(err)
 			}
 
-			plaintext, err := decryptor_SkNew.DecryptNew(ciphertext0)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			coeffsTest, err := encoder.DecodeUint(plaintext)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			if equalslice(coeffs0.Coeffs[0], coeffsTest) != true {
+			if equalslice(coeffs0.Coeffs[0], encoder.DecodeUint(decryptor_SkNew.DecryptNew(ciphertext0))) != true {
 				t.Errorf("error : switchingKey encrypt/decrypt")
 			}
 
@@ -1066,17 +1037,7 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 				log.Fatal(err)
 			}
 
-			plaintext, err := decryptor_SkNew.DecryptNew(ciphertextTest)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			coeffsTest, err := encoder.DecodeUint(plaintext)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			if equalslice(coeffs0.Coeffs[0], coeffsTest) != true {
+			if equalslice(coeffs0.Coeffs[0], encoder.DecodeUint(decryptor_SkNew.DecryptNew(ciphertextTest))) != true {
 				t.Errorf("error : switchingKeyNew encrypt/decrypt")
 			}
 		})
@@ -1103,10 +1064,7 @@ func test_GaloisEnd(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 
 	for _, bitDecomp := range bitDecomps {
 
-		rotation_key, err := kgen.NewRotationKeysPow2(Sk, bitDecomp, true)
-		if err != nil {
-			log.Fatal(err)
-		}
+		rotation_key := kgen.NewRotationKeysPow2(Sk, bitDecomp, true)
 
 		for n := uint64(1); n < bfvContext.n>>1; n <<= 1 {
 

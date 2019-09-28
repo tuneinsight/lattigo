@@ -131,10 +131,7 @@ func BenchmarkBFVScheme(b *testing.B) {
 		for _, bitDecomp := range bitDecomps {
 
 			// Relinearization Key Generation not becnhmarked (no inplace gen)
-			rlk, err := kgen.NewRelinKey(sk, 2, bitDecomp)
-			if err != nil {
-				b.Error(err)
-			}
+			rlk := kgen.NewRelinKey(sk, 2, bitDecomp)
 
 			// Relinearization
 			b.Run(fmt.Sprintf("params=%d/decomp=%d/Relin", params.N, bitDecomp), func(b *testing.B) {
@@ -146,10 +143,7 @@ func BenchmarkBFVScheme(b *testing.B) {
 			})
 
 			// Rotation Key Generation not benchmarked (no inplace gen)
-			rtk, err := kgen.NewRotationKeysPow2(sk, bitDecomp, true)
-			if err != nil {
-				b.Error(err)
-			}
+			rtk := kgen.NewRotationKeysPow2(sk, bitDecomp, true)
 
 			// Rotation Rows
 			b.Run(fmt.Sprintf("params=%d/decomp=%d/RotateRows", params.N, bitDecomp), func(b *testing.B) {

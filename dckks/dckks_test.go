@@ -436,9 +436,7 @@ func verify_test_vectors(ckkscontext *ckks.CkksContext, encoder *ckks.Encoder, d
 
 	} else {
 
-		if plaintextTest, err = decryptor.DecryptNew(element.Element().Ciphertext()); err != nil {
-			return err
-		}
+		plaintextTest = decryptor.DecryptNew(element.Element().Ciphertext())
 	}
 
 	valuesTest = encoder.DecodeComplex(plaintextTest)

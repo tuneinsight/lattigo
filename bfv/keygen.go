@@ -90,20 +90,6 @@ func (sk *SecretKey) Set(poly *ring.Poly) {
 	sk.sk = poly.CopyNew()
 }
 
-// check_sk checks if the input secret-key complies with the KeyGenerator context.
-func (keygen *KeyGenerator) check_sk(sk_output *SecretKey) (err error) {
-
-	if sk_output.Get().GetDegree() != int(keygen.context.N) {
-		return errors.New("error : pol degree sk != bfvcontext.n")
-	}
-
-	if len(sk_output.Get().Coeffs) != len(keygen.context.Modulus) {
-		return errors.New("error : nb modulus sk != nb modulus bfvcontext")
-	}
-
-	return nil
-}
-
 // MarshalBinary encodes a secret-key on a byte slice. The total size in byte is 1 + N/4.
 func (sk *SecretKey) MarshalBinary() ([]byte, error) {
 
@@ -149,11 +135,7 @@ func (sk *SecretKey) UnMarshalBinary(data []byte) error {
 }
 
 // Newpublickey generates a new publickkey from the provided secret-key
-func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err error) {
-
-	if err = keygen.check_sk(sk); err != nil {
-		return nil, err
-	}
+func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = new(PublicKey)
 
@@ -165,7 +147,7 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err erro
 	keygen.context.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
 	keygen.context.Neg(pk.pk[0], pk.pk[0])
 
-	return pk, nil
+	return pk
 }
 
 func (keygen *KeyGenerator) NewPublicKeyEmpty() (pk *PublicKey) {
@@ -241,14 +223,13 @@ func (pk *PublicKey) UnMarshalBinary(data []byte) error {
 // NewKeyPair generates a new secret-key with distribution [1/3, 1/3, 1/3] and a corresponding public-key.
 func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.NewSecretKey()
-	pk, _ = keygen.NewPublicKey(sk)
-	return
+	return sk, keygen.NewPublicKey(sk)
 }
 
 // NewRelinKey generates a new evaluation key from the provided secret-key. It will be used to relinearize a ciphertext (encrypted under a public-key generated from the provided secret-key)
 // of degree > 1 to a ciphertext of degree 1. Max degree is the maximum degree of the ciphertext allowed to relinearize. Bitdecomp is the power of two binary decomposition of the key.
 // A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
-func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree, bitDecomp uint64) (newEvakey *EvaluationKey, err error) {
+func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree, bitDecomp uint64) (newEvakey *EvaluationKey) {
 
 	newEvakey = new(EvaluationKey)
 	newEvakey.evakey = make([]*SwitchingKey, maxDegree)
@@ -259,7 +240,7 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree, bitDecomp uint
 	}
 	keygen.polypool.Zero()
 
-	return newEvakey, nil
+	return
 }
 
 func (keygen *KeyGenerator) NewRelinKeyEmpty(maxDegree, bitDecomp uint64) (evakey *EvaluationKey) {
@@ -323,15 +304,7 @@ func (newevakey *EvaluationKey) SetRelinKeys(rlk [][][][2]*ring.Poly, bitDecomp 
 
 // Newswitchintkey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key. Bitdecomp
 // is the power of two binary decomposition of the key. A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
-func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitDecomp uint64) (newevakey *SwitchingKey, err error) {
-
-	if err = keygen.check_sk(sk_input); err != nil {
-		return nil, err
-	}
-
-	if err = keygen.check_sk(sk_output); err != nil {
-		return nil, err
-	}
+func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitDecomp uint64) (newevakey *SwitchingKey) {
 
 	keygen.context.Sub(sk_input.Get(), sk_output.Get(), keygen.polypool)
 	newevakey = newswitchintkey(keygen.bfvcontext, keygen.polypool, sk_output.Get(), bitDecomp)
@@ -374,11 +347,7 @@ func (keygen *KeyGenerator) NewSwitchingKeyEmpty(bitDecomp uint64) (evakey *Swit
 // Newrotationkeys generates a new struct of rotationkeys storing the keys for the specified rotations. The provided secret-key must be the secret-key used to generate the public-key under
 // which the ciphertexts to rotate are encrypted under. Bitdecomp is the power of two binary decomposition of the key. A higher bigdecomp will induce smaller keys, faster key-switching,
 // but at the cost of more noise. rotLeft and rotRight must be a slice of uint64 rotations, row is a boolean value indicating if the key for the row rotation must be generated.
-func (keygen *KeyGenerator) NewRotationKeys(sk *SecretKey, bitDecomp uint64, rotLeft []uint64, rotRight []uint64, row bool) (rotKey *RotationKeys, err error) {
-
-	if err = keygen.check_sk(sk); err != nil {
-		return nil, err
-	}
+func (keygen *KeyGenerator) NewRotationKeys(sk *SecretKey, bitDecomp uint64, rotLeft []uint64, rotRight []uint64, row bool) (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
 	rotKey.bfvcontext = keygen.bfvcontext
@@ -406,8 +375,7 @@ func (keygen *KeyGenerator) NewRotationKeys(sk *SecretKey, bitDecomp uint64, rot
 		rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow, bitDecomp)
 	}
 
-	return rotKey, nil
-
+	return rotKey
 }
 
 func (keygen *KeyGenerator) NewRotationKeysEmpty() (rotKey *RotationKeys) {
@@ -422,11 +390,7 @@ func (keygen *KeyGenerator) NewRotationKeysEmpty() (rotKey *RotationKeys) {
 // Newrotationkeys generates a new struct of rotationkeys storing the keys of all the left and right powers of two rotations. The provided secret-key must be the secret-key used to generate the public-key under
 // which the ciphertexts to rotate are encrypted under. rows is a boolean value indicatig if the keys for the row rotation have to be generated. Bitdecomp is the power of two binary decomposition of the key.
 // A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
-func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey, bitDecomp uint64, row bool) (rotKey *RotationKeys, err error) {
-
-	if err = keygen.check_sk(sk); err != nil {
-		return nil, err
-	}
+func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey, bitDecomp uint64, row bool) (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
 	rotKey.bfvcontext = keygen.bfvcontext

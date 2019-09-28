@@ -176,9 +176,7 @@ func verify_test_vectors(params *CKKSTESTPARAMS, valuesWant []complex128, elemen
 
 	} else {
 
-		if plaintextTest, err = params.decryptor.DecryptNew(element.Element().Ciphertext()); err != nil {
-			return err
-		}
+		plaintextTest = params.decryptor.DecryptNew(element.Element().Ciphertext())
 	}
 
 	valuesTest = params.encoder.DecodeComplex(plaintextTest)
@@ -1254,10 +1252,7 @@ func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 			t.Error(err)
 		}
 
-		plaintextTest, err := decryptorSk2.DecryptNew(ciphertext)
-		if err != nil {
-			t.Error(err)
-		}
+		plaintextTest := decryptorSk2.DecryptNew(ciphertext)
 
 		valuesTest := params.encoder.DecodeComplex(plaintextTest)
 

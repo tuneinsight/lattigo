@@ -16,28 +16,26 @@ type Encryptor struct {
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
 func (ckkscontext *CkksContext) NewEncryptorFromPk(pk *PublicKey) (*Encryptor, error) {
-
-	if uint64(pk.pk[0].GetDegree()+pk.pk[1].GetDegree())>>1 != ckkscontext.n {
-		return nil, errors.New("error : pk ring degree doesn't match ckkscontext ring degree")
-	}
-
-	return ckkscontext.newEncryptor(pk, nil), nil
+	return ckkscontext.newEncryptor(pk, nil)
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
 func (ckkscontext *CkksContext) NewEncryptorFromSk(sk *SecretKey) (*Encryptor, error) {
-
-	if sk != nil && uint64(sk.sk.GetDegree()) != ckkscontext.n {
-		return nil, errors.New("error : sk ring degree doesn't match ckkscontext ring degree")
-	}
-
-	return ckkscontext.newEncryptor(nil, sk), nil
+	return ckkscontext.newEncryptor(nil, sk)
 }
 
 // NewEncryptor creates a new Encryptor with the input public-key and/or secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored keys.
-func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
+func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
+
+	if pk != nil && (uint64(pk.pk[0].GetDegree()) != ckkscontext.n || uint64(pk.pk[1].GetDegree()) != ckkscontext.n) {
+		return nil, errors.New("error : pk ring degree doesn't match ckkscontext ring degree")
+	}
+
+	if sk != nil && uint64(sk.sk.GetDegree()) != ckkscontext.n {
+		return nil, errors.New("error : sk ring degree doesn't match ckkscontext ring degree")
+	}
 
 	encryptor = new(Encryptor)
 	encryptor.ckkscontext = ckkscontext
@@ -45,7 +43,7 @@ func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encr
 	encryptor.sk = sk
 	encryptor.polypool = ckkscontext.contextLevel[ckkscontext.levels-1].NewPoly()
 
-	return
+	return encryptor, nil
 }
 
 // EncryptFromPkNew encrypts the input plaintext using the stored public-key and returns
@@ -68,14 +66,6 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Cipher
 // encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
-
-	if uint64(plaintext.value.GetDegree()) != encryptor.ckkscontext.n {
-		return errors.New("cannot encrypt -> plaintext ring degree doesn't match encryptor ckkscontext ring degree")
-	}
-
-	if ciphertext.Degree() != 1 {
-		return errors.New("cannot encrypt -> invalide receiver -> ciphertext degree > 1")
-	}
 
 	if encryptor.sk != nil {
 

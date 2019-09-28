@@ -74,15 +74,8 @@ func Test_DBFVScheme(t *testing.T) {
 			sk1.Set(tmp1)
 
 			// Publickeys
-			pk0, err := kgen.NewPublicKey(sk0)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			pk1, err := kgen.NewPublicKey(sk1)
-			if err != nil {
-				log.Fatal(err)
-			}
+			pk0 := kgen.NewPublicKey(sk0)
+			pk1 := kgen.NewPublicKey(sk1)
 
 			// Encryptors
 			encryptor_pk0, err := bfvContext.NewEncryptorFromPk(pk0)
@@ -204,17 +197,7 @@ func Test_DBFVScheme(t *testing.T) {
 						log.Fatal(err)
 					}
 
-					plaintextTest, err := decryptor_sk0.DecryptNew(ciphertextTest)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					coeffsTest, err := encoder.DecodeUint(plaintextTest)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					if equalslice(coeffsMul.Coeffs[0], coeffsTest) != true {
+					if equalslice(coeffsMul.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(ciphertextTest))) != true {
 						t.Errorf("error : ekg rlk bad decrypt")
 					}
 
@@ -241,17 +224,7 @@ func Test_DBFVScheme(t *testing.T) {
 						log.Fatal(err)
 					}
 
-					plaintextTest, err := decryptor_sk0.DecryptNew(ciphertextTest)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					coeffsTest, err := encoder.DecodeUint(plaintextTest)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					if equalslice(coeffsMul.Coeffs[0], coeffsTest) != true {
+					if equalslice(coeffsMul.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(ciphertextTest))) != true {
 						t.Errorf("error : ekg_naive rlk bad decrypt")
 					}
 				})
@@ -304,17 +277,7 @@ func Test_DBFVScheme(t *testing.T) {
 					log.Fatal(err)
 				}
 
-				plaintextTest, err := decryptor_sk0.DecryptNew(ciphertextTest)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				coeffsTest, err := encoder.DecodeUint(plaintextTest)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
+				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(ciphertextTest))) != true {
 					t.Errorf("error : ckg protocol, cpk encrypt/decrypt test")
 				}
 
@@ -352,14 +315,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 				for i := 0; i < parties; i++ {
 
-					plaintextHave, _ := decryptor_sk1.DecryptNew(ciphertexts[i])
-
-					coeffsTest, err := encoder.DecodeUint(plaintextHave)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
+					if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk1.DecryptNew(ciphertexts[i]))) != true {
 						t.Errorf("error : CKS")
 					}
 
@@ -393,14 +349,8 @@ func Test_DBFVScheme(t *testing.T) {
 				}
 
 				for i := 0; i < parties; i++ {
-					plaintextHave, _ := decryptor_sk1.DecryptNew(ciphertexts[i])
 
-					coeffsTest, err := encoder.DecodeUint(plaintextHave)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
+					if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk1.DecryptNew(ciphertexts[i]))) != true {
 						t.Errorf("error : PCKS")
 					}
 				}

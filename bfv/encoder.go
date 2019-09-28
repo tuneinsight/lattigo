@@ -60,11 +60,11 @@ func (bfvcontext *BfvContext) NewBatchEncoder() (batchencoder *BatchEncoder, err
 func (batchencoder *BatchEncoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) error {
 
 	if len(coeffs) > len(batchencoder.indexMatrix) {
-		return errors.New("error : invalid input to encode (number of coefficients must be smaller or equal to the context)")
+		return errors.New("invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
 	if len(plaintext.value.Coeffs[0]) != len(batchencoder.indexMatrix) {
-		return errors.New("error : invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
+		return errors.New("invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
@@ -89,11 +89,11 @@ func (batchencoder *BatchEncoder) EncodeUint(coeffs []uint64, plaintext *Plainte
 func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext) error {
 
 	if len(coeffs) > len(batchencoder.indexMatrix) {
-		return errors.New("error : invalid input to encode (number of coefficients must be smaller or equal to the context)")
+		return errors.New("invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
 	if len(plaintext.value.Coeffs[0]) != len(batchencoder.indexMatrix) {
-		return errors.New("error : invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
+		return errors.New("invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder)")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
@@ -119,11 +119,7 @@ func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext
 }
 
 // DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.
-func (batchencoder *BatchEncoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64, err error) {
-
-	if len(plaintext.value.Coeffs[0]) != len(batchencoder.indexMatrix) {
-		return nil, errors.New("error : invalid plaintext to decode (number of coefficients does not match the context of the encoder")
-	}
+func (batchencoder *BatchEncoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64) {
 
 	batchencoder.simplescaler.Scale(plaintext.value, batchencoder.polypool)
 
@@ -135,25 +131,21 @@ func (batchencoder *BatchEncoder) DecodeUint(plaintext *Plaintext) (coeffs []uin
 		coeffs[i] = batchencoder.polypool.Coeffs[0][batchencoder.indexMatrix[i]]
 	}
 
-	return coeffs, nil
+	return
 
 }
 
 // DecodeInt decodes a batched plaintext and returns the coefficients in an int64 slice. Also decodes the sign (by centering the values around the plaintext
 // modulus).
-func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) ([]int64, error) {
+func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) (coeffs []int64) {
 
 	var value int64
-
-	if len(plaintext.value.Coeffs[0]) != len(batchencoder.indexMatrix) {
-		return nil, errors.New("error : invalid plaintext to decode (number of coefficients does not match the context of the encoder")
-	}
 
 	batchencoder.simplescaler.Scale(plaintext.value, batchencoder.polypool)
 
 	batchencoder.bfvcontext.contextT.NTT(batchencoder.polypool, batchencoder.polypool)
 
-	coeffs := make([]int64, batchencoder.bfvcontext.n)
+	coeffs = make([]int64, batchencoder.bfvcontext.n)
 
 	modulus := int64(batchencoder.bfvcontext.t)
 
@@ -168,8 +160,7 @@ func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) ([]int64, erro
 		}
 	}
 
-	return coeffs, nil
-
+	return coeffs
 }
 
 // IntEncoder is a structure holding the parameters to encode single integers on a plaintext. It uses

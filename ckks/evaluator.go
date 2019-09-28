@@ -302,11 +302,9 @@ func (evaluator *Evaluator) NegNew(c0 *Ciphertext) (cOut *Ciphertext) {
 
 	cOut = evaluator.ckkscontext.NewCiphertext(c0.Degree(), c0.Level(), c0.Scale())
 
-	for i := range c0.value {
-		evaluator.ckkscontext.contextLevel[c0.Level()].Neg(c0.value[i], cOut.Value()[i])
-	}
+	_ = evaluator.Neg(c0, cOut)
 
-	return cOut
+	return
 }
 
 // ExtractImagNew sets the real part of c0 to the imaginary part of c0 and sets the imaginary part of c0 to zero, and returns the result on a new element.
@@ -315,11 +313,7 @@ func (evaluator *Evaluator) ExtractImagNew(c0 *Ciphertext, evakey *RotationKey) 
 
 	cOut = evaluator.ckkscontext.NewCiphertext(c0.Degree(), c0.Level(), c0.Scale())
 
-	if err = evaluator.ExtractImag(c0, evakey, cOut); err != nil {
-		return nil, err
-	}
-
-	return cOut, nil
+	return cOut, evaluator.ExtractImag(c0, evakey, cOut)
 }
 
 // ExtractImag sets the real part of c0 to the imaginary part of c0 and sets the imaginary part of c0 to zero, and returns the result on cOut.
@@ -353,11 +347,7 @@ func (evaluator *Evaluator) SwapRealImagNew(c0 *Ciphertext, evakey *RotationKey)
 
 	cOut = evaluator.ckkscontext.NewCiphertext(c0.Degree(), c0.Level(), c0.Scale())
 
-	if err = evaluator.SwapRealImag(c0, evakey, cOut); err != nil {
-		return nil, err
-	}
-
-	return cOut, nil
+	return cOut, evaluator.SwapRealImag(c0, evakey, cOut)
 }
 
 // SwapRealImagNew swaps the real and imaginary parts of c0 and returns the result on cOut, ex.
@@ -381,11 +371,7 @@ func (evaluator *Evaluator) RemoveRealNew(c0 *Ciphertext, evakey *RotationKey) (
 
 	cOut = evaluator.ckkscontext.NewCiphertext(c0.Degree(), c0.Level(), c0.Scale())
 
-	if err = evaluator.RemoveReal(c0, evakey, cOut); err != nil {
-		return nil, err
-	}
-
-	return cOut, nil
+	return cOut, evaluator.RemoveReal(c0, evakey, cOut)
 }
 
 // RemoveReal sets the real part of c0 to zero and returns the result on cOut, ex. f(a + b*i) = b*i.
@@ -423,11 +409,7 @@ func (evaluator *Evaluator) RemoveImagNew(c0 *Ciphertext, evakey *RotationKey) (
 
 	cOut = evaluator.ckkscontext.NewCiphertext(c0.Degree(), c0.Level(), c0.Scale())
 
-	if err = evaluator.RemoveImag(c0, evakey, cOut); err != nil {
-		return nil, err
-	}
-
-	return cOut, nil
+	return cOut, evaluator.RemoveImag(c0, evakey, cOut)
 }
 
 // RemoveImag sets the imaginary part of c0 to zero and returns the result on cOut, ex. f(a + b*i) = a.
@@ -463,7 +445,7 @@ func (evaluator *Evaluator) RemoveImag(c0 *Ciphertext, evakey *RotationKey, cOut
 // AddConstNew adds the input constant (which can be an uint64, int64, float64 or complex128) to c0 and returns the result on a new element.
 func (evaluator *Evaluator) AddConstNew(c0 *Ciphertext, constant interface{}) (cOut *Ciphertext) {
 	cOut = c0.CopyNew().Ciphertext()
-	evaluator.AddConst(c0, constant, cOut)
+	_ = evaluator.AddConst(c0, constant, cOut)
 	return cOut
 }
 
@@ -695,11 +677,7 @@ func (evaluator *Evaluator) MultConstNew(c0 *Ciphertext, constant interface{}) (
 
 	cOut = evaluator.ckkscontext.NewCiphertext(1, c0.Level(), c0.Scale())
 
-	if err = evaluator.MultConst(c0, constant, cOut); err != nil {
-		return nil, err
-	}
-
-	return cOut, nil
+	return cOut, evaluator.MultConst(c0, constant, cOut)
 }
 
 // MultConstNew multiplies c0 by the input constant and returns the result on cOut.
@@ -819,11 +797,7 @@ func (evaluator *Evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext, err 
 
 	ctOut = evaluator.ckkscontext.NewCiphertext(1, ct0.Level(), ct0.Scale())
 
-	if err = evaluator.MultByi(ct0, ctOut); err != nil {
-		return nil, err
-	}
-
-	return ctOut, nil
+	return ctOut, evaluator.MultByi(ct0, ctOut)
 }
 
 // MultByiNew multiplies c0 by the imaginary number i, and returns the result on c1.
@@ -868,11 +842,7 @@ func (evaluator *Evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext, err e
 
 	ctOut = evaluator.ckkscontext.NewCiphertext(1, ct0.Level(), ct0.Scale())
 
-	if err = evaluator.DivByi(ct0, ctOut); err != nil {
-		return nil, err
-	}
-
-	return ctOut, nil
+	return ctOut, evaluator.DivByi(ct0, ctOut)
 }
 
 // DivByi multiplies c0 by the imaginary number 1/i = -i, and returns the result on c1.
@@ -915,12 +885,9 @@ func (evaluator *Evaluator) DivByi(c0 *Ciphertext, c1 *Ciphertext) (err error) {
 // plus 2^n. Returns the result on a newly created element.
 func (evaluator *Evaluator) ScaleUpNew(c0 *Ciphertext, scale uint64) (cOut *Ciphertext, err error) {
 
-	if cOut, err = evaluator.MulByPow2New(c0, scale); err != nil {
-		return nil, err
-	}
+	cOut = evaluator.ckkscontext.NewCiphertext(1, c0.Level(), c0.Scale())
 
-	cOut.SetScale(cOut.Scale() + scale)
-	return cOut, nil
+	return cOut, evaluator.ScaleUp(c0, scale, cOut)
 }
 
 // ScaleUpNew multiplies c0 by 2^scale and sets its scale to its previous scale
@@ -938,11 +905,7 @@ func (evaluator *Evaluator) MulByPow2New(c0 *Ciphertext, pow2 uint64) (cOut *Cip
 
 	cOut = evaluator.ckkscontext.NewCiphertext(1, c0.Level(), c0.Scale())
 
-	if err = evaluator.MulByPow2(c0.Element(), pow2, cOut.Element()); err != nil {
-		return nil, err
-	}
-
-	return cOut, nil
+	return cOut, evaluator.MulByPow2(c0.Element(), pow2, cOut.Element())
 }
 
 // MutByPow2New multiplies c0 by 2^pow2 and returns the result on cOut.

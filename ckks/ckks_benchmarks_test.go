@@ -235,7 +235,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Conjugate / Rotate
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Conjugate", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.Conjugate(ciphertext1, rotkey, ciphertext1.Element()); err != nil {
+				if err = evaluator.Conjugate(ciphertext1, rotkey, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -244,7 +244,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Rotate Cols
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/RotateCols", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.RotateColumns(ciphertext1.Element(), 1, rotkey, ciphertext1.Element()); err != nil {
+				if err = evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}

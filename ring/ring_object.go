@@ -59,14 +59,18 @@ func (context *Context) Copy(p0, p1 *Poly) error {
 
 // Copy copies the coefficients of Pol on p1, require p1 to be at least as big as Pol.
 func (Pol *Poly) Copy(p1 *Poly) error {
-	if len(Pol.Coeffs) > len(p1.Coeffs) || len(Pol.Coeffs[0]) > len(p1.Coeffs[0]) {
-		return errors.New("error : copy Poly, receiver poly is invalide")
-	}
-	for i := range Pol.Coeffs {
-		for j := range Pol.Coeffs[i] {
-			p1.Coeffs[i][j] = Pol.Coeffs[i][j]
+
+	if Pol != p1 {
+		if len(Pol.Coeffs) > len(p1.Coeffs) || len(Pol.Coeffs[0]) > len(p1.Coeffs[0]) {
+			return errors.New("error : copy Poly, receiver poly is invalide")
+		}
+		for i := range Pol.Coeffs {
+			for j := range Pol.Coeffs[i] {
+				p1.Coeffs[i][j] = Pol.Coeffs[i][j]
+			}
 		}
 	}
+
 	return nil
 }
 

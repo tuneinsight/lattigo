@@ -595,7 +595,7 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = values[i] * complex(0, 1)
 		}
 
-		if err = params.evaluator.MultByi(ciphertext1.Element(), ciphertext1.Element()); err != nil {
+		if err = params.evaluator.MultByi(ciphertext1, ciphertext1); err != nil {
 			t.Error(err)
 		}
 
@@ -619,7 +619,7 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = values[i] / complex(0, 1)
 		}
 
-		if err = params.evaluator.DivByi(ciphertext1.Element(), ciphertext1.Element()); err != nil {
+		if err = params.evaluator.DivByi(ciphertext1, ciphertext1); err != nil {
 			t.Error(err)
 		}
 
@@ -1290,7 +1290,7 @@ func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 
 func test_Conjugate(params *CKKSTESTPARAMS, t *testing.T) {
 
-	values, plaintext, ciphertext, err := new_test_vectors_reals(params, -15, 15)
+	values, _, ciphertext, err := new_test_vectors_reals(params, -15, 15)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1304,24 +1304,11 @@ func test_Conjugate(params *CKKSTESTPARAMS, t *testing.T) {
 		params.ckkscontext.logQ,
 		params.ckkscontext.levels), func(t *testing.T) {
 
-		if err := params.evaluator.Conjugate(ciphertext.Element(), params.rotkey, ciphertext.Element()); err != nil {
+		if err := params.evaluator.Conjugate(ciphertext, params.rotkey, ciphertext); err != nil {
 			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext, t); err != nil {
-			t.Error(err)
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/Conjugate(Plain)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels), func(t *testing.T) {
-
-		if err := params.evaluator.Conjugate(plaintext.Element(), params.rotkey, plaintext.Element()); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, plaintext, t); err != nil {
 			t.Error(err)
 		}
 	})
@@ -1331,14 +1318,13 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 
 	mask := params.ckkscontext.slots - 1
 
-	values, plaintext, ciphertext, err := new_test_vectors_reals(params, 0.1, 1)
+	values, _, ciphertext, err := new_test_vectors_reals(params, 0.1, 1)
 	if err != nil {
 		t.Error(err)
 	}
 
 	valuesWant := make([]complex128, params.ckkscontext.slots)
 
-	plaintextTest := params.ckkscontext.NewPlaintext(ciphertext.Level(), ciphertext.Scale())
 	ciphertextTest := params.ckkscontext.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale())
 	ciphertextTest.SetScale(ciphertext.Scale())
 
@@ -1353,7 +1339,7 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 				valuesWant[i] = values[(i+n)&mask]
 			}
 
-			if err := params.evaluator.RotateColumns(ciphertext.Element(), n, params.rotkey, ciphertextTest.Element()); err != nil {
+			if err := params.evaluator.RotateColumns(ciphertext, n, params.rotkey, ciphertextTest); err != nil {
 				t.Error(err)
 			}
 
@@ -1376,55 +1362,11 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 				valuesWant[i] = values[(i+rand)&mask]
 			}
 
-			if err := params.evaluator.RotateColumns(ciphertext.Element(), rand, params.rotkey, ciphertextTest.Element()); err != nil {
+			if err := params.evaluator.RotateColumns(ciphertext, rand, params.rotkey, ciphertextTest); err != nil {
 				t.Error(err)
 			}
 
 			if err := verify_test_vectors(params, valuesWant, ciphertextTest, t); err != nil {
-				t.Error(err)
-			}
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/RotColumnsPow2(Plain)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels), func(t *testing.T) {
-
-		for n := uint64(1); n < params.ckkscontext.slots; n <<= 1 {
-
-			// Applies the column rotation to the values
-			for i := uint64(0); i < params.ckkscontext.slots; i++ {
-				valuesWant[i] = values[(i+n)&mask]
-			}
-
-			if err := params.evaluator.RotateColumns(plaintext.Element(), n, params.rotkey, plaintextTest.Element()); err != nil {
-				t.Error(err)
-			}
-
-			if err := verify_test_vectors(params, valuesWant, plaintextTest, t); err != nil {
-				t.Error(err)
-			}
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/RotColumnsRandom(Plain)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels), func(t *testing.T) {
-
-		for n := uint64(1); n < params.ckkscontext.slots; n <<= 1 {
-
-			rand := ring.RandUniform(params.ckkscontext.slots, params.ckkscontext.slots-1)
-
-			// Applies the column rotation to the values
-			for i := uint64(0); i < params.ckkscontext.slots; i++ {
-				valuesWant[i] = values[(i+rand)&mask]
-			}
-
-			if err := params.evaluator.RotateColumns(plaintext.Element(), rand, params.rotkey, plaintextTest.Element()); err != nil {
-				t.Error(err)
-			}
-
-			if err := verify_test_vectors(params, valuesWant, plaintextTest, t); err != nil {
 				t.Error(err)
 			}
 		}

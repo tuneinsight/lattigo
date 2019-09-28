@@ -85,11 +85,12 @@ func (el *bfvElement) CopyNew() *bfvElement {
 // Copy copies the value and parameters of the input on the target ciphertext.
 func (el *bfvElement) Copy(ctxCopy *bfvElement) error {
 
-	for i := range ctxCopy.Value() {
-		ctxCopy.Value()[i].Copy(el.Value()[i])
+	if el != ctxCopy {
+		for i := range ctxCopy.Value() {
+			ctxCopy.Value()[i].Copy(el.Value()[i])
+		}
+		ctxCopy.SetIsNTT(el.IsNTT())
 	}
-	ctxCopy.SetIsNTT(el.IsNTT())
-
 	return nil
 }
 

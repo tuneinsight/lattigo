@@ -88,7 +88,7 @@ func (encoder *Encoder) EncodeFloat(plaintext *Plaintext, coeffs []float64) (err
 		return errors.New("error : invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
-	if len(plaintext.value[0].Coeffs[0]) != len(encoder.indexMatrix) {
+	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
 		return errors.New("error : invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
 	}
 
@@ -126,7 +126,7 @@ func (encoder *Encoder) EncodeComplex(plaintext *Plaintext, coeffs []complex128)
 		return errors.New("error : invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
-	if len(plaintext.value[0].Coeffs[0]) != len(encoder.indexMatrix) {
+	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
 		return errors.New("error : invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
 	}
 
@@ -173,19 +173,19 @@ func encodeFromComplex(plaintext *Plaintext, encoder *Encoder) {
 		for j := uint64(0); j < encoder.ckkscontext.n; j++ {
 
 			if real(encoder.values[j]) != 0 {
-				plaintext.value[0].Coeffs[i][j] = scaleUp(real(encoder.values[j]), plaintext.scale, qi)
+				plaintext.value.Coeffs[i][j] = scaleUp(real(encoder.values[j]), plaintext.scale, qi)
 			} else {
-				plaintext.value[0].Coeffs[i][j] = 0
+				plaintext.value.Coeffs[i][j] = 0
 			}
 		}
 	}
 
-	encoder.ckkscontext.contextLevel[plaintext.Level()].NTT(plaintext.value[0], plaintext.value[0])
+	encoder.ckkscontext.contextLevel[plaintext.Level()].NTT(plaintext.value, plaintext.value)
 }
 
 func decodeToComplex(plaintext *Plaintext, encoder *Encoder) {
 
-	encoder.ckkscontext.contextLevel[plaintext.Level()].InvNTT(plaintext.value[0], encoder.polypool)
+	encoder.ckkscontext.contextLevel[plaintext.Level()].InvNTT(plaintext.value, encoder.polypool)
 	encoder.ckkscontext.contextLevel[plaintext.Level()].PolyToBigint(encoder.polypool, encoder.bigint_coeffs)
 
 	encoder.q_half.SetBigInt(plaintext.currentModulus)

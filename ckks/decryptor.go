@@ -49,22 +49,22 @@ func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 	plaintext.SetScale(ciphertext.Scale())
 	plaintext.currentModulus.SetBigInt(ciphertext.currentModulus)
 
-	if err = ciphertext.value[ciphertext.Degree()].Copy(plaintext.value[0]); err != nil {
+	if err = ciphertext.value[ciphertext.Degree()].Copy(plaintext.value); err != nil {
 		return err
 	}
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
 
-		decryptor.ckkscontext.contextLevel[level].MulCoeffsMontgomery(plaintext.value[0], decryptor.sk.sk, plaintext.value[0])
-		decryptor.ckkscontext.contextLevel[level].Add(plaintext.value[0], ciphertext.value[i-1], plaintext.value[0])
+		decryptor.ckkscontext.contextLevel[level].MulCoeffsMontgomery(plaintext.value, decryptor.sk.sk, plaintext.value)
+		decryptor.ckkscontext.contextLevel[level].Add(plaintext.value, ciphertext.value[i-1], plaintext.value)
 
 		if i&7 == 7 {
-			decryptor.ckkscontext.contextLevel[level].Reduce(plaintext.value[0], plaintext.value[0])
+			decryptor.ckkscontext.contextLevel[level].Reduce(plaintext.value, plaintext.value)
 		}
 	}
 
 	if (ciphertext.Degree())&7 != 7 {
-		decryptor.ckkscontext.contextLevel[level].Reduce(plaintext.value[0], plaintext.value[0])
+		decryptor.ckkscontext.contextLevel[level].Reduce(plaintext.value, plaintext.value)
 	}
 
 	return nil

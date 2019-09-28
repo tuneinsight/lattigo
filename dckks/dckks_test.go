@@ -307,7 +307,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 		ciphertexts := make([]*ckks.Ciphertext, parties)
 		for i := uint64(0); i < parties; i++ {
-			ciphertexts[i] = ciphertext.CopyNew().(*ckks.Ciphertext)
+			ciphertexts[i] = ciphertext.CopyNew().Ciphertext()
 		}
 
 		// Each party creates its CKS instance with deltaSk = si-si'
@@ -343,7 +343,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 		ciphertexts := make([]*ckks.Ciphertext, parties)
 		for i := uint64(0); i < parties; i++ {
-			ciphertexts[i] = ciphertext.CopyNew().(*ckks.Ciphertext)
+			ciphertexts[i] = ciphertext.CopyNew().Ciphertext()
 		}
 
 		pcks := make([]*PCKS, parties)
@@ -425,18 +425,18 @@ func test_EKG_Protocol(parties uint64, ekgProtocols []*EkgProtocol, sk []*ckks.S
 	return collectiveEvaluationKey
 }
 
-func verify_test_vectors(ckkscontext *ckks.CkksContext, encoder *ckks.Encoder, decryptor *ckks.Decryptor, valuesWant []complex128, element ckks.CkksElement, t *testing.T) (err error) {
+func verify_test_vectors(ckkscontext *ckks.CkksContext, encoder *ckks.Encoder, decryptor *ckks.Decryptor, valuesWant []complex128, element ckks.Operand, t *testing.T) (err error) {
 
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128
 
 	if element.Degree() == 0 {
 
-		plaintextTest = element.(*ckks.Plaintext)
+		plaintextTest = element.Element().Plaintext()
 
 	} else {
 
-		if plaintextTest, err = decryptor.DecryptNew(element.(*ckks.Ciphertext)); err != nil {
+		if plaintextTest, err = decryptor.DecryptNew(element.Element().Ciphertext()); err != nil {
 			return err
 		}
 	}

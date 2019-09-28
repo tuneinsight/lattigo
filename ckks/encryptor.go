@@ -69,7 +69,7 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Cipher
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
 
-	if uint64(plaintext.value[0].GetDegree()) != encryptor.ckkscontext.n {
+	if uint64(plaintext.value.GetDegree()) != encryptor.ckkscontext.n {
 		return errors.New("cannot encrypt -> plaintext ring degree doesn't match encryptor ckkscontext ring degree")
 	}
 
@@ -108,7 +108,7 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool)
 	context.Add(ciphertext.value[1], encryptor.polypool, ciphertext.value[1])
 
-	context.Add(ciphertext.value[0], plaintext.value[0], ciphertext.value[0])
+	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
 	encryptor.polypool.Zero()
 
@@ -126,6 +126,6 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	context.MulCoeffsMontgomeryAndSub(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
 
 	// ct = [-s*a + m + e, a]
-	context.Add(ciphertext.value[0], plaintext.value[0], ciphertext.value[0])
+	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
 }

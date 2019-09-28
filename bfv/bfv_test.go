@@ -151,13 +151,13 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	), func(t *testing.T) {
 		state = true
 
-		SkBytes, err := Sk.MarshalBinary(bfvTest.bfvcontext)
+		SkBytes, err := Sk.MarshalBinary()
 		if err != nil {
 
 		}
 
 		SkTest := bfvTest.kgen.NewSecretKeyEmpty()
-		SkTest.UnMarshalBinary(SkBytes, bfvTest.bfvcontext)
+		SkTest.UnMarshalBinary(SkBytes)
 
 		if bfvContext.contextQ.Equal(Sk.sk, SkTest.sk) != true {
 			t.Errorf("error : binarymarshal secretkey")

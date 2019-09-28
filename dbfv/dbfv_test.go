@@ -85,7 +85,7 @@ func Test_DBFVScheme(t *testing.T) {
 			}
 
 			// Encryptors
-			encryptor_pk0, err := bfvContext.NewEncryptor(pk0, nil)
+			encryptor_pk0, err := bfvContext.NewEncryptorFromPk(pk0)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -107,7 +107,7 @@ func Test_DBFVScheme(t *testing.T) {
 			}
 
 			// Reference ciphertext
-			ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+			ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -293,12 +293,12 @@ func Test_DBFVScheme(t *testing.T) {
 				}
 
 				// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-				encryptorTest, err := bfvContext.NewEncryptor(pkTest[0], nil)
+				encryptorTest, err := bfvContext.NewEncryptorFromPk(pkTest[0])
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				ciphertextTest, err := encryptorTest.EncryptFromPkNew(plaintextWant)
+				ciphertextTest, err := encryptorTest.EncryptNew(plaintextWant)
 
 				if err != nil {
 					log.Fatal(err)
@@ -322,7 +322,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/CKS", context.N, len(context.Modulus), 60), func(t *testing.T) {
 
-				ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+				ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -368,7 +368,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/PCKS", context.N, len(context.Modulus), 60), func(t *testing.T) {
 
-				ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+				ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 				if err != nil {
 					log.Fatal(err)
 				}

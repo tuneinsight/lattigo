@@ -41,7 +41,12 @@ func ObliviousRiding() {
 		log.Fatal(err)
 	}
 
-	Encryptor, err := bfvContext.NewEncryptor(Pk, Sk)
+	EncryptorPk, err := bfvContext.NewEncryptorFromPk(Pk)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	EncryptorSk, err := bfvContext.NewEncryptorFromSk(Sk)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -101,12 +106,12 @@ func ObliviousRiding() {
 	DriversCiphertexts := make([]*bfv.Ciphertext, NbDrivers)
 
 	for i := uint64(0); i < NbDrivers; i++ {
-		if DriversCiphertexts[i], err = Encryptor.EncryptFromPkNew(DriversPlaintexts[i]); err != nil {
+		if DriversCiphertexts[i], err = EncryptorPk.EncryptNew(DriversPlaintexts[i]); err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	RiderCiphertext, err := Encryptor.EncryptFromSkNew(RiderPlaintext)
+	RiderCiphertext, err := EncryptorSk.EncryptNew(RiderPlaintext)
 	if err != nil {
 		log.Fatal(err)
 	}

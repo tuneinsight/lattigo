@@ -31,10 +31,7 @@ func ObliviousRiding() {
 
 	kgen := bfvContext.NewKeyGenerator()
 
-	Sk, Pk, err := kgen.NewKeyPair(1.0 / 3)
-	if err != nil {
-		log.Fatal(err)
-	}
+	Sk, Pk := kgen.NewKeyPair()
 
 	Decryptor, err := bfvContext.NewDecryptor(Sk)
 	if err != nil {

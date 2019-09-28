@@ -251,7 +251,7 @@ func computeMatrixTernary(p float64) (M [][]uint8) {
 }
 
 // SampleMontgomeryNew samples coefficients with ternary distribution in montgomery form on the target polynomial.
-func sampleOnPol(context *Context, samplerMatrix [][]uint64, p float64, pol *Poly) (err error) {
+func (sampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64, pol *Poly) (err error) {
 
 	if p == 0 {
 		return errors.New("cannot sample -> p = 0")
@@ -263,8 +263,8 @@ func sampleOnPol(context *Context, samplerMatrix [][]uint64, p float64, pol *Pol
 
 	if p == 0.5 {
 
-		randomBytesCoeffs := make([]byte, context.N>>3)
-		randomBytesSign := make([]byte, context.N>>3)
+		randomBytesCoeffs := make([]byte, sampler.context.N>>3)
+		randomBytesSign := make([]byte, sampler.context.N>>3)
 
 		if _, err := rand.Read(randomBytesCoeffs); err != nil {
 			panic("crypto rand error")
@@ -274,13 +274,13 @@ func sampleOnPol(context *Context, samplerMatrix [][]uint64, p float64, pol *Pol
 			panic("crypto rand error")
 		}
 
-		for i := uint64(0); i < context.N; i++ {
+		for i := uint64(0); i < sampler.context.N; i++ {
 			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
 			sign = uint64(uint8(randomBytesSign[i>>3])>>(i&7)) & 1
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
-			for j := range context.Modulus {
+			for j := range sampler.context.Modulus {
 				pol.Coeffs[j][i] = samplerMatrix[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
 			}
 		}
@@ -297,91 +297,34 @@ func sampleOnPol(context *Context, samplerMatrix [][]uint64, p float64, pol *Pol
 			panic("crypto rand error")
 		}
 
-		for i := uint64(0); i < context.N; i++ {
+		for i := uint64(0); i < sampler.context.N; i++ {
 
 			coeff, sign, randomBytes, pointer = kysampling(matrix, randomBytes, pointer)
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
-			for j := range context.Modulus {
+			for j := range sampler.context.Modulus {
 				pol.Coeffs[j][i] = samplerMatrix[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
 			}
 		}
 	}
 
 	return nil
-}
-
-func sampleOnArray(values []uint64, p float64) (err error) {
-
-	if p == 0 {
-		return errors.New("cannot sample -> p = 0")
-	}
-
-	var coeff uint64
-	var sign uint64
-
-	if p == 0.5 {
-
-		randomBytesCoeffs := make([]byte, len(values)>>3)
-		randomBytesSign := make([]byte, len(values)>>3)
-
-		if _, err := rand.Read(randomBytesCoeffs); err != nil {
-			panic("crypto rand error")
-		}
-
-		if _, err := rand.Read(randomBytesSign); err != nil {
-			panic("crypto rand error")
-		}
-
-		for i := uint64(0); i < uint64(len(values)); i++ {
-
-			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
-			sign = uint64(uint8(randomBytesSign[i>>3])>>(i&7)) & 1
-
-			values[i] = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
-		}
-
-	} else {
-
-		matrix := computeMatrixTernary(p)
-
-		randomBytes := make([]byte, 8)
-
-		pointer := uint8(0)
-
-		if _, err := rand.Read(randomBytes); err != nil {
-			panic("crypto rand error")
-		}
-
-		for i := 0; i < len(values); i++ {
-
-			coeff, sign, randomBytes, pointer = kysampling(matrix, randomBytes, pointer)
-
-			values[i] = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
-		}
-	}
-
-	return nil
-}
-
-func (sampler *TernarySampler) SampleOnArray(values []uint64, p float64) (err error) {
-	return sampleOnArray(values, p)
 }
 
 func (sampler *TernarySampler) SampleUniform(pol *Poly) {
-	_ = sampleOnPol(sampler.context, sampler.Matrix, 1.0/3.0, pol)
+	_ = sampler.sample(sampler.Matrix, 1.0/3.0, pol)
 }
 
 func (sampler *TernarySampler) Sample(p float64, pol *Poly) (err error) {
-	if err = sampleOnPol(sampler.context, sampler.Matrix, p, pol); err != nil {
+	if err = sampler.sample(sampler.Matrix, p, pol); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (sampler *TernarySampler) SampleMontgomery(p float64, pol *Poly) (err error) {
-	if err = sampleOnPol(sampler.context, sampler.MatrixMontgomery, p, pol); err != nil {
+	if err = sampler.sample(sampler.MatrixMontgomery, p, pol); err != nil {
 		return err
 	}
 	return nil

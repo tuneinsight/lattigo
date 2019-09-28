@@ -16,26 +16,24 @@ type Encryptor struct {
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
 func (bfvcontext *BfvContext) NewEncryptorFromPk(pk *PublicKey) (*Encryptor, error) {
-
-	if uint64(pk.pk[0].GetDegree()+pk.pk[1].GetDegree())>>1 != bfvcontext.n {
-		return nil, errors.New("error : pk ring degree doesn't match bfvcontext ring degree")
-	}
-
-	return bfvcontext.newEncryptor(pk, nil), nil
+	return bfvcontext.newEncryptor(pk, nil)
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
 func (bfvcontext *BfvContext) NewEncryptorFromSk(sk *SecretKey) (*Encryptor, error) {
+	return bfvcontext.newEncryptor(nil, sk)
+}
+
+func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
+
+	if pk != nil && uint64(pk.pk[0].GetDegree()+pk.pk[1].GetDegree())>>1 != bfvcontext.n {
+		return nil, errors.New("error : pk ring degree doesn't match bfvcontext ring degree")
+	}
 
 	if sk != nil && uint64(sk.sk.GetDegree()) != bfvcontext.n {
 		return nil, errors.New("error : sk ring degree doesn't match bfvcontext ring degree")
 	}
-
-	return bfvcontext.newEncryptor(nil, sk), nil
-}
-
-func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
 
 	encryptor = new(Encryptor)
 	encryptor.bfvcontext = bfvcontext
@@ -43,7 +41,7 @@ func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryp
 	encryptor.sk = sk
 	encryptor.polypool = bfvcontext.contextQ.NewPoly()
 
-	return encryptor
+	return encryptor, nil
 }
 
 // EncryptFromPkNew encrypts the input plaintext using the stored public-key and returns

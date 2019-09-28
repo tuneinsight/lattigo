@@ -36,9 +36,7 @@ func chebyshevinterpolation() {
 	// Keys
 	var sk *ckks.SecretKey
 	var pk *ckks.PublicKey
-	if sk, pk, err = kgen.NewKeyPair(1.0 / 3); err != nil {
-		log.Fatal(err)
-	}
+	sk, pk = kgen.NewKeyPair()
 
 	// Relinearization key
 	var rlk *ckks.EvaluationKey

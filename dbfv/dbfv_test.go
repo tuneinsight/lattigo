@@ -61,8 +61,8 @@ func Test_DBFVScheme(t *testing.T) {
 			tmp1 := context.NewPoly()
 
 			for i := 0; i < parties; i++ {
-				sk0_shards[i], _ = kgen.NewSecretKey(1.0 / 3)
-				sk1_shards[i], _ = kgen.NewSecretKey(1.0 / 3)
+				sk0_shards[i] = kgen.NewSecretKey()
+				sk1_shards[i] = kgen.NewSecretKey()
 				context.Add(tmp0, sk0_shards[i].Get(), tmp0)
 				context.Add(tmp1, sk1_shards[i].Get(), tmp1)
 			}

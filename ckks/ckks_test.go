@@ -52,9 +52,7 @@ func Test_CKKS(t *testing.T) {
 
 	ckksTest.kgen = ckksTest.ckkscontext.NewKeyGenerator()
 
-	if ckksTest.sk, ckksTest.pk, err = ckksTest.kgen.NewKeyPair(1.0 / 3); err != nil {
-		t.Error(err)
-	}
+	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPair()
 
 	log.Printf("Generating relinearization keys")
 	if ckksTest.rlk, err = ckksTest.kgen.NewRelinKey(ckksTest.sk, ckksTest.ckkscontext.Scale()); err != nil {
@@ -1240,7 +1238,7 @@ func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 			t.Error(err)
 		}
 
-		sk2, _ := params.kgen.NewSecretKey(1.0 / 3)
+		sk2 := params.kgen.NewSecretKey()
 
 		switchingkeys, err := params.kgen.NewSwitchingKey(params.sk, sk2, 10)
 		if err != nil {
@@ -1546,7 +1544,7 @@ func test_MarshalSwitchingKey(params *CKKSTESTPARAMS, t *testing.T) {
 
 		bitDecomp := uint64(15)
 
-		s1, _ := params.kgen.NewSecretKey(1.0 / 3)
+		s1 := params.kgen.NewSecretKey()
 
 		switchkey, _ := params.kgen.NewSwitchingKey(params.sk, s1, bitDecomp)
 

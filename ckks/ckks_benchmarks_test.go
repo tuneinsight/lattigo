@@ -54,9 +54,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 
 		kgen = ckkscontext.NewKeyGenerator()
 
-		if sk, pk, err = kgen.NewKeyPair(1.0 / 3); err != nil {
-			b.Error(err)
-		}
+		sk, pk = kgen.NewKeyPair()
 
 		if rlk, err = kgen.NewRelinKey(sk, bdc); err != nil {
 			b.Error(err)
@@ -113,10 +111,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Key Pair Generation
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/KeyPairGen", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				sk, pk, err = kgen.NewKeyPair(1.0 / 3)
-				if err != nil {
-					b.Error(err)
-				}
+				sk, pk = kgen.NewKeyPair()
 			}
 		})
 

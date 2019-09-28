@@ -70,8 +70,14 @@ func (keygen *KeyGenerator) check_sk(sk_output *SecretKey) error {
 	return nil
 }
 
-// NewSecretKey generates a new secret key.
-func (keygen *KeyGenerator) NewSecretKey(p float64) (sk *SecretKey, err error) {
+// NewSecretKey generates a new secret key with the distribution [1/3, 1/3, 1/3].
+func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
+	sk, _ = keygen.NewSecretKeyWithDistrib(1.0 / 3)
+	return sk
+}
+
+// NewSecretKey generates a new secret key with the distribution [(p-1)/2, p, (p-1)/2].
+func (keygen *KeyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey, err error) {
 	sk = new(SecretKey)
 	if sk.sk, err = keygen.ckkscontext.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
 		return nil, err
@@ -135,14 +141,10 @@ func (pk *PublicKey) Set(poly [2]*ring.Poly) {
 	pk.pk[1] = poly[1].CopyNew()
 }
 
-// NewKeyPair generates a new secretkey and a corresponding public key.
-func (keygen *KeyGenerator) NewKeyPair(p float64) (sk *SecretKey, pk *PublicKey, err error) {
-	if sk, err = keygen.NewSecretKey(p); err != nil {
-		return nil, nil, err
-	}
-	if pk, err = keygen.NewPublicKey(sk); err != nil {
-		return nil, nil, err
-	}
+// NewKeyPair generates a new secretkey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
+func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
+	sk = keygen.NewSecretKey()
+	pk, _ = keygen.NewPublicKey(sk)
 	return
 }
 

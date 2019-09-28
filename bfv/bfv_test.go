@@ -10,7 +10,7 @@ import (
 type BFVTESTPARAMS struct {
 	bfvcontext   *BfvContext
 	batchencoder *BatchEncoder
-	kgen         *keygenerator
+	kgen         *KeyGenerator
 	sk           *SecretKey
 	pk           *PublicKey
 	encryptorSk  *Encryptor
@@ -52,9 +52,7 @@ func Test_BFV(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		if bfvTest.sk, bfvTest.pk, err = bfvTest.kgen.NewKeyPair(1.0 / 3.0); err != nil {
-			log.Fatal(err)
-		}
+		bfvTest.sk, bfvTest.pk = bfvTest.kgen.NewKeyPair()
 
 		if bfvTest.decryptor, err = bfvTest.bfvcontext.NewDecryptor(bfvTest.sk); err != nil {
 			log.Fatal(err)
@@ -1009,7 +1007,7 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 	Sk := bfvTest.sk
 	evaluator := bfvTest.evaluator
 
-	SkNew, _ := kgen.NewSecretKey(1.0 / 3)
+	SkNew := kgen.NewSecretKey()
 
 	decryptor_SkNew, err := bfvContext.NewDecryptor(SkNew)
 	if err != nil {

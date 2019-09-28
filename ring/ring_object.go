@@ -45,33 +45,27 @@ func (Pol *Poly) CopyNew() (p1 *Poly) {
 }
 
 // Copy copies the coefficients of p0 on p1 within the given context. Requiers p1 to be as big as the target context.
-func (context *Context) Copy(p0, p1 *Poly) error {
-	if len(p1.Coeffs) < len(context.Modulus) || uint64(len(p1.Coeffs[0])) < context.N {
-		return errors.New("error : copy Poly, receiver poly is invalide")
-	}
-	for i := range context.Modulus {
-		for j := uint64(0); j < context.N; j++ {
-			p1.Coeffs[i][j] = p0.Coeffs[i][j]
-		}
-	}
-	return nil
-}
+func (context *Context) Copy(p0, p1 *Poly) {
 
-// Copy copies the coefficients of Pol on p1, require p1 to be at least as big as Pol.
-func (Pol *Poly) Copy(p1 *Poly) error {
-
-	if Pol != p1 {
-		if len(Pol.Coeffs) > len(p1.Coeffs) || len(Pol.Coeffs[0]) > len(p1.Coeffs[0]) {
-			return errors.New("error : copy Poly, receiver poly is invalide")
-		}
-		for i := range Pol.Coeffs {
-			for j := range Pol.Coeffs[i] {
-				p1.Coeffs[i][j] = Pol.Coeffs[i][j]
+	if p0 != p1 {
+		for i := range context.Modulus {
+			for j := uint64(0); j < context.N; j++ {
+				p1.Coeffs[i][j] = p0.Coeffs[i][j]
 			}
 		}
 	}
+}
 
-	return nil
+// Copy copies the coefficients of Pol on p1.
+func (Pol *Poly) Copy(p1 *Poly) {
+
+	if Pol != p1 {
+		for i := range p1.Coeffs {
+			for j := range p1.Coeffs[i] {
+				Pol.Coeffs[i][j] = p1.Coeffs[i][j]
+			}
+		}
+	}
 }
 
 // SetCoefficients sets the coefficients of polynomial directly from a CRT format (double slice).

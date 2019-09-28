@@ -49,9 +49,7 @@ func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 	plaintext.SetScale(ciphertext.Scale())
 	plaintext.currentModulus.SetBigInt(ciphertext.currentModulus)
 
-	if err = ciphertext.value[ciphertext.Degree()].Copy(plaintext.value); err != nil {
-		return err
-	}
+	plaintext.value.Copy(ciphertext.value[ciphertext.Degree()])
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
 

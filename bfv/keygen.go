@@ -252,7 +252,7 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree, bitDecomp uint
 
 	newEvakey = new(EvaluationKey)
 	newEvakey.evakey = make([]*SwitchingKey, maxDegree)
-	sk.Get().Copy(keygen.polypool)
+	keygen.polypool.Copy(sk.Get())
 	for i := uint64(0); i < maxDegree; i++ {
 		keygen.context.MulCoeffsMontgomery(keygen.polypool, sk.Get(), keygen.polypool)
 		newEvakey.evakey[i] = newswitchintkey(keygen.bfvcontext, keygen.polypool, sk.Get(), bitDecomp)

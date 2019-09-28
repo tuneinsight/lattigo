@@ -268,13 +268,15 @@ func (evaluator *Evaluator) evaluateInPlace(c0, c1, cOut *ckksElement, evaluate 
 	// If the inputs degree differ, copies the remaining degree on the receiver
 	// Also checks that the receiver is ont one of the inputs to avoid unnecessary work.
 
+	context := evaluator.ckkscontext.contextLevel[cOut.Level()]
+
 	if c0.Degree() > c1.Degree() && tmp0 != cOut {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
-			tmp0.Value()[i].Copy(cOut.Value()[i])
+			context.Copy(tmp0.Value()[i], cOut.Value()[i])
 		}
 	} else if c1.Degree() > c0.Degree() && tmp1 != cOut {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
-			tmp1.Value()[i].Copy(cOut.Value()[i])
+			context.Copy(tmp1.Value()[i], cOut.Value()[i])
 		}
 	}
 
@@ -1011,9 +1013,7 @@ func (evaluator *Evaluator) Rescale(c0, c1 *Ciphertext) (err error) {
 			return errors.New("ciphertext not in NTT")
 		}
 
-		if c0 != c1 {
-			c0.Copy(c1.Element())
-		}
+		c1.Copy(c0.Element())
 
 		for c1.Scale() >= evaluator.ckkscontext.logScale+evaluator.ckkscontext.scalechain[c1.Level()] && c1.Level() > 0 {
 
@@ -1028,9 +1028,8 @@ func (evaluator *Evaluator) Rescale(c0, c1 *Ciphertext) (err error) {
 		}
 
 	} else {
-		if c0 != c1 {
-			c0.Copy(c1.Element())
-		}
+		c1.Copy(c0.Element())
+
 	}
 
 	return nil
@@ -1305,16 +1304,11 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 	k &= ((evaluator.ckkscontext.n >> 1) - 1)
 
 	if k == 0 {
-		if ct0 != ctOut {
-			if err = ct0.Copy(ctOut.Element()); err != nil {
-				return err
-			}
-		}
-
+		ctOut.Copy(ct0.Element())
 		return nil
 	}
 
-	context := evaluator.ckkscontext.contextLevel[ct0.Level()]
+	context := evaluator.ckkscontext.contextLevel[ctOut.Level()]
 
 	// Looks in the rotationkey if the corresponding rotation has been generated
 	if evakey.evakey_rot_col_L[k] != nil {
@@ -1382,12 +1376,10 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 	evakey_index = 1
 
-	context := evaluator.ckkscontext.contextLevel[ct0.Level()]
+	context := evaluator.ckkscontext.contextLevel[ctOut.Level()]
 
-	if ct0 != ctOut {
-		context.Copy(ct0.value[0], ctOut.value[0])
-		context.Copy(ct0.value[1], ctOut.value[1])
-	}
+	context.Copy(ct0.value[0], ctOut.value[0])
+	context.Copy(ct0.value[1], ctOut.value[1])
 
 	for k > 0 {
 

@@ -158,7 +158,7 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, bitDecomp uint64) (evakey
 		return nil, err
 	}
 	evakey = new(EvaluationKey)
-	sk.Get().Copy(keygen.polypool)
+	keygen.polypool.Copy(sk.Get())
 	keygen.context.MulCoeffsMontgomery(keygen.polypool, sk.Get(), keygen.polypool)
 	evakey.evakey = keygen.newSwitchingKey(keygen.polypool, sk.Get(), bitDecomp)
 	keygen.polypool.Zero()

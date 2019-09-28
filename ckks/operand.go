@@ -12,7 +12,6 @@ type Operand interface {
 	Scale() uint64
 }
 
-// CkksElement is an interface implementing common methodes on plaintext and ciphertexts.
 type ckksElement struct {
 	value          []*ring.Poly
 	scale          uint64
@@ -85,7 +84,7 @@ func (el *ckksElement) SetIsNTT(value bool) {
 	el.isNTT = value
 }
 
-// NTT puts the target ciphertext in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
+// NTT puts the target element in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
 func (el *ckksElement) NTT(ckkscontext *CkksContext, c *ckksElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
@@ -99,7 +98,7 @@ func (el *ckksElement) NTT(ckkscontext *CkksContext, c *ckksElement) error {
 	return nil
 }
 
-// InvNTT puts the target ciphertext outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
+// InvNTT puts the target element outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
 func (el *ckksElement) InvNTT(ckkscontext *CkksContext, c *ckksElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
@@ -113,8 +112,7 @@ func (el *ckksElement) InvNTT(ckkscontext *CkksContext, c *ckksElement) error {
 	return nil
 }
 
-// CopyNew creates a new ciphertext which is a copy of the target ciphertext. Returns the value as
-// a CkksElement.
+// CopyNew creates a new element which is a copy of the target element.
 func (el *ckksElement) CopyNew() *ckksElement {
 
 	ctxCopy := new(ckksElement)
@@ -124,29 +122,29 @@ func (el *ckksElement) CopyNew() *ckksElement {
 		ctxCopy.value[i] = el.value[i].CopyNew()
 	}
 
-	el.CopyParams(ctxCopy)
+	ctxCopy.CopyParams(el)
 
 	return ctxCopy
 }
 
-// Copy copies the target ciphertext and its parameters on the receiver ciphertext.
+// Copy copies the input element and its parameters on the target element.
 func (el *ckksElement) Copy(ctxCopy *ckksElement) (err error) {
 
-	for i := range ctxCopy.Value() {
-		el.value[i].Copy(ctxCopy.Value()[i])
+	if el != ctxCopy {
+		for i := range ctxCopy.Value() {
+			el.value[i].Copy(ctxCopy.Value()[i])
+		}
+
+		el.CopyParams(ctxCopy)
 	}
-
-	el.CopyParams(ctxCopy)
-
 	return nil
 }
 
-// CopyParams copies the target ciphertext parameters on the
-// receiver ciphertext.
+// CopyParams copies the input element parameters on the target element
 func (el *ckksElement) CopyParams(ckkselement *ckksElement) {
-	ckkselement.SetCurrentModulus(el.CurrentModulus())
-	ckkselement.SetScale(el.Scale())
-	ckkselement.SetIsNTT(el.IsNTT())
+	el.SetCurrentModulus(ckkselement.CurrentModulus())
+	el.SetScale(ckkselement.Scale())
+	el.SetIsNTT(ckkselement.IsNTT())
 }
 
 func (el *ckksElement) Element() *ckksElement {

@@ -12,7 +12,7 @@ func (evaluator *Evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *Ev
 
 		if el0 != elOut {
 
-			if err := el0.Copy(elOut.Element()); err != nil {
+			if err := elOut.Copy(el0.Element()); err != nil {
 				return err
 			}
 		}

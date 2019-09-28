@@ -78,7 +78,7 @@ func evaluateInPlaceBinary(el0, el1, elOut *bfvElement, evaluate func(*ring.Poly
 	}
 	if largest != nil && largest != elOut { // checks to avoid unnecessary work.
 		for i := minDegree + 1; i < maxDegree+1; i++ {
-			_ = largest.value[i].Copy(elOut.value[i])
+			elOut.value[i].Copy(largest.value[i])
 		}
 	}
 }
@@ -451,7 +451,7 @@ func (evaluator *Evaluator) SwitchKeys(op Operand, switchkey *SwitchingKey, ctOu
 	var c2 *ring.Poly
 	if el == elOut {
 		c2 = evaluator.polypool[1]
-		el.value[1].Copy(c2)
+		evaluator.bfvcontext.contextQ.Copy(el.value[1], c2) // polypool is of size Q + P
 	} else {
 		c2 = el.value[1]
 	}
@@ -486,12 +486,7 @@ func (evaluator *Evaluator) RotateColumns(op Operand, k uint64, evakey *Rotation
 	k &= ((evaluator.bfvcontext.n >> 1) - 1)
 
 	if k == 0 {
-		if el != elOut {
-			if err = el.Copy(elOut); err != nil {
-				return err
-			}
-		}
-
+		elOut.Copy(el)
 		return nil
 	}
 
@@ -568,7 +563,7 @@ func (evaluator *Evaluator) rotateColumnsPow2(c0 *bfvElement, generator, k uint6
 	evakey_index = 1
 
 	if c0.IsNTT() {
-		c0.Copy(c1)
+		c1.Copy(c0)
 	} else {
 		for i := range c0.value {
 			context.NTT(c0.value[i], c1.value[i])
@@ -734,11 +729,7 @@ func (evaluator *Evaluator) InnerSum(op Operand, evakey *RotationKeys, ctOut *Ci
 
 	cTmp := evaluator.bfvcontext.NewCiphertext(1)
 
-	if el != elOut {
-		if err := elOut.Copy(el); err != nil {
-			return err
-		}
-	}
+	elOut.Copy(el)
 
 	for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
 		if err := evaluator.RotateColumns(elOut, i, evakey, cTmp); err != nil {

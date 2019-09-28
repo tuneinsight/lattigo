@@ -18,7 +18,8 @@ type CKKSTESTPARAMS struct {
 	pk          *PublicKey
 	rlk         *EvaluationKey
 	rotkey      *RotationKey
-	encryptor   *Encryptor
+	encryptorPk *Encryptor
+	encryptorSk *Encryptor
 	decryptor   *Decryptor
 	evaluator   *Evaluator
 }
@@ -42,7 +43,7 @@ func Test_CKKS(t *testing.T) {
 	ckksTest := new(CKKSTESTPARAMS)
 
 	if ckksTest.ckkscontext, err = NewCkksContext(&params); err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	log.Printf("Generating CkksContext for logN=%d/logQ=%d/levels=%d/sigma=%f", ckksTest.ckkscontext.LogN(), ckksTest.ckkscontext.LogQ(), ckksTest.ckkscontext.Levels(), ckksTest.ckkscontext.Sigma())
@@ -52,25 +53,29 @@ func Test_CKKS(t *testing.T) {
 	ckksTest.kgen = ckksTest.ckkscontext.NewKeyGenerator()
 
 	if ckksTest.sk, ckksTest.pk, err = ckksTest.kgen.NewKeyPair(1.0 / 3); err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	log.Printf("Generating relinearization keys")
 	if ckksTest.rlk, err = ckksTest.kgen.NewRelinKey(ckksTest.sk, ckksTest.ckkscontext.Scale()); err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	log.Printf("Generating rotation keys for conjugate and powers of 2")
 	if ckksTest.rotkey, err = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk, 15, true); err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
-	if ckksTest.encryptor, err = ckksTest.ckkscontext.NewEncryptor(ckksTest.pk, ckksTest.sk); err != nil {
-		log.Fatal(err)
+	if ckksTest.encryptorPk, err = ckksTest.ckkscontext.NewEncryptorFromPk(ckksTest.pk); err != nil {
+		t.Error(err)
+	}
+
+	if ckksTest.encryptorSk, err = ckksTest.ckkscontext.NewEncryptorFromSk(ckksTest.sk); err != nil {
+		t.Error(err)
 	}
 
 	if ckksTest.decryptor, err = ckksTest.ckkscontext.NewDecryptor(ckksTest.sk); err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	ckksTest.evaluator = ckksTest.ckkscontext.NewEvaluator()
@@ -128,7 +133,7 @@ func new_test_vectors(params *CKKSTESTPARAMS, a, b float64) (values []complex128
 		return nil, nil, nil, err
 	}
 
-	ciphertext, err = params.encryptor.EncryptFromPkNew(plaintext)
+	ciphertext, err = params.encryptorPk.EncryptNew(plaintext)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -154,7 +159,7 @@ func new_test_vectors_reals(params *CKKSTESTPARAMS, a, b float64) (values []comp
 		return nil, nil, nil, err
 	}
 
-	ciphertext, err = params.encryptor.EncryptFromPkNew(plaintext)
+	ciphertext, err = params.encryptorPk.EncryptNew(plaintext)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -225,11 +230,11 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 		if err := params.encoder.EncodeFloat(plaintext, valuesWant); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWantCmplx, plaintext, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -247,11 +252,11 @@ func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
 		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 		if err := params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, plaintext, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -274,16 +279,16 @@ func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 		if err = params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
-		ciphertext, err := params.encryptor.EncryptFromPkNew(plaintext)
+		ciphertext, err := params.encryptorPk.EncryptNew(plaintext)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -303,16 +308,16 @@ func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
 		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 		if err = params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
-		ciphertext, err := params.encryptor.EncryptFromSkNew(plaintext)
+		ciphertext, err := params.encryptorSk.EncryptNew(plaintext)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -325,12 +330,12 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -339,11 +344,11 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.Add(ciphertext1, ciphertext2, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -353,12 +358,12 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		receiver := params.ckkscontext.NewCiphertext(1, ciphertext1.Level(), ciphertext1.Scale())
@@ -369,11 +374,11 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.Add(ciphertext1, ciphertext2, receiver); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, receiver, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -383,12 +388,12 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, plaintext2, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -397,11 +402,11 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.Add(ciphertext1, plaintext2, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -411,12 +416,12 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -425,11 +430,11 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.Add(plaintext1, ciphertext2, ciphertext2); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext2, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -439,12 +444,12 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, plaintext2, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -453,11 +458,11 @@ func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.Add(plaintext1, plaintext2, plaintext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, plaintext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -470,12 +475,12 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -484,11 +489,11 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -498,12 +503,12 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, plaintext2, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -512,11 +517,11 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.Sub(ciphertext1, plaintext2, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -526,12 +531,12 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -540,11 +545,11 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.Sub(plaintext1, ciphertext2, ciphertext2); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext2, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -554,12 +559,12 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, plaintext2, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -568,11 +573,11 @@ func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.Sub(plaintext1, plaintext2, plaintext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, plaintext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -585,7 +590,7 @@ func test_AddConst(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		constant := complex(3.1415, -1.4142)
@@ -596,11 +601,11 @@ func test_AddConst(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.AddConst(ciphertext1, constant, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -610,7 +615,7 @@ func test_AddConst(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		constant := complex(3.1415, -1.4142)
@@ -621,11 +626,11 @@ func test_AddConst(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := params.evaluator.AddConst(plaintext1, constant, plaintext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, plaintext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -638,7 +643,7 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -5, 5)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		constant := complex(1.4142, -3.1415)
@@ -649,11 +654,11 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.MultConst(ciphertext1, 1/constant, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -663,7 +668,7 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		constant := complex(3.1415, -1.4142)
@@ -674,11 +679,11 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.MultConst(plaintext1, constant, plaintext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, plaintext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -688,7 +693,7 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -698,11 +703,11 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.MultByi(ciphertext1, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -712,7 +717,7 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -722,11 +727,11 @@ func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.DivByi(ciphertext1, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -739,12 +744,12 @@ func test_MultByConstAndAdd(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		constant := complex(3.1415, -1.4142)
@@ -755,17 +760,17 @@ func test_MultByConstAndAdd(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.MultByConstAndAdd(ciphertext1, constant, ciphertext2); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		params.evaluator.Rescale(ciphertext1, ciphertext1)
 
 		if err = params.evaluator.MultByConstAndAdd(ciphertext1, constant, ciphertext2); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, values2, ciphertext2, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -778,7 +783,7 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		for i := 0; i < len(values); i++ {
@@ -786,11 +791,11 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.ExtractImag(ciphertext, params.rotkey, ciphertext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, values, ciphertext, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -800,7 +805,7 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		for i := 0; i < len(values); i++ {
@@ -808,11 +813,11 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.SwapRealImag(ciphertext, params.rotkey, ciphertext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, values, ciphertext, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -822,7 +827,7 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		for i := 0; i < len(values); i++ {
@@ -830,11 +835,11 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.RemoveReal(ciphertext, params.rotkey, ciphertext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, values, ciphertext, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -844,7 +849,7 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		for i := 0; i < len(values); i++ {
@@ -852,11 +857,11 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.RemoveImag(ciphertext, params.rotkey, ciphertext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, values, ciphertext, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -909,12 +914,12 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		// up to a level equal to 2 modulus
@@ -925,11 +930,11 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -939,12 +944,12 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		// up to a level equal to 2 modulus
@@ -955,15 +960,15 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err = params.evaluator.Relinearize(ciphertext1, params.rlk, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -973,12 +978,12 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		// up to a level equal to 2 modulus
@@ -995,16 +1000,16 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			}
 
 			if err = params.evaluator.MulRelin(ciphertext1, ciphertext2, params.rlk, ciphertext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if err = params.evaluator.Rescale(ciphertext1, ciphertext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -1014,12 +1019,12 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, plaintext2, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		// up to a level equal to 2 modulus
@@ -1036,16 +1041,16 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			}
 
 			if err = params.evaluator.MulRelin(ciphertext1, plaintext2, params.rlk, ciphertext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if err = params.evaluator.Rescale(ciphertext1, ciphertext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -1055,12 +1060,12 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		// up to a level equal to 2 modulus
@@ -1077,16 +1082,16 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			}
 
 			if err = params.evaluator.MulRelin(plaintext1, ciphertext2, params.rlk, ciphertext2); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if err = params.evaluator.Rescale(ciphertext2, ciphertext2); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext2, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -1096,12 +1101,12 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		values2, plaintext2, _, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		// up to a level equal to 2 modulus
@@ -1118,16 +1123,16 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			}
 
 			if err = params.evaluator.MulRelin(plaintext1, plaintext2, params.rlk, plaintext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if err = params.evaluator.Rescale(plaintext1, plaintext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 		}
 
 		if err := verify_test_vectors(params, valuesWant, plaintext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -1140,7 +1145,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		// up to a level equal to 2 modulus
@@ -1157,7 +1162,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 			}
 
 			if err = params.evaluator.MulRelin(ciphertext1, ciphertext1, params.rlk, ciphertext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			params.evaluator.Rescale(ciphertext1, ciphertext1)
@@ -1165,7 +1170,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -1175,7 +1180,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		// up to a level equal to 2 modulus
@@ -1196,7 +1201,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.PowerOf2(ciphertext1, n, params.rlk, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if ciphertext1.Scale() >= 100 {
@@ -1204,7 +1209,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -1214,7 +1219,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -1241,7 +1246,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err = params.evaluator.Power(ciphertext1, n, params.rlk, ciphertext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if ciphertext1.Scale() >= 100 {
@@ -1249,7 +1254,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -1259,7 +1264,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors_reals(params, 0.1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -1269,11 +1274,11 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		if ciphertext1, err = params.evaluator.InverseNew(ciphertext1, 7, params.rlk); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -1283,7 +1288,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -1295,11 +1300,11 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		cheby := Approximate(cmplx.Sin, complex(-1, -1), complex(1, 1), 16)
 
 		if ciphertext1, err = params.evaluator.EvaluateCheby(ciphertext1, cheby, params.rlk); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -1309,7 +1314,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors_reals(params, -1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -1321,11 +1326,11 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		cheby := Approximate(exp2pi, -1, 1, 60)
 
 		if ciphertext1, err = params.evaluator.EvaluateCheby(ciphertext1, cheby, params.rlk); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -1335,7 +1340,7 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 
 		values, _, ciphertext1, err := new_test_vectors_reals(params, -15, 15)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesWant := make([]complex128, params.ckkscontext.n>>1)
@@ -1347,11 +1352,11 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		cheby := Approximate(sin2pi2pi, -15, 15, 128)
 
 		if ciphertext1, err = params.evaluator.EvaluateCheby(ciphertext1, cheby, params.rlk); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -1373,33 +1378,33 @@ func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
 		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
 
 		if err := params.encoder.EncodeComplex(plaintext, valuesWant); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
-		ciphertext, err := params.encryptor.EncryptFromPkNew(plaintext)
+		ciphertext, err := params.encryptorPk.EncryptNew(plaintext)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		sk2, _ := params.kgen.NewSecretKey(1.0 / 3)
 
 		switchingkeys, err := params.kgen.NewSwitchingKey(params.sk, sk2, 10)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err = params.evaluator.SwitchKeys(ciphertext, switchingkeys, ciphertext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		decryptorSk2, err := params.ckkscontext.NewDecryptor(sk2)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		plaintextTest, err := decryptorSk2.DecryptNew(ciphertext)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		valuesTest := params.encoder.DecodeComplex(plaintextTest)
@@ -1435,7 +1440,7 @@ func test_Conjugate(params *CKKSTESTPARAMS, t *testing.T) {
 
 	values, plaintext, ciphertext, err := new_test_vectors_reals(params, -15, 15)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	valuesWant := make([]complex128, len(values))
@@ -1448,11 +1453,11 @@ func test_Conjugate(params *CKKSTESTPARAMS, t *testing.T) {
 		params.ckkscontext.levels), func(t *testing.T) {
 
 		if err := params.evaluator.Conjugate(ciphertext, params.rotkey, ciphertext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 
@@ -1461,11 +1466,11 @@ func test_Conjugate(params *CKKSTESTPARAMS, t *testing.T) {
 		params.ckkscontext.levels), func(t *testing.T) {
 
 		if err := params.evaluator.Conjugate(plaintext, params.rotkey, plaintext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, plaintext, t); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 	})
 }
@@ -1476,7 +1481,7 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 
 	values, plaintext, ciphertext, err := new_test_vectors_reals(params, 0.1, 1)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	valuesWant := make([]complex128, params.ckkscontext.slots)
@@ -1497,11 +1502,11 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 			}
 
 			if err := params.evaluator.RotateColumns(ciphertext, n, params.rotkey, ciphertextTest); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if err := verify_test_vectors(params, valuesWant, ciphertextTest, t); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 		}
 	})
@@ -1520,11 +1525,11 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 			}
 
 			if err := params.evaluator.RotateColumns(ciphertext, rand, params.rotkey, ciphertextTest); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if err := verify_test_vectors(params, valuesWant, ciphertextTest, t); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 		}
 	})
@@ -1541,11 +1546,11 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 			}
 
 			if err := params.evaluator.RotateColumns(plaintext, n, params.rotkey, plaintextTest); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if err := verify_test_vectors(params, valuesWant, plaintextTest, t); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 		}
 	})
@@ -1564,11 +1569,11 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 			}
 
 			if err := params.evaluator.RotateColumns(plaintext, rand, params.rotkey, plaintextTest); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if err := verify_test_vectors(params, valuesWant, plaintextTest, t); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 		}
 	})
@@ -1582,19 +1587,19 @@ func test_MarshalCiphertext(params *CKKSTESTPARAMS, t *testing.T) {
 
 		_, _, ciphertext, err := new_test_vectors_reals(params, 0.1, 1)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		b, err := ciphertext.MarshalBinary()
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		newCT := params.ckkscontext.NewCiphertext(ciphertext.Degree(), ciphertext.Level(), 0)
 
 		err = newCT.UnMarshalBinary(b)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if !params.ckkscontext.keyscontext.Equal(ciphertext.Value()[0], newCT.Value()[0]) {
@@ -1618,7 +1623,7 @@ func test_MarshalSecretKey(params *CKKSTESTPARAMS, t *testing.T) {
 
 		newSK := params.kgen.NewSecretKeyEmpty()
 		if err := newSK.UnMarshalBinary(b, params.ckkscontext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if !params.ckkscontext.keyscontext.Equal(params.sk.sk, newSK.sk) {
@@ -1637,7 +1642,7 @@ func test_MarshalPublicKey(params *CKKSTESTPARAMS, t *testing.T) {
 
 		newPK := params.kgen.NewPublicKeyEmpty()
 		if err := newPK.UnMarshalBinary(b); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if !params.ckkscontext.keyscontext.Equal(params.pk.pk[0], newPK.pk[0]) {
@@ -1660,7 +1665,7 @@ func test_MarshalEvaluationKey(params *CKKSTESTPARAMS, t *testing.T) {
 
 		newRlk := params.kgen.NewRelinKeyEmpty(params.rlk.evakey.bitDecomp)
 		if err := newRlk.UnMarshalBinary(b); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		for x := range newRlk.evakey.evakey {
@@ -1695,7 +1700,7 @@ func test_MarshalSwitchingKey(params *CKKSTESTPARAMS, t *testing.T) {
 
 		newSwKey := params.kgen.NewSwitchingKeyEmpty(bitDecomp)
 		if err := newSwKey.UnMarshalBinary(b); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		for x := range newSwKey.evakey {
@@ -1725,7 +1730,7 @@ func test_MarshalRotationKey(params *CKKSTESTPARAMS, t *testing.T) {
 
 		newRotKey := params.kgen.NewRotationKeysEmpty()
 		if err := newRotKey.UnMarshalBinary(b); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		for i := range params.rotkey.evakey_rot_col_L {

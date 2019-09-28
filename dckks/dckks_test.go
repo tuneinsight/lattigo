@@ -104,7 +104,7 @@ func Test_DBFVScheme(t *testing.T) {
 	_ = pk1
 
 	// Encryptors
-	encryptor_pk0, err := ckkscontext.NewEncryptor(pk0, sk0)
+	encryptor_pk0, err := ckkscontext.NewEncryptorFromPk(pk0)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func Test_DBFVScheme(t *testing.T) {
 	_ = decryptor_sk1
 
 	// Reference ciphertext
-	ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+	ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -283,12 +283,12 @@ func Test_DBFVScheme(t *testing.T) {
 		}
 
 		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-		encryptorTest, err := ckkscontext.NewEncryptor(pkTest[0], nil)
+		encryptorTest, err := ckkscontext.NewEncryptorFromPk(pkTest[0])
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		ciphertextTest, err := encryptorTest.EncryptFromPkNew(plaintextWant)
+		ciphertextTest, err := encryptorTest.EncryptNew(plaintextWant)
 
 		if err != nil {
 			log.Fatal(err)
@@ -300,7 +300,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKS", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
 
-		ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+		ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -336,7 +336,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/PCKS", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
 
-		ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+		ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 		if err != nil {
 			log.Fatal(err)
 		}

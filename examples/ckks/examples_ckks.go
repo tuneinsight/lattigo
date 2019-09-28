@@ -48,7 +48,7 @@ func chebyshevinterpolation() {
 
 	// Encryptor
 	var encryptor *ckks.Encryptor
-	if encryptor, err = ckkscontext.NewEncryptor(pk, nil); err != nil {
+	if encryptor, err = ckkscontext.NewEncryptorFromPk(pk); err != nil {
 		log.Fatal(err)
 	}
 
@@ -84,7 +84,7 @@ func chebyshevinterpolation() {
 
 	// Encryption process
 	var ciphertext *ckks.Ciphertext
-	if ciphertext, err = encryptor.EncryptFromPkNew(plaintext); err != nil {
+	if ciphertext, err = encryptor.EncryptNew(plaintext); err != nil {
 		log.Fatal(err)
 	}
 

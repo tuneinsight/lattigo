@@ -20,7 +20,8 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	var pk *PublicKey
 	var rlk *EvaluationKey
 	var rotkey *RotationKey
-	var encryptor *Encryptor
+	var encryptorPk *Encryptor
+	var encryptorSk *Encryptor
 	var decryptor *Decryptor
 	var evaluator *Evaluator
 	var plaintext *Plaintext
@@ -65,7 +66,11 @@ func BenchmarkCKKSScheme(b *testing.B) {
 			b.Error(err)
 		}
 
-		if encryptor, err = ckkscontext.NewEncryptor(pk, sk); err != nil {
+		if encryptorPk, err = ckkscontext.NewEncryptorFromPk(pk); err != nil {
+			b.Error(err)
+		}
+
+		if encryptorSk, err = ckkscontext.NewEncryptorFromSk(sk); err != nil {
 			b.Error(err)
 		}
 
@@ -127,7 +132,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Encrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/EncryptPk", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = encryptor.EncryptFromPk(plaintext, ciphertext1); err != nil {
+				if err = encryptorPk.Encrypt(plaintext, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -136,7 +141,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Encrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/EncryptSk", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = encryptor.EncryptFromSk(plaintext, ciphertext1); err != nil {
+				if err = encryptorSk.Encrypt(plaintext, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}

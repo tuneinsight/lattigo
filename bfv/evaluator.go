@@ -358,7 +358,7 @@ func (evaluator *Evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) error {
 
 	if int(ct0.Degree()-1) > len(evakey.evakey) {
-		return errors.New("error : ciphertext degree too large to allow relinearization")
+		return errors.New("cannot relinearize -> input ciphertext degree too large to allow relinearization")
 	}
 
 	if ct0.Degree() < 2 {
@@ -392,7 +392,7 @@ func (evaluator *Evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKe
 func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchkey *SwitchingKey, ctOut *Ciphertext) (err error) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("error : input and output must be of degree 1 to allow key switching")
+		return errors.New("cannot switchkeys -> input and output must be of degree 1 to allow key switching")
 	}
 
 	evaluator.switchKeysOutOfNTTDomain(ct0.value[0], ct0.value[1], switchkey, ctOut)
@@ -428,7 +428,7 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 	}
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot rotate -> input and or output degree not 1")
+		return errors.New("cannot rotate -> input and or output must be of degree 1")
 	}
 
 	// Looks in the rotationkey if the corresponding rotation has been generated or if the input is a plaintext
@@ -462,7 +462,7 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 
 			// Else returns an error indicating that the keys have not been generated
 		} else {
-			return errors.New("error : specific rotation and pow2 rotations have not been generated")
+			return errors.New("cannot rotate -> specific rotation and pow2 rotations have not been generated")
 		}
 	}
 }
@@ -520,11 +520,11 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) error {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot rotate -> input and or output degree not 0 or 1")
+		return errors.New("cannot rotate -> input and or output degree must be of degree 1")
 	}
 
 	if evakey.evakey_rot_row == nil {
-		return errors.New("error : rows rotation key not generated")
+		return errors.New("cannot rotate -> rotation key not generated")
 	}
 
 	evaluator.permute(ct0, ct0.IsNTT(), evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row, ctOut)
@@ -537,7 +537,7 @@ func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ct
 func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) error {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot inner sum : input and output must be of degree 1")
+		return errors.New("cannot inner sum -> input and output must be of degree 1")
 	}
 
 	cTmp := evaluator.bfvcontext.NewCiphertext(1)

@@ -1261,7 +1261,7 @@ func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *Switchi
 // and the key under which the ciphertext will be re-encrypted.
 func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingKey, cOut *Ciphertext) error {
 
-	if cIn.Degree() != 1 || cOut.Degree() != 1{
+	if cIn.Degree() != 1 || cOut.Degree() != 1 {
 		return errors.New("cannot switchkeys -> input and output ciphertext must be of degree 1")
 	}
 
@@ -1288,10 +1288,9 @@ func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *
 // If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key for the specific rotation needs to be provided.
 func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKey, ctOut *Ciphertext) (err error) {
 
-	if ct0.Degree() != 1 || ctOut.Degree() != 1{
+	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		return errors.New("cannot rotate -> input and output ciphertext must be of degree 1")
 	}
-
 
 	k &= ((evaluator.ckkscontext.n >> 1) - 1)
 

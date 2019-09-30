@@ -29,31 +29,23 @@ The library comprises the following sub-packages:
 - `lattigo/dbfv` and `lattigo/dckks`: Distributed (or threshold) versions of the BFV and CKKS schemes that enable secure multiparty computation solutions with secret-shared secret keys.
 
 - `lattigo/examples`: Executable Go programs demonstrating the usage of the Lattigo library.
-                      Note that each subpackage includes test files that further demonstrates the usage of Lattigo primitives.
+                      Note that each subpackage includes test files that further demonstrate the usage of Lattigo primitives.
 
 - `lattigo/utils`: Supporting structures and functions.
 
-## Roadmap
+## Versions and Roadmap
 
-### v1.0b (17 Aug. 2019)
-
-- First public beta release
-
-### v1.0 (Sept. 2019)
-
-- Full godoc documentation
-- Memory optimizations
-
+See CHANGELOG for the current and past versions.
 
 ### Upcoming features
 
 - Bootstrapping for CKKS
-- Network layer implementation of SMC-supporting protocols
+- Network layer implementation of protocols supporting Secure Multiparty Computation (SMC)
 
 
 ## Disclaimer
 
-The library is still at an experimental stage and should be used for research purposes only.
+This library is still at an experimental stage and should be used for research purposes only.
 
 ## License
 
@@ -68,7 +60,7 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo 1.0},
+	    title = {Lattigo 1.0.0},
 	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
 	    month = aug,
 	    year = 2019,

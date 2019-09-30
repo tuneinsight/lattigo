@@ -1,0 +1,63 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+
+## [Unreleased]
+### Added
+- Bootstrapping for CKKS
+- Network layer implementation of protocols supporting Secure Multiparty Computation (SMC)
+
+## [1.0.0] - 2019-09-30
+### Added
+- CHANGELOG file.
+- Move to a [Semantic Versioning](https://semver.org/spec/v2.0.0.html) scheme.
+- BFV: New methods on bfvcontext to access information/stored variables.
+- CKKS: New methods on ckkscontext to access information/stored variables.
+- CKKS: Added marshalling and tests for marshalling.
+- CKKS: Added default parameters and parameters marshalling.
+- CKKS (API change): encryption can now also be done with the secret-key.
+- CKKS (API change): new separate struct for the encoder, that will store a small memory pool for temporary elements.
+- BFV and CKKS: Operand interface.
+- Ring: New method MultByVector.
+- Ring (API change): new Ternary Sampler, which allows to specify the key distribution {-1, 0, 1} -> [(1-p)/2, p, (1-p)/2]; faster than the previous implementation.
+- GoDoc for BFV, CKKS, Ring, DBFV, and DCKKS.
+- README for BFV and CKKS.
+- Code cleaning for all packages.
+- Minor optimizations for all packages.
+
+### Changed
+- Updated README.md.
+- BFV (API change): bfvcontext now only accepts as input a struct of the type Parameters, similar to the one used for DefaultParams.
+- BFV (API change): removed bfvcontext from ciphertexts and plaintexts.
+- BFV (API change): encryption can now also be done with the secret-key.
+- BFV: The value logQ in the bfvcontext now stores the bit size of the product of the ciphertext's moduli.
+- BFV: The information printed by the tests now better conveys the parameters.
+- BFV: Updated and optimized default parameters.
+- BFV: Updated example with secure parameters
+- CKKS (API change): ckkscontext now only accepts as input a struct of the type Parameters, similar to the one used for DefaultParams.
+- CKKS (API change): ckkscontext now requires as input the moduli chain (in bit size), instead of a generic logQ and levels. This allows more fine-grained control on the rescaling and levels.
+- CKKS (API change): removed ckkscontext from ciphertexts and plaintexts.
+- CKKS: Updated the value logQ in the ckkscontext, which now stores the bit size of the product of the ciphertext's moduli.
+- CKKS: Updated the information printed by the tests to more reflect the parameters.
+- Updates on all packages and tests to comply with the API changes in BFV and CKKS.
+
+### Deprecated
+- TODO: Add deprecated functions (if any)
+
+### Removed
+- TODO: Add removed functions (if any)
+
+### Fixed
+- TODO: Add bugfixes
+
+### Security
+- TODO: Add security fixes (if any)
+
+
+## [1.0b] - 2019-08-17
+### Added
+- First public beta release
+

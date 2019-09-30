@@ -6,7 +6,7 @@ The package BFV is an RNS-accelerated implementation of the Fan-Vercauteren vers
 
 This scheme can be used to do arithmetic over &nbsp; ![equation](https://latex.codecogs.com/gif.latex?%5Cmathbb%7BZ%7D_t%5EN).
 
-The plaintext space and the ciphertext space share the same domain:
+The plaintext space and the ciphertext space share the same domain
 
 <p align="center">
 <img src="https://latex.codecogs.com/gif.latex?%5Cmathbb%7BZ%7D_Q%5BX%5D/%28X%5EN%20&plus;%201%29">,
@@ -30,7 +30,7 @@ where <img src="https://latex.codecogs.com/gif.latex?%5Cotimes"> represents a co
 
 ![equation](https://latex.codecogs.com/gif.latex?N%20%3D%202%5E%7BlogN%7D): the ring dimension, which defines the degree of the cyclotomic polynomial, and the number of coefficients of the plaintext/ciphertext polynomials; it should always be a power of two. This parameter has an impact on both security and performance (security increases with N and performance decreases with N). It should be chosen carefully to suit the intended use of the scheme.
 
-![equation](https://latex.codecogs.com/gif.latex?Q): the ciphertext modulus. In Lattigo, it is chosen to be the product of small coprime moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) verifying ![equation](https://latex.codecogs.com/gif.latex?q_i%20%5Cequiv%201%20%5Cmod%202N) in order to enable both the RNS and NTT representation. This parameter has an impact on both security and performance (for a fixed ![equation](https://latex.codecogs.com/gif.latex?N), a higher ![equation](https://latex.codecogs.com/gif.latex?Q) implies both lower security and lower performance). The used moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) are chosen to be of size 50 to 60 bits for the best performance. It is closely related to ![equation](https://latex.codecogs.com/gif.latex?N) and should be chosen carefully to suit the intended use of the scheme.
+![equation](https://latex.codecogs.com/gif.latex?Q): the ciphertext modulus. In Lattigo, it is chosen to be the product of small coprime moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) verifying ![equation](https://latex.codecogs.com/gif.latex?q_i%20%5Cequiv%201%20%5Cmod%202N) in order to enable both the RNS and NTT representation. The used moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) are chosen to be of size 50 to 60 bits for the best performance. This parameter has an impact on both security and performance (for a fixed ![equation](https://latex.codecogs.com/gif.latex?N), a higher ![equation](https://latex.codecogs.com/gif.latex?Q) implies both lower security and lower performance). It is closely related to ![equation](https://latex.codecogs.com/gif.latex?N) and should be chosen carefully to suit the intended use of the scheme.
 
 ![equation](https://latex.codecogs.com/gif.latex?%5Csigma): the variance used for the error polynomials. This parameter is closely tied to the security of the scheme (a higher ![equation](https://latex.codecogs.com/gif.latex?%5Csigma) implies higher security).
 

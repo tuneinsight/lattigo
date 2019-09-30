@@ -49,7 +49,7 @@ This library is still at an experimental stage and should be used for research p
 
 ## License
 
-Lattigo is licenced under the Apache 2.0 License.
+Lattigo is licensed under the Apache 2.0 License.
 
 ## Contact
 

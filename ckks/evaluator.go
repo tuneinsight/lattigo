@@ -289,7 +289,7 @@ func (evaluator *Evaluator) Neg(c0 *Ciphertext, cOut *Ciphertext) (err error) {
 	minLevel := min([]uint64{c0.Level(), cOut.Level()})
 
 	if c0.Degree() != cOut.Degree() {
-		return errors.New("error : invalid receiver ciphertext (degree not equal to input ciphertext")
+		return errors.New("cannot negate -> invalid receiver ciphertext does not match input ciphertext degree")
 	}
 
 	for i := range c0.value {
@@ -940,7 +940,7 @@ func (evaluator *Evaluator) ReduceNew(c0 *Ciphertext) (ctOut *Ciphertext) {
 func (evaluator *Evaluator) Reduce(c0 *Ciphertext, cOut *Ciphertext) error {
 
 	if c0.Degree() != cOut.Degree() {
-		return errors.New("error : invalide ciphertext receiver (degree doesn't match c0.Degree")
+		return errors.New("cannot reduce -> receiver ciphertext does not match input ciphertext degree")
 	}
 
 	for i := range c0.value {
@@ -964,7 +964,7 @@ func (evaluator *Evaluator) DropLevelNew(c0 *ckksElement, levels uint64) (cOut *
 func (evaluator *Evaluator) DropLevel(c0 *ckksElement, levels uint64) error {
 
 	if c0.Level() == 0 {
-		return errors.New("error : cannot drop level, ciphertext already at level 0")
+		return errors.New("cannot drop level -> ciphertext already at level 0")
 	}
 
 	level := c0.Level()
@@ -1000,17 +1000,17 @@ func (evaluator *Evaluator) RescaleNew(c0 *Ciphertext) (cOut *Ciphertext, err er
 func (evaluator *Evaluator) Rescale(c0, c1 *Ciphertext) (err error) {
 
 	if c0.Level() != c1.Level() {
-		return errors.New("invalid receiver : ciphertexts not on the same level")
+		return errors.New("cannot rescale -> reciever ciphertext does not match input ciphertext level")
 	}
 
 	if c0.Scale() >= evaluator.ckkscontext.scalechain[c1.Level()]+evaluator.ckkscontext.logScale {
 
 		if c0.Level() == 0 {
-			return errors.New("can't rescale, ciphertext already at level 0")
+			return errors.New("cannot rescale -> input ciphertext already at level 0")
 		}
 
 		if !c0.IsNTT() {
-			return errors.New("ciphertext not in NTT")
+			return errors.New("cannot rescale -> input ciphertext not in NTT")
 		}
 
 		c1.Copy(c0.Element())
@@ -1102,19 +1102,19 @@ func (evaluator *Evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ct
 	}
 
 	if el0.Degree() > 1 || el1.Degree() > 1 {
-		return errors.New("cannont mul -> input ciphertexts and output ciphertext must be of degree 0 or 1")
+		return errors.New("cannont mul -> input element and output element must be of degree 0 or 1")
 	}
 
 	if el0.Degree()+el1.Degree() == 0 || elOut.Degree() == 0 {
-		return errors.New("cannot mul -> both inputs are plaintext or receiver is a plaintext")
+		return errors.New("cannot mul -> inputs cannot be both of degree 0")
 	}
 
 	if !el0.IsNTT() {
-		return errors.New("cannot mul -> ct0 must be in NTT to multiply")
+		return errors.New("cannot mul -> op0 must be in NTT to multiply")
 	}
 
 	if !el1.IsNTT() {
-		return errors.New("cannot mul -> ct1 must be in NTT to multiply")
+		return errors.New("cannot mul -> op1 must be in NTT to multiply")
 	}
 
 	elOut.SetScale(el0.Scale() + el1.Scale())
@@ -1183,7 +1183,7 @@ func (evaluator *Evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ct
 			context.Copy(c0, elOut.value[0])
 			context.Copy(c1, elOut.value[1])
 
-			evaluator.switchKeysInPlace(c2, evakey.evakey, elOut)
+			evaluator.switchKeysInPlace(c2, evakey.evakey, elOut.Ciphertext())
 
 		} else { // Or copies the result on the output ciphertext if it was one of the inputs
 			if elOut == el0 || elOut == el1 {
@@ -1236,11 +1236,10 @@ func (evaluator *Evaluator) Relinearize(cIn *Ciphertext, evakey *EvaluationKey, 
 	}
 
 	context := evaluator.ckkscontext.contextLevel[min([]uint64{cIn.Level(), cOut.Level()})]
-
 	context.Copy(cIn.value[0], cOut.value[0])
 	context.Copy(cIn.value[1], cOut.value[1])
 
-	evaluator.switchKeysInPlace(cIn.value[2], evakey.evakey, cOut.Element())
+	evaluator.switchKeysInPlace(cIn.value[2], evakey.evakey, cOut)
 
 	cOut.Resize(evaluator.ckkscontext, 1)
 
@@ -1262,12 +1261,8 @@ func (evaluator *Evaluator) SwitchKeysNew(cIn *Ciphertext, switchingKey *Switchi
 // and the key under which the ciphertext will be re-encrypted.
 func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingKey, cOut *Ciphertext) error {
 
-	if cIn.Degree() != 1 {
-		return errors.New("error : ciphertext must be of degree 1 to allow key switching")
-	}
-
-	if cOut.Degree() != 1 {
-		return errors.New("error : receiver ciphertext must be of degree 1 to allow key switching")
+	if cIn.Degree() != 1 || cOut.Degree() != 1{
+		return errors.New("cannot switchkeys -> input and output ciphertext must be of degree 1")
 	}
 
 	context := evaluator.ckkscontext.contextLevel[min([]uint64{cIn.Level(), cOut.Level()})]
@@ -1275,7 +1270,7 @@ func (evaluator *Evaluator) SwitchKeys(cIn *Ciphertext, switchingKey *SwitchingK
 	context.Copy(cIn.value[0], cOut.value[0])
 	context.Copy(cIn.value[1], cOut.value[1])
 
-	evaluator.switchKeysInPlace(cIn.value[1], switchingKey, cOut.Element())
+	evaluator.switchKeysInPlace(cIn.value[1], switchingKey, cOut)
 
 	return nil
 }
@@ -1293,13 +1288,10 @@ func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *
 // If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key for the specific rotation needs to be provided.
 func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKey, ctOut *Ciphertext) (err error) {
 
-	if ct0.Degree() != 1 {
-		return errors.New("cannot rotate -> input ciphertext degree not 0 or 1")
+	if ct0.Degree() != 1 || ctOut.Degree() != 1{
+		return errors.New("cannot rotate -> input and output ciphertext must be of degree 1")
 	}
 
-	if ctOut.Degree() != 1 {
-		return errors.New("cannot rotate -> output ciphertext degree not 0 or 1")
-	}
 
 	k &= ((evaluator.ckkscontext.n >> 1) - 1)
 
@@ -1308,27 +1300,10 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 		return nil
 	}
 
-	context := evaluator.ckkscontext.contextLevel[ctOut.Level()]
-
 	// Looks in the rotationkey if the corresponding rotation has been generated
 	if evakey.evakey_rot_col_L[k] != nil {
 
-		if ctOut != ct0 {
-
-			ring.PermuteNTT(ct0.value[0], evaluator.ckkscontext.galElRotColLeft[k], ctOut.value[0])
-			ring.PermuteNTT(ct0.value[1], evaluator.ckkscontext.galElRotColLeft[k], ctOut.value[1])
-
-		} else {
-
-			ring.PermuteNTT(ct0.value[0], evaluator.ckkscontext.galElRotColLeft[k], evaluator.ringpool[0])
-			ring.PermuteNTT(ct0.value[1], evaluator.ckkscontext.galElRotColLeft[k], evaluator.ringpool[1])
-
-			context.Copy(evaluator.ringpool[0], ctOut.value[0])
-			context.Copy(evaluator.ringpool[1], ctOut.value[1])
-		}
-
-		evaluator.switchKeysInPlace(ctOut.value[1], evakey.evakey_rot_col_L[k], ctOut.Element())
-
+		evaluator.permuteNTT(ct0, evaluator.ckkscontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
 		return nil
 
 	} else {
@@ -1376,22 +1351,14 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 	evakey_index = 1
 
-	context := evaluator.ckkscontext.contextLevel[ctOut.Level()]
-
-	context.Copy(ct0.value[0], ctOut.value[0])
-	context.Copy(ct0.value[1], ctOut.value[1])
+	evaluator.ckkscontext.contextLevel[ctOut.Level()].Copy(ct0.value[0], ctOut.value[0])
+	evaluator.ckkscontext.contextLevel[ctOut.Level()].Copy(ct0.value[1], ctOut.value[1])
 
 	for k > 0 {
 
 		if k&1 == 1 {
 
-			ring.PermuteNTT(ctOut.value[0], generator, evaluator.ringpool[0])
-			ring.PermuteNTT(ctOut.value[1], generator, evaluator.ringpool[1])
-
-			context.Copy(evaluator.ringpool[0], ctOut.value[0])
-			context.Copy(evaluator.ringpool[1], ctOut.value[1])
-
-			evaluator.switchKeysInPlace(ctOut.value[1], evakey_rot_col[evakey_index], ctOut.Element())
+			evaluator.permuteNTT(ctOut, generator, evakey_rot_col[evakey_index], ctOut)
 		}
 
 		generator *= generator
@@ -1416,33 +1383,40 @@ func (evaluator *Evaluator) ConjugateNew(ct0 *Ciphertext, evakey *RotationKey) (
 // If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key for the row rotation needs to be provided.
 func (evaluator *Evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKey, ctOut *Ciphertext) (err error) {
 
-	if ct0.Degree() != 1 {
-		return errors.New("cannot rotate -> input ciphertext degree not 0 or 1")
-	}
-
-	if ctOut.Degree() != 1 {
-		return errors.New("cannot rotate -> output ciphertext degree not 0 or 1")
+	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
+		return errors.New("cannot rotate -> input and output ciphertext must be of degree 1")
 	}
 
 	if evakey.evakey_rot_row == nil {
-		return errors.New("error : rows rotation key not generated")
+		return errors.New("cannot rotate -> : rows rotation key not generated")
 	}
 
-	context := evaluator.ckkscontext.contextLevel[ctOut.Level()]
-
-	ring.PermuteNTT(ct0.value[0], evaluator.ckkscontext.galElRotRow, evaluator.ringpool[0])
-	ring.PermuteNTT(ct0.value[1], evaluator.ckkscontext.galElRotRow, evaluator.ringpool[1])
-
-	context.Copy(evaluator.ringpool[0], ctOut.value[0])
-	context.Copy(evaluator.ringpool[1], ctOut.value[1])
-
-	evaluator.switchKeysInPlace(ctOut.value[1], evakey.evakey_rot_row, ctOut.Element())
+	evaluator.permuteNTT(ct0, evaluator.ckkscontext.galElRotRow, evakey.evakey_rot_row, ctOut)
 
 	return
 }
 
+func (evaluator *Evaluator) permuteNTT(ct0 *Ciphertext, generator uint64, evakey *SwitchingKey, ctOut *Ciphertext) {
+
+	var el0, el1 *ring.Poly
+
+	if ct0 != ctOut {
+		el0, el1 = ctOut.value[0], ctOut.value[1]
+	} else {
+		el0, el1 = evaluator.ringpool[0], evaluator.ringpool[1]
+	}
+
+	ring.PermuteNTT(ct0.value[0], generator, el0)
+	ring.PermuteNTT(ct0.value[1], generator, el1)
+
+	evaluator.ckkscontext.contextLevel[ctOut.Level()].Copy(el0, ctOut.value[0])
+	evaluator.ckkscontext.contextLevel[ctOut.Level()].Copy(el1, ctOut.value[1])
+
+	evaluator.switchKeysInPlace(ctOut.value[1], evakey, ctOut)
+}
+
 // Applies the general keyswitching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
-func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, ctOut *ckksElement) {
+func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, ctOut *Ciphertext) {
 
 	var mask, reduce, bitLog uint64
 

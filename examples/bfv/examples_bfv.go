@@ -18,10 +18,30 @@ var bfvContext *bfv.BfvContext
 
 func ObliviousRiding() {
 
+	// This example will simulate a situation where an anonymous rider wants to find the closest available rider within a given area.
+	// The area is seen as an A x B grid where each driver reports his coordinates in real time to a server assigned to the area.
+	//
+	// First the rider generates an ephemeral (sk, pk) pair which he uses to encrypt his coordinates. He then sends the tuple (pk, enc(coordinates)) to the
+	// server handling the grid he is in.
+	//
+	// Once the public-key and the encrypted rider coordinates of the rider have been received by the grid's server, the rider's public-key is
+	// transferred to all the drivers within the area, with a randomized index indicating in which coefficient each driver must encode his coordinates.
+	//
+	// Each driver encodes his coordinates in the designated coefficient and uses the received public-key to encrypt his encoded coordinates.
+	// He then sends back the encrypted coordinates to the grid's server.
+	//
+	// Once the encrypted coordinates of the drivers have been received, the server homomorphicaly computes the squared distance : (x0 - x1)^2 + (y0 - y1)^2 and sends
+	// back the encrypted result to the rider.
+	//
+	// The rider decrypts the result and chooses a suitable driver.
+
+	// Number of drivers in the area
 	NbDrivers := uint64(2048)
 
+	// BFV parameters (128 bit security)
 	params := bfv.DefaultParams[0]
 
+	// Plaintext modulus
 	params.T = 67084289
 
 	bfvContext, err := bfv.NewBfvContextWithParam(&params)
@@ -29,6 +49,12 @@ func ObliviousRiding() {
 		log.Fatal(err)
 	}
 
+	batchEncoder, err := bfvContext.NewBatchEncoder()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Rider's keygen
 	kgen := bfvContext.NewKeyGenerator()
 
 	Sk, Pk := kgen.NewKeyPair()
@@ -48,8 +74,6 @@ func ObliviousRiding() {
 		log.Fatal(err)
 	}
 
-	evalKey := kgen.NewRelinKey(Sk, 1, 60)
-
 	evaluator := bfvContext.NewEvaluator()
 
 	fmt.Println("===========================================")
@@ -66,48 +90,45 @@ func ObliviousRiding() {
 	fmt.Println()
 
 	Drivers := make([][]uint64, params.N>>1)
-	Rider := make([]uint64, params.N)
 
+	// Rider coordinates [x, y, x, y, ....., x, y]
 	riderposition := []uint64{ring.RandUniform(maxvalue, mask), ring.RandUniform(maxvalue, mask)}
 
+	Rider := make([]uint64, params.N)
 	for i := uint64(0); i < params.N>>1; i++ {
-		Drivers[i] = make([]uint64, params.N)
-		Drivers[i][(i << 1)] = ring.RandUniform(maxvalue, mask)
-		Drivers[i][(i<<1)+1] = ring.RandUniform(maxvalue, mask)
-
 		Rider[(i << 1)] = riderposition[0]
 		Rider[(i<<1)+1] = riderposition[1]
-	}
-
-	batchEncoder, err := bfvContext.NewBatchEncoder()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	DriversPlaintexts := make([]*bfv.Plaintext, NbDrivers)
-
-	for i := uint64(0); i < NbDrivers; i++ {
-		DriversPlaintexts[i] = bfvContext.NewPlaintext()
-		batchEncoder.EncodeUint(Drivers[i], DriversPlaintexts[i])
 	}
 
 	RiderPlaintext := bfvContext.NewPlaintext()
 	batchEncoder.EncodeUint(Rider, RiderPlaintext)
 
+	// Drivers coordinates [0, 0, ..., x, y, ..., 0, 0]
+	for i := uint64(0); i < params.N>>1; i++ {
+		Drivers[i] = make([]uint64, params.N)
+		Drivers[i][(i << 1)] = ring.RandUniform(maxvalue, mask)
+		Drivers[i][(i<<1)+1] = ring.RandUniform(maxvalue, mask)
+	}
+
+	DriversPlaintexts := make([]*bfv.Plaintext, NbDrivers)
+	for i := uint64(0); i < NbDrivers; i++ {
+		DriversPlaintexts[i] = bfvContext.NewPlaintext()
+		batchEncoder.EncodeUint(Drivers[i], DriversPlaintexts[i])
+	}
+
 	fmt.Printf("Encrypting %d Drivers (x, y) and 1 Rider (%d, %d) \n", NbDrivers, riderposition[0], riderposition[1])
 	fmt.Println()
-
-	DriversCiphertexts := make([]*bfv.Ciphertext, NbDrivers)
-
-	for i := uint64(0); i < NbDrivers; i++ {
-		if DriversCiphertexts[i], err = EncryptorPk.EncryptNew(DriversPlaintexts[i]); err != nil {
-			log.Fatal(err)
-		}
-	}
 
 	RiderCiphertext, err := EncryptorSk.EncryptNew(RiderPlaintext)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	DriversCiphertexts := make([]*bfv.Ciphertext, NbDrivers)
+	for i := uint64(0); i < NbDrivers; i++ {
+		if DriversCiphertexts[i], err = EncryptorPk.EncryptNew(DriversPlaintexts[i]); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	fmt.Println("Compute encrypted Distance = ((CtD1 + CtD2 + CtD3 + CtD4...) - CtR)^2 ...")
@@ -125,11 +146,6 @@ func ObliviousRiding() {
 
 	res, _ := evaluator.MulNew(RiderCiphertext, RiderCiphertext)
 	RiderCiphertext = res.Ciphertext()
-
-	RiderCiphertext, err = evaluator.RelinearizeNew(RiderCiphertext, evalKey)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	result := batchEncoder.DecodeUint(Decryptor.DecryptNew(RiderCiphertext))
 

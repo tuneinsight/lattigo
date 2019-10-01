@@ -993,15 +993,15 @@ func (evaluator *Evaluator) RescaleNew(ct0 *Ciphertext) (ctOut *Ciphertext, err 
 // some error.
 func (evaluator *Evaluator) Rescale(ct0, c1 *Ciphertext) (err error) {
 
+	if ct0.Level() == 0 {
+		return errors.New("cannot rescale -> input ciphertext already at level 0")
+	}
+
 	if ct0.Level() != c1.Level() {
 		return errors.New("cannot rescale -> reciever ciphertext does not match input ciphertext level")
 	}
 
 	if ct0.Scale() >= evaluator.ckkscontext.scalechain[c1.Level()]+evaluator.ckkscontext.logScale {
-
-		if ct0.Level() == 0 {
-			return errors.New("cannot rescale -> input ciphertext already at level 0")
-		}
 
 		if !ct0.IsNTT() {
 			return errors.New("cannot rescale -> input ciphertext not in NTT")
@@ -1023,7 +1023,6 @@ func (evaluator *Evaluator) Rescale(ct0, c1 *Ciphertext) (err error) {
 
 	} else {
 		c1.Copy(ct0.Element())
-
 	}
 
 	return nil

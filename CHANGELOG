@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CKKS: Updated the value logQ in the ckkscontext, which now stores the bit size of the product of the ciphertext's moduli.
 - CKKS: Updated the information printed by the tests to more reflect the parameters.
 - BFV and CKKS: greatly simplified the code related to the rotations.
-- BFV and CKKS: reduced the number of instance where an error could be returned and updated informations of the returning errors.
+- BFV and CKKS: reduced the number of instances where an error could be returned and updated informations of the returning errors.
 - Ring (API change): changed the API of the validation methode of the context to better reflect its purpose.
 - BFV/CKKS/Ring : the copy function will now copy the input poly on the target poly (previously the target was copied on the input).
 - Updates on all packages and tests to comply with the API changes in BFV and CKKS.
@@ -53,8 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TODO: Add deprecated functions (if any)
 
 ### Removed
-- The evaluator of both BFV and CKKS cannot anymore operate on two plaintext. They now always returns an element of type Ciphertext.
-- The contexts of BFV and CKKS will not store their checksum, nor will the evaluator check for context consistency of the input and output elements.
+- The evaluator of both BFV and CKKS cannot anymore operate on two plaintexts. They now always returns an element of type Ciphertext.
+- The contexts of BFV and CKKS will not anymore store their checksum, nor will the evaluator check for context consistency of the input and output elements.
 
 ### Fixed
 - Fixed overflow error that could occure in the basis extension when small and large moduli where used together.

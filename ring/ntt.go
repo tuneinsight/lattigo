@@ -1,23 +1,20 @@
 package ring
 
-// NTT performes the NTT transformation on the coefficients a Polynomial,
-// based on the Context of the Polynomial.
-// https://arxiv.org/abs/1205.2926v2
-
-// NTT performes the NTT transformation on the coefficients of a polynomial.
+// NTT performes the NTT transformation on the CRT coefficients a Polynomial, based on the target context.
 func (context *Context) NTT(p1, p2 *Poly) {
 	for x := range context.Modulus {
 		NTT(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsi[x], context.Modulus[x], context.mredParams[x], context.bredParams[x])
 	}
 }
 
-// InvNTT performes the inverse NTT transformation on the coefficients of a polynomial,
+// InvNTT performes the inverse NTT transformation on the CRT coefficients of a polynomial, based on the target context.
 func (context *Context) InvNTT(p1, p2 *Poly) {
 	for x := range context.Modulus {
 		InvNTT(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsiInv[x], context.nttNInv[x], context.Modulus[x], context.mredParams[x])
 	}
 }
 
+// Buttefly computes X, Y = U + V*Psi, U - V*Psi mod Q.
 func Butterfly(U, V, Psi, Q, Qinv uint64) (X, Y uint64) {
 	if U > 2*Q {
 		U -= 2 * Q
@@ -28,6 +25,7 @@ func Butterfly(U, V, Psi, Q, Qinv uint64) (X, Y uint64) {
 	return
 }
 
+// InvButterfly computes X, Y = U + V, (U - V) * Psi mod Q.
 func InvButterfly(U, V, Psi, Q, Qinv uint64) (X, Y uint64) {
 	X = U + V
 	if X > 2*Q {
@@ -37,6 +35,7 @@ func InvButterfly(U, V, Psi, Q, Qinv uint64) (X, Y uint64) {
 	return
 }
 
+// NTT computes the NTT transformation on the input coefficients given the provided params.
 func NTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
 	var j1, j2, t uint64
 	var F uint64
@@ -72,6 +71,7 @@ func NTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsi []uint64, Q, mredParam
 	}
 }
 
+// InvNTT computes the InvNTT transformation on the input coefficients given the provided params.
 func InvNTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsiInv []uint64, nttNInv, Q, mredParams uint64) {
 
 	var j1, j2, h, t uint64

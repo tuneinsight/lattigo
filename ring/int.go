@@ -18,19 +18,21 @@ func NewInt(v int64) *Int {
 	return i
 }
 
-// NewInt creates a new Int with a given int64 value.
+// NewInt creates a new Int with a given uint64 value.
 func NewUint(v uint64) *Int {
 	i := new(Int)
 	i.Value.SetUint64(v)
 	return i
 }
 
+// Copy creates a new Int wich is a copy of the input Int.
 func Copy(v *Int) *Int {
 	i := new(Int)
 	i.Value.Set(&v.Value)
 	return i
 }
 
+// RandInt generates a random Int in [0, max-1].
 func RandInt(max *Int) *Int {
 	n, err := rand.Int(rand.Reader, &max.Value)
 	if err != nil {
@@ -52,6 +54,7 @@ func NewIntFromString(s string) *Int {
 	return i
 }
 
+// String returns the value of Int i in string
 func (i *Int) String() string {
 	return i.Value.String()
 }
@@ -80,6 +83,7 @@ func (i *Int) SetString(s string) {
 	i.Value.SetString(s, 0)
 }
 
+// IsPrime returns true if the target is probably prime, else false.
 func (i *Int) IsPrime(n int) bool {
 	return i.Value.ProbablyPrime(n)
 }
@@ -102,13 +106,13 @@ func (i *Int) Mul(a, b *Int) *Int {
 	return i
 }
 
-// Div sets the target i to floor(a / b), which is the closest integer to zero for a/b
+// Div sets the target i to floor(a / b).
 func (i *Int) Div(a, b *Int) *Int {
 	i.Value.Quo(&a.Value, &b.Value)
 	return i
 }
 
-// DivRound sets the target i to the integer closest to a / b .
+// DivRound sets the target i round(a/b).
 func (i *Int) DivRound(a, b *Int) *Int {
 	_a := NewInt(1)
 	_a.SetBigInt(a)
@@ -207,22 +211,22 @@ func (i *Int) Uint32() uint32 {
 	return uint32(i.Value.Uint64())
 }
 
-// Uint32 returns the low 32 bits of i as uint32
+// Uint64 returns the low 64 bits of i as uint64
 func (i *Int) Uint64() uint64 {
 	return i.Value.Uint64()
 }
 
-// Int64 returns the low 64 bits of i as int64
+// Int64 returns the low 63 bits of i as int64
 func (i *Int) Int64() int64 {
 	return i.Value.Int64()
 }
 
-// Int64 returns the low 64 bits of i as int64
+// Float64 returns the target as float64 with 53 bits of precision
 func (i *Int) Float64() float64 {
 	return float64(i.Value.Int64())
 }
 
-// center shifts r from [0, q) to (-q/2, q/2]
+// Center shifts r from [0, q) to (-q/2, q/2]
 func (i *Int) Center(Q *Int) *Int {
 	qDiv2 := NewInt(1)
 	qDiv2.Div(Q, NewInt(2))

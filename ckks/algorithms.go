@@ -4,75 +4,55 @@ import (
 	"math/bits"
 )
 
-// SquareNew compute x^2 and returns the result on a new element. The input can be either a ciphertext or a plaintext.
-// In the case of a ciphertext input, an optional evaluation key given as input. If done so, a relinearization step will occure
-// after the squaring and the output ciphertext will remain at degree one. If not evaluation key is provided (nil),
-// the output ciphertext will be of degree two.
-func (evaluator *Evaluator) SquareNew(ct0 CkksElement, evakey *EvaluationKey) (ct1 CkksElement, err error) {
-	ct1 = evaluator.ckkscontext.NewCiphertext(1, ct0.Level(), ct0.Scale())
-	if err = evaluator.Square(ct0, evakey, ct1); err != nil {
-		return nil, err
-	}
-
-	return ct1, nil
-}
-
-// Square compute x^2 and returns the result on the receiver element. The input can be either a ciphertext or a plaintext.
-// In the case of a ciphertext input, an optional evaluation key given as input. If done so, a relinearization step will occure
-// after the squaring and the output ciphertext will remain at degree one. If not evaluation key is provided (nil),
-// the output ciphertext will be of degree two.
-func (evaluator *Evaluator) Square(ct0 CkksElement, evakey *EvaluationKey, ct1 CkksElement) error {
-
-	if err := evaluator.MulRelin(ct0, ct0, evakey, ct1); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// PowerOf2 compute x^(2^logPow2), consuming logPow2 levels, and returns the result on the receiver element. Providing an evaluation
+// PowerOf2 compute ct0^(2^logPow2), consuming logPow2 levels, and returns the result on ct1. Providing an evaluation
 // key is necessary when logPow2 > 1.
-func (evaluator *Evaluator) PowerOf2(ct0 CkksElement, logPow2 uint64, evakey *EvaluationKey, ct1 CkksElement) error {
+func (evaluator *Evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *EvaluationKey, elOut *Ciphertext) (err error) {
 
 	if logPow2 == 0 {
 
-		if ct0 != ct1 {
+		if el0 != elOut {
 
-			if err := ct0.Copy(ct1); err != nil {
+			if err := elOut.Copy(el0.Element()); err != nil {
 				return err
 			}
 		}
 
 	} else {
 
-		if err := evaluator.Square(ct0, evakey, ct1); err != nil {
+		if err := evaluator.MulRelin(el0.Element(), el0.Element(), evakey, elOut); err != nil {
 			return err
 		}
 
-		evaluator.Rescale(ct1, ct1)
+		if err = evaluator.Rescale(elOut, elOut); err != nil {
+			return err
+		}
 
 		for i := uint64(1); i < logPow2; i++ {
-			if err := evaluator.Square(ct1, evakey, ct1); err != nil {
+
+			if err = evaluator.MulRelin(elOut.Element(), elOut.Element(), evakey, elOut); err != nil {
 				return err
 			}
-			evaluator.Rescale(ct1, ct1)
+
+			if err = evaluator.Rescale(elOut, elOut); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-// Power compute x^degree, consuming log(degree) levels, and returns the result on a new element. Providing an evaluation
+// Power compute ct0^degree, consuming log(degree) levels, and returns the result on a new element. Providing an evaluation
 // key is necessary when degree > 2.
-func (evaluator *Evaluator) PowerNew(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey) (res *Ciphertext) {
-	res = evaluator.ckkscontext.NewCiphertext(1, ct0.Level(), ct0.Scale())
-	evaluator.Power(ct0, degree, evakey, res)
+func (evaluator *Evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext) {
+	opOut = evaluator.ckkscontext.NewCiphertext(1, op.Level(), op.Scale())
+	evaluator.Power(op, degree, evakey, opOut)
 	return
 }
 
-// Power compute x^degree, consuming log(degree) levels, and returns the result on the receiver element. Providing an evaluation
+// Power compute ct0^degree, consuming log(degree) levels, and returns the result on res. Providing an evaluation
 // key is necessary when degree > 2.
-func (evaluator *Evaluator) Power(ct0 CkksElement, degree uint64, evakey *EvaluationKey, res CkksElement) error {
+func (evaluator *Evaluator) Power(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey, res *Ciphertext) (err error) {
 
 	tmpct0 := ct0.CopyNew()
 
@@ -81,7 +61,7 @@ func (evaluator *Evaluator) Power(ct0 CkksElement, degree uint64, evakey *Evalua
 	logDegree = uint64(bits.Len64(degree)) - 1
 	po2Degree = 1 << logDegree
 
-	if err := evaluator.PowerOf2(tmpct0, logDegree, evakey, res); err != nil {
+	if err := evaluator.PowerOf2(tmpct0.Ciphertext(), logDegree, evakey, res); err != nil {
 		return err
 	}
 
@@ -94,15 +74,17 @@ func (evaluator *Evaluator) Power(ct0 CkksElement, degree uint64, evakey *Evalua
 
 		tmp := evaluator.ckkscontext.NewCiphertext(1, tmpct0.Level(), tmpct0.Scale())
 
-		if err := evaluator.PowerOf2(tmpct0, logDegree, evakey, tmp); err != nil {
+		if err := evaluator.PowerOf2(tmpct0.Ciphertext(), logDegree, evakey, tmp); err != nil {
 			return err
 		}
 
-		if err := evaluator.MulRelin(res, tmp, evakey, res); err != nil {
+		if err := evaluator.MulRelin(res.Element(), tmp.Element(), evakey, res); err != nil {
 			return err
 		}
 
-		evaluator.Rescale(res, res)
+		if err = evaluator.Rescale(res, res); err != nil {
+			return err
+		}
 
 		degree -= po2Degree
 	}
@@ -110,7 +92,7 @@ func (evaluator *Evaluator) Power(ct0 CkksElement, degree uint64, evakey *Evalua
 	return nil
 }
 
-// InverseNew computes 1/x, iterating for n steps and consuming n levels. The algorithm requirese x to be in the range
+// InverseNew computes 1/ct0 and returns the result on a new element, iterating for n steps and consuming n levels. The algorithm requires the encrypted values to be in the range
 // [-1.5 - 1.5i, 1.5 + 1.5i]  or the result will be  wrong. Each iteration increases the precision.
 func (evaluator *Evaluator) InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext, err error) {
 
@@ -119,11 +101,11 @@ func (evaluator *Evaluator) InverseNew(ct0 *Ciphertext, steps uint64, evakey *Ev
 	evaluator.AddConst(cbar, 1, cbar)
 
 	tmp := evaluator.AddConstNew(cbar, 1)
-	res = tmp.CopyNew().(*Ciphertext)
+	res = tmp.CopyNew().Ciphertext()
 
 	for i := uint64(1); i < steps; i++ {
 
-		evaluator.Square(cbar, evakey, cbar)
+		evaluator.MulRelin(cbar.Element(), cbar.Element(), evakey, cbar.Ciphertext())
 
 		if err = evaluator.Rescale(cbar, cbar); err != nil {
 			return nil, err
@@ -131,12 +113,15 @@ func (evaluator *Evaluator) InverseNew(ct0 *Ciphertext, steps uint64, evakey *Ev
 
 		tmp = evaluator.AddConstNew(cbar, 1)
 
-		if err := evaluator.MulRelin(tmp, res, evakey, tmp); err != nil {
+		if err := evaluator.MulRelin(tmp.Element(), res.Element(), evakey, tmp.Ciphertext()); err != nil {
 			return nil, err
 		}
 
-		evaluator.Rescale(tmp, tmp)
-		res = tmp.CopyNew().(*Ciphertext)
+		if err = evaluator.Rescale(tmp, tmp); err != nil {
+			return nil, err
+		}
+
+		res = tmp.CopyNew().Ciphertext()
 	}
 
 	return res, nil

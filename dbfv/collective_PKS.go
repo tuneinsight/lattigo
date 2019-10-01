@@ -2,9 +2,9 @@ package dbfv
 
 import (
 	"github.com/ldsec/lattigo/ring"
-	//"fmt"
 )
 
+// PCKS is the structure storing the parameters for the collective public key-switching.
 type PCKS struct {
 	context *ring.Context
 
@@ -19,6 +19,8 @@ type PCKS struct {
 	polypool *ring.Poly
 }
 
+// NewPCKS creates a new PCKS object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key mong j parties under a new
+// collective public-key.
 func NewPCKS(skInput *ring.Poly, pkOutput [2]*ring.Poly, context *ring.Context, sigmaSmudging float64) *PCKS {
 
 	pcks := new(PCKS)
@@ -35,6 +37,11 @@ func NewPCKS(skInput *ring.Poly, pkOutput [2]*ring.Poly, context *ring.Context, 
 	return pcks
 }
 
+// KeySwitch is the first part of the unique round of the PCKS protocol. Each party computes the following :
+//
+// [s_i * ctx[0] + u_i * pk[0] + e_0i, u_i * pk[1] + e_1i]
+//
+// and broadcasts the result to the other j-1 parties.
 func (pcks *PCKS) KeySwitch(ct1 *ring.Poly) (h [2]*ring.Poly) {
 
 	// h_0 = pk_0 (NTT)
@@ -43,7 +50,7 @@ func (pcks *PCKS) KeySwitch(ct1 *ring.Poly) (h [2]*ring.Poly) {
 	h[1] = pcks.pkOutput[1].CopyNew()
 
 	//u_i
-	pcks.ternarySampler.SampleMontgomeryNTT(pcks.polypool)
+	pcks.ternarySampler.SampleMontgomeryNTT(0.5, pcks.polypool)
 
 	// h_0 = u_i * pk_0 (NTT)
 	pcks.context.MulCoeffsMontgomery(h[0], pcks.polypool, h[0])
@@ -70,6 +77,10 @@ func (pcks *PCKS) KeySwitch(ct1 *ring.Poly) (h [2]*ring.Poly) {
 	return h
 }
 
+// Aggregate is the second part of the first and unique round of the PCKS protocol. Each party uppon receiving the j-1 elements from the
+// other parties computes :
+//
+// [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
 func (pcks *PCKS) Aggregate(ct []*ring.Poly, h [][2]*ring.Poly) {
 
 	pcks.context.AddNoMod(ct[0], h[0][0], ct[0])

@@ -1,11 +1,8 @@
 package ckks
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"github.com/ldsec/lattigo/ring"
-	"golang.org/x/crypto/blake2b"
 	"math"
 	"math/big"
 	"math/bits"
@@ -76,95 +73,16 @@ func scaleDown(coeff *ring.Int, n uint64) (x float64) {
 	return
 }
 
-func Hash(data []uint64) (value []byte, err error) {
-	hash, err := blake2b.New512(nil)
-	buff := make([]byte, 8)
-	for _, x := range data {
-		binary.BigEndian.PutUint64(buff, x)
-		hash.Write(buff)
-	}
-	value = hash.Sum(nil)
-	return
+// Generates CKKS Primes given logQ = size of the primes, logN = size of N and level, the number
+// of levels we require. Will return all the appropriate primes, up to the number of level, with the
+// best avaliable precision for the given level.
+func GenerateCKKSPrimes(logQ, logN, levels uint64) ([]uint64, error) {
 
-}
-
-func VerifyHash(hash0, hash1 []byte) bool {
-	if res := bytes.Compare(hash0, hash1); res != 0 {
-		return false
-	} else {
-		return true
-	}
-}
-
-func getLevels(inputs []CkksElement) (levels []uint64) {
-
-	levels = make([]uint64, len(inputs))
-
-	for i := range inputs {
-		levels[i] = inputs[i].Level()
-	}
-
-	return
-}
-
-func checkLevels(inputs []CkksElement) (uint64, error) {
-
-	levels := getLevels(inputs)
-
-	for i := 1; i < len(levels); i++ {
-		if levels[0] != levels[i] {
-			return 0, errors.New("error : inputs need to be on the same level")
-		}
-	}
-
-	return levels[0], nil
-}
-
-func checkContext(inputs []CkksElement) bool {
-
-	var value []byte
-
-	value = inputs[0].CkksContext().checksum
-
-	for i := range inputs[1:] {
-
-		if res := VerifyHash(value, inputs[i].CkksContext().checksum); res != true {
-			return false
-		}
-
-	}
-
-	return true
-}
-
-func GenerateNTTPrime(logQ, logN uint64) (uint64, error) {
-
-	if logQ > 62 {
-		return 0, errors.New("error : logQ must be between 1 and 62")
-	}
-
-	var x, Qpow2, _2N uint64
-
-	Qpow2 = 1 << logQ
-
-	_2N = 2 << logN
-
-	x = Qpow2 + 1
-
-	for ring.IsPrime(x) != true {
-		x += _2N
-	}
-
-	return x, nil
-}
-
-func GeneratePrimesList(logQ, logN, logP uint64) ([]uint64, error) {
-
-	if logQ > 62 {
+	if logQ > 60 {
 		return nil, errors.New("error : logQ must be between 1 and 62")
 	}
 
-	var x, Qpow2, _2N, precision uint64
+	var x, y, Qpow2, _2N uint64
 
 	primes := []uint64{}
 
@@ -172,65 +90,49 @@ func GeneratePrimesList(logQ, logN, logP uint64) ([]uint64, error) {
 
 	_2N = 2 << logN
 
-	precision = 1 << logP
-
 	x = Qpow2 + 1
+	y = Qpow2 + 1
 
-	// Gets x + 1 + k*2N = 1 mod 2N to the precision upperbound
-	for (1-(float64(x)/float64(Qpow2)))*float64(precision) > -1 {
-		x += _2N
-	}
+	for true {
 
-	// Walks backward this time checking if x + 1 + k*2N is prime
-	for (1-(float64(x)/float64(Qpow2)))*float64(precision) < 1 {
+		if ring.IsPrime(y) {
+			primes = append(primes, y)
+			if uint64(len(primes)) == levels {
+				return primes, nil
+			}
+		}
 
-		x -= _2N
+		y -= _2N
 
 		if ring.IsPrime(x) {
 			primes = append(primes, x)
+			if uint64(len(primes)) == levels {
+				return primes, nil
+			}
 		}
+
+		x += _2N
 	}
 
 	return primes, nil
 }
 
-// Generates CKKS Primes byed on logQ = size of the primes, logN = size of N and level, the number
-// of levels we require. Will return all the appropriate primes, up to the number of level, with the
-// best avaliable precision for the given level.
-// TODO : choose between sorting the primes by size or by precision
-func GenerateCKKSPrimes(logQ, logN, level uint64) ([]uint64, uint64, error) {
+func equalslice64(a, b []uint64) bool {
 
-	var err error
-
-	if logQ > 62 {
-		return nil, 0, errors.New("error : logQ must be between 1 and 62")
+	if len(a) != len(b) {
+		return false
 	}
 
-	var precision uint64
-
-	var primes []uint64
-
-	precision = logQ - 1
-
-	for precision > 0 {
-
-		primes, err = GeneratePrimesList(logQ, logN, precision)
-
-		if err != nil {
-			return nil, 0, err
+	for i := range a {
+		if a[i] != b[i] {
+			return false
 		}
-
-		if len(primes) >= int(level) {
-			return primes[:level], precision, nil
-		}
-
-		precision -= 1
 	}
 
-	return nil, 0, nil
+	return true
 }
 
-func EqualSlice(a, b []uint64) bool {
+func equalslice8(a, b []uint8) bool {
 
 	if len(a) != len(b) {
 		return false
@@ -274,28 +176,4 @@ func hammingWeight64(x uint64) uint64 {
 	x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333)
 	x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0f
 	return ((x * 0x0101010101010101) & 0xffffffffffffffff) >> 56
-}
-
-func modexp(x, e, p uint64) (result uint64) {
-	params := ring.BRedParams(p)
-	result = 1
-	for i := e; i > 0; i >>= 1 {
-		if i&1 == 1 {
-			result = ring.BRed(result, x, p, params)
-		}
-		x = ring.BRed(x, x, p, params)
-	}
-	return result
-}
-
-// Returns (x*2^n)%q where x is in montgomery form
-func PowerOf2(x, n, q, qInv uint64) (r uint64) {
-	ahi, alo := x>>(64-n), x<<n
-	R := alo * qInv
-	H, _ := bits.Mul64(R, q)
-	r = ahi - H + q
-	if r >= q {
-		r -= q
-	}
-	return
 }

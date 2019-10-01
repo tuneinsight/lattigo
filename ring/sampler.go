@@ -3,85 +3,11 @@ package ring
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"math"
-	"math/bits"
 )
 
-// This code is to sample a value from discrete gaussian distribution.
-// All the algorithms originate from https://eprint.iacr.org/2013/383.pdf
-
-// GaussSampling returns a value sampled from discrete gaussian distribution,
-// originates from Algorithm 11 & 12 in the paper.
-func GaussSampling(sigma float64) int64 {
-	const sigma2 = 0.8493218                // sigma2 = sqrt(1/(2*ln2)) -- page 28
-	k := uint64(math.Round(sigma / sigma2)) // sigma = k * sigma2 -- page 29
-	var x, y, z uint64
-	var b1, b2 bool
-	for {
-		x = binaryGauss()
-		y = randUniform(k)
-		b1 = bernoulliExp(y*(y+2*k*x), 2*sigma*sigma)
-		if b1 {
-			z = k*x + y
-			b2 = bernoulli(0.5)
-			if z != 0 || b2 {
-				if b2 {
-					return int64(z)
-				} else {
-					return -int64(z)
-				}
-			}
-		}
-	}
-}
-
-// binaryGauss returns a random uint value drawn from binary gaussian distribution,
-// originates from Algorithm 10 in the paper.
-func binaryGauss() uint64 {
-	if bernoulli(0.5) == false {
-		return 0
-	}
-	// i < 16 represents infinite
-	for i := 1; i < 16; i++ {
-		randomBits := randInt64(uint64(2*i - 1))
-		if randomBits != 0 {
-			return binaryGauss()
-		}
-		if randomBits == 0 {
-			return uint64(i)
-		}
-	}
-	return 0
-}
-
-// bernoulli returns a random bool value drawn from exponential bernoulli distribution
-// originates from Algorithm 8 in the paper.
-func bernoulliExp(x uint64, f float64) bool {
-	xBinary, xBitlen := NewInt(int64(x)).Bits()
-	if xBitlen == 0 {
-		return true
-	}
-	for i := xBitlen; i > 0; i-- {
-		if xBinary[i-1] == 1 {
-			c := math.Exp(-math.Exp2(float64(i)) / f)
-			if bernoulli(c) == false {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-// bernoulli returns a random bool value drawn from bernoulli distribution
-func bernoulli(p float64) bool {
-	pInt := uint64(p * (1 << 31))
-	randomInt := randInt32(0xFFFFFFFF)
-	if randomInt < pInt {
-		return true
-	}
-	return false
-}
-
+// KYSampler is the structure holding the parameters for the gaussian sampling.
 type KYSampler struct {
 	context *Context
 	sigma   float64
@@ -89,6 +15,7 @@ type KYSampler struct {
 	Matrix  [][]uint8
 }
 
+// NewKYSampler creates a new KYSampler with sigma and bound that will be used to sample polynomial within the provided discret gaussian distribution.
 func (context *Context) NewKYSampler(sigma float64, bound int) *KYSampler {
 	kysampler := new(KYSampler)
 	kysampler.context = context
@@ -98,12 +25,12 @@ func (context *Context) NewKYSampler(sigma float64, bound int) *KYSampler {
 	return kysampler
 }
 
-//2.50662827463100050241576528481104525300698674060993831662992357 = sqrt(2*pi)
+//gaussian computes (1/variange*sqrt(pi)) * exp((x^2) / (2*variance^2)),  2.50662827463100050241576528481104525300698674060993831662992357 = sqrt(2*pi)
 func gaussian(x, sigma float64) float64 {
 	return (1 / (sigma * 2.5066282746310007)) * math.Exp(-((math.Pow(x, 2)) / (2 * sigma * sigma)))
 }
 
-// Computes the binary expension with precision x in bits of the normal distribution
+// computeMatrix computes the binary expension with precision x in bits of the normal distribution
 // with sigma and bound. Returns a matrix of the form M = [[0,1,0,0,...],[0,0,1,,0,...]],
 // where each row is the binary expension of the normal distribution of index(row) with sigma and bound (center=0).
 func computeMatrix(sigma float64, bound int) [][]uint8 {
@@ -146,48 +73,7 @@ func computeMatrix(sigma float64, bound int) [][]uint8 {
 	return M
 }
 
-func (kys *KYSampler) SampleNew() *Poly {
-	Pol := kys.context.NewPoly()
-	kys.Sample(Pol)
-	return Pol
-}
-
-func (kys *KYSampler) Sample(Pol *Poly) {
-
-	var coeff uint64
-	var sign uint64
-
-	randomBytes := make([]byte, 8)
-	pointer := uint8(0)
-
-	if _, err := rand.Read(randomBytes); err != nil {
-		panic("crypto rand error")
-	}
-
-	for i := uint64(0); i < kys.context.N; i++ {
-
-		coeff, sign, randomBytes, pointer = KYSampling(kys.Matrix, randomBytes, pointer)
-
-		for j, qi := range kys.context.Modulus {
-
-			Pol.Coeffs[j][i] = (coeff & (sign * 0xFFFFFFFFFFFFFFFF)) | ((qi - coeff) & ((sign ^ 1) * 0xFFFFFFFFFFFFFFFF))
-
-		}
-	}
-}
-
-func (kys *KYSampler) SampleNTTNew() *Poly {
-	Pol := kys.SampleNew()
-	kys.context.NTT(Pol, Pol)
-	return Pol
-}
-
-func (kys *KYSampler) SampleNTT(Pol *Poly) {
-	kys.Sample(Pol)
-	kys.context.NTT(Pol, Pol)
-}
-
-func KYSampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64, []byte, uint8) {
+func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64, []byte, uint8) {
 
 	var sign uint8
 
@@ -205,7 +91,7 @@ func KYSampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 			// There is small probability that it will get out of the bound, then
 			// rerun until it gets a proper output
 			if d > colLen-1 {
-				return KYSampling(M, randomBytes, i)
+				return kysampling(M, randomBytes, i)
 			}
 
 			for row := colLen - 1; row >= 0; row-- {
@@ -257,12 +143,60 @@ func KYSampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 	}
 }
 
+// SampleNew samples a new polynomial with gaussian distribution given the target kys parameters.
+func (kys *KYSampler) SampleNew() *Poly {
+	Pol := kys.context.NewPoly()
+	kys.Sample(Pol)
+	return Pol
+}
+
+// SampleNew samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
+func (kys *KYSampler) Sample(Pol *Poly) {
+
+	var coeff uint64
+	var sign uint64
+
+	randomBytes := make([]byte, 8)
+	pointer := uint8(0)
+
+	if _, err := rand.Read(randomBytes); err != nil {
+		panic("crypto rand error")
+	}
+
+	for i := uint64(0); i < kys.context.N; i++ {
+
+		coeff, sign, randomBytes, pointer = kysampling(kys.Matrix, randomBytes, pointer)
+
+		for j, qi := range kys.context.Modulus {
+			Pol.Coeffs[j][i] = (coeff & (sign * 0xFFFFFFFFFFFFFFFF)) | ((qi - coeff) & ((sign ^ 1) * 0xFFFFFFFFFFFFFFFF))
+
+		}
+	}
+}
+
+// SampleNTTNew samples a polynomial with gaussian distribution given the target kys context and apply the NTT.
+func (kys *KYSampler) SampleNTTNew() *Poly {
+	Pol := kys.SampleNew()
+	kys.context.NTT(Pol, Pol)
+	return Pol
+}
+
+// SampleNew samples on the target polynomial coefficients with gaussian distribution given the target kys parameters,and applies the NTT.
+func (kys *KYSampler) SampleNTT(Pol *Poly) {
+	kys.Sample(Pol)
+	kys.context.NTT(Pol, Pol)
+}
+
+// TernarySampler is the structure holding the parameters for sampling polynomials of the form [-1, 0, 1].
 type TernarySampler struct {
 	context          *Context
 	Matrix           [][]uint64
 	MatrixMontgomery [][]uint64
+
+	KYMatrix [][]uint8
 }
 
+// NewTernarySampler creates a new TernarySampler from the target context.
 func (context *Context) NewTernarySampler() *TernarySampler {
 
 	sampler := new(TernarySampler)
@@ -274,83 +208,187 @@ func (context *Context) NewTernarySampler() *TernarySampler {
 	for i, Qi := range context.Modulus {
 
 		sampler.Matrix[i] = make([]uint64, 3)
-		sampler.Matrix[i][0] = Qi - 1
-		sampler.Matrix[i][1] = 0
-		sampler.Matrix[i][2] = 1
+		sampler.Matrix[i][0] = 0
+		sampler.Matrix[i][1] = 1
+		sampler.Matrix[i][2] = Qi - 1
 
 		sampler.MatrixMontgomery[i] = make([]uint64, 3)
-		sampler.MatrixMontgomery[i][0] = MForm(Qi-1, Qi, context.bredParams[i])
-		sampler.MatrixMontgomery[i][1] = 0
-		sampler.MatrixMontgomery[i][2] = MForm(1, Qi, context.bredParams[i])
+		sampler.MatrixMontgomery[i][0] = 0
+		sampler.MatrixMontgomery[i][1] = MForm(1, Qi, context.bredParams[i])
+		sampler.MatrixMontgomery[i][2] = MForm(Qi-1, Qi, context.bredParams[i])
 	}
 
 	return sampler
 }
 
-func (sampler *TernarySampler) SampleNew() (pol *Poly) {
-	pol = sampler.context.NewPoly()
-	sampler.Sample(pol)
-	return pol
+func computeMatrixTernary(p float64) (M [][]uint8) {
+	var g float64
+	var x uint64
+
+	precision := uint64(56)
+
+	M = make([][]uint8, 2)
+
+	g = p
+	g *= math.Exp2(float64(precision))
+	x = uint64(g)
+
+	M[0] = make([]uint8, precision-1)
+	for j := uint64(0); j < precision-1; j++ {
+		M[0][j] = uint8((x >> (precision - j - 1)) & 1)
+	}
+
+	g = 1 - p
+	g *= math.Exp2(float64(precision))
+	x = uint64(g)
+
+	M[1] = make([]uint8, precision-1)
+	for j := uint64(0); j < precision-1; j++ {
+		M[1][j] = uint8((x >> (precision - j - 1)) & 1)
+	}
+
+	return M
 }
 
-func (sampler *TernarySampler) Sample(pol *Poly) {
+// SampleMontgomeryNew samples coefficients with ternary distribution in montgomery form on the target polynomial.
+func (sampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64, pol *Poly) (err error) {
+
+	if p == 0 {
+		return errors.New("cannot sample -> p = 0")
+	}
+
 	var coeff uint64
-	for j := uint64(0); j < sampler.context.N; j++ {
-		coeff = randUint3()
-		for i := range sampler.context.Modulus {
-			pol.Coeffs[i][j] = sampler.Matrix[i][coeff]
+	var sign uint64
+	var index uint64
+
+	if p == 0.5 {
+
+		randomBytesCoeffs := make([]byte, sampler.context.N>>3)
+		randomBytesSign := make([]byte, sampler.context.N>>3)
+
+		if _, err := rand.Read(randomBytesCoeffs); err != nil {
+			panic("crypto rand error")
+		}
+
+		if _, err := rand.Read(randomBytesSign); err != nil {
+			panic("crypto rand error")
+		}
+
+		for i := uint64(0); i < sampler.context.N; i++ {
+			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
+			sign = uint64(uint8(randomBytesSign[i>>3])>>(i&7)) & 1
+
+			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
+
+			for j := range sampler.context.Modulus {
+				pol.Coeffs[j][i] = samplerMatrix[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+			}
+		}
+
+	} else {
+
+		matrix := computeMatrixTernary(p)
+
+		randomBytes := make([]byte, 8)
+
+		pointer := uint8(0)
+
+		if _, err := rand.Read(randomBytes); err != nil {
+			panic("crypto rand error")
+		}
+
+		for i := uint64(0); i < sampler.context.N; i++ {
+
+			coeff, sign, randomBytes, pointer = kysampling(matrix, randomBytes, pointer)
+
+			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
+
+			for j := range sampler.context.Modulus {
+				pol.Coeffs[j][i] = samplerMatrix[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+			}
 		}
 	}
+
+	return nil
 }
 
-func (sampler *TernarySampler) SampleMontgomeryNew() (pol *Poly) {
-	pol = sampler.context.NewPoly()
-	sampler.SampleMontgomery(pol)
-	return pol
+func (sampler *TernarySampler) SampleUniform(pol *Poly) {
+	_ = sampler.sample(sampler.Matrix, 1.0/3.0, pol)
 }
 
-func (sampler *TernarySampler) SampleMontgomery(pol *Poly) {
-	var coeff uint64
-	for j := uint64(0); j < sampler.context.N; j++ {
-		coeff = randUint3()
-		for i := range sampler.context.Modulus {
-			pol.Coeffs[i][j] = sampler.MatrixMontgomery[i][coeff]
-		}
+func (sampler *TernarySampler) Sample(p float64, pol *Poly) (err error) {
+	if err = sampler.sample(sampler.Matrix, p, pol); err != nil {
+		return err
 	}
+	return nil
 }
 
-func (sampler *TernarySampler) SampleNTTNew() (pol *Poly) {
+func (sampler *TernarySampler) SampleMontgomery(p float64, pol *Poly) (err error) {
+	if err = sampler.sample(sampler.MatrixMontgomery, p, pol); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SampleNew samples a new polynomial with ternary distribution.
+func (sampler *TernarySampler) SampleNew(p float64) (pol *Poly, err error) {
 	pol = sampler.context.NewPoly()
-	sampler.Sample(pol)
-	sampler.context.NTT(pol, pol)
-	return pol
+	if err = sampler.Sample(p, pol); err != nil {
+		return nil, err
+	}
+	return pol, nil
 }
 
-func (sampler *TernarySampler) SampleNTT(pol *Poly) {
-	sampler.Sample(pol)
-	sampler.context.NTT(pol, pol)
+// SampleMontgomeryNew samples a new polynomial with ternary distribution in montgomery form.
+func (sampler *TernarySampler) SampleMontgomeryNew(p float64) (pol *Poly, err error) {
+	pol = sampler.context.NewPoly()
+	if err = sampler.SampleMontgomery(p, pol); err != nil {
+		return nil, err
+	}
+	return pol, nil
 }
 
-func (sampler *TernarySampler) SampleMontgomeryNTTNew() (pol *Poly) {
-	pol = sampler.SampleMontgomeryNew()
+// SampleNTTNew samples a new polynomial with ternary distribution in the NTT domain.
+func (sampler *TernarySampler) SampleNTTNew(p float64) (pol *Poly, err error) {
+	pol = sampler.context.NewPoly()
+	if err = sampler.Sample(p, pol); err != nil {
+		return nil, err
+	}
 	sampler.context.NTT(pol, pol)
-	return pol
+	return pol, nil
 }
 
-func (sampler *TernarySampler) SampleMontgomeryNTT(pol *Poly) {
-	sampler.SampleMontgomery(pol)
+// SampleNTT samples coefficients with ternary distribution in the NTT domain on the target polynomial.
+func (sampler *TernarySampler) SampleNTT(p float64, pol *Poly) (err error) {
+	if err = sampler.Sample(p, pol); err != nil {
+		return err
+	}
 	sampler.context.NTT(pol, pol)
+
+	return nil
 }
 
-// TODO : precompute the mask in the ring context
-// randUniform returns a uniformly distributed value in {0,v)
-func randUniform(v uint64) uint64 {
-	var length, mask, randomInt uint64
+// SampleNTTNew samples a new polynomial with ternary distribution in the NTT domain and in montgomery form.
+func (sampler *TernarySampler) SampleMontgomeryNTTNew(p float64) (pol *Poly, err error) {
+	if pol, err = sampler.SampleMontgomeryNew(p); err != nil {
+		return nil, err
+	}
+	sampler.context.NTT(pol, pol)
+	return pol, nil
+}
 
-	length = uint64(bits.Len64(v))
+// SampleNTT samples coefficients with ternary distribution in the NTT domain and in montgomery form on the target polynomial.
+func (sampler *TernarySampler) SampleMontgomeryNTT(p float64, pol *Poly) (err error) {
+	if err = sampler.SampleMontgomery(p, pol); err != nil {
+		return err
+	}
+	sampler.context.NTT(pol, pol)
+	return nil
+}
 
-	mask = (1 << length) - 1
-
+// RandUniform samples a uniform randomInt variable in the range [0, mask] until randomInt is in the range [0, v-1].
+// mask needs to be of the form 2^n -1.
+func RandUniform(v uint64, mask uint64) (randomInt uint64) {
 	for {
 		randomInt = randInt64(mask)
 		if randomInt < v {
@@ -359,23 +397,7 @@ func randUniform(v uint64) uint64 {
 	}
 }
 
-func RandUniform(v uint64) uint64 {
-	var length, mask, randomInt uint64
-
-	length = uint64(bits.Len64(v))
-
-	mask = (1 << length) - 1
-
-	for {
-		randomInt = randInt64(mask)
-		if randomInt < v {
-			return randomInt
-		}
-	}
-}
-
-// Samples an bit and a sign with rejection sampling (25% chance of failure)
-// with probabilities :
+// randInt3 samples a bit and a sign with rejection sampling (25% chance of failure), with probabilities :
 // Pr[int = 0 : 1/3 ; int = 1 : 2/3]
 // Pr[sign = 1 : 1/2; sign = 0 : 1/2]
 func randInt3() (uint64, uint64) {
@@ -390,6 +412,7 @@ func randInt3() (uint64, uint64) {
 	}
 }
 
+// randUint3 samples a uniform variable in the range [0, 2]
 func randUint3() uint64 {
 	var randomInt uint64
 	for {
@@ -400,8 +423,7 @@ func randUint3() uint64 {
 	}
 }
 
-// TODO : precompute the mask in the ring context
-// randInt generates a random uint32 value of given length
+// randInt8 samples a uniform variable in the range [0, 255]
 func randInt8() uint64 {
 
 	// generate random 4 bytes
@@ -413,8 +435,7 @@ func randInt8() uint64 {
 	return uint64(randomBytes[0])
 }
 
-// TODO : precompute the mask in the ring context
-// randInt generates a random uint32 value of given length
+// randInt32 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 32].
 func randInt32(mask uint64) uint64 {
 
 	// generate random 4 bytes
@@ -431,8 +452,7 @@ func randInt32(mask uint64) uint64 {
 	return mask & randomUint32
 }
 
-// TODO : precompute the mask in the ring context
-// randInt generates a random uint64 value of given length
+// randInt64 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 64].
 func randInt64(mask uint64) uint64 {
 
 	// generate random 8 bytes

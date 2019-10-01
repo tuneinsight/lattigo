@@ -29,35 +29,32 @@ The library comprises the following sub-packages:
 - `lattigo/dbfv` and `lattigo/dckks`: Distributed (or threshold) versions of the BFV and CKKS schemes that enable secure multiparty computation solutions with secret-shared secret keys.
 
 - `lattigo/examples`: Executable Go programs demonstrating the usage of the Lattigo library.
-                      Note that each subpackage includes test files that further demonstrates the usage of Lattigo primitives.
+                      Note that each subpackage includes test files that further demonstrate the usage of Lattigo primitives.
 
 - `lattigo/utils`: Supporting structures and functions.
 
-## Roadmap
+## Versions and Roadmap
 
-### v1.0b (17 Aug. 2019)
+The first version of Lattigo, (v1.x.x) is meant to be a working prototype.
+Hence, there will be backward-incompatible changes within this version. 
 
-- First public beta release
-
-### v1.0 (Sept. 2019)
-
-- Full godoc documentation
-- Memory optimizations
-
+See CHANGELOG.md for the current and past versions.
 
 ### Upcoming features
 
-- Bootstrapping for CKKS
-- Network layer implementation of SMC-supporting protocols
+- Bootstrapping for CKKS.
+- Modulable CRT decomposition for the key-switching keys.
+- Examples for the distributed schemes.
+- Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
 
 ## Disclaimer
 
-The library is still at an experimental stage and should be used for research purposes only.
+This library is still at an experimental stage and should be used for research purposes only.
 
 ## License
 
-Lattigo is licenced under the Apache 2.0 License.
+Lattigo is licensed under the Apache 2.0 License.
 
 ## Contact
 
@@ -68,9 +65,9 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo 1.0},
+	    title = {Lattigo 1.1.0},
 	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
-	    month = aug,
+	    month = oct,
 	    year = 2019,
 	    note = {EPFL-LDS}
     }
@@ -79,7 +76,8 @@ Please use the following BibTex entry for citing Lattigo:
 
 ## References
 
-1. Somewhat Practical Fully Homomorphic Encryption (<https://eprint.iacr.org/2012/144>).
+1. Somewhat Practical Fully Homomorphic Encryption (<https://eprint.iacr.org/2012/144>)
+1. Computing accross Trust Boundaries using Distributed Homomorphic Cryptography (<https://eprint.iacr.org/2019/961>)
 1. A Full RNS Variant of FV Like Somewhat Homomorphic Encryption Schemes (<https://eprint.iacr.org/2016/510>)
 1. An Improved RNS Variant of the BFV Homomorphic Encryption Scheme (<https://eprint.iacr.org/2018/117>)
 1. Homomorphic Encryption for Arithmetic of Approximate Numbers (<https://eprint.iacr.org/2016/421>)

@@ -3,12 +3,14 @@ package ring
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"math/bits"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 var folder = "test_data/"
@@ -37,7 +39,9 @@ var filesNTT_60 = []string{
 	"test_pol_NTT_60__512_2",
 }
 
-func Test_POLYNOMIAL(t *testing.T) {
+func Test_Polynomial(t *testing.T) {
+
+	rand.Seed(time.Now().UnixNano())
 
 	for i := uint64(0); i < 1; i++ {
 
@@ -51,15 +55,15 @@ func Test_POLYNOMIAL(t *testing.T) {
 
 		contextT := NewContext()
 		contextT.SetParameters(N, []uint64{T})
-		contextT.ValidateParameters()
+		contextT.GenNTTParams()
 
 		contextQ := NewContext()
 		contextQ.SetParameters(N, Qi)
-		contextQ.ValidateParameters()
+		contextQ.GenNTTParams()
 
 		contextP := NewContext()
 		contextP.SetParameters(N, Pi)
-		contextP.ValidateParameters()
+		contextP.GenNTTParams()
 
 		contextQP := NewContext()
 		contextQP.Merge(contextQ, contextP)
@@ -146,7 +150,7 @@ func constructContextFromString(vs []string) *Context {
 	// Generate the context from N and Qi
 	context := NewContext()
 	context.SetParameters(N, Modulus)
-	context.ValidateParameters()
+	context.GenNTTParams()
 
 	return context
 }
@@ -182,7 +186,7 @@ func test_Vectors_NTT(t *testing.T) {
 
 		context := constructContextFromString(vs)
 
-		t.Run(fmt.Sprintf("Test_Vectors_NTT/N=%4d/Qi=%dx%d", context.N, len(context.Modulus), 60), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Test_Vectors_NTT/N=%d/limbs=%d", context.N, len(context.Modulus)), func(t *testing.T) {
 
 			Polx := constructPolynomialsFromString(vs, context)
 
@@ -218,7 +222,7 @@ func test_Vectors_NTT(t *testing.T) {
 
 func test_GenerateNTTPrimes(N, Qi uint64, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/%dbit/GenerateNTTPrimes", N, 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/GenerateNTTPrimes", N), func(t *testing.T) {
 
 		primes, err := GenerateNTTPrimes(N, Qi, 100, 60, true)
 
@@ -237,7 +241,7 @@ func test_GenerateNTTPrimes(N, Qi uint64, t *testing.T) {
 
 func test_ImportExportPolyString(context *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/ImportExportPolyString", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/ImportExportPolyString", context.N, len(context.Modulus)), func(t *testing.T) {
 
 		p0 := context.NewUniformPoly()
 		p1 := context.NewPoly()
@@ -252,7 +256,7 @@ func test_ImportExportPolyString(context *Context, t *testing.T) {
 
 func test_Marshaler(context *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/MarshalContext", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/MarshalContext", context.N, len(context.Modulus)), func(t *testing.T) {
 
 		data, _ := context.MarshalBinary()
 
@@ -270,7 +274,7 @@ func test_Marshaler(context *Context, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/MarshalPoly", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/MarshalPoly", context.N, len(context.Modulus)), func(t *testing.T) {
 
 		p := context.NewUniformPoly()
 		pTest := context.NewPoly()
@@ -291,22 +295,49 @@ func test_Marshaler(context *Context, t *testing.T) {
 
 func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 
-	context.NewGaussPoly(sigma)
-
 	bound := int(sigma * 6)
 	KYS := context.NewKYSampler(sigma, bound)
+	TS := context.NewTernarySampler()
+
 	pol := context.NewPoly()
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/NewGaussPoly", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/NewGaussPoly", context.N, len(context.Modulus)), func(t *testing.T) {
 		KYS.Sample(pol)
-		context.NewUniformPoly()
-		context.NewTernaryPoly()
+	})
+
+	countOne := 0
+	countZer := 0
+	countMOn := 0
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/NewTernaryPoly", context.N, len(context.Modulus)), func(t *testing.T) {
+		if err := TS.Sample(1.0/3, pol); err != nil {
+			log.Fatal(err)
+		}
+
+		//fmt.Println(pol.Coeffs[0])
+
+		for i := range pol.Coeffs[0] {
+			if pol.Coeffs[0][i] == context.Modulus[0]-1 {
+				countMOn += 1
+			}
+
+			if pol.Coeffs[0][i] == 0 {
+				countZer += 1
+			}
+
+			if pol.Coeffs[0][i] == 1 {
+				countOne += 1
+			}
+		}
+
+		//fmt.Println("-1 :", countMOn)
+		//fmt.Println(" 0 :", countZer)
+		//fmt.Println(" 1 :", countOne)
 	})
 }
 
 func test_BRed(context *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/BRed", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/BRed", context.N, len(context.Modulus)), func(t *testing.T) {
 		for j, q := range context.Modulus {
 
 			bigQ := NewUint(q)
@@ -333,7 +364,7 @@ func test_BRed(context *Context, t *testing.T) {
 
 func test_MRed(context *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/MRed", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/MRed", context.N, len(context.Modulus)), func(t *testing.T) {
 		for j := range context.Modulus {
 
 			q := context.Modulus[j]
@@ -364,7 +395,7 @@ func test_MRed(context *Context, t *testing.T) {
 
 func test_Shift(context *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/Shift", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/Shift", context.N, len(context.Modulus)), func(t *testing.T) {
 		pWant := context.NewUniformPoly()
 		pTest := context.NewPoly()
 
@@ -382,7 +413,7 @@ func test_Shift(context *Context, t *testing.T) {
 
 func test_GaloisShift(context *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/GaloisShift", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/GaloisShift", context.N, len(context.Modulus)), func(t *testing.T) {
 
 		pWant := context.NewUniformPoly()
 		pTest := pWant.CopyNew()
@@ -409,7 +440,7 @@ func test_GaloisShift(context *Context, t *testing.T) {
 
 func test_MForm(context *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/MForm", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/MForm", context.N, len(context.Modulus)), func(t *testing.T) {
 
 		polWant := context.NewUniformPoly()
 		polTest := context.NewPoly()
@@ -426,7 +457,7 @@ func test_MForm(context *Context, t *testing.T) {
 
 func test_MulPoly(context *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/MulPoly", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/MulPoly", context.N, len(context.Modulus)), func(t *testing.T) {
 
 		p1 := context.NewUniformPoly()
 		p2 := context.NewUniformPoly()
@@ -451,7 +482,7 @@ func test_MulPoly(context *Context, t *testing.T) {
 
 func test_MulPoly_Montgomery(context *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/MulPoly_Montgomery", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/MulPoly_Montgomery", context.N, len(context.Modulus)), func(t *testing.T) {
 		p1 := context.NewUniformPoly()
 		p2 := context.NewUniformPoly()
 		p3Test := context.NewPoly()
@@ -477,9 +508,9 @@ func test_MulPoly_Montgomery(context *Context, t *testing.T) {
 
 func test_ExtendBasis(contextQ, contextP, contextQP *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/Pi=%dx%d/ExtendBasis", contextQ.N, len(contextQ.Modulus), 60, len(contextP.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ExtendBasis", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(t *testing.T) {
 
-		basisextender, _ := NewBasisExtender(contextQ, contextP)
+		basisextender := NewBasisExtender(contextQ, contextP)
 
 		coeffs := make([]*Int, contextQ.N)
 		for i := uint64(0); i < contextQ.N; i++ {
@@ -507,9 +538,9 @@ func test_ExtendBasis(contextQ, contextP, contextQP *Context, t *testing.T) {
 
 func test_SimpleScaling(T uint64, contextT, contextQ *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/T=%v/SimpleScaling", contextQ.N, len(contextQ.Modulus), 60, T), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/T=%v/SimpleScaling", contextQ.N, len(contextQ.Modulus), T), func(t *testing.T) {
 
-		rescaler, _ := NewSimpleScaler(T, contextQ)
+		rescaler := NewSimpleScaler(T, contextQ)
 
 		coeffs := make([]*Int, contextQ.N)
 		for i := uint64(0); i < contextQ.N; i++ {
@@ -544,9 +575,9 @@ func test_SimpleScaling(T uint64, contextT, contextQ *Context, t *testing.T) {
 
 func test_ComplexScaling(T uint64, contextQ, contextP, contextQP *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/Pi=%dx%d/T=%d/ComplexScaling", contextQ.N, len(contextQ.Modulus), 60, len(contextP.Modulus), 60, T), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d+%d/T=%d/ComplexScaling", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus), T), func(t *testing.T) {
 
-		complexRescaler, _ := NewComplexScaler(T, contextQ, contextP)
+		complexRescaler := NewComplexScaler(T, contextQ, contextP)
 
 		coeffs := make([]*Int, contextQ.N)
 		for i := uint64(0); i < contextQ.N; i++ {
@@ -592,7 +623,7 @@ func test_ComplexScaling(T uint64, contextQ, contextP, contextQP *Context, t *te
 
 func test_MultByMonomial(context *Context, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/Qi=%dx%dbit/MultByMonomial", context.N, len(context.Modulus), 60), func(t *testing.T) {
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/MultByMonomial", context.N, len(context.Modulus)), func(t *testing.T) {
 
 		p1 := context.NewUniformPoly()
 

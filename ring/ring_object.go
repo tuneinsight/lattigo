@@ -6,26 +6,22 @@ import (
 	"math/bits"
 )
 
-// Poly is the structure containing the coefficients of a ring
+// Poly is the structure containing the coefficients of a polynomial.
 type Poly struct {
 	Coeffs [][]uint64 //Coefficients in CRT representation
-	//Context *Context might be added back at a later time
 }
 
-// GetDegree returns the number of coefficients (degree) of the ring
+// GetDegree returns the number of coefficients (degree) of the polynomial.
 func (Pol *Poly) GetDegree() int {
 	return len(Pol.Coeffs[0])
 }
 
-// CetLenModulies returns the number of modulies
-func (Pol *Poly) GetLenModulies() int {
+// GetLenModuli returns the number of modulies
+func (Pol *Poly) GetLenModuli() int {
 	return len(Pol.Coeffs)
 }
 
-func (Pol *Poly) ExtendModulies() {
-
-}
-
+// Zero sets all coefficient of the target polynomial to 0.
 func (Pol *Poly) Zero() {
 	for i := range Pol.Coeffs {
 		for j := range Pol.Coeffs[0] {
@@ -34,7 +30,7 @@ func (Pol *Poly) Zero() {
 	}
 }
 
-// Copy creates a new ring with the same coefficients
+// CopyNew creates a new polynomial p1 which is a copy of the target polynomial.
 func (Pol *Poly) CopyNew() (p1 *Poly) {
 	p1 = new(Poly)
 	p1.Coeffs = make([][]uint64, len(Pol.Coeffs))
@@ -48,32 +44,31 @@ func (Pol *Poly) CopyNew() (p1 *Poly) {
 	return p1
 }
 
-func (context *Context) Copy(p0, p1 *Poly) error {
-	if len(p1.Coeffs) < len(context.Modulus) || uint64(len(p1.Coeffs[0])) < context.N {
-		return errors.New("error : copy Poly, receiver poly is invalide")
-	}
-	for i := range context.Modulus {
-		for j := uint64(0); j < context.N; j++ {
-			p1.Coeffs[i][j] = p0.Coeffs[i][j]
+// Copy copies the coefficients of p0 on p1 within the given context. Requiers p1 to be as big as the target context.
+func (context *Context) Copy(p0, p1 *Poly) {
+
+	if p0 != p1 {
+		for i := range context.Modulus {
+			for j := uint64(0); j < context.N; j++ {
+				p1.Coeffs[i][j] = p0.Coeffs[i][j]
+			}
 		}
 	}
-	return nil
 }
 
-// Copies the coefficient on a receiver ring
-func (Pol *Poly) Copy(p1 *Poly) error {
-	if len(Pol.Coeffs) > len(p1.Coeffs) || len(Pol.Coeffs[0]) > len(p1.Coeffs[0]) {
-		return errors.New("error : copy Poly, receiver poly is invalide")
-	}
-	for i := range Pol.Coeffs {
-		for j := range Pol.Coeffs[i] {
-			p1.Coeffs[i][j] = Pol.Coeffs[i][j]
+// Copy copies the coefficients of Pol on p1.
+func (Pol *Poly) Copy(p1 *Poly) {
+
+	if Pol != p1 {
+		for i := range p1.Coeffs {
+			for j := range p1.Coeffs[i] {
+				Pol.Coeffs[i][j] = p1.Coeffs[i][j]
+			}
 		}
 	}
-	return nil
 }
 
-// SetCoefficients sets the coefficients of ring directly from a CRT format (double slice)
+// SetCoefficients sets the coefficients of polynomial directly from a CRT format (double slice).
 func (Pol *Poly) SetCoefficients(coeffs [][]uint64) error {
 
 	if len(coeffs) > len(Pol.Coeffs) {
@@ -93,7 +88,7 @@ func (Pol *Poly) SetCoefficients(coeffs [][]uint64) error {
 	return nil
 }
 
-// GetCoefficients returns a double slice containing the coefficients of the ring
+// GetCoefficients returns a double slice containing the coefficients of the polynomial.
 func (Pol *Poly) GetCoefficients() [][]uint64 {
 	coeffs := make([][]uint64, len(Pol.Coeffs))
 
@@ -107,7 +102,7 @@ func (Pol *Poly) GetCoefficients() [][]uint64 {
 	return coeffs
 }
 
-// WriteCoeffsTo converts a matrix of coefficients to a byte array
+// WriteCoeffsTo converts a matrix of coefficients to a byte array.
 func WriteCoeffsTo(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
 	tmp := N << 3
 	for i := uint64(0); i < numberModuli; i++ {
@@ -120,8 +115,21 @@ func WriteCoeffsTo(pointer, N, numberModuli uint64, coeffs [][]uint64, data []by
 	return pointer, nil
 }
 
-// DecodeCoeffs converts a byte array to a matrix of coefficients
+// DecodeCoeffs converts a byte array to a matrix of coefficients.
 func DecodeCoeffs(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
+	tmp := N << 3
+	for i := uint64(0); i < numberModuli; i++ {
+		for j := uint64(0); j < N; j++ {
+			coeffs[i][j] = binary.BigEndian.Uint64(data[pointer+(j<<3) : pointer+((j+1)<<3)])
+		}
+		pointer += tmp
+	}
+
+	return pointer, nil
+}
+
+// DecodeCoeffs converts a byte array to a matrix of coefficients.
+func DecodeCoeffsNew(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
 	tmp := N << 3
 	for i := uint64(0); i < numberModuli; i++ {
 		coeffs[i] = make([]uint64, N)
@@ -164,21 +172,17 @@ func (Pol *Poly) UnMarshalBinary(data []byte) (*Poly, error) {
 	N := uint64(int(1 << data[0]))
 	numberModulies := uint64(int(data[1]))
 
-	Coeffs := make([][]uint64, numberModulies)
-
 	var pointer uint64
 
 	pointer = 2
 
 	if ((uint64(len(data)) - pointer) >> 3) != N*numberModulies {
-		return nil, errors.New("error : invalid ring encoding")
+		return nil, errors.New("error : invalid polynomial encoding")
 	}
 
-	if _, err := DecodeCoeffs(pointer, N, numberModulies, Coeffs, data); err != nil {
+	if _, err := DecodeCoeffs(pointer, N, numberModulies, Pol.Coeffs, data); err != nil {
 		return nil, err
 	}
-
-	Pol = &Poly{Coeffs}
 
 	return Pol, nil
 }

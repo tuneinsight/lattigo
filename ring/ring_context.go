@@ -1,3 +1,4 @@
+// Package ring implelents a RNS-accelerated modular arithmetic operations for polynomials, including: RNS basis extension; RNS rescaling;  number theoretic transform (NTT); uniform, Gaussian and ternary sampling.
 package ring
 
 import (
@@ -13,6 +14,8 @@ import (
 //===== POLYNOMIAL CONTEXT =====
 //==============================
 
+// Context is a structure keeping all the variable required to operate on a polynomial represented in this context.
+// This include its moduli, crt reconstruction, modular reduction and ntt transformation.
 type Context struct {
 
 	// Polynomial nb.Coefficients
@@ -25,7 +28,7 @@ type Context struct {
 	mask []uint64
 
 	// Determines if NTT can be used with the current context.
-	validated bool
+	allowsNTT bool
 
 	// Product of the modulies
 	ModulusBigint *Int
@@ -46,10 +49,13 @@ type Context struct {
 	nttNInv   []uint64   //[N^-1] mod Qi in montgomery form
 }
 
+// NewContext generates a new empty context.
 func NewContext() *Context {
 	return new(Context)
 }
 
+// SetParameters initialize the parameters of an empty context with N and the provided moduli.
+// Only checks that N is a power of 2 and computes all the variable that aren't used for the NTT.
 func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
 
 	// Checks if N is a power of 2
@@ -57,7 +63,7 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
 		return errors.New("invalid ring degree (must be a power of 2)")
 	}
 
-	context.validated = false
+	context.allowsNTT = false
 
 	context.N = N
 
@@ -94,9 +100,12 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
 	return nil
 }
 
-func (context *Context) ValidateParameters() error {
+// GenNTTParams checks that N has beed correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).
+// Then it computes the variables required for the NTT. ValidateParameters purpose is to validate that the moduli allow the NTT and compute the
+// NTT parameters.
+func (context *Context) GenNTTParams() error {
 
-	if context.validated {
+	if context.allowsNTT {
 		return nil
 	}
 
@@ -108,7 +117,7 @@ func (context *Context) ValidateParameters() error {
 	// Checks if each qi is Prime and if qi = 1 mod 2n
 	for _, qi := range context.Modulus {
 		if IsPrime(qi) == false || qi&((context.N<<1)-1) != 1 {
-			context.validated = false
+			context.allowsNTT = false
 			return errors.New("warning : provided modulus does not allow NTT")
 		}
 	}
@@ -137,7 +146,7 @@ func (context *Context) ValidateParameters() error {
 		context.CrtReconstruction[i].Mul(context.CrtReconstruction[i], tmp)
 
 		//2.1 Computes N^(-1) mod Q in Montgomery form
-		context.nttNInv[i] = MForm(modexp(context.N, qi-2, qi), qi, context.bredParams[i])
+		context.nttNInv[i] = MForm(ModExp(context.N, qi-2, qi), qi, context.bredParams[i])
 
 		//2.2 Computes Psi and PsiInv in Montgomery form
 		context.nttPsi[i] = make([]uint64, context.N)
@@ -152,8 +161,8 @@ func (context *Context) ValidateParameters() error {
 		powerInv := (qi - 1) - power
 
 		//Computes Psi and PsiInv in Montgomery Form
-		PsiMont := MForm(modexp(g, power, qi), qi, context.bredParams[i])
-		PsiInvMont := MForm(modexp(g, powerInv, qi), qi, context.bredParams[i])
+		PsiMont := MForm(ModExp(g, power, qi), qi, context.bredParams[i])
+		PsiInvMont := MForm(ModExp(g, powerInv, qi), qi, context.bredParams[i])
 
 		context.psiMont[i] = PsiMont
 		context.psiInvMont[i] = PsiInvMont
@@ -172,7 +181,7 @@ func (context *Context) ValidateParameters() error {
 		}
 	}
 
-	context.validated = true
+	context.allowsNTT = true
 
 	return nil
 }
@@ -206,13 +215,14 @@ func (context *Context) UnMarshalBinary(data []byte) error {
 	}
 
 	context.SetParameters(parameters.N, parameters.Modulus)
-	context.ValidateParameters()
+	context.GenNTTParams()
 
 	return nil
 }
 
 // Merge merges two context by appending all the element from contextP to the elements of contextQ
-// Will return an error if contextQ or contextP are not both not validated or both validated
+// Will return an error if contextQ or contextP do not both agree on the flat allowsNTT. It
+// however requires to re-compute the crt reconstruction parameters.
 func (context *Context) Merge(contextQ, contextP *Context) error {
 
 	if contextQ.N != contextP.N {
@@ -249,58 +259,66 @@ func (context *Context) Merge(contextQ, contextP *Context) error {
 	context.psiMont = append(contextQ.psiMont, contextP.psiMont...)
 	context.psiInvMont = append(contextQ.psiInvMont, contextP.psiInvMont...)
 
-	if contextQ.validated == false && contextP.validated == false {
+	if contextQ.allowsNTT == false && contextP.allowsNTT == false {
 
-		context.validated = false
+		context.allowsNTT = false
 
-	} else if contextQ.validated && contextP.validated {
+	} else if contextQ.allowsNTT && contextP.allowsNTT {
 
 		context.nttPsi = append(contextQ.nttPsi, contextP.nttPsi...)
 		context.nttPsiInv = append(contextQ.nttPsiInv, contextP.nttPsiInv...)
 		context.nttNInv = append(contextQ.nttNInv, contextP.nttNInv...)
-		context.validated = true
+		context.allowsNTT = true
 
 	} else {
 
-		return errors.New("context need both to be validated or not validated")
+		return errors.New("context need both to be allowsNTT or not allowsNTT")
 	}
 
 	return nil
 }
 
-func (context *Context) IsValidated() bool {
-	return context.validated
+// AllowsNTT returns true if the context allows NTT, else false.
+func (context *Context) AllowsNTT() bool {
+	return context.allowsNTT
 }
 
+// GetBRedParams returns the Barret reduction parameters of the context.
 func (context *Context) GetBredParams() [][]uint64 {
 	return context.bredParams
 }
 
+// GetMredParams returns the Montgomery reduction parameters of the context.
 func (context *Context) GetMredParams() []uint64 {
 	return context.mredParams
 }
 
+// GetPsi returns the primitive root used to compute the NTT parameters of the context.
 func (context *Context) GetPsi() []uint64 {
 	return context.psiMont
 }
 
+// GetPsi returns the primitive root used to compute the InvNTT parameters of the context.
 func (context *Context) GetPsiInv() []uint64 {
 	return context.psiInvMont
 }
 
+// GetNttPsi returns the NTT parameters of the context.
 func (context *Context) GetNttPsi() [][]uint64 {
 	return context.nttPsi
 }
 
+//GetNttPsiInv returns the InvNTT parameters of the context.
 func (context *Context) GetNttPsiInv() [][]uint64 {
 	return context.nttPsiInv
 }
 
+// GetNttNInv returns 1/N mod each moduli.
 func (context *Context) GetNttNInv() []uint64 {
 	return context.nttNInv
 }
 
-// Create a new ring with all coefficients set to 0 from the given context
+// NewPoly create a new polynomial with all coefficients set to 0.
 func (context *Context) NewPoly() *Poly {
 	p := new(Poly)
 
@@ -312,43 +330,7 @@ func (context *Context) NewPoly() *Poly {
 	return p
 }
 
-// Generates a ring with coefficients following a
-// discrete gaussian distribution with derivation sigma
-func (context *Context) NewGaussPoly(sigma float64) *Poly {
-
-	Pol := context.NewPoly()
-
-	var coeff int64
-
-	boundMultiplier := float64(6)                   // this parameter is the same as the SEAL library
-	positiveBound := int64(boundMultiplier * sigma) // the suggested sigma from SEAL is 3.19
-	negativeBound := -int64(boundMultiplier * sigma)
-
-	for i := uint64(0); i < context.N; i++ {
-
-		for {
-
-			coeff = GaussSampling(sigma)
-
-			// Samples values until one falls in the desired range
-			if (coeff > positiveBound) || (coeff < negativeBound) {
-				continue
-			}
-
-			// Once the value falls in the desired range, assign it to the coeff, breaks and jumps to next coeff
-			for j, qi := range context.Modulus {
-				Pol.Coeffs[j][i] = CRed(uint64(int64(qi)+coeff), qi)
-			}
-
-			break
-		}
-	}
-
-	return Pol
-}
-
-// Generates a ring with coefficients following a
-// uniform distribution over [0, Qi-1]
+// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
 func (context *Context) NewUniformPoly() (Pol *Poly) {
 
 	var randomBytes []byte
@@ -402,81 +384,7 @@ func (context *Context) NewUniformPoly() (Pol *Poly) {
 	return
 }
 
-// Generates a ring with coefficients following a
-// uniform distribution over [-1,0,1] mod each Qi
-func (context *Context) NewTernaryPoly() *Poly {
-
-	Pol := context.NewPoly()
-
-	var coeff uint64
-	var sign uint64
-
-	for i := uint64(0); i < context.N; i++ {
-
-		coeff, sign = randInt3()
-
-		for j, qi := range context.Modulus {
-			Pol.Coeffs[j][i] = (coeff & (sign * 0xFFFFFFFFFFFFFFFF)) | (((qi * coeff) - coeff) & ((sign ^ 1) * 0xFFFFFFFFFFFFFFFF))
-		}
-	}
-
-	return Pol
-}
-
-// Generates a ring with coefficients following a
-// uniform distribution over [-1,0,1] mod each Qi and applies
-// the NTT.
-func (context *Context) NewTernaryPolyNTT() *Poly {
-
-	Pol := context.NewPoly()
-
-	var coeff uint64
-	var sign uint64
-
-	for i := uint64(0); i < context.N; i++ {
-
-		coeff, sign = randInt3()
-
-		for j, qi := range context.Modulus {
-
-			Pol.Coeffs[j][i] = (coeff & (sign * 0xFFFFFFFFFFFFFFFF)) | ((qi * coeff) & ((sign ^ 1) * 0xFFFFFFFFFFFFFFFF))
-		}
-	}
-
-	context.NTT(Pol, Pol)
-
-	return Pol
-}
-
-// Generates a ring with coefficients following a
-// uniform distribution over [-1,0,1] mod each Qi and applies
-// the NTT and Montgomery form.
-func (context *Context) NewTernaryPolyMontgomeryNTT() *Poly {
-
-	Pol := context.NewPoly()
-
-	var coeff uint64
-	var sign uint64
-
-	for i := uint64(0); i < context.N; i++ {
-
-		coeff, sign = randInt3()
-
-		for j, qi := range context.Modulus {
-
-			Pol.Coeffs[j][i] = (coeff & (sign * 0xFFFFFFFFFFFFFFFF)) | ((qi - coeff) & ((sign ^ 1) * 0xFFFFFFFFFFFFFFFF))
-		}
-	}
-
-	context.MForm(Pol, Pol)
-	context.NTT(Pol, Pol)
-
-	return Pol
-}
-
-// Sets the coefficients of Pol from an int64 array
-// If a coefficient is negative it will instead assay its
-// positive inverse mod each Qi
+// SetCoefficientsInt64 sets the coefficients of p1 from an int64 array.
 func (context *Context) SetCoefficientsInt64(coeffs []int64, p1 *Poly) error {
 	if len(coeffs) != int(context.N) {
 		return errors.New("error : invalid ring degree (does not match context)")
@@ -489,7 +397,7 @@ func (context *Context) SetCoefficientsInt64(coeffs []int64, p1 *Poly) error {
 	return nil
 }
 
-// Sets the coefficient of Pol from an uint64 array
+// SetCoefficientsUint64 sets the coefficient of Pol from an uint64 array.
 func (context *Context) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) error {
 	if len(coeffs) != int(context.N) {
 		return errors.New("error : invalid ring degree (does not match context)")
@@ -502,8 +410,8 @@ func (context *Context) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) error {
 	return nil
 }
 
-// Sets the coefficients of Pol from a array of strings
-// It will import them as bigint variables and reduce them mod each Qi.
+// SetCoefficientsString parses an array of string as Int variables, and sets the
+// coefficients of p1 with this Int variables.
 func (context *Context) SetCoefficientsString(coeffs []string, p1 *Poly) error {
 
 	if len(coeffs) != int(context.N) {
@@ -521,9 +429,7 @@ func (context *Context) SetCoefficientsString(coeffs []string, p1 *Poly) error {
 	return nil
 }
 
-// Sets the coefficients of Pol from a array of strings
-// It will import them as bigint variables and
-// reduce them mod each Qi
+// SetCoefficientsBigint sets the coefficients of p1 from an array of Int variables.
 func (context *Context) SetCoefficientsBigint(coeffs []*Int, p1 *Poly) error {
 
 	if len(coeffs) != int(context.N) {
@@ -543,10 +449,11 @@ func (context *Context) SetCoefficientsBigint(coeffs []*Int, p1 *Poly) error {
 	return nil
 }
 
-//Returns an string array containing the reconstructed coefficients
+//PolyToString reconstructs p1 and returns the result in an array of string.
 func (context *Context) PolyToString(p1 *Poly) []string {
 
-	coeffsBigint := context.PolyToBigint(p1)
+	coeffsBigint := make([]*Int, context.N)
+	context.PolyToBigint(p1, coeffsBigint)
 	coeffsString := make([]string, len(coeffsBigint))
 
 	for i := range coeffsBigint {
@@ -556,12 +463,10 @@ func (context *Context) PolyToString(p1 *Poly) []string {
 	return coeffsString
 }
 
-//Returns an string array containing the reconstructed coefficients
-func (context *Context) PolyToBigint(p1 *Poly) []*Int {
+//PolyToBigint reconstructs p1 and returns the result in an array of Int.
+func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*Int) {
 
 	tmp := NewInt(0)
-
-	coeffsBigint := make([]*Int, context.N)
 
 	for x := uint64(0); x < context.N; x++ {
 
@@ -574,12 +479,9 @@ func (context *Context) PolyToBigint(p1 *Poly) []*Int {
 
 		coeffsBigint[x].Mod(coeffsBigint[x], context.ModulusBigint)
 	}
-
-	return coeffsBigint
 }
 
-// Returns an array containing the coefficients of Pol
-// centered arount each [-Qi/2, Qi/2]
+// GetCenteredCoefficients returns an array containing the coefficients of p1 centered arount each (-Qi/2, Qi/2].
 func (context *Context) GetCenteredCoefficients(p1 *Poly) [][]int64 {
 
 	coeffs := make([][]int64, len(context.Modulus))
@@ -601,8 +503,7 @@ func (context *Context) GetCenteredCoefficients(p1 *Poly) [][]int64 {
 	return coeffs
 }
 
-// Checks if two polynomials are equal in the given context
-// Also applies an exact modular reduction on the two polynomials.
+// Equal checks if p1 = p2 in the given context.
 func (context *Context) Equal(p1, p2 *Poly) bool {
 
 	//if len(p1.Coeffs) != len(context.Modulus) || len(p2.Coeffs) != len(context.Modulus){

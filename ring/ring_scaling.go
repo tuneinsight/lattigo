@@ -1,7 +1,6 @@
 package ring
 
 import (
-	"errors"
 	"math"
 	"math/bits"
 )
@@ -10,7 +9,8 @@ import (
 //===== CRT SIMPLE SCAliNG PARAMETERS =====
 //=========================================
 
-//Algorithm from https://eprint.iacr.org/2018/117.pdf
+// SimpleScaler is the structure storing the parameters to reconstruct a polynomial, scale it by t/Q and return the results modulo t.
+// Algorithm from https://eprint.iacr.org/2018/117.pdf
 type SimpleScaler struct {
 	context *Context
 
@@ -25,13 +25,11 @@ type SimpleScaler struct {
 	reducealgoMulParam uint64
 }
 
-func NewSimpleScaler(t uint64, context *Context) (*SimpleScaler, error) {
+// NewSimpleScaler creates a new SimpleScaler from t (the modulus under which the reconstruction is returned) and context (the context in which the polynomial
+// to reconstruct will be represented).
+func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 
-	if context.validated != true {
-		return nil, errors.New("error : context must be validated before instantiating a new simple scaler")
-	}
-
-	newParams := new(SimpleScaler)
+	newParams = new(SimpleScaler)
 
 	var tmp Float128
 	var QiB Int     // Qi
@@ -117,13 +115,10 @@ func NewSimpleScaler(t uint64, context *Context) (*SimpleScaler, error) {
 		newParams.ti[i] = Float128Div(Float128SetUint64(QiBarre.Uint64()), Float128SetUint64(qi)) //floor( ([Q/Qi]^(-1))_{Qi} * t/Qi ) - ( ([Q/Qi]^(-1))_{Qi} * t/Qi )
 	}
 
-	return newParams, nil
+	return
 }
 
-// Given a ring in basis Qi
-// Scales its coefficients by a factor t/Q and returns the result mod t
-// Since t is smaller than all Qi, all coefficients will be identical
-// between all Qi
+// Scale returns the reconstruction of p1 scaled by a factor t/Q and mod t on the reciever p2.
 func (parameters *SimpleScaler) Scale(p1, p2 *Poly) {
 
 	var a uint64
@@ -146,39 +141,9 @@ func (parameters *SimpleScaler) Scale(p1, p2 *Poly) {
 
 		p2.Coeffs[0][i] = parameters.reducealgoAdd(a)
 
-		for j := 1; j < len(parameters.context.Modulus); j++ {
+		for j := 1; j < len(p2.Coeffs); j++ {
 			p2.Coeffs[j][i] = 0
 		}
-	}
-}
-
-func (parameters *SimpleScaler) ScaleFloat(p1 *Poly, coeffs []complex128) {
-
-	var a float64
-
-	var b Float128
-
-	for i := uint64(0); i < parameters.context.N; i++ {
-
-		a = 0
-		b[0], b[1] = 0, 0
-
-		for j, qi := range parameters.context.Modulus {
-			// round(xi*wi + xi*ti)%t
-			coeff := int64(p1.Coeffs[j][i])
-
-			if coeff > int64(qi>>1) {
-				coeff -= int64(qi)
-			}
-
-			a += float64(int64(parameters.wi[j]) * coeff)
-
-			b = Float128Add(b, Float128Mul(parameters.ti[j], Float128SetInt64(coeff)))
-		}
-
-		a += b[0] * 4096
-
-		coeffs[i] = complex(a, 0)
 	}
 }
 
@@ -186,6 +151,9 @@ func (parameters *SimpleScaler) ScaleFloat(p1 *Poly, coeffs []complex128) {
 //===== CRT COMPLEX SCAliNG PARAMETERS =====
 //==========================================
 
+// ComplexScaler is the structure holding the parameters for the complex scaling, which is the operation of reducing a polynomial
+// in basis Q + P to a polynomial in basis Q while at the same time rescaling it by a factor t/Q.
+// Algorithm from https://eprint.iacr.org/2018/117.pdf
 type ComplexScaler struct {
 
 	// 1. General Parameters
@@ -220,13 +188,10 @@ type ComplexScaler struct {
 	pjFloat128 []Float128
 }
 
-func NewComplexScaler(t uint64, contextQ, contextP *Context) (*ComplexScaler, error) {
+// NewComplexScaler creates a new ComplexScaler from t and the provided contexts.
+func NewComplexScaler(t uint64, contextQ, contextP *Context) (newParams *ComplexScaler) {
 
-	if contextQ.validated != true || contextP.validated != true {
-		return nil, errors.New("error : both contexts must be validated before instantiating a new simple scaler")
-	}
-
-	newParams := new(ComplexScaler)
+	newParams = new(ComplexScaler)
 
 	newParams.contextQ = contextQ
 	newParams.contextP = contextP
@@ -312,11 +277,10 @@ func NewComplexScaler(t uint64, contextQ, contextP *Context) (*ComplexScaler, er
 		newParams.pjFloat128[j] = Float128SetUint64(pj)
 	}
 
-	return newParams, nil
+	return newParams
 }
 
-// Given a ring in basis {Q0,Q1....Qi,P0,P1...Pj}
-// Scales the ring by a factor t/Q and returns the result in basis {Q0,Q1....Qi}
+// Scale takes a polynomial in basis {Q0,Q1....Qi,P0,P1...Pj}, rescales it by a factor t/Q and returns the result in basis {Q0,Q1....Qi}.
 func (parameters *ComplexScaler) Scale(p1, p2 *Poly) {
 
 	var tmp, yjFLoat128 Float128
@@ -328,7 +292,7 @@ func (parameters *ComplexScaler) Scale(p1, p2 *Poly) {
 	yj := make([]uint64, len(parameters.contextP.Modulus))
 	yiFloat128 := make([]Float128, len(parameters.contextQ.Modulus))
 
-	// Given a ring represented in basis Q0, P1, P2
+	// Given a polynomial represented in basis Q0, P1, P2
 	//
 	// [[a, b, c, d]_Q0
 	//  [a, b, c, d]_P1

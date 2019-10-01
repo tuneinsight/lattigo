@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
-	"log"
 	"math"
 	"math/rand"
 	"testing"
@@ -19,7 +18,7 @@ func randomComplex(min, max float64) complex128 {
 	return complex(randomFloat(min, max), randomFloat(min, max))
 }
 
-func Test_DBFVScheme(t *testing.T) {
+func Test_DCKKSScheme(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -27,21 +26,20 @@ func Test_DBFVScheme(t *testing.T) {
 
 	var err error
 
-	var parties, logN, logQ, levels, logScale, bdc uint64
+	var parties, bdc uint64
 	parties = 5
-	logN = 9
-	logQ = 49
-	levels = 12
-	sigma := 3.19
-	logScale = 40
-	bdc = 20
+
+	params := ckks.DefaultParams[13]
+
+	bdc = 25
 
 	var ckkscontext *ckks.CkksContext
 
-	log.Printf("Generating CkksContext for logN=%d/logQ=%d/levels=%d/logScale=%d/sigma=%f", logN, logQ, levels, logScale, sigma)
-	if ckkscontext, err = ckks.NewCkksContext(logN, logQ, logScale, levels, sigma); err != nil {
-		log.Fatal(err)
+	if ckkscontext, err = ckks.NewCkksContext(params); err != nil {
+		t.Error(err)
 	}
+
+	encoder := ckkscontext.NewEncoder()
 
 	kgen := ckkscontext.NewKeyGenerator()
 
@@ -54,18 +52,18 @@ func Test_DBFVScheme(t *testing.T) {
 		coeffsWant[i] = randomComplex(-1, 1)
 	}
 
-	plaintextWant := ckkscontext.NewPlaintext(levels-1, logScale)
-	if err = plaintextWant.EncodeComplex(coeffsWant); err != nil {
-		log.Fatal(err)
+	plaintextWant := ckkscontext.NewPlaintext(ckkscontext.Levels()-1, ckkscontext.Scale())
+	if err = encoder.EncodeComplex(plaintextWant, coeffsWant); err != nil {
+		t.Error(err)
 	}
 
-	ciphertextTest := ckkscontext.NewCiphertext(1, levels-1, logScale)
+	ciphertextTest := ckkscontext.NewCiphertext(1, ckkscontext.Levels()-1, ckkscontext.Scale())
 
 	crpGenerators := make([]*CRPGenerator, parties)
 	for i := uint64(0); i < parties; i++ {
 		crpGenerators[i], err = NewCRPGenerator(nil, context)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 		crpGenerators[i].Seed([]byte{})
 	}
@@ -92,31 +90,31 @@ func Test_DBFVScheme(t *testing.T) {
 	// Publickeys
 	pk0, err := kgen.NewPublicKey(sk0)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	pk1, err := kgen.NewPublicKey(sk1)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	_ = pk1
 
 	// Encryptors
-	encryptor_pk0, err := ckkscontext.NewEncryptor(pk0)
+	encryptor_pk0, err := ckkscontext.NewEncryptorFromPk(pk0)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	// Decryptors
 	decryptor_sk0, err := ckkscontext.NewDecryptor(sk0)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	decryptor_sk1, err := ckkscontext.NewDecryptor(sk1)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	_ = decryptor_sk1
@@ -124,7 +122,7 @@ func Test_DBFVScheme(t *testing.T) {
 	// Reference ciphertext
 	ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	coeffsMul := make([]complex128, ckkscontext.Slots())
@@ -134,7 +132,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 	evaluator.MulRelin(ciphertext, ciphertext, nil, ciphertext)
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CRS_PRNG", parties, logN, logQ, levels, logScale), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CRS_PRNG", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
 
 		Ha, _ := NewPRNG([]byte{})
 		Hb, _ := NewPRNG([]byte{})
@@ -186,7 +184,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 	// EKG_Naive
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/bdc=%d/EKG", parties, logN, logQ, levels, logScale, bdc), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/bdc=%d/EKG", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale(), bdc), func(t *testing.T) {
 
 		bitLog := uint64(math.Ceil(float64(60) / float64(bdc)))
 
@@ -198,7 +196,7 @@ func Test_DBFVScheme(t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 
 			ekg[i] = NewEkgProtocol(context, bdc)
-			ephemeralKeys[i] = ekg[i].NewEphemeralKey()
+			ephemeralKeys[i], _ = ekg[i].NewEphemeralKey(1.0 / 3)
 			crp[i] = make([][]*ring.Poly, len(context.Modulus))
 
 			for j := 0; j < len(context.Modulus); j++ {
@@ -213,18 +211,18 @@ func Test_DBFVScheme(t *testing.T) {
 
 		rlk, err := kgen.SetRelinKeys(evk[0], bdc)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
-		verify_test_vectors(decryptor_sk0, coeffsMul, ciphertextTest, t)
+		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsMul, ciphertextTest, t)
 
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/bdc=%d/EKG_NAIVE", parties, logN, logQ, levels, logScale, bdc), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/bdc=%d/EKG_NAIVE", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale(), bdc), func(t *testing.T) {
 
 		// Each party instantiate an ekg naive protocole
 		ekgNaive := make([]*EkgProtocolNaive, parties)
@@ -236,17 +234,17 @@ func Test_DBFVScheme(t *testing.T) {
 
 		rlk, err := kgen.SetRelinKeys(evk[0], bdc)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
-		verify_test_vectors(decryptor_sk0, coeffsMul, ciphertextTest, t)
+		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsMul, ciphertextTest, t)
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKG", parties, logN, logQ, levels, logScale), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKG", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
 
 		crp := make([]*ring.Poly, parties)
 		for i := uint64(0); i < parties; i++ {
@@ -270,7 +268,7 @@ func Test_DBFVScheme(t *testing.T) {
 			ckg[i].AggregateShares(shares)
 			pkTest[i], err = ckg[i].Finalize()
 			if err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 		}
 
@@ -282,31 +280,31 @@ func Test_DBFVScheme(t *testing.T) {
 		}
 
 		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-		encryptorTest, err := ckkscontext.NewEncryptor(pkTest[0])
+		encryptorTest, err := ckkscontext.NewEncryptorFromPk(pkTest[0])
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		ciphertextTest, err := encryptorTest.EncryptNew(plaintextWant)
 
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
-		verify_test_vectors(decryptor_sk0, coeffsWant, ciphertextTest, t)
+		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsWant, ciphertextTest, t)
 
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKS", parties, logN, logQ, levels, logScale), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKS", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
 
 		ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		ciphertexts := make([]*ckks.Ciphertext, parties)
 		for i := uint64(0); i < parties; i++ {
-			ciphertexts[i] = ciphertext.CopyNew().(*ckks.Ciphertext)
+			ciphertexts[i] = ciphertext.CopyNew().Ciphertext()
 		}
 
 		// Each party creates its CKS instance with deltaSk = si-si'
@@ -329,20 +327,20 @@ func Test_DBFVScheme(t *testing.T) {
 
 		for i := uint64(0); i < parties; i++ {
 
-			verify_test_vectors(decryptor_sk1, coeffsWant, ciphertexts[i], t)
+			verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffsWant, ciphertexts[i], t)
 		}
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/PCKS", parties, logN, logQ, levels, logScale), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/PCKS", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
 
 		ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		ciphertexts := make([]*ckks.Ciphertext, parties)
 		for i := uint64(0); i < parties; i++ {
-			ciphertexts[i] = ciphertext.CopyNew().(*ckks.Ciphertext)
+			ciphertexts[i] = ciphertext.CopyNew().Ciphertext()
 		}
 
 		pcks := make([]*PCKS, parties)
@@ -361,7 +359,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 		for i := uint64(0); i < parties; i++ {
 
-			verify_test_vectors(decryptor_sk1, coeffsWant, ciphertexts[i], t)
+			verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffsWant, ciphertexts[i], t)
 
 		}
 	})
@@ -424,23 +422,21 @@ func test_EKG_Protocol(parties uint64, ekgProtocols []*EkgProtocol, sk []*ckks.S
 	return collectiveEvaluationKey
 }
 
-func verify_test_vectors(decryptor *ckks.Decryptor, valuesWant []complex128, element ckks.CkksElement, t *testing.T) (err error) {
+func verify_test_vectors(ckkscontext *ckks.CkksContext, encoder *ckks.Encoder, decryptor *ckks.Decryptor, valuesWant []complex128, element ckks.Operand, t *testing.T) (err error) {
 
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128
 
 	if element.Degree() == 0 {
 
-		plaintextTest = element.(*ckks.Plaintext)
+		plaintextTest = element.Element().Plaintext()
 
 	} else {
 
-		if plaintextTest, err = decryptor.DecryptNew(element.(*ckks.Ciphertext)); err != nil {
-			return err
-		}
+		plaintextTest = decryptor.DecryptNew(element.Element().Ciphertext())
 	}
 
-	valuesTest = plaintextTest.DecodeComplex()
+	valuesTest = encoder.DecodeComplex(plaintextTest)
 
 	var DeltaReal0, DeltaImag0, DeltaReal1, DeltaImag1 float64
 

@@ -85,7 +85,7 @@ func chebyCoeffs(u, y []complex128, a, b complex128) (coeffs []complex128) {
 	return
 }
 
-type ChebyshevInterpolation struct {
+type chebyshevinterpolation struct {
 	coeffs []complex128
 	a      complex128
 	b      complex128
@@ -93,9 +93,9 @@ type ChebyshevInterpolation struct {
 
 // Approximate computes a Chebyshev approximation of the input function, for the tange [-a, b] of degree degree.
 // To be used in conjonction with the function EvaluateCheby.
-func Approximate(function func(complex128) complex128, a, b complex128, degree int) (cheby *ChebyshevInterpolation) {
+func Approximate(function func(complex128) complex128, a, b complex128, degree int) (cheby *chebyshevinterpolation) {
 
-	cheby = new(ChebyshevInterpolation)
+	cheby = new(chebyshevinterpolation)
 	cheby.coeffs = make([]complex128, degree+1)
 	cheby.a = a
 	cheby.b = b
@@ -120,7 +120,7 @@ func Approximate(function func(complex128) complex128, a, b complex128, degree i
 // Evaluates the nth degree Chebyshev ring in a recursive manner, storing intermediate results in the hashtable.
 // Consumes at most ceil(sqrt(n)) levels for an evaluation at Cn.
 // Uses the following property : for a given Chebyshev ring Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
-func evaluateCheby(n uint64, C map[uint64]CkksElement, evaluator *Evaluator, evakey *EvaluationKey) (err error) {
+func evaluateCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (err error) {
 
 	if C[n] == nil {
 
@@ -130,8 +130,12 @@ func evaluateCheby(n uint64, C map[uint64]CkksElement, evaluator *Evaluator, eva
 		c := uint64(math.Abs(float64(a) - float64(b)))
 
 		// Recurses on the given indexes
-		evaluateCheby(a, C, evaluator, evakey)
-		evaluateCheby(b, C, evaluator, evakey)
+		if err = evaluateCheby(a, C, evaluator, evakey); err != nil {
+			return err
+		}
+		if err = evaluateCheby(b, C, evaluator, evakey); err != nil {
+			return err
+		}
 
 		// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
 		if c != 0 {
@@ -139,11 +143,13 @@ func evaluateCheby(n uint64, C map[uint64]CkksElement, evaluator *Evaluator, eva
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		if C[n], err = evaluator.MulRelinNew(C[a], C[b], evakey); err != nil {
+		if C[n], err = evaluator.MulRelinNew(C[a].Element(), C[b].Element(), evakey); err != nil {
 			return err
 		}
 
-		evaluator.Rescale(C[n], C[n])
+		if err = evaluator.Rescale(C[n], C[n]); err != nil {
+			return err
+		}
 
 		// Computes C[n] = 2*C[a]*C[b]
 		evaluator.Add(C[n], C[n], C[n])
@@ -163,19 +169,19 @@ func evaluateCheby(n uint64, C map[uint64]CkksElement, evaluator *Evaluator, eva
 	return nil
 }
 
-// EvaluateCheby evaluates a chebyshev approximation in log(n) + 1 (+1 if 2/(b-a) is not a gaussian integer)
-func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error) {
+// EvaluateCheby evaluates a chebyshev approximation in log(n) + 1 (+1 if 2/(b-a) is not a gaussian integer) levels.
+func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *chebyshevinterpolation, evakey *EvaluationKey) (res *Ciphertext, err error) {
 
 	a := cheby.a
 	b := cheby.b
 	ChebyCoeffs := cheby.coeffs
 
-	C := make(map[uint64]CkksElement)
+	C := make(map[uint64]*Ciphertext)
 
 	// C0 = 1, so we treat it as a constant
 	// Computes C1 and C2 which are required for the rest of the recursive computation of the Chebyshev ring
 
-	C[1] = ct.CopyNew()
+	C[1] = ct.CopyNew().Ciphertext()
 	evaluator.MultConst(C[1], 2/(b-a), C[1])
 	evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
 
@@ -183,13 +189,16 @@ func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterp
 		evaluator.Rescale(C[1], C[1])
 	}
 
-	C[2], _ = evaluator.MulRelinNew(C[1], C[1], evakey)
+	C[2], _ = evaluator.MulRelinNew(C[1].Element(), C[1].Element(), evakey)
 
-	evaluator.Rescale(C[2], C[2])
+	if err = evaluator.Rescale(C[2], C[2]); err != nil {
+		return nil, err
+	}
+
 	evaluator.Add(C[2], C[2], C[2])
 	evaluator.AddConst(C[2], -1, C[2])
 
-	res = C[1].CopyNew().(*Ciphertext) // res = C[1]
+	res = C[1].CopyNew().Ciphertext() // res = C[1]
 
 	if err = evaluator.MultConst(res, ChebyCoeffs[1], res); err != nil { // res = A[1]*C[1]
 		return nil, err
@@ -212,7 +221,10 @@ func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterp
 
 	}
 
-	evaluator.Rescale(res, res) // We only rescale at the end to save computation
+	// We only rescale at the end to save computation
+	if err = evaluator.Rescale(res, res); err != nil {
+		return nil, err
+	}
 
 	return res, nil
 

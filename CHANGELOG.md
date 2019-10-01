@@ -1,11 +1,12 @@
 # Changelog
-All notable changes to this project will be documented in this file.
+All notable changes to this project will be documented in this file. 
 
 ## [Unreleased]
 ### Added
-- Bootstrapping for CKKS
-- Modulable CRT decomposition for the key-switching keys
-- Network layer implementation of protocols supporting Secure Multiparty Computation (SMC)
+- Bootstrapping for CKKS.
+- Modulable CRT decomposition for the key-switching keys.
+- Examples for the distributed schemes.
+- Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
 ## [1.1.0] - 2019-10-01
 ### Added
@@ -50,8 +51,8 @@ All notable changes to this project will be documented in this file.
 - The contexts of BFV and CKKS will not anymore store their checksum, nor will the evaluator check for context consistency of the input and output elements.
 
 ### Fixed
-- Fixed overflow error that could occure in the basis extension when small and large moduli where used together.
+- Fixed overflow occurring in the basis extension when small and large moduli are used together.
 
 ## [1.0.0] - 2019-08-17
 ### Added
-- First public beta release
+- First public release.

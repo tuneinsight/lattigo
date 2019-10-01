@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
-	"log"
 	"testing"
 )
 
@@ -18,7 +17,7 @@ func Benchmark_DBFVScheme(b *testing.B) {
 
 		bfvContext := bfv.NewBfvContext()
 		if err := bfvContext.SetParameters(&params); err != nil {
-			log.Fatal(err)
+			b.Error(err)
 		}
 
 		context := bfvContext.ContextQ()
@@ -30,7 +29,7 @@ func Benchmark_DBFVScheme(b *testing.B) {
 
 		crpGenerator, err := NewCRPGenerator(nil, context)
 		if err != nil {
-			log.Fatal(err)
+			b.Error(err)
 		}
 
 		crpGenerator.Seed([]byte{})

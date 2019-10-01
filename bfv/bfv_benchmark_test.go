@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func BenchmarkBFVScheme(b *testing.B) {
+func Benchmark_BFVScheme(b *testing.B) {
 
 	paramSets := DefaultParams
 

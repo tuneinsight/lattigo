@@ -3,7 +3,6 @@ package ckks
 import (
 	"fmt"
 	"github.com/ldsec/lattigo/ring"
-	"log"
 	"math/cmplx"
 	"math/rand"
 	"testing"
@@ -46,20 +45,16 @@ func Test_CKKS(t *testing.T) {
 		t.Error(err)
 	}
 
-	log.Printf("Generating CkksContext for logN=%d/logQ=%d/levels=%d/sigma=%f", ckksTest.ckkscontext.LogN(), ckksTest.ckkscontext.LogQ(), ckksTest.ckkscontext.Levels(), ckksTest.ckkscontext.Sigma())
-
 	ckksTest.encoder = ckksTest.ckkscontext.NewEncoder()
 
 	ckksTest.kgen = ckksTest.ckkscontext.NewKeyGenerator()
 
 	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPair()
 
-	log.Printf("Generating relinearization keys")
 	if ckksTest.rlk, err = ckksTest.kgen.NewRelinKey(ckksTest.sk, ckksTest.ckkscontext.Scale()); err != nil {
 		t.Error(err)
 	}
 
-	log.Printf("Generating rotation keys for conjugate and powers of 2")
 	if ckksTest.rotkey, err = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk, 15, true); err != nil {
 		t.Error(err)
 	}
@@ -96,8 +91,6 @@ func Test_CKKS(t *testing.T) {
 
 	if ckksTest.ckkscontext.Levels() > 8 {
 		test_Functions(ckksTest, t)
-	} else {
-		log.Printf("skipping test_Functions (not enough levels)")
 	}
 
 	test_SwitchKeys(ckksTest, t)

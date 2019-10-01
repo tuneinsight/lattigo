@@ -3,7 +3,6 @@ package bfv
 import (
 	"fmt"
 	"github.com/ldsec/lattigo/ring"
-	"log"
 	"testing"
 )
 
@@ -29,41 +28,31 @@ func Test_BFV(t *testing.T) {
 
 	for _, params := range paramSets {
 
-		log.Printf("Generating testing bfvcontext for N=%d", params.N)
-
 		bfvTest := new(BFVTESTPARAMS)
 
 		bfvTest.bfvcontext = NewBfvContext()
 		if err := bfvTest.bfvcontext.SetParameters(&params); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
-
-		log.Printf("Generated testing bfvcontext for N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)",
-			bfvTest.bfvcontext.N(),
-			bfvTest.bfvcontext.T(),
-			bfvTest.bfvcontext.LogQ(),
-			len(params.Qi),
-			bfvTest.bfvcontext.LogP(),
-			len(params.Pi))
 
 		bfvTest.kgen = bfvTest.bfvcontext.NewKeyGenerator()
 
 		if bfvTest.batchencoder, err = bfvTest.bfvcontext.NewBatchEncoder(); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		bfvTest.sk, bfvTest.pk = bfvTest.kgen.NewKeyPair()
 
 		if bfvTest.decryptor, err = bfvTest.bfvcontext.NewDecryptor(bfvTest.sk); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if bfvTest.encryptorPk, err = bfvTest.bfvcontext.NewEncryptorFromPk(bfvTest.pk); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if bfvTest.encryptorSk, err = bfvTest.bfvcontext.NewEncryptorFromSk(bfvTest.sk); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		bfvTest.evaluator = bfvTest.bfvcontext.NewEvaluator()
@@ -168,7 +157,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		len(bfvTest.bfvcontext.contextQ.Modulus)), func(t *testing.T) {
 		PkBytes, err := Pk.MarshalBinary()
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		PkTest := bfvTest.kgen.NewPublicKeyEmpty()
@@ -189,12 +178,12 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		Ctx := bfvContext.NewRandomCiphertext(4)
 		CtxBytes, err := Ctx.MarshalBinary()
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		CtxTest := bfvContext.NewCiphertext(4)
 		if err = CtxTest.UnMarshalBinary(CtxBytes); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		for i := range Ctx.Value() {
@@ -215,7 +204,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 		rlkBytes, err := rlk.MarshalBinary()
 		if err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		rlkTest := bfvTest.kgen.NewRelinKeyEmpty(5, 15)
@@ -335,12 +324,10 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 func test_PlaintextBatchEncodeDecode(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/BatchEncodeDecode", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/BatchEncodeDecode", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		bfvContext := bfvTest.bfvcontext
 		encoder := bfvTest.batchencoder
@@ -398,23 +385,19 @@ func verifyTestVectors(bfvTest *BFVTESTPARAMS, coeffs *ring.Poly, element Operan
 
 func test_EncryptDecrypt(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/EncryptPk", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/EncryptPk", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs, _, ciphertext, _ := newTestVectors(bfvTest)
 		verifyTestVectors(bfvTest, coeffs, ciphertext, t)
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/EncryptSk", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/EncryptSk", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		var err error
 		var coeffs *ring.Poly
@@ -426,11 +409,11 @@ func test_EncryptDecrypt(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		plaintext = bfvTest.bfvcontext.NewPlaintext()
 
 		if err = bfvTest.batchencoder.EncodeUint(coeffs.Coeffs[0], plaintext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		if ciphertext, err = bfvTest.encryptorSk.EncryptNew(plaintext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		verifyTestVectors(bfvTest, coeffs, ciphertext, t)
@@ -445,19 +428,17 @@ func test_HomomorphicAddition(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	var ciphertextTest *Ciphertext
 	var err error
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/Add", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/Add", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
 		for i := 0; i < 1; i++ {
 			if err = evaluator.Add(ciphertext0, ciphertext1, ciphertext0); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 			bfvContext.contextT.Add(coeffs0, coeffs1, coeffs0)
 		}
@@ -465,19 +446,17 @@ func test_HomomorphicAddition(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/AddNew", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/AddNew", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
 		for i := 0; i < 1; i++ {
 			if ciphertextTest, err = evaluator.AddNew(ciphertext0, ciphertext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			bfvContext.contextT.Add(coeffs0, coeffs1, coeffs0)
@@ -487,12 +466,10 @@ func test_HomomorphicAddition(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/AddNoMod", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/AddNoMod", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
@@ -500,7 +477,7 @@ func test_HomomorphicAddition(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		for i := 0; i < 1; i++ {
 
 			if err = evaluator.AddNoMod(ciphertext0, ciphertext1, ciphertext0); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			evaluator.Reduce(ciphertext0, ciphertext0)
@@ -511,19 +488,17 @@ func test_HomomorphicAddition(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/AddNoModNew", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/AddNoModNew", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
 		for i := 0; i < 1; i++ {
 			if ciphertextTest, err = evaluator.AddNoModNew(ciphertext0, ciphertext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 			evaluator.Reduce(ciphertextTest, ciphertextTest)
 			bfvContext.contextT.Add(coeffs0, coeffs1, coeffs0)
@@ -542,18 +517,16 @@ func test_AddWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	var ciphertextTest *Ciphertext
 	var err error
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/AddWithPlaintext", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/AddWithPlaintext", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
 
 		if err := evaluator.Add(ciphertext0, plaintext1, ciphertext0); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		bfvContext.contextT.Add(coeffs0, coeffs1, coeffs0)
@@ -562,18 +535,16 @@ func test_AddWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/AddWithPlaintextNew", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/AddWithPlaintextNew", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
 
 		if ciphertextTest, err = evaluator.AddNew(ciphertext0, plaintext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 		bfvContext.contextT.Add(coeffs0, coeffs1, coeffs0)
 
@@ -581,18 +552,16 @@ func test_AddWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/AddWithPlaintextNoMod", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/AddWithPlaintextNoMod", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
 
 		if err := evaluator.AddNoMod(ciphertext0, plaintext1, ciphertext0); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 		evaluator.Reduce(ciphertext0, ciphertext0)
 		bfvContext.contextT.Add(coeffs0, coeffs1, coeffs0)
@@ -600,18 +569,16 @@ func test_AddWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/AddWithPlaintextNoModNew", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/AddWithPlaintextNoModNew", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
 
 		if ciphertextTest, err = evaluator.AddNoModNew(ciphertext0, plaintext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 		evaluator.Reduce(ciphertextTest, ciphertextTest)
 		bfvContext.contextT.Add(coeffs0, coeffs1, coeffs0)
@@ -628,19 +595,17 @@ func test_HomomorphicSubtraction(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	var ciphertextTest *Ciphertext
 	var err error
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/Sub", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/Sub", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
 		for i := 0; i < 1; i++ {
 			if err := evaluator.Sub(ciphertext0, ciphertext1, ciphertext0); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 			bfvContext.contextT.Sub(coeffs0, coeffs1, coeffs0)
 		}
@@ -649,19 +614,17 @@ func test_HomomorphicSubtraction(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/SubNew", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/SubNew", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
 		for i := 0; i < 1; i++ {
 			if ciphertextTest, err = evaluator.SubNew(ciphertext0, ciphertext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 			bfvContext.contextT.Sub(coeffs0, coeffs1, coeffs0)
 		}
@@ -669,19 +632,17 @@ func test_HomomorphicSubtraction(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		verifyTestVectors(bfvTest, coeffs0, ciphertextTest, t)
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/SubNoMod", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/SubNoMod", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
 		for i := 0; i < 1; i++ {
 			if err := evaluator.SubNoMod(ciphertext0, ciphertext1, ciphertext0); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 			evaluator.Reduce(ciphertext0, ciphertext0)
 			bfvContext.contextT.Sub(coeffs0, coeffs1, coeffs0)
@@ -691,22 +652,20 @@ func test_HomomorphicSubtraction(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/SubNoModNew", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/SubNoModNew", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
 		for i := 0; i < 1; i++ {
 			if ciphertextTest, err = evaluator.SubNoModNew(ciphertext0, ciphertext1); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 			if err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 			evaluator.Reduce(ciphertextTest, ciphertextTest)
 			bfvContext.contextT.Sub(coeffs0, coeffs1, coeffs0)
@@ -725,36 +684,32 @@ func test_SubWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	var ciphertextTest *Ciphertext
 	var err error
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/SubWithPlaintext", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/SubWithPlaintext", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
 
 		if err := evaluator.Sub(ciphertext0, plaintext1, ciphertext0); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 		bfvContext.contextT.Sub(coeffs0, coeffs1, coeffs0)
 
 		verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/SubWithPlaintextNew", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/SubWithPlaintextNew", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
 
 		if ciphertextTest, err = evaluator.SubNew(ciphertext0, plaintext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 		bfvContext.contextT.Sub(coeffs0, coeffs1, coeffs0)
 
@@ -762,18 +717,16 @@ func test_SubWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/SubWithPlaintextNoMod", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/SubWithPlaintextNoMod", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
 
 		if err := evaluator.SubNoMod(ciphertext0, plaintext1, ciphertext0); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 		evaluator.Reduce(ciphertext0, ciphertext0)
 		bfvContext.contextT.Sub(coeffs0, coeffs1, coeffs0)
@@ -781,18 +734,16 @@ func test_SubWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/SubWithPlaintextNoModNew", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/SubWithPlaintextNoModNew", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
 
 		if ciphertextTest, err = evaluator.SubNoModNew(ciphertext0, plaintext1); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 		evaluator.Reduce(ciphertextTest, ciphertextTest)
 		bfvContext.contextT.Sub(coeffs0, coeffs1, coeffs0)
@@ -807,12 +758,10 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/Mul", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/Mul", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
@@ -820,7 +769,7 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		receiverCiphertext := bfvContext.NewCiphertextBig(ciphertext0.Degree() + ciphertext1.Degree())
 
 		if err := evaluator.Mul(ciphertext0, ciphertext1, receiverCiphertext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
@@ -828,12 +777,10 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/MulNew", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/MulNew", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
@@ -846,12 +793,10 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/Square", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/Square", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 
@@ -873,12 +818,10 @@ func test_MulWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/MulWithPlaintext", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/MulWithPlaintext", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
@@ -886,7 +829,7 @@ func test_MulWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		receiverCiphertext := bfvContext.NewCiphertextBig(ciphertext0.Degree())
 
 		if err := evaluator.Mul(ciphertext0, plaintext1, receiverCiphertext); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
@@ -894,12 +837,10 @@ func test_MulWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
 	})
 
-	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/MulWithPlaintextNew", bfvTest.bfvcontext.N(),
+	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/MulWithPlaintextNew", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
 		bfvTest.bfvcontext.LogQ(),
-		len(bfvTest.bfvcontext.contextQ.Modulus),
-		bfvTest.bfvcontext.LogP(),
-		len(bfvTest.bfvcontext.contextP.Modulus)), func(t *testing.T) {
+		bfvTest.bfvcontext.LogP()), func(t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, plaintext1, _, _ := newTestVectors(bfvTest)
@@ -922,12 +863,10 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 
 		rlk := kgen.NewRelinKey(bfvTest.sk, 2, bitDecomp)
 
-		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/bitDecomp=%d/Relinearize", bfvTest.bfvcontext.N(),
+		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/bitDecomp=%d/Relinearize", bfvTest.bfvcontext.N(),
 			bfvTest.bfvcontext.T(),
 			bfvTest.bfvcontext.LogQ(),
-			len(bfvTest.bfvcontext.contextQ.Modulus),
 			bfvTest.bfvcontext.LogP(),
-			len(bfvTest.bfvcontext.contextP.Modulus),
 			bitDecomp), func(t *testing.T) {
 
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
@@ -940,7 +879,7 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 			bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
 
 			if err := evaluator.Relinearize(ciphertext0, rlk, ciphertext0); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if len(ciphertext0.Value()) > 2 {
@@ -951,12 +890,10 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 
 		})
 
-		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/bitDecomp=%d/RelinearizeNew", bfvTest.bfvcontext.N(),
+		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/bitDecomp=%d/RelinearizeNew", bfvTest.bfvcontext.N(),
 			bfvTest.bfvcontext.T(),
 			bfvTest.bfvcontext.LogQ(),
-			len(bfvTest.bfvcontext.contextQ.Modulus),
 			bfvTest.bfvcontext.LogP(),
-			len(bfvTest.bfvcontext.contextP.Modulus),
 			bitDecomp), func(t *testing.T) {
 
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
@@ -970,7 +907,7 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 
 			ciphertext0, err := evaluator.RelinearizeNew(ciphertext0, rlk)
 			if err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if len(ciphertext0.Value()) > 2 {
@@ -995,25 +932,23 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 
 	decryptor_SkNew, err := bfvContext.NewDecryptor(SkNew)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	for _, bitDecomp := range bitDecomps {
 
 		switching_key := kgen.NewSwitchingKey(Sk, SkNew, bitDecomp)
 
-		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/bitDecomp=%d/SwitchKeys", bfvTest.bfvcontext.N(),
+		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/bitDecomp=%d/SwitchKeys", bfvTest.bfvcontext.N(),
 			bfvTest.bfvcontext.T(),
 			bfvTest.bfvcontext.LogQ(),
-			len(bfvTest.bfvcontext.contextQ.Modulus),
 			bfvTest.bfvcontext.LogP(),
-			len(bfvTest.bfvcontext.contextP.Modulus),
 			bitDecomp), func(t *testing.T) {
 
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 
 			if err := evaluator.SwitchKeys(ciphertext0, switching_key, ciphertext0); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if equalslice(coeffs0.Coeffs[0], encoder.DecodeUint(decryptor_SkNew.DecryptNew(ciphertext0))) != true {
@@ -1022,19 +957,17 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 
 		})
 
-		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/bitDecomp=%d/SwitchKeysNew", bfvTest.bfvcontext.N(),
+		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/bitDecomp=%d/SwitchKeysNew", bfvTest.bfvcontext.N(),
 			bfvTest.bfvcontext.T(),
 			bfvTest.bfvcontext.LogQ(),
-			len(bfvTest.bfvcontext.contextQ.Modulus),
 			bfvTest.bfvcontext.LogP(),
-			len(bfvTest.bfvcontext.contextP.Modulus),
 			bitDecomp), func(t *testing.T) {
 
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 
 			ciphertextTest, err := evaluator.SwitchKeysNew(ciphertext0, switching_key)
 			if err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			if equalslice(coeffs0.Coeffs[0], encoder.DecodeUint(decryptor_SkNew.DecryptNew(ciphertextTest))) != true {
@@ -1073,16 +1006,14 @@ func test_GaloisEnd(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 				coeffsWantRotateCol.Coeffs[0][i+slots] = coeffs.Coeffs[0][((i+n)&mask)+slots]
 			}
 
-			t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/bitDecomp=%d/RotateColumns/%d", bfvTest.bfvcontext.N(),
+			t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/bitDecomp=%d/RotateColumns/%d", bfvTest.bfvcontext.N(),
 				bfvTest.bfvcontext.T(),
 				bfvTest.bfvcontext.LogQ(),
-				len(bfvTest.bfvcontext.contextQ.Modulus),
 				bfvTest.bfvcontext.LogP(),
-				len(bfvTest.bfvcontext.contextP.Modulus),
 				bitDecomp, n), func(t *testing.T) {
 
 				if err := evaluator.RotateColumns(ciphertext, n, rotation_key, receiverCiphertext); err != nil {
-					log.Fatal(err)
+					t.Error(err)
 				}
 
 				verifyTestVectors(bfvTest, coeffsWantRotateCol, receiverCiphertext, t)
@@ -1098,32 +1029,28 @@ func test_GaloisEnd(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 				coeffsWantRotateCol.Coeffs[0][i+slots] = coeffs.Coeffs[0][((i+rand)&mask)+slots]
 			}
 
-			t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/bitDecomp=%d/RotateColumns/%d", bfvTest.bfvcontext.N(),
+			t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/bitDecomp=%d/RotateColumns/%d", bfvTest.bfvcontext.N(),
 				bfvTest.bfvcontext.T(),
 				bfvTest.bfvcontext.LogQ(),
-				len(bfvTest.bfvcontext.contextQ.Modulus),
 				bfvTest.bfvcontext.LogP(),
-				len(bfvTest.bfvcontext.contextP.Modulus),
 				bitDecomp, rand), func(t *testing.T) {
 
 				if err := evaluator.RotateColumns(ciphertext, rand, rotation_key, receiverCiphertext); err != nil {
-					log.Fatal(err)
+					t.Error(err)
 				}
 
 				verifyTestVectors(bfvTest, coeffsWantRotateCol, receiverCiphertext, t)
 			})
 		}
 
-		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d(%dlimbs)/logP=%d(%dlimbs)/bitDecomp=%d/RotateRows", bfvTest.bfvcontext.N(),
+		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/bitDecomp=%d/RotateRows", bfvTest.bfvcontext.N(),
 			bfvTest.bfvcontext.T(),
 			bfvTest.bfvcontext.LogQ(),
-			len(bfvTest.bfvcontext.contextQ.Modulus),
 			bfvTest.bfvcontext.LogP(),
-			len(bfvTest.bfvcontext.contextP.Modulus),
 			bitDecomp), func(t *testing.T) {
 
 			if err := evaluator.RotateRows(ciphertext, rotation_key, receiverCiphertext); err != nil {
-				log.Fatal(err)
+				t.Error(err)
 			}
 
 			verifyTestVectors(bfvTest, coeffsWantRotateRow, receiverCiphertext, t)

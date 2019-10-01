@@ -10,7 +10,7 @@ type benchParams struct {
 	bdc    uint64
 }
 
-func BenchmarkCKKSScheme(b *testing.B) {
+func Benchmark_CKKSScheme(b *testing.B) {
 
 	var err error
 	var ckkscontext *CkksContext
@@ -32,7 +32,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		{params: DefaultParams[12], bdc: 60},
 		{params: DefaultParams[13], bdc: 60},
 		{params: DefaultParams[14], bdc: 60},
-		{params: DefaultParams[15], bdc: 60},
+		//{params: DefaultParams[15], bdc: 60}, // Memory intensive
 	}
 
 	var logN, logScale, levels, bdc uint64

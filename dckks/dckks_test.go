@@ -18,7 +18,7 @@ func randomComplex(min, max float64) complex128 {
 	return complex(randomFloat(min, max), randomFloat(min, max))
 }
 
-func Test_DBFVScheme(t *testing.T) {
+func Test_DCKKSScheme(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 

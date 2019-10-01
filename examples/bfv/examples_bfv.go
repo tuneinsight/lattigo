@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
 	"log"
 	"math"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/ring"
 )
 
 var N uint64
@@ -19,21 +20,27 @@ var bfvContext *bfv.BfvContext
 func ObliviousRiding() {
 
 	// This example will simulate a situation where an anonymous rider wants to find the closest available rider within a given area.
-	// The area is seen as an A x B grid where each driver reports his coordinates in real time to a server assigned to the area.
+	// The application is inspired by the paper https://oride.epfl.ch/
 	//
-	// First the rider generates an ephemeral (sk, pk) pair which he uses to encrypt his coordinates. He then sends the tuple (pk, enc(coordinates)) to the
-	// server handling the grid he is in.
+	// 		A. Pham, I. Dacosta, G. Endignoux, J. Troncoso-Pastoriza, K. Huguenin, and J.-P. Hubaux. ORide: A Privacy-Preserving yet Accountable Ride-Hailing Service.
+	//		In Proceedings of the 26th USENIX Security Symposium, Vancouver, BC, Canada, August 2017.
 	//
-	// Once the public-key and the encrypted rider coordinates of the rider have been received by the grid's server, the rider's public-key is
-	// transferred to all the drivers within the area, with a randomized index indicating in which coefficient each driver must encode his coordinates.
+	// Each area is represented as a rectangular grid where each driver reports his coordinates in real time to a server assigned to the area.
 	//
-	// Each driver encodes his coordinates in the designated coefficient and uses the received public-key to encrypt his encoded coordinates.
-	// He then sends back the encrypted coordinates to the grid's server.
+	// First, the rider generates an ephemeral key pair (sk, pk), which he uses to encrypt his coordinates. He then sends the tuple (pk, enc(coordinates)) to the
+	// server handling the area he is in.
 	//
-	// Once the encrypted coordinates of the drivers have been received, the server homomorphicaly computes the squared distance : (x0 - x1)^2 + (y0 - y1)^2 and sends
-	// back the encrypted result to the rider.
+	// Once the public key and the encrypted rider coordinates of the rider have been received by the server, the rider's public key is
+	// transferred to all the drivers within the area, with a randomized different index for each of them, that indicates in which coefficient each driver must
+	// encode his coordinates.
 	//
-	// The rider decrypts the result and chooses a suitable driver.
+	// Each driver encodes his coordinates in the designated coefficient and uses the received public key to encrypt his encoded coordinates.
+	// He then sends back the encrypted coordinates to the server.
+	//
+	// Once the encrypted coordinates of the drivers have been received, the server homomorphically computes the squared distance: (x0 - x1)^2 + (y0 - y1)^2 between
+	// the rider and each of the drivers, and sends back the encrypted result to the rider.
+	//
+	// The rider decrypts the result and chooses the closest driver.
 
 	// Number of drivers in the area
 	NbDrivers := uint64(2048)
@@ -76,9 +83,9 @@ func ObliviousRiding() {
 
 	evaluator := bfvContext.NewEvaluator()
 
-	fmt.Println("===========================================")
+	fmt.Println("============================================")
 	fmt.Println("Homomorphic computations on batched integers")
-	fmt.Println("===========================================")
+	fmt.Println("============================================")
 	fmt.Println()
 	fmt.Printf("Parameters : N=%d, T=%d, logQ = %d (%d limbs), sigma = %f \n", bfvContext.N(), bfvContext.T(), bfvContext.LogQ(), len(params.Qi), bfvContext.Sigma())
 	fmt.Println()
@@ -131,7 +138,7 @@ func ObliviousRiding() {
 		}
 	}
 
-	fmt.Println("Compute encrypted Distance = ((CtD1 + CtD2 + CtD3 + CtD4...) - CtR)^2 ...")
+	fmt.Println("Computing encrypted Distance = ((CtD1 + CtD2 + CtD3 + CtD4...) - CtR)^2 ...")
 	fmt.Println()
 
 	if err := evaluator.Neg(RiderCiphertext, RiderCiphertext); err != nil {

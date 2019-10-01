@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/ckks"
 	"log"
 	"math"
 	"math/cmplx"
 	"math/rand"
 	"sort"
 	"time"
+
+	"github.com/ldsec/lattigo/ckks"
 )
 
 func randomFloat(min, max float64) float64 {
@@ -21,7 +22,7 @@ func randomComplex(min, max float64) complex128 {
 
 func chebyshevinterpolation() {
 
-	// This example will pack randoms 8192 float64 values in the range [-8, 8] and approximate the function 1/(exp(-x) + 1) over the range [-8, 8].
+	// This example will pack random 8192 float64 values in the range [-8, 8] and approximate the function 1/(exp(-x) + 1) over the range [-8, 8].
 	// The result is then parsed and compared to the expected result.
 
 	rand.Seed(time.Now().UnixNano())
@@ -63,7 +64,7 @@ func chebyshevinterpolation() {
 		log.Fatal(err)
 	}
 
-	//Evaluator
+	// Evaluator
 	var evaluator *ckks.Evaluator
 	if evaluator = ckkscontext.NewEvaluator(); err != nil {
 		log.Fatal(err)
@@ -112,7 +113,7 @@ func chebyshevinterpolation() {
 		values[i] = f(values[i])
 	}
 
-	// Prints results and compares
+	// Printing results and comparison
 	fmt.Println()
 	fmt.Printf("ValuesTest : %6f %6f %6f %6f...\n", round(valuesTest[0]), round(valuesTest[1]), round(valuesTest[2]), round(valuesTest[3]))
 	fmt.Printf("ValuesWant : %6f %6f %6f %6f...\n", round(values[0]), round(values[1]), round(values[2]), round(values[3]))
@@ -189,27 +190,6 @@ func verify_vector(valuesWant, valuesTest []complex128) (err error) {
 	fmt.Printf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
 	fmt.Printf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
 	fmt.Println()
-
-	/*
-		fmt.Println()
-		fmt.Println("Distribution of the precision :")
-		keys_real := []int{}
-		keys_imag := []int{}
-		for i := range distrib_real {
-			keys_real = append(keys_real, int(i))
-		}
-		for i := range distrib_imag {
-			keys_imag = append(keys_imag, int(i))
-		}
-		sort.Ints(keys_real)
-		sort.Ints(keys_imag)
-		for _, i := range keys_real {
-			fmt.Printf("bits %d : %.2f %% \n", i, (float64(distrib_real[uint64(i)])/float64(len(valuesWant)))*100)
-		}
-		for _, i := range keys_imag {
-			fmt.Printf("bits %d : %.2f %% \n", i, (float64(distrib_imag[uint64(i)])/float64(len(valuesWant)))*100)
-		}
-	*/
 
 	return nil
 }

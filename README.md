@@ -35,12 +35,17 @@ The library comprises the following sub-packages:
 
 ## Versions and Roadmap
 
-See CHANGELOG for the current and past versions.
+The first version of Lattigo, (v1.x.x) is meant to be a working prototype.
+Hence, there will be backward-incompatible changes within this version. 
+
+See CHANGELOG.md for the current and past versions.
 
 ### Upcoming features
 
-- Bootstrapping for CKKS
-- Network layer implementation of protocols supporting Secure Multiparty Computation (SMC)
+- Bootstrapping for CKKS.
+- Modulable CRT decomposition for the key-switching keys.
+- Examples for the distributed schemes.
+- Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
 
 ## Disclaimer
@@ -60,9 +65,9 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo 1.0.0},
+	    title = {Lattigo 1.1.0},
 	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
-	    month = aug,
+	    month = oct,
 	    year = 2019,
 	    note = {EPFL-LDS}
     }

@@ -100,7 +100,6 @@ func Test_DBFVScheme(t *testing.T) {
 			ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 			check(t, err)
 
-
 			ciphertextMul, _ := evaluator.MulNew(ciphertext, ciphertext)
 			coeffsMul := contextT.NewPoly()
 			contextT.MulCoeffs(coeffsWant, coeffsWant, coeffsMul)
@@ -209,7 +208,7 @@ func Test_DBFVScheme(t *testing.T) {
 					rlk.SetRelinKeys([][][][2]*ring.Poly{evk[0]}, bitDecomp)
 
 					res := bfvContext.NewCiphertext(1)
-					if err := evaluator.Relinearize(ciphertext, rlk, res); err != nil {
+					if err := evaluator.Relinearize(ciphertextMul, rlk, res); err != nil {
 						t.Error(err)
 					}
 

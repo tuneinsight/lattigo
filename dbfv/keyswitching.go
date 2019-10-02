@@ -67,6 +67,6 @@ func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut CKSShare) {
 func (cks *CKSProtocol) KeySwitch(combined CKSShare, ct *bfv.Ciphertext, ctOut *bfv.Ciphertext) {
 	cks.ringContext.Add(ct.Value()[0], combined, ctOut.Value()[0])
 	if ct != ctOut {
-		ct.Value()[1].Copy(ctOut.Value()[1])
+		ctOut.Value()[1].Copy(ct.Value()[1])
 	}
 }

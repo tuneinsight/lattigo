@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"encoding/binary"
 	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math"
@@ -9,7 +10,7 @@ import (
 
 // Keygenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
-type keygenerator struct {
+type KeyGenerator struct {
 	ckkscontext *CkksContext
 	context     *ring.Context
 	polypool    *ring.Poly
@@ -47,8 +48,8 @@ type SwitchingKey struct {
 
 // NewKeyGenerator creates a new keygenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
-func (ckkscontext *CkksContext) NewKeyGenerator() (keygen *keygenerator) {
-	keygen = new(keygenerator)
+func (ckkscontext *CkksContext) NewKeyGenerator() (keygen *KeyGenerator) {
+	keygen = new(KeyGenerator)
 	keygen.ckkscontext = ckkscontext
 	keygen.context = ckkscontext.keyscontext
 	keygen.polypool = ckkscontext.keyscontext.NewPoly()
@@ -56,7 +57,7 @@ func (ckkscontext *CkksContext) NewKeyGenerator() (keygen *keygenerator) {
 }
 
 // check_sk checks if the input secret-key complies with the keygenerator context.
-func (keygen *keygenerator) check_sk(sk_output *SecretKey) error {
+func (keygen *KeyGenerator) check_sk(sk_output *SecretKey) error {
 
 	if sk_output.Get().GetDegree() != int(keygen.context.N) {
 		return errors.New("error : pol degree sk != ckkscontext.n")
@@ -69,8 +70,14 @@ func (keygen *keygenerator) check_sk(sk_output *SecretKey) error {
 	return nil
 }
 
-// NewSecretKey generates a new secret key.
-func (keygen *keygenerator) NewSecretKey(p float64) (sk *SecretKey, err error) {
+// NewSecretKey generates a new secret key with the distribution [1/3, 1/3, 1/3].
+func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
+	sk, _ = keygen.NewSecretKeyWithDistrib(1.0 / 3)
+	return sk
+}
+
+// NewSecretKey generates a new secret key with the distribution [(p-1)/2, p, (p-1)/2].
+func (keygen *KeyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey, err error) {
 	sk = new(SecretKey)
 	if sk.sk, err = keygen.ckkscontext.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
 		return nil, err
@@ -78,7 +85,7 @@ func (keygen *keygenerator) NewSecretKey(p float64) (sk *SecretKey, err error) {
 	return sk, nil
 }
 
-func (keygen *keygenerator) NewSecretKeyEmpty() *SecretKey {
+func (keygen *KeyGenerator) NewSecretKeyEmpty() *SecretKey {
 	sk := new(SecretKey)
 	sk.sk = keygen.context.NewPoly()
 	return sk
@@ -95,7 +102,7 @@ func (sk *SecretKey) Set(poly *ring.Poly) {
 }
 
 // NewPublicKey generates a new public key from the provided secret key.
-func (keygen *keygenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err error) {
+func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err error) {
 
 	if err = keygen.check_sk(sk); err != nil {
 		return nil, err
@@ -114,7 +121,7 @@ func (keygen *keygenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey, err erro
 	return pk, nil
 }
 
-func (keygen *keygenerator) NewPublicKeyEmpty() (pk *PublicKey) {
+func (keygen *KeyGenerator) NewPublicKeyEmpty() (pk *PublicKey) {
 	pk = new(PublicKey)
 
 	pk.pk[0] = keygen.context.NewPoly()
@@ -134,14 +141,10 @@ func (pk *PublicKey) Set(poly [2]*ring.Poly) {
 	pk.pk[1] = poly[1].CopyNew()
 }
 
-// NewKeyPair generates a new secretkey and a corresponding public key.
-func (keygen *keygenerator) NewKeyPair(p float64) (sk *SecretKey, pk *PublicKey, err error) {
-	if sk, err = keygen.NewSecretKey(p); err != nil {
-		return nil, nil, err
-	}
-	if pk, err = keygen.NewPublicKey(sk); err != nil {
-		return nil, nil, err
-	}
+// NewKeyPair generates a new secretkey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
+func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
+	sk = keygen.NewSecretKey()
+	pk, _ = keygen.NewPublicKey(sk)
 	return
 }
 
@@ -149,21 +152,21 @@ func (keygen *keygenerator) NewKeyPair(p float64) (sk *SecretKey, pk *PublicKey,
 // Bitdecomposition aims at reducing the added noise at the expense of more storage needed for the keys and more computation
 // during the relinearization. However for relinearization this bitdecomp value can be set to maximum as the encrypted value
 // are also scaled up during the multiplication.
-func (keygen *keygenerator) NewRelinKey(sk *SecretKey, bitDecomp uint64) (evakey *EvaluationKey, err error) {
+func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, bitDecomp uint64) (evakey *EvaluationKey, err error) {
 
 	if err = keygen.check_sk(sk); err != nil {
 		return nil, err
 	}
 	evakey = new(EvaluationKey)
-	sk.Get().Copy(keygen.polypool)
+	keygen.polypool.Copy(sk.Get())
 	keygen.context.MulCoeffsMontgomery(keygen.polypool, sk.Get(), keygen.polypool)
-	evakey.evakey = newswitchingkey(keygen.ckkscontext, keygen.polypool, sk.Get(), bitDecomp)
+	evakey.evakey = keygen.newSwitchingKey(keygen.polypool, sk.Get(), bitDecomp)
 	keygen.polypool.Zero()
 
 	return
 }
 
-func (keygen *keygenerator) NewRelinKeyEmpty(bitDecomp uint64) (evakey *EvaluationKey) {
+func (keygen *KeyGenerator) NewRelinKeyEmpty(bitDecomp uint64) (evakey *EvaluationKey) {
 	evakey = new(EvaluationKey)
 	evakey.evakey = new(SwitchingKey)
 
@@ -195,7 +198,7 @@ func (keygen *keygenerator) NewRelinKeyEmpty(bitDecomp uint64) (evakey *Evaluati
 	return
 }
 
-func (keygen *keygenerator) SetRelinKeys(rlk [][][2]*ring.Poly, bitDecomp uint64) (*EvaluationKey, error) {
+func (keygen *KeyGenerator) SetRelinKeys(rlk [][][2]*ring.Poly, bitDecomp uint64) (*EvaluationKey, error) {
 
 	newevakey := new(EvaluationKey)
 
@@ -215,7 +218,7 @@ func (keygen *keygenerator) SetRelinKeys(rlk [][][2]*ring.Poly, bitDecomp uint64
 
 // NewSwitchingKey generated a new keyswitching key, that will re-encrypt a ciphertext encrypted under the input key to the output key.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *keygenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitDecomp uint64) (newevakey *SwitchingKey, err error) {
+func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitDecomp uint64) (newevakey *SwitchingKey, err error) {
 
 	if err = keygen.check_sk(sk_input); err != nil {
 		return nil, err
@@ -226,13 +229,13 @@ func (keygen *keygenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitD
 	}
 
 	keygen.context.Sub(sk_input.Get(), sk_output.Get(), keygen.polypool)
-	newevakey = newswitchingkey(keygen.ckkscontext, keygen.polypool, sk_output.Get(), bitDecomp)
+	newevakey = keygen.newSwitchingKey(keygen.polypool, sk_output.Get(), bitDecomp)
 	keygen.polypool.Zero()
 
 	return
 }
 
-func (keygen *keygenerator) NewSwitchingKeyEmpty(bitDecomp uint64) (evakey *SwitchingKey) {
+func (keygen *KeyGenerator) NewSwitchingKeyEmpty(bitDecomp uint64) (evakey *SwitchingKey) {
 	evakey = new(SwitchingKey)
 
 	if bitDecomp > keygen.ckkscontext.maxBit || bitDecomp == 0 {
@@ -265,7 +268,7 @@ func (keygen *keygenerator) NewSwitchingKeyEmpty(bitDecomp uint64) (evakey *Swit
 
 // NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *keygenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint64, rotLeft []uint64, rotRight []uint64, conjugate bool) (rotKey *RotationKey, err error) {
+func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint64, rotLeft []uint64, rotRight []uint64, conjugate bool) (rotKey *RotationKey, err error) {
 
 	if err = keygen.check_sk(sk_output); err != nil {
 		return nil, err
@@ -282,7 +285,7 @@ func (keygen *keygenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint
 		rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 		for _, n := range rotLeft {
 			if rotKey.evakey_rot_col_L[n] == nil && n != 0 {
-				rotKey.evakey_rot_col_L[n] = genrotkey(keygen, sk_output.Get(), keygen.ckkscontext.galElRotColLeft[n], bitDecomp)
+				rotKey.evakey_rot_col_L[n] = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotColLeft[n], bitDecomp)
 			}
 		}
 	}
@@ -291,13 +294,13 @@ func (keygen *keygenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint
 		rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 		for _, n := range rotRight {
 			if rotKey.evakey_rot_col_R[n] == nil && n != 0 {
-				rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk_output.Get(), keygen.ckkscontext.galElRotColRight[n], bitDecomp)
+				rotKey.evakey_rot_col_R[n] = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotColRight[n], bitDecomp)
 			}
 		}
 	}
 
 	if conjugate {
-		rotKey.evakey_rot_row = genrotkey(keygen, sk_output.Get(), keygen.ckkscontext.galElRotRow, bitDecomp)
+		rotKey.evakey_rot_row = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotRow, bitDecomp)
 	}
 
 	return rotKey, nil
@@ -306,18 +309,16 @@ func (keygen *keygenerator) NewRotationKeys(sk_output *SecretKey, bitDecomp uint
 
 // NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *keygenerator) NewRotationKeysEmpty() (rotKey *RotationKey) {
+func (keygen *KeyGenerator) NewRotationKeysEmpty() (rotKey *RotationKey) {
 
 	rotKey = new(RotationKey)
 	rotKey.ckkscontext = keygen.ckkscontext
-
-	return rotKey
-
+	return
 }
 
 // NewRotationkeysPow2 generates a new rotation key with all the power of two rotation to the left and right, as well as the conjugation
 // key if asked. Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *keygenerator) NewRotationKeysPow2(sk_output *SecretKey, bitDecomp uint64, conjugate bool) (rotKey *RotationKey, err error) {
+func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, bitDecomp uint64, conjugate bool) (rotKey *RotationKey, err error) {
 
 	if err = keygen.check_sk(sk_output); err != nil {
 		return nil, err
@@ -334,37 +335,36 @@ func (keygen *keygenerator) NewRotationKeysPow2(sk_output *SecretKey, bitDecomp 
 	rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 
 	for n := uint64(1); n < rotKey.ckkscontext.n>>1; n <<= 1 {
-
-		rotKey.evakey_rot_col_L[n] = genrotkey(keygen, sk_output.Get(), keygen.ckkscontext.galElRotColLeft[n], bitDecomp)
-		rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk_output.Get(), keygen.ckkscontext.galElRotColRight[n], bitDecomp)
+		rotKey.evakey_rot_col_L[n] = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotColLeft[n], bitDecomp)
+		rotKey.evakey_rot_col_R[n] = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotColRight[n], bitDecomp)
 	}
 
 	if conjugate {
-		rotKey.evakey_rot_row = genrotkey(keygen, sk_output.Get(), keygen.ckkscontext.galElRotRow, bitDecomp)
+		rotKey.evakey_rot_row = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotRow, bitDecomp)
 	}
 
 	return
 }
 
-func genrotkey(keygen *keygenerator, sk_output *ring.Poly, gen, bitDecomp uint64) (switchingkey *SwitchingKey) {
+func (keygen *KeyGenerator) genrotKey(sk_output *ring.Poly, gen, bitDecomp uint64) (switchingkey *SwitchingKey) {
 
 	ring.PermuteNTT(sk_output, gen, keygen.polypool)
 	keygen.context.Sub(keygen.polypool, sk_output, keygen.polypool)
-	switchingkey = newswitchingkey(keygen.ckkscontext, keygen.polypool, sk_output, bitDecomp)
+	switchingkey = keygen.newSwitchingKey(keygen.polypool, sk_output, bitDecomp)
 	keygen.polypool.Zero()
 
 	return
 }
 
-func newswitchingkey(ckkscontext *CkksContext, sk_in, sk_out *ring.Poly, bitDecomp uint64) (switchingkey *SwitchingKey) {
+func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly, bitDecomp uint64) (switchingkey *SwitchingKey) {
 
-	if bitDecomp > ckkscontext.maxBit || bitDecomp == 0 {
-		bitDecomp = ckkscontext.maxBit
+	if bitDecomp > keygen.ckkscontext.maxBit || bitDecomp == 0 {
+		bitDecomp = keygen.ckkscontext.maxBit
 	}
 
 	switchingkey = new(SwitchingKey)
 
-	context := ckkscontext.keyscontext
+	context := keygen.ckkscontext.keyscontext
 
 	switchingkey.bitDecomp = uint64(bitDecomp)
 
@@ -384,12 +384,12 @@ func newswitchingkey(ckkscontext *CkksContext, sk_in, sk_out *ring.Poly, bitDeco
 		for j := uint64(0); j < bitLog; j++ {
 
 			// e
-			switchingkey.evakey[i][j][0] = ckkscontext.gaussianSampler.SampleNTTNew()
+			switchingkey.evakey[i][j][0] = keygen.ckkscontext.gaussianSampler.SampleNTTNew()
 			// a
 			switchingkey.evakey[i][j][1] = context.NewUniformPoly()
 
 			// e + sk_in * (qiBarre*qiStar) * 2^w
-			// (qiBarre*qiStar)%qi = 1, else 0
+			// (qiBarre*qiStar)%qi = 1 mod qi, else 0
 			for w := uint64(0); w < context.N; w++ {
 				switchingkey.evakey[i][j][0].Coeffs[i][w] += ring.PowerOf2(sk_in.Coeffs[i][w], bitDecomp*j, qi, mredParams[i])
 			}
@@ -399,6 +399,568 @@ func newswitchingkey(ckkscontext *CkksContext, sk_in, sk_out *ring.Poly, bitDeco
 
 			context.MForm(switchingkey.evakey[i][j][0], switchingkey.evakey[i][j][0])
 			context.MForm(switchingkey.evakey[i][j][1], switchingkey.evakey[i][j][1])
+		}
+	}
+
+	return
+}
+
+// MarshalBinary encodes a secret-key on a byte slice. The total size in byte is 1 + N/4.
+func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
+
+	N := uint64(len(sk.sk.Coeffs[0]))
+	levels := uint64(len(sk.sk.Coeffs))
+
+	if levels > 0xFF {
+		return nil, errors.New("error : max degree uint8 overflow")
+	}
+
+	data = make([]byte, 2+((N*levels)<<3))
+
+	data[0] = uint8((bits.Len64(uint64(N)) - 1))
+	data[1] = uint8(levels)
+
+	pointer := uint64(2)
+
+	if _, err = ring.WriteCoeffsTo(pointer, N, levels, sk.sk.Coeffs, data); err != nil {
+		return nil, err
+	}
+
+	return
+}
+
+// UnMarshalBinary decode a previously marshaled secret-key on the target secret-key.
+// The target secret-key must be of the appropriate format, it can be created with the methode NewSecretKeyEmpty().
+func (sk *SecretKey) UnMarshalBinary(data []byte) (err error) {
+
+	N := uint64(1 << data[0])
+	levels := uint64(data[1])
+
+	pointer := uint64(2)
+
+	if uint64(len(sk.sk.Coeffs[0])) != N {
+		return errors.New("error : invalid publickey[0] receiver (logN do not match)")
+	}
+
+	if uint64(len(sk.sk.Coeffs)) != levels {
+		return errors.New("error : invalid SecretKey receiver (level do not match data)")
+	}
+
+	if ((uint64(len(data)) - pointer) >> 3) != (N * levels) {
+		return errors.New("error : invalid SecretKey encoding")
+	}
+
+	ring.DecodeCoeffs(pointer, N, levels, sk.sk.Coeffs, data)
+
+	return
+}
+
+// MarshalBinary encodes a public-key on a byte slice. The total size is 2 + 16 * N * (level + 1).
+func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
+
+	N := uint64(len(pk.pk[0].Coeffs[0]))
+	levels := uint64(len(pk.pk[0].Coeffs))
+
+	if levels > 0xFF {
+		return nil, errors.New("error : max degree uint8 overflow")
+	}
+
+	data = make([]byte, 2+((N*levels)<<4))
+
+	data[0] = uint8((bits.Len64(uint64(N)) - 1))
+	data[1] = uint8(levels)
+
+	pointer := uint64(2)
+
+	if pointer, err = ring.WriteCoeffsTo(pointer, N, levels, pk.pk[0].Coeffs, data); err != nil {
+		return nil, err
+	}
+
+	if pointer, err = ring.WriteCoeffsTo(pointer, N, levels, pk.pk[1].Coeffs, data); err != nil {
+		return nil, err
+	}
+
+	return
+}
+
+// UnMarshalBinary decodes a previously marshaled public-key on the target public-key.
+// The target public-key must have the appropriate format and size, it can be created with
+// the methode NewPublicKeyEmpty().
+func (pk *PublicKey) UnMarshalBinary(data []byte) (err error) {
+
+	N := uint64(1 << data[0])
+	levels := uint64(data[1])
+
+	pointer := uint64(2)
+
+	if uint64(len(pk.pk[0].Coeffs[0])) != N {
+		return errors.New("error : invalid publickey[0] receiver (logN do not match)")
+	}
+
+	if uint64(len(pk.pk[0].Coeffs[1])) != N {
+		return errors.New("error : invalid publickey[1] receiver (logN do not match)")
+	}
+
+	if uint64(len(pk.pk[0].Coeffs)) != levels {
+		return errors.New("error : invalid publickey[0] receiver (level do not match data)")
+	}
+
+	if uint64(len(pk.pk[1].Coeffs)) != levels {
+		return errors.New("error : invalid publickey[1] receiver (level do not match data)")
+	}
+
+	if ((uint64(len(data)) - pointer) >> 4) != (N * levels) {
+		return errors.New("error : invalid PublicKey encoding")
+	}
+
+	pointer, _ = ring.DecodeCoeffs(pointer, N, levels, pk.pk[0].Coeffs, data)
+	pointer, _ = ring.DecodeCoeffs(pointer, N, levels, pk.pk[1].Coeffs, data)
+
+	return
+}
+
+// MarshalBinary encodes an evaluation key on a byte slice. The total size depends on each modulus size and the bit decomp.
+// It will approximately be 5 + (level + 1) * ( 1 + 2 * 8 * N * (level + 1) * logQi/bitDecomp).
+func (evaluationkey *EvaluationKey) MarshalBinary() (data []byte, err error) {
+
+	N := uint64(len(evaluationkey.evakey.evakey[0][0][0].Coeffs[0]))
+	levels := uint64(len(evaluationkey.evakey.evakey[0][0][0].Coeffs))
+	decomposition := levels
+	bitDecomp := evaluationkey.evakey.bitDecomp
+
+	if levels > 0xFF {
+		return nil, errors.New("error : max number modulis uint8 overflow")
+	}
+
+	if decomposition > 0xFF {
+		return nil, errors.New("error : max decomposition uint8 overflow")
+	}
+
+	if bitDecomp > 0xFF {
+		return nil, errors.New("error : max bitDecomp uint8 overflow")
+	}
+
+	var dataLen uint64
+	dataLen = 4
+
+	for j := uint64(0); j < decomposition; j++ {
+		dataLen += 1                                                                                //Information about the size of the bitdecomposition
+		dataLen += 2 * 8 * N * levels * decomposition * uint64(len(evaluationkey.evakey.evakey[j])) // nb coefficients * 8
+	}
+
+	data = make([]byte, dataLen)
+
+	data[0] = uint8(bits.Len64(uint64(N)) - 1)
+	data[1] = uint8(levels)
+	data[2] = uint8(decomposition)
+	data[3] = uint8(bitDecomp)
+
+	pointer := uint64(4)
+
+	var bitLog uint8
+
+	for j := uint64(0); j < decomposition; j++ {
+		bitLog = uint8(len(evaluationkey.evakey.evakey[j]))
+		data[pointer] = bitLog
+		pointer += 1
+		for x := uint8(0); x < bitLog; x++ {
+			if pointer, err = ring.WriteCoeffsTo(pointer, N, levels, evaluationkey.evakey.evakey[j][x][0].Coeffs, data); err != nil {
+				return nil, err
+			}
+
+			if pointer, err = ring.WriteCoeffsTo(pointer, N, levels, evaluationkey.evakey.evakey[j][x][1].Coeffs, data); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return
+}
+
+// UnMarshalBinary decodes a previously marshaled evaluation-key on the target evaluation-key. The target evaluation-key
+// must have the appropriate format and size, it can be created with the methode NewRelinKeyEmpty(uint64, uint64).
+func (evaluationkey *EvaluationKey) UnMarshalBinary(data []byte) (err error) {
+
+	N := uint64(1 << data[0])
+	levels := uint64(data[1])
+	decomposition := uint64(data[2])
+	bitDecomp := uint64(data[3])
+
+	pointer := uint64(4)
+	var bitLog uint64
+
+	evaluationkey.evakey.bitDecomp = bitDecomp
+
+	for j := uint64(0); j < decomposition; j++ {
+
+		bitLog = uint64(data[pointer])
+		pointer += 1
+
+		for x := uint64(0); x < bitLog; x++ {
+
+			if uint64(len(evaluationkey.evakey.evakey[j][x][0].Coeffs)) != levels {
+				return errors.New("error : evaluationkey receiver (level do not match data)")
+			}
+
+			if uint64(len(evaluationkey.evakey.evakey[j][x][1].Coeffs)) != levels {
+				return errors.New("error : evaluationkey receiver (level do not match data)")
+			}
+
+			pointer, _ = ring.DecodeCoeffs(pointer, N, levels, evaluationkey.evakey.evakey[j][x][0].Coeffs, data)
+			pointer, _ = ring.DecodeCoeffs(pointer, N, levels, evaluationkey.evakey.evakey[j][x][1].Coeffs, data)
+		}
+	}
+
+	return
+}
+
+// MarshalBinary encodes an switching-key on a byte slice. The total size in byte will be approximately 5 + (level + 1) * ( 1 + 2 * 8 * N * (level + 1) * logQi/bitDecomp).
+func (switchingkey *SwitchingKey) MarshalBinary() (data []byte, err error) {
+
+	N := uint64(len(switchingkey.evakey[0][0][0].Coeffs[0]))
+	level := uint64(len(switchingkey.evakey[0][0][0].Coeffs))
+	decomposition := level
+	bitDecomp := switchingkey.bitDecomp
+
+	if level > 0xFF {
+		return nil, errors.New("error : max number modulis uint8 overflow")
+	}
+
+	if decomposition > 0xFF {
+		return nil, errors.New("error : max decomposition uint8 overflow")
+	}
+
+	if bitDecomp > 0xFF {
+		return nil, errors.New("error : max bitDecomp uint8 overflow")
+	}
+
+	var dataLen uint64
+	dataLen = 4
+
+	for j := uint64(0); j < decomposition; j++ {
+		dataLen += 1                                                                       //Information about the size of the bitdecomposition
+		dataLen += 2 * 8 * N * level * decomposition * uint64(len(switchingkey.evakey[j])) // nb coefficients * 8
+	}
+
+	data = make([]byte, dataLen)
+
+	data[0] = uint8(bits.Len64(uint64(N)) - 1)
+	data[1] = uint8(level)
+	data[2] = uint8(decomposition)
+	data[3] = uint8(bitDecomp)
+
+	pointer := uint64(4)
+
+	var bitLog uint8
+
+	for j := uint64(0); j < decomposition; j++ {
+		bitLog = uint8(len(switchingkey.evakey[j]))
+		data[pointer] = bitLog
+		pointer += 1
+		for x := uint8(0); x < bitLog; x++ {
+			if pointer, err = ring.WriteCoeffsTo(pointer, N, level, switchingkey.evakey[j][x][0].Coeffs, data); err != nil {
+				return nil, err
+			}
+
+			if pointer, err = ring.WriteCoeffsTo(pointer, N, level, switchingkey.evakey[j][x][1].Coeffs, data); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return
+}
+
+// UnMarshalBinary decode a previously marshaled switching-key on the target switching-key.
+// The target switching-key must have the appropriate format and size, it can be created with the methode NewSwitchingKeyEmpty(uint64).
+func (switchingkey *SwitchingKey) UnMarshalBinary(data []byte) (err error) {
+
+	N := uint64(1 << data[0])
+	level := uint64(data[1])
+	decomposition := uint64(data[2])
+	bitDecomp := uint64(data[3])
+
+	pointer := uint64(4)
+	var bitLog uint64
+
+	switchingkey.bitDecomp = bitDecomp
+
+	for j := uint64(0); j < decomposition; j++ {
+
+		bitLog = uint64(data[pointer])
+		pointer += 1
+
+		for x := uint64(0); x < bitLog; x++ {
+			pointer, _ = ring.DecodeCoeffs(pointer, N, level, switchingkey.evakey[j][x][0].Coeffs, data)
+			pointer, _ = ring.DecodeCoeffs(pointer, N, level, switchingkey.evakey[j][x][1].Coeffs, data)
+		}
+	}
+
+	return
+}
+
+// MarshalBinary encodes a rotationkeys structure on a byte slice. The total size in byte is approximately
+// 5 + 4*(nb left rot + num right rot) + (nb left rot + num right rot + 1 (if rotate row)) * (level + 1) * ( 1 + 2 * 8 * N * (level + 1) * logQi/bitDecomp).
+func (rotationkey *RotationKey) MarshalBinary() (data []byte, err error) {
+
+	N := uint64(rotationkey.ckkscontext.n)
+	level := uint64(len(rotationkey.ckkscontext.keyscontext.Modulus))
+	decomposition := level
+	bitDecomp := rotationkey.bitDecomp
+	mappingRow := 0
+	mappingColL := []uint64{}
+	mappingColR := []uint64{}
+
+	if level > 0xFF {
+		return nil, errors.New("error : max number modulis uint8 overflow")
+	}
+
+	if decomposition > 0xFF {
+		return nil, errors.New("error : max decomposition uint8 overflow")
+	}
+
+	if bitDecomp > 0xFF {
+		return nil, errors.New("error : max bitDecomp uint8 overflow")
+	}
+
+	var dataLen uint64
+	dataLen = 13
+
+	for i := uint64(1); i < N>>1; i++ {
+		if rotationkey.evakey_rot_col_L[i] != nil {
+
+			mappingColL = append(mappingColL, i)
+
+			for j := uint64(0); j < decomposition; j++ {
+				dataLen += 1                                                                                          //Information about the size of the bitdecomposition
+				dataLen += 2 * 8 * N * level * decomposition * uint64(len(rotationkey.evakey_rot_col_L[i].evakey[j])) // nb coefficients * 8
+			}
+		}
+
+		if rotationkey.evakey_rot_col_L[i] != nil {
+
+			mappingColR = append(mappingColR, i)
+
+			for j := uint64(0); j < decomposition; j++ {
+				dataLen += 1                                                                                          //Information about the size of the bitdecomposition
+				dataLen += 2 * 8 * N * level * decomposition * uint64(len(rotationkey.evakey_rot_col_L[i].evakey[j])) // nb coefficients * 8
+			}
+		}
+	}
+
+	if rotationkey.evakey_rot_row != nil {
+		mappingRow = 1
+		for j := uint64(0); j < decomposition; j++ {
+			dataLen += 1                                                                                     //Information about the size of the bitdecomposition
+			dataLen += 2 * 8 * N * level * decomposition * uint64(len(rotationkey.evakey_rot_row.evakey[j])) // nb coefficients * 8
+		}
+	}
+
+	dataLen += uint64(len(mappingColL)+len(mappingColR)) << 2 // size needed to encode what rotation are present
+
+	data = make([]byte, dataLen)
+
+	data[0] = uint8(bits.Len64(uint64(N)) - 1)
+	data[1] = uint8(level)
+	data[2] = uint8(decomposition)
+	data[3] = uint8(bitDecomp)
+	data[4] = uint8(mappingRow)
+
+	pointer := uint64(5)
+
+	binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(len(mappingColL)))
+	pointer += 4
+
+	binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(len(mappingColR)))
+	pointer += 4
+
+	for _, i := range mappingColL {
+
+		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(i))
+
+		pointer += 4
+	}
+
+	for _, i := range mappingColR {
+
+		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(i))
+
+		pointer += 4
+	}
+
+	// Encodes the different rotation key indexes
+	var bitLog uint8
+	if mappingRow == 1 {
+		for j := uint64(0); j < decomposition; j++ {
+			bitLog = uint8(len(rotationkey.evakey_rot_row.evakey[j]))
+			data[pointer] = bitLog
+			pointer += 1
+			for x := uint8(0); x < bitLog; x++ {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, level, rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs, data); err != nil {
+					return nil, err
+				}
+
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, level, rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs, data); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	for _, i := range mappingColL {
+		for j := uint64(0); j < decomposition; j++ {
+			bitLog = uint8(len(rotationkey.evakey_rot_col_L[i].evakey[j]))
+			data[pointer] = bitLog
+			pointer += 1
+			for x := uint8(0); x < bitLog; x++ {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, level, rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs, data); err != nil {
+					return nil, err
+				}
+
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, level, rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs, data); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	for _, i := range mappingColR {
+		for j := uint64(0); j < decomposition; j++ {
+			bitLog = uint8(len(rotationkey.evakey_rot_col_R[i].evakey[j]))
+			data[pointer] = bitLog
+			pointer += 1
+			for x := uint8(0); x < bitLog; x++ {
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, level, rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs, data); err != nil {
+					return nil, err
+				}
+
+				if pointer, err = ring.WriteCoeffsTo(pointer, N, level, rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs, data); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	return
+}
+
+// UnMarshalBinary decodes a previously marshaled rotation-keys on the target rotation-keys. In contrary to all
+// the other structures, the unmarshaling for rotationkeys only need an empty receiver, as it is not possible to
+// create receiver of the correct format and size without knowing all the content of the marshaled rotationkeys. The memory
+// will be allocated on the fly.
+func (rotationkey *RotationKey) UnMarshalBinary(data []byte) (err error) {
+
+	N := uint64(1 << data[0])
+	level := uint64(data[1])
+	decomposition := uint64(data[2])
+	bitDecomp := uint64(data[3])
+	mappingRow := uint64(data[4])
+	mappingColL := make([]uint64, binary.BigEndian.Uint32(data[5:9]))
+	mappingColR := make([]uint64, binary.BigEndian.Uint32(data[9:13]))
+
+	rotationkey.bitDecomp = uint64(bitDecomp)
+
+	rotationkey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
+	//rotationkey.evakey_rot_col_R = make(map[uint64][][][2]*ring.Poly)
+
+	pointer := uint64(13)
+
+	for i := 0; i < len(mappingColL); i++ {
+		mappingColL[i] = uint64(binary.BigEndian.Uint32(data[pointer : pointer+4]))
+		pointer += 4
+	}
+
+	for i := 0; i < len(mappingColR); i++ {
+		mappingColR[i] = uint64(binary.BigEndian.Uint32(data[pointer : pointer+4]))
+		pointer += 4
+	}
+
+	var bitLog uint64
+	if mappingRow == 1 {
+
+		rotationkey.evakey_rot_row = new(SwitchingKey)
+		rotationkey.evakey_rot_row.bitDecomp = bitDecomp
+		rotationkey.evakey_rot_row.evakey = make([][][2]*ring.Poly, decomposition)
+
+		for j := uint64(0); j < decomposition; j++ {
+
+			bitLog = uint64(data[pointer])
+			pointer += 1
+
+			rotationkey.evakey_rot_row.evakey[j] = make([][2]*ring.Poly, bitLog)
+
+			for x := uint64(0); x < bitLog; x++ {
+
+				rotationkey.evakey_rot_row.evakey[j][x][0] = new(ring.Poly)
+				rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs = make([][]uint64, level)
+				pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_row.evakey[j][x][0].Coeffs, data)
+
+				rotationkey.evakey_rot_row.evakey[j][x][1] = new(ring.Poly)
+				rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs = make([][]uint64, level)
+				pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_row.evakey[j][x][1].Coeffs, data)
+			}
+		}
+	}
+
+	if len(mappingColL) > 0 {
+
+		rotationkey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
+
+		for _, i := range mappingColL {
+
+			rotationkey.evakey_rot_col_L[i] = new(SwitchingKey)
+			rotationkey.evakey_rot_col_L[i].bitDecomp = bitDecomp
+			rotationkey.evakey_rot_col_L[i].evakey = make([][][2]*ring.Poly, decomposition)
+
+			for j := uint64(0); j < decomposition; j++ {
+
+				bitLog = uint64(data[pointer])
+				pointer += 1
+
+				rotationkey.evakey_rot_col_L[i].evakey[j] = make([][2]*ring.Poly, bitLog)
+
+				for x := uint64(0); x < bitLog; x++ {
+
+					rotationkey.evakey_rot_col_L[i].evakey[j][x][0] = new(ring.Poly)
+					rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs = make([][]uint64, level)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_col_L[i].evakey[j][x][0].Coeffs, data)
+
+					rotationkey.evakey_rot_col_L[i].evakey[j][x][1] = new(ring.Poly)
+					rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs = make([][]uint64, level)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_col_L[i].evakey[j][x][1].Coeffs, data)
+				}
+			}
+		}
+	}
+
+	if len(mappingColR) > 0 {
+
+		rotationkey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
+
+		for _, i := range mappingColR {
+
+			rotationkey.evakey_rot_col_R[i] = new(SwitchingKey)
+			rotationkey.evakey_rot_col_R[i].bitDecomp = bitDecomp
+			rotationkey.evakey_rot_col_R[i].evakey = make([][][2]*ring.Poly, decomposition)
+
+			for j := uint64(0); j < decomposition; j++ {
+
+				bitLog = uint64(data[pointer])
+				pointer += 1
+
+				rotationkey.evakey_rot_col_R[i].evakey[j] = make([][2]*ring.Poly, bitLog)
+
+				for x := uint64(0); x < bitLog; x++ {
+
+					rotationkey.evakey_rot_col_R[i].evakey[j][x][0] = new(ring.Poly)
+					rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs = make([][]uint64, level)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_col_R[i].evakey[j][x][0].Coeffs, data)
+
+					rotationkey.evakey_rot_col_R[i].evakey[j][x][1] = new(ring.Poly)
+					rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs = make([][]uint64, level)
+					pointer, _ = ring.DecodeCoeffsNew(pointer, N, level, rotationkey.evakey_rot_col_R[i].evakey[j][x][1].Coeffs, data)
+				}
+			}
 		}
 	}
 

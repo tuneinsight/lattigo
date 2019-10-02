@@ -57,7 +57,7 @@ func GenRefreshShares(sk *bfv.SecretKey, ciphertext *bfv.Ciphertext, bfvcontext 
 
 func Refresh(ciphertext *bfv.Ciphertext, sk *ring.Poly, refreshShares []*RefreshShares, bfvcontext *bfv.BfvContext, crs *ring.Poly, encoder *bfv.BatchEncoder) {
 
-	scaler, _ := ring.NewSimpleScaler(bfvcontext.T(), bfvcontext.ContextQ())
+	scaler := ring.NewSimpleScaler(bfvcontext.T(), bfvcontext.ContextQ())
 
 	// ct[0] += sum(h0_i)
 	for i := range refreshShares {

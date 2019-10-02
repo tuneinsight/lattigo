@@ -28,7 +28,7 @@ type Context struct {
 	mask []uint64
 
 	// Determines if NTT can be used with the current context.
-	validated bool
+	allowsNTT bool
 
 	// Product of the modulies
 	ModulusBigint *Int
@@ -63,7 +63,7 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
 		return errors.New("invalid ring degree (must be a power of 2)")
 	}
 
-	context.validated = false
+	context.allowsNTT = false
 
 	context.N = N
 
@@ -100,12 +100,12 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
 	return nil
 }
 
-// ValidateParameters checks that N has beed correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).
+// GenNTTParams checks that N has beed correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).
 // Then it computes the variables required for the NTT. ValidateParameters purpose is to validate that the moduli allow the NTT and compute the
 // NTT parameters.
-func (context *Context) ValidateParameters() error {
+func (context *Context) GenNTTParams() error {
 
-	if context.validated {
+	if context.allowsNTT {
 		return nil
 	}
 
@@ -117,7 +117,7 @@ func (context *Context) ValidateParameters() error {
 	// Checks if each qi is Prime and if qi = 1 mod 2n
 	for _, qi := range context.Modulus {
 		if IsPrime(qi) == false || qi&((context.N<<1)-1) != 1 {
-			context.validated = false
+			context.allowsNTT = false
 			return errors.New("warning : provided modulus does not allow NTT")
 		}
 	}
@@ -181,7 +181,7 @@ func (context *Context) ValidateParameters() error {
 		}
 	}
 
-	context.validated = true
+	context.allowsNTT = true
 
 	return nil
 }
@@ -215,13 +215,13 @@ func (context *Context) UnMarshalBinary(data []byte) error {
 	}
 
 	context.SetParameters(parameters.N, parameters.Modulus)
-	context.ValidateParameters()
+	context.GenNTTParams()
 
 	return nil
 }
 
 // Merge merges two context by appending all the element from contextP to the elements of contextQ
-// Will return an error if contextQ or contextP are not both not validated or both validated. It
+// Will return an error if contextQ or contextP do not both agree on the flat allowsNTT. It
 // however requires to re-compute the crt reconstruction parameters.
 func (context *Context) Merge(contextQ, contextP *Context) error {
 
@@ -259,28 +259,28 @@ func (context *Context) Merge(contextQ, contextP *Context) error {
 	context.psiMont = append(contextQ.psiMont, contextP.psiMont...)
 	context.psiInvMont = append(contextQ.psiInvMont, contextP.psiInvMont...)
 
-	if contextQ.validated == false && contextP.validated == false {
+	if contextQ.allowsNTT == false && contextP.allowsNTT == false {
 
-		context.validated = false
+		context.allowsNTT = false
 
-	} else if contextQ.validated && contextP.validated {
+	} else if contextQ.allowsNTT && contextP.allowsNTT {
 
 		context.nttPsi = append(contextQ.nttPsi, contextP.nttPsi...)
 		context.nttPsiInv = append(contextQ.nttPsiInv, contextP.nttPsiInv...)
 		context.nttNInv = append(contextQ.nttNInv, contextP.nttNInv...)
-		context.validated = true
+		context.allowsNTT = true
 
 	} else {
 
-		return errors.New("context need both to be validated or not validated")
+		return errors.New("context need both to be allowsNTT or not allowsNTT")
 	}
 
 	return nil
 }
 
-// IsValidated returns true if the context has been validated (for NTT), else false.
-func (context *Context) IsValidated() bool {
-	return context.validated
+// AllowsNTT returns true if the context allows NTT, else false.
+func (context *Context) AllowsNTT() bool {
+	return context.allowsNTT
 }
 
 // GetBRedParams returns the Barret reduction parameters of the context.

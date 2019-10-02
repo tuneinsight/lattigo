@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func BenchmarkBFVScheme(b *testing.B) {
+func Benchmark_BFVScheme(b *testing.B) {
 
 	paramSets := DefaultParams
 
@@ -27,7 +27,7 @@ func BenchmarkBFVScheme(b *testing.B) {
 		// Public Key Generation
 		b.Run(fmt.Sprintf("params=%d/KeyGen", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				sk, pk, err = kgen.NewKeyPair(1.0 / 3)
+				sk, pk = kgen.NewKeyPair()
 				if err != nil {
 					b.Error(err)
 				}
@@ -35,7 +35,8 @@ func BenchmarkBFVScheme(b *testing.B) {
 		})
 
 		// Encryption
-		encryptor, err := bfvContext.NewEncryptor(pk, sk)
+		encryptorPk, err := bfvContext.NewEncryptorFromPk(pk)
+		encryptorSk, err := bfvContext.NewEncryptorFromSk(sk)
 
 		if err != nil {
 			b.Error(err)
@@ -46,26 +47,26 @@ func BenchmarkBFVScheme(b *testing.B) {
 		pt.setCoefficientsUint64(bfvContext, ptcoeffs)
 		b.Run(fmt.Sprintf("params=%d/EncryptFromPkNew", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, _ = encryptor.EncryptFromPkNew(pt)
+				_, _ = encryptorPk.EncryptNew(pt)
 			}
 		})
 
 		ctd1 := bfvContext.NewCiphertext(1)
 		b.Run(fmt.Sprintf("params=%d/EncryptFromPk", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = encryptor.EncryptFromPk(pt, ctd1)
+				_ = encryptorPk.Encrypt(pt, ctd1)
 			}
 		})
 
 		b.Run(fmt.Sprintf("params=%d/EncryptFromSkNew", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, _ = encryptor.EncryptFromSkNew(pt)
+				_, _ = encryptorSk.EncryptNew(pt)
 			}
 		})
 
 		b.Run(fmt.Sprintf("params=%d/EncryptFromSk", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = encryptor.EncryptFromSk(pt, ctd1)
+				_ = encryptorSk.Encrypt(pt, ctd1)
 			}
 		})
 
@@ -82,17 +83,14 @@ func BenchmarkBFVScheme(b *testing.B) {
 			_ = ptp
 		})
 
-		evaluator, err := bfvContext.NewEvaluator()
+		evaluator := bfvContext.NewEvaluator()
+
+		ct1, err := encryptorSk.EncryptNew(pt)
 		if err != nil {
 			b.Error(err)
 		}
 
-		ct1, err := encryptor.EncryptFromSkNew(pt)
-		if err != nil {
-			b.Error(err)
-		}
-
-		ct2, err := encryptor.EncryptFromSkNew(pt)
+		ct2, err := encryptorSk.EncryptNew(pt)
 		if err != nil {
 			b.Error(err)
 		}
@@ -133,10 +131,7 @@ func BenchmarkBFVScheme(b *testing.B) {
 		for _, bitDecomp := range bitDecomps {
 
 			// Relinearization Key Generation not becnhmarked (no inplace gen)
-			rlk, err := kgen.NewRelinKey(sk, 2, bitDecomp)
-			if err != nil {
-				b.Error(err)
-			}
+			rlk := kgen.NewRelinKey(sk, 2, bitDecomp)
 
 			// Relinearization
 			b.Run(fmt.Sprintf("params=%d/decomp=%d/Relin", params.N, bitDecomp), func(b *testing.B) {
@@ -148,10 +143,7 @@ func BenchmarkBFVScheme(b *testing.B) {
 			})
 
 			// Rotation Key Generation not benchmarked (no inplace gen)
-			rtk, err := kgen.NewRotationKeysPow2(sk, bitDecomp, true)
-			if err != nil {
-				b.Error(err)
-			}
+			rtk := kgen.NewRotationKeysPow2(sk, bitDecomp, true)
 
 			// Rotation Rows
 			b.Run(fmt.Sprintf("params=%d/decomp=%d/RotateRows", params.N, bitDecomp), func(b *testing.B) {

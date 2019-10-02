@@ -5,7 +5,6 @@ package ckks
 import (
 	"errors"
 	"github.com/ldsec/lattigo/ring"
-	"math"
 	"math/bits"
 )
 
@@ -55,12 +54,6 @@ type CkksContext struct {
 	galElRotRow      uint64
 	galElRotColLeft  []uint64
 	galElRotColRight []uint64
-
-	// Encoding and Decoding params
-	indexMatrix []uint64
-	gap         uint64
-	roots       []complex128
-	inv_roots   []complex128
 }
 
 // NewCkksContext creates a new CkksContext with the given parameters. Returns an error if one of the parameters would not ensure the
@@ -121,7 +114,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 		return nil, err
 	}
 
-	if err = ckkscontext.contextLevel[0].ValidateParameters(); err != nil {
+	if err = ckkscontext.contextLevel[0].GenNTTParams(); err != nil {
 		return nil, err
 	}
 
@@ -133,7 +126,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 			return nil, err
 		}
 
-		if err = ckkscontext.contextLevel[i].ValidateParameters(); err != nil {
+		if err = ckkscontext.contextLevel[i].GenNTTParams(); err != nil {
 			return nil, err
 		}
 
@@ -165,7 +158,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 			Qi = ckkscontext.moduli[i]
 
-			ckkscontext.rescalParams[j-1][i] = ring.MForm(modexp(Ql, Qi-2, Qi), Qi, bredParams[i])
+			ckkscontext.rescalParams[j-1][i] = ring.MForm(ring.ModExp(Ql, Qi-2, Qi), Qi, bredParams[i])
 		}
 	}
 	// ========== END < RESCALE PRE-COMPUATION PARAMETERS > END ===============
@@ -184,7 +177,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 	mask = m - 1
 
 	ckkscontext.gen = 5 // Any integer equal to 1 mod 4 and comprime to 2N will do fine
-	ckkscontext.genInv = modexp(ckkscontext.gen, mask, m)
+	ckkscontext.genInv = ring.ModExp(ckkscontext.gen, mask, m)
 
 	ckkscontext.galElRotColLeft = make([]uint64, ckkscontext.slots)
 	ckkscontext.galElRotColRight = make([]uint64, ckkscontext.slots)
@@ -199,47 +192,6 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 	ckkscontext.galElRotRow = mask
 	// ============ END < ROTATION ELEMENTS > END ================
-
-	// ========== START < ENCODER PARAMETERS > START ================
-	var pos, index1, index2 uint64
-
-	ckkscontext.gap = 1 //gap-1 is the gap between each slot, here 1 means no gap.
-
-	ckkscontext.indexMatrix = make([]uint64, ckkscontext.n)
-
-	pos = 1
-
-	for i := uint64(0); i < ckkscontext.slots; i++ {
-
-		index1 = (pos - 1) >> 1
-		index2 = (m - pos - 1) >> 1
-
-		ckkscontext.indexMatrix[i] = bitReverse64(index1, ckkscontext.logN)
-		ckkscontext.indexMatrix[i|ckkscontext.slots] = bitReverse64(index2, ckkscontext.logN)
-
-		pos *= ckkscontext.gen
-		pos &= mask
-	}
-
-	ckkscontext.roots = make([]complex128, ckkscontext.n)
-	ckkscontext.inv_roots = make([]complex128, ckkscontext.n)
-
-	angle := 6.283185307179586 / float64(m)
-	psi := complex(math.Cos(angle), math.Sin(angle))
-	psiInv := complex(1, 0) / psi
-
-	ckkscontext.roots[0] = 1
-	ckkscontext.inv_roots[0] = 1
-
-	for j := uint64(1); j < ckkscontext.n; j++ {
-
-		indexReversePrev := bitReverse64(j-1, ckkscontext.logN)
-		indexReverseNext := bitReverse64(j, ckkscontext.logN)
-
-		ckkscontext.roots[indexReverseNext] = ckkscontext.roots[indexReversePrev] * psi
-		ckkscontext.inv_roots[indexReverseNext] = ckkscontext.inv_roots[indexReversePrev] * psiInv
-	}
-	// ========== END < ENCODER PARAMETERS > END ================
 
 	return ckkscontext, nil
 }

@@ -31,19 +31,17 @@ func (bfvcontext *BfvContext) NewDecryptor(sk *SecretKey) (decryptor *Decryptor,
 }
 
 // DecryptNew decrypts the input ciphertext and returns the result on a new plaintext.
-func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext, err error) {
+func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
 
 	plaintext = decryptor.bfvcontext.NewPlaintext()
 
-	if err = decryptor.Decrypt(ciphertext, plaintext); err != nil {
-		return nil, err
-	}
+	decryptor.Decrypt(ciphertext, plaintext)
 
-	return plaintext, nil
+	return
 }
 
 // Decrypt decrypts the input ciphertext and returns the result on the provided receiver plaintext.
-func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) (err error) {
+func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
 	decryptor.bfvcontext.contextQ.NTT(ciphertext.value[ciphertext.Degree()], plaintext.value)
 
@@ -62,6 +60,4 @@ func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 	}
 
 	decryptor.bfvcontext.contextQ.InvNTT(plaintext.value, plaintext.value)
-
-	return nil
 }

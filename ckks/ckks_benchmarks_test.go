@@ -10,17 +10,18 @@ type benchParams struct {
 	bdc    uint64
 }
 
-func BenchmarkCKKSScheme(b *testing.B) {
+func Benchmark_CKKSScheme(b *testing.B) {
 
 	var err error
 	var ckkscontext *CkksContext
 	var encoder *Encoder
-	var kgen *keygenerator
+	var kgen *KeyGenerator
 	var sk *SecretKey
 	var pk *PublicKey
 	var rlk *EvaluationKey
 	var rotkey *RotationKey
-	var encryptor *Encryptor
+	var encryptorPk *Encryptor
+	var encryptorSk *Encryptor
 	var decryptor *Decryptor
 	var evaluator *Evaluator
 	var plaintext *Plaintext
@@ -31,7 +32,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		{params: DefaultParams[12], bdc: 60},
 		{params: DefaultParams[13], bdc: 60},
 		{params: DefaultParams[14], bdc: 60},
-		{params: DefaultParams[15], bdc: 60},
+		//{params: DefaultParams[15], bdc: 60}, // Memory intensive
 	}
 
 	var logN, logScale, levels, bdc uint64
@@ -53,9 +54,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 
 		kgen = ckkscontext.NewKeyGenerator()
 
-		if sk, pk, err = kgen.NewKeyPair(1.0 / 3); err != nil {
-			b.Error(err)
-		}
+		sk, pk = kgen.NewKeyPair()
 
 		if rlk, err = kgen.NewRelinKey(sk, bdc); err != nil {
 			b.Error(err)
@@ -65,7 +64,11 @@ func BenchmarkCKKSScheme(b *testing.B) {
 			b.Error(err)
 		}
 
-		if encryptor, err = ckkscontext.NewEncryptor(pk, sk); err != nil {
+		if encryptorPk, err = ckkscontext.NewEncryptorFromPk(pk); err != nil {
+			b.Error(err)
+		}
+
+		if encryptorSk, err = ckkscontext.NewEncryptorFromSk(sk); err != nil {
 			b.Error(err)
 		}
 
@@ -108,10 +111,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Key Pair Generation
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/KeyPairGen", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				sk, pk, err = kgen.NewKeyPair(1.0 / 3)
-				if err != nil {
-					b.Error(err)
-				}
+				sk, pk = kgen.NewKeyPair()
 			}
 		})
 
@@ -127,7 +127,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Encrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/EncryptPk", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = encryptor.EncryptFromPk(plaintext, ciphertext1); err != nil {
+				if err = encryptorPk.Encrypt(plaintext, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -136,7 +136,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Encrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/EncryptSk", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = encryptor.EncryptFromSk(plaintext, ciphertext1); err != nil {
+				if err = encryptorSk.Encrypt(plaintext, ciphertext1); err != nil {
 					b.Error(err)
 				}
 			}
@@ -145,9 +145,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		// Decrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/Decrypt", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = decryptor.Decrypt(ciphertext1, plaintext); err != nil {
-					b.Error(err)
-				}
+				decryptor.Decrypt(ciphertext1, plaintext)
 			}
 		})
 

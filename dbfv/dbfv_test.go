@@ -8,6 +8,12 @@ import (
 	"testing"
 )
 
+func check(t *testing.T, err error) {
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func Test_DBFVScheme(t *testing.T) {
 
 	paramSets := bfv.DefaultParams[0:2]
@@ -21,27 +27,24 @@ func Test_DBFVScheme(t *testing.T) {
 		// nParties data indpendant element
 		bfvContext := bfv.NewBfvContext()
 		if err := bfvContext.SetParameters(&params); err != nil {
-			log.Fatal(err)
+			t.Error(err)
 		}
 
 		kgen := bfvContext.NewKeyGenerator()
 
-		evaluator, err := bfvContext.NewEvaluator()
-		if err != nil {
-			log.Fatal(err)
-		}
+		evaluator := bfvContext.NewEvaluator()
 
 		context := bfvContext.ContextQ()
 
 		contextT := bfvContext.ContextT()
 
-		encoder := bfvContext.NewBatchEncoder()
+		encoder, err := bfvContext.NewBatchEncoder()
+		check(t, err)
 
 		coeffsWant := contextT.NewUniformPoly()
 		plaintextWant := bfvContext.NewPlaintext()
-		encoder.EncodeUint(coeffsWant.Coeffs[0], plaintextWant)
-
-		ciphertextTest := bfvContext.NewCiphertext(1)
+		err = encoder.EncodeUint(coeffsWant.Coeffs[0], plaintextWant)
+		check(t, err)
 
 		for _, parties := range nParties {
 
@@ -49,7 +52,7 @@ func Test_DBFVScheme(t *testing.T) {
 			for i := 0; i < parties; i++ {
 				crpGenerators[i], err = NewCRPGenerator(nil, context)
 				if err != nil {
-					log.Fatal(err)
+					t.Error(err)
 				}
 				crpGenerators[i].Seed([]byte{})
 			}
@@ -61,8 +64,8 @@ func Test_DBFVScheme(t *testing.T) {
 			tmp1 := context.NewPoly()
 
 			for i := 0; i < parties; i++ {
-				sk0_shards[i], _ = kgen.NewSecretKey(1.0 / 3)
-				sk1_shards[i], _ = kgen.NewSecretKey(1.0 / 3)
+				sk0_shards[i] = kgen.NewSecretKey()
+				sk1_shards[i] = kgen.NewSecretKey()
 				context.Add(tmp0, sk0_shards[i].Get(), tmp0)
 				context.Add(tmp1, sk1_shards[i].Get(), tmp1)
 			}
@@ -74,52 +77,35 @@ func Test_DBFVScheme(t *testing.T) {
 			sk1.Set(tmp1)
 
 			// Publickeys
-			pk0, err := kgen.NewPublicKey(sk0)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			pk1, err := kgen.NewPublicKey(sk1)
-			if err != nil {
-				log.Fatal(err)
-			}
+			pk0 := kgen.NewPublicKey(sk0)
+			pk1 := kgen.NewPublicKey(sk1)
 
 			// Encryptors
-			encryptor_pk0, err := bfvContext.NewEncryptor(pk0, nil)
-			if err != nil {
-				log.Fatal(err)
-			}
+			encryptor_pk0, err := bfvContext.NewEncryptorFromPk(pk0)
+			check(t, err)
 
 			//encryptor_pk1, err := bfvContext.NewEncryptor(pk1)
 			//if err != nil {
-			//	log.Fatal(err)
+			//	t.Error(err)
 			//}
 
 			// Decryptors
 			decryptor_sk0, err := bfvContext.NewDecryptor(sk0)
-			if err != nil {
-				log.Fatal(err)
-			}
+			check(t, err)
 
 			decryptor_sk1, err := bfvContext.NewDecryptor(sk1)
-			if err != nil {
-				log.Fatal(err)
-			}
+			check(t, err)
 
 			// Reference ciphertext
-			ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
-			if err != nil {
-				log.Fatal(err)
-			}
+			ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
+			check(t, err)
 
+
+			ciphertextMul, _ := evaluator.MulNew(ciphertext, ciphertext)
 			coeffsMul := contextT.NewPoly()
-			for i := 0; i < 1; i++ {
-				res, _ := evaluator.MulNew(ciphertext, ciphertext)
-				ciphertext = res.Ciphertext()
-				contextT.MulCoeffs(coeffsWant, coeffsWant, coeffsMul)
-			}
+			contextT.MulCoeffs(coeffsWant, coeffsWant, coeffsMul)
 
-			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/CRS_PRNG", context.N, len(context.Modulus), 60), func(t *testing.T) {
+			t.Run(fmt.Sprintf("N=%d/logQ=%d/CRS_PRNG", context.N, context.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
 				Ha, _ := NewPRNG([]byte{})
 				Hb, _ := NewPRNG([]byte{})
@@ -169,10 +155,10 @@ func Test_DBFVScheme(t *testing.T) {
 				}
 			})
 
-			// EKG_Naive
+			// EKG
 			for _, bitDecomp := range bitDecomps {
 
-				t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/bitdecomp=%d/EKG", context.N, len(context.Modulus), 60, bitDecomp), func(t *testing.T) {
+				t.Run(fmt.Sprintf("N=%d/logQ=%d/bitdecomp=%d/EKG", context.N, context.ModulusBigint.Value.BitLen(), bitDecomp), func(t *testing.T) {
 
 					bitLog := uint64((60 + (60 % bitDecomp)) / bitDecomp)
 
@@ -194,22 +180,12 @@ func Test_DBFVScheme(t *testing.T) {
 					}
 
 					rlk := test_EKG_Protocol(bfvContext, parties, bitDecomp, ekg, sk0_shards, ephemeralKeys, crp)
-
-					if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
-						log.Fatal(err)
+					res := bfvContext.NewCiphertext(1)
+					if err := evaluator.Relinearize(ciphertextMul, rlk, res); err != nil {
+						t.Error(err)
 					}
 
-					plaintextTest, err := decryptor_sk0.DecryptNew(ciphertextTest)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					coeffsTest, err := encoder.DecodeUint(plaintextTest)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					if equalslice(coeffsMul.Coeffs[0], coeffsTest) != true {
+					if equalslice(coeffsMul.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(res))) != true {
 						t.Errorf("error : ekg rlk bad decrypt")
 					}
 
@@ -219,7 +195,7 @@ func Test_DBFVScheme(t *testing.T) {
 			// EKG_Naive
 			for _, bitDecomp := range bitDecomps {
 
-				t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/bitdecomp=%d/EKG_Naive", context.N, len(context.Modulus), 60, bitDecomp), func(t *testing.T) {
+				t.Run(fmt.Sprintf("N=%d/logQ=%d/bitdecomp=%d/EKG_Naive", context.N, context.ModulusBigint.Value.BitLen(), bitDecomp), func(t *testing.T) {
 
 					// Each party instantiate an ekg naive protocole
 					ekgNaive := make([]*EkgProtocolNaive, parties)
@@ -232,27 +208,18 @@ func Test_DBFVScheme(t *testing.T) {
 					rlk := new(bfv.EvaluationKey)
 					rlk.SetRelinKeys([][][][2]*ring.Poly{evk[0]}, bitDecomp)
 
-					if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
-						log.Fatal(err)
+					res := bfvContext.NewCiphertext(1)
+					if err := evaluator.Relinearize(ciphertext, rlk, res); err != nil {
+						t.Error(err)
 					}
 
-					plaintextTest, err := decryptor_sk0.DecryptNew(ciphertextTest)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					coeffsTest, err := encoder.DecodeUint(plaintextTest)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					if equalslice(coeffsMul.Coeffs[0], coeffsTest) != true {
+					if equalslice(coeffsMul.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(res))) != true {
 						t.Errorf("error : ekg_naive rlk bad decrypt")
 					}
 				})
 			}
 
-			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/CKG", context.N, len(context.Modulus), 60), func(t *testing.T) {
+			t.Run(fmt.Sprintf("N=%d/logQ=%d/CKG", context.N, context.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
 				crp := crpGenerators[0].Clock()
 
@@ -284,34 +251,24 @@ func Test_DBFVScheme(t *testing.T) {
 				P0.GenPublicKey(P0.s1, crp, pk)
 
 				// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-				encryptorTest, err := bfvContext.NewEncryptor(pk, nil)
+				encryptorTest, err := bfvContext.NewEncryptorFromPk(pk)
 				if err != nil {
-					log.Fatal(err)
+					t.Error(err)
 				}
 
-				ciphertextTest, err := encryptorTest.EncryptFromPkNew(plaintextWant)
+				ciphertextTest, err := encryptorTest.EncryptNew(plaintextWant)
 
 				if err != nil {
-					log.Fatal(err)
+					t.Error(err)
 				}
 
-				plaintextTest, err := decryptor_sk0.DecryptNew(ciphertextTest)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				coeffsTest, err := encoder.DecodeUint(plaintextTest)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
+				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(ciphertextTest))) != true {
 					t.Errorf("error : ckg protocol, cpk encrypt/decrypt test")
 				}
 
 			})
 
-			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/CKSProtocol", context.N, len(context.Modulus), 60), func(t *testing.T) {
+			t.Run(fmt.Sprintf("N=%d/logQ=%d/CKS", context.N, 60), func(t *testing.T) {
 
 				type Party struct {
 					*CKSProtocol
@@ -331,10 +288,9 @@ func Test_DBFVScheme(t *testing.T) {
 				}
 				P0 := cksParties[0]
 
-				ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
-				switchedCiphertext := bfvContext.NewCiphertext(1)
+				ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 				if err != nil {
-					log.Fatal(err)
+					t.Error(err)
 				}
 
 				// Each party creates its CKSProtocol instance with tmp = si-si'
@@ -345,21 +301,21 @@ func Test_DBFVScheme(t *testing.T) {
 					}
 				}
 
-				P0.KeySwitch(P0.share, ciphertext, switchedCiphertext)
-
-				plaintextHave, _ := decryptor_sk1.DecryptNew(switchedCiphertext)
-
-				coeffsTest, err := encoder.DecodeUint(plaintextHave)
-				if err != nil {
-					log.Fatal(err)
+				ksCiphertext := bfvContext.NewCiphertext(1)
+				P0.KeySwitch(P0.share, ciphertext, ksCiphertext)
+				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk1.DecryptNew(ksCiphertext))) != true {
+					t.Errorf("error : CKS")
 				}
 
-				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
-					t.Errorf("error : decryption error")
+				P0.KeySwitch(P0.share, ciphertext, ciphertext)
+
+				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk1.DecryptNew(ciphertext))) != true {
+					t.Errorf("error : CKS in place")
 				}
+
 			})
 
-			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/PCKS", context.N, len(context.Modulus), 60), func(t *testing.T) {
+			t.Run(fmt.Sprintf("N=%d/logQ=%d/PCKS", context.N, context.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
 				type Party struct {
 					*PCKSProtocol
@@ -377,10 +333,10 @@ func Test_DBFVScheme(t *testing.T) {
 				}
 				P0 := pcksParties[0]
 
-				ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+				ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 				ciphertextSwitched := bfvContext.NewCiphertext(1)
 				if err != nil {
-					log.Fatal(err)
+					t.Error(err)
 				}
 
 				for i, p := range pcksParties {
@@ -391,14 +347,7 @@ func Test_DBFVScheme(t *testing.T) {
 				}
 
 				P0.KeySwitch(P0.share, ciphertext, ciphertextSwitched)
-				plaintextHave, _ := decryptor_sk1.DecryptNew(ciphertextSwitched)
-
-				coeffsTest, err := encoder.DecodeUint(plaintextHave)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
+				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk1.DecryptNew(ciphertextSwitched))) != true {
 					t.Errorf("error : PCKS")
 				}
 			})
@@ -410,7 +359,7 @@ func Test_DBFVScheme(t *testing.T) {
 				bfvContext.ContextQ().PolyToBigint(plaintextWant.Value()[0], coeffs_plaintext_bigint_fresh)
 
 				// We encrypt the plaintext
-				ciphertext, err := encryptor_pk0.EncryptFromPkNew(plaintextWant)
+				ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
 
 				// ===== Boot instance =====
 				crp := crpGenerators[0].Clock()
@@ -436,7 +385,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 				bfvContext.ContextQ().SetCoefficientsBigint(coeffs_bigint, ciphertext.Value()[0])
 
-				plaintextHave, _ := decryptor_sk0.DecryptNew(ciphertext)
+				plaintextHave := decryptor_sk0.DecryptNew(ciphertext)
 				coeffs_plaintext_bigint_error := make([]*ring.Int, bfvContext.N())
 				bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_error)
 
@@ -454,7 +403,7 @@ func Test_DBFVScheme(t *testing.T) {
 				Refresh(ciphertext, sk0.Get(), refreshShares, bfvContext, crp, encoder)
 
 				// We decrypt and compare with the original plaintext
-				plaintextHave, _ = decryptor_sk0.DecryptNew(ciphertext)
+				plaintextHave = decryptor_sk0.DecryptNew(ciphertext)
 				coeffs_plaintext_bigint_booted := make([]*ring.Int, bfvContext.N())
 				bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_booted)
 
@@ -467,7 +416,7 @@ func Test_DBFVScheme(t *testing.T) {
 				average_residual_error.Value.Abs(&average_residual_error.Value)
 				average_residual_error.Div(average_residual_error, ring.NewUint(bfvContext.N()))
 
-				coeffsTest, err := encoder.DecodeUint(plaintextHave)
+				coeffsTest := encoder.DecodeUint(plaintextHave)
 				if err != nil {
 					log.Fatal(err)
 				}

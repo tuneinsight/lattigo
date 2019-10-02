@@ -13,11 +13,23 @@ type Encryptor struct {
 	polypool    *ring.Poly
 }
 
+// NewEncryptorFromPk creates a new Encryptor with the provided public-key.
+// This encryptor can be used to encrypt plaintexts, using the stored key.
+func (ckkscontext *CkksContext) NewEncryptorFromPk(pk *PublicKey) (*Encryptor, error) {
+	return ckkscontext.newEncryptor(pk, nil)
+}
+
+// NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
+// This encryptor can be used to encrypt plaintexts, using the stored key.
+func (ckkscontext *CkksContext) NewEncryptorFromSk(sk *SecretKey) (*Encryptor, error) {
+	return ckkscontext.newEncryptor(nil, sk)
+}
+
 // NewEncryptor creates a new Encryptor with the input public-key and/or secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored keys.
-func (ckkscontext *CkksContext) NewEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
+func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
 
-	if uint64(pk.pk[0].GetDegree()+pk.pk[1].GetDegree())>>1 != ckkscontext.n {
+	if pk != nil && (uint64(pk.pk[0].GetDegree()) != ckkscontext.n || uint64(pk.pk[1].GetDegree()) != ckkscontext.n) {
 		return nil, errors.New("error : pk ring degree doesn't match ckkscontext ring degree")
 	}
 
@@ -30,99 +42,43 @@ func (ckkscontext *CkksContext) NewEncryptor(pk *PublicKey, sk *SecretKey) (encr
 	encryptor.pk = pk
 	encryptor.sk = sk
 	encryptor.polypool = ckkscontext.contextLevel[ckkscontext.levels-1].NewPoly()
+
 	return encryptor, nil
 }
 
 // EncryptFromPkNew encrypts the input plaintext using the stored public-key and returns
-// the result on a newly created ciphertext.
+// the result on a newly created ciphertext. It will encrypt the plaintext with the stored key, which can be
+// private or public, a private-key encryption puts initial noise.
 //
-// ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
-func (encryptor *Encryptor) EncryptFromPkNew(plaintext *Plaintext) (ciphertext *Ciphertext, err error) {
-
-	if encryptor.pk == nil {
-		return nil, errors.New("cannot encrypt -> public-key hasn't been set")
-	}
-
-	if uint64(plaintext.value[0].GetDegree()) != encryptor.ckkscontext.n {
-		return nil, errors.New("cannot encrypt -> plaintext ring degree doesn't match encryptor ckkscontext ring degree")
-	}
+// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+// encrypt with sk : ciphertext = [-a*sk + m + e, a]
+func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext, err error) {
 
 	ciphertext = encryptor.ckkscontext.NewCiphertext(1, plaintext.Level(), plaintext.Scale())
 
-	encryptfrompk(encryptor, plaintext, ciphertext)
-
-	return ciphertext, nil
+	return ciphertext, encryptor.Encrypt(plaintext, ciphertext)
 }
 
 // EncryptFromPk encrypts the input plaintext using the stored public-key, and returns the result
-// on the reciver ciphertext.
+// on the reciver ciphertext. It will encrypt the plaintext with the stored key, which can be
+// private or public, a private-key encryption puts initial noise.
 //
-// ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
-func (encryptor *Encryptor) EncryptFromPk(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
+// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+// encrypt with sk : ciphertext = [-a*sk + m + e, a]
+func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
 
-	if encryptor.pk == nil {
-		return errors.New("cannot encrypt -> public-key hasn't been set")
+	if encryptor.sk != nil {
+
+		encryptfromsk(encryptor, plaintext, ciphertext)
+
+	} else if encryptor.pk != nil {
+
+		encryptfrompk(encryptor, plaintext, ciphertext)
+
+	} else {
+
+		return errors.New("cannot encrypt -> public-key and/or secret-key has not been set")
 	}
-
-	if uint64(plaintext.value[0].GetDegree()) != encryptor.ckkscontext.n {
-		return errors.New("cannot encrypt -> plaintext ring degree doesn't match encryptor ckkscontext ring degree")
-	}
-
-	if ciphertext.Degree() != 1 {
-		return errors.New("cannot encrypt -> invalide receiver -> ciphertext degree > 1")
-	}
-
-	plaintext.CopyParams(ciphertext)
-
-	encryptfrompk(encryptor, plaintext, ciphertext)
-
-	return nil
-}
-
-// EncryptFromSkNew encrypts the input plaintext using the stored secret-key and returns
-// the result on a newly created ciphertext. Encrypting with the secret-key introduces less noise than encrypting
-// with the public-key.
-//
-// ciphertext = [-a*sk + m + e, a]
-func (encryptor *Encryptor) EncryptFromSkNew(plaintext *Plaintext) (ciphertext *Ciphertext, err error) {
-
-	if encryptor.sk == nil {
-		return nil, errors.New("cannot encrypt -> secret-key hasn't been set")
-	}
-
-	if uint64(plaintext.value[0].GetDegree()) != encryptor.ckkscontext.n {
-		return nil, errors.New("cannot encrypt -> plaintext ring degree doesn't match encryptor ckkscontext ring degree")
-	}
-
-	ciphertext = encryptor.ckkscontext.NewCiphertext(1, plaintext.Level(), plaintext.Scale())
-
-	encryptfromsk(encryptor, plaintext, ciphertext)
-
-	return ciphertext, nil
-}
-
-// EncryptFromSk encrypts the input plaintext using the stored secret-key, and returns the result
-// on the reciever ciphertext. Encrypting with the secret-key introduces less noise than encrypting
-// with the public-key.
-//
-// ciphertext = [-a*sk + m + e, a]
-func (encryptor *Encryptor) EncryptFromSk(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
-
-	if encryptor.sk == nil {
-		return errors.New("cannot encrypt -> secret-key hasn't been set")
-	}
-
-	if uint64(plaintext.value[0].GetDegree()) != encryptor.ckkscontext.n {
-		return errors.New("cannot encrypt -> plaintext ring degree doesn't match encryptor ckkscontext ring degree")
-	}
-
-	if ciphertext.Degree() != 1 {
-		return errors.New("cannot encrypt -> invalide receiver -> ciphertext degree > 1")
-	}
-
-	plaintext.CopyParams(ciphertext)
-
-	encryptfromsk(encryptor, plaintext, ciphertext)
 
 	return nil
 }
@@ -142,7 +98,7 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool)
 	context.Add(ciphertext.value[1], encryptor.polypool, ciphertext.value[1])
 
-	context.Add(ciphertext.value[0], plaintext.value[0], ciphertext.value[0])
+	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
 	encryptor.polypool.Zero()
 
@@ -160,6 +116,6 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	context.MulCoeffsMontgomeryAndSub(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
 
 	// ct = [-s*a + m + e, a]
-	context.Add(ciphertext.value[0], plaintext.value[0], ciphertext.value[0])
+	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
 }

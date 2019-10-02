@@ -152,7 +152,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		}
 
 		SkTest := bfvTest.kgen.NewSecretKeyEmpty()
-		SkTest.UnMarshalBinary(SkBytes, bfvTest.bfvcontext)
+		SkTest.UnmarshalBinary(SkBytes, bfvTest.bfvcontext)
 
 		if bfvContext.contextQ.Equal(Sk.sk, SkTest.sk) != true {
 			t.Errorf("error : binarymarshal secretkey")
@@ -169,7 +169,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		}
 
 		PkTest := bfvTest.bfvcontext.NewPublicKey()
-		PkTest.UnMarshalBinary(PkBytes)
+		PkTest.UnmarshalBinary(PkBytes)
 
 		for i := range Pk.pk {
 			if bfvContext.contextQ.Equal(Pk.pk[i], PkTest.pk[i]) != true {
@@ -190,7 +190,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		}
 
 		CtxTest := bfvContext.NewCiphertext(4)
-		if err = CtxTest.UnMarshalBinary(CtxBytes); err != nil {
+		if err = CtxTest.UnmarshalBinary(CtxBytes); err != nil {
 			log.Fatal(err)
 		}
 
@@ -218,7 +218,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		}
 
 		rlkTest := bfvContext.NewRelinKey(5, 15)
-		rlkTest.UnMarshalBinary(rlkBytes)
+		rlkTest.UnmarshalBinary(rlkBytes)
 
 		state = true
 
@@ -264,7 +264,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		rotKeyBytes, err := rotKey.MarshalBinary()
 
 		rotKeyTest := bfvTest.kgen.NewRotationKeysEmpty()
-		rotKeyTest.UnMarshalBinary(rotKeyBytes)
+		rotKeyTest.UnmarshalBinary(rotKeyBytes)
 
 		state = true
 

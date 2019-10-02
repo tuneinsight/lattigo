@@ -37,9 +37,9 @@ func (sk *SecretKey) MarshalBinary(bfvcontext *BfvContext) ([]byte, error) {
 	return data, nil
 }
 
-// UnMarshalBinary decode a previously marshaled secret-key on the target secret-key.
+// UnmarshalBinary decode a previously marshaled secret-key on the target secret-key.
 // The target secret-key must be of the appropriate format, it can be created with the methode NewSecretKeyEmpty().
-func (sk *SecretKey) UnMarshalBinary(data []byte, bfvcontext *BfvContext) error {
+func (sk *SecretKey) UnmarshalBinary(data []byte, bfvcontext *BfvContext) error {
 
 	var N, coeff uint64
 
@@ -101,7 +101,7 @@ func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 // UnMarshalBinary decodes a previously marshaled public-key on the target public-key.
 // The target public-key must have the appropriate format and size, it can be created with
 // the methode NewPublicKeyEmpty().
-func (pk *PublicKey) UnMarshalBinary(data []byte) error {
+func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
 	numberModuli := uint64(data[1])
@@ -189,7 +189,7 @@ func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 
 // UnMarshalBinary decodes a previously marshaled evaluation-key on the target evaluation-key. The target evaluation-key
 // must have the appropriate format and size, it can be created with the methode NewRelinKeyEmpty(uint64, uint64).
-func (evaluationkey *EvaluationKey) UnMarshalBinary(data []byte) error {
+func (evaluationkey *EvaluationKey) UnmarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
 	numberModuli := uint64(data[1])
@@ -288,7 +288,7 @@ func (switchkey *SwitchingKey) MarshalBinary() ([]byte, error) {
 
 // UnMarshalBinary decode a previously marshaled switching-key on the target switching-key.
 // The target switching-key must have the appropriate format and size, it can be created with the methode NewSwitchingKeyEmpty(uint64).
-func (switchkey *SwitchingKey) UnMarshalBinary(data []byte) error {
+func (switchkey *SwitchingKey) UnmarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
 	level := uint64(data[1])
@@ -474,7 +474,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 // the other structures, the unmarshaling for rotationkeys only need an empty receiver, as it is not possible to
 // create receiver of the correct format and size without knowing all the content of the marshaled rotationkeys. The memory
 // will be allocated on the fly.
-func (rotationkey *RotationKeys) UnMarshalBinary(data []byte) error {
+func (rotationkey *RotationKeys) UnmarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
 	numberModuli := uint64(data[1])

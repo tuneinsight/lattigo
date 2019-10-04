@@ -22,7 +22,8 @@ func randomComplex(min, max float64) complex128 {
 
 func chebyshevinterpolation() {
 
-	// This example will pack random 8192 float64 values in the range [-8, 8] and approximate the function 1/(exp(-x) + 1) over the range [-8, 8].
+	// This example will pack random 8192 float64 values in the range [-8, 8] and approximate
+	// the function 1/(exp(-x) + 1) over the range [-8, 8].
 	// The result is then parsed and compared to the expected result.
 
 	rand.Seed(time.Now().UnixNano())
@@ -76,10 +77,12 @@ func chebyshevinterpolation() {
 		values[i] = complex(randomFloat(-8, 8), 0)
 	}
 
-	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d, logScale = %d, sigma = %f \n", ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale(), ckkscontext.Sigma())
+	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d, logScale = %d, sigma = %f \n",
+		ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale(), ckkscontext.Sigma())
 
 	fmt.Println()
-	fmt.Printf("Values     : %6f %6f %6f %6f...\n", round(values[0]), round(values[1]), round(values[2]), round(values[3]))
+	fmt.Printf("Values     : %6f %6f %6f %6f...\n",
+		round(values[0]), round(values[1]), round(values[2]), round(values[3]))
 	fmt.Println()
 
 	// Plaintext creation and encoding process
@@ -97,9 +100,11 @@ func chebyshevinterpolation() {
 	fmt.Println("Evaluation of the function 1/(exp(-x)+1) in the range [-8, 8] (degree of approximation : 32)")
 
 	// Evaluation process
-	chebyapproximation := ckks.Approximate(f, -8, 8, 33) // We ask to approximate f(x) in the range [-8, 8] with a chebyshev polynomial of 33 coefficients (degree 32).
+	chebyapproximation := ckks.Approximate(f, -8, 8, 33) // We ask to approximate f(x) in
+	// the range [-8, 8] with a chebyshev polynomial of 33 coefficients (degree 32).
 
-	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk); err != nil { // We evaluate the interpolated chebyshev polynomial on the ciphertext
+	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk); err != nil {
+		// We evaluate the interpolated chebyshev polynomial on the ciphertext
 		log.Fatal(err)
 	}
 
@@ -115,8 +120,10 @@ func chebyshevinterpolation() {
 
 	// Printing results and comparison
 	fmt.Println()
-	fmt.Printf("ValuesTest : %6f %6f %6f %6f...\n", round(valuesTest[0]), round(valuesTest[1]), round(valuesTest[2]), round(valuesTest[3]))
-	fmt.Printf("ValuesWant : %6f %6f %6f %6f...\n", round(values[0]), round(values[1]), round(values[2]), round(values[3]))
+	fmt.Printf("ValuesTest : %6f %6f %6f %6f...\n",
+		round(valuesTest[0]), round(valuesTest[1]), round(valuesTest[2]), round(valuesTest[3]))
+	fmt.Printf("ValuesWant : %6f %6f %6f %6f...\n",
+		round(values[0]), round(values[1]), round(values[2]), round(values[3]))
 	verify_vector(values, valuesTest)
 
 }
@@ -185,10 +192,14 @@ func verify_vector(valuesWant, valuesTest []complex128) (err error) {
 	medianprec = calcmedian(diff)
 
 	fmt.Println()
-	fmt.Printf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
-	fmt.Printf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
-	fmt.Printf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
-	fmt.Printf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
+	fmt.Printf("Minimum precision : (%.2f, %.2f) bits \n",
+		math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
+	fmt.Printf("Maximum precision : (%.2f, %.2f) bits \n",
+		math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
+	fmt.Printf("Mean    precision : (%.2f, %.2f) bits \n",
+		math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
+	fmt.Printf("Median  precision : (%.2f, %.2f) bits \n",
+		math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
 	fmt.Println()
 
 	return nil

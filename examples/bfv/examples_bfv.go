@@ -19,26 +19,30 @@ var bfvContext *bfv.BfvContext
 
 func ObliviousRiding() {
 
-	// This example will simulate a situation where an anonymous rider wants to find the closest available rider within a given area.
+	// This example will simulate a situation where an anonymous rider wants to find the closest available rider within
+	// a given area.
 	// The application is inspired by the paper https://oride.epfl.ch/
 	//
-	// 		A. Pham, I. Dacosta, G. Endignoux, J. Troncoso-Pastoriza, K. Huguenin, and J.-P. Hubaux. ORide: A Privacy-Preserving yet Accountable Ride-Hailing Service.
+	// 		A. Pham, I. Dacosta, G. Endignoux, J. Troncoso-Pastoriza, K. Huguenin, and J.-P. Hubaux.
+	// 		ORide: A Privacy-Preserving yet Accountable Ride-Hailing Service.
 	//		In Proceedings of the 26th USENIX Security Symposium, Vancouver, BC, Canada, August 2017.
 	//
-	// Each area is represented as a rectangular grid where each driver reports his coordinates in real time to a server assigned to the area.
+	// Each area is represented as a rectangular grid where each driver reports his coordinates in real time to a server
+	// assigned to the area.
 	//
-	// First, the rider generates an ephemeral key pair (sk, pk), which he uses to encrypt his coordinates. He then sends the tuple (pk, enc(coordinates)) to the
-	// server handling the area he is in.
+	// First, the rider generates an ephemeral key pair (sk, pk), which he uses to encrypt his coordinates.
+	// He then sends the tuple (pk, enc(coordinates)) to the server handling the area he is in.
 	//
-	// Once the public key and the encrypted rider coordinates of the rider have been received by the server, the rider's public key is
-	// transferred to all the drivers within the area, with a randomized different index for each of them, that indicates in which coefficient each driver must
-	// encode his coordinates.
+	// Once the public key and the encrypted rider coordinates of the rider have been received by the server,
+	// the rider's public key is transferred to all the drivers within the area, with a randomized different index for
+	// each of them, that indicates in which coefficient each driver must encode his coordinates.
 	//
-	// Each driver encodes his coordinates in the designated coefficient and uses the received public key to encrypt his encoded coordinates.
-	// He then sends back the encrypted coordinates to the server.
+	// Each driver encodes his coordinates in the designated coefficient and uses the received public key to encrypt his
+	// encoded coordinates. He then sends back the encrypted coordinates to the server.
 	//
-	// Once the encrypted coordinates of the drivers have been received, the server homomorphically computes the squared distance: (x0 - x1)^2 + (y0 - y1)^2 between
-	// the rider and each of the drivers, and sends back the encrypted result to the rider.
+	// Once the encrypted coordinates of the drivers have been received, the server homomorphically computes the
+	// squared distance: (x0 - x1)^2 + (y0 - y1)^2 between the rider and each of the drivers,
+	// and sends back the encrypted result to the rider.
 	//
 	// The rider decrypts the result and chooses the closest driver.
 
@@ -87,13 +91,15 @@ func ObliviousRiding() {
 	fmt.Println("Homomorphic computations on batched integers")
 	fmt.Println("============================================")
 	fmt.Println()
-	fmt.Printf("Parameters : N=%d, T=%d, logQ = %d (%d limbs), sigma = %f \n", bfvContext.N(), bfvContext.T(), bfvContext.LogQ(), len(params.Qi), bfvContext.Sigma())
+	fmt.Printf("Parameters : N=%d, T=%d, logQ = %d (%d limbs), sigma = %f \n",
+		bfvContext.N(), bfvContext.T(), bfvContext.LogQ(), len(params.Qi), bfvContext.Sigma())
 	fmt.Println()
 
 	maxvalue := uint64(math.Sqrt(float64(params.T))) // max values = floor(sqrt(plaintext modulus))
 	mask := uint64(1<<uint64(bits.Len64(maxvalue))) - 1
 
-	fmt.Printf("Generating %d Drivers and 1 Rider randomly positioned on a grid of %d x %d units \n", NbDrivers, maxvalue, maxvalue)
+	fmt.Printf("Generating %d Drivers and 1 Rider randomly positioned on a grid of %d x %d units \n",
+		NbDrivers, maxvalue, maxvalue)
 	fmt.Println()
 
 	Drivers := make([][]uint64, params.N>>1)
@@ -123,7 +129,8 @@ func ObliviousRiding() {
 		batchEncoder.EncodeUint(Drivers[i], DriversPlaintexts[i])
 	}
 
-	fmt.Printf("Encrypting %d Drivers (x, y) and 1 Rider (%d, %d) \n", NbDrivers, riderposition[0], riderposition[1])
+	fmt.Printf("Encrypting %d Drivers (x, y) and 1 Rider (%d, %d) \n",
+		NbDrivers, riderposition[0], riderposition[1])
 	fmt.Println()
 
 	RiderCiphertext, err := EncryptorSk.EncryptNew(RiderPlaintext)
@@ -177,7 +184,8 @@ func ObliviousRiding() {
 		}
 
 		if i < 4 || i > NbDrivers-5 {
-			fmt.Printf("Distance with Driver %d : %8d = (%4d - %4d)^2 + (%4d - %4d)^2: %t \n", i, r1, Drivers[i][i<<1], Rider[0], Drivers[i][(i<<1)+1], Rider[1], r1 == r1exp)
+			fmt.Printf("Distance with Driver %d : %8d = (%4d - %4d)^2 + (%4d - %4d)^2: %t \n",
+				i, r1, Drivers[i][i<<1], Rider[0], Drivers[i][(i<<1)+1], Rider[1], r1 == r1exp)
 		}
 
 		if i == NbDrivers>>1 {
@@ -191,7 +199,8 @@ func ObliviousRiding() {
 
 	fmt.Println()
 
-	fmt.Printf("Closest Driver to Rider is n°%d (%d, %d) with a distance of %d units \n", closest[0], closest[1], closest[2], uint64(math.Sqrt(float64(closest[3]))))
+	fmt.Printf("Closest Driver to Rider is n°%d (%d, %d) with a distance of %d units \n",
+		closest[0], closest[1], closest[2], uint64(math.Sqrt(float64(closest[3]))))
 }
 
 func Distance(a, b, c, d uint64) uint64 {

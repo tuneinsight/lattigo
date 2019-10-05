@@ -46,6 +46,11 @@ type SwitchingKey struct {
 	evakey    [][][2]*ring.Poly
 }
 
+// Get returns the switching key backing slice
+func (swk *SwitchingKey) Get() [][][2]*ring.Poly {
+	return swk.evakey
+}
+
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
 func (bfvcontext *BfvContext) NewKeyGenerator() (keygen *KeyGenerator) {
@@ -118,7 +123,7 @@ func (sk *SecretKey) MarshalBinary() ([]byte, error) {
 
 // UnMarshalBinary decode a previously marshaled secret-key on the target secret-key.
 // The target secret-key must be of the appropriate format, it can be created with the methode NewSecretKeyEmpty().
-func (sk *SecretKey) UnMarshalBinary(data []byte) error {
+func (sk *SecretKey) UnmarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
 	numberModuli := uint64(data[1])
@@ -150,12 +155,10 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 	return pk
 }
 
-func (keygen *KeyGenerator) NewPublicKeyEmpty() (pk *PublicKey) {
+func (bfvContext *BfvContext) NewPublicKey() (pk *PublicKey) {
 	pk = new(PublicKey)
-
-	pk.pk[0] = keygen.context.NewPoly()
-	pk.pk[1] = keygen.context.NewPoly()
-
+	pk.pk[0] = bfvContext.contextQ.NewPoly()
+	pk.pk[1] = bfvContext.contextQ.NewPoly()
 	return
 }
 
@@ -203,7 +206,7 @@ func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 // UnMarshalBinary decodes a previously marshaled public-key on the target public-key.
 // The target public-key must have the appropriate format and size, it can be created with
 // the methode NewPublicKeyEmpty().
-func (pk *PublicKey) UnMarshalBinary(data []byte) error {
+func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
 	numberModuli := uint64(data[1])
@@ -243,14 +246,14 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree, bitDecomp uint
 	return
 }
 
-func (keygen *KeyGenerator) NewRelinKeyEmpty(maxDegree, bitDecomp uint64) (evakey *EvaluationKey) {
+func (bfvcontext *BfvContext) NewRelinKey(maxDegree, bitDecomp uint64) (evakey *EvaluationKey) {
 	evakey = new(EvaluationKey)
 
-	if bitDecomp > keygen.bfvcontext.maxBit || bitDecomp == 0 {
-		bitDecomp = keygen.bfvcontext.maxBit
+	if bitDecomp > bfvcontext.maxBit || bitDecomp == 0 {
+		bitDecomp = bfvcontext.maxBit
 	}
 
-	context := keygen.bfvcontext.contextQ
+	context := bfvcontext.contextQ
 
 	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
 	var bitLog uint64
@@ -545,7 +548,7 @@ func (evaluationkey *EvaluationKey) MarshalBinary() ([]byte, error) {
 
 // UnMarshalBinary decodes a previously marshaled evaluation-key on the target evaluation-key. The target evaluation-key
 // must have the appropriate format and size, it can be created with the methode NewRelinKeyEmpty(uint64, uint64).
-func (evaluationkey *EvaluationKey) UnMarshalBinary(data []byte) error {
+func (evaluationkey *EvaluationKey) UnmarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
 	numberModuli := uint64(data[1])
@@ -644,7 +647,7 @@ func (switchkey *SwitchingKey) MarshalBinary() ([]byte, error) {
 
 // UnMarshalBinary decode a previously marshaled switching-key on the target switching-key.
 // The target switching-key must have the appropriate format and size, it can be created with the methode NewSwitchingKeyEmpty(uint64).
-func (switchkey *SwitchingKey) UnMarshalBinary(data []byte) error {
+func (switchkey *SwitchingKey) UnmarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
 	level := uint64(data[1])
@@ -830,7 +833,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 // the other structures, the unmarshaling for rotationkeys only need an empty receiver, as it is not possible to
 // create receiver of the correct format and size without knowing all the content of the marshaled rotationkeys. The memory
 // will be allocated on the fly.
-func (rotationkey *RotationKeys) UnMarshalBinary(data []byte) error {
+func (rotationkey *RotationKeys) UnmarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
 	numberModuli := uint64(data[1])

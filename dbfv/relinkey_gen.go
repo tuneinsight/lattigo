@@ -185,7 +185,7 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round2 RKGShareRoundTwo, round3 RK
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
 			ekg.ringContext.Add(round2[i][w][0], round3[i][w], key[i][w][0])
-			_ = round2[i][w][1].Copy(key[i][w][1])
+			key[i][w][1].Copy(round2[i][w][1])
 
 			ekg.ringContext.MForm(key[i][w][0], key[i][w][0])
 			ekg.ringContext.MForm(key[i][w][1], key[i][w][1])

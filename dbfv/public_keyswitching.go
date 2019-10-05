@@ -85,5 +85,5 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
 func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *bfv.Ciphertext) {
 
 	pcks.ringContext.Add(ct.Value()[0], combined[0], ctOut.Value()[0])
-	_ = combined[1].Copy(ctOut.Value()[1])
+	ctOut.Value()[1].Copy(combined[1])
 }

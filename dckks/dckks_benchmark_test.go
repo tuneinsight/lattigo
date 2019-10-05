@@ -2,12 +2,10 @@ package dckks
 
 import (
 	"fmt"
-	"log"
-	"math"
-	"testing"
-
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"math"
+	"testing"
 )
 
 type benchParams struct {
@@ -40,33 +38,17 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 		benchcontext := new(benchContext)
 
 		if benchcontext.ckkscontext, err = ckks.NewCkksContext(param.params); err != nil {
-			log.Fatal(err)
+			b.Error(err)
 		}
-
-		log.Printf("Benchmarks for parties=%d/logN=%d/logQ=%d/levels=%d/sigma=%.2f/sigmaSmudging=%.2f/bdc=%d",
-			param.parties,
-			benchcontext.ckkscontext.LogN(),
-			benchcontext.ckkscontext.LogQ(),
-			benchcontext.ckkscontext.Levels(),
-			benchcontext.ckkscontext.Sigma(),
-			param.sigmaSmudging,
-			param.bdc)
 
 		kgen := benchcontext.ckkscontext.NewKeyGenerator()
 
-		benchcontext.sk0, benchcontext.pk0, err = kgen.NewKeyPair(1.0 / 3)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		benchcontext.sk1, benchcontext.pk1, err = kgen.NewKeyPair(1.0 / 3)
-		if err != nil {
-			log.Fatal(err)
-		}
+		benchcontext.sk0, benchcontext.pk0 = kgen.NewKeyPair()
+		benchcontext.sk1, benchcontext.pk1 = kgen.NewKeyPair()
 
 		benchcontext.cprng, err = NewCRPGenerator(nil, benchcontext.ckkscontext.ContextKeys())
 		if err != nil {
-			log.Fatal(err)
+			b.Error(err)
 		}
 
 		benchcontext.cprng.Seed([]byte{})
@@ -211,7 +193,7 @@ func bench_CKS(params benchParams, context *benchContext, b *testing.B) {
 
 	cksInstance := NewCKS(context.sk0.Get(), context.sk1.Get(), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
 
-	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels(), context.ckkscontext.Scale())
+	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels()-1, context.ckkscontext.Scale())
 
 	hi := make([]*ring.Poly, params.parties)
 	for i := uint64(0); i < params.parties; i++ {

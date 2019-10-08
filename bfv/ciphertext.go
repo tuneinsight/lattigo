@@ -90,10 +90,28 @@ func (ciphertext *Ciphertext) MarshalBinary() ([]byte, error) {
 // The target ciphertext must be of the appropriate format and size, it can be created with the
 // methode NewCiphertext(uint64).
 func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) error {
-
 	N := uint64(1 << data[0])
 	level := uint64(data[1])
 	degree := uint64(data[2])
+
+
+	ciphertext.bfvElement = &bfvElement{
+		value: make([]*ring.Poly, degree+1),
+		isNTT: false,
+	}
+
+	for i := uint64(0); i < degree+1; i++ {
+		coeffs := make([][]uint64,level)
+
+		for j := uint64(0);j < level; j++{
+			coeffs[j]	= make([]uint64,N)
+		}
+		ciphertext.value[i] = &ring.Poly{coeffs}
+
+	}
+
+	//ciphertext.isNTT = false
+
 
 	pointer := uint64(3)
 

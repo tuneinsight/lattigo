@@ -52,8 +52,8 @@ func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 	cks.ringContext.NTT(ct.Value()[1], cks.tmpNtt)
 	cks.ringContext.MulCoeffsMontgomery(cks.tmpNtt, skDelta, cks.tmpNtt)
 	cks.ringContext.InvNTT(cks.tmpNtt, cks.tmpNtt)
-
 	cks.ringContext.Add(cks.tmpNtt, shareOut, shareOut)
+
 }
 
 // AggregateShares is the second part of the unique round of the CKSProtocol protocol. Uppon receiving the j-1 elements each party computes :

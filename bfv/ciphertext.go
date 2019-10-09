@@ -94,12 +94,12 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) error {
 	level := uint64(data[1])
 	degree := uint64(data[2])
 
-
+	//Do this to allocate the memory for the underlying bfvElement.
 	ciphertext.bfvElement = &bfvElement{
 		value: make([]*ring.Poly, degree+1),
 		isNTT: false,
 	}
-
+	//allocate memory for the coeffs.
 	for i := uint64(0); i < degree+1; i++ {
 		coeffs := make([][]uint64,level)
 
@@ -110,7 +110,6 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) error {
 
 	}
 
-	//ciphertext.isNTT = false
 
 
 	pointer := uint64(3)

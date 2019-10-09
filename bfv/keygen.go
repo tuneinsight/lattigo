@@ -216,7 +216,15 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 	if ((uint64(len(data)) - pointer) >> 4) != (N * numberModuli) {
 		return errors.New("error : invalid publickey encoding")
 	}
-
+	//pk.pk = &make([]ring.Poly,2)
+	pk.pk[0].Coeffs = make([][]uint64, numberModuli)
+	pk.pk[1].Coeffs = make([][]uint64, numberModuli)
+	var i uint64 = 0
+	for i < numberModuli{
+		pk.pk[0].Coeffs[i] = make([]uint64,N)
+		pk.pk[1].Coeffs[i] = make([]uint64,N)
+		i++
+	}
 	pointer, _ = ring.DecodeCoeffs(pointer, N, numberModuli, pk.pk[0].Coeffs, data)
 	pointer, _ = ring.DecodeCoeffs(pointer, N, numberModuli, pk.pk[1].Coeffs, data)
 

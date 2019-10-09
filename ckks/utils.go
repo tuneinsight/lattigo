@@ -20,42 +20,42 @@ func scaleUp(x float64, n, q uint64) uint64 {
 		a = 53
 	}
 
-	var is_negative bool
+	var isNegative bool
 
 	if x < 0 {
-		is_negative = true
+		isNegative = true
 		x *= -1
 	}
 
-	x_int := uint64(x)
-	x_flo := x - float64(x_int)
-	x_int %= q
+	xInt := uint64(x)
+	xFlo := x - float64(xInt)
+	xInt %= q
 
 	for i := uint64(0); i < a; i++ { // stops at 53 to avoid an overflow of the float
-		x_int <<= 1
-		x_flo *= 2
-		if x_int >= q {
-			x_int -= q
+		xInt <<= 1
+		xFlo *= 2
+		if xInt >= q {
+			xInt -= q
 		}
 	}
 
-	x_int += uint64(math.Round(x_flo))
-	x_int %= q
+	xInt += uint64(math.Round(xFlo))
+	xInt %= q
 
 	if n > 53 { // continues with int and and float merged without a risk of overflow
 		for i := a; i < n; i++ {
-			x_int <<= 1
-			if x_int >= q {
-				x_int -= q
+			xInt <<= 1
+			if xInt >= q {
+				xInt -= q
 			}
 		}
 	}
 
-	if is_negative {
-		return q - x_int
-	} else {
-		return x_int
+	if isNegative {
+		return q - xInt
 	}
+
+	return xInt
 }
 
 // Divides x by n^2, returns a float
@@ -73,7 +73,7 @@ func scaleDown(coeff *ring.Int, n uint64) (x float64) {
 	return
 }
 
-// Generates CKKS Primes given logQ = size of the primes, logN = size of N and level, the number
+// GenerateCKKSPrimes generates CKKS Primes given logQ = size of the primes, logN = size of N and level, the number
 // of levels we require. Will return all the appropriate primes, up to the number of level, with the
 // best avaliable precision for the given level.
 func GenerateCKKSPrimes(logQ, logN, levels uint64) ([]uint64, error) {

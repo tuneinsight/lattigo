@@ -18,7 +18,7 @@ func NewInt(v int64) *Int {
 	return i
 }
 
-// NewInt creates a new Int with a given uint64 value.
+// NewUint creates a new Int with a given uint64 value.
 func NewUint(v uint64) *Int {
 	i := new(Int)
 	i.Value.SetUint64(v)
@@ -64,7 +64,7 @@ func (i *Int) SetInt(v int64) {
 	i.Value.SetInt64(v)
 }
 
-// SetInt sets Int i with value v
+// SetUint sets Int i with value v
 func (i *Int) SetUint(v uint64) {
 	i.Value.SetUint64(v)
 }
@@ -175,15 +175,13 @@ func (i *Int) And(a, b *Int) *Int {
 
 // EqualTo judges if i and i2 have the same value.
 func (i *Int) EqualTo(i2 *Int) bool {
-	r := i.Value.Cmp(&i2.Value)
-	if r == 0 {
+	if i.Value.Cmp(&i2.Value) == 0 {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
-// Cmp compares i and i2 and returns:
+// Compare compares i and i2 and returns:
 //
 //   -1 if i <  i2
 //    0 if i == i2

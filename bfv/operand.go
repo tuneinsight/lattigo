@@ -5,6 +5,8 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
+// Operand is an interface allowing operation between
+// Ciphertext and Plaintext types.
 type Operand interface {
 	Element() *bfvElement
 	Degree() uint64
@@ -17,8 +19,8 @@ type bfvElement struct {
 	isNTT bool
 }
 
-// NewCiphertext creates a new empty ciphertext of degree degree.
-func (bfvcontext *BfvContext) NewBfvElement(degree uint64) *bfvElement {
+// NewBfvElement creates a new empty ciphertext of degree degree.
+func (bfvcontext *Context) newBfvElement(degree uint64) *bfvElement {
 	el := &bfvElement{}
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -47,7 +49,7 @@ func (el *bfvElement) Degree() uint64 {
 // Resize resizes the target ciphertext degree to the degree given as input. If the input degree is bigger then
 // it will append new empty polynomials, if the degree is smaller, it will delete polynomials until the degree matches
 // the input degree.
-func (el *bfvElement) Resize(bfvcontext *BfvContext, degree uint64) {
+func (el *bfvElement) Resize(bfvcontext *Context, degree uint64) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree]
 	} else if el.Degree() < degree {
@@ -95,7 +97,7 @@ func (el *bfvElement) Copy(ctxCopy *bfvElement) error {
 }
 
 // NTT puts the target ciphertext in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
-func (el *bfvElement) NTT(bfvcontext *BfvContext, c *bfvElement) error {
+func (el *bfvElement) NTT(bfvcontext *Context, c *bfvElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}
@@ -109,7 +111,7 @@ func (el *bfvElement) NTT(bfvcontext *BfvContext, c *bfvElement) error {
 }
 
 // InvNTT puts the target ciphertext outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
-func (el *bfvElement) InvNTT(bfvcontext *BfvContext, c *bfvElement) error {
+func (el *bfvElement) InvNTT(bfvcontext *Context, c *bfvElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}

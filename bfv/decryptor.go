@@ -7,13 +7,13 @@ import (
 
 // Decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type Decryptor struct {
-	bfvcontext *BfvContext
+	bfvcontext *Context
 	sk         *SecretKey
 	polypool   *ring.Poly
 }
 
 // NewDecryptor creates a new Decryptor from the target bfvcontext with the secret-key given as input.
-func (bfvcontext *BfvContext) NewDecryptor(sk *SecretKey) (decryptor *Decryptor, err error) {
+func (bfvcontext *Context) NewDecryptor(sk *SecretKey) (decryptor *Decryptor, err error) {
 
 	if sk.sk.GetDegree() != int(bfvcontext.n) {
 		return nil, errors.New("error : secret_key degree must match context degree")

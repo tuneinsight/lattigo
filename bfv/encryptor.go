@@ -7,7 +7,7 @@ import (
 
 // Encryptor is a structure holding the parameters needed to encrypt plaintexts.
 type Encryptor struct {
-	bfvcontext *BfvContext
+	bfvcontext *Context
 	pk         *PublicKey
 	sk         *SecretKey
 	polypool   *ring.Poly
@@ -15,17 +15,17 @@ type Encryptor struct {
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (bfvcontext *BfvContext) NewEncryptorFromPk(pk *PublicKey) (*Encryptor, error) {
+func (bfvcontext *Context) NewEncryptorFromPk(pk *PublicKey) (*Encryptor, error) {
 	return bfvcontext.newEncryptor(pk, nil)
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (bfvcontext *BfvContext) NewEncryptorFromSk(sk *SecretKey) (*Encryptor, error) {
+func (bfvcontext *Context) NewEncryptorFromSk(sk *SecretKey) (*Encryptor, error) {
 	return bfvcontext.newEncryptor(nil, sk)
 }
 
-func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
+func (bfvcontext *Context) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
 
 	if pk != nil && (uint64(pk.pk[0].GetDegree()) != bfvcontext.n || uint64(pk.pk[1].GetDegree()) != bfvcontext.n) {
 		return nil, errors.New("error : pk ring degree doesn't match bfvcontext ring degree")
@@ -44,7 +44,7 @@ func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryp
 	return encryptor, nil
 }
 
-// EncryptFromPkNew encrypts the input plaintext using the stored public-key and returns
+// EncryptNew encrypts the input plaintext using the stored public-key and returns
 // the result on a newly created ciphertext. It will encrypt the plaintext with the stored key, which can be
 // private or public, a private-key encryption puts initial noise.
 //
@@ -57,7 +57,7 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Cipher
 	return ciphertext, encryptor.Encrypt(plaintext, ciphertext)
 }
 
-// EncryptFromPk encrypts the input plaintext using the stored public-key, and returns the result
+// Encrypt encrypts the input plaintext using the stored public-key, and returns the result
 // on the reciver ciphertext. It will encrypt the plaintext with the stored key, which can be
 // private or public, a private-key encryption puts initial noise.
 //

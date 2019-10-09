@@ -18,7 +18,7 @@ func randomComplex(min, max float64) complex128 {
 	return complex(randomFloat(min, max), randomFloat(min, max))
 }
 
-func Test_DCKKSScheme(t *testing.T) {
+func TestDCKKSScheme(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -33,9 +33,9 @@ func Test_DCKKSScheme(t *testing.T) {
 
 	bdc = 25
 
-	var ckkscontext *ckks.CkksContext
+	var ckkscontext *ckks.Context
 
-	if ckkscontext, err = ckks.NewCkksContext(params); err != nil {
+	if ckkscontext, err = ckks.NewContext(params); err != nil {
 		t.Error(err)
 	}
 
@@ -69,16 +69,16 @@ func Test_DCKKSScheme(t *testing.T) {
 	}
 
 	// SecretKeys
-	sk0_shards := make([]*ckks.SecretKey, parties)
-	sk1_shards := make([]*ckks.SecretKey, parties)
+	sk0Shards := make([]*ckks.SecretKey, parties)
+	sk1Shards := make([]*ckks.SecretKey, parties)
 	tmp0 := context.NewPoly()
 	tmp1 := context.NewPoly()
 
 	for i := uint64(0); i < parties; i++ {
-		sk0_shards[i] = kgen.NewSecretKey()
-		sk1_shards[i] = kgen.NewSecretKey()
-		context.Add(tmp0, sk0_shards[i].Get(), tmp0)
-		context.Add(tmp1, sk1_shards[i].Get(), tmp1)
+		sk0Shards[i] = kgen.NewSecretKey()
+		sk1Shards[i] = kgen.NewSecretKey()
+		context.Add(tmp0, sk0Shards[i].Get(), tmp0)
+		context.Add(tmp1, sk1Shards[i].Get(), tmp1)
 	}
 
 	sk0 := new(ckks.SecretKey)
@@ -88,39 +88,33 @@ func Test_DCKKSScheme(t *testing.T) {
 	sk1.Set(tmp1)
 
 	// Publickeys
-	pk0, err := kgen.NewPublicKey(sk0)
-	if err != nil {
-		t.Error(err)
-	}
+	pk0 := kgen.NewPublicKey(sk0)
 
-	pk1, err := kgen.NewPublicKey(sk1)
-	if err != nil {
-		t.Error(err)
-	}
+	pk1 := kgen.NewPublicKey(sk1)
 
 	_ = pk1
 
 	// Encryptors
-	encryptor_pk0, err := ckkscontext.NewEncryptorFromPk(pk0)
+	encryptorPk0, err := ckkscontext.NewEncryptorFromPk(pk0)
 	if err != nil {
 		t.Error(err)
 	}
 
 	// Decryptors
-	decryptor_sk0, err := ckkscontext.NewDecryptor(sk0)
+	decryptorSk0, err := ckkscontext.NewDecryptor(sk0)
 	if err != nil {
 		t.Error(err)
 	}
 
-	decryptor_sk1, err := ckkscontext.NewDecryptor(sk1)
+	decryptorSk1, err := ckkscontext.NewDecryptor(sk1)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_ = decryptor_sk1
+	_ = decryptorSk1
 
 	// Reference ciphertext
-	ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
+	ciphertext, err := encryptorPk0.EncryptNew(plaintextWant)
 	if err != nil {
 		t.Error(err)
 	}
@@ -165,17 +159,17 @@ func Test_DCKKSScheme(t *testing.T) {
 			}
 		}
 
-		crs_generator_1, _ := NewCRPGenerator(nil, context)
-		crs_generator_2, _ := NewCRPGenerator(nil, context)
+		crsGenerator1, _ := NewCRPGenerator(nil, context)
+		crsGenerator2, _ := NewCRPGenerator(nil, context)
 
-		crs_generator_1.Seed(seed1)
-		crs_generator_2.Seed(append(seed1, seed2...)) //Append works since blake2b hashes blocks of 512 bytes
+		crsGenerator1.Seed(seed1)
+		crsGenerator2.Seed(append(seed1, seed2...)) //Append works since blake2b hashes blocks of 512 bytes
 
-		crs_generator_1.SetClock(256)
-		crs_generator_2.SetClock(255)
+		crsGenerator1.SetClock(256)
+		crsGenerator2.SetClock(255)
 
-		p0 := crs_generator_1.Clock()
-		p1 := crs_generator_2.Clock()
+		p0 := crsGenerator1.Clock()
+		p1 := crsGenerator2.Clock()
 
 		if ckkscontext.ContextKeys().Equal(p0, p1) != true {
 			t.Errorf("error : crs prng generator")
@@ -207,18 +201,15 @@ func Test_DCKKSScheme(t *testing.T) {
 			}
 		}
 
-		evk := test_EKG_Protocol(parties, ekg, sk0_shards, ephemeralKeys, crp)
+		evk := testEKGProtocol(parties, ekg, sk0Shards, ephemeralKeys, crp)
 
-		rlk, err := kgen.SetRelinKeys(evk[0], bdc)
-		if err != nil {
-			t.Error(err)
-		}
+		rlk := kgen.SetRelinKeys(evk[0], bdc)
 
 		if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
 			t.Error(err)
 		}
 
-		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsMul, ciphertextTest, t)
+		verifyTestVectors(ckkscontext, encoder, decryptorSk0, coeffsMul, ciphertextTest, t)
 
 	})
 
@@ -230,18 +221,15 @@ func Test_DCKKSScheme(t *testing.T) {
 			ekgNaive[i] = NewEkgProtocolNaive(context, bdc)
 		}
 
-		evk := test_EKG_Protocol_Naive(parties, sk0_shards, pk0, ekgNaive)
+		evk := testEKGProtocolNaive(parties, sk0Shards, pk0, ekgNaive)
 
-		rlk, err := kgen.SetRelinKeys(evk[0], bdc)
-		if err != nil {
-			t.Error(err)
-		}
+		rlk := kgen.SetRelinKeys(evk[0], bdc)
 
 		if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
 			t.Error(err)
 		}
 
-		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsMul, ciphertextTest, t)
+		verifyTestVectors(ckkscontext, encoder, decryptorSk0, coeffsMul, ciphertextTest, t)
 	})
 
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKG", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
@@ -259,7 +247,7 @@ func Test_DCKKSScheme(t *testing.T) {
 		// Each party creates a new CKG instance
 		shares := make([]*ring.Poly, parties)
 		for i := uint64(0); i < parties; i++ {
-			ckg[i].GenShare(sk0_shards[i].Get())
+			ckg[i].GenShare(sk0Shards[i].Get())
 			shares[i] = ckg[i].GetShare()
 		}
 
@@ -291,13 +279,13 @@ func Test_DCKKSScheme(t *testing.T) {
 			t.Error(err)
 		}
 
-		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsWant, ciphertextTest, t)
+		verifyTestVectors(ckkscontext, encoder, decryptorSk0, coeffsWant, ciphertextTest, t)
 
 	})
 
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKS", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
 
-		ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
+		ciphertext, err := encryptorPk0.EncryptNew(plaintextWant)
 		if err != nil {
 			t.Error(err)
 		}
@@ -310,7 +298,7 @@ func Test_DCKKSScheme(t *testing.T) {
 		// Each party creates its CKS instance with deltaSk = si-si'
 		cks := make([]*CKS, parties)
 		for i := uint64(0); i < parties; i++ {
-			cks[i] = NewCKS(sk0_shards[i].Get(), sk1_shards[i].Get(), context, 6.36)
+			cks[i] = NewCKS(sk0Shards[i].Get(), sk1Shards[i].Get(), context, 6.36)
 		}
 
 		// Each party computes its hi share from the shared ciphertext
@@ -327,13 +315,13 @@ func Test_DCKKSScheme(t *testing.T) {
 
 		for i := uint64(0); i < parties; i++ {
 
-			verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffsWant, ciphertexts[i], t)
+			verifyTestVectors(ckkscontext, encoder, decryptorSk1, coeffsWant, ciphertexts[i], t)
 		}
 	})
 
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/PCKS", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
 
-		ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
+		ciphertext, err := encryptorPk0.EncryptNew(plaintextWant)
 		if err != nil {
 			t.Error(err)
 		}
@@ -345,7 +333,7 @@ func Test_DCKKSScheme(t *testing.T) {
 
 		pcks := make([]*PCKS, parties)
 		for i := uint64(0); i < parties; i++ {
-			pcks[i] = NewPCKS(sk0_shards[i].Get(), pk1.Get(), context, 6.36)
+			pcks[i] = NewPCKS(sk0Shards[i].Get(), pk1.Get(), context, 6.36)
 		}
 
 		hi := make([][2]*ring.Poly, parties)
@@ -359,13 +347,13 @@ func Test_DCKKSScheme(t *testing.T) {
 
 		for i := uint64(0); i < parties; i++ {
 
-			verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffsWant, ciphertexts[i], t)
+			verifyTestVectors(ckkscontext, encoder, decryptorSk1, coeffsWant, ciphertexts[i], t)
 
 		}
 	})
 }
 
-func test_EKG_Protocol_Naive(parties uint64, sk []*ckks.SecretKey, collectivePk *ckks.PublicKey, ekgNaive []*EkgProtocolNaive) [][][][2]*ring.Poly {
+func testEKGProtocolNaive(parties uint64, sk []*ckks.SecretKey, collectivePk *ckks.PublicKey, ekgNaive []*EkgProtocolNaive) [][][][2]*ring.Poly {
 
 	// ROUND 0
 	// Each party generates its samples
@@ -391,7 +379,7 @@ func test_EKG_Protocol_Naive(parties uint64, sk []*ckks.SecretKey, collectivePk 
 	return evk
 }
 
-func test_EKG_Protocol(parties uint64, ekgProtocols []*EkgProtocol, sk []*ckks.SecretKey, ephemeralKeys []*ring.Poly, crp [][][]*ring.Poly) [][][][2]*ring.Poly {
+func testEKGProtocol(parties uint64, ekgProtocols []*EkgProtocol, sk []*ckks.SecretKey, ephemeralKeys []*ring.Poly, crp [][][]*ring.Poly) [][][][2]*ring.Poly {
 
 	// ROUND 1
 	samples := make([][][]*ring.Poly, parties)
@@ -422,7 +410,7 @@ func test_EKG_Protocol(parties uint64, ekgProtocols []*EkgProtocol, sk []*ckks.S
 	return collectiveEvaluationKey
 }
 
-func verify_test_vectors(ckkscontext *ckks.CkksContext, encoder *ckks.Encoder, decryptor *ckks.Decryptor, valuesWant []complex128, element ckks.Operand, t *testing.T) (err error) {
+func verifyTestVectors(ckkscontext *ckks.Context, encoder *ckks.Encoder, decryptor *ckks.Decryptor, valuesWant []complex128, element ckks.Operand, t *testing.T) (err error) {
 
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128

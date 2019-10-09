@@ -14,7 +14,7 @@ func (context *Context) InvNTT(p1, p2 *Poly) {
 	}
 }
 
-// Buttefly computes X, Y = U + V*Psi, U - V*Psi mod Q.
+// Butterfly computes X, Y = U + V*Psi, U - V*Psi mod Q.
 func Butterfly(U, V, Psi, Q, Qinv uint64) (X, Y uint64) {
 	if U > 2*Q {
 		U -= 2 * Q
@@ -36,7 +36,7 @@ func InvButterfly(U, V, Psi, Q, Qinv uint64) (X, Y uint64) {
 }
 
 // NTT computes the NTT transformation on the input coefficients given the provided params.
-func NTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
+func NTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
 	var j1, j2, t uint64
 	var F uint64
 
@@ -45,7 +45,7 @@ func NTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsi []uint64, Q, mredParam
 	j2 = t - 1
 	F = nttPsi[1]
 	for j := uint64(0); j <= j2; j++ {
-		coeffs_out[j], coeffs_out[j+t] = Butterfly(coeffs_in[j], coeffs_in[j+t], F, Q, mredParams)
+		coeffsOut[j], coeffsOut[j+t] = Butterfly(coeffsIn[j], coeffsIn[j+t], F, Q, mredParams)
 	}
 
 	// Continues the rest of the second to the n-1 butterflies on p2 with approximate reduction
@@ -60,19 +60,19 @@ func NTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsi []uint64, Q, mredParam
 			F = nttPsi[m+i]
 
 			for j := j1; j <= j2; j++ {
-				coeffs_out[j], coeffs_out[j+t] = Butterfly(coeffs_out[j], coeffs_out[j+t], F, Q, mredParams)
+				coeffsOut[j], coeffsOut[j+t] = Butterfly(coeffsOut[j], coeffsOut[j+t], F, Q, mredParams)
 			}
 		}
 	}
 
 	// Finishes with an exact reduction
 	for i := uint64(0); i < N; i++ {
-		coeffs_out[i] = BRedAdd(coeffs_out[i], Q, bredParams)
+		coeffsOut[i] = BRedAdd(coeffsOut[i], Q, bredParams)
 	}
 }
 
 // InvNTT computes the InvNTT transformation on the input coefficients given the provided params.
-func InvNTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsiInv []uint64, nttNInv, Q, mredParams uint64) {
+func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv, Q, mredParams uint64) {
 
 	var j1, j2, h, t uint64
 	var F uint64
@@ -89,7 +89,7 @@ func InvNTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsiInv []uint64, nttNIn
 		F = nttPsiInv[h+i]
 
 		for j := j1; j <= j2; j++ {
-			coeffs_out[j], coeffs_out[j+t] = InvButterfly(coeffs_in[j], coeffs_in[j+t], F, Q, mredParams)
+			coeffsOut[j], coeffsOut[j+t] = InvButterfly(coeffsIn[j], coeffsIn[j+t], F, Q, mredParams)
 		}
 
 		j1 = j1 + (t << 1)
@@ -109,7 +109,7 @@ func InvNTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsiInv []uint64, nttNIn
 			F = nttPsiInv[h+i]
 
 			for j := j1; j <= j2; j++ {
-				coeffs_out[j], coeffs_out[j+t] = InvButterfly(coeffs_out[j], coeffs_out[j+t], F, Q, mredParams)
+				coeffsOut[j], coeffsOut[j+t] = InvButterfly(coeffsOut[j], coeffsOut[j+t], F, Q, mredParams)
 			}
 
 			j1 = j1 + (t << 1)
@@ -120,6 +120,6 @@ func InvNTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsiInv []uint64, nttNIn
 
 	// Finishes with an exact reduction given
 	for j := uint64(0); j < N; j++ {
-		coeffs_out[j] = MRed(coeffs_out[j], nttNInv, Q, mredParams)
+		coeffsOut[j] = MRed(coeffsOut[j], nttNInv, Q, mredParams)
 	}
 }

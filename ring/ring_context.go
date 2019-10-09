@@ -192,6 +192,7 @@ type smallContext struct {
 	Modulus []uint64
 }
 
+// MarshalBinary encodes a context into bytes.
 func (context *Context) MarshalBinary() ([]byte, error) {
 
 	parameters := smallContext{context.N, context.Modulus}
@@ -204,6 +205,7 @@ func (context *Context) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// UnMarshalBinary decodes a context from bytes.
 func (context *Context) UnMarshalBinary(data []byte) error {
 
 	parameters := smallContext{}
@@ -283,7 +285,7 @@ func (context *Context) AllowsNTT() bool {
 	return context.allowsNTT
 }
 
-// GetBRedParams returns the Barret reduction parameters of the context.
+// GetBredParams returns the Barret reduction parameters of the context.
 func (context *Context) GetBredParams() [][]uint64 {
 	return context.bredParams
 }
@@ -298,7 +300,7 @@ func (context *Context) GetPsi() []uint64 {
 	return context.psiMont
 }
 
-// GetPsi returns the primitive root used to compute the InvNTT parameters of the context.
+// GetPsiInv returns the primitive root used to compute the InvNTT parameters of the context.
 func (context *Context) GetPsiInv() []uint64 {
 	return context.psiInvMont
 }

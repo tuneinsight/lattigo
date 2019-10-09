@@ -65,7 +65,7 @@ func computeMatrix(sigma float64, bound int) [][]uint8 {
 			M[i][j] = uint8((x >> (precision - j - 2)) & 1)
 		}
 
-		breakCounter += 1
+		breakCounter++
 	}
 
 	M = M[:breakCounter]
@@ -125,7 +125,7 @@ func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 				}
 			}
 
-			col += 1
+			col++
 		}
 
 		// Resets the bit pointer and discards the used byte
@@ -150,7 +150,7 @@ func (kys *KYSampler) SampleNew() *Poly {
 	return Pol
 }
 
-// SampleNew samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
+// Sample samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
 func (kys *KYSampler) Sample(Pol *Poly) {
 
 	var coeff uint64
@@ -181,7 +181,7 @@ func (kys *KYSampler) SampleNTTNew() *Poly {
 	return Pol
 }
 
-// SampleNew samples on the target polynomial coefficients with gaussian distribution given the target kys parameters,and applies the NTT.
+// SampleNTT samples on the target polynomial coefficients with gaussian distribution given the target kys parameters,and applies the NTT.
 func (kys *KYSampler) SampleNTT(Pol *Poly) {
 	kys.Sample(Pol)
 	kys.context.NTT(Pol, Pol)
@@ -312,10 +312,12 @@ func (sampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64, pol *
 	return nil
 }
 
+// SampleUniform samples a polynomial with coefficients [-1, 0, 1] with a distribution of [1/3, 1/3, 1/3].
 func (sampler *TernarySampler) SampleUniform(pol *Poly) {
 	_ = sampler.sample(sampler.Matrix, 1.0/3.0, pol)
 }
 
+// Sample samples a polynomail with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2].
 func (sampler *TernarySampler) Sample(p float64, pol *Poly) (err error) {
 	if err = sampler.sample(sampler.Matrix, p, pol); err != nil {
 		return err
@@ -323,6 +325,7 @@ func (sampler *TernarySampler) Sample(p float64, pol *Poly) (err error) {
 	return nil
 }
 
+// SampleMontgomery samples a polynomail with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in montgomery form.
 func (sampler *TernarySampler) SampleMontgomery(p float64, pol *Poly) (err error) {
 	if err = sampler.sample(sampler.MatrixMontgomery, p, pol); err != nil {
 		return err
@@ -330,7 +333,7 @@ func (sampler *TernarySampler) SampleMontgomery(p float64, pol *Poly) (err error
 	return nil
 }
 
-// SampleNew samples a new polynomial with ternary distribution.
+// SampleNew samples a new polynomial with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2]
 func (sampler *TernarySampler) SampleNew(p float64) (pol *Poly, err error) {
 	pol = sampler.context.NewPoly()
 	if err = sampler.Sample(p, pol); err != nil {
@@ -339,7 +342,7 @@ func (sampler *TernarySampler) SampleNew(p float64) (pol *Poly, err error) {
 	return pol, nil
 }
 
-// SampleMontgomeryNew samples a new polynomial with ternary distribution in montgomery form.
+// SampleMontgomeryNew samples a new polynomial with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in montgomery form.
 func (sampler *TernarySampler) SampleMontgomeryNew(p float64) (pol *Poly, err error) {
 	pol = sampler.context.NewPoly()
 	if err = sampler.SampleMontgomery(p, pol); err != nil {
@@ -348,7 +351,7 @@ func (sampler *TernarySampler) SampleMontgomeryNew(p float64) (pol *Poly, err er
 	return pol, nil
 }
 
-// SampleNTTNew samples a new polynomial with ternary distribution in the NTT domain.
+// SampleNTTNew samples a new polynomial with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in the NTT domain.
 func (sampler *TernarySampler) SampleNTTNew(p float64) (pol *Poly, err error) {
 	pol = sampler.context.NewPoly()
 	if err = sampler.Sample(p, pol); err != nil {
@@ -358,7 +361,7 @@ func (sampler *TernarySampler) SampleNTTNew(p float64) (pol *Poly, err error) {
 	return pol, nil
 }
 
-// SampleNTT samples coefficients with ternary distribution in the NTT domain on the target polynomial.
+// SampleNTT samples coefficients with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in the NTT domain.
 func (sampler *TernarySampler) SampleNTT(p float64, pol *Poly) (err error) {
 	if err = sampler.Sample(p, pol); err != nil {
 		return err
@@ -368,7 +371,7 @@ func (sampler *TernarySampler) SampleNTT(p float64, pol *Poly) (err error) {
 	return nil
 }
 
-// SampleNTTNew samples a new polynomial with ternary distribution in the NTT domain and in montgomery form.
+// SampleMontgomeryNTTNew samples a new polynomial with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in the NTT domain and in montgomery form.
 func (sampler *TernarySampler) SampleMontgomeryNTTNew(p float64) (pol *Poly, err error) {
 	if pol, err = sampler.SampleMontgomeryNew(p); err != nil {
 		return nil, err
@@ -377,7 +380,7 @@ func (sampler *TernarySampler) SampleMontgomeryNTTNew(p float64) (pol *Poly, err
 	return pol, nil
 }
 
-// SampleNTT samples coefficients with ternary distribution in the NTT domain and in montgomery form on the target polynomial.
+// SampleMontgomeryNTT samples coefficients with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in the NTT domain and in montgomery form.
 func (sampler *TernarySampler) SampleMontgomeryNTT(p float64, pol *Poly) (err error) {
 	if err = sampler.SampleMontgomery(p, pol); err != nil {
 		return err

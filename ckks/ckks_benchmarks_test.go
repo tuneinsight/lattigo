@@ -13,13 +13,13 @@ type benchParams struct {
 func Benchmark_CKKSScheme(b *testing.B) {
 
 	var err error
-	var ckkscontext *CkksContext
+	var ckkscontext *Context
 	var encoder *Encoder
 	var kgen *KeyGenerator
 	var sk *SecretKey
 	var pk *PublicKey
 	var rlk *EvaluationKey
-	var rotkey *RotationKey
+	var rotkey *RotationKeys
 	var encryptorPk *Encryptor
 	var encryptorSk *Encryptor
 	var decryptor *Decryptor
@@ -46,7 +46,7 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		bdc = param.bdc
 		levels = uint64(len(param.params.Modulichain))
 
-		if ckkscontext, err = NewCkksContext(param.params); err != nil {
+		if ckkscontext, err = NewContext(param.params); err != nil {
 			b.Error(err)
 		}
 
@@ -56,13 +56,9 @@ func Benchmark_CKKSScheme(b *testing.B) {
 
 		sk, pk = kgen.NewKeyPair()
 
-		if rlk, err = kgen.NewRelinKey(sk, bdc); err != nil {
-			b.Error(err)
-		}
+		rlk = kgen.NewRelinKey(sk, bdc)
 
-		if rotkey, err = kgen.NewRotationKeysPow2(sk, bdc, true); err != nil {
-			b.Error(err)
-		}
+		rotkey = kgen.NewRotationKeysPow2(sk, bdc, true)
 
 		if encryptorPk, err = ckkscontext.NewEncryptorFromPk(pk); err != nil {
 			b.Error(err)
@@ -118,9 +114,7 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		// SwitchKeyGen
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/decomp=%d/sigma=%.2f/SwitchKeyGen", logN, ckkscontext.LogQ(), levels, bdc, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if rlk, err = kgen.NewRelinKey(sk, bdc); err != nil {
-					b.Error(err)
-				}
+				rlk = kgen.NewRelinKey(sk, bdc)
 			}
 		})
 

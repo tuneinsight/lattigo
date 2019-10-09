@@ -174,7 +174,7 @@ func (context *Context) MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 *Poly) {
 	}
 }
 
-// MulcoeffsConstant multiplies p1 by p2 coefficient wise with a constant time Barrett modular reduction, returning the result on p3.
+// MulCoeffsConstant multiplies p1 by p2 coefficient wise with a constant time Barrett modular reduction, returning the result on p3.
 // The output range of the modular reduction is [0, 2*Qi -1].
 func (context *Context) MulCoeffsConstant(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
@@ -359,7 +359,7 @@ func (context *Context) MForm(p1, p2 *Poly) {
 	}
 }
 
-// MForm sets p1 in montgomeryform to its conventional form, returning the result on p2.
+// InvMForm sets p1 in montgomeryform to its conventional form, returning the result on p2.
 func (context *Context) InvMForm(p1, p2 *Poly) {
 
 	for i, qi := range context.Modulus {
@@ -509,7 +509,7 @@ func (context *Context) MultByMonomial(p1 *Poly, monomialDeg uint64, p2 *Poly) {
 	}
 }
 
-// MulByVector multiplies p1 by a vector of uint64 coefficients and returns the result on p2.
+// MulByVectorMontgomery multiplies p1 by a vector of uint64 coefficients and returns the result on p2.
 func (context *Context) MulByVectorMontgomery(p1 *Poly, vector []uint64, p2 *Poly) {
 	for i, qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
@@ -518,7 +518,7 @@ func (context *Context) MulByVectorMontgomery(p1 *Poly, vector []uint64, p2 *Pol
 	}
 }
 
-// MulByVector multiplies p1 by a vector of uint64 coefficients and adds the result on p2 without modular reduction.
+// MulByVectorMontgomeryAndAddNoMod multiplies p1 by a vector of uint64 coefficients and adds the result on p2 without modular reduction.
 func (context *Context) MulByVectorMontgomeryAndAddNoMod(p1 *Poly, vector []uint64, p2 *Poly) {
 	for i, qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {

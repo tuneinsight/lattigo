@@ -9,13 +9,13 @@ import (
 // BatchEncoder is a structure storing the parameters encode values on a plaintext in a SIMD fashion.
 type BatchEncoder struct {
 	indexMatrix  []uint64
-	bfvcontext   *BfvContext
+	bfvcontext   *Context
 	simplescaler *ring.SimpleScaler
 	polypool     *ring.Poly
 }
 
 // NewBatchEncoder creates a new BatchEncoder from the target bfvcontext.
-func (bfvcontext *BfvContext) NewBatchEncoder() (batchencoder *BatchEncoder, err error) {
+func (bfvcontext *Context) NewBatchEncoder() (batchencoder *BatchEncoder, err error) {
 
 	if bfvcontext.contextT.AllowsNTT() != true {
 		return nil, errors.New("cannot create batch encoder : plaintext modulus does not allow NTT")
@@ -33,18 +33,18 @@ func (bfvcontext *BfvContext) NewBatchEncoder() (batchencoder *BatchEncoder, err
 
 	logN := uint64(bits.Len64(bfvcontext.n) - 1)
 
-	row_size := bfvcontext.n >> 1
+	rowSize := bfvcontext.n >> 1
 	m = (bfvcontext.n << 1)
 	gen = bfvcontext.gen
 	pos = 1
 
-	for i := uint64(0); i < row_size; i++ {
+	for i := uint64(0); i < rowSize; i++ {
 
 		index1 = (pos - 1) >> 1
 		index2 = (m - pos - 1) >> 1
 
 		batchencoder.indexMatrix[i] = bitReverse64(index1, logN)
-		batchencoder.indexMatrix[i|row_size] = bitReverse64(index2, logN)
+		batchencoder.indexMatrix[i|rowSize] = bitReverse64(index2, logN)
 
 		pos *= gen
 		pos &= (m - 1)
@@ -168,12 +168,12 @@ func (batchencoder *BatchEncoder) DecodeInt(plaintext *Plaintext) (coeffs []int6
 type IntEncoder struct {
 	base         int64
 	simplescaler *ring.SimpleScaler
-	bfvcontext   *BfvContext
+	bfvcontext   *Context
 }
 
 // NewIntEncoder creates a new IntEncoder fromt the target bfvcontext. The base given as input will be used to decompose the
 // values to encode before putting them in the polynomial plaintext.
-func (bfvcontext *BfvContext) NewIntEncoder(base int64) *IntEncoder {
+func (bfvcontext *Context) NewIntEncoder(base int64) *IntEncoder {
 	encoder := new(IntEncoder)
 	encoder.base = base
 	encoder.bfvcontext = bfvcontext
@@ -212,9 +212,9 @@ func intEncode(msg, base, modulus int64, coeffs []uint64) []uint64 {
 	//	return errors.New("Messages does not fit on the ring with the given base")
 	//}
 
-	is_negative := msg < 0
+	isNegative := msg < 0
 
-	if is_negative {
+	if isNegative {
 		for i := 0; msg != 0; i++ {
 			coeffs[i] = uint64(modulus + (msg % base))
 			msg /= base
@@ -235,11 +235,11 @@ func intEncode(msg, base, modulus int64, coeffs []uint64) []uint64 {
 func intDecode(coeffs []uint64, base, modulus int64) (msg int64) {
 
 	msg = 0
-	modulus_half := uint64(modulus >> 1)
+	modulusHalf := uint64(modulus >> 1)
 	for i := len(coeffs) - 1; i >= 0; i-- {
 		msg *= base
 		msg += int64(coeffs[i])
-		if coeffs[i] > modulus_half {
+		if coeffs[i] > modulusHalf {
 			msg -= modulus
 		}
 	}

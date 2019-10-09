@@ -12,7 +12,7 @@ type Ciphertext struct {
 }
 
 // NewCiphertext creates a new empty ciphertext of degree degree.
-func (bfvcontext *BfvContext) NewCiphertext(degree uint64) *Ciphertext {
+func (bfvcontext *Context) NewCiphertext(degree uint64) *Ciphertext {
 	ciphertext := &Ciphertext{&bfvElement{}}
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -24,7 +24,7 @@ func (bfvcontext *BfvContext) NewCiphertext(degree uint64) *Ciphertext {
 }
 
 // NewCiphertextBig creates a new empty ciphertext of degree degree in the extended ciphertext context (Q + P).
-func (bfvcontext *BfvContext) NewCiphertextBig(degree uint64) *Ciphertext {
+func (bfvcontext *Context) NewCiphertextBig(degree uint64) *Ciphertext {
 	ciphertext := &Ciphertext{&bfvElement{}}
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -36,7 +36,7 @@ func (bfvcontext *BfvContext) NewCiphertextBig(degree uint64) *Ciphertext {
 }
 
 // NewRandomCiphertext creates a new ciphertext with uniform coefficients.
-func (bfvcontext *BfvContext) NewRandomCiphertext(degree uint64) *Ciphertext {
+func (bfvcontext *Context) NewRandomCiphertext(degree uint64) *Ciphertext {
 	ciphertext := &Ciphertext{&bfvElement{}}
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {

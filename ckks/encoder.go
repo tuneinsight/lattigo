@@ -10,27 +10,27 @@ import (
 
 // Encoder is a struct storing the necessary parameters to encode a slice of complex number on a plaintext.
 type Encoder struct {
-	ckkscontext   *CkksContext
-	values        []complex128
-	bigint_coeffs []*ring.Int
-	q_half        *ring.Int
-	polypool      *ring.Poly
+	ckkscontext  *Context
+	values       []complex128
+	bigintCoeffs []*ring.Int
+	qHalf        *ring.Int
+	polypool     *ring.Poly
 
 	// Encoding and Decoding params
 	slots       uint64
 	indexMatrix []uint64
 	gap         uint64
 	roots       []complex128
-	inv_roots   []complex128
+	invRoots    []complex128
 }
 
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
-func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
+func (ckkscontext *Context) NewEncoder() (encoder *Encoder) {
 	encoder = new(Encoder)
 	encoder.ckkscontext = ckkscontext
 	encoder.values = make([]complex128, ckkscontext.n)
-	encoder.bigint_coeffs = make([]*ring.Int, ckkscontext.n)
-	encoder.q_half = ring.NewUint(0)
+	encoder.bigintCoeffs = make([]*ring.Int, ckkscontext.n)
+	encoder.qHalf = ring.NewUint(0)
 	encoder.polypool = ckkscontext.contextLevel[ckkscontext.levels-1].NewPoly()
 
 	encoder.slots = ckkscontext.slots
@@ -60,14 +60,14 @@ func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
 	}
 
 	encoder.roots = make([]complex128, ckkscontext.n)
-	encoder.inv_roots = make([]complex128, ckkscontext.n)
+	encoder.invRoots = make([]complex128, ckkscontext.n)
 
 	angle := 6.283185307179586 / float64(m)
 	psi := complex(math.Cos(angle), math.Sin(angle))
 	psiInv := complex(1, 0) / psi
 
 	encoder.roots[0] = 1
-	encoder.inv_roots[0] = 1
+	encoder.invRoots[0] = 1
 
 	for j := uint64(1); j < ckkscontext.n; j++ {
 
@@ -75,7 +75,7 @@ func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
 		indexReverseNext := bitReverse64(j, ckkscontext.logN)
 
 		encoder.roots[indexReverseNext] = encoder.roots[indexReversePrev] * psi
-		encoder.inv_roots[indexReverseNext] = encoder.inv_roots[indexReversePrev] * psiInv
+		encoder.invRoots[indexReverseNext] = encoder.invRoots[indexReversePrev] * psiInv
 	}
 
 	return
@@ -119,7 +119,7 @@ func preprocessFloat(coeffs []float64, encoder *Encoder) {
 	return
 }
 
-// EncodeFloat takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
+// EncodeComplex takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
 func (encoder *Encoder) EncodeComplex(plaintext *Plaintext, coeffs []complex128) (err error) {
 
 	if len(coeffs) > (len(encoder.indexMatrix)>>1)/int(encoder.gap) {
@@ -150,7 +150,7 @@ func (encoder *Encoder) DecodeFloat(plaintext *Plaintext) (res []float64) {
 	return
 }
 
-// DecodeFloat decodes the plaintext values to a slice of complex128 values of size at most N/2.
+// DecodeComplex decodes the plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *Encoder) DecodeComplex(plaintext *Plaintext) (res []complex128) {
 
 	decodeToComplex(plaintext, encoder)
@@ -166,7 +166,7 @@ func (encoder *Encoder) DecodeComplex(plaintext *Plaintext) (res []complex128) {
 
 func encodeFromComplex(plaintext *Plaintext, encoder *Encoder) {
 
-	invfft(encoder.values, encoder.inv_roots)
+	invfft(encoder.values, encoder.invRoots)
 
 	for i, qi := range encoder.ckkscontext.moduli {
 
@@ -186,23 +186,23 @@ func encodeFromComplex(plaintext *Plaintext, encoder *Encoder) {
 func decodeToComplex(plaintext *Plaintext, encoder *Encoder) {
 
 	encoder.ckkscontext.contextLevel[plaintext.Level()].InvNTT(plaintext.value, encoder.polypool)
-	encoder.ckkscontext.contextLevel[plaintext.Level()].PolyToBigint(encoder.polypool, encoder.bigint_coeffs)
+	encoder.ckkscontext.contextLevel[plaintext.Level()].PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
-	encoder.q_half.SetBigInt(plaintext.currentModulus)
-	encoder.q_half.Rsh(encoder.q_half, 1)
+	encoder.qHalf.SetBigInt(plaintext.currentModulus)
+	encoder.qHalf.Rsh(encoder.qHalf, 1)
 
 	var sign int
 
-	for i := range encoder.bigint_coeffs {
+	for i := range encoder.bigintCoeffs {
 
 		// Centers the value arounds the current modulus
-		encoder.bigint_coeffs[i].Mod(encoder.bigint_coeffs[i], plaintext.currentModulus)
-		sign = encoder.bigint_coeffs[i].Compare(encoder.q_half)
+		encoder.bigintCoeffs[i].Mod(encoder.bigintCoeffs[i], plaintext.currentModulus)
+		sign = encoder.bigintCoeffs[i].Compare(encoder.qHalf)
 		if sign == 1 || sign == 0 {
-			encoder.bigint_coeffs[i].Sub(encoder.bigint_coeffs[i], plaintext.currentModulus)
+			encoder.bigintCoeffs[i].Sub(encoder.bigintCoeffs[i], plaintext.currentModulus)
 		}
 
-		encoder.values[i] = complex(scaleDown(encoder.bigint_coeffs[i], plaintext.scale), 0)
+		encoder.values[i] = complex(scaleDown(encoder.bigintCoeffs[i], plaintext.scale), 0)
 	}
 
 	fft(encoder.values, encoder.roots)
@@ -231,9 +231,9 @@ func preprocessCmplx(coeffs []complex128, encoder *Encoder) {
 	return
 }
 
-func invfft(values, inv_roots []complex128) {
+func invfft(values, invRoots []complex128) {
 
-	var logN, N, mm, k_start, k_end, h, t uint64
+	var logN, N, mm, kStart, kEnd, h, t uint64
 	var u, v, psi complex128
 
 	logN = uint64(bits.Len64(uint64(len(values))) - 1)
@@ -244,15 +244,15 @@ func invfft(values, inv_roots []complex128) {
 	for i := uint64(0); i < logN; i++ {
 
 		mm = 1 << (logN - i)
-		k_start = 0
+		kStart = 0
 		h = mm >> 1
 
 		for j := uint64(0); j < h; j++ {
 
-			k_end = k_start + t
-			psi = inv_roots[h+j]
+			kEnd = kStart + t
+			psi = invRoots[h+j]
 
-			for k := k_start; k < k_end; k++ {
+			for k := kStart; k < kEnd; k++ {
 
 				u = values[k]
 				v = values[k+t]
@@ -260,7 +260,7 @@ func invfft(values, inv_roots []complex128) {
 				values[k+t] = (u - v) * psi
 			}
 
-			k_start += (t << 1)
+			kStart += (t << 1)
 		}
 
 		t <<= 1

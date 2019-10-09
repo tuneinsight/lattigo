@@ -21,7 +21,7 @@ func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 //=== MODULAR EXPONENTIATION ===
 //==============================
 
-// Modexp performes the modular exponentiation x^e mod p,
+// ModExp performes the modular exponentiation x^e mod p,
 // x and p are required to be a most 64 bits to avoid an overflow.
 func ModExp(x, e, p uint64) (result uint64) {
 	params := BRedParams(p)
@@ -77,9 +77,6 @@ func gcdInt64(a, b int64) int64 {
 	return a
 }
 
-//===========================
-//===     MILLER-RABIN    ===
-//===========================
 // IsPrime applies a Miller-Rabin test on the given uint64 variable, returning true if num is probably prime, else false.
 func IsPrime(num uint64) bool {
 
@@ -103,7 +100,7 @@ func IsPrime(num uint64) bool {
 	k := 0
 	for (s & 1) == 0 {
 		s >>= 1
-		k += 1
+		k++
 	}
 
 	bredParams := BRedParams(num)
@@ -118,10 +115,9 @@ func IsPrime(num uint64) bool {
 			for x != num-1 {
 				if i == k-1 {
 					return false
-				} else {
-					i += 1
-					x = BRed(x, x, num, bredParams)
 				}
+				i++
+				x = BRed(x, x, num, bredParams)
 			}
 		}
 	}
@@ -160,7 +156,7 @@ func GenerateNTTPrimes(N, start, n, bitLen uint64, sign bool) ([]uint64, error) 
 
 		if IsPrime(x) {
 			primes[i] = x
-			i += 1
+			i++
 		}
 
 		if sign {
@@ -189,7 +185,7 @@ func primitiveRoot(q uint64) uint64 {
 	g = 2
 
 	for notFoundPrimitiveRoot {
-		g += 1
+		g++
 		for _, factor := range factors {
 			tmp = (q - 1) / factor
 			// if for any factor of q-1, g^(q-1)/factor = 1 mod q, g is not a primitive root

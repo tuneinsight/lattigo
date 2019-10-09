@@ -18,7 +18,7 @@ func Test_DBFVScheme(t *testing.T) {
 	for _, params := range paramSets {
 
 		// nParties data indpendant element
-		bfvContext := bfv.NewBfvContext()
+		bfvContext := bfv.NewContext()
 		if err := bfvContext.SetParameters(&params); err != nil {
 			t.Error(err)
 		}
@@ -54,16 +54,16 @@ func Test_DBFVScheme(t *testing.T) {
 			}
 
 			// SecretKeys
-			sk0_shards := make([]*bfv.SecretKey, parties)
-			sk1_shards := make([]*bfv.SecretKey, parties)
+			sk0Shards := make([]*bfv.SecretKey, parties)
+			sk1Shards := make([]*bfv.SecretKey, parties)
 			tmp0 := context.NewPoly()
 			tmp1 := context.NewPoly()
 
 			for i := 0; i < parties; i++ {
-				sk0_shards[i] = kgen.NewSecretKey()
-				sk1_shards[i] = kgen.NewSecretKey()
-				context.Add(tmp0, sk0_shards[i].Get(), tmp0)
-				context.Add(tmp1, sk1_shards[i].Get(), tmp1)
+				sk0Shards[i] = kgen.NewSecretKey()
+				sk1Shards[i] = kgen.NewSecretKey()
+				context.Add(tmp0, sk0Shards[i].Get(), tmp0)
+				context.Add(tmp1, sk1Shards[i].Get(), tmp1)
 			}
 
 			sk0 := new(bfv.SecretKey)
@@ -77,7 +77,7 @@ func Test_DBFVScheme(t *testing.T) {
 			pk1 := kgen.NewPublicKey(sk1)
 
 			// Encryptors
-			encryptor_pk0, err := bfvContext.NewEncryptorFromPk(pk0)
+			encryptorPk0, err := bfvContext.NewEncryptorFromPk(pk0)
 			if err != nil {
 				t.Error(err)
 			}
@@ -88,18 +88,18 @@ func Test_DBFVScheme(t *testing.T) {
 			//}
 
 			// Decryptors
-			decryptor_sk0, err := bfvContext.NewDecryptor(sk0)
+			encryptorSk0, err := bfvContext.NewDecryptor(sk0)
 			if err != nil {
 				t.Error(err)
 			}
 
-			decryptor_sk1, err := bfvContext.NewDecryptor(sk1)
+			decryptorSk1, err := bfvContext.NewDecryptor(sk1)
 			if err != nil {
 				t.Error(err)
 			}
 
 			// Reference ciphertext
-			ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
+			ciphertext, err := encryptorPk0.EncryptNew(plaintextWant)
 			if err != nil {
 				t.Error(err)
 			}
@@ -144,17 +144,17 @@ func Test_DBFVScheme(t *testing.T) {
 					}
 				}
 
-				crs_generator_1, _ := NewCRPGenerator(nil, context)
-				crs_generator_2, _ := NewCRPGenerator(nil, context)
+				crsGenerator1, _ := NewCRPGenerator(nil, context)
+				crsGenerator2, _ := NewCRPGenerator(nil, context)
 
-				crs_generator_1.Seed(seed1)
-				crs_generator_2.Seed(append(seed1, seed2...)) //Append works since blake2b hashes blocks of 512 bytes
+				crsGenerator1.Seed(seed1)
+				crsGenerator2.Seed(append(seed1, seed2...)) //Append works since blake2b hashes blocks of 512 bytes
 
-				crs_generator_1.SetClock(256)
-				crs_generator_2.SetClock(255)
+				crsGenerator1.SetClock(256)
+				crsGenerator2.SetClock(255)
 
-				p0 := crs_generator_1.Clock()
-				p1 := crs_generator_2.Clock()
+				p0 := crsGenerator1.Clock()
+				p1 := crsGenerator2.Clock()
 
 				if bfvContext.ContextQ().Equal(p0, p1) != true {
 					t.Errorf("error : crs prng generator")
@@ -187,7 +187,7 @@ func Test_DBFVScheme(t *testing.T) {
 						}
 					}
 
-					evk := test_EKG_Protocol(parties, ekg, sk0_shards, ephemeralKeys, crp)
+					evk := testEKGProtocol(parties, ekg, sk0Shards, ephemeralKeys, crp)
 
 					rlk := new(bfv.EvaluationKey)
 					rlk.SetRelinKeys([][][][2]*ring.Poly{evk[0]}, bitDecomp)
@@ -196,7 +196,7 @@ func Test_DBFVScheme(t *testing.T) {
 						t.Error(err)
 					}
 
-					if equalslice(coeffsMul.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(ciphertextTest))) != true {
+					if equalslice(coeffsMul.Coeffs[0], encoder.DecodeUint(encryptorSk0.DecryptNew(ciphertextTest))) != true {
 						t.Errorf("error : ekg rlk bad decrypt")
 					}
 
@@ -214,7 +214,7 @@ func Test_DBFVScheme(t *testing.T) {
 						ekgNaive[i] = NewEkgProtocolNaive(context, bitDecomp)
 					}
 
-					evk := test_EKG_Protocol_Naive(parties, sk0_shards, pk0, ekgNaive)
+					evk := testEKGProtocolNaive(parties, sk0Shards, pk0, ekgNaive)
 
 					rlk := new(bfv.EvaluationKey)
 					rlk.SetRelinKeys([][][][2]*ring.Poly{evk[0]}, bitDecomp)
@@ -223,7 +223,7 @@ func Test_DBFVScheme(t *testing.T) {
 						t.Error(err)
 					}
 
-					if equalslice(coeffsMul.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(ciphertextTest))) != true {
+					if equalslice(coeffsMul.Coeffs[0], encoder.DecodeUint(encryptorSk0.DecryptNew(ciphertextTest))) != true {
 						t.Errorf("error : ekg_naive rlk bad decrypt")
 					}
 				})
@@ -244,7 +244,7 @@ func Test_DBFVScheme(t *testing.T) {
 				// Each party creates a new CKG instance
 				shares := make([]*ring.Poly, parties)
 				for i := 0; i < parties; i++ {
-					ckg[i].GenShare(sk0_shards[i].Get())
+					ckg[i].GenShare(sk0Shards[i].Get())
 					shares[i] = ckg[i].GetShare()
 				}
 
@@ -276,7 +276,7 @@ func Test_DBFVScheme(t *testing.T) {
 					t.Error(err)
 				}
 
-				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(ciphertextTest))) != true {
+				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(encryptorSk0.DecryptNew(ciphertextTest))) != true {
 					t.Errorf("error : ckg protocol, cpk encrypt/decrypt test")
 				}
 
@@ -284,7 +284,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 			t.Run(fmt.Sprintf("N=%d/logQ=%d/CKS", context.N, context.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
-				ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
+				ciphertext, err := encryptorPk0.EncryptNew(plaintextWant)
 				if err != nil {
 					t.Error(err)
 				}
@@ -297,7 +297,7 @@ func Test_DBFVScheme(t *testing.T) {
 				// Each party creates its CKS instance with deltaSk = si-si'
 				cks := make([]*CKS, parties)
 				for i := 0; i < parties; i++ {
-					cks[i] = NewCKS(sk0_shards[i].Get(), sk1_shards[i].Get(), context, 6.36)
+					cks[i] = NewCKS(sk0Shards[i].Get(), sk1Shards[i].Get(), context, 6.36)
 				}
 
 				// Each party computes its hi share from the shared ciphertext
@@ -314,7 +314,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 				for i := 0; i < parties; i++ {
 
-					if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk1.DecryptNew(ciphertexts[i]))) != true {
+					if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptorSk1.DecryptNew(ciphertexts[i]))) != true {
 						t.Errorf("error : CKS")
 					}
 
@@ -323,7 +323,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 			t.Run(fmt.Sprintf("N=%d/logQ=%d/PCKS", context.N, context.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
-				ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
+				ciphertext, err := encryptorPk0.EncryptNew(plaintextWant)
 				if err != nil {
 					t.Error(err)
 				}
@@ -335,7 +335,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 				pcks := make([]*PCKS, parties)
 				for i := 0; i < parties; i++ {
-					pcks[i] = NewPCKS(sk0_shards[i].Get(), pk1.Get(), context, 6.36)
+					pcks[i] = NewPCKS(sk0Shards[i].Get(), pk1.Get(), context, 6.36)
 				}
 
 				hi := make([][2]*ring.Poly, parties)
@@ -349,7 +349,7 @@ func Test_DBFVScheme(t *testing.T) {
 
 				for i := 0; i < parties; i++ {
 
-					if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk1.DecryptNew(ciphertexts[i]))) != true {
+					if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptorSk1.DecryptNew(ciphertexts[i]))) != true {
 						t.Errorf("error : PCKS")
 					}
 				}
@@ -358,7 +358,7 @@ func Test_DBFVScheme(t *testing.T) {
 	}
 }
 
-func test_EKG_Protocol_Naive(parties int, sk []*bfv.SecretKey, collectivePk *bfv.PublicKey, ekgNaive []*EkgProtocolNaive) [][][][2]*ring.Poly {
+func testEKGProtocolNaive(parties int, sk []*bfv.SecretKey, collectivePk *bfv.PublicKey, ekgNaive []*EkgProtocolNaive) [][][][2]*ring.Poly {
 
 	// ROUND 0
 	// Each party generates its samples
@@ -384,7 +384,7 @@ func test_EKG_Protocol_Naive(parties int, sk []*bfv.SecretKey, collectivePk *bfv
 	return evk
 }
 
-func test_EKG_Protocol(parties int, ekgProtocols []*EkgProtocol, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][][]*ring.Poly) [][][][2]*ring.Poly {
+func testEKGProtocol(parties int, ekgProtocols []*EkgProtocol, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][][]*ring.Poly) [][][][2]*ring.Poly {
 
 	// ROUND 1
 	samples := make([][][]*ring.Poly, parties)

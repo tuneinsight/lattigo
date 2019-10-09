@@ -42,6 +42,7 @@ func (prng *PRNG) Seed(seed []byte) {
 	prng.clock = 0
 }
 
+// GetSeed returns the initial seed of the PRNG.
 func (prng *PRNG) GetSeed() []byte {
 	return prng.seed[:]
 }
@@ -52,7 +53,7 @@ func (prng *PRNG) GetSeed() []byte {
 func (prng *PRNG) Clock() []byte {
 	tmp := prng.hash.Sum(nil)
 	prng.hash.Write(tmp[:32])
-	prng.clock += 1
+	prng.clock++
 	return tmp[32:]
 }
 
@@ -67,7 +68,7 @@ func (prng *PRNG) SetClock(n uint64) error {
 	for prng.clock != n {
 		tmp = prng.hash.Sum(nil)
 		prng.hash.Write(tmp[:32])
-		prng.clock += 1
+		prng.clock++
 	}
 	return nil
 }

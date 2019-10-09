@@ -13,7 +13,7 @@ func Benchmark_BFVScheme(b *testing.B) {
 
 	for _, params := range paramSets {
 
-		bfvContext := NewBfvContext()
+		bfvContext := NewContext()
 		if err := bfvContext.SetParameters(&params); err != nil {
 			b.Error(err)
 		}

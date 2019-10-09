@@ -5,9 +5,9 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Encreyptor is a struct used to encrypt plaintext and storing the public-key and/or secret-key.
+// Encryptor is a struct used to encrypt plaintext and storing the public-key and/or secret-key.
 type Encryptor struct {
-	ckkscontext *CkksContext
+	ckkscontext Context
 	pk          *PublicKey
 	sk          *SecretKey
 	polypool    *ring.Poly
@@ -15,19 +15,19 @@ type Encryptor struct {
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (ckkscontext *CkksContext) NewEncryptorFromPk(pk *PublicKey) (*Encryptor, error) {
+func (ckkscontext Context) NewEncryptorFromPk(pk *PublicKey) (*Encryptor, error) {
 	return ckkscontext.newEncryptor(pk, nil)
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (ckkscontext *CkksContext) NewEncryptorFromSk(sk *SecretKey) (*Encryptor, error) {
+func (ckkscontext Context) NewEncryptorFromSk(sk *SecretKey) (*Encryptor, error) {
 	return ckkscontext.newEncryptor(nil, sk)
 }
 
 // NewEncryptor creates a new Encryptor with the input public-key and/or secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored keys.
-func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
+func (ckkscontext Context) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
 
 	if pk != nil && (uint64(pk.pk[0].GetDegree()) != ckkscontext.n || uint64(pk.pk[1].GetDegree()) != ckkscontext.n) {
 		return nil, errors.New("error : pk ring degree doesn't match ckkscontext ring degree")
@@ -46,7 +46,7 @@ func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encr
 	return encryptor, nil
 }
 
-// EncryptFromPkNew encrypts the input plaintext using the stored public-key and returns
+// EncryptNew encrypts the input plaintext using the stored public-key and returns
 // the result on a newly created ciphertext. It will encrypt the plaintext with the stored key, which can be
 // private or public, a private-key encryption puts initial noise.
 //
@@ -59,7 +59,7 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Cipher
 	return ciphertext, encryptor.Encrypt(plaintext, ciphertext)
 }
 
-// EncryptFromPk encrypts the input plaintext using the stored public-key, and returns the result
+// Encrypt encrypts the input plaintext using the stored public-key, and returns the result
 // on the reciver ciphertext. It will encrypt the plaintext with the stored key, which can be
 // private or public, a private-key encryption puts initial noise.
 //

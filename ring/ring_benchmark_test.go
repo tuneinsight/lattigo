@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func Benchmark_Polynomial(b *testing.B) {
+func BenchmarkPolynomial(b *testing.B) {
 
 	for i := uint64(0); i < 1; i++ {
 
@@ -34,58 +34,58 @@ func Benchmark_Polynomial(b *testing.B) {
 		contextQP := NewContext()
 		contextQP.Merge(contextQ, contextP)
 
-		benchmark_Context(N, Qi, b)
+		benchmarkContext(N, Qi, b)
 
-		benchmark_KYSGaussPoly(sigma, contextQ, b)
+		benchmarkKYSGaussPoly(sigma, contextQ, b)
 
-		benchmark_TernaryPoly(contextQ, b)
+		benchmarkTernaryPoly(contextQ, b)
 
-		benchmark_UniformPoly(contextQ, b)
+		benchmarkUniformPoly(contextQ, b)
 
-		benchmark_MForm(contextQ, b)
+		benchmarkMForm(contextQ, b)
 
-		benchmark_NTT(contextQ, b)
+		benchmarkNTT(contextQ, b)
 
-		benchmark_InvNTT(contextQ, b)
+		benchmarkInvNTT(contextQ, b)
 
-		benchmark_MulScalar(contextQ, b)
+		benchmarkMulScalar(contextQ, b)
 
-		benchmark_Neg(contextQ, b)
+		benchmarkNeg(contextQ, b)
 
-		benchmark_Sub(contextQ, b)
+		benchmarkSub(contextQ, b)
 
-		benchmark_Add(contextQ, b)
+		benchmarkAdd(contextQ, b)
 
-		benchmark_MulCoeffs(contextQ, b)
+		benchmarkMulCoeffs(contextQ, b)
 
-		benchmark_MulCoeffsMontgomery(contextQ, b)
+		benchmarkMulCoeffsMontgomery(contextQ, b)
 
-		benchmark_MulPoly(contextQ, b)
+		benchmarkMulPoly(contextQ, b)
 
-		benchmark_MulPolyMontgomery(contextQ, b)
+		benchmarkMulPolyMontgomery(contextQ, b)
 
-		//benchmark_MulPolyNaiveMontgomery(contextQ, b)
+		//benchmarkMulPolyNaiveMontgomery(contextQ, b)
 
-		benchmark_ExtendBasis(contextQ, contextP, contextQP, b)
+		benchmarkExtendBasis(contextQ, contextP, contextQP, b)
 
-		benchmark_SimpleScaler_Scale(T, contextQ, b)
+		benchmarkSimpleScalerScale(T, contextQ, b)
 
-		benchmark_ComplexScaler_Scale(T, contextQ, contextP, contextQP, b)
+		benchmarkComplexScalerScale(T, contextQ, contextP, contextQP, b)
 
-		benchmark_Marshaler(contextQ, b)
+		benchmarkMarshaler(contextQ, b)
 
-		benchmark_UnMarshaler(contextQ, b)
+		benchmarkUnMarshaler(contextQ, b)
 
-		benchmark_BRed(b)
+		benchmarkBRed(b)
 
-		benchmark_BRedAdd(b)
+		benchmarkBRedAdd(b)
 
-		benchmark_MRed(b)
+		benchmarkMRed(b)
 
 	}
 }
 
-func benchmark_Context(N uint64, Qi []uint64, b *testing.B) {
+func benchmarkContext(N uint64, Qi []uint64, b *testing.B) {
 	var context *Context
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/Context", N, len(Qi)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -96,7 +96,7 @@ func benchmark_Context(N uint64, Qi []uint64, b *testing.B) {
 	})
 }
 
-func benchmark_UnMarshaler(context *Context, b *testing.B) {
+func benchmarkUnMarshaler(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/MarshalBinary", context.N, len(context.Modulus)), func(b *testing.B) {
@@ -106,7 +106,7 @@ func benchmark_UnMarshaler(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_Marshaler(context *Context, b *testing.B) {
+func benchmarkMarshaler(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -118,7 +118,7 @@ func benchmark_Marshaler(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_KYSGaussPoly(sigma float64, context *Context, b *testing.B) {
+func benchmarkKYSGaussPoly(sigma float64, context *Context, b *testing.B) {
 
 	bound := int(sigma * 6)
 
@@ -139,7 +139,7 @@ func benchmark_KYSGaussPoly(sigma float64, context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_TernaryPoly(context *Context, b *testing.B) {
+func benchmarkTernaryPoly(context *Context, b *testing.B) {
 
 	ternarySampler := context.NewTernarySampler()
 
@@ -171,7 +171,7 @@ func benchmark_TernaryPoly(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_UniformPoly(context *Context, b *testing.B) {
+func benchmarkUniformPoly(context *Context, b *testing.B) {
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/NewUniformPoly", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -180,7 +180,7 @@ func benchmark_UniformPoly(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_MForm(context *Context, b *testing.B) {
+func benchmarkMForm(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -191,7 +191,7 @@ func benchmark_MForm(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_NTT(context *Context, b *testing.B) {
+func benchmarkNTT(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 	b.ResetTimer()
@@ -203,7 +203,7 @@ func benchmark_NTT(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_InvNTT(context *Context, b *testing.B) {
+func benchmarkInvNTT(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -216,7 +216,7 @@ func benchmark_InvNTT(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_MulCoeffs(context *Context, b *testing.B) {
+func benchmarkMulCoeffs(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -229,7 +229,7 @@ func benchmark_MulCoeffs(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_MulCoeffsMontgomery(context *Context, b *testing.B) {
+func benchmarkMulCoeffsMontgomery(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -244,7 +244,7 @@ func benchmark_MulCoeffsMontgomery(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_MulPoly(context *Context, b *testing.B) {
+func benchmarkMulPoly(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -257,7 +257,7 @@ func benchmark_MulPoly(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_MulPolyMontgomery(context *Context, b *testing.B) {
+func benchmarkMulPolyMontgomery(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -270,7 +270,7 @@ func benchmark_MulPolyMontgomery(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_MulPolyNaiveMontgomery(context *Context, b *testing.B) {
+func benchmarkMulPolyNaiveMontgomery(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -283,7 +283,7 @@ func benchmark_MulPolyNaiveMontgomery(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_Add(context *Context, b *testing.B) {
+func benchmarkAdd(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -296,7 +296,7 @@ func benchmark_Add(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_Sub(context *Context, b *testing.B) {
+func benchmarkSub(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -309,7 +309,7 @@ func benchmark_Sub(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_Neg(context *Context, b *testing.B) {
+func benchmarkNeg(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -322,7 +322,7 @@ func benchmark_Neg(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_MulScalar(context *Context, b *testing.B) {
+func benchmarkMulScalar(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
@@ -337,7 +337,7 @@ func benchmark_MulScalar(context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_ExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B) {
+func benchmarkExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B) {
 
 	BasisExtenderQP := NewBasisExtender(contextQ, contextP)
 
@@ -359,7 +359,7 @@ func benchmark_ExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B)
 	})
 }
 
-func benchmark_SimpleScaler_Scale(T uint64, context *Context, b *testing.B) {
+func benchmarkSimpleScalerScale(T uint64, context *Context, b *testing.B) {
 
 	SimpleScaler := NewSimpleScaler(T, context)
 
@@ -375,7 +375,7 @@ func benchmark_SimpleScaler_Scale(T uint64, context *Context, b *testing.B) {
 	})
 }
 
-func benchmark_ComplexScaler_Scale(T uint64, contextQ, contextP, contextQP *Context, b *testing.B) {
+func benchmarkComplexScalerScale(T uint64, contextQ, contextP, contextQP *Context, b *testing.B) {
 
 	ComplexScalerQP := NewComplexScaler(T, contextQ, contextP)
 
@@ -392,7 +392,7 @@ func benchmark_ComplexScaler_Scale(T uint64, contextQ, contextP, contextQP *Cont
 	})
 }
 
-func benchmark_BRed(b *testing.B) {
+func benchmarkBRed(b *testing.B) {
 
 	q := uint64(1033576114481528833)
 	u := BRedParams(q)
@@ -409,7 +409,7 @@ func benchmark_BRed(b *testing.B) {
 	})
 }
 
-func benchmark_BRedAdd(b *testing.B) {
+func benchmarkBRedAdd(b *testing.B) {
 
 	q := uint64(1033576114481528833)
 	u := BRedParams(q)
@@ -425,7 +425,7 @@ func benchmark_BRedAdd(b *testing.B) {
 	})
 }
 
-func benchmark_MRed(b *testing.B) {
+func benchmarkMRed(b *testing.B) {
 
 	q := uint64(1033576114481528833)
 

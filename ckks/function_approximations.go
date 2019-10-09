@@ -35,7 +35,7 @@ func average(y []complex128) (avg complex128) {
 	return
 }
 
-func evaluate_cheby(coeffs []complex128, x complex128, a, b complex128) (y complex128) {
+func evaluatecheby(coeffs []complex128, x complex128, a, b complex128) (y complex128) {
 	var u, Tprev, Tnext, T complex128
 	u = (2*x - a - b) / (b - a)
 	Tprev = 1
@@ -85,7 +85,8 @@ func chebyCoeffs(u, y []complex128, a, b complex128) (coeffs []complex128) {
 	return
 }
 
-type chebyshevinterpolation struct {
+// ChebyshevInterpolation is a struct storing the Chebyshev coefficients and the range of approximation.
+type ChebyshevInterpolation struct {
 	coeffs []complex128
 	a      complex128
 	b      complex128
@@ -93,9 +94,9 @@ type chebyshevinterpolation struct {
 
 // Approximate computes a Chebyshev approximation of the input function, for the tange [-a, b] of degree degree.
 // To be used in conjonction with the function EvaluateCheby.
-func Approximate(function func(complex128) complex128, a, b complex128, degree int) (cheby *chebyshevinterpolation) {
+func Approximate(function func(complex128) complex128, a, b complex128, degree int) (cheby *ChebyshevInterpolation) {
 
-	cheby = new(chebyshevinterpolation)
+	cheby = new(ChebyshevInterpolation)
 	cheby.coeffs = make([]complex128, degree+1)
 	cheby.a = a
 	cheby.b = b
@@ -170,7 +171,7 @@ func evaluateCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator, eva
 }
 
 // EvaluateCheby evaluates a chebyshev approximation in log(n) + 1 (+1 if 2/(b-a) is not a gaussian integer) levels.
-func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *chebyshevinterpolation, evakey *EvaluationKey) (res *Ciphertext, err error) {
+func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error) {
 
 	a := cheby.a
 	b := cheby.b

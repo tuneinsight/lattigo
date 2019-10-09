@@ -128,7 +128,7 @@ func DecodeCoeffs(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byt
 	return pointer, nil
 }
 
-// DecodeCoeffs converts a byte array to a matrix of coefficients.
+// DecodeCoeffsNew converts a byte array to a matrix of coefficients.
 func DecodeCoeffsNew(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
 	tmp := N << 3
 	for i := uint64(0); i < numberModuli; i++ {
@@ -142,6 +142,7 @@ func DecodeCoeffsNew(pointer, N, numberModuli uint64, coeffs [][]uint64, data []
 	return pointer, nil
 }
 
+// MarshalBinary encodes a polynomial into bytes.
 func (Pol *Poly) MarshalBinary() ([]byte, error) {
 
 	N := uint64(len(Pol.Coeffs[0]))
@@ -167,6 +168,7 @@ func (Pol *Poly) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnMarshalBinary decodes a polynomial from bytes.
 func (Pol *Poly) UnMarshalBinary(data []byte) (*Poly, error) {
 
 	N := uint64(int(1 << data[0]))

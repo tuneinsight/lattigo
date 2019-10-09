@@ -16,7 +16,7 @@ type benchParams struct {
 }
 
 type benchContext struct {
-	ckkscontext *ckks.CkksContext
+	ckkscontext *ckks.Context
 	sk0         *ckks.SecretKey
 	sk1         *ckks.SecretKey
 	pk0         *ckks.PublicKey
@@ -24,7 +24,7 @@ type benchContext struct {
 	cprng       *CRPGenerator
 }
 
-func Benchmark_DCKKSScheme(b *testing.B) {
+func BenchmarkDCKKSScheme(b *testing.B) {
 
 	var err error
 
@@ -37,7 +37,7 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 
 		benchcontext := new(benchContext)
 
-		if benchcontext.ckkscontext, err = ckks.NewCkksContext(param.params); err != nil {
+		if benchcontext.ckkscontext, err = ckks.NewContext(param.params); err != nil {
 			b.Error(err)
 		}
 
@@ -53,16 +53,16 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 
 		benchcontext.cprng.Seed([]byte{})
 
-		bench_EKG(param, benchcontext, b)
-		bench_EKGNaive(param, benchcontext, b)
-		bench_CKG(param, benchcontext, b)
-		bench_CKS(param, benchcontext, b)
-		bench_PCKS(param, benchcontext, b)
+		benchEKG(param, benchcontext, b)
+		benchEKGNaive(param, benchcontext, b)
+		benchCKG(param, benchcontext, b)
+		benchCKS(param, benchcontext, b)
+		benchPCKS(param, benchcontext, b)
 
 	}
 }
 
-func bench_EKG(params benchParams, context *benchContext, b *testing.B) {
+func benchEKG(params benchParams, context *benchContext, b *testing.B) {
 	// EKG
 	bitLog := uint64(math.Ceil(float64(60) / float64(params.bdc)))
 
@@ -124,7 +124,7 @@ func bench_EKG(params benchParams, context *benchContext, b *testing.B) {
 	})
 }
 
-func bench_EKGNaive(params benchParams, context *benchContext, b *testing.B) {
+func benchEKGNaive(params benchParams, context *benchContext, b *testing.B) {
 	// EKG_Naive
 	ekgV2Naive := NewEkgProtocolNaive(context.ckkscontext.ContextKeys(), params.bdc)
 
@@ -161,7 +161,7 @@ func bench_EKGNaive(params benchParams, context *benchContext, b *testing.B) {
 	})
 }
 
-func bench_CKG(params benchParams, context *benchContext, b *testing.B) {
+func benchCKG(params benchParams, context *benchContext, b *testing.B) {
 
 	//CKG
 	ckgInstance := NewCKG(context.ckkscontext.ContextKeys(), context.cprng.Clock())
@@ -188,7 +188,7 @@ func bench_CKG(params benchParams, context *benchContext, b *testing.B) {
 	})
 }
 
-func bench_CKS(params benchParams, context *benchContext, b *testing.B) {
+func benchCKS(params benchParams, context *benchContext, b *testing.B) {
 	//CKS
 
 	cksInstance := NewCKS(context.sk0.Get(), context.sk1.Get(), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
@@ -215,7 +215,7 @@ func bench_CKS(params benchParams, context *benchContext, b *testing.B) {
 	})
 }
 
-func bench_PCKS(params benchParams, context *benchContext, b *testing.B) {
+func benchPCKS(params benchParams, context *benchContext, b *testing.B) {
 	//CKS_Trustless
 	pcks := NewPCKS(context.sk0.Get(), context.pk1.Get(), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
 

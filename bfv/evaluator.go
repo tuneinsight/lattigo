@@ -8,7 +8,7 @@ import (
 // Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
 type Evaluator struct {
-	bfvcontext    *BfvContext
+	bfvcontext    *Context
 	basisextender *ring.BasisExtender
 	complexscaler *ring.ComplexScaler
 	polypool      [4]*ring.Poly
@@ -18,7 +18,7 @@ type Evaluator struct {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on the ciphertexts and/or plaintexts. It stores a small pool of polynomials
 // and ciphertexts that will be used for intermediate values.
-func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator) {
+func (bfvcontext *Context) NewEvaluator() (evaluator *Evaluator) {
 
 	evaluator = new(Evaluator)
 	evaluator.bfvcontext = bfvcontext
@@ -175,7 +175,7 @@ func (evaluator *Evaluator) Neg(op Operand, ctOut *Ciphertext) error {
 	return nil
 }
 
-// Neg negates op and creates a new element to store the result.
+// NegNew negates op and creates a new element to store the result.
 func (evaluator *Evaluator) NegNew(op Operand) (ctOut *Ciphertext, err error) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(op.Degree())
 	return ctOut, evaluator.Neg(op, ctOut)
@@ -191,7 +191,7 @@ func (evaluator *Evaluator) Reduce(op Operand, ctOut *Ciphertext) error {
 	return nil
 }
 
-// Reduce applies a modular reduction on op and creates a new element ctOut to store the result.
+// ReduceNew applies a modular reduction on op and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) ReduceNew(op Operand) (ctOut *Ciphertext, err error) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(op.Degree())
 	return ctOut, evaluator.Reduce(op, ctOut)
@@ -251,31 +251,31 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	// Case where both BfvElements are of degree 1
 	if ct0.Degree() == 1 && ct1.Degree() == 1 {
 
-		c_00 := evaluator.polypool[0]
-		c_01 := evaluator.polypool[1]
+		c00 := evaluator.polypool[0]
+		c01 := evaluator.polypool[1]
 
 		d0 := tmpCtOut.value[0]
 		d1 := tmpCtOut.value[1]
 		d2 := tmpCtOut.value[2]
 
-		evaluator.bfvcontext.contextQP.MForm(c0.value[0], c_00)
-		evaluator.bfvcontext.contextQP.MForm(c0.value[1], c_01)
+		evaluator.bfvcontext.contextQP.MForm(c0.value[0], c00)
+		evaluator.bfvcontext.contextQP.MForm(c0.value[1], c01)
 
 		// Squaring case
 		if ct0 == ct1 {
 
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.value[0], d0) // c0 = c0[0]*c0[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.value[1], d1) // c1 = 2*c0[0]*0[1]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c00, c0.value[0], d0) // c0 = c0[0]*c0[0]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c00, c0.value[1], d1) // c1 = 2*c0[0]*0[1]
 			evaluator.bfvcontext.contextQP.Add(d1, d1, d1)
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c0.value[1], d2) // c2 = c0[1]*c0[1]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c01, c0.value[1], d2) // c2 = c0[1]*c0[1]
 
 			// Normal case
 		} else {
 
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c1.value[0], d0) // c0 = c0[0]*c0[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c1.value[1], d1)
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAddNoMod(c_01, c1.value[0], d1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c1.value[1], d2)            // c2 = c0[1]*c1[1]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c00, c1.value[0], d0) // c0 = c0[0]*c0[0]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c00, c1.value[1], d1)
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAddNoMod(c01, c1.value[0], d1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
+			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c01, c1.value[1], d2)            // c2 = c0[1]*c1[1]
 		}
 
 		// Case where both BfvElements are not of degree 1
@@ -288,21 +288,21 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		// Squaring case
 		if ct0 == ct1 {
 
-			c_00 := evaluator.ctxpool[1]
+			c00 := evaluator.ctxpool[1]
 
 			for i := range ct0.value {
-				evaluator.bfvcontext.contextQP.MForm(c0.value[i], c_00.value[i])
+				evaluator.bfvcontext.contextQP.MForm(c0.value[i], c00.value[i])
 			}
 
 			for i := uint64(0); i < ct0.Degree()+1; i++ {
 				for j := i + 1; j < ct0.Degree()+1; j++ {
-					evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00.value[i], c0.value[j], tmpCtOut.value[i+j])
+					evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c00.value[i], c0.value[j], tmpCtOut.value[i+j])
 					evaluator.bfvcontext.contextQP.Add(tmpCtOut.value[i+j], tmpCtOut.value[i+j], tmpCtOut.value[i+j])
 				}
 			}
 
 			for i := uint64(0); i < ct0.Degree()+1; i++ {
-				evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAdd(c_00.value[i], c0.value[i], tmpCtOut.value[i<<1])
+				evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAdd(c00.value[i], c0.value[i], tmpCtOut.value[i<<1])
 			}
 
 			// Normal case
@@ -383,7 +383,7 @@ func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 	return nil
 }
 
-// Relinearize relinearize the ciphertext ct0 of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
+// RelinearizeNew relinearize the ciphertext ct0 of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
 //
 // Requires a correct evaluation key as additional input :
 //
@@ -411,7 +411,7 @@ func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchkey *SwitchingKey,
 	return nil
 }
 
-// SwitchKeys applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valide switching-key :
+// SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valide switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
 func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext, err error) {
 
@@ -439,61 +439,58 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 	}
 
 	// Looks in the rotationkey if the corresponding rotation has been generated or if the input is a plaintext
-	if evakey.evakey_rot_col_L[k] != nil {
+	if evakey.evakeyRotColLeft[k] != nil {
 
-		evaluator.permute(ct0, ct0.IsNTT(), evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
+		evaluator.permute(ct0, ct0.IsNTT(), evaluator.bfvcontext.galElRotColLeft[k], evakey.evakeyRotColLeft[k], ctOut)
 
 		return nil
+	}
 
-	} else {
-
-		// If not looks if the left and right pow2 rotations have been generated
-		has_pow2_rotations := true
-		for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
-			if evakey.evakey_rot_col_L[i] == nil || evakey.evakey_rot_col_R[i] == nil {
-				has_pow2_rotations = false
-				break
-			}
-		}
-
-		// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
-		if has_pow2_rotations {
-
-			if hammingWeight64(k) <= hammingWeight64((evaluator.bfvcontext.n>>1)-k) {
-				evaluator.rotateColumnsLPow2(ct0, k, evakey, ctOut)
-			} else {
-				evaluator.rotateColumnsRPow2(ct0, (evaluator.bfvcontext.n>>1)-k, evakey, ctOut)
-			}
-
-			return nil
-
-			// Else returns an error indicating that the keys have not been generated
-		} else {
-			return errors.New("cannot rotate -> specific rotation and pow2 rotations have not been generated")
+	// If not looks if the left and right pow2 rotations have been generated
+	hasPow2Rotations := true
+	for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
+		if evakey.evakeyRotColLeft[i] == nil || evakey.evakeyRotColRight[i] == nil {
+			hasPow2Rotations = false
+			break
 		}
 	}
+
+	// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
+	if hasPow2Rotations {
+
+		if hammingWeight64(k) <= hammingWeight64((evaluator.bfvcontext.n>>1)-k) {
+			evaluator.rotateColumnsLPow2(ct0, k, evakey, ctOut)
+		} else {
+			evaluator.rotateColumnsRPow2(ct0, (evaluator.bfvcontext.n>>1)-k, evakey, ctOut)
+		}
+
+		return nil
+	}
+
+	// Else returns an error indicating that the keys have not been generated
+	return errors.New("cannot rotate -> specific rotation and pow2 rotations have not been generated")
 }
 
 // rotateColumnsLPow2 applies the Galois Automorphism on the element, rotating the element by k positions to the left, returns the result on ctOut.
 func (evaluator *Evaluator) rotateColumnsLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	evaluator.rotateColumnsPow2(ct0, evaluator.bfvcontext.gen, k, evakey.evakey_rot_col_L, ctOut)
+	evaluator.rotateColumnsPow2(ct0, evaluator.bfvcontext.gen, k, evakey.evakeyRotColLeft, ctOut)
 }
 
 // rotateColumnsRPow2 applies the Galois Endomorphism on the element, rotating the element by k positions to the right, returns the result on ctOut.
 func (evaluator *Evaluator) rotateColumnsRPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	evaluator.rotateColumnsPow2(ct0, evaluator.bfvcontext.genInv, k, evakey.evakey_rot_col_R, ctOut)
+	evaluator.rotateColumnsPow2(ct0, evaluator.bfvcontext.genInv, k, evakey.evakeyRotColRight, ctOut)
 }
 
 // rotateColumnsPow2 rotates ct0 by k position (left or right depending on the input), decomposing k as a sum of power of 2 rotations, and returns the result on ctOut.
-func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint64, evakey_rot_col map[uint64]*SwitchingKey, ctOut *Ciphertext) {
+func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint64, evakeyRotCol map[uint64]*SwitchingKey, ctOut *Ciphertext) {
 
-	var mask, evakey_index uint64
+	var mask, evakeyIndex uint64
 
 	context := evaluator.bfvcontext.contextQ
 
 	mask = (evaluator.bfvcontext.n << 1) - 1
 
-	evakey_index = 1
+	evakeyIndex = 1
 
 	if ct0.IsNTT() {
 		ctOut.Copy(ct0.Element())
@@ -507,13 +504,13 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 		if k&1 == 1 {
 
-			evaluator.permute(ctOut, true, generator, evakey_rot_col[evakey_index], ctOut)
+			evaluator.permute(ctOut, true, generator, evakeyRotCol[evakeyIndex], ctOut)
 		}
 
 		generator *= generator
 		generator &= mask
 
-		evakey_index <<= 1
+		evakeyIndex <<= 1
 		k >>= 1
 	}
 
@@ -530,11 +527,11 @@ func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ct
 		return errors.New("cannot rotate -> input and or output degree must be of degree 1")
 	}
 
-	if evakey.evakey_rot_row == nil {
+	if evakey.evakeyRotRows == nil {
 		return errors.New("cannot rotate -> rotation key not generated")
 	}
 
-	evaluator.permute(ct0, ct0.IsNTT(), evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row, ctOut)
+	evaluator.permute(ct0, ct0.IsNTT(), evaluator.bfvcontext.galElRotRow, evakey.evakeyRotRows, ctOut)
 
 	return nil
 }
@@ -625,7 +622,7 @@ func (evaluator *Evaluator) switchKeys(c2 *ring.Poly, evakey *SwitchingKey, ctOu
 
 	var mask, reduce, bitLog uint64
 
-	c2_qi_w := evaluator.polypool[3]
+	c2qiw := evaluator.polypool[3]
 
 	mask = uint64((1 << evakey.bitDecomp) - 1)
 
@@ -636,24 +633,24 @@ func (evaluator *Evaluator) switchKeys(c2 *ring.Poly, evakey *SwitchingKey, ctOu
 		bitLog = uint64(len(evakey.evakey[i]))
 
 		for j := uint64(0); j < bitLog; j++ {
-			//c2_qi_w = (c2_qi_w >> (w*z)) & (w-1)
+			//c2qiw = (c2qiw >> (w*z)) & (w-1)
 			for u := uint64(0); u < evaluator.bfvcontext.n; u++ {
 				for v := range evaluator.bfvcontext.contextQ.Modulus {
-					c2_qi_w.Coeffs[v][u] = (c2.Coeffs[i][u] >> (j * evakey.bitDecomp)) & mask
+					c2qiw.Coeffs[v][u] = (c2.Coeffs[i][u] >> (j * evakey.bitDecomp)) & mask
 				}
 			}
 
-			evaluator.bfvcontext.contextQ.NTT(c2_qi_w, c2_qi_w)
+			evaluator.bfvcontext.contextQ.NTT(c2qiw, c2qiw)
 
-			evaluator.bfvcontext.contextQ.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][0], c2_qi_w, ctOut.value[0])
-			evaluator.bfvcontext.contextQ.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][1], c2_qi_w, ctOut.value[1])
+			evaluator.bfvcontext.contextQ.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][0], c2qiw, ctOut.value[0])
+			evaluator.bfvcontext.contextQ.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][1], c2qiw, ctOut.value[1])
 
 			if reduce&7 == 7 {
 				evaluator.bfvcontext.contextQ.Reduce(ctOut.value[0], ctOut.value[0])
 				evaluator.bfvcontext.contextQ.Reduce(ctOut.value[1], ctOut.value[1])
 			}
 
-			reduce += 1
+			reduce++
 		}
 	}
 

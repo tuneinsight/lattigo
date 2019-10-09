@@ -10,13 +10,24 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
+// N is the ring degree
 var N uint64
-var T uint64
-var Qi []uint64
-var Pi []uint64
-var Sigma float64
-var bfvContext *bfv.BfvContext
 
+// T is the plaintext modulus
+var T uint64
+
+// Qi are ciphertext's moduli
+var Qi []uint64
+
+// Pi are the ciphertext extended moduli (during multiplication)
+var Pi []uint64
+
+// Sigma is the variance for tha gaussian sampling
+var Sigma float64
+
+var bfvContext *bfv.Context
+
+// ObliviousRiding is an example using the BFV scheme.
 func ObliviousRiding() {
 
 	// This example will simulate a situation where an anonymous rider wants to find the closest available rider within a given area.
@@ -51,7 +62,7 @@ func ObliviousRiding() {
 	// Plaintext modulus
 	params.T = 67084289
 
-	bfvContext, err := bfv.NewBfvContextWithParam(&params)
+	bfvContext, err := bfv.NewContextWithParam(&params)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -161,7 +172,7 @@ func ObliviousRiding() {
 
 	for i := uint64(0); i < NbDrivers; i++ {
 
-		r1, r1exp := result[i<<1]+result[(i<<1)+1], Distance(Drivers[i][i<<1], Drivers[i][(i<<1)+1], Rider[0], Rider[1])
+		r1, r1exp := result[i<<1]+result[(i<<1)+1], distance(Drivers[i][i<<1], Drivers[i][(i<<1)+1], Rider[0], Rider[1])
 
 		if r1 == r1exp {
 			if closest[3] > r1 {
@@ -173,7 +184,7 @@ func ObliviousRiding() {
 		}
 
 		if r1 != r1exp {
-			errors += 1
+			errors++
 		}
 
 		if i < 4 || i > NbDrivers-5 {
@@ -194,7 +205,7 @@ func ObliviousRiding() {
 	fmt.Printf("Closest Driver to Rider is n°%d (%d, %d) with a distance of %d units \n", closest[0], closest[1], closest[2], uint64(math.Sqrt(float64(closest[3]))))
 }
 
-func Distance(a, b, c, d uint64) uint64 {
+func distance(a, b, c, d uint64) uint64 {
 	if a > c {
 		a, c = c, a
 	}

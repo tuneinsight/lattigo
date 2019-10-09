@@ -39,7 +39,7 @@ var logN16Q1770 = []uint64{0x7ffffffffcc0001, 0x7ffffffffba0001, 0x7ffffffffb000
 	0x7fffffffc020001, 0x7fffffffbcc0001, 0x7fffffffb3c0001, 0x7fffffffb220001,
 	0x7fffffffb0a0001, 0x7fffffffadc0001}
 
-var Pi60 = []uint64{0xffffffffe400001, 0xffffffffd000001, 0xffffffffa200001, 0xffffffff9600001,
+var pi60 = []uint64{0xffffffffe400001, 0xffffffffd000001, 0xffffffffa200001, 0xffffffff9600001,
 	0xfffffffeb200001, 0xfffffffea400001, 0xfffffffe8000001, 0xfffffffe3e00001,
 	0xfffffffe2200001, 0xfffffffe0800001, 0xfffffffdd400001, 0xfffffffd9000001,
 	0xfffffffcea00001, 0xfffffffcdc00001, 0xfffffffc7200001, 0xfffffffc5a00001,
@@ -51,12 +51,12 @@ var Pi60 = []uint64{0xffffffffe400001, 0xffffffffd000001, 0xffffffffa200001, 0xf
 	0xfffffff90600001, 0xfffffff8e600001, 0xfffffff8a400001, 0xfffffff88200001}
 
 // Power of 2 plaintext modulus
-var Tpow2 = []uint64{2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144,
+var tPow2 = []uint64{2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144,
 	524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728, 268435456, 536870912,
 	1073741824, 2147483648, 4294967296}
 
 // Plaintext modulus allowing batching for the corresponding N in ascending bitsize.
-var TBatching = map[uint64][]uint64{
+var tBatching = map[uint64][]uint64{
 	4096: {40961, 114689, 188417, 417793, 1032193, 2056193, 4169729, 8380417, 16760833, 33538049, 67084289, 134176769,
 		268369921, 536813569, 1073692673, 2147377153, 4294828033},
 	8192: {65537, 114689, 163841, 1032193, 1785857, 4079617, 8273921, 16760833, 33538049, 67043329, 133857281,
@@ -80,10 +80,10 @@ type Parameters struct {
 // These parameters correspond to 128 bit security level for secret keys in the ternary distribution
 // (see //https://projects.csail.mit.edu/HEWorkshop/HomomorphicEncryptionStandard2018.pdf).
 var DefaultParams = []Parameters{
-	{4096, 65537, logN12Q109, Pi60[len(Pi60)-len(logN12Q109)-1:], 3.19},
-	{8192, 65537, logN13Q218, Pi60[len(Pi60)-len(logN13Q218):], 3.19},
-	{16384, 65537, logN14Q438, Pi60[len(Pi60)-len(logN14Q438):], 3.19},
-	{32768, 65537, logN15Q881, Pi60[len(Pi60)-len(logN15Q881):], 3.19},
+	{4096, 65537, logN12Q109, pi60[len(pi60)-len(logN12Q109)-1:], 3.19},
+	{8192, 65537, logN13Q218, pi60[len(pi60)-len(logN13Q218):], 3.19},
+	{16384, 65537, logN14Q438, pi60[len(pi60)-len(logN14Q438):], 3.19},
+	{32768, 65537, logN15Q881, pi60[len(pi60)-len(logN15Q881):], 3.19},
 	//{65536, 786433, logN16Q1770, Pi60[len(Pi60)-34:], 3.19},
 }
 

@@ -7,7 +7,7 @@ import (
 )
 
 type BFVTESTPARAMS struct {
-	bfvcontext   *BfvContext
+	bfvcontext   *Context
 	batchencoder *BatchEncoder
 	kgen         *KeyGenerator
 	sk           *SecretKey
@@ -18,7 +18,7 @@ type BFVTESTPARAMS struct {
 	evaluator    *Evaluator
 }
 
-func Test_BFV(t *testing.T) {
+func TestBFV(t *testing.T) {
 
 	var err error
 
@@ -30,7 +30,7 @@ func Test_BFV(t *testing.T) {
 
 		bfvTest := new(BFVTESTPARAMS)
 
-		bfvTest.bfvcontext = NewBfvContext()
+		bfvTest.bfvcontext = NewContext()
 		if err := bfvTest.bfvcontext.SetParameters(&params); err != nil {
 			t.Error(err)
 		}
@@ -57,19 +57,19 @@ func Test_BFV(t *testing.T) {
 
 		bfvTest.evaluator = bfvTest.bfvcontext.NewEvaluator()
 
-		test_EncodeDecode(bfvTest, t)
-		test_PlaintextBatchEncodeDecode(bfvTest, t)
-		test_EncryptDecrypt(bfvTest, t)
-		test_HomomorphicAddition(bfvTest, t)
-		test_AddWithPlaintext(bfvTest, t)
-		test_HomomorphicSubtraction(bfvTest, t)
-		test_SubWithPlaintext(bfvTest, t)
-		test_HomomorphicMultiplication(bfvTest, t)
-		test_MulWithPlaintext(bfvTest, t)
-		test_Relinearization(bfvTest, bitDecomps, t)
-		test_KeySwitching(bfvTest, bitDecomps, t)
-		test_GaloisEnd(bfvTest, bitDecomps, t)
-		test_Marshaler(bfvTest, t)
+		testEncodeDecode(bfvTest, t)
+		testPlaintextBatchEncodeDecode(bfvTest, t)
+		testEncryptDecrypt(bfvTest, t)
+		testHomomorphicAddition(bfvTest, t)
+		testAddWithPlaintext(bfvTest, t)
+		testHomomorphicSubtraction(bfvTest, t)
+		testSubWithPlaintext(bfvTest, t)
+		testHomomorphicMultiplication(bfvTest, t)
+		testMulWithPlaintext(bfvTest, t)
+		testRelinearization(bfvTest, bitDecomps, t)
+		testKeySwitching(bfvTest, bitDecomps, t)
+		testGaloisEnd(bfvTest, bitDecomps, t)
+		testMarshaler(bfvTest, t)
 
 	}
 }
@@ -78,7 +78,7 @@ func Test_BFV(t *testing.T) {
 //=== TESTS FOR ENCODE AND DECODE AN INTEGER ON A PLAINTEXT ===
 //=============================================================
 
-func test_EncodeDecode(bfvTest *BFVTESTPARAMS, t *testing.T) {
+func testEncodeDecode(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	var base int64
 	var value int64
@@ -123,7 +123,7 @@ func test_EncodeDecode(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	})
 }
 
-func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
+func testMarshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	state := true
 
@@ -259,16 +259,16 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 		state = true
 
-		if rotKeyTest.evakey_rot_row != nil {
-			for j := range rotKeyTest.evakey_rot_row.evakey {
-				for x := range rotKeyTest.evakey_rot_row.evakey[j] {
-					if bfvContext.contextQ.Equal(rotKeyTest.evakey_rot_row.evakey[j][x][0], rotKey.evakey_rot_row.evakey[j][x][0]) != true {
+		if rotKeyTest.evakeyRotRows != nil {
+			for j := range rotKeyTest.evakeyRotRows.evakey {
+				for x := range rotKeyTest.evakeyRotRows.evakey[j] {
+					if bfvContext.contextQ.Equal(rotKeyTest.evakeyRotRows.evakey[j][x][0], rotKey.evakeyRotRows.evakey[j][x][0]) != true {
 						t.Errorf("error : binarymarshal rotation key rot row")
 						state = false
 						break
 					}
 
-					if bfvContext.contextQ.Equal(rotKeyTest.evakey_rot_row.evakey[j][x][1], rotKey.evakey_rot_row.evakey[j][x][1]) != true {
+					if bfvContext.contextQ.Equal(rotKeyTest.evakeyRotRows.evakey[j][x][1], rotKey.evakeyRotRows.evakey[j][x][1]) != true {
 						t.Errorf("error : binarymarshal rotation key rot row")
 						state = false
 						break
@@ -278,16 +278,16 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			}
 		}
 
-		for k, v := range rotKeyTest.evakey_rot_col_L {
+		for k, v := range rotKeyTest.evakeyRotColLeft {
 			for j := range v.evakey {
 				for x := range v.evakey[j] {
-					if bfvContext.contextQ.Equal(v.evakey[j][x][0], rotKey.evakey_rot_col_L[k].evakey[j][x][0]) != true {
+					if bfvContext.contextQ.Equal(v.evakey[j][x][0], rotKey.evakeyRotColLeft[k].evakey[j][x][0]) != true {
 						t.Errorf("error : binarymarshal rotation key col L")
 						state = false
 						break
 					}
 
-					if bfvContext.contextQ.Equal(v.evakey[j][x][1], rotKey.evakey_rot_col_L[k].evakey[j][x][1]) != true {
+					if bfvContext.contextQ.Equal(v.evakey[j][x][1], rotKey.evakeyRotColLeft[k].evakey[j][x][1]) != true {
 						t.Errorf("error : binarymarshal rotation key col L")
 						state = false
 						break
@@ -297,16 +297,16 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 		}
 
-		for k, v := range rotKeyTest.evakey_rot_col_R {
+		for k, v := range rotKeyTest.evakeyRotColRight {
 			for j := range v.evakey {
 				for x := range v.evakey[j] {
-					if bfvContext.contextQ.Equal(v.evakey[j][x][0], rotKey.evakey_rot_col_R[k].evakey[j][x][0]) != true {
+					if bfvContext.contextQ.Equal(v.evakey[j][x][0], rotKey.evakeyRotColRight[k].evakey[j][x][0]) != true {
 						t.Errorf("error : binarymarshal rotation key col R")
 						state = false
 						break
 					}
 
-					if bfvContext.contextQ.Equal(v.evakey[j][x][1], rotKey.evakey_rot_col_R[k].evakey[j][x][1]) != true {
+					if bfvContext.contextQ.Equal(v.evakey[j][x][1], rotKey.evakeyRotColRight[k].evakey[j][x][1]) != true {
 						t.Errorf("error : binarymarshal rotation key col R")
 						state = false
 						break
@@ -322,7 +322,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 //=== TESTS FOR ENCRYPT AND DECRYPT ===
 //=====================================
 
-func test_PlaintextBatchEncodeDecode(bfvTest *BFVTESTPARAMS, t *testing.T) {
+func testPlaintextBatchEncodeDecode(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/BatchEncodeDecode", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
@@ -383,7 +383,7 @@ func verifyTestVectors(bfvTest *BFVTESTPARAMS, coeffs *ring.Poly, element Operan
 	}
 }
 
-func test_EncryptDecrypt(bfvTest *BFVTESTPARAMS, t *testing.T) {
+func testEncryptDecrypt(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/EncryptPk", bfvTest.bfvcontext.N(),
 		bfvTest.bfvcontext.T(),
@@ -420,7 +420,7 @@ func test_EncryptDecrypt(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	})
 }
 
-func test_HomomorphicAddition(bfvTest *BFVTESTPARAMS, t *testing.T) {
+func testHomomorphicAddition(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
@@ -509,7 +509,7 @@ func test_HomomorphicAddition(bfvTest *BFVTESTPARAMS, t *testing.T) {
 }
 
 //HOMOMORPHIC MULTIPLICATION WITH RELINEARIZATION BASE Qi AND w
-func test_AddWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
+func testAddWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
@@ -587,7 +587,7 @@ func test_AddWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	})
 }
 
-func test_HomomorphicSubtraction(bfvTest *BFVTESTPARAMS, t *testing.T) {
+func testHomomorphicSubtraction(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
@@ -676,7 +676,7 @@ func test_HomomorphicSubtraction(bfvTest *BFVTESTPARAMS, t *testing.T) {
 }
 
 //HOMOMORPHIC MULTIPLICATION WITH RELINEARIZATION BASE Qi AND w
-func test_SubWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
+func testSubWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
@@ -753,7 +753,7 @@ func test_SubWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 }
 
 //HOMOMORPHIC MULTIPLICATION
-func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
+func testHomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
@@ -813,7 +813,7 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 }
 
 //HOMOMORPHIC MULTIPLICATION WITH RELINEARIZATION BASE Qi AND w
-func test_MulWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
+func testMulWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 	bfvContext := bfvTest.bfvcontext
 	evaluator := bfvTest.evaluator
@@ -853,7 +853,7 @@ func test_MulWithPlaintext(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	})
 }
 
-func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
+func testRelinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 
 	bfvContext := bfvTest.bfvcontext
 	kgen := bfvTest.kgen
@@ -920,7 +920,7 @@ func test_Relinearization(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testin
 	}
 }
 
-func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
+func testKeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 
 	bfvContext := bfvTest.bfvcontext
 	encoder := bfvTest.batchencoder
@@ -930,14 +930,14 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 
 	SkNew := kgen.NewSecretKey()
 
-	decryptor_SkNew, err := bfvContext.NewDecryptor(SkNew)
+	decryptorSkNew, err := bfvContext.NewDecryptor(SkNew)
 	if err != nil {
 		t.Error(err)
 	}
 
 	for _, bitDecomp := range bitDecomps {
 
-		switching_key := kgen.NewSwitchingKey(Sk, SkNew, bitDecomp)
+		switchingKey := kgen.NewSwitchingKey(Sk, SkNew, bitDecomp)
 
 		t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/bitDecomp=%d/SwitchKeys", bfvTest.bfvcontext.N(),
 			bfvTest.bfvcontext.T(),
@@ -947,11 +947,11 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 
-			if err := evaluator.SwitchKeys(ciphertext0, switching_key, ciphertext0); err != nil {
+			if err := evaluator.SwitchKeys(ciphertext0, switchingKey, ciphertext0); err != nil {
 				t.Error(err)
 			}
 
-			if equalslice(coeffs0.Coeffs[0], encoder.DecodeUint(decryptor_SkNew.DecryptNew(ciphertext0))) != true {
+			if equalslice(coeffs0.Coeffs[0], encoder.DecodeUint(decryptorSkNew.DecryptNew(ciphertext0))) != true {
 				t.Errorf("error : switchingKey encrypt/decrypt")
 			}
 
@@ -965,19 +965,19 @@ func test_KeySwitching(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T
 
 			coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 
-			ciphertextTest, err := evaluator.SwitchKeysNew(ciphertext0, switching_key)
+			ciphertextTest, err := evaluator.SwitchKeysNew(ciphertext0, switchingKey)
 			if err != nil {
 				t.Error(err)
 			}
 
-			if equalslice(coeffs0.Coeffs[0], encoder.DecodeUint(decryptor_SkNew.DecryptNew(ciphertextTest))) != true {
+			if equalslice(coeffs0.Coeffs[0], encoder.DecodeUint(decryptorSkNew.DecryptNew(ciphertextTest))) != true {
 				t.Errorf("error : switchingKeyNew encrypt/decrypt")
 			}
 		})
 	}
 }
 
-func test_GaloisEnd(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
+func testGaloisEnd(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 
 	bfvContext := bfvTest.bfvcontext
 	kgen := bfvTest.kgen
@@ -997,7 +997,7 @@ func test_GaloisEnd(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 
 	for _, bitDecomp := range bitDecomps {
 
-		rotation_key := kgen.NewRotationKeysPow2(Sk, bitDecomp, true)
+		rotationKey := kgen.NewRotationKeysPow2(Sk, bitDecomp, true)
 
 		for n := uint64(1); n < bfvContext.n>>1; n <<= 1 {
 
@@ -1012,7 +1012,7 @@ func test_GaloisEnd(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 				bfvTest.bfvcontext.LogP(),
 				bitDecomp, n), func(t *testing.T) {
 
-				if err := evaluator.RotateColumns(ciphertext, n, rotation_key, receiverCiphertext); err != nil {
+				if err := evaluator.RotateColumns(ciphertext, n, rotationKey, receiverCiphertext); err != nil {
 					t.Error(err)
 				}
 
@@ -1035,7 +1035,7 @@ func test_GaloisEnd(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 				bfvTest.bfvcontext.LogP(),
 				bitDecomp, rand), func(t *testing.T) {
 
-				if err := evaluator.RotateColumns(ciphertext, rand, rotation_key, receiverCiphertext); err != nil {
+				if err := evaluator.RotateColumns(ciphertext, rand, rotationKey, receiverCiphertext); err != nil {
 					t.Error(err)
 				}
 
@@ -1049,7 +1049,7 @@ func test_GaloisEnd(bfvTest *BFVTESTPARAMS, bitDecomps []uint64, t *testing.T) {
 			bfvTest.bfvcontext.LogP(),
 			bitDecomp), func(t *testing.T) {
 
-			if err := evaluator.RotateRows(ciphertext, rotation_key, receiverCiphertext); err != nil {
+			if err := evaluator.RotateRows(ciphertext, rotationKey, receiverCiphertext); err != nil {
 				t.Error(err)
 			}
 

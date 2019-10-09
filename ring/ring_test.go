@@ -13,33 +13,33 @@ import (
 	"time"
 )
 
-var folder = "test_data/"
+var folder = "testdata/"
 
 // Name of the test vectors files
 
-var files_60 = []string{
-	"test_pol_60____8_2",
-	"test_pol_60___16_2",
-	"test_pol_60___32_2",
-	"test_pol_60___64_2",
-	"test_pol_60__128_2",
-	"test_pol_60__256_2",
-	"test_pol_60__512_2",
+var files60 = []string{
+	"testpol_60____8_2",
+	"testpol_60___16_2",
+	"testpol_60___32_2",
+	"testpol_60___64_2",
+	"testpol_60__128_2",
+	"testpol_60__256_2",
+	"testpol_60__512_2",
 }
 
 // Name of the test vectors files
 
-var filesNTT_60 = []string{
-	"test_pol_NTT_60____8_2",
-	"test_pol_NTT_60___16_2",
-	"test_pol_NTT_60___32_2",
-	"test_pol_NTT_60___64_2",
-	"test_pol_NTT_60__128_2",
-	"test_pol_NTT_60__256_2",
-	"test_pol_NTT_60__512_2",
+var filesNTT60 = []string{
+	"testpol_NTT_60____8_2",
+	"testpol_NTT_60___16_2",
+	"testpol_NTT_60___32_2",
+	"testpol_NTT_60___64_2",
+	"testpol_NTT_60__128_2",
+	"testpol_NTT_60__256_2",
+	"testpol_NTT_60__512_2",
 }
 
-func Test_Polynomial(t *testing.T) {
+func TestPolynomial(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -69,48 +69,48 @@ func Test_Polynomial(t *testing.T) {
 		contextQP.Merge(contextQ, contextP)
 
 		// ok!
-		test_GenerateNTTPrimes(N, Qi[0], t)
+		testGenerateNTTPrimes(N, Qi[0], t)
 
 		// ok!
-		test_ImportExportPolyString(contextQ, t)
+		testImportExportPolyString(contextQ, t)
 
 		// ok!
-		test_Marshaler(contextQ, t)
+		testMarshaler(contextQ, t)
 
 		// TODO : check that the coefficients are within the bound
-		test_GaussianPoly(sigma, contextQ, t)
+		testGaussianPoly(sigma, contextQ, t)
 
 		// ok!
-		test_BRed(contextQ, t)
+		testBRed(contextQ, t)
 
 		// ok!
-		test_MRed(contextQ, t)
+		testMRed(contextQ, t)
 
 		// ok!
-		test_Shift(contextQ, t)
+		testShift(contextQ, t)
 
 		// ok!
-		test_GaloisShift(contextQ, t)
+		testGaloisShift(contextQ, t)
 
 		// ok!
-		test_MForm(contextQ, t)
+		testMForm(contextQ, t)
 
 		// ok!
-		test_MulPoly(contextQ, t)
+		testMulPoly(contextQ, t)
 
 		// ok!
-		test_MulPoly_Montgomery(contextQ, t)
+		testMulPolyMontgomery(contextQ, t)
 
 		// ok!
-		test_ExtendBasis(contextQ, contextP, contextQP, t)
+		testExtendBasis(contextQ, contextP, contextQP, t)
 
 		// ok!
-		test_SimpleScaling(T, contextQ, contextP, t)
+		testSimpleScaling(T, contextQ, contextP, t)
 
 		// ok!
-		test_ComplexScaling(T, contextQ, contextP, contextQP, t)
+		testComplexScaling(T, contextQ, contextP, contextQP, t)
 
-		test_MultByMonomial(contextQ, t)
+		testMultByMonomial(contextQ, t)
 	}
 }
 
@@ -177,20 +177,20 @@ func constructPolynomialsFromString(vs []string, context *Context) *Poly {
 	return pol
 }
 
-func test_Vectors_NTT(t *testing.T) {
+func testVectorsNTT(t *testing.T) {
 
 	for x := uint64(0); x < 7; x++ {
 
-		vs := getParamsFromString(fmt.Sprintf(folder + files_60[x]))
-		vs_ntt := getParamsFromString(fmt.Sprintf(folder + filesNTT_60[x]))
+		vs := getParamsFromString(fmt.Sprintf(folder + files60[x]))
+		vsntt := getParamsFromString(fmt.Sprintf(folder + filesNTT60[x]))
 
 		context := constructContextFromString(vs)
 
-		t.Run(fmt.Sprintf("Test_Vectors_NTT/N=%d/limbs=%d", context.N, len(context.Modulus)), func(t *testing.T) {
+		t.Run(fmt.Sprintf("testVectorsNTT/N=%d/limbs=%d", context.N, len(context.Modulus)), func(t *testing.T) {
 
 			Polx := constructPolynomialsFromString(vs, context)
 
-			PolNTT := constructPolynomialsFromString(vs_ntt, context)
+			PolNTT := constructPolynomialsFromString(vsntt, context)
 
 			CRTCoeffs := Polx.GetCoefficients()
 
@@ -220,7 +220,7 @@ func test_Vectors_NTT(t *testing.T) {
 	}
 }
 
-func test_GenerateNTTPrimes(N, Qi uint64, t *testing.T) {
+func testGenerateNTTPrimes(N, Qi uint64, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/GenerateNTTPrimes", N), func(t *testing.T) {
 
@@ -239,7 +239,7 @@ func test_GenerateNTTPrimes(N, Qi uint64, t *testing.T) {
 	})
 }
 
-func test_ImportExportPolyString(context *Context, t *testing.T) {
+func testImportExportPolyString(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/ImportExportPolyString", context.N, len(context.Modulus)), func(t *testing.T) {
 
@@ -254,7 +254,7 @@ func test_ImportExportPolyString(context *Context, t *testing.T) {
 	})
 }
 
-func test_Marshaler(context *Context, t *testing.T) {
+func testMarshaler(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/MarshalContext", context.N, len(context.Modulus)), func(t *testing.T) {
 
@@ -293,7 +293,7 @@ func test_Marshaler(context *Context, t *testing.T) {
 	})
 }
 
-func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
+func testGaussianPoly(sigma float64, context *Context, t *testing.T) {
 
 	bound := int(sigma * 6)
 	KYS := context.NewKYSampler(sigma, bound)
@@ -317,15 +317,15 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 
 		for i := range pol.Coeffs[0] {
 			if pol.Coeffs[0][i] == context.Modulus[0]-1 {
-				countMOn += 1
+				countMOn++
 			}
 
 			if pol.Coeffs[0][i] == 0 {
-				countZer += 1
+				countZer++
 			}
 
 			if pol.Coeffs[0][i] == 1 {
-				countOne += 1
+				countOne++
 			}
 		}
 
@@ -335,7 +335,7 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 	})
 }
 
-func test_BRed(context *Context, t *testing.T) {
+func testBRed(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/BRed", context.N, len(context.Modulus)), func(t *testing.T) {
 		for j, q := range context.Modulus {
@@ -362,7 +362,7 @@ func test_BRed(context *Context, t *testing.T) {
 	})
 }
 
-func test_MRed(context *Context, t *testing.T) {
+func testMRed(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/MRed", context.N, len(context.Modulus)), func(t *testing.T) {
 		for j := range context.Modulus {
@@ -393,7 +393,7 @@ func test_MRed(context *Context, t *testing.T) {
 	})
 }
 
-func test_Shift(context *Context, t *testing.T) {
+func testShift(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/Shift", context.N, len(context.Modulus)), func(t *testing.T) {
 		pWant := context.NewUniformPoly()
@@ -411,7 +411,7 @@ func test_Shift(context *Context, t *testing.T) {
 	})
 }
 
-func test_GaloisShift(context *Context, t *testing.T) {
+func testGaloisShift(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/GaloisShift", context.N, len(context.Modulus)), func(t *testing.T) {
 
@@ -438,7 +438,7 @@ func test_GaloisShift(context *Context, t *testing.T) {
 	})
 }
 
-func test_MForm(context *Context, t *testing.T) {
+func testMForm(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/MForm", context.N, len(context.Modulus)), func(t *testing.T) {
 
@@ -455,7 +455,7 @@ func test_MForm(context *Context, t *testing.T) {
 
 }
 
-func test_MulPoly(context *Context, t *testing.T) {
+func testMulPoly(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/MulPoly", context.N, len(context.Modulus)), func(t *testing.T) {
 
@@ -480,7 +480,7 @@ func test_MulPoly(context *Context, t *testing.T) {
 	})
 }
 
-func test_MulPoly_Montgomery(context *Context, t *testing.T) {
+func testMulPolyMontgomery(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/MulPoly_Montgomery", context.N, len(context.Modulus)), func(t *testing.T) {
 		p1 := context.NewUniformPoly()
@@ -506,7 +506,7 @@ func test_MulPoly_Montgomery(context *Context, t *testing.T) {
 	})
 }
 
-func test_ExtendBasis(contextQ, contextP, contextQP *Context, t *testing.T) {
+func testExtendBasis(contextQ, contextP, contextQP *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ExtendBasis", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(t *testing.T) {
 
@@ -536,7 +536,7 @@ func test_ExtendBasis(contextQ, contextP, contextQP *Context, t *testing.T) {
 	})
 }
 
-func test_SimpleScaling(T uint64, contextT, contextQ *Context, t *testing.T) {
+func testSimpleScaling(T uint64, contextT, contextQ *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/T=%v/SimpleScaling", contextQ.N, len(contextQ.Modulus), T), func(t *testing.T) {
 
@@ -573,7 +573,7 @@ func test_SimpleScaling(T uint64, contextT, contextQ *Context, t *testing.T) {
 	})
 }
 
-func test_ComplexScaling(T uint64, contextQ, contextP, contextQP *Context, t *testing.T) {
+func testComplexScaling(T uint64, contextQ, contextP, contextQP *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d+%d/T=%d/ComplexScaling", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus), T), func(t *testing.T) {
 
@@ -621,7 +621,7 @@ func test_ComplexScaling(T uint64, contextQ, contextP, contextQP *Context, t *te
 	})
 }
 
-func test_MultByMonomial(context *Context, t *testing.T) {
+func testMultByMonomial(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/MultByMonomial", context.N, len(context.Modulus)), func(t *testing.T) {
 

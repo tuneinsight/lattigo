@@ -186,13 +186,22 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			t.Error(err)
 		}
 
+		ctTestNew := new(Ciphertext)
+		err = ctTestNew.UnMarshalBinary(CtxBytes)
+		if err != nil {
+			t.Error(err)
+		}
+
 		for i := range Ctx.Value() {
-			if bfvContext.contextQ.Equal(CtxTest.Value()[i], Ctx.Value()[i]) != true {
-				t.Errorf("error : binarymarshal ciphertext")
+			if bfvContext.contextQ.Equal(CtxTest.Value()[i], Ctx.Value()[i]) {
+				t.Error("pre-allocated unmarshalled ciphertext not matching marshalled one")
+				break
+			}
+			if bfvContext.contextQ.Equal(ctTestNew.Value()[i], Ctx.Value()[i]) {
+				t.Error("unmarshalled ciphertext not matching marshalled one")
 				break
 			}
 		}
-
 	})
 
 	t.Run(fmt.Sprintf("N=%d/T=%d/Qi=%dlimbs/bitDecomp=%d/Marshalrlk", bfvTest.bfvcontext.n,

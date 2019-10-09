@@ -52,21 +52,21 @@ func Benchmark_DBFVScheme(b *testing.B) {
 			}
 
 			//EKG_V2_Naive_Round_0
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Naive_Round0", params.N, bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKGNaive_Round_0_Gen", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekgV2Naive.GenSamples(sk0.Get(), pk1.Get())
 				}
 			})
 
 			//EKG_V2_Naive_Round_1
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Naive_Round1", params.N, bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKGNaive_Round_1_AggrGen", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekgV2Naive.Aggregate(sk0.Get(), pk1.Get(), samples)
 				}
 			})
 
 			//EKG_V2_Naive_Round_2
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Naive_Round2", params.N, bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKGNaive_GenKey", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekgV2Naive.Finalize(aggregatedSamples)
 				}
@@ -90,26 +90,44 @@ func Benchmark_DBFVScheme(b *testing.B) {
 			ekg := NewEkgProtocol(bfvContext, bitDecomp)
 			share1, share2, share3 := ekg.AllocateShares()
 
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_1", params.N, bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_1_Gen", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekg.GenShareRoundOne(sk0.Get(), sk1.Get(), crp, share1)
 				}
 			})
 
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_2", params.N, bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_1_Aggr", params.N, bitDecomp), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					ekg.AggregateShareRoundOne(share1, share1, share1)
+				}
+			})
+
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_2_Gen", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekg.GenShareRoundTwo(share1, sk0.Get(), crp, share2)
 				}
 			})
 
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_3", params.N, bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_2_Aggr", params.N, bitDecomp), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					ekg.AggregateShareRoundTwo(share2, share2, share2)
+				}
+			})
+
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_3_Gen", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekg.GenShareRoundThree(share2, sk1.Get(), sk1.Get(), share3)
 				}
 			})
 
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_Round_3_Aggr", params.N, bitDecomp), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					ekg.AggregateShareRoundThree(share3, share3, share3)
+				}
+			})
+
 			evk := bfvContext.NewRelinKey(1, bitDecomp)
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_GenGey", params.N, bitDecomp), func(b *testing.B) {
+			b.Run(fmt.Sprintf("params=%d/decomp=%d/EKG_GenKey", params.N, bitDecomp), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					ekg.GenRelinearizationKey(share2, share3, evk)
 				}
@@ -121,9 +139,15 @@ func Benchmark_DBFVScheme(b *testing.B) {
 		share := ckg.AllocateShares()
 		crs := crpGenerator.Clock()
 
-		b.Run(fmt.Sprintf("params=%d/CKG_Round_1", params.N), func(b *testing.B) {
+		b.Run(fmt.Sprintf("params=%d/CKG_Round_1_Gen", params.N), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				ckg.GenShare(sk0.Get(), crs, share)
+			}
+		})
+
+		b.Run(fmt.Sprintf("params=%d/CKG_Round_1_Aggr", params.N), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				ckg.AggregateShares(share, share , share)
 			}
 		})
 
@@ -143,9 +167,15 @@ func Benchmark_DBFVScheme(b *testing.B) {
 		delta := bfvContext.ContextQ().NewPoly()
 		bfvContext.ContextQ().Sub(sk0.Get(), sk1.Get(), delta)
 
-		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/CKS_Round_1", params.N, sigmaSmudging), func(b *testing.B) {
+		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/CKS_Round_1_Gen", params.N, sigmaSmudging), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				cks.GenShareDelta(delta, ciphertext, cksShare)
+			}
+		})
+
+		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/CKS_Round_1_Aggr", params.N, sigmaSmudging), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				cks.AggregateShares(cksShare, cksShare, cksShare)
 			}
 		})
 
@@ -159,9 +189,15 @@ func Benchmark_DBFVScheme(b *testing.B) {
 		pcks := NewPCKSProtocol(bfvContext, sigmaSmudging)
 		pcksShare := pcks.AllocateShares()
 
-		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/PCKS_Round_1", params.N, sigmaSmudging), func(b *testing.B) {
+		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/PCKS_Round_1_Gen", params.N, sigmaSmudging), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				pcks.GenShare(sk0.Get(), pk0, ciphertext, pcksShare)
+			}
+		})
+
+		b.Run(fmt.Sprintf("params=%d/sigmaSmudging=%f/PCKS_Round_1_Aggr", params.N, sigmaSmudging), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				pcks.AggregateShares(pcksShare, pcksShare, pcksShare)
 			}
 		})
 

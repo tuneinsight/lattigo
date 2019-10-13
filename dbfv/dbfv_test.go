@@ -509,3 +509,101 @@ func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ek
 	P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
 	return evk
 }
+
+func Test_Marshalling(t *testing.T){
+	//verify if the un.marshalling works properly
+	log.Print("Verifying marshalling for Key Generation")
+	bfvCtx,_ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
+	KeyGenerator := bfvCtx.NewKeyGenerator()
+	crsGen, _ := NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextQ())
+	sk := KeyGenerator.NewSecretKey()
+	crs := crsGen.Clock()
+	keygenProtocol := NewCKGProtocol(bfvCtx)
+	KeyGenShareBefore := keygenProtocol.AllocateShares()
+	keygenProtocol.GenShare(sk.Get(),crs, KeyGenShareBefore)
+	//now we marshall it
+	data , err := KeyGenShareBefore.MarshalBinary()
+
+	if err != nil{
+		log.Fatal("Could not marshal the CKGShare : ", err )
+		t.Fail()
+	}
+
+	KeyGenShareAfter := new(CKGShare)
+	err = KeyGenShareAfter.UnmarshalBinary(data)
+	if err != nil{
+		log.Fatal("Could not unmarshal the CKGShare : ",  err)
+		t.Fail()
+	}
+
+	//comparing the results
+	if KeyGenShareBefore.GetDegree() != KeyGenShareAfter.GetDegree(){
+		log.Print("Unmatched degree on key gen shares")
+		t.Fail()
+	}
+
+	for i := 0 ;i < KeyGenShareBefore.GetLenModuli();i++{
+		if !equalslice(KeyGenShareAfter.Coeffs[i],KeyGenShareBefore.Coeffs[i]){
+			log.Print("Non equal slices in CKGShare")
+			t.Fail()
+		}
+
+	}
+
+
+	log.Print("CKGShare marshalling ok ")
+
+	//Check marshalling for the PCKS
+	Ciphertext := bfvCtx.NewRandomCiphertext(1)
+	KeySwitchProtocol := NewPCKSProtocol(bfvCtx,bfvCtx.Sigma())
+	SwitchShare := KeySwitchProtocol.AllocateShares()
+	pk := KeyGenerator.NewPublicKey(sk)
+	KeySwitchProtocol.GenShare(sk.Get(),pk,Ciphertext,SwitchShare)
+
+
+	data, err = SwitchShare.MarshalBinary()
+	if err != nil{
+		log.Print("Error on PCKSShare marshalling : " , err)
+		t.Fail()
+	}
+	SwitchShareReceiver := new(PCKSShare)
+	err = SwitchShareReceiver.UnmarshalBinary(data)
+	if err != nil{
+		log.Print("Error on PCKSShare unmarshalling : " , err)
+	}
+
+
+
+	for i := 0 ; i < 2; i ++{
+		//compare the shares.
+		ringBefore := SwitchShare.share[i]
+		ringAfter := SwitchShareReceiver.share[i]
+		if ringBefore.GetDegree() != ringAfter.GetDegree(){
+			log.Print("Error on degree matching")
+			t.Fail()
+		}
+		for d:= 0 ; d < ringAfter.GetLenModuli(); d++{
+			if !equalslice(ringAfter.Coeffs[d],ringBefore.Coeffs[d]){
+				log.Print("Non equal slices in PCKSShare")
+				t.Fail()
+			}
+		}
+
+	}
+
+	log.Print("PCKSShare marshalling ok ")
+
+	//Now for CKSShare ~ its similar to PKSShare
+	//todo write test for cksshare..
+
+
+
+
+
+
+
+
+
+
+
+}

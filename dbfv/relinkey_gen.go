@@ -18,23 +18,91 @@ type RKGProtocol struct {
 	tmpPoly2        *ring.Poly
 }
 
-type RKGShareRoundOne [][]*ring.Poly
-type RKGShareRoundTwo [][][2]*ring.Poly
-type RKGShareRoundThree [][]*ring.Poly
+type RKGShareRoundOne struct{
+	//todo maybe optimize and not have to store modulus and bitLog in the struct
+	//todo uint or int ?
+	modulus uint8
+	bitLog uint8
+	share [][]*ring.Poly
+}
+type RKGShareRoundTwo struct{
+	share [][][2]*ring.Poly
+}
+type RKGShareRoundThree struct{
+	share [][]*ring.Poly
+}
+
+func (share RKGShareRoundOne) MarshalBinary() ([]byte,error){
+	//todo ask if Modulus , bitLog should be written on 1 byte or more.
+
+	//we have modulus * bitLog * Len of 1 ring rings
+	data := make([]byte, 2 + int(share.modulus * share.bitLog) * share.share[0][0].GetDataLen())
+
+	data[0] = uint8(share.modulus)
+	data[1] = uint8(share.bitLog)
+
+	//write all the polys
+	ptr := 2
+	for i := 0 ; i < int(share.modulus); i++{
+		for j := 0 ; j < int(share.bitLog); j ++{
+			r := share.share[i][j]
+			n , err := r.WriteTo(data[ptr:ptr+r.GetDataLen()])
+			if err != nil{
+				return []byte{},err
+			}
+
+			ptr += int(n)
+		}
+	}
+
+
+
+	return data,nil
+}
+
+func (share RKGShareRoundOne) UnmarshalBinary(data []byte) error{
+	share.modulus = data[0]
+	share.bitLog = data[1]
+	share.share = make([][]*ring.Poly,share.modulus)
+	ptr := 2
+	length := (len(data) - 2) / int(share.modulus) / int(share.bitLog)
+	for i := 0 ; i < int(share.modulus); i ++{
+
+		share.share[i] = make([]*ring.Poly,share.bitLog)
+		for j := 0 ; j < int(share.bitLog); j ++{
+			//put the poly
+			share.share[i][j] = new(ring.Poly)
+			err := share.share[i][j].UnmarshalBinary(data[ptr:ptr+length])
+			if err != nil{
+				return err
+			}
+
+			ptr += length
+		}
+
+	}
+
+
+
+	return nil
+}
+
+
+
 
 func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundTwo, r3 RKGShareRoundThree) {
-	r1 = make([][]*ring.Poly, len(ekg.ringContext.Modulus))
-	r2 = make([][][2]*ring.Poly, len(ekg.ringContext.Modulus))
-	r3 = make([][]*ring.Poly, len(ekg.ringContext.Modulus))
+	r1.share = make([][]*ring.Poly, len(ekg.ringContext.Modulus))
+	r2.share = make([][][2]*ring.Poly, len(ekg.ringContext.Modulus))
+	r3.share = make([][]*ring.Poly, len(ekg.ringContext.Modulus))
 	for i := range ekg.ringContext.Modulus {
-		r1[i] = make([]*ring.Poly, ekg.bitLog)
-		r2[i] = make([][2]*ring.Poly, ekg.bitLog)
-		r3[i] = make([]*ring.Poly, ekg.bitLog)
+		r1.share[i] = make([]*ring.Poly, ekg.bitLog)
+		r2.share[i] = make([][2]*ring.Poly, ekg.bitLog)
+		r3.share[i] = make([]*ring.Poly, ekg.bitLog)
 		for w := uint64(0); w < ekg.bitLog; w++ {
-			r1[i][w] = ekg.ringContext.NewPoly()
-			r2[i][w][0] = ekg.ringContext.NewPoly()
-			r2[i][w][1] = ekg.ringContext.NewPoly()
-			r3[i][w] = ekg.ringContext.NewPoly()
+			r1.share[i][w] = ekg.ringContext.NewPoly()
+			r2.share[i][w][0] = ekg.ringContext.NewPoly()
+			r2.share[i][w][1] = ekg.ringContext.NewPoly()
+			r3.share[i][w] = ekg.ringContext.NewPoly()
 		}
 	}
 	return
@@ -79,15 +147,15 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp [][]*ring.Poly, s
 		for w := uint64(0); w < ekg.bitLog; w++ {
 
 			// h = e
-			ekg.gaussianSampler.SampleNTT(shareOut[i][w])
+			ekg.gaussianSampler.SampleNTT(shareOut.share[i][w])
 
 			// h = sk*CrtBaseDecompQi + e
 			for j := uint64(0); j < ekg.ringContext.N; j++ {
-				shareOut[i][w].Coeffs[i][j] += ring.PowerOf2(sk.Coeffs[i][j], ekg.bitDecomp*w, qi, mredParams[i])
+				shareOut.share[i][w].Coeffs[i][j] += ring.PowerOf2(sk.Coeffs[i][j], ekg.bitDecomp*w, qi, mredParams[i])
 			}
 
 			// h = sk*CrtBaseDecompQi + -u*a + e
-			ekg.ringContext.MulCoeffsMontgomeryAndSub(u, crp[i][w], shareOut[i][w])
+			ekg.ringContext.MulCoeffsMontgomeryAndSub(u, crp[i][w], shareOut.share[i][w])
 		}
 	}
 
@@ -98,7 +166,7 @@ func (ekg *RKGProtocol) AggregateShareRoundOne(share1, share2, shareOut RKGShare
 
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
-			ekg.ringContext.Add(share1[i][w], share2[i][w], shareOut[i][w])
+			ekg.ringContext.Add(share1.share[i][w], share2.share[i][w], shareOut.share[i][w])
 		}
 	}
 }
@@ -120,17 +188,17 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly,
 			// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
 			// (AggregateShareRoundTwo samples) * sk
-			ekg.ringContext.MulCoeffsMontgomery(round1[i][w], sk, shareOut[i][w][0])
+			ekg.ringContext.MulCoeffsMontgomery(round1.share[i][w], sk, shareOut.share[i][w][0])
 
 			// (AggregateShareRoundTwo samples) * sk + e_1i
 			ekg.gaussianSampler.SampleNTT(ekg.tmpPoly1)
-			ekg.ringContext.Add(shareOut[i][w][0], ekg.tmpPoly1, shareOut[i][w][0])
+			ekg.ringContext.Add(shareOut.share[i][w][0], ekg.tmpPoly1, shareOut.share[i][w][0])
 
 			// Second Element
 			// e_2i
-			ekg.gaussianSampler.SampleNTT(shareOut[i][w][1])
+			ekg.gaussianSampler.SampleNTT(shareOut.share[i][w][1])
 			// s*a + e_2i
-			ekg.ringContext.MulCoeffsMontgomeryAndAdd(sk, crp[i][w], shareOut[i][w][1])
+			ekg.ringContext.MulCoeffsMontgomeryAndAdd(sk, crp[i][w], shareOut.share[i][w][1])
 		}
 	}
 }
@@ -145,8 +213,8 @@ func (ekg *RKGProtocol) AggregateShareRoundTwo(share1, share2, shareOut RKGShare
 
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
-			ekg.ringContext.Add(share1[i][w][0], share2[i][w][0], shareOut[i][w][0])
-			ekg.ringContext.Add(share1[i][w][1], share2[i][w][1], shareOut[i][w][1])
+			ekg.ringContext.Add(share1.share[i][w][0], share2.share[i][w][0], shareOut.share[i][w][0])
+			ekg.ringContext.Add(share1.share[i][w][1], share2.share[i][w][1], shareOut.share[i][w][1])
 		}
 	}
 }
@@ -165,8 +233,8 @@ func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
 			// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
-			ekg.gaussianSampler.SampleNTT(shareOut[i][w])
-			ekg.ringContext.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round2[i][w][1], shareOut[i][w])
+			ekg.gaussianSampler.SampleNTT(shareOut.share[i][w])
+			ekg.ringContext.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round2.share[i][w][1], shareOut.share[i][w])
 		}
 	}
 }
@@ -174,7 +242,7 @@ func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.
 func (ekg *RKGProtocol) AggregateShareRoundThree(share1, share2, shareOut RKGShareRoundThree) {
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
-			ekg.ringContext.Add(share1[i][w], share2[i][w], shareOut[i][w])
+			ekg.ringContext.Add(share1.share[i][w], share2.share[i][w], shareOut.share[i][w])
 		}
 	}
 }
@@ -184,8 +252,8 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round2 RKGShareRoundTwo, round3 RK
 	key := evalKeyOut.Get()[0].Get()
 	for i := range ekg.ringContext.Modulus {
 		for w := uint64(0); w < ekg.bitLog; w++ {
-			ekg.ringContext.Add(round2[i][w][0], round3[i][w], key[i][w][0])
-			key[i][w][1].Copy(round2[i][w][1])
+			ekg.ringContext.Add(round2.share[i][w][0], round3.share[i][w], key[i][w][0])
+			key[i][w][1].Copy(round2.share[i][w][1])
 
 			ekg.ringContext.MForm(key[i][w][0], key[i][w][0])
 			ekg.ringContext.MForm(key[i][w][1], key[i][w][1])

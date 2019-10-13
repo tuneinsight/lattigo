@@ -115,6 +115,32 @@ func WriteCoeffsTo(pointer, N, numberModuli uint64, coeffs [][]uint64, data []by
 	return pointer, nil
 }
 
+
+//Writes the given poly to the data array
+//returns the number of bytes written and error if it occured.
+func (pol *Poly) WriteTo(data []byte) (uint64, error){
+
+	N := uint64(pol.GetDegree())
+	numberModulies := uint64(pol.GetLenModuli())
+
+	if uint64(len(data)) < 2+((N*numberModulies)<<3){
+		//the data is not big enough to write all the information
+		return 0,errors.New("Data array is too small to write ring.Poly")
+	}
+	data[0] = uint8(bits.Len64(uint64(N)) - 1)
+	data[1] = uint8(numberModulies)
+
+	cnt, err := WriteCoeffsTo(2, N,numberModulies,pol.Coeffs,data)
+
+
+	return cnt,err
+}
+
+//returns the lenght the poly will take when written to data.
+func (pol *Poly) GetDataLen() int {
+	return 2 + (pol.GetLenModuli()*pol.GetDegree()) <<3
+}
+
 // DecodeCoeffs converts a byte array to a matrix of coefficients.
 func DecodeCoeffs(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
 	tmp := N << 3
@@ -166,7 +192,11 @@ func (Pol *Poly) MarshalBinary() ([]byte, error) {
 
 	return data, nil
 }
-func (Pol *Poly) UnmarshalBinary(data []byte) ( error) {
+
+
+func (Pol *Poly) UnmarshalBinary(data []byte) (error) {
+
+	//Pol = new(Poly)
 
 	N := uint64(int(1 << data[0]))
 	numberModulies := uint64(int(data[1]))

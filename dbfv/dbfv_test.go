@@ -607,3 +607,158 @@ func Test_Marshalling(t *testing.T){
 
 
 }
+
+func Test_Relin_Marshalling(t *testing.T){
+	bfvCtx ,_:= bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
+	modulus := bfvCtx.ContextQ().Modulus
+	bitDecomp := 60
+	bitLog := uint64((60 + (60 % bitDecomp)) / bitDecomp)
+	var err error
+	crpGenerator,_ :=  NewCRPGenerator(nil, bfvCtx.ContextQ())
+
+
+	crp := make([][]*ring.Poly, len(modulus))
+	for j := 0; j < len(modulus); j++ {
+		crp[j] = make([]*ring.Poly, bitLog)
+		for u := uint64(0); u < bitLog; u++ {
+			crp[j][u] = crpGenerator.Clock()
+		}
+	}
+
+	rlk := NewEkgProtocol(bfvCtx,uint64(bitDecomp))
+	u,_ := rlk.NewEphemeralKey(1/3.0)
+	sk := bfvCtx.NewKeyGenerator().NewSecretKey()
+	log.Print("Starting to test marshalling for share one")
+
+	r1,r2,r3 := rlk.AllocateShares()
+	rlk.GenShareRoundOne(u,sk.Get(),crp,r1)
+	data , err := r1.MarshalBinary()
+	if err != nil{
+		log.Print("Error in marshalling round 1 key : " , err)
+		t.Fail()
+	}
+
+	r1After := new(RKGShareRoundOne)
+	err = r1After.UnmarshalBinary(data)
+	if err != nil{
+		log.Print("Error in unmarshalling round 1 key : " , err)
+		t.Fail()
+	}
+
+	log.Print("Now comparing keys for round 1 ")
+
+	if r1.bitLog != r1After.bitLog || r1.modulus != r1After.modulus{
+		log.Print("Error bitlog or modulus are different ")
+		t.Fail()
+	}
+
+
+	for i := 0 ; i < int(r1.modulus) ; i ++{
+		for j := 0 ; j < int(r1.bitLog); j++{
+			a := r1.share[i][j]
+			b := r1After.share[i][j]
+			for k := 0 ; k < a.GetLenModuli(); k++{
+				if !equalslice(a.Coeffs[k],b.Coeffs[k]){
+					log.Print("Error : coeffs of rings do not match")
+					t.Fail()
+				}
+			}
+		}
+	}
+
+	log.Print("Sucess : relin key round 1 ok ")
+
+	log.Print("Starting to test marshalling for share two")
+	rlk.GenShareRoundTwo(r1,sk.Get(),crp,r2)
+
+	data , err = r2.MarshalBinary()
+	if err != nil{
+		log.Print("Error on marshalling relin key round 2 : " , err)
+		t.Fail()
+	}
+
+	r2After := new(RKGShareRoundTwo)
+	err = r2After.UnmarshalBinary(data)
+	if err != nil{
+		log.Print("Error on unmarshalling relin key round 2 : ", err)
+		t.Fail()
+	}
+
+	log.Print("Now comparing keys for round 2 ")
+
+	if r2.bitLog != r2After.bitLog || r2.modulus != r2After.modulus{
+		log.Print("Error bitlog or modulus are different ")
+		t.Fail()
+	}
+
+
+	for i := 0 ; i < int(r2.modulus) ; i ++{
+		for j := 0 ; j < int(r2.bitLog); j++{
+			for idx := 0 ; idx < 2 ; idx++ {
+				a := r2.share[i][j][idx]
+				b := r2After.share[i][j][idx]
+				for k := 0; k < a.GetLenModuli(); k++ {
+					if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
+						log.Print("Error : coeffs of rings do not match")
+						t.Fail()
+					}
+				}
+			}
+		}
+	}
+
+	log.Print("Success : reling key round 2 ok ")
+
+
+	log.Print("Starting to test marshalling for share three")
+
+	rlk.GenShareRoundThree(r2,u,sk.Get(),r3)
+
+	data , err = r3.MarshalBinary()
+	if err != nil{
+		log.Print("Error in marshalling round 3 key : " , err)
+		t.Fail()
+	}
+
+	r3After := new(RKGShareRoundThree)
+	err = r3After.UnmarshalBinary(data)
+	if err != nil{
+		log.Print("Error in unmarshalling round 3 key : " , err)
+		t.Fail()
+	}
+
+	log.Print("Now comparing keys for round 3 ")
+
+	if r3.bitLog != r3After.bitLog || r3.modulus != r3After.modulus{
+		log.Print("Error bitlog or modulus are different ")
+		t.Fail()
+	}
+
+
+	for i := 0 ; i < int(r3.modulus) ; i ++{
+		for j := 0 ; j < int(r3.bitLog); j++{
+			a := r3.share[i][j]
+			b := r3After.share[i][j]
+			for k := 0 ; k < a.GetLenModuli(); k++{
+				if !equalslice(a.Coeffs[k],b.Coeffs[k]){
+					log.Print("Error : coeffs of rings do not match")
+					t.Fail()
+				}
+			}
+		}
+	}
+
+	log.Print("Success : relin key for round 3 ok ")
+
+
+	log.Print("All marshalling is passed for relin keys")
+
+
+
+
+
+
+
+
+
+}

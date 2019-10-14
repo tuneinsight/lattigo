@@ -595,8 +595,41 @@ func Test_Marshalling(t *testing.T){
 
 	//Now for CKSShare ~ its similar to PKSShare
 	//todo write test for cksshare..
+	cksp := NewCKSProtocol(bfvCtx,bfvCtx.Sigma())
+	cksshare := cksp.AllocateShare()
+	skIn := KeyGenerator.NewSecretKey()
+	skOut := KeyGenerator.NewSecretKey()
+	cksp.GenShare(skIn.Get(),skOut.Get(),Ciphertext,cksshare)
+
+	data , err = cksshare.MarshalBinary()
+	if err != nil{
+		log.Print("Error on marshalling CKSShare : " , err)
+		t.Fail()
+	}
+	cksshareAfter := new(CKSShare)
+	err = cksshareAfter.UnmarshalBinary(data)
+	if err != nil{
+		log.Print("Error on unmarshalling CKSShare : " , err)
+		t.Fail()
+	}
+
+	//now compare both shares.
+
+	if cksshare.GetDegree() != cksshareAfter.GetDegree() || cksshare.GetLenModuli() != cksshareAfter.GetLenModuli(){
+		log.Print("Unmatched degree or moduli lenght on CKSShare")
+		t.Fail()
+	}
+
+	for i := 0 ;i < cksshare.GetLenModuli();i++{
+		if !equalslice(cksshare.Coeffs[i],cksshareAfter.Coeffs[i]){
+			log.Print("Non equal slices in CKSShare")
+			t.Fail()
+		}
+
+	}
 
 
+	log.Print("CKSShare marshalling ok ")
 
 
 

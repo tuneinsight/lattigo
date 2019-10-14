@@ -17,6 +17,13 @@ type CKSProtocol struct {
 type CKSShare struct{
 	*ring.Poly
 }
+
+func (share *CKSShare) UnmarshalBinary(data []byte) (error){
+	share.Poly = new(ring.Poly)
+	err := share.Poly.UnmarshalBinary(data)
+	return err
+
+}
 // NewCKSProtocol creates a new CKSProtocol that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under an other public-key, whose secret-shares are also known to the
 // parties.

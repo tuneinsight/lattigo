@@ -222,9 +222,9 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 	pk.pk[0].Coeffs = make([][]uint64, numberModuli)
 	pk.pk[1].Coeffs = make([][]uint64, numberModuli)
 	var i uint64 = 0
-	for i < numberModuli{
-		pk.pk[0].Coeffs[i] = make([]uint64,N)
-		pk.pk[1].Coeffs[i] = make([]uint64,N)
+	for i < numberModuli {
+		pk.pk[0].Coeffs[i] = make([]uint64, N)
+		pk.pk[1].Coeffs[i] = make([]uint64, N)
 		i++
 	}
 	pointer, _ = ring.DecodeCoeffs(pointer, N, numberModuli, pk.pk[0].Coeffs, data)

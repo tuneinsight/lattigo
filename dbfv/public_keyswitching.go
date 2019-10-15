@@ -20,41 +20,41 @@ type PCKSProtocol struct {
 type PCKSShare struct {
 	share [2]*ring.Poly
 }
+
 //TODO write marshalling and unmarshalling
-func (share *PCKSShare) MarshalBinary() ([]byte,error){
+func (share *PCKSShare) MarshalBinary() ([]byte, error) {
 	lenR1 := share.share[0].GetDataLen()
 	lenR2 := share.share[1].GetDataLen()
 
-
-	data := make([]byte,lenR1+lenR2)
-	_,err := share.share[0].WriteTo(data[0:lenR1])
-	if err != nil{
-		return []byte{},err
+	data := make([]byte, lenR1+lenR2)
+	_, err := share.share[0].WriteTo(data[0:lenR1])
+	if err != nil {
+		return []byte{}, err
 	}
 
-	_, err =share.share[1].WriteTo(data[lenR1:lenR1+lenR2])
-	if err != nil{
-		return []byte{},err
+	_, err = share.share[1].WriteTo(data[lenR1 : lenR1+lenR2])
+	if err != nil {
+		return []byte{}, err
 	}
 
-	return data,nil
+	return data, nil
 }
 
-func (share *PCKSShare) UnmarshalBinary(data []byte )(error){
-	if share == nil{
+func (share *PCKSShare) UnmarshalBinary(data []byte) error {
+	if share == nil {
 		share = new(PCKSShare)
 	}
 
 	share.share[0] = new(ring.Poly)
 	share.share[1] = new(ring.Poly)
 
-	err := share.share[0].UnmarshalBinary(data[0:len(data)/2])
-	if err != nil{
+	err := share.share[0].UnmarshalBinary(data[0 : len(data)/2])
+	if err != nil {
 		return err
 	}
 
 	err = share.share[1].UnmarshalBinary(data[len(data)/2:])
-	if err != nil{
+	if err != nil {
 		return err
 	}
 

@@ -34,7 +34,7 @@ type RKGShareRoundTwo struct {
 type RKGShareRoundThree struct {
 	modulus uint64
 	bitLog  uint64
-	share [][]*ring.Poly
+	share   [][]*ring.Poly
 }
 
 func (share *RKGShareRoundOne) MarshalBinary() ([]byte, error) {
@@ -167,7 +167,7 @@ func (share *RKGShareRoundTwo) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (share *RKGShareRoundThree) MarshalBinary() ([]byte,error){
+func (share *RKGShareRoundThree) MarshalBinary() ([]byte, error) {
 	//we have modulus * bitLog * Len of 1 ring rings
 	data := make([]byte, 2*8+int(share.modulus*share.bitLog)*share.share[0][0].GetDataLen())
 
@@ -192,7 +192,7 @@ func (share *RKGShareRoundThree) MarshalBinary() ([]byte,error){
 	return data, nil
 }
 
-func (share *RKGShareRoundThree) UnmarshalBinary(data []byte) error{
+func (share *RKGShareRoundThree) UnmarshalBinary(data []byte) error {
 	//share.modulus = data[0]
 	share.modulus = (binary.LittleEndian.Uint64(data[0:8]))
 	//share.bitLog = data[1]

@@ -12,14 +12,13 @@ type CKGProtocol struct {
 	gaussianSampler *ring.KYSampler
 }
 
-
-type CKGShare struct{
+type CKGShare struct {
 	*ring.Poly
 }
 
 //the binary marshaller is ok but we need to override the unmarshaller to
 //allocate memory
-func (share *CKGShare) UnmarshalBinary(data []byte) (error){
+func (share *CKGShare) UnmarshalBinary(data []byte) error {
 	share.Poly = new(ring.Poly)
 	err := share.Poly.UnmarshalBinary(data)
 	return err

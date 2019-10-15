@@ -510,80 +510,76 @@ func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ek
 	return evk
 }
 
-func Test_Marshalling(t *testing.T){
+func Test_Marshalling(t *testing.T) {
 	//verify if the un.marshalling works properly
 	log.Print("Verifying marshalling for Key Generation")
-	bfvCtx,_ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
+	bfvCtx, _ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
 	KeyGenerator := bfvCtx.NewKeyGenerator()
 	crsGen, _ := NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextQ())
 	sk := KeyGenerator.NewSecretKey()
 	crs := crsGen.Clock()
 	keygenProtocol := NewCKGProtocol(bfvCtx)
 	KeyGenShareBefore := keygenProtocol.AllocateShares()
-	keygenProtocol.GenShare(sk.Get(),crs, KeyGenShareBefore)
+	keygenProtocol.GenShare(sk.Get(), crs, KeyGenShareBefore)
 	//now we marshall it
-	data , err := KeyGenShareBefore.MarshalBinary()
+	data, err := KeyGenShareBefore.MarshalBinary()
 
-	if err != nil{
-		log.Fatal("Could not marshal the CKGShare : ", err )
+	if err != nil {
+		log.Fatal("Could not marshal the CKGShare : ", err)
 		t.Fail()
 	}
 
 	KeyGenShareAfter := new(CKGShare)
 	err = KeyGenShareAfter.UnmarshalBinary(data)
-	if err != nil{
-		log.Fatal("Could not unmarshal the CKGShare : ",  err)
+	if err != nil {
+		log.Fatal("Could not unmarshal the CKGShare : ", err)
 		t.Fail()
 	}
 
 	//comparing the results
-	if KeyGenShareBefore.GetDegree() != KeyGenShareAfter.GetDegree(){
+	if KeyGenShareBefore.GetDegree() != KeyGenShareAfter.GetDegree() {
 		log.Print("Unmatched degree on key gen shares")
 		t.Fail()
 	}
 
-	for i := 0 ;i < KeyGenShareBefore.GetLenModuli();i++{
-		if !equalslice(KeyGenShareAfter.Coeffs[i],KeyGenShareBefore.Coeffs[i]){
+	for i := 0; i < KeyGenShareBefore.GetLenModuli(); i++ {
+		if !equalslice(KeyGenShareAfter.Coeffs[i], KeyGenShareBefore.Coeffs[i]) {
 			log.Print("Non equal slices in CKGShare")
 			t.Fail()
 		}
 
 	}
 
-
 	log.Print("CKGShare marshalling ok ")
 
 	//Check marshalling for the PCKS
 	Ciphertext := bfvCtx.NewRandomCiphertext(1)
-	KeySwitchProtocol := NewPCKSProtocol(bfvCtx,bfvCtx.Sigma())
+	KeySwitchProtocol := NewPCKSProtocol(bfvCtx, bfvCtx.Sigma())
 	SwitchShare := KeySwitchProtocol.AllocateShares()
 	pk := KeyGenerator.NewPublicKey(sk)
-	KeySwitchProtocol.GenShare(sk.Get(),pk,Ciphertext,SwitchShare)
-
+	KeySwitchProtocol.GenShare(sk.Get(), pk, Ciphertext, SwitchShare)
 
 	data, err = SwitchShare.MarshalBinary()
-	if err != nil{
-		log.Print("Error on PCKSShare marshalling : " , err)
+	if err != nil {
+		log.Print("Error on PCKSShare marshalling : ", err)
 		t.Fail()
 	}
 	SwitchShareReceiver := new(PCKSShare)
 	err = SwitchShareReceiver.UnmarshalBinary(data)
-	if err != nil{
-		log.Print("Error on PCKSShare unmarshalling : " , err)
+	if err != nil {
+		log.Print("Error on PCKSShare unmarshalling : ", err)
 	}
 
-
-
-	for i := 0 ; i < 2; i ++{
+	for i := 0; i < 2; i++ {
 		//compare the shares.
 		ringBefore := SwitchShare.share[i]
 		ringAfter := SwitchShareReceiver.share[i]
-		if ringBefore.GetDegree() != ringAfter.GetDegree(){
+		if ringBefore.GetDegree() != ringAfter.GetDegree() {
 			log.Print("Error on degree matching")
 			t.Fail()
 		}
-		for d:= 0 ; d < ringAfter.GetLenModuli(); d++{
-			if !equalslice(ringAfter.Coeffs[d],ringBefore.Coeffs[d]){
+		for d := 0; d < ringAfter.GetLenModuli(); d++ {
+			if !equalslice(ringAfter.Coeffs[d], ringBefore.Coeffs[d]) {
 				log.Print("Non equal slices in PCKSShare")
 				t.Fail()
 			}
@@ -595,60 +591,50 @@ func Test_Marshalling(t *testing.T){
 
 	//Now for CKSShare ~ its similar to PKSShare
 	//todo write test for cksshare..
-	cksp := NewCKSProtocol(bfvCtx,bfvCtx.Sigma())
+	cksp := NewCKSProtocol(bfvCtx, bfvCtx.Sigma())
 	cksshare := cksp.AllocateShare()
 	skIn := KeyGenerator.NewSecretKey()
 	skOut := KeyGenerator.NewSecretKey()
-	cksp.GenShare(skIn.Get(),skOut.Get(),Ciphertext,cksshare)
+	cksp.GenShare(skIn.Get(), skOut.Get(), Ciphertext, cksshare)
 
-	data , err = cksshare.MarshalBinary()
-	if err != nil{
-		log.Print("Error on marshalling CKSShare : " , err)
+	data, err = cksshare.MarshalBinary()
+	if err != nil {
+		log.Print("Error on marshalling CKSShare : ", err)
 		t.Fail()
 	}
 	cksshareAfter := new(CKSShare)
 	err = cksshareAfter.UnmarshalBinary(data)
-	if err != nil{
-		log.Print("Error on unmarshalling CKSShare : " , err)
+	if err != nil {
+		log.Print("Error on unmarshalling CKSShare : ", err)
 		t.Fail()
 	}
 
 	//now compare both shares.
 
-	if cksshare.GetDegree() != cksshareAfter.GetDegree() || cksshare.GetLenModuli() != cksshareAfter.GetLenModuli(){
+	if cksshare.GetDegree() != cksshareAfter.GetDegree() || cksshare.GetLenModuli() != cksshareAfter.GetLenModuli() {
 		log.Print("Unmatched degree or moduli lenght on CKSShare")
 		t.Fail()
 	}
 
-	for i := 0 ;i < cksshare.GetLenModuli();i++{
-		if !equalslice(cksshare.Coeffs[i],cksshareAfter.Coeffs[i]){
+	for i := 0; i < cksshare.GetLenModuli(); i++ {
+		if !equalslice(cksshare.Coeffs[i], cksshareAfter.Coeffs[i]) {
 			log.Print("Non equal slices in CKSShare")
 			t.Fail()
 		}
 
 	}
 
-
 	log.Print("CKSShare marshalling ok ")
-
-
-
-
-
-
-
-
 
 }
 
-func Test_Relin_Marshalling(t *testing.T){
-	bfvCtx ,_:= bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
+func Test_Relin_Marshalling(t *testing.T) {
+	bfvCtx, _ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
 	modulus := bfvCtx.ContextQ().Modulus
 	bitDecomp := 60
 	bitLog := uint64((60 + (60 % bitDecomp)) / bitDecomp)
 	var err error
-	crpGenerator,_ :=  NewCRPGenerator(nil, bfvCtx.ContextQ())
-
+	crpGenerator, _ := NewCRPGenerator(nil, bfvCtx.ContextQ())
 
 	crp := make([][]*ring.Poly, len(modulus))
 	for j := 0; j < len(modulus); j++ {
@@ -658,40 +644,39 @@ func Test_Relin_Marshalling(t *testing.T){
 		}
 	}
 
-	rlk := NewEkgProtocol(bfvCtx,uint64(bitDecomp))
-	u,_ := rlk.NewEphemeralKey(1/3.0)
+	rlk := NewEkgProtocol(bfvCtx, uint64(bitDecomp))
+	u, _ := rlk.NewEphemeralKey(1 / 3.0)
 	sk := bfvCtx.NewKeyGenerator().NewSecretKey()
 	log.Print("Starting to test marshalling for share one")
 
-	r1,r2,r3 := rlk.AllocateShares()
-	rlk.GenShareRoundOne(u,sk.Get(),crp,r1)
-	data , err := r1.MarshalBinary()
-	if err != nil{
-		log.Print("Error in marshalling round 1 key : " , err)
+	r1, r2, r3 := rlk.AllocateShares()
+	rlk.GenShareRoundOne(u, sk.Get(), crp, r1)
+	data, err := r1.MarshalBinary()
+	if err != nil {
+		log.Print("Error in marshalling round 1 key : ", err)
 		t.Fail()
 	}
 
 	r1After := new(RKGShareRoundOne)
 	err = r1After.UnmarshalBinary(data)
-	if err != nil{
-		log.Print("Error in unmarshalling round 1 key : " , err)
+	if err != nil {
+		log.Print("Error in unmarshalling round 1 key : ", err)
 		t.Fail()
 	}
 
 	log.Print("Now comparing keys for round 1 ")
 
-	if r1.bitLog != r1After.bitLog || r1.modulus != r1After.modulus{
+	if r1.bitLog != r1After.bitLog || r1.modulus != r1After.modulus {
 		log.Print("Error bitlog or modulus are different ")
 		t.Fail()
 	}
 
-
-	for i := 0 ; i < int(r1.modulus) ; i ++{
-		for j := 0 ; j < int(r1.bitLog); j++{
+	for i := 0; i < int(r1.modulus); i++ {
+		for j := 0; j < int(r1.bitLog); j++ {
 			a := r1.share[i][j]
 			b := r1After.share[i][j]
-			for k := 0 ; k < a.GetLenModuli(); k++{
-				if !equalslice(a.Coeffs[k],b.Coeffs[k]){
+			for k := 0; k < a.GetLenModuli(); k++ {
+				if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
 					log.Print("Error : coeffs of rings do not match")
 					t.Fail()
 				}
@@ -702,32 +687,31 @@ func Test_Relin_Marshalling(t *testing.T){
 	log.Print("Sucess : relin key round 1 ok ")
 
 	log.Print("Starting to test marshalling for share two")
-	rlk.GenShareRoundTwo(r1,sk.Get(),crp,r2)
+	rlk.GenShareRoundTwo(r1, sk.Get(), crp, r2)
 
-	data , err = r2.MarshalBinary()
-	if err != nil{
-		log.Print("Error on marshalling relin key round 2 : " , err)
+	data, err = r2.MarshalBinary()
+	if err != nil {
+		log.Print("Error on marshalling relin key round 2 : ", err)
 		t.Fail()
 	}
 
 	r2After := new(RKGShareRoundTwo)
 	err = r2After.UnmarshalBinary(data)
-	if err != nil{
+	if err != nil {
 		log.Print("Error on unmarshalling relin key round 2 : ", err)
 		t.Fail()
 	}
 
 	log.Print("Now comparing keys for round 2 ")
 
-	if r2.bitLog != r2After.bitLog || r2.modulus != r2After.modulus{
+	if r2.bitLog != r2After.bitLog || r2.modulus != r2After.modulus {
 		log.Print("Error bitlog or modulus are different ")
 		t.Fail()
 	}
 
-
-	for i := 0 ; i < int(r2.modulus) ; i ++{
-		for j := 0 ; j < int(r2.bitLog); j++{
-			for idx := 0 ; idx < 2 ; idx++ {
+	for i := 0; i < int(r2.modulus); i++ {
+		for j := 0; j < int(r2.bitLog); j++ {
+			for idx := 0; idx < 2; idx++ {
 				a := r2.share[i][j][idx]
 				b := r2After.share[i][j][idx]
 				for k := 0; k < a.GetLenModuli(); k++ {
@@ -742,38 +726,36 @@ func Test_Relin_Marshalling(t *testing.T){
 
 	log.Print("Success : reling key round 2 ok ")
 
-
 	log.Print("Starting to test marshalling for share three")
 
-	rlk.GenShareRoundThree(r2,u,sk.Get(),r3)
+	rlk.GenShareRoundThree(r2, u, sk.Get(), r3)
 
-	data , err = r3.MarshalBinary()
-	if err != nil{
-		log.Print("Error in marshalling round 3 key : " , err)
+	data, err = r3.MarshalBinary()
+	if err != nil {
+		log.Print("Error in marshalling round 3 key : ", err)
 		t.Fail()
 	}
 
 	r3After := new(RKGShareRoundThree)
 	err = r3After.UnmarshalBinary(data)
-	if err != nil{
-		log.Print("Error in unmarshalling round 3 key : " , err)
+	if err != nil {
+		log.Print("Error in unmarshalling round 3 key : ", err)
 		t.Fail()
 	}
 
 	log.Print("Now comparing keys for round 3 ")
 
-	if r3.bitLog != r3After.bitLog || r3.modulus != r3After.modulus{
+	if r3.bitLog != r3After.bitLog || r3.modulus != r3After.modulus {
 		log.Print("Error bitlog or modulus are different ")
 		t.Fail()
 	}
 
-
-	for i := 0 ; i < int(r3.modulus) ; i ++{
-		for j := 0 ; j < int(r3.bitLog); j++{
+	for i := 0; i < int(r3.modulus); i++ {
+		for j := 0; j < int(r3.bitLog); j++ {
 			a := r3.share[i][j]
 			b := r3After.share[i][j]
-			for k := 0 ; k < a.GetLenModuli(); k++{
-				if !equalslice(a.Coeffs[k],b.Coeffs[k]){
+			for k := 0; k < a.GetLenModuli(); k++ {
+				if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
 					log.Print("Error : coeffs of rings do not match")
 					t.Fail()
 				}
@@ -783,15 +765,6 @@ func Test_Relin_Marshalling(t *testing.T){
 
 	log.Print("Success : relin key for round 3 ok ")
 
-
 	log.Print("All marshalling is passed for relin keys")
-
-
-
-
-
-
-
-
 
 }

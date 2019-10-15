@@ -281,7 +281,7 @@ func test_Marshaler(context *Context, t *testing.T) {
 
 		data, _ := p.MarshalBinary()
 
-		 _ = pTest.UnmarshalBinary(data)
+		_ = pTest.UnmarshalBinary(data)
 
 		for i := range context.Modulus {
 			for j := uint64(0); j < context.N; j++ {

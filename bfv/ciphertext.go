@@ -101,16 +101,14 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) error {
 	}
 	//allocate memory for the coeffs.
 	for i := uint64(0); i < degree+1; i++ {
-		coeffs := make([][]uint64,level)
+		coeffs := make([][]uint64, level)
 
-		for j := uint64(0);j < level; j++{
-			coeffs[j]	= make([]uint64,N)
+		for j := uint64(0); j < level; j++ {
+			coeffs[j] = make([]uint64, N)
 		}
 		ciphertext.value[i] = &ring.Poly{coeffs}
 
 	}
-
-
 
 	pointer := uint64(3)
 

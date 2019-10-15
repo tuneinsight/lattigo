@@ -144,7 +144,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		}
 
 		SkTest := bfvTest.kgen.NewSecretKeyEmpty()
-		SkTest.UnMarshalBinary(SkBytes)
+		SkTest.UnmarshalBinary(SkBytes)
 
 		if bfvContext.contextQ.Equal(Sk.sk, SkTest.sk) != true {
 			t.Errorf("error : binarymarshal secretkey")
@@ -160,8 +160,8 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			t.Error(err)
 		}
 
-		PkTest := bfvTest.kgen.NewPublicKeyEmpty()
-		PkTest.UnMarshalBinary(PkBytes)
+		PkTest := bfvTest.bfvcontext.NewPublicKey()
+		PkTest.UnmarshalBinary(PkBytes)
 
 		for i := range Pk.pk {
 			if bfvContext.contextQ.Equal(Pk.pk[i], PkTest.pk[i]) != true {
@@ -182,22 +182,23 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		}
 
 		CtxTest := bfvContext.NewCiphertext(4)
-		if err = CtxTest.UnMarshalBinary(CtxBytes); err != nil {
+		if err = CtxTest.UnmarshalBinary(CtxBytes); err != nil {
 			t.Error(err)
 		}
 
 		ctTestNew := new(Ciphertext)
-		err = ctTestNew.UnMarshalBinary(CtxBytes)
+		err = ctTestNew.UnmarshalBinary(CtxBytes)
 		if err != nil {
 			t.Error(err)
 		}
 
 		for i := range Ctx.Value() {
-			if bfvContext.contextQ.Equal(CtxTest.Value()[i], Ctx.Value()[i]) {
+			if !bfvContext.contextQ.Equal(CtxTest.Value()[i], Ctx.Value()[i]) {
 				t.Error("pre-allocated unmarshalled ciphertext not matching marshalled one")
 				break
 			}
-			if bfvContext.contextQ.Equal(ctTestNew.Value()[i], Ctx.Value()[i]) {
+
+			if !bfvContext.contextQ.Equal(ctTestNew.Value()[i], Ctx.Value()[i]) {
 				t.Error("unmarshalled ciphertext not matching marshalled one")
 				break
 			}
@@ -216,8 +217,8 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 			t.Error(err)
 		}
 
-		rlkTest := bfvTest.kgen.NewRelinKeyEmpty(5, 15)
-		rlkTest.UnMarshalBinary(rlkBytes)
+		rlkTest := bfvTest.bfvcontext.NewRelinKey(5, 15)
+		rlkTest.UnmarshalBinary(rlkBytes)
 
 		state = true
 
@@ -264,7 +265,7 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		}
 
 		rotKeyTest := bfvTest.kgen.NewRotationKeysEmpty()
-		rotKeyTest.UnMarshalBinary(rotKeyBytes)
+		rotKeyTest.UnmarshalBinary(rotKeyBytes)
 
 		state = true
 

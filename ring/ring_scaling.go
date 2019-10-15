@@ -54,7 +54,7 @@ func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 			return x & newParams.reducealgoMulParam
 		}
 
-		// Else (we can use montgomery reduction)
+		// Else (we can use Montgomery reduction)
 	} else {
 		newParams.reducealgoAddParam = BRedParams(t)[0]
 		newParams.reducealgoMulParam = MRedParams(t)
@@ -104,7 +104,7 @@ func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 		//floor( ([Q/Qi]^(-1))_{Qi} * t/Qi )
 		newParams.wi[i] = Float128ToUint53(tmp)
 
-		// If t is not a power of 2 converts in montgomery form
+		// If t is not a power of 2 converts in Montgomery form
 		if (t&(t-1)) != 0 && t != 0 {
 			newParams.wi[i] = MForm(newParams.wi[i], t, BRedParams(t))
 		}
@@ -118,7 +118,7 @@ func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 	return
 }
 
-// Scale returns the reconstruction of p1 scaled by a factor t/Q and mod t on the reciever p2.
+// Scale returns the reconstruction of p1 scaled by a factor t/Q and mod t on the receiver p2.
 func (parameters *SimpleScaler) Scale(p1, p2 *Poly) {
 
 	var a uint64

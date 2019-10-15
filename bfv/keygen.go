@@ -73,7 +73,7 @@ func (keygen *KeyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey, e
 	return sk, nil
 }
 
-// NewSecretKeyEmpty creates a new SecretKey with all coeffcients set to zero, ready to received a marshaled SecretKey.
+// NewSecretKeyEmpty creates a new SecretKey with all coeffcients set to zero, ready to receive a marshaled SecretKey.
 func (keygen *KeyGenerator) NewSecretKeyEmpty() *SecretKey {
 	sk := new(SecretKey)
 	sk.sk = keygen.context.NewPoly()
@@ -117,7 +117,7 @@ func (sk *SecretKey) MarshalBinary() ([]byte, error) {
 }
 
 // UnMarshalBinary decode a previously marshaled secret-key on the target secret-key.
-// The target secret-key must be of the appropriate format, it can be created with the methode NewSecretKeyEmpty().
+// The target secret-key must be of the appropriate format, it can be created with the method NewSecretKeyEmpty().
 func (sk *SecretKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -134,7 +134,7 @@ func (sk *SecretKey) UnMarshalBinary(data []byte) error {
 	return nil
 }
 
-// NewPublicKey generates a new publick key from the provided secret-key.
+// NewPublicKey generates a new public key from the provided secret-key.
 func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = new(PublicKey)
@@ -203,7 +203,7 @@ func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 
 // UnMarshalBinary decodes a previously marshaled public-key on the target public-key.
 // The target public-key must have the appropriate format and size, it can be created with
-// the methode NewPublicKeyEmpty().
+// the method NewPublicKeyEmpty().
 func (pk *PublicKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -281,7 +281,7 @@ func (keygen *KeyGenerator) NewRelinKeyEmpty(maxDegree, bitDecomp uint64) (evake
 	return
 }
 
-// Get returns the slice of switchintkeys of the evaluation-key.
+// Get returns the slice of switching keys of the evaluation-key.
 func (evk *EvaluationKey) Get() []*SwitchingKey {
 	return evk.evakey
 }
@@ -391,7 +391,7 @@ func (keygen *KeyGenerator) NewRotationKeysEmpty() (rotKey *RotationKeys) {
 }
 
 // NewRotationKeysPow2 generates a new struct of rotationkeys storing the keys of all the left and right powers of two rotations. The provided secret-key must be the secret-key used to generate the public-key under
-// which the ciphertexts to rotate are encrypted under. rows is a boolean value indicatig if the keys for the row rotation have to be generated. Bitdecomp is the power of two binary decomposition of the key.
+// which the ciphertexts to rotate are encrypted under. rows is a boolean value indicating if the keys for the row rotation have to be generated. Bitdecomp is the power of two binary decomposition of the key.
 // A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
 func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey, bitDecomp uint64, row bool) (rotKey *RotationKeys) {
 
@@ -415,7 +415,7 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey, bitDecomp uint64,
 	return
 }
 
-// genrotkey is a methode used in the rotation-keys generation.
+// genrotkey is a method used in the rotation-keys generation.
 func genrotkey(keygen *KeyGenerator, sk *ring.Poly, gen, bitDecomp uint64) (switchkey *SwitchingKey) {
 
 	ring.PermuteNTT(sk, gen, keygen.polypool)
@@ -426,7 +426,7 @@ func genrotkey(keygen *KeyGenerator, sk *ring.Poly, gen, bitDecomp uint64) (swit
 	return
 }
 
-// newswitchintkey is a generic methode to generate key-switching keys used in the evaluation, key-switching and rotation-keys generation.
+// newswitchintkey is a generic method to generate key-switching keys used in the evaluation, key-switching and rotation-keys generation.
 func newswitchintkey(bfvcontext *Context, skIn, skOut *ring.Poly, bitDecomp uint64) (switchkey *SwitchingKey) {
 
 	if bitDecomp > bfvcontext.maxBit || bitDecomp == 0 {
@@ -547,7 +547,7 @@ func (evk *EvaluationKey) MarshalBinary() ([]byte, error) {
 }
 
 // UnMarshalBinary decodes a previously marshaled evaluation-key on the target evaluation-key. The target evaluation-key
-// must have the appropriate format and size, it can be created with the methode NewRelinKeyEmpty(uint64, uint64).
+// must have the appropriate format and size, it can be created with the method NewRelinKeyEmpty(uint64, uint64).
 func (evk *EvaluationKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -646,7 +646,7 @@ func (switchkey *SwitchingKey) MarshalBinary() ([]byte, error) {
 }
 
 // UnMarshalBinary decode a previously marshaled switching-key on the target switching-key.
-// The target switching-key must have the appropriate format and size, it can be created with the methode NewSwitchingKeyEmpty(uint64).
+// The target switching-key must have the appropriate format and size, it can be created with the method NewSwitchingKeyEmpty(uint64).
 func (switchkey *SwitchingKey) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -830,7 +830,7 @@ func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
 }
 
 // UnMarshalBinary decodes a previously marshaled rotation-keys on the target rotation-keys. In contrary to all
-// the other structures, the unmarshaling for rotationkeys only need an empty receiver, as it is not possible to
+// the other structures, the unmarshaling for rotationkeys only needs an empty receiver, as it is not possible to
 // create receiver of the correct format and size without knowing all the content of the marshaled rotationkeys. The memory
 // will be allocated on the fly.
 func (rotationkey *RotationKeys) UnMarshalBinary(data []byte) error {

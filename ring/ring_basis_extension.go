@@ -4,8 +4,8 @@ package ring
 //===== CRT BASIS EXTENSION PARAMETERS =====
 //==========================================
 
-// BasisExtender is the structure keeping all the pre-computed constant required to apply
-// a basis extendion of a polynomial in basis Q to a polynomial in basis Q + P
+// BasisExtender is the structure keeping all the pre-computed constants required to apply
+// a basis extension of a polynomial in basis Q to a polynomial in basis Q + P.
 // Algorithm from https://eprint.iacr.org/2018/117.pdf
 type BasisExtender struct {
 	contextQ *Context
@@ -82,8 +82,8 @@ func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 }
 
 // ExtendBasis extends the basis of a polynomial from Q to Q + P.
-// Given a polynomial with coefficients in basis {Q0,Q1....Qi}
-// Extends its basis from {Q0,Q1....Qi} to {Q0,Q1....Qi,P0,P1...Pj}
+// Given a polynomial with coefficients in basis {Q0,Q1....Qi},
+// extends its basis from {Q0,Q1....Qi} to {Q0,Q1....Qi,P0,P1...Pj}.
 func (Parameters *BasisExtender) ExtendBasis(p1, p2 *Poly) {
 
 	var v uint64
@@ -144,8 +144,8 @@ func (Parameters *BasisExtender) ExtendBasis(p1, p2 *Poly) {
 	}
 }
 
-// ExtendBasisApproximate approximates the basis extension (returns the value + some multiple of Q (equal to the correction term v) in the basis QP)
-// The algorithm is identical to the ExtendBasis, except it doesn't make use of the correction term v that removes the additional multiplie of Q
+// ExtendBasisApproximate approximates the basis extension (returns the value + some multiple of Q (equal to the correction term v) in the basis QP).
+// The algorithm is identical to the ExtendBasis, except it doesn't make use of the correction term v that removes the additional multiple of Q
 // introduced during the basis extension in the new basis P.
 func (Parameters *BasisExtender) ExtendBasisApproximate(p1, p2 *Poly) {
 

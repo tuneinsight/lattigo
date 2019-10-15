@@ -1,6 +1,6 @@
 package ring
 
-// NTT performes the NTT transformation on the CRT coefficients a Polynomial, based on the target context.
+// NTT performs the NTT transformation on the CRT coefficients of a polynomial, based on the target context.
 func (context *Context) NTT(p1, p2 *Poly) {
 	for x := range context.Modulus {
 		NTT(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsi[x], context.Modulus[x], context.mredParams[x], context.bredParams[x])

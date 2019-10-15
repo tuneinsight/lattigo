@@ -30,7 +30,7 @@ func NewCKS(skInput, skOutput *ring.Poly, context *ring.Context, sigmaSmudging f
 	return cks
 }
 
-// KeySwitch is the first and unique round of the CKS protocol. Each party holding a ciphertext ctx encrypted under a collective publick-key musth
+// KeySwitch is the first and unique round of the CKS protocol. Each party holding a ciphertext ctx encrypted under a collective public-key must
 // compute the following :
 //
 // [(skInput_i - skOutput_i) * ctx[0] + e_i]

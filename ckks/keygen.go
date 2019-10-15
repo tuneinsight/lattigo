@@ -397,7 +397,7 @@ func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
 }
 
 // UnMarshalBinary decode a previously marshaled secret-key on the target secret-key.
-// The target secret-key must be of the appropriate format, it can be created with the methode NewSecretKeyEmpty().
+// The target secret-key must be of the appropriate format, it can be created with the method NewSecretKeyEmpty().
 func (sk *SecretKey) UnMarshalBinary(data []byte) (err error) {
 
 	N := uint64(1 << data[0])
@@ -452,7 +452,7 @@ func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
 
 // UnMarshalBinary decodes a previously marshaled public-key on the target public-key.
 // The target public-key must have the appropriate format and size, it can be created with
-// the methode NewPublicKeyEmpty().
+// the method NewPublicKeyEmpty().
 func (pk *PublicKey) UnMarshalBinary(data []byte) (err error) {
 
 	N := uint64(1 << data[0])
@@ -545,7 +545,7 @@ func (evaluationkey *EvaluationKey) MarshalBinary() (data []byte, err error) {
 }
 
 // UnMarshalBinary decodes a previously marshaled evaluation-key on the target evaluation-key. The target evaluation-key
-// must have the appropriate format and size, it can be created with the methode NewRelinKeyEmpty(uint64, uint64).
+// must have the appropriate format and size, it can be created with the method NewRelinKeyEmpty(uint64, uint64).
 func (evaluationkey *EvaluationKey) UnMarshalBinary(data []byte) (err error) {
 
 	N := uint64(1 << data[0])
@@ -639,7 +639,7 @@ func (switchingkey *SwitchingKey) MarshalBinary() (data []byte, err error) {
 }
 
 // UnMarshalBinary decode a previously marshaled switching-key on the target switching-key.
-// The target switching-key must have the appropriate format and size, it can be created with the methode NewSwitchingKeyEmpty(uint64).
+// The target switching-key must have the appropriate format and size, it can be created with the method NewSwitchingKeyEmpty(uint64).
 func (switchingkey *SwitchingKey) UnMarshalBinary(data []byte) (err error) {
 
 	N := uint64(1 << data[0])

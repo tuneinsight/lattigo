@@ -19,7 +19,7 @@ type Context struct {
 	logQ uint64
 	logP uint64
 
-	// floor(Q/T) mod each Qi in montgomeryform
+	// floor(Q/T) mod each Qi in Montgomery form
 	deltaMont []uint64
 	delta     []uint64
 
@@ -28,7 +28,7 @@ type Context struct {
 	gaussianSampler *ring.KYSampler
 	ternarySampler  *ring.TernarySampler
 
-	// Maximum bitLength of the modulies
+	// Maximum bitLength of the moduli
 	maxBit uint64
 
 	// Polynomial contexts
@@ -194,7 +194,7 @@ func (context *Context) LogQ() uint64 {
 	return context.logQ
 }
 
-// LogP returns logQ which is the total bitzise of the secondary ciphertext modulus.
+// LogP returns logP which is the total bitzise of the secondary ciphertext modulus.
 func (context *Context) LogP() uint64 {
 	return context.logP
 }

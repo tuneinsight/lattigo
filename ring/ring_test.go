@@ -384,7 +384,7 @@ func testMRed(context *Context, t *testing.T) {
 				want := result.Uint64()
 
 				if test != want {
-					t.Errorf("error : 128bit montgomery multiplication, x = %v, y=%v, have = %v, want =%v", x, y, test, want)
+					t.Errorf("error : 128bit Montgomery multiplication, x = %v, y=%v, have = %v, want =%v", x, y, test, want)
 					break
 				}
 

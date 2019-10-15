@@ -99,7 +99,7 @@ func (el *bfvElement) Copy(ctxCopy *bfvElement) error {
 // NTT puts the target ciphertext in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
 func (el *bfvElement) NTT(bfvcontext *Context, c *bfvElement) error {
 	if el.Degree() != c.Degree() {
-		return errors.New("error : receiver element invalide degree (does not match)")
+		return errors.New("error : receiver element invalid degree (does not match)")
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
@@ -113,7 +113,7 @@ func (el *bfvElement) NTT(bfvcontext *Context, c *bfvElement) error {
 // InvNTT puts the target ciphertext outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
 func (el *bfvElement) InvNTT(bfvcontext *Context, c *bfvElement) error {
 	if el.Degree() != c.Degree() {
-		return errors.New("error : receiver element invalide degree (does not match)")
+		return errors.New("error : receiver element invalid degree (does not match)")
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {

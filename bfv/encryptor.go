@@ -58,10 +58,11 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Cipher
 }
 
 // Encrypt encrypts the input plaintext using the stored public-key, and returns the result
-// on the reciver ciphertext. It will encrypt the plaintext with the stored key, which can be
+// on the receiver ciphertext. It will encrypt the plaintext with the stored key, which can be
 // private or public, a private-key encryption puts initial noise.
 //
 // encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+//
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
 

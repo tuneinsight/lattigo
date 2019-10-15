@@ -23,7 +23,7 @@ type Context struct {
 	// Uperbound in bits of the moduli
 	maxBit uint64
 
-	// Number of avaliable levels
+	// Number of available levels
 	levels uint64
 
 	// moduli chain
@@ -46,7 +46,7 @@ type Context struct {
 	gaussianSampler *ring.KYSampler
 	ternarySampler  *ring.TernarySampler
 
-	// Galoi generator for the rotations, encoding and decoding params
+	// Galois generator for the rotations, encoding and decoding params
 	gen    uint64
 	genInv uint64
 
@@ -201,7 +201,7 @@ func (context *Context) LogN() uint64 {
 	return context.logN
 }
 
-// LogQ returns the log_2(prod(modulie)) of the context.
+// LogQ returns the log_2(prod(moduli)) of the context.
 func (context *Context) LogQ() uint64 {
 	return context.logQ
 }
@@ -216,7 +216,7 @@ func (context *Context) Levels() uint64 {
 	return context.levels
 }
 
-// Scale returns the default scalt of the context.
+// Scale returns the default scale of the context.
 func (context *Context) Scale() uint64 {
 	return context.logScale
 }

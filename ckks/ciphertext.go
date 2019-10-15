@@ -86,7 +86,7 @@ func (ciphertext *Ciphertext) MarshalBinary() ([]byte, error) {
 
 // UnMarshalBinary decodes a previously marshaled ciphertext on the target ciphertext.
 // The target ciphertext must be of the appropriate format and size, it can be created with the
-// methode NewCiphertext(uint64, uin64t, uint64).
+// method NewCiphertext(uint64, uin64t, uint64).
 func (ciphertext *Ciphertext) UnMarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])

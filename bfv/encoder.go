@@ -6,7 +6,7 @@ import (
 	"math/bits"
 )
 
-// BatchEncoder is a structure storing the parameters encode values on a plaintext in a SIMD fashion.
+// BatchEncoder is a structure storing the parameters to encode values on a plaintext in a SIMD fashion.
 type BatchEncoder struct {
 	indexMatrix  []uint64
 	bfvcontext   *Context
@@ -85,7 +85,7 @@ func (batchencoder *BatchEncoder) EncodeUint(coeffs []uint64, plaintext *Plainte
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. Also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
-// The sign will correctly decode as long as the absolute value of the coefficient do not exceed half of the plaintext modulus.
+// The sign will correctly decode as long as the absolute value of the coefficient does not exceed half of the plaintext modulus.
 func (batchencoder *BatchEncoder) EncodeInt(coeffs []int64, plaintext *Plaintext) error {
 
 	if len(coeffs) > len(batchencoder.indexMatrix) {

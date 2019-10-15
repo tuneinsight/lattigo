@@ -174,14 +174,14 @@ func (kys *KYSampler) Sample(Pol *Poly) {
 	}
 }
 
-// SampleNTTNew samples a polynomial with gaussian distribution given the target kys context and apply the NTT.
+// SampleNTTNew samples a polynomial with gaussian distribution given the target kys context and applies the NTT.
 func (kys *KYSampler) SampleNTTNew() *Poly {
 	Pol := kys.SampleNew()
 	kys.context.NTT(Pol, Pol)
 	return Pol
 }
 
-// SampleNTT samples on the target polynomial coefficients with gaussian distribution given the target kys parameters,and applies the NTT.
+// SampleNTT samples on the target polynomial coefficients with gaussian distribution given the target kys parameters, and applies the NTT.
 func (kys *KYSampler) SampleNTT(Pol *Poly) {
 	kys.Sample(Pol)
 	kys.context.NTT(Pol, Pol)
@@ -250,7 +250,7 @@ func computeMatrixTernary(p float64) (M [][]uint8) {
 	return M
 }
 
-// SampleMontgomeryNew samples coefficients with ternary distribution in montgomery form on the target polynomial.
+// SampleMontgomeryNew samples coefficients with ternary distribution in Montgomery form on the target polynomial.
 func (sampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64, pol *Poly) (err error) {
 
 	if p == 0 {
@@ -317,7 +317,7 @@ func (sampler *TernarySampler) SampleUniform(pol *Poly) {
 	_ = sampler.sample(sampler.Matrix, 1.0/3.0, pol)
 }
 
-// Sample samples a polynomail with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2].
+// Sample samples a polynomial with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2].
 func (sampler *TernarySampler) Sample(p float64, pol *Poly) (err error) {
 	if err = sampler.sample(sampler.Matrix, p, pol); err != nil {
 		return err
@@ -325,7 +325,7 @@ func (sampler *TernarySampler) Sample(p float64, pol *Poly) (err error) {
 	return nil
 }
 
-// SampleMontgomery samples a polynomail with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in montgomery form.
+// SampleMontgomery samples a polynomial with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in Montgomery form.
 func (sampler *TernarySampler) SampleMontgomery(p float64, pol *Poly) (err error) {
 	if err = sampler.sample(sampler.MatrixMontgomery, p, pol); err != nil {
 		return err
@@ -342,7 +342,7 @@ func (sampler *TernarySampler) SampleNew(p float64) (pol *Poly, err error) {
 	return pol, nil
 }
 
-// SampleMontgomeryNew samples a new polynomial with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in montgomery form.
+// SampleMontgomeryNew samples a new polynomial with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in Montgomery form.
 func (sampler *TernarySampler) SampleMontgomeryNew(p float64) (pol *Poly, err error) {
 	pol = sampler.context.NewPoly()
 	if err = sampler.SampleMontgomery(p, pol); err != nil {
@@ -371,7 +371,7 @@ func (sampler *TernarySampler) SampleNTT(p float64, pol *Poly) (err error) {
 	return nil
 }
 
-// SampleMontgomeryNTTNew samples a new polynomial with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in the NTT domain and in montgomery form.
+// SampleMontgomeryNTTNew samples a new polynomial with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in the NTT domain and in Montgomery form.
 func (sampler *TernarySampler) SampleMontgomeryNTTNew(p float64) (pol *Poly, err error) {
 	if pol, err = sampler.SampleMontgomeryNew(p); err != nil {
 		return nil, err
@@ -380,7 +380,7 @@ func (sampler *TernarySampler) SampleMontgomeryNTTNew(p float64) (pol *Poly, err
 	return pol, nil
 }
 
-// SampleMontgomeryNTT samples coefficients with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in the NTT domain and in montgomery form.
+// SampleMontgomeryNTT samples coefficients with coefficients [-1, 0, 1] with a distribution of [(1-p)/2, p, (1-p)/2] in the NTT domain and in Montgomery form.
 func (sampler *TernarySampler) SampleMontgomeryNTT(p float64, pol *Poly) (err error) {
 	if err = sampler.SampleMontgomery(p, pol); err != nil {
 		return err

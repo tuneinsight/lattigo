@@ -342,7 +342,7 @@ func (evaluator *Evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphert
 	return ctOut, evaluator.Mul(op0, op1, ctOut)
 }
 
-// relinearize is a methode common to Relinearize and RelinearizeNew. It switches ct0 out in the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
+// relinearize is a method common to Relinearize and RelinearizeNew. It switches ct0 out in the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
 func (evaluator *Evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
 
 	evaluator.bfvcontext.contextQ.NTT(ct0.value[0], ctOut.value[0])
@@ -358,14 +358,14 @@ func (evaluator *Evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 	evaluator.bfvcontext.contextQ.InvNTT(ctOut.value[1], ctOut.value[1])
 }
 
-// Relinearize relinearize the ciphertext ct0 of degree > 1 until it is of degree 1 and returns the result on cOut.
+// Relinearize relinearizes the ciphertext ct0 of degree > 1 until it is of degree 1 and returns the result on cOut.
 //
 // Requires a correct evaluation key as additional input :
 //
 // - it must match the secret-key that was used to create the public key under which the current ct0 is encrypted.
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext
-//of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
+// of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
 func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) error {
 
 	if int(ct0.Degree()-1) > len(evakey.evakey) {
@@ -383,7 +383,7 @@ func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 	return nil
 }
 
-// RelinearizeNew relinearize the ciphertext ct0 of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
+// RelinearizeNew relinearizes the ciphertext ct0 of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
 //
 // Requires a correct evaluation key as additional input :
 //
@@ -398,7 +398,7 @@ func (evaluator *Evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKe
 	return ctOut, evaluator.Relinearize(ct0, evakey, ctOut)
 }
 
-// SwitchKeys applies the key-switching procedure to the ciphertext ct0 and returns the result on ctOut. It requires as an additional input a valide switching-key :
+// SwitchKeys applies the key-switching procedure to the ciphertext ct0 and returns the result on ctOut. It requires as an additional input a valid switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
 func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchkey *SwitchingKey, ctOut *Ciphertext) (err error) {
 
@@ -411,7 +411,7 @@ func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchkey *SwitchingKey,
 	return nil
 }
 
-// SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valide switching-key :
+// SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
 func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext, err error) {
 
@@ -419,7 +419,7 @@ func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingK
 	return ctOut, evaluator.SwitchKeys(ct0, switchkey, ctOut)
 }
 
-// RotateColumns rotates the columns of ct0 by k position to the left and returns the result on ctOut. As an additional input it requires a rotationkeys :
+// RotateColumns rotates the columns of ct0 by k positions to the left and returns the result on ctOut. As an additional input it requires a rotationkeys :
 //
 // - it must either store all the left and right power of 2 rotations or the specific rotation that is asked.
 //

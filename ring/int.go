@@ -54,17 +54,17 @@ func NewIntFromString(s string) *Int {
 	return i
 }
 
-// String returns the value of Int i in string
+// String returns the value of Int i as string.
 func (i *Int) String() string {
 	return i.Value.String()
 }
 
-// SetInt sets Int i with value v
+// SetInt sets Int i with value v.
 func (i *Int) SetInt(v int64) {
 	i.Value.SetInt64(v)
 }
 
-// SetUint sets Int i with value v
+// SetUint sets Int i with value v.
 func (i *Int) SetUint(v uint64) {
 	i.Value.SetUint64(v)
 }
@@ -106,13 +106,13 @@ func (i *Int) Mul(a, b *Int) *Int {
 	return i
 }
 
-// Div sets the target i to floor(a / b).
+// Div sets the target i to floor(a/b).
 func (i *Int) Div(a, b *Int) *Int {
 	i.Value.Quo(&a.Value, &b.Value)
 	return i
 }
 
-// DivRound sets the target i round(a/b).
+// DivRound sets the target i to round(a/b).
 func (i *Int) DivRound(a, b *Int) *Int {
 	_a := NewInt(1)
 	_a.SetBigInt(a)

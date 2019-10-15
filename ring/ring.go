@@ -23,7 +23,7 @@ func (context *Context) AddNoMod(p1, p2, p3 *Poly) {
 	}
 }
 
-// Sub subtract p2 to p1 coefficient wise and applies a modular reduction, returning the result on p3.
+// Sub subtracts p2 to p1 coefficient wise and applies a modular reduction, returning the result on p3.
 func (context *Context) Sub(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
@@ -32,7 +32,7 @@ func (context *Context) Sub(p1, p2, p3 *Poly) {
 	}
 }
 
-// SubNoMod subtract p2 to p1 coefficient wise without modular reduction, returning the result on p3.
+// SubNoMod subtracts p2 to p1 coefficient wise without modular reduction, returning the result on p3.
 // The output range will be [0,2*Qi -1].
 func (context *Context) SubNoMod(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
@@ -42,7 +42,7 @@ func (context *Context) SubNoMod(p1, p2, p3 *Poly) {
 	}
 }
 
-// Neg set all coefficient of p1 to there additive inverse, returning the result on p2.
+// Neg sets all coefficients of p1 to their additive inverse, returning the result on p2.
 func (context *Context) Neg(p1, p2 *Poly) {
 	for i, qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
@@ -124,8 +124,8 @@ func (context *Context) MulCoeffsAndAddNoMod(p1, p2, p3 *Poly) {
 	}
 }
 
-// MulCoeffsMontgomery multiplies p1 by p2 coefficient wise with a montgomery modular reduction, returning the result on p3.
-// Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
+// MulCoeffsMontgomery multiplies p1 by p2 coefficient wise with a Montgomery modular reduction, returning the result on p3.
+// Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomery(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
@@ -134,8 +134,8 @@ func (context *Context) MulCoeffsMontgomery(p1, p2, p3 *Poly) {
 	}
 }
 
-// MulCoeffsMontgomeryAndAdd multiplies p1 by p2 coefficient wise with a montgomery modular reduction, adding the result to p3.
-// Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
+// MulCoeffsMontgomeryAndAdd multiplies p1 by p2 coefficient wise with a Montgomery modular reduction, adding the result to p3.
+// Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndAdd(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
@@ -144,8 +144,8 @@ func (context *Context) MulCoeffsMontgomeryAndAdd(p1, p2, p3 *Poly) {
 	}
 }
 
-// MulCoeffsMontgomeryAndAddNoMod multiplies p1 by p2 coefficient wise with a montgomery modular reduction, adding the result to p3 without modular reduction.
-// Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
+// MulCoeffsMontgomeryAndAddNoMod multiplies p1 by p2 coefficient wise with a Montgomery modular reduction, adding the result to p3 without modular reduction.
+// Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndAddNoMod(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
@@ -154,8 +154,8 @@ func (context *Context) MulCoeffsMontgomeryAndAddNoMod(p1, p2, p3 *Poly) {
 	}
 }
 
-// MulCoeffsMontgomeryAndSub multiplies p1 by p2 coefficient wise with a montgomery modular reduction, subtracting the result to p3 with modular reduction.
-// Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
+// MulCoeffsMontgomeryAndSub multiplies p1 by p2 coefficient wise with a Montgomery modular reduction, subtracting the result to p3 with modular reduction.
+// Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndSub(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
@@ -164,8 +164,8 @@ func (context *Context) MulCoeffsMontgomeryAndSub(p1, p2, p3 *Poly) {
 	}
 }
 
-// MulCoeffsMontgomeryAndSubNoMod multiplies p1 by p2 coefficient wise with a montgomery modular reduction, subtracting the result to p3 without modular reduction.
-// Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
+// MulCoeffsMontgomeryAndSubNoMod multiplies p1 by p2 coefficient wise with a Montgomery modular reduction, subtracting the result to p3 without modular reduction.
+// Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
@@ -207,7 +207,7 @@ func (context *Context) MulPoly(p1, p2, p3 *Poly) {
 }
 
 // MulPolyMontgomery multiplies p1 by p2 and returns the result on p3.
-// Expect wither p1 or p2 to be in montgomery form for correctness.
+// Expects either p1 or p2 to be in Montgomery form for correctness.
 func (context *Context) MulPolyMontgomery(p1, p2, p3 *Poly) {
 
 	a := context.NewPoly()
@@ -269,7 +269,7 @@ func (context *Context) MulPolyNaiveMontgomery(p1, p2, p3 *Poly) {
 }
 
 // Exp raises p1 to p1^e, returning the result on p2.
-// TODO : implement montgomery ladder
+// TODO : implement Montgomery ladder
 func (context *Context) Exp(p1 *Poly, e uint64, p2 *Poly) {
 
 	context.NTT(p1, p1)
@@ -294,7 +294,7 @@ func (context *Context) Exp(p1 *Poly, e uint64, p2 *Poly) {
 	context.InvNTT(p1, p2)
 }
 
-// AddScalar adds to each coefficients of p1 a scalar and applies a modular reduction, returing the result on p2.
+// AddScalar adds to each coefficient of p1 a scalar and applies a modular reduction, returning the result on p2.
 func (context *Context) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	for i, Qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
@@ -303,7 +303,7 @@ func (context *Context) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
-// SubScalar subtracts to each coefficients of p1 a scalar and applies a modular reduction, returing the result on p2.
+// SubScalar subtracts to each coefficient of p1 a scalar and applies a modular reduction, returning the result on p2.
 func (context *Context) SubScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	for i, Qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
@@ -312,7 +312,7 @@ func (context *Context) SubScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
-// MulScalar multiplies each coefficients of p1 by a scalar and applies a modular reduction, returning the result on p2.
+// MulScalar multiplies each coefficient of p1 by a scalar and applies a modular reduction, returning the result on p2.
 func (context *Context) MulScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	var scalarMont uint64
 	for i, Qi := range context.Modulus {
@@ -323,7 +323,7 @@ func (context *Context) MulScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
-// MulScalarBigint multiplies each coefficients of p1 by an Int scalar and applies a modular reduction, returning the result on p2.
+// MulScalarBigint multiplies each coefficient of p1 by an Int scalar and applies a modular reduction, returning the result on p2.
 // To be used when the scalar is bigger than 64 bits.
 func (context *Context) MulScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
 
@@ -349,7 +349,7 @@ func (context *Context) Shift(p1 *Poly, n uint64, p2 *Poly) {
 	}
 }
 
-// MForm sets p1 in conventional form to its montgomeryform, returning the result on p2.
+// MForm sets p1 in conventional form to its Montgomery form, returning the result on p2.
 func (context *Context) MForm(p1, p2 *Poly) {
 
 	for i, qi := range context.Modulus {
@@ -359,7 +359,7 @@ func (context *Context) MForm(p1, p2 *Poly) {
 	}
 }
 
-// InvMForm sets p1 in montgomeryform to its conventional form, returning the result on p2.
+// InvMForm sets p1 in Montgomery form to its conventional form, returning the result on p2.
 func (context *Context) InvMForm(p1, p2 *Poly) {
 
 	for i, qi := range context.Modulus {
@@ -398,7 +398,7 @@ func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
 }
 
 // Permute applies the galois transform on a polynonial outside of the NTT domain.
-// It maps the coefficients x^i to x^(gen*i)
+// It maps the coefficients x^i to x^(gen*i).
 // Careful, not inplace!
 func (context *Context) Permute(polIn *Poly, gen uint64, polOut *Poly) {
 
@@ -527,7 +527,7 @@ func (context *Context) MulByVectorMontgomeryAndAddNoMod(p1 *Poly, vector []uint
 	}
 }
 
-// BitReverse applies a bit reverse permutation the coefficients of the input polynomial and returns the result on the receiver polynomial.
+// BitReverse applies a bit reverse permutation on the coefficients of the input polynomial and returns the result on the receiver polynomial.
 // Can safely be used for inplace permutation.
 func (context *Context) BitReverse(p1, p2 *Poly) {
 	bitLenOfN := uint64(bits.Len64(context.N) - 1)
@@ -550,7 +550,7 @@ func (context *Context) BitReverse(p1, p2 *Poly) {
 	}
 }
 
-// Rotate applies a Galoi Automorphism on p1 in NTT form,
+// Rotate applies a Galois Automorphism on p1 in NTT form,
 // rotating the coefficients to the right by n, returning the result on p2.
 // Requires the data to permuted in bitreversal order before applying NTT.
 func (context *Context) Rotate(p1 *Poly, n uint64, p2 *Poly) {

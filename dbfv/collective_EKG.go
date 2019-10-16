@@ -28,7 +28,7 @@ func NewEkgProtocol(context *ring.Context, bitDecomp uint64) *EkgProtocol {
 	return ekg
 }
 
-// NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first round).
+// NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first rounds).
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
 func (ekg *EkgProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly, err error) {
@@ -72,7 +72,7 @@ func (ekg *EkgProtocol) GenSamples(u, sk *ring.Poly, crp [][]*ring.Poly) (h [][]
 	return
 }
 
-// Aggregate is the second of three rounds of the EkgProtocol protocol. Uppon received the j-1 shares, each party computes :
+// Aggregate is the second of three rounds of the EkgProtocol protocol. Upon receiving the j-1 shares, each party computes :
 //
 // [s_i * sum([-u_j*a + s_j*w + e_j]) + e_i1, s_i*a + e_i2]
 //
@@ -132,8 +132,8 @@ func (ekg *EkgProtocol) Aggregate(sk *ring.Poly, samples [][][]*ring.Poly, crp [
 	return
 }
 
-// Sum is the first part of the third and last round of the EkgProtocol protocol. Uppon receiving the j-1 elements, each party
-// computues :
+// Sum is the first part of the third and last round of the EkgProtocol protocol. Upon receiving the j-1 elements, each party
+// computes :
 //
 // [sum(s_j * (-u*a + s*w + e) + e_j1), sum(s_j*a + e_j2)]
 //
@@ -175,7 +175,7 @@ func (ekg *EkgProtocol) Sum(samples [][][][2]*ring.Poly) (h [][][2]*ring.Poly) {
 //
 // [(u_i - s_i)*(s*a + e_2)]
 //
-// and broadcasts the result the other j-1 parties.
+// and broadcasts the result to the other j-1 parties.
 func (ekg *EkgProtocol) KeySwitch(u, sk *ring.Poly, samples [][][2]*ring.Poly) (h1 [][]*ring.Poly) {
 
 	h1 = make([][]*ring.Poly, len(ekg.context.Modulus))
@@ -199,7 +199,7 @@ func (ekg *EkgProtocol) KeySwitch(u, sk *ring.Poly, samples [][][2]*ring.Poly) (
 	return h1
 }
 
-// ComputeEVK is third part ot the third and last round of the EkgProtocol protocol. Uppon receiving the other j-1 elements, each party computes :
+// ComputeEVK is the third part of the third and last round of the EkgProtocol protocol. Upon receiving the other j-1 elements, each party computes :
 //
 // [s * (-u*a + s*w + e) + e_1 + sum([(u_j - s_j)*(s*a + e_2)])]
 //
@@ -211,7 +211,7 @@ func (ekg *EkgProtocol) KeySwitch(u, sk *ring.Poly, samples [][][2]*ring.Poly) (
 //
 // = [-s^2*a + s^2*w + e]
 //
-// The evaluation key is therefor : [-s*b + s^2*w + e, s*b]
+// The evaluation key is therefore : [-s*b + s^2*w + e, s*b]
 func (ekg *EkgProtocol) ComputeEVK(h1 [][][]*ring.Poly, h [][][2]*ring.Poly) (collectiveEVK [][][2]*ring.Poly) {
 
 	collectiveEVK = make([][][2]*ring.Poly, len(ekg.context.Modulus))

@@ -48,7 +48,7 @@ func (ckg *CKG) GetShare() *ring.Poly {
 	return ckg.share
 }
 
-// AggregateShares is the second part of the first and unique round of the CKS protocol. Uppon receiving the j-1 shares,
+// AggregateShares is the second part of the first and unique round of the CKG protocol. Upon receiving the j-1 shares,
 // each party computes :
 //
 // [sum(a* s_i + e_i), sum(a)] = [b * s + e, b]

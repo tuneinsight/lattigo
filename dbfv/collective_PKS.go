@@ -19,7 +19,7 @@ type PCKS struct {
 	polypool *ring.Poly
 }
 
-// NewPCKS creates a new PCKS object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key mong j parties under a new
+// NewPCKS creates a new PCKS object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
 func NewPCKS(skInput *ring.Poly, pkOutput [2]*ring.Poly, context *ring.Context, sigmaSmudging float64) *PCKS {
 
@@ -77,7 +77,7 @@ func (pcks *PCKS) KeySwitch(ct1 *ring.Poly) (h [2]*ring.Poly) {
 	return h
 }
 
-// Aggregate is the second part of the first and unique round of the PCKS protocol. Each party uppon receiving the j-1 elements from the
+// Aggregate is the second part of the first and unique round of the PCKS protocol. Each party upon receiving the j-1 elements from the
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]

@@ -15,7 +15,7 @@ type CKS struct {
 }
 
 // NewCKS creates a new CKS that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
-// secret-shares are distributed among j parties, re-encrypting the ciphertext under an other public-key, whose secret-shares are also known to the
+// secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
 func NewCKS(skInput, skOutput *ring.Poly, context *ring.Context, sigmaSmudging float64) *CKS {
 
@@ -35,7 +35,7 @@ func NewCKS(skInput, skOutput *ring.Poly, context *ring.Context, sigmaSmudging f
 //
 // [(skInput_i - skOutput_i) * ctx[0] + e_i]
 //
-// Each party then broadcast the result of this computation to the other j-1 parties.
+// Each party then broadcasts the result of this computation to the other j-1 parties.
 func (cks *CKS) KeySwitch(c1 *ring.Poly) *ring.Poly {
 
 	h := c1.CopyNew()
@@ -48,7 +48,7 @@ func (cks *CKS) KeySwitch(c1 *ring.Poly) *ring.Poly {
 	return h
 }
 
-// Aggregate is the second part of the unique round of the CKS protocol. Uppon receiving the j-1 elements each party computes :
+// Aggregate is the second part of the unique round of the CKS protocol. Upon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
 func (cks *CKS) Aggregate(c0 *ring.Poly, h []*ring.Poly) {

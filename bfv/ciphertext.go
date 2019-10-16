@@ -106,7 +106,7 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) error {
 		for j := uint64(0); j < level; j++ {
 			coeffs[j] = make([]uint64, N)
 		}
-		ciphertext.value[i] = &ring.Poly{coeffs}
+		ciphertext.value[i] = &ring.Poly{Coeffs : coeffs}
 
 	}
 

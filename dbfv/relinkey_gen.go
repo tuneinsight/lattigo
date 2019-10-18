@@ -21,7 +21,6 @@ type RKGProtocol struct {
 
 type RKGShareRoundOne struct {
 	//todo maybe optimize and not have to store modulus and bitLog in the struct
-	//todo uint or int ?
 	modulus uint64
 	bitLog  uint64
 	share   [][]*ring.Poly
@@ -41,23 +40,23 @@ func (share *RKGShareRoundOne) MarshalBinary() ([]byte, error) {
 	//todo ask if Modulus , bitLog should be written on 1 byte or more.
 
 	//we have modulus * bitLog * Len of 1 ring rings
-	data := make([]byte, 2*8+int(share.modulus*share.bitLog)*share.share[0][0].GetDataLen())
+	data := make([]byte, 2*8+(share.modulus*share.bitLog)*share.share[0][0].GetDataLen(true))
 
 	//share.modulus = data[0]
 	binary.LittleEndian.PutUint64(data[0:8], share.modulus)
 	//share.bitLog = data[1]
 	binary.LittleEndian.PutUint64(data[8:16], share.bitLog)
 	//write all the polys
-	ptr := 16
+	ptr := uint64(16)
 	for i := 0; i < int(share.modulus); i++ {
 		for j := 0; j < int(share.bitLog); j++ {
 			r := share.share[i][j]
-			n, err := r.WriteTo(data[ptr : ptr+r.GetDataLen()])
+			n, err := r.WriteTo(data[ptr : ptr+r.GetDataLen(true)])
 			if err != nil {
 				return []byte{}, err
 			}
 
-			ptr += int(n)
+			ptr += n
 		}
 	}
 
@@ -93,7 +92,7 @@ func (share *RKGShareRoundOne) UnmarshalBinary(data []byte) error {
 
 func (share *RKGShareRoundTwo) MarshalBinary() ([]byte, error) {
 	//we have modulus * bitLog * Len of 1 ring rings
-	data := make([]byte, 2*8+2*int(share.modulus*share.bitLog)*share.share[0][0][0].GetDataLen())
+	data := make([]byte, 2*8+2*(share.modulus*share.bitLog)*share.share[0][0][0].GetDataLen(true))
 
 	//share.modulus = data[0]
 	binary.LittleEndian.PutUint64(data[0:8], share.modulus)
@@ -102,25 +101,25 @@ func (share *RKGShareRoundTwo) MarshalBinary() ([]byte, error) {
 
 	//write all of our rings in the data.
 	//write all the polys
-	ptr := 16
+	ptr := uint64(16)
 	for i := 0; i < int(share.modulus); i++ {
 		for j := 0; j < int(share.bitLog); j++ {
 			r0 := share.share[i][j][0]
 			r1 := share.share[i][j][1]
 			//write first ring
-			n, err := r0.WriteTo(data[ptr : ptr+r0.GetDataLen()])
+			n, err := r0.WriteTo(data[ptr : ptr+r0.GetDataLen(true)])
 			if err != nil {
 				return []byte{}, err
 			}
 
-			ptr += int(n)
+			ptr += (n)
 			//write second ring
-			n, err = r1.WriteTo(data[ptr : ptr+r1.GetDataLen()])
+			n, err = r1.WriteTo(data[ptr : ptr+r1.GetDataLen(true)])
 			if err != nil {
 				return []byte{}, err
 			}
 
-			ptr += int(n)
+			ptr += (n)
 		}
 	}
 
@@ -169,23 +168,23 @@ func (share *RKGShareRoundTwo) UnmarshalBinary(data []byte) error {
 
 func (share *RKGShareRoundThree) MarshalBinary() ([]byte, error) {
 	//we have modulus * bitLog * Len of 1 ring rings
-	data := make([]byte, 2*8+int(share.modulus*share.bitLog)*share.share[0][0].GetDataLen())
+	data := make([]byte, 2*8+(share.modulus*share.bitLog)*share.share[0][0].GetDataLen(true))
 
 	//share.modulus = data[0]
 	binary.LittleEndian.PutUint64(data[0:8], share.modulus)
 	//share.bitLog = data[1]
 	binary.LittleEndian.PutUint64(data[8:16], share.bitLog)
 	//write all the polys
-	ptr := 16
+	ptr := uint64(16)
 	for i := 0; i < int(share.modulus); i++ {
 		for j := 0; j < int(share.bitLog); j++ {
 			r := share.share[i][j]
-			n, err := r.WriteTo(data[ptr : ptr+r.GetDataLen()])
+			n, err := r.WriteTo(data[ptr : ptr+r.GetDataLen(true)])
 			if err != nil {
 				return []byte{}, err
 			}
 
-			ptr += int(n)
+			ptr += (n)
 		}
 	}
 

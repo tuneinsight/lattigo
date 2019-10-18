@@ -122,7 +122,7 @@ func (pol *Poly) WriteTo(data []byte) (uint64, error) {
 	N := uint64(pol.GetDegree())
 	numberModulies := uint64(pol.GetLenModuli())
 
-	if uint64(len(data)) < 2+((N*numberModulies)<<3) {
+	if uint64(len(data)) < pol.GetDataLen(true) {
 		//the data is not big enough to write all the information
 		return 0, errors.New("Data array is too small to write ring.Poly")
 	}
@@ -134,9 +134,23 @@ func (pol *Poly) WriteTo(data []byte) (uint64, error) {
 	return cnt, err
 }
 
-//returns the lenght the poly will take when written to data.
-func (pol *Poly) GetDataLen() int {
-	return 2 + (pol.GetLenModuli()*pol.GetDegree())<<3
+//WriteCoeffs write the coefficient to the given data array.
+//Fails if the data array is not big enough to contain the ring.Poly
+func (Pol *Poly) WriteCoeffs(data []byte) (uint64, error) {
+
+	cnt, err := WriteCoeffsTo(0, uint64(Pol.GetDegree()), uint64(Pol.GetLenModuli()), Pol.Coeffs, data)
+	return cnt, err
+
+}
+
+//GetDataLen returns the lenght the poly will take when written to data.
+//Can take into account meta data if necessary.
+func (pol *Poly) GetDataLen(WithMetadata bool) uint64 {
+	cnt := 0
+	if WithMetadata {
+		cnt = 2
+	}
+	return uint64(cnt + (pol.GetLenModuli()*pol.GetDegree())<<3)
 }
 
 // DecodeCoeffs converts a byte array to a matrix of coefficients.
@@ -168,32 +182,32 @@ func DecodeCoeffsNew(pointer, N, numberModuli uint64, coeffs [][]uint64, data []
 
 func (Pol *Poly) MarshalBinary() ([]byte, error) {
 
-	N := uint64(len(Pol.Coeffs[0]))
-	numberModulies := uint64(len(Pol.Coeffs))
+	//N := uint64(len(Pol.Coeffs[0]))
+	//numberModulies := uint64(len(Pol.Coeffs))
+	data := make([]byte, Pol.GetDataLen(true))
 
-	data := make([]byte, 2+((N*numberModulies)<<3))
+	_, err := Pol.WriteTo(data)
+	return data, err
+	//if numberModulies > 0xFF {
+	//	return nil, errors.New("error : poly max modulies uint16 overflow")
+	//}
+	//
+	//data[0] = uint8(bits.Len64(uint64(N)) - 1)
+	//data[1] = uint8(numberModulies)
+	//
+	//var pointer uint64
+	//
+	//pointer = 2
+	////test to check if our method works.
+	//
+	//if _, err := WriteCoeffsTo(pointer, N, numberModulies, Pol.Coeffs, data); err != nil {
+	//	return nil, err
+	//}
 
-	if numberModulies > 0xFF {
-		return nil, errors.New("error : poly max modulies uint16 overflow")
-	}
-
-	data[0] = uint8(bits.Len64(uint64(N)) - 1)
-	data[1] = uint8(numberModulies)
-
-	var pointer uint64
-
-	pointer = 2
-
-	if _, err := WriteCoeffsTo(pointer, N, numberModulies, Pol.Coeffs, data); err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	//return data, nil
 }
 
 func (Pol *Poly) UnmarshalBinary(data []byte) error {
-
-	//Pol = new(Poly)
 
 	N := uint64(int(1 << data[0]))
 	numberModulies := uint64(int(data[1]))
@@ -205,7 +219,9 @@ func (Pol *Poly) UnmarshalBinary(data []byte) error {
 	if ((uint64(len(data)) - pointer) >> 3) != N*numberModulies {
 		return errors.New("error : invalid polynomial encoding")
 	}
-	Pol.Coeffs = make([][]uint64, numberModulies)
+	if Pol.Coeffs == nil {
+		Pol.Coeffs = make([][]uint64, numberModulies)
+	}
 	if _, err := DecodeCoeffsNew(pointer, N, numberModulies, Pol.Coeffs, data); err != nil {
 		return err
 	}

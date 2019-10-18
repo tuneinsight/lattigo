@@ -18,8 +18,11 @@ type CKGShare struct {
 
 //the binary marshaller is ok but we need to override the unmarshaller to
 //allocate memory
+//TODO take into account that share can be already allocated
 func (share *CKGShare) UnmarshalBinary(data []byte) error {
-	share.Poly = new(ring.Poly)
+	if share.Poly == nil {
+		share.Poly = new(ring.Poly)
+	}
 	err := share.Poly.UnmarshalBinary(data)
 	return err
 

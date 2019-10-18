@@ -133,6 +133,10 @@ func (sk *SecretKey) UnmarshalBinary(data []byte) error {
 	if ((uint64(len(data)) - pointer) >> 3) != (N * numberModuli) {
 		return errors.New("error : invalid secret-key encoding")
 	}
+	if sk.sk == nil {
+		sk.sk = new(ring.Poly)
+
+	}
 
 	ring.DecodeCoeffs(pointer, N, numberModuli, sk.sk.Coeffs, data)
 
@@ -187,25 +191,25 @@ func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 
 	data := make([]byte, 2+((N*numberModuli)<<4))
 
-	data[0] = uint8((bits.Len64(uint64(N)) - 1))
+	data[0] = uint8(bits.Len64(N) - 1)
 	data[1] = uint8(numberModuli)
 
 	pointer := uint64(2)
-
-	if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, pk.pk[0].Coeffs, data); err != nil {
+	_, err = pk.pk[0].WriteCoeffs(data[pointer : pointer+pk.pk[0].GetDataLen(false)])
+	if err != nil {
 		return nil, err
 	}
 
-	if pointer, err = ring.WriteCoeffsTo(pointer, N, numberModuli, pk.pk[1].Coeffs, data); err != nil {
-		return nil, err
-	}
+	pointer += pk.pk[0].GetDataLen(false)
+	_, err = pk.pk[1].WriteCoeffs(data[pointer : pointer+pk.pk[1].GetDataLen(false)])
 
-	return data, nil
+	return data, err
+
 }
 
 // UnMarshalBinary decodes a previously marshaled public-key on the target public-key.
 // The target public-key must have the appropriate format and size, it can be created with
-// the methode NewPublicKeyEmpty().
+// the method NewPublicKeyEmpty().
 func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 
 	N := uint64(1 << data[0])
@@ -216,17 +220,21 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 	if ((uint64(len(data)) - pointer) >> 4) != (N * numberModuli) {
 		return errors.New("error : invalid publickey encoding")
 	}
-	//pk = new(PublicKey)
-	pk.pk[0] = new(ring.Poly)
-	pk.pk[1] = new(ring.Poly)
-	pk.pk[0].Coeffs = make([][]uint64, numberModuli)
-	pk.pk[1].Coeffs = make([][]uint64, numberModuli)
-	var i uint64 = 0
-	for i < numberModuli {
-		pk.pk[0].Coeffs[i] = make([]uint64, N)
-		pk.pk[1].Coeffs[i] = make([]uint64, N)
-		i++
+
+	if pk.pk[0] == nil || pk.pk[1] == nil {
+
+		pk.pk[0] = new(ring.Poly)
+		pk.pk[1] = new(ring.Poly)
+		pk.pk[0].Coeffs = make([][]uint64, numberModuli)
+		pk.pk[1].Coeffs = make([][]uint64, numberModuli)
+		var i uint64 = 0
+		for i < numberModuli {
+			pk.pk[0].Coeffs[i] = make([]uint64, N)
+			pk.pk[1].Coeffs[i] = make([]uint64, N)
+			i++
+		}
 	}
+
 	pointer, _ = ring.DecodeCoeffs(pointer, N, numberModuli, pk.pk[0].Coeffs, data)
 	pointer, _ = ring.DecodeCoeffs(pointer, N, numberModuli, pk.pk[1].Coeffs, data)
 

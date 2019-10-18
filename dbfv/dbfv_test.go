@@ -537,8 +537,8 @@ func Test_Marshalling(t *testing.T) {
 	}
 
 	//comparing the results
-	if KeyGenShareBefore.GetDegree() != KeyGenShareAfter.GetDegree() {
-		log.Print("Unmatched degree on key gen shares")
+	if KeyGenShareBefore.GetDegree() != KeyGenShareAfter.GetDegree() || KeyGenShareBefore.GetLenModuli() != KeyGenShareAfter.GetLenModuli() {
+		log.Print("Unmatched degree or moduli length on key gen shares")
 		t.Fail()
 	}
 
@@ -590,7 +590,6 @@ func Test_Marshalling(t *testing.T) {
 	log.Print("PCKSShare marshalling ok ")
 
 	//Now for CKSShare ~ its similar to PKSShare
-	//todo write test for cksshare..
 	cksp := NewCKSProtocol(bfvCtx, bfvCtx.Sigma())
 	cksshare := cksp.AllocateShare()
 	skIn := KeyGenerator.NewSecretKey()

@@ -169,6 +169,15 @@ func test_Marshaler(bfvTest *BFVTESTPARAMS, t *testing.T) {
 				break
 			}
 		}
+		PkTestNew := new(PublicKey)
+		PkTestNew.UnmarshalBinary(PkBytes)
+
+		for i := range Pk.pk {
+			if bfvContext.contextQ.Equal(Pk.pk[i], PkTestNew.pk[i]) != true {
+				t.Errorf("error : binarymarshal publickey")
+				break
+			}
+		}
 	})
 
 	t.Run(fmt.Sprintf("N=%d/T=%d/Qi=%dlimbs/MarshalCiphertext", bfvTest.bfvcontext.n,

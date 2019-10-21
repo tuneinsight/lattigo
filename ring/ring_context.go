@@ -54,6 +54,45 @@ func NewContext() *Context {
 	return new(Context)
 }
 
+// TODO : comment
+func (context *Context) CopyNew() (contextCopy *Context) {
+	contextCopy = new(Context)
+	contextCopy.N = context.N
+	contextCopy.Modulus = make([]uint64, len(context.Modulus))
+	contextCopy.mask = make([]uint64, len(context.Modulus))
+	contextCopy.allowsNTT = context.allowsNTT
+	contextCopy.ModulusBigint = Copy(context.ModulusBigint)
+	contextCopy.CrtReconstruction = make([]*Int, len(context.Modulus))
+	contextCopy.bredParams = make([][]uint64, len(context.Modulus))
+	contextCopy.mredParams = make([]uint64, len(context.Modulus))
+	contextCopy.psiMont = make([]uint64, len(context.Modulus))
+	contextCopy.psiInvMont = make([]uint64, len(context.Modulus))
+	contextCopy.nttPsi = make([][]uint64, len(context.Modulus))
+	contextCopy.nttPsiInv = make([][]uint64, len(context.Modulus))
+	contextCopy.nttNInv = make([]uint64, len(context.Modulus))
+
+	for i := range context.Modulus {
+		contextCopy.Modulus[i] = context.Modulus[i]
+		contextCopy.mask[i] = context.mask[i]
+		contextCopy.CrtReconstruction[i] = Copy(context.CrtReconstruction[i])
+		contextCopy.bredParams[i] = make([]uint64, 2)
+		contextCopy.bredParams[i][0] = context.bredParams[i][0]
+		contextCopy.bredParams[i][1] = context.bredParams[i][1]
+		contextCopy.mredParams[i] = context.mredParams[i]
+		contextCopy.psiMont[i] = context.psiMont[i]
+		contextCopy.psiInvMont[i] = context.psiInvMont[i]
+		contextCopy.nttPsi[i] = make([]uint64, context.N)
+		contextCopy.nttPsiInv[i] = make([]uint64, context.N)
+		for j := uint64(0); j < context.N; j++ {
+			contextCopy.nttPsi[i][j] = context.nttPsi[i][j]
+			contextCopy.nttPsiInv[i][j] = context.nttPsiInv[i][j]
+		}
+		contextCopy.nttNInv[i] = context.nttNInv[i]
+	}
+
+	return
+}
+
 // SetParameters initialize the parameters of an empty context with N and the provided moduli.
 // Only checks that N is a power of 2 and computes all the variable that aren't used for the NTT.
 func (context *Context) SetParameters(N uint64, Modulus []uint64) error {

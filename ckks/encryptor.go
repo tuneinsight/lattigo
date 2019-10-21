@@ -10,7 +10,11 @@ type Encryptor struct {
 	ckkscontext *CkksContext
 	pk          *PublicKey
 	sk          *SecretKey
-	polypool    *ring.Poly
+	polypool    [3]*ring.Poly
+
+	rescalepool []uint64
+
+	baseconverter *FastBasisExtender
 }
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
@@ -41,7 +45,14 @@ func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encr
 	encryptor.ckkscontext = ckkscontext
 	encryptor.pk = pk
 	encryptor.sk = sk
-	encryptor.polypool = ckkscontext.contextLevel[ckkscontext.levels-1].NewPoly()
+
+	encryptor.polypool[0] = ckkscontext.keyscontext[ckkscontext.levels-1].NewPoly()
+	encryptor.polypool[1] = ckkscontext.keyscontext[ckkscontext.levels-1].NewPoly()
+	encryptor.polypool[2] = ckkscontext.keyscontext[ckkscontext.levels-1].NewPoly()
+
+	encryptor.rescalepool = make([]uint64, ckkscontext.n)
+
+	encryptor.baseconverter = NewFastBasisExtender(ckkscontext.contextLevel[ckkscontext.levels-1].Modulus, ckkscontext.specialprimes)
 
 	return encryptor, nil
 }
@@ -85,37 +96,52 @@ func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext
 
 func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	context := encryptor.ckkscontext.contextLevel[plaintext.Level()]
+	// We sample a R-WLE instance (encryption of zero) over the keys context (ciphertext context + special prime)
+	context := encryptor.ckkscontext.keyscontext[plaintext.Level()]
 
-	encryptor.ckkscontext.ternarySampler.SampleMontgomeryNTT(0.5, encryptor.polypool)
+	encryptor.ckkscontext.ternarySampler.SampleMontgomeryNTT(0.99, encryptor.polypool[2])
 
-	context.MulCoeffsMontgomery(encryptor.polypool, encryptor.pk.pk[0], ciphertext.value[0])
-	context.MulCoeffsMontgomery(encryptor.polypool, encryptor.pk.pk[1], ciphertext.value[1])
+	context.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
+	context.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
-	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool)
-	context.Add(ciphertext.value[0], encryptor.polypool, ciphertext.value[0])
+	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool[2])
+	context.Add(encryptor.polypool[0], encryptor.polypool[2], encryptor.polypool[0])
 
-	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool)
-	context.Add(ciphertext.value[1], encryptor.polypool, ciphertext.value[1])
+	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool[2])
+	context.Add(encryptor.polypool[1], encryptor.polypool[2], encryptor.polypool[1])
 
+	// We rescal the encryption of zero by the special prime, dividing the error by this prime
+	encryptor.baseconverter.ModDown(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	encryptor.baseconverter.ModDown(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+
+	// We switch to the ciphertext context and add the message to the encryption of zero
+	context = encryptor.ckkscontext.contextLevel[plaintext.Level()]
+
+	ciphertext.SetCurrentModulus(context.ModulusBigint)
 	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
-
-	encryptor.polypool.Zero()
 
 	ciphertext.isNTT = true
 }
 
 func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
-	context := encryptor.ckkscontext.contextLevel[plaintext.Level()]
+	context := encryptor.ckkscontext.keyscontext[plaintext.Level()]
 
 	// ct = [e, a]
-	ciphertext.value[1] = context.NewUniformPoly()
-	encryptor.ckkscontext.gaussianSampler.SampleNTT(ciphertext.value[0])
+	context.UniformPoly(encryptor.polypool[1])
+	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool[0])
 
 	// ct = [-s*a + e, a]
-	context.MulCoeffsMontgomeryAndSub(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
+	context.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
 
+	// We rescal by the special prime, dividing the error by this prime
+	encryptor.baseconverter.ModDown(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	encryptor.baseconverter.ModDown(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+	// We switch to the ciphertext context and add the message
 	// ct = [-s*a + m + e, a]
+	context = encryptor.ckkscontext.contextLevel[plaintext.Level()]
+
+	ciphertext.SetCurrentModulus(context.ModulusBigint)
 	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
+	ciphertext.isNTT = true
 }

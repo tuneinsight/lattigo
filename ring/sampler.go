@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+	"math/bits"
 )
 
 // KYSampler is the structure holding the parameters for the gaussian sampling.
@@ -385,6 +386,139 @@ func (sampler *TernarySampler) SampleMontgomeryNTT(p float64, pol *Poly) (err er
 	sampler.context.NTT(pol, pol)
 	return nil
 }
+
+// Samples a keys with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients
+func (sampler *TernarySampler) SampleSparse(pol *Poly, hw uint64) {
+
+	if hw > sampler.context.N {
+		hw = sampler.context.N
+	}
+
+	var mask, j uint64
+	var coeff uint8
+
+	index := make([]uint64, sampler.context.N)
+	for i := uint64(0); i < sampler.context.N; i++ {
+		index[i] = i
+	}
+
+	randomBytes := make([]byte, (uint64(math.Ceil(float64(hw) / 8.0)))) // We sample ceil(hw/8) bytes
+	pointer := uint8(0)
+
+	if _, err := rand.Read(randomBytes); err != nil {
+		panic("crypto rand error")
+	}
+
+	for i := uint64(0); i < hw; i++ {
+		mask = (1 << uint64(bits.Len64(sampler.context.N-i))) - 1 // rejection sampling of a random variable between [0, len(index)]
+
+		j = randInt32(mask)
+		for j >= sampler.context.N-i {
+			j = randInt32(mask)
+		}
+
+		coeff = (uint8(randomBytes[0]) >> (i & 7)) & 1 // random binary digit [0, 1] from the random bytes
+		for i := range sampler.context.Modulus {
+			pol.Coeffs[i][index[j]] = sampler.Matrix[i][coeff]
+		}
+
+		// Removes the element in position j of the slice (order not preserved)
+		index[j] = index[len(index)-1]
+		index = index[:len(index)-1]
+
+		pointer += 1
+
+		if pointer == 8 {
+			randomBytes = randomBytes[1:]
+			pointer = 0
+		}
+	}
+}
+
+func (sampler *TernarySampler) SampleSparseMontgomeryNew(hw uint64) (pol *Poly) {
+	pol = sampler.context.NewPoly()
+	sampler.SampleSparseMontgomery(pol, hw)
+	return pol
+}
+
+// Samples a keys with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients
+func (sampler *TernarySampler) SampleSparseMontgomery(pol *Poly, hw uint64) {
+
+	if hw > sampler.context.N {
+		hw = sampler.context.N
+	}
+
+	var mask, j uint64
+	var coeff uint8
+
+	index := make([]uint64, sampler.context.N)
+	for i := uint64(0); i < sampler.context.N; i++ {
+		index[i] = i
+	}
+
+	randomBytes := make([]byte, (uint64(math.Ceil(float64(hw) / 8.0)))) // We sample ceil(hw/8) bytes
+	pointer := uint8(0)
+
+	if _, err := rand.Read(randomBytes); err != nil {
+		panic("crypto rand error")
+	}
+
+	for i := uint64(0); i < hw; i++ {
+
+		mask = (1 << uint64(bits.Len64(sampler.context.N-i))) - 1 // rejection sampling of a random variable between [0, len(index)]
+
+		j = randInt32(mask)
+		for j >= sampler.context.N-i {
+			j = randInt32(mask)
+		}
+
+		coeff = (uint8(randomBytes[0]) >> (i & 7)) & 1 // random binary digit [0, 1] from the random bytes
+		for i := range sampler.context.Modulus {
+			pol.Coeffs[i][index[j]] = sampler.MatrixMontgomery[i][coeff]
+		}
+
+		// Removes the element in position j of the slice (order not preserved)
+		index[j] = index[len(index)-1]
+		index = index[:len(index)-1]
+
+		pointer += 1
+
+		if pointer == 8 {
+			randomBytes = randomBytes[1:]
+			pointer = 0
+		}
+	}
+}
+
+func (sampler *TernarySampler) SampleSparseNTTNew(hw uint64) (pol *Poly) {
+	pol = sampler.context.NewPoly()
+	sampler.SampleSparse(pol, hw)
+	sampler.context.NTT(pol, pol)
+	return pol
+}
+
+func (sampler *TernarySampler) SampleSparseNTT(hw uint64, pol *Poly) {
+	sampler.SampleSparse(pol, hw)
+	sampler.context.NTT(pol, pol)
+}
+
+func (sampler *TernarySampler) SampleSparseMontgomeryNTTNew(hw uint64) (pol *Poly) {
+	pol = sampler.SampleSparseMontgomeryNew(hw)
+	sampler.context.NTT(pol, pol)
+	return pol
+}
+
+func (sampler *TernarySampler) SampleSparseMontgomeryNTT(hw uint64, pol *Poly) {
+	sampler.SampleSparseMontgomery(pol, hw)
+	sampler.context.NTT(pol, pol)
+}
+
+func (sampler *TernarySampler) SampleSparseNew(hw uint64) (pol *Poly) {
+	pol = sampler.context.NewPoly()
+	sampler.SampleSparse(pol, hw)
+	return pol
+}
+
 
 // RandUniform samples a uniform randomInt variable in the range [0, mask] until randomInt is in the range [0, v-1].
 // mask needs to be of the form 2^n -1.

@@ -9,17 +9,18 @@ type Operand interface {
 	Element() *ckksElement
 	Degree() uint64
 	Level() uint64
-	Scale() uint64
+	Scale() float64
 }
 
 type ckksElement struct {
 	value          []*ring.Poly
-	scale          uint64
+	scale          float64
 	currentModulus *ring.Int
 	isNTT          bool
+	slots uint64
 }
 
-func (ckkscontext *CkksContext) NewCkksElement(degree, level, scale uint64) *ckksElement {
+func (ckkscontext *CkksContext) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
 	el := &ckksElement{}
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -50,12 +51,20 @@ func (el *ckksElement) Level() uint64 {
 	return uint64(len(el.value[0].Coeffs) - 1)
 }
 
-func (el *ckksElement) Scale() uint64 {
+func (el *ckksElement) Scale() float64 {
 	return el.scale
 }
 
-func (el *ckksElement) SetScale(scale uint64) {
+func (el *ckksElement) SetScale(scale float64) {
 	el.scale = scale
+}
+
+func (el *ckksElement) MulScale(scale float64) {
+	el.scale *= scale
+}
+
+func (el *ckksElement) DivScale(scale float64) {
+	el.scale /= scale
 }
 
 func (el *ckksElement) CurrentModulus() *ring.Int {
@@ -65,6 +74,11 @@ func (el *ckksElement) CurrentModulus() *ring.Int {
 func (el *ckksElement) SetCurrentModulus(modulus *ring.Int) {
 	el.currentModulus = ring.Copy(modulus)
 }
+
+func (el *ckksElement) Slots() uint64 {
+	return el.slots
+}
+
 
 func (el *ckksElement) Resize(ckkscontext *CkksContext, degree uint64) {
 	if el.Degree() > degree {

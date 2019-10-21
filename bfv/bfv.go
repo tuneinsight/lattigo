@@ -3,7 +3,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/ring"
-	"math/bits"
+	"math"
 )
 
 // BfvContext is a struct which contains all the elements required to instantiate the BFV Scheme. This includes the parameters (N, plaintext modulus, ciphertext modulus,
@@ -28,14 +28,17 @@ type BfvContext struct {
 	gaussianSampler *ring.KYSampler
 	ternarySampler  *ring.TernarySampler
 
-	// Maximum bitLength of the modulies
-	maxBit uint64
-
 	// Polynomial contexts
 	contextT  *ring.Context
 	contextQ  *ring.Context
 	contextP  *ring.Context
 	contextQP *ring.Context
+
+	contextKeys       *ring.Context
+	specialprimes     []uint64
+	alpha             uint64
+	beta              uint64
+	rescaleParamsKeys []uint64 // (P^-1) mod each qi
 
 	// Galois elements used to permute the batched plaintext in the encrypted domain
 	gen    uint64
@@ -89,10 +92,11 @@ func NewBfvContextWithParam(params *Parameters) (newbfvcontext *BfvContext, err 
 // - sigma    : the variance of the gaussian sampling.
 func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 
-	contextT := ring.NewContext()
-	contextQ := ring.NewContext()
-	contextP := ring.NewContext()
-	contextQP := ring.NewContext()
+	bfvContext.contextT = ring.NewContext()
+	bfvContext.contextQ = ring.NewContext()
+	bfvContext.contextP = ring.NewContext()
+	bfvContext.contextQP = ring.NewContext()
+	bfvContext.contextKeys = ring.NewContext()
 
 	N := params.N
 	t := params.T
@@ -100,67 +104,82 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	ModuliP := params.Pi
 	sigma := params.Sigma
 
+	bfvContext.n = N
+	bfvContext.t = t
+
 	// Plaintext NTT Parameters
 	// We do not check for an error since the plaintext NTT is optional
 	// it will still compute the other relevant parameters
-	contextT.SetParameters(N, []uint64{t})
-	contextT.GenNTTParams()
+	bfvContext.contextT.SetParameters(N, []uint64{t})
+	bfvContext.contextT.GenNTTParams()
 	// ========================
 
-	if err := contextQ.SetParameters(N, ModuliQ); err != nil {
+	if err := bfvContext.contextQ.SetParameters(N, ModuliQ); err != nil {
 		return err
 	}
 
-	if err := contextQ.GenNTTParams(); err != nil {
+	if err := bfvContext.contextQ.GenNTTParams(); err != nil {
 		return err
 	}
 
-	if err := contextP.SetParameters(N, ModuliP); err != nil {
+	if err := bfvContext.contextP.SetParameters(N, ModuliP); err != nil {
 		return err
 	}
 
-	if err := contextP.GenNTTParams(); err != nil {
+	if err := bfvContext.contextP.GenNTTParams(); err != nil {
 		return err
 	}
 
-	if err := contextQP.Merge(contextQ, contextP); err != nil {
+	if err := bfvContext.contextQP.Merge(bfvContext.contextQ, bfvContext.contextP); err != nil {
 		return err
 	}
 
-	bfvContext.n = N
+	if err = bfvContext.contextKeys.SetParameters(N, append(ModuliQ, params.KeySwitchPrimes...)); err != nil {
+		return err
+	}
 
-	bfvContext.t = t
+	if err = bfvContext.contextKeys.GenNTTParams(); err != nil {
+		return err
+	}
 
-	bfvContext.logQ = uint64(contextQ.ModulusBigint.Value.BitLen())
-	bfvContext.logP = uint64(contextP.ModulusBigint.Value.BitLen())
+	bfvContext.specialprimes = make([]uint64, len(params.KeySwitchPrimes))
+	for i := range params.KeySwitchPrimes {
+		bfvContext.specialprimes[i] = params.KeySwitchPrimes[i]
+	}
 
-	delta := ring.NewUint(1).Div(contextQ.ModulusBigint, ring.NewUint(t))
+	bfvContext.rescaleParamsKeys = make([]uint64, len(ModuliQ))
+
+	PBig := ring.NewUint(1)
+	for _, pj := range bfvContext.specialprimes {
+		PBig.Mul(PBig, ring.NewUint(pj))
+	}
+
+	bfvContext.alpha = uint64(len(bfvContext.specialprimes))
+	bfvContext.beta = uint64(math.Ceil(float64(len(ModuliQ)) / float64(bfvContext.alpha)))
+
+	tmp := ring.NewUint(0)
+	bredParams := bfvContext.contextQ.GetBredParams()
+	for i, Qi := range ModuliQ {
+		tmp.Mod(PBig, ring.NewUint(Qi))
+		bfvContext.rescaleParamsKeys[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Qi, bredParams[i]), Qi-2, Qi), Qi, bredParams[i])
+	}
+
+	bfvContext.logQ = uint64(bfvContext.contextKeys.ModulusBigint.Value.BitLen())
+	bfvContext.logP = uint64(bfvContext.contextP.ModulusBigint.Value.BitLen())
+
+	delta := ring.NewUint(1).Div(bfvContext.contextQ.ModulusBigint, ring.NewUint(t))
 	tmpBig := ring.NewUint(1)
 	bfvContext.deltaMont = make([]uint64, len(ModuliQ))
 	bfvContext.delta = make([]uint64, len(ModuliQ))
 	for i, Qi := range ModuliQ {
 		bfvContext.delta[i] = tmpBig.Mod(delta, ring.NewUint(Qi)).Uint64()
-		bfvContext.deltaMont[i] = ring.MForm(bfvContext.delta[i], Qi, contextQ.GetBredParams()[i])
+		bfvContext.deltaMont[i] = ring.MForm(bfvContext.delta[i], Qi, bfvContext.contextQ.GetBredParams()[i])
 	}
 
 	bfvContext.sigma = sigma
 
-	bfvContext.gaussianSampler = contextQ.NewKYSampler(sigma, int(6*sigma))
-	bfvContext.ternarySampler = contextQ.NewTernarySampler()
-
-	bfvContext.maxBit = 0
-
-	for i := range ModuliQ {
-		tmp := uint64(bits.Len64(ModuliQ[i]))
-		if tmp > bfvContext.maxBit {
-			bfvContext.maxBit = tmp
-		}
-	}
-
-	bfvContext.contextT = contextT
-	bfvContext.contextQ = contextQ
-	bfvContext.contextP = contextP
-	bfvContext.contextQP = contextQP
+	bfvContext.gaussianSampler = bfvContext.contextKeys.NewKYSampler(sigma, int(6*sigma))
+	bfvContext.ternarySampler = bfvContext.contextKeys.NewTernarySampler()
 
 	bfvContext.gen = 5
 	bfvContext.genInv = ring.ModExp(bfvContext.gen, (N<<1)-1, N<<1)
@@ -237,6 +256,15 @@ func (bfvContext *BfvContext) ContextP() *ring.Context {
 // ContextQP returns the polynomial (ring) context of the extended ciphertext modulus, of the target bfvcontext.
 func (bfvContext *BfvContext) ContextQP() *ring.Context {
 	return bfvContext.contextQP
+}
+
+// ContextKeys returns the polynomial (ring) context used for the key-generation.
+func (bfvContext *BfvContext) ContextKeys() *ring.Context {
+	return bfvContext.contextKeys
+}
+
+func (bfvcontext *BfvContext) KeySwitchPrimes() []uint64 {
+	return bfvcontext.specialprimes
 }
 
 // GaussianSampler returns the context's gaussian sampler instance

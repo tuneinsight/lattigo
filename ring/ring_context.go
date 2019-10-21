@@ -331,12 +331,10 @@ func (context *Context) NewPoly() *Poly {
 }
 
 // NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
-func (context *Context) NewUniformPoly() (Pol *Poly) {
+func (context *Context) UniformPoly(Pol *Poly) {
 
 	var randomBytes []byte
 	var randomUint, mask uint64
-
-	Pol = context.NewPoly()
 
 	n := context.N
 	if n < 8 {
@@ -380,6 +378,16 @@ func (context *Context) NewUniformPoly() (Pol *Poly) {
 			Pol.Coeffs[j][i] = randomUint
 		}
 	}
+
+	return
+}
+
+// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
+func (context *Context) NewUniformPoly() (Pol *Poly) {
+
+	Pol = context.NewPoly()
+
+	context.UniformPoly(Pol)
 
 	return
 }

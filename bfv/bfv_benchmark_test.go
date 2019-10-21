@@ -9,8 +9,6 @@ func Benchmark_BFVScheme(b *testing.B) {
 
 	paramSets := DefaultParams
 
-	bitDecomps := []uint64{60}
-
 	for _, params := range paramSets {
 
 		bfvContext := NewBfvContext()
@@ -128,40 +126,38 @@ func Benchmark_BFVScheme(b *testing.B) {
 			}
 		})
 
-		for _, bitDecomp := range bitDecomps {
+		// Relinearization Key Generation not becnhmarked (no inplace gen)
+		rlk := kgen.NewRelinKey(sk, 2)
 
-			// Relinearization Key Generation not becnhmarked (no inplace gen)
-			rlk := kgen.NewRelinKey(sk, 2, bitDecomp)
-
-			// Relinearization
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/Relin", params.N, bitDecomp), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					if err := evaluator.Relinearize(ctd2, rlk, ctd1); err != nil {
-						b.Error(err)
-					}
+		// Relinearization
+		b.Run(fmt.Sprintf("params=%d//Relin", params.N), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if err := evaluator.Relinearize(ctd2, rlk, ctd1); err != nil {
+					b.Error(err)
 				}
-			})
+			}
+		})
 
-			// Rotation Key Generation not benchmarked (no inplace gen)
-			rtk := kgen.NewRotationKeysPow2(sk, bitDecomp, true)
+		// Rotation Key Generation not benchmarked (no inplace gen)
+		rtk := kgen.NewRotationKeysPow2(sk, true)
 
-			// Rotation Rows
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/RotateRows", params.N, bitDecomp), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					if err := evaluator.RotateRows(ct1, rtk, ctd1); err != nil {
-						b.Error(err)
-					}
+		// Rotation Rows
+		b.Run(fmt.Sprintf("params=%d//RotateRows", params.N), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if err := evaluator.RotateRows(ct1, rtk, ctd1); err != nil {
+					b.Error(err)
 				}
-			})
+			}
+		})
 
-			// Rotation Cols
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/RotateCols", params.N, bitDecomp), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					if err := evaluator.RotateColumns(ct1, 1, rtk, ctd1); err != nil {
-						b.Error(err)
-					}
+		// Rotation Cols
+		b.Run(fmt.Sprintf("params=%d//RotateCols", params.N), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if err := evaluator.RotateColumns(ct1, 1, rtk, ctd1); err != nil {
+					b.Error(err)
 				}
-			})
-		}
+			}
+		})
+
 	}
 }

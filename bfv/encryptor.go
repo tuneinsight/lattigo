@@ -10,7 +10,9 @@ type Encryptor struct {
 	bfvcontext *BfvContext
 	pk         *PublicKey
 	sk         *SecretKey
-	polypool   *ring.Poly
+	polypool   [3]*ring.Poly
+
+	baseconverter *FastBasisExtender
 }
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
@@ -39,7 +41,12 @@ func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryp
 	encryptor.bfvcontext = bfvcontext
 	encryptor.pk = pk
 	encryptor.sk = sk
-	encryptor.polypool = bfvcontext.contextQ.NewPoly()
+
+	encryptor.polypool[0] = bfvcontext.contextKeys.NewPoly()
+	encryptor.polypool[1] = bfvcontext.contextKeys.NewPoly()
+	encryptor.polypool[2] = bfvcontext.contextKeys.NewPoly()
+
+	encryptor.baseconverter = NewFastBasisExtender(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
 
 	return encryptor, nil
 }
@@ -83,51 +90,59 @@ func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext
 
 func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	context := encryptor.bfvcontext.contextQ
+	context := encryptor.bfvcontext.contextKeys
 
 	// u
-	encryptor.bfvcontext.ternarySampler.SampleMontgomeryNTT(0.5, encryptor.polypool)
+	encryptor.bfvcontext.ternarySampler.SampleMontgomeryNTT(0.5, encryptor.polypool[2])
 
 	// ct[0] = pk[0]*u
 	// ct[1] = pk[1]*u
-	context.MulCoeffsMontgomery(encryptor.polypool, encryptor.pk.pk[0], ciphertext.value[0])
-	context.MulCoeffsMontgomery(encryptor.polypool, encryptor.pk.pk[1], ciphertext.value[1])
+	context.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
+	context.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
+
+	// ct[0] = pk[0]*u + e0
+	encryptor.bfvcontext.gaussianSampler.SampleNTT(encryptor.polypool[2])
+	context.Add(encryptor.polypool[0], encryptor.polypool[2], encryptor.polypool[0])
+
+	// ct[1] = pk[1]*u + e1
+	encryptor.bfvcontext.gaussianSampler.SampleNTT(encryptor.polypool[2])
+	context.Add(encryptor.polypool[1], encryptor.polypool[2], encryptor.polypool[1])
+
+	// We rescal the encryption of zero by the special prime, dividing the error by this prime
+	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+
+	context = encryptor.bfvcontext.contextQ
 
 	context.InvNTT(ciphertext.value[0], ciphertext.value[0])
 	context.InvNTT(ciphertext.value[1], ciphertext.value[1])
-
-	// ct[0] = pk[0]*u + e0
-	encryptor.bfvcontext.gaussianSampler.Sample(encryptor.polypool)
-	context.Add(ciphertext.value[0], encryptor.polypool, ciphertext.value[0])
-
-	// ct[1] = pk[1]*u + e1
-	encryptor.bfvcontext.gaussianSampler.Sample(encryptor.polypool)
-	context.Add(ciphertext.value[1], encryptor.polypool, ciphertext.value[1])
 
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
 	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
-	encryptor.polypool.Zero()
 }
 
 func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	context := encryptor.bfvcontext.contextQ
+	context := encryptor.bfvcontext.contextKeys
 
-	// ct = [-a*s , a]
-	ciphertext.value[1] = context.NewUniformPoly()
-	context.MulCoeffsMontgomery(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
-	context.Neg(ciphertext.value[0], ciphertext.value[0])
+	// ct = [(-a*s + e)/P , a/P]
+	context.UniformPoly(encryptor.polypool[1])
+	encryptor.bfvcontext.gaussianSampler.SampleNTT(encryptor.polypool[0])
+
+	context.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
+
+	// We rescal the encryption of zero by the special prime, dividing the error by this prime
+	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+
+	context = encryptor.bfvcontext.contextQ
+
 	context.InvNTT(ciphertext.value[0], ciphertext.value[0])
 	context.InvNTT(ciphertext.value[1], ciphertext.value[1])
-
-	// ct = [-a*s + e, a]
-	encryptor.bfvcontext.gaussianSampler.Sample(encryptor.polypool)
-	context.Add(ciphertext.value[0], encryptor.polypool, ciphertext.value[0])
 
 	// ct = [-a*s + m + e , a]
 	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
-	encryptor.polypool.Zero()
 }

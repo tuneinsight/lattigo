@@ -12,7 +12,11 @@ type Evaluator struct {
 	basisextender *ring.BasisExtender
 	complexscaler *ring.ComplexScaler
 	polypool      [4]*ring.Poly
+	keyswitchpool [5]*ring.Poly
 	ctxpool       [3]*Ciphertext
+	rescalepool   []uint64
+	baseconverter *FastBasisExtender
+	decomposer    *ArbitraryDecomposer
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
@@ -30,9 +34,18 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator) {
 		evaluator.polypool[i] = bfvcontext.contextQP.NewPoly()
 	}
 
+	for i := 0; i < 5; i++ {
+		evaluator.keyswitchpool[i] = bfvcontext.contextKeys.NewPoly()
+	}
+
+	evaluator.rescalepool = make([]uint64, bfvcontext.n)
+
 	evaluator.ctxpool[0] = bfvcontext.NewCiphertextBig(5)
 	evaluator.ctxpool[1] = bfvcontext.NewCiphertextBig(5)
 	evaluator.ctxpool[2] = bfvcontext.NewCiphertextBig(5)
+
+	evaluator.baseconverter = NewFastBasisExtender(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
+	evaluator.decomposer = NewArbitraryDecomposer(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
 
 	return evaluator
 }
@@ -620,45 +633,75 @@ func (evaluator *Evaluator) switchKeysOutOfNTTDomain(el0, el1 *ring.Poly, switch
 	context.InvNTT(ctOut.value[1], ctOut.value[1])
 }
 
-// switchKeys compute ctOut = [ctOut[0] + c2*evakey[0], ctOut[1] + c2*evakey[1]], for c2 not in NTT and ctOut in NTT.
-func (evaluator *Evaluator) switchKeys(c2 *ring.Poly, evakey *SwitchingKey, ctOut *Ciphertext) {
+// Applies the general keyswitching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
+func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOut *Ciphertext) {
 
-	var mask, reduce, bitLog uint64
+	var level, reduce uint64
 
-	c2_qi_w := evaluator.polypool[3]
+	level = uint64(len(ctOut.value[0].Coeffs)) - 1
+	context := evaluator.bfvcontext.contextQ
+	contextKeys := evaluator.bfvcontext.contextKeys
 
-	mask = uint64((1 << evakey.bitDecomp) - 1)
+	for i := range evaluator.keyswitchpool {
+		evaluator.keyswitchpool[i].Zero()
+	}
+
+	c2_qi := evaluator.keyswitchpool[0]
+	c2 := evaluator.keyswitchpool[1]
+
+	// We switch the element on which the switching key operation will be conducted out of the NTT domain
+	context.NTT(cx, c2)
 
 	reduce = 0
 
-	for i := range evaluator.bfvcontext.contextQ.Modulus {
+	N := contextKeys.N
+	c2_qi_ntt := make([]uint64, N)
 
-		bitLog = uint64(len(evakey.evakey[i]))
+	// Key switching with crt decomposition for the Qi
+	for i := uint64(0); i < evaluator.bfvcontext.beta; i++ {
 
-		for j := uint64(0); j < bitLog; j++ {
-			//c2_qi_w = (c2_qi_w >> (w*z)) & (w-1)
-			for u := uint64(0); u < evaluator.bfvcontext.n; u++ {
-				for v := range evaluator.bfvcontext.contextQ.Modulus {
-					c2_qi_w.Coeffs[v][u] = (c2.Coeffs[i][u] >> (j * evakey.bitDecomp)) & mask
+		p0idxst := i * evaluator.bfvcontext.alpha
+		p0idxed := p0idxst + evaluator.decomposer.xalpha[i]
+
+		// c2_qi = cx mod qi
+		evaluator.decomposer.Decompose(level, i, cx, c2_qi)
+
+		for x, qi := range contextKeys.Modulus {
+
+			nttPsi := contextKeys.GetNttPsi()[x]
+			bredParams := contextKeys.GetBredParams()[x]
+			mredParams := contextKeys.GetMredParams()[x]
+
+			if p0idxst <= uint64(x) && uint64(x) < p0idxed {
+				for j := uint64(0); j < N; j++ {
+					c2_qi_ntt[j] = c2.Coeffs[x][j]
 				}
+			} else {
+				ring.NTT(c2_qi.Coeffs[x], c2_qi_ntt, N, nttPsi, qi, mredParams, bredParams)
 			}
 
-			evaluator.bfvcontext.contextQ.NTT(c2_qi_w, c2_qi_w)
-
-			evaluator.bfvcontext.contextQ.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][0], c2_qi_w, ctOut.value[0])
-			evaluator.bfvcontext.contextQ.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][1], c2_qi_w, ctOut.value[1])
-
-			if reduce&7 == 7 {
-				evaluator.bfvcontext.contextQ.Reduce(ctOut.value[0], ctOut.value[0])
-				evaluator.bfvcontext.contextQ.Reduce(ctOut.value[1], ctOut.value[1])
+			for y := uint64(0); y < context.N; y++ {
+				evaluator.keyswitchpool[2].Coeffs[x][y] += ring.MRed(evakey.evakey[i][0].Coeffs[x][y], c2_qi_ntt[y], qi, mredParams)
+				evaluator.keyswitchpool[3].Coeffs[x][y] += ring.MRed(evakey.evakey[i][1].Coeffs[x][y], c2_qi_ntt[y], qi, mredParams)
 			}
-
-			reduce += 1
 		}
+
+		if reduce&7 == 7 {
+			contextKeys.Reduce(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
+			contextKeys.Reduce(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
+		}
+
+		reduce += 1
 	}
 
 	if (reduce-1)&7 != 7 {
-		evaluator.bfvcontext.contextQ.Reduce(ctOut.value[0], ctOut.value[0])
-		evaluator.bfvcontext.contextQ.Reduce(ctOut.value[1], ctOut.value[1])
+		contextKeys.Reduce(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
+		contextKeys.Reduce(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
 	}
+
+	evaluator.baseconverter.ModDown(contextKeys, evaluator.bfvcontext.rescaleParamsKeys, level, evaluator.keyswitchpool[2], evaluator.keyswitchpool[2], evaluator.keyswitchpool[0])
+	evaluator.baseconverter.ModDown(contextKeys, evaluator.bfvcontext.rescaleParamsKeys, level, evaluator.keyswitchpool[3], evaluator.keyswitchpool[3], evaluator.keyswitchpool[0])
+
+	context.Add(ctOut.value[0], evaluator.keyswitchpool[2], ctOut.value[0])
+	context.Add(ctOut.value[1], evaluator.keyswitchpool[3], ctOut.value[1])
 }

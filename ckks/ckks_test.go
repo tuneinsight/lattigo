@@ -70,7 +70,7 @@ func Test_CKKS(t *testing.T) {
 		ckksTest.ckkscontext.beta,
 		ckksTest.ckkscontext.Sigma())
 
-	for i, qi := range ckksTest.ckkscontext.ContextKeys().Modulus {
+	for i, qi := range ckksTest.ckkscontext.ContextKey(ckksTest.ckkscontext.Levels()-1).Modulus {
 		fmt.Println(i, qi)
 	}
 
@@ -1212,32 +1212,6 @@ func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
 		}
 
 		cheby := Approximate(cmplx.Sin, complex(-1, -1), complex(1, 1), 16)
-
-		if ciphertext1, err = params.evaluator.EvaluateCheby(ciphertext1, cheby, params.rlk); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/exp(2*pi*i*x) [-1, 1] deg60", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		values, _, ciphertext1, err := new_test_vectors_reals(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = exp2pi(values[i])
-		}
-
-		cheby := Approximate(exp2pi, -2, 2, 127)
 
 		if ciphertext1, err = params.evaluator.EvaluateCheby(ciphertext1, cheby, params.rlk); err != nil {
 			t.Error(err)

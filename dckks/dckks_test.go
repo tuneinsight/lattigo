@@ -4,66 +4,66 @@ import (
 	"fmt"
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"log"
 	"math"
-	"math/rand"
 	"testing"
-	"time"
 )
 
-func randomFloat(min, max float64) float64 {
-	return min + rand.Float64()*(max-min)
-}
-
-func randomComplex(min, max float64) complex128 {
-	return complex(randomFloat(min, max), randomFloat(min, max))
-}
-
-func Test_DCKKSScheme(t *testing.T) {
-
-	rand.Seed(time.Now().UnixNano())
+func Test_DCKKScheme(t *testing.T) {
 
 	//sigmaSmudging := 6.36
 
 	var err error
 
-	var parties, bdc uint64
+	var parties uint64
 	parties = 5
 
-	params := ckks.DefaultParams[13]
+	params := ckks.DefaultParams[14]
 
-	bdc = 25
+	alpha := uint64(len(params.P))
+	beta := uint64(math.Ceil(float64(len(params.Modulichain)) / float64(alpha)))
+
+	_ = beta
 
 	var ckkscontext *ckks.CkksContext
 
 	if ckkscontext, err = ckks.NewCkksContext(params); err != nil {
-		t.Error(err)
+		log.Fatal(err)
 	}
+
+	log.Printf("Generating CkksContext for logN=%d/logQ=%d/levels=%d/scale=%f/sigma=%f", ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale(), ckkscontext.Sigma())
+
+	logN := ckkscontext.LogN()
+	logQ := ckkscontext.LogQ()
+	levels := ckkscontext.Levels()
+	scale := ckkscontext.Scale()
 
 	encoder := ckkscontext.NewEncoder()
 
 	kgen := ckkscontext.NewKeyGenerator()
 
 	evaluator := ckkscontext.NewEvaluator()
+	_ = evaluator
 
-	context := ckkscontext.ContextKeys()
+	context := ckkscontext.ContextKey(ckkscontext.Levels()-1)
+	contextCiphertexts := ckkscontext.Context(ckkscontext.Levels() - 1)
+	_ = contextCiphertexts
 
 	coeffsWant := make([]complex128, ckkscontext.Slots())
 	for i := uint64(0); i < ckkscontext.Slots(); i++ {
-		coeffsWant[i] = randomComplex(-1, 1)
+		coeffsWant[i] = randomComplex(1)
 	}
 
-	plaintextWant := ckkscontext.NewPlaintext(ckkscontext.Levels()-1, ckkscontext.Scale())
-	if err = encoder.EncodeComplex(plaintextWant, coeffsWant); err != nil {
-		t.Error(err)
+	plaintextWant := ckkscontext.NewPlaintext(levels-1, scale)
+	if err = encoder.Encode(plaintextWant, coeffsWant, ckkscontext.Slots()); err != nil {
+		log.Fatal(err)
 	}
-
-	ciphertextTest := ckkscontext.NewCiphertext(1, ckkscontext.Levels()-1, ckkscontext.Scale())
 
 	crpGenerators := make([]*CRPGenerator, parties)
 	for i := uint64(0); i < parties; i++ {
 		crpGenerators[i], err = NewCRPGenerator(nil, context)
 		if err != nil {
-			t.Error(err)
+			log.Fatal(err)
 		}
 		crpGenerators[i].Seed([]byte{})
 	}
@@ -88,51 +88,33 @@ func Test_DCKKSScheme(t *testing.T) {
 	sk1.Set(tmp1)
 
 	// Publickeys
-	pk0, err := kgen.NewPublicKey(sk0)
-	if err != nil {
-		t.Error(err)
-	}
-
-	pk1, err := kgen.NewPublicKey(sk1)
-	if err != nil {
-		t.Error(err)
-	}
+	pk0 := kgen.NewPublicKey(sk0)
+	pk1 := kgen.NewPublicKey(sk1)
 
 	_ = pk1
 
 	// Encryptors
 	encryptor_pk0, err := ckkscontext.NewEncryptorFromPk(pk0)
+	_ = encryptor_pk0
 	if err != nil {
-		t.Error(err)
+		log.Fatal(err)
 	}
 
 	// Decryptors
 	decryptor_sk0, err := ckkscontext.NewDecryptor(sk0)
+	_ = decryptor_sk0
 	if err != nil {
-		t.Error(err)
+		log.Fatal(err)
 	}
 
 	decryptor_sk1, err := ckkscontext.NewDecryptor(sk1)
 	if err != nil {
-		t.Error(err)
+		log.Fatal(err)
 	}
 
 	_ = decryptor_sk1
 
-	// Reference ciphertext
-	ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
-	if err != nil {
-		t.Error(err)
-	}
-
-	coeffsMul := make([]complex128, ckkscontext.Slots())
-	for i := uint64(0); i < ckkscontext.Slots(); i++ {
-		coeffsMul[i] = coeffsWant[i] * coeffsWant[i]
-	}
-
-	evaluator.MulRelin(ciphertext, ciphertext, nil, ciphertext)
-
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CRS_PRNG", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CRS_PRNG", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		Ha, _ := NewPRNG([]byte{})
 		Hb, _ := NewPRNG([]byte{})
@@ -177,74 +159,175 @@ func Test_DCKKSScheme(t *testing.T) {
 		p0 := crs_generator_1.Clock()
 		p1 := crs_generator_2.Clock()
 
-		if ckkscontext.ContextKeys().Equal(p0, p1) != true {
+		if ckkscontext.ContextKey(ckkscontext.Levels()-1).Equal(p0, p1) != true {
 			t.Errorf("error : crs prng generator")
 		}
 	})
 
 	// EKG_Naive
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/bdc=%d/EKG", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale(), bdc), func(t *testing.T) {
-
-		bitLog := uint64(math.Ceil(float64(60) / float64(bdc)))
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/EKG", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		// Each party instantiate an ekg naive protocole
 		ekg := make([]*EkgProtocol, parties)
 		ephemeralKeys := make([]*ring.Poly, parties)
-		crp := make([][][]*ring.Poly, parties)
+		crp := make([][]*ring.Poly, parties)
 
 		for i := uint64(0); i < parties; i++ {
 
-			ekg[i] = NewEkgProtocol(context, bdc)
-			ephemeralKeys[i], _ = ekg[i].NewEphemeralKey(1.0 / 3)
-			crp[i] = make([][]*ring.Poly, len(context.Modulus))
+			ekg[i] = NewEkgProtocol(context, ckkscontext.KeySwitchPrimes())
+			ephemeralKeys[i], _ = ekg[i].NewEphemeralKey(1.0 / 3.0)
+			crp[i] = make([]*ring.Poly, beta)
 
-			for j := 0; j < len(context.Modulus); j++ {
-				crp[i][j] = make([]*ring.Poly, bitLog)
-				for u := uint64(0); u < bitLog; u++ {
-					crp[i][j][u] = crpGenerators[i].Clock()
-				}
+			for j := uint64(0); j < beta; j++ {
+				crp[i][j] = crpGenerators[i].Clock()
+
 			}
 		}
 
 		evk := test_EKG_Protocol(parties, ekg, sk0_shards, ephemeralKeys, crp)
 
-		rlk, err := kgen.SetRelinKeys(evk[0], bdc)
+		rlk, err := kgen.SetRelinKeys(evk[0])
 		if err != nil {
-			t.Error(err)
+			log.Fatal(err)
 		}
 
-		if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
-			t.Error(err)
+		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)
+
+		for i := range coeffs {
+			coeffs[i] *= coeffs[i]
 		}
 
-		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsMul, ciphertextTest, t)
+		if err := evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext); err != nil {
+			log.Fatal(err)
+		}
+
+		evaluator.Rescale(ciphertext, ckkscontext.Scale(), ciphertext)
+
+		if ciphertext.Degree() != 1 {
+			t.Errorf("EKG_NAIVE -> bad relinearize")
+		}
+
+		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffs, ciphertext, t)
 
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/bdc=%d/EKG_NAIVE", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale(), bdc), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/EKG_NAIVE", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		// Each party instantiate an ekg naive protocole
 		ekgNaive := make([]*EkgProtocolNaive, parties)
 		for i := uint64(0); i < parties; i++ {
-			ekgNaive[i] = NewEkgProtocolNaive(context, bdc)
+			ekgNaive[i] = NewEkgProtocolNaive(context, ckkscontext.KeySwitchPrimes())
 		}
 
 		evk := test_EKG_Protocol_Naive(parties, sk0_shards, pk0, ekgNaive)
 
-		rlk, err := kgen.SetRelinKeys(evk[0], bdc)
+		rlk, err := kgen.SetRelinKeys(evk[0])
 		if err != nil {
-			t.Error(err)
+			log.Fatal(err)
 		}
 
-		if err := evaluator.Relinearize(ciphertext, rlk, ciphertextTest); err != nil {
-			t.Error(err)
+		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)
+
+		for i := range coeffs {
+			coeffs[i] *= coeffs[i]
 		}
 
-		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsMul, ciphertextTest, t)
+		if err := evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext); err != nil {
+			log.Fatal(err)
+		}
+
+		evaluator.Rescale(ciphertext, ckkscontext.Scale(), ciphertext)
+
+		if ciphertext.Degree() != 1 {
+			t.Errorf("EKG_NAIVE -> bad relinearize")
+		}
+
+		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffs, ciphertext, t)
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKG", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/RKG_conjugate", parties, logN, logQ, levels, scale), func(t *testing.T) {
+
+		rkg := make([]*RKG, parties)
+		crp := make([][]*ring.Poly, parties)
+
+		for i := uint64(0); i < parties; i++ {
+
+			rkg[i] = NewRKG(context, ckkscontext.KeySwitchPrimes())
+			crp[i] = make([]*ring.Poly, len(context.Modulus))
+
+			for j := 0; j < len(context.Modulus); j++ {
+				crp[i][j] = crpGenerators[i].Clock()
+			}
+		}
+
+		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)
+
+		shares := make([][]*ring.Poly, parties)
+		for i := uint64(0); i < parties; i++ {
+			shares[i] = rkg[i].GenShareRotRow(sk0_shards[i].Get(), crp[i])
+		}
+
+		rkg[0].AggregateRotRow(shares, crp[0])
+		rotkey := rkg[0].Finalize(kgen)
+
+		if err = evaluator.Conjugate(ciphertext, rotkey, ciphertext); err != nil {
+			log.Fatal(err)
+		}
+
+		for i := range coeffs {
+			coeffs[i] = complex(real(coeffs[i]), -imag(coeffs[i]))
+		}
+
+		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffs, ciphertext, t)
+
+	})
+
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/RKG_rot_col_pow2", parties, logN, logQ, levels, scale), func(t *testing.T) {
+
+		rkg := make([]*RKG, parties)
+		crp := make([][]*ring.Poly, parties)
+
+		for i := uint64(0); i < parties; i++ {
+
+			rkg[i] = NewRKG(context, ckkscontext.KeySwitchPrimes())
+			crp[i] = make([]*ring.Poly, len(context.Modulus))
+
+			for j := 0; j < len(context.Modulus); j++ {
+				crp[i][j] = crpGenerators[i].Clock()
+			}
+		}
+
+		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)
+		mask := ckkscontext.Slots() - 1
+
+		receiver := ckkscontext.NewCiphertext(ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale())
+		for n := uint64(1); n < context.N>>1; n <<= 1 {
+
+			shares := make([][]*ring.Poly, parties)
+			for i := uint64(0); i < parties; i++ {
+				shares[i] = rkg[i].GenShareRotLeft(sk0_shards[i].Get(), n, crp[i])
+			}
+
+			rkg[0].AggregateRotColL(shares, n, crp[0])
+			rotkey := rkg[0].Finalize(kgen)
+
+			if err = evaluator.RotateColumns(ciphertext, n, rotkey, receiver); err != nil {
+				log.Fatal(err)
+			}
+
+			coeffsWant := make([]complex128, ckkscontext.Slots())
+
+			for i := uint64(0); i < ckkscontext.Slots(); i++ {
+				coeffsWant[i] = coeffs[(i+n)&mask]
+			}
+
+			verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsWant, receiver, t)
+		}
+
+	})
+
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CKG", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		crp := make([]*ring.Poly, parties)
 		for i := uint64(0); i < parties; i++ {
@@ -268,13 +351,13 @@ func Test_DCKKSScheme(t *testing.T) {
 			ckg[i].AggregateShares(shares)
 			pkTest[i], err = ckg[i].Finalize()
 			if err != nil {
-				t.Error(err)
+				log.Fatal(err)
 			}
 		}
 
 		// Verifies that all parties have the same share collective public key
 		for i := uint64(1); i < parties; i++ {
-			if context.Equal(pkTest[0].Get()[0], pkTest[i].Get()[0]) != true || ckkscontext.ContextKeys().Equal(pkTest[0].Get()[1], pkTest[i].Get()[1]) != true {
+			if context.Equal(pkTest[0].Get()[0], pkTest[i].Get()[0]) != true || ckkscontext.ContextKey(ckkscontext.Levels()-1).Equal(pkTest[0].Get()[1], pkTest[i].Get()[1]) != true {
 				t.Errorf("error : ckg protocol, cpk establishement")
 			}
 		}
@@ -282,25 +365,18 @@ func Test_DCKKSScheme(t *testing.T) {
 		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
 		encryptorTest, err := ckkscontext.NewEncryptorFromPk(pkTest[0])
 		if err != nil {
-			t.Error(err)
+			log.Fatal(err)
 		}
 
-		ciphertextTest, err := encryptorTest.EncryptNew(plaintextWant)
+		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptorTest, 1)
 
-		if err != nil {
-			t.Error(err)
-		}
-
-		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffsWant, ciphertextTest, t)
+		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffs, ciphertext, t)
 
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/CKS", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CKS", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
-		ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
-		if err != nil {
-			t.Error(err)
-		}
+		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)
 
 		ciphertexts := make([]*ckks.Ciphertext, parties)
 		for i := uint64(0); i < parties; i++ {
@@ -310,7 +386,7 @@ func Test_DCKKSScheme(t *testing.T) {
 		// Each party creates its CKS instance with deltaSk = si-si'
 		cks := make([]*CKS, parties)
 		for i := uint64(0); i < parties; i++ {
-			cks[i] = NewCKS(sk0_shards[i].Get(), sk1_shards[i].Get(), context, 6.36)
+			cks[i] = NewCKS(sk0_shards[i].Get(), sk1_shards[i].Get(), contextCiphertexts, context, ckkscontext.KeySwitchPrimes(), 6.36)
 		}
 
 		// Each party computes its hi share from the shared ciphertext
@@ -327,63 +403,90 @@ func Test_DCKKSScheme(t *testing.T) {
 
 		for i := uint64(0); i < parties; i++ {
 
-			verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffsWant, ciphertexts[i], t)
+			verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffs, ciphertexts[i], t)
 		}
 	})
 
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/logScale=%d/PCKS", parties, ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale()), func(t *testing.T) {
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/PCKS", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
-		ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
-		if err != nil {
-			t.Error(err)
+		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)
+
+		type Party struct {
+			*PCKSProtocol
+			s     *ring.Poly
+			share PCKSShare
 		}
 
-		ciphertexts := make([]*ckks.Ciphertext, parties)
+		pcksParties := make([]*Party, parties)
 		for i := uint64(0); i < parties; i++ {
-			ciphertexts[i] = ciphertext.CopyNew().Ciphertext()
+			p := new(Party)
+			p.PCKSProtocol = NewPCKSProtocol(ckkscontext, 6.36)
+			p.s = sk0_shards[i].Get()
+			p.share = p.AllocateShares(ciphertext.Level())
+			pcksParties[i] = p
+		}
+		P0 := pcksParties[0]
+
+		ciphertextSwitched := ckkscontext.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale())
+
+		for i, p := range pcksParties {
+			p.GenShare(p.s, pk1, ciphertext, p.share)
+			if i > 0 {
+				P0.AggregateShares(p.share, P0.share, P0.share)
+			}
 		}
 
-		pcks := make([]*PCKS, parties)
-		for i := uint64(0); i < parties; i++ {
-			pcks[i] = NewPCKS(sk0_shards[i].Get(), pk1.Get(), context, 6.36)
-		}
-
-		hi := make([][2]*ring.Poly, parties)
-		for i := uint64(0); i < parties; i++ {
-			hi[i] = pcks[i].KeySwitch(ciphertexts[i].Value()[1])
-		}
-
-		for i := uint64(0); i < parties; i++ {
-			pcks[i].Aggregate(ciphertexts[i].Value(), hi)
-		}
-
-		for i := uint64(0); i < parties; i++ {
-
-			verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffsWant, ciphertexts[i], t)
-
-		}
+		P0.KeySwitch(P0.share, ciphertext, ciphertextSwitched)
+		
+		verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffs, ciphertextSwitched, t)
 	})
+
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CBOOT", parties, logN, logQ, levels, scale), func(t *testing.T) {
+
+		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)
+
+		crpGenerator, _ := NewCRPGenerator(nil, contextCiphertexts)
+
+		crp := crpGenerator.Clock()
+
+		levelStart := uint64(3)
+
+		refreshShares := make([]*RefreshShares, parties)
+		for i := uint64(0); i < parties; i++ {
+			refreshShares[i] = GenRefreshShares(sk0_shards[i], levelStart, parties, ckkscontext, ciphertext.Value()[1], crp)
+		}
+
+		for ciphertext.Level() != levelStart {
+			evaluator.DropLevel(ciphertext.Element(), 1)
+		}
+
+		Refresh(ciphertext, refreshShares, ckkscontext, crp, encoder, decryptor_sk0)
+
+		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffs, ciphertext, t)
+
+	})
+
 }
 
-func test_EKG_Protocol_Naive(parties uint64, sk []*ckks.SecretKey, collectivePk *ckks.PublicKey, ekgNaive []*EkgProtocolNaive) [][][][2]*ring.Poly {
+func test_EKG_Protocol_Naive(parties uint64, sk []*ckks.SecretKey, collectivePk *ckks.PublicKey, ekgNaive []*EkgProtocolNaive) [][][2]*ring.Poly {
 
 	// ROUND 0
 	// Each party generates its samples
-	samples := make([][][][2]*ring.Poly, parties)
+	samples := make([][][2]*ring.Poly, parties)
 	for i := uint64(0); i < parties; i++ {
 		samples[i] = ekgNaive[i].GenSamples(sk[i].Get(), collectivePk.Get())
 	}
 
 	// ROUND 1
 	// Each party aggretates its sample with the other n-1 samples
-	aggregatedSamples := make([][][][2]*ring.Poly, parties)
+	aggregatedSamples := make([][][2]*ring.Poly, parties)
 	for i := uint64(0); i < parties; i++ {
 		aggregatedSamples[i] = ekgNaive[i].Aggregate(sk[i].Get(), collectivePk.Get(), samples)
 	}
 
 	// ROUND 2
 	// Each party aggregates sums its aggregatedSample with the other n-1 aggregated samples
-	evk := make([][][][2]*ring.Poly, parties)
+	evk := make([][][2]*ring.Poly, parties)
 	for i := uint64(0); i < parties; i++ {
 		evk[i] = ekgNaive[i].Finalize(aggregatedSamples)
 	}
@@ -391,30 +494,30 @@ func test_EKG_Protocol_Naive(parties uint64, sk []*ckks.SecretKey, collectivePk 
 	return evk
 }
 
-func test_EKG_Protocol(parties uint64, ekgProtocols []*EkgProtocol, sk []*ckks.SecretKey, ephemeralKeys []*ring.Poly, crp [][][]*ring.Poly) [][][][2]*ring.Poly {
+func test_EKG_Protocol(parties uint64, ekgProtocols []*EkgProtocol, sk []*ckks.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) [][][2]*ring.Poly {
 
 	// ROUND 1
-	samples := make([][][]*ring.Poly, parties)
+	samples := make([][]*ring.Poly, parties)
 	for i := uint64(0); i < parties; i++ {
 		samples[i] = ekgProtocols[i].GenSamples(ephemeralKeys[i], sk[i].Get(), crp[i])
 	}
 
 	//ROUND 2
-	aggregatedSamples := make([][][][2]*ring.Poly, parties)
+	aggregatedSamples := make([][][2]*ring.Poly, parties)
 	for i := uint64(0); i < parties; i++ {
 		aggregatedSamples[i] = ekgProtocols[i].Aggregate(sk[i].Get(), samples, crp[i])
 	}
 
 	// ROUND 3
-	keySwitched := make([][][]*ring.Poly, parties)
-	sum := make([][][][2]*ring.Poly, parties)
+	keySwitched := make([][]*ring.Poly, parties)
+	sum := make([][][2]*ring.Poly, parties)
 	for i := uint64(0); i < parties; i++ {
 		sum[i] = ekgProtocols[i].Sum(aggregatedSamples)
 		keySwitched[i] = ekgProtocols[i].KeySwitch(ephemeralKeys[i], sk[i].Get(), sum[i])
 	}
 
 	// ROUND 4
-	collectiveEvaluationKey := make([][][][2]*ring.Poly, parties)
+	collectiveEvaluationKey := make([][][2]*ring.Poly, parties)
 	for i := uint64(0); i < parties; i++ {
 		collectiveEvaluationKey[i] = ekgProtocols[i].ComputeEVK(keySwitched, sum[i])
 	}
@@ -422,21 +525,46 @@ func test_EKG_Protocol(parties uint64, ekgProtocols []*EkgProtocol, sk []*ckks.S
 	return collectiveEvaluationKey
 }
 
-func verify_test_vectors(ckkscontext *ckks.CkksContext, encoder *ckks.Encoder, decryptor *ckks.Decryptor, valuesWant []complex128, element ckks.Operand, t *testing.T) (err error) {
+func new_test_vectors(ckkscontext *ckks.CkksContext, encoder *ckks.Encoder, encryptor *ckks.Encryptor, a float64) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext, err error) {
+
+	slots := ckkscontext.Slots()
+
+	values = make([]complex128, slots)
+
+	for i := uint64(0); i < slots; i++ {
+		values[i] = randomComplex(a)
+	}
+
+	values[0] = complex(0.607538, 0.555668)
+
+	plaintext = ckkscontext.NewPlaintext(ckkscontext.Levels()-1, ckkscontext.Scale())
+
+	if err = encoder.Encode(plaintext, values, ckkscontext.Slots()); err != nil {
+		return nil, nil, nil, err
+	}
+
+	ciphertext, err = encryptor.EncryptNew(plaintext)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return values, plaintext, ciphertext, nil
+}
+
+func verify_test_vectors(ckkscontext *ckks.CkksContext, encoder *ckks.Encoder, decryptor *ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) (err error) {
 
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128
 
-	if element.Degree() == 0 {
-
-		plaintextTest = element.Element().Plaintext()
-
-	} else {
-
-		plaintextTest = decryptor.DecryptNew(element.Element().Ciphertext())
+	switch element.(type){
+	case *ckks.Ciphertext:
+		plaintextTest = decryptor.DecryptNew(element.(*ckks.Ciphertext))
+	case *ckks.Plaintext:
+		plaintextTest = element.(*ckks.Plaintext)
 	}
 
-	valuesTest = encoder.DecodeComplex(plaintextTest)
+
+	valuesTest = encoder.Decode(plaintextTest, ckkscontext.Slots())
 
 	var DeltaReal0, DeltaImag0, DeltaReal1, DeltaImag1 float64
 

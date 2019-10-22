@@ -1,18 +1,18 @@
 package dckks
-
+/*
 import (
 	"fmt"
+	"log"
+	"testing"
+
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
-	"math"
-	"testing"
 )
 
 type benchParams struct {
 	parties       uint64
 	params        *ckks.Parameters
 	sigmaSmudging float64
-	bdc           uint64
 }
 
 type benchContext struct {
@@ -30,7 +30,7 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 
 	params := []benchParams{
 
-		{parties: 5, params: ckks.DefaultParams[14], sigmaSmudging: 6.4, bdc: 60},
+		{parties: 5, params: ckks.DefaultParams[15], sigmaSmudging: 6.4},
 	}
 
 	for _, param := range params {
@@ -38,17 +38,26 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 		benchcontext := new(benchContext)
 
 		if benchcontext.ckkscontext, err = ckks.NewCkksContext(param.params); err != nil {
-			b.Error(err)
+			log.Fatal(err)
 		}
+
+		log.Printf("Benchmarks for parties=%d/logN=%d/logQ=%d/levels=%d/sigma=%.2f/sigmaSmudging=%.2f",
+			param.parties,
+			benchcontext.ckkscontext.LogN(),
+			benchcontext.ckkscontext.LogQ(),
+			benchcontext.ckkscontext.Levels(),
+			benchcontext.ckkscontext.Sigma(),
+			param.sigmaSmudging)
 
 		kgen := benchcontext.ckkscontext.NewKeyGenerator()
 
 		benchcontext.sk0, benchcontext.pk0 = kgen.NewKeyPair()
 		benchcontext.sk1, benchcontext.pk1 = kgen.NewKeyPair()
 
+
 		benchcontext.cprng, err = NewCRPGenerator(nil, benchcontext.ckkscontext.ContextKeys())
 		if err != nil {
-			b.Error(err)
+			log.Fatal(err)
 		}
 
 		benchcontext.cprng.Seed([]byte{})
@@ -58,37 +67,34 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 		bench_CKG(param, benchcontext, b)
 		bench_CKS(param, benchcontext, b)
 		bench_PCKS(param, benchcontext, b)
+		bench_BOOT(param, benchcontext, b)
 
 	}
 }
 
 func bench_EKG(params benchParams, context *benchContext, b *testing.B) {
 	// EKG
-	bitLog := uint64(math.Ceil(float64(60) / float64(params.bdc)))
 
-	EkgProtocol := NewEkgProtocol(context.ckkscontext.ContextKeys(), params.bdc)
+	EkgProtocol := NewEkgProtocol(context.ckkscontext.ContextKeys(), context.ckkscontext.KeySwitchPrimes())
 
-	crp := make([][]*ring.Poly, context.ckkscontext.Levels())
+	crp := make([]*ring.Poly, context.ckkscontext.Levels()+1)
 
-	for i := uint64(0); i < context.ckkscontext.Levels(); i++ {
-		crp[i] = make([]*ring.Poly, bitLog)
-		for j := uint64(0); j < bitLog; j++ {
-			crp[i][j] = context.cprng.Clock()
-		}
+	for i := uint64(0); i < context.ckkscontext.Levels()+1; i++ {
+		crp[i] = context.cprng.Clock()
 	}
 
-	samples := make([][][]*ring.Poly, params.parties)
+	samples := make([][]*ring.Poly, params.parties)
 	for i := uint64(0); i < params.parties; i++ {
-		samples[i] = make([][]*ring.Poly, context.ckkscontext.Levels())
+		samples[i] = make([]*ring.Poly, context.ckkscontext.Levels())
 		samples[i] = EkgProtocol.GenSamples(context.sk0.Get(), context.sk1.Get(), crp)
 	}
 
-	aggregatedSamples := make([][][][2]*ring.Poly, params.parties)
+	aggregatedSamples := make([][][2]*ring.Poly, params.parties)
 	for i := uint64(0); i < params.parties; i++ {
 		aggregatedSamples[i] = EkgProtocol.Aggregate(context.sk1.Get(), samples, crp)
 	}
 
-	keySwitched := make([][][]*ring.Poly, params.parties)
+	keySwitched := make([][]*ring.Poly, params.parties)
 
 	sum := EkgProtocol.Sum(aggregatedSamples)
 	for i := uint64(0); i < params.parties; i++ {
@@ -126,15 +132,15 @@ func bench_EKG(params benchParams, context *benchContext, b *testing.B) {
 
 func bench_EKGNaive(params benchParams, context *benchContext, b *testing.B) {
 	// EKG_Naive
-	ekgV2Naive := NewEkgProtocolNaive(context.ckkscontext.ContextKeys(), params.bdc)
+	ekgV2Naive := NewEkgProtocolNaive(context.ckkscontext.ContextKeys(), context.ckkscontext.KeySwitchPrimes())
 
 	// [nParties][CrtDecomp][WDecomp][2]
-	samples := make([][][][2]*ring.Poly, params.parties)
+	samples := make([][][2]*ring.Poly, params.parties)
 	for i := uint64(0); i < params.parties; i++ {
 		samples[i] = ekgV2Naive.GenSamples(context.sk0.Get(), context.pk0.Get())
 	}
 
-	aggregatedSamples := make([][][][2]*ring.Poly, params.parties)
+	aggregatedSamples := make([][][2]*ring.Poly, params.parties)
 	for i := uint64(0); i < params.parties; i++ {
 		aggregatedSamples[i] = ekgV2Naive.Aggregate(context.sk0.Get(), context.pk0.Get(), samples)
 	}
@@ -191,7 +197,7 @@ func bench_CKG(params benchParams, context *benchContext, b *testing.B) {
 func bench_CKS(params benchParams, context *benchContext, b *testing.B) {
 	//CKS
 
-	cksInstance := NewCKS(context.sk0.Get(), context.sk1.Get(), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
+	cksInstance := NewCKS(context.sk0.Get(), context.sk1.Get(), context.ckkscontext.Context(context.ckkscontext.Levels()-1), context.ckkscontext.ContextKeys(), context.ckkscontext.KeySwitchPrimes(), params.sigmaSmudging)
 
 	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels()-1, context.ckkscontext.Scale())
 
@@ -217,7 +223,7 @@ func bench_CKS(params benchParams, context *benchContext, b *testing.B) {
 
 func bench_PCKS(params benchParams, context *benchContext, b *testing.B) {
 	//CKS_Trustless
-	pcks := NewPCKS(context.sk0.Get(), context.pk1.Get(), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
+	pcks := NewPCKS(context.sk0.Get(), context.pk1.Get(), context.ckkscontext.Context(context.ckkscontext.Levels()-1), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
 
 	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels()-1, context.ckkscontext.Scale())
 
@@ -241,3 +247,33 @@ func bench_PCKS(params benchParams, context *benchContext, b *testing.B) {
 	})
 
 }
+
+func bench_BOOT(params benchParams, context *benchContext, b *testing.B) {
+
+	crp := context.ckkscontext.Context(context.ckkscontext.Levels() - 1).NewPoly()
+	ciphertext := context.ckkscontext.NewRandomCiphertext(1, 2, context.ckkscontext.Scale())
+
+	refreshShares := make([]*RefreshShares, params.parties)
+
+	b.Run(fmt.Sprintf("BOOT_GenShares"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			refreshShares[0] = GenRefreshShares(context.sk0, 2, params.parties, context.ckkscontext, ciphertext.Value()[0], crp)
+		}
+	})
+
+	for i := uint64(1); i < params.parties; i++ {
+		refreshShares[i] = GenRefreshShares(context.sk0, 2, params.parties, context.ckkscontext, ciphertext.Value()[0], crp)
+	}
+
+	b.Run(fmt.Sprintf("BOOT_Recrypt"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+
+			Refresh(ciphertext, refreshShares, context.ckkscontext, crp)
+
+			b.StopTimer()
+			ciphertext.Value()[0].Coeffs = ciphertext.Value()[0].Coeffs[:2]
+			b.StartTimer()
+		}
+	})
+}
+*/

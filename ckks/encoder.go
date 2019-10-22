@@ -93,12 +93,14 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 	encoder.ckkscontext.contextLevel[plaintext.Level()].InvNTT(plaintext.value, encoder.polypool)
 	encoder.ckkscontext.contextLevel[plaintext.Level()].PolyToBigint(encoder.polypool, encoder.bigint_coeffs)
 
+
 	encoder.q_half.SetBigInt(plaintext.currentModulus)
 	encoder.q_half.Rsh(encoder.q_half, 1)
 
 	gap := encoder.ckkscontext.maxSlots / slots
 
 	var sign int
+
 
 	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
 

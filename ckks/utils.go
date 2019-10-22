@@ -188,7 +188,7 @@ func (basisextender *FastBasisExtender) ModUp(level uint64, p1, p2 *ring.Poly) {
 
 	if p1 != p2 {
 		for i := range p1.Coeffs {
-			for j := uint64(0); j < level; j++ {
+			for j := uint64(0); j < level+1; j++ {
 				p2.Coeffs[i][j] = p1.Coeffs[i][j]
 			}
 		}

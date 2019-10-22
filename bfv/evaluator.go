@@ -358,17 +358,16 @@ func (evaluator *Evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphert
 // relinearize is a methode common to Relinearize and RelinearizeNew. It switches ct0 out in the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
 func (evaluator *Evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
 
-	evaluator.bfvcontext.contextQ.NTT(ct0.value[0], ctOut.value[0])
-	evaluator.bfvcontext.contextQ.NTT(ct0.value[1], ctOut.value[1])
+	if ctOut != ct0 {
+		evaluator.bfvcontext.contextQ.Copy(ct0.value[0], ctOut.value[0])
+		evaluator.bfvcontext.contextQ.Copy(ct0.value[1], ctOut.value[1])
+	}
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
 		evaluator.switchKeys(ct0.value[deg], evakey.evakey[deg-2], ctOut)
 	}
 
 	ctOut.SetValue(ctOut.value[:2])
-
-	evaluator.bfvcontext.contextQ.InvNTT(ctOut.value[0], ctOut.value[0])
-	evaluator.bfvcontext.contextQ.InvNTT(ctOut.value[1], ctOut.value[1])
 }
 
 // Relinearize relinearize the ciphertext ct0 of degree > 1 until it is of degree 1 and returns the result on cOut.
@@ -454,7 +453,7 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 	// Looks in the rotationkey if the corresponding rotation has been generated or if the input is a plaintext
 	if evakey.evakey_rot_col_L[k] != nil {
 
-		evaluator.permute(ct0, ct0.IsNTT(), evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
+		evaluator.permute(ct0, evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
 
 		return nil
 
@@ -508,19 +507,18 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 	evakey_index = 1
 
-	if ct0.IsNTT() {
-		ctOut.Copy(ct0.Element())
-	} else {
-		context.NTT(ct0.value[0], ctOut.value[0])
-		context.NTT(ct0.value[1], ctOut.value[1])
+	if ct0 != ctOut {
+		context.Copy(ct0.value[0], ctOut.value[0])
+		context.Copy(ct0.value[1], ctOut.value[1])
 	}
+
 
 	// Applies the galois automorphism and the switching-key process
 	for k > 0 {
 
 		if k&1 == 1 {
 
-			evaluator.permute(ctOut, true, generator, evakey_rot_col[evakey_index], ctOut)
+			evaluator.permute(ctOut, generator, evakey_rot_col[evakey_index], ctOut)
 		}
 
 		generator *= generator
@@ -528,11 +526,6 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 		evakey_index <<= 1
 		k >>= 1
-	}
-
-	if !ct0.IsNTT() {
-		context.InvNTT(ctOut.value[0], ctOut.value[0])
-		context.InvNTT(ctOut.value[1], ctOut.value[1])
 	}
 }
 
@@ -547,7 +540,7 @@ func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ct
 		return errors.New("cannot rotate -> rotation key not generated")
 	}
 
-	evaluator.permute(ct0, ct0.IsNTT(), evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row, ctOut)
+	evaluator.permute(ct0, evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row, ctOut)
 
 	return nil
 }
@@ -581,7 +574,7 @@ func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOu
 }
 
 // permute operates a column rotation on ct0 and returns the result on ctOut
-func (evaluator *Evaluator) permute(ct0 *Ciphertext, isNTT bool, generator uint64, evakey *SwitchingKey, ctOut *Ciphertext) {
+func (evaluator *Evaluator) permute(ct0 *Ciphertext, generator uint64, evakey *SwitchingKey, ctOut *Ciphertext) {
 
 	context := evaluator.bfvcontext.contextQ
 
@@ -593,44 +586,22 @@ func (evaluator *Evaluator) permute(ct0 *Ciphertext, isNTT bool, generator uint6
 		el0, el1 = evaluator.polypool[0], evaluator.polypool[1]
 	}
 
-	if isNTT {
-		ring.PermuteNTT(ct0.value[0], generator, el0)
-		ring.PermuteNTT(ct0.value[1], generator, el1)
-		evaluator.switchKeysInNTTDomain(el0, el1, evakey, ctOut)
-	} else {
-		context.Permute(ct0.value[0], generator, el0)
-		context.Permute(ct0.value[1], generator, el1)
-		evaluator.switchKeysOutOfNTTDomain(el0, el1, evakey, ctOut)
-	}
+	context.Permute(ct0.value[0], generator, el0)
+	context.Permute(ct0.value[1], generator, el1)
+	evaluator.switchKeysOutOfNTTDomain(el0, el1, evakey, ctOut)
 }
 
-// switchKeysInNTTDomain operates a keyswitching assuming el0 and el1 are in the NTT domain
-func (evaluator *Evaluator) switchKeysInNTTDomain(el0, el1 *ring.Poly, switchkey *SwitchingKey, ctOut *Ciphertext) {
-
-	context := evaluator.bfvcontext.contextQ
-
-	context.Copy(el0, ctOut.value[0])
-	context.Copy(el1, ctOut.value[1])
-
-	context.InvNTT(el1, evaluator.polypool[1])
-	evaluator.switchKeys(evaluator.polypool[1], switchkey, ctOut)
-
-}
 
 // switchKeysOutOfNTTDomain operates a keyswitching assuming el0, el1 are not in the NTT domain
 func (evaluator *Evaluator) switchKeysOutOfNTTDomain(el0, el1 *ring.Poly, switchKey *SwitchingKey, ctOut *Ciphertext) {
 
-	context := evaluator.bfvcontext.contextQ
+	if el0 != ctOut.value[0] || el1 != ctOut.value[1]{
+		evaluator.bfvcontext.contextQ.Copy(el0, ctOut.value[0])
+		evaluator.bfvcontext.contextQ.Copy(el1, ctOut.value[1])
+	}
 
-	context.Copy(el1, evaluator.polypool[1])
+	evaluator.switchKeys(el1, switchKey, ctOut)
 
-	context.NTT(el0, ctOut.value[0])
-	context.NTT(el1, ctOut.value[1])
-
-	evaluator.switchKeys(evaluator.polypool[1], switchKey, ctOut)
-
-	context.InvNTT(ctOut.value[0], ctOut.value[0])
-	context.InvNTT(ctOut.value[1], ctOut.value[1])
 }
 
 // Applies the general keyswitching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
@@ -698,6 +669,9 @@ func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 		contextKeys.Reduce(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
 		contextKeys.Reduce(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
 	}
+
+	contextKeys.InvNTT(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
+	contextKeys.InvNTT(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
 
 	evaluator.baseconverter.ModDown(contextKeys, evaluator.bfvcontext.rescaleParamsKeys, level, evaluator.keyswitchpool[2], evaluator.keyswitchpool[2], evaluator.keyswitchpool[0])
 	evaluator.baseconverter.ModDown(contextKeys, evaluator.bfvcontext.rescaleParamsKeys, level, evaluator.keyswitchpool[3], evaluator.keyswitchpool[3], evaluator.keyswitchpool[0])

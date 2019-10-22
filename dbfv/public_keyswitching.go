@@ -103,19 +103,19 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 		pcks.contextKeys.MulScalar(shareOut[1], pj, shareOut[1])
 	}
 
+	pcks.contextCiphertexts.InvNTT(shareOut[0], shareOut[0])
+	pcks.contextCiphertexts.InvNTT(shareOut[1], shareOut[1])
+
 	// h_0 = InvNTT(s_i*c_1 + u_i * pk_0) + e0
-	pcks.gaussianSamplerSmudge.SampleNTT(pcks.tmp)
+	pcks.gaussianSamplerSmudge.Sample(pcks.tmp)
 	pcks.contextKeys.Add(shareOut[0], pcks.tmp, shareOut[0])
 
 	// h_1 = InvNTT(u_i * pk_1) + e1
-	pcks.gaussianSampler.SampleNTT(pcks.tmp)
+	pcks.gaussianSampler.Sample(pcks.tmp)
 	pcks.contextKeys.Add(shareOut[1], pcks.tmp, shareOut[1])
 
 	pcks.baseconverter.ModDown(pcks.contextKeys, pcks.rescaleParamsKeys, level, shareOut[0], shareOut[0], pcks.tmp)
 	pcks.baseconverter.ModDown(pcks.contextKeys, pcks.rescaleParamsKeys, level, shareOut[1], shareOut[1], pcks.tmp)
-
-	pcks.contextCiphertexts.InvNTT(shareOut[0], shareOut[0])
-	pcks.contextCiphertexts.InvNTT(shareOut[1], shareOut[1])
 
 	shareOut[0].Coeffs = shareOut[0].Coeffs[:level+1]
 	shareOut[1].Coeffs = shareOut[1].Coeffs[:level+1]

@@ -111,6 +111,7 @@ func Test_CKKS(t *testing.T) {
 	test_ComplexOperations(ckksTest, t)
 	test_Rescaling(ckksTest, t)
 	test_Mul(ckksTest, t)
+
 	if len(params.Modulichain) > 9 {
 		test_sin2pi2pi(ckksTest, t)
 		test_Functions(ckksTest, t)

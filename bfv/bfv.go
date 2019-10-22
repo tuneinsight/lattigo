@@ -267,6 +267,10 @@ func (bfvcontext *BfvContext) KeySwitchPrimes() []uint64 {
 	return bfvcontext.specialprimes
 }
 
+func (bfvcontext *BfvContext) Alpha() uint64 {
+	return bfvcontext.alpha
+}
+
 func (bfvcontext *BfvContext) Beta() uint64 {
 	return bfvcontext.beta
 }

@@ -194,7 +194,7 @@ func (basisextender *FastBasisExtender) ModUp(level uint64, p1, p2 *ring.Poly) {
 	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[level+1:level+1+uint64(len(basisextender.paramsQP.P))], basisextender.paramsQP)
 }
 
-func (basisextender *FastBasisExtender) ModDown(context *ring.Context, rescalParamsKeys []uint64, level uint64, p1, p2, polypool *ring.Poly) {
+func (basisextender *FastBasisExtender) ModDownNTT(context *ring.Context, rescalParamsKeys []uint64, level uint64, p1, p2, polypool *ring.Poly) {
 
 	// First we get the P basis part of p1 out of the NTT domain
 	for j := uint64(0); j < uint64(len(basisextender.paramsQP.P)); j++ {
@@ -211,6 +211,24 @@ func (basisextender *FastBasisExtender) ModDown(context *ring.Context, rescalPar
 		// First we switch back the relevant polypool CRT array back to the NTT domain
 		ring.NTT(polypool.Coeffs[i], polypool.Coeffs[i], context.N, context.GetNttPsi()[i], context.Modulus[i], context.GetMredParams()[i], context.GetBredParams()[i])
 
+		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
+		for j := uint64(0); j < context.N; j++ {
+			p2.Coeffs[i][j] = ring.MRed(p1.Coeffs[i][j]+(context.Modulus[i]-polypool.Coeffs[i][j]), rescalParamsKeys[i], context.Modulus[i], context.GetMredParams()[i])
+		}
+	}
+
+	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
+}
+
+func (basisextender *FastBasisExtender) ModDown(context *ring.Context, rescalParamsKeys []uint64, level uint64, p1, p2, polypool *ring.Poly) {
+
+	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
+	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
+	modUpExact(p1.Coeffs[level+1:level+1+uint64(len(basisextender.paramsQP.P))], polypool.Coeffs[:level+1], basisextender.paramsPQ)
+
+	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	for i := uint64(0); i < level+1; i++ {
+		
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < context.N; j++ {
 			p2.Coeffs[i][j] = ring.MRed(p1.Coeffs[i][j]+(context.Modulus[i]-polypool.Coeffs[i][j]), rescalParamsKeys[i], context.Modulus[i], context.GetMredParams()[i])

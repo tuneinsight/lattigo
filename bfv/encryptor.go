@@ -109,13 +109,13 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	context.Add(encryptor.polypool[1], encryptor.polypool[2], encryptor.polypool[1])
 
 	// We rescal the encryption of zero by the special prime, dividing the error by this prime
+	context.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	context.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+
 	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
 	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
 
 	context = encryptor.bfvcontext.contextQ
-
-	context.InvNTT(ciphertext.value[0], ciphertext.value[0])
-	context.InvNTT(ciphertext.value[1], ciphertext.value[1])
 
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
@@ -134,13 +134,13 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	context.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
 
 	// We rescal the encryption of zero by the special prime, dividing the error by this prime
+	context.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	context.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+
 	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
 	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
 
 	context = encryptor.bfvcontext.contextQ
-
-	context.InvNTT(ciphertext.value[0], ciphertext.value[0])
-	context.InvNTT(ciphertext.value[1], ciphertext.value[1])
 
 	// ct = [-a*s + m + e , a]
 	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])

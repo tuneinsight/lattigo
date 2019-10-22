@@ -267,6 +267,10 @@ func (bfvcontext *BfvContext) KeySwitchPrimes() []uint64 {
 	return bfvcontext.specialprimes
 }
 
+func (bfvcontext *BfvContext) Beta() uint64 {
+	return bfvcontext.beta
+}
+
 // GaussianSampler returns the context's gaussian sampler instance
 func (bfvContext *BfvContext) GaussianSampler() *ring.KYSampler {
 	return bfvContext.gaussianSampler

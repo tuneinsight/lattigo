@@ -19,12 +19,11 @@ const MaxModuliCount = 34
 var logN13Q218 = []uint64{0x7ffffffffb4001, 0x3fffffffef8001, 0x3fffffffeb8001}
 
 var logN14Q438 = []uint64{0x7fffffffe90001, 0x7fffffffd58001, 0x7fffffffbf0001, 0x7fffffffbd0001,
-	0x7fffffffba0001, 0x3fffffffef8001, 0x3fffffffeb8001}
+	0x7fffffffba0001, 0x7fffffffb58001}
 
 var logN15Q881 = []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, 0x7ffffffffba0001,
 	0x7ffffffffb00001, 0x7ffffffff630001, 0x7ffffffff510001, 0x7ffffffff3f0001,
-	0x7ffffffff350001, 0x7ffffffff320001, 0x7ffffffff2c0001, 0x7ffffffff240001,
-	0x7ffffffff230001, 0x7fffffffe90001}
+	0x7ffffffff350001, 0x7ffffffff320001, 0x7ffffffff2c0001, 0x7ffffffff240001}
 
 var logN16Q1770 = []uint64{0x7ffffffffcc0001, 0x7ffffffffba0001, 0x7ffffffffb00001, 0x7ffffffff320001,
 	0x7ffffffff2c0001, 0x7ffffffff240001, 0x7fffffffefa0001, 0x7fffffffede0001,
@@ -32,8 +31,7 @@ var logN16Q1770 = []uint64{0x7ffffffffcc0001, 0x7ffffffffba0001, 0x7ffffffffb000
 	0x7fffffffdbe0001, 0x7fffffffd740001, 0x7fffffffd640001, 0x7fffffffd1a0001,
 	0x7fffffffd0a0001, 0x7fffffffd080001, 0x7fffffffcda0001, 0x7fffffffccc0001,
 	0x7fffffffcbc0001, 0x7fffffffcae0001, 0x7fffffffc980001, 0x7fffffffc480001,
-	0x7fffffffc020001, 0x7fffffffbcc0001, 0x7fffffffb3c0001, 0x7fffffffb220001,
-	0x7fffffffb0a0001}
+	0x7fffffffc020001, 0x7fffffffbcc0001}
 
 var Pi60 = []uint64{0xffffffffe400001, 0xffffffffd000001, 0xffffffffa200001, 0xffffffff9600001,
 	0xfffffffeb200001, 0xfffffffea400001, 0xfffffffe8000001, 0xfffffffe3e00001,
@@ -77,9 +75,9 @@ type Parameters struct {
 // These parameters correspond to 128 bit security level for secret keys in the ternary distribution
 // (see //https://projects.csail.mit.edu/HEWorkshop/HomomorphicEncryptionStandard2018.pdf).
 var DefaultParams = []Parameters{
-	{8192, 65537, logN13Q218, []uint64{0x7fffffffeac001}, Pi60[len(Pi60)-len(logN13Q218):], 3.19},   //0xffffffffe400001
-	{16384, 65537, logN14Q438, []uint64{0x7fffffffb58001}, Pi60[len(Pi60)-len(logN14Q438):], 3.19},  //0xffffffffe400001
-	{32768, 65537, logN15Q881, []uint64{0x7fffffffefa0001}, Pi60[len(Pi60)-len(logN15Q881):], 3.19}, //0xffffffffe400001
+	{8192, 65537, logN13Q218, []uint64{0x7fffffffeac001}, Pi60[len(Pi60)-len(logN13Q218):], 3.19},
+	{16384, 65537, logN14Q438, []uint64{0x3fffffffeb8001, 0x3fffffffef8001}, Pi60[len(Pi60)-len(logN14Q438):], 3.19},
+	{32768, 65537, logN15Q881, []uint64{0x7fffffffb3c0001, 0x7fffffffb220001,0x7fffffffb0a0001,0x7fffffffefa0001}, Pi60[len(Pi60)-len(logN15Q881):], 3.19},
 	//{65536, 786433, logN16Q1770, 0x7fffffffadc0001, Pi60[len(Pi60)-34:], 3.19},
 }
 

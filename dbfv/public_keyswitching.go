@@ -128,6 +128,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
 func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
+
 	pcks.contextCiphertexts.Add(share1[0], share2[0], shareOut[0])
 	pcks.contextCiphertexts.Add(share1[1], share2[1], shareOut[1])
 }
@@ -136,5 +137,5 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
 func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *bfv.Ciphertext) {
 
 	pcks.contextCiphertexts.Add(ct.Value()[0], combined[0], ctOut.Value()[0])
-	ctOut.Value()[1].Copy(combined[1])
+	pcks.contextCiphertexts.Copy(combined[1], ctOut.Value()[1])
 }

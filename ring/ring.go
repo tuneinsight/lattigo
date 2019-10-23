@@ -13,6 +13,17 @@ func (context *Context) Add(p1, p2, p3 *Poly) {
 	}
 }
 
+// Add adds p1 to p2 coefficient wise and applies a modular reduction, returning the result on p3.
+func (context *Context) AddLvl(level uint64, p1, p2, p3 *Poly) {
+	var qi uint64
+	for i := uint64(0) ; i < level + 1; i++ {
+		qi = context.Modulus[i]
+		for j := uint64(0); j < context.N; j++ {
+			p3.Coeffs[i][j] = CRed(p1.Coeffs[i][j]+p2.Coeffs[i][j], qi)
+		}
+	}
+}
+
 // AddNoMod adds p1 to p2 coefficient wise without modular reduction, returning the result on p3.
 // The output range will be [0,2*Qi -1].
 func (context *Context) AddNoMod(p1, p2, p3 *Poly) {
@@ -54,6 +65,17 @@ func (context *Context) Neg(p1, p2 *Poly) {
 // Reduce applies a modular reduction over the coefficients of p1 returning the result on p2.
 func (context *Context) Reduce(p1, p2 *Poly) {
 	for i, qi := range context.Modulus {
+		for j := uint64(0); j < context.N; j++ {
+			p2.Coeffs[i][j] = BRedAdd(p1.Coeffs[i][j], qi, context.bredParams[i])
+		}
+	}
+}
+
+// Reduce applies a modular reduction over the coefficients of p1 returning the result on p2.
+func (context *Context) ReduceLvl(level uint64, p1, p2 *Poly) {
+	var qi uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
 		for j := uint64(0); j < context.N; j++ {
 			p2.Coeffs[i][j] = BRedAdd(p1.Coeffs[i][j], qi, context.bredParams[i])
 		}

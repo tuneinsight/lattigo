@@ -7,9 +7,22 @@ func (context *Context) NTT(p1, p2 *Poly) {
 	}
 }
 
+// NTT performes the NTT transformation on the CRT coefficients a Polynomial, based on the target context.
+func (context *Context) NTTLvl(level uint64, p1, p2 *Poly) {
+	for x := uint64(0); x < level+1; x++ {
+		NTT(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsi[x], context.Modulus[x], context.mredParams[x], context.bredParams[x])
+	}
+}
+
 // InvNTT performes the inverse NTT transformation on the CRT coefficients of a polynomial, based on the target context.
 func (context *Context) InvNTT(p1, p2 *Poly) {
 	for x := range context.Modulus {
+		InvNTT(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsiInv[x], context.nttNInv[x], context.Modulus[x], context.mredParams[x])
+	}
+}
+
+func (context *Context) InvNTTLvl(level uint64, p1, p2 *Poly) {
+	for x := uint64(0); x < level+1; x++ {
 		InvNTT(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsiInv[x], context.nttNInv[x], context.Modulus[x], context.mredParams[x])
 	}
 }

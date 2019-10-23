@@ -351,12 +351,6 @@ func benchmark_ExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B)
 			BasisExtenderQP.ExtendBasis(p0, p1)
 		}
 	})
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ExtendBasis_Approximate", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			BasisExtenderQP.ExtendBasisApproximate(p0, p1)
-		}
-	})
 }
 
 func benchmark_SimpleScaler_Scale(T uint64, context *Context, b *testing.B) {

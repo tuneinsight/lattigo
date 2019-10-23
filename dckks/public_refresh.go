@@ -63,12 +63,10 @@ func GenRefreshShares(sk *ckks.SecretKey, levelStart, nParties uint64, ckksconte
 
 func Refresh(ciphertext *ckks.Ciphertext, refreshShares []*RefreshShares, ckkscontext *ckks.CkksContext, crs *ring.Poly, encoder *ckks.Encoder, decryptor *ckks.Decryptor) {
 
-
 	// ct[0] += sum(h0_i)
 	for i := range refreshShares {
 		ckkscontext.Context(ciphertext.Level()).Add(ciphertext.Value()[0], refreshShares[i].h0, ciphertext.Value()[0])
 	}
-
 
 	ckkscontext.Context(ciphertext.Level()).InvNTT(ciphertext.Value()[0], ciphertext.Value()[0])
 
@@ -86,7 +84,7 @@ func Refresh(ciphertext *ckks.Ciphertext, refreshShares []*RefreshShares, ckksco
 	}
 
 	var sign int
-	for i := uint64(0) ; i < 1<<ckkscontext.LogN() ; i++ {
+	for i := uint64(0); i < 1<<ckkscontext.LogN(); i++ {
 		sign = coeffs_bigint[i].Compare(QHalf)
 		if sign == 1 || sign == 0 {
 			coeffs_bigint[i].Sub(coeffs_bigint[i], QStart)

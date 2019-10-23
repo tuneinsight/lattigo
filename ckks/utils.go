@@ -7,8 +7,6 @@ import (
 	"math/bits"
 )
 
-
-
 func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
 	var is_negative bool

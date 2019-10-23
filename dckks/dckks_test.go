@@ -45,7 +45,7 @@ func Test_DCKKScheme(t *testing.T) {
 	evaluator := ckkscontext.NewEvaluator()
 	_ = evaluator
 
-	context := ckkscontext.ContextKey(ckkscontext.Levels()-1)
+	context := ckkscontext.ContextKey(ckkscontext.Levels() - 1)
 	contextCiphertexts := ckkscontext.Context(ckkscontext.Levels() - 1)
 	_ = contextCiphertexts
 
@@ -386,7 +386,7 @@ func Test_DCKKScheme(t *testing.T) {
 		// Each party creates its CKS instance with deltaSk = si-si'
 		cks := make([]*CKS, parties)
 		for i := uint64(0); i < parties; i++ {
-			cks[i] = NewCKS(sk0_shards[i].Get(), sk1_shards[i].Get(), contextCiphertexts, context, ckkscontext.KeySwitchPrimes(), 6.36)
+			cks[i] = NewCKS(sk0_shards[i].Get(), sk1_shards[i].Get(), ckkscontext, 6.36)
 		}
 
 		// Each party computes its hi share from the shared ciphertext
@@ -437,7 +437,7 @@ func Test_DCKKScheme(t *testing.T) {
 		}
 
 		P0.KeySwitch(P0.share, ciphertext, ciphertextSwitched)
-		
+
 		verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffs, ciphertextSwitched, t)
 	})
 
@@ -556,13 +556,12 @@ func verify_test_vectors(ckkscontext *ckks.CkksContext, encoder *ckks.Encoder, d
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128
 
-	switch element.(type){
+	switch element.(type) {
 	case *ckks.Ciphertext:
 		plaintextTest = decryptor.DecryptNew(element.(*ckks.Ciphertext))
 	case *ckks.Plaintext:
 		plaintextTest = element.(*ckks.Plaintext)
 	}
-
 
 	valuesTest = encoder.Decode(plaintextTest, ckkscontext.Slots())
 

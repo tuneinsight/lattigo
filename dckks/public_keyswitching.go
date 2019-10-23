@@ -11,18 +11,12 @@ type PCKSProtocol struct {
 
 	sigmaSmudging         float64
 	gaussianSamplerSmudge *ring.KYSampler
-	gaussianSampler       *ring.KYSampler
-	ternarySampler        *ring.TernarySampler
 
 	tmp *ring.Poly
 
 	polypool *ring.Poly
 
-	baseconverter *ckks.FastBasisExtender
-
-	rescaleParamsKeys []uint64
-	keyswitchprimes   []uint64
-	rescalepool       []uint64
+	baseconverter *ring.FastBasisExtender
 }
 
 type PCKSShare [2]*ring.Poly
@@ -36,31 +30,10 @@ func NewPCKSProtocol(ckksContext *ckks.CkksContext, sigmaSmudging float64) *PCKS
 	pcks.ckksContext = ckksContext
 
 	pcks.gaussianSamplerSmudge = pcks.ckksContext.ContextKey(ckksContext.Levels()-1).NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
-	pcks.gaussianSampler = ckksContext.GaussianSampler()
-	pcks.ternarySampler = ckksContext.TernarySampler()
 
-	pcks.tmp = pcks.ckksContext.ContextKey(ckksContext.Levels()-1).NewPoly()
+	pcks.tmp = pcks.ckksContext.ContextKey(ckksContext.Levels() - 1).NewPoly()
 
-	pcks.keyswitchprimes = make([]uint64, len(ckksContext.KeySwitchPrimes()))
-	for i, pi := range ckksContext.KeySwitchPrimes() {
-		pcks.keyswitchprimes[i] = pi
-	}
-
-	pcks.baseconverter = ckks.NewFastBasisExtender(ckksContext.Context(ckksContext.Levels()-1).Modulus, pcks.keyswitchprimes)
-
-	pcks.rescaleParamsKeys = make([]uint64, len(ckksContext.Context(ckksContext.Levels()-1).Modulus))
-
-	PBig := ring.NewUint(1)
-	for _, pj := range pcks.keyswitchprimes {
-		PBig.Mul(PBig, ring.NewUint(pj))
-	}
-
-	tmp := ring.NewUint(0)
-	bredParams := ckksContext.Context(ckksContext.Levels()-1).GetBredParams()
-	for i, Qi := range ckksContext.Context(ckksContext.Levels()-1).Modulus {
-		tmp.Mod(PBig, ring.NewUint(Qi))
-		pcks.rescaleParamsKeys[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Qi, bredParams[i]), Qi-2, Qi), Qi, bredParams[i])
-	}
+	pcks.baseconverter = ring.NewFastBasisExtender(ckksContext.ContextQ().Modulus, ckksContext.KeySwitchPrimes())
 
 	return pcks
 }
@@ -78,41 +51,42 @@ func (pcks *PCKSProtocol) AllocateShares(level uint64) (s PCKSShare) {
 // and broadcasts the result to the other j-1 parties.
 func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.Ciphertext, shareOut PCKSShare) {
 
-	context := pcks.ckksContext.Context(ct.Level())
-	contextkeys := pcks.ckksContext.ContextKey(ct.Level())
+	contextQ := pcks.ckksContext.ContextQ()
+	contextP := pcks.ckksContext.ContextP()
+	contextKeys := pcks.ckksContext.ContextKeys()
 
 	//u_i
-	_ = pcks.ternarySampler.SampleMontgomeryNTT(0.5, pcks.tmp)
+	_ = pcks.ckksContext.TernarySampler().SampleMontgomeryNTT(0.5, pcks.tmp)
 
 	// h_0 = u_i * pk_0
-	context.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], shareOut[0])
+	contextQ.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], shareOut[0])
 
 	// h_1 = u_i * pk_1
-	context.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], shareOut[1])
+	contextQ.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], shareOut[1])
 
-	context.Copy(ct.Value()[1], pcks.tmp)
-	
-	context.InvNTT(pcks.tmp, pcks.tmp)	
+	contextQ.Copy(ct.Value()[1], pcks.tmp)
+
+	contextQ.InvNTT(pcks.tmp, pcks.tmp)
 	pcks.baseconverter.ModUp(ct.Level(), pcks.tmp, pcks.tmp)
-	contextkeys.NTT(pcks.tmp, pcks.tmp)
+	contextKeys.NTT(pcks.tmp, pcks.tmp)
 
 	// h0 = u_i * pk_0 + s_i*c_1
-	contextkeys.MulCoeffsMontgomeryAndAdd(sk, pcks.tmp, shareOut[0])
+	contextKeys.MulCoeffsMontgomeryAndAdd(sk, pcks.tmp, shareOut[0])
 
-	for _, pj := range pcks.keyswitchprimes {
-		contextkeys.MulScalar(shareOut[0], pj, shareOut[0])
-		contextkeys.MulScalar(shareOut[1], pj, shareOut[1])
+	for _, pj := range pcks.ckksContext.KeySwitchPrimes() {
+		contextKeys.MulScalar(shareOut[0], pj, shareOut[0])
+		contextKeys.MulScalar(shareOut[1], pj, shareOut[1])
 	}
 	// h_0 = s_i*c_1 + u_i * pk_0 + e0
 	pcks.gaussianSamplerSmudge.SampleNTT(pcks.tmp)
-	contextkeys.Add(shareOut[0], pcks.tmp, shareOut[0])
+	contextKeys.Add(shareOut[0], pcks.tmp, shareOut[0])
 
 	// h_1 = u_i * pk_1 + e1
-	pcks.gaussianSampler.SampleNTT(pcks.tmp)
-	contextkeys.Add(shareOut[1], pcks.tmp, shareOut[1])
+	pcks.ckksContext.GaussianSampler().SampleNTT(pcks.tmp)
+	contextKeys.Add(shareOut[1], pcks.tmp, shareOut[1])
 
-	pcks.baseconverter.ModDown(contextkeys, pcks.rescaleParamsKeys, ct.Level(), shareOut[0], shareOut[0], pcks.tmp)
-	pcks.baseconverter.ModDown(contextkeys, pcks.rescaleParamsKeys, ct.Level(), shareOut[1], shareOut[1], pcks.tmp)
+	pcks.baseconverter.ModDownNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut[0], shareOut[0], pcks.tmp)
+	pcks.baseconverter.ModDownNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut[1], shareOut[1], pcks.tmp)
 
 	shareOut[0].Coeffs = shareOut[0].Coeffs[:ct.Level()+1]
 	shareOut[1].Coeffs = shareOut[1].Coeffs[:ct.Level()+1]

@@ -418,7 +418,7 @@ func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey,
 		return errors.New("cannot switchkeys -> input and output must be of degree 1 to allow key switching")
 	}
 
-	if ct0 != ctOut{
+	if ct0 != ctOut {
 		evaluator.bfvcontext.contextQ.Copy(ct0.value[0], ctOut.value[0])
 		evaluator.bfvcontext.contextQ.Copy(ct0.value[1], ctOut.value[1])
 	}
@@ -517,7 +517,6 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 		context.Copy(ct0.value[1], ctOut.value[1])
 	}
 
-
 	// Applies the galois automorphism and the switching-key process
 	for k > 0 {
 
@@ -594,7 +593,7 @@ func (evaluator *Evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey
 	context.Permute(ct0.value[0], generator, el0)
 	context.Permute(ct0.value[1], generator, el1)
 
-	if el0 != ctOut.value[0] || el1 != ctOut.value[1]{
+	if el0 != ctOut.value[0] || el1 != ctOut.value[1] {
 		context.Copy(el0, ctOut.value[0])
 		context.Copy(el1, ctOut.value[1])
 	}

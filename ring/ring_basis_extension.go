@@ -1,6 +1,6 @@
 package ring
 
-import(
+import (
 	"math"
 )
 
@@ -263,11 +263,11 @@ func (basisextender *FastBasisExtender) ModUp(level uint64, p1, p2 *Poly) {
 	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[level+1:level+1+uint64(len(basisextender.paramsQP.P))], basisextender.paramsQP)
 }
 
-func (basisextender *FastBasisExtender) ModDownNTT(context *Context, rescalParamsKeys []uint64, level uint64, p1, p2, polypool *Poly) {
+func (basisextender *FastBasisExtender) ModDownNTT(contextQ, contextP *Context, rescalParamsKeys []uint64, level uint64, p1, p2, polypool *Poly) {
 
 	// First we get the P basis part of p1 out of the NTT domain
 	for j := uint64(0); j < uint64(len(basisextender.paramsQP.P)); j++ {
-		InvNTT(p1.Coeffs[level+1+j], p1.Coeffs[level+1+j], context.N, context.GetNttPsiInv()[level+1+j], context.GetNttNInv()[level+1+j], context.Modulus[level+1+j], context.GetMredParams()[level+1+j])
+		InvNTT(p1.Coeffs[level+1+j], p1.Coeffs[level+1+j], contextP.N, contextP.GetNttPsiInv()[j], contextP.GetNttNInv()[j], contextP.Modulus[j], contextP.GetMredParams()[j])
 	}
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
@@ -278,11 +278,11 @@ func (basisextender *FastBasisExtender) ModDownNTT(context *Context, rescalParam
 	for i := uint64(0); i < level+1; i++ {
 
 		// First we switch back the relevant polypool CRT array back to the NTT domain
-		NTT(polypool.Coeffs[i], polypool.Coeffs[i], context.N, context.GetNttPsi()[i], context.Modulus[i], context.GetMredParams()[i], context.GetBredParams()[i])
+		NTT(polypool.Coeffs[i], polypool.Coeffs[i], contextQ.N, contextQ.GetNttPsi()[i], contextQ.Modulus[i], contextQ.GetMredParams()[i], contextQ.GetBredParams()[i])
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j]+(context.Modulus[i]-polypool.Coeffs[i][j]), rescalParamsKeys[i], context.Modulus[i], context.GetMredParams()[i])
+		for j := uint64(0); j < contextQ.N; j++ {
+			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j]+(contextQ.Modulus[i]-polypool.Coeffs[i][j]), rescalParamsKeys[i], contextQ.Modulus[i], contextQ.GetMredParams()[i])
 		}
 	}
 
@@ -297,7 +297,7 @@ func (basisextender *FastBasisExtender) ModDown(context *Context, rescalParamsKe
 
 	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
-		
+
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < context.N; j++ {
 			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j]+(context.Modulus[i]-polypool.Coeffs[i][j]), rescalParamsKeys[i], context.Modulus[i], context.GetMredParams()[i])
@@ -361,7 +361,7 @@ type ArbitraryDecomposer struct {
 	P_bigint    *Int
 }
 
-func (decomposer *ArbitraryDecomposer) Xalpha() (xalpha []uint64){
+func (decomposer *ArbitraryDecomposer) Xalpha() (xalpha []uint64) {
 	return decomposer.xalpha
 }
 
@@ -423,8 +423,6 @@ func NewArbitraryDecomposer(Q, P []uint64) (decomposer *ArbitraryDecomposer) {
 
 	return
 }
-
-
 
 func (decomposer *ArbitraryDecomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Poly) {
 
@@ -548,5 +546,3 @@ func (decomposer *ArbitraryDecomposer) Decompose(level, crtDecompLevel uint64, p
 		}
 	}
 }
-
-

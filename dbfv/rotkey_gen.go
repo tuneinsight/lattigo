@@ -7,7 +7,6 @@ import (
 
 // RKG is the structure storing the parameters for the collective rotation-keys generation.
 type RKG struct {
-
 	bfvContext *bfv.BfvContext
 
 	gen    uint64
@@ -91,7 +90,6 @@ func (rkg *RKG) GenShareRotLeft(sk *ring.Poly, k uint64, crp []*ring.Poly) (evak
 // and broadcasts it to the other j-1 parties. The protocol must be repeated for each desired rotation.
 func (rkg *RKG) GenShareRotRight(sk *ring.Poly, k uint64, crp []*ring.Poly) (evakey []*ring.Poly) {
 
-
 	context := rkg.bfvContext.ContextKeys()
 
 	k &= (context.N >> 1) - 1
@@ -150,10 +148,10 @@ func (rkg *RKG) genswitchkey(sk_in, sk_out *ring.Poly, crp []*ring.Poly) (evakey
 		// (qiBarre*qiStar)%qi = 1, else 0
 		for j := uint64(0); j < rkg.bfvContext.Alpha(); j++ {
 
-			index = i * rkg.bfvContext.Alpha() + j
+			index = i*rkg.bfvContext.Alpha() + j
 
 			for w := uint64(0); w < context.N; w++ {
-				evakey[i].Coeffs[index][w] = ring.CRed(evakey[i].Coeffs[index][w] + rkg.polypool.Coeffs[index][w], context.Modulus[index])
+				evakey[i].Coeffs[index][w] = ring.CRed(evakey[i].Coeffs[index][w]+rkg.polypool.Coeffs[index][w], context.Modulus[index])
 			}
 
 			// Handles the case where nb pj does not divides nb qi

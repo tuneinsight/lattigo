@@ -519,7 +519,6 @@ func (sampler *TernarySampler) SampleSparseNew(hw uint64) (pol *Poly) {
 	return pol
 }
 
-
 // RandUniform samples a uniform randomInt variable in the range [0, mask] until randomInt is in the range [0, v-1].
 // mask needs to be of the form 2^n -1.
 func RandUniform(v uint64, mask uint64) (randomInt uint64) {

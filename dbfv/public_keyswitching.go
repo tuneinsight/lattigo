@@ -19,7 +19,7 @@ type PCKSProtocol struct {
 
 	polypool *ring.Poly
 
-	baseconverter *bfv.FastBasisExtender
+	baseconverter *ring.FastBasisExtender
 
 	rescaleParamsKeys []uint64
 	keyswitchprimes   []uint64
@@ -48,7 +48,7 @@ func NewPCKSProtocol(bfvContext *bfv.BfvContext, sigmaSmudging float64) *PCKSPro
 		pcks.keyswitchprimes[i] = pi
 	}
 
-	pcks.baseconverter = bfv.NewFastBasisExtender(pcks.contextCiphertexts.Modulus, pcks.keyswitchprimes)
+	pcks.baseconverter = ring.NewFastBasisExtender(pcks.contextCiphertexts.Modulus, pcks.keyswitchprimes)
 
 	pcks.rescaleParamsKeys = make([]uint64, len(pcks.contextCiphertexts.Modulus))
 

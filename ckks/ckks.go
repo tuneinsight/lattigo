@@ -27,14 +27,16 @@ type CkksContext struct {
 	scalechain []float64
 
 	// Contexts chain
+	contextQ     *ring.Context
 	contextLevel []*ring.Context
 
 	// Keys' contexts
 	specialprimes []uint64
 	alpha         uint64
 	beta          uint64
+	contextP      *ring.Context
 	keyscontext   []*ring.Context
-	contexts      []*ring.Context
+	contextKeys   *ring.Context
 
 	// Pre-computed values for the rescaling
 	rescaleParams     [][]uint64
@@ -133,6 +135,18 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 	ckkscontext.contextLevel[0] = ring.NewContext()
 	ckkscontext.keyscontext[0] = ring.NewContext()
 
+	//
+	ckkscontext.contextP = ring.NewContext()
+	if err = ckkscontext.contextP.SetParameters(1<<ckkscontext.logN, ckkscontext.specialprimes); err != nil {
+		return nil, err
+	}
+
+	if err = ckkscontext.contextP.GenNTTParams(); err != nil {
+		return nil, err
+	}
+
+	//
+
 	if err = ckkscontext.contextLevel[0].SetParameters(1<<ckkscontext.logN, ckkscontext.moduli[:1]); err != nil {
 		return nil, err
 	}
@@ -170,6 +184,9 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 			return nil, err
 		}
 	}
+
+	ckkscontext.contextQ = ckkscontext.contextLevel[ckkscontext.levels-1]
+	ckkscontext.contextKeys = ckkscontext.keyscontext[ckkscontext.levels-1]
 	// ========== END < CONTEXTS CHAIN > END ===============
 
 	ckkscontext.logQ = uint64(ckkscontext.keyscontext[ckkscontext.levels-1].ModulusBigint.Value.BitLen())
@@ -264,6 +281,10 @@ func (ckksContext *CkksContext) KeySwitchPrimes() []uint64 {
 	return ckksContext.specialprimes
 }
 
+func (ckksContext *CkksContext) RescaleParamsKeys() []uint64 {
+	return ckksContext.rescaleParamsKeys
+}
+
 // Levels returns the number of levels of the ckksContext.
 func (ckksContext *CkksContext) Levels() uint64 {
 	return ckksContext.levels
@@ -278,11 +299,23 @@ func (ckksContext *CkksContext) Context(level uint64) *ring.Context {
 	return ckksContext.contextLevel[level]
 }
 
+func (ckksContext *CkksContext) ContextQ() *ring.Context {
+	return ckksContext.contextQ
+}
+
+func (ckksContext *CkksContext) ContextP() *ring.Context {
+	return ckksContext.contextP
+}
+
 // ContextKeys returns the ring context under which the keys are created.
 func (ckksContext *CkksContext) ContextKey(level uint64) *ring.Context {
 	return ckksContext.keyscontext[level]
 }
 
+// ContextKeys returns the ring context under which the keys are created.
+func (ckksContext *CkksContext) ContextKeys() *ring.Context {
+	return ckksContext.contextKeys
+}
 
 // Slots returns the number of slots that the scheme can encrypt at the same time.
 func (ckksContext *CkksContext) Slots() uint64 {

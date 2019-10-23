@@ -7,17 +7,16 @@ import (
 
 // CKSProtocol is a structure storing the parameters for the collective key-switching protocol.
 type CKSProtocol struct {
-
 	contextCiphertexts *ring.Context
 	contextKeys        *ring.Context
 
-	sigmaSmudging         float64
+	sigmaSmudging   float64
 	gaussianSampler *ring.KYSampler
 
 	tmpNtt   *ring.Poly
 	tmpDelta *ring.Poly
 
-	baseconverter *bfv.FastBasisExtender
+	baseconverter     *ring.FastBasisExtender
 	rescaleParamsKeys []uint64
 	keyswitchprimes   []uint64
 	rescalepool       []uint64
@@ -45,7 +44,7 @@ func NewCKSProtocol(bfvContext *bfv.BfvContext, sigmaSmudging float64) *CKSProto
 		cks.keyswitchprimes[i] = pi
 	}
 
-	cks.baseconverter = bfv.NewFastBasisExtender(cks.contextCiphertexts.Modulus, cks.keyswitchprimes)
+	cks.baseconverter = ring.NewFastBasisExtender(cks.contextCiphertexts.Modulus, cks.keyswitchprimes)
 
 	cks.rescaleParamsKeys = make([]uint64, len(cks.contextCiphertexts.Modulus))
 
@@ -101,8 +100,6 @@ func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 	cks.contextKeys.Add(shareOut, cks.tmpNtt, shareOut)
 
 	cks.baseconverter.ModDown(cks.contextKeys, cks.rescaleParamsKeys, level, shareOut, shareOut, cks.tmpNtt)
-
-
 
 	shareOut.Coeffs = shareOut.Coeffs[:level+1]
 }

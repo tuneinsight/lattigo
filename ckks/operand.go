@@ -17,7 +17,7 @@ type ckksElement struct {
 	scale          float64
 	currentModulus *ring.Int
 	isNTT          bool
-	slots uint64
+	slots          uint64
 }
 
 func (ckkscontext *CkksContext) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
@@ -78,7 +78,6 @@ func (el *ckksElement) SetCurrentModulus(modulus *ring.Int) {
 func (el *ckksElement) Slots() uint64 {
 	return el.slots
 }
-
 
 func (el *ckksElement) Resize(ckkscontext *CkksContext, degree uint64) {
 	if el.Degree() > degree {

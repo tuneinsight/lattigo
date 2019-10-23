@@ -18,7 +18,7 @@ type dbfvparams struct {
 	parties int
 
 	bfvcontext        *bfv.BfvContext
-	contextKeys           *ring.Context
+	contextKeys       *ring.Context
 	contextCiphertext *ring.Context
 	contextT          *ring.Context
 	encoder           *bfv.BatchEncoder
@@ -74,8 +74,6 @@ func Test_DBFVScheme(t *testing.T) {
 		dbfvParams.encoder, err = dbfvParams.bfvcontext.NewBatchEncoder()
 		check(t, err)
 
-
-
 		// SecretKeys
 		dbfvParams.sk0_shards = make([]*bfv.SecretKey, dbfvParams.parties)
 		dbfvParams.sk1_shards = make([]*bfv.SecretKey, dbfvParams.parties)
@@ -97,10 +95,10 @@ func Test_DBFVScheme(t *testing.T) {
 
 		// Publickeys
 		dbfvParams.pk0 = dbfvParams.kgen.NewPublicKey(dbfvParams.sk0)
-		dbfvParams.pk1 = dbfvParams.kgen.NewPublicKey(dbfvParams.sk1);
+		dbfvParams.pk1 = dbfvParams.kgen.NewPublicKey(dbfvParams.sk1)
 
 		// Encryptors
-		dbfvParams.encryptor_pk0, err= dbfvParams.bfvcontext.NewEncryptorFromPk(dbfvParams.pk0)
+		dbfvParams.encryptor_pk0, err = dbfvParams.bfvcontext.NewEncryptorFromPk(dbfvParams.pk0)
 		check(t, err)
 
 		//encryptor_pk1, err := bfvContext.NewEncryptor(pk1)
@@ -120,7 +118,7 @@ func Test_DBFVScheme(t *testing.T) {
 		test_EKG(dbfvParams, t)
 		test_PRNG(dbfvParams, t)
 		test_CKG(dbfvParams, t)
-		
+
 		test_EKGNaive(dbfvParams, t)
 		test_RKG(dbfvParams, t)
 		test_CKS(dbfvParams, t)
@@ -129,13 +127,10 @@ func Test_DBFVScheme(t *testing.T) {
 	}
 }
 
-			
-
 func test_PRNG(params *dbfvparams, t *testing.T) {
 
 	contextKeys := params.contextKeys
 	bfvContext := params.bfvcontext
-
 
 	t.Run(fmt.Sprintf("N=%d/logQ=%d/CRS_PRNG", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
@@ -188,11 +183,9 @@ func test_PRNG(params *dbfvparams, t *testing.T) {
 	})
 }
 
-
-
 func test_EKGNaive(params *dbfvparams, t *testing.T) {
 
-	var err error 
+	var err error
 
 	contextKeys := params.contextKeys
 	parties := params.parties
@@ -213,7 +206,6 @@ func test_EKGNaive(params *dbfvparams, t *testing.T) {
 
 		rlk := new(bfv.EvaluationKey)
 		rlk.SetRelinKeys([][][2]*ring.Poly{evk[0]})
-
 
 		coeffs, _, ciphertext, _ := newTestVectors(params)
 
@@ -279,7 +271,6 @@ func test_EKG(params *dbfvparams, t *testing.T) {
 			log.Fatal(err)
 		}
 
-
 		res := bfvContext.NewCiphertext(1)
 		if err := evaluator.Relinearize(ciphertextMul, rlk, res); err != nil {
 			t.Error(err)
@@ -316,7 +307,6 @@ func test_RKG(params *dbfvparams, t *testing.T) {
 	}
 
 	t.Run(fmt.Sprintf("N=%d/logQ=%d/RKG_rot_rows", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
-		
 
 		coeffs, _, ciphertext, _ := newTestVectors(params)
 
@@ -371,7 +361,6 @@ func test_RKG(params *dbfvparams, t *testing.T) {
 
 	})
 }
-
 
 func test_CKG(params *dbfvparams, t *testing.T) {
 
@@ -432,8 +421,6 @@ func test_CKG(params *dbfvparams, t *testing.T) {
 	})
 }
 
-
-
 func test_CKS(params *dbfvparams, t *testing.T) {
 
 	bfvContext := params.bfvcontext
@@ -443,7 +430,6 @@ func test_CKS(params *dbfvparams, t *testing.T) {
 	sk1_shards := params.sk1_shards
 	encoder := params.encoder
 	decryptor_sk1 := params.decryptor_sk1
-
 
 	t.Run(fmt.Sprintf("N=%d/logQ=%d/CKS", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
@@ -467,7 +453,6 @@ func test_CKS(params *dbfvparams, t *testing.T) {
 
 		coeffs, _, ciphertext, _ := newTestVectors(params)
 
-
 		// Each party creates its CKSProtocol instance with tmp = si-si'
 		for i, p := range cksParties {
 			p.GenShare(p.s0, p.s1, ciphertext, p.share)
@@ -475,8 +460,6 @@ func test_CKS(params *dbfvparams, t *testing.T) {
 				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
 		}
-
-		
 
 		ksCiphertext := bfvContext.NewCiphertext(1)
 		P0.KeySwitch(P0.share, ciphertext, ksCiphertext)
@@ -493,8 +476,6 @@ func test_CKS(params *dbfvparams, t *testing.T) {
 
 	})
 }
-
-
 
 func test_PCKS(params *dbfvparams, t *testing.T) {
 
@@ -528,7 +509,6 @@ func test_PCKS(params *dbfvparams, t *testing.T) {
 
 		ciphertextSwitched := bfvContext.NewCiphertext(1)
 
-
 		for i, p := range pcksParties {
 			p.GenShare(p.s, pk1, ciphertext, p.share)
 			if i > 0 {
@@ -543,7 +523,6 @@ func test_PCKS(params *dbfvparams, t *testing.T) {
 	})
 }
 
-
 func test_BOOT(params *dbfvparams, t *testing.T) {
 
 	bfvContext := params.bfvcontext
@@ -553,7 +532,6 @@ func test_BOOT(params *dbfvparams, t *testing.T) {
 	encoder := params.encoder
 	decryptor_sk0 := params.decryptor_sk0
 	sk0 := params.sk0
-
 
 	t.Run(fmt.Sprintf("N=%d/logQ=%d/BOOT", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 

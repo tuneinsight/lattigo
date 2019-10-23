@@ -37,14 +37,13 @@ func Benchmark_CKKSScheme(b *testing.B) {
 	var logN, slots, levels uint64
 	var scale, sigma float64
 
-
 	for _, param := range params {
 
 		logN = uint64(param.params.LogN)
 		scale = param.params.Scale
 		sigma = param.params.Sigma
 		levels = uint64(len(param.params.Modulichain))
-		slots = uint64(1 << (logN-1))
+		slots = uint64(1 << (logN - 1))
 
 		if ckkscontext, err = NewCkksContext(param.params); err != nil {
 			b.Error(err)

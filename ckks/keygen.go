@@ -37,7 +37,7 @@ type EvaluationKey struct {
 
 // Switchingkey is a structure that stores the switching-keys required during the key-switching.
 type SwitchingKey struct {
-	evakey    [][2]*ring.Poly
+	evakey [][2]*ring.Poly
 }
 
 // NewKeyGenerator creates a new keygenerator, from which the secret and public keys, as well as the evaluation,
@@ -45,7 +45,7 @@ type SwitchingKey struct {
 func (ckkscontext *CkksContext) NewKeyGenerator() (keygen *KeyGenerator) {
 	keygen = new(KeyGenerator)
 	keygen.ckkscontext = ckkscontext
-	keygen.context = ckkscontext.keyscontext[ckkscontext.levels-1]
+	keygen.context = ckkscontext.contextKeys
 	keygen.polypool = keygen.context.NewPoly()
 	return
 }
@@ -155,7 +155,7 @@ func (keygen *KeyGenerator) NewRelinKeyEmpty() (evakey *EvaluationKey) {
 
 	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
 	evakey.evakey.evakey = make([][2]*ring.Poly, keygen.ckkscontext.beta)
-	for i := uint64(0) ; i < keygen.ckkscontext.beta; i++ {
+	for i := uint64(0); i < keygen.ckkscontext.beta; i++ {
 
 		evakey.evakey.evakey[i][0] = keygen.context.NewPoly()
 		evakey.evakey.evakey[i][1] = keygen.context.NewPoly()
@@ -195,7 +195,7 @@ func (keygen *KeyGenerator) NewSwitchingKeyEmpty() (evakey *SwitchingKey) {
 	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
 	evakey.evakey = make([][2]*ring.Poly, keygen.ckkscontext.beta)
 
-	for i := uint64(0) ; i < keygen.ckkscontext.beta; i++ {
+	for i := uint64(0); i < keygen.ckkscontext.beta; i++ {
 		evakey.evakey[i][0] = keygen.context.NewPoly()
 		evakey.evakey[i][1] = keygen.context.NewPoly()
 	}
@@ -235,8 +235,6 @@ func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, rotLeft []uint
 	return rotKey, nil
 
 }
-
-
 
 // NewRotationkeysPow2 generates a new rotation key with all the power of two rotation to the left and right, as well as the conjugation
 // key if asked. Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
@@ -312,7 +310,7 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 
 	switchingkey = new(SwitchingKey)
 
-	context := keygen.ckkscontext.keyscontext[keygen.ckkscontext.levels-1]
+	context := keygen.ckkscontext.contextKeys
 
 	// Computes P * sk_in
 	for _, pj := range keygen.ckkscontext.specialprimes {
@@ -358,4 +356,3 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 
 	return
 }
-

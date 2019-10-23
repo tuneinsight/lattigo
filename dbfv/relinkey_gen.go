@@ -396,3 +396,7 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round2 RKGShareRoundTwo, round3 RK
 		}
 	}
 }
+
+func (ekg *RKGProtocol) AllocateEvaluationKey(ctx bfv.BfvContext) *bfv.EvaluationKey {
+	return ctx.NewRelinKey(uint64(len(ekg.ringContext.Modulus)), ekg.bitDecomp)
+}

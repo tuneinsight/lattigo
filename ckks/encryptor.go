@@ -14,7 +14,7 @@ type Encryptor struct {
 
 	rescalepool []uint64
 
-	baseconverter *FastBasisExtender
+	baseconverter *ring.FastBasisExtender
 }
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
@@ -52,7 +52,7 @@ func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encr
 
 	encryptor.rescalepool = make([]uint64, ckkscontext.n)
 
-	encryptor.baseconverter = NewFastBasisExtender(ckkscontext.contextLevel[ckkscontext.levels-1].Modulus, ckkscontext.specialprimes)
+	encryptor.baseconverter = ring.NewFastBasisExtender(ckkscontext.contextLevel[ckkscontext.levels-1].Modulus, ckkscontext.specialprimes)
 
 	return encryptor, nil
 }
@@ -111,8 +111,8 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	context.Add(encryptor.polypool[1], encryptor.polypool[2], encryptor.polypool[1])
 
 	// We rescal the encryption of zero by the special prime, dividing the error by this prime
-	encryptor.baseconverter.ModDown(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
-	encryptor.baseconverter.ModDown(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownNTT(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownNTT(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
 
 	// We switch to the ciphertext context and add the message to the encryption of zero
 	context = encryptor.ckkscontext.contextLevel[plaintext.Level()]
@@ -134,8 +134,8 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	context.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
 
 	// We rescal by the special prime, dividing the error by this prime
-	encryptor.baseconverter.ModDown(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
-	encryptor.baseconverter.ModDown(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownNTT(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownNTT(context, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
 	// We switch to the ciphertext context and add the message
 	// ct = [-s*a + m + e, a]
 	context = encryptor.ckkscontext.contextLevel[plaintext.Level()]

@@ -1315,6 +1315,19 @@ func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
 		params.ckkscontext.logQ,
 		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
 
+		// Applies the column rotation to the values
+		for i := uint64(0); i < params.slots; i++ {
+			valuesWant[i] = values[i]
+		}
+
+		if err := params.evaluator.RotateColumns(ciphertext, 0, params.rotkey, ciphertextTest); err != nil {
+			t.Error(err)
+		}
+
+		if err := verify_test_vectors(params, valuesWant, ciphertextTest.Element(), t); err != nil {
+			t.Error(err)
+		}
+
 		for n := uint64(1); n < params.slots; n <<= 1 {
 
 			// Applies the column rotation to the values

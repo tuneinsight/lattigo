@@ -12,7 +12,7 @@ type Encryptor struct {
 	sk         *SecretKey
 	polypool   [3]*ring.Poly
 
-	baseconverter *FastBasisExtender
+	baseconverter *ring.FastBasisExtender
 }
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
@@ -46,7 +46,7 @@ func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryp
 	encryptor.polypool[1] = bfvcontext.contextKeys.NewPoly()
 	encryptor.polypool[2] = bfvcontext.contextKeys.NewPoly()
 
-	encryptor.baseconverter = NewFastBasisExtender(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
+	encryptor.baseconverter = ring.NewFastBasisExtender(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
 
 	return encryptor, nil
 }

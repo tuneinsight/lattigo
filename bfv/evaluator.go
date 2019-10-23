@@ -15,8 +15,8 @@ type Evaluator struct {
 	keyswitchpool [5]*ring.Poly
 	ctxpool       [3]*Ciphertext
 	rescalepool   []uint64
-	baseconverter *FastBasisExtender
-	decomposer    *ArbitraryDecomposer
+	baseconverter *ring.FastBasisExtender
+	decomposer    *ring.ArbitraryDecomposer
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
@@ -44,8 +44,8 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator) {
 	evaluator.ctxpool[1] = bfvcontext.NewCiphertextBig(5)
 	evaluator.ctxpool[2] = bfvcontext.NewCiphertextBig(5)
 
-	evaluator.baseconverter = NewFastBasisExtender(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
-	evaluator.decomposer = NewArbitraryDecomposer(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
+	evaluator.baseconverter = ring.NewFastBasisExtender(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
+	evaluator.decomposer = ring.NewArbitraryDecomposer(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
 
 	return evaluator
 }
@@ -412,13 +412,18 @@ func (evaluator *Evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKe
 
 // SwitchKeys applies the key-switching procedure to the ciphertext ct0 and returns the result on ctOut. It requires as an additional input a valide switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
-func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchkey *SwitchingKey, ctOut *Ciphertext) (err error) {
+func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext) (err error) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		return errors.New("cannot switchkeys -> input and output must be of degree 1 to allow key switching")
 	}
 
-	evaluator.switchKeysOutOfNTTDomain(ct0.value[0], ct0.value[1], switchkey, ctOut)
+	if ct0 != ctOut{
+		evaluator.bfvcontext.contextQ.Copy(ct0.value[0], ctOut.value[0])
+		evaluator.bfvcontext.contextQ.Copy(ct0.value[1], ctOut.value[1])
+	}
+
+	evaluator.switchKeys(ct0.value[1], switchKey, ctOut)
 
 	return nil
 }
@@ -574,7 +579,7 @@ func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOu
 }
 
 // permute operates a column rotation on ct0 and returns the result on ctOut
-func (evaluator *Evaluator) permute(ct0 *Ciphertext, generator uint64, evakey *SwitchingKey, ctOut *Ciphertext) {
+func (evaluator *Evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *SwitchingKey, ctOut *Ciphertext) {
 
 	context := evaluator.bfvcontext.contextQ
 
@@ -588,20 +593,13 @@ func (evaluator *Evaluator) permute(ct0 *Ciphertext, generator uint64, evakey *S
 
 	context.Permute(ct0.value[0], generator, el0)
 	context.Permute(ct0.value[1], generator, el1)
-	evaluator.switchKeysOutOfNTTDomain(el0, el1, evakey, ctOut)
-}
-
-
-// switchKeysOutOfNTTDomain operates a keyswitching assuming el0, el1 are not in the NTT domain
-func (evaluator *Evaluator) switchKeysOutOfNTTDomain(el0, el1 *ring.Poly, switchKey *SwitchingKey, ctOut *Ciphertext) {
 
 	if el0 != ctOut.value[0] || el1 != ctOut.value[1]{
-		evaluator.bfvcontext.contextQ.Copy(el0, ctOut.value[0])
-		evaluator.bfvcontext.contextQ.Copy(el1, ctOut.value[1])
+		context.Copy(el0, ctOut.value[0])
+		context.Copy(el1, ctOut.value[1])
 	}
 
 	evaluator.switchKeys(el1, switchKey, ctOut)
-
 }
 
 // Applies the general keyswitching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
@@ -632,7 +630,7 @@ func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 	for i := uint64(0); i < evaluator.bfvcontext.beta; i++ {
 
 		p0idxst := i * evaluator.bfvcontext.alpha
-		p0idxed := p0idxst + evaluator.decomposer.xalpha[i]
+		p0idxed := p0idxst + evaluator.decomposer.Xalpha()[i]
 
 		// c2_qi = cx mod qi
 		evaluator.decomposer.Decompose(level, i, cx, c2_qi)

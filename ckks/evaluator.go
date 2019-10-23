@@ -16,8 +16,8 @@ type Evaluator struct {
 	rescalepool []uint64
 
 
-	baseconverter *FastBasisExtender
-	decomposer    *ArbitraryDecomposer
+	baseconverter *ring.FastBasisExtender
+	decomposer    *ring.ArbitraryDecomposer
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
@@ -40,9 +40,9 @@ func (ckkscontext *CkksContext) NewEvaluator() (evaluator *Evaluator) {
 
 	evaluator.ctxpool = ckkscontext.NewCiphertext(1, ckkscontext.levels-1, ckkscontext.scale)
 
-	evaluator.baseconverter = NewFastBasisExtender(evaluator.ckkscontext.contextLevel[ckkscontext.levels-1].Modulus, evaluator.ckkscontext.specialprimes)
+	evaluator.baseconverter = ring.NewFastBasisExtender(evaluator.ckkscontext.contextLevel[ckkscontext.levels-1].Modulus, evaluator.ckkscontext.specialprimes)
 
-	evaluator.decomposer = NewArbitraryDecomposer(ckkscontext.moduli, ckkscontext.specialprimes)
+	evaluator.decomposer = ring.NewArbitraryDecomposer(ckkscontext.moduli, ckkscontext.specialprimes)
 
 	return evaluator
 }
@@ -1495,7 +1495,7 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 		evaluator.decomposer.Decompose(level, i, c2, c2_qi)
 
 		p0idxst := i * evaluator.ckkscontext.alpha
-		p0idxed := p0idxst + evaluator.decomposer.xalpha[i]
+		p0idxed := p0idxst + evaluator.decomposer.Xalpha()[i]
 
 		// We start by applying the keyswitch to the moduli of the ciphertext's context
 		for x := uint64(0); x < level+1; x++ {
@@ -1554,8 +1554,8 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 		contextkeys.Reduce(pool3, pool3)
 	}
 
-	evaluator.baseconverter.ModDown(contextkeys, evaluator.ckkscontext.rescaleParamsKeys, level, pool2, pool2, evaluator.keyswitchpool[0])
-	evaluator.baseconverter.ModDown(contextkeys, evaluator.ckkscontext.rescaleParamsKeys, level, pool3, pool3, evaluator.keyswitchpool[0])
+	evaluator.baseconverter.ModDownNTT(contextkeys, evaluator.ckkscontext.rescaleParamsKeys, level, pool2, pool2, evaluator.keyswitchpool[0])
+	evaluator.baseconverter.ModDownNTT(contextkeys, evaluator.ckkscontext.rescaleParamsKeys, level, pool3, pool3, evaluator.keyswitchpool[0])
 
 	context.Add(ctOut.value[0], pool2, ctOut.value[0])
 	context.Add(ctOut.value[1], pool3, ctOut.value[1])

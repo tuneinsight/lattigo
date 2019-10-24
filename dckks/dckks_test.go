@@ -411,9 +411,12 @@ func Test_DCKKScheme(t *testing.T) {
 		}
 	})
 
+	// PCKS (OK multiple levels)
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/PCKS", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)
+
+		evaluator.DropLevel(ciphertext.Element(), 1)
 
 		type Party struct {
 			*PCKSProtocol
@@ -445,6 +448,7 @@ func Test_DCKKScheme(t *testing.T) {
 		verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffs, ciphertextSwitched, t)
 	})
 
+	// CBOOT (OK multiple levels)
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CBOOT", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)

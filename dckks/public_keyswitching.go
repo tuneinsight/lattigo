@@ -59,34 +59,47 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	_ = pcks.ckksContext.TernarySampler().SampleMontgomeryNTT(0.5, pcks.tmp)
 
 	// h_0 = u_i * pk_0
-	contextQ.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], shareOut[0])
+	contextQ.MulCoeffsMontgomeryLvl(ct.Level(), pcks.tmp, pk.Get()[0], shareOut[0])
 
 	// h_1 = u_i * pk_1
-	contextQ.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], shareOut[1])
+	contextQ.MulCoeffsMontgomeryLvl(ct.Level(), pcks.tmp, pk.Get()[1], shareOut[1])
 
-	contextQ.Copy(ct.Value()[1], pcks.tmp)
-
-	contextQ.InvNTT(pcks.tmp, pcks.tmp)
-	pcks.baseconverter.ModUp(ct.Level(), pcks.tmp, pcks.tmp)
-	contextKeys.NTT(pcks.tmp, pcks.tmp)
+	contextQ.CopyLvl(ct.Level(), ct.Value()[1], pcks.tmp)
 
 	// h0 = u_i * pk_0 + s_i*c_1
-	contextKeys.MulCoeffsMontgomeryAndAdd(sk, pcks.tmp, shareOut[0])
+	contextQ.MulCoeffsMontgomeryAndAddLvl(ct.Level(), sk, pcks.tmp, shareOut[0])
 
 	for _, pj := range pcks.ckksContext.KeySwitchPrimes() {
-		contextKeys.MulScalar(shareOut[0], pj, shareOut[0])
-		contextKeys.MulScalar(shareOut[1], pj, shareOut[1])
+		contextQ.MulScalarLvl(ct.Level(), shareOut[0], pj, shareOut[0])
+		contextQ.MulScalarLvl(ct.Level(), shareOut[1], pj, shareOut[1])
 	}
+
+	share0P := contextP.NewPoly()
+
 	// h_0 = s_i*c_1 + u_i * pk_0 + e0
 	pcks.gaussianSamplerSmudge.SampleNTT(pcks.tmp)
-	contextKeys.Add(shareOut[0], pcks.tmp, shareOut[0])
+	contextQ.Add(shareOut[0], pcks.tmp, shareOut[0])
+
+	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(contextKeys.Modulus)); x, i = x+1, i+1 {
+		for j := uint64(0); j < contextKeys.N; j++ {
+			share0P.Coeffs[x][j] += pcks.tmp.Coeffs[i][j]
+		}
+	}
+
+	share1P := contextP.NewPoly()
 
 	// h_1 = u_i * pk_1 + e1
 	pcks.ckksContext.GaussianSampler().SampleNTT(pcks.tmp)
-	contextKeys.Add(shareOut[1], pcks.tmp, shareOut[1])
+	contextQ.Add(shareOut[1], pcks.tmp, shareOut[1])
 
-	pcks.baseconverter.ModDownNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut[0], shareOut[0], pcks.tmp)
-	pcks.baseconverter.ModDownNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut[1], shareOut[1], pcks.tmp)
+	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(contextKeys.Modulus)); x, i = x+1, i+1 {
+		for j := uint64(0); j < contextKeys.N; j++ {
+			share1P.Coeffs[x][j] += pcks.tmp.Coeffs[i][j]
+		}
+	}
+
+	pcks.baseconverter.ModDownSplitedNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut[0], share0P, shareOut[0], pcks.tmp)
+	pcks.baseconverter.ModDownSplitedNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut[1], share1P, shareOut[1], pcks.tmp)
 
 	shareOut[0].Coeffs = shareOut[0].Coeffs[:ct.Level()+1]
 	shareOut[1].Coeffs = shareOut[1].Coeffs[:ct.Level()+1]

@@ -56,6 +56,18 @@ func (context *Context) Copy(p0, p1 *Poly) {
 	}
 }
 
+// Copy copies the coefficients of p0 on p1 within the given context. Requiers p1 to be as big as the target context.
+func (context *Context) CopyLvl(level uint64, p0, p1 *Poly) {
+
+	if p0 != p1 {
+		for i := uint64(0) ; i < level + 1; i++ {
+			for j := uint64(0); j < context.N; j++ {
+				p1.Coeffs[i][j] = p0.Coeffs[i][j]
+			}
+		}
+	}
+}
+
 // Copy copies the coefficients of Pol on p1.
 func (Pol *Poly) Copy(p1 *Poly) {
 

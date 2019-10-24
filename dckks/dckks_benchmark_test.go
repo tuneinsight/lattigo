@@ -1,6 +1,6 @@
 package dckks
 
-/*
+
 import (
 	"fmt"
 	"log"
@@ -31,7 +31,7 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 
 	params := []benchParams{
 
-		{parties: 5, params: ckks.DefaultParams[15], sigmaSmudging: 6.4},
+		{parties: 5, params: ckks.DefaultParams[14], sigmaSmudging: 6.4},
 	}
 
 	for _, param := range params {
@@ -198,7 +198,7 @@ func bench_CKG(params benchParams, context *benchContext, b *testing.B) {
 func bench_CKS(params benchParams, context *benchContext, b *testing.B) {
 	//CKS
 
-	cksInstance := NewCKS(context.sk0.Get(), context.sk1.Get(), context.ckkscontext.Context(context.ckkscontext.Levels()-1), context.ckkscontext.ContextKeys(), context.ckkscontext.KeySwitchPrimes(), params.sigmaSmudging)
+	cksInstance := NewCKS(context.sk0.Get(), context.sk1.Get(), context.ckkscontext, params.sigmaSmudging)
 
 	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels()-1, context.ckkscontext.Scale())
 
@@ -223,35 +223,12 @@ func bench_CKS(params benchParams, context *benchContext, b *testing.B) {
 }
 
 func bench_PCKS(params benchParams, context *benchContext, b *testing.B) {
-	//CKS_Trustless
-	pcks := NewPCKS(context.sk0.Get(), context.pk1.Get(), context.ckkscontext.Context(context.ckkscontext.Levels()-1), context.ckkscontext.ContextKeys(), params.sigmaSmudging)
-
-	ciphertext := context.ckkscontext.NewRandomCiphertext(1, context.ckkscontext.Levels()-1, context.ckkscontext.Scale())
-
-	hi := make([][2]*ring.Poly, params.parties)
-	for i := uint64(0); i < params.parties; i++ {
-		hi[i] = pcks.KeySwitch(ciphertext.Value()[1])
-	}
-
-	// CKS_Trustless_Round_0
-	b.Run(fmt.Sprintf("PCKS_Round0"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			pcks.KeySwitch(ciphertext.Value()[1])
-		}
-	})
-
-	// CKS_Trustless_Round_1
-	b.Run(fmt.Sprintf("PCKS_Round1"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			pcks.Aggregate(ciphertext.Value(), hi)
-		}
-	})
-
+	// TODO
 }
 
 func bench_BOOT(params benchParams, context *benchContext, b *testing.B) {
 
-	crp := context.ckkscontext.Context(context.ckkscontext.Levels() - 1).NewPoly()
+	crp := context.ckkscontext.ContextQ().NewPoly()
 	ciphertext := context.ckkscontext.NewRandomCiphertext(1, 2, context.ckkscontext.Scale())
 
 	refreshShares := make([]*RefreshShares, params.parties)
@@ -277,4 +254,4 @@ func bench_BOOT(params benchParams, context *benchContext, b *testing.B) {
 		}
 	})
 }
-*/
+

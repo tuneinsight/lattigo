@@ -45,8 +45,8 @@ func Test_DCKKScheme(t *testing.T) {
 	evaluator := ckkscontext.NewEvaluator()
 	_ = evaluator
 
-	context := ckkscontext.ContextKey(ckkscontext.Levels() - 1)
-	contextCiphertexts := ckkscontext.Context(ckkscontext.Levels() - 1)
+	context := ckkscontext.ContextKeys()
+	contextCiphertexts := ckkscontext.ContextQ()
 	_ = contextCiphertexts
 
 	coeffsWant := make([]complex128, ckkscontext.Slots())
@@ -113,7 +113,7 @@ func Test_DCKKScheme(t *testing.T) {
 	}
 
 	_ = decryptor_sk1
-/*
+
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CRS_PRNG", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		Ha, _ := NewPRNG([]byte{})
@@ -159,7 +159,7 @@ func Test_DCKKScheme(t *testing.T) {
 		p0 := crs_generator_1.Clock()
 		p1 := crs_generator_2.Clock()
 
-		if ckkscontext.ContextKey(ckkscontext.Levels()-1).Equal(p0, p1) != true {
+		if ckkscontext.ContextKeys().Equal(p0, p1) != true {
 			t.Errorf("error : crs prng generator")
 		}
 	})
@@ -357,7 +357,7 @@ func Test_DCKKScheme(t *testing.T) {
 
 		// Verifies that all parties have the same share collective public key
 		for i := uint64(1); i < parties; i++ {
-			if context.Equal(pkTest[0].Get()[0], pkTest[i].Get()[0]) != true || ckkscontext.ContextKey(ckkscontext.Levels()-1).Equal(pkTest[0].Get()[1], pkTest[i].Get()[1]) != true {
+			if context.Equal(pkTest[0].Get()[0], pkTest[i].Get()[0]) != true || ckkscontext.ContextKeys().Equal(pkTest[0].Get()[1], pkTest[i].Get()[1]) != true {
 				t.Errorf("error : ckg protocol, cpk establishement")
 			}
 		}
@@ -440,7 +440,7 @@ func Test_DCKKScheme(t *testing.T) {
 
 		verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffs, ciphertextSwitched, t)
 	})
-*/
+
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CBOOT", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)
@@ -460,7 +460,7 @@ func Test_DCKKScheme(t *testing.T) {
 			evaluator.DropLevel(ciphertext.Element(), 1)
 		}
 
-		Refresh(ciphertext, refreshShares, ckkscontext, crp, encoder, decryptor_sk0)
+		Refresh(ciphertext, refreshShares, ckkscontext, crp)
 
 		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffs, ciphertext, t)
 

@@ -521,6 +521,25 @@ func (context *Context) SetCoefficientsBigint(coeffs []*Int, p1 *Poly) error {
 	return nil
 }
 
+func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*Int, p1 *Poly) error {
+
+	if len(coeffs) != int(context.N) {
+		return errors.New("error : invalid ring degree (does not match context)")
+	}
+
+	QiBigint := new(Int)
+	coeffTmp := new(Int)
+	for i := uint64(0) ; i < level + 1; i++ {
+		QiBigint.SetUint(context.Modulus[i])
+		for j, coeff := range coeffs {
+			p1.Coeffs[i][j] = coeffTmp.Mod(coeff, QiBigint).Uint64()
+
+		}
+	}
+
+	return nil
+}
+
 //PolyToString reconstructs p1 and returns the result in an array of string.
 func (context *Context) PolyToString(p1 *Poly) []string {
 

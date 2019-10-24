@@ -29,9 +29,9 @@ func NewPCKSProtocol(ckksContext *ckks.CkksContext, sigmaSmudging float64) *PCKS
 
 	pcks.ckksContext = ckksContext
 
-	pcks.gaussianSamplerSmudge = pcks.ckksContext.ContextKey(ckksContext.Levels()-1).NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	pcks.gaussianSamplerSmudge = pcks.ckksContext.ContextKeys().NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
 
-	pcks.tmp = pcks.ckksContext.ContextKey(ckksContext.Levels() - 1).NewPoly()
+	pcks.tmp = pcks.ckksContext.ContextKeys().NewPoly()
 
 	pcks.baseconverter = ring.NewFastBasisExtender(ckksContext.ContextQ().Modulus, ckksContext.KeySwitchPrimes())
 
@@ -39,8 +39,8 @@ func NewPCKSProtocol(ckksContext *ckks.CkksContext, sigmaSmudging float64) *PCKS
 }
 
 func (pcks *PCKSProtocol) AllocateShares(level uint64) (s PCKSShare) {
-	s[0] = pcks.ckksContext.ContextKey(level).NewPoly()
-	s[1] = pcks.ckksContext.ContextKey(level).NewPoly()
+	s[0] = pcks.ckksContext.ContextKeys().NewPolyLvl(level + uint64(len(pcks.ckksContext.KeySwitchPrimes())))
+	s[1] = pcks.ckksContext.ContextKeys().NewPolyLvl(level + uint64(len(pcks.ckksContext.KeySwitchPrimes())))
 	return
 }
 
@@ -99,13 +99,15 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
 func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
-	pcks.ckksContext.Context(uint64(len(share1[0].Coeffs))-1).Add(share1[0], share2[0], shareOut[0])
-	pcks.ckksContext.Context(uint64(len(share1[0].Coeffs))-1).Add(share1[1], share2[1], shareOut[1])
+
+	level := uint64(len(share1[0].Coeffs))-1
+	pcks.ckksContext.ContextQ().AddLvl(level, share1[0], share2[0], shareOut[0])
+	pcks.ckksContext.ContextQ().AddLvl(level, share1[1], share2[1], shareOut[1])
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *ckks.Ciphertext) {
 
-	pcks.ckksContext.Context(ct.Level()).Add(ct.Value()[0], combined[0], ctOut.Value()[0])
-	ctOut.Value()[1].Copy(combined[1])
+	pcks.ckksContext.ContextQ().AddLvl(ct.Level(), ct.Value()[0], combined[0], ctOut.Value()[0])
+	pcks.ckksContext.ContextQ().CopyLvl(ct.Level(), combined[1], ctOut.Value()[1])
 }

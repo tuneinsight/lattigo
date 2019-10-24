@@ -241,6 +241,11 @@ func (ckksContext *CkksContext) Moduli() []uint64 {
 	return ckksContext.moduli
 }
 
+func (ckksContext *CkksContext) BigintChain() []*ring.Int {
+	return ckksContext.bigintChain
+}
+
+
 func (ckksContext *CkksContext) KeySwitchPrimes() []uint64 {
 	return ckksContext.specialprimes
 }

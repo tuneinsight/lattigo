@@ -42,24 +42,26 @@ func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 // A Horner methode is used for evaluating the decryption.
 func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
+	context := decryptor.ckkscontext.contextQ
+
 	level := ciphertext.Level()
 
 	plaintext.SetScale(ciphertext.Scale())
 	plaintext.currentModulus.SetBigInt(ciphertext.currentModulus)
 
-	plaintext.value.Copy(ciphertext.value[ciphertext.Degree()])
+	context.CopyLvl(level, ciphertext.value[ciphertext.Degree()], plaintext.value)
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
 
-		decryptor.ckkscontext.contextLevel[level].MulCoeffsMontgomery(plaintext.value, decryptor.sk.sk, plaintext.value)
-		decryptor.ckkscontext.contextLevel[level].Add(plaintext.value, ciphertext.value[i-1], plaintext.value)
+		context.MulCoeffsMontgomeryLvl(level, plaintext.value, decryptor.sk.sk, plaintext.value)
+		context.AddLvl(level, plaintext.value, ciphertext.value[i-1], plaintext.value)
 
 		if i&7 == 7 {
-			decryptor.ckkscontext.contextLevel[level].Reduce(plaintext.value, plaintext.value)
+			context.ReduceLvl(level, plaintext.value, plaintext.value)
 		}
 	}
 
 	if (ciphertext.Degree())&7 != 7 {
-		decryptor.ckkscontext.contextLevel[level].Reduce(plaintext.value, plaintext.value)
+		context.ReduceLvl(level, plaintext.value, plaintext.value)
 	}
 }

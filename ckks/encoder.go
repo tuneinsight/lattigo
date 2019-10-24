@@ -27,7 +27,7 @@ func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
 	encoder.valuesfloat = make([]float64, ckkscontext.n)
 	encoder.bigint_coeffs = make([]*ring.Int, ckkscontext.n)
 	encoder.q_half = ring.NewUint(0)
-	encoder.polypool = ckkscontext.contextLevel[ckkscontext.levels-1].NewPoly()
+	encoder.polypool = ckkscontext.contextQ.NewPoly()
 
 	encoder.m = ckkscontext.n << 1
 
@@ -74,7 +74,7 @@ func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 
 	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckkscontext.moduli[:plaintext.Level()+1], plaintext.value.Coeffs)
 
-	encoder.ckkscontext.contextLevel[plaintext.Level()].NTT(plaintext.value, plaintext.value)
+	encoder.ckkscontext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 
 	for i := uint64(0); i < encoder.ckkscontext.maxSlots; i++ {
 		encoder.values[i] = 0
@@ -90,8 +90,8 @@ func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 // DecodeFloat decodes the plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 
-	encoder.ckkscontext.contextLevel[plaintext.Level()].InvNTT(plaintext.value, encoder.polypool)
-	encoder.ckkscontext.contextLevel[plaintext.Level()].PolyToBigint(encoder.polypool, encoder.bigint_coeffs)
+	encoder.ckkscontext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	encoder.ckkscontext.contextQ.PolyToBigint(encoder.polypool, encoder.bigint_coeffs)
 
 	encoder.q_half.SetBigInt(plaintext.currentModulus)
 	encoder.q_half.Rsh(encoder.q_half, 1)

@@ -113,7 +113,7 @@ func Test_DCKKScheme(t *testing.T) {
 	}
 
 	_ = decryptor_sk1
-
+/*
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CRS_PRNG", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		Ha, _ := NewPRNG([]byte{})
@@ -440,7 +440,7 @@ func Test_DCKKScheme(t *testing.T) {
 
 		verify_test_vectors(ckkscontext, encoder, decryptor_sk1, coeffs, ciphertextSwitched, t)
 	})
-
+*/
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CBOOT", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)

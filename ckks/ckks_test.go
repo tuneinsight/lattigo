@@ -70,7 +70,7 @@ func Test_CKKS(t *testing.T) {
 		ckksTest.ckkscontext.beta,
 		ckksTest.ckkscontext.Sigma())
 
-	for i, qi := range ckksTest.ckkscontext.ContextKey(ckksTest.ckkscontext.levels - 1).Modulus {
+	for i, qi := range ckksTest.ckkscontext.ContextKeys().Modulus {
 		fmt.Println(i, qi)
 	}
 
@@ -863,24 +863,24 @@ func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 
 		coeffs := make([]*ring.Int, params.ckkscontext.n)
 		for i := uint64(0); i < params.ckkscontext.n; i++ {
-			coeffs[i] = ring.RandInt(params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].ModulusBigint)
+			coeffs[i] = ring.RandInt(params.ckkscontext.contextQ.ModulusBigint)
 			coeffs[i].Div(coeffs[i], ring.NewUint(10))
 		}
 
-		coeffsWant := make([]*ring.Int, params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].N)
+		coeffsWant := make([]*ring.Int, params.ckkscontext.contextQ.N)
 		for i := range coeffs {
 			coeffsWant[i] = coeffs[i].Copy()
 			coeffsWant[i].Div(coeffsWant[i], ring.NewUint(params.ckkscontext.moduli[len(params.ckkscontext.moduli)-1]))
 		}
 
-		polTest := params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].NewPoly()
-		polWant := params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].NewPoly()
+		polTest := params.ckkscontext.contextQ.NewPoly()
+		polWant := params.ckkscontext.contextQ.NewPoly()
 
-		params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].SetCoefficientsBigint(coeffs, polTest)
-		params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].SetCoefficientsBigint(coeffsWant, polWant)
+		params.ckkscontext.contextQ.SetCoefficientsBigint(coeffs, polTest)
+		params.ckkscontext.contextQ.SetCoefficientsBigint(coeffsWant, polWant)
 
-		params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].NTT(polTest, polTest)
-		params.ckkscontext.contextLevel[params.ckkscontext.Levels()-1].NTT(polWant, polWant)
+		params.ckkscontext.contextQ.NTT(polTest, polTest)
+		params.ckkscontext.contextQ.NTT(polWant, polWant)
 
 		rescale(params.evaluator, polTest, polTest)
 

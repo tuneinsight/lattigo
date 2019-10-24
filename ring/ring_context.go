@@ -369,11 +369,22 @@ func (context *Context) NewPoly() *Poly {
 	return p
 }
 
+func (context *Context) NewPolyLvl(level uint64) *Poly {
+	p := new(Poly)
+
+	p.Coeffs = make([][]uint64, level+1)
+	for i := uint64(0); i < level + 1; i++ {
+		p.Coeffs[i] = make([]uint64, context.N)
+	}
+
+	return p
+}
+
 // NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
 func (context *Context) UniformPoly(Pol *Poly) {
 
 	var randomBytes []byte
-	var randomUint, mask uint64
+	var randomUint, mask, qi uint64
 
 	n := context.N
 	if n < 8 {
@@ -385,7 +396,11 @@ func (context *Context) UniformPoly(Pol *Poly) {
 		panic("crypto rand error")
 	}
 
-	for j, qi := range context.Modulus {
+	level := uint64(len(Pol.Coeffs)-1)
+
+	for j := uint64(0) ; j < level + 1 ; j++{
+
+		qi = context.Modulus[j]
 
 		// Starts by computing the mask
 		mask = (1 << uint64(bits.Len64(qi))) - 1
@@ -425,6 +440,16 @@ func (context *Context) UniformPoly(Pol *Poly) {
 func (context *Context) NewUniformPoly() (Pol *Poly) {
 
 	Pol = context.NewPoly()
+
+	context.UniformPoly(Pol)
+
+	return
+}
+
+
+func (context *Context) NewUniformPolyLvl(level uint64) (Pol *Poly) {
+
+	Pol = context.NewPolyLvl(level)
 
 	context.UniformPoly(Pol)
 
@@ -513,18 +538,40 @@ func (context *Context) PolyToString(p1 *Poly) []string {
 //PolyToBigint reconstructs p1 and returns the result in an array of Int.
 func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*Int) {
 
-	tmp := NewInt(0)
+	var qi, level uint64
+
+	level = uint64(len(p1.Coeffs)-1)
+
+	crtReconstruction := make([]*Int, level+1)
+
+	QiB := new(Int)
+	tmp := new(Int)
+	modulusBigint := NewUint(1)
+
+	for i := uint64(0) ; i < level+1 ; i++{
+
+		qi = context.Modulus[i]
+		QiB.SetUint(qi)
+		
+		modulusBigint.Mul(modulusBigint, QiB)
+
+		crtReconstruction[i] = new(Int)
+		crtReconstruction[i].Div(context.ModulusBigint, QiB)
+		tmp.Inv(crtReconstruction[i], QiB)
+		tmp.Mod(tmp, QiB)
+		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
+	}
 
 	for x := uint64(0); x < context.N; x++ {
 
 		tmp.SetUint(0)
-		coeffsBigint[x] = NewUint(0)
+		coeffsBigint[x] = new(Int)
 
-		for i := 0; i < len(context.Modulus); i++ {
-			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), context.CrtReconstruction[i]))
+		for i := uint64(0); i < level + 1; i++ {
+			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), crtReconstruction[i]))
 		}
 
-		coeffsBigint[x].Mod(coeffsBigint[x], context.ModulusBigint)
+		coeffsBigint[x].Mod(coeffsBigint[x], modulusBigint)
 	}
 }
 

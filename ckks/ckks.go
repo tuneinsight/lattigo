@@ -22,20 +22,17 @@ type CkksContext struct {
 	// Number of avaliable levels
 	levels uint64
 
-	// Modulie chain
+	// Moduli chain
 	moduli     []uint64
 	scalechain []float64
+	bigintChain []*ring.Int
 
-	// Contexts chain
-	contextQ     *ring.Context
-	contextLevel []*ring.Context
-
-	// Keys' contexts
+	// Contexts
 	specialprimes []uint64
 	alpha         uint64
 	beta          uint64
+	contextQ     *ring.Context
 	contextP      *ring.Context
-	keyscontext   []*ring.Context
 	contextKeys   *ring.Context
 
 	// Pre-computed values for the rescaling
@@ -119,23 +116,24 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 		primes[uint64(pj)] = primes[uint64(pj)][1:]
 	}
 
-	specialprimecontext := ring.NewContext()
 
-	if err = specialprimecontext.SetParameters(1<<ckkscontext.logN, ckkscontext.specialprimes); err != nil {
+	ckkscontext.bigintChain = make([]*ring.Int, ckkscontext.levels)
+
+	ckkscontext.bigintChain[0] = ring.NewUint(ckkscontext.moduli[0])
+	for i := uint64(1) ; i < ckkscontext.levels ; i++ {
+		ckkscontext.bigintChain[i] = ring.NewUint(ckkscontext.moduli[i])
+		ckkscontext.bigintChain[i].Mul(ckkscontext.bigintChain[i], ckkscontext.bigintChain[i-1])
+	}
+
+	//Contexts
+	ckkscontext.contextQ = ring.NewContext()
+	if err = ckkscontext.contextQ.SetParameters(1<<ckkscontext.logN, ckkscontext.moduli); err != nil {
+		return nil, err
+	}
+	if err = ckkscontext.contextQ.GenNTTParams(); err != nil {
 		return nil, err
 	}
 
-	if err = specialprimecontext.GenNTTParams(); err != nil {
-		return nil, err
-	}
-
-	ckkscontext.contextLevel = make([]*ring.Context, ckkscontext.levels)
-	ckkscontext.keyscontext = make([]*ring.Context, ckkscontext.levels)
-
-	ckkscontext.contextLevel[0] = ring.NewContext()
-	ckkscontext.keyscontext[0] = ring.NewContext()
-
-	//
 	ckkscontext.contextP = ring.NewContext()
 	if err = ckkscontext.contextP.SetParameters(1<<ckkscontext.logN, ckkscontext.specialprimes); err != nil {
 		return nil, err
@@ -145,55 +143,21 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 		return nil, err
 	}
 
-	//
-
-	if err = ckkscontext.contextLevel[0].SetParameters(1<<ckkscontext.logN, ckkscontext.moduli[:1]); err != nil {
+	ckkscontext.contextKeys = ring.NewContext()
+	if err = ckkscontext.contextKeys.SetParameters(1<<ckkscontext.logN, append(ckkscontext.moduli, ckkscontext.specialprimes...)); err != nil {
 		return nil, err
 	}
 
-	if err = ckkscontext.contextLevel[0].GenNTTParams(); err != nil {
+	if err = ckkscontext.contextKeys.GenNTTParams(); err != nil {
 		return nil, err
 	}
+	
 
-	// Each key context is equal to the same context + a special prime
-	if err = ckkscontext.keyscontext[0].Merge(ckkscontext.contextLevel[0], specialprimecontext); err != nil {
-		return nil, err
-	}
-
-	for i := uint64(1); i < ckkscontext.levels; i++ {
-
-		ckkscontext.contextLevel[i] = ring.NewContext()
-
-		if err = ckkscontext.contextLevel[i].SetParameters(1<<ckkscontext.logN, ckkscontext.moduli[i:i+1]); err != nil {
-			return nil, err
-		}
-
-		if err = ckkscontext.contextLevel[i].GenNTTParams(); err != nil {
-			return nil, err
-		}
-
-		// Instead of recomputing and storing redundant context, subsequent contexts are a merge of previous contexts.
-		if err = ckkscontext.contextLevel[i].Merge(ckkscontext.contextLevel[i-1], ckkscontext.contextLevel[i]); err != nil {
-			return nil, err
-		}
-
-		// Special context used for the generation of the keys
-		// Each key context is equal to the same context + a special prime
-		ckkscontext.keyscontext[i] = ckkscontext.contextLevel[i].CopyNew()
-		if err = ckkscontext.keyscontext[i].Merge(ckkscontext.keyscontext[i], specialprimecontext); err != nil {
-			return nil, err
-		}
-	}
-
-	ckkscontext.contextQ = ckkscontext.contextLevel[ckkscontext.levels-1]
-	ckkscontext.contextKeys = ckkscontext.keyscontext[ckkscontext.levels-1]
-	// ========== END < CONTEXTS CHAIN > END ===============
-
-	ckkscontext.logQ = uint64(ckkscontext.keyscontext[ckkscontext.levels-1].ModulusBigint.Value.BitLen())
+	ckkscontext.logQ = uint64(ckkscontext.contextKeys.ModulusBigint.Value.BitLen())
 
 	var Qi uint64
 
-	bredParams := ckkscontext.contextLevel[ckkscontext.levels-1].GetBredParams()
+	bredParams := ckkscontext.contextQ.GetBredParams()
 
 	ckkscontext.rescaleParamsKeys = make([]uint64, ckkscontext.levels)
 
@@ -223,7 +187,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 		Ql = ckkscontext.moduli[j]
 
-		bredParams := ckkscontext.contextLevel[j-1].GetBredParams()
+		bredParams := ckkscontext.contextQ.GetBredParams()
 
 		for i := uint64(0); i < j; i++ {
 
@@ -233,8 +197,8 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 		}
 	}
 
-	ckkscontext.gaussianSampler = ckkscontext.keyscontext[ckkscontext.levels-1].NewKYSampler(params.Sigma, int(6*params.Sigma))
-	ckkscontext.ternarySampler = ckkscontext.keyscontext[ckkscontext.levels-1].NewTernarySampler()
+	ckkscontext.gaussianSampler = ckkscontext.contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))
+	ckkscontext.ternarySampler = ckkscontext.contextKeys.NewTernarySampler()
 
 	var m, mask uint64
 
@@ -295,21 +259,12 @@ func (ckksContext *CkksContext) Scale() float64 {
 	return ckksContext.scale
 }
 
-func (ckksContext *CkksContext) Context(level uint64) *ring.Context {
-	return ckksContext.contextLevel[level]
-}
-
 func (ckksContext *CkksContext) ContextQ() *ring.Context {
 	return ckksContext.contextQ
 }
 
 func (ckksContext *CkksContext) ContextP() *ring.Context {
 	return ckksContext.contextP
-}
-
-// ContextKeys returns the ring context under which the keys are created.
-func (ckksContext *CkksContext) ContextKey(level uint64) *ring.Context {
-	return ckksContext.keyscontext[level]
 }
 
 // ContextKeys returns the ring context under which the keys are created.

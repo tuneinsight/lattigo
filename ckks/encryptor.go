@@ -52,7 +52,7 @@ func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encr
 
 	encryptor.rescalepool = make([]uint64, ckkscontext.n)
 
-	encryptor.baseconverter = ring.NewFastBasisExtender(ckkscontext.contextLevel[ckkscontext.levels-1].Modulus, ckkscontext.specialprimes)
+	encryptor.baseconverter = ring.NewFastBasisExtender(ckkscontext.contextQ.Modulus, ckkscontext.specialprimes)
 
 	return encryptor, nil
 }
@@ -97,6 +97,7 @@ func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext
 func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	// We sample a R-WLE instance (encryption of zero) over the keys context (ciphertext context + special prime)
+
 	contextKeys := encryptor.ckkscontext.contextKeys
 	contextQ := encryptor.ckkscontext.contextQ
 	contextP := encryptor.ckkscontext.contextP

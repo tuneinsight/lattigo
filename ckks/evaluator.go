@@ -48,7 +48,7 @@ func (ckkscontext *CkksContext) NewEvaluator() (evaluator *Evaluator) {
 
 	evaluator.ctxpool = ckkscontext.NewCiphertext(1, ckkscontext.levels-1, ckkscontext.scale)
 
-	evaluator.baseconverter = ring.NewFastBasisExtender(evaluator.ckkscontext.contextLevel[ckkscontext.levels-1].Modulus, evaluator.ckkscontext.specialprimes)
+	evaluator.baseconverter = ring.NewFastBasisExtender(evaluator.ckkscontext.contextQ.Modulus, evaluator.ckkscontext.specialprimes)
 
 	evaluator.decomposer = ring.NewArbitraryDecomposer(ckkscontext.moduli, ckkscontext.specialprimes)
 
@@ -1162,10 +1162,10 @@ func (evaluator *Evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ct
 		return err
 	}
 
-	minLevel := min([]uint64{el0.Level(), el1.Level(), elOut.Level()})
+	level := min([]uint64{el0.Level(), el1.Level(), elOut.Level()})
 
-	if ctOut.Level() > minLevel {
-		evaluator.DropLevel(elOut, elOut.Level()-minLevel)
+	if ctOut.Level() > level {
+		evaluator.DropLevel(elOut, elOut.Level()-level)
 	}
 
 	if el0.Degree() > 1 || el1.Degree() > 1 {
@@ -1182,7 +1182,7 @@ func (evaluator *Evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ct
 
 	elOut.SetScale(el0.Scale() * el1.Scale())
 
-	context := evaluator.ckkscontext.contextLevel[minLevel]
+	context := evaluator.ckkscontext.contextQ
 
 	var c_00, c_01, c0, c1, c2 *ring.Poly
 
@@ -1222,38 +1222,38 @@ func (evaluator *Evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ct
 			c2 = evaluator.ringpool[4]
 		}
 
-		context.MForm(el0.value[0], c_00)
-		context.MForm(el0.value[1], c_01)
+		context.MFormLvl(level, el0.value[0], c_00)
+		context.MFormLvl(level, el0.value[1], c_01)
 
 		if el0 == el1 { // squaring case
 
-			context.MulCoeffsMontgomery(c_00, el1.value[0], c0) // c0 = c[0]*c[0]
-			context.MulCoeffsMontgomery(c_00, el1.value[1], c1) // c1 = 2*c[0]*c[1]
-			context.Add(c1, c1, c1)
-			context.MulCoeffsMontgomery(c_01, el1.value[1], c2) // c2 = c[1]*c[1]
+			context.MulCoeffsMontgomeryLvl(level, c_00, el1.value[0], c0) // c0 = c[0]*c[0]
+			context.MulCoeffsMontgomeryLvl(level, c_00, el1.value[1], c1) // c1 = 2*c[0]*c[1]
+			context.AddLvl(level, c1, c1, c1)
+			context.MulCoeffsMontgomeryLvl(level, c_01, el1.value[1], c2) // c2 = c[1]*c[1]
 
 		} else { // regular case
 
-			context.MulCoeffsMontgomery(c_00, el1.value[0], c0) // c0 = c0[0]*c0[0]
-			context.MulCoeffsMontgomery(c_00, el1.value[1], c1)
-			context.MulCoeffsMontgomeryAndAddNoMod(c_01, el1.value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
-			context.MulCoeffsMontgomery(c_01, el1.value[1], c2)            // c2 = c0[1]*c1[1]
+			context.MulCoeffsMontgomeryLvl(level, c_00, el1.value[0], c0) // c0 = c0[0]*c0[0]
+			context.MulCoeffsMontgomeryLvl(level, c_00, el1.value[1], c1)
+			context.MulCoeffsMontgomeryAndAddNoModLvl(level, c_01, el1.value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
+			context.MulCoeffsMontgomeryLvl(level, c_01, el1.value[1], c2)            // c2 = c0[1]*c1[1]
 		}
 
 		// Relinearize if a key was provided
 		if evakey != nil {
 
-			context.Copy(c0, elOut.value[0])
-			context.Copy(c1, elOut.value[1])
+			context.CopyLvl(level, c0, elOut.value[0])
+			context.CopyLvl(level, c1, elOut.value[1])
 
 			evaluator.switchKeysInPlace(c2, evakey.evakey, elOut.Ciphertext())
 
 		} else { // Or copies the result on the output ciphertext if it was one of the inputs
 			if elOut == el0 || elOut == el1 {
 				elOut.Resize(evaluator.ckkscontext, 2)
-				context.Copy(c0, elOut.value[0])
-				context.Copy(c1, elOut.value[1])
-				context.Copy(c2, elOut.value[2])
+				context.CopyLvl(level, c0, elOut.value[0])
+				context.CopyLvl(level, c1, elOut.value[1])
+				context.CopyLvl(level, c2, elOut.value[2])
 			}
 		}
 
@@ -1271,9 +1271,9 @@ func (evaluator *Evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ct
 		c_00 := evaluator.ringpool[0]
 		c_00.Zero()
 
-		context.MForm(tmp0.value[0], c_00)
-		context.MulCoeffsMontgomery(c_00, tmp1.value[0], elOut.value[0])
-		context.MulCoeffsMontgomery(c_00, tmp1.value[1], elOut.value[1])
+		context.MFormLvl(level, tmp0.value[0], c_00)
+		context.MulCoeffsMontgomeryLvl(level, c_00, tmp1.value[0], elOut.value[0])
+		context.MulCoeffsMontgomeryLvl(level, c_00, tmp1.value[1], elOut.value[1])
 	}
 
 	return nil
@@ -1298,9 +1298,11 @@ func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 		ctOut.SetScale(ct0.Scale())
 	}
 
-	context := evaluator.ckkscontext.contextLevel[min([]uint64{ct0.Level(), ctOut.Level()})]
-	context.Copy(ct0.value[0], ctOut.value[0])
-	context.Copy(ct0.value[1], ctOut.value[1])
+	level := min([]uint64{ct0.Level(), ctOut.Level()})
+	context := evaluator.ckkscontext.contextQ
+
+	context.CopyLvl(level, ct0.value[0], ctOut.value[0])
+	context.CopyLvl(level, ct0.value[1], ctOut.value[1])
 
 	evaluator.switchKeysInPlace(ct0.value[2], evakey.evakey, ctOut)
 
@@ -1328,10 +1330,11 @@ func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingK
 		return errors.New("cannot switchkeys -> input and output ciphertext must be of degree 1")
 	}
 
-	context := evaluator.ckkscontext.contextLevel[min([]uint64{ct0.Level(), ctOut.Level()})]
+	level := min([]uint64{ct0.Level(), ctOut.Level()})
+	context := evaluator.ckkscontext.contextQ
 
-	context.Copy(ct0.value[0], ctOut.value[0])
-	context.Copy(ct0.value[1], ctOut.value[1])
+	context.CopyLvl(level, ct0.value[0], ctOut.value[0])
+	context.CopyLvl(level, ct0.value[1], ctOut.value[1])
 
 	evaluator.switchKeysInPlace(ct0.value[1], switchingKey, ctOut)
 
@@ -1413,8 +1416,11 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 	evakey_index = 1
 
-	evaluator.ckkscontext.contextLevel[ctOut.Level()].Copy(ct0.value[0], ctOut.value[0])
-	evaluator.ckkscontext.contextLevel[ctOut.Level()].Copy(ct0.value[1], ctOut.value[1])
+	level := min([]uint64{ct0.Level(), ctOut.Level()})
+	context := evaluator.ckkscontext.contextQ
+
+	context.CopyLvl(level, ct0.value[0], ctOut.value[0])
+	context.CopyLvl(level, ct0.value[1], ctOut.value[1])
 
 	for k > 0 {
 
@@ -1471,8 +1477,11 @@ func (evaluator *Evaluator) permuteNTT(ct0 *Ciphertext, generator uint64, evakey
 	ring.PermuteNTT(ct0.value[0], generator, el0)
 	ring.PermuteNTT(ct0.value[1], generator, el1)
 
-	evaluator.ckkscontext.contextLevel[ctOut.Level()].Copy(el0, ctOut.value[0])
-	evaluator.ckkscontext.contextLevel[ctOut.Level()].Copy(el1, ctOut.value[1])
+	level := min([]uint64{ct0.Level(), ctOut.Level()})
+	context := evaluator.ckkscontext.contextQ
+
+	context.CopyLvl(level, el0, ctOut.value[0])
+	context.CopyLvl(level, el1, ctOut.value[1])
 
 	evaluator.switchKeysInPlace(ctOut.value[1], evakey, ctOut)
 }

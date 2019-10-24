@@ -92,9 +92,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 
 	// h0 = u_i * pk_0 + s_i*c_1 (NTT)
 
-	pcks.contextCiphertexts.Copy(ct.Value()[1], pcks.tmp)
-
-	pcks.contextCiphertexts.NTT(pcks.tmp, pcks.tmp)
+	pcks.contextCiphertexts.NTT(ct.Value()[1], pcks.tmp)
 	pcks.contextCiphertexts.MulCoeffsMontgomeryAndAdd(sk, pcks.tmp, shareOut[0])
 
 	for _, pj := range pcks.keyswitchprimes {

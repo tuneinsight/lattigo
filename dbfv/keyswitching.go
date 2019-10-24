@@ -84,9 +84,7 @@ func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 
 	level := uint64(len(ct.Value()[1].Coeffs) - 1)
 
-	cks.contextCiphertexts.Copy(ct.Value()[1], cks.tmpNtt)
-
-	cks.contextCiphertexts.NTT(cks.tmpNtt, cks.tmpNtt)
+	cks.contextCiphertexts.NTT(ct.Value()[1], cks.tmpNtt)
 	cks.contextCiphertexts.MulCoeffsMontgomery(cks.tmpNtt, skDelta, shareOut)
 
 	for _, pj := range cks.keyswitchprimes {

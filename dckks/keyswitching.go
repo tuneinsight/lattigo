@@ -56,22 +56,26 @@ func (cks *CKS) KeySwitch(c1 *ring.Poly) (h *ring.Poly) {
 	level := uint64(len(c1.Coeffs) - 1)
 
 	h = contextKeys.NewPoly()
-	contextQ.Copy(c1, h)
+	contextQ.CopyLvl(level, c1, h)
 
-	contextQ.InvNTT(h, h)
-	cks.baseconverter.ModUp(level, h, h)
-	contextKeys.NTT(h, h)
-
-	contextKeys.MulCoeffsMontgomery(h, cks.deltaSk, h)
+	contextQ.MulCoeffsMontgomeryLvl(level, h, cks.deltaSk, h)
 
 	for _, pj := range cks.ckksContext.KeySwitchPrimes() {
-		contextKeys.MulScalar(h, pj, h)
+		contextQ.MulScalarLvl(level, h, pj, h)
 	}
 
 	cks.gaussianSamplerSmudge.SampleNTT(cks.polypool)
-	contextKeys.Add(h, cks.polypool, h)
+	contextQ.AddLvl(level, h, cks.polypool, h)
 
-	cks.baseconverter.ModDownNTT(contextQ, contextP, cks.ckksContext.RescaleParamsKeys(), level, h, h, cks.polypool)
+	hP := contextP.NewPoly()
+
+	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(contextKeys.Modulus)); x, i = x+1, i+1 {
+		for j := uint64(0); j < contextKeys.N; j++ {
+			hP.Coeffs[x][j] += cks.polypool.Coeffs[i][j]
+		}
+	}
+
+	cks.baseconverter.ModDownSplitedNTT(contextQ, contextP, cks.ckksContext.RescaleParamsKeys(), level, h, hP, h, cks.polypool)
 
 	h.Coeffs = h.Coeffs[:level+1]
 
@@ -86,16 +90,17 @@ func (cks *CKS) KeySwitch(c1 *ring.Poly) (h *ring.Poly) {
 func (cks *CKS) Aggregate(c0 *ring.Poly, h []*ring.Poly) {
 
 	contextQ := cks.ckksContext.ContextQ()
+	level := uint64(len(c0.Coeffs) - 1)
 
 	for i := range h {
-		contextQ.AddNoMod(c0, h[i], c0)
+		contextQ.AddNoModLvl(level, c0, h[i], c0)
 
 		if i&7 == 1 {
-			contextQ.Reduce(c0, c0)
+			contextQ.ReduceLvl(level, c0, c0)
 		}
 	}
 
 	if len(h)&7 != 7 {
-		contextQ.Reduce(c0, c0)
+		contextQ.ReduceLvl(level, c0, c0)
 	}
 }

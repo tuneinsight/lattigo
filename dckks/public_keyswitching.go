@@ -100,7 +100,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
 func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
 
-	level := uint64(len(share1[0].Coeffs))-1
+	level := uint64(len(share1[0].Coeffs)) - 1
 	pcks.ckksContext.ContextQ().AddLvl(level, share1[0], share2[0], shareOut[0])
 	pcks.ckksContext.ContextQ().AddLvl(level, share1[1], share2[1], shareOut[1])
 }

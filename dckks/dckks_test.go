@@ -164,8 +164,7 @@ func Test_DCKKScheme(t *testing.T) {
 		}
 	})
 
-	// EKG_Naive
-
+	// EKG (OK multiple levels)
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/EKG", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		// Each party instantiate an ekg naive protocole
@@ -212,6 +211,7 @@ func Test_DCKKScheme(t *testing.T) {
 
 	})
 
+	// EKG Naive (OK multiple levels)
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/EKG_NAIVE", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		// Each party instantiate an ekg naive protocole
@@ -246,6 +246,7 @@ func Test_DCKKScheme(t *testing.T) {
 		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffs, ciphertext, t)
 	})
 
+	// RKG conjugate (OK multiple levels)
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/RKG_conjugate", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		rkg := make([]*RKG, parties)
@@ -283,6 +284,7 @@ func Test_DCKKScheme(t *testing.T) {
 
 	})
 
+	// RKG rot col pow2 (OK multiple levels)
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/RKG_rot_col_pow2", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		rkg := make([]*RKG, parties)
@@ -327,6 +329,7 @@ func Test_DCKKScheme(t *testing.T) {
 
 	})
 
+	// RKG rot col pow2 (OK multiple levels (always assumed to be at max level))
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CKG", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		crp := make([]*ring.Poly, parties)
@@ -374,6 +377,7 @@ func Test_DCKKScheme(t *testing.T) {
 
 	})
 
+	// CKS (OK multiple levels)
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CKS", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)

@@ -373,7 +373,7 @@ func (context *Context) NewPolyLvl(level uint64) *Poly {
 	p := new(Poly)
 
 	p.Coeffs = make([][]uint64, level+1)
-	for i := uint64(0); i < level + 1; i++ {
+	for i := uint64(0); i < level+1; i++ {
 		p.Coeffs[i] = make([]uint64, context.N)
 	}
 
@@ -396,9 +396,9 @@ func (context *Context) UniformPoly(Pol *Poly) {
 		panic("crypto rand error")
 	}
 
-	level := uint64(len(Pol.Coeffs)-1)
+	level := uint64(len(Pol.Coeffs) - 1)
 
-	for j := uint64(0) ; j < level + 1 ; j++{
+	for j := uint64(0); j < level+1; j++ {
 
 		qi = context.Modulus[j]
 
@@ -445,7 +445,6 @@ func (context *Context) NewUniformPoly() (Pol *Poly) {
 
 	return
 }
-
 
 func (context *Context) NewUniformPolyLvl(level uint64) (Pol *Poly) {
 
@@ -529,7 +528,7 @@ func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*Int, p1
 
 	QiBigint := new(Int)
 	coeffTmp := new(Int)
-	for i := uint64(0) ; i < level + 1; i++ {
+	for i := uint64(0); i < level+1; i++ {
 		QiBigint.SetUint(context.Modulus[i])
 		for j, coeff := range coeffs {
 			p1.Coeffs[i][j] = coeffTmp.Mod(coeff, QiBigint).Uint64()
@@ -559,7 +558,7 @@ func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*Int) {
 
 	var qi, level uint64
 
-	level = uint64(len(p1.Coeffs)-1)
+	level = uint64(len(p1.Coeffs) - 1)
 
 	crtReconstruction := make([]*Int, level+1)
 
@@ -567,11 +566,11 @@ func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*Int) {
 	tmp := new(Int)
 	modulusBigint := NewUint(1)
 
-	for i := uint64(0) ; i < level+1 ; i++{
+	for i := uint64(0); i < level+1; i++ {
 
 		qi = context.Modulus[i]
 		QiB.SetUint(qi)
-		
+
 		modulusBigint.Mul(modulusBigint, QiB)
 
 		crtReconstruction[i] = new(Int)
@@ -586,7 +585,7 @@ func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*Int) {
 		tmp.SetUint(0)
 		coeffsBigint[x] = new(Int)
 
-		for i := uint64(0); i < level + 1; i++ {
+		for i := uint64(0); i < level+1; i++ {
 			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), crtReconstruction[i]))
 		}
 

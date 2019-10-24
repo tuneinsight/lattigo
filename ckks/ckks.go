@@ -23,15 +23,15 @@ type CkksContext struct {
 	levels uint64
 
 	// Moduli chain
-	moduli     []uint64
-	scalechain []float64
+	moduli      []uint64
+	scalechain  []float64
 	bigintChain []*ring.Int
 
 	// Contexts
 	specialprimes []uint64
 	alpha         uint64
 	beta          uint64
-	contextQ     *ring.Context
+	contextQ      *ring.Context
 	contextP      *ring.Context
 	contextKeys   *ring.Context
 
@@ -116,11 +116,10 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 		primes[uint64(pj)] = primes[uint64(pj)][1:]
 	}
 
-
 	ckkscontext.bigintChain = make([]*ring.Int, ckkscontext.levels)
 
 	ckkscontext.bigintChain[0] = ring.NewUint(ckkscontext.moduli[0])
-	for i := uint64(1) ; i < ckkscontext.levels ; i++ {
+	for i := uint64(1); i < ckkscontext.levels; i++ {
 		ckkscontext.bigintChain[i] = ring.NewUint(ckkscontext.moduli[i])
 		ckkscontext.bigintChain[i].Mul(ckkscontext.bigintChain[i], ckkscontext.bigintChain[i-1])
 	}
@@ -151,7 +150,6 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 	if err = ckkscontext.contextKeys.GenNTTParams(); err != nil {
 		return nil, err
 	}
-	
 
 	ckkscontext.logQ = uint64(ckkscontext.contextKeys.ModulusBigint.Value.BitLen())
 
@@ -244,7 +242,6 @@ func (ckksContext *CkksContext) Moduli() []uint64 {
 func (ckksContext *CkksContext) BigintChain() []*ring.Int {
 	return ckksContext.bigintChain
 }
-
 
 func (ckksContext *CkksContext) KeySwitchPrimes() []uint64 {
 	return ckksContext.specialprimes

@@ -1,6 +1,5 @@
 package dckks
 
-
 import (
 	"fmt"
 	"log"
@@ -54,7 +53,6 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 
 		benchcontext.sk0, benchcontext.pk0 = kgen.NewKeyPair()
 		benchcontext.sk1, benchcontext.pk1 = kgen.NewKeyPair()
-
 
 		benchcontext.cprng, err = NewCRPGenerator(nil, benchcontext.ckkscontext.ContextKeys())
 		if err != nil {
@@ -254,4 +252,3 @@ func bench_BOOT(params benchParams, context *benchContext, b *testing.B) {
 		}
 	})
 }
-

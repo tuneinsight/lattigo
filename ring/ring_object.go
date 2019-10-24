@@ -60,7 +60,7 @@ func (context *Context) Copy(p0, p1 *Poly) {
 func (context *Context) CopyLvl(level uint64, p0, p1 *Poly) {
 
 	if p0 != p1 {
-		for i := uint64(0) ; i < level + 1; i++ {
+		for i := uint64(0); i < level+1; i++ {
 			for j := uint64(0); j < context.N; j++ {
 				p1.Coeffs[i][j] = p0.Coeffs[i][j]
 			}

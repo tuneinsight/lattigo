@@ -39,7 +39,7 @@ func (ckkscontext *CkksContext) NewEvaluator() (evaluator *Evaluator) {
 		evaluator.keyswitchpool[i] = evaluator.ckkscontext.contextKeys.NewPoly()
 	}
 
-	for i := 0 ; i < 3 ; i++{
+	for i := 0; i < 3; i++ {
 		evaluator.poolQ[i] = evaluator.ckkscontext.contextQ.NewPoly()
 		evaluator.poolP[i] = evaluator.ckkscontext.contextP.NewPoly()
 	}
@@ -545,19 +545,19 @@ func (evaluator *Evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOu
 
 		if c_imag != 0 {
 			scaled_const_imag = ring.MRed(scaleUpExact(c_imag, ct0.Scale(), qi), context.GetNttPsi()[i][1], qi, context.GetMredParams()[i])
-			scaled_const = ring.CRed(scaled_const + scaled_const_imag, qi)
+			scaled_const = ring.CRed(scaled_const+scaled_const_imag, qi)
 		}
 
 		for j := uint64(0); j < evaluator.ckkscontext.n>>1; j++ {
-			ctOut.Value()[0].Coeffs[i][j] = ring.CRed(ct0.value[0].Coeffs[i][j] + scaled_const, qi)
+			ctOut.Value()[0].Coeffs[i][j] = ring.CRed(ct0.value[0].Coeffs[i][j]+scaled_const, qi)
 		}
 
 		if c_imag != 0 {
-			scaled_const = ring.CRed(scaled_const_real + (qi - scaled_const_imag), qi)
+			scaled_const = ring.CRed(scaled_const_real+(qi-scaled_const_imag), qi)
 		}
 
 		for j := evaluator.ckkscontext.n >> 1; j < evaluator.ckkscontext.n; j++ {
-			ctOut.Value()[0].Coeffs[i][j] = ring.CRed(ct0.value[0].Coeffs[i][j] + scaled_const, qi)
+			ctOut.Value()[0].Coeffs[i][j] = ring.CRed(ct0.value[0].Coeffs[i][j]+scaled_const, qi)
 		}
 	}
 
@@ -700,25 +700,25 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 		if c_imag != 0 {
 			scaled_const_imag = scaleUpExact(c_imag, scale, qi)
 			scaled_const_imag = ring.MRed(scaled_const_imag, context.GetNttPsi()[i][1], qi, mredParams)
-			scaled_const = ring.CRed(scaled_const + scaled_const_imag, qi)
+			scaled_const = ring.CRed(scaled_const+scaled_const_imag, qi)
 		}
 
 		scaled_const = ring.MForm(scaled_const, qi, bredParams)
 
 		for u := range ct0.Value() {
 			for j := uint64(0); j < evaluator.ckkscontext.n>>1; j++ {
-				ctOut.Value()[u].Coeffs[i][j] = ring.CRed(ctOut.Value()[u].Coeffs[i][j] + ring.MRed(ct0.Value()[u].Coeffs[i][j], scaled_const, qi, mredParams), qi)
+				ctOut.Value()[u].Coeffs[i][j] = ring.CRed(ctOut.Value()[u].Coeffs[i][j]+ring.MRed(ct0.Value()[u].Coeffs[i][j], scaled_const, qi, mredParams), qi)
 			}
 		}
 
 		if c_imag != 0 {
-			scaled_const = ring.CRed(scaled_const_real + (qi - scaled_const_imag), qi)
+			scaled_const = ring.CRed(scaled_const_real+(qi-scaled_const_imag), qi)
 			scaled_const = ring.MForm(scaled_const, qi, bredParams)
 		}
 
 		for u := range ct0.Value() {
 			for j := evaluator.ckkscontext.n >> 1; j < evaluator.ckkscontext.n; j++ {
-				ctOut.Value()[u].Coeffs[i][j] = ring.CRed(ctOut.Value()[u].Coeffs[i][j] + ring.MRed(ct0.Value()[u].Coeffs[i][j], scaled_const, qi, mredParams), qi)
+				ctOut.Value()[u].Coeffs[i][j] = ring.CRed(ctOut.Value()[u].Coeffs[i][j]+ring.MRed(ct0.Value()[u].Coeffs[i][j], scaled_const, qi, mredParams), qi)
 			}
 		}
 	}
@@ -824,7 +824,7 @@ func (evaluator *Evaluator) MultConst(ct0 *Ciphertext, constant interface{}, ctO
 		if c_imag != 0 {
 			scaled_const_imag = scaleUpExact(c_imag, scale, qi)
 			scaled_const_imag = ring.MRed(scaled_const_imag, context.GetNttPsi()[i][1], qi, mredParams)
-			scaled_const = ring.CRed(scaled_const + scaled_const_imag, qi)
+			scaled_const = ring.CRed(scaled_const+scaled_const_imag, qi)
 		}
 
 		scaled_const = ring.MForm(scaled_const, qi, bredParams)
@@ -836,7 +836,7 @@ func (evaluator *Evaluator) MultConst(ct0 *Ciphertext, constant interface{}, ctO
 		}
 
 		if c_imag != 0 {
-			scaled_const = ring.CRed(scaled_const_real + (qi - scaled_const_imag), qi)
+			scaled_const = ring.CRed(scaled_const_real+(qi-scaled_const_imag), qi)
 			scaled_const = ring.MForm(scaled_const, qi, bredParams)
 		}
 
@@ -1115,7 +1115,7 @@ func rescale(evaluator *Evaluator, p0, p1 *ring.Poly) {
 	var Qi, InvQl uint64
 
 	context := evaluator.ckkscontext.contextQ
-	
+
 	mredParams := context.GetMredParams()
 
 	p_tmp := evaluator.ckkscontext.contextQ.NewPoly()

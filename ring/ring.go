@@ -16,7 +16,7 @@ func (context *Context) Add(p1, p2, p3 *Poly) {
 // Add adds p1 to p2 coefficient wise and applies a modular reduction, returning the result on p3.
 func (context *Context) AddLvl(level uint64, p1, p2, p3 *Poly) {
 	var qi uint64
-	for i := uint64(0) ; i < level + 1; i++ {
+	for i := uint64(0); i < level+1; i++ {
 		qi = context.Modulus[i]
 		for j := uint64(0); j < context.N; j++ {
 			p3.Coeffs[i][j] = CRed(p1.Coeffs[i][j]+p2.Coeffs[i][j], qi)
@@ -34,9 +34,8 @@ func (context *Context) AddNoMod(p1, p2, p3 *Poly) {
 	}
 }
 
-
 func (context *Context) AddNoModLvl(level uint64, p1, p2, p3 *Poly) {
-	for i := uint64(0) ; i < level + 1; i++ {
+	for i := uint64(0); i < level+1; i++ {
 		for j := uint64(0); j < context.N; j++ {
 			p3.Coeffs[i][j] = p1.Coeffs[i][j] + p2.Coeffs[i][j]
 		}
@@ -54,7 +53,7 @@ func (context *Context) Sub(p1, p2, p3 *Poly) {
 
 func (context *Context) SubLvl(level uint64, p1, p2, p3 *Poly) {
 	var qi uint64
-	for i := uint64(0) ; i < level + 1; i++ {
+	for i := uint64(0); i < level+1; i++ {
 		qi = context.Modulus[i]
 		for j := uint64(0); j < context.N; j++ {
 			p3.Coeffs[i][j] = CRed((p1.Coeffs[i][j]+qi)-p2.Coeffs[i][j], qi)
@@ -74,7 +73,7 @@ func (context *Context) SubNoMod(p1, p2, p3 *Poly) {
 
 func (context *Context) SubNoModLvl(level uint64, p1, p2, p3 *Poly) {
 	var qi uint64
-	for i := uint64(0) ; i < level + 1; i++ {
+	for i := uint64(0); i < level+1; i++ {
 		qi = context.Modulus[i]
 		for j := uint64(0); j < context.N; j++ {
 			p3.Coeffs[i][j] = (p1.Coeffs[i][j] + qi) - p2.Coeffs[i][j]
@@ -93,7 +92,7 @@ func (context *Context) Neg(p1, p2 *Poly) {
 
 func (context *Context) NegLvl(level uint64, p1, p2 *Poly) {
 	var qi uint64
-	for i := uint64(0) ; i < level + 1; i++ {
+	for i := uint64(0); i < level+1; i++ {
 		qi = context.Modulus[i]
 		for j := uint64(0); j < context.N; j++ {
 			p2.Coeffs[i][j] = qi - p1.Coeffs[i][j]
@@ -224,7 +223,6 @@ func (context *Context) MulCoeffsMontgomeryAndAddLvl(level uint64, p1, p2, p3 *P
 		}
 	}
 }
-
 
 // MulCoeffsMontgomeryAndAddNoMod multiplies p1 by p2 coefficient wise with a montgomery modular reduction, adding the result to p3 without modular reduction.
 // Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
@@ -415,6 +413,17 @@ func (context *Context) MulScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
+func (context *Context) MulScalarLvl(level uint64, p1 *Poly, scalar uint64, p2 *Poly) {
+	var Qi, scalarMont uint64
+	for i := uint64(0); i < level+1; i++ {
+		Qi = context.Modulus[i]
+		scalarMont = MForm(BRedAdd(scalar, Qi, context.bredParams[i]), Qi, context.bredParams[i])
+		for j := uint64(0); j < context.N; j++ {
+			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j], scalarMont, Qi, context.mredParams[i])
+		}
+	}
+}
+
 // MulScalarBigint multiplies each coefficients of p1 by an Int scalar and applies a modular reduction, returning the result on p2.
 // To be used when the scalar is bigger than 64 bits.
 func (context *Context) MulScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
@@ -455,7 +464,7 @@ func (context *Context) MFormLvl(level uint64, p1, p2 *Poly) {
 
 	var qi uint64
 	var bredParams []uint64
-	for i := uint64(0) ; i < level + 1; i++ {
+	for i := uint64(0); i < level+1; i++ {
 		qi = context.Modulus[i]
 		bredParams = context.bredParams[i]
 		for j := uint64(0); j < context.N; j++ {
@@ -549,7 +558,7 @@ func (context *Context) MulByPow2Lvl(level uint64, p1 *Poly, pow2 uint64, p2 *Po
 	context.MFormLvl(level, p1, p2)
 	var qi uint64
 	var mredParams uint64
-	for i := uint64(0) ; i < level + 1; i++{
+	for i := uint64(0); i < level+1; i++ {
 		qi = context.Modulus[i]
 		mredParams = context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {

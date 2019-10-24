@@ -78,6 +78,10 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Cipher
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
 
+	if plaintext.Level() != encryptor.ckkscontext.levels-1 {
+		return errors.New("cannot encrypt -> plaintext not at maximum level")
+	}
+
 	if encryptor.sk != nil {
 
 		encryptfromsk(encryptor, plaintext, ciphertext)

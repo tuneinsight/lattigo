@@ -69,6 +69,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	// h0 = u_i * pk_0 + s_i*c_1
 	contextQ.MulCoeffsMontgomeryAndAddLvl(ct.Level(), sk, pcks.tmp, shareOut[0])
 
+	// TODO : improve by pre-computing prd(pj) for each qi
 	for _, pj := range pcks.ckksContext.KeySwitchPrimes() {
 		contextQ.MulScalarLvl(ct.Level(), shareOut[0], pj, shareOut[0])
 		contextQ.MulScalarLvl(ct.Level(), shareOut[1], pj, shareOut[1])
@@ -77,6 +78,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	share0P := contextP.NewPoly()
 
 	// h_0 = s_i*c_1 + u_i * pk_0 + e0
+	// TODO : improve by only computing the NTT for the required primes
 	pcks.gaussianSamplerSmudge.SampleNTT(pcks.tmp)
 	contextQ.Add(shareOut[0], pcks.tmp, shareOut[0])
 
@@ -89,6 +91,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	share1P := contextP.NewPoly()
 
 	// h_1 = u_i * pk_1 + e1
+	// TODO : improve by only computing the NTT for the required primes
 	pcks.ckksContext.GaussianSampler().SampleNTT(pcks.tmp)
 	contextQ.Add(shareOut[1], pcks.tmp, shareOut[1])
 

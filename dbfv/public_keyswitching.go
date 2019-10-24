@@ -86,21 +86,20 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	_ = pcks.ternarySampler.SampleMontgomeryNTT(0.5, pcks.tmp)
 
 	// h_0 = u_i * pk_0 (NTT)
-	pcks.contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], shareOut[0])
+	pcks.contextCiphertexts.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], shareOut[0])
 	// h_1 = u_i * pk_1 (NTT)
-	pcks.contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], shareOut[1])
+	pcks.contextCiphertexts.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], shareOut[1])
 
 	// h0 = u_i * pk_0 + s_i*c_1 (NTT)
 
 	pcks.contextCiphertexts.Copy(ct.Value()[1], pcks.tmp)
-	pcks.baseconverter.ModUp(level, pcks.tmp, pcks.tmp)
 
-	pcks.contextKeys.NTT(pcks.tmp, pcks.tmp)
-	pcks.contextKeys.MulCoeffsMontgomeryAndAdd(sk, pcks.tmp, shareOut[0])
+	pcks.contextCiphertexts.NTT(pcks.tmp, pcks.tmp)
+	pcks.contextCiphertexts.MulCoeffsMontgomeryAndAdd(sk, pcks.tmp, shareOut[0])
 
 	for _, pj := range pcks.keyswitchprimes {
-		pcks.contextKeys.MulScalar(shareOut[0], pj, shareOut[0])
-		pcks.contextKeys.MulScalar(shareOut[1], pj, shareOut[1])
+		pcks.contextCiphertexts.MulScalar(shareOut[0], pj, shareOut[0])
+		pcks.contextCiphertexts.MulScalar(shareOut[1], pj, shareOut[1])
 	}
 
 	pcks.contextCiphertexts.InvNTT(shareOut[0], shareOut[0])

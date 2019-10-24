@@ -60,10 +60,12 @@ func (cks *CKS) KeySwitch(c1 *ring.Poly) (h *ring.Poly) {
 
 	contextQ.MulCoeffsMontgomeryLvl(level, h, cks.deltaSk, h)
 
+	// TODO : improve by pre-computing prd(pj) for each qi
 	for _, pj := range cks.ckksContext.KeySwitchPrimes() {
 		contextQ.MulScalarLvl(level, h, pj, h)
 	}
 
+	// TODO : improve by only computing the NTT for the required primes
 	cks.gaussianSamplerSmudge.SampleNTT(cks.polypool)
 	contextQ.AddLvl(level, h, cks.polypool, h)
 

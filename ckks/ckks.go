@@ -247,6 +247,15 @@ func (ckksContext *CkksContext) KeySwitchPrimes() []uint64 {
 	return ckksContext.specialprimes
 }
 
+func (ckksContext *CkksContext) Alpha() uint64 {
+	return ckksContext.alpha
+}
+
+func (ckksContext *CkksContext) Beta() uint64 {
+	return ckksContext.beta
+}
+
+
 func (ckksContext *CkksContext) RescaleParamsKeys() []uint64 {
 	return ckksContext.rescaleParamsKeys
 }

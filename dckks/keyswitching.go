@@ -5,104 +5,99 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// CKS is a structure storing the parameters for the collective key-switching protocol.
-type CKS struct {
+// CKSProtocol is a structure storing the parameters for the collective key-switching protocol.
+type CKSProtocol struct {
 	ckksContext *ckks.CkksContext
 
 	sigmaSmudging         float64
 	gaussianSamplerSmudge *ring.KYSampler
 
-	deltaSk *ring.Poly
 
-	polypool *ring.Poly
+	tmp   *ring.Poly
+	tmpDelta *ring.Poly
 
 	baseconverter *ring.FastBasisExtender
 }
 
-// NewCKS creates a new CKS that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
+type CKSShare *ring.Poly
+
+// NewCKS creates a new CKSProtocol that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under an other public-key, whose secret-shares are also known to the
 // parties.
-func NewCKS(skInput, skOutput *ring.Poly, ckksContext *ckks.CkksContext, sigmaSmudging float64) *CKS {
+func NewCKSProtocol(ckksContext *ckks.CkksContext, sigmaSmudging float64) *CKSProtocol {
 
-	cks := new(CKS)
+	cks := new(CKSProtocol)
 
 	cks.ckksContext = ckksContext
 
 	cks.sigmaSmudging = sigmaSmudging
 	cks.gaussianSamplerSmudge = ckksContext.ContextKeys().NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
 
-	cks.deltaSk = ckksContext.ContextKeys().NewPoly()
-	ckksContext.ContextKeys().Sub(skInput, skOutput, cks.deltaSk)
-
-	cks.polypool = ckksContext.ContextKeys().NewPoly()
+	cks.tmp = ckksContext.ContextKeys().NewPoly()
+	cks.tmpDelta = ckksContext.ContextKeys().NewPoly()
 
 	cks.baseconverter = ring.NewFastBasisExtender(ckksContext.ContextQ().Modulus, ckksContext.KeySwitchPrimes())
 
 	return cks
 }
 
-// KeySwitch is the first and unique round of the CKS protocol. Each party holding a ciphertext ctx encrypted under a collective publick-key musth
+func (cks *CKSProtocol) AllocateShare() CKSShare {
+	return cks.ckksContext.ContextKeys().NewPoly()
+}
+
+// GenShare is the first and unique round of the CKSProtocol protocol. Each party holding a ciphertext ctx encrypted under a collective publick-key musth
 // compute the following :
 //
-// [(P*(skInput_i - skOutput_i) * ctx[0] + e_i)/P]
+// [(skInput_i - skOutput_i) * ctx[0] + e_i]
 //
 // Each party then broadcast the result of this computation to the other j-1 parties.
-func (cks *CKS) KeySwitch(c1 *ring.Poly) (h *ring.Poly) {
+func (cks *CKSProtocol) GenShare(skInput, skOutput *ring.Poly, ct *ckks.Ciphertext, shareOut CKSShare) {
+
+	cks.ckksContext.ContextKeys().Sub(skInput, skOutput, cks.tmpDelta)
+
+	cks.GenShareDelta(cks.tmpDelta, ct, shareOut)
+}
+
+func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, shareOut CKSShare) {
 
 	contextQ := cks.ckksContext.ContextQ()
 	contextP := cks.ckksContext.ContextP()
-	contextKeys := cks.ckksContext.ContextKeys()
 
-	level := uint64(len(c1.Coeffs) - 1)
-
-	h = contextKeys.NewPoly()
-	contextQ.CopyLvl(level, c1, h)
-
-	contextQ.MulCoeffsMontgomeryLvl(level, h, cks.deltaSk, h)
+	contextQ.MulCoeffsMontgomeryLvl(ct.Level(), ct.Value()[1], skDelta, shareOut)
 
 	// TODO : improve by pre-computing prd(pj) for each qi
 	for _, pj := range cks.ckksContext.KeySwitchPrimes() {
-		contextQ.MulScalarLvl(level, h, pj, h)
+		contextQ.MulScalarLvl(ct.Level(), shareOut, pj, shareOut)
 	}
 
 	// TODO : improve by only computing the NTT for the required primes
-	cks.gaussianSamplerSmudge.SampleNTT(cks.polypool)
-	contextQ.AddLvl(level, h, cks.polypool, h)
+	cks.gaussianSamplerSmudge.SampleNTT(cks.tmp)
+	contextQ.AddLvl(ct.Level(), shareOut, cks.tmp, shareOut)
 
 	hP := contextP.NewPoly()
 
-	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(contextKeys.Modulus)); x, i = x+1, i+1 {
-		for j := uint64(0); j < contextKeys.N; j++ {
-			hP.Coeffs[x][j] += cks.polypool.Coeffs[i][j]
+	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.ckksContext.ContextKeys().Modulus)); x, i = x+1, i+1 {
+		for j := uint64(0); j < contextQ.N; j++ {
+			hP.Coeffs[x][j] += cks.tmp.Coeffs[i][j]
 		}
 	}
 
-	cks.baseconverter.ModDownSplitedNTT(contextQ, contextP, cks.ckksContext.RescaleParamsKeys(), level, h, hP, h, cks.polypool)
+	cks.baseconverter.ModDownSplitedNTT(contextQ, contextP, cks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut, hP, shareOut, cks.tmp)
 
-	h.Coeffs = h.Coeffs[:level+1]
+	shareOut.Coeffs = shareOut.Coeffs[:ct.Level()+1]
 
-	cks.polypool.Zero()
-
-	return h
+	cks.tmp.Zero()
 }
 
-// Aggregate is the second part of the unique round of the CKS protocol. Uppon receiving the j-1 elements each party computes :
+// AggregateShares is the second part of the unique round of the CKSProtocol protocol. Uppon receiving the j-1 elements each party computes :
 //
-// [ctx[0] + sum((P*(skInput_i - skOutput_i)*ctx[0] + e_i)/P), ctx[1]]
-func (cks *CKS) Aggregate(c0 *ring.Poly, h []*ring.Poly) {
+// [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
+func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut CKSShare) {
+	cks.ckksContext.ContextQ().AddLvl(uint64(len(share1.Coeffs) - 1), share1, share2, shareOut)
+}
 
-	contextQ := cks.ckksContext.ContextQ()
-	level := uint64(len(c0.Coeffs) - 1)
-
-	for i := range h {
-		contextQ.AddNoModLvl(level, c0, h[i], c0)
-
-		if i&7 == 1 {
-			contextQ.ReduceLvl(level, c0, c0)
-		}
-	}
-
-	if len(h)&7 != 7 {
-		contextQ.ReduceLvl(level, c0, c0)
-	}
+// KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
+func (cks *CKSProtocol) KeySwitch(combined CKSShare, ct *ckks.Ciphertext, ctOut *ckks.Ciphertext) {
+	cks.ckksContext.ContextQ().AddLvl(ct.Level(), ct.Value()[0], combined, ctOut.Value()[0])
+	cks.ckksContext.ContextQ().CopyLvl(ct.Level(), ct.Value()[1], ctOut.Value()[1])
 }

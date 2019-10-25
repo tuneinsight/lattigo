@@ -1,16 +1,13 @@
 package dckks
 
 import (
+	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
-	"math"
 )
 
 // EkgProtocolNaive is a structure storing the parameters for the naive EKG protocol.
 type EkgProtocolNaive struct {
-	context         *ring.Context
-	keyswitchprimes []uint64
-	alpha           uint64
-	beta            uint64
+	ckksContext *ckks.CkksContext
 	gaussianSampler *ring.KYSampler
 	ternarySampler  *ring.TernarySampler
 	polypool        *ring.Poly
@@ -18,21 +15,12 @@ type EkgProtocolNaive struct {
 
 // NewEkgProtocolNaive creates a new EkgProtocolNaive object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
-func NewEkgProtocolNaive(context *ring.Context, keyswitchprimes []uint64) (ekg *EkgProtocolNaive) {
+func NewEkgProtocolNaive(ckksContext *ckks.CkksContext) (ekg *EkgProtocolNaive) {
 	ekg = new(EkgProtocolNaive)
-	ekg.context = context
-
-	ekg.keyswitchprimes = make([]uint64, len(keyswitchprimes))
-	for i := range keyswitchprimes {
-		ekg.keyswitchprimes[i] = keyswitchprimes[i]
-	}
-
-	ekg.alpha = uint64(len(keyswitchprimes))
-	ekg.beta = uint64(math.Ceil(float64(len(context.Modulus)-len(keyswitchprimes)) / float64(ekg.alpha)))
-
-	ekg.gaussianSampler = context.NewKYSampler(3.19, 19)
-	ekg.ternarySampler = context.NewTernarySampler()
-	ekg.polypool = context.NewPoly()
+	ekg.ckksContext = ckksContext
+	ekg.gaussianSampler = ckksContext.GaussianSampler()
+	ekg.ternarySampler = ckksContext.TernarySampler()
+	ekg.polypool = ckksContext.ContextKeys().NewPoly()
 	return ekg
 }
 
@@ -44,17 +32,22 @@ func NewEkgProtocolNaive(context *ring.Context, keyswitchprimes []uint64) (ekg *
 // and broadcasts it to all other j-1 parties.
 func (ekg *EkgProtocolNaive) GenSamples(sk *ring.Poly, pk [2]*ring.Poly) (h [][2]*ring.Poly) {
 
-	h = make([][2]*ring.Poly, ekg.beta)
+
+	contextKeys := ekg.ckksContext.ContextKeys()
+
+	h = make([][2]*ring.Poly, ekg.ckksContext.Beta())
 
 	ekg.polypool.Copy(sk)
 
-	for _, pj := range ekg.keyswitchprimes {
-		ekg.context.MulScalar(ekg.polypool, pj, ekg.polypool)
+	for _, pj := range ekg.ckksContext.KeySwitchPrimes() {
+		contextKeys.MulScalar(ekg.polypool, pj, ekg.polypool)
 	}
 
-	ekg.context.InvMForm(ekg.polypool, ekg.polypool)
+	contextKeys.InvMForm(ekg.polypool, ekg.polypool)
 
-	for i := uint64(0); i < ekg.beta; i++ {
+	var index uint64
+
+	for i := uint64(0); i < ekg.ckksContext.Beta(); i++ {
 		// h_0 = e0
 		h[i][0] = ekg.gaussianSampler.SampleNTTNew()
 		// h_1 = e1
@@ -62,26 +55,28 @@ func (ekg *EkgProtocolNaive) GenSamples(sk *ring.Poly, pk [2]*ring.Poly) (h [][2
 
 		// h_0 = e0 + [sk*P*(qiBarre*qiStar)%qi = sk*P, else 0]
 
-		for j := uint64(0); j < ekg.alpha; j++ {
+		for j := uint64(0); j < ekg.ckksContext.Alpha(); j++ {
 
-			for w := uint64(0); w < ekg.context.N; w++ {
-				h[i][0].Coeffs[i*ekg.alpha+j][w] = ring.CRed(h[i][0].Coeffs[i*ekg.alpha+j][w]+ekg.polypool.Coeffs[i*ekg.alpha+j][w], ekg.context.Modulus[i*ekg.alpha+j])
+			index = i*ekg.ckksContext.Alpha()+j
+
+			for w := uint64(0); w < contextKeys.N; w++ {
+				h[i][0].Coeffs[index][w] = ring.CRed(h[i][0].Coeffs[index][w] + ekg.polypool.Coeffs[index][w], contextKeys.Modulus[index])
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if i*ekg.alpha+j == uint64(len(ekg.context.Modulus)-len(ekg.keyswitchprimes)-1) {
+			if index == uint64(len(ekg.ckksContext.ContextQ().Modulus)){
 				break
 			}
 		}
 	}
 
-	for i := uint64(0); i < ekg.beta; i++ {
+	for i := uint64(0); i < ekg.ckksContext.Beta(); i++ {
 		// u
 		ekg.ternarySampler.SampleMontgomeryNTT(0.5, ekg.polypool)
 		// h_0 = pk_0 * u + e0 + P * sk * (qiBarre*qiStar)%qi
-		ekg.context.MulCoeffsMontgomeryAndAdd(pk[0], ekg.polypool, h[i][0])
+		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], ekg.polypool, h[i][0])
 		// h_1 = pk_1 * u + e1 + P * sk * (qiBarre*qiStar)%qi
-		ekg.context.MulCoeffsMontgomeryAndAdd(pk[1], ekg.polypool, h[i][1])
+		contextKeys.MulCoeffsMontgomeryAndAdd(pk[1], ekg.polypool, h[i][1])
 	}
 
 	ekg.polypool.Zero()
@@ -104,9 +99,11 @@ func (ekg *EkgProtocolNaive) GenSamples(sk *ring.Poly, pk [2]*ring.Poly) (h [][2
 // And party broadcast this last result to the other j-1 parties.
 func (ekg *EkgProtocolNaive) Aggregate(sk *ring.Poly, pk [2]*ring.Poly, samples [][][2]*ring.Poly) (h [][2]*ring.Poly) {
 
-	h = make([][2]*ring.Poly, ekg.beta)
+	contextKeys := ekg.ckksContext.ContextKeys()
 
-	for i := uint64(0); i < ekg.beta; i++ {
+	h = make([][2]*ring.Poly, ekg.ckksContext.Beta())
+
+	for i := uint64(0); i < ekg.ckksContext.Beta(); i++ {
 
 		h[i][0] = samples[0][i][0].CopyNew()
 		h[i][1] = samples[0][i][1].CopyNew()
@@ -114,41 +111,41 @@ func (ekg *EkgProtocolNaive) Aggregate(sk *ring.Poly, pk [2]*ring.Poly, samples 
 		// h_0 = sum(samples[0])
 		// h_1 = sum(samples[1])
 		for j := 1; j < len(samples); j++ {
-			ekg.context.AddNoMod(h[i][0], samples[j][i][0], h[i][0])
-			ekg.context.AddNoMod(h[i][1], samples[j][i][1], h[i][1])
+			contextKeys.AddNoMod(h[i][0], samples[j][i][0], h[i][0])
+			contextKeys.AddNoMod(h[i][1], samples[j][i][1], h[i][1])
 
 			if j&7 == 7 {
-				ekg.context.Reduce(h[i][0], h[i][0])
-				ekg.context.Reduce(h[i][1], h[i][1])
+				contextKeys.Reduce(h[i][0], h[i][0])
+				contextKeys.Reduce(h[i][1], h[i][1])
 			}
 		}
 
 		if (len(samples)-1)&7 == 7 {
-			ekg.context.Reduce(h[i][0], h[i][0])
-			ekg.context.Reduce(h[i][1], h[i][1])
+			contextKeys.Reduce(h[i][0], h[i][0])
+			contextKeys.Reduce(h[i][1], h[i][1])
 		}
 
 		// h_0 = sum(samples[0]) * sk
 		// h_1 = sum(samples[1]) * sk
-		ekg.context.MulCoeffsMontgomery(h[i][0], sk, h[i][0])
-		ekg.context.MulCoeffsMontgomery(h[i][1], sk, h[i][1])
+		contextKeys.MulCoeffsMontgomery(h[i][0], sk, h[i][0])
+		contextKeys.MulCoeffsMontgomery(h[i][1], sk, h[i][1])
 
 		// v
 		ekg.ternarySampler.SampleMontgomeryNTT(0.5, ekg.polypool)
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v
-		ekg.context.MulCoeffsMontgomeryAndAdd(pk[0], ekg.polypool, h[i][0])
+		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], ekg.polypool, h[i][0])
 
 		// h_1 = sum(samples[1]) * sk + pk1 * v
-		ekg.context.MulCoeffsMontgomeryAndAdd(pk[1], ekg.polypool, h[i][1])
+		contextKeys.MulCoeffsMontgomeryAndAdd(pk[1], ekg.polypool, h[i][1])
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v + e2
 		ekg.gaussianSampler.SampleNTT(ekg.polypool)
-		ekg.context.Add(h[i][0], ekg.polypool, h[i][0])
+		contextKeys.Add(h[i][0], ekg.polypool, h[i][0])
 
 		// h_1 = sum(samples[1]) * sk + pk1 * v + e3
 		ekg.gaussianSampler.SampleNTT(ekg.polypool)
-		ekg.context.Add(h[i][1], ekg.polypool, h[i][1])
+		contextKeys.Add(h[i][1], ekg.polypool, h[i][1])
 
 	}
 
@@ -167,30 +164,32 @@ func (ekg *EkgProtocolNaive) Aggregate(sk *ring.Poly, pk [2]*ring.Poly, samples 
 // = [-s*b + P * s^2 - (s*u + b) * e_cpk + s*e_0 + e_2, b + s*e_1 + e_3]
 func (ekg *EkgProtocolNaive) Finalize(h [][][2]*ring.Poly) (evaluationKey [][2]*ring.Poly) {
 
-	evaluationKey = make([][2]*ring.Poly, ekg.beta)
+	contextKeys := ekg.ckksContext.ContextKeys()
 
-	for i := uint64(0); i < ekg.beta; i++ {
+	evaluationKey = make([][2]*ring.Poly, ekg.ckksContext.Beta())
+
+	for i := uint64(0); i < ekg.ckksContext.Beta(); i++ {
 
 		evaluationKey[i][0] = h[0][i][0].CopyNew()
 		evaluationKey[i][1] = h[0][i][1].CopyNew()
 
 		for j := 1; j < len(h); j++ {
-			ekg.context.AddNoMod(evaluationKey[i][0], h[j][i][0], evaluationKey[i][0])
-			ekg.context.AddNoMod(evaluationKey[i][1], h[j][i][1], evaluationKey[i][1])
+			contextKeys.AddNoMod(evaluationKey[i][0], h[j][i][0], evaluationKey[i][0])
+			contextKeys.AddNoMod(evaluationKey[i][1], h[j][i][1], evaluationKey[i][1])
 
 			if j&7 == 7 {
-				ekg.context.Reduce(evaluationKey[i][0], evaluationKey[i][0])
-				ekg.context.Reduce(evaluationKey[i][1], evaluationKey[i][1])
+				contextKeys.Reduce(evaluationKey[i][0], evaluationKey[i][0])
+				contextKeys.Reduce(evaluationKey[i][1], evaluationKey[i][1])
 			}
 		}
 
 		if (len(h)-1)&7 == 7 {
-			ekg.context.Reduce(evaluationKey[i][0], evaluationKey[i][0])
-			ekg.context.Reduce(evaluationKey[i][1], evaluationKey[i][1])
+			contextKeys.Reduce(evaluationKey[i][0], evaluationKey[i][0])
+			contextKeys.Reduce(evaluationKey[i][1], evaluationKey[i][1])
 		}
 
-		ekg.context.MForm(evaluationKey[i][0], evaluationKey[i][0])
-		ekg.context.MForm(evaluationKey[i][1], evaluationKey[i][1])
+		contextKeys.MForm(evaluationKey[i][0], evaluationKey[i][0])
+		contextKeys.MForm(evaluationKey[i][1], evaluationKey[i][1])
 
 	}
 

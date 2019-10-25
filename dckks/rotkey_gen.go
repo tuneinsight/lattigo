@@ -3,15 +3,12 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
-	"math"
 )
 
 // RKG is the structure storing the parameters for the collective rotation-keys generation.
 type RKG struct {
-	context         *ring.Context
-	keyswitchprimes []uint64
-	alpha           uint64
-	beta            uint64
+
+	ckksContext *ckks.CkksContext
 
 	gaussianSampler *ring.KYSampler
 
@@ -30,27 +27,19 @@ type RKG struct {
 }
 
 // newRKG creates a new RKG object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
-func NewRKG(context *ring.Context, keyswitchprimes []uint64) (rkg *RKG) {
+func NewRKG(ckksContext *ckks.CkksContext) (rkg *RKG) {
 
 	rkg = new(RKG)
-	rkg.context = context
-	rkg.keyswitchprimes = make([]uint64, len(keyswitchprimes))
+	rkg.ckksContext = ckksContext
 
-	for i := range keyswitchprimes {
-		rkg.keyswitchprimes[i] = keyswitchprimes[i]
-	}
-
-	rkg.alpha = uint64(len(keyswitchprimes))
-	rkg.beta = uint64(math.Ceil(float64(len(context.Modulus)-len(keyswitchprimes)) / float64(rkg.alpha)))
-
-	rkg.gaussianSampler = context.NewKYSampler(3.19, 19)
+	rkg.gaussianSampler = ckksContext.GaussianSampler()
 
 	rkg.rot_col_L = make(map[uint64][][2]*ring.Poly)
 	rkg.rot_col_R = make(map[uint64][][2]*ring.Poly)
 
-	rkg.polypool = context.NewPoly()
+	rkg.polypool = ckksContext.ContextKeys().NewPoly()
 
-	N := context.N
+	N := ckksContext.ContextKeys().N
 
 	rkg.gen = 5
 	rkg.genInv = ring.ModExp(rkg.gen, (N<<1)-1, N<<1)
@@ -82,16 +71,16 @@ func NewRKG(context *ring.Context, keyswitchprimes []uint64) (rkg *RKG) {
 // and broadcasts it to the other j-1 parties. The protocol must be repeated for each desired rotation.
 func (rkg *RKG) GenShareRotLeft(sk *ring.Poly, k uint64, crp []*ring.Poly) (evakey []*ring.Poly) {
 
-	k &= (rkg.context.N >> 1) - 1
+	k &= (rkg.ckksContext.ContextKeys().N >> 1) - 1
 
 	ring.PermuteNTT(sk, rkg.galElRotColLeft[k], rkg.polypool)
-	rkg.context.Sub(rkg.polypool, sk, rkg.polypool)
+	rkg.ckksContext.ContextKeys().Sub(rkg.polypool, sk, rkg.polypool)
 
-	for _, pj := range rkg.keyswitchprimes {
-		rkg.context.MulScalar(rkg.polypool, pj, rkg.polypool)
+	for _, pj := range rkg.ckksContext.KeySwitchPrimes() {
+		rkg.ckksContext.ContextKeys().MulScalar(rkg.polypool, pj, rkg.polypool)
 	}
 
-	rkg.context.InvMForm(rkg.polypool, rkg.polypool)
+	rkg.ckksContext.ContextKeys().InvMForm(rkg.polypool, rkg.polypool)
 
 	return rkg.genswitchkey(rkg.polypool, sk, crp)
 }
@@ -104,16 +93,16 @@ func (rkg *RKG) GenShareRotLeft(sk *ring.Poly, k uint64, crp []*ring.Poly) (evak
 // and broadcasts it to the other j-1 parties. The protocol must be repeated for each desired rotation.
 func (rkg *RKG) GenShareRotRight(sk *ring.Poly, k uint64, crp []*ring.Poly) (evakey []*ring.Poly) {
 
-	k &= (rkg.context.N >> 1) - 1
+	k &= (rkg.ckksContext.ContextKeys().N >> 1) - 1
 
 	ring.PermuteNTT(sk, rkg.galElRotColRight[k], rkg.polypool)
-	rkg.context.Sub(rkg.polypool, sk, rkg.polypool)
+	rkg.ckksContext.ContextKeys().Sub(rkg.polypool, sk, rkg.polypool)
 
-	for _, pj := range rkg.keyswitchprimes {
-		rkg.context.MulScalar(rkg.polypool, pj, rkg.polypool)
+	for _, pj := range rkg.ckksContext.KeySwitchPrimes() {
+		rkg.ckksContext.ContextKeys().MulScalar(rkg.polypool, pj, rkg.polypool)
 	}
 
-	rkg.context.InvMForm(rkg.polypool, rkg.polypool)
+	rkg.ckksContext.ContextKeys().InvMForm(rkg.polypool, rkg.polypool)
 
 	return rkg.genswitchkey(rkg.polypool, sk, crp)
 }
@@ -127,13 +116,13 @@ func (rkg *RKG) GenShareRotRight(sk *ring.Poly, k uint64, crp []*ring.Poly) (eva
 func (rkg *RKG) GenShareRotRow(sk *ring.Poly, crp []*ring.Poly) (evakey []*ring.Poly) {
 
 	ring.PermuteNTT(sk, rkg.galElRotRow, rkg.polypool)
-	rkg.context.Sub(rkg.polypool, sk, rkg.polypool)
+	rkg.ckksContext.ContextKeys().Sub(rkg.polypool, sk, rkg.polypool)
 
-	for _, pj := range rkg.keyswitchprimes {
-		rkg.context.MulScalar(rkg.polypool, pj, rkg.polypool)
+	for _, pj := range rkg.ckksContext.KeySwitchPrimes() {
+		rkg.ckksContext.ContextKeys().MulScalar(rkg.polypool, pj, rkg.polypool)
 	}
 
-	rkg.context.InvMForm(rkg.polypool, rkg.polypool)
+	rkg.ckksContext.ContextKeys().InvMForm(rkg.polypool, rkg.polypool)
 
 	return rkg.genswitchkey(rkg.polypool, sk, crp)
 }
@@ -141,9 +130,13 @@ func (rkg *RKG) GenShareRotRow(sk *ring.Poly, crp []*ring.Poly) (evakey []*ring.
 // genswitchkey is a generic method to generate the public-share of the collective rotation-key.
 func (rkg *RKG) genswitchkey(sk_in, sk_out *ring.Poly, crp []*ring.Poly) (evakey []*ring.Poly) {
 
-	evakey = make([]*ring.Poly, rkg.beta)
+	contextKeys := rkg.ckksContext.ContextKeys()
 
-	for i := uint64(0); i < rkg.beta; i++ {
+	evakey = make([]*ring.Poly, rkg.ckksContext.Beta())
+
+	var index uint64
+
+	for i := uint64(0); i <  rkg.ckksContext.Beta(); i++ {
 
 		// e
 		evakey[i] = rkg.gaussianSampler.SampleNTTNew()
@@ -152,21 +145,23 @@ func (rkg *RKG) genswitchkey(sk_in, sk_out *ring.Poly, crp []*ring.Poly) (evakey
 
 		// e + sk_in * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
-		for j := uint64(0); j < rkg.alpha; j++ {
+		for j := uint64(0); j <  rkg.ckksContext.Alpha(); j++ {
 
-			for w := uint64(0); w < rkg.context.N; w++ {
-				evakey[i].Coeffs[i*rkg.alpha+j][w] = ring.CRed(evakey[i].Coeffs[i*rkg.alpha+j][w]+rkg.polypool.Coeffs[i*rkg.alpha+j][w], rkg.context.Modulus[i*rkg.alpha+j])
+			index = i*rkg.ckksContext.Alpha()+j
+
+			for w := uint64(0); w < contextKeys.N; w++ {
+				evakey[i].Coeffs[index][w] = ring.CRed(evakey[i].Coeffs[index][w]+rkg.polypool.Coeffs[index][w], contextKeys.Modulus[index])
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if i*rkg.alpha+j == uint64(len(rkg.context.Modulus)-len(rkg.keyswitchprimes)-1) {
+			if index == uint64(len(rkg.ckksContext.ContextQ().Modulus)) {
 				break
 			}
 		}
 
 		// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-		rkg.context.MulCoeffsMontgomeryAndSub(crp[i], sk_out, evakey[i])
-		rkg.context.MForm(evakey[i], evakey[i])
+		contextKeys.MulCoeffsMontgomeryAndSub(crp[i], sk_out, evakey[i])
+		contextKeys.MForm(evakey[i], evakey[i])
 
 	}
 
@@ -179,7 +174,7 @@ func (rkg *RKG) genswitchkey(sk_in, sk_out *ring.Poly, crp []*ring.Poly) (evakey
 // [sum(a*a_j + (pi(a_j) - a_j) + e_j), a]
 func (rkg *RKG) AggregateRotColL(samples [][]*ring.Poly, k uint64, crp []*ring.Poly) {
 
-	k &= (rkg.context.N >> 1) - 1
+	k &= (rkg.ckksContext.ContextKeys().N >> 1) - 1
 
 	rkg.rot_col_L[k] = rkg.aggregate(samples, crp)
 }
@@ -190,7 +185,7 @@ func (rkg *RKG) AggregateRotColL(samples [][]*ring.Poly, k uint64, crp []*ring.P
 // [sum(a*a_j + (pi(a_j) - a_j) + e_j), a]
 func (rkg *RKG) AggregateRotColR(samples [][]*ring.Poly, k uint64, crp []*ring.Poly) {
 
-	k &= (rkg.context.N >> 1) - 1
+	k &= (rkg.ckksContext.ContextKeys().N >> 1) - 1
 
 	rkg.rot_col_R[k] = rkg.aggregate(samples, crp)
 }
@@ -208,24 +203,26 @@ func (rkg *RKG) AggregateRotRow(samples [][]*ring.Poly, crp []*ring.Poly) {
 // summed public shares and the collective random polynomial.
 func (rkg *RKG) aggregate(samples [][]*ring.Poly, crp []*ring.Poly) (receiver [][2]*ring.Poly) {
 
-	receiver = make([][2]*ring.Poly, rkg.beta)
+	contextKeys := rkg.ckksContext.ContextKeys()
 
-	for i := uint64(0); i < rkg.beta; i++ {
+	receiver = make([][2]*ring.Poly, rkg.ckksContext.Beta())
+
+	for i := uint64(0); i < rkg.ckksContext.Beta(); i++ {
 
 		receiver[i][0] = samples[0][i].CopyNew()
 		receiver[i][1] = crp[i].CopyNew()
-		rkg.context.MForm(receiver[i][1], receiver[i][1])
+		contextKeys.MForm(receiver[i][1], receiver[i][1])
 
 		for j := 1; j < len(samples); j++ {
-			rkg.context.AddNoMod(receiver[i][0], samples[j][i], receiver[i][0])
+			contextKeys.AddNoMod(receiver[i][0], samples[j][i], receiver[i][0])
 
 			if j&7 == 7 {
-				rkg.context.Reduce(receiver[i][0], receiver[i][0])
+				contextKeys.Reduce(receiver[i][0], receiver[i][0])
 			}
 		}
 
 		if (len(samples)-1)&7 != 7 {
-			rkg.context.Reduce(receiver[i][0], receiver[i][0])
+			contextKeys.Reduce(receiver[i][0], receiver[i][0])
 		}
 
 	}
@@ -235,8 +232,8 @@ func (rkg *RKG) aggregate(samples [][]*ring.Poly, crp []*ring.Poly) (receiver []
 
 // Finalize retrieves all the aggregated rotation-key, creates a new RotationKeys structur,
 // fills it with the collective rotation keys and returns it.
-func (rkg *RKG) Finalize(keygen *ckks.KeyGenerator) (rotkey *ckks.RotationKey) {
-	rotkey = keygen.NewRotationKeysEmpty()
+func (rkg *RKG) Finalize(ckksContext *ckks.CkksContext) (rotkey *ckks.RotationKey) {
+	rotkey = ckksContext.NewRotationKeysEmpty()
 
 	for k := range rkg.rot_col_L {
 		rotkey.SetRotColLeft(rkg.rot_col_L[k], k)

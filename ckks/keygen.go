@@ -174,18 +174,14 @@ func (evk *EvaluationKey) Get() *SwitchingKey {
 	return evk.evakey
 }
 
-func (keygen *KeyGenerator) SetRelinKeys(rlk [][2]*ring.Poly) (newevakey *EvaluationKey, err error) {
+func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 
-	newevakey = new(EvaluationKey)
-
-	newevakey.evakey = new(SwitchingKey)
-	newevakey.evakey.evakey = make([][2]*ring.Poly, len(rlk))
+	evk.evakey = new(SwitchingKey)
+	evk.evakey.evakey = make([][2]*ring.Poly, len(rlk))
 	for j := range rlk {
-		newevakey.evakey.evakey[j][0] = rlk[j][0].CopyNew()
-		newevakey.evakey.evakey[j][1] = rlk[j][1].CopyNew()
+		evk.evakey.evakey[j][0] = rlk[j][0].CopyNew()
+		evk.evakey.evakey[j][1] = rlk[j][1].CopyNew()
 	}
-
-	return newevakey, nil
 }
 
 // NewSwitchingKey generated a new keyswitching key, that will re-encrypt a ciphertext encrypted under the input key to the output key.
@@ -271,9 +267,9 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, conjugate 
 
 // NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewRotationKeysEmpty() (rotKey *RotationKey) {
+func (ckksContext *CkksContext) NewRotationKeysEmpty() (rotKey *RotationKey) {
 	rotKey = new(RotationKey)
-	rotKey.ckkscontext = keygen.ckkscontext
+	rotKey.ckkscontext = ckksContext
 	rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 	rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 	return
@@ -330,6 +326,8 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 	alpha := keygen.ckkscontext.alpha
 	beta := keygen.ckkscontext.beta
 
+	var index uint64
+
 	switchingkey.evakey = make([][2]*ring.Poly, len(context.Modulus))
 
 	for i := uint64(0); i < beta; i++ {
@@ -350,12 +348,14 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 		// Therefore : (sk_in * P) * (q_star * q_tild) = sk*P mod q[i*alpha+j], else 0
 		for j := uint64(0); j < alpha; j++ {
 
+			index = i*alpha+j
+
 			for w := uint64(0); w < context.N; w++ {
-				switchingkey.evakey[i][0].Coeffs[i*alpha+j][w] = ring.CRed(switchingkey.evakey[i][0].Coeffs[i*alpha+j][w]+sk_in.Coeffs[i*alpha+j][w], context.Modulus[i*alpha+j])
+				switchingkey.evakey[i][0].Coeffs[index][w] = ring.CRed(switchingkey.evakey[i][0].Coeffs[index][w]+sk_in.Coeffs[index][w], context.Modulus[index])
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if i*alpha+j == keygen.ckkscontext.levels-1 {
+			if index == keygen.ckkscontext.levels-1 {
 				break
 			}
 		}

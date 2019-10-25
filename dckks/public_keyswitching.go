@@ -14,8 +14,6 @@ type PCKSProtocol struct {
 
 	tmp *ring.Poly
 
-	polypool *ring.Poly
-
 	baseconverter *ring.FastBasisExtender
 }
 
@@ -53,7 +51,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 
 	contextQ := pcks.ckksContext.ContextQ()
 	contextP := pcks.ckksContext.ContextP()
-	contextKeys := pcks.ckksContext.ContextKeys()
+
 
 	//u_i
 	_ = pcks.ckksContext.TernarySampler().SampleMontgomeryNTT(0.5, pcks.tmp)
@@ -64,10 +62,8 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	// h_1 = u_i * pk_1
 	contextQ.MulCoeffsMontgomeryLvl(ct.Level(), pcks.tmp, pk.Get()[1], shareOut[1])
 
-	contextQ.CopyLvl(ct.Level(), ct.Value()[1], pcks.tmp)
-
 	// h0 = u_i * pk_0 + s_i*c_1
-	contextQ.MulCoeffsMontgomeryAndAddLvl(ct.Level(), sk, pcks.tmp, shareOut[0])
+	contextQ.MulCoeffsMontgomeryAndAddLvl(ct.Level(), sk, ct.Value()[1], shareOut[0])
 
 	// TODO : improve by pre-computing prd(pj) for each qi
 	for _, pj := range pcks.ckksContext.KeySwitchPrimes() {
@@ -78,12 +74,11 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	share0P := contextP.NewPoly()
 
 	// h_0 = s_i*c_1 + u_i * pk_0 + e0
-	// TODO : improve by only computing the NTT for the required primes
 	pcks.gaussianSamplerSmudge.SampleNTT(pcks.tmp)
 	contextQ.Add(shareOut[0], pcks.tmp, shareOut[0])
 
-	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(contextKeys.Modulus)); x, i = x+1, i+1 {
-		for j := uint64(0); j < contextKeys.N; j++ {
+	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(pcks.ckksContext.ContextKeys().Modulus)); x, i = x+1, i+1 {
+		for j := uint64(0); j < contextP.N; j++ {
 			share0P.Coeffs[x][j] += pcks.tmp.Coeffs[i][j]
 		}
 	}
@@ -91,12 +86,11 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	share1P := contextP.NewPoly()
 
 	// h_1 = u_i * pk_1 + e1
-	// TODO : improve by only computing the NTT for the required primes
 	pcks.ckksContext.GaussianSampler().SampleNTT(pcks.tmp)
 	contextQ.Add(shareOut[1], pcks.tmp, shareOut[1])
 
-	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(contextKeys.Modulus)); x, i = x+1, i+1 {
-		for j := uint64(0); j < contextKeys.N; j++ {
+	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(pcks.ckksContext.ContextKeys().Modulus)); x, i = x+1, i+1 {
+		for j := uint64(0); j < contextP.N; j++ {
 			share1P.Coeffs[x][j] += pcks.tmp.Coeffs[i][j]
 		}
 	}

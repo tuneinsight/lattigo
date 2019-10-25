@@ -1550,7 +1550,8 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 			// c2_qi = cx mod qi mod qi
 
 			// if the modulus index is equal to the one that had be to be decomposed,
-			// we simply copy the coefficients of cx, which are already in NTT
+			// we simply copy the coefficients of cx, which are already in NTT.
+			// For each beta iteration, this saves alpha NTT.
 			if p0idxst <= x && x < p0idxed {
 				for j := uint64(0); j < contextQ.N; j++ {
 					c2_qi_ntt[j] = cx.Coeffs[x][j]
@@ -1566,7 +1567,7 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 		}
 
 		//Independant of context (parameter : level)
-		// We continue with
+		// We continue with the keyswitch primes.
 		for j, keysindex := uint64(0), evaluator.ckkscontext.levels; j < uint64(len(evaluator.ckkscontext.specialprimes)); j, keysindex = j+1, keysindex+1 {
 
 			pj := contextP.Modulus[j]
@@ -1605,6 +1606,7 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 	}
 
 	//Independant of context (parameter : level)
+	// Computes pool2Q = pool2Q/pool2P and pool3Q = pool3Q/pool3P
 	evaluator.baseconverter.ModDownSplitedNTT(contextQ, contextP, evaluator.ckkscontext.rescaleParamsKeys, level, pool2Q, pool2P, pool2Q, evaluator.keyswitchpool[0])
 	evaluator.baseconverter.ModDownSplitedNTT(contextQ, contextP, evaluator.ckkscontext.rescaleParamsKeys, level, pool3Q, pool3P, pool3Q, evaluator.keyswitchpool[0])
 

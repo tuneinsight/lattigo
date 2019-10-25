@@ -164,6 +164,59 @@ func Test_DCKKScheme(t *testing.T) {
 		}
 	})
 
+
+	// RKG rot col pow2 (OK multiple levels (always assumed to be at max level))
+	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CKG", parties, logN, logQ, levels, scale), func(t *testing.T) {
+
+		crpGenerator, err := NewCRPGenerator(nil, contextKeys)
+		check(t, err)
+		crpGenerator.Seed([]byte{})
+		crp := crpGenerator.Clock()
+
+		type Party struct {
+			*CKGProtocol
+			s  *ring.Poly
+			s1 CKGShare
+		}
+
+		ckgParties := make([]*Party, parties)
+		for i := 0; i < parties; i++ {
+			p := new(Party)
+			p.CKGProtocol = NewCKGProtocol(ckkscontext)
+			p.s = sk0_shards[i].Get()
+			p.s1 = p.AllocateShares()
+			ckgParties[i] = p
+		}
+		P0 := ckgParties[0]
+
+		// Each party creates a new CKGProtocol instance
+		for i, p := range ckgParties {
+			p.GenShare(p.s, crp, p.s1)
+			if i > 0 {
+				P0.AggregateShares(p.s1, P0.s1, P0.s1)
+			}
+		}
+
+		pk := &ckks.PublicKey{}
+		P0.GenPublicKey(P0.s1, crp, pk)
+
+		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
+		encryptorTest, err := ckkscontext.NewEncryptorFromPk(pk)
+		if err != nil {
+			t.Error(err)
+		}
+
+		coeffs, plaintextWant, _, _ := newTestVectors(params)
+
+		ciphertextTest, err := encryptorTest.EncryptNew(plaintextWant)
+
+		if err != nil {
+			t.Error(err)
+		}
+
+		verifyTestVectors(params.decryptor_sk0, params.encoder, coeffs, ciphertextTest, t)
+	})
+
 	// EKG (OK multiple levels)
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/EKG", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
@@ -324,53 +377,6 @@ func Test_DCKKScheme(t *testing.T) {
 
 	})
 
-	// RKG rot col pow2 (OK multiple levels (always assumed to be at max level))
-	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CKG", parties, logN, logQ, levels, scale), func(t *testing.T) {
-
-		crp := make([]*ring.Poly, parties)
-		for i := uint64(0); i < parties; i++ {
-			crp[i] = crpGenerators[i].Clock()
-		}
-
-		ckg := make([]*CKG, parties)
-		for i := uint64(0); i < parties; i++ {
-			ckg[i] = NewCKG(context, crp[i])
-		}
-
-		// Each party creates a new CKG instance
-		shares := make([]*ring.Poly, parties)
-		for i := uint64(0); i < parties; i++ {
-			ckg[i].GenShare(sk0_shards[i].Get())
-			shares[i] = ckg[i].GetShare()
-		}
-
-		pkTest := make([]*ckks.PublicKey, parties)
-		for i := uint64(0); i < parties; i++ {
-			ckg[i].AggregateShares(shares)
-			pkTest[i], err = ckg[i].Finalize()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-
-		// Verifies that all parties have the same share collective public key
-		for i := uint64(1); i < parties; i++ {
-			if context.Equal(pkTest[0].Get()[0], pkTest[i].Get()[0]) != true || ckkscontext.ContextKeys().Equal(pkTest[0].Get()[1], pkTest[i].Get()[1]) != true {
-				t.Errorf("error : ckg protocol, cpk establishement")
-			}
-		}
-
-		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-		encryptorTest, err := ckkscontext.NewEncryptorFromPk(pkTest[0])
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptorTest, 1)
-
-		verify_test_vectors(ckkscontext, encoder, decryptor_sk0, coeffs, ciphertext, t)
-
-	})
 
 	// CKS (OK multiple levels)
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/CKS", parties, logN, logQ, levels, scale), func(t *testing.T) {

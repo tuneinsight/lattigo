@@ -61,7 +61,7 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 
 		benchcontext.cprng.Seed([]byte{})
 
-		bench_EKG(param, benchcontext, b)
+		//bench_EKG(param, benchcontext, b)
 		bench_EKGNaive(param, benchcontext, b)
 		bench_CKG(param, benchcontext, b)
 		bench_CKS(param, benchcontext, b)
@@ -70,7 +70,7 @@ func Benchmark_DCKKSScheme(b *testing.B) {
 
 	}
 }
-
+/*
 func bench_EKG(params benchParams, context *benchContext, b *testing.B) {
 	// EKG
 
@@ -128,7 +128,7 @@ func bench_EKG(params benchParams, context *benchContext, b *testing.B) {
 		}
 	})
 }
-
+*/
 func bench_EKGNaive(params benchParams, context *benchContext, b *testing.B) {
 	// EKG_Naive
 	ekgV2Naive := NewEkgProtocolNaive(context.ckkscontext.ContextKeys(), context.ckkscontext.KeySwitchPrimes())

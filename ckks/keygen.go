@@ -40,6 +40,11 @@ type SwitchingKey struct {
 	evakey [][2]*ring.Poly
 }
 
+// Get returns the switching key backing slice
+func (swk *SwitchingKey) Get() [][2]*ring.Poly {
+	return swk.evakey
+}
+
 // NewKeyGenerator creates a new keygenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
 func (ckkscontext *CkksContext) NewKeyGenerator() (keygen *KeyGenerator) {
@@ -149,19 +154,24 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 	return
 }
 
-func (keygen *KeyGenerator) NewRelinKeyEmpty() (evakey *EvaluationKey) {
+func (ckksContext *CkksContext) NewRelinKeyEmpty() (evakey *EvaluationKey) {
 	evakey = new(EvaluationKey)
 	evakey.evakey = new(SwitchingKey)
 
 	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
-	evakey.evakey.evakey = make([][2]*ring.Poly, keygen.ckkscontext.beta)
-	for i := uint64(0); i < keygen.ckkscontext.beta; i++ {
+	evakey.evakey.evakey = make([][2]*ring.Poly, ckksContext.beta)
+	for i := uint64(0); i < ckksContext.beta; i++ {
 
-		evakey.evakey.evakey[i][0] = keygen.context.NewPoly()
-		evakey.evakey.evakey[i][1] = keygen.context.NewPoly()
+		evakey.evakey.evakey[i][0] = ckksContext.contextKeys.NewPoly()
+		evakey.evakey.evakey[i][1] = ckksContext.contextKeys.NewPoly()
 	}
 
 	return
+}
+
+// Get returns the slice of switchintkeys of the evaluation-key.
+func (evk *EvaluationKey) Get() *SwitchingKey {
+	return evk.evakey
 }
 
 func (keygen *KeyGenerator) SetRelinKeys(rlk [][2]*ring.Poly) (newevakey *EvaluationKey, err error) {

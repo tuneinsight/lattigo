@@ -1,57 +1,82 @@
 package dckks
 
 import (
+	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
 	"math"
 )
 
 // EkgProtocol is a structure storing the parameters for the collective evaluation-key generation.
-type EkgProtocol struct {
-	context         *ring.Context
+type RKGProtocol struct {
+	ringContext         *ring.Context
 	keyswitchprimes []uint64
 	alpha           uint64
 	beta            uint64
 	ternarySampler  *ring.TernarySampler
 	gaussianSampler *ring.KYSampler
+	tmpPoly1        *ring.Poly
+	tmpPoly2        *ring.Poly
 	polypool        *ring.Poly
 }
 
-// NewEkgProtocol creates a new EkgProtocol object that will be used to generate a collective evaluation-key
-// among j parties in the given context with the given bit-decomposition.
-func NewEkgProtocol(context *ring.Context, keyswitchprimes []uint64) *EkgProtocol {
-	ekg := new(EkgProtocol)
-	ekg.context = context
+type RKGShareRoundOne []*ring.Poly
+type RKGShareRoundTwo [][2]*ring.Poly
+type RKGShareRoundThree []*ring.Poly
 
-	ekg.keyswitchprimes = make([]uint64, len(keyswitchprimes))
-	for i := range keyswitchprimes {
-		ekg.keyswitchprimes[i] = keyswitchprimes[i]
+func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundTwo, r3 RKGShareRoundThree) {
+	r1 = make([]*ring.Poly, ekg.beta)
+	r2 = make([][2]*ring.Poly, ekg.beta)
+	r3 = make([]*ring.Poly, ekg.beta)
+	for i := uint64(0); i < ekg.beta; i++ {
+		r1[i] = ekg.ringContext.NewPoly()
+		r2[i][0] = ekg.ringContext.NewPoly()
+		r2[i][1] = ekg.ringContext.NewPoly()
+		r3[i] = ekg.ringContext.NewPoly()
+	}
+	return
+}
+
+// NewEkgProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key
+// among j parties in the given context with the given bit-decomposition.
+func NewEkgProtocol(context *ckks.CkksContext) *RKGProtocol {
+
+	ekg := new(RKGProtocol)
+	ekg.ringContext = context.ContextKeys()
+
+	ekg.keyswitchprimes = make([]uint64, len(context.KeySwitchPrimes()))
+	for i, pi := range context.KeySwitchPrimes() {
+		ekg.keyswitchprimes[i] = pi
 	}
 
-	ekg.alpha = uint64(len(keyswitchprimes))
-	ekg.beta = uint64(math.Ceil(float64(len(context.Modulus)-len(keyswitchprimes)) / float64(ekg.alpha)))
+	ekg.alpha = uint64(len(ekg.keyswitchprimes))
+	ekg.beta = uint64(math.Ceil(float64(len(ekg.ringContext.Modulus)-len(ekg.keyswitchprimes)) / float64(ekg.alpha)))
 
-	ekg.ternarySampler = context.NewTernarySampler()
-	ekg.gaussianSampler = context.NewKYSampler(3.19, 19)
-	ekg.polypool = context.NewPoly()
+	ekg.ternarySampler = context.TernarySampler()
+	ekg.gaussianSampler = context.GaussianSampler()
+
+	ekg.tmpPoly1 = ekg.ringContext.NewPoly()
+	ekg.tmpPoly2 = ekg.ringContext.NewPoly()
+	ekg.polypool = ekg.ringContext.NewPoly()
+
 	return ekg
 }
 
 // NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first round).
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
-func (ekg *EkgProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly, err error) {
+func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly, err error) {
 	if ephemeralKey, err = ekg.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
 		return nil, err
 	}
 	return
 }
 
-// GenSamples is the first of three rounds of the EkgProtocol protocol. Each party generates a pseudo encryption of
+// GenSamples is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
 // its secret share of the key s_i under its ephemeral key u_i : [-u_i*a + P*s_i + e_i] and broadcasts it to the other
 // j-1 parties.
-func (ekg *EkgProtocol) GenSamples(u, sk *ring.Poly, crp []*ring.Poly) (h []*ring.Poly) {
+func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, shareOut RKGShareRoundOne) {
 
-	h = make([]*ring.Poly, ekg.beta)
+	var index uint64
 
 	// Given a base decomposition w_i (here the CRT decomposition)
 	// computes [-u*a_i + P*s_i + e_i]
@@ -60,31 +85,33 @@ func (ekg *EkgProtocol) GenSamples(u, sk *ring.Poly, crp []*ring.Poly) (h []*rin
 	ekg.polypool.Copy(sk)
 
 	for _, pj := range ekg.keyswitchprimes {
-		ekg.context.MulScalar(ekg.polypool, pj, ekg.polypool)
+		ekg.ringContext.MulScalar(ekg.polypool, pj, ekg.polypool)
 	}
 
-	ekg.context.InvMForm(ekg.polypool, ekg.polypool)
+	ekg.ringContext.InvMForm(ekg.polypool, ekg.polypool)
 
 	for i := uint64(0); i < ekg.beta; i++ {
 
 		// h = e
-		h[i] = ekg.gaussianSampler.SampleNTTNew()
+		ekg.gaussianSampler.SampleNTT(shareOut[i])
 
 		// h = sk*CrtBaseDecompQi + e
 		for j := uint64(0); j < ekg.alpha; j++ {
 
-			for w := uint64(0); w < ekg.context.N; w++ {
-				h[i].Coeffs[i*ekg.alpha+j][w] = ring.CRed(h[i].Coeffs[i*ekg.alpha+j][w]+ekg.polypool.Coeffs[i*ekg.alpha+j][w], ekg.context.Modulus[i*ekg.alpha+j])
+			index = i * ekg.alpha + j
+
+			for w := uint64(0); w < ekg.ringContext.N; w++ {
+				shareOut[i].Coeffs[index][w] = ring.CRed(shareOut[i].Coeffs[index][w]+ekg.polypool.Coeffs[index][w], ekg.ringContext.Modulus[index])
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if i*ekg.alpha+j == uint64(len(ekg.context.Modulus)-len(ekg.keyswitchprimes)-1) {
+			if index == uint64(len(ekg.ringContext.Modulus)-len(ekg.keyswitchprimes)-1) {
 				break
 			}
 		}
 
 		// h = sk*CrtBaseDecompQi + -u*a + e
-		ekg.context.MulCoeffsMontgomeryAndSub(u, crp[i], h[i])
+		ekg.ringContext.MulCoeffsMontgomeryAndSub(u, crp[i], shareOut[i])
 	}
 
 	ekg.polypool.Zero()
@@ -92,16 +119,23 @@ func (ekg *EkgProtocol) GenSamples(u, sk *ring.Poly, crp []*ring.Poly) (h []*rin
 	return
 }
 
-// Aggregate is the second of three rounds of the EkgProtocol protocol. Uppon received the j-1 shares, each party computes :
+func (ekg *RKGProtocol) AggregateShareRoundOne(share1, share2, shareOut RKGShareRoundOne) {
+
+	for i := uint64(0); i < ekg.beta; i++ {
+		ekg.ringContext.Add(share1[i], share2[i], shareOut[i])
+	}
+
+}
+
+
+// GenShareRoundTwo is the second of three rounds of the RKGProtocol protocol. Uppon received the j-1 shares, each party computes :
 //
-// [s_i * sum([-u_j*a + P*s_j + e_j]) + e_i1, s_i*a + e_i2]
+// [s_i * sum([-u_j*a + s_j*w + e_j]) + e_i1, s_i*a + e_i2]
 //
-// = [s_i * (-u*a + P*s + e) + e_i1, s_i*a + e_i2]
+// = [s_i * (-u*a + s*w + e) + e_i1, s_i*a + e_i2]
 //
 // and broadcasts both values to the other j-1 parties.
-func (ekg *EkgProtocol) Aggregate(sk *ring.Poly, samples [][]*ring.Poly, crp []*ring.Poly) (h [][2]*ring.Poly) {
-
-	h = make([][2]*ring.Poly, ekg.beta)
+func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly, crp []*ring.Poly, shareOut RKGShareRoundTwo) {
 
 	// Each sample is of the form [-u*a_i + s*w_i + e_i]
 	// So for each element of the base decomposition w_i :
@@ -109,141 +143,72 @@ func (ekg *EkgProtocol) Aggregate(sk *ring.Poly, samples [][]*ring.Poly, crp []*
 
 		// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
-		// First Element
-		h[i][0] = samples[0][i].CopyNew()
+		// (AggregateShareRoundTwo samples) * sk
+		ekg.ringContext.MulCoeffsMontgomery(round1[i], sk, shareOut[i][0])
 
-		// Continues with the sum samples
-		for j := 1; j < len(samples); j++ {
-			ekg.context.AddNoMod(h[i][0], samples[j][i], h[i][0])
-
-			if j&7 == 7 {
-				ekg.context.Reduce(h[i][0], h[i][0])
-			}
-		}
-
-		if (len(samples)-1)&7 != 7 {
-			ekg.context.Reduce(h[i][0], h[i][0])
-		}
-
-		// (Sum samples) * sk
-		ekg.context.MulCoeffsMontgomery(h[i][0], sk, h[i][0])
-
-		// (Sum samples) * sk + e_1i
-		ekg.gaussianSampler.SampleNTT(ekg.polypool)
-		ekg.context.Add(h[i][0], ekg.polypool, h[i][0])
+		// (AggregateShareRoundTwo samples) * sk + e_1i
+		ekg.gaussianSampler.SampleNTT(ekg.tmpPoly1)
+		ekg.ringContext.Add(shareOut[i][0], ekg.tmpPoly1, shareOut[i][0])
 
 		// Second Element
-
 		// e_2i
-		h[i][1] = ekg.gaussianSampler.SampleNTTNew()
+		ekg.gaussianSampler.SampleNTT(shareOut[i][1])
 		// s*a + e_2i
-		ekg.context.MulCoeffsMontgomeryAndAdd(sk, crp[i], h[i][1])
-
+		ekg.ringContext.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut[i][1])
 	}
 
-	ekg.polypool.Zero()
-
-	return
 }
 
-// Sum is the first part of the third and last round of the EkgProtocol protocol. Uppon receiving the j-1 elements, each party
+// AggregateShareRoundTwo is the first part of the third and last round of the RKGProtocol protocol. Uppon receiving the j-1 elements, each party
 // computues :
 //
-// [sum(s_j * (-u*a + P*s + e) + e_j1), sum(s_j*a + e_j2)]
+// [sum(s_j * (-u*a + s*w + e) + e_j1), sum(s_j*a + e_j2)]
 //
-// = [s * (-u*a + P*s + e) + e_1, s*a + e_2].
-func (ekg *EkgProtocol) Sum(samples [][][2]*ring.Poly) (h [][2]*ring.Poly) {
-
-	h = make([][2]*ring.Poly, ekg.beta)
+// = [s * (-u*a + s*w + e) + e_1, s*a + e_2].
+func (ekg *RKGProtocol) AggregateShareRoundTwo(share1, share2, shareOut RKGShareRoundTwo) {
 
 	for i := uint64(0); i < ekg.beta; i++ {
-
-		h[i][0] = samples[0][i][0].CopyNew()
-		h[i][1] = samples[0][i][1].CopyNew()
-
-		for j := 1; j < len(samples); j++ {
-			ekg.context.AddNoMod(h[i][0], samples[j][i][0], h[i][0])
-			ekg.context.AddNoMod(h[i][1], samples[j][i][1], h[i][1])
-
-			if j&7 == 7 {
-				ekg.context.Reduce(h[i][0], h[i][0])
-				ekg.context.Reduce(h[i][1], h[i][1])
-			}
-		}
-		if (len(samples)-1)&7 != 7 {
-			ekg.context.Reduce(h[i][0], h[i][0])
-			ekg.context.Reduce(h[i][1], h[i][1])
-		}
-
+		ekg.ringContext.Add(share1[i][0], share2[i][0], shareOut[i][0])
+		ekg.ringContext.Add(share1[i][1], share2[i][1], shareOut[i][1])
 	}
 
-	return
 }
 
-// KeySwitch is the second pard of the third and last round of the EkgProtocol protocol. Each party operates a key-switch on [s*a + e_2],
+// GenShareRoundThree is the second pard of the third and last round of the RKGProtocol protocol. Each party operates a key-switch on [s*a + e_2],
 // by computing :
 //
 // [(u_i - s_i)*(s*a + e_2)]
 //
 // and broadcasts the result the other j-1 parties.
-func (ekg *EkgProtocol) KeySwitch(u, sk *ring.Poly, samples [][2]*ring.Poly) (h1 []*ring.Poly) {
-
-	h1 = make([]*ring.Poly, ekg.beta)
+func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.Poly, shareOut RKGShareRoundThree) {
 
 	// (u_i - s_i)
-	mask := ekg.context.NewPoly()
-	ekg.context.Sub(u, sk, mask)
+	ekg.ringContext.Sub(u, sk, ekg.tmpPoly1)
 
 	for i := uint64(0); i < ekg.beta; i++ {
 
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
-		h1[i] = ekg.gaussianSampler.SampleNTTNew()
-		ekg.context.MulCoeffsMontgomeryAndAdd(mask, samples[i][1], h1[i])
-
+		ekg.gaussianSampler.SampleNTT(shareOut[i])
+		ekg.ringContext.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round2[i][1], shareOut[i])
 	}
-
-	return
 }
 
-// ComputeEVK is third part ot the third and last round of the EkgProtocol protocol. Uppon receiving the other j-1 elements, each party computes :
-//
-// [s * (-u*a + P*s + e) + e_1 + sum([(u_j - s_j)*(s*a + e_2)])]
-//
-// = [s * (-u*a + P*s + e) + e_1 + (u - s)*(s*a + e_2)]
-//
-// = [-s*u*a + P*s^2 + s*e + e_1 + s*u*a -s^2*a + (u - s)*e_2]
-//
-// = [-s^2*a + P*s^2 + e_1 + (u - s)*e_2]
-//
-// = [-s^2*a + P*s^2 + e]
-//
-// The evaluation key is therefor : [-s*b + P*s^2 + e, s*b]
-func (ekg *EkgProtocol) ComputeEVK(h1 [][]*ring.Poly, h [][2]*ring.Poly) (collectiveEVK [][2]*ring.Poly) {
+func (ekg *RKGProtocol) AggregateShareRoundThree(share1, share2, shareOut RKGShareRoundThree) {
+	for i := uint64(0); i < ekg.beta; i++ {
+		ekg.ringContext.Add(share1[i], share2[i], shareOut[i])
+	}
+}
 
-	collectiveEVK = make([][2]*ring.Poly, ekg.beta)
+func (ekg *RKGProtocol) GenRelinearizationKey(round2 RKGShareRoundTwo, round3 RKGShareRoundThree, evalKeyOut *ckks.EvaluationKey) {
 
-	// collectiveEVK[i][0] = h[i][0] + sum(h1[i])
-	// collectiveEVK[i][1] = h[i][1]
+	key := evalKeyOut.Get().Get()
 	for i := uint64(0); i < ekg.beta; i++ {
 
-		collectiveEVK[i][0] = h[i][0].CopyNew()
-		collectiveEVK[i][1] = h[i][1].CopyNew()
+		ekg.ringContext.Add(round2[i][0], round3[i], key[i][0])
+		key[i][1].Copy(round2[i][1])
 
-		for j := range h1 {
-			ekg.context.AddNoMod(collectiveEVK[i][0], h1[j][i], collectiveEVK[i][0])
+		ekg.ringContext.MForm(key[i][0], key[i][0])
+		ekg.ringContext.MForm(key[i][1], key[i][1])
 
-			if j&7 == 7 {
-				ekg.context.Reduce(collectiveEVK[i][0], collectiveEVK[i][0])
-			}
-		}
-
-		if (len(h1)-1)&7 != 7 {
-			ekg.context.Reduce(collectiveEVK[i][0], collectiveEVK[i][0])
-		}
-
-		ekg.context.MForm(collectiveEVK[i][0], collectiveEVK[i][0])
-		ekg.context.MForm(collectiveEVK[i][1], collectiveEVK[i][1])
 	}
-
-	return
 }

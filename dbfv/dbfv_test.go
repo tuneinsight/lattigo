@@ -115,10 +115,10 @@ func Test_DBFVScheme(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		test_EKG(dbfvParams, t)
+		
 		test_PRNG(dbfvParams, t)
 		test_CKG(dbfvParams, t)
-
+		test_EKG(dbfvParams, t)
 		test_EKGNaive(dbfvParams, t)
 		test_RKG(dbfvParams, t)
 		test_CKS(dbfvParams, t)
@@ -183,49 +183,6 @@ func test_PRNG(params *dbfvparams, t *testing.T) {
 	})
 }
 
-func test_EKGNaive(params *dbfvparams, t *testing.T) {
-
-	var err error
-
-	contextKeys := params.contextKeys
-	parties := params.parties
-	bfvContext := params.bfvcontext
-	sk0_shards := params.sk0_shards
-	pk0 := params.pk0
-	evaluator := params.evaluator
-
-	t.Run(fmt.Sprintf("N=%d/logQ=%d/EKG_Naive", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
-
-		// Each party instantiate an ekg naive protocole
-		ekgNaive := make([]*EkgProtocolNaive, parties)
-		for i := 0; i < parties; i++ {
-			ekgNaive[i] = NewEkgProtocolNaive(bfvContext)
-		}
-
-		evk := test_EKG_Protocol_Naive(parties, sk0_shards, pk0, ekgNaive)
-
-		rlk := new(bfv.EvaluationKey)
-		rlk.SetRelinKeys([][][2]*ring.Poly{evk[0]})
-
-		coeffs, _, ciphertext, _ := newTestVectors(params)
-
-		for i := range coeffs {
-			coeffs[i] *= coeffs[i]
-			coeffs[i] %= params.contextT.Modulus[0]
-		}
-
-		ciphertextMul := bfvContext.NewCiphertext(ciphertext.Degree() * 2)
-		err = evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
-		check(t, err)
-
-		res := bfvContext.NewCiphertext(1)
-		err := evaluator.Relinearize(ciphertextMul, rlk, res)
-		check(t, err)
-
-		verifyTestVectors(params.decryptor_sk0, params.encoder, coeffs, ciphertextMul, t)
-	})
-}
-
 func test_EKG(params *dbfvparams, t *testing.T) {
 
 	var err error
@@ -278,6 +235,49 @@ func test_EKG(params *dbfvparams, t *testing.T) {
 
 		verifyTestVectors(params.decryptor_sk0, params.encoder, coeffs, ciphertextMul, t)
 
+	})
+}
+
+func test_EKGNaive(params *dbfvparams, t *testing.T) {
+
+	var err error
+
+	contextKeys := params.contextKeys
+	parties := params.parties
+	bfvContext := params.bfvcontext
+	sk0_shards := params.sk0_shards
+	pk0 := params.pk0
+	evaluator := params.evaluator
+
+	t.Run(fmt.Sprintf("N=%d/logQ=%d/EKG_Naive", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+
+		// Each party instantiate an ekg naive protocole
+		ekgNaive := make([]*EkgProtocolNaive, parties)
+		for i := 0; i < parties; i++ {
+			ekgNaive[i] = NewEkgProtocolNaive(bfvContext)
+		}
+
+		evk := test_EKG_Protocol_Naive(parties, sk0_shards, pk0, ekgNaive)
+
+		rlk := new(bfv.EvaluationKey)
+		rlk.SetRelinKeys([][][2]*ring.Poly{evk[0]})
+
+		coeffs, _, ciphertext, _ := newTestVectors(params)
+
+		for i := range coeffs {
+			coeffs[i] *= coeffs[i]
+			coeffs[i] %= params.contextT.Modulus[0]
+		}
+
+		ciphertextMul := bfvContext.NewCiphertext(ciphertext.Degree() * 2)
+		err = evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
+		check(t, err)
+
+		res := bfvContext.NewCiphertext(1)
+		err := evaluator.Relinearize(ciphertextMul, rlk, res)
+		check(t, err)
+
+		verifyTestVectors(params.decryptor_sk0, params.encoder, coeffs, ciphertextMul, t)
 	})
 }
 

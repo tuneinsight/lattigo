@@ -168,13 +168,13 @@ func Test_DCKKScheme(t *testing.T) {
 	t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/EKG", parties, logN, logQ, levels, scale), func(t *testing.T) {
 
 		// Each party instantiate an ekg naive protocole
-		ekg := make([]*EkgProtocol, parties)
+		ekg := make([]*RKGProtocol, parties)
 		ephemeralKeys := make([]*ring.Poly, parties)
 		crp := make([][]*ring.Poly, parties)
 
 		for i := uint64(0); i < parties; i++ {
 
-			ekg[i] = NewEkgProtocol(context, ckkscontext.KeySwitchPrimes())
+			ekg[i] = NewEkgProtocol(ckkscontext)
 			ephemeralKeys[i], _ = ekg[i].NewEphemeralKey(1.0 / 3.0)
 			crp[i] = make([]*ring.Poly, beta)
 
@@ -184,12 +184,7 @@ func Test_DCKKScheme(t *testing.T) {
 			}
 		}
 
-		evk := test_EKG_Protocol(parties, ekg, sk0_shards, ephemeralKeys, crp)
-
-		rlk, err := kgen.SetRelinKeys(evk[0])
-		if err != nil {
-			log.Fatal(err)
-		}
+		rlk := test_EKG_Protocol(ckkscontext, parties, ekg, sk0_shards, ephemeralKeys, crp[0])
 
 		coeffs, _, ciphertext, _ := new_test_vectors(ckkscontext, encoder, encryptor_pk0, 1)
 
@@ -502,35 +497,57 @@ func test_EKG_Protocol_Naive(parties uint64, sk []*ckks.SecretKey, collectivePk 
 	return evk
 }
 
-func test_EKG_Protocol(parties uint64, ekgProtocols []*EkgProtocol, sk []*ckks.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) [][][2]*ring.Poly {
+func test_EKG_Protocol(ckksCtx *ckks.CkksContext, parties uint64, ekgProtocols []*RKGProtocol, sk []*ckks.SecretKey, ephemeralKeys []*ring.Poly, crp []*ring.Poly) *ckks.EvaluationKey {
+
+	type Party struct {
+		*RKGProtocol
+		u      *ring.Poly
+		s      *ring.Poly
+		share1 RKGShareRoundOne
+		share2 RKGShareRoundTwo
+		share3 RKGShareRoundThree
+	}
+
+	rkgParties := make([]*Party, parties)
+
+	for i := range rkgParties {
+		p := new(Party)
+		p.RKGProtocol = ekgProtocols[i]
+		p.u = ephemeralKeys[i]
+		p.s = sk[i].Get()
+		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
+		rkgParties[i] = p
+	}
+
+	P0 := rkgParties[0]
 
 	// ROUND 1
-	samples := make([][]*ring.Poly, parties)
-	for i := uint64(0); i < parties; i++ {
-		samples[i] = ekgProtocols[i].GenSamples(ephemeralKeys[i], sk[i].Get(), crp[i])
+	for i, p := range rkgParties {
+		p.GenShareRoundOne(p.u, p.s, crp, p.share1)
+		if i > 0 {
+			P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
+		}
 	}
 
 	//ROUND 2
-	aggregatedSamples := make([][][2]*ring.Poly, parties)
-	for i := uint64(0); i < parties; i++ {
-		aggregatedSamples[i] = ekgProtocols[i].Aggregate(sk[i].Get(), samples, crp[i])
+	for i, p := range rkgParties {
+		p.GenShareRoundTwo(P0.share1, p.s, crp, p.share2)
+		if i > 0 {
+			P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
+		}
 	}
 
 	// ROUND 3
-	keySwitched := make([][]*ring.Poly, parties)
-	sum := make([][][2]*ring.Poly, parties)
-	for i := uint64(0); i < parties; i++ {
-		sum[i] = ekgProtocols[i].Sum(aggregatedSamples)
-		keySwitched[i] = ekgProtocols[i].KeySwitch(ephemeralKeys[i], sk[i].Get(), sum[i])
+	for i, p := range rkgParties {
+		p.GenShareRoundThree(P0.share2, p.u, p.s, p.share3)
+		if i > 0 {
+			P0.AggregateShareRoundThree(p.share3, P0.share3, P0.share3)
+		}
 	}
 
-	// ROUND 4
-	collectiveEvaluationKey := make([][][2]*ring.Poly, parties)
-	for i := uint64(0); i < parties; i++ {
-		collectiveEvaluationKey[i] = ekgProtocols[i].ComputeEVK(keySwitched, sum[i])
-	}
-
-	return collectiveEvaluationKey
+	evk := ckksCtx.NewRelinKeyEmpty()
+	P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
+	return evk
 }
 
 func new_test_vectors(ckkscontext *ckks.CkksContext, encoder *ckks.Encoder, encryptor *ckks.Encryptor, a float64) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext, err error) {

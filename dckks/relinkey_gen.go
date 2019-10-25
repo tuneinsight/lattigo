@@ -8,9 +8,9 @@ import (
 // EkgProtocol is a structure storing the parameters for the collective evaluation-key generation.
 type RKGProtocol struct {
 	ckksContext *ckks.CkksContext
-	tmpPoly1        *ring.Poly
-	tmpPoly2        *ring.Poly
-	polypool        *ring.Poly
+	tmpPoly1    *ring.Poly
+	tmpPoly2    *ring.Poly
+	polypool    *ring.Poly
 }
 
 type RKGShareRoundOne []*ring.Poly
@@ -86,7 +86,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 		// h = sk*CrtBaseDecompQi + e
 		for j := uint64(0); j < ekg.ckksContext.Alpha(); j++ {
 
-			index = i * ekg.ckksContext.Alpha() + j
+			index = i*ekg.ckksContext.Alpha() + j
 
 			for w := uint64(0); w < contextKeys.N; w++ {
 				shareOut[i].Coeffs[index][w] = ring.CRed(shareOut[i].Coeffs[index][w]+ekg.polypool.Coeffs[index][w], contextKeys.Modulus[index])
@@ -116,7 +116,6 @@ func (ekg *RKGProtocol) AggregateShareRoundOne(share1, share2, shareOut RKGShare
 	}
 
 }
-
 
 // GenShareRoundTwo is the second of three rounds of the RKGProtocol protocol. Uppon received the j-1 shares, each party computes :
 //
@@ -192,7 +191,7 @@ func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.
 func (ekg *RKGProtocol) AggregateShareRoundThree(share1, share2, shareOut RKGShareRoundThree) {
 
 	contextKeys := ekg.ckksContext.ContextKeys()
-	
+
 	for i := uint64(0); i < ekg.ckksContext.Beta(); i++ {
 		contextKeys.Add(share1[i], share2[i], shareOut[i])
 	}

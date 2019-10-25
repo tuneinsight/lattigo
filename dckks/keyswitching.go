@@ -12,8 +12,7 @@ type CKSProtocol struct {
 	sigmaSmudging         float64
 	gaussianSamplerSmudge *ring.KYSampler
 
-
-	tmp   *ring.Poly
+	tmp      *ring.Poly
 	tmpDelta *ring.Poly
 
 	baseconverter *ring.FastBasisExtender
@@ -93,7 +92,7 @@ func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
 func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut CKSShare) {
-	cks.ckksContext.ContextQ().AddLvl(uint64(len(share1.Coeffs) - 1), share1, share2, shareOut)
+	cks.ckksContext.ContextQ().AddLvl(uint64(len(share1.Coeffs)-1), share1, share2, shareOut)
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut

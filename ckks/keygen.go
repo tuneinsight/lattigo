@@ -348,7 +348,7 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 		// Therefore : (sk_in * P) * (q_star * q_tild) = sk*P mod q[i*alpha+j], else 0
 		for j := uint64(0); j < alpha; j++ {
 
-			index = i*alpha+j
+			index = i*alpha + j
 
 			for w := uint64(0); w < context.N; w++ {
 				switchingkey.evakey[i][0].Coeffs[index][w] = ring.CRed(switchingkey.evakey[i][0].Coeffs[index][w]+sk_in.Coeffs[index][w], context.Modulus[index])

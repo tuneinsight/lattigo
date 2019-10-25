@@ -8,7 +8,7 @@ import (
 
 // CKGProtocol is the structure storing the parameters and state for a party in the collective key generation protocol.
 type CKGProtocol struct {
-	ringContext         *ring.Context
+	ringContext     *ring.Context
 	gaussianSampler *ring.KYSampler
 }
 

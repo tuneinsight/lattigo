@@ -46,8 +46,7 @@ func Test_CKKS(t *testing.T) {
 
 	medianprec := float64(20) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
-	params := Parameters{10, []uint8{55, 45, 45, 45}, []uint8{55, 55}, 1 << 45, 3.2}
-	//params := Parameters{15, []uint8{50, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 45, 45, 45, 45, 45, 45, 40, 40}, []uint8{50, 50, 50}, 1<<40, 3.2}
+	params := Parameters{10, []uint8{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45}, []uint8{55, 55}, 1 << 45, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 

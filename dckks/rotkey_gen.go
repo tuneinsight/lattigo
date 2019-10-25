@@ -7,7 +7,6 @@ import (
 
 // RKG is the structure storing the parameters for the collective rotation-keys generation.
 type RKG struct {
-
 	ckksContext *ckks.CkksContext
 
 	gaussianSampler *ring.KYSampler
@@ -136,7 +135,7 @@ func (rkg *RKG) genswitchkey(sk_in, sk_out *ring.Poly, crp []*ring.Poly) (evakey
 
 	var index uint64
 
-	for i := uint64(0); i <  rkg.ckksContext.Beta(); i++ {
+	for i := uint64(0); i < rkg.ckksContext.Beta(); i++ {
 
 		// e
 		evakey[i] = rkg.gaussianSampler.SampleNTTNew()
@@ -145,9 +144,9 @@ func (rkg *RKG) genswitchkey(sk_in, sk_out *ring.Poly, crp []*ring.Poly) (evakey
 
 		// e + sk_in * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
-		for j := uint64(0); j <  rkg.ckksContext.Alpha(); j++ {
+		for j := uint64(0); j < rkg.ckksContext.Alpha(); j++ {
 
-			index = i*rkg.ckksContext.Alpha()+j
+			index = i*rkg.ckksContext.Alpha() + j
 
 			for w := uint64(0); w < contextKeys.N; w++ {
 				evakey[i].Coeffs[index][w] = ring.CRed(evakey[i].Coeffs[index][w]+rkg.polypool.Coeffs[index][w], contextKeys.Modulus[index])

@@ -255,7 +255,6 @@ func (ckksContext *CkksContext) Beta() uint64 {
 	return ckksContext.beta
 }
 
-
 func (ckksContext *CkksContext) RescaleParamsKeys() []uint64 {
 	return ckksContext.rescaleParamsKeys
 }

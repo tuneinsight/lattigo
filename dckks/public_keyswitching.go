@@ -52,7 +52,6 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	contextQ := pcks.ckksContext.ContextQ()
 	contextP := pcks.ckksContext.ContextP()
 
-
 	//u_i
 	_ = pcks.ckksContext.TernarySampler().SampleMontgomeryNTT(0.5, pcks.tmp)
 

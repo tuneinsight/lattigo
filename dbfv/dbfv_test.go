@@ -115,7 +115,6 @@ func Test_DBFVScheme(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		
 		test_PRNG(dbfvParams, t)
 		test_CKG(dbfvParams, t)
 		test_EKG(dbfvParams, t)
@@ -242,7 +241,6 @@ func test_CKG(params *dbfvparams, t *testing.T) {
 	})
 }
 
-
 func test_EKG(params *dbfvparams, t *testing.T) {
 
 	var err error
@@ -329,7 +327,6 @@ func test_EKGNaive(params *dbfvparams, t *testing.T) {
 	})
 }
 
-
 func test_RKG(params *dbfvparams, t *testing.T) {
 
 	var err error
@@ -410,8 +407,6 @@ func test_RKG(params *dbfvparams, t *testing.T) {
 
 	})
 }
-
-
 
 func test_CKS(params *dbfvparams, t *testing.T) {
 

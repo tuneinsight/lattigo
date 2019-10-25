@@ -7,7 +7,7 @@ import (
 
 // EkgProtocolNaive is a structure storing the parameters for the naive EKG protocol.
 type EkgProtocolNaive struct {
-	ckksContext *ckks.CkksContext
+	ckksContext     *ckks.CkksContext
 	gaussianSampler *ring.KYSampler
 	ternarySampler  *ring.TernarySampler
 	polypool        *ring.Poly
@@ -31,7 +31,6 @@ func NewEkgProtocolNaive(ckksContext *ckks.CkksContext) (ekg *EkgProtocolNaive) 
 //
 // and broadcasts it to all other j-1 parties.
 func (ekg *EkgProtocolNaive) GenSamples(sk *ring.Poly, pk [2]*ring.Poly) (h [][2]*ring.Poly) {
-
 
 	contextKeys := ekg.ckksContext.ContextKeys()
 
@@ -57,14 +56,14 @@ func (ekg *EkgProtocolNaive) GenSamples(sk *ring.Poly, pk [2]*ring.Poly) (h [][2
 
 		for j := uint64(0); j < ekg.ckksContext.Alpha(); j++ {
 
-			index = i*ekg.ckksContext.Alpha()+j
+			index = i*ekg.ckksContext.Alpha() + j
 
 			for w := uint64(0); w < contextKeys.N; w++ {
-				h[i][0].Coeffs[index][w] = ring.CRed(h[i][0].Coeffs[index][w] + ekg.polypool.Coeffs[index][w], contextKeys.Modulus[index])
+				h[i][0].Coeffs[index][w] = ring.CRed(h[i][0].Coeffs[index][w]+ekg.polypool.Coeffs[index][w], contextKeys.Modulus[index])
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index == uint64(len(ekg.ckksContext.ContextQ().Modulus)){
+			if index == uint64(len(ekg.ckksContext.ContextQ().Modulus)) {
 				break
 			}
 		}

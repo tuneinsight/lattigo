@@ -331,6 +331,23 @@ func (basisextender *FastBasisExtender) ModDown(context *Context, rescalParamsKe
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
+func (basisextender *FastBasisExtender) ModDownSplited(contextQ, contextP *Context, rescalParamsKeys []uint64, level uint64, p1Q, p1P, p2, polypool *Poly) {
+
+	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
+	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
+	modUpExact(p1P.Coeffs, polypool.Coeffs[:level+1], basisextender.paramsPQ)
+
+	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	for i := uint64(0); i < level+1; i++ {
+		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
+		for j := uint64(0); j < contextQ.N; j++ {
+			p2.Coeffs[i][j] = MRed(p1Q.Coeffs[i][j]+(contextQ.Modulus[i]-polypool.Coeffs[i][j]), rescalParamsKeys[i], contextQ.Modulus[i], contextQ.GetMredParams()[i])
+		}
+	}
+
+	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
+}
+
 func modUpExact(p1, p2 [][]uint64, params *modupParams) {
 
 	var v uint64

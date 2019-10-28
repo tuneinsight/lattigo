@@ -7,7 +7,7 @@ import (
 
 // RKGProtocolNaive is a structure storing the parameters for the naive EKG protocol.
 type RKGProtocolNaive struct {
-	bfvContext     *bfv.BfvContext
+	bfvContext      *bfv.BfvContext
 	gaussianSampler *ring.KYSampler
 	ternarySampler  *ring.TernarySampler
 	polypool        *ring.Poly

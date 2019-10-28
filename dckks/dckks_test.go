@@ -550,7 +550,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 
 				P0.StoreConjugate(P0.share, crp)
 
-				rotkey := P0.Finalize(ckksContext)
+				rotkey := P0.Finalize()
 
 				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
 
@@ -630,7 +630,7 @@ func testRotKeyGenCols(t *testing.T) {
 
 					P0.StoreRotColLeft(P0.share, 1<<n, crp)
 
-					rotkey := P0.Finalize(ckksContext)
+					rotkey := P0.Finalize()
 
 					err = evaluator.RotateColumns(ciphertext, 1<<n, rotkey, receiver)
 					check(t, err)
@@ -646,7 +646,6 @@ func testRotKeyGenCols(t *testing.T) {
 
 			})
 	}
-
 }
 
 func testRefresh(t *testing.T) {

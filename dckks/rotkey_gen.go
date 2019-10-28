@@ -218,8 +218,8 @@ func (rotkg *RotKGProtocol) StoreConjugate(share RotKGShareConjugate, crp []*rin
 
 // Finalize retrieves all the aggregated rotation-key, creates a new RotationKeys structur,
 // fills it with the collective rotation keys and returns it.
-func (rotkg *RotKGProtocol) Finalize(ckksContext *ckks.CkksContext) (rotkey *ckks.RotationKey) {
-	rotkey = ckksContext.NewRotationKeysEmpty()
+func (rotkg *RotKGProtocol) Finalize() (rotkey *ckks.RotationKey) {
+	rotkey = rotkg.ckksContext.NewRotationKeysEmpty()
 
 	for k := range rotkg.rot_col_L {
 		rotkey.SetRotColLeft(rotkg.rot_col_L[k], k)

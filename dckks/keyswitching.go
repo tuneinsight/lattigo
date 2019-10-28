@@ -14,6 +14,7 @@ type CKSProtocol struct {
 
 	tmp      *ring.Poly
 	tmpDelta *ring.Poly
+	hP       *ring.Poly
 
 	baseconverter *ring.FastBasisExtender
 }
@@ -33,7 +34,8 @@ func NewCKSProtocol(ckksContext *ckks.CkksContext, sigmaSmudging float64) *CKSPr
 	cks.gaussianSamplerSmudge = ckksContext.ContextKeys().NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
 
 	cks.tmp = ckksContext.ContextKeys().NewPoly()
-	cks.tmpDelta = ckksContext.ContextKeys().NewPoly()
+	cks.tmpDelta = ckksContext.ContextQ().NewPoly()
+	cks.hP = ckksContext.ContextP().NewPoly()
 
 	cks.baseconverter = ring.NewFastBasisExtender(ckksContext.ContextQ().Modulus, ckksContext.KeySwitchPrimes())
 
@@ -41,7 +43,7 @@ func NewCKSProtocol(ckksContext *ckks.CkksContext, sigmaSmudging float64) *CKSPr
 }
 
 func (cks *CKSProtocol) AllocateShare() CKSShare {
-	return cks.ckksContext.ContextKeys().NewPoly()
+	return cks.ckksContext.ContextQ().NewPoly()
 }
 
 // GenShare is the first and unique round of the CKSProtocol protocol. Each party holding a ciphertext ctx encrypted under a collective publick-key musth
@@ -52,7 +54,7 @@ func (cks *CKSProtocol) AllocateShare() CKSShare {
 // Each party then broadcast the result of this computation to the other j-1 parties.
 func (cks *CKSProtocol) GenShare(skInput, skOutput *ring.Poly, ct *ckks.Ciphertext, shareOut CKSShare) {
 
-	cks.ckksContext.ContextKeys().Sub(skInput, skOutput, cks.tmpDelta)
+	cks.ckksContext.ContextQ().Sub(skInput, skOutput, cks.tmpDelta)
 
 	cks.GenShareDelta(cks.tmpDelta, ct, shareOut)
 }
@@ -73,18 +75,15 @@ func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 	cks.gaussianSamplerSmudge.SampleNTT(cks.tmp)
 	contextQ.AddLvl(ct.Level(), shareOut, cks.tmp, shareOut)
 
-	hP := contextP.NewPoly()
-
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.ckksContext.ContextKeys().Modulus)); x, i = x+1, i+1 {
 		for j := uint64(0); j < contextQ.N; j++ {
-			hP.Coeffs[x][j] += cks.tmp.Coeffs[i][j]
+			cks.hP.Coeffs[x][j] += cks.tmp.Coeffs[i][j]
 		}
 	}
 
-	cks.baseconverter.ModDownSplitedNTT(contextQ, contextP, cks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut, hP, shareOut, cks.tmp)
+	cks.baseconverter.ModDownSplitedNTT(contextQ, contextP, cks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut, cks.hP, shareOut, cks.tmp)
 
-	shareOut.Coeffs = shareOut.Coeffs[:ct.Level()+1]
-
+	cks.hP.Zero()
 	cks.tmp.Zero()
 }
 

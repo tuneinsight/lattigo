@@ -264,10 +264,10 @@ func (keygen *KeyGenerator) NewRotationKeys(sk *SecretKey, rotLeft []uint64, rot
 
 }
 
-func (keygen *KeyGenerator) NewRotationKeysEmpty() (rotKey *RotationKeys) {
+func (bfvContext *BfvContext) NewRotationKeysEmpty() (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
-	rotKey.bfvcontext = keygen.bfvcontext
+	rotKey.bfvcontext = bfvContext
 	rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 	rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 	return

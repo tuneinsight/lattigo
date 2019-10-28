@@ -10,7 +10,7 @@ func Benchmark_DCKKS(b *testing.B) {
 	b.Run("PublicKeyGen", benchPublicKeyGen)
 	b.Run("RelinKeyGen", benchRelinKeyGen)
 	b.Run("RelinKeyGenNaive", benchRelinKeyGenNaive)
-	b.Run("KeySwitching", benchKeyswitching)
+	b.Run("KeySwitching", benchKeySwitching)
 	b.Run("PublicKeySwitching", benchPublicKeySwitching)
 	b.Run("RotKeyGen", benchRotKeyGen)
 	b.Run("Refresh", benchRefresh)
@@ -273,7 +273,7 @@ func benchRelinKeyGenNaive(b *testing.B) {
 
 }
 
-func benchKeyswitching(b *testing.B) {
+func benchKeySwitching(b *testing.B) {
 
 	parties := testParams.parties
 

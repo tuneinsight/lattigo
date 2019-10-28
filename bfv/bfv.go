@@ -35,6 +35,7 @@ type BfvContext struct {
 	contextQP *ring.Context
 
 	contextKeys       *ring.Context
+	contextPKeys      *ring.Context
 	specialprimes     []uint64
 	alpha             uint64
 	beta              uint64
@@ -97,6 +98,7 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	bfvContext.contextP = ring.NewContext()
 	bfvContext.contextQP = ring.NewContext()
 	bfvContext.contextKeys = ring.NewContext()
+	bfvContext.contextPKeys = ring.NewContext()
 
 	N := params.N
 	t := params.T
@@ -139,6 +141,14 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	}
 
 	if err = bfvContext.contextKeys.GenNTTParams(); err != nil {
+		return err
+	}
+
+	if err = bfvContext.contextPKeys.SetParameters(N, params.KeySwitchPrimes); err != nil {
+		return err
+	}
+
+	if err = bfvContext.contextPKeys.GenNTTParams(); err != nil {
 		return err
 	}
 
@@ -263,6 +273,10 @@ func (bfvContext *BfvContext) ContextKeys() *ring.Context {
 	return bfvContext.contextKeys
 }
 
+func (bfvContext *BfvContext) ContextPKeys() *ring.Context {
+	return bfvContext.contextPKeys
+}
+
 func (bfvcontext *BfvContext) KeySwitchPrimes() []uint64 {
 	return bfvcontext.specialprimes
 }
@@ -273,6 +287,10 @@ func (bfvcontext *BfvContext) Alpha() uint64 {
 
 func (bfvcontext *BfvContext) Beta() uint64 {
 	return bfvcontext.beta
+}
+
+func (bfvcontext *BfvContext) RescaleParamsKeys() []uint64 {
+	return bfvcontext.rescaleParamsKeys
 }
 
 // GaussianSampler returns the context's gaussian sampler instance

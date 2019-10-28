@@ -1,9 +1,8 @@
-package dbfv
+package ring
 
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/ldsec/lattigo/ring"
 	"golang.org/x/crypto/blake2b"
 	"hash"
 	"math/bits"
@@ -76,14 +75,14 @@ func (prng *PRNG) SetClock(n uint64) error {
 // generating random polynomials using the structure PRNG.
 type CRPGenerator struct {
 	prng    *PRNG
-	context *ring.Context
+	context *Context
 	masks   []uint64
 }
 
 // NewCRPGenerator creates a new CRPGenerator, that will deterministicaly and securely generate uniform polynomials
 // in the input context using the hash function blake2b. The PRNG can be instantiated with a key on top
 // of the public seed. If not key is used, set key=nil.
-func NewCRPGenerator(key []byte, context *ring.Context) (*CRPGenerator, error) {
+func NewCRPGenerator(key []byte, context *Context) (*CRPGenerator, error) {
 	var err error
 	crpgenerator := new(CRPGenerator)
 	crpgenerator.prng, err = NewPRNG(key)
@@ -122,7 +121,7 @@ func (crpgenerator *CRPGenerator) SetClock(n uint64) error {
 }
 
 // Clock generates and returns a new uniform polynomial. Also increases the clock cycle by 1.
-func (crpgenerator *CRPGenerator) Clock() *ring.Poly {
+func (crpgenerator *CRPGenerator) Clock() *Poly {
 	var coeff uint64
 	var randomBytes []byte
 

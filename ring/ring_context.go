@@ -3,8 +3,6 @@ package ring
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/binary"
 	"encoding/gob"
 	"errors"
 	"math/bits"
@@ -378,81 +376,6 @@ func (context *Context) NewPolyLvl(level uint64) *Poly {
 	}
 
 	return p
-}
-
-// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
-func (context *Context) UniformPoly(Pol *Poly) {
-
-	var randomBytes []byte
-	var randomUint, mask, qi uint64
-
-	n := context.N
-	if n < 8 {
-		n = 8
-	}
-
-	randomBytes = make([]byte, n)
-	if _, err := rand.Read(randomBytes); err != nil {
-		panic("crypto rand error")
-	}
-
-	level := uint64(len(Pol.Coeffs) - 1)
-
-	for j := uint64(0); j < level+1; j++ {
-
-		qi = context.Modulus[j]
-
-		// Starts by computing the mask
-		mask = (1 << uint64(bits.Len64(qi))) - 1
-
-		// Iterates for each modulus over each coefficient
-		for i := uint64(0); i < context.N; i++ {
-
-			// Samples an integer between [0, qi-1]
-			for {
-
-				// Replenishes the pool if it runs empty
-				if len(randomBytes) < 8 {
-					randomBytes = make([]byte, n)
-					if _, err := rand.Read(randomBytes); err != nil {
-						panic("crypto rand error")
-					}
-				}
-
-				// Reads bytes from the pool
-				randomUint = binary.BigEndian.Uint64(randomBytes[:8]) & mask
-				randomBytes = randomBytes[8:] // Discard the used bytes
-
-				// If the integer is between [0, qi-1], breaks the loop
-				if randomUint < qi {
-					break
-				}
-			}
-
-			Pol.Coeffs[j][i] = randomUint
-		}
-	}
-
-	return
-}
-
-// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
-func (context *Context) NewUniformPoly() (Pol *Poly) {
-
-	Pol = context.NewPoly()
-
-	context.UniformPoly(Pol)
-
-	return
-}
-
-func (context *Context) NewUniformPolyLvl(level uint64) (Pol *Poly) {
-
-	Pol = context.NewPolyLvl(level)
-
-	context.UniformPoly(Pol)
-
-	return
 }
 
 // SetCoefficientsInt64 sets the coefficients of p1 from an int64 array.

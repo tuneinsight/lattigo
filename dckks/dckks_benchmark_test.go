@@ -6,16 +6,28 @@ import (
 	"testing"
 )
 
-func Benchmark_DCKKS_CKG(b *testing.B) {
+func Benchmark_DCKKS(b *testing.B) {
+	b.Run("PublicKeyGen", benchPublicKeyGen)
+	b.Run("RelinKeyGen", benchRelinKeyGen)
+	b.Run("RelinKeyGenNaive", benchRelinKeyGenNaive)
+	b.Run("KeySwitching", benchKeyswitching)
+	b.Run("PublicKeySwitching", benchPublicKeySwitching)
+	b.Run("RotKeyGen", benchRotKeyGen)
+	b.Run("Refresh", benchRefresh)
+}
+
+func benchPublicKeyGen(b *testing.B) {
 
 	parties := testParams.parties
 
-	for _, params := range testParams.contexts {
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genDCKKSContext(parameters)
 
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
 
-		crpGenerator, err := NewCRPGenerator(nil, ckksContext.ContextKeys())
+		crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
 		if err != nil {
 			b.Error(err)
 		}
@@ -62,10 +74,12 @@ func Benchmark_DCKKS_CKG(b *testing.B) {
 	}
 }
 
-func Benchmark_DCKKS_EKG(b *testing.B) {
+func benchRelinKeyGen(b *testing.B) {
 	parties := testParams.parties
 
-	for _, params := range testParams.contexts {
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genDCKKSContext(parameters)
 
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
@@ -88,7 +102,7 @@ func Benchmark_DCKKS_EKG(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
 
-		crpGenerator, err := NewCRPGenerator(nil, ckksContext.ContextKeys())
+		crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
 		if err != nil {
 			b.Error(err)
 		}
@@ -179,10 +193,12 @@ func Benchmark_DCKKS_EKG(b *testing.B) {
 	}
 }
 
-func Benchmark_DCKKS_EKGNaive(b *testing.B) {
+func benchRelinKeyGenNaive(b *testing.B) {
 	parties := testParams.parties
 
-	for _, params := range testParams.contexts {
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genDCKKSContext(parameters)
 
 		ckksContext := params.ckksContext
 		pk0 := params.pk0
@@ -235,63 +251,13 @@ func Benchmark_DCKKS_EKGNaive(b *testing.B) {
 	}
 }
 
-func Benchmark_DCKKS_RKG(b *testing.B) {
+func benchKeyswitching(b *testing.B) {
 
 	parties := testParams.parties
 
-	for _, params := range testParams.contexts {
+	for _, parameters := range testParams.ckksParameters {
 
-		ckksContext := params.ckksContext
-		sk0Shards := params.sk0Shards
-
-		rkg := NewRKG(ckksContext)
-
-		crpGenerator, err := NewCRPGenerator(nil, ckksContext.ContextKeys())
-		if err != nil {
-			b.Error(err)
-		}
-		crpGenerator.Seed([]byte{})
-		crp := make([]*ring.Poly, ckksContext.Beta())
-
-		for i := uint64(0); i < ckksContext.Beta(); i++ {
-			crp[i] = crpGenerator.Clock()
-		}
-
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Gen",
-			parties,
-			ckksContext.LogN(),
-			ckksContext.LogQ(),
-			ckksContext.Levels(),
-			ckksContext.Scale()),
-			func(b *testing.B) {
-
-				for i := 0; i < b.N; i++ {
-					rkg.GenShareRotRow(sk0Shards[0].Get(), crp)
-				}
-			})
-
-		shares := rkg.GenShareRotRow(sk0Shards[0].Get(), crp)
-
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Agg",
-			parties,
-			ckksContext.LogN(),
-			ckksContext.LogQ(),
-			ckksContext.Levels(),
-			ckksContext.Scale()),
-			func(b *testing.B) {
-
-				for i := 0; i < b.N; i++ {
-					rkg.AggregateRotRow([][]*ring.Poly{shares}, crp)
-				}
-			})
-	}
-}
-
-func Benchmark_DCKKS_CKS(b *testing.B) {
-
-	parties := testParams.parties
-
-	for _, params := range testParams.contexts {
+		params := genDCKKSContext(parameters)
 
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
@@ -353,10 +319,12 @@ func Benchmark_DCKKS_CKS(b *testing.B) {
 	}
 }
 
-func Benchmark_DCKKS_PCKS(b *testing.B) {
+func benchPublicKeySwitching(b *testing.B) {
 	parties := testParams.parties
 
-	for _, params := range testParams.contexts {
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genDCKKSContext(parameters)
 
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
@@ -417,11 +385,67 @@ func Benchmark_DCKKS_PCKS(b *testing.B) {
 	}
 }
 
-func Benchmark_DCKKS_Refresh(b *testing.B) {
+func benchRotKeyGen(b *testing.B) {
 
 	parties := testParams.parties
 
-	for _, params := range testParams.contexts {
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genDCKKSContext(parameters)
+
+		ckksContext := params.ckksContext
+		sk0Shards := params.sk0Shards
+
+		rkg := NewRKG(ckksContext)
+
+		crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
+		if err != nil {
+			b.Error(err)
+		}
+		crpGenerator.Seed([]byte{})
+		crp := make([]*ring.Poly, ckksContext.Beta())
+
+		for i := uint64(0); i < ckksContext.Beta(); i++ {
+			crp[i] = crpGenerator.Clock()
+		}
+
+		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Gen",
+			parties,
+			ckksContext.LogN(),
+			ckksContext.LogQ(),
+			ckksContext.Levels(),
+			ckksContext.Scale()),
+			func(b *testing.B) {
+
+				for i := 0; i < b.N; i++ {
+					rkg.GenShareRotRow(sk0Shards[0].Get(), crp)
+				}
+			})
+
+		shares := rkg.GenShareRotRow(sk0Shards[0].Get(), crp)
+
+		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Agg",
+			parties,
+			ckksContext.LogN(),
+			ckksContext.LogQ(),
+			ckksContext.Levels(),
+			ckksContext.Scale()),
+			func(b *testing.B) {
+
+				for i := 0; i < b.N; i++ {
+					rkg.AggregateRotRow([][]*ring.Poly{shares}, crp)
+				}
+			})
+	}
+}
+
+func benchRefresh(b *testing.B) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genDCKKSContext(parameters)
 
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
@@ -433,7 +457,7 @@ func Benchmark_DCKKS_Refresh(b *testing.B) {
 
 		startLevel := uint64(2)
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round0",
+		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Gen",
 			parties,
 			ckksContext.LogN(),
 			ckksContext.LogQ(),
@@ -450,7 +474,7 @@ func Benchmark_DCKKS_Refresh(b *testing.B) {
 			refreshShares[i] = GenRefreshShares(sk0Shards[i], startLevel, parties, ckksContext, ciphertext.Value()[0], crp)
 		}
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round1",
+		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Agg",
 			parties,
 			ckksContext.LogN(),
 			ckksContext.LogQ(),

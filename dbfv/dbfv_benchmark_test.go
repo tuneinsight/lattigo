@@ -27,7 +27,7 @@ func Benchmark_DBFVScheme(b *testing.B) {
 
 		_, _ = pk0, pk1
 
-		crpGenerator, err := NewCRPGenerator(nil, context)
+		crpGenerator, err := ring.NewCRPGenerator(nil, context)
 		if err != nil {
 			b.Error(err)
 		}

@@ -38,6 +38,8 @@ func Benchmark_Polynomial(b *testing.B) {
 
 		benchmark_KYSGaussPoly(sigma, contextQ, b)
 
+		benchmark_ZiggGaussPoly(sigma, contextQ, b)
+
 		benchmark_TernaryPoly(contextQ, b)
 
 		benchmark_UniformPoly(contextQ, b)
@@ -114,6 +116,25 @@ func benchmark_Marshaler(context *Context, b *testing.B) {
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/UnMarshalBinary", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			p.UnMarshalBinary(data)
+		}
+	})
+}
+
+func benchmark_ZiggGaussPoly(sigma float64, context *Context, b *testing.B) {
+
+	bound := uint64(sigma * 6)
+
+	pol := context.NewPoly()
+
+	b.Run(fmt.Sprintf("N=%d/limbs=%d/Zigg.Sample", context.N, len(context.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context.SampleGaussian(pol, sigma, bound)
+		}
+	})
+
+	b.Run(fmt.Sprintf("N=%d/limbs=%d/Zigg.SampleNTT", context.N, len(context.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context.SampleGaussianNTT(pol, sigma, bound)
 		}
 	})
 }

@@ -194,6 +194,7 @@ func benchRelinKeyGen(b *testing.B) {
 }
 
 func benchRelinKeyGenNaive(b *testing.B) {
+
 	parties := testParams.parties
 
 	for _, parameters := range testParams.ckksParameters {
@@ -204,9 +205,20 @@ func benchRelinKeyGenNaive(b *testing.B) {
 		pk0 := params.pk0
 		sk0Shards := params.sk0Shards
 
-		ekgNaive := NewEkgProtocolNaive(ckksContext)
+		type Party struct {
+			*RKGProtocolNaive
+			u      *ring.Poly
+			s      *ring.Poly
+			share1 RKGNaiveShareRoundOne
+			share2 RKGNaiveShareRoundTwo
+		}
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round1",
+		p := new(Party)
+		p.RKGProtocolNaive = NewRKGProtocolNaive(ckksContext)
+		p.s = sk0Shards[0].Get()
+		p.share1, p.share2 = p.AllocateShares()
+
+		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round1Gen",
 			parties,
 			ckksContext.LogN(),
 			ckksContext.LogQ(),
@@ -215,13 +227,11 @@ func benchRelinKeyGenNaive(b *testing.B) {
 			func(b *testing.B) {
 
 				for i := 0; i < b.N; i++ {
-					ekgNaive.GenSamples(sk0Shards[0].Get(), pk0.Get())
+					p.GenShareRoundOne(p.s, pk0.Get(), p.share1)
 				}
 			})
 
-		samples := ekgNaive.GenSamples(sk0Shards[0].Get(), pk0.Get())
-
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round2",
+		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round1Agg",
 			parties,
 			ckksContext.LogN(),
 			ckksContext.LogQ(),
@@ -230,13 +240,11 @@ func benchRelinKeyGenNaive(b *testing.B) {
 			func(b *testing.B) {
 
 				for i := 0; i < b.N; i++ {
-					ekgNaive.Aggregate(sk0Shards[0].Get(), pk0.Get(), [][][2]*ring.Poly{samples})
+					p.AggregateShareRoundOne(p.share1, p.share1, p.share1)
 				}
 			})
 
-		aggregatedSamples := ekgNaive.Aggregate(sk0Shards[0].Get(), pk0.Get(), [][][2]*ring.Poly{samples})
-
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round3",
+		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round2Gen",
 			parties,
 			ckksContext.LogN(),
 			ckksContext.LogQ(),
@@ -245,10 +253,24 @@ func benchRelinKeyGenNaive(b *testing.B) {
 			func(b *testing.B) {
 
 				for i := 0; i < b.N; i++ {
-					ekgNaive.Finalize([][][2]*ring.Poly{aggregatedSamples})
+					p.GenShareRoundTwo(p.share1, p.s, pk0.Get(), p.share2)
+				}
+			})
+
+		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round2Agg",
+			parties,
+			ckksContext.LogN(),
+			ckksContext.LogQ(),
+			ckksContext.Levels(),
+			ckksContext.Scale()),
+			func(b *testing.B) {
+
+				for i := 0; i < b.N; i++ {
+					p.AggregateShareRoundTwo(p.share2, p.share2, p.share2)
 				}
 			})
 	}
+
 }
 
 func benchKeyswitching(b *testing.B) {

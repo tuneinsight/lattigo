@@ -224,10 +224,10 @@ func testRelinKeyGen(t *testing.T) {
 				for i := range rkgParties {
 					p := new(Party)
 					p.RKGProtocol = NewEkgProtocol(ckksContext)
-					p.u, err = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
+					p.u, err = p.NewEphemeralKey(1.0 / 3.0)
 					check(t, err)
 					p.s = sk0Shards[i].Get()
-					p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
+					p.share1, p.share2, p.share3 = p.AllocateShares()
 					rkgParties[i] = p
 				}
 
@@ -314,30 +314,44 @@ func testRelinKeyGenNaive(t *testing.T) {
 			ckksContext.Scale()),
 			func(t *testing.T) {
 
-				// Each party instantiate an ekg naive protocole
-				ekgNaive := make([]*EkgProtocolNaive, parties)
-				for i := uint64(0); i < parties; i++ {
-					ekgNaive[i] = NewEkgProtocolNaive(ckksContext)
+				type Party struct {
+					*RKGProtocolNaive
+					u      *ring.Poly
+					s      *ring.Poly
+					share1 RKGNaiveShareRoundOne
+					share2 RKGNaiveShareRoundTwo
 				}
 
-				// ROUND 0
-				// Each party generates its samples
-				samples := make([][][2]*ring.Poly, parties)
-				for i := uint64(0); i < parties; i++ {
-					samples[i] = ekgNaive[i].GenSamples(sk0Shards[i].Get(), pk0.Get())
+				rkgParties := make([]*Party, parties)
+
+				for i := range rkgParties {
+					p := new(Party)
+					p.RKGProtocolNaive = NewRKGProtocolNaive(ckksContext)
+					p.s = sk0Shards[i].Get()
+					p.share1, p.share2 = p.AllocateShares()
+					rkgParties[i] = p
 				}
+
+				P0 := rkgParties[0]
 
 				// ROUND 1
-				// Each party aggretates its sample with the other n-1 samples
-				aggregatedSamples := make([][][2]*ring.Poly, parties)
-				for i := uint64(0); i < parties; i++ {
-					aggregatedSamples[i] = ekgNaive[i].Aggregate(sk0Shards[i].Get(), pk0.Get(), samples)
+				for i, p := range rkgParties {
+					rkgParties[i].GenShareRoundOne(p.s, pk0.Get(), p.share1)
+					if i > 0 {
+						P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
+					}
 				}
 
 				// ROUND 2
-				// Each party aggregates sums its aggregatedSample with the other n-1 aggregated samples
-				rlk := new(ckks.EvaluationKey)
-				rlk.Set(ekgNaive[0].Finalize(aggregatedSamples))
+				for i, p := range rkgParties {
+					rkgParties[i].GenShareRoundTwo(P0.share1, p.s, pk0.Get(), p.share2)
+					if i > 0 {
+						P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
+					}
+				}
+
+				evk := ckksContext.NewRelinKeyEmpty()
+				P0.GenRelinearizationKey(P0.share2, evk)
 
 				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
 
@@ -345,15 +359,15 @@ func testRelinKeyGenNaive(t *testing.T) {
 					coeffs[i] *= coeffs[i]
 				}
 
-				if err := evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext); err != nil {
+				if err := evaluator.MulRelin(ciphertext, ciphertext, evk, ciphertext); err != nil {
 					log.Fatal(err)
 				}
-
-				evaluator.Rescale(ciphertext, ckksContext.Scale(), ciphertext)
 
 				if ciphertext.Degree() != 1 {
 					t.Errorf("EKG_NAIVE -> bad relinearize")
 				}
+
+				evaluator.Rescale(ciphertext, ckksContext.Scale(), ciphertext)
 
 				verify_test_vectors(params, decryptorSk0, coeffs, ciphertext, t)
 			})
@@ -540,7 +554,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 	}
 }
 
-func testRotKeyGenRotCols(t *testing.T) {
+func testRotKeyGenCols(t *testing.T) {
 
 	parties := testParams.parties
 

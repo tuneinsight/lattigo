@@ -355,7 +355,7 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index == keygen.ckkscontext.levels-1 {
+			if index => keygen.ckkscontext.levels-1 {
 				break
 			}
 		}

@@ -37,85 +37,88 @@ type dbfvContext struct {
 type dbfvTestParameters struct {
 	parties uint64
 
-	contexts []*dbfvContext
+	contexts []bfv.Parameters
 }
 
 var err error
 var testParams = new(dbfvTestParameters)
 
 func init() {
-
-	var err error
-
 	testParams.parties = 5
 
-	parameters := bfv.DefaultParams[0:2]
-
-	//sigmaSmudging := 6.36
-
-	testParams.contexts = make([]*dbfvContext, len(parameters))
-
-	for i, params := range parameters {
-
-		testParams.contexts[i] = new(dbfvContext)
-
-		// nParties data indpendant element
-		testParams.contexts[i].bfvContext = bfv.NewBfvContext()
-		if err := testParams.contexts[i].bfvContext.SetParameters(&params); err != nil {
-			log.Fatal(err)
-		}
-
-		testParams.contexts[i].kgen = testParams.contexts[i].bfvContext.NewKeyGenerator()
-
-		testParams.contexts[i].evaluator = testParams.contexts[i].bfvContext.NewEvaluator()
-
-		if testParams.contexts[i].encoder, err = testParams.contexts[i].bfvContext.NewBatchEncoder(); err != nil {
-			log.Fatal(err)
-		}
-
-		// SecretKeys
-		testParams.contexts[i].sk0Shards = make([]*bfv.SecretKey, testParams.parties)
-		testParams.contexts[i].sk1Shards = make([]*bfv.SecretKey, testParams.parties)
-		tmp0 := testParams.contexts[i].bfvContext.ContextKeys().NewPoly()
-		tmp1 := testParams.contexts[i].bfvContext.ContextKeys().NewPoly()
-
-		for j := uint64(0); j < testParams.parties; j++ {
-			testParams.contexts[i].sk0Shards[j] = testParams.contexts[i].kgen.NewSecretKey()
-			testParams.contexts[i].sk1Shards[j] = testParams.contexts[i].kgen.NewSecretKey()
-			testParams.contexts[i].bfvContext.ContextKeys().Add(tmp0, testParams.contexts[i].sk0Shards[j].Get(), tmp0)
-			testParams.contexts[i].bfvContext.ContextKeys().Add(tmp1, testParams.contexts[i].sk1Shards[j].Get(), tmp1)
-		}
-
-		testParams.contexts[i].sk0 = new(bfv.SecretKey)
-		testParams.contexts[i].sk1 = new(bfv.SecretKey)
-
-		testParams.contexts[i].sk0.Set(tmp0)
-		testParams.contexts[i].sk1.Set(tmp1)
-
-		// Publickeys
-		testParams.contexts[i].pk0 = testParams.contexts[i].kgen.NewPublicKey(testParams.contexts[i].sk0)
-		testParams.contexts[i].pk1 = testParams.contexts[i].kgen.NewPublicKey(testParams.contexts[i].sk1)
-
-		if testParams.contexts[i].encryptorPk0, err = testParams.contexts[i].bfvContext.NewEncryptorFromPk(testParams.contexts[i].pk0); err != nil {
-			log.Fatal(err)
-		}
-
-		if testParams.contexts[i].decryptorSk0, err = testParams.contexts[i].bfvContext.NewDecryptor(testParams.contexts[i].sk0); err != nil {
-			log.Fatal(err)
-		}
-
-		if testParams.contexts[i].decryptorSk1, err = testParams.contexts[i].bfvContext.NewDecryptor(testParams.contexts[i].sk1); err != nil {
-			log.Fatal(err)
-		}
-
-	}
+	testParams.contexts = bfv.DefaultParams[0:2]
 }
 
-func Test_DBFV_CKG(t *testing.T) {
+func Test_DBFV(t *testing.T) {
+	t.Run("PublicKeyGen", testPublicKeyGen)
+	t.Run("RelinKeyGen", testRelinKeyGen)
+	t.Run("RelinKeyGenNaive", testRelinKeyGenNaive)
+	//t.Run("KeySwitching", testKeyswitching)
+	//t.Run("PublicKeySwitching", testPublicKeySwitching)
+	//t.Run("RotKeyGenConjugate", testRotKeyGenConjugate)
+	//t.Run("RotKeyGenCols", testRotKeyGenCols)
+	//t.Run("Refresh", testRefresh)
+}
+
+
+func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
+
+	params = new(dbfvContext)
+
+	if params.bfvContext, err = bfv.NewBfvContextWithParam(contextParameters); err != nil {
+		log.Fatal(err)
+	}
+
+	params.encoder, _ = params.bfvContext.NewBatchEncoder()
+	params.evaluator = params.bfvContext.NewEvaluator()
+
+	kgen := params.bfvContext.NewKeyGenerator()
+
+	// SecretKeys
+	params.sk0Shards = make([]*bfv.SecretKey, testParams.parties)
+	params.sk1Shards = make([]*bfv.SecretKey, testParams.parties)
+	tmp0 := params.bfvContext.ContextKeys().NewPoly()
+	tmp1 := params.bfvContext.ContextKeys().NewPoly()
+
+	for j := uint64(0); j < testParams.parties; j++ {
+		params.sk0Shards[j] = kgen.NewSecretKey()
+		params.sk1Shards[j] = kgen.NewSecretKey()
+		params.bfvContext.ContextKeys().Add(tmp0, params.sk0Shards[j].Get(), tmp0)
+		params.bfvContext.ContextKeys().Add(tmp1, params.sk1Shards[j].Get(), tmp1)
+	}
+
+	params.sk0 = new(bfv.SecretKey)
+	params.sk1 = new(bfv.SecretKey)
+
+	params.sk0.Set(tmp0)
+	params.sk1.Set(tmp1)
+
+	// Publickeys
+	params.pk0 = kgen.NewPublicKey(params.sk0)
+	params.pk1 = kgen.NewPublicKey(params.sk1)
+
+	if params.encryptorPk0, err = params.bfvContext.NewEncryptorFromPk(params.pk0); err != nil {
+		log.Fatal(err)
+	}
+
+	if params.decryptorSk0, err = params.bfvContext.NewDecryptor(params.sk0); err != nil {
+		log.Fatal(err)
+	}
+
+	if params.decryptorSk1, err = params.bfvContext.NewDecryptor(params.sk1); err != nil {
+		log.Fatal(err)
+	}
+
+	return
+}
+
+func testPublicKeyGen(t *testing.T) {
 
 	parties := testParams.parties
 
-	for _, params := range testParams.contexts {
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
 
 		bfvContext := params.bfvContext
 		contextKeys := bfvContext.ContextKeys()
@@ -167,11 +170,13 @@ func Test_DBFV_CKG(t *testing.T) {
 	}
 }
 
-func Test_DBFV_EKG(t *testing.T) {
+func testRelinKeyGen(t *testing.T) {
 
 	parties := testParams.parties
 
-	for _, params := range testParams.contexts {
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
 
 		bfvContext := params.bfvContext
 		contextKeys := bfvContext.ContextKeys()
@@ -261,50 +266,84 @@ func Test_DBFV_EKG(t *testing.T) {
 	}
 }
 
-/*
-func test_EKGNaive(params *testParams.contexts[i], t *testing.T) {
 
-	var err error
+func testRelinKeyGenNaive(t *testing.T) {
 
-	contextKeys := params.contextKeys
-	parties := params.parties
-	bfvContext := params.bfvContext
-	sk0Shards := params.sk0Shards
-	pk0 := params.pk0
-	evaluator := params.evaluator
+	parties := testParams.parties
 
-	t.Run(fmt.Sprintf("N=%d/logQ=%d/EKG_Naive", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+	for _, parameters := range testParams.contexts {
 
-		// Each party instantiate an ekg naive protocole
-		ekgNaive := make([]*EkgProtocolNaive, parties)
-		for i := 0; i < parties; i++ {
-			ekgNaive[i] = NewEkgProtocolNaive(bfvContext)
-		}
+		params := genDBFVContext(&parameters)
 
-		evk := test_EKG_Protocol_Naive(parties, sk0Shards, pk0, ekgNaive)
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		evaluator := params.evaluator
+		pk0 := params.pk0
+		encryptorPk0 := params.encryptorPk0
+		decryptorSk0 := params.decryptorSk0
+		sk0Shards := params.sk0Shards
 
-		rlk := new(bfv.EvaluationKey)
-		rlk.SetRelinKeys([][][2]*ring.Poly{evk[0]})
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
-		coeffs, _, ciphertext, _ := newTestVectors(params)
+			type Party struct {
+				*RKGProtocolNaive
+				u      *ring.Poly
+				s      *ring.Poly
+				share1 RKGNaiveShareRoundOne
+				share2 RKGNaiveShareRoundTwo
+			}
 
-		for i := range coeffs {
-			coeffs[i] *= coeffs[i]
-			coeffs[i] %= params.contextT.Modulus[0]
-		}
+			rkgParties := make([]*Party, parties)
 
-		ciphertextMul := bfvContext.NewCiphertext(ciphertext.Degree() * 2)
-		err = evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
-		check(t, err)
+			for i := range rkgParties {
+				p := new(Party)
+				p.RKGProtocolNaive = NewRKGProtocolNaive(bfvContext)
+				p.s = sk0Shards[i].Get()
+				p.share1, p.share2 = p.AllocateShares()
+				rkgParties[i] = p
+			}
 
-		res := bfvContext.NewCiphertext(1)
-		err := evaluator.Relinearize(ciphertextMul, rlk, res)
-		check(t, err)
+			P0 := rkgParties[0]
 
-		verifyTestVectors(params.decryptorSk0, params.encoder, coeffs, ciphertextMul, t)
-	})
+			// ROUND 1
+			for i, p := range rkgParties {
+				rkgParties[i].GenShareRoundOne(p.s, pk0.Get(), p.share1)
+				if i > 0 {
+					P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
+				}
+			}
+
+			// ROUND 2
+			for i, p := range rkgParties {
+				rkgParties[i].GenShareRoundTwo(P0.share1, p.s, pk0.Get(), p.share2)
+				if i > 0 {
+					P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
+				}
+			}
+
+			evk := bfvContext.NewRelinKeyEmpty(1)
+			P0.GenRelinearizationKey(P0.share2, evk)
+
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+
+			for i := range coeffs {
+				coeffs[i] *= coeffs[i]
+				coeffs[i] %= bfvContext.ContextT().Modulus[0]
+			}
+
+			ciphertextMul := bfvContext.NewCiphertext(ciphertext.Degree() * 2)
+			err = evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
+			check(t, err)
+
+			res := bfvContext.NewCiphertext(1)
+			err = evaluator.Relinearize(ciphertextMul, evk, res)
+			check(t, err)
+
+			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
+		})
+	}
 }
-
+/*
 func test_RKG(params *testParams.contexts[i], t *testing.T) {
 
 	var err error
@@ -579,32 +618,6 @@ func test_BOOT(params *testParams.contexts[i], t *testing.T) {
 			t.Errorf("error : BOOT")
 		}
 	})
-}
-
-func test_EKG_Protocol_Naive(parties int, sk []*bfv.SecretKey, collectivePk *bfv.PublicKey, ekgNaive []*EkgProtocolNaive) [][][2]*ring.Poly {
-
-	// ROUND 0
-	// Each party generates its samples
-	samples := make([][][2]*ring.Poly, parties)
-	for i := 0; i < parties; i++ {
-		samples[i] = ekgNaive[i].GenSamples(sk[i].Get(), collectivePk.Get())
-	}
-
-	// ROUND 1
-	// Each party aggretates its sample with the other n-1 samples
-	aggregatedSamples := make([][][2]*ring.Poly, parties)
-	for i := 0; i < parties; i++ {
-		aggregatedSamples[i] = ekgNaive[i].Aggregate(sk[i].Get(), collectivePk.Get(), samples)
-	}
-
-	// ROUND 2
-	// Each party aggregates sums its aggregatedSample with the other n-1 aggregated samples
-	evk := make([][][2]*ring.Poly, parties)
-	for i := 0; i < parties; i++ {
-		evk[i] = ekgNaive[i].Finalize(aggregatedSamples)
-	}
-
-	return evk
 }
 */
 

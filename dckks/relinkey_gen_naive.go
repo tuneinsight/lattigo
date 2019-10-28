@@ -81,7 +81,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index == uint64(len(rkg.ckksContext.ContextQ().Modulus)) {
+			if index >= uint64(len(rkg.ckksContext.ContextQ().Modulus)-1) {
 				break
 			}
 		}

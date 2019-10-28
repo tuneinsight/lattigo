@@ -153,7 +153,7 @@ func (rotkg *RotKGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Po
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index == uint64(len(rotkg.ckksContext.ContextQ().Modulus)) {
+			if index >= uint64(len(rotkg.ckksContext.ContextQ().Modulus)-1) {
 				break
 			}
 		}

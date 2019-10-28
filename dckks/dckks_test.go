@@ -55,7 +55,7 @@ func init() {
 
 	testParams.ckksParameters = []*ckks.Parameters{
 		ckks.DefaultParams[13],
-		ckks.DefaultParams[14],
+		//ckks.DefaultParams[14],
 		//ckks.DefaultParams[15],
 		//ckks.DefaultParams[16],
 	}

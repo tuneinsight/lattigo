@@ -418,7 +418,16 @@ func benchRotKeyGen(b *testing.B) {
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
 
-		rkg := NewRKG(ckksContext)
+		type Party struct {
+			*RotKGProtocol
+			s     *ring.Poly
+			share RotKGShareRotColLeft
+		}
+
+		p := new(Party)
+		p.RotKGProtocol = NewRotKGProtocol(ckksContext)
+		p.s = sk0Shards[0].Get()
+		p.share = p.AllocateShareRotColLeft()
 
 		crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
 		if err != nil {
@@ -431,6 +440,8 @@ func benchRotKeyGen(b *testing.B) {
 			crp[i] = crpGenerator.Clock()
 		}
 
+		mask := uint64((1 << (ckksContext.LogN() - 1)) - 1)
+
 		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Gen",
 			parties,
 			ckksContext.LogN(),
@@ -440,11 +451,9 @@ func benchRotKeyGen(b *testing.B) {
 			func(b *testing.B) {
 
 				for i := 0; i < b.N; i++ {
-					rkg.GenShareRotRow(sk0Shards[0].Get(), crp)
+					p.GenShareRotLeft(sk0Shards[0].Get(), uint64(i)&mask, crp, p.share)
 				}
 			})
-
-		shares := rkg.GenShareRotRow(sk0Shards[0].Get(), crp)
 
 		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Agg",
 			parties,
@@ -455,10 +464,11 @@ func benchRotKeyGen(b *testing.B) {
 			func(b *testing.B) {
 
 				for i := 0; i < b.N; i++ {
-					rkg.AggregateRotRow([][]*ring.Poly{shares}, crp)
+					p.Aggregate(p.share, p.share, p.share)
 				}
 			})
 	}
+
 }
 
 func benchRefresh(b *testing.B) {

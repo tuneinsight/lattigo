@@ -1585,7 +1585,7 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 		}
 
 		//Independant of context (parameter : level)
-		if reduce&1 == 1 {
+		if reduce&7 == 1 {
 			contextQ.ReduceLvl(level, pool2Q, pool2Q)
 			contextQ.ReduceLvl(level, pool3Q, pool3Q)
 
@@ -1597,7 +1597,7 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 	}
 
 	//Independant of context (parameter : level)
-	if (reduce-1)&1 != 1 {
+	if (reduce-1)&7 != 1 {
 		contextQ.ReduceLvl(level, pool2Q, pool2Q)
 		contextQ.ReduceLvl(level, pool3Q, pool3Q)
 

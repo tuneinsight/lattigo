@@ -204,7 +204,7 @@ func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]
 
 	} else {
 
-		for 1<<(M-1) > maxDegree{
+		for 1<<(M-1) > maxDegree {
 			M--
 		}
 

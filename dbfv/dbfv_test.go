@@ -612,9 +612,26 @@ func testRefresh(t *testing.T) {
 		sk0Shards := params.sk0Shards
 		encoder := params.encoder
 		decryptorSk0 := params.decryptorSk0
-		sk0 := params.sk0
 
 		t.Run(fmt.Sprintf("N=%d/logQ=%d/BOOT", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+
+			type Party struct {
+				*RefreshProtocol
+				s      *ring.Poly
+				share1 RefreshShareDecrypt
+				share2 RefreshShareRecrypt
+			}
+
+			RefreshParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.RefreshProtocol = NewRefreshProtocol(bfvContext)
+				p.s = sk0Shards[i].Get()
+				p.share1, p.share2 = p.AllocateShares()
+				RefreshParties[i] = p
+			}
+
+			P0 := RefreshParties[0]
 
 			crpGenerator, err := ring.NewCRPGenerator(nil, contextKeys)
 			check(t, err)
@@ -623,22 +640,20 @@ func testRefresh(t *testing.T) {
 
 			coeffs, plaintextWant, ciphertext := newTestVectors(params, encryptorPk0, t)
 
-			// We store the plaintext coeffs as bigint for a reference to quantify the error
+			for i, p := range RefreshParties {
+				p.GenShares(p.s, ciphertext, crp, p.share1, p.share2)
+				if i > 0 {
+					P0.Aggregate(p.share1, P0.share1, P0.share1)
+					P0.Aggregate(p.share2, P0.share2, P0.share2)
+				}
+			}
+
+			// We store the plaintext coeffs as bigint for a reference to later be able to quantify the error
 			coeffs_plaintext_bigint_fresh := make([]*ring.Int, bfvContext.N())
 			bfvContext.ContextQ().PolyToBigint(plaintextWant.Value()[0], coeffs_plaintext_bigint_fresh)
+			// =============================================================================================
 
-			// We encrypt the plaintext
-
-			// ===== Boot instance =====
-
-			refreshShares := make([]*RefreshShares, parties)
-
-			for i := uint64(0); i < parties; i++ {
-				refreshShares[i] = GenRefreshShares(sk0Shards[i], ciphertext, bfvContext, crp, encoder)
-			}
-			// =========================
-
-			// ==== We simulated added error of size Q/(T^2) and addit to the fresh ciphertext ====
+			// ==== We simulated added error of size Q/(T^2) and add it to the fresh ciphertext ====
 			coeffs_bigint := make([]*ring.Int, bfvContext.N())
 			bfvContext.ContextQ().PolyToBigint(ciphertext.Value()[0], coeffs_bigint)
 
@@ -666,8 +681,10 @@ func testRefresh(t *testing.T) {
 			average_simulated_error.Div(average_simulated_error, ring.NewUint(bfvContext.N()))
 			// =======================================================================================
 
-			// We boot the ciphertext with the simulated error
-			Refresh(ciphertext, sk0.Get(), refreshShares, bfvContext, crp, encoder)
+			// We refresh the ciphertext with the simulated error
+			P0.Decrypt(ciphertext, P0.share1)      // Masked decryption
+			P0.Recode(ciphertext)                  // Masked re-encoding
+			P0.Recrypt(ciphertext, crp, P0.share2) // Masked re-encryption
 
 			// We decrypt and compare with the original plaintext
 			plaintextHave = decryptorSk0.DecryptNew(ciphertext)

@@ -373,7 +373,7 @@ func newswitchintkey(bfvcontext *BfvContext, sk_in, sk_out *ring.Poly) (switchke
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index == uint64(len(context.Modulus)-1) {
+			if index >= uint64(len(context.Modulus)-1) {
 				break
 			}
 

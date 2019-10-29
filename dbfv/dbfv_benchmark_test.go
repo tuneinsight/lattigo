@@ -12,9 +12,9 @@ func Benchmark_DBFV(b *testing.B) {
 	b.Run("RelinKeyGen", benchRelinKeyGen)
 	b.Run("RelinKeyGenNaive", benchRelinKeyGenNaive)
 	b.Run("KeySwitching", benchKeyswitching)
-	//b.Run("PublicKeySwitching", benchPublicKeySwitching)
-	//b.Run("RotKeyGen", benchRotKeyGen)
-	//b.Run("Refresh", benchRefresh)
+	b.Run("PublicKeySwitching", benchPublicKeySwitching)
+	b.Run("RotKeyGen", benchRotKeyGen)
+	b.Run("Refresh", benchRefresh)
 }
 
 func benchPublicKeyGen(b *testing.B) {
@@ -237,6 +237,173 @@ func benchKeyswitching(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.KeySwitch(p.share, ciphertext, ciphertext)
+			}
+		})
+	}
+}
+
+func benchPublicKeySwitching(b *testing.B) {
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
+
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		sk0Shards := params.sk0Shards
+		pk1 := params.pk1
+
+		ciphertext := bfvContext.NewRandomCiphertext(1)
+
+		type Party struct {
+			*PCKSProtocol
+			s     *ring.Poly
+			share PCKSShare
+		}
+
+		p := new(Party)
+		p.PCKSProtocol = NewPCKSProtocol(bfvContext, 6.36)
+		p.s = sk0Shards[0].Get()
+		p.share = p.AllocateShares()
+
+		b.Run(fmt.Sprintf("N=%d/logQ=%d/Round1Gen", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShare(p.s, pk1, ciphertext, p.share)
+
+			}
+		})
+
+		b.Run(fmt.Sprintf("N=%d/logQ=%d/Round1Agg", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.AggregateShares(p.share, p.share, p.share)
+			}
+		})
+
+		b.Run(fmt.Sprintf("N=%d/logQ=%d/Round2KS", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.KeySwitch(p.share, ciphertext, ciphertext)
+			}
+		})
+	}
+}
+
+func benchRotKeyGen(b *testing.B) {
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
+
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		sk0Shards := params.sk0Shards
+
+		type Party struct {
+			*RotKGProtocol
+			s     *ring.Poly
+			share RotKGShareRotColLeft
+		}
+
+		p := new(Party)
+		p.RotKGProtocol = NewRotKGProtocol(bfvContext)
+		p.s = sk0Shards[0].Get()
+		p.share = p.AllocateShareRotColLeft()
+
+		crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
+		if err != nil {
+			b.Error(err)
+		}
+		crpGenerator.Seed([]byte{})
+		crp := make([]*ring.Poly, bfvContext.Beta())
+
+		for i := uint64(0); i < bfvContext.Beta(); i++ {
+			crp[i] = crpGenerator.Clock()
+		}
+
+		mask := uint64((contextKeys.N >> 1) - 1)
+
+		b.Run(fmt.Sprintf("N=%d/logQ=%d/Round1Gen", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShareRotLeft(sk0Shards[0].Get(), uint64(i)&mask, crp, p.share)
+			}
+		})
+
+		b.Run(fmt.Sprintf("N=%d/logQ=%d/Round1Agg", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Aggregate(p.share, p.share, p.share)
+			}
+		})
+	}
+
+}
+
+func benchRefresh(b *testing.B) {
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
+
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		sk0Shards := params.sk0Shards
+
+		type Party struct {
+			*RefreshProtocol
+			s      *ring.Poly
+			share1 RefreshShareDecrypt
+			share2 RefreshShareRecrypt
+		}
+
+		p := new(Party)
+		p.RefreshProtocol = NewRefreshProtocol(bfvContext)
+		p.s = sk0Shards[0].Get()
+		p.share1, p.share2 = p.AllocateShares()
+
+		crpGenerator, err := ring.NewCRPGenerator(nil, contextKeys)
+		if err != nil {
+			b.Error(err)
+		}
+		crpGenerator.Seed([]byte{})
+		crp := crpGenerator.Clock()
+
+		ciphertext := bfvContext.NewRandomCiphertext(1)
+
+		b.Run(fmt.Sprintf("N=%d/logQ=%d/Gen", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShares(p.s, ciphertext, crp, p.share1, p.share2)
+			}
+		})
+
+		b.Run(fmt.Sprintf("N=%d/logQ=%d/Agg", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Aggregate(p.share1, p.share1, p.share1)
+			}
+		})
+
+		b.Run(fmt.Sprintf("N=%d/logQ=%d/Decrypt", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Decrypt(ciphertext, p.share1) 
+			}
+		})
+
+		b.Run(fmt.Sprintf("N=%d/logQ=%d/Recode", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Recode(ciphertext)
+			}
+		})
+
+		b.Run(fmt.Sprintf("N=%d/logQ=%d/Recrypt", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Recrypt(ciphertext, crp, p.share2)
 			}
 		})
 	}

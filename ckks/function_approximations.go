@@ -204,6 +204,10 @@ func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]
 
 	} else {
 
+		for 1<<(M-1) > maxDegree{
+			M--
+		}
+
 		coeffsq, coeffsr := split(coeffs, 1<<(M-1), maxDegree)
 
 		if res, err = recurse(maxDegree-(1<<(M-1)), L, M-1, coeffsq, C, evaluator, evakey); err != nil {

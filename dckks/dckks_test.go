@@ -51,7 +51,7 @@ func init() {
 	testParams.parties = 5
 
 	testParams.medianprec = 15
-	testParams.verbose = false
+	testParams.verbose = true
 
 	testParams.ckksParameters = []*ckks.Parameters{
 		ckks.DefaultParams[13],
@@ -662,6 +662,8 @@ func testRefresh(t *testing.T) {
 		decryptorSk0 := params.decryptorSk0
 		sk0Shards := params.sk0Shards
 
+		levelStart := uint64(3)
+
 		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f",
 			parties,
 			ckksContext.LogN(),
@@ -670,24 +672,47 @@ func testRefresh(t *testing.T) {
 			ckksContext.Scale()),
 			func(t *testing.T) {
 
-				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1.0, t)
+				type Party struct {
+					*RefreshProtocol
+					s      *ring.Poly
+					share1 RefreshShareDecrypt
+					share2 RefreshShareRecrypt
+				}
 
-				crpGenerator, _ := ring.NewCRPGenerator(nil, ckksContext.ContextQ())
+				RefreshParties := make([]*Party, parties)
+				for i := uint64(0); i < parties; i++ {
+					p := new(Party)
+					p.RefreshProtocol = NewRefreshProtocol(ckksContext)
+					p.s = sk0Shards[i].Get()
+					p.share1, p.share2 = p.AllocateShares(levelStart)
+					RefreshParties[i] = p
+				}
 
+				P0 := RefreshParties[0]
+
+				crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextQ())
+				check(t, err)
+				crpGenerator.Seed([]byte{})
 				crp := crpGenerator.Clock()
 
-				levelStart := uint64(3)
+				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1.0, t)
 
-				refreshShares := make([]*RefreshShares, parties)
-				for i := uint64(0); i < parties; i++ {
-					refreshShares[i] = GenRefreshShares(sk0Shards[i], levelStart, parties, ckksContext, ciphertext.Value()[1], crp)
+				for i, p := range RefreshParties {
+					p.GenShares(p.s, levelStart, parties, ciphertext, crp, p.share1, p.share2)
+					if i > 0 {
+						P0.Aggregate(p.share1, P0.share1, P0.share1)
+						P0.Aggregate(p.share2, P0.share2, P0.share2)
+					}
 				}
 
 				for ciphertext.Level() != levelStart {
 					evaluator.DropLevel(ciphertext.Element(), 1)
 				}
 
-				Refresh(ciphertext, refreshShares, ckksContext, crp)
+				// We refresh the ciphertext with the simulated error
+				P0.Decrypt(ciphertext, P0.share1)      // Masked decryption
+				P0.Recode(ciphertext)                  // Masked re-encoding
+				P0.Recrypt(ciphertext, crp, P0.share2) // Masked re-encryption
 
 				verify_test_vectors(params, decryptorSk0, coeffs, ciphertext, t)
 

@@ -633,7 +633,7 @@ func testRefresh(t *testing.T) {
 
 			P0 := RefreshParties[0]
 
-			crpGenerator, err := ring.NewCRPGenerator(nil, contextKeys)
+			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextQ())
 			check(t, err)
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.Clock()

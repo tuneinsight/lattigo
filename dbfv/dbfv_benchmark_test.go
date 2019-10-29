@@ -2,7 +2,6 @@ package dbfv
 
 import (
 	"fmt"
-	//"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	"testing"
 )
@@ -389,7 +388,7 @@ func benchRefresh(b *testing.B) {
 		b.Run(fmt.Sprintf("N=%d/logQ=%d/Decrypt", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.Decrypt(ciphertext, p.share1) 
+				p.Decrypt(ciphertext, p.share1)
 			}
 		})
 

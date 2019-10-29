@@ -5,101 +5,116 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-type RefreshShares struct {
-	h0 *ring.Poly
-	h1 *ring.Poly
+type RefreshProtocol struct {
+	ckksContext *ckks.CkksContext
+	tmp         *ring.Poly
+	maskBigint  []*ring.Int
 }
 
-func GenRefreshShares(sk *ckks.SecretKey, levelStart, nParties uint64, ckkscontext *ckks.CkksContext, c1, crs *ring.Poly) (refreshShares *RefreshShares) {
+type RefreshShareDecrypt *ring.Poly
+type RefreshShareRecrypt *ring.Poly
 
-	refreshShares = new(RefreshShares)
+func NewRefreshProtocol(ckksContext *ckks.CkksContext) (refreshProtocol *RefreshProtocol) {
+	refreshProtocol = new(RefreshProtocol)
+	refreshProtocol.ckksContext = ckksContext
+	refreshProtocol.tmp = ckksContext.ContextQ().NewPoly()
+	refreshProtocol.maskBigint = make([]*ring.Int, 1<<ckksContext.LogN())
+	return
+}
 
-	context := ckkscontext.ContextQ()
+func (refreshProtocol *RefreshProtocol) AllocateShares(levelStart uint64) (RefreshShareDecrypt, RefreshShareRecrypt) {
+	return refreshProtocol.ckksContext.ContextQ().NewPolyLvl(levelStart), refreshProtocol.ckksContext.ContextQ().NewPoly()
+}
 
-	bound := new(ring.Int)
-	bound.SetBigInt(ckkscontext.BigintChain()[levelStart])
-	bound.Div(bound, ring.NewUint(2*nParties))
+func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
 
-	coeffs_bigint := make([]*ring.Int, 1<<ckkscontext.LogN())
-
-	for i := range coeffs_bigint {
-		coeffs_bigint[i] = ring.RandInt(bound)
-		coeffs_bigint[i].Center(bound)
-	}
-
-	refreshShares.h0 = context.NewPolyLvl(levelStart)
-	refreshShares.h1 = context.NewPoly()
-
-	// h0 = mask (at level min)
-	context.SetCoefficientsBigintLvl(levelStart, coeffs_bigint, refreshShares.h0)
-	context.SetCoefficientsBigint(coeffs_bigint, refreshShares.h1)
-
-	// h1 = mask (at level max)
-
-	context.NTTLvl(levelStart, refreshShares.h0, refreshShares.h0)
-	context.NTT(refreshShares.h1, refreshShares.h1)
-
-	// h0 = sk*c1 + mask
-	context.MulCoeffsMontgomeryAndAddLvl(levelStart, sk.Get(), c1, refreshShares.h0)
-
-	// h1 = sk*a + mask
-	context.MulCoeffsMontgomeryAndAdd(sk.Get(), crs, refreshShares.h1)
-
+	context := refreshProtocol.ckksContext.ContextQ()
 	sampler := context.NewKYSampler(3.19, 19)
 
-	// h0 = sk*c1 + mask + e0
-	context.AddLvl(levelStart, refreshShares.h0, sampler.SampleNTTNew(), refreshShares.h0)
+	bound := new(ring.Int)
+	bound.SetBigInt(refreshProtocol.ckksContext.BigintChain()[levelStart])
+	bound.Div(bound, ring.NewUint(2*nParties))
 
-	// h1 = sk*a + mask + e1
-	context.Add(refreshShares.h1, sampler.SampleNTTNew(), refreshShares.h1)
-
-	// h1 = -sk*c1 - mask - e0
-	context.Neg(refreshShares.h1, refreshShares.h1)
-
-	return
-
-}
-
-func Refresh(ciphertext *ckks.Ciphertext, refreshShares []*RefreshShares, ckkscontext *ckks.CkksContext, crs *ring.Poly) {
-
-	// ct[0] += sum(h0_i)
-	for i := range refreshShares {
-		ckkscontext.ContextQ().AddLvl(ciphertext.Level(), ciphertext.Value()[0], refreshShares[i].h0, ciphertext.Value()[0])
+	for i := range refreshProtocol.maskBigint {
+		refreshProtocol.maskBigint[i] = ring.RandInt(bound)
+		refreshProtocol.maskBigint[i].Center(bound)
 	}
 
-	ckkscontext.ContextQ().InvNTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+	// h0 = mask (at level min)
+	context.SetCoefficientsBigintLvl(levelStart, refreshProtocol.maskBigint, shareDecrypt)
+	// h1 = mask (at level max)
+	context.SetCoefficientsBigint(refreshProtocol.maskBigint, shareRecrypt)
 
-	coeffs_bigint := make([]*ring.Int, 1<<ckkscontext.LogN())
+	for i := range refreshProtocol.maskBigint {
+		refreshProtocol.maskBigint[i] = ring.NewUint(0)
+	}
 
-	ckkscontext.ContextQ().PolyToBigint(ciphertext.Value()[0], coeffs_bigint)
+	context.NTTLvl(levelStart, shareDecrypt, shareDecrypt)
+	context.NTT(shareRecrypt, shareRecrypt)
 
-	QStart := ckkscontext.BigintChain()[ciphertext.Level()]
+	// h0 = sk*c1 + mask
+	context.MulCoeffsMontgomeryAndAddLvl(levelStart, sk, ciphertext.Value()[1], shareDecrypt)
+
+	// h1 = sk*a + mask
+	context.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
+
+	// h0 = sk*c1 + mask + e0
+	sampler.SampleNTT(refreshProtocol.tmp)
+	context.AddLvl(levelStart, shareDecrypt, refreshProtocol.tmp, shareDecrypt)
+
+	// h1 = sk*a + mask + e1
+	sampler.SampleNTT(refreshProtocol.tmp)
+	context.Add(shareRecrypt, refreshProtocol.tmp, shareRecrypt)
+
+	// h1 = -sk*c1 - mask - e0
+	context.Neg(shareRecrypt, shareRecrypt)
+
+	refreshProtocol.tmp.Zero()
+}
+
+func (refreshProtocol *RefreshProtocol) Aggregate(share1, share2, shareOut *ring.Poly) {
+	refreshProtocol.ckksContext.ContextQ().AddLvl(uint64(len(share1.Coeffs)-1), share1, share2, shareOut)
+}
+
+func (refreshProtocol *RefreshProtocol) Decrypt(ciphertext *ckks.Ciphertext, shareDecrypt RefreshShareDecrypt) {
+	refreshProtocol.ckksContext.ContextQ().AddLvl(ciphertext.Level(), ciphertext.Value()[0], shareDecrypt, ciphertext.Value()[0])
+}
+
+func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
+	ckksContext := refreshProtocol.ckksContext
+	contextQ := refreshProtocol.ckksContext.ContextQ()
+
+	contextQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+
+	contextQ.PolyToBigint(ciphertext.Value()[0], refreshProtocol.maskBigint)
+
+	QStart := ckksContext.BigintChain()[ciphertext.Level()]
 	QHalf := QStart.Copy()
 	QHalf.Rsh(QHalf, 1)
 
-	for ciphertext.Level() != ckkscontext.Levels()-1 {
+	for ciphertext.Level() != ckksContext.Levels()-1 {
 		ciphertext.Value()[0].Coeffs = append(ciphertext.Value()[0].Coeffs, make([][]uint64, 1)...)
-		ciphertext.Value()[0].Coeffs[ciphertext.Level()] = make([]uint64, 1<<ckkscontext.LogN())
+		ciphertext.Value()[0].Coeffs[ciphertext.Level()] = make([]uint64, 1<<ckksContext.LogN())
 	}
 
 	var sign int
-	for i := uint64(0); i < 1<<ckkscontext.LogN(); i++ {
-		sign = coeffs_bigint[i].Compare(QHalf)
+	for i := uint64(0); i < 1<<ckksContext.LogN(); i++ {
+		sign = refreshProtocol.maskBigint[i].Compare(QHalf)
 		if sign == 1 || sign == 0 {
-			coeffs_bigint[i].Sub(coeffs_bigint[i], QStart)
+			refreshProtocol.maskBigint[i].Sub(refreshProtocol.maskBigint[i], QStart)
 		}
 	}
 
-	ckkscontext.ContextQ().SetCoefficientsBigintLvl(ciphertext.Level(), coeffs_bigint, ciphertext.Value()[0])
+	contextQ.SetCoefficientsBigintLvl(ciphertext.Level(), refreshProtocol.maskBigint, ciphertext.Value()[0])
 
-	ciphertext.SetCurrentModulus(ckkscontext.BigintChain()[ciphertext.Level()])
+	ciphertext.SetCurrentModulus(ckksContext.BigintChain()[ciphertext.Level()])
 
-	ckkscontext.ContextQ().NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+	contextQ.NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+}
 
-	// ct[0] += sum(h0_i)
-	for i := range refreshShares {
-		ckkscontext.ContextQ().AddLvl(ciphertext.Level(), ciphertext.Value()[0], refreshShares[i].h1, ciphertext.Value()[0])
-	}
+func (refreshProtocol *RefreshProtocol) Recrypt(ciphertext *ckks.Ciphertext, crs *ring.Poly, shareRecrypt RefreshShareRecrypt) {
+
+	refreshProtocol.ckksContext.ContextQ().Add(ciphertext.Value()[0], shareRecrypt, ciphertext.Value()[0])
 
 	ciphertext.Value()[1] = crs.CopyNew()
 }

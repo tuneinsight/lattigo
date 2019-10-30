@@ -10,14 +10,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-var N uint64
-var T uint64
-var Qi []uint64
-var Pi []uint64
-var Sigma float64
-var bfvContext *bfv.BfvContext
-
-func ObliviousRiding() {
+func obliviousRiding() {
 
 	// This example will simulate a situation where an anonymous rider wants to find the closest available rider within a given area.
 	// The application is inspired by the paper https://oride.epfl.ch/
@@ -43,13 +36,13 @@ func ObliviousRiding() {
 	// The rider decrypts the result and chooses the closest driver.
 
 	// Number of drivers in the area
-	NbDrivers := uint64(2048)
+	nbDrivers := 2048 // N/2?
 
 	// BFV parameters (128 bit security)
 	params := bfv.DefaultParams[0]
 
 	// Plaintext modulus
-	params.T = 67084289
+	params.T = 67084289 // Where does that come from? :)
 
 	bfvContext, err := bfv.NewBfvContextWithParam(&params)
 	if err != nil {
@@ -64,76 +57,79 @@ func ObliviousRiding() {
 	// Rider's keygen
 	kgen := bfvContext.NewKeyGenerator()
 
-	Sk, Pk := kgen.NewKeyPair()
+	riderSk, riderPk := kgen.NewKeyPair()
 
-	Decryptor, err := bfvContext.NewDecryptor(Sk)
+	decryptor, err := bfvContext.NewDecryptor(riderSk)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	EncryptorPk, err := bfvContext.NewEncryptorFromPk(Pk)
+	encryptorPk, err := bfvContext.NewEncryptorFromPk(riderPk)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	EncryptorSk, err := bfvContext.NewEncryptorFromSk(Sk)
+	encryptorSk, err := bfvContext.NewEncryptorFromSk(riderSk)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	evaluator := bfvContext.NewEvaluator()
 
 	fmt.Println("============================================")
 	fmt.Println("Homomorphic computations on batched integers")
 	fmt.Println("============================================")
 	fmt.Println()
-	fmt.Printf("Parameters : N=%d, T=%d, logQ = %d (%d limbs), sigma = %f \n", bfvContext.N(), bfvContext.T(), bfvContext.LogQ(), len(params.Qi), bfvContext.Sigma())
-	fmt.Println()
+	fmt.Printf("Parameters : N=%d, T=%d, logQ = %d (%d limbs), sigma = %f\n\n",
+		bfvContext.N(), bfvContext.T(), bfvContext.LogQ(), len(params.Qi), bfvContext.Sigma())
 
-	maxvalue := uint64(math.Sqrt(float64(params.T))) // max values = floor(sqrt(plaintext modulus))
-	mask := uint64(1<<uint64(bits.Len64(maxvalue))) - 1
+	maxValue := uint64(math.Sqrt(float64(params.T))) // max values = floor(sqrt(plaintext modulus))
+	mask := uint64(1<<uint64(bits.Len64(maxValue))) - 1
 
-	fmt.Printf("Generating %d Drivers and 1 Rider randomly positioned on a grid of %d x %d units \n", NbDrivers, maxvalue, maxvalue)
-	fmt.Println()
+	fmt.Printf("Generating %d Drivers and 1 Rider randomly positioned on a grid of %d x %d units\n\n",
+		nbDrivers, maxValue, maxValue)
 
-	Drivers := make([][]uint64, params.N>>1)
+	riderPosX, riderPosY := ring.RandUniform(maxValue, mask), ring.RandUniform(maxValue, mask)
 
-	// Rider coordinates [x, y, x, y, ....., x, y]
-	riderposition := []uint64{ring.RandUniform(maxvalue, mask), ring.RandUniform(maxvalue, mask)}
-
-	Rider := make([]uint64, params.N)
-	for i := uint64(0); i < params.N>>1; i++ {
-		Rider[(i << 1)] = riderposition[0]
-		Rider[(i<<1)+1] = riderposition[1]
+	// Encode the rider position (x, y) as an N-value array [x, y, x, y, ...,
+	// x, y], as (N-1) consecutive copies
+	riderData := make([]uint64, 2*nbDrivers)
+	for i := 0; i < nbDrivers; i++ {
+		riderData[i<<1] = riderPosX
+		riderData[(i<<1)+1] = riderPosY
 	}
 
-	RiderPlaintext := bfvContext.NewPlaintext()
-	batchEncoder.EncodeUint(Rider, RiderPlaintext)
+	riderPlaintext := bfvContext.NewPlaintext()
+	batchEncoder.EncodeUint(riderData, riderPlaintext)
 
-	// Drivers coordinates [0, 0, ..., x, y, ..., 0, 0]
-	for i := uint64(0); i < params.N>>1; i++ {
-		Drivers[i] = make([]uint64, params.N)
-		Drivers[i][(i << 1)] = ring.RandUniform(maxvalue, mask)
-		Drivers[i][(i<<1)+1] = ring.RandUniform(maxvalue, mask)
+	// Encode each driver's position (x, y) as an N-value array [0, 0, ..., x,
+	// y, ..., 0, 0] with the values at the i-th coordinates (i.e. positions 2i
+	// and 2i+1)
+	driversData := make([][]uint64, nbDrivers)
+	for i := 0; i < nbDrivers; i++ {
+		driversData[i] = make([]uint64, 2*nbDrivers)
+		driversData[i][i<<1] = ring.RandUniform(maxValue, mask)
+		driversData[i][(i<<1)+1] = ring.RandUniform(maxValue, mask)
 	}
 
-	DriversPlaintexts := make([]*bfv.Plaintext, NbDrivers)
-	for i := uint64(0); i < NbDrivers; i++ {
-		DriversPlaintexts[i] = bfvContext.NewPlaintext()
-		batchEncoder.EncodeUint(Drivers[i], DriversPlaintexts[i])
+	driversPlaintexts := make([]*bfv.Plaintext, nbDrivers)
+	for i := 0; i < nbDrivers; i++ {
+		driversPlaintexts[i] = bfvContext.NewPlaintext()
+		batchEncoder.EncodeUint(driversData[i], driversPlaintexts[i])
 	}
 
-	fmt.Printf("Encrypting %d Drivers (x, y) and 1 Rider (%d, %d) \n", NbDrivers, riderposition[0], riderposition[1])
-	fmt.Println()
+	fmt.Printf("Encrypting %d Drivers (x, y) and 1 Rider (%d, %d)\n\n",
+		nbDrivers, riderPosX, riderPosY)
 
-	RiderCiphertext, err := EncryptorSk.EncryptNew(RiderPlaintext)
+	// Encryption performed by the rider
+	riderCiphertext, err := encryptorSk.EncryptNew(riderPlaintext)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	DriversCiphertexts := make([]*bfv.Ciphertext, NbDrivers)
-	for i := uint64(0); i < NbDrivers; i++ {
-		if DriversCiphertexts[i], err = EncryptorPk.EncryptNew(DriversPlaintexts[i]); err != nil {
+	// Encryption performed by each driver individually
+	driversCiphertexts := make([]*bfv.Ciphertext, nbDrivers)
+	for i := 0; i < nbDrivers; i++ {
+		driversCiphertexts[i], err = encryptorPk.EncryptNew(driversPlaintexts[i])
+		if err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -141,60 +137,69 @@ func ObliviousRiding() {
 	fmt.Println("Computing encrypted Distance = ((CtD1 + CtD2 + CtD3 + CtD4...) - CtR)^2 ...")
 	fmt.Println()
 
-	if err := evaluator.Neg(RiderCiphertext, RiderCiphertext); err != nil {
+	// Computation performed by the server
+	evaluator := bfvContext.NewEvaluator()
+
+	// riderCiphertext = -riderCiphertext
+	err = evaluator.Neg(riderCiphertext, riderCiphertext)
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	for i := uint64(0); i < NbDrivers; i++ {
-		if err := evaluator.Add(RiderCiphertext, DriversCiphertexts[i], RiderCiphertext); err != nil {
+	// riderCiphertext += driversCiphertexts[i] for all drivers
+	for i := 0; i < nbDrivers; i++ {
+		err := evaluator.Add(riderCiphertext, driversCiphertexts[i], riderCiphertext)
+		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	res, _ := evaluator.MulNew(RiderCiphertext, RiderCiphertext)
-	RiderCiphertext = res.Ciphertext()
+	// riderCiphertext = riderCiphertext * riderCiphertext (element-wise multiplication?)
+	resultCiphertext, err := evaluator.MulNew(riderCiphertext, riderCiphertext)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	result := batchEncoder.DecodeUint(Decryptor.DecryptNew(RiderCiphertext))
+	// Decryption performed by the rider
+	resultPlaintext := decryptor.DecryptNew(resultCiphertext)
+	result := batchEncoder.DecodeUint(resultPlaintext)
 
+	// Compute the shortest distance, and check that the computations performed on the ciphertext are correct
+	closestIndex, closestPosX, closestPosY, closestDist := 0, params.T, params.T, params.T
 	errors := 0
-	closest := []uint64{0, params.T, params.T, params.T}
 
-	for i := uint64(0); i < NbDrivers; i++ {
+	for i := 0; i < nbDrivers; i++ {
+		driverPosX, driverPosY := driversData[i][i<<1], driversData[i][(i<<1)+1]
 
-		r1, r1exp := result[i<<1]+result[(i<<1)+1], Distance(Drivers[i][i<<1], Drivers[i][(i<<1)+1], Rider[0], Rider[1])
+		computedDist := result[i<<1] + result[(i<<1)+1]
+		expectedDist := distance(driverPosX, driverPosY, riderPosX, riderPosY)
 
-		if r1 == r1exp {
-			if closest[3] > r1 {
-				closest[0] = i
-				closest[1] = Drivers[i][i<<1]
-				closest[2] = Drivers[i][(i<<1)+1]
-				closest[3] = r1exp
+		if computedDist == expectedDist {
+			if computedDist < closestDist {
+				closestIndex = i
+				closestPosX, closestPosY = driverPosX, driverPosY
+				closestDist = computedDist
 			}
+		} else {
+			errors++
 		}
 
-		if r1 != r1exp {
-			errors += 1
+		if i < 4 || i > nbDrivers-5 {
+			fmt.Printf("Distance with Driver %d : %8d = (%4d - %4d)^2 + (%4d - %4d)^2 --> correct: %t\n",
+				i, computedDist, driverPosX, riderPosX, driverPosY, riderPosY, computedDist == expectedDist)
 		}
 
-		if i < 4 || i > NbDrivers-5 {
-			fmt.Printf("Distance with Driver %d : %8d = (%4d - %4d)^2 + (%4d - %4d)^2: %t \n", i, r1, Drivers[i][i<<1], Rider[0], Drivers[i][(i<<1)+1], Rider[1], r1 == r1exp)
-		}
-
-		if i == NbDrivers>>1 {
+		if i == nbDrivers>>1 {
 			fmt.Println("...")
 		}
 	}
 
-	fmt.Println()
-
-	fmt.Printf("Finished with %.2f%% errors \n", 100*float64(errors)/float64(NbDrivers))
-
-	fmt.Println()
-
-	fmt.Printf("Closest Driver to Rider is n°%d (%d, %d) with a distance of %d units \n", closest[0], closest[1], closest[2], uint64(math.Sqrt(float64(closest[3]))))
+	fmt.Printf("\nFinished with %.2f%% errors\n\n", 100*float64(errors)/float64(nbDrivers))
+	fmt.Printf("Closest Driver to Rider is n°%d (%d, %d) with a distance of %d units\n",
+		closestIndex, closestPosX, closestPosY, uint64(math.Sqrt(float64(closestDist))))
 }
 
-func Distance(a, b, c, d uint64) uint64 {
+func distance(a, b, c, d uint64) uint64 {
 	if a > c {
 		a, c = c, a
 	}
@@ -206,5 +211,5 @@ func Distance(a, b, c, d uint64) uint64 {
 }
 
 func main() {
-	ObliviousRiding()
+	obliviousRiding()
 }

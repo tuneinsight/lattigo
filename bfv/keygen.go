@@ -573,10 +573,18 @@ func (evaluationkey *EvaluationKey) UnmarshalBinary(data []byte) error {
 	decomposition := uint64(data[2])
 	bitDecomp := uint64(data[3])
 	maxDegree := uint64(data[4])
-
+	//Take into account non allocated evakey
+	if evaluationkey.evakey == nil {
+		evaluationkey.evakey = make([]*SwitchingKey, maxDegree)
+	}
 	pointer := uint64(5)
 	var bitLog uint64
 	for i := uint64(0); i < maxDegree; i++ {
+
+		if evaluationkey.evakey[i] == nil {
+			evaluationkey.evakey[i] = new(SwitchingKey)
+			evaluationkey.evakey[i].evakey = make([][][2]*ring.Poly, decomposition)
+		}
 
 		evaluationkey.evakey[i].bitDecomp = bitDecomp
 
@@ -585,7 +593,24 @@ func (evaluationkey *EvaluationKey) UnmarshalBinary(data []byte) error {
 			bitLog = uint64(data[pointer])
 			pointer += 1
 
+			if evaluationkey.evakey[i].evakey[j] == nil {
+				evaluationkey.evakey[i].evakey[j] = make([][2]*ring.Poly, bitLog)
+			}
 			for x := uint64(0); x < bitLog; x++ {
+
+				if evaluationkey.evakey[i].evakey[j][x][0] == nil && evaluationkey.evakey[i].evakey[j][x][1] == nil {
+					evaluationkey.evakey[i].evakey[j][x][0] = new(ring.Poly)
+					evaluationkey.evakey[i].evakey[j][x][1] = new(ring.Poly)
+
+					evaluationkey.evakey[i].evakey[j][x][0].Coeffs = make([][]uint64, numberModuli)
+					evaluationkey.evakey[i].evakey[j][x][1].Coeffs = make([][]uint64, numberModuli)
+					var l uint64 = 0
+					for l < numberModuli {
+						evaluationkey.evakey[i].evakey[j][x][0].Coeffs[l] = make([]uint64, N)
+						evaluationkey.evakey[i].evakey[j][x][1].Coeffs[l] = make([]uint64, N)
+						l++
+					}
+				}
 
 				if uint64(len(evaluationkey.evakey[i].evakey[j][x][0].Coeffs)) != numberModuli {
 					return errors.New("cannot unmarshal evaluation-key -> receiver (numberModuli does not match data)")

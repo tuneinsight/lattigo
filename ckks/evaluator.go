@@ -1138,6 +1138,66 @@ func rescale(evaluator *Evaluator, p0, p1 *ring.Poly) {
 	p1.Coeffs = p1.Coeffs[:level]
 }
 
+func (evaluator *Evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *Ciphertext) (err error) {
+
+	if ct0.Level() < nbRescales {
+		return errors.New("cannot rescale many -> input ciphertext level too low")
+	}
+
+	if ct0.Level() != c1.Level() {
+		return errors.New("cannot rescale many -> reciever ciphertext does not match input ciphertext level")
+	}
+
+	if !ct0.IsNTT() {
+		return errors.New("cannot rescale many -> input ciphertext not in NTT")
+	}
+
+	c1.Copy(ct0.Element())
+
+	for i := uint64(0); i < nbRescales; i++ {
+		c1.DivScale(evaluator.ckkscontext.scalechain[c1.Level()-i])
+		c1.CurrentModulus().DivRound(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[c1.Level()-i]))
+	}
+
+	for i := range c1.Value() {
+		rescaleMany(evaluator, nbRescales, c1.Value()[i], c1.Value()[i])
+	}
+
+	return nil
+}
+
+func rescaleMany(evaluator *Evaluator, nbRescales uint64, p0, p1 *ring.Poly) {
+
+	level := len(p0.Coeffs) - 1
+
+	var Qi, InvQl uint64
+
+	context := evaluator.ckkscontext.contextQ
+
+	mredParams := context.GetMredParams()
+
+	context.InvNTTLvl(uint64(level), p0, p1)
+
+	for k := uint64(0); k < nbRescales; k++ {
+
+		for i := 0; i < level; i++ {
+
+			Qi = evaluator.ckkscontext.moduli[i]
+			InvQl = evaluator.ckkscontext.rescaleParams[level-1][i]
+
+			for j := uint64(0); j < evaluator.ckkscontext.n; j++ {
+				p1.Coeffs[i][j] += Qi - ring.BRedAdd(p1.Coeffs[level][j], Qi, context.GetBredParams()[i]) // x[i] - x[-1]
+				p1.Coeffs[i][j] = ring.MRed(p1.Coeffs[i][j], InvQl, Qi, mredParams[i])                    // (x[i] - x[-1]) * InvQl
+			}
+		}
+
+		p1.Coeffs = p1.Coeffs[:level]
+		level -= 1
+	}
+
+	context.NTTLvl(uint64(level), p1, p1)
+}
+
 // MulRelinNew multiplies ct0 by ct1 and returns the result on a newly created element. The new scale is
 // the multiplication between scales of the input elements (addition when the scale is represented in log2). An evaluation
 // key can be provided to apply a relinearization step and reduce the degree of the output element. This evaluation key is only

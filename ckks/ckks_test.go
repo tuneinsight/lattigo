@@ -107,7 +107,9 @@ func Test_CKKS(t *testing.T) {
 	test_MulConst(ckksTest, t)
 	test_MultByConstAndAdd(ckksTest, t)
 	test_ComplexOperations(ckksTest, t)
+
 	test_Rescaling(ckksTest, t)
+
 	test_Mul(ckksTest, t)
 
 	if len(params.Modulichain) > 9 {
@@ -892,6 +894,47 @@ func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 			}
 		}
 	})
+
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/RescalingMultiple", params.ckkscontext.logN,
+		params.ckkscontext.logQ,
+		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+
+		coeffs := make([]*ring.Int, params.ckkscontext.n)
+		for i := uint64(0); i < params.ckkscontext.n; i++ {
+			coeffs[i] = ring.RandInt(params.ckkscontext.contextQ.ModulusBigint)
+			coeffs[i].Div(coeffs[i], ring.NewUint(10))
+		}
+
+		nbRescals := 4
+
+		coeffsWant := make([]*ring.Int, params.ckkscontext.contextQ.N)
+		for i := range coeffs {
+			coeffsWant[i] = coeffs[i].Copy()
+			for j := 0; j < nbRescals; j++ {
+				coeffsWant[i].Div(coeffsWant[i], ring.NewUint(params.ckkscontext.moduli[len(params.ckkscontext.moduli)-1-j]))
+			}
+		}
+
+		polTest := params.ckkscontext.contextQ.NewPoly()
+		polWant := params.ckkscontext.contextQ.NewPoly()
+
+		params.ckkscontext.contextQ.SetCoefficientsBigint(coeffs, polTest)
+		params.ckkscontext.contextQ.SetCoefficientsBigint(coeffsWant, polWant)
+
+		params.ckkscontext.contextQ.NTT(polTest, polTest)
+		params.ckkscontext.contextQ.NTT(polWant, polWant)
+
+		rescaleMany(params.evaluator, uint64(nbRescals), polTest, polTest)
+
+		for i := uint64(0); i < params.ckkscontext.n; i++ {
+			for j := 0; j < len(params.ckkscontext.moduli)-nbRescals; j++ {
+				if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
+					t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
+					break
+				}
+			}
+		}
+	})
 }
 
 func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
@@ -981,7 +1024,7 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			valuesWant[i] = values1[i]
 		}
 
-		for i := uint64(0); i < 2; i++ {
+		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
 
 			for i := 0; i < len(valuesWant); i++ {
 				valuesWant[i] *= values2[i]
@@ -994,6 +1037,47 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			if err = params.evaluator.Rescale(ciphertext1, params.ckkscontext.scale, ciphertext1); err != nil {
 				t.Error(err)
 			}
+		}
+
+		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
+			t.Error(err)
+		}
+	})
+
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/MulRelin(Ct,Ct)->RescaleMany", params.ckkscontext.logN,
+		params.ckkscontext.logQ,
+		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+
+		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
+		if err != nil {
+			t.Error(err)
+		}
+
+		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// up to a level equal to 2 modulus
+		valuesWant := make([]complex128, params.slots)
+
+		for i := 0; i < len(valuesWant); i++ {
+			valuesWant[i] = values1[i]
+		}
+
+		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
+
+			for i := 0; i < len(valuesWant); i++ {
+				valuesWant[i] *= values2[i]
+			}
+
+			if err = params.evaluator.MulRelin(ciphertext1, ciphertext2, params.rlk, ciphertext1); err != nil {
+				t.Error(err)
+			}
+		}
+
+		if err = params.evaluator.RescaleMany(ciphertext1, params.ckkscontext.Levels()-2, ciphertext1); err != nil {
+			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {

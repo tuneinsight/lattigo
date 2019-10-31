@@ -28,10 +28,11 @@ func Benchmark_CKKSScheme(b *testing.B) {
 	var ciphertext2 *Ciphertext
 
 	params := []benchParams{
-		{params: DefaultParams[12]},
-		{params: DefaultParams[13]},
+		//{params: DefaultParams[12]},
+		//{params: DefaultParams[13]},
 		{params: DefaultParams[14]},
-		//{params: DefaultParams[15]: 60}, // Memory intensive
+		//{params: DefaultParams[15]},
+		//{params: DefaultParams[16]},
 	}
 
 	var logN, slots, levels uint64
@@ -57,7 +58,10 @@ func Benchmark_CKKSScheme(b *testing.B) {
 
 		rlk = kgen.NewRelinKey(sk)
 
-		rotkey = kgen.NewRotationKeysPow2(sk, true)
+		rotkey, err = kgen.NewRotationKeys(sk, []uint64{1}, nil, true)
+		if err != nil {
+			b.Error(err)
+		}
 
 		if encryptorPk, err = ckkscontext.NewEncryptorFromPk(pk); err != nil {
 			b.Error(err)
@@ -169,8 +173,44 @@ func Benchmark_CKKSScheme(b *testing.B) {
 			}
 		})
 
-		// Mul
+		// Rescale
 		receiver := ckkscontext.NewRandomCiphertext(2, levels-1, scale)
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Rescale", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				rescale(evaluator, ciphertext1.Value()[0], receiver.Value()[0])
+				rescale(evaluator, ciphertext1.Value()[1], receiver.Value()[1])
+			}
+		})
+
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/RescaleAll", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				rescale(evaluator, ciphertext1.Value()[0], receiver.Value()[0])
+				rescale(evaluator, ciphertext1.Value()[1], receiver.Value()[1])
+
+				for receiver.Level() != 0 {
+					rescale(evaluator, receiver.Value()[0], receiver.Value()[0])
+					rescale(evaluator, receiver.Value()[1], receiver.Value()[1])
+				}
+
+				b.StopTimer()
+				receiver = ckkscontext.NewRandomCiphertext(2, levels-1, scale)
+				b.StartTimer()
+			}
+		})
+
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/RescaleMultipleAll", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				rescaleMany(evaluator, ciphertext1.Level(), ciphertext1.Value()[0], receiver.Value()[0])
+				rescaleMany(evaluator, ciphertext1.Level(), ciphertext1.Value()[1], receiver.Value()[1])
+
+				b.StopTimer()
+				receiver = ckkscontext.NewRandomCiphertext(2, levels-1, scale)
+				b.StartTimer()
+			}
+		})
+
+		// Mul
+		receiver = ckkscontext.NewRandomCiphertext(2, levels-1, scale)
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Multiply", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				if err = evaluator.MulRelin(ciphertext1, ciphertext2, nil, receiver); err != nil {
@@ -212,14 +252,6 @@ func Benchmark_CKKSScheme(b *testing.B) {
 				if err = evaluator.Relinearize(receiver, rlk, ciphertext1); err != nil {
 					b.Error(err)
 				}
-			}
-		})
-
-		// Rescale
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Rescale", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				rescale(evaluator, ciphertext1.Value()[0], receiver.Value()[0])
-				rescale(evaluator, ciphertext1.Value()[1], receiver.Value()[1])
 			}
 		})
 

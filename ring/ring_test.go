@@ -88,6 +88,8 @@ func Test_Polynomial(t *testing.T) {
 		// ok!
 		test_MRed(contextQ, t)
 
+		test_MulScalarBigint(contextQ, t)
+
 		// ok!
 		test_Shift(contextQ, t)
 
@@ -506,6 +508,30 @@ func test_MForm(context *Context, t *testing.T) {
 
 		if context.Equal(polWant, polTest) != true {
 			t.Errorf("error : 128bit MForm/InvMForm")
+		}
+	})
+
+}
+
+func test_MulScalarBigint(context *Context, t *testing.T) {
+
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/MulScalarBigint", context.N, len(context.Modulus)), func(t *testing.T) {
+
+		polWant := context.NewUniformPoly()
+		polTest := polWant.CopyNew()
+
+		rand1 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+		rand2 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+
+		scalarBigint := NewUint(rand1)
+		scalarBigint.Mul(scalarBigint, NewUint(rand2))
+
+		context.MulScalar(polWant, rand1, polWant)
+		context.MulScalar(polWant, rand2, polWant)
+		context.MulScalarBigint(polTest, scalarBigint, polTest)
+
+		if context.Equal(polWant, polTest) != true {
+			t.Errorf("error : mulScalarBigint")
 		}
 	})
 

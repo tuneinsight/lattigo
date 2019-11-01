@@ -428,16 +428,29 @@ func (context *Context) MulScalarLvl(level uint64, p1 *Poly, scalar uint64, p2 *
 // To be used when the scalar is bigger than 64 bits.
 func (context *Context) MulScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
 
-	var QiB Int
-	var coeff Int
+	scalarQi := new(Int)
+	var scalarMont uint64
 
 	for i, Qi := range context.Modulus {
-		QiB.SetInt(int64(Qi))
+		scalarQi.Mod(scalar, NewUint(Qi))
+		scalarMont = MForm(BRedAdd(scalarQi.Uint64(), Qi, context.bredParams[i]), Qi, context.bredParams[i])
 		for j := uint64(0); j < context.N; j++ {
-			coeff.SetUint(p1.Coeffs[i][j])
-			coeff.Mul(&coeff, scalar)
-			coeff.Mod(&coeff, &QiB)
-			p2.Coeffs[i][j] = coeff.Uint64()
+			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j], scalarMont, Qi, context.mredParams[i])
+		}
+	}
+}
+
+func (context *Context) MulScalarBigintLvl(level uint64, p1 *Poly, scalar *Int, p2 *Poly) {
+
+	scalarQi := new(Int)
+	var Qi, scalarMont uint64
+
+	for i := uint64(0); i < level+1; i++ {
+		Qi = context.Modulus[i]
+		scalarQi.Mod(scalar, NewUint(Qi))
+		scalarMont = MForm(BRedAdd(scalarQi.Uint64(), Qi, context.bredParams[i]), Qi, context.bredParams[i])
+		for j := uint64(0); j < context.N; j++ {
+			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j], scalarMont, Qi, context.mredParams[i])
 		}
 	}
 }

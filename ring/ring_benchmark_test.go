@@ -265,10 +265,6 @@ func benchmark_MulCoeffsMontgomery(context *Context, b *testing.B) {
 	})
 }
 
-
-
-
-
 func benchmark_MulPoly(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()

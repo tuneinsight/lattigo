@@ -46,11 +46,11 @@ func Benchmark_Polynomial(b *testing.B) {
 
 		benchmark_MForm(contextQ, b)
 
+		benchmark_MulScalar(contextQ, b)
+
 		benchmark_NTT(contextQ, b)
 
 		benchmark_InvNTT(contextQ, b)
-
-		benchmark_MulScalar(contextQ, b)
 
 		benchmark_Neg(contextQ, b)
 
@@ -265,6 +265,10 @@ func benchmark_MulCoeffsMontgomery(context *Context, b *testing.B) {
 	})
 }
 
+
+
+
+
 func benchmark_MulPoly(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
@@ -347,15 +351,26 @@ func benchmark_MulScalar(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
-	scalar := uint64(12345678987654321)
+	rand1 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+	rand2 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+
+	scalarBigint := NewUint(rand1)
+	scalarBigint.Mul(scalarBigint, NewUint(rand2))
 
 	b.ResetTimer()
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/MulScalar", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			context.MulScalar(p, scalar, p)
+			context.MulScalar(p, rand1, p)
 		}
 	})
+
+	b.Run(fmt.Sprintf("N=%d/limbs=%d/MulScalarBigint", context.N, len(context.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context.MulScalarBigint(p, scalarBigint, p)
+		}
+	})
+
 }
 
 func benchmark_ExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B) {

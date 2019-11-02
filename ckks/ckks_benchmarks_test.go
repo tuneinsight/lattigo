@@ -274,3 +274,105 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkBootstrapp(b *testing.B) {
+
+	var err error
+	var bootcontext *BootContext
+	var ckkscontext *CkksContext
+	var encoder *Encoder
+	var encryptor *Encryptor
+	var kgen *KeyGenerator
+	var sk *SecretKey
+	var evaluator *Evaluator
+	var plaintext *Plaintext
+	var ciphertext *Ciphertext
+
+	params := []benchParams{
+		{params: &Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55, 55}, 1 << 40, 3.2}},
+	}
+
+	var logN, logSlots, levels, ctsDepth, stcDepth uint64
+	var scale float64
+
+	for _, param := range params {
+
+		logN = uint64(param.params.LogN)
+
+		logSlots = 10
+		ctsDepth = 2
+		stcDepth = 2
+
+		scale = param.params.Scale
+		levels = uint64(len(param.params.Modulichain))
+
+		if ckkscontext, err = NewCkksContext(param.params); err != nil {
+			b.Error(err)
+		}
+
+		encoder = ckkscontext.NewEncoder()
+
+		kgen = ckkscontext.NewKeyGenerator()
+
+		sk = kgen.NewSecretKey()
+
+		if encryptor, err = ckkscontext.NewEncryptorFromSk(sk); err != nil {
+			b.Error(err)
+		}
+
+		evaluator = ckkscontext.NewEvaluator()
+
+		if bootcontext, err = ckkscontext.NewBootContext(1<<logSlots, sk, ctsDepth, stcDepth); err != nil {
+			b.Error()
+		}
+
+		values := make([]complex128, 1<<logSlots)
+		for i := uint64(0); i < 1<<logSlots; i++ {
+			values[i] = complex(randomFloat(0.1, 1), 0)
+		}
+
+		plaintext = ckkscontext.NewPlaintext(levels-1, scale)
+
+		for i := 0; i < b.N; i++ {
+			if err = encoder.Encode(plaintext, values, 1<<logSlots); err != nil {
+				b.Error(err)
+			}
+		}
+
+		if ciphertext, err = encryptor.EncryptNew(plaintext); err != nil {
+			b.Error(err)
+		}
+
+		// Coeffs To Slots
+		var ciphertext1, ciphertext2 *Ciphertext
+
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/CoeffsToSlots", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				if ciphertext1, err = bootcontext.coeffsToSlots(evaluator, ciphertext); err != nil {
+					b.Error(err)
+				}
+			}
+		})
+
+		// Sine evaluation
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/EvaluateSine", logN, ckkscontext.LogQ(), levels, logSlots), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				if ciphertext2, err = bootcontext.evaluateSine(ciphertext1, evaluator, false, nil, nil); err != nil {
+					b.Error(err)
+				}
+			}
+		})
+
+		// Slots To Coeffs
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/SlotsToCoeffs", logN, ckkscontext.LogQ(), levels, logSlots), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				if _, err = bootcontext.slotsToCoeffs(evaluator, ciphertext2); err != nil {
+					b.Error(err)
+				}
+			}
+		})
+	}
+}

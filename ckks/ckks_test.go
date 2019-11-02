@@ -46,13 +46,17 @@ func Test_CKKS(t *testing.T) {
 
 	medianprec := float64(20) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
-	params := Parameters{10, []uint8{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45}, []uint8{55, 55}, 1 << 45, 3.2}
+	ctsDepth := uint64(3) // maximum depth for the bootstrapp LT
+	stcDepth := uint64(2)
+	showbootintermediateresults := true
+
+	params := Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}, []uint8{55, 55, 55, 55, 55}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
 	ckksTest.medianprec = medianprec
 
-	ckksTest.slots = 1 << 9
+	ckksTest.slots = 1 << 10
 
 	ckksTest.levels = uint64(len(params.Modulichain))
 	ckksTest.scale = params.Scale
@@ -75,7 +79,7 @@ func Test_CKKS(t *testing.T) {
 
 	ckksTest.kgen = ckksTest.ckkscontext.NewKeyGenerator()
 
-	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPairSparse(96)
+	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPairSparse(64)
 
 	ckksTest.encoder = ckksTest.ckkscontext.NewEncoder()
 
@@ -92,7 +96,7 @@ func Test_CKKS(t *testing.T) {
 	}
 
 	ckksTest.evaluator = ckksTest.ckkscontext.NewEvaluator()
-
+/*
 	log.Printf("Generating relinearization keys")
 	ckksTest.rlk = ckksTest.kgen.NewRelinKey(ckksTest.sk)
 
@@ -119,6 +123,10 @@ func Test_CKKS(t *testing.T) {
 	test_SwitchKeys(ckksTest, t)
 	test_Conjugate(ckksTest, t)
 	test_RotColumns(ckksTest, t)
+*/
+	if len(params.Modulichain) > 10 {
+		test_Bootstrapp(ckksTest, ctsDepth, stcDepth, showbootintermediateresults, t)
+	}
 
 }
 

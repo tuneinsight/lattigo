@@ -299,7 +299,3 @@ func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterp
 func exp2pi(x complex128) complex128 {
 	return cmplx.Exp(2 * 3.141592653589793 * complex(0, 1) * x)
 }
-
-func sin2pi2pi(x complex128) complex128 {
-	return cmplx.Sin(6.283185307179586*(1.0/1.0)*x) * (1.0 / 6.283185307179586)
-}

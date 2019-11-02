@@ -1112,26 +1112,38 @@ func rescale(evaluator *Evaluator, p0, p1 *ring.Poly) {
 
 	level := len(p0.Coeffs) - 1
 
-	var Qi, InvQl uint64
+	var Qi, InvQl, pHalf, pHalfNegQi uint64
 
 	context := evaluator.ckkscontext.contextQ
 
 	mredParams := context.GetMredParams()
+	bredParams := context.GetBredParams()
 
 	p_tmp := evaluator.ckkscontext.contextQ.NewPoly()
 
 	ring.InvNTT(p0.Coeffs[level], p0.Coeffs[level], context.N, context.GetNttPsiInv()[level], context.GetNttNInv()[level], context.Modulus[level], context.GetMredParams()[level])
 
-	for i := 0; i < level; i++ {
+	// Centers by (p-1)/2
+	pHalf = (context.Modulus[level] - 1) >> 1
+	for i := uint64(0); i < context.N; i++ {
+		p0.Coeffs[level][i] = ring.CRed(p0.Coeffs[level][i]+pHalf, context.Modulus[level])
+	}
 
-		ring.NTT(p0.Coeffs[level], p_tmp.Coeffs[0], context.N, context.GetNttPsi()[i], context.Modulus[i], context.GetMredParams()[i], context.GetBredParams()[i])
+	for i := 0; i < level; i++ {
 
 		Qi = evaluator.ckkscontext.moduli[i]
 		InvQl = evaluator.ckkscontext.rescaleParams[level-1][i]
 
+		pHalfNegQi = Qi - ring.BRedAdd(pHalf, Qi, bredParams[i])
+
+		for j := uint64(0); j < context.N; j++ {
+			p_tmp.Coeffs[0][j] = p0.Coeffs[level][j] + pHalfNegQi
+		}
+
+		ring.NTT(p_tmp.Coeffs[0], p_tmp.Coeffs[0], context.N, context.GetNttPsi()[i], Qi, mredParams[i], bredParams[i])
+
 		for j := uint64(0); j < evaluator.ckkscontext.n; j++ {
-			p1.Coeffs[i][j] += Qi - ring.BRedAdd(p_tmp.Coeffs[0][j], Qi, context.GetBredParams()[i]) // x[i] - x[-1]
-			p1.Coeffs[i][j] = ring.MRed(p1.Coeffs[i][j], InvQl, Qi, mredParams[i])                   // (x[i] - x[-1]) * InvQl
+			p1.Coeffs[i][j] = ring.MRed(p1.Coeffs[i][j]+(Qi-p_tmp.Coeffs[0][j]), InvQl, Qi, mredParams[i]) // (x[i] - x[-1]) * InvQl
 		}
 	}
 
@@ -1170,24 +1182,32 @@ func rescaleMany(evaluator *Evaluator, nbRescales uint64, p0, p1 *ring.Poly) {
 
 	level := len(p0.Coeffs) - 1
 
-	var Qi, InvQl uint64
+	var Qi, InvQl, pHalf, pHalfNegQi uint64
 
 	context := evaluator.ckkscontext.contextQ
 
 	mredParams := context.GetMredParams()
+	bredParams := context.GetBredParams()
 
 	context.InvNTTLvl(uint64(level), p0, p1)
 
 	for k := uint64(0); k < nbRescales; k++ {
+
+		// Centers by (p-1)/2
+		pHalf = (context.Modulus[level] - 1) >> 1
+		for i := uint64(0); i < context.N; i++ {
+			p1.Coeffs[level][i] = ring.CRed(p1.Coeffs[level][i]+pHalf, context.Modulus[level])
+		}
 
 		for i := 0; i < level; i++ {
 
 			Qi = evaluator.ckkscontext.moduli[i]
 			InvQl = evaluator.ckkscontext.rescaleParams[level-1][i]
 
+			pHalfNegQi = Qi - ring.BRedAdd(pHalf, Qi, bredParams[i])
+
 			for j := uint64(0); j < evaluator.ckkscontext.n; j++ {
-				p1.Coeffs[i][j] += Qi - ring.BRedAdd(p1.Coeffs[level][j], Qi, context.GetBredParams()[i]) // x[i] - x[-1]
-				p1.Coeffs[i][j] = ring.MRed(p1.Coeffs[i][j], InvQl, Qi, mredParams[i])                    // (x[i] - x[-1]) * InvQl
+				p1.Coeffs[i][j] = ring.MRed(p1.Coeffs[i][j]+(Qi-ring.BRedAdd(p1.Coeffs[level][j]+pHalfNegQi, Qi, bredParams[i])), InvQl, Qi, mredParams[i]) // (x[i] - x[-1]) * InvQl
 			}
 		}
 

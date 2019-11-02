@@ -871,7 +871,7 @@ func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 		coeffsWant := make([]*ring.Int, params.ckkscontext.contextQ.N)
 		for i := range coeffs {
 			coeffsWant[i] = coeffs[i].Copy()
-			coeffsWant[i].Div(coeffsWant[i], ring.NewUint(params.ckkscontext.moduli[len(params.ckkscontext.moduli)-1]))
+			coeffsWant[i].DivRound(coeffsWant[i], ring.NewUint(params.ckkscontext.moduli[len(params.ckkscontext.moduli)-1]))
 		}
 
 		polTest := params.ckkscontext.contextQ.NewPoly()
@@ -884,12 +884,12 @@ func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 		params.ckkscontext.contextQ.NTT(polWant, polWant)
 
 		rescale(params.evaluator, polTest, polTest)
-
-		for i := uint64(0); i < params.ckkscontext.n; i++ {
-			for j := 0; j < len(params.ckkscontext.moduli)-1; j++ {
+		state := true
+		for i := uint64(0); i < params.ckkscontext.n && state; i++ {
+			for j := 0; j < len(params.ckkscontext.moduli)-1 && state; j++ {
 				if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
 					t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
-					break
+					state = false
 				}
 			}
 		}
@@ -911,7 +911,7 @@ func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 		for i := range coeffs {
 			coeffsWant[i] = coeffs[i].Copy()
 			for j := 0; j < nbRescals; j++ {
-				coeffsWant[i].Div(coeffsWant[i], ring.NewUint(params.ckkscontext.moduli[len(params.ckkscontext.moduli)-1-j]))
+				coeffsWant[i].DivRound(coeffsWant[i], ring.NewUint(params.ckkscontext.moduli[len(params.ckkscontext.moduli)-1-j]))
 			}
 		}
 
@@ -925,12 +925,12 @@ func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
 		params.ckkscontext.contextQ.NTT(polWant, polWant)
 
 		rescaleMany(params.evaluator, uint64(nbRescals), polTest, polTest)
-
-		for i := uint64(0); i < params.ckkscontext.n; i++ {
-			for j := 0; j < len(params.ckkscontext.moduli)-nbRescals; j++ {
+		state := true
+		for i := uint64(0); i < params.ckkscontext.n && state; i++ {
+			for j := 0; j < len(params.ckkscontext.moduli)-nbRescals && state; j++ {
 				if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
 					t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
-					break
+					state = false
 				}
 			}
 		}

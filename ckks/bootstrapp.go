@@ -294,6 +294,8 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) (*Ciphertext) {
 		}
 	}
 
+	ct.SetCurrentModulus(bootcontext.ckkscontext.bigintChain[bootcontext.ckkscontext.levels-1])
+
 	//Centers the values around Q0 and extends the basis from Q0 to QL
 
 	Q := bootcontext.ckkscontext.moduli[0]

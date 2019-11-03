@@ -46,12 +46,12 @@ func Test_CKKS(t *testing.T) {
 
 	medianprec := float64(20) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
-	repack := false
+	repack := true
 	ctsDepth := uint64(2) // maximum depth for the bootstrapp LT
 	stcDepth := uint64(2)
 	showbootintermediateresults := true
 
-	params := Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45}, []uint8{60, 60, 60, 60}, 1 << 40, 3.2}
+	params := Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55, 55, 55}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 

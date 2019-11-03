@@ -289,7 +289,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	var ciphertext *Ciphertext
 
 	params := []benchParams{
-		{params: &Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55, 55}, 1 << 40, 3.2}},
+		{params: &Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55, 55, 55}, 1 << 40, 3.2}},
 	}
 
 	var logN, logSlots, levels, ctsDepth, stcDepth uint64

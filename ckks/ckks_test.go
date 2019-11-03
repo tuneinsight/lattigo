@@ -46,11 +46,12 @@ func Test_CKKS(t *testing.T) {
 
 	medianprec := float64(20) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
-	ctsDepth := uint64(3) // maximum depth for the bootstrapp LT
+	repack := false
+	ctsDepth := uint64(2) // maximum depth for the bootstrapp LT
 	stcDepth := uint64(2)
 	showbootintermediateresults := true
 
-	params := Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}, []uint8{55, 55, 55, 55, 55}, 1 << 40, 3.2}
+	params := Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45}, []uint8{60, 60, 60, 60}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
@@ -79,7 +80,7 @@ func Test_CKKS(t *testing.T) {
 
 	ckksTest.kgen = ckksTest.ckkscontext.NewKeyGenerator()
 
-	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPairSparse(64)
+	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPairSparse(128)
 
 	ckksTest.encoder = ckksTest.ckkscontext.NewEncoder()
 
@@ -125,7 +126,7 @@ func Test_CKKS(t *testing.T) {
 	test_RotColumns(ckksTest, t)
 */
 	if len(params.Modulichain) > 10 {
-		test_Bootstrapp(ckksTest, ctsDepth, stcDepth, showbootintermediateresults, t)
+		test_Bootstrapp(ckksTest, ctsDepth, stcDepth, repack, showbootintermediateresults, t)
 	}
 
 }

@@ -1438,6 +1438,15 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 		return errors.New("cannot rotate -> input and output ciphertext must be of degree 1")
 	}
 
+	if ctOut.Level() > ct0.Level() {
+		if err = evaluator.DropLevel(ctOut.Element(), ctOut.Level() - ct0.Level()); err != nil {
+			return err
+		}
+	}
+
+	ctOut.SetScale(ct0.Scale())
+	
+
 	k &= ((evaluator.ckkscontext.n >> 1) - 1)
 
 	if k == 0 {
@@ -1534,6 +1543,14 @@ func (evaluator *Evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKey, ctOu
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		return errors.New("cannot rotate -> input and output ciphertext must be of degree 1")
 	}
+
+	if ctOut.Level() > ct0.Level() {
+		if err = evaluator.DropLevel(ctOut.Element(), ctOut.Level() - ct0.Level()); err != nil {
+			return err
+		}
+	}
+
+	ctOut.SetScale(ct0.Scale())
 
 	if evakey.evakey_rot_row == nil {
 		return errors.New("cannot rotate -> : rows rotation key not generated")

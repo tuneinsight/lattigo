@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/bits"
 	"math/cmplx"
+	"errors"
 )
 
 type BootContext struct {
@@ -24,6 +25,9 @@ type BootContext struct {
 	ctsDepth uint64
 	stcDepth uint64
 	sinDepth uint64
+	repack   bool
+	repackVecStC *Plaintext
+	repackVecCtS *Plaintext
 	pDFT       []*dftvectors
 	pDFTInv    []*dftvectors
 
@@ -59,7 +63,7 @@ func showcoeffs(decryptor *Decryptor, encoder *Encoder, slots uint64, ciphertext
 	return coeffs
 }
 
-func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsDepth, stcDepth uint64) (bootcontext *BootContext, err error) {
+func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsDepth, stcDepth uint64, repack bool) (bootcontext *BootContext, err error) {
 
 	bootcontext = new(BootContext)
 
@@ -67,6 +71,10 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 
 	bootcontext.ctsDepth = ctsDepth
 	bootcontext.stcDepth = stcDepth
+	if slots == ckkscontext.maxSlots && repack {
+		return nil, errors.New("invalide bootcontext -> cannot repack if ciphertext is already fully packed")
+	}
+	bootcontext.repack = repack
 
 	bootcontext.slots = slots
 
@@ -78,9 +86,9 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 
 	bootcontext.encoder = ckkscontext.NewEncoder()
 
-	sineDeg := 118
+	sineDeg := 127
 
-	bootcontext.chebycoeffs = Approximate(sin2pi2pi, -12, 12, sineDeg)
+	bootcontext.chebycoeffs = Approximate(sin2pi2pi, -15, 15, sineDeg)
 
 	bootcontext.sinDepth = uint64(math.Ceil(math.Log2(float64(sineDeg))) + 2)
 
@@ -94,6 +102,38 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 			rotations = append(rotations, 1<<i)
 		}
 		bootcontext.sparsity *= 2
+	}
+
+
+	if bootcontext.repack {
+
+		pVec := make([]complex128, bootcontext.dslots)
+
+		vecLevel := ckkscontext.Levels()-1-ctsDepth
+
+		bootcontext.repackVecCtS = bootcontext.ckkscontext.NewPlaintext(vecLevel, ckkscontext.scalechain[vecLevel])
+
+		// Repacking from Y^(N/n) to X (we multiply with a vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0])
+		// TODO : include in the DFT to save a level.
+		for i := uint64(0); i < bootcontext.slots; i++ {
+			pVec[i] = complex(1, 0)
+			pVec[i+bootcontext.slots] = complex(0, 0)
+		}
+
+		bootcontext.encoder.Encode(bootcontext.repackVecCtS, pVec, bootcontext.dslots)
+
+		vecLevel = ckkscontext.Levels() - 1 - ctsDepth - 1 - bootcontext.sinDepth - stcDepth
+
+		bootcontext.repackVecStC = bootcontext.ckkscontext.NewPlaintext(vecLevel, ckkscontext.scalechain[vecLevel])
+
+		// Repacking from X to Y^(N/n) : ct0 = ct0 + rotate(ct0 * [1, 1, ..., 1, 1, -i, -i, ..., -i, -i], slots).
+		// TODO : include in the DFT to save a level.
+		for i := uint64(0); i < bootcontext.slots; i++ {
+			pVec[i] = complex(1, 0)
+			pVec[i+bootcontext.slots] = complex(0, -1)
+		}
+
+		bootcontext.encoder.Encode(bootcontext.repackVecStC, pVec, bootcontext.dslots)
 	}
 
 	bootcontext.computePlaintextVectors()
@@ -159,6 +199,7 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext, decryptor *Decryptor, encoder *Encoder, verbose bool) (*Ciphertext, error) {
 
 	var err error
+	var ct0, ct1 *Ciphertext
 
 	for ct.Level() != 0 {
 		evaluator.DropLevel(ct.Element(), 1)
@@ -177,15 +218,19 @@ func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext,
 
 	ct = bootcontext.modUp(ct)
 
-	//Re-encoding X -> (N/n) * Y^n
+	//SubSum X -> (N/n) * Y^n
 	logSlots := uint64(bits.Len64(bootcontext.slots) - 1)
 	logMaxSlots := uint64(bits.Len64(bootcontext.ckkscontext.maxSlots) - 1)
+	tmp := evaluator.ckkscontext.NewCiphertext(1, ct.Level(), ct.Scale())
 	for i := logSlots; i < logMaxSlots; i++ {
-		tmp, err := evaluator.RotateColumnsNew(ct, 1<<i, bootcontext.rotkeys)
-		if err != nil {
+
+		if err := evaluator.RotateColumns(ct, 1<<i, bootcontext.rotkeys, tmp) ; err != nil {
 			return nil, err
 		}
-		evaluator.Add(ct, tmp, ct)
+
+		if err = evaluator.Add(ct, tmp, ct); err != nil {
+			return nil, err
+		}
 	}
 
 	// Part 1 : Coeffs to slots
@@ -196,7 +241,7 @@ func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext,
 		showcoeffs(decryptor, encoder, bootcontext.dslots, ct, "Ct Before CoeffsSlots : ")
 	}
 
-	if ct, err = bootcontext.coeffsToSlots(evaluator, ct); err != nil {
+	if ct0, ct1, err = bootcontext.coeffsToSlots(evaluator, ct); err != nil {
 		return nil, err
 	}
 
@@ -208,15 +253,20 @@ func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext,
 	}
 
 	// Part 2 : homomorphic evaluation of the modulo function
-
-	var ct0 *Ciphertext
-
-	if ct0, err = bootcontext.evaluateSine(ct, evaluator, verbose, decryptor, encoder); err != nil {
+	if ct0, ct1, err = bootcontext.evaluateSine(ct0, ct1, evaluator, verbose, decryptor, encoder); err != nil {
 		return nil, err
 	}
 
+	if verbose {
+		fmt.Println()
+		fmt.Println()
+		fmt.Println("Sine End  -> scale :", ct0.Scale(), " level :", ct0.Level())
+		showcoeffs(decryptor, encoder, bootcontext.dslots, ct0, "Ct0 after Sine : ")
+		showcoeffs(decryptor, encoder, bootcontext.dslots, ct1, "Ct1 after Sine : ")
+	}
+
 	// Part 3 : Slots to coeffs
-	if ct, err = bootcontext.slotsToCoeffs(evaluator, ct0); err != nil {
+	if ct, err = bootcontext.slotsToCoeffs(evaluator, ct0, ct1); err != nil {
 		return nil, err
 	}
 
@@ -233,175 +283,125 @@ func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext,
 	return ct, nil
 }
 
-func (bootcontext *BootContext) modUp(ct *Ciphertext) (vec *Ciphertext) {
+func (bootcontext *BootContext) modUp(ct *Ciphertext) (*Ciphertext) {
 
 	ct.InvNTT(bootcontext.ckkscontext, ct.Element())
 
-	//Extend the basis from Q0 to Ql and centers the values at the same time
-	vec = bootcontext.ckkscontext.NewCiphertext(1, bootcontext.ckkscontext.levels-1, ct.Scale())
-	vec.SetIsNTT(false)
+	for u := range ct.Value() { 
+		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, bootcontext.ckkscontext.levels-1)...)
+		for i := uint64(1) ; i < bootcontext.ckkscontext.levels; i++ {
+			ct.Value()[u].Coeffs[i] = make([]uint64, bootcontext.ckkscontext.n)
+		}
+	}
+
+	//Centers the values around Q0 and extends the basis from Q0 to QL
 
 	Q := bootcontext.ckkscontext.moduli[0]
 	bredparams := bootcontext.ckkscontext.contextQ.GetBredParams()
 
-	var coeff uint64
+	var coeff, qi uint64
 	for u := range ct.Value() {
 
 		for j := uint64(0); j < bootcontext.ckkscontext.n; j++ {
 
 			coeff = ct.Value()[u].Coeffs[0][j]
 
-			for i, qi := range bootcontext.ckkscontext.moduli {
+			for i := uint64(1) ; i < bootcontext.ckkscontext.levels ; i++{
+
+				qi = bootcontext.ckkscontext.moduli[i]
 
 				if coeff > (Q >> 1) {
-					vec.Value()[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff+1, qi, bredparams[i])
+					ct.Value()[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff+1, qi, bredparams[i])
 				} else {
-					vec.Value()[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
+					ct.Value()[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
 				}
+			}
+
+			qi = bootcontext.ckkscontext.moduli[0]
+
+			if coeff > (Q >> 1) {
+				ct.Value()[u].Coeffs[0][j] = qi - ring.BRedAdd(Q-coeff+1, qi, bredparams[0])
+			} else {
+				ct.Value()[u].Coeffs[0][j] = ring.BRedAdd(coeff, qi, bredparams[0])
 			}
 		}
 	}
 
-	vec.NTT(bootcontext.ckkscontext, vec.Element())
+	ct.NTT(bootcontext.ckkscontext, ct.Element())
 
-	return
+	return ct
 }
 
-func (bootcontext *BootContext) coeffsToSlots(evaluator *Evaluator, vec *Ciphertext) (*Ciphertext, error) {
+func (bootcontext *BootContext) coeffsToSlots(evaluator *Evaluator, vec *Ciphertext) (ct0, ct1 *Ciphertext, err error) {
 
-	var err error
-
-	var zV *Ciphertext
+	var zV, zVconj *Ciphertext
 
 	if zV, err = bootcontext.dft(evaluator, vec, bootcontext.pDFTInv); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return zV, nil
-}
+	if bootcontext.repack {
 
-func (bootcontext *BootContext) slotsToCoeffs(evaluator *Evaluator, vec0 *Ciphertext) (*Ciphertext, error) {
-
-	var err error
-
-	var vec *Ciphertext
-
-	if vec, err = bootcontext.dft(evaluator, vec0, bootcontext.pDFT); err != nil {
-		return nil, err
-	}
-
-	return vec, nil
-}
-
-func (bootcontext *BootContext) evaluateSine(zV *Ciphertext, evaluator *Evaluator, verbose bool, decryptor *Decryptor, encoder *Encoder) (*Ciphertext, error) {
-
-	var err error
-
-	var zVconj, ct0, ct1 *Ciphertext
-	var plaintextVec *Plaintext
-	var pVec []complex128
-
-	if bootcontext.ckkscontext.maxSlots > bootcontext.slots {
-
-		plaintextVec = bootcontext.ckkscontext.NewPlaintext(zV.Level(), evaluator.ckkscontext.scalechain[zV.Level()])
-
-		// Repacking from Y^(N/n) to X (we multiply with a vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0])
-		// With the multiplication by scale/Q included.
-		// TODO : include in the DFT to save a level.
-		pVec = make([]complex128, bootcontext.dslots)
-		for i := uint64(0); i < bootcontext.slots; i++ {
-			pVec[i] = complex(1, 0)
-			pVec[i+bootcontext.slots] = complex(0, 0)
+		if err = evaluator.MulRelin(zV, bootcontext.repackVecCtS, nil, zV); err != nil {
+			return nil, nil, err
 		}
 
-		bootcontext.encoder.Encode(plaintextVec, pVec, bootcontext.dslots)
-
-		evaluator.MulRelin(zV, plaintextVec, nil, zV)
-
-		evaluator.Rescale(zV, bootcontext.ckkscontext.scale, zV)
-
-		if verbose {
-			showcoeffs(decryptor, encoder, bootcontext.dslots, zV, "zV after repack      : ")
+		if err = evaluator.Rescale(zV, bootcontext.ckkscontext.scale, zV); err != nil {
+			return nil, nil, err
 		}
-
 	}
 
 	// Extraction of real and imaginary parts
 	if zVconj, err = evaluator.ConjugateNew(zV, bootcontext.rotkeys); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if ct0, err = evaluator.AddNew(zV, zVconj); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if ct1, err = evaluator.SubNew(zV, zVconj); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err = evaluator.DivByi(ct1, ct1); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if bootcontext.ckkscontext.maxSlots > bootcontext.slots {
+	if bootcontext.repack {
 
 		// Real part is put in the first n/2 slots, imaginary part is put in the last n/2 slots
-		ct1, _ = evaluator.RotateColumnsNew(ct1, bootcontext.slots, bootcontext.rotkeys)
-		evaluator.Add(ct0, ct1, ct0)
+		if err = evaluator.RotateColumns(ct1, bootcontext.slots, bootcontext.rotkeys, ct1) ; err != nil {
+			return nil, nil, err
+		}
+
+		if err = evaluator.Add(ct0, ct1, ct0); err != nil {
+			return nil, nil, err
+		}
 	}
 
-	if verbose {
-		fmt.Println()
-		fmt.Println()
-		fmt.Println("Sine Start  -> scale :", ct0.Scale(), " level :", ct0.Level())
-		showcoeffs(decryptor, encoder, bootcontext.dslots, ct0, "Ct0 before Sine : ")
-		showcoeffs(decryptor, encoder, bootcontext.dslots, ct1, "Ct1 before Sine : ")
-	}
+	return ct0, ct1, nil
+}
 
-	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
-	bootcontext.ckkscontext.scale = bootcontext.ckkscontext.scalechain[ct0.Level()]
+func (bootcontext *BootContext) slotsToCoeffs(evaluator *Evaluator, ct0, ct1 *Ciphertext) (ct *Ciphertext, err error) {
 
-	ct0.MulScale(1024)
-	if ct0, err = evaluator.EvaluateChebyBoot(ct0, bootcontext.sparsity, bootcontext.chebycoeffs, bootcontext.relinkey); err != nil {
-		return nil, err
-	}
-	ct0.DivScale(1024)
+	if bootcontext.repack {
 
-	if bootcontext.ckkscontext.maxSlots == bootcontext.slots {
-
-		ct1.MulScale(1024)
-		if ct1, err = evaluator.EvaluateChebyBoot(ct1, bootcontext.sparsity, bootcontext.chebycoeffs, bootcontext.relinkey); err != nil {
+		if evaluator.MulRelin(ct0, bootcontext.repackVecStC, nil, ct0); err != nil {
 			return nil, err
 		}
-		ct1.DivScale(1024)
-	}
 
-	bootcontext.ckkscontext.scale = ct0.Scale()
-
-	if verbose {
-		fmt.Println()
-		showcoeffs(decryptor, encoder, bootcontext.dslots, ct0, "Ct0 after  Sine : ")
-		showcoeffs(decryptor, encoder, bootcontext.dslots, ct1, "Ct1 after  Sine : ")
-		fmt.Println("Sine End -> scale :", ct0.Scale(), " level :", ct0.Level())
-	}
-
-	if bootcontext.ckkscontext.maxSlots > bootcontext.slots {
-
-		// Repacking from X to Y^(N/n) : ct0 = ct0 + rotate(ct0 * [1, 1, ..., 1, 1, -i, -i, ..., -i, -i], slots).
-		// With the multiplication by Q/scale included.
-		// TODO : include in the DFT to save a level.
-		for i := uint64(0); i < bootcontext.slots; i++ {
-			pVec[i] = complex(1, 0)
-			pVec[i+bootcontext.slots] = complex(0, -1)
+		if err = evaluator.RotateColumns(ct0, bootcontext.slots, bootcontext.rotkeys, ct1); err != nil {
+			return nil, err
 		}
 
-		bootcontext.encoder.Encode(plaintextVec, pVec, bootcontext.dslots)
-		evaluator.MulRelin(ct0, plaintextVec, nil, ct0)
+		if err = evaluator.Add(ct0, ct1, ct0); err != nil {
+			return nil, err
+		}
 
-		ct1, _ = evaluator.RotateColumnsNew(ct0, bootcontext.slots, bootcontext.rotkeys)
-		evaluator.Add(ct0, ct1, ct0)
-
-		evaluator.Rescale(ct0, bootcontext.ckkscontext.scale, ct0)
+		if err = evaluator.Rescale(ct0, bootcontext.ckkscontext.scale, ct0) ; err != nil {
+			return nil, err
+		}
 
 	} else {
 
@@ -414,14 +414,38 @@ func (bootcontext *BootContext) evaluateSine(zV *Ciphertext, evaluator *Evaluato
 		}
 	}
 
-	if verbose {
-		fmt.Println()
-		fmt.Println()
-		fmt.Println("Slots to Coeffs Start  -> scale :", ct0.Scale(), " level :", ct0.Level())
-		showcoeffs(decryptor, encoder, bootcontext.dslots, ct0, "Ct0 before slotscoeffs : ")
+	if ct, err = bootcontext.dft(evaluator, ct0, bootcontext.pDFT); err != nil {
+		return nil, err
 	}
 
-	return ct0, nil
+	return ct, nil
+}
+
+func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *Evaluator, verbose bool, decryptor *Decryptor, encoder *Encoder) (*Ciphertext, *Ciphertext, error) {
+
+	var err error
+
+	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
+	bootcontext.ckkscontext.scale = bootcontext.ckkscontext.scalechain[ct0.Level()]
+
+	ct0.MulScale(1024)
+	if ct0, err = evaluator.EvaluateChebyBoot(ct0, bootcontext.sparsity, bootcontext.chebycoeffs, bootcontext.relinkey); err != nil {
+		return nil, nil, err
+	}
+	ct0.DivScale(1024)
+
+	if !bootcontext.repack {
+
+		ct1.MulScale(1024)
+		if ct1, err = evaluator.EvaluateChebyBoot(ct1, bootcontext.sparsity, bootcontext.chebycoeffs, bootcontext.relinkey); err != nil {
+			return nil, nil, err
+		}
+		ct1.DivScale(1024)
+	}
+
+	bootcontext.ckkscontext.scale = ct0.Scale()
+
+	return ct0, ct1, nil
 }
 
 func (evaluator *Evaluator) EvaluateChebyBoot(ct *Ciphertext, sparsity complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error) {
@@ -474,7 +498,6 @@ func (bootcontext *BootContext) dft(evaluator *Evaluator, vec *Ciphertext, plain
 	}
 
 	return w, nil
-
 }
 
 func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext, err error) {
@@ -769,7 +792,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 				level = bootcontext.ckkscontext.Levels() - 1 - k - bootcontext.ctsDepth - bootcontext.sinDepth
 
 				// We take into account the levels needed for repacking
-				if bootcontext.slots != bootcontext.ckkscontext.maxSlots {
+				if bootcontext.repack {
 					level -= 2
 				}
 			}

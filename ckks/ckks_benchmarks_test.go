@@ -294,12 +294,14 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	var logN, logSlots, levels, ctsDepth, stcDepth uint64
 	var scale float64
+	var repack bool
 
 	for _, param := range params {
 
 		logN = uint64(param.params.LogN)
 
 		logSlots = 10
+		repack   = true
 		ctsDepth = 2
 		stcDepth = 2
 
@@ -322,7 +324,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 		evaluator = ckkscontext.NewEvaluator()
 
-		if bootcontext, err = ckkscontext.NewBootContext(1<<logSlots, sk, ctsDepth, stcDepth); err != nil {
+		if bootcontext, err = ckkscontext.NewBootContext(1<<logSlots, sk, ctsDepth, stcDepth, repack); err != nil {
 			b.Error()
 		}
 
@@ -344,12 +346,12 @@ func BenchmarkBootstrapp(b *testing.B) {
 		}
 
 		// Coeffs To Slots
-		var ciphertext1, ciphertext2 *Ciphertext
+		var ct0, ct1 *Ciphertext
 
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/CoeffsToSlots", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				if ciphertext1, err = bootcontext.coeffsToSlots(evaluator, ciphertext); err != nil {
+				if ct0, ct1, err = bootcontext.coeffsToSlots(evaluator, ciphertext); err != nil {
 					b.Error(err)
 				}
 			}
@@ -359,7 +361,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/EvaluateSine", logN, ckkscontext.LogQ(), levels, logSlots), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				if ciphertext2, err = bootcontext.evaluateSine(ciphertext1, evaluator, false, nil, nil); err != nil {
+				if ct0, ct1, err = bootcontext.evaluateSine(ct0, ct1, evaluator, false, nil, nil); err != nil {
 					b.Error(err)
 				}
 			}
@@ -369,7 +371,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/SlotsToCoeffs", logN, ckkscontext.LogQ(), levels, logSlots), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				if _, err = bootcontext.slotsToCoeffs(evaluator, ciphertext2); err != nil {
+				if _, err = bootcontext.slotsToCoeffs(evaluator, ct0, ct1); err != nil {
 					b.Error(err)
 				}
 			}

@@ -7,12 +7,12 @@ import (
 	"testing"
 )
 
-func test_Bootstrapp(params *CKKSTESTPARAMS, ctsDepth, stcDepth uint64, verbose bool, t *testing.T) {
+func test_Bootstrapp(params *CKKSTESTPARAMS, ctsDepth, stcDepth uint64, repack bool, verbose bool, t *testing.T) {
 
 	var bootcontext *BootContext
 	var err error
 
-	if bootcontext, err = params.ckkscontext.NewBootContext(params.slots, params.sk, ctsDepth, stcDepth); err != nil {
+	if bootcontext, err = params.ckkscontext.NewBootContext(params.slots, params.sk, ctsDepth, stcDepth, repack); err != nil {
 		log.Fatal(err)
 	}
 

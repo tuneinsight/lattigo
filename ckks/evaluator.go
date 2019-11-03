@@ -1439,13 +1439,12 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 	}
 
 	if ctOut.Level() > ct0.Level() {
-		if err = evaluator.DropLevel(ctOut.Element(), ctOut.Level() - ct0.Level()); err != nil {
+		if err = evaluator.DropLevel(ctOut.Element(), ctOut.Level()-ct0.Level()); err != nil {
 			return err
 		}
 	}
 
 	ctOut.SetScale(ct0.Scale())
-	
 
 	k &= ((evaluator.ckkscontext.n >> 1) - 1)
 
@@ -1545,7 +1544,7 @@ func (evaluator *Evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKey, ctOu
 	}
 
 	if ctOut.Level() > ct0.Level() {
-		if err = evaluator.DropLevel(ctOut.Element(), ctOut.Level() - ct0.Level()); err != nil {
+		if err = evaluator.DropLevel(ctOut.Element(), ctOut.Level()-ct0.Level()); err != nil {
 			return err
 		}
 	}

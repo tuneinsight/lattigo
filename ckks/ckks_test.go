@@ -44,14 +44,9 @@ func Test_CKKS(t *testing.T) {
 
 	var err error
 
-	medianprec := float64(20) // target median precision in log2 among all the coeffs, determines the success/failure of a test
+	medianprec := float64(30) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
-	repack := true
-	ctsDepth := uint64(2) // maximum depth for the bootstrapp LT
-	stcDepth := uint64(2)
-	showbootintermediateresults := true
-
-	params := Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55, 55, 55}, 1 << 40, 3.2}
+	params := Parameters{16, []uint8{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
@@ -97,36 +92,36 @@ func Test_CKKS(t *testing.T) {
 	}
 
 	ckksTest.evaluator = ckksTest.ckkscontext.NewEvaluator()
-/*
-	log.Printf("Generating relinearization keys")
-	ckksTest.rlk = ckksTest.kgen.NewRelinKey(ckksTest.sk)
+	/*
+		log.Printf("Generating relinearization keys")
+		ckksTest.rlk = ckksTest.kgen.NewRelinKey(ckksTest.sk)
 
-	log.Printf("Generating rotation keys for conjugate and powers of 2")
-	ckksTest.rotkey = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk, true)
+		log.Printf("Generating rotation keys for conjugate and powers of 2")
+		ckksTest.rotkey = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk, true)
 
-	test_Encoder(ckksTest, t)
-	test_EncryptDecrypt(ckksTest, t)
-	test_Add(ckksTest, t)
-	test_Sub(ckksTest, t)
-	test_AddConst(ckksTest, t)
-	test_MulConst(ckksTest, t)
-	test_MultByConstAndAdd(ckksTest, t)
-	test_ComplexOperations(ckksTest, t)
+		test_Encoder(ckksTest, t)
+		test_EncryptDecrypt(ckksTest, t)
+		test_Add(ckksTest, t)
+		test_Sub(ckksTest, t)
+		test_AddConst(ckksTest, t)
+		test_MulConst(ckksTest, t)
+		test_MultByConstAndAdd(ckksTest, t)
+		test_ComplexOperations(ckksTest, t)
 
-	test_Rescaling(ckksTest, t)
+		test_Rescaling(ckksTest, t)
 
-	test_Mul(ckksTest, t)
+		test_Mul(ckksTest, t)
 
-	if len(params.Modulichain) > 9 {
-		test_sin2pi2pi(ckksTest, t)
-		test_Functions(ckksTest, t)
-	}
-	test_SwitchKeys(ckksTest, t)
-	test_Conjugate(ckksTest, t)
-	test_RotColumns(ckksTest, t)
-*/
+		if len(params.Modulichain) > 9 {
+			test_sin2pi2pi(ckksTest, t)
+			test_Functions(ckksTest, t)
+		}
+		test_SwitchKeys(ckksTest, t)
+		test_Conjugate(ckksTest, t)
+		test_RotColumns(ckksTest, t)
+	*/
 	if len(params.Modulichain) > 10 {
-		test_Bootstrapp(ckksTest, ctsDepth, stcDepth, repack, showbootintermediateresults, t)
+		test_Bootstrapp(ckksTest, t)
 	}
 
 }

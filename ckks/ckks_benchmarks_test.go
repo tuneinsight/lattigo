@@ -301,7 +301,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		logN = uint64(param.params.LogN)
 
 		logSlots = 10
-		repack   = true
+		repack = true
 		ctsDepth = 2
 		stcDepth = 2
 
@@ -361,7 +361,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/EvaluateSine", logN, ckkscontext.LogQ(), levels, logSlots), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				if ct0, ct1, err = bootcontext.evaluateSine(ct0, ct1, evaluator, false, nil, nil); err != nil {
+				if ct0, ct1, err = bootcontext.evaluateSine(ct0, ct1, evaluator); err != nil {
 					b.Error(err)
 				}
 			}

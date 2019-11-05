@@ -174,6 +174,8 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 		}
 	}
 
+	fmt.Println(len(rotations)-1)
+
 	kgen := ckkscontext.NewKeyGenerator()
 
 	if bootcontext.rotkeys, err = kgen.NewRotationKeys(sk, rotations, nil, true); err != nil {
@@ -728,6 +730,8 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 
 	plaintextVec.Vec = make(map[uint64]*Plaintext)
 
+	len := 0
+
 	for j := range index {
 
 		for _, i := range index[j] {
@@ -743,6 +747,8 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 				}
 			}
 
+			len++
+
 			plaintextVec.Vec[N1*j+uint64(i)] = bootcontext.ckkscontext.NewPlaintext(level, bootcontext.ckkscontext.scalechain[level])
 
 			if err = bootcontext.encoder.Encode(plaintextVec.Vec[N1*j+uint64(i)], rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots); err != nil {
@@ -750,6 +756,8 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 			}
 		}
 	}
+
+	fmt.Println(level+1, len)
 
 	return
 }

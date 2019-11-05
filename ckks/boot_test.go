@@ -10,7 +10,7 @@ import (
 func test_Bootstrapp(params *CKKSTESTPARAMS, t *testing.T) {
 
 	repack := true
-	ctsDepth := uint64(2)
+	ctsDepth := uint64(3)
 	stcDepth := uint64(2)
 
 	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/TestBoot", params.ckkscontext.logN,

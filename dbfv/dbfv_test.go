@@ -46,7 +46,7 @@ var testParams = new(dbfvTestParameters)
 func init() {
 	testParams.parties = 5
 
-	testParams.contexts = bfv.DefaultParams[0:2]
+	testParams.contexts = bfv.DefaultParams
 }
 
 func Test_DBFV(t *testing.T) {

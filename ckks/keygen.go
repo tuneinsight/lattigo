@@ -105,6 +105,9 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 	keygen.context.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
 	keygen.context.Neg(pk.pk[0], pk.pk[0])
 
+	keygen.context.MForm(pk.pk[0], pk.pk[0])
+	keygen.context.MForm(pk.pk[1], pk.pk[1])
+
 	return pk
 }
 

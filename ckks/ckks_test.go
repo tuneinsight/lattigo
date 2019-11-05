@@ -92,7 +92,7 @@ func Test_CKKS(t *testing.T) {
 	}
 
 	ckksTest.evaluator = ckksTest.ckkscontext.NewEvaluator()
-	
+	/*
 		log.Printf("Generating relinearization keys")
 		ckksTest.rlk = ckksTest.kgen.NewRelinKey(ckksTest.sk)
 
@@ -119,7 +119,7 @@ func Test_CKKS(t *testing.T) {
 		test_SwitchKeys(ckksTest, t)
 		test_Conjugate(ckksTest, t)
 		test_RotColumns(ckksTest, t)
-	
+	*/
 	if len(params.Modulichain) > 10 {
 		test_Bootstrapp(ckksTest, t)
 	}

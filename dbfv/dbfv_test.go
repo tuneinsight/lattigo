@@ -46,7 +46,7 @@ var testParams = new(dbfvTestParameters)
 func init() {
 	testParams.parties = 5
 
-	testParams.contexts = bfv.DefaultParams
+	testParams.contexts = bfv.DefaultParams[0:2]
 }
 
 func Test_DBFV(t *testing.T) {
@@ -613,13 +613,13 @@ func testRefresh(t *testing.T) {
 		encoder := params.encoder
 		decryptorSk0 := params.decryptorSk0
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d/BOOT", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d/Refresh", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RefreshProtocol
-				s      *ring.Poly
-				share1 RefreshShareDecrypt
-				share2 RefreshShareRecrypt
+				s       *ring.Poly
+				share   RefreshShare
+				ptShare *bfv.Plaintext
 			}
 
 			RefreshParties := make([]*Party, parties)
@@ -627,7 +627,8 @@ func testRefresh(t *testing.T) {
 				p := new(Party)
 				p.RefreshProtocol = NewRefreshProtocol(bfvContext)
 				p.s = sk0Shards[i].Get()
-				p.share1, p.share2 = p.AllocateShares()
+				p.share = p.AllocateShares()
+				p.ptShare = bfvContext.NewPlaintext()
 				RefreshParties[i] = p
 			}
 
@@ -641,10 +642,9 @@ func testRefresh(t *testing.T) {
 			coeffs, plaintextWant, ciphertext := newTestVectors(params, encryptorPk0, t)
 
 			for i, p := range RefreshParties {
-				p.GenShares(p.s, ciphertext, crp, p.share1, p.share2)
+				p.GenShares(p.s, ciphertext, crp, p.share)
 				if i > 0 {
-					P0.Aggregate(p.share1, P0.share1, P0.share1)
-					P0.Aggregate(p.share2, P0.share2, P0.share2)
+					P0.Aggregate(p.share, P0.share, P0.share)
 				}
 			}
 
@@ -681,10 +681,17 @@ func testRefresh(t *testing.T) {
 			average_simulated_error.Div(average_simulated_error, ring.NewUint(bfvContext.N()))
 			// =======================================================================================
 
-			// We refresh the ciphertext with the simulated error
-			P0.Decrypt(ciphertext, P0.share1)      // Masked decryption
-			P0.Recode(ciphertext)                  // Masked re-encoding
-			P0.Recrypt(ciphertext, crp, P0.share2) // Masked re-encryption
+			ctOut := bfvContext.NewCiphertext(1)
+
+			// We refresh the ciphertext with the simulated error with all-in-one finalize function
+			P0.Finalize(ciphertext, crp, P0.share, ctOut)
+
+			// Should be equivalent to
+			P0.Decrypt(ciphertext, P0.share.RefreshShareDecrypt, P0.ptShare.Value()[0])      // Masked decryption
+			P0.Recode(P0.ptShare.Value()[0], P0.ptShare.Value()[0])                          // Masked re-encoding
+			P0.Recrypt(P0.ptShare.Value()[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption
+
+			//ciphertext = ctOut should not change the output of the test
 
 			// We decrypt and compare with the original plaintext
 			plaintextHave = decryptorSk0.DecryptNew(ciphertext)

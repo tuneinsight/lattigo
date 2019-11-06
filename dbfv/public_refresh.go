@@ -13,6 +13,10 @@ type RefreshProtocol struct {
 
 type RefreshShareDecrypt *ring.Poly
 type RefreshShareRecrypt *ring.Poly
+type RefreshShare struct {
+	RefreshShareDecrypt RefreshShareDecrypt
+	RefreshShareRecrypt RefreshShareRecrypt
+}
 
 func NewRefreshProtocol(bfvContext *bfv.BfvContext) (refreshProtocol *RefreshProtocol) {
 	refreshProtocol = new(RefreshProtocol)
@@ -21,68 +25,74 @@ func NewRefreshProtocol(bfvContext *bfv.BfvContext) (refreshProtocol *RefreshPro
 	return
 }
 
-func (refreshProtocol *RefreshProtocol) AllocateShares() (RefreshShareDecrypt, RefreshShareRecrypt) {
-	return refreshProtocol.bfvContext.ContextQ().NewPoly(), refreshProtocol.bfvContext.ContextQ().NewPoly()
+func (rfp *RefreshProtocol) AllocateShares() RefreshShare {
+	return RefreshShare{rfp.bfvContext.ContextQ().NewPoly(),
+		rfp.bfvContext.ContextQ().NewPoly()}
 }
 
-func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
+func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, share RefreshShare) {
 
-	contextQ := refreshProtocol.bfvContext.ContextQ()
-	contextT := refreshProtocol.bfvContext.ContextT()
-	sampler := refreshProtocol.bfvContext.ContextQ().NewKYSampler(3.19, 19) // TODO : add smudging noise
+	contextQ := rfp.bfvContext.ContextQ()
+	contextT := rfp.bfvContext.ContextT()
+	sampler := rfp.bfvContext.ContextQ().NewKYSampler(3.19, 19) // TODO : add smudging noise
 
 	// h0 = s*ct[1]
-	contextQ.NTT(ciphertext.Value()[1], refreshProtocol.tmp)
-	contextQ.MulCoeffsMontgomeryAndAdd(sk, refreshProtocol.tmp, shareDecrypt)
+	contextQ.NTT(ciphertext.Value()[1], rfp.tmp)
+	contextQ.MulCoeffsMontgomeryAndAdd(sk, rfp.tmp, share.RefreshShareDecrypt)
 
 	// h1 = -s*a
-	contextQ.NTT(crs, refreshProtocol.tmp)
-	contextQ.MulCoeffsMontgomeryAndSub(sk, refreshProtocol.tmp, shareRecrypt)
+	contextQ.NTT(crs, rfp.tmp)
+	contextQ.MulCoeffsMontgomeryAndSub(sk, rfp.tmp, share.RefreshShareRecrypt)
 
-	contextQ.InvNTT(shareDecrypt, shareDecrypt)
-	contextQ.InvNTT(shareRecrypt, shareRecrypt)
+	contextQ.InvNTT(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
+	contextQ.InvNTT(share.RefreshShareRecrypt, share.RefreshShareRecrypt)
 
 	// h0 = s*ct[1] + e
-	sampler.Sample(refreshProtocol.tmp)
-	contextQ.Add(shareDecrypt, refreshProtocol.tmp, shareDecrypt)
+	sampler.Sample(rfp.tmp)
+	contextQ.Add(share.RefreshShareDecrypt, rfp.tmp, share.RefreshShareDecrypt)
 
 	// h1 = s*a + e'
-	sampler.Sample(refreshProtocol.tmp)
-	contextQ.Add(shareRecrypt, refreshProtocol.tmp, shareRecrypt)
+	sampler.Sample(rfp.tmp)
+	contextQ.Add(share.RefreshShareRecrypt, rfp.tmp, share.RefreshShareRecrypt)
 
 	// mask = (uniform plaintext in [0, T-1]) * floor(Q/T)
 	coeffs := contextT.NewUniformPoly()
-	lift(coeffs, refreshProtocol.tmp, refreshProtocol.bfvContext)
+	lift(coeffs, rfp.tmp, rfp.bfvContext)
 
 	// h0 = s*ct[1] + mask
-	contextQ.Add(shareDecrypt, refreshProtocol.tmp, shareDecrypt)
+	contextQ.Add(share.RefreshShareDecrypt, rfp.tmp, share.RefreshShareDecrypt)
 
 	// h0 = -s*a - mask
-	contextQ.Sub(shareRecrypt, refreshProtocol.tmp, shareRecrypt)
-
-	return
+	contextQ.Sub(share.RefreshShareRecrypt, rfp.tmp, share.RefreshShareRecrypt)
 }
 
-func (refreshProtocol *RefreshProtocol) Aggregate(share1, share2, shareOut *ring.Poly) {
-	refreshProtocol.bfvContext.ContextQ().Add(share1, share2, shareOut)
+func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
+	rfp.bfvContext.ContextQ().Add(share1.RefreshShareDecrypt, share2.RefreshShareDecrypt, shareOut.RefreshShareDecrypt)
+	rfp.bfvContext.ContextQ().Add(share1.RefreshShareRecrypt, share2.RefreshShareRecrypt, shareOut.RefreshShareRecrypt)
 }
 
-func (refreshProtocol *RefreshProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt RefreshShareDecrypt) {
-	refreshProtocol.bfvContext.ContextQ().Add(ciphertext.Value()[0], shareDecrypt, ciphertext.Value()[0])
+func (rfp *RefreshProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt RefreshShareDecrypt, sharePlaintext *ring.Poly) {
+	rfp.bfvContext.ContextQ().Add(ciphertext.Value()[0], shareDecrypt, sharePlaintext)
 }
 
-func (refreshProtocol *RefreshProtocol) Recode(ciphertext *bfv.Ciphertext) {
-	scaler := ring.NewSimpleScaler(refreshProtocol.bfvContext.T(), refreshProtocol.bfvContext.ContextQ())
+func (rfp *RefreshProtocol) Recode(sharePlaintext *ring.Poly, sharePlaintextOut *ring.Poly) {
+	scaler := ring.NewSimpleScaler(rfp.bfvContext.T(), rfp.bfvContext.ContextQ())
 
-	scaler.Scale(ciphertext.Value()[0], ciphertext.Value()[0])
-	lift(ciphertext.Value()[0], ciphertext.Value()[0], refreshProtocol.bfvContext)
+	scaler.Scale(sharePlaintext, sharePlaintextOut)
+	lift(sharePlaintextOut, sharePlaintextOut, rfp.bfvContext)
 }
 
-func (refreshProtocol *RefreshProtocol) Recrypt(ciphertext *bfv.Ciphertext, crs *ring.Poly, shareRecrypt RefreshShareRecrypt) {
+func (rfp *RefreshProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, shareRecrypt RefreshShareRecrypt, ciphertextOut *bfv.Ciphertext) {
 
-	refreshProtocol.bfvContext.ContextQ().Add(ciphertext.Value()[0], shareRecrypt, ciphertext.Value()[0])
+	rfp.bfvContext.ContextQ().Add(sharePlaintext, shareRecrypt, ciphertextOut.Value()[0])
 
-	ciphertext.Value()[1] = crs.CopyNew()
+	ciphertextOut.Value()[1].Copy(crs)
+}
+
+func (rfp *RefreshProtocol) Finalize(ciphertext *bfv.Ciphertext, crs *ring.Poly, share RefreshShare, ciphertextOut *bfv.Ciphertext) {
+	rfp.Decrypt(ciphertext, share.RefreshShareDecrypt, rfp.tmp)
+	rfp.Recode(rfp.tmp, rfp.tmp)
+	rfp.Recrypt(rfp.tmp, crs, share.RefreshShareRecrypt, ciphertextOut)
 }
 
 func lift(p0, p1 *ring.Poly, bfvcontext *bfv.BfvContext) {

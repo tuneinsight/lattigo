@@ -46,7 +46,7 @@ var testParams = new(dbfvTestParameters)
 func init() {
 	testParams.parties = 5
 
-	testParams.contexts = bfv.DefaultParams[0:2]
+	testParams.contexts = bfv.DefaultParams[0:3]
 }
 
 func Test_DBFV(t *testing.T) {
@@ -634,7 +634,7 @@ func testRefresh(t *testing.T) {
 
 			P0 := RefreshParties[0]
 
-			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextQ())
+			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
 			check(t, err)
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.Clock()

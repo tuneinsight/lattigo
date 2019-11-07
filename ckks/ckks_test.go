@@ -211,6 +211,14 @@ func verify_test_vectors(params *CKKSTESTPARAMS, valuesWant []complex128, elemen
 		plaintextTest = params.decryptor.DecryptNew(element.Ciphertext())
 	}
 
+	/*
+		valuesTest = params.encoder.Decode(plaintextTest, 2*params.slots)
+
+		for i := range valuesTest{
+			fmt.Println(i, valuesTest[i]/complex(float64(params.ckkscontext.n), 0))
+		}
+	*/
+
 	valuesTest = params.encoder.Decode(plaintextTest, params.slots)
 
 	var deltaReal, deltaImag float64

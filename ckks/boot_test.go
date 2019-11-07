@@ -18,10 +18,10 @@ func Test_Bootstrapp(t *testing.T) {
 	medianprec := float64(30) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
 	repack := true
-	ctsDepth := uint64(4)
-	stcDepth := uint64(3)
+	ctsDepth := uint64(3)
+	stcDepth := uint64(2)
 
-	params := Parameters{15, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}, []uint8{55, 55, 55, 55, 55}, 1 << 40, 3.2}
+	params := Parameters{15, []uint8{55, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55, 55}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
@@ -46,7 +46,7 @@ func Test_Bootstrapp(t *testing.T) {
 
 	ckksTest.kgen = ckksTest.ckkscontext.NewKeyGenerator()
 
-	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPairSparse(128)
+	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPairSparse(0)
 
 	ckksTest.encoder = ckksTest.ckkscontext.NewEncoder()
 

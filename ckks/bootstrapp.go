@@ -28,7 +28,6 @@ type BootContext struct {
 	sinDepth     uint64
 	repack       bool
 	repackVecStC *Plaintext
-	repackVecCtS *Plaintext
 	pDFT         []*dftvectors
 	pDFTInv      []*dftvectors
 
@@ -95,29 +94,13 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 
 		pVec := make([]complex128, bootcontext.dslots)
 
-		vecLevel := ckkscontext.Levels() - 1 - ctsDepth
-
-		bootcontext.repackVecCtS = bootcontext.ckkscontext.NewPlaintext(vecLevel, ckkscontext.scalechain[vecLevel])
-
-		bootcontext.plaintextSize += (vecLevel + 1) * 8 * bootcontext.ckkscontext.n
-
-		// Repacking from Y^(N/n) to X (we multiply with a vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0])
-		// TODO : include in the DFT to save a level.
-		for i := uint64(0); i < bootcontext.slots; i++ {
-			pVec[i] = complex(1, 0)
-			pVec[i+bootcontext.slots] = complex(0, 0)
-		}
-
-		bootcontext.encoder.Encode(bootcontext.repackVecCtS, pVec, bootcontext.dslots)
-
-		vecLevel = ckkscontext.Levels() - 1 - ctsDepth - 1 - bootcontext.sinDepth
+		vecLevel := ckkscontext.Levels() - 1 - ctsDepth - bootcontext.sinDepth
 
 		bootcontext.repackVecStC = bootcontext.ckkscontext.NewPlaintext(vecLevel, ckkscontext.scalechain[vecLevel])
 
 		bootcontext.plaintextSize += (vecLevel + 1) * 8 * bootcontext.ckkscontext.n
 
 		// Repacking from X to Y^(N/n) : ct0 = ct0 + rotate(ct0 * [1, 1, ..., 1, 1, -i, -i, ..., -i, -i], slots).
-		// TODO : include in the DFT to save a level.
 		for i := uint64(0); i < bootcontext.slots; i++ {
 			pVec[i] = complex(1, 0)
 			pVec[i+bootcontext.slots] = complex(0, -1)
@@ -296,17 +279,6 @@ func (bootcontext *BootContext) coeffsToSlots(evaluator *Evaluator, vec *Ciphert
 
 	if zV, err = bootcontext.dft(evaluator, vec, bootcontext.pDFTInv); err != nil {
 		return nil, nil, err
-	}
-
-	if bootcontext.repack {
-
-		if err = evaluator.MulRelin(zV, bootcontext.repackVecCtS, nil, zV); err != nil {
-			return nil, nil, err
-		}
-
-		if err = evaluator.Rescale(zV, bootcontext.ckkscontext.scale, zV); err != nil {
-			return nil, nil, err
-		}
 	}
 
 	// Extraction of real and imaginary parts
@@ -753,6 +725,14 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 			plaintextVec.Vec[N1*j+uint64(i)] = bootcontext.ckkscontext.NewPlaintext(level, bootcontext.ckkscontext.scalechain[level])
 
 			bootcontext.plaintextSize += (level + 1) * 8 * bootcontext.ckkscontext.n
+
+			// Repacking from Y^(N/n) to X (we multiply the last vectors with the vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0])
+			if forward && k == bootcontext.ctsDepth-1 {
+
+				for x := uint64(0); x < bootcontext.slots; x++ {
+					pVec[N1*j+uint64(i)][x+bootcontext.slots] = complex(0, 0)
+				}
+			}
 
 			if err = bootcontext.encoder.Encode(plaintextVec.Vec[N1*j+uint64(i)], rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots); err != nil {
 				return err

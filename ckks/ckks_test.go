@@ -69,13 +69,9 @@ func Test_CKKS(t *testing.T) {
 		ckksTest.ckkscontext.beta,
 		ckksTest.ckkscontext.Sigma())
 
-	for i, qi := range ckksTest.ckkscontext.ContextKeys().Modulus {
-		fmt.Println(i, qi)
-	}
-
 	ckksTest.kgen = ckksTest.ckkscontext.NewKeyGenerator()
 
-	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPairSparse(128)
+	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPair()
 
 	ckksTest.encoder = ckksTest.ckkscontext.NewEncoder()
 
@@ -92,37 +88,33 @@ func Test_CKKS(t *testing.T) {
 	}
 
 	ckksTest.evaluator = ckksTest.ckkscontext.NewEvaluator()
-	/*
-		log.Printf("Generating relinearization keys")
-		ckksTest.rlk = ckksTest.kgen.NewRelinKey(ckksTest.sk)
 
-		log.Printf("Generating rotation keys for conjugate and powers of 2")
-		ckksTest.rotkey = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk, true)
+	log.Printf("Generating relinearization keys")
+	ckksTest.rlk = ckksTest.kgen.NewRelinKey(ckksTest.sk)
 
-		test_Encoder(ckksTest, t)
-		test_EncryptDecrypt(ckksTest, t)
-		test_Add(ckksTest, t)
-		test_Sub(ckksTest, t)
-		test_AddConst(ckksTest, t)
-		test_MulConst(ckksTest, t)
-		test_MultByConstAndAdd(ckksTest, t)
-		test_ComplexOperations(ckksTest, t)
+	log.Printf("Generating rotation keys for conjugate and powers of 2")
+	ckksTest.rotkey = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk, true)
 
-		test_Rescaling(ckksTest, t)
+	test_Encoder(ckksTest, t)
+	test_EncryptDecrypt(ckksTest, t)
+	test_Add(ckksTest, t)
+	test_Sub(ckksTest, t)
+	test_AddConst(ckksTest, t)
+	test_MulConst(ckksTest, t)
+	test_MultByConstAndAdd(ckksTest, t)
+	test_ComplexOperations(ckksTest, t)
 
-		test_Mul(ckksTest, t)
+	test_Rescaling(ckksTest, t)
 
-		if len(params.Modulichain) > 9 {
-			test_sin2pi2pi(ckksTest, t)
-			test_Functions(ckksTest, t)
-		}
-		test_SwitchKeys(ckksTest, t)
-		test_Conjugate(ckksTest, t)
-		test_RotColumns(ckksTest, t)
-	*/
-	if len(params.Modulichain) > 10 {
-		test_Bootstrapp(ckksTest, t)
+	test_Mul(ckksTest, t)
+
+	if len(params.Modulichain) > 9 {
+		test_sin2pi2pi(ckksTest, t)
+		test_Functions(ckksTest, t)
 	}
+	test_SwitchKeys(ckksTest, t)
+	test_Conjugate(ckksTest, t)
+	test_RotColumns(ckksTest, t)
 
 }
 

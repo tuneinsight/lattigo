@@ -20,6 +20,8 @@ type BootContext struct {
 	//Sine evaluation
 	chebycoeffs *ChebyshevInterpolation
 
+	plaintextSize uint64
+
 	//Coeffs to slots and slots to coeffs
 	ctsDepth     uint64
 	stcDepth     uint64
@@ -29,8 +31,6 @@ type BootContext struct {
 	repackVecCtS *Plaintext
 	pDFT         []*dftvectors
 	pDFTInv      []*dftvectors
-
-	evaluator *Evaluator
 
 	relinkey *EvaluationKey
 	rotkeys  *RotationKey
@@ -99,6 +99,8 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 
 		bootcontext.repackVecCtS = bootcontext.ckkscontext.NewPlaintext(vecLevel, ckkscontext.scalechain[vecLevel])
 
+		bootcontext.plaintextSize += (vecLevel + 1) * 8 * bootcontext.ckkscontext.n
+
 		// Repacking from Y^(N/n) to X (we multiply with a vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0])
 		// TODO : include in the DFT to save a level.
 		for i := uint64(0); i < bootcontext.slots; i++ {
@@ -111,6 +113,8 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 		vecLevel = ckkscontext.Levels() - 1 - ctsDepth - 1 - bootcontext.sinDepth
 
 		bootcontext.repackVecStC = bootcontext.ckkscontext.NewPlaintext(vecLevel, ckkscontext.scalechain[vecLevel])
+
+		bootcontext.plaintextSize += (vecLevel + 1) * 8 * bootcontext.ckkscontext.n
 
 		// Repacking from X to Y^(N/n) : ct0 = ct0 + rotate(ct0 * [1, 1, ..., 1, 1, -i, -i, ..., -i, -i], slots).
 		// TODO : include in the DFT to save a level.
@@ -174,7 +178,8 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 		}
 	}
 
-	fmt.Println(len(rotations)-1)
+	fmt.Println("DFT vector size (GB) :", float64(bootcontext.plaintextSize)/float64(1000000000))
+	fmt.Println("Switching-Keys size (GB) :", float64(ckkscontext.n*2*uint64(len(rotations))*ckkscontext.Beta()*uint64(len(ckkscontext.contextKeys.Modulus))*8)/float64(1000000000), "(", len(rotations), "keys)")
 
 	kgen := ckkscontext.NewKeyGenerator()
 
@@ -202,7 +207,7 @@ func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext)
 		evaluator.DropLevel(ct.Element(), 1)
 	}
 
-	evaluator.ScaleUp(ct, float64(1<<45)/ct.Scale(), ct)
+	evaluator.ScaleUp(ct, math.Round(float64(1<<45)/ct.Scale()), ct)
 
 	ct = bootcontext.modUp(ct)
 
@@ -730,8 +735,6 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 
 	plaintextVec.Vec = make(map[uint64]*Plaintext)
 
-	len := 0
-
 	for j := range index {
 
 		for _, i := range index[j] {
@@ -747,17 +750,15 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 				}
 			}
 
-			len++
-
 			plaintextVec.Vec[N1*j+uint64(i)] = bootcontext.ckkscontext.NewPlaintext(level, bootcontext.ckkscontext.scalechain[level])
+
+			bootcontext.plaintextSize += (level + 1) * 8 * bootcontext.ckkscontext.n
 
 			if err = bootcontext.encoder.Encode(plaintextVec.Vec[N1*j+uint64(i)], rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots); err != nil {
 				return err
 			}
 		}
 	}
-
-	fmt.Println(level+1, len)
 
 	return
 }

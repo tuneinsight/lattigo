@@ -22,7 +22,7 @@ func Test_BFV(t *testing.T) {
 
 	var err error
 
-	paramSets := DefaultParams[0:3]
+	paramSets := DefaultParams
 
 	for _, params := range paramSets {
 

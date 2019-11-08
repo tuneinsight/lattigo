@@ -362,11 +362,13 @@ func (evaluator *Evaluator) ExtractImagNew(ct0 *Ciphertext, evakey *RotationKey)
 // ex. f(a + b*i) = b. Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
 func (evaluator *Evaluator) ExtractImag(ct0 *Ciphertext, evakey *RotationKey, ctOut *Ciphertext) (err error) {
 
-	if err = evaluator.Conjugate(ct0, evakey, evaluator.ctxpool); err != nil {
+	var tmp *Ciphertext
+
+	if tmp, err = evaluator.ConjugateNew(ct0, evakey); err != nil {
 		return err
 	}
 
-	if err = evaluator.MultByi(evaluator.ctxpool, evaluator.ctxpool); err != nil {
+	if err = evaluator.MultByi(tmp, tmp); err != nil {
 		return err
 	}
 
@@ -374,7 +376,7 @@ func (evaluator *Evaluator) ExtractImag(ct0 *Ciphertext, evakey *RotationKey, ct
 		return err
 	}
 
-	if err = evaluator.Add(ctOut, evaluator.ctxpool, ctOut); err != nil {
+	if err = evaluator.Add(ctOut, tmp, ctOut); err != nil {
 		return err
 	}
 
@@ -431,11 +433,13 @@ func (evaluator *Evaluator) RemoveReal(ct0 *Ciphertext, evakey *RotationKey, ctO
 
 	} else {
 
-		if err = evaluator.Conjugate(ct0, evakey, evaluator.ctxpool); err != nil {
+		var tmp *Ciphertext
+
+		if tmp, err = evaluator.ConjugateNew(ct0, evakey); err != nil {
 			return err
 		}
 
-		if err = evaluator.Sub(ctOut, evaluator.ctxpool, ctOut); err != nil {
+		if err = evaluator.Sub(ctOut, tmp, ctOut); err != nil {
 			return err
 		}
 	}
@@ -469,11 +473,13 @@ func (evaluator *Evaluator) RemoveImag(ct0 *Ciphertext, evakey *RotationKey, ctO
 
 	} else {
 
-		if err = evaluator.Conjugate(ct0, evakey, evaluator.ctxpool); err != nil {
+		var tmp *Ciphertext
+
+		if tmp, err = evaluator.ConjugateNew(ct0, evakey); err != nil {
 			return err
 		}
 
-		if err = evaluator.Add(evaluator.ctxpool, ctOut, ctOut); err != nil {
+		if err = evaluator.Add(ctOut, tmp, ctOut); err != nil {
 			return err
 		}
 
@@ -1216,6 +1222,29 @@ func rescaleMany(evaluator *Evaluator, nbRescales uint64, p0, p1 *ring.Poly) {
 	}
 
 	context.NTTLvl(uint64(level), p1, p1)
+}
+
+func (evaluator *Evaluator) SetScale(ct *Ciphertext, scale float64) (err error) {
+
+	var tmp float64
+
+	tmp = evaluator.ckkscontext.scale
+
+	evaluator.ckkscontext.scale = scale
+
+	if err = evaluator.MultConst(ct, scale/ct.Scale(), ct); err != nil {
+		return err
+	}
+
+	if err = evaluator.Rescale(ct, scale, ct); err != nil {
+		return err
+	}
+
+	ct.SetScale(scale)
+
+	evaluator.ckkscontext.scale = tmp
+
+	return nil
 }
 
 // MulRelinNew multiplies ct0 by ct1 and returns the result on a newly created element. The new scale is

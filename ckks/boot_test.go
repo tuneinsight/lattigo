@@ -98,12 +98,20 @@ func Test_Bootstrapp(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		if ciphertext, err = ckksTest.evaluator.Bootstrapp(ciphertext, bootcontext); err != nil {
-			log.Fatal(err)
+		for i := 0; i < 1; i++ {
+
+			if ciphertext, err = ckksTest.evaluator.Bootstrapp(ciphertext, bootcontext); err != nil {
+				log.Fatal(err)
+			}
+
+			if err = ckksTest.evaluator.SetScale(ciphertext, params.Scale); err != nil {
+				log.Fatal(err)
+			}
+
+			if err := verify_test_vectors(ckksTest, values, ciphertext.Element(), t); err != nil {
+				log.Fatal(err)
+			}
 		}
 
-		if err := verify_test_vectors(ckksTest, values, ciphertext.Element(), t); err != nil {
-			log.Fatal(err)
-		}
 	})
 }

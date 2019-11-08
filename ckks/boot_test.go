@@ -17,17 +17,16 @@ func Test_Bootstrapp(t *testing.T) {
 
 	medianprec := float64(30) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
-	repack := true
-	ctsDepth := uint64(3)
+	ctsDepth := uint64(2)
 	stcDepth := uint64(2)
 
-	params := Parameters{15, []uint8{55, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55, 55}, 1 << 40, 3.2}
+	params := Parameters{10, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45}, []uint8{55, 55, 55, 55, 55}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
 	ckksTest.medianprec = medianprec
 
-	ckksTest.slots = 1 << 10
+	ckksTest.slots = 1 << 8
 
 	ckksTest.levels = uint64(len(params.Modulichain))
 	ckksTest.scale = params.Scale
@@ -46,7 +45,7 @@ func Test_Bootstrapp(t *testing.T) {
 
 	ckksTest.kgen = ckksTest.ckkscontext.NewKeyGenerator()
 
-	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPairSparse(0)
+	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPairSparse(128)
 
 	ckksTest.encoder = ckksTest.ckkscontext.NewEncoder()
 
@@ -73,7 +72,7 @@ func Test_Bootstrapp(t *testing.T) {
 		var bootcontext *BootContext
 		var err error
 
-		if bootcontext, err = ckksTest.ckkscontext.NewBootContext(ckksTest.slots, ckksTest.sk, ctsDepth, stcDepth, repack); err != nil {
+		if bootcontext, err = ckksTest.ckkscontext.NewBootContext(ckksTest.slots, ckksTest.sk, ctsDepth, stcDepth); err != nil {
 			log.Fatal(err)
 		}
 
@@ -82,11 +81,11 @@ func Test_Bootstrapp(t *testing.T) {
 			values[i] = complex(randomFloat(-1, 1), 0)
 		}
 
-		values[0] = complex(1, 0) //complex(0.516015, 0)
-		values[1] = complex(2, 0) //complex(0.772621, 0)
+		values[0] = complex(0.516015, 0)
+		values[1] = complex(0.772621, 0)
 		if ckksTest.slots > 2 {
-			values[2] = complex(3, 0) //complex(0.939175, 0)
-			values[3] = complex(4, 0) //complex(0.345987, 0)
+			values[2] = complex(0.939175, 0)
+			values[3] = complex(0.345987, 0)
 		}
 
 		plaintext := ckksTest.ckkscontext.NewPlaintext(ckksTest.ckkscontext.levels-1, ckksTest.scale)

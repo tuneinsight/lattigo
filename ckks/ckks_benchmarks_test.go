@@ -294,14 +294,12 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	var logN, logSlots, levels, ctsDepth, stcDepth uint64
 	var scale float64
-	var repack bool
 
 	for _, param := range params {
 
 		logN = uint64(param.params.LogN)
 
 		logSlots = 10
-		repack = true
 		ctsDepth = 2
 		stcDepth = 2
 
@@ -324,7 +322,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 		evaluator = ckkscontext.NewEvaluator()
 
-		if bootcontext, err = ckkscontext.NewBootContext(1<<logSlots, sk, ctsDepth, stcDepth, repack); err != nil {
+		if bootcontext, err = ckkscontext.NewBootContext(1<<logSlots, sk, ctsDepth, stcDepth); err != nil {
 			b.Error()
 		}
 

@@ -6,6 +6,8 @@ import (
 	"math"
 )
 
+const GaloisGen uint64 = 5
+
 // BfvContext is a struct which contains all the elements required to instantiate the BFV Scheme. This includes the parameters (N, plaintext modulus, ciphertext modulus,
 // sampling, polynomial contexts and other parameters required for the homomorphic operations).
 type BfvContext struct {
@@ -191,7 +193,7 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	bfvContext.gaussianSampler = bfvContext.contextKeys.NewKYSampler(sigma, int(6*sigma))
 	bfvContext.ternarySampler = bfvContext.contextKeys.NewTernarySampler()
 
-	bfvContext.gen = 5
+	bfvContext.gen = GaloisGen
 	bfvContext.genInv = ring.ModExp(bfvContext.gen, (N<<1)-1, N<<1)
 
 	mask := (N << 1) - 1

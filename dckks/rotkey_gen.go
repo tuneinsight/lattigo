@@ -89,7 +89,7 @@ func NewRotKGProtocol(ckksContext *ckks.CkksContext) (rotkg *RotKGProtocol) {
 	return rotkg
 }
 
-// GenShareRotLeft is the first and unique round of the rotkg protocol. Each party, using its secret share of the collective secret-key
+// GenShare is the first and unique round of the rotkg protocol. Each party, using its secret share of the collective secret-key
 // and a collective random polynomial, a public share of the rotation-key by computing :
 //
 // [a*s_i + (pi(s_i) - s_i) + e]
@@ -99,7 +99,7 @@ func (rotkg *RotKGProtocol) GenShareRotLeft(sk *ring.Poly, k uint64, crp []*ring
 	rotkg.genShare(sk, rotkg.galElRotColLeft[k&((1<<(rotkg.ckksContext.LogN()-1))-1)], crp, shareOut)
 }
 
-// GenShareRotLeft is the first and unique round of the rotkg protocol. Each party, using its secret share of the collective secret-key
+// GenShare is the first and unique round of the rotkg protocol. Each party, using its secret share of the collective secret-key
 // and a collective random polynomial, a public share of the rotation-key by computing :
 //
 // [a*s_i + (pi(s_i) - s_i) + e]
@@ -109,7 +109,7 @@ func (rotkg *RotKGProtocol) GenShareRotRight(sk *ring.Poly, k uint64, crp []*rin
 	rotkg.genShare(sk, rotkg.galElRotColRight[k&((1<<(rotkg.ckksContext.LogN()-1))-1)], crp, shareOut)
 }
 
-// GenShareRotLeft is the first and unique round of the rotkg protocol. Each party, using its secret share of the collective secret-key
+// GenShare is the first and unique round of the rotkg protocol. Each party, using its secret share of the collective secret-key
 // and a collective random polynomial, a public share of the rotation-key by computing :
 //
 // [a*s_i + (pi(s_i) - s_i) + e_i]

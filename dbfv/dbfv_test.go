@@ -469,17 +469,17 @@ func testRotKeyGenRotRows(t *testing.T) {
 		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
 			type Party struct {
-				*RotKGProtocol
+				*RTGProtocol
 				s     *ring.Poly
-				share RotKGShareConjugate
+				share RTGShare
 			}
 
 			pcksParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.RotKGProtocol = NewRotKGProtocol(bfvContext)
+				p.RTGProtocol = NewRotKGProtocol(bfvContext)
 				p.s = sk0Shards[i].Get()
-				p.share = p.AllocateShareConjugate()
+				p.share = p.AllocateShare()
 				pcksParties[i] = p
 			}
 			P0 := pcksParties[0]
@@ -494,15 +494,14 @@ func testRotKeyGenRotRows(t *testing.T) {
 			}
 
 			for i, p := range pcksParties {
-				p.GenShareConjugate(p.s, crp, p.share)
+				p.GenShare(bfv.RotationRow, 0, p.s, crp, &p.share)
 				if i > 0 {
 					P0.Aggregate(p.share, P0.share, P0.share)
 				}
 			}
 
-			P0.StoreConjugate(P0.share, crp)
-
-			rotkey := P0.Finalize()
+			rotkey := bfvContext.NewRotationKeysEmpty()
+			P0.Finalize(P0.share, crp, rotkey)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
 
@@ -537,17 +536,17 @@ func testRotKeyGenRotCols(t *testing.T) {
 		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
 			type Party struct {
-				*RotKGProtocol
+				*RTGProtocol
 				s     *ring.Poly
-				share RotKGShareRotColLeft
+				share RTGShare
 			}
 
 			pcksParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.RotKGProtocol = NewRotKGProtocol(bfvContext)
+				p.RTGProtocol = NewRotKGProtocol(bfvContext)
 				p.s = sk0Shards[i].Get()
-				p.share = p.AllocateShareRotColLeft()
+				p.share = p.AllocateShare()
 				pcksParties[i] = p
 			}
 
@@ -568,28 +567,27 @@ func testRotKeyGenRotCols(t *testing.T) {
 
 			receiver := bfvContext.NewCiphertext(ciphertext.Degree())
 
-			for n := uint64(1); n < contextKeys.N>>1; n <<= 1 {
+			for k := uint64(1); k < contextKeys.N>>1; k <<= 1 {
 
 				for i, p := range pcksParties {
-					p.GenShareRotLeft(p.s, n, crp, p.share)
+					p.GenShare(bfv.RotationLeft, k, p.s, crp, &p.share)
 					if i > 0 {
 						P0.Aggregate(p.share, P0.share, P0.share)
 					}
 				}
 
-				P0.StoreRotColLeft(P0.share, n, crp)
+				rotkey := bfvContext.NewRotationKeysEmpty()
+				P0.Finalize(P0.share, crp, rotkey)
 
-				rotkey := P0.Finalize()
-
-				if err = evaluator.RotateColumns(ciphertext, n, rotkey, receiver); err != nil {
+				if err = evaluator.RotateColumns(ciphertext, k, rotkey, receiver); err != nil {
 					log.Fatal(err)
 				}
 
 				coeffsWant := make([]uint64, contextKeys.N)
 
 				for i := uint64(0); i < contextKeys.N>>1; i++ {
-					coeffsWant[i] = coeffs[(i+n)&mask]
-					coeffsWant[i+(contextKeys.N>>1)] = coeffs[((i+n)&mask)+(contextKeys.N>>1)]
+					coeffsWant[i] = coeffs[(i+k)&mask]
+					coeffsWant[i+(contextKeys.N>>1)] = coeffs[((i+k)&mask)+(contextKeys.N>>1)]
 				}
 
 				verifyTestVectors(params, decryptorSk0, coeffsWant, receiver, t)

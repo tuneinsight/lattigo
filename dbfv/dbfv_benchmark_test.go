@@ -323,15 +323,15 @@ func benchRotKeyGen(b *testing.B) {
 		sk0Shards := params.sk0Shards
 
 		type Party struct {
-			*RotKGProtocol
+			*RTGProtocol
 			s     *ring.Poly
-			share RotKGShareRotColLeft
+			share RTGShare
 		}
 
 		p := new(Party)
-		p.RotKGProtocol = NewRotKGProtocol(bfvContext)
+		p.RTGProtocol = NewRotKGProtocol(bfvContext)
 		p.s = sk0Shards[0].Get()
-		p.share = p.AllocateShareRotColLeft()
+		p.share = p.AllocateShare()
 
 		crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
 		if err != nil {
@@ -349,7 +349,7 @@ func benchRotKeyGen(b *testing.B) {
 		b.Run(testString("Round1/Gen", &parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShareRotLeft(sk0Shards[0].Get(), uint64(i)&mask, crp, p.share)
+				p.GenShare(bfv.RotationRight, uint64(i)&mask, sk0Shards[0].Get(), crp, &p.share)
 			}
 		})
 
@@ -360,10 +360,11 @@ func benchRotKeyGen(b *testing.B) {
 			}
 		})
 
+		rotKey := bfvContext.NewRotationKeysEmpty()
 		b.Run(testString("Finalize", &parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.Finalize()
+				p.Finalize(p.share, crp, rotKey)
 			}
 		})
 

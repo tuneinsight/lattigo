@@ -367,8 +367,6 @@ func benchRotKeyGen(b *testing.B) {
 			}
 		})
 
-
-
 	}
 
 }

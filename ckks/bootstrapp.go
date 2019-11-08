@@ -209,6 +209,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 
 	ct.InvNTT(bootcontext.ckkscontext, ct.Element())
 
+	// Extend the ciphertext with zero polynomials.
 	for u := range ct.Value() {
 		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, bootcontext.ckkscontext.levels-1)...)
 		for i := uint64(1); i < bootcontext.ckkscontext.levels; i++ {
@@ -285,7 +286,7 @@ func (bootcontext *BootContext) coeffsToSlots(evaluator *Evaluator, vec *Ciphert
 	// If repacking, then ct0 and ct1 right n/2 slots are zero.
 	if bootcontext.repack {
 
-		// The imaginary part is put in the last n/2 slots of ct0.
+		// The imaginary part is put in the right n/2 slots of ct0.
 		if err = evaluator.RotateColumns(ct1, bootcontext.slots, bootcontext.rotkeys, ct1); err != nil {
 			return nil, nil, err
 		}
@@ -420,7 +421,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 
 	vec_rot := make(map[uint64]*Ciphertext, N1)
 
-	// Computes the non-zero rows of the diagonal matrix
+	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 	index := make(map[uint64][]uint64)
 	for key := range plainVectors.Vec {
 		if index[key/N1] == nil {
@@ -429,7 +430,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 			index[key/N1] = append(index[key/N1], key%N1)
 		}
 
-		// Pre-rotated ciphertext for the baby-step giant-step algorithm
+		// Pre-rotates ciphertext for the baby-step giant-step algorithm
 		if vec_rot[key%N1] == nil {
 			if vec_rot[key%N1], err = evaluator.RotateColumnsNew(vec, key%N1, bootcontext.rotkeys); err != nil {
 				return nil, err
@@ -470,23 +471,19 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 	return res, nil
 }
 
-func computeRoots(N uint64, forward bool) (roots []complex128) {
+func computeRoots(N uint64) (roots []complex128) {
+
+	var angle float64
 
 	m := N << 1
 
 	roots = make([]complex128, m)
 
-	angle := 6.283185307179586 / float64(m)
-
-	psi := complex(math.Cos(angle), math.Sin(angle))
-
-	if forward {
-		psi = 1.0 / psi
-	}
-
 	roots[0] = 1
+
 	for i := uint64(1); i < m; i++ {
-		roots[i] = roots[i-1] * psi
+		angle = 6.283185307179586 * float64(i) / float64(m)
+		roots[i] = complex(math.Cos(angle), math.Sin(angle))
 	}
 
 	return
@@ -598,10 +595,12 @@ func fftInvPlainVec(N uint64, rootsInv []complex128) (a, b, c [][]complex128) {
 
 func (bootcontext *BootContext) computePlaintextVectors() (err error) {
 
+	roots := computeRoots(bootcontext.slots << 1)
+
 	// CoeffsToSlots vectors
 	bootcontext.pDFTInv = make([]*dftvectors, bootcontext.ctsDepth)
 
-	pVecDFTInv := bootcontext.computeDFTPlaintextVectors(true)
+	pVecDFTInv := bootcontext.computeDFTPlaintextVectors(roots, true)
 
 	for i := uint64(0); i < bootcontext.ctsDepth; i++ {
 
@@ -617,7 +616,7 @@ func (bootcontext *BootContext) computePlaintextVectors() (err error) {
 	// SlotsToCoeffs vectors
 	bootcontext.pDFT = make([]*dftvectors, bootcontext.stcDepth)
 
-	pVecDFT := bootcontext.computeDFTPlaintextVectors(false)
+	pVecDFT := bootcontext.computeDFTPlaintextVectors(roots, false)
 
 	for i := uint64(0); i < bootcontext.stcDepth; i++ {
 
@@ -707,7 +706,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	return
 }
 
-func (bootcontext *BootContext) computeDFTPlaintextVectors(forward bool) (plainVector []map[uint64][]complex128) {
+func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, forward bool) (plainVector []map[uint64][]complex128) {
 
 	var level, depth, nextLevel, slots, logSlots uint64
 
@@ -722,10 +721,10 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(forward bool) (plainV
 
 	if forward {
 		maxDepth = bootcontext.ctsDepth
-		a, b, c = fftInvPlainVec(slots, computeRoots(slots<<1, forward))
+		a, b, c = fftInvPlainVec(slots, roots)
 	} else {
 		maxDepth = bootcontext.stcDepth
-		a, b, c = fftPlainVec(slots, computeRoots(slots<<1, forward))
+		a, b, c = fftPlainVec(slots, roots)
 	}
 
 	plainVector = make([]map[uint64][]complex128, maxDepth)
@@ -822,9 +821,9 @@ func genWfftRepack(logL, level uint64) (vectors map[uint64][]complex128) {
 
 	for i := uint64(0); i < 1<<logL; i++ {
 		a[i] = complex(1, 0)
-		a[i+(1<<logL)] = complex(0, -1)
+		a[i+(1<<logL)] = complex(0, 1)
 
-		b[i] = complex(0, -1)
+		b[i] = complex(0, 1)
 		b[i+(1<<logL)] = complex(1, 0)
 	}
 

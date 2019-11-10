@@ -276,7 +276,7 @@ func (context *Context) MulCoeffsConstant(p1, p2, p3 *Poly) {
 
 // MulCoeffsConstantMontgomery multiplies p1 by p2 coefficient wise with a constant time Montgomery modular reduction, returning the result on p3.
 // The output range of the modular reduction is [0, 2*Qi -1].
-func (context *Context) MulCoeffsConstantMontgomery(p1, p2, p3 *Poly) {
+func (context *Context) MulCoeffsMontgomeryConstant(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
 			p3.Coeffs[i][j] = MRedConstant(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.mredParams[i])
@@ -393,11 +393,33 @@ func (context *Context) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
+func (context *Context) AddScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
+	tmp := new(Int)
+	var scalarQi uint64
+	for i, Qi := range context.Modulus {
+		scalarQi = tmp.Mod(scalar, NewUint(Qi)).Uint64()
+		for j := uint64(0); j < context.N; j++ {
+			p2.Coeffs[i][j] = CRed(p1.Coeffs[i][j]+scalarQi, Qi)
+		}
+	}
+}
+
 // SubScalar subtracts to each coefficients of p1 a scalar and applies a modular reduction, returing the result on p2.
 func (context *Context) SubScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	for i, Qi := range context.Modulus {
 		for j := uint64(0); j < context.N; j++ {
 			p2.Coeffs[i][j] = CRed(p1.Coeffs[i][j]+(Qi-scalar), Qi)
+		}
+	}
+}
+
+func (context *Context) SubScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
+	tmp := new(Int)
+	var scalarQi uint64
+	for i, Qi := range context.Modulus {
+		scalarQi = tmp.Mod(scalar, NewUint(Qi)).Uint64()
+		for j := uint64(0); j < context.N; j++ {
+			p2.Coeffs[i][j] = CRed(p1.Coeffs[i][j]+(Qi-scalarQi), Qi)
 		}
 	}
 }

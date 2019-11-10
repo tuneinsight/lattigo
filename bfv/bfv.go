@@ -36,6 +36,11 @@ type BfvContext struct {
 	contextP  *ring.Context
 	contextQP *ring.Context
 
+	QHalf *ring.Int
+	PHalf *ring.Int
+
+	rescaleParamsMul []uint64
+
 	contextKeys       *ring.Context
 	contextPKeys      *ring.Context
 	specialprimes     []uint64
@@ -175,6 +180,20 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 		tmp.Mod(PBig, ring.NewUint(Qi))
 		bfvContext.rescaleParamsKeys[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Qi, bredParams[i]), Qi-2, Qi), Qi, bredParams[i])
 	}
+
+	bfvContext.rescaleParamsMul = make([]uint64, len(bfvContext.contextP.Modulus))
+
+	bredParams = bfvContext.contextP.GetBredParams()
+	for i, Pi := range bfvContext.contextP.Modulus {
+		tmp.Mod(bfvContext.contextQ.ModulusBigint, ring.NewUint(Pi))
+		bfvContext.rescaleParamsMul[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Pi, bredParams[i]), Pi-2, Pi), Pi, bredParams[i])
+	}
+
+	bfvContext.QHalf = new(ring.Int)
+	bfvContext.QHalf.Rsh(bfvContext.contextQ.ModulusBigint, 1)
+
+	bfvContext.PHalf = new(ring.Int)
+	bfvContext.PHalf.Rsh(bfvContext.contextP.ModulusBigint, 1)
 
 	bfvContext.logQ = uint64(bfvContext.contextKeys.ModulusBigint.Value.BitLen())
 	bfvContext.logP = uint64(bfvContext.contextP.ModulusBigint.Value.BitLen())

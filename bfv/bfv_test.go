@@ -62,12 +62,13 @@ func Test_BFV(t *testing.T) {
 		test_AddWithPlaintext(bfvTest, t)
 		test_HomomorphicSubtraction(bfvTest, t)
 		test_SubWithPlaintext(bfvTest, t)
+
 		test_HomomorphicMultiplication(bfvTest, t)
+
 		test_MulWithPlaintext(bfvTest, t)
 		test_Relinearization(bfvTest, t)
 		test_KeySwitching(bfvTest, t)
 		test_GaloisEnd(bfvTest, t)
-
 	}
 }
 
@@ -568,15 +569,19 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
-		receiverCiphertext := bfvContext.NewCiphertextBig(ciphertext0.Degree() + ciphertext1.Degree())
-
-		if err := evaluator.Mul(ciphertext0, ciphertext1, receiverCiphertext); err != nil {
+		receiverCiphertext1 := bfvContext.NewCiphertextBig(ciphertext0.Degree() + ciphertext1.Degree())
+		if err := evaluator.Mul(ciphertext0, ciphertext1, receiverCiphertext1); err != nil {
 			t.Error(err)
 		}
-
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
+		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext1, t)
 
-		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
+		receiverCiphertext2 := bfvContext.NewCiphertextBig(receiverCiphertext1.Degree() + ciphertext1.Degree())
+		if err := evaluator.Mul(receiverCiphertext1, ciphertext1, receiverCiphertext2); err != nil {
+			t.Error(err)
+		}
+		bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
+		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext2, t)
 	})
 
 	t.Run(fmt.Sprintf("N=%d/T=%d/logQ=%d/logP=%d/MulNew", bfvTest.bfvcontext.N(),
@@ -587,11 +592,13 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 		coeffs1, _, ciphertext1, _ := newTestVectors(bfvTest)
 
-		receiverCiphertext, _ := evaluator.MulNew(ciphertext0, ciphertext1)
-
+		ciphertext0, _ = evaluator.MulNew(ciphertext0, ciphertext1)
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
+		verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 
-		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
+		ciphertext0, _ = evaluator.MulNew(ciphertext0, ciphertext1)
+		bfvContext.contextT.MulCoeffs(coeffs0, coeffs1, coeffs0)
+		verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 
 	})
 
@@ -602,13 +609,13 @@ func test_HomomorphicMultiplication(bfvTest *BFVTESTPARAMS, t *testing.T) {
 
 		coeffs0, _, ciphertext0, _ := newTestVectors(bfvTest)
 
-		receiverCiphertext, _ := evaluator.MulNew(ciphertext0, ciphertext0)
-		receiverCiphertext, _ = evaluator.MulNew(receiverCiphertext, receiverCiphertext)
-
+		ciphertext0, _ = evaluator.MulNew(ciphertext0, ciphertext0)
 		bfvContext.contextT.MulCoeffs(coeffs0, coeffs0, coeffs0)
-		bfvContext.contextT.MulCoeffs(coeffs0, coeffs0, coeffs0)
+		verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 
-		verifyTestVectors(bfvTest, coeffs0, receiverCiphertext, t)
+		ciphertext0, _ = evaluator.MulNew(ciphertext0, ciphertext0)
+		bfvContext.contextT.MulCoeffs(coeffs0, coeffs0, coeffs0)
+		verifyTestVectors(bfvTest, coeffs0, ciphertext0, t)
 
 	})
 

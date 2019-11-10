@@ -17,16 +17,16 @@ func Test_Bootstrapp(t *testing.T) {
 
 	medianprec := float64(30) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
-	ctsDepth := uint64(2)
-	stcDepth := uint64(2)
+	ctsDepth := uint64(4)
+	stcDepth := uint64(3)
 
-	params := Parameters{10, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45}, []uint8{55, 55, 55, 55, 55}, 1 << 40, 3.2}
+	params := Parameters{16, []uint8{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
 	ckksTest.medianprec = medianprec
 
-	ckksTest.slots = 1 << 8
+	ckksTest.slots = 1 << 15
 
 	ckksTest.levels = uint64(len(params.Modulichain))
 	ckksTest.scale = params.Scale
@@ -104,9 +104,9 @@ func Test_Bootstrapp(t *testing.T) {
 				log.Fatal(err)
 			}
 
-			if err = ckksTest.evaluator.SetScale(ciphertext, params.Scale); err != nil {
-				log.Fatal(err)
-			}
+			//if err = ckksTest.evaluator.SetScale(ciphertext, params.Scale); err != nil {
+			//	log.Fatal(err)
+			//}
 
 			if err := verify_test_vectors(ckksTest, values, ciphertext.Element(), t); err != nil {
 				log.Fatal(err)

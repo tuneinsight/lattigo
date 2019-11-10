@@ -306,7 +306,7 @@ func (bootcontext *BootContext) slotsToCoeffs(evaluator *Evaluator, ct0, ct1 *Ci
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if !bootcontext.repack {
 
-		if err = evaluator.DivByi(ct1, ct1); err != nil {
+		if err = evaluator.MultByi(ct1, ct1); err != nil {
 			return nil, err
 		}
 
@@ -541,7 +541,7 @@ func fftPlainVec(N uint64, roots []complex128) (a, b, c [][]complex128) {
 	return
 }
 
-func fftInvPlainVec(N uint64, rootsInv []complex128) (a, b, c [][]complex128) {
+func fftInvPlainVec(N uint64, roots []complex128) (a, b, c [][]complex128) {
 
 	var logN, m, index, tt, gap, k, mask uint64
 
@@ -575,14 +575,14 @@ func fftInvPlainVec(N uint64, rootsInv []complex128) (a, b, c [][]complex128) {
 				k = (((m << 2) - k) * gap)
 
 				a[index][i+j] = 1
-				a[index][i+j+tt] = -rootsInv[k]
+				a[index][i+j+tt] = -roots[k]
 				b[index][i+j] = 1
-				c[index][i+j+tt] = rootsInv[k]
+				c[index][i+j+tt] = roots[k]
 
 				a[index][N+i+j] = 1
-				a[index][N+i+j+tt] = -rootsInv[k]
+				a[index][N+i+j+tt] = -roots[k]
 				b[index][N+i+j] = 1
-				c[index][N+i+j+tt] = rootsInv[k]
+				c[index][N+i+j+tt] = roots[k]
 
 			}
 		}

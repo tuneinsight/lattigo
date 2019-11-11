@@ -88,6 +88,10 @@ func Test_Polynomial(t *testing.T) {
 		// ok!
 		test_MRed(contextQ, t)
 
+		// ok!
+		test_Rescale(contextQ, t)
+
+		// ok!
 		test_MulScalarBigint(contextQ, t)
 
 		// ok!
@@ -308,6 +312,81 @@ func test_ImportExportPolyString(context *Context, t *testing.T) {
 
 		if context.Equal(p0, p1) != true {
 			t.Errorf("error : import/export ring from/to string")
+		}
+	})
+}
+
+func test_Rescale(context *Context, t *testing.T) {
+
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/DivFloorByLastModulusMany", context.N, len(context.Modulus)), func(t *testing.T) {
+
+		coeffs := make([]*Int, context.N)
+		for i := uint64(0); i < context.N; i++ {
+			coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs[i].Div(coeffs[i], NewUint(10))
+		}
+
+		nbRescals := len(context.Modulus) - 1
+
+		coeffsWant := make([]*Int, context.N)
+		for i := range coeffs {
+			coeffsWant[i] = coeffs[i].Copy()
+			for j := 0; j < nbRescals; j++ {
+				coeffsWant[i].Div(coeffsWant[i], NewUint(context.Modulus[len(context.Modulus)-1-j]))
+			}
+		}
+
+		polTest := context.NewPoly()
+		polWant := context.NewPoly()
+
+		context.SetCoefficientsBigint(coeffs, polTest)
+		context.SetCoefficientsBigint(coeffsWant, polWant)
+
+		context.DivFloorByLastModulusMany(polTest, uint64(nbRescals))
+		state := true
+		for i := uint64(0); i < context.N && state; i++ {
+			for j := 0; j < len(context.Modulus)-nbRescals && state; j++ {
+				if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
+					t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
+					state = false
+				}
+			}
+		}
+	})
+
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/DivRoundByLastModulusMany", context.N, len(context.Modulus)), func(t *testing.T) {
+
+		coeffs := make([]*Int, context.N)
+		for i := uint64(0); i < context.N; i++ {
+			coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs[i].Div(coeffs[i], NewUint(10))
+		}
+
+		nbRescals := len(context.Modulus) - 1
+
+		coeffsWant := make([]*Int, context.N)
+		for i := range coeffs {
+			coeffsWant[i] = coeffs[i].Copy()
+			for j := 0; j < nbRescals; j++ {
+				coeffsWant[i].DivRound(coeffsWant[i], NewUint(context.Modulus[len(context.Modulus)-1-j]))
+			}
+		}
+
+		polTest := context.NewPoly()
+		polWant := context.NewPoly()
+
+		context.SetCoefficientsBigint(coeffs, polTest)
+		context.SetCoefficientsBigint(coeffsWant, polWant)
+
+		context.DivRoundByLastModulusMany(polTest, uint64(nbRescals))
+		state := true
+		for i := uint64(0); i < context.N && state; i++ {
+			for j := 0; j < len(context.Modulus)-nbRescals && state; j++ {
+				if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
+					t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
+					state = false
+				}
+			}
 		}
 	})
 }

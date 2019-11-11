@@ -87,7 +87,7 @@ func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 func (Parameters *BasisExtender) ExtendBasis(p1, p2 *Poly) {
 
 	var v uint64
-	var vi, yiFloat128 Float128
+	var vflo float64
 	var xpj uint64
 
 	y := make([]uint64, len(Parameters.contextQ.Modulus))
@@ -110,22 +110,18 @@ func (Parameters *BasisExtender) ExtendBasis(p1, p2 *Poly) {
 	//We loop over each coefficient and apply the basis extension
 	for x := uint64(0); x < Parameters.contextQ.N; x++ {
 
-		vi[0], vi[1] = 0, 0
+		vflo = 0
 
 		for i, qi := range Parameters.contextQ.Modulus {
 
 			y[i] = MRed(p1.Coeffs[i][x], Parameters.qibMont[i], qi, Parameters.contextQ.mredParams[i])
 
-			yiFloat128[0] = float64(y[i] >> 12)
-			yiFloat128[1] = float64(y[i]&0xfff) / float64(4096)
-
-			yiFloat128 = Float128Div(yiFloat128, Parameters.qiFloat128[i])
-
-			vi = Float128Add(vi, yiFloat128)
+			vflo += float64(y[i]) / float64(qi) //Parameters.qiFloat128[i][0]
 		}
 
 		// Index of the correction term
-		v = uint64(vi[0])
+
+		v = uint64(vflo)
 
 		//For each Pi we sum over the Qi
 		for j, pj := range Parameters.contextP.Modulus {
@@ -140,6 +136,50 @@ func (Parameters *BasisExtender) ExtendBasis(p1, p2 *Poly) {
 			}
 
 			p2.Coeffs[j+len(Parameters.contextQ.Modulus)][x] = BRedAdd(xpj+Parameters.qpjInv[j][v], pj, Parameters.contextP.bredParams[j])
+		}
+	}
+}
+
+// ExtendBasis extends the basis of a polynomial from Q to Q + P.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qi}
+// Extends its basis from {Q0,Q1....Qi} to {Q0,Q1....Qi,P0,P1...Pj}
+func (Parameters *BasisExtender) ExtendBasisSplit(p1, p2 *Poly) {
+
+	var v uint64
+	var vflo float64
+	var xpj uint64
+
+	y := make([]uint64, len(Parameters.contextQ.Modulus))
+
+	//We loop over each coefficient and apply the basis extension
+	for x := uint64(0); x < Parameters.contextQ.N; x++ {
+
+		vflo = 0
+
+		for i, qi := range Parameters.contextQ.Modulus {
+
+			y[i] = MRed(p1.Coeffs[i][x], Parameters.qibMont[i], qi, Parameters.contextQ.mredParams[i])
+
+			vflo += float64(y[i]) / float64(qi) //Parameters.qiFloat128[i][0]
+		}
+
+		// Index of the correction term
+
+		v = uint64(vflo)
+
+		//For each Pi we sum over the Qi
+		for j, pj := range Parameters.contextP.Modulus {
+			xpj = 0
+
+			for i := range Parameters.contextQ.Modulus {
+				xpj += MRed(y[i], Parameters.qispjMont[i][j], pj, Parameters.contextP.mredParams[j])
+
+				if i&7 == 6 { //Only every 7 addition, since we add one more 60 bit integer after the loop
+					xpj = BRedAdd(xpj, pj, Parameters.contextP.bredParams[j])
+				}
+			}
+
+			p2.Coeffs[j][x] = BRedAdd(xpj+Parameters.qpjInv[j][v], pj, Parameters.contextP.bredParams[j])
 		}
 	}
 }
@@ -261,6 +301,13 @@ func (basisextender *FastBasisExtender) ModUp(level uint64, p1, p2 *Poly) {
 	}
 
 	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[level+1:level+1+uint64(len(basisextender.paramsQP.P))], basisextender.paramsQP)
+}
+
+// Extends the basis of a ring
+// Given a ring with coefficients in basis {Q0,Q1....Qi}
+// Extends its basis from {Q0,Q1....Qi} to {Q0,Q1....Qi,P0,P1...Pj}
+func (basisextender *FastBasisExtender) ModUpSplit(level uint64, p1, p2 *Poly) {
+	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[:uint64(len(basisextender.paramsQP.P))], basisextender.paramsQP)
 }
 
 func (basisextender *FastBasisExtender) ModDownNTT(contextQ, contextP *Context, rescalParamsKeys []uint64, level uint64, p1, p2, polypool *Poly) {

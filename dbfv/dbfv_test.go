@@ -46,7 +46,7 @@ var testParams = new(dbfvTestParameters)
 func init() {
 	testParams.parties = 5
 
-	testParams.contexts = bfv.DefaultParams[0:2]
+	testParams.contexts = bfv.DefaultParams
 }
 
 func Test_DBFV(t *testing.T) {
@@ -469,17 +469,17 @@ func testRotKeyGenRotRows(t *testing.T) {
 		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
 			type Party struct {
-				*RotKGProtocol
+				*RTGProtocol
 				s     *ring.Poly
-				share RotKGShareConjugate
+				share RTGShare
 			}
 
 			pcksParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.RotKGProtocol = NewRotKGProtocol(bfvContext)
+				p.RTGProtocol = NewRotKGProtocol(bfvContext)
 				p.s = sk0Shards[i].Get()
-				p.share = p.AllocateShareConjugate()
+				p.share = p.AllocateShare()
 				pcksParties[i] = p
 			}
 			P0 := pcksParties[0]
@@ -494,15 +494,14 @@ func testRotKeyGenRotRows(t *testing.T) {
 			}
 
 			for i, p := range pcksParties {
-				p.GenShareConjugate(p.s, crp, p.share)
+				p.GenShare(bfv.RotationRow, 0, p.s, crp, &p.share)
 				if i > 0 {
 					P0.Aggregate(p.share, P0.share, P0.share)
 				}
 			}
 
-			P0.StoreConjugate(P0.share, crp)
-
-			rotkey := P0.Finalize()
+			rotkey := bfvContext.NewRotationKeysEmpty()
+			P0.Finalize(P0.share, crp, rotkey)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
 
@@ -537,17 +536,17 @@ func testRotKeyGenRotCols(t *testing.T) {
 		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
 			type Party struct {
-				*RotKGProtocol
+				*RTGProtocol
 				s     *ring.Poly
-				share RotKGShareRotColLeft
+				share RTGShare
 			}
 
 			pcksParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.RotKGProtocol = NewRotKGProtocol(bfvContext)
+				p.RTGProtocol = NewRotKGProtocol(bfvContext)
 				p.s = sk0Shards[i].Get()
-				p.share = p.AllocateShareRotColLeft()
+				p.share = p.AllocateShare()
 				pcksParties[i] = p
 			}
 
@@ -568,28 +567,27 @@ func testRotKeyGenRotCols(t *testing.T) {
 
 			receiver := bfvContext.NewCiphertext(ciphertext.Degree())
 
-			for n := uint64(1); n < contextKeys.N>>1; n <<= 1 {
+			for k := uint64(1); k < contextKeys.N>>1; k <<= 1 {
 
 				for i, p := range pcksParties {
-					p.GenShareRotLeft(p.s, n, crp, p.share)
+					p.GenShare(bfv.RotationLeft, k, p.s, crp, &p.share)
 					if i > 0 {
 						P0.Aggregate(p.share, P0.share, P0.share)
 					}
 				}
 
-				P0.StoreRotColLeft(P0.share, n, crp)
+				rotkey := bfvContext.NewRotationKeysEmpty()
+				P0.Finalize(P0.share, crp, rotkey)
 
-				rotkey := P0.Finalize()
-
-				if err = evaluator.RotateColumns(ciphertext, n, rotkey, receiver); err != nil {
+				if err = evaluator.RotateColumns(ciphertext, k, rotkey, receiver); err != nil {
 					log.Fatal(err)
 				}
 
 				coeffsWant := make([]uint64, contextKeys.N)
 
 				for i := uint64(0); i < contextKeys.N>>1; i++ {
-					coeffsWant[i] = coeffs[(i+n)&mask]
-					coeffsWant[i+(contextKeys.N>>1)] = coeffs[((i+n)&mask)+(contextKeys.N>>1)]
+					coeffsWant[i] = coeffs[(i+k)&mask]
+					coeffsWant[i+(contextKeys.N>>1)] = coeffs[((i+k)&mask)+(contextKeys.N>>1)]
 				}
 
 				verifyTestVectors(params, decryptorSk0, coeffsWant, receiver, t)
@@ -613,13 +611,13 @@ func testRefresh(t *testing.T) {
 		encoder := params.encoder
 		decryptorSk0 := params.decryptorSk0
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d/BOOT", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d/Refresh", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RefreshProtocol
-				s      *ring.Poly
-				share1 RefreshShareDecrypt
-				share2 RefreshShareRecrypt
+				s       *ring.Poly
+				share   RefreshShare
+				ptShare *bfv.Plaintext
 			}
 
 			RefreshParties := make([]*Party, parties)
@@ -627,13 +625,14 @@ func testRefresh(t *testing.T) {
 				p := new(Party)
 				p.RefreshProtocol = NewRefreshProtocol(bfvContext)
 				p.s = sk0Shards[i].Get()
-				p.share1, p.share2 = p.AllocateShares()
+				p.share = p.AllocateShares()
+				p.ptShare = bfvContext.NewPlaintext()
 				RefreshParties[i] = p
 			}
 
 			P0 := RefreshParties[0]
 
-			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextQ())
+			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
 			check(t, err)
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.Clock()
@@ -641,10 +640,9 @@ func testRefresh(t *testing.T) {
 			coeffs, plaintextWant, ciphertext := newTestVectors(params, encryptorPk0, t)
 
 			for i, p := range RefreshParties {
-				p.GenShares(p.s, ciphertext, crp, p.share1, p.share2)
+				p.GenShares(p.s, ciphertext, crp, p.share)
 				if i > 0 {
-					P0.Aggregate(p.share1, P0.share1, P0.share1)
-					P0.Aggregate(p.share2, P0.share2, P0.share2)
+					P0.Aggregate(p.share, P0.share, P0.share)
 				}
 			}
 
@@ -681,10 +679,17 @@ func testRefresh(t *testing.T) {
 			average_simulated_error.Div(average_simulated_error, ring.NewUint(bfvContext.N()))
 			// =======================================================================================
 
-			// We refresh the ciphertext with the simulated error
-			P0.Decrypt(ciphertext, P0.share1)      // Masked decryption
-			P0.Recode(ciphertext)                  // Masked re-encoding
-			P0.Recrypt(ciphertext, crp, P0.share2) // Masked re-encryption
+			ctOut := bfvContext.NewCiphertext(1)
+
+			// We refresh the ciphertext with the simulated error with all-in-one finalize function
+			P0.Finalize(ciphertext, crp, P0.share, ctOut)
+
+			// Should be equivalent to
+			P0.Decrypt(ciphertext, P0.share.RefreshShareDecrypt, P0.ptShare.Value()[0])      // Masked decryption
+			P0.Recode(P0.ptShare.Value()[0], P0.ptShare.Value()[0])                          // Masked re-encoding
+			P0.Recrypt(P0.ptShare.Value()[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption
+
+			//ciphertext = ctOut should not change the output of the test
 
 			// We decrypt and compare with the original plaintext
 			plaintextHave = decryptorSk0.DecryptNew(ciphertext)

@@ -6,6 +6,8 @@ import (
 	"math"
 )
 
+const GaloisGen uint64 = 5
+
 // BfvContext is a struct which contains all the elements required to instantiate the BFV Scheme. This includes the parameters (N, plaintext modulus, ciphertext modulus,
 // sampling, polynomial contexts and other parameters required for the homomorphic operations).
 type BfvContext struct {
@@ -33,6 +35,11 @@ type BfvContext struct {
 	contextQ  *ring.Context
 	contextP  *ring.Context
 	contextQP *ring.Context
+
+	QHalf *ring.Int
+	PHalf *ring.Int
+
+	rescaleParamsMul []uint64
 
 	contextKeys       *ring.Context
 	contextPKeys      *ring.Context
@@ -174,6 +181,20 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 		bfvContext.rescaleParamsKeys[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Qi, bredParams[i]), Qi-2, Qi), Qi, bredParams[i])
 	}
 
+	bfvContext.rescaleParamsMul = make([]uint64, len(bfvContext.contextP.Modulus))
+
+	bredParams = bfvContext.contextP.GetBredParams()
+	for i, Pi := range bfvContext.contextP.Modulus {
+		tmp.Mod(bfvContext.contextQ.ModulusBigint, ring.NewUint(Pi))
+		bfvContext.rescaleParamsMul[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Pi, bredParams[i]), Pi-2, Pi), Pi, bredParams[i])
+	}
+
+	bfvContext.QHalf = new(ring.Int)
+	bfvContext.QHalf.Rsh(bfvContext.contextQ.ModulusBigint, 1)
+
+	bfvContext.PHalf = new(ring.Int)
+	bfvContext.PHalf.Rsh(bfvContext.contextP.ModulusBigint, 1)
+
 	bfvContext.logQ = uint64(bfvContext.contextKeys.ModulusBigint.Value.BitLen())
 	bfvContext.logP = uint64(bfvContext.contextP.ModulusBigint.Value.BitLen())
 
@@ -191,7 +212,7 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	bfvContext.gaussianSampler = bfvContext.contextKeys.NewKYSampler(sigma, int(6*sigma))
 	bfvContext.ternarySampler = bfvContext.contextKeys.NewTernarySampler()
 
-	bfvContext.gen = 5
+	bfvContext.gen = GaloisGen
 	bfvContext.genInv = ring.ModExp(bfvContext.gen, (N<<1)-1, N<<1)
 
 	mask := (N << 1) - 1

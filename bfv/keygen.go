@@ -22,6 +22,14 @@ type PublicKey struct {
 	pk [2]*ring.Poly
 }
 
+type Rotation int
+
+const (
+	RotationRight = iota + 1
+	RotationLeft
+	RotationRow
+)
+
 // Rotationkeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
 	bfvcontext       *BfvContext
@@ -272,6 +280,8 @@ func (bfvContext *BfvContext) NewRotationKeysEmpty() (rotKey *RotationKeys) {
 	rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 	return
 }
+
+// TODO: single setter method + check if allocated to avoid copy
 
 func (rotkey *RotationKeys) SetRotColLeft(evakey [][2]*ring.Poly, k uint64) {
 	rotkey.evakey_rot_col_L[k] = new(SwitchingKey)

@@ -68,7 +68,7 @@ func (context *Context) CopyLvl(level uint64, p0, p1 *Poly) {
 	}
 }
 
-// Copy copies the coefficients of Pol on p1.
+// Copy copies the receiver's coefficients from p1.
 func (Pol *Poly) Copy(p1 *Poly) {
 
 	if Pol != p1 {

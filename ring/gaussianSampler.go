@@ -223,6 +223,33 @@ func (kys *KYSampler) Sample(Pol *Poly) {
 	}
 }
 
+// SampleNew samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
+func (kys *KYSampler) SampleAndAddLvl(level uint64, Pol *Poly) {
+
+	var coeff uint64
+	var sign uint64
+
+	randomBytes := make([]byte, 8)
+	pointer := uint8(0)
+
+	if _, err := rand.Read(randomBytes); err != nil {
+		panic("crypto rand error")
+	}
+
+	for i := uint64(0); i < kys.context.N; i++ {
+
+		coeff, sign, randomBytes, pointer = kysampling(kys.Matrix, randomBytes, pointer)
+
+		for j := uint64(0); j < level+1; j++ {
+			Pol.Coeffs[j][i] = CRed(Pol.Coeffs[j][i]+((coeff*sign)|(kys.context.Modulus[j]-coeff)*(sign^1)), kys.context.Modulus[j])
+		}
+	}
+}
+
+func (kys *KYSampler) SampleAndAdd(Pol *Poly) {
+	kys.SampleAndAddLvl(uint64(len(kys.context.Modulus))-1, Pol)
+}
+
 // SampleNTTNew samples a polynomial with gaussian distribution given the target kys context and apply the NTT.
 func (kys *KYSampler) SampleNTTNew() *Poly {
 	Pol := kys.SampleNew()

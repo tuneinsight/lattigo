@@ -8,15 +8,19 @@ import (
 // Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
 type Evaluator struct {
-	bfvcontext    *BfvContext
-	basisextender *ring.BasisExtender
-	complexscaler *ring.ComplexScaler
-	polypool      [4]*ring.Poly
-	keyswitchpool [5]*ring.Poly
-	ctxpool       [3]*Ciphertext
-	rescalepool   []uint64
+	bfvcontext *BfvContext
+
+	basisextenderQP *ring.BasisExtender
+	basisextenderPQ *ring.BasisExtender
+
 	baseconverter *ring.FastBasisExtender
 	decomposer    *ring.ArbitraryDecomposer
+
+	poolQ [][]*ring.Poly
+	poolP [][]*ring.Poly
+
+	polypool      [2]*ring.Poly
+	keyswitchpool [5]*ring.Poly
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
@@ -27,10 +31,13 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator) {
 	evaluator = new(Evaluator)
 	evaluator.bfvcontext = bfvcontext
 
-	evaluator.basisextender = ring.NewBasisExtender(bfvcontext.contextQ, bfvcontext.contextP)
-	evaluator.complexscaler = ring.NewComplexScaler(bfvcontext.t, bfvcontext.contextQ, bfvcontext.contextP)
+	evaluator.basisextenderQP = ring.NewBasisExtender(bfvcontext.contextQ, bfvcontext.contextP)
+	evaluator.basisextenderPQ = ring.NewBasisExtender(bfvcontext.contextP, bfvcontext.contextQ)
 
-	for i := 0; i < 4; i++ {
+	evaluator.baseconverter = ring.NewFastBasisExtender(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
+	evaluator.decomposer = ring.NewArbitraryDecomposer(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
+
+	for i := 0; i < 2; i++ {
 		evaluator.polypool[i] = bfvcontext.contextQP.NewPoly()
 	}
 
@@ -38,14 +45,16 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator) {
 		evaluator.keyswitchpool[i] = bfvcontext.contextKeys.NewPoly()
 	}
 
-	evaluator.rescalepool = make([]uint64, bfvcontext.n)
-
-	evaluator.ctxpool[0] = bfvcontext.NewCiphertextBig(5)
-	evaluator.ctxpool[1] = bfvcontext.NewCiphertextBig(5)
-	evaluator.ctxpool[2] = bfvcontext.NewCiphertextBig(5)
-
-	evaluator.baseconverter = ring.NewFastBasisExtender(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
-	evaluator.decomposer = ring.NewArbitraryDecomposer(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
+	evaluator.poolQ = make([][]*ring.Poly, 4)
+	evaluator.poolP = make([][]*ring.Poly, 4)
+	for i := 0; i < 4; i++ {
+		evaluator.poolQ[i] = make([]*ring.Poly, 6)
+		evaluator.poolP[i] = make([]*ring.Poly, 6)
+		for j := 0; j < 6; j++ {
+			evaluator.poolQ[i][j] = bfvcontext.contextQ.NewPoly()
+			evaluator.poolP[i][j] = bfvcontext.contextP.NewPoly()
+		}
+	}
 
 	return evaluator
 }
@@ -231,29 +240,35 @@ func (evaluator *Evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciph
 // tensorAndRescales computes (ct0 x ct1) * (t/Q) and stores the result on ctOut.
 func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 
+	contextQ := evaluator.bfvcontext.contextQ
+	contextP := evaluator.bfvcontext.contextP
+
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them in NTT form
-	c0 := evaluator.ctxpool[0]
-	c1 := evaluator.ctxpool[1]
-	tmpCtOut := evaluator.ctxpool[2]
 
-	if ct0 == ct1 {
+	c0Q := evaluator.poolQ[0]
+	c0P := evaluator.poolP[0]
 
-		for i := range ct0.value {
-			evaluator.basisextender.ExtendBasis(ct0.value[i], c0.value[i])
-			evaluator.bfvcontext.contextQP.NTT(c0.value[i], c0.value[i])
-		}
+	c1Q := evaluator.poolQ[1]
+	c1P := evaluator.poolP[1]
 
-	} else {
+	c2Q := evaluator.poolQ[2]
+	c2P := evaluator.poolP[2]
 
-		for i := range ct0.value {
-			evaluator.basisextender.ExtendBasis(ct0.value[i], c0.value[i])
-			evaluator.bfvcontext.contextQP.NTT(c0.value[i], c0.value[i])
-		}
+	for i := range ct0.value {
+		evaluator.basisextenderQP.ExtendBasisSplit(ct0.value[i], c0P[i])
+
+		contextQ.NTT(ct0.value[i], c0Q[i])
+		contextP.NTT(c0P[i], c0P[i])
+	}
+
+	if ct0 != ct1 {
 
 		for i := range ct1.value {
-			evaluator.basisextender.ExtendBasis(ct1.value[i], c1.value[i])
-			evaluator.bfvcontext.contextQP.NTT(c1.value[i], c1.value[i])
+			evaluator.basisextenderQP.ExtendBasisSplit(ct1.value[i], c1P[i])
+
+			contextQ.NTT(ct1.value[i], c1Q[i])
+			contextP.NTT(c1P[i], c1P[i])
 		}
 	}
 
@@ -264,76 +279,135 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	// Case where both BfvElements are of degree 1
 	if ct0.Degree() == 1 && ct1.Degree() == 1 {
 
-		c_00 := evaluator.polypool[0]
-		c_01 := evaluator.polypool[1]
+		c00Q := evaluator.poolQ[3][0]
+		c00P := evaluator.poolP[3][0]
+		c01Q := evaluator.poolQ[3][1]
+		c01P := evaluator.poolP[3][1]
 
-		d0 := tmpCtOut.value[0]
-		d1 := tmpCtOut.value[1]
-		d2 := tmpCtOut.value[2]
+		contextQ.MForm(c0Q[0], c00Q)
+		contextP.MForm(c0P[0], c00P)
 
-		evaluator.bfvcontext.contextQP.MForm(c0.value[0], c_00)
-		evaluator.bfvcontext.contextQP.MForm(c0.value[1], c_01)
+		contextQ.MForm(c0Q[1], c01Q)
+		contextP.MForm(c0P[1], c01P)
 
 		// Squaring case
 		if ct0 == ct1 {
 
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.value[0], d0) // c0 = c0[0]*c0[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.value[1], d1) // c1 = 2*c0[0]*0[1]
-			evaluator.bfvcontext.contextQP.Add(d1, d1, d1)
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c0.value[1], d2) // c2 = c0[1]*c0[1]
+			// c0 = c0[0]*c0[0]
+			contextQ.MulCoeffsMontgomery(c00Q, c0Q[0], c2Q[0])
+			contextP.MulCoeffsMontgomery(c00P, c0P[0], c2P[0])
+
+			// c1 = 2*c0[0]*c0[1]
+			contextQ.MulCoeffsMontgomery(c00Q, c0Q[1], c2Q[1])
+			contextP.MulCoeffsMontgomery(c00P, c0P[1], c2P[1])
+
+			contextQ.AddNoMod(c2Q[1], c2Q[1], c2Q[1])
+			contextP.AddNoMod(c2P[1], c2P[1], c2P[1])
+
+			// c2 = c0[1]*c0[1]
+			contextQ.MulCoeffsMontgomery(c01Q, c0Q[1], c2Q[2])
+			contextP.MulCoeffsMontgomery(c01P, c0P[1], c2P[2])
 
 			// Normal case
 		} else {
 
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c1.value[0], d0) // c0 = c0[0]*c0[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c1.value[1], d1)
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAddNoMod(c_01, c1.value[0], d1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c1.value[1], d2)            // c2 = c0[1]*c1[1]
+			// c0 = c0[0]*c1[0]
+			contextQ.MulCoeffsMontgomery(c00Q, c1Q[0], c2Q[0])
+			contextP.MulCoeffsMontgomery(c00P, c1P[0], c2P[0])
+
+			// c1 = c0[0]*c1[1] + c0[1]*c1[0]
+			contextQ.MulCoeffsMontgomery(c00Q, c1Q[1], c2Q[1])
+			contextP.MulCoeffsMontgomery(c00P, c1P[1], c2P[1])
+
+			contextQ.MulCoeffsMontgomeryAndAddNoMod(c01Q, c1Q[0], c2Q[1])
+			contextP.MulCoeffsMontgomeryAndAddNoMod(c01P, c1P[0], c2P[1])
+
+			// c2 = c0[1]*c1[1]
+			contextQ.MulCoeffsMontgomery(c01Q, c1Q[1], c2Q[2])
+			contextP.MulCoeffsMontgomery(c01P, c1P[1], c2P[2])
 		}
 
 		// Case where both BfvElements are not of degree 1
 	} else {
 
-		for i := 0; i < len(ct0.Value())+len(ct1.Value()); i++ {
-			tmpCtOut.value[i].Zero()
+		for i := uint64(0); i < ctOut.Degree()+1; i++ {
+			c2Q[i].Zero()
+			c2P[i].Zero()
 		}
 
 		// Squaring case
 		if ct0 == ct1 {
 
-			c_00 := evaluator.ctxpool[1]
+			c00Q := evaluator.poolQ[3]
+			c00P := evaluator.poolP[3]
 
 			for i := range ct0.value {
-				evaluator.bfvcontext.contextQP.MForm(c0.value[i], c_00.value[i])
+				contextQ.MForm(c0Q[i], c00Q[i])
+				contextP.MForm(c0P[i], c00P[i])
 			}
 
 			for i := uint64(0); i < ct0.Degree()+1; i++ {
 				for j := i + 1; j < ct0.Degree()+1; j++ {
-					evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00.value[i], c0.value[j], tmpCtOut.value[i+j])
-					evaluator.bfvcontext.contextQP.Add(tmpCtOut.value[i+j], tmpCtOut.value[i+j], tmpCtOut.value[i+j])
+					contextQ.MulCoeffsMontgomery(c00Q[i], c0Q[j], c2Q[i+j])
+					contextP.MulCoeffsMontgomery(c00P[i], c0P[j], c2P[i+j])
+
+					contextQ.Add(c2Q[i+j], c2Q[i+j], c2Q[i+j])
+					contextP.Add(c2P[i+j], c2P[i+j], c2P[i+j])
 				}
 			}
 
 			for i := uint64(0); i < ct0.Degree()+1; i++ {
-				evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAdd(c_00.value[i], c0.value[i], tmpCtOut.value[i<<1])
+				contextQ.MulCoeffsMontgomeryAndAdd(c00Q[i], c0Q[i], c2Q[i<<1])
+				contextP.MulCoeffsMontgomeryAndAdd(c00P[i], c0P[i], c2P[i<<1])
 			}
 
 			// Normal case
 		} else {
 			for i := range ct0.value {
-				evaluator.bfvcontext.contextQP.MForm(c0.value[i], c0.value[i])
+				contextQ.MForm(c0Q[i], c0Q[i])
+				contextP.MForm(c0P[i], c0P[i])
 				for j := range ct1.value {
-					evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAdd(c0.value[i], c1.value[j], tmpCtOut.value[i+j])
+					contextQ.MulCoeffsMontgomeryAndAdd(c0Q[i], c1Q[j], c2Q[i+j])
+					contextP.MulCoeffsMontgomeryAndAdd(c0P[i], c1P[j], c2P[i+j])
 				}
 			}
 		}
 	}
 
+	polyPtmp := evaluator.poolP[0][0]
+	PHalf := evaluator.bfvcontext.PHalf
+
 	// Applies the inverse NTT to the ciphertext, scales the down ciphertext
 	// by t/q and reduces its basis from QP to Q
 	for i := range ctOut.value {
-		evaluator.bfvcontext.contextQP.InvNTT(tmpCtOut.value[i], tmpCtOut.value[i])
-		evaluator.complexscaler.Scale(tmpCtOut.value[i], ctOut.value[i])
+		contextQ.InvNTT(c2Q[i], c2Q[i])
+		contextP.InvNTT(c2P[i], c2P[i])
+
+		// Option 1) (ct(x) * T)/Q,  but doing so requires that Q*P > Q*Q*T, slower but smaller error.
+		//contextQ.MulScalar(c2Q[i], evaluator.bfvcontext.contextT.Modulus[0], c2Q[i])
+		//contextP.MulScalar(c2P[i], evaluator.bfvcontext.contextT.Modulus[0], c2P[i])
+
+		// ============== DIVISION BY Q ================
+		// Extends the basis Q of ct(x) to the basis P
+		evaluator.basisextenderQP.ExtendBasisSplit(c2Q[i], polyPtmp)
+
+		// Divides (ct(x)Q -> P) by Q
+		for k, Pi := range contextP.Modulus {
+			mredParams := contextP.GetMredParams()[k]
+			rescalParams := evaluator.bfvcontext.rescaleParamsMul[k]
+			for j := uint64(0); j < contextP.N; j++ {
+				c2P[i].Coeffs[k][j] = ring.MRed(c2P[i].Coeffs[k][j]+(Pi-polyPtmp.Coeffs[k][j]), rescalParams, Pi, mredParams)
+			}
+		}
+
+		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
+		contextP.AddScalarBigint(c2P[i], PHalf, c2P[i])
+		evaluator.basisextenderPQ.ExtendBasisSplit(c2P[i], ctOut.value[i])
+		contextQ.SubScalarBigint(ctOut.value[i], PHalf, ctOut.value[i])
+		// ============================================
+
+		// Option 2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
+		contextQ.MulScalar(ctOut.value[i], evaluator.bfvcontext.contextT.Modulus[0], ctOut.value[i])
 	}
 }
 

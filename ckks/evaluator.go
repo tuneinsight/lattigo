@@ -1095,7 +1095,7 @@ func (evaluator *Evaluator) Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciph
 			c1.CurrentModulus().DivRound(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[c1.Level()]))
 
 			for i := range c1.Value() {
-				rescale(evaluator, c1.Value()[i], c1.Value()[i])
+				evaluator.ckkscontext.contextQ.DivRoundByLastModulusNTT(c1.Value()[i])
 			}
 
 		}
@@ -1105,55 +1105,6 @@ func (evaluator *Evaluator) Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciph
 	}
 
 	return nil
-}
-
-// Performes a modulus switching : starts with a base Q = {q0, q1, ..., qL}, ends up with a base Q = {q0, q1, ..., qL-1}.
-// The output is also divided by the removed modulus, i.e. by qL.
-func rescale(evaluator *Evaluator, p0, p1 *ring.Poly) {
-
-	// To save NTT transforms, we keep all the polynomials except the one to remove in the NTT domain.
-	// We then reduce this polynomial by the respective modulus of each other polynomials, and transform
-	// it back to their respective NTT domain. We then finaly apply the modulus switching. This brings the
-	// total number of NTT transforms from 2n-1 to n.
-
-	level := len(p0.Coeffs) - 1
-
-	var Qi, InvQl, pHalf, pHalfNegQi uint64
-
-	context := evaluator.ckkscontext.contextQ
-
-	mredParams := context.GetMredParams()
-	bredParams := context.GetBredParams()
-
-	p_tmp := evaluator.ckkscontext.contextQ.NewPoly()
-
-	ring.InvNTT(p0.Coeffs[level], p0.Coeffs[level], context.N, context.GetNttPsiInv()[level], context.GetNttNInv()[level], context.Modulus[level], context.GetMredParams()[level])
-
-	// Centers by (p-1)/2
-	pHalf = (context.Modulus[level] - 1) >> 1
-	for i := uint64(0); i < context.N; i++ {
-		p0.Coeffs[level][i] = ring.CRed(p0.Coeffs[level][i]+pHalf, context.Modulus[level])
-	}
-
-	for i := 0; i < level; i++ {
-
-		Qi = evaluator.ckkscontext.moduli[i]
-		InvQl = evaluator.ckkscontext.rescaleParams[level-1][i]
-
-		pHalfNegQi = Qi - ring.BRedAdd(pHalf, Qi, bredParams[i])
-
-		for j := uint64(0); j < context.N; j++ {
-			p_tmp.Coeffs[0][j] = p0.Coeffs[level][j] + pHalfNegQi
-		}
-
-		ring.NTT(p_tmp.Coeffs[0], p_tmp.Coeffs[0], context.N, context.GetNttPsi()[i], Qi, mredParams[i], bredParams[i])
-
-		for j := uint64(0); j < evaluator.ckkscontext.n; j++ {
-			p1.Coeffs[i][j] = ring.MRed(p1.Coeffs[i][j]+(Qi-p_tmp.Coeffs[0][j]), InvQl, Qi, mredParams[i]) // (x[i] - x[-1]) * InvQl
-		}
-	}
-
-	p1.Coeffs = p1.Coeffs[:level]
 }
 
 func (evaluator *Evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *Ciphertext) (err error) {
@@ -1178,71 +1129,8 @@ func (evaluator *Evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *
 	}
 
 	for i := range c1.Value() {
-		rescaleMany(evaluator, nbRescales, c1.Value()[i], c1.Value()[i])
+		evaluator.ckkscontext.contextQ.DivRoundByLastModulusManyNTT(c1.Value()[i], nbRescales)
 	}
-
-	return nil
-}
-
-func rescaleMany(evaluator *Evaluator, nbRescales uint64, p0, p1 *ring.Poly) {
-
-	level := len(p0.Coeffs) - 1
-
-	var Qi, InvQl, pHalf, pHalfNegQi uint64
-
-	context := evaluator.ckkscontext.contextQ
-
-	mredParams := context.GetMredParams()
-	bredParams := context.GetBredParams()
-
-	context.InvNTTLvl(uint64(level), p0, p1)
-
-	for k := uint64(0); k < nbRescales; k++ {
-
-		// Centers by (p-1)/2
-		pHalf = (context.Modulus[level] - 1) >> 1
-		for i := uint64(0); i < context.N; i++ {
-			p1.Coeffs[level][i] = ring.CRed(p1.Coeffs[level][i]+pHalf, context.Modulus[level])
-		}
-
-		for i := 0; i < level; i++ {
-
-			Qi = evaluator.ckkscontext.moduli[i]
-			InvQl = evaluator.ckkscontext.rescaleParams[level-1][i]
-
-			pHalfNegQi = Qi - ring.BRedAdd(pHalf, Qi, bredParams[i])
-
-			for j := uint64(0); j < evaluator.ckkscontext.n; j++ {
-				p1.Coeffs[i][j] = ring.MRed(p1.Coeffs[i][j]+(Qi-ring.BRedAdd(p1.Coeffs[level][j]+pHalfNegQi, Qi, bredParams[i])), InvQl, Qi, mredParams[i]) // (x[i] - x[-1]) * InvQl
-			}
-		}
-
-		p1.Coeffs = p1.Coeffs[:level]
-		level -= 1
-	}
-
-	context.NTTLvl(uint64(level), p1, p1)
-}
-
-func (evaluator *Evaluator) SetScale(ct *Ciphertext, scale float64) (err error) {
-
-	var tmp float64
-
-	tmp = evaluator.ckkscontext.scale
-
-	evaluator.ckkscontext.scale = scale
-
-	if err = evaluator.MultConst(ct, scale/ct.Scale(), ct); err != nil {
-		return err
-	}
-
-	if err = evaluator.Rescale(ct, scale, ct); err != nil {
-		return err
-	}
-
-	ct.SetScale(scale)
-
-	evaluator.ckkscontext.scale = tmp
 
 	return nil
 }

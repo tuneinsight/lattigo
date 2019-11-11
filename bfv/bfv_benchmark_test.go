@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func Benchmark_BFVScheme(b *testing.B) {
+func Benchmark_BFV(b *testing.B) {
 
 	paramSets := DefaultParams
 
@@ -23,7 +23,7 @@ func Benchmark_BFVScheme(b *testing.B) {
 		kgen := bfvContext.NewKeyGenerator()
 
 		// Public Key Generation
-		b.Run(fmt.Sprintf("params=%d/KeyGen", params.N), func(b *testing.B) {
+		b.Run(testString("KeyGen", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				sk, pk = kgen.NewKeyPair()
 				if err != nil {
@@ -43,26 +43,15 @@ func Benchmark_BFVScheme(b *testing.B) {
 		ptcoeffs := bfvContext.NewRandomPlaintextCoeffs()
 		pt := bfvContext.NewPlaintext()
 		pt.setCoefficientsUint64(bfvContext, ptcoeffs)
-		b.Run(fmt.Sprintf("params=%d/EncryptFromPkNew", params.N), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				_, _ = encryptorPk.EncryptNew(pt)
-			}
-		})
 
 		ctd1 := bfvContext.NewCiphertext(1)
-		b.Run(fmt.Sprintf("params=%d/EncryptFromPk", params.N), func(b *testing.B) {
+		b.Run(testString("EncryptFromPk", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = encryptorPk.Encrypt(pt, ctd1)
 			}
 		})
 
-		b.Run(fmt.Sprintf("params=%d/EncryptFromSkNew", params.N), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				_, _ = encryptorSk.EncryptNew(pt)
-			}
-		})
-
-		b.Run(fmt.Sprintf("params=%d/EncryptFromSk", params.N), func(b *testing.B) {
+		b.Run(testString("EncryptFromSk", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = encryptorSk.Encrypt(pt, ctd1)
 			}
@@ -74,7 +63,7 @@ func Benchmark_BFVScheme(b *testing.B) {
 			b.Error(err)
 		}
 		ptp := bfvContext.NewPlaintext()
-		b.Run(fmt.Sprintf("params=%d/Decrypt", params.N), func(b *testing.B) {
+		b.Run(testString("Decrypt", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				decryptor.Decrypt(ctd1, ptp)
 			}
@@ -94,7 +83,7 @@ func Benchmark_BFVScheme(b *testing.B) {
 		}
 
 		// Addition
-		b.Run(fmt.Sprintf("params=%d/Add", params.N), func(b *testing.B) {
+		b.Run(testString("Add", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				if err := evaluator.Add(ct1, ct2, ctd1); err != nil {
 					b.Error(err)
@@ -103,7 +92,7 @@ func Benchmark_BFVScheme(b *testing.B) {
 		})
 
 		// Subtraction
-		b.Run(fmt.Sprintf("params=%d/Sub", params.N), func(b *testing.B) {
+		b.Run(testString("Sub", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				if err := evaluator.Sub(ct1, ct2, ctd1); err != nil {
 					b.Error(err)
@@ -113,14 +102,14 @@ func Benchmark_BFVScheme(b *testing.B) {
 
 		// Multiplication
 		ctd2 := bfvContext.NewCiphertext(2)
-		b.Run(fmt.Sprintf("params=%d/Multiply", params.N), func(b *testing.B) {
+		b.Run(testString("Multiply", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = evaluator.Mul(ct1, ct2, ctd2)
 			}
 		})
 
 		// Square is Mul(ct, ct) for now
-		b.Run(fmt.Sprintf("params=%d/Square", params.N), func(b *testing.B) {
+		b.Run(testString("Square", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = evaluator.Mul(ct1, ct1, ctd2)
 			}
@@ -130,7 +119,7 @@ func Benchmark_BFVScheme(b *testing.B) {
 		rlk := kgen.NewRelinKey(sk, 2)
 
 		// Relinearization
-		b.Run(fmt.Sprintf("params=%d//Relin", params.N), func(b *testing.B) {
+		b.Run(testString("Relin", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				if err := evaluator.Relinearize(ctd2, rlk, ctd1); err != nil {
 					b.Error(err)
@@ -142,7 +131,7 @@ func Benchmark_BFVScheme(b *testing.B) {
 		rtk := kgen.NewRotationKeysPow2(sk, true)
 
 		// Rotation Rows
-		b.Run(fmt.Sprintf("params=%d//RotateRows", params.N), func(b *testing.B) {
+		b.Run(testString("RotateRows", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				if err := evaluator.RotateRows(ct1, rtk, ctd1); err != nil {
 					b.Error(err)
@@ -151,7 +140,7 @@ func Benchmark_BFVScheme(b *testing.B) {
 		})
 
 		// Rotation Cols
-		b.Run(fmt.Sprintf("params=%d//RotateCols", params.N), func(b *testing.B) {
+		b.Run(testString("RotateCols", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				if err := evaluator.RotateColumns(ct1, 1, rtk, ctd1); err != nil {
 					b.Error(err)
@@ -160,4 +149,8 @@ func Benchmark_BFVScheme(b *testing.B) {
 		})
 
 	}
+}
+
+func testString(opname string, params *Parameters) string {
+	return fmt.Sprintf("%s/params=%d", opname, params.N)
 }

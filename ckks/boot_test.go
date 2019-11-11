@@ -17,10 +17,10 @@ func Test_Bootstrapp(t *testing.T) {
 
 	medianprec := float64(20) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
-	ctsDepth := uint64(4)
+	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 
-	params := Parameters{10, []uint8{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}
+	params := Parameters{10, []uint8{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 

@@ -31,9 +31,6 @@ func Benchmark_Polynomial(b *testing.B) {
 		contextP.SetParameters(N, Pi)
 		contextP.GenNTTParams()
 
-		contextQP := NewContext()
-		contextQP.Merge(contextQ, contextP)
-
 		benchmark_Context(N, Qi, b)
 
 		benchmark_KYSGaussPoly(sigma, contextQ, b)
@@ -68,11 +65,9 @@ func Benchmark_Polynomial(b *testing.B) {
 
 		//benchmark_MulPolyNaiveMontgomery(contextQ, b)
 
-		benchmark_ExtendBasis(contextQ, contextP, contextQP, b)
+		benchmark_ExtendBasis(contextQ, contextP, b)
 
 		benchmark_SimpleScaler_Scale(T, contextQ, b)
-
-		benchmark_ComplexScaler_Scale(T, contextQ, contextP, contextQP, b)
 
 		benchmark_Marshaler(contextQ, b)
 
@@ -369,18 +364,18 @@ func benchmark_MulScalar(context *Context, b *testing.B) {
 
 }
 
-func benchmark_ExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B) {
+func benchmark_ExtendBasis(contextQ, contextP *Context, b *testing.B) {
 
 	BasisExtenderQP := NewBasisExtender(contextQ, contextP)
 
 	p0 := contextQ.NewUniformPoly()
-	p1 := contextQP.NewPoly()
+	p1 := contextP.NewPoly()
 
 	b.ResetTimer()
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ExtendBasis", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			BasisExtenderQP.ExtendBasis(p0, p1)
+			BasisExtenderQP.ExtendBasisSplit(p0, p1)
 		}
 	})
 }
@@ -397,23 +392,6 @@ func benchmark_SimpleScaler_Scale(T uint64, context *Context, b *testing.B) {
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SimpleScaling", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			SimpleScaler.Scale(p0, p1)
-		}
-	})
-}
-
-func benchmark_ComplexScaler_Scale(T uint64, contextQ, contextP, contextQP *Context, b *testing.B) {
-
-	ComplexScalerQP := NewComplexScaler(T, contextQ, contextP)
-
-	p0 := contextQP.NewUniformPoly()
-	p1 := contextQ.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ComplexScaling", contextQ.N, len(contextP.Modulus), len(contextQ.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ComplexScalerQP.Scale(p0, p1)
-
 		}
 	})
 }

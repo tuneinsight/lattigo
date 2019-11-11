@@ -38,7 +38,7 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator) {
 	evaluator.decomposer = ring.NewArbitraryDecomposer(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
 
 	for i := 0; i < 2; i++ {
-		evaluator.polypool[i] = bfvcontext.contextQP.NewPoly()
+		evaluator.polypool[i] = bfvcontext.contextQ.NewPoly()
 	}
 
 	for i := 0; i < 5; i++ {

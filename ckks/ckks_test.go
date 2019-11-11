@@ -44,15 +44,15 @@ func Test_CKKS(t *testing.T) {
 
 	var err error
 
-	medianprec := float64(30) // target median precision in log2 among all the coeffs, determines the success/failure of a test
+	medianprec := float64(20) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
-	params := Parameters{4, []uint8{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}
+	params := Parameters{10, []uint8{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
 	ckksTest.medianprec = medianprec
 
-	ckksTest.slots = 1 << 3
+	ckksTest.slots = 1 << 9
 
 	ckksTest.levels = uint64(len(params.Modulichain))
 	ckksTest.scale = params.Scale
@@ -106,44 +106,13 @@ func Test_CKKS(t *testing.T) {
 	test_Mul(ckksTest, t)
 
 	if len(params.Modulichain) > 9 {
-		test_sin2pi2pi(ckksTest, t)
 		test_Functions(ckksTest, t)
 	}
+
 	test_SwitchKeys(ckksTest, t)
 	test_Conjugate(ckksTest, t)
 	test_RotColumns(ckksTest, t)
 
-}
-
-func test_sin2pi2pi(params *CKKSTESTPARAMS, t *testing.T) {
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/sin(2*pi*x)/(2*pi) [-12, 12] deg128", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.alpha,
-		params.ckkscontext.beta), func(t *testing.T) {
-
-		values, _, ciphertext1, err := new_test_vectors_reals(params, -0.01, 0.01)
-		if err != nil {
-			t.Error(err)
-		}
-
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = sin2pi2pi(values[i])
-		}
-
-		cheby := Approximate(sin2pi2pi, -12, 12, 118)
-
-		if ciphertext1, err = params.evaluator.EvaluateCheby(ciphertext1, cheby, params.rlk); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
 }
 
 func new_test_vectors(params *CKKSTESTPARAMS, a, b float64) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext, err error) {
@@ -951,47 +920,6 @@ func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
 			if err = params.evaluator.Rescale(ciphertext1, params.ckkscontext.scale, ciphertext1); err != nil {
 				t.Error(err)
 			}
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/MulRelin(Ct,Ct)->RescaleMany", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		// up to a level equal to 2 modulus
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i]
-		}
-
-		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
-
-			for i := 0; i < len(valuesWant); i++ {
-				valuesWant[i] *= values2[i]
-			}
-
-			if err = params.evaluator.MulRelin(ciphertext1, ciphertext2, params.rlk, ciphertext1); err != nil {
-				t.Error(err)
-			}
-		}
-
-		if err = params.evaluator.RescaleMany(ciphertext1, params.ckkscontext.Levels()-2, ciphertext1); err != nil {
-			t.Error(err)
 		}
 
 		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {

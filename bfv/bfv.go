@@ -31,10 +31,9 @@ type BfvContext struct {
 	ternarySampler  *ring.TernarySampler
 
 	// Polynomial contexts
-	contextT  *ring.Context
-	contextQ  *ring.Context
-	contextP  *ring.Context
-	contextQP *ring.Context
+	contextT *ring.Context
+	contextQ *ring.Context
+	contextP *ring.Context
 
 	QHalf *ring.Int
 	PHalf *ring.Int
@@ -103,7 +102,6 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	bfvContext.contextT = ring.NewContext()
 	bfvContext.contextQ = ring.NewContext()
 	bfvContext.contextP = ring.NewContext()
-	bfvContext.contextQP = ring.NewContext()
 	bfvContext.contextKeys = ring.NewContext()
 	bfvContext.contextPKeys = ring.NewContext()
 
@@ -136,10 +134,6 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	}
 
 	if err := bfvContext.contextP.GenNTTParams(); err != nil {
-		return err
-	}
-
-	if err := bfvContext.contextQP.Merge(bfvContext.contextQ, bfvContext.contextP); err != nil {
 		return err
 	}
 
@@ -282,11 +276,6 @@ func (bfvContext *BfvContext) ContextQ() *ring.Context {
 // ContextP returns the polynomial (ring) context of the secondary ciphertext modulus, of the target bfvcontext.
 func (bfvContext *BfvContext) ContextP() *ring.Context {
 	return bfvContext.contextP
-}
-
-// ContextQP returns the polynomial (ring) context of the extended ciphertext modulus, of the target bfvcontext.
-func (bfvContext *BfvContext) ContextQP() *ring.Context {
-	return bfvContext.contextQP
 }
 
 // ContextKeys returns the polynomial (ring) context used for the key-generation.

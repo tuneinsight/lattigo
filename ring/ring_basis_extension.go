@@ -19,8 +19,6 @@ type BasisExtender struct {
 	qispjMont [][]uint64
 	// Q*v (mod each Pj) for v in [1,...,k] where k is the number of Pj modulies
 	qpjInv [][]uint64
-	// Qi as a float128 variable
-	qiFloat128 []Float128
 }
 
 // NewBasisExtender creates a new BasisExtender, that will be used to extend a polynomial in basis Q to a polynomial in basis Q + P.
@@ -43,7 +41,6 @@ func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 	newParams.qibMont = make([]uint64, len(contextQ.Modulus))
 	newParams.qispjMont = make([][]uint64, len(contextQ.Modulus))
 	newParams.qpjInv = make([][]uint64, len(contextP.Modulus))
-	newParams.qiFloat128 = make([]Float128, len(contextQ.Modulus))
 
 	for i, qi := range contextQ.Modulus {
 
@@ -61,8 +58,6 @@ func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 			PjB.SetUint(pj)
 			newParams.qispjMont[i][j] = MForm(tmp.Mod(&QiStar, &PjB).Uint64(), pj, contextP.bredParams[j])
 		}
-
-		newParams.qiFloat128[i] = Float128SetUint64(qi)
 	}
 
 	// Correction Term (v*Q) mod each Pj

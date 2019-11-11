@@ -65,9 +65,6 @@ func Test_Polynomial(t *testing.T) {
 		contextP.SetParameters(N, Pi)
 		contextP.GenNTTParams()
 
-		contextQP := NewContext()
-		contextQP.Merge(contextQ, contextP)
-
 		test_PRNG(contextQ, t)
 
 		// ok!
@@ -110,14 +107,12 @@ func Test_Polynomial(t *testing.T) {
 		test_MulPoly_Montgomery(contextQ, t)
 
 		// ok!
-		test_ExtendBasis(contextQ, contextP, contextQP, t)
+		test_ExtendBasis(contextQ, contextP, t)
 
 		// ok!
 		test_SimpleScaling(T, contextQ, contextP, t)
 
 		// ok!
-		test_ComplexScaling(T, contextQ, contextP, contextQP, t)
-
 		test_MultByMonomial(contextQ, t)
 	}
 }
@@ -667,7 +662,7 @@ func test_MulPoly_Montgomery(context *Context, t *testing.T) {
 	})
 }
 
-func test_ExtendBasis(contextQ, contextP, contextQP *Context, t *testing.T) {
+func test_ExtendBasis(contextQ, contextP *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ExtendBasis", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(t *testing.T) {
 
@@ -678,18 +673,19 @@ func test_ExtendBasis(contextQ, contextP, contextQP *Context, t *testing.T) {
 			coeffs[i] = RandInt(contextQ.ModulusBigint)
 		}
 
-		PolTest := contextQ.NewPoly()
-		PolWant := contextQP.NewPoly()
+		PolTestQ := contextQ.NewPoly()
+		polTestP := contextP.NewPoly()
+		PolWantP := contextP.NewPoly()
 
-		contextQ.SetCoefficientsBigint(coeffs, PolTest)
-		contextQP.SetCoefficientsBigint(coeffs, PolWant)
+		contextQ.SetCoefficientsBigint(coeffs, PolTestQ)
+		contextP.SetCoefficientsBigint(coeffs, PolWantP)
 
-		basisextender.ExtendBasis(PolTest, PolTest)
+		basisextender.ExtendBasisSplit(PolTestQ, polTestP)
 
-		for i := range contextQP.Modulus {
+		for i := range contextP.Modulus {
 			for j := uint64(0); j < contextQ.N; j++ {
-				if PolTest.Coeffs[i][j] != PolWant.Coeffs[i][j] {
-					t.Errorf("error extendBasis, want %v - has %v", PolTest.Coeffs[i][j], PolWant.Coeffs[i][j])
+				if polTestP.Coeffs[i][j] != PolWantP.Coeffs[i][j] {
+					t.Errorf("error extendBasis, want %v - has %v", polTestP.Coeffs[i][j], PolWantP.Coeffs[i][j])
 					break
 				}
 			}

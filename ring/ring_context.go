@@ -54,45 +54,6 @@ func NewContext() *Context {
 	return new(Context)
 }
 
-// TODO : comment
-func (context *Context) CopyNew() (contextCopy *Context) {
-	contextCopy = new(Context)
-	contextCopy.N = context.N
-	contextCopy.Modulus = make([]uint64, len(context.Modulus))
-	contextCopy.mask = make([]uint64, len(context.Modulus))
-	contextCopy.allowsNTT = context.allowsNTT
-	contextCopy.ModulusBigint = Copy(context.ModulusBigint)
-	contextCopy.CrtReconstruction = make([]*Int, len(context.Modulus))
-	contextCopy.bredParams = make([][]uint64, len(context.Modulus))
-	contextCopy.mredParams = make([]uint64, len(context.Modulus))
-	contextCopy.psiMont = make([]uint64, len(context.Modulus))
-	contextCopy.psiInvMont = make([]uint64, len(context.Modulus))
-	contextCopy.nttPsi = make([][]uint64, len(context.Modulus))
-	contextCopy.nttPsiInv = make([][]uint64, len(context.Modulus))
-	contextCopy.nttNInv = make([]uint64, len(context.Modulus))
-
-	for i := range context.Modulus {
-		contextCopy.Modulus[i] = context.Modulus[i]
-		contextCopy.mask[i] = context.mask[i]
-		contextCopy.CrtReconstruction[i] = Copy(context.CrtReconstruction[i])
-		contextCopy.bredParams[i] = make([]uint64, 2)
-		contextCopy.bredParams[i][0] = context.bredParams[i][0]
-		contextCopy.bredParams[i][1] = context.bredParams[i][1]
-		contextCopy.mredParams[i] = context.mredParams[i]
-		contextCopy.psiMont[i] = context.psiMont[i]
-		contextCopy.psiInvMont[i] = context.psiInvMont[i]
-		contextCopy.nttPsi[i] = make([]uint64, context.N)
-		contextCopy.nttPsiInv[i] = make([]uint64, context.N)
-		for j := uint64(0); j < context.N; j++ {
-			contextCopy.nttPsi[i][j] = context.nttPsi[i][j]
-			contextCopy.nttPsiInv[i][j] = context.nttPsiInv[i][j]
-		}
-		contextCopy.nttNInv[i] = context.nttNInv[i]
-	}
-
-	return
-}
-
 // SetParameters initialize the parameters of an empty context with N and the provided moduli.
 // Only checks that N is a power of 2 and computes all the variable that aren't used for the NTT.
 func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
@@ -267,64 +228,6 @@ func (context *Context) UnMarshalBinary(data []byte) error {
 
 	context.SetParameters(parameters.N, parameters.Modulus)
 	context.GenNTTParams()
-
-	return nil
-}
-
-// Merge merges two context by appending all the element from contextP to the elements of contextQ
-// Will return an error if contextQ or contextP do not both agree on the flat allowsNTT. It
-// however requires to re-compute the crt reconstruction parameters.
-func (context *Context) Merge(contextQ, contextP *Context) error {
-
-	if contextQ.N != contextP.N {
-		return errors.New("contexts ring degree to not match")
-	}
-
-	context.N = contextQ.N
-
-	context.Modulus = append(contextQ.Modulus, contextP.Modulus...)
-	context.mask = append(contextQ.mask, contextP.mask...)
-
-	if context != contextQ && context != contextP {
-		context.ModulusBigint = NewUint(0)
-	}
-
-	context.ModulusBigint.Mul(contextQ.ModulusBigint, contextP.ModulusBigint)
-
-	// For this part we need to recompute, since each element is a function of all the other modulus
-	context.CrtReconstruction = append(contextQ.CrtReconstruction, contextP.CrtReconstruction...)
-	QiB := new(Int)
-	tmp := new(Int)
-	for i, qi := range context.Modulus {
-		QiB.SetUint(qi)
-		context.CrtReconstruction[i] = new(Int)
-		context.CrtReconstruction[i].Div(context.ModulusBigint, QiB)
-		tmp.Inv(context.CrtReconstruction[i], QiB)
-		tmp.Mod(tmp, QiB)
-		context.CrtReconstruction[i].Mul(context.CrtReconstruction[i], tmp)
-	}
-
-	context.bredParams = append(contextQ.bredParams, contextP.bredParams...)
-	context.mredParams = append(contextQ.mredParams, contextP.mredParams...)
-
-	context.psiMont = append(contextQ.psiMont, contextP.psiMont...)
-	context.psiInvMont = append(contextQ.psiInvMont, contextP.psiInvMont...)
-
-	if contextQ.allowsNTT == false && contextP.allowsNTT == false {
-
-		context.allowsNTT = false
-
-	} else if contextQ.allowsNTT && contextP.allowsNTT {
-
-		context.nttPsi = append(contextQ.nttPsi, contextP.nttPsi...)
-		context.nttPsiInv = append(contextQ.nttPsiInv, contextP.nttPsiInv...)
-		context.nttNInv = append(contextQ.nttNInv, contextP.nttNInv...)
-		context.allowsNTT = true
-
-	} else {
-
-		return errors.New("context need both to be allowsNTT or not allowsNTT")
-	}
 
 	return nil
 }

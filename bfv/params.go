@@ -77,7 +77,7 @@ type Parameters struct {
 var DefaultParams = []Parameters{
 	{8192, 65537, logN13Q218, []uint64{0x7fffffffeac001}, Pi60[len(Pi60)-len(logN13Q218):], 3.19},
 	{16384, 65537, logN14Q438, []uint64{0x3fffffffeb8001, 0x3fffffffef8001}, Pi60[len(Pi60)-len(logN14Q438):], 3.19},
-	{32768, 65537, logN15Q881, []uint64{0x7ffffffff240001, 0x7ffffffff230001, 0x7fffffffefa0001}, Pi60[len(Pi60)-len(logN15Q881)-1:], 3.19},
+	{32768, 65537, logN15Q881, []uint64{0x7ffffffff240001, 0x7ffffffff230001, 0x7fffffffefa0001}, Pi60[len(Pi60)-len(logN15Q881):], 3.19},
 }
 
 // Equals compares two sets of parameters for equality

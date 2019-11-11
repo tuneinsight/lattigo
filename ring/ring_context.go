@@ -38,6 +38,8 @@ type Context struct {
 	bredParams [][]uint64
 	mredParams []uint64
 
+	rescaleParams [][]uint64
+
 	//NTT Parameters
 	psiMont    []uint64 //2nth primitive root in montgomery form
 	psiInvMont []uint64 //2nth inverse primitive root in montgomery form
@@ -156,6 +158,18 @@ func (context *Context) GenNTTParams() error {
 		if IsPrime(qi) == false || qi&((context.N<<1)-1) != 1 {
 			context.allowsNTT = false
 			return errors.New("warning : provided modulus does not allow NTT")
+		}
+	}
+
+	context.rescaleParams = make([][]uint64, len(context.Modulus)-1)
+
+	for j := len(context.Modulus) - 1; j > 0; j-- {
+
+		context.rescaleParams[j-1] = make([]uint64, j)
+
+		for i := 0; i < j; i++ {
+
+			context.rescaleParams[j-1][i] = MForm(ModExp(context.Modulus[j], context.Modulus[i]-2, context.Modulus[i]), context.Modulus[i], context.bredParams[i])
 		}
 	}
 

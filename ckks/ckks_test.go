@@ -107,9 +107,6 @@ func Test_CKKS(t *testing.T) {
 	test_MulConst(ckksTest, t)
 	test_MultByConstAndAdd(ckksTest, t)
 	test_ComplexOperations(ckksTest, t)
-
-	test_Rescaling(ckksTest, t)
-
 	test_Mul(ckksTest, t)
 
 	if len(params.Modulichain) > 9 {
@@ -852,87 +849,6 @@ func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
 
 		if err := verify_test_vectors(params, values, ciphertext.Element(), t); err != nil {
 			t.Error(err)
-		}
-	})
-}
-
-func test_Rescaling(params *CKKSTESTPARAMS, t *testing.T) {
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Rescaling", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		coeffs := make([]*ring.Int, params.ckkscontext.n)
-		for i := uint64(0); i < params.ckkscontext.n; i++ {
-			coeffs[i] = ring.RandInt(params.ckkscontext.contextQ.ModulusBigint)
-			coeffs[i].Div(coeffs[i], ring.NewUint(10))
-		}
-
-		coeffsWant := make([]*ring.Int, params.ckkscontext.contextQ.N)
-		for i := range coeffs {
-			coeffsWant[i] = coeffs[i].Copy()
-			coeffsWant[i].DivRound(coeffsWant[i], ring.NewUint(params.ckkscontext.moduli[len(params.ckkscontext.moduli)-1]))
-		}
-
-		polTest := params.ckkscontext.contextQ.NewPoly()
-		polWant := params.ckkscontext.contextQ.NewPoly()
-
-		params.ckkscontext.contextQ.SetCoefficientsBigint(coeffs, polTest)
-		params.ckkscontext.contextQ.SetCoefficientsBigint(coeffsWant, polWant)
-
-		params.ckkscontext.contextQ.NTT(polTest, polTest)
-		params.ckkscontext.contextQ.NTT(polWant, polWant)
-
-		rescale(params.evaluator, polTest, polTest)
-		state := true
-		for i := uint64(0); i < params.ckkscontext.n && state; i++ {
-			for j := 0; j < len(params.ckkscontext.moduli)-1 && state; j++ {
-				if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
-					t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
-					state = false
-				}
-			}
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/RescalingMultiple", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		coeffs := make([]*ring.Int, params.ckkscontext.n)
-		for i := uint64(0); i < params.ckkscontext.n; i++ {
-			coeffs[i] = ring.RandInt(params.ckkscontext.contextQ.ModulusBigint)
-			coeffs[i].Div(coeffs[i], ring.NewUint(10))
-		}
-
-		nbRescals := 4
-
-		coeffsWant := make([]*ring.Int, params.ckkscontext.contextQ.N)
-		for i := range coeffs {
-			coeffsWant[i] = coeffs[i].Copy()
-			for j := 0; j < nbRescals; j++ {
-				coeffsWant[i].DivRound(coeffsWant[i], ring.NewUint(params.ckkscontext.moduli[len(params.ckkscontext.moduli)-1-j]))
-			}
-		}
-
-		polTest := params.ckkscontext.contextQ.NewPoly()
-		polWant := params.ckkscontext.contextQ.NewPoly()
-
-		params.ckkscontext.contextQ.SetCoefficientsBigint(coeffs, polTest)
-		params.ckkscontext.contextQ.SetCoefficientsBigint(coeffsWant, polWant)
-
-		params.ckkscontext.contextQ.NTT(polTest, polTest)
-		params.ckkscontext.contextQ.NTT(polWant, polWant)
-
-		rescaleMany(params.evaluator, uint64(nbRescals), polTest, polTest)
-		state := true
-		for i := uint64(0); i < params.ckkscontext.n && state; i++ {
-			for j := 0; j < len(params.ckkscontext.moduli)-nbRescals && state; j++ {
-				if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
-					t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
-					state = false
-				}
-			}
 		}
 	})
 }

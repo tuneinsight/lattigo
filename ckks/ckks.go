@@ -36,7 +36,6 @@ type CkksContext struct {
 	contextKeys   *ring.Context
 
 	// Pre-computed values for the rescaling
-	rescaleParams     [][]uint64
 	rescaleParamsKeys []uint64 // (P^-1) mod each qi
 
 	// Sampling variance
@@ -173,26 +172,6 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 		tmp.Mod(PBig, ring.NewUint(Qi))
 
 		ckkscontext.rescaleParamsKeys[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Qi, bredParams[i]), Qi-2, Qi), Qi, bredParams[i])
-	}
-
-	var Ql uint64
-
-	ckkscontext.rescaleParams = make([][]uint64, ckkscontext.levels-1)
-
-	for j := uint64(ckkscontext.levels) - 1; j > 0; j-- {
-
-		ckkscontext.rescaleParams[j-1] = make([]uint64, j)
-
-		Ql = ckkscontext.moduli[j]
-
-		bredParams := ckkscontext.contextQ.GetBredParams()
-
-		for i := uint64(0); i < j; i++ {
-
-			Qi = ckkscontext.moduli[i]
-
-			ckkscontext.rescaleParams[j-1][i] = ring.MForm(ring.ModExp(Ql, Qi-2, Qi), Qi, bredParams[i])
-		}
 	}
 
 	ckkscontext.gaussianSampler = ckkscontext.contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))

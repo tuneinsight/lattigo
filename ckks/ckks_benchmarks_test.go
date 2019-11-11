@@ -174,37 +174,41 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		})
 
 		// Rescale
+		contextQ := ckkscontext.contextQ
 		receiver := ckkscontext.NewRandomCiphertext(2, levels-1, scale)
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Rescale", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				rescale(evaluator, ciphertext1.Value()[0], receiver.Value()[0])
-				rescale(evaluator, ciphertext1.Value()[1], receiver.Value()[1])
+				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
+				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
+
+				b.StopTimer()
+				ciphertext1 = ckkscontext.NewRandomCiphertext(1, levels-1, scale)
+				b.StartTimer()
 			}
 		})
 
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/RescaleAll", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				rescale(evaluator, ciphertext1.Value()[0], receiver.Value()[0])
-				rescale(evaluator, ciphertext1.Value()[1], receiver.Value()[1])
 
-				for receiver.Level() != 0 {
-					rescale(evaluator, receiver.Value()[0], receiver.Value()[0])
-					rescale(evaluator, receiver.Value()[1], receiver.Value()[1])
+				for ciphertext1.Level() != 0 {
+					contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
+					contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
 				}
 
 				b.StopTimer()
-				receiver = ckkscontext.NewRandomCiphertext(2, levels-1, scale)
+				ciphertext1 = ckkscontext.NewRandomCiphertext(1, levels-1, scale)
 				b.StartTimer()
 			}
 		})
 
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/RescaleMultipleAll", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				rescaleMany(evaluator, ciphertext1.Level(), ciphertext1.Value()[0], receiver.Value()[0])
-				rescaleMany(evaluator, ciphertext1.Level(), ciphertext1.Value()[1], receiver.Value()[1])
+
+				ckkscontext.contextQ.DivRoundByLastModulusManyNTT(ciphertext1.Value()[0], ciphertext1.Level()+1)
+				ckkscontext.contextQ.DivRoundByLastModulusManyNTT(ciphertext1.Value()[1], ciphertext1.Level()+1)
 
 				b.StopTimer()
-				receiver = ckkscontext.NewRandomCiphertext(2, levels-1, scale)
+				ciphertext1 = ckkscontext.NewRandomCiphertext(1, levels-1, scale)
 				b.StartTimer()
 			}
 		})

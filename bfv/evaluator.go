@@ -383,10 +383,15 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		contextQ.InvNTT(c2Q[i], c2Q[i])
 		contextP.InvNTT(c2P[i], c2P[i])
 
-		// Extend basis Q to basis P
+		// Option 1) (ct(x) * T)/Q,  but doing so requires that Q*P > Q*Q*T, slower but smaller error.
+		//contextQ.MulScalar(c2Q[i], evaluator.bfvcontext.contextT.Modulus[0], c2Q[i])
+		//contextP.MulScalar(c2P[i], evaluator.bfvcontext.contextT.Modulus[0], c2P[i])
+
+		// ============== DIVISION BY Q ================
+		// Extends the basis Q of ct(x) to the basis P
 		evaluator.basisextenderQP.ExtendBasisSplit(c2Q[i], polyPtmp)
 
-		// Divides the basis P by Q
+		// Divides (ct(x)Q -> P) by Q
 		for k, Pi := range contextP.Modulus {
 			mredParams := contextP.GetMredParams()[k]
 			rescalParams := evaluator.bfvcontext.rescaleParamsMul[k]
@@ -395,11 +400,13 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 			}
 		}
 
-		// Centers the basis P by (P-1)/2 and extends basis from P to Q
+		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
 		contextP.AddScalarBigint(c2P[i], PHalf, c2P[i])
 		evaluator.basisextenderPQ.ExtendBasisSplit(c2P[i], ctOut.value[i])
 		contextQ.SubScalarBigint(ctOut.value[i], PHalf, ctOut.value[i])
+		// ============================================
 
+		// Option 2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
 		contextQ.MulScalar(ctOut.value[i], evaluator.bfvcontext.contextT.Modulus[0], ctOut.value[i])
 	}
 }

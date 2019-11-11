@@ -43,5 +43,7 @@ func (ckg *CKGProtocol) AggregateShares(share1, share2, shareOut CKGShare) {
 
 // GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
 func (ckg *CKGProtocol) GenPublicKey(roundShare CKGShare, crs *ring.Poly, pubkey *ckks.PublicKey) {
+	ckg.ringContext.MForm(roundShare, roundShare)
+	ckg.ringContext.MForm(crs, crs)
 	pubkey.Set([2]*ring.Poly{roundShare, crs})
 }

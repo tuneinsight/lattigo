@@ -89,7 +89,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 	for i := uint64(0); i < rkg.ckksContext.Beta(); i++ {
 		// u
-		rkg.ternarySampler.SampleMontgomeryNTT(0.5, rkg.polypool)
+		rkg.ternarySampler.SampleNTT(0.5, rkg.polypool)
 		// h_0 = pk_0 * u + e0 + P * sk * (qiBarre*qiStar)%qi
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
 		// h_1 = pk_1 * u + e1 + P * sk * (qiBarre*qiStar)%qi
@@ -134,7 +134,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 		contextKeys.MulCoeffsMontgomery(round1[i][1], sk, shareOut[i][1])
 
 		// v
-		rkg.ternarySampler.SampleMontgomeryNTT(0.5, rkg.polypool)
+		rkg.ternarySampler.SampleNTT(0.5, rkg.polypool)
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])

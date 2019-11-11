@@ -15,18 +15,18 @@ func Test_Bootstrapp(t *testing.T) {
 
 	var err error
 
-	medianprec := float64(30) // target median precision in log2 among all the coeffs, determines the success/failure of a test
+	medianprec := float64(20) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
 	ctsDepth := uint64(4)
 	stcDepth := uint64(3)
 
-	params := Parameters{16, []uint8{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}
+	params := Parameters{10, []uint8{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
 	ckksTest.medianprec = medianprec
 
-	ckksTest.slots = 1 << 15
+	ckksTest.slots = 1 << 8
 
 	ckksTest.levels = uint64(len(params.Modulichain))
 	ckksTest.scale = params.Scale

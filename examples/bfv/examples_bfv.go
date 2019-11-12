@@ -49,7 +49,7 @@ func ObliviousRiding() {
 	params := bfv.DefaultParams[0]
 
 	// Plaintext modulus
-	params.T = 67084289
+	params.T = 0x3ee0001
 
 	bfvContext, err := bfv.NewBfvContextWithParam(&params)
 	if err != nil {

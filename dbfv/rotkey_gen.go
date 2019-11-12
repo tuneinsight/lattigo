@@ -147,6 +147,12 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
 	contextKeys := rtg.bfvContext.ContextKeys()
 
+	if share1.Type != share2.Type || share1.K != share2.K {
+		panic("cannot aggregate shares of different types")
+	}
+
+	shareOut.Type = share1.Type
+	shareOut.K = share1.K
 	for i := uint64(0); i < rtg.bfvContext.Beta(); i++ {
 		contextKeys.Add(share1.Value[i], share2.Value[i], shareOut.Value[i])
 	}

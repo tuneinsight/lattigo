@@ -796,7 +796,7 @@ func test_GaloisEnd(bfvTest *BFVTESTPARAMS, t *testing.T) {
 	coeffsWantRotateRow := bfvContext.contextT.NewPoly()
 	coeffsWantRotateRow.Coeffs[0] = append(coeffs.Coeffs[0][bfvContext.n>>1:], coeffs.Coeffs[0][:bfvContext.n>>1]...)
 
-	rotation_key := kgen.NewRotationKeysPow2(Sk, true)
+	rotation_key := kgen.NewRotationKeysPow2(Sk)
 
 	for n := uint64(1); n < bfvContext.n>>1; n <<= 1 {
 

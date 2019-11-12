@@ -360,7 +360,7 @@ func benchRotKeyGen(b *testing.B) {
 			}
 		})
 
-		rotKey := bfvContext.NewRotationKeysEmpty()
+		rotKey := bfvContext.NewRotationKeys()
 		b.Run(testString("Finalize", &parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {

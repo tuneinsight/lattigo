@@ -167,12 +167,5 @@ func (rtg *RTGProtocol) Finalize(share RTGShare, crp []*ring.Poly, rotKey *ckks.
 		rtg.ckksContext.ContextKeys().MForm(crp[i], rtg.tmpSwitchKey[i][1])
 	}
 
-	switch share.Type {
-	case ckks.RotationLeft:
-		rotKey.SetRotColLeft(rtg.tmpSwitchKey, k)
-	case ckks.RotationRight:
-		rotKey.SetRotColRight(rtg.tmpSwitchKey, k)
-	case ckks.RotationRow:
-		rotKey.SetRotRow(rtg.tmpSwitchKey)
-	}
+	rotKey.SetRotKey(share.Type, k, rtg.tmpSwitchKey)
 }

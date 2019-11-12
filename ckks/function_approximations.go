@@ -182,7 +182,6 @@ func evaluateRecurse(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, eva
 
 	for key := range coeffs {
 		if key != 0 && (math.Abs(real(coeffs[key])) > 1e-15 || math.Abs(imag(coeffs[key])) > 1e-15) {
-
 			if err = evaluator.MultByConstAndAdd(C[key], coeffs[key], res); err != nil {
 				return nil, err
 			}
@@ -198,7 +197,7 @@ func evaluateRecurse(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, eva
 
 func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext, err error) {
 
-	if maxDegree <= 1<<L {
+	if maxDegree <= (1 << L) {
 
 		return evaluateRecurse(coeffs, C, evaluator, evakey)
 
@@ -243,20 +242,14 @@ func split(coeffs map[uint64]complex128, degree, maxDegree uint64) (coeffsq, coe
 	coeffsq = make(map[uint64]complex128)
 
 	for i := uint64(0); i < degree; i++ {
-		if coeffs[i] != 0 {
-			coeffsr[i] = coeffs[i]
-		}
+		coeffsr[i] = coeffs[i]
 	}
 
-	for i := uint64(degree); i < maxDegree+1; i++ {
-		if coeffs[i] != 0 {
-			if i != degree {
-				coeffsq[i-degree] = 2 * coeffs[i]
-				coeffsr[2*degree-i] -= coeffs[i]
-			} else {
-				coeffsr[i-degree] = coeffs[i]
-			}
-		}
+	coeffsq[0] = coeffs[degree]
+
+	for i := uint64(degree + 1); i < maxDegree+1; i++ {
+		coeffsq[i-degree] = 2 * coeffs[i]
+		coeffsr[2*degree-i] -= coeffs[i]
 	}
 
 	return coeffsq, coeffsr
@@ -281,7 +274,7 @@ func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterp
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(M >> 1)
 
-	for i := uint64(3); i < (1<<L)+1; i++ {
+	for i := uint64(3); i <= (1 << L); i++ {
 		if err = computePowerBasis(i, C, evaluator, evakey); err != nil {
 			return nil, err
 		}

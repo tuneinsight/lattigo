@@ -500,7 +500,7 @@ func testRotKeyGenRotRows(t *testing.T) {
 				}
 			}
 
-			rotkey := bfvContext.NewRotationKeysEmpty()
+			rotkey := bfvContext.NewRotationKeys()
 			P0.Finalize(P0.share, crp, rotkey)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
@@ -576,7 +576,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 					}
 				}
 
-				rotkey := bfvContext.NewRotationKeysEmpty()
+				rotkey := bfvContext.NewRotationKeys()
 				P0.Finalize(P0.share, crp, rotkey)
 
 				if err = evaluator.RotateColumns(ciphertext, k, rotkey, receiver); err != nil {

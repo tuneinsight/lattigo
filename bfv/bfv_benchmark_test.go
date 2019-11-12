@@ -128,7 +128,7 @@ func Benchmark_BFV(b *testing.B) {
 		})
 
 		// Rotation Key Generation not benchmarked (no inplace gen)
-		rtk := kgen.NewRotationKeysPow2(sk, true)
+		rtk := kgen.NewRotationKeysPow2(sk)
 
 		// Rotation Rows
 		b.Run(testString("RotateRows", &params), func(b *testing.B) {

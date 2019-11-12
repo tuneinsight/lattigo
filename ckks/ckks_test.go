@@ -97,7 +97,7 @@ func Test_CKKS(t *testing.T) {
 	ckksTest.rlk = ckksTest.kgen.NewRelinKey(ckksTest.sk)
 
 	log.Printf("Generating rotation keys for conjugate and powers of 2")
-	ckksTest.rotkey = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk, true)
+	ckksTest.rotkey = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk)
 
 	test_Encoder(ckksTest, t)
 	test_EncryptDecrypt(ckksTest, t)

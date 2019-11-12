@@ -58,10 +58,8 @@ func Benchmark_CKKSScheme(b *testing.B) {
 
 		rlk = kgen.NewRelinKey(sk)
 
-		rotkey, err = kgen.NewRotationKeys(sk, []uint64{1}, nil, true)
-		if err != nil {
-			b.Error(err)
-		}
+		rotkey = ckkscontext.NewRotationKeys()
+		kgen.GenRot(RotationLeft, sk, 1, rotkey)
 
 		if encryptorPk, err = ckkscontext.NewEncryptorFromPk(pk); err != nil {
 			b.Error(err)

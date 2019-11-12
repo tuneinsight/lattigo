@@ -238,82 +238,40 @@ func (keygen *KeyGenerator) NewSwitchingKeyEmpty() (evakey *SwitchingKey) {
 	return
 }
 
-// Newrotationkeys generates a new struct of rotationkeys storing the keys for the specified rotations. The provided secret-key must be the secret-key used to generate the public-key under
-// which the ciphertexts to rotate are encrypted under. Bitdecomp is the power of two binary decomposition of the key. A higher bigdecomp will induce smaller keys, faster key-switching,
-// but at the cost of more noise. rotLeft and rotRight must be a slice of uint64 rotations, row is a boolean value indicating if the key for the row rotation must be generated.
-func (keygen *KeyGenerator) NewRotationKeys(sk *SecretKey, rotLeft []uint64, rotRight []uint64, row bool) (rotKey *RotationKeys) {
-
-	rotKey = new(RotationKeys)
-	rotKey.bfvcontext = keygen.bfvcontext
-
-	if rotLeft != nil {
-		rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
-		for _, n := range rotLeft {
-			if rotKey.evakey_rot_col_L[n] == nil && n != 0 {
-				rotKey.evakey_rot_col_L[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColLeft[n])
-			}
-		}
-	}
-
-	if rotRight != nil {
-		rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
-		for _, n := range rotRight {
-			if rotKey.evakey_rot_col_R[n] == nil && n != 0 {
-				rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColRight[n])
-			}
-		}
-	}
-
-	if row {
-		rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow)
-	}
-
-	return rotKey
-
-}
-
-func (bfvContext *BfvContext) NewRotationKeysEmpty() (rotKey *RotationKeys) {
-
+func (bfvContext *BfvContext) NewRotationKeys() (rotKey *RotationKeys) {
 	rotKey = new(RotationKeys)
 	rotKey.bfvcontext = bfvContext
-	rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
-	rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 	return
 }
 
-// TODO: single setter method + check if allocated to avoid copy
-
-func (rotkey *RotationKeys) SetRotColLeft(evakey [][2]*ring.Poly, k uint64) {
-	rotkey.evakey_rot_col_L[k] = new(SwitchingKey)
-	rotkey.evakey_rot_col_L[k].evakey = make([][2]*ring.Poly, len(evakey))
-	for j := range evakey {
-		rotkey.evakey_rot_col_L[k].evakey[j][0] = evakey[j][0].CopyNew()
-		rotkey.evakey_rot_col_L[k].evakey[j][1] = evakey[j][1].CopyNew()
-	}
-}
-
-func (rotkey *RotationKeys) SetRotColRight(evakey [][2]*ring.Poly, k uint64) {
-	rotkey.evakey_rot_col_R[k] = new(SwitchingKey)
-	rotkey.evakey_rot_col_R[k].evakey = make([][2]*ring.Poly, len(evakey))
-	for j := range evakey {
-		rotkey.evakey_rot_col_R[k].evakey[j][0] = evakey[j][0].CopyNew()
-		rotkey.evakey_rot_col_R[k].evakey[j][1] = evakey[j][1].CopyNew()
-	}
-}
-
-func (rotkey *RotationKeys) SetRotRow(evakey [][2]*ring.Poly) {
-	rotkey.evakey_rot_row = new(SwitchingKey)
-	rotkey.evakey_rot_row.evakey = make([][2]*ring.Poly, len(evakey))
-	for j := range evakey {
-		rotkey.evakey_rot_row.evakey[j][0] = evakey[j][0].CopyNew()
-		rotkey.evakey_rot_row.evakey[j][1] = evakey[j][1].CopyNew()
+// Newrotationkeys generates a new struct of rotationkeys storing the keys for the specified rotations. The provided secret-key must be the secret-key used to generate the public-key under
+// which the ciphertexts to rotate are encrypted under. Bitdecomp is the power of two binary decomposition of the key. A higher bigdecomp will induce smaller keys, faster key-switching,
+// but at the cost of more noise. rotLeft and rotRight must be a slice of uint64 rotations, row is a boolean value indicating if the key for the row rotation must be generated.
+func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
+	switch rotType {
+	case RotationLeft:
+		if rotKey.evakey_rot_col_L == nil {
+			rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
+		}
+		if rotKey.evakey_rot_col_L[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_L[k] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColLeft[k])
+		}
+	case RotationRight:
+		if rotKey.evakey_rot_col_R == nil {
+			rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
+		}
+		if rotKey.evakey_rot_col_R[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_R[k] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColRight[k])
+		}
+	case RotationRow:
+		rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow)
 	}
 }
 
 // Newrotationkeys generates a new struct of rotationkeys storing the keys of all the left and right powers of two rotations. The provided secret-key must be the secret-key used to generate the public-key under
 // which the ciphertexts to rotate are encrypted under. rows is a boolean value indicatig if the keys for the row rotation have to be generated. Bitdecomp is the power of two binary decomposition of the key.
 // A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
-func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey, row bool) (rotKey *RotationKeys) {
+func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey) (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
 	rotKey.bfvcontext = keygen.bfvcontext
@@ -327,11 +285,47 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey, row bool) (rotKey
 		rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColRight[n])
 	}
 
-	if row {
-		rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow)
-	}
+	rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow)
 
 	return
+}
+
+func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*ring.Poly) {
+	switch rotType {
+	case RotationLeft:
+		if rotKey.evakey_rot_col_L == nil {
+			rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
+		}
+		if rotKey.evakey_rot_col_L[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_L[k] = new(SwitchingKey)
+			rotKey.evakey_rot_col_L[k].evakey = make([][2]*ring.Poly, len(evakey))
+			for j := range evakey {
+				rotKey.evakey_rot_col_L[k].evakey[j][0] = evakey[j][0].CopyNew()
+				rotKey.evakey_rot_col_L[k].evakey[j][1] = evakey[j][1].CopyNew()
+			}
+		}
+	case RotationRight:
+		if rotKey.evakey_rot_col_R == nil {
+			rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
+		}
+		if rotKey.evakey_rot_col_R[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_R[k] = new(SwitchingKey)
+			rotKey.evakey_rot_col_R[k].evakey = make([][2]*ring.Poly, len(evakey))
+			for j := range evakey {
+				rotKey.evakey_rot_col_R[k].evakey[j][0] = evakey[j][0].CopyNew()
+				rotKey.evakey_rot_col_R[k].evakey[j][1] = evakey[j][1].CopyNew()
+			}
+		}
+	case RotationRow:
+		if rotKey.evakey_rot_row == nil {
+			rotKey.evakey_rot_row = new(SwitchingKey)
+			rotKey.evakey_rot_row.evakey = make([][2]*ring.Poly, len(evakey))
+			for j := range evakey {
+				rotKey.evakey_rot_row.evakey[j][0] = evakey[j][0].CopyNew()
+				rotKey.evakey_rot_row.evakey[j][1] = evakey[j][1].CopyNew()
+			}
+		}
+	}
 }
 
 // genrotkey is a methode used in the rotation-keys generation.
@@ -391,7 +385,6 @@ func newswitchintkey(bfvcontext *BfvContext, sk_in, sk_out *ring.Poly) (switchke
 
 		// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
 		context.MulCoeffsMontgomeryAndSub(switchkey.evakey[i][1], sk_out, switchkey.evakey[i][0])
-
 	}
 
 	return

@@ -18,7 +18,7 @@ func Benchmark_CKKSScheme(b *testing.B) {
 	var sk *SecretKey
 	var pk *PublicKey
 	var rlk *EvaluationKey
-	var rotkey *RotationKey
+	var rotkey *RotationKeys
 	var encryptorPk *Encryptor
 	var encryptorSk *Encryptor
 	var decryptor *Decryptor

@@ -22,8 +22,16 @@ type PublicKey struct {
 	pk [2]*ring.Poly
 }
 
+type Rotation int
+
+const (
+	RotationRight = iota + 1
+	RotationLeft
+	RotationRow
+)
+
 // Rotationkeys is a structure that stores the switching-keys required during the homomorphic rotations.
-type RotationKey struct {
+type RotationKeys struct {
 	ckkscontext      *CkksContext
 	evakey_rot_col_L map[uint64]*SwitchingKey
 	evakey_rot_col_R map[uint64]*SwitchingKey
@@ -211,9 +219,9 @@ func (keygen *KeyGenerator) NewSwitchingKeyEmpty() (evakey *SwitchingKey) {
 
 // NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, rotLeft []uint64, rotRight []uint64, conjugate bool) (rotKey *RotationKey, err error) {
+func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, rotLeft []uint64, rotRight []uint64, conjugate bool) (rotKey *RotationKeys, err error) {
 
-	rotKey = new(RotationKey)
+	rotKey = new(RotationKeys)
 	rotKey.ckkscontext = keygen.ckkscontext
 
 	if rotLeft != nil {
@@ -244,9 +252,9 @@ func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, rotLeft []uint
 
 // NewRotationkeysPow2 generates a new rotation key with all the power of two rotation to the left and right, as well as the conjugation
 // key if asked. Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, conjugate bool) (rotKey *RotationKey) {
+func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, conjugate bool) (rotKey *RotationKeys) {
 
-	rotKey = new(RotationKey)
+	rotKey = new(RotationKeys)
 	rotKey.ckkscontext = keygen.ckkscontext
 
 	rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
@@ -267,15 +275,15 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, conjugate 
 
 // NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (ckksContext *CkksContext) NewRotationKeysEmpty() (rotKey *RotationKey) {
-	rotKey = new(RotationKey)
+func (ckksContext *CkksContext) NewRotationKeysEmpty() (rotKey *RotationKeys) {
+	rotKey = new(RotationKeys)
 	rotKey.ckkscontext = ckksContext
 	rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 	rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 	return
 }
 
-func (rotkey *RotationKey) SetRotColLeft(evakey [][2]*ring.Poly, k uint64) {
+func (rotkey *RotationKeys) SetRotColLeft(evakey [][2]*ring.Poly, k uint64) {
 	rotkey.evakey_rot_col_L[k] = new(SwitchingKey)
 	rotkey.evakey_rot_col_L[k].evakey = make([][2]*ring.Poly, len(evakey))
 	for j := range evakey {
@@ -284,7 +292,7 @@ func (rotkey *RotationKey) SetRotColLeft(evakey [][2]*ring.Poly, k uint64) {
 	}
 }
 
-func (rotkey *RotationKey) SetRotColRight(evakey [][2]*ring.Poly, k uint64) {
+func (rotkey *RotationKeys) SetRotColRight(evakey [][2]*ring.Poly, k uint64) {
 	rotkey.evakey_rot_col_R[k] = new(SwitchingKey)
 	rotkey.evakey_rot_col_R[k].evakey = make([][2]*ring.Poly, len(evakey))
 	for j := range evakey {
@@ -293,7 +301,7 @@ func (rotkey *RotationKey) SetRotColRight(evakey [][2]*ring.Poly, k uint64) {
 	}
 }
 
-func (rotkey *RotationKey) SetRotRow(evakey [][2]*ring.Poly) {
+func (rotkey *RotationKeys) SetRotRow(evakey [][2]*ring.Poly) {
 	rotkey.evakey_rot_row = new(SwitchingKey)
 	rotkey.evakey_rot_row.evakey = make([][2]*ring.Poly, len(evakey))
 	for j := range evakey {

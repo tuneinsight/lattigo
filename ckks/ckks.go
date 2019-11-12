@@ -8,6 +8,8 @@ import (
 	"math"
 )
 
+const GaloisGen uint64 = 5
+
 // CkksContext is a struct which contains all the elements required to instantiate the CKKS Scheme. This includes the parameters (N, ciphertext modulus,
 // sampling, polynomial contexts and other parameters required for the homomorphic operations).
 type CkksContext struct {
@@ -201,6 +203,11 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 	return ckkscontext, nil
 
+}
+
+// LogN returns logN of the ckksContext.
+func (ckksContext *CkksContext) N() uint64 {
+	return 1 << ckksContext.logN
 }
 
 // LogN returns logN of the ckksContext.

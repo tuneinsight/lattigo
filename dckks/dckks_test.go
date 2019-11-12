@@ -503,67 +503,64 @@ func testRotKeyGenConjugate(t *testing.T) {
 		params := genDCKKSContext(parameters)
 
 		ckksContext := params.ckksContext
+		contextKeys := ckksContext.ContextKeys()
 		evaluator := params.evaluator
 		encryptorPk0 := params.encryptorPk0
 		decryptorSk0 := params.decryptorSk0
 		sk0Shards := params.sk0Shards
 
-		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f",
-			parties,
-			ckksContext.LogN(),
-			ckksContext.LogQ(),
-			ckksContext.Levels(),
-			ckksContext.Scale()),
-			func(t *testing.T) {
+		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(t *testing.T) {
 
-				type Party struct {
-					*RotKGProtocol
-					s     *ring.Poly
-					share RotKGShareConjugate
+			type Party struct {
+				*RTGProtocol
+				s     *ring.Poly
+				share RTGShare
+			}
+
+			pcksParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.RTGProtocol = NewRotKGProtocol(ckksContext)
+				p.s = sk0Shards[i].Get()
+				p.share = p.AllocateShare()
+				pcksParties[i] = p
+			}
+			P0 := pcksParties[0]
+
+			crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
+			check(t, err)
+			crpGenerator.Seed([]byte{})
+			crp := make([]*ring.Poly, ckksContext.Beta())
+
+			for i := uint64(0); i < ckksContext.Beta(); i++ {
+				crp[i] = crpGenerator.Clock()
+			}
+
+			for i, p := range pcksParties {
+				p.GenShare(ckks.RotationRow, 0, p.s, crp, &p.share)
+				if i > 0 {
+					P0.Aggregate(p.share, P0.share, P0.share)
 				}
+			}
 
-				pcksParties := make([]*Party, parties)
-				for i := uint64(0); i < parties; i++ {
-					p := new(Party)
-					p.RotKGProtocol = NewRotKGProtocol(ckksContext)
-					p.s = sk0Shards[i].Get()
-					p.share = p.AllocateShareConjugate()
-					pcksParties[i] = p
-				}
-				P0 := pcksParties[0]
+			rotkey := ckksContext.NewRotationKeysEmpty()
+			P0.Finalize(P0.share, crp, rotkey)
 
-				crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
-				check(t, err)
-				crpGenerator.Seed([]byte{})
-				crp := make([]*ring.Poly, ckksContext.Beta())
+			coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
 
-				for i := uint64(0); i < ckksContext.Beta(); i++ {
-					crp[i] = crpGenerator.Clock()
-				}
+			if err = evaluator.Conjugate(ciphertext, rotkey, ciphertext); err != nil {
+				log.Fatal(err)
+			}
 
-				for i, p := range pcksParties {
-					p.GenShareConjugate(p.s, crp, p.share)
-					if i > 0 {
-						P0.Aggregate(p.share, P0.share, P0.share)
-					}
-				}
+			coeffsWant := make([]complex128, contextKeys.N>>1)
 
-				P0.StoreConjugate(P0.share, crp)
+			for i := uint64(0); i < contextKeys.N>>1; i++ {
+				coeffsWant[i] = complex(real(coeffs[i]), -imag(coeffs[i]))
+			}
 
-				rotkey := P0.Finalize()
+			verify_test_vectors(params, decryptorSk0, coeffsWant, ciphertext, t)
 
-				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
-
-				err = evaluator.Conjugate(ciphertext, rotkey, ciphertext)
-				check(t, err)
-
-				for i := range coeffs {
-					coeffs[i] = complex(real(coeffs[i]), -imag(coeffs[i]))
-				}
-
-				verify_test_vectors(params, decryptorSk0, coeffs, ciphertext, t)
-
-			})
+		})
 	}
 }
 
@@ -576,75 +573,71 @@ func testRotKeyGenCols(t *testing.T) {
 		params := genDCKKSContext(parameters)
 
 		ckksContext := params.ckksContext
+		contextKeys := ckksContext.ContextKeys()
 		evaluator := params.evaluator
 		encryptorPk0 := params.encryptorPk0
 		decryptorSk0 := params.decryptorSk0
 		sk0Shards := params.sk0Shards
 
-		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f",
-			parties,
-			ckksContext.LogN(),
-			ckksContext.LogQ(),
-			ckksContext.Levels(),
-			ckksContext.Scale()),
-			func(t *testing.T) {
+		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(t *testing.T) {
 
-				type Party struct {
-					*RotKGProtocol
-					s     *ring.Poly
-					share RotKGShareRotColLeft
-				}
+			type Party struct {
+				*RTGProtocol
+				s     *ring.Poly
+				share RTGShare
+			}
 
-				pcksParties := make([]*Party, parties)
-				for i := uint64(0); i < parties; i++ {
-					p := new(Party)
-					p.RotKGProtocol = NewRotKGProtocol(ckksContext)
-					p.s = sk0Shards[i].Get()
-					p.share = p.AllocateShareRotColLeft()
-					pcksParties[i] = p
-				}
+			pcksParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.RTGProtocol = NewRotKGProtocol(ckksContext)
+				p.s = sk0Shards[i].Get()
+				p.share = p.AllocateShare()
+				pcksParties[i] = p
+			}
 
-				P0 := pcksParties[0]
+			P0 := pcksParties[0]
 
-				crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
-				check(t, err)
-				crpGenerator.Seed([]byte{})
-				crp := make([]*ring.Poly, ckksContext.Beta())
+			crpGenerator, err := ring.NewCRPGenerator(nil, contextKeys)
+			check(t, err)
+			crpGenerator.Seed([]byte{})
+			crp := make([]*ring.Poly, ckksContext.Beta())
 
-				for i := uint64(0); i < ckksContext.Beta(); i++ {
-					crp[i] = crpGenerator.Clock()
-				}
+			for i := uint64(0); i < ckksContext.Beta(); i++ {
+				crp[i] = crpGenerator.Clock()
+			}
 
-				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
-				mask := ckksContext.Slots() - 1
+			mask := (contextKeys.N >> 1) - 1
 
-				receiver := ckksContext.NewCiphertext(ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale())
-				for n := uint64(0); n < ckksContext.LogN(); n++ {
+			coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
 
-					for i, p := range pcksParties {
-						p.GenShareRotLeft(p.s, 1<<n, crp, p.share)
-						if i > 0 {
-							P0.Aggregate(p.share, P0.share, P0.share)
-						}
+			receiver := ckksContext.NewCiphertext(ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale())
+
+			for k := uint64(1); k < contextKeys.N>>1; k <<= 1 {
+
+				for i, p := range pcksParties {
+					p.GenShare(ckks.RotationLeft, k, p.s, crp, &p.share)
+					if i > 0 {
+						P0.Aggregate(p.share, P0.share, P0.share)
 					}
-
-					P0.StoreRotColLeft(P0.share, 1<<n, crp)
-
-					rotkey := P0.Finalize()
-
-					err = evaluator.RotateColumns(ciphertext, 1<<n, rotkey, receiver)
-					check(t, err)
-
-					coeffsWant := make([]complex128, ckksContext.Slots())
-
-					for i := uint64(0); i < ckksContext.Slots(); i++ {
-						coeffsWant[i] = coeffs[(i+(1<<n))&mask]
-					}
-
-					verify_test_vectors(params, decryptorSk0, coeffsWant, receiver, t)
 				}
 
-			})
+				rotkey := ckksContext.NewRotationKeysEmpty()
+				P0.Finalize(P0.share, crp, rotkey)
+
+				if err = evaluator.RotateColumns(ciphertext, k, rotkey, receiver); err != nil {
+					log.Fatal(err)
+				}
+
+				coeffsWant := make([]complex128, contextKeys.N>>1)
+
+				for i := uint64(0); i < contextKeys.N>>1; i++ {
+					coeffsWant[i] = coeffs[(i+k)&mask]
+				}
+
+				verify_test_vectors(params, decryptorSk0, coeffsWant, receiver, t)
+			}
+		})
 	}
 }
 
@@ -852,4 +845,8 @@ func calcmedian(values []complex128) (median complex128) {
 	}
 
 	return (values[index] + values[index+1]) / 2
+}
+
+func testString(opname string, params *ckks.Parameters) string {
+	return fmt.Sprintf("%s/params=%d", opname, params.LogN)
 }

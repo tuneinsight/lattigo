@@ -23,7 +23,7 @@ type CKKSTESTPARAMS struct {
 	sk          *SecretKey
 	pk          *PublicKey
 	rlk         *EvaluationKey
-	rotkey      *RotationKey
+	rotkey      *RotationKeys
 	encryptorPk *Encryptor
 	encryptorSk *Encryptor
 	decryptor   *Decryptor

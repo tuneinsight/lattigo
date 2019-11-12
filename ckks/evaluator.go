@@ -350,8 +350,8 @@ func (evaluator *Evaluator) NegNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 }
 
 // ExtractImagNew sets the real part of ct0 to the imaginary part of ct0 and sets the imaginary part of ct0 to zero, and returns the result on a new element.
-// ex. f(a + b*i) = b. Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
-func (evaluator *Evaluator) ExtractImagNew(ct0 *Ciphertext, evakey *RotationKey) (ctOut *Ciphertext, err error) {
+// ex. f(a + b*i) = b. Requires a RotationKeys for which the conjugate key has been generated. Scale is increased by one.
+func (evaluator *Evaluator) ExtractImagNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
 
 	ctOut = evaluator.ckkscontext.NewCiphertext(ct0.Degree(), ct0.Level(), ct0.Scale())
 
@@ -359,8 +359,8 @@ func (evaluator *Evaluator) ExtractImagNew(ct0 *Ciphertext, evakey *RotationKey)
 }
 
 // ExtractImag sets the real part of ct0 to the imaginary part of ct0 and sets the imaginary part of ct0 to zero, and returns the result on ctOut.
-// ex. f(a + b*i) = b. Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
-func (evaluator *Evaluator) ExtractImag(ct0 *Ciphertext, evakey *RotationKey, ctOut *Ciphertext) (err error) {
+// ex. f(a + b*i) = b. Requires a RotationKeys for which the conjugate key has been generated. Scale is increased by one.
+func (evaluator *Evaluator) ExtractImag(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) (err error) {
 
 	if err = evaluator.Conjugate(ct0, evakey, evaluator.ctxpool); err != nil {
 		return err
@@ -384,8 +384,8 @@ func (evaluator *Evaluator) ExtractImag(ct0 *Ciphertext, evakey *RotationKey, ct
 }
 
 // SwapRealImagNew swaps the real and imaginary parts of ct0 and returns the result on a newly created element, ex.
-// f(a + b*i) = b + a * i. Requires a rotationkey for which the conjugate key has been generated.
-func (evaluator *Evaluator) SwapRealImagNew(ct0 *Ciphertext, evakey *RotationKey) (ctOut *Ciphertext, err error) {
+// f(a + b*i) = b + a * i. Requires a RotationKeys for which the conjugate key has been generated.
+func (evaluator *Evaluator) SwapRealImagNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
 
 	ctOut = evaluator.ckkscontext.NewCiphertext(ct0.Degree(), ct0.Level(), ct0.Scale())
 
@@ -393,8 +393,8 @@ func (evaluator *Evaluator) SwapRealImagNew(ct0 *Ciphertext, evakey *RotationKey
 }
 
 // SwapRealImagNew swaps the real and imaginary parts of ct0 and returns the result on ctOut, ex.
-// f(a + b*i) = b + a * i. Requires a rotationkey for which the conjugate key has been generated.
-func (evaluator *Evaluator) SwapRealImag(ct0 *Ciphertext, evakey *RotationKey, ctOut *Ciphertext) (err error) {
+// f(a + b*i) = b + a * i. Requires a RotationKeys for which the conjugate key has been generated.
+func (evaluator *Evaluator) SwapRealImag(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) (err error) {
 
 	if err = evaluator.DivByi(ct0, ctOut); err != nil {
 		return err
@@ -408,8 +408,8 @@ func (evaluator *Evaluator) SwapRealImag(ct0 *Ciphertext, evakey *RotationKey, c
 }
 
 // RemoveRealNew sets the real part of ct0 to zero and returns the result on a newly created element, ex. f(a + b*i) = b*i.
-// Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
-func (evaluator *Evaluator) RemoveRealNew(ct0 *Ciphertext, evakey *RotationKey) (ctOut *Ciphertext, err error) {
+// Requires a RotationKeys for which the conjugate key has been generated. Scale is increased by one.
+func (evaluator *Evaluator) RemoveRealNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
 
 	ctOut = evaluator.ckkscontext.NewCiphertext(ct0.Degree(), ct0.Level(), ct0.Scale())
 
@@ -417,8 +417,8 @@ func (evaluator *Evaluator) RemoveRealNew(ct0 *Ciphertext, evakey *RotationKey) 
 }
 
 // RemoveReal sets the real part of ct0 to zero and returns the result on ctOut, ex. f(a + b*i) = b*i.
-// Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
-func (evaluator *Evaluator) RemoveReal(ct0 *Ciphertext, evakey *RotationKey, ctOut *Ciphertext) (err error) {
+// Requires a RotationKeys for which the conjugate key has been generated. Scale is increased by one.
+func (evaluator *Evaluator) RemoveReal(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) (err error) {
 
 	if ct0 != ctOut {
 
@@ -446,8 +446,8 @@ func (evaluator *Evaluator) RemoveReal(ct0 *Ciphertext, evakey *RotationKey, ctO
 }
 
 // RemoveImagNew sets the imaginary part of ct0 to zero and returns the result on a newly created element, ex. f(a + b*i) = a.
-// Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
-func (evaluator *Evaluator) RemoveImagNew(ct0 *Ciphertext, evakey *RotationKey) (ctOut *Ciphertext, err error) {
+// Requires a RotationKeys for which the conjugate key has been generated. Scale is increased by one.
+func (evaluator *Evaluator) RemoveImagNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
 
 	ctOut = evaluator.ckkscontext.NewCiphertext(ct0.Degree(), ct0.Level(), ct0.Scale())
 
@@ -455,8 +455,8 @@ func (evaluator *Evaluator) RemoveImagNew(ct0 *Ciphertext, evakey *RotationKey) 
 }
 
 // RemoveImag sets the imaginary part of ct0 to zero and returns the result on ctOut, ex. f(a + b*i) = a.
-// Requires a rotationkey for which the conjugate key has been generated. Scale is increased by one.
-func (evaluator *Evaluator) RemoveImag(ct0 *Ciphertext, evakey *RotationKey, ctOut *Ciphertext) (err error) {
+// Requires a RotationKeys for which the conjugate key has been generated. Scale is increased by one.
+func (evaluator *Evaluator) RemoveImag(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) (err error) {
 
 	if ct0 != ctOut {
 
@@ -1334,7 +1334,7 @@ func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingK
 
 // RotateColumnsNew rotates the columns of ct0 by k position to the left, and returns the result on a newly created element.
 // If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key for the specific rotation needs to be provided.
-func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKey) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
 
 	ctOut = evaluator.ckkscontext.NewCiphertext(ct0.Degree(), ct0.Level(), ct0.Scale())
 
@@ -1343,7 +1343,7 @@ func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *
 
 // RotateColumns rotates the columns of ct0 by k position to the left and returns the result on the provided receiver.
 // If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key for the specific rotation needs to be provided.
-func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKey, ctOut *Ciphertext) (err error) {
+func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) (err error) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		return errors.New("cannot rotate -> input and output ciphertext must be of degree 1")
@@ -1356,7 +1356,7 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 		return nil
 	}
 
-	// Looks in the rotationkey if the corresponding rotation has been generated
+	// Looks in the RotationKeys if the corresponding rotation has been generated
 	if evakey.evakey_rot_col_L[k] != nil {
 
 		evaluator.permuteNTT(ct0, evaluator.ckkscontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
@@ -1391,11 +1391,11 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 	}
 }
 
-func (evaluator *Evaluator) rotateColumnsLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKey, ctOut *Ciphertext) {
+func (evaluator *Evaluator) rotateColumnsLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
 	evaluator.rotateColumnsPow2(ct0, evaluator.ckkscontext.gen, k, evakey.evakey_rot_col_L, ctOut)
 }
 
-func (evaluator *Evaluator) rotateColumnsRPow2(ct0 *Ciphertext, k uint64, evakey *RotationKey, ctOut *Ciphertext) {
+func (evaluator *Evaluator) rotateColumnsRPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
 	evaluator.rotateColumnsPow2(ct0, evaluator.ckkscontext.genInv, k, evakey.evakey_rot_col_R, ctOut)
 }
 
@@ -1431,7 +1431,7 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 // ConjugateNew conjugates ct0 (which is equivalement to a row rotation) and returns the result on a newly
 // created element. If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key
 // for the row rotation needs to be provided.
-func (evaluator *Evaluator) ConjugateNew(ct0 *Ciphertext, evakey *RotationKey) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) ConjugateNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
 
 	ctOut = evaluator.ckkscontext.NewCiphertext(ct0.Degree(), ct0.Level(), ct0.Scale())
 
@@ -1440,7 +1440,7 @@ func (evaluator *Evaluator) ConjugateNew(ct0 *Ciphertext, evakey *RotationKey) (
 
 // ConjugateNew conjugates c0 (which is equivalement to a row rotation) and returns the result on c1.
 // If the provided element is a ciphertext, a keyswitching operation is necessary and a rotation key for the row rotation needs to be provided.
-func (evaluator *Evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKey, ctOut *Ciphertext) (err error) {
+func (evaluator *Evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) (err error) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		return errors.New("cannot rotate -> input and output ciphertext must be of degree 1")

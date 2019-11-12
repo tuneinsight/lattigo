@@ -336,7 +336,7 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 
 	var index uint64
 
-	switchingkey.evakey = make([][2]*ring.Poly, len(context.Modulus))
+	switchingkey.evakey = make([][2]*ring.Poly, beta)
 
 	for i := uint64(0); i < beta; i++ {
 

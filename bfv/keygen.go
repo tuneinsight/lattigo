@@ -361,7 +361,7 @@ func newswitchintkey(bfvcontext *BfvContext, sk_in, sk_out *ring.Poly) (switchke
 
 	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
 
-	switchkey.evakey = make([][2]*ring.Poly, len(context.Modulus))
+	switchkey.evakey = make([][2]*ring.Poly, bfvcontext.beta)
 
 	for i := uint64(0); i < bfvcontext.beta; i++ {
 

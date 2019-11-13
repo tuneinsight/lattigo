@@ -51,7 +51,7 @@ func NewEkgProtocol(ckksContext *ckks.CkksContext) *RKGProtocol {
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
 func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly, err error) {
-	if ephemeralKey, err = ekg.ckksContext.TernarySampler().SampleMontgomeryNTTNew(p); err != nil {
+	if ephemeralKey, err = ekg.ckksContext.ContextKeys().SampleTernaryMontgomeryNTTNew(p); err != nil {
 		return nil, err
 	}
 	return

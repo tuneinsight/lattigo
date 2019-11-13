@@ -72,7 +72,7 @@ func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
 // NewSecretKey generates a new secret key with the distribution [(p-1)/2, p, (p-1)/2].
 func (keygen *KeyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey, err error) {
 	sk = new(SecretKey)
-	if sk.sk, err = keygen.ckksContext.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
+	if sk.sk, err = keygen.ckksContext.contextKeys.SampleTernaryMontgomeryNTTNew(p); err != nil {
 		return nil, err
 	}
 	return sk, nil
@@ -80,7 +80,7 @@ func (keygen *KeyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey, e
 
 func (keygen *KeyGenerator) NewSecretKeySparse(hw uint64) (sk *SecretKey) {
 	sk = new(SecretKey)
-	sk.sk = keygen.ckksContext.ternarySampler.SampleSparseMontgomeryNTTNew(hw)
+	sk.sk = keygen.ckksContext.contextKeys.SampleTernarySparseMontgomeryNTTNew(hw)
 	return sk
 }
 

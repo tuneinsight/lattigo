@@ -106,7 +106,7 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	contextQ := encryptor.ckkscontext.contextQ
 	contextP := encryptor.ckkscontext.contextP
 
-	encryptor.ckkscontext.ternarySampler.SampleMontgomeryNTT(0.5, encryptor.polypool[2])
+	encryptor.ckkscontext.contextKeys.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
 
 	contextKeys.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 	contextKeys.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])

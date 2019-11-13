@@ -12,8 +12,10 @@ type PCKSProtocol struct {
 	sigmaSmudging         float64
 	gaussianSamplerSmudge *ring.KYSampler
 
-	tmp  *ring.Poly
-	tmpP *ring.Poly
+	tmp *ring.Poly
+
+	share0tmp *ring.Poly
+	share1tmp *ring.Poly
 
 	baseconverter *ring.FastBasisExtender
 }
@@ -31,8 +33,8 @@ func NewPCKSProtocol(ckksContext *ckks.CkksContext, sigmaSmudging float64) *PCKS
 	pcks.gaussianSamplerSmudge = ckksContext.ContextKeys().NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
 
 	pcks.tmp = ckksContext.ContextKeys().NewPoly()
-
-	pcks.tmpP = ckksContext.ContextP().NewPoly()
+	pcks.share0tmp = ckksContext.ContextKeys().NewPoly()
+	pcks.share1tmp = ckksContext.ContextKeys().NewPoly()
 
 	pcks.baseconverter = ring.NewFastBasisExtender(ckksContext.ContextQ().Modulus, ckksContext.KeySwitchPrimes())
 
@@ -54,52 +56,32 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 
 	contextQ := pcks.ckksContext.ContextQ()
 	contextP := pcks.ckksContext.ContextP()
+	contextKeys := pcks.ckksContext.ContextKeys()
 
-	//u_i
-	_ = pcks.ckksContext.TernarySampler().SampleMontgomeryNTT(0.5, pcks.tmp)
+	_ = contextKeys.SampleTernaryMontgomeryNTT(pcks.tmp, 0.5)
 
 	// h_0 = u_i * pk_0
-	contextQ.MulCoeffsMontgomeryLvl(ct.Level(), pcks.tmp, pk.Get()[0], shareOut[0])
-
+	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
 	// h_1 = u_i * pk_1
-	contextQ.MulCoeffsMontgomeryLvl(ct.Level(), pcks.tmp, pk.Get()[1], shareOut[1])
+	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], pcks.share1tmp)
 
-	// h0 = u_i * pk_0 + s_i*c_1
-	contextQ.MulCoeffsMontgomeryAndAddLvl(ct.Level(), sk, ct.Value()[1], shareOut[0])
-
-	// TODO : improve by pre-computing prd(pj) for each qi
-	for _, pj := range pcks.ckksContext.KeySwitchPrimes() {
-		contextQ.MulScalarLvl(ct.Level(), shareOut[0], pj, shareOut[0])
-		contextQ.MulScalarLvl(ct.Level(), shareOut[1], pj, shareOut[1])
-	}
-
-	// h_0 = s_i*c_1 + u_i * pk_0 + e0
+	// h_0 = u_i * pk_0 + e0
 	pcks.gaussianSamplerSmudge.SampleNTT(pcks.tmp)
-	contextQ.Add(shareOut[0], pcks.tmp, shareOut[0])
-
-	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(pcks.ckksContext.ContextKeys().Modulus)); x, i = x+1, i+1 {
-		for j := uint64(0); j < contextP.N; j++ {
-			pcks.tmpP.Coeffs[x][j] = pcks.tmp.Coeffs[i][j]
-		}
-	}
-
-	pcks.baseconverter.ModDownSplitedNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut[0], pcks.tmpP, shareOut[0], pcks.tmp)
-
+	contextKeys.Add(pcks.share0tmp, pcks.tmp, pcks.share0tmp)
 	// h_1 = u_i * pk_1 + e1
 	pcks.ckksContext.GaussianSampler().SampleNTT(pcks.tmp)
-	contextQ.Add(shareOut[1], pcks.tmp, shareOut[1])
+	contextKeys.Add(pcks.share1tmp, pcks.tmp, pcks.share1tmp)
 
-	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(pcks.ckksContext.ContextKeys().Modulus)); x, i = x+1, i+1 {
-		for j := uint64(0); j < contextP.N; j++ {
-			pcks.tmpP.Coeffs[x][j] = pcks.tmp.Coeffs[i][j]
-		}
-	}
+	// h_0 = (u_i * pk_0 + e0)/P
+	pcks.baseconverter.ModDownNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), pcks.share0tmp, shareOut[0], pcks.tmp)
 
-	pcks.baseconverter.ModDownSplitedNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut[1], pcks.tmpP, shareOut[1], pcks.tmp)
+	// h_0 = (u_i * pk_0 + e0)/P
+	pcks.baseconverter.ModDownNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), pcks.share1tmp, shareOut[1], pcks.tmp)
+
+	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
+	contextQ.MulCoeffsMontgomeryAndAddLvl(ct.Level(), ct.Value()[1], sk, shareOut[0])
 
 	pcks.tmp.Zero()
-	pcks.tmpP.Zero()
-
 }
 
 // GenShareRoundTwo is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the

@@ -72,8 +72,6 @@ func Benchmark_Polynomial(b *testing.B) {
 
 		benchmark_SimpleScaler_Scale(T, contextQ, b)
 
-		benchmark_ComplexScaler_Scale(T, contextQ, contextP, contextQP, b)
-
 		benchmark_Marshaler(contextQ, b)
 
 		benchmark_UnMarshaler(contextQ, b)
@@ -162,31 +160,29 @@ func benchmark_KYSGaussPoly(sigma float64, context *Context, b *testing.B) {
 
 func benchmark_TernaryPoly(context *Context, b *testing.B) {
 
-	ternarySampler := context.NewTernarySampler()
-
 	pol := context.NewPoly()
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(0.5)", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.Sample(0.5, pol)
+			context.SampleTernary(pol, 0.5)
 		}
 	})
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(0.5)MontgomeryNTT", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.SampleMontgomeryNTT(0.5, pol)
+			context.SampleTernaryMontgomeryNTT(pol, 0.5)
 		}
 	})
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(1/3)", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.Sample(1.0/3, pol)
+			context.SampleTernary(pol, 1.0/3)
 		}
 	})
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(1/3)MontgomeryNTT", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.SampleMontgomeryNTT(1.0/3, pol)
+			context.SampleTernaryMontgomeryNTT(pol, 1.0/3)
 
 		}
 	})
@@ -397,23 +393,6 @@ func benchmark_SimpleScaler_Scale(T uint64, context *Context, b *testing.B) {
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SimpleScaling", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			SimpleScaler.Scale(p0, p1)
-		}
-	})
-}
-
-func benchmark_ComplexScaler_Scale(T uint64, contextQ, contextP, contextQP *Context, b *testing.B) {
-
-	ComplexScalerQP := NewComplexScaler(T, contextQ, contextP)
-
-	p0 := contextQP.NewUniformPoly()
-	p1 := contextQ.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ComplexScaling", contextQ.N, len(contextP.Modulus), len(contextQ.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ComplexScalerQP.Scale(p0, p1)
-
 		}
 	})
 }

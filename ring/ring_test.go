@@ -115,9 +115,6 @@ func Test_Polynomial(t *testing.T) {
 		// ok!
 		test_SimpleScaling(T, contextQ, contextP, t)
 
-		// ok!
-		test_ComplexScaling(T, contextQ, contextP, contextQP, t)
-
 		test_MultByMonomial(contextQ, t)
 	}
 }
@@ -434,7 +431,6 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 
 	bound := int(sigma * 6)
 	KYS := context.NewKYSampler(sigma, bound)
-	TS := context.NewTernarySampler()
 
 	pol := context.NewPoly()
 
@@ -446,7 +442,7 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 	countZer := 0
 	countMOn := 0
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/NewTernaryPoly", context.N, len(context.Modulus)), func(t *testing.T) {
-		if err := TS.Sample(1.0/3, pol); err != nil {
+		if err := context.SampleTernary(pol, 1.0/3); err != nil {
 			log.Fatal(err)
 		}
 
@@ -729,54 +725,6 @@ func test_SimpleScaling(T uint64, contextT, contextQ *Context, t *testing.T) {
 			if PolWant.Coeffs[0][i] != PolTest.Coeffs[0][i] {
 				t.Errorf("error : simple scaling, want %v have %v", PolWant.Coeffs[0][i], PolTest.Coeffs[0][i])
 				break
-			}
-		}
-	})
-}
-
-func test_ComplexScaling(T uint64, contextQ, contextP, contextQP *Context, t *testing.T) {
-
-	t.Run(fmt.Sprintf("N=%d/limbs=%d+%d/T=%d/ComplexScaling", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus), T), func(t *testing.T) {
-
-		complexRescaler := NewComplexScaler(T, contextQ, contextP)
-
-		coeffs := make([]*Int, contextQ.N)
-		for i := uint64(0); i < contextQ.N; i++ {
-			coeffs[i] = RandInt(contextQP.ModulusBigint)
-			coeffs[i].Div(coeffs[i], NewUint(10))
-		}
-
-		//coeffs[0].SetString("323702478295050366752968655518337494486119222600846780736994466085672189264880022173262")
-		//coeffs[1].SetString("4888963624565002661780158142973932724425930851432042682757127743238542390594193351997723")
-		//coeffs[2].SetString("4282984724308796735476641110474688971631286863366811526364125630744789177542625267835653")
-		//coeffs[3].SetString("3443920543591757808834812628691980702836925006139799151579776655221448318527620147901056")
-		//coeffs[4].SetString("2435992701314338051709289453765710565896473610780678347020688344988696126710239045561833")
-		//coeffs[5].SetString("3577369130953681317513231564259583867075569841269600848965005473743746265741712227949357")
-		//coeffs[6].SetString("3650829186364460588505284366902239740496861722443649340705308513232282111686882618728671")
-		//coeffs[7].SetString("5413725621145553596020326503684835624178908809180347713780542414099674315138466376924388")
-		//coeffs[8].SetString("2921703598815986183949445434906117845024974748774925667243895094611669622018594882674160")
-
-		coeffsWant := make([]*Int, contextQ.N)
-		for i := range coeffs {
-			coeffsWant[i] = Copy(coeffs[i])
-			coeffsWant[i].Mul(coeffsWant[i], NewUint(T))
-			coeffsWant[i].DivRound(coeffsWant[i], contextQ.ModulusBigint)
-		}
-
-		PolTest := contextQP.NewPoly()
-		PolWant := contextQ.NewPoly()
-
-		contextQP.SetCoefficientsBigint(coeffs, PolTest)
-
-		complexRescaler.Scale(PolTest, PolTest)
-		contextQ.SetCoefficientsBigint(coeffsWant, PolWant)
-
-		for i := uint64(0); i < contextQ.N; i++ {
-			for j := 0; j < len(contextQ.Modulus); j++ {
-				if PolWant.Coeffs[j][i] != PolTest.Coeffs[j][i] {
-					t.Errorf("error : complex scaling coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), PolWant.Coeffs[j][i], PolTest.Coeffs[j][i])
-					break
-				}
 			}
 		}
 	})

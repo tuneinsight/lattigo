@@ -13,7 +13,6 @@ type RKGProtocol struct {
 	keyswitchprimes []uint64
 	alpha           uint64
 	beta            uint64
-	ternarySampler  *ring.TernarySampler
 	gaussianSampler *ring.KYSampler
 	tmpPoly1        *ring.Poly
 	tmpPoly2        *ring.Poly
@@ -52,7 +51,6 @@ func NewEkgProtocol(context *bfv.BfvContext) *RKGProtocol {
 	ekg.alpha = uint64(len(ekg.keyswitchprimes))
 	ekg.beta = uint64(math.Ceil(float64(len(ekg.ringContext.Modulus)-len(ekg.keyswitchprimes)) / float64(ekg.alpha)))
 
-	ekg.ternarySampler = context.TernarySampler()
 	ekg.gaussianSampler = context.GaussianSampler()
 
 	ekg.tmpPoly1 = ekg.ringContext.NewPoly()
@@ -66,7 +64,7 @@ func NewEkgProtocol(context *bfv.BfvContext) *RKGProtocol {
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
 func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly, err error) {
-	if ephemeralKey, err = ekg.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
+	if ephemeralKey, err = ekg.ringContext.SampleTernaryMontgomeryNTTNew(p); err != nil {
 		return nil, err
 	}
 	return

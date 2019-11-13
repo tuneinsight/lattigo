@@ -462,6 +462,8 @@ func testPublicKeySwitching(t *testing.T) {
 
 				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
 
+				params.evaluator.DropLevel(ciphertext.Element(), 1)
+
 				type Party struct {
 					*PCKSProtocol
 					s     *ring.Poly

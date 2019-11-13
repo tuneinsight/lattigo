@@ -28,13 +28,11 @@ type BfvContext struct {
 	// Ternary and Gaussian samplers
 	sigma           float64
 	gaussianSampler *ring.KYSampler
-	ternarySampler  *ring.TernarySampler
 
 	// Polynomial contexts
-	contextT  *ring.Context
-	contextQ  *ring.Context
-	contextP  *ring.Context
-	contextQP *ring.Context
+	contextT *ring.Context
+	contextQ *ring.Context
+	contextP *ring.Context
 
 	QHalf *ring.Int
 	PHalf *ring.Int
@@ -103,7 +101,6 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	bfvContext.contextT = ring.NewContext()
 	bfvContext.contextQ = ring.NewContext()
 	bfvContext.contextP = ring.NewContext()
-	bfvContext.contextQP = ring.NewContext()
 	bfvContext.contextKeys = ring.NewContext()
 	bfvContext.contextPKeys = ring.NewContext()
 
@@ -136,10 +133,6 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	}
 
 	if err := bfvContext.contextP.GenNTTParams(); err != nil {
-		return err
-	}
-
-	if err := bfvContext.contextQP.Merge(bfvContext.contextQ, bfvContext.contextP); err != nil {
 		return err
 	}
 
@@ -210,7 +203,6 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	bfvContext.sigma = sigma
 
 	bfvContext.gaussianSampler = bfvContext.contextKeys.NewKYSampler(sigma, int(6*sigma))
-	bfvContext.ternarySampler = bfvContext.contextKeys.NewTernarySampler()
 
 	bfvContext.gen = GaloisGen
 	bfvContext.genInv = ring.ModExp(bfvContext.gen, (N<<1)-1, N<<1)
@@ -284,11 +276,6 @@ func (bfvContext *BfvContext) ContextP() *ring.Context {
 	return bfvContext.contextP
 }
 
-// ContextQP returns the polynomial (ring) context of the extended ciphertext modulus, of the target bfvcontext.
-func (bfvContext *BfvContext) ContextQP() *ring.Context {
-	return bfvContext.contextQP
-}
-
 // ContextKeys returns the polynomial (ring) context used for the key-generation.
 func (bfvContext *BfvContext) ContextKeys() *ring.Context {
 	return bfvContext.contextKeys
@@ -317,9 +304,4 @@ func (bfvcontext *BfvContext) RescaleParamsKeys() []uint64 {
 // GaussianSampler returns the context's gaussian sampler instance
 func (bfvContext *BfvContext) GaussianSampler() *ring.KYSampler {
 	return bfvContext.gaussianSampler
-}
-
-// TernarySampler returns the context's ternary sampler instance
-func (bfvcontext *BfvContext) TernarySampler() *ring.TernarySampler {
-	return bfvcontext.ternarySampler
 }

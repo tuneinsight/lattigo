@@ -73,7 +73,7 @@ func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
 func (keygen *KeyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey, err error) {
 
 	sk = new(SecretKey)
-	if sk.sk, err = keygen.bfvcontext.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
+	if sk.sk, err = keygen.bfvcontext.contextKeys.SampleTernaryMontgomeryNTTNew(p); err != nil {
 		return nil, err
 	}
 

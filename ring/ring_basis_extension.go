@@ -19,8 +19,6 @@ type BasisExtender struct {
 	qispjMont [][]uint64
 	// Q*v (mod each Pj) for v in [1,...,k] where k is the number of Pj modulies
 	qpjInv [][]uint64
-	// Qi as a float128 variable
-	qiFloat128 []Float128
 }
 
 // NewBasisExtender creates a new BasisExtender, that will be used to extend a polynomial in basis Q to a polynomial in basis Q + P.
@@ -43,7 +41,6 @@ func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 	newParams.qibMont = make([]uint64, len(contextQ.Modulus))
 	newParams.qispjMont = make([][]uint64, len(contextQ.Modulus))
 	newParams.qpjInv = make([][]uint64, len(contextP.Modulus))
-	newParams.qiFloat128 = make([]Float128, len(contextQ.Modulus))
 
 	for i, qi := range contextQ.Modulus {
 
@@ -61,8 +58,6 @@ func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 			PjB.SetUint(pj)
 			newParams.qispjMont[i][j] = MForm(tmp.Mod(&QiStar, &PjB).Uint64(), pj, contextP.bredParams[j])
 		}
-
-		newParams.qiFloat128[i] = Float128SetUint64(qi)
 	}
 
 	// Correction Term (v*Q) mod each Pj
@@ -116,7 +111,7 @@ func (Parameters *BasisExtender) ExtendBasis(p1, p2 *Poly) {
 
 			y[i] = MRed(p1.Coeffs[i][x], Parameters.qibMont[i], qi, Parameters.contextQ.mredParams[i])
 
-			vflo += float64(y[i]) / float64(qi) //Parameters.qiFloat128[i][0]
+			vflo += float64(y[i]) / float64(qi)
 		}
 
 		// Index of the correction term
@@ -160,7 +155,7 @@ func (Parameters *BasisExtender) ExtendBasisSplit(p1, p2 *Poly) {
 
 			y[i] = MRed(p1.Coeffs[i][x], Parameters.qibMont[i], qi, Parameters.contextQ.mredParams[i])
 
-			vflo += float64(y[i]) / float64(qi) //Parameters.qiFloat128[i][0]
+			vflo += float64(y[i]) / float64(qi)
 		}
 
 		// Index of the correction term
@@ -313,13 +308,13 @@ func (basisextender *FastBasisExtender) ModUpSplit(level uint64, p1, p2 *Poly) {
 func (basisextender *FastBasisExtender) ModDownNTT(contextQ, contextP *Context, rescalParamsKeys []uint64, level uint64, p1, p2, polypool *Poly) {
 
 	// First we get the P basis part of p1 out of the NTT domain
-	for j := uint64(0); j < uint64(len(basisextender.paramsQP.P)); j++ {
-		InvNTT(p1.Coeffs[level+1+j], p1.Coeffs[level+1+j], contextP.N, contextP.GetNttPsiInv()[j], contextP.GetNttNInv()[j], contextP.Modulus[j], contextP.GetMredParams()[j])
+	for j := 0; j < len(contextP.Modulus); j++ {
+		InvNTT(p1.Coeffs[len(contextQ.Modulus)+j], p1.Coeffs[len(contextQ.Modulus)+j], contextP.N, contextP.GetNttPsiInv()[j], contextP.GetNttNInv()[j], contextP.Modulus[j], contextP.GetMredParams()[j])
 	}
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	modUpExact(p1.Coeffs[level+1:level+1+uint64(len(basisextender.paramsQP.P))], polypool.Coeffs[:level+1], basisextender.paramsPQ)
+	modUpExact(p1.Coeffs[len(contextQ.Modulus):len(contextQ.Modulus)+len(contextP.Modulus)], polypool.Coeffs[:level+1], basisextender.paramsPQ)
 
 	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {

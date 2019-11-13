@@ -40,6 +40,9 @@ type Context struct {
 
 	rescaleParams [][]uint64
 
+	matrixTernary           [][]uint64
+	matrixTernaryMontgomery [][]uint64
+
 	//NTT Parameters
 	psiMont    []uint64 //2nth primitive root in montgomery form
 	psiInvMont []uint64 //2nth inverse primitive root in montgomery form
@@ -52,45 +55,6 @@ type Context struct {
 // NewContext generates a new empty context.
 func NewContext() *Context {
 	return new(Context)
-}
-
-// TODO : comment
-func (context *Context) CopyNew() (contextCopy *Context) {
-	contextCopy = new(Context)
-	contextCopy.N = context.N
-	contextCopy.Modulus = make([]uint64, len(context.Modulus))
-	contextCopy.mask = make([]uint64, len(context.Modulus))
-	contextCopy.allowsNTT = context.allowsNTT
-	contextCopy.ModulusBigint = Copy(context.ModulusBigint)
-	contextCopy.CrtReconstruction = make([]*Int, len(context.Modulus))
-	contextCopy.bredParams = make([][]uint64, len(context.Modulus))
-	contextCopy.mredParams = make([]uint64, len(context.Modulus))
-	contextCopy.psiMont = make([]uint64, len(context.Modulus))
-	contextCopy.psiInvMont = make([]uint64, len(context.Modulus))
-	contextCopy.nttPsi = make([][]uint64, len(context.Modulus))
-	contextCopy.nttPsiInv = make([][]uint64, len(context.Modulus))
-	contextCopy.nttNInv = make([]uint64, len(context.Modulus))
-
-	for i := range context.Modulus {
-		contextCopy.Modulus[i] = context.Modulus[i]
-		contextCopy.mask[i] = context.mask[i]
-		contextCopy.CrtReconstruction[i] = Copy(context.CrtReconstruction[i])
-		contextCopy.bredParams[i] = make([]uint64, 2)
-		contextCopy.bredParams[i][0] = context.bredParams[i][0]
-		contextCopy.bredParams[i][1] = context.bredParams[i][1]
-		contextCopy.mredParams[i] = context.mredParams[i]
-		contextCopy.psiMont[i] = context.psiMont[i]
-		contextCopy.psiInvMont[i] = context.psiInvMont[i]
-		contextCopy.nttPsi[i] = make([]uint64, context.N)
-		contextCopy.nttPsiInv[i] = make([]uint64, context.N)
-		for j := uint64(0); j < context.N; j++ {
-			contextCopy.nttPsi[i][j] = context.nttPsi[i][j]
-			contextCopy.nttPsiInv[i][j] = context.nttPsiInv[i][j]
-		}
-		contextCopy.nttNInv[i] = context.nttNInv[i]
-	}
-
-	return
 }
 
 // SetParameters initialize the parameters of an empty context with N and the provided moduli.
@@ -134,6 +98,22 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
 		if (qi&(qi-1)) != 0 && qi != 0 {
 			context.mredParams[i] = MRedParams(qi)
 		}
+	}
+
+	context.matrixTernary = make([][]uint64, len(context.Modulus))
+	context.matrixTernaryMontgomery = make([][]uint64, len(context.Modulus))
+
+	for i, Qi := range context.Modulus {
+
+		context.matrixTernary[i] = make([]uint64, 3)
+		context.matrixTernary[i][0] = 0
+		context.matrixTernary[i][1] = 1
+		context.matrixTernary[i][2] = Qi - 1
+
+		context.matrixTernaryMontgomery[i] = make([]uint64, 3)
+		context.matrixTernaryMontgomery[i][0] = 0
+		context.matrixTernaryMontgomery[i][1] = MForm(1, Qi, context.bredParams[i])
+		context.matrixTernaryMontgomery[i][2] = MForm(Qi-1, Qi, context.bredParams[i])
 	}
 
 	return nil

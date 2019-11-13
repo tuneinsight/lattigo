@@ -45,7 +45,6 @@ type CkksContext struct {
 
 	// Samplers
 	gaussianSampler *ring.KYSampler
-	ternarySampler  *ring.TernarySampler
 
 	// Galoi generator for the rotations, encoding and decoding params
 	gen    uint64
@@ -177,7 +176,6 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 	}
 
 	ckkscontext.gaussianSampler = ckkscontext.contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))
-	ckkscontext.ternarySampler = ckkscontext.contextKeys.NewTernarySampler()
 
 	var m, mask uint64
 
@@ -281,9 +279,4 @@ func (ckksContext *CkksContext) Sigma() float64 {
 // GaussianSampler returns the context's gaussian sampler instance
 func (ckksContext *CkksContext) GaussianSampler() *ring.KYSampler {
 	return ckksContext.gaussianSampler
-}
-
-// TernarySampler returns the context's ternary sampler instance
-func (ckksContext *CkksContext) TernarySampler() *ring.TernarySampler {
-	return ckksContext.ternarySampler
 }

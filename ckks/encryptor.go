@@ -104,26 +104,36 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 	contextKeys := encryptor.ckkscontext.contextKeys
 	contextQ := encryptor.ckkscontext.contextQ
-	contextP := encryptor.ckkscontext.contextP
 
 	encryptor.ckkscontext.contextKeys.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
 
+	// ct0 = u*pk0
 	contextKeys.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
+	// ct1 = u*pk1
 	contextKeys.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
-	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool[2])
-	contextKeys.Add(encryptor.polypool[0], encryptor.polypool[2], encryptor.polypool[0])
+	// 2*(#Q + #P) NTT
+	contextKeys.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	contextKeys.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
-	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool[2])
-	contextKeys.Add(encryptor.polypool[1], encryptor.polypool[2], encryptor.polypool[1])
+	// ct0 = u*pk0 + e0
+	encryptor.ckkscontext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+	// ct1 = u*pk1 + e1
+	encryptor.ckkscontext.gaussianSampler.SampleAndAdd(encryptor.polypool[1])
 
-	// We rescal the encryption of zero by the special prime, dividing the error by this prime
-	encryptor.baseconverter.ModDownNTT(contextQ, contextP, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
-	encryptor.baseconverter.ModDownNTT(contextQ, contextP, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+	// ct0 = (u*pk0 + e0)/P
+	encryptor.baseconverter.ModDown(contextKeys, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
 
-	// We switch to the ciphertext context and add the message to the encryption of zero
+	// ct1 = (u*pk1 + e1)/P
+	encryptor.baseconverter.ModDown(contextKeys, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
 
 	ciphertext.SetCurrentModulus(contextQ.ModulusBigint)
+
+	// 2*#Q NTT
+	contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
+	contextQ.NTT(ciphertext.value[1], ciphertext.value[1])
+
+	// ct0 = (u*pk0 + e0)/P + m
 	contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
 	ciphertext.isNTT = true
@@ -131,23 +141,33 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
 	contextKeys := encryptor.ckkscontext.contextKeys
-	contextQ := encryptor.ckkscontext.contextQ
 	contextP := encryptor.ckkscontext.contextP
+	contextQ := encryptor.ckkscontext.contextQ
 
-	// ct = [e, a]
+	// ct1 = a
 	contextKeys.UniformPoly(encryptor.polypool[1])
-	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool[0])
-
-	// ct = [-s*a + e, a]
+	// ct0 = -s*a
 	contextKeys.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
 
+	// #Q + #P NTT
+	contextKeys.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+
+	// ct0 = -s*a + e
+	encryptor.ckkscontext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+
 	// We rescal by the special prime, dividing the error by this prime
-	encryptor.baseconverter.ModDownNTT(contextQ, contextP, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	// ct0 = (-s*a + e)/P
+	encryptor.baseconverter.ModDown(contextKeys, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+
+	// #Q + #P NTT
+	// ct1 = a/P
 	encryptor.baseconverter.ModDownNTT(contextQ, contextP, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
-	// We switch to the ciphertext context and add the message
-	// ct = [-s*a + m + e, a]
+
+	// #Q NTT
+	contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
 
 	ciphertext.SetCurrentModulus(contextQ.ModulusBigint)
+	// ct0 = -s*a + m + e
 	contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
 	ciphertext.isNTT = true

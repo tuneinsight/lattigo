@@ -16,7 +16,7 @@ func check(t *testing.T, err error) {
 
 type dbfvContext struct {
 	bfvContext *bfv.BfvContext
-	encoder    *bfv.BatchEncoder
+	encoder    *bfv.Encoder
 	kgen       *bfv.KeyGenerator
 
 	sk0Shards []*bfv.SecretKey
@@ -68,7 +68,7 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 		log.Fatal(err)
 	}
 
-	params.encoder, _ = params.bfvContext.NewBatchEncoder()
+	params.encoder = params.bfvContext.NewEncoder()
 	params.evaluator = params.bfvContext.NewEvaluator()
 
 	kgen := params.bfvContext.NewKeyGenerator()

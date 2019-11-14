@@ -162,6 +162,13 @@ func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) (err error)
 		return err
 	}
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.Sub)
+
+	if el0.Degree() < el1.Degree() {
+		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
+			evaluator.bfvcontext.contextQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
+		}
+	}
+
 	return nil
 }
 
@@ -178,6 +185,13 @@ func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) (err e
 		return err
 	}
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.SubNoMod)
+
+	if el0.Degree() < el1.Degree() {
+		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
+			evaluator.bfvcontext.contextQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
+		}
+	}
+
 	return nil
 }
 
@@ -510,6 +524,11 @@ func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingK
 	return ctOut, evaluator.SwitchKeys(ct0, switchkey, ctOut)
 }
 
+func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
+	ctOut = evaluator.bfvcontext.NewCiphertext(1)
+	return ctOut, evaluator.RotateColumns(ct0, k, evakey, ctOut)
+}
+
 // RotateColumns rotates the columns of ct0 by k position to the left and returns the result on ctOut. As an additional input it requires a rotationkeys :
 //
 // - it must either store all the left and right power of 2 rotations or the specific rotation that is asked.
@@ -621,6 +640,11 @@ func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ct
 	evaluator.permute(ct0, evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row, ctOut)
 
 	return nil
+}
+
+func (evaluator *Evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
+	ctOut = evaluator.bfvcontext.NewCiphertext(1)
+	return ctOut, evaluator.RotateRows(ct0, evakey, ctOut)
 }
 
 // InnerSum computs the inner sum of ct0 and returns the result on ctOut. It requires a rotation key storing all the left power of two rotations.

@@ -56,10 +56,7 @@ func ObliviousRiding() {
 		log.Fatal(err)
 	}
 
-	batchEncoder, err := bfvContext.NewBatchEncoder()
-	if err != nil {
-		log.Fatal(err)
-	}
+	encoder := bfvContext.NewEncoder()
 
 	// Rider's keygen
 	kgen := bfvContext.NewKeyGenerator()
@@ -108,7 +105,7 @@ func ObliviousRiding() {
 	}
 
 	RiderPlaintext := bfvContext.NewPlaintext()
-	batchEncoder.EncodeUint(Rider, RiderPlaintext)
+	encoder.EncodeUint(Rider, RiderPlaintext)
 
 	// Drivers coordinates [0, 0, ..., x, y, ..., 0, 0]
 	for i := uint64(0); i < params.N>>1; i++ {
@@ -120,7 +117,7 @@ func ObliviousRiding() {
 	DriversPlaintexts := make([]*bfv.Plaintext, NbDrivers)
 	for i := uint64(0); i < NbDrivers; i++ {
 		DriversPlaintexts[i] = bfvContext.NewPlaintext()
-		batchEncoder.EncodeUint(Drivers[i], DriversPlaintexts[i])
+		encoder.EncodeUint(Drivers[i], DriversPlaintexts[i])
 	}
 
 	fmt.Printf("Encrypting %d Drivers (x, y) and 1 Rider (%d, %d) \n", NbDrivers, riderposition[0], riderposition[1])
@@ -154,7 +151,7 @@ func ObliviousRiding() {
 	res, _ := evaluator.MulNew(RiderCiphertext, RiderCiphertext)
 	RiderCiphertext = res.Ciphertext()
 
-	result := batchEncoder.DecodeUint(Decryptor.DecryptNew(RiderCiphertext))
+	result := encoder.DecodeUint(Decryptor.DecryptNew(RiderCiphertext))
 
 	errors := 0
 	closest := []uint64{0, params.T, params.T, params.T}

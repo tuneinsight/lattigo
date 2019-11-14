@@ -100,20 +100,20 @@ func obliviousRiding() {
 	riderPlaintext := bfvContext.NewPlaintext()
 	batchEncoder.EncodeUint(riderData, riderPlaintext)
 
-	// Encode each driver's position (x, y) as an N-value array [0, 0, ..., x,
-	// y, ..., 0, 0] with the values at the i-th coordinates (i.e. positions 2i
-	// and 2i+1)
+	// Encode each driver i's position (x_i, y_i) as an N-value array [0, 0,
+	// ..., x_i, y_i, ..., 0, 0] with the values at the i-th coordinates (i.e.
+	// positions 2i and 2i+1)
 	driversData := make([][]uint64, nbDrivers)
-	for i := 0; i < nbDrivers; i++ {
-		driversData[i] = make([]uint64, 2*nbDrivers)
-		driversData[i][i<<1] = ring.RandUniform(maxValue, mask)
-		driversData[i][(i<<1)+1] = ring.RandUniform(maxValue, mask)
-	}
-
 	driversPlaintexts := make([]*bfv.Plaintext, nbDrivers)
 	for i := 0; i < nbDrivers; i++ {
+		driverData := make([]uint64, 2*nbDrivers)
+		driverData[i<<1] = ring.RandUniform(maxValue, mask)
+		driverData[(i<<1)+1] = ring.RandUniform(maxValue, mask)
+
 		driversPlaintexts[i] = bfvContext.NewPlaintext()
-		batchEncoder.EncodeUint(driversData[i], driversPlaintexts[i])
+		batchEncoder.EncodeUint(driverData, driversPlaintexts[i])
+
+		driversData[i] = driverData
 	}
 
 	fmt.Printf("Encrypting %d Drivers (x, y) and 1 Rider (%d, %d)\n\n",
@@ -140,22 +140,25 @@ func obliviousRiding() {
 	// Computation performed by the server
 	evaluator := bfvContext.NewEvaluator()
 
-	// riderCiphertext = -riderCiphertext
-	err = evaluator.Neg(riderCiphertext, riderCiphertext)
+	// tmpCiphertext = -riderCiphertext
+	// --> [-x, -y, -x, -y, ..., -x, -y]
+	tmpCiphertext, err := evaluator.NegNew(riderCiphertext)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// riderCiphertext += driversCiphertexts[i] for all drivers
+	// tmpCiphertext += driversCiphertexts[i] for all drivers
+	// --> [x_0-x, y_0-x, x_1-x, y_1-x, ..., x_n-x, y_n-y]
 	for i := 0; i < nbDrivers; i++ {
-		err := evaluator.Add(riderCiphertext, driversCiphertexts[i], riderCiphertext)
+		err := evaluator.Add(tmpCiphertext, driversCiphertexts[i], tmpCiphertext)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	// riderCiphertext = riderCiphertext * riderCiphertext (element-wise multiplication?)
-	resultCiphertext, err := evaluator.MulNew(riderCiphertext, riderCiphertext)
+	// resultCiphertext = tmpCiphertext * tmpCiphertext (element-wise multiplication?)
+	// --> [(x_0-x)^2, (y_0-y)^2, (x_1-x)^2, (y_1-y)^2, ..., (x_n-x)^2, (y_n-y)^2]
+	resultCiphertext, err := evaluator.MulNew(tmpCiphertext, tmpCiphertext)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -165,7 +168,7 @@ func obliviousRiding() {
 	result := batchEncoder.DecodeUint(resultPlaintext)
 
 	// Compute the shortest distance, and check that the computations performed on the ciphertext are correct
-	closestIndex, closestPosX, closestPosY, closestDist := 0, params.T, params.T, params.T
+	minIndex, minPosX, minPosY, minDist := 0, params.T, params.T, params.T
 	errors := 0
 
 	for i := 0; i < nbDrivers; i++ {
@@ -175,10 +178,10 @@ func obliviousRiding() {
 		expectedDist := distance(driverPosX, driverPosY, riderPosX, riderPosY)
 
 		if computedDist == expectedDist {
-			if computedDist < closestDist {
-				closestIndex = i
-				closestPosX, closestPosY = driverPosX, driverPosY
-				closestDist = computedDist
+			if computedDist < minDist {
+				minIndex = i
+				minPosX, minPosY = driverPosX, driverPosY
+				minDist = computedDist
 			}
 		} else {
 			errors++
@@ -196,7 +199,7 @@ func obliviousRiding() {
 
 	fmt.Printf("\nFinished with %.2f%% errors\n\n", 100*float64(errors)/float64(nbDrivers))
 	fmt.Printf("Closest Driver to Rider is n°%d (%d, %d) with a distance of %d units\n",
-		closestIndex, closestPosX, closestPosY, uint64(math.Sqrt(float64(closestDist))))
+		minIndex, minPosX, minPosY, uint64(math.Sqrt(float64(minDist))))
 }
 
 func distance(a, b, c, d uint64) uint64 {

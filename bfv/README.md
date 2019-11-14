@@ -24,7 +24,7 @@ maps an array of integers to a polynomial with the property:
 <p align="center">
 <img src="https://latex.codecogs.com/gif.latex?decode%28encode%28m_1%29%20%5Cotimes%20encode%28m_2%29%29%20%3D%20m_1%20%5Codot%20m_2">,
 </p>
-where  represents <img src="https://latex.codecogs.com/gif.latex?%5Codot"> a component-wise product, and <img src="https://latex.codecogs.com/gif.latex?%5Cotimes"> represents a nega-cyclic convolution.
+where  represents ![equation](https://latex.codecogs.com/gif.latex?%24%5Codot%24) a component-wise product, and ![equation](https://latex.codecogs.com/gif.latex?%24%5Cotimes%24) represents a nega-cyclic convolution.
 
 ## Security parameters
 

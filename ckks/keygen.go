@@ -27,7 +27,7 @@ type Rotation int
 const (
 	RotationRight = iota + 1
 	RotationLeft
-	RotationRow
+	Conjugate
 )
 
 // Rotationkeys is a structure that stores the switching-keys required during the homomorphic rotations.
@@ -244,7 +244,7 @@ func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 		if rotKey.evakey_rot_col_R[k] == nil && k != 0 {
 			rotKey.evakey_rot_col_R[k] = keygen.genrotKey(sk.Get(), keygen.ckksContext.galElRotColRight[k])
 		}
-	case RotationRow:
+	case Conjugate:
 		rotKey.evakey_rot_row = keygen.genrotKey(sk.Get(), keygen.ckksContext.galElRotRow)
 	}
 }
@@ -295,7 +295,7 @@ func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*r
 				rotKey.evakey_rot_col_R[k].evakey[j][1] = evakey[j][1].CopyNew()
 			}
 		}
-	case RotationRow:
+	case Conjugate:
 		if rotKey.evakey_rot_row == nil {
 			rotKey.evakey_rot_row = new(SwitchingKey)
 			rotKey.evakey_rot_row.evakey = make([][2]*ring.Poly, len(evakey))

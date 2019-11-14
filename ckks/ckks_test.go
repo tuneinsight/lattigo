@@ -2,7 +2,7 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/ring"
+	//"github.com/ldsec/lattigo/ring"
 	"log"
 	"math"
 	"math/cmplx"
@@ -12,213 +12,170 @@ import (
 	"time"
 )
 
-type CKKSTESTPARAMS struct {
-	medianprec  float64
-	ckkscontext *CkksContext
-	slots       uint64
+func check(t *testing.T, err error) {
+	if err != nil {
+		t.Error(err)
+		log.Fatal(err)
+	}
+}
+
+func testString(opname string, params *ckksParams) string {
+	return fmt.Sprintf("%slogN=%d/logQ=%d/levels=%d/a=%d/b=%d", opname, params.ckksContext.logN, params.ckksContext.logQ, params.ckksContext.levels, params.ckksContext.alpha, params.ckksContext.beta)
+}
+
+type ckksParams struct {
+	ckksContext *CkksContext
 	encoder     *Encoder
-	levels      uint64
-	scale       float64
 	kgen        *KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
-	rlk         *EvaluationKey
-	rotkey      *RotationKeys
 	encryptorPk *Encryptor
 	encryptorSk *Encryptor
 	decryptor   *Decryptor
 	evaluator   *Evaluator
 }
 
-func randomFloat(min, max float64) float64 {
-	return min + rand.Float64()*(max-min)
+type ckksTestParameters struct {
+	verbose    bool
+	medianprec float64
+	slots      uint64
+
+	ckksParameters []*Parameters
 }
 
-func randomComplex(min, max float64) complex128 {
-	return complex(randomFloat(min, max), randomFloat(min, max))
+var err error
+var testParams = new(ckksTestParameters)
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+
+	testParams.medianprec = 15
+	testParams.verbose = false
+
+	testParams.ckksParameters = []*Parameters{
+		DefaultParams[13],
+		DefaultParams[14],
+		//DefaultParams[15],
+		//DefaultParams[16],
+	}
 }
 
 func Test_CKKS(t *testing.T) {
+	t.Run("Encoder", testEncoder)
+	t.Run("Encryptor", testEncryptor)
+	t.Run("Evaluator/Add", testEvaluatorAdd)
+	t.Run("Evaluator/Sub", testEvaluatorSub)
+	t.Run("Evaluator/Rescale", testEvaluatorRescale)
+	t.Run("Evaluator/AddConst", testEvaluatorAddConst)
+	t.Run("Evaluator/MultConst", testEvaluatorMultConst)
+	t.Run("Evaluator/MultConstAndAdd", testEvaluatorMultConstAndAdd)
+	t.Run("Evaluator/Mul", testEvaluatorMul)
+	t.Run("Evaluator/Functions", testFunctions)
+	t.Run("Evaluator/ChebyshevInterpolator", testChebyshevInterpolator)
+	t.Run("Evaluator/SwitchKeys", testSwitchKeys)
+	t.Run("Evaluator/Conjugate", testConjugate)
+	t.Run("Evaluator/RotateColumns", testRotateColumns)
+}
 
-	rand.Seed(time.Now().UnixNano())
+func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
-	var err error
+	params = new(ckksParams)
 
-	medianprec := float64(20) // target median precision in log2 among all the coeffs, determines the success/failure of a test
-
-	params := Parameters{10, []uint8{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45}, []uint8{55, 55}, 1 << 45, 3.2}
-
-	ckksTest := new(CKKSTESTPARAMS)
-
-	ckksTest.medianprec = medianprec
-
-	ckksTest.slots = 1 << 9
-
-	ckksTest.levels = uint64(len(params.Modulichain))
-	ckksTest.scale = params.Scale
-
-	if ckksTest.ckkscontext, err = NewCkksContext(&params); err != nil {
-		t.Error(err)
+	if params.ckksContext, err = NewCkksContext(contextParameters); err != nil {
+		log.Fatal(err)
 	}
 
-	log.Printf("Generated CkksContext for logN=%d/logQ=%d/levels=%d/a=%d/b=%d/sigma=%f",
-		ckksTest.ckkscontext.LogN(),
-		ckksTest.ckkscontext.LogQ(),
-		ckksTest.ckkscontext.Levels(),
-		ckksTest.ckkscontext.alpha,
-		ckksTest.ckkscontext.beta,
-		ckksTest.ckkscontext.Sigma())
+	params.kgen = params.ckksContext.NewKeyGenerator()
 
-	for i, qi := range ckksTest.ckkscontext.ContextKeys().Modulus {
-		fmt.Println(i, qi)
+	params.sk, params.pk = params.kgen.NewKeyPairSparse(128)
+
+	params.encoder = params.ckksContext.NewEncoder()
+
+	if params.encryptorPk, err = params.ckksContext.NewEncryptorFromPk(params.pk); err != nil {
+		log.Fatal(err)
 	}
 
-	ckksTest.kgen = ckksTest.ckkscontext.NewKeyGenerator()
-
-	ckksTest.sk, ckksTest.pk = ckksTest.kgen.NewKeyPairSparse(96)
-
-	ckksTest.encoder = ckksTest.ckkscontext.NewEncoder()
-
-	if ckksTest.encryptorPk, err = ckksTest.ckkscontext.NewEncryptorFromPk(ckksTest.pk); err != nil {
-		t.Error(err)
+	if params.encryptorSk, err = params.ckksContext.NewEncryptorFromSk(params.sk); err != nil {
+		log.Fatal(err)
 	}
 
-	if ckksTest.encryptorSk, err = ckksTest.ckkscontext.NewEncryptorFromSk(ckksTest.sk); err != nil {
-		t.Error(err)
+	if params.decryptor, err = params.ckksContext.NewDecryptor(params.sk); err != nil {
+		log.Fatal(err)
 	}
 
-	if ckksTest.decryptor, err = ckksTest.ckkscontext.NewDecryptor(ckksTest.sk); err != nil {
-		t.Error(err)
-	}
+	params.evaluator = params.ckksContext.NewEvaluator()
 
-	ckksTest.evaluator = ckksTest.ckkscontext.NewEvaluator()
-
-	log.Printf("Generating relinearization keys")
-	ckksTest.rlk = ckksTest.kgen.NewRelinKey(ckksTest.sk)
-
-	log.Printf("Generating rotation keys for conjugate and powers of 2")
-	ckksTest.rotkey = ckksTest.kgen.NewRotationKeysPow2(ckksTest.sk)
-
-	test_Encoder(ckksTest, t)
-	test_EncryptDecrypt(ckksTest, t)
-	test_Add(ckksTest, t)
-	test_Sub(ckksTest, t)
-	test_AddConst(ckksTest, t)
-	test_MulConst(ckksTest, t)
-	test_MultByConstAndAdd(ckksTest, t)
-	test_ComplexOperations(ckksTest, t)
-	test_Mul(ckksTest, t)
-
-	if len(params.Modulichain) > 9 {
-		test_sin2pi2pi(ckksTest, t)
-		test_Functions(ckksTest, t)
-	}
-	test_SwitchKeys(ckksTest, t)
-	test_Conjugate(ckksTest, t)
-	test_RotColumns(ckksTest, t)
+	return
 
 }
 
-func test_sin2pi2pi(params *CKKSTESTPARAMS, t *testing.T) {
+func new_test_vectors(contextParams *ckksParams, encryptor *Encryptor, a float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/sin(2*pi*x)/(2*pi) [-12, 12] deg128", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.alpha,
-		params.ckkscontext.beta), func(t *testing.T) {
+	slots := contextParams.ckksContext.Slots()
 
-		values, _, ciphertext1, err := new_test_vectors_reals(params, -0.01, 0.01)
-		if err != nil {
-			t.Error(err)
-		}
+	values = make([]complex128, slots)
 
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = sin2pi2pi(values[i])
-		}
-
-		cheby := Approximate(sin2pi2pi, -12, 12, 118)
-
-		if ciphertext1, err = params.evaluator.EvaluateCheby(ciphertext1, cheby, params.rlk); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-}
-
-func new_test_vectors(params *CKKSTESTPARAMS, a, b float64) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext, err error) {
-
-	values = make([]complex128, params.slots)
-
-	for i := uint64(0); i < params.slots; i++ {
-		values[i] = randomComplex(a, b)
+	for i := uint64(0); i < slots; i++ {
+		values[i] = randomComplex(-a, a)
 	}
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
+	plaintext = contextParams.ckksContext.NewPlaintext(contextParams.ckksContext.Levels()-1, contextParams.ckksContext.Scale())
 
-	if err = params.encoder.Encode(plaintext, values, params.slots); err != nil {
-		return nil, nil, nil, err
+	check(t, contextParams.encoder.Encode(plaintext, values, slots))
+
+	if encryptor != nil {
+		ciphertext, err = encryptor.EncryptNew(plaintext)
+		check(t, err)
 	}
 
-	ciphertext, err = params.encryptorPk.EncryptNew(plaintext)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return values, plaintext, ciphertext, nil
+	return values, plaintext, ciphertext
 }
 
-func new_test_vectors_reals(params *CKKSTESTPARAMS, a, b float64) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext, err error) {
+func new_test_vectors_reals(contextParams *ckksParams, encryptor *Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	values = make([]complex128, params.slots)
+	slots := contextParams.ckksContext.Slots()
 
-	for i := uint64(0); i < params.slots; i++ {
+	values = make([]complex128, slots)
+
+	for i := uint64(0); i < slots; i++ {
 		values[i] = complex(randomFloat(a, b), 0)
 	}
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
+	plaintext = contextParams.ckksContext.NewPlaintext(contextParams.ckksContext.Levels()-1, contextParams.ckksContext.Scale())
 
-	if err = params.encoder.Encode(plaintext, values, params.slots); err != nil {
-		return nil, nil, nil, err
+	check(t, contextParams.encoder.Encode(plaintext, values, slots))
+
+	if encryptor != nil {
+		ciphertext, err = encryptor.EncryptNew(plaintext)
+		check(t, err)
 	}
 
-	ciphertext, err = params.encryptorPk.EncryptNew(plaintext)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return values, plaintext, ciphertext, nil
+	return values, plaintext, ciphertext
 }
 
-func verify_test_vectors(params *CKKSTESTPARAMS, valuesWant []complex128, element *ckksElement, t *testing.T) (err error) {
+func verify_test_vectors(contextParams *ckksParams, decryptor *Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	var plaintextTest *Plaintext
 	var valuesTest []complex128
 
-	if element.Degree() == 0 {
-
-		plaintextTest = element.Plaintext()
-
-	} else {
-
-		plaintextTest = params.decryptor.DecryptNew(element.Ciphertext())
+	switch element.(type) {
+	case *Ciphertext:
+		plaintextTest = decryptor.DecryptNew(element.(*Ciphertext))
+	case *Plaintext:
+		plaintextTest = element.(*Plaintext)
 	}
 
-	valuesTest = params.encoder.Decode(plaintextTest, params.slots)
+	valuesTest = contextParams.encoder.Decode(plaintextTest, contextParams.ckksContext.Slots())
 
 	var deltaReal, deltaImag float64
 
 	var minprec, maxprec, meanprec, medianprec complex128
 
-	diff := make([]complex128, params.slots)
+	diff := make([]complex128, contextParams.ckksContext.Slots())
 
 	minprec = complex(0, 0)
 	maxprec = complex(1, 1)
@@ -229,8 +186,6 @@ func verify_test_vectors(params *CKKSTESTPARAMS, valuesWant []complex128, elemen
 	distrib_imag := make(map[uint64]uint64)
 
 	for i := range valuesWant {
-
-		// Test the ratio for big values (> 1) and difference for small values (< 1)
 
 		deltaReal = math.Abs(real(valuesTest[i]) - real(valuesWant[i]))
 		deltaImag = math.Abs(imag(valuesTest[i]) - imag(valuesWant[i]))
@@ -260,41 +215,20 @@ func verify_test_vectors(params *CKKSTESTPARAMS, valuesWant []complex128, elemen
 		distrib_imag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))] += 1
 	}
 
-	meanprec /= complex(float64(params.slots), 0)
+	meanprec /= complex(float64(contextParams.ckksContext.Slots()), 0)
 	medianprec = calcmedian(diff)
 
-	t.Log()
-	t.Logf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
-	t.Logf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
-	t.Logf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
-	t.Logf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
-	t.Log()
-
-	if math.Log2(1/real(medianprec)) < params.medianprec || math.Log2(1/imag(medianprec)) < params.medianprec {
-		t.Errorf("Mean precision error : target (%.2f, %.2f) > result (%.2f, %.2f)", params.medianprec, params.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
+	if testParams.verbose {
+		t.Logf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
+		t.Logf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
+		t.Logf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
+		t.Logf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
+		t.Log()
 	}
 
-	/*
-		fmt.Println()
-		fmt.Println("Distribution of the precision :")
-		keys_real := []int{}
-		keys_imag := []int{}
-		for i := range distrib_real {
-			keys_real = append(keys_real, int(i))
-		}
-		for i := range distrib_imag {
-			keys_imag = append(keys_imag, int(i))
-		}
-		sort.Ints(keys_real)
-		sort.Ints(keys_imag)
-		for _, i := range keys_real {
-			fmt.Printf("bits %d : %.2f %% \n", i, (float64(distrib_real[uint64(i)])/float64(params.slots))*100)
-		}
-		for _, i := range keys_imag {
-			fmt.Printf("bits %d : %.2f %% \n", i, (float64(distrib_imag[uint64(i)])/float64(params.slots))*100)
-		}
-	*/
-	return nil
+	if math.Log2(1/real(medianprec)) < testParams.medianprec || math.Log2(1/imag(medianprec)) < testParams.medianprec {
+		t.Errorf("Mean precision error : target (%.2f, %.2f) > result (%.2f, %.2f)", testParams.medianprec, testParams.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
+	}
 }
 
 func calcmedian(values []complex128) (median complex128) {
@@ -334,1035 +268,640 @@ func calcmedian(values []complex128) (median complex128) {
 	return (values[index] + values[index+1]) / 2
 }
 
-func test_Encoder(params *CKKSTESTPARAMS, t *testing.T) {
+func testEncoder(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/EncodeDecodeComplex128", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+	for _, parameters := range testParams.ckksParameters {
 
-		valuesWant := make([]complex128, params.slots)
+		params := genCkksParams(parameters)
 
-		for i := uint64(0); i < params.slots; i++ {
-			valuesWant[i] = randomComplex(0, 5)
-		}
+		t.Run(testString("Encode/", params), func(t *testing.T) {
 
-		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
+			values, plaintext, _ := new_test_vectors(params, nil, 1, t)
 
-		if err := params.encoder.Encode(plaintext, valuesWant, params.slots); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, plaintext.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			verify_test_vectors(params, params.decryptor, values, plaintext, t)
+		})
+	}
 }
 
-func test_EncryptDecrypt(params *CKKSTESTPARAMS, t *testing.T) {
+func testEncryptor(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/EncryptFromPk", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-		var err error
+	for _, parameters := range testParams.ckksParameters {
 
-		valuesWant := make([]complex128, params.slots)
+		params := genCkksParams(parameters)
 
-		for i := uint64(0); i < params.slots; i++ {
-			valuesWant[i] = randomComplex(0, 5)
-		}
+		t.Run(testString("EncryptFromPk/", params), func(t *testing.T) {
 
-		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
+			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, 1, t)
 
-		if err = params.encoder.Encode(plaintext, valuesWant, params.slots); err != nil {
-			t.Error(err)
-		}
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
+	}
 
-		ciphertext, err := params.encryptorPk.EncryptNew(plaintext)
-		if err != nil {
-			t.Error(err)
-		}
+	for _, parameters := range testParams.ckksParameters {
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+		params := genCkksParams(parameters)
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/EncryptFromSk", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-		var err error
+		t.Run(testString("EncryptFromSk/", params), func(t *testing.T) {
 
-		valuesWant := make([]complex128, params.slots)
+			values, _, ciphertext := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		for i := uint64(0); i < params.slots; i++ {
-			valuesWant[i] = randomComplex(0, 5)
-		}
-
-		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
-
-		if err = params.encoder.Encode(plaintext, valuesWant, params.slots); err != nil {
-			t.Error(err)
-		}
-
-		ciphertext, err := params.encryptorSk.EncryptNew(plaintext)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
+	}
 }
 
-func test_Add(params *CKKSTESTPARAMS, t *testing.T) {
+func testEvaluatorAdd(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/AddCtCtInPlace", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+	for _, parameters := range testParams.ckksParameters {
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		params := genCkksParams(parameters)
 
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		t.Run(testString("CtCtInPlace/", params), func(t *testing.T) {
 
-		valuesWant := make([]complex128, params.slots)
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] + values2[i]
-		}
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		if err := params.evaluator.Add(ciphertext1, ciphertext2, ciphertext1); err != nil {
-			t.Error(err)
-		}
+			for i := range values1 {
+				values1[i] += values2[i]
+			}
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			check(t, params.evaluator.Add(ciphertext1, ciphertext2, ciphertext1))
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/AddCtCt", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
+		})
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		t.Run(testString("CtCtNew/", params), func(t *testing.T) {
 
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		receiver := params.ckkscontext.NewCiphertext(1, ciphertext1.Level(), ciphertext1.Scale())
+			for i := range values1 {
+				values1[i] += values2[i]
+			}
 
-		valuesWant := make([]complex128, params.slots)
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] + values2[i]
-		}
+			ciphertext3, err := params.evaluator.AddNew(ciphertext1, ciphertext2)
 
-		if err := params.evaluator.Add(ciphertext1, ciphertext2, receiver); err != nil {
-			t.Error(err)
-		}
+			check(t, err)
 
-		if err := verify_test_vectors(params, valuesWant, receiver.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			verify_test_vectors(params, params.decryptor, values1, ciphertext3, t)
+		})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Add(Ct,Plain)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+		t.Run(testString("CtPlainInPlace/", params), func(t *testing.T) {
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, plaintext2, _ := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		values2, plaintext2, _, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			for i := range values1 {
+				values1[i] += values2[i]
+			}
 
-		valuesWant := make([]complex128, params.slots)
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] + values2[i]
-		}
+			check(t, params.evaluator.Add(ciphertext1, plaintext2, ciphertext1))
 
-		if err := params.evaluator.Add(ciphertext1, plaintext2, ciphertext1); err != nil {
-			t.Error(err)
-		}
+			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			for i := range values1 {
+				values1[i] += values2[i]
+			}
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Add(Plain,Ct)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+			check(t, params.evaluator.Add(plaintext2, ciphertext1, ciphertext1))
 
-		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
+		})
 
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		t.Run(testString("CtPlainInPlaceNew/", params), func(t *testing.T) {
 
-		valuesWant := make([]complex128, params.slots)
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] + values2[i]
-		}
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, plaintext2, _ := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		if err := params.evaluator.Add(plaintext1, ciphertext2, ciphertext2); err != nil {
-			t.Error(err)
-		}
+			for i := range values1 {
+				values1[i] += values2[i]
+			}
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext2.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			ciphertext3, err := params.evaluator.AddNew(ciphertext1, plaintext2)
+
+			check(t, err)
+
+			verify_test_vectors(params, params.decryptor, values1, ciphertext3, t)
+
+			ciphertext3, err = params.evaluator.AddNew(plaintext2, ciphertext1)
+
+			check(t, err)
+
+			verify_test_vectors(params, params.decryptor, values1, ciphertext3, t)
+		})
+	}
 }
 
-func test_Sub(params *CKKSTESTPARAMS, t *testing.T) {
+func testEvaluatorSub(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Sub(Ct,Ct)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+	for _, parameters := range testParams.ckksParameters {
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		params := genCkksParams(parameters)
 
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		t.Run(testString("CtCtInPlace/", params), func(t *testing.T) {
 
-		valuesWant := make([]complex128, params.slots)
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] - values2[i]
-		}
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		if err := params.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1); err != nil {
-			t.Error(err)
-		}
+			for i := range values1 {
+				values1[i] -= values2[i]
+			}
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			check(t, params.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1))
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Sub(Ct,Plain)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
+		})
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		t.Run(testString("CtCtNew/", params), func(t *testing.T) {
 
-		values2, plaintext2, _, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		valuesWant := make([]complex128, params.slots)
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] - values2[i]
-		}
+			for i := range values1 {
+				values1[i] -= values2[i]
+			}
 
-		if err := params.evaluator.Sub(ciphertext1, plaintext2, ciphertext1); err != nil {
-			t.Error(err)
-		}
+			ciphertext3, err := params.evaluator.SubNew(ciphertext1, ciphertext2)
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			check(t, err)
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Sub(Plain,Ct)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+			verify_test_vectors(params, params.decryptor, values1, ciphertext3, t)
+		})
 
-		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		t.Run(testString("CtPlainInPlace/", params), func(t *testing.T) {
 
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, plaintext2, ciphertext2 := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		valuesWant := make([]complex128, params.slots)
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] - values2[i]
-		}
+			valuesTest := make([]complex128, len(values1))
+			for i := range values1 {
+				valuesTest[i] = values1[i] - values2[i]
+			}
 
-		if err := params.evaluator.Sub(plaintext1, ciphertext2, ciphertext2); err != nil {
-			t.Error(err)
-		}
+			check(t, params.evaluator.Sub(ciphertext1, plaintext2, ciphertext2))
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext2.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			verify_test_vectors(params, params.decryptor, valuesTest, ciphertext2, t)
+
+			for i := range values1 {
+				valuesTest[i] = values2[i] - values1[i]
+			}
+
+			check(t, params.evaluator.Sub(plaintext2, ciphertext1, ciphertext2))
+
+			verify_test_vectors(params, params.decryptor, valuesTest, ciphertext2, t)
+		})
+
+		t.Run(testString("CtPlainNew/", params), func(t *testing.T) {
+
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, plaintext2, _ := new_test_vectors(params, params.encryptorSk, 1, t)
+
+			valuesTest := make([]complex128, len(values1))
+			for i := range values1 {
+				valuesTest[i] = values1[i] - values2[i]
+			}
+
+			ciphertext3, err := params.evaluator.SubNew(ciphertext1, plaintext2)
+
+			check(t, err)
+
+			verify_test_vectors(params, params.decryptor, valuesTest, ciphertext3, t)
+
+			for i := range values1 {
+				valuesTest[i] = values2[i] - values1[i]
+			}
+
+			ciphertext3, err = params.evaluator.SubNew(plaintext2, ciphertext1)
+
+			check(t, err)
+
+			verify_test_vectors(params, params.decryptor, valuesTest, ciphertext3, t)
+		})
+	}
 }
 
-func test_AddConst(params *CKKSTESTPARAMS, t *testing.T) {
+func testEvaluatorRescale(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/AddCmplx(Ct,complex128)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+	for _, parameters := range testParams.ckksParameters {
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		params := genCkksParams(parameters)
 
-		constant := complex(3.1415, -1.4142)
+		t.Run(testString("Single/", params), func(t *testing.T) {
 
-		valuesWant := make([]complex128, params.slots)
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] + constant
-		}
+			values, _, ciphertext := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		if err := params.evaluator.AddConst(ciphertext1, constant, ciphertext1); err != nil {
-			t.Error(err)
-		}
+			constant := params.ckksContext.moduli[ciphertext.Level()]
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			check(t, params.evaluator.MultConst(ciphertext, constant, ciphertext))
+
+			ciphertext.MulScale(float64(constant))
+
+			check(t, params.evaluator.Rescale(ciphertext, params.ckksContext.scale, ciphertext))
+
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
+
+		t.Run(testString("Many/", params), func(t *testing.T) {
+
+			values, _, ciphertext := new_test_vectors(params, params.encryptorSk, 1, t)
+
+			nbRescales := uint64(2)
+
+			for i := uint64(0); i < nbRescales; i++ {
+				constant := params.ckksContext.moduli[ciphertext.Level()-i]
+				check(t, params.evaluator.MultConst(ciphertext, constant, ciphertext))
+				ciphertext.MulScale(float64(constant))
+			}
+
+			check(t, params.evaluator.RescaleMany(ciphertext, nbRescales, ciphertext))
+
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
+	}
 }
 
-func test_MulConst(params *CKKSTESTPARAMS, t *testing.T) {
+func testEvaluatorAddConst(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/MultCmplx(Ct,complex128)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+	for _, parameters := range testParams.ckksParameters {
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -5, 5)
-		if err != nil {
-			t.Error(err)
-		}
+		params := genCkksParams(parameters)
 
-		constant := complex(1.4142, -3.1415)
+		t.Run(testString("", params), func(t *testing.T) {
 
-		valuesWant := make([]complex128, params.slots)
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] * (1 / constant)
-		}
+			values, _, ciphertext := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		if err = params.evaluator.MultConst(ciphertext1, 1/constant, ciphertext1); err != nil {
-			t.Error(err)
-		}
+			constant := complex(3.1415, -1.4142)
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			for i := range values {
+				values[i] += constant
+			}
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/MultByi", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+			check(t, params.evaluator.AddConst(ciphertext, constant, ciphertext))
 
-		values, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values[i] * complex(0, 1)
-		}
-
-		if err = params.evaluator.MultByi(ciphertext1, ciphertext1); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/DivByi", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		values, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values[i] / complex(0, 1)
-		}
-
-		if err = params.evaluator.DivByi(ciphertext1, ciphertext1); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
+	}
 }
 
-func test_MultByConstAndAdd(params *CKKSTESTPARAMS, t *testing.T) {
+func testEvaluatorMultConst(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/MultByCmplxAndAdd(Ct0, complex128, Ct1)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+	for _, parameters := range testParams.ckksParameters {
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		params := genCkksParams(parameters)
 
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		t.Run(testString("", params), func(t *testing.T) {
 
-		constant := complex(3.1415, -1.4142)
+			values, _, ciphertext := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		valuesWant := make([]complex128, params.slots)
-		for i := 0; i < len(valuesWant); i++ {
-			values2[i] += (values1[i] * constant) + (values1[i] * constant)
-		}
+			constant := 1.0 / complex(3.1415, -1.4142)
 
-		if err = params.evaluator.MultByConstAndAdd(ciphertext1, constant, ciphertext2); err != nil {
-			t.Error(err)
-		}
+			for i := range values {
+				values[i] *= constant
+			}
 
-		params.evaluator.Rescale(ciphertext2, params.ckkscontext.scale, ciphertext2)
+			check(t, params.evaluator.MultConst(ciphertext, constant, ciphertext))
 
-		if err = params.evaluator.MultByConstAndAdd(ciphertext1, constant, ciphertext2); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, values2, ciphertext2.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
+	}
 }
 
-func test_ComplexOperations(params *CKKSTESTPARAMS, t *testing.T) {
+func testEvaluatorMultConstAndAdd(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/ExtractImag", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+	for _, parameters := range testParams.ckksParameters {
 
-		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		params := genCkksParams(parameters)
 
-		for i := 0; i < len(values); i++ {
-			values[i] = complex(imag(values[i]), 0)
-		}
+		t.Run(testString("", params), func(t *testing.T) {
 
-		if err = params.evaluator.ExtractImag(ciphertext, params.rotkey, ciphertext); err != nil {
-			t.Error(err)
-		}
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		if err := verify_test_vectors(params, values, ciphertext.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			constant := 1.0 / complex(3.1415, -1.4142)
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/SwapRealImag", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+			for i := range values1 {
+				values2[i] += (constant * values1[i])
+			}
 
-		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			check(t, params.evaluator.MultByConstAndAdd(ciphertext1, constant, ciphertext2))
 
-		for i := 0; i < len(values); i++ {
-			values[i] = complex(imag(values[i]), real(values[i]))
-		}
-
-		if err = params.evaluator.SwapRealImag(ciphertext, params.rotkey, ciphertext); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, values, ciphertext.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/RemoveReal", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		for i := 0; i < len(values); i++ {
-			values[i] = complex(0, imag(values[i]))
-		}
-
-		if err = params.evaluator.RemoveReal(ciphertext, params.rotkey, ciphertext); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, values, ciphertext.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/RemoveImag", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		values, _, ciphertext, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		for i := 0; i < len(values); i++ {
-			values[i] = complex(real(values[i]), 0)
-		}
-
-		if err = params.evaluator.RemoveImag(ciphertext, params.rotkey, ciphertext); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, values, ciphertext.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
+		})
+	}
 }
 
-func test_Mul(params *CKKSTESTPARAMS, t *testing.T) {
+func testEvaluatorMul(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Mul(Ct,Ct)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+	for _, parameters := range testParams.ckksParameters {
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		params := genCkksParams(parameters)
 
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+		t.Run(testString("CtCtInPlace/", params), func(t *testing.T) {
 
-		// up to a level equal to 2 modulus
-		valuesWant := make([]complex128, params.slots)
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] * values2[i]
-		}
+			for i := range values1 {
+				values2[i] *= values1[i]
+			}
 
-		if err = params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext1); err != nil {
-			t.Error(err)
-		}
+			check(t, params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext2))
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
+		})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Relinearize", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+		t.Run(testString("CtCtNew/", params), func(t *testing.T) {
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			for i := range values1 {
+				values2[i] *= values1[i]
+			}
 
-		// up to a level equal to 2 modulus
-		valuesWant := make([]complex128, params.slots)
+			var ciphertext3 *Ciphertext
+			ciphertext3, err = params.evaluator.MulRelinNew(ciphertext1, ciphertext2, nil)
 
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i] * values2[i]
-		}
+			verify_test_vectors(params, params.decryptor, values2, ciphertext3, t)
+		})
 
-		if err = params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext1); err != nil {
-			t.Error(err)
-		}
+		t.Run(testString("CtPlain/", params), func(t *testing.T) {
 
-		if err = params.evaluator.Relinearize(ciphertext1, params.rlk, ciphertext1); err != nil {
-			t.Error(err)
-		}
+			values1, plaintext1, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, plaintext2, ciphertext2 := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			for i := range values1 {
+				values1[i] *= values1[i]
+				values2[i] *= values2[i]
+			}
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/MulRelin(Ct,Ct)->Rescale", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+			check(t, params.evaluator.MulRelin(ciphertext1, plaintext1, nil, ciphertext1))
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
 
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			check(t, params.evaluator.MulRelin(plaintext2, ciphertext2, nil, ciphertext2))
 
-		// up to a level equal to 2 modulus
-		valuesWant := make([]complex128, params.slots)
+			verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
+		})
 
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i]
-		}
+		t.Run(testString("Relinearize/", params), func(t *testing.T) {
 
-		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
+			rlk := params.kgen.NewRelinKey(params.sk)
 
+			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorSk, 1, t)
+			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorSk, 1, t)
+
+			for i := range values1 {
+				values2[i] *= values1[i]
+			}
+
+			check(t, params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext2))
+
+			check(t, params.evaluator.Relinearize(ciphertext2, rlk, ciphertext2))
+
+			if ciphertext2.Degree() != 1 {
+				t.Errorf("Relinearize error")
+			}
+
+			verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
+		})
+	}
+}
+
+func testFunctions(t *testing.T) {
+
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genCkksParams(parameters)
+
+		rlk := params.kgen.NewRelinKey(params.sk)
+
+		t.Run(testString("PowerOf2/", params), func(t *testing.T) {
+
+			values, _, ciphertext := new_test_vectors(params, params.encryptorSk, 1, t)
+
+			n := uint64(2)
+
+			valuesWant := make([]complex128, len(values))
 			for i := 0; i < len(valuesWant); i++ {
-				valuesWant[i] *= values2[i]
+				valuesWant[i] = values[i]
 			}
 
-			if err = params.evaluator.MulRelin(ciphertext1, ciphertext2, params.rlk, ciphertext1); err != nil {
-				t.Error(err)
+			for i := uint64(0); i < n; i++ {
+				for j := 0; j < len(valuesWant); j++ {
+					valuesWant[j] *= valuesWant[j]
+				}
 			}
 
-			if err = params.evaluator.Rescale(ciphertext1, params.ckkscontext.scale, ciphertext1); err != nil {
-				t.Error(err)
-			}
-		}
+			check(t, params.evaluator.PowerOf2(ciphertext, n, rlk, ciphertext))
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+			verify_test_vectors(params, params.decryptor, valuesWant, ciphertext, t)
+		})
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/MulRelin(Ct,Ct)->RescaleMany", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+		t.Run(testString("Power/", params), func(t *testing.T) {
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			values, _, ciphertext := new_test_vectors(params, params.encryptorSk, 1, t)
 
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+			n := uint64(7)
 
-		// up to a level equal to 2 modulus
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i]
-		}
-
-		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
-
-			for i := 0; i < len(valuesWant); i++ {
-				valuesWant[i] *= values2[i]
+			for i := range values {
+				values[i] = cmplx.Pow(values[i], complex(float64(n), 0))
 			}
 
-			if err = params.evaluator.MulRelin(ciphertext1, ciphertext2, params.rlk, ciphertext1); err != nil {
-				t.Error(err)
-			}
-		}
+			check(t, params.evaluator.Power(ciphertext, n, rlk, ciphertext))
 
-		if err = params.evaluator.RescaleMany(ciphertext1, params.ckkscontext.Levels()-2, ciphertext1); err != nil {
-			t.Error(err)
-		}
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
 
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+		if params.ckksContext.levels > 7 {
+			t.Run(testString("Inverse/", params), func(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/MulRelin(Ct,Plain)->Rescale", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+				values, _, ciphertext := new_test_vectors_reals(params, params.encryptorSk, 0.1, 1, t)
 
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
+				n := uint64(7)
 
-		values2, plaintext2, _, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		// up to a level equal to 2 modulus
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i]
-		}
-
-		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
-
-			for i := 0; i < len(valuesWant); i++ {
-				valuesWant[i] *= values2[i]
-			}
-
-			if err = params.evaluator.MulRelin(ciphertext1, plaintext2, params.rlk, ciphertext1); err != nil {
-				t.Error(err)
-			}
-
-			if err = params.evaluator.Rescale(ciphertext1, params.ckkscontext.scale, ciphertext1); err != nil {
-				t.Error(err)
-			}
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/MulRelin(Plain,Ct)->Rescale", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		values1, plaintext1, _, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		values2, _, ciphertext2, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		// up to a level equal to 2 modulus
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values2[i]
-		}
-
-		for i := uint64(0); i < params.ckkscontext.Levels()-1; i++ {
-
-			for i := 0; i < len(valuesWant); i++ {
-				valuesWant[i] *= values1[i]
-			}
-
-			if err = params.evaluator.MulRelin(plaintext1, ciphertext2, params.rlk, ciphertext2); err != nil {
-				t.Error(err)
-			}
-
-			if err = params.evaluator.Rescale(ciphertext2, params.ckkscontext.scale, ciphertext2); err != nil {
-				t.Error(err)
-			}
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext2.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-
-}
-
-func test_Functions(params *CKKSTESTPARAMS, t *testing.T) {
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/PowerOf2", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		// up to a level equal to 2 modulus
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values1[i]
-		}
-
-		var n uint64
-
-		n = 2
-
-		for i := uint64(0); i < n; i++ {
-			for j := 0; j < len(valuesWant); j++ {
-				valuesWant[j] *= valuesWant[j]
-			}
-		}
-
-		if err = params.evaluator.PowerOf2(ciphertext1, n, params.rlk, ciphertext1); err != nil {
-			t.Error(err)
-		}
-
-		if ciphertext1.Scale() >= 100 {
-			params.evaluator.Rescale(ciphertext1, params.ckkscontext.scale, ciphertext1)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Power", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		values1, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		valuesWant := make([]complex128, params.slots)
-		tmp := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = complex(1, 0)
-			tmp[i] = values1[i]
-		}
-
-		var n uint64
-
-		n = 7
-
-		for j := 0; j < len(valuesWant); j++ {
-			for i := n; i > 0; i >>= 1 {
-
-				if i&1 == 1 {
-					valuesWant[j] *= tmp[j]
+				for i := range values {
+					values[i] = 1.0 / values[i]
 				}
 
-				tmp[j] *= tmp[j]
-			}
+				ciphertext, err = params.evaluator.InverseNew(ciphertext, n, rlk)
+
+				check(t, err)
+
+				verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+			})
 		}
-
-		if err = params.evaluator.Power(ciphertext1, n, params.rlk, ciphertext1); err != nil {
-			t.Error(err)
-		}
-
-		if ciphertext1.Scale() >= 100 {
-			params.evaluator.Rescale(ciphertext1, params.ckkscontext.scale, ciphertext1)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Inverse", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		values, _, ciphertext1, err := new_test_vectors_reals(params, 0.1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = complex(1, 0) / values[i]
-		}
-
-		if ciphertext1, err = params.evaluator.InverseNew(ciphertext1, 7, params.rlk); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/sin(x) [-1-1i, 1+1i] deg16", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		values, _, ciphertext1, err := new_test_vectors(params, -1, 1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		valuesWant := make([]complex128, params.slots)
-
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = cmplx.Sin(values[i])
-		}
-
-		cheby := Approximate(cmplx.Sin, complex(-1, -1), complex(1, 1), 16)
-
-		if ciphertext1, err = params.evaluator.EvaluateCheby(ciphertext1, cheby, params.rlk); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext1.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+	}
 }
 
-func test_SwitchKeys(params *CKKSTESTPARAMS, t *testing.T) {
+func testChebyshevInterpolator(t *testing.T) {
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/SwitchKeys", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
+	for _, parameters := range testParams.ckksParameters {
 
-		valuesWant := make([]complex128, params.slots)
+		params := genCkksParams(parameters)
 
-		for i := uint64(0); i < params.slots; i++ {
-			valuesWant[i] = randomComplex(0, 5)
-		}
+		rlk := params.kgen.NewRelinKey(params.sk)
 
-		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.Levels()-1, params.ckkscontext.Scale())
+		t.Run(testString("Sin/", params), func(t *testing.T) {
 
-		if err := params.encoder.Encode(plaintext, valuesWant, params.slots); err != nil {
-			t.Error(err)
-		}
+			values, _, ciphertext := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
 
-		ciphertext, err := params.encryptorPk.EncryptNew(plaintext)
-		if err != nil {
-			t.Error(err)
-		}
+			cheby := Approximate(cmplx.Sin, complex(-1, 0), complex(1, 0), 16)
+
+			for i := range values {
+				values[i] = cmplx.Sin(values[i])
+			}
+
+			ciphertext, err = params.evaluator.EvaluateCheby(ciphertext, cheby, rlk)
+			check(t, err)
+
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
+	}
+}
+
+func testSwitchKeys(t *testing.T) {
+
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genCkksParams(parameters)
 
 		sk2 := params.kgen.NewSecretKey()
+		decryptorSk2, err := params.ckksContext.NewDecryptor(sk2)
+		check(t, err)
+		switchingKey, err := params.kgen.NewSwitchingKey(params.sk, sk2)
+		check(t, err)
 
-		switchingkeys, err := params.kgen.NewSwitchingKey(params.sk, sk2)
-		if err != nil {
-			t.Error(err)
-		}
+		t.Run(testString("InPlace/", params), func(t *testing.T) {
 
-		if err = params.evaluator.SwitchKeys(ciphertext, switchingkeys, ciphertext); err != nil {
-			t.Error(err)
-		}
+			values, _, ciphertext := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
 
-		decryptorSk2, err := params.ckkscontext.NewDecryptor(sk2)
-		if err != nil {
-			t.Error(err)
-		}
+			check(t, params.evaluator.SwitchKeys(ciphertext, switchingKey, ciphertext))
 
-		plaintextTest := decryptorSk2.DecryptNew(ciphertext)
+			verify_test_vectors(params, decryptorSk2, values, ciphertext, t)
+		})
 
-		if err := verify_test_vectors(params, valuesWant, plaintextTest.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
+		t.Run(testString("New/", params), func(t *testing.T) {
+
+			values, _, ciphertext := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
+
+			ciphertext, err = params.evaluator.SwitchKeysNew(ciphertext, switchingKey)
+			check(t, err)
+
+			verify_test_vectors(params, decryptorSk2, values, ciphertext, t)
+		})
+	}
 }
 
-func test_Conjugate(params *CKKSTESTPARAMS, t *testing.T) {
+func testConjugate(t *testing.T) {
 
-	values, _, ciphertext, err := new_test_vectors_reals(params, -15, 15)
-	if err != nil {
-		t.Error(err)
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genCkksParams(parameters)
+
+		rotKey := params.ckksContext.NewRotationKeys()
+		params.kgen.GenRot(Conjugate, params.sk, 0, rotKey)
+
+		t.Run(testString("InPlace/", params), func(t *testing.T) {
+
+			values, _, ciphertext := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
+
+			for i := range values {
+				values[i] = complex(real(values[i]), -imag(values[i]))
+			}
+
+			check(t, params.evaluator.Conjugate(ciphertext, rotKey, ciphertext))
+
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
+
+		t.Run(testString("New/", params), func(t *testing.T) {
+
+			values, _, ciphertext := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
+
+			for i := range values {
+				values[i] = complex(real(values[i]), -imag(values[i]))
+			}
+
+			ciphertext, err = params.evaluator.ConjugateNew(ciphertext, rotKey)
+			check(t, err)
+
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
 	}
-
-	valuesWant := make([]complex128, len(values))
-	for i := range values {
-		valuesWant[i] = complex(real(values[i]), -imag(values[i]))
-	}
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/Conjugate(Ct)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		if err := params.evaluator.Conjugate(ciphertext, params.rotkey, ciphertext); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertext.Element(), t); err != nil {
-			t.Error(err)
-		}
-	})
 }
 
-func test_RotColumns(params *CKKSTESTPARAMS, t *testing.T) {
+func testRotateColumns(t *testing.T) {
 
-	mask := params.slots - 1
+	for _, parameters := range testParams.ckksParameters {
 
-	values, _, ciphertext, err := new_test_vectors_reals(params, 0.1, 1)
-	if err != nil {
-		t.Error(err)
+		params := genCkksParams(parameters)
+
+		rotKey := params.kgen.NewRotationKeysPow2(params.sk)
+
+		t.Run(testString("InPlace/", params), func(t *testing.T) {
+
+			values1, _, ciphertext1 := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
+
+			values2 := make([]complex128, len(values1))
+			ciphertext2 := params.ckksContext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+
+			for n := 1; n < len(values1); n <<= 1 {
+
+				// Applies the column rotation to the values
+				for i := range values1 {
+					values2[i] = values1[(i+n)%len(values1)]
+				}
+
+				check(t, params.evaluator.RotateColumns(ciphertext1, uint64(n), rotKey, ciphertext2))
+
+				verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
+			}
+
+		})
+
+		t.Run(testString("New/", params), func(t *testing.T) {
+
+			values1, _, ciphertext1 := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
+
+			values2 := make([]complex128, len(values1))
+			ciphertext2 := params.ckksContext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+
+			for n := 1; n < len(values1); n <<= 1 {
+
+				// Applies the column rotation to the values
+				for i := range values1 {
+					values2[i] = values1[(i+n)%len(values1)]
+				}
+
+				ciphertext2, err = params.evaluator.RotateColumnsNew(ciphertext1, uint64(n), rotKey)
+
+				verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
+			}
+
+		})
+
+		t.Run(testString("Random/", params), func(t *testing.T) {
+
+			values1, _, ciphertext1 := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
+
+			values2 := make([]complex128, len(values1))
+			ciphertext2 := params.ckksContext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+
+			for n := 1; n < 4; n++ {
+
+				rand := rand.Uint64() % uint64(len(values1))
+
+				// Applies the column rotation to the values
+				for i := range values1 {
+					values2[i] = values1[(i+int(rand))%len(values1)]
+				}
+
+				check(t, params.evaluator.RotateColumns(ciphertext1, rand, rotKey, ciphertext2))
+
+				verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
+			}
+
+		})
 	}
-
-	valuesWant := make([]complex128, params.slots)
-
-	ciphertextTest := params.ckkscontext.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale())
-	ciphertextTest.SetScale(ciphertext.Scale())
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/RotColumnsPow2(Ct)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		// Applies the column rotation to the values
-		for i := uint64(0); i < params.slots; i++ {
-			valuesWant[i] = values[i]
-		}
-
-		if err := params.evaluator.RotateColumns(ciphertext, 0, params.rotkey, ciphertextTest); err != nil {
-			t.Error(err)
-		}
-
-		if err := verify_test_vectors(params, valuesWant, ciphertextTest.Element(), t); err != nil {
-			t.Error(err)
-		}
-
-		for n := uint64(1); n < params.slots; n <<= 1 {
-
-			// Applies the column rotation to the values
-			for i := uint64(0); i < params.slots; i++ {
-				valuesWant[i] = values[(i+n)&mask]
-			}
-
-			if err := params.evaluator.RotateColumns(ciphertext, n, params.rotkey, ciphertextTest); err != nil {
-				t.Error(err)
-			}
-
-			if err := verify_test_vectors(params, valuesWant, ciphertextTest.Element(), t); err != nil {
-				t.Error(err)
-			}
-		}
-	})
-
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/RotColumnsRandom(Ct)", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta), func(t *testing.T) {
-
-		for n := uint64(0); n < 4; n += 1 {
-
-			rand := ring.RandUniform(params.slots, mask)
-
-			// Applies the column rotation to the values
-			for i := uint64(0); i < params.slots; i++ {
-				valuesWant[i] = values[(i+rand)&mask]
-			}
-
-			if err := params.evaluator.RotateColumns(ciphertext, rand, params.rotkey, ciphertextTest); err != nil {
-				t.Error(err)
-			}
-
-			if err := verify_test_vectors(params, valuesWant, ciphertextTest.Element(), t); err != nil {
-				t.Error(err)
-			}
-		}
-	})
 }

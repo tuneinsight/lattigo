@@ -51,11 +51,11 @@ func init() {
 	testParams.parties = 5
 
 	testParams.medianprec = 15
-	testParams.verbose = true
+	testParams.verbose = false
 
 	testParams.ckksParameters = []*ckks.Parameters{
 		ckks.DefaultParams[13],
-		//ckks.DefaultParams[14],
+		ckks.DefaultParams[14],
 		//ckks.DefaultParams[15],
 		//ckks.DefaultParams[16],
 	}
@@ -539,7 +539,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 			}
 
 			for i, p := range pcksParties {
-				p.GenShare(ckks.RotationRow, 0, p.s, crp, &p.share)
+				p.GenShare(ckks.Conjugate, 0, p.s, crp, &p.share)
 				if i > 0 {
 					P0.Aggregate(p.share, P0.share, P0.share)
 				}

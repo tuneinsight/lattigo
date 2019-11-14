@@ -5,7 +5,16 @@ import (
 	"github.com/ldsec/lattigo/ring"
 	"math/big"
 	"math/bits"
+	"math/rand"
 )
+
+func randomFloat(min, max float64) float64 {
+	return min + rand.Float64()*(max-min)
+}
+
+func randomComplex(min, max float64) complex128 {
+	return complex(randomFloat(min, max), randomFloat(min, max))
+}
 
 func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 

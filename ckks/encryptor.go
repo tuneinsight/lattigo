@@ -146,8 +146,10 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 	// ct1 = a
 	contextKeys.UniformPoly(encryptor.polypool[1])
+
 	// ct0 = -s*a
-	contextKeys.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
+	contextKeys.MulCoeffsMontgomery(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
+	contextKeys.Neg(encryptor.polypool[0], encryptor.polypool[0])
 
 	// #Q + #P NTT
 	contextKeys.InvNTT(encryptor.polypool[0], encryptor.polypool[0])

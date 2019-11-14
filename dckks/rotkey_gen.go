@@ -86,7 +86,7 @@ func (rtg *RTGProtocol) GenShare(rotType ckks.Rotation, k uint64, sk *ring.Poly,
 	case ckks.RotationRight, ckks.RotationLeft:
 		rtg.genShare(sk, rtg.galElRotCol[rotType][k&((rtg.ckksContext.N()>>1)-1)], crp, shareOut.Value)
 		return
-	case ckks.RotationRow:
+	case ckks.Conjugate:
 		rtg.genShare(sk, rtg.galElRotRow, crp, shareOut.Value)
 		return
 	}

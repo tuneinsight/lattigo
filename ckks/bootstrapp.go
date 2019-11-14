@@ -421,6 +421,24 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 
 	vec_rot := make(map[uint64]*Ciphertext, N1)
 
+	contextQ := bootcontext.ckkscontext.contextQ
+	contextP := bootcontext.ckkscontext.contextP
+
+	c2NTT := vec.value[1]
+	c2InvNTT := contextQ.NewPoly()
+	contextQ.InvNTTLvl(vec.Level(), c2NTT, c2InvNTT)
+
+	c2_qiQDecomp := make([]*ring.Poly, bootcontext.ckkscontext.beta)
+	c2_qiPDecomp := make([]*ring.Poly, bootcontext.ckkscontext.beta)
+
+	for i := uint64(0); i < bootcontext.ckkscontext.beta; i++ {
+
+		c2_qiQDecomp[i] = contextQ.NewPoly()
+		c2_qiPDecomp[i] = contextP.NewPoly()
+
+		evaluator.decomposeAndSplit(vec.Level(), i, c2NTT, c2InvNTT, c2_qiQDecomp[i], c2_qiPDecomp[i])
+	}
+
 	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 	index := make(map[uint64][]uint64)
 	for key := range plainVectors.Vec {
@@ -432,8 +450,15 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 
 		// Pre-rotates ciphertext for the baby-step giant-step algorithm
 		if vec_rot[key%N1] == nil {
-			if vec_rot[key%N1], err = evaluator.RotateColumnsNew(vec, key%N1, bootcontext.rotkeys); err != nil {
-				return nil, err
+			//if vec_rot[key%N1], err = evaluator.RotateColumnsNew(vec, key%N1, bootcontext.rotkeys); err != nil {
+			//	return nil, err
+			//}
+
+			if key%N1 == 0 {
+				vec_rot[key%N1] = vec.CopyNew().Ciphertext()
+			} else {
+				vec_rot[key%N1] = bootcontext.ckkscontext.NewCiphertext(1, vec.Level(), vec.Scale())
+				evaluator.rotateLeftHoisted(vec, c2_qiQDecomp, c2_qiPDecomp, key%N1, bootcontext.rotkeys, vec_rot[key%N1])
 			}
 		}
 	}

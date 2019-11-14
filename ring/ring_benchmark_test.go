@@ -49,6 +49,8 @@ func Benchmark_Polynomial(b *testing.B) {
 
 		benchmark_InvNTT(contextQ, b)
 
+		benchmark_Permute(contextQ, b)
+
 		benchmark_Neg(contextQ, b)
 
 		benchmark_Sub(contextQ, b)
@@ -228,6 +230,24 @@ func benchmark_InvNTT(context *Context, b *testing.B) {
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/InvNTT", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			context.InvNTT(p, p)
+		}
+	})
+}
+
+func benchmark_Permute(context *Context, b *testing.B) {
+
+	p := context.NewUniformPoly()
+	b.ResetTimer()
+
+	b.Run(fmt.Sprintf("N=%d/limbs=%d/PermuteNTT", context.N, len(context.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			PermuteNTT(p, 5, p)
+		}
+	})
+
+	b.Run(fmt.Sprintf("N=%d/limbs=%d/Permute", context.N, len(context.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context.Permute(p, 5, p)
 		}
 	})
 }

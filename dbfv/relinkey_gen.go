@@ -10,6 +10,7 @@ import (
 // generation protocol.
 type RKGProtocol struct {
 	ringContext     *ring.Context
+	bfvContext      *bfv.BfvContext
 	keyswitchprimes []uint64
 	alpha           uint64
 	beta            uint64
@@ -42,6 +43,7 @@ func NewEkgProtocol(context *bfv.BfvContext) *RKGProtocol {
 
 	ekg := new(RKGProtocol)
 	ekg.ringContext = context.ContextKeys()
+	ekg.bfvContext = context
 
 	ekg.keyswitchprimes = make([]uint64, len(context.KeySwitchPrimes()))
 	for i, pi := range context.KeySwitchPrimes() {
@@ -83,9 +85,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 
 	ekg.polypool.Copy(sk)
 
-	for _, pj := range ekg.keyswitchprimes {
-		ekg.ringContext.MulScalar(ekg.polypool, pj, ekg.polypool)
-	}
+	ekg.ringContext.MulScalarBigint(ekg.polypool, ekg.bfvContext.ContextPKeys().ModulusBigint, ekg.polypool)
 
 	ekg.ringContext.InvMForm(ekg.polypool, ekg.polypool)
 
@@ -98,9 +98,12 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 		for j := uint64(0); j < ekg.alpha; j++ {
 
 			index = i*ekg.alpha + j
+			qi := ekg.ringContext.Modulus[index]
+			tmp0 := ekg.polypool.Coeffs[index]
+			tmp1 := shareOut[i].Coeffs[index]
 
 			for w := uint64(0); w < ekg.ringContext.N; w++ {
-				shareOut[i].Coeffs[index][w] = ring.CRed(shareOut[i].Coeffs[index][w]+ekg.polypool.Coeffs[index][w], ekg.ringContext.Modulus[index])
+				tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 			}
 
 			// Handles the case where nb pj does not divides nb qi

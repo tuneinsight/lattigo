@@ -72,9 +72,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 
 	ekg.polypool.Copy(sk)
 
-	for _, pj := range ekg.ckksContext.KeySwitchPrimes() {
-		contextKeys.MulScalar(ekg.polypool, pj, ekg.polypool)
-	}
+	contextKeys.MulScalarBigint(ekg.polypool, ekg.ckksContext.ContextP().ModulusBigint, ekg.polypool)
 
 	contextKeys.InvMForm(ekg.polypool, ekg.polypool)
 
@@ -88,8 +86,12 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 
 			index = i*ekg.ckksContext.Alpha() + j
 
+			qi := contextKeys.Modulus[index]
+			tmp0 := ekg.polypool.Coeffs[index]
+			tmp1 := shareOut[i].Coeffs[index]
+
 			for w := uint64(0); w < contextKeys.N; w++ {
-				shareOut[i].Coeffs[index][w] = ring.CRed(shareOut[i].Coeffs[index][w]+ekg.polypool.Coeffs[index][w], contextKeys.Modulus[index])
+				tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 			}
 
 			// Handles the case where nb pj does not divides nb qi

@@ -372,8 +372,12 @@ func newswitchintkey(bfvcontext *BfvContext, sk_in, sk_out *ring.Poly) (switchke
 
 			index = i*bfvcontext.alpha + j
 
+			qi := context.Modulus[index]
+			p0tmp := sk_in.Coeffs[index]
+			p1tmp := switchkey.evakey[i][0].Coeffs[index]
+
 			for w := uint64(0); w < context.N; w++ {
-				switchkey.evakey[i][0].Coeffs[index][w] = ring.CRed(switchkey.evakey[i][0].Coeffs[index][w]+sk_in.Coeffs[index][w], context.Modulus[index])
+				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 			}
 
 			// Handles the case where nb pj does not divides nb qi

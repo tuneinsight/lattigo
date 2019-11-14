@@ -54,9 +54,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 	rkg.polypool.Copy(sk)
 
-	for _, pj := range rkg.bfvContext.KeySwitchPrimes() {
-		contextKeys.MulScalar(rkg.polypool, pj, rkg.polypool)
-	}
+	contextKeys.MulScalarBigint(rkg.polypool, rkg.bfvContext.ContextPKeys().ModulusBigint, rkg.polypool)
 
 	contextKeys.InvMForm(rkg.polypool, rkg.polypool)
 
@@ -74,8 +72,13 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 			index = i*rkg.bfvContext.Alpha() + j
 
+			qi := contextKeys.Modulus[index]
+
+			tmp0 := rkg.polypool.Coeffs[index]
+			tmp1 := shareOut[i][0].Coeffs[index]
+
 			for w := uint64(0); w < contextKeys.N; w++ {
-				shareOut[i][0].Coeffs[index][w] = ring.CRed(shareOut[i][0].Coeffs[index][w]+rkg.polypool.Coeffs[index][w], contextKeys.Modulus[index])
+				tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 			}
 
 			// Handles the case where nb pj does not divides nb qi

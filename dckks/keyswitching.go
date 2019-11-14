@@ -66,18 +66,17 @@ func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 
 	contextQ.MulCoeffsMontgomeryLvl(ct.Level(), ct.Value()[1], skDelta, shareOut)
 
-	// TODO : improve by pre-computing prd(pj) for each qi
-	for _, pj := range cks.ckksContext.KeySwitchPrimes() {
-		contextQ.MulScalarLvl(ct.Level(), shareOut, pj, shareOut)
-	}
+	contextQ.MulScalarBigintLvl(ct.Level(), shareOut, contextP.ModulusBigint, shareOut)
 
 	// TODO : improve by only computing the NTT for the required primes
 	cks.gaussianSamplerSmudge.SampleNTT(cks.tmp)
 	contextQ.AddLvl(ct.Level(), shareOut, cks.tmp, shareOut)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.ckksContext.ContextKeys().Modulus)); x, i = x+1, i+1 {
+		tmp0 := cks.tmp.Coeffs[i]
+		tmp1 := cks.hP.Coeffs[x]
 		for j := uint64(0); j < contextQ.N; j++ {
-			cks.hP.Coeffs[x][j] += cks.tmp.Coeffs[i][j]
+			tmp1[j] += tmp0[j]
 		}
 	}
 

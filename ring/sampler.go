@@ -33,6 +33,8 @@ func (context *Context) UniformPoly(Pol *Poly) {
 		// Starts by computing the mask
 		mask = (1 << uint64(bits.Len64(qi))) - 1
 
+		ptmp := Pol.Coeffs[j]
+
 		// Iterates for each modulus over each coefficient
 		for i := uint64(0); i < context.N; i++ {
 
@@ -57,7 +59,7 @@ func (context *Context) UniformPoly(Pol *Poly) {
 				}
 			}
 
-			Pol.Coeffs[j][i] = randomUint
+			ptmp[i] = randomUint
 		}
 	}
 

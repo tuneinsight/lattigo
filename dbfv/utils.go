@@ -7,10 +7,9 @@ func equalslice(a, b []uint64) bool {
 		return false
 	}
 
+	v := true
 	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
+		v = v && (a[i] == b[i])
 	}
-	return true
+	return v
 }

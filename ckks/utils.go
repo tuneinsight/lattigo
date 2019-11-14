@@ -2,10 +2,11 @@ package ckks
 
 import (
 	"errors"
-	"github.com/ldsec/lattigo/ring"
 	"math"
 	"math/big"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/ring"
 )
 
 // Multiplies x by 2^n and returns the result mod q
@@ -123,13 +124,11 @@ func equalslice64(a, b []uint64) bool {
 		return false
 	}
 
+	v := true
 	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
+		v = v && (a[i] == b[i])
 	}
-
-	return true
+	return v
 }
 
 func equalslice8(a, b []uint8) bool {
@@ -138,13 +137,11 @@ func equalslice8(a, b []uint8) bool {
 		return false
 	}
 
+	v := true
 	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
+		v = v && (a[i] == b[i])
 	}
-
-	return true
+	return v
 }
 
 func min(values []uint64) (r uint64) {

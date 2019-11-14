@@ -20,13 +20,13 @@ func Test_Bootstrapp(t *testing.T) {
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 
-	params := Parameters{10, []uint8{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}
+	params := Parameters{14, []uint8{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}
 
 	ckksTest := new(CKKSTESTPARAMS)
 
 	ckksTest.medianprec = medianprec
 
-	ckksTest.slots = 1 << 8
+	ckksTest.slots = 1 << 10
 
 	ckksTest.levels = uint64(len(params.Modulichain))
 	ckksTest.scale = params.Scale

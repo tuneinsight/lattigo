@@ -353,8 +353,12 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 
 			index = i*alpha + j
 
+			qi := context.Modulus[index]
+			p0tmp := sk_in.Coeffs[index]
+			p1tmp := switchingkey.evakey[i][0].Coeffs[index]
+
 			for w := uint64(0); w < context.N; w++ {
-				switchingkey.evakey[i][0].Coeffs[index][w] = ring.CRed(switchingkey.evakey[i][0].Coeffs[index][w]+sk_in.Coeffs[index][w], context.Modulus[index])
+				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 			}
 
 			// Handles the case where nb pj does not divides nb qi

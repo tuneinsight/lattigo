@@ -24,8 +24,9 @@ func (Pol *Poly) GetLenModuli() int {
 // Zero sets all coefficient of the target polynomial to 0.
 func (Pol *Poly) Zero() {
 	for i := range Pol.Coeffs {
+		p0tmp := Pol.Coeffs[i]
 		for j := range Pol.Coeffs[0] {
-			Pol.Coeffs[i][j] = 0
+			p0tmp[j] = 0
 		}
 	}
 }
@@ -36,8 +37,9 @@ func (Pol *Poly) CopyNew() (p1 *Poly) {
 	p1.Coeffs = make([][]uint64, len(Pol.Coeffs))
 	for i := range Pol.Coeffs {
 		p1.Coeffs[i] = make([]uint64, len(Pol.Coeffs[i]))
+		p0tmp, p1tmp := Pol.Coeffs[i], p1.Coeffs[i]
 		for j := range Pol.Coeffs[i] {
-			p1.Coeffs[i][j] = Pol.Coeffs[i][j]
+			p1tmp[j] = p0tmp[j]
 		}
 	}
 
@@ -49,8 +51,9 @@ func (context *Context) Copy(p0, p1 *Poly) {
 
 	if p0 != p1 {
 		for i := range context.Modulus {
+			p0tmp, p1tmp := p0.Coeffs[i], p1.Coeffs[i]
 			for j := uint64(0); j < context.N; j++ {
-				p1.Coeffs[i][j] = p0.Coeffs[i][j]
+				p1tmp[j] = p0tmp[j]
 			}
 		}
 	}
@@ -61,8 +64,9 @@ func (context *Context) CopyLvl(level uint64, p0, p1 *Poly) {
 
 	if p0 != p1 {
 		for i := uint64(0); i < level+1; i++ {
+			p0tmp, p1tmp := p0.Coeffs[i], p1.Coeffs[i]
 			for j := uint64(0); j < context.N; j++ {
-				p1.Coeffs[i][j] = p0.Coeffs[i][j]
+				p1tmp[j] = p0tmp[j]
 			}
 		}
 	}
@@ -73,8 +77,9 @@ func (Pol *Poly) Copy(p1 *Poly) {
 
 	if Pol != p1 {
 		for i := range p1.Coeffs {
+			p0tmp, p1tmp := Pol.Coeffs[i], p1.Coeffs[i]
 			for j := range p1.Coeffs[i] {
-				Pol.Coeffs[i][j] = p1.Coeffs[i][j]
+				p0tmp[j] = p1tmp[j]
 			}
 		}
 	}

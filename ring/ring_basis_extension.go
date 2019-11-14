@@ -319,12 +319,20 @@ func (basisextender *FastBasisExtender) ModDownNTT(contextQ, contextP *Context, 
 	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
 
+		qi := contextQ.Modulus[i]
+		p1tmp := p1.Coeffs[i]
+		p2tmp := p2.Coeffs[i]
+		p3tmp := polypool.Coeffs[i]
+		rescaleParams := rescalParamsKeys[i]
+		mredParams := contextQ.mredParams[i]
+		bredParams := contextQ.bredParams[i]
+
 		// First we switch back the relevant polypool CRT array back to the NTT domain
-		NTT(polypool.Coeffs[i], polypool.Coeffs[i], contextQ.N, contextQ.GetNttPsi()[i], contextQ.Modulus[i], contextQ.GetMredParams()[i], contextQ.GetBredParams()[i])
+		NTT(p3tmp, p3tmp, contextQ.N, contextQ.GetNttPsi()[i], qi, mredParams, bredParams)
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < contextQ.N; j++ {
-			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j]+(contextQ.Modulus[i]-polypool.Coeffs[i][j]), rescalParamsKeys[i], contextQ.Modulus[i], contextQ.GetMredParams()[i])
+			p2tmp[j] = MRed(p1tmp[j]+(qi-p3tmp[j]), rescaleParams, qi, mredParams)
 		}
 	}
 
@@ -343,12 +351,20 @@ func (basisextender *FastBasisExtender) ModDownSplitedNTT(contextQ, contextP *Co
 	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
 
+		qi := contextQ.Modulus[i]
+		p1tmp := p1Q.Coeffs[i]
+		p2tmp := p2.Coeffs[i]
+		p3tmp := polypool.Coeffs[i]
+		rescaleParams := rescalParamsKeys[i]
+		mredParams := contextQ.mredParams[i]
+		bredParams := contextQ.bredParams[i]
+
 		// First we switch back the relevant polypool CRT array back to the NTT domain
-		NTT(polypool.Coeffs[i], polypool.Coeffs[i], contextQ.N, contextQ.GetNttPsi()[i], contextQ.Modulus[i], contextQ.GetMredParams()[i], contextQ.GetBredParams()[i])
+		NTT(p3tmp, p3tmp, contextQ.N, contextQ.GetNttPsi()[i], contextQ.Modulus[i], mredParams, bredParams)
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < contextQ.N; j++ {
-			p2.Coeffs[i][j] = MRed(p1Q.Coeffs[i][j]+(contextQ.Modulus[i]-polypool.Coeffs[i][j]), rescalParamsKeys[i], contextQ.Modulus[i], contextQ.GetMredParams()[i])
+			p2tmp[j] = MRed(p1tmp[j]+(qi-p3tmp[j]), rescaleParams, qi, mredParams)
 		}
 	}
 
@@ -364,9 +380,16 @@ func (basisextender *FastBasisExtender) ModDown(context *Context, rescalParamsKe
 	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
 
+		qi := context.Modulus[i]
+		p1tmp := p1.Coeffs[i]
+		p2tmp := p2.Coeffs[i]
+		p3tmp := polypool.Coeffs[i]
+		rescaleParams := rescalParamsKeys[i]
+		mredParams := context.mredParams[i]
+
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j]+(context.Modulus[i]-polypool.Coeffs[i][j]), rescalParamsKeys[i], context.Modulus[i], context.GetMredParams()[i])
+			p2tmp[j] = MRed(p1tmp[j]+(qi-p3tmp[j]), rescaleParams, qi, mredParams)
 		}
 	}
 
@@ -381,9 +404,17 @@ func (basisextender *FastBasisExtender) ModDownSplited(contextQ, contextP *Conte
 
 	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
+
+		qi := contextQ.Modulus[i]
+		p1tmp := p1Q.Coeffs[i]
+		p2tmp := p2.Coeffs[i]
+		p3tmp := polypool.Coeffs[i]
+		rescaleParams := rescalParamsKeys[i]
+		mredParams := contextQ.mredParams[i]
+
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < contextQ.N; j++ {
-			p2.Coeffs[i][j] = MRed(p1Q.Coeffs[i][j]+(contextQ.Modulus[i]-polypool.Coeffs[i][j]), rescalParamsKeys[i], contextQ.Modulus[i], contextQ.GetMredParams()[i])
+			p2tmp[j] = MRed(p1tmp[j]+(qi-p3tmp[j]), rescaleParams, qi, mredParams)
 		}
 	}
 
@@ -641,8 +672,6 @@ func (decomposer *ArbitraryDecomposer) DecomposeAndSplit(level, crtDecompLevel u
 	var vi float64
 	var xpj uint64
 
-	//fmt.Println(p0idxed, level + 1, (level+1)%decomposer.nPprimes)
-
 	// First we check if the vector can simply by coping and rearanging elements (the case where no reconstruction is needed)
 	if (p0idxed > level+1 && (level+1)%decomposer.nPprimes == 1) || alphai == 1 {
 
@@ -664,22 +693,10 @@ func (decomposer *ArbitraryDecomposer) DecomposeAndSplit(level, crtDecompLevel u
 
 		var index uint64
 		if level >= alphai+crtDecompLevel*decomposer.alpha {
-			//fmt.Println("A")
 			index = decomposer.xalpha[crtDecompLevel] - 2
 		} else {
-			//fmt.Println("B")
 			index = (level - 1) % decomposer.alpha
 		}
-
-		/*
-			fmt.Println()
-			fmt.Println("CRT DECOMP :", crtDecompLevel)
-			fmt.Println("Min threshold :", alphai + crtDecompLevel*decomposer.alpha)
-			fmt.Println("INDEX :", index)
-			fmt.Println("Level :", level)
-			fmt.Println("xalpha :", decomposer.xalpha)
-			fmt.Println()
-		*/
 
 		params := decomposer.modUpParams[crtDecompLevel][index]
 

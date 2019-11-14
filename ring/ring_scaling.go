@@ -17,9 +17,15 @@ func (context *Context) DivFloorByLastModulusNTT(p0 *Poly) {
 
 		NTT(p0.Coeffs[level], p_tmp, context.N, context.nttPsi[i], context.Modulus[i], context.mredParams[i], context.bredParams[i])
 
+		p0tmp := p0.Coeffs[i]
+
+		qi := context.Modulus[i]
+		mredParams := context.mredParams[i]
+		rescalParams := context.rescaleParams[level-1][i]
+
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < context.N; j++ {
-			p0.Coeffs[i][j] = MRed(p0.Coeffs[i][j]+(context.Modulus[i]-p_tmp[j]), context.rescaleParams[level-1][i], context.Modulus[i], context.mredParams[i])
+			p0tmp[j] = MRed(p0tmp[j]+(qi-p_tmp[j]), rescalParams, qi, mredParams)
 		}
 	}
 
@@ -31,9 +37,15 @@ func (context *Context) DivFloorByLastModulus(p0 *Poly) {
 	level := len(p0.Coeffs) - 1
 
 	for i := 0; i < level; i++ {
+		p0tmp := p0.Coeffs[level]
+		p1tmp := p0.Coeffs[i]
+		qi := context.Modulus[i]
+		bredParams := context.bredParams[i]
+		mredParams := context.mredParams[i]
+		rescaleParams := context.rescaleParams[level-1][i]
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < context.N; j++ {
-			p0.Coeffs[i][j] = MRed(p0.Coeffs[i][j]+(context.Modulus[i]-BRedAdd(p0.Coeffs[level][j], context.Modulus[i], context.bredParams[i])), context.rescaleParams[level-1][i], context.Modulus[i], context.mredParams[i])
+			p1tmp[j] = MRed(p1tmp[j]+(qi-BRedAdd(p0tmp[j], qi, bredParams)), rescaleParams, qi, mredParams)
 		}
 	}
 
@@ -64,23 +76,32 @@ func (context *Context) DivRoundByLastModulusNTT(p0 *Poly) {
 
 	// Centers by (p-1)/2
 	pHalf = (context.Modulus[level] - 1) >> 1
+	p0tmp := p0.Coeffs[level]
+	pj := context.Modulus[level]
 	for i := uint64(0); i < context.N; i++ {
-		p0.Coeffs[level][i] = CRed(p0.Coeffs[level][i]+pHalf, context.Modulus[level])
+		p0tmp[i] = CRed(p0tmp[i]+pHalf, pj)
 	}
 
 	for i := 0; i < level; i++ {
 
-		pHalfNegQi = context.Modulus[i] - BRedAdd(pHalf, context.Modulus[i], context.bredParams[i])
+		p1tmp := p0.Coeffs[i]
+
+		qi := context.Modulus[i]
+		bredParams := context.bredParams[i]
+		mredParams := context.mredParams[i]
+		rescaleParams := context.rescaleParams[level-1][i]
+
+		pHalfNegQi = context.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
 
 		for j := uint64(0); j < context.N; j++ {
-			p_tmp[j] = p0.Coeffs[level][j] + pHalfNegQi
+			p_tmp[j] = p0tmp[j] + pHalfNegQi
 		}
 
-		NTT(p_tmp, p_tmp, context.N, context.nttPsi[i], context.Modulus[i], context.mredParams[i], context.bredParams[i])
+		NTT(p_tmp, p_tmp, context.N, context.nttPsi[i], qi, mredParams, bredParams)
 
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < context.N; j++ {
-			p0.Coeffs[i][j] = MRed(p0.Coeffs[i][j]+(context.Modulus[i]-p_tmp[j]), context.rescaleParams[level-1][i], context.Modulus[i], context.mredParams[i])
+			p1tmp[j] = MRed(p1tmp[j]+(qi-p_tmp[j]), rescaleParams, qi, mredParams)
 		}
 	}
 
@@ -95,17 +116,27 @@ func (context *Context) DivRoundByLastModulus(p0 *Poly) {
 
 	// Centers by (p-1)/2
 	pHalf = (context.Modulus[level] - 1) >> 1
+	p0tmp := p0.Coeffs[level]
+	pj := context.Modulus[level]
+	pHalf = (context.Modulus[level] - 1) >> 1
 	for i := uint64(0); i < context.N; i++ {
-		p0.Coeffs[level][i] = CRed(p0.Coeffs[level][i]+pHalf, context.Modulus[level])
+		p0tmp[i] = CRed(p0tmp[i]+pHalf, pj)
 	}
 
 	for i := 0; i < level; i++ {
 
-		pHalfNegQi = context.Modulus[i] - BRedAdd(pHalf, context.Modulus[i], context.bredParams[i])
+		p1tmp := p0.Coeffs[i]
+
+		qi := context.Modulus[i]
+		bredParams := context.bredParams[i]
+		mredParams := context.mredParams[i]
+		rescaleParams := context.rescaleParams[level-1][i]
+
+		pHalfNegQi = context.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
 
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < context.N; j++ {
-			p0.Coeffs[i][j] = MRed(p0.Coeffs[i][j]+(context.Modulus[i]-BRedAdd(p0.Coeffs[level][j]+pHalfNegQi, context.Modulus[i], context.bredParams[i])), context.rescaleParams[level-1][i], context.Modulus[i], context.mredParams[i])
+			p1tmp[j] = MRed(p1tmp[j]+(qi-BRedAdd(p0tmp[j]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
 		}
 	}
 

@@ -554,8 +554,11 @@ func (evaluator *Evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOu
 			scaled_const = ring.CRed(scaled_const+scaled_const_imag, qi)
 		}
 
+		p1tmp := ctOut.Value()[0].Coeffs[i]
+		p0tmp := ct0.value[0].Coeffs[i]
+
 		for j := uint64(0); j < evaluator.ckkscontext.n>>1; j++ {
-			ctOut.Value()[0].Coeffs[i][j] = ring.CRed(ct0.value[0].Coeffs[i][j]+scaled_const, qi)
+			p1tmp[j] = ring.CRed(p0tmp[j]+scaled_const, qi)
 		}
 
 		if c_imag != 0 {
@@ -563,7 +566,7 @@ func (evaluator *Evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOu
 		}
 
 		for j := evaluator.ckkscontext.n >> 1; j < evaluator.ckkscontext.n; j++ {
-			ctOut.Value()[0].Coeffs[i][j] = ring.CRed(ct0.value[0].Coeffs[i][j]+scaled_const, qi)
+			p1tmp[j] = ring.CRed(p0tmp[j]+scaled_const, qi)
 		}
 	}
 
@@ -712,8 +715,10 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 		scaled_const = ring.MForm(scaled_const, qi, bredParams)
 
 		for u := range ct0.Value() {
+			p0tmp := ct0.Value()[u].Coeffs[i]
+			p1tmp := ctOut.Value()[u].Coeffs[i]
 			for j := uint64(0); j < evaluator.ckkscontext.n>>1; j++ {
-				ctOut.Value()[u].Coeffs[i][j] = ring.CRed(ctOut.Value()[u].Coeffs[i][j]+ring.MRed(ct0.Value()[u].Coeffs[i][j], scaled_const, qi, mredParams), qi)
+				p1tmp[j] = ring.CRed(p1tmp[j]+ring.MRed(p0tmp[j], scaled_const, qi, mredParams), qi)
 			}
 		}
 
@@ -723,8 +728,10 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 		}
 
 		for u := range ct0.Value() {
+			p0tmp := ct0.Value()[u].Coeffs[i]
+			p1tmp := ctOut.Value()[u].Coeffs[i]
 			for j := evaluator.ckkscontext.n >> 1; j < evaluator.ckkscontext.n; j++ {
-				ctOut.Value()[u].Coeffs[i][j] = ring.CRed(ctOut.Value()[u].Coeffs[i][j]+ring.MRed(ct0.Value()[u].Coeffs[i][j], scaled_const, qi, mredParams), qi)
+				p1tmp[j] = ring.CRed(p1tmp[j]+ring.MRed(p0tmp[j], scaled_const, qi, mredParams), qi)
 			}
 		}
 	}
@@ -836,8 +843,10 @@ func (evaluator *Evaluator) MultConst(ct0 *Ciphertext, constant interface{}, ctO
 		scaled_const = ring.MForm(scaled_const, qi, bredParams)
 
 		for u := range ct0.Value() {
+			p0tmp := ct0.Value()[u].Coeffs[i]
+			p1tmp := ctOut.Value()[u].Coeffs[i]
 			for j := uint64(0); j < evaluator.ckkscontext.n>>1; j++ {
-				ctOut.Value()[u].Coeffs[i][j] = ring.MRed(ct0.Value()[u].Coeffs[i][j], scaled_const, qi, mredParams)
+				p1tmp[j] = ring.MRed(p0tmp[j], scaled_const, qi, mredParams)
 			}
 		}
 
@@ -847,8 +856,10 @@ func (evaluator *Evaluator) MultConst(ct0 *Ciphertext, constant interface{}, ctO
 		}
 
 		for u := range ct0.Value() {
+			p0tmp := ct0.Value()[u].Coeffs[i]
+			p1tmp := ctOut.Value()[u].Coeffs[i]
 			for j := evaluator.ckkscontext.n >> 1; j < evaluator.ckkscontext.n; j++ {
-				ctOut.Value()[u].Coeffs[i][j] = ring.MRed(ct0.Value()[u].Coeffs[i][j], scaled_const, qi, mredParams)
+				p1tmp[j] = ring.MRed(p0tmp[j], scaled_const, qi, mredParams)
 			}
 		}
 	}
@@ -869,11 +880,11 @@ func (evaluator *Evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext, err 
 
 // MultByiNew multiplies ct0 by the imaginary number i, and returns the result on c1.
 // Does not change the scale.
-func (evaluator *Evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) (err error) {
+func (evaluator *Evaluator) MultByi(ct0 *Ciphertext, ct1 *Ciphertext) (err error) {
 
 	var level uint64
 
-	level = min([]uint64{ct0.Level(), ctOut.Level()})
+	level = min([]uint64{ct0.Level(), ct1.Level()})
 
 	context := evaluator.ckkscontext.contextQ
 
@@ -887,17 +898,21 @@ func (evaluator *Evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) (err err
 
 		imag = context.GetNttPsi()[i][1] // Psi^2
 
-		for u := range ctOut.value {
+		for u := range ct1.value {
+			p0tmp := ct0.value[u].Coeffs[i]
+			p1tmp := ct1.value[u].Coeffs[i]
 			for j := uint64(0); j < context.N>>1; j++ {
-				ctOut.value[u].Coeffs[i][j] = ring.MRed(ct0.value[u].Coeffs[i][j], imag, qi, mredParams)
+				p1tmp[j] = ring.MRed(p0tmp[j], imag, qi, mredParams)
 			}
 		}
 
 		imag = qi - imag
 
-		for u := range ctOut.value {
+		for u := range ct1.value {
+			p0tmp := ct0.value[u].Coeffs[i]
+			p1tmp := ct1.value[u].Coeffs[i]
 			for j := context.N >> 1; j < context.N; j++ {
-				ctOut.value[u].Coeffs[i][j] = ring.MRed(ct0.value[u].Coeffs[i][j], imag, qi, mredParams)
+				p1tmp[j] = ring.MRed(p0tmp[j], imag, qi, mredParams)
 
 			}
 		}
@@ -917,11 +932,11 @@ func (evaluator *Evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext, err e
 
 // DivByi multiplies ct0 by the imaginary number 1/i = -i, and returns the result on c1.
 // Does not change the scale.
-func (evaluator *Evaluator) DivByi(ct0 *Ciphertext, c1 *Ciphertext) (err error) {
+func (evaluator *Evaluator) DivByi(ct0 *Ciphertext, ct1 *Ciphertext) (err error) {
 
 	var level uint64
 
-	level = min([]uint64{ct0.Level(), c1.Level()})
+	level = min([]uint64{ct0.Level(), ct1.Level()})
 
 	context := evaluator.ckkscontext.contextQ
 
@@ -935,17 +950,21 @@ func (evaluator *Evaluator) DivByi(ct0 *Ciphertext, c1 *Ciphertext) (err error) 
 
 		imag = qi - context.GetNttPsi()[i][1] // -Psi^2
 
-		for u := range c1.value {
+		for u := range ct1.value {
+			p0tmp := ct0.value[u].Coeffs[i]
+			p1tmp := ct1.value[u].Coeffs[i]
 			for j := uint64(0); j < context.N>>1; j++ {
-				c1.value[u].Coeffs[i][j] = ring.MRed(ct0.value[u].Coeffs[i][j], imag, qi, mredParams)
+				p1tmp[j] = ring.MRed(p0tmp[j], imag, qi, mredParams)
 			}
 		}
 
 		imag = context.GetNttPsi()[i][1] // Psi^2
 
-		for u := range c1.value {
+		for u := range ct1.value {
+			p0tmp := ct0.value[u].Coeffs[i]
+			p1tmp := ct1.value[u].Coeffs[i]
 			for j := context.N >> 1; j < context.N; j++ {
-				c1.value[u].Coeffs[i][j] = ring.MRed(ct0.value[u].Coeffs[i][j], imag, qi, mredParams)
+				p1tmp[j] = ring.MRed(p0tmp[j], imag, qi, mredParams)
 			}
 		}
 	}
@@ -1542,19 +1561,10 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 	// Key switching with crt decomposition for the Qi
 	for i := uint64(0); i < beta; i++ {
 
-		evaluator.decomposeAndSplit(level, i, cx, c2, c2_qiQ, c2_qiP)
+		evaluator.decomposeAndSplitNTT(level, i, cx, c2, c2_qiQ, c2_qiP)
 
-		// We start by applying the keyswitch to the moduli of the ciphertext's context
-		for x := uint64(0); x < level+1; x++ {
-
-			qi := contextQ.Modulus[x]
-			mredParams := contextQ.GetMredParams()[x]
-
-			for y := uint64(0); y < contextQ.N; y++ {
-				pool2Q.Coeffs[x][y] += ring.MRed(evakey.evakey[i][0].Coeffs[x][y], c2_qiQ.Coeffs[x][y], qi, mredParams)
-				pool3Q.Coeffs[x][y] += ring.MRed(evakey.evakey[i][1].Coeffs[x][y], c2_qiQ.Coeffs[x][y], qi, mredParams)
-			}
-		}
+		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey[i][0], c2_qiQ, pool2Q)
+		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey[i][1], c2_qiQ, pool3Q)
 
 		// We continue with the keyswitch primes.
 		for j, keysindex := uint64(0), evaluator.ckkscontext.levels; j < uint64(len(evaluator.ckkscontext.specialprimes)); j, keysindex = j+1, keysindex+1 {
@@ -1562,16 +1572,21 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 			pj := contextP.Modulus[j]
 			mredParams := contextP.GetMredParams()[j]
 
+			key0 := evakey.evakey[i][0].Coeffs[keysindex]
+			key1 := evakey.evakey[i][1].Coeffs[keysindex]
+			c2tmp := c2_qiP.Coeffs[j]
+			p2tmp := pool2P.Coeffs[j]
+			p3tmp := pool3P.Coeffs[j]
+
 			for y := uint64(0); y < contextP.N; y++ {
-				pool2P.Coeffs[j][y] += ring.MRed(evakey.evakey[i][0].Coeffs[keysindex][y], c2_qiP.Coeffs[j][y], pj, mredParams)
-				pool3P.Coeffs[j][y] += ring.MRed(evakey.evakey[i][1].Coeffs[keysindex][y], c2_qiP.Coeffs[j][y], pj, mredParams)
+				p2tmp[y] += ring.MRed(key0[y], c2tmp[y], pj, mredParams)
+				p3tmp[y] += ring.MRed(key1[y], c2tmp[y], pj, mredParams)
 			}
 		}
 
 		if reduce&7 == 1 {
 			contextQ.ReduceLvl(level, pool2Q, pool2Q)
 			contextQ.ReduceLvl(level, pool3Q, pool3Q)
-
 			contextP.Reduce(pool2P, pool2P)
 			contextP.Reduce(pool3P, pool3P)
 		}
@@ -1583,7 +1598,6 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 	if (reduce-1)&7 != 1 {
 		contextQ.ReduceLvl(level, pool2Q, pool2Q)
 		contextQ.ReduceLvl(level, pool3Q, pool3Q)
-
 		contextP.Reduce(pool2P, pool2P)
 		contextP.Reduce(pool3P, pool3P)
 	}
@@ -1598,7 +1612,7 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 	contextQ.AddLvl(level, ctOut.value[1], pool3Q, ctOut.value[1])
 }
 
-func (evaluator *Evaluator) decomposeAndSplit(level, beta uint64, c2NTT, c2InvNTT, c2_qiQ, c2_qiP *ring.Poly) {
+func (evaluator *Evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT, c2_qiQ, c2_qiP *ring.Poly) {
 
 	contextQ := evaluator.ckkscontext.contextQ
 	contextP := evaluator.ckkscontext.contextP
@@ -1610,121 +1624,22 @@ func (evaluator *Evaluator) decomposeAndSplit(level, beta uint64, c2NTT, c2InvNT
 
 	// c2_qi = cx mod qi mod qi
 	for x := uint64(0); x < level+1; x++ {
+
 		qi := contextQ.Modulus[x]
 		nttPsi := contextQ.GetNttPsi()[x]
 		bredParams := contextQ.GetBredParams()[x]
 		mredParams := contextQ.GetMredParams()[x]
 
 		if p0idxst <= x && x < p0idxed {
+			p0tmp := c2NTT.Coeffs[x]
+			p1tmp := c2_qiQ.Coeffs[x]
 			for j := uint64(0); j < contextQ.N; j++ {
-				c2_qiQ.Coeffs[x][j] = c2NTT.Coeffs[x][j]
+				p1tmp[j] = p0tmp[j]
 			}
 		} else {
 			ring.NTT(c2_qiQ.Coeffs[x], c2_qiQ.Coeffs[x], contextQ.N, nttPsi, qi, mredParams, bredParams)
 		}
 	}
-
 	// c2_qiP = c2 mod qi mod pj
 	contextP.NTT(c2_qiP, c2_qiP)
-}
-
-func (evaluator *Evaluator) rotateLeftHoisted(ctIn *Ciphertext, c2_qiQDecomp, c2_qiPDecomp []*ring.Poly, k uint64, evakey *RotationKey, ctOut *Ciphertext) {
-
-	var level, reduce uint64
-
-	level = ctOut.Level()
-
-	contextQ := evaluator.ckkscontext.contextQ
-	contextP := evaluator.ckkscontext.contextP
-
-	if ctIn != ctOut {
-		ring.PermuteNTT(ctIn.value[0], evaluator.ckkscontext.galElRotColLeft[k], evaluator.ringpool[0])
-		contextQ.CopyLvl(level, evaluator.ringpool[0], ctOut.value[0])
-		ring.PermuteNTT(ctIn.value[1], evaluator.ckkscontext.galElRotColLeft[k], evaluator.ringpool[0])
-		contextQ.CopyLvl(level, evaluator.ringpool[0], ctOut.value[1])
-	} else {
-		ring.PermuteNTT(ctIn.value[0], evaluator.ckkscontext.galElRotColLeft[k], ctOut.value[0])
-		ring.PermuteNTT(ctIn.value[1], evaluator.ckkscontext.galElRotColLeft[k], ctOut.value[1])
-	}
-
-	for i := range evaluator.poolQ {
-		evaluator.poolQ[i].Zero()
-	}
-
-	for i := range evaluator.poolP {
-		evaluator.poolP[i].Zero()
-	}
-
-	c2_qiQPermute := evaluator.poolQ[0]
-	c2_qiPPermute := evaluator.poolP[0]
-
-	pool2Q := evaluator.poolQ[1]
-	pool2P := evaluator.poolP[1]
-
-	pool3Q := evaluator.poolQ[2]
-	pool3P := evaluator.poolP[2]
-
-	reduce = 0
-
-	alpha := evaluator.ckkscontext.alpha
-	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
-
-	// Key switching with crt decomposition for the Qi
-	for i := uint64(0); i < beta; i++ {
-
-		ring.PermuteNTT(c2_qiQDecomp[i], evaluator.ckkscontext.galElRotColLeft[k], c2_qiQPermute)
-		ring.PermuteNTT(c2_qiPDecomp[i], evaluator.ckkscontext.galElRotColLeft[k], c2_qiPPermute)
-
-		// We start by applying the keyswitch to the moduli of the ciphertext's context
-		for x := uint64(0); x < level+1; x++ {
-
-			qi := contextQ.Modulus[x]
-			mredParams := contextQ.GetMredParams()[x]
-
-			for y := uint64(0); y < contextQ.N; y++ {
-				pool2Q.Coeffs[x][y] += ring.MRed(evakey.evakey_rot_col_L[k].evakey[i][0].Coeffs[x][y], c2_qiQPermute.Coeffs[x][y], qi, mredParams)
-				pool3Q.Coeffs[x][y] += ring.MRed(evakey.evakey_rot_col_L[k].evakey[i][1].Coeffs[x][y], c2_qiQPermute.Coeffs[x][y], qi, mredParams)
-			}
-		}
-
-		// We continue with the keyswitch primes.
-		for j, keysindex := uint64(0), evaluator.ckkscontext.levels; j < uint64(len(evaluator.ckkscontext.specialprimes)); j, keysindex = j+1, keysindex+1 {
-
-			pj := contextP.Modulus[j]
-			mredParams := contextP.GetMredParams()[j]
-
-			for y := uint64(0); y < contextP.N; y++ {
-				pool2P.Coeffs[j][y] += ring.MRed(evakey.evakey_rot_col_L[k].evakey[i][0].Coeffs[keysindex][y], c2_qiPPermute.Coeffs[j][y], pj, mredParams)
-				pool3P.Coeffs[j][y] += ring.MRed(evakey.evakey_rot_col_L[k].evakey[i][1].Coeffs[keysindex][y], c2_qiPPermute.Coeffs[j][y], pj, mredParams)
-			}
-		}
-
-		if reduce&7 == 1 {
-			contextQ.ReduceLvl(level, pool2Q, pool2Q)
-			contextQ.ReduceLvl(level, pool3Q, pool3Q)
-
-			contextP.Reduce(pool2P, pool2P)
-			contextP.Reduce(pool3P, pool3P)
-		}
-
-		reduce++
-	}
-
-	//Independant of context (parameter : level)
-	if (reduce-1)&7 != 1 {
-		contextQ.ReduceLvl(level, pool2Q, pool2Q)
-		contextQ.ReduceLvl(level, pool3Q, pool3Q)
-
-		contextP.Reduce(pool2P, pool2P)
-		contextP.Reduce(pool3P, pool3P)
-	}
-
-	//Independant of context (parameter : level)
-	// Computes pool2Q = pool2Q/pool2P and pool3Q = pool3Q/pool3P
-	evaluator.baseconverter.ModDownSplitedNTT(contextQ, contextP, evaluator.ckkscontext.rescaleParamsKeys, level, pool2Q, pool2P, pool2Q, evaluator.keyswitchpool[0])
-	evaluator.baseconverter.ModDownSplitedNTT(contextQ, contextP, evaluator.ckkscontext.rescaleParamsKeys, level, pool3Q, pool3P, pool3Q, evaluator.keyswitchpool[0])
-
-	//Independant of context (parameter : level)
-	contextQ.AddLvl(level, ctOut.value[0], pool2Q, ctOut.value[0])
-	contextQ.AddLvl(level, ctOut.value[1], pool3Q, ctOut.value[1])
 }

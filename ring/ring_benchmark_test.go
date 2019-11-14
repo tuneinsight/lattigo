@@ -8,7 +8,7 @@ import (
 
 func Benchmark_Polynomial(b *testing.B) {
 
-	for i := uint64(0); i < 1; i++ {
+	for i := uint64(2); i < 3; i++ {
 
 		N := uint64(1 << (12 + i))
 		T := uint64(65537)

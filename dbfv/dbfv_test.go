@@ -44,7 +44,7 @@ var err error
 var testParams = new(dbfvTestParameters)
 
 func init() {
-	testParams.parties = 5
+	testParams.parties = 3
 
 	testParams.contexts = bfv.DefaultParams
 }

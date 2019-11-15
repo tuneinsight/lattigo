@@ -75,7 +75,8 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	// h_0 = (u_i * pk_0 + e0)/P
 	pcks.baseconverter.ModDownNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), pcks.share0tmp, shareOut[0], pcks.tmp)
 
-	// h_0 = (u_i * pk_0 + e0)/P
+	// h_1 = (u_i * pk_1 + e1)/P
+	// Cound be moved to the keyswitch part of the protocol, but the second element of the shares will be larger.
 	pcks.baseconverter.ModDownNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), pcks.share1tmp, shareOut[1], pcks.tmp)
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P

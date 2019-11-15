@@ -59,9 +59,9 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	_ = contextKeys.SampleTernaryMontgomeryNTT(pcks.tmp, 0.5)
 
 	// h_0 = u_i * pk_0
-	contextKeys.MulCoeffsMontgomeryAndAdd(pcks.tmp, pk.Get()[0], pcks.share0tmp)
+	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
 	// h_1 = u_i * pk_1
-	contextKeys.MulCoeffsMontgomeryAndAdd(pcks.tmp, pk.Get()[1], pcks.share1tmp)
+	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], pcks.share1tmp)
 
 	contextKeys.InvNTT(pcks.share0tmp, pcks.share0tmp)
 	contextKeys.InvNTT(pcks.share1tmp, pcks.share1tmp)
@@ -75,6 +75,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	pcks.baseconverter.ModDown(contextKeys, pcks.bfvContext.RescaleParamsKeys(), uint64(len(contextQ.Modulus))-1, pcks.share0tmp, shareOut[0], pcks.tmp)
 
 	// h_0 = (u_i * pk_0 + e0)/P
+	// Could be moved to the keyswitch phase, but the second element of the shares will be larger
 	pcks.baseconverter.ModDown(contextKeys, pcks.bfvContext.RescaleParamsKeys(), uint64(len(contextQ.Modulus))-1, pcks.share1tmp, shareOut[1], pcks.tmp)
 
 	// tmp = s_i*c_1

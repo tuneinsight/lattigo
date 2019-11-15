@@ -8,8 +8,6 @@ import (
 // EkgProtocol is a structure storing the parameters for the collective evaluation-key generation.
 type RKGProtocol struct {
 	ckksContext *ckks.CkksContext
-	tmpPoly1    *ring.Poly
-	tmpPoly2    *ring.Poly
 	polypool    *ring.Poly
 }
 
@@ -39,9 +37,6 @@ func NewEkgProtocol(ckksContext *ckks.CkksContext) *RKGProtocol {
 
 	ekg := new(RKGProtocol)
 	ekg.ckksContext = ckksContext
-
-	ekg.tmpPoly1 = ekg.ckksContext.ContextKeys().NewPoly()
-	ekg.tmpPoly2 = ekg.ckksContext.ContextKeys().NewPoly()
 	ekg.polypool = ekg.ckksContext.ContextKeys().NewPoly()
 
 	return ekg
@@ -140,8 +135,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly,
 		contextKeys.MulCoeffsMontgomery(round1[i], sk, shareOut[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
-		ekg.ckksContext.GaussianSampler().SampleNTT(ekg.tmpPoly1)
-		contextKeys.Add(shareOut[i][0], ekg.tmpPoly1, shareOut[i][0])
+		ekg.ckksContext.GaussianSampler().SampleNTT(ekg.polypool)
+		contextKeys.Add(shareOut[i][0], ekg.polypool, shareOut[i][0])
 
 		// Second Element
 		// e_2i
@@ -149,6 +144,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly,
 		// s*a + e_2i
 		contextKeys.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut[i][1])
 	}
+
+	ekg.polypool.Zero()
 
 }
 
@@ -180,13 +177,13 @@ func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.
 	contextKeys := ekg.ckksContext.ContextKeys()
 
 	// (u_i - s_i)
-	contextKeys.Sub(u, sk, ekg.tmpPoly1)
+	contextKeys.Sub(u, sk, ekg.polypool)
 
 	for i := uint64(0); i < ekg.ckksContext.Beta(); i++ {
 
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
 		ekg.ckksContext.GaussianSampler().SampleNTT(shareOut[i])
-		contextKeys.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round2[i][1], shareOut[i])
+		contextKeys.MulCoeffsMontgomeryAndAdd(ekg.polypool, round2[i][1], shareOut[i])
 	}
 }
 

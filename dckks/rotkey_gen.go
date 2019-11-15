@@ -139,6 +139,8 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 
 	}
 
+	rtg.tmpPoly.Zero()
+
 	return
 }
 

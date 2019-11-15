@@ -100,10 +100,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly)
 	contextKeys.Sub(rtg.tmpPoly, sk, rtg.tmpPoly)
 
-	for _, pj := range rtg.bfvContext.KeySwitchPrimes() {
-		contextKeys.MulScalar(rtg.tmpPoly, pj, rtg.tmpPoly)
-	}
-
+	contextKeys.MulScalarBigint(rtg.tmpPoly, rtg.bfvContext.ContextPKeys().ModulusBigint, rtg.tmpPoly)
 	contextKeys.InvMForm(rtg.tmpPoly, rtg.tmpPoly)
 
 	var index uint64
@@ -121,8 +118,12 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 
 			index = i*rtg.bfvContext.Alpha() + j
 
+			qi := contextKeys.Modulus[index]
+			tmp0 := rtg.tmpPoly.Coeffs[index]
+			tmp1 := evakey[i].Coeffs[index]
+
 			for w := uint64(0); w < contextKeys.N; w++ {
-				evakey[i].Coeffs[index][w] = ring.CRed(evakey[i].Coeffs[index][w]+rtg.tmpPoly.Coeffs[index][w], contextKeys.Modulus[index])
+				tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 			}
 
 			// Handles the case where nb pj does not divides nb qi

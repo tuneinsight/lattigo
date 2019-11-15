@@ -409,8 +409,10 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		for k, Pi := range contextP.Modulus {
 			mredParams := contextP.GetMredParams()[k]
 			rescalParams := evaluator.bfvcontext.rescaleParamsMul[k]
+			p2tmp := c2P[i].Coeffs[k]
+			p1tmp := polyPtmp.Coeffs[k]
 			for j := uint64(0); j < contextP.N; j++ {
-				c2P[i].Coeffs[k][j] = ring.MRed(c2P[i].Coeffs[k][j]+(Pi-polyPtmp.Coeffs[k][j]), rescalParams, Pi, mredParams)
+				p2tmp[j] = ring.MRed(p2tmp[j]+(Pi-p1tmp[j]), rescalParams, Pi, mredParams)
 			}
 		}
 
@@ -739,16 +741,22 @@ func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 			mredParams := contextKeys.GetMredParams()[x]
 
 			if p0idxst <= uint64(x) && uint64(x) < p0idxed {
+				p2tmp := c2.Coeffs[x]
 				for j := uint64(0); j < N; j++ {
-					c2_qi_ntt[j] = c2.Coeffs[x][j]
+					c2_qi_ntt[j] = p2tmp[j]
 				}
 			} else {
 				ring.NTT(c2_qi.Coeffs[x], c2_qi_ntt, N, nttPsi, qi, mredParams, bredParams)
 			}
 
+			key0 := evakey.evakey[i][0].Coeffs[x]
+			key1 := evakey.evakey[i][1].Coeffs[x]
+			p2tmp := evaluator.keyswitchpool[2].Coeffs[x]
+			p3tmp := evaluator.keyswitchpool[3].Coeffs[x]
+
 			for y := uint64(0); y < context.N; y++ {
-				evaluator.keyswitchpool[2].Coeffs[x][y] += ring.MRed(evakey.evakey[i][0].Coeffs[x][y], c2_qi_ntt[y], qi, mredParams)
-				evaluator.keyswitchpool[3].Coeffs[x][y] += ring.MRed(evakey.evakey[i][1].Coeffs[x][y], c2_qi_ntt[y], qi, mredParams)
+				p2tmp[y] += ring.MRed(key0[y], c2_qi_ntt[y], qi, mredParams)
+				p3tmp[y] += ring.MRed(key1[y], c2_qi_ntt[y], qi, mredParams)
 			}
 		}
 

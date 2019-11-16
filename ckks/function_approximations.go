@@ -6,36 +6,18 @@ import (
 	"math/cmplx"
 )
 
-func chebyshevNodesU(n int, a, b complex128) (u []complex128) {
+func chebyshevNodes(n int, a, b complex128) (u []complex128) {
 	u = make([]complex128, n)
 	var x, y complex128
 	for k := 1; k < n+1; k++ {
 		x = 0.5 * (a + b)
 		y = 0.5 * (b - a)
-		u[n-k] = x + y*complex(math.Cos((float64(k)-0.5)*(3.141592653589793/float64(n))), 0)
+		u[k-1] = x + y*complex(math.Cos((float64(k)-0.5)*(3.141592653589793/float64(n))), 0)
 	}
 	return
 }
 
-func chebyshevNodesX(u []complex128, a, b complex128) (x []complex128) {
-	x = make([]complex128, len(u))
-	for i := 0; i < len(u); i++ {
-		x[i] = 0.5*(b-a)*u[i] + 0.5*(a+b)
-	}
-	return
-}
-
-func average(y []complex128) (avg complex128) {
-	avg = 0
-	for i := 0; i < len(y); i++ {
-		avg += y[i]
-	}
-	avg /= complex(float64(len(y)), 0)
-
-	return
-}
-
-func evaluate_cheby(coeffs []complex128, x complex128, a, b complex128) (y complex128) {
+func evaluateChebyshevPolynomial(coeffs []complex128, x complex128, a, b complex128) (y complex128) {
 	var u, Tprev, Tnext, T complex128
 	u = (2*x - a - b) / (b - a)
 	Tprev = 1
@@ -50,7 +32,7 @@ func evaluate_cheby(coeffs []complex128, x complex128, a, b complex128) (y compl
 	return
 }
 
-func evaluate(degree int, x, a, b complex128) (T complex128) {
+func evaluateChebyshevBasis(degree int, x, a, b complex128) (T complex128) {
 	if degree == 0 {
 		return 1
 	}
@@ -67,19 +49,22 @@ func evaluate(degree int, x, a, b complex128) (T complex128) {
 }
 
 func chebyCoeffs(u, y []complex128, a, b complex128) (coeffs []complex128) {
+
 	n := len(y)
+
 	coeffs = make([]complex128, n)
-	var tmp []complex128
-	for i := 0; i < n; i++ {
-		tmp = make([]complex128, n)
+
+	for j := 0; j < n; j++ {
+		coeffs[0] += y[j] * evaluateChebyshevBasis(0, u[j], a, b)
+	}
+
+	coeffs[0] /= complex(float64(n), 0)
+
+	for i := 1; i < n; i++ {
 		for j := 0; j < n; j++ {
-			tmp[j] = y[j] * evaluate(i, u[j], -1, 1)
+			coeffs[i] += y[j] * evaluateChebyshevBasis(i, u[j], a, b)
 		}
-		if i != 0 {
-			coeffs[i] = 2 * average(tmp)
-		} else {
-			coeffs[i] = average(tmp)
-		}
+		coeffs[i] *= (2.0/complex(float64(n), 0))
 	}
 
 	return
@@ -102,15 +87,14 @@ func Approximate(function func(complex128) complex128, a, b complex128, degree i
 	cheby.b = b
 	cheby.degree = uint64(degree)
 
-	u := chebyshevNodesU(degree+1, -1, 1)
-	x := chebyshevNodesX(u, a, b)
+	nodes := chebyshevNodes(degree+1, a, b)
 
-	y := make([]complex128, len(x))
-	for i := range x {
-		y[i] = function(x[i])
+	y := make([]complex128, len(nodes))
+	for i := range nodes {
+		y[i] = function(nodes[i])
 	}
 
-	coeffs := chebyCoeffs(u, y, a, b)
+	coeffs := chebyCoeffs(nodes, y, a, b)
 
 	for i := range coeffs {
 		cheby.coeffs[uint64(i)] = coeffs[i]

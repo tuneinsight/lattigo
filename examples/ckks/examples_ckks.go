@@ -48,9 +48,7 @@ func chebyshevinterpolation() {
 
 	// Relinearization key
 	var rlk *ckks.EvaluationKey
-	if rlk, err = kgen.NewRelinKey(sk, ckkscontext.Scale()); err != nil {
-		log.Fatal(err)
-	}
+	rlk = kgen.NewRelinKey(sk)
 
 	// Encryptor
 	var encryptor *ckks.Encryptor
@@ -76,7 +74,7 @@ func chebyshevinterpolation() {
 		values[i] = complex(randomFloat(-8, 8), 0)
 	}
 
-	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d, logScale = %d, sigma = %f \n", ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale(), ckkscontext.Sigma())
+	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n", ckkscontext.LogN(), ckkscontext.LogQ(), ckkscontext.Levels(), ckkscontext.Scale(), ckkscontext.Sigma())
 
 	fmt.Println()
 	fmt.Printf("Values     : %6f %6f %6f %6f...\n", round(values[0]), round(values[1]), round(values[2]), round(values[3]))
@@ -84,7 +82,7 @@ func chebyshevinterpolation() {
 
 	// Plaintext creation and encoding process
 	plaintext := ckkscontext.NewPlaintext(ckkscontext.Levels()-1, ckkscontext.Scale())
-	if err = encoder.EncodeComplex(plaintext, values); err != nil {
+	if err = encoder.Encode(plaintext, values, ckkscontext.Slots()); err != nil {
 		log.Fatal(err)
 	}
 
@@ -106,7 +104,7 @@ func chebyshevinterpolation() {
 	fmt.Println("Done... Consumed levels :", ckkscontext.Levels()-1-ciphertext.Level())
 
 	// Decryption process + Decoding process
-	valuesTest := encoder.DecodeComplex(decryptor.DecryptNew(ciphertext))
+	valuesTest := encoder.Decode(decryptor.DecryptNew(ciphertext), ckkscontext.Slots())
 
 	// Computation of the reference values
 	for i := range values {

@@ -1,43 +1,13 @@
 package ring
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"math/bits"
 	"math/rand"
-	"os"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 )
-
-var folder = "test_data/"
-
-// Name of the test vectors files
-
-var files_60 = []string{
-	"test_pol_60____8_2",
-	"test_pol_60___16_2",
-	"test_pol_60___32_2",
-	"test_pol_60___64_2",
-	"test_pol_60__128_2",
-	"test_pol_60__256_2",
-	"test_pol_60__512_2",
-}
-
-// Name of the test vectors files
-
-var filesNTT_60 = []string{
-	"test_pol_NTT_60____8_2",
-	"test_pol_NTT_60___16_2",
-	"test_pol_NTT_60___32_2",
-	"test_pol_NTT_60___64_2",
-	"test_pol_NTT_60__128_2",
-	"test_pol_NTT_60__256_2",
-	"test_pol_NTT_60__512_2",
-}
 
 func Test_Polynomial(t *testing.T) {
 
@@ -68,6 +38,8 @@ func Test_Polynomial(t *testing.T) {
 		contextQP := NewContext()
 		contextQP.Merge(contextQ, contextP)
 
+		test_PRNG(contextQ, t)
+
 		// ok!
 		test_GenerateNTTPrimes(N, Qi[0], t)
 
@@ -85,6 +57,12 @@ func Test_Polynomial(t *testing.T) {
 
 		// ok!
 		test_MRed(contextQ, t)
+
+		// ok!
+		test_Rescale(contextQ, t)
+
+		// ok!
+		test_MulScalarBigint(contextQ, t)
 
 		// ok!
 		test_Shift(contextQ, t)
@@ -107,117 +85,62 @@ func Test_Polynomial(t *testing.T) {
 		// ok!
 		test_SimpleScaling(T, contextQ, contextP, t)
 
-		// ok!
-		test_ComplexScaling(T, contextQ, contextP, contextQP, t)
-
 		test_MultByMonomial(contextQ, t)
 	}
 }
 
-// Parses a file and return a slice whose elements are each line of the file
-func getParamsFromString(filename string) []string {
+func test_PRNG(context *Context, t *testing.T) {
 
-	file, _ := os.Open(filename)
+	t.Run(fmt.Sprintf("PRNG"), func(t *testing.T) {
 
-	defer file.Close()
+		Ha, _ := NewPRNG(nil)
+		Hb, _ := NewPRNG(nil)
 
-	var lines []string
+		// Random 32 byte seed
+		seed1 := []byte{0x48, 0xc3, 0x31, 0x12, 0x74, 0x98, 0xd3, 0xf2,
+			0x7b, 0x15, 0x15, 0x9b, 0x50, 0xc4, 0x9c, 0x00,
+			0x7d, 0xa5, 0xea, 0x68, 0x1f, 0xed, 0x4f, 0x99,
+			0x54, 0xc0, 0x52, 0xc0, 0x75, 0xff, 0xf7, 0x5c}
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
+		// New reseed of the PRNG after one clock cycle with the seed1
+		seed2 := []byte{250, 228, 6, 63, 97, 110, 68, 153,
+			147, 236, 236, 37, 152, 89, 129, 32,
+			185, 5, 221, 180, 160, 217, 247, 201,
+			211, 188, 160, 163, 176, 83, 83, 138}
 
-	return lines
-}
+		Ha.Seed(seed1)
+		Hb.Seed(append(seed1, seed2...)) //Append works since blake2b hashes blocks of 512 bytes
 
-// creates a context from a slice of string of N and Modulies
-func constructContextFromString(vs []string) *Context {
+		Ha.SetClock(256)
+		Hb.SetClock(255)
 
-	// Get N
-	tmpN, _ := strconv.ParseUint(vs[0], 0, 32)
-	N := uint64(tmpN)
+		a := Ha.Clock()
+		b := Hb.Clock()
 
-	// Get Qi
-	ModulusString := strings.Split(strings.TrimSpace(vs[1]), " ")
-
-	Modulus := make([]uint64, len(ModulusString))
-	for i := range ModulusString {
-		tmp, _ := strconv.ParseInt(ModulusString[i], 0, 64)
-		Modulus[i] = uint64(tmp)
-	}
-
-	// Generate the context from N and Qi
-	context := NewContext()
-	context.SetParameters(N, Modulus)
-	context.GenNTTParams()
-
-	return context
-}
-
-// creates a ring from a slice of string of coefficients
-func constructPolynomialsFromString(vs []string, context *Context) *Poly {
-
-	// Extracts the coefficients in CRT and in NTT
-	coeffs := make([][]uint64, len(context.Modulus))
-	for i := range context.Modulus {
-		coeffsString := strings.Split(strings.TrimSpace(vs[i+2]), " ")
-		coeffs[i] = make([]uint64, context.N)
-
-		for j := uint64(0); j < context.N; j++ {
-			tmp, _ := strconv.ParseInt(coeffsString[j], 0, 64)
-			coeffs[i][j] = uint64(tmp)
+		for i := 0; i < 32; i++ {
+			if a[i] != b[i] {
+				t.Errorf("error : error prng")
+				break
+			}
 		}
-	}
 
-	//Create the polynomials and assigns the CRT and NTT coefficients
-	pol := context.NewPoly()
-	pol.SetCoefficients(coeffs)
+		crs_generator_1, _ := NewCRPGenerator(nil, context)
+		crs_generator_2, _ := NewCRPGenerator(nil, context)
 
-	return pol
-}
+		crs_generator_1.Seed(seed1)
+		crs_generator_2.Seed(append(seed1, seed2...)) //Append works since blake2b hashes blocks of 512 bytes
 
-func test_Vectors_NTT(t *testing.T) {
+		crs_generator_1.SetClock(256)
+		crs_generator_2.SetClock(255)
 
-	for x := uint64(0); x < 7; x++ {
+		p0 := crs_generator_1.Clock()
+		p1 := crs_generator_2.Clock()
 
-		vs := getParamsFromString(fmt.Sprintf(folder + files_60[x]))
-		vs_ntt := getParamsFromString(fmt.Sprintf(folder + filesNTT_60[x]))
+		if context.Equal(p0, p1) != true {
+			t.Errorf("error : crs prng generator")
+		}
+	})
 
-		context := constructContextFromString(vs)
-
-		t.Run(fmt.Sprintf("Test_Vectors_NTT/N=%d/limbs=%d", context.N, len(context.Modulus)), func(t *testing.T) {
-
-			Polx := constructPolynomialsFromString(vs, context)
-
-			PolNTT := constructPolynomialsFromString(vs_ntt, context)
-
-			CRTCoeffs := Polx.GetCoefficients()
-
-			context.NTT(Polx, Polx)
-
-			for i := range context.Modulus {
-				for j := range Polx.Coeffs {
-					if Polx.Coeffs[i][j] != PolNTT.Coeffs[i][j] {
-						t.Errorf("error : NTT coeffs file n°%v: want %v, have %v", x, PolNTT.Coeffs[i][j], Polx.Coeffs[i][j])
-						continue
-					}
-				}
-			}
-
-			context.InvNTT(Polx, Polx)
-
-			for i := range context.Modulus {
-				for j := range Polx.Coeffs {
-					if Polx.Coeffs[i][j] != CRTCoeffs[i][j] {
-						t.Errorf("error : InvNTT coeffs file n°%v: want %v, have %v", x, CRTCoeffs[i][j], Polx.Coeffs[i][j])
-						continue
-					}
-
-				}
-			}
-		})
-	}
 }
 
 func test_GenerateNTTPrimes(N, Qi uint64, t *testing.T) {
@@ -250,6 +173,81 @@ func test_ImportExportPolyString(context *Context, t *testing.T) {
 
 		if context.Equal(p0, p1) != true {
 			t.Errorf("error : import/export ring from/to string")
+		}
+	})
+}
+
+func test_Rescale(context *Context, t *testing.T) {
+
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/DivFloorByLastModulusMany", context.N, len(context.Modulus)), func(t *testing.T) {
+
+		coeffs := make([]*Int, context.N)
+		for i := uint64(0); i < context.N; i++ {
+			coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs[i].Div(coeffs[i], NewUint(10))
+		}
+
+		nbRescals := len(context.Modulus) - 1
+
+		coeffsWant := make([]*Int, context.N)
+		for i := range coeffs {
+			coeffsWant[i] = coeffs[i].Copy()
+			for j := 0; j < nbRescals; j++ {
+				coeffsWant[i].Div(coeffsWant[i], NewUint(context.Modulus[len(context.Modulus)-1-j]))
+			}
+		}
+
+		polTest := context.NewPoly()
+		polWant := context.NewPoly()
+
+		context.SetCoefficientsBigint(coeffs, polTest)
+		context.SetCoefficientsBigint(coeffsWant, polWant)
+
+		context.DivFloorByLastModulusMany(polTest, uint64(nbRescals))
+		state := true
+		for i := uint64(0); i < context.N && state; i++ {
+			for j := 0; j < len(context.Modulus)-nbRescals && state; j++ {
+				if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
+					t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
+					state = false
+				}
+			}
+		}
+	})
+
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/DivRoundByLastModulusMany", context.N, len(context.Modulus)), func(t *testing.T) {
+
+		coeffs := make([]*Int, context.N)
+		for i := uint64(0); i < context.N; i++ {
+			coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs[i].Div(coeffs[i], NewUint(10))
+		}
+
+		nbRescals := len(context.Modulus) - 1
+
+		coeffsWant := make([]*Int, context.N)
+		for i := range coeffs {
+			coeffsWant[i] = coeffs[i].Copy()
+			for j := 0; j < nbRescals; j++ {
+				coeffsWant[i].DivRound(coeffsWant[i], NewUint(context.Modulus[len(context.Modulus)-1-j]))
+			}
+		}
+
+		polTest := context.NewPoly()
+		polWant := context.NewPoly()
+
+		context.SetCoefficientsBigint(coeffs, polTest)
+		context.SetCoefficientsBigint(coeffsWant, polWant)
+
+		context.DivRoundByLastModulusMany(polTest, uint64(nbRescals))
+		state := true
+		for i := uint64(0); i < context.N && state; i++ {
+			for j := 0; j < len(context.Modulus)-nbRescals && state; j++ {
+				if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
+					t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
+					state = false
+				}
+			}
 		}
 	})
 }
@@ -297,7 +295,6 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 
 	bound := int(sigma * 6)
 	KYS := context.NewKYSampler(sigma, bound)
-	TS := context.NewTernarySampler()
 
 	pol := context.NewPoly()
 
@@ -309,7 +306,7 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 	countZer := 0
 	countMOn := 0
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/NewTernaryPoly", context.N, len(context.Modulus)), func(t *testing.T) {
-		if err := TS.Sample(1.0/3, pol); err != nil {
+		if err := context.SampleTernary(pol, 1.0/3); err != nil {
 			log.Fatal(err)
 		}
 
@@ -455,6 +452,30 @@ func test_MForm(context *Context, t *testing.T) {
 
 }
 
+func test_MulScalarBigint(context *Context, t *testing.T) {
+
+	t.Run(fmt.Sprintf("N=%d/limbs=%d/MulScalarBigint", context.N, len(context.Modulus)), func(t *testing.T) {
+
+		polWant := context.NewUniformPoly()
+		polTest := polWant.CopyNew()
+
+		rand1 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+		rand2 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+
+		scalarBigint := NewUint(rand1)
+		scalarBigint.Mul(scalarBigint, NewUint(rand2))
+
+		context.MulScalar(polWant, rand1, polWant)
+		context.MulScalar(polWant, rand2, polWant)
+		context.MulScalarBigint(polTest, scalarBigint, polTest)
+
+		if context.Equal(polWant, polTest) != true {
+			t.Errorf("error : mulScalarBigint")
+		}
+	})
+
+}
+
 func test_MulPoly(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/MulPoly", context.N, len(context.Modulus)), func(t *testing.T) {
@@ -568,54 +589,6 @@ func test_SimpleScaling(T uint64, contextT, contextQ *Context, t *testing.T) {
 			if PolWant.Coeffs[0][i] != PolTest.Coeffs[0][i] {
 				t.Errorf("error : simple scaling, want %v have %v", PolWant.Coeffs[0][i], PolTest.Coeffs[0][i])
 				break
-			}
-		}
-	})
-}
-
-func test_ComplexScaling(T uint64, contextQ, contextP, contextQP *Context, t *testing.T) {
-
-	t.Run(fmt.Sprintf("N=%d/limbs=%d+%d/T=%d/ComplexScaling", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus), T), func(t *testing.T) {
-
-		complexRescaler := NewComplexScaler(T, contextQ, contextP)
-
-		coeffs := make([]*Int, contextQ.N)
-		for i := uint64(0); i < contextQ.N; i++ {
-			coeffs[i] = RandInt(contextQP.ModulusBigint)
-			coeffs[i].Div(coeffs[i], NewUint(10))
-		}
-
-		//coeffs[0].SetString("323702478295050366752968655518337494486119222600846780736994466085672189264880022173262")
-		//coeffs[1].SetString("4888963624565002661780158142973932724425930851432042682757127743238542390594193351997723")
-		//coeffs[2].SetString("4282984724308796735476641110474688971631286863366811526364125630744789177542625267835653")
-		//coeffs[3].SetString("3443920543591757808834812628691980702836925006139799151579776655221448318527620147901056")
-		//coeffs[4].SetString("2435992701314338051709289453765710565896473610780678347020688344988696126710239045561833")
-		//coeffs[5].SetString("3577369130953681317513231564259583867075569841269600848965005473743746265741712227949357")
-		//coeffs[6].SetString("3650829186364460588505284366902239740496861722443649340705308513232282111686882618728671")
-		//coeffs[7].SetString("5413725621145553596020326503684835624178908809180347713780542414099674315138466376924388")
-		//coeffs[8].SetString("2921703598815986183949445434906117845024974748774925667243895094611669622018594882674160")
-
-		coeffsWant := make([]*Int, contextQ.N)
-		for i := range coeffs {
-			coeffsWant[i] = Copy(coeffs[i])
-			coeffsWant[i].Mul(coeffsWant[i], NewUint(T))
-			coeffsWant[i].DivRound(coeffsWant[i], contextQ.ModulusBigint)
-		}
-
-		PolTest := contextQP.NewPoly()
-		PolWant := contextQ.NewPoly()
-
-		contextQP.SetCoefficientsBigint(coeffs, PolTest)
-
-		complexRescaler.Scale(PolTest, PolTest)
-		contextQ.SetCoefficientsBigint(coeffsWant, PolWant)
-
-		for i := uint64(0); i < contextQ.N; i++ {
-			for j := 0; j < len(contextQ.Modulus); j++ {
-				if PolWant.Coeffs[j][i] != PolTest.Coeffs[j][i] {
-					t.Errorf("error : complex scaling coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), PolWant.Coeffs[j][i], PolTest.Coeffs[j][i])
-					break
-				}
 			}
 		}
 	})

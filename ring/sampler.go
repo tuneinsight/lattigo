@@ -3,387 +3,86 @@ package ring
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"errors"
 	"math"
+	"math/bits"
+	//"math/rand"
 )
 
-// KYSampler is the structure holding the parameters for the gaussian sampling.
-type KYSampler struct {
-	context *Context
-	sigma   float64
-	bound   int
-	Matrix  [][]uint8
-}
+// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
+func (context *Context) UniformPoly(Pol *Poly) {
 
-// NewKYSampler creates a new KYSampler with sigma and bound that will be used to sample polynomial within the provided discret gaussian distribution.
-func (context *Context) NewKYSampler(sigma float64, bound int) *KYSampler {
-	kysampler := new(KYSampler)
-	kysampler.context = context
-	kysampler.sigma = sigma
-	kysampler.bound = bound
-	kysampler.Matrix = computeMatrix(sigma, bound)
-	return kysampler
-}
+	var randomBytes []byte
+	var randomUint, mask, qi uint64
 
-//gaussian computes (1/variange*sqrt(pi)) * exp((x^2) / (2*variance^2)),  2.50662827463100050241576528481104525300698674060993831662992357 = sqrt(2*pi)
-func gaussian(x, sigma float64) float64 {
-	return (1 / (sigma * 2.5066282746310007)) * math.Exp(-((math.Pow(x, 2)) / (2 * sigma * sigma)))
-}
-
-// computeMatrix computes the binary expension with precision x in bits of the normal distribution
-// with sigma and bound. Returns a matrix of the form M = [[0,1,0,0,...],[0,0,1,,0,...]],
-// where each row is the binary expension of the normal distribution of index(row) with sigma and bound (center=0).
-func computeMatrix(sigma float64, bound int) [][]uint8 {
-	var g float64
-	var x uint64
-
-	precision := uint64(56)
-
-	M := make([][]uint8, bound)
-
-	breakCounter := 0
-
-	for i := 0; i < bound; i++ {
-
-		g = gaussian(float64(i), sigma)
-
-		if i == 0 {
-			g *= math.Exp2(float64(precision) - 1)
-		} else {
-			g *= math.Exp2(float64(precision))
-		}
-
-		x = uint64(g)
-
-		if x == 0 {
-			break
-		}
-
-		M[i] = make([]uint8, precision-1)
-
-		for j := uint64(0); j < precision-1; j++ {
-			M[i][j] = uint8((x >> (precision - j - 2)) & 1)
-		}
-
-		breakCounter += 1
+	n := context.N
+	if n < 8 {
+		n = 8
 	}
 
-	M = M[:breakCounter]
-
-	return M
-}
-
-func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64, []byte, uint8) {
-
-	var sign uint8
-
-	d := 0
-	col := 0
-	colLen := len(M)
-
-	for {
-
-		// Uses one random byte per cycle and cycle through the randombytes
-		for i := pointer; i < 8; i++ {
-
-			d = (d << 1) + 1 - int((uint8(randomBytes[0])>>i)&1)
-
-			// There is small probability that it will get out of the bound, then
-			// rerun until it gets a proper output
-			if d > colLen-1 {
-				return kysampling(M, randomBytes, i)
-			}
-
-			for row := colLen - 1; row >= 0; row-- {
-
-				d -= int(M[row][col])
-
-				if d == -1 {
-
-					// Sign
-					if i == 7 {
-						pointer = 0
-						// If the last bit of the byte was read, samples a new byte for the sign
-						randomBytes = randomBytes[1:]
-
-						if len(randomBytes) == 0 {
-							randomBytes = make([]byte, 8)
-							if _, err := rand.Read(randomBytes); err != nil {
-								panic("crypto rand error")
-							}
-						}
-
-						sign = uint8(randomBytes[0]) & 1
-
-					} else {
-						pointer = i
-						// Else the sign is the next bit of the byte
-						sign = uint8(randomBytes[0]>>(i+1)) & 1
-					}
-
-					return uint64(row), uint64(sign), randomBytes, pointer + 1
-				}
-			}
-
-			col += 1
-		}
-
-		// Resets the bit pointer and discards the used byte
-		pointer = 0
-		randomBytes = randomBytes[1:]
-
-		// Sample 8 new bytes if the last byte was discarded
-		if len(randomBytes) == 0 {
-			randomBytes = make([]byte, 8)
-			if _, err := rand.Read(randomBytes); err != nil {
-				panic("crypto rand error")
-			}
-		}
-
-	}
-}
-
-// SampleNew samples a new polynomial with gaussian distribution given the target kys parameters.
-func (kys *KYSampler) SampleNew() *Poly {
-	Pol := kys.context.NewPoly()
-	kys.Sample(Pol)
-	return Pol
-}
-
-// SampleNew samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
-func (kys *KYSampler) Sample(Pol *Poly) {
-
-	var coeff uint64
-	var sign uint64
-
-	randomBytes := make([]byte, 8)
-	pointer := uint8(0)
-
+	randomBytes = make([]byte, n)
 	if _, err := rand.Read(randomBytes); err != nil {
 		panic("crypto rand error")
 	}
 
-	for i := uint64(0); i < kys.context.N; i++ {
+	level := uint64(len(Pol.Coeffs) - 1)
 
-		coeff, sign, randomBytes, pointer = kysampling(kys.Matrix, randomBytes, pointer)
+	for j := uint64(0); j < level+1; j++ {
 
-		for j, qi := range kys.context.Modulus {
-			Pol.Coeffs[j][i] = (coeff & (sign * 0xFFFFFFFFFFFFFFFF)) | ((qi - coeff) & ((sign ^ 1) * 0xFFFFFFFFFFFFFFFF))
+		qi = context.Modulus[j]
 
-		}
-	}
-}
+		// Starts by computing the mask
+		mask = (1 << uint64(bits.Len64(qi))) - 1
 
-// SampleNTTNew samples a polynomial with gaussian distribution given the target kys context and apply the NTT.
-func (kys *KYSampler) SampleNTTNew() *Poly {
-	Pol := kys.SampleNew()
-	kys.context.NTT(Pol, Pol)
-	return Pol
-}
+		ptmp := Pol.Coeffs[j]
 
-// SampleNew samples on the target polynomial coefficients with gaussian distribution given the target kys parameters,and applies the NTT.
-func (kys *KYSampler) SampleNTT(Pol *Poly) {
-	kys.Sample(Pol)
-	kys.context.NTT(Pol, Pol)
-}
+		// Iterates for each modulus over each coefficient
+		for i := uint64(0); i < context.N; i++ {
 
-// TernarySampler is the structure holding the parameters for sampling polynomials of the form [-1, 0, 1].
-type TernarySampler struct {
-	context          *Context
-	Matrix           [][]uint64
-	MatrixMontgomery [][]uint64
+			// Samples an integer between [0, qi-1]
+			for {
 
-	KYMatrix [][]uint8
-}
+				// Replenishes the pool if it runs empty
+				if len(randomBytes) < 8 {
+					randomBytes = make([]byte, n)
+					if _, err := rand.Read(randomBytes); err != nil {
+						panic("crypto rand error")
+					}
+				}
 
-// NewTernarySampler creates a new TernarySampler from the target context.
-func (context *Context) NewTernarySampler() *TernarySampler {
+				// Reads bytes from the pool
+				randomUint = binary.BigEndian.Uint64(randomBytes[:8]) & mask
+				randomBytes = randomBytes[8:] // Discard the used bytes
 
-	sampler := new(TernarySampler)
-	sampler.context = context
-
-	sampler.Matrix = make([][]uint64, len(context.Modulus))
-	sampler.MatrixMontgomery = make([][]uint64, len(context.Modulus))
-
-	for i, Qi := range context.Modulus {
-
-		sampler.Matrix[i] = make([]uint64, 3)
-		sampler.Matrix[i][0] = 0
-		sampler.Matrix[i][1] = 1
-		sampler.Matrix[i][2] = Qi - 1
-
-		sampler.MatrixMontgomery[i] = make([]uint64, 3)
-		sampler.MatrixMontgomery[i][0] = 0
-		sampler.MatrixMontgomery[i][1] = MForm(1, Qi, context.bredParams[i])
-		sampler.MatrixMontgomery[i][2] = MForm(Qi-1, Qi, context.bredParams[i])
-	}
-
-	return sampler
-}
-
-func computeMatrixTernary(p float64) (M [][]uint8) {
-	var g float64
-	var x uint64
-
-	precision := uint64(56)
-
-	M = make([][]uint8, 2)
-
-	g = p
-	g *= math.Exp2(float64(precision))
-	x = uint64(g)
-
-	M[0] = make([]uint8, precision-1)
-	for j := uint64(0); j < precision-1; j++ {
-		M[0][j] = uint8((x >> (precision - j - 1)) & 1)
-	}
-
-	g = 1 - p
-	g *= math.Exp2(float64(precision))
-	x = uint64(g)
-
-	M[1] = make([]uint8, precision-1)
-	for j := uint64(0); j < precision-1; j++ {
-		M[1][j] = uint8((x >> (precision - j - 1)) & 1)
-	}
-
-	return M
-}
-
-// SampleMontgomeryNew samples coefficients with ternary distribution in montgomery form on the target polynomial.
-func (sampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64, pol *Poly) (err error) {
-
-	if p == 0 {
-		return errors.New("cannot sample -> p = 0")
-	}
-
-	var coeff uint64
-	var sign uint64
-	var index uint64
-
-	if p == 0.5 {
-
-		randomBytesCoeffs := make([]byte, sampler.context.N>>3)
-		randomBytesSign := make([]byte, sampler.context.N>>3)
-
-		if _, err := rand.Read(randomBytesCoeffs); err != nil {
-			panic("crypto rand error")
-		}
-
-		if _, err := rand.Read(randomBytesSign); err != nil {
-			panic("crypto rand error")
-		}
-
-		for i := uint64(0); i < sampler.context.N; i++ {
-			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
-			sign = uint64(uint8(randomBytesSign[i>>3])>>(i&7)) & 1
-
-			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
-
-			for j := range sampler.context.Modulus {
-				pol.Coeffs[j][i] = samplerMatrix[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+				// If the integer is between [0, qi-1], breaks the loop
+				if randomUint < qi {
+					break
+				}
 			}
-		}
 
-	} else {
-
-		matrix := computeMatrixTernary(p)
-
-		randomBytes := make([]byte, 8)
-
-		pointer := uint8(0)
-
-		if _, err := rand.Read(randomBytes); err != nil {
-			panic("crypto rand error")
-		}
-
-		for i := uint64(0); i < sampler.context.N; i++ {
-
-			coeff, sign, randomBytes, pointer = kysampling(matrix, randomBytes, pointer)
-
-			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
-
-			for j := range sampler.context.Modulus {
-				pol.Coeffs[j][i] = samplerMatrix[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
-			}
+			ptmp[i] = randomUint
 		}
 	}
 
-	return nil
+	return
 }
 
-func (sampler *TernarySampler) SampleUniform(pol *Poly) {
-	_ = sampler.sample(sampler.Matrix, 1.0/3.0, pol)
+// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
+func (context *Context) NewUniformPoly() (Pol *Poly) {
+
+	Pol = context.NewPoly()
+
+	context.UniformPoly(Pol)
+
+	return
 }
 
-func (sampler *TernarySampler) Sample(p float64, pol *Poly) (err error) {
-	if err = sampler.sample(sampler.Matrix, p, pol); err != nil {
-		return err
-	}
-	return nil
-}
+func (context *Context) NewUniformPolyLvl(level uint64) (Pol *Poly) {
 
-func (sampler *TernarySampler) SampleMontgomery(p float64, pol *Poly) (err error) {
-	if err = sampler.sample(sampler.MatrixMontgomery, p, pol); err != nil {
-		return err
-	}
-	return nil
-}
+	Pol = context.NewPolyLvl(level)
 
-// SampleNew samples a new polynomial with ternary distribution.
-func (sampler *TernarySampler) SampleNew(p float64) (pol *Poly, err error) {
-	pol = sampler.context.NewPoly()
-	if err = sampler.Sample(p, pol); err != nil {
-		return nil, err
-	}
-	return pol, nil
-}
+	context.UniformPoly(Pol)
 
-// SampleMontgomeryNew samples a new polynomial with ternary distribution in montgomery form.
-func (sampler *TernarySampler) SampleMontgomeryNew(p float64) (pol *Poly, err error) {
-	pol = sampler.context.NewPoly()
-	if err = sampler.SampleMontgomery(p, pol); err != nil {
-		return nil, err
-	}
-	return pol, nil
-}
-
-// SampleNTTNew samples a new polynomial with ternary distribution in the NTT domain.
-func (sampler *TernarySampler) SampleNTTNew(p float64) (pol *Poly, err error) {
-	pol = sampler.context.NewPoly()
-	if err = sampler.Sample(p, pol); err != nil {
-		return nil, err
-	}
-	sampler.context.NTT(pol, pol)
-	return pol, nil
-}
-
-// SampleNTT samples coefficients with ternary distribution in the NTT domain on the target polynomial.
-func (sampler *TernarySampler) SampleNTT(p float64, pol *Poly) (err error) {
-	if err = sampler.Sample(p, pol); err != nil {
-		return err
-	}
-	sampler.context.NTT(pol, pol)
-
-	return nil
-}
-
-// SampleNTTNew samples a new polynomial with ternary distribution in the NTT domain and in montgomery form.
-func (sampler *TernarySampler) SampleMontgomeryNTTNew(p float64) (pol *Poly, err error) {
-	if pol, err = sampler.SampleMontgomeryNew(p); err != nil {
-		return nil, err
-	}
-	sampler.context.NTT(pol, pol)
-	return pol, nil
-}
-
-// SampleNTT samples coefficients with ternary distribution in the NTT domain and in montgomery form on the target polynomial.
-func (sampler *TernarySampler) SampleMontgomeryNTT(p float64, pol *Poly) (err error) {
-	if err = sampler.SampleMontgomery(p, pol); err != nil {
-		return err
-	}
-	sampler.context.NTT(pol, pol)
-	return nil
+	return
 }
 
 // RandUniform samples a uniform randomInt variable in the range [0, mask] until randomInt is in the range [0, v-1].
@@ -395,44 +94,6 @@ func RandUniform(v uint64, mask uint64) (randomInt uint64) {
 			return randomInt
 		}
 	}
-}
-
-// randInt3 samples a bit and a sign with rejection sampling (25% chance of failure), with probabilities :
-// Pr[int = 0 : 1/3 ; int = 1 : 2/3]
-// Pr[sign = 1 : 1/2; sign = 0 : 1/2]
-func randInt3() (uint64, uint64) {
-	var randomInt uint64
-
-	for {
-		randomInt = randInt8()
-		if (randomInt & 3) < 3 {
-			// (a|b) is 1/3 = 0 and 2/3 = 1 if (a<<1 | b) in [0,1,2]
-			return ((randomInt >> 1) | randomInt) & 1, (randomInt >> 2) & 1
-		}
-	}
-}
-
-// randUint3 samples a uniform variable in the range [0, 2]
-func randUint3() uint64 {
-	var randomInt uint64
-	for {
-		randomInt = randInt8() & 3
-		if randomInt < 3 {
-			return randomInt
-		}
-	}
-}
-
-// randInt8 samples a uniform variable in the range [0, 255]
-func randInt8() uint64 {
-
-	// generate random 4 bytes
-	randomBytes := make([]byte, 1)
-	if _, err := rand.Read(randomBytes); err != nil {
-		panic("crypto rand error")
-	}
-	// return required bits
-	return uint64(randomBytes[0])
 }
 
 // randInt32 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 32].
@@ -467,4 +128,180 @@ func randInt64(mask uint64) uint64 {
 
 	// return required bits
 	return mask & randomUint64
+}
+
+// randFloat64 returns a uniform float64 value between 0 and 1
+func randFloat64(randomBytes []byte) float64 {
+	return float64(binary.BigEndian.Uint64(randomBytes)&0x1fffffffffffff) / float64(0x1fffffffffffff)
+}
+
+// NormFloat64 returns a normally distributed float64 in
+// the range -math.MaxFloat64 through +math.MaxFloat64 inclusive,
+// with standard normal distribution (mean = 0, stddev = 1).
+// To produce a different normal distribution, callers can
+// adjust the output using:
+//
+//  sample = NormFloat64() * desiredStdDev + desiredMean
+// Algorithm adapted from https://golang.org/src/math/rand/normal.go
+func normFloat64(randomBytes []byte) (float64, uint64, []byte) {
+
+	for {
+
+		if len(randomBytes) < 4 {
+			randomBytes = make([]byte, 1024)
+
+			if _, err := rand.Read(randomBytes); err != nil {
+				panic("crypto rand error")
+			}
+		}
+
+		juint32 := binary.BigEndian.Uint32(randomBytes[:4])
+		randomBytes = randomBytes[4:]
+
+		j := int32(juint32 & 0x7fffffff)
+		sign := uint64(juint32 >> 31)
+
+		i := j & 0x7F
+
+		x := float64(j) * float64(wn[i])
+
+		// 1
+		if uint32(j) < kn[i] {
+
+			// This case should be hit better than 99% of the time.
+			return x, sign, randomBytes
+		}
+
+		// 2
+		if i == 0 {
+
+			// This extra work is only required for the base strip.
+			for {
+
+				if len(randomBytes) < 16 {
+					randomBytes = make([]byte, 1024)
+
+					if _, err := rand.Read(randomBytes); err != nil {
+						panic("crypto rand error")
+					}
+				}
+
+				x = -math.Log(randFloat64(randomBytes)) * (1.0 / 3.442619855899)
+
+				y := -math.Log(randFloat64(randomBytes))
+
+				if y+y >= x*x {
+					break
+				}
+			}
+
+			return x + 3.442619855899, sign, randomBytes
+		}
+
+		if len(randomBytes) < 8 {
+			randomBytes = make([]byte, 1024)
+
+			if _, err := rand.Read(randomBytes); err != nil {
+				panic("crypto rand error")
+			}
+		}
+
+		// 3
+		if fn[i]+float32(randFloat64(randomBytes))*(fn[i-1]-fn[i]) < float32(math.Exp(-0.5*x*x)) {
+			return x, sign, randomBytes
+		}
+	}
+}
+
+var kn = [128]uint32{
+	0x76ad2212, 0x0, 0x600f1b53, 0x6ce447a6, 0x725b46a2,
+	0x7560051d, 0x774921eb, 0x789a25bd, 0x799045c3, 0x7a4bce5d,
+	0x7adf629f, 0x7b5682a6, 0x7bb8a8c6, 0x7c0ae722, 0x7c50cce7,
+	0x7c8cec5b, 0x7cc12cd6, 0x7ceefed2, 0x7d177e0b, 0x7d3b8883,
+	0x7d5bce6c, 0x7d78dd64, 0x7d932886, 0x7dab0e57, 0x7dc0dd30,
+	0x7dd4d688, 0x7de73185, 0x7df81cea, 0x7e07c0a3, 0x7e163efa,
+	0x7e23b587, 0x7e303dfd, 0x7e3beec2, 0x7e46db77, 0x7e51155d,
+	0x7e5aabb3, 0x7e63abf7, 0x7e6c222c, 0x7e741906, 0x7e7b9a18,
+	0x7e82adfa, 0x7e895c63, 0x7e8fac4b, 0x7e95a3fb, 0x7e9b4924,
+	0x7ea0a0ef, 0x7ea5b00d, 0x7eaa7ac3, 0x7eaf04f3, 0x7eb3522a,
+	0x7eb765a5, 0x7ebb4259, 0x7ebeeafd, 0x7ec2620a, 0x7ec5a9c4,
+	0x7ec8c441, 0x7ecbb365, 0x7ece78ed, 0x7ed11671, 0x7ed38d62,
+	0x7ed5df12, 0x7ed80cb4, 0x7eda175c, 0x7edc0005, 0x7eddc78e,
+	0x7edf6ebf, 0x7ee0f647, 0x7ee25ebe, 0x7ee3a8a9, 0x7ee4d473,
+	0x7ee5e276, 0x7ee6d2f5, 0x7ee7a620, 0x7ee85c10, 0x7ee8f4cd,
+	0x7ee97047, 0x7ee9ce59, 0x7eea0eca, 0x7eea3147, 0x7eea3568,
+	0x7eea1aab, 0x7ee9e071, 0x7ee98602, 0x7ee90a88, 0x7ee86d08,
+	0x7ee7ac6a, 0x7ee6c769, 0x7ee5bc9c, 0x7ee48a67, 0x7ee32efc,
+	0x7ee1a857, 0x7edff42f, 0x7ede0ffa, 0x7edbf8d9, 0x7ed9ab94,
+	0x7ed7248d, 0x7ed45fae, 0x7ed1585c, 0x7ece095f, 0x7eca6ccb,
+	0x7ec67be2, 0x7ec22eee, 0x7ebd7d1a, 0x7eb85c35, 0x7eb2c075,
+	0x7eac9c20, 0x7ea5df27, 0x7e9e769f, 0x7e964c16, 0x7e8d44ba,
+	0x7e834033, 0x7e781728, 0x7e6b9933, 0x7e5d8a1a, 0x7e4d9ded,
+	0x7e3b737a, 0x7e268c2f, 0x7e0e3ff5, 0x7df1aa5d, 0x7dcf8c72,
+	0x7da61a1e, 0x7d72a0fb, 0x7d30e097, 0x7cd9b4ab, 0x7c600f1a,
+	0x7ba90bdc, 0x7a722176, 0x77d664e5,
+}
+
+var wn = [128]float32{
+	1.7290405e-09, 1.2680929e-10, 1.6897518e-10, 1.9862688e-10,
+	2.2232431e-10, 2.4244937e-10, 2.601613e-10, 2.7611988e-10,
+	2.9073963e-10, 3.042997e-10, 3.1699796e-10, 3.289802e-10,
+	3.4035738e-10, 3.5121603e-10, 3.616251e-10, 3.7164058e-10,
+	3.8130857e-10, 3.9066758e-10, 3.9975012e-10, 4.08584e-10,
+	4.1719309e-10, 4.2559822e-10, 4.338176e-10, 4.418672e-10,
+	4.497613e-10, 4.5751258e-10, 4.651324e-10, 4.7263105e-10,
+	4.8001775e-10, 4.87301e-10, 4.944885e-10, 5.015873e-10,
+	5.0860405e-10, 5.155446e-10, 5.2241467e-10, 5.2921934e-10,
+	5.359635e-10, 5.426517e-10, 5.4928817e-10, 5.5587696e-10,
+	5.624219e-10, 5.6892646e-10, 5.753941e-10, 5.818282e-10,
+	5.882317e-10, 5.946077e-10, 6.00959e-10, 6.072884e-10,
+	6.135985e-10, 6.19892e-10, 6.2617134e-10, 6.3243905e-10,
+	6.386974e-10, 6.449488e-10, 6.511956e-10, 6.5744005e-10,
+	6.6368433e-10, 6.699307e-10, 6.7618144e-10, 6.824387e-10,
+	6.8870465e-10, 6.949815e-10, 7.012715e-10, 7.075768e-10,
+	7.1389966e-10, 7.202424e-10, 7.266073e-10, 7.329966e-10,
+	7.394128e-10, 7.4585826e-10, 7.5233547e-10, 7.58847e-10,
+	7.653954e-10, 7.719835e-10, 7.7861395e-10, 7.852897e-10,
+	7.920138e-10, 7.987892e-10, 8.0561924e-10, 8.125073e-10,
+	8.194569e-10, 8.2647167e-10, 8.3355556e-10, 8.407127e-10,
+	8.479473e-10, 8.55264e-10, 8.6266755e-10, 8.7016316e-10,
+	8.777562e-10, 8.8545243e-10, 8.932582e-10, 9.0117996e-10,
+	9.09225e-10, 9.174008e-10, 9.2571584e-10, 9.341788e-10,
+	9.427997e-10, 9.515889e-10, 9.605579e-10, 9.697193e-10,
+	9.790869e-10, 9.88676e-10, 9.985036e-10, 1.0085882e-09,
+	1.0189509e-09, 1.0296151e-09, 1.0406069e-09, 1.0519566e-09,
+	1.063698e-09, 1.0758702e-09, 1.0885183e-09, 1.1016947e-09,
+	1.1154611e-09, 1.1298902e-09, 1.1450696e-09, 1.1611052e-09,
+	1.1781276e-09, 1.1962995e-09, 1.2158287e-09, 1.2369856e-09,
+	1.2601323e-09, 1.2857697e-09, 1.3146202e-09, 1.347784e-09,
+	1.3870636e-09, 1.4357403e-09, 1.5008659e-09, 1.6030948e-09,
+}
+
+var fn = [128]float32{
+	1, 0.9635997, 0.9362827, 0.9130436, 0.89228165, 0.87324303,
+	0.8555006, 0.8387836, 0.8229072, 0.8077383, 0.793177,
+	0.7791461, 0.7655842, 0.7524416, 0.73967725, 0.7272569,
+	0.7151515, 0.7033361, 0.69178915, 0.68049186, 0.6694277,
+	0.658582, 0.6479418, 0.63749546, 0.6272325, 0.6171434,
+	0.6072195, 0.5974532, 0.58783704, 0.5783647, 0.56903,
+	0.5598274, 0.5507518, 0.54179835, 0.5329627, 0.52424055,
+	0.5156282, 0.50712204, 0.49871865, 0.49041483, 0.48220766,
+	0.4740943, 0.46607214, 0.4581387, 0.45029163, 0.44252872,
+	0.43484783, 0.427247, 0.41972435, 0.41227803, 0.40490642,
+	0.39760786, 0.3903808, 0.3832238, 0.37613547, 0.36911446,
+	0.3621595, 0.35526937, 0.34844297, 0.34167916, 0.33497685,
+	0.3283351, 0.3217529, 0.3152294, 0.30876362, 0.30235484,
+	0.29600215, 0.28970486, 0.2834622, 0.2772735, 0.27113807,
+	0.2650553, 0.25902456, 0.2530453, 0.24711695, 0.241239,
+	0.23541094, 0.22963232, 0.2239027, 0.21822165, 0.21258877,
+	0.20700371, 0.20146611, 0.19597565, 0.19053204, 0.18513499,
+	0.17978427, 0.17447963, 0.1692209, 0.16400786, 0.15884037,
+	0.15371831, 0.14864157, 0.14361008, 0.13862377, 0.13368265,
+	0.12878671, 0.12393598, 0.119130544, 0.11437051, 0.10965602,
+	0.104987256, 0.10036444, 0.095787846, 0.0912578, 0.08677467,
+	0.0823389, 0.077950984, 0.073611505, 0.06932112, 0.06508058,
+	0.06089077, 0.056752663, 0.0526674, 0.048636295, 0.044660863,
+	0.040742867, 0.03688439, 0.033087887, 0.029356318,
+	0.025693292, 0.022103304, 0.018592102, 0.015167298,
+	0.011839478, 0.008624485, 0.005548995, 0.0026696292,
 }

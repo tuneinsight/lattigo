@@ -8,7 +8,7 @@ import (
 
 func Benchmark_Polynomial(b *testing.B) {
 
-	for i := uint64(0); i < 1; i++ {
+	for i := uint64(2); i < 3; i++ {
 
 		N := uint64(1 << (12 + i))
 		T := uint64(65537)
@@ -38,17 +38,19 @@ func Benchmark_Polynomial(b *testing.B) {
 
 		benchmark_KYSGaussPoly(sigma, contextQ, b)
 
+		benchmark_ZiggGaussPoly(sigma, contextQ, b)
+
 		benchmark_TernaryPoly(contextQ, b)
 
 		benchmark_UniformPoly(contextQ, b)
 
 		benchmark_MForm(contextQ, b)
 
+		benchmark_MulScalar(contextQ, b)
+
 		benchmark_NTT(contextQ, b)
 
 		benchmark_InvNTT(contextQ, b)
-
-		benchmark_MulScalar(contextQ, b)
 
 		benchmark_Neg(contextQ, b)
 
@@ -69,8 +71,6 @@ func Benchmark_Polynomial(b *testing.B) {
 		benchmark_ExtendBasis(contextQ, contextP, contextQP, b)
 
 		benchmark_SimpleScaler_Scale(T, contextQ, b)
-
-		benchmark_ComplexScaler_Scale(T, contextQ, contextP, contextQP, b)
 
 		benchmark_Marshaler(contextQ, b)
 
@@ -118,6 +118,25 @@ func benchmark_Marshaler(context *Context, b *testing.B) {
 	})
 }
 
+func benchmark_ZiggGaussPoly(sigma float64, context *Context, b *testing.B) {
+
+	bound := uint64(sigma * 6)
+
+	pol := context.NewPoly()
+
+	b.Run(fmt.Sprintf("N=%d/limbs=%d/Zigg.Sample", context.N, len(context.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context.SampleGaussian(pol, sigma, bound)
+		}
+	})
+
+	b.Run(fmt.Sprintf("N=%d/limbs=%d/Zigg.SampleNTT", context.N, len(context.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context.SampleGaussianNTT(pol, sigma, bound)
+		}
+	})
+}
+
 func benchmark_KYSGaussPoly(sigma float64, context *Context, b *testing.B) {
 
 	bound := int(sigma * 6)
@@ -141,31 +160,29 @@ func benchmark_KYSGaussPoly(sigma float64, context *Context, b *testing.B) {
 
 func benchmark_TernaryPoly(context *Context, b *testing.B) {
 
-	ternarySampler := context.NewTernarySampler()
-
 	pol := context.NewPoly()
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(0.5)", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.Sample(0.5, pol)
+			context.SampleTernary(pol, 0.5)
 		}
 	})
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(0.5)MontgomeryNTT", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.SampleMontgomeryNTT(0.5, pol)
+			context.SampleTernaryMontgomeryNTT(pol, 0.5)
 		}
 	})
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(1/3)", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.Sample(1.0/3, pol)
+			context.SampleTernary(pol, 1.0/3)
 		}
 	})
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(1/3)MontgomeryNTT", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.SampleMontgomeryNTT(1.0/3, pol)
+			context.SampleTernaryMontgomeryNTT(pol, 1.0/3)
 
 		}
 	})
@@ -326,15 +343,26 @@ func benchmark_MulScalar(context *Context, b *testing.B) {
 
 	p := context.NewUniformPoly()
 
-	scalar := uint64(12345678987654321)
+	rand1 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+	rand2 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+
+	scalarBigint := NewUint(rand1)
+	scalarBigint.Mul(scalarBigint, NewUint(rand2))
 
 	b.ResetTimer()
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/MulScalar", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			context.MulScalar(p, scalar, p)
+			context.MulScalar(p, rand1, p)
 		}
 	})
+
+	b.Run(fmt.Sprintf("N=%d/limbs=%d/MulScalarBigint", context.N, len(context.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context.MulScalarBigint(p, scalarBigint, p)
+		}
+	})
+
 }
 
 func benchmark_ExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B) {
@@ -351,12 +379,6 @@ func benchmark_ExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B)
 			BasisExtenderQP.ExtendBasis(p0, p1)
 		}
 	})
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ExtendBasis_Approximate", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			BasisExtenderQP.ExtendBasisApproximate(p0, p1)
-		}
-	})
 }
 
 func benchmark_SimpleScaler_Scale(T uint64, context *Context, b *testing.B) {
@@ -371,23 +393,6 @@ func benchmark_SimpleScaler_Scale(T uint64, context *Context, b *testing.B) {
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SimpleScaling", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			SimpleScaler.Scale(p0, p1)
-		}
-	})
-}
-
-func benchmark_ComplexScaler_Scale(T uint64, contextQ, contextP, contextQP *Context, b *testing.B) {
-
-	ComplexScalerQP := NewComplexScaler(T, contextQ, contextP)
-
-	p0 := contextQP.NewUniformPoly()
-	p1 := contextQ.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ComplexScaling", contextQ.N, len(contextP.Modulus), len(contextQ.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ComplexScalerQP.Scale(p0, p1)
-
 		}
 	})
 }

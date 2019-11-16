@@ -131,8 +131,5 @@ func (el *bfvElement) Ciphertext() *Ciphertext {
 }
 
 func (el *bfvElement) Plaintext() *Plaintext {
-	if len(el.value) != 1 {
-		panic("not a plaintext element")
-	}
 	return &Plaintext{el, el.value[0]}
 }

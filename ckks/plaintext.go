@@ -11,14 +11,14 @@ type Plaintext struct {
 }
 
 // NewPlaintext creates a new plaintext of level level and scale scale.
-func (ckkscontext *CkksContext) NewPlaintext(level uint64, scale uint64) *Plaintext {
+func (ckkscontext *CkksContext) NewPlaintext(level uint64, scale float64) *Plaintext {
 	plaintext := &Plaintext{&ckksElement{}, nil}
 
-	plaintext.ckksElement.value = []*ring.Poly{ckkscontext.contextLevel[level].NewPoly()}
+	plaintext.ckksElement.value = []*ring.Poly{ckkscontext.contextQ.NewPolyLvl(level)}
 	plaintext.value = plaintext.ckksElement.value[0]
 
 	plaintext.scale = scale
-	plaintext.currentModulus = ring.Copy(ckkscontext.contextLevel[level].ModulusBigint)
+	plaintext.currentModulus = ring.Copy(ckkscontext.bigintChain[level])
 	plaintext.isNTT = true
 
 	return plaintext

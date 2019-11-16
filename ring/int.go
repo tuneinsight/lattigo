@@ -32,6 +32,13 @@ func Copy(v *Int) *Int {
 	return i
 }
 
+// Copy creates a new Int wich is a copy of the input Int.
+func (i *Int) Copy() *Int {
+	v := new(Int)
+	v.Value.Set(&i.Value)
+	return v
+}
+
 // RandInt generates a random Int in [0, max-1].
 func RandInt(max *Int) *Int {
 	n, err := rand.Int(rand.Reader, &max.Value)

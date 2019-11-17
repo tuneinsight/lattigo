@@ -93,45 +93,14 @@ func test_PRNG(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("PRNG"), func(t *testing.T) {
 
-		Ha, _ := NewPRNG(nil)
-		Hb, _ := NewPRNG(nil)
-
-		// Random 32 byte seed
-		seed1 := []byte{0x48, 0xc3, 0x31, 0x12, 0x74, 0x98, 0xd3, 0xf2,
-			0x7b, 0x15, 0x15, 0x9b, 0x50, 0xc4, 0x9c, 0x00,
-			0x7d, 0xa5, 0xea, 0x68, 0x1f, 0xed, 0x4f, 0x99,
-			0x54, 0xc0, 0x52, 0xc0, 0x75, 0xff, 0xf7, 0x5c}
-
-		// New reseed of the PRNG after one clock cycle with the seed1
-		seed2 := []byte{250, 228, 6, 63, 97, 110, 68, 153,
-			147, 236, 236, 37, 152, 89, 129, 32,
-			185, 5, 221, 180, 160, 217, 247, 201,
-			211, 188, 160, 163, 176, 83, 83, 138}
-
-		Ha.Seed(seed1)
-		Hb.Seed(append(seed1, seed2...)) //Append works since blake2b hashes blocks of 512 bytes
-
-		Ha.SetClock(256)
-		Hb.SetClock(255)
-
-		a := Ha.Clock()
-		b := Hb.Clock()
-
-		for i := 0; i < 32; i++ {
-			if a[i] != b[i] {
-				t.Errorf("error : error prng")
-				break
-			}
-		}
-
 		crs_generator_1, _ := NewCRPGenerator(nil, context)
 		crs_generator_2, _ := NewCRPGenerator(nil, context)
 
-		crs_generator_1.Seed(seed1)
-		crs_generator_2.Seed(append(seed1, seed2...)) //Append works since blake2b hashes blocks of 512 bytes
+		crs_generator_1.Seed(nil)
+		crs_generator_2.Seed(nil)
 
 		crs_generator_1.SetClock(256)
-		crs_generator_2.SetClock(255)
+		crs_generator_2.SetClock(256)
 
 		p0 := crs_generator_1.Clock()
 		p1 := crs_generator_2.Clock()

@@ -20,24 +20,25 @@ type PCKSProtocol struct {
 }
 
 //todo should be :
-//type PCKSShare [2]*ring.Poly
-type PCKSShare struct {
-	share [2]*ring.Poly
-}
+type PCKSShare [2]*ring.Poly
+
+//type PCKSShare struct {
+//	share [2]*ring.Poly
+//}
 
 func (share *PCKSShare) MarshalBinary() ([]byte, error) {
 	//TODO discuss choice here.
 	//Maybe not worth it to have the metadata separated. we "lose" two bytes but complexity of the code would be higher in Unmarshalling.
-	lenR1 := share.share[0].GetDataLen(true)
-	lenR2 := share.share[1].GetDataLen(true)
+	lenR1 := share[0].GetDataLen(true)
+	lenR2 := share[1].GetDataLen(true)
 
 	data := make([]byte, lenR1+lenR2)
-	_, err := share.share[0].WriteTo(data[0:lenR1])
+	_, err := share[0].WriteTo(data[0:lenR1])
 	if err != nil {
 		return []byte{}, err
 	}
 
-	_, err = share.share[1].WriteTo(data[lenR1 : lenR1+lenR2])
+	_, err = share[1].WriteTo(data[lenR1 : lenR1+lenR2])
 	if err != nil {
 		return []byte{}, err
 	}
@@ -47,20 +48,20 @@ func (share *PCKSShare) MarshalBinary() ([]byte, error) {
 
 func (share *PCKSShare) UnmarshalBinary(data []byte) error {
 
-	if share.share[0] == nil {
-		share.share[0] = new(ring.Poly)
+	if share[0] == nil {
+		share[0] = new(ring.Poly)
 	}
 
-	if share.share[1] == nil {
-		share.share[1] = new(ring.Poly)
+	if share[1] == nil {
+		share[1] = new(ring.Poly)
 	}
 
-	err := share.share[0].UnmarshalBinary(data[0 : len(data)/2])
+	err := share[0].UnmarshalBinary(data[0 : len(data)/2])
 	if err != nil {
 		return err
 	}
 
-	err = share.share[1].UnmarshalBinary(data[len(data)/2:])
+	err = share[1].UnmarshalBinary(data[len(data)/2:])
 	if err != nil {
 		return err
 	}

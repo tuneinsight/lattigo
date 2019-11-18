@@ -58,6 +58,46 @@ func Test_BFV(t *testing.T) {
 	t.Run("Evaluator/KeySwitch", testKeySwitch)
 	t.Run("Evaluator/RotateRows", testRotateRows)
 	t.Run("Evaluator/RotateCols", testRotateCols)
+
+	//tests for marshalling.
+	t.Run("Marshalling", testMarshaller)
+}
+
+func testMarshaller(t *testing.T) {
+
+	p := testParams.bfvParameters
+	params := genBfvParams(p[0])
+	//check public key
+	pk := new(PublicKey)
+	marshalledPk, err := params.pk.MarshalBinary()
+	check(t, err)
+	err = pk.UnmarshalBinary(marshalledPk)
+	check(t, err)
+
+	//check secret keys.
+	sk := new(SecretKey)
+	marshalledSk, err := params.sk.MarshalBinary()
+	check(t, err)
+	err = sk.UnmarshalBinary(marshalledSk)
+	check(t, err)
+
+	keygen := params.bfvContext.NewKeyGenerator()
+	sk_out := keygen.NewSecretKey()
+	//Check switching key
+	switching_key := keygen.NewSwitchingKey(sk, sk_out)
+	data, err := switching_key.MarshalBinary()
+	check(t, err)
+	res_switching_key := new(SwitchingKey)
+	err = res_switching_key.UnmarshalBinary(data)
+	check(t, err)
+	//check eval key
+	eval_key := EvaluationKey{evakey: []*SwitchingKey{switching_key}}
+	data, err = eval_key.MarshalBinary()
+	check(t, err)
+	res_eval_key := new(EvaluationKey)
+	err = res_eval_key.UnmarshalBinary(data)
+	check(t, err)
+
 }
 
 func genBfvParams(contextParameters *Parameters) (params *bfvParams) {

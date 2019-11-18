@@ -58,6 +58,7 @@ func Test_DBFV(t *testing.T) {
 	t.Run("RotKeyGenRotRows", testRotKeyGenRotRows)
 	t.Run("RotKeyGenRotCols", testRotKeyGenRotCols)
 	t.Run("Refresh", testRefresh)
+
 }
 
 func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
@@ -747,7 +748,7 @@ func Test_Marshalling(t *testing.T) {
 	log.Print("Verifying marshalling for Key Generation")
 	bfvCtx, _ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
 	KeyGenerator := bfvCtx.NewKeyGenerator()
-	crsGen, _ := NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextQ())
+	crsGen, _ := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextKeys())
 	sk := KeyGenerator.NewSecretKey()
 	crs := crsGen.Clock()
 	keygenProtocol := NewCKGProtocol(bfvCtx)
@@ -804,8 +805,8 @@ func Test_Marshalling(t *testing.T) {
 
 	for i := 0; i < 2; i++ {
 		//compare the shares.
-		ringBefore := SwitchShare.share[i]
-		ringAfter := SwitchShareReceiver.share[i]
+		ringBefore := SwitchShare[i]
+		ringAfter := SwitchShareReceiver[i]
 		if ringBefore.GetDegree() != ringAfter.GetDegree() {
 			log.Print("Error on degree matching")
 			t.Fail()
@@ -862,20 +863,18 @@ func Test_Marshalling(t *testing.T) {
 func Test_Relin_Marshalling(t *testing.T) {
 	bfvCtx, _ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
 	modulus := bfvCtx.ContextQ().Modulus
-	bitDecomp := 60
-	bitLog := uint64((60 + (60 % bitDecomp)) / bitDecomp)
 	var err error
-	crpGenerator, _ := NewCRPGenerator(nil, bfvCtx.ContextQ())
+	crpGenerator, _ := ring.NewCRPGenerator(nil, bfvCtx.ContextKeys())
 
-	crp := make([][]*ring.Poly, len(modulus))
+	crp := make([]*ring.Poly, len(modulus))
 	for j := 0; j < len(modulus); j++ {
-		crp[j] = make([]*ring.Poly, bitLog)
-		for u := uint64(0); u < bitLog; u++ {
-			crp[j][u] = crpGenerator.Clock()
-		}
+		crp[j] = crpGenerator.Clock() //make([]*ring.Poly, bitLog)
+		//for u := uint64(0); u < bitLog; u++ {
+		//	crp[j][u] = crpGenerator.Clock()
+		//}
 	}
 
-	rlk := NewEkgProtocol(bfvCtx, uint64(bitDecomp))
+	rlk := NewEkgProtocol(bfvCtx)
 	u, _ := rlk.NewEphemeralKey(1 / 3.0)
 	sk := bfvCtx.NewKeyGenerator().NewSecretKey()
 	log.Print("Starting to test marshalling for share one")
@@ -897,20 +896,13 @@ func Test_Relin_Marshalling(t *testing.T) {
 
 	log.Print("Now comparing keys for round 1 ")
 
-	if r1.bitLog != r1After.bitLog || r1.modulus != r1After.modulus {
-		log.Print("Error bitlog or modulus are different ")
-		t.Fail()
-	}
-
-	for i := 0; i < int(r1.modulus); i++ {
-		for j := 0; j < int(r1.bitLog); j++ {
-			a := r1.share[i][j]
-			b := r1After.share[i][j]
-			for k := 0; k < a.GetLenModuli(); k++ {
-				if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
-					log.Print("Error : coeffs of rings do not match")
-					t.Fail()
-				}
+	for i := 0; i < (len(r1)); i++ {
+		a := r1[i]
+		b := (*r1After)[i]
+		for k := 0; k < a.GetLenModuli(); k++ {
+			if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
+				log.Print("Error : coeffs of rings do not match")
+				t.Fail()
 			}
 		}
 	}
@@ -935,24 +927,18 @@ func Test_Relin_Marshalling(t *testing.T) {
 
 	log.Print("Now comparing keys for round 2 ")
 
-	if r2.bitLog != r2After.bitLog || r2.modulus != r2After.modulus {
-		log.Print("Error bitlog or modulus are different ")
-		t.Fail()
-	}
-
-	for i := 0; i < int(r2.modulus); i++ {
-		for j := 0; j < int(r2.bitLog); j++ {
-			for idx := 0; idx < 2; idx++ {
-				a := r2.share[i][j][idx]
-				b := r2After.share[i][j][idx]
-				for k := 0; k < a.GetLenModuli(); k++ {
-					if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
-						log.Print("Error : coeffs of rings do not match")
-						t.Fail()
-					}
+	for i := 0; i < (len(r2)); i++ {
+		for idx := 0; idx < 2; idx++ {
+			a := r2[i][idx]
+			b := (*r2After)[i][idx]
+			for k := 0; k < a.GetLenModuli(); k++ {
+				if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
+					log.Print("Error : coeffs of rings do not match")
+					t.Fail()
 				}
 			}
 		}
+
 	}
 
 	log.Print("Success : reling key round 2 ok ")
@@ -976,22 +962,16 @@ func Test_Relin_Marshalling(t *testing.T) {
 
 	log.Print("Now comparing keys for round 3 ")
 
-	if r3.bitLog != r3After.bitLog || r3.modulus != r3After.modulus {
-		log.Print("Error bitlog or modulus are different ")
-		t.Fail()
-	}
-
-	for i := 0; i < int(r3.modulus); i++ {
-		for j := 0; j < int(r3.bitLog); j++ {
-			a := r3.share[i][j]
-			b := r3After.share[i][j]
-			for k := 0; k < a.GetLenModuli(); k++ {
-				if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
-					log.Print("Error : coeffs of rings do not match")
-					t.Fail()
-				}
+	for i := 0; i < (len(r3)); i++ {
+		a := r3[i]
+		b := (*r3After)[i]
+		for k := 0; k < a.GetLenModuli(); k++ {
+			if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
+				log.Print("Error : coeffs of rings do not match")
+				t.Fail()
 			}
 		}
+
 	}
 
 	log.Print("Success : relin key for round 3 ok ")

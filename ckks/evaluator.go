@@ -925,7 +925,7 @@ func (evaluator *Evaluator) DropLevel(ct0 *ckksElement, levels uint64) error {
 	}
 
 	for i := uint64(0); i < levels; i++ {
-		ct0.CurrentModulus().DivRound(ct0.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[level-i]))
+		ct0.CurrentModulus().Quo(ct0.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[level-i]))
 	}
 
 	return nil
@@ -970,7 +970,7 @@ func (evaluator *Evaluator) Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciph
 
 			c1.DivScale(evaluator.ckkscontext.scalechain[c1.Level()])
 
-			c1.CurrentModulus().DivRound(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[c1.Level()]))
+			c1.CurrentModulus().Quo(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[c1.Level()]))
 
 			for i := range c1.Value() {
 				evaluator.ckkscontext.contextQ.DivRoundByLastModulusNTT(c1.Value()[i])
@@ -1003,7 +1003,7 @@ func (evaluator *Evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *
 
 	for i := uint64(0); i < nbRescales; i++ {
 		c1.DivScale(evaluator.ckkscontext.scalechain[c1.Level()-i])
-		c1.CurrentModulus().DivRound(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[c1.Level()-i]))
+		c1.CurrentModulus().Quo(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[c1.Level()-i]))
 	}
 
 	for i := range c1.Value() {

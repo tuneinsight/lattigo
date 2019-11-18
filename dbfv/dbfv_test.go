@@ -5,6 +5,7 @@ import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	"log"
+	"math/big"
 	"testing"
 )
 
@@ -124,7 +125,7 @@ func testPublicKeyGen(t *testing.T) {
 		sk0Shards := params.sk0Shards
 		decryptorSk0 := params.decryptorSk0
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			crpGenerator, err := ring.NewCRPGenerator(nil, contextKeys)
 			check(t, err)
@@ -184,7 +185,7 @@ func testRelinKeyGen(t *testing.T) {
 		decryptorSk0 := params.decryptorSk0
 		evaluator := params.evaluator
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RKGProtocol
@@ -281,7 +282,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 		decryptorSk0 := params.decryptorSk0
 		sk0Shards := params.sk0Shards
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RKGProtocolNaive
@@ -357,7 +358,7 @@ func testKeyswitching(t *testing.T) {
 		encryptorPk0 := params.encryptorPk0
 		decryptorSk1 := params.decryptorSk1
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*CKSProtocol
@@ -415,7 +416,7 @@ func testPublicKeySwitching(t *testing.T) {
 		encryptorPk0 := params.encryptorPk0
 		decryptorSk1 := params.decryptorSk1
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*PCKSProtocol
@@ -466,7 +467,7 @@ func testRotKeyGenRotRows(t *testing.T) {
 		decryptorSk0 := params.decryptorSk0
 		sk0Shards := params.sk0Shards
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RTGProtocol
@@ -533,7 +534,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 		decryptorSk0 := params.decryptorSk0
 		sk0Shards := params.sk0Shards
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RTGProtocol
@@ -611,7 +612,7 @@ func testRefresh(t *testing.T) {
 		encoder := params.encoder
 		decryptorSk0 := params.decryptorSk0
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d/Refresh", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d/Refresh", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RefreshProtocol
@@ -647,17 +648,17 @@ func testRefresh(t *testing.T) {
 			}
 
 			// We store the plaintext coeffs as bigint for a reference to later be able to quantify the error
-			coeffs_plaintext_bigint_fresh := make([]*ring.Int, bfvContext.N())
+			coeffs_plaintext_bigint_fresh := make([]*big.Int, bfvContext.N())
 			bfvContext.ContextQ().PolyToBigint(plaintextWant.Value()[0], coeffs_plaintext_bigint_fresh)
 			// =============================================================================================
 
 			// ==== We simulated added error of size Q/(T^2) and add it to the fresh ciphertext ====
-			coeffs_bigint := make([]*ring.Int, bfvContext.N())
+			coeffs_bigint := make([]*big.Int, bfvContext.N())
 			bfvContext.ContextQ().PolyToBigint(ciphertext.Value()[0], coeffs_bigint)
 
-			error_range := ring.Copy(bfvContext.ContextQ().ModulusBigint)
-			error_range.Div(error_range, bfvContext.ContextT().ModulusBigint)
-			error_range.Div(error_range, bfvContext.ContextT().ModulusBigint)
+			error_range := new(big.Int).Set(bfvContext.ContextQ().ModulusBigint)
+			error_range.Quo(error_range, bfvContext.ContextT().ModulusBigint)
+			error_range.Quo(error_range, bfvContext.ContextT().ModulusBigint)
 
 			for i := uint64(0); i < bfvContext.N(); i++ {
 				coeffs_bigint[i].Add(coeffs_bigint[i], ring.RandInt(error_range))
@@ -666,17 +667,17 @@ func testRefresh(t *testing.T) {
 			bfvContext.ContextQ().SetCoefficientsBigint(coeffs_bigint, ciphertext.Value()[0])
 
 			plaintextHave := decryptorSk0.DecryptNew(ciphertext)
-			coeffs_plaintext_bigint_error := make([]*ring.Int, bfvContext.N())
+			coeffs_plaintext_bigint_error := make([]*big.Int, bfvContext.N())
 			bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_error)
 
-			average_simulated_error := new(ring.Int)
+			average_simulated_error := new(big.Int)
 			for i := uint64(0); i < bfvContext.N(); i++ {
 				average_simulated_error.Add(average_simulated_error, coeffs_plaintext_bigint_fresh[i])
 				average_simulated_error.Sub(average_simulated_error, coeffs_plaintext_bigint_error[i])
 			}
 
-			average_simulated_error.Value.Abs(&average_simulated_error.Value)
-			average_simulated_error.Div(average_simulated_error, ring.NewUint(bfvContext.N()))
+			average_simulated_error.Abs(average_simulated_error)
+			average_simulated_error.Quo(average_simulated_error, ring.NewUint(bfvContext.N()))
 			// =======================================================================================
 
 			ctOut := bfvContext.NewCiphertext(1)
@@ -693,25 +694,25 @@ func testRefresh(t *testing.T) {
 
 			// We decrypt and compare with the original plaintext
 			plaintextHave = decryptorSk0.DecryptNew(ciphertext)
-			coeffs_plaintext_bigint_booted := make([]*ring.Int, bfvContext.N())
+			coeffs_plaintext_bigint_booted := make([]*big.Int, bfvContext.N())
 			bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_booted)
 
-			average_residual_error := new(ring.Int)
+			average_residual_error := new(big.Int)
 			for i := uint64(0); i < bfvContext.N(); i++ {
 				average_residual_error.Add(average_residual_error, coeffs_plaintext_bigint_fresh[i])
 				average_residual_error.Sub(average_residual_error, coeffs_plaintext_bigint_booted[i])
 			}
 
-			average_residual_error.Value.Abs(&average_residual_error.Value)
-			average_residual_error.Div(average_residual_error, ring.NewUint(bfvContext.N()))
+			average_residual_error.Abs(average_residual_error)
+			average_residual_error.Quo(average_residual_error, ring.NewUint(bfvContext.N()))
 
 			coeffsTest := encoder.DecodeUint(plaintextHave)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			t.Logf("Average simulated error before refresh (log2): %d", average_simulated_error.Value.BitLen())
-			t.Logf("Average residual error after refresh (log2): %d", average_residual_error.Value.BitLen())
+			t.Logf("Average simulated error before refresh (log2): %d", average_simulated_error.BitLen())
+			t.Logf("Average residual error after refresh (log2): %d", average_residual_error.BitLen())
 
 			if equalslice(coeffs, coeffsTest) != true {
 				t.Errorf("error : BOOT")

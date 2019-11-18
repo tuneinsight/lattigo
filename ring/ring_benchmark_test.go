@@ -32,7 +32,8 @@ func Benchmark_Polynomial(b *testing.B) {
 		contextP.GenNTTParams()
 
 		contextQP := NewContext()
-		contextQP.Merge(contextQ, contextP)
+		contextQP.SetParameters(N, append(Qi, Pi...))
+		contextQP.GenNTTParams()
 
 		benchmark_Context(N, Qi, b)
 

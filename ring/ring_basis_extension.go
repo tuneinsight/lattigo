@@ -2,6 +2,7 @@ package ring
 
 import (
 	"math"
+	"math/big"
 )
 
 // BasisExtender is the structure keeping all the pre-computed constant required to apply
@@ -26,10 +27,10 @@ func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 
 	newParams = new(BasisExtender)
 
-	var PjB Int
-	var QiB Int
-	var QiStar Int
-	var QiBarre Int
+	PjB := new(big.Int)
+	QiB := new(big.Int)
+	QiStar := new(big.Int)
+	QiBarre := new(big.Int)
 
 	newParams.contextQ = contextQ
 	newParams.contextP = contextP
@@ -44,10 +45,10 @@ func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 
 	for i, qi := range contextQ.Modulus {
 
-		QiB.SetUint(qi)
-		QiStar.Div(contextQ.ModulusBigint, &QiB)
-		QiBarre.Inv(&QiStar, &QiB)
-		QiBarre.Mod(&QiBarre, &QiB)
+		QiB.SetUint64(qi)
+		QiStar.Quo(contextQ.ModulusBigint, QiB)
+		QiBarre.ModInverse(QiStar, QiB)
+		QiBarre.Mod(QiBarre, QiB)
 
 		// (Q/Qi)^-1) * r (mod Qi) (in Montgomery form)
 		newParams.qibMont[i] = MForm(QiBarre.Uint64(), qi, contextQ.bredParams[i])
@@ -55,8 +56,8 @@ func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 		// (Q/qi * r) (mod Pj) (in Montgomery form)
 		newParams.qispjMont[i] = make([]uint64, len(contextP.Modulus))
 		for j, pj := range contextP.Modulus {
-			PjB.SetUint(pj)
-			newParams.qispjMont[i][j] = MForm(tmp.Mod(&QiStar, &PjB).Uint64(), pj, contextP.bredParams[j])
+			PjB.SetUint64(pj)
+			newParams.qispjMont[i][j] = MForm(tmp.Mod(QiStar, PjB).Uint64(), pj, contextP.bredParams[j])
 		}
 	}
 
@@ -64,8 +65,8 @@ func NewBasisExtender(contextQ, contextP *Context) (newParams *BasisExtender) {
 	var v uint64
 	for j, pj := range contextP.Modulus {
 		// [Q]_{pi}
-		PjB.SetUint(pj)
-		v = pj - PjB.Mod(contextQ.ModulusBigint, &PjB).Uint64()
+		PjB.SetUint64(pj)
+		v = pj - PjB.Mod(contextQ.ModulusBigint, PjB).Uint64()
 		newParams.qpjInv[j] = make([]uint64, len(contextQ.Modulus)+1)
 		newParams.qpjInv[j][0] = 0
 		for i := 1; i < len(contextQ.Modulus)+1; i++ {
@@ -237,10 +238,10 @@ func basisextenderparameters(Q, P []uint64) (params *modupParams) {
 		params.mredParamsP[i] = MRedParams(pj)
 	}
 
-	tmp := new(Int)
-	QiB := new(Int)
-	QiStar := new(Int)
-	QiBarre := new(Int)
+	tmp := new(big.Int)
+	QiB := new(big.Int)
+	QiStar := new(big.Int)
+	QiBarre := new(big.Int)
 
 	modulusbigint := NewUint(1)
 	for _, qi := range Q {
@@ -251,9 +252,9 @@ func basisextenderparameters(Q, P []uint64) (params *modupParams) {
 	params.qispjMont = make([][]uint64, len(Q))
 	for i, qi := range Q {
 
-		QiB.SetUint(qi)
-		QiStar.Div(modulusbigint, QiB)
-		QiBarre.Inv(QiStar, QiB)
+		QiB.SetUint64(qi)
+		QiStar.Quo(modulusbigint, QiB)
+		QiBarre.ModInverse(QiStar, QiB)
 		QiBarre.Mod(QiBarre, QiB)
 
 		// (Q/Qi)^-1) * r (mod Qi) (in Montgomery form)
@@ -471,8 +472,8 @@ type ArbitraryDecomposer struct {
 	beta        uint64
 	xalpha      []uint64
 	modUpParams [][]*modupParams
-	Q_bigint    *Int
-	P_bigint    *Int
+	Q_bigint    *big.Int
+	P_bigint    *big.Int
 }
 
 func (decomposer *ArbitraryDecomposer) Xalpha() (xalpha []uint64) {

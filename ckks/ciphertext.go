@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/ring"
+	"math/big"
 )
 
 // Ciphertext is a BigPoly of degree > 0.
@@ -19,7 +20,7 @@ func (ckkscontext *CkksContext) NewCiphertext(degree uint64, level uint64, scale
 	}
 
 	ciphertext.scale = scale
-	ciphertext.currentModulus = ring.Copy(ckkscontext.bigintChain[level])
+	ciphertext.currentModulus = new(big.Int).Set(ckkscontext.bigintChain[level])
 	ciphertext.isNTT = true
 
 	return ciphertext
@@ -35,7 +36,7 @@ func (ckkscontext *CkksContext) NewRandomCiphertext(degree, level uint64, scale 
 	}
 
 	ciphertext.scale = scale
-	ciphertext.currentModulus = ring.Copy(ckkscontext.bigintChain[level])
+	ciphertext.currentModulus = new(big.Int).Set(ckkscontext.bigintChain[level])
 	ciphertext.isNTT = true
 
 	return ciphertext

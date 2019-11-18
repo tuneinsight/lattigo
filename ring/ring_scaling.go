@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"math/big"
 	"math/bits"
 )
 
@@ -177,9 +178,9 @@ func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 	newParams = new(SimpleScaler)
 
 	var tmp Float128
-	var QiB Int     // Qi
-	var QiStar Int  // Q/Qi
-	var QiBarre Int // (Q/Qi)^(-1) mod Qi
+	QiB := new(big.Int)     // Qi
+	QiStar := new(big.Int)  // Q/Qi
+	QiBarre := new(big.Int) // (Q/Qi)^(-1) mod Qi
 
 	newParams.t = t
 	newParams.context = context
@@ -237,10 +238,10 @@ func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 
 	for i, qi := range context.Modulus {
 
-		QiB.SetUint(qi)
-		QiStar.Div(context.ModulusBigint, &QiB)
-		QiBarre.Inv(&QiStar, &QiB)
-		QiBarre.Mod(&QiBarre, &QiB)
+		QiB.SetUint64(qi)
+		QiStar.Quo(context.ModulusBigint, QiB)
+		QiBarre.ModInverse(QiStar, QiB)
+		QiBarre.Mod(QiBarre, QiB)
 
 		tmp = Float128Div(Float128SetUint53(t), Float128SetUint64(qi))
 
@@ -254,8 +255,8 @@ func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 			newParams.wi[i] = MForm(newParams.wi[i], t, BRedParams(t))
 		}
 
-		QiBarre.Mul(&QiBarre, NewUint(t))
-		QiBarre.Mod(&QiBarre, &QiB)
+		QiBarre.Mul(QiBarre, NewUint(t))
+		QiBarre.Mod(QiBarre, QiB)
 
 		newParams.ti[i] = Float128Div(Float128SetUint64(QiBarre.Uint64()), Float128SetUint64(qi)) //floor( ([Q/Qi]^(-1))_{Qi} * t/Qi ) - ( ([Q/Qi]^(-1))_{Qi} * t/Qi )
 	}

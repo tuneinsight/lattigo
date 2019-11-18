@@ -724,7 +724,7 @@ func Test_Marshalling(t *testing.T) {
 	log.Print("Verifying marshalling for Key Generation")
 	bfvCtx, _ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
 	KeyGenerator := bfvCtx.NewKeyGenerator()
-	crsGen, _ := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextKeys())
+	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextKeys())
 	sk := KeyGenerator.NewSecretKey()
 	crs := crsGen.Clock()
 	keygenProtocol := NewCKGProtocol(bfvCtx)
@@ -840,7 +840,7 @@ func Test_Relin_Marshalling(t *testing.T) {
 	bfvCtx, _ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
 	modulus := bfvCtx.ContextQ().Modulus
 	var err error
-	crpGenerator, _ := ring.NewCRPGenerator(nil, bfvCtx.ContextKeys())
+	crpGenerator := ring.NewCRPGenerator(nil, bfvCtx.ContextKeys())
 
 	crp := make([]*ring.Poly, len(modulus))
 	for j := 0; j < len(modulus); j++ {
@@ -851,7 +851,7 @@ func Test_Relin_Marshalling(t *testing.T) {
 	}
 
 	rlk := NewEkgProtocol(bfvCtx)
-	u, _ := rlk.NewEphemeralKey(1 / 3.0)
+	u := rlk.NewEphemeralKey(1 / 3.0)
 	sk := bfvCtx.NewKeyGenerator().NewSecretKey()
 	log.Print("Starting to test marshalling for share one")
 

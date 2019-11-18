@@ -2,7 +2,6 @@ package ring
 
 import (
 	"fmt"
-	"log"
 	"math/big"
 	"math/bits"
 	"math/rand"
@@ -95,8 +94,8 @@ func test_PRNG(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("PRNG"), func(t *testing.T) {
 
-		crs_generator_1, _ := NewCRPGenerator(nil, context)
-		crs_generator_2, _ := NewCRPGenerator(nil, context)
+		crs_generator_1 := NewCRPGenerator(nil, context)
+		crs_generator_2 := NewCRPGenerator(nil, context)
 
 		crs_generator_1.Seed(nil)
 		crs_generator_2.Seed(nil)
@@ -277,9 +276,7 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 	countZer := 0
 	countMOn := 0
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/NewTernaryPoly", context.N, len(context.Modulus)), func(t *testing.T) {
-		if err := context.SampleTernary(pol, 1.0/3); err != nil {
-			log.Fatal(err)
-		}
+		context.SampleTernary(pol, 1.0/3)
 
 		//fmt.Println(pol.Coeffs[0])
 

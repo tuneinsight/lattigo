@@ -57,11 +57,11 @@ func NewContext() *Context {
 
 // SetParameters initialize the parameters of an empty context with N and the provided moduli.
 // Only checks that N is a power of 2 and computes all the variable that aren't used for the NTT.
-func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
+func (context *Context) SetParameters(N uint64, Modulus []uint64) {
 
 	// Checks if N is a power of 2
 	if (N&(N-1)) != 0 && N != 0 {
-		return errors.New("invalid ring degree (must be a power of 2)")
+		panic("invalid ring degree (must be a power of 2)")
 	}
 
 	context.allowsNTT = false
@@ -113,8 +113,6 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
 		context.matrixTernaryMontgomery[i][1] = MForm(1, Qi, context.bredParams[i])
 		context.matrixTernaryMontgomery[i][2] = MForm(Qi-1, Qi, context.bredParams[i])
 	}
-
-	return nil
 }
 
 // GenNTTParams checks that N has beed correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).
@@ -127,7 +125,7 @@ func (context *Context) GenNTTParams() error {
 	}
 
 	if context.N == 0 || context.Modulus == nil {
-		return errors.New("error : invalid context parameters (missing)")
+		panic("error : invalid context parameters (missing)")
 	}
 
 	// CHECKS IF VALIDE NTT
@@ -300,39 +298,26 @@ func (context *Context) NewPolyLvl(level uint64) *Poly {
 }
 
 // SetCoefficientsInt64 sets the coefficients of p1 from an int64 array.
-func (context *Context) SetCoefficientsInt64(coeffs []int64, p1 *Poly) error {
-	if len(coeffs) != int(context.N) {
-		return errors.New("error : invalid ring degree (does not match context)")
-	}
+func (context *Context) SetCoefficientsInt64(coeffs []int64, p1 *Poly) {
 	for i, coeff := range coeffs {
 		for j, Qi := range context.Modulus {
 			p1.Coeffs[j][i] = CRed(uint64((coeff%int64(Qi) + int64(Qi))), Qi)
 		}
 	}
-	return nil
 }
 
 // SetCoefficientsUint64 sets the coefficient of Pol from an uint64 array.
-func (context *Context) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) error {
-	if len(coeffs) != int(context.N) {
-		return errors.New("error : invalid ring degree (does not match context)")
-	}
+func (context *Context) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) {
 	for i, coeff := range coeffs {
 		for j, Qi := range context.Modulus {
 			p1.Coeffs[j][i] = coeff % Qi
 		}
 	}
-	return nil
 }
 
 // SetCoefficientsString parses an array of string as Int variables, and sets the
 // coefficients of p1 with this Int variables.
-func (context *Context) SetCoefficientsString(coeffs []string, p1 *Poly) error {
-
-	if len(coeffs) != int(context.N) {
-		return errors.New("error : invalid ring degree (does not match context)")
-	}
-
+func (context *Context) SetCoefficientsString(coeffs []string, p1 *Poly) {
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
 	for i, Qi := range context.Modulus {
@@ -341,16 +326,10 @@ func (context *Context) SetCoefficientsString(coeffs []string, p1 *Poly) error {
 			p1.Coeffs[i][j] = coeffTmp.Mod(NewIntFromString(coeff), QiBigint).Uint64()
 		}
 	}
-	return nil
 }
 
 // SetCoefficientsBigint sets the coefficients of p1 from an array of Int variables.
-func (context *Context) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) error {
-
-	if len(coeffs) != int(context.N) {
-		return errors.New("error : invalid ring degree (does not match context)")
-	}
-
+func (context *Context) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
 	for i, Qi := range context.Modulus {
@@ -360,15 +339,9 @@ func (context *Context) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) error
 
 		}
 	}
-
-	return nil
 }
 
-func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*big.Int, p1 *Poly) error {
-
-	if len(coeffs) != int(context.N) {
-		return errors.New("error : invalid ring degree (does not match context)")
-	}
+func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*big.Int, p1 *Poly) {
 
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
@@ -379,8 +352,6 @@ func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*big.Int
 
 		}
 	}
-
-	return nil
 }
 
 //PolyToString reconstructs p1 and returns the result in an array of string.

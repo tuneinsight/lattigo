@@ -59,34 +59,34 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator) {
 	return evaluator
 }
 
-func (evaluator *Evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *bfvElement, err error) {
+func (evaluator *Evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *bfvElement) {
 	if op0 == nil || op1 == nil || opOut == nil {
-		return nil, nil, nil, errors.New("operands cannot be nil")
+		panic("operands cannot be nil")
 	}
 
 	if op0.Degree()+op1.Degree() == 0 {
-		return nil, nil, nil, errors.New("operands cannot be both plaintext")
+		panic("operands cannot be both plaintext")
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		return nil, nil, nil, errors.New("receiver operand degree is too small")
+		panic("receiver operand degree is too small")
 	}
 
 	el0, el1, elOut = op0.Element(), op1.Element(), opOut.Element()
 	return // TODO: more checks on elements
 }
 
-func (evaluator *Evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *bfvElement, err error) {
+func (evaluator *Evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *bfvElement) {
 	if op0 == nil || opOut == nil {
-		return nil, nil, errors.New("operand cannot be nil")
+		panic("operand cannot be nil")
 	}
 
 	if op0.Degree() == 0 {
-		return nil, nil, errors.New("operand cannot be plaintext")
+		panic("operand cannot be plaintext")
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		return nil, nil, errors.New("receiver operand degree is too small")
+		panic("receiver operand degree is too small")
 	}
 	el0, elOut = op0.Element(), opOut.Element()
 	return // TODO: more checks on elements
@@ -124,43 +124,34 @@ func evaluateInPlaceUnary(el0, elOut *bfvElement, evaluate func(*ring.Poly, *rin
 }
 
 // Add adds op0 to op1 and returns the result on ctOut.
-func (evaluator *Evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) (err error) {
-	el0, el1, elOut, err := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.Add)
-	return
 }
 
 // AddNew adds op0 to op1 and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
-	return ctOut, evaluator.Add(op0, op1, ctOut)
+	evaluator.Add(op0, op1, ctOut)
+	return
 }
 
 // AddNoMod adds op0 to op1 without modular reduction, and returns the result on cOut.
-func (evaluator *Evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) (err error) {
-	el0, el1, elOut, err := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) {
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.AddNoMod)
-	return nil
 }
 
 // AddNoModNew adds op0 to op1 without modular reduction and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
-	return ctOut, evaluator.AddNoMod(op0, op1, ctOut)
+	evaluator.AddNoMod(op0, op1, ctOut)
+	return
 }
 
 // Sub subtracts op1 to op0 and returns the result on cOut.
-func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) (err error) {
-	el0, el1, elOut, err := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.Sub)
 
 	if el0.Degree() < el1.Degree() {
@@ -168,22 +159,19 @@ func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) (err error)
 			evaluator.bfvcontext.contextQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
 		}
 	}
-
-	return nil
 }
 
 // SubNew subtracts op0 to op1 and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
-	return ctOut, evaluator.Sub(op0, op1, ctOut)
+	evaluator.Sub(op0, op1, ctOut)
+	return
 }
 
 // SubNoMod subtracts op0 to op1 without modular reduction and returns the result on ctOut.
-func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) (err error) {
-	el0, el1, elOut, err := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
+
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.SubNoMod)
 
 	if el0.Degree() < el1.Degree() {
@@ -191,64 +179,53 @@ func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) (err e
 			evaluator.bfvcontext.contextQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
 		}
 	}
-
-	return nil
 }
 
 // SubNoModNew subtracts op0 to op1 without modular reduction and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
-	return ctOut, evaluator.SubNoMod(op0, op1, ctOut)
+	evaluator.SubNoMod(op0, op1, ctOut)
+	return
 }
 
 // Neg negates op and returns the result on ctOut.
-func (evaluator *Evaluator) Neg(op Operand, ctOut *Ciphertext) error {
-	el0, elOut, err := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) Neg(op Operand, ctOut *Ciphertext) {
+	el0, elOut := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
 	evaluateInPlaceUnary(el0, elOut, evaluator.bfvcontext.contextQ.Neg)
-	return nil
 }
 
 // Neg negates op and creates a new element to store the result.
-func (evaluator *Evaluator) NegNew(op Operand) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) NegNew(op Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(op.Degree())
-	return ctOut, evaluator.Neg(op, ctOut)
+	evaluator.Neg(op, ctOut)
+	return ctOut
 }
 
 // Reduce applies a modular reduction on op and returns the result on ctOut.
-func (evaluator *Evaluator) Reduce(op Operand, ctOut *Ciphertext) error {
-	el0, elOut, err := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) Reduce(op Operand, ctOut *Ciphertext) {
+	el0, elOut := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
 	evaluateInPlaceUnary(el0, elOut, evaluator.bfvcontext.contextQ.Reduce)
-	return nil
 }
 
 // Reduce applies a modular reduction on op and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) ReduceNew(op Operand) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) ReduceNew(op Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(op.Degree())
-	return ctOut, evaluator.Reduce(op, ctOut)
+	evaluator.Reduce(op, ctOut)
+	return ctOut
 }
 
 // MulScalar multiplies op by an uint64 scalar and returns the result on ctOut.
-func (evaluator *Evaluator) MulScalar(op Operand, scalar uint64, ctOut *Ciphertext) error {
-
-	el0, elOut, err := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) MulScalar(op Operand, scalar uint64, ctOut *Ciphertext) {
+	el0, elOut := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
 	fun := func(el, elOut *ring.Poly) { evaluator.bfvcontext.contextQ.MulScalar(el, scalar, elOut) }
 	evaluateInPlaceUnary(el0, elOut, fun)
-	return nil
 }
 
 // MulScalarNew multiplies op by an uint64 scalar and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(op.Degree())
-	return ctOut, evaluator.MulScalar(op, scalar, ctOut)
+	evaluator.MulScalar(op, scalar, ctOut)
+	return
 }
 
 // tensorAndRescales computes (ct0 x ct1) * (t/Q) and stores the result on ctOut.
@@ -428,21 +405,16 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 }
 
 // Mul multiplies op0 by op1 and returns the result on ctOut.
-func (evaluator *Evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) (err error) {
-
-	el0, el1, elOut, err := evaluator.getElemAndCheckBinary(op0, op1, ctOut, op0.Degree()+op1.Degree())
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, op0.Degree()+op1.Degree())
 	evaluator.tensorAndRescale(el0, el1, elOut)
-	return nil
 }
 
 // MulNew multiplies op0 by op1 and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext, err error) {
-
+func (evaluator *Evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(op0.Degree() + op1.Degree())
-	return ctOut, evaluator.Mul(op0, op1, ctOut)
+	evaluator.Mul(op0, op1, ctOut)
+	return
 }
 
 // relinearize is a methode common to Relinearize and RelinearizeNew. It switches ct0 out in the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.

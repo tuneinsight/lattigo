@@ -97,17 +97,9 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 	params.pk0 = kgen.NewPublicKey(params.sk0)
 	params.pk1 = kgen.NewPublicKey(params.sk1)
 
-	if params.encryptorPk0, err = params.bfvContext.NewEncryptorFromPk(params.pk0); err != nil {
-		log.Fatal(err)
-	}
-
-	if params.decryptorSk0, err = params.bfvContext.NewDecryptor(params.sk0); err != nil {
-		log.Fatal(err)
-	}
-
-	if params.decryptorSk1, err = params.bfvContext.NewDecryptor(params.sk1); err != nil {
-		log.Fatal(err)
-	}
+	params.encryptorPk0 = params.bfvContext.NewEncryptorFromPk(params.pk0)
+	params.decryptorSk0 = params.bfvContext.NewDecryptor(params.sk0)
+	params.decryptorSk1 = params.bfvContext.NewDecryptor(params.sk1)
 
 	return
 }
@@ -127,8 +119,7 @@ func testPublicKeyGen(t *testing.T) {
 
 		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
-			crpGenerator, err := ring.NewCRPGenerator(nil, contextKeys)
-			check(t, err)
+			crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.Clock()
 
@@ -160,8 +151,7 @@ func testPublicKeyGen(t *testing.T) {
 			P0.GenPublicKey(P0.s1, crp, pk)
 
 			// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-			encryptorTest, err := bfvContext.NewEncryptorFromPk(pk)
-			check(t, err)
+			encryptorTest := bfvContext.NewEncryptorFromPk(pk)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorTest, t)
 
@@ -201,8 +191,7 @@ func testRelinKeyGen(t *testing.T) {
 			for i := range rkgParties {
 				p := new(Party)
 				p.RKGProtocol = NewEkgProtocol(bfvContext)
-				p.u, err = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
-				check(t, err)
+				p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
 				p.s = sk0Shards[i].Get()
 				p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
 				rkgParties[i] = p
@@ -210,8 +199,7 @@ func testRelinKeyGen(t *testing.T) {
 
 			P0 := rkgParties[0]
 
-			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
-			check(t, err)
+			crpGenerator := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, bfvContext.Beta())
 
@@ -254,8 +242,7 @@ func testRelinKeyGen(t *testing.T) {
 			}
 
 			ciphertextMul := bfvContext.NewCiphertext(ciphertext.Degree() * 2)
-			err = evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
-			check(t, err)
+			evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
 
 			res := bfvContext.NewCiphertext(1)
 			err = evaluator.Relinearize(ciphertextMul, evk, res)
@@ -331,8 +318,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 			}
 
 			ciphertextMul := bfvContext.NewCiphertext(ciphertext.Degree() * 2)
-			err = evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
-			check(t, err)
+			evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
 
 			res := bfvContext.NewCiphertext(1)
 			err = evaluator.Relinearize(ciphertextMul, evk, res)
@@ -485,8 +471,7 @@ func testRotKeyGenRotRows(t *testing.T) {
 			}
 			P0 := pcksParties[0]
 
-			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
-			check(t, err)
+			crpGenerator := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, bfvContext.Beta())
 
@@ -553,8 +538,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 
 			P0 := pcksParties[0]
 
-			crpGenerator, err := ring.NewCRPGenerator(nil, contextKeys)
-			check(t, err)
+			crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, bfvContext.Beta())
 
@@ -633,8 +617,7 @@ func testRefresh(t *testing.T) {
 
 			P0 := RefreshParties[0]
 
-			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
-			check(t, err)
+			crpGenerator := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.Clock()
 
@@ -722,22 +705,14 @@ func testRefresh(t *testing.T) {
 }
 
 func newTestVectors(contextParams *dbfvContext, encryptor *bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
-
 	coeffsPol := contextParams.bfvContext.ContextT().NewUniformPoly()
-
 	plaintext = contextParams.bfvContext.NewPlaintext()
-
-	err = contextParams.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
-	check(t, err)
-
-	ciphertext, err = encryptor.EncryptNew(plaintext)
-	check(t, err)
-
+	contextParams.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
+	ciphertext = encryptor.EncryptNew(plaintext)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 
 func verifyTestVectors(contextParams *dbfvContext, decryptor *bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
-
 	if bfv.EqualSlice(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
 		t.Errorf("decryption error")
 	}

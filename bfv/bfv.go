@@ -121,33 +121,25 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	bfvContext.contextT.GenNTTParams()
 	// ========================
 
-	if err := bfvContext.contextQ.SetParameters(N, ModuliQ); err != nil {
-		return err
-	}
+	bfvContext.contextQ.SetParameters(N, ModuliQ)
 
 	if err := bfvContext.contextQ.GenNTTParams(); err != nil {
 		return err
 	}
 
-	if err := bfvContext.contextP.SetParameters(N, ModuliP); err != nil {
-		return err
-	}
+	bfvContext.contextP.SetParameters(N, ModuliP)
 
 	if err := bfvContext.contextP.GenNTTParams(); err != nil {
 		return err
 	}
 
-	if err = bfvContext.contextKeys.SetParameters(N, append(ModuliQ, params.KeySwitchPrimes...)); err != nil {
-		return err
-	}
+	bfvContext.contextKeys.SetParameters(N, append(ModuliQ, params.KeySwitchPrimes...))
 
 	if err = bfvContext.contextKeys.GenNTTParams(); err != nil {
 		return err
 	}
 
-	if err = bfvContext.contextPKeys.SetParameters(N, params.KeySwitchPrimes); err != nil {
-		return err
-	}
+	bfvContext.contextPKeys.SetParameters(N, params.KeySwitchPrimes)
 
 	if err = bfvContext.contextPKeys.GenNTTParams(); err != nil {
 		return err

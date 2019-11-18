@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math/bits"
 )
@@ -69,24 +68,21 @@ func (P *Plaintext) Lift(bfvcontext *BfvContext) {
 }
 
 // EMBInv applies the InvNTT on a plaintext within the plaintext modulus.
-func (P *Plaintext) EMBInv(bfvcontext *BfvContext) error {
+func (P *Plaintext) EMBInv(bfvcontext *BfvContext) {
 
 	if bfvcontext.contextT.AllowsNTT() != true {
-		return errors.New("plaintext context doesn't allow a valid NTT")
+		panic("plaintext context doesn't allow a valid NTT")
 	}
 
 	bfvcontext.contextT.NTT(P.value, P.value)
-
-	return nil
 }
 
 // EMB applies the NTT on a plaintext within the plaintext modulus.
-func (P *Plaintext) EMB(bfvcontext *BfvContext) error {
+func (P *Plaintext) EMB(bfvcontext *BfvContext) {
+
 	if bfvcontext.contextT.AllowsNTT() != true {
-		return errors.New("plaintext context doesn't allow a valid InvNTT")
+		panic("plaintext context doesn't allow a valid InvNTT")
 	}
 
 	bfvcontext.contextT.InvNTT(P.value, P.value)
-
-	return nil
 }

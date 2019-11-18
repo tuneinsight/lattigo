@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 )
 
@@ -83,21 +82,19 @@ func (el *bfvElement) CopyNew() *bfvElement {
 }
 
 // Copy copies the value and parameters of the input on the target ciphertext.
-func (el *bfvElement) Copy(ctxCopy *bfvElement) error {
-
+func (el *bfvElement) Copy(ctxCopy *bfvElement) {
 	if el != ctxCopy {
 		for i := range ctxCopy.Value() {
 			el.Value()[i].Copy(ctxCopy.Value()[i])
 		}
 		el.SetIsNTT(el.IsNTT())
 	}
-	return nil
 }
 
 // NTT puts the target ciphertext in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
-func (el *bfvElement) NTT(bfvcontext *BfvContext, c *bfvElement) error {
+func (el *bfvElement) NTT(bfvcontext *BfvContext, c *bfvElement) {
 	if el.Degree() != c.Degree() {
-		return errors.New("error : receiver element invalide degree (does not match)")
+		panic("receiver element invalide degree (does not match)")
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
@@ -105,13 +102,12 @@ func (el *bfvElement) NTT(bfvcontext *BfvContext, c *bfvElement) error {
 		}
 		c.SetIsNTT(true)
 	}
-	return nil
 }
 
 // InvNTT puts the target ciphertext outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
-func (el *bfvElement) InvNTT(bfvcontext *BfvContext, c *bfvElement) error {
+func (el *bfvElement) InvNTT(bfvcontext *BfvContext, c *bfvElement) {
 	if el.Degree() != c.Degree() {
-		return errors.New("error : receiver element invalide degree (does not match)")
+		panic("eceiver element invalide degree (does not match)")
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {
@@ -119,7 +115,6 @@ func (el *bfvElement) InvNTT(bfvcontext *BfvContext, c *bfvElement) error {
 		}
 		c.SetIsNTT(false)
 	}
-	return nil
 }
 
 func (el *bfvElement) Element() *bfvElement {

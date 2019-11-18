@@ -127,26 +127,21 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 	//Contexts
 	ckkscontext.contextQ = ring.NewContext()
-	if err = ckkscontext.contextQ.SetParameters(1<<ckkscontext.logN, ckkscontext.moduli); err != nil {
-		return nil, err
-	}
+	ckkscontext.contextQ.SetParameters(1<<ckkscontext.logN, ckkscontext.moduli)
+
 	if err = ckkscontext.contextQ.GenNTTParams(); err != nil {
 		return nil, err
 	}
 
 	ckkscontext.contextP = ring.NewContext()
-	if err = ckkscontext.contextP.SetParameters(1<<ckkscontext.logN, ckkscontext.specialprimes); err != nil {
-		return nil, err
-	}
+	ckkscontext.contextP.SetParameters(1<<ckkscontext.logN, ckkscontext.specialprimes)
 
 	if err = ckkscontext.contextP.GenNTTParams(); err != nil {
 		return nil, err
 	}
 
 	ckkscontext.contextKeys = ring.NewContext()
-	if err = ckkscontext.contextKeys.SetParameters(1<<ckkscontext.logN, append(ckkscontext.moduli, ckkscontext.specialprimes...)); err != nil {
-		return nil, err
-	}
+	ckkscontext.contextKeys.SetParameters(1<<ckkscontext.logN, append(ckkscontext.moduli, ckkscontext.specialprimes...))
 
 	if err = ckkscontext.contextKeys.GenNTTParams(); err != nil {
 		return nil, err

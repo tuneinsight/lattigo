@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 )
 
@@ -13,10 +12,10 @@ type Decryptor struct {
 }
 
 // NewDecryptor creates a new Decryptor from the target bfvcontext with the secret-key given as input.
-func (bfvcontext *BfvContext) NewDecryptor(sk *SecretKey) (decryptor *Decryptor, err error) {
+func (bfvcontext *BfvContext) NewDecryptor(sk *SecretKey) (decryptor *Decryptor) {
 
 	if sk.sk.GetDegree() != int(bfvcontext.n) {
-		return nil, errors.New("error : secret_key degree must match context degree")
+		panic("error : secret_key degree must match context degree")
 	}
 
 	decryptor = new(Decryptor)
@@ -27,7 +26,7 @@ func (bfvcontext *BfvContext) NewDecryptor(sk *SecretKey) (decryptor *Decryptor,
 
 	decryptor.polypool = bfvcontext.contextQ.NewPoly()
 
-	return decryptor, nil
+	return decryptor
 }
 
 // DecryptNew decrypts the input ciphertext and returns the result on a new plaintext.

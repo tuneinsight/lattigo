@@ -63,20 +63,11 @@ func ObliviousRiding() {
 
 	Sk, Pk := kgen.NewKeyPair()
 
-	Decryptor, err := bfvContext.NewDecryptor(Sk)
-	if err != nil {
-		log.Fatal(err)
-	}
+	Decryptor := bfvContext.NewDecryptor(Sk)
 
-	EncryptorPk, err := bfvContext.NewEncryptorFromPk(Pk)
-	if err != nil {
-		log.Fatal(err)
-	}
+	EncryptorPk := bfvContext.NewEncryptorFromPk(Pk)
 
-	EncryptorSk, err := bfvContext.NewEncryptorFromSk(Sk)
-	if err != nil {
-		log.Fatal(err)
-	}
+	EncryptorSk := bfvContext.NewEncryptorFromSk(Sk)
 
 	evaluator := bfvContext.NewEvaluator()
 
@@ -123,35 +114,22 @@ func ObliviousRiding() {
 	fmt.Printf("Encrypting %d Drivers (x, y) and 1 Rider (%d, %d) \n", NbDrivers, riderposition[0], riderposition[1])
 	fmt.Println()
 
-	RiderCiphertext, err := EncryptorSk.EncryptNew(RiderPlaintext)
-	if err != nil {
-		log.Fatal(err)
-	}
+	RiderCiphertext := EncryptorSk.EncryptNew(RiderPlaintext)
 
 	DriversCiphertexts := make([]*bfv.Ciphertext, NbDrivers)
 	for i := uint64(0); i < NbDrivers; i++ {
-		if DriversCiphertexts[i], err = EncryptorPk.EncryptNew(DriversPlaintexts[i]); err != nil {
-			log.Fatal(err)
-		}
+		DriversCiphertexts[i] = EncryptorPk.EncryptNew(DriversPlaintexts[i])
 	}
 
 	fmt.Println("Computing encrypted Distance = ((CtD1 + CtD2 + CtD3 + CtD4...) - CtR)^2 ...")
 	fmt.Println()
 
-	if err := evaluator.Neg(RiderCiphertext, RiderCiphertext); err != nil {
-		log.Fatal(err)
-	}
-
+	evaluator.Neg(RiderCiphertext, RiderCiphertext)
 	for i := uint64(0); i < NbDrivers; i++ {
-		if err := evaluator.Add(RiderCiphertext, DriversCiphertexts[i], RiderCiphertext); err != nil {
-			log.Fatal(err)
-		}
+		evaluator.Add(RiderCiphertext, DriversCiphertexts[i], RiderCiphertext)
 	}
 
-	res, _ := evaluator.MulNew(RiderCiphertext, RiderCiphertext)
-	RiderCiphertext = res.Ciphertext()
-
-	result := encoder.DecodeUint(Decryptor.DecryptNew(RiderCiphertext))
+	result := encoder.DecodeUint(Decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)))
 
 	errors := 0
 	closest := []uint64{0, params.T, params.T, params.T}

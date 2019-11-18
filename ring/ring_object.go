@@ -86,23 +86,12 @@ func (Pol *Poly) Copy(p1 *Poly) {
 }
 
 // SetCoefficients sets the coefficients of polynomial directly from a CRT format (double slice).
-func (Pol *Poly) SetCoefficients(coeffs [][]uint64) error {
-
-	if len(coeffs) > len(Pol.Coeffs) {
-		return errors.New("error : len(coeffs) > len(Pol.Coeffs")
-	}
-
-	if len(coeffs[0]) > len(Pol.Coeffs[0]) {
-		return errors.New("error : len(coeffs[0]) > len(Pol.Coeffs[0]")
-	}
-
+func (Pol *Poly) SetCoefficients(coeffs [][]uint64) {
 	for i := range coeffs {
 		for j := range coeffs[0] {
 			Pol.Coeffs[i][j] = coeffs[i][j]
 		}
 	}
-
-	return nil
 }
 
 // GetCoefficients returns a double slice containing the coefficients of the polynomial.

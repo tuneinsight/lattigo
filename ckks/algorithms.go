@@ -23,7 +23,7 @@ func (evaluator *Evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *Ev
 			return err
 		}
 
-		if err = evaluator.Rescale(elOut, elOut); err != nil {
+		if err = evaluator.Rescale(elOut, evaluator.ckkscontext.scale, elOut); err != nil {
 			return err
 		}
 
@@ -33,7 +33,7 @@ func (evaluator *Evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *Ev
 				return err
 			}
 
-			if err = evaluator.Rescale(elOut, elOut); err != nil {
+			if err = evaluator.Rescale(elOut, evaluator.ckkscontext.scale, elOut); err != nil {
 				return err
 			}
 		}
@@ -82,7 +82,7 @@ func (evaluator *Evaluator) Power(ct0 *Ciphertext, degree uint64, evakey *Evalua
 			return err
 		}
 
-		if err = evaluator.Rescale(res, res); err != nil {
+		if err = evaluator.Rescale(res, evaluator.ckkscontext.scale, res); err != nil {
 			return err
 		}
 
@@ -107,7 +107,7 @@ func (evaluator *Evaluator) InverseNew(ct0 *Ciphertext, steps uint64, evakey *Ev
 
 		evaluator.MulRelin(cbar.Element(), cbar.Element(), evakey, cbar.Ciphertext())
 
-		if err = evaluator.Rescale(cbar, cbar); err != nil {
+		if err = evaluator.Rescale(cbar, evaluator.ckkscontext.scale, cbar); err != nil {
 			return nil, err
 		}
 
@@ -117,7 +117,7 @@ func (evaluator *Evaluator) InverseNew(ct0 *Ciphertext, steps uint64, evakey *Ev
 			return nil, err
 		}
 
-		if err = evaluator.Rescale(tmp, tmp); err != nil {
+		if err = evaluator.Rescale(tmp, evaluator.ckkscontext.scale, tmp); err != nil {
 			return nil, err
 		}
 

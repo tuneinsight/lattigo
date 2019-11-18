@@ -8,11 +8,19 @@ import (
 // Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
 type Evaluator struct {
-	bfvcontext    *BfvContext
-	basisextender *ring.BasisExtender
-	complexscaler *ring.ComplexScaler
-	polypool      [4]*ring.Poly
-	ctxpool       [3]*Ciphertext
+	bfvcontext *BfvContext
+
+	basisextenderQP *ring.BasisExtender
+	basisextenderPQ *ring.BasisExtender
+
+	baseconverter *ring.FastBasisExtender
+	decomposer    *ring.ArbitraryDecomposer
+
+	poolQ [][]*ring.Poly
+	poolP [][]*ring.Poly
+
+	polypool      [2]*ring.Poly
+	keyswitchpool [5]*ring.Poly
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
@@ -23,16 +31,30 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator) {
 	evaluator = new(Evaluator)
 	evaluator.bfvcontext = bfvcontext
 
-	evaluator.basisextender = ring.NewBasisExtender(bfvcontext.contextQ, bfvcontext.contextP)
-	evaluator.complexscaler = ring.NewComplexScaler(bfvcontext.t, bfvcontext.contextQ, bfvcontext.contextP)
+	evaluator.basisextenderQP = ring.NewBasisExtender(bfvcontext.contextQ, bfvcontext.contextP)
+	evaluator.basisextenderPQ = ring.NewBasisExtender(bfvcontext.contextP, bfvcontext.contextQ)
 
-	for i := 0; i < 4; i++ {
-		evaluator.polypool[i] = bfvcontext.contextQP.NewPoly()
+	evaluator.baseconverter = ring.NewFastBasisExtender(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
+	evaluator.decomposer = ring.NewArbitraryDecomposer(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
+
+	for i := 0; i < 2; i++ {
+		evaluator.polypool[i] = bfvcontext.contextQ.NewPoly()
 	}
 
-	evaluator.ctxpool[0] = bfvcontext.NewCiphertextBig(5)
-	evaluator.ctxpool[1] = bfvcontext.NewCiphertextBig(5)
-	evaluator.ctxpool[2] = bfvcontext.NewCiphertextBig(5)
+	for i := 0; i < 5; i++ {
+		evaluator.keyswitchpool[i] = bfvcontext.contextKeys.NewPoly()
+	}
+
+	evaluator.poolQ = make([][]*ring.Poly, 4)
+	evaluator.poolP = make([][]*ring.Poly, 4)
+	for i := 0; i < 4; i++ {
+		evaluator.poolQ[i] = make([]*ring.Poly, 6)
+		evaluator.poolP[i] = make([]*ring.Poly, 6)
+		for j := 0; j < 6; j++ {
+			evaluator.poolQ[i][j] = bfvcontext.contextQ.NewPoly()
+			evaluator.poolP[i][j] = bfvcontext.contextP.NewPoly()
+		}
+	}
 
 	return evaluator
 }
@@ -140,6 +162,13 @@ func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) (err error)
 		return err
 	}
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.Sub)
+
+	if el0.Degree() < el1.Degree() {
+		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
+			evaluator.bfvcontext.contextQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
+		}
+	}
+
 	return nil
 }
 
@@ -156,6 +185,13 @@ func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) (err e
 		return err
 	}
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.SubNoMod)
+
+	if el0.Degree() < el1.Degree() {
+		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
+			evaluator.bfvcontext.contextQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
+		}
+	}
+
 	return nil
 }
 
@@ -218,29 +254,35 @@ func (evaluator *Evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciph
 // tensorAndRescales computes (ct0 x ct1) * (t/Q) and stores the result on ctOut.
 func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 
+	contextQ := evaluator.bfvcontext.contextQ
+	contextP := evaluator.bfvcontext.contextP
+
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them in NTT form
-	c0 := evaluator.ctxpool[0]
-	c1 := evaluator.ctxpool[1]
-	tmpCtOut := evaluator.ctxpool[2]
 
-	if ct0 == ct1 {
+	c0Q := evaluator.poolQ[0]
+	c0P := evaluator.poolP[0]
 
-		for i := range ct0.value {
-			evaluator.basisextender.ExtendBasis(ct0.value[i], c0.value[i])
-			evaluator.bfvcontext.contextQP.NTT(c0.value[i], c0.value[i])
-		}
+	c1Q := evaluator.poolQ[1]
+	c1P := evaluator.poolP[1]
 
-	} else {
+	c2Q := evaluator.poolQ[2]
+	c2P := evaluator.poolP[2]
 
-		for i := range ct0.value {
-			evaluator.basisextender.ExtendBasis(ct0.value[i], c0.value[i])
-			evaluator.bfvcontext.contextQP.NTT(c0.value[i], c0.value[i])
-		}
+	for i := range ct0.value {
+		evaluator.basisextenderQP.ExtendBasisSplit(ct0.value[i], c0P[i])
+
+		contextQ.NTT(ct0.value[i], c0Q[i])
+		contextP.NTT(c0P[i], c0P[i])
+	}
+
+	if ct0 != ct1 {
 
 		for i := range ct1.value {
-			evaluator.basisextender.ExtendBasis(ct1.value[i], c1.value[i])
-			evaluator.bfvcontext.contextQP.NTT(c1.value[i], c1.value[i])
+			evaluator.basisextenderQP.ExtendBasisSplit(ct1.value[i], c1P[i])
+
+			contextQ.NTT(ct1.value[i], c1Q[i])
+			contextP.NTT(c1P[i], c1P[i])
 		}
 	}
 
@@ -251,76 +293,137 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	// Case where both BfvElements are of degree 1
 	if ct0.Degree() == 1 && ct1.Degree() == 1 {
 
-		c_00 := evaluator.polypool[0]
-		c_01 := evaluator.polypool[1]
+		c00Q := evaluator.poolQ[3][0]
+		c00P := evaluator.poolP[3][0]
+		c01Q := evaluator.poolQ[3][1]
+		c01P := evaluator.poolP[3][1]
 
-		d0 := tmpCtOut.value[0]
-		d1 := tmpCtOut.value[1]
-		d2 := tmpCtOut.value[2]
+		contextQ.MForm(c0Q[0], c00Q)
+		contextP.MForm(c0P[0], c00P)
 
-		evaluator.bfvcontext.contextQP.MForm(c0.value[0], c_00)
-		evaluator.bfvcontext.contextQP.MForm(c0.value[1], c_01)
+		contextQ.MForm(c0Q[1], c01Q)
+		contextP.MForm(c0P[1], c01P)
 
 		// Squaring case
 		if ct0 == ct1 {
 
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.value[0], d0) // c0 = c0[0]*c0[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c0.value[1], d1) // c1 = 2*c0[0]*0[1]
-			evaluator.bfvcontext.contextQP.Add(d1, d1, d1)
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c0.value[1], d2) // c2 = c0[1]*c0[1]
+			// c0 = c0[0]*c0[0]
+			contextQ.MulCoeffsMontgomery(c00Q, c0Q[0], c2Q[0])
+			contextP.MulCoeffsMontgomery(c00P, c0P[0], c2P[0])
+
+			// c1 = 2*c0[0]*c0[1]
+			contextQ.MulCoeffsMontgomery(c00Q, c0Q[1], c2Q[1])
+			contextP.MulCoeffsMontgomery(c00P, c0P[1], c2P[1])
+
+			contextQ.AddNoMod(c2Q[1], c2Q[1], c2Q[1])
+			contextP.AddNoMod(c2P[1], c2P[1], c2P[1])
+
+			// c2 = c0[1]*c0[1]
+			contextQ.MulCoeffsMontgomery(c01Q, c0Q[1], c2Q[2])
+			contextP.MulCoeffsMontgomery(c01P, c0P[1], c2P[2])
 
 			// Normal case
 		} else {
 
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c1.value[0], d0) // c0 = c0[0]*c0[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00, c1.value[1], d1)
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAddNoMod(c_01, c1.value[0], d1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
-			evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_01, c1.value[1], d2)            // c2 = c0[1]*c1[1]
+			// c0 = c0[0]*c1[0]
+			contextQ.MulCoeffsMontgomery(c00Q, c1Q[0], c2Q[0])
+			contextP.MulCoeffsMontgomery(c00P, c1P[0], c2P[0])
+
+			// c1 = c0[0]*c1[1] + c0[1]*c1[0]
+			contextQ.MulCoeffsMontgomery(c00Q, c1Q[1], c2Q[1])
+			contextP.MulCoeffsMontgomery(c00P, c1P[1], c2P[1])
+
+			contextQ.MulCoeffsMontgomeryAndAddNoMod(c01Q, c1Q[0], c2Q[1])
+			contextP.MulCoeffsMontgomeryAndAddNoMod(c01P, c1P[0], c2P[1])
+
+			// c2 = c0[1]*c1[1]
+			contextQ.MulCoeffsMontgomery(c01Q, c1Q[1], c2Q[2])
+			contextP.MulCoeffsMontgomery(c01P, c1P[1], c2P[2])
 		}
 
 		// Case where both BfvElements are not of degree 1
 	} else {
 
-		for i := 0; i < len(ct0.Value())+len(ct1.Value()); i++ {
-			tmpCtOut.value[i].Zero()
+		for i := uint64(0); i < ctOut.Degree()+1; i++ {
+			c2Q[i].Zero()
+			c2P[i].Zero()
 		}
 
 		// Squaring case
 		if ct0 == ct1 {
 
-			c_00 := evaluator.ctxpool[1]
+			c00Q := evaluator.poolQ[3]
+			c00P := evaluator.poolP[3]
 
 			for i := range ct0.value {
-				evaluator.bfvcontext.contextQP.MForm(c0.value[i], c_00.value[i])
+				contextQ.MForm(c0Q[i], c00Q[i])
+				contextP.MForm(c0P[i], c00P[i])
 			}
 
 			for i := uint64(0); i < ct0.Degree()+1; i++ {
 				for j := i + 1; j < ct0.Degree()+1; j++ {
-					evaluator.bfvcontext.contextQP.MulCoeffsMontgomery(c_00.value[i], c0.value[j], tmpCtOut.value[i+j])
-					evaluator.bfvcontext.contextQP.Add(tmpCtOut.value[i+j], tmpCtOut.value[i+j], tmpCtOut.value[i+j])
+					contextQ.MulCoeffsMontgomery(c00Q[i], c0Q[j], c2Q[i+j])
+					contextP.MulCoeffsMontgomery(c00P[i], c0P[j], c2P[i+j])
+
+					contextQ.Add(c2Q[i+j], c2Q[i+j], c2Q[i+j])
+					contextP.Add(c2P[i+j], c2P[i+j], c2P[i+j])
 				}
 			}
 
 			for i := uint64(0); i < ct0.Degree()+1; i++ {
-				evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAdd(c_00.value[i], c0.value[i], tmpCtOut.value[i<<1])
+				contextQ.MulCoeffsMontgomeryAndAdd(c00Q[i], c0Q[i], c2Q[i<<1])
+				contextP.MulCoeffsMontgomeryAndAdd(c00P[i], c0P[i], c2P[i<<1])
 			}
 
 			// Normal case
 		} else {
 			for i := range ct0.value {
-				evaluator.bfvcontext.contextQP.MForm(c0.value[i], c0.value[i])
+				contextQ.MForm(c0Q[i], c0Q[i])
+				contextP.MForm(c0P[i], c0P[i])
 				for j := range ct1.value {
-					evaluator.bfvcontext.contextQP.MulCoeffsMontgomeryAndAdd(c0.value[i], c1.value[j], tmpCtOut.value[i+j])
+					contextQ.MulCoeffsMontgomeryAndAdd(c0Q[i], c1Q[j], c2Q[i+j])
+					contextP.MulCoeffsMontgomeryAndAdd(c0P[i], c1P[j], c2P[i+j])
 				}
 			}
 		}
 	}
 
+	polyPtmp := evaluator.poolP[0][0]
+	PHalf := evaluator.bfvcontext.PHalf
+
 	// Applies the inverse NTT to the ciphertext, scales the down ciphertext
 	// by t/q and reduces its basis from QP to Q
 	for i := range ctOut.value {
-		evaluator.bfvcontext.contextQP.InvNTT(tmpCtOut.value[i], tmpCtOut.value[i])
-		evaluator.complexscaler.Scale(tmpCtOut.value[i], ctOut.value[i])
+		contextQ.InvNTT(c2Q[i], c2Q[i])
+		contextP.InvNTT(c2P[i], c2P[i])
+
+		// Option 1) (ct(x) * T)/Q,  but doing so requires that Q*P > Q*Q*T, slower but smaller error.
+		//contextQ.MulScalar(c2Q[i], evaluator.bfvcontext.contextT.Modulus[0], c2Q[i])
+		//contextP.MulScalar(c2P[i], evaluator.bfvcontext.contextT.Modulus[0], c2P[i])
+
+		// ============== DIVISION BY Q ================
+		// Extends the basis Q of ct(x) to the basis P
+		evaluator.basisextenderQP.ExtendBasisSplit(c2Q[i], polyPtmp)
+
+		// Divides (ct(x)Q -> P) by Q
+		for k, Pi := range contextP.Modulus {
+			mredParams := contextP.GetMredParams()[k]
+			rescalParams := evaluator.bfvcontext.rescaleParamsMul[k]
+			p2tmp := c2P[i].Coeffs[k]
+			p1tmp := polyPtmp.Coeffs[k]
+			for j := uint64(0); j < contextP.N; j++ {
+				p2tmp[j] = ring.MRed(p2tmp[j]+(Pi-p1tmp[j]), rescalParams, Pi, mredParams)
+			}
+		}
+
+		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
+		contextP.AddScalarBigint(c2P[i], PHalf, c2P[i])
+		evaluator.basisextenderPQ.ExtendBasisSplit(c2P[i], ctOut.value[i])
+		contextQ.SubScalarBigint(ctOut.value[i], PHalf, ctOut.value[i])
+		// ============================================
+
+		// Option 2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
+		contextQ.MulScalar(ctOut.value[i], evaluator.bfvcontext.contextT.Modulus[0], ctOut.value[i])
 	}
 }
 
@@ -345,17 +448,16 @@ func (evaluator *Evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphert
 // relinearize is a methode common to Relinearize and RelinearizeNew. It switches ct0 out in the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
 func (evaluator *Evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
 
-	evaluator.bfvcontext.contextQ.NTT(ct0.value[0], ctOut.value[0])
-	evaluator.bfvcontext.contextQ.NTT(ct0.value[1], ctOut.value[1])
+	if ctOut != ct0 {
+		evaluator.bfvcontext.contextQ.Copy(ct0.value[0], ctOut.value[0])
+		evaluator.bfvcontext.contextQ.Copy(ct0.value[1], ctOut.value[1])
+	}
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
 		evaluator.switchKeys(ct0.value[deg], evakey.evakey[deg-2], ctOut)
 	}
 
 	ctOut.SetValue(ctOut.value[:2])
-
-	evaluator.bfvcontext.contextQ.InvNTT(ctOut.value[0], ctOut.value[0])
-	evaluator.bfvcontext.contextQ.InvNTT(ctOut.value[1], ctOut.value[1])
 }
 
 // Relinearize relinearize the ciphertext ct0 of degree > 1 until it is of degree 1 and returns the result on cOut.
@@ -400,13 +502,18 @@ func (evaluator *Evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKe
 
 // SwitchKeys applies the key-switching procedure to the ciphertext ct0 and returns the result on ctOut. It requires as an additional input a valide switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
-func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchkey *SwitchingKey, ctOut *Ciphertext) (err error) {
+func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext) (err error) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		return errors.New("cannot switchkeys -> input and output must be of degree 1 to allow key switching")
 	}
 
-	evaluator.switchKeysOutOfNTTDomain(ct0.value[0], ct0.value[1], switchkey, ctOut)
+	if ct0 != ctOut {
+		evaluator.bfvcontext.contextQ.Copy(ct0.value[0], ctOut.value[0])
+		evaluator.bfvcontext.contextQ.Copy(ct0.value[1], ctOut.value[1])
+	}
+
+	evaluator.switchKeys(ct0.value[1], switchKey, ctOut)
 
 	return nil
 }
@@ -417,6 +524,11 @@ func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingK
 
 	ctOut = evaluator.bfvcontext.NewCiphertext(1)
 	return ctOut, evaluator.SwitchKeys(ct0, switchkey, ctOut)
+}
+
+func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
+	ctOut = evaluator.bfvcontext.NewCiphertext(1)
+	return ctOut, evaluator.RotateColumns(ct0, k, evakey, ctOut)
 }
 
 // RotateColumns rotates the columns of ct0 by k position to the left and returns the result on ctOut. As an additional input it requires a rotationkeys :
@@ -441,7 +553,7 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 	// Looks in the rotationkey if the corresponding rotation has been generated or if the input is a plaintext
 	if evakey.evakey_rot_col_L[k] != nil {
 
-		evaluator.permute(ct0, ct0.IsNTT(), evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
+		evaluator.permute(ct0, evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
 
 		return nil
 
@@ -495,11 +607,9 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 	evakey_index = 1
 
-	if ct0.IsNTT() {
-		ctOut.Copy(ct0.Element())
-	} else {
-		context.NTT(ct0.value[0], ctOut.value[0])
-		context.NTT(ct0.value[1], ctOut.value[1])
+	if ct0 != ctOut {
+		context.Copy(ct0.value[0], ctOut.value[0])
+		context.Copy(ct0.value[1], ctOut.value[1])
 	}
 
 	// Applies the galois automorphism and the switching-key process
@@ -507,7 +617,7 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 		if k&1 == 1 {
 
-			evaluator.permute(ctOut, true, generator, evakey_rot_col[evakey_index], ctOut)
+			evaluator.permute(ctOut, generator, evakey_rot_col[evakey_index], ctOut)
 		}
 
 		generator *= generator
@@ -515,11 +625,6 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 		evakey_index <<= 1
 		k >>= 1
-	}
-
-	if !ct0.IsNTT() {
-		context.InvNTT(ctOut.value[0], ctOut.value[0])
-		context.InvNTT(ctOut.value[1], ctOut.value[1])
 	}
 }
 
@@ -534,9 +639,14 @@ func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ct
 		return errors.New("cannot rotate -> rotation key not generated")
 	}
 
-	evaluator.permute(ct0, ct0.IsNTT(), evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row, ctOut)
+	evaluator.permute(ct0, evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row, ctOut)
 
 	return nil
+}
+
+func (evaluator *Evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
+	ctOut = evaluator.bfvcontext.NewCiphertext(1)
+	return ctOut, evaluator.RotateRows(ct0, evakey, ctOut)
 }
 
 // InnerSum computs the inner sum of ct0 and returns the result on ctOut. It requires a rotation key storing all the left power of two rotations.
@@ -568,7 +678,7 @@ func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOu
 }
 
 // permute operates a column rotation on ct0 and returns the result on ctOut
-func (evaluator *Evaluator) permute(ct0 *Ciphertext, isNTT bool, generator uint64, evakey *SwitchingKey, ctOut *Ciphertext) {
+func (evaluator *Evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *SwitchingKey, ctOut *Ciphertext) {
 
 	context := evaluator.bfvcontext.contextQ
 
@@ -580,85 +690,95 @@ func (evaluator *Evaluator) permute(ct0 *Ciphertext, isNTT bool, generator uint6
 		el0, el1 = evaluator.polypool[0], evaluator.polypool[1]
 	}
 
-	if isNTT {
-		ring.PermuteNTT(ct0.value[0], generator, el0)
-		ring.PermuteNTT(ct0.value[1], generator, el1)
-		evaluator.switchKeysInNTTDomain(el0, el1, evakey, ctOut)
-	} else {
-		context.Permute(ct0.value[0], generator, el0)
-		context.Permute(ct0.value[1], generator, el1)
-		evaluator.switchKeysOutOfNTTDomain(el0, el1, evakey, ctOut)
+	context.Permute(ct0.value[0], generator, el0)
+	context.Permute(ct0.value[1], generator, el1)
+
+	if el0 != ctOut.value[0] || el1 != ctOut.value[1] {
+		context.Copy(el0, ctOut.value[0])
+		context.Copy(el1, ctOut.value[1])
 	}
+
+	evaluator.switchKeys(el1, switchKey, ctOut)
 }
 
-// switchKeysInNTTDomain operates a keyswitching assuming el0 and el1 are in the NTT domain
-func (evaluator *Evaluator) switchKeysInNTTDomain(el0, el1 *ring.Poly, switchkey *SwitchingKey, ctOut *Ciphertext) {
+// Applies the general keyswitching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
+func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOut *Ciphertext) {
 
+	var level, reduce uint64
+
+	level = uint64(len(ctOut.value[0].Coeffs)) - 1
 	context := evaluator.bfvcontext.contextQ
+	contextKeys := evaluator.bfvcontext.contextKeys
 
-	context.Copy(el0, ctOut.value[0])
-	context.Copy(el1, ctOut.value[1])
+	for i := range evaluator.keyswitchpool {
+		evaluator.keyswitchpool[i].Zero()
+	}
 
-	context.InvNTT(el1, evaluator.polypool[1])
-	evaluator.switchKeys(evaluator.polypool[1], switchkey, ctOut)
+	c2_qi := evaluator.keyswitchpool[0]
+	c2 := evaluator.keyswitchpool[1]
 
-}
-
-// switchKeysOutOfNTTDomain operates a keyswitching assuming el0, el1 are not in the NTT domain
-func (evaluator *Evaluator) switchKeysOutOfNTTDomain(el0, el1 *ring.Poly, switchKey *SwitchingKey, ctOut *Ciphertext) {
-
-	context := evaluator.bfvcontext.contextQ
-
-	context.Copy(el1, evaluator.polypool[1])
-
-	context.NTT(el0, ctOut.value[0])
-	context.NTT(el1, ctOut.value[1])
-
-	evaluator.switchKeys(evaluator.polypool[1], switchKey, ctOut)
-
-	context.InvNTT(ctOut.value[0], ctOut.value[0])
-	context.InvNTT(ctOut.value[1], ctOut.value[1])
-}
-
-// switchKeys compute ctOut = [ctOut[0] + c2*evakey[0], ctOut[1] + c2*evakey[1]], for c2 not in NTT and ctOut in NTT.
-func (evaluator *Evaluator) switchKeys(c2 *ring.Poly, evakey *SwitchingKey, ctOut *Ciphertext) {
-
-	var mask, reduce, bitLog uint64
-
-	c2_qi_w := evaluator.polypool[3]
-
-	mask = uint64((1 << evakey.bitDecomp) - 1)
+	// We switch the element on which the switching key operation will be conducted out of the NTT domain
+	context.NTT(cx, c2)
 
 	reduce = 0
 
-	for i := range evaluator.bfvcontext.contextQ.Modulus {
+	N := contextKeys.N
+	c2_qi_ntt := make([]uint64, N)
 
-		bitLog = uint64(len(evakey.evakey[i]))
+	// Key switching with crt decomposition for the Qi
+	for i := uint64(0); i < evaluator.bfvcontext.beta; i++ {
 
-		for j := uint64(0); j < bitLog; j++ {
-			//c2_qi_w = (c2_qi_w >> (w*z)) & (w-1)
-			for u := uint64(0); u < evaluator.bfvcontext.n; u++ {
-				for v := range evaluator.bfvcontext.contextQ.Modulus {
-					c2_qi_w.Coeffs[v][u] = (c2.Coeffs[i][u] >> (j * evakey.bitDecomp)) & mask
+		p0idxst := i * evaluator.bfvcontext.alpha
+		p0idxed := p0idxst + evaluator.decomposer.Xalpha()[i]
+
+		// c2_qi = cx mod qi
+		evaluator.decomposer.Decompose(level, i, cx, c2_qi)
+
+		for x, qi := range contextKeys.Modulus {
+
+			nttPsi := contextKeys.GetNttPsi()[x]
+			bredParams := contextKeys.GetBredParams()[x]
+			mredParams := contextKeys.GetMredParams()[x]
+
+			if p0idxst <= uint64(x) && uint64(x) < p0idxed {
+				p2tmp := c2.Coeffs[x]
+				for j := uint64(0); j < N; j++ {
+					c2_qi_ntt[j] = p2tmp[j]
 				}
+			} else {
+				ring.NTT(c2_qi.Coeffs[x], c2_qi_ntt, N, nttPsi, qi, mredParams, bredParams)
 			}
 
-			evaluator.bfvcontext.contextQ.NTT(c2_qi_w, c2_qi_w)
+			key0 := evakey.evakey[i][0].Coeffs[x]
+			key1 := evakey.evakey[i][1].Coeffs[x]
+			p2tmp := evaluator.keyswitchpool[2].Coeffs[x]
+			p3tmp := evaluator.keyswitchpool[3].Coeffs[x]
 
-			evaluator.bfvcontext.contextQ.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][0], c2_qi_w, ctOut.value[0])
-			evaluator.bfvcontext.contextQ.MulCoeffsMontgomeryAndAddNoMod(evakey.evakey[i][j][1], c2_qi_w, ctOut.value[1])
-
-			if reduce&7 == 7 {
-				evaluator.bfvcontext.contextQ.Reduce(ctOut.value[0], ctOut.value[0])
-				evaluator.bfvcontext.contextQ.Reduce(ctOut.value[1], ctOut.value[1])
+			for y := uint64(0); y < context.N; y++ {
+				p2tmp[y] += ring.MRed(key0[y], c2_qi_ntt[y], qi, mredParams)
+				p3tmp[y] += ring.MRed(key1[y], c2_qi_ntt[y], qi, mredParams)
 			}
-
-			reduce += 1
 		}
+
+		if reduce&7 == 7 {
+			contextKeys.Reduce(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
+			contextKeys.Reduce(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
+		}
+
+		reduce += 1
 	}
 
 	if (reduce-1)&7 != 7 {
-		evaluator.bfvcontext.contextQ.Reduce(ctOut.value[0], ctOut.value[0])
-		evaluator.bfvcontext.contextQ.Reduce(ctOut.value[1], ctOut.value[1])
+		contextKeys.Reduce(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
+		contextKeys.Reduce(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
 	}
+
+	contextKeys.InvNTT(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
+	contextKeys.InvNTT(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
+
+	evaluator.baseconverter.ModDown(contextKeys, evaluator.bfvcontext.rescaleParamsKeys, level, evaluator.keyswitchpool[2], evaluator.keyswitchpool[2], evaluator.keyswitchpool[0])
+	evaluator.baseconverter.ModDown(contextKeys, evaluator.bfvcontext.rescaleParamsKeys, level, evaluator.keyswitchpool[3], evaluator.keyswitchpool[3], evaluator.keyswitchpool[0])
+
+	context.Add(ctOut.value[0], evaluator.keyswitchpool[2], ctOut.value[0])
+	context.Add(ctOut.value[1], evaluator.keyswitchpool[3], ctOut.value[1])
 }

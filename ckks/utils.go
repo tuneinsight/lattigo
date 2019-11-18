@@ -3,72 +3,105 @@ package ckks
 import (
 	"errors"
 	"github.com/ldsec/lattigo/ring"
-	"math"
 	"math/big"
 	"math/bits"
+	"math/rand"
 )
 
-// Multiplies x by 2^n and returns the result mod q
-// Unaffected by overflows, arbitrary n allowed.
-// Expects inputs in the range of uint64.
-func scaleUp(x float64, n, q uint64) uint64 {
+func randomFloat(min, max float64) float64 {
+	return min + rand.Float64()*(max-min)
+}
 
-	var a uint64
-	if n < 53 {
-		a = n
-	} else {
-		a = 53
-	}
+func randomComplex(min, max float64) complex128 {
+	return complex(randomFloat(min, max), randomFloat(min, max))
+}
+
+func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
 	var is_negative bool
+	var xFlo *big.Float
+	var xInt *ring.Int
 
-	if x < 0 {
+	is_negative = false
+	if value < 0 {
 		is_negative = true
-		x *= -1
+		xFlo = big.NewFloat(-n * value)
+	} else {
+		xFlo = big.NewFloat(n * value)
 	}
 
-	x_int := uint64(x)
-	x_flo := x - float64(x_int)
-	x_int %= q
+	xInt = ring.NewUint(0)
+	xFlo.Int(&xInt.Value)
+	xInt.Mod(xInt, ring.NewUint(q))
 
-	for i := uint64(0); i < a; i++ { // stops at 53 to avoid an overflow of the float
-		x_int <<= 1
-		x_flo *= 2
-		if x_int >= q {
-			x_int -= q
-		}
+	res = xInt.Uint64()
+
+	if is_negative {
+		res = q - res
 	}
 
-	x_int += uint64(math.Round(x_flo))
-	x_int %= q
+	return
+}
 
-	if n > 53 { // continues with int and and float merged without a risk of overflow
-		for i := a; i < n; i++ {
-			x_int <<= 1
-			if x_int >= q {
-				x_int -= q
+func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]uint64) {
+
+	var is_negative bool
+	var xFlo *big.Float
+	var xInt *ring.Int
+	tmp := new(ring.Int)
+
+	for i := range values {
+
+		if n*values[i] > 1.8446744073709552e+19 {
+
+			is_negative = false
+			if values[i] < 0 {
+				is_negative = true
+				xFlo = big.NewFloat(-n * values[i])
+			} else {
+				xFlo = big.NewFloat(n * values[i])
+			}
+
+			xInt = ring.NewUint(0)
+			xFlo.Int(&xInt.Value)
+
+			for j := range moduli {
+				tmp.Mod(xInt, ring.NewUint(moduli[j]))
+				if is_negative {
+					coeffs[j][i] = moduli[j] - tmp.Uint64()
+				} else {
+					coeffs[j][i] = tmp.Uint64()
+				}
+			}
+		} else {
+
+			if values[i] < 0 {
+				for j := range moduli {
+					coeffs[j][i] = moduli[j] - (uint64(-n*values[i]) % moduli[j])
+				}
+			} else {
+				for j := range moduli {
+					coeffs[j][i] = uint64(n*values[i]) % moduli[j]
+				}
 			}
 		}
 	}
 
-	if is_negative {
-		return q - x_int
-	} else {
-		return x_int
+	return
+}
+
+func modVec(values []*ring.Int, q uint64, coeffs []uint64) {
+	tmp := ring.NewUint(0)
+	for i := range values {
+		coeffs[i] = tmp.Mod(values[i], ring.NewUint(q)).Uint64()
 	}
 }
 
 // Divides x by n^2, returns a float
-func scaleDown(coeff *ring.Int, n uint64) (x float64) {
-
-	if n > 53 { // if n > float64 precision, then first reduce the integer to 53 bits, and the scales down
-		coeff.Rsh(coeff, n-53)
-		n -= (n - 53)
-	}
+func scaleDown(coeff *ring.Int, n float64) (x float64) {
 
 	x, _ = new(big.Float).SetInt(&coeff.Value).Float64()
-
-	x /= float64(uint64(1 << n))
+	x /= n
 
 	return
 }
@@ -117,7 +150,7 @@ func GenerateCKKSPrimes(logQ, logN, levels uint64) ([]uint64, error) {
 	return primes, nil
 }
 
-func equalslice64(a, b []uint64) bool {
+func EqualSlice(a, b []uint64) bool {
 
 	if len(a) != len(b) {
 		return false
@@ -147,6 +180,15 @@ func equalslice8(a, b []uint8) bool {
 	return true
 }
 
+func IsInSlice(x uint64, slice []uint64) bool {
+	for i := range slice {
+		if slice[i] == x {
+			return true
+		}
+	}
+	return false
+}
+
 func min(values []uint64) (r uint64) {
 	r = values[0]
 	for _, i := range values[1:] {
@@ -167,8 +209,42 @@ func max(values []uint64) (r uint64) {
 	return
 }
 
+func maxflo(values []float64) (r float64) {
+	r = values[0]
+	for _, i := range values[1:] {
+		if i > r {
+			r = i
+		}
+	}
+	return
+}
+
 func bitReverse64(index, bitLen uint64) uint64 {
 	return bits.Reverse64(index) >> (64 - bitLen)
+}
+
+func sliceBitReverse64(slice []complex128, N uint64) {
+
+	var bit uint64
+
+	i, j := uint64(1), uint64(0)
+	for i < N {
+
+		bit = N >> 1
+
+		for j >= bit {
+			j -= bit
+			bit >>= 1
+		}
+
+		j += bit
+
+		if i < j {
+			slice[i], slice[j] = slice[j], slice[i]
+		}
+
+		i++
+	}
 }
 
 func hammingWeight64(x uint64) uint64 {

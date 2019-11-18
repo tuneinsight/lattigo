@@ -9,25 +9,26 @@ type Operand interface {
 	Element() *ckksElement
 	Degree() uint64
 	Level() uint64
-	Scale() uint64
+	Scale() float64
 }
 
 type ckksElement struct {
 	value          []*ring.Poly
-	scale          uint64
+	scale          float64
 	currentModulus *ring.Int
 	isNTT          bool
+	slots          uint64
 }
 
-func (ckkscontext *CkksContext) NewCkksElement(degree, level, scale uint64) *ckksElement {
+func (ckkscontext *CkksContext) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
 	el := &ckksElement{}
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = ckkscontext.contextLevel[level].NewPoly()
+		el.value[i] = ckkscontext.contextQ.NewPolyLvl(level)
 	}
 
 	el.scale = scale
-	el.currentModulus = ring.Copy(ckkscontext.contextLevel[level].ModulusBigint)
+	el.currentModulus = ring.Copy(ckkscontext.bigintChain[level])
 	el.isNTT = true
 
 	return el
@@ -50,12 +51,20 @@ func (el *ckksElement) Level() uint64 {
 	return uint64(len(el.value[0].Coeffs) - 1)
 }
 
-func (el *ckksElement) Scale() uint64 {
+func (el *ckksElement) Scale() float64 {
 	return el.scale
 }
 
-func (el *ckksElement) SetScale(scale uint64) {
+func (el *ckksElement) SetScale(scale float64) {
 	el.scale = scale
+}
+
+func (el *ckksElement) MulScale(scale float64) {
+	el.scale *= scale
+}
+
+func (el *ckksElement) DivScale(scale float64) {
+	el.scale /= scale
 }
 
 func (el *ckksElement) CurrentModulus() *ring.Int {
@@ -66,12 +75,16 @@ func (el *ckksElement) SetCurrentModulus(modulus *ring.Int) {
 	el.currentModulus = ring.Copy(modulus)
 }
 
+func (el *ckksElement) Slots() uint64 {
+	return el.slots
+}
+
 func (el *ckksElement) Resize(ckkscontext *CkksContext, degree uint64) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree+1]
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
-			el.value = append(el.value, []*ring.Poly{ckkscontext.contextLevel[el.Level()].NewPoly()}...)
+			el.value = append(el.value, []*ring.Poly{ckkscontext.contextQ.NewPolyLvl(el.Level())}...)
 		}
 	}
 }
@@ -91,7 +104,7 @@ func (el *ckksElement) NTT(ckkscontext *CkksContext, c *ckksElement) error {
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
-			ckkscontext.contextLevel[el.Level()].NTT(el.Value()[i], c.Value()[i])
+			ckkscontext.contextQ.NTTLvl(el.Level(), el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(true)
 	}
@@ -105,7 +118,7 @@ func (el *ckksElement) InvNTT(ckkscontext *CkksContext, c *ckksElement) error {
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {
-			ckkscontext.contextLevel[el.Level()].InvNTT(el.Value()[i], c.Value()[i])
+			ckkscontext.contextQ.InvNTTLvl(el.Level(), el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(false)
 	}

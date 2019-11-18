@@ -3,8 +3,6 @@ package ring
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/binary"
 	"encoding/gob"
 	"errors"
 	"math/bits"
@@ -39,6 +37,11 @@ type Context struct {
 	// Fast reduction parameters
 	bredParams [][]uint64
 	mredParams []uint64
+
+	rescaleParams [][]uint64
+
+	matrixTernary           [][]uint64
+	matrixTernaryMontgomery [][]uint64
 
 	//NTT Parameters
 	psiMont    []uint64 //2nth primitive root in montgomery form
@@ -97,6 +100,22 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
 		}
 	}
 
+	context.matrixTernary = make([][]uint64, len(context.Modulus))
+	context.matrixTernaryMontgomery = make([][]uint64, len(context.Modulus))
+
+	for i, Qi := range context.Modulus {
+
+		context.matrixTernary[i] = make([]uint64, 3)
+		context.matrixTernary[i][0] = 0
+		context.matrixTernary[i][1] = 1
+		context.matrixTernary[i][2] = Qi - 1
+
+		context.matrixTernaryMontgomery[i] = make([]uint64, 3)
+		context.matrixTernaryMontgomery[i][0] = 0
+		context.matrixTernaryMontgomery[i][1] = MForm(1, Qi, context.bredParams[i])
+		context.matrixTernaryMontgomery[i][2] = MForm(Qi-1, Qi, context.bredParams[i])
+	}
+
 	return nil
 }
 
@@ -119,6 +138,18 @@ func (context *Context) GenNTTParams() error {
 		if IsPrime(qi) == false || qi&((context.N<<1)-1) != 1 {
 			context.allowsNTT = false
 			return errors.New("warning : provided modulus does not allow NTT")
+		}
+	}
+
+	context.rescaleParams = make([][]uint64, len(context.Modulus)-1)
+
+	for j := len(context.Modulus) - 1; j > 0; j-- {
+
+		context.rescaleParams[j-1] = make([]uint64, j)
+
+		for i := 0; i < j; i++ {
+
+			context.rescaleParams[j-1][i] = MForm(ModExp(context.Modulus[j], context.Modulus[i]-2, context.Modulus[i]), context.Modulus[i], context.bredParams[i])
 		}
 	}
 
@@ -330,58 +361,15 @@ func (context *Context) NewPoly() *Poly {
 	return p
 }
 
-// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
-func (context *Context) NewUniformPoly() (Pol *Poly) {
+func (context *Context) NewPolyLvl(level uint64) *Poly {
+	p := new(Poly)
 
-	var randomBytes []byte
-	var randomUint, mask uint64
-
-	Pol = context.NewPoly()
-
-	n := context.N
-	if n < 8 {
-		n = 8
+	p.Coeffs = make([][]uint64, level+1)
+	for i := uint64(0); i < level+1; i++ {
+		p.Coeffs[i] = make([]uint64, context.N)
 	}
 
-	randomBytes = make([]byte, n)
-	if _, err := rand.Read(randomBytes); err != nil {
-		panic("crypto rand error")
-	}
-
-	for j, qi := range context.Modulus {
-
-		// Starts by computing the mask
-		mask = (1 << uint64(bits.Len64(qi))) - 1
-
-		// Iterates for each modulus over each coefficient
-		for i := uint64(0); i < context.N; i++ {
-
-			// Samples an integer between [0, qi-1]
-			for {
-
-				// Replenishes the pool if it runs empty
-				if len(randomBytes) < 8 {
-					randomBytes = make([]byte, n)
-					if _, err := rand.Read(randomBytes); err != nil {
-						panic("crypto rand error")
-					}
-				}
-
-				// Reads bytes from the pool
-				randomUint = binary.BigEndian.Uint64(randomBytes[:8]) & mask
-				randomBytes = randomBytes[8:] // Discard the used bytes
-
-				// If the integer is between [0, qi-1], breaks the loop
-				if randomUint < qi {
-					break
-				}
-			}
-
-			Pol.Coeffs[j][i] = randomUint
-		}
-	}
-
-	return
+	return p
 }
 
 // SetCoefficientsInt64 sets the coefficients of p1 from an int64 array.
@@ -449,6 +437,25 @@ func (context *Context) SetCoefficientsBigint(coeffs []*Int, p1 *Poly) error {
 	return nil
 }
 
+func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*Int, p1 *Poly) error {
+
+	if len(coeffs) != int(context.N) {
+		return errors.New("error : invalid ring degree (does not match context)")
+	}
+
+	QiBigint := new(Int)
+	coeffTmp := new(Int)
+	for i := uint64(0); i < level+1; i++ {
+		QiBigint.SetUint(context.Modulus[i])
+		for j, coeff := range coeffs {
+			p1.Coeffs[i][j] = coeffTmp.Mod(coeff, QiBigint).Uint64()
+
+		}
+	}
+
+	return nil
+}
+
 //PolyToString reconstructs p1 and returns the result in an array of string.
 func (context *Context) PolyToString(p1 *Poly) []string {
 
@@ -466,18 +473,40 @@ func (context *Context) PolyToString(p1 *Poly) []string {
 //PolyToBigint reconstructs p1 and returns the result in an array of Int.
 func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*Int) {
 
-	tmp := NewInt(0)
+	var qi, level uint64
+
+	level = uint64(len(p1.Coeffs) - 1)
+
+	crtReconstruction := make([]*Int, level+1)
+
+	QiB := new(Int)
+	tmp := new(Int)
+	modulusBigint := NewUint(1)
+
+	for i := uint64(0); i < level+1; i++ {
+
+		qi = context.Modulus[i]
+		QiB.SetUint(qi)
+
+		modulusBigint.Mul(modulusBigint, QiB)
+
+		crtReconstruction[i] = new(Int)
+		crtReconstruction[i].Div(context.ModulusBigint, QiB)
+		tmp.Inv(crtReconstruction[i], QiB)
+		tmp.Mod(tmp, QiB)
+		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
+	}
 
 	for x := uint64(0); x < context.N; x++ {
 
 		tmp.SetUint(0)
-		coeffsBigint[x] = NewUint(0)
+		coeffsBigint[x] = new(Int)
 
-		for i := 0; i < len(context.Modulus); i++ {
-			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), context.CrtReconstruction[i]))
+		for i := uint64(0); i < level+1; i++ {
+			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), crtReconstruction[i]))
 		}
 
-		coeffsBigint[x].Mod(coeffsBigint[x], context.ModulusBigint)
+		coeffsBigint[x].Mod(coeffsBigint[x], modulusBigint)
 	}
 }
 

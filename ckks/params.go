@@ -21,17 +21,18 @@ import (
 type Parameters struct {
 	LogN        uint8
 	Modulichain []uint8
-	Logscale    uint8
+	P           []uint8
+	Scale       float64
 	Sigma       float64
 }
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
 var DefaultParams = map[uint64]*Parameters{
-	11: {11, []uint8{54}, 45, 3.2},                                                                         //logQ = 54
-	12: {12, []uint8{44, 32, 32}, 32, 3.2},                                                                 //logQ = 109
-	13: {13, []uint8{49, 42, 42, 42, 42}, 42, 3.2},                                                         //logQ = 218
-	14: {14, []uint8{50, 43, 43, 43, 43, 43, 43, 43, 43, 43}, 43, 3.2},                                     //logQ = 438
-	15: {15, []uint8{53, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46}, 46, 3.2}, //logQ = 881
+	12: {12, []uint8{37, 32}, []uint8{38}, 1 << 32, 3.2},                                                                                                                                             //logQ = 109
+	13: {13, []uint8{33, 30, 30, 30, 30, 30}, []uint8{35}, 1 << 30, 3.2},                                                                                                                             //logQ = 218
+	14: {14, []uint8{45, 34, 34, 34, 34, 34, 34, 34, 34, 34}, []uint8{43, 43}, 1 << 34, 3.2},                                                                                                         //logQ = 438
+	15: {15, []uint8{50, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, []uint8{50, 50, 50}, 1 << 40, 3.2},                                                                     //logQ = 880
+	16: {16, []uint8{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 45, 3.2}, //logQ = 1761
 }
 
 // MaxN is the largest supported polynomial modulus degree
@@ -45,7 +46,7 @@ func (p *Parameters) Equals(other *Parameters) bool {
 	if p == other {
 		return true
 	}
-	return p.LogN == other.LogN && equalslice8(p.Modulichain, other.Modulichain) && p.Logscale == other.Logscale && p.Sigma == other.Sigma
+	return p.LogN == other.LogN && equalslice8(p.Modulichain, other.Modulichain) && p.Scale == other.Scale && p.Sigma == other.Sigma
 }
 
 // MarshalBinary returns a []byte representation of the parameter set
@@ -53,12 +54,14 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
-	b := utils.NewBuffer(make([]byte, 0, 3+((2+len(p.Modulichain))<<3)))
+	b := utils.NewBuffer(make([]byte, 0, 7+((2+len(p.Modulichain))<<3)))
 	b.WriteUint8(uint8(p.LogN))
 	b.WriteUint8(uint8(len(p.Modulichain)))
-	b.WriteUint8(uint8(p.Logscale))
+	b.WriteUint8(uint8(len(p.P)))
+	b.WriteUint64(uint64(p.Scale))
 	b.WriteUint64(uint64(p.Sigma * (1 << 32)))
 	b.WriteUint8Slice(p.Modulichain)
+	b.WriteUint8Slice(p.P)
 	return b.Bytes(), nil
 }
 
@@ -76,9 +79,17 @@ func (p *Parameters) UnMarshalBinary(data []byte) error {
 	if lenModulichain > MaxModuliCount {
 		return fmt.Errorf("len(Modulichain) is larger than %d", MaxModuliCount)
 	}
-	p.Logscale = b.ReadUint8()
+	lenP := uint64(b.ReadUint8())
+	if lenP > MaxModuliCount {
+		return fmt.Errorf("len(P) is larger than %d", MaxModuliCount)
+	}
+
+	p.Scale = float64(b.ReadUint64())
+
 	p.Sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
 	p.Modulichain = make([]uint8, lenModulichain, lenModulichain)
 	b.ReadUint8Slice(p.Modulichain)
+	p.P = make([]uint8, lenP, lenP)
+	b.ReadUint8Slice(p.P)
 	return nil
 }

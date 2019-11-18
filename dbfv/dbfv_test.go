@@ -14,500 +14,732 @@ func check(t *testing.T, err error) {
 	}
 }
 
-func Test_DBFVScheme(t *testing.T) {
+type dbfvContext struct {
+	bfvContext *bfv.BfvContext
+	encoder    *bfv.Encoder
+	kgen       *bfv.KeyGenerator
 
-	paramSets := bfv.DefaultParams[0:2]
-	bitDecomps := []uint64{60}
-	nParties := []int{5}
+	sk0Shards []*bfv.SecretKey
+	sk0       *bfv.SecretKey
 
-	//sigmaSmudging := 6.36
+	sk1       *bfv.SecretKey
+	sk1Shards []*bfv.SecretKey
 
-	for _, params := range paramSets {
+	pk0 *bfv.PublicKey
+	pk1 *bfv.PublicKey
 
-		// nParties data indpendant element
-		bfvContext := bfv.NewBfvContext()
-		if err := bfvContext.SetParameters(&params); err != nil {
-			t.Error(err)
-		}
+	encryptorPk0 *bfv.Encryptor
+	decryptorSk0 *bfv.Decryptor
+	decryptorSk1 *bfv.Decryptor
+	evaluator    *bfv.Evaluator
+}
 
-		kgen := bfvContext.NewKeyGenerator()
+type dbfvTestParameters struct {
+	parties uint64
 
-		evaluator := bfvContext.NewEvaluator()
+	contexts []bfv.Parameters
+}
 
-		context := bfvContext.ContextQ()
+var err error
+var testParams = new(dbfvTestParameters)
 
-		contextT := bfvContext.ContextT()
+func init() {
+	testParams.parties = 3
 
-		encoder, err := bfvContext.NewBatchEncoder()
-		check(t, err)
+	testParams.contexts = bfv.DefaultParams
+}
 
-		coeffsWant := contextT.NewUniformPoly()
-		plaintextWant := bfvContext.NewPlaintext()
-		err = encoder.EncodeUint(coeffsWant.Coeffs[0], plaintextWant)
-		check(t, err)
+func Test_DBFV(t *testing.T) {
+	t.Run("PublicKeyGen", testPublicKeyGen)
+	t.Run("RelinKeyGen", testRelinKeyGen)
+	t.Run("RelinKeyGenNaive", testRelinKeyGenNaive)
+	t.Run("KeySwitching", testKeyswitching)
+	t.Run("PublicKeySwitching", testPublicKeySwitching)
+	t.Run("RotKeyGenRotRows", testRotKeyGenRotRows)
+	t.Run("RotKeyGenRotCols", testRotKeyGenRotCols)
+	t.Run("Refresh", testRefresh)
+}
 
-		for _, parties := range nParties {
+func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 
-			crpGenerators := make([]*CRPGenerator, parties)
-			for i := 0; i < parties; i++ {
-				crpGenerators[i], err = NewCRPGenerator(nil, context)
-				if err != nil {
-					t.Error(err)
-				}
-				crpGenerators[i].Seed([]byte{})
+	params = new(dbfvContext)
+
+	if params.bfvContext, err = bfv.NewBfvContextWithParam(contextParameters); err != nil {
+		log.Fatal(err)
+	}
+
+	params.encoder = params.bfvContext.NewEncoder()
+	params.evaluator = params.bfvContext.NewEvaluator()
+
+	kgen := params.bfvContext.NewKeyGenerator()
+
+	// SecretKeys
+	params.sk0Shards = make([]*bfv.SecretKey, testParams.parties)
+	params.sk1Shards = make([]*bfv.SecretKey, testParams.parties)
+	tmp0 := params.bfvContext.ContextKeys().NewPoly()
+	tmp1 := params.bfvContext.ContextKeys().NewPoly()
+
+	for j := uint64(0); j < testParams.parties; j++ {
+		params.sk0Shards[j] = kgen.NewSecretKey()
+		params.sk1Shards[j] = kgen.NewSecretKey()
+		params.bfvContext.ContextKeys().Add(tmp0, params.sk0Shards[j].Get(), tmp0)
+		params.bfvContext.ContextKeys().Add(tmp1, params.sk1Shards[j].Get(), tmp1)
+	}
+
+	params.sk0 = new(bfv.SecretKey)
+	params.sk1 = new(bfv.SecretKey)
+
+	params.sk0.Set(tmp0)
+	params.sk1.Set(tmp1)
+
+	// Publickeys
+	params.pk0 = kgen.NewPublicKey(params.sk0)
+	params.pk1 = kgen.NewPublicKey(params.sk1)
+
+	if params.encryptorPk0, err = params.bfvContext.NewEncryptorFromPk(params.pk0); err != nil {
+		log.Fatal(err)
+	}
+
+	if params.decryptorSk0, err = params.bfvContext.NewDecryptor(params.sk0); err != nil {
+		log.Fatal(err)
+	}
+
+	if params.decryptorSk1, err = params.bfvContext.NewDecryptor(params.sk1); err != nil {
+		log.Fatal(err)
+	}
+
+	return
+}
+
+func testPublicKeyGen(t *testing.T) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
+
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		sk0Shards := params.sk0Shards
+		decryptorSk0 := params.decryptorSk0
+
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+
+			crpGenerator, err := ring.NewCRPGenerator(nil, contextKeys)
+			check(t, err)
+			crpGenerator.Seed([]byte{})
+			crp := crpGenerator.Clock()
+
+			type Party struct {
+				*CKGProtocol
+				s  *ring.Poly
+				s1 CKGShare
 			}
 
-			// SecretKeys
-			sk0_shards := make([]*bfv.SecretKey, parties)
-			sk1_shards := make([]*bfv.SecretKey, parties)
-			tmp0 := context.NewPoly()
-			tmp1 := context.NewPoly()
+			ckgParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.CKGProtocol = NewCKGProtocol(bfvContext)
+				p.s = sk0Shards[i].Get()
+				p.s1 = p.AllocateShares()
+				ckgParties[i] = p
+			}
+			P0 := ckgParties[0]
 
-			for i := 0; i < parties; i++ {
-				sk0_shards[i] = kgen.NewSecretKey()
-				sk1_shards[i] = kgen.NewSecretKey()
-				context.Add(tmp0, sk0_shards[i].Get(), tmp0)
-				context.Add(tmp1, sk1_shards[i].Get(), tmp1)
+			// Each party creates a new CKGProtocol instance
+			for i, p := range ckgParties {
+				p.GenShare(p.s, crp, p.s1)
+				if i > 0 {
+					P0.AggregateShares(p.s1, P0.s1, P0.s1)
+				}
 			}
 
-			sk0 := new(bfv.SecretKey)
-			sk1 := new(bfv.SecretKey)
+			pk := &bfv.PublicKey{}
+			P0.GenPublicKey(P0.s1, crp, pk)
 
-			sk0.Set(tmp0)
-			sk1.Set(tmp1)
-
-			// Publickeys
-			pk0 := kgen.NewPublicKey(sk0)
-			pk1 := kgen.NewPublicKey(sk1)
-
-			// Encryptors
-			encryptor_pk0, err := bfvContext.NewEncryptorFromPk(pk0)
+			// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
+			encryptorTest, err := bfvContext.NewEncryptorFromPk(pk)
 			check(t, err)
 
-			//encryptor_pk1, err := bfvContext.NewEncryptor(pk1)
-			//if err != nil {
-			//	t.Error(err)
-			//}
+			coeffs, _, ciphertext := newTestVectors(params, encryptorTest, t)
 
-			// Decryptors
-			decryptor_sk0, err := bfvContext.NewDecryptor(sk0)
-			check(t, err)
+			verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
+		})
+	}
+}
 
-			decryptor_sk1, err := bfvContext.NewDecryptor(sk1)
-			check(t, err)
+func testRelinKeyGen(t *testing.T) {
 
-			// Reference ciphertext
-			ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
-			check(t, err)
+	parties := testParams.parties
 
-			ciphertextMul, _ := evaluator.MulNew(ciphertext, ciphertext)
-			coeffsMul := contextT.NewPoly()
-			contextT.MulCoeffs(coeffsWant, coeffsWant, coeffsMul)
+	for _, parameters := range testParams.contexts {
 
-			t.Run(fmt.Sprintf("N=%d/logQ=%d/CRS_PRNG", context.N, context.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+		params := genDBFVContext(&parameters)
 
-				Ha, _ := NewPRNG([]byte{})
-				Hb, _ := NewPRNG([]byte{})
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		sk0Shards := params.sk0Shards
+		encryptorPk0 := params.encryptorPk0
+		decryptorSk0 := params.decryptorSk0
+		evaluator := params.evaluator
 
-				// Random 32 byte seed
-				seed1 := []byte{0x48, 0xc3, 0x31, 0x12, 0x74, 0x98, 0xd3, 0xf2,
-					0x7b, 0x15, 0x15, 0x9b, 0x50, 0xc4, 0x9c, 0x00,
-					0x7d, 0xa5, 0xea, 0x68, 0x1f, 0xed, 0x4f, 0x99,
-					0x54, 0xc0, 0x52, 0xc0, 0x75, 0xff, 0xf7, 0x5c}
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
 
-				// New reseed of the PRNG after one clock cycle with the seed1
-				seed2 := []byte{250, 228, 6, 63, 97, 110, 68, 153,
-					147, 236, 236, 37, 152, 89, 129, 32,
-					185, 5, 221, 180, 160, 217, 247, 201,
-					211, 188, 160, 163, 176, 83, 83, 138}
-
-				Ha.Seed(seed1)
-				Hb.Seed(append(seed1, seed2...)) //Append works since blake2b hashes blocks of 512 bytes
-
-				Ha.SetClock(256)
-				Hb.SetClock(255)
-
-				a := Ha.Clock()
-				b := Hb.Clock()
-
-				for i := 0; i < 32; i++ {
-					if a[i] != b[i] {
-						t.Errorf("error : error prng")
-						break
-					}
-				}
-
-				crs_generator_1, _ := NewCRPGenerator(nil, context)
-				crs_generator_2, _ := NewCRPGenerator(nil, context)
-
-				crs_generator_1.Seed(seed1)
-				crs_generator_2.Seed(append(seed1, seed2...)) //Append works since blake2b hashes blocks of 512 bytes
-
-				crs_generator_1.SetClock(256)
-				crs_generator_2.SetClock(255)
-
-				p0 := crs_generator_1.Clock()
-				p1 := crs_generator_2.Clock()
-
-				if bfvContext.ContextQ().Equal(p0, p1) != true {
-					t.Errorf("error : crs prng generator")
-				}
-			})
-
-			// EKG
-			for _, bitDecomp := range bitDecomps {
-
-				t.Run(fmt.Sprintf("N=%d/logQ=%d/bitdecomp=%d/EKG", context.N, context.ModulusBigint.Value.BitLen(), bitDecomp), func(t *testing.T) {
-
-					bitLog := uint64((60 + (60 % bitDecomp)) / bitDecomp)
-
-					// Each party instantiate an ekg naive protocole
-					ekg := make([]*RKGProtocol, parties)
-					ephemeralKeys := make([]*ring.Poly, parties)
-
-					crp := make([][]*ring.Poly, len(context.Modulus))
-					for j := 0; j < len(context.Modulus); j++ {
-						crp[j] = make([]*ring.Poly, bitLog)
-						for u := uint64(0); u < bitLog; u++ {
-							crp[j][u] = crpGenerators[0].Clock()
-						}
-					}
-
-					for i := 0; i < parties; i++ {
-						ekg[i] = NewEkgProtocol(bfvContext, bitDecomp)
-						ephemeralKeys[i], _ = ekg[i].NewEphemeralKey(1.0 / 3)
-					}
-
-					rlk := test_EKG_Protocol(bfvContext, parties, bitDecomp, ekg, sk0_shards, ephemeralKeys, crp)
-					res := bfvContext.NewCiphertext(1)
-					if err := evaluator.Relinearize(ciphertextMul, rlk, res); err != nil {
-						t.Error(err)
-					}
-
-					if equalslice(coeffsMul.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(res))) != true {
-						t.Errorf("error : ekg rlk bad decrypt")
-					}
-
-				})
+			type Party struct {
+				*RKGProtocol
+				u      *ring.Poly
+				s      *ring.Poly
+				share1 RKGShareRoundOne
+				share2 RKGShareRoundTwo
+				share3 RKGShareRoundThree
 			}
 
-			// EKG_Naive
-			for _, bitDecomp := range bitDecomps {
+			rkgParties := make([]*Party, parties)
 
-				t.Run(fmt.Sprintf("N=%d/logQ=%d/bitdecomp=%d/EKG_Naive", context.N, context.ModulusBigint.Value.BitLen(), bitDecomp), func(t *testing.T) {
-
-					// Each party instantiate an ekg naive protocole
-					ekgNaive := make([]*EkgProtocolNaive, parties)
-					for i := 0; i < parties; i++ {
-						ekgNaive[i] = NewEkgProtocolNaive(context, bitDecomp)
-					}
-
-					evk := test_EKG_Protocol_Naive(parties, sk0_shards, pk0, ekgNaive)
-
-					rlk := new(bfv.EvaluationKey)
-					rlk.SetRelinKeys([][][][2]*ring.Poly{evk[0]}, bitDecomp)
-
-					res := bfvContext.NewCiphertext(1)
-					if err := evaluator.Relinearize(ciphertextMul, rlk, res); err != nil {
-						t.Error(err)
-					}
-
-					if equalslice(coeffsMul.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(res))) != true {
-						t.Errorf("error : ekg_naive rlk bad decrypt")
-					}
-				})
+			for i := range rkgParties {
+				p := new(Party)
+				p.RKGProtocol = NewEkgProtocol(bfvContext)
+				p.u, err = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
+				check(t, err)
+				p.s = sk0Shards[i].Get()
+				p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
+				rkgParties[i] = p
 			}
 
-			t.Run(fmt.Sprintf("N=%d/logQ=%d/CKG", context.N, context.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+			P0 := rkgParties[0]
 
-				crp := crpGenerators[0].Clock()
+			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
+			check(t, err)
+			crpGenerator.Seed([]byte{})
+			crp := make([]*ring.Poly, bfvContext.Beta())
 
-				type Party struct {
-					*CKGProtocol
-					s  *ring.Poly
-					s1 CKGShare
+			for i := uint64(0); i < bfvContext.Beta(); i++ {
+				crp[i] = crpGenerator.Clock()
+			}
+
+			// ROUND 1
+			for i, p := range rkgParties {
+				p.GenShareRoundOne(p.u, p.s, crp, p.share1)
+				if i > 0 {
+					P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
 				}
+			}
 
-				ckgParties := make([]*Party, parties)
-				for i := 0; i < parties; i++ {
-					p := new(Party)
-					p.CKGProtocol = NewCKGProtocol(bfvContext)
-					p.s = sk0_shards[i].Get()
-					p.s1 = p.AllocateShares()
-					ckgParties[i] = p
+			//ROUND 2
+			for i, p := range rkgParties {
+				p.GenShareRoundTwo(P0.share1, p.s, crp, p.share2)
+				if i > 0 {
+					P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
 				}
-				P0 := ckgParties[0]
+			}
 
-				// Each party creates a new CKGProtocol instance
-				for i, p := range ckgParties {
-					p.GenShare(p.s, crp, p.s1)
-					if i > 0 {
-						P0.AggregateShares(p.s1, P0.s1, P0.s1)
-					}
+			// ROUND 3
+			for i, p := range rkgParties {
+				p.GenShareRoundThree(P0.share2, p.u, p.s, p.share3)
+				if i > 0 {
+					P0.AggregateShareRoundThree(p.share3, P0.share3, P0.share3)
 				}
+			}
 
-				pk := &bfv.PublicKey{}
-				P0.GenPublicKey(P0.s1, crp, pk)
+			evk := bfvContext.NewRelinKeyEmpty(1)
+			P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
 
-				// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-				encryptorTest, err := bfvContext.NewEncryptorFromPk(pk)
-				if err != nil {
-					t.Error(err)
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+
+			for i := range coeffs {
+				coeffs[i] *= coeffs[i]
+				coeffs[i] %= bfvContext.ContextT().Modulus[0]
+			}
+
+			ciphertextMul := bfvContext.NewCiphertext(ciphertext.Degree() * 2)
+			err = evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
+			check(t, err)
+
+			res := bfvContext.NewCiphertext(1)
+			err = evaluator.Relinearize(ciphertextMul, evk, res)
+			check(t, err)
+
+			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
+		})
+	}
+}
+
+func testRelinKeyGenNaive(t *testing.T) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
+
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		evaluator := params.evaluator
+		pk0 := params.pk0
+		encryptorPk0 := params.encryptorPk0
+		decryptorSk0 := params.decryptorSk0
+		sk0Shards := params.sk0Shards
+
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+
+			type Party struct {
+				*RKGProtocolNaive
+				u      *ring.Poly
+				s      *ring.Poly
+				share1 RKGNaiveShareRoundOne
+				share2 RKGNaiveShareRoundTwo
+			}
+
+			rkgParties := make([]*Party, parties)
+
+			for i := range rkgParties {
+				p := new(Party)
+				p.RKGProtocolNaive = NewRKGProtocolNaive(bfvContext)
+				p.s = sk0Shards[i].Get()
+				p.share1, p.share2 = p.AllocateShares()
+				rkgParties[i] = p
+			}
+
+			P0 := rkgParties[0]
+
+			// ROUND 1
+			for i, p := range rkgParties {
+				rkgParties[i].GenShareRoundOne(p.s, pk0.Get(), p.share1)
+				if i > 0 {
+					P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
 				}
+			}
 
-				ciphertextTest, err := encryptorTest.EncryptNew(plaintextWant)
-
-				if err != nil {
-					t.Error(err)
+			// ROUND 2
+			for i, p := range rkgParties {
+				rkgParties[i].GenShareRoundTwo(P0.share1, p.s, pk0.Get(), p.share2)
+				if i > 0 {
+					P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
 				}
+			}
 
-				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk0.DecryptNew(ciphertextTest))) != true {
-					t.Errorf("error : ckg protocol, cpk encrypt/decrypt test")
+			evk := bfvContext.NewRelinKeyEmpty(1)
+			P0.GenRelinearizationKey(P0.share2, evk)
+
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+
+			for i := range coeffs {
+				coeffs[i] *= coeffs[i]
+				coeffs[i] %= bfvContext.ContextT().Modulus[0]
+			}
+
+			ciphertextMul := bfvContext.NewCiphertext(ciphertext.Degree() * 2)
+			err = evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
+			check(t, err)
+
+			res := bfvContext.NewCiphertext(1)
+			err = evaluator.Relinearize(ciphertextMul, evk, res)
+			check(t, err)
+
+			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
+		})
+	}
+}
+
+func testKeyswitching(t *testing.T) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
+
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		sk0Shards := params.sk0Shards
+		sk1Shards := params.sk1Shards
+		encryptorPk0 := params.encryptorPk0
+		decryptorSk1 := params.decryptorSk1
+
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+
+			type Party struct {
+				*CKSProtocol
+				s0    *ring.Poly
+				s1    *ring.Poly
+				share CKSShare
+			}
+
+			cksParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.CKSProtocol = NewCKSProtocol(bfvContext, 6.36)
+				p.s0 = sk0Shards[i].Get()
+				p.s1 = sk1Shards[i].Get()
+				p.share = p.AllocateShare()
+				cksParties[i] = p
+			}
+			P0 := cksParties[0]
+
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+
+			// Each party creates its CKSProtocol instance with tmp = si-si'
+			for i, p := range cksParties {
+				p.GenShare(p.s0, p.s1, ciphertext, p.share)
+				if i > 0 {
+					P0.AggregateShares(p.share, P0.share, P0.share)
 				}
+			}
 
-			})
+			ksCiphertext := bfvContext.NewCiphertext(1)
+			P0.KeySwitch(P0.share, ciphertext, ksCiphertext)
 
-			t.Run(fmt.Sprintf("N=%d/logQ=%d/CKS", context.N, 60), func(t *testing.T) {
+			verifyTestVectors(params, decryptorSk1, coeffs, ksCiphertext, t)
 
-				type Party struct {
-					*CKSProtocol
-					s0    *ring.Poly
-					s1    *ring.Poly
-					share CKSShare
+			P0.KeySwitch(P0.share, ciphertext, ciphertext)
+
+			verifyTestVectors(params, decryptorSk1, coeffs, ciphertext, t)
+
+		})
+	}
+}
+
+func testPublicKeySwitching(t *testing.T) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
+
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		sk0Shards := params.sk0Shards
+		pk1 := params.pk1
+		encryptorPk0 := params.encryptorPk0
+		decryptorSk1 := params.decryptorSk1
+
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+
+			type Party struct {
+				*PCKSProtocol
+				s     *ring.Poly
+				share PCKSShare
+			}
+
+			pcksParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.PCKSProtocol = NewPCKSProtocol(bfvContext, 6.36)
+				p.s = sk0Shards[i].Get()
+				p.share = p.AllocateShares()
+				pcksParties[i] = p
+			}
+			P0 := pcksParties[0]
+
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+
+			ciphertextSwitched := bfvContext.NewCiphertext(1)
+
+			for i, p := range pcksParties {
+				p.GenShare(p.s, pk1, ciphertext, p.share)
+				if i > 0 {
+					P0.AggregateShares(p.share, P0.share, P0.share)
 				}
+			}
 
-				cksParties := make([]*Party, parties)
-				for i := 0; i < parties; i++ {
-					p := new(Party)
-					p.CKSProtocol = NewCKSProtocol(bfvContext, 6.36)
-					p.s0 = sk0_shards[i].Get()
-					p.s1 = sk1_shards[i].Get()
-					p.share = p.AllocateShare()
-					cksParties[i] = p
+			P0.KeySwitch(P0.share, ciphertext, ciphertextSwitched)
+
+			verifyTestVectors(params, decryptorSk1, coeffs, ciphertextSwitched, t)
+		})
+	}
+}
+
+func testRotKeyGenRotRows(t *testing.T) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
+
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		evaluator := params.evaluator
+		encryptorPk0 := params.encryptorPk0
+		decryptorSk0 := params.decryptorSk0
+		sk0Shards := params.sk0Shards
+
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+
+			type Party struct {
+				*RTGProtocol
+				s     *ring.Poly
+				share RTGShare
+			}
+
+			pcksParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.RTGProtocol = NewRotKGProtocol(bfvContext)
+				p.s = sk0Shards[i].Get()
+				p.share = p.AllocateShare()
+				pcksParties[i] = p
+			}
+			P0 := pcksParties[0]
+
+			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
+			check(t, err)
+			crpGenerator.Seed([]byte{})
+			crp := make([]*ring.Poly, bfvContext.Beta())
+
+			for i := uint64(0); i < bfvContext.Beta(); i++ {
+				crp[i] = crpGenerator.Clock()
+			}
+
+			for i, p := range pcksParties {
+				p.GenShare(bfv.RotationRow, 0, p.s, crp, &p.share)
+				if i > 0 {
+					P0.Aggregate(p.share, P0.share, P0.share)
 				}
-				P0 := cksParties[0]
+			}
 
-				ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
-				if err != nil {
-					t.Error(err)
-				}
+			rotkey := bfvContext.NewRotationKeys()
+			P0.Finalize(P0.share, crp, rotkey)
 
-				// Each party creates its CKSProtocol instance with tmp = si-si'
-				for i, p := range cksParties {
-					p.GenShare(p.s0, p.s1, ciphertext, p.share)
-					if i > 0 {
-						P0.AggregateShares(p.share, P0.share, P0.share)
-					}
-				}
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
 
-				ksCiphertext := bfvContext.NewCiphertext(1)
-				P0.KeySwitch(P0.share, ciphertext, ksCiphertext)
-				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk1.DecryptNew(ksCiphertext))) != true {
-					t.Errorf("error : CKS")
-				}
+			if err = evaluator.RotateRows(ciphertext, rotkey, ciphertext); err != nil {
+				log.Fatal(err)
+			}
 
-				P0.KeySwitch(P0.share, ciphertext, ciphertext)
+			coeffs = append(coeffs[contextKeys.N>>1:], coeffs[:contextKeys.N>>1]...)
 
-				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk1.DecryptNew(ciphertext))) != true {
-					t.Errorf("error : CKS in place")
-				}
+			verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
 
-			})
+		})
+	}
 
-			t.Run(fmt.Sprintf("N=%d/logQ=%d/PCKS", context.N, context.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+}
 
-				type Party struct {
-					*PCKSProtocol
-					s     *ring.Poly
-					share PCKSShare
-				}
+func testRotKeyGenRotCols(t *testing.T) {
 
-				pcksParties := make([]*Party, parties)
-				for i := 0; i < parties; i++ {
-					p := new(Party)
-					p.PCKSProtocol = NewPCKSProtocol(bfvContext, 6.36)
-					p.s = sk0_shards[i].Get()
-					p.share = p.AllocateShares()
-					pcksParties[i] = p
-				}
-				P0 := pcksParties[0]
+	parties := testParams.parties
 
-				ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
-				ciphertextSwitched := bfvContext.NewCiphertext(1)
-				if err != nil {
-					t.Error(err)
-				}
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
+
+		bfvContext := params.bfvContext
+		contextKeys := bfvContext.ContextKeys()
+		evaluator := params.evaluator
+		encryptorPk0 := params.encryptorPk0
+		decryptorSk0 := params.decryptorSk0
+		sk0Shards := params.sk0Shards
+
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+
+			type Party struct {
+				*RTGProtocol
+				s     *ring.Poly
+				share RTGShare
+			}
+
+			pcksParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.RTGProtocol = NewRotKGProtocol(bfvContext)
+				p.s = sk0Shards[i].Get()
+				p.share = p.AllocateShare()
+				pcksParties[i] = p
+			}
+
+			P0 := pcksParties[0]
+
+			crpGenerator, err := ring.NewCRPGenerator(nil, contextKeys)
+			check(t, err)
+			crpGenerator.Seed([]byte{})
+			crp := make([]*ring.Poly, bfvContext.Beta())
+
+			for i := uint64(0); i < bfvContext.Beta(); i++ {
+				crp[i] = crpGenerator.Clock()
+			}
+
+			mask := (contextKeys.N >> 1) - 1
+
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+
+			receiver := bfvContext.NewCiphertext(ciphertext.Degree())
+
+			for k := uint64(1); k < contextKeys.N>>1; k <<= 1 {
 
 				for i, p := range pcksParties {
-					p.GenShare(p.s, pk1, ciphertext, p.share)
+					p.GenShare(bfv.RotationLeft, k, p.s, crp, &p.share)
 					if i > 0 {
-						P0.AggregateShares(p.share, P0.share, P0.share)
+						P0.Aggregate(p.share, P0.share, P0.share)
 					}
 				}
 
-				P0.KeySwitch(P0.share, ciphertext, ciphertextSwitched)
-				if equalslice(coeffsWant.Coeffs[0], encoder.DecodeUint(decryptor_sk1.DecryptNew(ciphertextSwitched))) != true {
-					t.Errorf("error : PCKS")
-				}
-			})
+				rotkey := bfvContext.NewRotationKeys()
+				P0.Finalize(P0.share, crp, rotkey)
 
-			t.Run(fmt.Sprintf("N=%d/Qi=%dx%d/BOOT", context.N, len(context.Modulus), 60), func(t *testing.T) {
-
-				// We store the plaintext coeffs as bigint for a reference to quantify the error
-				coeffs_plaintext_bigint_fresh := make([]*ring.Int, bfvContext.N())
-				bfvContext.ContextQ().PolyToBigint(plaintextWant.Value()[0], coeffs_plaintext_bigint_fresh)
-
-				// We encrypt the plaintext
-				ciphertext, err := encryptor_pk0.EncryptNew(plaintextWant)
-
-				// ===== Boot instance =====
-				crp := crpGenerators[0].Clock()
-
-				refreshShares := make([]*RefreshShares, parties)
-
-				for i := 0; i < parties; i++ {
-					refreshShares[i] = GenRefreshShares(sk0_shards[i], ciphertext, bfvContext, crp, encoder)
-				}
-				// =========================
-
-				// ==== We simulated added error of size Q/(T^2) and addit to the fresh ciphertext ====
-				coeffs_bigint := make([]*ring.Int, bfvContext.N())
-				bfvContext.ContextQ().PolyToBigint(ciphertext.Value()[0], coeffs_bigint)
-
-				error_range := ring.Copy(bfvContext.ContextQ().ModulusBigint)
-				error_range.Div(error_range, bfvContext.ContextT().ModulusBigint)
-				error_range.Div(error_range, bfvContext.ContextT().ModulusBigint)
-
-				for i := uint64(0); i < bfvContext.N(); i++ {
-					coeffs_bigint[i].Add(coeffs_bigint[i], ring.RandInt(error_range))
-				}
-
-				bfvContext.ContextQ().SetCoefficientsBigint(coeffs_bigint, ciphertext.Value()[0])
-
-				plaintextHave := decryptor_sk0.DecryptNew(ciphertext)
-				coeffs_plaintext_bigint_error := make([]*ring.Int, bfvContext.N())
-				bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_error)
-
-				average_simulated_error := new(ring.Int)
-				for i := uint64(0); i < bfvContext.N(); i++ {
-					average_simulated_error.Add(average_simulated_error, coeffs_plaintext_bigint_fresh[i])
-					average_simulated_error.Sub(average_simulated_error, coeffs_plaintext_bigint_error[i])
-				}
-
-				average_simulated_error.Value.Abs(&average_simulated_error.Value)
-				average_simulated_error.Div(average_simulated_error, ring.NewUint(bfvContext.N()))
-				// =======================================================================================
-
-				// We boot the ciphertext with the simulated error
-				Refresh(ciphertext, sk0.Get(), refreshShares, bfvContext, crp, encoder)
-
-				// We decrypt and compare with the original plaintext
-				plaintextHave = decryptor_sk0.DecryptNew(ciphertext)
-				coeffs_plaintext_bigint_booted := make([]*ring.Int, bfvContext.N())
-				bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_booted)
-
-				average_residual_error := new(ring.Int)
-				for i := uint64(0); i < bfvContext.N(); i++ {
-					average_residual_error.Add(average_residual_error, coeffs_plaintext_bigint_fresh[i])
-					average_residual_error.Sub(average_residual_error, coeffs_plaintext_bigint_booted[i])
-				}
-
-				average_residual_error.Value.Abs(&average_residual_error.Value)
-				average_residual_error.Div(average_residual_error, ring.NewUint(bfvContext.N()))
-
-				coeffsTest := encoder.DecodeUint(plaintextHave)
-				if err != nil {
+				if err = evaluator.RotateColumns(ciphertext, k, rotkey, receiver); err != nil {
 					log.Fatal(err)
 				}
 
-				t.Logf("Average simulated error before refresh (log2): %d", average_simulated_error.Value.BitLen())
-				t.Logf("Average residual error after refresh (log2): %d", average_residual_error.Value.BitLen())
+				coeffsWant := make([]uint64, contextKeys.N)
 
-				if equalslice(coeffsWant.Coeffs[0], coeffsTest) != true {
-					t.Errorf("error : BOOT")
+				for i := uint64(0); i < contextKeys.N>>1; i++ {
+					coeffsWant[i] = coeffs[(i+k)&mask]
+					coeffsWant[i+(contextKeys.N>>1)] = coeffs[((i+k)&mask)+(contextKeys.N>>1)]
 				}
-			})
-		}
+
+				verifyTestVectors(params, decryptorSk0, coeffsWant, receiver, t)
+			}
+		})
 	}
 }
 
-func test_EKG_Protocol_Naive(parties int, sk []*bfv.SecretKey, collectivePk *bfv.PublicKey, ekgNaive []*EkgProtocolNaive) [][][][2]*ring.Poly {
+func testRefresh(t *testing.T) {
 
-	// ROUND 0
-	// Each party generates its samples
-	samples := make([][][][2]*ring.Poly, parties)
-	for i := 0; i < parties; i++ {
-		samples[i] = ekgNaive[i].GenSamples(sk[i].Get(), collectivePk.Get())
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVContext(&parameters)
+
+		bfvContext := params.bfvContext
+		contextKeys := params.bfvContext.ContextKeys()
+		encryptorPk0 := params.encryptorPk0
+		sk0Shards := params.sk0Shards
+		encoder := params.encoder
+		decryptorSk0 := params.decryptorSk0
+
+		t.Run(fmt.Sprintf("N=%d/logQ=%d/Refresh", contextKeys.N, contextKeys.ModulusBigint.Value.BitLen()), func(t *testing.T) {
+
+			type Party struct {
+				*RefreshProtocol
+				s       *ring.Poly
+				share   RefreshShare
+				ptShare *bfv.Plaintext
+			}
+
+			RefreshParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.RefreshProtocol = NewRefreshProtocol(bfvContext)
+				p.s = sk0Shards[i].Get()
+				p.share = p.AllocateShares()
+				p.ptShare = bfvContext.NewPlaintext()
+				RefreshParties[i] = p
+			}
+
+			P0 := RefreshParties[0]
+
+			crpGenerator, err := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
+			check(t, err)
+			crpGenerator.Seed([]byte{})
+			crp := crpGenerator.Clock()
+
+			coeffs, plaintextWant, ciphertext := newTestVectors(params, encryptorPk0, t)
+
+			for i, p := range RefreshParties {
+				p.GenShares(p.s, ciphertext, crp, p.share)
+				if i > 0 {
+					P0.Aggregate(p.share, P0.share, P0.share)
+				}
+			}
+
+			// We store the plaintext coeffs as bigint for a reference to later be able to quantify the error
+			coeffs_plaintext_bigint_fresh := make([]*ring.Int, bfvContext.N())
+			bfvContext.ContextQ().PolyToBigint(plaintextWant.Value()[0], coeffs_plaintext_bigint_fresh)
+			// =============================================================================================
+
+			// ==== We simulated added error of size Q/(T^2) and add it to the fresh ciphertext ====
+			coeffs_bigint := make([]*ring.Int, bfvContext.N())
+			bfvContext.ContextQ().PolyToBigint(ciphertext.Value()[0], coeffs_bigint)
+
+			error_range := ring.Copy(bfvContext.ContextQ().ModulusBigint)
+			error_range.Div(error_range, bfvContext.ContextT().ModulusBigint)
+			error_range.Div(error_range, bfvContext.ContextT().ModulusBigint)
+
+			for i := uint64(0); i < bfvContext.N(); i++ {
+				coeffs_bigint[i].Add(coeffs_bigint[i], ring.RandInt(error_range))
+			}
+
+			bfvContext.ContextQ().SetCoefficientsBigint(coeffs_bigint, ciphertext.Value()[0])
+
+			plaintextHave := decryptorSk0.DecryptNew(ciphertext)
+			coeffs_plaintext_bigint_error := make([]*ring.Int, bfvContext.N())
+			bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_error)
+
+			average_simulated_error := new(ring.Int)
+			for i := uint64(0); i < bfvContext.N(); i++ {
+				average_simulated_error.Add(average_simulated_error, coeffs_plaintext_bigint_fresh[i])
+				average_simulated_error.Sub(average_simulated_error, coeffs_plaintext_bigint_error[i])
+			}
+
+			average_simulated_error.Value.Abs(&average_simulated_error.Value)
+			average_simulated_error.Div(average_simulated_error, ring.NewUint(bfvContext.N()))
+			// =======================================================================================
+
+			ctOut := bfvContext.NewCiphertext(1)
+
+			// We refresh the ciphertext with the simulated error with all-in-one finalize function
+			P0.Finalize(ciphertext, crp, P0.share, ctOut)
+
+			// Should be equivalent to
+			P0.Decrypt(ciphertext, P0.share.RefreshShareDecrypt, P0.ptShare.Value()[0])      // Masked decryption
+			P0.Recode(P0.ptShare.Value()[0], P0.ptShare.Value()[0])                          // Masked re-encoding
+			P0.Recrypt(P0.ptShare.Value()[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption
+
+			//ciphertext = ctOut should not change the output of the test
+
+			// We decrypt and compare with the original plaintext
+			plaintextHave = decryptorSk0.DecryptNew(ciphertext)
+			coeffs_plaintext_bigint_booted := make([]*ring.Int, bfvContext.N())
+			bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_booted)
+
+			average_residual_error := new(ring.Int)
+			for i := uint64(0); i < bfvContext.N(); i++ {
+				average_residual_error.Add(average_residual_error, coeffs_plaintext_bigint_fresh[i])
+				average_residual_error.Sub(average_residual_error, coeffs_plaintext_bigint_booted[i])
+			}
+
+			average_residual_error.Value.Abs(&average_residual_error.Value)
+			average_residual_error.Div(average_residual_error, ring.NewUint(bfvContext.N()))
+
+			coeffsTest := encoder.DecodeUint(plaintextHave)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			t.Logf("Average simulated error before refresh (log2): %d", average_simulated_error.Value.BitLen())
+			t.Logf("Average residual error after refresh (log2): %d", average_residual_error.Value.BitLen())
+
+			if equalslice(coeffs, coeffsTest) != true {
+				t.Errorf("error : BOOT")
+			}
+		})
 	}
-
-	// ROUND 1
-	// Each party aggretates its sample with the other n-1 samples
-	aggregatedSamples := make([][][][2]*ring.Poly, parties)
-	for i := 0; i < parties; i++ {
-		aggregatedSamples[i] = ekgNaive[i].Aggregate(sk[i].Get(), collectivePk.Get(), samples)
-	}
-
-	// ROUND 2
-	// Each party aggregates sums its aggregatedSample with the other n-1 aggregated samples
-	evk := make([][][][2]*ring.Poly, parties)
-	for i := 0; i < parties; i++ {
-		evk[i] = ekgNaive[i].Finalize(aggregatedSamples)
-	}
-
-	return evk
 }
 
-func test_EKG_Protocol(bfvCtx *bfv.BfvContext, parties int, bitDecomp uint64, ekgProtocols []*RKGProtocol, sk []*bfv.SecretKey, ephemeralKeys []*ring.Poly, crp [][]*ring.Poly) *bfv.EvaluationKey {
+func newTestVectors(contextParams *dbfvContext, encryptor *bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
 
-	type Party struct {
-		*RKGProtocol
-		u      *ring.Poly
-		s      *ring.Poly
-		share1 RKGShareRoundOne
-		share2 RKGShareRoundTwo
-		share3 RKGShareRoundThree
+	coeffsPol := contextParams.bfvContext.ContextT().NewUniformPoly()
+
+	plaintext = contextParams.bfvContext.NewPlaintext()
+
+	err = contextParams.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
+	check(t, err)
+
+	ciphertext, err = encryptor.EncryptNew(plaintext)
+	check(t, err)
+
+	return coeffsPol.Coeffs[0], plaintext, ciphertext
+}
+
+func verifyTestVectors(contextParams *dbfvContext, decryptor *bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
+
+	if bfv.EqualSlice(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
+		t.Errorf("decryption error")
 	}
-
-	rkgParties := make([]*Party, parties)
-
-	for i := range rkgParties {
-		p := new(Party)
-		p.RKGProtocol = ekgProtocols[i]
-		p.u = ephemeralKeys[i]
-		p.s = sk[i].Get()
-		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
-		rkgParties[i] = p
-	}
-
-	P0 := rkgParties[0]
-
-	// ROUND 1
-	for i, p := range rkgParties {
-		p.GenShareRoundOne(p.u, p.s, crp, p.share1)
-		if i > 0 {
-			P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
-		}
-	}
-
-	//ROUND 2
-	for i, p := range rkgParties {
-		p.GenShareRoundTwo(P0.share1, p.s, crp, p.share2)
-		if i > 0 {
-			P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
-		}
-	}
-
-	// ROUND 3
-	for i, p := range rkgParties {
-		p.GenShareRoundThree(P0.share2, p.u, p.s, p.share3)
-		if i > 0 {
-			P0.AggregateShareRoundThree(p.share3, P0.share3, P0.share3)
-		}
-	}
-
-	evk := bfvCtx.NewRelinKey(1, bitDecomp)
-	P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
-	return evk
 }
 
 func Test_Marshalling(t *testing.T) {

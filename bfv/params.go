@@ -16,19 +16,14 @@ const MaxModuliCount = 34
 
 // Modulies for 128 security according to http://homomorphicencryption.org/white_papers/security_homomorphic_encryption_white_paper.pdf
 
-var logN11Q54 = []uint64{0x3ffffffffed001}
-
-var logN12Q109 = []uint64{0x7ffffffffb4001, 0x3ffffffffd6001}
-
-var logN13Q218 = []uint64{0x7ffffffffb4001, 0x7fffffffeac001, 0x3fffffffef8001, 0x3fffffffeb8001}
+var logN13Q218 = []uint64{0x7ffffffffb4001, 0x3fffffffef8001, 0x3fffffffeb8001}
 
 var logN14Q438 = []uint64{0x7fffffffe90001, 0x7fffffffd58001, 0x7fffffffbf0001, 0x7fffffffbd0001,
-	0x7fffffffba0001, 0x7fffffffb58001, 0x3fffffffef8001, 0x3fffffffeb8001}
+	0x7fffffffba0001, 0x7fffffffb58001}
 
 var logN15Q881 = []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, 0x7ffffffffba0001,
 	0x7ffffffffb00001, 0x7ffffffff630001, 0x7ffffffff510001, 0x7ffffffff3f0001,
-	0x7ffffffff350001, 0x7ffffffff320001, 0x7ffffffff2c0001, 0x7ffffffff240001,
-	0x7ffffffff230001, 0x7fffffffefa0001, 0x7fffffffe90001}
+	0x7ffffffff350001, 0x7ffffffff320001, 0x7ffffffff2c0001, 0x7fffffffe90001}
 
 var logN16Q1770 = []uint64{0x7ffffffffcc0001, 0x7ffffffffba0001, 0x7ffffffffb00001, 0x7ffffffff320001,
 	0x7ffffffff2c0001, 0x7ffffffff240001, 0x7fffffffefa0001, 0x7fffffffede0001,
@@ -36,8 +31,7 @@ var logN16Q1770 = []uint64{0x7ffffffffcc0001, 0x7ffffffffba0001, 0x7ffffffffb000
 	0x7fffffffdbe0001, 0x7fffffffd740001, 0x7fffffffd640001, 0x7fffffffd1a0001,
 	0x7fffffffd0a0001, 0x7fffffffd080001, 0x7fffffffcda0001, 0x7fffffffccc0001,
 	0x7fffffffcbc0001, 0x7fffffffcae0001, 0x7fffffffc980001, 0x7fffffffc480001,
-	0x7fffffffc020001, 0x7fffffffbcc0001, 0x7fffffffb3c0001, 0x7fffffffb220001,
-	0x7fffffffb0a0001, 0x7fffffffadc0001}
+	0x7fffffffc020001, 0x7fffffffbcc0001}
 
 var Pi60 = []uint64{0xffffffffe400001, 0xffffffffd000001, 0xffffffffa200001, 0xffffffff9600001,
 	0xfffffffeb200001, 0xfffffffea400001, 0xfffffffe8000001, 0xfffffffe3e00001,
@@ -69,22 +63,21 @@ var TBatching = map[uint64][]uint64{
 
 // Parameters represents a given parameter set for the BFV cryptosystem.
 type Parameters struct {
-	N     uint64
-	T     uint64
-	Qi    []uint64
-	Pi    []uint64
-	Sigma float64
+	N               uint64
+	T               uint64
+	Qi              []uint64
+	KeySwitchPrimes []uint64
+	Pi              []uint64
+	Sigma           float64
 }
 
 // DefaultParams is an array default parameters with increasing homomorphic capacity.
 // These parameters correspond to 128 bit security level for secret keys in the ternary distribution
 // (see //https://projects.csail.mit.edu/HEWorkshop/HomomorphicEncryptionStandard2018.pdf).
 var DefaultParams = []Parameters{
-	{4096, 65537, logN12Q109, Pi60[len(Pi60)-len(logN12Q109)-1:], 3.19},
-	{8192, 65537, logN13Q218, Pi60[len(Pi60)-len(logN13Q218):], 3.19},
-	{16384, 65537, logN14Q438, Pi60[len(Pi60)-len(logN14Q438):], 3.19},
-	{32768, 65537, logN15Q881, Pi60[len(Pi60)-len(logN15Q881):], 3.19},
-	//{65536, 786433, logN16Q1770, Pi60[len(Pi60)-34:], 3.19},
+	{8192, 65537, logN13Q218, []uint64{0x7fffffffeac001}, Pi60[len(Pi60)-len(logN13Q218):], 3.19},
+	{16384, 65537, logN14Q438, []uint64{0x3fffffffeb8001, 0x3fffffffef8001}, Pi60[len(Pi60)-len(logN14Q438):], 3.19},
+	{32768, 65537, logN15Q881, []uint64{0x7ffffffff240001, 0x7ffffffff230001, 0x7fffffffefa0001}, Pi60[len(Pi60)-len(logN15Q881):], 3.19},
 }
 
 // Equals compares two sets of parameters for equality
@@ -92,7 +85,7 @@ func (p *Parameters) Equals(other *Parameters) bool {
 	if p == other {
 		return true
 	}
-	return p.N == other.N && equalslice(p.Qi, other.Qi) && equalslice(p.Pi, other.Pi) && p.Sigma == other.Sigma
+	return p.N == other.N && EqualSlice(p.Qi, other.Qi) && EqualSlice(p.Pi, other.Pi) && p.Sigma == other.Sigma
 }
 
 // MarshalBinary returns a []byte representation of the parameter set
@@ -100,13 +93,15 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 	if p.N == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
-	b := utils.NewBuffer(make([]byte, 0, 3+((2+len(p.Qi)+len(p.Pi))<<3)))
+	b := utils.NewBuffer(make([]byte, 0, 4+((3+len(p.Qi)+len(p.Pi)+len(p.KeySwitchPrimes))<<3)))
 	b.WriteUint8(uint8(bits.Len64(p.N) - 1))
 	b.WriteUint8(uint8(len(p.Qi)))
+	b.WriteUint8(uint8(len(p.KeySwitchPrimes)))
 	b.WriteUint8(uint8(len(p.Pi)))
 	b.WriteUint64(p.T)
 	b.WriteUint64(uint64(p.Sigma * (1 << 32)))
 	b.WriteUint64Slice(p.Qi)
+	b.WriteUint64Slice(p.KeySwitchPrimes)
 	b.WriteUint64Slice(p.Pi)
 	return b.Bytes(), nil
 }
@@ -117,23 +112,35 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 		return errors.New("invalid parameters encoding")
 	}
 	b := utils.NewBuffer(data)
+
 	p.N = 1 << uint64(b.ReadUint8())
 	if p.N > MaxN {
 		return errors.New("polynomial degree is too large")
 	}
+
 	lenQi := uint64(b.ReadUint8())
 	if lenQi > MaxModuliCount {
 		return fmt.Errorf("len(Qi) is larger than %d", MaxModuliCount)
 	}
+
+	lenKeySwitchPrimes := uint64(b.ReadUint8())
+	if lenKeySwitchPrimes > MaxModuliCount {
+		return fmt.Errorf("len(lenKeySwitchPrimes) is larger than %d", MaxModuliCount)
+	}
+
 	lenPi := uint64(b.ReadUint8())
 	if lenPi > MaxModuliCount {
 		return fmt.Errorf("len(Pi) is larger than %d", MaxModuliCount)
 	}
+
 	p.T = b.ReadUint64()
 	p.Sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
 	p.Qi = make([]uint64, lenQi, lenQi)
+	p.KeySwitchPrimes = make([]uint64, lenKeySwitchPrimes, lenKeySwitchPrimes)
 	p.Pi = make([]uint64, lenPi, lenPi)
+
 	b.ReadUint64Slice(p.Qi)
+	b.ReadUint64Slice(p.KeySwitchPrimes)
 	b.ReadUint64Slice(p.Pi)
 	return nil
 }

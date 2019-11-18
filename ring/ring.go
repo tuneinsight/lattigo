@@ -7,8 +7,21 @@ import (
 // Add adds p1 to p2 coefficient wise and applies a modular reduction, returning the result on p3.
 func (context *Context) Add(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = CRed(p1.Coeffs[i][j]+p2.Coeffs[i][j], qi)
+			p3tmp[j] = CRed(p1tmp[j]+p2tmp[j], qi)
+		}
+	}
+}
+
+// Add adds p1 to p2 coefficient wise and applies a modular reduction, returning the result on p3.
+func (context *Context) AddLvl(level uint64, p1, p2, p3 *Poly) {
+	var qi uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		for j := uint64(0); j < context.N; j++ {
+			p3tmp[j] = CRed(p1tmp[j]+p2tmp[j], qi)
 		}
 	}
 }
@@ -17,8 +30,18 @@ func (context *Context) Add(p1, p2, p3 *Poly) {
 // The output range will be [0,2*Qi -1].
 func (context *Context) AddNoMod(p1, p2, p3 *Poly) {
 	for i := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = p1.Coeffs[i][j] + p2.Coeffs[i][j]
+			p3tmp[j] = p1tmp[j] + p2tmp[j]
+		}
+	}
+}
+
+func (context *Context) AddNoModLvl(level uint64, p1, p2, p3 *Poly) {
+	for i := uint64(0); i < level+1; i++ {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		for j := uint64(0); j < context.N; j++ {
+			p3tmp[j] = p1tmp[j] + p2tmp[j]
 		}
 	}
 }
@@ -26,8 +49,20 @@ func (context *Context) AddNoMod(p1, p2, p3 *Poly) {
 // Sub subtract p2 to p1 coefficient wise and applies a modular reduction, returning the result on p3.
 func (context *Context) Sub(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = CRed((p1.Coeffs[i][j]+qi)-p2.Coeffs[i][j], qi)
+			p3tmp[j] = CRed((p1tmp[j]+qi)-p2tmp[j], qi)
+		}
+	}
+}
+
+func (context *Context) SubLvl(level uint64, p1, p2, p3 *Poly) {
+	var qi uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		for j := uint64(0); j < context.N; j++ {
+			p3tmp[j] = CRed((p1tmp[j]+qi)-p2tmp[j], qi)
 		}
 	}
 }
@@ -36,8 +71,20 @@ func (context *Context) Sub(p1, p2, p3 *Poly) {
 // The output range will be [0,2*Qi -1].
 func (context *Context) SubNoMod(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = (p1.Coeffs[i][j] + qi) - p2.Coeffs[i][j]
+			p3tmp[j] = (p1tmp[j] + qi) - p2tmp[j]
+		}
+	}
+}
+
+func (context *Context) SubNoModLvl(level uint64, p1, p2, p3 *Poly) {
+	var qi uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		for j := uint64(0); j < context.N; j++ {
+			p3tmp[j] = (p1tmp[j] + qi) - p2tmp[j]
 		}
 	}
 }
@@ -45,8 +92,20 @@ func (context *Context) SubNoMod(p1, p2, p3 *Poly) {
 // Neg set all coefficient of p1 to there additive inverse, returning the result on p2.
 func (context *Context) Neg(p1, p2 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = qi - p1.Coeffs[i][j]
+			p2tmp[j] = qi - p1tmp[j]
+		}
+	}
+}
+
+func (context *Context) NegLvl(level uint64, p1, p2 *Poly) {
+	var qi uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		for j := uint64(0); j < context.N; j++ {
+			p2tmp[j] = qi - p1tmp[j]
 		}
 	}
 }
@@ -54,8 +113,23 @@ func (context *Context) Neg(p1, p2 *Poly) {
 // Reduce applies a modular reduction over the coefficients of p1 returning the result on p2.
 func (context *Context) Reduce(p1, p2 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		bredParams := context.bredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = BRedAdd(p1.Coeffs[i][j], qi, context.bredParams[i])
+			p2tmp[j] = BRedAdd(p1tmp[j], qi, bredParams)
+		}
+	}
+}
+
+// Reduce applies a modular reduction over the coefficients of p1 returning the result on p2.
+func (context *Context) ReduceLvl(level uint64, p1, p2 *Poly) {
+	var qi uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		bredParams := context.bredParams[i]
+		for j := uint64(0); j < context.N; j++ {
+			p2tmp[j] = BRedAdd(p1tmp[j], qi, bredParams)
 		}
 	}
 }
@@ -64,8 +138,9 @@ func (context *Context) Reduce(p1, p2 *Poly) {
 func (context *Context) Mod(p1 *Poly, m uint64, p2 *Poly) {
 	params := BRedParams(m)
 	for i := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = BRedAdd(p1.Coeffs[i][j], m, params)
+			p2tmp[j] = BRedAdd(p1tmp[j], m, params)
 		}
 	}
 }
@@ -73,8 +148,9 @@ func (context *Context) Mod(p1 *Poly, m uint64, p2 *Poly) {
 // AND applies a logical AND of m to the coefficients of p1,  returning the result on p2.
 func (context *Context) AND(p1 *Poly, m uint64, p2 *Poly) {
 	for i := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = p1.Coeffs[i][j] & m
+			p2tmp[j] = p1tmp[j] & m
 		}
 	}
 }
@@ -82,8 +158,9 @@ func (context *Context) AND(p1 *Poly, m uint64, p2 *Poly) {
 // OR applies a logical OR of m to the coefficients of p1,  returning the result on p2.
 func (context *Context) OR(p1 *Poly, m uint64, p2 *Poly) {
 	for i := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = p1.Coeffs[i][j] | m
+			p2tmp[j] = p1tmp[j] | m
 		}
 	}
 }
@@ -91,8 +168,9 @@ func (context *Context) OR(p1 *Poly, m uint64, p2 *Poly) {
 // XOR applies a logical XOR of m to the coefficients of p1,  returning the result on p2.
 func (context *Context) XOR(p1 *Poly, m uint64, p2 *Poly) {
 	for i := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = p1.Coeffs[i][j] ^ m
+			p2tmp[j] = p1tmp[j] ^ m
 		}
 	}
 }
@@ -100,8 +178,10 @@ func (context *Context) XOR(p1 *Poly, m uint64, p2 *Poly) {
 // MulCoeffs multiplies p1 by p2 coefficient wise with a Barrett modular reduction, returning the result on p3.
 func (context *Context) MulCoeffs(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		bredParams := context.bredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = BRed(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.bredParams[i])
+			p3tmp[j] = BRed(p1tmp[j], p2tmp[j], qi, bredParams)
 		}
 	}
 }
@@ -109,8 +189,10 @@ func (context *Context) MulCoeffs(p1, p2, p3 *Poly) {
 // MulCoeffsAndAdd multiplies p1 by p2 coefficient wise with a Barret modular reduction, adding the result to p3 with modular reduction.
 func (context *Context) MulCoeffsAndAdd(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		bredParams := context.bredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = CRed(p3.Coeffs[i][j]+BRed(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.bredParams[i]), qi)
+			p3tmp[j] = CRed(p3tmp[j]+BRed(p1tmp[j], p2tmp[j], qi, bredParams), qi)
 		}
 	}
 }
@@ -118,8 +200,10 @@ func (context *Context) MulCoeffsAndAdd(p1, p2, p3 *Poly) {
 // MulCoeffsAndAddNoMod multiplies p1 by p2 coefficient wise with a Barrett modular reduction, adding the result to p3 without modular reduction.
 func (context *Context) MulCoeffsAndAddNoMod(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		bredParams := context.bredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] += BRed(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.bredParams[i])
+			p3tmp[j] += BRed(p1tmp[j], p2tmp[j], qi, bredParams)
 		}
 	}
 }
@@ -128,8 +212,22 @@ func (context *Context) MulCoeffsAndAddNoMod(p1, p2, p3 *Poly) {
 // Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomery(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = MRed(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.mredParams[i])
+			p3tmp[j] = MRed(p1tmp[j], p2tmp[j], qi, mredParams)
+		}
+	}
+}
+
+func (context *Context) MulCoeffsMontgomeryLvl(level uint64, p1, p2, p3 *Poly) {
+	var qi uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := context.mredParams[i]
+		for j := uint64(0); j < context.N; j++ {
+			p3tmp[j] = MRed(p1tmp[j], p2tmp[j], qi, mredParams)
 		}
 	}
 }
@@ -138,8 +236,22 @@ func (context *Context) MulCoeffsMontgomery(p1, p2, p3 *Poly) {
 // Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndAdd(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = CRed(p3.Coeffs[i][j]+MRed(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.mredParams[i]), qi)
+			p3tmp[j] = CRed(p3tmp[j]+MRed(p1tmp[j], p2tmp[j], qi, mredParams), qi)
+		}
+	}
+}
+
+func (context *Context) MulCoeffsMontgomeryAndAddLvl(level uint64, p1, p2, p3 *Poly) {
+	var qi uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := context.mredParams[i]
+		for j := uint64(0); j < context.N; j++ {
+			p3tmp[j] = CRed(p3tmp[j]+MRed(p1tmp[j], p2tmp[j], qi, mredParams), qi)
 		}
 	}
 }
@@ -148,8 +260,22 @@ func (context *Context) MulCoeffsMontgomeryAndAdd(p1, p2, p3 *Poly) {
 // Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndAddNoMod(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] += MRed(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.mredParams[i])
+			p3tmp[j] += MRed(p1tmp[j], p2tmp[j], qi, mredParams)
+		}
+	}
+}
+
+func (context *Context) MulCoeffsMontgomeryAndAddNoModLvl(level uint64, p1, p2, p3 *Poly) {
+	var qi uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := context.mredParams[i]
+		for j := uint64(0); j < context.N; j++ {
+			p3tmp[j] += MRed(p1tmp[j], p2tmp[j], qi, mredParams)
 		}
 	}
 }
@@ -158,8 +284,10 @@ func (context *Context) MulCoeffsMontgomeryAndAddNoMod(p1, p2, p3 *Poly) {
 // Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndSub(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = CRed(p3.Coeffs[i][j]+(qi-MRed(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.mredParams[i])), qi)
+			p3tmp[j] = CRed(p3tmp[j]+(qi-MRed(p1tmp[j], p2tmp[j], qi, mredParams)), qi)
 		}
 	}
 }
@@ -168,8 +296,10 @@ func (context *Context) MulCoeffsMontgomeryAndSub(p1, p2, p3 *Poly) {
 // Expects p1 and/or p2 to be in montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = p3.Coeffs[i][j] + (qi - MRed(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.mredParams[i]))
+			p3tmp[j] = p3tmp[j] + (qi - MRed(p1tmp[j], p2tmp[j], qi, mredParams))
 		}
 	}
 }
@@ -178,18 +308,22 @@ func (context *Context) MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 *Poly) {
 // The output range of the modular reduction is [0, 2*Qi -1].
 func (context *Context) MulCoeffsConstant(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		bredParams := context.bredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = BRedConstant(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.bredParams[i])
+			p3tmp[j] = BRedConstant(p1tmp[j], p2tmp[j], qi, bredParams)
 		}
 	}
 }
 
 // MulCoeffsConstantMontgomery multiplies p1 by p2 coefficient wise with a constant time Montgomery modular reduction, returning the result on p3.
 // The output range of the modular reduction is [0, 2*Qi -1].
-func (context *Context) MulCoeffsConstantMontgomery(p1, p2, p3 *Poly) {
+func (context *Context) MulCoeffsMontgomeryConstant(p1, p2, p3 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p3.Coeffs[i][j] = MRedConstant(p1.Coeffs[i][j], p2.Coeffs[i][j], qi, context.mredParams[i])
+			p3tmp[j] = MRedConstant(p1tmp[j], p2tmp[j], qi, mredParams)
 		}
 	}
 }
@@ -231,14 +365,18 @@ func (context *Context) MulPolyNaive(p1, p2, p3 *Poly) {
 
 	for x, qi := range context.Modulus {
 
+		p1tmp, p2tmp, p3tmp := p1Copy.Coeffs[x], p2Copy.Coeffs[x], p3.Coeffs[x]
+
+		mredParams := context.mredParams[x]
+
 		for i := uint64(0); i < context.N; i++ {
 
 			for j := uint64(0); j < i; j++ {
-				p3.Coeffs[x][j] = CRed(p3.Coeffs[x][j]+(qi-MRed(p1Copy.Coeffs[x][i], p2Copy.Coeffs[x][context.N-i+j], qi, context.mredParams[x])), qi)
+				p3tmp[j] = CRed(p3tmp[j]+(qi-MRed(p1tmp[i], p2tmp[context.N-i+j], qi, mredParams)), qi)
 			}
 
 			for j := uint64(i); j < context.N; j++ {
-				p3.Coeffs[x][j] = CRed(p3.Coeffs[x][j]+MRed(p1Copy.Coeffs[x][i], p2Copy.Coeffs[x][j-i], qi, context.mredParams[x]), qi)
+				p3tmp[j] = CRed(p3tmp[j]+MRed(p1tmp[i], p2tmp[j-i], qi, mredParams), qi)
 			}
 		}
 	}
@@ -255,14 +393,18 @@ func (context *Context) MulPolyNaiveMontgomery(p1, p2, p3 *Poly) {
 
 	for x, qi := range context.Modulus {
 
+		p1tmp, p2tmp, p3tmp := p1Copy.Coeffs[x], p2Copy.Coeffs[x], p3.Coeffs[x]
+
+		mredParams := context.mredParams[x]
+
 		for i := uint64(0); i < context.N; i++ {
 
 			for j := uint64(0); j < i; j++ {
-				p3.Coeffs[x][j] = CRed(p3.Coeffs[x][j]+(qi-MRed(p1Copy.Coeffs[x][i], p2Copy.Coeffs[x][context.N-i+j], qi, context.mredParams[x])), qi)
+				p3tmp[j] = CRed(p3tmp[j]+(qi-MRed(p1tmp[i], p2tmp[context.N-i+j], qi, mredParams)), qi)
 			}
 
 			for j := uint64(i); j < context.N; j++ {
-				p3.Coeffs[x][j] = CRed(p3.Coeffs[x][j]+MRed(p1Copy.Coeffs[x][i], p2Copy.Coeffs[x][j-i], qi, context.mredParams[x]), qi)
+				p3tmp[j] = CRed(p3tmp[j]+MRed(p1tmp[i], p2tmp[j-i], qi, mredParams), qi)
 			}
 		}
 	}
@@ -278,8 +420,9 @@ func (context *Context) Exp(p1 *Poly, e uint64, p2 *Poly) {
 	context.Add(tmp, p1, tmp)
 
 	for i := range context.Modulus {
+		p2tmp := p2.Coeffs[i]
 		for x := uint64(0); x < context.N; x++ {
-			p2.Coeffs[i][x] = 1
+			p2tmp[x] = 1
 		}
 	}
 
@@ -297,8 +440,21 @@ func (context *Context) Exp(p1 *Poly, e uint64, p2 *Poly) {
 // AddScalar adds to each coefficients of p1 a scalar and applies a modular reduction, returing the result on p2.
 func (context *Context) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	for i, Qi := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p1.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = CRed(p1.Coeffs[i][j]+scalar, Qi)
+			p2tmp[j] = CRed(p1tmp[j]+scalar, Qi)
+		}
+	}
+}
+
+func (context *Context) AddScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
+	tmp := new(Int)
+	var scalarQi uint64
+	for i, Qi := range context.Modulus {
+		scalarQi = tmp.Mod(scalar, NewUint(Qi)).Uint64()
+		p1tmp, p2tmp := p1.Coeffs[i], p1.Coeffs[i]
+		for j := uint64(0); j < context.N; j++ {
+			p2tmp[j] = CRed(p1tmp[j]+scalarQi, Qi)
 		}
 	}
 }
@@ -306,8 +462,21 @@ func (context *Context) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 // SubScalar subtracts to each coefficients of p1 a scalar and applies a modular reduction, returing the result on p2.
 func (context *Context) SubScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	for i, Qi := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p1.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = CRed(p1.Coeffs[i][j]+(Qi-scalar), Qi)
+			p2tmp[j] = CRed(p1tmp[j]+(Qi-scalar), Qi)
+		}
+	}
+}
+
+func (context *Context) SubScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
+	tmp := new(Int)
+	var scalarQi uint64
+	for i, Qi := range context.Modulus {
+		scalarQi = tmp.Mod(scalar, NewUint(Qi)).Uint64()
+		p1tmp, p2tmp := p1.Coeffs[i], p1.Coeffs[i]
+		for j := uint64(0); j < context.N; j++ {
+			p2tmp[j] = CRed(p1tmp[j]+(Qi-scalarQi), Qi)
 		}
 	}
 }
@@ -317,8 +486,23 @@ func (context *Context) MulScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	var scalarMont uint64
 	for i, Qi := range context.Modulus {
 		scalarMont = MForm(BRedAdd(scalar, Qi, context.bredParams[i]), Qi, context.bredParams[i])
+		mredParams := context.mredParams[i]
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j], scalarMont, Qi, context.mredParams[i])
+			p2tmp[j] = MRed(p1tmp[j], scalarMont, Qi, mredParams)
+		}
+	}
+}
+
+func (context *Context) MulScalarLvl(level uint64, p1 *Poly, scalar uint64, p2 *Poly) {
+	var Qi, scalarMont uint64
+	for i := uint64(0); i < level+1; i++ {
+		Qi = context.Modulus[i]
+		scalarMont = MForm(BRedAdd(scalar, Qi, context.bredParams[i]), Qi, context.bredParams[i])
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		mredParams := context.mredParams[i]
+		for j := uint64(0); j < context.N; j++ {
+			p2tmp[j] = MRed(p1tmp[j], scalarMont, Qi, mredParams)
 		}
 	}
 }
@@ -326,17 +510,32 @@ func (context *Context) MulScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 // MulScalarBigint multiplies each coefficients of p1 by an Int scalar and applies a modular reduction, returning the result on p2.
 // To be used when the scalar is bigger than 64 bits.
 func (context *Context) MulScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
-
-	var QiB Int
-	var coeff Int
-
+	scalarQi := new(Int)
+	var scalarMont uint64
 	for i, Qi := range context.Modulus {
-		QiB.SetInt(int64(Qi))
+		scalarQi.Mod(scalar, NewUint(Qi))
+		scalarMont = MForm(BRedAdd(scalarQi.Uint64(), Qi, context.bredParams[i]), Qi, context.bredParams[i])
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			coeff.SetUint(p1.Coeffs[i][j])
-			coeff.Mul(&coeff, scalar)
-			coeff.Mod(&coeff, &QiB)
-			p2.Coeffs[i][j] = coeff.Uint64()
+			p2tmp[j] = MRed(p1tmp[j], scalarMont, Qi, mredParams)
+		}
+	}
+}
+
+func (context *Context) MulScalarBigintLvl(level uint64, p1 *Poly, scalar *Int, p2 *Poly) {
+
+	scalarQi := new(Int)
+	var Qi, scalarMont uint64
+
+	for i := uint64(0); i < level+1; i++ {
+		Qi = context.Modulus[i]
+		scalarQi.Mod(scalar, NewUint(Qi))
+		scalarMont = MForm(BRedAdd(scalarQi.Uint64(), Qi, context.bredParams[i]), Qi, context.bredParams[i])
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		mredParams := context.mredParams[i]
+		for j := uint64(0); j < context.N; j++ {
+			p2tmp[j] = MRed(p1tmp[j], scalarMont, Qi, mredParams)
 		}
 	}
 }
@@ -353,8 +552,24 @@ func (context *Context) Shift(p1 *Poly, n uint64, p2 *Poly) {
 func (context *Context) MForm(p1, p2 *Poly) {
 
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		bredParams := context.bredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = MForm(p1.Coeffs[i][j], qi, context.bredParams[i])
+			p2tmp[j] = MForm(p1tmp[j], qi, bredParams)
+		}
+	}
+}
+
+func (context *Context) MFormLvl(level uint64, p1, p2 *Poly) {
+
+	var qi uint64
+	var bredParams []uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		bredParams = context.bredParams[i]
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		for j := uint64(0); j < context.N; j++ {
+			p2tmp[j] = MForm(p1tmp[j], qi, bredParams)
 		}
 	}
 }
@@ -363,8 +578,10 @@ func (context *Context) MForm(p1, p2 *Poly) {
 func (context *Context) InvMForm(p1, p2 *Poly) {
 
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = InvMForm(p1.Coeffs[i][j], qi, context.mredParams[i])
+			p2tmp[j] = InvMForm(p1tmp[j], qi, mredParams)
 		}
 	}
 }
@@ -434,8 +651,24 @@ func (context *Context) MulByPow2New(p1 *Poly, pow2 uint64) (p2 *Poly) {
 func (context *Context) MulByPow2(p1 *Poly, pow2 uint64, p2 *Poly) {
 	context.MForm(p1, p2)
 	for i, Qi := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = PowerOf2(p2.Coeffs[i][j], pow2, Qi, context.mredParams[i])
+			p2tmp[j] = PowerOf2(p1tmp[j], pow2, Qi, mredParams)
+		}
+	}
+}
+
+func (context *Context) MulByPow2Lvl(level uint64, p1 *Poly, pow2 uint64, p2 *Poly) {
+	context.MFormLvl(level, p1, p2)
+	var qi uint64
+	var mredParams uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		mredParams = context.mredParams[i]
+		for j := uint64(0); j < context.N; j++ {
+			p2tmp[j] = PowerOf2(p1tmp[j], pow2, qi, mredParams)
 		}
 	}
 }
@@ -457,9 +690,10 @@ func (context *Context) MultByMonomial(p1 *Poly, monomialDeg uint64, p2 *Poly) {
 	if shift == 0 {
 
 		for i := range context.Modulus {
+			p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 			for j := uint64(0); j < context.N; j++ {
 
-				p2.Coeffs[i][j] = p1.Coeffs[i][j]
+				p2tmp[j] = p1tmp[j]
 
 			}
 		}
@@ -471,9 +705,10 @@ func (context *Context) MultByMonomial(p1 *Poly, monomialDeg uint64, p2 *Poly) {
 		if shift < context.N {
 
 			for i := range context.Modulus {
+				p1tmp, tmpxT := p1.Coeffs[i], tmpx.Coeffs[i]
 				for j := uint64(0); j < context.N; j++ {
 
-					tmpx.Coeffs[i][j] = p1.Coeffs[i][j]
+					tmpxT[j] = p1tmp[j]
 
 				}
 			}
@@ -481,9 +716,9 @@ func (context *Context) MultByMonomial(p1 *Poly, monomialDeg uint64, p2 *Poly) {
 		} else {
 
 			for i, qi := range context.Modulus {
+				p1tmp, tmpxT := p1.Coeffs[i], tmpx.Coeffs[i]
 				for j := uint64(0); j < context.N; j++ {
-
-					tmpx.Coeffs[i][j] = qi - p1.Coeffs[i][j]
+					tmpxT[j] = qi - p1tmp[j]
 
 				}
 			}
@@ -492,17 +727,16 @@ func (context *Context) MultByMonomial(p1 *Poly, monomialDeg uint64, p2 *Poly) {
 		shift %= context.N
 
 		for i, qi := range context.Modulus {
+			p2tmp, tmpxT := p2.Coeffs[i], tmpx.Coeffs[i]
 			for j := uint64(0); j < shift; j++ {
-
-				p2.Coeffs[i][j] = qi - tmpx.Coeffs[i][context.N-shift+j]
-
+				p2tmp[j] = qi - tmpxT[context.N-shift+j]
 			}
 		}
 
 		for i := range context.Modulus {
+			p2tmp, tmpxT := p2.Coeffs[i], tmpx.Coeffs[i]
 			for j := shift; j < context.N; j++ {
-
-				p2.Coeffs[i][j] = tmpx.Coeffs[i][j-shift]
+				p2tmp[j] = tmpxT[j-shift]
 
 			}
 		}
@@ -512,8 +746,10 @@ func (context *Context) MultByMonomial(p1 *Poly, monomialDeg uint64, p2 *Poly) {
 // MulByVector multiplies p1 by a vector of uint64 coefficients and returns the result on p2.
 func (context *Context) MulByVectorMontgomery(p1 *Poly, vector []uint64, p2 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j], vector[j], qi, context.mredParams[i])
+			p2tmp[j] = MRed(p1tmp[j], vector[j], qi, mredParams)
 		}
 	}
 }
@@ -521,8 +757,10 @@ func (context *Context) MulByVectorMontgomery(p1 *Poly, vector []uint64, p2 *Pol
 // MulByVector multiplies p1 by a vector of uint64 coefficients and adds the result on p2 without modular reduction.
 func (context *Context) MulByVectorMontgomeryAndAddNoMod(p1 *Poly, vector []uint64, p2 *Poly) {
 	for i, qi := range context.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		mredParams := context.mredParams[i]
 		for j := uint64(0); j < context.N; j++ {
-			p2.Coeffs[i][j] += MRed(p1.Coeffs[i][j], vector[j], qi, context.mredParams[i])
+			p2tmp[j] += MRed(p1tmp[j], vector[j], qi, mredParams)
 		}
 	}
 }
@@ -534,16 +772,18 @@ func (context *Context) BitReverse(p1, p2 *Poly) {
 
 	if p1 != p2 {
 		for i := range context.Modulus {
+			p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 			for j := uint64(0); j < context.N; j++ {
-				p2.Coeffs[i][bitReverse64(j, bitLenOfN)] = p1.Coeffs[i][j]
+				p2tmp[bitReverse64(j, bitLenOfN)] = p1tmp[j]
 			}
 		}
 	} else { // In place in case p1 = p2
 		for x := range context.Modulus {
+			p2tmp := p2.Coeffs[x]
 			for i := uint64(0); i < context.N; i++ {
 				j := bitReverse64(i, bitLenOfN)
 				if i < j {
-					p2.Coeffs[x][i], p2.Coeffs[x][j] = p2.Coeffs[x][j], p2.Coeffs[x][i]
+					p2tmp[i], p2tmp[j] = p2tmp[j], p2tmp[i]
 				}
 			}
 		}
@@ -561,17 +801,21 @@ func (context *Context) Rotate(p1 *Poly, n uint64, p2 *Poly) {
 
 	for i, qi := range context.Modulus {
 
-		root = MRed(context.psiMont[i], context.psiMont[i], qi, context.mredParams[i])
+		mredParams := context.mredParams[i]
 
-		root = modexpMontgomery(root, n, qi, context.mredParams[i], context.bredParams[i])
+		root = MRed(context.psiMont[i], context.psiMont[i], qi, mredParams)
+
+		root = modexpMontgomery(root, n, qi, mredParams, context.bredParams[i])
 
 		gal = MForm(1, qi, context.bredParams[i])
 
+		p1tmp, p2tmp := p1.Coeffs[i], p1.Coeffs[i]
+
 		for j := uint64(1); j < context.N; j++ {
 
-			gal = MRed(gal, root, qi, context.mredParams[i])
+			gal = MRed(gal, root, qi, mredParams)
 
-			p2.Coeffs[i][j] = MRed(p1.Coeffs[i][j], gal, qi, context.mredParams[i])
+			p2tmp[j] = MRed(p1tmp[j], gal, qi, mredParams)
 
 		}
 	}

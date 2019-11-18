@@ -26,10 +26,17 @@ type PublicKey struct {
 	pk [2]*ring.Poly
 }
 
+type Rotation int
+
+const (
+	RotationRight = iota + 1
+	RotationLeft
+	RotationRow
+)
+
 // Rotationkeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
 	bfvcontext       *BfvContext
-	bitDecomp        uint64
 	evakey_rot_col_L map[uint64]*SwitchingKey
 	evakey_rot_col_R map[uint64]*SwitchingKey
 	evakey_rot_row   *SwitchingKey
@@ -42,12 +49,11 @@ type EvaluationKey struct {
 
 // Switchingkey is a structure that stores the switching-keys required during the key-switching.
 type SwitchingKey struct {
-	bitDecomp uint64
-	evakey    [][][2]*ring.Poly
+	evakey [][2]*ring.Poly
 }
 
 // Get returns the switching key backing slice
-func (swk *SwitchingKey) Get() [][][2]*ring.Poly {
+func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 	return swk.evakey
 }
 
@@ -56,7 +62,7 @@ func (swk *SwitchingKey) Get() [][][2]*ring.Poly {
 func (bfvcontext *BfvContext) NewKeyGenerator() (keygen *KeyGenerator) {
 	keygen = new(KeyGenerator)
 	keygen.bfvcontext = bfvcontext
-	keygen.context = bfvcontext.contextQ
+	keygen.context = bfvcontext.contextKeys
 	keygen.polypool = keygen.context.NewPoly()
 	return
 }
@@ -71,7 +77,7 @@ func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
 func (keygen *KeyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey, err error) {
 
 	sk = new(SecretKey)
-	if sk.sk, err = keygen.bfvcontext.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
+	if sk.sk, err = keygen.bfvcontext.contextKeys.SampleTernaryMontgomeryNTTNew(p); err != nil {
 		return nil, err
 	}
 
@@ -250,50 +256,47 @@ func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
 // NewRelinKey generates a new evaluation key from the provided secret-key. It will be used to relinearize a ciphertext (encrypted under a public-key generated from the provided secret-key)
 // of degree > 1 to a ciphertext of degree 1. Max degree is the maximum degree of the ciphertext allowed to relinearize. Bitdecomp is the power of two binary decomposition of the key.
 // A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
-func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree, bitDecomp uint64) (newEvakey *EvaluationKey) {
+func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree uint64) (newEvakey *EvaluationKey) {
 
 	newEvakey = new(EvaluationKey)
+
 	newEvakey.evakey = make([]*SwitchingKey, maxDegree)
+
 	keygen.polypool.Copy(sk.Get())
+
+	for _, pj := range keygen.bfvcontext.specialprimes {
+		keygen.bfvcontext.contextKeys.MulScalar(keygen.polypool, pj, keygen.polypool)
+	}
+
 	for i := uint64(0); i < maxDegree; i++ {
 		keygen.context.MulCoeffsMontgomery(keygen.polypool, sk.Get(), keygen.polypool)
-		newEvakey.evakey[i] = newswitchintkey(keygen.bfvcontext, keygen.polypool, sk.Get(), bitDecomp)
+		newEvakey.evakey[i] = newswitchintkey(keygen.bfvcontext, keygen.polypool, sk.Get())
 	}
+
 	keygen.polypool.Zero()
 
-	return
+	return newEvakey
 }
 
-func (bfvcontext *BfvContext) NewRelinKey(maxDegree, bitDecomp uint64) (evakey *EvaluationKey) {
+func (bfvcontext *BfvContext) NewRelinKeyEmpty(maxDegree uint64) (evakey *EvaluationKey) {
+
 	evakey = new(EvaluationKey)
 
-	if bitDecomp > bfvcontext.maxBit || bitDecomp == 0 {
-		bitDecomp = bfvcontext.maxBit
-	}
-
-	context := bfvcontext.contextQ
+	context := bfvcontext.contextKeys
 
 	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
-	var bitLog uint64
 
 	evakey.evakey = make([]*SwitchingKey, maxDegree)
 
 	for w := uint64(0); w < maxDegree; w++ {
 
 		evakey.evakey[w] = new(SwitchingKey)
-		evakey.evakey[w].bitDecomp = bitDecomp
-		evakey.evakey[w].evakey = make([][][2]*ring.Poly, len(context.Modulus))
+		evakey.evakey[w].evakey = make([][2]*ring.Poly, len(context.Modulus))
 
-		for i, qi := range context.Modulus {
+		for i := range context.Modulus {
+			evakey.evakey[w].evakey[i][0] = context.NewPoly()
+			evakey.evakey[w].evakey[i][1] = context.NewPoly()
 
-			bitLog = uint64(math.Ceil(float64(bits.Len64(qi)) / float64(bitDecomp)))
-
-			evakey.evakey[w].evakey[i] = make([][2]*ring.Poly, bitLog)
-
-			for j := uint64(0); j < bitLog; j++ {
-				evakey.evakey[w].evakey[i][j][0] = context.NewPoly()
-				evakey.evakey[w].evakey[i][j][1] = context.NewPoly()
-			}
 		}
 	}
 
@@ -306,190 +309,202 @@ func (evk *EvaluationKey) Get() []*SwitchingKey {
 }
 
 // SetRelinKeys sets the polynomial of the target evaluation-key as the input polynomials.
-func (newevakey *EvaluationKey) SetRelinKeys(rlk [][][][2]*ring.Poly, bitDecomp uint64) {
+func (newevakey *EvaluationKey) SetRelinKeys(rlk [][][2]*ring.Poly) {
 
 	newevakey.evakey = make([]*SwitchingKey, len(rlk))
 	for i := range rlk {
 		newevakey.evakey[i] = new(SwitchingKey)
-		newevakey.evakey[i].bitDecomp = bitDecomp
-		newevakey.evakey[i].evakey = make([][][2]*ring.Poly, len(rlk[i]))
+		newevakey.evakey[i].evakey = make([][2]*ring.Poly, len(rlk[i]))
 		for j := range rlk[i] {
-			newevakey.evakey[i].evakey[j] = make([][2]*ring.Poly, len(rlk[i][j]))
-			for u := range rlk[i][j] {
-				newevakey.evakey[i].evakey[j][u][0] = rlk[i][j][u][0].CopyNew()
-				newevakey.evakey[i].evakey[j][u][1] = rlk[i][j][u][1].CopyNew()
-			}
+			newevakey.evakey[i].evakey[j][0] = rlk[i][j][0].CopyNew()
+			newevakey.evakey[i].evakey[j][1] = rlk[i][j][1].CopyNew()
 		}
 	}
 }
 
 // Newswitchintkey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key. Bitdecomp
 // is the power of two binary decomposition of the key. A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
-func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey, bitDecomp uint64) (newevakey *SwitchingKey) {
+func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey) (newevakey *SwitchingKey) {
 
 	keygen.context.Sub(sk_input.Get(), sk_output.Get(), keygen.polypool)
-	newevakey = newswitchintkey(keygen.bfvcontext, keygen.polypool, sk_output.Get(), bitDecomp)
+
+	for _, pj := range keygen.bfvcontext.specialprimes {
+		keygen.bfvcontext.contextKeys.MulScalar(keygen.polypool, pj, keygen.polypool)
+	}
+
+	newevakey = newswitchintkey(keygen.bfvcontext, keygen.polypool, sk_output.Get())
 	keygen.polypool.Zero()
 
 	return
 }
 
-func (keygen *KeyGenerator) NewSwitchingKeyEmpty(bitDecomp uint64) (evakey *SwitchingKey) {
+func (keygen *KeyGenerator) NewSwitchingKeyEmpty() (evakey *SwitchingKey) {
 	evakey = new(SwitchingKey)
 
-	if bitDecomp > keygen.bfvcontext.maxBit || bitDecomp == 0 {
-		bitDecomp = keygen.bfvcontext.maxBit
-	}
-
-	context := keygen.bfvcontext.contextQ
-
-	evakey.bitDecomp = bitDecomp
+	context := keygen.context
 
 	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
-	var bitLog uint64
+	evakey.evakey = make([][2]*ring.Poly, len(context.Modulus))
 
-	evakey.evakey = make([][][2]*ring.Poly, len(context.Modulus))
-
-	for i, qi := range context.Modulus {
-
-		bitLog = uint64(math.Ceil(float64(bits.Len64(qi)) / float64(bitDecomp)))
-
-		evakey.evakey[i] = make([][2]*ring.Poly, bitLog)
-
-		for j := uint64(0); j < bitLog; j++ {
-			evakey.evakey[i][j][0] = context.NewPoly()
-			evakey.evakey[i][j][1] = context.NewPoly()
-		}
+	for i := range context.Modulus {
+		evakey.evakey[i][0] = context.NewPoly()
+		evakey.evakey[i][1] = context.NewPoly()
 	}
 
+	return
+}
+
+func (bfvContext *BfvContext) NewRotationKeys() (rotKey *RotationKeys) {
+	rotKey = new(RotationKeys)
+	rotKey.bfvcontext = bfvContext
 	return
 }
 
 // Newrotationkeys generates a new struct of rotationkeys storing the keys for the specified rotations. The provided secret-key must be the secret-key used to generate the public-key under
 // which the ciphertexts to rotate are encrypted under. Bitdecomp is the power of two binary decomposition of the key. A higher bigdecomp will induce smaller keys, faster key-switching,
 // but at the cost of more noise. rotLeft and rotRight must be a slice of uint64 rotations, row is a boolean value indicating if the key for the row rotation must be generated.
-func (keygen *KeyGenerator) NewRotationKeys(sk *SecretKey, bitDecomp uint64, rotLeft []uint64, rotRight []uint64, row bool) (rotKey *RotationKeys) {
-
-	rotKey = new(RotationKeys)
-	rotKey.bfvcontext = keygen.bfvcontext
-	rotKey.bitDecomp = bitDecomp
-
-	if rotLeft != nil {
-		rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
-		for _, n := range rotLeft {
-			if rotKey.evakey_rot_col_L[n] == nil && n != 0 {
-				rotKey.evakey_rot_col_L[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColLeft[n], bitDecomp)
-			}
+func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
+	switch rotType {
+	case RotationLeft:
+		if rotKey.evakey_rot_col_L == nil {
+			rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 		}
-	}
-
-	if rotRight != nil {
-		rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
-		for _, n := range rotRight {
-			if rotKey.evakey_rot_col_R[n] == nil && n != 0 {
-				rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColRight[n], bitDecomp)
-			}
+		if rotKey.evakey_rot_col_L[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_L[k] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColLeft[k])
 		}
+	case RotationRight:
+		if rotKey.evakey_rot_col_R == nil {
+			rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
+		}
+		if rotKey.evakey_rot_col_R[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_R[k] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColRight[k])
+		}
+	case RotationRow:
+		rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow)
 	}
-
-	if row {
-		rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow, bitDecomp)
-	}
-
-	return rotKey
-}
-
-func (keygen *KeyGenerator) NewRotationKeysEmpty() (rotKey *RotationKeys) {
-
-	rotKey = new(RotationKeys)
-	rotKey.bfvcontext = keygen.bfvcontext
-
-	return rotKey
-
 }
 
 // Newrotationkeys generates a new struct of rotationkeys storing the keys of all the left and right powers of two rotations. The provided secret-key must be the secret-key used to generate the public-key under
 // which the ciphertexts to rotate are encrypted under. rows is a boolean value indicatig if the keys for the row rotation have to be generated. Bitdecomp is the power of two binary decomposition of the key.
 // A higher bigdecomp will induce smaller keys, faster key-switching, but at the cost of more noise.
-func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey, bitDecomp uint64, row bool) (rotKey *RotationKeys) {
+func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey) (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
 	rotKey.bfvcontext = keygen.bfvcontext
-	rotKey.bitDecomp = bitDecomp
 
 	rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 	rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 
 	for n := uint64(1); n < rotKey.bfvcontext.n>>1; n <<= 1 {
 
-		rotKey.evakey_rot_col_L[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColLeft[n], bitDecomp)
-		rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColRight[n], bitDecomp)
+		rotKey.evakey_rot_col_L[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColLeft[n])
+		rotKey.evakey_rot_col_R[n] = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotColRight[n])
 	}
 
-	if row {
-		rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow, bitDecomp)
-	}
+	rotKey.evakey_rot_row = genrotkey(keygen, sk.Get(), keygen.bfvcontext.galElRotRow)
 
 	return
 }
 
+func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*ring.Poly) {
+	switch rotType {
+	case RotationLeft:
+		if rotKey.evakey_rot_col_L == nil {
+			rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
+		}
+		if rotKey.evakey_rot_col_L[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_L[k] = new(SwitchingKey)
+			rotKey.evakey_rot_col_L[k].evakey = make([][2]*ring.Poly, len(evakey))
+			for j := range evakey {
+				rotKey.evakey_rot_col_L[k].evakey[j][0] = evakey[j][0].CopyNew()
+				rotKey.evakey_rot_col_L[k].evakey[j][1] = evakey[j][1].CopyNew()
+			}
+		}
+	case RotationRight:
+		if rotKey.evakey_rot_col_R == nil {
+			rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
+		}
+		if rotKey.evakey_rot_col_R[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_R[k] = new(SwitchingKey)
+			rotKey.evakey_rot_col_R[k].evakey = make([][2]*ring.Poly, len(evakey))
+			for j := range evakey {
+				rotKey.evakey_rot_col_R[k].evakey[j][0] = evakey[j][0].CopyNew()
+				rotKey.evakey_rot_col_R[k].evakey[j][1] = evakey[j][1].CopyNew()
+			}
+		}
+	case RotationRow:
+		if rotKey.evakey_rot_row == nil {
+			rotKey.evakey_rot_row = new(SwitchingKey)
+			rotKey.evakey_rot_row.evakey = make([][2]*ring.Poly, len(evakey))
+			for j := range evakey {
+				rotKey.evakey_rot_row.evakey[j][0] = evakey[j][0].CopyNew()
+				rotKey.evakey_rot_row.evakey[j][1] = evakey[j][1].CopyNew()
+			}
+		}
+	}
+}
+
 // genrotkey is a methode used in the rotation-keys generation.
-func genrotkey(keygen *KeyGenerator, sk *ring.Poly, gen, bitDecomp uint64) (switchkey *SwitchingKey) {
+func genrotkey(keygen *KeyGenerator, sk *ring.Poly, gen uint64) (switchkey *SwitchingKey) {
 
 	ring.PermuteNTT(sk, gen, keygen.polypool)
 	keygen.context.Sub(keygen.polypool, sk, keygen.polypool)
-	switchkey = newswitchintkey(keygen.bfvcontext, keygen.polypool, sk, bitDecomp)
+
+	for _, pj := range keygen.bfvcontext.specialprimes {
+		keygen.bfvcontext.contextKeys.MulScalar(keygen.polypool, pj, keygen.polypool)
+	}
+
+	switchkey = newswitchintkey(keygen.bfvcontext, keygen.polypool, sk)
 	keygen.polypool.Zero()
 
 	return
 }
 
 // newswitchintkey is a generic methode to generate key-switching keys used in the evaluation, key-switching and rotation-keys generation.
-func newswitchintkey(bfvcontext *BfvContext, sk_in, sk_out *ring.Poly, bitDecomp uint64) (switchkey *SwitchingKey) {
-
-	if bitDecomp > bfvcontext.maxBit || bitDecomp == 0 {
-		bitDecomp = bfvcontext.maxBit
-	}
+func newswitchintkey(bfvcontext *BfvContext, sk_in, sk_out *ring.Poly) (switchkey *SwitchingKey) {
 
 	switchkey = new(SwitchingKey)
 
-	context := bfvcontext.contextQ
+	context := bfvcontext.contextKeys
 
-	switchkey.bitDecomp = uint64(bitDecomp)
-
-	mredParams := context.GetMredParams()
+	var index uint64
 
 	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
 
-	var bitLog uint64
+	switchkey.evakey = make([][2]*ring.Poly, bfvcontext.beta)
 
-	switchkey.evakey = make([][][2]*ring.Poly, len(context.Modulus))
+	for i := uint64(0); i < bfvcontext.beta; i++ {
 
-	for i, qi := range context.Modulus {
+		// e
+		switchkey.evakey[i][0] = bfvcontext.gaussianSampler.SampleNTTNew()
+		context.MForm(switchkey.evakey[i][0], switchkey.evakey[i][0])
+		// a
+		switchkey.evakey[i][1] = context.NewUniformPoly()
 
-		bitLog = uint64(math.Ceil(float64(bits.Len64(qi)) / float64(bitDecomp)))
+		// e + sk_in * (qiBarre*qiStar) * 2^w
+		// (qiBarre*qiStar)%qi = 1, else 0
 
-		switchkey.evakey[i] = make([][2]*ring.Poly, bitLog)
+		for j := uint64(0); j < bfvcontext.alpha; j++ {
 
-		for j := uint64(0); j < bitLog; j++ {
+			index = i*bfvcontext.alpha + j
 
-			// e
-			switchkey.evakey[i][j][0] = bfvcontext.gaussianSampler.SampleNTTNew()
-			// a
-			switchkey.evakey[i][j][1] = context.NewUniformPoly()
+			qi := context.Modulus[index]
+			p0tmp := sk_in.Coeffs[index]
+			p1tmp := switchkey.evakey[i][0].Coeffs[index]
 
-			// e + sk_in * (qiBarre*qiStar) * 2^w
-			// (qiBarre*qiStar)%qi = 1, else 0
 			for w := uint64(0); w < context.N; w++ {
-				switchkey.evakey[i][j][0].Coeffs[i][w] += ring.PowerOf2(sk_in.Coeffs[i][w], bitDecomp*j, qi, mredParams[i])
+				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 			}
 
-			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-			context.MulCoeffsMontgomeryAndSub(switchkey.evakey[i][j][1], sk_out, switchkey.evakey[i][j][0])
+			// Handles the case where nb pj does not divides nb qi
+			if index >= uint64(len(context.Modulus)-1) {
+				break
+			}
 
-			context.MForm(switchkey.evakey[i][j][0], switchkey.evakey[i][j][0])
-			context.MForm(switchkey.evakey[i][j][1], switchkey.evakey[i][j][1])
 		}
+
+		// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
+		context.MulCoeffsMontgomeryAndSub(switchkey.evakey[i][1], sk_out, switchkey.evakey[i][0])
 	}
 
 	return

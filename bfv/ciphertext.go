@@ -23,18 +23,6 @@ func (bfvcontext *BfvContext) NewCiphertext(degree uint64) *Ciphertext {
 	return ciphertext
 }
 
-// NewCiphertextBig creates a new empty ciphertext of degree degree in the extended ciphertext context (Q + P).
-func (bfvcontext *BfvContext) NewCiphertextBig(degree uint64) *Ciphertext {
-	ciphertext := &Ciphertext{&bfvElement{}}
-	ciphertext.value = make([]*ring.Poly, degree+1)
-	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = bfvcontext.contextQP.NewPoly()
-	}
-	ciphertext.isNTT = false
-
-	return ciphertext
-}
-
 // NewRandomCiphertext creates a new ciphertext with uniform coefficients.
 func (bfvcontext *BfvContext) NewRandomCiphertext(degree uint64) *Ciphertext {
 	ciphertext := &Ciphertext{&bfvElement{}}

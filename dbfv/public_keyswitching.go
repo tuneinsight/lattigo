@@ -7,16 +7,20 @@ import (
 
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
 type PCKSProtocol struct {
-	ringContext *ring.Context
+	bfvContext *bfv.BfvContext
 
 	sigmaSmudging         float64
 	gaussianSamplerSmudge *ring.KYSampler
-	gaussianSampler       *ring.KYSampler
-	ternarySampler        *ring.TernarySampler
 
-	tmp *ring.Poly
+	tmp       *ring.Poly
+	share0tmp *ring.Poly
+	share1tmp *ring.Poly
+
+	baseconverter *ring.FastBasisExtender
 }
 
+//todo should be :
+//type PCKSShare [2]*ring.Poly
 type PCKSShare struct {
 	share [2]*ring.Poly
 }
@@ -69,52 +73,68 @@ func (share *PCKSShare) UnmarshalBinary(data []byte) error {
 func NewPCKSProtocol(bfvContext *bfv.BfvContext, sigmaSmudging float64) *PCKSProtocol {
 
 	pcks := new(PCKSProtocol)
-	pcks.ringContext = bfvContext.ContextQ()
-	pcks.gaussianSamplerSmudge = pcks.ringContext.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
-	pcks.gaussianSampler = bfvContext.GaussianSampler()
-	pcks.ternarySampler = bfvContext.TernarySampler()
 
-	pcks.tmp = pcks.ringContext.NewPoly()
+	pcks.bfvContext = bfvContext
+
+	pcks.gaussianSamplerSmudge = bfvContext.ContextKeys().NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+
+	pcks.tmp = bfvContext.ContextKeys().NewPoly()
+	pcks.share0tmp = bfvContext.ContextKeys().NewPoly()
+	pcks.share1tmp = bfvContext.ContextKeys().NewPoly()
+
+	pcks.baseconverter = ring.NewFastBasisExtender(bfvContext.ContextQ().Modulus, bfvContext.KeySwitchPrimes())
+
 	return pcks
 }
 
 func (pcks *PCKSProtocol) AllocateShares() (s PCKSShare) {
-	s.share[0] = pcks.ringContext.NewPoly()
-	s.share[1] = pcks.ringContext.NewPoly()
+	s[0] = pcks.bfvContext.ContextQ().NewPoly()
+	s[1] = pcks.bfvContext.ContextQ().NewPoly()
 	return
 }
 
 // GenShareRoundThree is the first part of the unique round of the PCKSProtocol protocol. Each party computes the following :
 //
-// [s_i * ctx[0] + u_i * pk[0] + e_0i, u_i * pk[1] + e_1i]
+// [s_i * ctx[0] + (u_i * pk[0] + e_0i)/P, (u_i * pk[1] + e_1i)/P]
 //
 // and broadcasts the result to the other j-1 parties.
 func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Ciphertext, shareOut PCKSShare) {
 
-	//u_i
-	_ = pcks.ternarySampler.SampleMontgomeryNTT(0.5, pcks.tmp)
+	contextQ := pcks.bfvContext.ContextQ()
+	contextKeys := pcks.bfvContext.ContextKeys()
 
-	// h_0 = u_i * pk_0 (NTT)
-	pcks.ringContext.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], shareOut.share[0])
-	// h_1 = u_i * pk_1 (NTT)
-	pcks.ringContext.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], shareOut.share[1])
+	_ = contextKeys.SampleTernaryMontgomeryNTT(pcks.tmp, 0.5)
 
-	// h0 = u_i * pk_0 + s_i*c_1 (NTT)
-	pcks.ringContext.NTT(ct.Value()[1], pcks.tmp)
-	pcks.ringContext.MulCoeffsMontgomeryAndAdd(sk, pcks.tmp, shareOut.share[0])
+	// h_0 = u_i * pk_0
+	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
+	// h_1 = u_i * pk_1
+	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], pcks.share1tmp)
 
-	pcks.ringContext.InvNTT(shareOut.share[0], shareOut.share[0])
-	pcks.ringContext.InvNTT(shareOut.share[1], shareOut.share[1])
+	contextKeys.InvNTT(pcks.share0tmp, pcks.share0tmp)
+	contextKeys.InvNTT(pcks.share1tmp, pcks.share1tmp)
 
-	// h_0 = InvNTT(s_i*c_1 + u_i * pk_0) + e0
-	pcks.gaussianSamplerSmudge.Sample(pcks.tmp)
-	pcks.ringContext.Add(shareOut.share[0], pcks.tmp, shareOut.share[0])
+	// h_0 = u_i * pk_0 + e0
+	pcks.gaussianSamplerSmudge.SampleAndAdd(pcks.share0tmp)
+	// h_1 = u_i * pk_1 + e1
+	pcks.bfvContext.GaussianSampler().SampleAndAdd(pcks.share1tmp)
 
-	// h_1 = InvNTT(u_i * pk_1) + e1
-	pcks.gaussianSampler.Sample(pcks.tmp)
-	pcks.ringContext.Add(shareOut.share[1], pcks.tmp, shareOut.share[1])
+	// h_0 = (u_i * pk_0 + e0)/P
+	pcks.baseconverter.ModDown(contextKeys, pcks.bfvContext.RescaleParamsKeys(), uint64(len(contextQ.Modulus))-1, pcks.share0tmp, shareOut[0], pcks.tmp)
+
+	// h_0 = (u_i * pk_0 + e0)/P
+	// Could be moved to the keyswitch phase, but the second element of the shares will be larger
+	pcks.baseconverter.ModDown(contextKeys, pcks.bfvContext.RescaleParamsKeys(), uint64(len(contextQ.Modulus))-1, pcks.share1tmp, shareOut[1], pcks.tmp)
+
+	// tmp = s_i*c_1
+	contextQ.NTT(ct.Value()[1], pcks.tmp)
+	contextQ.MulCoeffsMontgomery(pcks.tmp, sk, pcks.tmp)
+	contextQ.InvNTT(pcks.tmp, pcks.tmp)
+
+	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
+	contextQ.Add(shareOut[0], pcks.tmp, shareOut[0])
 
 	pcks.tmp.Zero()
+
 }
 
 // GenShareRoundTwo is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
@@ -122,13 +142,14 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
 func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
-	pcks.ringContext.Add(share1.share[0], share2.share[0], shareOut.share[0])
-	pcks.ringContext.Add(share1.share[1], share2.share[1], shareOut.share[1])
+
+	pcks.bfvContext.ContextQ().Add(share1[0], share2[0], shareOut[0])
+	pcks.bfvContext.ContextQ().Add(share1[1], share2[1], shareOut[1])
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *bfv.Ciphertext) {
 
-	pcks.ringContext.Add(ct.Value()[0], combined.share[0], ctOut.Value()[0])
-	ctOut.Value()[1].Copy(combined.share[1])
+	pcks.bfvContext.ContextQ().Add(ct.Value()[0], combined[0], ctOut.Value()[0])
+	pcks.bfvContext.ContextQ().Copy(combined[1], ctOut.Value()[1])
 }

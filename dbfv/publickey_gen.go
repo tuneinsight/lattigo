@@ -31,7 +31,7 @@ func (share *CKGShare) UnmarshalBinary(data []byte) error {
 // NewCKGProtocol creates a new CKGProtocol instance
 func NewCKGProtocol(bfvCtx *bfv.BfvContext) *CKGProtocol {
 	ckg := new(CKGProtocol)
-	ckg.context = bfvCtx.ContextQ()
+	ckg.context = bfvCtx.ContextKeys()
 	ckg.gaussianSampler = bfvCtx.GaussianSampler()
 	return ckg
 }

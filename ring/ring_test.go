@@ -2,7 +2,7 @@ package ring
 
 import (
 	"fmt"
-	"log"
+	"math/big"
 	"math/bits"
 	"math/rand"
 	"testing"
@@ -36,7 +36,8 @@ func Test_Polynomial(t *testing.T) {
 		contextP.GenNTTParams()
 
 		contextQP := NewContext()
-		contextQP.Merge(contextQ, contextP)
+		contextQP.SetParameters(N, append(Qi, Pi...))
+		contextQP.GenNTTParams()
 
 		test_PRNG(contextQ, t)
 
@@ -93,8 +94,8 @@ func test_PRNG(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("PRNG"), func(t *testing.T) {
 
-		crs_generator_1, _ := NewCRPGenerator(nil, context)
-		crs_generator_2, _ := NewCRPGenerator(nil, context)
+		crs_generator_1 := NewCRPGenerator(nil, context)
+		crs_generator_2 := NewCRPGenerator(nil, context)
 
 		crs_generator_1.Seed(nil)
 		crs_generator_2.Seed(nil)
@@ -150,19 +151,19 @@ func test_Rescale(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/DivFloorByLastModulusMany", context.N, len(context.Modulus)), func(t *testing.T) {
 
-		coeffs := make([]*Int, context.N)
+		coeffs := make([]*big.Int, context.N)
 		for i := uint64(0); i < context.N; i++ {
 			coeffs[i] = RandInt(context.ModulusBigint)
-			coeffs[i].Div(coeffs[i], NewUint(10))
+			coeffs[i].Quo(coeffs[i], NewUint(10))
 		}
 
 		nbRescals := len(context.Modulus) - 1
 
-		coeffsWant := make([]*Int, context.N)
+		coeffsWant := make([]*big.Int, context.N)
 		for i := range coeffs {
-			coeffsWant[i] = coeffs[i].Copy()
+			coeffsWant[i] = new(big.Int).Set(coeffs[i])
 			for j := 0; j < nbRescals; j++ {
-				coeffsWant[i].Div(coeffsWant[i], NewUint(context.Modulus[len(context.Modulus)-1-j]))
+				coeffsWant[i].Quo(coeffsWant[i], NewUint(context.Modulus[len(context.Modulus)-1-j]))
 			}
 		}
 
@@ -186,19 +187,19 @@ func test_Rescale(context *Context, t *testing.T) {
 
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/DivRoundByLastModulusMany", context.N, len(context.Modulus)), func(t *testing.T) {
 
-		coeffs := make([]*Int, context.N)
+		coeffs := make([]*big.Int, context.N)
 		for i := uint64(0); i < context.N; i++ {
 			coeffs[i] = RandInt(context.ModulusBigint)
-			coeffs[i].Div(coeffs[i], NewUint(10))
+			coeffs[i].Quo(coeffs[i], NewUint(10))
 		}
 
 		nbRescals := len(context.Modulus) - 1
 
-		coeffsWant := make([]*Int, context.N)
+		coeffsWant := make([]*big.Int, context.N)
 		for i := range coeffs {
-			coeffsWant[i] = coeffs[i].Copy()
+			coeffsWant[i] = new(big.Int).Set(coeffs[i])
 			for j := 0; j < nbRescals; j++ {
-				coeffsWant[i].DivRound(coeffsWant[i], NewUint(context.Modulus[len(context.Modulus)-1-j]))
+				DivRound(coeffsWant[i], NewUint(context.Modulus[len(context.Modulus)-1-j]), coeffsWant[i])
 			}
 		}
 
@@ -275,9 +276,7 @@ func test_GaussianPoly(sigma float64, context *Context, t *testing.T) {
 	countZer := 0
 	countMOn := 0
 	t.Run(fmt.Sprintf("N=%d/limbs=%d/NewTernaryPoly", context.N, len(context.Modulus)), func(t *testing.T) {
-		if err := context.SampleTernary(pol, 1.0/3); err != nil {
-			log.Fatal(err)
-		}
+		context.SampleTernary(pol, 1.0/3)
 
 		//fmt.Println(pol.Coeffs[0])
 
@@ -502,7 +501,7 @@ func test_ExtendBasis(contextQ, contextP, contextQP *Context, t *testing.T) {
 
 		basisextender := NewBasisExtender(contextQ, contextP)
 
-		coeffs := make([]*Int, contextQ.N)
+		coeffs := make([]*big.Int, contextQ.N)
 		for i := uint64(0); i < contextQ.N; i++ {
 			coeffs[i] = RandInt(contextQ.ModulusBigint)
 		}
@@ -532,16 +531,16 @@ func test_SimpleScaling(T uint64, contextT, contextQ *Context, t *testing.T) {
 
 		rescaler := NewSimpleScaler(T, contextQ)
 
-		coeffs := make([]*Int, contextQ.N)
+		coeffs := make([]*big.Int, contextQ.N)
 		for i := uint64(0); i < contextQ.N; i++ {
 			coeffs[i] = RandInt(contextQ.ModulusBigint)
 		}
 
-		coeffsWant := make([]*Int, contextQ.N)
+		coeffsWant := make([]*big.Int, contextQ.N)
 		for i := range coeffs {
-			coeffsWant[i] = Copy(coeffs[i])
+			coeffsWant[i] = new(big.Int).Set(coeffs[i])
 			coeffsWant[i].Mul(coeffsWant[i], NewUint(T))
-			coeffsWant[i].DivRound(coeffsWant[i], contextQ.ModulusBigint)
+			DivRound(coeffsWant[i], contextQ.ModulusBigint, coeffsWant[i])
 			coeffsWant[i].Mod(coeffsWant[i], NewUint(T))
 		}
 

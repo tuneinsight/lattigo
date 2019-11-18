@@ -68,19 +68,14 @@ func (bfvcontext *BfvContext) NewKeyGenerator() (keygen *KeyGenerator) {
 
 // Newsecretkey creates a new SecretKey with the distribution [1/3, 1/3, 1/3]
 func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
-	sk, _ = keygen.NewSecretkeyWithDistrib(1.0 / 3)
-	return sk
+	return keygen.NewSecretkeyWithDistrib(1.0 / 3)
 }
 
 // Newsecretkey creates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2]
-func (keygen *KeyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey, err error) {
-
+func (keygen *KeyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
-	if sk.sk, err = keygen.bfvcontext.contextKeys.SampleTernaryMontgomeryNTTNew(p); err != nil {
-		return nil, err
-	}
-
-	return sk, nil
+	sk.sk = keygen.bfvcontext.contextKeys.SampleTernaryMontgomeryNTTNew(p)
+	return sk
 }
 
 // NewSecretKeyEmpty creates a new SecretKey with all coeffcients set to zero, ready to received a marshaled SecretKey.

@@ -33,12 +33,8 @@ func Benchmark_BFV(b *testing.B) {
 		})
 
 		// Encryption
-		encryptorPk, err := bfvContext.NewEncryptorFromPk(pk)
-		encryptorSk, err := bfvContext.NewEncryptorFromSk(sk)
-
-		if err != nil {
-			b.Error(err)
-		}
+		encryptorPk := bfvContext.NewEncryptorFromPk(pk)
+		encryptorSk := bfvContext.NewEncryptorFromSk(sk)
 
 		ptcoeffs := bfvContext.NewRandomPlaintextCoeffs()
 		pt := bfvContext.NewPlaintext()
@@ -47,21 +43,18 @@ func Benchmark_BFV(b *testing.B) {
 		ctd1 := bfvContext.NewCiphertext(1)
 		b.Run(testString("EncryptFromPk", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = encryptorPk.Encrypt(pt, ctd1)
+				encryptorPk.Encrypt(pt, ctd1)
 			}
 		})
 
 		b.Run(testString("EncryptFromSk", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = encryptorSk.Encrypt(pt, ctd1)
+				encryptorSk.Encrypt(pt, ctd1)
 			}
 		})
 
 		// Decryption
-		decryptor, err := bfvContext.NewDecryptor(sk)
-		if err != nil {
-			b.Error(err)
-		}
+		decryptor := bfvContext.NewDecryptor(sk)
 		ptp := bfvContext.NewPlaintext()
 		b.Run(testString("Decrypt", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -72,31 +65,20 @@ func Benchmark_BFV(b *testing.B) {
 
 		evaluator := bfvContext.NewEvaluator()
 
-		ct1, err := encryptorSk.EncryptNew(pt)
-		if err != nil {
-			b.Error(err)
-		}
-
-		ct2, err := encryptorSk.EncryptNew(pt)
-		if err != nil {
-			b.Error(err)
-		}
+		ct1 := encryptorSk.EncryptNew(pt)
+		ct2 := encryptorSk.EncryptNew(pt)
 
 		// Addition
 		b.Run(testString("Add", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err := evaluator.Add(ct1, ct2, ctd1); err != nil {
-					b.Error(err)
-				}
+				evaluator.Add(ct1, ct2, ctd1)
 			}
 		})
 
 		// Subtraction
 		b.Run(testString("Sub", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err := evaluator.Sub(ct1, ct2, ctd1); err != nil {
-					b.Error(err)
-				}
+				evaluator.Sub(ct1, ct2, ctd1)
 			}
 		})
 
@@ -104,14 +86,14 @@ func Benchmark_BFV(b *testing.B) {
 		ctd2 := bfvContext.NewCiphertext(2)
 		b.Run(testString("Multiply", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = evaluator.Mul(ct1, ct2, ctd2)
+				evaluator.Mul(ct1, ct2, ctd2)
 			}
 		})
 
 		// Square is Mul(ct, ct) for now
 		b.Run(testString("Square", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = evaluator.Mul(ct1, ct1, ctd2)
+				evaluator.Mul(ct1, ct1, ctd2)
 			}
 		})
 

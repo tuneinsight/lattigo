@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math"
+	"math/big"
 )
 
 const GaloisGen uint64 = 5
@@ -27,7 +28,7 @@ type CkksContext struct {
 	// Moduli chain
 	moduli      []uint64
 	scalechain  []float64
-	bigintChain []*ring.Int
+	bigintChain []*big.Int
 
 	// Contexts
 	specialprimes []uint64
@@ -116,7 +117,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 		primes[uint64(pj)] = primes[uint64(pj)][1:]
 	}
 
-	ckkscontext.bigintChain = make([]*ring.Int, ckkscontext.levels)
+	ckkscontext.bigintChain = make([]*big.Int, ckkscontext.levels)
 
 	ckkscontext.bigintChain[0] = ring.NewUint(ckkscontext.moduli[0])
 	for i := uint64(1); i < ckkscontext.levels; i++ {
@@ -126,32 +127,27 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 	//Contexts
 	ckkscontext.contextQ = ring.NewContext()
-	if err = ckkscontext.contextQ.SetParameters(1<<ckkscontext.logN, ckkscontext.moduli); err != nil {
-		return nil, err
-	}
+	ckkscontext.contextQ.SetParameters(1<<ckkscontext.logN, ckkscontext.moduli)
+
 	if err = ckkscontext.contextQ.GenNTTParams(); err != nil {
 		return nil, err
 	}
 
 	ckkscontext.contextP = ring.NewContext()
-	if err = ckkscontext.contextP.SetParameters(1<<ckkscontext.logN, ckkscontext.specialprimes); err != nil {
-		return nil, err
-	}
+	ckkscontext.contextP.SetParameters(1<<ckkscontext.logN, ckkscontext.specialprimes)
 
 	if err = ckkscontext.contextP.GenNTTParams(); err != nil {
 		return nil, err
 	}
 
 	ckkscontext.contextKeys = ring.NewContext()
-	if err = ckkscontext.contextKeys.SetParameters(1<<ckkscontext.logN, append(ckkscontext.moduli, ckkscontext.specialprimes...)); err != nil {
-		return nil, err
-	}
+	ckkscontext.contextKeys.SetParameters(1<<ckkscontext.logN, append(ckkscontext.moduli, ckkscontext.specialprimes...))
 
 	if err = ckkscontext.contextKeys.GenNTTParams(); err != nil {
 		return nil, err
 	}
 
-	ckkscontext.logQ = uint64(ckkscontext.contextKeys.ModulusBigint.Value.BitLen())
+	ckkscontext.logQ = uint64(ckkscontext.contextKeys.ModulusBigint.BitLen())
 
 	var Qi uint64
 
@@ -223,7 +219,7 @@ func (ckksContext *CkksContext) Moduli() []uint64 {
 	return ckksContext.moduli
 }
 
-func (ckksContext *CkksContext) BigintChain() []*ring.Int {
+func (ckksContext *CkksContext) BigintChain() []*big.Int {
 	return ckksContext.bigintChain
 }
 

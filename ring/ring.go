@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"math/big"
 	"math/bits"
 )
 
@@ -447,8 +448,8 @@ func (context *Context) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
-func (context *Context) AddScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
-	tmp := new(Int)
+func (context *Context) AddScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
+	tmp := new(big.Int)
 	var scalarQi uint64
 	for i, Qi := range context.Modulus {
 		scalarQi = tmp.Mod(scalar, NewUint(Qi)).Uint64()
@@ -469,8 +470,8 @@ func (context *Context) SubScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
-func (context *Context) SubScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
-	tmp := new(Int)
+func (context *Context) SubScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
+	tmp := new(big.Int)
 	var scalarQi uint64
 	for i, Qi := range context.Modulus {
 		scalarQi = tmp.Mod(scalar, NewUint(Qi)).Uint64()
@@ -509,8 +510,8 @@ func (context *Context) MulScalarLvl(level uint64, p1 *Poly, scalar uint64, p2 *
 
 // MulScalarBigint multiplies each coefficients of p1 by an Int scalar and applies a modular reduction, returning the result on p2.
 // To be used when the scalar is bigger than 64 bits.
-func (context *Context) MulScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
-	scalarQi := new(Int)
+func (context *Context) MulScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
+	scalarQi := new(big.Int)
 	var scalarMont uint64
 	for i, Qi := range context.Modulus {
 		scalarQi.Mod(scalar, NewUint(Qi))
@@ -523,9 +524,9 @@ func (context *Context) MulScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
 	}
 }
 
-func (context *Context) MulScalarBigintLvl(level uint64, p1 *Poly, scalar *Int, p2 *Poly) {
+func (context *Context) MulScalarBigintLvl(level uint64, p1 *Poly, scalar *big.Int, p2 *Poly) {
 
-	scalarQi := new(Int)
+	scalarQi := new(big.Int)
 	var Qi, scalarMont uint64
 
 	for i := uint64(0); i < level+1; i++ {

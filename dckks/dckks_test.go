@@ -143,8 +143,7 @@ func testPublicKeyGen(t *testing.T) {
 			ckksContext.Scale()),
 			func(t *testing.T) {
 
-				crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
-				check(t, err)
+				crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
 				crpGenerator.Seed([]byte{})
 				crp := crpGenerator.Clock()
 
@@ -224,8 +223,7 @@ func testRelinKeyGen(t *testing.T) {
 				for i := range rkgParties {
 					p := new(Party)
 					p.RKGProtocol = NewEkgProtocol(ckksContext)
-					p.u, err = p.NewEphemeralKey(1.0 / 3.0)
-					check(t, err)
+					p.u = p.NewEphemeralKey(1.0 / 3.0)
 					p.s = sk0Shards[i].Get()
 					p.share1, p.share2, p.share3 = p.AllocateShares()
 					rkgParties[i] = p
@@ -233,8 +231,7 @@ func testRelinKeyGen(t *testing.T) {
 
 				P0 := rkgParties[0]
 
-				crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
-				check(t, err)
+				crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
 				crpGenerator.Seed([]byte{})
 				crp := make([]*ring.Poly, ckksContext.Beta())
 
@@ -529,8 +526,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 			}
 			P0 := pcksParties[0]
 
-			crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
-			check(t, err)
+			crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, ckksContext.Beta())
 
@@ -600,8 +596,7 @@ func testRotKeyGenCols(t *testing.T) {
 
 			P0 := pcksParties[0]
 
-			crpGenerator, err := ring.NewCRPGenerator(nil, contextKeys)
-			check(t, err)
+			crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, ckksContext.Beta())
 
@@ -685,8 +680,7 @@ func testRefresh(t *testing.T) {
 
 				P0 := RefreshParties[0]
 
-				crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextQ())
-				check(t, err)
+				crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextQ())
 				crpGenerator.Seed([]byte{})
 				crp := crpGenerator.Clock()
 

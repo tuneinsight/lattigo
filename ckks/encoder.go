@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math"
+	"math/big"
 )
 
 // Encoder is a struct storing the necessary parameters to encode a slice of complex number on a plaintext.
@@ -11,8 +12,8 @@ type Encoder struct {
 	ckkscontext   *CkksContext
 	values        []complex128
 	valuesfloat   []float64
-	bigint_coeffs []*ring.Int
-	q_half        *ring.Int
+	bigint_coeffs []*big.Int
+	q_half        *big.Int
 	polypool      *ring.Poly
 	m             uint64
 	roots         []complex128
@@ -25,7 +26,7 @@ func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
 	encoder.ckkscontext = ckkscontext
 	encoder.values = make([]complex128, ckkscontext.maxSlots)
 	encoder.valuesfloat = make([]float64, ckkscontext.n)
-	encoder.bigint_coeffs = make([]*ring.Int, ckkscontext.n)
+	encoder.bigint_coeffs = make([]*big.Int, ckkscontext.n)
 	encoder.q_half = ring.NewUint(0)
 	encoder.polypool = ckkscontext.contextQ.NewPoly()
 
@@ -93,7 +94,7 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 	encoder.ckkscontext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	encoder.ckkscontext.contextQ.PolyToBigint(encoder.polypool, encoder.bigint_coeffs)
 
-	encoder.q_half.SetBigInt(plaintext.currentModulus)
+	encoder.q_half.Set(plaintext.currentModulus)
 	encoder.q_half.Rsh(encoder.q_half, 1)
 
 	gap := encoder.ckkscontext.maxSlots / slots
@@ -104,14 +105,14 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 
 		// Centers the value arounds the current modulus
 		encoder.bigint_coeffs[idx].Mod(encoder.bigint_coeffs[idx], plaintext.currentModulus)
-		sign = encoder.bigint_coeffs[idx].Compare(encoder.q_half)
+		sign = encoder.bigint_coeffs[idx].Cmp(encoder.q_half)
 		if sign == 1 || sign == 0 {
 			encoder.bigint_coeffs[idx].Sub(encoder.bigint_coeffs[idx], plaintext.currentModulus)
 		}
 
 		// Centers the value arounds the current modulus
 		encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Mod(encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots], plaintext.currentModulus)
-		sign = encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Compare(encoder.q_half)
+		sign = encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Cmp(encoder.q_half)
 		if sign == 1 || sign == 0 {
 			encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Sub(encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots], plaintext.currentModulus)
 		}

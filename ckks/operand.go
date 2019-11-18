@@ -3,6 +3,7 @@ package ckks
 import (
 	"errors"
 	"github.com/ldsec/lattigo/ring"
+	"math/big"
 )
 
 type Operand interface {
@@ -15,7 +16,7 @@ type Operand interface {
 type ckksElement struct {
 	value          []*ring.Poly
 	scale          float64
-	currentModulus *ring.Int
+	currentModulus *big.Int
 	isNTT          bool
 	slots          uint64
 }
@@ -28,7 +29,7 @@ func (ckkscontext *CkksContext) NewCkksElement(degree, level uint64, scale float
 	}
 
 	el.scale = scale
-	el.currentModulus = ring.Copy(ckkscontext.bigintChain[level])
+	el.currentModulus = new(big.Int).Set(ckkscontext.bigintChain[level])
 	el.isNTT = true
 
 	return el
@@ -67,12 +68,12 @@ func (el *ckksElement) DivScale(scale float64) {
 	el.scale /= scale
 }
 
-func (el *ckksElement) CurrentModulus() *ring.Int {
+func (el *ckksElement) CurrentModulus() *big.Int {
 	return el.currentModulus
 }
 
-func (el *ckksElement) SetCurrentModulus(modulus *ring.Int) {
-	el.currentModulus = ring.Copy(modulus)
+func (el *ckksElement) SetCurrentModulus(modulus *big.Int) {
+	el.currentModulus.Set(modulus)
 }
 
 func (el *ckksElement) Slots() uint64 {
@@ -134,6 +135,8 @@ func (el *ckksElement) CopyNew() *ckksElement {
 	for i := range el.value {
 		ctxCopy.value[i] = el.value[i].CopyNew()
 	}
+
+	ctxCopy.currentModulus = new(big.Int)
 
 	ctxCopy.CopyParams(el)
 

@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math/bits"
 )
@@ -57,14 +56,14 @@ func (bfvcontext *BfvContext) NewEncoder() (encoder *Encoder) {
 }
 
 // EncodeUint encodes an uint64 slice of size at most N on a plaintext.
-func (encoder *Encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) error {
+func (encoder *Encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
-		return errors.New("invalid input to encode (number of coefficients must be smaller or equal to the context)")
+		panic("invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
 	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
-		return errors.New("invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
+		panic("invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
@@ -75,25 +74,21 @@ func (encoder *Encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) error 
 		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	if err := plaintext.EMB(encoder.bfvcontext); err != nil {
-		return err
-	}
+	plaintext.EMB(encoder.bfvcontext)
 
 	plaintext.Lift(encoder.bfvcontext)
-
-	return nil
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. Also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
 // The sign will correctly decode as long as the absolute value of the coefficient do not exceed half of the plaintext modulus.
-func (encoder *Encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) error {
+func (encoder *Encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
-		return errors.New("invalid input to encode (number of coefficients must be smaller or equal to the context)")
+		panic("invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
 	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
-		return errors.New("invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder)")
+		panic("invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder)")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
@@ -109,13 +104,8 @@ func (encoder *Encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) error {
 		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	if err := plaintext.EMB(encoder.bfvcontext); err != nil {
-		return err
-	}
-
+	plaintext.EMB(encoder.bfvcontext)
 	plaintext.Lift(encoder.bfvcontext)
-
-	return nil
 }
 
 // DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.

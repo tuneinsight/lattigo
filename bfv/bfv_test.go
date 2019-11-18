@@ -114,17 +114,9 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params.encoder = params.bfvContext.NewEncoder()
 
-	if params.encryptorPk, err = params.bfvContext.NewEncryptorFromPk(params.pk); err != nil {
-		log.Fatal(err)
-	}
-
-	if params.encryptorSk, err = params.bfvContext.NewEncryptorFromSk(params.sk); err != nil {
-		log.Fatal(err)
-	}
-
-	if params.decryptor, err = params.bfvContext.NewDecryptor(params.sk); err != nil {
-		log.Fatal(err)
-	}
+	params.encryptorPk = params.bfvContext.NewEncryptorFromPk(params.pk)
+	params.encryptorSk = params.bfvContext.NewEncryptorFromSk(params.sk)
+	params.decryptor = params.bfvContext.NewDecryptor(params.sk)
 
 	params.evaluator = params.bfvContext.NewEvaluator()
 
@@ -138,11 +130,10 @@ func new_test_vectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (co
 
 	plaintext = params.bfvContext.NewPlaintext()
 
-	check(t, params.encoder.EncodeUint(coeffs.Coeffs[0], plaintext))
+	params.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
 	if encryptor != nil {
-		ciphertext, err = params.encryptorPk.EncryptNew(plaintext)
-		check(t, err)
+		ciphertext = params.encryptorPk.EncryptNew(plaintext)
 	}
 
 	return coeffs, plaintext, ciphertext
@@ -216,7 +207,7 @@ func testEvaluatorAdd(t *testing.T) {
 			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
 
-			check(t, params.evaluator.Add(ciphertext1, ciphertext2, ciphertext1))
+			params.evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
 			params.bfvContext.contextT.Add(values1, values2, values1)
 
 			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
@@ -227,8 +218,7 @@ func testEvaluatorAdd(t *testing.T) {
 			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
 
-			ciphertext1, err = params.evaluator.AddNew(ciphertext1, ciphertext2)
-			check(t, err)
+			ciphertext1 = params.evaluator.AddNew(ciphertext1, ciphertext2)
 			params.bfvContext.contextT.Add(values1, values2, values1)
 
 			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
@@ -239,12 +229,12 @@ func testEvaluatorAdd(t *testing.T) {
 			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
 			values2, plaintext2, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
 
-			check(t, params.evaluator.Add(ciphertext1, plaintext2, ciphertext2))
+			params.evaluator.Add(ciphertext1, plaintext2, ciphertext2)
 			params.bfvContext.contextT.Add(values1, values2, values2)
 
 			verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
 
-			check(t, params.evaluator.Add(plaintext2, ciphertext1, ciphertext2))
+			params.evaluator.Add(plaintext2, ciphertext1, ciphertext2)
 
 			verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
 		})
@@ -262,7 +252,7 @@ func testEvaluatorSub(t *testing.T) {
 			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
 
-			check(t, params.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1))
+			params.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1)
 			params.bfvContext.contextT.Sub(values1, values2, values1)
 
 			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
@@ -273,8 +263,7 @@ func testEvaluatorSub(t *testing.T) {
 			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
 
-			ciphertext1, err = params.evaluator.SubNew(ciphertext1, ciphertext2)
-			check(t, err)
+			ciphertext1 = params.evaluator.SubNew(ciphertext1, ciphertext2)
 			params.bfvContext.contextT.Sub(values1, values2, values1)
 
 			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
@@ -287,11 +276,11 @@ func testEvaluatorSub(t *testing.T) {
 
 			valuesWant := params.bfvContext.contextT.NewPoly()
 
-			check(t, params.evaluator.Sub(ciphertext1, plaintext2, ciphertext2))
+			params.evaluator.Sub(ciphertext1, plaintext2, ciphertext2)
 			params.bfvContext.contextT.Sub(values1, values2, valuesWant)
 			verify_test_vectors(params, params.decryptor, valuesWant, ciphertext2, t)
 
-			check(t, params.evaluator.Sub(plaintext2, ciphertext1, ciphertext2))
+			params.evaluator.Sub(plaintext2, ciphertext1, ciphertext2)
 			params.bfvContext.contextT.Sub(values2, values1, valuesWant)
 			verify_test_vectors(params, params.decryptor, valuesWant, ciphertext2, t)
 		})
@@ -312,7 +301,7 @@ func testEvaluatorMul(t *testing.T) {
 			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
 
 			receiver := params.bfvContext.NewCiphertext(ciphertext1.Degree() + ciphertext2.Degree())
-			check(t, params.evaluator.Mul(ciphertext1, ciphertext2, receiver))
+			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
 			verify_test_vectors(params, params.decryptor, values1, receiver, t)
@@ -323,7 +312,7 @@ func testEvaluatorMul(t *testing.T) {
 			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
 			values2, plaintext2, _ := new_test_vectors(params, params.encryptorPk, t)
 
-			check(t, params.evaluator.Mul(ciphertext1, plaintext2, ciphertext1))
+			params.evaluator.Mul(ciphertext1, plaintext2, ciphertext1)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
 			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
@@ -335,7 +324,7 @@ func testEvaluatorMul(t *testing.T) {
 			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
 
 			receiver := params.bfvContext.NewCiphertext(ciphertext1.Degree() + ciphertext2.Degree())
-			check(t, params.evaluator.Mul(ciphertext1, ciphertext2, receiver))
+			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
 			receiver2, err := params.evaluator.RelinearizeNew(receiver, rlk)
@@ -355,8 +344,7 @@ func testKeySwitch(t *testing.T) {
 		params := genBfvParams(parameters)
 
 		sk2 := params.kgen.NewSecretKey()
-		decryptorSk2, err := params.bfvContext.NewDecryptor(sk2)
-		check(t, err)
+		decryptorSk2 := params.bfvContext.NewDecryptor(sk2)
 		switchKey := params.kgen.NewSwitchingKey(params.sk, sk2)
 
 		t.Run(testString2("InPlace/", params), func(t *testing.T) {

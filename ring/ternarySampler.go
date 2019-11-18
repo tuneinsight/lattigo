@@ -2,7 +2,6 @@ package ring
 
 import (
 	"crypto/rand"
-	"errors"
 	"math"
 	"math/bits"
 )
@@ -37,10 +36,10 @@ func computeMatrixTernary(p float64) (M [][]uint8) {
 }
 
 // SampleMontgomeryNew samples coefficients with ternary distribution in montgomery form on the target polynomial.
-func (context *Context) sampleTernary(samplerMatrix [][]uint64, p float64, pol *Poly) (err error) {
+func (context *Context) sampleTernary(samplerMatrix [][]uint64, p float64, pol *Poly) {
 
 	if p == 0 {
-		return errors.New("cannot sample -> p = 0")
+		panic("cannot sample -> p = 0")
 	}
 
 	var coeff uint64
@@ -94,75 +93,59 @@ func (context *Context) sampleTernary(samplerMatrix [][]uint64, p float64, pol *
 			}
 		}
 	}
-
-	return nil
 }
 
 func (context *Context) SampleTernaryUniform(pol *Poly) {
-	_ = context.sampleTernary(context.matrixTernary, 1.0/3.0, pol)
+	context.sampleTernary(context.matrixTernary, 1.0/3.0, pol)
 }
 
-func (context *Context) SampleTernary(pol *Poly, p float64) (err error) {
-	return context.sampleTernary(context.matrixTernary, p, pol)
+func (context *Context) SampleTernary(pol *Poly, p float64) {
+	context.sampleTernary(context.matrixTernary, p, pol)
 }
 
-func (context *Context) SampleTernaryMontgomery(pol *Poly, p float64) (err error) {
-	return context.sampleTernary(context.matrixTernaryMontgomery, p, pol)
+func (context *Context) SampleTernaryMontgomery(pol *Poly, p float64) {
+	context.sampleTernary(context.matrixTernaryMontgomery, p, pol)
 }
 
 // SampleNew samples a new polynomial with ternary distribution.
-func (context *Context) SampleTernaryNew(p float64) (pol *Poly, err error) {
+func (context *Context) SampleTernaryNew(p float64) (pol *Poly) {
 	pol = context.NewPoly()
-	if err = context.SampleTernary(pol, p); err != nil {
-		return nil, err
-	}
-	return pol, nil
+	context.SampleTernary(pol, p)
+	return pol
 }
 
 // SampleMontgomeryNew samples a new polynomial with ternary distribution in montgomery form.
-func (context *Context) SampleTernaryMontgomeryNew(p float64) (pol *Poly, err error) {
+func (context *Context) SampleTernaryMontgomeryNew(p float64) (pol *Poly) {
 	pol = context.NewPoly()
-	if err = context.SampleTernaryMontgomery(pol, p); err != nil {
-		return nil, err
-	}
-	return pol, nil
+	context.SampleTernaryMontgomery(pol, p)
+	return
 }
 
 // SampleNTTNew samples a new polynomial with ternary distribution in the NTT domain.
-func (context *Context) SampleTernaryNTTNew(p float64) (pol *Poly, err error) {
+func (context *Context) SampleTernaryNTTNew(p float64) (pol *Poly) {
 	pol = context.NewPoly()
-	if err = context.SampleTernary(pol, p); err != nil {
-		return nil, err
-	}
+	context.SampleTernary(pol, p)
 	context.NTT(pol, pol)
-	return pol, nil
+	return
 }
 
 // SampleNTT samples coefficients with ternary distribution in the NTT domain on the target polynomial.
-func (context *Context) SampleTernaryNTT(pol *Poly, p float64) (err error) {
-	if err = context.SampleTernary(pol, p); err != nil {
-		return err
-	}
+func (context *Context) SampleTernaryNTT(pol *Poly, p float64) {
+	context.SampleTernary(pol, p)
 	context.NTT(pol, pol)
-	return nil
 }
 
 // SampleNTTNew samples a new polynomial with ternary distribution in the NTT domain and in montgomery form.
-func (context *Context) SampleTernaryMontgomeryNTTNew(p float64) (pol *Poly, err error) {
-	if pol, err = context.SampleTernaryMontgomeryNew(p); err != nil {
-		return nil, err
-	}
+func (context *Context) SampleTernaryMontgomeryNTTNew(p float64) (pol *Poly) {
+	pol = context.SampleTernaryMontgomeryNew(p)
 	context.NTT(pol, pol)
-	return pol, nil
+	return
 }
 
 // SampleNTT samples coefficients with ternary distribution in the NTT domain and in montgomery form on the target polynomial.
-func (context *Context) SampleTernaryMontgomeryNTT(pol *Poly, p float64) (err error) {
-	if err = context.SampleTernaryMontgomery(pol, p); err != nil {
-		return err
-	}
+func (context *Context) SampleTernaryMontgomeryNTT(pol *Poly, p float64) {
+	context.SampleTernaryMontgomery(pol, p)
 	context.NTT(pol, pol)
-	return nil
 }
 
 // Samples a keys with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients

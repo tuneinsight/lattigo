@@ -58,7 +58,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	contextP := pcks.ckksContext.ContextP()
 	contextKeys := pcks.ckksContext.ContextKeys()
 
-	_ = contextKeys.SampleTernaryMontgomeryNTT(pcks.tmp, 0.5)
+	contextKeys.SampleTernaryMontgomeryNTT(pcks.tmp, 0.5)
 
 	// h_0 = u_i * pk_0
 	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)

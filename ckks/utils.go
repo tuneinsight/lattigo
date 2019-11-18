@@ -20,7 +20,7 @@ func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
 	var is_negative bool
 	var xFlo *big.Float
-	var xInt *ring.Int
+	var xInt *big.Int
 
 	is_negative = false
 	if value < 0 {
@@ -31,7 +31,7 @@ func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 	}
 
 	xInt = ring.NewUint(0)
-	xFlo.Int(&xInt.Value)
+	xFlo.Int(xInt)
 	xInt.Mod(xInt, ring.NewUint(q))
 
 	res = xInt.Uint64()
@@ -47,8 +47,8 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 
 	var is_negative bool
 	var xFlo *big.Float
-	var xInt *ring.Int
-	tmp := new(ring.Int)
+	var xInt *big.Int
+	tmp := new(big.Int)
 
 	for i := range values {
 
@@ -63,7 +63,7 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 			}
 
 			xInt = ring.NewUint(0)
-			xFlo.Int(&xInt.Value)
+			xFlo.Int(xInt)
 
 			for j := range moduli {
 				tmp.Mod(xInt, ring.NewUint(moduli[j]))
@@ -90,7 +90,7 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 	return
 }
 
-func modVec(values []*ring.Int, q uint64, coeffs []uint64) {
+func modVec(values []*big.Int, q uint64, coeffs []uint64) {
 	tmp := ring.NewUint(0)
 	for i := range values {
 		coeffs[i] = tmp.Mod(values[i], ring.NewUint(q)).Uint64()
@@ -98,9 +98,9 @@ func modVec(values []*ring.Int, q uint64, coeffs []uint64) {
 }
 
 // Divides x by n^2, returns a float
-func scaleDown(coeff *ring.Int, n float64) (x float64) {
+func scaleDown(coeff *big.Int, n float64) (x float64) {
 
-	x, _ = new(big.Float).SetInt(&coeff.Value).Float64()
+	x, _ = new(big.Float).SetInt(coeff).Float64()
 	x /= n
 
 	return

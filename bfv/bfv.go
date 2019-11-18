@@ -4,6 +4,7 @@ package bfv
 import (
 	"github.com/ldsec/lattigo/ring"
 	"math"
+	"math/big"
 )
 
 const GaloisGen uint64 = 5
@@ -34,8 +35,8 @@ type BfvContext struct {
 	contextQ *ring.Context
 	contextP *ring.Context
 
-	QHalf *ring.Int
-	PHalf *ring.Int
+	QHalf *big.Int
+	PHalf *big.Int
 
 	rescaleParamsMul []uint64
 
@@ -120,33 +121,25 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	bfvContext.contextT.GenNTTParams()
 	// ========================
 
-	if err := bfvContext.contextQ.SetParameters(N, ModuliQ); err != nil {
-		return err
-	}
+	bfvContext.contextQ.SetParameters(N, ModuliQ)
 
 	if err := bfvContext.contextQ.GenNTTParams(); err != nil {
 		return err
 	}
 
-	if err := bfvContext.contextP.SetParameters(N, ModuliP); err != nil {
-		return err
-	}
+	bfvContext.contextP.SetParameters(N, ModuliP)
 
 	if err := bfvContext.contextP.GenNTTParams(); err != nil {
 		return err
 	}
 
-	if err = bfvContext.contextKeys.SetParameters(N, append(ModuliQ, params.KeySwitchPrimes...)); err != nil {
-		return err
-	}
+	bfvContext.contextKeys.SetParameters(N, append(ModuliQ, params.KeySwitchPrimes...))
 
 	if err = bfvContext.contextKeys.GenNTTParams(); err != nil {
 		return err
 	}
 
-	if err = bfvContext.contextPKeys.SetParameters(N, params.KeySwitchPrimes); err != nil {
-		return err
-	}
+	bfvContext.contextPKeys.SetParameters(N, params.KeySwitchPrimes)
 
 	if err = bfvContext.contextPKeys.GenNTTParams(); err != nil {
 		return err
@@ -167,7 +160,7 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	bfvContext.alpha = uint64(len(bfvContext.specialprimes))
 	bfvContext.beta = uint64(math.Ceil(float64(len(ModuliQ)) / float64(bfvContext.alpha)))
 
-	tmp := ring.NewUint(0)
+	tmp := new(big.Int)
 	bredParams := bfvContext.contextQ.GetBredParams()
 	for i, Qi := range ModuliQ {
 		tmp.Mod(PBig, ring.NewUint(Qi))
@@ -182,17 +175,14 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 		bfvContext.rescaleParamsMul[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Pi, bredParams[i]), Pi-2, Pi), Pi, bredParams[i])
 	}
 
-	bfvContext.QHalf = new(ring.Int)
-	bfvContext.QHalf.Rsh(bfvContext.contextQ.ModulusBigint, 1)
+	bfvContext.QHalf = new(big.Int).Rsh(bfvContext.contextQ.ModulusBigint, 1)
+	bfvContext.PHalf = new(big.Int).Rsh(bfvContext.contextP.ModulusBigint, 1)
 
-	bfvContext.PHalf = new(ring.Int)
-	bfvContext.PHalf.Rsh(bfvContext.contextP.ModulusBigint, 1)
+	bfvContext.logQ = uint64(bfvContext.contextKeys.ModulusBigint.BitLen())
+	bfvContext.logP = uint64(bfvContext.contextP.ModulusBigint.BitLen())
 
-	bfvContext.logQ = uint64(bfvContext.contextKeys.ModulusBigint.Value.BitLen())
-	bfvContext.logP = uint64(bfvContext.contextP.ModulusBigint.Value.BitLen())
-
-	delta := ring.NewUint(1).Div(bfvContext.contextQ.ModulusBigint, ring.NewUint(t))
-	tmpBig := ring.NewUint(1)
+	delta := new(big.Int).Quo(bfvContext.contextQ.ModulusBigint, ring.NewUint(t))
+	tmpBig := new(big.Int)
 	bfvContext.deltaMont = make([]uint64, len(ModuliQ))
 	bfvContext.delta = make([]uint64, len(ModuliQ))
 	for i, Qi := range ModuliQ {

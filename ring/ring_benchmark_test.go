@@ -32,7 +32,8 @@ func Benchmark_Polynomial(b *testing.B) {
 		contextP.GenNTTParams()
 
 		contextQP := NewContext()
-		contextQP.Merge(contextQ, contextP)
+		contextQP.SetParameters(N, append(Qi, Pi...))
+		contextQP.GenNTTParams()
 
 		benchmark_Context(N, Qi, b)
 
@@ -66,7 +67,7 @@ func Benchmark_Polynomial(b *testing.B) {
 
 		benchmark_MulPolyMontgomery(contextQ, b)
 
-		//benchmark_MulPolyNaiveMontgomery(contextQ, b)
+		benchmark_MulPolyNaiveMontgomery(contextQ, b)
 
 		benchmark_ExtendBasis(contextQ, contextP, contextQP, b)
 

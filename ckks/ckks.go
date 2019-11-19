@@ -99,7 +99,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext) {
 	// For each bitsize, finds that many primes
 	primes := make(map[uint64][]uint64)
 	for key, value := range primesbitlen {
-		primes[key], _ = GenerateCKKSPrimes(key, uint64(params.LogN), value)
+		primes[key] = GenerateCKKSPrimes(key, uint64(params.LogN), value)
 	}
 
 	// Assigns the primes to the ckks moduli chain

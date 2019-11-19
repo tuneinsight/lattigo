@@ -1,5 +1,26 @@
 package ring
 
+type Parameters struct {
+	N      uint64
+	Moduli []uint64
+}
+
+var DefaultParamsQi = map[uint64]*Parameters{
+	12: {1 << 12, Qi60[len(Qi60)-2:]},
+	13: {1 << 13, Qi60[len(Qi60)-4:]},
+	14: {1 << 14, Qi60[len(Qi60)-8:]},
+	15: {1 << 15, Qi60[len(Qi60)-16:]},
+	16: {1 << 16, Qi60[len(Qi60)-32:]},
+}
+
+var DefaultParamsPi = map[uint64]*Parameters{
+	12: {1 << 12, Pi60[len(Pi60)-2:]},
+	13: {1 << 13, Pi60[len(Pi60)-4:]},
+	14: {1 << 14, Pi60[len(Pi60)-8:]},
+	15: {1 << 15, Pi60[len(Pi60)-16:]},
+	16: {1 << 16, Pi60[len(Pi60)-32:]},
+}
+
 // First hundred (from 0x800000000000000 and upward) 60bit Primes allowing ǸTT for N = 65536
 var Pi60 = []uint64{576460752308273153, 576460752315482113, 576460752319021057, 576460752319414273, 576460752321642497,
 	576460752325705729, 576460752328327169, 576460752329113601, 576460752329506817, 576460752329900033,

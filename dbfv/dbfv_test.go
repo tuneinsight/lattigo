@@ -596,6 +596,10 @@ func testRefresh(t *testing.T) {
 		encoder := params.encoder
 		decryptorSk0 := params.decryptorSk0
 
+		kgen := bfvContext.NewKeyGenerator()
+
+		rlk := kgen.NewRelinKey(params.sk0, 2)
+
 		t.Run(fmt.Sprintf("N=%d/logQ=%d/Refresh", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
@@ -621,21 +625,34 @@ func testRefresh(t *testing.T) {
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.Clock()
 
-			coeffs, plaintextWant, ciphertext := newTestVectors(params, encryptorPk0, t)
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
 
-			for i, p := range RefreshParties {
-				p.GenShares(p.s, ciphertext, crp, p.share)
-				if i > 0 {
-					P0.Aggregate(p.share, P0.share, P0.share)
+			maxDepth := 0
+
+			ciphertextTmp := ciphertext.CopyNew().Ciphertext()
+			coeffsTmp := make([]uint64, len(coeffs))
+
+			for i := range coeffs {
+				coeffsTmp[i] = coeffs[i]
+			}
+
+			// Finds the maximum multiplicative depth
+			for true {
+
+				params.evaluator.Relinearize(params.evaluator.MulNew(ciphertextTmp, ciphertextTmp), rlk, ciphertextTmp)
+
+				for j := range coeffsTmp {
+					coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], bfvContext.ContextT().Modulus[0], bfvContext.ContextT().GetBredParams()[0])
+				}
+
+				if equalslice(coeffsTmp, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertextTmp))) {
+					maxDepth += 1
+				} else {
+					break
 				}
 			}
 
-			// We store the plaintext coeffs as bigint for a reference to later be able to quantify the error
-			coeffs_plaintext_bigint_fresh := make([]*big.Int, bfvContext.N())
-			bfvContext.ContextQ().PolyToBigint(plaintextWant.Value()[0], coeffs_plaintext_bigint_fresh)
-			// =============================================================================================
-
-			// ==== We simulated added error of size Q/(T^2) and add it to the fresh ciphertext ====
+			// Simulated added error of size Q/(T^2) and add it to the fresh ciphertext
 			coeffs_bigint := make([]*big.Int, bfvContext.N())
 			bfvContext.ContextQ().PolyToBigint(ciphertext.Value()[0], coeffs_bigint)
 
@@ -649,55 +666,32 @@ func testRefresh(t *testing.T) {
 
 			bfvContext.ContextQ().SetCoefficientsBigint(coeffs_bigint, ciphertext.Value()[0])
 
-			plaintextHave := decryptorSk0.DecryptNew(ciphertext)
-			coeffs_plaintext_bigint_error := make([]*big.Int, bfvContext.N())
-			bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_error)
-
-			average_simulated_error := new(big.Int)
-			for i := uint64(0); i < bfvContext.N(); i++ {
-				average_simulated_error.Add(average_simulated_error, coeffs_plaintext_bigint_fresh[i])
-				average_simulated_error.Sub(average_simulated_error, coeffs_plaintext_bigint_error[i])
+			for i, p := range RefreshParties {
+				p.GenShares(p.s, ciphertext, crp, p.share)
+				if i > 0 {
+					P0.Aggregate(p.share, P0.share, P0.share)
+				}
 			}
 
-			average_simulated_error.Abs(average_simulated_error)
-			average_simulated_error.Quo(average_simulated_error, ring.NewUint(bfvContext.N()))
-			// =======================================================================================
-
-			ctOut := bfvContext.NewCiphertext(1)
-
-			// We refresh the ciphertext with the simulated error with all-in-one finalize function
-			P0.Finalize(ciphertext, crp, P0.share, ctOut)
-
-			// Should be equivalent to
+			// We refresh the ciphertext with the simulated error
 			P0.Decrypt(ciphertext, P0.share.RefreshShareDecrypt, P0.ptShare.Value()[0])      // Masked decryption
 			P0.Recode(P0.ptShare.Value()[0], P0.ptShare.Value()[0])                          // Masked re-encoding
-			P0.Recrypt(P0.ptShare.Value()[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption
+			P0.Recrypt(P0.ptShare.Value()[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption$
 
-			//ciphertext = ctOut should not change the output of the test
+			// The refresh also be called all at once with P0.Finalize(ciphertext, crp, P0.share, ctOut)
 
-			// We decrypt and compare with the original plaintext
-			plaintextHave = decryptorSk0.DecryptNew(ciphertext)
-			coeffs_plaintext_bigint_booted := make([]*big.Int, bfvContext.N())
-			bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_booted)
+			// Square the refreshed ciphertext up to the maximum depth-1
+			for i := 0; i < maxDepth-1; i++ {
 
-			average_residual_error := new(big.Int)
-			for i := uint64(0); i < bfvContext.N(); i++ {
-				average_residual_error.Add(average_residual_error, coeffs_plaintext_bigint_fresh[i])
-				average_residual_error.Sub(average_residual_error, coeffs_plaintext_bigint_booted[i])
+				params.evaluator.Relinearize(params.evaluator.MulNew(ciphertext, ciphertext), rlk, ciphertext)
+
+				for j := range coeffs {
+					coeffs[j] = ring.BRed(coeffs[j], coeffs[j], bfvContext.ContextT().Modulus[0], bfvContext.ContextT().GetBredParams()[0])
+				}
 			}
 
-			average_residual_error.Abs(average_residual_error)
-			average_residual_error.Quo(average_residual_error, ring.NewUint(bfvContext.N()))
-
-			coeffsTest := encoder.DecodeUint(plaintextHave)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			t.Logf("Average simulated error before refresh (log2): %d", average_simulated_error.BitLen())
-			t.Logf("Average residual error after refresh (log2): %d", average_residual_error.BitLen())
-
-			if equalslice(coeffs, coeffsTest) != true {
+			//Decrypts and compare
+			if equalslice(coeffs, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertext))) != true {
 				t.Errorf("error : BOOT")
 			}
 		})

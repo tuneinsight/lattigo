@@ -191,12 +191,10 @@ func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 
 // NewSwitchingKey generated a new keyswitching key, that will re-encrypt a ciphertext encrypted under the input key to the output key.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey) (newevakey *SwitchingKey, err error) {
-
+func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey) (newevakey *SwitchingKey) {
 	keygen.context.Sub(sk_input.Get(), sk_output.Get(), keygen.polypool)
 	newevakey = keygen.newSwitchingKey(keygen.polypool, sk_output.Get())
 	keygen.polypool.Zero()
-
 	return
 }
 

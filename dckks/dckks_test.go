@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
-	"log"
 	"math"
 	"sort"
 	"testing"
@@ -76,9 +75,7 @@ func genDCKKSContext(contextParameters *ckks.Parameters) (params *dckksContext) 
 
 	params = new(dckksContext)
 
-	if params.ckksContext, err = ckks.NewCkksContext(contextParameters); err != nil {
-		log.Fatal(err)
-	}
+	params.ckksContext = ckks.NewCkksContext(contextParameters)
 
 	params.encoder = params.ckksContext.NewEncoder()
 	params.evaluator = params.ckksContext.NewEvaluator()
@@ -108,17 +105,11 @@ func genDCKKSContext(contextParameters *ckks.Parameters) (params *dckksContext) 
 	params.pk0 = kgen.NewPublicKey(params.sk0)
 	params.pk1 = kgen.NewPublicKey(params.sk1)
 
-	if params.encryptorPk0, err = params.ckksContext.NewEncryptorFromPk(params.pk0); err != nil {
-		log.Fatal(err)
-	}
+	params.encryptorPk0 = params.ckksContext.NewEncryptorFromPk(params.pk0)
 
-	if params.decryptorSk0, err = params.ckksContext.NewDecryptor(params.sk0); err != nil {
-		log.Fatal(err)
-	}
+	params.decryptorSk0 = params.ckksContext.NewDecryptor(params.sk0)
 
-	if params.decryptorSk1, err = params.ckksContext.NewDecryptor(params.sk1); err != nil {
-		log.Fatal(err)
-	}
+	params.decryptorSk1 = params.ckksContext.NewDecryptor(params.sk1)
 
 	return
 }
@@ -175,10 +166,7 @@ func testPublicKeyGen(t *testing.T) {
 				P0.GenPublicKey(P0.s1, crp, pk)
 
 				// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-				encryptorTest, err := ckksContext.NewEncryptorFromPk(pk)
-				if err != nil {
-					t.Error(err)
-				}
+				encryptorTest := ckksContext.NewEncryptorFromPk(pk)
 
 				coeffs, _, ciphertext := new_test_vectors(params, encryptorTest, 1, t)
 
@@ -272,9 +260,7 @@ func testRelinKeyGen(t *testing.T) {
 					coeffs[i] *= coeffs[i]
 				}
 
-				if err := evaluator.MulRelin(ciphertext, ciphertext, evk, ciphertext); err != nil {
-					log.Fatal(err)
-				}
+				evaluator.MulRelin(ciphertext, ciphertext, evk, ciphertext)
 
 				evaluator.Rescale(ciphertext, ckksContext.Scale(), ciphertext)
 
@@ -356,9 +342,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 					coeffs[i] *= coeffs[i]
 				}
 
-				if err := evaluator.MulRelin(ciphertext, ciphertext, evk, ciphertext); err != nil {
-					log.Fatal(err)
-				}
+				evaluator.MulRelin(ciphertext, ciphertext, evk, ciphertext)
 
 				if ciphertext.Degree() != 1 {
 					t.Errorf("EKG_NAIVE -> bad relinearize")
@@ -546,9 +530,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 
 			coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
 
-			if err = evaluator.Conjugate(ciphertext, rotkey, ciphertext); err != nil {
-				log.Fatal(err)
-			}
+			evaluator.Conjugate(ciphertext, rotkey, ciphertext)
 
 			coeffsWant := make([]complex128, contextKeys.N>>1)
 
@@ -622,9 +604,7 @@ func testRotKeyGenCols(t *testing.T) {
 				rotkey := ckksContext.NewRotationKeys()
 				P0.Finalize(P0.share, crp, rotkey)
 
-				if err = evaluator.RotateColumns(ciphertext, k, rotkey, receiver); err != nil {
-					log.Fatal(err)
-				}
+				evaluator.RotateColumns(ciphertext, k, rotkey, receiver)
 
 				coeffsWant := make([]complex128, contextKeys.N>>1)
 
@@ -723,11 +703,9 @@ func new_test_vectors(contextParams *dckksContext, encryptor *ckks.Encryptor, a 
 
 	plaintext = contextParams.ckksContext.NewPlaintext(contextParams.ckksContext.Levels()-1, contextParams.ckksContext.Scale())
 
-	err = contextParams.encoder.Encode(plaintext, values, slots)
-	check(t, err)
+	contextParams.encoder.Encode(plaintext, values, slots)
 
-	ciphertext, err = encryptor.EncryptNew(plaintext)
-	check(t, err)
+	ciphertext = encryptor.EncryptNew(plaintext)
 
 	return values, plaintext, ciphertext
 }

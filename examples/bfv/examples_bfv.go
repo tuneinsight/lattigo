@@ -25,7 +25,7 @@ func ObliviousRiding() {
 	// 		A. Pham, I. Dacosta, G. Endignoux, J. Troncoso-Pastoriza, K. Huguenin, and J.-P. Hubaux. ORide: A Privacy-Preserving yet Accountable Ride-Hailing Service.
 	//		In Proceedings of the 26th USENIX Security Symposium, Vancouver, BC, Canada, August 2017.
 	//
-	// Each area is represented as a rectangular grid where each driver reports his coordinates in real time to a server assigned to the area.
+	// Each area is represented as a rectangular grid where each driver anyonymously signs in (i.e. the server only knows the driver is located in the area).
 	//
 	// First, the rider generates an ephemeral key pair (sk, pk), which he uses to encrypt his coordinates. He then sends the tuple (pk, enc(coordinates)) to the
 	// server handling the area he is in.

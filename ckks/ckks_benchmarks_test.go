@@ -11,7 +11,6 @@ type benchParams struct {
 
 func Benchmark_CKKSScheme(b *testing.B) {
 
-	var err error
 	var ckkscontext *CkksContext
 	var encoder *Encoder
 	var kgen *KeyGenerator
@@ -46,9 +45,7 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		levels = uint64(len(param.params.Modulichain))
 		slots = uint64(1 << (logN - 1))
 
-		if ckkscontext, err = NewCkksContext(param.params); err != nil {
-			b.Error(err)
-		}
+		ckkscontext = NewCkksContext(param.params)
 
 		encoder = ckkscontext.NewEncoder()
 
@@ -61,17 +58,9 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		rotkey = ckkscontext.NewRotationKeys()
 		kgen.GenRot(RotationLeft, sk, 1, rotkey)
 
-		if encryptorPk, err = ckkscontext.NewEncryptorFromPk(pk); err != nil {
-			b.Error(err)
-		}
-
-		if encryptorSk, err = ckkscontext.NewEncryptorFromSk(sk); err != nil {
-			b.Error(err)
-		}
-
-		if decryptor, err = ckkscontext.NewDecryptor(sk); err != nil {
-			b.Error(err)
-		}
+		encryptorPk = ckkscontext.NewEncryptorFromPk(pk)
+		encryptorSk = ckkscontext.NewEncryptorFromSk(sk)
+		decryptor = ckkscontext.NewDecryptor(sk)
 
 		evaluator = ckkscontext.NewEvaluator()
 
@@ -91,17 +80,13 @@ func Benchmark_CKKSScheme(b *testing.B) {
 			plaintext = ckkscontext.NewPlaintext(levels-1, scale)
 
 			for i := 0; i < b.N; i++ {
-				if err = encoder.Encode(plaintext, values, slots); err != nil {
-					b.Error(err)
-				}
+				encoder.Encode(plaintext, values, slots)
 			}
 		})
 
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Decode", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if values = encoder.Decode(plaintext, slots); err != nil {
-					b.Error(err)
-				}
+				encoder.Decode(plaintext, slots)
 			}
 		})
 
@@ -122,18 +107,14 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		// Encrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/EncryptPk", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = encryptorPk.Encrypt(plaintext, ciphertext1); err != nil {
-					b.Error(err)
-				}
+				encryptorPk.Encrypt(plaintext, ciphertext1)
 			}
 		})
 
 		// Encrypt
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/EncryptSk", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = encryptorSk.Encrypt(plaintext, ciphertext1); err != nil {
-					b.Error(err)
-				}
+				encryptorSk.Encrypt(plaintext, ciphertext1)
 			}
 		})
 
@@ -147,27 +128,21 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		// Add
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Add", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.Add(ciphertext1, ciphertext2, ciphertext1); err != nil {
-					b.Error(err)
-				}
+				evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
 			}
 		})
 
 		// Add Scalar
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/AddScalar", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.AddConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1); err != nil {
-					b.Error(err)
-				}
+				evaluator.AddConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
 			}
 		})
 
 		// Mult Scalar
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/MultScalar", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.MultConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1); err != nil {
-					b.Error(err)
-				}
+				evaluator.MultConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
 			}
 		})
 
@@ -215,63 +190,49 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		receiver = ckkscontext.NewRandomCiphertext(2, levels-1, scale)
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Multiply", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.MulRelin(ciphertext1, ciphertext2, nil, receiver); err != nil {
-					b.Error(err)
-				}
+				evaluator.MulRelin(ciphertext1, ciphertext2, nil, receiver)
 			}
 		})
 
 		// Square
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Square", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.MulRelin(ciphertext1, ciphertext1, nil, receiver); err != nil {
-					b.Error(err)
-				}
+				evaluator.MulRelin(ciphertext1, ciphertext1, nil, receiver)
 			}
 		})
 
 		// Mul Relin
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/MulRelin", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.MulRelin(ciphertext1, ciphertext2, rlk, ciphertext1); err != nil {
-					b.Error(err)
-				}
+				evaluator.MulRelin(ciphertext1, ciphertext2, rlk, ciphertext1)
 			}
 		})
 
 		// Mul Relin
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/SquareRelin", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.MulRelin(ciphertext1, ciphertext1, rlk, ciphertext1); err != nil {
-					b.Error(err)
-				}
+				evaluator.MulRelin(ciphertext1, ciphertext1, rlk, ciphertext1)
 			}
 		})
 
 		// Relin
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Relin", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.Relinearize(receiver, rlk, ciphertext1); err != nil {
-					b.Error(err)
-				}
+				evaluator.Relinearize(receiver, rlk, ciphertext1)
 			}
 		})
 
 		// Conjugate / Rotate
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Conjugate", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.Conjugate(ciphertext1, rotkey, ciphertext1); err != nil {
-					b.Error(err)
-				}
+				evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)
 			}
 		})
 
 		// Rotate Cols
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/RotateCols", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err = evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1); err != nil {
-					b.Error(err)
-				}
+				evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
 			}
 		})
 	}

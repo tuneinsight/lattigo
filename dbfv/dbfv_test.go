@@ -245,8 +245,7 @@ func testRelinKeyGen(t *testing.T) {
 			evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
 
 			res := bfvContext.NewCiphertext(1)
-			err = evaluator.Relinearize(ciphertextMul, evk, res)
-			check(t, err)
+			evaluator.Relinearize(ciphertextMul, evk, res)
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
 		})
@@ -321,8 +320,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 			evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
 
 			res := bfvContext.NewCiphertext(1)
-			err = evaluator.Relinearize(ciphertextMul, evk, res)
-			check(t, err)
+			evaluator.Relinearize(ciphertextMul, evk, res)
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
 		})
@@ -491,9 +489,7 @@ func testRotKeyGenRotRows(t *testing.T) {
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
 
-			if err = evaluator.RotateRows(ciphertext, rotkey, ciphertext); err != nil {
-				log.Fatal(err)
-			}
+			evaluator.RotateRows(ciphertext, rotkey, ciphertext)
 
 			coeffs = append(coeffs[contextKeys.N>>1:], coeffs[:contextKeys.N>>1]...)
 
@@ -564,9 +560,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 				rotkey := bfvContext.NewRotationKeys()
 				P0.Finalize(P0.share, crp, rotkey)
 
-				if err = evaluator.RotateColumns(ciphertext, k, rotkey, receiver); err != nil {
-					log.Fatal(err)
-				}
+				evaluator.RotateColumns(ciphertext, k, rotkey, receiver)
 
 				coeffsWant := make([]uint64, contextKeys.N)
 

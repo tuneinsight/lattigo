@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 )
 
@@ -440,21 +439,19 @@ func (evaluator *Evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext
 //of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
-func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) error {
+func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
 
 	if int(ct0.Degree()-1) > len(evakey.evakey) {
-		return errors.New("cannot relinearize -> input ciphertext degree too large to allow relinearization")
+		panic("cannot relinearize -> input ciphertext degree too large to allow relinearization")
 	}
 
 	if ct0.Degree() < 2 {
 		if ct0 != ctOut {
 			ctOut.Copy(ct0.Element())
 		}
-		return nil
+	} else {
+		evaluator.relinearize(ct0, evakey, ctOut)
 	}
-
-	evaluator.relinearize(ct0, evakey, ctOut)
-	return nil
 }
 
 // Relinearize relinearize the ciphertext ct0 of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
@@ -465,19 +462,18 @@ func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
-func (evaluator *Evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext, err error) {
-
+func (evaluator *Evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(1)
-
-	return ctOut, evaluator.Relinearize(ct0, evakey, ctOut)
+	evaluator.Relinearize(ct0, evakey, ctOut)
+	return
 }
 
 // SwitchKeys applies the key-switching procedure to the ciphertext ct0 and returns the result on ctOut. It requires as an additional input a valide switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
-func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext) (err error) {
+func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot switchkeys -> input and output must be of degree 1 to allow key switching")
+		panic("cannot switchkeys -> input and output must be of degree 1 to allow key switching")
 	}
 
 	if ct0 != ctOut {
@@ -486,21 +482,20 @@ func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey,
 	}
 
 	evaluator.switchKeys(ct0.value[1], switchKey, ctOut)
-
-	return nil
 }
 
 // SwitchKeys applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valide switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
-func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext, err error) {
-
+func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(1)
-	return ctOut, evaluator.SwitchKeys(ct0, switchkey, ctOut)
+	evaluator.SwitchKeys(ct0, switchkey, ctOut)
+	return
 }
 
-func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(1)
-	return ctOut, evaluator.RotateColumns(ct0, k, evakey, ctOut)
+	evaluator.RotateColumns(ct0, k, evakey, ctOut)
+	return
 }
 
 // RotateColumns rotates the columns of ct0 by k position to the left and returns the result on ctOut. As an additional input it requires a rotationkeys :
@@ -509,51 +504,49 @@ func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *
 //
 // If only the power of two rotations are stored, the numbers k and n/2-k will be decomposed in base 2 and the rotation with the least
 // hamming weight will be chosen, then the specific rotation will be computed as a sum of powers of two rotations.
-func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) (err error) {
+func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
+
+	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("cannot rotate -> input and or output must be of degree 1")
+	}
 
 	k &= ((evaluator.bfvcontext.n >> 1) - 1)
 
 	if k == 0 {
+
 		ctOut.Copy(ct0.Element())
-		return nil
-	}
-
-	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot rotate -> input and or output must be of degree 1")
-	}
-
-	// Looks in the rotationkey if the corresponding rotation has been generated or if the input is a plaintext
-	if evakey.evakey_rot_col_L[k] != nil {
-
-		evaluator.permute(ct0, evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
-
-		return nil
 
 	} else {
 
-		// If not looks if the left and right pow2 rotations have been generated
-		has_pow2_rotations := true
-		for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
-			if evakey.evakey_rot_col_L[i] == nil || evakey.evakey_rot_col_R[i] == nil {
-				has_pow2_rotations = false
-				break
-			}
-		}
+		// Looks in the rotationkey if the corresponding rotation has been generated or if the input is a plaintext
+		if evakey.evakey_rot_col_L[k] != nil {
 
-		// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
-		if has_pow2_rotations {
+			evaluator.permute(ct0, evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
 
-			if hammingWeight64(k) <= hammingWeight64((evaluator.bfvcontext.n>>1)-k) {
-				evaluator.rotateColumnsLPow2(ct0, k, evakey, ctOut)
-			} else {
-				evaluator.rotateColumnsRPow2(ct0, (evaluator.bfvcontext.n>>1)-k, evakey, ctOut)
-			}
-
-			return nil
-
-			// Else returns an error indicating that the keys have not been generated
 		} else {
-			return errors.New("cannot rotate -> specific rotation and pow2 rotations have not been generated")
+
+			// If not looks if the left and right pow2 rotations have been generated
+			has_pow2_rotations := true
+			for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
+				if evakey.evakey_rot_col_L[i] == nil || evakey.evakey_rot_col_R[i] == nil {
+					has_pow2_rotations = false
+					break
+				}
+			}
+
+			// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
+			if has_pow2_rotations {
+
+				if hammingWeight64(k) <= hammingWeight64((evaluator.bfvcontext.n>>1)-k) {
+					evaluator.rotateColumnsLPow2(ct0, k, evakey, ctOut)
+				} else {
+					evaluator.rotateColumnsRPow2(ct0, (evaluator.bfvcontext.n>>1)-k, evakey, ctOut)
+				}
+
+				// Else returns an error indicating that the keys have not been generated
+			} else {
+				panic("cannot rotate -> specific rotation and pow2 rotations have not been generated")
+			}
 		}
 	}
 }
@@ -601,32 +594,31 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 }
 
 // RotateRows swaps the rows of ct0 and returns the result on ctOut.
-func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) error {
+func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot rotate -> input and or output degree must be of degree 1")
+		panic("cannot rotate -> input and or output degree must be of degree 1")
 	}
 
 	if evakey.evakey_rot_row == nil {
-		return errors.New("cannot rotate -> rotation key not generated")
+		panic("cannot rotate -> rotation key not generated")
 	}
 
 	evaluator.permute(ct0, evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row, ctOut)
-
-	return nil
 }
 
-func (evaluator *Evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(1)
-	return ctOut, evaluator.RotateRows(ct0, evakey, ctOut)
+	evaluator.RotateRows(ct0, evakey, ctOut)
+	return
 }
 
 // InnerSum computs the inner sum of ct0 and returns the result on ctOut. It requires a rotation key storing all the left power of two rotations.
 // The resulting vector will be of the form [sum, sum, .., sum, sum ].
-func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) error {
+func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot inner sum -> input and output must be of degree 1")
+		panic("cannot inner sum -> input and output must be of degree 1")
 	}
 
 	cTmp := evaluator.bfvcontext.NewCiphertext(1)
@@ -634,19 +626,12 @@ func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOu
 	ctOut.Copy(ct0.Element())
 
 	for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
-		if err := evaluator.RotateColumns(ctOut, i, evakey, cTmp); err != nil {
-			return err
-		}
+		evaluator.RotateColumns(ctOut, i, evakey, cTmp)
 		evaluator.Add(cTmp.bfvElement, ctOut, ctOut.Ciphertext())
 	}
 
-	if err := evaluator.RotateRows(ctOut, evakey, cTmp); err != nil {
-		return err
-	}
+	evaluator.RotateRows(ctOut, evakey, cTmp)
 	evaluator.Add(ctOut, cTmp.bfvElement, ctOut)
-
-	return nil
-
 }
 
 // permute operates a column rotation on ct0 and returns the result on ctOut

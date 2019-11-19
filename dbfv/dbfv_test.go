@@ -721,7 +721,6 @@ func verifyTestVectors(contextParams *dbfvContext, decryptor *bfv.Decryptor, coe
 
 func Test_Marshalling(t *testing.T) {
 	//verify if the un.marshalling works properly
-	log.Print("Verifying marshalling for Key Generation")
 	bfvCtx, _ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[0])
 	KeyGenerator := bfvCtx.NewKeyGenerator()
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextKeys())
@@ -735,14 +734,14 @@ func Test_Marshalling(t *testing.T) {
 
 	if err != nil {
 		log.Fatal("Could not marshal the CKGShare : ", err)
-		t.Fail()
+
 	}
 
 	KeyGenShareAfter := new(CKGShare)
 	err = KeyGenShareAfter.UnmarshalBinary(data)
 	if err != nil {
 		log.Fatal("Could not unmarshal the CKGShare : ", err)
-		t.Fail()
+
 	}
 
 	//comparing the results
@@ -758,8 +757,6 @@ func Test_Marshalling(t *testing.T) {
 		}
 
 	}
-
-	log.Print("CKGShare marshalling ok ")
 
 	//Check marshalling for the PCKS
 	Ciphertext := bfvCtx.NewRandomCiphertext(1)
@@ -777,6 +774,7 @@ func Test_Marshalling(t *testing.T) {
 	err = SwitchShareReceiver.UnmarshalBinary(data)
 	if err != nil {
 		log.Print("Error on PCKSShare unmarshalling : ", err)
+		t.Fail()
 	}
 
 	for i := 0; i < 2; i++ {
@@ -795,8 +793,6 @@ func Test_Marshalling(t *testing.T) {
 		}
 
 	}
-
-	log.Print("PCKSShare marshalling ok ")
 
 	//Now for CKSShare ~ its similar to PKSShare
 	cksp := NewCKSProtocol(bfvCtx, bfvCtx.Sigma())
@@ -832,7 +828,77 @@ func Test_Marshalling(t *testing.T) {
 
 	}
 
-	log.Print("CKSShare marshalling ok ")
+	//testing refresh shares
+	refreshproto := NewRefreshProtocol(bfvCtx)
+	refreshshare := refreshproto.AllocateShares()
+	refreshproto.GenShares(sk.Get(), Ciphertext, crs, refreshshare)
+
+	data, err = refreshshare.MarshalBinary()
+	if err != nil {
+		log.Fatal("Could not marshal RefreshShare", err)
+	}
+	res_refreshshare := new(RefreshShare)
+	err = res_refreshshare.UnmarshalBinary(data)
+
+	if err != nil {
+		log.Fatal("Could not unmarshal RefreshShare", err)
+	}
+	for i, r := range refreshshare.RefreshShareDecrypt.Coeffs {
+		if !equalslice(res_refreshshare.RefreshShareDecrypt.Coeffs[i], r) {
+			log.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+		}
+
+	}
+	for i, r := range refreshshare.RefreshShareRecrypt.Coeffs {
+		if !equalslice(res_refreshshare.RefreshShareRecrypt.Coeffs[i], r) {
+			log.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+		}
+
+	}
+
+	//check RTGShare
+	crpGenerator := ring.NewCRPGenerator(nil, bfvCtx.ContextKeys())
+	modulus := (bfvCtx.ContextQ().Modulus)
+	crp := make([]*ring.Poly, len(modulus))
+	for j := 0; j < len(modulus); j++ {
+		crp[j] = crpGenerator.Clock() //make([]*ring.Poly, bitLog)
+
+	}
+
+	rotProto := NewRotKGProtocol(bfvCtx)
+	rtgShare := rotProto.AllocateShare()
+	rotProto.GenShare(1, 64, sk.Get(), crp, &rtgShare)
+
+	data, err = rtgShare.MarshalBinary()
+	if err != nil {
+		log.Fatal("could not marshal RTGshare :", err)
+	}
+
+	res_rtgShare := new(RTGShare)
+	err = res_rtgShare.UnmarshalBinary(data)
+	if err != nil {
+		log.Fatal("Could not unmarshal RTGShare: ", err)
+	}
+
+	if res_rtgShare.Type != rtgShare.Type || res_rtgShare.K != rtgShare.K || len(res_rtgShare.Value) != len(rtgShare.Value) {
+		log.Fatal("result after marshalling is not the same as before marshalling for RTGSahre")
+	}
+
+	for i, val := range rtgShare.Value {
+		ring1 := val
+		ring2 := res_rtgShare.Value[i]
+		if len(ring1.Coeffs) != len(ring2.Coeffs) {
+			log.Fatal("result after marshalling is not the same as before marshalling for RTGSahre")
+		}
+
+		for j, elem := range ring1.Coeffs {
+			if !equalslice(ring2.Coeffs[j], elem) {
+				log.Fatal("result after marshalling is not the same as before marshalling for RTGSahre")
+
+			}
+		}
+
+	}
 
 }
 

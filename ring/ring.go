@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"github.com/ldsec/lattigo/utils"
 	"math/big"
 	"math/bits"
 )
@@ -602,11 +603,11 @@ func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
 
 	for j := uint64(0); j < N; j++ {
 
-		index = 2*bitReverse64(j, logN) + 1
+		index = 2*utils.BitReverse64(j, logN) + 1
 
 		tmp = ((gen * index & mask) - 1) >> 1
 
-		index = bitReverse64(tmp, logN)
+		index = utils.BitReverse64(tmp, logN)
 
 		for i := 0; i < len(polIn.Coeffs); i++ {
 
@@ -775,14 +776,14 @@ func (context *Context) BitReverse(p1, p2 *Poly) {
 		for i := range context.Modulus {
 			p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 			for j := uint64(0); j < context.N; j++ {
-				p2tmp[bitReverse64(j, bitLenOfN)] = p1tmp[j]
+				p2tmp[utils.BitReverse64(j, bitLenOfN)] = p1tmp[j]
 			}
 		}
 	} else { // In place in case p1 = p2
 		for x := range context.Modulus {
 			p2tmp := p2.Coeffs[x]
 			for i := uint64(0); i < context.N; i++ {
-				j := bitReverse64(i, bitLenOfN)
+				j := utils.BitReverse64(i, bitLenOfN)
 				if i < j {
 					p2tmp[i], p2tmp[j] = p2tmp[j], p2tmp[i]
 				}

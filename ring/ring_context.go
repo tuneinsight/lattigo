@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"github.com/ldsec/lattigo/utils"
 	"math/big"
 	"math/bits"
 )
@@ -187,8 +188,8 @@ func (context *Context) GenNTTParams() error {
 		// Computes nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
 		for j := uint64(1); j < context.N; j++ {
 
-			indexReversePrev := bitReverse64(j-1, bitLenofN)
-			indexReverseNext := bitReverse64(j, bitLenofN)
+			indexReversePrev := utils.BitReverse64(j-1, bitLenofN)
+			indexReverseNext := utils.BitReverse64(j, bitLenofN)
 
 			context.nttPsi[i][indexReverseNext] = MRed(context.nttPsi[i][indexReversePrev], PsiMont, qi, context.mredParams[i])
 			context.nttPsiInv[i][indexReverseNext] = MRed(context.nttPsiInv[i][indexReversePrev], PsiInvMont, qi, context.mredParams[i])

@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"math/bits"
 )
 
@@ -42,8 +43,8 @@ func (bfvcontext *BfvContext) NewEncoder() (encoder *Encoder) {
 		index1 = (pos - 1) >> 1
 		index2 = (m - pos - 1) >> 1
 
-		encoder.indexMatrix[i] = bitReverse64(index1, logN)
-		encoder.indexMatrix[i|row_size] = bitReverse64(index2, logN)
+		encoder.indexMatrix[i] = utils.BitReverse64(index1, logN)
+		encoder.indexMatrix[i|row_size] = utils.BitReverse64(index2, logN)
 
 		pos *= gen
 		pos &= (m - 1)
@@ -74,7 +75,7 @@ func (encoder *Encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	plaintext.EMB(encoder.bfvcontext)
+	plaintext.InvNTTPlainModulus(encoder.bfvcontext)
 
 	plaintext.Lift(encoder.bfvcontext)
 }
@@ -104,7 +105,7 @@ func (encoder *Encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	plaintext.EMB(encoder.bfvcontext)
+	plaintext.InvNTTPlainModulus(encoder.bfvcontext)
 	plaintext.Lift(encoder.bfvcontext)
 }
 

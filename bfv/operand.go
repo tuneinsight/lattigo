@@ -87,7 +87,7 @@ func (el *bfvElement) Copy(ctxCopy *bfvElement) {
 		for i := range ctxCopy.Value() {
 			el.Value()[i].Copy(ctxCopy.Value()[i])
 		}
-		el.SetIsNTT(el.IsNTT())
+		el.isNTT = el.isNTT
 	}
 }
 

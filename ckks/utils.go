@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math/big"
-	"math/bits"
 	"math/rand"
 )
 
@@ -150,80 +149,7 @@ func GenerateCKKSPrimes(logQ, logN, levels uint64) ([]uint64, error) {
 	return primes, nil
 }
 
-func EqualSlice(a, b []uint64) bool {
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func equalslice8(a, b []uint8) bool {
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func IsInSlice(x uint64, slice []uint64) bool {
-	for i := range slice {
-		if slice[i] == x {
-			return true
-		}
-	}
-	return false
-}
-
-func min(values []uint64) (r uint64) {
-	r = values[0]
-	for _, i := range values[1:] {
-		if i < r {
-			r = i
-		}
-	}
-	return
-}
-
-func max(values []uint64) (r uint64) {
-	r = values[0]
-	for _, i := range values[1:] {
-		if i > r {
-			r = i
-		}
-	}
-	return
-}
-
-func maxflo(values []float64) (r float64) {
-	r = values[0]
-	for _, i := range values[1:] {
-		if i > r {
-			r = i
-		}
-	}
-	return
-}
-
-func bitReverse64(index, bitLen uint64) uint64 {
-	return bits.Reverse64(index) >> (64 - bitLen)
-}
-
-func sliceBitReverse64(slice []complex128, N uint64) {
+func sliceBitReverseInPlaceComplex128(slice []complex128, N uint64) {
 
 	var bit uint64
 
@@ -245,11 +171,4 @@ func sliceBitReverse64(slice []complex128, N uint64) {
 
 		i++
 	}
-}
-
-func hammingWeight64(x uint64) uint64 {
-	x -= (x >> 1) & 0x5555555555555555
-	x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333)
-	x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0f
-	return ((x * 0x0101010101010101) & 0xffffffffffffffff) >> 56
 }

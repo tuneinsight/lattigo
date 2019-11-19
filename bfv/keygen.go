@@ -68,7 +68,7 @@ func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
 	return keygen.NewSecretkeyWithDistrib(1.0 / 3)
 }
 
-// Newsecretkey creates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2]
+// Newsecretkey creates a new SecretKey with the distribution [(1-p)/2, p, (1-p)/2]
 func (keygen *KeyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.sk = keygen.bfvcontext.contextKeys.SampleTernaryMontgomeryNTTNew(p)

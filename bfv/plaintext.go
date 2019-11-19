@@ -67,8 +67,8 @@ func (P *Plaintext) Lift(bfvcontext *BfvContext) {
 	}
 }
 
-// EMBInv applies the InvNTT on a plaintext within the plaintext modulus.
-func (P *Plaintext) EMBInv(bfvcontext *BfvContext) {
+// NTTPlainModulus applies the NTT on a plaintext within the plaintext modulus.
+func (P *Plaintext) NTTPlainModulus(bfvcontext *BfvContext) {
 
 	if bfvcontext.contextT.AllowsNTT() != true {
 		panic("plaintext context doesn't allow a valid NTT")
@@ -77,8 +77,8 @@ func (P *Plaintext) EMBInv(bfvcontext *BfvContext) {
 	bfvcontext.contextT.NTT(P.value, P.value)
 }
 
-// EMB applies the NTT on a plaintext within the plaintext modulus.
-func (P *Plaintext) EMB(bfvcontext *BfvContext) {
+// InvNTTPlainModulus applies the NTT on a plaintext within the plaintext modulus.
+func (P *Plaintext) InvNTTPlainModulus(bfvcontext *BfvContext) {
 
 	if bfvcontext.contextT.AllowsNTT() != true {
 		panic("plaintext context doesn't allow a valid InvNTT")

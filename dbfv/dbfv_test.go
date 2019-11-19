@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/big"
 	"testing"
@@ -639,7 +640,7 @@ func testRefresh(t *testing.T) {
 					coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], bfvContext.ContextT().Modulus[0], bfvContext.ContextT().GetBredParams()[0])
 				}
 
-				if equalslice(coeffsTmp, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertextTmp))) {
+				if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertextTmp))) {
 					maxDepth += 1
 				} else {
 					break
@@ -685,7 +686,7 @@ func testRefresh(t *testing.T) {
 			}
 
 			//Decrypts and compare
-			if equalslice(coeffs, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertext))) != true {
+			if utils.EqualSliceUint64(coeffs, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertext))) != true {
 				t.Errorf("error : BOOT")
 			}
 		})
@@ -701,7 +702,7 @@ func newTestVectors(contextParams *dbfvContext, encryptor *bfv.Encryptor, t *tes
 }
 
 func verifyTestVectors(contextParams *dbfvContext, decryptor *bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
-	if bfv.EqualSlice(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
+	if utils.EqualSliceUint64(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
 		t.Errorf("decryption error")
 	}
 }

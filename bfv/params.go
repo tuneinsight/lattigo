@@ -85,7 +85,7 @@ func (p *Parameters) Equals(other *Parameters) bool {
 	if p == other {
 		return true
 	}
-	return p.N == other.N && EqualSlice(p.Qi, other.Qi) && EqualSlice(p.Pi, other.Pi) && p.Sigma == other.Sigma
+	return p.N == other.N && utils.EqualSliceUint64(p.Qi, other.Qi) && utils.EqualSliceUint64(p.Pi, other.Pi) && p.Sigma == other.Sigma
 }
 
 // MarshalBinary returns a []byte representation of the parameter set

@@ -155,7 +155,7 @@ func (encoder *Encoder) invfftlazy(values []complex128, N uint64) {
 		}
 	}
 
-	sliceBitReverse64(values, N)
+	sliceBitReverseInPlaceComplex128(values, N)
 }
 
 func (encoder *Encoder) invfft(values []complex128, N uint64) {
@@ -172,7 +172,7 @@ func (encoder *Encoder) fft(values []complex128, N uint64) {
 	var lenh, lenq, gap, idx uint64
 	var u, v complex128
 
-	sliceBitReverse64(values, N)
+	sliceBitReverseInPlaceComplex128(values, N)
 
 	for len := uint64(2); len <= N; len <<= 1 {
 		for i := uint64(0); i < N; i += len {

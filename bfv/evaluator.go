@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
@@ -94,8 +95,8 @@ func (evaluator *Evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDeg
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
 func evaluateInPlaceBinary(el0, el1, elOut *bfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	maxDegree := max(el0.Degree(), el1.Degree())
-	minDegree := min(el0.Degree(), el1.Degree())
+	maxDegree := utils.MaxUint64(el0.Degree(), el1.Degree())
+	minDegree := utils.MinUint64(el0.Degree(), el1.Degree())
 
 	for i := uint64(0); i < minDegree+1; i++ {
 		evaluate(el0.value[i], el1.value[i], elOut.value[i])
@@ -124,33 +125,33 @@ func evaluateInPlaceUnary(el0, elOut *bfvElement, evaluate func(*ring.Poly, *rin
 
 // Add adds op0 to op1 and returns the result on ctOut.
 func (evaluator *Evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.Add)
 }
 
 // AddNew adds op0 to op1 and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
+	ctOut = evaluator.bfvcontext.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluator.Add(op0, op1, ctOut)
 	return
 }
 
 // AddNoMod adds op0 to op1 without modular reduction, and returns the result on cOut.
 func (evaluator *Evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.AddNoMod)
 }
 
 // AddNoModNew adds op0 to op1 without modular reduction and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
+	ctOut = evaluator.bfvcontext.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluator.AddNoMod(op0, op1, ctOut)
 	return
 }
 
 // Sub subtracts op1 to op0 and returns the result on cOut.
 func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.Sub)
 
 	if el0.Degree() < el1.Degree() {
@@ -162,14 +163,14 @@ func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 
 // SubNew subtracts op0 to op1 and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
+	ctOut = evaluator.bfvcontext.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluator.Sub(op0, op1, ctOut)
 	return
 }
 
 // SubNoMod subtracts op0 to op1 without modular reduction and returns the result on ctOut.
 func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.SubNoMod)
 
@@ -182,7 +183,7 @@ func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 
 // SubNoModNew subtracts op0 to op1 without modular reduction and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
+	ctOut = evaluator.bfvcontext.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluator.SubNoMod(op0, op1, ctOut)
 	return
 }
@@ -537,7 +538,7 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 			// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
 			if has_pow2_rotations {
 
-				if hammingWeight64(k) <= hammingWeight64((evaluator.bfvcontext.n>>1)-k) {
+				if utils.HammingWeight64(k) <= utils.HammingWeight64((evaluator.bfvcontext.n>>1)-k) {
 					evaluator.rotateColumnsLPow2(ct0, k, evakey, ctOut)
 				} else {
 					evaluator.rotateColumnsRPow2(ct0, (evaluator.bfvcontext.n>>1)-k, evakey, ctOut)

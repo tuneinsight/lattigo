@@ -3,6 +3,7 @@ package bfv
 import (
 	"fmt"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/rand"
 	"testing"
@@ -114,7 +115,7 @@ func verify_test_vectors(params *bfvParams, decryptor *Decryptor, coeffs *ring.P
 		coeffsTest = params.encoder.DecodeUint(decryptor.DecryptNew(el.Ciphertext()))
 	}
 
-	if EqualSlice(coeffs.Coeffs[0], coeffsTest) != true {
+	if utils.EqualSliceUint64(coeffs.Coeffs[0], coeffsTest) != true {
 		t.Errorf("decryption error")
 	}
 }

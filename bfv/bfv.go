@@ -75,11 +75,9 @@ func NewBfvContext() *BfvContext {
 // - ModuliP : the secondary ciphertext modulus used during the multiplication, composed of primes congruent to 1 mod 2N. Must be bigger than ModuliQ by a margin of ~20 bits.
 //
 // - sigma    : the variance of the gaussian sampling.
-func NewBfvContextWithParam(params *Parameters) (newbfvcontext *BfvContext, err error) {
+func NewBfvContextWithParam(params *Parameters) (newbfvcontext *BfvContext) {
 	newbfvcontext = new(BfvContext)
-	if err := newbfvcontext.SetParameters(params); err != nil {
-		return nil, err
-	}
+	newbfvcontext.SetParameters(params)
 	return
 }
 
@@ -97,7 +95,7 @@ func NewBfvContextWithParam(params *Parameters) (newbfvcontext *BfvContext, err 
 // - ModuliP : the secondary ciphertext modulus used during the multiplication, composed of primes congruent to 1 mod 2N. Must be bigger than ModuliQ by a margin of ~20 bits.
 //
 // - sigma    : the variance of the gaussian sampling.
-func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
+func (bfvContext *BfvContext) SetParameters(params *Parameters) {
 
 	bfvContext.contextT = ring.NewContext()
 	bfvContext.contextQ = ring.NewContext()
@@ -118,31 +116,33 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	// We do not check for an error since the plaintext NTT is optional
 	// it will still compute the other relevant parameters
 	bfvContext.contextT.SetParameters(N, []uint64{t})
-	bfvContext.contextT.GenNTTParams()
+	if err := bfvContext.contextT.GenNTTParams(); err != nil {
+		panic(err)
+	}
 	// ========================
 
 	bfvContext.contextQ.SetParameters(N, ModuliQ)
 
 	if err := bfvContext.contextQ.GenNTTParams(); err != nil {
-		return err
+		panic(err)
 	}
 
 	bfvContext.contextP.SetParameters(N, ModuliP)
 
 	if err := bfvContext.contextP.GenNTTParams(); err != nil {
-		return err
+		panic(err)
 	}
 
 	bfvContext.contextKeys.SetParameters(N, append(ModuliQ, params.KeySwitchPrimes...))
 
-	if err = bfvContext.contextKeys.GenNTTParams(); err != nil {
-		return err
+	if err := bfvContext.contextKeys.GenNTTParams(); err != nil {
+		panic(err)
 	}
 
 	bfvContext.contextPKeys.SetParameters(N, params.KeySwitchPrimes)
 
-	if err = bfvContext.contextPKeys.GenNTTParams(); err != nil {
-		return err
+	if err := bfvContext.contextPKeys.GenNTTParams(); err != nil {
+		panic(err)
 	}
 
 	bfvContext.specialprimes = make([]uint64, len(params.KeySwitchPrimes))
@@ -212,8 +212,6 @@ func (bfvContext *BfvContext) SetParameters(params *Parameters) (err error) {
 	}
 
 	bfvContext.galElRotRow = (N << 1) - 1
-
-	return nil
 }
 
 // N returns N which is the degree of the ring, of the target bfvcontext.

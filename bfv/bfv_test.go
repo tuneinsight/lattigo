@@ -65,9 +65,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params = new(bfvParams)
 
-	if params.bfvContext, err = NewBfvContextWithParam(contextParameters); err != nil {
-		log.Fatal(err)
-	}
+	params.bfvContext = NewBfvContextWithParam(contextParameters)
 
 	params.kgen = params.bfvContext.NewKeyGenerator()
 

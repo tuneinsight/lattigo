@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"math"
-	"math/bits"
-
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"math"
+	"math/bits"
 )
 
 var N uint64
@@ -51,10 +49,7 @@ func ObliviousRiding() {
 	// Plaintext modulus
 	params.T = 0x3ee0001
 
-	bfvContext, err := bfv.NewBfvContextWithParam(&params)
-	if err != nil {
-		log.Fatal(err)
-	}
+	bfvContext := bfv.NewBfvContextWithParam(&params)
 
 	encoder := bfvContext.NewEncoder()
 

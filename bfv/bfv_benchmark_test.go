@@ -12,9 +12,7 @@ func Benchmark_BFV(b *testing.B) {
 	for _, params := range paramSets {
 
 		bfvContext := NewBfvContext()
-		if err := bfvContext.SetParameters(&params); err != nil {
-			b.Error(err)
-		}
+		bfvContext.SetParameters(&params)
 
 		var sk *SecretKey
 		var pk *PublicKey

@@ -5,7 +5,6 @@ import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
-	"log"
 	"math/big"
 	"testing"
 )
@@ -66,9 +65,7 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 
 	params = new(dbfvContext)
 
-	if params.bfvContext, err = bfv.NewBfvContextWithParam(contextParameters); err != nil {
-		log.Fatal(err)
-	}
+	params.bfvContext = bfv.NewBfvContextWithParam(contextParameters)
 
 	params.encoder = params.bfvContext.NewEncoder()
 	params.evaluator = params.bfvContext.NewEvaluator()

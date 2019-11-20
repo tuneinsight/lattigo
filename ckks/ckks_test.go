@@ -54,7 +54,7 @@ func init() {
 
 	testParams.ckksParameters = []*Parameters{
 		DefaultParams[13],
-		//DefaultParams[14],
+		DefaultParams[14],
 		//DefaultParams[15],
 		//DefaultParams[16],
 	}
@@ -158,8 +158,6 @@ func verify_test_vectors(contextParams *ckksParams, decryptor *Decryptor, values
 	}
 
 	valuesTest = contextParams.encoder.Decode(plaintextTest, contextParams.ckksContext.Slots())
-
-	//fmt.Println(valuesTest[:4])
 
 	var deltaReal, deltaImag float64
 

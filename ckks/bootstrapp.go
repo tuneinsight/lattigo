@@ -167,7 +167,7 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 	return bootcontext, nil
 }
 
-func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext) (*Ciphertext) {
+func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext) *Ciphertext {
 
 	var ct0, ct1 *Ciphertext
 

@@ -20,7 +20,7 @@ func Test_Bootstrapp(t *testing.T) {
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 
-	slots := uint64(1 << 10)	
+	slots := uint64(1 << 10)
 
 	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/TestBoot", params.ckksContext.logN,
 		params.ckksContext.logQ,
@@ -51,7 +51,6 @@ func Test_Bootstrapp(t *testing.T) {
 		params.encoder.Encode(plaintext, values, slots)
 
 		ciphertext := params.encryptorPk.EncryptNew(plaintext)
-
 
 		for i := 0; i < 1; i++ {
 

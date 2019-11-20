@@ -10,10 +10,10 @@ import (
 // generation protocol.
 type RKGProtocol struct {
 	ringContext     *ring.Context
+	bfvContext      *bfv.BfvContext
 	keyswitchprimes []uint64
 	alpha           uint64
 	beta            uint64
-	ternarySampler  *ring.TernarySampler
 	gaussianSampler *ring.KYSampler
 	tmpPoly1        *ring.Poly
 	tmpPoly2        *ring.Poly
@@ -43,6 +43,7 @@ func NewEkgProtocol(context *bfv.BfvContext) *RKGProtocol {
 
 	ekg := new(RKGProtocol)
 	ekg.ringContext = context.ContextKeys()
+	ekg.bfvContext = context
 
 	ekg.keyswitchprimes = make([]uint64, len(context.KeySwitchPrimes()))
 	for i, pi := range context.KeySwitchPrimes() {
@@ -52,7 +53,6 @@ func NewEkgProtocol(context *bfv.BfvContext) *RKGProtocol {
 	ekg.alpha = uint64(len(ekg.keyswitchprimes))
 	ekg.beta = uint64(math.Ceil(float64(len(ekg.ringContext.Modulus)-len(ekg.keyswitchprimes)) / float64(ekg.alpha)))
 
-	ekg.ternarySampler = context.TernarySampler()
 	ekg.gaussianSampler = context.GaussianSampler()
 
 	ekg.tmpPoly1 = ekg.ringContext.NewPoly()
@@ -65,11 +65,8 @@ func NewEkgProtocol(context *bfv.BfvContext) *RKGProtocol {
 // NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first round).
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
-func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly, err error) {
-	if ephemeralKey, err = ekg.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
-		return nil, err
-	}
-	return
+func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly) {
+	return ekg.ringContext.SampleTernaryMontgomeryNTTNew(p)
 }
 
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
@@ -85,9 +82,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 
 	ekg.polypool.Copy(sk)
 
-	for _, pj := range ekg.keyswitchprimes {
-		ekg.ringContext.MulScalar(ekg.polypool, pj, ekg.polypool)
-	}
+	ekg.ringContext.MulScalarBigint(ekg.polypool, ekg.bfvContext.ContextPKeys().ModulusBigint, ekg.polypool)
 
 	ekg.ringContext.InvMForm(ekg.polypool, ekg.polypool)
 
@@ -100,9 +95,12 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 		for j := uint64(0); j < ekg.alpha; j++ {
 
 			index = i*ekg.alpha + j
+			qi := ekg.ringContext.Modulus[index]
+			tmp0 := ekg.polypool.Coeffs[index]
+			tmp1 := shareOut[i].Coeffs[index]
 
 			for w := uint64(0); w < ekg.ringContext.N; w++ {
-				shareOut[i].Coeffs[index][w] = ring.CRed(shareOut[i].Coeffs[index][w]+ekg.polypool.Coeffs[index][w], ekg.ringContext.Modulus[index])
+				tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 			}
 
 			// Handles the case where nb pj does not divides nb qi

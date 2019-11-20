@@ -8,8 +8,6 @@ import (
 // EkgProtocol is a structure storing the parameters for the collective evaluation-key generation.
 type RKGProtocol struct {
 	ckksContext *ckks.CkksContext
-	tmpPoly1    *ring.Poly
-	tmpPoly2    *ring.Poly
 	polypool    *ring.Poly
 }
 
@@ -39,9 +37,6 @@ func NewEkgProtocol(ckksContext *ckks.CkksContext) *RKGProtocol {
 
 	ekg := new(RKGProtocol)
 	ekg.ckksContext = ckksContext
-
-	ekg.tmpPoly1 = ekg.ckksContext.ContextKeys().NewPoly()
-	ekg.tmpPoly2 = ekg.ckksContext.ContextKeys().NewPoly()
 	ekg.polypool = ekg.ckksContext.ContextKeys().NewPoly()
 
 	return ekg
@@ -50,11 +45,8 @@ func NewEkgProtocol(ckksContext *ckks.CkksContext) *RKGProtocol {
 // NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first round).
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
-func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly, err error) {
-	if ephemeralKey, err = ekg.ckksContext.TernarySampler().SampleMontgomeryNTTNew(p); err != nil {
-		return nil, err
-	}
-	return
+func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly) {
+	return ekg.ckksContext.ContextKeys().SampleTernaryMontgomeryNTTNew(p)
 }
 
 // GenSamples is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
@@ -72,9 +64,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 
 	ekg.polypool.Copy(sk)
 
-	for _, pj := range ekg.ckksContext.KeySwitchPrimes() {
-		contextKeys.MulScalar(ekg.polypool, pj, ekg.polypool)
-	}
+	contextKeys.MulScalarBigint(ekg.polypool, ekg.ckksContext.ContextP().ModulusBigint, ekg.polypool)
 
 	contextKeys.InvMForm(ekg.polypool, ekg.polypool)
 
@@ -88,8 +78,12 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 
 			index = i*ekg.ckksContext.Alpha() + j
 
+			qi := contextKeys.Modulus[index]
+			tmp0 := ekg.polypool.Coeffs[index]
+			tmp1 := shareOut[i].Coeffs[index]
+
 			for w := uint64(0); w < contextKeys.N; w++ {
-				shareOut[i].Coeffs[index][w] = ring.CRed(shareOut[i].Coeffs[index][w]+ekg.polypool.Coeffs[index][w], contextKeys.Modulus[index])
+				tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 			}
 
 			// Handles the case where nb pj does not divides nb qi
@@ -138,8 +132,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly,
 		contextKeys.MulCoeffsMontgomery(round1[i], sk, shareOut[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
-		ekg.ckksContext.GaussianSampler().SampleNTT(ekg.tmpPoly1)
-		contextKeys.Add(shareOut[i][0], ekg.tmpPoly1, shareOut[i][0])
+		ekg.ckksContext.GaussianSampler().SampleNTT(ekg.polypool)
+		contextKeys.Add(shareOut[i][0], ekg.polypool, shareOut[i][0])
 
 		// Second Element
 		// e_2i
@@ -147,6 +141,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly,
 		// s*a + e_2i
 		contextKeys.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut[i][1])
 	}
+
+	ekg.polypool.Zero()
 
 }
 
@@ -178,13 +174,13 @@ func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.
 	contextKeys := ekg.ckksContext.ContextKeys()
 
 	// (u_i - s_i)
-	contextKeys.Sub(u, sk, ekg.tmpPoly1)
+	contextKeys.Sub(u, sk, ekg.polypool)
 
 	for i := uint64(0); i < ekg.ckksContext.Beta(); i++ {
 
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
 		ekg.ckksContext.GaussianSampler().SampleNTT(shareOut[i])
-		contextKeys.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round2[i][1], shareOut[i])
+		contextKeys.MulCoeffsMontgomeryAndAdd(ekg.polypool, round2[i][1], shareOut[i])
 	}
 }
 

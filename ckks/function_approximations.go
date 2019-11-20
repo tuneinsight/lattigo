@@ -64,7 +64,7 @@ func chebyCoeffs(u, y []complex128, a, b complex128) (coeffs []complex128) {
 		for j := 0; j < n; j++ {
 			coeffs[i] += y[j] * evaluateChebyshevBasis(i, u[j], a, b)
 		}
-		coeffs[i] *= (2.0/complex(float64(n), 0))
+		coeffs[i] *= (2.0 / complex(float64(n), 0))
 	}
 
 	return
@@ -110,7 +110,7 @@ func Approximate(function func(complex128) complex128, a, b complex128, degree i
 // Evaluates the nth degree Chebyshev ring in a recursive manner, storing intermediate results in the hashtable.
 // Consumes at most ceil(sqrt(n)) levels for an evaluation at Cn.
 // Uses the following property : for a given Chebyshev ring Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
-func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (err error) {
+func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) {
 
 	if C[n] == nil {
 
@@ -129,9 +129,7 @@ func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator,
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		if C[n], err = evaluator.MulRelinNew(C[a], C[b], evakey); err != nil {
-			return err
-		}
+		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
 
 		evaluator.Rescale(C[n], evaluator.ckkscontext.scale, C[n])
 
@@ -142,47 +140,33 @@ func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator,
 		if c == 0 {
 			evaluator.AddConst(C[n], -1, C[n])
 		} else {
-
-			if err = evaluator.Sub(C[n], C[c], C[n]); err != nil {
-				return err
-			}
+			evaluator.Sub(C[n], C[c], C[n])
 		}
-
-		return nil
 	}
-
-	return nil
 }
 
-func evaluateRecurse(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext, err error) {
+func evaluateRecurse(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	res = evaluator.ckkscontext.NewCiphertext(1, C[1].Level(), C[1].Scale())
 
 	if math.Abs(real(coeffs[0])) > 1e-15 || math.Abs(imag(coeffs[0])) > 1e-15 {
-		if err = evaluator.AddConst(res, coeffs[0], res); err != nil {
-			return nil, err
-		}
+		evaluator.AddConst(res, coeffs[0], res)
 	}
 
 	for key := range coeffs {
 		if key != 0 && (math.Abs(real(coeffs[key])) > 1e-15 || math.Abs(imag(coeffs[key])) > 1e-15) {
-
-			if err = evaluator.MultByConstAndAdd(C[key], coeffs[key], res); err != nil {
-				return nil, err
-			}
+			evaluator.MultByConstAndAdd(C[key], coeffs[key], res)
 		}
 	}
 
-	if err = evaluator.Rescale(res, evaluator.ckkscontext.scale, res); err != nil {
-		return nil, err
-	}
+	evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
 
 	return
 }
 
-func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext, err error) {
+func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
-	if maxDegree <= 1<<L {
+	if maxDegree <= (1 << L) {
 
 		return evaluateRecurse(coeffs, C, evaluator, evakey)
 
@@ -194,28 +178,18 @@ func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]
 
 		coeffsq, coeffsr := split(coeffs, 1<<(M-1), maxDegree)
 
-		if res, err = recurse(maxDegree-(1<<(M-1)), L, M-1, coeffsq, C, evaluator, evakey); err != nil {
-			return nil, err
-		}
+		res = recurse(maxDegree-(1<<(M-1)), L, M-1, coeffsq, C, evaluator, evakey)
 
 		var tmp *Ciphertext
-		if tmp, err = recurse((1<<(M-1))-1, L, M-1, coeffsr, C, evaluator, evakey); err != nil {
-			return nil, err
-		}
+		tmp = recurse((1<<(M-1))-1, L, M-1, coeffsr, C, evaluator, evakey)
 
-		if err = evaluator.MulRelin(res, C[1<<(M-1)], evakey, res); err != nil {
-			return nil, err
-		}
+		evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
 
-		if err = evaluator.Add(res, tmp, res); err != nil {
-			return nil, err
-		}
+		evaluator.Add(res, tmp, res)
 
-		if err = evaluator.Rescale(res, evaluator.ckkscontext.scale, res); err != nil {
-			return nil, err
-		}
+		evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
 
-		return res, nil
+		return res
 	}
 }
 
@@ -227,26 +201,20 @@ func split(coeffs map[uint64]complex128, degree, maxDegree uint64) (coeffsq, coe
 	coeffsq = make(map[uint64]complex128)
 
 	for i := uint64(0); i < degree; i++ {
-		if coeffs[i] != 0 {
-			coeffsr[i] = coeffs[i]
-		}
+		coeffsr[i] = coeffs[i]
 	}
 
-	for i := uint64(degree); i < maxDegree+1; i++ {
-		if coeffs[i] != 0 {
-			if i != degree {
-				coeffsq[i-degree] = 2 * coeffs[i]
-				coeffsr[2*degree-i] -= coeffs[i]
-			} else {
-				coeffsr[i-degree] = coeffs[i]
-			}
-		}
+	coeffsq[0] = coeffs[degree]
+
+	for i := uint64(degree + 1); i < maxDegree+1; i++ {
+		coeffsq[i-degree] = 2 * coeffs[i]
+		coeffsr[2*degree-i] -= coeffs[i]
 	}
 
 	return coeffsq, coeffsr
 }
 
-func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error) {
+func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
 
@@ -256,7 +224,7 @@ func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterp
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
 
-	C[2], _ = evaluator.MulRelinNew(C[1], C[1], evakey)
+	C[2] = evaluator.MulRelinNew(C[1], C[1], evakey)
 	evaluator.Rescale(C[2], evaluator.ckkscontext.scale, C[2])
 
 	evaluator.Add(C[2], C[2], C[2])
@@ -265,16 +233,12 @@ func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterp
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(M >> 1)
 
-	for i := uint64(3); i < (1<<L)+1; i++ {
-		if err = computePowerBasis(i, C, evaluator, evakey); err != nil {
-			return nil, err
-		}
+	for i := uint64(3); i <= (1 << L); i++ {
+		computePowerBasis(i, C, evaluator, evakey)
 	}
 
 	for i := L + 1; i < M; i++ {
-		if err = computePowerBasis(1<<i, C, evaluator, evakey); err != nil {
-			return nil, err
-		}
+		computePowerBasis(1<<i, C, evaluator, evakey)
 	}
 
 	return recurse(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)

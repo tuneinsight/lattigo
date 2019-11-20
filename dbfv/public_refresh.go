@@ -50,22 +50,22 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 
 	// h0 = s*ct[1]
 	contextQ.NTT(ciphertext.Value()[1], rfp.tmp1)
-	contextQ.MulCoeffsMontgomeryAndAdd(sk, rfp.tmp1, share.RefreshShareDecrypt)
+	contextQ.MulCoeffsMontgomery(sk, rfp.tmp1, share.RefreshShareDecrypt)
 
 	contextQ.InvNTT(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P
-	for _, pj := range rfp.bfvContext.KeySwitchPrimes() {
-		contextQ.MulScalar(share.RefreshShareDecrypt, pj, share.RefreshShareDecrypt)
-	}
+	contextQ.MulScalarBigint(share.RefreshShareDecrypt, contextP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
 	sampler.Sample(rfp.tmp1)
 	contextQ.Add(share.RefreshShareDecrypt, rfp.tmp1, share.RefreshShareDecrypt)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(rfp.bfvContext.ContextKeys().Modulus)); x, i = x+1, i+1 {
+		tmphP := rfp.hP.Coeffs[x]
+		tmp1 := rfp.tmp1.Coeffs[i]
 		for j := uint64(0); j < contextQ.N; j++ {
-			rfp.hP.Coeffs[x][j] += rfp.tmp1.Coeffs[i][j]
+			tmphP[j] += tmp1[j]
 		}
 	}
 
@@ -74,7 +74,8 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 
 	// h1 = -s*a
 	contextKeys.NTT(crs, rfp.tmp1)
-	contextKeys.MulCoeffsMontgomeryAndSub(sk, rfp.tmp1, rfp.tmp2)
+	contextKeys.MulCoeffsMontgomery(sk, rfp.tmp1, rfp.tmp2)
+	contextKeys.Neg(rfp.tmp2, rfp.tmp2)
 	contextKeys.InvNTT(rfp.tmp2, rfp.tmp2)
 
 	// h1 = s*a + e'

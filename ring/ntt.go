@@ -131,7 +131,7 @@ func InvNTT(coeffs_in, coeffs_out []uint64, N uint64, nttPsiInv []uint64, nttNIn
 		t <<= 1
 	}
 
-	// Finishes with an exact reduction given
+	// Finishes with an exact reduction
 	for j := uint64(0); j < N; j++ {
 		coeffs_out[j] = MRed(coeffs_out[j], nttNInv, Q, mredParams)
 	}

@@ -67,10 +67,7 @@ func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 
 	contextQ.NTT(ct.Value()[1], cks.tmpNtt)
 	contextQ.MulCoeffsMontgomery(cks.tmpNtt, skDelta, shareOut)
-
-	for _, pj := range cks.bfvContext.KeySwitchPrimes() {
-		contextQ.MulScalar(shareOut, pj, shareOut)
-	}
+	contextQ.MulScalarBigint(shareOut, contextP.ModulusBigint, shareOut)
 
 	contextQ.InvNTT(shareOut, shareOut)
 
@@ -78,8 +75,10 @@ func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 	contextQ.Add(shareOut, cks.tmpNtt, shareOut)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.bfvContext.ContextKeys().Modulus)); x, i = x+1, i+1 {
+		tmphP := cks.hP.Coeffs[x]
+		tmpNTT := cks.tmpNtt.Coeffs[i]
 		for j := uint64(0); j < contextQ.N; j++ {
-			cks.hP.Coeffs[x][j] += cks.tmpNtt.Coeffs[i][j]
+			tmphP[j] += tmpNTT[j]
 		}
 	}
 

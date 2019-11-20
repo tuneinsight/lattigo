@@ -1,9 +1,9 @@
 package ckks
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math"
+	"math/big"
 )
 
 // Encoder is a struct storing the necessary parameters to encode a slice of complex number on a plaintext.
@@ -11,8 +11,8 @@ type Encoder struct {
 	ckkscontext   *CkksContext
 	values        []complex128
 	valuesfloat   []float64
-	bigint_coeffs []*ring.Int
-	q_half        *ring.Int
+	bigint_coeffs []*big.Int
+	q_half        *big.Int
 	polypool      *ring.Poly
 	m             uint64
 	roots         []complex128
@@ -25,7 +25,7 @@ func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
 	encoder.ckkscontext = ckkscontext
 	encoder.values = make([]complex128, ckkscontext.maxSlots)
 	encoder.valuesfloat = make([]float64, ckkscontext.n)
-	encoder.bigint_coeffs = make([]*ring.Int, ckkscontext.n)
+	encoder.bigint_coeffs = make([]*big.Int, ckkscontext.n)
 	encoder.q_half = ring.NewUint(0)
 	encoder.polypool = ckkscontext.contextQ.NewPoly()
 
@@ -51,10 +51,10 @@ func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
 }
 
 // EncodeFloat takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
-func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots uint64) (err error) {
+func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
 
 	if uint64(len(values)) > encoder.ckkscontext.maxSlots || uint64(len(values)) > slots {
-		return errors.New("cannot encode -> to many values for the given number of slots")
+		panic("cannot encode -> to many values for the given number of slots")
 	}
 
 	plaintext.slots = slots
@@ -83,8 +83,6 @@ func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 	for i := uint64(0); i < encoder.ckkscontext.n; i++ {
 		encoder.valuesfloat[i] = 0
 	}
-
-	return nil
 }
 
 // DecodeFloat decodes the plaintext values to a slice of complex128 values of size at most N/2.
@@ -93,7 +91,7 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 	encoder.ckkscontext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	encoder.ckkscontext.contextQ.PolyToBigint(encoder.polypool, encoder.bigint_coeffs)
 
-	encoder.q_half.SetBigInt(plaintext.currentModulus)
+	encoder.q_half.Set(plaintext.currentModulus)
 	encoder.q_half.Rsh(encoder.q_half, 1)
 
 	gap := encoder.ckkscontext.maxSlots / slots
@@ -104,14 +102,14 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 
 		// Centers the value arounds the current modulus
 		encoder.bigint_coeffs[idx].Mod(encoder.bigint_coeffs[idx], plaintext.currentModulus)
-		sign = encoder.bigint_coeffs[idx].Compare(encoder.q_half)
+		sign = encoder.bigint_coeffs[idx].Cmp(encoder.q_half)
 		if sign == 1 || sign == 0 {
 			encoder.bigint_coeffs[idx].Sub(encoder.bigint_coeffs[idx], plaintext.currentModulus)
 		}
 
 		// Centers the value arounds the current modulus
 		encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Mod(encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots], plaintext.currentModulus)
-		sign = encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Compare(encoder.q_half)
+		sign = encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Cmp(encoder.q_half)
 		if sign == 1 || sign == 0 {
 			encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Sub(encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots], plaintext.currentModulus)
 		}
@@ -157,7 +155,7 @@ func (encoder *Encoder) invfftlazy(values []complex128, N uint64) {
 		}
 	}
 
-	sliceBitReverse64(values, N)
+	sliceBitReverseInPlaceComplex128(values, N)
 }
 
 func (encoder *Encoder) invfft(values []complex128, N uint64) {
@@ -174,7 +172,7 @@ func (encoder *Encoder) fft(values []complex128, N uint64) {
 	var lenh, lenq, gap, idx uint64
 	var u, v complex128
 
-	sliceBitReverse64(values, N)
+	sliceBitReverseInPlaceComplex128(values, N)
 
 	for len := uint64(2); len <= N; len <<= 1 {
 		for i := uint64(0); i < N; i += len {

@@ -9,7 +9,6 @@ import (
 type RKGProtocolNaive struct {
 	bfvContext      *bfv.BfvContext
 	gaussianSampler *ring.KYSampler
-	ternarySampler  *ring.TernarySampler
 	polypool        *ring.Poly
 }
 
@@ -19,7 +18,6 @@ func NewRKGProtocolNaive(bfvContext *bfv.BfvContext) (rkg *RKGProtocolNaive) {
 	rkg = new(RKGProtocolNaive)
 	rkg.bfvContext = bfvContext
 	rkg.gaussianSampler = bfvContext.GaussianSampler()
-	rkg.ternarySampler = bfvContext.TernarySampler()
 	rkg.polypool = bfvContext.ContextKeys().NewPoly()
 	return
 }
@@ -56,9 +54,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 	rkg.polypool.Copy(sk)
 
-	for _, pj := range rkg.bfvContext.KeySwitchPrimes() {
-		contextKeys.MulScalar(rkg.polypool, pj, rkg.polypool)
-	}
+	contextKeys.MulScalarBigint(rkg.polypool, rkg.bfvContext.ContextPKeys().ModulusBigint, rkg.polypool)
 
 	contextKeys.InvMForm(rkg.polypool, rkg.polypool)
 
@@ -76,8 +72,13 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 			index = i*rkg.bfvContext.Alpha() + j
 
+			qi := contextKeys.Modulus[index]
+
+			tmp0 := rkg.polypool.Coeffs[index]
+			tmp1 := shareOut[i][0].Coeffs[index]
+
 			for w := uint64(0); w < contextKeys.N; w++ {
-				shareOut[i][0].Coeffs[index][w] = ring.CRed(shareOut[i][0].Coeffs[index][w]+rkg.polypool.Coeffs[index][w], contextKeys.Modulus[index])
+				tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 			}
 
 			// Handles the case where nb pj does not divides nb qi
@@ -89,7 +90,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 	for i := uint64(0); i < rkg.bfvContext.Beta(); i++ {
 		// u
-		rkg.ternarySampler.SampleMontgomeryNTT(0.5, rkg.polypool)
+		contextKeys.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
 		// h_0 = pk_0 * u + e0 + P * sk * (qiBarre*qiStar)%qi
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
 		// h_1 = pk_1 * u + e1 + P * sk * (qiBarre*qiStar)%qi
@@ -134,7 +135,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 		contextKeys.MulCoeffsMontgomery(round1[i][1], sk, shareOut[i][1])
 
 		// v
-		rkg.ternarySampler.SampleMontgomeryNTT(0.5, rkg.polypool)
+		contextKeys.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])

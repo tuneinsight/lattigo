@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 )
 
@@ -17,24 +16,24 @@ type Encryptor struct {
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (bfvcontext *BfvContext) NewEncryptorFromPk(pk *PublicKey) (*Encryptor, error) {
+func (bfvcontext *BfvContext) NewEncryptorFromPk(pk *PublicKey) *Encryptor {
 	return bfvcontext.newEncryptor(pk, nil)
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (bfvcontext *BfvContext) NewEncryptorFromSk(sk *SecretKey) (*Encryptor, error) {
+func (bfvcontext *BfvContext) NewEncryptorFromSk(sk *SecretKey) *Encryptor {
 	return bfvcontext.newEncryptor(nil, sk)
 }
 
-func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
+func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
 
 	if pk != nil && (uint64(pk.pk[0].GetDegree()) != bfvcontext.n || uint64(pk.pk[1].GetDegree()) != bfvcontext.n) {
-		return nil, errors.New("error : pk ring degree doesn't match bfvcontext ring degree")
+		panic("error : pk ring degree doesn't match bfvcontext ring degree")
 	}
 
 	if sk != nil && uint64(sk.sk.GetDegree()) != bfvcontext.n {
-		return nil, errors.New("error : sk ring degree doesn't match bfvcontext ring degree")
+		panic("error : sk ring degree doesn't match bfvcontext ring degree")
 	}
 
 	encryptor = new(Encryptor)
@@ -48,7 +47,7 @@ func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryp
 
 	encryptor.baseconverter = ring.NewFastBasisExtender(bfvcontext.contextQ.Modulus, bfvcontext.specialprimes)
 
-	return encryptor, nil
+	return
 }
 
 // EncryptFromPkNew encrypts the input plaintext using the stored public-key and returns
@@ -57,11 +56,11 @@ func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryp
 //
 // encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
-func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext, err error) {
+func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
 
 	ciphertext = encryptor.bfvcontext.NewCiphertext(1)
-
-	return ciphertext, encryptor.Encrypt(plaintext, ciphertext)
+	encryptor.Encrypt(plaintext, ciphertext)
+	return
 }
 
 // EncryptFromPk encrypts the input plaintext using the stored public-key, and returns the result
@@ -70,7 +69,7 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Cipher
 //
 // encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
-func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
+func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	if encryptor.sk != nil {
 
@@ -82,10 +81,8 @@ func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext
 
 	} else {
 
-		return errors.New("cannot encrypt -> public-key and/or secret-key has not been set")
+		panic("cannot encrypt -> public-key and/or secret-key has not been set")
 	}
-
-	return nil
 }
 
 func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
@@ -93,25 +90,25 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	context := encryptor.bfvcontext.contextKeys
 
 	// u
-	encryptor.bfvcontext.ternarySampler.SampleMontgomeryNTT(0.5, encryptor.polypool[2])
+	encryptor.bfvcontext.contextKeys.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
 
 	// ct[0] = pk[0]*u
 	// ct[1] = pk[1]*u
 	context.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 	context.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
-	// ct[0] = pk[0]*u + e0
-	encryptor.bfvcontext.gaussianSampler.SampleNTT(encryptor.polypool[2])
-	context.Add(encryptor.polypool[0], encryptor.polypool[2], encryptor.polypool[0])
-
-	// ct[1] = pk[1]*u + e1
-	encryptor.bfvcontext.gaussianSampler.SampleNTT(encryptor.polypool[2])
-	context.Add(encryptor.polypool[1], encryptor.polypool[2], encryptor.polypool[1])
-
-	// We rescal the encryption of zero by the special prime, dividing the error by this prime
 	context.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
 	context.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
+	// ct[0] = pk[0]*u + e0
+	encryptor.bfvcontext.gaussianSampler.Sample(encryptor.polypool[2])
+	context.Add(encryptor.polypool[0], encryptor.polypool[2], encryptor.polypool[0])
+
+	// ct[1] = pk[1]*u + e1
+	encryptor.bfvcontext.gaussianSampler.Sample(encryptor.polypool[2])
+	context.Add(encryptor.polypool[1], encryptor.polypool[2], encryptor.polypool[1])
+
+	// We rescal the encryption of zero by the special prime, dividing the error by this prime
 	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
 	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
 
@@ -129,13 +126,13 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 	// ct = [(-a*s + e)/P , a/P]
 	context.UniformPoly(encryptor.polypool[1])
-	encryptor.bfvcontext.gaussianSampler.SampleNTT(encryptor.polypool[0])
-
 	context.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
 
 	// We rescal the encryption of zero by the special prime, dividing the error by this prime
 	context.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
 	context.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+
+	encryptor.bfvcontext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
 
 	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
 	encryptor.baseconverter.ModDown(context, encryptor.bfvcontext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])

@@ -3,6 +3,7 @@ package ckks
 import (
 	"fmt"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"math"
 	"math/bits"
 	"math/cmplx"
@@ -30,7 +31,7 @@ type BootContext struct {
 	pDFTInv  []*dftvectors
 
 	relinkey *EvaluationKey
-	rotkeys  *RotationKey
+	rotkeys  *RotationKeys
 
 	ctxpool [3]*Ciphertext
 }
@@ -93,7 +94,7 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 	logSlots := uint64(bits.Len64(bootcontext.slots) - 1)
 	logMaxSlots := uint64(bits.Len64(bootcontext.ckkscontext.maxSlots) - 1)
 	for i := logSlots; i < logMaxSlots; i++ {
-		if !IsInSlice(1<<i, rotations) {
+		if !utils.IsInSliceUint64(1<<i, rotations) {
 			rotations = append(rotations, 1<<i)
 		}
 	}
@@ -108,13 +109,13 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 
 			index = ((j / bootcontext.pDFTInv[i].N1) * bootcontext.pDFTInv[i].N1) & (slots - 1)
 
-			if !IsInSlice(index, rotations) {
+			if !utils.IsInSliceUint64(index, rotations) {
 				rotations = append(rotations, index)
 			}
 
 			index = j % bootcontext.pDFTInv[i].N1
 
-			if !IsInSlice(index, rotations) {
+			if !utils.IsInSliceUint64(index, rotations) {
 				rotations = append(rotations, index)
 			}
 		}
@@ -132,13 +133,13 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (slots - 1)
 			}
 
-			if !IsInSlice(index, rotations) {
+			if !utils.IsInSliceUint64(index, rotations) {
 				rotations = append(rotations, index)
 			}
 
 			index = j % bootcontext.pDFT[i].N1
 
-			if !IsInSlice(index, rotations) {
+			if !utils.IsInSliceUint64(index, rotations) {
 				rotations = append(rotations, index)
 			}
 		}
@@ -149,8 +150,12 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 
 	kgen := ckkscontext.NewKeyGenerator()
 
-	if bootcontext.rotkeys, err = kgen.NewRotationKeys(sk, rotations, nil, true); err != nil {
-		return nil, err
+	bootcontext.rotkeys = ckkscontext.NewRotationKeys()
+
+	kgen.GenRot(Conjugate, sk, 0, bootcontext.rotkeys)
+
+	for _, i := range rotations {
+		kgen.GenRot(RotationLeft, sk, uint64(i), bootcontext.rotkeys)
 	}
 
 	bootcontext.relinkey = kgen.NewRelinKey(sk)
@@ -162,9 +167,8 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 	return bootcontext, nil
 }
 
-func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext) (*Ciphertext, error) {
+func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext) (*Ciphertext) {
 
-	var err error
 	var ct0, ct1 *Ciphertext
 
 	for ct.Level() != 0 {
@@ -182,24 +186,16 @@ func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext)
 	logMaxSlots := uint64(bits.Len64(bootcontext.ckkscontext.maxSlots) - 1)
 	for i := logSlots; i < logMaxSlots; i++ {
 
-		if err = evaluator.RotateColumns(ct, 1<<i, bootcontext.rotkeys, bootcontext.ctxpool[0]); err != nil {
-			return nil, err
-		}
+		evaluator.RotateColumns(ct, 1<<i, bootcontext.rotkeys, bootcontext.ctxpool[0])
 
-		if err = evaluator.Add(ct, bootcontext.ctxpool[0], ct); err != nil {
-			return nil, err
-		}
+		evaluator.Add(ct, bootcontext.ctxpool[0], ct)
 	}
 
 	// Part 1 : Coeffs to slots
-	if ct0, ct1, err = bootcontext.coeffsToSlots(evaluator, ct); err != nil {
-		return nil, err
-	}
+	ct0, ct1 = bootcontext.coeffsToSlots(evaluator, ct)
 
 	// Part 2 : SineEval
-	if ct0, ct1, err = bootcontext.evaluateSine(ct0, ct1, evaluator); err != nil {
-		return nil, err
-	}
+	ct0, ct1 = bootcontext.evaluateSine(ct0, ct1, evaluator)
 
 	// Part 3 : Slots to coeffs
 	return bootcontext.slotsToCoeffs(evaluator, ct0, ct1)
@@ -256,69 +252,51 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 	return ct
 }
 
-func (bootcontext *BootContext) coeffsToSlots(evaluator *Evaluator, vec *Ciphertext) (ct0, ct1 *Ciphertext, err error) {
+func (bootcontext *BootContext) coeffsToSlots(evaluator *Evaluator, vec *Ciphertext) (ct0, ct1 *Ciphertext) {
 
 	var zV, zVconj *Ciphertext
 
-	if zV, err = bootcontext.dft(evaluator, vec, bootcontext.pDFTInv, true); err != nil {
-		return nil, nil, err
-	}
+	zV = bootcontext.dft(evaluator, vec, bootcontext.pDFTInv, true)
 
 	// Extraction of real and imaginary parts.
-	if zVconj, err = evaluator.ConjugateNew(zV, bootcontext.rotkeys); err != nil {
-		return nil, nil, err
-	}
+	zVconj = evaluator.ConjugateNew(zV, bootcontext.rotkeys)
 
 	// The real part is stored in ct0
-	if ct0, err = evaluator.AddNew(zV, zVconj); err != nil {
-		return nil, nil, err
-	}
+	ct0 = evaluator.AddNew(zV, zVconj)
 
 	// The imaginary part is stored in ct1
-	if ct1, err = evaluator.SubNew(zV, zVconj); err != nil {
-		return nil, nil, err
-	}
+	ct1 = evaluator.SubNew(zV, zVconj)
 
-	if err = evaluator.DivByi(ct1, ct1); err != nil {
-		return nil, nil, err
-	}
+	evaluator.DivByi(ct1, ct1)
 
 	// If repacking, then ct0 and ct1 right n/2 slots are zero.
 	if bootcontext.repack {
 
 		// The imaginary part is put in the right n/2 slots of ct0.
-		if err = evaluator.RotateColumns(ct1, bootcontext.slots, bootcontext.rotkeys, ct1); err != nil {
-			return nil, nil, err
-		}
+		evaluator.RotateColumns(ct1, bootcontext.slots, bootcontext.rotkeys, ct1)
 
-		if err = evaluator.Add(ct0, ct1, ct0); err != nil {
-			return nil, nil, err
-		}
+		evaluator.Add(ct0, ct1, ct0)
 
-		return ct0, nil, nil
+		return ct0, nil
 	}
 
-	return ct0, ct1, nil
+	return ct0, ct1
 }
 
-func (bootcontext *BootContext) slotsToCoeffs(evaluator *Evaluator, ct0, ct1 *Ciphertext) (ct *Ciphertext, err error) {
+func (bootcontext *BootContext) slotsToCoeffs(evaluator *Evaluator, ct0, ct1 *Ciphertext) (ct *Ciphertext) {
 
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if !bootcontext.repack {
 
-		if err = evaluator.MultByi(ct1, ct1); err != nil {
-			return nil, err
-		}
+		evaluator.MultByi(ct1, ct1)
 
-		if err = evaluator.Add(ct0, ct1, ct0); err != nil {
-			return nil, err
-		}
+		evaluator.Add(ct0, ct1, ct0)
 	}
 
 	return bootcontext.dft(evaluator, ct0, bootcontext.pDFT, false)
 }
 
-func (bootcontext *BootContext) dft(evaluator *Evaluator, vec *Ciphertext, plainVectors []*dftvectors, forward bool) (w *Ciphertext, err error) {
+func (bootcontext *BootContext) dft(evaluator *Evaluator, vec *Ciphertext, plainVectors []*dftvectors, forward bool) (w *Ciphertext) {
 
 	levels := uint64(len(plainVectors))
 
@@ -327,19 +305,15 @@ func (bootcontext *BootContext) dft(evaluator *Evaluator, vec *Ciphertext, plain
 	// Sequencially multiplies w with the provided dft matrices.
 	for i := uint64(0); i < levels; i++ {
 
-		if w, err = bootcontext.multiplyByDiagMatrice(evaluator, w, plainVectors[i]); err != nil {
-			return nil, err
-		}
+		w = bootcontext.multiplyByDiagMatrice(evaluator, w, plainVectors[i])
 
 		evaluator.Rescale(w, evaluator.ckkscontext.scale, w)
 	}
 
-	return w, nil
+	return w
 }
 
-func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *Evaluator) (*Ciphertext, *Ciphertext, error) {
-
-	var err error
+func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *Evaluator) (*Ciphertext, *Ciphertext) {
 
 	// Reference scale is changed to the new ciphertext's scale.
 	bootcontext.ckkscontext.scale = bootcontext.ckkscontext.scalechain[ct0.Level()]
@@ -347,28 +321,25 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *Ev
 	// TODO : manage scale dynamicly depending on Q_0, the Qi of the SineEval and the ciphertext's scale.
 	ct0.MulScale(1024)
 	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
-	if ct0, err = bootcontext.evaluateChebyBoot(evaluator, ct0); err != nil {
-		return nil, nil, err
-	}
+	ct0 = bootcontext.evaluateChebyBoot(evaluator, ct0)
+
 	ct0.DivScale(1024)
 
 	if ct1 != nil {
 
 		ct1.MulScale(1024)
 		// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
-		if ct1, err = bootcontext.evaluateChebyBoot(evaluator, ct1); err != nil {
-			return nil, nil, err
-		}
+		ct1 = bootcontext.evaluateChebyBoot(evaluator, ct1)
 		ct1.DivScale(1024)
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
 	bootcontext.ckkscontext.scale = ct0.Scale()
 
-	return ct0, ct1, nil
+	return ct0, ct1
 }
 
-func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciphertext) (res *Ciphertext, err error) {
+func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciphertext) (res *Ciphertext) {
 
 	// Chebyshev params
 	a := bootcontext.chebycoeffs.a
@@ -386,7 +357,7 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciph
 	evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
 	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
 
-	C[2], _ = evaluator.MulRelinNew(C[1], C[1], bootcontext.relinkey)
+	C[2] = evaluator.MulRelinNew(C[1], C[1], bootcontext.relinkey)
 	evaluator.Rescale(C[2], evaluator.ckkscontext.scale, C[2])
 
 	evaluator.Add(C[2], C[2], C[2])
@@ -396,21 +367,17 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciph
 	L := uint64(M >> 1)
 
 	for i := uint64(3); i < (1<<L)+1; i++ {
-		if err = computePowerBasis(i, C, evaluator, bootcontext.relinkey); err != nil {
-			return nil, err
-		}
+		computePowerBasis(i, C, evaluator, bootcontext.relinkey)
 	}
 
 	for i := L + 1; i < M; i++ {
-		if err = computePowerBasis(1<<i, C, evaluator, bootcontext.relinkey); err != nil {
-			return nil, err
-		}
+		computePowerBasis(1<<i, C, evaluator, bootcontext.relinkey)
 	}
 
 	return recurse(degree, L, M, coeffs, C, evaluator, bootcontext.relinkey)
 }
 
-func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext, err error) {
+func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
 
 	var N1 uint64
 
@@ -475,28 +442,20 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 
 		for _, i := range index[j] {
 
-			if err = evaluator.MulRelin(vec_rot[uint64(i)], plainVectors.Vec[N1*j+uint64(i)], nil, tmp); err != nil {
-				return nil, err
-			}
+			evaluator.MulRelin(vec_rot[uint64(i)], plainVectors.Vec[N1*j+uint64(i)], nil, tmp)
 
-			if err = evaluator.Add(tmp_vec, tmp, tmp_vec); err != nil {
-				return nil, err
-			}
+			evaluator.Add(tmp_vec, tmp, tmp_vec)
 		}
 
-		if err = evaluator.RotateColumns(tmp_vec, N1*j, bootcontext.rotkeys, tmp); err != nil {
-			return nil, err
-		}
+		evaluator.RotateColumns(tmp_vec, N1*j, bootcontext.rotkeys, tmp)
 
-		if err = evaluator.Add(res, tmp, res); err != nil {
-			return nil, err
-		}
+		evaluator.Add(res, tmp, res)
 	}
 
-	return res, nil
+	return res
 }
 
-func (evaluator *Evaluator) rotateLeftHoisted(ctIn *Ciphertext, c2_qiQDecomp, c2_qiPDecomp []*ring.Poly, k uint64, evakey *RotationKey, ctOut *Ciphertext) {
+func (evaluator *Evaluator) rotateLeftHoisted(ctIn *Ciphertext, c2_qiQDecomp, c2_qiPDecomp []*ring.Poly, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
 
 	var level, reduce uint64
 
@@ -713,7 +672,7 @@ func fftInvPlainVec(N uint64, roots []complex128) (a, b, c [][]complex128) {
 	return
 }
 
-func (bootcontext *BootContext) computePlaintextVectors() (err error) {
+func (bootcontext *BootContext) computePlaintextVectors() {
 
 	roots := computeRoots(bootcontext.slots << 1)
 
@@ -728,9 +687,7 @@ func (bootcontext *BootContext) computePlaintextVectors() (err error) {
 
 		bootcontext.pDFTInv[i].N1 = findbestbabygiantstepsplit(pVecDFTInv[i], bootcontext.dslots)
 
-		if err = bootcontext.encodePVec(pVecDFTInv[i], bootcontext.pDFTInv[i], i, true); err != nil {
-			return err
-		}
+		bootcontext.encodePVec(pVecDFTInv[i], bootcontext.pDFTInv[i], i, true)
 	}
 
 	// SlotsToCoeffs vectors
@@ -744,12 +701,8 @@ func (bootcontext *BootContext) computePlaintextVectors() (err error) {
 
 		bootcontext.pDFT[i].N1 = findbestbabygiantstepsplit(pVecDFT[i], bootcontext.dslots)
 
-		if err = bootcontext.encodePVec(pVecDFT[i], bootcontext.pDFT[i], i, false); err != nil {
-			return err
-		}
+		bootcontext.encodePVec(pVecDFT[i], bootcontext.pDFT[i], i, false)
 	}
-
-	return
 }
 
 // Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
@@ -784,7 +737,7 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (mi
 	return
 }
 
-func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plaintextVec *dftvectors, k uint64, forward bool) (err error) {
+func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plaintextVec *dftvectors, k uint64, forward bool) {
 	var N, N1, level uint64
 
 	// N1*N2 = N
@@ -817,13 +770,9 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 
 			bootcontext.plaintextSize += (level + 1) * 8 * bootcontext.ckkscontext.n
 
-			if err = bootcontext.encoder.Encode(plaintextVec.Vec[N1*j+uint64(i)], rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots); err != nil {
-				return err
-			}
+			bootcontext.encoder.Encode(plaintextVec.Vec[N1*j+uint64(i)], rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
 		}
 	}
-
-	return
 }
 
 func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, forward bool) (plainVector []map[uint64][]complex128) {

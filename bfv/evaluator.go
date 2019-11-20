@@ -1,8 +1,8 @@
 package bfv
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
@@ -59,34 +59,34 @@ func (bfvcontext *BfvContext) NewEvaluator() (evaluator *Evaluator) {
 	return evaluator
 }
 
-func (evaluator *Evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *bfvElement, err error) {
+func (evaluator *Evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *bfvElement) {
 	if op0 == nil || op1 == nil || opOut == nil {
-		return nil, nil, nil, errors.New("operands cannot be nil")
+		panic("operands cannot be nil")
 	}
 
 	if op0.Degree()+op1.Degree() == 0 {
-		return nil, nil, nil, errors.New("operands cannot be both plaintext")
+		panic("operands cannot be both plaintext")
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		return nil, nil, nil, errors.New("receiver operand degree is too small")
+		panic("receiver operand degree is too small")
 	}
 
 	el0, el1, elOut = op0.Element(), op1.Element(), opOut.Element()
 	return // TODO: more checks on elements
 }
 
-func (evaluator *Evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *bfvElement, err error) {
+func (evaluator *Evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *bfvElement) {
 	if op0 == nil || opOut == nil {
-		return nil, nil, errors.New("operand cannot be nil")
+		panic("operand cannot be nil")
 	}
 
 	if op0.Degree() == 0 {
-		return nil, nil, errors.New("operand cannot be plaintext")
+		panic("operand cannot be plaintext")
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		return nil, nil, errors.New("receiver operand degree is too small")
+		panic("receiver operand degree is too small")
 	}
 	el0, elOut = op0.Element(), opOut.Element()
 	return // TODO: more checks on elements
@@ -95,8 +95,8 @@ func (evaluator *Evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDeg
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
 func evaluateInPlaceBinary(el0, el1, elOut *bfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	maxDegree := max(el0.Degree(), el1.Degree())
-	minDegree := min(el0.Degree(), el1.Degree())
+	maxDegree := utils.MaxUint64(el0.Degree(), el1.Degree())
+	minDegree := utils.MinUint64(el0.Degree(), el1.Degree())
 
 	for i := uint64(0); i < minDegree+1; i++ {
 		evaluate(el0.value[i], el1.value[i], elOut.value[i])
@@ -124,117 +124,108 @@ func evaluateInPlaceUnary(el0, elOut *bfvElement, evaluate func(*ring.Poly, *rin
 }
 
 // Add adds op0 to op1 and returns the result on ctOut.
-func (evaluator *Evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) (err error) {
-	el0, el1, elOut, err := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.Add)
-	return
 }
 
 // AddNew adds op0 to op1 and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext, err error) {
-	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
-	return ctOut, evaluator.Add(op0, op1, ctOut)
+func (evaluator *Evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext) {
+	ctOut = evaluator.bfvcontext.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
+	evaluator.Add(op0, op1, ctOut)
+	return
 }
 
 // AddNoMod adds op0 to op1 without modular reduction, and returns the result on cOut.
-func (evaluator *Evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) (err error) {
-	el0, el1, elOut, err := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) {
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.AddNoMod)
-	return nil
 }
 
 // AddNoModNew adds op0 to op1 without modular reduction and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext, err error) {
-	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
-	return ctOut, evaluator.AddNoMod(op0, op1, ctOut)
+func (evaluator *Evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
+	ctOut = evaluator.bfvcontext.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
+	evaluator.AddNoMod(op0, op1, ctOut)
+	return
 }
 
 // Sub subtracts op1 to op0 and returns the result on cOut.
-func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) (err error) {
-	el0, el1, elOut, err := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.Sub)
-	return nil
+
+	if el0.Degree() < el1.Degree() {
+		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
+			evaluator.bfvcontext.contextQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
+		}
+	}
 }
 
 // SubNew subtracts op0 to op1 and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext, err error) {
-	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
-	return ctOut, evaluator.Sub(op0, op1, ctOut)
+func (evaluator *Evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext) {
+	ctOut = evaluator.bfvcontext.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
+	evaluator.Sub(op0, op1, ctOut)
+	return
 }
 
 // SubNoMod subtracts op0 to op1 without modular reduction and returns the result on ctOut.
-func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) (err error) {
-	el0, el1, elOut, err := evaluator.getElemAndCheckBinary(op0, op1, ctOut, max(op0.Degree(), op1.Degree()))
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+
 	evaluateInPlaceBinary(el0, el1, elOut, evaluator.bfvcontext.contextQ.SubNoMod)
-	return nil
+
+	if el0.Degree() < el1.Degree() {
+		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
+			evaluator.bfvcontext.contextQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
+		}
+	}
 }
 
 // SubNoModNew subtracts op0 to op1 without modular reduction and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext, err error) {
-	ctOut = evaluator.bfvcontext.NewCiphertext(max(op0.Degree(), op1.Degree()))
-	return ctOut, evaluator.SubNoMod(op0, op1, ctOut)
+func (evaluator *Evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
+	ctOut = evaluator.bfvcontext.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
+	evaluator.SubNoMod(op0, op1, ctOut)
+	return
 }
 
 // Neg negates op and returns the result on ctOut.
-func (evaluator *Evaluator) Neg(op Operand, ctOut *Ciphertext) error {
-	el0, elOut, err := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) Neg(op Operand, ctOut *Ciphertext) {
+	el0, elOut := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
 	evaluateInPlaceUnary(el0, elOut, evaluator.bfvcontext.contextQ.Neg)
-	return nil
 }
 
 // Neg negates op and creates a new element to store the result.
-func (evaluator *Evaluator) NegNew(op Operand) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) NegNew(op Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(op.Degree())
-	return ctOut, evaluator.Neg(op, ctOut)
+	evaluator.Neg(op, ctOut)
+	return ctOut
 }
 
 // Reduce applies a modular reduction on op and returns the result on ctOut.
-func (evaluator *Evaluator) Reduce(op Operand, ctOut *Ciphertext) error {
-	el0, elOut, err := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) Reduce(op Operand, ctOut *Ciphertext) {
+	el0, elOut := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
 	evaluateInPlaceUnary(el0, elOut, evaluator.bfvcontext.contextQ.Reduce)
-	return nil
 }
 
 // Reduce applies a modular reduction on op and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) ReduceNew(op Operand) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) ReduceNew(op Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(op.Degree())
-	return ctOut, evaluator.Reduce(op, ctOut)
+	evaluator.Reduce(op, ctOut)
+	return ctOut
 }
 
 // MulScalar multiplies op by an uint64 scalar and returns the result on ctOut.
-func (evaluator *Evaluator) MulScalar(op Operand, scalar uint64, ctOut *Ciphertext) error {
-
-	el0, elOut, err := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) MulScalar(op Operand, scalar uint64, ctOut *Ciphertext) {
+	el0, elOut := evaluator.getElemAndCheckUnary(op, ctOut, op.Degree())
 	fun := func(el, elOut *ring.Poly) { evaluator.bfvcontext.contextQ.MulScalar(el, scalar, elOut) }
 	evaluateInPlaceUnary(el0, elOut, fun)
-	return nil
 }
 
 // MulScalarNew multiplies op by an uint64 scalar and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext, err error) {
+func (evaluator *Evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(op.Degree())
-	return ctOut, evaluator.MulScalar(op, scalar, ctOut)
+	evaluator.MulScalar(op, scalar, ctOut)
+	return
 }
 
 // tensorAndRescales computes (ct0 x ct1) * (t/Q) and stores the result on ctOut.
@@ -414,21 +405,16 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 }
 
 // Mul multiplies op0 by op1 and returns the result on ctOut.
-func (evaluator *Evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) (err error) {
-
-	el0, el1, elOut, err := evaluator.getElemAndCheckBinary(op0, op1, ctOut, op0.Degree()+op1.Degree())
-	if err != nil {
-		return err
-	}
+func (evaluator *Evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
+	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, op0.Degree()+op1.Degree())
 	evaluator.tensorAndRescale(el0, el1, elOut)
-	return nil
 }
 
 // MulNew multiplies op0 by op1 and creates a new element ctOut to store the result.
-func (evaluator *Evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext, err error) {
-
+func (evaluator *Evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(op0.Degree() + op1.Degree())
-	return ctOut, evaluator.Mul(op0, op1, ctOut)
+	evaluator.Mul(op0, op1, ctOut)
+	return
 }
 
 // relinearize is a methode common to Relinearize and RelinearizeNew. It switches ct0 out in the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
@@ -454,21 +440,19 @@ func (evaluator *Evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext
 //of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
-func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) error {
+func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
 
 	if int(ct0.Degree()-1) > len(evakey.evakey) {
-		return errors.New("cannot relinearize -> input ciphertext degree too large to allow relinearization")
+		panic("cannot relinearize -> input ciphertext degree too large to allow relinearization")
 	}
 
 	if ct0.Degree() < 2 {
 		if ct0 != ctOut {
 			ctOut.Copy(ct0.Element())
 		}
-		return nil
+	} else {
+		evaluator.relinearize(ct0, evakey, ctOut)
 	}
-
-	evaluator.relinearize(ct0, evakey, ctOut)
-	return nil
 }
 
 // Relinearize relinearize the ciphertext ct0 of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
@@ -479,19 +463,18 @@ func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
-func (evaluator *Evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext, err error) {
-
+func (evaluator *Evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(1)
-
-	return ctOut, evaluator.Relinearize(ct0, evakey, ctOut)
+	evaluator.Relinearize(ct0, evakey, ctOut)
+	return
 }
 
 // SwitchKeys applies the key-switching procedure to the ciphertext ct0 and returns the result on ctOut. It requires as an additional input a valide switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
-func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext) (err error) {
+func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot switchkeys -> input and output must be of degree 1 to allow key switching")
+		panic("cannot switchkeys -> input and output must be of degree 1 to allow key switching")
 	}
 
 	if ct0 != ctOut {
@@ -500,16 +483,20 @@ func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey,
 	}
 
 	evaluator.switchKeys(ct0.value[1], switchKey, ctOut)
-
-	return nil
 }
 
 // SwitchKeys applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valide switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
-func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext, err error) {
-
+func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext) {
 	ctOut = evaluator.bfvcontext.NewCiphertext(1)
-	return ctOut, evaluator.SwitchKeys(ct0, switchkey, ctOut)
+	evaluator.SwitchKeys(ct0, switchkey, ctOut)
+	return
+}
+
+func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext) {
+	ctOut = evaluator.bfvcontext.NewCiphertext(1)
+	evaluator.RotateColumns(ct0, k, evakey, ctOut)
+	return
 }
 
 // RotateColumns rotates the columns of ct0 by k position to the left and returns the result on ctOut. As an additional input it requires a rotationkeys :
@@ -518,51 +505,49 @@ func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingK
 //
 // If only the power of two rotations are stored, the numbers k and n/2-k will be decomposed in base 2 and the rotation with the least
 // hamming weight will be chosen, then the specific rotation will be computed as a sum of powers of two rotations.
-func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) (err error) {
+func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
+
+	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("cannot rotate -> input and or output must be of degree 1")
+	}
 
 	k &= ((evaluator.bfvcontext.n >> 1) - 1)
 
 	if k == 0 {
+
 		ctOut.Copy(ct0.Element())
-		return nil
-	}
-
-	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot rotate -> input and or output must be of degree 1")
-	}
-
-	// Looks in the rotationkey if the corresponding rotation has been generated or if the input is a plaintext
-	if evakey.evakey_rot_col_L[k] != nil {
-
-		evaluator.permute(ct0, evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
-
-		return nil
 
 	} else {
 
-		// If not looks if the left and right pow2 rotations have been generated
-		has_pow2_rotations := true
-		for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
-			if evakey.evakey_rot_col_L[i] == nil || evakey.evakey_rot_col_R[i] == nil {
-				has_pow2_rotations = false
-				break
-			}
-		}
+		// Looks in the rotationkey if the corresponding rotation has been generated or if the input is a plaintext
+		if evakey.evakey_rot_col_L[k] != nil {
 
-		// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
-		if has_pow2_rotations {
+			evaluator.permute(ct0, evaluator.bfvcontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
 
-			if hammingWeight64(k) <= hammingWeight64((evaluator.bfvcontext.n>>1)-k) {
-				evaluator.rotateColumnsLPow2(ct0, k, evakey, ctOut)
-			} else {
-				evaluator.rotateColumnsRPow2(ct0, (evaluator.bfvcontext.n>>1)-k, evakey, ctOut)
-			}
-
-			return nil
-
-			// Else returns an error indicating that the keys have not been generated
 		} else {
-			return errors.New("cannot rotate -> specific rotation and pow2 rotations have not been generated")
+
+			// If not looks if the left and right pow2 rotations have been generated
+			has_pow2_rotations := true
+			for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
+				if evakey.evakey_rot_col_L[i] == nil || evakey.evakey_rot_col_R[i] == nil {
+					has_pow2_rotations = false
+					break
+				}
+			}
+
+			// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
+			if has_pow2_rotations {
+
+				if utils.HammingWeight64(k) <= utils.HammingWeight64((evaluator.bfvcontext.n>>1)-k) {
+					evaluator.rotateColumnsLPow2(ct0, k, evakey, ctOut)
+				} else {
+					evaluator.rotateColumnsRPow2(ct0, (evaluator.bfvcontext.n>>1)-k, evakey, ctOut)
+				}
+
+				// Else returns an error indicating that the keys have not been generated
+			} else {
+				panic("cannot rotate -> specific rotation and pow2 rotations have not been generated")
+			}
 		}
 	}
 }
@@ -610,27 +595,31 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 }
 
 // RotateRows swaps the rows of ct0 and returns the result on ctOut.
-func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) error {
+func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot rotate -> input and or output degree must be of degree 1")
+		panic("cannot rotate -> input and or output degree must be of degree 1")
 	}
 
 	if evakey.evakey_rot_row == nil {
-		return errors.New("cannot rotate -> rotation key not generated")
+		panic("cannot rotate -> rotation key not generated")
 	}
 
 	evaluator.permute(ct0, evaluator.bfvcontext.galElRotRow, evakey.evakey_rot_row, ctOut)
+}
 
-	return nil
+func (evaluator *Evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext) {
+	ctOut = evaluator.bfvcontext.NewCiphertext(1)
+	evaluator.RotateRows(ct0, evakey, ctOut)
+	return
 }
 
 // InnerSum computs the inner sum of ct0 and returns the result on ctOut. It requires a rotation key storing all the left power of two rotations.
 // The resulting vector will be of the form [sum, sum, .., sum, sum ].
-func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) error {
+func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		return errors.New("cannot inner sum -> input and output must be of degree 1")
+		panic("cannot inner sum -> input and output must be of degree 1")
 	}
 
 	cTmp := evaluator.bfvcontext.NewCiphertext(1)
@@ -638,19 +627,12 @@ func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOu
 	ctOut.Copy(ct0.Element())
 
 	for i := uint64(1); i < evaluator.bfvcontext.n>>1; i <<= 1 {
-		if err := evaluator.RotateColumns(ctOut, i, evakey, cTmp); err != nil {
-			return err
-		}
+		evaluator.RotateColumns(ctOut, i, evakey, cTmp)
 		evaluator.Add(cTmp.bfvElement, ctOut, ctOut.Ciphertext())
 	}
 
-	if err := evaluator.RotateRows(ctOut, evakey, cTmp); err != nil {
-		return err
-	}
+	evaluator.RotateRows(ctOut, evakey, cTmp)
 	evaluator.Add(ctOut, cTmp.bfvElement, ctOut)
-
-	return nil
-
 }
 
 // permute operates a column rotation on ct0 and returns the result on ctOut

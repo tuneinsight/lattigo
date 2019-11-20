@@ -2,6 +2,7 @@ package dckks
 
 import (
 	"fmt"
+	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
 	"testing"
 )
@@ -27,10 +28,7 @@ func benchPublicKeyGen(b *testing.B) {
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
 
-		crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
-		if err != nil {
-			b.Error(err)
-		}
+		crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.Clock()
 
@@ -83,17 +81,10 @@ func benchRelinKeyGen(b *testing.B) {
 
 		p := new(Party)
 		p.RKGProtocol = NewEkgProtocol(ckksContext)
-		p.u, err = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
-		if err != nil {
-			b.Error(err)
-		}
+		p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
-
-		crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
-		if err != nil {
-			b.Error(err)
-		}
+		crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
 		crpGenerator.Seed([]byte{})
 		crp := make([]*ring.Poly, ckksContext.Beta())
 
@@ -300,30 +291,26 @@ func benchPublicKeySwitching(b *testing.B) {
 
 func benchRotKeyGen(b *testing.B) {
 
-	parties := testParams.parties
-
 	for _, parameters := range testParams.ckksParameters {
 
 		params := genDCKKSContext(parameters)
 
 		ckksContext := params.ckksContext
+		contextKeys := ckksContext.ContextKeys()
 		sk0Shards := params.sk0Shards
 
 		type Party struct {
-			*RotKGProtocol
+			*RTGProtocol
 			s     *ring.Poly
-			share RotKGShareRotColLeft
+			share RTGShare
 		}
 
 		p := new(Party)
-		p.RotKGProtocol = NewRotKGProtocol(ckksContext)
+		p.RTGProtocol = NewRotKGProtocol(ckksContext)
 		p.s = sk0Shards[0].Get()
-		p.share = p.AllocateShareRotColLeft()
+		p.share = p.AllocateShare()
 
-		crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
-		if err != nil {
-			b.Error(err)
-		}
+		crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextKeys())
 		crpGenerator.Seed([]byte{})
 		crp := make([]*ring.Poly, ckksContext.Beta())
 
@@ -331,19 +318,27 @@ func benchRotKeyGen(b *testing.B) {
 			crp[i] = crpGenerator.Clock()
 		}
 
-		mask := uint64((1 << (ckksContext.LogN() - 1)) - 1)
+		mask := uint64((contextKeys.N >> 1) - 1)
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round1/Gen", parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShareRotLeft(sk0Shards[0].Get(), uint64(i)&mask, crp, p.share)
+				p.GenShare(ckks.RotationRight, uint64(i)&mask, sk0Shards[0].Get(), crp, &p.share)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Agg", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round1/Agg", parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.Aggregate(p.share, p.share, p.share)
+			}
+		})
+
+		rotKey := ckksContext.NewRotationKeys()
+		b.Run(testString("Finalize", parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Finalize(p.share, crp, rotKey)
 			}
 		})
 	}
@@ -374,10 +369,7 @@ func benchRefresh(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares(levelStart)
 
-		crpGenerator, err := ring.NewCRPGenerator(nil, ckksContext.ContextQ())
-		if err != nil {
-			b.Error(err)
-		}
+		crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextQ())
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.Clock()
 

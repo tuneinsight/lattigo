@@ -3,12 +3,13 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"math/big"
 )
 
 type RefreshProtocol struct {
 	ckksContext *ckks.CkksContext
 	tmp         *ring.Poly
-	maskBigint  []*ring.Int
+	maskBigint  []*big.Int
 }
 
 type RefreshShareDecrypt *ring.Poly
@@ -18,7 +19,7 @@ func NewRefreshProtocol(ckksContext *ckks.CkksContext) (refreshProtocol *Refresh
 	refreshProtocol = new(RefreshProtocol)
 	refreshProtocol.ckksContext = ckksContext
 	refreshProtocol.tmp = ckksContext.ContextQ().NewPoly()
-	refreshProtocol.maskBigint = make([]*ring.Int, 1<<ckksContext.LogN())
+	refreshProtocol.maskBigint = make([]*big.Int, 1<<ckksContext.LogN())
 	return
 }
 
@@ -31,13 +32,17 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 	context := refreshProtocol.ckksContext.ContextQ()
 	sampler := context.NewKYSampler(3.19, 19)
 
-	bound := new(ring.Int)
-	bound.SetBigInt(refreshProtocol.ckksContext.BigintChain()[levelStart])
-	bound.Div(bound, ring.NewUint(2*nParties))
+	bound := new(big.Int).Set(refreshProtocol.ckksContext.BigintChain()[levelStart])
+	bound.Quo(bound, ring.NewUint(2*nParties))
+	boundHalf := new(big.Int).Rsh(bound, 1)
 
+	var sign int
 	for i := range refreshProtocol.maskBigint {
 		refreshProtocol.maskBigint[i] = ring.RandInt(bound)
-		refreshProtocol.maskBigint[i].Center(bound)
+		sign = refreshProtocol.maskBigint[i].Cmp(boundHalf)
+		if sign == 1 || sign == 0 {
+			refreshProtocol.maskBigint[i].Sub(refreshProtocol.maskBigint[i], bound)
+		}
 	}
 
 	// h0 = mask (at level min)
@@ -46,7 +51,7 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 	context.SetCoefficientsBigint(refreshProtocol.maskBigint, shareRecrypt)
 
 	for i := range refreshProtocol.maskBigint {
-		refreshProtocol.maskBigint[i] = ring.NewUint(0)
+		refreshProtocol.maskBigint[i] = new(big.Int)
 	}
 
 	context.NTTLvl(levelStart, shareDecrypt, shareDecrypt)
@@ -89,8 +94,7 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
 	contextQ.PolyToBigint(ciphertext.Value()[0], refreshProtocol.maskBigint)
 
 	QStart := ckksContext.BigintChain()[ciphertext.Level()]
-	QHalf := QStart.Copy()
-	QHalf.Rsh(QHalf, 1)
+	QHalf := new(big.Int).Rsh(QStart, 1)
 
 	for ciphertext.Level() != ckksContext.Levels()-1 {
 		ciphertext.Value()[0].Coeffs = append(ciphertext.Value()[0].Coeffs, make([][]uint64, 1)...)
@@ -99,7 +103,7 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
 
 	var sign int
 	for i := uint64(0); i < 1<<ckksContext.LogN(); i++ {
-		sign = refreshProtocol.maskBigint[i].Compare(QHalf)
+		sign = refreshProtocol.maskBigint[i].Cmp(QHalf)
 		if sign == 1 || sign == 0 {
 			refreshProtocol.maskBigint[i].Sub(refreshProtocol.maskBigint[i], QStart)
 		}

@@ -7,7 +7,9 @@ import (
 )
 
 // PRNG is a structure storing the parameters used to securely and deterministicaly generate shared
-// random bytes among different parties using the hash function blake2b.
+// sequences of random bytes among different parties using the hash function blake2b. Backward sequence
+// security (given the digest i, compute the digest i-1) is ensured by default, however forward sequence
+// security (given the digest i, compute the digest i+1) is only ensured if the PRNG is given a key.
 type PRNG struct {
 	clock uint64
 	seed  []byte
@@ -43,14 +45,14 @@ func (prng *PRNG) GetSeed() []byte {
 	return prng.seed[:]
 }
 
-// Clock returns the right 32 bytes of the digest value
-// of the current PRNG state and reseeds the PRNG with the
-// left 32 bytes of the digest value. Also increases the clock cycle by 1.
+// Clock returns the right 64 bytes digest value of the current
+// PRNG state and reseeds the PRNG with those same 64 bytes.
+// Also increases the clock cycle by 1.
 func (prng *PRNG) Clock() []byte {
 	tmp := prng.hash.Sum(nil)
-	prng.hash.Write(tmp[:32])
+	prng.hash.Write(tmp)
 	prng.clock += 1
-	return tmp[32:]
+	return tmp
 }
 
 // SetClock sets the clock cycle of the PRNG to a given number by calling Clock until
@@ -63,7 +65,7 @@ func (prng *PRNG) SetClock(n uint64) error {
 	var tmp []byte
 	for prng.clock != n {
 		tmp = prng.hash.Sum(nil)
-		prng.hash.Write(tmp[:32])
+		prng.hash.Write(tmp)
 		prng.clock += 1
 	}
 	return nil

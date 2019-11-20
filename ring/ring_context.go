@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"github.com/ldsec/lattigo/utils"
+	"math/big"
 	"math/bits"
 )
 
@@ -29,16 +31,16 @@ type Context struct {
 	allowsNTT bool
 
 	// Product of the modulies
-	ModulusBigint *Int
-
-	// Parameters for the CRT reconstruction
-	CrtReconstruction []*Int
+	ModulusBigint *big.Int
 
 	// Fast reduction parameters
 	bredParams [][]uint64
 	mredParams []uint64
 
 	rescaleParams [][]uint64
+
+	matrixTernary           [][]uint64
+	matrixTernaryMontgomery [][]uint64
 
 	//NTT Parameters
 	psiMont    []uint64 //2nth primitive root in montgomery form
@@ -56,11 +58,11 @@ func NewContext() *Context {
 
 // SetParameters initialize the parameters of an empty context with N and the provided moduli.
 // Only checks that N is a power of 2 and computes all the variable that aren't used for the NTT.
-func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
+func (context *Context) SetParameters(N uint64, Modulus []uint64) {
 
 	// Checks if N is a power of 2
 	if (N&(N-1)) != 0 && N != 0 {
-		return errors.New("invalid ring degree (must be a power of 2)")
+		panic("invalid ring degree (must be a power of 2)")
 	}
 
 	context.allowsNTT = false
@@ -97,7 +99,21 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) error {
 		}
 	}
 
-	return nil
+	context.matrixTernary = make([][]uint64, len(context.Modulus))
+	context.matrixTernaryMontgomery = make([][]uint64, len(context.Modulus))
+
+	for i, Qi := range context.Modulus {
+
+		context.matrixTernary[i] = make([]uint64, 3)
+		context.matrixTernary[i][0] = 0
+		context.matrixTernary[i][1] = 1
+		context.matrixTernary[i][2] = Qi - 1
+
+		context.matrixTernaryMontgomery[i] = make([]uint64, 3)
+		context.matrixTernaryMontgomery[i][0] = 0
+		context.matrixTernaryMontgomery[i][1] = MForm(1, Qi, context.bredParams[i])
+		context.matrixTernaryMontgomery[i][2] = MForm(Qi-1, Qi, context.bredParams[i])
+	}
 }
 
 // GenNTTParams checks that N has beed correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).
@@ -110,7 +126,7 @@ func (context *Context) GenNTTParams() error {
 	}
 
 	if context.N == 0 || context.Modulus == nil {
-		return errors.New("error : invalid context parameters (missing)")
+		panic("error : invalid context parameters (missing)")
 	}
 
 	// CHECKS IF VALIDE NTT
@@ -134,8 +150,6 @@ func (context *Context) GenNTTParams() error {
 		}
 	}
 
-	context.CrtReconstruction = make([]*Int, len(context.Modulus))
-
 	context.psiMont = make([]uint64, len(context.Modulus))
 	context.psiInvMont = make([]uint64, len(context.Modulus))
 	context.nttPsi = make([][]uint64, len(context.Modulus))
@@ -144,18 +158,7 @@ func (context *Context) GenNTTParams() error {
 
 	bitLenofN := uint64(bits.Len64(context.N) - 1)
 
-	QiB := new(Int)
-	tmp := new(Int)
-
 	for i, qi := range context.Modulus {
-
-		//1.0 CRT reconstruction parameters
-		QiB.SetUint(qi)
-		context.CrtReconstruction[i] = new(Int)
-		context.CrtReconstruction[i].Div(context.ModulusBigint, QiB)
-		tmp.Inv(context.CrtReconstruction[i], QiB)
-		tmp.Mod(tmp, QiB)
-		context.CrtReconstruction[i].Mul(context.CrtReconstruction[i], tmp)
 
 		//2.1 Computes N^(-1) mod Q in Montgomery form
 		context.nttNInv[i] = MForm(ModExp(context.N, qi-2, qi), qi, context.bredParams[i])
@@ -185,8 +188,8 @@ func (context *Context) GenNTTParams() error {
 		// Computes nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
 		for j := uint64(1); j < context.N; j++ {
 
-			indexReversePrev := bitReverse64(j-1, bitLenofN)
-			indexReverseNext := bitReverse64(j, bitLenofN)
+			indexReversePrev := utils.BitReverse64(j-1, bitLenofN)
+			indexReverseNext := utils.BitReverse64(j, bitLenofN)
 
 			context.nttPsi[i][indexReverseNext] = MRed(context.nttPsi[i][indexReversePrev], PsiMont, qi, context.mredParams[i])
 			context.nttPsiInv[i][indexReverseNext] = MRed(context.nttPsiInv[i][indexReversePrev], PsiInvMont, qi, context.mredParams[i])
@@ -296,93 +299,66 @@ func (context *Context) NewPolyLvl(level uint64) *Poly {
 }
 
 // SetCoefficientsInt64 sets the coefficients of p1 from an int64 array.
-func (context *Context) SetCoefficientsInt64(coeffs []int64, p1 *Poly) error {
-	if len(coeffs) != int(context.N) {
-		return errors.New("error : invalid ring degree (does not match context)")
-	}
+func (context *Context) SetCoefficientsInt64(coeffs []int64, p1 *Poly) {
 	for i, coeff := range coeffs {
 		for j, Qi := range context.Modulus {
 			p1.Coeffs[j][i] = CRed(uint64((coeff%int64(Qi) + int64(Qi))), Qi)
 		}
 	}
-	return nil
 }
 
 // SetCoefficientsUint64 sets the coefficient of Pol from an uint64 array.
-func (context *Context) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) error {
-	if len(coeffs) != int(context.N) {
-		return errors.New("error : invalid ring degree (does not match context)")
-	}
+func (context *Context) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) {
 	for i, coeff := range coeffs {
 		for j, Qi := range context.Modulus {
 			p1.Coeffs[j][i] = coeff % Qi
 		}
 	}
-	return nil
 }
 
 // SetCoefficientsString parses an array of string as Int variables, and sets the
 // coefficients of p1 with this Int variables.
-func (context *Context) SetCoefficientsString(coeffs []string, p1 *Poly) error {
-
-	if len(coeffs) != int(context.N) {
-		return errors.New("error : invalid ring degree (does not match context)")
-	}
-
-	QiBigint := new(Int)
-	coeffTmp := new(Int)
+func (context *Context) SetCoefficientsString(coeffs []string, p1 *Poly) {
+	QiBigint := new(big.Int)
+	coeffTmp := new(big.Int)
 	for i, Qi := range context.Modulus {
-		QiBigint.SetUint(Qi)
+		QiBigint.SetUint64(Qi)
 		for j, coeff := range coeffs {
 			p1.Coeffs[i][j] = coeffTmp.Mod(NewIntFromString(coeff), QiBigint).Uint64()
 		}
 	}
-	return nil
 }
 
 // SetCoefficientsBigint sets the coefficients of p1 from an array of Int variables.
-func (context *Context) SetCoefficientsBigint(coeffs []*Int, p1 *Poly) error {
-
-	if len(coeffs) != int(context.N) {
-		return errors.New("error : invalid ring degree (does not match context)")
-	}
-
-	QiBigint := new(Int)
-	coeffTmp := new(Int)
+func (context *Context) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
+	QiBigint := new(big.Int)
+	coeffTmp := new(big.Int)
 	for i, Qi := range context.Modulus {
-		QiBigint.SetUint(Qi)
+		QiBigint.SetUint64(Qi)
 		for j, coeff := range coeffs {
 			p1.Coeffs[i][j] = coeffTmp.Mod(coeff, QiBigint).Uint64()
 
 		}
 	}
-
-	return nil
 }
 
-func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*Int, p1 *Poly) error {
+func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*big.Int, p1 *Poly) {
 
-	if len(coeffs) != int(context.N) {
-		return errors.New("error : invalid ring degree (does not match context)")
-	}
-
-	QiBigint := new(Int)
-	coeffTmp := new(Int)
+	QiBigint := new(big.Int)
+	coeffTmp := new(big.Int)
 	for i := uint64(0); i < level+1; i++ {
-		QiBigint.SetUint(context.Modulus[i])
+		QiBigint.SetUint64(context.Modulus[i])
 		for j, coeff := range coeffs {
 			p1.Coeffs[i][j] = coeffTmp.Mod(coeff, QiBigint).Uint64()
 
 		}
 	}
-
-	return nil
 }
 
 //PolyToString reconstructs p1 and returns the result in an array of string.
 func (context *Context) PolyToString(p1 *Poly) []string {
 
-	coeffsBigint := make([]*Int, context.N)
+	coeffsBigint := make([]*big.Int, context.N)
 	context.PolyToBigint(p1, coeffsBigint)
 	coeffsString := make([]string, len(coeffsBigint))
 
@@ -394,36 +370,36 @@ func (context *Context) PolyToString(p1 *Poly) []string {
 }
 
 //PolyToBigint reconstructs p1 and returns the result in an array of Int.
-func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*Int) {
+func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
 
 	var qi, level uint64
 
 	level = uint64(len(p1.Coeffs) - 1)
 
-	crtReconstruction := make([]*Int, level+1)
+	crtReconstruction := make([]*big.Int, level+1)
 
-	QiB := new(Int)
-	tmp := new(Int)
+	QiB := new(big.Int)
+	tmp := new(big.Int)
 	modulusBigint := NewUint(1)
 
 	for i := uint64(0); i < level+1; i++ {
 
 		qi = context.Modulus[i]
-		QiB.SetUint(qi)
+		QiB.SetUint64(qi)
 
 		modulusBigint.Mul(modulusBigint, QiB)
 
-		crtReconstruction[i] = new(Int)
-		crtReconstruction[i].Div(context.ModulusBigint, QiB)
-		tmp.Inv(crtReconstruction[i], QiB)
+		crtReconstruction[i] = new(big.Int)
+		crtReconstruction[i].Quo(context.ModulusBigint, QiB)
+		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
 	}
 
 	for x := uint64(0); x < context.N; x++ {
 
-		tmp.SetUint(0)
-		coeffsBigint[x] = new(Int)
+		tmp.SetUint64(0)
+		coeffsBigint[x] = new(big.Int)
 
 		for i := uint64(0); i < level+1; i++ {
 			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), crtReconstruction[i]))
@@ -431,28 +407,6 @@ func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*Int) {
 
 		coeffsBigint[x].Mod(coeffsBigint[x], modulusBigint)
 	}
-}
-
-// GetCenteredCoefficients returns an array containing the coefficients of p1 centered arount each (-Qi/2, Qi/2].
-func (context *Context) GetCenteredCoefficients(p1 *Poly) [][]int64 {
-
-	coeffs := make([][]int64, len(context.Modulus))
-	var qiHalf int64
-
-	for i, qi := range context.Modulus {
-		qiHalf = int64(qi >> 1)
-		coeffs[i] = make([]int64, context.N)
-
-		for j := uint64(0); j < context.N; j++ {
-			coeffs[i][j] = int64(p1.Coeffs[i][j])
-
-			if coeffs[i][j] > qiHalf {
-				coeffs[i][j] -= int64(qi)
-			}
-		}
-	}
-
-	return coeffs
 }
 
 // Equal checks if p1 = p2 in the given context.

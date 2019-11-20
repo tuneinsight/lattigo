@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"math/big"
 	"math/bits"
 )
 
@@ -94,11 +95,11 @@ func MRedConstant(x, y, q, qInv uint64) (r uint64) {
 // BRedParams computes the parameters required for the BRed with
 // a radix of 2^128.
 func BRedParams(q uint64) (params []uint64) {
-	bigR := new(Int).Lsh(NewUint(1), 128)
-	bigR.Div(bigR, NewUint(q))
+	bigR := new(big.Int).Lsh(NewUint(1), 128)
+	bigR.Quo(bigR, NewUint(q))
 
 	// 2^radix // q
-	mhi := new(Int).Rsh(bigR, 64).Uint64()
+	mhi := new(big.Int).Rsh(bigR, 64).Uint64()
 	mlo := bigR.Uint64()
 
 	return []uint64{mhi, mlo}

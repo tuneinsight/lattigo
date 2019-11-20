@@ -7,7 +7,7 @@ import (
 // Keygenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
 type KeyGenerator struct {
-	ckkscontext *CkksContext
+	ckksContext *CkksContext
 	context     *ring.Context
 	polypool    *ring.Poly
 }
@@ -22,9 +22,17 @@ type PublicKey struct {
 	pk [2]*ring.Poly
 }
 
+type Rotation int
+
+const (
+	RotationRight = iota + 1
+	RotationLeft
+	Conjugate
+)
+
 // Rotationkeys is a structure that stores the switching-keys required during the homomorphic rotations.
-type RotationKey struct {
-	ckkscontext      *CkksContext
+type RotationKeys struct {
+	ckksContext      *CkksContext
 	evakey_rot_col_L map[uint64]*SwitchingKey
 	evakey_rot_col_R map[uint64]*SwitchingKey
 	evakey_rot_row   *SwitchingKey
@@ -47,32 +55,29 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 
 // NewKeyGenerator creates a new keygenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
-func (ckkscontext *CkksContext) NewKeyGenerator() (keygen *KeyGenerator) {
+func (ckksContext *CkksContext) NewKeyGenerator() (keygen *KeyGenerator) {
 	keygen = new(KeyGenerator)
-	keygen.ckkscontext = ckkscontext
-	keygen.context = ckkscontext.contextKeys
+	keygen.ckksContext = ckksContext
+	keygen.context = ckksContext.contextKeys
 	keygen.polypool = keygen.context.NewPoly()
 	return
 }
 
 // NewSecretKey generates a new secret key with the distribution [1/3, 1/3, 1/3].
 func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
-	sk, _ = keygen.NewSecretKeyWithDistrib(1.0 / 3)
-	return sk
+	return keygen.NewSecretKeyWithDistrib(1.0 / 3)
 }
 
 // NewSecretKey generates a new secret key with the distribution [(p-1)/2, p, (p-1)/2].
-func (keygen *KeyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey, err error) {
+func (keygen *KeyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
-	if sk.sk, err = keygen.ckkscontext.ternarySampler.SampleMontgomeryNTTNew(p); err != nil {
-		return nil, err
-	}
-	return sk, nil
+	sk.sk = keygen.ckksContext.contextKeys.SampleTernaryMontgomeryNTTNew(p)
+	return sk
 }
 
 func (keygen *KeyGenerator) NewSecretKeySparse(hw uint64) (sk *SecretKey) {
 	sk = new(SecretKey)
-	sk.sk = keygen.ckkscontext.ternarySampler.SampleSparseMontgomeryNTTNew(hw)
+	sk.sk = keygen.ckksContext.contextKeys.SampleTernarySparseMontgomeryNTTNew(hw)
 	return sk
 }
 
@@ -99,7 +104,7 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
-	pk.pk[0] = keygen.ckkscontext.gaussianSampler.SampleNTTNew()
+	pk.pk[0] = keygen.ckksContext.gaussianSampler.SampleNTTNew()
 	pk.pk[1] = keygen.context.NewUniformPoly()
 
 	keygen.context.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
@@ -189,12 +194,10 @@ func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 
 // NewSwitchingKey generated a new keyswitching key, that will re-encrypt a ciphertext encrypted under the input key to the output key.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey) (newevakey *SwitchingKey, err error) {
-
+func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey) (newevakey *SwitchingKey) {
 	keygen.context.Sub(sk_input.Get(), sk_output.Get(), keygen.polypool)
 	newevakey = keygen.newSwitchingKey(keygen.polypool, sk_output.Get())
 	keygen.polypool.Zero()
-
 	return
 }
 
@@ -202,9 +205,9 @@ func (keygen *KeyGenerator) NewSwitchingKeyEmpty() (evakey *SwitchingKey) {
 	evakey = new(SwitchingKey)
 
 	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
-	evakey.evakey = make([][2]*ring.Poly, keygen.ckkscontext.beta)
+	evakey.evakey = make([][2]*ring.Poly, keygen.ckksContext.beta)
 
-	for i := uint64(0); i < keygen.ckkscontext.beta; i++ {
+	for i := uint64(0); i < keygen.ckksContext.beta; i++ {
 		evakey.evakey[i][0] = keygen.context.NewPoly()
 		evakey.evakey[i][1] = keygen.context.NewPoly()
 	}
@@ -214,94 +217,91 @@ func (keygen *KeyGenerator) NewSwitchingKeyEmpty() (evakey *SwitchingKey) {
 
 // NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewRotationKeys(sk_output *SecretKey, rotLeft []uint64, rotRight []uint64, conjugate bool) (rotKey *RotationKey, err error) {
+func (ckksContext *CkksContext) NewRotationKeys() (rotKey *RotationKeys) {
+	rotKey = new(RotationKeys)
+	rotKey.ckksContext = ckksContext
+	return
+}
 
-	rotKey = new(RotationKey)
-	rotKey.ckkscontext = keygen.ckkscontext
-
-	if rotLeft != nil {
-		rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
-		for _, n := range rotLeft {
-			if rotKey.evakey_rot_col_L[n] == nil && n != 0 {
-				rotKey.evakey_rot_col_L[n] = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotColLeft[n])
-			}
+// Newrotationkeys generates a new struct of rotationkeys storing the keys for the specified rotations. The provided secret-key must be the secret-key used to generate the public-key under
+// which the ciphertexts to rotate are encrypted under. Bitdecomp is the power of two binary decomposition of the key. A higher bigdecomp will induce smaller keys, faster key-switching,
+// but at the cost of more noise. rotLeft and rotRight must be a slice of uint64 rotations, row is a boolean value indicating if the key for the row rotation must be generated.
+func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
+	switch rotType {
+	case RotationLeft:
+		if rotKey.evakey_rot_col_L == nil {
+			rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 		}
-	}
-
-	if rotRight != nil {
-		rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
-		for _, n := range rotRight {
-			if rotKey.evakey_rot_col_R[n] == nil && n != 0 {
-				rotKey.evakey_rot_col_R[n] = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotColRight[n])
-			}
+		if rotKey.evakey_rot_col_L[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_L[k] = keygen.genrotKey(sk.Get(), keygen.ckksContext.galElRotColLeft[k])
 		}
+	case RotationRight:
+		if rotKey.evakey_rot_col_R == nil {
+			rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
+		}
+		if rotKey.evakey_rot_col_R[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_R[k] = keygen.genrotKey(sk.Get(), keygen.ckksContext.galElRotColRight[k])
+		}
+	case Conjugate:
+		rotKey.evakey_rot_row = keygen.genrotKey(sk.Get(), keygen.ckksContext.galElRotRow)
 	}
-
-	if conjugate {
-		rotKey.evakey_rot_row = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotRow)
-	}
-
-	return rotKey, nil
-
 }
 
 // NewRotationkeysPow2 generates a new rotation key with all the power of two rotation to the left and right, as well as the conjugation
 // key if asked. Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey, conjugate bool) (rotKey *RotationKey) {
+func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey) (rotKey *RotationKeys) {
 
-	rotKey = new(RotationKey)
-	rotKey.ckkscontext = keygen.ckkscontext
+	rotKey = new(RotationKeys)
+	rotKey.ckksContext = keygen.ckksContext
 
 	rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 	rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 
-	for n := uint64(1); n < rotKey.ckkscontext.n>>1; n <<= 1 {
+	for n := uint64(1); n < rotKey.ckksContext.n>>1; n <<= 1 {
 
-		rotKey.evakey_rot_col_L[n] = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotColLeft[n])
-		rotKey.evakey_rot_col_R[n] = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotColRight[n])
+		rotKey.evakey_rot_col_L[n] = keygen.genrotKey(sk_output.Get(), keygen.ckksContext.galElRotColLeft[n])
+		rotKey.evakey_rot_col_R[n] = keygen.genrotKey(sk_output.Get(), keygen.ckksContext.galElRotColRight[n])
 	}
 
-	if conjugate {
-		rotKey.evakey_rot_row = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotRow)
-	}
-
+	rotKey.evakey_rot_row = keygen.genrotKey(sk_output.Get(), keygen.ckksContext.galElRotRow)
 	return
 }
 
-// NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
-// Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (ckksContext *CkksContext) NewRotationKeysEmpty() (rotKey *RotationKey) {
-	rotKey = new(RotationKey)
-	rotKey.ckkscontext = ckksContext
-	rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
-	rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
-	return
-}
-
-func (rotkey *RotationKey) SetRotColLeft(evakey [][2]*ring.Poly, k uint64) {
-	rotkey.evakey_rot_col_L[k] = new(SwitchingKey)
-	rotkey.evakey_rot_col_L[k].evakey = make([][2]*ring.Poly, len(evakey))
-	for j := range evakey {
-		rotkey.evakey_rot_col_L[k].evakey[j][0] = evakey[j][0].CopyNew()
-		rotkey.evakey_rot_col_L[k].evakey[j][1] = evakey[j][1].CopyNew()
-	}
-}
-
-func (rotkey *RotationKey) SetRotColRight(evakey [][2]*ring.Poly, k uint64) {
-	rotkey.evakey_rot_col_R[k] = new(SwitchingKey)
-	rotkey.evakey_rot_col_R[k].evakey = make([][2]*ring.Poly, len(evakey))
-	for j := range evakey {
-		rotkey.evakey_rot_col_R[k].evakey[j][0] = evakey[j][0].CopyNew()
-		rotkey.evakey_rot_col_R[k].evakey[j][1] = evakey[j][1].CopyNew()
-	}
-}
-
-func (rotkey *RotationKey) SetRotRow(evakey [][2]*ring.Poly) {
-	rotkey.evakey_rot_row = new(SwitchingKey)
-	rotkey.evakey_rot_row.evakey = make([][2]*ring.Poly, len(evakey))
-	for j := range evakey {
-		rotkey.evakey_rot_row.evakey[j][0] = evakey[j][0].CopyNew()
-		rotkey.evakey_rot_row.evakey[j][1] = evakey[j][1].CopyNew()
+func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*ring.Poly) {
+	switch rotType {
+	case RotationLeft:
+		if rotKey.evakey_rot_col_L == nil {
+			rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
+		}
+		if rotKey.evakey_rot_col_L[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_L[k] = new(SwitchingKey)
+			rotKey.evakey_rot_col_L[k].evakey = make([][2]*ring.Poly, len(evakey))
+			for j := range evakey {
+				rotKey.evakey_rot_col_L[k].evakey[j][0] = evakey[j][0].CopyNew()
+				rotKey.evakey_rot_col_L[k].evakey[j][1] = evakey[j][1].CopyNew()
+			}
+		}
+	case RotationRight:
+		if rotKey.evakey_rot_col_R == nil {
+			rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
+		}
+		if rotKey.evakey_rot_col_R[k] == nil && k != 0 {
+			rotKey.evakey_rot_col_R[k] = new(SwitchingKey)
+			rotKey.evakey_rot_col_R[k].evakey = make([][2]*ring.Poly, len(evakey))
+			for j := range evakey {
+				rotKey.evakey_rot_col_R[k].evakey[j][0] = evakey[j][0].CopyNew()
+				rotKey.evakey_rot_col_R[k].evakey[j][1] = evakey[j][1].CopyNew()
+			}
+		}
+	case Conjugate:
+		if rotKey.evakey_rot_row == nil {
+			rotKey.evakey_rot_row = new(SwitchingKey)
+			rotKey.evakey_rot_row.evakey = make([][2]*ring.Poly, len(evakey))
+			for j := range evakey {
+				rotKey.evakey_rot_row.evakey[j][0] = evakey[j][0].CopyNew()
+				rotKey.evakey_rot_row.evakey[j][1] = evakey[j][1].CopyNew()
+			}
+		}
 	}
 }
 
@@ -319,24 +319,24 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 
 	switchingkey = new(SwitchingKey)
 
-	context := keygen.ckkscontext.contextKeys
+	context := keygen.ckksContext.contextKeys
 
 	// Computes P * sk_in
-	for _, pj := range keygen.ckkscontext.specialprimes {
+	for _, pj := range keygen.ckksContext.specialprimes {
 		context.MulScalar(sk_in, pj, sk_in)
 	}
 
-	alpha := keygen.ckkscontext.alpha
-	beta := keygen.ckkscontext.beta
+	alpha := keygen.ckksContext.alpha
+	beta := keygen.ckksContext.beta
 
 	var index uint64
 
-	switchingkey.evakey = make([][2]*ring.Poly, len(context.Modulus))
+	switchingkey.evakey = make([][2]*ring.Poly, beta)
 
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-		switchingkey.evakey[i][0] = keygen.ckkscontext.gaussianSampler.SampleNTTNew()
+		switchingkey.evakey[i][0] = keygen.ckksContext.gaussianSampler.SampleNTTNew()
 		context.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and montgomery domain)
@@ -362,7 +362,7 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= keygen.ckkscontext.levels-1 {
+			if index >= keygen.ckksContext.levels-1 {
 				break
 			}
 		}

@@ -1,6 +1,8 @@
 package ring
 
 import (
+	"github.com/ldsec/lattigo/utils"
+	"math/big"
 	"math/bits"
 )
 
@@ -447,8 +449,8 @@ func (context *Context) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
-func (context *Context) AddScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
-	tmp := new(Int)
+func (context *Context) AddScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
+	tmp := new(big.Int)
 	var scalarQi uint64
 	for i, Qi := range context.Modulus {
 		scalarQi = tmp.Mod(scalar, NewUint(Qi)).Uint64()
@@ -469,8 +471,8 @@ func (context *Context) SubScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
-func (context *Context) SubScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
-	tmp := new(Int)
+func (context *Context) SubScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
+	tmp := new(big.Int)
 	var scalarQi uint64
 	for i, Qi := range context.Modulus {
 		scalarQi = tmp.Mod(scalar, NewUint(Qi)).Uint64()
@@ -509,8 +511,8 @@ func (context *Context) MulScalarLvl(level uint64, p1 *Poly, scalar uint64, p2 *
 
 // MulScalarBigint multiplies each coefficients of p1 by an Int scalar and applies a modular reduction, returning the result on p2.
 // To be used when the scalar is bigger than 64 bits.
-func (context *Context) MulScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
-	scalarQi := new(Int)
+func (context *Context) MulScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
+	scalarQi := new(big.Int)
 	var scalarMont uint64
 	for i, Qi := range context.Modulus {
 		scalarQi.Mod(scalar, NewUint(Qi))
@@ -523,9 +525,9 @@ func (context *Context) MulScalarBigint(p1 *Poly, scalar *Int, p2 *Poly) {
 	}
 }
 
-func (context *Context) MulScalarBigintLvl(level uint64, p1 *Poly, scalar *Int, p2 *Poly) {
+func (context *Context) MulScalarBigintLvl(level uint64, p1 *Poly, scalar *big.Int, p2 *Poly) {
 
-	scalarQi := new(Int)
+	scalarQi := new(big.Int)
 	var Qi, scalarMont uint64
 
 	for i := uint64(0); i < level+1; i++ {
@@ -601,11 +603,11 @@ func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
 
 	for j := uint64(0); j < N; j++ {
 
-		index = 2*bitReverse64(j, logN) + 1
+		index = 2*utils.BitReverse64(j, logN) + 1
 
 		tmp = ((gen * index & mask) - 1) >> 1
 
-		index = bitReverse64(tmp, logN)
+		index = utils.BitReverse64(tmp, logN)
 
 		for i := 0; i < len(polIn.Coeffs); i++ {
 
@@ -774,14 +776,14 @@ func (context *Context) BitReverse(p1, p2 *Poly) {
 		for i := range context.Modulus {
 			p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 			for j := uint64(0); j < context.N; j++ {
-				p2tmp[bitReverse64(j, bitLenOfN)] = p1tmp[j]
+				p2tmp[utils.BitReverse64(j, bitLenOfN)] = p1tmp[j]
 			}
 		}
 	} else { // In place in case p1 = p2
 		for x := range context.Modulus {
 			p2tmp := p2.Coeffs[x]
 			for i := uint64(0); i < context.N; i++ {
-				j := bitReverse64(i, bitLenOfN)
+				j := utils.BitReverse64(i, bitLenOfN)
 				if i < j {
 					p2tmp[i], p2tmp[j] = p2tmp[j], p2tmp[i]
 				}

@@ -46,7 +46,7 @@ func (p *Parameters) Equals(other *Parameters) bool {
 	if p == other {
 		return true
 	}
-	return p.LogN == other.LogN && equalslice8(p.Modulichain, other.Modulichain) && p.Scale == other.Scale && p.Sigma == other.Sigma
+	return p.LogN == other.LogN && utils.EqualSliceUint8(p.Modulichain, other.Modulichain) && p.Scale == other.Scale && p.Sigma == other.Sigma
 }
 
 // MarshalBinary returns a []byte representation of the parameter set

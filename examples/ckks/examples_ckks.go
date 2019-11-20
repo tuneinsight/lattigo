@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"math/cmplx"
 	"math/rand"
@@ -27,16 +26,12 @@ func chebyshevinterpolation() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	var err error
-
 	// Scheme params
 	params := ckks.DefaultParams[14]
 
 	// Context
 	var ckkscontext *ckks.CkksContext
-	if ckkscontext, err = ckks.NewCkksContext(params); err != nil {
-		log.Fatal(err)
-	}
+	ckkscontext = ckks.NewCkksContext(params)
 
 	encoder := ckkscontext.NewEncoder()
 
@@ -52,21 +47,15 @@ func chebyshevinterpolation() {
 
 	// Encryptor
 	var encryptor *ckks.Encryptor
-	if encryptor, err = ckkscontext.NewEncryptorFromPk(pk); err != nil {
-		log.Fatal(err)
-	}
+	encryptor = ckkscontext.NewEncryptorFromPk(pk)
 
 	// Decryptor
 	var decryptor *ckks.Decryptor
-	if decryptor, err = ckkscontext.NewDecryptor(sk); err != nil {
-		log.Fatal(err)
-	}
+	decryptor = ckkscontext.NewDecryptor(sk)
 
 	// Evaluator
 	var evaluator *ckks.Evaluator
-	if evaluator = ckkscontext.NewEvaluator(); err != nil {
-		log.Fatal(err)
-	}
+	evaluator = ckkscontext.NewEvaluator()
 
 	// Values to encrypt
 	values := make([]complex128, ckkscontext.Slots())
@@ -82,24 +71,18 @@ func chebyshevinterpolation() {
 
 	// Plaintext creation and encoding process
 	plaintext := ckkscontext.NewPlaintext(ckkscontext.Levels()-1, ckkscontext.Scale())
-	if err = encoder.Encode(plaintext, values, ckkscontext.Slots()); err != nil {
-		log.Fatal(err)
-	}
+	encoder.Encode(plaintext, values, ckkscontext.Slots())
 
 	// Encryption process
 	var ciphertext *ckks.Ciphertext
-	if ciphertext, err = encryptor.EncryptNew(plaintext); err != nil {
-		log.Fatal(err)
-	}
+	ciphertext = encryptor.EncryptNew(plaintext)
 
 	fmt.Println("Evaluation of the function 1/(exp(-x)+1) in the range [-8, 8] (degree of approximation : 32)")
 
 	// Evaluation process
 	chebyapproximation := ckks.Approximate(f, -8, 8, 33) // We ask to approximate f(x) in the range [-8, 8] with a chebyshev polynomial of 33 coefficients (degree 32).
 
-	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk); err != nil { // We evaluate the interpolated chebyshev polynomial on the ciphertext
-		log.Fatal(err)
-	}
+	ciphertext = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk) // We evaluate the interpolated chebyshev polynomial on the ciphertext
 
 	fmt.Println("Done... Consumed levels :", ckkscontext.Levels()-1-ciphertext.Level())
 

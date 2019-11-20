@@ -4,6 +4,23 @@ import (
 	"testing"
 )
 
+func Test_Float128_DivMult(t *testing.T) {
+	var x, y uint64
+	var xFloat, yFloat Float128
+
+	x = 0xb80b8d5351c4d81b
+	y = 0xd3cd9f41f6606a7d
+
+	xFloat = Float128SetUint64(x)
+	yFloat = Float128SetUint64(y)
+	xFloat = Float128Div(xFloat, yFloat)
+	xFloat = Float128Mul(xFloat, yFloat)
+
+	if x != Float128ToUint64(xFloat) {
+		t.Errorf("DivMult")
+	}
+}
+
 func Benchmark_Float128_Add(b *testing.B) {
 
 	var x, y Float128

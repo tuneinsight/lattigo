@@ -31,6 +31,10 @@ func Benchmark_Polynomial(b *testing.B) {
 		contextP.SetParameters(N, Pi)
 		contextP.GenNTTParams()
 
+		contextQP := NewContext()
+		contextQP.SetParameters(N, append(Qi, Pi...))
+		contextQP.GenNTTParams()
+
 		benchmark_Context(N, Qi, b)
 
 		benchmark_KYSGaussPoly(sigma, contextQ, b)
@@ -65,7 +69,7 @@ func Benchmark_Polynomial(b *testing.B) {
 
 		benchmark_MulPolyMontgomery(contextQ, b)
 
-		//benchmark_MulPolyNaiveMontgomery(contextQ, b)
+		benchmark_MulPolyNaiveMontgomery(contextQ, b)
 
 		benchmark_ExtendBasis(contextQ, contextP, b)
 
@@ -159,31 +163,29 @@ func benchmark_KYSGaussPoly(sigma float64, context *Context, b *testing.B) {
 
 func benchmark_TernaryPoly(context *Context, b *testing.B) {
 
-	ternarySampler := context.NewTernarySampler()
-
 	pol := context.NewPoly()
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(0.5)", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.Sample(0.5, pol)
+			context.SampleTernary(pol, 0.5)
 		}
 	})
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(0.5)MontgomeryNTT", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.SampleMontgomeryNTT(0.5, pol)
+			context.SampleTernaryMontgomeryNTT(pol, 0.5)
 		}
 	})
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(1/3)", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.Sample(1.0/3, pol)
+			context.SampleTernary(pol, 1.0/3)
 		}
 	})
 
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(1/3)MontgomeryNTT", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ternarySampler.SampleMontgomeryNTT(1.0/3, pol)
+			context.SampleTernaryMontgomeryNTT(pol, 1.0/3)
 
 		}
 	})

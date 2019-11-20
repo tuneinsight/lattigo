@@ -113,7 +113,7 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 				rotations = append(rotations, index)
 			}
 
-			index = j % bootcontext.pDFTInv[i].N1
+			index = j & (bootcontext.pDFTInv[i].N1 - 1)
 
 			if !utils.IsInSliceUint64(index, rotations) {
 				rotations = append(rotations, index)
@@ -137,7 +137,7 @@ func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsD
 				rotations = append(rotations, index)
 			}
 
-			index = j % bootcontext.pDFT[i].N1
+			index = j & (bootcontext.pDFT[i].N1 - 1)
 
 			if !utils.IsInSliceUint64(index, rotations) {
 				rotations = append(rotations, index)
@@ -411,20 +411,24 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 	index := make(map[uint64][]uint64)
 	for key := range plainVectors.Vec {
-		if index[key/N1] == nil {
-			index[key/N1] = []uint64{key % N1}
+
+		idx1 := key / N1
+		idx2 := key & (N1 - 1)
+
+		if index[idx1] == nil {
+			index[idx1] = []uint64{idx2}
 		} else {
-			index[key/N1] = append(index[key/N1], key%N1)
+			index[idx1] = append(index[idx1], idx2)
 		}
 
 		// Pre-rotates ciphertext for the baby-step giant-step algorithm
-		if vec_rot[key%N1] == nil {
+		if vec_rot[idx2] == nil {
 
 			// Rotation using hoisting
-			if key%N1 == 0 {
-				vec_rot[key%N1] = vec.CopyNew().Ciphertext()
+			if idx2 == 0 {
+				vec_rot[idx2] = vec.CopyNew().Ciphertext()
 			} else {
-				vec_rot[key%N1] = bootcontext.ckkscontext.NewCiphertext(1, vec.Level(), vec.Scale())
+				vec_rot[idx2] = bootcontext.ckkscontext.NewCiphertext(1, vec.Level(), vec.Scale())
 				evaluator.rotateLeftHoisted(vec, c2_qiQDecomp, c2_qiPDecomp, key%N1, bootcontext.rotkeys, vec_rot[key%N1])
 			}
 		}
@@ -568,9 +572,9 @@ func computeRoots(N uint64) (roots []complex128) {
 	return
 }
 
-func fftPlainVec(N uint64, roots []complex128) (a, b, c [][]complex128) {
+func fftPlainVec(N uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
 
-	var logN, m, index, tt, gap, k, mask uint64
+	var logN, m, index, tt, gap, k, mask, idx1, idx2 uint64
 
 	logN = uint64(bits.Len64(N) - 1)
 
@@ -594,23 +598,17 @@ func fftPlainVec(N uint64, roots []complex128) (a, b, c [][]complex128) {
 
 			for j := uint64(0); j < m>>1; j++ {
 
-				k = 1
-				for u := uint64(0); u < j; u++ {
-					k *= 5
-					k &= mask
+				k = (pow5[j] & mask) * gap
+
+				idx1 = i + j
+				idx2 = i + j + tt
+
+				for u := uint64(0); u < 2; u++ {
+					a[index][idx1+u*N] = 1
+					a[index][idx2+u*N] = -roots[k]
+					b[index][idx1+u*N] = roots[k]
+					c[index][idx2+u*N] = 1
 				}
-				k *= gap
-
-				a[index][i+j] = 1
-				a[index][i+j+tt] = -roots[k]
-				b[index][i+j] = roots[k]
-				c[index][i+j+tt] = 1
-
-				a[index][N+i+j] = 1
-				a[index][N+i+j+tt] = -roots[k]
-				b[index][N+i+j] = roots[k]
-				c[index][N+i+j+tt] = 1
-
 			}
 		}
 
@@ -620,9 +618,9 @@ func fftPlainVec(N uint64, roots []complex128) (a, b, c [][]complex128) {
 	return
 }
 
-func fftInvPlainVec(N uint64, roots []complex128) (a, b, c [][]complex128) {
+func fftInvPlainVec(N uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
 
-	var logN, m, index, tt, gap, k, mask uint64
+	var logN, m, index, tt, gap, k, mask, idx1, idx2 uint64
 
 	logN = uint64(bits.Len64(N) - 1)
 
@@ -646,23 +644,18 @@ func fftInvPlainVec(N uint64, roots []complex128) (a, b, c [][]complex128) {
 
 			for j := uint64(0); j < m>>1; j++ {
 
-				k = 1
-				for u := uint64(0); u < j; u++ {
-					k *= 5
-					k &= mask
+				k = ((m << 2) - (pow5[j] & mask)) * gap
+
+				idx1 = i + j
+				idx2 = i + j + tt
+
+				for u := uint64(0); u < 2; u++ {
+
+					a[index][idx1+u*N] = 1
+					a[index][idx2+u*N] = -roots[k]
+					b[index][idx1+u*N] = 1
+					c[index][idx2+u*N] = roots[k]
 				}
-				k = (((m << 2) - k) * gap)
-
-				a[index][i+j] = 1
-				a[index][i+j+tt] = -roots[k]
-				b[index][i+j] = 1
-				c[index][i+j+tt] = roots[k]
-
-				a[index][N+i+j] = 1
-				a[index][N+i+j+tt] = -roots[k]
-				b[index][N+i+j] = 1
-				c[index][N+i+j+tt] = roots[k]
-
 			}
 		}
 
@@ -675,11 +668,17 @@ func fftInvPlainVec(N uint64, roots []complex128) (a, b, c [][]complex128) {
 func (bootcontext *BootContext) computePlaintextVectors() {
 
 	roots := computeRoots(bootcontext.slots << 1)
+	pow5 := make([]uint64, (bootcontext.slots<<1)+1)
+	pow5[0] = 1
+	for i := uint64(1); i < (bootcontext.slots<<1)+1; i++ {
+		pow5[i] = pow5[i-1] * 5
+		pow5[i] &= (bootcontext.slots << 2) - 1
+	}
 
 	// CoeffsToSlots vectors
 	bootcontext.pDFTInv = make([]*dftvectors, bootcontext.ctsDepth)
 
-	pVecDFTInv := bootcontext.computeDFTPlaintextVectors(roots, true)
+	pVecDFTInv := bootcontext.computeDFTPlaintextVectors(roots, pow5, true)
 
 	for i := uint64(0); i < bootcontext.ctsDepth; i++ {
 
@@ -693,7 +692,7 @@ func (bootcontext *BootContext) computePlaintextVectors() {
 	// SlotsToCoeffs vectors
 	bootcontext.pDFT = make([]*dftvectors, bootcontext.stcDepth)
 
-	pVecDFT := bootcontext.computeDFTPlaintextVectors(roots, false)
+	pVecDFT := bootcontext.computeDFTPlaintextVectors(roots, pow5, false)
 
 	for i := uint64(0); i < bootcontext.stcDepth; i++ {
 
@@ -717,10 +716,14 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (mi
 		index := make(map[uint64][]uint64)
 
 		for key := range vector {
-			if index[key/N1] == nil {
-				index[key/N1] = []uint64{key % N1}
+
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+
+			if index[idx1] == nil {
+				index[idx1] = []uint64{idx2}
 			} else {
-				index[key/N1] = append(index[key/N1], key%N1)
+				index[idx1] = append(index[idx1], idx2)
 			}
 		}
 
@@ -747,10 +750,12 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	index := make(map[uint64][]uint64)
 
 	for key := range pVec {
-		if index[key/N1] == nil {
-			index[key/N1] = []uint64{key % N1}
+		idx1 := key / N1
+		idx2 := key & (N1 - 1)
+		if index[idx1] == nil {
+			index[idx1] = []uint64{idx2}
 		} else {
-			index[key/N1] = append(index[key/N1], key%N1)
+			index[idx1] = append(index[idx1], idx2)
 		}
 	}
 
@@ -775,7 +780,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	}
 }
 
-func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, forward bool) (plainVector []map[uint64][]complex128) {
+func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, pow5 []uint64, forward bool) (plainVector []map[uint64][]complex128) {
 
 	var level, depth, nextLevel, slots, logSlots uint64
 
@@ -790,10 +795,10 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, f
 
 	if forward {
 		maxDepth = bootcontext.ctsDepth
-		a, b, c = fftInvPlainVec(slots, roots)
+		a, b, c = fftInvPlainVec(slots, roots, pow5)
 	} else {
 		maxDepth = bootcontext.stcDepth
-		a, b, c = fftPlainVec(slots, roots)
+		a, b, c = fftPlainVec(slots, roots, pow5)
 	}
 
 	plainVector = make([]map[uint64][]complex128, maxDepth)

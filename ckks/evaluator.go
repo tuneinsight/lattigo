@@ -554,6 +554,27 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 	}
 }
 
+func (evaluator *Evaluator) SetScale(ct *Ciphertext, scale float64) (err error) {
+
+	var tmp float64
+
+	tmp = evaluator.ckkscontext.scale
+
+	evaluator.ckkscontext.scale = scale
+
+	evaluator.MultConst(ct, scale/ct.Scale(), ct)
+
+	if err = evaluator.Rescale(ct, scale, ct); err != nil {
+		return err
+	}
+
+	ct.SetScale(scale)
+
+	evaluator.ckkscontext.scale = tmp
+
+	return nil
+}
+
 // MultConstNew multiplies ct0 by the input constant and returns the result on a newly created element.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
 // needs to be scaled (its rational part is not zero)). The constant can be an uint64, int64, float64 or complex128.

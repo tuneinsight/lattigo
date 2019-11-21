@@ -588,30 +588,59 @@ func (context *Context) InvMForm(p1, p2 *Poly) {
 	}
 }
 
-// PermuteNTT applies the galois transform on a polynomial in the NTT domain.
-// It maps the coefficients x^i to x^(gen*i)
-// Careful, not inplace!
-func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
+func PermuteNTTIndex(gen, N uint64) (index []uint64) {
 
-	var N, mask, logN, tmp, index uint64
-
-	N = uint64(len(polIn.Coeffs[0]))
+	var mask, logN, tmp1, tmp2 uint64
 
 	logN = uint64(bits.Len64(N) - 1)
 
 	mask = (N << 1) - 1
 
+	index = make([]uint64, N)
+
+	for i := uint64(0); i < N; i++ {
+		tmp1 = 2*utils.BitReverse64(i, logN) + 1
+
+		tmp2 = ((gen * tmp1 & mask) - 1) >> 1
+
+		index[i] = utils.BitReverse64(tmp2, logN)
+	}
+
+	return
+}
+
+// PermuteNTT applies the galois transform on a polynomial in the NTT domain.
+// It maps the coefficients x^i to x^(gen*i)
+// Careful, not inplace!
+func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
+
+	var N, tmp uint64
+
+	N = uint64(len(polIn.Coeffs[0]))
+
+	index := PermuteNTTIndex(gen, N)
+
 	for j := uint64(0); j < N; j++ {
 
-		index = 2*utils.BitReverse64(j, logN) + 1
-
-		tmp = ((gen * index & mask) - 1) >> 1
-
-		index = utils.BitReverse64(tmp, logN)
+		tmp = index[j]
 
 		for i := 0; i < len(polIn.Coeffs); i++ {
 
-			polOut.Coeffs[i][j] = polIn.Coeffs[i][index]
+			polOut.Coeffs[i][j] = polIn.Coeffs[i][tmp]
+		}
+	}
+}
+
+func PermuteNTTWithIndex(polIn *Poly, index []uint64, polOut *Poly) {
+
+	var tmp uint64
+
+	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j++ {
+
+		tmp = index[j]
+
+		for i := 0; i < len(polIn.Coeffs); i++ {
+			polOut.Coeffs[i][j] = polIn.Coeffs[i][tmp]
 		}
 	}
 }

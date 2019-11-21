@@ -1193,7 +1193,7 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 		// Looks in the RotationKeys if the corresponding rotation has been generated
 		if evakey.evakey_rot_col_L[k] != nil {
 
-			evaluator.permuteNTT(ct0, evaluator.ckkscontext.galElRotColLeft[k], evakey.evakey_rot_col_L[k], ctOut)
+			evaluator.permuteNTT(ct0, evakey.permuteNTTLeftIndex[k], evakey.evakey_rot_col_L[k], ctOut)
 
 		} else {
 
@@ -1223,19 +1223,148 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 	}
 }
 
+func (evaluator *Evaluator) RotateHoisted(ctIn *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOut map[uint64]*Ciphertext) {
+	// Pre-computation for rotations using hoisting
+	contextQ := evaluator.ckkscontext.contextQ
+	contextP := evaluator.ckkscontext.contextP
+
+	c2NTT := ctIn.value[1]
+	c2InvNTT := contextQ.NewPoly()
+	contextQ.InvNTTLvl(ctIn.Level(), c2NTT, c2InvNTT)
+
+	c2_qiQDecomp := make([]*ring.Poly, evaluator.ckkscontext.beta)
+	c2_qiPDecomp := make([]*ring.Poly, evaluator.ckkscontext.beta)
+
+	alpha := evaluator.ckkscontext.alpha
+	beta := uint64(math.Ceil(float64(ctIn.Level()+1) / float64(alpha)))
+
+	for i := uint64(0); i < beta; i++ {
+		c2_qiQDecomp[i] = contextQ.NewPoly()
+		c2_qiPDecomp[i] = contextP.NewPoly()
+		evaluator.decomposeAndSplitNTT(ctIn.Level(), i, c2NTT, c2InvNTT, c2_qiQDecomp[i], c2_qiPDecomp[i])
+	}
+
+	cOut = make(map[uint64]*Ciphertext)
+
+	for _, i := range rotations {
+
+		if i == 0 {
+			cOut[i] = ctIn.CopyNew().Ciphertext()
+		} else {
+			cOut[i] = evaluator.ckkscontext.NewCiphertext(1, ctIn.Level(), ctIn.Scale())
+			evaluator.switchKeyHoisted(ctIn, c2_qiQDecomp, c2_qiPDecomp, i, rotkeys, cOut[i])
+		}
+	}
+
+	return
+}
+
+func (evaluator *Evaluator) switchKeyHoisted(ctIn *Ciphertext, c2_qiQDecomp, c2_qiPDecomp []*ring.Poly, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
+
+	var level, reduce uint64
+
+	level = ctOut.Level()
+
+	contextQ := evaluator.ckkscontext.contextQ
+	contextP := evaluator.ckkscontext.contextP
+
+	if ctIn != ctOut {
+		ring.PermuteNTTWithIndex(ctIn.value[0], evakey.permuteNTTLeftIndex[k], evaluator.ringpool[0])
+		contextQ.CopyLvl(level, evaluator.ringpool[0], ctOut.value[0])
+		ring.PermuteNTTWithIndex(ctIn.value[1], evakey.permuteNTTLeftIndex[k], evaluator.ringpool[0])
+		contextQ.CopyLvl(level, evaluator.ringpool[0], ctOut.value[1])
+	} else {
+		ring.PermuteNTTWithIndex(ctIn.value[0], evakey.permuteNTTLeftIndex[k], ctOut.value[0])
+		ring.PermuteNTTWithIndex(ctIn.value[1], evakey.permuteNTTLeftIndex[k], ctOut.value[1])
+	}
+
+	for i := range evaluator.poolQ {
+		evaluator.poolQ[i].Zero()
+	}
+
+	for i := range evaluator.poolP {
+		evaluator.poolP[i].Zero()
+	}
+
+	c2_qiQPermute := evaluator.poolQ[0]
+	c2_qiPPermute := evaluator.poolP[0]
+
+	pool2Q := evaluator.poolQ[1]
+	pool2P := evaluator.poolP[1]
+
+	pool3Q := evaluator.poolQ[2]
+	pool3P := evaluator.poolP[2]
+
+	reduce = 0
+
+	alpha := evaluator.ckkscontext.alpha
+	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
+
+	// Key switching with crt decomposition for the Qi
+	for i := uint64(0); i < beta; i++ {
+
+		ring.PermuteNTTWithIndex(c2_qiQDecomp[i], evakey.permuteNTTLeftIndex[k], c2_qiQPermute)
+		ring.PermuteNTTWithIndex(c2_qiPDecomp[i], evakey.permuteNTTLeftIndex[k], c2_qiPPermute)
+
+		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey_rot_col_L[k].evakey[i][0], c2_qiQPermute, pool2Q)
+		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey_rot_col_L[k].evakey[i][1], c2_qiQPermute, pool3Q)
+
+		// We continue with the keyswitch primes.
+		for j, keysindex := uint64(0), evaluator.ckkscontext.levels; j < uint64(len(evaluator.ckkscontext.specialprimes)); j, keysindex = j+1, keysindex+1 {
+
+			pj := contextP.Modulus[j]
+			mredParams := contextP.GetMredParams()[j]
+
+			key0 := evakey.evakey_rot_col_L[k].evakey[i][0].Coeffs[keysindex]
+			key1 := evakey.evakey_rot_col_L[k].evakey[i][1].Coeffs[keysindex]
+			p2tmp := pool2P.Coeffs[j]
+			p3tmp := pool3P.Coeffs[j]
+			c2tmp := c2_qiPPermute.Coeffs[j]
+
+			for y := uint64(0); y < contextP.N; y++ {
+				p2tmp[y] += ring.MRed(key0[y], c2tmp[y], pj, mredParams)
+				p3tmp[y] += ring.MRed(key1[y], c2tmp[y], pj, mredParams)
+			}
+		}
+
+		if reduce&7 == 1 {
+			contextQ.ReduceLvl(level, pool2Q, pool2Q)
+			contextQ.ReduceLvl(level, pool3Q, pool3Q)
+			contextP.Reduce(pool2P, pool2P)
+			contextP.Reduce(pool3P, pool3P)
+		}
+
+		reduce++
+	}
+
+	if (reduce-1)&7 != 1 {
+		contextQ.ReduceLvl(level, pool2Q, pool2Q)
+		contextQ.ReduceLvl(level, pool3Q, pool3Q)
+		contextP.Reduce(pool2P, pool2P)
+		contextP.Reduce(pool3P, pool3P)
+	}
+
+	//Independant of context (parameter : level)
+	// Computes pool2Q = pool2Q/pool2P and pool3Q = pool3Q/pool3P
+	evaluator.baseconverter.ModDownSplitedNTT(contextQ, contextP, evaluator.ckkscontext.rescaleParamsKeys, level, pool2Q, pool2P, pool2Q, evaluator.keyswitchpool[0])
+	evaluator.baseconverter.ModDownSplitedNTT(contextQ, contextP, evaluator.ckkscontext.rescaleParamsKeys, level, pool3Q, pool3P, pool3Q, evaluator.keyswitchpool[0])
+
+	//Independant of context (parameter : level)
+	contextQ.AddLvl(level, ctOut.value[0], pool2Q, ctOut.value[0])
+	contextQ.AddLvl(level, ctOut.value[1], pool3Q, ctOut.value[1])
+}
+
 func (evaluator *Evaluator) rotateColumnsLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	evaluator.rotateColumnsPow2(ct0, evaluator.ckkscontext.gen, k, evakey.evakey_rot_col_L, ctOut)
+	evaluator.rotateColumnsPow2(ct0, k, evakey.permuteNTTLeftIndex, evakey.evakey_rot_col_L, ctOut)
 }
 
 func (evaluator *Evaluator) rotateColumnsRPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	evaluator.rotateColumnsPow2(ct0, evaluator.ckkscontext.genInv, k, evakey.evakey_rot_col_R, ctOut)
+	evaluator.rotateColumnsPow2(ct0, k, evakey.permuteNTTRightIndex, evakey.evakey_rot_col_R, ctOut)
 }
 
-func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint64, evakey_rot_col map[uint64]*SwitchingKey, ctOut *Ciphertext) {
+func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, k uint64, permuteNTTIndex map[uint64][]uint64, evakey_rot_col map[uint64]*SwitchingKey, ctOut *Ciphertext) {
 
-	var mask, evakey_index uint64
-
-	mask = (evaluator.ckkscontext.n << 1) - 1
+	var evakey_index uint64
 
 	evakey_index = 1
 
@@ -1249,11 +1378,8 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 		if k&1 == 1 {
 
-			evaluator.permuteNTT(ctOut, generator, evakey_rot_col[evakey_index], ctOut)
+			evaluator.permuteNTT(ctOut, permuteNTTIndex[evakey_index], evakey_rot_col[evakey_index], ctOut)
 		}
-
-		generator *= generator
-		generator &= mask
 
 		evakey_index <<= 1
 		k >>= 1
@@ -1287,10 +1413,10 @@ func (evaluator *Evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctO
 		panic("cannot rotate -> : rows rotation key not generated")
 	}
 
-	evaluator.permuteNTT(ct0, evaluator.ckkscontext.galElRotRow, evakey.evakey_rot_row, ctOut)
+	evaluator.permuteNTT(ct0, evakey.permuteNTTConjugateIndex, evakey.evakey_rot_row, ctOut)
 }
 
-func (evaluator *Evaluator) permuteNTT(ct0 *Ciphertext, generator uint64, evakey *SwitchingKey, ctOut *Ciphertext) {
+func (evaluator *Evaluator) permuteNTT(ct0 *Ciphertext, index []uint64, evakey *SwitchingKey, ctOut *Ciphertext) {
 
 	var el0, el1 *ring.Poly
 
@@ -1300,8 +1426,8 @@ func (evaluator *Evaluator) permuteNTT(ct0 *Ciphertext, generator uint64, evakey
 		el0, el1 = evaluator.ringpool[0], evaluator.ringpool[1]
 	}
 
-	ring.PermuteNTT(ct0.value[0], generator, el0)
-	ring.PermuteNTT(ct0.value[1], generator, el1)
+	ring.PermuteNTTWithIndex(ct0.value[0], index, el0)
+	ring.PermuteNTTWithIndex(ct0.value[1], index, el1)
 
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
 	context := evaluator.ckkscontext.contextQ

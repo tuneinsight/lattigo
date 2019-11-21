@@ -292,7 +292,7 @@ func BenchmarkRotationHoisting(b *testing.B) {
 
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/RotateHoisted", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.rotateLeftHoisted(ciphertext, c2_qiQDecomp, c2_qiPDecomp, 5, rotkeys, ciphertext)
+				evaluator.switchKeyHoisted(ciphertext, c2_qiQDecomp, c2_qiPDecomp, 5, rotkeys, ciphertext)
 			}
 		})
 

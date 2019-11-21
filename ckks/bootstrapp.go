@@ -386,30 +386,9 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 	// N1*N2 = N
 	N1 = plainVectors.N1
 
-	vec_rot := make(map[uint64]*Ciphertext, N1)
-
-	// Pre-computation for rotations using hoisting
-	contextQ := bootcontext.ckkscontext.contextQ
-	contextP := bootcontext.ckkscontext.contextP
-
-	c2NTT := vec.value[1]
-	c2InvNTT := contextQ.NewPoly()
-	contextQ.InvNTTLvl(vec.Level(), c2NTT, c2InvNTT)
-
-	c2_qiQDecomp := make([]*ring.Poly, bootcontext.ckkscontext.beta)
-	c2_qiPDecomp := make([]*ring.Poly, bootcontext.ckkscontext.beta)
-
-	alpha := evaluator.ckkscontext.alpha
-	beta := uint64(math.Ceil(float64(vec.Level()+1) / float64(alpha)))
-
-	for i := uint64(0); i < beta; i++ {
-		c2_qiQDecomp[i] = contextQ.NewPoly()
-		c2_qiPDecomp[i] = contextP.NewPoly()
-		evaluator.decomposeAndSplitNTT(vec.Level(), i, c2NTT, c2InvNTT, c2_qiQDecomp[i], c2_qiPDecomp[i])
-	}
-
 	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 	index := make(map[uint64][]uint64)
+	rotations := []uint64{}
 	for key := range plainVectors.Vec {
 
 		idx1 := key / N1
@@ -421,18 +400,13 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 			index[idx1] = append(index[idx1], idx2)
 		}
 
-		// Pre-rotates ciphertext for the baby-step giant-step algorithm
-		if vec_rot[idx2] == nil {
-
-			// Rotation using hoisting
-			if idx2 == 0 {
-				vec_rot[idx2] = vec.CopyNew().Ciphertext()
-			} else {
-				vec_rot[idx2] = bootcontext.ckkscontext.NewCiphertext(1, vec.Level(), vec.Scale())
-				evaluator.rotateLeftHoisted(vec, c2_qiQDecomp, c2_qiPDecomp, key%N1, bootcontext.rotkeys, vec_rot[key%N1])
-			}
+		if !utils.IsInSliceUint64(idx2, rotations) {
+			rotations = append(rotations, idx2)
 		}
 	}
+
+	// Pre-rotates ciphertext for the baby-step giant-step algorithm
+	vec_rot := evaluator.RotateHoisted(vec, rotations, bootcontext.rotkeys)
 
 	var tmp_vec, tmp *Ciphertext
 
@@ -445,9 +419,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 		tmp_vec.Value()[1].Zero()
 
 		for _, i := range index[j] {
-
 			evaluator.MulRelin(vec_rot[uint64(i)], plainVectors.Vec[N1*j+uint64(i)], nil, tmp)
-
 			evaluator.Add(tmp_vec, tmp, tmp_vec)
 		}
 
@@ -457,101 +429,6 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 	}
 
 	return res
-}
-
-func (evaluator *Evaluator) rotateLeftHoisted(ctIn *Ciphertext, c2_qiQDecomp, c2_qiPDecomp []*ring.Poly, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-
-	var level, reduce uint64
-
-	level = ctOut.Level()
-
-	contextQ := evaluator.ckkscontext.contextQ
-	contextP := evaluator.ckkscontext.contextP
-
-	if ctIn != ctOut {
-		ring.PermuteNTT(ctIn.value[0], evaluator.ckkscontext.galElRotColLeft[k], evaluator.ringpool[0])
-		contextQ.CopyLvl(level, evaluator.ringpool[0], ctOut.value[0])
-		ring.PermuteNTT(ctIn.value[1], evaluator.ckkscontext.galElRotColLeft[k], evaluator.ringpool[0])
-		contextQ.CopyLvl(level, evaluator.ringpool[0], ctOut.value[1])
-	} else {
-		ring.PermuteNTT(ctIn.value[0], evaluator.ckkscontext.galElRotColLeft[k], ctOut.value[0])
-		ring.PermuteNTT(ctIn.value[1], evaluator.ckkscontext.galElRotColLeft[k], ctOut.value[1])
-	}
-
-	for i := range evaluator.poolQ {
-		evaluator.poolQ[i].Zero()
-	}
-
-	for i := range evaluator.poolP {
-		evaluator.poolP[i].Zero()
-	}
-
-	c2_qiQPermute := evaluator.poolQ[0]
-	c2_qiPPermute := evaluator.poolP[0]
-
-	pool2Q := evaluator.poolQ[1]
-	pool2P := evaluator.poolP[1]
-
-	pool3Q := evaluator.poolQ[2]
-	pool3P := evaluator.poolP[2]
-
-	reduce = 0
-
-	alpha := evaluator.ckkscontext.alpha
-	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
-
-	// Key switching with crt decomposition for the Qi
-	for i := uint64(0); i < beta; i++ {
-
-		ring.PermuteNTT(c2_qiQDecomp[i], evaluator.ckkscontext.galElRotColLeft[k], c2_qiQPermute)
-		ring.PermuteNTT(c2_qiPDecomp[i], evaluator.ckkscontext.galElRotColLeft[k], c2_qiPPermute)
-
-		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey_rot_col_L[k].evakey[i][0], c2_qiQPermute, pool2Q)
-		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey_rot_col_L[k].evakey[i][1], c2_qiQPermute, pool3Q)
-
-		// We continue with the keyswitch primes.
-		for j, keysindex := uint64(0), evaluator.ckkscontext.levels; j < uint64(len(evaluator.ckkscontext.specialprimes)); j, keysindex = j+1, keysindex+1 {
-
-			pj := contextP.Modulus[j]
-			mredParams := contextP.GetMredParams()[j]
-
-			key0 := evakey.evakey_rot_col_L[k].evakey[i][0].Coeffs[keysindex]
-			key1 := evakey.evakey_rot_col_L[k].evakey[i][1].Coeffs[keysindex]
-			p2tmp := pool2P.Coeffs[j]
-			p3tmp := pool3P.Coeffs[j]
-			c2tmp := c2_qiPPermute.Coeffs[j]
-
-			for y := uint64(0); y < contextP.N; y++ {
-				p2tmp[y] += ring.MRed(key0[y], c2tmp[y], pj, mredParams)
-				p3tmp[y] += ring.MRed(key1[y], c2tmp[y], pj, mredParams)
-			}
-		}
-
-		if reduce&7 == 1 {
-			contextQ.ReduceLvl(level, pool2Q, pool2Q)
-			contextQ.ReduceLvl(level, pool3Q, pool3Q)
-			contextP.Reduce(pool2P, pool2P)
-			contextP.Reduce(pool3P, pool3P)
-		}
-
-		reduce++
-	}
-
-	if (reduce-1)&7 != 1 {
-		contextQ.ReduceLvl(level, pool2Q, pool2Q)
-		contextQ.ReduceLvl(level, pool3Q, pool3Q)
-		contextP.Reduce(pool2P, pool2P)
-		contextP.Reduce(pool3P, pool3P)
-	}
-
-	//Independant of context (parameter : level)
-	// Computes pool2Q = pool2Q/pool2P and pool3Q = pool3Q/pool3P
-	evaluator.baseconverter.ModDownSplitedNTT(contextQ, contextP, evaluator.ckkscontext.rescaleParamsKeys, level, pool2Q, pool2P, pool2Q, evaluator.keyswitchpool[0])
-	evaluator.baseconverter.ModDownSplitedNTT(contextQ, contextP, evaluator.ckkscontext.rescaleParamsKeys, level, pool3Q, pool3P, pool3Q, evaluator.keyswitchpool[0])
-
-	//Independant of context (parameter : level)
-	contextQ.AddLvl(level, ctOut.value[0], pool2Q, ctOut.value[0])
-	contextQ.AddLvl(level, ctOut.value[1], pool3Q, ctOut.value[1])
 }
 
 func computeRoots(N uint64) (roots []complex128) {

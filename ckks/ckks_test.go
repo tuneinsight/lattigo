@@ -50,7 +50,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 
 	testParams.medianprec = 15
-	testParams.verbose = false
+	testParams.verbose = true
 
 	testParams.ckksParameters = []*Parameters{
 		DefaultParams[13],
@@ -157,13 +157,13 @@ func verify_test_vectors(contextParams *ckksParams, decryptor *Decryptor, values
 		plaintextTest = element.(*Plaintext)
 	}
 
-	valuesTest = contextParams.encoder.Decode(plaintextTest, contextParams.ckksContext.Slots())
+	valuesTest = contextParams.encoder.Decode(plaintextTest, uint64(len(valuesWant)))
 
 	var deltaReal, deltaImag float64
 
 	var minprec, maxprec, meanprec, medianprec complex128
 
-	diff := make([]complex128, contextParams.ckksContext.Slots())
+	diff := make([]complex128, len(valuesWant))
 
 	minprec = complex(0, 0)
 	maxprec = complex(1, 1)

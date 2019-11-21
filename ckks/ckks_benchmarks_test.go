@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"fmt"
+	"github.com/ldsec/lattigo/ring"
 	"testing"
 )
 
@@ -57,6 +58,7 @@ func Benchmark_CKKSScheme(b *testing.B) {
 
 		rotkey = ckkscontext.NewRotationKeys()
 		kgen.GenRot(RotationLeft, sk, 1, rotkey)
+		kgen.GenRot(Conjugate, sk, 1, rotkey)
 
 		encryptorPk = ckkscontext.NewEncryptorFromPk(pk)
 		encryptorSk = ckkscontext.NewEncryptorFromSk(sk)
@@ -233,6 +235,76 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/RotateCols", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
+			}
+		})
+	}
+}
+
+func BenchmarkRotationHoisting(b *testing.B) {
+
+	var ckkscontext *CkksContext
+	var kgen *KeyGenerator
+	var sk *SecretKey
+	var evaluator *Evaluator
+	var ciphertext *Ciphertext
+
+	params := []benchParams{
+		{params: &Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}},
+	}
+
+	var logN, logSlots uint64
+
+	for _, param := range params {
+
+		logN = uint64(param.params.LogN)
+
+		ckkscontext = NewCkksContext(param.params)
+		kgen = ckkscontext.NewKeyGenerator()
+
+		sk = kgen.NewSecretKey()
+
+		rotkeys := ckkscontext.NewRotationKeys()
+		kgen.GenRot(RotationLeft, sk, 5, rotkeys)
+
+		evaluator = ckkscontext.NewEvaluator()
+
+		ciphertext = ckkscontext.NewRandomCiphertext(1, ckkscontext.Levels()-1, ckkscontext.Scale())
+
+		contextQ := ckkscontext.contextQ
+		contextP := ckkscontext.contextP
+
+		c2NTT := ciphertext.value[1]
+		c2InvNTT := contextQ.NewPoly()
+		contextQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
+
+		c2_qiQDecomp := make([]*ring.Poly, ckkscontext.beta)
+		c2_qiPDecomp := make([]*ring.Poly, ckkscontext.beta)
+
+		for i := uint64(0); i < ckkscontext.beta; i++ {
+			c2_qiQDecomp[i] = contextQ.NewPoly()
+			c2_qiPDecomp[i] = contextP.NewPoly()
+		}
+
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/DecomposeNTT", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				for j := uint64(0); j < ckkscontext.beta; j++ {
+					evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2_qiQDecomp[j], c2_qiPDecomp[j])
+				}
+			}
+		})
+
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/RotateHoisted", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.switchKeyHoisted(ciphertext, c2_qiQDecomp, c2_qiPDecomp, 5, rotkeys, ciphertext)
+			}
+		})
+
+		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/RotateNormal", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
+
+			ciphertext = ckkscontext.NewRandomCiphertext(1, ckkscontext.Levels()-1, ckkscontext.Scale())
+
+			for i := 0; i < b.N; i++ {
+				evaluator.RotateColumns(ciphertext, 5, rotkeys, ciphertext)
 			}
 		})
 	}

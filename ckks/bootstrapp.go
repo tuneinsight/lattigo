@@ -367,14 +367,14 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciph
 	L := uint64(M >> 1)
 
 	for i := uint64(3); i < (1<<L)+1; i++ {
-		computePowerBasis(i, C, evaluator, bootcontext.relinkey)
+		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
 	}
 
 	for i := L + 1; i < M; i++ {
-		computePowerBasis(1<<i, C, evaluator, bootcontext.relinkey)
+		computePowerBasisCheby(1<<i, C, evaluator, bootcontext.relinkey)
 	}
 
-	return recurse(degree, L, M, coeffs, C, evaluator, bootcontext.relinkey)
+	return recurseCheby(degree, L, M, coeffs, C, evaluator, bootcontext.relinkey)
 }
 
 func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {

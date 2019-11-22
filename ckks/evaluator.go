@@ -1163,6 +1163,8 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 
 	} else {
 
+		ctOut.SetScale(ct0.Scale())
+
 		// Looks in the RotationKeys if the corresponding rotation has been generated
 		if evakey.evakey_rot_col_L[k] != nil {
 
@@ -1221,6 +1223,8 @@ func (evaluator *Evaluator) RotateHoisted(ctIn *Ciphertext, rotations []uint64, 
 
 	for _, i := range rotations {
 
+		i &= ((evaluator.ckkscontext.n >> 1) - 1)
+
 		if i == 0 {
 			cOut[i] = ctIn.CopyNew().Ciphertext()
 		} else {
@@ -1233,6 +1237,12 @@ func (evaluator *Evaluator) RotateHoisted(ctIn *Ciphertext, rotations []uint64, 
 }
 
 func (evaluator *Evaluator) switchKeyHoisted(ctIn *Ciphertext, c2_qiQDecomp, c2_qiPDecomp []*ring.Poly, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
+
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("cannot rotate -> input and output ciphertext must be of degree 1")
+	}
+
+	ctOut.SetScale(ctIn.Scale())
 
 	var level, reduce uint64
 
@@ -1379,6 +1389,8 @@ func (evaluator *Evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctO
 	if evakey.evakey_rot_row == nil {
 		panic("cannot rotate -> : rows rotation key not generated")
 	}
+
+	ctOut.SetScale(ct0.Scale())
 
 	evaluator.permuteNTT(ct0, evakey.permuteNTTConjugateIndex, evakey.evakey_rot_row, ctOut)
 }

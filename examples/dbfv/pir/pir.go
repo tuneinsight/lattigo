@@ -75,7 +75,7 @@ func main() {
 	}
 
 	// Index of the ciphertext to retrieve.
-	queryIndex := 1
+	queryIndex := 2
 
 	type party struct {
 		sk         *bfv.SecretKey
@@ -86,7 +86,7 @@ func main() {
 		rkgShareTwo   dbfv.RKGShareRoundTwo
 		rkgShareThree dbfv.RKGShareRoundThree
 		rtgShare      dbfv.RTGShare
-		pcksShare     dbfv.PCKSShare
+		cksShare      dbfv.CKSShare
 
 		input []uint64
 	}
@@ -110,17 +110,15 @@ func main() {
 		crpRot[i] = crsGen.Clock()
 	}
 
-	keyGen := bfvctx.NewKeyGenerator()
-
 	// Collective secret key = sum(individual secret keys)
 	colSk := &bfv.SecretKey{}
 	colSk.Set(bfvctx.ContextKeys().NewPoly())
 
 	// Instantiation of each of the protocols needed for the pir example
-	ckg := dbfv.NewCKGProtocol(bfvctx)         // public key generation
-	rkg := dbfv.NewEkgProtocol(bfvctx)         // relineariation key generation
-	rtg := dbfv.NewRotKGProtocol(bfvctx)       // rotation keys generation
-	pcks := dbfv.NewPCKSProtocol(bfvctx, 3.19) // collective public-key re-encryption
+	ckg := dbfv.NewCKGProtocol(bfvctx)       // public key generation
+	rkg := dbfv.NewEkgProtocol(bfvctx)       // relineariation key generation
+	rtg := dbfv.NewRotKGProtocol(bfvctx)     // rotation keys generation
+	cks := dbfv.NewCKSProtocol(bfvctx, 3.19) // collective public-key re-encryption
 
 	// Creates each party, and allocates the memory for all the shares that the protocols will need
 	P := make([]*party, N, N)
@@ -137,7 +135,7 @@ func main() {
 		pi.ckgShare = ckg.AllocateShares()
 		pi.rkgShareOne, pi.rkgShareTwo, pi.rkgShareThree = rkg.AllocateShares()
 		pi.rtgShare = rtg.AllocateShare()
-		pi.pcksShare = pcks.AllocateShares()
+		pi.cksShare = cks.AllocateShare()
 
 		P[i] = pi
 	}
@@ -360,29 +358,29 @@ func main() {
 
 	l.Printf("\tdone (cloud: %s/%s, party: %s)\n", elapsedRequestCloud, elapsedRequestCloudCPU, elapsedRequestParty)
 
-	// Collective re-encryption.
+	// Collective (partial) decryption.
 	l.Println("> CKS Phase")
-	requestSk, requestPk := keyGen.NewKeyPair()
-	pcksCombined := pcks.AllocateShares()
+	zero := bfvctx.ContextQ().NewPoly()
+	cksCombined := cks.AllocateShare()
 	elapsedPCKSParty := runTimedParty(func() {
-		for _, pi := range P {
-			pcks.GenShare(pi.sk.Get(), requestPk, result, pi.pcksShare)
+		for _, pi := range P[1:] {
+			cks.GenShare(pi.sk.Get(), zero, result, pi.cksShare)
 		}
 	}, N-1)
 
 	encOut := bfvctx.NewCiphertext(1)
-	elapsedPCKSCloud := runTimed(func() {
+	elapsedCKSCloud := runTimed(func() {
 		for _, pi := range P {
-			pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)
+			cks.AggregateShares(pi.cksShare, cksCombined, cksCombined)
 		}
-		pcks.KeySwitch(pcksCombined, result, encOut)
+		cks.KeySwitch(cksCombined, result, encOut)
 	})
-	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)
+	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKSCloud, elapsedPCKSParty)
 
 	l.Println("> Result:")
 
 	// Decryption by the external party
-	decryptor := bfvctx.NewDecryptor(requestSk)
+	decryptor := bfvctx.NewDecryptor(P[0].sk)
 	ptres := bfvctx.NewPlaintext()
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
@@ -392,7 +390,7 @@ func main() {
 
 	l.Printf("\t%v\n", res[:16])
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",
-		elapsedCKGCloud+elapsedRKGCloud+elapsedRTGCloud+elapsedEncryptCloud+elapsedRequestCloudCPU+elapsedPCKSCloud,
+		elapsedCKGCloud+elapsedRKGCloud+elapsedRTGCloud+elapsedEncryptCloud+elapsedRequestCloudCPU+elapsedCKSCloud,
 		elapsedCKGParty+elapsedRKGParty+elapsedRTGParty+elapsedEncryptParty+elapsedRequestParty+elapsedPCKSParty+elapsedDecParty)
 
 }

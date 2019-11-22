@@ -3,22 +3,84 @@ package bfv
 import (
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
+	"math/big"
 	"math/bits"
 )
+
+type EncoderContext struct {
+	// Polynomial degree
+	n uint64
+
+	// Plaintext Modulus
+	t uint64
+
+	// floor(Q/T) mod each Qi in montgomeryform
+	deltaMont []uint64
+	delta     []uint64
+
+	// Polynomial contexts
+	contextT *ring.Context
+	contextQ *ring.Context
+
+	// Galois elements used to permute the batched plaintext in the encrypted domain
+	gen uint64
+}
+
+func NewEncoderContext(params *Parameters) *EncoderContext {
+	n := params.N
+	t := params.T
+
+	contextT := ring.NewContext()
+	// Plaintext NTT Parameters
+	// We do not check for an error since the plaintext NTT is optional
+	// it will still compute the other relevant parameters
+	contextT.SetParameters(n, []uint64{t})
+	if err := contextT.GenNTTParams(); err != nil {
+		panic(err)
+	}
+
+	contextQ := ring.NewContext()
+	contextQ.SetParameters(n, params.Qi)
+	if err := contextQ.GenNTTParams(); err != nil {
+		panic(err)
+	}
+
+	delta0 := new(big.Int).Quo(contextQ.ModulusBigint, ring.NewUint(t))
+	tmpBig := new(big.Int)
+
+	deltaMont := make([]uint64, len(params.Qi))
+	delta := make([]uint64, len(params.Qi))
+
+	for i, Qi := range params.Qi {
+		delta[i] = tmpBig.Mod(delta0, ring.NewUint(Qi)).Uint64()
+		deltaMont[i] = ring.MForm(delta[i], Qi, contextQ.GetBredParams()[i])
+	}
+
+	return &EncoderContext{
+		n:         n,
+		t:         t,
+		deltaMont: deltaMont,
+		delta:     delta,
+
+		contextT: contextT,
+		contextQ: contextQ,
+		gen:      GaloisGen,
+	}
+}
 
 // Encoder is a structure storing the parameters encode values on a plaintext in a SIMD fashion.
 type Encoder struct {
 	indexMatrix  []uint64
-	context      *Context
+	context      *EncoderContext
 	simplescaler *ring.SimpleScaler
 	polypool     *ring.Poly
 }
 
 // NewEncoder creates a new encoder from the provided parameters
 func NewEncoder(params *Parameters) (encoder *Encoder) {
-	context := NewBfvContextWithParam(params)
+	context := NewEncoderContext(params)
 
-	if context.contextT.AllowsNTT() != true {
+	if !context.contextT.AllowsNTT() {
 		panic("cannot create batch encoder : plaintext modulus does not allow NTT")
 	}
 

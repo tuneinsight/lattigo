@@ -58,7 +58,7 @@ func (P *Plaintext) GetCoefficients() [][]uint64 {
 
 // Lift scales the coefficient of the plaintext by Q/t (ciphertext modulus / plaintext modulus) and switches
 // its modulus from t to Q.
-func (P *Plaintext) Lift(context *Context) {
+func (P *Plaintext) Lift(context *encoderContext) {
 	ringContext := context.contextQ
 	for j := uint64(0); j < ringContext.N; j++ {
 		for i := len(ringContext.Modulus) - 1; i >= 0; i-- {
@@ -78,7 +78,7 @@ func (P *Plaintext) NTTPlainModulus(context *Context) {
 }
 
 // InvNTTPlainModulus applies the NTT on a plaintext within the plaintext modulus.
-func (P *Plaintext) InvNTTPlainModulus(context *Context) {
+func (P *Plaintext) InvNTTPlainModulus(context *encoderContext) {
 
 	if context.contextT.AllowsNTT() != true {
 		panic("plaintext context doesn't allow a valid InvNTT")

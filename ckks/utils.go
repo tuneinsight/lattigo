@@ -3,8 +3,13 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/ring"
 	"math/big"
+	"math/cmplx"
 	"math/rand"
 )
+
+func exp2pi(x complex128) complex128 {
+	return cmplx.Exp(2 * 3.141592653589793 * complex(0, 1) * x)
+}
 
 func randomFloat(min, max float64) float64 {
 	return min + rand.Float64()*(max-min)

@@ -71,6 +71,7 @@ func Test_CKKS(t *testing.T) {
 	t.Run("Evaluator/MultConstAndAdd", testEvaluatorMultConstAndAdd)
 	t.Run("Evaluator/Mul", testEvaluatorMul)
 	t.Run("Evaluator/Functions", testFunctions)
+	t.Run("Evaluator/EvaluatePoly", testEvaluatePoly)
 	t.Run("Evaluator/ChebyshevInterpolator", testChebyshevInterpolator)
 	t.Run("Evaluator/SwitchKeys", testSwitchKeys)
 	t.Run("Evaluator/Conjugate", testConjugate)
@@ -705,6 +706,31 @@ func testFunctions(t *testing.T) {
 				verify_test_vectors(params, params.decryptor, values, ciphertext, t)
 			})
 		}
+	}
+}
+
+func testEvaluatePoly(t *testing.T) {
+
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genCkksParams(parameters)
+
+		rlk := params.kgen.NewRelinKey(params.sk)
+
+		t.Run(testString("Exp/", params), func(t *testing.T) {
+
+			values, _, ciphertext := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
+
+			coeffs := []float64{1.0, 1.0, 1.0 / 2, 1.0 / 6, 1.0 / 24, 1.0 / 120, 1.0 / 720, 1.0 / 5040}
+
+			for i := range values {
+				values[i] = cmplx.Exp(values[i])
+			}
+
+			ciphertext = params.evaluator.EvaluatePoly(ciphertext, coeffs, rlk)
+
+			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+		})
 	}
 }
 

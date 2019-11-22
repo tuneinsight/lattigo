@@ -192,7 +192,7 @@ func main() {
 
 	l.Println("> Encrypt Phase")
 	encryptor := bfvctx.NewEncryptorFromPk(pk)
-	encoder := bfvctx.NewEncoder()
+	encoder := bfv.NewEncoder(params)
 	pt := bfvctx.NewPlaintext()
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {

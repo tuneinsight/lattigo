@@ -52,9 +52,9 @@ func obliviousRiding() {
 	// Plaintext modulus
 	params.T = 0x3ee0001
 
-	bfvContext := bfv.NewContextWithParam(&params)
+	encoder := bfv.NewEncoder(&params)
 
-	encoder := bfvContext.NewEncoder()
+	bfvContext := bfv.NewContextWithParam(&params)
 
 	// Rider's keygen
 	kgen := bfvContext.NewKeyGenerator()

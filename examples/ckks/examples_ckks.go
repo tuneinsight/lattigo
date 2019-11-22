@@ -30,11 +30,10 @@ func chebyshevinterpolation() {
 	// Scheme params
 	params := ckks.DefaultParams[14]
 
-	// Context
-	var ckkscontext *ckks.Context
-	ckkscontext = ckks.NewContext(params)
+	encoder := ckks.NewEncoder(params)
 
-	encoder := ckkscontext.NewEncoder()
+	// Context
+	ckkscontext := ckks.NewContext(params)
 
 	// Keys
 	kgen := ckkscontext.NewKeyGenerator()

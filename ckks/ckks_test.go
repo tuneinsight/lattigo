@@ -95,7 +95,7 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 	params.sk, params.pk = params.kgen.NewKeyPairSparse(128)
 
-	params.encoder = params.ckkscontext.NewEncoder()
+	params.encoder = NewEncoder(contextParameters)
 
 	params.encryptorPk = params.ckkscontext.NewEncryptorFromPk(params.pk)
 	params.encryptorSk = params.ckkscontext.NewEncryptorFromSk(params.sk)

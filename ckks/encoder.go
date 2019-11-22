@@ -20,20 +20,22 @@ type Encoder struct {
 }
 
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
-func (ckkscontext *Context) NewEncoder() (encoder *Encoder) {
+func NewEncoder(params *Parameters) (encoder *Encoder) {
+	ckksContext := NewCkksContext(params)
+
 	encoder = new(Encoder)
-	encoder.ckkscontext = ckkscontext
-	encoder.values = make([]complex128, ckkscontext.maxSlots)
-	encoder.valuesfloat = make([]float64, ckkscontext.n)
-	encoder.bigintCoeffs = make([]*big.Int, ckkscontext.n)
+	encoder.ckkscontext = ckksContext
+	encoder.values = make([]complex128, ckksContext.maxSlots)
+	encoder.valuesfloat = make([]float64, ckksContext.n)
+	encoder.bigintCoeffs = make([]*big.Int, ckksContext.n)
 	encoder.qHalf = ring.NewUint(0)
-	encoder.polypool = ckkscontext.contextQ.NewPoly()
+	encoder.polypool = ckksContext.contextQ.NewPoly()
 
-	encoder.m = ckkscontext.n << 1
+	encoder.m = ckksContext.n << 1
 
-	encoder.rotGroup = make([]uint64, ckkscontext.n)
+	encoder.rotGroup = make([]uint64, ckksContext.n)
 	fivePows := uint64(1)
-	for i := uint64(0); i < ckkscontext.maxSlots; i++ {
+	for i := uint64(0); i < ckksContext.maxSlots; i++ {
 		encoder.rotGroup[i] = fivePows
 		fivePows *= 5
 		fivePows &= (encoder.m - 1)

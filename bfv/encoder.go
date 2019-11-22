@@ -14,8 +14,9 @@ type Encoder struct {
 	polypool     *ring.Poly
 }
 
-// NewEncoder creates a new encoder from the target context.
-func (context *Context) NewEncoder() (encoder *Encoder) {
+// NewEncoder creates a new encoder from the provided parameters
+func NewEncoder(params *Parameters) (encoder *Encoder) {
+	context := NewBfvContextWithParam(params)
 
 	if context.contextT.AllowsNTT() != true {
 		panic("cannot create batch encoder : plaintext modulus does not allow NTT")

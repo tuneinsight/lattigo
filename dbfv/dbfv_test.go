@@ -69,7 +69,7 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 
 	params.bfvContext = bfv.NewContextWithParam(contextParameters)
 
-	params.encoder = params.bfvContext.NewEncoder()
+	params.encoder = bfv.NewEncoder(contextParameters)
 	params.evaluator = params.bfvContext.NewEvaluator()
 
 	kgen := params.bfvContext.NewKeyGenerator()

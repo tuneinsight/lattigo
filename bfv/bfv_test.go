@@ -248,7 +248,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params.sk, params.pk = params.kgen.NewKeyPair()
 
-	params.encoder = params.bfvContext.NewEncoder()
+	params.encoder = NewEncoder(contextParameters)
 
 	params.encryptorPk = params.bfvContext.NewEncryptorFromPk(params.pk)
 	params.encryptorSk = params.bfvContext.NewEncryptorFromSk(params.sk)

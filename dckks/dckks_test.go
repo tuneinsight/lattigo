@@ -77,7 +77,7 @@ func genDCKKSContext(contextParameters *ckks.Parameters) (params *dckksContext) 
 
 	params.ckksContext = ckks.NewContext(contextParameters)
 
-	params.encoder = params.ckksContext.NewEncoder()
+	params.encoder = ckks.NewEncoder(contextParameters)
 	params.evaluator = params.ckksContext.NewEvaluator()
 
 	kgen := params.ckksContext.NewKeyGenerator()

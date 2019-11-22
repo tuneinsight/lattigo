@@ -225,7 +225,7 @@ func main() {
 		elapsedCKGParty+elapsedRKGParty+elapsedRTGParty)
 
 	// Pre-loading memory
-	encoder := bfvctx.NewEncoder()
+	encoder := bfv.NewEncoder(params)
 	l.Println("> Memory alloc Phase")
 	encInputs := make([]*bfv.Ciphertext, N, N)
 	plainMask := make([]*bfv.Plaintext, N, N)

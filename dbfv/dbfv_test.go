@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/big"
 	"testing"
@@ -66,9 +67,7 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 
 	params = new(dbfvContext)
 
-	if params.bfvContext, err = bfv.NewBfvContextWithParam(contextParameters); err != nil {
-		log.Fatal(err)
-	}
+	params.bfvContext = bfv.NewBfvContextWithParam(contextParameters)
 
 	params.encoder = params.bfvContext.NewEncoder()
 	params.evaluator = params.bfvContext.NewEvaluator()
@@ -246,8 +245,7 @@ func testRelinKeyGen(t *testing.T) {
 			evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
 
 			res := bfvContext.NewCiphertext(1)
-			err = evaluator.Relinearize(ciphertextMul, evk, res)
-			check(t, err)
+			evaluator.Relinearize(ciphertextMul, evk, res)
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
 		})
@@ -322,8 +320,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 			evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
 
 			res := bfvContext.NewCiphertext(1)
-			err = evaluator.Relinearize(ciphertextMul, evk, res)
-			check(t, err)
+			evaluator.Relinearize(ciphertextMul, evk, res)
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
 		})
@@ -492,9 +489,7 @@ func testRotKeyGenRotRows(t *testing.T) {
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
 
-			if err = evaluator.RotateRows(ciphertext, rotkey, ciphertext); err != nil {
-				log.Fatal(err)
-			}
+			evaluator.RotateRows(ciphertext, rotkey, ciphertext)
 
 			coeffs = append(coeffs[contextKeys.N>>1:], coeffs[:contextKeys.N>>1]...)
 
@@ -565,9 +560,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 				rotkey := bfvContext.NewRotationKeys()
 				P0.Finalize(P0.share, crp, rotkey)
 
-				if err = evaluator.RotateColumns(ciphertext, k, rotkey, receiver); err != nil {
-					log.Fatal(err)
-				}
+				evaluator.RotateColumns(ciphertext, k, rotkey, receiver)
 
 				coeffsWant := make([]uint64, contextKeys.N)
 
@@ -597,6 +590,10 @@ func testRefresh(t *testing.T) {
 		encoder := params.encoder
 		decryptorSk0 := params.decryptorSk0
 
+		kgen := bfvContext.NewKeyGenerator()
+
+		rlk := kgen.NewRelinKey(params.sk0, 2)
+
 		t.Run(fmt.Sprintf("N=%d/logQ=%d/Refresh", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
@@ -622,21 +619,34 @@ func testRefresh(t *testing.T) {
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.Clock()
 
-			coeffs, plaintextWant, ciphertext := newTestVectors(params, encryptorPk0, t)
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
 
-			for i, p := range RefreshParties {
-				p.GenShares(p.s, ciphertext, crp, p.share)
-				if i > 0 {
-					P0.Aggregate(p.share, P0.share, P0.share)
+			maxDepth := 0
+
+			ciphertextTmp := ciphertext.CopyNew().Ciphertext()
+			coeffsTmp := make([]uint64, len(coeffs))
+
+			for i := range coeffs {
+				coeffsTmp[i] = coeffs[i]
+			}
+
+			// Finds the maximum multiplicative depth
+			for true {
+
+				params.evaluator.Relinearize(params.evaluator.MulNew(ciphertextTmp, ciphertextTmp), rlk, ciphertextTmp)
+
+				for j := range coeffsTmp {
+					coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], bfvContext.ContextT().Modulus[0], bfvContext.ContextT().GetBredParams()[0])
+				}
+
+				if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertextTmp))) {
+					maxDepth += 1
+				} else {
+					break
 				}
 			}
 
-			// We store the plaintext coeffs as bigint for a reference to later be able to quantify the error
-			coeffs_plaintext_bigint_fresh := make([]*big.Int, bfvContext.N())
-			bfvContext.ContextQ().PolyToBigint(plaintextWant.Value()[0], coeffs_plaintext_bigint_fresh)
-			// =============================================================================================
-
-			// ==== We simulated added error of size Q/(T^2) and add it to the fresh ciphertext ====
+			// Simulated added error of size Q/(T^2) and add it to the fresh ciphertext
 			coeffs_bigint := make([]*big.Int, bfvContext.N())
 			bfvContext.ContextQ().PolyToBigint(ciphertext.Value()[0], coeffs_bigint)
 
@@ -650,55 +660,32 @@ func testRefresh(t *testing.T) {
 
 			bfvContext.ContextQ().SetCoefficientsBigint(coeffs_bigint, ciphertext.Value()[0])
 
-			plaintextHave := decryptorSk0.DecryptNew(ciphertext)
-			coeffs_plaintext_bigint_error := make([]*big.Int, bfvContext.N())
-			bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_error)
-
-			average_simulated_error := new(big.Int)
-			for i := uint64(0); i < bfvContext.N(); i++ {
-				average_simulated_error.Add(average_simulated_error, coeffs_plaintext_bigint_fresh[i])
-				average_simulated_error.Sub(average_simulated_error, coeffs_plaintext_bigint_error[i])
+			for i, p := range RefreshParties {
+				p.GenShares(p.s, ciphertext, crp, p.share)
+				if i > 0 {
+					P0.Aggregate(p.share, P0.share, P0.share)
+				}
 			}
 
-			average_simulated_error.Abs(average_simulated_error)
-			average_simulated_error.Quo(average_simulated_error, ring.NewUint(bfvContext.N()))
-			// =======================================================================================
-
-			ctOut := bfvContext.NewCiphertext(1)
-
-			// We refresh the ciphertext with the simulated error with all-in-one finalize function
-			P0.Finalize(ciphertext, crp, P0.share, ctOut)
-
-			// Should be equivalent to
+			// We refresh the ciphertext with the simulated error
 			P0.Decrypt(ciphertext, P0.share.RefreshShareDecrypt, P0.ptShare.Value()[0])      // Masked decryption
 			P0.Recode(P0.ptShare.Value()[0], P0.ptShare.Value()[0])                          // Masked re-encoding
-			P0.Recrypt(P0.ptShare.Value()[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption
+			P0.Recrypt(P0.ptShare.Value()[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption$
 
-			//ciphertext = ctOut should not change the output of the test
+			// The refresh also be called all at once with P0.Finalize(ciphertext, crp, P0.share, ctOut)
 
-			// We decrypt and compare with the original plaintext
-			plaintextHave = decryptorSk0.DecryptNew(ciphertext)
-			coeffs_plaintext_bigint_booted := make([]*big.Int, bfvContext.N())
-			bfvContext.ContextQ().PolyToBigint(plaintextHave.Value()[0], coeffs_plaintext_bigint_booted)
+			// Square the refreshed ciphertext up to the maximum depth-1
+			for i := 0; i < maxDepth-1; i++ {
 
-			average_residual_error := new(big.Int)
-			for i := uint64(0); i < bfvContext.N(); i++ {
-				average_residual_error.Add(average_residual_error, coeffs_plaintext_bigint_fresh[i])
-				average_residual_error.Sub(average_residual_error, coeffs_plaintext_bigint_booted[i])
+				params.evaluator.Relinearize(params.evaluator.MulNew(ciphertext, ciphertext), rlk, ciphertext)
+
+				for j := range coeffs {
+					coeffs[j] = ring.BRed(coeffs[j], coeffs[j], bfvContext.ContextT().Modulus[0], bfvContext.ContextT().GetBredParams()[0])
+				}
 			}
 
-			average_residual_error.Abs(average_residual_error)
-			average_residual_error.Quo(average_residual_error, ring.NewUint(bfvContext.N()))
-
-			coeffsTest := encoder.DecodeUint(plaintextHave)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			t.Logf("Average simulated error before refresh (log2): %d", average_simulated_error.BitLen())
-			t.Logf("Average residual error after refresh (log2): %d", average_residual_error.BitLen())
-
-			if equalslice(coeffs, coeffsTest) != true {
+			//Decrypts and compare
+			if utils.EqualSliceUint64(coeffs, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertext))) != true {
 				t.Errorf("error : BOOT")
 			}
 		})
@@ -714,7 +701,7 @@ func newTestVectors(contextParams *dbfvContext, encryptor *bfv.Encryptor, t *tes
 }
 
 func verifyTestVectors(contextParams *dbfvContext, decryptor *bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
-	if bfv.EqualSlice(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
+	if utils.EqualSliceUint64(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
 		t.Errorf("decryption error")
 	}
 }
@@ -722,7 +709,7 @@ func verifyTestVectors(contextParams *dbfvContext, decryptor *bfv.Decryptor, coe
 func Test_Marshalling(t *testing.T) {
 
 	//verify if the un.marshalling works properly
-	bfvCtx, _ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[1])
+	bfvCtx := bfv.NewBfvContextWithParam(&bfv.DefaultParams[1])
 	KeyGenerator := bfvCtx.NewKeyGenerator()
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextKeys())
 	sk := KeyGenerator.NewSecretKey()
@@ -760,7 +747,7 @@ func Test_Marshalling(t *testing.T) {
 		}
 
 		for i := 0; i < KeyGenShareBefore.GetLenModuli(); i++ {
-			if !equalslice(KeyGenShareAfter.Coeffs[i], KeyGenShareBefore.Coeffs[i]) {
+			if !utils.EqualSliceUint64(KeyGenShareAfter.Coeffs[i], KeyGenShareBefore.Coeffs[i]) {
 				log.Print("Non equal slices in CKGShare")
 				t.Fail()
 			}
@@ -798,7 +785,7 @@ func Test_Marshalling(t *testing.T) {
 				t.Fail()
 			}
 			for d := 0; d < ringAfter.GetLenModuli(); d++ {
-				if !equalslice(ringAfter.Coeffs[d], ringBefore.Coeffs[d]) {
+				if !utils.EqualSliceUint64(ringAfter.Coeffs[d], ringBefore.Coeffs[d]) {
 					log.Print("Non equal slices in PCKSShare")
 					t.Fail()
 				}
@@ -837,7 +824,7 @@ func Test_Marshalling(t *testing.T) {
 		}
 
 		for i := 0; i < cksshare.GetLenModuli(); i++ {
-			if !equalslice(cksshare.Coeffs[i], cksshareAfter.Coeffs[i]) {
+			if !utils.EqualSliceUint64(cksshare.Coeffs[i], cksshareAfter.Coeffs[i]) {
 				log.Print("Non equal slices in CKSShare")
 				t.Fail()
 			}
@@ -864,13 +851,13 @@ func Test_Marshalling(t *testing.T) {
 			log.Fatal("Could not unmarshal RefreshShare", err)
 		}
 		for i, r := range refreshshare.RefreshShareDecrypt.Coeffs {
-			if !equalslice(res_refreshshare.RefreshShareDecrypt.Coeffs[i], r) {
+			if !utils.EqualSliceUint64(res_refreshshare.RefreshShareDecrypt.Coeffs[i], r) {
 				log.Fatal("Resulting of marshalling not the same as original : RefreshShare")
 			}
 
 		}
 		for i, r := range refreshshare.RefreshShareRecrypt.Coeffs {
-			if !equalslice(res_refreshshare.RefreshShareRecrypt.Coeffs[i], r) {
+			if !utils.EqualSliceUint64(res_refreshshare.RefreshShareRecrypt.Coeffs[i], r) {
 				log.Fatal("Resulting of marshalling not the same as original : RefreshShare")
 			}
 
@@ -916,7 +903,7 @@ func Test_Marshalling(t *testing.T) {
 			}
 
 			for j, elem := range ring1.Coeffs {
-				if !equalslice(ring2.Coeffs[j], elem) {
+				if !utils.EqualSliceUint64(ring2.Coeffs[j], elem) {
 					log.Fatal("result after marshalling is not the same as before marshalling for RTGSahre")
 
 				}
@@ -929,7 +916,7 @@ func Test_Marshalling(t *testing.T) {
 
 func Test_Relin_Marshalling(t *testing.T) {
 
-	bfvCtx, _ := bfv.NewBfvContextWithParam(&bfv.DefaultParams[1])
+	bfvCtx := bfv.NewBfvContextWithParam(&bfv.DefaultParams[1])
 	contextQ := bfvCtx.ContextQ()
 	contextPKeys := bfvCtx.ContextPKeys()
 	modulus := bfvCtx.ContextQ().Modulus
@@ -973,7 +960,7 @@ func Test_Relin_Marshalling(t *testing.T) {
 			a := r1[i]
 			b := (*r1After)[i]
 			for k := 0; k < a.GetLenModuli(); k++ {
-				if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
+				if !utils.EqualSliceUint64(a.Coeffs[k], b.Coeffs[k]) {
 					log.Print("Error : coeffs of rings do not match")
 					t.Fail()
 				}
@@ -1006,7 +993,7 @@ func Test_Relin_Marshalling(t *testing.T) {
 				a := r2[i][idx]
 				b := (*r2After)[i][idx]
 				for k := 0; k < a.GetLenModuli(); k++ {
-					if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
+					if !utils.EqualSliceUint64(a.Coeffs[k], b.Coeffs[k]) {
 						log.Print("Error : coeffs of rings do not match")
 						t.Fail()
 					}
@@ -1041,7 +1028,7 @@ func Test_Relin_Marshalling(t *testing.T) {
 			a := r3[i]
 			b := (*r3After)[i]
 			for k := 0; k < a.GetLenModuli(); k++ {
-				if !equalslice(a.Coeffs[k], b.Coeffs[k]) {
+				if !utils.EqualSliceUint64(a.Coeffs[k], b.Coeffs[k]) {
 					log.Print("Error : coeffs of rings do not match")
 					t.Fail()
 				}

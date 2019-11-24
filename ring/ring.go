@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"github.com/ldsec/lattigo/utils"
 	"math/big"
 	"math/bits"
 )
@@ -587,30 +588,59 @@ func (context *Context) InvMForm(p1, p2 *Poly) {
 	}
 }
 
-// PermuteNTT applies the galois transform on a polynomial in the NTT domain.
-// It maps the coefficients x^i to x^(gen*i)
-// Careful, not inplace!
-func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
+func PermuteNTTIndex(gen, N uint64) (index []uint64) {
 
-	var N, mask, logN, tmp, index uint64
-
-	N = uint64(len(polIn.Coeffs[0]))
+	var mask, logN, tmp1, tmp2 uint64
 
 	logN = uint64(bits.Len64(N) - 1)
 
 	mask = (N << 1) - 1
 
+	index = make([]uint64, N)
+
+	for i := uint64(0); i < N; i++ {
+		tmp1 = 2*utils.BitReverse64(i, logN) + 1
+
+		tmp2 = ((gen * tmp1 & mask) - 1) >> 1
+
+		index[i] = utils.BitReverse64(tmp2, logN)
+	}
+
+	return
+}
+
+// PermuteNTT applies the galois transform on a polynomial in the NTT domain.
+// It maps the coefficients x^i to x^(gen*i)
+// Careful, not inplace!
+func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
+
+	var N, tmp uint64
+
+	N = uint64(len(polIn.Coeffs[0]))
+
+	index := PermuteNTTIndex(gen, N)
+
 	for j := uint64(0); j < N; j++ {
 
-		index = 2*bitReverse64(j, logN) + 1
-
-		tmp = ((gen * index & mask) - 1) >> 1
-
-		index = bitReverse64(tmp, logN)
+		tmp = index[j]
 
 		for i := 0; i < len(polIn.Coeffs); i++ {
 
-			polOut.Coeffs[i][j] = polIn.Coeffs[i][index]
+			polOut.Coeffs[i][j] = polIn.Coeffs[i][tmp]
+		}
+	}
+}
+
+func PermuteNTTWithIndex(polIn *Poly, index []uint64, polOut *Poly) {
+
+	var tmp uint64
+
+	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j++ {
+
+		tmp = index[j]
+
+		for i := 0; i < len(polIn.Coeffs); i++ {
+			polOut.Coeffs[i][j] = polIn.Coeffs[i][tmp]
 		}
 	}
 }
@@ -775,14 +805,14 @@ func (context *Context) BitReverse(p1, p2 *Poly) {
 		for i := range context.Modulus {
 			p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 			for j := uint64(0); j < context.N; j++ {
-				p2tmp[bitReverse64(j, bitLenOfN)] = p1tmp[j]
+				p2tmp[utils.BitReverse64(j, bitLenOfN)] = p1tmp[j]
 			}
 		}
 	} else { // In place in case p1 = p2
 		for x := range context.Modulus {
 			p2tmp := p2.Coeffs[x]
 			for i := uint64(0); i < context.N; i++ {
-				j := bitReverse64(i, bitLenOfN)
+				j := utils.BitReverse64(i, bitLenOfN)
 				if i < j {
 					p2tmp[i], p2tmp[j] = p2tmp[j], p2tmp[i]
 				}

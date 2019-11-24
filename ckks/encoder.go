@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math"
 	"math/big"
@@ -52,10 +51,10 @@ func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
 }
 
 // EncodeFloat takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
-func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots uint64) (err error) {
+func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
 
 	if uint64(len(values)) > encoder.ckkscontext.maxSlots || uint64(len(values)) > slots {
-		return errors.New("cannot encode -> to many values for the given number of slots")
+		panic("cannot encode -> to many values for the given number of slots")
 	}
 
 	plaintext.slots = slots
@@ -84,8 +83,6 @@ func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 	for i := uint64(0); i < encoder.ckkscontext.n; i++ {
 		encoder.valuesfloat[i] = 0
 	}
-
-	return nil
 }
 
 // DecodeFloat decodes the plaintext values to a slice of complex128 values of size at most N/2.
@@ -158,7 +155,7 @@ func (encoder *Encoder) invfftlazy(values []complex128, N uint64) {
 		}
 	}
 
-	sliceBitReverse64(values, N)
+	sliceBitReverseInPlaceComplex128(values, N)
 }
 
 func (encoder *Encoder) invfft(values []complex128, N uint64) {
@@ -175,7 +172,7 @@ func (encoder *Encoder) fft(values []complex128, N uint64) {
 	var lenh, lenq, gap, idx uint64
 	var u, v complex128
 
-	sliceBitReverse64(values, N)
+	sliceBitReverseInPlaceComplex128(values, N)
 
 	for len := uint64(2); len <= N; len <<= 1 {
 		for i := uint64(0); i < N; i += len {

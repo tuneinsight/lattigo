@@ -3,6 +3,7 @@ package bfv
 import (
 	"fmt"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/rand"
 	"testing"
@@ -104,9 +105,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params = new(bfvParams)
 
-	if params.bfvContext, err = NewBfvContextWithParam(contextParameters); err != nil {
-		log.Fatal(err)
-	}
+	params.bfvContext = NewBfvContextWithParam(contextParameters)
 
 	params.kgen = params.bfvContext.NewKeyGenerator()
 
@@ -154,7 +153,7 @@ func verify_test_vectors(params *bfvParams, decryptor *Decryptor, coeffs *ring.P
 		coeffsTest = params.encoder.DecodeUint(decryptor.DecryptNew(el.Ciphertext()))
 	}
 
-	if EqualSlice(coeffs.Coeffs[0], coeffsTest) != true {
+	if utils.EqualSliceUint64(coeffs.Coeffs[0], coeffsTest) != true {
 		t.Errorf("decryption error")
 	}
 }
@@ -327,11 +326,10 @@ func testEvaluatorMul(t *testing.T) {
 			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
-			receiver2, err := params.evaluator.RelinearizeNew(receiver, rlk)
-			check(t, err)
+			receiver2 := params.evaluator.RelinearizeNew(receiver, rlk)
 			verify_test_vectors(params, params.decryptor, values1, receiver2, t)
 
-			check(t, params.evaluator.Relinearize(receiver, rlk, receiver))
+			params.evaluator.Relinearize(receiver, rlk, receiver)
 			verify_test_vectors(params, params.decryptor, values1, receiver, t)
 		})
 	}
@@ -360,9 +358,7 @@ func testKeySwitch(t *testing.T) {
 
 			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
 
-			ciphertext, err = params.evaluator.SwitchKeysNew(ciphertext, switchKey)
-			check(t, err)
-
+			ciphertext = params.evaluator.SwitchKeysNew(ciphertext, switchKey)
 			verify_test_vectors(params, decryptorSk2, values, ciphertext, t)
 		})
 	}
@@ -381,7 +377,7 @@ func testRotateRows(t *testing.T) {
 
 			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
 
-			check(t, params.evaluator.RotateRows(ciphertext, rotkey, ciphertext))
+			params.evaluator.RotateRows(ciphertext, rotkey, ciphertext)
 
 			values.Coeffs[0] = append(values.Coeffs[0][params.bfvContext.n>>1:], values.Coeffs[0][:params.bfvContext.n>>1]...)
 
@@ -392,8 +388,7 @@ func testRotateRows(t *testing.T) {
 
 			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
 
-			ciphertext, err = params.evaluator.RotateRowsNew(ciphertext, rotkey)
-			check(t, err)
+			ciphertext = params.evaluator.RotateRowsNew(ciphertext, rotkey)
 
 			values.Coeffs[0] = append(values.Coeffs[0][params.bfvContext.n>>1:], values.Coeffs[0][:params.bfvContext.n>>1]...)
 
@@ -421,7 +416,7 @@ func testRotateCols(t *testing.T) {
 			receiver := params.bfvContext.NewCiphertext(1)
 			for n := uint64(1); n < slots; n <<= 1 {
 
-				check(t, params.evaluator.RotateColumns(ciphertext, n, rotkey, receiver))
+				params.evaluator.RotateColumns(ciphertext, n, rotkey, receiver)
 
 				for i := uint64(0); i < slots; i++ {
 					valuesWant.Coeffs[0][i] = values.Coeffs[0][(i+n)&mask]
@@ -438,8 +433,7 @@ func testRotateCols(t *testing.T) {
 
 			for n := uint64(1); n < slots; n <<= 1 {
 
-				receiver, err := params.evaluator.RotateColumnsNew(ciphertext, n, rotkey)
-				check(t, err)
+				receiver := params.evaluator.RotateColumnsNew(ciphertext, n, rotkey)
 
 				for i := uint64(0); i < slots; i++ {
 					valuesWant.Coeffs[0][i] = values.Coeffs[0][(i+n)&mask]
@@ -459,7 +453,7 @@ func testRotateCols(t *testing.T) {
 
 				rand := ring.RandUniform(slots, mask)
 
-				check(t, params.evaluator.RotateColumns(ciphertext, rand, rotkey, receiver))
+				params.evaluator.RotateColumns(ciphertext, rand, rotkey, receiver)
 
 				for i := uint64(0); i < slots; i++ {
 					valuesWant.Coeffs[0][i] = values.Coeffs[0][(i+rand)&mask]

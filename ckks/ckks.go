@@ -3,7 +3,6 @@
 package ckks
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math"
 	"math/big"
@@ -59,7 +58,9 @@ type CkksContext struct {
 
 // NewCkksContext creates a new CkksContext with the given parameters. Returns an error if one of the parameters would not ensure the
 // correctness of the scheme (however it doesn't check for security).
-func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
+func NewCkksContext(params *Parameters) (ckkscontext *CkksContext) {
+	var err error
+
 	ckkscontext = new(CkksContext)
 
 	ckkscontext.logN = uint64(params.LogN)
@@ -83,7 +84,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 		primesbitlen[uint64(qi)] += 1
 
 		if uint64(params.Modulichain[i]) > 60 {
-			return nil, errors.New("error : provided moduli must be smaller than 61")
+			panic("provided moduli must be smaller than 61")
 		}
 	}
 
@@ -91,14 +92,14 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 		primesbitlen[uint64(pj)] += 1
 
 		if uint64(pj) > 60 {
-			return nil, errors.New("error : provided P must be smaller than 61")
+			panic("provided P must be smaller than 61")
 		}
 	}
 
 	// For each bitsize, finds that many primes
 	primes := make(map[uint64][]uint64)
 	for key, value := range primesbitlen {
-		primes[key], _ = GenerateCKKSPrimes(key, uint64(params.LogN), value)
+		primes[key] = GenerateCKKSPrimes(key, uint64(params.LogN), value)
 	}
 
 	// Assigns the primes to the ckks moduli chain
@@ -130,21 +131,21 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 	ckkscontext.contextQ.SetParameters(1<<ckkscontext.logN, ckkscontext.moduli)
 
 	if err = ckkscontext.contextQ.GenNTTParams(); err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	ckkscontext.contextP = ring.NewContext()
 	ckkscontext.contextP.SetParameters(1<<ckkscontext.logN, ckkscontext.specialprimes)
 
 	if err = ckkscontext.contextP.GenNTTParams(); err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	ckkscontext.contextKeys = ring.NewContext()
 	ckkscontext.contextKeys.SetParameters(1<<ckkscontext.logN, append(ckkscontext.moduli, ckkscontext.specialprimes...))
 
 	if err = ckkscontext.contextKeys.GenNTTParams(); err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	ckkscontext.logQ = uint64(ckkscontext.contextKeys.ModulusBigint.BitLen())
@@ -195,7 +196,7 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext, err error) {
 
 	ckkscontext.galElRotRow = mask
 
-	return ckkscontext, nil
+	return ckkscontext
 
 }
 

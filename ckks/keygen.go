@@ -32,7 +32,12 @@ const (
 
 // Rotationkeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
-	ckksContext      *CkksContext
+	ckksContext *CkksContext
+
+	permuteNTTRightIndex     map[uint64][]uint64
+	permuteNTTLeftIndex      map[uint64][]uint64
+	permuteNTTConjugateIndex []uint64
+
 	evakey_rot_col_L map[uint64]*SwitchingKey
 	evakey_rot_col_R map[uint64]*SwitchingKey
 	evakey_rot_row   *SwitchingKey
@@ -191,12 +196,10 @@ func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 
 // NewSwitchingKey generated a new keyswitching key, that will re-encrypt a ciphertext encrypted under the input key to the output key.
 // Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey) (newevakey *SwitchingKey, err error) {
-
+func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey) (newevakey *SwitchingKey) {
 	keygen.context.Sub(sk_input.Get(), sk_output.Get(), keygen.polypool)
 	newevakey = keygen.newSwitchingKey(keygen.polypool, sk_output.Get())
 	keygen.polypool.Zero()
-
 	return
 }
 
@@ -231,17 +234,26 @@ func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 		if rotKey.evakey_rot_col_L == nil {
 			rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 		}
+		if rotKey.permuteNTTLeftIndex == nil {
+			rotKey.permuteNTTLeftIndex = make(map[uint64][]uint64)
+		}
 		if rotKey.evakey_rot_col_L[k] == nil && k != 0 {
+			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(keygen.ckksContext.galElRotColLeft[k], 1<<keygen.ckksContext.logN)
 			rotKey.evakey_rot_col_L[k] = keygen.genrotKey(sk.Get(), keygen.ckksContext.galElRotColLeft[k])
 		}
 	case RotationRight:
 		if rotKey.evakey_rot_col_R == nil {
 			rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 		}
+		if rotKey.permuteNTTLeftIndex == nil {
+			rotKey.permuteNTTRightIndex = make(map[uint64][]uint64)
+		}
 		if rotKey.evakey_rot_col_R[k] == nil && k != 0 {
+			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(keygen.ckksContext.galElRotColRight[k], 1<<keygen.ckksContext.logN)
 			rotKey.evakey_rot_col_R[k] = keygen.genrotKey(sk.Get(), keygen.ckksContext.galElRotColRight[k])
 		}
 	case Conjugate:
+		rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(keygen.ckksContext.galElRotRow, 1<<keygen.ckksContext.logN)
 		rotKey.evakey_rot_row = keygen.genrotKey(sk.Get(), keygen.ckksContext.galElRotRow)
 	}
 }
@@ -256,12 +268,19 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey) (rotKey *R
 	rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 	rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 
+	rotKey.permuteNTTLeftIndex = make(map[uint64][]uint64)
+	rotKey.permuteNTTRightIndex = make(map[uint64][]uint64)
+
 	for n := uint64(1); n < rotKey.ckksContext.n>>1; n <<= 1 {
+
+		rotKey.permuteNTTLeftIndex[n] = ring.PermuteNTTIndex(keygen.ckksContext.galElRotColLeft[n], 1<<keygen.ckksContext.logN)
+		rotKey.permuteNTTRightIndex[n] = ring.PermuteNTTIndex(keygen.ckksContext.galElRotColRight[n], 1<<keygen.ckksContext.logN)
 
 		rotKey.evakey_rot_col_L[n] = keygen.genrotKey(sk_output.Get(), keygen.ckksContext.galElRotColLeft[n])
 		rotKey.evakey_rot_col_R[n] = keygen.genrotKey(sk_output.Get(), keygen.ckksContext.galElRotColRight[n])
 	}
 
+	rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(keygen.ckksContext.galElRotRow, 1<<keygen.ckksContext.logN)
 	rotKey.evakey_rot_row = keygen.genrotKey(sk_output.Get(), keygen.ckksContext.galElRotRow)
 	return
 }
@@ -269,10 +288,19 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey) (rotKey *R
 func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*ring.Poly) {
 	switch rotType {
 	case RotationLeft:
+
 		if rotKey.evakey_rot_col_L == nil {
 			rotKey.evakey_rot_col_L = make(map[uint64]*SwitchingKey)
 		}
+
+		if rotKey.permuteNTTLeftIndex == nil {
+			rotKey.permuteNTTLeftIndex = make(map[uint64][]uint64)
+		}
+
 		if rotKey.evakey_rot_col_L[k] == nil && k != 0 {
+
+			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(rotKey.ckksContext.galElRotColLeft[k], 1<<rotKey.ckksContext.logN)
+
 			rotKey.evakey_rot_col_L[k] = new(SwitchingKey)
 			rotKey.evakey_rot_col_L[k].evakey = make([][2]*ring.Poly, len(evakey))
 			for j := range evakey {
@@ -280,11 +308,21 @@ func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*r
 				rotKey.evakey_rot_col_L[k].evakey[j][1] = evakey[j][1].CopyNew()
 			}
 		}
+
 	case RotationRight:
+
 		if rotKey.evakey_rot_col_R == nil {
 			rotKey.evakey_rot_col_R = make(map[uint64]*SwitchingKey)
 		}
+
+		if rotKey.permuteNTTLeftIndex == nil {
+			rotKey.permuteNTTRightIndex = make(map[uint64][]uint64)
+		}
+
 		if rotKey.evakey_rot_col_R[k] == nil && k != 0 {
+
+			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(rotKey.ckksContext.galElRotColRight[k], 1<<rotKey.ckksContext.logN)
+
 			rotKey.evakey_rot_col_R[k] = new(SwitchingKey)
 			rotKey.evakey_rot_col_R[k].evakey = make([][2]*ring.Poly, len(evakey))
 			for j := range evakey {
@@ -292,8 +330,13 @@ func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*r
 				rotKey.evakey_rot_col_R[k].evakey[j][1] = evakey[j][1].CopyNew()
 			}
 		}
+
 	case Conjugate:
+
 		if rotKey.evakey_rot_row == nil {
+
+			rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(rotKey.ckksContext.galElRotRow, 1<<rotKey.ckksContext.logN)
+
 			rotKey.evakey_rot_row = new(SwitchingKey)
 			rotKey.evakey_rot_row.evakey = make([][2]*ring.Poly, len(evakey))
 			for j := range evakey {

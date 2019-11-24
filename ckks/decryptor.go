@@ -1,9 +1,5 @@
 package ckks
 
-import (
-	"errors"
-)
-
 // Decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type Decryptor struct {
 	ckkscontext *CkksContext
@@ -12,10 +8,10 @@ type Decryptor struct {
 
 // NewDecryptor instanciates a new decryptor that will be able to decrypt ciphertext
 // encrypted under the provided secret-key.
-func (ckkscontext *CkksContext) NewDecryptor(sk *SecretKey) (*Decryptor, error) {
+func (ckkscontext *CkksContext) NewDecryptor(sk *SecretKey) *Decryptor {
 
 	if sk.sk.GetDegree() != int(ckkscontext.n) {
-		return nil, errors.New("error : secret_key degree must match context degree")
+		panic("secret_key degree must match context degree")
 	}
 
 	decryptor := new(Decryptor)
@@ -24,7 +20,7 @@ func (ckkscontext *CkksContext) NewDecryptor(sk *SecretKey) (*Decryptor, error) 
 
 	decryptor.sk = sk
 
-	return decryptor, nil
+	return decryptor
 }
 
 // DecryptNew decrypts the ciphertext and returns a newly created plaintext.

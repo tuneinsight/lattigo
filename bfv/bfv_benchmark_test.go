@@ -12,9 +12,7 @@ func Benchmark_BFV(b *testing.B) {
 	for _, params := range paramSets {
 
 		bfvContext := NewBfvContext()
-		if err := bfvContext.SetParameters(&params); err != nil {
-			b.Error(err)
-		}
+		bfvContext.SetParameters(&params)
 
 		var sk *SecretKey
 		var pk *PublicKey
@@ -103,9 +101,7 @@ func Benchmark_BFV(b *testing.B) {
 		// Relinearization
 		b.Run(testString("Relin", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err := evaluator.Relinearize(ctd2, rlk, ctd1); err != nil {
-					b.Error(err)
-				}
+				evaluator.Relinearize(ctd2, rlk, ctd1)
 			}
 		})
 
@@ -115,18 +111,14 @@ func Benchmark_BFV(b *testing.B) {
 		// Rotation Rows
 		b.Run(testString("RotateRows", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err := evaluator.RotateRows(ct1, rtk, ctd1); err != nil {
-					b.Error(err)
-				}
+				evaluator.RotateRows(ct1, rtk, ctd1)
 			}
 		})
 
 		// Rotation Cols
 		b.Run(testString("RotateCols", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err := evaluator.RotateColumns(ct1, 1, rtk, ctd1); err != nil {
-					b.Error(err)
-				}
+				evaluator.RotateColumns(ct1, 1, rtk, ctd1)
 			}
 		})
 

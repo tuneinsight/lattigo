@@ -98,7 +98,7 @@ func constructPolynomialsFromString(vs []string, context *Context) *Poly {
 	return pol
 }
 
-func TestNTT(t *testing.T) {
+func Test_NTT(t *testing.T) {
 
 	for x := uint64(0); x < 7; x++ {
 
@@ -107,7 +107,7 @@ func TestNTT(t *testing.T) {
 
 		context := constructContextFromString(vs)
 
-		t.Run(fmt.Sprintf("/N=%d/limbs=%d", context.N, len(context.Modulus)), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/limbs=%d", context.N, len(context.Modulus)), func(t *testing.T) {
 
 			Polx := constructPolynomialsFromString(vs, context)
 

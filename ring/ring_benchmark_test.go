@@ -114,7 +114,7 @@ func benchmark_Marshaler(context *Context, b *testing.B) {
 	data, _ := p.MarshalBinary()
 	b.Run(fmt.Sprintf("N=%d/limbs=%d/UnMarshalBinary", context.N, len(context.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.UnMarshalBinary(data)
+			p.UnmarshalBinary(data)
 		}
 	})
 }

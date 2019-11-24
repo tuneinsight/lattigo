@@ -1,6 +1,7 @@
 package dbfv
 
 import (
+	"encoding/binary"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	//"fmt"
@@ -19,6 +20,51 @@ type RefreshShareRecrypt *ring.Poly
 type RefreshShare struct {
 	RefreshShareDecrypt RefreshShareDecrypt
 	RefreshShareRecrypt RefreshShareRecrypt
+}
+
+func (share *RefreshShare) MarshalBinary() ([]byte, error) {
+	lenDecrypt := (*share.RefreshShareDecrypt).GetDataLen(true)
+	lenRecrypt := (*share.RefreshShareRecrypt).GetDataLen(true)
+
+	data := make([]byte, lenDecrypt+lenRecrypt+2*8) // 2 * 3 to write the len of lenDecrypt and lenRecrypt.
+	binary.BigEndian.PutUint64(data[0:8], lenDecrypt)
+	binary.BigEndian.PutUint64(data[8:16], lenRecrypt)
+
+	ptr := uint64(16)
+	tmp, err := (*share.RefreshShareDecrypt).WriteTo(data[ptr : ptr+lenDecrypt])
+	if err != nil {
+		return []byte{}, err
+	}
+
+	ptr += tmp
+	tmp, err = (*share.RefreshShareRecrypt).WriteTo(data[ptr : ptr+lenRecrypt])
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return data, nil
+}
+
+func (share *RefreshShare) UnmarshalBinary(data []byte) error {
+	lenDecrypt := binary.BigEndian.Uint64(data[0:8])
+	lenRecrypt := binary.BigEndian.Uint64(data[8:16])
+	ptr := uint64(16)
+	if share.RefreshShareRecrypt == nil || share.RefreshShareDecrypt == nil {
+		share.RefreshShareRecrypt = new(ring.Poly)
+		share.RefreshShareDecrypt = new(ring.Poly)
+
+	}
+
+	err := (*share.RefreshShareDecrypt).UnmarshalBinary(data[ptr : ptr+lenDecrypt])
+	if err != nil {
+		return err
+	}
+	ptr += lenDecrypt
+	err = (*share.RefreshShareRecrypt).UnmarshalBinary(data[ptr : ptr+lenRecrypt])
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewRefreshProtocol(bfvContext *bfv.BfvContext) (refreshProtocol *RefreshProtocol) {

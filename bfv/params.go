@@ -106,8 +106,8 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// UnMarshalBinary decodes a []byte into a parameter set struct
-func (p *Parameters) UnMarshalBinary(data []byte) error {
+// UnmarshalBinary decodes a []byte into a parameter set struct
+func (p *Parameters) UnmarshalBinary(data []byte) error {
 	if len(data) < 3 {
 		return errors.New("invalid parameters encoding")
 	}

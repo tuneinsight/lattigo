@@ -172,11 +172,18 @@ func main() {
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
 		elapsedRKGCloud+elapsedCKGCloud, elapsedRKGParty+elapsedCKGParty)
 
+	ringCtx := ring.NewContext()
+	ringCtx.SetParameters(params.N, params.Qi)
+	err = ringCtx.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
 	// Pre-loading memory
 	l.Println("> Memory alloc Phase")
 	encInputs := make([]*bfv.Ciphertext, N, N)
 	for i := range encInputs {
-		encInputs[i] = bfvctx.NewCiphertext(1)
+		encInputs[i] = bfv.NewCiphertext(1, ringCtx)
 	}
 
 	encLvls := make([][]*bfv.Ciphertext, 0)
@@ -184,14 +191,14 @@ func main() {
 	for nLvl := N / 2; nLvl > 0; nLvl = nLvl >> 1 {
 		encLvl := make([]*bfv.Ciphertext, nLvl, nLvl)
 		for i := range encLvl {
-			encLvl[i] = bfvctx.NewCiphertext(2)
+			encLvl[i] = bfv.NewCiphertext(2, ringCtx)
 		}
 		encLvls = append(encLvls, encLvl)
 	}
 	encRes := encLvls[len(encLvls)-1][0]
 
 	l.Println("> Encrypt Phase")
-	encryptor := bfvctx.NewEncryptorFromPk(pk)
+	encryptor := bfv.NewEncryptorFromPk(pk, params)
 	encoder := bfv.NewEncoder(params)
 	pt := bfvctx.NewPlaintext()
 	elapsedEncryptParty := runTimedParty(func() {
@@ -218,7 +225,7 @@ func main() {
 	//l.Println("> Spawning", NGoRoutine, "evaluator goroutine")
 	for i := 1; i <= NGoRoutine; i++ {
 		go func(i int) {
-			evaluator := bfvctx.NewEvaluator()
+			evaluator := bfv.NewEvaluator(params)
 			for task := range tasks {
 				task.elapsedMultTask = runTimed(func() {
 					evaluator.Mul(task.op1, task.op2, task.res)
@@ -268,7 +275,7 @@ func main() {
 	}, N)
 
 	pcksCombined := pcks.AllocateShares()
-	encOut := bfvctx.NewCiphertext(1)
+	encOut := bfv.NewCiphertext(1, ringCtx)
 	elapsedPCKSCloud := runTimed(func() {
 		for _, pi := range P {
 			pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)

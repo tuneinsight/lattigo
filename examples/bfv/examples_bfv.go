@@ -63,11 +63,11 @@ func obliviousRiding() {
 
 	decryptor := bfvContext.NewDecryptor(riderSk)
 
-	encryptorRiderPk := bfvContext.NewEncryptorFromPk(riderPk)
+	encryptorRiderPk := bfv.NewEncryptorFromPk(riderPk, &params)
 
-	encryptorRiderSk := bfvContext.NewEncryptorFromSk(riderSk)
+	encryptorRiderSk := bfv.NewEncryptorFromSk(riderSk, &params)
 
-	evaluator := bfvContext.NewEvaluator()
+	evaluator := bfv.NewEvaluator(&params)
 
 	fmt.Println("============================================")
 	fmt.Println("Homomorphic computations on batched integers")

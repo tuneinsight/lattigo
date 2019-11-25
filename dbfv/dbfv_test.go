@@ -70,7 +70,7 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 	params.bfvContext = bfv.NewContextWithParam(contextParameters)
 
 	params.encoder = bfv.NewEncoder(contextParameters)
-	params.evaluator = params.bfvContext.NewEvaluator()
+	params.evaluator = bfv.NewEvaluator(contextParameters)
 
 	kgen := params.bfvContext.NewKeyGenerator()
 
@@ -97,7 +97,7 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 	params.pk0 = kgen.NewPublicKey(params.sk0)
 	params.pk1 = kgen.NewPublicKey(params.sk1)
 
-	params.encryptorPk0 = params.bfvContext.NewEncryptorFromPk(params.pk0)
+	params.encryptorPk0 = bfv.NewEncryptorFromPk(params.pk0, contextParameters)
 	params.decryptorSk0 = params.bfvContext.NewDecryptor(params.sk0)
 	params.decryptorSk1 = params.bfvContext.NewDecryptor(params.sk1)
 
@@ -151,7 +151,7 @@ func testPublicKeyGen(t *testing.T) {
 			P0.GenPublicKey(P0.s1, crp, pk)
 
 			// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-			encryptorTest := bfvContext.NewEncryptorFromPk(pk)
+			encryptorTest := bfv.NewEncryptorFromPk(pk, &parameters)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorTest, t)
 
@@ -165,6 +165,12 @@ func testRelinKeyGen(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
+		ringCtx := ring.NewContext()
+		ringCtx.SetParameters(parameters.N, parameters.Qi)
+		err = ringCtx.GenNTTParams()
+		if err != nil {
+			panic(err)
+		}
 
 		params := genDBFVContext(&parameters)
 
@@ -241,10 +247,10 @@ func testRelinKeyGen(t *testing.T) {
 				coeffs[i] %= bfvContext.ContextT().Modulus[0]
 			}
 
-			ciphertextMul := bfvContext.NewCiphertext(ciphertext.Degree() * 2)
+			ciphertextMul := bfv.NewCiphertext(ciphertext.Degree()*2, ringCtx)
 			evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
 
-			res := bfvContext.NewCiphertext(1)
+			res := bfv.NewCiphertext(1, ringCtx)
 			evaluator.Relinearize(ciphertextMul, evk, res)
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
@@ -257,6 +263,12 @@ func testRelinKeyGenNaive(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
+		ringCtx := ring.NewContext()
+		ringCtx.SetParameters(parameters.N, parameters.Qi)
+		err = ringCtx.GenNTTParams()
+		if err != nil {
+			panic(err)
+		}
 
 		params := genDBFVContext(&parameters)
 
@@ -316,10 +328,10 @@ func testRelinKeyGenNaive(t *testing.T) {
 				coeffs[i] %= bfvContext.ContextT().Modulus[0]
 			}
 
-			ciphertextMul := bfvContext.NewCiphertext(ciphertext.Degree() * 2)
+			ciphertextMul := bfv.NewCiphertext(ciphertext.Degree()*2, ringCtx)
 			evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
 
-			res := bfvContext.NewCiphertext(1)
+			res := bfv.NewCiphertext(1, ringCtx)
 			evaluator.Relinearize(ciphertextMul, evk, res)
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
@@ -332,6 +344,12 @@ func testKeyswitching(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
+		ringCtx := ring.NewContext()
+		ringCtx.SetParameters(parameters.N, parameters.Qi)
+		err = ringCtx.GenNTTParams()
+		if err != nil {
+			panic(err)
+		}
 
 		params := genDBFVContext(&parameters)
 
@@ -372,7 +390,7 @@ func testKeyswitching(t *testing.T) {
 				}
 			}
 
-			ksCiphertext := bfvContext.NewCiphertext(1)
+			ksCiphertext := bfv.NewCiphertext(1, ringCtx)
 			P0.KeySwitch(P0.share, ciphertext, ksCiphertext)
 
 			verifyTestVectors(params, decryptorSk1, coeffs, ksCiphertext, t)
@@ -390,6 +408,12 @@ func testPublicKeySwitching(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
+		ringCtx := ring.NewContext()
+		ringCtx.SetParameters(parameters.N, parameters.Qi)
+		err = ringCtx.GenNTTParams()
+		if err != nil {
+			panic(err)
+		}
 
 		params := genDBFVContext(&parameters)
 
@@ -420,7 +444,7 @@ func testPublicKeySwitching(t *testing.T) {
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
 
-			ciphertextSwitched := bfvContext.NewCiphertext(1)
+			ciphertextSwitched := bfv.NewCiphertext(1, ringCtx)
 
 			for i, p := range pcksParties {
 				p.GenShare(p.s, pk1, ciphertext, p.share)
@@ -505,6 +529,12 @@ func testRotKeyGenRotCols(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
+		ringCtx := ring.NewContext()
+		ringCtx.SetParameters(parameters.N, parameters.Qi)
+		err = ringCtx.GenNTTParams()
+		if err != nil {
+			panic(err)
+		}
 
 		params := genDBFVContext(&parameters)
 
@@ -546,7 +576,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
 
-			receiver := bfvContext.NewCiphertext(ciphertext.Degree())
+			receiver := bfv.NewCiphertext(ciphertext.Degree(), ringCtx)
 
 			for k := uint64(1); k < contextKeys.N>>1; k <<= 1 {
 

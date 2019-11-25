@@ -1,14 +1,144 @@
 package bfv
 
 import (
+	"math"
+	"math/big"
+
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
 )
 
+type evaluatorContext struct {
+	// Polynomial degree
+	n uint64
+
+	// Polynomial contexts
+	contextT *ring.Context
+	contextQ *ring.Context
+	contextP *ring.Context
+
+	pHalf *big.Int
+
+	rescaleParamsMul []uint64
+
+	contextKeys       *ring.Context
+	alpha             uint64
+	beta              uint64
+	rescaleParamsKeys []uint64 // (P^-1) mod each qi
+	specialPrimes     []uint64
+
+	// Galois elements used to permute the batched plaintext in the encrypted domain
+	gen    uint64
+	genInv uint64
+
+	galElRotRow     uint64
+	galElRotColLeft []uint64
+}
+
+func newEvaluatorContext(params *Parameters) *evaluatorContext {
+	n := params.N
+
+	// Plaintext NTT Parameters
+	// We do not check for an error since the plaintext NTT is optional
+	// it will still compute the other relevant parameters
+	contextT := ring.NewContext()
+	contextT.SetParameters(n, []uint64{params.T})
+	err := contextT.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
+	contextQ := ring.NewContext()
+	contextQ.SetParameters(n, params.Qi)
+	err = contextQ.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
+	contextP := ring.NewContext()
+	contextP.SetParameters(n, params.Pi)
+	err = contextP.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
+	contextKeys := ring.NewContext()
+	contextKeys.SetParameters(n, append(params.Qi, params.KeySwitchPrimes...))
+	err = contextKeys.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
+	specialPrimes := make([]uint64, len(params.KeySwitchPrimes))
+	for i := range params.KeySwitchPrimes {
+		specialPrimes[i] = params.KeySwitchPrimes[i]
+	}
+
+	rescaleParamsKeys := make([]uint64, len(params.Qi))
+
+	PBig := ring.NewUint(1)
+	for _, pj := range specialPrimes {
+		PBig.Mul(PBig, ring.NewUint(pj))
+	}
+
+	alpha := uint64(len(specialPrimes))
+	beta := uint64(math.Ceil(float64(len(params.Qi)) / float64(alpha)))
+
+	tmp := new(big.Int)
+	bredParams := contextQ.GetBredParams()
+	for i, Qi := range params.Qi {
+		tmp.Mod(PBig, ring.NewUint(Qi))
+		rescaleParamsKeys[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Qi, bredParams[i]), Qi-2, Qi), Qi, bredParams[i])
+	}
+
+	rescaleParamsMul := make([]uint64, len(contextP.Modulus))
+
+	bredParams = contextP.GetBredParams()
+	for i, Pi := range contextP.Modulus {
+		tmp.Mod(contextQ.ModulusBigint, ring.NewUint(Pi))
+		rescaleParamsMul[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Pi, bredParams[i]), Pi-2, Pi), Pi, bredParams[i])
+	}
+
+	pHalf := new(big.Int).Rsh(contextP.ModulusBigint, 1)
+
+	gen := GaloisGen
+	genInv := ring.ModExp(gen, (n<<1)-1, n<<1)
+
+	mask := (n << 1) - 1
+
+	galElRotColLeft := make([]uint64, n>>1)
+	galElRotColLeft[0] = 1
+
+	for i := uint64(1); i < n>>1; i++ {
+		galElRotColLeft[i] = (galElRotColLeft[i-1] * gen) & mask
+
+	}
+
+	galElRotRow := (n << 1) - 1
+
+	return &evaluatorContext{
+		n:                 n,
+		contextT:          contextT,
+		contextQ:          contextQ,
+		contextP:          contextP,
+		pHalf:             pHalf,
+		rescaleParamsMul:  rescaleParamsMul,
+		contextKeys:       contextKeys,
+		alpha:             alpha,
+		beta:              beta,
+		rescaleParamsKeys: rescaleParamsKeys,
+		specialPrimes:     specialPrimes,
+		gen:               gen,
+		genInv:            genInv,
+		galElRotRow:       galElRotRow,
+		galElRotColLeft:   galElRotColLeft,
+	}
+}
+
 // Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
 type Evaluator struct {
-	context *Context
+	context *evaluatorContext
 
 	basisextenderQP *ring.BasisExtender
 	basisextenderPQ *ring.BasisExtender
@@ -26,16 +156,17 @@ type Evaluator struct {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on the ciphertexts and/or plaintexts. It stores a small pool of polynomials
 // and ciphertexts that will be used for intermediate values.
-func (context *Context) NewEvaluator() (evaluator *Evaluator) {
-
+func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 	evaluator = new(Evaluator)
+
+	context := newEvaluatorContext(params)
 	evaluator.context = context
 
 	evaluator.basisextenderQP = ring.NewBasisExtender(context.contextQ, context.contextP)
 	evaluator.basisextenderPQ = ring.NewBasisExtender(context.contextP, context.contextQ)
 
-	evaluator.baseconverter = ring.NewFastBasisExtender(context.contextQ.Modulus, context.specialprimes)
-	evaluator.decomposer = ring.NewArbitraryDecomposer(context.contextQ.Modulus, context.specialprimes)
+	evaluator.baseconverter = ring.NewFastBasisExtender(context.contextQ.Modulus, context.specialPrimes)
+	evaluator.decomposer = ring.NewArbitraryDecomposer(context.contextQ.Modulus, context.specialPrimes)
 
 	for i := 0; i < 2; i++ {
 		evaluator.polypool[i] = context.contextQ.NewPoly()
@@ -131,7 +262,7 @@ func (evaluator *Evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
 
 // AddNew adds op0 to op1 and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
+	ctOut = NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()), evaluator.context.contextQ)
 	evaluator.Add(op0, op1, ctOut)
 	return
 }
@@ -144,7 +275,7 @@ func (evaluator *Evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 
 // AddNoModNew adds op0 to op1 without modular reduction and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
+	ctOut = NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()), evaluator.context.contextQ)
 	evaluator.AddNoMod(op0, op1, ctOut)
 	return
 }
@@ -163,7 +294,7 @@ func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 
 // SubNew subtracts op0 to op1 and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
+	ctOut = NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()), evaluator.context.contextQ)
 	evaluator.Sub(op0, op1, ctOut)
 	return
 }
@@ -183,7 +314,7 @@ func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 
 // SubNoModNew subtracts op0 to op1 without modular reduction and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()))
+	ctOut = NewCiphertext(utils.MaxUint64(op0.Degree(), op1.Degree()), evaluator.context.contextQ)
 	evaluator.SubNoMod(op0, op1, ctOut)
 	return
 }
@@ -196,7 +327,7 @@ func (evaluator *Evaluator) Neg(op Operand, ctOut *Ciphertext) {
 
 // NegNew negates op and creates a new element to store the result.
 func (evaluator *Evaluator) NegNew(op Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(op.Degree())
+	ctOut = NewCiphertext(op.Degree(), evaluator.context.contextQ)
 	evaluator.Neg(op, ctOut)
 	return ctOut
 }
@@ -209,7 +340,7 @@ func (evaluator *Evaluator) Reduce(op Operand, ctOut *Ciphertext) {
 
 // ReduceNew applies a modular reduction on op and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) ReduceNew(op Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(op.Degree())
+	ctOut = NewCiphertext(op.Degree(), evaluator.context.contextQ)
 	evaluator.Reduce(op, ctOut)
 	return ctOut
 }
@@ -223,7 +354,7 @@ func (evaluator *Evaluator) MulScalar(op Operand, scalar uint64, ctOut *Cipherte
 
 // MulScalarNew multiplies op by an uint64 scalar and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(op.Degree())
+	ctOut = NewCiphertext(op.Degree(), evaluator.context.contextQ)
 	evaluator.MulScalar(op, scalar, ctOut)
 	return
 }
@@ -366,7 +497,7 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	}
 
 	polyPtmp := evaluator.poolP[0][0]
-	PHalf := evaluator.context.PHalf
+	pHalf := evaluator.context.pHalf
 
 	// Applies the inverse NTT to the ciphertext, scales the down ciphertext
 	// by t/q and reduces its basis from QP to Q
@@ -394,9 +525,9 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		}
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
-		contextP.AddScalarBigint(c2P[i], PHalf, c2P[i])
+		contextP.AddScalarBigint(c2P[i], pHalf, c2P[i])
 		evaluator.basisextenderPQ.ExtendBasisSplit(c2P[i], ctOut.value[i])
-		contextQ.SubScalarBigint(ctOut.value[i], PHalf, ctOut.value[i])
+		contextQ.SubScalarBigint(ctOut.value[i], pHalf, ctOut.value[i])
 		// ============================================
 
 		// Option 2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
@@ -412,7 +543,7 @@ func (evaluator *Evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext)
 
 // MulNew multiplies op0 by op1 and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(op0.Degree() + op1.Degree())
+	ctOut = NewCiphertext(op0.Degree()+op1.Degree(), evaluator.context.contextQ)
 	evaluator.Mul(op0, op1, ctOut)
 	return
 }
@@ -464,7 +595,7 @@ func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
 func (evaluator *Evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(1)
+	ctOut = NewCiphertext(1, evaluator.context.contextQ)
 	evaluator.Relinearize(ct0, evakey, ctOut)
 	return
 }
@@ -488,14 +619,14 @@ func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey,
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valide switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
 func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(1)
+	ctOut = NewCiphertext(1, evaluator.context.contextQ)
 	evaluator.SwitchKeys(ct0, switchkey, ctOut)
 	return
 }
 
 // RotateColumnsNew applies RotateColumns and returns the result on a new Ciphertext.
 func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(1)
+	ctOut = NewCiphertext(1, evaluator.context.contextQ)
 	evaluator.RotateColumns(ct0, k, evakey, ctOut)
 	return
 }
@@ -611,7 +742,7 @@ func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ct
 
 // RotateRowsNew swaps the rows of ct0 and returns the result a new Ciphertext.
 func (evaluator *Evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext) {
-	ctOut = evaluator.context.NewCiphertext(1)
+	ctOut = NewCiphertext(1, evaluator.context.contextQ)
 	evaluator.RotateRows(ct0, evakey, ctOut)
 	return
 }
@@ -624,7 +755,7 @@ func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOu
 		panic("cannot inner sum -> input and output must be of degree 1")
 	}
 
-	cTmp := evaluator.context.NewCiphertext(1)
+	cTmp := NewCiphertext(1, evaluator.context.contextQ)
 
 	ctOut.Copy(ct0.Element())
 

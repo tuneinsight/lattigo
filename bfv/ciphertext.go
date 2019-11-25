@@ -15,11 +15,11 @@ func NewCiphertext() (ciphertext *Ciphertext) {
 }
 
 // NewCiphertext creates a new empty ciphertext of degree degree.
-func (context *Context) NewCiphertext(degree uint64) *Ciphertext {
+func NewCiphertext(degree uint64, ringCtx *ring.Context) *Ciphertext {
 	ciphertext := &Ciphertext{&bfvElement{}}
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = context.contextQ.NewPoly()
+		ciphertext.value[i] = ringCtx.NewPoly()
 	}
 	ciphertext.isNTT = false
 

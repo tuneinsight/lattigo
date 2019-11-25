@@ -250,11 +250,11 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params.encoder = NewEncoder(contextParameters)
 
-	params.encryptorPk = params.bfvContext.NewEncryptorFromPk(params.pk)
-	params.encryptorSk = params.bfvContext.NewEncryptorFromSk(params.sk)
+	params.encryptorPk = NewEncryptorFromPk(params.pk, contextParameters)
+	params.encryptorSk = NewEncryptorFromSk(params.sk, contextParameters)
 	params.decryptor = params.bfvContext.NewDecryptor(params.sk)
 
-	params.evaluator = params.bfvContext.NewEvaluator()
+	params.evaluator = NewEvaluator(contextParameters)
 
 	return
 
@@ -426,6 +426,12 @@ func testEvaluatorSub(t *testing.T) {
 func testEvaluatorMul(t *testing.T) {
 
 	for _, parameters := range testParams.bfvParameters {
+		ringCtx := ring.NewContext()
+		ringCtx.SetParameters(parameters.N, parameters.Qi)
+		err = ringCtx.GenNTTParams()
+		if err != nil {
+			panic(err)
+		}
 
 		params := genBfvParams(parameters)
 
@@ -436,7 +442,7 @@ func testEvaluatorMul(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := params.bfvContext.NewCiphertext(ciphertext1.Degree() + ciphertext2.Degree())
+			receiver := NewCiphertext(ciphertext1.Degree()+ciphertext2.Degree(), ringCtx)
 			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
@@ -459,7 +465,7 @@ func testEvaluatorMul(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := params.bfvContext.NewCiphertext(ciphertext1.Degree() + ciphertext2.Degree())
+			receiver := NewCiphertext(ciphertext1.Degree()+ciphertext2.Degree(), ringCtx)
 			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
@@ -537,6 +543,12 @@ func testRotateRows(t *testing.T) {
 func testRotateCols(t *testing.T) {
 
 	for _, parameters := range testParams.bfvParameters {
+		ringCtx := ring.NewContext()
+		ringCtx.SetParameters(parameters.N, parameters.Qi)
+		err = ringCtx.GenNTTParams()
+		if err != nil {
+			panic(err)
+		}
 
 		params := genBfvParams(parameters)
 
@@ -550,7 +562,7 @@ func testRotateCols(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := params.bfvContext.NewCiphertext(1)
+			receiver := NewCiphertext(1, ringCtx)
 			for n := uint64(1); n < slots; n <<= 1 {
 
 				params.evaluator.RotateColumns(ciphertext, n, rotkey, receiver)
@@ -585,7 +597,7 @@ func testRotateCols(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := params.bfvContext.NewCiphertext(1)
+			receiver := NewCiphertext(1, ringCtx)
 			for n := 0; n < 4; n++ {
 
 				rand := ring.RandUniform(slots, mask)

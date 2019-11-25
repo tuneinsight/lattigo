@@ -231,9 +231,16 @@ func main() {
 	plainMask := make([]*bfv.Plaintext, N, N)
 	encPartial := make([]*bfv.Ciphertext, N, N)
 
+	ringCtx := ring.NewContext()
+	ringCtx.SetParameters(params.N, params.Qi)
+	err = ringCtx.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
 	// Ciphertexts to be retrieved.
 	for i := range encInputs {
-		encInputs[i] = bfvctx.NewCiphertext(1)
+		encInputs[i] = bfv.NewCiphertext(1, ringCtx)
 	}
 
 	// Plaintext masks : plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
@@ -247,12 +254,12 @@ func main() {
 
 	// Buffer for the intermediate compuation done by the cloud.
 	for i := range encPartial {
-		encPartial[i] = bfvctx.NewCiphertext(2)
+		encPartial[i] = bfv.NewCiphertext(2, ringCtx)
 	}
 
 	// Ciphertexts encrypted under CPK and stored in the cloud.
 	l.Println("> Encrypt Phase")
-	encryptor := bfvctx.NewEncryptorFromPk(pk)
+	encryptor := bfv.NewEncryptorFromPk(pk, params)
 	pt := bfvctx.NewPlaintext()
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
@@ -293,8 +300,8 @@ func main() {
 	workers.Add(NGoRoutine)
 	for i := 1; i <= NGoRoutine; i++ {
 		go func(i int) {
-			evaluator := bfvctx.NewEvaluator()
-			tmp := bfvctx.NewCiphertext(1)
+			evaluator := bfv.NewEvaluator(params)
+			tmp := bfv.NewCiphertext(1, ringCtx)
 			for task := range tasks {
 				task.elapsedMaskTask = runTimed(func() {
 					// 1) Multiplication of the query with the plaintext mask.
@@ -332,9 +339,9 @@ func main() {
 		elapsedRequestCloudCPU += t.elapsedMaskTask
 	}
 
-	evaluator := bfvctx.NewEvaluator()
-	resultDeg2 := bfvctx.NewCiphertext(2)
-	result := bfvctx.NewCiphertext(1)
+	evaluator := bfv.NewEvaluator(params)
+	resultDeg2 := bfv.NewCiphertext(2, ringCtx)
+	result := bfv.NewCiphertext(1, ringCtx)
 
 	// Summation of all the partial result among the different Go routines
 	finalAddDuration := runTimed(func() {
@@ -360,7 +367,7 @@ func main() {
 		}
 	}, N-1)
 
-	encOut := bfvctx.NewCiphertext(1)
+	encOut := bfv.NewCiphertext(1, ringCtx)
 	elapsedCKSCloud := runTimed(func() {
 		for _, pi := range P {
 			cks.AggregateShares(pi.cksShare, cksCombined, cksCombined)

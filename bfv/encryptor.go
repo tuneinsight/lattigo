@@ -1,12 +1,72 @@
 package bfv
 
 import (
+	"math/big"
+
 	"github.com/ldsec/lattigo/ring"
 )
 
+type encryptorContext struct {
+	// Polynomial degree
+	n uint64
+
+	// Ternary and Gaussian samplers
+	gaussianSampler *ring.KYSampler
+
+	// Polynomial contexts
+	contextQ *ring.Context
+
+	contextKeys       *ring.Context
+	specialPrimes     []uint64
+	rescaleParamsKeys []uint64 // (P^-1) mod each qi
+}
+
+func newEncryptorContext(params *Parameters) *encryptorContext {
+	n := params.N
+
+	contextQ := ring.NewContext()
+	contextQ.SetParameters(n, params.Qi)
+
+	contextKeys := ring.NewContext()
+	contextKeys.SetParameters(n, append(params.Qi, params.KeySwitchPrimes...))
+	err := contextKeys.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
+	gaussianSampler := contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))
+
+	specialPrimes := make([]uint64, len(params.KeySwitchPrimes))
+	for i := range params.KeySwitchPrimes {
+		specialPrimes[i] = params.KeySwitchPrimes[i]
+	}
+
+	rescaleParamsKeys := make([]uint64, len(params.Qi))
+	PBig := ring.NewUint(1)
+	for _, pj := range specialPrimes {
+		PBig.Mul(PBig, ring.NewUint(pj))
+	}
+
+	tmp := new(big.Int)
+	bredParams := contextQ.GetBredParams()
+	for i, Qi := range params.Qi {
+		tmp.Mod(PBig, ring.NewUint(Qi))
+		rescaleParamsKeys[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Qi, bredParams[i]), Qi-2, Qi), Qi, bredParams[i])
+	}
+
+	return &encryptorContext{
+		n:                 n,
+		gaussianSampler:   gaussianSampler,
+		contextQ:          contextQ,
+		contextKeys:       contextKeys,
+		specialPrimes:     specialPrimes,
+		rescaleParamsKeys: rescaleParamsKeys,
+	}
+}
+
 // Encryptor is a structure holding the parameters needed to encrypt plaintexts.
 type Encryptor struct {
-	context  *Context
+	context  *encryptorContext
 	pk       *PublicKey
 	sk       *SecretKey
 	polypool [3]*ring.Poly
@@ -16,24 +76,25 @@ type Encryptor struct {
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (context *Context) NewEncryptorFromPk(pk *PublicKey) *Encryptor {
-	return context.newEncryptor(pk, nil)
+func NewEncryptorFromPk(pk *PublicKey, params *Parameters) *Encryptor {
+	return newEncryptor(pk, nil, params)
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (context *Context) NewEncryptorFromSk(sk *SecretKey) *Encryptor {
-	return context.newEncryptor(nil, sk)
+func NewEncryptorFromSk(sk *SecretKey, params *Parameters) *Encryptor {
+	return newEncryptor(nil, sk, params)
 }
 
-func (context *Context) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
+func newEncryptor(pk *PublicKey, sk *SecretKey, params *Parameters) (encryptor *Encryptor) {
+	context := newEncryptorContext(params)
 
 	if pk != nil && (uint64(pk.pk[0].GetDegree()) != context.n || uint64(pk.pk[1].GetDegree()) != context.n) {
-		panic("error : pk ring degree doesn't match context ring degree")
+		panic("error : pk ring degree doesn't match bfvcontext ring degree")
 	}
 
 	if sk != nil && uint64(sk.sk.GetDegree()) != context.n {
-		panic("error : sk ring degree doesn't match context ring degree")
+		panic("error : sk ring degree doesn't match bfvcontext ring degree")
 	}
 
 	encryptor = new(Encryptor)
@@ -45,7 +106,7 @@ func (context *Context) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *E
 	encryptor.polypool[1] = context.contextKeys.NewPoly()
 	encryptor.polypool[2] = context.contextKeys.NewPoly()
 
-	encryptor.baseconverter = ring.NewFastBasisExtender(context.contextQ.Modulus, context.specialprimes)
+	encryptor.baseconverter = ring.NewFastBasisExtender(context.contextQ.Modulus, context.specialPrimes)
 
 	return
 }
@@ -57,7 +118,7 @@ func (context *Context) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *E
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
 
-	ciphertext = encryptor.context.NewCiphertext(1)
+	ciphertext = NewCiphertext(1, encryptor.context.contextQ)
 	encryptor.Encrypt(plaintext, ciphertext)
 	return
 }

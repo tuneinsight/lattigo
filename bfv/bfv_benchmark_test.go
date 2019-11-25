@@ -3,6 +3,8 @@ package bfv
 import (
 	"fmt"
 	"testing"
+
+	"github.com/ldsec/lattigo/ring"
 )
 
 func Benchmark_BFV(b *testing.B) {
@@ -31,14 +33,21 @@ func Benchmark_BFV(b *testing.B) {
 		})
 
 		// Encryption
-		encryptorPk := bfvContext.NewEncryptorFromPk(pk)
-		encryptorSk := bfvContext.NewEncryptorFromSk(sk)
+		encryptorPk := NewEncryptorFromPk(pk, &params)
+		encryptorSk := NewEncryptorFromSk(sk, &params)
 
 		ptcoeffs := bfvContext.NewRandomPlaintextCoeffs()
 		pt := bfvContext.NewPlaintext()
 		pt.setCoefficientsUint64(bfvContext, ptcoeffs)
 
-		ctd1 := bfvContext.NewCiphertext(1)
+		ringCtx := ring.NewContext()
+		ringCtx.SetParameters(params.N, params.Qi)
+		err = ringCtx.GenNTTParams()
+		if err != nil {
+			panic(err)
+		}
+
+		ctd1 := NewCiphertext(1, ringCtx)
 		b.Run(testString("EncryptFromPk", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				encryptorPk.Encrypt(pt, ctd1)
@@ -61,7 +70,7 @@ func Benchmark_BFV(b *testing.B) {
 			_ = ptp
 		})
 
-		evaluator := bfvContext.NewEvaluator()
+		evaluator := NewEvaluator(&params)
 
 		ct1 := encryptorSk.EncryptNew(pt)
 		ct2 := encryptorSk.EncryptNew(pt)
@@ -81,7 +90,7 @@ func Benchmark_BFV(b *testing.B) {
 		})
 
 		// Multiplication
-		ctd2 := bfvContext.NewCiphertext(2)
+		ctd2 := NewCiphertext(2, ringCtx)
 		b.Run(testString("Multiply", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				evaluator.Mul(ct1, ct2, ctd2)

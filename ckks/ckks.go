@@ -12,7 +12,7 @@ const GaloisGen uint64 = 5
 
 // CkksContext is a struct which contains all the elements required to instantiate the CKKS Scheme. This includes the parameters (N, ciphertext modulus,
 // sampling, polynomial contexts and other parameters required for the homomorphic operations).
-type CkksContext struct {
+type Context struct {
 
 	// Context parameters
 	logN     uint64
@@ -56,12 +56,12 @@ type CkksContext struct {
 	galElRotColRight []uint64
 }
 
-// NewCkksContext creates a new CkksContext with the given parameters. Returns an error if one of the parameters would not ensure the
+// NewContext creates a new CkksContext with the given parameters. Returns an error if one of the parameters would not ensure the
 // correctness of the scheme (however it doesn't check for security).
-func NewCkksContext(params *Parameters) (ckkscontext *CkksContext) {
+func NewContext(params *Parameters) (ckkscontext *Context) {
 	var err error
 
-	ckkscontext = new(CkksContext)
+	ckkscontext = new(Context)
 
 	ckkscontext.logN = uint64(params.LogN)
 	ckkscontext.n = 1 << uint64(params.LogN)
@@ -200,80 +200,80 @@ func NewCkksContext(params *Parameters) (ckkscontext *CkksContext) {
 
 }
 
-// LogN returns logN of the ckksContext.
-func (ckksContext *CkksContext) N() uint64 {
-	return 1 << ckksContext.logN
+// LogN returns logN of the Context.
+func (ckkscontext *Context) N() uint64 {
+	return 1 << ckkscontext.logN
 }
 
-// LogN returns logN of the ckksContext.
-func (ckksContext *CkksContext) LogN() uint64 {
-	return ckksContext.logN
+// LogN returns logN of the Context.
+func (ckkscontext *Context) LogN() uint64 {
+	return ckkscontext.logN
 }
 
-// LogQ returns the log_2(prod(modulie)) of the ckksContext.
-func (ckksContext *CkksContext) LogQ() uint64 {
-	return ckksContext.logQ
+// LogQ returns the log_2(prod(modulie)) of the Context.
+func (ckkscontext *Context) LogQ() uint64 {
+	return ckkscontext.logQ
 }
 
-// Moduli returns the moduli of the ckksContext.
-func (ckksContext *CkksContext) Moduli() []uint64 {
-	return ckksContext.moduli
+// Moduli returns the moduli of the Context.
+func (ckkscontext *Context) Moduli() []uint64 {
+	return ckkscontext.moduli
 }
 
-func (ckksContext *CkksContext) BigintChain() []*big.Int {
-	return ckksContext.bigintChain
+func (ckkscontext *Context) BigintChain() []*big.Int {
+	return ckkscontext.bigintChain
 }
 
-func (ckksContext *CkksContext) KeySwitchPrimes() []uint64 {
-	return ckksContext.specialprimes
+func (ckkscontext *Context) KeySwitchPrimes() []uint64 {
+	return ckkscontext.specialprimes
 }
 
-func (ckksContext *CkksContext) Alpha() uint64 {
-	return ckksContext.alpha
+func (ckkscontext *Context) Alpha() uint64 {
+	return ckkscontext.alpha
 }
 
-func (ckksContext *CkksContext) Beta() uint64 {
-	return ckksContext.beta
+func (ckkscontext *Context) Beta() uint64 {
+	return ckkscontext.beta
 }
 
-func (ckksContext *CkksContext) RescaleParamsKeys() []uint64 {
-	return ckksContext.rescaleParamsKeys
+func (ckkscontext *Context) RescaleParamsKeys() []uint64 {
+	return ckkscontext.rescaleParamsKeys
 }
 
-// Levels returns the number of levels of the ckksContext.
-func (ckksContext *CkksContext) Levels() uint64 {
-	return ckksContext.levels
+// Levels returns the number of levels of the Context.
+func (ckkscontext *Context) Levels() uint64 {
+	return ckkscontext.levels
 }
 
-// Scale returns the default scalt of the ckksContext.
-func (ckksContext *CkksContext) Scale() float64 {
-	return ckksContext.scale
+// Scale returns the default scalt of the Context.
+func (ckkscontext *Context) Scale() float64 {
+	return ckkscontext.scale
 }
 
-func (ckksContext *CkksContext) ContextQ() *ring.Context {
-	return ckksContext.contextQ
+func (ckkscontext *Context) ContextQ() *ring.Context {
+	return ckkscontext.contextQ
 }
 
-func (ckksContext *CkksContext) ContextP() *ring.Context {
-	return ckksContext.contextP
+func (ckkscontext *Context) ContextP() *ring.Context {
+	return ckkscontext.contextP
 }
 
 // ContextKeys returns the ring context under which the keys are created.
-func (ckksContext *CkksContext) ContextKeys() *ring.Context {
-	return ckksContext.contextKeys
+func (ckkscontext *Context) ContextKeys() *ring.Context {
+	return ckkscontext.contextKeys
 }
 
 // Slots returns the number of slots that the scheme can encrypt at the same time.
-func (ckksContext *CkksContext) Slots() uint64 {
-	return ckksContext.maxSlots
+func (ckkscontext *Context) Slots() uint64 {
+	return ckkscontext.maxSlots
 }
 
 // Sigma returns the variance used by the target context to sample gaussian polynomials.
-func (ckksContext *CkksContext) Sigma() float64 {
-	return ckksContext.sigma
+func (ckkscontext *Context) Sigma() float64 {
+	return ckkscontext.sigma
 }
 
 // GaussianSampler returns the context's gaussian sampler instance
-func (ckksContext *CkksContext) GaussianSampler() *ring.KYSampler {
-	return ckksContext.gaussianSampler
+func (ckkscontext *Context) GaussianSampler() *ring.KYSampler {
+	return ckkscontext.gaussianSampler
 }

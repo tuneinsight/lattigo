@@ -16,7 +16,7 @@ func check(t *testing.T, err error) {
 }
 
 type dckksContext struct {
-	ckksContext *ckks.CkksContext
+	ckksContext *ckks.Context
 	encoder     *ckks.Encoder
 	evaluator   *ckks.Evaluator
 
@@ -75,7 +75,7 @@ func genDCKKSContext(contextParameters *ckks.Parameters) (params *dckksContext) 
 
 	params = new(dckksContext)
 
-	params.ckksContext = ckks.NewCkksContext(contextParameters)
+	params.ckksContext = ckks.NewContext(contextParameters)
 
 	params.encoder = params.ckksContext.NewEncoder()
 	params.evaluator = params.ckksContext.NewEvaluator()

@@ -7,14 +7,14 @@ import (
 
 // RKGProtocolNaive is a structure storing the parameters for the naive EKG protocol.
 type RKGProtocolNaive struct {
-	ckksContext     *ckks.CkksContext
+	ckksContext     *ckks.Context
 	gaussianSampler *ring.KYSampler
 	polypool        *ring.Poly
 }
 
 // NewEkgProtocolNaive creates a new RKGProtocolNaive object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
-func NewRKGProtocolNaive(ckksContext *ckks.CkksContext) (rkg *RKGProtocolNaive) {
+func NewRKGProtocolNaive(ckksContext *ckks.Context) (rkg *RKGProtocolNaive) {
 	rkg = new(RKGProtocolNaive)
 	rkg.ckksContext = ckksContext
 	rkg.gaussianSampler = ckksContext.GaussianSampler()

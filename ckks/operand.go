@@ -3,7 +3,6 @@ package ckks
 import (
 	"errors"
 	"github.com/ldsec/lattigo/ring"
-	"math/big"
 )
 
 type Operand interface {
@@ -14,14 +13,12 @@ type Operand interface {
 }
 
 type ckksElement struct {
-	value          []*ring.Poly
-	scale          float64
-	currentModulus *big.Int
-	isNTT          bool
-	slots          uint64
+	value []*ring.Poly
+	scale float64
+	isNTT bool
 }
 
-func (ckkscontext *CkksContext) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
+func (ckkscontext *Context) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
 	el := &ckksElement{}
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -29,7 +26,6 @@ func (ckkscontext *CkksContext) NewCkksElement(degree, level uint64, scale float
 	}
 
 	el.scale = scale
-	el.currentModulus = new(big.Int).Set(ckkscontext.bigintChain[level])
 	el.isNTT = true
 
 	return el
@@ -68,19 +64,7 @@ func (el *ckksElement) DivScale(scale float64) {
 	el.scale /= scale
 }
 
-func (el *ckksElement) CurrentModulus() *big.Int {
-	return el.currentModulus
-}
-
-func (el *ckksElement) SetCurrentModulus(modulus *big.Int) {
-	el.currentModulus.Set(modulus)
-}
-
-func (el *ckksElement) Slots() uint64 {
-	return el.slots
-}
-
-func (el *ckksElement) Resize(ckkscontext *CkksContext, degree uint64) {
+func (el *ckksElement) Resize(ckkscontext *Context, degree uint64) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree+1]
 	} else if el.Degree() < degree {
@@ -99,7 +83,7 @@ func (el *ckksElement) SetIsNTT(value bool) {
 }
 
 // NTT puts the target element in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
-func (el *ckksElement) NTT(ckkscontext *CkksContext, c *ckksElement) error {
+func (el *ckksElement) NTT(ckkscontext *Context, c *ckksElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}
@@ -113,7 +97,7 @@ func (el *ckksElement) NTT(ckkscontext *CkksContext, c *ckksElement) error {
 }
 
 // InvNTT puts the target element outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
-func (el *ckksElement) InvNTT(ckkscontext *CkksContext, c *ckksElement) error {
+func (el *ckksElement) InvNTT(ckkscontext *Context, c *ckksElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}
@@ -136,8 +120,6 @@ func (el *ckksElement) CopyNew() *ckksElement {
 		ctxCopy.value[i] = el.value[i].CopyNew()
 	}
 
-	ctxCopy.currentModulus = new(big.Int)
-
 	ctxCopy.CopyParams(el)
 
 	return ctxCopy
@@ -158,7 +140,6 @@ func (el *ckksElement) Copy(ctxCopy *ckksElement) (err error) {
 
 // CopyParams copies the input element parameters on the target element
 func (el *ckksElement) CopyParams(ckkselement *ckksElement) {
-	el.SetCurrentModulus(ckkselement.CurrentModulus())
 	el.SetScale(ckkselement.Scale())
 	el.SetIsNTT(ckkselement.IsNTT())
 }

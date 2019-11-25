@@ -9,15 +9,15 @@ import (
 // encoder is a structure storing the parameters encode values on a plaintext in a SIMD fashion.
 type Encoder struct {
 	indexMatrix  []uint64
-	bfvcontext   *BfvContext
+	context      *Context
 	simplescaler *ring.SimpleScaler
 	polypool     *ring.Poly
 }
 
-// Newencoder creates a new encoder from the target bfvcontext.
-func (bfvcontext *BfvContext) NewEncoder() (encoder *Encoder) {
+// Newencoder creates a new encoder from the target context.
+func (context *Context) NewEncoder() (encoder *Encoder) {
 
-	if bfvcontext.contextT.AllowsNTT() != true {
+	if context.contextT.AllowsNTT() != true {
 		panic("cannot create batch encoder : plaintext modulus does not allow NTT")
 	}
 
@@ -25,17 +25,17 @@ func (bfvcontext *BfvContext) NewEncoder() (encoder *Encoder) {
 
 	encoder = new(Encoder)
 
-	encoder.bfvcontext = bfvcontext
+	encoder.context = context
 
-	slots := bfvcontext.n
+	slots := context.n
 
 	encoder.indexMatrix = make([]uint64, slots)
 
-	logN := uint64(bits.Len64(bfvcontext.n) - 1)
+	logN := uint64(bits.Len64(context.n) - 1)
 
-	row_size := bfvcontext.n >> 1
-	m = (bfvcontext.n << 1)
-	gen = bfvcontext.gen
+	row_size := context.n >> 1
+	m = (context.n << 1)
+	gen = context.gen
 	pos = 1
 
 	for i := uint64(0); i < row_size; i++ {
@@ -50,8 +50,8 @@ func (bfvcontext *BfvContext) NewEncoder() (encoder *Encoder) {
 		pos &= (m - 1)
 	}
 
-	encoder.simplescaler = ring.NewSimpleScaler(bfvcontext.t, bfvcontext.contextQ)
-	encoder.polypool = bfvcontext.contextT.NewPoly()
+	encoder.simplescaler = ring.NewSimpleScaler(context.t, context.contextQ)
+	encoder.polypool = context.contextT.NewPoly()
 
 	return encoder
 }
@@ -75,9 +75,9 @@ func (encoder *Encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	plaintext.InvNTTPlainModulus(encoder.bfvcontext)
+	plaintext.InvNTTPlainModulus(encoder.context)
 
-	plaintext.Lift(encoder.bfvcontext)
+	plaintext.Lift(encoder.context)
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. Also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
@@ -95,7 +95,7 @@ func (encoder *Encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 	for i := 0; i < len(coeffs); i++ {
 
 		if coeffs[i] < 0 {
-			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.bfvcontext.t) + coeffs[i])
+			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.context.t) + coeffs[i])
 		} else {
 			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(coeffs[i])
 		}
@@ -105,8 +105,8 @@ func (encoder *Encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	plaintext.InvNTTPlainModulus(encoder.bfvcontext)
-	plaintext.Lift(encoder.bfvcontext)
+	plaintext.InvNTTPlainModulus(encoder.context)
+	plaintext.Lift(encoder.context)
 }
 
 // DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.
@@ -114,11 +114,11 @@ func (encoder *Encoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64) {
 
 	encoder.simplescaler.Scale(plaintext.value, encoder.polypool)
 
-	encoder.bfvcontext.contextT.NTT(encoder.polypool, encoder.polypool)
+	encoder.context.contextT.NTT(encoder.polypool, encoder.polypool)
 
-	coeffs = make([]uint64, encoder.bfvcontext.n)
+	coeffs = make([]uint64, encoder.context.n)
 
-	for i := uint64(0); i < encoder.bfvcontext.n; i++ {
+	for i := uint64(0); i < encoder.context.n; i++ {
 		coeffs[i] = encoder.polypool.Coeffs[0][encoder.indexMatrix[i]]
 	}
 
@@ -134,13 +134,13 @@ func (encoder *Encoder) DecodeInt(plaintext *Plaintext) (coeffs []int64) {
 
 	encoder.simplescaler.Scale(plaintext.value, encoder.polypool)
 
-	encoder.bfvcontext.contextT.NTT(encoder.polypool, encoder.polypool)
+	encoder.context.contextT.NTT(encoder.polypool, encoder.polypool)
 
-	coeffs = make([]int64, encoder.bfvcontext.n)
+	coeffs = make([]int64, encoder.context.n)
 
-	modulus := int64(encoder.bfvcontext.t)
+	modulus := int64(encoder.context.t)
 
-	for i := uint64(0); i < encoder.bfvcontext.n; i++ {
+	for i := uint64(0); i < encoder.context.n; i++ {
 
 		value = int64(encoder.polypool.Coeffs[0][encoder.indexMatrix[i]])
 

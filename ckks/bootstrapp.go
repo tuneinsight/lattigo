@@ -10,8 +10,7 @@ import (
 )
 
 type BootContext struct {
-	bootcontext *CkksContext
-	ckkscontext *CkksContext
+	ckkscontext *Context
 
 	encoder *Encoder
 	slots   uint64
@@ -58,7 +57,7 @@ func showcoeffs(decryptor *Decryptor, encoder *Encoder, slots uint64, ciphertext
 	return coeffs
 }
 
-func (ckkscontext *CkksContext) NewBootContext(slots uint64, sk *SecretKey, ctsDepth, stcDepth uint64) (bootcontext *BootContext, err error) {
+func (ckkscontext *Context) NewBootContext(slots uint64, sk *SecretKey, ctsDepth, stcDepth uint64) (bootcontext *BootContext, err error) {
 
 	bootcontext = new(BootContext)
 
@@ -212,8 +211,6 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 			ct.Value()[u].Coeffs[i] = make([]uint64, bootcontext.ckkscontext.n)
 		}
 	}
-
-	ct.SetCurrentModulus(bootcontext.ckkscontext.bigintChain[bootcontext.ckkscontext.levels-1])
 
 	//Centers the values around Q0 and extends the basis from Q0 to QL
 	Q := bootcontext.ckkscontext.moduli[0]

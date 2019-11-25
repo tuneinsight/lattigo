@@ -11,7 +11,7 @@ func TestParams_BinaryMarshaller(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, []byte{}, bytes)
 		var p Parameters
-		err = p.UnMarshalBinary(bytes)
+		err = p.UnmarshalBinary(bytes)
 		assert.NotNil(t, err)
 	})
 	t.Run("SupportedParams", func(t *testing.T) {
@@ -19,7 +19,7 @@ func TestParams_BinaryMarshaller(t *testing.T) {
 			bytes, err := params.MarshalBinary()
 			assert.Nil(t, err)
 			var p Parameters
-			err = p.UnMarshalBinary(bytes)
+			err = p.UnmarshalBinary(bytes)
 			assert.Nil(t, err)
 			assert.Equal(t, params, p)
 		}

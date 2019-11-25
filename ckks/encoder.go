@@ -8,7 +8,7 @@ import (
 
 // Encoder is a struct storing the necessary parameters to encode a slice of complex number on a plaintext.
 type Encoder struct {
-	ckkscontext   *CkksContext
+	ckkscontext   *Context
 	values        []complex128
 	valuesfloat   []float64
 	bigint_coeffs []*big.Int
@@ -20,7 +20,7 @@ type Encoder struct {
 }
 
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
-func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
+func (ckkscontext *Context) NewEncoder() (encoder *Encoder) {
 	encoder = new(Encoder)
 	encoder.ckkscontext = ckkscontext
 	encoder.values = make([]complex128, ckkscontext.maxSlots)
@@ -57,8 +57,6 @@ func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 		panic("cannot encode -> to many values for the given number of slots")
 	}
 
-	plaintext.slots = slots
-
 	for i := uint64(0); i < slots; i++ {
 		encoder.values[i] = values[i]
 	}
@@ -91,7 +89,11 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 	encoder.ckkscontext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	encoder.ckkscontext.contextQ.PolyToBigint(encoder.polypool, encoder.bigint_coeffs)
 
-	encoder.q_half.Set(plaintext.currentModulus)
+	Q := encoder.ckkscontext.bigintChain[plaintext.Level()]
+
+	maxSlots := encoder.ckkscontext.maxSlots
+
+	encoder.q_half.Set(Q)
 	encoder.q_half.Rsh(encoder.q_half, 1)
 
 	gap := encoder.ckkscontext.maxSlots / slots
@@ -101,20 +103,20 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
 
 		// Centers the value arounds the current modulus
-		encoder.bigint_coeffs[idx].Mod(encoder.bigint_coeffs[idx], plaintext.currentModulus)
+		encoder.bigint_coeffs[idx].Mod(encoder.bigint_coeffs[idx], Q)
 		sign = encoder.bigint_coeffs[idx].Cmp(encoder.q_half)
 		if sign == 1 || sign == 0 {
-			encoder.bigint_coeffs[idx].Sub(encoder.bigint_coeffs[idx], plaintext.currentModulus)
+			encoder.bigint_coeffs[idx].Sub(encoder.bigint_coeffs[idx], Q)
 		}
 
 		// Centers the value arounds the current modulus
-		encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Mod(encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots], plaintext.currentModulus)
-		sign = encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Cmp(encoder.q_half)
+		encoder.bigint_coeffs[idx+maxSlots].Mod(encoder.bigint_coeffs[idx+maxSlots], Q)
+		sign = encoder.bigint_coeffs[idx+maxSlots].Cmp(encoder.q_half)
 		if sign == 1 || sign == 0 {
-			encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots].Sub(encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots], plaintext.currentModulus)
+			encoder.bigint_coeffs[idx+maxSlots].Sub(encoder.bigint_coeffs[idx+maxSlots], Q)
 		}
 
-		encoder.values[i] = complex(scaleDown(encoder.bigint_coeffs[idx], plaintext.scale), scaleDown(encoder.bigint_coeffs[idx+encoder.ckkscontext.maxSlots], plaintext.scale))
+		encoder.values[i] = complex(scaleDown(encoder.bigint_coeffs[idx], plaintext.scale), scaleDown(encoder.bigint_coeffs[idx+maxSlots], plaintext.scale))
 	}
 
 	encoder.fft(encoder.values, slots)

@@ -12,7 +12,7 @@ type benchParams struct {
 
 func Benchmark_CKKSScheme(b *testing.B) {
 
-	var ckkscontext *CkksContext
+	var ckkscontext *Context
 	var encoder *Encoder
 	var kgen *KeyGenerator
 	var sk *SecretKey
@@ -46,7 +46,7 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		levels = uint64(len(param.params.Modulichain))
 		slots = uint64(1 << (logN - 1))
 
-		ckkscontext = NewCkksContext(param.params)
+		ckkscontext = NewContext(param.params)
 
 		encoder = ckkscontext.NewEncoder()
 
@@ -58,6 +58,7 @@ func Benchmark_CKKSScheme(b *testing.B) {
 
 		rotkey = ckkscontext.NewRotationKeys()
 		kgen.GenRot(RotationLeft, sk, 1, rotkey)
+		kgen.GenRot(Conjugate, sk, 1, rotkey)
 
 		encryptorPk = ckkscontext.NewEncryptorFromPk(pk)
 		encryptorSk = ckkscontext.NewEncryptorFromSk(sk)
@@ -239,7 +240,7 @@ func Benchmark_CKKSScheme(b *testing.B) {
 
 func BenchmarkRotationHoisting(b *testing.B) {
 
-	var ckkscontext *CkksContext
+	var ckkscontext *Context
 	var kgen *KeyGenerator
 	var sk *SecretKey
 	var evaluator *Evaluator
@@ -255,7 +256,7 @@ func BenchmarkRotationHoisting(b *testing.B) {
 
 		logN = uint64(param.params.LogN)
 
-		ckkscontext = NewCkksContext(param.params)
+		ckkscontext = NewContext(param.params)
 		kgen = ckkscontext.NewKeyGenerator()
 
 		sk = kgen.NewSecretKey()
@@ -311,7 +312,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	var err error
 	var bootcontext *BootContext
-	var ckkscontext *CkksContext
+	var ckkscontext *Context
 	var kgen *KeyGenerator
 	var sk *SecretKey
 	var evaluator *Evaluator
@@ -333,7 +334,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 		levels = uint64(len(param.params.Modulichain))
 
-		ckkscontext = NewCkksContext(param.params)
+		ckkscontext = NewContext(param.params)
 
 		kgen = ckkscontext.NewKeyGenerator()
 

@@ -22,16 +22,16 @@ func Test_Bootstrapp(t *testing.T) {
 
 	slots := uint64(1 << 10)
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/TestBoot", params.ckksContext.logN,
-		params.ckksContext.logQ,
-		params.ckksContext.levels,
-		params.ckksContext.alpha,
-		params.ckksContext.beta), func(t *testing.T) {
+	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/TestBoot", params.ckkscontext.logN,
+		params.ckkscontext.logQ,
+		params.ckkscontext.levels,
+		params.ckkscontext.alpha,
+		params.ckkscontext.beta), func(t *testing.T) {
 
 		var bootcontext *BootContext
 		var err error
 
-		if bootcontext, err = params.ckksContext.NewBootContext(slots, params.sk, ctsDepth, stcDepth); err != nil {
+		if bootcontext, err = params.ckkscontext.NewBootContext(slots, params.sk, ctsDepth, stcDepth); err != nil {
 			log.Fatal(err)
 		}
 
@@ -47,7 +47,7 @@ func Test_Bootstrapp(t *testing.T) {
 			values[3] = complex(0.345987, 0)
 		}
 
-		plaintext := params.ckksContext.NewPlaintext(params.ckksContext.levels-1, params.ckksContext.scale)
+		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.levels-1, params.ckkscontext.scale)
 		params.encoder.Encode(plaintext, values, slots)
 
 		ciphertext := params.encryptorPk.EncryptNew(plaintext)

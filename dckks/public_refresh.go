@@ -7,7 +7,7 @@ import (
 )
 
 type RefreshProtocol struct {
-	ckksContext *ckks.CkksContext
+	ckksContext *ckks.Context
 	tmp         *ring.Poly
 	maskBigint  []*big.Int
 }
@@ -15,7 +15,7 @@ type RefreshProtocol struct {
 type RefreshShareDecrypt *ring.Poly
 type RefreshShareRecrypt *ring.Poly
 
-func NewRefreshProtocol(ckksContext *ckks.CkksContext) (refreshProtocol *RefreshProtocol) {
+func NewRefreshProtocol(ckksContext *ckks.Context) (refreshProtocol *RefreshProtocol) {
 	refreshProtocol = new(RefreshProtocol)
 	refreshProtocol.ckksContext = ckksContext
 	refreshProtocol.tmp = ckksContext.ContextQ().NewPoly()
@@ -110,8 +110,6 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
 	}
 
 	contextQ.SetCoefficientsBigintLvl(ciphertext.Level(), refreshProtocol.maskBigint, ciphertext.Value()[0])
-
-	ciphertext.SetCurrentModulus(ckksContext.BigintChain()[ciphertext.Level()])
 
 	contextQ.NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
 }

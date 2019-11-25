@@ -17,7 +17,7 @@ func check(t *testing.T, err error) {
 }
 
 type dbfvContext struct {
-	bfvContext *bfv.BfvContext
+	bfvContext *bfv.Context
 	encoder    *bfv.Encoder
 	kgen       *bfv.KeyGenerator
 
@@ -60,15 +60,14 @@ func Test_DBFV(t *testing.T) {
 	t.Run("RotKeyGenRotRows", testRotKeyGenRotRows)
 	t.Run("RotKeyGenRotCols", testRotKeyGenRotCols)
 	t.Run("Refresh", testRefresh)
+
 }
 
 func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 
 	params = new(dbfvContext)
 
-	if params.bfvContext, err = bfv.NewBfvContextWithParam(contextParameters); err != nil {
-		log.Fatal(err)
-	}
+	params.bfvContext = bfv.NewContextWithParam(contextParameters)
 
 	params.encoder = params.bfvContext.NewEncoder()
 	params.evaluator = params.bfvContext.NewEvaluator()
@@ -705,4 +704,341 @@ func verifyTestVectors(contextParams *dbfvContext, decryptor *bfv.Decryptor, coe
 	if utils.EqualSliceUint64(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
 		t.Errorf("decryption error")
 	}
+}
+
+func Test_Marshalling(t *testing.T) {
+
+	//verify if the un.marshalling works properly
+	bfvCtx := bfv.NewContextWithParam(&bfv.DefaultParams[1])
+	KeyGenerator := bfvCtx.NewKeyGenerator()
+	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextKeys())
+	sk := KeyGenerator.NewSecretKey()
+	crs := crsGen.Clock()
+	contextQ := bfvCtx.ContextQ()
+	contextPKeys := bfvCtx.ContextPKeys()
+
+	Ciphertext := bfvCtx.NewRandomCiphertext(1)
+
+	t.Run(fmt.Sprintf("CPK/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
+		keygenProtocol := NewCKGProtocol(bfvCtx)
+		KeyGenShareBefore := keygenProtocol.AllocateShares()
+		keygenProtocol.GenShare(sk.Get(), crs, KeyGenShareBefore)
+		//now we marshall it
+		data, err := KeyGenShareBefore.MarshalBinary()
+
+		fmt.Println("CPK Data (kB) :", len(data)/1000)
+
+		if err != nil {
+			log.Fatal("Could not marshal the CKGShare : ", err)
+
+		}
+
+		KeyGenShareAfter := new(CKGShare)
+		err = KeyGenShareAfter.UnmarshalBinary(data)
+		if err != nil {
+			log.Fatal("Could not unmarshal the CKGShare : ", err)
+
+		}
+
+		//comparing the results
+		if KeyGenShareBefore.GetDegree() != KeyGenShareAfter.GetDegree() || KeyGenShareBefore.GetLenModuli() != KeyGenShareAfter.GetLenModuli() {
+			log.Print("Unmatched degree or moduli length on key gen shares")
+			t.Fail()
+		}
+
+		for i := 0; i < KeyGenShareBefore.GetLenModuli(); i++ {
+			if !utils.EqualSliceUint64(KeyGenShareAfter.Coeffs[i], KeyGenShareBefore.Coeffs[i]) {
+				log.Print("Non equal slices in CKGShare")
+				t.Fail()
+			}
+
+		}
+	})
+
+	t.Run(fmt.Sprintf("PCKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
+		//Check marshalling for the PCKS
+
+		KeySwitchProtocol := NewPCKSProtocol(bfvCtx, bfvCtx.Sigma())
+		SwitchShare := KeySwitchProtocol.AllocateShares()
+		pk := KeyGenerator.NewPublicKey(sk)
+		KeySwitchProtocol.GenShare(sk.Get(), pk, Ciphertext, SwitchShare)
+
+		data, err := SwitchShare.MarshalBinary()
+		fmt.Println("PCKS Data (kB) :", len(data)/1000)
+		if err != nil {
+			log.Print("Error on PCKSShare marshalling : ", err)
+			t.Fail()
+		}
+		SwitchShareReceiver := new(PCKSShare)
+		err = SwitchShareReceiver.UnmarshalBinary(data)
+		if err != nil {
+			log.Print("Error on PCKSShare unmarshalling : ", err)
+			t.Fail()
+		}
+
+		for i := 0; i < 2; i++ {
+			//compare the shares.
+			ringBefore := SwitchShare[i]
+			ringAfter := SwitchShareReceiver[i]
+			if ringBefore.GetDegree() != ringAfter.GetDegree() {
+				log.Print("Error on degree matching")
+				t.Fail()
+			}
+			for d := 0; d < ringAfter.GetLenModuli(); d++ {
+				if !utils.EqualSliceUint64(ringAfter.Coeffs[d], ringBefore.Coeffs[d]) {
+					log.Print("Non equal slices in PCKSShare")
+					t.Fail()
+				}
+			}
+
+		}
+	})
+
+	t.Run(fmt.Sprintf("CKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
+
+		//Now for CKSShare ~ its similar to PKSShare
+		cksp := NewCKSProtocol(bfvCtx, bfvCtx.Sigma())
+		cksshare := cksp.AllocateShare()
+		skIn := KeyGenerator.NewSecretKey()
+		skOut := KeyGenerator.NewSecretKey()
+		cksp.GenShare(skIn.Get(), skOut.Get(), Ciphertext, cksshare)
+
+		data, err := cksshare.MarshalBinary()
+		fmt.Println("CKS Data (kB) :", len(data)/1000)
+		if err != nil {
+			log.Print("Error on marshalling CKSShare : ", err)
+			t.Fail()
+		}
+		cksshareAfter := new(CKSShare)
+		err = cksshareAfter.UnmarshalBinary(data)
+		if err != nil {
+			log.Print("Error on unmarshalling CKSShare : ", err)
+			t.Fail()
+		}
+
+		//now compare both shares.
+
+		if cksshare.GetDegree() != cksshareAfter.GetDegree() || cksshare.GetLenModuli() != cksshareAfter.GetLenModuli() {
+			log.Print("Unmatched degree or moduli lenght on CKSShare")
+			t.Fail()
+		}
+
+		for i := 0; i < cksshare.GetLenModuli(); i++ {
+			if !utils.EqualSliceUint64(cksshare.Coeffs[i], cksshareAfter.Coeffs[i]) {
+				log.Print("Non equal slices in CKSShare")
+				t.Fail()
+			}
+
+		}
+	})
+
+	t.Run(fmt.Sprintf("Refresh/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
+
+		//testing refresh shares
+		refreshproto := NewRefreshProtocol(bfvCtx)
+		refreshshare := refreshproto.AllocateShares()
+		refreshproto.GenShares(sk.Get(), Ciphertext, crs, refreshshare)
+
+		data, err := refreshshare.MarshalBinary()
+		fmt.Println("Refresh Data (kB) :", len(data)/1000)
+		if err != nil {
+			log.Fatal("Could not marshal RefreshShare", err)
+		}
+		res_refreshshare := new(RefreshShare)
+		err = res_refreshshare.UnmarshalBinary(data)
+
+		if err != nil {
+			log.Fatal("Could not unmarshal RefreshShare", err)
+		}
+		for i, r := range refreshshare.RefreshShareDecrypt.Coeffs {
+			if !utils.EqualSliceUint64(res_refreshshare.RefreshShareDecrypt.Coeffs[i], r) {
+				log.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+			}
+
+		}
+		for i, r := range refreshshare.RefreshShareRecrypt.Coeffs {
+			if !utils.EqualSliceUint64(res_refreshshare.RefreshShareRecrypt.Coeffs[i], r) {
+				log.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+			}
+
+		}
+	})
+
+	t.Run(fmt.Sprintf("RTG/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
+
+		//check RTGShare
+		crpGenerator := ring.NewCRPGenerator(nil, bfvCtx.ContextKeys())
+		modulus := (bfvCtx.ContextQ().Modulus)
+		crp := make([]*ring.Poly, len(modulus))
+		for j := 0; j < len(modulus); j++ {
+			crp[j] = crpGenerator.Clock() //make([]*ring.Poly, bitLog)
+
+		}
+
+		rotProto := NewRotKGProtocol(bfvCtx)
+		rtgShare := rotProto.AllocateShare()
+		rotProto.GenShare(1, 64, sk.Get(), crp, &rtgShare)
+
+		data, err := rtgShare.MarshalBinary()
+		fmt.Println("RTG Data (kB) :", len(data)/1000)
+		if err != nil {
+			log.Fatal("could not marshal RTGshare :", err)
+		}
+
+		res_rtgShare := new(RTGShare)
+		err = res_rtgShare.UnmarshalBinary(data)
+		if err != nil {
+			log.Fatal("Could not unmarshal RTGShare: ", err)
+		}
+
+		if res_rtgShare.Type != rtgShare.Type || res_rtgShare.K != rtgShare.K || len(res_rtgShare.Value) != len(rtgShare.Value) {
+			log.Fatal("result after marshalling is not the same as before marshalling for RTGSahre")
+		}
+
+		for i, val := range rtgShare.Value {
+			ring1 := val
+			ring2 := res_rtgShare.Value[i]
+			if len(ring1.Coeffs) != len(ring2.Coeffs) {
+				log.Fatal("result after marshalling is not the same as before marshalling for RTGSahre")
+			}
+
+			for j, elem := range ring1.Coeffs {
+				if !utils.EqualSliceUint64(ring2.Coeffs[j], elem) {
+					log.Fatal("result after marshalling is not the same as before marshalling for RTGSahre")
+
+				}
+			}
+
+		}
+	})
+
+}
+
+func Test_Relin_Marshalling(t *testing.T) {
+
+	bfvCtx := bfv.NewContextWithParam(&bfv.DefaultParams[1])
+	contextQ := bfvCtx.ContextQ()
+	contextPKeys := bfvCtx.ContextPKeys()
+	modulus := bfvCtx.ContextQ().Modulus
+
+	crpGenerator := ring.NewCRPGenerator(nil, bfvCtx.ContextKeys())
+
+	crp := make([]*ring.Poly, len(modulus))
+	for j := 0; j < len(modulus); j++ {
+		crp[j] = crpGenerator.Clock() //make([]*ring.Poly, bitLog)
+		//for u := uint64(0); u < bitLog; u++ {
+		//	crp[j][u] = crpGenerator.Clock()
+		//}
+	}
+
+	t.Run(fmt.Sprintf("RLKG/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
+
+		rlk := NewEkgProtocol(bfvCtx)
+		u := rlk.NewEphemeralKey(1 / 3.0)
+		sk := bfvCtx.NewKeyGenerator().NewSecretKey()
+		log.Print("Starting to test marshalling for share one")
+
+		r1, r2, r3 := rlk.AllocateShares()
+		rlk.GenShareRoundOne(u, sk.Get(), crp, r1)
+		data, err := r1.MarshalBinary()
+		fmt.Println("RKG R1 Data (kB) :", len(data)/1000)
+		if err != nil {
+			log.Print("Error in marshalling round 1 key : ", err)
+			t.Fail()
+		}
+
+		r1After := new(RKGShareRoundOne)
+		err = r1After.UnmarshalBinary(data)
+		if err != nil {
+			log.Print("Error in unmarshalling round 1 key : ", err)
+			t.Fail()
+		}
+
+		log.Print("Now comparing keys for round 1 ")
+
+		for i := 0; i < (len(r1)); i++ {
+			a := r1[i]
+			b := (*r1After)[i]
+			for k := 0; k < a.GetLenModuli(); k++ {
+				if !utils.EqualSliceUint64(a.Coeffs[k], b.Coeffs[k]) {
+					log.Print("Error : coeffs of rings do not match")
+					t.Fail()
+				}
+			}
+		}
+
+		log.Print("Sucess : relin key round 1 ok ")
+
+		log.Print("Starting to test marshalling for share two")
+		rlk.GenShareRoundTwo(r1, sk.Get(), crp, r2)
+
+		data, err = r2.MarshalBinary()
+		fmt.Println("RKG R2 Data (kB) :", len(data)/1000)
+		if err != nil {
+			log.Print("Error on marshalling relin key round 2 : ", err)
+			t.Fail()
+		}
+
+		r2After := new(RKGShareRoundTwo)
+		err = r2After.UnmarshalBinary(data)
+		if err != nil {
+			log.Print("Error on unmarshalling relin key round 2 : ", err)
+			t.Fail()
+		}
+
+		log.Print("Now comparing keys for round 2 ")
+
+		for i := 0; i < (len(r2)); i++ {
+			for idx := 0; idx < 2; idx++ {
+				a := r2[i][idx]
+				b := (*r2After)[i][idx]
+				for k := 0; k < a.GetLenModuli(); k++ {
+					if !utils.EqualSliceUint64(a.Coeffs[k], b.Coeffs[k]) {
+						log.Print("Error : coeffs of rings do not match")
+						t.Fail()
+					}
+				}
+			}
+
+		}
+
+		log.Print("Success : reling key round 2 ok ")
+
+		log.Print("Starting to test marshalling for share three")
+
+		rlk.GenShareRoundThree(r2, u, sk.Get(), r3)
+
+		data, err = r3.MarshalBinary()
+		fmt.Println("RKG R3 Data (kB) :", len(data)/1000)
+		if err != nil {
+			log.Print("Error in marshalling round 3 key : ", err)
+			t.Fail()
+		}
+
+		r3After := new(RKGShareRoundThree)
+		err = r3After.UnmarshalBinary(data)
+		if err != nil {
+			log.Print("Error in unmarshalling round 3 key : ", err)
+			t.Fail()
+		}
+
+		log.Print("Now comparing keys for round 3 ")
+
+		for i := 0; i < (len(r3)); i++ {
+			a := r3[i]
+			b := (*r3After)[i]
+			for k := 0; k < a.GetLenModuli(); k++ {
+				if !utils.EqualSliceUint64(a.Coeffs[k], b.Coeffs[k]) {
+					log.Print("Error : coeffs of rings do not match")
+					t.Fail()
+				}
+			}
+
+		}
+
+		log.Print("Success : relin key for round 3 ok ")
+
+		log.Print("All marshalling is passed for relin keys")
+	})
+
 }

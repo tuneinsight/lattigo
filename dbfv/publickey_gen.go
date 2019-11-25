@@ -12,10 +12,24 @@ type CKGProtocol struct {
 	gaussianSampler *ring.KYSampler
 }
 
-type CKGShare *ring.Poly
+//type CKGShare *ring.Poly
+type CKGShare struct {
+	*ring.Poly
+}
+
+//the binary marshaller is ok but we need to override the unmarshaller to
+//allocate memory
+func (share *CKGShare) UnmarshalBinary(data []byte) error {
+	if share.Poly == nil {
+		share.Poly = new(ring.Poly)
+	}
+	err := share.Poly.UnmarshalBinary(data)
+	return err
+
+}
 
 // NewCKGProtocol creates a new CKGProtocol instance
-func NewCKGProtocol(bfvCtx *bfv.BfvContext) *CKGProtocol {
+func NewCKGProtocol(bfvCtx *bfv.Context) *CKGProtocol {
 	ckg := new(CKGProtocol)
 	ckg.context = bfvCtx.ContextKeys()
 	ckg.gaussianSampler = bfvCtx.GaussianSampler()
@@ -23,7 +37,7 @@ func NewCKGProtocol(bfvCtx *bfv.BfvContext) *CKGProtocol {
 }
 
 func (ckg *CKGProtocol) AllocateShares() CKGShare {
-	return ckg.context.NewPoly()
+	return CKGShare{ckg.context.NewPoly()}
 }
 
 // GenShare generates the party's public key share from its secret key as:
@@ -32,16 +46,16 @@ func (ckg *CKGProtocol) AllocateShares() CKGShare {
 //
 // for the receiver protocol. Has no effect is the share was already generated.
 func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut CKGShare) {
-	ckg.gaussianSampler.SampleNTT(shareOut)
-	ckg.context.MulCoeffsMontgomeryAndSub(sk, crs, shareOut)
+	ckg.gaussianSampler.SampleNTT(shareOut.Poly)
+	ckg.context.MulCoeffsMontgomeryAndSub(sk, crs, shareOut.Poly)
 }
 
 // AggregateShares aggregates a new share to the aggregate key
 func (ckg *CKGProtocol) AggregateShares(share1, share2, shareOut CKGShare) {
-	ckg.context.Add(share1, share2, shareOut)
+	ckg.context.Add(share1.Poly, share2.Poly, shareOut.Poly)
 }
 
 // GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
 func (ckg *CKGProtocol) GenPublicKey(roundShare CKGShare, crs *ring.Poly, pubkey *bfv.PublicKey) {
-	pubkey.Set([2]*ring.Poly{roundShare, crs})
+	pubkey.Set([2]*ring.Poly{roundShare.Poly, crs})
 }

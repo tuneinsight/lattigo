@@ -1,13 +1,14 @@
 package dbfv
 
 import (
+	"encoding/binary"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	//"fmt"
 )
 
 type RefreshProtocol struct {
-	bfvContext    *bfv.BfvContext
+	bfvContext    *bfv.Context
 	tmp1          *ring.Poly
 	tmp2          *ring.Poly
 	hP            *ring.Poly
@@ -21,7 +22,52 @@ type RefreshShare struct {
 	RefreshShareRecrypt RefreshShareRecrypt
 }
 
-func NewRefreshProtocol(bfvContext *bfv.BfvContext) (refreshProtocol *RefreshProtocol) {
+func (share *RefreshShare) MarshalBinary() ([]byte, error) {
+	lenDecrypt := (*share.RefreshShareDecrypt).GetDataLen(true)
+	lenRecrypt := (*share.RefreshShareRecrypt).GetDataLen(true)
+
+	data := make([]byte, lenDecrypt+lenRecrypt+2*8) // 2 * 3 to write the len of lenDecrypt and lenRecrypt.
+	binary.BigEndian.PutUint64(data[0:8], lenDecrypt)
+	binary.BigEndian.PutUint64(data[8:16], lenRecrypt)
+
+	ptr := uint64(16)
+	tmp, err := (*share.RefreshShareDecrypt).WriteTo(data[ptr : ptr+lenDecrypt])
+	if err != nil {
+		return []byte{}, err
+	}
+
+	ptr += tmp
+	tmp, err = (*share.RefreshShareRecrypt).WriteTo(data[ptr : ptr+lenRecrypt])
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return data, nil
+}
+
+func (share *RefreshShare) UnmarshalBinary(data []byte) error {
+	lenDecrypt := binary.BigEndian.Uint64(data[0:8])
+	lenRecrypt := binary.BigEndian.Uint64(data[8:16])
+	ptr := uint64(16)
+	if share.RefreshShareRecrypt == nil || share.RefreshShareDecrypt == nil {
+		share.RefreshShareRecrypt = new(ring.Poly)
+		share.RefreshShareDecrypt = new(ring.Poly)
+
+	}
+
+	err := (*share.RefreshShareDecrypt).UnmarshalBinary(data[ptr : ptr+lenDecrypt])
+	if err != nil {
+		return err
+	}
+	ptr += lenDecrypt
+	err = (*share.RefreshShareRecrypt).UnmarshalBinary(data[ptr : ptr+lenRecrypt])
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func NewRefreshProtocol(bfvContext *bfv.Context) (refreshProtocol *RefreshProtocol) {
 	refreshProtocol = new(RefreshProtocol)
 	refreshProtocol.bfvContext = bfvContext
 	refreshProtocol.tmp1 = bfvContext.ContextKeys().NewPoly()
@@ -127,7 +173,7 @@ func (rfp *RefreshProtocol) Finalize(ciphertext *bfv.Ciphertext, crs *ring.Poly,
 	rfp.Recrypt(rfp.tmp1, crs, share.RefreshShareRecrypt, ciphertextOut)
 }
 
-func lift(p0, p1 *ring.Poly, bfvcontext *bfv.BfvContext) {
+func lift(p0, p1 *ring.Poly, bfvcontext *bfv.Context) {
 	for j := uint64(0); j < bfvcontext.N(); j++ {
 		for i := len(bfvcontext.ContextQ().Modulus) - 1; i >= 0; i-- {
 			p1.Coeffs[i][j] = ring.MRed(p0.Coeffs[0][j], bfvcontext.DeltaMont()[i], bfvcontext.ContextQ().Modulus[i], bfvcontext.ContextQ().GetMredParams()[i])

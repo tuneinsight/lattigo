@@ -22,7 +22,7 @@ func testString2(opname string, params *bfvParams) string {
 }
 
 type bfvParams struct {
-	bfvContext  *BfvContext
+	bfvContext  *Context
 	encoder     *Encoder
 	kgen        *KeyGenerator
 	sk          *SecretKey
@@ -50,7 +50,7 @@ func init() {
 	}
 }
 
-func Test_BFV(t *testing.T) {
+func TestBFV(t *testing.T) {
 	t.Run("Encoder", testEncoder)
 	t.Run("Encryptor", testEncryptor)
 	t.Run("Evaluator/Add", testEvaluatorAdd)
@@ -59,15 +59,190 @@ func Test_BFV(t *testing.T) {
 	t.Run("Evaluator/KeySwitch", testKeySwitch)
 	t.Run("Evaluator/RotateRows", testRotateRows)
 	t.Run("Evaluator/RotateCols", testRotateCols)
+	t.Run("Marshalling", testMarshaller)
+}
+
+func testMarshaller(t *testing.T) {
+
+	for _, parameters := range testParams.bfvParameters {
+
+		params := genBfvParams(parameters)
+
+		contextKeys := params.bfvContext.contextKeys
+
+		t.Run(testString2("Ciphertext/", params), func(t *testing.T) {
+
+			ciphertextWant := params.bfvContext.NewRandomCiphertext(2)
+
+			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
+			check(t, err)
+
+			ciphertextTest := NewCiphertext()
+			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
+			check(t, err)
+
+			for i := range ciphertextWant.value {
+				if !params.bfvContext.contextQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]) {
+					t.Errorf("Marshal Ciphertext")
+				}
+			}
+		})
+
+		t.Run(testString2("Sk/", params), func(t *testing.T) {
+
+			marshalledSk, err := params.sk.MarshalBinary()
+			check(t, err)
+
+			sk := new(SecretKey)
+			err = sk.UnmarshalBinary(marshalledSk)
+			check(t, err)
+
+			if !contextKeys.Equal(sk.sk, params.sk.sk) {
+				t.Errorf("Marshal SecretKey")
+			}
+
+		})
+
+		t.Run(testString2("Pk/", params), func(t *testing.T) {
+
+			marshalledPk, err := params.pk.MarshalBinary()
+			check(t, err)
+
+			pk := new(PublicKey)
+			err = pk.UnmarshalBinary(marshalledPk)
+			check(t, err)
+
+			for k := range params.pk.pk {
+				if !contextKeys.Equal(pk.pk[k], params.pk.pk[k]) {
+					t.Errorf("Marshal PublicKey element [%d]", k)
+				}
+			}
+		})
+
+		t.Run(testString2("EvaluationKey/", params), func(t *testing.T) {
+
+			eval_key := params.kgen.NewRelinKey(params.sk, 2)
+			data, err := eval_key.MarshalBinary()
+			check(t, err)
+
+			res_eval_key := new(EvaluationKey)
+			err = res_eval_key.UnmarshalBinary(data)
+			check(t, err)
+
+			for deg := range eval_key.evakey {
+
+				evakeyWant := eval_key.evakey[deg].evakey
+				evakeyTest := res_eval_key.evakey[deg].evakey
+
+				for j := range evakeyWant {
+
+					for k := range evakeyWant[j] {
+						if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+							t.Errorf("Marshal EvaluationKey deg %d element [%d][%d]", deg, j, k)
+						}
+					}
+				}
+			}
+		})
+
+		t.Run(testString2("SwitchingKey/", params), func(t *testing.T) {
+
+			sk_out := params.kgen.NewSecretKey()
+
+			switching_key := params.kgen.NewSwitchingKey(params.sk, sk_out)
+			data, err := switching_key.MarshalBinary()
+			check(t, err)
+
+			res_switching_key := new(SwitchingKey)
+			err = res_switching_key.UnmarshalBinary(data)
+			check(t, err)
+
+			evakeyWant := switching_key.evakey
+			evakeyTest := res_switching_key.evakey
+
+			for j := range evakeyWant {
+
+				for k := range evakeyWant[j] {
+					if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+						t.Errorf("Marshal Switchkey element [%d][%d]", j, k)
+					}
+				}
+			}
+		})
+
+		t.Run(testString2("RotationKey/", params), func(t *testing.T) {
+
+			rotationKey := params.bfvContext.NewRotationKeys()
+
+			params.kgen.GenRot(RotationRow, params.sk, 0, rotationKey)
+			params.kgen.GenRot(RotationLeft, params.sk, 1, rotationKey)
+			params.kgen.GenRot(RotationLeft, params.sk, 2, rotationKey)
+			params.kgen.GenRot(RotationRight, params.sk, 3, rotationKey)
+			params.kgen.GenRot(RotationRight, params.sk, 5, rotationKey)
+
+			data, err := rotationKey.MarshalBinary()
+			check(t, err)
+
+			res_rotationKey := new(RotationKeys)
+			err = res_rotationKey.UnmarshalBinary(data)
+			check(t, err)
+
+			for i := uint64(1); i < params.bfvContext.n>>1; i++ {
+
+				if rotationKey.evakeyRotColLeft[i] != nil {
+
+					evakeyWant := rotationKey.evakeyRotColLeft[i].evakey
+					evakeyTest := res_rotationKey.evakeyRotColLeft[i].evakey
+
+					for j := range evakeyWant {
+
+						for k := range evakeyWant[j] {
+							if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+								t.Errorf("Marshal RotKey RotateLeft %d element [%d][%d]", i, j, k)
+							}
+						}
+					}
+				}
+
+				if rotationKey.evakeyRotColRight[i] != nil {
+
+					evakeyWant := rotationKey.evakeyRotColRight[i].evakey
+					evakeyTest := res_rotationKey.evakeyRotColRight[i].evakey
+
+					for j := range evakeyWant {
+
+						for k := range evakeyWant[j] {
+							if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+								t.Errorf("Marshal RotKey RotateRight %d element [%d][%d]", i, j, k)
+							}
+						}
+					}
+				}
+			}
+
+			if rotationKey.evakeyRotRow != nil {
+
+				evakeyWant := rotationKey.evakeyRotRow.evakey
+				evakeyTest := res_rotationKey.evakeyRotRow.evakey
+
+				for j := range evakeyWant {
+
+					for k := range evakeyWant[j] {
+						if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+							t.Errorf("Marshal RotKey RotateRow element [%d][%d]", j, k)
+						}
+					}
+				}
+			}
+		})
+	}
 }
 
 func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params = new(bfvParams)
 
-	if params.bfvContext, err = NewBfvContextWithParam(contextParameters); err != nil {
-		log.Fatal(err)
-	}
+	params.bfvContext = NewContextWithParam(contextParameters)
 
 	params.kgen = params.bfvContext.NewKeyGenerator()
 

@@ -1,6 +1,7 @@
 package dbfv
 
 import (
+	"errors"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	"math"
@@ -10,7 +11,7 @@ import (
 // generation protocol.
 type RKGProtocol struct {
 	ringContext     *ring.Context
-	bfvContext      *bfv.BfvContext
+	bfvContext      *bfv.Context
 	keyswitchprimes []uint64
 	alpha           uint64
 	beta            uint64
@@ -24,6 +25,143 @@ type RKGShareRoundOne []*ring.Poly
 type RKGShareRoundTwo [][2]*ring.Poly
 type RKGShareRoundThree []*ring.Poly
 
+func (share *RKGShareRoundOne) MarshalBinary() ([]byte, error) {
+	rLength := (*share)[0].GetDataLen(true)
+	data := make([]byte, 1+rLength*uint64(len(*share)))
+	data[0] = uint8(len(*share))
+
+	pointer := uint64(1)
+	for _, s := range *share {
+		tmp, err := s.WriteTo(data[pointer : pointer+rLength])
+		if err != nil {
+			return []byte{}, err
+		}
+		pointer += tmp
+	}
+
+	return data, nil
+}
+
+func (share *RKGShareRoundOne) UnmarshalBinary(data []byte) error {
+	//share.modulus = data[0]
+	lenShare := data[0]
+	rLength := len(data[1:]) / int(lenShare)
+	if *share == nil {
+		*share = make([]*ring.Poly, lenShare)
+	}
+	ptr := 1
+	for i := uint8(0); i < lenShare; i++ {
+		if (*share)[i] == nil {
+			(*share)[i] = new(ring.Poly)
+		}
+		err := (*share)[i].UnmarshalBinary(data[ptr : ptr+rLength])
+		if err != nil {
+			return err
+		}
+		ptr += rLength
+	}
+
+	return nil
+}
+
+func (share *RKGShareRoundTwo) MarshalBinary() ([]byte, error) {
+	//we have modulus * bitLog * Len of 1 ring rings
+	rLength := ((*share)[0])[0].GetDataLen(true)
+	data := make([]byte, 1+2*rLength*uint64(len(*share)))
+	if len(*share) > 0xFF {
+		return []byte{}, errors.New("RKGShareRoundTwo : uint8 overflow on length")
+	}
+	data[0] = uint8(len(*share))
+
+	//write all of our rings in the data.
+	//write all the polys
+	ptr := uint64(1)
+	for _, elem := range *share {
+		_, err := elem[0].WriteTo(data[ptr : ptr+rLength])
+		if err != nil {
+			return []byte{}, err
+		}
+		ptr += rLength
+		_, err = elem[1].WriteTo(data[ptr : ptr+rLength])
+		if err != nil {
+			return []byte{}, err
+		}
+		ptr += rLength
+	}
+
+	return data, nil
+
+}
+
+func (share *RKGShareRoundTwo) UnmarshalBinary(data []byte) error {
+	lenShare := data[0]
+	rLength := (len(data) - 1) / (2 * int(lenShare))
+
+	if *share == nil {
+		*share = make([][2]*ring.Poly, lenShare)
+	}
+	ptr := (1)
+	for i := (0); i < int(lenShare); i++ {
+		if (*share)[i][0] == nil || (*share)[i][1] == nil {
+			(*share)[i][0] = new(ring.Poly)
+			(*share)[i][1] = new(ring.Poly)
+		}
+
+		err := (*share)[i][0].UnmarshalBinary(data[ptr : ptr+rLength])
+		if err != nil {
+			return err
+		}
+		ptr += rLength
+		err = (*share)[i][1].UnmarshalBinary(data[ptr : ptr+rLength])
+		if err != nil {
+			return err
+		}
+		ptr += rLength
+
+	}
+
+	return nil
+}
+
+func (share *RKGShareRoundThree) MarshalBinary() ([]byte, error) {
+	rLength := (*share)[0].GetDataLen(true)
+	data := make([]byte, 1+rLength*uint64(len(*share)))
+	data[0] = uint8(len(*share))
+
+	pointer := uint64(1)
+	for _, s := range *share {
+		tmp, err := s.WriteTo(data[pointer : pointer+rLength])
+		if err != nil {
+			return []byte{}, err
+		}
+		pointer += tmp
+	}
+
+	return data, nil
+}
+
+func (share *RKGShareRoundThree) UnmarshalBinary(data []byte) error {
+	//share.modulus = data[0]
+	lenShare := data[0]
+	rLength := len(data[1:]) / int(lenShare)
+	if *share == nil {
+		*share = make([]*ring.Poly, lenShare)
+	}
+	ptr := 1
+	for i := uint8(0); i < lenShare; i++ {
+		if (*share)[i] == nil {
+			(*share)[i] = new(ring.Poly)
+		}
+		err := (*share)[i].UnmarshalBinary(data[ptr : ptr+rLength])
+		if err != nil {
+			return err
+		}
+		ptr += rLength
+	}
+
+	return nil
+}
+
 func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundTwo, r3 RKGShareRoundThree) {
 	r1 = make([]*ring.Poly, ekg.beta)
 	r2 = make([][2]*ring.Poly, ekg.beta)
@@ -34,12 +172,13 @@ func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundT
 		r2[i][1] = ekg.ringContext.NewPoly()
 		r3[i] = ekg.ringContext.NewPoly()
 	}
+
 	return
 }
 
 // NewEkgProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
-func NewEkgProtocol(context *bfv.BfvContext) *RKGProtocol {
+func NewEkgProtocol(context *bfv.Context) *RKGProtocol {
 
 	ekg := new(RKGProtocol)
 	ekg.ringContext = context.ContextKeys()

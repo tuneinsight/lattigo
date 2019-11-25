@@ -1,13 +1,15 @@
 package dbfv
 
 import (
+	"encoding/binary"
+	"errors"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 )
 
 // rotkg is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
-	bfvContext *bfv.BfvContext
+	bfvContext *bfv.Context
 
 	gaussianSampler *ring.KYSampler
 
@@ -24,6 +26,48 @@ type RTGShare struct {
 	Value []*ring.Poly
 }
 
+func (share *RTGShare) MarshalBinary() ([]byte, error) {
+	lenRing := share.Value[0].GetDataLen(true)
+	data := make([]byte, 3*8+lenRing*uint64(len(share.Value)))
+	binary.BigEndian.PutUint64(data[0:8], share.K)
+	binary.BigEndian.PutUint64(data[8:16], uint64(share.Type))
+	binary.BigEndian.PutUint64(data[16:24], lenRing)
+	ptr := uint64(24)
+	for _, val := range share.Value {
+		cnt, err := val.WriteTo(data[ptr : ptr+lenRing])
+		if err != nil {
+			return []byte{}, err
+		}
+		ptr += cnt
+	}
+
+	return data, nil
+}
+
+func (share *RTGShare) UnmarshalBinary(data []byte) error {
+	if len(data) <= 24 {
+		return errors.New("Unsufficient data length")
+	}
+	share.K = binary.BigEndian.Uint64(data[0:8])
+	share.Type = bfv.Rotation(binary.BigEndian.Uint64(data[8:16]))
+	lenRing := binary.BigEndian.Uint64(data[16:24])
+	valLength := uint64(len(data)-3*8) / lenRing
+
+	share.Value = make([]*ring.Poly, valLength)
+	ptr := uint64(24)
+	for i, _ := range share.Value {
+		share.Value[i] = new(ring.Poly)
+		err := share.Value[i].UnmarshalBinary(data[ptr : ptr+lenRing])
+		if err != nil {
+			return err
+		}
+		ptr += lenRing
+
+	}
+
+	return nil
+}
+
 func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 	rtgShare.Value = make([]*ring.Poly, rtg.bfvContext.Beta())
 	for i := uint64(0); i < rtg.bfvContext.Beta(); i++ {
@@ -33,7 +77,7 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 }
 
 // newrotkg creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
-func NewRotKGProtocol(bfvContext *bfv.BfvContext) (rtg *RTGProtocol) {
+func NewRotKGProtocol(bfvContext *bfv.Context) (rtg *RTGProtocol) {
 
 	rtg = new(RTGProtocol)
 	rtg.bfvContext = bfvContext

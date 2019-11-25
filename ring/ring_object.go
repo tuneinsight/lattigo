@@ -213,10 +213,10 @@ func (Pol *Poly) MarshalBinary() ([]byte, error) {
 	//return data, nil
 }
 
-func (Pol *Poly) UnmarshalBinary(data []byte) error {
+func (Pol *Poly) UnmarshalBinary(data []byte) (err error) {
 
-	N := uint64(int(1 << data[0]))
-	numberModulies := uint64(int(data[1]))
+	N := uint64(1 << data[0])
+	numberModulies := uint64(data[1])
 
 	var pointer uint64
 
@@ -225,12 +225,26 @@ func (Pol *Poly) UnmarshalBinary(data []byte) error {
 	if ((uint64(len(data)) - pointer) >> 3) != N*numberModulies {
 		return errors.New("error : invalid polynomial encoding")
 	}
-	if Pol.Coeffs == nil {
-		Pol.Coeffs = make([][]uint64, numberModulies)
-	}
-	if _, err := DecodeCoeffsNew(pointer, N, numberModulies, Pol.Coeffs, data); err != nil {
+	if _, err = Pol.DecodePolyNew(data); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (Pol *Poly) DecodePolyNew(data []byte) (pointer uint64, err error) {
+
+	N := uint64(1 << data[0])
+	numberModulies := uint64(data[1])
+
+	pointer = 2
+
+	if Pol.Coeffs == nil {
+		Pol.Coeffs = make([][]uint64, numberModulies)
+	}
+	if pointer, err = DecodeCoeffsNew(pointer, N, numberModulies, Pol.Coeffs, data); err != nil {
+		return pointer, err
+	}
+
+	return pointer, nil
 }

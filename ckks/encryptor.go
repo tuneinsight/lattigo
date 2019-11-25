@@ -6,7 +6,7 @@ import (
 
 // Encreyptor is a struct used to encrypt plaintext and storing the public-key and/or secret-key.
 type Encryptor struct {
-	ckkscontext *CkksContext
+	ckkscontext *Context
 	pk          *PublicKey
 	sk          *SecretKey
 	polypool    [3]*ring.Poly
@@ -18,19 +18,19 @@ type Encryptor struct {
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (ckkscontext *CkksContext) NewEncryptorFromPk(pk *PublicKey) *Encryptor {
+func (ckkscontext *Context) NewEncryptorFromPk(pk *PublicKey) *Encryptor {
 	return ckkscontext.newEncryptor(pk, nil)
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (ckkscontext *CkksContext) NewEncryptorFromSk(sk *SecretKey) *Encryptor {
+func (ckkscontext *Context) NewEncryptorFromSk(sk *SecretKey) *Encryptor {
 	return ckkscontext.newEncryptor(nil, sk)
 }
 
 // NewEncryptor creates a new Encryptor with the input public-key and/or secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored keys.
-func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
+func (ckkscontext *Context) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
 
 	if pk != nil && (uint64(pk.pk[0].GetDegree()) != ckkscontext.n || uint64(pk.pk[1].GetDegree()) != ckkscontext.n) {
 		panic("pk ring degree doesn't match ckkscontext ring degree")

@@ -8,7 +8,7 @@ import (
 )
 
 type RefreshProtocol struct {
-	bfvContext    *bfv.BfvContext
+	bfvContext    *bfv.Context
 	tmp1          *ring.Poly
 	tmp2          *ring.Poly
 	hP            *ring.Poly
@@ -67,7 +67,7 @@ func (share *RefreshShare) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func NewRefreshProtocol(bfvContext *bfv.BfvContext) (refreshProtocol *RefreshProtocol) {
+func NewRefreshProtocol(bfvContext *bfv.Context) (refreshProtocol *RefreshProtocol) {
 	refreshProtocol = new(RefreshProtocol)
 	refreshProtocol.bfvContext = bfvContext
 	refreshProtocol.tmp1 = bfvContext.ContextKeys().NewPoly()
@@ -173,7 +173,7 @@ func (rfp *RefreshProtocol) Finalize(ciphertext *bfv.Ciphertext, crs *ring.Poly,
 	rfp.Recrypt(rfp.tmp1, crs, share.RefreshShareRecrypt, ciphertextOut)
 }
 
-func lift(p0, p1 *ring.Poly, bfvcontext *bfv.BfvContext) {
+func lift(p0, p1 *ring.Poly, bfvcontext *bfv.Context) {
 	for j := uint64(0); j < bfvcontext.N(); j++ {
 		for i := len(bfvcontext.ContextQ().Modulus) - 1; i >= 0; i-- {
 			p1.Coeffs[i][j] = ring.MRed(p0.Coeffs[0][j], bfvcontext.DeltaMont()[i], bfvcontext.ContextQ().Modulus[i], bfvcontext.ContextQ().GetMredParams()[i])

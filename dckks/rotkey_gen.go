@@ -7,7 +7,7 @@ import (
 
 // rotkg is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
-	ckksContext *ckks.CkksContext
+	ckksContext *ckks.Context
 
 	gaussianSampler *ring.KYSampler
 
@@ -33,7 +33,7 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 }
 
 // newrotkg creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
-func NewRotKGProtocol(ckksContext *ckks.CkksContext) (rtg *RTGProtocol) {
+func NewRotKGProtocol(ckksContext *ckks.Context) (rtg *RTGProtocol) {
 
 	rtg = new(RTGProtocol)
 	rtg.ckksContext = ckksContext
@@ -171,5 +171,5 @@ func (rtg *RTGProtocol) Finalize(share RTGShare, crp []*ring.Poly, rotKey *ckks.
 		rtg.ckksContext.ContextKeys().MForm(crp[i], rtg.tmpSwitchKey[i][1])
 	}
 
-	rotKey.SetRotKey(share.Type, k, rtg.tmpSwitchKey)
+	rtg.ckksContext.SetRotKey(rtg.tmpSwitchKey, share.Type, k, rotKey)
 }

@@ -63,7 +63,7 @@ func main() {
 
 	params := &bfv.DefaultParams[1]
 	params.T = 65537
-	bfvctx := bfv.NewBfvContextWithParam(params)
+	bfvctx := bfv.NewContextWithParam(params)
 
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvctx.ContextKeys())
 	crs := crsGen.Clock()

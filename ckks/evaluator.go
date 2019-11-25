@@ -10,7 +10,7 @@ import (
 // Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
 type Evaluator struct {
-	ckkscontext   *CkksContext
+	ckkscontext   *Context
 	ringpool      [6]*ring.Poly
 	keyswitchpool [4]*ring.Poly
 
@@ -27,7 +27,7 @@ type Evaluator struct {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on the ciphertexts and/or plaintexts. It stores a small pool of polynomials
 // and ciphertexts that will be used for intermediate values.
-func (ckkscontext *CkksContext) NewEvaluator() (evaluator *Evaluator) {
+func (ckkscontext *Context) NewEvaluator() (evaluator *Evaluator) {
 
 	evaluator = new(Evaluator)
 	evaluator.ckkscontext = ckkscontext

@@ -11,7 +11,7 @@ type Ciphertext struct {
 }
 
 // NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
-func (ckkscontext *CkksContext) NewCiphertext(degree uint64, level uint64, scale float64) *Ciphertext {
+func (ckkscontext *Context) NewCiphertext(degree uint64, level uint64, scale float64) *Ciphertext {
 	ciphertext := &Ciphertext{&ckksElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
@@ -27,7 +27,7 @@ func (ckkscontext *CkksContext) NewCiphertext(degree uint64, level uint64, scale
 }
 
 // NewRandoMCiphertext generates a new uniformely distributed ciphertext of degree, level and scale.
-func (ckkscontext *CkksContext) NewRandomCiphertext(degree, level uint64, scale float64) (ciphertext *Ciphertext) {
+func (ckkscontext *Context) NewRandomCiphertext(degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{&ckksElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)

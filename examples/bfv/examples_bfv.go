@@ -13,7 +13,7 @@ var T uint64
 var Qi []uint64
 var Pi []uint64
 var Sigma float64
-var bfvContext *bfv.BfvContext
+var bfvContext *bfv.Context
 
 func ObliviousRiding() {
 
@@ -49,7 +49,7 @@ func ObliviousRiding() {
 	// Plaintext modulus
 	params.T = 0x3ee0001
 
-	bfvContext := bfv.NewBfvContextWithParam(&params)
+	bfvContext := bfv.NewContextWithParam(&params)
 
 	encoder := bfvContext.NewEncoder()
 

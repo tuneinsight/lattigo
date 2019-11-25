@@ -11,7 +11,7 @@ import (
 // generation protocol.
 type RKGProtocol struct {
 	ringContext     *ring.Context
-	bfvContext      *bfv.BfvContext
+	bfvContext      *bfv.Context
 	keyswitchprimes []uint64
 	alpha           uint64
 	beta            uint64
@@ -178,7 +178,7 @@ func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundT
 
 // NewEkgProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
-func NewEkgProtocol(context *bfv.BfvContext) *RKGProtocol {
+func NewEkgProtocol(context *bfv.Context) *RKGProtocol {
 
 	ekg := new(RKGProtocol)
 	ekg.ringContext = context.ContextKeys()

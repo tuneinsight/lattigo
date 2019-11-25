@@ -7,7 +7,7 @@ import (
 
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
 type PCKSProtocol struct {
-	bfvContext *bfv.BfvContext
+	bfvContext *bfv.Context
 
 	sigmaSmudging         float64
 	gaussianSamplerSmudge *ring.KYSampler
@@ -71,7 +71,7 @@ func (share *PCKSShare) UnmarshalBinary(data []byte) error {
 
 // NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key mong j parties under a new
 // collective public-key.
-func NewPCKSProtocol(bfvContext *bfv.BfvContext, sigmaSmudging float64) *PCKSProtocol {
+func NewPCKSProtocol(bfvContext *bfv.Context, sigmaSmudging float64) *PCKSProtocol {
 
 	pcks := new(PCKSProtocol)
 

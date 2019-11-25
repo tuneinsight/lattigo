@@ -8,7 +8,7 @@ import (
 
 // Encoder is a struct storing the necessary parameters to encode a slice of complex number on a plaintext.
 type Encoder struct {
-	ckkscontext   *CkksContext
+	ckkscontext   *Context
 	values        []complex128
 	valuesfloat   []float64
 	bigint_coeffs []*big.Int
@@ -20,7 +20,7 @@ type Encoder struct {
 }
 
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
-func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
+func (ckkscontext *Context) NewEncoder() (encoder *Encoder) {
 	encoder = new(Encoder)
 	encoder.ckkscontext = ckkscontext
 	encoder.values = make([]complex128, ckkscontext.maxSlots)

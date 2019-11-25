@@ -20,11 +20,11 @@ func check(t *testing.T, err error) {
 }
 
 func testString(opname string, params *ckksParams) string {
-	return fmt.Sprintf("%slogN=%d/logQ=%d/levels=%d/a=%d/b=%d", opname, params.ckksContext.logN, params.ckksContext.logQ, params.ckksContext.levels, params.ckksContext.alpha, params.ckksContext.beta)
+	return fmt.Sprintf("%slogN=%d/logQ=%d/levels=%d/a=%d/b=%d", opname, params.ckkscontext.logN, params.ckkscontext.logQ, params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta)
 }
 
 type ckksParams struct {
-	ckksContext *CkksContext
+	ckkscontext *Context
 	encoder     *Encoder
 	kgen        *KeyGenerator
 	sk          *SecretKey
@@ -82,19 +82,19 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 	params = new(ckksParams)
 
-	params.ckksContext = NewCkksContext(contextParameters)
+	params.ckkscontext = NewContext(contextParameters)
 
-	params.kgen = params.ckksContext.NewKeyGenerator()
+	params.kgen = params.ckkscontext.NewKeyGenerator()
 
 	params.sk, params.pk = params.kgen.NewKeyPairSparse(128)
 
-	params.encoder = params.ckksContext.NewEncoder()
+	params.encoder = params.ckkscontext.NewEncoder()
 
-	params.encryptorPk = params.ckksContext.NewEncryptorFromPk(params.pk)
-	params.encryptorSk = params.ckksContext.NewEncryptorFromSk(params.sk)
-	params.decryptor = params.ckksContext.NewDecryptor(params.sk)
+	params.encryptorPk = params.ckkscontext.NewEncryptorFromPk(params.pk)
+	params.encryptorSk = params.ckkscontext.NewEncryptorFromSk(params.sk)
+	params.decryptor = params.ckkscontext.NewDecryptor(params.sk)
 
-	params.evaluator = params.ckksContext.NewEvaluator()
+	params.evaluator = params.ckkscontext.NewEvaluator()
 
 	return
 
@@ -102,7 +102,7 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 func new_test_vectors(contextParams *ckksParams, encryptor *Encryptor, a float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	slots := contextParams.ckksContext.Slots()
+	slots := contextParams.ckkscontext.Slots()
 
 	values = make([]complex128, slots)
 
@@ -112,7 +112,7 @@ func new_test_vectors(contextParams *ckksParams, encryptor *Encryptor, a float64
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = contextParams.ckksContext.NewPlaintext(contextParams.ckksContext.Levels()-1, contextParams.ckksContext.Scale())
+	plaintext = contextParams.ckkscontext.NewPlaintext(contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale())
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -125,7 +125,7 @@ func new_test_vectors(contextParams *ckksParams, encryptor *Encryptor, a float64
 
 func new_test_vectors_reals(contextParams *ckksParams, encryptor *Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	slots := contextParams.ckksContext.Slots()
+	slots := contextParams.ckkscontext.Slots()
 
 	values = make([]complex128, slots)
 
@@ -135,7 +135,7 @@ func new_test_vectors_reals(contextParams *ckksParams, encryptor *Encryptor, a, 
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = contextParams.ckksContext.NewPlaintext(contextParams.ckksContext.Levels()-1, contextParams.ckksContext.Scale())
+	plaintext = contextParams.ckkscontext.NewPlaintext(contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale())
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -158,13 +158,13 @@ func verify_test_vectors(contextParams *ckksParams, decryptor *Decryptor, values
 		plaintextTest = element.(*Plaintext)
 	}
 
-	valuesTest = contextParams.encoder.Decode(plaintextTest, contextParams.ckksContext.Slots())
+	valuesTest = contextParams.encoder.Decode(plaintextTest, contextParams.ckkscontext.Slots())
 
 	var deltaReal, deltaImag float64
 
 	var minprec, maxprec, meanprec, medianprec complex128
 
-	diff := make([]complex128, contextParams.ckksContext.Slots())
+	diff := make([]complex128, contextParams.ckkscontext.Slots())
 
 	minprec = complex(0, 0)
 	maxprec = complex(1, 1)
@@ -204,7 +204,7 @@ func verify_test_vectors(contextParams *ckksParams, decryptor *Decryptor, values
 		distrib_imag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))] += 1
 	}
 
-	meanprec /= complex(float64(contextParams.ckksContext.Slots()), 0)
+	meanprec /= complex(float64(contextParams.ckkscontext.Slots()), 0)
 	medianprec = calcmedian(diff)
 
 	if testParams.verbose {
@@ -467,13 +467,13 @@ func testEvaluatorRescale(t *testing.T) {
 
 			values, _, ciphertext := new_test_vectors(params, params.encryptorSk, 1, t)
 
-			constant := params.ckksContext.moduli[ciphertext.Level()]
+			constant := params.ckkscontext.moduli[ciphertext.Level()]
 
 			params.evaluator.MultConst(ciphertext, constant, ciphertext)
 
 			ciphertext.MulScale(float64(constant))
 
-			params.evaluator.Rescale(ciphertext, params.ckksContext.scale, ciphertext)
+			params.evaluator.Rescale(ciphertext, params.ckkscontext.scale, ciphertext)
 
 			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
 		})
@@ -485,7 +485,7 @@ func testEvaluatorRescale(t *testing.T) {
 			nbRescales := uint64(2)
 
 			for i := uint64(0); i < nbRescales; i++ {
-				constant := params.ckksContext.moduli[ciphertext.Level()-i]
+				constant := params.ckkscontext.moduli[ciphertext.Level()-i]
 				params.evaluator.MultConst(ciphertext, constant, ciphertext)
 				ciphertext.MulScale(float64(constant))
 			}
@@ -690,7 +690,7 @@ func testFunctions(t *testing.T) {
 			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
 		})
 
-		if params.ckksContext.levels > 7 {
+		if params.ckkscontext.levels > 7 {
 			t.Run(testString("Inverse/", params), func(t *testing.T) {
 
 				values, _, ciphertext := new_test_vectors_reals(params, params.encryptorSk, 0.1, 1, t)
@@ -766,7 +766,7 @@ func testSwitchKeys(t *testing.T) {
 		params := genCkksParams(parameters)
 
 		sk2 := params.kgen.NewSecretKey()
-		decryptorSk2 := params.ckksContext.NewDecryptor(sk2)
+		decryptorSk2 := params.ckkscontext.NewDecryptor(sk2)
 		switchingKey := params.kgen.NewSwitchingKey(params.sk, sk2)
 
 		t.Run(testString("InPlace/", params), func(t *testing.T) {
@@ -795,7 +795,7 @@ func testConjugate(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		rotKey := params.ckksContext.NewRotationKeys()
+		rotKey := params.ckkscontext.NewRotationKeys()
 		params.kgen.GenRot(Conjugate, params.sk, 0, rotKey)
 
 		t.Run(testString("InPlace/", params), func(t *testing.T) {
@@ -839,7 +839,7 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := params.ckksContext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+			ciphertext2 := params.ckkscontext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 			for n := 1; n < len(values1); n <<= 1 {
 
@@ -860,7 +860,7 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := params.ckksContext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+			ciphertext2 := params.ckkscontext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 			for n := 1; n < len(values1); n <<= 1 {
 
@@ -881,7 +881,7 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := new_test_vectors_reals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := params.ckksContext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+			ciphertext2 := params.ckkscontext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 			for n := 1; n < 4; n++ {
 

@@ -15,7 +15,7 @@ type CKGProtocol struct {
 type CKGShare *ring.Poly
 
 // NewCKGProtocol creates a new CKGProtocol instance
-func NewCKGProtocol(ckksCtx *ckks.CkksContext) *CKGProtocol {
+func NewCKGProtocol(ckksCtx *ckks.Context) *CKGProtocol {
 	ckg := new(CKGProtocol)
 	ckg.ringContext = ckksCtx.ContextKeys()
 	ckg.gaussianSampler = ckksCtx.GaussianSampler()

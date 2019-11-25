@@ -9,7 +9,7 @@ import (
 
 // rotkg is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
-	bfvContext *bfv.BfvContext
+	bfvContext *bfv.Context
 
 	gaussianSampler *ring.KYSampler
 
@@ -77,7 +77,7 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 }
 
 // newrotkg creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
-func NewRotKGProtocol(bfvContext *bfv.BfvContext) (rtg *RTGProtocol) {
+func NewRotKGProtocol(bfvContext *bfv.Context) (rtg *RTGProtocol) {
 
 	rtg = new(RTGProtocol)
 	rtg.bfvContext = bfvContext

@@ -17,7 +17,7 @@ func check(t *testing.T, err error) {
 }
 
 type dbfvContext struct {
-	bfvContext *bfv.BfvContext
+	bfvContext *bfv.Context
 	encoder    *bfv.Encoder
 	kgen       *bfv.KeyGenerator
 
@@ -67,7 +67,7 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 
 	params = new(dbfvContext)
 
-	params.bfvContext = bfv.NewBfvContextWithParam(contextParameters)
+	params.bfvContext = bfv.NewContextWithParam(contextParameters)
 
 	params.encoder = params.bfvContext.NewEncoder()
 	params.evaluator = params.bfvContext.NewEvaluator()
@@ -709,7 +709,7 @@ func verifyTestVectors(contextParams *dbfvContext, decryptor *bfv.Decryptor, coe
 func Test_Marshalling(t *testing.T) {
 
 	//verify if the un.marshalling works properly
-	bfvCtx := bfv.NewBfvContextWithParam(&bfv.DefaultParams[1])
+	bfvCtx := bfv.NewContextWithParam(&bfv.DefaultParams[1])
 	KeyGenerator := bfvCtx.NewKeyGenerator()
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextKeys())
 	sk := KeyGenerator.NewSecretKey()
@@ -916,7 +916,7 @@ func Test_Marshalling(t *testing.T) {
 
 func Test_Relin_Marshalling(t *testing.T) {
 
-	bfvCtx := bfv.NewBfvContextWithParam(&bfv.DefaultParams[1])
+	bfvCtx := bfv.NewContextWithParam(&bfv.DefaultParams[1])
 	contextQ := bfvCtx.ContextQ()
 	contextPKeys := bfvCtx.ContextPKeys()
 	modulus := bfvCtx.ContextQ().Modulus

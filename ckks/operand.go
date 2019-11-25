@@ -21,7 +21,7 @@ type ckksElement struct {
 	slots          uint64
 }
 
-func (ckkscontext *CkksContext) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
+func (ckkscontext *Context) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
 	el := &ckksElement{}
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -80,7 +80,7 @@ func (el *ckksElement) Slots() uint64 {
 	return el.slots
 }
 
-func (el *ckksElement) Resize(ckkscontext *CkksContext, degree uint64) {
+func (el *ckksElement) Resize(ckkscontext *Context, degree uint64) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree+1]
 	} else if el.Degree() < degree {
@@ -99,7 +99,7 @@ func (el *ckksElement) SetIsNTT(value bool) {
 }
 
 // NTT puts the target element in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
-func (el *ckksElement) NTT(ckkscontext *CkksContext, c *ckksElement) error {
+func (el *ckksElement) NTT(ckkscontext *Context, c *ckksElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}
@@ -113,7 +113,7 @@ func (el *ckksElement) NTT(ckkscontext *CkksContext, c *ckksElement) error {
 }
 
 // InvNTT puts the target element outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
-func (el *ckksElement) InvNTT(ckkscontext *CkksContext, c *ckksElement) error {
+func (el *ckksElement) InvNTT(ckkscontext *Context, c *ckksElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}

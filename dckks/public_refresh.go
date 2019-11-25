@@ -7,7 +7,7 @@ import (
 )
 
 type RefreshProtocol struct {
-	ckksContext *ckks.CkksContext
+	ckksContext *ckks.Context
 	tmp         *ring.Poly
 	maskBigint  []*big.Int
 }
@@ -15,7 +15,7 @@ type RefreshProtocol struct {
 type RefreshShareDecrypt *ring.Poly
 type RefreshShareRecrypt *ring.Poly
 
-func NewRefreshProtocol(ckksContext *ckks.CkksContext) (refreshProtocol *RefreshProtocol) {
+func NewRefreshProtocol(ckksContext *ckks.Context) (refreshProtocol *RefreshProtocol) {
 	refreshProtocol = new(RefreshProtocol)
 	refreshProtocol.ckksContext = ckksContext
 	refreshProtocol.tmp = ckksContext.ContextQ().NewPoly()

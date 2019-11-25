@@ -17,11 +17,11 @@ type bfvElement struct {
 }
 
 // NewCiphertext creates a new empty ciphertext of degree degree.
-func (bfvcontext *BfvContext) NewBfvElement(degree uint64) *bfvElement {
+func (context *Context) NewBfvElement(degree uint64) *bfvElement {
 	el := &bfvElement{}
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = bfvcontext.contextQ.NewPoly()
+		el.value[i] = context.contextQ.NewPoly()
 	}
 	el.isNTT = false
 
@@ -46,12 +46,12 @@ func (el *bfvElement) Degree() uint64 {
 // Resize resizes the target ciphertext degree to the degree given as input. If the input degree is bigger then
 // it will append new empty polynomials, if the degree is smaller, it will delete polynomials until the degree matches
 // the input degree.
-func (el *bfvElement) Resize(bfvcontext *BfvContext, degree uint64) {
+func (el *bfvElement) Resize(context *Context, degree uint64) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree]
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
-			el.value = append(el.value, []*ring.Poly{bfvcontext.contextQ.NewPoly()}...)
+			el.value = append(el.value, []*ring.Poly{context.contextQ.NewPoly()}...)
 		}
 	}
 }
@@ -92,26 +92,26 @@ func (el *bfvElement) Copy(ctxCopy *bfvElement) {
 }
 
 // NTT puts the target ciphertext in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
-func (el *bfvElement) NTT(bfvcontext *BfvContext, c *bfvElement) {
+func (el *bfvElement) NTT(context *Context, c *bfvElement) {
 	if el.Degree() != c.Degree() {
 		panic("receiver element invalide degree (does not match)")
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
-			bfvcontext.contextQ.NTT(el.Value()[i], c.Value()[i])
+			context.contextQ.NTT(el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(true)
 	}
 }
 
 // InvNTT puts the target ciphertext outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
-func (el *bfvElement) InvNTT(bfvcontext *BfvContext, c *bfvElement) {
+func (el *bfvElement) InvNTT(context *Context, c *bfvElement) {
 	if el.Degree() != c.Degree() {
 		panic("eceiver element invalide degree (does not match)")
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {
-			bfvcontext.contextQ.InvNTT(el.Value()[i], c.Value()[i])
+			context.contextQ.InvNTT(el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(false)
 	}

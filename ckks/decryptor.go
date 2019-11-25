@@ -2,13 +2,13 @@ package ckks
 
 // Decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type Decryptor struct {
-	ckkscontext *CkksContext
+	ckkscontext *Context
 	sk          *SecretKey
 }
 
 // NewDecryptor instanciates a new decryptor that will be able to decrypt ciphertext
 // encrypted under the provided secret-key.
-func (ckkscontext *CkksContext) NewDecryptor(sk *SecretKey) *Decryptor {
+func (ckkscontext *Context) NewDecryptor(sk *SecretKey) *Decryptor {
 
 	if sk.sk.GetDegree() != int(ckkscontext.n) {
 		panic("secret_key degree must match context degree")

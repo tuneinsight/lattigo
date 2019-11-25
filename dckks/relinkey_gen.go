@@ -7,7 +7,7 @@ import (
 
 // EkgProtocol is a structure storing the parameters for the collective evaluation-key generation.
 type RKGProtocol struct {
-	ckksContext *ckks.CkksContext
+	ckksContext *ckks.Context
 	polypool    *ring.Poly
 }
 
@@ -33,7 +33,7 @@ func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundT
 
 // NewEkgProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
-func NewEkgProtocol(ckksContext *ckks.CkksContext) *RKGProtocol {
+func NewEkgProtocol(ckksContext *ckks.Context) *RKGProtocol {
 
 	ekg := new(RKGProtocol)
 	ekg.ckksContext = ckksContext

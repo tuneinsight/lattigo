@@ -93,7 +93,7 @@ func main() {
 
 	params := &bfv.DefaultParams[0] // default params with N=8192
 	params.T = 65537
-	bfvctx := bfv.NewBfvContextWithParam(params)
+	bfvctx := bfv.NewContextWithParam(params)
 
 	// Common reference polynomial generator keyed with "lattigo" and seeded with "pir example".
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvctx.ContextKeys())

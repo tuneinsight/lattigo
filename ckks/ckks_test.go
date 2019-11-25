@@ -76,6 +76,7 @@ func Test_CKKS(t *testing.T) {
 	t.Run("Evaluator/SwitchKeys", testSwitchKeys)
 	t.Run("Evaluator/Conjugate", testConjugate)
 	t.Run("Evaluator/RotateColumns", testRotateColumns)
+	t.Run("Marshalling", testMarshaller)
 }
 
 func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
@@ -897,6 +898,191 @@ func testRotateColumns(t *testing.T) {
 				verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
 			}
 
+		})
+	}
+}
+
+func testMarshaller(t *testing.T) {
+
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genCkksParams(parameters)
+
+		contextKeys := params.ckkscontext.contextKeys
+
+		t.Run(testString("Ciphertext/", params), func(t *testing.T) {
+
+			ciphertextWant := params.ckkscontext.NewRandomCiphertext(2, params.ckkscontext.levels-1, params.ckkscontext.scale)
+
+			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
+			check(t, err)
+
+			ciphertextTest := NewCiphertext()
+			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
+			check(t, err)
+
+			if ciphertextWant.Degree() != ciphertextTest.Degree() {
+				t.Errorf("Marshal Cipehrtext Degree")
+			}
+
+			if ciphertextWant.Level() != ciphertextTest.Level() {
+				t.Errorf("Marshal Cipehrtext Level")
+			}
+
+			if ciphertextWant.Scale() != ciphertextTest.Scale() {
+				t.Errorf("Marshal Cipehrtext Scale")
+			}
+
+			for i := range ciphertextWant.value {
+				if !params.ckkscontext.contextQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]) {
+					t.Errorf("Marshal Ciphertext Coefficients")
+				}
+			}
+		})
+
+		t.Run(testString("Sk", params), func(t *testing.T) {
+
+			marshalledSk, err := params.sk.MarshalBinary()
+			check(t, err)
+
+			sk := new(SecretKey)
+			err = sk.UnmarshalBinary(marshalledSk)
+			check(t, err)
+
+			if !contextKeys.Equal(sk.sk, params.sk.sk) {
+				t.Errorf("Marshal SecretKey")
+			}
+
+		})
+
+		t.Run(testString("Pk", params), func(t *testing.T) {
+
+			marshalledPk, err := params.pk.MarshalBinary()
+			check(t, err)
+
+			pk := new(PublicKey)
+			err = pk.UnmarshalBinary(marshalledPk)
+			check(t, err)
+
+			for k := range params.pk.pk {
+				if !contextKeys.Equal(pk.pk[k], params.pk.pk[k]) {
+					t.Errorf("Marshal PublicKey element [%d]", k)
+				}
+			}
+		})
+
+		t.Run(testString("EvaluationKey", params), func(t *testing.T) {
+
+			eval_key := params.kgen.NewRelinKey(params.sk)
+			data, err := eval_key.MarshalBinary()
+			check(t, err)
+
+			res_eval_key := new(EvaluationKey)
+			err = res_eval_key.UnmarshalBinary(data)
+			check(t, err)
+
+			evakeyWant := eval_key.evakey.evakey
+			evakeyTest := res_eval_key.evakey.evakey
+
+			for j := range evakeyWant {
+
+				for k := range evakeyWant[j] {
+					if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+						t.Errorf("Marshal EvaluationKey element [%d][%d]", j, k)
+					}
+				}
+			}
+		})
+
+		t.Run(testString("SwitchingKey", params), func(t *testing.T) {
+
+			sk_out := params.kgen.NewSecretKey()
+
+			switching_key := params.kgen.NewSwitchingKey(params.sk, sk_out)
+			data, err := switching_key.MarshalBinary()
+			check(t, err)
+
+			res_switching_key := new(SwitchingKey)
+			err = res_switching_key.UnmarshalBinary(data)
+			check(t, err)
+
+			evakeyWant := switching_key.evakey
+			evakeyTest := res_switching_key.evakey
+
+			for j := range evakeyWant {
+
+				for k := range evakeyWant[j] {
+					if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+						t.Errorf("Marshal Switchkey element [%d][%d]", j, k)
+					}
+				}
+			}
+		})
+
+		t.Run(testString("RotationKey", params), func(t *testing.T) {
+
+			rotationKey := params.ckkscontext.NewRotationKeys()
+
+			params.kgen.GenRot(Conjugate, params.sk, 0, rotationKey)
+			params.kgen.GenRot(RotationLeft, params.sk, 1, rotationKey)
+			params.kgen.GenRot(RotationLeft, params.sk, 2, rotationKey)
+			params.kgen.GenRot(RotationRight, params.sk, 3, rotationKey)
+			params.kgen.GenRot(RotationRight, params.sk, 5, rotationKey)
+
+			data, err := rotationKey.MarshalBinary()
+			check(t, err)
+
+			res_rotationKey := new(RotationKeys)
+			err = res_rotationKey.UnmarshalBinary(data)
+			check(t, err)
+
+			for i := uint64(1); i < params.ckkscontext.n>>1; i++ {
+
+				if rotationKey.evakeyRotColLeft[i] != nil {
+
+					evakeyWant := rotationKey.evakeyRotColLeft[i].evakey
+					evakeyTest := res_rotationKey.evakeyRotColLeft[i].evakey
+
+					for j := range evakeyWant {
+
+						for k := range evakeyWant[j] {
+							if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+								t.Errorf("Marshal RotKey RotateLeft %d element [%d][%d]", i, j, k)
+							}
+						}
+					}
+				}
+
+				if rotationKey.evakeyRotColRight[i] != nil {
+
+					evakeyWant := rotationKey.evakeyRotColRight[i].evakey
+					evakeyTest := res_rotationKey.evakeyRotColRight[i].evakey
+
+					for j := range evakeyWant {
+
+						for k := range evakeyWant[j] {
+							if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+								t.Errorf("Marshal RotKey RotateRight %d element [%d][%d]", i, j, k)
+							}
+						}
+					}
+				}
+			}
+
+			if rotationKey.evakeyConjugate != nil {
+
+				evakeyWant := rotationKey.evakeyConjugate.evakey
+				evakeyTest := res_rotationKey.evakeyConjugate.evakey
+
+				for j := range evakeyWant {
+
+					for k := range evakeyWant[j] {
+						if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+							t.Errorf("Marshal RotKey RotateRow element [%d][%d]", j, k)
+						}
+					}
+				}
+			}
 		})
 	}
 }

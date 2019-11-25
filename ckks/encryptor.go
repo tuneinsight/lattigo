@@ -124,8 +124,6 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	// ct1 = (u*pk1 + e1)/P
 	encryptor.baseconverter.ModDown(contextKeys, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
 
-	ciphertext.SetCurrentModulus(contextQ.ModulusBigint)
-
 	// 2*#Q NTT
 	contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
 	contextQ.NTT(ciphertext.value[1], ciphertext.value[1])
@@ -165,7 +163,6 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	// #Q NTT
 	contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
 
-	ciphertext.SetCurrentModulus(contextQ.ModulusBigint)
 	// ct0 = -s*a + m + e
 	contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 

@@ -111,8 +111,6 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
 
 	contextQ.SetCoefficientsBigintLvl(ciphertext.Level(), refreshProtocol.maskBigint, ciphertext.Value()[0])
 
-	ciphertext.SetCurrentModulus(ckksContext.BigintChain()[ciphertext.Level()])
-
 	contextQ.NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
 }
 

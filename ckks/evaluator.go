@@ -857,10 +857,6 @@ func (evaluator *Evaluator) DropLevel(ct0 *ckksElement, levels uint64) (err erro
 		ct0.value[i].Coeffs = ct0.value[i].Coeffs[:level+1-levels]
 	}
 
-	for i := uint64(0); i < levels; i++ {
-		ct0.CurrentModulus().Quo(ct0.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[level-i]))
-	}
-
 	return nil
 }
 
@@ -903,8 +899,6 @@ func (evaluator *Evaluator) Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciph
 
 			c1.DivScale(evaluator.ckkscontext.scalechain[c1.Level()])
 
-			c1.CurrentModulus().Quo(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[c1.Level()]))
-
 			for i := range c1.Value() {
 				evaluator.ckkscontext.contextQ.DivRoundByLastModulusNTT(c1.Value()[i])
 			}
@@ -936,7 +930,6 @@ func (evaluator *Evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *
 
 	for i := uint64(0); i < nbRescales; i++ {
 		c1.DivScale(evaluator.ckkscontext.scalechain[c1.Level()-i])
-		c1.CurrentModulus().Quo(c1.CurrentModulus(), ring.NewUint(evaluator.ckkscontext.moduli[c1.Level()-i]))
 	}
 
 	for i := range c1.Value() {
@@ -1166,16 +1159,16 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 		ctOut.SetScale(ct0.Scale())
 
 		// Looks in the RotationKeys if the corresponding rotation has been generated
-		if evakey.evakey_rot_col_L[k] != nil {
+		if evakey.evakeyRotColLeft[k] != nil {
 
-			evaluator.permuteNTT(ct0, evakey.permuteNTTLeftIndex[k], evakey.evakey_rot_col_L[k], ctOut)
+			evaluator.permuteNTT(ct0, evakey.permuteNTTLeftIndex[k], evakey.evakeyRotColLeft[k], ctOut)
 
 		} else {
 
 			// If not looks if the left and right pow2 rotations have been generated
 			has_pow2_rotations := true
 			for i := uint64(1); i < evaluator.ckkscontext.n>>1; i <<= 1 {
-				if evakey.evakey_rot_col_L[i] == nil || evakey.evakey_rot_col_R[i] == nil {
+				if evakey.evakeyRotColLeft[i] == nil || evakey.evakeyRotColRight[i] == nil {
 					has_pow2_rotations = false
 					break
 				}
@@ -1289,8 +1282,8 @@ func (evaluator *Evaluator) switchKeyHoisted(ctIn *Ciphertext, c2_qiQDecomp, c2_
 		ring.PermuteNTTWithIndex(c2_qiQDecomp[i], evakey.permuteNTTLeftIndex[k], c2_qiQPermute)
 		ring.PermuteNTTWithIndex(c2_qiPDecomp[i], evakey.permuteNTTLeftIndex[k], c2_qiPPermute)
 
-		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey_rot_col_L[k].evakey[i][0], c2_qiQPermute, pool2Q)
-		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey_rot_col_L[k].evakey[i][1], c2_qiQPermute, pool3Q)
+		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakeyRotColLeft[k].evakey[i][0], c2_qiQPermute, pool2Q)
+		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakeyRotColLeft[k].evakey[i][1], c2_qiQPermute, pool3Q)
 
 		// We continue with the keyswitch primes.
 		for j, keysindex := uint64(0), evaluator.ckkscontext.levels; j < uint64(len(evaluator.ckkscontext.specialprimes)); j, keysindex = j+1, keysindex+1 {
@@ -1298,8 +1291,8 @@ func (evaluator *Evaluator) switchKeyHoisted(ctIn *Ciphertext, c2_qiQDecomp, c2_
 			pj := contextP.Modulus[j]
 			mredParams := contextP.GetMredParams()[j]
 
-			key0 := evakey.evakey_rot_col_L[k].evakey[i][0].Coeffs[keysindex]
-			key1 := evakey.evakey_rot_col_L[k].evakey[i][1].Coeffs[keysindex]
+			key0 := evakey.evakeyRotColLeft[k].evakey[i][0].Coeffs[keysindex]
+			key1 := evakey.evakeyRotColLeft[k].evakey[i][1].Coeffs[keysindex]
 			p2tmp := pool2P.Coeffs[j]
 			p3tmp := pool3P.Coeffs[j]
 			c2tmp := c2_qiPPermute.Coeffs[j]
@@ -1338,11 +1331,11 @@ func (evaluator *Evaluator) switchKeyHoisted(ctIn *Ciphertext, c2_qiQDecomp, c2_
 }
 
 func (evaluator *Evaluator) rotateColumnsLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	evaluator.rotateColumnsPow2(ct0, k, evakey.permuteNTTLeftIndex, evakey.evakey_rot_col_L, ctOut)
+	evaluator.rotateColumnsPow2(ct0, k, evakey.permuteNTTLeftIndex, evakey.evakeyRotColLeft, ctOut)
 }
 
 func (evaluator *Evaluator) rotateColumnsRPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	evaluator.rotateColumnsPow2(ct0, k, evakey.permuteNTTRightIndex, evakey.evakey_rot_col_R, ctOut)
+	evaluator.rotateColumnsPow2(ct0, k, evakey.permuteNTTRightIndex, evakey.evakeyRotColRight, ctOut)
 }
 
 func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, k uint64, permuteNTTIndex map[uint64][]uint64, evakey_rot_col map[uint64]*SwitchingKey, ctOut *Ciphertext) {
@@ -1386,13 +1379,13 @@ func (evaluator *Evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctO
 		panic("cannot rotate -> input and output ciphertext must be of degree 1")
 	}
 
-	if evakey.evakey_rot_row == nil {
+	if evakey.evakeyConjugate == nil {
 		panic("cannot rotate -> : rows rotation key not generated")
 	}
 
 	ctOut.SetScale(ct0.Scale())
 
-	evaluator.permuteNTT(ct0, evakey.permuteNTTConjugateIndex, evakey.evakey_rot_row, ctOut)
+	evaluator.permuteNTT(ct0, evakey.permuteNTTConjugateIndex, evakey.evakeyConjugate, ctOut)
 }
 
 func (evaluator *Evaluator) permuteNTT(ct0 *Ciphertext, index []uint64, evakey *SwitchingKey, ctOut *Ciphertext) {

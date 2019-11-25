@@ -412,10 +412,6 @@ func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
 // Equal checks if p1 = p2 in the given context.
 func (context *Context) Equal(p1, p2 *Poly) bool {
 
-	//if len(p1.Coeffs) != len(context.Modulus) || len(p2.Coeffs) != len(context.Modulus){
-	//	return false
-	//}
-
 	for i := 0; i < len(context.Modulus); i++ {
 		if len(p1.Coeffs[i]) != len(p2.Coeffs[i]) {
 			return false
@@ -426,6 +422,28 @@ func (context *Context) Equal(p1, p2 *Poly) bool {
 	context.Reduce(p2, p2)
 
 	for i := 0; i < len(context.Modulus); i++ {
+		for j := uint64(0); j < context.N; j++ {
+			if p1.Coeffs[i][j] != p2.Coeffs[i][j] {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (context *Context) EqualLvl(level uint64, p1, p2 *Poly) bool {
+
+	for i := uint64(0); i < level+1; i++ {
+		if len(p1.Coeffs[i]) != len(p2.Coeffs[i]) {
+			return false
+		}
+	}
+
+	context.ReduceLvl(level, p1, p1)
+	context.ReduceLvl(level, p2, p2)
+
+	for i := uint64(0); i < level+1; i++ {
 		for j := uint64(0); j < context.N; j++ {
 			if p1.Coeffs[i][j] != p2.Coeffs[i][j] {
 				return false

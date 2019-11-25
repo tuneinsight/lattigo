@@ -59,8 +59,6 @@ func TestBFV(t *testing.T) {
 	t.Run("Evaluator/KeySwitch", testKeySwitch)
 	t.Run("Evaluator/RotateRows", testRotateRows)
 	t.Run("Evaluator/RotateCols", testRotateCols)
-
-	//tests for marshalling.
 	t.Run("Marshalling", testMarshaller)
 }
 
@@ -72,7 +70,25 @@ func testMarshaller(t *testing.T) {
 
 		contextKeys := params.bfvContext.contextKeys
 
-		t.Run(testString2("Sk", params), func(t *testing.T) {
+		t.Run(testString2("Ciphertext/", params), func(t *testing.T) {
+
+			ciphertextWant := params.bfvContext.NewRandomCiphertext(2)
+
+			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
+			check(t, err)
+
+			ciphertextTest := NewCiphertext()
+			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
+			check(t, err)
+
+			for i := range ciphertextWant.value {
+				if !params.bfvContext.contextQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]) {
+					t.Errorf("Marshal Ciphertext")
+				}
+			}
+		})
+
+		t.Run(testString2("Sk/", params), func(t *testing.T) {
 
 			marshalledSk, err := params.sk.MarshalBinary()
 			check(t, err)
@@ -87,7 +103,7 @@ func testMarshaller(t *testing.T) {
 
 		})
 
-		t.Run(testString2("Pk", params), func(t *testing.T) {
+		t.Run(testString2("Pk/", params), func(t *testing.T) {
 
 			marshalledPk, err := params.pk.MarshalBinary()
 			check(t, err)
@@ -103,7 +119,7 @@ func testMarshaller(t *testing.T) {
 			}
 		})
 
-		t.Run(testString2("EvaluationKey", params), func(t *testing.T) {
+		t.Run(testString2("EvaluationKey/", params), func(t *testing.T) {
 
 			eval_key := params.kgen.NewRelinKey(params.sk, 2)
 			data, err := eval_key.MarshalBinary()
@@ -129,7 +145,7 @@ func testMarshaller(t *testing.T) {
 			}
 		})
 
-		t.Run(testString2("SwitchingKey", params), func(t *testing.T) {
+		t.Run(testString2("SwitchingKey/", params), func(t *testing.T) {
 
 			sk_out := params.kgen.NewSecretKey()
 
@@ -154,7 +170,7 @@ func testMarshaller(t *testing.T) {
 			}
 		})
 
-		t.Run(testString2("RotationKey", params), func(t *testing.T) {
+		t.Run(testString2("RotationKey/", params), func(t *testing.T) {
 
 			rotationKey := params.bfvContext.NewRotationKeys()
 

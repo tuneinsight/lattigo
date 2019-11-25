@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/ring"
-	"math/big"
 )
 
 // Plaintext is BigPoly of degree 0.
@@ -19,7 +18,6 @@ func (ckkscontext *Context) NewPlaintext(level uint64, scale float64) *Plaintext
 	plaintext.value = plaintext.ckksElement.value[0]
 
 	plaintext.scale = scale
-	plaintext.currentModulus = new(big.Int).Set(ckkscontext.bigintChain[level])
 	plaintext.isNTT = true
 
 	return plaintext

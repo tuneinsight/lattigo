@@ -43,9 +43,10 @@ func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 	level := ciphertext.Level()
 
 	plaintext.SetScale(ciphertext.Scale())
-	plaintext.currentModulus.Set(ciphertext.currentModulus)
 
 	context.CopyLvl(level, ciphertext.value[ciphertext.Degree()], plaintext.value)
+
+	plaintext.value.Coeffs = plaintext.value.Coeffs[:ciphertext.Level()+1]
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
 

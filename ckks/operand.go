@@ -3,7 +3,6 @@ package ckks
 import (
 	"errors"
 	"github.com/ldsec/lattigo/ring"
-	"math/big"
 )
 
 type Operand interface {
@@ -14,11 +13,9 @@ type Operand interface {
 }
 
 type ckksElement struct {
-	value          []*ring.Poly
-	scale          float64
-	currentModulus *big.Int
-	isNTT          bool
-	slots          uint64
+	value []*ring.Poly
+	scale float64
+	isNTT bool
 }
 
 func (ckkscontext *Context) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
@@ -29,7 +26,6 @@ func (ckkscontext *Context) NewCkksElement(degree, level uint64, scale float64) 
 	}
 
 	el.scale = scale
-	el.currentModulus = new(big.Int).Set(ckkscontext.bigintChain[level])
 	el.isNTT = true
 
 	return el
@@ -66,18 +62,6 @@ func (el *ckksElement) MulScale(scale float64) {
 
 func (el *ckksElement) DivScale(scale float64) {
 	el.scale /= scale
-}
-
-func (el *ckksElement) CurrentModulus() *big.Int {
-	return el.currentModulus
-}
-
-func (el *ckksElement) SetCurrentModulus(modulus *big.Int) {
-	el.currentModulus.Set(modulus)
-}
-
-func (el *ckksElement) Slots() uint64 {
-	return el.slots
 }
 
 func (el *ckksElement) Resize(ckkscontext *Context, degree uint64) {
@@ -136,8 +120,6 @@ func (el *ckksElement) CopyNew() *ckksElement {
 		ctxCopy.value[i] = el.value[i].CopyNew()
 	}
 
-	ctxCopy.currentModulus = new(big.Int)
-
 	ctxCopy.CopyParams(el)
 
 	return ctxCopy
@@ -158,7 +140,6 @@ func (el *ckksElement) Copy(ctxCopy *ckksElement) (err error) {
 
 // CopyParams copies the input element parameters on the target element
 func (el *ckksElement) CopyParams(ckkselement *ckksElement) {
-	el.SetCurrentModulus(ckkselement.CurrentModulus())
 	el.SetScale(ckkselement.Scale())
 	el.SetIsNTT(ckkselement.IsNTT())
 }

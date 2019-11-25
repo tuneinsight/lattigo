@@ -7,7 +7,7 @@ import (
 	"math/bits"
 )
 
-type EncoderContext struct {
+type encoderContext struct {
 	// Polynomial degree
 	n uint64
 
@@ -26,7 +26,7 @@ type EncoderContext struct {
 	gen uint64
 }
 
-func NewEncoderContext(params *Parameters) *EncoderContext {
+func newEncoderContext(params *Parameters) *encoderContext {
 	n := params.N
 	t := params.T
 
@@ -56,7 +56,7 @@ func NewEncoderContext(params *Parameters) *EncoderContext {
 		deltaMont[i] = ring.MForm(delta[i], Qi, contextQ.GetBredParams()[i])
 	}
 
-	return &EncoderContext{
+	return &encoderContext{
 		n:         n,
 		t:         t,
 		deltaMont: deltaMont,
@@ -71,14 +71,14 @@ func NewEncoderContext(params *Parameters) *EncoderContext {
 // Encoder is a structure storing the parameters encode values on a plaintext in a SIMD fashion.
 type Encoder struct {
 	indexMatrix  []uint64
-	context      *EncoderContext
+	context      *encoderContext
 	simplescaler *ring.SimpleScaler
 	polypool     *ring.Poly
 }
 
 // NewEncoder creates a new encoder from the provided parameters
 func NewEncoder(params *Parameters) (encoder *Encoder) {
-	context := NewEncoderContext(params)
+	context := newEncoderContext(params)
 
 	if !context.contextT.AllowsNTT() {
 		panic("cannot create batch encoder : plaintext modulus does not allow NTT")

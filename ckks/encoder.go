@@ -6,7 +6,7 @@ import (
 	"math/big"
 )
 
-type EncoderContext struct {
+type encoderContext struct {
 	// Context parameters
 	maxSlots uint64
 	n        uint64
@@ -18,7 +18,7 @@ type EncoderContext struct {
 	contextQ *ring.Context
 }
 
-func NewEncoderContext(params *Parameters) *EncoderContext {
+func newEncoderContext(params *Parameters) *encoderContext {
 	var maxSlots, n uint64
 	maxSlots = 1 << (uint64(params.LogN) - 1)
 	n = 1 << uint64(params.LogN)
@@ -63,7 +63,7 @@ func NewEncoderContext(params *Parameters) *EncoderContext {
 		panic(err)
 	}
 
-	return &EncoderContext{
+	return &encoderContext{
 		maxSlots: maxSlots,
 		n:        n,
 		moduli:   moduli,
@@ -86,7 +86,7 @@ type Encoder struct {
 
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
 func NewEncoder(params *Parameters) (encoder *Encoder) {
-	context := NewEncoderContext(params)
+	context := newEncoderContext(params)
 
 	encoder = new(Encoder)
 	encoder.context = context

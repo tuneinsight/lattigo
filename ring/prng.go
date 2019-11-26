@@ -59,12 +59,17 @@ func (crpgenerator *CRPGenerator) SetClock(n uint64) {
 	}
 }
 
-// Clock generates and returns a new uniform polynomial. Also increases the clock cycle by 1.
-func (crpgenerator *CRPGenerator) Clock() *Poly {
+// ClockNew generates and returns a new uniform polynomial. Also increases the clock cycle by 1.
+func (crpgenerator *CRPGenerator) ClockNew() (crp *Poly) {
+	crp = crpgenerator.context.NewPoly()
+	crpgenerator.Clock(crp)
+	return
+}
+
+// Clock generates and returns a uniform polynomial. Also increases the clock cycle by 1.
+func (crpgenerator *CRPGenerator) Clock(crp *Poly) {
 	var coeff uint64
 	var randomBytes []byte
-
-	crp := crpgenerator.context.NewPoly()
 
 	// Starts with 32 random bytes from the prng
 	randomBytes = crpgenerator.prng.Clock()
@@ -95,6 +100,4 @@ func (crpgenerator *CRPGenerator) Clock() *Poly {
 			crp.Coeffs[j][i] = coeff
 		}
 	}
-
-	return crp
 }

@@ -66,10 +66,10 @@ func main() {
 	bfvctx := bfv.NewContextWithParam(params)
 
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvctx.ContextKeys())
-	crs := crsGen.Clock()
+	crs := crsGen.ClockNew()
 	crp := make([]*ring.Poly, bfvctx.Beta())
 	for i := uint64(0); i < bfvctx.Beta(); i++ {
-		crp[i] = crsGen.Clock()
+		crp[i] = crsGen.ClockNew()
 	}
 
 	tsk, tpk := bfvctx.NewKeyGenerator().NewKeyPair()

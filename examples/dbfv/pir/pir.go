@@ -31,9 +31,12 @@ func runTimedParty(f func(), N int) time.Duration {
 
 func main() {
 
-	// This examples simulates a SMC instance of a private information retrieval. The situation is as follow : a cloud stores data of several parties
-	// encrypted under a shared public-key. An external party wants to retrieve the plaintext content of one of the ciphertexts while ensuring the following security
-	// property : no information other than that a request was made must leak to the cloud, to the owners of the shared public-key or to anyone else.
+	// This examples simulates a SMC instance of a private information retrieval.
+	// The situation is as follow : a cloud stores data of several parties
+	// encrypted under a shared public-key. An external party wants to retrieve
+	// the plaintext content of one of the ciphertexts while ensuring the following
+	// security property : no information other than that a request was made must
+	// leak to the cloud, to the owners of the shared public-key or to anyone else.
 	//
 	// For more details cf : paper
 
@@ -78,12 +81,13 @@ func main() {
 	params.T = 65537
 	bfvctx := bfv.NewContextWithParam(params)
 
-	// Common reference polynomial generator keyed with "lattigo" and seeded with "pir example".
+	// Common reference polynomial generator keyed with
+	// "lattigo" and seeded with "pir example".
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvctx.ContextKeys())
 	crsGen.Seed([]byte{'p', 'i', 'r', ' ', 'e', 'x', 'a', 'm', 'p', 'l', 'e'})
 
 	// Generation of the common reference polynomials
-	crs := crsGen.ClockNew()                       // for the public-key
+	crs := crsGen.ClockNew()                    // for the public-key
 	crp := make([]*ring.Poly, bfvctx.Beta())    // for the relinearization keys
 	crpRot := make([]*ring.Poly, bfvctx.Beta()) // for the rotation keys
 	for i := uint64(0); i < bfvctx.Beta(); i++ {
@@ -232,7 +236,8 @@ func main() {
 		encInputs[i] = bfvctx.NewCiphertext(1)
 	}
 
-	// Plaintext masks : plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0]) (zero with a 1 at the ith position).
+	// Plaintext masks : plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
+	// (zero with a 1 at the ith position).
 	for i := range plainMask {
 		maskCoeffs := make([]uint64, bfvctx.N())
 		maskCoeffs[i] = 1
@@ -292,9 +297,12 @@ func main() {
 			tmp := bfvctx.NewCiphertext(1)
 			for task := range tasks {
 				task.elapsedMaskTask = runTimed(func() {
-					evaluator.Mul(task.query, task.mask, tmp) // 1) Multiplication of the query with the plaintext mask.
-					evaluator.InnerSum(tmp, rtk, tmp)         // 2) Inner sum (populates all the slots with the sum of all the slots).
-					evaluator.Mul(tmp, task.row, task.res)    // 3) Multiplication of 2) with the ith ciphertext stored in the cloud.
+					// 1) Multiplication of the query with the plaintext mask.
+					evaluator.Mul(task.query, task.mask, tmp)
+					// 2) Inner sum (populates all the slots with the sum of all the slots).
+					evaluator.InnerSum(tmp, rtk, tmp)
+					// 3) Multiplication of 2) with the ith ciphertext stored in the cloud.
+					evaluator.Mul(tmp, task.row, task.res)
 				})
 			}
 			//l.Println("\t evaluator", i, "down")
@@ -339,7 +347,8 @@ func main() {
 	elapsedRequestCloud += finalAddDuration
 	elapsedRequestCloudCPU += finalAddDuration
 
-	l.Printf("\tdone (cloud: %s/%s, party: %s)\n", elapsedRequestCloud, elapsedRequestCloudCPU, elapsedRequestParty)
+	l.Printf("\tdone (cloud: %s/%s, party: %s)\n",
+		elapsedRequestCloud, elapsedRequestCloudCPU, elapsedRequestParty)
 
 	// Collective (partial) decryption.
 	l.Println("> CKS Phase")

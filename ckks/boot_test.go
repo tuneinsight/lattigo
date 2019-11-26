@@ -60,7 +60,7 @@ func Test_Bootstrapp(t *testing.T) {
 			//	log.Fatal(err)
 			//}
 
-			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		}
 
 	})

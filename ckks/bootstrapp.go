@@ -171,7 +171,7 @@ func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext)
 	var ct0, ct1 *Ciphertext
 
 	for ct.Level() != 0 {
-		evaluator.DropLevel(ct.Element(), 1)
+		evaluator.DropLevel(ct, 1)
 	}
 
 	// TODO : better management of the initial scale

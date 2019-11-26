@@ -1171,7 +1171,7 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 	}
 
 	if ctOut.Level() > ct0.Level() {
-		evaluator.DropLevel(ctOut.Element(), ctOut.Level()-ct0.Level())
+		evaluator.DropLevel(ctOut, ctOut.Level()-ct0.Level())
 	}
 
 	ctOut.SetScale(ct0.Scale())

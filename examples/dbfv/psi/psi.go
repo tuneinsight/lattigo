@@ -167,8 +167,10 @@ func main() {
 		}
 		rkg.GenRelinearizationKey(rkgCombined2, rkgCombined3, rlk)
 	})
-	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedRKGCloud, elapsedRKGParty)
-	l.Printf("\tSetup done (cloud: %s, party: %s)\n", elapsedRKGCloud+elapsedCKGCloud, elapsedRKGParty+elapsedCKGParty)
+	l.Printf("\tdone (cloud: %s, party: %s)\n",
+		elapsedRKGCloud, elapsedRKGParty)
+	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
+		elapsedRKGCloud+elapsedCKGCloud, elapsedRKGParty+elapsedCKGParty)
 
 	// Pre-loading memory
 	l.Println("> Memory alloc Phase")
@@ -251,7 +253,8 @@ func main() {
 		elapsedEvalCloudCPU += t.elapsedMultTask
 	}
 	elapsedEvalParty := time.Duration(0)
-	l.Printf("\tdone (cloud: %s (wall: %s), party: %s)\n", elapsedEvalCloudCPU, elapsedEvalCloud, elapsedEvalParty)
+	l.Printf("\tdone (cloud: %s (wall: %s), party: %s)\n",
+		elapsedEvalCloudCPU, elapsedEvalCloud, elapsedEvalParty)
 
 	//l.Println("> Shutting down workers")
 	close(tasks)

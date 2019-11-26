@@ -6,7 +6,7 @@ import (
 	"math/bits"
 )
 
-// encoder is a structure storing the parameters encode values on a plaintext in a SIMD fashion.
+// Encoder is a structure storing the parameters encode values on a plaintext in a SIMD fashion.
 type Encoder struct {
 	indexMatrix  []uint64
 	context      *Context
@@ -14,7 +14,7 @@ type Encoder struct {
 	polypool     *ring.Poly
 }
 
-// Newencoder creates a new encoder from the target context.
+// NewEncoder creates a new encoder from the target context.
 func (context *Context) NewEncoder() (encoder *Encoder) {
 
 	if context.contextT.AllowsNTT() != true {
@@ -33,18 +33,18 @@ func (context *Context) NewEncoder() (encoder *Encoder) {
 
 	logN := uint64(bits.Len64(context.n) - 1)
 
-	row_size := context.n >> 1
+	rowSize := context.n >> 1
 	m = (context.n << 1)
 	gen = context.gen
 	pos = 1
 
-	for i := uint64(0); i < row_size; i++ {
+	for i := uint64(0); i < rowSize; i++ {
 
 		index1 = (pos - 1) >> 1
 		index2 = (m - pos - 1) >> 1
 
 		encoder.indexMatrix[i] = utils.BitReverse64(index1, logN)
-		encoder.indexMatrix[i|row_size] = utils.BitReverse64(index2, logN)
+		encoder.indexMatrix[i|rowSize] = utils.BitReverse64(index2, logN)
 
 		pos *= gen
 		pos &= (m - 1)
@@ -81,7 +81,7 @@ func (encoder *Encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. Also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
-// The sign will correctly decode as long as the absolute value of the coefficient do not exceed half of the plaintext modulus.
+// The sign will correctly decode as long as the absolute value of the coefficient does not exceed half of the plaintext modulus.
 func (encoder *Encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {

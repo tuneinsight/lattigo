@@ -35,24 +35,7 @@ func main() {
 	// encrypted under a shared public-key. An external party wants to retrieve the plaintext content of one of the ciphertexts while ensuring the following security
 	// property : no information other than that a request was made must leak to the cloud, to the owners of the shared public-key or to anyone else.
 	//
-	// 1) Each participant of the SMC instance generates a secret-key. Using those secret-keys, a collective public-key (CPK) is constructed. Any ciphertext encrypted under this
-	// CPK needs the collaboration of all the participants to be decrypted. Anyone can use this CPK to encrypt data and send it to the cloud. Collective relinearization and
-	// rotation keys are also generated and sent to the cloud for the purpose of the computation that it will have to conducte.
-	//
-	// 2) Some external party wants to retrieve and decrypt one specific ciphertext. To do so, he encrypts the index of the ciphertext he wants to retrieve using CPK and sends it
-	// to the cloud. The encrypted index is of the form [0, ..., 0, 1_i, 0, ..., 0] (zero with a 1 at the wanted index).
-	//
-	// 3) The cloud then computes :
-	//		Create an empty result ciphertext.
-	// 		a) For each ciphertext that can be retrieved :
-	//			I) Multiply the query ciphertext with a plaintext mask [0, ..., 0, 1_i, 0, ..., 0] (zero with a 1 at the ith position).
-	//		   II) Compute the inner sum of the result. The result is a ciphertext encrypting only zero, except for the ith one which encrypts only ones.
-	//		  III) Multiply the ith ciphertext stored by the cloud with the result of II).
-	//		   IV) Add the result of III) to the result ciphertext. This always add zero to the result ciphertext, except for the ith ciphertext.
-	//
-	// The output of 3) is new ciphertext encrypting only the ith ciphertext.
-	//
-	// 4) Operate a public-key switch on the result to re-encrypt the result from CKP to the public-key of the external party and send the result.
+	// For more details cf : paper
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -198,7 +181,7 @@ func main() {
 		}
 	}, N)
 
-	rlk := bfvctx.NewRelinKeyEmpty(1)
+	rlk := bfvctx.NewRelinKey(1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShareRoundThree(pi.rkgShareThree, rkgCombined3, rkgCombined3)

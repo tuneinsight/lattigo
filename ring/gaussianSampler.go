@@ -5,12 +5,7 @@ import (
 	"math"
 )
 
-type GaussiamSampler struct {
-	context *Context
-	sigma   float64
-	bound   uint64
-}
-
+// SampleGaussian samples a truncated gaussian polynomial with variance sigma within the given bound using the Ziggurat algorithm.
 func (context *Context) SampleGaussian(pol *Poly, sigma float64, bound uint64) {
 
 	var coeffFlo float64
@@ -39,17 +34,20 @@ func (context *Context) SampleGaussian(pol *Poly, sigma float64, bound uint64) {
 	}
 }
 
+// SampleGaussianNew samples a new truncated gaussian polynomial with variance sigma within the given bound using the Ziggurat algorithm.
 func (context *Context) SampleGaussianNew(sigma float64, bound uint64) (pol *Poly) {
 	pol = context.NewPoly()
 	context.SampleGaussian(pol, sigma, bound)
 	return
 }
 
+// SampleGaussianNTT samples a trucated gaussian polynomial in the NTT domain with variance sigma within the given bound using the Ziggurat algorithm.
 func (context *Context) SampleGaussianNTT(pol *Poly, sigma float64, bound uint64) {
 	context.SampleGaussian(pol, sigma, bound)
 	context.NTT(pol, pol)
 }
 
+// SampleGaussianNTTNew samples a new trucated gaussian polynomial in the NTT domain with variance sigma within the given bound using the Ziggurat algorithm
 func (context *Context) SampleGaussianNTTNew(sigma float64, bound uint64) (pol *Poly) {
 	pol = context.SampleGaussianNew(sigma, bound)
 	context.NTT(pol, pol)
@@ -114,7 +112,7 @@ func computeMatrix(sigma float64, bound int) [][]uint8 {
 			M[i][j] = uint8((x >> (precision - j - 2)) & 1)
 		}
 
-		breakCounter += 1
+		breakCounter++
 	}
 
 	M = M[:breakCounter]
@@ -174,7 +172,7 @@ func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 				}
 			}
 
-			col += 1
+			col++
 		}
 
 		// Resets the bit pointer and discards the used byte
@@ -199,7 +197,7 @@ func (kys *KYSampler) SampleNew() *Poly {
 	return Pol
 }
 
-// SampleNew samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
+// Sample samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
 func (kys *KYSampler) Sample(Pol *Poly) {
 
 	var coeff uint64
@@ -223,7 +221,7 @@ func (kys *KYSampler) Sample(Pol *Poly) {
 	}
 }
 
-// SampleNew samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
+// SampleAndAddLvl samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
 func (kys *KYSampler) SampleAndAddLvl(level uint64, Pol *Poly) {
 
 	var coeff uint64
@@ -246,6 +244,7 @@ func (kys *KYSampler) SampleAndAddLvl(level uint64, Pol *Poly) {
 	}
 }
 
+// SampleAndAdd samples a gaussian polynomial and adds it on the int polynomial.
 func (kys *KYSampler) SampleAndAdd(Pol *Poly) {
 	kys.SampleAndAddLvl(uint64(len(kys.context.Modulus))-1, Pol)
 }
@@ -257,7 +256,7 @@ func (kys *KYSampler) SampleNTTNew() *Poly {
 	return Pol
 }
 
-// SampleNew samples on the target polynomial coefficients with gaussian distribution given the target kys parameters,and applies the NTT.
+// SampleNTT samples on the target polynomial coefficients with gaussian distribution given the target kys parameters,and applies the NTT.
 func (kys *KYSampler) SampleNTT(Pol *Poly) {
 	kys.Sample(Pol)
 	kys.context.NTT(Pol, Pol)

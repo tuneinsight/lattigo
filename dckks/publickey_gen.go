@@ -12,6 +12,7 @@ type CKGProtocol struct {
 	gaussianSampler *ring.KYSampler
 }
 
+// CKGShare is a struct storing the CKG protocol's share.
 type CKGShare *ring.Poly
 
 // NewCKGProtocol creates a new CKGProtocol instance
@@ -22,6 +23,7 @@ func NewCKGProtocol(ckksCtx *ckks.Context) *CKGProtocol {
 	return ckg
 }
 
+// AllocateShares allocates the share of the CKG protocol.
 func (ckg *CKGProtocol) AllocateShares() CKGShare {
 	return ckg.ringContext.NewPoly()
 }

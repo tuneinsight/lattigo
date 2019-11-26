@@ -16,12 +16,12 @@ func (Pol *Poly) GetDegree() int {
 	return len(Pol.Coeffs[0])
 }
 
-// GetLenModuli returns the number of modulies
+// GetLenModuli returns the number of modulie.
 func (Pol *Poly) GetLenModuli() int {
 	return len(Pol.Coeffs)
 }
 
-// Zero sets all coefficient of the target polynomial to 0.
+// Zero sets all coefficients of the target polynomial to 0.
 func (Pol *Poly) Zero() {
 	for i := range Pol.Coeffs {
 		p0tmp := Pol.Coeffs[i]
@@ -46,7 +46,7 @@ func (Pol *Poly) CopyNew() (p1 *Poly) {
 	return p1
 }
 
-// Copy copies the coefficients of p0 on p1 within the given context. Requiers p1 to be as big as the target context.
+// Copy copies the coefficients of p0 on p1 within the given context. Requires p1 to be as big as the target context.
 func (context *Context) Copy(p0, p1 *Poly) {
 
 	if p0 != p1 {
@@ -59,7 +59,7 @@ func (context *Context) Copy(p0, p1 *Poly) {
 	}
 }
 
-// Copy copies the coefficients of p0 on p1 within the given context. Requiers p1 to be as big as the target context.
+// CopyLvl copies the coefficients of p0 on p1 within the given context. Requiers p1 to be as big as the target context.
 func (context *Context) CopyLvl(level uint64, p0, p1 *Poly) {
 
 	if p0 != p1 {
@@ -172,7 +172,7 @@ func DecodeCoeffs(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byt
 	return pointer, nil
 }
 
-// DecodeCoeffs converts a byte array to a matrix of coefficients.
+// DecodeCoeffsNew converts a byte array to a matrix of coefficients.
 func DecodeCoeffsNew(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
 	tmp := N << 3
 	for i := uint64(0); i < numberModuli; i++ {

@@ -231,7 +231,7 @@ func testRelinKeyGen(t *testing.T) {
 				}
 			}
 
-			evk := bfvContext.NewRelinKeyEmpty(1)
+			evk := bfvContext.NewRelinKey(1)
 			P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
@@ -306,7 +306,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 				}
 			}
 
-			evk := bfvContext.NewRelinKeyEmpty(1)
+			evk := bfvContext.NewRelinKey(1)
 			P0.GenRelinearizationKey(P0.share2, evk)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
@@ -640,25 +640,25 @@ func testRefresh(t *testing.T) {
 				}
 
 				if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertextTmp))) {
-					maxDepth += 1
+					maxDepth++
 				} else {
 					break
 				}
 			}
 
 			// Simulated added error of size Q/(T^2) and add it to the fresh ciphertext
-			coeffs_bigint := make([]*big.Int, bfvContext.N())
-			bfvContext.ContextQ().PolyToBigint(ciphertext.Value()[0], coeffs_bigint)
+			coeffsBigint := make([]*big.Int, bfvContext.N())
+			bfvContext.ContextQ().PolyToBigint(ciphertext.Value()[0], coeffsBigint)
 
-			error_range := new(big.Int).Set(bfvContext.ContextQ().ModulusBigint)
-			error_range.Quo(error_range, bfvContext.ContextT().ModulusBigint)
-			error_range.Quo(error_range, bfvContext.ContextT().ModulusBigint)
+			errorRange := new(big.Int).Set(bfvContext.ContextQ().ModulusBigint)
+			errorRange.Quo(errorRange, bfvContext.ContextT().ModulusBigint)
+			errorRange.Quo(errorRange, bfvContext.ContextT().ModulusBigint)
 
 			for i := uint64(0); i < bfvContext.N(); i++ {
-				coeffs_bigint[i].Add(coeffs_bigint[i], ring.RandInt(error_range))
+				coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(errorRange))
 			}
 
-			bfvContext.ContextQ().SetCoefficientsBigint(coeffs_bigint, ciphertext.Value()[0])
+			bfvContext.ContextQ().SetCoefficientsBigint(coeffsBigint, ciphertext.Value()[0])
 
 			for i, p := range RefreshParties {
 				p.GenShares(p.s, ciphertext, crp, p.share)
@@ -844,20 +844,20 @@ func Test_Marshalling(t *testing.T) {
 		if err != nil {
 			log.Fatal("Could not marshal RefreshShare", err)
 		}
-		res_refreshshare := new(RefreshShare)
-		err = res_refreshshare.UnmarshalBinary(data)
+		resRefreshShare := new(RefreshShare)
+		err = resRefreshShare.UnmarshalBinary(data)
 
 		if err != nil {
 			log.Fatal("Could not unmarshal RefreshShare", err)
 		}
 		for i, r := range refreshshare.RefreshShareDecrypt.Coeffs {
-			if !utils.EqualSliceUint64(res_refreshshare.RefreshShareDecrypt.Coeffs[i], r) {
+			if !utils.EqualSliceUint64(resRefreshShare.RefreshShareDecrypt.Coeffs[i], r) {
 				log.Fatal("Resulting of marshalling not the same as original : RefreshShare")
 			}
 
 		}
 		for i, r := range refreshshare.RefreshShareRecrypt.Coeffs {
-			if !utils.EqualSliceUint64(res_refreshshare.RefreshShareRecrypt.Coeffs[i], r) {
+			if !utils.EqualSliceUint64(resRefreshShare.RefreshShareRecrypt.Coeffs[i], r) {
 				log.Fatal("Resulting of marshalling not the same as original : RefreshShare")
 			}
 
@@ -885,19 +885,19 @@ func Test_Marshalling(t *testing.T) {
 			log.Fatal("could not marshal RTGshare :", err)
 		}
 
-		res_rtgShare := new(RTGShare)
-		err = res_rtgShare.UnmarshalBinary(data)
+		resRTGShare := new(RTGShare)
+		err = resRTGShare.UnmarshalBinary(data)
 		if err != nil {
 			log.Fatal("Could not unmarshal RTGShare: ", err)
 		}
 
-		if res_rtgShare.Type != rtgShare.Type || res_rtgShare.K != rtgShare.K || len(res_rtgShare.Value) != len(rtgShare.Value) {
+		if resRTGShare.Type != rtgShare.Type || resRTGShare.K != rtgShare.K || len(resRTGShare.Value) != len(rtgShare.Value) {
 			log.Fatal("result after marshalling is not the same as before marshalling for RTGSahre")
 		}
 
 		for i, val := range rtgShare.Value {
 			ring1 := val
-			ring2 := res_rtgShare.Value[i]
+			ring2 := resRTGShare.Value[i]
 			if len(ring1.Coeffs) != len(ring2.Coeffs) {
 				log.Fatal("result after marshalling is not the same as before marshalling for RTGSahre")
 			}

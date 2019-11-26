@@ -12,13 +12,12 @@ type CKGProtocol struct {
 	gaussianSampler *ring.KYSampler
 }
 
-//type CKGShare *ring.Poly
+// CKGShare is a struct holding a CKG share.
 type CKGShare struct {
 	*ring.Poly
 }
 
-//the binary marshaller is ok but we need to override the unmarshaller to
-//allocate memory
+// UnmarshalBinary decode a marshaled CKG share on the target CKG share.
 func (share *CKGShare) UnmarshalBinary(data []byte) error {
 	if share.Poly == nil {
 		share.Poly = new(ring.Poly)
@@ -36,6 +35,7 @@ func NewCKGProtocol(bfvCtx *bfv.Context) *CKGProtocol {
 	return ckg
 }
 
+// AllocateShares allocates the CKG shares.
 func (ckg *CKGProtocol) AllocateShares() CKGShare {
 	return CKGShare{ckg.context.NewPoly()}
 }

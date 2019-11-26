@@ -5,6 +5,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
+// Operand is a common interface between Ciphertexts and Plaintexts types.
 type Operand interface {
 	Element() *ckksElement
 	Degree() uint64
@@ -18,6 +19,7 @@ type ckksElement struct {
 	isNTT bool
 }
 
+// NewCkksElement returns a new ckksElement with zero values.
 func (ckkscontext *Context) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
 	el := &ckksElement{}
 	el.value = make([]*ring.Poly, degree+1)
@@ -32,38 +34,47 @@ func (ckkscontext *Context) NewCkksElement(degree, level uint64, scale float64) 
 
 }
 
+// Value returns the slice of polynomials of the target element.
 func (el *ckksElement) Value() []*ring.Poly {
 	return el.value
 }
 
+// SetValue sets the input slice of polynomials as the value of the target element.
 func (el *ckksElement) SetValue(value []*ring.Poly) {
 	el.value = value
 }
 
+// Degree returns the degree of the target element.
 func (el *ckksElement) Degree() uint64 {
 	return uint64(len(el.value) - 1)
 }
 
+// Level returns the level of the target element.
 func (el *ckksElement) Level() uint64 {
 	return uint64(len(el.value[0].Coeffs) - 1)
 }
 
+// Scale returns the scale of the target element.
 func (el *ckksElement) Scale() float64 {
 	return el.scale
 }
 
+// SetScale sets the scale of the the target element with the input scale.
 func (el *ckksElement) SetScale(scale float64) {
 	el.scale = scale
 }
 
+// MulScale multiplies the scale of the target element with the input scale.
 func (el *ckksElement) MulScale(scale float64) {
 	el.scale *= scale
 }
 
+// DivScale divides the scale of the target element with the input scale.
 func (el *ckksElement) DivScale(scale float64) {
 	el.scale /= scale
 }
 
+// Resize resizes the degree of the target element.
 func (el *ckksElement) Resize(ckkscontext *Context, degree uint64) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree+1]
@@ -74,10 +85,12 @@ func (el *ckksElement) Resize(ckkscontext *Context, degree uint64) {
 	}
 }
 
+// IsNTT returns the value of the NTT flag of the target element.
 func (el *ckksElement) IsNTT() bool {
 	return el.isNTT
 }
 
+// SetIsNTT sets the value of the NTT flag of the target element with the input value.
 func (el *ckksElement) SetIsNTT(value bool) {
 	el.isNTT = value
 }
@@ -144,10 +157,12 @@ func (el *ckksElement) CopyParams(ckkselement *ckksElement) {
 	el.SetIsNTT(ckkselement.IsNTT())
 }
 
+// Element sets the target element's type to Element.
 func (el *ckksElement) Element() *ckksElement {
 	return el
 }
 
+// Ciphertext sets the target element's type to Ciphertext.
 func (el *ckksElement) Ciphertext() *Ciphertext {
 	if len(el.value) == 1 {
 		panic("not a ciphertext element")
@@ -155,6 +170,7 @@ func (el *ckksElement) Ciphertext() *Ciphertext {
 	return &Ciphertext{el}
 }
 
+// Plaintext sets the target element's type to Plaintext.
 func (el *ckksElement) Plaintext() *Plaintext {
 	if len(el.value) != 1 {
 		panic("not a plaintext element")

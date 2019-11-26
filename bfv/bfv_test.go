@@ -121,18 +121,18 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString2("EvaluationKey/", params), func(t *testing.T) {
 
-			eval_key := params.kgen.NewRelinKey(params.sk, 2)
-			data, err := eval_key.MarshalBinary()
+			evalkey := params.kgen.NewRelinKey(params.sk, 2)
+			data, err := evalkey.MarshalBinary()
 			check(t, err)
 
-			res_eval_key := new(EvaluationKey)
-			err = res_eval_key.UnmarshalBinary(data)
+			resEvalKey := new(EvaluationKey)
+			err = resEvalKey.UnmarshalBinary(data)
 			check(t, err)
 
-			for deg := range eval_key.evakey {
+			for deg := range evalkey.evakey {
 
-				evakeyWant := eval_key.evakey[deg].evakey
-				evakeyTest := res_eval_key.evakey[deg].evakey
+				evakeyWant := evalkey.evakey[deg].evakey
+				evakeyTest := resEvalKey.evakey[deg].evakey
 
 				for j := range evakeyWant {
 
@@ -147,18 +147,18 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString2("SwitchingKey/", params), func(t *testing.T) {
 
-			sk_out := params.kgen.NewSecretKey()
+			skOut := params.kgen.NewSecretKey()
 
-			switching_key := params.kgen.NewSwitchingKey(params.sk, sk_out)
-			data, err := switching_key.MarshalBinary()
+			switchingKey := params.kgen.NewSwitchingKey(params.sk, skOut)
+			data, err := switchingKey.MarshalBinary()
 			check(t, err)
 
-			res_switching_key := new(SwitchingKey)
-			err = res_switching_key.UnmarshalBinary(data)
+			resSwitchingKey := new(SwitchingKey)
+			err = resSwitchingKey.UnmarshalBinary(data)
 			check(t, err)
 
-			evakeyWant := switching_key.evakey
-			evakeyTest := res_switching_key.evakey
+			evakeyWant := switchingKey.evakey
+			evakeyTest := resSwitchingKey.evakey
 
 			for j := range evakeyWant {
 
@@ -183,8 +183,8 @@ func testMarshaller(t *testing.T) {
 			data, err := rotationKey.MarshalBinary()
 			check(t, err)
 
-			res_rotationKey := new(RotationKeys)
-			err = res_rotationKey.UnmarshalBinary(data)
+			resRotationKey := new(RotationKeys)
+			err = resRotationKey.UnmarshalBinary(data)
 			check(t, err)
 
 			for i := uint64(1); i < params.bfvContext.n>>1; i++ {
@@ -192,7 +192,7 @@ func testMarshaller(t *testing.T) {
 				if rotationKey.evakeyRotColLeft[i] != nil {
 
 					evakeyWant := rotationKey.evakeyRotColLeft[i].evakey
-					evakeyTest := res_rotationKey.evakeyRotColLeft[i].evakey
+					evakeyTest := resRotationKey.evakeyRotColLeft[i].evakey
 
 					for j := range evakeyWant {
 
@@ -207,7 +207,7 @@ func testMarshaller(t *testing.T) {
 				if rotationKey.evakeyRotColRight[i] != nil {
 
 					evakeyWant := rotationKey.evakeyRotColRight[i].evakey
-					evakeyTest := res_rotationKey.evakeyRotColRight[i].evakey
+					evakeyTest := resRotationKey.evakeyRotColRight[i].evakey
 
 					for j := range evakeyWant {
 
@@ -223,7 +223,7 @@ func testMarshaller(t *testing.T) {
 			if rotationKey.evakeyRotRow != nil {
 
 				evakeyWant := rotationKey.evakeyRotRow.evakey
-				evakeyTest := res_rotationKey.evakeyRotRow.evakey
+				evakeyTest := resRotationKey.evakeyRotRow.evakey
 
 				for j := range evakeyWant {
 
@@ -260,7 +260,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 }
 
-func new_test_vectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	coeffs = params.bfvContext.contextT.NewUniformPoly()
 
@@ -275,7 +275,7 @@ func new_test_vectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (co
 	return coeffs, plaintext, ciphertext
 }
 
-func verify_test_vectors(params *bfvParams, decryptor *Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
+func verifyTestVectors(params *bfvParams, decryptor *Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
 
 	var coeffsTest []uint64
 
@@ -303,9 +303,9 @@ func testEncoder(t *testing.T) {
 
 		t.Run(testString2("Encode&Decode/", params), func(t *testing.T) {
 
-			values, plaintext, _ := new_test_vectors(params, nil, t)
+			values, plaintext, _ := newTestVectors(params, nil, t)
 
-			verify_test_vectors(params, params.decryptor, values, plaintext, t)
+			verifyTestVectors(params, params.decryptor, values, plaintext, t)
 		})
 	}
 }
@@ -318,16 +318,16 @@ func testEncryptor(t *testing.T) {
 
 		t.Run(testString2("EncryptFromPk/", params), func(t *testing.T) {
 
-			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
+			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
-			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 
 		t.Run(testString2("EncryptFromSk/", params), func(t *testing.T) {
 
-			values, _, ciphertext := new_test_vectors(params, params.encryptorSk, t)
+			values, _, ciphertext := newTestVectors(params, params.encryptorSk, t)
 
-			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 	}
 }
@@ -340,39 +340,39 @@ func testEvaluatorAdd(t *testing.T) {
 
 		t.Run(testString2("CtCtInPlace/", params), func(t *testing.T) {
 
-			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
-			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
+			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
+			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
 			params.evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
 			params.bfvContext.contextT.Add(values1, values2, values1)
 
-			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
+			verifyTestVectors(params, params.decryptor, values1, ciphertext1, t)
 		})
 
 		t.Run(testString2("CtCtNew/", params), func(t *testing.T) {
 
-			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
-			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
+			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
+			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
 			ciphertext1 = params.evaluator.AddNew(ciphertext1, ciphertext2)
 			params.bfvContext.contextT.Add(values1, values2, values1)
 
-			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
+			verifyTestVectors(params, params.decryptor, values1, ciphertext1, t)
 		})
 
 		t.Run(testString2("CtPlain/", params), func(t *testing.T) {
 
-			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
-			values2, plaintext2, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
+			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
+			values2, plaintext2, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
 			params.evaluator.Add(ciphertext1, plaintext2, ciphertext2)
 			params.bfvContext.contextT.Add(values1, values2, values2)
 
-			verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
+			verifyTestVectors(params, params.decryptor, values2, ciphertext2, t)
 
 			params.evaluator.Add(plaintext2, ciphertext1, ciphertext2)
 
-			verify_test_vectors(params, params.decryptor, values2, ciphertext2, t)
+			verifyTestVectors(params, params.decryptor, values2, ciphertext2, t)
 		})
 	}
 }
@@ -385,40 +385,40 @@ func testEvaluatorSub(t *testing.T) {
 
 		t.Run(testString2("CtCtInPlace/", params), func(t *testing.T) {
 
-			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
-			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
+			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
+			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
 			params.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1)
 			params.bfvContext.contextT.Sub(values1, values2, values1)
 
-			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
+			verifyTestVectors(params, params.decryptor, values1, ciphertext1, t)
 		})
 
 		t.Run(testString2("CtCtNew/", params), func(t *testing.T) {
 
-			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
-			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
+			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
+			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
 			ciphertext1 = params.evaluator.SubNew(ciphertext1, ciphertext2)
 			params.bfvContext.contextT.Sub(values1, values2, values1)
 
-			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
+			verifyTestVectors(params, params.decryptor, values1, ciphertext1, t)
 		})
 
 		t.Run(testString2("CtPlain/", params), func(t *testing.T) {
 
-			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
-			values2, plaintext2, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
+			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
+			values2, plaintext2, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
 			valuesWant := params.bfvContext.contextT.NewPoly()
 
 			params.evaluator.Sub(ciphertext1, plaintext2, ciphertext2)
 			params.bfvContext.contextT.Sub(values1, values2, valuesWant)
-			verify_test_vectors(params, params.decryptor, valuesWant, ciphertext2, t)
+			verifyTestVectors(params, params.decryptor, valuesWant, ciphertext2, t)
 
 			params.evaluator.Sub(plaintext2, ciphertext1, ciphertext2)
 			params.bfvContext.contextT.Sub(values2, values1, valuesWant)
-			verify_test_vectors(params, params.decryptor, valuesWant, ciphertext2, t)
+			verifyTestVectors(params, params.decryptor, valuesWant, ciphertext2, t)
 		})
 	}
 }
@@ -433,41 +433,41 @@ func testEvaluatorMul(t *testing.T) {
 
 		t.Run(testString2("CtCt/", params), func(t *testing.T) {
 
-			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
-			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
+			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
+			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
 			receiver := params.bfvContext.NewCiphertext(ciphertext1.Degree() + ciphertext2.Degree())
 			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
-			verify_test_vectors(params, params.decryptor, values1, receiver, t)
+			verifyTestVectors(params, params.decryptor, values1, receiver, t)
 		})
 
 		t.Run(testString2("CtPlain/", params), func(t *testing.T) {
 
-			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
-			values2, plaintext2, _ := new_test_vectors(params, params.encryptorPk, t)
+			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
+			values2, plaintext2, _ := newTestVectors(params, params.encryptorPk, t)
 
 			params.evaluator.Mul(ciphertext1, plaintext2, ciphertext1)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
-			verify_test_vectors(params, params.decryptor, values1, ciphertext1, t)
+			verifyTestVectors(params, params.decryptor, values1, ciphertext1, t)
 		})
 
 		t.Run(testString2("Relinearize/", params), func(t *testing.T) {
 
-			values1, _, ciphertext1 := new_test_vectors(params, params.encryptorPk, t)
-			values2, _, ciphertext2 := new_test_vectors(params, params.encryptorPk, t)
+			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
+			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
 			receiver := params.bfvContext.NewCiphertext(ciphertext1.Degree() + ciphertext2.Degree())
 			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
 			receiver2 := params.evaluator.RelinearizeNew(receiver, rlk)
-			verify_test_vectors(params, params.decryptor, values1, receiver2, t)
+			verifyTestVectors(params, params.decryptor, values1, receiver2, t)
 
 			params.evaluator.Relinearize(receiver, rlk, receiver)
-			verify_test_vectors(params, params.decryptor, values1, receiver, t)
+			verifyTestVectors(params, params.decryptor, values1, receiver, t)
 		})
 	}
 }
@@ -484,19 +484,19 @@ func testKeySwitch(t *testing.T) {
 
 		t.Run(testString2("InPlace/", params), func(t *testing.T) {
 
-			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
+			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
 			params.evaluator.SwitchKeys(ciphertext, switchKey, ciphertext)
 
-			verify_test_vectors(params, decryptorSk2, values, ciphertext, t)
+			verifyTestVectors(params, decryptorSk2, values, ciphertext, t)
 		})
 
 		t.Run(testString2("New/", params), func(t *testing.T) {
 
-			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
+			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
 			ciphertext = params.evaluator.SwitchKeysNew(ciphertext, switchKey)
-			verify_test_vectors(params, decryptorSk2, values, ciphertext, t)
+			verifyTestVectors(params, decryptorSk2, values, ciphertext, t)
 		})
 	}
 }
@@ -512,24 +512,24 @@ func testRotateRows(t *testing.T) {
 
 		t.Run(testString2("InPlace/", params), func(t *testing.T) {
 
-			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
+			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
 			params.evaluator.RotateRows(ciphertext, rotkey, ciphertext)
 
 			values.Coeffs[0] = append(values.Coeffs[0][params.bfvContext.n>>1:], values.Coeffs[0][:params.bfvContext.n>>1]...)
 
-			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 
 		t.Run(testString2("New/", params), func(t *testing.T) {
 
-			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
+			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
 			ciphertext = params.evaluator.RotateRowsNew(ciphertext, rotkey)
 
 			values.Coeffs[0] = append(values.Coeffs[0][params.bfvContext.n>>1:], values.Coeffs[0][:params.bfvContext.n>>1]...)
 
-			verify_test_vectors(params, params.decryptor, values, ciphertext, t)
+			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 	}
 }
@@ -548,7 +548,7 @@ func testRotateCols(t *testing.T) {
 
 		t.Run(testString2("InPlace/", params), func(t *testing.T) {
 
-			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
+			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
 			receiver := params.bfvContext.NewCiphertext(1)
 			for n := uint64(1); n < slots; n <<= 1 {
@@ -560,13 +560,13 @@ func testRotateCols(t *testing.T) {
 					valuesWant.Coeffs[0][i+slots] = values.Coeffs[0][((i+n)&mask)+slots]
 				}
 
-				verify_test_vectors(params, params.decryptor, valuesWant, receiver, t)
+				verifyTestVectors(params, params.decryptor, valuesWant, receiver, t)
 			}
 		})
 
 		t.Run(testString2("New/", params), func(t *testing.T) {
 
-			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
+			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
 			for n := uint64(1); n < slots; n <<= 1 {
 
@@ -577,13 +577,13 @@ func testRotateCols(t *testing.T) {
 					valuesWant.Coeffs[0][i+slots] = values.Coeffs[0][((i+n)&mask)+slots]
 				}
 
-				verify_test_vectors(params, params.decryptor, valuesWant, receiver, t)
+				verifyTestVectors(params, params.decryptor, valuesWant, receiver, t)
 			}
 		})
 
 		t.Run(testString2("Random/", params), func(t *testing.T) {
 
-			values, _, ciphertext := new_test_vectors(params, params.encryptorPk, t)
+			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
 			receiver := params.bfvContext.NewCiphertext(1)
 			for n := 0; n < 4; n++ {
@@ -597,7 +597,7 @@ func testRotateCols(t *testing.T) {
 					valuesWant.Coeffs[0][i+slots] = values.Coeffs[0][((i+rand)&mask)+slots]
 				}
 
-				verify_test_vectors(params, params.decryptor, valuesWant, receiver, t)
+				verifyTestVectors(params, params.decryptor, valuesWant, receiver, t)
 			}
 		})
 	}

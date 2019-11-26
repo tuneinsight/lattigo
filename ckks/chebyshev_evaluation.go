@@ -5,6 +5,7 @@ import (
 	"math/bits"
 )
 
+// EvaluateCheby evaluates the input Chebyshev polynomial with the input ciphertext.
 func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
@@ -35,14 +36,15 @@ func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterp
 	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
 }
 
-// Given a hash table with the first three evaluations of the Chebyshev ring at x in the interval a, b:
-// C0 = 1 (actually not stored in the hash table)
-// C1 = (2*x - a - b)/(b-a)
-// C2 = 2*C1*C1 - C0
-// Evaluates the nth degree Chebyshev ring in a recursive manner, storing intermediate results in the hashtable.
-// Consumes at most ceil(sqrt(n)) levels for an evaluation at Cn.
-// Uses the following property : for a given Chebyshev ring Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
 func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) {
+
+	// Given a hash table with the first three evaluations of the Chebyshev ring at x in the interval a, b:
+	// C0 = 1 (actually not stored in the hash table)
+	// C1 = (2*x - a - b)/(b-a)
+	// C2 = 2*C1*C1 - C0
+	// Evaluates the nth degree Chebyshev ring in a recursive manner, storing intermediate results in the hashtable.
+	// Consumes at most ceil(sqrt(n)) levels for an evaluation at Cn.
+	// Uses the following property : for a given Chebyshev ring Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
 
 	if C[n] == nil {
 
@@ -79,31 +81,31 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evalu
 
 func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
+	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
+
 	if maxDegree <= (1 << L) {
-
 		return evaluateRecurse(coeffs, C, evaluator, evakey)
-
-	} else {
-
-		for 1<<(M-1) > maxDegree {
-			M--
-		}
-
-		coeffsq, coeffsr := splitCoeffsCheby(coeffs, 1<<(M-1), maxDegree)
-
-		res = recurseCheby(maxDegree-(1<<(M-1)), L, M-1, coeffsq, C, evaluator, evakey)
-
-		var tmp *Ciphertext
-		tmp = recurseCheby((1<<(M-1))-1, L, M-1, coeffsr, C, evaluator, evakey)
-
-		evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
-
-		evaluator.Add(res, tmp, res)
-
-		evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
-
-		return res
 	}
+
+	for 1<<(M-1) > maxDegree {
+		M--
+	}
+
+	coeffsq, coeffsr := splitCoeffsCheby(coeffs, 1<<(M-1), maxDegree)
+
+	res = recurseCheby(maxDegree-(1<<(M-1)), L, M-1, coeffsq, C, evaluator, evakey)
+
+	var tmp *Ciphertext
+	tmp = recurseCheby((1<<(M-1))-1, L, M-1, coeffsr, C, evaluator, evakey)
+
+	evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
+
+	evaluator.Add(res, tmp, res)
+
+	evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
+
+	return res
+
 }
 
 func splitCoeffsCheby(coeffs map[uint64]complex128, degree, maxDegree uint64) (coeffsq, coeffsr map[uint64]complex128) {

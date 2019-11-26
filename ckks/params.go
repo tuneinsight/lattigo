@@ -35,7 +35,7 @@ var DefaultParams = map[uint64]*Parameters{
 	16: {16, []uint8{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 45, 3.2}, //logQ = 1761
 }
 
-// MaxN is the largest supported polynomial modulus degree
+// MaxLogN is the largest supported polynomial modulus degree
 const MaxLogN = 16
 
 // MaxModuliCount is the largest supported number of moduli in the RNS representation

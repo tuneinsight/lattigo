@@ -4,6 +4,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
+// Operand is a common interface between Ciphertext and Plaintext.
 type Operand interface {
 	Element() *bfvElement
 	Degree() uint64
@@ -16,7 +17,7 @@ type bfvElement struct {
 	isNTT bool
 }
 
-// NewCiphertext creates a new empty ciphertext of degree degree.
+// NewBfvElement creates a new bfvElement of the target degree with zero values.
 func (context *Context) NewBfvElement(degree uint64) *bfvElement {
 	el := &bfvElement{}
 	el.value = make([]*ring.Poly, degree+1)
@@ -94,7 +95,7 @@ func (el *bfvElement) Copy(ctxCopy *bfvElement) {
 // NTT puts the target ciphertext in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
 func (el *bfvElement) NTT(context *Context, c *bfvElement) {
 	if el.Degree() != c.Degree() {
-		panic("receiver element invalide degree (does not match)")
+		panic("receiver element invalid degree (does not match)")
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
@@ -107,7 +108,7 @@ func (el *bfvElement) NTT(context *Context, c *bfvElement) {
 // InvNTT puts the target ciphertext outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
 func (el *bfvElement) InvNTT(context *Context, c *bfvElement) {
 	if el.Degree() != c.Degree() {
-		panic("eceiver element invalide degree (does not match)")
+		panic("eceiver element invalid degree (does not match)")
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {

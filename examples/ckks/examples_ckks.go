@@ -98,7 +98,7 @@ func chebyshevinterpolation() {
 	fmt.Println()
 	fmt.Printf("ValuesTest : %6f %6f %6f %6f...\n", round(valuesTest[0]), round(valuesTest[1]), round(valuesTest[2]), round(valuesTest[3]))
 	fmt.Printf("ValuesWant : %6f %6f %6f %6f...\n", round(values[0]), round(values[1]), round(values[2]), round(values[3]))
-	verify_vector(values, valuesTest)
+	verifyVector(values, valuesTest)
 
 }
 
@@ -114,7 +114,7 @@ func round(x complex128) complex128 {
 	return complex(a, b)
 }
 
-func verify_vector(valuesWant, valuesTest []complex128) (err error) {
+func verifyVector(valuesWant, valuesTest []complex128) (err error) {
 
 	var deltaReal, deltaImag float64
 
@@ -127,8 +127,8 @@ func verify_vector(valuesWant, valuesTest []complex128) (err error) {
 
 	meanprec = complex(0, 0)
 
-	distrib_real := make(map[uint64]uint64)
-	distrib_imag := make(map[uint64]uint64)
+	distribReal := make(map[uint64]uint64)
+	distribImag := make(map[uint64]uint64)
 
 	for i := range valuesWant {
 
@@ -158,8 +158,8 @@ func verify_vector(valuesWant, valuesTest []complex128) (err error) {
 			maxprec = complex(real(maxprec), imag(diff[i]))
 		}
 
-		distrib_real[uint64(math.Floor(math.Log2(1/real(diff[i]))))] += 1
-		distrib_imag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))] += 1
+		distribReal[uint64(math.Floor(math.Log2(1/real(diff[i]))))] += 1
+		distribImag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))] += 1
 	}
 
 	meanprec /= complex(float64(len(valuesWant)), 0)

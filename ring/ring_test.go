@@ -38,23 +38,23 @@ func init() {
 	testParams.sigma = 3.19
 }
 
-func Test_Ring(t *testing.T) {
-	t.Run("PRNG", test_PRNG)
-	t.Run("GenerateNTTPrimes", test_GenerateNTTPrimes)
-	t.Run("ImportExportPolyString", test_ImportExportPolyString)
-	t.Run("DivFloorByLastModulusMany", test_DivFloorByLastModulusMany)
-	t.Run("DivRoundByLastModulusMany", test_DivRoundByLastModulusMany)
-	t.Run("MarshalBinary", test_MarshalBinary)
-	t.Run("GaussianSampler", test_GaussianSampler)
-	t.Run("TernarySampler", test_TernarySampler)
-	t.Run("GaloisShift", test_GaloisShift)
-	t.Run("BRed", test_BRed)
-	t.Run("MRed", test_MRed)
-	t.Run("MulScalarBigint", test_MulScalarBigint)
-	t.Run("MulPoly", test_MulPoly)
-	t.Run("ExtendBasis", test_ExtendBasis)
-	t.Run("SimpleScaling", test_SimpleScaling)
-	t.Run("MultByMonomial", test_MultByMonomial)
+func testRing(t *testing.T) {
+	t.Run("PRNG", testPRNG)
+	t.Run("GenerateNTTPrimes", testGenerateNTTPrimes)
+	t.Run("ImportExportPolyString", testImportExportPolyString)
+	t.Run("DivFloorByLastModulusMany", testDivFloorByLastModulusMany)
+	t.Run("DivRoundByLastModulusMany", testDivRoundByLastModulusMany)
+	t.Run("MarshalBinary", testMarshalBinary)
+	t.Run("GaussianSampler", testGaussianSampler)
+	t.Run("TernarySampler", testTernarySampler)
+	t.Run("GaloisShift", testGaloisShift)
+	t.Run("BRed", testBRed)
+	t.Run("MRed", testMRed)
+	t.Run("MulScalarBigint", testMulScalarBigint)
+	t.Run("MulPoly", testMulPoly)
+	t.Run("ExtendBasis", testExtendBasis)
+	t.Run("SimpleScaling", testSimpleScaling)
+	t.Run("MultByMonomial", testMultByMonomial)
 }
 
 func genPolyContext(params *Parameters) (context *Context) {
@@ -64,7 +64,7 @@ func genPolyContext(params *Parameters) (context *Context) {
 	return context
 }
 
-func test_PRNG(t *testing.T) {
+func testPRNG(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -72,17 +72,17 @@ func test_PRNG(t *testing.T) {
 
 		t.Run(testString("", context), func(t *testing.T) {
 
-			crs_generator_1 := NewCRPGenerator(nil, context)
-			crs_generator_2 := NewCRPGenerator(nil, context)
+			crsGenerator1 := NewCRPGenerator(nil, context)
+			crsGenerator2 := NewCRPGenerator(nil, context)
 
-			crs_generator_1.Seed(nil)
-			crs_generator_2.Seed(nil)
+			crsGenerator1.Seed(nil)
+			crsGenerator2.Seed(nil)
 
-			crs_generator_1.SetClock(256)
-			crs_generator_2.SetClock(256)
+			crsGenerator1.SetClock(256)
+			crsGenerator2.SetClock(256)
 
-			p0 := crs_generator_1.Clock()
-			p1 := crs_generator_2.Clock()
+			p0 := crsGenerator1.Clock()
+			p1 := crsGenerator2.Clock()
 
 			if context.Equal(p0, p1) != true {
 				t.Errorf("crs prng generator")
@@ -91,7 +91,7 @@ func test_PRNG(t *testing.T) {
 	}
 }
 
-func test_GenerateNTTPrimes(t *testing.T) {
+func testGenerateNTTPrimes(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -115,7 +115,7 @@ func test_GenerateNTTPrimes(t *testing.T) {
 	}
 }
 
-func test_ImportExportPolyString(t *testing.T) {
+func testImportExportPolyString(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -135,7 +135,7 @@ func test_ImportExportPolyString(t *testing.T) {
 	}
 }
 
-func test_DivFloorByLastModulusMany(t *testing.T) {
+func testDivFloorByLastModulusMany(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -179,7 +179,7 @@ func test_DivFloorByLastModulusMany(t *testing.T) {
 	}
 }
 
-func test_DivRoundByLastModulusMany(t *testing.T) {
+func testDivRoundByLastModulusMany(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -223,7 +223,7 @@ func test_DivRoundByLastModulusMany(t *testing.T) {
 	}
 }
 
-func test_MarshalBinary(t *testing.T) {
+func testMarshalBinary(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -267,7 +267,7 @@ func test_MarshalBinary(t *testing.T) {
 	}
 }
 
-func test_GaussianSampler(t *testing.T) {
+func testGaussianSampler(t *testing.T) {
 
 	sigma := testParams.sigma
 	bound := int(sigma * 6)
@@ -307,7 +307,7 @@ func test_GaussianSampler(t *testing.T) {
 	}
 }
 
-func test_TernarySampler(t *testing.T) {
+func testTernarySampler(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -327,15 +327,15 @@ func test_TernarySampler(t *testing.T) {
 
 			for i := range pol.Coeffs[0] {
 				if pol.Coeffs[0][i] == context.Modulus[0]-1 {
-					countMOn += 1
+					countMOn++
 				}
 
 				if pol.Coeffs[0][i] == 0 {
-					countZer += 1
+					countZer++
 				}
 
 				if pol.Coeffs[0][i] == 1 {
-					countOne += 1
+					countOne++
 				}
 			}
 
@@ -349,7 +349,7 @@ func test_TernarySampler(t *testing.T) {
 	}
 }
 
-func test_BRed(t *testing.T) {
+func testBRed(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -382,7 +382,7 @@ func test_BRed(t *testing.T) {
 	}
 }
 
-func test_MRed(t *testing.T) {
+func testMRed(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -419,7 +419,7 @@ func test_MRed(t *testing.T) {
 	}
 }
 
-func test_GaloisShift(t *testing.T) {
+func testGaloisShift(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -451,7 +451,7 @@ func test_GaloisShift(t *testing.T) {
 	}
 }
 
-func test_MForm(t *testing.T) {
+func testMForm(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -472,7 +472,7 @@ func test_MForm(t *testing.T) {
 	}
 }
 
-func test_MulScalarBigint(t *testing.T) {
+func testMulScalarBigint(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -500,7 +500,7 @@ func test_MulScalarBigint(t *testing.T) {
 	}
 }
 
-func test_MulPoly(t *testing.T) {
+func testMulPoly(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -547,7 +547,7 @@ func test_MulPoly(t *testing.T) {
 	}
 }
 
-func test_ExtendBasis(t *testing.T) {
+func testExtendBasis(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -584,7 +584,7 @@ func test_ExtendBasis(t *testing.T) {
 	}
 }
 
-func test_SimpleScaling(t *testing.T) {
+func testSimpleScaling(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
@@ -623,7 +623,7 @@ func test_SimpleScaling(t *testing.T) {
 	}
 }
 
-func test_MultByMonomial(t *testing.T) {
+func testMultByMonomial(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 

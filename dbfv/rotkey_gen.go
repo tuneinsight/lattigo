@@ -7,7 +7,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// rotkg is the structure storing the parameters for the collective rotation-keys generation.
+// RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
 	bfvContext *bfv.Context
 
@@ -20,12 +20,14 @@ type RTGProtocol struct {
 	tmpPoly      *ring.Poly
 }
 
+// RTGShare is the structure storing the shares of the RTG protocol
 type RTGShare struct {
 	Type  bfv.Rotation
 	K     uint64
 	Value []*ring.Poly
 }
 
+// MarshalBinary encode the target element on a slice of byte.
 func (share *RTGShare) MarshalBinary() ([]byte, error) {
 	lenRing := share.Value[0].GetDataLen(true)
 	data := make([]byte, 3*8+lenRing*uint64(len(share.Value)))
@@ -44,6 +46,7 @@ func (share *RTGShare) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *RTGShare) UnmarshalBinary(data []byte) error {
 	if len(data) <= 24 {
 		return errors.New("Unsufficient data length")
@@ -55,7 +58,7 @@ func (share *RTGShare) UnmarshalBinary(data []byte) error {
 
 	share.Value = make([]*ring.Poly, valLength)
 	ptr := uint64(24)
-	for i, _ := range share.Value {
+	for i := range share.Value {
 		share.Value[i] = new(ring.Poly)
 		err := share.Value[i].UnmarshalBinary(data[ptr : ptr+lenRing])
 		if err != nil {
@@ -68,6 +71,7 @@ func (share *RTGShare) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// AllocateShare allocates the shares of the RTG protocol.
 func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 	rtgShare.Value = make([]*ring.Poly, rtg.bfvContext.Beta())
 	for i := uint64(0); i < rtg.bfvContext.Beta(); i++ {
@@ -76,7 +80,7 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 	return
 }
 
-// newrotkg creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
+// NewRotKGProtocol creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
 func NewRotKGProtocol(bfvContext *bfv.Context) (rtg *RTGProtocol) {
 
 	rtg = new(RTGProtocol)
@@ -136,7 +140,6 @@ func (rtg *RTGProtocol) GenShare(rotType bfv.Rotation, k uint64, sk *ring.Poly, 
 	}
 }
 
-// genswitchkey is a generic method to generate the public-share of the collective rotation-key.
 func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, evakey []*ring.Poly) {
 
 	contextKeys := rtg.bfvContext.ContextKeys()
@@ -203,6 +206,7 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
 	}
 }
 
+// Finalize populates the input RotationKeys struture with the Switching key computed from the protocol.
 func (rtg *RTGProtocol) Finalize(share RTGShare, crp []*ring.Poly, rotKey *bfv.RotationKeys) {
 
 	k := share.K & ((rtg.bfvContext.N() >> 1) - 1)

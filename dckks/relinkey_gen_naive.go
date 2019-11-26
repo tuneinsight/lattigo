@@ -12,7 +12,7 @@ type RKGProtocolNaive struct {
 	polypool        *ring.Poly
 }
 
-// NewEkgProtocolNaive creates a new RKGProtocolNaive object that will be used to generate a collective evaluation-key
+// NewRKGProtocolNaive creates a new RKGProtocolNaive object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
 func NewRKGProtocolNaive(ckksContext *ckks.Context) (rkg *RKGProtocolNaive) {
 	rkg = new(RKGProtocolNaive)
@@ -22,9 +22,13 @@ func NewRKGProtocolNaive(ckksContext *ckks.Context) (rkg *RKGProtocolNaive) {
 	return
 }
 
+// RKGNaiveShareRoundOne is a struct storing the round one share of the RKG naive protocol.
 type RKGNaiveShareRoundOne [][2]*ring.Poly
+
+// RKGNaiveShareRoundTwo is a struct storing the round two share of the RKG naive protocol.
 type RKGNaiveShareRoundTwo [][2]*ring.Poly
 
+// AllocateShares allocates the share of the RKG naive protocol.
 func (rkg *RKGProtocolNaive) AllocateShares() (r1 RKGNaiveShareRoundOne, r2 RKGNaiveShareRoundTwo) {
 	contextKeys := rkg.ckksContext.ContextKeys()
 
@@ -42,7 +46,7 @@ func (rkg *RKGProtocolNaive) AllocateShares() (r1 RKGNaiveShareRoundOne, r2 RKGN
 	return
 }
 
-// GenSamples is the first of two rounds of the naive EKG protocol. Using the shared public key "cpk",
+// GenShareRoundOne is the first of two rounds of the naive EKG protocol. Using the shared public key "cpk",
 // each party generates a pseudo-encryption of s*w of the form :
 //
 // [cpk[0] * u_i + P * s_i + e_0i, cpk[1] * u_i + e_1i]
@@ -99,7 +103,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 	rkg.polypool.Zero()
 }
 
-// Aggregate is the second part of the first round of the naive EKG protocol. Uppon receiving the j-1 elements, each party computes :
+// AggregateShareRoundOne is the second part of the first round of the naive EKG protocol. Upon receiving the j-1 elements, each party computes :
 //
 // [sum(cpk[0] * u_j + P * s_j + e_0j), sum(cpk[1] * u_j + e_1j)]
 //
@@ -121,7 +125,7 @@ func (rkg *RKGProtocolNaive) AggregateShareRoundOne(share1, share2, shareOut RKG
 //
 // = [ cpk[0] * (u * s_i) + P * (s * s_i) + (s_i * e_0) + v_i*cpk[0] + e_2i, cpk[1] * u * s_i + (s_i * e_1) + cpk[1] * v_i + e_3i]
 //
-// And party broadcast this last result to the other j-1 parties.
+// And each party broadcasts this last result to the other j-1 parties.
 func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *ring.Poly, pk [2]*ring.Poly, shareOut RKGNaiveShareRoundTwo) {
 
 	contextKeys := rkg.ckksContext.ContextKeys()
@@ -155,7 +159,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 	rkg.polypool.Zero()
 }
 
-// AggregateShareRoundTwo is the second part of the second and last round of the naive EKG protocol. Uppon receiving the j-1 elements,
+// AggregateShareRoundTwo is the second part of the second and last round of the naive EKG protocol. Upon receiving the j-1 elements,
 // each party computes :
 //
 // [ sum(cpk[0] * (u*s_i) + P * (s*s_i) + (s_i*e_0) + v_i*cpk[0] + e_2i), sum(cpk[1]*u*s_i + (s_i*e_1) + cpk[1] * v_i + e_3i)]
@@ -173,6 +177,7 @@ func (rkg *RKGProtocolNaive) AggregateShareRoundTwo(share1, share2, shareOut RKG
 	}
 }
 
+// GenRelinearizationKey finalizes the protocol and returns the collective EvalutionKey.
 func (rkg *RKGProtocolNaive) GenRelinearizationKey(round2 RKGNaiveShareRoundTwo, evalKeyOut *ckks.EvaluationKey) {
 
 	contextKeys := rkg.ckksContext.ContextKeys()

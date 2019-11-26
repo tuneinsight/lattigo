@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func Benchmark_DCKKS(b *testing.B) {
+func BenchmarkDCKKS(b *testing.B) {
 	b.Run("PublicKeyGen", benchPublicKeyGen)
 	b.Run("RelinKeyGen", benchRelinKeyGen)
 	b.Run("RelinKeyGenNaive", benchRelinKeyGenNaive)

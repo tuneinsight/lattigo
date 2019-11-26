@@ -116,7 +116,7 @@ func ObliviousRiding() {
 		DriversCiphertexts[i] = EncryptorPk.EncryptNew(DriversPlaintexts[i])
 	}
 
-	fmt.Println("Computing encrypted Distance = ((CtD1 + CtD2 + CtD3 + CtD4...) - CtR)^2 ...")
+	fmt.Println("Computing encrypted distance = ((CtD1 + CtD2 + CtD3 + CtD4...) - CtR)^2 ...")
 	fmt.Println()
 
 	evaluator.Neg(RiderCiphertext, RiderCiphertext)
@@ -131,7 +131,7 @@ func ObliviousRiding() {
 
 	for i := uint64(0); i < NbDrivers; i++ {
 
-		r1, r1exp := result[i<<1]+result[(i<<1)+1], Distance(Drivers[i][i<<1], Drivers[i][(i<<1)+1], Rider[0], Rider[1])
+		r1, r1exp := result[i<<1]+result[(i<<1)+1], distance(Drivers[i][i<<1], Drivers[i][(i<<1)+1], Rider[0], Rider[1])
 
 		if r1 == r1exp {
 			if closest[3] > r1 {
@@ -143,7 +143,7 @@ func ObliviousRiding() {
 		}
 
 		if r1 != r1exp {
-			errors += 1
+			errors++
 		}
 
 		if i < 4 || i > NbDrivers-5 {
@@ -164,7 +164,7 @@ func ObliviousRiding() {
 	fmt.Printf("Closest Driver to Rider is n°%d (%d, %d) with a distance of %d units \n", closest[0], closest[1], closest[2], uint64(math.Sqrt(float64(closest[3]))))
 }
 
-func Distance(a, b, c, d uint64) uint64 {
+func distance(a, b, c, d uint64) uint64 {
 	if a > c {
 		a, c = c, a
 	}

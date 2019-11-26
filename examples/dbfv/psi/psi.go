@@ -160,7 +160,7 @@ func main() {
 		}
 	}, N)
 
-	rlk := bfvctx.NewRelinKeyEmpty(1)
+	rlk := bfvctx.NewRelinKey(1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShareRoundThree(pi.rkgShareThree, rkgCombined3, rkgCombined3)

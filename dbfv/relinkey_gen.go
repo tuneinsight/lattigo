@@ -21,10 +21,16 @@ type RKGProtocol struct {
 	polypool        *ring.Poly
 }
 
+// RKGShareRoundOne is a struct storing the round one RKG shares.
 type RKGShareRoundOne []*ring.Poly
+
+// RKGShareRoundTwo is a struct storing the round two RKG shares.
 type RKGShareRoundTwo [][2]*ring.Poly
+
+// RKGShareRoundThree is a struct storing the round three RKG shares.
 type RKGShareRoundThree []*ring.Poly
 
+// MarshalBinary encodes the target element on a slice of bytes.
 func (share *RKGShareRoundOne) MarshalBinary() ([]byte, error) {
 	rLength := (*share)[0].GetDataLen(true)
 	data := make([]byte, 1+rLength*uint64(len(*share)))
@@ -42,6 +48,7 @@ func (share *RKGShareRoundOne) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *RKGShareRoundOne) UnmarshalBinary(data []byte) error {
 	//share.modulus = data[0]
 	lenShare := data[0]
@@ -64,6 +71,7 @@ func (share *RKGShareRoundOne) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalBinary encodes the target element on a slice of bytes.
 func (share *RKGShareRoundTwo) MarshalBinary() ([]byte, error) {
 	//we have modulus * bitLog * Len of 1 ring rings
 	rLength := ((*share)[0])[0].GetDataLen(true)
@@ -93,6 +101,7 @@ func (share *RKGShareRoundTwo) MarshalBinary() ([]byte, error) {
 
 }
 
+// UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *RKGShareRoundTwo) UnmarshalBinary(data []byte) error {
 	lenShare := data[0]
 	rLength := (len(data) - 1) / (2 * int(lenShare))
@@ -123,6 +132,7 @@ func (share *RKGShareRoundTwo) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalBinary encodes the target element on a slice of bytes.
 func (share *RKGShareRoundThree) MarshalBinary() ([]byte, error) {
 	rLength := (*share)[0].GetDataLen(true)
 	data := make([]byte, 1+rLength*uint64(len(*share)))
@@ -140,6 +150,7 @@ func (share *RKGShareRoundThree) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *RKGShareRoundThree) UnmarshalBinary(data []byte) error {
 	//share.modulus = data[0]
 	lenShare := data[0]
@@ -162,6 +173,7 @@ func (share *RKGShareRoundThree) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// AllocateShares allocates the shares of the EKG protocol.
 func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundTwo, r3 RKGShareRoundThree) {
 	r1 = make([]*ring.Poly, ekg.beta)
 	r2 = make([][2]*ring.Poly, ekg.beta)
@@ -201,7 +213,7 @@ func NewEkgProtocol(context *bfv.Context) *RKGProtocol {
 	return ekg
 }
 
-// NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first round).
+// NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first rounds).
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
 func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly) {
@@ -257,6 +269,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 	return
 }
 
+// AggregateShareRoundOne adds share1 and share2 on shareOut.
 func (ekg *RKGProtocol) AggregateShareRoundOne(share1, share2, shareOut RKGShareRoundOne) {
 
 	for i := uint64(0); i < ekg.beta; i++ {
@@ -265,7 +278,7 @@ func (ekg *RKGProtocol) AggregateShareRoundOne(share1, share2, shareOut RKGShare
 
 }
 
-// GenShareRoundTwo is the second of three rounds of the RKGProtocol protocol. Uppon received the j-1 shares, each party computes :
+// GenShareRoundTwo is the second of three rounds of the RKGProtocol protocol. Upon receiving the j-1 shares, each party computes :
 //
 // [s_i * sum([-u_j*a + s_j*w + e_j]) + e_i1, s_i*a + e_i2]
 //
@@ -296,8 +309,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly,
 
 }
 
-// AggregateShareRoundTwo is the first part of the third and last round of the RKGProtocol protocol. Uppon receiving the j-1 elements, each party
-// computues :
+// AggregateShareRoundTwo is the first part of the third and last round of the RKGProtocol protocol. Upon receiving the j-1 elements, each party
+// computes :
 //
 // [sum(s_j * (-u*a + s*w + e) + e_j1), sum(s_j*a + e_j2)]
 //
@@ -316,7 +329,7 @@ func (ekg *RKGProtocol) AggregateShareRoundTwo(share1, share2, shareOut RKGShare
 //
 // [(u_i - s_i)*(s*a + e_2)]
 //
-// and broadcasts the result the other j-1 parties.
+// and broadcasts the result to the other j-1 parties.
 func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.Poly, shareOut RKGShareRoundThree) {
 
 	// (u_i - s_i)
@@ -330,12 +343,14 @@ func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.
 	}
 }
 
+// AggregateShareRoundThree adds share1 and share2 on shareOut.
 func (ekg *RKGProtocol) AggregateShareRoundThree(share1, share2, shareOut RKGShareRoundThree) {
 	for i := uint64(0); i < ekg.beta; i++ {
 		ekg.ringContext.Add(share1[i], share2[i], shareOut[i])
 	}
 }
 
+// GenRelinearizationKey finalizes the protocol and returns the common EvaluationKey.
 func (ekg *RKGProtocol) GenRelinearizationKey(round2 RKGShareRoundTwo, round3 RKGShareRoundThree, evalKeyOut *bfv.EvaluationKey) {
 
 	key := evalKeyOut.Get()[0].Get()

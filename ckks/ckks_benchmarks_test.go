@@ -277,25 +277,25 @@ func BenchmarkRotationHoisting(b *testing.B) {
 		c2InvNTT := contextQ.NewPoly()
 		contextQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
 
-		c2_qiQDecomp := make([]*ring.Poly, ckkscontext.beta)
-		c2_qiPDecomp := make([]*ring.Poly, ckkscontext.beta)
+		c2QiQDecomp := make([]*ring.Poly, ckkscontext.beta)
+		c2QiPDecomp := make([]*ring.Poly, ckkscontext.beta)
 
 		for i := uint64(0); i < ckkscontext.beta; i++ {
-			c2_qiQDecomp[i] = contextQ.NewPoly()
-			c2_qiPDecomp[i] = contextP.NewPoly()
+			c2QiQDecomp[i] = contextQ.NewPoly()
+			c2QiPDecomp[i] = contextP.NewPoly()
 		}
 
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/DecomposeNTT", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				for j := uint64(0); j < ckkscontext.beta; j++ {
-					evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2_qiQDecomp[j], c2_qiPDecomp[j])
+					evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
 				}
 			}
 		})
 
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/RotateHoisted", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.switchKeyHoisted(ciphertext, c2_qiQDecomp, c2_qiPDecomp, 5, rotkeys, ciphertext)
+				evaluator.switchKeyHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, rotkeys, ciphertext)
 			}
 		})
 

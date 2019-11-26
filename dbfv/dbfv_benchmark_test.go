@@ -92,7 +92,7 @@ func benchRelinKeyGen(b *testing.B) {
 		p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
-		p.rlk = bfvContext.NewRelinKeyEmpty(2)
+		p.rlk = bfvContext.NewRelinKey(2)
 
 		crpGenerator := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
 
@@ -171,7 +171,7 @@ func benchRelinKeyGenNaive(b *testing.B) {
 		p.RKGProtocolNaive = NewRKGProtocolNaive(bfvContext)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares()
-		p.rlk = bfvContext.NewRelinKeyEmpty(2)
+		p.rlk = bfvContext.NewRelinKey(2)
 
 		b.Run(testString("Round1/Gen", &parameters), func(b *testing.B) {
 

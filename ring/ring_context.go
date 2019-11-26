@@ -14,14 +14,13 @@ import (
 //===== POLYNOMIAL CONTEXT =====
 //==============================
 
-// Context is a structure keeping all the variable required to operate on a polynomial represented in this context.
-// This include its moduli, crt reconstruction, modular reduction and ntt transformation.
+// Context is a structure keeping all the variables required to operate on a polynomial represented in this context.
 type Context struct {
 
 	// Polynomial nb.Coefficients
 	N uint64
 
-	// Modulies
+	// Moduli
 	Modulus []uint64
 
 	// 2^bit_length(Qi) - 1
@@ -30,7 +29,7 @@ type Context struct {
 	// Determines if NTT can be used with the current context.
 	allowsNTT bool
 
-	// Product of the modulies
+	// Product of the Moduli
 	ModulusBigint *big.Int
 
 	// Fast reduction parameters
@@ -43,12 +42,12 @@ type Context struct {
 	matrixTernaryMontgomery [][]uint64
 
 	//NTT Parameters
-	psiMont    []uint64 //2nth primitive root in montgomery form
-	psiInvMont []uint64 //2nth inverse primitive root in montgomery form
+	psiMont    []uint64 //2nth primitive root in Montgomery form
+	psiInvMont []uint64 //2nth inverse primitive root in Montgomery form
 
-	nttPsi    [][]uint64 //powers of the inverse of the 2nth primitive root in montgomery form (in bitreversed order)
-	nttPsiInv [][]uint64 //powers of the inverse of the 2nth primitive root in montgomery form (in bitreversed order)
-	nttNInv   []uint64   //[N^-1] mod Qi in montgomery form
+	nttPsi    [][]uint64 //powers of the inverse of the 2nth primitive root in Montgomery form (in bitreversed order)
+	nttPsiInv [][]uint64 //powers of the inverse of the 2nth primitive root in Montgomery form (in bitreversed order)
+	nttNInv   []uint64   //[N^-1] mod Qi in Montgomery form
 }
 
 // NewContext generates a new empty context.
@@ -56,8 +55,8 @@ func NewContext() *Context {
 	return new(Context)
 }
 
-// SetParameters initialize the parameters of an empty context with N and the provided moduli.
-// Only checks that N is a power of 2 and computes all the variable that aren't used for the NTT.
+// SetParameters initializes the parameters of an empty context with N and the provided moduli.
+// Only checks that N is a power of 2 and computes all the variables that aren't used for the NTT.
 func (context *Context) SetParameters(N uint64, Modulus []uint64) {
 
 	// Checks if N is a power of 2
@@ -93,7 +92,7 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) {
 		context.bredParams[i] = BRedParams(qi)
 
 		// If qi is not a power of 2, we can compute the MRedParams (else it should not
-		// because it will return an error and there is no valid montgomery form mod a power of 2)
+		// because it will return an error and there is no valid Montgomery form mod a power of 2)
 		if (qi&(qi-1)) != 0 && qi != 0 {
 			context.mredParams[i] = MRedParams(qi)
 		}
@@ -116,7 +115,7 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) {
 	}
 }
 
-// GenNTTParams checks that N has beed correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).
+// GenNTTParams checks that N has been correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).
 // Then it computes the variables required for the NTT. ValidateParameters purpose is to validate that the moduli allow the NTT and compute the
 // NTT parameters.
 func (context *Context) GenNTTParams() error {
@@ -307,7 +306,7 @@ func (context *Context) SetCoefficientsInt64(coeffs []int64, p1 *Poly) {
 	}
 }
 
-// SetCoefficientsUint64 sets the coefficient of Pol from an uint64 array.
+// SetCoefficientsUint64 sets the coefficients of p1 from an uint64 array.
 func (context *Context) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) {
 	for i, coeff := range coeffs {
 		for j, Qi := range context.Modulus {

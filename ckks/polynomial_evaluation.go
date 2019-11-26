@@ -5,6 +5,7 @@ import (
 	"math/bits"
 )
 
+// EvaluatePoly evaluates the polynomial a + bx + cx^2... with the input ciphertext.
 func (evaluator *Evaluator) EvaluatePoly(ct *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (res *Ciphertext) {
 
 	degree, coeffsMap := convertCoeffs(coeffs)
@@ -92,27 +93,27 @@ func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]
 
 		return evaluateRecurse(coeffs, C, evaluator, evakey)
 
-	} else {
-
-		for 1<<(M-1) > maxDegree {
-			M--
-		}
-
-		coeffsq, coeffsr := splitCoeffs(coeffs, 1<<(M-1), maxDegree)
-
-		res = recurse(maxDegree-(1<<(M-1)), L, M-1, coeffsq, C, evaluator, evakey)
-
-		var tmp *Ciphertext
-		tmp = recurse((1<<(M-1))-1, L, M-1, coeffsr, C, evaluator, evakey)
-
-		evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
-
-		evaluator.Add(res, tmp, res)
-
-		evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
-
-		return res
 	}
+
+	for 1<<(M-1) > maxDegree {
+		M--
+	}
+
+	coeffsq, coeffsr := splitCoeffs(coeffs, 1<<(M-1), maxDegree)
+
+	res = recurse(maxDegree-(1<<(M-1)), L, M-1, coeffsq, C, evaluator, evakey)
+
+	var tmp *Ciphertext
+	tmp = recurse((1<<(M-1))-1, L, M-1, coeffsr, C, evaluator, evakey)
+
+	evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
+
+	evaluator.Add(res, tmp, res)
+
+	evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
+
+	return res
+
 }
 
 func evaluateRecurse(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {

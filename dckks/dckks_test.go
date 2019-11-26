@@ -60,7 +60,7 @@ func init() {
 	}
 }
 
-func Test_DCKKS(t *testing.T) {
+func TestDCKKS(t *testing.T) {
 	t.Run("PublicKeyGen", testPublicKeyGen)
 	t.Run("RelinKeyGen", testRelinKeyGen)
 	t.Run("RelinKeyGenNaive", testRelinKeyGenNaive)
@@ -168,9 +168,9 @@ func testPublicKeyGen(t *testing.T) {
 				// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
 				encryptorTest := ckksContext.NewEncryptorFromPk(pk)
 
-				coeffs, _, ciphertext := new_test_vectors(params, encryptorTest, 1, t)
+				coeffs, _, ciphertext := newTestVectors(params, encryptorTest, 1, t)
 
-				verify_test_vectors(params, decryptorSk0, coeffs, ciphertext, t)
+				verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
 			})
 	}
 }
@@ -251,10 +251,10 @@ func testRelinKeyGen(t *testing.T) {
 					}
 				}
 
-				evk := ckksContext.NewRelinKeyEmpty()
+				evk := ckksContext.NewRelinKey()
 				P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
 
-				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
+				coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
 
 				for i := range coeffs {
 					coeffs[i] *= coeffs[i]
@@ -268,7 +268,7 @@ func testRelinKeyGen(t *testing.T) {
 					t.Errorf("EKG_NAIVE -> bad relinearize")
 				}
 
-				verify_test_vectors(params, decryptorSk0, coeffs, ciphertext, t)
+				verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
 
 			})
 	}
@@ -333,10 +333,10 @@ func testRelinKeyGenNaive(t *testing.T) {
 					}
 				}
 
-				evk := ckksContext.NewRelinKeyEmpty()
+				evk := ckksContext.NewRelinKey()
 				P0.GenRelinearizationKey(P0.share2, evk)
 
-				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
+				coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
 
 				for i := range coeffs {
 					coeffs[i] *= coeffs[i]
@@ -350,7 +350,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 
 				evaluator.Rescale(ciphertext, ckksContext.Scale(), ciphertext)
 
-				verify_test_vectors(params, decryptorSk0, coeffs, ciphertext, t)
+				verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
 			})
 	}
 }
@@ -395,7 +395,7 @@ func testKeyswitching(t *testing.T) {
 				}
 				P0 := cksParties[0]
 
-				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
+				coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
 
 				// Each party creates its CKSProtocol instance with tmp = si-si'
 				for i, p := range cksParties {
@@ -409,11 +409,11 @@ func testKeyswitching(t *testing.T) {
 
 				P0.KeySwitch(P0.share, ciphertext, ksCiphertext)
 
-				verify_test_vectors(params, decryptorSk1, coeffs, ksCiphertext, t)
+				verifyTestVectors(params, decryptorSk1, coeffs, ksCiphertext, t)
 
 				P0.KeySwitch(P0.share, ciphertext, ciphertext)
 
-				verify_test_vectors(params, decryptorSk1, coeffs, ksCiphertext, t)
+				verifyTestVectors(params, decryptorSk1, coeffs, ksCiphertext, t)
 
 			})
 	}
@@ -441,9 +441,9 @@ func testPublicKeySwitching(t *testing.T) {
 			ckksContext.Scale()),
 			func(t *testing.T) {
 
-				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
+				coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
 
-				params.evaluator.DropLevel(ciphertext.Element(), 1)
+				params.evaluator.DropLevel(ciphertext, 1)
 
 				type Party struct {
 					*PCKSProtocol
@@ -472,7 +472,7 @@ func testPublicKeySwitching(t *testing.T) {
 
 				P0.KeySwitch(P0.share, ciphertext, ciphertextSwitched)
 
-				verify_test_vectors(params, decryptorSk1, coeffs, ciphertextSwitched, t)
+				verifyTestVectors(params, decryptorSk1, coeffs, ciphertextSwitched, t)
 			})
 	}
 }
@@ -528,7 +528,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 			rotkey := ckksContext.NewRotationKeys()
 			P0.Finalize(P0.share, crp, rotkey)
 
-			coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
 
 			evaluator.Conjugate(ciphertext, rotkey, ciphertext)
 
@@ -538,7 +538,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 				coeffsWant[i] = complex(real(coeffs[i]), -imag(coeffs[i]))
 			}
 
-			verify_test_vectors(params, decryptorSk0, coeffsWant, ciphertext, t)
+			verifyTestVectors(params, decryptorSk0, coeffsWant, ciphertext, t)
 
 		})
 	}
@@ -588,7 +588,7 @@ func testRotKeyGenCols(t *testing.T) {
 
 			mask := (contextKeys.N >> 1) - 1
 
-			coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1, t)
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
 
 			receiver := ckksContext.NewCiphertext(ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale())
 
@@ -612,7 +612,7 @@ func testRotKeyGenCols(t *testing.T) {
 					coeffsWant[i] = coeffs[(i+k)&mask]
 				}
 
-				verify_test_vectors(params, decryptorSk0, coeffsWant, receiver, t)
+				verifyTestVectors(params, decryptorSk0, coeffsWant, receiver, t)
 			}
 		})
 	}
@@ -664,7 +664,7 @@ func testRefresh(t *testing.T) {
 				crpGenerator.Seed([]byte{})
 				crp := crpGenerator.Clock()
 
-				coeffs, _, ciphertext := new_test_vectors(params, encryptorPk0, 1.0, t)
+				coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1.0, t)
 
 				for i, p := range RefreshParties {
 					p.GenShares(p.s, levelStart, parties, ciphertext, crp, p.share1, p.share2)
@@ -675,7 +675,7 @@ func testRefresh(t *testing.T) {
 				}
 
 				for ciphertext.Level() != levelStart {
-					evaluator.DropLevel(ciphertext.Element(), 1)
+					evaluator.DropLevel(ciphertext, 1)
 				}
 
 				// We refresh the ciphertext with the simulated error
@@ -683,13 +683,13 @@ func testRefresh(t *testing.T) {
 				P0.Recode(ciphertext)                  // Masked re-encoding
 				P0.Recrypt(ciphertext, crp, P0.share2) // Masked re-encryption
 
-				verify_test_vectors(params, decryptorSk0, coeffs, ciphertext, t)
+				verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
 
 			})
 	}
 }
 
-func new_test_vectors(contextParams *dckksContext, encryptor *ckks.Encryptor, a float64, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
+func newTestVectors(contextParams *dckksContext, encryptor *ckks.Encryptor, a float64, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
 
 	slots := contextParams.ckksContext.Slots()
 
@@ -710,7 +710,7 @@ func new_test_vectors(contextParams *dckksContext, encryptor *ckks.Encryptor, a 
 	return values, plaintext, ciphertext
 }
 
-func verify_test_vectors(contextParams *dckksContext, decryptor *ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(contextParams *dckksContext, decryptor *ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128
@@ -735,8 +735,8 @@ func verify_test_vectors(contextParams *dckksContext, decryptor *ckks.Decryptor,
 
 	meanprec = complex(0, 0)
 
-	distrib_real := make(map[uint64]uint64)
-	distrib_imag := make(map[uint64]uint64)
+	distribReal := make(map[uint64]uint64)
+	distribImag := make(map[uint64]uint64)
 
 	for i := range valuesWant {
 
@@ -764,8 +764,8 @@ func verify_test_vectors(contextParams *dckksContext, decryptor *ckks.Decryptor,
 			maxprec = complex(real(maxprec), imag(diff[i]))
 		}
 
-		distrib_real[uint64(math.Floor(math.Log2(1/real(diff[i]))))] += 1
-		distrib_imag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))] += 1
+		distribReal[uint64(math.Floor(math.Log2(1/real(diff[i]))))]++
+		distribImag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))]++
 	}
 
 	meanprec /= complex(float64(contextParams.ckksContext.Slots()), 0)

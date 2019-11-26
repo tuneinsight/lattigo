@@ -21,13 +21,13 @@ func randomComplex(min, max float64) complex128 {
 
 func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
-	var is_negative bool
+	var isNegative bool
 	var xFlo *big.Float
 	var xInt *big.Int
 
-	is_negative = false
+	isNegative = false
 	if value < 0 {
-		is_negative = true
+		isNegative = true
 		xFlo = big.NewFloat(-n * value)
 	} else {
 		xFlo = big.NewFloat(n * value)
@@ -39,7 +39,7 @@ func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
 	res = xInt.Uint64()
 
-	if is_negative {
+	if isNegative {
 		res = q - res
 	}
 
@@ -48,7 +48,7 @@ func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
 func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]uint64) {
 
-	var is_negative bool
+	var isNegative bool
 	var xFlo *big.Float
 	var xInt *big.Int
 	tmp := new(big.Int)
@@ -57,9 +57,9 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 
 		if n*values[i] > 1.8446744073709552e+19 {
 
-			is_negative = false
+			isNegative = false
 			if values[i] < 0 {
-				is_negative = true
+				isNegative = true
 				xFlo = big.NewFloat(-n * values[i])
 			} else {
 				xFlo = big.NewFloat(n * values[i])
@@ -70,7 +70,7 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 
 			for j := range moduli {
 				tmp.Mod(xInt, ring.NewUint(moduli[j]))
-				if is_negative {
+				if isNegative {
 					coeffs[j][i] = moduli[j] - tmp.Uint64()
 				} else {
 					coeffs[j][i] = tmp.Uint64()
@@ -109,9 +109,9 @@ func scaleDown(coeff *big.Int, n float64) (x float64) {
 	return
 }
 
-// Generates CKKS Primes given logQ = size of the primes, logN = size of N and level, the number
-// of levels we require. Will return all the appropriate primes, up to the number of level, with the
-// best avaliable precision for the given level.
+// GenerateCKKSPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
+// of levels required. Will return all the appropriate primes, up to the number of level, with the
+// best avaliable deviation from the base power of 2 for the given level.
 func GenerateCKKSPrimes(logQ, logN, levels uint64) (primes []uint64) {
 
 	if logQ > 60 {

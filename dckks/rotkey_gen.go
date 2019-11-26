@@ -5,7 +5,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// rotkg is the structure storing the parameters for the collective rotation-keys generation.
+// RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
 	ckksContext *ckks.Context
 
@@ -18,12 +18,14 @@ type RTGProtocol struct {
 	tmpPoly      *ring.Poly
 }
 
+// RTGShare is a struct storing the share of the RTG protocol.
 type RTGShare struct {
 	Type  ckks.Rotation
 	K     uint64
 	Value []*ring.Poly
 }
 
+// AllocateShare allocates the share the the RTG protocol.
 func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 	rtgShare.Value = make([]*ring.Poly, rtg.ckksContext.Beta())
 	for i := uint64(0); i < rtg.ckksContext.Beta(); i++ {
@@ -32,7 +34,7 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 	return
 }
 
-// newrotkg creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
+// NewRotKGProtocol creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
 func NewRotKGProtocol(ckksContext *ckks.Context) (rtg *RTGProtocol) {
 
 	rtg = new(RTGProtocol)
@@ -162,6 +164,7 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
 	}
 }
 
+// Finalize finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
 func (rtg *RTGProtocol) Finalize(share RTGShare, crp []*ring.Poly, rotKey *ckks.RotationKeys) {
 
 	k := share.K & ((rtg.ckksContext.N() >> 1) - 1)

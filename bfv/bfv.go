@@ -229,7 +229,7 @@ func (context *Context) LogP() uint64 {
 	return context.logP
 }
 
-// PlaintextModulus returns the plaintext modulus of the target context.
+// T returns the plaintext modulus of the target context.
 func (context *Context) T() uint64 {
 	return context.t
 }
@@ -239,7 +239,7 @@ func (context *Context) Delta() []uint64 {
 	return context.delta
 }
 
-// Delta returns Q/t, modulo each Qi, where t is the plaintext modulus, Q is the product of all the Qi, of the target context.
+// DeltaMont returns Q/t, modulo each Qi, where t is the plaintext modulus, Q is the product of all the Qi, of the target context.
 func (context *Context) DeltaMont() []uint64 {
 	return context.deltaMont
 }
@@ -269,22 +269,27 @@ func (context *Context) ContextKeys() *ring.Context {
 	return context.contextKeys
 }
 
+// ContextPKeys returns the ring Context of the KeySwitchPrimes.
 func (context *Context) ContextPKeys() *ring.Context {
 	return context.contextPKeys
 }
 
+// KeySwitchPrimes returns the extended P moduli used for the KeySwitching operation.
 func (context *Context) KeySwitchPrimes() []uint64 {
 	return context.specialprimes
 }
 
+// Alpha returns #Pi.
 func (context *Context) Alpha() uint64 {
 	return context.alpha
 }
 
+// Beta returns ceil(#Qi/#Pi).
 func (context *Context) Beta() uint64 {
 	return context.beta
 }
 
+// RescaleParamsKeys returns the rescaling parameters for the P moduli.
 func (context *Context) RescaleParamsKeys() []uint64 {
 	return context.rescaleParamsKeys
 }

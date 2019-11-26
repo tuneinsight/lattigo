@@ -19,13 +19,14 @@ type PCKSProtocol struct {
 	baseconverter *ring.FastBasisExtender
 }
 
-//todo should be :
+// PCKSShare is a type for the PCKS protocol shares.
 type PCKSShare [2]*ring.Poly
 
 //type PCKSShare struct {
 //	share [2]*ring.Poly
 //}
 
+// MarshalBinary encodes a PCKS share on a slice of bytes.
 func (share *PCKSShare) MarshalBinary() ([]byte, error) {
 	//TODO discuss choice here.
 	//Maybe not worth it to have the metadata separated. we "lose" two bytes but complexity of the code would be higher in Unmarshalling.
@@ -46,6 +47,7 @@ func (share *PCKSShare) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnmarshalBinary decodes marshaled PCKS share on the target PCKS share.
 func (share *PCKSShare) UnmarshalBinary(data []byte) error {
 
 	if share[0] == nil {
@@ -69,7 +71,7 @@ func (share *PCKSShare) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key mong j parties under a new
+// NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
 func NewPCKSProtocol(bfvContext *bfv.Context, sigmaSmudging float64) *PCKSProtocol {
 
@@ -88,13 +90,14 @@ func NewPCKSProtocol(bfvContext *bfv.Context, sigmaSmudging float64) *PCKSProtoc
 	return pcks
 }
 
+// AllocateShares allocates the shares of the PCKS protocol
 func (pcks *PCKSProtocol) AllocateShares() (s PCKSShare) {
 	s[0] = pcks.bfvContext.ContextQ().NewPoly()
 	s[1] = pcks.bfvContext.ContextQ().NewPoly()
 	return
 }
 
-// GenShareRoundThree is the first part of the unique round of the PCKSProtocol protocol. Each party computes the following :
+// GenShare is the first part of the unique round of the PCKSProtocol protocol. Each party computes the following :
 //
 // [s_i * ctx[0] + (u_i * pk[0] + e_0i)/P, (u_i * pk[1] + e_1i)/P]
 //
@@ -138,7 +141,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 
 }
 
-// GenShareRoundTwo is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
+// AggregateShares is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]

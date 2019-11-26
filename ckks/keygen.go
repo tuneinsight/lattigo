@@ -1,11 +1,10 @@
 package ckks
 
 import (
-	"encoding/binary"
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Keygenerator is a structure that stores the elements required to create new keys,
+// KeyGenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
 type KeyGenerator struct {
 	ckkscontext *Context
@@ -13,16 +12,17 @@ type KeyGenerator struct {
 	polypool    *ring.Poly
 }
 
-// Secretkey is a structure that stores the secret-key
+// SecretKey is a structure that stores the SecretKey
 type SecretKey struct {
 	sk *ring.Poly
 }
 
-// Publickey is a structure that stores the public-key
+// PublicKey is a structure that stores the PublicKey
 type PublicKey struct {
 	pk [2]*ring.Poly
 }
 
+// Rotation is a type used to represent the rotations types.
 type Rotation int
 
 const (
@@ -31,7 +31,7 @@ const (
 	Conjugate
 )
 
-// Rotationkeys is a structure that stores the switching-keys required during the homomorphic rotations.
+// RotationKeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
 	permuteNTTRightIndex     map[uint64][]uint64
 	permuteNTTLeftIndex      map[uint64][]uint64
@@ -42,12 +42,12 @@ type RotationKeys struct {
 	evakeyConjugate   *SwitchingKey
 }
 
-// Evaluationkey is a structure that stores the switching-keys required during the relinearization.
+// EvaluationKey is a structure that stores the switching-keys required during the relinearization.
 type EvaluationKey struct {
 	evakey *SwitchingKey
 }
 
-// Switchingkey is a structure that stores the switching-keys required during the key-switching.
+// SwitchingKey is a structure that stores the switching-keys required during the key-switching.
 type SwitchingKey struct {
 	evakey [][2]*ring.Poly
 }
@@ -67,70 +67,43 @@ func (ckkscontext *Context) NewKeyGenerator() (keygen *KeyGenerator) {
 	return
 }
 
-// NewSecretKey generates a new secret key with the distribution [1/3, 1/3, 1/3].
+// NewSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
 func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
 	return keygen.NewSecretKeyWithDistrib(1.0 / 3)
 }
 
-// NewSecretKey generates a new secret key with the distribution [(p-1)/2, p, (p-1)/2].
+// NewSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].
 func (keygen *KeyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.sk = keygen.ckkscontext.contextKeys.SampleTernaryMontgomeryNTTNew(p)
 	return sk
 }
 
+// NewSecretKeySparse generates a new SecretKey with exactly hw non zero coefficients.
 func (keygen *KeyGenerator) NewSecretKeySparse(hw uint64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.sk = keygen.ckkscontext.contextKeys.SampleTernarySparseMontgomeryNTTNew(hw)
 	return sk
 }
 
-func (keygen *KeyGenerator) NewSecretKeyEmpty() *SecretKey {
+// NewSecretKey generates a new SecretKey with zero values.
+func (ckkscontext *Context) NewSecretKey() *SecretKey {
 	sk := new(SecretKey)
-	sk.sk = keygen.context.NewPoly()
+	sk.sk = ckkscontext.contextKeys.NewPoly()
 	return sk
 }
 
-// Get returns the secret key value of the secret key.
+// Get returns the SecretKey value of the SecretKey.
 func (sk *SecretKey) Get() *ring.Poly {
 	return sk.sk
 }
 
-// Set sets the value of the secret key to the provided value.
+// Set sets the value of the SecretKey to the provided value.
 func (sk *SecretKey) Set(poly *ring.Poly) {
 	sk.sk = poly.CopyNew()
 }
 
-// MarshalBinary encodes a secret-key on a byte slice. The total size in byte is 1 + N/4.
-func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
-
-	data = make([]byte, sk.GetDataLen(true))
-
-	if _, err = sk.sk.WriteTo(data); err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
-
-func (sk *SecretKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
-	return sk.sk.GetDataLen(WithMetadata)
-}
-
-// UnMarshalBinary decode a previously marshaled secret-key on the target secret-key.
-// The target secret-key must be of the appropriate format, it can be created with the methode NewSecretKeyEmpty().
-func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
-
-	sk.sk = new(ring.Poly)
-
-	if _, err = sk.sk.DecodePolyNew(data); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// NewPublicKey generates a new public key from the provided secret key.
+// NewPublicKey generates a new public key from the provided SecretKey.
 func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = new(PublicKey)
@@ -146,11 +119,12 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 	return pk
 }
 
-func (keygen *KeyGenerator) NewPublicKeyEmpty() (pk *PublicKey) {
+// NewPublicKey returns a new PublicKey with zero values.
+func (ckkscontext *Context) NewPublicKey() (pk *PublicKey) {
 	pk = new(PublicKey)
 
-	pk.pk[0] = keygen.context.NewPoly()
-	pk.pk[1] = keygen.context.NewPoly()
+	pk.pk[0] = ckkscontext.contextKeys.NewPoly()
+	pk.pk[1] = ckkscontext.contextKeys.NewPoly()
 
 	return
 }
@@ -166,70 +140,19 @@ func (pk *PublicKey) Set(poly [2]*ring.Poly) {
 	pk.pk[1] = poly[1].CopyNew()
 }
 
-// MarshalBinary encodes a public-key on a byte slice. The total size is 2 + 16 * N * numberModuliQ.
-func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
-
-	dataLen := pk.GetDataLen(true)
-
-	data = make([]byte, dataLen)
-
-	var pointer, inc uint64
-
-	if inc, err = pk.pk[0].WriteTo(data[pointer:]); err != nil {
-		return nil, err
-	}
-
-	if _, err = pk.pk[1].WriteTo(data[pointer+inc:]); err != nil {
-		return nil, err
-	}
-
-	return data, err
-
-}
-
-func (pk *PublicKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
-
-	for _, el := range pk.pk {
-		dataLen += el.GetDataLen(WithMetadata)
-	}
-
-	return
-}
-
-// UnMarshalBinary decodes a previously marshaled public-key on the target public-key.
-func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
-
-	var pointer, inc uint64
-
-	pk.pk[0] = new(ring.Poly)
-	pk.pk[1] = new(ring.Poly)
-
-	if inc, err = pk.pk[0].DecodePolyNew(data[pointer:]); err != nil {
-		return err
-	}
-
-	if _, err = pk.pk[1].DecodePolyNew(data[pointer+inc:]); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // NewKeyPair generates a new secretkey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
 func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.NewSecretKey()
 	return sk, keygen.NewPublicKey(sk)
 }
 
+// NewKeyPairSparse generates a new secretkey with exactly hw non zero coefficients [1/2, 0, 1/2].
 func (keygen *KeyGenerator) NewKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.NewSecretKeySparse(hw)
 	return sk, keygen.NewPublicKey(sk)
 }
 
-// NewRelinkey generates a new evaluation key that will be used to relinearize the ciphertexts during multiplication.
-// Bitdecomposition aims at reducing the added noise at the expense of more storage needed for the keys and more computation
-// during the relinearization. However for relinearization this bitdecomp value can be set to maximum as the encrypted value
-// are also scaled up during the multiplication.
+// NewRelinKey generates a new evaluation key that will be used to relinearize the ciphertexts during multiplication.
 func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 
 	evakey = new(EvaluationKey)
@@ -241,11 +164,12 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 	return
 }
 
-func (ckkscontext *Context) NewRelinKeyEmpty() (evakey *EvaluationKey) {
+// NewRelinKey returns  new EvaluationKey with zero values.
+func (ckkscontext *Context) NewRelinKey() (evakey *EvaluationKey) {
 	evakey = new(EvaluationKey)
 	evakey.evakey = new(SwitchingKey)
 
-	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
+	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
 	evakey.evakey.evakey = make([][2]*ring.Poly, ckkscontext.beta)
 	for i := uint64(0); i < ckkscontext.beta; i++ {
 
@@ -261,6 +185,7 @@ func (evk *EvaluationKey) Get() *SwitchingKey {
 	return evk.evakey
 }
 
+// Set sets the target Evaluation key with the input polynomials.
 func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 
 	evk.evakey = new(SwitchingKey)
@@ -271,67 +196,38 @@ func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 	}
 }
 
-// MarshalBinary encodes an evaluation key on a byte slice.
-func (evaluationkey *EvaluationKey) MarshalBinary() (data []byte, err error) {
-
-	var pointer uint64
-
-	dataLen := evaluationkey.evakey.GetDataLen(true)
-
-	data = make([]byte, dataLen)
-
-	if _, err = evaluationkey.evakey.encode(pointer, data); err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
-
-// UnMarshalBinary decodes a previously marshaled evaluation-key on the target evaluation-key.
-func (evaluationkey *EvaluationKey) UnmarshalBinary(data []byte) (err error) {
-	evaluationkey.evakey = new(SwitchingKey)
-	if _, err = evaluationkey.evakey.decode(data); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (evaluationkey *EvaluationKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
-	return evaluationkey.evakey.GetDataLen(WithMetadata)
-}
-
 // NewSwitchingKey generated a new keyswitching key, that will re-encrypt a ciphertext encrypted under the input key to the output key.
-// Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewSwitchingKey(sk_input, sk_output *SecretKey) (newevakey *SwitchingKey) {
-	keygen.context.Sub(sk_input.Get(), sk_output.Get(), keygen.polypool)
-	newevakey = keygen.newSwitchingKey(keygen.polypool, sk_output.Get())
+func (keygen *KeyGenerator) NewSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
+	keygen.context.Sub(skInput.Get(), skOutput.Get(), keygen.polypool)
+	newevakey = keygen.newSwitchingKey(keygen.polypool, skOutput.Get())
 	keygen.polypool.Zero()
 	return
 }
 
-func (keygen *KeyGenerator) NewSwitchingKeyEmpty() (evakey *SwitchingKey) {
+// NewSwitchingKey returns a new SwitchingKey with zero values.
+func (ckkscontext *Context) NewSwitchingKey() (evakey *SwitchingKey) {
 	evakey = new(SwitchingKey)
 
-	// delta_sk = sk_input - sk_output = GaloisEnd(sk_output, rotation) - sk_output
-	evakey.evakey = make([][2]*ring.Poly, keygen.ckkscontext.beta)
+	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
+	evakey.evakey = make([][2]*ring.Poly, ckkscontext.beta)
 
-	for i := uint64(0); i < keygen.ckkscontext.beta; i++ {
-		evakey.evakey[i][0] = keygen.context.NewPoly()
-		evakey.evakey[i][1] = keygen.context.NewPoly()
+	for i := uint64(0); i < ckkscontext.beta; i++ {
+		evakey.evakey[i][0] = ckkscontext.contextKeys.NewPoly()
+		evakey.evakey[i][1] = ckkscontext.contextKeys.NewPoly()
 	}
 
 	return
 }
 
-func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switchingkey *SwitchingKey) {
+func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingkey *SwitchingKey) {
 
 	switchingkey = new(SwitchingKey)
 
 	context := keygen.ckkscontext.contextKeys
 
-	// Computes P * sk_in
+	// Computes P * skIn
 	for _, pj := range keygen.ckkscontext.specialprimes {
-		context.MulScalar(sk_in, pj, sk_in)
+		context.MulScalar(skIn, pj, skIn)
 	}
 
 	alpha := keygen.ckkscontext.alpha
@@ -350,19 +246,19 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 		// a (since a is uniform, we consider we already sample it in the NTT and montgomery domain)
 		switchingkey.evakey[i][1] = keygen.context.NewUniformPoly()
 
-		// e + (sk_in * P) * (q_star * q_tild) mod QP
+		// e + (skIn * P) * (q_star * q_tild) mod QP
 		//
 		// q_prod = prod(q[i*alpha+j])
 		// q_star = Q/qprod
 		// q_tild = q_star^-1 mod q_prod
 		//
-		// Therefore : (sk_in * P) * (q_star * q_tild) = sk*P mod q[i*alpha+j], else 0
+		// Therefore : (skIn * P) * (q_star * q_tild) = sk*P mod q[i*alpha+j], else 0
 		for j := uint64(0); j < alpha; j++ {
 
 			index = i*alpha + j
 
 			qi := context.Modulus[index]
-			p0tmp := sk_in.Coeffs[index]
+			p0tmp := skIn.Coeffs[index]
 			p1tmp := switchingkey.evakey[i][0].Coeffs[index]
 
 			for w := uint64(0); w < context.N; w++ {
@@ -375,119 +271,20 @@ func (keygen *KeyGenerator) newSwitchingKey(sk_in, sk_out *ring.Poly) (switching
 			}
 		}
 
-		// (sk_in * P) * (q_star * q_tild) - a * sk_out + e mod QP
-		context.MulCoeffsMontgomeryAndSub(switchingkey.evakey[i][1], sk_out, switchingkey.evakey[i][0])
+		// (skIn * P) * (q_star * q_tild) - a * skOut + e mod QP
+		context.MulCoeffsMontgomeryAndSub(switchingkey.evakey[i][1], skOut, switchingkey.evakey[i][0])
 	}
 
 	return
-}
-
-// MarshalBinary encodes an switching-key on a byte slice.
-func (switchkey *SwitchingKey) MarshalBinary() (data []byte, err error) {
-
-	data = make([]byte, switchkey.GetDataLen(true))
-
-	if _, err = switchkey.encode(0, data); err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
-
-// UnMarshalBinary decode a previously marshaled switching-key on the target switching-key.
-// The target switching-key must have the appropriate format and size, it can be created with the methode NewSwitchingKeyEmpty(uint64).
-func (switchkey *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
-
-	if _, err = switchkey.decode(data); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (switchkey *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
-
-	if WithMetadata {
-		dataLen++
-	}
-
-	for j := uint64(0); j < uint64(len(switchkey.evakey)); j++ {
-		dataLen += switchkey.evakey[j][0].GetDataLen(WithMetadata)
-		dataLen += switchkey.evakey[j][1].GetDataLen(WithMetadata)
-	}
-
-	return
-}
-
-func (switchkey *SwitchingKey) encode(pointer uint64, data []byte) (uint64, error) {
-
-	var err error
-
-	var inc uint64
-
-	data[pointer] = uint8(len(switchkey.evakey))
-
-	pointer++
-
-	for j := uint64(0); j < uint64(len(switchkey.evakey)); j++ {
-
-		if inc, err = switchkey.evakey[j][0].WriteTo(data[pointer:]); err != nil {
-			return pointer, err
-		}
-
-		pointer += inc
-
-		if inc, err = switchkey.evakey[j][1].WriteTo(data[pointer:]); err != nil {
-			return pointer, err
-		}
-
-		pointer += inc
-	}
-
-	return pointer, nil
-}
-
-// UnMarshalBinary decode a previously marshaled switching-key on the target switching-key.
-// The target switching-key must have the appropriate format and size, it can be created with the methode NewSwitchingKeyEmpty(uint64).
-func (switchkey *SwitchingKey) decode(data []byte) (pointer uint64, err error) {
-
-	decomposition := uint64(data[0])
-
-	pointer = uint64(1)
-
-	switchkey.evakey = make([][2]*ring.Poly, decomposition)
-
-	var inc uint64
-
-	for j := uint64(0); j < decomposition; j++ {
-
-		switchkey.evakey[j][0] = new(ring.Poly)
-		if inc, err = switchkey.evakey[j][0].DecodePolyNew(data[pointer:]); err != nil {
-			panic(err)
-		}
-		pointer += inc
-
-		switchkey.evakey[j][1] = new(ring.Poly)
-		if inc, err = switchkey.evakey[j][1].DecodePolyNew(data[pointer:]); err != nil {
-			panic(err)
-		}
-		pointer += inc
-
-	}
-
-	return pointer, nil
 }
 
 // NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
-// Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
 func (ckkscontext *Context) NewRotationKeys() (rotKey *RotationKeys) {
 	rotKey = new(RotationKeys)
 	return
 }
 
-// Newrotationkeys generates a new struct of rotationkeys storing the keys for the specified rotations. The provided secret-key must be the secret-key used to generate the public-key under
-// which the ciphertexts to rotate are encrypted under. Bitdecomp is the power of two binary decomposition of the key. A higher bigdecomp will induce smaller keys, faster key-switching,
-// but at the cost of more noise. rotLeft and rotRight must be a slice of uint64 rotations, row is a boolean value indicating if the key for the row rotation must be generated.
+// GenRot populates input RotationKeys with a SwitchingKey for the given rotation type and amount.
 func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
 	switch rotType {
 	case RotationLeft:
@@ -526,9 +323,8 @@ func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 	}
 }
 
-// NewRotationkeysPow2 generates a new rotation key with all the power of two rotation to the left and right, as well as the conjugation
-// key if asked. Here bitdecomp plays a role in the added noise if the scale of the input is smaller than the maximum size between the modulies.
-func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey) (rotKey *RotationKeys) {
+// NewRotationKeysPow2 generates a new rotation key with all the power of two rotation to the left and right, as well as the conjugation.
+func (keygen *KeyGenerator) NewRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
 
@@ -543,15 +339,16 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(sk_output *SecretKey) (rotKey *R
 		rotKey.permuteNTTLeftIndex[n] = ring.PermuteNTTIndex(keygen.ckkscontext.galElRotColLeft[n], 1<<keygen.ckkscontext.logN)
 		rotKey.permuteNTTRightIndex[n] = ring.PermuteNTTIndex(keygen.ckkscontext.galElRotColRight[n], 1<<keygen.ckkscontext.logN)
 
-		rotKey.evakeyRotColLeft[n] = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotColLeft[n])
-		rotKey.evakeyRotColRight[n] = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotColRight[n])
+		rotKey.evakeyRotColLeft[n] = keygen.genrotKey(skOutput.Get(), keygen.ckkscontext.galElRotColLeft[n])
+		rotKey.evakeyRotColRight[n] = keygen.genrotKey(skOutput.Get(), keygen.ckkscontext.galElRotColRight[n])
 	}
 
 	rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(keygen.ckkscontext.galElRotRow, 1<<keygen.ckkscontext.logN)
-	rotKey.evakeyConjugate = keygen.genrotKey(sk_output.Get(), keygen.ckkscontext.galElRotRow)
+	rotKey.evakeyConjugate = keygen.genrotKey(skOutput.Get(), keygen.ckkscontext.galElRotRow)
 	return
 }
 
+// SetRotKey sets the target RotationKeys' SwitchingKey for the specified rotation type and amount with the input polynomials.
 func (ckkscontext *Context) SetRotKey(evakey [][2]*ring.Poly, rotType Rotation, k uint64, rotKey *RotationKeys) {
 	switch rotType {
 	case RotationLeft:
@@ -614,132 +411,12 @@ func (ckkscontext *Context) SetRotKey(evakey [][2]*ring.Poly, rotType Rotation, 
 	}
 }
 
-func (keygen *KeyGenerator) genrotKey(sk_output *ring.Poly, gen uint64) (switchingkey *SwitchingKey) {
+func (keygen *KeyGenerator) genrotKey(skOutput *ring.Poly, gen uint64) (switchingkey *SwitchingKey) {
 
-	ring.PermuteNTT(sk_output, gen, keygen.polypool)
-	keygen.context.Sub(keygen.polypool, sk_output, keygen.polypool)
-	switchingkey = keygen.newSwitchingKey(keygen.polypool, sk_output)
+	ring.PermuteNTT(skOutput, gen, keygen.polypool)
+	keygen.context.Sub(keygen.polypool, skOutput, keygen.polypool)
+	switchingkey = keygen.newSwitchingKey(keygen.polypool, skOutput)
 	keygen.polypool.Zero()
 
 	return
-}
-
-// MarshalBinary encodes a rotationkeys structure on a byte slice.
-func (rotationkey *RotationKeys) MarshalBinary() ([]byte, error) {
-
-	mappingColL := []uint64{}
-	mappingColR := []uint64{}
-
-	var dataLen uint64
-	dataLen = 0
-
-	for i := range rotationkey.evakeyRotColLeft {
-
-		mappingColL = append(mappingColL, i)
-
-		dataLen += 4 + rotationkey.evakeyRotColLeft[i].GetDataLen(true)
-	}
-
-	for i := range rotationkey.evakeyRotColRight {
-
-		mappingColR = append(mappingColR, i)
-
-		dataLen += 4 + rotationkey.evakeyRotColRight[i].GetDataLen(true)
-	}
-
-	if rotationkey.evakeyConjugate != nil {
-
-		dataLen += 4 + rotationkey.evakeyConjugate.GetDataLen(true)
-	}
-
-	data := make([]byte, dataLen)
-
-	pointer := uint64(0)
-
-	for _, i := range mappingColL {
-
-		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(i))
-		data[pointer] = uint8(RotationLeft)
-		pointer += 4
-
-		pointer, _ = rotationkey.evakeyRotColLeft[i].encode(pointer, data)
-	}
-
-	for _, i := range mappingColR {
-
-		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(i))
-		data[pointer] = uint8(RotationRight)
-		pointer += 4
-
-		pointer, _ = rotationkey.evakeyRotColRight[i].encode(pointer, data)
-	}
-
-	if rotationkey.evakeyConjugate != nil {
-
-		data[pointer] = uint8(Conjugate)
-		pointer += 4
-
-		_, _ = rotationkey.evakeyConjugate.encode(pointer, data)
-	}
-
-	return data, nil
-}
-
-func (rotationkey *RotationKeys) UnmarshalBinary(data []byte) (err error) {
-
-	var rotationType int
-	var rotationNumber uint64
-
-	pointer := uint64(0)
-	var inc uint64
-
-	dataLen := len(data)
-
-	for dataLen > 0 {
-
-		rotationType = int(data[pointer])
-		rotationNumber = (uint64(data[pointer+1]) << 16) | (uint64(data[pointer+2]) << 8) | (uint64(data[pointer+3]))
-
-		pointer += 4
-
-		if rotationType == RotationLeft {
-
-			if rotationkey.evakeyRotColLeft == nil {
-				rotationkey.evakeyRotColLeft = make(map[uint64]*SwitchingKey)
-			}
-
-			rotationkey.evakeyRotColLeft[rotationNumber] = new(SwitchingKey)
-			if inc, err = rotationkey.evakeyRotColLeft[rotationNumber].decode(data[pointer:]); err != nil {
-				return err
-			}
-
-		} else if rotationType == RotationRight {
-
-			if rotationkey.evakeyRotColRight == nil {
-				rotationkey.evakeyRotColRight = make(map[uint64]*SwitchingKey)
-			}
-
-			rotationkey.evakeyRotColRight[rotationNumber] = new(SwitchingKey)
-			if inc, err = rotationkey.evakeyRotColRight[rotationNumber].decode(data[pointer:]); err != nil {
-				return err
-			}
-
-		} else if rotationType == Conjugate {
-
-			rotationkey.evakeyConjugate = new(SwitchingKey)
-			if inc, err = rotationkey.evakeyConjugate.decode(data[pointer:]); err != nil {
-				return err
-			}
-
-		} else {
-
-			return err
-		}
-
-		pointer += inc
-
-		dataLen -= int(4 + inc)
-	}
-
-	return nil
 }

@@ -19,11 +19,12 @@ type CKSProtocol struct {
 	baseconverter *ring.FastBasisExtender
 }
 
-//type CKSShare *ring.Poly
+// CKSShare is a type for the CKS protocol shares.
 type CKSShare struct {
 	*ring.Poly
 }
 
+// UnmarshalBinary decodes a previouls marshaled share on the target share.
 func (share *CKSShare) UnmarshalBinary(data []byte) error {
 	share.Poly = new(ring.Poly)
 	err := share.Poly.UnmarshalBinary(data)
@@ -32,7 +33,7 @@ func (share *CKSShare) UnmarshalBinary(data []byte) error {
 }
 
 // NewCKSProtocol creates a new CKSProtocol that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
-// secret-shares are distributed among j parties, re-encrypting the ciphertext under an other public-key, whose secret-shares are also known to the
+// secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
 func NewCKSProtocol(bfvContext *bfv.Context, sigmaSmudging float64) *CKSProtocol {
 
@@ -51,6 +52,7 @@ func NewCKSProtocol(bfvContext *bfv.Context, sigmaSmudging float64) *CKSProtocol
 	return cks
 }
 
+// AllocateShare allocates the shares of the CKSProtocol
 func (cks *CKSProtocol) AllocateShare() CKSShare {
 
 	//return cks.bfvContext.ContextQ().NewPoly()
@@ -68,10 +70,10 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *ring.Poly, ct *bfv.Ciphertex
 
 	cks.bfvContext.ContextQ().Sub(skInput, skOutput, cks.tmpDelta)
 
-	cks.GenShareDelta(cks.tmpDelta, ct, shareOut)
+	cks.genShareDelta(cks.tmpDelta, ct, shareOut)
 }
 
-func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, shareOut CKSShare) {
+func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, shareOut CKSShare) {
 
 	level := uint64(len(ct.Value()[1].Coeffs) - 1)
 
@@ -101,7 +103,7 @@ func (cks *CKSProtocol) GenShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 	cks.hP.Zero()
 }
 
-// AggregateShares is the second part of the unique round of the CKSProtocol protocol. Uppon receiving the j-1 elements each party computes :
+// AggregateShares is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
 func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut CKSShare) {

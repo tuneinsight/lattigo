@@ -20,6 +20,7 @@ type PCKSProtocol struct {
 	baseconverter *ring.FastBasisExtender
 }
 
+// PCKSShare is a struct storing the share of the PCKS protocol.
 type PCKSShare [2]*ring.Poly
 
 // NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key mong j parties under a new
@@ -41,13 +42,14 @@ func NewPCKSProtocol(ckksContext *ckks.Context, sigmaSmudging float64) *PCKSProt
 	return pcks
 }
 
+// AllocateShares allocates the share of the PCKS protocol.
 func (pcks *PCKSProtocol) AllocateShares(level uint64) (s PCKSShare) {
 	s[0] = pcks.ckksContext.ContextQ().NewPolyLvl(level)
 	s[1] = pcks.ckksContext.ContextQ().NewPolyLvl(level)
 	return
 }
 
-// GenShareRoundThree is the first part of the unique round of the PCKSProtocol protocol. Each party computes the following :
+// GenShare is the first part of the unique round of the PCKSProtocol protocol. Each party computes the following :
 //
 // [s_i * ctx[0] + u_i * pk[0] + e_0i, u_i * pk[1] + e_1i]
 //
@@ -85,7 +87,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	pcks.tmp.Zero()
 }
 
-// GenShareRoundTwo is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
+// AggregateShares is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]

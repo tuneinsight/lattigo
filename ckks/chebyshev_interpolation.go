@@ -4,6 +4,7 @@ import (
 	"math"
 )
 
+// ChebyshevInterpolation is a struct storing the coefficients, degree and range of a Chebyshev interpolation polynomial.
 type ChebyshevInterpolation struct {
 	coeffs map[uint64]complex128
 	degree uint64

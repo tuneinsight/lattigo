@@ -7,6 +7,7 @@ import (
 	//"fmt"
 )
 
+// RefreshProtocol is a struct storing the relevant parameters for the Refresh protocol.
 type RefreshProtocol struct {
 	bfvContext    *bfv.Context
 	tmp1          *ring.Poly
@@ -15,13 +16,19 @@ type RefreshProtocol struct {
 	baseconverter *ring.FastBasisExtender
 }
 
+// RefreshShareDecrypt is a struct storing the decrpytion share.
 type RefreshShareDecrypt *ring.Poly
+
+// RefreshShareRecrypt is a struct storing the recrpytion share.
 type RefreshShareRecrypt *ring.Poly
+
+// RefreshShare is a struct storing the decryption and recryption shares.
 type RefreshShare struct {
 	RefreshShareDecrypt RefreshShareDecrypt
 	RefreshShareRecrypt RefreshShareRecrypt
 }
 
+// MarshalBinary encodes a RefreshShare on a slice of bytes.
 func (share *RefreshShare) MarshalBinary() ([]byte, error) {
 	lenDecrypt := (*share.RefreshShareDecrypt).GetDataLen(true)
 	lenRecrypt := (*share.RefreshShareRecrypt).GetDataLen(true)
@@ -45,6 +52,7 @@ func (share *RefreshShare) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+// UnmarshalBinary decodes a marshaled RefreshShare on the target RefreshShare.
 func (share *RefreshShare) UnmarshalBinary(data []byte) error {
 	lenDecrypt := binary.BigEndian.Uint64(data[0:8])
 	lenRecrypt := binary.BigEndian.Uint64(data[8:16])
@@ -67,6 +75,7 @@ func (share *RefreshShare) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// NewRefreshProtocol creates a new Refresh protocol instance.
 func NewRefreshProtocol(bfvContext *bfv.Context) (refreshProtocol *RefreshProtocol) {
 	refreshProtocol = new(RefreshProtocol)
 	refreshProtocol.bfvContext = bfvContext
@@ -79,11 +88,13 @@ func NewRefreshProtocol(bfvContext *bfv.Context) (refreshProtocol *RefreshProtoc
 	return
 }
 
+// AllocateShares allocates the shares of the Refresh protocol.
 func (rfp *RefreshProtocol) AllocateShares() RefreshShare {
 	return RefreshShare{rfp.bfvContext.ContextQ().NewPoly(),
 		rfp.bfvContext.ContextQ().NewPoly()}
 }
 
+// GenShares generates a share for the Refresh protocol.
 func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, share RefreshShare) {
 
 	level := uint64(len(ciphertext.Value()[1].Coeffs) - 1)
@@ -141,15 +152,18 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	contextQ.Sub(share.RefreshShareRecrypt, rfp.tmp1, share.RefreshShareRecrypt)
 }
 
+// Aggregate sums share1 and share2 on shareOut.
 func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
 	rfp.bfvContext.ContextQ().Add(share1.RefreshShareDecrypt, share2.RefreshShareDecrypt, shareOut.RefreshShareDecrypt)
 	rfp.bfvContext.ContextQ().Add(share1.RefreshShareRecrypt, share2.RefreshShareRecrypt, shareOut.RefreshShareRecrypt)
 }
 
+// Decrypt operates a masked decryption on the input ciphertext using the provided decryption shares.
 func (rfp *RefreshProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt RefreshShareDecrypt, sharePlaintext *ring.Poly) {
 	rfp.bfvContext.ContextQ().Add(ciphertext.Value()[0], shareDecrypt, sharePlaintext)
 }
 
+// Recode decodes and re-encode (removing the error) the masked decrypted ciphertext.
 func (rfp *RefreshProtocol) Recode(sharePlaintext *ring.Poly, sharePlaintextOut *ring.Poly) {
 	scaler := ring.NewSimpleScaler(rfp.bfvContext.T(), rfp.bfvContext.ContextQ())
 
@@ -157,6 +171,7 @@ func (rfp *RefreshProtocol) Recode(sharePlaintext *ring.Poly, sharePlaintextOut 
 	lift(sharePlaintextOut, sharePlaintextOut, rfp.bfvContext)
 }
 
+// Recrypt recrypts the input masked decrypted ciphertext with the recryption shares.
 func (rfp *RefreshProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, shareRecrypt RefreshShareRecrypt, ciphertextOut *bfv.Ciphertext) {
 
 	// ciphertext[0] = (-crs*s + e')/P + m
@@ -167,6 +182,7 @@ func (rfp *RefreshProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, s
 
 }
 
+// Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
 func (rfp *RefreshProtocol) Finalize(ciphertext *bfv.Ciphertext, crs *ring.Poly, share RefreshShare, ciphertextOut *bfv.Ciphertext) {
 	rfp.Decrypt(ciphertext, share.RefreshShareDecrypt, rfp.tmp1)
 	rfp.Recode(rfp.tmp1, rfp.tmp1)

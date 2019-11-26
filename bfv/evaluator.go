@@ -194,7 +194,7 @@ func (evaluator *Evaluator) Neg(op Operand, ctOut *Ciphertext) {
 	evaluateInPlaceUnary(el0, elOut, evaluator.context.contextQ.Neg)
 }
 
-// Neg negates op and creates a new element to store the result.
+// NegNew negates op and creates a new element to store the result.
 func (evaluator *Evaluator) NegNew(op Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.context.NewCiphertext(op.Degree())
 	evaluator.Neg(op, ctOut)
@@ -207,7 +207,7 @@ func (evaluator *Evaluator) Reduce(op Operand, ctOut *Ciphertext) {
 	evaluateInPlaceUnary(el0, elOut, evaluator.context.contextQ.Reduce)
 }
 
-// Reduce applies a modular reduction on op and creates a new element ctOut to store the result.
+// ReduceNew applies a modular reduction on op and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) ReduceNew(op Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.context.NewCiphertext(op.Degree())
 	evaluator.Reduce(op, ctOut)
@@ -417,7 +417,7 @@ func (evaluator *Evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphert
 	return
 }
 
-// relinearize is a methode common to Relinearize and RelinearizeNew. It switches ct0 out in the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
+// relinearize is a method common to Relinearize and RelinearizeNew. It switches ct0 out in the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
 func (evaluator *Evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
 
 	if ctOut != ct0 {
@@ -432,14 +432,14 @@ func (evaluator *Evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 	ctOut.SetValue(ctOut.value[:2])
 }
 
-// Relinearize relinearize the ciphertext ct0 of degree > 1 until it is of degree 1 and returns the result on cOut.
+// Relinearize relinearizes the ciphertext ct0 of degree > 1 until it is of degree 1 and returns the result on cOut.
 //
 // Requires a correct evaluation key as additional input :
 //
 // - it must match the secret-key that was used to create the public key under which the current ct0 is encrypted.
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext
-//of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
+// of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
 func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
 
 	if int(ct0.Degree()-1) > len(evakey.evakey) {
@@ -455,7 +455,7 @@ func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 	}
 }
 
-// Relinearize relinearize the ciphertext ct0 of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
+// RelinearizeNew relinearizes the ciphertext ct0 of degree > 1 until it is of degree 1 and creates a new ciphertext to store the result.
 //
 // Requires a correct evaluation key as additional input :
 //
@@ -485,7 +485,7 @@ func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey,
 	evaluator.switchKeys(ct0.value[1], switchKey, ctOut)
 }
 
-// SwitchKeys applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valide switching-key :
+// SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valide switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
 func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext) {
 	ctOut = evaluator.context.NewCiphertext(1)
@@ -493,6 +493,7 @@ func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingK
 	return
 }
 
+// RotateColumnsNew applies RotateColumns and returns the result on a new Ciphertext.
 func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext) {
 	ctOut = evaluator.context.NewCiphertext(1)
 	evaluator.RotateColumns(ct0, k, evakey, ctOut)
@@ -527,16 +528,16 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 		} else {
 
 			// If not looks if the left and right pow2 rotations have been generated
-			has_pow2_rotations := true
+			hasPow2Rotations := true
 			for i := uint64(1); i < evaluator.context.n>>1; i <<= 1 {
 				if evakey.evakeyRotColLeft[i] == nil || evakey.evakeyRotColRight[i] == nil {
-					has_pow2_rotations = false
+					hasPow2Rotations = false
 					break
 				}
 			}
 
 			// If yes, computes the least amount of rotation between k to the left and n/2 -k to the right required to apply the demanded rotation
-			if has_pow2_rotations {
+			if hasPow2Rotations {
 
 				if utils.HammingWeight64(k) <= utils.HammingWeight64((evaluator.context.n>>1)-k) {
 					evaluator.rotateColumnsLPow2(ct0, k, evakey, ctOut)
@@ -563,15 +564,15 @@ func (evaluator *Evaluator) rotateColumnsRPow2(ct0 *Ciphertext, k uint64, evakey
 }
 
 // rotateColumnsPow2 rotates ct0 by k position (left or right depending on the input), decomposing k as a sum of power of 2 rotations, and returns the result on ctOut.
-func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint64, evakey_rot_col map[uint64]*SwitchingKey, ctOut *Ciphertext) {
+func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint64, evakeyRotCol map[uint64]*SwitchingKey, ctOut *Ciphertext) {
 
-	var mask, evakey_index uint64
+	var mask, evakeyIndex uint64
 
 	context := evaluator.context.contextQ
 
 	mask = (evaluator.context.n << 1) - 1
 
-	evakey_index = 1
+	evakeyIndex = 1
 
 	if ct0 != ctOut {
 		context.Copy(ct0.value[0], ctOut.value[0])
@@ -583,13 +584,13 @@ func (evaluator *Evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint
 
 		if k&1 == 1 {
 
-			evaluator.permute(ctOut, generator, evakey_rot_col[evakey_index], ctOut)
+			evaluator.permute(ctOut, generator, evakeyRotCol[evakeyIndex], ctOut)
 		}
 
 		generator *= generator
 		generator &= mask
 
-		evakey_index <<= 1
+		evakeyIndex <<= 1
 		k >>= 1
 	}
 }
@@ -608,6 +609,7 @@ func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ct
 	evaluator.permute(ct0, evaluator.context.galElRotRow, evakey.evakeyRotRow, ctOut)
 }
 
+// RotateRowsNew swaps the rows of ct0 and returns the result a new Ciphertext.
 func (evaluator *Evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext) {
 	ctOut = evaluator.context.NewCiphertext(1)
 	evaluator.RotateRows(ct0, evakey, ctOut)
@@ -672,7 +674,7 @@ func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 		evaluator.keyswitchpool[i].Zero()
 	}
 
-	c2_qi := evaluator.keyswitchpool[0]
+	c2Qi := evaluator.keyswitchpool[0]
 	c2 := evaluator.keyswitchpool[1]
 
 	// We switch the element on which the switching key operation will be conducted out of the NTT domain
@@ -681,7 +683,7 @@ func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 	reduce = 0
 
 	N := contextKeys.N
-	c2_qi_ntt := make([]uint64, N)
+	c2QiNtt := make([]uint64, N)
 
 	// Key switching with crt decomposition for the Qi
 	for i := uint64(0); i < evaluator.context.beta; i++ {
@@ -689,8 +691,8 @@ func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 		p0idxst := i * evaluator.context.alpha
 		p0idxed := p0idxst + evaluator.decomposer.Xalpha()[i]
 
-		// c2_qi = cx mod qi
-		evaluator.decomposer.Decompose(level, i, cx, c2_qi)
+		// c2Qi = cx mod qi
+		evaluator.decomposer.Decompose(level, i, cx, c2Qi)
 
 		for x, qi := range contextKeys.Modulus {
 
@@ -701,10 +703,10 @@ func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 			if p0idxst <= uint64(x) && uint64(x) < p0idxed {
 				p2tmp := c2.Coeffs[x]
 				for j := uint64(0); j < N; j++ {
-					c2_qi_ntt[j] = p2tmp[j]
+					c2QiNtt[j] = p2tmp[j]
 				}
 			} else {
-				ring.NTT(c2_qi.Coeffs[x], c2_qi_ntt, N, nttPsi, qi, mredParams, bredParams)
+				ring.NTT(c2Qi.Coeffs[x], c2QiNtt, N, nttPsi, qi, mredParams, bredParams)
 			}
 
 			key0 := evakey.evakey[i][0].Coeffs[x]
@@ -713,8 +715,8 @@ func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 			p3tmp := evaluator.keyswitchpool[3].Coeffs[x]
 
 			for y := uint64(0); y < context.N; y++ {
-				p2tmp[y] += ring.MRed(key0[y], c2_qi_ntt[y], qi, mredParams)
-				p3tmp[y] += ring.MRed(key1[y], c2_qi_ntt[y], qi, mredParams)
+				p2tmp[y] += ring.MRed(key0[y], c2QiNtt[y], qi, mredParams)
+				p3tmp[y] += ring.MRed(key1[y], c2QiNtt[y], qi, mredParams)
 			}
 		}
 
@@ -723,7 +725,7 @@ func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 			contextKeys.Reduce(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
 		}
 
-		reduce += 1
+		reduce++
 	}
 
 	if (reduce-1)&7 != 7 {

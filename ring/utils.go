@@ -5,7 +5,7 @@ import (
 	"math/bits"
 )
 
-// PowerOf2 returns (x*2^n)%q where x is in montgomery form
+// PowerOf2 returns (x*2^n)%q where x is in Montgomery form
 func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 	ahi, alo := x>>(64-n), x<<n
 	R := alo * qInv
@@ -36,7 +36,7 @@ func ModExp(x, e, p uint64) (result uint64) {
 }
 
 // modexpMontgomery performes the modular exponentiation x^e mod p,
-// where x is in montgomery form, and returns x^2 in montgomery form.
+// where x is in Montgomery form, and returns x^2 in Montgomery form.
 func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64) {
 
 	result = MForm(1, q, bredParams)
@@ -98,7 +98,7 @@ func IsPrime(num uint64) bool {
 	k := 0
 	for (s & 1) == 0 {
 		s >>= 1
-		k += 1
+		k++
 	}
 
 	bredParams := BRedParams(num)
@@ -114,7 +114,7 @@ func IsPrime(num uint64) bool {
 				if i == k-1 {
 					return false
 				} else {
-					i += 1
+					i++
 					x = BRed(x, x, num, bredParams)
 				}
 			}
@@ -123,7 +123,7 @@ func IsPrime(num uint64) bool {
 	return true
 }
 
-// GenerateNTTPrimes generates "n" primes of bitlen "bitLen", stuited for NTT with "N",
+// GenerateNTTPrimes generates "n" primes of bitlen "bitLen", suited for NTT with "N",
 // starting from the integer "start" (which must be 1 mod 2N) and increasing (true) / decreasing (false) order
 func GenerateNTTPrimes(N, start, n, bitLen uint64, sign bool) ([]uint64, error) {
 	var x, v uint64
@@ -155,7 +155,7 @@ func GenerateNTTPrimes(N, start, n, bitLen uint64, sign bool) ([]uint64, error) 
 
 		if IsPrime(x) {
 			primes[i] = x
-			i += 1
+			i++
 		}
 
 		if sign {
@@ -184,7 +184,7 @@ func primitiveRoot(q uint64) uint64 {
 	g = 2
 
 	for notFoundPrimitiveRoot {
-		g += 1
+		g++
 		for _, factor := range factors {
 			tmp = (q - 1) / factor
 			// if for any factor of q-1, g^(q-1)/factor = 1 mod q, g is not a primitive root

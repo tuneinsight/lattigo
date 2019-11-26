@@ -66,7 +66,7 @@ func (context *Context) UniformPoly(Pol *Poly) {
 	return
 }
 
-// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
+// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
 func (context *Context) NewUniformPoly() (Pol *Poly) {
 
 	Pol = context.NewPoly()
@@ -76,6 +76,7 @@ func (context *Context) NewUniformPoly() (Pol *Poly) {
 	return
 }
 
+// NewUniformPolyLvl generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
 func (context *Context) NewUniformPolyLvl(level uint64) (Pol *Poly) {
 
 	Pol = context.NewPolyLvl(level)

@@ -8,15 +8,15 @@ import (
 
 // Encoder is a struct storing the necessary parameters to encode a slice of complex number on a plaintext.
 type Encoder struct {
-	ckkscontext   *Context
-	values        []complex128
-	valuesfloat   []float64
-	bigint_coeffs []*big.Int
-	q_half        *big.Int
-	polypool      *ring.Poly
-	m             uint64
-	roots         []complex128
-	rotGroup      []uint64
+	ckkscontext  *Context
+	values       []complex128
+	valuesfloat  []float64
+	bigintCoeffs []*big.Int
+	qHalf        *big.Int
+	polypool     *ring.Poly
+	m            uint64
+	roots        []complex128
+	rotGroup     []uint64
 }
 
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
@@ -25,8 +25,8 @@ func (ckkscontext *Context) NewEncoder() (encoder *Encoder) {
 	encoder.ckkscontext = ckkscontext
 	encoder.values = make([]complex128, ckkscontext.maxSlots)
 	encoder.valuesfloat = make([]float64, ckkscontext.n)
-	encoder.bigint_coeffs = make([]*big.Int, ckkscontext.n)
-	encoder.q_half = ring.NewUint(0)
+	encoder.bigintCoeffs = make([]*big.Int, ckkscontext.n)
+	encoder.qHalf = ring.NewUint(0)
 	encoder.polypool = ckkscontext.contextQ.NewPoly()
 
 	encoder.m = ckkscontext.n << 1
@@ -50,7 +50,7 @@ func (ckkscontext *Context) NewEncoder() (encoder *Encoder) {
 	return
 }
 
-// EncodeFloat takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
+// Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
 func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
 
 	if uint64(len(values)) > encoder.ckkscontext.maxSlots || uint64(len(values)) > slots {
@@ -83,18 +83,18 @@ func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 	}
 }
 
-// DecodeFloat decodes the plaintext values to a slice of complex128 values of size at most N/2.
+// Decode decodes the plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 
 	encoder.ckkscontext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
-	encoder.ckkscontext.contextQ.PolyToBigint(encoder.polypool, encoder.bigint_coeffs)
+	encoder.ckkscontext.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
 	Q := encoder.ckkscontext.bigintChain[plaintext.Level()]
 
 	maxSlots := encoder.ckkscontext.maxSlots
 
-	encoder.q_half.Set(Q)
-	encoder.q_half.Rsh(encoder.q_half, 1)
+	encoder.qHalf.Set(Q)
+	encoder.qHalf.Rsh(encoder.qHalf, 1)
 
 	gap := encoder.ckkscontext.maxSlots / slots
 
@@ -103,20 +103,20 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
 
 		// Centers the value arounds the current modulus
-		encoder.bigint_coeffs[idx].Mod(encoder.bigint_coeffs[idx], Q)
-		sign = encoder.bigint_coeffs[idx].Cmp(encoder.q_half)
+		encoder.bigintCoeffs[idx].Mod(encoder.bigintCoeffs[idx], Q)
+		sign = encoder.bigintCoeffs[idx].Cmp(encoder.qHalf)
 		if sign == 1 || sign == 0 {
-			encoder.bigint_coeffs[idx].Sub(encoder.bigint_coeffs[idx], Q)
+			encoder.bigintCoeffs[idx].Sub(encoder.bigintCoeffs[idx], Q)
 		}
 
 		// Centers the value arounds the current modulus
-		encoder.bigint_coeffs[idx+maxSlots].Mod(encoder.bigint_coeffs[idx+maxSlots], Q)
-		sign = encoder.bigint_coeffs[idx+maxSlots].Cmp(encoder.q_half)
+		encoder.bigintCoeffs[idx+maxSlots].Mod(encoder.bigintCoeffs[idx+maxSlots], Q)
+		sign = encoder.bigintCoeffs[idx+maxSlots].Cmp(encoder.qHalf)
 		if sign == 1 || sign == 0 {
-			encoder.bigint_coeffs[idx+maxSlots].Sub(encoder.bigint_coeffs[idx+maxSlots], Q)
+			encoder.bigintCoeffs[idx+maxSlots].Sub(encoder.bigintCoeffs[idx+maxSlots], Q)
 		}
 
-		encoder.values[i] = complex(scaleDown(encoder.bigint_coeffs[idx], plaintext.scale), scaleDown(encoder.bigint_coeffs[idx+maxSlots], plaintext.scale))
+		encoder.values[i] = complex(scaleDown(encoder.bigintCoeffs[idx], plaintext.scale), scaleDown(encoder.bigintCoeffs[idx+maxSlots], plaintext.scale))
 	}
 
 	encoder.fft(encoder.values, slots)

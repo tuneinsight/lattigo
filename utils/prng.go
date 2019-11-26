@@ -6,7 +6,7 @@ import (
 	"hash"
 )
 
-// PRNG is a structure storing the parameters used to securely and deterministicaly generate shared
+// PRNG is a structure storing the parameters used to securely and deterministically generate shared
 // sequences of random bytes among different parties using the hash function blake2b. Backward sequence
 // security (given the digest i, compute the digest i-1) is ensured by default, however forward sequence
 // security (given the digest i, compute the digest i+1) is only ensured if the PRNG is given a key.
@@ -41,6 +41,7 @@ func (prng *PRNG) Seed(seed []byte) {
 	prng.clock = 0
 }
 
+// GetSeed returns the current seed of the PRNG.
 func (prng *PRNG) GetSeed() []byte {
 	return prng.seed[:]
 }
@@ -51,7 +52,7 @@ func (prng *PRNG) GetSeed() []byte {
 func (prng *PRNG) Clock() []byte {
 	tmp := prng.hash.Sum(nil)
 	prng.hash.Write(tmp)
-	prng.clock += 1
+	prng.clock++
 	return tmp
 }
 
@@ -66,7 +67,7 @@ func (prng *PRNG) SetClock(n uint64) error {
 	for prng.clock != n {
 		tmp = prng.hash.Sum(nil)
 		prng.hash.Write(tmp)
-		prng.clock += 1
+		prng.clock++
 	}
 	return nil
 }

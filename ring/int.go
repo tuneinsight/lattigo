@@ -10,7 +10,7 @@ func NewInt(v int64) *big.Int {
 	return new(big.Int).SetInt64(v)
 }
 
-// NewInt creates a new Int with a given uint64 value.
+// NewUint creates a new Int with a given uint64 value.
 func NewUint(v uint64) *big.Int {
 	return new(big.Int).SetUint64(v)
 }

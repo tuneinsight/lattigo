@@ -10,7 +10,7 @@ import (
 
 const GaloisGen uint64 = 5
 
-// CkksContext is a struct which contains all the elements required to instantiate the CKKS Scheme. This includes the parameters (N, ciphertext modulus,
+// Context is a struct which contains all the elements required to instantiate the CKKS Scheme. This includes the parameters (N, ciphertext modulus,
 // sampling, polynomial contexts and other parameters required for the homomorphic operations).
 type Context struct {
 
@@ -21,7 +21,7 @@ type Context struct {
 	n        uint64
 	maxSlots uint64
 
-	// Number of avaliable levels
+	// Number of available levels
 	levels uint64
 
 	// Moduli chain
@@ -56,7 +56,7 @@ type Context struct {
 	galElRotColRight []uint64
 }
 
-// NewContext creates a new CkksContext with the given parameters. Returns an error if one of the parameters would not ensure the
+// NewContext creates a new Context with the given parameters. Returns an error if one of the parameters would not ensure the
 // correctness of the scheme (however it doesn't check for security).
 func NewContext(params *Parameters) (ckkscontext *Context) {
 	var err error
@@ -81,7 +81,7 @@ func NewContext(params *Parameters) (ckkscontext *Context) {
 	primesbitlen := make(map[uint64]uint64)
 	for i, qi := range params.Modulichain {
 
-		primesbitlen[uint64(qi)] += 1
+		primesbitlen[uint64(qi)]++
 
 		if uint64(params.Modulichain[i]) > 60 {
 			panic("provided moduli must be smaller than 61")
@@ -89,7 +89,7 @@ func NewContext(params *Parameters) (ckkscontext *Context) {
 	}
 
 	for _, pj := range params.P {
-		primesbitlen[uint64(pj)] += 1
+		primesbitlen[uint64(pj)]++
 
 		if uint64(pj) > 60 {
 			panic("provided P must be smaller than 61")
@@ -200,7 +200,7 @@ func NewContext(params *Parameters) (ckkscontext *Context) {
 
 }
 
-// LogN returns logN of the Context.
+// N returns logN of the Context.
 func (ckkscontext *Context) N() uint64 {
 	return 1 << ckkscontext.logN
 }
@@ -220,22 +220,27 @@ func (ckkscontext *Context) Moduli() []uint64 {
 	return ckkscontext.moduli
 }
 
+// BigintChain returns the moduli chain in big.Int.
 func (ckkscontext *Context) BigintChain() []*big.Int {
 	return ckkscontext.bigintChain
 }
 
+// KeySwitchPrimes returns the extra moduli used for the KeySwitching operation.
 func (ckkscontext *Context) KeySwitchPrimes() []uint64 {
 	return ckkscontext.specialprimes
 }
 
+// Alpha returns #Pi.
 func (ckkscontext *Context) Alpha() uint64 {
 	return ckkscontext.alpha
 }
 
+// Beta returns ceil(#Qi/#Pi)
 func (ckkscontext *Context) Beta() uint64 {
 	return ckkscontext.beta
 }
 
+// RescaleParamsKeys returns the rescaling parameters for the KeySwitching operation.
 func (ckkscontext *Context) RescaleParamsKeys() []uint64 {
 	return ckkscontext.rescaleParamsKeys
 }
@@ -250,15 +255,17 @@ func (ckkscontext *Context) Scale() float64 {
 	return ckkscontext.scale
 }
 
+// ContextQ returns the rint context of the Ciphertexts.
 func (ckkscontext *Context) ContextQ() *ring.Context {
 	return ckkscontext.contextQ
 }
 
+// ContextP returns the rint context of the KeySwitchPrimes.
 func (ckkscontext *Context) ContextP() *ring.Context {
 	return ckkscontext.contextP
 }
 
-// ContextKeys returns the ring context under which the keys are created.
+// ContextKeys returns the ring context of the keys.
 func (ckkscontext *Context) ContextKeys() *ring.Context {
 	return ckkscontext.contextKeys
 }

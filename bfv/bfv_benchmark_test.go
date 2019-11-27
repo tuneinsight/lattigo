@@ -18,7 +18,7 @@ func Benchmark_BFV(b *testing.B) {
 		var pk *PublicKey
 		var err error
 
-		kgen := bfvContext.NewKeyGenerator()
+		kgen := NewKeyGenerator(&params)
 
 		// Public Key Generation
 		b.Run(testString("KeyGen", &params), func(b *testing.B) {

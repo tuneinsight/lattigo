@@ -111,7 +111,7 @@ func main() {
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
-		pi.sk = bfvctx.NewKeyGenerator().NewSecretKey()
+		pi.sk = bfv.NewKeyGenerator(params).NewSecretKey()
 		pi.rlkEphemSk = bfvctx.ContextKeys().SampleTernaryMontgomeryNTTNew(1.0 / 3)
 		pi.input = make([]uint64, params.N, params.N)
 		for j := range pi.input {
@@ -136,7 +136,7 @@ func main() {
 
 	// 1) Collective public key generation
 	l.Println("> CKG Phase")
-	pk := bfvctx.NewPublicKey()
+	pk := bfv.NewPublicKey(params)
 	elapsedCKGParty = runTimedParty(func() {
 		for _, pi := range P {
 			ckg.GenShare(pi.sk.Get(), crs, pi.ckgShare)
@@ -185,7 +185,7 @@ func main() {
 		}
 	}, N)
 
-	rlk := bfvctx.NewRelinKey(1)
+	rlk := bfv.NewRelinKey(1, params)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShareRoundThree(pi.rkgShareThree, rkgCombined3, rkgCombined3)
@@ -196,7 +196,7 @@ func main() {
 
 	// 3) Collective rotation keys geneneration
 	l.Println("> RTG Phase")
-	rtk := bfvctx.NewRotationKeys()
+	rtk := bfv.NewRotationKeys()
 	for _, rot := range []bfv.Rotation{bfv.RotationRight, bfv.RotationLeft, bfv.RotationRow} {
 		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < bfvctx.ContextKeys().N>>1); k <<= 1 {
 

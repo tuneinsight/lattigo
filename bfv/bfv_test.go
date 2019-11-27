@@ -174,7 +174,7 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString2("RotationKey/", params), func(t *testing.T) {
 
-			rotationKey := params.bfvContext.NewRotationKeys()
+			rotationKey := NewRotationKeys()
 
 			params.kgen.GenRot(RotationRow, params.sk, 0, rotationKey)
 			params.kgen.GenRot(RotationLeft, params.sk, 1, rotationKey)
@@ -246,7 +246,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params.bfvContext = NewContextWithParam(contextParameters)
 
-	params.kgen = params.bfvContext.NewKeyGenerator()
+	params.kgen = NewKeyGenerator(contextParameters)
 
 	params.sk, params.pk = params.kgen.NewKeyPair()
 
@@ -512,7 +512,7 @@ func testRotateRows(t *testing.T) {
 
 		params := genBfvParams(parameters)
 
-		rotkey := params.bfvContext.NewRotationKeys()
+		rotkey := NewRotationKeys()
 		params.kgen.GenRot(RotationRow, params.sk, 0, rotkey)
 
 		t.Run(testString2("InPlace/", params), func(t *testing.T) {

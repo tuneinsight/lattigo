@@ -74,7 +74,7 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 	params.encoder = bfv.NewEncoder(contextParameters)
 	params.evaluator = bfv.NewEvaluator(contextParameters)
 
-	kgen := params.bfvContext.NewKeyGenerator()
+	kgen := bfv.NewKeyGenerator(contextParameters)
 
 	// SecretKeys
 	params.sk0Shards = make([]*bfv.SecretKey, testParams.parties)
@@ -236,7 +236,7 @@ func testRelinKeyGen(t *testing.T) {
 				}
 			}
 
-			evk := bfvContext.NewRelinKey(1)
+			evk := bfv.NewRelinKey(1, &parameters)
 			P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
@@ -312,7 +312,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 				}
 			}
 
-			evk := bfvContext.NewRelinKey(1)
+			evk := bfv.NewRelinKey(1, &parameters)
 			P0.GenRelinearizationKey(P0.share2, evk)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
@@ -492,7 +492,7 @@ func testRotKeyGenRotRows(t *testing.T) {
 				}
 			}
 
-			rotkey := bfvContext.NewRotationKeys()
+			rotkey := bfv.NewRotationKeys()
 			P0.Finalize(P0.share, crp, rotkey)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
@@ -566,7 +566,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 					}
 				}
 
-				rotkey := bfvContext.NewRotationKeys()
+				rotkey := bfv.NewRotationKeys()
 				P0.Finalize(P0.share, crp, rotkey)
 
 				evaluator.RotateColumns(ciphertext, k, rotkey, receiver)
@@ -600,7 +600,7 @@ func testRefresh(t *testing.T) {
 		encoder := params.encoder
 		decryptorSk0 := params.decryptorSk0
 
-		kgen := bfvContext.NewKeyGenerator()
+		kgen := bfv.NewKeyGenerator(&parameters)
 
 		rlk := kgen.NewRelinKey(params.sk0, 2)
 
@@ -717,17 +717,18 @@ func verifyTestVectors(contextParams *dbfvContext, decryptor *bfv.Decryptor, coe
 }
 
 func Test_Marshalling(t *testing.T) {
+	params := &bfv.DefaultParams[1]
 
 	//verify if the un.marshalling works properly
-	bfvCtx := bfv.NewContextWithParam(&bfv.DefaultParams[1])
-	KeyGenerator := bfvCtx.NewKeyGenerator()
+	bfvCtx := bfv.NewContextWithParam(params)
+	KeyGenerator := bfv.NewKeyGenerator(params)
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextKeys())
 	sk := KeyGenerator.NewSecretKey()
 	crs := crsGen.ClockNew()
 	contextQ := bfvCtx.ContextQ()
 	contextPKeys := bfvCtx.ContextPKeys()
 
-	ringCtx := bfv.NewRingContext(&bfv.DefaultParams[1])
+	ringCtx := bfv.NewRingContext(params)
 	Ciphertext := bfv.NewRandomCiphertext(1, ringCtx)
 
 	t.Run(fmt.Sprintf("CPK/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
@@ -926,8 +927,9 @@ func Test_Marshalling(t *testing.T) {
 }
 
 func Test_Relin_Marshalling(t *testing.T) {
+	params := &bfv.DefaultParams[1]
 
-	bfvCtx := bfv.NewContextWithParam(&bfv.DefaultParams[1])
+	bfvCtx := bfv.NewContextWithParam(params)
 	contextQ := bfvCtx.ContextQ()
 	contextPKeys := bfvCtx.ContextPKeys()
 	modulus := bfvCtx.ContextQ().Modulus
@@ -946,7 +948,7 @@ func Test_Relin_Marshalling(t *testing.T) {
 
 		rlk := NewEkgProtocol(bfvCtx)
 		u := rlk.NewEphemeralKey(1 / 3.0)
-		sk := bfvCtx.NewKeyGenerator().NewSecretKey()
+		sk := bfv.NewKeyGenerator(params).NewSecretKey()
 		log.Print("Starting to test marshalling for share one")
 
 		r1, r2, r3 := rlk.AllocateShares()

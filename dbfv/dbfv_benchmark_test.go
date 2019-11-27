@@ -57,7 +57,7 @@ func benchPublicKeyGen(b *testing.B) {
 			}
 		})
 
-		pk := bfvContext.NewPublicKey()
+		pk := bfv.NewPublicKey(&parameters)
 		b.Run(testString("Finalize", &parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				p.GenPublicKey(p.s1, crp, pk)
@@ -92,7 +92,7 @@ func benchRelinKeyGen(b *testing.B) {
 		p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
-		p.rlk = bfvContext.NewRelinKey(2)
+		p.rlk = bfv.NewRelinKey(2, &parameters)
 
 		crpGenerator := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
 
@@ -171,7 +171,7 @@ func benchRelinKeyGenNaive(b *testing.B) {
 		p.RKGProtocolNaive = NewRKGProtocolNaive(bfvContext)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares()
-		p.rlk = bfvContext.NewRelinKey(2)
+		p.rlk = bfv.NewRelinKey(2, &parameters)
 
 		b.Run(testString("Round1/Gen", &parameters), func(b *testing.B) {
 
@@ -353,7 +353,7 @@ func benchRotKeyGen(b *testing.B) {
 			}
 		})
 
-		rotKey := bfvContext.NewRotationKeys()
+		rotKey := bfv.NewRotationKeys()
 		b.Run(testString("Finalize", &parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {

@@ -72,7 +72,7 @@ func main() {
 		crp[i] = crsGen.ClockNew()
 	}
 
-	tsk, tpk := bfvctx.NewKeyGenerator().NewKeyPair()
+	tsk, tpk := bfv.NewKeyGenerator(params).NewKeyPair()
 	colSk := &bfv.SecretKey{}
 	colSk.Set(bfvctx.ContextKeys().NewPoly())
 
@@ -88,7 +88,7 @@ func main() {
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
-		pi.sk = bfvctx.NewKeyGenerator().NewSecretKey()
+		pi.sk = bfv.NewKeyGenerator(params).NewSecretKey()
 		pi.rlkEphemSk = bfvctx.ContextKeys().SampleTernaryMontgomeryNTTNew(1.0 / 3)
 		pi.input = make([]uint64, params.N, params.N)
 		for i := range pi.input {
@@ -112,7 +112,7 @@ func main() {
 	var elapsedRKGParty time.Duration
 
 	l.Println("> CKG Phase")
-	pk := bfvctx.NewPublicKey()
+	pk := bfv.NewPublicKey(params)
 	elapsedCKGParty = runTimedParty(func() {
 		for _, pi := range P {
 			ckg.GenShare(pi.sk.Get(), crs, pi.ckgShare)
@@ -160,7 +160,7 @@ func main() {
 		}
 	}, N)
 
-	rlk := bfvctx.NewRelinKey(1)
+	rlk := bfv.NewRelinKey(1, params)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShareRoundThree(pi.rkgShareThree, rkgCombined3, rkgCombined3)

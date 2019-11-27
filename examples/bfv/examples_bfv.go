@@ -57,7 +57,7 @@ func obliviousRiding() {
 	bfvContext := bfv.NewContextWithParam(&params)
 
 	// Rider's keygen
-	kgen := bfvContext.NewKeyGenerator()
+	kgen := bfv.NewKeyGenerator(&params)
 
 	riderSk, riderPk := kgen.NewKeyPair()
 

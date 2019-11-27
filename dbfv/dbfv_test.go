@@ -34,6 +34,8 @@ type dbfvContext struct {
 	decryptorSk0 *bfv.Decryptor
 	decryptorSk1 *bfv.Decryptor
 	evaluator    *bfv.Evaluator
+
+	ringCtx *ring.Context
 }
 
 type dbfvTestParameters struct {
@@ -98,8 +100,10 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 	params.pk1 = kgen.NewPublicKey(params.sk1)
 
 	params.encryptorPk0 = bfv.NewEncryptorFromPk(params.pk0, contextParameters)
-	params.decryptorSk0 = params.bfvContext.NewDecryptor(params.sk0)
-	params.decryptorSk1 = params.bfvContext.NewDecryptor(params.sk1)
+	params.decryptorSk0 = bfv.NewDecryptor(params.sk0, contextParameters)
+	params.decryptorSk1 = bfv.NewDecryptor(params.sk1, contextParameters)
+
+	params.ringCtx = bfv.NewCiphertextRingContext(contextParameters)
 
 	return
 }
@@ -585,6 +589,7 @@ func testRefresh(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
+		ringCtx := bfv.NewCiphertextRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 
@@ -614,7 +619,7 @@ func testRefresh(t *testing.T) {
 				p.RefreshProtocol = NewRefreshProtocol(bfvContext)
 				p.s = sk0Shards[i].Get()
 				p.share = p.AllocateShares()
-				p.ptShare = bfvContext.NewPlaintext()
+				p.ptShare = bfv.NewPlaintext(ringCtx)
 				RefreshParties[i] = p
 			}
 
@@ -699,7 +704,7 @@ func testRefresh(t *testing.T) {
 
 func newTestVectors(contextParams *dbfvContext, encryptor *bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
 	coeffsPol := contextParams.bfvContext.ContextT().NewUniformPoly()
-	plaintext = contextParams.bfvContext.NewPlaintext()
+	plaintext = bfv.NewPlaintext(contextParams.ringCtx)
 	contextParams.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext

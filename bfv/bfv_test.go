@@ -31,6 +31,7 @@ type bfvParams struct {
 	encryptorSk *Encryptor
 	decryptor   *Decryptor
 	evaluator   *Evaluator
+	ringCtx     *ring.Context
 }
 
 type bfvTestParameters struct {
@@ -252,9 +253,11 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params.encryptorPk = NewEncryptorFromPk(params.pk, contextParameters)
 	params.encryptorSk = NewEncryptorFromSk(params.sk, contextParameters)
-	params.decryptor = params.bfvContext.NewDecryptor(params.sk)
+	params.decryptor = NewDecryptor(params.sk, contextParameters)
 
 	params.evaluator = NewEvaluator(contextParameters)
+
+	params.ringCtx = NewCiphertextRingContext(contextParameters)
 
 	return
 
@@ -264,7 +267,7 @@ func newTestVectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (coef
 
 	coeffs = params.bfvContext.contextT.NewUniformPoly()
 
-	plaintext = params.bfvContext.NewPlaintext()
+	plaintext = NewPlaintext(params.ringCtx)
 
 	params.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
@@ -480,7 +483,7 @@ func testKeySwitch(t *testing.T) {
 		params := genBfvParams(parameters)
 
 		sk2 := params.kgen.NewSecretKey()
-		decryptorSk2 := params.bfvContext.NewDecryptor(sk2)
+		decryptorSk2 := NewDecryptor(sk2, parameters)
 		switchKey := params.kgen.NewSwitchingKey(params.sk, sk2)
 
 		t.Run(testString2("InPlace/", params), func(t *testing.T) {

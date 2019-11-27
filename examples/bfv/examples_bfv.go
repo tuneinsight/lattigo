@@ -61,7 +61,7 @@ func obliviousRiding() {
 
 	riderSk, riderPk := kgen.NewKeyPair()
 
-	decryptor := bfvContext.NewDecryptor(riderSk)
+	decryptor := bfv.NewDecryptor(riderSk, &params)
 
 	encryptorRiderPk := bfv.NewEncryptorFromPk(riderPk, &params)
 
@@ -93,7 +93,9 @@ func obliviousRiding() {
 		Rider[(i<<1)+1] = riderPosY
 	}
 
-	riderPlaintext := bfvContext.NewPlaintext()
+	ringCtx := bfv.NewCiphertextRingContext(&params)
+
+	riderPlaintext := bfv.NewPlaintext(ringCtx)
 	encoder.EncodeUint(Rider, riderPlaintext)
 
 	// driversData coordinates [0, 0, ..., x, y, ..., 0, 0]
@@ -104,7 +106,7 @@ func obliviousRiding() {
 		driversData[i] = make([]uint64, params.N)
 		driversData[i][(i << 1)] = ring.RandUniform(maxvalue, mask)
 		driversData[i][(i<<1)+1] = ring.RandUniform(maxvalue, mask)
-		driversPlaintexts[i] = bfvContext.NewPlaintext()
+		driversPlaintexts[i] = bfv.NewPlaintext(ringCtx)
 		encoder.EncodeUint(driversData[i], driversPlaintexts[i])
 	}
 

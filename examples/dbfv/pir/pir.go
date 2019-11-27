@@ -243,7 +243,7 @@ func main() {
 	for i := range plainMask {
 		maskCoeffs := make([]uint64, bfvctx.N())
 		maskCoeffs[i] = 1
-		plainMask[i] = bfvctx.NewPlaintext()
+		plainMask[i] = bfv.NewPlaintext(ringCtx)
 		encoder.EncodeUint(maskCoeffs, plainMask[i])
 	}
 
@@ -255,7 +255,7 @@ func main() {
 	// Ciphertexts encrypted under CPK and stored in the cloud.
 	l.Println("> Encrypt Phase")
 	encryptor := bfv.NewEncryptorFromPk(pk, params)
-	pt := bfvctx.NewPlaintext()
+	pt := bfv.NewPlaintext(ringCtx)
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
 			encoder.EncodeUint(pi.input, pt)
@@ -274,7 +274,7 @@ func main() {
 	// Query ciphertext
 	queryCoeffs := make([]uint64, params.N)
 	queryCoeffs[queryIndex] = 1
-	query := bfvctx.NewPlaintext()
+	query := bfv.NewPlaintext(ringCtx)
 	var encQuery *bfv.Ciphertext
 	elapsedRequestParty += runTimed(func() {
 		encoder.EncodeUint(queryCoeffs, query)
@@ -374,8 +374,8 @@ func main() {
 	l.Println("> Result:")
 
 	// Decryption by the external party
-	decryptor := bfvctx.NewDecryptor(P[0].sk)
-	ptres := bfvctx.NewPlaintext()
+	decryptor := bfv.NewDecryptor(P[0].sk, params)
+	ptres := bfv.NewPlaintext(ringCtx)
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
 	})

@@ -34,11 +34,11 @@ func Benchmark_BFV(b *testing.B) {
 		encryptorPk := NewEncryptorFromPk(pk, &params)
 		encryptorSk := NewEncryptorFromSk(sk, &params)
 
-		ptcoeffs := bfvContext.NewRandomPlaintextCoeffs()
-		pt := bfvContext.NewPlaintext()
-		pt.setCoefficientsUint64(bfvContext, ptcoeffs)
-
 		ringCtx := NewCiphertextRingContext(&params)
+
+		ptcoeffs := bfvContext.NewRandomPlaintextCoeffs()
+		pt := NewPlaintext(ringCtx)
+		pt.setCoefficientsUint64(bfvContext, ptcoeffs)
 
 		ctd1 := NewCiphertext(1, ringCtx)
 		b.Run(testString("EncryptFromPk", &params), func(b *testing.B) {
@@ -54,8 +54,8 @@ func Benchmark_BFV(b *testing.B) {
 		})
 
 		// Decryption
-		decryptor := bfvContext.NewDecryptor(sk)
-		ptp := bfvContext.NewPlaintext()
+		decryptor := NewDecryptor(sk, &params)
+		ptp := NewPlaintext(ringCtx)
 		b.Run(testString("Decrypt", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				decryptor.Decrypt(ctd1, ptp)

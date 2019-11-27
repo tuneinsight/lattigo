@@ -12,10 +12,10 @@ type Plaintext struct {
 }
 
 // NewPlaintext creates a new plaintext from the target context.
-func (context *Context) NewPlaintext() *Plaintext {
+func NewPlaintext(ringCtx *ring.Context) *Plaintext {
 
 	plaintext := &Plaintext{&bfvElement{}, nil}
-	plaintext.bfvElement.value = []*ring.Poly{context.contextQ.NewPoly()}
+	plaintext.bfvElement.value = []*ring.Poly{ringCtx.NewPoly()}
 	plaintext.value = plaintext.bfvElement.value[0]
 	plaintext.isNTT = false
 

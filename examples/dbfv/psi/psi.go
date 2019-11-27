@@ -195,7 +195,7 @@ func main() {
 	l.Println("> Encrypt Phase")
 	encryptor := bfv.NewEncryptorFromPk(pk, params)
 	encoder := bfv.NewEncoder(params)
-	pt := bfvctx.NewPlaintext()
+	pt := bfv.NewPlaintext(ringCtx)
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
 			encoder.EncodeUint(pi.input, pt)
@@ -281,8 +281,8 @@ func main() {
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)
 
 	l.Println("> Result:")
-	decryptor := bfvctx.NewDecryptor(tsk)
-	ptres := bfvctx.NewPlaintext()
+	decryptor := bfv.NewDecryptor(tsk, params)
+	ptres := bfv.NewPlaintext(ringCtx)
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres) // TODO : manage error
 	})

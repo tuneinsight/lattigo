@@ -165,12 +165,7 @@ func testRelinKeyGen(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := ring.NewContext()
-		ringCtx.SetParameters(parameters.N, parameters.Qi)
-		err = ringCtx.GenNTTParams()
-		if err != nil {
-			panic(err)
-		}
+		ringCtx := bfv.NewCiphertextRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 
@@ -263,12 +258,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := ring.NewContext()
-		ringCtx.SetParameters(parameters.N, parameters.Qi)
-		err = ringCtx.GenNTTParams()
-		if err != nil {
-			panic(err)
-		}
+		ringCtx := bfv.NewCiphertextRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 
@@ -344,12 +334,7 @@ func testKeyswitching(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := ring.NewContext()
-		ringCtx.SetParameters(parameters.N, parameters.Qi)
-		err = ringCtx.GenNTTParams()
-		if err != nil {
-			panic(err)
-		}
+		ringCtx := bfv.NewCiphertextRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 
@@ -408,12 +393,7 @@ func testPublicKeySwitching(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := ring.NewContext()
-		ringCtx.SetParameters(parameters.N, parameters.Qi)
-		err = ringCtx.GenNTTParams()
-		if err != nil {
-			panic(err)
-		}
+		ringCtx := bfv.NewCiphertextRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 
@@ -529,12 +509,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := ring.NewContext()
-		ringCtx.SetParameters(parameters.N, parameters.Qi)
-		err = ringCtx.GenNTTParams()
-		if err != nil {
-			panic(err)
-		}
+		ringCtx := bfv.NewCiphertextRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 

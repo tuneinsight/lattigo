@@ -78,7 +78,7 @@ func genDCKKSContext(contextParameters *ckks.Parameters) (params *dckksContext) 
 	params.ckksContext = ckks.NewContext(contextParameters)
 
 	params.encoder = ckks.NewEncoder(contextParameters)
-	params.evaluator = params.ckksContext.NewEvaluator()
+	params.evaluator = ckks.NewEvaluator(contextParameters)
 
 	kgen := params.ckksContext.NewKeyGenerator()
 
@@ -105,7 +105,7 @@ func genDCKKSContext(contextParameters *ckks.Parameters) (params *dckksContext) 
 	params.pk0 = kgen.NewPublicKey(params.sk0)
 	params.pk1 = kgen.NewPublicKey(params.sk1)
 
-	params.encryptorPk0 = params.ckksContext.NewEncryptorFromPk(params.pk0)
+	params.encryptorPk0 = ckks.NewEncryptorFromPk(params.pk0, contextParameters)
 
 	params.decryptorSk0 = params.ckksContext.NewDecryptor(params.sk0)
 
@@ -166,7 +166,7 @@ func testPublicKeyGen(t *testing.T) {
 				P0.GenPublicKey(P0.s1, crp, pk)
 
 				// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-				encryptorTest := ckksContext.NewEncryptorFromPk(pk)
+				encryptorTest := ckks.NewEncryptorFromPk(pk, parameters)
 
 				coeffs, _, ciphertext := newTestVectors(params, encryptorTest, 1, t)
 
@@ -369,6 +369,8 @@ func testKeyswitching(t *testing.T) {
 		sk0Shards := params.sk0Shards
 		sk1Shards := params.sk1Shards
 
+		ringCtx := ckks.NewCiphertextRingContext(parameters)
+
 		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f",
 			parties,
 			ckksContext.LogN(),
@@ -405,7 +407,7 @@ func testKeyswitching(t *testing.T) {
 					}
 				}
 
-				ksCiphertext := ckksContext.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale())
+				ksCiphertext := ckks.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale(), ringCtx)
 
 				P0.KeySwitch(P0.share, ciphertext, ksCiphertext)
 
@@ -432,6 +434,8 @@ func testPublicKeySwitching(t *testing.T) {
 		decryptorSk1 := params.decryptorSk1
 		sk0Shards := params.sk0Shards
 		pk1 := params.pk1
+
+		ringCtx := ckks.NewCiphertextRingContext(parameters)
 
 		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f",
 			parties,
@@ -461,7 +465,7 @@ func testPublicKeySwitching(t *testing.T) {
 				}
 				P0 := pcksParties[0]
 
-				ciphertextSwitched := ckksContext.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale())
+				ciphertextSwitched := ckks.NewCiphertext(1, ciphertext.Level(), ciphertext.Scale(), ringCtx)
 
 				for i, p := range pcksParties {
 					p.GenShare(p.s, pk1, ciphertext, p.share)
@@ -559,6 +563,8 @@ func testRotKeyGenCols(t *testing.T) {
 		decryptorSk0 := params.decryptorSk0
 		sk0Shards := params.sk0Shards
 
+		ringCtx := ckks.NewCiphertextRingContext(parameters)
+
 		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(t *testing.T) {
 
 			type Party struct {
@@ -590,7 +596,7 @@ func testRotKeyGenCols(t *testing.T) {
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
 
-			receiver := ckksContext.NewCiphertext(ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale())
+			receiver := ckks.NewCiphertext(ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale(), ringCtx)
 
 			for k := uint64(1); k < contextKeys.N>>1; k <<= 1 {
 

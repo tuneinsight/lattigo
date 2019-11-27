@@ -47,7 +47,7 @@ func chebyshevinterpolation() {
 
 	// Encryptor
 	var encryptor *ckks.Encryptor
-	encryptor = ckkscontext.NewEncryptorFromPk(pk)
+	encryptor = ckks.NewEncryptorFromPk(pk, params)
 
 	// Decryptor
 	var decryptor *ckks.Decryptor
@@ -55,7 +55,7 @@ func chebyshevinterpolation() {
 
 	// Evaluator
 	var evaluator *ckks.Evaluator
-	evaluator = ckkscontext.NewEvaluator()
+	evaluator = ckks.NewEvaluator(params)
 
 	// Values to encrypt
 	values := make([]complex128, ckkscontext.Slots())

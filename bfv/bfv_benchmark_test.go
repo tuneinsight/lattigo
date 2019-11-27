@@ -3,8 +3,6 @@ package bfv
 import (
 	"fmt"
 	"testing"
-
-	"github.com/ldsec/lattigo/ring"
 )
 
 func Benchmark_BFV(b *testing.B) {
@@ -40,12 +38,7 @@ func Benchmark_BFV(b *testing.B) {
 		pt := bfvContext.NewPlaintext()
 		pt.setCoefficientsUint64(bfvContext, ptcoeffs)
 
-		ringCtx := ring.NewContext()
-		ringCtx.SetParameters(params.N, params.Qi)
-		err = ringCtx.GenNTTParams()
-		if err != nil {
-			panic(err)
-		}
+		ringCtx := NewCiphertextRingContext(&params)
 
 		ctd1 := NewCiphertext(1, ringCtx)
 		b.Run(testString("EncryptFromPk", &params), func(b *testing.B) {

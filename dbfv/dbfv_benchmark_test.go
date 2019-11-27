@@ -371,6 +371,8 @@ func benchRefresh(b *testing.B) {
 		contextKeys := bfvContext.ContextKeys()
 		sk0Shards := params.sk0Shards
 
+		ringCtx := bfv.NewCiphertextRingContext(&parameters)
+
 		type Party struct {
 			*RefreshProtocol
 			s     *ring.Poly
@@ -403,13 +405,6 @@ func benchRefresh(b *testing.B) {
 		})
 
 		b.Run(testString("Finalize", &parameters), func(b *testing.B) {
-			ringCtx := ring.NewContext()
-			ringCtx.SetParameters(parameters.N, parameters.Qi)
-			err = ringCtx.GenNTTParams()
-			if err != nil {
-				panic(err)
-			}
-
 			ctOut := bfv.NewCiphertext(1, ringCtx)
 			for i := 0; i < b.N; i++ {
 				p.Finalize(ciphertext, crp, p.share, ctOut) // TODO: why does this fail ?

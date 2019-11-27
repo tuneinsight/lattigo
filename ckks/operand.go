@@ -75,12 +75,12 @@ func (el *ckksElement) DivScale(scale float64) {
 }
 
 // Resize resizes the degree of the target element.
-func (el *ckksElement) Resize(ckkscontext *Context, degree uint64) {
+func (el *ckksElement) Resize(ringCtx *ring.Context, degree uint64) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree+1]
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
-			el.value = append(el.value, []*ring.Poly{ckkscontext.contextQ.NewPolyLvl(el.Level())}...)
+			el.value = append(el.value, []*ring.Poly{ringCtx.NewPolyLvl(el.Level())}...)
 		}
 	}
 }

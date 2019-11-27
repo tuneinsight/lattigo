@@ -19,13 +19,13 @@ func (evaluator *Evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *Ev
 
 		evaluator.MulRelin(el0.Element(), el0.Element(), evakey, elOut)
 
-		evaluator.Rescale(elOut, evaluator.ckkscontext.scale, elOut)
+		evaluator.Rescale(elOut, evaluator.context.scale, elOut)
 
 		for i := uint64(1); i < logPow2; i++ {
 
 			evaluator.MulRelin(elOut.Element(), elOut.Element(), evakey, elOut)
 
-			evaluator.Rescale(elOut, evaluator.ckkscontext.scale, elOut)
+			evaluator.Rescale(elOut, evaluator.context.scale, elOut)
 		}
 	}
 }
@@ -33,7 +33,7 @@ func (evaluator *Evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *Ev
 // PowerNew compute ct0^degree, consuming log(degree) levels, and returns the result on a new element. Providing an evaluation
 // key is necessary when degree > 2.
 func (evaluator *Evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext) {
-	opOut = evaluator.ckkscontext.NewCiphertext(1, op.Level(), op.Scale())
+	opOut = NewCiphertext(1, op.Level(), op.Scale(), evaluator.context.contextQ)
 	evaluator.Power(op, degree, evakey, opOut)
 	return
 }
@@ -58,13 +58,13 @@ func (evaluator *Evaluator) Power(ct0 *Ciphertext, degree uint64, evakey *Evalua
 		logDegree = uint64(bits.Len64(degree)) - 1
 		po2Degree = 1 << logDegree
 
-		tmp := evaluator.ckkscontext.NewCiphertext(1, tmpct0.Level(), tmpct0.Scale())
+		tmp := NewCiphertext(1, tmpct0.Level(), tmpct0.Scale(), evaluator.context.contextQ)
 
 		evaluator.PowerOf2(tmpct0.Ciphertext(), logDegree, evakey, tmp)
 
 		evaluator.MulRelin(res.Element(), tmp.Element(), evakey, res)
 
-		evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
+		evaluator.Rescale(res, evaluator.context.scale, res)
 
 		degree -= po2Degree
 	}
@@ -85,13 +85,13 @@ func (evaluator *Evaluator) InverseNew(ct0 *Ciphertext, steps uint64, evakey *Ev
 
 		evaluator.MulRelin(cbar.Element(), cbar.Element(), evakey, cbar.Ciphertext())
 
-		evaluator.Rescale(cbar, evaluator.ckkscontext.scale, cbar)
+		evaluator.Rescale(cbar, evaluator.context.scale, cbar)
 
 		tmp = evaluator.AddConstNew(cbar, 1)
 
 		evaluator.MulRelin(tmp.Element(), res.Element(), evakey, tmp.Ciphertext())
 
-		evaluator.Rescale(tmp, evaluator.ckkscontext.scale, tmp)
+		evaluator.Rescale(tmp, evaluator.context.scale, tmp)
 
 		res = tmp.CopyNew().Ciphertext()
 	}

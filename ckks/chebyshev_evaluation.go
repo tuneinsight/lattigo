@@ -15,7 +15,7 @@ func (evaluator *Evaluator) EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevIn
 
 	evaluator.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
+	evaluator.Rescale(C[1], evaluator.context.scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(M >> 1)
@@ -86,7 +86,7 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evalu
 		// Computes C[n] = C[a]*C[b]
 		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
 
-		evaluator.Rescale(C[n], evaluator.ckkscontext.scale, C[n])
+		evaluator.Rescale(C[n], evaluator.context.scale, C[n])
 
 		// Computes C[n] = 2*C[a]*C[b]
 		evaluator.Add(C[n], C[n], C[n])
@@ -123,7 +123,7 @@ func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[ui
 
 	evaluator.Add(res, tmp, res)
 
-	evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
+	evaluator.Rescale(res, evaluator.context.scale, res)
 
 	return res
 

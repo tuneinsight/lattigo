@@ -231,12 +231,7 @@ func main() {
 	plainMask := make([]*bfv.Plaintext, N, N)
 	encPartial := make([]*bfv.Ciphertext, N, N)
 
-	ringCtx := ring.NewContext()
-	ringCtx.SetParameters(params.N, params.Qi)
-	err = ringCtx.GenNTTParams()
-	if err != nil {
-		panic(err)
-	}
+	ringCtx := bfv.NewCiphertextRingContext(params)
 
 	// Ciphertexts to be retrieved.
 	for i := range encInputs {

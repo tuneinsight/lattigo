@@ -14,6 +14,18 @@ func NewCiphertextStruct() (ciphertext *Ciphertext) {
 	return &Ciphertext{&bfvElement{}}
 }
 
+func NewCiphertextRingContext(params *Parameters) *ring.Context {
+	ringCtx := ring.NewContext()
+	ringCtx.SetParameters(params.N, params.Qi)
+
+	err := ringCtx.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
+	return ringCtx
+}
+
 // NewCiphertext creates a new empty ciphertext of degree degree.
 func NewCiphertext(degree uint64, ringCtx *ring.Context) *Ciphertext {
 	ciphertext := &Ciphertext{&bfvElement{}}

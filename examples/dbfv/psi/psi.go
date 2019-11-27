@@ -172,12 +172,7 @@ func main() {
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
 		elapsedRKGCloud+elapsedCKGCloud, elapsedRKGParty+elapsedCKGParty)
 
-	ringCtx := ring.NewContext()
-	ringCtx.SetParameters(params.N, params.Qi)
-	err = ringCtx.GenNTTParams()
-	if err != nil {
-		panic(err)
-	}
+	ringCtx := bfv.NewCiphertextRingContext(params)
 
 	// Pre-loading memory
 	l.Println("> Memory alloc Phase")

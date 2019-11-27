@@ -97,11 +97,11 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 	params.encoder = NewEncoder(contextParameters)
 
-	params.encryptorPk = params.ckkscontext.NewEncryptorFromPk(params.pk)
-	params.encryptorSk = params.ckkscontext.NewEncryptorFromSk(params.sk)
+	params.encryptorPk = NewEncryptorFromPk(params.pk, contextParameters)
+	params.encryptorSk = NewEncryptorFromSk(params.sk, contextParameters)
 	params.decryptor = params.ckkscontext.NewDecryptor(params.sk)
 
-	params.evaluator = params.ckkscontext.NewEvaluator()
+	params.evaluator = NewEvaluator(contextParameters)
 
 	return
 
@@ -871,12 +871,14 @@ func testRotateColumns(t *testing.T) {
 
 		rotKey := params.kgen.NewRotationKeysPow2(params.sk)
 
+		ringCtx := NewCiphertextRingContext(parameters)
+
 		t.Run(testString("InPlace/", params), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := params.ckkscontext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+			ciphertext2 := NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale(), ringCtx)
 
 			for n := 1; n < len(values1); n <<= 1 {
 
@@ -897,7 +899,7 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := params.ckkscontext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+			ciphertext2 := NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale(), ringCtx)
 
 			for n := 1; n < len(values1); n <<= 1 {
 
@@ -918,7 +920,7 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := params.ckkscontext.NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+			ciphertext2 := NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale(), ringCtx)
 
 			for n := 1; n < 4; n++ {
 
@@ -953,7 +955,7 @@ func testMarshaller(t *testing.T) {
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)
 
-			ciphertextTest := NewCiphertext()
+			ciphertextTest := NewCiphertextStruct()
 			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 			check(t, err)
 

@@ -426,12 +426,7 @@ func testEvaluatorSub(t *testing.T) {
 func testEvaluatorMul(t *testing.T) {
 
 	for _, parameters := range testParams.bfvParameters {
-		ringCtx := ring.NewContext()
-		ringCtx.SetParameters(parameters.N, parameters.Qi)
-		err = ringCtx.GenNTTParams()
-		if err != nil {
-			panic(err)
-		}
+		ringCtx := NewCiphertextRingContext(parameters)
 
 		params := genBfvParams(parameters)
 
@@ -543,12 +538,7 @@ func testRotateRows(t *testing.T) {
 func testRotateCols(t *testing.T) {
 
 	for _, parameters := range testParams.bfvParameters {
-		ringCtx := ring.NewContext()
-		ringCtx.SetParameters(parameters.N, parameters.Qi)
-		err = ringCtx.GenNTTParams()
-		if err != nil {
-			panic(err)
-		}
+		ringCtx := NewCiphertextRingContext(parameters)
 
 		params := genBfvParams(parameters)
 

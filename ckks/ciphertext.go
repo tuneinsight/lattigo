@@ -14,7 +14,7 @@ func NewCiphertextStruct() (ciphertext *Ciphertext) {
 	return &Ciphertext{&ckksElement{}}
 }
 
-func NewCiphertextRingContext(params *Parameters) *ring.Context {
+func NewRingContext(params *Parameters) *ring.Context {
 	scalechain := make([]float64, len(params.Modulichain))
 
 	// Extracts all the different primes bit size and maps their number

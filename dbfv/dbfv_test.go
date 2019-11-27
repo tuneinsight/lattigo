@@ -103,7 +103,7 @@ func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvContext) {
 	params.decryptorSk0 = bfv.NewDecryptor(params.sk0, contextParameters)
 	params.decryptorSk1 = bfv.NewDecryptor(params.sk1, contextParameters)
 
-	params.ringCtx = bfv.NewCiphertextRingContext(contextParameters)
+	params.ringCtx = bfv.NewRingContext(contextParameters)
 
 	return
 }
@@ -169,7 +169,7 @@ func testRelinKeyGen(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := bfv.NewCiphertextRingContext(&parameters)
+		ringCtx := bfv.NewRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 
@@ -262,7 +262,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := bfv.NewCiphertextRingContext(&parameters)
+		ringCtx := bfv.NewRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 
@@ -338,7 +338,7 @@ func testKeyswitching(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := bfv.NewCiphertextRingContext(&parameters)
+		ringCtx := bfv.NewRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 
@@ -397,7 +397,7 @@ func testPublicKeySwitching(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := bfv.NewCiphertextRingContext(&parameters)
+		ringCtx := bfv.NewRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 
@@ -513,7 +513,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := bfv.NewCiphertextRingContext(&parameters)
+		ringCtx := bfv.NewRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 
@@ -589,7 +589,7 @@ func testRefresh(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		ringCtx := bfv.NewCiphertextRingContext(&parameters)
+		ringCtx := bfv.NewRingContext(&parameters)
 
 		params := genDBFVContext(&parameters)
 

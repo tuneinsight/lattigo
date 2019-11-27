@@ -34,7 +34,7 @@ func Benchmark_BFV(b *testing.B) {
 		encryptorPk := NewEncryptorFromPk(pk, &params)
 		encryptorSk := NewEncryptorFromSk(sk, &params)
 
-		ringCtx := NewCiphertextRingContext(&params)
+		ringCtx := NewRingContext(&params)
 
 		ptcoeffs := bfvContext.NewRandomPlaintextCoeffs()
 		pt := NewPlaintext(ringCtx)

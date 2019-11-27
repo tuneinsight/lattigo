@@ -369,7 +369,7 @@ func testKeyswitching(t *testing.T) {
 		sk0Shards := params.sk0Shards
 		sk1Shards := params.sk1Shards
 
-		ringCtx := ckks.NewCiphertextRingContext(parameters)
+		ringCtx := ckks.NewRingContext(parameters)
 
 		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f",
 			parties,
@@ -435,7 +435,7 @@ func testPublicKeySwitching(t *testing.T) {
 		sk0Shards := params.sk0Shards
 		pk1 := params.pk1
 
-		ringCtx := ckks.NewCiphertextRingContext(parameters)
+		ringCtx := ckks.NewRingContext(parameters)
 
 		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f",
 			parties,
@@ -563,7 +563,7 @@ func testRotKeyGenCols(t *testing.T) {
 		decryptorSk0 := params.decryptorSk0
 		sk0Shards := params.sk0Shards
 
-		ringCtx := ckks.NewCiphertextRingContext(parameters)
+		ringCtx := ckks.NewRingContext(parameters)
 
 		t.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(t *testing.T) {
 

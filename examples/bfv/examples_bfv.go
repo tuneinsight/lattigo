@@ -93,7 +93,7 @@ func obliviousRiding() {
 		Rider[(i<<1)+1] = riderPosY
 	}
 
-	ringCtx := bfv.NewCiphertextRingContext(&params)
+	ringCtx := bfv.NewRingContext(&params)
 
 	riderPlaintext := bfv.NewPlaintext(ringCtx)
 	encoder.EncodeUint(Rider, riderPlaintext)

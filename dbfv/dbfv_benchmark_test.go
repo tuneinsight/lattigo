@@ -371,7 +371,7 @@ func benchRefresh(b *testing.B) {
 		contextKeys := bfvContext.ContextKeys()
 		sk0Shards := params.sk0Shards
 
-		ringCtx := bfv.NewCiphertextRingContext(&parameters)
+		ringCtx := bfv.NewRingContext(&parameters)
 
 		type Party struct {
 			*RefreshProtocol

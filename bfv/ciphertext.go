@@ -14,7 +14,7 @@ func NewCiphertextStruct() (ciphertext *Ciphertext) {
 	return &Ciphertext{&bfvElement{}}
 }
 
-func NewCiphertextRingContext(params *Parameters) *ring.Context {
+func NewRingContext(params *Parameters) *ring.Context {
 	ringCtx := ring.NewContext()
 	ringCtx.SetParameters(params.N, params.Qi)
 

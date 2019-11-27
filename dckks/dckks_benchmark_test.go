@@ -373,7 +373,7 @@ func benchRefresh(b *testing.B) {
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.ClockNew()
 
-		ringCtx := ckks.NewCiphertextRingContext(parameters)
+		ringCtx := ckks.NewRingContext(parameters)
 
 		ciphertext := ckks.NewCiphertext(1, levelStart, ckksContext.Scale(), ringCtx)
 

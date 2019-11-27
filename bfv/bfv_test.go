@@ -257,7 +257,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params.evaluator = NewEvaluator(contextParameters)
 
-	params.ringCtx = NewCiphertextRingContext(contextParameters)
+	params.ringCtx = NewRingContext(contextParameters)
 
 	return
 
@@ -429,7 +429,7 @@ func testEvaluatorSub(t *testing.T) {
 func testEvaluatorMul(t *testing.T) {
 
 	for _, parameters := range testParams.bfvParameters {
-		ringCtx := NewCiphertextRingContext(parameters)
+		ringCtx := NewRingContext(parameters)
 
 		params := genBfvParams(parameters)
 
@@ -541,7 +541,7 @@ func testRotateRows(t *testing.T) {
 func testRotateCols(t *testing.T) {
 
 	for _, parameters := range testParams.bfvParameters {
-		ringCtx := NewCiphertextRingContext(parameters)
+		ringCtx := NewRingContext(parameters)
 
 		params := genBfvParams(parameters)
 

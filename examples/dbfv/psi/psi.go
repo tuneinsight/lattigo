@@ -172,7 +172,7 @@ func main() {
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
 		elapsedRKGCloud+elapsedCKGCloud, elapsedRKGParty+elapsedCKGParty)
 
-	ringCtx := bfv.NewCiphertextRingContext(params)
+	ringCtx := bfv.NewRingContext(params)
 
 	// Pre-loading memory
 	l.Println("> Memory alloc Phase")

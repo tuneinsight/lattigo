@@ -871,7 +871,7 @@ func testRotateColumns(t *testing.T) {
 
 		rotKey := params.kgen.NewRotationKeysPow2(params.sk)
 
-		ringCtx := NewCiphertextRingContext(parameters)
+		ringCtx := NewRingContext(parameters)
 
 		t.Run(testString("InPlace/", params), func(t *testing.T) {
 

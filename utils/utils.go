@@ -4,6 +4,7 @@ import (
 	"math/bits"
 )
 
+// EqualSliceUint64 checks the equality between two uint64 slices.
 func EqualSliceUint64(a, b []uint64) (v bool) {
 	v = true
 	for i := range a {
@@ -12,6 +13,7 @@ func EqualSliceUint64(a, b []uint64) (v bool) {
 	return
 }
 
+// EqualSliceUint8 checks the equality between two uint8 slices.
 func EqualSliceUint8(a, b []uint8) (v bool) {
 	v = true
 	for i := range a {
@@ -20,6 +22,7 @@ func EqualSliceUint8(a, b []uint8) (v bool) {
 	return
 }
 
+// IsInSliceUint64 checks if x is in slice.
 func IsInSliceUint64(x uint64, slice []uint64) (v bool) {
 	for i := range slice {
 		v = v || (slice[i] == x)
@@ -43,7 +46,7 @@ func MaxUint64(a, b uint64) (r uint64) {
 	return b
 }
 
-// MaxUint64 returns the maximum value of the input slice of uint64 values.
+// MaxFloat64 returns the maximum value of the input slice of uint64 values.
 func MaxFloat64(a, b float64) (r float64) {
 	if a >= b {
 		return a

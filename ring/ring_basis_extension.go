@@ -136,9 +136,9 @@ func (Parameters *BasisExtender) ExtendBasis(p1, p2 *Poly) {
 	}
 }
 
-// ExtendBasis extends the basis of a polynomial from Q to Q + P.
+// ExtendBasisSplit extends the basis of a polynomial from Q to P.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qi}
-// Extends its basis from {Q0,Q1....Qi} to {Q0,Q1....Qi,P0,P1...Pj}
+// Extends its basis from {Q0,Q1....Qi} to {P0,P1...Pj}
 func (Parameters *BasisExtender) ExtendBasisSplit(p1, p2 *Poly) {
 
 	var v uint64
@@ -180,7 +180,7 @@ func (Parameters *BasisExtender) ExtendBasisSplit(p1, p2 *Poly) {
 	}
 }
 
-//Algorithm from https://eprint.iacr.org/2018/117.pdf
+//FastBasisExtender Algorithm from https://eprint.iacr.org/2018/117.pdf
 type FastBasisExtender struct {
 	paramsQP *modupParams
 	paramsPQ *modupParams
@@ -205,6 +205,8 @@ type modupParams struct {
 	mredParamsP []uint64
 }
 
+// NewFastBasisExtender is a struct storing all the pre-computed parameters to apply modUp from a basis Q to P
+// and modDown from a basis QP to Q.
 func NewFastBasisExtender(Q, P []uint64) *FastBasisExtender {
 
 	newParams := new(FastBasisExtender)
@@ -283,7 +285,7 @@ func basisextenderparameters(Q, P []uint64) (params *modupParams) {
 	return params
 }
 
-// Extends the basis of a ring
+// ModUp extends the basis of a ring
 // Given a ring with coefficients in basis {Q0,Q1....Qi}
 // Extends its basis from {Q0,Q1....Qi} to {Q0,Q1....Qi,P0,P1...Pj}
 func (basisextender *FastBasisExtender) ModUp(level uint64, p1, p2 *Poly) {
@@ -299,13 +301,18 @@ func (basisextender *FastBasisExtender) ModUp(level uint64, p1, p2 *Poly) {
 	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[level+1:level+1+uint64(len(basisextender.paramsQP.P))], basisextender.paramsQP)
 }
 
-// Extends the basis of a ring
-// Given a ring with coefficients in basis {Q0,Q1....Qi}
+// ModUpSplit extends the basis of a polynomial
+// Given a polynomial with coefficients in basis {Q0,Q1....Qi}
 // Extends its basis from {Q0,Q1....Qi} to {Q0,Q1....Qi,P0,P1...Pj}
 func (basisextender *FastBasisExtender) ModUpSplit(level uint64, p1, p2 *Poly) {
 	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[:uint64(len(basisextender.paramsQP.P))], basisextender.paramsQP)
 }
 
+// ModDownNTT reduces the basis of a polynomial.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qi,P0,P1...Pj}
+// Reduces its basis from {Q0,Q1....Qi,P0,P1...Pj} to {Q0,Q1....Qi}
+// and does a runded integer division of the result by P.
+// Inputs must be in the NTT domain.
 func (basisextender *FastBasisExtender) ModDownNTT(contextQ, contextP *Context, rescalParamsKeys []uint64, level uint64, p1, p2, polypool *Poly) {
 
 	// First we get the P basis part of p1 out of the NTT domain
@@ -340,6 +347,11 @@ func (basisextender *FastBasisExtender) ModDownNTT(contextQ, contextP *Context, 
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
+// ModDownSplitedNTT reduces the basis of a polynomial.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qi} and {P0,P1...Pj}
+// Reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
+// and does a runded integer division of the result by P.
+// Inputs must be in the NTT domain.
 func (basisextender *FastBasisExtender) ModDownSplitedNTT(contextQ, contextP *Context, rescalParamsKeys []uint64, level uint64, p1Q, p1P, p2, polypool *Poly) {
 
 	// First we get the P basis part of p1 out of the NTT domain
@@ -372,6 +384,10 @@ func (basisextender *FastBasisExtender) ModDownSplitedNTT(contextQ, contextP *Co
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
+// ModDown reduces the basis of a polynomial.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qi,P0,P1...Pj}
+// Reduces its basis from {Q0,Q1....Qi,P0,P1...Pj} to {Q0,Q1....Qi}
+// and does a runded integer division of the result by P.
 func (basisextender *FastBasisExtender) ModDown(context *Context, rescalParamsKeys []uint64, level uint64, p1, p2, polypool *Poly) {
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
@@ -397,6 +413,10 @@ func (basisextender *FastBasisExtender) ModDown(context *Context, rescalParamsKe
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
+// ModDownSplited reduces the basis of a polynomial.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qi} and {P0,P1...Pj}
+// Reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
+// and does a runded integer division of the result by P.
 func (basisextender *FastBasisExtender) ModDownSplited(contextQ, contextP *Context, rescalParamsKeys []uint64, level uint64, p1Q, p1P, p2, polypool *Poly) {
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
@@ -465,6 +485,9 @@ func modUpExact(p1, p2 [][]uint64, params *modupParams) {
 	}
 }
 
+// ArbitraryDecomposer is a structure storing the parameters of the arbitrary decomposer.
+// This decomposer takes a p(x)_Q (in basis Q) and returns p(x) mod qi in basis QP. Where
+// qi = prod(Q_i) for 0<=i<=L where L is the number of factors in P.
 type ArbitraryDecomposer struct {
 	nQprimes    uint64
 	nPprimes    uint64
@@ -472,28 +495,30 @@ type ArbitraryDecomposer struct {
 	beta        uint64
 	xalpha      []uint64
 	modUpParams [][]*modupParams
-	Q_bigint    *big.Int
-	P_bigint    *big.Int
+	QInt        *big.Int
+	PInt        *big.Int
 }
 
+// Xalpha returns a slice containing all the values of #Qi/#Pi.
 func (decomposer *ArbitraryDecomposer) Xalpha() (xalpha []uint64) {
 	return decomposer.xalpha
 }
 
+// NewArbitraryDecomposer creates a new ArbitraryDecomposer.
 func NewArbitraryDecomposer(Q, P []uint64) (decomposer *ArbitraryDecomposer) {
 	decomposer = new(ArbitraryDecomposer)
 
 	decomposer.nQprimes = uint64(len(Q))
 	decomposer.nPprimes = uint64(len(P))
 
-	decomposer.Q_bigint = NewUint(1)
+	decomposer.QInt = NewUint(1)
 	for i := range Q {
-		decomposer.Q_bigint.Mul(decomposer.Q_bigint, NewUint(Q[i]))
+		decomposer.QInt.Mul(decomposer.QInt, NewUint(Q[i]))
 	}
 
-	decomposer.P_bigint = NewUint(1)
+	decomposer.PInt = NewUint(1)
 	for i := range P {
-		decomposer.P_bigint.Mul(decomposer.P_bigint, NewUint(P[i]))
+		decomposer.PInt.Mul(decomposer.PInt, NewUint(P[i]))
 	}
 
 	decomposer.alpha = uint64(len(P))
@@ -539,6 +564,8 @@ func NewArbitraryDecomposer(Q, P []uint64) (decomposer *ArbitraryDecomposer) {
 	return
 }
 
+// Decompose decomposes takes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
+// the result in basis QP.
 func (decomposer *ArbitraryDecomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Poly) {
 
 	alphai := decomposer.xalpha[crtDecompLevel]
@@ -662,6 +689,8 @@ func (decomposer *ArbitraryDecomposer) Decompose(level, crtDecompLevel uint64, p
 	}
 }
 
+// DecomposeAndSplit decomposes takes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
+// the result in basis QP separately.
 func (decomposer *ArbitraryDecomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0, p1Q, p1P *Poly) {
 
 	alphai := decomposer.xalpha[crtDecompLevel]

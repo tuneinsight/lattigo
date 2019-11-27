@@ -1,10 +1,12 @@
 package ring
 
+// Parameters is a struct storing test parameters for the package Ring.
 type Parameters struct {
 	N      uint64
 	Moduli []uint64
 }
 
+// DefaultParamsQi is a struct storing default test parameters for the package Ring.
 var DefaultParamsQi = map[uint64]*Parameters{
 	12: {1 << 12, Qi60[len(Qi60)-2:]},
 	13: {1 << 13, Qi60[len(Qi60)-4:]},
@@ -13,6 +15,7 @@ var DefaultParamsQi = map[uint64]*Parameters{
 	16: {1 << 16, Qi60[len(Qi60)-32:]},
 }
 
+// DefaultParamsPi is a struct storing default test parameters for the package Ring.
 var DefaultParamsPi = map[uint64]*Parameters{
 	12: {1 << 12, Pi60[len(Pi60)-2:]},
 	13: {1 << 13, Pi60[len(Pi60)-4:]},

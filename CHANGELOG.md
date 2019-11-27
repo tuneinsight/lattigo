@@ -4,9 +4,41 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 ### Added
 - Bootstrapping for CKKS.
-- Modulable CRT decomposition for the key-switching keys.
-- Examples for the distributed schemes.
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
+
+## [1.3.0] - 2019-12-01
+### Added
+- DBFV/DCKKS : collective refresh of a ciphertext (decentralized bootstrapping).
+- RING : new API for modulus switching with flooring and rounding.
+- RING : Ziggurat sampling available, but not used.
+- RING : context can now be used to generate ternary polynomials.
+- RING : sparse ternary polynomials sampling.
+### Removed
+- BFV : removed context QP as it is not any more used in the multiplication.
+- BFV : removed int encoder, now only batch encoding is supported.
+- CKKS : modulus switching is now located in Ring.
+- RING : removed algorithms that needed Float128 during the BFV multiplication.
+- RING : the ternary sampler is now part of the context.
+### Changed
+- BFV : quantization during multiplication doesn't use Float128 any more, resulting in a 40-50% speed improvement.
+- BFV : BatchEncoder is now Encoder.
+- BFV : new tests.
+- CKKS : new tests.
+- CKKS : the scale is now stored as a float64 instead of a power of 2.
+- CKKS : previously needed one ring context per level, now only uses one context for all levels.
+- CKKS : new baby-step giant-step for evaluating Chebyshev polynomials, much faster and more precise.
+- CKKS : encrypt with PK and SK now need less NTT.
+- BFV/CKKS : revamp of the rotation keys API and structures.
+- BFV/CKKS : new switching-keys and key-switching algorithm based on https://eprint.iacr.org/2019/688.pdf.
+- DBFV/DCKKS : complete revamp of the interfaces, API and tests.
+- DBFV/DCKKS : improved PCKS and CKS based on the new key-switching technique.
+- DCKKS : now protocols work for ciphertexts at any levels.
+- RING : faster MulScalarBigint (similar to MulScalar).
+### Fixes
+- DBFV/DCKKS : correctness is now ensured when the same protocol instance is used to generate multiples shares.
+
+## [1.2.0] - 2019-12-01
+Internal version, merged with 1.3.0.
 
 ## [1.1.0] - 2019-10-01
 ### Added

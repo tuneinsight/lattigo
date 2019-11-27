@@ -234,7 +234,7 @@ func testMarshalBinary(t *testing.T) {
 			data, _ := context.MarshalBinary()
 
 			contextTest := NewContext()
-			contextTest.UnMarshalBinary(data)
+			contextTest.UnmarshalBinary(data)
 
 			if contextTest.N != context.N {
 				t.Errorf("ERROR encoding/decoding N")

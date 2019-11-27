@@ -228,6 +228,8 @@ func (context *Context) MulCoeffsMontgomery(p1, p2, p3 *Poly) {
 	}
 }
 
+// MulCoeffsMontgomeryLvl multiplies p1 by p2 coefficient wise with a Montgomery modular reduction, returning the result on p3.
+// Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryLvl(level uint64, p1, p2, p3 *Poly) {
 	var qi uint64
 	for i := uint64(0); i < level+1; i++ {
@@ -252,6 +254,8 @@ func (context *Context) MulCoeffsMontgomeryAndAdd(p1, p2, p3 *Poly) {
 	}
 }
 
+// MulCoeffsMontgomeryAndAddLvl multiplies p1 by p2 coefficient wise with a Montgomery modular reduction, adding the result to p3.
+// Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndAddLvl(level uint64, p1, p2, p3 *Poly) {
 	var qi uint64
 	for i := uint64(0); i < level+1; i++ {
@@ -276,6 +280,8 @@ func (context *Context) MulCoeffsMontgomeryAndAddNoMod(p1, p2, p3 *Poly) {
 	}
 }
 
+// MulCoeffsMontgomeryAndAddNoModLvl multiplies p1 by p2 coefficient wise with a Montgomery modular reduction, adding the result to p3 without modular reduction.
+// Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndAddNoModLvl(level uint64, p1, p2, p3 *Poly) {
 	var qi uint64
 	for i := uint64(0); i < level+1; i++ {
@@ -644,7 +650,7 @@ func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
 	}
 }
 
-// PermuteNTT applies the galois transform on a polynomial in the NTT domain.
+// PermuteNTTWithIndex applies the galois transform on a polynomial in the NTT domain.
 // It maps the coefficients x^i to x^(gen*i) using the PermuteNTTIndex table.
 // Careful, not inplace!
 func PermuteNTTWithIndex(polIn *Poly, index []uint64, polOut *Poly) {

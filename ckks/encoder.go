@@ -12,7 +12,8 @@ type encoderContext struct {
 	n        uint64
 
 	// Moduli chain
-	moduli []uint64
+	moduli      []uint64
+	bigintChain []*big.Int
 
 	// Contexts
 	contextQ *ring.Context
@@ -55,6 +56,16 @@ func newEncoderContext(params *Parameters) *encoderContext {
 		primes[uint64(qi)] = primes[uint64(qi)][1:]
 	}
 
+	levels := uint64(len(params.Modulichain))
+
+	bigintChain := make([]*big.Int, levels)
+
+	bigintChain[0] = ring.NewUint(moduli[0])
+	for i := uint64(1); i < levels; i++ {
+		bigintChain[i] = ring.NewUint(moduli[i])
+		bigintChain[i].Mul(bigintChain[i], bigintChain[i-1])
+	}
+
 	// Contexts
 	contextQ := ring.NewContext()
 	contextQ.SetParameters(1<<params.LogN, moduli)
@@ -64,10 +75,11 @@ func newEncoderContext(params *Parameters) *encoderContext {
 	}
 
 	return &encoderContext{
-		maxSlots: maxSlots,
-		n:        n,
-		moduli:   moduli,
-		contextQ: contextQ,
+		maxSlots:    maxSlots,
+		n:           n,
+		moduli:      moduli,
+		bigintChain: bigintChain,
+		contextQ:    contextQ,
 	}
 }
 
@@ -93,7 +105,7 @@ func NewEncoder(params *Parameters) (encoder *Encoder) {
 	encoder.values = make([]complex128, context.maxSlots)
 	encoder.valuesfloat = make([]float64, context.n)
 	encoder.bigintCoeffs = make([]*big.Int, context.n)
-	encoder.q_half = ring.NewUint(0)
+	encoder.qHalf = ring.NewUint(0)
 	encoder.polypool = context.contextQ.NewPoly()
 
 	encoder.m = context.n << 1
@@ -156,9 +168,9 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 	encoder.context.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	encoder.context.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
-	Q := encoder.ckkscontext.bigintChain[plaintext.Level()]
+	Q := encoder.context.bigintChain[plaintext.Level()]
 
-	maxSlots := encoder.ckkscontext.maxSlots
+	maxSlots := encoder.context.maxSlots
 
 	encoder.qHalf.Set(Q)
 	encoder.qHalf.Rsh(encoder.qHalf, 1)

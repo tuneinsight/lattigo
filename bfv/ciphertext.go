@@ -10,7 +10,7 @@ type Ciphertext struct {
 }
 
 // NewCiphertext creates a new Ciphertext structure.
-func NewCiphertext() (ciphertext *Ciphertext) {
+func NewCiphertextStruct() (ciphertext *Ciphertext) {
 	return &Ciphertext{&bfvElement{}}
 }
 

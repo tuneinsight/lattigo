@@ -77,7 +77,7 @@ func testMarshaller(t *testing.T) {
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)
 
-			ciphertextTest := NewCiphertext()
+			ciphertextTest := NewCiphertextStruct()
 			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 			check(t, err)
 

@@ -32,6 +32,8 @@ type dckksContext struct {
 
 	sk0Shards []*ckks.SecretKey
 	sk1Shards []*ckks.SecretKey
+
+	ringCtx *ring.Context
 }
 
 type dckksTestParameters struct {
@@ -107,9 +109,11 @@ func genDCKKSContext(contextParameters *ckks.Parameters) (params *dckksContext) 
 
 	params.encryptorPk0 = ckks.NewEncryptorFromPk(params.pk0, contextParameters)
 
-	params.decryptorSk0 = params.ckksContext.NewDecryptor(params.sk0)
+	params.decryptorSk0 = ckks.NewDecryptor(params.sk0, contextParameters)
 
-	params.decryptorSk1 = params.ckksContext.NewDecryptor(params.sk1)
+	params.decryptorSk1 = ckks.NewDecryptor(params.sk1, contextParameters)
+
+	params.ringCtx = ckks.NewRingContext(contextParameters)
 
 	return
 }
@@ -707,7 +711,7 @@ func newTestVectors(contextParams *dckksContext, encryptor *ckks.Encryptor, a fl
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = contextParams.ckksContext.NewPlaintext(contextParams.ckksContext.Levels()-1, contextParams.ckksContext.Scale())
+	plaintext = ckks.NewPlaintext(contextParams.ckksContext.Levels()-1, contextParams.ckksContext.Scale(), contextParams.ringCtx)
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 

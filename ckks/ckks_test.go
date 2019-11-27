@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"fmt"
+	"github.com/ldsec/lattigo/ring"
 	"log"
 	"math"
 	"math/cmplx"
@@ -39,6 +40,7 @@ type ckksParams struct {
 	encryptorSk *Encryptor
 	decryptor   *Decryptor
 	evaluator   *Evaluator
+	ringCtx     *ring.Context
 }
 
 type ckksTestParameters struct {
@@ -99,9 +101,11 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 	params.encryptorPk = NewEncryptorFromPk(params.pk, contextParameters)
 	params.encryptorSk = NewEncryptorFromSk(params.sk, contextParameters)
-	params.decryptor = params.ckkscontext.NewDecryptor(params.sk)
+	params.decryptor = NewDecryptor(params.sk, contextParameters)
 
 	params.evaluator = NewEvaluator(contextParameters)
+
+	params.ringCtx = NewRingContext(contextParameters)
 
 	return
 
@@ -119,7 +123,7 @@ func newTestVectors(contextParams *ckksParams, encryptor *Encryptor, a float64, 
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = contextParams.ckkscontext.NewPlaintext(contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale())
+	plaintext = NewPlaintext(contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale(), contextParams.ringCtx)
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -142,7 +146,7 @@ func newTestVectorsReals(contextParams *ckksParams, encryptor *Encryptor, a, b f
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = contextParams.ckkscontext.NewPlaintext(contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale())
+	plaintext = NewPlaintext(contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale(), contextParams.ringCtx)
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -803,7 +807,7 @@ func testSwitchKeys(t *testing.T) {
 		params := genCkksParams(parameters)
 
 		sk2 := params.kgen.NewSecretKey()
-		decryptorSk2 := params.ckkscontext.NewDecryptor(sk2)
+		decryptorSk2 := NewDecryptor(sk2, parameters)
 		switchingKey := params.kgen.NewSwitchingKey(params.sk, sk2)
 
 		t.Run(testString("InPlace/", params), func(t *testing.T) {

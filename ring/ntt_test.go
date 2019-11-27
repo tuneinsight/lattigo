@@ -13,7 +13,7 @@ var folder = "test_data/"
 
 // Name of the test vectors files
 
-var files_60 = []string{
+var files60 = []string{
 	"test_pol_60____8_2",
 	"test_pol_60___16_2",
 	"test_pol_60___32_2",
@@ -25,7 +25,7 @@ var files_60 = []string{
 
 // Name of the test vectors files
 
-var filesNTT_60 = []string{
+var filesNTT60 = []string{
 	"test_pol_NTT_60____8_2",
 	"test_pol_NTT_60___16_2",
 	"test_pol_NTT_60___32_2",
@@ -102,8 +102,8 @@ func Test_NTT(t *testing.T) {
 
 	for x := uint64(0); x < 7; x++ {
 
-		vs := getParamsFromString(fmt.Sprintf(folder + files_60[x]))
-		vs_ntt := getParamsFromString(fmt.Sprintf(folder + filesNTT_60[x]))
+		vs := getParamsFromString(fmt.Sprintf(folder + files60[x]))
+		vsNtt := getParamsFromString(fmt.Sprintf(folder + filesNTT60[x]))
 
 		context := constructContextFromString(vs)
 
@@ -111,7 +111,7 @@ func Test_NTT(t *testing.T) {
 
 			Polx := constructPolynomialsFromString(vs, context)
 
-			PolNTT := constructPolynomialsFromString(vs_ntt, context)
+			PolNTT := constructPolynomialsFromString(vsNtt, context)
 
 			CRTCoeffs := Polx.GetCoefficients()
 

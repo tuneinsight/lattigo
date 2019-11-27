@@ -8,7 +8,7 @@ import (
 	//"math/rand"
 )
 
-// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
+// UniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1]
 func (context *Context) UniformPoly(Pol *Poly) {
 
 	var randomBytes []byte

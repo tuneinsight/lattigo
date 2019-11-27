@@ -165,8 +165,8 @@ func verifyVector(valuesWant, valuesTest []complex128) (err error) {
 			maxprec = complex(real(maxprec), imag(diff[i]))
 		}
 
-		distribReal[uint64(math.Floor(math.Log2(1/real(diff[i]))))] += 1
-		distribImag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))] += 1
+		distribReal[uint64(math.Floor(math.Log2(1/real(diff[i]))))]++
+		distribImag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))]++
 	}
 
 	meanprec /= complex(float64(len(valuesWant)), 0)

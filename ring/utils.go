@@ -21,7 +21,7 @@ func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 //=== MODULAR EXPONENTIATION ===
 //==============================
 
-// Modexp performes the modular exponentiation x^e mod p,
+// ModExp performes the modular exponentiation x^e mod p,
 // x and p are required to be a most 64 bits to avoid an overflow.
 func ModExp(x, e, p uint64) (result uint64) {
 	params := BRedParams(p)
@@ -72,9 +72,6 @@ func gcdInt64(a, b int64) int64 {
 	return a
 }
 
-//===========================
-//===     MILLER-RABIN    ===
-//===========================
 // IsPrime applies a Miller-Rabin test on the given uint64 variable, returning true if num is probably prime, else false.
 func IsPrime(num uint64) bool {
 
@@ -111,12 +108,13 @@ func IsPrime(num uint64) bool {
 		if x != 1 {
 			i := 0
 			for x != num-1 {
+
 				if i == k-1 {
 					return false
-				} else {
-					i++
-					x = BRed(x, x, num, bredParams)
 				}
+
+				i++
+				x = BRed(x, x, num, bredParams)
 			}
 		}
 	}

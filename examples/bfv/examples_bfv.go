@@ -8,14 +8,7 @@ import (
 	"math/bits"
 )
 
-var N uint64
-var T uint64
-var Qi []uint64
-var Pi []uint64
-var Sigma float64
-var bfvContext *bfv.Context
-
-func ObliviousRiding() {
+func obliviousRiding() {
 
 	// This example will simulate a situation where an anonymous rider
 	// wants to find the closest available rider within a given area.
@@ -184,5 +177,5 @@ func distance(a, b, c, d uint64) uint64 {
 }
 
 func main() {
-	ObliviousRiding()
+	obliviousRiding()
 }

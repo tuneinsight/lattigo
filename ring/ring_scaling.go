@@ -5,17 +5,18 @@ import (
 	"math/bits"
 )
 
+// DivFloorByLastModulusNTT divides floor the polynomial by its last modulus. Input must be in the NTT domain.
 func (context *Context) DivFloorByLastModulusNTT(p0 *Poly) {
 
 	level := len(p0.Coeffs) - 1
 
-	p_tmp := make([]uint64, context.N)
+	pTmp := make([]uint64, context.N)
 
 	InvNTT(p0.Coeffs[level], p0.Coeffs[level], context.N, context.nttPsiInv[level], context.nttNInv[level], context.Modulus[level], context.mredParams[level])
 
 	for i := 0; i < level; i++ {
 
-		NTT(p0.Coeffs[level], p_tmp, context.N, context.nttPsi[i], context.Modulus[i], context.mredParams[i], context.bredParams[i])
+		NTT(p0.Coeffs[level], pTmp, context.N, context.nttPsi[i], context.Modulus[i], context.mredParams[i], context.bredParams[i])
 
 		p0tmp := p0.Coeffs[i]
 
@@ -25,13 +26,14 @@ func (context *Context) DivFloorByLastModulusNTT(p0 *Poly) {
 
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < context.N; j++ {
-			p0tmp[j] = MRed(p0tmp[j]+(qi-p_tmp[j]), rescalParams, qi, mredParams)
+			p0tmp[j] = MRed(p0tmp[j]+(qi-pTmp[j]), rescalParams, qi, mredParams)
 		}
 	}
 
 	p0.Coeffs = p0.Coeffs[:level]
 }
 
+// DivFloorByLastModulus divides floor the polynomial by its last modulus.
 func (context *Context) DivFloorByLastModulus(p0 *Poly) {
 
 	level := len(p0.Coeffs) - 1
@@ -52,25 +54,28 @@ func (context *Context) DivFloorByLastModulus(p0 *Poly) {
 	p0.Coeffs = p0.Coeffs[:level]
 }
 
+// DivFloorByLastModulusManyNTT divides floor sequentially nbRescales times the polynmial by its last modulus. Input must be in the NTT domain.
 func (context *Context) DivFloorByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
 	context.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 	context.DivFloorByLastModulusMany(p0, nbRescales)
 	context.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 }
 
+// DivFloorByLastModulusMany divides floor sequentially nbRescales times the polynmial by its last modulus.
 func (context *Context) DivFloorByLastModulusMany(p0 *Poly, nbRescales uint64) {
 	for k := uint64(0); k < nbRescales; k++ {
 		context.DivFloorByLastModulus(p0)
 	}
 }
 
+// DivRoundByLastModulusNTT divides round the polynomial by its last modulus. Input must be in the NTT domain.
 func (context *Context) DivRoundByLastModulusNTT(p0 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
 
 	level := len(p0.Coeffs) - 1
 
-	p_tmp := make([]uint64, context.N)
+	pTmp := make([]uint64, context.N)
 
 	InvNTT(p0.Coeffs[level], p0.Coeffs[level], context.N, context.nttPsiInv[level], context.nttNInv[level], context.Modulus[level], context.mredParams[level])
 
@@ -94,20 +99,21 @@ func (context *Context) DivRoundByLastModulusNTT(p0 *Poly) {
 		pHalfNegQi = context.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
 
 		for j := uint64(0); j < context.N; j++ {
-			p_tmp[j] = p0tmp[j] + pHalfNegQi
+			pTmp[j] = p0tmp[j] + pHalfNegQi
 		}
 
-		NTT(p_tmp, p_tmp, context.N, context.nttPsi[i], qi, mredParams, bredParams)
+		NTT(pTmp, pTmp, context.N, context.nttPsi[i], qi, mredParams, bredParams)
 
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < context.N; j++ {
-			p1tmp[j] = MRed(p1tmp[j]+(qi-p_tmp[j]), rescaleParams, qi, mredParams)
+			p1tmp[j] = MRed(p1tmp[j]+(qi-pTmp[j]), rescaleParams, qi, mredParams)
 		}
 	}
 
 	p0.Coeffs = p0.Coeffs[:level]
 }
 
+// DivRoundByLastModulus divides round the polynomial by its last modulus. Input must be in the NTT domain.
 func (context *Context) DivRoundByLastModulus(p0 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
@@ -143,12 +149,14 @@ func (context *Context) DivRoundByLastModulus(p0 *Poly) {
 	p0.Coeffs = p0.Coeffs[:level]
 }
 
+// DivRoundByLastModulusManyNTT divides round sequentially nbRescales times the polynmial by its last modulus. Input must be in the NTT domain.
 func (context *Context) DivRoundByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
 	context.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 	context.DivRoundByLastModulusMany(p0, nbRescales)
 	context.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 }
 
+// DivRoundByLastModulusMany divides round sequentially nbRescales times the polynmial by its last modulus.
 func (context *Context) DivRoundByLastModulusMany(p0 *Poly, nbRescales uint64) {
 	for k := uint64(0); k < nbRescales; k++ {
 		context.DivRoundByLastModulus(p0)

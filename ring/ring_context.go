@@ -206,6 +206,7 @@ type smallContext struct {
 	Modulus []uint64
 }
 
+// MarshalBinary encodes the target ring context on a slice of bytes.
 func (context *Context) MarshalBinary() ([]byte, error) {
 
 	parameters := smallContext{context.N, context.Modulus}
@@ -218,7 +219,8 @@ func (context *Context) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (context *Context) UnMarshalBinary(data []byte) error {
+// UnmarshalBinary decodes slice of bytes on the target ring context.
+func (context *Context) UnmarshalBinary(data []byte) error {
 
 	parameters := smallContext{}
 
@@ -239,7 +241,7 @@ func (context *Context) AllowsNTT() bool {
 	return context.allowsNTT
 }
 
-// GetBRedParams returns the Barret reduction parameters of the context.
+// GetBredParams returns the Barret reduction parameters of the context.
 func (context *Context) GetBredParams() [][]uint64 {
 	return context.bredParams
 }
@@ -254,7 +256,7 @@ func (context *Context) GetPsi() []uint64 {
 	return context.psiMont
 }
 
-// GetPsi returns the primitive root used to compute the InvNTT parameters of the context.
+// GetPsiInv returns the primitive root used to compute the InvNTT parameters of the context.
 func (context *Context) GetPsiInv() []uint64 {
 	return context.psiInvMont
 }
@@ -264,7 +266,7 @@ func (context *Context) GetNttPsi() [][]uint64 {
 	return context.nttPsi
 }
 
-//GetNttPsiInv returns the InvNTT parameters of the context.
+// GetNttPsiInv returns the InvNTT parameters of the context.
 func (context *Context) GetNttPsiInv() [][]uint64 {
 	return context.nttPsiInv
 }
@@ -286,6 +288,7 @@ func (context *Context) NewPoly() *Poly {
 	return p
 }
 
+// NewPolyLvl create a new polynomial with all coefficients set to 0.
 func (context *Context) NewPolyLvl(level uint64) *Poly {
 	p := new(Poly)
 
@@ -341,6 +344,7 @@ func (context *Context) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
 	}
 }
 
+// SetCoefficientsBigintLvl sets the coefficients of p1 from an array of Int variables.
 func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*big.Int, p1 *Poly) {
 
 	QiBigint := new(big.Int)
@@ -354,7 +358,7 @@ func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*big.Int
 	}
 }
 
-//PolyToString reconstructs p1 and returns the result in an array of string.
+// PolyToString reconstructs p1 and returns the result in an array of string.
 func (context *Context) PolyToString(p1 *Poly) []string {
 
 	coeffsBigint := make([]*big.Int, context.N)
@@ -368,7 +372,7 @@ func (context *Context) PolyToString(p1 *Poly) []string {
 	return coeffsString
 }
 
-//PolyToBigint reconstructs p1 and returns the result in an array of Int.
+// PolyToBigint reconstructs p1 and returns the result in an array of Int.
 func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
 
 	var qi, level uint64
@@ -431,6 +435,7 @@ func (context *Context) Equal(p1, p2 *Poly) bool {
 	return true
 }
 
+// EqualLvl checks if p1 = p2 in the given context.
 func (context *Context) EqualLvl(level uint64, p1, p2 *Poly) bool {
 
 	for i := uint64(0); i < level+1; i++ {

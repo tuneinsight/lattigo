@@ -219,6 +219,8 @@ func benchKeyswitching(b *testing.B) {
 		sk0Shards := params.sk0Shards
 		sk1Shards := params.sk1Shards
 
+		ringCtx := bfv.NewRingContext(&parameters)
+
 		type Party struct {
 			*CKSProtocol
 			s0    *ring.Poly
@@ -232,7 +234,7 @@ func benchKeyswitching(b *testing.B) {
 		p.s1 = sk1Shards[0].Get()
 		p.share = p.AllocateShare()
 
-		ciphertext := bfvContext.NewRandomCiphertext(1)
+		ciphertext := bfv.NewRandomCiphertext(1, ringCtx)
 
 		b.Run(testString("Round1/Gen", &parameters), func(b *testing.B) {
 
@@ -267,7 +269,9 @@ func benchPublicKeySwitching(b *testing.B) {
 		sk0Shards := params.sk0Shards
 		pk1 := params.pk1
 
-		ciphertext := bfvContext.NewRandomCiphertext(1)
+		ringCtx := bfv.NewRingContext(&parameters)
+
+		ciphertext := bfv.NewRandomCiphertext(1, ringCtx)
 
 		type Party struct {
 			*PCKSProtocol
@@ -388,7 +392,7 @@ func benchRefresh(b *testing.B) {
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.ClockNew()
 
-		ciphertext := bfvContext.NewRandomCiphertext(1)
+		ciphertext := bfv.NewRandomCiphertext(1, ringCtx)
 
 		b.Run(testString("Round1/Gen", &parameters), func(b *testing.B) {
 

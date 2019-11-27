@@ -954,7 +954,7 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("Ciphertext/", params), func(t *testing.T) {
 
-			ciphertextWant := params.ckkscontext.NewRandomCiphertext(2, params.ckkscontext.levels-1, params.ckkscontext.scale)
+			ciphertextWant := NewRandomCiphertext(2, params.ckkscontext.levels-1, params.ckkscontext.scale, params.ringCtx)
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)

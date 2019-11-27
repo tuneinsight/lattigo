@@ -204,6 +204,8 @@ func benchKeySwitching(b *testing.B) {
 		sk0Shards := params.sk0Shards
 		sk1Shards := params.sk1Shards
 
+		ringCtx := ckks.NewRingContext(parameters)
+
 		type Party struct {
 			*CKSProtocol
 			s0    *ring.Poly
@@ -217,7 +219,7 @@ func benchKeySwitching(b *testing.B) {
 		p.s1 = sk1Shards[0].Get()
 		p.share = p.AllocateShare()
 
-		ciphertext := ckksContext.NewRandomCiphertext(1, ckksContext.Levels()-1, ckksContext.Scale())
+		ciphertext := ckks.NewRandomCiphertext(1, ckksContext.Levels()-1, ckksContext.Scale(), ringCtx)
 
 		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
 
@@ -253,7 +255,9 @@ func benchPublicKeySwitching(b *testing.B) {
 		sk0Shards := params.sk0Shards
 		pk1 := params.pk1
 
-		ciphertext := ckksContext.NewRandomCiphertext(1, ckksContext.Levels()-1, ckksContext.Scale())
+		ringCtx := ckks.NewRingContext(parameters)
+
+		ciphertext := ckks.NewRandomCiphertext(1, ckksContext.Levels()-1, ckksContext.Scale(), ringCtx)
 
 		type Party struct {
 			*PCKSProtocol
@@ -357,6 +361,8 @@ func benchRefresh(b *testing.B) {
 
 		levelStart := uint64(3)
 
+		ringCtx := ckks.NewRingContext(parameters)
+
 		type Party struct {
 			*RefreshProtocol
 			s      *ring.Poly
@@ -372,8 +378,6 @@ func benchRefresh(b *testing.B) {
 		crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextQ())
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.ClockNew()
-
-		ringCtx := ckks.NewRingContext(parameters)
 
 		ciphertext := ckks.NewCiphertext(1, levelStart, ckksContext.Scale(), ringCtx)
 

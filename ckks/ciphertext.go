@@ -78,12 +78,12 @@ func NewCiphertext(degree uint64, level uint64, scale float64, ringCtx *ring.Con
 }
 
 // NewRandomCiphertext generates a new uniformely distributed ciphertext of degree, level and scale.
-func (ckkscontext *Context) NewRandomCiphertext(degree, level uint64, scale float64) (ciphertext *Ciphertext) {
+func NewRandomCiphertext(degree, level uint64, scale float64, ringCtx *ring.Context) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{&ckksElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = ckkscontext.contextQ.NewUniformPolyLvl(level)
+		ciphertext.value[i] = ringCtx.NewUniformPolyLvl(level)
 	}
 
 	ciphertext.scale = scale

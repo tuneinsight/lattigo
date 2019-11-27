@@ -727,7 +727,8 @@ func Test_Marshalling(t *testing.T) {
 	contextQ := bfvCtx.ContextQ()
 	contextPKeys := bfvCtx.ContextPKeys()
 
-	Ciphertext := bfvCtx.NewRandomCiphertext(1)
+	ringCtx := bfv.NewRingContext(&bfv.DefaultParams[1])
+	Ciphertext := bfv.NewRandomCiphertext(1, ringCtx)
 
 	t.Run(fmt.Sprintf("CPK/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 		keygenProtocol := NewCKGProtocol(bfvCtx)

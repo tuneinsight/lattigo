@@ -9,7 +9,7 @@ type Ciphertext struct {
 	*bfvElement
 }
 
-// NewCiphertext creates a new Ciphertext structure.
+// NewCiphertextStruct creates a new Ciphertext structure.
 func NewCiphertextStruct() (ciphertext *Ciphertext) {
 	return &Ciphertext{&bfvElement{}}
 }
@@ -39,11 +39,11 @@ func NewCiphertext(degree uint64, ringCtx *ring.Context) *Ciphertext {
 }
 
 // NewRandomCiphertext creates a new ciphertext with uniform coefficients.
-func (context *Context) NewRandomCiphertext(degree uint64) *Ciphertext {
+func NewRandomCiphertext(degree uint64, ringCtx *ring.Context) *Ciphertext {
 	ciphertext := &Ciphertext{&bfvElement{}}
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = context.contextQ.NewUniformPoly()
+		ciphertext.value[i] = ringCtx.NewUniformPoly()
 	}
 	ciphertext.isNTT = false
 

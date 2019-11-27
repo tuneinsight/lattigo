@@ -66,6 +66,7 @@ func TestBFV(t *testing.T) {
 func testMarshaller(t *testing.T) {
 
 	for _, parameters := range testParams.bfvParameters {
+		ringCtx := NewRingContext(parameters)
 
 		params := genBfvParams(parameters)
 
@@ -73,7 +74,7 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString2("Ciphertext/", params), func(t *testing.T) {
 
-			ciphertextWant := params.bfvContext.NewRandomCiphertext(2)
+			ciphertextWant := NewRandomCiphertext(2, ringCtx)
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)

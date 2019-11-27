@@ -338,7 +338,7 @@ func benchRotKeyGen(b *testing.B) {
 			}
 		})
 
-		rotKey := ckksContext.NewRotationKeys()
+		rotKey := ckks.NewRotationKeys()
 		b.Run(testString("Finalize", parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {

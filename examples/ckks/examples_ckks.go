@@ -36,7 +36,7 @@ func chebyshevinterpolation() {
 	ckkscontext := ckks.NewContext(params)
 
 	// Keys
-	kgen := ckkscontext.NewKeyGenerator()
+	kgen := ckks.NewKeyGenerator(params)
 	var sk *ckks.SecretKey
 	var pk *ckks.PublicKey
 	sk, pk = kgen.NewKeyPair()

@@ -93,7 +93,7 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 	params.ckkscontext = NewContext(contextParameters)
 
-	params.kgen = params.ckkscontext.NewKeyGenerator()
+	params.kgen = NewKeyGenerator(contextParameters)
 
 	params.sk, params.pk = params.kgen.NewKeyPairSparse(128)
 
@@ -836,7 +836,7 @@ func testConjugate(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		rotKey := params.ckkscontext.NewRotationKeys()
+		rotKey := NewRotationKeys()
 		params.kgen.GenRot(Conjugate, params.sk, 0, rotKey)
 
 		t.Run(testString("InPlace/", params), func(t *testing.T) {
@@ -1063,7 +1063,7 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("RotationKey", params), func(t *testing.T) {
 
-			rotationKey := params.ckkscontext.NewRotationKeys()
+			rotationKey := NewRotationKeys()
 
 			params.kgen.GenRot(Conjugate, params.sk, 0, rotationKey)
 			params.kgen.GenRot(RotationLeft, params.sk, 1, rotationKey)

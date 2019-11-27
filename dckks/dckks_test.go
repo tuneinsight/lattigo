@@ -82,7 +82,7 @@ func genDCKKSContext(contextParameters *ckks.Parameters) (params *dckksContext) 
 	params.encoder = ckks.NewEncoder(contextParameters)
 	params.evaluator = ckks.NewEvaluator(contextParameters)
 
-	kgen := params.ckksContext.NewKeyGenerator()
+	kgen := ckks.NewKeyGenerator(contextParameters)
 
 	// SecretKeys
 	params.sk0Shards = make([]*ckks.SecretKey, testParams.parties)
@@ -255,7 +255,7 @@ func testRelinKeyGen(t *testing.T) {
 					}
 				}
 
-				evk := ckksContext.NewRelinKey()
+				evk := ckks.NewRelinKey(parameters)
 				P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
 
 				coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
@@ -337,7 +337,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 					}
 				}
 
-				evk := ckksContext.NewRelinKey()
+				evk := ckks.NewRelinKey(parameters)
 				P0.GenRelinearizationKey(P0.share2, evk)
 
 				coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
@@ -533,7 +533,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 				}
 			}
 
-			rotkey := ckksContext.NewRotationKeys()
+			rotkey := ckks.NewRotationKeys()
 			P0.Finalize(P0.share, crp, rotkey)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
@@ -611,7 +611,7 @@ func testRotKeyGenCols(t *testing.T) {
 					}
 				}
 
-				rotkey := ckksContext.NewRotationKeys()
+				rotkey := ckks.NewRotationKeys()
 				P0.Finalize(P0.share, crp, rotkey)
 
 				evaluator.RotateColumns(ciphertext, k, rotkey, receiver)

@@ -12,7 +12,7 @@ func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterp
 
 	C[1] = ct.CopyNew().Ciphertext()
 
-	evaluator.MultConst(C[1], 2/(cheby.b-cheby.a), C[1])
+	evaluator.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
 

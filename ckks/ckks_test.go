@@ -67,8 +67,8 @@ func TestCKKS(t *testing.T) {
 	t.Run("Evaluator/Sub", testEvaluatorSub)
 	t.Run("Evaluator/Rescale", testEvaluatorRescale)
 	t.Run("Evaluator/AddConst", testEvaluatorAddConst)
-	t.Run("Evaluator/MultConst", testEvaluatorMultConst)
-	t.Run("Evaluator/MultConstAndAdd", testEvaluatorMultConstAndAdd)
+	t.Run("Evaluator/MultByConst", testEvaluatorMultByConst)
+	t.Run("Evaluator/MultByConstAndAdd", testEvaluatorMultByConstAndAdd)
 	t.Run("Evaluator/Mul", testEvaluatorMul)
 	t.Run("Evaluator/Functions", testFunctions)
 	t.Run("Evaluator/EvaluatePoly", testEvaluatePoly)
@@ -470,7 +470,7 @@ func testEvaluatorRescale(t *testing.T) {
 
 			constant := params.ckkscontext.moduli[ciphertext.Level()]
 
-			params.evaluator.MultConst(ciphertext, constant, ciphertext)
+			params.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
 			ciphertext.MulScale(float64(constant))
 
@@ -487,7 +487,7 @@ func testEvaluatorRescale(t *testing.T) {
 
 			for i := uint64(0); i < nbRescales; i++ {
 				constant := params.ckkscontext.moduli[ciphertext.Level()-i]
-				params.evaluator.MultConst(ciphertext, constant, ciphertext)
+				params.evaluator.MultByConst(ciphertext, constant, ciphertext)
 				ciphertext.MulScale(float64(constant))
 			}
 
@@ -521,7 +521,7 @@ func testEvaluatorAddConst(t *testing.T) {
 	}
 }
 
-func testEvaluatorMultConst(t *testing.T) {
+func testEvaluatorMultByConst(t *testing.T) {
 
 	for _, parameters := range testParams.ckksParameters {
 
@@ -537,14 +537,14 @@ func testEvaluatorMultConst(t *testing.T) {
 				values[i] *= constant
 			}
 
-			params.evaluator.MultConst(ciphertext, constant, ciphertext)
+			params.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 	}
 }
 
-func testEvaluatorMultConstAndAdd(t *testing.T) {
+func testEvaluatorMultByConstAndAdd(t *testing.T) {
 
 	for _, parameters := range testParams.ckksParameters {
 

@@ -288,7 +288,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 
 			for i := range rkgParties {
 				p := new(Party)
-				p.RKGProtocolNaive = NewRKGProtocolNaive(bfvContext)
+				p.RKGProtocolNaive = NewRKGProtocolNaive(&parameters)
 				p.s = sk0Shards[i].Get()
 				p.share1, p.share2 = p.AllocateShares()
 				rkgParties[i] = p

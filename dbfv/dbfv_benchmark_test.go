@@ -153,7 +153,6 @@ func benchRelinKeyGenNaive(b *testing.B) {
 
 		params := genDBFVContext(&parameters)
 
-		bfvContext := params.bfvContext
 		pk0 := params.pk0
 		sk0Shards := params.sk0Shards
 
@@ -168,7 +167,7 @@ func benchRelinKeyGenNaive(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.RKGProtocolNaive = NewRKGProtocolNaive(bfvContext)
+		p.RKGProtocolNaive = NewRKGProtocolNaive(&parameters)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares()
 		p.rlk = bfv.NewRelinKey(2, &parameters)

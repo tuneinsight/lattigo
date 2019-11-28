@@ -419,7 +419,7 @@ func testPublicKeySwitching(t *testing.T) {
 			pcksParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.PCKSProtocol = NewPCKSProtocol(bfvContext, 6.36)
+				p.PCKSProtocol = NewPCKSProtocol(&parameters, 6.36)
 				p.s = sk0Shards[i].Get()
 				p.share = p.AllocateShares()
 				pcksParties[i] = p
@@ -770,7 +770,7 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("PCKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 		//Check marshalling for the PCKS
 
-		KeySwitchProtocol := NewPCKSProtocol(bfvCtx, bfvCtx.Sigma())
+		KeySwitchProtocol := NewPCKSProtocol(params, bfvCtx.Sigma())
 		SwitchShare := KeySwitchProtocol.AllocateShares()
 		pk := KeyGenerator.NewPublicKey(sk)
 		KeySwitchProtocol.GenShare(sk.Get(), pk, Ciphertext, SwitchShare)

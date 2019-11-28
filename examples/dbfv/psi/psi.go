@@ -83,7 +83,7 @@ func main() {
 
 	ckg := dbfv.NewCKGProtocol(bfvctx)
 	rkg := dbfv.NewEkgProtocol(params)
-	pcks := dbfv.NewPCKSProtocol(bfvctx, 3.19)
+	pcks := dbfv.NewPCKSProtocol(params, 3.19)
 
 	P := make([]*party, N, N)
 	for i := range P {

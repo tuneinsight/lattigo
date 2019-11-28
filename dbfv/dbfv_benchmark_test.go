@@ -263,7 +263,6 @@ func benchPublicKeySwitching(b *testing.B) {
 
 		params := genDBFVContext(&parameters)
 
-		bfvContext := params.bfvContext
 		sk0Shards := params.sk0Shards
 		pk1 := params.pk1
 
@@ -278,7 +277,7 @@ func benchPublicKeySwitching(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.PCKSProtocol = NewPCKSProtocol(bfvContext, 6.36)
+		p.PCKSProtocol = NewPCKSProtocol(&parameters, 6.36)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShares()
 

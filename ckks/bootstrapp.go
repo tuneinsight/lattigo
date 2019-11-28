@@ -350,20 +350,14 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciph
 	C := make(map[uint64]*Ciphertext)
 	C[1] = ct.CopyNew().Ciphertext()
 
-	evaluator.MultConst(C[1], 2/((b-a)*n), C[1])
+	evaluator.MultByConst(C[1], 2/((b-a)*n), C[1])
 	evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
 	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
-
-	C[2] = evaluator.MulRelinNew(C[1], C[1], bootcontext.relinkey)
-	evaluator.Rescale(C[2], evaluator.ckkscontext.scale, C[2])
-
-	evaluator.Add(C[2], C[2], C[2])
-	evaluator.AddConst(C[2], -1, C[2])
 
 	M := uint64(bits.Len64(degree - 1))
 	L := uint64(M >> 1)
 
-	for i := uint64(3); i < (1<<L)+1; i++ {
+	for i := uint64(2); i < (1<<L)+1; i++ {
 		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
 	}
 

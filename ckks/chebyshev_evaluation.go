@@ -5,27 +5,48 @@ import (
 	"math/bits"
 )
 
-// EvaluateCheby evaluates the input Chebyshev polynomial with the input ciphertext.
-func (evaluator *Evaluator) EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
+// EvaluateChebyFast evaluates the input Chebyshev polynomial with the input ciphertext.
+// Faster than EvaluateChebyEco but consumes ceil(log(deg)) + 2 levels.
+func (evaluator *Evaluator) EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
 
 	C[1] = ct.CopyNew().Ciphertext()
 
-	evaluator.MultConst(C[1], 2/(cheby.b-cheby.a), C[1])
+	evaluator.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
-
-	C[2] = evaluator.MulRelinNew(C[1], C[1], evakey)
-	evaluator.Rescale(C[2], evaluator.ckkscontext.scale, C[2])
-
-	evaluator.Add(C[2], C[2], C[2])
-	evaluator.AddConst(C[2], -1, C[2])
 
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(M >> 1)
 
-	for i := uint64(3); i <= (1 << L); i++ {
+	for i := uint64(2); i <= (1 << L); i++ {
+		computePowerBasisCheby(i, C, evaluator, evakey)
+	}
+
+	for i := L + 1; i < M; i++ {
+		computePowerBasisCheby(1<<i, C, evaluator, evakey)
+	}
+
+	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
+}
+
+// EvaluateChebyEco evaluates the input Chebyshev polynomial with the input ciphertext.
+// Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
+func (evaluator *Evaluator) EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
+
+	C := make(map[uint64]*Ciphertext)
+
+	C[1] = ct.CopyNew().Ciphertext()
+
+	evaluator.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
+	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
+	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
+
+	M := uint64(bits.Len64(cheby.degree - 1))
+	L := uint64(1)
+
+	for i := uint64(2); i <= (1 << L); i++ {
 		computePowerBasisCheby(i, C, evaluator, evakey)
 	}
 

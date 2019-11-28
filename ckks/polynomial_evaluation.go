@@ -5,8 +5,9 @@ import (
 	"math/bits"
 )
 
-// EvaluatePoly evaluates the polynomial a + bx + cx^2... with the input ciphertext.
-func (evaluator *Evaluator) EvaluatePoly(ct *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (res *Ciphertext) {
+// EvaluatePolyFast evaluates the polynomial a + bx + cx^2... with the input ciphertext.
+// Faster than EvaluatePolyEco but consumes ceil(log2(deg)) + 1 levels.
+func (evaluator *Evaluator) EvaluatePolyFast(ct *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (res *Ciphertext) {
 
 	degree, coeffsMap := convertCoeffs(coeffs)
 
@@ -16,6 +17,30 @@ func (evaluator *Evaluator) EvaluatePoly(ct *Ciphertext, coeffs interface{}, eva
 
 	M := uint64(bits.Len64(degree - 1))
 	L := uint64(M >> 1)
+
+	for i := uint64(2); i <= (1 << L); i++ {
+		computePowerBasis(i, C, evaluator, evakey)
+	}
+
+	for i := L + 1; i < M; i++ {
+		computePowerBasis(1<<i, C, evaluator, evakey)
+	}
+
+	return recurse(degree, L, M, coeffsMap, C, evaluator, evakey)
+}
+
+// EvaluatePolyFast evaluates the polynomial a + bx + cx^2... with the input ciphertext.
+// Slower than EvaluatePolyFast but consumes ceil(log2(deg)) levels.
+func (evaluator *Evaluator) EvaluatePolyEco(ct *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (res *Ciphertext) {
+
+	degree, coeffsMap := convertCoeffs(coeffs)
+
+	C := make(map[uint64]*Ciphertext)
+
+	C[1] = ct.CopyNew().Ciphertext()
+
+	M := uint64(bits.Len64(degree - 1))
+	L := uint64(1)
 
 	for i := uint64(2); i <= (1 << L); i++ {
 		computePowerBasis(i, C, evaluator, evakey)

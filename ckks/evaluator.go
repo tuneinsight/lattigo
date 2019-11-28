@@ -194,13 +194,13 @@ func (evaluator *Evaluator) evaluateInPlace(c0, c1, ctOut *ckksElement, evaluate
 			tmp1 = evaluator.ctxpool.Element()
 
 			if uint64(c0.Scale()/c1.Scale()) != 0 {
-				evaluator.MultConst(c1.Ciphertext(), uint64(c0.Scale()/c1.Scale()), tmp1.Ciphertext())
+				evaluator.MultByConst(c1.Ciphertext(), uint64(c0.Scale()/c1.Scale()), tmp1.Ciphertext())
 			}
 
 		} else if c1.Scale() > c0.Scale() {
 
 			if uint64(c1.Scale()/c0.Scale()) != 0 {
-				evaluator.MultConst(c0.Ciphertext(), uint64(c1.Scale()/c0.Scale()), c0.Ciphertext())
+				evaluator.MultByConst(c0.Ciphertext(), uint64(c1.Scale()/c0.Scale()), c0.Ciphertext())
 			}
 
 			c0.SetScale(c1.Scale())
@@ -220,13 +220,13 @@ func (evaluator *Evaluator) evaluateInPlace(c0, c1, ctOut *ckksElement, evaluate
 
 			tmp0 = evaluator.ctxpool.Element()
 			if uint64(c1.Scale()/c0.Scale()) != 0 {
-				evaluator.MultConst(c0.Ciphertext(), uint64(c1.Scale()/c0.Scale()), tmp0.Ciphertext())
+				evaluator.MultByConst(c0.Ciphertext(), uint64(c1.Scale()/c0.Scale()), tmp0.Ciphertext())
 			}
 
 		} else if c0.Scale() > c1.Scale() {
 
 			if uint64(c0.Scale()/c1.Scale()) != 0 {
-				evaluator.MultConst(c1.Ciphertext(), uint64(c0.Scale()/c1.Scale()), ctOut.Ciphertext())
+				evaluator.MultByConst(c1.Ciphertext(), uint64(c0.Scale()/c1.Scale()), ctOut.Ciphertext())
 			}
 
 			ctOut.SetScale(c0.Scale())
@@ -247,7 +247,7 @@ func (evaluator *Evaluator) evaluateInPlace(c0, c1, ctOut *ckksElement, evaluate
 			tmp0 = evaluator.ctxpool.Element()
 
 			if uint64(c1.Scale()/c0.Scale()) != 0 {
-				evaluator.MultConst(c0.Ciphertext(), uint64(c1.Scale()/c0.Scale()), tmp0.Ciphertext())
+				evaluator.MultByConst(c0.Ciphertext(), uint64(c1.Scale()/c0.Scale()), tmp0.Ciphertext())
 			}
 
 			tmp1 = c1
@@ -257,7 +257,7 @@ func (evaluator *Evaluator) evaluateInPlace(c0, c1, ctOut *ckksElement, evaluate
 			tmp1 = evaluator.ctxpool.Element()
 
 			if uint64(c0.Scale()/c1.Scale()) != 0 {
-				evaluator.MultConst(c1.Ciphertext(), uint64(c0.Scale()/c1.Scale()), tmp1.Ciphertext())
+				evaluator.MultByConst(c1.Ciphertext(), uint64(c0.Scale()/c1.Scale()), tmp1.Ciphertext())
 			}
 
 			tmp0 = c0
@@ -474,7 +474,7 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 
 			if uint64((evaluator.ckkscontext.scale*ct0.Scale())/ctOut.Scale()) != 0 {
 
-				evaluator.MultConst(ctOut, uint64((evaluator.ckkscontext.scale*ct0.Scale())/ctOut.Scale()), ctOut)
+				evaluator.MultByConst(ctOut, uint64((evaluator.ckkscontext.scale*ct0.Scale())/ctOut.Scale()), ctOut)
 
 			}
 
@@ -497,7 +497,7 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 		} else if ct0.Scale() > ctOut.Scale() {
 
 			if uint64(ct0.Scale()/ctOut.Scale()) != 0 {
-				evaluator.MultConst(ctOut, ct0.Scale()/ctOut.Scale(), ctOut)
+				evaluator.MultByConst(ctOut, ct0.Scale()/ctOut.Scale(), ctOut)
 			}
 
 			ctOut.SetScale(ct0.Scale())
@@ -554,40 +554,19 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 	}
 }
 
-func (evaluator *Evaluator) SetScale(ct *Ciphertext, scale float64) (err error) {
-
-	var tmp float64
-
-	tmp = evaluator.ckkscontext.scale
-
-	evaluator.ckkscontext.scale = scale
-
-	evaluator.MultConst(ct, scale/ct.Scale(), ct)
-
-	if err = evaluator.Rescale(ct, scale, ct); err != nil {
-		return err
-	}
-
-	ct.SetScale(scale)
-
-	evaluator.ckkscontext.scale = tmp
-
-	return nil
-}
-
-// MultConstNew multiplies ct0 by the input constant and returns the result on a newly created element.
+// MultByConstNew multiplies ct0 by the input constant and returns the result on a newly created element.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
 // needs to be scaled (its rational part is not zero)). The constant can be an uint64, int64, float64 or complex128.
-func (evaluator *Evaluator) MultConstNew(ct0 *Ciphertext, constant interface{}) (ctOut *Ciphertext) {
+func (evaluator *Evaluator) MultByConstNew(ct0 *Ciphertext, constant interface{}) (ctOut *Ciphertext) {
 	ctOut = evaluator.ckkscontext.NewCiphertext(ct0.Degree(), ct0.Level(), ct0.Scale())
-	evaluator.MultConst(ct0, constant, ctOut)
+	evaluator.MultByConst(ct0, constant, ctOut)
 	return
 }
 
-// MultConst multiplies ct0 by the input constant and returns the result on ctOut.
+// MultByConst multiplies ct0 by the input constant and returns the result on ctOut.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
 // needs to be scaled (its rational part is not zero)). The constant can be an uint64, int64, float64 or complex128.
-func (evaluator *Evaluator) MultConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
+func (evaluator *Evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
 	var level uint64
 
@@ -809,7 +788,7 @@ func (evaluator *Evaluator) ScaleUpNew(ct0 *Ciphertext, scale float64) (ctOut *C
 // ScaleUp multiplies ct0 by 2^scale and sets its scale to its previous scale
 // plus 2^n. Returns the result on ctOut.
 func (evaluator *Evaluator) ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext) {
-	evaluator.MultConst(ct0, uint64(scale), ctOut)
+	evaluator.MultByConst(ct0, uint64(scale), ctOut)
 	ctOut.SetScale(ct0.Scale() * scale)
 	return
 }

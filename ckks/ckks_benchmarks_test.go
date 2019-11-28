@@ -142,7 +142,7 @@ func Benchmark_CKKSScheme(b *testing.B) {
 		// Mult Scalar
 		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/MultScalar", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.MultConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
+				evaluator.MultByConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
 			}
 		})
 

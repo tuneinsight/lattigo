@@ -29,7 +29,7 @@ func (evaluator *Evaluator) EvaluatePolyFast(ct *Ciphertext, coeffs interface{},
 	return recurse(degree, L, M, coeffsMap, C, evaluator, evakey)
 }
 
-// EvaluatePolyFast evaluates the polynomial a + bx + cx^2... with the input ciphertext.
+// EvaluatePolyEco evaluates the polynomial a + bx + cx^2... with the input ciphertext.
 // Slower than EvaluatePolyFast but consumes ceil(log2(deg)) levels.
 func (evaluator *Evaluator) EvaluatePolyEco(ct *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (res *Ciphertext) {
 
@@ -82,8 +82,8 @@ func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator,
 		b := n >> 1
 
 		// Recurses on the given indexes
-		computePowerBasisCheby(a, C, evaluator, evakey)
-		computePowerBasisCheby(b, C, evaluator, evakey)
+		computePowerBasis(a, C, evaluator, evakey)
+		computePowerBasis(b, C, evaluator, evakey)
 
 		// Computes C[n] = C[a]*C[b]
 		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
@@ -94,7 +94,7 @@ func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator,
 
 func splitCoeffs(coeffs map[uint64]complex128, degree, maxDegree uint64) (coeffsq, coeffsr map[uint64]complex128) {
 
-	// Splits a Chebyshev polynomial p such that p = q*C^degree + r, where q and r are a linear combination of a Chebyshev basis.
+	// Splits a polynomial p such that p = q*C^degree + r.
 
 	coeffsr = make(map[uint64]complex128)
 	coeffsq = make(map[uint64]complex128)
@@ -115,9 +115,7 @@ func splitCoeffs(coeffs map[uint64]complex128, degree, maxDegree uint64) (coeffs
 func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	if maxDegree <= (1 << L) {
-
-		return evaluateRecurse(coeffs, C, evaluator, evakey)
-
+		return evaluatePolyFromPowerBasis(coeffs, C, evaluator, evakey)
 	}
 
 	for 1<<(M-1) > maxDegree {
@@ -141,7 +139,7 @@ func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]
 
 }
 
-func evaluateRecurse(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func evaluatePolyFromPowerBasis(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	res = evaluator.ckkscontext.NewCiphertext(1, C[1].Level(), C[1].Scale())
 

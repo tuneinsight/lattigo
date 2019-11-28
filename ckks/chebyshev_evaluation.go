@@ -105,7 +105,7 @@ func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[ui
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 
 	if maxDegree <= (1 << L) {
-		return evaluateRecurse(coeffs, C, evaluator, evakey)
+		return evaluatePolyFromPowerBasis(coeffs, C, evaluator, evakey)
 	}
 
 	for 1<<(M-1) > maxDegree {

@@ -1195,6 +1195,7 @@ func (evaluator *Evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rot
 // RotateHoisted takes an input ciphertext and a list of rotations and returns a map of ciphertext, where each element of the map is the input ciphertext
 // rotation by on element of the list. Much faster than sequential calls of RotateColumns.
 func (evaluator *Evaluator) RotateHoisted(ctIn *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOut map[uint64]*Ciphertext) {
+
 	// Pre-computation for rotations using hoisting
 	contextQ := evaluator.ckkscontext.contextQ
 	contextP := evaluator.ckkscontext.contextP
@@ -1235,7 +1236,13 @@ func (evaluator *Evaluator) RotateHoisted(ctIn *Ciphertext, rotations []uint64, 
 func (evaluator *Evaluator) switchKeyHoisted(ctIn *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
 
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("cannot rotate -> input and output ciphertext must be of degree 1")
+		panic("cannot rotate hoisted-> input and output ciphertext must be of degree 1")
+	}
+
+	k &= (1 << (evaluator.ckkscontext.logN - 1)) - 1
+
+	if evakey.permuteNTTLeftIndex[k] == nil {
+		panic("cannot rotate hoisted -> specific rotation has not been generated")
 	}
 
 	ctOut.SetScale(ctIn.Scale())

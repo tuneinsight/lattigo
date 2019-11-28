@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"fmt"
 	"github.com/ldsec/lattigo/ring"
 	"testing"
 )
@@ -10,265 +9,213 @@ type benchParams struct {
 	params *Parameters
 }
 
-func Benchmark_CKKSScheme(b *testing.B) {
+func BenchmarkCKKSScheme(b *testing.B) {
+	b.Run("Encoder", benchEncoder)
+	b.Run("KeyGen", benchKeyGen)
+	b.Run("Encrypt", benchEncrypt)
+	b.Run("Decrypt", benchDecrypt)
+	b.Run("Evaluator", benchEvaluator)
+	b.Run("HoistedRotations", benchHoistedRotations)
+}
 
-	var ckkscontext *Context
-	var encoder *Encoder
-	var kgen *KeyGenerator
-	var sk *SecretKey
-	var pk *PublicKey
-	var rlk *EvaluationKey
-	var rotkey *RotationKeys
-	var encryptorPk *Encryptor
-	var encryptorSk *Encryptor
-	var decryptor *Decryptor
-	var evaluator *Evaluator
-	var plaintext *Plaintext
-	var ciphertext1 *Ciphertext
-	var ciphertext2 *Ciphertext
+func benchEncoder(b *testing.B) {
 
-	params := []benchParams{
-		//{params: DefaultParams[12]},
-		//{params: DefaultParams[13]},
-		{params: DefaultParams[14]},
-		//{params: DefaultParams[15]},
-		//{params: DefaultParams[16]},
-	}
+	for _, parameters := range testParams.ckksParameters {
 
-	var logN, slots, levels uint64
-	var scale, sigma float64
+		params := genCkksParams(parameters)
 
-	for _, param := range params {
+		ckkscontext := params.ckkscontext
+		encoder := params.encoder
+		slots := params.ckkscontext.Slots()
 
-		logN = uint64(param.params.LogN)
-		scale = param.params.Scale
-		sigma = param.params.Sigma
-		levels = uint64(len(param.params.Modulichain))
-		slots = uint64(1 << (logN - 1))
+		b.Run(testString("Encode/", params), func(b *testing.B) {
 
-		ckkscontext = NewContext(param.params)
-
-		encoder = ckkscontext.NewEncoder()
-
-		kgen = ckkscontext.NewKeyGenerator()
-
-		sk, pk = kgen.NewKeyPair()
-
-		rlk = kgen.NewRelinKey(sk)
-
-		rotkey = ckkscontext.NewRotationKeys()
-		kgen.GenRot(RotationLeft, sk, 1, rotkey)
-		kgen.GenRot(Conjugate, sk, 1, rotkey)
-
-		encryptorPk = ckkscontext.NewEncryptorFromPk(pk)
-		encryptorSk = ckkscontext.NewEncryptorFromSk(sk)
-		decryptor = ckkscontext.NewDecryptor(sk)
-
-		evaluator = ckkscontext.NewEvaluator()
-
-		_ = rotkey
-
-		ciphertext1 = ckkscontext.NewCiphertext(1, levels-1, scale)
-		ciphertext2 = ckkscontext.NewCiphertext(1, levels-1, scale)
-
-		var values []complex128
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/Levels=%d/sigma=%.2f/Encode", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-
-			values = make([]complex128, slots)
+			values := make([]complex128, slots)
 			for i := uint64(0); i < slots; i++ {
 				values[i] = complex(randomFloat(0.1, 1), 0)
 			}
 
-			plaintext = ckkscontext.NewPlaintext(levels-1, scale)
+			plaintext := ckkscontext.NewPlaintext(ckkscontext.levels-1, ckkscontext.scale)
 
 			for i := 0; i < b.N; i++ {
 				encoder.Encode(plaintext, values, slots)
 			}
 		})
 
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Decode", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
+		b.Run(testString("Decode/", params), func(b *testing.B) {
+
+			values := make([]complex128, slots)
+			for i := uint64(0); i < slots; i++ {
+				values[i] = complex(randomFloat(0.1, 1), 0)
+			}
+
+			plaintext := ckkscontext.NewPlaintext(ckkscontext.levels-1, ckkscontext.scale)
+			encoder.Encode(plaintext, values, slots)
+
 			for i := 0; i < b.N; i++ {
 				encoder.Decode(plaintext, slots)
-			}
-		})
-
-		// Key Pair Generation
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/KeyPairGen", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				sk, pk = kgen.NewKeyPair()
-			}
-		})
-
-		// SwitchKeyGen
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/SwitchKeyGen", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				rlk = kgen.NewRelinKey(sk)
-			}
-		})
-
-		// Encrypt
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/EncryptPk", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encryptorPk.Encrypt(plaintext, ciphertext1)
-			}
-		})
-
-		// Encrypt
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/EncryptSk", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encryptorSk.Encrypt(plaintext, ciphertext1)
-			}
-		})
-
-		// Decrypt
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Decrypt", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				decryptor.Decrypt(ciphertext1, plaintext)
-			}
-		})
-
-		// Add
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Add", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
-			}
-		})
-
-		// Add Scalar
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/AddScalar", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.AddConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
-			}
-		})
-
-		// Mult Scalar
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/MultScalar", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.MultByConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
-			}
-		})
-
-		// Rescale
-		contextQ := ckkscontext.contextQ
-		receiver := ckkscontext.NewRandomCiphertext(2, levels-1, scale)
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Rescale", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
-				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
-
-				b.StopTimer()
-				ciphertext1 = ckkscontext.NewRandomCiphertext(1, levels-1, scale)
-				b.StartTimer()
-			}
-		})
-
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/RescaleAll", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-
-				for ciphertext1.Level() != 0 {
-					contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
-					contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
-				}
-
-				b.StopTimer()
-				ciphertext1 = ckkscontext.NewRandomCiphertext(1, levels-1, scale)
-				b.StartTimer()
-			}
-		})
-
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/RescaleMultipleAll", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-
-				ckkscontext.contextQ.DivRoundByLastModulusManyNTT(ciphertext1.Value()[0], ciphertext1.Level()+1)
-				ckkscontext.contextQ.DivRoundByLastModulusManyNTT(ciphertext1.Value()[1], ciphertext1.Level()+1)
-
-				b.StopTimer()
-				ciphertext1 = ckkscontext.NewRandomCiphertext(1, levels-1, scale)
-				b.StartTimer()
-			}
-		})
-
-		// Mul
-		receiver = ckkscontext.NewRandomCiphertext(2, levels-1, scale)
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Multiply", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.MulRelin(ciphertext1, ciphertext2, nil, receiver)
-			}
-		})
-
-		// Square
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Square", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.MulRelin(ciphertext1, ciphertext1, nil, receiver)
-			}
-		})
-
-		// Mul Relin
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/MulRelin", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.MulRelin(ciphertext1, ciphertext2, rlk, ciphertext1)
-			}
-		})
-
-		// Mul Relin
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/SquareRelin", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.MulRelin(ciphertext1, ciphertext1, rlk, ciphertext1)
-			}
-		})
-
-		// Relin
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Relin", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.Relinearize(receiver, rlk, ciphertext1)
-			}
-		})
-
-		// Conjugate / Rotate
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/Conjugate", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)
-			}
-		})
-
-		// Rotate Cols
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/sigma=%.2f/RotateCols", logN, ckkscontext.LogQ(), levels, sigma), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
 			}
 		})
 	}
 }
 
-func BenchmarkRotationHoisting(b *testing.B) {
+func benchKeyGen(b *testing.B) {
 
-	var ckkscontext *Context
-	var kgen *KeyGenerator
-	var sk *SecretKey
-	var evaluator *Evaluator
-	var ciphertext *Ciphertext
+	for _, parameters := range testParams.ckksParameters {
 
-	params := []benchParams{
-		{params: &Parameters{16, []uint8{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2}},
+		params := genCkksParams(parameters)
+		kgen := params.kgen
+		sk := params.sk
+
+		b.Run(testString("KeyPairGen/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				kgen.NewKeyPair()
+			}
+		})
+
+		b.Run(testString("SwitchKeyGen/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				kgen.NewRelinKey(sk)
+			}
+		})
 	}
+}
 
-	var logN, logSlots uint64
+func benchEncrypt(b *testing.B) {
+	for _, parameters := range testParams.ckksParameters {
 
-	for _, param := range params {
+		params := genCkksParams(parameters)
+		ckkscontext := params.ckkscontext
+		encryptorPk := params.encryptorPk
+		encryptorSk := params.encryptorSk
 
-		logN = uint64(param.params.LogN)
+		plaintext := ckkscontext.NewPlaintext(ckkscontext.levels-1, ckkscontext.scale)
+		ciphertext := ckkscontext.NewCiphertext(1, ckkscontext.levels-1, ckkscontext.scale)
 
-		ckkscontext = NewContext(param.params)
-		kgen = ckkscontext.NewKeyGenerator()
+		b.Run(testString("Sk/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				encryptorPk.Encrypt(plaintext, ciphertext)
+			}
+		})
 
-		sk = kgen.NewSecretKey()
+		b.Run(testString("Pk/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				encryptorSk.Encrypt(plaintext, ciphertext)
+			}
+		})
+	}
+}
 
-		rotkeys := ckkscontext.NewRotationKeys()
-		kgen.GenRot(RotationLeft, sk, 5, rotkeys)
+func benchDecrypt(b *testing.B) {
+	for _, parameters := range testParams.ckksParameters {
 
-		evaluator = ckkscontext.NewEvaluator()
+		params := genCkksParams(parameters)
+		ckkscontext := params.ckkscontext
+		decryptor := params.decryptor
 
-		ciphertext = ckkscontext.NewRandomCiphertext(1, ckkscontext.Levels()-1, ckkscontext.Scale())
+		plaintext := ckkscontext.NewPlaintext(ckkscontext.levels-1, ckkscontext.scale)
+		ciphertext := ckkscontext.NewRandomCiphertext(1, ckkscontext.levels-1, ckkscontext.scale)
+
+		b.Run(testString("", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				decryptor.Decrypt(ciphertext, plaintext)
+			}
+		})
+	}
+}
+
+func benchEvaluator(b *testing.B) {
+	for _, parameters := range testParams.ckksParameters {
+		params := genCkksParams(parameters)
+		evaluator := params.evaluator
+		ckkscontext := params.ckkscontext
+
+		ciphertext1 := ckkscontext.NewRandomCiphertext(1, ckkscontext.levels-1, ckkscontext.scale)
+		ciphertext2 := ckkscontext.NewRandomCiphertext(1, ckkscontext.levels-1, ckkscontext.scale)
+		receiver := ckkscontext.NewRandomCiphertext(2, ckkscontext.levels-1, ckkscontext.scale)
+
+		rlk := params.kgen.NewRelinKey(params.sk)
+		rotkey := ckkscontext.NewRotationKeys()
+		params.kgen.GenRot(RotationLeft, params.sk, 1, rotkey)
+		params.kgen.GenRot(Conjugate, params.sk, 0, rotkey)
+
+		b.Run(testString("Add/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
+			}
+		})
+
+		b.Run(testString("AddScalar/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.AddConst(ciphertext1, ciphertext2, ciphertext1)
+			}
+		})
+
+		b.Run(testString("MulScalar/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.MultByConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
+			}
+		})
+
+		b.Run(testString("Rescale/", params), func(b *testing.B) {
+
+			contextQ := ckkscontext.contextQ
+
+			for i := 0; i < b.N; i++ {
+				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
+				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
+
+				b.StopTimer()
+				ciphertext1 = ckkscontext.NewRandomCiphertext(1, ckkscontext.levels-1, ckkscontext.scale)
+				b.StartTimer()
+			}
+		})
+
+		b.Run(testString("Mul/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.MulRelin(ciphertext1, ciphertext2, nil, receiver)
+			}
+		})
+
+		b.Run(testString("Square/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.MulRelin(ciphertext1, ciphertext1, nil, receiver)
+			}
+		})
+
+		b.Run(testString("Relin/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.Relinearize(receiver, rlk, ciphertext1)
+			}
+		})
+
+		b.Run(testString("Conjugate/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)
+			}
+		})
+
+		b.Run(testString("Rotate/", params), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
+			}
+		})
+
+	}
+}
+
+func benchHoistedRotations(b *testing.B) {
+
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genCkksParams(parameters)
+		evaluator := params.evaluator
+		ckkscontext := params.ckkscontext
+
+		rotkey := ckkscontext.NewRotationKeys()
+		params.kgen.GenRot(RotationLeft, params.sk, 5, rotkey)
+
+		ciphertext := ckkscontext.NewRandomCiphertext(1, ckkscontext.Levels()-1, ckkscontext.Scale())
 
 		contextQ := ckkscontext.contextQ
 		contextP := ckkscontext.contextP
@@ -285,7 +232,7 @@ func BenchmarkRotationHoisting(b *testing.B) {
 			c2QiPDecomp[i] = contextP.NewPoly()
 		}
 
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/DecomposeNTT", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
+		b.Run(testString("DecomposeNTT/", params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				for j := uint64(0); j < ckkscontext.beta; j++ {
 					evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
@@ -293,18 +240,9 @@ func BenchmarkRotationHoisting(b *testing.B) {
 			}
 		})
 
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/RotateHoisted", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
+		b.Run(testString("RotateHoisted/", params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.switchKeyHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, rotkeys, ciphertext)
-			}
-		})
-
-		b.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/logSlots=%d/RotateNormal", logN, ckkscontext.LogQ(), ckkscontext.Levels(), logSlots), func(b *testing.B) {
-
-			ciphertext = ckkscontext.NewRandomCiphertext(1, ckkscontext.Levels()-1, ckkscontext.Scale())
-
-			for i := 0; i < b.N; i++ {
-				evaluator.RotateColumns(ciphertext, 5, rotkeys, ciphertext)
+				evaluator.switchKeyHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, rotkey, ciphertext)
 			}
 		})
 	}

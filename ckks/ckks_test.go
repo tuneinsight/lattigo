@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"fmt"
-	//"github.com/ldsec/lattigo/ring"
 	"log"
 	"math"
 	"math/cmplx"
@@ -20,7 +19,14 @@ func check(t *testing.T, err error) {
 }
 
 func testString(opname string, params *ckksParams) string {
-	return fmt.Sprintf("%slogN=%d/logQ=%d/levels=%d/a=%d/b=%d", opname, params.ckkscontext.logN, params.ckkscontext.logQ, params.ckkscontext.levels, params.ckkscontext.alpha, params.ckkscontext.beta)
+	return fmt.Sprintf("%slogN=%d/logSlots=%d/logQ=%d/levels=%d/a=%d/b=%d",
+		opname,
+		params.ckkscontext.logN,
+		params.ckkscontext.logN-1,
+		params.ckkscontext.logQ,
+		params.ckkscontext.levels,
+		params.ckkscontext.alpha,
+		params.ckkscontext.beta)
 }
 
 type ckksParams struct {

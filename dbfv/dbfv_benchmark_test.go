@@ -324,7 +324,7 @@ func benchRotKeyGen(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.RTGProtocol = NewRotKGProtocol(bfvContext)
+		p.RTGProtocol = NewRotKGProtocol(&parameters)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShare()
 

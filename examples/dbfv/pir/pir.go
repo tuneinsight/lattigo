@@ -104,7 +104,7 @@ func main() {
 	// Instantiation of each of the protocols needed for the pir example
 	ckg := dbfv.NewCKGProtocol(bfvctx)       // public key generation
 	rkg := dbfv.NewEkgProtocol(bfvctx)       // relineariation key generation
-	rtg := dbfv.NewRotKGProtocol(bfvctx)     // rotation keys generation
+	rtg := dbfv.NewRotKGProtocol(params)     // rotation keys generation
 	cks := dbfv.NewCKSProtocol(params, 3.19) // collective public-key re-encryption
 
 	// Creates each party, and allocates the memory for all the shares that the protocols will need

@@ -470,7 +470,7 @@ func testRotKeyGenRotRows(t *testing.T) {
 			pcksParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.RTGProtocol = NewRotKGProtocol(bfvContext)
+				p.RTGProtocol = NewRotKGProtocol(&parameters)
 				p.s = sk0Shards[i].Get()
 				p.share = p.AllocateShare()
 				pcksParties[i] = p
@@ -535,7 +535,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 			pcksParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.RTGProtocol = NewRotKGProtocol(bfvContext)
+				p.RTGProtocol = NewRotKGProtocol(&parameters)
 				p.s = sk0Shards[i].Get()
 				p.share = p.AllocateShare()
 				pcksParties[i] = p
@@ -887,7 +887,7 @@ func Test_Marshalling(t *testing.T) {
 
 		}
 
-		rotProto := NewRotKGProtocol(bfvCtx)
+		rotProto := NewRotKGProtocol(params)
 		rtgShare := rotProto.AllocateShare()
 		rotProto.GenShare(1, 64, sk.Get(), crp, &rtgShare)
 

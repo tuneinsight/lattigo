@@ -361,7 +361,7 @@ func testKeyswitching(t *testing.T) {
 			cksParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.CKSProtocol = NewCKSProtocol(bfvContext, 6.36)
+				p.CKSProtocol = NewCKSProtocol(&parameters, 6.36)
 				p.s0 = sk0Shards[i].Get()
 				p.s1 = sk1Shards[i].Get()
 				p.share = p.AllocateShare()
@@ -809,7 +809,7 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("CKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 
 		//Now for CKSShare ~ its similar to PKSShare
-		cksp := NewCKSProtocol(bfvCtx, bfvCtx.Sigma())
+		cksp := NewCKSProtocol(params, bfvCtx.Sigma())
 		cksshare := cksp.AllocateShare()
 		skIn := KeyGenerator.NewSecretKey()
 		skOut := KeyGenerator.NewSecretKey()

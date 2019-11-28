@@ -105,7 +105,7 @@ func main() {
 	ckg := dbfv.NewCKGProtocol(bfvctx)       // public key generation
 	rkg := dbfv.NewEkgProtocol(bfvctx)       // relineariation key generation
 	rtg := dbfv.NewRotKGProtocol(bfvctx)     // rotation keys generation
-	cks := dbfv.NewCKSProtocol(bfvctx, 3.19) // collective public-key re-encryption
+	cks := dbfv.NewCKSProtocol(params, 3.19) // collective public-key re-encryption
 
 	// Creates each party, and allocates the memory for all the shares that the protocols will need
 	P := make([]*party, N, N)

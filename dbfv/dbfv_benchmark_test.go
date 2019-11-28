@@ -215,7 +215,6 @@ func benchKeyswitching(b *testing.B) {
 
 		params := genDBFVContext(&parameters)
 
-		bfvContext := params.bfvContext
 		sk0Shards := params.sk0Shards
 		sk1Shards := params.sk1Shards
 
@@ -229,7 +228,7 @@ func benchKeyswitching(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.CKSProtocol = NewCKSProtocol(bfvContext, 6.36)
+		p.CKSProtocol = NewCKSProtocol(&parameters, 6.36)
 		p.s0 = sk0Shards[0].Get()
 		p.s1 = sk1Shards[0].Get()
 		p.share = p.AllocateShare()

@@ -195,7 +195,7 @@ func testRelinKeyGen(t *testing.T) {
 
 			for i := range rkgParties {
 				p := new(Party)
-				p.RKGProtocol = NewEkgProtocol(bfvContext)
+				p.RKGProtocol = NewEkgProtocol(&parameters)
 				p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
 				p.s = sk0Shards[i].Get()
 				p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
@@ -946,7 +946,7 @@ func Test_Relin_Marshalling(t *testing.T) {
 
 	t.Run(fmt.Sprintf("RLKG/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 
-		rlk := NewEkgProtocol(bfvCtx)
+		rlk := NewEkgProtocol(params)
 		u := rlk.NewEphemeralKey(1 / 3.0)
 		sk := bfv.NewKeyGenerator(params).NewSecretKey()
 		log.Print("Starting to test marshalling for share one")

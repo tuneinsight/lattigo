@@ -7,11 +7,56 @@ import (
 	"math"
 )
 
+type pkgProtocolContext struct {
+	// Polynomial degree
+	n uint64
+
+	// Ternary and Gaussian samplers
+	gaussianSampler *ring.KYSampler
+
+	contextKeys   *ring.Context
+	contextPKeys  *ring.Context
+	specialPrimes []uint64
+}
+
+func newPkgProtocolContext(params *bfv.Parameters) *pkgProtocolContext {
+	n := params.N
+
+	contextKeys := ring.NewContext()
+	contextKeys.SetParameters(n, append(params.Qi, params.KeySwitchPrimes...))
+	err := contextKeys.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
+	contextPKeys := ring.NewContext()
+	contextPKeys.SetParameters(n, params.KeySwitchPrimes)
+	err = contextPKeys.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
+	specialPrimes := make([]uint64, len(params.KeySwitchPrimes))
+	for i := range params.KeySwitchPrimes {
+		specialPrimes[i] = params.KeySwitchPrimes[i]
+	}
+
+	gaussianSampler := contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))
+
+	return &pkgProtocolContext{
+		n:               n,
+		gaussianSampler: gaussianSampler,
+		contextKeys:     contextKeys,
+		contextPKeys:    contextPKeys,
+		specialPrimes:   specialPrimes,
+	}
+}
+
 // RKGProtocol is the structure storing the parameters and state for a party in the collective relinearization key
 // generation protocol.
 type RKGProtocol struct {
 	ringContext     *ring.Context
-	bfvContext      *bfv.Context
+	context         *pkgProtocolContext
 	keyswitchprimes []uint64
 	alpha           uint64
 	beta            uint64
@@ -190,21 +235,22 @@ func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundT
 
 // NewEkgProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
-func NewEkgProtocol(context *bfv.Context) *RKGProtocol {
+func NewEkgProtocol(params *bfv.Parameters) *RKGProtocol {
+	context := newPkgProtocolContext(params)
 
 	ekg := new(RKGProtocol)
-	ekg.ringContext = context.ContextKeys()
-	ekg.bfvContext = context
+	ekg.ringContext = context.contextKeys
+	ekg.context = context
 
-	ekg.keyswitchprimes = make([]uint64, len(context.KeySwitchPrimes()))
-	for i, pi := range context.KeySwitchPrimes() {
+	ekg.keyswitchprimes = make([]uint64, len(context.specialPrimes))
+	for i, pi := range context.specialPrimes {
 		ekg.keyswitchprimes[i] = pi
 	}
 
 	ekg.alpha = uint64(len(ekg.keyswitchprimes))
 	ekg.beta = uint64(math.Ceil(float64(len(ekg.ringContext.Modulus)-len(ekg.keyswitchprimes)) / float64(ekg.alpha)))
 
-	ekg.gaussianSampler = context.GaussianSampler()
+	ekg.gaussianSampler = context.gaussianSampler
 
 	ekg.tmpPoly1 = ekg.ringContext.NewPoly()
 	ekg.tmpPoly2 = ekg.ringContext.NewPoly()
@@ -233,7 +279,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 
 	ekg.polypool.Copy(sk)
 
-	ekg.ringContext.MulScalarBigint(ekg.polypool, ekg.bfvContext.ContextPKeys().ModulusBigint, ekg.polypool)
+	ekg.ringContext.MulScalarBigint(ekg.polypool, ekg.context.contextPKeys.ModulusBigint, ekg.polypool)
 
 	ekg.ringContext.InvMForm(ekg.polypool, ekg.polypool)
 

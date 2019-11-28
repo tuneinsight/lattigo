@@ -39,7 +39,7 @@ func benchPublicKeyGen(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.CKGProtocol = NewCKGProtocol(bfvContext)
+		p.CKGProtocol = NewCKGProtocol(&parameters)
 		p.s = sk0Shards[0].Get()
 		p.s1 = p.AllocateShares()
 

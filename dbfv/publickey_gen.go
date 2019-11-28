@@ -6,6 +6,31 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
+type ckgProtocolContext struct {
+	// Ternary and Gaussian samplers
+	gaussianSampler *ring.KYSampler
+
+	contextKeys *ring.Context
+}
+
+func newCkgProtocolContext(params *bfv.Parameters) *ckgProtocolContext {
+	n := params.N
+
+	contextKeys := ring.NewContext()
+	contextKeys.SetParameters(n, append(params.Qi, params.KeySwitchPrimes...))
+	err := contextKeys.GenNTTParams()
+	if err != nil {
+		panic(err)
+	}
+
+	gaussianSampler := contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))
+
+	return &ckgProtocolContext{
+		contextKeys:     contextKeys,
+		gaussianSampler: gaussianSampler,
+	}
+}
+
 // CKGProtocol is the structure storing the parameters and state for a party in the collective key generation protocol.
 type CKGProtocol struct {
 	context         *ring.Context
@@ -28,10 +53,12 @@ func (share *CKGShare) UnmarshalBinary(data []byte) error {
 }
 
 // NewCKGProtocol creates a new CKGProtocol instance
-func NewCKGProtocol(bfvCtx *bfv.Context) *CKGProtocol {
+func NewCKGProtocol(params *bfv.Parameters) *CKGProtocol {
+	context := newCkgProtocolContext(params)
+
 	ckg := new(CKGProtocol)
-	ckg.context = bfvCtx.ContextKeys()
-	ckg.gaussianSampler = bfvCtx.GaussianSampler()
+	ckg.context = context.contextKeys
+	ckg.gaussianSampler = context.gaussianSampler
 	return ckg
 }
 

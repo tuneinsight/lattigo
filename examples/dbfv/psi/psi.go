@@ -81,7 +81,7 @@ func main() {
 		expRes[i] = 1
 	}
 
-	ckg := dbfv.NewCKGProtocol(bfvctx)
+	ckg := dbfv.NewCKGProtocol(params)
 	rkg := dbfv.NewEkgProtocol(params)
 	pcks := dbfv.NewPCKSProtocol(params, 3.19)
 

@@ -136,7 +136,7 @@ func testPublicKeyGen(t *testing.T) {
 			ckgParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.CKGProtocol = NewCKGProtocol(bfvContext)
+				p.CKGProtocol = NewCKGProtocol(&parameters)
 				p.s = sk0Shards[i].Get()
 				p.s1 = p.AllocateShares()
 				ckgParties[i] = p
@@ -732,7 +732,7 @@ func Test_Marshalling(t *testing.T) {
 	Ciphertext := bfv.NewRandomCiphertext(1, ringCtx)
 
 	t.Run(fmt.Sprintf("CPK/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
-		keygenProtocol := NewCKGProtocol(bfvCtx)
+		keygenProtocol := NewCKGProtocol(params)
 		KeyGenShareBefore := keygenProtocol.AllocateShares()
 		keygenProtocol.GenShare(sk.Get(), crs, KeyGenShareBefore)
 		//now we marshall it

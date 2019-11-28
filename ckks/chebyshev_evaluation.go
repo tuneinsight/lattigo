@@ -41,7 +41,7 @@ func (evaluator *Evaluator) EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInt
 
 	evaluator.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
+	evaluator.Rescale(C[1], evaluator.context.scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(1)

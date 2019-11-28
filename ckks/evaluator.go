@@ -9,6 +9,7 @@ import (
 
 type evaluatorContext struct {
 	// Context parameters
+	logN  uint64
 	n     uint64
 	scale float64
 
@@ -32,6 +33,7 @@ type evaluatorContext struct {
 }
 
 func newEvaluatorContext(params *Parameters) *evaluatorContext {
+	logN := uint64(params.LogN)
 	n := uint64(1 << uint64(params.LogN))
 	scale := params.Scale
 	levels := uint64(len(params.Modulichain))
@@ -129,6 +131,7 @@ func newEvaluatorContext(params *Parameters) *evaluatorContext {
 	}
 
 	return &evaluatorContext{
+		logN:              logN,
 		n:                 n,
 		scale:             scale,
 		levels:            levels,
@@ -1377,7 +1380,7 @@ func (evaluator *Evaluator) switchKeyHoisted(ctIn *Ciphertext, c2QiQDecomp, c2Qi
 		panic("cannot rotate hoisted-> input and output ciphertext must be of degree 1")
 	}
 
-	k &= (1 << (evaluator.ckkscontext.logN - 1)) - 1
+	k &= (1 << (evaluator.context.logN - 1)) - 1
 
 	if evakey.permuteNTTLeftIndex[k] == nil {
 		panic("cannot rotate hoisted -> specific rotation has not been generated")

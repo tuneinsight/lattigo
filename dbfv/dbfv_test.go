@@ -616,7 +616,7 @@ func testRefresh(t *testing.T) {
 			RefreshParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.RefreshProtocol = NewRefreshProtocol(bfvContext)
+				p.RefreshProtocol = NewRefreshProtocol(&parameters)
 				p.s = sk0Shards[i].Get()
 				p.share = p.AllocateShares()
 				p.ptShare = bfv.NewPlaintext(ringCtx)
@@ -847,7 +847,7 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("Refresh/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 
 		//testing refresh shares
-		refreshproto := NewRefreshProtocol(bfvCtx)
+		refreshproto := NewRefreshProtocol(params)
 		refreshshare := refreshproto.AllocateShares()
 		refreshproto.GenShares(sk.Get(), Ciphertext, crs, refreshshare)
 

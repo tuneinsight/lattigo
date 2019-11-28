@@ -382,7 +382,7 @@ func benchRefresh(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.RefreshProtocol = NewRefreshProtocol(bfvContext)
+		p.RefreshProtocol = NewRefreshProtocol(&parameters)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShares()
 

@@ -61,9 +61,9 @@ func main() {
 		input []uint64
 	}
 
-	params := &bfv.DefaultParams[1]
+	params := bfv.DefaultParams[14]
 	params.T = 65537
-	bfvctx := bfv.NewContextWithParam(params)
+	bfvctx := bfv.NewContext(params)
 
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvctx.ContextKeys())
 	crs := crsGen.ClockNew()
@@ -76,7 +76,7 @@ func main() {
 	colSk := &bfv.SecretKey{}
 	colSk.Set(bfvctx.ContextKeys().NewPoly())
 
-	expRes := make([]uint64, params.N, params.N)
+	expRes := make([]uint64, 1<<params.LogN, 1<<params.LogN)
 	for i := range expRes {
 		expRes[i] = 1
 	}
@@ -90,7 +90,7 @@ func main() {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).NewSecretKey()
 		pi.rlkEphemSk = bfvctx.ContextKeys().SampleTernaryMontgomeryNTTNew(1.0 / 3)
-		pi.input = make([]uint64, params.N, params.N)
+		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for i := range pi.input {
 			if rand.Float32() > 0.3 || i == 4 {
 				pi.input[i] = 1
@@ -160,7 +160,7 @@ func main() {
 		}
 	}, N)
 
-	rlk := bfv.NewRelinKey(1, params)
+	rlk := bfv.NewRelinKey(params, 1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShareRoundThree(pi.rkgShareThree, rkgCombined3, rkgCombined3)
@@ -172,13 +172,11 @@ func main() {
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
 		elapsedRKGCloud+elapsedCKGCloud, elapsedRKGParty+elapsedCKGParty)
 
-	ringCtx := bfv.NewRingContext(params)
-
 	// Pre-loading memory
 	l.Println("> Memory alloc Phase")
 	encInputs := make([]*bfv.Ciphertext, N, N)
 	for i := range encInputs {
-		encInputs[i] = bfv.NewCiphertext(1, ringCtx)
+		encInputs[i] = bfv.NewCiphertext(params, 1)
 	}
 
 	encLvls := make([][]*bfv.Ciphertext, 0)
@@ -186,16 +184,16 @@ func main() {
 	for nLvl := N / 2; nLvl > 0; nLvl = nLvl >> 1 {
 		encLvl := make([]*bfv.Ciphertext, nLvl, nLvl)
 		for i := range encLvl {
-			encLvl[i] = bfv.NewCiphertext(2, ringCtx)
+			encLvl[i] = bfv.NewCiphertext(params, 2)
 		}
 		encLvls = append(encLvls, encLvl)
 	}
 	encRes := encLvls[len(encLvls)-1][0]
 
 	l.Println("> Encrypt Phase")
-	encryptor := bfv.NewEncryptorFromPk(pk, params)
+	encryptor := bfv.NewEncryptorFromPk(params, pk)
 	encoder := bfv.NewEncoder(params)
-	pt := bfv.NewPlaintext(ringCtx)
+	pt := bfv.NewPlaintextFromParams(params)
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
 			encoder.EncodeUint(pi.input, pt)
@@ -270,7 +268,7 @@ func main() {
 	}, N)
 
 	pcksCombined := pcks.AllocateShares()
-	encOut := bfv.NewCiphertext(1, ringCtx)
+	encOut := bfv.NewCiphertext(params, 1)
 	elapsedPCKSCloud := runTimed(func() {
 		for _, pi := range P {
 			pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)
@@ -281,8 +279,8 @@ func main() {
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)
 
 	l.Println("> Result:")
-	decryptor := bfv.NewDecryptor(tsk, params)
-	ptres := bfv.NewPlaintext(ringCtx)
+	decryptor := bfv.NewDecryptor(params, tsk)
+	ptres := bfv.NewPlaintextFromParams(params)
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres) // TODO : manage error
 	})

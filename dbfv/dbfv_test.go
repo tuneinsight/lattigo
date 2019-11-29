@@ -704,7 +704,7 @@ func verifyTestVectors(contextParams *dbfvTestContext, decryptor *bfv.Decryptor,
 }
 
 func Test_Marshalling(t *testing.T) {
-	params := bfv.DefaultParams[13]
+	params := bfv.DefaultParams[14]
 
 	//verify if the un.marshalling works properly
 	bfvCtx := bfv.NewContext(params)
@@ -913,7 +913,7 @@ func Test_Marshalling(t *testing.T) {
 }
 
 func Test_Relin_Marshalling(t *testing.T) {
-	params := bfv.DefaultParams[13]
+	params := bfv.DefaultParams[14]
 
 	bfvCtx := bfv.NewContext(params)
 	contextQ := bfvCtx.ContextQ1()

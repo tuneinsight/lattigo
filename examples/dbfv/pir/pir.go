@@ -77,9 +77,9 @@ func main() {
 		input []uint64
 	}
 
-	params := &bfv.DefaultParams[0] // default params with N=8192
+	params := bfv.DefaultParams[13] // default params with N=8192
 	params.T = 65537
-	bfvctx := bfv.NewContextWithParam(params)
+	bfvctx := bfv.NewContext(params)
 
 	// Common reference polynomial generator keyed with
 	// "lattigo" and seeded with "pir example".
@@ -113,7 +113,7 @@ func main() {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).NewSecretKey()
 		pi.rlkEphemSk = bfvctx.ContextKeys().SampleTernaryMontgomeryNTTNew(1.0 / 3)
-		pi.input = make([]uint64, params.N, params.N)
+		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for j := range pi.input {
 			pi.input[j] = uint64(i)
 		}
@@ -185,7 +185,7 @@ func main() {
 		}
 	}, N)
 
-	rlk := bfv.NewRelinKey(1, params)
+	rlk := bfv.NewRelinKey(params, 1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShareRoundThree(pi.rkgShareThree, rkgCombined3, rkgCombined3)
@@ -231,11 +231,9 @@ func main() {
 	plainMask := make([]*bfv.Plaintext, N, N)
 	encPartial := make([]*bfv.Ciphertext, N, N)
 
-	ringCtx := bfv.NewRingContext(params)
-
 	// Ciphertexts to be retrieved.
 	for i := range encInputs {
-		encInputs[i] = bfv.NewCiphertext(1, ringCtx)
+		encInputs[i] = bfv.NewCiphertext(params, 1)
 	}
 
 	// Plaintext masks : plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
@@ -243,19 +241,19 @@ func main() {
 	for i := range plainMask {
 		maskCoeffs := make([]uint64, bfvctx.N())
 		maskCoeffs[i] = 1
-		plainMask[i] = bfv.NewPlaintext(ringCtx)
+		plainMask[i] = bfv.NewPlaintextFromParams(params)
 		encoder.EncodeUint(maskCoeffs, plainMask[i])
 	}
 
 	// Buffer for the intermediate compuation done by the cloud.
 	for i := range encPartial {
-		encPartial[i] = bfv.NewCiphertext(2, ringCtx)
+		encPartial[i] = bfv.NewCiphertext(params, 2)
 	}
 
 	// Ciphertexts encrypted under CPK and stored in the cloud.
 	l.Println("> Encrypt Phase")
-	encryptor := bfv.NewEncryptorFromPk(pk, params)
-	pt := bfv.NewPlaintext(ringCtx)
+	encryptor := bfv.NewEncryptorFromPk(params, pk)
+	pt := bfv.NewPlaintextFromParams(params)
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
 			encoder.EncodeUint(pi.input, pt)
@@ -272,9 +270,9 @@ func main() {
 	var elapsedRequestCloudCPU time.Duration
 
 	// Query ciphertext
-	queryCoeffs := make([]uint64, params.N)
+	queryCoeffs := make([]uint64, 1<<params.LogN)
 	queryCoeffs[queryIndex] = 1
-	query := bfv.NewPlaintext(ringCtx)
+	query := bfv.NewPlaintextFromParams(params)
 	var encQuery *bfv.Ciphertext
 	elapsedRequestParty += runTimed(func() {
 		encoder.EncodeUint(queryCoeffs, query)
@@ -296,7 +294,7 @@ func main() {
 	for i := 1; i <= NGoRoutine; i++ {
 		go func(i int) {
 			evaluator := bfv.NewEvaluator(params)
-			tmp := bfv.NewCiphertext(1, ringCtx)
+			tmp := bfv.NewCiphertext(params, 1)
 			for task := range tasks {
 				task.elapsedMaskTask = runTimed(func() {
 					// 1) Multiplication of the query with the plaintext mask.
@@ -335,8 +333,8 @@ func main() {
 	}
 
 	evaluator := bfv.NewEvaluator(params)
-	resultDeg2 := bfv.NewCiphertext(2, ringCtx)
-	result := bfv.NewCiphertext(1, ringCtx)
+	resultDeg2 := bfv.NewCiphertext(params, 2)
+	result := bfv.NewCiphertext(params, 1)
 
 	// Summation of all the partial result among the different Go routines
 	finalAddDuration := runTimed(func() {
@@ -354,7 +352,7 @@ func main() {
 
 	// Collective (partial) decryption.
 	l.Println("> CKS Phase")
-	zero := bfvctx.ContextQ().NewPoly()
+	zero := bfvctx.ContextQ1().NewPoly()
 	cksCombined := cks.AllocateShare()
 	elapsedPCKSParty := runTimedParty(func() {
 		for _, pi := range P[1:] {
@@ -362,7 +360,7 @@ func main() {
 		}
 	}, N-1)
 
-	encOut := bfv.NewCiphertext(1, ringCtx)
+	encOut := bfv.NewCiphertext(params, 1)
 	elapsedCKSCloud := runTimed(func() {
 		for _, pi := range P {
 			cks.AggregateShares(pi.cksShare, cksCombined, cksCombined)
@@ -374,8 +372,8 @@ func main() {
 	l.Println("> Result:")
 
 	// Decryption by the external party
-	decryptor := bfv.NewDecryptor(P[0].sk, params)
-	ptres := bfv.NewPlaintext(ringCtx)
+	decryptor := bfv.NewDecryptor(params, P[0].sk)
+	ptres := bfv.NewPlaintextFromParams(params)
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
 	})

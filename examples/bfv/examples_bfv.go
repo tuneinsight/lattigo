@@ -47,7 +47,7 @@ func obliviousRiding() {
 	nbDrivers := uint64(2048) //max is N
 
 	// BFV parameters (128 bit security)
-	params := bfv.DefaultParams[0]
+	params := bfv.DefaultParams[13]
 
 	// Plaintext modulus
 	params.T = 0x3ee0001
@@ -87,7 +87,7 @@ func obliviousRiding() {
 	// Rider coordinates [x, y, x, y, ....., x, y]
 	riderPosX, riderPosY := ring.RandUniform(maxvalue, mask), ring.RandUniform(maxvalue, mask)
 
-	Rider := make([]uint64, nbDrivers)
+	Rider := make([]uint64, 1<<params.LogN)
 	for i := uint64(0); i < nbDrivers; i++ {
 		Rider[(i << 1)] = riderPosX
 		Rider[(i<<1)+1] = riderPosY

@@ -20,7 +20,7 @@ type Evaluator struct {
 	ctxpool *Ciphertext
 
 	baseconverter *ring.FastBasisExtender
-	decomposer    *ring.ArbitraryDecomposer
+	decomposer    *ring.Decomposer
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
@@ -48,7 +48,7 @@ func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 
 	evaluator.baseconverter = ring.NewFastBasisExtender(evaluator.ckksContext.contextQ, evaluator.ckksContext.contextP)
 
-	evaluator.decomposer = ring.NewArbitraryDecomposer(evaluator.ckksContext.contextQ.Modulus, evaluator.ckksContext.contextP.Modulus)
+	evaluator.decomposer = ring.NewDecomposer(evaluator.ckksContext.contextQ.Modulus, evaluator.ckksContext.contextP.Modulus)
 
 	return evaluator
 }

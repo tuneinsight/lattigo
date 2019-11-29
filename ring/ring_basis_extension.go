@@ -381,10 +381,10 @@ func modUpExact(p1, p2 [][]uint64, params *modupParams) {
 	}
 }
 
-// ArbitraryDecomposer is a structure storing the parameters of the arbitrary decomposer.
+// Decomposer is a structure storing the parameters of the arbitrary decomposer.
 // This decomposer takes a p(x)_Q (in basis Q) and returns p(x) mod qi in basis QP. Where
 // qi = prod(Q_i) for 0<=i<=L where L is the number of factors in P.
-type ArbitraryDecomposer struct {
+type Decomposer struct {
 	nQprimes    uint64
 	nPprimes    uint64
 	alpha       uint64
@@ -396,13 +396,13 @@ type ArbitraryDecomposer struct {
 }
 
 // Xalpha returns a slice containing all the values of #Qi/#Pi.
-func (decomposer *ArbitraryDecomposer) Xalpha() (xalpha []uint64) {
+func (decomposer *Decomposer) Xalpha() (xalpha []uint64) {
 	return decomposer.xalpha
 }
 
-// NewArbitraryDecomposer creates a new ArbitraryDecomposer.
-func NewArbitraryDecomposer(Q, P []uint64) (decomposer *ArbitraryDecomposer) {
-	decomposer = new(ArbitraryDecomposer)
+// NewDecomposer creates a new Decomposer.
+func NewDecomposer(Q, P []uint64) (decomposer *Decomposer) {
+	decomposer = new(Decomposer)
 
 	decomposer.nQprimes = uint64(len(Q))
 	decomposer.nPprimes = uint64(len(P))
@@ -462,7 +462,7 @@ func NewArbitraryDecomposer(Q, P []uint64) (decomposer *ArbitraryDecomposer) {
 
 // Decompose decomposes takes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
 // the result in basis QP.
-func (decomposer *ArbitraryDecomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Poly) {
+func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Poly) {
 
 	alphai := decomposer.xalpha[crtDecompLevel]
 
@@ -587,7 +587,7 @@ func (decomposer *ArbitraryDecomposer) Decompose(level, crtDecompLevel uint64, p
 
 // DecomposeAndSplit decomposes takes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
 // the result in basis QP separately.
-func (decomposer *ArbitraryDecomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0, p1Q, p1P *Poly) {
+func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0, p1Q, p1P *Poly) {
 
 	alphai := decomposer.xalpha[crtDecompLevel]
 

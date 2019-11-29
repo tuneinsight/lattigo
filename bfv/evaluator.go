@@ -16,7 +16,7 @@ type Evaluator struct {
 	baseconverterQ1Q2 *ring.FastBasisExtender
 
 	baseconverterQ1P *ring.FastBasisExtender
-	decomposer       *ring.ArbitraryDecomposer
+	decomposer       *ring.Decomposer
 
 	pHalf *big.Int
 
@@ -38,7 +38,7 @@ func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 
 	evaluator.baseconverterQ1Q2 = ring.NewFastBasisExtender(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextQ2)
 	evaluator.baseconverterQ1P = ring.NewFastBasisExtender(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextP)
-	evaluator.decomposer = ring.NewArbitraryDecomposer(evaluator.bfvContext.contextQ1.Modulus, evaluator.bfvContext.contextP.Modulus)
+	evaluator.decomposer = ring.NewDecomposer(evaluator.bfvContext.contextQ1.Modulus, evaluator.bfvContext.contextP.Modulus)
 
 	evaluator.pHalf = new(big.Int).Rsh(evaluator.bfvContext.contextQ2.ModulusBigint, 1)
 
@@ -236,37 +236,37 @@ func (evaluator *Evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciph
 // tensorAndRescales computes (ct0 x ct1) * (t/Q) and stores the result on ctOut.
 func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 
-	contextQ := evaluator.bfvContext.contextQ1
-	contextP := evaluator.bfvContext.contextQ2
+	contextQ1 := evaluator.bfvContext.contextQ1
+	contextQ2 := evaluator.bfvContext.contextQ2
 
-	level := uint64(len(contextQ.Modulus) - 1)
+	level := uint64(len(contextQ1.Modulus) - 1)
 
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them in NTT form
 
-	c0Q := evaluator.poolQ[0]
-	c0P := evaluator.poolP[0]
+	c0Q1 := evaluator.poolQ[0]
+	c0Q2 := evaluator.poolP[0]
 
-	c1Q := evaluator.poolQ[1]
-	c1P := evaluator.poolP[1]
+	c1Q1 := evaluator.poolQ[1]
+	c1Q2 := evaluator.poolP[1]
 
-	c2Q := evaluator.poolQ[2]
-	c2P := evaluator.poolP[2]
+	c2Q1 := evaluator.poolQ[2]
+	c2Q2 := evaluator.poolP[2]
 
 	for i := range ct0.value {
-		evaluator.baseconverterQ1Q2.ModUpSplitQP(level, ct0.value[i], c0P[i])
+		evaluator.baseconverterQ1Q2.ModUpSplitQP(level, ct0.value[i], c0Q2[i])
 
-		contextQ.NTT(ct0.value[i], c0Q[i])
-		contextP.NTT(c0P[i], c0P[i])
+		contextQ1.NTT(ct0.value[i], c0Q1[i])
+		contextQ2.NTT(c0Q2[i], c0Q2[i])
 	}
 
 	if ct0 != ct1 {
 
 		for i := range ct1.value {
-			evaluator.baseconverterQ1Q2.ModUpSplitQP(level, ct1.value[i], c1P[i])
+			evaluator.baseconverterQ1Q2.ModUpSplitQP(level, ct1.value[i], c1Q2[i])
 
-			contextQ.NTT(ct1.value[i], c1Q[i])
-			contextP.NTT(c1P[i], c1P[i])
+			contextQ1.NTT(ct1.value[i], c1Q1[i])
+			contextQ2.NTT(c1Q2[i], c1Q2[i])
 		}
 	}
 
@@ -278,95 +278,95 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	if ct0.Degree() == 1 && ct1.Degree() == 1 {
 
 		c00Q := evaluator.poolQ[3][0]
-		c00P := evaluator.poolP[3][0]
+		c00Q2 := evaluator.poolP[3][0]
 		c01Q := evaluator.poolQ[3][1]
 		c01P := evaluator.poolP[3][1]
 
-		contextQ.MForm(c0Q[0], c00Q)
-		contextP.MForm(c0P[0], c00P)
+		contextQ1.MForm(c0Q1[0], c00Q)
+		contextQ2.MForm(c0Q2[0], c00Q2)
 
-		contextQ.MForm(c0Q[1], c01Q)
-		contextP.MForm(c0P[1], c01P)
+		contextQ1.MForm(c0Q1[1], c01Q)
+		contextQ2.MForm(c0Q2[1], c01P)
 
 		// Squaring case
 		if ct0 == ct1 {
 
 			// c0 = c0[0]*c0[0]
-			contextQ.MulCoeffsMontgomery(c00Q, c0Q[0], c2Q[0])
-			contextP.MulCoeffsMontgomery(c00P, c0P[0], c2P[0])
+			contextQ1.MulCoeffsMontgomery(c00Q, c0Q1[0], c2Q1[0])
+			contextQ2.MulCoeffsMontgomery(c00Q2, c0Q2[0], c2Q2[0])
 
 			// c1 = 2*c0[0]*c0[1]
-			contextQ.MulCoeffsMontgomery(c00Q, c0Q[1], c2Q[1])
-			contextP.MulCoeffsMontgomery(c00P, c0P[1], c2P[1])
+			contextQ1.MulCoeffsMontgomery(c00Q, c0Q1[1], c2Q1[1])
+			contextQ2.MulCoeffsMontgomery(c00Q2, c0Q2[1], c2Q2[1])
 
-			contextQ.AddNoMod(c2Q[1], c2Q[1], c2Q[1])
-			contextP.AddNoMod(c2P[1], c2P[1], c2P[1])
+			contextQ1.AddNoMod(c2Q1[1], c2Q1[1], c2Q1[1])
+			contextQ2.AddNoMod(c2Q2[1], c2Q2[1], c2Q2[1])
 
 			// c2 = c0[1]*c0[1]
-			contextQ.MulCoeffsMontgomery(c01Q, c0Q[1], c2Q[2])
-			contextP.MulCoeffsMontgomery(c01P, c0P[1], c2P[2])
+			contextQ1.MulCoeffsMontgomery(c01Q, c0Q1[1], c2Q1[2])
+			contextQ2.MulCoeffsMontgomery(c01P, c0Q2[1], c2Q2[2])
 
 			// Normal case
 		} else {
 
 			// c0 = c0[0]*c1[0]
-			contextQ.MulCoeffsMontgomery(c00Q, c1Q[0], c2Q[0])
-			contextP.MulCoeffsMontgomery(c00P, c1P[0], c2P[0])
+			contextQ1.MulCoeffsMontgomery(c00Q, c1Q1[0], c2Q1[0])
+			contextQ2.MulCoeffsMontgomery(c00Q2, c1Q2[0], c2Q2[0])
 
 			// c1 = c0[0]*c1[1] + c0[1]*c1[0]
-			contextQ.MulCoeffsMontgomery(c00Q, c1Q[1], c2Q[1])
-			contextP.MulCoeffsMontgomery(c00P, c1P[1], c2P[1])
+			contextQ1.MulCoeffsMontgomery(c00Q, c1Q1[1], c2Q1[1])
+			contextQ2.MulCoeffsMontgomery(c00Q2, c1Q2[1], c2Q2[1])
 
-			contextQ.MulCoeffsMontgomeryAndAddNoMod(c01Q, c1Q[0], c2Q[1])
-			contextP.MulCoeffsMontgomeryAndAddNoMod(c01P, c1P[0], c2P[1])
+			contextQ1.MulCoeffsMontgomeryAndAddNoMod(c01Q, c1Q1[0], c2Q1[1])
+			contextQ2.MulCoeffsMontgomeryAndAddNoMod(c01P, c1Q2[0], c2Q2[1])
 
 			// c2 = c0[1]*c1[1]
-			contextQ.MulCoeffsMontgomery(c01Q, c1Q[1], c2Q[2])
-			contextP.MulCoeffsMontgomery(c01P, c1P[1], c2P[2])
+			contextQ1.MulCoeffsMontgomery(c01Q, c1Q1[1], c2Q1[2])
+			contextQ2.MulCoeffsMontgomery(c01P, c1Q2[1], c2Q2[2])
 		}
 
 		// Case where both BfvElements are not of degree 1
 	} else {
 
 		for i := uint64(0); i < ctOut.Degree()+1; i++ {
-			c2Q[i].Zero()
-			c2P[i].Zero()
+			c2Q1[i].Zero()
+			c2Q2[i].Zero()
 		}
 
 		// Squaring case
 		if ct0 == ct1 {
 
-			c00Q := evaluator.poolQ[3]
-			c00P := evaluator.poolP[3]
+			c00Q1 := evaluator.poolQ[3]
+			c00Q2 := evaluator.poolP[3]
 
 			for i := range ct0.value {
-				contextQ.MForm(c0Q[i], c00Q[i])
-				contextP.MForm(c0P[i], c00P[i])
+				contextQ1.MForm(c0Q1[i], c00Q1[i])
+				contextQ2.MForm(c0Q2[i], c00Q2[i])
 			}
 
 			for i := uint64(0); i < ct0.Degree()+1; i++ {
 				for j := i + 1; j < ct0.Degree()+1; j++ {
-					contextQ.MulCoeffsMontgomery(c00Q[i], c0Q[j], c2Q[i+j])
-					contextP.MulCoeffsMontgomery(c00P[i], c0P[j], c2P[i+j])
+					contextQ1.MulCoeffsMontgomery(c00Q1[i], c0Q1[j], c2Q1[i+j])
+					contextQ2.MulCoeffsMontgomery(c00Q2[i], c0Q2[j], c2Q2[i+j])
 
-					contextQ.Add(c2Q[i+j], c2Q[i+j], c2Q[i+j])
-					contextP.Add(c2P[i+j], c2P[i+j], c2P[i+j])
+					contextQ1.Add(c2Q1[i+j], c2Q1[i+j], c2Q1[i+j])
+					contextQ2.Add(c2Q2[i+j], c2Q2[i+j], c2Q2[i+j])
 				}
 			}
 
 			for i := uint64(0); i < ct0.Degree()+1; i++ {
-				contextQ.MulCoeffsMontgomeryAndAdd(c00Q[i], c0Q[i], c2Q[i<<1])
-				contextP.MulCoeffsMontgomeryAndAdd(c00P[i], c0P[i], c2P[i<<1])
+				contextQ1.MulCoeffsMontgomeryAndAdd(c00Q1[i], c0Q1[i], c2Q1[i<<1])
+				contextQ2.MulCoeffsMontgomeryAndAdd(c00Q2[i], c0Q2[i], c2Q2[i<<1])
 			}
 
 			// Normal case
 		} else {
 			for i := range ct0.value {
-				contextQ.MForm(c0Q[i], c0Q[i])
-				contextP.MForm(c0P[i], c0P[i])
+				contextQ1.MForm(c0Q1[i], c0Q1[i])
+				contextQ2.MForm(c0Q2[i], c0Q2[i])
 				for j := range ct1.value {
-					contextQ.MulCoeffsMontgomeryAndAdd(c0Q[i], c1Q[j], c2Q[i+j])
-					contextP.MulCoeffsMontgomeryAndAdd(c0P[i], c1P[j], c2P[i+j])
+					contextQ1.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[i+j])
+					contextQ2.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[i+j])
 				}
 			}
 		}
@@ -375,23 +375,23 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	// Applies the inverse NTT to the ciphertext, scales the down ciphertext
 	// by t/q and reduces its basis from QP to Q
 	for i := range ctOut.value {
-		contextQ.InvNTT(c2Q[i], c2Q[i])
-		contextP.InvNTT(c2P[i], c2P[i])
+		contextQ1.InvNTT(c2Q1[i], c2Q1[i])
+		contextQ2.InvNTT(c2Q2[i], c2Q2[i])
 
 		// Option 1) (ct(x) * T)/Q,  but doing so requires that Q*P > Q*Q*T, slower but smaller error.
-		//contextQ.MulScalar(c2Q[i], evaluator.bfvContext.contextT.Modulus[0], c2Q[i])
-		//contextP.MulScalar(c2P[i], evaluator.bfvContext.contextT.Modulus[0], c2P[i])
+		//contextQ1.MulScalar(c2Q1[i], evaluator.bfvContext.contextT.Modulus[0], c2Q1[i])
+		//contextQ2.MulScalar(c2Q2[i], evaluator.bfvContext.contextT.Modulus[0], c2Q2[i])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		evaluator.baseconverterQ1Q2.ModDownSplitedQP(level, c2Q[i], c2P[i], c2P[i])
+		evaluator.baseconverterQ1Q2.ModDownSplitedQP(level, c2Q1[i], c2Q2[i], c2Q2[i])
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
-		contextP.AddScalarBigint(c2P[i], evaluator.pHalf, c2P[i])
-		evaluator.baseconverterQ1Q2.ModUpSplitPQ(level, c2P[i], ctOut.value[i])
-		contextQ.SubScalarBigint(ctOut.value[i], evaluator.pHalf, ctOut.value[i])
+		contextQ2.AddScalarBigint(c2Q2[i], evaluator.pHalf, c2Q2[i])
+		evaluator.baseconverterQ1Q2.ModUpSplitPQ(level, c2Q2[i], ctOut.value[i])
+		contextQ1.SubScalarBigint(ctOut.value[i], evaluator.pHalf, ctOut.value[i])
 
 		// Option 2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
-		contextQ.MulScalar(ctOut.value[i], evaluator.bfvContext.contextT.Modulus[0], ctOut.value[i])
+		contextQ1.MulScalar(ctOut.value[i], evaluator.bfvContext.contextT.Modulus[0], ctOut.value[i])
 	}
 }
 

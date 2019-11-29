@@ -1,7 +1,6 @@
 package ring
 
 import (
-	"errors"
 	"math/bits"
 )
 
@@ -121,49 +120,48 @@ func IsPrime(num uint64) bool {
 	return true
 }
 
-// GenerateNTTPrimes generates "n" primes of bitlen "bitLen", suited for NTT with "N",
-// starting from the integer "start" (which must be 1 mod 2N) and increasing (true) / decreasing (false) order
-func GenerateNTTPrimes(N, start, n, bitLen uint64, sign bool) ([]uint64, error) {
-	var x, v uint64
+// GenerateCKKSPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
+// of levels required. Will return all the appropriate primes, up to the number of level, with the
+// best avaliable deviation from the base power of 2 for the given level.
+func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 
-	if uint64(bits.Len64(start)) != bitLen {
-		return nil, errors.New("error : start != bitLen")
+	if logQ > 60 {
+		panic("logQ must be between 1 and 60")
 	}
 
-	v = N << 1
-	if start != 0 {
-		if start&((N<<1)-1) != 1 {
-			return nil, errors.New("error : start != 1 mod 2*N")
+	var x, y, Qpow2, _2N uint64
+
+	primes = []uint64{}
+
+	Qpow2 = 1 << logQ
+
+	_2N = 2 << logN
+
+	x = Qpow2 + 1
+	y = Qpow2 + 1
+
+	for true {
+
+		if IsPrime(y) {
+			primes = append(primes, y)
+			if uint64(len(primes)) == levels {
+				return primes
+			}
 		}
-		x = start
-	} else {
-		x = v<<(bitLen-uint64(bits.Len64(v))) + 1
-	}
 
-	primes := make([]uint64, n)
-
-	i := uint64(0)
-
-	for i < n {
-
-		// x gets out of the bitLen bound
-		if uint64(bits.Len64(x)) != bitLen {
-			return primes, nil
-		}
+		y -= _2N
 
 		if IsPrime(x) {
-			primes[i] = x
-			i++
+			primes = append(primes, x)
+			if uint64(len(primes)) == levels {
+				return primes
+			}
 		}
 
-		if sign {
-			x += v
-		} else {
-			x -= v
-		}
+		x += _2N
 	}
 
-	return primes, nil
+	return
 }
 
 //===========================

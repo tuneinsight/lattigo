@@ -70,7 +70,7 @@ func NewContext(params *Parameters) (ckkscontext *Context) {
 	ckkscontext.alpha = uint64(len(params.P))
 	ckkscontext.beta = uint64(math.Ceil(float64(ckkscontext.levels) / float64(ckkscontext.alpha)))
 
-	ckkscontext.moduli, ckkscontext.specialprimes = genModuli(params)
+	ckkscontext.moduli, ckkscontext.specialprimes = GenModuli(params)
 
 	ckkscontext.bigintChain = genBigIntChain(ckkscontext.moduli)
 
@@ -88,7 +88,7 @@ func NewContext(params *Parameters) (ckkscontext *Context) {
 
 	ckkscontext.logQ = uint64(ckkscontext.contextKeys.ModulusBigint.BitLen())
 
-	ckkscontext.rescaleParamsKeys = genSwitchkeysRescalingParams(ckkscontext.moduli, ckkscontext.specialprimes)
+	ckkscontext.rescaleParamsKeys = GenSwitchkeysRescalingParams(ckkscontext.moduli, ckkscontext.specialprimes)
 
 	ckkscontext.gaussianSampler = ckkscontext.contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))
 

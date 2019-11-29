@@ -5,7 +5,7 @@ import (
 	"math/big"
 )
 
-func genLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
+func GenLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
 
 	delta := new(big.Int).Quo(context.ModulusBigint, ring.NewUint(t))
 
@@ -21,7 +21,7 @@ func genLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
 	return
 }
 
-func genRescalingParams(contextQ1, contextQ2 *ring.Context) (params []uint64) {
+func GenRescalingParams(contextQ1, contextQ2 *ring.Context) (params []uint64) {
 
 	params = make([]uint64, len(contextQ2.Modulus))
 
@@ -38,7 +38,7 @@ func genRescalingParams(contextQ1, contextQ2 *ring.Context) (params []uint64) {
 }
 
 // genModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
-func genModuli(params *Parameters) (Q1 []uint64, P []uint64, Q2 []uint64) {
+func GenModuli(params *Parameters) (Q1 []uint64, P []uint64, Q2 []uint64) {
 
 	// Extracts all the different primes bit size and maps their number
 	primesbitlen := make(map[uint64]uint64)
@@ -71,7 +71,7 @@ func genModuli(params *Parameters) (Q1 []uint64, P []uint64, Q2 []uint64) {
 	// For each bitsize, finds that many primes
 	primes := make(map[uint64][]uint64)
 	for key, value := range primesbitlen {
-		primes[key] = generateNTTPrimes(key, uint64(params.LogN), value)
+		primes[key] = ring.GenerateNTTPrimes(key, uint64(params.LogN), value)
 	}
 
 	// Assigns the primes to the ckks moduli chain
@@ -97,47 +97,4 @@ func genModuli(params *Parameters) (Q1 []uint64, P []uint64, Q2 []uint64) {
 	return Q1, P, Q2
 }
 
-func generateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 
-	// generateCKKSPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
-	// of levels required. Will return all the appropriate primes, up to the number of level, with the
-	// best avaliable deviation from the base power of 2 for the given level.
-
-	if logQ > 60 {
-		panic("logQ must be between 1 and 60")
-	}
-
-	var x, y, Qpow2, _2N uint64
-
-	primes = []uint64{}
-
-	Qpow2 = 1 << logQ
-
-	_2N = 2 << logN
-
-	x = Qpow2 + 1
-	y = Qpow2 + 1
-
-	for true {
-
-		if ring.IsPrime(y) {
-			primes = append(primes, y)
-			if uint64(len(primes)) == levels {
-				return primes
-			}
-		}
-
-		y -= _2N
-
-		if ring.IsPrime(x) {
-			primes = append(primes, x)
-			if uint64(len(primes)) == levels {
-				return primes
-			}
-		}
-
-		x += _2N
-	}
-
-	return
-}

@@ -44,7 +44,7 @@ func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 	evaluator.baseconverter = ring.NewFastBasisExtender(evaluator.bfvContext.contextQ1.Modulus, evaluator.bfvContext.contextP.Modulus)
 	evaluator.decomposer = ring.NewArbitraryDecomposer(evaluator.bfvContext.contextQ1.Modulus, evaluator.bfvContext.contextP.Modulus)
 
-	evaluator.rescaleParamsMul = genRescalingParams(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextQ2)
+	evaluator.rescaleParamsMul = GenRescalingParams(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextQ2)
 	evaluator.pHalf = new(big.Int).Rsh(evaluator.bfvContext.contextQ2.ModulusBigint, 1)
 
 	for i := 0; i < 2; i++ {

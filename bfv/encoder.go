@@ -48,7 +48,7 @@ func NewEncoder(params *Parameters) (encoder *Encoder) {
 		pos &= (m - 1)
 	}
 
-	encoder.deltaMont = genLiftParams(encoder.bfvContext.contextQ1, encoder.bfvContext.t)
+	encoder.deltaMont = GenLiftParams(encoder.bfvContext.contextQ1, encoder.bfvContext.t)
 
 	encoder.simplescaler = ring.NewSimpleScaler(encoder.bfvContext.t, encoder.bfvContext.contextQ1)
 	encoder.polypool = encoder.bfvContext.contextT.NewPoly()

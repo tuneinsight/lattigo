@@ -81,7 +81,7 @@ func (context *Context) SetParameters(params *Parameters) {
 	N := uint64(1 << LogN)
 	t := params.T
 
-	ModuliQ1, ModuliP, ModuliQ2 := genModuli(params)
+	ModuliQ1, ModuliP, ModuliQ2 := GenModuli(params)
 	sigma := params.Sigma
 
 	context.n = N
@@ -110,7 +110,7 @@ func (context *Context) SetParameters(params *Parameters) {
 	context.alpha = uint64(len(ModuliP))
 	context.beta = uint64(math.Ceil(float64(len(ModuliQ1)) / float64(context.alpha)))
 
-	context.rescaleParamsKeys = genRescalingParams(context.contextP, context.contextQ1)
+	context.rescaleParamsKeys = GenRescalingParams(context.contextP, context.contextQ1)
 
 	context.logQ = uint64(context.contextQ1P.ModulusBigint.BitLen())
 

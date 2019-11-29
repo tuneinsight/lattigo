@@ -15,7 +15,7 @@ type Decryptor struct {
 // NewDecryptor creates a new Decryptor from the target context with the secret-key given as input.
 func NewDecryptor(params *Parameters, sk *SecretKey) (decryptor *Decryptor) {
 
-	if sk.sk.GetDegree() != int(params.N) {
+	if sk.sk.GetDegree() != int(1<<params.LogN) {
 		panic("error : secret_key degree must match context degree")
 	}
 

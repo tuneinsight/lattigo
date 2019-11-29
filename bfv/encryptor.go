@@ -29,11 +29,11 @@ func NewEncryptorFromSk(params *Parameters, sk *SecretKey) *Encryptor {
 
 func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
 
-	if pk != nil && (uint64(pk.pk[0].GetDegree()) != params.N || uint64(pk.pk[1].GetDegree()) != params.N) {
+	if pk != nil && (uint64(pk.pk[0].GetDegree()) != uint64(1<<params.LogN) || uint64(pk.pk[1].GetDegree()) != uint64(1<<params.LogN)) {
 		panic("error : pk ring degree doesn't match bfvcontext ring degree")
 	}
 
-	if sk != nil && uint64(sk.sk.GetDegree()) != params.N {
+	if sk != nil && uint64(sk.sk.GetDegree()) != uint64(1<<params.LogN) {
 		panic("error : sk ring degree doesn't match bfvcontext ring degree")
 	}
 

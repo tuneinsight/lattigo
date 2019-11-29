@@ -5,44 +5,15 @@ import (
 	"fmt"
 	"github.com/ldsec/lattigo/utils"
 	"math"
-	"math/bits"
 )
 
 // MaxN is the largest supported polynomial modulus degree
-const MaxN = 1 << 16
+const MaxLogN = 16
 
 // MaxModuliCount is the largest supported number of 60 moduli in the RNS representation
 const MaxModuliCount = 34
 
 // Modulies for 128 security according to http://homomorphicencryption.org/white_papers/security_homomorphic_encryption_white_paper.pdf
-
-var logN13Q218 = []uint64{0x7ffffffffb4001, 0x3fffffffef8001, 0x3fffffffeb8001}
-
-var logN14Q438 = []uint64{0x7fffffffe90001, 0x7fffffffd58001, 0x7fffffffbf0001, 0x7fffffffbd0001,
-	0x7fffffffba0001, 0x7fffffffb58001}
-
-var logN15Q881 = []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, 0x7ffffffffba0001,
-	0x7ffffffffb00001, 0x7ffffffff630001, 0x7ffffffff510001, 0x7ffffffff3f0001,
-	0x7ffffffff350001, 0x7ffffffff320001, 0x7ffffffff2c0001, 0x7fffffffe90001}
-
-var logN16Q1770 = []uint64{0x7ffffffffcc0001, 0x7ffffffffba0001, 0x7ffffffffb00001, 0x7ffffffff320001,
-	0x7ffffffff2c0001, 0x7ffffffff240001, 0x7fffffffefa0001, 0x7fffffffede0001,
-	0x7fffffffe900001, 0x7fffffffe3c0001, 0x7fffffffe240001, 0x7fffffffddc0001,
-	0x7fffffffdbe0001, 0x7fffffffd740001, 0x7fffffffd640001, 0x7fffffffd1a0001,
-	0x7fffffffd0a0001, 0x7fffffffd080001, 0x7fffffffcda0001, 0x7fffffffccc0001,
-	0x7fffffffcbc0001, 0x7fffffffcae0001, 0x7fffffffc980001, 0x7fffffffc480001,
-	0x7fffffffc020001, 0x7fffffffbcc0001}
-
-var Q60 = []uint64{0xffffffffe400001, 0xffffffffd000001, 0xffffffffa200001, 0xffffffff9600001,
-	0xfffffffeb200001, 0xfffffffea400001, 0xfffffffe8000001, 0xfffffffe3e00001,
-	0xfffffffe2200001, 0xfffffffe0800001, 0xfffffffdd400001, 0xfffffffd9000001,
-	0xfffffffcea00001, 0xfffffffcdc00001, 0xfffffffc7200001, 0xfffffffc5a00001,
-	0xfffffffc5400001, 0xfffffffc4200001, 0xfffffffc2e00001, 0xfffffffbfa00001,
-	0xfffffffbf200001, 0xfffffffbce00001, 0xfffffffba400001, 0xfffffffba000001,
-	0xfffffffb8c00001, 0xfffffffb1400001, 0xfffffffafc00001, 0xfffffffaf800001,
-	0xfffffffa6600001, 0xfffffffa5000001, 0xfffffff9ee00001, 0xfffffff9d600001,
-	0xfffffff9ba00001, 0xfffffff99a00001, 0xfffffff94800001, 0xfffffff91000001,
-	0xfffffff90600001, 0xfffffff8e600001, 0xfffffff8a400001, 0xfffffff88200001}
 
 // Power of 2 plaintext modulus
 var tPow2 = []uint64{2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144,
@@ -63,11 +34,11 @@ var tBatching = map[uint64][]uint64{
 
 // Parameters represents a given parameter set for the BFV cryptosystem.
 type Parameters struct {
-	N     uint64
+	LogN  uint8
 	T     uint64
-	Q1    []uint64
-	P     []uint64
-	Q2    []uint64
+	Q1    []uint8
+	P     []uint8
+	Q2    []uint8
 	Sigma float64
 }
 
@@ -75,20 +46,20 @@ type Parameters struct {
 func (p *Parameters) Copy() (paramsCopy *Parameters) {
 
 	paramsCopy = new(Parameters)
-	paramsCopy.N = p.N
+	paramsCopy.LogN = p.LogN
 	paramsCopy.T = p.T
 
-	paramsCopy.Q1 = make([]uint64, len(p.Q1))
+	paramsCopy.Q1 = make([]uint8, len(p.Q1))
 	for i := range p.Q1 {
 		paramsCopy.Q1[i] = p.Q1[i]
 	}
 
-	paramsCopy.P = make([]uint64, len(p.P))
+	paramsCopy.P = make([]uint8, len(p.P))
 	for i := range p.P {
 		paramsCopy.P[i] = p.P[i]
 	}
 
-	paramsCopy.Q2 = make([]uint64, len(p.Q2))
+	paramsCopy.Q2 = make([]uint8, len(p.Q2))
 	for i := range p.Q2 {
 		paramsCopy.Q2[i] = p.Q2[i]
 	}
@@ -98,13 +69,40 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 	return
 }
 
-// DefaultParams is an array default parameters with increasing homomorphic capacity.
-// These parameters correspond to 128 bit security level for secret keys in the ternary distribution
-// (see //https://projects.csail.mit.edu/HEWorkshop/HomomorphicEncryptionStandard2018.pdf).
-var DefaultParams = []Parameters{
-	{8192, 65537, logN13Q218, []uint64{0x7fffffffeac001}, Q60[len(Q60)-len(logN13Q218):], 3.19},
-	{16384, 65537, logN14Q438, []uint64{0x3fffffffeb8001, 0x3fffffffef8001}, Q60[len(Q60)-len(logN14Q438):], 3.19},
-	{32768, 65537, logN15Q881, []uint64{0x7ffffffff240001, 0x7ffffffff230001, 0x7fffffffefa0001}, Q60[len(Q60)-len(logN15Q881):], 3.19},
+// DefaultParams is a set of default BFV parameters ensuring 128 bit security.
+var DefaultParams = map[uint64]*Parameters{
+
+	//logQ = 109
+	12: {LogN: 12,
+		T:     65537,
+		Q1:    []uint8{39, 39},
+		P:     []uint8{30},
+		Q2:    []uint8{60, 60},
+		Sigma: 3.2},
+
+	//logQ = 218
+	13: {LogN: 13,
+		T:     65537,
+		Q1:    []uint8{54, 54, 54},
+		P:     []uint8{55},
+		Q2:    []uint8{60, 60, 60},
+		Sigma: 3.2},
+
+	//logQ = 438
+	14: {LogN: 14,
+		T:     65537,
+		Q1:    []uint8{56, 55, 55, 54, 54, 54},
+		P:     []uint8{55, 55},
+		Q2:    []uint8{60, 60, 60, 60, 60, 60},
+		Sigma: 3.2},
+
+	//logQ = 880
+	15: {LogN: 15,
+		T:     65537,
+		Q1:    []uint8{59, 59, 59, 58, 58, 58, 58, 58, 58, 58, 58, 58},
+		P:     []uint8{60, 60, 60},
+		Q2:    []uint8{60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60},
+		Sigma: 3.2},
 }
 
 // Equals compares two sets of parameters for equality
@@ -112,24 +110,24 @@ func (p *Parameters) Equals(other *Parameters) bool {
 	if p == other {
 		return true
 	}
-	return p.N == other.N && utils.EqualSliceUint64(p.Q1, other.Q1) && utils.EqualSliceUint64(p.Q2, other.Q2) && p.Sigma == other.Sigma
+	return p.LogN == other.LogN && p.T == other.T && utils.EqualSliceUint8(p.Q1, other.Q1) && utils.EqualSliceUint8(p.P, other.P) && utils.EqualSliceUint8(p.Q2, other.Q2) && p.Sigma == other.Sigma
 }
 
 // MarshalBinary returns a []byte representation of the parameter set
 func (p *Parameters) MarshalBinary() ([]byte, error) {
-	if p.N == 0 { // if N is 0, then p is the zero value
+	if p.LogN == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
 	b := utils.NewBuffer(make([]byte, 0, 4+((3+len(p.Q1)+len(p.Q2)+len(p.P))<<3)))
-	b.WriteUint8(uint8(bits.Len64(p.N) - 1))
+	b.WriteUint8(uint8(p.LogN))
 	b.WriteUint8(uint8(len(p.Q1)))
 	b.WriteUint8(uint8(len(p.P)))
 	b.WriteUint8(uint8(len(p.Q2)))
 	b.WriteUint64(p.T)
 	b.WriteUint64(uint64(p.Sigma * (1 << 32)))
-	b.WriteUint64Slice(p.Q1)
-	b.WriteUint64Slice(p.P)
-	b.WriteUint64Slice(p.Q2)
+	b.WriteUint8Slice(p.Q1)
+	b.WriteUint8Slice(p.P)
+	b.WriteUint8Slice(p.Q2)
 	return b.Bytes(), nil
 }
 
@@ -140,34 +138,34 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	}
 	b := utils.NewBuffer(data)
 
-	p.N = 1 << uint64(b.ReadUint8())
-	if p.N > MaxN {
+	p.LogN = b.ReadUint8()
+	if p.LogN > MaxLogN {
 		return errors.New("polynomial degree is too large")
 	}
 
-	lenQ1 := uint64(b.ReadUint8())
+	lenQ1 := b.ReadUint8()
 	if lenQ1 > MaxModuliCount {
 		return fmt.Errorf("len(Q1) is larger than %d", MaxModuliCount)
 	}
 
-	lenP := uint64(b.ReadUint8())
+	lenP := b.ReadUint8()
 	if lenP > MaxModuliCount {
 		return fmt.Errorf("len(lenP) is larger than %d", MaxModuliCount)
 	}
 
-	lenQ2 := uint64(b.ReadUint8())
+	lenQ2 := b.ReadUint8()
 	if lenQ2 > MaxModuliCount {
 		return fmt.Errorf("len(Q2) is larger than %d", MaxModuliCount)
 	}
 
 	p.T = b.ReadUint64()
 	p.Sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
-	p.Q1 = make([]uint64, lenQ1, lenQ1)
-	p.P = make([]uint64, lenP, lenP)
-	p.Q2 = make([]uint64, lenQ2, lenQ2)
+	p.Q1 = make([]uint8, lenQ1, lenQ1)
+	p.P = make([]uint8, lenP, lenP)
+	p.Q2 = make([]uint8, lenQ2, lenQ2)
 
-	b.ReadUint64Slice(p.Q1)
-	b.ReadUint64Slice(p.P)
-	b.ReadUint64Slice(p.Q2)
+	b.ReadUint8Slice(p.Q1)
+	b.ReadUint8Slice(p.P)
+	b.ReadUint8Slice(p.Q2)
 	return nil
 }

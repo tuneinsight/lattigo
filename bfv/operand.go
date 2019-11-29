@@ -48,7 +48,7 @@ func (el *bfvElement) Resize(params *Parameters, degree uint64) {
 			el.value = append(el.value, []*ring.Poly{new(ring.Poly)}...)
 			el.value[el.Degree()].Coeffs = make([][]uint64, len(params.Q1))
 			for i := 0; i < len(params.Q1); i++ {
-				el.value[el.Degree()].Coeffs[i] = make([]uint64, params.N)
+				el.value[el.Degree()].Coeffs[i] = make([]uint64, uint64(1<<params.LogN))
 			}
 		}
 	}

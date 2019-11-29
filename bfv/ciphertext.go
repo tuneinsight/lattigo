@@ -20,7 +20,7 @@ func NewCiphertextFromParams(params *Parameters, degree uint64) (ciphertext *Cip
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = ring.NewPoly(params.N, uint64(len(params.Q1)))
+		ciphertext.value[i] = ring.NewPoly(1<<params.LogN, uint64(len(params.Q1)))
 	}
 
 	ciphertext.isNTT = true
@@ -34,7 +34,7 @@ func NewRandomCiphertextFromParams(params *Parameters, degree uint64) (ciphertex
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = ring.NewPolyUniform(params.N, uint64(len(params.Q1)))
+		ciphertext.value[i] = ring.NewPolyUniform(1<<params.LogN, uint64(len(params.Q1)))
 	}
 
 	ciphertext.isNTT = true

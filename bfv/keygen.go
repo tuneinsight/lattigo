@@ -79,7 +79,7 @@ func (keygen *KeyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params *Parameters) *SecretKey {
 	sk := new(SecretKey)
-	sk.sk = ring.NewPoly(params.N, uint64(len(params.Q1)+len(params.P)))
+	sk.sk = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Q1)+len(params.P)))
 	return sk
 }
 
@@ -115,8 +115,8 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
 	pk = new(PublicKey)
 
-	pk.pk[0] = ring.NewPoly(params.N, uint64(len(params.Q1)+len(params.P)))
-	pk.pk[1] = ring.NewPoly(params.N, uint64(len(params.Q1)+len(params.P)))
+	pk.pk[0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Q1)+len(params.P)))
+	pk.pk[1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Q1)+len(params.P)))
 
 	return
 }
@@ -178,8 +178,8 @@ func NewRelinKey(params *Parameters, maxDegree uint64) (evakey *EvaluationKey) {
 
 		for i := uint64(0); i < beta; i++ {
 
-			evakey.evakey[w].evakey[i][0] = ring.NewPoly(params.N, uint64(len(params.Q1)+len(params.P)))
-			evakey.evakey[w].evakey[i][1] = ring.NewPoly(params.N, uint64(len(params.Q1)+len(params.P)))
+			evakey.evakey[w].evakey[i][0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Q1)+len(params.P)))
+			evakey.evakey[w].evakey[i][1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Q1)+len(params.P)))
 		}
 	}
 
@@ -230,8 +230,8 @@ func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 	evakey.evakey = make([][2]*ring.Poly, beta)
 
 	for i := uint64(0); i < beta; i++ {
-		evakey.evakey[i][0] = ring.NewPoly(params.N, uint64(len(params.Q1)+len(params.P)))
-		evakey.evakey[i][1] = ring.NewPoly(params.N, uint64(len(params.Q1)+len(params.P)))
+		evakey.evakey[i][0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Q1)+len(params.P)))
+		evakey.evakey[i][1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Q1)+len(params.P)))
 	}
 
 	return

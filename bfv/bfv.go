@@ -21,7 +21,6 @@ type Context struct {
 	t uint64
 
 	logQ uint64
-	logP uint64
 
 	// floor(Q/T) mod each Qi in Montgomery form
 	deltaMont []uint64
@@ -88,11 +87,11 @@ func NewContext(params *Parameters) (newContext *Context) {
 // - sigma    : the variance of the gaussian sampling.
 func (context *Context) SetParameters(params *Parameters) {
 
-	N := params.N
+	LogN := params.LogN
+	N := uint64(1 << LogN)
 	t := params.T
-	ModuliQ1 := params.Q1
-	ModuliQ2 := params.Q2
-	ModuliP := params.P
+
+	ModuliQ1, ModuliP, ModuliQ2 := genModuli(params)
 	sigma := params.Sigma
 
 	context.n = N
@@ -146,8 +145,7 @@ func (context *Context) SetParameters(params *Parameters) {
 	context.qHalf = new(big.Int).Rsh(context.contextQ1.ModulusBigint, 1)
 	context.pHalf = new(big.Int).Rsh(context.contextQ2.ModulusBigint, 1)
 
-	context.logQ = uint64(context.contextP.ModulusBigint.BitLen())
-	context.logP = uint64(context.contextQ2.ModulusBigint.BitLen())
+	context.logQ = uint64(context.contextQ1P.ModulusBigint.BitLen())
 
 	delta := new(big.Int).Quo(context.contextQ1.ModulusBigint, ring.NewUint(t))
 	tmpBig := new(big.Int)
@@ -175,11 +173,6 @@ func (context *Context) N() uint64 {
 // LogQ returns logQ which is the total bitzise of the ciphertext modulus.
 func (context *Context) LogQ() uint64 {
 	return context.logQ
-}
-
-// LogP returns logQ which is the total bitzise of the secondary ciphertext modulus.
-func (context *Context) LogP() uint64 {
-	return context.logP
 }
 
 // T returns the plaintext modulus of the target context.

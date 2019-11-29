@@ -18,7 +18,7 @@ func check(t *testing.T, err error) {
 }
 
 func testString2(opname string, params *bfvParams) string {
-	return fmt.Sprintf("%sparams=%d", opname, params.bfvContext.N())
+	return fmt.Sprintf("%sparams=%d/logQ=%d", opname, params.bfvContext.n, params.bfvContext.logQ)
 }
 
 type bfvParams struct {
@@ -32,7 +32,6 @@ type bfvParams struct {
 	encryptorSk *Encryptor
 	decryptor   *Decryptor
 	evaluator   *Evaluator
-	ringCtx     *ring.Context
 }
 
 type bfvTestParameters struct {
@@ -46,9 +45,10 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 
 	testParams.bfvParameters = []*Parameters{
-		&DefaultParams[0],
-		&DefaultParams[1],
-		&DefaultParams[2],
+		DefaultParams[12],
+		DefaultParams[13],
+		DefaultParams[14],
+		DefaultParams[15],
 	}
 }
 

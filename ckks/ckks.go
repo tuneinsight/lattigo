@@ -46,12 +46,8 @@ type Context struct {
 	// Samplers
 	gaussianSampler *ring.KYSampler
 
-	// Galoi generator for the rotations, encoding and decoding params
-	gen    uint64
-	genInv uint64
-
 	// Rotation params
-	galElRotRow      uint64
+	galElConjugate   uint64
 	galElRotColLeft  []uint64
 	galElRotColRight []uint64
 }
@@ -69,132 +65,36 @@ func NewContext(params *Parameters) (ckkscontext *Context) {
 	ckkscontext.scale = params.Scale
 	ckkscontext.sigma = params.Sigma
 
-	ckkscontext.levels = uint64(len(params.Modulichain))
+	ckkscontext.levels = uint64(len(params.Q))
 
 	ckkscontext.alpha = uint64(len(params.P))
 	ckkscontext.beta = uint64(math.Ceil(float64(ckkscontext.levels) / float64(ckkscontext.alpha)))
 
-	// ========== START < PRIMES GENERATION > START ===============
-	ckkscontext.scalechain = make([]float64, len(params.Modulichain))
+	ckkscontext.moduli, ckkscontext.specialprimes = genModuli(params)
 
-	// Extracts all the different primes bit size and maps their number
-	primesbitlen := make(map[uint64]uint64)
-	for i, qi := range params.Modulichain {
+	ckkscontext.bigintChain = genBigIntChain(ckkscontext.moduli)
 
-		primesbitlen[uint64(qi)]++
-
-		if uint64(params.Modulichain[i]) > 60 {
-			panic("provided moduli must be smaller than 61")
-		}
-	}
-
-	for _, pj := range params.P {
-		primesbitlen[uint64(pj)]++
-
-		if uint64(pj) > 60 {
-			panic("provided P must be smaller than 61")
-		}
-	}
-
-	// For each bitsize, finds that many primes
-	primes := make(map[uint64][]uint64)
-	for key, value := range primesbitlen {
-		primes[key] = GenerateCKKSPrimes(key, uint64(params.LogN), value)
-	}
-
-	// Assigns the primes to the ckks moduli chain
-	ckkscontext.moduli = make([]uint64, len(params.Modulichain))
-	for i, qi := range params.Modulichain {
-		ckkscontext.moduli[i] = primes[uint64(params.Modulichain[i])][0]
-		primes[uint64(qi)] = primes[uint64(qi)][1:]
-
-		ckkscontext.scalechain[i] = float64(ckkscontext.moduli[i])
-	}
-
-	// Assigns the primes to the special primes list for the the keyscontext
-	ckkscontext.specialprimes = make([]uint64, len(params.P))
-	for i, pj := range params.P {
-		ckkscontext.specialprimes[i] = primes[uint64(pj)][0]
-		primes[uint64(pj)] = primes[uint64(pj)][1:]
-	}
-
-	ckkscontext.bigintChain = make([]*big.Int, ckkscontext.levels)
-
-	ckkscontext.bigintChain[0] = ring.NewUint(ckkscontext.moduli[0])
-	for i := uint64(1); i < ckkscontext.levels; i++ {
-		ckkscontext.bigintChain[i] = ring.NewUint(ckkscontext.moduli[i])
-		ckkscontext.bigintChain[i].Mul(ckkscontext.bigintChain[i], ckkscontext.bigintChain[i-1])
-	}
-
-	//Contexts
-	ckkscontext.contextQ = ring.NewContext()
-	ckkscontext.contextQ.SetParameters(1<<ckkscontext.logN, ckkscontext.moduli)
-
-	if err = ckkscontext.contextQ.GenNTTParams(); err != nil {
+	if ckkscontext.contextQ, err = ring.NewContextWithParams(ckkscontext.n, ckkscontext.moduli); err != nil {
 		panic(err)
 	}
 
-	ckkscontext.contextP = ring.NewContext()
-	ckkscontext.contextP.SetParameters(1<<ckkscontext.logN, ckkscontext.specialprimes)
-
-	if err = ckkscontext.contextP.GenNTTParams(); err != nil {
+	if ckkscontext.contextP, err = ring.NewContextWithParams(ckkscontext.n, ckkscontext.specialprimes); err != nil {
 		panic(err)
 	}
 
-	ckkscontext.contextKeys = ring.NewContext()
-	ckkscontext.contextKeys.SetParameters(1<<ckkscontext.logN, append(ckkscontext.moduli, ckkscontext.specialprimes...))
-
-	if err = ckkscontext.contextKeys.GenNTTParams(); err != nil {
+	if ckkscontext.contextKeys, err = ring.NewContextWithParams(ckkscontext.n, append(ckkscontext.moduli, ckkscontext.specialprimes...)); err != nil {
 		panic(err)
 	}
 
 	ckkscontext.logQ = uint64(ckkscontext.contextKeys.ModulusBigint.BitLen())
 
-	var Qi uint64
-
-	bredParams := ckkscontext.contextQ.GetBredParams()
-
-	ckkscontext.rescaleParamsKeys = make([]uint64, ckkscontext.levels)
-
-	PBig := ring.NewUint(1)
-	for _, pj := range ckkscontext.specialprimes {
-		PBig.Mul(PBig, ring.NewUint(pj))
-	}
-
-	tmp := ring.NewUint(0)
-
-	for i := uint64(0); i < ckkscontext.levels; i++ {
-
-		Qi = ckkscontext.moduli[i]
-
-		tmp.Mod(PBig, ring.NewUint(Qi))
-
-		ckkscontext.rescaleParamsKeys[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Qi, bredParams[i]), Qi-2, Qi), Qi, bredParams[i])
-	}
+	ckkscontext.rescaleParamsKeys = genSwitchkeysRescalingParams(ckkscontext.moduli, ckkscontext.specialprimes)
 
 	ckkscontext.gaussianSampler = ckkscontext.contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))
 
-	var m, mask uint64
-
-	m = ckkscontext.n << 1
-
-	mask = m - 1
-
-	ckkscontext.gen = 5 // Any integer equal to 1 mod 4 and comprime to 2N will do fine
-	ckkscontext.genInv = ring.ModExp(ckkscontext.gen, mask, m)
-
-	ckkscontext.galElRotColLeft = make([]uint64, ckkscontext.maxSlots)
-	ckkscontext.galElRotColRight = make([]uint64, ckkscontext.maxSlots)
-
-	ckkscontext.galElRotColRight[0] = 1
-	ckkscontext.galElRotColLeft[0] = 1
-
-	for i := uint64(1); i < ckkscontext.maxSlots; i++ {
-		ckkscontext.galElRotColLeft[i] = (ckkscontext.galElRotColLeft[i-1] * ckkscontext.gen) & mask
-		ckkscontext.galElRotColRight[i] = (ckkscontext.galElRotColRight[i-1] * ckkscontext.genInv) & mask
-	}
-
-	ckkscontext.galElRotRow = mask
+	ckkscontext.galElRotColLeft = ring.GenGaloisParams(ckkscontext.n, GaloisGen)
+	ckkscontext.galElRotColRight = ring.GenGaloisParams(ckkscontext.n, ring.ModExp(GaloisGen, 2*ckkscontext.n-1, 2*ckkscontext.n))
+	ckkscontext.galElConjugate = 2*ckkscontext.n - 1
 
 	return ckkscontext
 

@@ -11,7 +11,7 @@ import (
 //
 // logN : the ring degree such that N = 2^logN
 //
-// modulichain : a list of moduli in bit size, such that prod(moduli) <= logQ, where logQ is the maximum bit size of the product of all the moduli
+// Q : a list of moduli in bit size, such that prod(moduli) <= logQ, where logQ is the maximum bit size of the product of all the moduli
 // for a given security parameter. This moduli chain allows to customize the value by which the ciphertexts will be rescaled allong the homomorphic computations,
 // and can enhance performances for optimized applications.
 //
@@ -19,11 +19,33 @@ import (
 //
 // sigma : the variance used by the ckkscontext to sample gaussian polynomials.
 type Parameters struct {
-	LogN        uint8
-	Modulichain []uint8
-	P           []uint8
-	Scale       float64
-	Sigma       float64
+	LogN  uint8
+	Q     []uint8
+	P     []uint8
+	Scale float64
+	Sigma float64
+}
+
+// Copy creates a copy of the target parameters.
+func (p *Parameters) Copy() (paramsCopy *Parameters) {
+
+	paramsCopy = new(Parameters)
+	paramsCopy.LogN = p.LogN
+
+	paramsCopy.Q = make([]uint8, len(p.Q))
+	for i := range p.Q {
+		paramsCopy.Q[i] = p.Q[i]
+	}
+
+	paramsCopy.P = make([]uint8, len(p.P))
+	for i := range p.P {
+		paramsCopy.P[i] = p.P[i]
+	}
+
+	paramsCopy.Scale = p.Scale
+	paramsCopy.Sigma = p.Sigma
+
+	return
 }
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
@@ -46,7 +68,7 @@ func (p *Parameters) Equals(other *Parameters) bool {
 	if p == other {
 		return true
 	}
-	return p.LogN == other.LogN && utils.EqualSliceUint8(p.Modulichain, other.Modulichain) && p.Scale == other.Scale && p.Sigma == other.Sigma
+	return p.LogN == other.LogN && utils.EqualSliceUint8(p.Q, other.Q) && p.Scale == other.Scale && p.Sigma == other.Sigma
 }
 
 // MarshalBinary returns a []byte representation of the parameter set
@@ -54,13 +76,13 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
-	b := utils.NewBuffer(make([]byte, 0, 7+((2+len(p.Modulichain))<<3)))
+	b := utils.NewBuffer(make([]byte, 0, 7+((2+len(p.Q))<<3)))
 	b.WriteUint8(uint8(p.LogN))
-	b.WriteUint8(uint8(len(p.Modulichain)))
+	b.WriteUint8(uint8(len(p.Q)))
 	b.WriteUint8(uint8(len(p.P)))
 	b.WriteUint64(uint64(p.Scale))
 	b.WriteUint64(uint64(p.Sigma * (1 << 32)))
-	b.WriteUint8Slice(p.Modulichain)
+	b.WriteUint8Slice(p.Q)
 	b.WriteUint8Slice(p.P)
 	return b.Bytes(), nil
 }
@@ -75,9 +97,9 @@ func (p *Parameters) UnMarshalBinary(data []byte) error {
 	if p.LogN > MaxLogN {
 		return errors.New("polynomial degree is too large")
 	}
-	lenModulichain := uint64(b.ReadUint8())
-	if lenModulichain > MaxModuliCount {
-		return fmt.Errorf("len(Modulichain) is larger than %d", MaxModuliCount)
+	lenQ := uint64(b.ReadUint8())
+	if lenQ > MaxModuliCount {
+		return fmt.Errorf("len(Q) is larger than %d", MaxModuliCount)
 	}
 	lenP := uint64(b.ReadUint8())
 	if lenP > MaxModuliCount {
@@ -87,8 +109,8 @@ func (p *Parameters) UnMarshalBinary(data []byte) error {
 	p.Scale = float64(b.ReadUint64())
 
 	p.Sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
-	p.Modulichain = make([]uint8, lenModulichain, lenModulichain)
-	b.ReadUint8Slice(p.Modulichain)
+	p.Q = make([]uint8, lenQ, lenQ)
+	b.ReadUint8Slice(p.Q)
 	p.P = make([]uint8, lenP, lenP)
 	b.ReadUint8Slice(p.P)
 	return nil

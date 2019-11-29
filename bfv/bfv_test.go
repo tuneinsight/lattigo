@@ -22,6 +22,7 @@ func testString2(opname string, params *bfvParams) string {
 }
 
 type bfvParams struct {
+	params      *Parameters
 	bfvContext  *Context
 	encoder     *Encoder
 	kgen        *KeyGenerator
@@ -66,25 +67,24 @@ func TestBFV(t *testing.T) {
 func testMarshaller(t *testing.T) {
 
 	for _, parameters := range testParams.bfvParameters {
-		ringCtx := NewRingContext(parameters)
 
 		params := genBfvParams(parameters)
 
-		contextKeys := params.bfvContext.contextKeys
+		contextQ1P := params.bfvContext.contextQ1P
 
 		t.Run(testString2("Ciphertext/", params), func(t *testing.T) {
 
-			ciphertextWant := NewRandomCiphertext(2, ringCtx)
+			ciphertextWant := NewRandomCiphertextFromParams(parameters, 2)
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)
 
-			ciphertextTest := NewCiphertextStruct()
+			ciphertextTest := NewBfvElement().Ciphertext()
 			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 			check(t, err)
 
 			for i := range ciphertextWant.value {
-				if !params.bfvContext.contextQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]) {
+				if !params.bfvContext.contextQ1.Equal(ciphertextWant.value[i], ciphertextTest.value[i]) {
 					t.Errorf("Marshal Ciphertext")
 				}
 			}
@@ -99,7 +99,7 @@ func testMarshaller(t *testing.T) {
 			err = sk.UnmarshalBinary(marshalledSk)
 			check(t, err)
 
-			if !contextKeys.Equal(sk.sk, params.sk.sk) {
+			if !contextQ1P.Equal(sk.sk, params.sk.sk) {
 				t.Errorf("Marshal SecretKey")
 			}
 
@@ -115,7 +115,7 @@ func testMarshaller(t *testing.T) {
 			check(t, err)
 
 			for k := range params.pk.pk {
-				if !contextKeys.Equal(pk.pk[k], params.pk.pk[k]) {
+				if !contextQ1P.Equal(pk.pk[k], params.pk.pk[k]) {
 					t.Errorf("Marshal PublicKey element [%d]", k)
 				}
 			}
@@ -139,7 +139,7 @@ func testMarshaller(t *testing.T) {
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
-						if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+						if !contextQ1P.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 							t.Errorf("Marshal EvaluationKey deg %d element [%d][%d]", deg, j, k)
 						}
 					}
@@ -165,7 +165,7 @@ func testMarshaller(t *testing.T) {
 			for j := range evakeyWant {
 
 				for k := range evakeyWant[j] {
-					if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+					if !contextQ1P.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 						t.Errorf("Marshal Switchkey element [%d][%d]", j, k)
 					}
 				}
@@ -199,7 +199,7 @@ func testMarshaller(t *testing.T) {
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
-							if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+							if !contextQ1P.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 								t.Errorf("Marshal RotKey RotateLeft %d element [%d][%d]", i, j, k)
 							}
 						}
@@ -214,7 +214,7 @@ func testMarshaller(t *testing.T) {
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
-							if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+							if !contextQ1P.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 								t.Errorf("Marshal RotKey RotateRight %d element [%d][%d]", i, j, k)
 							}
 						}
@@ -230,7 +230,7 @@ func testMarshaller(t *testing.T) {
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
-						if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+						if !contextQ1P.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 							t.Errorf("Marshal RotKey RotateRow element [%d][%d]", j, k)
 						}
 					}
@@ -244,7 +244,9 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params = new(bfvParams)
 
-	params.bfvContext = NewContextWithParam(contextParameters)
+	params.params = contextParameters.Copy()
+
+	params.bfvContext = NewContext(contextParameters)
 
 	params.kgen = NewKeyGenerator(contextParameters)
 
@@ -252,13 +254,11 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params.encoder = NewEncoder(contextParameters)
 
-	params.encryptorPk = NewEncryptorFromPk(params.pk, contextParameters)
-	params.encryptorSk = NewEncryptorFromSk(params.sk, contextParameters)
-	params.decryptor = NewDecryptor(params.sk, contextParameters)
+	params.encryptorPk = NewEncryptorFromPk(contextParameters, params.pk)
+	params.encryptorSk = NewEncryptorFromSk(contextParameters, params.sk)
+	params.decryptor = NewDecryptor(contextParameters, params.sk)
 
 	params.evaluator = NewEvaluator(contextParameters)
-
-	params.ringCtx = NewRingContext(contextParameters)
 
 	return
 
@@ -268,7 +268,7 @@ func newTestVectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (coef
 
 	coeffs = params.bfvContext.contextT.NewUniformPoly()
 
-	plaintext = NewPlaintext(params.ringCtx)
+	plaintext = NewPlaintextFromParams(params.params)
 
 	params.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
@@ -430,7 +430,6 @@ func testEvaluatorSub(t *testing.T) {
 func testEvaluatorMul(t *testing.T) {
 
 	for _, parameters := range testParams.bfvParameters {
-		ringCtx := NewRingContext(parameters)
 
 		params := genBfvParams(parameters)
 
@@ -441,7 +440,7 @@ func testEvaluatorMul(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := NewCiphertext(ciphertext1.Degree()+ciphertext2.Degree(), ringCtx)
+			receiver := NewCiphertextFromParams(parameters, ciphertext1.Degree()+ciphertext2.Degree())
 			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
@@ -464,7 +463,7 @@ func testEvaluatorMul(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := NewCiphertext(ciphertext1.Degree()+ciphertext2.Degree(), ringCtx)
+			receiver := NewCiphertextFromParams(parameters, ciphertext1.Degree()+ciphertext2.Degree())
 			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
@@ -484,7 +483,7 @@ func testKeySwitch(t *testing.T) {
 		params := genBfvParams(parameters)
 
 		sk2 := params.kgen.NewSecretKey()
-		decryptorSk2 := NewDecryptor(sk2, parameters)
+		decryptorSk2 := NewDecryptor(parameters, sk2)
 		switchKey := params.kgen.NewSwitchingKey(params.sk, sk2)
 
 		t.Run(testString2("InPlace/", params), func(t *testing.T) {
@@ -542,7 +541,6 @@ func testRotateRows(t *testing.T) {
 func testRotateCols(t *testing.T) {
 
 	for _, parameters := range testParams.bfvParameters {
-		ringCtx := NewRingContext(parameters)
 
 		params := genBfvParams(parameters)
 
@@ -556,7 +554,7 @@ func testRotateCols(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := NewCiphertext(1, ringCtx)
+			receiver := NewCiphertextFromParams(parameters, 1)
 			for n := uint64(1); n < slots; n <<= 1 {
 
 				params.evaluator.RotateColumns(ciphertext, n, rotkey, receiver)
@@ -591,7 +589,7 @@ func testRotateCols(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := NewCiphertext(1, ringCtx)
+			receiver := NewCiphertextFromParams(parameters, 1)
 			for n := 0; n < 4; n++ {
 
 				rand := ring.RandUniform(slots, mask)

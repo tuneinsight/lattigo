@@ -109,10 +109,67 @@ func scaleDown(coeff *big.Int, n float64) (x float64) {
 	return
 }
 
-// GenerateCKKSPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
-// of levels required. Will return all the appropriate primes, up to the number of level, with the
-// best avaliable deviation from the base power of 2 for the given level.
-func GenerateCKKSPrimes(logQ, logN, levels uint64) (primes []uint64) {
+func genBigIntChain(Q []uint64) (bigintChain []*big.Int) {
+
+	bigintChain = make([]*big.Int, len(Q))
+	bigintChain[0] = ring.NewUint(Q[0])
+	for i := 1; i < len(Q); i++ {
+		bigintChain[i] = ring.NewUint(Q[i])
+		bigintChain[i].Mul(bigintChain[i], bigintChain[i-1])
+	}
+	return
+}
+
+// genModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
+func genModuli(params *Parameters) (Q []uint64, P []uint64) {
+
+	// Extracts all the different primes bit size and maps their number
+	primesbitlen := make(map[uint64]uint64)
+	for i, qi := range params.Q {
+
+		primesbitlen[uint64(qi)]++
+
+		if uint64(params.Q[i]) > 60 {
+			panic("provided moduli must be smaller than 61")
+		}
+	}
+
+	for _, pj := range params.P {
+		primesbitlen[uint64(pj)]++
+
+		if uint64(pj) > 60 {
+			panic("provided P must be smaller than 61")
+		}
+	}
+
+	// For each bitsize, finds that many primes
+	primes := make(map[uint64][]uint64)
+	for key, value := range primesbitlen {
+		primes[key] = generateCKKSPrimes(key, uint64(params.LogN), value)
+	}
+
+	// Assigns the primes to the ckks moduli chain
+	Q = make([]uint64, len(params.Q))
+	for i, qi := range params.Q {
+		Q[i] = primes[uint64(params.Q[i])][0]
+		primes[uint64(qi)] = primes[uint64(qi)][1:]
+	}
+
+	// Assigns the primes to the special primes list for the the keyscontext
+	P = make([]uint64, len(params.P))
+	for i, pj := range params.P {
+		P[i] = primes[uint64(pj)][0]
+		primes[uint64(pj)] = primes[uint64(pj)][1:]
+	}
+
+	return Q, P
+}
+
+func generateCKKSPrimes(logQ, logN, levels uint64) (primes []uint64) {
+
+	// generateCKKSPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
+	// of levels required. Will return all the appropriate primes, up to the number of level, with the
+	// best avaliable deviation from the base power of 2 for the given level.
 
 	if logQ > 60 {
 		panic("logQ must be between 1 and 60")
@@ -172,4 +229,25 @@ func sliceBitReverseInPlaceComplex128(slice []complex128, N uint64) {
 			slice[i], slice[j] = slice[j], slice[i]
 		}
 	}
+}
+
+func genSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
+
+	params = make([]uint64, len(Q))
+
+	PBig := ring.NewUint(1)
+	for _, pj := range P {
+		PBig.Mul(PBig, ring.NewUint(pj))
+	}
+
+	tmp := ring.NewUint(0)
+
+	for i := 0; i < len(Q); i++ {
+
+		params[i] = tmp.Mod(PBig, ring.NewUint(Q[i])).Uint64()
+		params[i] = ring.ModExp(params[i], Q[i]-2, Q[i])
+		params[i] = ring.MForm(params[i], Q[i], ring.BRedParams(Q[i]))
+	}
+
+	return
 }

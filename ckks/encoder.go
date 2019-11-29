@@ -6,86 +6,10 @@ import (
 	"math/big"
 )
 
-type encoderContext struct {
-	// Context parameters
-	maxSlots uint64
-	n        uint64
-
-	// Moduli chain
-	moduli      []uint64
-	bigintChain []*big.Int
-
-	// Contexts
-	contextQ *ring.Context
-}
-
-func newEncoderContext(params *Parameters) *encoderContext {
-	var maxSlots, n uint64
-	maxSlots = 1 << (uint64(params.LogN) - 1)
-	n = 1 << uint64(params.LogN)
-
-	// Extract all the different primes bit size and map their number
-	primesBitLen := make(map[uint64]uint64)
-	for i, qi := range params.Modulichain {
-
-		primesBitLen[uint64(qi)]++
-
-		if uint64(params.Modulichain[i]) > 60 {
-			panic("provided moduli must be smaller than 61")
-		}
-	}
-
-	for _, pj := range params.P {
-		primesBitLen[uint64(pj)]++
-
-		if uint64(pj) > 60 {
-			panic("provided P must be smaller than 61")
-		}
-	}
-
-	// For each bitsize, find that many primes
-	primes := make(map[uint64][]uint64)
-	for key, value := range primesBitLen {
-		primes[key] = GenerateCKKSPrimes(key, uint64(params.LogN), value)
-	}
-
-	// Assign the primes to the ckks moduli chain
-	moduli := make([]uint64, len(params.Modulichain))
-	for i, qi := range params.Modulichain {
-		moduli[i] = primes[uint64(params.Modulichain[i])][0]
-		primes[uint64(qi)] = primes[uint64(qi)][1:]
-	}
-
-	levels := uint64(len(params.Modulichain))
-
-	bigintChain := make([]*big.Int, levels)
-
-	bigintChain[0] = ring.NewUint(moduli[0])
-	for i := uint64(1); i < levels; i++ {
-		bigintChain[i] = ring.NewUint(moduli[i])
-		bigintChain[i].Mul(bigintChain[i], bigintChain[i-1])
-	}
-
-	// Contexts
-	contextQ := ring.NewContext()
-	contextQ.SetParameters(1<<params.LogN, moduli)
-
-	if err := contextQ.GenNTTParams(); err != nil {
-		panic(err)
-	}
-
-	return &encoderContext{
-		maxSlots:    maxSlots,
-		n:           n,
-		moduli:      moduli,
-		bigintChain: bigintChain,
-		contextQ:    contextQ,
-	}
-}
-
 // Encoder is a struct storing the necessary parameters to encode a slice of complex number on a plaintext.
 type Encoder struct {
-	context      *encoderContext
+	params       *Parameters
+	ckksContext  *Context
 	values       []complex128
 	valuesfloat  []float64
 	bigintCoeffs []*big.Int
@@ -98,21 +22,21 @@ type Encoder struct {
 
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
 func NewEncoder(params *Parameters) (encoder *Encoder) {
-	context := newEncoderContext(params)
 
 	encoder = new(Encoder)
-	encoder.context = context
-	encoder.values = make([]complex128, context.maxSlots)
-	encoder.valuesfloat = make([]float64, context.n)
-	encoder.bigintCoeffs = make([]*big.Int, context.n)
+	encoder.params = params.Copy()
+	encoder.ckksContext = NewContext(params)
+	encoder.values = make([]complex128, encoder.ckksContext.maxSlots)
+	encoder.valuesfloat = make([]float64, encoder.ckksContext.n)
+	encoder.bigintCoeffs = make([]*big.Int, encoder.ckksContext.n)
 	encoder.qHalf = ring.NewUint(0)
-	encoder.polypool = context.contextQ.NewPoly()
+	encoder.polypool = encoder.ckksContext.contextQ.NewPoly()
 
-	encoder.m = context.n << 1
+	encoder.m = encoder.ckksContext.n << 1
 
-	encoder.rotGroup = make([]uint64, context.n)
+	encoder.rotGroup = make([]uint64, encoder.ckksContext.n)
 	fivePows := uint64(1)
-	for i := uint64(0); i < context.maxSlots; i++ {
+	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
 		encoder.rotGroup[i] = fivePows
 		fivePows *= 5
 		fivePows &= (encoder.m - 1)
@@ -132,7 +56,7 @@ func NewEncoder(params *Parameters) (encoder *Encoder) {
 // Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
 func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
 
-	if uint64(len(values)) > encoder.context.maxSlots || uint64(len(values)) > slots {
+	if uint64(len(values)) > encoder.ckksContext.maxSlots || uint64(len(values)) > slots {
 		panic("cannot encode -> to many values for the given number of slots")
 	}
 
@@ -142,22 +66,22 @@ func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 
 	encoder.invfft(encoder.values, slots)
 
-	gap := encoder.context.maxSlots / slots
+	gap := encoder.ckksContext.maxSlots / slots
 
-	for i, jdx, idx := uint64(0), encoder.context.maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+	for i, jdx, idx := uint64(0), encoder.ckksContext.maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
 		encoder.valuesfloat[idx] = real(encoder.values[i])
 		encoder.valuesfloat[jdx] = imag(encoder.values[i])
 	}
 
-	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.context.moduli[:plaintext.Level()+1], plaintext.value.Coeffs)
+	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.moduli[:plaintext.Level()+1], plaintext.value.Coeffs)
 
-	encoder.context.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 
-	for i := uint64(0); i < encoder.context.maxSlots; i++ {
+	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
 		encoder.values[i] = 0
 	}
 
-	for i := uint64(0); i < encoder.context.n; i++ {
+	for i := uint64(0); i < encoder.ckksContext.n; i++ {
 		encoder.valuesfloat[i] = 0
 	}
 }
@@ -165,17 +89,17 @@ func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 // Decode decodes the plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 
-	encoder.context.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
-	encoder.context.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
+	encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	encoder.ckksContext.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
-	Q := encoder.context.bigintChain[plaintext.Level()]
+	Q := encoder.ckksContext.bigintChain[plaintext.Level()]
 
-	maxSlots := encoder.context.maxSlots
+	maxSlots := encoder.ckksContext.maxSlots
 
 	encoder.qHalf.Set(Q)
 	encoder.qHalf.Rsh(encoder.qHalf, 1)
 
-	gap := encoder.context.maxSlots / slots
+	gap := encoder.ckksContext.maxSlots / slots
 
 	var sign int
 
@@ -207,7 +131,7 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 
 	}
 
-	for i := uint64(0); i < encoder.context.maxSlots; i++ {
+	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
 		encoder.values[i] = 0
 	}
 

@@ -11,14 +11,21 @@ func Benchmark_BFV(b *testing.B) {
 
 	for _, params := range paramSets {
 
-		bfvContext := NewContext()
-		bfvContext.SetParameters(&params)
+		bfvContext := NewContext(&params)
 
 		var sk *SecretKey
 		var pk *PublicKey
 		var err error
 
 		kgen := NewKeyGenerator(&params)
+
+		encoder := NewEncoder(&params)
+
+		coeffs := bfvContext.contextT.NewUniformPoly()
+
+		plaintext := NewPlaintextFromParams(&params)
+
+		encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
 		// Public Key Generation
 		b.Run(testString("KeyGen", &params), func(b *testing.B) {
@@ -31,31 +38,25 @@ func Benchmark_BFV(b *testing.B) {
 		})
 
 		// Encryption
-		encryptorPk := NewEncryptorFromPk(pk, &params)
-		encryptorSk := NewEncryptorFromSk(sk, &params)
+		encryptorPk := NewEncryptorFromPk(&params, pk)
+		encryptorSk := NewEncryptorFromSk(&params, sk)
 
-		ringCtx := NewRingContext(&params)
-
-		ptcoeffs := bfvContext.NewRandomPlaintextCoeffs()
-		pt := NewPlaintext(ringCtx)
-		pt.setCoefficientsUint64(bfvContext, ptcoeffs)
-
-		ctd1 := NewCiphertext(1, ringCtx)
+		ctd1 := NewCiphertextFromParams(&params, 1)
 		b.Run(testString("EncryptFromPk", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				encryptorPk.Encrypt(pt, ctd1)
+				encryptorPk.Encrypt(plaintext, ctd1)
 			}
 		})
 
 		b.Run(testString("EncryptFromSk", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				encryptorSk.Encrypt(pt, ctd1)
+				encryptorSk.Encrypt(plaintext, ctd1)
 			}
 		})
 
 		// Decryption
-		decryptor := NewDecryptor(sk, &params)
-		ptp := NewPlaintext(ringCtx)
+		decryptor := NewDecryptor(&params, sk)
+		ptp := NewPlaintextFromParams(&params)
 		b.Run(testString("Decrypt", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				decryptor.Decrypt(ctd1, ptp)
@@ -65,8 +66,8 @@ func Benchmark_BFV(b *testing.B) {
 
 		evaluator := NewEvaluator(&params)
 
-		ct1 := encryptorSk.EncryptNew(pt)
-		ct2 := encryptorSk.EncryptNew(pt)
+		ct1 := NewRandomCiphertextFromParams(&params, 1)
+		ct2 := NewRandomCiphertextFromParams(&params, 1)
 
 		// Addition
 		b.Run(testString("Add", &params), func(b *testing.B) {
@@ -83,17 +84,17 @@ func Benchmark_BFV(b *testing.B) {
 		})
 
 		// Multiplication
-		ctd2 := NewCiphertext(2, ringCtx)
+		receiver := NewCiphertextFromParams(&params, 2)
 		b.Run(testString("Multiply", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.Mul(ct1, ct2, ctd2)
+				evaluator.Mul(ct1, ct2, receiver)
 			}
 		})
 
 		// Square is Mul(ct, ct) for now
 		b.Run(testString("Square", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.Mul(ct1, ct1, ctd2)
+				evaluator.Mul(ct1, ct1, receiver)
 			}
 		})
 
@@ -103,7 +104,7 @@ func Benchmark_BFV(b *testing.B) {
 		// Relinearization
 		b.Run(testString("Relin", &params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.Relinearize(ctd2, rlk, ctd1)
+				evaluator.Relinearize(receiver, rlk, ctd1)
 			}
 		})
 

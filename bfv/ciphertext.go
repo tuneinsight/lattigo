@@ -9,43 +9,35 @@ type Ciphertext struct {
 	*bfvElement
 }
 
-// NewCiphertextStruct creates a new Ciphertext structure.
-func NewCiphertextStruct() (ciphertext *Ciphertext) {
+// NewCiphertext returns a new Ciphertext element.
+func NewCiphertext() (ciphertext *Ciphertext) {
 	return &Ciphertext{&bfvElement{}}
 }
 
-func NewRingContext(params *Parameters) *ring.Context {
-	ringCtx := ring.NewContext()
-	ringCtx.SetParameters(params.N, params.Qi)
+// NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
+func NewCiphertextFromParams(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
+	ciphertext = &Ciphertext{&bfvElement{}}
 
-	err := ringCtx.GenNTTParams()
-	if err != nil {
-		panic(err)
-	}
-
-	return ringCtx
-}
-
-// NewCiphertext creates a new empty ciphertext of degree degree.
-func NewCiphertext(degree uint64, ringCtx *ring.Context) *Ciphertext {
-	ciphertext := &Ciphertext{&bfvElement{}}
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = ringCtx.NewPoly()
+		ciphertext.value[i] = ring.NewPoly(params.N, uint64(len(params.Q1)))
 	}
-	ciphertext.isNTT = false
+
+	ciphertext.isNTT = true
 
 	return ciphertext
 }
 
-// NewRandomCiphertext creates a new ciphertext with uniform coefficients.
-func NewRandomCiphertext(degree uint64, ringCtx *ring.Context) *Ciphertext {
-	ciphertext := &Ciphertext{&bfvElement{}}
+// NewRandomCiphertext generates a new uniformely distributed ciphertext of degree, level and scale.
+func NewRandomCiphertextFromParams(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
+	ciphertext = &Ciphertext{&bfvElement{}}
+
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = ringCtx.NewUniformPoly()
+		ciphertext.value[i] = ring.NewPolyUniform(params.N, uint64(len(params.Q1)))
 	}
-	ciphertext.isNTT = false
+
+	ciphertext.isNTT = true
 
 	return ciphertext
 }

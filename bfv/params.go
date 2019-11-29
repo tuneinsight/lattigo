@@ -33,7 +33,7 @@ var logN16Q1770 = []uint64{0x7ffffffffcc0001, 0x7ffffffffba0001, 0x7ffffffffb000
 	0x7fffffffcbc0001, 0x7fffffffcae0001, 0x7fffffffc980001, 0x7fffffffc480001,
 	0x7fffffffc020001, 0x7fffffffbcc0001}
 
-var pi60 = []uint64{0xffffffffe400001, 0xffffffffd000001, 0xffffffffa200001, 0xffffffff9600001,
+var Q60 = []uint64{0xffffffffe400001, 0xffffffffd000001, 0xffffffffa200001, 0xffffffff9600001,
 	0xfffffffeb200001, 0xfffffffea400001, 0xfffffffe8000001, 0xfffffffe3e00001,
 	0xfffffffe2200001, 0xfffffffe0800001, 0xfffffffdd400001, 0xfffffffd9000001,
 	0xfffffffcea00001, 0xfffffffcdc00001, 0xfffffffc7200001, 0xfffffffc5a00001,
@@ -63,21 +63,48 @@ var tBatching = map[uint64][]uint64{
 
 // Parameters represents a given parameter set for the BFV cryptosystem.
 type Parameters struct {
-	N               uint64
-	T               uint64
-	Qi              []uint64
-	KeySwitchPrimes []uint64
-	Pi              []uint64
-	Sigma           float64
+	N     uint64
+	T     uint64
+	Q1    []uint64
+	P     []uint64
+	Q2    []uint64
+	Sigma float64
+}
+
+// Copy creates a copy of the target parameters.
+func (p *Parameters) Copy() (paramsCopy *Parameters) {
+
+	paramsCopy = new(Parameters)
+	paramsCopy.N = p.N
+	paramsCopy.T = p.T
+
+	paramsCopy.Q1 = make([]uint64, len(p.Q1))
+	for i := range p.Q1 {
+		paramsCopy.Q1[i] = p.Q1[i]
+	}
+
+	paramsCopy.P = make([]uint64, len(p.P))
+	for i := range p.P {
+		paramsCopy.P[i] = p.P[i]
+	}
+
+	paramsCopy.Q2 = make([]uint64, len(p.Q2))
+	for i := range p.Q2 {
+		paramsCopy.Q2[i] = p.Q2[i]
+	}
+
+	paramsCopy.Sigma = p.Sigma
+
+	return
 }
 
 // DefaultParams is an array default parameters with increasing homomorphic capacity.
 // These parameters correspond to 128 bit security level for secret keys in the ternary distribution
 // (see //https://projects.csail.mit.edu/HEWorkshop/HomomorphicEncryptionStandard2018.pdf).
 var DefaultParams = []Parameters{
-	{8192, 65537, logN13Q218, []uint64{0x7fffffffeac001}, pi60[len(pi60)-len(logN13Q218):], 3.19},
-	{16384, 65537, logN14Q438, []uint64{0x3fffffffeb8001, 0x3fffffffef8001}, pi60[len(pi60)-len(logN14Q438):], 3.19},
-	{32768, 65537, logN15Q881, []uint64{0x7ffffffff240001, 0x7ffffffff230001, 0x7fffffffefa0001}, pi60[len(pi60)-len(logN15Q881):], 3.19},
+	{8192, 65537, logN13Q218, []uint64{0x7fffffffeac001}, Q60[len(Q60)-len(logN13Q218):], 3.19},
+	{16384, 65537, logN14Q438, []uint64{0x3fffffffeb8001, 0x3fffffffef8001}, Q60[len(Q60)-len(logN14Q438):], 3.19},
+	{32768, 65537, logN15Q881, []uint64{0x7ffffffff240001, 0x7ffffffff230001, 0x7fffffffefa0001}, Q60[len(Q60)-len(logN15Q881):], 3.19},
 }
 
 // Equals compares two sets of parameters for equality
@@ -85,7 +112,7 @@ func (p *Parameters) Equals(other *Parameters) bool {
 	if p == other {
 		return true
 	}
-	return p.N == other.N && utils.EqualSliceUint64(p.Qi, other.Qi) && utils.EqualSliceUint64(p.Pi, other.Pi) && p.Sigma == other.Sigma
+	return p.N == other.N && utils.EqualSliceUint64(p.Q1, other.Q1) && utils.EqualSliceUint64(p.Q2, other.Q2) && p.Sigma == other.Sigma
 }
 
 // MarshalBinary returns a []byte representation of the parameter set
@@ -93,16 +120,16 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 	if p.N == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
-	b := utils.NewBuffer(make([]byte, 0, 4+((3+len(p.Qi)+len(p.Pi)+len(p.KeySwitchPrimes))<<3)))
+	b := utils.NewBuffer(make([]byte, 0, 4+((3+len(p.Q1)+len(p.Q2)+len(p.P))<<3)))
 	b.WriteUint8(uint8(bits.Len64(p.N) - 1))
-	b.WriteUint8(uint8(len(p.Qi)))
-	b.WriteUint8(uint8(len(p.KeySwitchPrimes)))
-	b.WriteUint8(uint8(len(p.Pi)))
+	b.WriteUint8(uint8(len(p.Q1)))
+	b.WriteUint8(uint8(len(p.P)))
+	b.WriteUint8(uint8(len(p.Q2)))
 	b.WriteUint64(p.T)
 	b.WriteUint64(uint64(p.Sigma * (1 << 32)))
-	b.WriteUint64Slice(p.Qi)
-	b.WriteUint64Slice(p.KeySwitchPrimes)
-	b.WriteUint64Slice(p.Pi)
+	b.WriteUint64Slice(p.Q1)
+	b.WriteUint64Slice(p.P)
+	b.WriteUint64Slice(p.Q2)
 	return b.Bytes(), nil
 }
 
@@ -118,29 +145,29 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 		return errors.New("polynomial degree is too large")
 	}
 
-	lenQi := uint64(b.ReadUint8())
-	if lenQi > MaxModuliCount {
-		return fmt.Errorf("len(Qi) is larger than %d", MaxModuliCount)
+	lenQ1 := uint64(b.ReadUint8())
+	if lenQ1 > MaxModuliCount {
+		return fmt.Errorf("len(Q1) is larger than %d", MaxModuliCount)
 	}
 
-	lenKeySwitchPrimes := uint64(b.ReadUint8())
-	if lenKeySwitchPrimes > MaxModuliCount {
-		return fmt.Errorf("len(lenKeySwitchPrimes) is larger than %d", MaxModuliCount)
+	lenP := uint64(b.ReadUint8())
+	if lenP > MaxModuliCount {
+		return fmt.Errorf("len(lenP) is larger than %d", MaxModuliCount)
 	}
 
-	lenPi := uint64(b.ReadUint8())
-	if lenPi > MaxModuliCount {
-		return fmt.Errorf("len(Pi) is larger than %d", MaxModuliCount)
+	lenQ2 := uint64(b.ReadUint8())
+	if lenQ2 > MaxModuliCount {
+		return fmt.Errorf("len(Q2) is larger than %d", MaxModuliCount)
 	}
 
 	p.T = b.ReadUint64()
 	p.Sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
-	p.Qi = make([]uint64, lenQi, lenQi)
-	p.KeySwitchPrimes = make([]uint64, lenKeySwitchPrimes, lenKeySwitchPrimes)
-	p.Pi = make([]uint64, lenPi, lenPi)
+	p.Q1 = make([]uint64, lenQ1, lenQ1)
+	p.P = make([]uint64, lenP, lenP)
+	p.Q2 = make([]uint64, lenQ2, lenQ2)
 
-	b.ReadUint64Slice(p.Qi)
-	b.ReadUint64Slice(p.KeySwitchPrimes)
-	b.ReadUint64Slice(p.Pi)
+	b.ReadUint64Slice(p.Q1)
+	b.ReadUint64Slice(p.P)
+	b.ReadUint64Slice(p.Q2)
 	return nil
 }

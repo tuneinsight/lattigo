@@ -28,8 +28,6 @@ func benchEncoder(b *testing.B) {
 		encoder := params.encoder
 		slots := params.ckkscontext.Slots()
 
-		ringCtx := NewRingContext(parameters)
-
 		b.Run(testString("Encode/", params), func(b *testing.B) {
 
 			values := make([]complex128, slots)
@@ -37,7 +35,7 @@ func benchEncoder(b *testing.B) {
 				values[i] = complex(randomFloat(0.1, 1), 0)
 			}
 
-			plaintext := NewPlaintext(ckkscontext.levels-1, ckkscontext.scale, ringCtx)
+			plaintext := NewPlaintextFromParams(parameters, ckkscontext.levels-1, ckkscontext.scale)
 
 			for i := 0; i < b.N; i++ {
 				encoder.Encode(plaintext, values, slots)
@@ -51,7 +49,7 @@ func benchEncoder(b *testing.B) {
 				values[i] = complex(randomFloat(0.1, 1), 0)
 			}
 
-			plaintext := NewPlaintext(ckkscontext.levels-1, ckkscontext.scale, ringCtx)
+			plaintext := NewPlaintextFromParams(parameters, ckkscontext.levels-1, ckkscontext.scale)
 			encoder.Encode(plaintext, values, slots)
 
 			for i := 0; i < b.N; i++ {
@@ -91,10 +89,8 @@ func benchEncrypt(b *testing.B) {
 		encryptorPk := params.encryptorPk
 		encryptorSk := params.encryptorSk
 
-		ringCtx := NewRingContext(parameters)
-
-		plaintext := NewPlaintext(ckkscontext.levels-1, ckkscontext.scale, ringCtx)
-		ciphertext := NewCiphertext(1, ckkscontext.levels-1, ckkscontext.scale, ringCtx)
+		plaintext := NewPlaintextFromParams(parameters, ckkscontext.levels-1, ckkscontext.scale)
+		ciphertext := NewCiphertextFromParams(parameters, 1, ckkscontext.levels-1, ckkscontext.scale)
 
 		b.Run(testString("Sk/", params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -117,10 +113,8 @@ func benchDecrypt(b *testing.B) {
 		ckkscontext := params.ckkscontext
 		decryptor := params.decryptor
 
-		ringCtx := NewRingContext(parameters)
-
-		plaintext := NewPlaintext(ckkscontext.levels-1, ckkscontext.scale, ringCtx)
-		ciphertext := NewRandomCiphertext(1, ckkscontext.levels-1, ckkscontext.scale, ringCtx)
+		plaintext := NewPlaintextFromParams(parameters, ckkscontext.levels-1, ckkscontext.scale)
+		ciphertext := NewRandomCiphertextFromParams(parameters, 1, ckkscontext.levels-1, ckkscontext.scale)
 
 		b.Run(testString("", params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -136,11 +130,9 @@ func benchEvaluator(b *testing.B) {
 		evaluator := params.evaluator
 		ckkscontext := params.ckkscontext
 
-		ringCtx := NewRingContext(parameters)
-
-		ciphertext1 := NewRandomCiphertext(1, ckkscontext.levels-1, ckkscontext.scale, ringCtx)
-		ciphertext2 := NewRandomCiphertext(1, ckkscontext.levels-1, ckkscontext.scale, ringCtx)
-		receiver := NewRandomCiphertext(2, ckkscontext.levels-1, ckkscontext.scale, ringCtx)
+		ciphertext1 := NewRandomCiphertextFromParams(parameters, 1, ckkscontext.levels-1, ckkscontext.scale)
+		ciphertext2 := NewRandomCiphertextFromParams(parameters, 1, ckkscontext.levels-1, ckkscontext.scale)
+		receiver := NewRandomCiphertextFromParams(parameters, 2, ckkscontext.levels-1, ckkscontext.scale)
 
 		rlk := params.kgen.NewRelinKey(params.sk)
 		rotkey := NewRotationKeys()
@@ -174,7 +166,7 @@ func benchEvaluator(b *testing.B) {
 				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
 
 				b.StopTimer()
-				ciphertext1 = NewRandomCiphertext(1, ckkscontext.levels-1, ckkscontext.scale, ringCtx)
+				ciphertext1 = NewRandomCiphertextFromParams(parameters, 1, ckkscontext.levels-1, ckkscontext.scale)
 				b.StartTimer()
 			}
 		})
@@ -220,12 +212,10 @@ func benchHoistedRotations(b *testing.B) {
 		evaluator := params.evaluator
 		ckkscontext := params.ckkscontext
 
-		ringCtx := NewRingContext(parameters)
-
 		rotkey := NewRotationKeys()
 		params.kgen.GenRot(RotationLeft, params.sk, 5, rotkey)
 
-		ciphertext := NewRandomCiphertext(1, ckkscontext.Levels()-1, ckkscontext.Scale(), ringCtx)
+		ciphertext := NewRandomCiphertextFromParams(parameters, 1, ckkscontext.Levels()-1, ckkscontext.Scale())
 
 		contextQ := ckkscontext.contextQ
 		contextP := ckkscontext.contextP

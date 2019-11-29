@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/ring"
 	"log"
 	"math"
 	"math/cmplx"
@@ -31,6 +30,7 @@ func testString(opname string, params *ckksParams) string {
 }
 
 type ckksParams struct {
+	params      *Parameters
 	ckkscontext *Context
 	encoder     *Encoder
 	kgen        *KeyGenerator
@@ -40,7 +40,6 @@ type ckksParams struct {
 	encryptorSk *Encryptor
 	decryptor   *Decryptor
 	evaluator   *Evaluator
-	ringCtx     *ring.Context
 }
 
 type ckksTestParameters struct {
@@ -91,6 +90,8 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 	params = new(ckksParams)
 
+	params.params = contextParameters.Copy()
+
 	params.ckkscontext = NewContext(contextParameters)
 
 	params.kgen = NewKeyGenerator(contextParameters)
@@ -99,13 +100,11 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 	params.encoder = NewEncoder(contextParameters)
 
-	params.encryptorPk = NewEncryptorFromPk(params.pk, contextParameters)
-	params.encryptorSk = NewEncryptorFromSk(params.sk, contextParameters)
-	params.decryptor = NewDecryptor(params.sk, contextParameters)
+	params.encryptorPk = NewEncryptorFromPk(contextParameters, params.pk)
+	params.encryptorSk = NewEncryptorFromSk(contextParameters, params.sk)
+	params.decryptor = NewDecryptor(contextParameters, params.sk)
 
 	params.evaluator = NewEvaluator(contextParameters)
-
-	params.ringCtx = NewRingContext(contextParameters)
 
 	return
 
@@ -123,7 +122,7 @@ func newTestVectors(contextParams *ckksParams, encryptor *Encryptor, a float64, 
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = NewPlaintext(contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale(), contextParams.ringCtx)
+	plaintext = NewPlaintextFromParams(contextParams.params, contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale())
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -146,7 +145,7 @@ func newTestVectorsReals(contextParams *ckksParams, encryptor *Encryptor, a, b f
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = NewPlaintext(contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale(), contextParams.ringCtx)
+	plaintext = NewPlaintextFromParams(contextParams.params, contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale())
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -807,7 +806,7 @@ func testSwitchKeys(t *testing.T) {
 		params := genCkksParams(parameters)
 
 		sk2 := params.kgen.NewSecretKey()
-		decryptorSk2 := NewDecryptor(sk2, parameters)
+		decryptorSk2 := NewDecryptor(parameters, sk2)
 		switchingKey := params.kgen.NewSwitchingKey(params.sk, sk2)
 
 		t.Run(testString("InPlace/", params), func(t *testing.T) {
@@ -875,14 +874,12 @@ func testRotateColumns(t *testing.T) {
 
 		rotKey := params.kgen.NewRotationKeysPow2(params.sk)
 
-		ringCtx := NewRingContext(parameters)
-
 		t.Run(testString("InPlace/", params), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale(), ringCtx)
+			ciphertext2 := NewCiphertextFromParams(parameters, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 			for n := 1; n < len(values1); n <<= 1 {
 
@@ -903,7 +900,7 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale(), ringCtx)
+			ciphertext2 := NewCiphertextFromParams(parameters, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 			for n := 1; n < len(values1); n <<= 1 {
 
@@ -924,7 +921,7 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := NewCiphertext(ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale(), ringCtx)
+			ciphertext2 := NewCiphertextFromParams(parameters, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 			for n := 1; n < 4; n++ {
 
@@ -954,12 +951,12 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("Ciphertext/", params), func(t *testing.T) {
 
-			ciphertextWant := NewRandomCiphertext(2, params.ckkscontext.levels-1, params.ckkscontext.scale, params.ringCtx)
+			ciphertextWant := NewRandomCiphertextFromParams(parameters, 2, params.ckkscontext.levels-1, params.ckkscontext.scale)
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)
 
-			ciphertextTest := NewCiphertextStruct()
+			ciphertextTest := NewCiphertext()
 			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 			check(t, err)
 

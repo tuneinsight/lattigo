@@ -120,6 +120,7 @@ func genBigIntChain(Q []uint64) (bigintChain []*big.Int) {
 	return
 }
 
+// GenSwitchkeysRescalingParams generates the parameters for rescaling the switching keys
 func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 
 	params = make([]uint64, len(Q))
@@ -141,7 +142,7 @@ func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 	return
 }
 
-// genModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
+// GenModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
 func GenModuli(params *Parameters) (Q []uint64, P []uint64) {
 
 	// Extracts all the different primes bit size and maps their number

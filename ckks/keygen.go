@@ -27,6 +27,7 @@ type PublicKey struct {
 // Rotation is a type used to represent the rotations types.
 type Rotation int
 
+// Constants for rotation types
 const (
 	RotationRight = iota + 1
 	RotationLeft

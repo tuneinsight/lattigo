@@ -17,8 +17,8 @@ type bfvElement struct {
 	isNTT bool
 }
 
-// NewBfvElement creates a new bfvElement of the target degree with zero values.
-func NewBfvElement() *bfvElement {
+// newBfvElement creates a new bfvElement of the target degree with zero values.
+func newBfvElement() *bfvElement {
 	return new(bfvElement)
 }
 

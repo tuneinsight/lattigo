@@ -5,6 +5,7 @@ import (
 	"math/big"
 )
 
+// GenLiftParams generates the lifting parameters
 func GenLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
 
 	delta := new(big.Int).Quo(context.ModulusBigint, ring.NewUint(t))
@@ -21,7 +22,7 @@ func GenLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
 	return
 }
 
-// genModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
+// GenModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
 func GenModuli(params *Parameters) (Q1 []uint64, P []uint64, Q2 []uint64) {
 
 	// Extracts all the different primes bit size and maps their number

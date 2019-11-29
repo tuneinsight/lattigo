@@ -12,6 +12,7 @@ type Poly struct {
 	Coeffs [][]uint64 //Coefficients in CRT representation
 }
 
+// NewPoly ... [FIXME]
 func NewPoly(N, nbModuli uint64) (pol *Poly) {
 	pol = new(Poly)
 	pol.Coeffs = make([][]uint64, nbModuli)
@@ -21,6 +22,7 @@ func NewPoly(N, nbModuli uint64) (pol *Poly) {
 	return
 }
 
+// NewPolyUniform ... [FIXME]
 func NewPolyUniform(N, nbModuli uint64) (pol *Poly) {
 	pol = new(Poly)
 

@@ -23,9 +23,10 @@ type PublicKey struct {
 	pk [2]*ring.Poly
 }
 
-// Rotation is a constant used to represent the rotations types.
+// Rotation is a type used to represent the rotations types.
 type Rotation int
 
+// Constants for rotation types
 const (
 	RotationRight = iota + 1
 	RotationLeft

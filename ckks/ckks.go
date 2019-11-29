@@ -8,6 +8,7 @@ import (
 	"math/big"
 )
 
+// GaloisGen is... [FIXME]
 const GaloisGen uint64 = 5
 
 // Context is a struct which contains all the elements required to instantiate the CKKS Scheme. This includes the parameters (N, ciphertext modulus,

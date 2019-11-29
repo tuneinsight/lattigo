@@ -23,7 +23,7 @@ func NewCiphertext(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
 	return ciphertext
 }
 
-// NewRandomCiphertext generates a new uniformely distributed ciphertext of degree, level and scale.
+// NewCiphertextRandom generates a new uniformely distributed ciphertext of degree, level and scale.
 func NewCiphertextRandom(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{&bfvElement{}}
 

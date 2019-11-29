@@ -6,6 +6,7 @@ import (
 	"math"
 )
 
+// GaloisGen is ... [FIXME]
 const GaloisGen uint64 = 5
 
 // Context is a struct which contains all the elements required to instantiate the BFV Scheme. This includes the parameters (N, plaintext modulus, ciphertext modulus,
@@ -40,7 +41,7 @@ type Context struct {
 	galElRotColRight []uint64
 }
 
-// NewContextWithParam creates a new Context with the given parameters. Returns an error if one of the parameters would not ensure the
+// NewContext creates a new Context with the given parameters. Returns an error if one of the parameters would not ensure the
 // correctness of the scheme (however it doesn't check for security).
 //
 // Parameters :
@@ -148,12 +149,12 @@ func (context *Context) ContextT() *ring.Context {
 	return context.contextT
 }
 
-// ContextQ returns the polynomial (ring) context of the ciphertext modulus, of the target context.
+// ContextQ1 returns the polynomial (ring) context of the ciphertext modulus, of the target context.
 func (context *Context) ContextQ1() *ring.Context {
 	return context.contextQ1
 }
 
-// ContextP returns the polynomial (ring) context of the secondary ciphertext modulus, of the target context.
+// ContextQ2 returns the polynomial (ring) context of the secondary ciphertext modulus, of the target context.
 func (context *Context) ContextQ2() *ring.Context {
 	return context.contextQ2
 }
@@ -163,7 +164,7 @@ func (context *Context) ContextKeys() *ring.Context {
 	return context.contextQ1P
 }
 
-// ContextPKeys returns the ring Context of the KeySwitchPrimes.
+// ContextP returns the ring Context of the KeySwitchPrimes.
 func (context *Context) ContextP() *ring.Context {
 	return context.contextP
 }

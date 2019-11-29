@@ -120,7 +120,7 @@ func IsPrime(num uint64) bool {
 	return true
 }
 
-// GenerateCKKSPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
+// GenerateNTTPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
 // of levels required. Will return all the appropriate primes, up to the number of level, with the
 // best avaliable deviation from the base power of 2 for the given level.
 func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {

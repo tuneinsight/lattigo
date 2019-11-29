@@ -7,7 +7,7 @@ import (
 	"math"
 )
 
-// MaxN is the largest supported polynomial modulus degree
+// MaxLogN is the log2 of the largest supported polynomial modulus degree
 const MaxLogN = 16
 
 // MaxModuliCount is the largest supported number of 60 moduli in the RNS representation

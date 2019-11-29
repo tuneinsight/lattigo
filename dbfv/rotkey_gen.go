@@ -5,73 +5,11 @@ import (
 	"errors"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
-	"math"
 )
-
-type rtgProtocolContext struct {
-	// Polynomial degree
-	n uint64
-
-	// Ternary and Gaussian samplers
-	gaussianSampler *ring.KYSampler
-
-	// Polynomial contexts
-	contextQ *ring.Context
-
-	contextKeys  *ring.Context
-	contextPKeys *ring.Context
-	alpha        uint64
-	beta         uint64
-}
-
-func newRtgProtocolContext(params *bfv.Parameters) *rtgProtocolContext {
-	n := params.N
-
-	contextQ := ring.NewContext()
-	contextQ.SetParameters(n, params.Qi)
-	err := contextQ.GenNTTParams()
-	if err != nil {
-		panic(err)
-	}
-
-	contextKeys := ring.NewContext()
-	contextKeys.SetParameters(n, append(params.Qi, params.KeySwitchPrimes...))
-	err = contextKeys.GenNTTParams()
-	if err != nil {
-		panic(err)
-	}
-
-	contextPKeys := ring.NewContext()
-	contextPKeys.SetParameters(n, params.KeySwitchPrimes)
-	err = contextPKeys.GenNTTParams()
-	if err != nil {
-		panic(err)
-	}
-
-	specialPrimes := make([]uint64, len(params.KeySwitchPrimes))
-	for i := range params.KeySwitchPrimes {
-		specialPrimes[i] = params.KeySwitchPrimes[i]
-	}
-
-	alpha := uint64(len(specialPrimes))
-	beta := uint64(math.Ceil(float64(len(params.Qi)) / float64(alpha)))
-
-	gaussianSampler := contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))
-
-	return &rtgProtocolContext{
-		n:               n,
-		gaussianSampler: gaussianSampler,
-		contextQ:        contextQ,
-		contextKeys:     contextKeys,
-		contextPKeys:    contextPKeys,
-		alpha:           alpha,
-		beta:            beta,
-	}
-}
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
-	context *rtgProtocolContext
+	context *dbfvContext
 
 	gaussianSampler *ring.KYSampler
 
@@ -137,14 +75,14 @@ func (share *RTGShare) UnmarshalBinary(data []byte) error {
 func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 	rtgShare.Value = make([]*ring.Poly, rtg.context.beta)
 	for i := uint64(0); i < rtg.context.beta; i++ {
-		rtgShare.Value[i] = rtg.context.contextKeys.NewPoly()
+		rtgShare.Value[i] = rtg.context.contextQ1P.NewPoly()
 	}
 	return
 }
 
 // NewRotKGProtocol creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
 func NewRotKGProtocol(params *bfv.Parameters) (rtg *RTGProtocol) {
-	context := newRtgProtocolContext(params)
+	context := newDbfvContext(params)
 
 	rtg = new(RTGProtocol)
 	rtg.context = context
@@ -153,13 +91,13 @@ func NewRotKGProtocol(params *bfv.Parameters) (rtg *RTGProtocol) {
 
 	rtg.tmpSwitchKey = make([][2]*ring.Poly, rtg.context.beta)
 	for i := range rtg.tmpSwitchKey {
-		rtg.tmpSwitchKey[i][0] = context.contextKeys.NewPoly()
-		rtg.tmpSwitchKey[i][1] = context.contextKeys.NewPoly()
+		rtg.tmpSwitchKey[i][0] = context.contextQ1P.NewPoly()
+		rtg.tmpSwitchKey[i][1] = context.contextQ1P.NewPoly()
 	}
 
-	rtg.tmpPoly = context.contextKeys.NewPoly()
+	rtg.tmpPoly = context.contextQ1P.NewPoly()
 
-	N := context.contextKeys.N
+	N := context.contextQ1P.N
 	mask := (N << 1) - 1
 
 	rtg.galElRotCol = make(map[bfv.Rotation][]uint64)
@@ -205,12 +143,12 @@ func (rtg *RTGProtocol) GenShare(rotType bfv.Rotation, k uint64, sk *ring.Poly, 
 
 func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, evakey []*ring.Poly) {
 
-	contextKeys := rtg.context.contextKeys
+	contextKeys := rtg.context.contextQ1P
 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly)
 	contextKeys.Sub(rtg.tmpPoly, sk, rtg.tmpPoly)
 
-	contextKeys.MulScalarBigint(rtg.tmpPoly, rtg.context.contextPKeys.ModulusBigint, rtg.tmpPoly)
+	contextKeys.MulScalarBigint(rtg.tmpPoly, rtg.context.contextP.ModulusBigint, rtg.tmpPoly)
 	contextKeys.InvMForm(rtg.tmpPoly, rtg.tmpPoly)
 
 	var index uint64
@@ -237,7 +175,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= uint64(len(rtg.context.contextQ.Modulus)-1) {
+			if index >= uint64(len(rtg.context.contextQ1.Modulus)-1) {
 				break
 			}
 		}
@@ -256,7 +194,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 //
 // [sum(a*a_j + (pi(a_j) - a_j) + e_j), a]
 func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
-	contextKeys := rtg.context.contextKeys
+	contextKeys := rtg.context.contextQ1P
 
 	if share1.Type != share2.Type || share1.K != share2.K {
 		panic("cannot aggregate shares of different types")
@@ -276,7 +214,7 @@ func (rtg *RTGProtocol) Finalize(share RTGShare, crp []*ring.Poly, rotKey *bfv.R
 
 	for i := uint64(0); i < rtg.context.beta; i++ {
 		rtg.tmpSwitchKey[i][0].Copy(share.Value[i])
-		rtg.context.contextKeys.MForm(crp[i], rtg.tmpSwitchKey[i][1])
+		rtg.context.contextQ1P.MForm(crp[i], rtg.tmpSwitchKey[i][1])
 	}
 
 	rotKey.SetRotKey(share.Type, k, rtg.tmpSwitchKey)

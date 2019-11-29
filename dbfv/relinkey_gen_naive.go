@@ -1,76 +1,13 @@
 package dbfv
 
 import (
-	"math"
-
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 )
 
-type pkgProtocolNaiveContext struct {
-	// Polynomial degree
-	n uint64
-
-	// Ternary and Gaussian samplers
-	gaussianSampler *ring.KYSampler
-
-	// Polynomial contexts
-	contextQ *ring.Context
-
-	contextKeys  *ring.Context
-	contextPKeys *ring.Context
-	alpha        uint64
-	beta         uint64
-}
-
-func newPkgProtocolNaiveContext(params *bfv.Parameters) *pkgProtocolNaiveContext {
-	n := params.N
-
-	contextQ := ring.NewContext()
-	contextQ.SetParameters(n, params.Qi)
-	err := contextQ.GenNTTParams()
-	if err != nil {
-		panic(err)
-	}
-
-	contextKeys := ring.NewContext()
-	contextKeys.SetParameters(n, append(params.Qi, params.KeySwitchPrimes...))
-	err = contextKeys.GenNTTParams()
-	if err != nil {
-		panic(err)
-	}
-
-	contextPKeys := ring.NewContext()
-	contextPKeys.SetParameters(n, params.KeySwitchPrimes)
-	err = contextPKeys.GenNTTParams()
-	if err != nil {
-		panic(err)
-	}
-
-	specialPrimes := make([]uint64, len(params.KeySwitchPrimes))
-	for i := range params.KeySwitchPrimes {
-		specialPrimes[i] = params.KeySwitchPrimes[i]
-	}
-
-	alpha := uint64(len(specialPrimes))
-	beta := uint64(math.Ceil(float64(len(params.Qi)) / float64(alpha)))
-
-	gaussianSampler := contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))
-
-	return &pkgProtocolNaiveContext{
-		n:               n,
-		gaussianSampler: gaussianSampler,
-		contextQ:        contextQ,
-		contextKeys:     contextKeys,
-		contextPKeys:    contextPKeys,
-		alpha:           alpha,
-		beta:            beta,
-	}
-}
-
 // RKGProtocolNaive is a structure storing the parameters for the naive EKG protocol.
 type RKGProtocolNaive struct {
-	context         *pkgProtocolNaiveContext
+	context         *dbfvContext
 	gaussianSampler *ring.KYSampler
 	polypool        *ring.Poly
 }
@@ -78,12 +15,12 @@ type RKGProtocolNaive struct {
 // NewRKGProtocolNaive creates a new RKGProtocolNaive object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
 func NewRKGProtocolNaive(params *bfv.Parameters) (rkg *RKGProtocolNaive) {
-	context := newPkgProtocolNaiveContext(params)
+	context := newDbfvContext(params)
 
 	rkg = new(RKGProtocolNaive)
 	rkg.context = context
 	rkg.gaussianSampler = context.gaussianSampler
-	rkg.polypool = context.contextKeys.NewPoly()
+	rkg.polypool = context.contextQ1P.NewPoly()
 	return
 }
 
@@ -95,7 +32,7 @@ type RKGNaiveShareRoundTwo [][2]*ring.Poly
 
 // AllocateShares shares allocates the shares of the RKG Naive protocol
 func (rkg *RKGProtocolNaive) AllocateShares() (r1 RKGNaiveShareRoundOne, r2 RKGNaiveShareRoundTwo) {
-	contextKeys := rkg.context.contextKeys
+	contextKeys := rkg.context.contextQ1P
 
 	r1 = make([][2]*ring.Poly, rkg.context.beta)
 	r2 = make([][2]*ring.Poly, rkg.context.beta)
@@ -119,11 +56,11 @@ func (rkg *RKGProtocolNaive) AllocateShares() (r1 RKGNaiveShareRoundOne, r2 RKGN
 // and broadcasts it to all other j-1 parties.
 func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, shareOut RKGNaiveShareRoundOne) {
 
-	contextKeys := rkg.context.contextKeys
+	contextKeys := rkg.context.contextQ1P
 
 	rkg.polypool.Copy(sk)
 
-	contextKeys.MulScalarBigint(rkg.polypool, rkg.context.contextPKeys.ModulusBigint, rkg.polypool)
+	contextKeys.MulScalarBigint(rkg.polypool, rkg.context.contextP.ModulusBigint, rkg.polypool)
 
 	contextKeys.InvMForm(rkg.polypool, rkg.polypool)
 
@@ -151,7 +88,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= uint64(len(rkg.context.contextQ.Modulus)-1) {
+			if index >= uint64(len(rkg.context.contextQ1.Modulus)-1) {
 				break
 			}
 		}
@@ -176,7 +113,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 // = [cpk[0] * u + P * s + e_0, cpk[1]*u + e_1]
 func (rkg *RKGProtocolNaive) AggregateShareRoundOne(share1, share2, shareOut RKGNaiveShareRoundOne) {
 
-	contextKeys := rkg.context.contextKeys
+	contextKeys := rkg.context.contextQ1P
 
 	for i := uint64(0); i < rkg.context.beta; i++ {
 		contextKeys.Add(share1[i][0], share2[i][0], shareOut[i][0])
@@ -194,7 +131,7 @@ func (rkg *RKGProtocolNaive) AggregateShareRoundOne(share1, share2, shareOut RKG
 // And party broadcast this last result to the other j-1 parties.
 func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *ring.Poly, pk [2]*ring.Poly, shareOut RKGNaiveShareRoundTwo) {
 
-	contextKeys := rkg.context.contextKeys
+	contextKeys := rkg.context.contextQ1P
 
 	for i := uint64(0); i < rkg.context.beta; i++ {
 
@@ -235,7 +172,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 // = [-s*b + P * s^2 - (s*u + b) * e_cpk + s*e_0 + e_2, b + s*e_1 + e_3]
 func (rkg *RKGProtocolNaive) AggregateShareRoundTwo(share1, share2, shareOut RKGNaiveShareRoundTwo) {
 
-	contextKeys := rkg.context.contextKeys
+	contextKeys := rkg.context.contextQ1P
 
 	for i := uint64(0); i < rkg.context.beta; i++ {
 		contextKeys.Add(share1[i][0], share2[i][0], shareOut[i][0])
@@ -246,7 +183,7 @@ func (rkg *RKGProtocolNaive) AggregateShareRoundTwo(share1, share2, shareOut RKG
 // GenRelinearizationKey finalizes the protocol and returns the common EvaluationKey.
 func (rkg *RKGProtocolNaive) GenRelinearizationKey(round2 RKGNaiveShareRoundTwo, evalKeyOut *bfv.EvaluationKey) {
 
-	contextKeys := rkg.context.contextKeys
+	contextKeys := rkg.context.contextQ1P
 
 	key := evalKeyOut.Get()[0].Get()
 	for i := uint64(0); i < rkg.context.beta; i++ {

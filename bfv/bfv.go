@@ -88,6 +88,7 @@ func (context *Context) SetParameters(params *Parameters) {
 	context.n = N
 	context.t = t
 
+	var err error
 	if context.contextT, err = ring.NewContextWithParams(N, []uint64{t}); err != nil {
 		panic(err)
 	}

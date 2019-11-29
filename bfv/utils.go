@@ -21,39 +21,17 @@ func genLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
 	return
 }
 
-func genMulRescalingParams(contextQ1, contextQ2 *ring.Context) (rescaleParamsMul []uint64) {
+func genRescalingParams(contextQ1, contextQ2 *ring.Context) (params []uint64) {
 
-	rescaleParamsMul = make([]uint64, len(contextQ2.Modulus))
+	params = make([]uint64, len(contextQ2.Modulus))
 
 	bredParams := contextQ2.GetBredParams()
 	tmp := new(big.Int)
 	for i, Qi := range contextQ2.Modulus {
 
-		rescaleParamsMul[i] = tmp.Mod(contextQ1.ModulusBigint, ring.NewUint(Qi)).Uint64()
-		rescaleParamsMul[i] = ring.BRedAdd(rescaleParamsMul[i], Qi, bredParams[i])
-		rescaleParamsMul[i] = ring.ModExp(rescaleParamsMul[i], Qi-2, Qi)
-		rescaleParamsMul[i] = ring.MForm(rescaleParamsMul[i], Qi, bredParams[i])
-	}
-
-	return
-}
-
-func genSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
-
-	params = make([]uint64, len(Q))
-
-	PBig := ring.NewUint(1)
-	for _, pj := range P {
-		PBig.Mul(PBig, ring.NewUint(pj))
-	}
-
-	tmp := ring.NewUint(0)
-
-	for i := 0; i < len(Q); i++ {
-
-		params[i] = tmp.Mod(PBig, ring.NewUint(Q[i])).Uint64()
-		params[i] = ring.ModExp(params[i], Q[i]-2, Q[i])
-		params[i] = ring.MForm(params[i], Q[i], ring.BRedParams(Q[i]))
+		params[i] = tmp.Mod(contextQ1.ModulusBigint, ring.NewUint(Qi)).Uint64()
+		params[i] = ring.ModExp(params[i], Qi-2, Qi)
+		params[i] = ring.MForm(params[i], Qi, bredParams[i])
 	}
 
 	return

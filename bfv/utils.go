@@ -2,7 +2,62 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/ring"
+	"math/big"
 )
+
+func genLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
+
+	delta := new(big.Int).Quo(context.ModulusBigint, ring.NewUint(t))
+
+	deltaMont = make([]uint64, len(context.Modulus))
+
+	tmp := new(big.Int)
+	bredParams := context.GetBredParams()
+	for i, Qi := range context.Modulus {
+		deltaMont[i] = tmp.Mod(delta, ring.NewUint(Qi)).Uint64()
+		deltaMont[i] = ring.MForm(deltaMont[i], Qi, bredParams[i])
+	}
+
+	return
+}
+
+func genMulRescalingParams(contextQ1, contextQ2 *ring.Context) (rescaleParamsMul []uint64) {
+
+	rescaleParamsMul = make([]uint64, len(contextQ2.Modulus))
+
+	bredParams := contextQ2.GetBredParams()
+	tmp := new(big.Int)
+	for i, Qi := range contextQ2.Modulus {
+
+		rescaleParamsMul[i] = tmp.Mod(contextQ1.ModulusBigint, ring.NewUint(Qi)).Uint64()
+		rescaleParamsMul[i] = ring.BRedAdd(rescaleParamsMul[i], Qi, bredParams[i])
+		rescaleParamsMul[i] = ring.ModExp(rescaleParamsMul[i], Qi-2, Qi)
+		rescaleParamsMul[i] = ring.MForm(rescaleParamsMul[i], Qi, bredParams[i])
+	}
+
+	return
+}
+
+func genSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
+
+	params = make([]uint64, len(Q))
+
+	PBig := ring.NewUint(1)
+	for _, pj := range P {
+		PBig.Mul(PBig, ring.NewUint(pj))
+	}
+
+	tmp := ring.NewUint(0)
+
+	for i := 0; i < len(Q); i++ {
+
+		params[i] = tmp.Mod(PBig, ring.NewUint(Q[i])).Uint64()
+		params[i] = ring.ModExp(params[i], Q[i]-2, Q[i])
+		params[i] = ring.MForm(params[i], Q[i], ring.BRedParams(Q[i]))
+	}
+
+	return
+}
 
 // genModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
 func genModuli(params *Parameters) (Q1 []uint64, P []uint64, Q2 []uint64) {

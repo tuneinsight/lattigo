@@ -3,6 +3,7 @@ package bfv
 import (
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
+	"math/big"
 )
 
 // Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
@@ -17,6 +18,9 @@ type Evaluator struct {
 
 	baseconverter *ring.FastBasisExtender
 	decomposer    *ring.ArbitraryDecomposer
+
+	rescaleParamsMul []uint64
+	pHalf            *big.Int
 
 	poolQ [][]*ring.Poly
 	poolP [][]*ring.Poly
@@ -39,6 +43,9 @@ func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 
 	evaluator.baseconverter = ring.NewFastBasisExtender(evaluator.bfvContext.contextQ1.Modulus, evaluator.bfvContext.contextP.Modulus)
 	evaluator.decomposer = ring.NewArbitraryDecomposer(evaluator.bfvContext.contextQ1.Modulus, evaluator.bfvContext.contextP.Modulus)
+
+	evaluator.rescaleParamsMul = genMulRescalingParams(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextQ2)
+	evaluator.pHalf = new(big.Int).Rsh(evaluator.bfvContext.contextQ2.ModulusBigint, 1)
 
 	for i := 0; i < 2; i++ {
 		evaluator.polypool[i] = evaluator.bfvContext.contextQ1.NewPoly()
@@ -369,7 +376,6 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	}
 
 	polyPtmp := evaluator.poolP[0][0]
-	pHalf := evaluator.bfvContext.pHalf
 
 	// Applies the inverse NTT to the ciphertext, scales the down ciphertext
 	// by t/q and reduces its basis from QP to Q
@@ -388,7 +394,7 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		// Divides (ct(x)Q -> P) by Q
 		for k, Pi := range contextP.Modulus {
 			mredParams := contextP.GetMredParams()[k]
-			rescalParams := evaluator.bfvContext.rescaleParamsMul[k]
+			rescalParams := evaluator.rescaleParamsMul[k]
 			p2tmp := c2P[i].Coeffs[k]
 			p1tmp := polyPtmp.Coeffs[k]
 			for j := uint64(0); j < contextP.N; j++ {
@@ -397,9 +403,9 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		}
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
-		contextP.AddScalarBigint(c2P[i], pHalf, c2P[i])
+		contextP.AddScalarBigint(c2P[i], evaluator.pHalf, c2P[i])
 		evaluator.basisextenderQ2Q1.ExtendBasisSplit(c2P[i], ctOut.value[i])
-		contextQ.SubScalarBigint(ctOut.value[i], pHalf, ctOut.value[i])
+		contextQ.SubScalarBigint(ctOut.value[i], evaluator.pHalf, ctOut.value[i])
 		// ============================================
 
 		// Option 2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|

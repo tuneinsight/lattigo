@@ -4,7 +4,6 @@ package bfv
 import (
 	"github.com/ldsec/lattigo/ring"
 	"math"
-	"math/big"
 )
 
 const GaloisGen uint64 = 5
@@ -24,7 +23,6 @@ type Context struct {
 
 	// floor(Q/T) mod each Qi in Montgomery form
 	deltaMont []uint64
-	delta     []uint64
 
 	// Ternary and Gaussian samplers
 	sigma           float64
@@ -36,11 +34,6 @@ type Context struct {
 	contextQ2  *ring.Context
 	contextP   *ring.Context
 	contextQ1P *ring.Context
-
-	qHalf *big.Int
-	pHalf *big.Int
-
-	rescaleParamsMul []uint64
 
 	alpha             uint64
 	beta              uint64
@@ -117,44 +110,14 @@ func (context *Context) SetParameters(params *Parameters) {
 		panic(err)
 	}
 
-	context.rescaleParamsKeys = make([]uint64, len(ModuliQ1))
-
-	PBig := ring.NewUint(1)
-	for _, pj := range ModuliP {
-		PBig.Mul(PBig, ring.NewUint(pj))
-	}
-
 	context.alpha = uint64(len(ModuliP))
 	context.beta = uint64(math.Ceil(float64(len(ModuliQ1)) / float64(context.alpha)))
 
-	tmp := new(big.Int)
-	bredParams := context.contextQ1.GetBredParams()
-	for i, Qi := range ModuliQ1 {
-		tmp.Mod(PBig, ring.NewUint(Qi))
-		context.rescaleParamsKeys[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Qi, bredParams[i]), Qi-2, Qi), Qi, bredParams[i])
-	}
-
-	context.rescaleParamsMul = make([]uint64, len(context.contextQ2.Modulus))
-
-	bredParams = context.contextQ2.GetBredParams()
-	for i, Pi := range context.contextQ2.Modulus {
-		tmp.Mod(context.contextQ1.ModulusBigint, ring.NewUint(Pi))
-		context.rescaleParamsMul[i] = ring.MForm(ring.ModExp(ring.BRedAdd(tmp.Uint64(), Pi, bredParams[i]), Pi-2, Pi), Pi, bredParams[i])
-	}
-
-	context.qHalf = new(big.Int).Rsh(context.contextQ1.ModulusBigint, 1)
-	context.pHalf = new(big.Int).Rsh(context.contextQ2.ModulusBigint, 1)
+	context.rescaleParamsKeys = genSwitchkeysRescalingParams(ModuliQ1, ModuliP)
 
 	context.logQ = uint64(context.contextQ1P.ModulusBigint.BitLen())
 
-	delta := new(big.Int).Quo(context.contextQ1.ModulusBigint, ring.NewUint(t))
-	tmpBig := new(big.Int)
-	context.deltaMont = make([]uint64, len(ModuliQ1))
-	context.delta = make([]uint64, len(ModuliQ1))
-	for i, Qi := range ModuliQ1 {
-		context.delta[i] = tmpBig.Mod(delta, ring.NewUint(Qi)).Uint64()
-		context.deltaMont[i] = ring.MForm(context.delta[i], Qi, context.contextQ1.GetBredParams()[i])
-	}
+	context.deltaMont = genLiftParams(context.contextQ1, context.t)
 
 	context.sigma = sigma
 

@@ -34,12 +34,12 @@ var tBatching = map[uint64][]uint64{
 
 // Parameters represents a given parameter set for the BFV cryptosystem.
 type Parameters struct {
-	LogN  uint8
-	T     uint64
-	Q1    []uint8
-	P     []uint8
-	Q2    []uint8
-	Sigma float64
+	LogN  uint8   // Ring degree (power of 2)
+	T     uint64  // Plaintext modulus
+	Q1    []uint8 // Ciphertext modulus
+	P     []uint8 // Keys additional modulus
+	Q2    []uint8 // Ciphertext secondary modulus
+	Sigma float64 // Gaussian sampling variance
 }
 
 // Copy creates a copy of the target parameters.
@@ -72,7 +72,7 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 // DefaultParams is a set of default BFV parameters ensuring 128 bit security.
 var DefaultParams = map[uint64]*Parameters{
 
-	//logQ = 109
+	//logQ1+P = 109
 	12: {LogN: 12,
 		T:     65537,
 		Q1:    []uint8{39, 39},
@@ -80,7 +80,7 @@ var DefaultParams = map[uint64]*Parameters{
 		Q2:    []uint8{60, 60},
 		Sigma: 3.2},
 
-	//logQ = 218
+	//logQ1+P = 218
 	13: {LogN: 13,
 		T:     65537,
 		Q1:    []uint8{54, 54, 54},
@@ -88,7 +88,7 @@ var DefaultParams = map[uint64]*Parameters{
 		Q2:    []uint8{60, 60, 60},
 		Sigma: 3.2},
 
-	//logQ = 438
+	//logQ1+P = 438
 	14: {LogN: 14,
 		T:     65537,
 		Q1:    []uint8{56, 55, 55, 54, 54, 54},
@@ -96,7 +96,7 @@ var DefaultParams = map[uint64]*Parameters{
 		Q2:    []uint8{60, 60, 60, 60, 60, 60},
 		Sigma: 3.2},
 
-	//logQ = 880
+	//logQ1+P = 880
 	15: {LogN: 15,
 		T:     65537,
 		Q1:    []uint8{59, 59, 59, 58, 58, 58, 58, 58, 58, 58, 58, 58},

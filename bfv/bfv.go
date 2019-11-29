@@ -21,9 +21,6 @@ type Context struct {
 
 	logQ uint64
 
-	// floor(Q/T) mod each Qi in Montgomery form
-	deltaMont []uint64
-
 	// Ternary and Gaussian samplers
 	sigma           float64
 	gaussianSampler *ring.KYSampler
@@ -117,8 +114,6 @@ func (context *Context) SetParameters(params *Parameters) {
 
 	context.logQ = uint64(context.contextQ1P.ModulusBigint.BitLen())
 
-	context.deltaMont = genLiftParams(context.contextQ1, context.t)
-
 	context.sigma = sigma
 
 	context.gaussianSampler = context.contextQ1P.NewKYSampler(sigma, int(6*sigma))
@@ -141,16 +136,6 @@ func (context *Context) LogQ() uint64 {
 // T returns the plaintext modulus of the target context.
 func (context *Context) T() uint64 {
 	return context.t
-}
-
-// Delta returns Q/t, modulo each Qi, where t is the plaintext modulus, Q is the product of all the Qi, of the target context.
-func (context *Context) Delta() []uint64 {
-	return context.delta
-}
-
-// DeltaMont returns Q/t, modulo each Qi, where t is the plaintext modulus, Q is the product of all the Qi, of the target context.
-func (context *Context) DeltaMont() []uint64 {
-	return context.deltaMont
 }
 
 // Sigma returns sigma, which is the variance used for the gaussian sampling of the target context.
@@ -181,11 +166,6 @@ func (context *Context) ContextKeys() *ring.Context {
 // ContextPKeys returns the ring Context of the KeySwitchPrimes.
 func (context *Context) ContextP() *ring.Context {
 	return context.contextP
-}
-
-// KeySwitchPrimes returns the extended P moduli used for the KeySwitching operation.
-func (context *Context) KeySwitchPrimes() []uint64 {
-	return context.contextP.Modulus
 }
 
 // Alpha returns #Pi.

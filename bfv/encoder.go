@@ -13,6 +13,7 @@ type Encoder struct {
 	indexMatrix  []uint64
 	simplescaler *ring.SimpleScaler
 	polypool     *ring.Poly
+	deltaMont    []uint64
 }
 
 // NewEncoder creates a new encoder from the provided parameters
@@ -47,6 +48,8 @@ func NewEncoder(params *Parameters) (encoder *Encoder) {
 		pos &= (m - 1)
 	}
 
+	encoder.deltaMont = genLiftParams(encoder.bfvContext.contextQ1, encoder.bfvContext.t)
+
 	encoder.simplescaler = ring.NewSimpleScaler(encoder.bfvContext.t, encoder.bfvContext.contextQ1)
 	encoder.polypool = encoder.bfvContext.contextT.NewPoly()
 
@@ -72,9 +75,8 @@ func (encoder *Encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	plaintext.InvNTTPlainModulus(encoder.bfvContext.contextT)
+	encoder.encodePlaintext(plaintext)
 
-	plaintext.Lift(encoder.bfvContext)
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. Also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
@@ -102,8 +104,25 @@ func (encoder *Encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	plaintext.InvNTTPlainModulus(encoder.bfvContext.contextT)
-	plaintext.Lift(encoder.bfvContext)
+	encoder.encodePlaintext(plaintext)
+}
+
+func (encoder *Encoder) encodePlaintext(p *Plaintext) {
+
+	encoder.bfvContext.contextT.InvNTT(p.value, p.value)
+
+	ringContext := encoder.bfvContext.contextQ1
+
+	for i := len(ringContext.Modulus) - 1; i >= 0; i-- {
+		tmp1 := p.value.Coeffs[i]
+		tmp2 := p.value.Coeffs[0]
+		deltaMont := encoder.deltaMont[i]
+		qi := ringContext.Modulus[i]
+		bredParams := ringContext.GetMredParams()[i]
+		for j := uint64(0); j < ringContext.N; j++ {
+			tmp1[j] = ring.MRed(tmp2[j], deltaMont, qi, bredParams)
+		}
+	}
 }
 
 // DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.

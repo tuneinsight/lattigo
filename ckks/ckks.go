@@ -24,21 +24,14 @@ type Context struct {
 	// Number of available levels
 	levels uint64
 
-	// Moduli chain
-	moduli      []uint64
-	scalechain  []float64
 	bigintChain []*big.Int
 
 	// Contexts
-	specialprimes []uint64
-	alpha         uint64
-	beta          uint64
-	contextQ      *ring.Context
-	contextP      *ring.Context
-	contextKeys   *ring.Context
-
-	// Pre-computed values for the rescaling
-	rescaleParamsKeys []uint64 // (P^-1) mod each qi
+	alpha     uint64
+	beta      uint64
+	contextQ  *ring.Context
+	contextP  *ring.Context
+	contextQP *ring.Context
 
 	// Sampling variance
 	sigma float64
@@ -70,31 +63,30 @@ func NewContext(params *Parameters) (ckkscontext *Context) {
 	ckkscontext.alpha = uint64(len(params.P))
 	ckkscontext.beta = uint64(math.Ceil(float64(ckkscontext.levels) / float64(ckkscontext.alpha)))
 
-	ckkscontext.moduli, ckkscontext.specialprimes = GenModuli(params)
+	Q, P := GenModuli(params)
+	N := ckkscontext.n
 
-	ckkscontext.bigintChain = genBigIntChain(ckkscontext.moduli)
+	ckkscontext.bigintChain = genBigIntChain(Q)
 
-	if ckkscontext.contextQ, err = ring.NewContextWithParams(ckkscontext.n, ckkscontext.moduli); err != nil {
+	if ckkscontext.contextQ, err = ring.NewContextWithParams(N, Q); err != nil {
 		panic(err)
 	}
 
-	if ckkscontext.contextP, err = ring.NewContextWithParams(ckkscontext.n, ckkscontext.specialprimes); err != nil {
+	if ckkscontext.contextP, err = ring.NewContextWithParams(N, P); err != nil {
 		panic(err)
 	}
 
-	if ckkscontext.contextKeys, err = ring.NewContextWithParams(ckkscontext.n, append(ckkscontext.moduli, ckkscontext.specialprimes...)); err != nil {
+	if ckkscontext.contextQP, err = ring.NewContextWithParams(N, append(Q, P...)); err != nil {
 		panic(err)
 	}
 
-	ckkscontext.logQ = uint64(ckkscontext.contextKeys.ModulusBigint.BitLen())
+	ckkscontext.logQ = uint64(ckkscontext.contextQP.ModulusBigint.BitLen())
 
-	ckkscontext.rescaleParamsKeys = GenSwitchkeysRescalingParams(ckkscontext.moduli, ckkscontext.specialprimes)
+	ckkscontext.gaussianSampler = ckkscontext.contextQP.NewKYSampler(params.Sigma, int(6*params.Sigma))
 
-	ckkscontext.gaussianSampler = ckkscontext.contextKeys.NewKYSampler(params.Sigma, int(6*params.Sigma))
-
-	ckkscontext.galElRotColLeft = ring.GenGaloisParams(ckkscontext.n, GaloisGen)
-	ckkscontext.galElRotColRight = ring.GenGaloisParams(ckkscontext.n, ring.ModExp(GaloisGen, 2*ckkscontext.n-1, 2*ckkscontext.n))
-	ckkscontext.galElConjugate = 2*ckkscontext.n - 1
+	ckkscontext.galElRotColLeft = ring.GenGaloisParams(N, GaloisGen)
+	ckkscontext.galElRotColRight = ring.GenGaloisParams(N, ring.ModExp(GaloisGen, 2*N-1, 2*N))
+	ckkscontext.galElConjugate = 2*N - 1
 
 	return ckkscontext
 
@@ -117,7 +109,7 @@ func (ckkscontext *Context) LogQ() uint64 {
 
 // Moduli returns the moduli of the Context.
 func (ckkscontext *Context) Moduli() []uint64 {
-	return ckkscontext.moduli
+	return ckkscontext.contextQ.Modulus
 }
 
 // BigintChain returns the moduli chain in big.Int.
@@ -127,7 +119,7 @@ func (ckkscontext *Context) BigintChain() []*big.Int {
 
 // KeySwitchPrimes returns the extra moduli used for the KeySwitching operation.
 func (ckkscontext *Context) KeySwitchPrimes() []uint64 {
-	return ckkscontext.specialprimes
+	return ckkscontext.contextP.Modulus
 }
 
 // Alpha returns #Pi.
@@ -138,11 +130,6 @@ func (ckkscontext *Context) Alpha() uint64 {
 // Beta returns ceil(#Qi/#Pi)
 func (ckkscontext *Context) Beta() uint64 {
 	return ckkscontext.beta
-}
-
-// RescaleParamsKeys returns the rescaling parameters for the KeySwitching operation.
-func (ckkscontext *Context) RescaleParamsKeys() []uint64 {
-	return ckkscontext.rescaleParamsKeys
 }
 
 // Levels returns the number of levels of the Context.
@@ -165,9 +152,9 @@ func (ckkscontext *Context) ContextP() *ring.Context {
 	return ckkscontext.contextP
 }
 
-// ContextKeys returns the ring context of the keys.
-func (ckkscontext *Context) ContextKeys() *ring.Context {
-	return ckkscontext.contextKeys
+// contextQP returns the ring context of the keys.
+func (ckkscontext *Context) ContextQP() *ring.Context {
+	return ckkscontext.contextQP
 }
 
 // Slots returns the number of slots that the scheme can encrypt at the same time.

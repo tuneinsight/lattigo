@@ -206,5 +206,3 @@ func sliceBitReverseInPlaceComplex128(slice []complex128, N uint64) {
 		}
 	}
 }
-
-

@@ -9,13 +9,8 @@ type Ciphertext struct {
 	*ckksElement
 }
 
-// NewCiphertext returns a new Ciphertext element.
-func NewCiphertext() (ciphertext *Ciphertext) {
-	return &Ciphertext{&ckksElement{}}
-}
-
 // NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
-func NewCiphertextFromParams(params *Parameters, degree uint64, level uint64, scale float64) (ciphertext *Ciphertext) {
+func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{&ckksElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
@@ -30,7 +25,7 @@ func NewCiphertextFromParams(params *Parameters, degree uint64, level uint64, sc
 }
 
 // NewRandomCiphertext generates a new uniformely distributed ciphertext of degree, level and scale.
-func NewRandomCiphertextFromParams(params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
+func NewCiphertextRandom(params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{&ckksElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)

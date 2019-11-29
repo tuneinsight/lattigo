@@ -141,7 +141,7 @@ func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]
 
 func evaluatePolyFromPowerBasis(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
-	res = NewCiphertextFromParams(evaluator.params, 1, C[1].Level(), C[1].Scale())
+	res = NewCiphertext(evaluator.params, 1, C[1].Level(), C[1].Scale())
 
 	if math.Abs(real(coeffs[0])) > 1e-15 || math.Abs(imag(coeffs[0])) > 1e-15 {
 		evaluator.AddConst(res, coeffs[0], res)

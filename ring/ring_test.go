@@ -38,7 +38,7 @@ func init() {
 	testParams.sigma = 3.19
 }
 
-func testRing(t *testing.T) {
+func TestRing(t *testing.T) {
 	t.Run("PRNG", testPRNG)
 	t.Run("GenerateNTTPrimes", testGenerateNTTPrimes)
 	t.Run("ImportExportPolyString", testImportExportPolyString)
@@ -99,14 +99,10 @@ func testGenerateNTTPrimes(t *testing.T) {
 
 		t.Run(testString("", context), func(t *testing.T) {
 
-			primes, err := GenerateNTTPrimes(context.N, context.Modulus[0], uint64(len(context.Modulus)), 60, true)
-
-			if err != nil {
-				t.Errorf("generateNTTPrimes")
-			}
+			primes := GenerateNTTPrimes(55, uint64(bits.Len64(context.N)-1), uint64(len(context.Modulus)))
 
 			for _, q := range primes {
-				if bits.Len64(q) != 60 || q&((context.N<<1)-1) != 1 || IsPrime(q) != true {
+				if q&((context.N<<1)-1) != 1 || IsPrime(q) != true {
 					t.Errorf("GenerateNTTPrimes for q = %v", q)
 					break
 				}
@@ -556,7 +552,7 @@ func testExtendBasis(t *testing.T) {
 
 		t.Run(testString("", contextQ), func(t *testing.T) {
 
-			basisextender := NewBasisExtender(contextQ, contextP)
+			basisextender := NewFastBasisExtender(contextQ, contextP)
 
 			coeffs := make([]*big.Int, contextQ.N)
 			for i := uint64(0); i < contextQ.N; i++ {
@@ -570,7 +566,7 @@ func testExtendBasis(t *testing.T) {
 			contextQ.SetCoefficientsBigint(coeffs, Pol)
 			contextP.SetCoefficientsBigint(coeffs, PolWant)
 
-			basisextender.ExtendBasisSplit(Pol, PolTest)
+			basisextender.ModUpSplitQP(uint64(len(contextQ.Modulus)-1), Pol, PolTest)
 
 			for i := range contextP.Modulus {
 				for j := uint64(0); j < contextQ.N; j++ {

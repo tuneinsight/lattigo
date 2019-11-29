@@ -30,7 +30,7 @@ func NewDecryptor(params *Parameters, sk *SecretKey) *Decryptor {
 // A Horner methode is used for evaluating the decryption.
 func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
 
-	plaintext = NewPlaintextFromParams(decryptor.params, ciphertext.Level(), ciphertext.Scale())
+	plaintext = NewPlaintext(decryptor.params, ciphertext.Level(), ciphertext.Scale())
 
 	decryptor.Decrypt(ciphertext, plaintext)
 

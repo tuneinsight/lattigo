@@ -47,7 +47,7 @@ func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *
 	encryptor.polypool[1] = encryptor.bfvContext.contextQ1P.NewPoly()
 	encryptor.polypool[2] = encryptor.bfvContext.contextQ1P.NewPoly()
 
-	encryptor.baseconverter = ring.NewFastBasisExtender(encryptor.bfvContext.contextQ1.Modulus, encryptor.bfvContext.contextP.Modulus)
+	encryptor.baseconverter = ring.NewFastBasisExtender(encryptor.bfvContext.contextQ1, encryptor.bfvContext.contextP)
 
 	return
 }
@@ -109,8 +109,8 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	ringContext.Add(encryptor.polypool[1], encryptor.polypool[2], encryptor.polypool[1])
 
 	// We rescal the encryption of zero by the special prime, dividing the error by this prime
-	encryptor.baseconverter.ModDown(ringContext, encryptor.bfvContext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
-	encryptor.baseconverter.ModDown(ringContext, encryptor.bfvContext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
+	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])
 
 	ringContext = encryptor.bfvContext.contextQ1
 
@@ -134,8 +134,8 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 	encryptor.bfvContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
 
-	encryptor.baseconverter.ModDown(ringContext, encryptor.bfvContext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
-	encryptor.baseconverter.ModDown(ringContext, encryptor.bfvContext.rescaleParamsKeys, uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
+	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])
 
 	ringContext = encryptor.bfvContext.contextQ1
 

@@ -11,7 +11,7 @@ type Plaintext struct {
 }
 
 // NewPlaintextFromParams creates a new plaintext of level level and scale scale.
-func NewPlaintextFromParams(params *Parameters, level uint64, scale float64) *Plaintext {
+func NewPlaintext(params *Parameters, level uint64, scale float64) *Plaintext {
 	plaintext := &Plaintext{&ckksElement{}, nil}
 
 	plaintext.ckksElement.value = []*ring.Poly{ring.NewPoly(1<<params.LogN, level+1)}

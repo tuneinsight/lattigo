@@ -23,7 +23,7 @@ func Benchmark_BFV(b *testing.B) {
 
 		coeffs := bfvContext.contextT.NewUniformPoly()
 
-		plaintext := NewPlaintextFromParams(params)
+		plaintext := NewPlaintext(params)
 
 		encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
@@ -56,7 +56,7 @@ func Benchmark_BFV(b *testing.B) {
 
 		// Decryption
 		decryptor := NewDecryptor(params, sk)
-		ptp := NewPlaintextFromParams(params)
+		ptp := NewPlaintext(params)
 		b.Run(testString("Decrypt", params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				decryptor.Decrypt(ctd1, ptp)

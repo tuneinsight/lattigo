@@ -32,9 +32,8 @@ type Context struct {
 	contextP   *ring.Context
 	contextQ1P *ring.Context
 
-	alpha             uint64
-	beta              uint64
-	rescaleParamsKeys []uint64 // (P^-1) mod each qi
+	alpha uint64
+	beta  uint64
 
 	galElRotRow      uint64
 	galElRotColLeft  []uint64
@@ -77,6 +76,8 @@ func NewContext(params *Parameters) (newContext *Context) {
 // - sigma    : the variance of the gaussian sampling.
 func (context *Context) SetParameters(params *Parameters) {
 
+	var err error
+
 	LogN := params.LogN
 	N := uint64(1 << LogN)
 	t := params.T
@@ -109,8 +110,6 @@ func (context *Context) SetParameters(params *Parameters) {
 
 	context.alpha = uint64(len(ModuliP))
 	context.beta = uint64(math.Ceil(float64(len(ModuliQ1)) / float64(context.alpha)))
-
-	context.rescaleParamsKeys = GenRescalingParams(context.contextP, context.contextQ1)
 
 	context.logQ = uint64(context.contextQ1P.ModulusBigint.BitLen())
 
@@ -176,11 +175,6 @@ func (context *Context) Alpha() uint64 {
 // Beta returns ceil(#Qi/#Pi).
 func (context *Context) Beta() uint64 {
 	return context.beta
-}
-
-// RescaleParamsKeys returns the rescaling parameters for the P moduli.
-func (context *Context) RescaleParamsKeys() []uint64 {
-	return context.rescaleParamsKeys
 }
 
 // GaussianSampler returns the context's gaussian sampler instance

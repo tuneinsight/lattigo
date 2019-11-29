@@ -66,7 +66,7 @@ func NewKeyGenerator(params *Parameters) (keygen *KeyGenerator) {
 	keygen = new(KeyGenerator)
 	keygen.params = params.Copy()
 	keygen.ckksContext = NewContext(params)
-	keygen.ringContext = keygen.ckksContext.contextKeys
+	keygen.ringContext = keygen.ckksContext.contextQP
 	keygen.polypool = keygen.ringContext.NewPoly()
 	return
 }
@@ -79,14 +79,14 @@ func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
 // NewSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].
 func (keygen *KeyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
-	sk.sk = keygen.ckksContext.contextKeys.SampleTernaryMontgomeryNTTNew(p)
+	sk.sk = keygen.ckksContext.contextQP.SampleTernaryMontgomeryNTTNew(p)
 	return sk
 }
 
 // NewSecretKeySparse generates a new SecretKey with exactly hw non zero coefficients.
 func (keygen *KeyGenerator) NewSecretKeySparse(hw uint64) (sk *SecretKey) {
 	sk = new(SecretKey)
-	sk.sk = keygen.ckksContext.contextKeys.SampleTernarySparseMontgomeryNTTNew(hw)
+	sk.sk = keygen.ckksContext.contextQP.SampleTernarySparseMontgomeryNTTNew(hw)
 	return sk
 }
 
@@ -231,7 +231,7 @@ func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 	switchingkey = new(SwitchingKey)
 
-	context := keygen.ckksContext.contextKeys
+	context := keygen.ckksContext.contextQP
 
 	// Computes P * skIn
 

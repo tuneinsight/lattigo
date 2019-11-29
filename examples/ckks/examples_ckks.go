@@ -47,11 +47,11 @@ func chebyshevinterpolation() {
 
 	// Encryptor
 	var encryptor *ckks.Encryptor
-	encryptor = ckks.NewEncryptorFromPk(pk, params)
+	encryptor = ckks.NewEncryptorFromPk(params, pk)
 
 	// Decryptor
 	var decryptor *ckks.Decryptor
-	decryptor = ckks.NewDecryptor(sk, params)
+	decryptor = ckks.NewDecryptor(params, sk)
 
 	// Evaluator
 	var evaluator *ckks.Evaluator
@@ -72,8 +72,7 @@ func chebyshevinterpolation() {
 	fmt.Println()
 
 	// Plaintext creation and encoding process
-	ringCtx := ckks.NewRingContext(params)
-	plaintext := ckks.NewPlaintext(ckkscontext.Levels()-1, ckkscontext.Scale(), ringCtx)
+	plaintext := ckks.NewPlaintext(params, ckkscontext.Levels()-1, ckkscontext.Scale())
 	encoder.Encode(plaintext, values, ckkscontext.Slots())
 
 	// Encryption process

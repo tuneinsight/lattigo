@@ -122,7 +122,7 @@ func newTestVectors(contextParams *ckksParams, encryptor *Encryptor, a float64, 
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = NewPlaintextFromParams(contextParams.params, contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale())
+	plaintext = NewPlaintext(contextParams.params, contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale())
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -145,7 +145,7 @@ func newTestVectorsReals(contextParams *ckksParams, encryptor *Encryptor, a, b f
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = NewPlaintextFromParams(contextParams.params, contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale())
+	plaintext = NewPlaintext(contextParams.params, contextParams.ckkscontext.Levels()-1, contextParams.ckkscontext.Scale())
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -477,7 +477,7 @@ func testEvaluatorRescale(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorSk, 1, t)
 
-			constant := params.ckkscontext.moduli[ciphertext.Level()]
+			constant := params.ckkscontext.contextQ.Modulus[ciphertext.Level()]
 
 			params.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
@@ -495,7 +495,7 @@ func testEvaluatorRescale(t *testing.T) {
 			nbRescales := uint64(2)
 
 			for i := uint64(0); i < nbRescales; i++ {
-				constant := params.ckkscontext.moduli[ciphertext.Level()-i]
+				constant := params.ckkscontext.contextQ.Modulus[ciphertext.Level()]
 				params.evaluator.MultByConst(ciphertext, constant, ciphertext)
 				ciphertext.MulScale(float64(constant))
 			}
@@ -879,7 +879,7 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := NewCiphertextFromParams(parameters, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+			ciphertext2 := NewCiphertext(parameters, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 			for n := 1; n < len(values1); n <<= 1 {
 
@@ -900,7 +900,7 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := NewCiphertextFromParams(parameters, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+			ciphertext2 := NewCiphertext(parameters, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 			for n := 1; n < len(values1); n <<= 1 {
 
@@ -921,7 +921,7 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			ciphertext2 := NewCiphertextFromParams(parameters, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+			ciphertext2 := NewCiphertext(parameters, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 			for n := 1; n < 4; n++ {
 
@@ -947,16 +947,16 @@ func testMarshaller(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		contextKeys := params.ckkscontext.contextKeys
+		contextQP := params.ckkscontext.contextQP
 
 		t.Run(testString("Ciphertext/", params), func(t *testing.T) {
 
-			ciphertextWant := NewRandomCiphertextFromParams(parameters, 2, params.ckkscontext.levels-1, params.ckkscontext.scale)
+			ciphertextWant := NewCiphertextRandom(parameters, 2, params.ckkscontext.levels-1, params.ckkscontext.scale)
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)
 
-			ciphertextTest := NewCiphertext()
+			ciphertextTest := NewCkksElement().Ciphertext()
 			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 			check(t, err)
 
@@ -988,7 +988,7 @@ func testMarshaller(t *testing.T) {
 			err = sk.UnmarshalBinary(marshalledSk)
 			check(t, err)
 
-			if !contextKeys.Equal(sk.sk, params.sk.sk) {
+			if !contextQP.Equal(sk.sk, params.sk.sk) {
 				t.Errorf("Marshal SecretKey")
 			}
 
@@ -1004,7 +1004,7 @@ func testMarshaller(t *testing.T) {
 			check(t, err)
 
 			for k := range params.pk.pk {
-				if !contextKeys.Equal(pk.pk[k], params.pk.pk[k]) {
+				if !contextQP.Equal(pk.pk[k], params.pk.pk[k]) {
 					t.Errorf("Marshal PublicKey element [%d]", k)
 				}
 			}
@@ -1026,7 +1026,7 @@ func testMarshaller(t *testing.T) {
 			for j := range evakeyWant {
 
 				for k := range evakeyWant[j] {
-					if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+					if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 						t.Errorf("Marshal EvaluationKey element [%d][%d]", j, k)
 					}
 				}
@@ -1051,7 +1051,7 @@ func testMarshaller(t *testing.T) {
 			for j := range evakeyWant {
 
 				for k := range evakeyWant[j] {
-					if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+					if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 						t.Errorf("Marshal Switchkey element [%d][%d]", j, k)
 					}
 				}
@@ -1085,7 +1085,7 @@ func testMarshaller(t *testing.T) {
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
-							if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 								t.Errorf("Marshal RotKey RotateLeft %d element [%d][%d]", i, j, k)
 							}
 						}
@@ -1100,7 +1100,7 @@ func testMarshaller(t *testing.T) {
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
-							if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 								t.Errorf("Marshal RotKey RotateRight %d element [%d][%d]", i, j, k)
 							}
 						}
@@ -1116,7 +1116,7 @@ func testMarshaller(t *testing.T) {
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
-						if !contextKeys.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+						if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 							t.Errorf("Marshal RotKey RotateRow element [%d][%d]", j, k)
 						}
 					}

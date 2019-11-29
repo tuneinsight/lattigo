@@ -13,14 +13,12 @@ type Evaluator struct {
 
 	bfvContext *Context
 
-	basisextenderQ1Q2 *ring.BasisExtender
-	basisextenderQ2Q1 *ring.BasisExtender
+	baseconverterQ1Q2 *ring.FastBasisExtender
 
-	baseconverter *ring.FastBasisExtender
-	decomposer    *ring.ArbitraryDecomposer
+	baseconverterQ1P *ring.FastBasisExtender
+	decomposer       *ring.ArbitraryDecomposer
 
-	rescaleParamsMul []uint64
-	pHalf            *big.Int
+	pHalf *big.Int
 
 	poolQ [][]*ring.Poly
 	poolP [][]*ring.Poly
@@ -38,13 +36,10 @@ func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 	evaluator.params = params.Copy()
 	evaluator.bfvContext = NewContext(params)
 
-	evaluator.basisextenderQ1Q2 = ring.NewBasisExtender(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextQ2)
-	evaluator.basisextenderQ2Q1 = ring.NewBasisExtender(evaluator.bfvContext.contextQ2, evaluator.bfvContext.contextQ1)
-
-	evaluator.baseconverter = ring.NewFastBasisExtender(evaluator.bfvContext.contextQ1.Modulus, evaluator.bfvContext.contextP.Modulus)
+	evaluator.baseconverterQ1Q2 = ring.NewFastBasisExtender(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextQ2)
+	evaluator.baseconverterQ1P = ring.NewFastBasisExtender(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextP)
 	evaluator.decomposer = ring.NewArbitraryDecomposer(evaluator.bfvContext.contextQ1.Modulus, evaluator.bfvContext.contextP.Modulus)
 
-	evaluator.rescaleParamsMul = GenRescalingParams(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextQ2)
 	evaluator.pHalf = new(big.Int).Rsh(evaluator.bfvContext.contextQ2.ModulusBigint, 1)
 
 	for i := 0; i < 2; i++ {
@@ -244,6 +239,8 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	contextQ := evaluator.bfvContext.contextQ1
 	contextP := evaluator.bfvContext.contextQ2
 
+	level := uint64(len(contextQ.Modulus) - 1)
+
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them in NTT form
 
@@ -257,7 +254,7 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	c2P := evaluator.poolP[2]
 
 	for i := range ct0.value {
-		evaluator.basisextenderQ1Q2.ExtendBasisSplit(ct0.value[i], c0P[i])
+		evaluator.baseconverterQ1Q2.ModUpSplitQP(level, ct0.value[i], c0P[i])
 
 		contextQ.NTT(ct0.value[i], c0Q[i])
 		contextP.NTT(c0P[i], c0P[i])
@@ -266,7 +263,7 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	if ct0 != ct1 {
 
 		for i := range ct1.value {
-			evaluator.basisextenderQ1Q2.ExtendBasisSplit(ct1.value[i], c1P[i])
+			evaluator.baseconverterQ1Q2.ModUpSplitQP(level, ct1.value[i], c1P[i])
 
 			contextQ.NTT(ct1.value[i], c1Q[i])
 			contextP.NTT(c1P[i], c1P[i])
@@ -375,8 +372,6 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		}
 	}
 
-	polyPtmp := evaluator.poolP[0][0]
-
 	// Applies the inverse NTT to the ciphertext, scales the down ciphertext
 	// by t/q and reduces its basis from QP to Q
 	for i := range ctOut.value {
@@ -387,26 +382,13 @@ func (evaluator *Evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		//contextQ.MulScalar(c2Q[i], evaluator.bfvContext.contextT.Modulus[0], c2Q[i])
 		//contextP.MulScalar(c2P[i], evaluator.bfvContext.contextT.Modulus[0], c2P[i])
 
-		// ============== DIVISION BY Q ================
-		// Extends the basis Q of ct(x) to the basis P
-		evaluator.basisextenderQ1Q2.ExtendBasisSplit(c2Q[i], polyPtmp)
-
-		// Divides (ct(x)Q -> P) by Q
-		for k, Pi := range contextP.Modulus {
-			mredParams := contextP.GetMredParams()[k]
-			rescalParams := evaluator.rescaleParamsMul[k]
-			p2tmp := c2P[i].Coeffs[k]
-			p1tmp := polyPtmp.Coeffs[k]
-			for j := uint64(0); j < contextP.N; j++ {
-				p2tmp[j] = ring.MRed(p2tmp[j]+(Pi-p1tmp[j]), rescalParams, Pi, mredParams)
-			}
-		}
+		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
+		evaluator.baseconverterQ1Q2.ModDownSplitedQP(level, c2Q[i], c2P[i], c2P[i])
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
 		contextP.AddScalarBigint(c2P[i], evaluator.pHalf, c2P[i])
-		evaluator.basisextenderQ2Q1.ExtendBasisSplit(c2P[i], ctOut.value[i])
+		evaluator.baseconverterQ1Q2.ModUpSplitPQ(level, c2P[i], ctOut.value[i])
 		contextQ.SubScalarBigint(ctOut.value[i], evaluator.pHalf, ctOut.value[i])
-		// ============================================
 
 		// Option 2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
 		contextQ.MulScalar(ctOut.value[i], evaluator.bfvContext.contextT.Modulus[0], ctOut.value[i])
@@ -746,8 +728,8 @@ func (evaluator *Evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 	contextKeys.InvNTT(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
 	contextKeys.InvNTT(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
 
-	evaluator.baseconverter.ModDown(contextKeys, evaluator.bfvContext.rescaleParamsKeys, level, evaluator.keyswitchpool[2], evaluator.keyswitchpool[2], evaluator.keyswitchpool[0])
-	evaluator.baseconverter.ModDown(contextKeys, evaluator.bfvContext.rescaleParamsKeys, level, evaluator.keyswitchpool[3], evaluator.keyswitchpool[3], evaluator.keyswitchpool[0])
+	evaluator.baseconverterQ1P.ModDownPQ(level, evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
+	evaluator.baseconverterQ1P.ModDownPQ(level, evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
 
 	context.Add(ctOut.value[0], evaluator.keyswitchpool[2], ctOut.value[0])
 	context.Add(ctOut.value[1], evaluator.keyswitchpool[3], ctOut.value[1])

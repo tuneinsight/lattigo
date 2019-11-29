@@ -21,22 +21,6 @@ func GenLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
 	return
 }
 
-func GenRescalingParams(contextQ1, contextQ2 *ring.Context) (params []uint64) {
-
-	params = make([]uint64, len(contextQ2.Modulus))
-
-	bredParams := contextQ2.GetBredParams()
-	tmp := new(big.Int)
-	for i, Qi := range contextQ2.Modulus {
-
-		params[i] = tmp.Mod(contextQ1.ModulusBigint, ring.NewUint(Qi)).Uint64()
-		params[i] = ring.ModExp(params[i], Qi-2, Qi)
-		params[i] = ring.MForm(params[i], Qi, bredParams[i])
-	}
-
-	return
-}
-
 // genModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
 func GenModuli(params *Parameters) (Q1 []uint64, P []uint64, Q2 []uint64) {
 
@@ -96,5 +80,3 @@ func GenModuli(params *Parameters) (Q1 []uint64, P []uint64, Q2 []uint64) {
 
 	return Q1, P, Q2
 }
-
-

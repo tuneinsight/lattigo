@@ -35,7 +35,7 @@ func NewDecryptor(params *Parameters, sk *SecretKey) (decryptor *Decryptor) {
 // DecryptNew decrypts the input ciphertext and returns the result on a new plaintext.
 func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
 
-	plaintext = NewPlaintextFromParams(decryptor.params)
+	plaintext = NewPlaintext(decryptor.params)
 
 	decryptor.Decrypt(ciphertext, plaintext)
 

@@ -47,13 +47,13 @@ func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *
 	encryptor.pk = pk
 	encryptor.sk = sk
 
-	encryptor.polypool[0] = encryptor.ckksContext.contextKeys.NewPoly()
-	encryptor.polypool[1] = encryptor.ckksContext.contextKeys.NewPoly()
-	encryptor.polypool[2] = encryptor.ckksContext.contextKeys.NewPoly()
+	encryptor.polypool[0] = encryptor.ckksContext.contextQP.NewPoly()
+	encryptor.polypool[1] = encryptor.ckksContext.contextQP.NewPoly()
+	encryptor.polypool[2] = encryptor.ckksContext.contextQP.NewPoly()
 
 	encryptor.rescalepool = make([]uint64, encryptor.ckksContext.n)
 
-	encryptor.baseconverter = ring.NewFastBasisExtender(encryptor.ckksContext.contextQ.Modulus, encryptor.ckksContext.contextP.Modulus)
+	encryptor.baseconverter = ring.NewFastBasisExtender(encryptor.ckksContext.contextQ, encryptor.ckksContext.contextP)
 
 	return encryptor
 }
@@ -65,7 +65,7 @@ func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
 
-	ciphertext = NewCiphertextFromParams(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
+	ciphertext = NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
 	encryptor.Encrypt(plaintext, ciphertext)
 	return
 }
@@ -99,19 +99,19 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 	// We sample a R-WLE instance (encryption of zero) over the keys context (ciphertext context + special prime)
 
-	contextKeys := encryptor.ckksContext.contextKeys
+	contextQP := encryptor.ckksContext.contextQP
 	contextQ := encryptor.ckksContext.contextQ
 
-	encryptor.ckksContext.contextKeys.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
+	encryptor.ckksContext.contextQP.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
 
 	// ct0 = u*pk0
-	contextKeys.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
+	contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 	// ct1 = u*pk1
-	contextKeys.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
+	contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
 	// 2*(#Q + #P) NTT
-	contextKeys.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
-	contextKeys.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+	contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	contextQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 	// ct0 = u*pk0 + e0
 	encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
@@ -119,10 +119,10 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[1])
 
 	// ct0 = (u*pk0 + e0)/P
-	encryptor.baseconverter.ModDown(contextKeys, encryptor.ckksContext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
 
 	// ct1 = (u*pk1 + e1)/P
-	encryptor.baseconverter.ModDown(contextKeys, encryptor.ckksContext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[1], ciphertext.value[1])
 
 	// 2*#Q NTT
 	contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
@@ -135,30 +135,29 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 }
 
 func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
-	contextKeys := encryptor.ckksContext.contextKeys
-	contextP := encryptor.ckksContext.contextP
+	contextQP := encryptor.ckksContext.contextQP
 	contextQ := encryptor.ckksContext.contextQ
 
 	// ct1 = a
-	contextKeys.UniformPoly(encryptor.polypool[1])
+	contextQP.UniformPoly(encryptor.polypool[1])
 
 	// ct0 = -s*a
-	contextKeys.MulCoeffsMontgomery(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
-	contextKeys.Neg(encryptor.polypool[0], encryptor.polypool[0])
+	contextQP.MulCoeffsMontgomery(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
+	contextQP.Neg(encryptor.polypool[0], encryptor.polypool[0])
 
 	// #Q + #P NTT
-	contextKeys.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
 
 	// ct0 = -s*a + e
 	encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
 
 	// We rescal by the special prime, dividing the error by this prime
 	// ct0 = (-s*a + e)/P
-	encryptor.baseconverter.ModDown(contextKeys, encryptor.ckksContext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
 
 	// #Q + #P NTT
 	// ct1 = a/P
-	encryptor.baseconverter.ModDownNTT(contextQ, contextP, encryptor.ckksContext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownNTTPQ(plaintext.Level(), encryptor.polypool[1], ciphertext.value[1])
 
 	// #Q NTT
 	contextQ.NTT(ciphertext.value[0], ciphertext.value[0])

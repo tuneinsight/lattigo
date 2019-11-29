@@ -33,7 +33,7 @@ func (evaluator *Evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *Ev
 // PowerNew compute ct0^degree, consuming log(degree) levels, and returns the result on a new element. Providing an evaluation
 // key is necessary when degree > 2.
 func (evaluator *Evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext) {
-	opOut = NewCiphertextFromParams(evaluator.params, 1, op.Level(), op.Scale())
+	opOut = NewCiphertext(evaluator.params, 1, op.Level(), op.Scale())
 	evaluator.Power(op, degree, evakey, opOut)
 	return
 }
@@ -58,7 +58,7 @@ func (evaluator *Evaluator) Power(ct0 *Ciphertext, degree uint64, evakey *Evalua
 		logDegree = uint64(bits.Len64(degree)) - 1
 		po2Degree = 1 << logDegree
 
-		tmp := NewCiphertextFromParams(evaluator.params, 1, tmpct0.Level(), tmpct0.Scale())
+		tmp := NewCiphertext(evaluator.params, 1, tmpct0.Level(), tmpct0.Scale())
 
 		evaluator.PowerOf2(tmpct0.Ciphertext(), logDegree, evakey, tmp)
 

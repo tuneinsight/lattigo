@@ -73,7 +73,7 @@ func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 		encoder.valuesfloat[jdx] = imag(encoder.values[i])
 	}
 
-	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.moduli[:plaintext.Level()+1], plaintext.value.Coeffs)
+	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
 	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 

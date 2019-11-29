@@ -46,9 +46,9 @@ func init() {
 
 	testParams.bfvParameters = []*Parameters{
 		DefaultParams[12],
-		DefaultParams[13],
-		DefaultParams[14],
-		DefaultParams[15],
+		//DefaultParams[13],
+		//DefaultParams[14],
+		//DefaultParams[15],
 	}
 }
 
@@ -268,7 +268,7 @@ func newTestVectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (coef
 
 	coeffs = params.bfvContext.contextT.NewUniformPoly()
 
-	plaintext = NewPlaintextFromParams(params.params)
+	plaintext = NewPlaintext(params.params)
 
 	params.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 

@@ -19,19 +19,10 @@ type ckksElement struct {
 	isNTT bool
 }
 
-/*
 // NewCkksElement returns a new ckksElement with zero values.
-func (ckkscontext *Context) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
-	el := &ckksElement{}
-	el.value = make([]*ring.Poly, degree+1)
-	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = ckkscontext.contextQ.NewPolyLvl(level)
-	}
-	el.scale = scale
-	el.isNTT = true
-	return el
+func NewCkksElement() *ckksElement {
+	return &ckksElement{}
 }
-*/
 
 // Value returns the slice of polynomials of the target element.
 func (el *ckksElement) Value() []*ring.Poly {

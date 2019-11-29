@@ -141,7 +141,7 @@ func (evaluator *Evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
 
 // AddNew adds op0 to op1 and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	ctOut = NewCiphertext(evaluator.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluator.Add(op0, op1, ctOut)
 	return
 }
@@ -154,7 +154,7 @@ func (evaluator *Evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 
 // AddNoModNew adds op0 to op1 without modular reduction and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	ctOut = NewCiphertext(evaluator.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluator.AddNoMod(op0, op1, ctOut)
 	return
 }
@@ -173,7 +173,7 @@ func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 
 // SubNew subtracts op0 to op1 and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	ctOut = NewCiphertext(evaluator.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluator.Sub(op0, op1, ctOut)
 	return
 }
@@ -193,7 +193,7 @@ func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 
 // SubNoModNew subtracts op0 to op1 without modular reduction and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	ctOut = NewCiphertext(evaluator.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluator.SubNoMod(op0, op1, ctOut)
 	return
 }
@@ -206,7 +206,7 @@ func (evaluator *Evaluator) Neg(op Operand, ctOut *Ciphertext) {
 
 // NegNew negates op and creates a new element to store the result.
 func (evaluator *Evaluator) NegNew(op Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, op.Degree())
+	ctOut = NewCiphertext(evaluator.params, op.Degree())
 	evaluator.Neg(op, ctOut)
 	return ctOut
 }
@@ -219,7 +219,7 @@ func (evaluator *Evaluator) Reduce(op Operand, ctOut *Ciphertext) {
 
 // ReduceNew applies a modular reduction on op and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) ReduceNew(op Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, op.Degree())
+	ctOut = NewCiphertext(evaluator.params, op.Degree())
 	evaluator.Reduce(op, ctOut)
 	return ctOut
 }
@@ -233,7 +233,7 @@ func (evaluator *Evaluator) MulScalar(op Operand, scalar uint64, ctOut *Cipherte
 
 // MulScalarNew multiplies op by an uint64 scalar and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, op.Degree())
+	ctOut = NewCiphertext(evaluator.params, op.Degree())
 	evaluator.MulScalar(op, scalar, ctOut)
 	return
 }
@@ -421,7 +421,7 @@ func (evaluator *Evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext)
 
 // MulNew multiplies op0 by op1 and creates a new element ctOut to store the result.
 func (evaluator *Evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, op0.Degree()+op1.Degree())
+	ctOut = NewCiphertext(evaluator.params, op0.Degree()+op1.Degree())
 	evaluator.Mul(op0, op1, ctOut)
 	return
 }
@@ -473,7 +473,7 @@ func (evaluator *Evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (ex. a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and 2 ciphertexts).
 func (evaluator *Evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, 1)
+	ctOut = NewCiphertext(evaluator.params, 1)
 	evaluator.Relinearize(ct0, evakey, ctOut)
 	return
 }
@@ -497,14 +497,14 @@ func (evaluator *Evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey,
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valide switching-key :
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
 func (evaluator *Evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, 1)
+	ctOut = NewCiphertext(evaluator.params, 1)
 	evaluator.SwitchKeys(ct0, switchkey, ctOut)
 	return
 }
 
 // RotateColumnsNew applies RotateColumns and returns the result on a new Ciphertext.
 func (evaluator *Evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, 1)
+	ctOut = NewCiphertext(evaluator.params, 1)
 	evaluator.RotateColumns(ct0, k, evakey, ctOut)
 	return
 }
@@ -621,7 +621,7 @@ func (evaluator *Evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ct
 
 // RotateRowsNew swaps the rows of ct0 and returns the result a new Ciphertext.
 func (evaluator *Evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext) {
-	ctOut = NewCiphertextFromParams(evaluator.params, 1)
+	ctOut = NewCiphertext(evaluator.params, 1)
 	evaluator.RotateRows(ct0, evakey, ctOut)
 	return
 }
@@ -634,7 +634,7 @@ func (evaluator *Evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOu
 		panic("cannot inner sum -> input and output must be of degree 1")
 	}
 
-	cTmp := NewCiphertextFromParams(evaluator.params, 1)
+	cTmp := NewCiphertext(evaluator.params, 1)
 
 	ctOut.Copy(ct0.Element())
 

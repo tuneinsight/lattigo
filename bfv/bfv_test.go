@@ -74,7 +74,7 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString2("Ciphertext/", params), func(t *testing.T) {
 
-			ciphertextWant := NewRandomCiphertextFromParams(parameters, 2)
+			ciphertextWant := NewCiphertextRandom(parameters, 2)
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)
@@ -440,7 +440,7 @@ func testEvaluatorMul(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := NewCiphertextFromParams(parameters, ciphertext1.Degree()+ciphertext2.Degree())
+			receiver := NewCiphertext(parameters, ciphertext1.Degree()+ciphertext2.Degree())
 			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
@@ -463,7 +463,7 @@ func testEvaluatorMul(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := NewCiphertextFromParams(parameters, ciphertext1.Degree()+ciphertext2.Degree())
+			receiver := NewCiphertext(parameters, ciphertext1.Degree()+ciphertext2.Degree())
 			params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
 
@@ -554,7 +554,7 @@ func testRotateCols(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := NewCiphertextFromParams(parameters, 1)
+			receiver := NewCiphertext(parameters, 1)
 			for n := uint64(1); n < slots; n <<= 1 {
 
 				params.evaluator.RotateColumns(ciphertext, n, rotkey, receiver)
@@ -589,7 +589,7 @@ func testRotateCols(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
-			receiver := NewCiphertextFromParams(parameters, 1)
+			receiver := NewCiphertext(parameters, 1)
 			for n := 0; n < 4; n++ {
 
 				rand := ring.RandUniform(slots, mask)

@@ -9,13 +9,8 @@ type Ciphertext struct {
 	*bfvElement
 }
 
-// NewCiphertext returns a new Ciphertext element.
-func NewCiphertext() (ciphertext *Ciphertext) {
-	return &Ciphertext{&bfvElement{}}
-}
-
 // NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
-func NewCiphertextFromParams(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
+func NewCiphertext(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{&bfvElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
@@ -29,7 +24,7 @@ func NewCiphertextFromParams(params *Parameters, degree uint64) (ciphertext *Cip
 }
 
 // NewRandomCiphertext generates a new uniformely distributed ciphertext of degree, level and scale.
-func NewRandomCiphertextFromParams(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
+func NewCiphertextRandom(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{&bfvElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)

@@ -41,7 +41,7 @@ func Benchmark_BFV(b *testing.B) {
 		encryptorPk := NewEncryptorFromPk(params, pk)
 		encryptorSk := NewEncryptorFromSk(params, sk)
 
-		ctd1 := NewCiphertextFromParams(params, 1)
+		ctd1 := NewCiphertext(params, 1)
 		b.Run(testString("EncryptFromPk", params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				encryptorPk.Encrypt(plaintext, ctd1)
@@ -66,8 +66,8 @@ func Benchmark_BFV(b *testing.B) {
 
 		evaluator := NewEvaluator(params)
 
-		ct1 := NewRandomCiphertextFromParams(params, 1)
-		ct2 := NewRandomCiphertextFromParams(params, 1)
+		ct1 := NewCiphertextRandom(params, 1)
+		ct2 := NewCiphertextRandom(params, 1)
 
 		// Addition
 		b.Run(testString("Add", params), func(b *testing.B) {
@@ -84,7 +84,7 @@ func Benchmark_BFV(b *testing.B) {
 		})
 
 		// Multiplication
-		receiver := NewCiphertextFromParams(params, 2)
+		receiver := NewCiphertext(params, 2)
 		b.Run(testString("Multiply", params), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				evaluator.Mul(ct1, ct2, receiver)

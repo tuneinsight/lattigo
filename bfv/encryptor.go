@@ -59,7 +59,7 @@ func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
 
-	ciphertext = NewCiphertextFromParams(encryptor.params, 1)
+	ciphertext = NewCiphertext(encryptor.params, 1)
 	encryptor.Encrypt(plaintext, ciphertext)
 	return
 }

@@ -86,8 +86,7 @@ func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtoco
 	pcks.share0tmp = context.contextQ1P.NewPoly()
 	pcks.share1tmp = context.contextQ1P.NewPoly()
 
-	_, moduliP, _ := bfv.GenModuli(params)
-	pcks.baseconverter = ring.NewFastBasisExtender(context.contextQ1.Modulus, moduliP)
+	pcks.baseconverter = ring.NewFastBasisExtender(context.contextQ1, context.contextP)
 
 	return pcks
 }

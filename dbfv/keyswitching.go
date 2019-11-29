@@ -48,8 +48,7 @@ func NewCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *CKSProtocol 
 	cks.tmpDelta = cks.context.contextQ1.NewPoly()
 	cks.hP = cks.context.contextP.NewPoly()
 
-	_, moduliP, _ := bfv.GenModuli(params)
-	cks.baseconverter = ring.NewFastBasisExtender(cks.context.contextQ1.Modulus, moduliP)
+	cks.baseconverter = ring.NewFastBasisExtender(cks.context.contextQ1, cks.context.contextP)
 
 	return cks
 }

@@ -23,14 +23,13 @@ type dbfvContext struct {
 	gaussianSampler *ring.KYSampler
 
 	// Polynomial contexts
-	contextT          *ring.Context
-	contextQ1         *ring.Context
-	contextQ2         *ring.Context
-	contextP          *ring.Context
-	contextQ1P        *ring.Context
-	rescaleParamsKeys []uint64 // (P^-1) mod each qi
-	alpha             uint64
-	beta              uint64
+	contextT   *ring.Context
+	contextQ1  *ring.Context
+	contextQ2  *ring.Context
+	contextP   *ring.Context
+	contextQ1P *ring.Context
+	alpha      uint64
+	beta       uint64
 }
 
 func newDbfvContext(params *bfv.Parameters) *dbfvContext {
@@ -70,23 +69,20 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 	alpha := uint64(len(moduliP))
 	beta := uint64(math.Ceil(float64(len(moduliQ1)) / float64(alpha)))
 
-	rescaleParamsKeys := bfv.GenRescalingParams(contextP, contextQ1)
-
 	gaussianSampler := contextQ1P.NewKYSampler(params.Sigma, int(6*params.Sigma))
 
 	return &dbfvContext{
-		params:            params,
-		n:                 n,
-		t:                 t,
-		deltaMont:         deltaMont,
-		gaussianSampler:   gaussianSampler,
-		contextT:          contextT,
-		contextQ1:         contextQ1,
-		contextQ2:         contextQ2,
-		contextP:          contextP,
-		contextQ1P:        contextQ1P,
-		rescaleParamsKeys: rescaleParamsKeys,
-		alpha:             alpha,
-		beta:              beta,
+		params:          params,
+		n:               n,
+		t:               t,
+		deltaMont:       deltaMont,
+		gaussianSampler: gaussianSampler,
+		contextT:        contextT,
+		contextQ1:       contextQ1,
+		contextQ2:       contextQ2,
+		contextP:        contextP,
+		contextQ1P:      contextQ1P,
+		alpha:           alpha,
+		beta:            beta,
 	}
 }

@@ -606,7 +606,7 @@ func testRefresh(t *testing.T) {
 				p.RefreshProtocol = NewRefreshProtocol(parameters)
 				p.s = sk0Shards[i].Get()
 				p.share = p.AllocateShares()
-				p.ptShare = bfv.NewPlaintextFromParams(parameters)
+				p.ptShare = bfv.NewPlaintext(parameters)
 				RefreshParties[i] = p
 			}
 
@@ -691,7 +691,7 @@ func testRefresh(t *testing.T) {
 
 func newTestVectors(contextParams *dbfvTestContext, encryptor *bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
 	coeffsPol := contextParams.bfvContext.ContextT().NewUniformPoly()
-	plaintext = bfv.NewPlaintextFromParams(contextParams.params)
+	plaintext = bfv.NewPlaintext(contextParams.params)
 	contextParams.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext

@@ -85,8 +85,7 @@ func NewRefreshProtocol(params *bfv.Parameters) (refreshProtocol *RefreshProtoco
 	refreshProtocol.tmp2 = context.contextQ1P.NewPoly()
 	refreshProtocol.hP = context.contextP.NewPoly()
 
-	_, moduliP, _ := bfv.GenModuli(params)
-	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.contextQ1.Modulus, moduliP)
+	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.contextQ1, context.contextP)
 
 	return
 }

@@ -129,7 +129,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	}
 
 	// h0 = (s*ct[1]*P + e)/P
-	rfp.baseconverter.ModDownSplited(contextQ, contextP, rfp.context.rescaleParamsKeys, level, share.RefreshShareDecrypt, rfp.hP, share.RefreshShareDecrypt, rfp.tmp1)
+	rfp.baseconverter.ModDownSplitedPQ(level, share.RefreshShareDecrypt, rfp.hP, share.RefreshShareDecrypt)
 
 	// h1 = -s*a
 	contextKeys.NTT(crs, rfp.tmp1)
@@ -141,7 +141,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	sampler.SampleAndAdd(rfp.tmp2)
 
 	// h1 = (-s*a + e')/P
-	rfp.baseconverter.ModDown(contextKeys, rfp.context.rescaleParamsKeys, level, rfp.tmp2, share.RefreshShareRecrypt, rfp.tmp1)
+	rfp.baseconverter.ModDownPQ(level, rfp.tmp2, share.RefreshShareRecrypt)
 
 	// mask = (uniform plaintext in [0, T-1]) * floor(Q/T)
 	coeffs := contextT.NewUniformPoly()
@@ -180,7 +180,7 @@ func (rfp *RefreshProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, s
 	rfp.context.contextQ1.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value()[0])
 
 	// ciphertext[1] = crs/P
-	rfp.baseconverter.ModDown(rfp.context.contextQ1P, rfp.context.rescaleParamsKeys, uint64(len(ciphertextOut.Value()[1].Coeffs)-1), crs, ciphertextOut.Value()[1], rfp.tmp1)
+	rfp.baseconverter.ModDownPQ(uint64(len(ciphertextOut.Value()[1].Coeffs)-1), crs, ciphertextOut.Value()[1])
 
 }
 

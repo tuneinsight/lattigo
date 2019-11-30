@@ -31,13 +31,13 @@ func NewPCKSProtocol(ckksContext *ckks.Context, sigmaSmudging float64) *PCKSProt
 
 	pcks.ckksContext = ckksContext
 
-	pcks.gaussianSamplerSmudge = ckksContext.ContextKeys().NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	pcks.gaussianSamplerSmudge = ckksContext.ContextQP().NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
 
-	pcks.tmp = ckksContext.ContextKeys().NewPoly()
-	pcks.share0tmp = ckksContext.ContextKeys().NewPoly()
-	pcks.share1tmp = ckksContext.ContextKeys().NewPoly()
+	pcks.tmp = ckksContext.ContextQP().NewPoly()
+	pcks.share0tmp = ckksContext.ContextQP().NewPoly()
+	pcks.share1tmp = ckksContext.ContextQP().NewPoly()
 
-	pcks.baseconverter = ring.NewFastBasisExtender(ckksContext.ContextQ().Modulus, ckksContext.KeySwitchPrimes())
+	pcks.baseconverter = ring.NewFastBasisExtender(ckksContext.ContextQ(), ckksContext.ContextP())
 
 	return pcks
 }
@@ -57,8 +57,7 @@ func (pcks *PCKSProtocol) AllocateShares(level uint64) (s PCKSShare) {
 func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.Ciphertext, shareOut PCKSShare) {
 
 	contextQ := pcks.ckksContext.ContextQ()
-	contextP := pcks.ckksContext.ContextP()
-	contextKeys := pcks.ckksContext.ContextKeys()
+	contextKeys := pcks.ckksContext.ContextQP()
 
 	contextKeys.SampleTernaryMontgomeryNTT(pcks.tmp, 0.5)
 
@@ -75,11 +74,11 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	contextKeys.Add(pcks.share1tmp, pcks.tmp, pcks.share1tmp)
 
 	// h_0 = (u_i * pk_0 + e0)/P
-	pcks.baseconverter.ModDownNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), pcks.share0tmp, shareOut[0], pcks.tmp)
+	pcks.baseconverter.ModDownNTTPQ(ct.Level(), pcks.share0tmp, shareOut[0])
 
 	// h_1 = (u_i * pk_1 + e1)/P
 	// Cound be moved to the keyswitch part of the protocol, but the second element of the shares will be larger.
-	pcks.baseconverter.ModDownNTT(contextQ, contextP, pcks.ckksContext.RescaleParamsKeys(), ct.Level(), pcks.share1tmp, shareOut[1], pcks.tmp)
+	pcks.baseconverter.ModDownNTTPQ(ct.Level(), pcks.share1tmp, shareOut[1])
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
 	contextQ.MulCoeffsMontgomeryAndAddLvl(ct.Level(), ct.Value()[1], sk, shareOut[0])

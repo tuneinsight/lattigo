@@ -32,13 +32,13 @@ func NewCKSProtocol(ckksContext *ckks.Context, sigmaSmudging float64) *CKSProtoc
 	cks.ckksContext = ckksContext
 
 	cks.sigmaSmudging = sigmaSmudging
-	cks.gaussianSamplerSmudge = ckksContext.ContextKeys().NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	cks.gaussianSamplerSmudge = ckksContext.ContextQP().NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
 
-	cks.tmp = ckksContext.ContextKeys().NewPoly()
+	cks.tmp = ckksContext.ContextQP().NewPoly()
 	cks.tmpDelta = ckksContext.ContextQ().NewPoly()
 	cks.hP = ckksContext.ContextP().NewPoly()
 
-	cks.baseconverter = ring.NewFastBasisExtender(ckksContext.ContextQ().Modulus, ckksContext.KeySwitchPrimes())
+	cks.baseconverter = ring.NewFastBasisExtender(ckksContext.ContextQ(), ckksContext.ContextP())
 
 	return cks
 }
@@ -74,7 +74,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 	cks.gaussianSamplerSmudge.SampleNTT(cks.tmp)
 	contextQ.AddLvl(ct.Level(), shareOut, cks.tmp, shareOut)
 
-	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.ckksContext.ContextKeys().Modulus)); x, i = x+1, i+1 {
+	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.ckksContext.ContextQP().Modulus)); x, i = x+1, i+1 {
 		tmp0 := cks.tmp.Coeffs[i]
 		tmp1 := cks.hP.Coeffs[x]
 		for j := uint64(0); j < contextQ.N; j++ {
@@ -82,7 +82,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 		}
 	}
 
-	cks.baseconverter.ModDownSplitedNTT(contextQ, contextP, cks.ckksContext.RescaleParamsKeys(), ct.Level(), shareOut, cks.hP, shareOut, cks.tmp)
+	cks.baseconverter.ModDownSplitedNTTPQ(ct.Level(), shareOut, cks.hP, shareOut)
 
 	cks.hP.Zero()
 	cks.tmp.Zero()

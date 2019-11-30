@@ -124,11 +124,11 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	pcks.context.gaussianSampler.SampleAndAdd(pcks.share1tmp)
 
 	// h_0 = (u_i * pk_0 + e0)/P
-	pcks.baseconverter.ModDown(contextKeys, pcks.context.rescaleParamsKeys, uint64(len(contextQ.Modulus))-1, pcks.share0tmp, shareOut[0], pcks.tmp)
+	pcks.baseconverter.ModDownPQ(uint64(len(contextQ.Modulus))-1, pcks.share0tmp, shareOut[0])
 
 	// h_0 = (u_i * pk_0 + e0)/P
 	// Could be moved to the keyswitch phase, but the second element of the shares will be larger
-	pcks.baseconverter.ModDown(contextKeys, pcks.context.rescaleParamsKeys, uint64(len(contextQ.Modulus))-1, pcks.share1tmp, shareOut[1], pcks.tmp)
+	pcks.baseconverter.ModDownPQ(uint64(len(contextQ.Modulus))-1, pcks.share1tmp, shareOut[1])
 
 	// tmp = s_i*c_1
 	contextQ.NTT(ct.Value()[1], pcks.tmp)

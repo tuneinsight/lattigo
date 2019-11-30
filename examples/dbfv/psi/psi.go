@@ -193,7 +193,7 @@ func main() {
 	l.Println("> Encrypt Phase")
 	encryptor := bfv.NewEncryptorFromPk(params, pk)
 	encoder := bfv.NewEncoder(params)
-	pt := bfv.NewPlaintextFromParams(params)
+	pt := bfv.NewPlaintext(params)
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
 			encoder.EncodeUint(pi.input, pt)
@@ -280,7 +280,7 @@ func main() {
 
 	l.Println("> Result:")
 	decryptor := bfv.NewDecryptor(params, tsk)
-	ptres := bfv.NewPlaintextFromParams(params)
+	ptres := bfv.NewPlaintext(params)
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres) // TODO : manage error
 	})

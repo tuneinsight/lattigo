@@ -18,7 +18,7 @@ type CKGShare *ring.Poly
 // NewCKGProtocol creates a new CKGProtocol instance
 func NewCKGProtocol(ckksCtx *ckks.Context) *CKGProtocol {
 	ckg := new(CKGProtocol)
-	ckg.ringContext = ckksCtx.ContextKeys()
+	ckg.ringContext = ckksCtx.ContextQP()
 	ckg.gaussianSampler = ckksCtx.GaussianSampler()
 	return ckg
 }

@@ -18,8 +18,24 @@ type bfvElement struct {
 }
 
 // newBfvElement creates a new bfvElement of the target degree with zero values.
-func newBfvElement() *bfvElement {
-	return new(bfvElement)
+func newBfvElement(params *Parameters, degree uint64) *bfvElement {
+	el := new(bfvElement)
+	el.value = make([]*ring.Poly, degree+1)
+	for i := uint64(0); i < degree+1; i++ {
+		el.value[i] = ring.NewPoly(1<<params.LogN, uint64(len(params.Q1)))
+	}
+	el.isNTT = true
+	return el
+}
+
+func newBfvElementRandom(params *Parameters, degree uint64) *bfvElement {
+	el := new(bfvElement)
+	el.value = make([]*ring.Poly, degree+1)
+	for i := uint64(0); i < degree+1; i++ {
+		el.value[i] = ring.NewPolyUniform(1<<params.LogN, uint64(len(params.Q1)))
+	}
+	el.isNTT = true
+	return el
 }
 
 // Value returns the value of the target ciphertext (as a slice of polynomials in CRT form).

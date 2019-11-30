@@ -79,7 +79,7 @@ func testMarshaller(t *testing.T) {
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)
 
-			ciphertextTest := newBfvElement().Ciphertext()
+			ciphertextTest := newBfvElement(params.params, 1).Ciphertext()
 			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 			check(t, err)
 

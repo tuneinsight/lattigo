@@ -12,11 +12,8 @@ type Plaintext struct {
 
 // NewPlaintext creates a new plaintext from the target context.
 func NewPlaintext(params *Parameters) *Plaintext {
-	plaintext := &Plaintext{&bfvElement{}, nil}
-
-	plaintext.bfvElement.value = []*ring.Poly{ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Q1)))}
+	plaintext := &Plaintext{newBfvElement(params, 0), nil}
 	plaintext.value = plaintext.bfvElement.value[0]
 	plaintext.isNTT = false
-
 	return plaintext
 }

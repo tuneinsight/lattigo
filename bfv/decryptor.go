@@ -7,7 +7,7 @@ import (
 // Decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type Decryptor struct {
 	params     *Parameters
-	bfvContext *Context
+	bfvContext *bfvContext
 	sk         *SecretKey
 	polypool   *ring.Poly
 }
@@ -23,7 +23,7 @@ func NewDecryptor(params *Parameters, sk *SecretKey) (decryptor *Decryptor) {
 
 	decryptor.params = params.Copy()
 
-	decryptor.bfvContext = NewContext(params)
+	decryptor.bfvContext = newBFVContext(params)
 
 	decryptor.sk = sk
 

@@ -11,7 +11,7 @@ import (
 type Evaluator struct {
 	params *Parameters
 
-	bfvContext *Context
+	bfvContext *bfvContext
 
 	baseconverterQ1Q2 *ring.FastBasisExtender
 
@@ -34,7 +34,7 @@ func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 
 	evaluator = new(Evaluator)
 	evaluator.params = params.Copy()
-	evaluator.bfvContext = NewContext(params)
+	evaluator.bfvContext = newBFVContext(params)
 
 	evaluator.baseconverterQ1Q2 = ring.NewFastBasisExtender(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextQ2)
 	evaluator.baseconverterQ1P = ring.NewFastBasisExtender(evaluator.bfvContext.contextQ1, evaluator.bfvContext.contextP)

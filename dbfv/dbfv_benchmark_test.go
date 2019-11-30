@@ -21,13 +21,11 @@ func benchPublicKeyGen(b *testing.B) {
 
 	for _, parameters := range testParams.contexts {
 
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := bfvContext.ContextKeys()
-		sk0Shards := params.sk0Shards
+		sk0Shards := testCtx.sk0Shards
 
-		crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
+		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQ1P)
 
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.ClockNew()
@@ -71,10 +69,9 @@ func benchRelinKeyGen(b *testing.B) {
 
 	for _, parameters := range testParams.contexts {
 
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		sk0Shards := params.sk0Shards
+		sk0Shards := testCtx.sk0Shards
 
 		type Party struct {
 			*RKGProtocol
@@ -94,12 +91,12 @@ func benchRelinKeyGen(b *testing.B) {
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
 		p.rlk = bfv.NewRelinKey(parameters, 2)
 
-		crpGenerator := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
+		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQ1P)
 
 		crpGenerator.Seed([]byte{})
-		crp := make([]*ring.Poly, bfvContext.Beta())
+		crp := make([]*ring.Poly, testCtx.beta)
 
-		for i := uint64(0); i < bfvContext.Beta(); i++ {
+		for i := uint64(0); i < testCtx.beta; i++ {
 			crp[i] = crpGenerator.ClockNew()
 		}
 
@@ -151,7 +148,7 @@ func benchRelinKeyGenNaive(b *testing.B) {
 
 	for _, parameters := range testParams.contexts {
 
-		params := genDBFVContext(parameters)
+		params := genDBFVTestContext(parameters)
 
 		pk0 := params.pk0
 		sk0Shards := params.sk0Shards
@@ -212,7 +209,7 @@ func benchKeyswitching(b *testing.B) {
 
 	for _, parameters := range testParams.contexts {
 
-		params := genDBFVContext(parameters)
+		params := genDBFVTestContext(parameters)
 
 		sk0Shards := params.sk0Shards
 		sk1Shards := params.sk1Shards
@@ -259,7 +256,7 @@ func benchPublicKeySwitching(b *testing.B) {
 
 	for _, parameters := range testParams.contexts {
 
-		params := genDBFVContext(parameters)
+		params := genDBFVTestContext(parameters)
 
 		sk0Shards := params.sk0Shards
 		pk1 := params.pk1
@@ -305,11 +302,9 @@ func benchRotKeyGen(b *testing.B) {
 
 	for _, parameters := range testParams.contexts {
 
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := bfvContext.ContextKeys()
-		sk0Shards := params.sk0Shards
+		sk0Shards := testCtx.sk0Shards
 
 		type Party struct {
 			*RTGProtocol
@@ -322,15 +317,15 @@ func benchRotKeyGen(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShare()
 
-		crpGenerator := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
+		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQ1P)
 		crpGenerator.Seed([]byte{})
-		crp := make([]*ring.Poly, bfvContext.Beta())
+		crp := make([]*ring.Poly, testCtx.beta)
 
-		for i := uint64(0); i < bfvContext.Beta(); i++ {
+		for i := uint64(0); i < testCtx.beta; i++ {
 			crp[i] = crpGenerator.ClockNew()
 		}
 
-		mask := uint64((contextKeys.N >> 1) - 1)
+		mask := (testCtx.n >> 1) - 1
 
 		b.Run(testString("Round1/Gen", parameters), func(b *testing.B) {
 
@@ -362,11 +357,9 @@ func benchRefresh(b *testing.B) {
 
 	for _, parameters := range testParams.contexts {
 
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := bfvContext.ContextKeys()
-		sk0Shards := params.sk0Shards
+		sk0Shards := testCtx.sk0Shards
 
 		type Party struct {
 			*RefreshProtocol
@@ -379,7 +372,7 @@ func benchRefresh(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShares()
 
-		crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
+		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQ1P)
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.ClockNew()
 

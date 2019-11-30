@@ -23,7 +23,7 @@ func testString2(opname string, params *bfvParams) string {
 
 type bfvParams struct {
 	params      *Parameters
-	bfvContext  *Context
+	bfvContext  *bfvContext
 	encoder     *Encoder
 	kgen        *KeyGenerator
 	sk          *SecretKey
@@ -246,7 +246,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params.params = contextParameters.Copy()
 
-	params.bfvContext = NewContext(contextParameters)
+	params.bfvContext = newBFVContext(contextParameters)
 
 	params.kgen = NewKeyGenerator(contextParameters)
 

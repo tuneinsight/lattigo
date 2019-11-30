@@ -7,7 +7,7 @@ import (
 // Encryptor is a structure holding the parameters needed to encrypt plaintexts.
 type Encryptor struct {
 	params     *Parameters
-	bfvContext *Context
+	bfvContext *bfvContext
 	pk         *PublicKey
 	sk         *SecretKey
 	polypool   [3]*ring.Poly
@@ -39,7 +39,7 @@ func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *
 
 	encryptor = new(Encryptor)
 	encryptor.params = params.Copy()
-	encryptor.bfvContext = NewContext(params)
+	encryptor.bfvContext = newBFVContext(params)
 	encryptor.pk = pk
 	encryptor.sk = sk
 

@@ -9,7 +9,7 @@ import (
 // as well as a small memory pool for intermediate values.
 type KeyGenerator struct {
 	params     *Parameters
-	bfvContext *Context
+	bfvContext *bfvContext
 	polypool   *ring.Poly
 }
 
@@ -60,7 +60,7 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 func NewKeyGenerator(params *Parameters) (keygen *KeyGenerator) {
 	keygen = new(KeyGenerator)
 	params = params.Copy()
-	keygen.bfvContext = NewContext(params)
+	keygen.bfvContext = newBFVContext(params)
 	keygen.polypool = keygen.bfvContext.contextQ1P.NewPoly()
 	return
 }
@@ -238,7 +238,7 @@ func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 	return
 }
 
-func newswitchintkey(bfvContext *Context, skIn, skOut *ring.Poly) (switchkey *SwitchingKey) {
+func newswitchintkey(bfvContext *bfvContext, skIn, skOut *ring.Poly) (switchkey *SwitchingKey) {
 
 	switchkey = new(SwitchingKey)
 

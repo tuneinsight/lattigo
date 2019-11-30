@@ -11,7 +11,7 @@ func Benchmark_BFV(b *testing.B) {
 
 	for _, params := range paramSets {
 
-		bfvContext := NewContext(params)
+		bfvContext := newBFVContext(params)
 
 		var sk *SecretKey
 		var pk *PublicKey

@@ -17,9 +17,10 @@ func check(t *testing.T, err error) {
 }
 
 type dbfvTestContext struct {
+	*dbfvContext
+
 	params *bfv.Parameters
 
-	bfvContext *bfv.Context
 	encoder    *bfv.Encoder
 	kgen       *bfv.KeyGenerator
 
@@ -65,44 +66,46 @@ func Test_DBFV(t *testing.T) {
 
 }
 
-func genDBFVContext(contextParameters *bfv.Parameters) (params *dbfvTestContext) {
+func genDBFVTestContext(params *bfv.Parameters) (testCtx *dbfvTestContext) {
 
-	params = new(dbfvTestContext)
+	testCtx = new(dbfvTestContext)
 
-	params.params = contextParameters
-	params.bfvContext = bfv.NewContext(contextParameters)
+	testCtx.params = params
+	testCtx.dbfvContext = newDbfvContext(params)
 
-	params.encoder = bfv.NewEncoder(contextParameters)
-	params.evaluator = bfv.NewEvaluator(contextParameters)
+	testCtx.encoder = bfv.NewEncoder(params)
+	testCtx.evaluator = bfv.NewEvaluator(params)
 
-	kgen := bfv.NewKeyGenerator(contextParameters)
+	kgen := bfv.NewKeyGenerator(params)
+
+
 
 	// SecretKeys
-	params.sk0Shards = make([]*bfv.SecretKey, testParams.parties)
-	params.sk1Shards = make([]*bfv.SecretKey, testParams.parties)
-	tmp0 := params.bfvContext.ContextKeys().NewPoly()
-	tmp1 := params.bfvContext.ContextKeys().NewPoly()
+	testCtx.sk0Shards = make([]*bfv.SecretKey, testParams.parties)
+	testCtx.sk1Shards = make([]*bfv.SecretKey, testParams.parties)
+	tmp0 := testCtx.contextQ1P.NewPoly()
+	tmp1 := testCtx.contextQ1P.NewPoly()
 
 	for j := uint64(0); j < testParams.parties; j++ {
-		params.sk0Shards[j] = kgen.NewSecretKey()
-		params.sk1Shards[j] = kgen.NewSecretKey()
-		params.bfvContext.ContextKeys().Add(tmp0, params.sk0Shards[j].Get(), tmp0)
-		params.bfvContext.ContextKeys().Add(tmp1, params.sk1Shards[j].Get(), tmp1)
+		testCtx.sk0Shards[j] = kgen.NewSecretKey()
+		testCtx.sk1Shards[j] = kgen.NewSecretKey()
+		testCtx.contextQ1P.Add(tmp0, testCtx.sk0Shards[j].Get(), tmp0)
+		testCtx.contextQ1P.Add(tmp1, testCtx.sk1Shards[j].Get(), tmp1)
 	}
 
-	params.sk0 = new(bfv.SecretKey)
-	params.sk1 = new(bfv.SecretKey)
+	testCtx.sk0 = new(bfv.SecretKey)
+	testCtx.sk1 = new(bfv.SecretKey)
 
-	params.sk0.Set(tmp0)
-	params.sk1.Set(tmp1)
+	testCtx.sk0.Set(tmp0)
+	testCtx.sk1.Set(tmp1)
 
 	// Publickeys
-	params.pk0 = kgen.NewPublicKey(params.sk0)
-	params.pk1 = kgen.NewPublicKey(params.sk1)
+	testCtx.pk0 = kgen.NewPublicKey(testCtx.sk0)
+	testCtx.pk1 = kgen.NewPublicKey(testCtx.sk1)
 
-	params.encryptorPk0 = bfv.NewEncryptorFromPk(contextParameters, params.pk0)
-	params.decryptorSk0 = bfv.NewDecryptor(contextParameters, params.sk0)
-	params.decryptorSk1 = bfv.NewDecryptor(contextParameters, params.sk1)
+	testCtx.encryptorPk0 = bfv.NewEncryptorFromPk(params, testCtx.pk0)
+	testCtx.decryptorSk0 = bfv.NewDecryptor(params, testCtx.sk0)
+	testCtx.decryptorSk1 = bfv.NewDecryptor(params, testCtx.sk1)
 
 	return
 }
@@ -113,16 +116,14 @@ func testPublicKeyGen(t *testing.T) {
 
 	for _, parameters := range testParams.contexts {
 
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := bfvContext.ContextKeys()
-		sk0Shards := params.sk0Shards
-		decryptorSk0 := params.decryptorSk0
+		sk0Shards := testCtx.sk0Shards
+		decryptorSk0 := testCtx.decryptorSk0
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", testCtx.n, testCtx.contextQ1P.ModulusBigint.BitLen()), func(t *testing.T) {
 
-			crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
+			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQ1P)
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.ClockNew()
 
@@ -156,9 +157,9 @@ func testPublicKeyGen(t *testing.T) {
 			// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
 			encryptorTest := bfv.NewEncryptorFromPk(parameters, pk)
 
-			coeffs, _, ciphertext := newTestVectors(params, encryptorTest, t)
+			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorTest, t)
 
-			verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
+			verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
 		})
 	}
 }
@@ -168,16 +169,14 @@ func testRelinKeyGen(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := bfvContext.ContextKeys()
-		sk0Shards := params.sk0Shards
-		encryptorPk0 := params.encryptorPk0
-		decryptorSk0 := params.decryptorSk0
-		evaluator := params.evaluator
+		sk0Shards := testCtx.sk0Shards
+		encryptorPk0 := testCtx.encryptorPk0
+		decryptorSk0 := testCtx.decryptorSk0
+		evaluator := testCtx.evaluator
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", testCtx.n, testCtx.contextQ1P.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RKGProtocol
@@ -201,11 +200,11 @@ func testRelinKeyGen(t *testing.T) {
 
 			P0 := rkgParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
+			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQ1P)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, bfvContext.Beta())
+			crp := make([]*ring.Poly, testCtx.beta)
 
-			for i := uint64(0); i < bfvContext.Beta(); i++ {
+			for i := uint64(0); i < testCtx.beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
@@ -236,11 +235,11 @@ func testRelinKeyGen(t *testing.T) {
 			evk := bfv.NewRelinKey(parameters, 1)
 			P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
 
-			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
 			for i := range coeffs {
 				coeffs[i] *= coeffs[i]
-				coeffs[i] %= bfvContext.ContextT().Modulus[0]
+				coeffs[i] %= testCtx.contextT.Modulus[0]
 			}
 
 			ciphertextMul := bfv.NewCiphertext(parameters, ciphertext.Degree()*2)
@@ -249,7 +248,7 @@ func testRelinKeyGen(t *testing.T) {
 			res := bfv.NewCiphertext(parameters, 1)
 			evaluator.Relinearize(ciphertextMul, evk, res)
 
-			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
+			verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertextMul, t)
 		})
 	}
 }
@@ -259,17 +258,15 @@ func testRelinKeyGenNaive(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := bfvContext.ContextKeys()
-		evaluator := params.evaluator
-		pk0 := params.pk0
-		encryptorPk0 := params.encryptorPk0
-		decryptorSk0 := params.decryptorSk0
-		sk0Shards := params.sk0Shards
+		evaluator := testCtx.evaluator
+		pk0 := testCtx.pk0
+		encryptorPk0 := testCtx.encryptorPk0
+		decryptorSk0 := testCtx.decryptorSk0
+		sk0Shards := testCtx.sk0Shards
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", testCtx.n, testCtx.contextQ1P.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RKGProtocolNaive
@@ -310,11 +307,11 @@ func testRelinKeyGenNaive(t *testing.T) {
 			evk := bfv.NewRelinKey(parameters, 1)
 			P0.GenRelinearizationKey(P0.share2, evk)
 
-			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
 			for i := range coeffs {
 				coeffs[i] *= coeffs[i]
-				coeffs[i] %= bfvContext.ContextT().Modulus[0]
+				coeffs[i] %= testCtx.contextT.Modulus[0]
 			}
 
 			ciphertextMul := bfv.NewCiphertext(parameters, ciphertext.Degree()*2)
@@ -323,7 +320,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 			res := bfv.NewCiphertext(parameters, 1)
 			evaluator.Relinearize(ciphertextMul, evk, res)
 
-			verifyTestVectors(params, decryptorSk0, coeffs, ciphertextMul, t)
+			verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertextMul, t)
 		})
 	}
 }
@@ -333,16 +330,14 @@ func testKeyswitching(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := bfvContext.ContextKeys()
-		sk0Shards := params.sk0Shards
-		sk1Shards := params.sk1Shards
-		encryptorPk0 := params.encryptorPk0
-		decryptorSk1 := params.decryptorSk1
+		sk0Shards := testCtx.sk0Shards
+		sk1Shards := testCtx.sk1Shards
+		encryptorPk0 := testCtx.encryptorPk0
+		decryptorSk1 := testCtx.decryptorSk1
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", testCtx.n, testCtx.contextQ1P.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*CKSProtocol
@@ -362,7 +357,7 @@ func testKeyswitching(t *testing.T) {
 			}
 			P0 := cksParties[0]
 
-			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
 			// Each party creates its CKSProtocol instance with tmp = si-si'
 			for i, p := range cksParties {
@@ -375,11 +370,11 @@ func testKeyswitching(t *testing.T) {
 			ksCiphertext := bfv.NewCiphertext(parameters, 1)
 			P0.KeySwitch(P0.share, ciphertext, ksCiphertext)
 
-			verifyTestVectors(params, decryptorSk1, coeffs, ksCiphertext, t)
+			verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
 
 			P0.KeySwitch(P0.share, ciphertext, ciphertext)
 
-			verifyTestVectors(params, decryptorSk1, coeffs, ciphertext, t)
+			verifyTestVectors(testCtx, decryptorSk1, coeffs, ciphertext, t)
 
 		})
 	}
@@ -390,16 +385,14 @@ func testPublicKeySwitching(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := bfvContext.ContextKeys()
-		sk0Shards := params.sk0Shards
-		pk1 := params.pk1
-		encryptorPk0 := params.encryptorPk0
-		decryptorSk1 := params.decryptorSk1
+		sk0Shards := testCtx.sk0Shards
+		pk1 := testCtx.pk1
+		encryptorPk0 := testCtx.encryptorPk0
+		decryptorSk1 := testCtx.decryptorSk1
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", testCtx.n, testCtx.contextQ1P.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*PCKSProtocol
@@ -417,7 +410,7 @@ func testPublicKeySwitching(t *testing.T) {
 			}
 			P0 := pcksParties[0]
 
-			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
 			ciphertextSwitched := bfv.NewCiphertext(parameters, 1)
 
@@ -430,7 +423,7 @@ func testPublicKeySwitching(t *testing.T) {
 
 			P0.KeySwitch(P0.share, ciphertext, ciphertextSwitched)
 
-			verifyTestVectors(params, decryptorSk1, coeffs, ciphertextSwitched, t)
+			verifyTestVectors(testCtx, decryptorSk1, coeffs, ciphertextSwitched, t)
 		})
 	}
 }
@@ -441,16 +434,14 @@ func testRotKeyGenRotRows(t *testing.T) {
 
 	for _, parameters := range testParams.contexts {
 
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := bfvContext.ContextKeys()
-		evaluator := params.evaluator
-		encryptorPk0 := params.encryptorPk0
-		decryptorSk0 := params.decryptorSk0
-		sk0Shards := params.sk0Shards
+		evaluator := testCtx.evaluator
+		encryptorPk0 := testCtx.encryptorPk0
+		decryptorSk0 := testCtx.decryptorSk0
+		sk0Shards := testCtx.sk0Shards
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", testCtx.n, testCtx.contextQ1P.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RTGProtocol
@@ -468,11 +459,11 @@ func testRotKeyGenRotRows(t *testing.T) {
 			}
 			P0 := pcksParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
+			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQ1P)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, bfvContext.Beta())
+			crp := make([]*ring.Poly, testCtx.beta)
 
-			for i := uint64(0); i < bfvContext.Beta(); i++ {
+			for i := uint64(0); i < testCtx.beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
@@ -486,13 +477,13 @@ func testRotKeyGenRotRows(t *testing.T) {
 			rotkey := bfv.NewRotationKeys()
 			P0.Finalize(P0.share, crp, rotkey)
 
-			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
 			evaluator.RotateRows(ciphertext, rotkey, ciphertext)
 
-			coeffs = append(coeffs[contextKeys.N>>1:], coeffs[:contextKeys.N>>1]...)
+			coeffs = append(coeffs[testCtx.n>>1:], coeffs[:testCtx.n>>1]...)
 
-			verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
+			verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
 
 		})
 	}
@@ -504,16 +495,14 @@ func testRotKeyGenRotCols(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := bfvContext.ContextKeys()
-		evaluator := params.evaluator
-		encryptorPk0 := params.encryptorPk0
-		decryptorSk0 := params.decryptorSk0
-		sk0Shards := params.sk0Shards
+		evaluator := testCtx.evaluator
+		encryptorPk0 := testCtx.encryptorPk0
+		decryptorSk0 := testCtx.decryptorSk0
+		sk0Shards := testCtx.sk0Shards
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d", testCtx.n, testCtx.contextQ1P.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RTGProtocol
@@ -532,21 +521,21 @@ func testRotKeyGenRotCols(t *testing.T) {
 
 			P0 := pcksParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
+			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQ1P)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, bfvContext.Beta())
+			crp := make([]*ring.Poly, testCtx.beta)
 
-			for i := uint64(0); i < bfvContext.Beta(); i++ {
+			for i := uint64(0); i < testCtx.beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
-			mask := (contextKeys.N >> 1) - 1
+			mask := (testCtx.n >> 1) - 1
 
-			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
 			receiver := bfv.NewCiphertext(parameters, ciphertext.Degree())
 
-			for k := uint64(1); k < contextKeys.N>>1; k <<= 1 {
+			for k := uint64(1); k < testCtx.n>>1; k <<= 1 {
 
 				for i, p := range pcksParties {
 					p.GenShare(bfv.RotationLeft, k, p.s, crp, &p.share)
@@ -560,14 +549,14 @@ func testRotKeyGenRotCols(t *testing.T) {
 
 				evaluator.RotateColumns(ciphertext, k, rotkey, receiver)
 
-				coeffsWant := make([]uint64, contextKeys.N)
+				coeffsWant := make([]uint64, testCtx.n)
 
-				for i := uint64(0); i < contextKeys.N>>1; i++ {
+				for i := uint64(0); i < testCtx.n>>1; i++ {
 					coeffsWant[i] = coeffs[(i+k)&mask]
-					coeffsWant[i+(contextKeys.N>>1)] = coeffs[((i+k)&mask)+(contextKeys.N>>1)]
+					coeffsWant[i+(testCtx.n>>1)] = coeffs[((i+k)&mask)+(testCtx.n>>1)]
 				}
 
-				verifyTestVectors(params, decryptorSk0, coeffsWant, receiver, t)
+				verifyTestVectors(testCtx, decryptorSk0, coeffsWant, receiver, t)
 			}
 		})
 	}
@@ -578,20 +567,18 @@ func testRefresh(t *testing.T) {
 	parties := testParams.parties
 
 	for _, parameters := range testParams.contexts {
-		params := genDBFVContext(parameters)
+		testCtx := genDBFVTestContext(parameters)
 
-		bfvContext := params.bfvContext
-		contextKeys := params.bfvContext.ContextKeys()
-		encryptorPk0 := params.encryptorPk0
-		sk0Shards := params.sk0Shards
-		encoder := params.encoder
-		decryptorSk0 := params.decryptorSk0
+		encryptorPk0 := testCtx.encryptorPk0
+		sk0Shards := testCtx.sk0Shards
+		encoder := testCtx.encoder
+		decryptorSk0 := testCtx.decryptorSk0
 
 		kgen := bfv.NewKeyGenerator(parameters)
 
-		rlk := kgen.NewRelinKey(params.sk0, 2)
+		rlk := kgen.NewRelinKey(testCtx.sk0, 2)
 
-		t.Run(fmt.Sprintf("N=%d/logQ=%d/Refresh", contextKeys.N, contextKeys.ModulusBigint.BitLen()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/logQ=%d/Refresh", testCtx.n, testCtx.contextQ1P.ModulusBigint.BitLen()), func(t *testing.T) {
 
 			type Party struct {
 				*RefreshProtocol
@@ -612,11 +599,11 @@ func testRefresh(t *testing.T) {
 
 			P0 := RefreshParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, bfvContext.ContextKeys())
+			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQ1P)
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.ClockNew()
 
-			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, t)
+			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
 			maxDepth := 0
 
@@ -630,10 +617,10 @@ func testRefresh(t *testing.T) {
 			// Finds the maximum multiplicative depth
 			for true {
 
-				params.evaluator.Relinearize(params.evaluator.MulNew(ciphertextTmp, ciphertextTmp), rlk, ciphertextTmp)
+				testCtx.evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertextTmp, ciphertextTmp), rlk, ciphertextTmp)
 
 				for j := range coeffsTmp {
-					coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], bfvContext.ContextT().Modulus[0], bfvContext.ContextT().GetBredParams()[0])
+					coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], testCtx.contextT.Modulus[0], testCtx.contextT.GetBredParams()[0])
 				}
 
 				if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertextTmp))) {
@@ -644,18 +631,18 @@ func testRefresh(t *testing.T) {
 			}
 
 			// Simulated added error of size Q/(T^2) and add it to the fresh ciphertext
-			coeffsBigint := make([]*big.Int, bfvContext.N())
-			bfvContext.ContextQ1().PolyToBigint(ciphertext.Value()[0], coeffsBigint)
+			coeffsBigint := make([]*big.Int, testCtx.n)
+			testCtx.contextQ1.PolyToBigint(ciphertext.Value()[0], coeffsBigint)
 
-			errorRange := new(big.Int).Set(bfvContext.ContextQ1().ModulusBigint)
-			errorRange.Quo(errorRange, bfvContext.ContextT().ModulusBigint)
-			errorRange.Quo(errorRange, bfvContext.ContextT().ModulusBigint)
+			errorRange := new(big.Int).Set(testCtx.contextQ1.ModulusBigint)
+			errorRange.Quo(errorRange, testCtx.contextT.ModulusBigint)
+			errorRange.Quo(errorRange, testCtx.contextT.ModulusBigint)
 
-			for i := uint64(0); i < bfvContext.N(); i++ {
+			for i := uint64(0); i < testCtx.n; i++ {
 				coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(errorRange))
 			}
 
-			bfvContext.ContextQ1().SetCoefficientsBigint(coeffsBigint, ciphertext.Value()[0])
+			testCtx.contextQ1.SetCoefficientsBigint(coeffsBigint, ciphertext.Value()[0])
 
 			for i, p := range RefreshParties {
 				p.GenShares(p.s, ciphertext, crp, p.share)
@@ -674,10 +661,10 @@ func testRefresh(t *testing.T) {
 			// Square the refreshed ciphertext up to the maximum depth-1
 			for i := 0; i < maxDepth-1; i++ {
 
-				params.evaluator.Relinearize(params.evaluator.MulNew(ciphertext, ciphertext), rlk, ciphertext)
+				testCtx.evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertext, ciphertext), rlk, ciphertext)
 
 				for j := range coeffs {
-					coeffs[j] = ring.BRed(coeffs[j], coeffs[j], bfvContext.ContextT().Modulus[0], bfvContext.ContextT().GetBredParams()[0])
+					coeffs[j] = ring.BRed(coeffs[j], coeffs[j], testCtx.contextT.Modulus[0], testCtx.contextT.GetBredParams()[0])
 				}
 			}
 
@@ -690,7 +677,7 @@ func testRefresh(t *testing.T) {
 }
 
 func newTestVectors(contextParams *dbfvTestContext, encryptor *bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
-	coeffsPol := contextParams.bfvContext.ContextT().NewUniformPoly()
+	coeffsPol := contextParams.contextT.NewUniformPoly()
 	plaintext = bfv.NewPlaintext(contextParams.params)
 	contextParams.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
@@ -707,13 +694,13 @@ func Test_Marshalling(t *testing.T) {
 	params := bfv.DefaultParams[14]
 
 	//verify if the un.marshalling works properly
-	bfvCtx := bfv.NewContext(params)
+	dbfvCtx := newDbfvContext(params)
 	KeyGenerator := bfv.NewKeyGenerator(params)
-	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvCtx.ContextKeys())
+	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, dbfvCtx.contextQ1P)
 	sk := KeyGenerator.NewSecretKey()
 	crs := crsGen.ClockNew()
-	contextQ := bfvCtx.ContextQ1()
-	contextPKeys := bfvCtx.ContextP()
+	contextQ := dbfvCtx.contextQ1
+	contextPKeys := dbfvCtx.contextP
 
 	Ciphertext := bfv.NewCiphertextRandom(params, 1)
 
@@ -756,7 +743,7 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("PCKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 		//Check marshalling for the PCKS
 
-		KeySwitchProtocol := NewPCKSProtocol(params, bfvCtx.Sigma())
+		KeySwitchProtocol := NewPCKSProtocol(params, dbfvCtx.params.Sigma)
 		SwitchShare := KeySwitchProtocol.AllocateShares()
 		pk := KeyGenerator.NewPublicKey(sk)
 		KeySwitchProtocol.GenShare(sk.Get(), pk, Ciphertext, SwitchShare)
@@ -795,7 +782,7 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("CKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 
 		//Now for CKSShare ~ its similar to PKSShare
-		cksp := NewCKSProtocol(params, bfvCtx.Sigma())
+		cksp := NewCKSProtocol(params, dbfvCtx.params.Sigma)
 		cksshare := cksp.AllocateShare()
 		skIn := KeyGenerator.NewSecretKey()
 		skOut := KeyGenerator.NewSecretKey()
@@ -865,8 +852,8 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("RTG/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 
 		//check RTGShare
-		crpGenerator := ring.NewCRPGenerator(nil, bfvCtx.ContextKeys())
-		modulus := (bfvCtx.ContextQ1().Modulus)
+		crpGenerator := ring.NewCRPGenerator(nil, dbfvCtx.contextQ1P)
+		modulus := (dbfvCtx.contextQ1.Modulus)
 		crp := make([]*ring.Poly, len(modulus))
 		for j := 0; j < len(modulus); j++ {
 			crp[j] = crpGenerator.ClockNew() //make([]*ring.Poly, bitLog)
@@ -915,12 +902,12 @@ func Test_Marshalling(t *testing.T) {
 func Test_Relin_Marshalling(t *testing.T) {
 	params := bfv.DefaultParams[14]
 
-	bfvCtx := bfv.NewContext(params)
-	contextQ := bfvCtx.ContextQ1()
-	contextPKeys := bfvCtx.ContextP()
-	modulus := bfvCtx.ContextQ1().Modulus
+	dbfvCtx := newDbfvContext(params)
+	contextQ := dbfvCtx.contextQ1
+	contextPKeys := dbfvCtx.contextP
+	modulus := dbfvCtx.contextQ1.Modulus
 
-	crpGenerator := ring.NewCRPGenerator(nil, bfvCtx.ContextKeys())
+	crpGenerator := ring.NewCRPGenerator(nil, dbfvCtx.contextQ1P)
 
 	crp := make([]*ring.Poly, len(modulus))
 	for j := 0; j < len(modulus); j++ {

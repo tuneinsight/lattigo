@@ -9,7 +9,7 @@ import (
 // Encoder is a structure storing the parameters encode values on a plaintext in a SIMD fashion.
 type Encoder struct {
 	params       *Parameters
-	bfvContext   *Context
+	bfvContext   *bfvContext
 	indexMatrix  []uint64
 	simplescaler *ring.SimpleScaler
 	polypool     *ring.Poly
@@ -24,7 +24,7 @@ func NewEncoder(params *Parameters) (encoder *Encoder) {
 	encoder = new(Encoder)
 
 	encoder.params = params.Copy()
-	encoder.bfvContext = NewContext(params)
+	encoder.bfvContext = newBFVContext(params)
 
 	slots := encoder.bfvContext.n
 

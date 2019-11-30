@@ -54,8 +54,6 @@ func obliviousRiding() {
 
 	encoder := bfv.NewEncoder(params)
 
-	bfvContext := bfv.NewContext(params)
-
 	// Rider's keygen
 	kgen := bfv.NewKeyGenerator(params)
 
@@ -73,8 +71,8 @@ func obliviousRiding() {
 	fmt.Println("Homomorphic computations on batched integers")
 	fmt.Println("============================================")
 	fmt.Println()
-	fmt.Printf("Parameters : N=%d, T=%d, logQ = %d (%d limbs), sigma = %f \n",
-		bfvContext.N(), bfvContext.T(), bfvContext.LogQ(), len(params.Q1), bfvContext.Sigma())
+	fmt.Printf("Parameters : N=%d, T=%d, Q = %d limbs, sigma = %f \n",
+		1 << params.LogN, params.T, len(params.Q1)+len(params.P), params.Sigma)
 	fmt.Println()
 
 	maxvalue := uint64(math.Sqrt(float64(params.T)))    // max values = floor(sqrt(plaintext modulus))

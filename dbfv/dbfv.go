@@ -86,3 +86,8 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 		beta:            beta,
 	}
 }
+
+func NewCRPGenerator(params *bfv.Parameters, key []byte) *ring.CRPGenerator {
+	ctx := newDbfvContext(params)
+	return ring.NewCRPGenerator(key, ctx.contextQ1P)
+}

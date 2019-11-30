@@ -44,6 +44,10 @@ func sin2pi2pi(x complex128) complex128 {
 	return cmplx.Sin(6.283185307179586*(1.0/1.0)*x) * (1.0 / 6.283185307179586)
 }
 
+func cos2pi2pi(x complex128) complex128 {
+	return cmplx.Cos(6.283185307179586*(1.0/1.0)*x) * (1.0 / 1.7724538509055159)
+}
+
 func showcoeffs(decryptor *Decryptor, encoder *Encoder, slots uint64, ciphertext *Ciphertext, message string) (coeffs []complex128) {
 
 	coeffs = encoder.Decode(decryptor.DecryptNew(ciphertext), slots)

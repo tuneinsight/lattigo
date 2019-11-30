@@ -53,10 +53,10 @@ func init() {
 	testParams.verbose = true
 
 	testParams.ckksParameters = []*Parameters{
-		DefaultParams[13],
-		DefaultParams[14],
+		//DefaultParams[13],
+		//DefaultParams[14],
 		//DefaultParams[15],
-		//DefaultParams[16],
+		DefaultParams[16],
 	}
 }
 
@@ -73,6 +73,7 @@ func TestCKKS(t *testing.T) {
 	t.Run("Evaluator/Functions", testFunctions)
 	t.Run("Evaluator/EvaluatePoly", testEvaluatePoly)
 	t.Run("Evaluator/ChebyshevInterpolator", testChebyshevInterpolator)
+	t.Run("Evaluator/ChebyshevBoot", testChebyshevBoot)
 	t.Run("Evaluator/SwitchKeys", testSwitchKeys)
 	t.Run("Evaluator/Conjugate", testConjugate)
 	t.Run("Evaluator/RotateColumns", testRotateColumns)
@@ -784,6 +785,53 @@ func testChebyshevInterpolator(t *testing.T) {
 			}
 
 			ciphertext = params.evaluator.EvaluateChebyEco(ciphertext, cheby, rlk)
+
+			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+		})
+	}
+}
+
+func testChebyshevBoot(t *testing.T) {
+
+	for _, parameters := range testParams.ckksParameters {
+
+		params := genCkksParams(parameters)
+
+		rlk := params.kgen.NewRelinKey(params.sk)
+
+		t.Run(testString("Sin/", params), func(t *testing.T) {
+
+			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -15, 15, t)
+
+			cheby := Approximate(sin2pi2pi, -15, 15, 127)
+
+			for i := range values {
+				values[i] = sin2pi2pi(values[i])
+			}
+
+			ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
+
+			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+		})
+
+		t.Run(testString("Cos/", params), func(t *testing.T) {
+
+			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -7, 7, t)
+
+			cheby := Approximate(cos2pi2pi, -7.5, 7.5, 73)
+
+			for i := range values {
+				values[i] = sin2pi2pi(values[i])
+			}
+
+			params.evaluator.AddConst(ciphertext, -0.25, ciphertext)
+
+			ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, 2.0, cheby, rlk)
+
+			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
+			params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
+
+			params.evaluator.AddConst(ciphertext, -1.0/6.283185307179586, ciphertext)
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})

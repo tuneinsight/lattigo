@@ -57,6 +57,58 @@ func (evaluator *Evaluator) EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInt
 	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
 }
 
+// EvaluateChebyEco evaluates the input Chebyshev polynomial with the input ciphertext.
+// Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
+func (evaluator *Evaluator) EvaluateChebyEcoSpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
+
+	C := make(map[uint64]*Ciphertext)
+
+	C[1] = ct.CopyNew().Ciphertext()
+
+	evaluator.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
+	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
+	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
+
+	M := uint64(bits.Len64(cheby.degree - 1))
+	L := uint64(1)
+
+	for i := uint64(2); i <= (1 << L); i++ {
+		computePowerBasisCheby(i, C, evaluator, evakey)
+	}
+
+	for i := L + 1; i < M; i++ {
+		computePowerBasisCheby(1<<i, C, evaluator, evakey)
+	}
+
+	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
+}
+
+// EvaluateChebyEco evaluates the input Chebyshev polynomial with the input ciphertext.
+// Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
+func (evaluator *Evaluator) EvaluateChebyFastSpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
+
+	C := make(map[uint64]*Ciphertext)
+
+	C[1] = ct.CopyNew().Ciphertext()
+
+	evaluator.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
+	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
+	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
+
+	M := uint64(bits.Len64(cheby.degree - 1))
+	L := uint64(M >> 1)
+
+	for i := uint64(2); i <= (1 << L); i++ {
+		computePowerBasisCheby(i, C, evaluator, evakey)
+	}
+
+	for i := L + 1; i < M; i++ {
+		computePowerBasisCheby(1<<i, C, evaluator, evakey)
+	}
+
+	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
+}
+
 func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) {
 
 	// Given a hash table with the first three evaluations of the Chebyshev ring at x in the interval a, b:

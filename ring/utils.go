@@ -98,12 +98,19 @@ func IsPrime(num uint64) bool {
 	}
 
 	bredParams := BRedParams(num)
-	var mask uint64
+	var mask, b uint64
 	mask = (1 << uint64(bits.Len64(num))) - 1
 
 	for trial := 0; trial < 50; trial++ {
-		b := RandUniform(num-1, mask)
+
+		b = RandUniform(num-1, mask)
+
+		for b < 2 {
+			b = RandUniform(num-1, mask)
+		}
+
 		x := ModExp(b, s, num)
+
 		if x != 1 {
 			i := 0
 			for x != num-1 {

@@ -21,8 +21,8 @@ type dbfvTestContext struct {
 
 	params *bfv.Parameters
 
-	encoder    *bfv.Encoder
-	kgen       *bfv.KeyGenerator
+	encoder *bfv.Encoder
+	kgen    *bfv.KeyGenerator
 
 	sk0Shards []*bfv.SecretKey
 	sk0       *bfv.SecretKey
@@ -77,8 +77,6 @@ func genDBFVTestContext(params *bfv.Parameters) (testCtx *dbfvTestContext) {
 	testCtx.evaluator = bfv.NewEvaluator(params)
 
 	kgen := bfv.NewKeyGenerator(params)
-
-
 
 	// SecretKeys
 	testCtx.sk0Shards = make([]*bfv.SecretKey, testParams.parties)

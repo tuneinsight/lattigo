@@ -19,7 +19,7 @@ func NewDecryptor(params *Parameters, sk *SecretKey) *Decryptor {
 
 	decryptor.params = params.Copy()
 
-	decryptor.ckksContext = NewContext(params)
+	decryptor.ckksContext = newContext(params)
 
 	decryptor.sk = sk
 

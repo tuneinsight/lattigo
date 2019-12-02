@@ -27,7 +27,7 @@ func NewDecryptor(params *Parameters, sk *SecretKey) (decryptor *Decryptor) {
 
 	decryptor.sk = sk
 
-	decryptor.polypool = decryptor.bfvContext.contextQ1.NewPoly()
+	decryptor.polypool = decryptor.bfvContext.contextQ.NewPoly()
 
 	return decryptor
 }
@@ -45,7 +45,7 @@ func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 // Decrypt decrypts the input ciphertext and returns the result on the provided receiver plaintext.
 func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
-	ringContext := decryptor.bfvContext.contextQ1
+	ringContext := decryptor.bfvContext.contextQ
 
 	ringContext.NTT(ciphertext.value[ciphertext.Degree()], plaintext.value)
 

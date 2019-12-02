@@ -3,8 +3,10 @@ package bfv
 import (
 	"errors"
 	"fmt"
+	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
 	"math"
+	"math/bits"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree
@@ -13,12 +15,7 @@ const MaxLogN = 16
 // MaxModuliCount is the largest supported number of 60 moduli in the RNS representation
 const MaxModuliCount = 34
 
-// Modulies for 128 security according to http://homomorphicencryption.org/white_papers/security_homomorphic_encryption_white_paper.pdf
-
-// Power of 2 plaintext modulus
-var tPow2 = []uint64{2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144,
-	524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728, 268435456, 536870912,
-	1073741824, 2147483648, 4294967296}
+const MaxModuliSize = 60
 
 // Plaintext modulus allowing batching for the corresponding N in ascending bitsize.
 var tBatching = map[uint64][]uint64{
@@ -32,14 +29,76 @@ var tBatching = map[uint64][]uint64{
 		1073479681, 2147352577, 4293918721},
 }
 
+type Moduli struct {
+	Q    []uint64 // Ciphertext modulus
+	P    []uint64 // Keys additional modulus
+	QMul []uint64 // Ciphertext secondary modulus
+}
+
+type LogModuli struct {
+	LogQi    []uint64
+	LogPi    []uint64
+	LogQiMul []uint64
+}
+
 // Parameters represents a given parameter set for the BFV cryptosystem.
 type Parameters struct {
-	LogN  uint8   // Ring degree (power of 2)
-	T     uint64  // Plaintext modulus
-	Q1    []uint8 // Ciphertext modulus
-	P     []uint8 // Keys additional modulus
-	Q2    []uint8 // Ciphertext secondary modulus
+	Moduli
+	LogModuli
+	LogN  uint64 // Ring degree (power of 2)
+	T     uint64 // Plaintext modulus
+	LogQP uint64
 	Sigma float64 // Gaussian sampling variance
+	Alpha uint64
+	Beta  uint64
+}
+
+func init() {
+	for _, params := range DefaultParams {
+		params.Gen()
+	}
+}
+
+func (p *Parameters) Gen() {
+	if p.Q == nil && p.P == nil && p.QMul == nil {
+
+		p.Q, p.P, p.QMul = GenModuli(p)
+
+		tmp := ring.NewUint(p.Q[0])
+
+		for i := 1; i < len(p.Q); i++ {
+			tmp.Mul(tmp, ring.NewUint(p.Q[i]))
+		}
+
+		for i := 0; i < len(p.P); i++ {
+			tmp.Mul(tmp, ring.NewUint(p.P[i]))
+		}
+
+		p.LogQP = uint64(tmp.BitLen())
+
+	} else if p.LogQi == nil && p.LogPi == nil {
+
+		p.LogQi = make([]uint64, len(p.Q), len(p.Q))
+		for i := range p.Q {
+			p.LogQi[i] = uint64(bits.Len64(p.Q[i]) - 1)
+		}
+
+		p.LogPi = make([]uint64, len(p.P), len(p.P))
+		for i := range p.P {
+			p.LogPi[i] = uint64(bits.Len64(p.P[i]) - 1)
+		}
+
+		p.LogQiMul = make([]uint64, len(p.QMul), len(p.QMul))
+		for i := range p.QMul {
+			p.LogQiMul[i] = uint64(bits.Len64(p.QMul[i]) - 1)
+		}
+
+	} else {
+		panic("Invalid parameters : must set correctly either Moduli or LogModuli")
+	}
+
+	p.Alpha = uint64(len(p.P))
+	p.Beta = uint64(math.Ceil(float64(len(p.Q)) / float64(len(p.P))))
 }
 
 // Copy creates a copy of the target parameters.
@@ -48,23 +107,29 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 	paramsCopy = new(Parameters)
 	paramsCopy.LogN = p.LogN
 	paramsCopy.T = p.T
-
-	paramsCopy.Q1 = make([]uint8, len(p.Q1))
-	for i := range p.Q1 {
-		paramsCopy.Q1[i] = p.Q1[i]
-	}
-
-	paramsCopy.P = make([]uint8, len(p.P))
-	for i := range p.P {
-		paramsCopy.P[i] = p.P[i]
-	}
-
-	paramsCopy.Q2 = make([]uint8, len(p.Q2))
-	for i := range p.Q2 {
-		paramsCopy.Q2[i] = p.Q2[i]
-	}
-
 	paramsCopy.Sigma = p.Sigma
+
+	paramsCopy.Q = make([]uint64, len(p.Q))
+	copy(paramsCopy.Q, p.Q)
+
+	paramsCopy.P = make([]uint64, len(p.P))
+	copy(paramsCopy.P, p.P)
+
+	paramsCopy.QMul = make([]uint64, len(p.QMul))
+	copy(paramsCopy.QMul, p.QMul)
+
+	paramsCopy.LogQi = make([]uint64, len(p.LogQi))
+	copy(paramsCopy.LogQi, p.LogQi)
+
+	paramsCopy.LogPi = make([]uint64, len(p.LogPi))
+	copy(paramsCopy.LogPi, p.LogPi)
+
+	paramsCopy.LogQiMul = make([]uint64, len(p.LogQiMul))
+	copy(paramsCopy.LogQiMul, p.LogQiMul)
+
+	paramsCopy.LogQP = p.LogQP
+	paramsCopy.Alpha = p.Alpha
+	paramsCopy.Beta = p.Beta
 
 	return
 }
@@ -74,34 +139,42 @@ var DefaultParams = map[uint64]*Parameters{
 
 	//logQ1+P = 109
 	12: {LogN: 12,
-		T:     65537,
-		Q1:    []uint8{39, 39},
-		P:     []uint8{30},
-		Q2:    []uint8{60, 60},
+		T: 65537,
+		LogModuli: LogModuli{
+			LogQi:    []uint64{39, 39},
+			LogPi:    []uint64{30},
+			LogQiMul: []uint64{60, 60},
+		},
 		Sigma: 3.2},
 
 	//logQ1+P = 218
 	13: {LogN: 13,
-		T:     65537,
-		Q1:    []uint8{54, 54, 54},
-		P:     []uint8{55},
-		Q2:    []uint8{60, 60, 60},
+		T: 65537,
+		LogModuli: LogModuli{
+			LogQi:    []uint64{54, 54, 54},
+			LogPi:    []uint64{55},
+			LogQiMul: []uint64{60, 60, 60},
+		},
 		Sigma: 3.2},
 
 	//logQ1+P = 438
 	14: {LogN: 14,
-		T:     65537,
-		Q1:    []uint8{56, 55, 55, 54, 54, 54},
-		P:     []uint8{55, 55},
-		Q2:    []uint8{60, 60, 60, 60, 60, 60},
+		T: 65537,
+		LogModuli: LogModuli{
+			LogQi:    []uint64{56, 55, 55, 54, 54, 54},
+			LogPi:    []uint64{55, 55},
+			LogQiMul: []uint64{60, 60, 60, 60, 60, 60},
+		},
 		Sigma: 3.2},
 
 	//logQ1+P = 880
 	15: {LogN: 15,
-		T:     65537,
-		Q1:    []uint8{59, 59, 59, 58, 58, 58, 58, 58, 58, 58, 58, 58},
-		P:     []uint8{60, 60, 60},
-		Q2:    []uint8{60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60},
+		T: 65537,
+		LogModuli: LogModuli{
+			LogQi:    []uint64{59, 59, 59, 58, 58, 58, 58, 58, 58, 58, 58, 58},
+			LogPi:    []uint64{60, 60, 60},
+			LogQiMul: []uint64{60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60},
+		},
 		Sigma: 3.2},
 }
 
@@ -110,7 +183,7 @@ func (p *Parameters) Equals(other *Parameters) bool {
 	if p == other {
 		return true
 	}
-	return p.LogN == other.LogN && p.T == other.T && utils.EqualSliceUint8(p.Q1, other.Q1) && utils.EqualSliceUint8(p.P, other.P) && utils.EqualSliceUint8(p.Q2, other.Q2) && p.Sigma == other.Sigma
+	return p.LogN == other.LogN && p.T == other.T && utils.EqualSliceUint64(p.LogQi, other.LogQi) && utils.EqualSliceUint64(p.LogPi, other.LogPi) && utils.EqualSliceUint64(p.LogQiMul, other.LogQiMul) && p.Sigma == other.Sigma
 }
 
 // MarshalBinary returns a []byte representation of the parameter set
@@ -118,16 +191,30 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
-	b := utils.NewBuffer(make([]byte, 0, 4+((3+len(p.Q1)+len(p.Q2)+len(p.P))<<3)))
+	b := utils.NewBuffer(make([]byte, 0, 4+8+8+len(p.LogQi)+len(p.LogPi)+len(p.LogQiMul)))
+
 	b.WriteUint8(uint8(p.LogN))
-	b.WriteUint8(uint8(len(p.Q1)))
-	b.WriteUint8(uint8(len(p.P)))
-	b.WriteUint8(uint8(len(p.Q2)))
+	b.WriteUint8(uint8(len(p.LogQi)))
+	b.WriteUint8(uint8(len(p.LogPi)))
+	b.WriteUint8(uint8(len(p.LogQiMul)))
 	b.WriteUint64(p.T)
 	b.WriteUint64(uint64(p.Sigma * (1 << 32)))
-	b.WriteUint8Slice(p.Q1)
-	b.WriteUint8Slice(p.P)
-	b.WriteUint8Slice(p.Q2)
+
+	tmp := make([]uint8, len(p.LogQi)+len(p.LogPi)+len(p.LogQiMul), len(p.LogQi)+len(p.LogPi)+len(p.LogQiMul))
+
+	for i := range p.LogQi {
+		tmp[i] = uint8(p.LogQi[i])
+	}
+
+	for i := range p.LogPi {
+		tmp[i+len(p.LogQi)] = uint8(p.LogPi[i])
+	}
+
+	for i := range p.LogQiMul {
+		tmp[i+len(p.LogQi)+len(p.LogPi)] = uint8(p.LogQiMul[i])
+	}
+
+	b.WriteUint8Slice(tmp)
 	return b.Bytes(), nil
 }
 
@@ -138,34 +225,51 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	}
 	b := utils.NewBuffer(data)
 
-	p.LogN = b.ReadUint8()
+	p.LogN = uint64(b.ReadUint8())
 	if p.LogN > MaxLogN {
 		return errors.New("polynomial degree is too large")
 	}
 
-	lenQ1 := b.ReadUint8()
-	if lenQ1 > MaxModuliCount {
-		return fmt.Errorf("len(Q1) is larger than %d", MaxModuliCount)
+	lenLogQi := b.ReadUint8()
+	if lenLogQi > MaxModuliCount {
+		return fmt.Errorf("len(LogQi) is larger than %d", MaxModuliCount)
 	}
 
-	lenP := b.ReadUint8()
-	if lenP > MaxModuliCount {
-		return fmt.Errorf("len(lenP) is larger than %d", MaxModuliCount)
+	lenLogPi := b.ReadUint8()
+	if lenLogPi > MaxModuliCount {
+		return fmt.Errorf("len(LogPi) is larger than %d", MaxModuliCount)
 	}
 
-	lenQ2 := b.ReadUint8()
-	if lenQ2 > MaxModuliCount {
-		return fmt.Errorf("len(Q2) is larger than %d", MaxModuliCount)
+	lenLogQiMul := b.ReadUint8()
+	if lenLogQiMul > MaxModuliCount {
+		return fmt.Errorf("len(LogQiMul) is larger than %d", MaxModuliCount)
 	}
 
 	p.T = b.ReadUint64()
 	p.Sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
-	p.Q1 = make([]uint8, lenQ1, lenQ1)
-	p.P = make([]uint8, lenP, lenP)
-	p.Q2 = make([]uint8, lenQ2, lenQ2)
+	p.LogQi = make([]uint64, lenLogQi, lenLogQi)
+	p.LogPi = make([]uint64, lenLogPi, lenLogPi)
+	p.LogQiMul = make([]uint64, lenLogQiMul, lenLogQiMul)
 
-	b.ReadUint8Slice(p.Q1)
-	b.ReadUint8Slice(p.P)
-	b.ReadUint8Slice(p.Q2)
+	tmp := make([]uint8, lenLogQi+lenLogPi+lenLogQiMul, lenLogQi+lenLogPi+lenLogQiMul)
+
+	b.ReadUint8Slice(tmp[:lenLogQi])
+	b.ReadUint8Slice(tmp[lenLogQi : lenLogQi+lenLogPi])
+	b.ReadUint8Slice(tmp[lenLogQi+lenLogPi:])
+
+	for i := range p.LogQi {
+		p.LogQi[i] = uint64(tmp[i])
+	}
+
+	for i := range p.LogPi {
+		p.LogPi[i] = uint64(tmp[i+len(p.LogQi)])
+	}
+
+	for i := range p.LogQiMul {
+		p.LogQiMul[i] = uint64(tmp[i+len(p.LogQi)+len(p.LogPi)])
+	}
+
+	p.Gen()
+
 	return nil
 }

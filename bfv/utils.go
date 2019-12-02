@@ -23,61 +23,63 @@ func GenLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
 }
 
 // GenModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
-func GenModuli(params *Parameters) (Q1 []uint64, P []uint64, Q2 []uint64) {
+func GenModuli(params *Parameters) (Q []uint64, P []uint64, QMul []uint64) {
 
 	// Extracts all the different primes bit size and maps their number
 	primesbitlen := make(map[uint64]uint64)
-	for i, qi := range params.Q1 {
 
-		primesbitlen[uint64(qi)]++
+	for _, qi := range params.LogQi {
 
-		if uint64(params.Q1[i]) > 60 {
-			panic("provided moduli must be smaller than 61")
+		primesbitlen[qi]++
+
+		if qi > 60 {
+			panic("provided LogQi must be smaller than 61")
 		}
 	}
 
-	for _, pj := range params.P {
-		primesbitlen[uint64(pj)]++
+	for _, pj := range params.LogPi {
 
-		if uint64(pj) > 60 {
-			panic("provided P must be smaller than 61")
+		primesbitlen[pj]++
+
+		if pj > 60 {
+			panic("provided LogPi must be smaller than 61")
 		}
 	}
 
-	for i, qi := range params.Q2 {
+	for _, qi := range params.LogQiMul {
 
-		primesbitlen[uint64(qi)]++
+		primesbitlen[qi]++
 
-		if uint64(params.Q2[i]) > 60 {
-			panic("provided moduli must be smaller than 61")
+		if qi > 60 {
+			panic("provided LogQiMul must be smaller than 61")
 		}
 	}
 
 	// For each bitsize, finds that many primes
 	primes := make(map[uint64][]uint64)
 	for key, value := range primesbitlen {
-		primes[key] = ring.GenerateNTTPrimes(key, uint64(params.LogN), value)
+		primes[key] = ring.GenerateNTTPrimes(key, params.LogN, value)
 	}
 
 	// Assigns the primes to the ckks moduli chain
-	Q1 = make([]uint64, len(params.Q1))
-	for i, qi := range params.Q1 {
-		Q1[i] = primes[uint64(params.Q1[i])][0]
-		primes[uint64(qi)] = primes[uint64(qi)][1:]
+	Q = make([]uint64, len(params.LogQi))
+	for i, qi := range params.LogQi {
+		Q[i] = primes[qi][0]
+		primes[qi] = primes[qi][1:]
 	}
 
 	// Assigns the primes to the special primes list for the the keyscontext
-	P = make([]uint64, len(params.P))
-	for i, pj := range params.P {
-		P[i] = primes[uint64(pj)][0]
-		primes[uint64(pj)] = primes[uint64(pj)][1:]
+	P = make([]uint64, len(params.LogPi))
+	for i, pj := range params.LogPi {
+		P[i] = primes[pj][0]
+		primes[pj] = primes[pj][1:]
 	}
 
-	Q2 = make([]uint64, len(params.Q2))
-	for i, qi := range params.Q2 {
-		Q2[i] = primes[uint64(params.Q2[i])][0]
-		primes[uint64(qi)] = primes[uint64(qi)][1:]
+	QMul = make([]uint64, len(params.LogQiMul))
+	for i, qi := range params.LogQiMul {
+		QMul[i] = primes[qi][0]
+		primes[qi] = primes[qi][1:]
 	}
 
-	return Q1, P, Q2
+	return Q, P, QMul
 }

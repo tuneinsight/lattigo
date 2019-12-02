@@ -147,41 +147,42 @@ func GenModuli(params *Parameters) (Q []uint64, P []uint64) {
 
 	// Extracts all the different primes bit size and maps their number
 	primesbitlen := make(map[uint64]uint64)
-	for i, qi := range params.Q {
+	for _, qi := range params.LogQi {
 
-		primesbitlen[uint64(qi)]++
+		primesbitlen[qi]++
 
-		if uint64(params.Q[i]) > 60 {
-			panic("provided moduli must be smaller than 61")
+		if qi > 60 {
+			panic("provided LogQi must be smaller than 61")
 		}
 	}
 
-	for _, pj := range params.P {
-		primesbitlen[uint64(pj)]++
+	for _, pj := range params.LogPi {
 
-		if uint64(pj) > 60 {
-			panic("provided P must be smaller than 61")
+		primesbitlen[pj]++
+
+		if pj > 60 {
+			panic("provided LogPi must be smaller than 61")
 		}
 	}
 
 	// For each bitsize, finds that many primes
 	primes := make(map[uint64][]uint64)
 	for key, value := range primesbitlen {
-		primes[key] = ring.GenerateNTTPrimes(key, uint64(params.LogN), value)
+		primes[key] = ring.GenerateNTTPrimes(key, params.LogN, value)
 	}
 
 	// Assigns the primes to the ckks moduli chain
-	Q = make([]uint64, len(params.Q))
-	for i, qi := range params.Q {
-		Q[i] = primes[uint64(params.Q[i])][0]
-		primes[uint64(qi)] = primes[uint64(qi)][1:]
+	Q = make([]uint64, len(params.LogQi))
+	for i, qi := range params.LogQi {
+		Q[i] = primes[qi][0]
+		primes[qi] = primes[qi][1:]
 	}
 
 	// Assigns the primes to the special primes list for the the keyscontext
-	P = make([]uint64, len(params.P))
-	for i, pj := range params.P {
-		P[i] = primes[uint64(pj)][0]
-		primes[uint64(pj)] = primes[uint64(pj)][1:]
+	P = make([]uint64, len(params.LogPi))
+	for i, pj := range params.LogPi {
+		P[i] = primes[pj][0]
+		primes[pj] = primes[pj][1:]
 	}
 
 	return Q, P

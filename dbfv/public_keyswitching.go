@@ -80,21 +80,21 @@ func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtoco
 
 	pcks.context = context
 
-	pcks.gaussianSamplerSmudge = context.contextQ1P.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	pcks.gaussianSamplerSmudge = context.contextQP.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
 
-	pcks.tmp = context.contextQ1P.NewPoly()
-	pcks.share0tmp = context.contextQ1P.NewPoly()
-	pcks.share1tmp = context.contextQ1P.NewPoly()
+	pcks.tmp = context.contextQP.NewPoly()
+	pcks.share0tmp = context.contextQP.NewPoly()
+	pcks.share1tmp = context.contextQP.NewPoly()
 
-	pcks.baseconverter = ring.NewFastBasisExtender(context.contextQ1, context.contextP)
+	pcks.baseconverter = ring.NewFastBasisExtender(context.contextQ, context.contextP)
 
 	return pcks
 }
 
 // AllocateShares allocates the shares of the PCKS protocol
 func (pcks *PCKSProtocol) AllocateShares() (s PCKSShare) {
-	s[0] = pcks.context.contextQ1.NewPoly()
-	s[1] = pcks.context.contextQ1.NewPoly()
+	s[0] = pcks.context.contextQ.NewPoly()
+	s[1] = pcks.context.contextQ.NewPoly()
 	return
 }
 
@@ -105,8 +105,8 @@ func (pcks *PCKSProtocol) AllocateShares() (s PCKSShare) {
 // and broadcasts the result to the other j-1 parties.
 func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Ciphertext, shareOut PCKSShare) {
 
-	contextQ := pcks.context.contextQ1
-	contextKeys := pcks.context.contextQ1P
+	contextQ := pcks.context.contextQ
+	contextKeys := pcks.context.contextQP
 
 	contextKeys.SampleTernaryMontgomeryNTT(pcks.tmp, 0.5)
 
@@ -148,13 +148,13 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
 func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
 
-	pcks.context.contextQ1.Add(share1[0], share2[0], shareOut[0])
-	pcks.context.contextQ1.Add(share1[1], share2[1], shareOut[1])
+	pcks.context.contextQ.Add(share1[0], share2[0], shareOut[0])
+	pcks.context.contextQ.Add(share1[1], share2[1], shareOut[1])
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *bfv.Ciphertext) {
 
-	pcks.context.contextQ1.Add(ct.Value()[0], combined[0], ctOut.Value()[0])
-	pcks.context.contextQ1.Copy(combined[1], ctOut.Value()[1])
+	pcks.context.contextQ.Add(ct.Value()[0], combined[0], ctOut.Value()[0])
+	pcks.context.contextQ.Copy(combined[1], ctOut.Value()[1])
 }

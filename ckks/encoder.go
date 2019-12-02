@@ -25,7 +25,7 @@ func NewEncoder(params *Parameters) (encoder *Encoder) {
 
 	encoder = new(Encoder)
 	encoder.params = params.Copy()
-	encoder.ckksContext = NewContext(params)
+	encoder.ckksContext = newContext(params)
 	encoder.values = make([]complex128, encoder.ckksContext.maxSlots)
 	encoder.valuesfloat = make([]float64, encoder.ckksContext.n)
 	encoder.bigintCoeffs = make([]*big.Int, encoder.ckksContext.n)

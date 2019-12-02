@@ -17,8 +17,8 @@ func check(t *testing.T, err error) {
 	}
 }
 
-func testString2(opname string, params *bfvParams) string {
-	return fmt.Sprintf("%sparams=%d/logQ=%d", opname, params.bfvContext.n, params.bfvContext.logQ)
+func testString(opname string, params *Parameters) string {
+	return fmt.Sprintf("%sLogN=%d/logQ=%d", opname, params.LogN, params.LogQP)
 }
 
 type bfvParams struct {
@@ -70,9 +70,9 @@ func testMarshaller(t *testing.T) {
 
 		params := genBfvParams(parameters)
 
-		contextQ1P := params.bfvContext.contextQ1P
+		contextQP := params.bfvContext.contextQP
 
-		t.Run(testString2("Ciphertext/", params), func(t *testing.T) {
+		t.Run(testString("Ciphertext/", parameters), func(t *testing.T) {
 
 			ciphertextWant := NewCiphertextRandom(parameters, 2)
 
@@ -84,13 +84,13 @@ func testMarshaller(t *testing.T) {
 			check(t, err)
 
 			for i := range ciphertextWant.value {
-				if !params.bfvContext.contextQ1.Equal(ciphertextWant.value[i], ciphertextTest.value[i]) {
+				if !params.bfvContext.contextQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]) {
 					t.Errorf("Marshal Ciphertext")
 				}
 			}
 		})
 
-		t.Run(testString2("Sk/", params), func(t *testing.T) {
+		t.Run(testString("Sk/", parameters), func(t *testing.T) {
 
 			marshalledSk, err := params.sk.MarshalBinary()
 			check(t, err)
@@ -99,13 +99,13 @@ func testMarshaller(t *testing.T) {
 			err = sk.UnmarshalBinary(marshalledSk)
 			check(t, err)
 
-			if !contextQ1P.Equal(sk.sk, params.sk.sk) {
+			if !contextQP.Equal(sk.sk, params.sk.sk) {
 				t.Errorf("Marshal SecretKey")
 			}
 
 		})
 
-		t.Run(testString2("Pk/", params), func(t *testing.T) {
+		t.Run(testString("Pk/", parameters), func(t *testing.T) {
 
 			marshalledPk, err := params.pk.MarshalBinary()
 			check(t, err)
@@ -115,13 +115,13 @@ func testMarshaller(t *testing.T) {
 			check(t, err)
 
 			for k := range params.pk.pk {
-				if !contextQ1P.Equal(pk.pk[k], params.pk.pk[k]) {
+				if !contextQP.Equal(pk.pk[k], params.pk.pk[k]) {
 					t.Errorf("Marshal PublicKey element [%d]", k)
 				}
 			}
 		})
 
-		t.Run(testString2("EvaluationKey/", params), func(t *testing.T) {
+		t.Run(testString("EvaluationKey/", parameters), func(t *testing.T) {
 
 			evalkey := params.kgen.NewRelinKey(params.sk, 2)
 			data, err := evalkey.MarshalBinary()
@@ -139,7 +139,7 @@ func testMarshaller(t *testing.T) {
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
-						if !contextQ1P.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+						if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 							t.Errorf("Marshal EvaluationKey deg %d element [%d][%d]", deg, j, k)
 						}
 					}
@@ -147,7 +147,7 @@ func testMarshaller(t *testing.T) {
 			}
 		})
 
-		t.Run(testString2("SwitchingKey/", params), func(t *testing.T) {
+		t.Run(testString("SwitchingKey/", parameters), func(t *testing.T) {
 
 			skOut := params.kgen.NewSecretKey()
 
@@ -165,14 +165,14 @@ func testMarshaller(t *testing.T) {
 			for j := range evakeyWant {
 
 				for k := range evakeyWant[j] {
-					if !contextQ1P.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+					if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 						t.Errorf("Marshal Switchkey element [%d][%d]", j, k)
 					}
 				}
 			}
 		})
 
-		t.Run(testString2("RotationKey/", params), func(t *testing.T) {
+		t.Run(testString("RotationKey/", parameters), func(t *testing.T) {
 
 			rotationKey := NewRotationKeys()
 
@@ -199,7 +199,7 @@ func testMarshaller(t *testing.T) {
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
-							if !contextQ1P.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 								t.Errorf("Marshal RotKey RotateLeft %d element [%d][%d]", i, j, k)
 							}
 						}
@@ -214,7 +214,7 @@ func testMarshaller(t *testing.T) {
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
-							if !contextQ1P.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 								t.Errorf("Marshal RotKey RotateRight %d element [%d][%d]", i, j, k)
 							}
 						}
@@ -230,7 +230,7 @@ func testMarshaller(t *testing.T) {
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
-						if !contextQ1P.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
+						if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
 							t.Errorf("Marshal RotKey RotateRow element [%d][%d]", j, k)
 						}
 					}
@@ -305,7 +305,7 @@ func testEncoder(t *testing.T) {
 
 		params := genBfvParams(parameters)
 
-		t.Run(testString2("Encode&Decode/", params), func(t *testing.T) {
+		t.Run(testString("Encode&Decode/", parameters), func(t *testing.T) {
 
 			values, plaintext, _ := newTestVectors(params, nil, t)
 
@@ -320,14 +320,14 @@ func testEncryptor(t *testing.T) {
 
 		params := genBfvParams(parameters)
 
-		t.Run(testString2("EncryptFromPk/", params), func(t *testing.T) {
+		t.Run(testString("EncryptFromPk/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 
-		t.Run(testString2("EncryptFromSk/", params), func(t *testing.T) {
+		t.Run(testString("EncryptFromSk/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorSk, t)
 
@@ -342,7 +342,7 @@ func testEvaluatorAdd(t *testing.T) {
 
 		params := genBfvParams(parameters)
 
-		t.Run(testString2("CtCtInPlace/", params), func(t *testing.T) {
+		t.Run(testString("CtCtInPlace/", parameters), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
@@ -353,7 +353,7 @@ func testEvaluatorAdd(t *testing.T) {
 			verifyTestVectors(params, params.decryptor, values1, ciphertext1, t)
 		})
 
-		t.Run(testString2("CtCtNew/", params), func(t *testing.T) {
+		t.Run(testString("CtCtNew/", parameters), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
@@ -364,7 +364,7 @@ func testEvaluatorAdd(t *testing.T) {
 			verifyTestVectors(params, params.decryptor, values1, ciphertext1, t)
 		})
 
-		t.Run(testString2("CtPlain/", params), func(t *testing.T) {
+		t.Run(testString("CtPlain/", parameters), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, plaintext2, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
@@ -387,7 +387,7 @@ func testEvaluatorSub(t *testing.T) {
 
 		params := genBfvParams(parameters)
 
-		t.Run(testString2("CtCtInPlace/", params), func(t *testing.T) {
+		t.Run(testString("CtCtInPlace/", parameters), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
@@ -398,7 +398,7 @@ func testEvaluatorSub(t *testing.T) {
 			verifyTestVectors(params, params.decryptor, values1, ciphertext1, t)
 		})
 
-		t.Run(testString2("CtCtNew/", params), func(t *testing.T) {
+		t.Run(testString("CtCtNew/", parameters), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
@@ -409,7 +409,7 @@ func testEvaluatorSub(t *testing.T) {
 			verifyTestVectors(params, params.decryptor, values1, ciphertext1, t)
 		})
 
-		t.Run(testString2("CtPlain/", params), func(t *testing.T) {
+		t.Run(testString("CtPlain/", parameters), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, plaintext2, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
@@ -435,7 +435,7 @@ func testEvaluatorMul(t *testing.T) {
 
 		rlk := params.kgen.NewRelinKey(params.sk, 1)
 
-		t.Run(testString2("CtCt/", params), func(t *testing.T) {
+		t.Run(testString("CtCt/", parameters), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
@@ -447,7 +447,7 @@ func testEvaluatorMul(t *testing.T) {
 			verifyTestVectors(params, params.decryptor, values1, receiver, t)
 		})
 
-		t.Run(testString2("CtPlain/", params), func(t *testing.T) {
+		t.Run(testString("CtPlain/", parameters), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, plaintext2, _ := newTestVectors(params, params.encryptorPk, t)
@@ -458,7 +458,7 @@ func testEvaluatorMul(t *testing.T) {
 			verifyTestVectors(params, params.decryptor, values1, ciphertext1, t)
 		})
 
-		t.Run(testString2("Relinearize/", params), func(t *testing.T) {
+		t.Run(testString("Relinearize/", parameters), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorPk, t)
@@ -486,7 +486,7 @@ func testKeySwitch(t *testing.T) {
 		decryptorSk2 := NewDecryptor(parameters, sk2)
 		switchKey := params.kgen.NewSwitchingKey(params.sk, sk2)
 
-		t.Run(testString2("InPlace/", params), func(t *testing.T) {
+		t.Run(testString("InPlace/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
@@ -495,7 +495,7 @@ func testKeySwitch(t *testing.T) {
 			verifyTestVectors(params, decryptorSk2, values, ciphertext, t)
 		})
 
-		t.Run(testString2("New/", params), func(t *testing.T) {
+		t.Run(testString("New/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
@@ -514,7 +514,7 @@ func testRotateRows(t *testing.T) {
 		rotkey := NewRotationKeys()
 		params.kgen.GenRot(RotationRow, params.sk, 0, rotkey)
 
-		t.Run(testString2("InPlace/", params), func(t *testing.T) {
+		t.Run(testString("InPlace/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
@@ -525,7 +525,7 @@ func testRotateRows(t *testing.T) {
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 
-		t.Run(testString2("New/", params), func(t *testing.T) {
+		t.Run(testString("New/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
@@ -550,7 +550,7 @@ func testRotateCols(t *testing.T) {
 		mask := (params.bfvContext.n >> 1) - 1
 		slots := params.bfvContext.n >> 1
 
-		t.Run(testString2("InPlace/", params), func(t *testing.T) {
+		t.Run(testString("InPlace/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
@@ -568,7 +568,7 @@ func testRotateCols(t *testing.T) {
 			}
 		})
 
-		t.Run(testString2("New/", params), func(t *testing.T) {
+		t.Run(testString("New/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
@@ -585,7 +585,7 @@ func testRotateCols(t *testing.T) {
 			}
 		})
 
-		t.Run(testString2("Random/", params), func(t *testing.T) {
+		t.Run(testString("Random/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 

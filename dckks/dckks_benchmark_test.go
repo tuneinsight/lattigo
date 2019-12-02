@@ -1,7 +1,6 @@
 package dckks
 
 import (
-	"fmt"
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
 	"testing"
@@ -25,10 +24,9 @@ func benchPublicKeyGen(b *testing.B) {
 
 		params := gendckksTestContext(parameters)
 
-		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
 
-		crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextQP())
+		crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.ClockNew()
 
@@ -43,7 +41,7 @@ func benchPublicKeyGen(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.s1 = p.AllocateShares()
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {
 
 			// Each party creates a new CKGProtocol instance
 			for i := 0; i < b.N; i++ {
@@ -51,7 +49,7 @@ func benchPublicKeyGen(b *testing.B) {
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Agg", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Agg/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.AggregateShares(p.s1, p.s1, p.s1)
@@ -67,7 +65,6 @@ func benchRelinKeyGen(b *testing.B) {
 
 		params := gendckksTestContext(parameters)
 
-		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
 
 		type Party struct {
@@ -84,50 +81,50 @@ func benchRelinKeyGen(b *testing.B) {
 		p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
-		crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextQP())
+		crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
 		crpGenerator.Seed([]byte{})
-		crp := make([]*ring.Poly, ckksContext.Beta())
+		crp := make([]*ring.Poly, parameters.Beta)
 
-		for i := uint64(0); i < ckksContext.Beta(); i++ {
+		for i := uint64(0); i < parameters.Beta; i++ {
 			crp[i] = crpGenerator.ClockNew()
 		}
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round1Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round1Gen/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShareRoundOne(p.u, p.s, crp, p.share1)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round1Agg", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round1Agg/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.AggregateShareRoundOne(p.share1, p.share1, p.share1)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round2Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round2Gen/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShareRoundTwo(p.share1, p.s, crp, p.share2)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round2Agg", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round2Agg/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.AggregateShareRoundTwo(p.share2, p.share2, p.share2)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round3Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round3Gen/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShareRoundThree(p.share2, p.u, p.s, p.share3)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round3Agg", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round3Agg/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.AggregateShareRoundThree(p.share3, p.share3, p.share3)
@@ -144,7 +141,6 @@ func benchRelinKeyGenNaive(b *testing.B) {
 
 		params := gendckksTestContext(parameters)
 
-		ckksContext := params.ckksContext
 		pk0 := params.pk0
 		sk0Shards := params.sk0Shards
 
@@ -161,28 +157,28 @@ func benchRelinKeyGenNaive(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares()
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round1Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round1Gen/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShareRoundOne(p.s, pk0.Get(), p.share1)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round1Agg", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round1Agg/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.AggregateShareRoundOne(p.share1, p.share1, p.share1)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round2Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round2Gen/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShareRoundTwo(p.share1, p.s, pk0.Get(), p.share2)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Round2Agg", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Round2Agg/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.AggregateShareRoundTwo(p.share2, p.share2, p.share2)
@@ -200,7 +196,6 @@ func benchKeySwitching(b *testing.B) {
 
 		params := gendckksTestContext(parameters)
 
-		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
 		sk1Shards := params.sk1Shards
 
@@ -217,23 +212,23 @@ func benchKeySwitching(b *testing.B) {
 		p.s1 = sk1Shards[0].Get()
 		p.share = p.AllocateShare()
 
-		ciphertext := ckks.NewCiphertextRandom(parameters, 1, ckksContext.Levels()-1, ckksContext.Scale())
+		ciphertext := ckks.NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShare(p.s0, p.s1, ciphertext, p.share)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Agg", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Agg/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.AggregateShares(p.share, p.share, p.share)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/KS", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("KS/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.KeySwitch(p.share, ciphertext, ciphertext)
@@ -249,11 +244,10 @@ func benchPublicKeySwitching(b *testing.B) {
 
 		params := gendckksTestContext(parameters)
 
-		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
 		pk1 := params.pk1
 
-		ciphertext := ckks.NewCiphertextRandom(parameters, 1, ckksContext.Levels()-1, ckksContext.Scale())
+		ciphertext := ckks.NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
 
 		type Party struct {
 			*PCKSProtocol
@@ -266,21 +260,21 @@ func benchPublicKeySwitching(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShares(ciphertext.Level())
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShare(p.s, pk1, ciphertext, p.share)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Agg", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Agg/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.AggregateShares(p.share, p.share, p.share)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/KS", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("KS/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.KeySwitch(p.share, ciphertext, ciphertext)
@@ -291,12 +285,13 @@ func benchPublicKeySwitching(b *testing.B) {
 
 func benchRotKeyGen(b *testing.B) {
 
+	parties := testParams.parties
+
 	for _, parameters := range testParams.ckksParameters {
 
 		params := gendckksTestContext(parameters)
 
-		ckksContext := params.ckksContext
-		contextKeys := ckksContext.ContextQP()
+		contextKeys := params.dckksContext.contextQP
 		sk0Shards := params.sk0Shards
 
 		type Party struct {
@@ -310,24 +305,24 @@ func benchRotKeyGen(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShare()
 
-		crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextQP())
+		crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
 		crpGenerator.Seed([]byte{})
-		crp := make([]*ring.Poly, ckksContext.Beta())
+		crp := make([]*ring.Poly, parameters.Beta)
 
-		for i := uint64(0); i < ckksContext.Beta(); i++ {
+		for i := uint64(0); i < parameters.Beta; i++ {
 			crp[i] = crpGenerator.ClockNew()
 		}
 
 		mask := uint64((contextKeys.N >> 1) - 1)
 
-		b.Run(testString("Round1/Gen", parameters), func(b *testing.B) {
+		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShare(ckks.RotationRight, uint64(i)&mask, sk0Shards[0].Get(), crp, &p.share)
 			}
 		})
 
-		b.Run(testString("Round1/Agg", parameters), func(b *testing.B) {
+		b.Run(testString("Round1/Agg", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.Aggregate(p.share, p.share, p.share)
@@ -335,7 +330,7 @@ func benchRotKeyGen(b *testing.B) {
 		})
 
 		rotKey := ckks.NewRotationKeys()
-		b.Run(testString("Finalize", parameters), func(b *testing.B) {
+		b.Run(testString("Finalize", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.Finalize(parameters, p.share, crp, rotKey)
@@ -352,8 +347,8 @@ func benchRefresh(b *testing.B) {
 
 		params := gendckksTestContext(parameters)
 
-		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
+		contextQ := params.dckksContext.contextQ
 
 		levelStart := uint64(3)
 
@@ -369,44 +364,44 @@ func benchRefresh(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares(levelStart)
 
-		crpGenerator := ring.NewCRPGenerator(nil, ckksContext.ContextQ())
+		crpGenerator := ring.NewCRPGenerator(nil, contextQ)
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.ClockNew()
 
-		ciphertext := ckks.NewCiphertextRandom(parameters, 1, ckksContext.Levels()-1, ckksContext.Scale())
+		ciphertext := ckks.NewCiphertextRandom(parameters, 1, levelStart, parameters.Scale)
 
-		ckksContext.ContextQ().UniformPoly(ciphertext.Value()[0])
-		ckksContext.ContextQ().UniformPoly(ciphertext.Value()[1])
+		contextQ.UniformPoly(ciphertext.Value()[0])
+		contextQ.UniformPoly(ciphertext.Value()[1])
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Gen", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShares(p.s, levelStart, parties, ciphertext, crp, p.share1, p.share2)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Agg", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Agg/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.Aggregate(p.share1, p.share1, p.share1)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Decrypt", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Decrypt/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.Decrypt(ciphertext, p.share1)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Recode", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Recode/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.Recode(ciphertext)
 			}
 		})
 
-		b.Run(fmt.Sprintf("parties=%d/logN=%d/logQ=%d/levels=%d/scale=%f/Recrypt", parties, ckksContext.LogN(), ckksContext.LogQ(), ckksContext.Levels(), ckksContext.Scale()), func(b *testing.B) {
+		b.Run(testString("Recrypt/", parties, parameters), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.Recrypt(ciphertext, crp, p.share2)

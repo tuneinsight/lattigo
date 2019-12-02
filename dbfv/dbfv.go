@@ -1,8 +1,6 @@
 package dbfv
 
 import (
-	"math"
-
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 )
@@ -13,9 +11,6 @@ type dbfvContext struct {
 	// Polynomial degree
 	n uint64
 
-	// Plaintext Modulus
-	t uint64
-
 	// floor(Q/T) mod each Qi in Montgomery form
 	deltaMont []uint64
 
@@ -23,70 +18,54 @@ type dbfvContext struct {
 	gaussianSampler *ring.KYSampler
 
 	// Polynomial contexts
-	contextT   *ring.Context
-	contextQ1  *ring.Context
-	contextP   *ring.Context
-	contextQ1P *ring.Context
-	alpha      uint64
-	beta       uint64
+	contextT  *ring.Context
+	contextQ  *ring.Context
+	contextP  *ring.Context
+	contextQP *ring.Context
 }
 
 func newDbfvContext(params *bfv.Parameters) *dbfvContext {
+
 	LogN := params.LogN
 	n := uint64(1 << LogN)
-	t := params.T
 
-	moduliQ1, moduliP, _ := bfv.GenModuli(params)
-
-	contextT, err := ring.NewContextWithParams(n, []uint64{t})
+	contextT, err := ring.NewContextWithParams(n, []uint64{params.T})
 	if err != nil {
 		panic(err)
 	}
 
-	contextQ1, err := ring.NewContextWithParams(n, moduliQ1)
+	contextQ, err := ring.NewContextWithParams(n, params.Q)
 	if err != nil {
 		panic(err)
 	}
 
-	contextQ2, err := ring.NewContextWithParams(n, moduliQ2)
+	contextP, err := ring.NewContextWithParams(n, params.P)
 	if err != nil {
 		panic(err)
 	}
 
-	contextP, err := ring.NewContextWithParams(n, moduliP)
+	contextQP, err := ring.NewContextWithParams(n, append(params.Q, params.P...))
 	if err != nil {
 		panic(err)
 	}
 
-	contextQ1P, err := ring.NewContextWithParams(n, append(moduliQ1, moduliP...))
-	if err != nil {
-		panic(err)
-	}
+	deltaMont := bfv.GenLiftParams(contextQ, params.T)
 
-	deltaMont := bfv.GenLiftParams(contextQ1, t)
-
-	alpha := uint64(len(moduliP))
-	beta := uint64(math.Ceil(float64(len(moduliQ1)) / float64(alpha)))
-
-	gaussianSampler := contextQ1P.NewKYSampler(params.Sigma, int(6*params.Sigma))
+	gaussianSampler := contextQP.NewKYSampler(params.Sigma, int(6*params.Sigma))
 
 	return &dbfvContext{
-		params:          params,
+		params:          params.Copy(),
 		n:               n,
-		t:               t,
 		deltaMont:       deltaMont,
 		gaussianSampler: gaussianSampler,
 		contextT:        contextT,
-		contextQ1:       contextQ1,
-		contextQ2:       contextQ2,
+		contextQ:        contextQ,
 		contextP:        contextP,
-		contextQ1P:      contextQ1P,
-		alpha:           alpha,
-		beta:            beta,
+		contextQP:       contextQP,
 	}
 }
 
 func NewCRPGenerator(params *bfv.Parameters, key []byte) *ring.CRPGenerator {
 	ctx := newDbfvContext(params)
-	return ring.NewCRPGenerator(key, ctx.contextQ1P)
+	return ring.NewCRPGenerator(key, ctx.contextQP)
 }

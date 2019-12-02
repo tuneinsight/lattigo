@@ -31,7 +31,7 @@ func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 
 	evaluator.params = params.Copy()
 
-	evaluator.ckksContext = NewContext(params)
+	evaluator.ckksContext = newContext(params)
 
 	for i := 0; i < 5; i++ {
 		evaluator.ringpool[i] = evaluator.ckksContext.contextQ.NewPoly()
@@ -1203,11 +1203,11 @@ func (evaluator *Evaluator) RotateHoisted(ctIn *Ciphertext, rotations []uint64, 
 	c2InvNTT := contextQ.NewPoly()
 	contextQ.InvNTTLvl(ctIn.Level(), c2NTT, c2InvNTT)
 
-	c2QiQDecomp := make([]*ring.Poly, evaluator.ckksContext.beta)
-	c2QiPDecomp := make([]*ring.Poly, evaluator.ckksContext.beta)
-
-	alpha := evaluator.ckksContext.alpha
+	alpha := evaluator.params.Alpha
 	beta := uint64(math.Ceil(float64(ctIn.Level()+1) / float64(alpha)))
+
+	c2QiQDecomp := make([]*ring.Poly, beta)
+	c2QiPDecomp := make([]*ring.Poly, beta)
 
 	for i := uint64(0); i < beta; i++ {
 		c2QiQDecomp[i] = contextQ.NewPoly()
@@ -1282,7 +1282,7 @@ func (evaluator *Evaluator) switchKeyHoisted(ctIn *Ciphertext, c2QiQDecomp, c2Qi
 
 	reduce = 0
 
-	alpha := evaluator.ckksContext.alpha
+	alpha := evaluator.params.Alpha
 	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
 
 	// Key switching with crt decomposition for the Qi
@@ -1454,7 +1454,7 @@ func (evaluator *Evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 
 	reduce = 0
 
-	alpha := evaluator.ckksContext.alpha
+	alpha := evaluator.params.Alpha
 	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
 
 	// Key switching with crt decomposition for the Qi
@@ -1520,7 +1520,7 @@ func (evaluator *Evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2In
 
 	evaluator.decomposer.DecomposeAndSplit(level, beta, c2InvNTT, c2QiQ, c2QiP)
 
-	p0idxst := beta * evaluator.ckksContext.alpha
+	p0idxst := beta * evaluator.params.Alpha
 	p0idxed := p0idxst + evaluator.decomposer.Xalpha()[beta]
 
 	// c2_qi = cx mod qi mod qi

@@ -7,20 +7,17 @@ import (
 
 // RKGProtocolNaive is a structure storing the parameters for the naive EKG protocol.
 type RKGProtocolNaive struct {
-	context         *dbfvContext
-	gaussianSampler *ring.KYSampler
-	polypool        *ring.Poly
+	context  *dbfvContext
+	polypool *ring.Poly
 }
 
 // NewRKGProtocolNaive creates a new RKGProtocolNaive object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
 func NewRKGProtocolNaive(params *bfv.Parameters) (rkg *RKGProtocolNaive) {
 	context := newDbfvContext(params)
-
 	rkg = new(RKGProtocolNaive)
 	rkg.context = context
-	rkg.gaussianSampler = context.gaussianSampler
-	rkg.polypool = context.contextQ1P.NewPoly()
+	rkg.polypool = context.contextQP.NewPoly()
 	return
 }
 
@@ -32,12 +29,12 @@ type RKGNaiveShareRoundTwo [][2]*ring.Poly
 
 // AllocateShares shares allocates the shares of the RKG Naive protocol
 func (rkg *RKGProtocolNaive) AllocateShares() (r1 RKGNaiveShareRoundOne, r2 RKGNaiveShareRoundTwo) {
-	contextKeys := rkg.context.contextQ1P
+	contextKeys := rkg.context.contextQP
 
-	r1 = make([][2]*ring.Poly, rkg.context.beta)
-	r2 = make([][2]*ring.Poly, rkg.context.beta)
+	r1 = make([][2]*ring.Poly, rkg.context.params.Beta)
+	r2 = make([][2]*ring.Poly, rkg.context.params.Beta)
 
-	for i := uint64(0); i < rkg.context.beta; i++ {
+	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 		r1[i][0] = contextKeys.NewPoly()
 		r1[i][1] = contextKeys.NewPoly()
 
@@ -56,7 +53,7 @@ func (rkg *RKGProtocolNaive) AllocateShares() (r1 RKGNaiveShareRoundOne, r2 RKGN
 // and broadcasts it to all other j-1 parties.
 func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, shareOut RKGNaiveShareRoundOne) {
 
-	contextKeys := rkg.context.contextQ1P
+	contextKeys := rkg.context.contextQP
 
 	rkg.polypool.Copy(sk)
 
@@ -66,17 +63,18 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 	var index uint64
 
-	for i := uint64(0); i < rkg.context.beta; i++ {
+	for i := uint64(0); i < rkg.context.params.Beta; i++ {
+
 		// h_0 = e0
-		rkg.gaussianSampler.SampleNTT(shareOut[i][0])
+		rkg.context.gaussianSampler.SampleNTT(shareOut[i][0])
 		// h_1 = e1
-		rkg.gaussianSampler.SampleNTT(shareOut[i][0])
+		rkg.context.gaussianSampler.SampleNTT(shareOut[i][1])
 
 		// h_0 = e0 + [sk*P*(qiBarre*qiStar)%qi = sk*P, else 0]
 
-		for j := uint64(0); j < rkg.context.alpha; j++ {
+		for j := uint64(0); j < rkg.context.params.Alpha; j++ {
 
-			index = i*rkg.context.alpha + j
+			index = i*rkg.context.params.Alpha + j
 
 			qi := contextKeys.Modulus[index]
 
@@ -88,13 +86,13 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= uint64(len(rkg.context.contextQ1.Modulus)-1) {
+			if index >= uint64(len(rkg.context.contextQ.Modulus)-1) {
 				break
 			}
 		}
 	}
 
-	for i := uint64(0); i < rkg.context.beta; i++ {
+	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 		// u
 		contextKeys.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
 		// h_0 = pk_0 * u + e0 + P * sk * (qiBarre*qiStar)%qi
@@ -113,9 +111,9 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 // = [cpk[0] * u + P * s + e_0, cpk[1]*u + e_1]
 func (rkg *RKGProtocolNaive) AggregateShareRoundOne(share1, share2, shareOut RKGNaiveShareRoundOne) {
 
-	contextKeys := rkg.context.contextQ1P
+	contextKeys := rkg.context.contextQP
 
-	for i := uint64(0); i < rkg.context.beta; i++ {
+	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 		contextKeys.Add(share1[i][0], share2[i][0], shareOut[i][0])
 		contextKeys.Add(share1[i][1], share2[i][1], shareOut[i][1])
 	}
@@ -131,9 +129,9 @@ func (rkg *RKGProtocolNaive) AggregateShareRoundOne(share1, share2, shareOut RKG
 // And party broadcast this last result to the other j-1 parties.
 func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *ring.Poly, pk [2]*ring.Poly, shareOut RKGNaiveShareRoundTwo) {
 
-	contextKeys := rkg.context.contextQ1P
+	contextKeys := rkg.context.contextQP
 
-	for i := uint64(0); i < rkg.context.beta; i++ {
+	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 
 		// h_0 = sum(samples[0]) * sk
 		// h_1 = sum(samples[1]) * sk
@@ -150,11 +148,11 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[1], rkg.polypool, shareOut[i][1])
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v + e2
-		rkg.gaussianSampler.SampleNTT(rkg.polypool)
+		rkg.context.gaussianSampler.SampleNTT(rkg.polypool)
 		contextKeys.Add(shareOut[i][0], rkg.polypool, shareOut[i][0])
 
 		// h_1 = sum(samples[1]) * sk + pk1 * v + e3
-		rkg.gaussianSampler.SampleNTT(rkg.polypool)
+		rkg.context.gaussianSampler.SampleNTT(rkg.polypool)
 		contextKeys.Add(shareOut[i][1], rkg.polypool, shareOut[i][1])
 
 	}
@@ -172,9 +170,9 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 // = [-s*b + P * s^2 - (s*u + b) * e_cpk + s*e_0 + e_2, b + s*e_1 + e_3]
 func (rkg *RKGProtocolNaive) AggregateShareRoundTwo(share1, share2, shareOut RKGNaiveShareRoundTwo) {
 
-	contextKeys := rkg.context.contextQ1P
+	contextKeys := rkg.context.contextQP
 
-	for i := uint64(0); i < rkg.context.beta; i++ {
+	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 		contextKeys.Add(share1[i][0], share2[i][0], shareOut[i][0])
 		contextKeys.Add(share1[i][1], share2[i][1], shareOut[i][1])
 	}
@@ -183,10 +181,10 @@ func (rkg *RKGProtocolNaive) AggregateShareRoundTwo(share1, share2, shareOut RKG
 // GenRelinearizationKey finalizes the protocol and returns the common EvaluationKey.
 func (rkg *RKGProtocolNaive) GenRelinearizationKey(round2 RKGNaiveShareRoundTwo, evalKeyOut *bfv.EvaluationKey) {
 
-	contextKeys := rkg.context.contextQ1P
+	contextKeys := rkg.context.contextQP
 
 	key := evalKeyOut.Get()[0].Get()
-	for i := uint64(0); i < rkg.context.beta; i++ {
+	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 
 		key[i][0].Copy(round2[i][0])
 		key[i][1].Copy(round2[i][1])

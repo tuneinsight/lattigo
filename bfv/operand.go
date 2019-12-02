@@ -22,7 +22,7 @@ func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 	el := new(bfvElement)
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = ring.NewPoly(1<<params.LogN, uint64(len(params.Q1)))
+		el.value[i] = ring.NewPoly(1<<params.LogN, uint64(len(params.LogQi)))
 	}
 	el.isNTT = true
 	return el
@@ -32,7 +32,7 @@ func newBfvElementRandom(params *Parameters, degree uint64) *bfvElement {
 	el := new(bfvElement)
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = ring.NewPolyUniform(1<<params.LogN, uint64(len(params.Q1)))
+		el.value[i] = ring.NewPolyUniform(1<<params.LogN, uint64(len(params.LogQi)))
 	}
 	el.isNTT = true
 	return el
@@ -62,8 +62,8 @@ func (el *bfvElement) Resize(params *Parameters, degree uint64) {
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
 			el.value = append(el.value, []*ring.Poly{new(ring.Poly)}...)
-			el.value[el.Degree()].Coeffs = make([][]uint64, len(params.Q1))
-			for i := 0; i < len(params.Q1); i++ {
+			el.value[el.Degree()].Coeffs = make([][]uint64, len(params.LogQi))
+			for i := 0; i < len(params.LogQi); i++ {
 				el.value[el.Degree()].Coeffs[i] = make([]uint64, uint64(1<<params.LogN))
 			}
 		}

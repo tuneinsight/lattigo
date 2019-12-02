@@ -48,9 +48,9 @@ func NewEncoder(params *Parameters) (encoder *Encoder) {
 		pos &= (m - 1)
 	}
 
-	encoder.deltaMont = GenLiftParams(encoder.bfvContext.contextQ1, encoder.bfvContext.t)
+	encoder.deltaMont = GenLiftParams(encoder.bfvContext.contextQ, params.T)
 
-	encoder.simplescaler = ring.NewSimpleScaler(encoder.bfvContext.t, encoder.bfvContext.contextQ1)
+	encoder.simplescaler = ring.NewSimpleScaler(params.T, encoder.bfvContext.contextQ)
 	encoder.polypool = encoder.bfvContext.contextT.NewPoly()
 
 	return encoder
@@ -94,7 +94,7 @@ func (encoder *Encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 	for i := 0; i < len(coeffs); i++ {
 
 		if coeffs[i] < 0 {
-			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.bfvContext.t) + coeffs[i])
+			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.params.T) + coeffs[i])
 		} else {
 			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(coeffs[i])
 		}
@@ -111,7 +111,7 @@ func (encoder *Encoder) encodePlaintext(p *Plaintext) {
 
 	encoder.bfvContext.contextT.InvNTT(p.value, p.value)
 
-	ringContext := encoder.bfvContext.contextQ1
+	ringContext := encoder.bfvContext.contextQ
 
 	for i := len(ringContext.Modulus) - 1; i >= 0; i-- {
 		tmp1 := p.value.Coeffs[i]
@@ -154,7 +154,7 @@ func (encoder *Encoder) DecodeInt(plaintext *Plaintext) (coeffs []int64) {
 
 	coeffs = make([]int64, encoder.bfvContext.n)
 
-	modulus := int64(encoder.bfvContext.t)
+	modulus := int64(encoder.params.T)
 
 	for i := uint64(0); i < encoder.bfvContext.n; i++ {
 

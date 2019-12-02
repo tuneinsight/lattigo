@@ -66,7 +66,7 @@ func NewKeyGenerator(params *Parameters) (keygen *KeyGenerator) {
 
 	keygen = new(KeyGenerator)
 	keygen.params = params.Copy()
-	keygen.ckksContext = NewContext(params)
+	keygen.ckksContext = newContext(params)
 	keygen.ringContext = keygen.ckksContext.contextQP
 	keygen.polypool = keygen.ringContext.NewPoly()
 	return
@@ -238,8 +238,8 @@ func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 	context.MulScalarBigint(skIn, keygen.ckksContext.contextP.ModulusBigint, skIn)
 
-	alpha := keygen.ckksContext.alpha
-	beta := keygen.ckksContext.beta
+	alpha := keygen.params.Alpha
+	beta := keygen.params.Beta
 
 	var index uint64
 

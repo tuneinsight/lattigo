@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -126,8 +125,4 @@ func Benchmark_BFV(b *testing.B) {
 		})
 
 	}
-}
-
-func testString(opname string, params *Parameters) string {
-	return fmt.Sprintf("%s/params=%d", opname, params.LogN)
 }

@@ -43,7 +43,7 @@ func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *
 
 	encryptor = new(Encryptor)
 	encryptor.params = params.Copy()
-	encryptor.ckksContext = NewContext(params)
+	encryptor.ckksContext = newContext(params)
 	encryptor.pk = pk
 	encryptor.sk = sk
 

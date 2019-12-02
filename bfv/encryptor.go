@@ -43,11 +43,11 @@ func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *
 	encryptor.pk = pk
 	encryptor.sk = sk
 
-	encryptor.polypool[0] = encryptor.bfvContext.contextQ1P.NewPoly()
-	encryptor.polypool[1] = encryptor.bfvContext.contextQ1P.NewPoly()
-	encryptor.polypool[2] = encryptor.bfvContext.contextQ1P.NewPoly()
+	encryptor.polypool[0] = encryptor.bfvContext.contextQP.NewPoly()
+	encryptor.polypool[1] = encryptor.bfvContext.contextQP.NewPoly()
+	encryptor.polypool[2] = encryptor.bfvContext.contextQP.NewPoly()
 
-	encryptor.baseconverter = ring.NewFastBasisExtender(encryptor.bfvContext.contextQ1, encryptor.bfvContext.contextP)
+	encryptor.baseconverter = ring.NewFastBasisExtender(encryptor.bfvContext.contextQ, encryptor.bfvContext.contextP)
 
 	return
 }
@@ -87,7 +87,7 @@ func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext
 
 func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	ringContext := encryptor.bfvContext.contextQ1P
+	ringContext := encryptor.bfvContext.contextQP
 
 	// u
 	ringContext.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
@@ -112,7 +112,7 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
 	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])
 
-	ringContext = encryptor.bfvContext.contextQ1
+	ringContext = encryptor.bfvContext.contextQ
 
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
@@ -122,7 +122,7 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	ringContext := encryptor.bfvContext.contextQ1P
+	ringContext := encryptor.bfvContext.contextQP
 
 	// ct = [(-a*s + e)/P , a/P]
 	ringContext.UniformPoly(encryptor.polypool[1])
@@ -137,7 +137,7 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
 	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])
 
-	ringContext = encryptor.bfvContext.contextQ1
+	ringContext = encryptor.bfvContext.contextQ
 
 	// ct = [-a*s + m + e , a]
 	ringContext.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])

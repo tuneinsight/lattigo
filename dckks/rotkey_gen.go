@@ -7,9 +7,7 @@ import (
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
-	ckksContext *ckks.Context
-
-	gaussianSampler *ring.KYSampler
+	dckksContext *dckksContext
 
 	galElRotRow uint64
 	galElRotCol map[ckks.Rotation][]uint64
@@ -27,48 +25,43 @@ type RTGShare struct {
 
 // AllocateShare allocates the share the the RTG protocol.
 func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
-	rtgShare.Value = make([]*ring.Poly, rtg.ckksContext.Beta())
-	for i := uint64(0); i < rtg.ckksContext.Beta(); i++ {
-		rtgShare.Value[i] = rtg.ckksContext.ContextQP().NewPoly()
+	rtgShare.Value = make([]*ring.Poly, rtg.dckksContext.beta)
+	for i := uint64(0); i < rtg.dckksContext.beta; i++ {
+		rtgShare.Value[i] = rtg.dckksContext.contextQP.NewPoly()
 	}
 	return
 }
 
 // NewRotKGProtocol creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
-func NewRotKGProtocol(ckksContext *ckks.Context) (rtg *RTGProtocol) {
+func NewRotKGProtocol(params *ckks.Parameters) (rtg *RTGProtocol) {
 
 	rtg = new(RTGProtocol)
-	rtg.ckksContext = ckksContext
 
-	rtg.gaussianSampler = ckksContext.GaussianSampler()
+	dckksContext := newDckksContext(params)
 
-	rtg.tmpSwitchKey = make([][2]*ring.Poly, rtg.ckksContext.Beta())
+	rtg.dckksContext = dckksContext
+
+	rtg.tmpSwitchKey = make([][2]*ring.Poly, rtg.dckksContext.beta)
 	for i := range rtg.tmpSwitchKey {
-		rtg.tmpSwitchKey[i][0] = ckksContext.ContextQP().NewPoly()
-		rtg.tmpSwitchKey[i][1] = ckksContext.ContextQP().NewPoly()
+		rtg.tmpSwitchKey[i][0] = dckksContext.contextQP.NewPoly()
+		rtg.tmpSwitchKey[i][1] = dckksContext.contextQP.NewPoly()
 	}
 
-	rtg.tmpPoly = ckksContext.ContextQP().NewPoly()
+	rtg.tmpPoly = dckksContext.contextQP.NewPoly()
 
-	N := ckksContext.ContextQP().N
-	mask := (N << 1) - 1
+	N := dckksContext.n
 
 	rtg.galElRotCol = make(map[ckks.Rotation][]uint64)
 	for _, rotType := range []ckks.Rotation{ckks.RotationLeft, ckks.RotationRight} {
-		rtg.galElRotCol[rotType] = make([]uint64, N>>1)
-		rtg.galElRotCol[rotType][0] = 1
 
 		gen := ckks.GaloisGen
 		if rotType == ckks.RotationRight {
 			gen = ring.ModExp(gen, (N<<1)-1, N<<1)
 		}
 
-		for i := uint64(1); i < N>>1; i++ {
-			rtg.galElRotCol[rotType][i] = (rtg.galElRotCol[rotType][i-1] * gen) & mask
-		}
-	}
+		rtg.galElRotCol[rotType] = ring.GenGaloisParams(N, gen)
 
-	rtg.galElRotCol[ckks.RotationRight] = make([]uint64, N>>1)
+	}
 
 	rtg.galElRotRow = (N << 1) - 1
 
@@ -86,7 +79,7 @@ func (rtg *RTGProtocol) GenShare(rotType ckks.Rotation, k uint64, sk *ring.Poly,
 	shareOut.K = k
 	switch rotType {
 	case ckks.RotationRight, ckks.RotationLeft:
-		rtg.genShare(sk, rtg.galElRotCol[rotType][k&((rtg.ckksContext.N()>>1)-1)], crp, shareOut.Value)
+		rtg.genShare(sk, rtg.galElRotCol[rotType][k&((rtg.dckksContext.n>>1)-1)], crp, shareOut.Value)
 		return
 	case ckks.Conjugate:
 		rtg.genShare(sk, rtg.galElRotRow, crp, shareOut.Value)
@@ -97,29 +90,29 @@ func (rtg *RTGProtocol) GenShare(rotType ckks.Rotation, k uint64, sk *ring.Poly,
 // genswitchkey is a generic method to generate the public-share of the collective rotation-key.
 func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, evakey []*ring.Poly) {
 
-	contextQP := rtg.ckksContext.ContextQP()
+	contextQP := rtg.dckksContext.contextQP
 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly)
 	contextQP.Sub(rtg.tmpPoly, sk, rtg.tmpPoly)
 
-	contextQP.MulScalarBigint(rtg.tmpPoly, rtg.ckksContext.ContextP().ModulusBigint, rtg.tmpPoly)
+	contextQP.MulScalarBigint(rtg.tmpPoly, rtg.dckksContext.contextP.ModulusBigint, rtg.tmpPoly)
 
 	contextQP.InvMForm(rtg.tmpPoly, rtg.tmpPoly)
 
 	var index uint64
 
-	for i := uint64(0); i < rtg.ckksContext.Beta(); i++ {
+	for i := uint64(0); i < rtg.dckksContext.beta; i++ {
 
 		// e
-		evakey[i] = rtg.gaussianSampler.SampleNTTNew()
+		evakey[i] = rtg.dckksContext.gaussianSampler.SampleNTTNew()
 
 		// a is the CRP
 
 		// e + sk_in * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
-		for j := uint64(0); j < rtg.ckksContext.Alpha(); j++ {
+		for j := uint64(0); j < rtg.dckksContext.alpha; j++ {
 
-			index = i*rtg.ckksContext.Alpha() + j
+			index = i*rtg.dckksContext.alpha + j
 
 			qi := contextQP.Modulus[index]
 			tmp0 := rtg.tmpPoly.Coeffs[index]
@@ -130,7 +123,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= uint64(len(rtg.ckksContext.ContextQ().Modulus)-1) {
+			if index >= uint64(len(rtg.dckksContext.params.Q)-1) {
 				break
 			}
 		}
@@ -151,7 +144,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 //
 // [sum(a*a_j + (pi(a_j) - a_j) + e_j), a]
 func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
-	contextQP := rtg.ckksContext.ContextQP()
+	contextQP := rtg.dckksContext.contextQP
 
 	if share1.Type != share2.Type || share1.K != share2.K {
 		panic("cannot aggregate shares of different types")
@@ -159,7 +152,7 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
 
 	shareOut.Type = share1.Type
 	shareOut.K = share1.K
-	for i := uint64(0); i < rtg.ckksContext.Beta(); i++ {
+	for i := uint64(0); i < rtg.dckksContext.beta; i++ {
 		contextQP.Add(share1.Value[i], share2.Value[i], shareOut.Value[i])
 	}
 }
@@ -167,11 +160,11 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
 // Finalize finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
 func (rtg *RTGProtocol) Finalize(params *ckks.Parameters, share RTGShare, crp []*ring.Poly, rotKey *ckks.RotationKeys) {
 
-	k := share.K & ((rtg.ckksContext.N() >> 1) - 1)
+	k := share.K & ((rtg.dckksContext.n >> 1) - 1)
 
-	for i := uint64(0); i < rtg.ckksContext.Beta(); i++ {
+	for i := uint64(0); i < rtg.dckksContext.beta; i++ {
 		rtg.tmpSwitchKey[i][0].Copy(share.Value[i])
-		rtg.ckksContext.ContextQP().MForm(crp[i], rtg.tmpSwitchKey[i][1])
+		rtg.dckksContext.contextQP.MForm(crp[i], rtg.tmpSwitchKey[i][1])
 	}
 
 	rotKey.SetRotKey(params, rtg.tmpSwitchKey, share.Type, k)

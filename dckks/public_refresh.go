@@ -8,9 +8,9 @@ import (
 
 // RefreshProtocol is a struct storing the parameters for the Refresh protocol.
 type RefreshProtocol struct {
-	ckksContext *ckks.Context
-	tmp         *ring.Poly
-	maskBigint  []*big.Int
+	dckksContext *dckksContext
+	tmp          *ring.Poly
+	maskBigint   []*big.Int
 }
 
 // RefreshShareDecrypt is a struct storing the masked decryption share.
@@ -20,26 +20,31 @@ type RefreshShareDecrypt *ring.Poly
 type RefreshShareRecrypt *ring.Poly
 
 // NewRefreshProtocol creates a new instance of the Refresh protocol.
-func NewRefreshProtocol(ckksContext *ckks.Context) (refreshProtocol *RefreshProtocol) {
+func NewRefreshProtocol(params *ckks.Parameters) (refreshProtocol *RefreshProtocol) {
 	refreshProtocol = new(RefreshProtocol)
-	refreshProtocol.ckksContext = ckksContext
-	refreshProtocol.tmp = ckksContext.ContextQ().NewPoly()
-	refreshProtocol.maskBigint = make([]*big.Int, 1<<ckksContext.LogN())
+	dckksContext := newDckksContext(params)
+	refreshProtocol.dckksContext = dckksContext
+	refreshProtocol.tmp = dckksContext.contextQ.NewPoly()
+	refreshProtocol.maskBigint = make([]*big.Int, dckksContext.n)
 	return
 }
 
 // AllocateShares allocates the shares of the Refresh protocol.
 func (refreshProtocol *RefreshProtocol) AllocateShares(levelStart uint64) (RefreshShareDecrypt, RefreshShareRecrypt) {
-	return refreshProtocol.ckksContext.ContextQ().NewPolyLvl(levelStart), refreshProtocol.ckksContext.ContextQ().NewPoly()
+	return refreshProtocol.dckksContext.contextQ.NewPolyLvl(levelStart), refreshProtocol.dckksContext.contextQ.NewPoly()
 }
 
 // GenShares generates the decryption and recryption shares of the Refresh protocol.
 func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
 
-	context := refreshProtocol.ckksContext.ContextQ()
+	context := refreshProtocol.dckksContext.contextQ
 	sampler := context.NewKYSampler(3.19, 19)
 
-	bound := new(big.Int).Set(refreshProtocol.ckksContext.BigintChain()[levelStart])
+	bound := ring.NewUint(context.Modulus[0])
+	for i := uint64(1); i < levelStart+1; i++ {
+		bound.Mul(bound, ring.NewUint(context.Modulus[i]))
+	}
+
 	bound.Quo(bound, ring.NewUint(2*nParties))
 	boundHalf := new(big.Int).Rsh(bound, 1)
 
@@ -86,48 +91,52 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 
 // Aggregate adds share1 with share2 on shareOut.
 func (refreshProtocol *RefreshProtocol) Aggregate(share1, share2, shareOut *ring.Poly) {
-	refreshProtocol.ckksContext.ContextQ().AddLvl(uint64(len(share1.Coeffs)-1), share1, share2, shareOut)
+	refreshProtocol.dckksContext.contextQ.AddLvl(uint64(len(share1.Coeffs)-1), share1, share2, shareOut)
 }
 
 // Decrypt operates a masked decryption on the ciphertext with the given decryption share.
 func (refreshProtocol *RefreshProtocol) Decrypt(ciphertext *ckks.Ciphertext, shareDecrypt RefreshShareDecrypt) {
-	refreshProtocol.ckksContext.ContextQ().AddLvl(ciphertext.Level(), ciphertext.Value()[0], shareDecrypt, ciphertext.Value()[0])
+	refreshProtocol.dckksContext.contextQ.AddLvl(ciphertext.Level(), ciphertext.Value()[0], shareDecrypt, ciphertext.Value()[0])
 }
 
 // Recode takes a masked decrypted ciphertext at modulus Q_0 and returns the same masked decrypted ciphertext at modulus Q_L, with Q_0 << Q_L.
 func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
-	ckksContext := refreshProtocol.ckksContext
-	contextQ := refreshProtocol.ckksContext.ContextQ()
+	dckksContext := refreshProtocol.dckksContext
+	context := refreshProtocol.dckksContext.contextQ
 
-	contextQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+	context.InvNTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
 
-	contextQ.PolyToBigint(ciphertext.Value()[0], refreshProtocol.maskBigint)
+	context.PolyToBigint(ciphertext.Value()[0], refreshProtocol.maskBigint)
 
-	QStart := ckksContext.BigintChain()[ciphertext.Level()]
+	QStart := ring.NewUint(context.Modulus[0])
+	for i := uint64(1); i < ciphertext.Level()+1; i++ {
+		QStart.Mul(QStart, ring.NewUint(context.Modulus[i]))
+	}
+
 	QHalf := new(big.Int).Rsh(QStart, 1)
 
-	for ciphertext.Level() != ckksContext.Levels()-1 {
+	for ciphertext.Level() != uint64(len(dckksContext.params.Q)-1) {
 		ciphertext.Value()[0].Coeffs = append(ciphertext.Value()[0].Coeffs, make([][]uint64, 1)...)
-		ciphertext.Value()[0].Coeffs[ciphertext.Level()] = make([]uint64, 1<<ckksContext.LogN())
+		ciphertext.Value()[0].Coeffs[ciphertext.Level()] = make([]uint64, dckksContext.n)
 	}
 
 	var sign int
-	for i := uint64(0); i < 1<<ckksContext.LogN(); i++ {
+	for i := uint64(0); i < dckksContext.n; i++ {
 		sign = refreshProtocol.maskBigint[i].Cmp(QHalf)
 		if sign == 1 || sign == 0 {
 			refreshProtocol.maskBigint[i].Sub(refreshProtocol.maskBigint[i], QStart)
 		}
 	}
 
-	contextQ.SetCoefficientsBigintLvl(ciphertext.Level(), refreshProtocol.maskBigint, ciphertext.Value()[0])
+	context.SetCoefficientsBigintLvl(ciphertext.Level(), refreshProtocol.maskBigint, ciphertext.Value()[0])
 
-	contextQ.NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+	context.NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
 }
 
 // Recrypt operates a masked recryption on the masked decrypted ciphertext.
 func (refreshProtocol *RefreshProtocol) Recrypt(ciphertext *ckks.Ciphertext, crs *ring.Poly, shareRecrypt RefreshShareRecrypt) {
 
-	refreshProtocol.ckksContext.ContextQ().Add(ciphertext.Value()[0], shareRecrypt, ciphertext.Value()[0])
+	refreshProtocol.dckksContext.contextQ.Add(ciphertext.Value()[0], shareRecrypt, ciphertext.Value()[0])
 
 	ciphertext.Value()[1] = crs.CopyNew()
 }

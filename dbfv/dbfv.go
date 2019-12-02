@@ -25,7 +25,6 @@ type dbfvContext struct {
 	// Polynomial contexts
 	contextT   *ring.Context
 	contextQ1  *ring.Context
-	contextQ2  *ring.Context
 	contextP   *ring.Context
 	contextQ1P *ring.Context
 	alpha      uint64
@@ -37,7 +36,7 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 	n := uint64(1 << LogN)
 	t := params.T
 
-	moduliQ1, moduliP, moduliQ2 := bfv.GenModuli(params)
+	moduliQ1, moduliP, _ := bfv.GenModuli(params)
 
 	contextT, err := ring.NewContextWithParams(n, []uint64{t})
 	if err != nil {

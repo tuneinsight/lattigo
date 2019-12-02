@@ -23,7 +23,7 @@ func benchPublicKeyGen(b *testing.B) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
@@ -39,7 +39,7 @@ func benchPublicKeyGen(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.CKGProtocol = NewCKGProtocol(ckksContext)
+		p.CKGProtocol = NewCKGProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.s1 = p.AllocateShares()
 
@@ -65,7 +65,7 @@ func benchRelinKeyGen(b *testing.B) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
@@ -80,7 +80,7 @@ func benchRelinKeyGen(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.RKGProtocol = NewEkgProtocol(ckksContext)
+		p.RKGProtocol = NewEkgProtocol(parameters)
 		p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
@@ -142,7 +142,7 @@ func benchRelinKeyGenNaive(b *testing.B) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		pk0 := params.pk0
@@ -157,7 +157,7 @@ func benchRelinKeyGenNaive(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.RKGProtocolNaive = NewRKGProtocolNaive(ckksContext)
+		p.RKGProtocolNaive = NewRKGProtocolNaive(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares()
 
@@ -198,7 +198,7 @@ func benchKeySwitching(b *testing.B) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
@@ -212,7 +212,7 @@ func benchKeySwitching(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.CKSProtocol = NewCKSProtocol(ckksContext, 6.36)
+		p.CKSProtocol = NewCKSProtocol(parameters, 6.36)
 		p.s0 = sk0Shards[0].Get()
 		p.s1 = sk1Shards[0].Get()
 		p.share = p.AllocateShare()
@@ -247,7 +247,7 @@ func benchPublicKeySwitching(b *testing.B) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
@@ -262,7 +262,7 @@ func benchPublicKeySwitching(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.PCKSProtocol = NewPCKSProtocol(ckksContext, 6.36)
+		p.PCKSProtocol = NewPCKSProtocol(parameters, 6.36)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShares(ciphertext.Level())
 
@@ -293,7 +293,7 @@ func benchRotKeyGen(b *testing.B) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		contextKeys := ckksContext.ContextQP()
@@ -306,7 +306,7 @@ func benchRotKeyGen(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.RTGProtocol = NewRotKGProtocol(ckksContext)
+		p.RTGProtocol = NewRotKGProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShare()
 
@@ -350,7 +350,7 @@ func benchRefresh(b *testing.B) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		sk0Shards := params.sk0Shards
@@ -365,7 +365,7 @@ func benchRefresh(b *testing.B) {
 		}
 
 		p := new(Party)
-		p.RefreshProtocol = NewRefreshProtocol(ckksContext)
+		p.RefreshProtocol = NewRefreshProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares(levelStart)
 

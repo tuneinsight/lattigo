@@ -15,7 +15,7 @@ func check(t *testing.T, err error) {
 	}
 }
 
-type dckksContext struct {
+type dckksTestContext struct {
 	params      *ckks.Parameters
 	ckksContext *ckks.Context
 	encoder     *ckks.Encoder
@@ -72,9 +72,9 @@ func TestDCKKS(t *testing.T) {
 	t.Run("Refresh", testRefresh)
 }
 
-func genDCKKSContext(contextParameters *ckks.Parameters) (params *dckksContext) {
+func gendckksTestContext(contextParameters *ckks.Parameters) (params *dckksTestContext) {
 
-	params = new(dckksContext)
+	params = new(dckksTestContext)
 
 	params.params = contextParameters.Copy()
 
@@ -123,7 +123,7 @@ func testPublicKeyGen(t *testing.T) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		decryptorSk0 := params.decryptorSk0
@@ -150,7 +150,7 @@ func testPublicKeyGen(t *testing.T) {
 				ckgParties := make([]*Party, parties)
 				for i := uint64(0); i < parties; i++ {
 					p := new(Party)
-					p.CKGProtocol = NewCKGProtocol(ckksContext)
+					p.CKGProtocol = NewCKGProtocol(parameters)
 					p.s = sk0Shards[i].Get()
 					p.s1 = p.AllocateShares()
 					ckgParties[i] = p
@@ -184,7 +184,7 @@ func testRelinKeyGen(t *testing.T) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		evaluator := params.evaluator
@@ -213,7 +213,7 @@ func testRelinKeyGen(t *testing.T) {
 
 				for i := range rkgParties {
 					p := new(Party)
-					p.RKGProtocol = NewEkgProtocol(ckksContext)
+					p.RKGProtocol = NewEkgProtocol(parameters)
 					p.u = p.NewEphemeralKey(1.0 / 3.0)
 					p.s = sk0Shards[i].Get()
 					p.share1, p.share2, p.share3 = p.AllocateShares()
@@ -283,7 +283,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		evaluator := params.evaluator
@@ -312,7 +312,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 
 				for i := range rkgParties {
 					p := new(Party)
-					p.RKGProtocolNaive = NewRKGProtocolNaive(ckksContext)
+					p.RKGProtocolNaive = NewRKGProtocolNaive(parameters)
 					p.s = sk0Shards[i].Get()
 					p.share1, p.share2 = p.AllocateShares()
 					rkgParties[i] = p
@@ -364,7 +364,7 @@ func testKeyswitching(t *testing.T) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		encryptorPk0 := params.encryptorPk0
@@ -390,7 +390,7 @@ func testKeyswitching(t *testing.T) {
 				cksParties := make([]*Party, parties)
 				for i := uint64(0); i < parties; i++ {
 					p := new(Party)
-					p.CKSProtocol = NewCKSProtocol(ckksContext, 6.36)
+					p.CKSProtocol = NewCKSProtocol(parameters, 6.36)
 					p.s0 = sk0Shards[i].Get()
 					p.s1 = sk1Shards[i].Get()
 					p.share = p.AllocateShare()
@@ -428,7 +428,7 @@ func testPublicKeySwitching(t *testing.T) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		encryptorPk0 := params.encryptorPk0
@@ -457,7 +457,7 @@ func testPublicKeySwitching(t *testing.T) {
 				pcksParties := make([]*Party, parties)
 				for i := uint64(0); i < parties; i++ {
 					p := new(Party)
-					p.PCKSProtocol = NewPCKSProtocol(ckksContext, 6.36)
+					p.PCKSProtocol = NewPCKSProtocol(parameters, 6.36)
 					p.s = sk0Shards[i].Get()
 					p.share = p.AllocateShares(ciphertext.Level())
 					pcksParties[i] = p
@@ -486,7 +486,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		contextKeys := ckksContext.ContextQP()
@@ -506,7 +506,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 			pcksParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.RTGProtocol = NewRotKGProtocol(ckksContext)
+				p.RTGProtocol = NewRotKGProtocol(parameters)
 				p.s = sk0Shards[i].Get()
 				p.share = p.AllocateShare()
 				pcksParties[i] = p
@@ -553,7 +553,7 @@ func testRotKeyGenCols(t *testing.T) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		contextKeys := ckksContext.ContextQP()
@@ -573,7 +573,7 @@ func testRotKeyGenCols(t *testing.T) {
 			pcksParties := make([]*Party, parties)
 			for i := uint64(0); i < parties; i++ {
 				p := new(Party)
-				p.RTGProtocol = NewRotKGProtocol(ckksContext)
+				p.RTGProtocol = NewRotKGProtocol(parameters)
 				p.s = sk0Shards[i].Get()
 				p.share = p.AllocateShare()
 				pcksParties[i] = p
@@ -627,7 +627,7 @@ func testRefresh(t *testing.T) {
 
 	for _, parameters := range testParams.ckksParameters {
 
-		params := genDCKKSContext(parameters)
+		params := gendckksTestContext(parameters)
 
 		ckksContext := params.ckksContext
 		evaluator := params.evaluator
@@ -655,7 +655,7 @@ func testRefresh(t *testing.T) {
 				RefreshParties := make([]*Party, parties)
 				for i := uint64(0); i < parties; i++ {
 					p := new(Party)
-					p.RefreshProtocol = NewRefreshProtocol(ckksContext)
+					p.RefreshProtocol = NewRefreshProtocol(parameters)
 					p.s = sk0Shards[i].Get()
 					p.share1, p.share2 = p.AllocateShares(levelStart)
 					RefreshParties[i] = p
@@ -692,7 +692,7 @@ func testRefresh(t *testing.T) {
 	}
 }
 
-func newTestVectors(contextParams *dckksContext, encryptor *ckks.Encryptor, a float64, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
+func newTestVectors(contextParams *dckksTestContext, encryptor *ckks.Encryptor, a float64, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
 
 	slots := contextParams.ckksContext.Slots()
 
@@ -713,7 +713,7 @@ func newTestVectors(contextParams *dckksContext, encryptor *ckks.Encryptor, a fl
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(contextParams *dckksContext, decryptor *ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(contextParams *dckksTestContext, decryptor *ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128

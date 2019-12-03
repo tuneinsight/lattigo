@@ -36,11 +36,18 @@ var tBatching = map[uint64][]uint64{
 		1073479681, 2147352577, 4293918721},
 }
 
+const (
+	P12QP109 = iota
+	P13QP218
+	P14QP438
+	P15QP880
+)
+
 // DefaultParams is a set of default BFV parameters ensuring 128 bit security.
-var DefaultParams = map[uint64]*Parameters{
+var DefaultParams = []*Parameters{
 
 	//logQ1+P = 109
-	12: {LogN: 12,
+	{LogN: 12,
 		T: 65537,
 		LogModuli: LogModuli{
 			LogQi:    []uint64{39, 39},
@@ -50,7 +57,7 @@ var DefaultParams = map[uint64]*Parameters{
 		Sigma: 3.2},
 
 	//logQ1+P = 218
-	13: {LogN: 13,
+	{LogN: 13,
 		T: 65537,
 		LogModuli: LogModuli{
 			LogQi:    []uint64{54, 54, 54},
@@ -60,7 +67,7 @@ var DefaultParams = map[uint64]*Parameters{
 		Sigma: 3.2},
 
 	//logQ1+P = 438
-	14: {LogN: 14,
+	{LogN: 14,
 		T: 65537,
 		LogModuli: LogModuli{
 			LogQi:    []uint64{56, 55, 55, 54, 54, 54},
@@ -70,7 +77,7 @@ var DefaultParams = map[uint64]*Parameters{
 		Sigma: 3.2},
 
 	//logQ1+P = 880
-	15: {LogN: 15,
+	{LogN: 15,
 		T: 65537,
 		LogModuli: LogModuli{
 			LogQi:    []uint64{59, 59, 59, 58, 58, 58, 58, 58, 58, 58, 58, 58},

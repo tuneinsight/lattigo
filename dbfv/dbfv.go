@@ -34,17 +34,17 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 		panic(err)
 	}
 
-	contextQ, err := ring.NewContextWithParams(n, params.Q)
+	contextQ, err := ring.NewContextWithParams(n, params.Qi)
 	if err != nil {
 		panic(err)
 	}
 
-	contextP, err := ring.NewContextWithParams(n, params.P)
+	contextP, err := ring.NewContextWithParams(n, params.Pi)
 	if err != nil {
 		panic(err)
 	}
 
-	contextQP, err := ring.NewContextWithParams(n, append(params.Q, params.P...))
+	contextQP, err := ring.NewContextWithParams(n, append(params.Qi, params.Pi...))
 	if err != nil {
 		panic(err)
 	}

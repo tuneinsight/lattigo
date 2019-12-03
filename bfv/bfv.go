@@ -43,19 +43,19 @@ func newBFVContext(params *Parameters) (context *bfvContext) {
 		panic(err)
 	}
 
-	if context.contextQ, err = ring.NewContextWithParams(N, params.Q); err != nil {
+	if context.contextQ, err = ring.NewContextWithParams(N, params.Qi); err != nil {
 		panic(err)
 	}
 
-	if context.contextQMul, err = ring.NewContextWithParams(N, params.QMul); err != nil {
+	if context.contextQMul, err = ring.NewContextWithParams(N, params.QiMul); err != nil {
 		panic(err)
 	}
 
-	if context.contextP, err = ring.NewContextWithParams(N, params.P); err != nil {
+	if context.contextP, err = ring.NewContextWithParams(N, params.Pi); err != nil {
 		panic(err)
 	}
 
-	if context.contextQP, err = ring.NewContextWithParams(N, append(params.Q, params.P...)); err != nil {
+	if context.contextQP, err = ring.NewContextWithParams(N, append(params.Qi, params.Pi...)); err != nil {
 		panic(err)
 	}
 

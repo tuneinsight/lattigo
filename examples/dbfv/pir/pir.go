@@ -87,12 +87,12 @@ func main() {
 
 	// Generation of the common reference polynomials
 	crs := crsGen.ClockNew()                  // for the public-key
-	crp := make([]*ring.Poly, params.Beta)    // for the relinearization keys
-	crpRot := make([]*ring.Poly, params.Beta) // for the rotation keys
-	for i := uint64(0); i < params.Beta; i++ {
+	crp := make([]*ring.Poly, params.beta)    // for the relinearization keys
+	crpRot := make([]*ring.Poly, params.beta) // for the rotation keys
+	for i := uint64(0); i < params.beta; i++ {
 		crp[i] = crsGen.ClockNew()
 	}
-	for i := uint64(0); i < params.Beta; i++ {
+	for i := uint64(0); i < params.beta; i++ {
 		crpRot[i] = crsGen.ClockNew()
 	}
 

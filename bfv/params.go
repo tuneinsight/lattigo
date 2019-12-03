@@ -17,6 +17,12 @@ const MaxModuliCount = 34
 
 const MaxModuliSize = 60
 
+func init() {
+	for _, params := range DefaultParams {
+		params.genFromModuli()
+	}
+}
+
 // Plaintext modulus allowing batching for the corresponding N in ascending bitsize.
 var tBatching = map[uint64][]uint64{
 	4096: {40961, 114689, 188417, 417793, 1032193, 2056193, 4169729, 8380417, 16760833, 33538049, 67084289, 134176769,
@@ -35,6 +41,10 @@ type Moduli struct {
 	QiMul []uint64 // Ciphertext secondary prime moduli
 }
 
+func (m *Moduli) Copy() Moduli {
+	return Moduli{} // TODO
+}
+
 type LogModuli struct {
 	LogQi    []uint64 // Ciphertext prime moduli bit-size
 	LogPi    []uint64 // Keys additional prime moduli bit-size
@@ -47,19 +57,22 @@ type Parameters struct {
 	LogModuli
 	LogN  uint64 // Ring degree (power of 2)
 	T     uint64 // Plaintext modulus
-	LogQP uint64
 	Sigma float64 // Gaussian sampling variance
-	Alpha uint64
-	Beta  uint64
+
+	correct bool
+	logQP uint64
+	alpha uint64
+	beta  uint64
 }
 
-func init() {
-	for _, params := range DefaultParams {
-		params.Gen()
-	}
+func NewParametersFromModuli(LogN, T uint64, moduli Moduli, sigma float64) *Parameters {
+	params := new(Parameters)
+	params.LogN = LogN
+	params.T = T
+	params.Moduli = moduli.Copy()
 }
 
-func (p *Parameters) Gen() {
+func (p *Parameters) genFromModuli() {
 	if p.Qi == nil && p.Pi == nil && p.QiMul == nil {
 
 		p.Qi, p.Pi, p.QiMul = GenModuli(p)
@@ -74,7 +87,7 @@ func (p *Parameters) Gen() {
 			tmp.Mul(tmp, ring.NewUint(pi))
 		}
 
-		p.LogQP = uint64(tmp.BitLen())
+		p.logQP = uint64(tmp.BitLen())
 
 	} else if p.LogQi == nil && p.LogPi == nil && p.LogQiMul == nil {
 
@@ -97,8 +110,8 @@ func (p *Parameters) Gen() {
 		panic("invalid parameters : must set correctly either Moduli or LogModuli")
 	}
 
-	p.Alpha = uint64(len(p.Pi))
-	p.Beta = uint64(math.Ceil(float64(len(p.Qi)) / float64(len(p.Pi))))
+	p.alpha = uint64(len(p.Pi))
+	p.beta = uint64(math.Ceil(float64(len(p.Qi)) / float64(len(p.Pi))))
 }
 
 // Copy creates a copy of the target parameters.
@@ -127,9 +140,9 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 	paramsCopy.LogQiMul = make([]uint64, len(p.LogQiMul))
 	copy(paramsCopy.LogQiMul, p.LogQiMul)
 
-	paramsCopy.LogQP = p.LogQP
-	paramsCopy.Alpha = p.Alpha
-	paramsCopy.Beta = p.Beta
+	paramsCopy.logQP = p.logQP
+	paramsCopy.alpha = p.alpha
+	paramsCopy.beta = p.beta
 
 	return
 }
@@ -327,7 +340,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 		p.LogQiMul[i] = qi
 	}
 
-	p.Gen()
+	p.genFromModuli()
 
 	return nil
 }

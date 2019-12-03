@@ -17,7 +17,7 @@ func check(t *testing.T, err error) {
 }
 
 func testString(opname string, parties uint64, params *bfv.Parameters) string {
-	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN, params.LogQP)
+	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN, params.logQP)
 }
 
 type dbfvTestContext struct {
@@ -204,9 +204,9 @@ func testRelinKeyGen(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, parameters.Beta)
+			crp := make([]*ring.Poly, parameters.beta)
 
-			for i := uint64(0); i < parameters.Beta; i++ {
+			for i := uint64(0); i < parameters.beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
@@ -463,9 +463,9 @@ func testRotKeyGenRotRows(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, parameters.Beta)
+			crp := make([]*ring.Poly, parameters.beta)
 
-			for i := uint64(0); i < parameters.Beta; i++ {
+			for i := uint64(0); i < parameters.beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
@@ -525,9 +525,9 @@ func testRotKeyGenRotCols(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, parameters.Beta)
+			crp := make([]*ring.Poly, parameters.beta)
 
-			for i := uint64(0); i < parameters.Beta; i++ {
+			for i := uint64(0); i < parameters.beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 

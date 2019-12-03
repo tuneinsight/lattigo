@@ -52,21 +52,21 @@ func newContext(params *Parameters) (ckkscontext *Context) {
 	ckkscontext.maxSlots = 1 << (uint64(params.LogN) - 1)
 	ckkscontext.scale = params.Scale
 
-	ckkscontext.levels = uint64(len(params.Q))
+	ckkscontext.levels = uint64(len(params.Qi))
 
 	N := ckkscontext.n
 
-	ckkscontext.bigintChain = genBigIntChain(params.Q)
+	ckkscontext.bigintChain = genBigIntChain(params.Qi)
 
-	if ckkscontext.contextQ, err = ring.NewContextWithParams(N, params.Q); err != nil {
+	if ckkscontext.contextQ, err = ring.NewContextWithParams(N, params.Qi); err != nil {
 		panic(err)
 	}
 
-	if ckkscontext.contextP, err = ring.NewContextWithParams(N, params.P); err != nil {
+	if ckkscontext.contextP, err = ring.NewContextWithParams(N, params.Pi); err != nil {
 		panic(err)
 	}
 
-	if ckkscontext.contextQP, err = ring.NewContextWithParams(N, append(params.Q, params.P...)); err != nil {
+	if ckkscontext.contextQP, err = ring.NewContextWithParams(N, append(params.Qi, params.Pi...)); err != nil {
 		panic(err)
 	}
 

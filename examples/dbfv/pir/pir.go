@@ -86,19 +86,18 @@ func main() {
 	crsGen.Seed([]byte{'p', 'i', 'r', ' ', 'e', 'x', 'a', 'm', 'p', 'l', 'e'})
 
 	// Generation of the common reference polynomials
-	crs := crsGen.ClockNew()                  // for the public-key
-	crp := make([]*ring.Poly, params.beta)    // for the relinearization keys
-	crpRot := make([]*ring.Poly, params.beta) // for the rotation keys
-	for i := uint64(0); i < params.beta; i++ {
+	crs := crsGen.ClockNew()                    // for the public-key
+	crp := make([]*ring.Poly, params.Beta())    // for the relinearization keys
+	crpRot := make([]*ring.Poly, params.Beta()) // for the rotation keys
+	for i := uint64(0); i < params.Beta(); i++ {
 		crp[i] = crsGen.ClockNew()
 	}
-	for i := uint64(0); i < params.beta; i++ {
+	for i := uint64(0); i < params.Beta(); i++ {
 		crpRot[i] = crsGen.ClockNew()
 	}
 
 	// Collective secret key = sum(individual secret keys)
-	colSk := &bfv.SecretKey{}
-	colSk.Set(bfvctx.ContextKeys().NewPoly())
+	colSk := bfv.NewSecretKey(params)
 
 	// Instantiation of each of the protocols needed for the pir example
 	ckg := dbfv.NewCKGProtocol(params)       // public key generation
@@ -106,17 +105,21 @@ func main() {
 	rtg := dbfv.NewRotKGProtocol(params)     // rotation keys generation
 	cks := dbfv.NewCKSProtocol(params, 3.19) // collective public-key re-encryption
 
+	kgen := bfv.NewKeyGenerator(params)
+
+	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN, append(params.Qi, params.Pi...))
+
 	// Creates each party, and allocates the memory for all the shares that the protocols will need
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
-		pi.sk = bfv.NewKeyGenerator(params).NewSecretKey()
-		pi.rlkEphemSk = bfvctx.ContextKeys().SampleTernaryMontgomeryNTTNew(1.0 / 3)
+		pi.sk = kgen.NewSecretKey()
+		pi.rlkEphemSk = contextKeys.SampleTernaryMontgomeryNTTNew(1.0 / 3)
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for j := range pi.input {
 			pi.input[j] = uint64(i)
 		}
-		bfvctx.ContextKeys().Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
+		contextKeys.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
 
 		pi.ckgShare = ckg.AllocateShares()
 		pi.rkgShareOne, pi.rkgShareTwo, pi.rkgShareThree = rkg.AllocateShares()
@@ -197,7 +200,7 @@ func main() {
 	l.Println("> RTG Phase")
 	rtk := bfv.NewRotationKeys()
 	for _, rot := range []bfv.Rotation{bfv.RotationRight, bfv.RotationLeft, bfv.RotationRow} {
-		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < bfvctx.ContextKeys().N>>1); k <<= 1 {
+		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < 1<<(params.LogN-1)); k <<= 1 {
 
 			rtgShareCombined := rtg.AllocateShare()
 			rtgShareCombined.Type = rot
@@ -238,7 +241,7 @@ func main() {
 	// Plaintext masks : plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
 	// (zero with a 1 at the ith position).
 	for i := range plainMask {
-		maskCoeffs := make([]uint64, bfvctx.N())
+		maskCoeffs := make([]uint64, 1<<params.LogN)
 		maskCoeffs[i] = 1
 		plainMask[i] = bfv.NewPlaintext(params)
 		encoder.EncodeUint(maskCoeffs, plainMask[i])
@@ -351,7 +354,7 @@ func main() {
 
 	// Collective (partial) decryption.
 	l.Println("> CKS Phase")
-	zero := bfvctx.ContextQ1().NewPoly()
+	zero := params.NewPolyQ()
 	cksCombined := cks.AllocateShare()
 	elapsedPCKSParty := runTimedParty(func() {
 		for _, pi := range P[1:] {

@@ -123,7 +123,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= uint64(len(rtg.dckksContext.params.Q)-1) {
+			if index >= uint64(len(rtg.dckksContext.params.Qi)-1) {
 				break
 			}
 		}

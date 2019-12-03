@@ -63,18 +63,18 @@ func main() {
 
 	params := bfv.DefaultParams[14]
 	params.T = 65537
-	bfvctx := bfv.newBFVContect(params)
 
-	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvctx.ContextKeys())
+	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN, append(params.Qi, params.Pi...))
+
+	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, contextKeys)
 	crs := crsGen.ClockNew()
-	crp := make([]*ring.Poly, bfvctx.Beta())
-	for i := uint64(0); i < bfvctx.Beta(); i++ {
+	crp := make([]*ring.Poly, params.Beta())
+	for i := uint64(0); i < params.Beta(); i++ {
 		crp[i] = crsGen.ClockNew()
 	}
 
 	tsk, tpk := bfv.NewKeyGenerator(params).NewKeyPair()
-	colSk := &bfv.SecretKey{}
-	colSk.Set(bfvctx.ContextKeys().NewPoly())
+	colSk := bfv.NewSecretKey(params)
 
 	expRes := make([]uint64, 1<<params.LogN, 1<<params.LogN)
 	for i := range expRes {
@@ -89,7 +89,7 @@ func main() {
 	for i := range P {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).NewSecretKey()
-		pi.rlkEphemSk = bfvctx.ContextKeys().SampleTernaryMontgomeryNTTNew(1.0 / 3)
+		pi.rlkEphemSk = contextKeys.SampleTernaryMontgomeryNTTNew(1.0 / 3)
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for i := range pi.input {
 			if rand.Float32() > 0.3 || i == 4 {
@@ -97,7 +97,7 @@ func main() {
 			}
 			expRes[i] *= pi.input[i]
 		}
-		bfvctx.ContextKeys().Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
+		contextKeys.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
 
 		pi.ckgShare = ckg.AllocateShares()
 		pi.rkgShareOne, pi.rkgShareTwo, pi.rkgShareThree = rkg.AllocateShares()

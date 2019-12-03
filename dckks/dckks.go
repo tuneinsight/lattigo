@@ -29,22 +29,20 @@ func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 
 	n := uint64(1 << params.LogN)
 
-	moduliQ, moduliP := ckks.GenModuli(params)
-
 	context.n = n
 
-	context.alpha = uint64(len(moduliP))
-	context.beta = uint64(math.Ceil(float64(len(moduliQ)) / float64(context.alpha)))
+	context.alpha = uint64(len(params.Pi))
+	context.beta = uint64(math.Ceil(float64(len(params.Qi)) / float64(context.alpha)))
 
-	if context.contextQ, err = ring.NewContextWithParams(n, moduliQ); err != nil {
+	if context.contextQ, err = ring.NewContextWithParams(n, params.Qi); err != nil {
 		panic(err)
 	}
 
-	if context.contextP, err = ring.NewContextWithParams(n, moduliP); err != nil {
+	if context.contextP, err = ring.NewContextWithParams(n, params.Pi); err != nil {
 		panic(err)
 	}
 
-	if context.contextQP, err = ring.NewContextWithParams(n, append(moduliQ, moduliP...)); err != nil {
+	if context.contextQP, err = ring.NewContextWithParams(n, append(params.Qi, params.Pi...)); err != nil {
 		panic(err)
 	}
 

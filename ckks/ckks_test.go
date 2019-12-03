@@ -22,10 +22,10 @@ func testString(opname string, params *Parameters) string {
 	return fmt.Sprintf("%slogN=%d/logQ=%d/levels=%d/a=%d/b=%d",
 		opname,
 		params.LogN,
-		params.LogQP,
-		params.MaxLevel+1,
-		params.Alpha,
-		params.Beta)
+		params.LogQP(),
+		params.MaxLevel()+1,
+		params.Alpha(),
+		params.Beta())
 }
 
 type ckksParams struct {
@@ -121,7 +121,7 @@ func newTestVectors(contextParams *ckksParams, encryptor *Encryptor, a float64, 
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
+	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel(), contextParams.params.Scale)
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -144,7 +144,7 @@ func newTestVectorsReals(contextParams *ckksParams, encryptor *Encryptor, a, b f
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
+	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel(), contextParams.params.Scale)
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -701,7 +701,7 @@ func testFunctions(t *testing.T) {
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 
-		if parameters.MaxLevel > 6 {
+		if parameters.MaxLevel() > 6 {
 			t.Run(testString("Inverse/", parameters), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, 0.1, 1, t)
@@ -952,7 +952,7 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("Ciphertext/", parameters), func(t *testing.T) {
 
-			ciphertextWant := NewCiphertextRandom(parameters, 2, parameters.MaxLevel, parameters.Scale)
+			ciphertextWant := NewCiphertextRandom(parameters, 2, parameters.MaxLevel(), parameters.Scale)
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)

@@ -24,7 +24,7 @@ func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float6
 	return ciphertext
 }
 
-// NewRandomCiphertext generates a new uniformely distributed ciphertext of degree, level and scale.
+// NewCiphertextRandom generates a new uniformely distributed ciphertext of degree, level and scale.
 func NewCiphertextRandom(params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{&ckksElement{}}
 

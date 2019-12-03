@@ -63,7 +63,7 @@ func chebyshevinterpolation() {
 	}
 
 	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n",
-		params.LogN, params.LogQP, params.MaxLevel+1, params.Scale, params.Sigma)
+		params.LogN, params.LogQP(), params.MaxLevel()+1, params.Scale, params.Sigma)
 
 	fmt.Println()
 	fmt.Printf("Values     : %6f %6f %6f %6f...\n",
@@ -71,7 +71,7 @@ func chebyshevinterpolation() {
 	fmt.Println()
 
 	// Plaintext creation and encoding process
-	plaintext := ckks.NewPlaintext(params, params.MaxLevel, params.Scale)
+	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale)
 	encoder.Encode(plaintext, values, slots)
 
 	// Encryption process
@@ -87,7 +87,7 @@ func chebyshevinterpolation() {
 	// We evaluate the interpolated chebyshev polynomial on the ciphertext
 	ciphertext = evaluator.EvaluateChebyEco(ciphertext, chebyapproximation, rlk)
 
-	fmt.Println("Done... Consumed levels :", params.MaxLevel-ciphertext.Level())
+	fmt.Println("Done... Consumed levels :", params.MaxLevel()-ciphertext.Level())
 
 	// Decryption process + Decoding process
 	valuesTest := encoder.Decode(decryptor.DecryptNew(ciphertext), slots)

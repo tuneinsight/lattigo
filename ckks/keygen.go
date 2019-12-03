@@ -94,7 +94,7 @@ func (keygen *KeyGenerator) NewSecretKeySparse(hw uint64) (sk *SecretKey) {
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params *Parameters) *SecretKey {
 	sk := new(SecretKey)
-	sk.sk = ring.NewPoly(1<<params.LogN, uint64(len(params.Q)+len(params.P)))
+	sk.sk = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
 	return sk
 }
 
@@ -128,8 +128,8 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
 	pk = new(PublicKey)
 
-	pk.pk[0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Q)+len(params.P)))
-	pk.pk[1] = ring.NewPoly(1<<params.LogN, uint64(len(params.Q)+len(params.P)))
+	pk.pk[0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
+	pk.pk[1] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
 
 	return
 }
@@ -174,14 +174,14 @@ func NewRelinKey(params *Parameters) (evakey *EvaluationKey) {
 	evakey = new(EvaluationKey)
 	evakey.evakey = new(SwitchingKey)
 
-	beta := uint64(math.Ceil(float64(len(params.Q)) / float64(len(params.P))))
+	beta := uint64(math.Ceil(float64(len(params.Qi)) / float64(len(params.Pi))))
 
 	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
 	evakey.evakey.evakey = make([][2]*ring.Poly, beta)
 	for i := uint64(0); i < beta; i++ {
 
-		evakey.evakey.evakey[i][0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Q)+len(params.P)))
-		evakey.evakey.evakey[i][1] = ring.NewPoly(1<<params.LogN, uint64(len(params.Q)+len(params.P)))
+		evakey.evakey.evakey[i][0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
+		evakey.evakey.evakey[i][1] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
 	}
 
 	return
@@ -215,14 +215,14 @@ func (keygen *KeyGenerator) NewSwitchingKey(skInput, skOutput *SecretKey) (newev
 func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 	evakey = new(SwitchingKey)
 
-	beta := uint64(math.Ceil(float64(len(params.Q)) / float64(len(params.P))))
+	beta := uint64(math.Ceil(float64(len(params.Qi)) / float64(len(params.Pi))))
 
 	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
 	evakey.evakey = make([][2]*ring.Poly, beta)
 
 	for i := uint64(0); i < beta; i++ {
-		evakey.evakey[i][0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Q)+len(params.P)))
-		evakey.evakey[i][1] = ring.NewPoly(1<<params.LogN, uint64(len(params.Q)+len(params.P)))
+		evakey.evakey[i][0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
+		evakey.evakey[i][1] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
 	}
 
 	return
@@ -238,8 +238,8 @@ func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 	context.MulScalarBigint(skIn, keygen.ckksContext.contextP.ModulusBigint, skIn)
 
-	alpha := keygen.params.Alpha
-	beta := keygen.params.Beta
+	alpha := keygen.params.Alpha()
+	beta := keygen.params.Beta()
 
 	var index uint64
 

@@ -115,7 +115,7 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
 
 	QHalf := new(big.Int).Rsh(QStart, 1)
 
-	for ciphertext.Level() != uint64(len(dckksContext.params.Q)-1) {
+	for ciphertext.Level() != uint64(len(dckksContext.params.Qi)-1) {
 		ciphertext.Value()[0].Coeffs = append(ciphertext.Value()[0].Coeffs, make([][]uint64, 1)...)
 		ciphertext.Value()[0].Coeffs[ciphertext.Level()] = make([]uint64, dckksContext.n)
 	}

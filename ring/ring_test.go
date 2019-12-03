@@ -335,11 +335,15 @@ func testTernarySampler(t *testing.T) {
 				}
 			}
 
+			threshold := 0.075
+
 			ratio := math.Round(float64(countOne+countMOn)/float64(countZer)*100.0) / 100.0
 
-			if ((1-rho)/rho)*0.90 > ratio || ((1-rho)/rho)*1.10 < ratio {
-				fmt.Println(float64(countOne+countMOn) / float64(countZer))
-				t.Errorf("TernarySampler")
+			min := ((1 - rho) / rho) * (1.0 - threshold)
+			max := ((1 - rho) / rho) * (1.0 + threshold)
+
+			if min > ratio || max < ratio {
+				t.Errorf("TernarySampler : bad distribution %f < %f < %f", min, ratio, max)
 			}
 		})
 	}

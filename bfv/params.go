@@ -37,10 +37,10 @@ var tBatching = map[uint64][]uint64{
 }
 
 const (
-	P12QP109 = iota
-	P13QP218
-	P14QP438
-	P15QP880
+	PN12QP109 = iota
+	PN13QP218
+	PN14QP438
+	PN15QP880
 )
 
 // DefaultParams is a set of default BFV parameters ensuring 128 bit security.

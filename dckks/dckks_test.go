@@ -64,12 +64,7 @@ func init() {
 	testParams.medianprec = 15
 	testParams.verbose = false
 
-	testParams.ckksParameters = []*ckks.Parameters{
-		ckks.DefaultParams[13],
-		ckks.DefaultParams[14],
-		//ckks.DefaultParams[15],
-		//ckks.DefaultParams[16],
-	}
+	testParams.ckksParameters = ckks.DefaultParams[ckks.PN13QP218 : ckks.PN14QP438+1]
 }
 
 func TestDCKKS(t *testing.T) {

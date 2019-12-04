@@ -61,7 +61,7 @@ func main() {
 		input []uint64
 	}
 
-	params := bfv.DefaultParams[14]
+	params := bfv.DefaultParams[bfv.PN14QP438]
 	params.T = 65537
 
 	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN, append(params.Qi, params.Pi...))

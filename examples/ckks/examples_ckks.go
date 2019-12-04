@@ -28,7 +28,7 @@ func chebyshevinterpolation() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Scheme params
-	params := ckks.DefaultParams[14]
+	params := ckks.DefaultParams[ckks.PN14QP438]
 
 	encoder := ckks.NewEncoder(params)
 

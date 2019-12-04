@@ -45,10 +45,10 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 
 	testParams.bfvParameters = []*Parameters{
-		DefaultParams[P12QP109],
-		DefaultParams[P13QP218],
-		DefaultParams[P14QP438],
-		DefaultParams[P15QP880],
+		DefaultParams[PN12QP109],
+		DefaultParams[PN13QP218],
+		DefaultParams[PN14QP438],
+		DefaultParams[PN15QP880],
 	}
 }
 

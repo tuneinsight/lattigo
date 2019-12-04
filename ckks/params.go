@@ -24,11 +24,19 @@ func init() {
 	}
 }
 
+const (
+	PN12QP109 = iota
+	PN13QP218
+	PN14QP438
+	PN15QP880
+	PN16QP1761
+)
+
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
-var DefaultParams = map[uint64]*Parameters{
+var DefaultParams = []*Parameters{
 
 	//LogQi = 109
-	12: {LogN: 12,
+	{LogN: 12,
 		LogSlots: 11,
 		LogModuli: LogModuli{
 			LogQi: []uint64{37, 32},
@@ -38,7 +46,7 @@ var DefaultParams = map[uint64]*Parameters{
 		Sigma: 3.2},
 
 	//LogQi = 218
-	13: {LogN: 13,
+	{LogN: 13,
 		LogSlots: 12,
 		LogModuli: LogModuli{
 			LogQi: []uint64{33, 30, 30, 30, 30, 30},
@@ -48,7 +56,7 @@ var DefaultParams = map[uint64]*Parameters{
 		Sigma: 3.2},
 
 	//LogQiP = 438
-	14: {LogN: 14,
+	{LogN: 14,
 		LogSlots: 13,
 		LogModuli: LogModuli{
 			LogQi: []uint64{45, 34, 34, 34, 34, 34, 34, 34, 34, 34},
@@ -58,7 +66,7 @@ var DefaultParams = map[uint64]*Parameters{
 		Sigma: 3.2},
 
 	//LogQi = 880
-	15: {LogN: 15,
+	{LogN: 15,
 		LogSlots: 14,
 		LogModuli: LogModuli{
 			LogQi: []uint64{50, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
@@ -68,7 +76,7 @@ var DefaultParams = map[uint64]*Parameters{
 		Sigma: 3.2},
 
 	//LogQi = 1761
-	16: {LogN: 16,
+	{LogN: 16,
 		LogSlots: 15,
 		LogModuli: LogModuli{
 			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},

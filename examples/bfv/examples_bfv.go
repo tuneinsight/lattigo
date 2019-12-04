@@ -47,7 +47,7 @@ func obliviousRiding() {
 	nbDrivers := uint64(2048) //max is N
 
 	// BFV parameters (128 bit security)
-	params := bfv.DefaultParams[13]
+	params := bfv.DefaultParams[bfv.PN13QP218]
 
 	// Plaintext modulus
 	params.T = 0x3ee0001

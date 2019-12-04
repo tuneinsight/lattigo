@@ -77,7 +77,7 @@ func main() {
 		input []uint64
 	}
 
-	params := bfv.DefaultParams[13] // default params with N=8192
+	params := bfv.DefaultParams[bfv.PN13QP218] // default params with N=8192
 	params.T = 65537
 
 	// Common reference polynomial generator keyed with

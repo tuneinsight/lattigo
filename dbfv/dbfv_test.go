@@ -46,7 +46,7 @@ type dbfvTestContext struct {
 type dbfvTestParameters struct {
 	parties uint64
 
-	contexts map[uint64]*bfv.Parameters
+	contexts []*bfv.Parameters
 }
 
 var err error
@@ -693,7 +693,7 @@ func verifyTestVectors(contextParams *dbfvTestContext, decryptor *bfv.Decryptor,
 }
 
 func Test_Marshalling(t *testing.T) {
-	params := bfv.DefaultParams[14]
+	params := bfv.DefaultParams[bfv.PN14QP438]
 
 	//verify if the un.marshalling works properly
 	dbfvCtx := newDbfvContext(params)
@@ -902,7 +902,7 @@ func Test_Marshalling(t *testing.T) {
 }
 
 func Test_Relin_Marshalling(t *testing.T) {
-	params := bfv.DefaultParams[14]
+	params := bfv.DefaultParams[bfv.PN14QP438]
 
 	dbfvCtx := newDbfvContext(params)
 	contextQ := dbfvCtx.contextQ

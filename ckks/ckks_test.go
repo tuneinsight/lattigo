@@ -55,11 +55,11 @@ var testParams = new(ckksTestParameters)
 func init() {
 	rand.Seed(time.Now().UnixNano())
 
-	testParams.medianprec = 15
+	testParams.medianprec = 30
 	testParams.verbose = false
 
 	testParams.ckksParameters = []*Parameters{
-		DefaultParams[13],
+		//DefaultParams[13],
 		DefaultParams[14],
 		//DefaultParams[15],
 		//DefaultParams[16],
@@ -772,22 +772,24 @@ func testChebyshevInterpolator(t *testing.T) {
 
 			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
-			cheby := Approximate(cmplx.Sin, complex(-1, 0), complex(1, 0), 16)
+			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 127)
 
 			for i := range values {
 				values[i] = cmplx.Sin(values[i])
 			}
 
+			fmt.Println(ciphertext.Level())
 			ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
+			fmt.Println(ciphertext.Level())
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 
 		t.Run(testString("Eco/Sin/", parameters), func(t *testing.T) {
 
-			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
+			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -3, 3, t)
 
-			cheby := Approximate(cmplx.Sin, complex(-1, 0), complex(1, 0), 16)
+			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 127)
 
 			for i := range values {
 				values[i] = cmplx.Sin(values[i])

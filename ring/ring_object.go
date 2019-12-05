@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"math/bits"
@@ -9,6 +10,40 @@ import (
 // Poly is the structure containing the coefficients of a polynomial.
 type Poly struct {
 	Coeffs [][]uint64 //Coefficients in CRT representation
+}
+
+// NewPoly ... [FIXME]
+func NewPoly(N, nbModuli uint64) (pol *Poly) {
+	pol = new(Poly)
+	pol.Coeffs = make([][]uint64, nbModuli)
+	for i := uint64(0); i < nbModuli; i++ {
+		pol.Coeffs[i] = make([]uint64, N)
+	}
+	return
+}
+
+// NewPolyUniform ... [FIXME]
+func NewPolyUniform(N, nbModuli uint64) (pol *Poly) {
+	pol = new(Poly)
+
+	randomBytes := make([]byte, N<<3)
+
+	pol.Coeffs = make([][]uint64, nbModuli)
+	for i := uint64(0); i < nbModuli; i++ {
+		pol.Coeffs[i] = make([]uint64, N)
+
+		tmp := pol.Coeffs[i]
+
+		if _, err := rand.Read(randomBytes); err != nil {
+			panic("crypto rand error")
+		}
+
+		for j := uint64(0); j < N; j++ {
+			tmp[j] = binary.BigEndian.Uint64(randomBytes[j<<3 : (j+1)<<3])
+		}
+	}
+
+	return
 }
 
 // GetDegree returns the number of coefficients (degree) of the polynomial.

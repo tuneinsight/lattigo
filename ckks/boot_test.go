@@ -1,8 +1,6 @@
 package ckks
 
 import (
-	//"github.com/ldsec/lattigo/ring"
-	"fmt"
 	"log"
 	"math/rand"
 	"testing"
@@ -13,25 +11,31 @@ func Test_Bootstrapp(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 
-	params := genCkksParams(&Parameters{14, []uint8{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}, []uint8{55, 55, 55, 55}, 1 << 40, 3.2})
+	bootParams := new(Parameters)
+	bootParams.LogN = 14
+	bootParams.LogSlots = 10
+	bootParams.Scale = 1 << 40
+	bootParams.LogQi = []uint64{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	bootParams.LogPi = []uint64{55, 55, 55, 55}
+	bootParams.Sigma = 3.2
+
+	bootParams.genFromLogModuli()
+
+	params := genCkksParams(bootParams)
 
 	//medianprec := float64(20) // target median precision in log2 among all the coeffs, determines the success/failure of a test
 
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 
-	slots := uint64(1 << 10)
+	slots := uint64(1 << bootParams.LogSlots)
 
-	t.Run(fmt.Sprintf("logN=%d/logQ=%d/levels=%d/a=%d/b=%d/TestBoot", params.ckkscontext.logN,
-		params.ckkscontext.logQ,
-		params.ckkscontext.levels,
-		params.ckkscontext.alpha,
-		params.ckkscontext.beta), func(t *testing.T) {
+	t.Run(testString("TestBoot/", bootParams), func(t *testing.T) {
 
 		var bootcontext *BootContext
 		var err error
 
-		if bootcontext, err = params.ckkscontext.NewBootContext(slots, params.sk, ctsDepth, stcDepth); err != nil {
+		if bootcontext, err = NewBootContext(bootParams, params.sk, ctsDepth, stcDepth); err != nil {
 			log.Fatal(err)
 		}
 
@@ -47,7 +51,7 @@ func Test_Bootstrapp(t *testing.T) {
 			values[3] = complex(0.345987, 0)
 		}
 
-		plaintext := params.ckkscontext.NewPlaintext(params.ckkscontext.levels-1, params.ckkscontext.scale)
+		plaintext := NewPlaintext(bootParams, bootParams.MaxLevel(), bootParams.Scale)
 		params.encoder.Encode(plaintext, values, slots)
 
 		ciphertext := params.encryptorPk.EncryptNew(plaintext)

@@ -15,7 +15,7 @@ func (evaluator *Evaluator) EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevIn
 
 	evaluator.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
+	evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(M >> 1)
@@ -41,7 +41,7 @@ func (evaluator *Evaluator) EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInt
 
 	evaluator.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
+	evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(1)
@@ -67,7 +67,7 @@ func (evaluator *Evaluator) EvaluateChebyEcoSpecial(ct *Ciphertext, n complex128
 
 	evaluator.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
+	evaluator.Rescale(C[1], evaluator.params.Scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(1)
@@ -93,7 +93,7 @@ func (evaluator *Evaluator) EvaluateChebyFastSpecial(ct *Ciphertext, n complex12
 
 	evaluator.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
+	evaluator.Rescale(C[1], evaluator.params.Scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(M >> 1)
@@ -138,7 +138,7 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evalu
 		// Computes C[n] = C[a]*C[b]
 		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
 
-		evaluator.Rescale(C[n], evaluator.ckkscontext.scale, C[n])
+		evaluator.Rescale(C[n], evaluator.ckksContext.scale, C[n])
 
 		// Computes C[n] = 2*C[a]*C[b]
 		evaluator.Add(C[n], C[n], C[n])
@@ -157,7 +157,7 @@ func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[ui
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 
 	if maxDegree <= (1 << L) {
-		return evaluateRecurse(coeffs, C, evaluator, evakey)
+		return evaluatePolyFromPowerBasis(coeffs, C, evaluator, evakey)
 	}
 
 	for 1<<(M-1) > maxDegree {
@@ -175,7 +175,7 @@ func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[ui
 
 	evaluator.Add(res, tmp, res)
 
-	evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
+	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 
 	return res
 

@@ -1,39 +1,16 @@
 package bfv
 
-import (
-	"github.com/ldsec/lattigo/ring"
-)
-
 // Ciphertext is a *ring.Poly array representing a polynomial of degree > 0 where coefficients are in R_Q.
 type Ciphertext struct {
 	*bfvElement
 }
 
-// NewCiphertext creates a new Ciphertext structure.
-func NewCiphertext() (ciphertext *Ciphertext) {
-	return &Ciphertext{&bfvElement{}}
+// NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
+func NewCiphertext(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
+	return &Ciphertext{newBfvElement(params, degree)}
 }
 
-// NewCiphertext creates a new empty ciphertext of degree degree.
-func (context *Context) NewCiphertext(degree uint64) *Ciphertext {
-	ciphertext := &Ciphertext{&bfvElement{}}
-	ciphertext.value = make([]*ring.Poly, degree+1)
-	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = context.contextQ.NewPoly()
-	}
-	ciphertext.isNTT = false
-
-	return ciphertext
-}
-
-// NewRandomCiphertext creates a new ciphertext with uniform coefficients.
-func (context *Context) NewRandomCiphertext(degree uint64) *Ciphertext {
-	ciphertext := &Ciphertext{&bfvElement{}}
-	ciphertext.value = make([]*ring.Poly, degree+1)
-	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = context.contextQ.NewUniformPoly()
-	}
-	ciphertext.isNTT = false
-
-	return ciphertext
+// NewCiphertextRandom generates a new uniformely distributed ciphertext of degree, level and scale.
+func NewCiphertextRandom(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
+	return &Ciphertext{newBfvElementRandom(params, degree)}
 }

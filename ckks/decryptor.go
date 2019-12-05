@@ -2,21 +2,24 @@ package ckks
 
 // Decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type Decryptor struct {
-	ckkscontext *Context
+	params      *Parameters
+	ckksContext *Context
 	sk          *SecretKey
 }
 
 // NewDecryptor instanciates a new decryptor that will be able to decrypt ciphertext
 // encrypted under the provided secret-key.
-func (ckkscontext *Context) NewDecryptor(sk *SecretKey) *Decryptor {
+func NewDecryptor(params *Parameters, sk *SecretKey) *Decryptor {
 
-	if sk.sk.GetDegree() != int(ckkscontext.n) {
+	if sk.sk.GetDegree() != int(1<<params.LogN) {
 		panic("secret_key degree must match context degree")
 	}
 
 	decryptor := new(Decryptor)
 
-	decryptor.ckkscontext = ckkscontext
+	decryptor.params = params.Copy()
+
+	decryptor.ckksContext = newContext(params)
 
 	decryptor.sk = sk
 
@@ -27,7 +30,7 @@ func (ckkscontext *Context) NewDecryptor(sk *SecretKey) *Decryptor {
 // A Horner methode is used for evaluating the decryption.
 func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
 
-	plaintext = decryptor.ckkscontext.NewPlaintext(ciphertext.Level(), ciphertext.Scale())
+	plaintext = NewPlaintext(decryptor.params, ciphertext.Level(), ciphertext.Scale())
 
 	decryptor.Decrypt(ciphertext, plaintext)
 
@@ -38,7 +41,7 @@ func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 // A Horner methode is used for evaluating the decryption.
 func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
-	context := decryptor.ckkscontext.contextQ
+	context := decryptor.ckksContext.contextQ
 
 	level := ciphertext.Level()
 

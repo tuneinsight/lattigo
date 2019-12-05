@@ -6,7 +6,8 @@ import (
 
 // Encryptor is a struct used to encrypt plaintext and storing the public-key and/or secret-key.
 type Encryptor struct {
-	ckkscontext *Context
+	params      *Parameters
+	ckksContext *Context
 	pk          *PublicKey
 	sk          *SecretKey
 	polypool    [3]*ring.Poly
@@ -18,40 +19,41 @@ type Encryptor struct {
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (ckkscontext *Context) NewEncryptorFromPk(pk *PublicKey) *Encryptor {
-	return ckkscontext.newEncryptor(pk, nil)
+func NewEncryptorFromPk(params *Parameters, pk *PublicKey) *Encryptor {
+	return newEncryptor(params, pk, nil)
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (ckkscontext *Context) NewEncryptorFromSk(sk *SecretKey) *Encryptor {
-	return ckkscontext.newEncryptor(nil, sk)
+func NewEncryptorFromSk(params *Parameters, sk *SecretKey) *Encryptor {
+	return newEncryptor(params, nil, sk)
 }
 
 // NewEncryptor creates a new Encryptor with the input public-key and/or secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored keys.
-func (ckkscontext *Context) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
+func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
 
-	if pk != nil && (uint64(pk.pk[0].GetDegree()) != ckkscontext.n || uint64(pk.pk[1].GetDegree()) != ckkscontext.n) {
+	if pk != nil && (uint64(pk.pk[0].GetDegree()) != uint64(1<<params.LogN) || uint64(pk.pk[1].GetDegree()) != uint64(1<<params.LogN)) {
 		panic("pk ring degree doesn't match ckkscontext ring degree")
 	}
 
-	if sk != nil && uint64(sk.sk.GetDegree()) != ckkscontext.n {
+	if sk != nil && uint64(sk.sk.GetDegree()) != uint64(1<<params.LogN) {
 		panic("sk ring degree doesn't match ckkscontext ring degree")
 	}
 
 	encryptor = new(Encryptor)
-	encryptor.ckkscontext = ckkscontext
+	encryptor.params = params.Copy()
+	encryptor.ckksContext = newContext(params)
 	encryptor.pk = pk
 	encryptor.sk = sk
 
-	encryptor.polypool[0] = ckkscontext.contextKeys.NewPoly()
-	encryptor.polypool[1] = ckkscontext.contextKeys.NewPoly()
-	encryptor.polypool[2] = ckkscontext.contextKeys.NewPoly()
+	encryptor.polypool[0] = encryptor.ckksContext.contextQP.NewPoly()
+	encryptor.polypool[1] = encryptor.ckksContext.contextQP.NewPoly()
+	encryptor.polypool[2] = encryptor.ckksContext.contextQP.NewPoly()
 
-	encryptor.rescalepool = make([]uint64, ckkscontext.n)
+	encryptor.rescalepool = make([]uint64, encryptor.ckksContext.n)
 
-	encryptor.baseconverter = ring.NewFastBasisExtender(ckkscontext.contextQ.Modulus, ckkscontext.specialprimes)
+	encryptor.baseconverter = ring.NewFastBasisExtender(encryptor.ckksContext.contextQ, encryptor.ckksContext.contextP)
 
 	return encryptor
 }
@@ -63,7 +65,7 @@ func (ckkscontext *Context) newEncryptor(pk *PublicKey, sk *SecretKey) (encrypto
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
 
-	ciphertext = encryptor.ckkscontext.NewCiphertext(1, plaintext.Level(), plaintext.Scale())
+	ciphertext = NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
 	encryptor.Encrypt(plaintext, ciphertext)
 	return
 }
@@ -75,7 +77,7 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Cipher
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	if plaintext.Level() != encryptor.ckkscontext.levels-1 {
+	if plaintext.Level() != encryptor.ckksContext.levels-1 {
 		panic("cannot encrypt -> plaintext not at maximum level")
 	}
 
@@ -97,30 +99,30 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 
 	// We sample a R-WLE instance (encryption of zero) over the keys context (ciphertext context + special prime)
 
-	contextKeys := encryptor.ckkscontext.contextKeys
-	contextQ := encryptor.ckkscontext.contextQ
+	contextQP := encryptor.ckksContext.contextQP
+	contextQ := encryptor.ckksContext.contextQ
 
-	encryptor.ckkscontext.contextKeys.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
+	encryptor.ckksContext.contextQP.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
 
 	// ct0 = u*pk0
-	contextKeys.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
+	contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 	// ct1 = u*pk1
-	contextKeys.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
+	contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
 	// 2*(#Q + #P) NTT
-	contextKeys.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
-	contextKeys.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+	contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	contextQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 	// ct0 = u*pk0 + e0
-	encryptor.ckkscontext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+	encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
 	// ct1 = u*pk1 + e1
-	encryptor.ckkscontext.gaussianSampler.SampleAndAdd(encryptor.polypool[1])
+	encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[1])
 
 	// ct0 = (u*pk0 + e0)/P
-	encryptor.baseconverter.ModDown(contextKeys, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
 
 	// ct1 = (u*pk1 + e1)/P
-	encryptor.baseconverter.ModDown(contextKeys, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[1], ciphertext.value[1])
 
 	// 2*#Q NTT
 	contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
@@ -133,30 +135,29 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 }
 
 func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
-	contextKeys := encryptor.ckkscontext.contextKeys
-	contextP := encryptor.ckkscontext.contextP
-	contextQ := encryptor.ckkscontext.contextQ
+	contextQP := encryptor.ckksContext.contextQP
+	contextQ := encryptor.ckksContext.contextQ
 
 	// ct1 = a
-	contextKeys.UniformPoly(encryptor.polypool[1])
+	contextQP.UniformPoly(encryptor.polypool[1])
 
 	// ct0 = -s*a
-	contextKeys.MulCoeffsMontgomery(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
-	contextKeys.Neg(encryptor.polypool[0], encryptor.polypool[0])
+	contextQP.MulCoeffsMontgomery(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
+	contextQP.Neg(encryptor.polypool[0], encryptor.polypool[0])
 
 	// #Q + #P NTT
-	contextKeys.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
 
 	// ct0 = -s*a + e
-	encryptor.ckkscontext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+	encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
 
 	// We rescal by the special prime, dividing the error by this prime
 	// ct0 = (-s*a + e)/P
-	encryptor.baseconverter.ModDown(contextKeys, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[0], ciphertext.value[0], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
 
 	// #Q + #P NTT
 	// ct1 = a/P
-	encryptor.baseconverter.ModDownNTT(contextQ, contextP, encryptor.ckkscontext.rescaleParamsKeys, plaintext.Level(), encryptor.polypool[1], ciphertext.value[1], encryptor.polypool[2])
+	encryptor.baseconverter.ModDownNTTPQ(plaintext.Level(), encryptor.polypool[1], ciphertext.value[1])
 
 	// #Q NTT
 	contextQ.NTT(ciphertext.value[0], ciphertext.value[0])

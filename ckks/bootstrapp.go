@@ -10,6 +10,7 @@ import (
 )
 
 type BootContext struct {
+	params      *Parameters
 	ckkscontext *Context
 
 	encoder *Encoder
@@ -61,14 +62,20 @@ func showcoeffs(decryptor *Decryptor, encoder *Encoder, slots uint64, ciphertext
 	return coeffs
 }
 
-func (ckkscontext *Context) NewBootContext(slots uint64, sk *SecretKey, ctsDepth, stcDepth uint64) (bootcontext *BootContext, err error) {
+func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64) (bootcontext *BootContext, err error) {
 
 	bootcontext = new(BootContext)
+
+	bootcontext.params = params.Copy()
+
+	ckkscontext := newContext(params)
 
 	bootcontext.ckkscontext = ckkscontext
 
 	bootcontext.ctsDepth = ctsDepth
 	bootcontext.stcDepth = stcDepth
+
+	slots := uint64(1 << params.LogSlots)
 
 	if slots < ckkscontext.maxSlots {
 		bootcontext.repack = true
@@ -82,7 +89,7 @@ func (ckkscontext *Context) NewBootContext(slots uint64, sk *SecretKey, ctsDepth
 		bootcontext.dslots = slots << 1
 	}
 
-	bootcontext.encoder = ckkscontext.NewEncoder()
+	bootcontext.encoder = NewEncoder(params)
 
 	sineDeg := 127
 
@@ -149,11 +156,11 @@ func (ckkscontext *Context) NewBootContext(slots uint64, sk *SecretKey, ctsDepth
 	}
 
 	fmt.Println("DFT vector size (GB) :", float64(bootcontext.plaintextSize)/float64(1000000000))
-	fmt.Println("Switching-Keys size (GB) :", float64(ckkscontext.n*2*uint64(len(rotations))*ckkscontext.Beta()*uint64(len(ckkscontext.contextKeys.Modulus))*8)/float64(1000000000), "(", len(rotations), "keys)")
+	fmt.Println("Switching-Keys size (GB) :", float64(ckkscontext.n*2*uint64(len(rotations))*params.Beta()*uint64(len(ckkscontext.contextQP.Modulus))*8)/float64(1000000000), "(", len(rotations), "keys)")
 
-	kgen := ckkscontext.NewKeyGenerator()
+	kgen := NewKeyGenerator(params)
 
-	bootcontext.rotkeys = ckkscontext.NewRotationKeys()
+	bootcontext.rotkeys = NewRotationKeys()
 
 	kgen.GenRot(Conjugate, sk, 0, bootcontext.rotkeys)
 
@@ -163,9 +170,9 @@ func (ckkscontext *Context) NewBootContext(slots uint64, sk *SecretKey, ctsDepth
 
 	bootcontext.relinkey = kgen.NewRelinKey(sk)
 
-	bootcontext.ctxpool[0] = ckkscontext.NewCiphertext(1, ckkscontext.levels-1, 0)
-	bootcontext.ctxpool[1] = ckkscontext.NewCiphertext(1, ckkscontext.levels-1, 0)
-	bootcontext.ctxpool[2] = ckkscontext.NewCiphertext(1, ckkscontext.levels-1, 0)
+	bootcontext.ctxpool[0] = NewCiphertext(params, 1, params.MaxLevel(), 0)
+	bootcontext.ctxpool[1] = NewCiphertext(params, 1, params.MaxLevel(), 0)
+	bootcontext.ctxpool[2] = NewCiphertext(params, 1, params.MaxLevel(), 0)
 
 	return bootcontext, nil
 }
@@ -206,7 +213,9 @@ func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext)
 
 func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 
-	ct.InvNTT(bootcontext.ckkscontext, ct.Element())
+	contextQ := bootcontext.ckkscontext.contextQ
+
+	ct.InvNTT(contextQ, ct.Element())
 
 	// Extend the ciphertext with zero polynomials.
 	for u := range ct.Value() {
@@ -217,8 +226,8 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 	}
 
 	//Centers the values around Q0 and extends the basis from Q0 to QL
-	Q := bootcontext.ckkscontext.moduli[0]
-	bredparams := bootcontext.ckkscontext.contextQ.GetBredParams()
+	Q := contextQ.Modulus[0]
+	bredparams := contextQ.GetBredParams()
 
 	var coeff, qi uint64
 	for u := range ct.Value() {
@@ -229,7 +238,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 
 			for i := uint64(1); i < bootcontext.ckkscontext.levels; i++ {
 
-				qi = bootcontext.ckkscontext.moduli[i]
+				qi = contextQ.Modulus[i]
 
 				if coeff > (Q >> 1) {
 					ct.Value()[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff+1, qi, bredparams[i])
@@ -238,7 +247,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 				}
 			}
 
-			qi = bootcontext.ckkscontext.moduli[0]
+			qi = contextQ.Modulus[0]
 
 			if coeff > (Q >> 1) {
 				ct.Value()[u].Coeffs[0][j] = qi - ring.BRedAdd(Q-coeff+1, qi, bredparams[0])
@@ -248,7 +257,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 		}
 	}
 
-	ct.NTT(bootcontext.ckkscontext, ct.Element())
+	ct.NTT(contextQ, ct.Element())
 
 	return ct
 }
@@ -308,7 +317,7 @@ func (bootcontext *BootContext) dft(evaluator *Evaluator, vec *Ciphertext, plain
 
 		w = bootcontext.multiplyByDiagMatrice(evaluator, w, plainVectors[i])
 
-		evaluator.Rescale(w, evaluator.ckkscontext.scale, w)
+		evaluator.Rescale(w, bootcontext.params.Scale, w)
 	}
 
 	return w
@@ -317,7 +326,7 @@ func (bootcontext *BootContext) dft(evaluator *Evaluator, vec *Ciphertext, plain
 func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *Evaluator) (*Ciphertext, *Ciphertext) {
 
 	// Reference scale is changed to the new ciphertext's scale.
-	bootcontext.ckkscontext.scale = bootcontext.ckkscontext.scalechain[ct0.Level()]
+	evaluator.ckksContext.scale = float64(bootcontext.params.Qi[ct0.Level()])
 
 	// TODO : manage scale dynamicly depending on Q_0, the Qi of the SineEval and the ciphertext's scale.
 	ct0.MulScale(1024)
@@ -335,7 +344,7 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *Ev
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
-	bootcontext.ckkscontext.scale = ct0.Scale()
+	evaluator.ckksContext.scale = ct0.Scale()
 
 	return ct0, ct1
 }
@@ -349,14 +358,14 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciph
 	coeffs := bootcontext.chebycoeffs.coeffs
 
 	// SubSum + CoeffsToSlots cancelling factor
-	n := complex(float64(evaluator.ckkscontext.n), 0)
+	n := complex(float64(bootcontext.ckkscontext.contextQ.N), 0)
 
 	C := make(map[uint64]*Ciphertext)
 	C[1] = ct.CopyNew().Ciphertext()
 
 	evaluator.MultByConst(C[1], 2/((b-a)*n), C[1])
 	evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
-	evaluator.Rescale(C[1], evaluator.ckkscontext.scale, C[1])
+	evaluator.Rescale(C[1], bootcontext.ckkscontext.scale, C[1])
 
 	M := uint64(bits.Len64(degree - 1))
 	L := uint64(M >> 1)
@@ -376,7 +385,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 
 	var N1 uint64
 
-	res = bootcontext.ckkscontext.NewCiphertext(1, vec.Level(), vec.Scale())
+	res = NewCiphertext(bootcontext.params, 1, vec.Level(), vec.Scale())
 
 	// N1*N2 = N
 	N1 = plainVectors.N1
@@ -405,8 +414,8 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 
 	var tmp_vec, tmp *Ciphertext
 
-	tmp_vec = bootcontext.ckkscontext.NewCiphertext(1, bootcontext.ckkscontext.levels-1, vec.Scale())
-	tmp = bootcontext.ckkscontext.NewCiphertext(1, bootcontext.ckkscontext.levels-1, vec.Scale())
+	tmp_vec = NewCiphertext(bootcontext.params, 1, bootcontext.params.MaxLevel(), vec.Scale())
+	tmp = NewCiphertext(bootcontext.params, 1, bootcontext.params.MaxLevel(), vec.Scale())
 
 	for j := range index {
 
@@ -638,14 +647,14 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 		for _, i := range index[j] {
 
 			if forward {
-				level = bootcontext.ckkscontext.Levels() - 1 - k
+				level = bootcontext.params.MaxLevel() - k
 			} else {
-				level = bootcontext.ckkscontext.Levels() - 1 - k - bootcontext.ctsDepth - bootcontext.sinDepth
+				level = bootcontext.params.MaxLevel() - k - bootcontext.ctsDepth - bootcontext.sinDepth
 			}
 
-			plaintextVec.Vec[N1*j+uint64(i)] = bootcontext.ckkscontext.NewPlaintext(level, bootcontext.ckkscontext.scalechain[level])
+			plaintextVec.Vec[N1*j+uint64(i)] = NewPlaintext(bootcontext.params, level, float64(bootcontext.params.Qi[level]))
 
-			bootcontext.plaintextSize += (level + 1) * 8 * bootcontext.ckkscontext.n
+			bootcontext.plaintextSize += (level + 1) * 8 * bootcontext.ckkscontext.contextQ.N
 
 			bootcontext.encoder.Encode(plaintextVec.Vec[N1*j+uint64(i)], rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
 		}

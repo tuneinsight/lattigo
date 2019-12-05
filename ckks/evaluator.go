@@ -361,12 +361,12 @@ func (evaluator *Evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOu
 		qi = context.Modulus[i]
 
 		if cReal != 0 {
-			scaledConstReal = scaleUpExact(cReal, ct0.Scale(), qi)
+			scaledConstReal = scaleUpExact(cReal, ctOut.Scale(), qi)
 			scaledConst = scaledConstReal
 		}
 
 		if cImag != 0 {
-			scaledConstImag = ring.MRed(scaleUpExact(cImag, ct0.Scale(), qi), context.GetNttPsi()[i][1], qi, context.GetMredParams()[i])
+			scaledConstImag = ring.MRed(scaleUpExact(cImag, ctOut.Scale(), qi), context.GetNttPsi()[i][1], qi, context.GetMredParams()[i])
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
@@ -418,7 +418,7 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = evaluator.ckksContext.scale
+				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
 			}
 		}
 
@@ -427,7 +427,7 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 			valueFloat := cImag - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = evaluator.ckksContext.scale
+				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
 			}
 		}
 
@@ -440,7 +440,7 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = evaluator.ckksContext.scale
+				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
 			}
 		}
 
@@ -467,19 +467,19 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 
 		// If ctOut scaling is smaller than ct0's scale + the default scaling,
 		// then brings ctOut scale to ct0's scale.
-		if ctOut.Scale() < ct0.Scale()*evaluator.ckksContext.scale {
+		if ctOut.Scale() < ct0.Scale()*scale {
 
-			if uint64((evaluator.ckksContext.scale*ct0.Scale())/ctOut.Scale()) != 0 {
+			if uint64((scale*ct0.Scale())/ctOut.Scale()) != 0 {
 
-				evaluator.MultByConst(ctOut, uint64((evaluator.ckksContext.scale*ct0.Scale())/ctOut.Scale()), ctOut)
+				evaluator.MultByConst(ctOut, uint64((scale*ct0.Scale())/ctOut.Scale()), ctOut)
 
 			}
 
-			ctOut.SetScale(evaluator.ckksContext.scale * ct0.Scale())
+			ctOut.SetScale(scale * ct0.Scale())
 
 			// If ctOut.Scale() > ((a+bi)*scale)*ct0(x), then sets the scale to
 			// bring c(x)*scale to the level of ctOut(x) scale
-		} else if ctOut.Scale() > ct0.Scale()*evaluator.ckksContext.scale {
+		} else if ctOut.Scale() > ct0.Scale()*scale {
 			scale = ctOut.Scale() / ct0.Scale()
 		}
 
@@ -584,7 +584,7 @@ func (evaluator *Evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, c
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = evaluator.ckksContext.scale
+				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
 			}
 		}
 
@@ -593,7 +593,7 @@ func (evaluator *Evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, c
 			valueFloat := cImag - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = evaluator.ckksContext.scale
+				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
 			}
 		}
 
@@ -606,7 +606,7 @@ func (evaluator *Evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, c
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = evaluator.ckksContext.scale
+				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
 			}
 		}
 

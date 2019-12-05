@@ -329,7 +329,7 @@ func (bootcontext *BootContext) dft(evaluator *Evaluator, vec *Ciphertext, plain
 func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *Evaluator) (*Ciphertext, *Ciphertext) {
 
 	// Reference scale is changed to the new ciphertext's scale.
-	evaluator.ckksContext.scale = float64(bootcontext.params.Qi[ct0.Level()])
+	evaluator.ckksContext.scale = float64(bootcontext.params.Qi[ct0.Level()-1])
 
 	// TODO : manage scale dynamicly depending on Q_0, the Qi of the SineEval and the ciphertext's scale.
 	ct0.MulScale(1024)
@@ -348,6 +348,8 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *Ev
 
 	// Reference scale is changed back to the current ciphertext's scale.
 	evaluator.ckksContext.scale = ct0.Scale()
+
+	fmt.Println(ct0.Level(), ct0.Scale())
 
 	return ct0, ct1
 }

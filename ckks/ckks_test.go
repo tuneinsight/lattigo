@@ -768,22 +768,24 @@ func testChebyshevInterpolator(t *testing.T) {
 
 			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
-			cheby := Approximate(cmplx.Sin, complex(-1, 0), complex(1, 0), 16)
+			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
 
 			for i := range values {
 				values[i] = cmplx.Sin(values[i])
 			}
 
+			fmt.Println(ciphertext.Level())
 			ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
+			fmt.Println(ciphertext.Level())
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 
 		t.Run(testString("Eco/Sin/", parameters), func(t *testing.T) {
 
-			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
+			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -3, 3, t)
 
-			cheby := Approximate(cmplx.Sin, complex(-1, 0), complex(1, 0), 16)
+			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
 
 			for i := range values {
 				values[i] = cmplx.Sin(values[i])

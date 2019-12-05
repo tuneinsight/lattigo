@@ -10,7 +10,7 @@ type Plaintext struct {
 	value *ring.Poly
 }
 
-// NewPlaintextFromParams creates a new plaintext of level level and scale scale.
+// NewPlaintext creates a new plaintext of level level and scale scale.
 func NewPlaintext(params *Parameters, level uint64, scale float64) *Plaintext {
 	plaintext := &Plaintext{&ckksElement{}, nil}
 

@@ -5,6 +5,15 @@ import (
 	"math/bits"
 )
 
+type poly struct {
+	maxDeg uint64
+	coeffs []complex128
+}
+
+func (p *poly) degree() uint64 {
+	return uint64(len(p.coeffs) - 1)
+}
+
 // EvaluateChebyFast evaluates the input Chebyshev polynomial with the input ciphertext.
 // Faster than EvaluateChebyEco but consumes ceil(log(deg)) + 2 levels.
 func (evaluator *Evaluator) EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
@@ -17,7 +26,7 @@ func (evaluator *Evaluator) EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevIn
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
 
-	M := uint64(bits.Len64(cheby.degree - 1))
+	M := uint64(bits.Len64(cheby.degree()))
 	L := uint64(M >> 1)
 
 	for i := uint64(2); i <= (1 << L); i++ {
@@ -28,7 +37,7 @@ func (evaluator *Evaluator) EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevIn
 		computePowerBasisCheby(1<<i, C, evaluator, evakey)
 	}
 
-	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
+	return recurseCheby(cheby.degree(), L, M, cheby.Poly(), C, evaluator, evakey)
 }
 
 // EvaluateChebyEco evaluates the input Chebyshev polynomial with the input ciphertext.
@@ -43,7 +52,7 @@ func (evaluator *Evaluator) EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInt
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
 
-	M := uint64(bits.Len64(cheby.degree - 1))
+	M := uint64(bits.Len64(cheby.degree() - 1))
 	L := uint64(1)
 
 	for i := uint64(2); i <= (1 << L); i++ {
@@ -54,10 +63,10 @@ func (evaluator *Evaluator) EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInt
 		computePowerBasisCheby(1<<i, C, evaluator, evakey)
 	}
 
-	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
+	return recurseCheby(cheby.degree(), L, M, cheby.Poly(), C, evaluator, evakey)
 }
 
-// EvaluateChebyEco evaluates the input Chebyshev polynomial with the input ciphertext.
+// EvaluateChebyEcoSpecial evaluates the input Chebyshev polynomial with the input ciphertext.
 // Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
 func (evaluator *Evaluator) EvaluateChebyEcoSpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
 
@@ -69,7 +78,7 @@ func (evaluator *Evaluator) EvaluateChebyEcoSpecial(ct *Ciphertext, n complex128
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	evaluator.Rescale(C[1], evaluator.params.Scale, C[1])
 
-	M := uint64(bits.Len64(cheby.degree - 1))
+	M := uint64(bits.Len64(cheby.degree() - 1))
 	L := uint64(1)
 
 	for i := uint64(2); i <= (1 << L); i++ {
@@ -80,10 +89,10 @@ func (evaluator *Evaluator) EvaluateChebyEcoSpecial(ct *Ciphertext, n complex128
 		computePowerBasisCheby(1<<i, C, evaluator, evakey)
 	}
 
-	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
+	return recurseCheby(cheby.degree(), L, M, cheby.Poly(), C, evaluator, evakey)
 }
 
-// EvaluateChebyEco evaluates the input Chebyshev polynomial with the input ciphertext.
+// EvaluateChebyFastSpecial evaluates the input Chebyshev polynomial with the input ciphertext.
 // Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
 func (evaluator *Evaluator) EvaluateChebyFastSpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
 
@@ -95,8 +104,8 @@ func (evaluator *Evaluator) EvaluateChebyFastSpecial(ct *Ciphertext, n complex12
 	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	evaluator.Rescale(C[1], evaluator.params.Scale, C[1])
 
-	M := uint64(bits.Len64(cheby.degree - 1))
-	L := uint64(M >> 1)
+	M := uint64(bits.Len64(cheby.degree() - 1))
+	L := uint64(1)
 
 	for i := uint64(2); i <= (1 << L); i++ {
 		computePowerBasisCheby(i, C, evaluator, evakey)
@@ -106,7 +115,7 @@ func (evaluator *Evaluator) EvaluateChebyFastSpecial(ct *Ciphertext, n complex12
 		computePowerBasisCheby(1<<i, C, evaluator, evakey)
 	}
 
-	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
+	return recurseCheby(cheby.degree(), L, M, cheby.Poly(), C, evaluator, evakey)
 }
 
 func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) {
@@ -152,12 +161,34 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evalu
 	}
 }
 
-func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func splitCoeffsCheby(coeffs *poly, degree, maxDegree uint64) (coeffsq, coeffsr *poly) {
+
+	// Splits a Chebyshev polynomial p such that p = q*C^degree + r, where q and r are a linear combination of a Chebyshev basis.
+
+	coeffsr = new(poly)
+	coeffsr.maxDeg = coeffs.maxDeg - degree
+	coeffsr.coeffs = make([]complex128, degree)
+	for i := uint64(0); i < degree; i++ {
+		coeffsr.coeffs[i] = coeffs.coeffs[i]
+	}
+
+	coeffsq = new(poly)
+	coeffsq.coeffs = make([]complex128, maxDegree-degree+1)
+	coeffsq.maxDeg = coeffs.maxDeg
+	coeffsq.coeffs[0] = coeffs.coeffs[degree]
+	for i := uint64(degree + 1); i < maxDegree+1; i++ {
+		coeffsq.coeffs[i-degree] = 2 * coeffs.coeffs[i]
+		coeffsr.coeffs[2*degree-i] -= coeffs.coeffs[i]
+	}
+
+	return coeffsq, coeffsr
+}
+
+func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
-
 	if maxDegree <= (1 << L) {
-		return evaluatePolyFromPowerBasis(coeffs, C, evaluator, evakey)
+		return evaluatePolyFromChebyBasis(coeffs, C, evaluator, evakey)
 	}
 
 	for 1<<(M-1) > maxDegree {
@@ -173,31 +204,62 @@ func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[ui
 
 	evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
 
-	evaluator.Add(res, tmp, res)
-
-	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+	if false { //res.Level() > tmp.Level(){
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		/*
+			fmt.Println(1)
+			fmt.Println(res.Level(), tmp.Level())
+			fmt.Println(res.Scale(), tmp.Scale())
+			fmt.Println()
+			evaluator.Add(res, tmp, res)
+		*/
+	} else {
+		evaluator.Add(res, tmp, res)
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		/*
+			fmt.Println(2)
+			fmt.Println(res.Level(), tmp.Level())
+			fmt.Println(res.Scale(), tmp.Scale())
+			fmt.Println()
+		*/
+	}
 
 	return res
 
 }
 
-func splitCoeffsCheby(coeffs map[uint64]complex128, degree, maxDegree uint64) (coeffsq, coeffsr map[uint64]complex128) {
+func evaluatePolyFromChebyBasis(coeffs *poly, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
-	// Splits a Chebyshev polynomial p such that p = q*C^degree + r, where q and r are a linear combination of a Chebyshev basis.
+	var maxDeg uint64
 
-	coeffsr = make(map[uint64]complex128)
-	coeffsq = make(map[uint64]complex128)
-
-	for i := uint64(0); i < degree; i++ {
-		coeffsr[i] = coeffs[i]
+	for i := range C {
+		if i > maxDeg {
+			maxDeg = i
+		}
 	}
 
-	coeffsq[0] = coeffs[degree]
+	/*
+		if coeffs.maxDeg > 2*maxDeg - coeffs.degree() {
+			M := uint64(bits.Len64(coeffs.degree()))
+			L := uint64(M >> 1)
+			coeffs.maxDeg = coeffs.degree()
+			return recurseCheby(coeffs.degree(), L, M, coeffs, C, evaluator, evakey)
+		}
+	*/
 
-	for i := uint64(degree + 1); i < maxDegree+1; i++ {
-		coeffsq[i-degree] = 2 * coeffs[i]
-		coeffsr[2*degree-i] -= coeffs[i]
+	res = NewCiphertext(evaluator.params, 1, C[1].Level(), 1.718160618321759e+10)
+
+	for key := coeffs.degree(); key > 0; key-- {
+		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-15 || math.Abs(imag(coeffs.coeffs[key])) > 1e-15) {
+			evaluator.MultByConstAndAdd(C[key], coeffs.coeffs[key], res)
+		}
 	}
 
-	return coeffsq, coeffsr
+	if math.Abs(real(coeffs.coeffs[0])) > 1e-15 || math.Abs(imag(coeffs.coeffs[0])) > 1e-15 {
+		evaluator.AddConst(res, coeffs.coeffs[0], res)
+	}
+
+	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+
+	return
 }

@@ -9,6 +9,7 @@ import (
 	"math/cmplx"
 )
 
+// BootContext stores the parameters for the bootstrapping.
 type BootContext struct {
 	params      *Parameters
 	ckkscontext *Context
@@ -62,6 +63,7 @@ func showcoeffs(decryptor *Decryptor, encoder *Encoder, slots uint64, ciphertext
 	return coeffs
 }
 
+// NewBootContext creates a new bootcontext.
 func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64) (bootcontext *BootContext, err error) {
 
 	bootcontext = new(BootContext)
@@ -177,6 +179,7 @@ func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64
 	return bootcontext, nil
 }
 
+// Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel.
 func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext) *Ciphertext {
 
 	var ct0, ct1 *Ciphertext
@@ -354,8 +357,7 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciph
 	// Chebyshev params
 	a := bootcontext.chebycoeffs.a
 	b := bootcontext.chebycoeffs.b
-	degree := bootcontext.chebycoeffs.degree
-	coeffs := bootcontext.chebycoeffs.coeffs
+	degree := bootcontext.chebycoeffs.degree()
 
 	// SubSum + CoeffsToSlots cancelling factor
 	n := complex(float64(bootcontext.ckkscontext.contextQ.N), 0)
@@ -378,7 +380,7 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciph
 		computePowerBasisCheby(1<<i, C, evaluator, bootcontext.relinkey)
 	}
 
-	return recurseCheby(degree, L, M, coeffs, C, evaluator, bootcontext.relinkey)
+	return recurseCheby(degree, L, M, bootcontext.chebycoeffs.Poly(), C, evaluator, bootcontext.relinkey)
 }
 
 func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
@@ -410,24 +412,24 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec 
 	}
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm
-	vec_rot := evaluator.RotateHoisted(vec, rotations, bootcontext.rotkeys)
+	vecRot := evaluator.RotateHoisted(vec, rotations, bootcontext.rotkeys)
 
-	var tmp_vec, tmp *Ciphertext
+	var tmpVec, tmp *Ciphertext
 
-	tmp_vec = NewCiphertext(bootcontext.params, 1, bootcontext.params.MaxLevel(), vec.Scale())
+	tmpVec = NewCiphertext(bootcontext.params, 1, bootcontext.params.MaxLevel(), vec.Scale())
 	tmp = NewCiphertext(bootcontext.params, 1, bootcontext.params.MaxLevel(), vec.Scale())
 
 	for j := range index {
 
-		tmp_vec.Value()[0].Zero()
-		tmp_vec.Value()[1].Zero()
+		tmpVec.Value()[0].Zero()
+		tmpVec.Value()[1].Zero()
 
 		for _, i := range index[j] {
-			evaluator.MulRelin(vec_rot[uint64(i)], plainVectors.Vec[N1*j+uint64(i)], nil, tmp)
-			evaluator.Add(tmp_vec, tmp, tmp_vec)
+			evaluator.MulRelin(vecRot[uint64(i)], plainVectors.Vec[N1*j+uint64(i)], nil, tmp)
+			evaluator.Add(tmpVec, tmp, tmpVec)
 		}
 
-		evaluator.RotateColumns(tmp_vec, N1*j, bootcontext.rotkeys, tmp)
+		evaluator.RotateColumns(tmpVec, N1*j, bootcontext.rotkeys, tmp)
 
 		evaluator.Add(res, tmp, res)
 	}
@@ -493,7 +495,7 @@ func fftPlainVec(N uint64, roots []complex128, pow5 []uint64) (a, b, c [][]compl
 			}
 		}
 
-		index += 1
+		index++
 	}
 
 	return
@@ -540,7 +542,7 @@ func fftInvPlainVec(N uint64, roots []complex128, pow5 []uint64) (a, b, c [][]co
 			}
 		}
 
-		index += 1
+		index++
 	}
 
 	return
@@ -718,7 +720,7 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, p
 			nextLevel = level - 1
 			for j := uint64(0); j < merge[i]-1; j++ {
 				plainVector[i] = nextLevelfft(plainVector[i], logSlots, 2<<logSlots, nextLevel, a[logSlots-nextLevel], b[logSlots-nextLevel], c[logSlots-nextLevel], forward)
-				nextLevel -= 1
+				nextLevel--
 			}
 
 		} else {
@@ -729,7 +731,7 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, p
 			nextLevel = level - 1
 			for j := uint64(0); j < merge[i]-1; j++ {
 				plainVector[i] = nextLevelfft(plainVector[i], logSlots, 1<<logSlots, nextLevel, a[logSlots-nextLevel], b[logSlots-nextLevel], c[logSlots-nextLevel], forward)
-				nextLevel -= 1
+				nextLevel--
 			}
 		}
 

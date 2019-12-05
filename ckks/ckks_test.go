@@ -772,7 +772,7 @@ func testChebyshevInterpolator(t *testing.T) {
 
 			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
-			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 127)
+			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
 
 			for i := range values {
 				values[i] = cmplx.Sin(values[i])
@@ -789,7 +789,7 @@ func testChebyshevInterpolator(t *testing.T) {
 
 			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -3, 3, t)
 
-			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 127)
+			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
 
 			for i := range values {
 				values[i] = cmplx.Sin(values[i])

@@ -154,15 +154,23 @@ func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext
 
 	evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
 
-	fmt.Println(res.Level(), tmp.Level())
-
+	
+	
 
 	if res.Level() > tmp.Level(){
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		fmt.Println(1)
+		fmt.Println(res.Level(), tmp.Level())
+		fmt.Println(res.Scale(), tmp.Scale())
+		fmt.Println()
 		evaluator.Add(res, tmp, res)
 	}else{
 		evaluator.Add(res, tmp, res)
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		fmt.Println(2)
+		fmt.Println(res.Level(), tmp.Level())
+		fmt.Println(res.Scale(), tmp.Scale())
+		fmt.Println()
 	}
 	
 
@@ -189,7 +197,7 @@ func evaluatePolyFromChebyBasis(coeffs *poly, C map[uint64]*Ciphertext, evaluato
 		return recurseCheby(coeffs.degree(), L, M, coeffs, C, evaluator, evakey)
 	}
 
-	res = NewCiphertext(evaluator.params, 1, C[coeffs.degree()].Level(), C[coeffs.degree()].Scale())
+	res = NewCiphertext(evaluator.params, 1, C[1].Level(), 1.718160618321759e+10)
 
 	for key := coeffs.degree() ; key > 0 ; key--{
 		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-15 || math.Abs(imag(coeffs.coeffs[key])) > 1e-15) {

@@ -17,15 +17,24 @@ type bfvElement struct {
 	isNTT bool
 }
 
-// NewBfvElement creates a new bfvElement of the target degree with zero values.
-func (context *Context) NewBfvElement(degree uint64) *bfvElement {
-	el := &bfvElement{}
+// newBfvElement creates a new bfvElement of the target degree with zero values.
+func newBfvElement(params *Parameters, degree uint64) *bfvElement {
+	el := new(bfvElement)
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = context.contextQ.NewPoly()
+		el.value[i] = ring.NewPoly(1<<params.LogN, uint64(len(params.LogQi)))
 	}
-	el.isNTT = false
+	el.isNTT = true
+	return el
+}
 
+func newBfvElementRandom(params *Parameters, degree uint64) *bfvElement {
+	el := new(bfvElement)
+	el.value = make([]*ring.Poly, degree+1)
+	for i := uint64(0); i < degree+1; i++ {
+		el.value[i] = ring.NewPolyUniform(1<<params.LogN, uint64(len(params.LogQi)))
+	}
+	el.isNTT = true
 	return el
 }
 
@@ -47,12 +56,16 @@ func (el *bfvElement) Degree() uint64 {
 // Resize resizes the target ciphertext degree to the degree given as input. If the input degree is bigger then
 // it will append new empty polynomials, if the degree is smaller, it will delete polynomials until the degree matches
 // the input degree.
-func (el *bfvElement) Resize(context *Context, degree uint64) {
+func (el *bfvElement) Resize(params *Parameters, degree uint64) {
 	if el.Degree() > degree {
-		el.value = el.value[:degree]
+		el.value = el.value[:degree+1]
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
-			el.value = append(el.value, []*ring.Poly{context.contextQ.NewPoly()}...)
+			el.value = append(el.value, []*ring.Poly{new(ring.Poly)}...)
+			el.value[el.Degree()].Coeffs = make([][]uint64, len(params.LogQi))
+			for i := 0; i < len(params.LogQi); i++ {
+				el.value[el.Degree()].Coeffs[i] = make([]uint64, uint64(1<<params.LogN))
+			}
 		}
 	}
 }
@@ -93,26 +106,26 @@ func (el *bfvElement) Copy(ctxCopy *bfvElement) {
 }
 
 // NTT puts the target ciphertext in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
-func (el *bfvElement) NTT(context *Context, c *bfvElement) {
+func (el *bfvElement) NTT(context *ring.Context, c *bfvElement) {
 	if el.Degree() != c.Degree() {
 		panic("receiver element invalid degree (does not match)")
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
-			context.contextQ.NTT(el.Value()[i], c.Value()[i])
+			context.NTT(el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(true)
 	}
 }
 
 // InvNTT puts the target ciphertext outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
-func (el *bfvElement) InvNTT(context *Context, c *bfvElement) {
+func (el *bfvElement) InvNTT(context *ring.Context, c *bfvElement) {
 	if el.Degree() != c.Degree() {
 		panic("eceiver element invalid degree (does not match)")
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {
-			context.contextQ.InvNTT(el.Value()[i], c.Value()[i])
+			context.InvNTT(el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(false)
 	}

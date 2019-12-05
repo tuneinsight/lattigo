@@ -77,47 +77,49 @@ func main() {
 		input []uint64
 	}
 
-	params := &bfv.DefaultParams[0] // default params with N=8192
+	params := bfv.DefaultParams[bfv.PN13QP218] // default params with N=8192
 	params.T = 65537
-	bfvctx := bfv.NewContextWithParam(params)
 
 	// Common reference polynomial generator keyed with
 	// "lattigo" and seeded with "pir example".
-	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, bfvctx.ContextKeys())
+	crsGen := dbfv.NewCRPGenerator(params, []byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 	crsGen.Seed([]byte{'p', 'i', 'r', ' ', 'e', 'x', 'a', 'm', 'p', 'l', 'e'})
 
 	// Generation of the common reference polynomials
 	crs := crsGen.ClockNew()                    // for the public-key
-	crp := make([]*ring.Poly, bfvctx.Beta())    // for the relinearization keys
-	crpRot := make([]*ring.Poly, bfvctx.Beta()) // for the rotation keys
-	for i := uint64(0); i < bfvctx.Beta(); i++ {
+	crp := make([]*ring.Poly, params.Beta())    // for the relinearization keys
+	crpRot := make([]*ring.Poly, params.Beta()) // for the rotation keys
+	for i := uint64(0); i < params.Beta(); i++ {
 		crp[i] = crsGen.ClockNew()
 	}
-	for i := uint64(0); i < bfvctx.Beta(); i++ {
+	for i := uint64(0); i < params.Beta(); i++ {
 		crpRot[i] = crsGen.ClockNew()
 	}
 
 	// Collective secret key = sum(individual secret keys)
-	colSk := &bfv.SecretKey{}
-	colSk.Set(bfvctx.ContextKeys().NewPoly())
+	colSk := bfv.NewSecretKey(params)
 
 	// Instantiation of each of the protocols needed for the pir example
-	ckg := dbfv.NewCKGProtocol(bfvctx)       // public key generation
-	rkg := dbfv.NewEkgProtocol(bfvctx)       // relineariation key generation
-	rtg := dbfv.NewRotKGProtocol(bfvctx)     // rotation keys generation
-	cks := dbfv.NewCKSProtocol(bfvctx, 3.19) // collective public-key re-encryption
+	ckg := dbfv.NewCKGProtocol(params)       // public key generation
+	rkg := dbfv.NewEkgProtocol(params)       // relineariation key generation
+	rtg := dbfv.NewRotKGProtocol(params)     // rotation keys generation
+	cks := dbfv.NewCKSProtocol(params, 3.19) // collective public-key re-encryption
+
+	kgen := bfv.NewKeyGenerator(params)
+
+	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN, append(params.Qi, params.Pi...))
 
 	// Creates each party, and allocates the memory for all the shares that the protocols will need
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
-		pi.sk = bfvctx.NewKeyGenerator().NewSecretKey()
-		pi.rlkEphemSk = bfvctx.ContextKeys().SampleTernaryMontgomeryNTTNew(1.0 / 3)
-		pi.input = make([]uint64, params.N, params.N)
+		pi.sk = kgen.NewSecretKey()
+		pi.rlkEphemSk = contextKeys.SampleTernaryMontgomeryNTTNew(1.0 / 3)
+		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for j := range pi.input {
 			pi.input[j] = uint64(i)
 		}
-		bfvctx.ContextKeys().Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
+		contextKeys.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
 
 		pi.ckgShare = ckg.AllocateShares()
 		pi.rkgShareOne, pi.rkgShareTwo, pi.rkgShareThree = rkg.AllocateShares()
@@ -136,7 +138,7 @@ func main() {
 
 	// 1) Collective public key generation
 	l.Println("> CKG Phase")
-	pk := bfvctx.NewPublicKey()
+	pk := bfv.NewPublicKey(params)
 	elapsedCKGParty = runTimedParty(func() {
 		for _, pi := range P {
 			ckg.GenShare(pi.sk.Get(), crs, pi.ckgShare)
@@ -185,7 +187,7 @@ func main() {
 		}
 	}, N)
 
-	rlk := bfvctx.NewRelinKey(1)
+	rlk := bfv.NewRelinKey(params, 1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShareRoundThree(pi.rkgShareThree, rkgCombined3, rkgCombined3)
@@ -196,9 +198,9 @@ func main() {
 
 	// 3) Collective rotation keys geneneration
 	l.Println("> RTG Phase")
-	rtk := bfvctx.NewRotationKeys()
+	rtk := bfv.NewRotationKeys()
 	for _, rot := range []bfv.Rotation{bfv.RotationRight, bfv.RotationLeft, bfv.RotationRow} {
-		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < bfvctx.ContextKeys().N>>1); k <<= 1 {
+		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < 1<<(params.LogN-1)); k <<= 1 {
 
 			rtgShareCombined := rtg.AllocateShare()
 			rtgShareCombined.Type = rot
@@ -225,7 +227,7 @@ func main() {
 		elapsedCKGParty+elapsedRKGParty+elapsedRTGParty)
 
 	// Pre-loading memory
-	encoder := bfvctx.NewEncoder()
+	encoder := bfv.NewEncoder(params)
 	l.Println("> Memory alloc Phase")
 	encInputs := make([]*bfv.Ciphertext, N, N)
 	plainMask := make([]*bfv.Plaintext, N, N)
@@ -233,27 +235,27 @@ func main() {
 
 	// Ciphertexts to be retrieved.
 	for i := range encInputs {
-		encInputs[i] = bfvctx.NewCiphertext(1)
+		encInputs[i] = bfv.NewCiphertext(params, 1)
 	}
 
 	// Plaintext masks : plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
 	// (zero with a 1 at the ith position).
 	for i := range plainMask {
-		maskCoeffs := make([]uint64, bfvctx.N())
+		maskCoeffs := make([]uint64, 1<<params.LogN)
 		maskCoeffs[i] = 1
-		plainMask[i] = bfvctx.NewPlaintext()
+		plainMask[i] = bfv.NewPlaintext(params)
 		encoder.EncodeUint(maskCoeffs, plainMask[i])
 	}
 
 	// Buffer for the intermediate compuation done by the cloud.
 	for i := range encPartial {
-		encPartial[i] = bfvctx.NewCiphertext(2)
+		encPartial[i] = bfv.NewCiphertext(params, 2)
 	}
 
 	// Ciphertexts encrypted under CPK and stored in the cloud.
 	l.Println("> Encrypt Phase")
-	encryptor := bfvctx.NewEncryptorFromPk(pk)
-	pt := bfvctx.NewPlaintext()
+	encryptor := bfv.NewEncryptorFromPk(params, pk)
+	pt := bfv.NewPlaintext(params)
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
 			encoder.EncodeUint(pi.input, pt)
@@ -270,9 +272,9 @@ func main() {
 	var elapsedRequestCloudCPU time.Duration
 
 	// Query ciphertext
-	queryCoeffs := make([]uint64, params.N)
+	queryCoeffs := make([]uint64, 1<<params.LogN)
 	queryCoeffs[queryIndex] = 1
-	query := bfvctx.NewPlaintext()
+	query := bfv.NewPlaintext(params)
 	var encQuery *bfv.Ciphertext
 	elapsedRequestParty += runTimed(func() {
 		encoder.EncodeUint(queryCoeffs, query)
@@ -293,8 +295,8 @@ func main() {
 	workers.Add(NGoRoutine)
 	for i := 1; i <= NGoRoutine; i++ {
 		go func(i int) {
-			evaluator := bfvctx.NewEvaluator()
-			tmp := bfvctx.NewCiphertext(1)
+			evaluator := bfv.NewEvaluator(params)
+			tmp := bfv.NewCiphertext(params, 1)
 			for task := range tasks {
 				task.elapsedMaskTask = runTimed(func() {
 					// 1) Multiplication of the query with the plaintext mask.
@@ -332,9 +334,9 @@ func main() {
 		elapsedRequestCloudCPU += t.elapsedMaskTask
 	}
 
-	evaluator := bfvctx.NewEvaluator()
-	resultDeg2 := bfvctx.NewCiphertext(2)
-	result := bfvctx.NewCiphertext(1)
+	evaluator := bfv.NewEvaluator(params)
+	resultDeg2 := bfv.NewCiphertext(params, 2)
+	result := bfv.NewCiphertext(params, 1)
 
 	// Summation of all the partial result among the different Go routines
 	finalAddDuration := runTimed(func() {
@@ -352,7 +354,7 @@ func main() {
 
 	// Collective (partial) decryption.
 	l.Println("> CKS Phase")
-	zero := bfvctx.ContextQ().NewPoly()
+	zero := params.NewPolyQ()
 	cksCombined := cks.AllocateShare()
 	elapsedPCKSParty := runTimedParty(func() {
 		for _, pi := range P[1:] {
@@ -360,7 +362,7 @@ func main() {
 		}
 	}, N-1)
 
-	encOut := bfvctx.NewCiphertext(1)
+	encOut := bfv.NewCiphertext(params, 1)
 	elapsedCKSCloud := runTimed(func() {
 		for _, pi := range P {
 			cks.AggregateShares(pi.cksShare, cksCombined, cksCombined)
@@ -372,8 +374,8 @@ func main() {
 	l.Println("> Result:")
 
 	// Decryption by the external party
-	decryptor := bfvctx.NewDecryptor(P[0].sk)
-	ptres := bfvctx.NewPlaintext()
+	decryptor := bfv.NewDecryptor(params, P[0].sk)
+	ptres := bfv.NewPlaintext(params)
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
 	})

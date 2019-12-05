@@ -24,12 +24,12 @@ func Approximate(function func(complex128) complex128, a, b complex128, degree i
 
 	nodes := chebyshevNodes(degree+1, a, b)
 
-	y := make([]complex128, len(nodes))
+	fi := make([]complex128, len(nodes))
 	for i := range nodes {
-		y[i] = function(nodes[i])
+		fi[i] = function(nodes[i])
 	}
 
-	coeffs := chebyCoeffs(nodes, y, a, b)
+	coeffs := chebyCoeffs(nodes, fi, a, b)
 
 	for i := range coeffs {
 		cheby.coeffs[uint64(i)] = coeffs[i]
@@ -64,38 +64,30 @@ func evaluateChebyshevPolynomial(coeffs []complex128, x complex128, a, b complex
 	return
 }
 
-func evaluateChebyshevBasis(degree int, x, a, b complex128) (T complex128) {
-	if degree == 0 {
-		return 1
-	}
-	var u, Tprev, Tnext complex128
-	u = (2*x - a - b) / (b - a)
-	Tprev = 1
-	T = u
-	for i := 1; i < degree; i++ {
-		Tnext = 2*u*T - Tprev
-		Tprev = T
-		T = Tnext
-	}
-	return
-}
+func chebyCoeffs(nodes, fi []complex128, a, b complex128) (coeffs []complex128) {
 
-func chebyCoeffs(u, y []complex128, a, b complex128) (coeffs []complex128) {
+	var u, Tprev, T, Tnext complex128
 
-	n := len(y)
+	n := len(nodes)
 
 	coeffs = make([]complex128, n)
 
-	for j := 0; j < n; j++ {
-		coeffs[0] += y[j] * evaluateChebyshevBasis(0, u[j], a, b)
+	for i := 0; i < n; i++ {
+
+		u = (2*nodes[i] - a - b) / (b - a)
+		Tprev = 1
+		T = u
+
+		for j := 0; j < n; j++ {
+			coeffs[j] += fi[i] * Tprev
+			Tnext = 2*u*T - Tprev
+			Tprev = T
+			T = Tnext
+		}
 	}
 
 	coeffs[0] /= complex(float64(n), 0)
-
 	for i := 1; i < n; i++ {
-		for j := 0; j < n; j++ {
-			coeffs[i] += y[j] * evaluateChebyshevBasis(i, u[j], a, b)
-		}
 		coeffs[i] *= (2.0 / complex(float64(n), 0))
 	}
 

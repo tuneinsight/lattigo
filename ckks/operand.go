@@ -20,18 +20,8 @@ type ckksElement struct {
 }
 
 // NewCkksElement returns a new ckksElement with zero values.
-func (ckkscontext *Context) NewCkksElement(degree, level uint64, scale float64) *ckksElement {
-	el := &ckksElement{}
-	el.value = make([]*ring.Poly, degree+1)
-	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = ckkscontext.contextQ.NewPolyLvl(level)
-	}
-
-	el.scale = scale
-	el.isNTT = true
-
-	return el
-
+func NewCkksElement() *ckksElement {
+	return &ckksElement{}
 }
 
 // Value returns the slice of polynomials of the target element.
@@ -75,12 +65,16 @@ func (el *ckksElement) DivScale(scale float64) {
 }
 
 // Resize resizes the degree of the target element.
-func (el *ckksElement) Resize(ckkscontext *Context, degree uint64) {
+func (el *ckksElement) Resize(params *Parameters, degree uint64) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree+1]
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
-			el.value = append(el.value, []*ring.Poly{ckkscontext.contextQ.NewPolyLvl(el.Level())}...)
+			el.value = append(el.value, []*ring.Poly{new(ring.Poly)}...)
+			el.value[el.Degree()].Coeffs = make([][]uint64, el.Level()+1)
+			for i := uint64(0); i < el.Level()+1; i++ {
+				el.value[el.Degree()].Coeffs[i] = make([]uint64, 1<<params.LogN)
+			}
 		}
 	}
 }
@@ -96,13 +90,13 @@ func (el *ckksElement) SetIsNTT(value bool) {
 }
 
 // NTT puts the target element in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
-func (el *ckksElement) NTT(ckkscontext *Context, c *ckksElement) error {
+func (el *ckksElement) NTT(context *ring.Context, c *ckksElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
-			ckkscontext.contextQ.NTTLvl(el.Level(), el.Value()[i], c.Value()[i])
+			context.NTTLvl(el.Level(), el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(true)
 	}
@@ -110,13 +104,13 @@ func (el *ckksElement) NTT(ckkscontext *Context, c *ckksElement) error {
 }
 
 // InvNTT puts the target element outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
-func (el *ckksElement) InvNTT(ckkscontext *Context, c *ckksElement) error {
+func (el *ckksElement) InvNTT(context *ring.Context, c *ckksElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error : receiver element invalide degree (does not match)")
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {
-			ckkscontext.contextQ.InvNTTLvl(el.Level(), el.Value()[i], c.Value()[i])
+			context.InvNTTLvl(el.Level(), el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(false)
 	}

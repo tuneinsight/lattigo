@@ -9,18 +9,13 @@ type Ciphertext struct {
 	*ckksElement
 }
 
-// NewCiphertext returns a new Ciphertext element.
-func NewCiphertext() (ciphertext *Ciphertext) {
-	return &Ciphertext{&ckksElement{}}
-}
-
 // NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
-func (ckkscontext *Context) NewCiphertext(degree uint64, level uint64, scale float64) *Ciphertext {
-	ciphertext := &Ciphertext{&ckksElement{}}
+func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float64) (ciphertext *Ciphertext) {
+	ciphertext = &Ciphertext{&ckksElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = ckkscontext.contextQ.NewPolyLvl(level)
+		ciphertext.value[i] = ring.NewPoly(1<<params.LogN, level+1)
 	}
 
 	ciphertext.scale = scale
@@ -29,13 +24,13 @@ func (ckkscontext *Context) NewCiphertext(degree uint64, level uint64, scale flo
 	return ciphertext
 }
 
-// NewRandomCiphertext generates a new uniformely distributed ciphertext of degree, level and scale.
-func (ckkscontext *Context) NewRandomCiphertext(degree, level uint64, scale float64) (ciphertext *Ciphertext) {
+// NewCiphertextRandom generates a new uniformely distributed ciphertext of degree, level and scale.
+func NewCiphertextRandom(params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{&ckksElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = ckkscontext.contextQ.NewUniformPolyLvl(level)
+		ciphertext.value[i] = ring.NewPolyUniform(1<<params.LogN, level+1)
 	}
 
 	ciphertext.scale = scale

@@ -55,6 +55,14 @@ func NewContext() *Context {
 	return new(Context)
 }
 
+// NewContextWithParams creates a new ringContex with the given parameters. Returns an error if
+// the moduli are not NTT compliants.
+func NewContextWithParams(N uint64, Moduli []uint64) (context *Context, err error) {
+	context = NewContext()
+	context.SetParameters(N, Moduli)
+	return context, context.GenNTTParams()
+}
+
 // SetParameters initializes the parameters of an empty context with N and the provided moduli.
 // Only checks that N is a power of 2 and computes all the variables that aren't used for the NTT.
 func (context *Context) SetParameters(N uint64, Modulus []uint64) {

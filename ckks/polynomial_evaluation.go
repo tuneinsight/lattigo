@@ -88,7 +88,7 @@ func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator,
 		// Computes C[n] = C[a]*C[b]
 		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
 
-		evaluator.Rescale(C[n], evaluator.ckkscontext.scale, C[n])
+		evaluator.Rescale(C[n], evaluator.ckksContext.scale, C[n])
 	}
 }
 
@@ -133,7 +133,7 @@ func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]
 
 	evaluator.Add(res, tmp, res)
 
-	evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
+	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 
 	return res
 
@@ -141,7 +141,7 @@ func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]
 
 func evaluatePolyFromPowerBasis(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
-	res = evaluator.ckkscontext.NewCiphertext(1, C[1].Level(), C[1].Scale())
+	res = NewCiphertext(evaluator.params, 1, C[1].Level(), C[1].Scale())
 
 	if math.Abs(real(coeffs[0])) > 1e-15 || math.Abs(imag(coeffs[0])) > 1e-15 {
 		evaluator.AddConst(res, coeffs[0], res)
@@ -153,7 +153,7 @@ func evaluatePolyFromPowerBasis(coeffs map[uint64]complex128, C map[uint64]*Ciph
 		}
 	}
 
-	evaluator.Rescale(res, evaluator.ckkscontext.scale, res)
+	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 
 	return
 }

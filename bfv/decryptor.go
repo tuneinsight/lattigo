@@ -6,25 +6,28 @@ import (
 
 // Decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type Decryptor struct {
-	context  *Context
-	sk       *SecretKey
-	polypool *ring.Poly
+	params     *Parameters
+	bfvContext *bfvContext
+	sk         *SecretKey
+	polypool   *ring.Poly
 }
 
 // NewDecryptor creates a new Decryptor from the target context with the secret-key given as input.
-func (context *Context) NewDecryptor(sk *SecretKey) (decryptor *Decryptor) {
+func NewDecryptor(params *Parameters, sk *SecretKey) (decryptor *Decryptor) {
 
-	if sk.sk.GetDegree() != int(context.n) {
+	if sk.sk.GetDegree() != int(1<<params.LogN) {
 		panic("error : secret_key degree must match context degree")
 	}
 
 	decryptor = new(Decryptor)
 
-	decryptor.context = context
+	decryptor.params = params.Copy()
+
+	decryptor.bfvContext = newBFVContext(params)
 
 	decryptor.sk = sk
 
-	decryptor.polypool = context.contextQ.NewPoly()
+	decryptor.polypool = decryptor.bfvContext.contextQ.NewPoly()
 
 	return decryptor
 }
@@ -32,7 +35,7 @@ func (context *Context) NewDecryptor(sk *SecretKey) (decryptor *Decryptor) {
 // DecryptNew decrypts the input ciphertext and returns the result on a new plaintext.
 func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
 
-	plaintext = decryptor.context.NewPlaintext()
+	plaintext = NewPlaintext(decryptor.params)
 
 	decryptor.Decrypt(ciphertext, plaintext)
 
@@ -42,7 +45,7 @@ func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 // Decrypt decrypts the input ciphertext and returns the result on the provided receiver plaintext.
 func (decryptor *Decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
-	ringContext := decryptor.context.contextQ
+	ringContext := decryptor.bfvContext.contextQ
 
 	ringContext.NTT(ciphertext.value[ciphertext.Degree()], plaintext.value)
 

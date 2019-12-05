@@ -47,34 +47,32 @@ func obliviousRiding() {
 	nbDrivers := uint64(2048) //max is N
 
 	// BFV parameters (128 bit security)
-	params := bfv.DefaultParams[0]
+	params := bfv.DefaultParams[bfv.PN13QP218]
 
 	// Plaintext modulus
 	params.T = 0x3ee0001
 
-	bfvContext := bfv.NewContextWithParam(&params)
-
-	encoder := bfvContext.NewEncoder()
+	encoder := bfv.NewEncoder(params)
 
 	// Rider's keygen
-	kgen := bfvContext.NewKeyGenerator()
+	kgen := bfv.NewKeyGenerator(params)
 
 	riderSk, riderPk := kgen.NewKeyPair()
 
-	decryptor := bfvContext.NewDecryptor(riderSk)
+	decryptor := bfv.NewDecryptor(params, riderSk)
 
-	encryptorRiderPk := bfvContext.NewEncryptorFromPk(riderPk)
+	encryptorRiderPk := bfv.NewEncryptorFromPk(params, riderPk)
 
-	encryptorRiderSk := bfvContext.NewEncryptorFromSk(riderSk)
+	encryptorRiderSk := bfv.NewEncryptorFromSk(params, riderSk)
 
-	evaluator := bfvContext.NewEvaluator()
+	evaluator := bfv.NewEvaluator(params)
 
 	fmt.Println("============================================")
 	fmt.Println("Homomorphic computations on batched integers")
 	fmt.Println("============================================")
 	fmt.Println()
-	fmt.Printf("Parameters : N=%d, T=%d, logQ = %d (%d limbs), sigma = %f \n",
-		bfvContext.N(), bfvContext.T(), bfvContext.LogQ(), len(params.Qi), bfvContext.Sigma())
+	fmt.Printf("Parameters : N=%d, T=%d, Q = %d bits, sigma = %f \n",
+		1<<params.LogN, params.T, params.LogQP(), params.Sigma)
 	fmt.Println()
 
 	maxvalue := uint64(math.Sqrt(float64(params.T)))    // max values = floor(sqrt(plaintext modulus))
@@ -87,13 +85,13 @@ func obliviousRiding() {
 	// Rider coordinates [x, y, x, y, ....., x, y]
 	riderPosX, riderPosY := ring.RandUniform(maxvalue, mask), ring.RandUniform(maxvalue, mask)
 
-	Rider := make([]uint64, params.N)
+	Rider := make([]uint64, 1<<params.LogN)
 	for i := uint64(0); i < nbDrivers; i++ {
 		Rider[(i << 1)] = riderPosX
 		Rider[(i<<1)+1] = riderPosY
 	}
 
-	riderPlaintext := bfvContext.NewPlaintext()
+	riderPlaintext := bfv.NewPlaintext(params)
 	encoder.EncodeUint(Rider, riderPlaintext)
 
 	// driversData coordinates [0, 0, ..., x, y, ..., 0, 0]
@@ -101,10 +99,10 @@ func obliviousRiding() {
 
 	driversPlaintexts := make([]*bfv.Plaintext, nbDrivers)
 	for i := uint64(0); i < nbDrivers; i++ {
-		driversData[i] = make([]uint64, params.N)
+		driversData[i] = make([]uint64, 1<<params.LogN)
 		driversData[i][(i << 1)] = ring.RandUniform(maxvalue, mask)
 		driversData[i][(i<<1)+1] = ring.RandUniform(maxvalue, mask)
-		driversPlaintexts[i] = bfvContext.NewPlaintext()
+		driversPlaintexts[i] = bfv.NewPlaintext(params)
 		encoder.EncodeUint(driversData[i], driversPlaintexts[i])
 	}
 

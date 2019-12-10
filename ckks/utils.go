@@ -33,6 +33,8 @@ func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 		xFlo = big.NewFloat(n * value)
 	}
 
+	xFlo.Add(xFlo, big.NewFloat(0.5))
+
 	xInt = new(big.Int)
 	xFlo.Int(xInt)
 	xInt.Mod(xInt, ring.NewUint(q))
@@ -65,6 +67,8 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 				xFlo = big.NewFloat(n * values[i])
 			}
 
+			xFlo.Add(xFlo, big.NewFloat(0.5))
+
 			xInt = new(big.Int)
 			xFlo.Int(xInt)
 
@@ -80,11 +84,11 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 
 			if values[i] < 0 {
 				for j := range moduli {
-					coeffs[j][i] = moduli[j] - (uint64(-n*values[i]) % moduli[j])
+					coeffs[j][i] = moduli[j] - (uint64(-n*values[i]+0.5) % moduli[j])
 				}
 			} else {
 				for j := range moduli {
-					coeffs[j][i] = uint64(n*values[i]) % moduli[j]
+					coeffs[j][i] = uint64(n*values[i]+0.5) % moduli[j]
 				}
 			}
 		}

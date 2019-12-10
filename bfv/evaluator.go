@@ -32,6 +32,10 @@ type Evaluator struct {
 // and ciphertexts that will be used for intermediate values.
 func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 
+	if !params.isValid {
+		panic("cannot NewEvaluator : params not valid (check if they where generated properly)")
+	}
+
 	evaluator = new(Evaluator)
 	evaluator.params = params.Copy()
 	evaluator.bfvContext = newBFVContext(params)

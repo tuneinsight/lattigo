@@ -20,7 +20,7 @@ const MaxModuliSize = 60
 
 func init() {
 	for _, params := range DefaultParams {
-		params.genFromLogModuli()
+		params.GenFromLogModuli()
 	}
 }
 
@@ -156,8 +156,9 @@ func NewParametersFromModuli(LogN, T uint64, moduli Moduli, sigma float64) (para
 	params = new(Parameters)
 	params.LogN = LogN
 	params.T = T
+	params.Sigma = sigma
 	params.Moduli = moduli.Copy()
-	params.genFromModuli()
+	params.GenFromModuli()
 	return
 }
 
@@ -171,8 +172,9 @@ func NewParametersFromLogModuli(LogN, T uint64, logModuli LogModuli, sigma float
 	params = new(Parameters)
 	params.LogN = LogN
 	params.T = T
+	params.Sigma = sigma
 	params.LogModuli = logModuli.Copy()
-	params.genFromLogModuli()
+	params.GenFromLogModuli()
 	return
 }
 
@@ -313,12 +315,12 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	p.genFromModuli()
+	p.GenFromModuli()
 
 	return nil
 }
 
-func (p *Parameters) genFromModuli() {
+func (p *Parameters) GenFromModuli() {
 
 	if err := p.checkModuli(); err != nil {
 		panic(err)
@@ -357,7 +359,7 @@ func (p *Parameters) genFromModuli() {
 	p.isValid = true
 }
 
-func (p *Parameters) genFromLogModuli() {
+func (p *Parameters) GenFromLogModuli() {
 
 	if err := p.checkLogModuli(); err != nil {
 		panic(err)
@@ -365,7 +367,7 @@ func (p *Parameters) genFromLogModuli() {
 
 	p.Qi, p.Pi, p.QiMul = GenModuli(p)
 
-	p.genFromModuli()
+	p.GenFromModuli()
 }
 
 func (p *Parameters) checkModuli() error {

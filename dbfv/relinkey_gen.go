@@ -185,6 +185,11 @@ func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundT
 // NewEkgProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
 func NewEkgProtocol(params *bfv.Parameters) *RKGProtocol {
+
+	if !params.IsValid() {
+		panic("cannot NewEkgProtocol : params not valid (check if they where generated properly)")
+	}
+
 	context := newDbfvContext(params)
 
 	ekg := new(RKGProtocol)

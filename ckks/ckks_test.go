@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"fmt"
+	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math"
 	"math/cmplx"
@@ -1078,6 +1079,13 @@ func testMarshaller(t *testing.T) {
 					evakeyWant := rotationKey.evakeyRotColLeft[i].evakey
 					evakeyTest := resRotationKey.evakeyRotColLeft[i].evakey
 
+					evakeyNTTIndexWant := rotationKey.permuteNTTLeftIndex[i]
+					evakeyNTTIndexTest := resRotationKey.permuteNTTLeftIndex[i]
+
+					if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
+						t.Errorf("Marshal RotKey RotateLeft PermuteNTTIndex")
+					}
+
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
@@ -1092,6 +1100,13 @@ func testMarshaller(t *testing.T) {
 
 					evakeyWant := rotationKey.evakeyRotColRight[i].evakey
 					evakeyTest := resRotationKey.evakeyRotColRight[i].evakey
+
+					evakeyNTTIndexWant := rotationKey.permuteNTTRightIndex[i]
+					evakeyNTTIndexTest := resRotationKey.permuteNTTRightIndex[i]
+
+					if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
+						t.Errorf("Marshal RotKey RotateRight PermuteNTTIndex")
+					}
 
 					for j := range evakeyWant {
 
@@ -1108,6 +1123,13 @@ func testMarshaller(t *testing.T) {
 
 				evakeyWant := rotationKey.evakeyConjugate.evakey
 				evakeyTest := resRotationKey.evakeyConjugate.evakey
+
+				evakeyNTTIndexWant := rotationKey.permuteNTTConjugateIndex
+				evakeyNTTIndexTest := resRotationKey.permuteNTTConjugateIndex
+
+				if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
+					t.Errorf("Marshal RotKey Conjugate PermuteNTTIndex")
+				}
 
 				for j := range evakeyWant {
 

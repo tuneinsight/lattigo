@@ -40,6 +40,10 @@ func (ekg *RKGProtocol) AllocateShares() (r1 RKGShareRoundOne, r2 RKGShareRoundT
 // NewEkgProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key.
 func NewEkgProtocol(params *ckks.Parameters) *RKGProtocol {
 
+	if !params.IsValid() {
+		panic("cannot NewEkgProtocol : params not valid (check if they where generated properly)")
+	}
+
 	ekg := new(RKGProtocol)
 	dckksContext := newDckksContext(params)
 	ekg.dckksContext = dckksContext

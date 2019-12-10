@@ -29,6 +29,10 @@ func NewEncryptorFromSk(params *Parameters, sk *SecretKey) *Encryptor {
 
 func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
 
+	if !params.isValid {
+		panic("cannot NewEncryptor : params not valid (check if they where generated properly)")
+	}
+
 	if pk != nil && (uint64(pk.pk[0].GetDegree()) != uint64(1<<params.LogN) || uint64(pk.pk[1].GetDegree()) != uint64(1<<params.LogN)) {
 		panic("error : pk ring degree doesn't match bfvcontext ring degree")
 	}

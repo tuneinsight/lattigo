@@ -26,6 +26,10 @@ type dbfvContext struct {
 
 func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 
+	if !params.IsValid() {
+		panic("cannot newDbfvContext : params not valid (check if they where generated properly)")
+	}
+
 	LogN := params.LogN
 	n := uint64(1 << LogN)
 

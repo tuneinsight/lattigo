@@ -19,6 +19,10 @@ type Encoder struct {
 // NewEncoder creates a new encoder from the provided parameters
 func NewEncoder(params *Parameters) (encoder *Encoder) {
 
+	if !params.isValid {
+		panic("cannot NewEncoder : params not valid (check if they where generated properly)")
+	}
+
 	var m, pos, index1, index2 uint64
 
 	encoder = new(Encoder)

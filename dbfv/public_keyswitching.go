@@ -74,6 +74,11 @@ func (share *PCKSShare) UnmarshalBinary(data []byte) error {
 // NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
 func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtocol {
+
+	if !params.IsValid() {
+		panic("cannot NewPCKSProtocol : params not valid (check if they where generated properly)")
+	}
+
 	context := newDbfvContext(params)
 
 	pcks := new(PCKSProtocol)

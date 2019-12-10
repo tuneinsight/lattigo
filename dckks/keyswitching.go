@@ -27,6 +27,10 @@ type CKSShare *ring.Poly
 // parties.
 func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSProtocol) {
 
+	if !params.IsValid() {
+		panic("cannot NewCKSProtocol : params not valid (check if they where generated properly)")
+	}
+
 	cks = new(CKSProtocol)
 
 	dckksContext := newDckksContext(params)

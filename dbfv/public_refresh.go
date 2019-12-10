@@ -77,6 +77,11 @@ func (share *RefreshShare) UnmarshalBinary(data []byte) error {
 
 // NewRefreshProtocol creates a new Refresh protocol instance.
 func NewRefreshProtocol(params *bfv.Parameters) (refreshProtocol *RefreshProtocol) {
+
+	if !params.IsValid() {
+		panic("cannot NewRefreshProtocol : params not valid (check if they where generated properly)")
+	}
+
 	context := newDbfvContext(params)
 
 	refreshProtocol = new(RefreshProtocol)

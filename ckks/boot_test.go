@@ -19,7 +19,7 @@ func Test_Bootstrapp(t *testing.T) {
 	bootParams.LogPi = []uint64{55, 55, 55, 55}
 	bootParams.Sigma = 3.2
 
-	bootParams.genFromLogModuli()
+	bootParams.GenFromLogModuli()
 
 	params := genCkksParams(bootParams)
 

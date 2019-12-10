@@ -260,7 +260,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	bootParams.LogPi = []uint64{55, 55, 55, 55}
 	bootParams.Sigma = 3.2
 
-	bootParams.genFromLogModuli()
+	bootParams.GenFromLogModuli()
 
 	var ctsDepth, stcDepth uint64
 

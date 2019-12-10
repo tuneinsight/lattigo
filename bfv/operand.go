@@ -19,6 +19,11 @@ type bfvElement struct {
 
 // newBfvElement creates a new bfvElement of the target degree with zero values.
 func newBfvElement(params *Parameters, degree uint64) *bfvElement {
+
+	if !params.isValid {
+		panic("cannot newBfvElement : params not valid (check if they where generated properly)")
+	}
+
 	el := new(bfvElement)
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -29,6 +34,11 @@ func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 }
 
 func newBfvElementRandom(params *Parameters, degree uint64) *bfvElement {
+
+	if !params.isValid {
+		panic("cannot newBfvElementRandom : params not valid (check if they where generated properly)")
+	}
+
 	el := new(bfvElement)
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {

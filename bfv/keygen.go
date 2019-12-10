@@ -57,6 +57,11 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params *Parameters) (keygen *KeyGenerator) {
+
+	if !params.isValid {
+		panic("cannot NewKeyGenerator : params not valid (check if they where generated properly)")
+	}
+
 	keygen = new(KeyGenerator)
 	keygen.params = params.Copy()
 	keygen.bfvContext = newBFVContext(params)
@@ -78,6 +83,11 @@ func (keygen *KeyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params *Parameters) *SecretKey {
+
+	if !params.isValid {
+		panic("cannot NewSecretKey : params not valid (check if they where generated properly)")
+	}
+
 	sk := new(SecretKey)
 	sk.sk = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
 	return sk
@@ -113,6 +123,11 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
+
+	if !params.isValid {
+		panic("cannot NewPublicKey : params not valid (check if they where generated properly)")
+	}
+
 	pk = new(PublicKey)
 
 	pk.pk[0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
@@ -164,6 +179,11 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree uint64) (evk *E
 
 // NewRelinKey creates a new EvaluationKey with zero values.
 func NewRelinKey(params *Parameters, maxDegree uint64) (evakey *EvaluationKey) {
+
+	if !params.isValid {
+		panic("cannot NewRelinKey : params not valid (check if they where generated properly)")
+	}
+
 	evakey = new(EvaluationKey)
 
 	beta := params.beta
@@ -222,6 +242,11 @@ func (keygen *KeyGenerator) NewSwitchingKey(skIn, skOut *SecretKey) (evk *Switch
 
 // NewSwitchingKey returns a new SwitchingKey with zero values.
 func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
+
+	if !params.isValid {
+		panic("cannot NewSwitchingKey : params not valid (check if they where generated properly)")
+	}
+
 	evakey = new(SwitchingKey)
 
 	beta := params.beta

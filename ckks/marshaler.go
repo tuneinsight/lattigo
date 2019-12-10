@@ -409,7 +409,7 @@ func (rotationkey *RotationKeys) UnmarshalBinary(data []byte) (err error) {
 
 			N := uint64(len(rotationkey.evakeyRotColRight[rotationNumber].evakey[0][0].Coeffs[0]))
 
-			rotationkey.permuteNTTRightIndex[rotationNumber] = ring.PermuteNTTIndex(GaloisGen, (2*N)-1-rotationNumber, N)
+			rotationkey.permuteNTTRightIndex[rotationNumber] = ring.PermuteNTTIndex(GaloisGen, (2*N)-rotationNumber, N)
 
 		} else if rotationType == Conjugate {
 

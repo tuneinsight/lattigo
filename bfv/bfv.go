@@ -31,6 +31,11 @@ type bfvContext struct {
 }
 
 func newBFVContext(params *Parameters) (context *bfvContext) {
+
+	if !params.isValid {
+		panic("cannot newBFVContext : params not valid (check if they where generated properly)")
+	}
+
 	context = new(bfvContext)
 	var err error
 

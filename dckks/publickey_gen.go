@@ -16,6 +16,11 @@ type CKGShare *ring.Poly
 
 // NewCKGProtocol creates a new CKGProtocol instance
 func NewCKGProtocol(params *ckks.Parameters) *CKGProtocol {
+
+	if !params.IsValid() {
+		panic("cannot NewCKGProtocol : params not valid (check if they where generated properly)")
+	}
+
 	ckg := new(CKGProtocol)
 	ckg.dckksContext = newDckksContext(params)
 	return ckg

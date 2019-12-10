@@ -21,6 +21,11 @@ type RefreshShareRecrypt *ring.Poly
 
 // NewRefreshProtocol creates a new instance of the Refresh protocol.
 func NewRefreshProtocol(params *ckks.Parameters) (refreshProtocol *RefreshProtocol) {
+
+	if !params.IsValid() {
+		panic("cannot NewRefreshProtocol : params not valid (check if they where generated properly)")
+	}
+
 	refreshProtocol = new(RefreshProtocol)
 	dckksContext := newDckksContext(params)
 	refreshProtocol.dckksContext = dckksContext

@@ -23,6 +23,10 @@ type dckksContext struct {
 
 func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 
+	if !params.IsValid() {
+		panic("cannot newDckksContext : params not valid (check if they where generated properly)")
+	}
+
 	context = new(dckksContext)
 
 	context.params = params.Copy()

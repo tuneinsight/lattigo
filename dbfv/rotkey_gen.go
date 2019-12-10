@@ -80,6 +80,11 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 
 // NewRotKGProtocol creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
 func NewRotKGProtocol(params *bfv.Parameters) (rtg *RTGProtocol) {
+
+	if !params.IsValid() {
+		panic("cannot NewRotKGProtocol : params not valid (check if they where generated properly)")
+	}
+
 	context := newDbfvContext(params)
 
 	rtg = new(RTGProtocol)

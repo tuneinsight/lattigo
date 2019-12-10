@@ -14,6 +14,11 @@ type RKGProtocolNaive struct {
 // NewRKGProtocolNaive creates a new RKGProtocolNaive object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
 func NewRKGProtocolNaive(params *ckks.Parameters) (rkg *RKGProtocolNaive) {
+
+	if !params.IsValid() {
+		panic("cannot NewRKGProtocolNaive : params not valid (check if they where generated properly)")
+	}
+
 	rkg = new(RKGProtocolNaive)
 	dckksContext := newDckksContext(params)
 	rkg.dckksContext = dckksContext

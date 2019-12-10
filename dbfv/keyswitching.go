@@ -36,6 +36,11 @@ func (share *CKSShare) UnmarshalBinary(data []byte) error {
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
 func NewCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *CKSProtocol {
+
+	if !params.IsValid() {
+		panic("cannot NewCKSProtocol : params not valid (check if they where generated properly)")
+	}
+
 	context := newDbfvContext(params)
 
 	cks := new(CKSProtocol)

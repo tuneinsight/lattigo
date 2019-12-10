@@ -27,6 +27,10 @@ type PCKSShare [2]*ring.Poly
 // collective public-key.
 func NewPCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) *PCKSProtocol {
 
+	if !params.IsValid() {
+		panic("cannot NewPCKSProtocol : params not valid (check if they where generated properly)")
+	}
+
 	pcks := new(PCKSProtocol)
 
 	dckksContext := newDckksContext(params)

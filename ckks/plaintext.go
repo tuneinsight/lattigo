@@ -12,6 +12,11 @@ type Plaintext struct {
 
 // NewPlaintext creates a new plaintext of level level and scale scale.
 func NewPlaintext(params *Parameters, level uint64, scale float64) *Plaintext {
+
+	if !params.isValid {
+		panic("cannot create new Plaintext, parameters are invalid (check if the generation was done properly)")
+	}
+
 	plaintext := &Plaintext{&ckksElement{}, nil}
 
 	plaintext.ckksElement.value = []*ring.Poly{ring.NewPoly(1<<params.LogN, level+1)}

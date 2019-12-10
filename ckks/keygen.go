@@ -64,6 +64,10 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params *Parameters) (keygen *KeyGenerator) {
 
+	if !params.isValid {
+		panic("cannot create new KeyGenerator, parameters are invalid (check if the generation was done properly)")
+	}
+
 	keygen = new(KeyGenerator)
 	keygen.params = params.Copy()
 	keygen.ckksContext = newContext(params)
@@ -93,6 +97,11 @@ func (keygen *KeyGenerator) NewSecretKeySparse(hw uint64) (sk *SecretKey) {
 
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params *Parameters) *SecretKey {
+
+	if !params.isValid {
+		panic("cannot create new Secretkey, parameters are invalid (check if the generation was done properly)")
+	}
+
 	sk := new(SecretKey)
 	sk.sk = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
 	return sk
@@ -126,6 +135,11 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
+
+	if !params.isValid {
+		panic("cannot create new new PublicKey, parameters are invalid (check if the generation was done properly)")
+	}
+
 	pk = new(PublicKey)
 
 	pk.pk[0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
@@ -171,6 +185,11 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 
 // NewRelinKey returns  new EvaluationKey with zero values.
 func NewRelinKey(params *Parameters) (evakey *EvaluationKey) {
+
+	if !params.isValid {
+		panic("cannot create new EvaluationKey, parameters are invalid (check if the generation was done properly)")
+	}
+
 	evakey = new(EvaluationKey)
 	evakey.evakey = new(SwitchingKey)
 
@@ -213,6 +232,11 @@ func (keygen *KeyGenerator) NewSwitchingKey(skInput, skOutput *SecretKey) (newev
 
 // NewSwitchingKey returns a new SwitchingKey with zero values.
 func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
+
+	if !params.isValid {
+		panic("cannot create new SwitchingKey, parameters are invalid (check if the generation was done properly)")
+	}
+
 	evakey = new(SwitchingKey)
 
 	beta := uint64(math.Ceil(float64(len(params.Qi)) / float64(len(params.Pi))))
@@ -359,6 +383,10 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 // SetRotKey sets the target RotationKeys' SwitchingKey for the specified rotation type and amount with the input polynomials.
 func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly, rotType Rotation, k uint64) {
 
+	if !params.isValid {
+		panic("cannot SetRotKey, parameters are invalid (check if the generation was done properly)")
+	}
+
 	switch rotType {
 	case RotationLeft:
 
@@ -388,7 +416,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 			rotKey.evakeyRotColRight = make(map[uint64]*SwitchingKey)
 		}
 
-		if rotKey.permuteNTTLeftIndex == nil {
+		if rotKey.permuteNTTRightIndex == nil {
 			rotKey.permuteNTTRightIndex = make(map[uint64][]uint64)
 		}
 

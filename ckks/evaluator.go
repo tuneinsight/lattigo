@@ -27,6 +27,11 @@ type Evaluator struct {
 // operations on the ciphertexts and/or plaintexts. It stores a small pool of polynomials
 // and ciphertexts that will be used for intermediate values.
 func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
+
+	if !params.isValid {
+		panic("cannot create new Evaluator, parameters are invalid (check if the generation was done properly)")
+	}
+
 	evaluator = new(Evaluator)
 
 	evaluator.params = params.Copy()

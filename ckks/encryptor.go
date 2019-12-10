@@ -33,6 +33,10 @@ func NewEncryptorFromSk(params *Parameters, sk *SecretKey) *Encryptor {
 // This encryptor can be used to encrypt plaintexts, using the stored keys.
 func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
 
+	if !params.isValid {
+		panic("cannot create new Encryptor, parameters are invalid (check if the generation was done properly)")
+	}
+
 	if pk != nil && (uint64(pk.pk[0].GetDegree()) != uint64(1<<params.LogN) || uint64(pk.pk[1].GetDegree()) != uint64(1<<params.LogN)) {
 		panic("pk ring degree doesn't match ckkscontext ring degree")
 	}

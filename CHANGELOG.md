@@ -19,7 +19,7 @@ All notable changes to this project will be documented in this file.
 - RING : new API for modulus switching with flooring and rounding.
 - UTILS : utils now regroups all the utility methods which were previously duplicated among packages.
 ### Removed
-- All schemes : removed key-switching with bit decomposition. This option will however be re-introduced at a later stage since applications with smaller parameters can suffer from this change.
+- All schemes : removed key-switching with bit decomposition. This option will however be re-introduced at a later stage since applications using small parameters can suffer from this change.
 - BFV/CKKS/Ring : removed redudant/irrelevant tests and benchmarks.
 - BFV : removed context QP as it is not any more used in the multiplication.
 - BFV : removed int encoder, now only batch encoding is supported.
@@ -29,15 +29,15 @@ All notable changes to this project will be documented in this file.
 - RING : removed ternary sampler, which is now part of the context.
 ### Changed
 - All schemes : new tests and benchmarks with fully supported regex.
-- All schemes : coefficient wise arithmetic using double slices is not 40-50% faster.
+- All schemes : coefficient wise arithmetic using double slices is now 40-50% faster.
 - BFV : quantization during multiplication doesn't use Float128 any more, resulting in a 40-50% speed improvement.
 - BFV : BatchEncoder has been renamed Encoder.
 - CKKS : the scale is now stored as a float64 instead of a power of 2.
+- CKKS : rounding instead of flooring is now applied when a real value is converted to an integer value.
 - CKKS : previously needed one ring context per level, now only uses one context for all levels.
-- CKKS : new baby-step giant-step algorithm for evaluating Chebyshev polynomials, much faster and more precise.
-- CKKS : new baby-step giant-step algorithm for evaluting polynomials.
+- CKKS : new baby-step giant-step algorithm for evaluating standard and Chebyshev polynomials, much faster and more precise.
 - CKKS : encrypt with PK and SK now need less NTT.
-- CKKS : API for MultConst is not MultByConst.
+- CKKS : API for MultConst is now MultByConst.
 - BFV/CKKS : new API for the rotation-keys generation.
 - DBFV/DCKKS : complete revamp of the API and interfaces enabling a much easier integration into larger systems.
 - DBFV/DCKKS : improved PCKS and CKS using idea of new key-switching technique, which reduces the added noise.

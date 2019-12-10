@@ -204,48 +204,14 @@ func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext
 
 	evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
 
-	if false { //res.Level() > tmp.Level(){
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
-		/*
-			fmt.Println(1)
-			fmt.Println(res.Level(), tmp.Level())
-			fmt.Println(res.Scale(), tmp.Scale())
-			fmt.Println()
-			evaluator.Add(res, tmp, res)
-		*/
-	} else {
-		evaluator.Add(res, tmp, res)
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
-		/*
-			fmt.Println(2)
-			fmt.Println(res.Level(), tmp.Level())
-			fmt.Println(res.Scale(), tmp.Scale())
-			fmt.Println()
-		*/
-	}
+	evaluator.Add(res, tmp, res)
+	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 
 	return res
 
 }
 
 func evaluatePolyFromChebyBasis(coeffs *poly, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
-
-	var maxDeg uint64
-
-	for i := range C {
-		if i > maxDeg {
-			maxDeg = i
-		}
-	}
-
-	/*
-		if coeffs.maxDeg > 2*maxDeg - coeffs.degree() {
-			M := uint64(bits.Len64(coeffs.degree()))
-			L := uint64(M >> 1)
-			coeffs.maxDeg = coeffs.degree()
-			return recurseCheby(coeffs.degree(), L, M, coeffs, C, evaluator, evakey)
-		}
-	*/
 
 	res = NewCiphertext(evaluator.params, 1, C[1].Level(), 1.718160618321759e+10)
 

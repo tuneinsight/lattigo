@@ -724,35 +724,41 @@ func testEvaluatePoly(t *testing.T) {
 
 		rlk := params.kgen.NewRelinKey(params.sk)
 
-		t.Run(testString("Fast/Exp/", parameters), func(t *testing.T) {
+		if parameters.MaxLevel() > 4 {
 
-			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
+			t.Run(testString("Fast/Exp/", parameters), func(t *testing.T) {
 
-			coeffs := []float64{1.0, 1.0, 1.0 / 2, 1.0 / 6, 1.0 / 24, 1.0 / 120, 1.0 / 720, 1.0 / 5040}
+				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
-			for i := range values {
-				values[i] = cmplx.Exp(values[i])
-			}
+				coeffs := []float64{1.0, 1.0, 1.0 / 2, 1.0 / 6, 1.0 / 24, 1.0 / 120, 1.0 / 720, 1.0 / 5040}
 
-			ciphertext = params.evaluator.EvaluatePolyFast(ciphertext, coeffs, rlk)
+				for i := range values {
+					values[i] = cmplx.Exp(values[i])
+				}
 
-			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-		})
+				ciphertext = params.evaluator.EvaluatePolyFast(ciphertext, coeffs, rlk)
 
-		t.Run(testString("Eco/Exp/", parameters), func(t *testing.T) {
+				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+			})
+		}
 
-			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
+		if parameters.MaxLevel() > 3 {
 
-			coeffs := []float64{1.0, 1.0, 1.0 / 2, 1.0 / 6, 1.0 / 24, 1.0 / 120, 1.0 / 720, 1.0 / 5040}
+			t.Run(testString("Eco/Exp/", parameters), func(t *testing.T) {
 
-			for i := range values {
-				values[i] = cmplx.Exp(values[i])
-			}
+				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
-			ciphertext = params.evaluator.EvaluatePolyEco(ciphertext, coeffs, rlk)
+				coeffs := []float64{1.0, 1.0, 1.0 / 2, 1.0 / 6, 1.0 / 24, 1.0 / 120, 1.0 / 720, 1.0 / 5040}
 
-			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-		})
+				for i := range values {
+					values[i] = cmplx.Exp(values[i])
+				}
+
+				ciphertext = params.evaluator.EvaluatePolyEco(ciphertext, coeffs, rlk)
+
+				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+			})
+		}
 	}
 }
 
@@ -764,37 +770,41 @@ func testChebyshevInterpolator(t *testing.T) {
 
 		rlk := params.kgen.NewRelinKey(params.sk)
 
-		t.Run(testString("Fast/Sin/", parameters), func(t *testing.T) {
+		if parameters.MaxLevel() > 5 {
 
-			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
+			t.Run(testString("Fast/Sin/", parameters), func(t *testing.T) {
 
-			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
+				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
-			for i := range values {
-				values[i] = cmplx.Sin(values[i])
-			}
+				cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
 
-			fmt.Println(ciphertext.Level())
-			ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
-			fmt.Println(ciphertext.Level())
+				for i := range values {
+					values[i] = cmplx.Sin(values[i])
+				}
 
-			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-		})
+				ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
 
-		t.Run(testString("Eco/Sin/", parameters), func(t *testing.T) {
+				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+			})
+		}
 
-			values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -3, 3, t)
+		if parameters.MaxLevel() > 4 {
 
-			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
+			t.Run(testString("Eco/Sin/", parameters), func(t *testing.T) {
 
-			for i := range values {
-				values[i] = cmplx.Sin(values[i])
-			}
+				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -3, 3, t)
 
-			ciphertext = params.evaluator.EvaluateChebyEco(ciphertext, cheby, rlk)
+				cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
 
-			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-		})
+				for i := range values {
+					values[i] = cmplx.Sin(values[i])
+				}
+
+				ciphertext = params.evaluator.EvaluateChebyEco(ciphertext, cheby, rlk)
+
+				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+			})
+		}
 	}
 }
 

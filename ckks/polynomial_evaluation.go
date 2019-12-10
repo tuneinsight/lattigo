@@ -149,7 +149,7 @@ func evaluatePolyFromPowerBasis(coeffs []complex128, C map[uint64]*Ciphertext, e
 		}
 	}
 
-	//evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 
 	return
 }

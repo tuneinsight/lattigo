@@ -11,6 +11,10 @@ type Decryptor struct {
 // encrypted under the provided secret-key.
 func NewDecryptor(params *Parameters, sk *SecretKey) *Decryptor {
 
+	if !params.isValid {
+		panic("cannot create new Decryptor, parameters are invalid (check if the generation was done properly)")
+	}
+
 	if sk.sk.GetDegree() != int(1<<params.LogN) {
 		panic("secret_key degree must match context degree")
 	}

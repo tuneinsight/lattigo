@@ -23,6 +23,10 @@ type Encoder struct {
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
 func NewEncoder(params *Parameters) (encoder *Encoder) {
 
+	if !params.isValid {
+		panic("cannot create new Encoder, parameters are invalid (check if the generation was done properly)")
+	}
+
 	encoder = new(Encoder)
 	encoder.params = params.Copy()
 	encoder.ckksContext = newContext(params)

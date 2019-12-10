@@ -43,6 +43,11 @@ type Context struct {
 // NewContext creates a new Context with the given parameters. Returns an error if one of the parameters would not ensure the
 // correctness of the scheme (however it doesn't check for security).
 func newContext(params *Parameters) (ckkscontext *Context) {
+
+	if !params.isValid {
+		panic("cannot create new Context, parameters are invalid (check if the generation was done properly)")
+	}
+
 	var err error
 
 	ckkscontext = new(Context)

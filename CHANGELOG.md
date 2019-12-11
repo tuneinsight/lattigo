@@ -9,29 +9,29 @@ All notable changes to this project will be documented in this file.
 ## [1.3.0] - 2019-12-01
 ### Added
 - All schemes : new switching-keys and key-switching algorithm based on the concept presented in https://eprint.iacr.org/2019/688.pdf.
-- All schemes : added marshaling interface for all structures.
-- BFV/CKKS : new Parameters structs and API enabling a better customization and fine tuning.
+- All schemes : new marshaling interface for all structures.
+- BFV/CKKS : new Parameters structs and API enabling a better customization and fine tuning for specific applications.
 - CKKS : new API for hoisted rotations, which is faster than sequential rotations.
-- DBFV/DCKKS : collective refresh of a ciphertext (decentralized bootstrapping).
-- RING : Ziggurat sampling, available from the context.
-- RING : dense ans sparse ternary polynomials sampling from the context.
+- DBFV/DCKKS : added collective refresh of a ciphertext (decentralized bootstrapping).
+- RING : added Ziggurat sampling, available from the context.
+- RING : enable dense and sparse ternary polynomials sampling directly from the context.
 - RING : new API enabling "level" wise polynomial arithmetic.
 - RING : new API for modulus switching with flooring and rounding.
 - UTILS : utils now regroups all the utility methods which were previously duplicated among packages.
 ### Removed
-- BFV/CKKS/DBFV/DCKKS : removed their respective context (or made it private). Ring context remains public.
+- BFV/CKKS/DBFV/DCKKS : removed their respective context. Ring context remains public.
 - All schemes : removed key-switching with bit decomposition. This option will however be re-introduced at a later stage since applications using small parameters can suffer from this change.
 - BFV/CKKS/Ring : removed redudant/irrelevant tests and benchmarks.
 - BFV : removed context QP as it is not any more used in the multiplication.
 - BFV : removed int encoder, now only batch encoding is supported.
 - CKKS : modulus switching is now located in Ring.
-- RING : removed algorithms that needed Float128 during the BFV multiplication.
-- RING : removed most of wrapping methods for bigInt, which are now replaced by the native math/big package.
+- RING : removed the algorithms that needed Float128 during the BFV multiplication.
+- RING : removed most wrapping methods for bigInt, which are now replaced by the native math/big package.
 - RING : removed ternary sampler, which is now part of the context.
 ### Changed
 - All schemes : new tests and benchmarks with fully supported regex.
-- All schemes : coefficient wise arithmetic using double slices is now 40-50% faster.
-- BFV/CKKS/DBFV/DCKKS : structures are not created using the parameters instead of the context.
+- All schemes : coefficient wise arithmetic using double slices is now substentially faster.
+- BFV/CKKS/DBFV/DCKKS : structures are now created using the parameters instead of the context.
 - BFV : quantization during multiplication doesn't use Float128 any more, resulting in a substential speed improvement.
 - BFV : BatchEncoder has been renamed Encoder.
 - CKKS : the scale is now stored as a float64 instead of a power of 2.

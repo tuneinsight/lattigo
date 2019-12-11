@@ -10,15 +10,16 @@ All notable changes to this project will be documented in this file.
 ### Added
 - All schemes : new switching-keys and key-switching algorithm based on the concept presented in https://eprint.iacr.org/2019/688.pdf.
 - All schemes : added marshaling interface for all structures.
-- CKKS : new API for hoisted rotations, which is 50-60% faster than sequential rotations.
+- BFV/CKKS : new Parameters structs and API enabling a better customization and fine tuning.
+- CKKS : new API for hoisted rotations, which is faster than sequential rotations.
 - DBFV/DCKKS : collective refresh of a ciphertext (decentralized bootstrapping).
-- RING : Ziggurat sampling available from context.
-- RING : context must be used to generate ternary polynomials.
-- RING : it is now possible to sample sparse ternary polynomials.
+- RING : Ziggurat sampling, available from the context.
+- RING : dense ans sparse ternary polynomials sampling from the context.
 - RING : new API enabling "level" wise polynomial arithmetic.
 - RING : new API for modulus switching with flooring and rounding.
 - UTILS : utils now regroups all the utility methods which were previously duplicated among packages.
 ### Removed
+- BFV/CKKS/DBFV/DCKKS : removed their respective context (or made it private). Ring context remains public.
 - All schemes : removed key-switching with bit decomposition. This option will however be re-introduced at a later stage since applications using small parameters can suffer from this change.
 - BFV/CKKS/Ring : removed redudant/irrelevant tests and benchmarks.
 - BFV : removed context QP as it is not any more used in the multiplication.
@@ -30,20 +31,21 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - All schemes : new tests and benchmarks with fully supported regex.
 - All schemes : coefficient wise arithmetic using double slices is now 40-50% faster.
-- BFV : quantization during multiplication doesn't use Float128 any more, resulting in a 40-50% speed improvement.
+- BFV/CKKS/DBFV/DCKKS : structures are not created using the parameters instead of the context.
+- BFV : quantization during multiplication doesn't use Float128 any more, resulting in a substential speed improvement.
 - BFV : BatchEncoder has been renamed Encoder.
 - CKKS : the scale is now stored as a float64 instead of a power of 2.
-- CKKS : rounding instead of flooring is now applied when a real value is converted to an integer value.
+- CKKS : rounding is applied instead of flooring when a real value is converted to an integer value.
 - CKKS : previously needed one ring context per level, now only uses one context for all levels.
-- CKKS : new baby-step giant-step algorithm for evaluating standard and Chebyshev polynomials, much faster and more precise.
-- CKKS : encrypt with PK and SK now need less NTT.
+- CKKS : new baby-step giant-step algorithm for evaluating standard and Chebyshev polynomials.
+- CKKS : reduced the number of NTT needed during the encryption.
 - CKKS : API for MultConst is now MultByConst.
 - BFV/CKKS : new API for the rotation-keys generation.
 - DBFV/DCKKS : complete revamp of the API and interfaces enabling a much easier integration into larger systems.
-- DBFV/DCKKS : improved PCKS and CKS using idea of new key-switching technique, which reduces the added noise.
+- DBFV/DCKKS : improved PCKS and CKS using the concept of the new key-switching technique, which enables to reduces the added noise.
 - DCKKS : all protocols work for ciphertexts at any levels.
-- RING : faster MulScalarBigint (similar to MulScalar).
-- UTILS : PRNG must now be keyed to be forward secure.
+- RING : faster MulScalarBigint (now similar to MulScalar).
+- UTILS : PRNG must be keyed to be forward secure.
 ### Fixes
 - All packages : typos, godoc and golint.
 - CKKS : ciphertext rotation now correctly sets the scale of the output ciphertext.

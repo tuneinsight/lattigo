@@ -5,10 +5,6 @@ import (
 	"testing"
 )
 
-type benchParams struct {
-	params *Parameters
-}
-
 func BenchmarkCKKSScheme(b *testing.B) {
 	b.Run("Encoder", benchEncoder)
 	b.Run("KeyGen", benchKeyGen)

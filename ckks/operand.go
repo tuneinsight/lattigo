@@ -158,16 +158,10 @@ func (el *ckksElement) Element() *ckksElement {
 
 // Ciphertext sets the target element's type to Ciphertext.
 func (el *ckksElement) Ciphertext() *Ciphertext {
-	if len(el.value) == 1 {
-		panic("not a ciphertext element")
-	}
 	return &Ciphertext{el}
 }
 
 // Plaintext sets the target element's type to Plaintext.
 func (el *ckksElement) Plaintext() *Plaintext {
-	if len(el.value) != 1 {
-		panic("not a plaintext element")
-	}
 	return &Plaintext{el, el.value[0]}
 }

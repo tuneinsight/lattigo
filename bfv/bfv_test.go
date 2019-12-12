@@ -2,12 +2,13 @@ package bfv
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(t *testing.T, err error) {
@@ -28,8 +29,8 @@ type bfvParams struct {
 	kgen        *KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
-	encryptorPk *Encryptor
-	encryptorSk *Encryptor
+	encryptorPk Encryptor
+	encryptorSk Encryptor
 	decryptor   *Decryptor
 	evaluator   *Evaluator
 }
@@ -264,7 +265,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 }
 
-func newTestVectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectors(params *bfvParams, encryptor Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	coeffs = params.bfvContext.contextT.NewUniformPoly()
 

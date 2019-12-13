@@ -31,7 +31,7 @@ type bfvParams struct {
 	pk          *PublicKey
 	encryptorPk Encryptor
 	encryptorSk Encryptor
-	decryptor   *Decryptor
+	decryptor   Decryptor
 	evaluator   *Evaluator
 }
 
@@ -280,7 +280,7 @@ func newTestVectors(params *bfvParams, encryptor Encryptor, t *testing.T) (coeff
 	return coeffs, plaintext, ciphertext
 }
 
-func verifyTestVectors(params *bfvParams, decryptor *Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
+func verifyTestVectors(params *bfvParams, decryptor Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
 
 	var coeffsTest []uint64
 

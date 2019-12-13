@@ -39,8 +39,8 @@ type dbfvTestContext struct {
 	pk1 *bfv.PublicKey
 
 	encryptorPk0 bfv.Encryptor
-	decryptorSk0 *bfv.Decryptor
-	decryptorSk1 *bfv.Decryptor
+	decryptorSk0 bfv.Decryptor
+	decryptorSk1 bfv.Decryptor
 	evaluator    *bfv.Evaluator
 }
 
@@ -687,7 +687,7 @@ func newTestVectors(contextParams *dbfvTestContext, encryptor bfv.Encryptor, t *
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 
-func verifyTestVectors(contextParams *dbfvTestContext, decryptor *bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
+func verifyTestVectors(contextParams *dbfvTestContext, decryptor bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
 	if utils.EqualSliceUint64(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
 		t.Errorf("decryption error")
 	}

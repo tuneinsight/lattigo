@@ -85,7 +85,7 @@ func testMarshaller(t *testing.T) {
 
 			for i := range ciphertextWant.value {
 				if !params.bfvContext.contextQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]) {
-					t.Errorf("Marshal Ciphertext")
+					t.Errorf("marshal Ciphertext")
 				}
 			}
 		})
@@ -100,7 +100,7 @@ func testMarshaller(t *testing.T) {
 			check(t, err)
 
 			if !contextQP.Equal(sk.sk, params.sk.sk) {
-				t.Errorf("Marshal SecretKey")
+				t.Errorf("marshal SecretKey")
 			}
 
 		})
@@ -116,7 +116,7 @@ func testMarshaller(t *testing.T) {
 
 			for k := range params.pk.pk {
 				if !contextQP.Equal(pk.pk[k], params.pk.pk[k]) {
-					t.Errorf("Marshal PublicKey element [%d]", k)
+					t.Errorf("marshal PublicKey element [%d]", k)
 				}
 			}
 		})
@@ -140,7 +140,7 @@ func testMarshaller(t *testing.T) {
 
 					for k := range evakeyWant[j] {
 						if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-							t.Errorf("Marshal EvaluationKey deg %d element [%d][%d]", deg, j, k)
+							t.Errorf("marshal EvaluationKey deg %d element [%d][%d]", deg, j, k)
 						}
 					}
 				}
@@ -166,7 +166,7 @@ func testMarshaller(t *testing.T) {
 
 				for k := range evakeyWant[j] {
 					if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-						t.Errorf("Marshal Switchkey element [%d][%d]", j, k)
+						t.Errorf("marshal SwitchingKey element [%d][%d]", j, k)
 					}
 				}
 			}
@@ -200,7 +200,7 @@ func testMarshaller(t *testing.T) {
 
 						for k := range evakeyWant[j] {
 							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-								t.Errorf("Marshal RotKey RotateLeft %d element [%d][%d]", i, j, k)
+								t.Errorf("marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
 							}
 						}
 					}
@@ -215,7 +215,7 @@ func testMarshaller(t *testing.T) {
 
 						for k := range evakeyWant[j] {
 							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-								t.Errorf("Marshal RotKey RotateRight %d element [%d][%d]", i, j, k)
+								t.Errorf("marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
 							}
 						}
 					}
@@ -231,7 +231,7 @@ func testMarshaller(t *testing.T) {
 
 					for k := range evakeyWant[j] {
 						if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-							t.Errorf("Marshal RotKey RotateRow element [%d][%d]", j, k)
+							t.Errorf("marshal RotationKey RotateRow element [%d][%d]", j, k)
 						}
 					}
 				}

@@ -6,7 +6,7 @@ import (
 	"math/bits"
 )
 
-// Encoder is a structure storing the parameters encode values on a plaintext in a SIMD fashion.
+// Encoder is a structure that stores the parameters to encode values on a plaintext in a SIMD (Single-Instruction Multiple-Data) fashion.
 type Encoder struct {
 	params       *Parameters
 	bfvContext   *bfvContext
@@ -16,11 +16,11 @@ type Encoder struct {
 	deltaMont    []uint64
 }
 
-// NewEncoder creates a new encoder from the provided parameters
+// NewEncoder creates a new encoder from the provided parameters.
 func NewEncoder(params *Parameters) (encoder *Encoder) {
 
 	if !params.isValid {
-		panic("cannot NewEncoder : params not valid (check if they where generated properly)")
+		panic("cannot NewEncoder: params not valid (check if they were generated properly)")
 	}
 
 	var m, pos, index1, index2 uint64
@@ -64,11 +64,11 @@ func NewEncoder(params *Parameters) (encoder *Encoder) {
 func (encoder *Encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
-		panic("invalid input to encode (number of coefficients must be smaller or equal to the context)")
+		panic("cannot EncodeUint: invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
 	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
-		panic("invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
+		panic("cannot EncodeUint: invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder)")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
@@ -83,16 +83,16 @@ func (encoder *Encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 
 }
 
-// EncodeInt encodes an int64 slice of size at most N on a plaintext. Also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
+// EncodeInt encodes an int64 slice of size at most N on a plaintext. It also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
 // The sign will correctly decode as long as the absolute value of the coefficient does not exceed half of the plaintext modulus.
 func (encoder *Encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
-		panic("invalid input to encode (number of coefficients must be smaller or equal to the context)")
+		panic("cannot EncodeInt: invalid input to encode (number of coefficients must be smaller or equal to the context)")
 	}
 
 	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
-		panic("invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder)")
+		panic("cannot EncodeInt: invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder)")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
@@ -146,7 +146,7 @@ func (encoder *Encoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64) {
 
 }
 
-// DecodeInt decodes a batched plaintext and returns the coefficients in an int64 slice. Also decodes the sign (by centering the values around the plaintext
+// DecodeInt decodes a batched plaintext and returns the coefficients in an int64 slice. It also decodes the sign (by centering the values around the plaintext
 // modulus).
 func (encoder *Encoder) DecodeInt(plaintext *Plaintext) (coeffs []int64) {
 

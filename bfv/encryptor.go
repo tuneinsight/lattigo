@@ -4,7 +4,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Encryptor is a structure holding the parameters needed to encrypt plaintexts.
+// Encryptor is a structure that holds the parameters needed to encrypt plaintexts.
 type Encryptor struct {
 	params     *Parameters
 	bfvContext *bfvContext
@@ -30,15 +30,15 @@ func NewEncryptorFromSk(params *Parameters, sk *SecretKey) *Encryptor {
 func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
 
 	if !params.isValid {
-		panic("cannot NewEncryptor : params not valid (check if they where generated properly)")
+		panic("cannot NewEncryptor: params not valid (check if they were generated properly)")
 	}
 
 	if pk != nil && (uint64(pk.pk[0].GetDegree()) != uint64(1<<params.LogN) || uint64(pk.pk[1].GetDegree()) != uint64(1<<params.LogN)) {
-		panic("error : pk ring degree doesn't match bfvcontext ring degree")
+		panic("error: pk ring degree doesn't match bfvcontext ring degree")
 	}
 
 	if sk != nil && uint64(sk.sk.GetDegree()) != uint64(1<<params.LogN) {
-		panic("error : sk ring degree doesn't match bfvcontext ring degree")
+		panic("error: sk ring degree doesn't match bfvcontext ring degree")
 	}
 
 	encryptor = new(Encryptor)
@@ -59,8 +59,8 @@ func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *
 // EncryptNew encrypts the input plaintext using the stored key and returns
 // the result on a newly created ciphertext.
 //
-// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
-// encrypt with sk : ciphertext = [-a*sk + m + e, a]
+// encrypt with pk: ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+// encrypt with sk: ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
 
 	ciphertext = NewCiphertext(encryptor.params, 1)
@@ -71,8 +71,8 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Cipher
 // Encrypt encrypts the input plaintext using the stored key, and returns the result
 // on the receiver ciphertext.
 //
-// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
-// encrypt with sk : ciphertext = [-a*sk + m + e, a]
+// encrypt with pk: ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+// encrypt with sk: ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	if encryptor.sk != nil {
@@ -112,7 +112,7 @@ func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	encryptor.bfvContext.gaussianSampler.Sample(encryptor.polypool[2])
 	ringContext.Add(encryptor.polypool[1], encryptor.polypool[2], encryptor.polypool[1])
 
-	// We rescal the encryption of zero by the special prime, dividing the error by this prime
+	// We rescale the encryption of zero by the special prime, dividing the error by this prime
 	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
 	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])
 
@@ -132,7 +132,7 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	ringContext.UniformPoly(encryptor.polypool[1])
 	ringContext.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
 
-	// We rescal the encryption of zero by the special prime, dividing the error by this prime
+	// We rescale the encryption of zero by the special prime, dividing the error by this prime
 	ringContext.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
 	ringContext.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 

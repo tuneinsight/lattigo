@@ -4,7 +4,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
+// Decryptor is a structure used to decrypt ciphertexts. It stores the secret-key.
 type Decryptor struct {
 	params     *Parameters
 	bfvContext *bfvContext
@@ -16,11 +16,11 @@ type Decryptor struct {
 func NewDecryptor(params *Parameters, sk *SecretKey) (decryptor *Decryptor) {
 
 	if !params.isValid {
-		panic("cannot NewDecryptor : params not valid (check if they where generated properly)")
+		panic("cannot NewDecryptor: params not valid (check if they where generated properly)")
 	}
 
 	if sk.sk.GetDegree() != int(1<<params.LogN) {
-		panic("error : secret_key degree must match context degree")
+		panic("cannot NewDecryptor: secret_key degree must match context degree")
 	}
 
 	decryptor = new(Decryptor)

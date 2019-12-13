@@ -39,7 +39,7 @@ type ckksParams struct {
 	pk          *PublicKey
 	encryptorPk Encryptor
 	encryptorSk Encryptor
-	decryptor   *Decryptor
+	decryptor   Decryptor
 	evaluator   *Evaluator
 }
 
@@ -152,7 +152,7 @@ func newTestVectorsReals(contextParams *ckksParams, encryptor Encryptor, a, b fl
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(contextParams *ckksParams, decryptor *Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	var plaintextTest *Plaintext
 	var valuesTest []complex128

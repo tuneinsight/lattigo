@@ -34,8 +34,8 @@ type dckksTestContext struct {
 	evaluator    *ckks.Evaluator
 
 	encryptorPk0 ckks.Encryptor
-	decryptorSk0 *ckks.Decryptor
-	decryptorSk1 *ckks.Decryptor
+	decryptorSk0 ckks.Decryptor
+	decryptorSk1 ckks.Decryptor
 
 	pk0 *ckks.PublicKey
 	pk1 *ckks.PublicKey
@@ -682,7 +682,7 @@ func newTestVectors(contextParams *dckksTestContext, encryptor ckks.Encryptor, a
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(contextParams *dckksTestContext, decryptor *ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(contextParams *dckksTestContext, decryptor ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128

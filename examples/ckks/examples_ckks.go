@@ -47,7 +47,7 @@ func chebyshevinterpolation() {
 	encryptor = ckks.NewEncryptorFromPk(params, pk)
 
 	// Decryptor
-	var decryptor *ckks.Decryptor
+	var decryptor ckks.Decryptor
 	decryptor = ckks.NewDecryptor(params, sk)
 
 	// Evaluator

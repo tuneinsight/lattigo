@@ -43,7 +43,7 @@ func chebyshevinterpolation() {
 	rlk = kgen.NewRelinKey(sk)
 
 	// Encryptor
-	var encryptor *ckks.Encryptor
+	var encryptor ckks.Encryptor
 	encryptor = ckks.NewEncryptorFromPk(params, pk)
 
 	// Decryptor

@@ -2,11 +2,12 @@ package dckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
 	"math"
 	"sort"
 	"testing"
+
+	"github.com/ldsec/lattigo/ckks"
+	"github.com/ldsec/lattigo/ring"
 )
 
 func check(t *testing.T, err error) {
@@ -32,7 +33,7 @@ type dckksTestContext struct {
 	encoder      *ckks.Encoder
 	evaluator    *ckks.Evaluator
 
-	encryptorPk0 *ckks.Encryptor
+	encryptorPk0 ckks.Encryptor
 	decryptorSk0 *ckks.Decryptor
 	decryptorSk1 *ckks.Decryptor
 
@@ -660,7 +661,7 @@ func testRefresh(t *testing.T) {
 	}
 }
 
-func newTestVectors(contextParams *dckksTestContext, encryptor *ckks.Encryptor, a float64, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
+func newTestVectors(contextParams *dckksTestContext, encryptor ckks.Encryptor, a float64, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
 
 	slots := uint64(1 << contextParams.params.LogSlots)
 

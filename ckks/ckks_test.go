@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math"
 	"math/cmplx"
@@ -10,6 +9,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(t *testing.T, err error) {
@@ -36,8 +37,8 @@ type ckksParams struct {
 	kgen        *KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
-	encryptorPk *Encryptor
-	encryptorSk *Encryptor
+	encryptorPk Encryptor
+	encryptorSk Encryptor
 	decryptor   *Decryptor
 	evaluator   *Evaluator
 }
@@ -105,7 +106,7 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 }
 
-func newTestVectors(contextParams *ckksParams, encryptor *Encryptor, a float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectors(contextParams *ckksParams, encryptor Encryptor, a float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	slots := uint64(1 << contextParams.params.LogSlots)
 
@@ -128,7 +129,7 @@ func newTestVectors(contextParams *ckksParams, encryptor *Encryptor, a float64, 
 	return values, plaintext, ciphertext
 }
 
-func newTestVectorsReals(contextParams *ckksParams, encryptor *Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectorsReals(contextParams *ckksParams, encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	slots := uint64(1 << contextParams.params.LogSlots)
 

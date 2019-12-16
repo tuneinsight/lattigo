@@ -4,14 +4,14 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Operand is a common interface between Ciphertext and Plaintext.
+// Operand is a common interface for Ciphertext and Plaintext.
 type Operand interface {
 	Element() *bfvElement
 	Degree() uint64
 }
 
-// bfvElement is a common struct between plaintexts and ciphertexts. It stores a value
-// as a slice of polynomials, and an isNTT flag indicatig if the element is in the NTT domain.
+// bfvElement is a common struct for Plaintexts and Ciphertexts. It stores a value
+// as a slice of polynomials, and an isNTT flag that indicates if the element is in the NTT domain.
 type bfvElement struct {
 	value []*ring.Poly
 	isNTT bool
@@ -21,7 +21,7 @@ type bfvElement struct {
 func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 
 	if !params.isValid {
-		panic("cannot newBfvElement : params not valid (check if they where generated properly)")
+		panic("cannot newBfvElement: params not valid (check if they were generated properly)")
 	}
 
 	el := new(bfvElement)
@@ -36,7 +36,7 @@ func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 func newBfvElementRandom(params *Parameters, degree uint64) *bfvElement {
 
 	if !params.isValid {
-		panic("cannot newBfvElementRandom : params not valid (check if they where generated properly)")
+		panic("cannot newBfvElementRandom: params not valid (check if they were generated properly)")
 	}
 
 	el := new(bfvElement)
@@ -48,23 +48,23 @@ func newBfvElementRandom(params *Parameters, degree uint64) *bfvElement {
 	return el
 }
 
-// Value returns the value of the target ciphertext (as a slice of polynomials in CRT form).
+// Value returns the value of the target bfvElement (as a slice of polynomials in CRT form).
 func (el *bfvElement) Value() []*ring.Poly {
 	return el.value
 }
 
-// SetValue assigns the input slice of polynomials to the target ciphertext value.
+// SetValue assigns the input slice of polynomials to the target bfvElement value.
 func (el *bfvElement) SetValue(value []*ring.Poly) {
 	el.value = value
 }
 
-// Degree returns the degree of the target ciphertext.
+// Degree returns the degree of the target bfvElement.
 func (el *bfvElement) Degree() uint64 {
 	return uint64(len(el.value) - 1)
 }
 
-// Resize resizes the target ciphertext degree to the degree given as input. If the input degree is bigger then
-// it will append new empty polynomials, if the degree is smaller, it will delete polynomials until the degree matches
+// Resize resizes the target bfvElement degree to the degree given as input. If the input degree is bigger, then
+// it will append new empty polynomials; if the degree is smaller, it will delete polynomials until the degree matches
 // the input degree.
 func (el *bfvElement) Resize(params *Parameters, degree uint64) {
 	if el.Degree() > degree {
@@ -80,18 +80,18 @@ func (el *bfvElement) Resize(params *Parameters, degree uint64) {
 	}
 }
 
-// IsNTT returns true if the target ciphertext is in the NTT domain, else false.
+// IsNTT returns true if the target bfvElement is in the NTT domain, and false otherwise.
 func (el *bfvElement) IsNTT() bool {
 	return el.isNTT
 }
 
-// SetIsNTT assigns the input bolean value to the isNTT flag of the target ciphertext.
+// SetIsNTT assigns the input Boolean value to the isNTT flag of the target bfvElement.
 func (el *bfvElement) SetIsNTT(value bool) {
 	el.isNTT = value
 }
 
-// CopyNew creates a new ciphertext which is a copy of the target ciphertext. Returns the value as
-// a Element.
+// CopyNew creates a new bfvElement which is a copy of the target bfvElement, and returns the value as
+// a bfvElement.
 func (el *bfvElement) CopyNew() *bfvElement {
 
 	ctxCopy := new(bfvElement)
@@ -105,7 +105,7 @@ func (el *bfvElement) CopyNew() *bfvElement {
 	return ctxCopy
 }
 
-// Copy copies the value and parameters of the input on the target ciphertext.
+// Copy copies the value and parameters of the input on the target bfvElement.
 func (el *bfvElement) Copy(ctxCopy *bfvElement) {
 	if el != ctxCopy {
 		for i := range ctxCopy.Value() {
@@ -115,10 +115,10 @@ func (el *bfvElement) Copy(ctxCopy *bfvElement) {
 	}
 }
 
-// NTT puts the target ciphertext in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
+// NTT puts the target bfvElement in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
 func (el *bfvElement) NTT(context *ring.Context, c *bfvElement) {
 	if el.Degree() != c.Degree() {
-		panic("receiver element invalid degree (does not match)")
+		panic("cannot NTT: receiver element invalid degree (degrees do not match)")
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
@@ -128,10 +128,10 @@ func (el *bfvElement) NTT(context *ring.Context, c *bfvElement) {
 	}
 }
 
-// InvNTT puts the target ciphertext outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
+// InvNTT puts the target bfvElement outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, it does nothing.
 func (el *bfvElement) InvNTT(context *ring.Context, c *bfvElement) {
 	if el.Degree() != c.Degree() {
-		panic("eceiver element invalid degree (does not match)")
+		panic("cannot InvNTT: receiver element invalid degree (degrees do not match)")
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {

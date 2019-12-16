@@ -5,7 +5,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// MarshalBinary encodes a ciphertext on a byte slice
+// MarshalBinary encodes a Ciphertext in a byte slice.
 func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 
 	data = make([]byte, ciphertext.GetDataLen(true))
@@ -31,7 +31,7 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 	return data, nil
 }
 
-// UnmarshalBinary decodes a previously marshaled ciphertext on the target ciphertext.
+// UnmarshalBinary decodes a previously marshaled Ciphertext in the target Ciphertext.
 func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 
 	ciphertext.value = make([]*ring.Poly, uint8(data[0]))
@@ -57,7 +57,7 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-// GetDataLen returns the length in bytes of the target ciphertext.
+// GetDataLen returns the length in bytes of the target Ciphertext.
 func (ciphertext *Ciphertext) GetDataLen(WithMetaData bool) (dataLen uint64) {
 	if WithMetaData {
 		dataLen += 2
@@ -75,7 +75,7 @@ func (sk *SecretKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
 	return sk.sk.GetDataLen(WithMetadata)
 }
 
-// MarshalBinary encodes a secret-key on a byte slice.
+// MarshalBinary encodes a secret key in a byte slice.
 func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
 
 	data = make([]byte, sk.GetDataLen(true))
@@ -87,7 +87,7 @@ func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
 	return data, nil
 }
 
-// UnmarshalBinary decode a previously marshaled SecretKey on the target SecretKey.
+// UnmarshalBinary decodes a previously marshaled SecretKey in the target SecretKey.
 func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
 
 	sk.sk = new(ring.Poly)
@@ -109,7 +109,7 @@ func (pk *PublicKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
 	return
 }
 
-// MarshalBinary encodes a PublicKey on a byte slice.
+// MarshalBinary encodes a PublicKey in a byte slice.
 func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
 
 	dataLen := pk.GetDataLen(true)
@@ -130,7 +130,7 @@ func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
 
 }
 
-// UnmarshalBinary decodes a previously marshaled PublicKey on the target PublicKey.
+// UnmarshalBinary decodes a previously marshaled PublicKey in the target PublicKey.
 func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 
 	var pointer, inc uint64
@@ -149,7 +149,7 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-// GetDataLen returns the length in byte of the target EvaluationKey.
+// GetDataLen returns the length in bytes of the target EvaluationKey.
 func (evaluationkey *EvaluationKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
 
 	if WithMetadata {
@@ -163,7 +163,7 @@ func (evaluationkey *EvaluationKey) GetDataLen(WithMetadata bool) (dataLen uint6
 	return
 }
 
-// MarshalBinary encodes an EvaluationKey key on a byte slice.
+// MarshalBinary encodes an EvaluationKey key in a byte slice.
 func (evaluationkey *EvaluationKey) MarshalBinary() (data []byte, err error) {
 
 	var pointer uint64
@@ -186,7 +186,7 @@ func (evaluationkey *EvaluationKey) MarshalBinary() (data []byte, err error) {
 	return data, nil
 }
 
-// UnmarshalBinary decodes a previously marshaled EvaluationKey on the target EvaluationKey.
+// UnmarshalBinary decodes a previously marshaled EvaluationKey in the target EvaluationKey.
 func (evaluationkey *EvaluationKey) UnmarshalBinary(data []byte) (err error) {
 
 	deg := uint64(data[0])
@@ -206,7 +206,7 @@ func (evaluationkey *EvaluationKey) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-// GetDataLen returns the length in byte of the target SwitchingKey.
+// GetDataLen returns the length in bytes of the target SwitchingKey.
 func (switchkey *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
 
 	if WithMetadata {
@@ -221,7 +221,7 @@ func (switchkey *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
 	return
 }
 
-// MarshalBinary encodes an SwitchingKey on a byte slice.
+// MarshalBinary encodes an SwitchingKey in a byte slice.
 func (switchkey *SwitchingKey) MarshalBinary() (data []byte, err error) {
 
 	data = make([]byte, switchkey.GetDataLen(true))
@@ -233,7 +233,7 @@ func (switchkey *SwitchingKey) MarshalBinary() (data []byte, err error) {
 	return data, nil
 }
 
-// UnmarshalBinary decode a previously marshaled SwitchingKey on the target SwitchingKey.
+// UnmarshalBinary decode a previously marshaled SwitchingKey in the target SwitchingKey.
 func (switchkey *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
 
 	if _, err = switchkey.decode(data); err != nil {
@@ -327,7 +327,7 @@ func (rotationkey *RotationKeys) GetDataLen(WithMetaData bool) (dataLen uint64) 
 	return
 }
 
-// MarshalBinary encodes a rotationkeys structure on a byte slice.
+// MarshalBinary encodes a RotationKeys struct in a byte slice.
 func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
 
 	data = make([]byte, rotationkey.GetDataLen(true))
@@ -380,7 +380,7 @@ func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
 	return data, nil
 }
 
-// UnmarshalBinary decode a previously marshaled RotationKeys on the target RotationKeys.
+// UnmarshalBinary decodes a previously marshaled RotationKeys in the target RotationKeys.
 func (rotationkey *RotationKeys) UnmarshalBinary(data []byte) (err error) {
 
 	var rotationType int

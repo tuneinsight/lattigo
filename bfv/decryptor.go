@@ -16,7 +16,7 @@ type Decryptor struct {
 func NewDecryptor(params *Parameters, sk *SecretKey) (decryptor *Decryptor) {
 
 	if !params.isValid {
-		panic("cannot NewDecryptor: params not valid (check if they where generated properly)")
+		panic("cannot NewDecryptor: params not valid (check if they were generated properly)")
 	}
 
 	if sk.sk.GetDegree() != int(1<<params.LogN) {

@@ -14,7 +14,7 @@ type Plaintext struct {
 func NewPlaintext(params *Parameters) *Plaintext {
 
 	if !params.isValid {
-		panic("cannot NewPlaintext : params not valid (check if they where generated properly)")
+		panic("cannot NewPlaintext: params not valid (check if they were generated properly)")
 	}
 
 	plaintext := &Plaintext{newBfvElement(params, 0), nil}

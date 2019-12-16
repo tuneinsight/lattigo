@@ -4,7 +4,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Plaintext is a BigPoly of degree 0.
+// Plaintext is a bfvElement with only one Poly.
 type Plaintext struct {
 	*bfvElement
 	value *ring.Poly

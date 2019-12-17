@@ -26,7 +26,7 @@ type dbfvTestContext struct {
 
 	params *bfv.Parameters
 
-	encoder *bfv.Encoder
+	encoder bfv.Encoder
 	kgen    *bfv.KeyGenerator
 
 	sk0Shards []*bfv.SecretKey

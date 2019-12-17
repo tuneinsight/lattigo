@@ -25,7 +25,7 @@ func testString(opname string, params *Parameters) string {
 type bfvParams struct {
 	params      *Parameters
 	bfvContext  *bfvContext
-	encoder     *Encoder
+	encoder     Encoder
 	kgen        *KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey

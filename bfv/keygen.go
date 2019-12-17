@@ -4,9 +4,21 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// KeyGenerator is a structure that stores the elements required to create new keys,
+// KeyGenerator is an interface implementing the methods of the keyGenerator.
+type KeyGenerator interface {
+	NewSecretKey() (sk *SecretKey)
+	NewSecretkeyWithDistrib(p float64) (sk *SecretKey)
+	NewPublicKey(sk *SecretKey) (pk *PublicKey)
+	NewKeyPair() (sk *SecretKey, pk *PublicKey)
+	NewRelinKey(sk *SecretKey, maxDegree uint64) (evk *EvaluationKey)
+	NewSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey)
+	GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
+	NewRotationKeysPow2(sk *SecretKey) (rotKey *RotationKeys)
+}
+
+// keyGenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
-type KeyGenerator struct {
+type keyGenerator struct {
 	params     *Parameters
 	bfvContext *bfvContext
 	polypool   *ring.Poly
@@ -56,26 +68,28 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
-func NewKeyGenerator(params *Parameters) (keygen *KeyGenerator) {
+func NewKeyGenerator(params *Parameters) KeyGenerator {
 
 	if !params.isValid {
 		panic("cannot NewKeyGenerator: params not valid (check if they were generated properly)")
 	}
 
-	keygen = new(KeyGenerator)
-	keygen.params = params.Copy()
-	keygen.bfvContext = newBFVContext(params)
-	keygen.polypool = keygen.bfvContext.contextQP.NewPoly()
-	return
+	bfvContext := newBFVContext(params)
+
+	return &keyGenerator{
+		params:     params.Copy(),
+		bfvContext: bfvContext,
+		polypool:   bfvContext.contextQP.NewPoly(),
+	}
 }
 
 // NewSecretKey creates a new SecretKey with the distribution [1/3, 1/3, 1/3].
-func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
+func (keygen *keyGenerator) NewSecretKey() (sk *SecretKey) {
 	return keygen.NewSecretkeyWithDistrib(1.0 / 3)
 }
 
 // NewSecretkeyWithDistrib creates a new SecretKey with the distribution [(1-p)/2, p, (1-p)/2].
-func (keygen *KeyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey) {
+func (keygen *keyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.sk = keygen.bfvContext.contextQP.SampleTernaryMontgomeryNTTNew(p)
 	return sk
@@ -104,7 +118,7 @@ func (sk *SecretKey) Set(poly *ring.Poly) {
 }
 
 // NewPublicKey generates a new PublicKey from the provided SecretKey.
-func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
+func (keygen *keyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = new(PublicKey)
 
@@ -148,14 +162,14 @@ func (pk *PublicKey) Set(p [2]*ring.Poly) {
 }
 
 // NewKeyPair generates a new SecretKey with distribution [1/3, 1/3, 1/3] and a corresponding PublicKey.
-func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
+func (keygen *keyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.NewSecretKey()
 	return sk, keygen.NewPublicKey(sk)
 }
 
 // NewRelinKey generates a new evaluation key from the provided SecretKey. It will be used to relinearize a ciphertext (encrypted under a PublicKey generated from the provided SecretKey)
 // of degree > 1 to a ciphertext of degree 1. Max degree is the maximum degree of the ciphertext allowed to relinearize.
-func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey, maxDegree uint64) (evk *EvaluationKey) {
+func (keygen *keyGenerator) NewRelinKey(sk *SecretKey, maxDegree uint64) (evk *EvaluationKey) {
 
 	evk = new(EvaluationKey)
 
@@ -226,7 +240,7 @@ func (evk *EvaluationKey) SetRelinKeys(rlk [][][2]*ring.Poly) {
 }
 
 // NewSwitchingKey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key.
-func (keygen *KeyGenerator) NewSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey) {
+func (keygen *keyGenerator) NewSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey) {
 
 	ringContext := keygen.bfvContext.contextQP
 
@@ -262,7 +276,7 @@ func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 	return
 }
 
-func (keygen *KeyGenerator) newswitchingkey(skIn, skOut *ring.Poly) (switchkey *SwitchingKey) {
+func (keygen *keyGenerator) newswitchingkey(skIn, skOut *ring.Poly) (switchkey *SwitchingKey) {
 
 	switchkey = new(SwitchingKey)
 
@@ -319,7 +333,7 @@ func NewRotationKeys() (rotKey *RotationKeys) {
 }
 
 // GenRot populates the target RotationKeys with a SwitchingKey for the desired rotation type and amount.
-func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
+func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
 
 	k &= ((keygen.bfvContext.n >> 1) - 1)
 
@@ -345,7 +359,7 @@ func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 
 // NewRotationKeysPow2 generates a new struct of RotationKeys that stores the keys of all the left and right powers of two rotations. The provided SecretKey must be the SecretKey used to generate the PublicKey under
 // which the ciphertexts to rotate are encrypted under. rows is a boolean value that indicates if the keys for the row rotation have to be generated.
-func (keygen *KeyGenerator) NewRotationKeysPow2(sk *SecretKey) (rotKey *RotationKeys) {
+func (keygen *keyGenerator) NewRotationKeysPow2(sk *SecretKey) (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
 
@@ -402,7 +416,7 @@ func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*r
 	}
 }
 
-func genrotkey(keygen *KeyGenerator, sk *ring.Poly, gen uint64) (switchkey *SwitchingKey) {
+func genrotkey(keygen *keyGenerator, sk *ring.Poly, gen uint64) (switchkey *SwitchingKey) {
 
 	ringContext := keygen.bfvContext.contextQP
 

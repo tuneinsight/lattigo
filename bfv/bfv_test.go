@@ -26,7 +26,7 @@ type bfvParams struct {
 	params      *Parameters
 	bfvContext  *bfvContext
 	encoder     Encoder
-	kgen        *KeyGenerator
+	kgen        KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
 	encryptorPk Encryptor

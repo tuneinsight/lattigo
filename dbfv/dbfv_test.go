@@ -41,7 +41,7 @@ type dbfvTestContext struct {
 	encryptorPk0 bfv.Encryptor
 	decryptorSk0 bfv.Decryptor
 	decryptorSk1 bfv.Decryptor
-	evaluator    *bfv.Evaluator
+	evaluator    bfv.Evaluator
 }
 
 type dbfvTestParameters struct {

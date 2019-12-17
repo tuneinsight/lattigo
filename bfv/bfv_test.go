@@ -32,7 +32,7 @@ type bfvParams struct {
 	encryptorPk Encryptor
 	encryptorSk Encryptor
 	decryptor   Decryptor
-	evaluator   *Evaluator
+	evaluator   Evaluator
 }
 
 type bfvTestParameters struct {

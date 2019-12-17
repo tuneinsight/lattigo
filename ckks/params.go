@@ -332,6 +332,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// GenFromModuli generates the parameters using the provided moduli.
 func (p *Parameters) GenFromModuli() {
 
 	if err := p.checkModuli(); err != nil {
@@ -366,6 +367,7 @@ func (p *Parameters) GenFromModuli() {
 	p.isValid = true
 }
 
+// GenFromLogModuli generates the parameters using the given bitsize for the moduli.
 func (p *Parameters) GenFromLogModuli() {
 
 	if err := p.checkLogModuli(); err != nil {

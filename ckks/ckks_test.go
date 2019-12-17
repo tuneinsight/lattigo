@@ -91,7 +91,7 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 	params.kgen = NewKeyGenerator(contextParameters)
 
-	params.sk, params.pk = params.kgen.NewKeyPairSparse(128)
+	params.sk, params.pk = params.kgen.GenKeyPairSparse(128)
 
 	params.encoder = NewEncoder(contextParameters)
 
@@ -630,7 +630,7 @@ func testEvaluatorMul(t *testing.T) {
 
 		t.Run(testString("Relinearize/", parameters), func(t *testing.T) {
 
-			rlk := params.kgen.NewRelinKey(params.sk)
+			rlk := params.kgen.GenRelinKey(params.sk)
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorSk, 1, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorSk, 1, t)
@@ -658,7 +658,7 @@ func testFunctions(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		rlk := params.kgen.NewRelinKey(params.sk)
+		rlk := params.kgen.GenRelinKey(params.sk)
 
 		t.Run(testString("PowerOf2/", parameters), func(t *testing.T) {
 
@@ -722,7 +722,7 @@ func testEvaluatePoly(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		rlk := params.kgen.NewRelinKey(params.sk)
+		rlk := params.kgen.GenRelinKey(params.sk)
 
 		t.Run(testString("Fast/Exp/", parameters), func(t *testing.T) {
 
@@ -762,7 +762,7 @@ func testChebyshevInterpolator(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		rlk := params.kgen.NewRelinKey(params.sk)
+		rlk := params.kgen.GenRelinKey(params.sk)
 
 		t.Run(testString("Fast/Sin/", parameters), func(t *testing.T) {
 
@@ -802,9 +802,9 @@ func testSwitchKeys(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		sk2 := params.kgen.NewSecretKey()
+		sk2 := params.kgen.GenSecretKey()
 		decryptorSk2 := NewDecryptor(parameters, sk2)
-		switchingKey := params.kgen.NewSwitchingKey(params.sk, sk2)
+		switchingKey := params.kgen.GenSwitchingKey(params.sk, sk2)
 
 		t.Run(testString("InPlace/", parameters), func(t *testing.T) {
 
@@ -869,7 +869,7 @@ func testRotateColumns(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		rotKey := params.kgen.NewRotationKeysPow2(params.sk)
+		rotKey := params.kgen.GenRotationKeysPow2(params.sk)
 
 		t.Run(testString("InPlace/", parameters), func(t *testing.T) {
 
@@ -953,7 +953,7 @@ func testMarshaller(t *testing.T) {
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)
 
-			ciphertextTest := NewCkksElement().Ciphertext()
+			ciphertextTest := new(Ciphertext)
 			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 			check(t, err)
 
@@ -1009,7 +1009,7 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("EvaluationKey", parameters), func(t *testing.T) {
 
-			evalKey := params.kgen.NewRelinKey(params.sk)
+			evalKey := params.kgen.GenRelinKey(params.sk)
 			data, err := evalKey.MarshalBinary()
 			check(t, err)
 
@@ -1032,9 +1032,9 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("SwitchingKey", parameters), func(t *testing.T) {
 
-			skOut := params.kgen.NewSecretKey()
+			skOut := params.kgen.GenSecretKey()
 
-			switchingKey := params.kgen.NewSwitchingKey(params.sk, skOut)
+			switchingKey := params.kgen.GenSwitchingKey(params.sk, skOut)
 			data, err := switchingKey.MarshalBinary()
 			check(t, err)
 

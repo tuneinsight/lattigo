@@ -34,25 +34,19 @@ func chebyshevinterpolation() {
 
 	// Keys
 	kgen := ckks.NewKeyGenerator(params)
-	var sk *ckks.SecretKey
-	var pk *ckks.PublicKey
-	sk, pk = kgen.NewKeyPair()
+	sk, pk := kgen.NewKeyPair()
 
 	// Relinearization key
-	var rlk *ckks.EvaluationKey
-	rlk = kgen.NewRelinKey(sk)
+	rlk := kgen.NewRelinKey(sk)
 
 	// Encryptor
-	var encryptor ckks.Encryptor
-	encryptor = ckks.NewEncryptorFromPk(params, pk)
+	encryptor := ckks.NewEncryptorFromPk(params, pk)
 
 	// Decryptor
-	var decryptor ckks.Decryptor
-	decryptor = ckks.NewDecryptor(params, sk)
+	decryptor := ckks.NewDecryptor(params, sk)
 
 	// Evaluator
-	var evaluator ckks.Evaluator
-	evaluator = ckks.NewEvaluator(params)
+	evaluator := ckks.NewEvaluator(params)
 
 	slots := uint64(1 << (params.LogN - 1))
 

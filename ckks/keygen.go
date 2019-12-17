@@ -5,9 +5,23 @@ import (
 	"math"
 )
 
+// KeyGenerator is an interface implementing the methods of the KeyGenerator.
+type KeyGenerator interface {
+	NewSecretKey() (sk *SecretKey)
+	NewSecretKeyWithDistrib(p float64) (sk *SecretKey)
+	NewSecretKeySparse(hw uint64) (sk *SecretKey)
+	NewPublicKey(sk *SecretKey) (pk *PublicKey)
+	NewKeyPair() (sk *SecretKey, pk *PublicKey)
+	NewKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey)
+	NewRelinKey(sk *SecretKey) (evakey *EvaluationKey)
+	NewSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
+	NewRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys)
+	GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
+}
+
 // KeyGenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
-type KeyGenerator struct {
+type keyGenerator struct {
 	params      *Parameters
 	ckksContext *Context
 	ringContext *ring.Context
@@ -62,34 +76,37 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 
 // NewKeyGenerator creates a new keygenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
-func NewKeyGenerator(params *Parameters) (keygen *KeyGenerator) {
+func NewKeyGenerator(params *Parameters) KeyGenerator {
 
 	if !params.isValid {
 		panic("cannot create new KeyGenerator, parameters are invalid (check if the generation was done properly)")
 	}
 
-	keygen = new(KeyGenerator)
-	keygen.params = params.Copy()
-	keygen.ckksContext = newContext(params)
-	keygen.ringContext = keygen.ckksContext.contextQP
-	keygen.polypool = keygen.ringContext.NewPoly()
-	return
+	ckksContext := newContext(params)
+	ringContext := ckksContext.contextQP
+
+	return &keyGenerator{
+		params:      params.Copy(),
+		ckksContext: ckksContext,
+		ringContext: ringContext,
+		polypool:    ringContext.NewPoly(),
+	}
 }
 
 // NewSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
-func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
+func (keygen *keyGenerator) NewSecretKey() (sk *SecretKey) {
 	return keygen.NewSecretKeyWithDistrib(1.0 / 3)
 }
 
 // NewSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].
-func (keygen *KeyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey) {
+func (keygen *keyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.sk = keygen.ckksContext.contextQP.SampleTernaryMontgomeryNTTNew(p)
 	return sk
 }
 
 // NewSecretKeySparse generates a new SecretKey with exactly hw non zero coefficients.
-func (keygen *KeyGenerator) NewSecretKeySparse(hw uint64) (sk *SecretKey) {
+func (keygen *keyGenerator) NewSecretKeySparse(hw uint64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.sk = keygen.ckksContext.contextQP.SampleTernarySparseMontgomeryNTTNew(hw)
 	return sk
@@ -118,7 +135,7 @@ func (sk *SecretKey) Set(poly *ring.Poly) {
 }
 
 // NewPublicKey generates a new public key from the provided SecretKey.
-func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
+func (keygen *keyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = new(PublicKey)
 
@@ -160,19 +177,19 @@ func (pk *PublicKey) Set(poly [2]*ring.Poly) {
 }
 
 // NewKeyPair generates a new secretkey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
-func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
+func (keygen *keyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.NewSecretKey()
 	return sk, keygen.NewPublicKey(sk)
 }
 
 // NewKeyPairSparse generates a new secretkey with exactly hw non zero coefficients [1/2, 0, 1/2].
-func (keygen *KeyGenerator) NewKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey) {
+func (keygen *keyGenerator) NewKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.NewSecretKeySparse(hw)
 	return sk, keygen.NewPublicKey(sk)
 }
 
 // NewRelinKey generates a new evaluation key that will be used to relinearize the ciphertexts during multiplication.
-func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
+func (keygen *keyGenerator) NewRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 
 	evakey = new(EvaluationKey)
 	keygen.polypool.Copy(sk.Get())
@@ -223,7 +240,7 @@ func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 }
 
 // NewSwitchingKey generated a new keyswitching key, that will re-encrypt a ciphertext encrypted under the input key to the output key.
-func (keygen *KeyGenerator) NewSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
+func (keygen *keyGenerator) NewSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
 	keygen.ringContext.Sub(skInput.Get(), skOutput.Get(), keygen.polypool)
 	newevakey = keygen.newSwitchingKey(keygen.polypool, skOutput.Get())
 	keygen.polypool.Zero()
@@ -252,7 +269,7 @@ func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 	return
 }
 
-func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingkey *SwitchingKey) {
+func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingkey *SwitchingKey) {
 
 	switchingkey = new(SwitchingKey)
 
@@ -317,7 +334,7 @@ func NewRotationKeys() (rotKey *RotationKeys) {
 }
 
 // GenRot populates input RotationKeys with a SwitchingKey for the given rotation type and amount.
-func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
+func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
 	switch rotType {
 	case RotationLeft:
 
@@ -356,7 +373,7 @@ func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 }
 
 // NewRotationKeysPow2 generates a new rotation key with all the power of two rotation to the left and right, as well as the conjugation.
-func (keygen *KeyGenerator) NewRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys) {
+func (keygen *keyGenerator) NewRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
 
@@ -448,7 +465,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 	}
 }
 
-func (keygen *KeyGenerator) genrotKey(skOutput *ring.Poly, gen uint64) (switchingkey *SwitchingKey) {
+func (keygen *keyGenerator) genrotKey(skOutput *ring.Poly, gen uint64) (switchingkey *SwitchingKey) {
 
 	ring.PermuteNTT(skOutput, gen, keygen.polypool)
 	keygen.ringContext.Sub(keygen.polypool, skOutput, keygen.polypool)

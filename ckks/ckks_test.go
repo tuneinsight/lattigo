@@ -34,7 +34,7 @@ type ckksParams struct {
 	params      *Parameters
 	ckkscontext *Context
 	encoder     Encoder
-	kgen        *KeyGenerator
+	kgen        KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
 	encryptorPk Encryptor

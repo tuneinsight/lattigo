@@ -6,8 +6,15 @@ import (
 	"math/big"
 )
 
-// Encoder is a struct storing the necessary parameters to encode a slice of complex number on a plaintext.
-type Encoder struct {
+// Encoder is an interface implenting the encoding algorithms.
+type Encoder interface {
+	Encode(plaintext *Plaintext, values []complex128, slots uint64)
+	EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext)
+	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
+}
+
+
+type encoder struct {
 	params       *Parameters
 	ckksContext  *Context
 	values       []complex128
@@ -21,44 +28,54 @@ type Encoder struct {
 }
 
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
-func NewEncoder(params *Parameters) (encoder *Encoder) {
+func NewEncoder(params *Parameters) Encoder {
 
 	if !params.isValid {
 		panic("cannot create new Encoder, parameters are invalid (check if the generation was done properly)")
 	}
 
-	encoder = new(Encoder)
-	encoder.params = params.Copy()
-	encoder.ckksContext = newContext(params)
-	encoder.values = make([]complex128, encoder.ckksContext.maxSlots)
-	encoder.valuesfloat = make([]float64, encoder.ckksContext.n)
-	encoder.bigintCoeffs = make([]*big.Int, encoder.ckksContext.n)
-	encoder.qHalf = ring.NewUint(0)
-	encoder.polypool = encoder.ckksContext.contextQ.NewPoly()
+	m := uint64(2 << params.LogN)
 
-	encoder.m = encoder.ckksContext.n << 1
-
-	encoder.rotGroup = make([]uint64, encoder.ckksContext.n)
+	rotGroup := make([]uint64, m>>1)
 	fivePows := uint64(1)
-	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
-		encoder.rotGroup[i] = fivePows
+	for i := uint64(0); i < m>>2; i++ {
+		rotGroup[i] = fivePows
 		fivePows *= 5
-		fivePows &= (encoder.m - 1)
+		fivePows &= (m - 1)
 	}
 
 	var angle float64
-	encoder.roots = make([]complex128, encoder.m+1)
-	for i := uint64(0); i < encoder.m; i++ {
-		angle = 2 * 3.141592653589793 * float64(i) / float64(encoder.m)
-		encoder.roots[i] = complex(math.Cos(angle), math.Sin(angle))
+	roots := make([]complex128, m+1)
+	for i := uint64(0); i < m; i++ {
+		angle = 2 * 3.141592653589793 * float64(i) / float64(m)
+		roots[i] = complex(math.Cos(angle), math.Sin(angle))
 	}
-	encoder.roots[encoder.m] = encoder.roots[0]
+	roots[m] = roots[0]
 
+	ckksContext := newContext(params)
+
+	return &encoder{
+		params:       params.Copy(),
+		ckksContext:  ckksContext,
+		values:       make([]complex128, m>>2),
+		valuesfloat:  make([]float64, m>>1),
+		bigintCoeffs: make([]*big.Int, m>>1),
+		qHalf:        ring.NewUint(0),
+		polypool:     ckksContext.contextQ.NewPoly(),
+		m:            m,
+		rotGroup:     rotGroup,
+		roots:        roots,
+	}
+}
+
+func (encoder *encoder) EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale)
+	encoder.Encode(plaintext, values, slots)
 	return
 }
 
 // Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
-func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
+func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
 
 	if uint64(len(values)) > encoder.ckksContext.maxSlots || uint64(len(values)) > slots {
 		panic("cannot Encode -> to many values for the given number of slots")
@@ -99,7 +116,7 @@ func (encoder *Encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 }
 
 // Decode decodes the plaintext values to a slice of complex128 values of size at most N/2.
-func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
+func (encoder *encoder) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 
 	encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	encoder.ckksContext.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
@@ -150,7 +167,7 @@ func (encoder *Encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 	return
 }
 
-func (encoder *Encoder) invfftlazy(values []complex128, N uint64) {
+func (encoder *encoder) invfftlazy(values []complex128, N uint64) {
 
 	var lenh, lenq, gap, idx uint64
 	var u, v complex128
@@ -175,7 +192,7 @@ func (encoder *Encoder) invfftlazy(values []complex128, N uint64) {
 	sliceBitReverseInPlaceComplex128(values, N)
 }
 
-func (encoder *Encoder) invfft(values []complex128, N uint64) {
+func (encoder *encoder) invfft(values []complex128, N uint64) {
 
 	encoder.invfftlazy(values, N)
 
@@ -184,7 +201,7 @@ func (encoder *Encoder) invfft(values []complex128, N uint64) {
 	}
 }
 
-func (encoder *Encoder) fft(values []complex128, N uint64) {
+func (encoder *encoder) fft(values []complex128, N uint64) {
 
 	var lenh, lenq, gap, idx uint64
 	var u, v complex128

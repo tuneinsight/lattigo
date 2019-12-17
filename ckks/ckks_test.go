@@ -33,7 +33,7 @@ func testString(opname string, params *Parameters) string {
 type ckksParams struct {
 	params      *Parameters
 	ckkscontext *Context
-	encoder     *Encoder
+	encoder     Encoder
 	kgen        *KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey

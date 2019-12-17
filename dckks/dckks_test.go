@@ -30,7 +30,7 @@ func testString(opname string, parties uint64, params *ckks.Parameters) string {
 type dckksTestContext struct {
 	params       *ckks.Parameters
 	dckksContext *dckksContext
-	encoder      *ckks.Encoder
+	encoder      ckks.Encoder
 	evaluator    *ckks.Evaluator
 
 	encryptorPk0 ckks.Encryptor

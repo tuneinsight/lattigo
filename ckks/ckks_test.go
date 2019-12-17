@@ -40,7 +40,7 @@ type ckksParams struct {
 	encryptorPk Encryptor
 	encryptorSk Encryptor
 	decryptor   Decryptor
-	evaluator   *Evaluator
+	evaluator   Evaluator
 }
 
 type ckksTestParameters struct {

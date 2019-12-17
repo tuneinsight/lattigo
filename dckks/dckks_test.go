@@ -31,7 +31,7 @@ type dckksTestContext struct {
 	params       *ckks.Parameters
 	dckksContext *dckksContext
 	encoder      ckks.Encoder
-	evaluator    *ckks.Evaluator
+	evaluator    ckks.Evaluator
 
 	encryptorPk0 ckks.Encryptor
 	decryptorSk0 ckks.Decryptor

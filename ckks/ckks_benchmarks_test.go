@@ -201,7 +201,7 @@ func benchHoistedRotations(b *testing.B) {
 	for _, parameters := range testParams.ckksParameters {
 
 		params := genCkksParams(parameters)
-		evaluator := params.evaluator
+		evaluator := params.evaluator.(*evaluator)
 
 		rotkey := NewRotationKeys()
 		params.kgen.GenRot(RotationLeft, params.sk, 5, rotkey)

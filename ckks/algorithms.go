@@ -6,7 +6,7 @@ import (
 
 // PowerOf2 compute ct0^(2^logPow2), consuming logPow2 levels, and returns the result on ct1. Providing an evaluation
 // key is necessary when logPow2 > 1.
-func (evaluator *Evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *EvaluationKey, elOut *Ciphertext) {
+func (evaluator *evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *EvaluationKey, elOut *Ciphertext) {
 
 	if logPow2 == 0 {
 
@@ -32,7 +32,7 @@ func (evaluator *Evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *Ev
 
 // PowerNew compute ct0^degree, consuming log(degree) levels, and returns the result on a new element. Providing an evaluation
 // key is necessary when degree > 2.
-func (evaluator *Evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext) {
+func (evaluator *evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext) {
 	opOut = NewCiphertext(evaluator.params, 1, op.Level(), op.Scale())
 	evaluator.Power(op, degree, evakey, opOut)
 	return
@@ -40,7 +40,7 @@ func (evaluator *Evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *Eval
 
 // Power compute ct0^degree, consuming log(degree) levels, and returns the result on res. Providing an evaluation
 // key is necessary when degree > 2.
-func (evaluator *Evaluator) Power(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey, res *Ciphertext) {
+func (evaluator *evaluator) Power(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey, res *Ciphertext) {
 
 	tmpct0 := ct0.CopyNew()
 
@@ -72,7 +72,7 @@ func (evaluator *Evaluator) Power(ct0 *Ciphertext, degree uint64, evakey *Evalua
 
 // InverseNew computes 1/ct0 and returns the result on a new element, iterating for n steps and consuming n levels. The algorithm requires the encrypted values to be in the range
 // [-1.5 - 1.5i, 1.5 + 1.5i]  or the result will be  wrong. Each iteration increases the precision.
-func (evaluator *Evaluator) InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext) {
+func (evaluator *evaluator) InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext) {
 
 	cbar := evaluator.NegNew(ct0)
 

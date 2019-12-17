@@ -7,7 +7,7 @@ import (
 
 // EvaluateChebyFast evaluates the input Chebyshev polynomial with the input ciphertext.
 // Faster than EvaluateChebyEco but consumes ceil(log(deg)) + 2 levels.
-func (evaluator *Evaluator) EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
+func (evaluator *evaluator) EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
 
@@ -33,7 +33,7 @@ func (evaluator *Evaluator) EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevIn
 
 // EvaluateChebyEco evaluates the input Chebyshev polynomial with the input ciphertext.
 // Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
-func (evaluator *Evaluator) EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
+func (evaluator *evaluator) EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
 
@@ -57,7 +57,7 @@ func (evaluator *Evaluator) EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInt
 	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
 }
 
-func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) {
+func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) {
 
 	// Given a hash table with the first three evaluations of the Chebyshev ring at x in the interval a, b:
 	// C0 = 1 (actually not stored in the hash table)
@@ -100,7 +100,7 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *Evalu
 	}
 }
 
-func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 

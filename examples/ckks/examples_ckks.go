@@ -51,7 +51,7 @@ func chebyshevinterpolation() {
 	decryptor = ckks.NewDecryptor(params, sk)
 
 	// Evaluator
-	var evaluator *ckks.Evaluator
+	var evaluator ckks.Evaluator
 	evaluator = ckks.NewEvaluator(params)
 
 	slots := uint64(1 << (params.LogN - 1))

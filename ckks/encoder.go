@@ -13,7 +13,6 @@ type Encoder interface {
 	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
 }
 
-
 type encoder struct {
 	params       *Parameters
 	ckksContext  *Context

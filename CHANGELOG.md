@@ -29,6 +29,8 @@ All notable changes to this project will be documented in this file.
 - RING : removed most wrapping methods for bigInt, which are now replaced by the native math/big package.
 - RING : removed ternary sampler, which is now part of the context.
 ### Changed
+- All schemes : Encryptor, Decryptor, Encoder, Evaluator, KeyGenerator are now interface types
+- All schemes : Improved Godoc and error strings
 - All schemes : new tests and benchmarks with fully supported regex.
 - All schemes : coefficient wise arithmetic using double slices is now substentially faster.
 - BFV/CKKS/DBFV/DCKKS : structures are now created using the parameters instead of the context.

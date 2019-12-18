@@ -27,7 +27,7 @@ func benchEncoder(b *testing.B) {
 
 			values := make([]complex128, slots)
 			for i := uint64(0); i < slots; i++ {
-				values[i] = complex(randomFloat(0.1, 1), 0)
+				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
 			plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
@@ -41,7 +41,7 @@ func benchEncoder(b *testing.B) {
 
 			values := make([]complex128, slots)
 			for i := uint64(0); i < slots; i++ {
-				values[i] = complex(randomFloat(0.1, 1), 0)
+				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
 			plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
@@ -201,7 +201,7 @@ func benchHoistedRotations(b *testing.B) {
 	for _, parameters := range testParams.ckksParameters {
 
 		params := genCkksParams(parameters)
-		evaluator := params.evaluator
+		evaluator := params.evaluator.(*evaluator)
 
 		rotkey := NewRotationKeys()
 		params.kgen.GenRot(RotationLeft, params.sk, 5, rotkey)

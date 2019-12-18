@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math"
 	"math/cmplx"
@@ -10,6 +9,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(t *testing.T, err error) {
@@ -32,14 +33,14 @@ func testString(opname string, params *Parameters) string {
 type ckksParams struct {
 	params      *Parameters
 	ckkscontext *Context
-	encoder     *Encoder
-	kgen        *KeyGenerator
+	encoder     Encoder
+	kgen        KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
-	encryptorPk *Encryptor
-	encryptorSk *Encryptor
-	decryptor   *Decryptor
-	evaluator   *Evaluator
+	encryptorPk Encryptor
+	encryptorSk Encryptor
+	decryptor   Decryptor
+	evaluator   Evaluator
 }
 
 type ckksTestParameters struct {
@@ -105,7 +106,7 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 }
 
-func newTestVectors(contextParams *ckksParams, encryptor *Encryptor, a float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectors(contextParams *ckksParams, encryptor Encryptor, a float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	slots := uint64(1 << contextParams.params.LogSlots)
 
@@ -128,7 +129,7 @@ func newTestVectors(contextParams *ckksParams, encryptor *Encryptor, a float64, 
 	return values, plaintext, ciphertext
 }
 
-func newTestVectorsReals(contextParams *ckksParams, encryptor *Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectorsReals(contextParams *ckksParams, encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	slots := uint64(1 << contextParams.params.LogSlots)
 
@@ -151,7 +152,7 @@ func newTestVectorsReals(contextParams *ckksParams, encryptor *Encryptor, a, b f
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(contextParams *ckksParams, decryptor *Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	var plaintextTest *Plaintext
 	var valuesTest []complex128

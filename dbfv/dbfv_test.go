@@ -2,12 +2,13 @@ package dbfv
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/big"
 	"testing"
+
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(t *testing.T, err error) {
@@ -25,7 +26,7 @@ type dbfvTestContext struct {
 
 	params *bfv.Parameters
 
-	encoder *bfv.Encoder
+	encoder bfv.Encoder
 	kgen    *bfv.KeyGenerator
 
 	sk0Shards []*bfv.SecretKey
@@ -37,10 +38,10 @@ type dbfvTestContext struct {
 	pk0 *bfv.PublicKey
 	pk1 *bfv.PublicKey
 
-	encryptorPk0 *bfv.Encryptor
-	decryptorSk0 *bfv.Decryptor
-	decryptorSk1 *bfv.Decryptor
-	evaluator    *bfv.Evaluator
+	encryptorPk0 bfv.Encryptor
+	decryptorSk0 bfv.Decryptor
+	decryptorSk1 bfv.Decryptor
+	evaluator    bfv.Evaluator
 }
 
 type dbfvTestParameters struct {
@@ -678,7 +679,7 @@ func testRefresh(t *testing.T) {
 	}
 }
 
-func newTestVectors(contextParams *dbfvTestContext, encryptor *bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
+func newTestVectors(contextParams *dbfvTestContext, encryptor bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
 	coeffsPol := contextParams.contextT.NewUniformPoly()
 	plaintext = bfv.NewPlaintext(contextParams.params)
 	contextParams.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
@@ -686,7 +687,7 @@ func newTestVectors(contextParams *dbfvTestContext, encryptor *bfv.Encryptor, t 
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 
-func verifyTestVectors(contextParams *dbfvTestContext, decryptor *bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
+func verifyTestVectors(contextParams *dbfvTestContext, decryptor bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
 	if utils.EqualSliceUint64(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
 		t.Errorf("decryption error")
 	}

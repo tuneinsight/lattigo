@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
 	"math"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/ring"
 )
 
 func obliviousRiding() {

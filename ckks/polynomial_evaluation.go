@@ -7,7 +7,7 @@ import (
 
 // EvaluatePolyFast evaluates the polynomial a + bx + cx^2... on the input Ciphertext.
 // It is faster than EvaluatePolyEco, but consumes ceil(log2(deg)) + 1 levels.
-func (evaluator *Evaluator) EvaluatePolyFast(ct0 *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (ctOut *Ciphertext) {
+func (eval *evaluator) EvaluatePolyFast(ct0 *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (ctOut *Ciphertext) {
 
 	degree, coeffsMap := convertCoeffs(coeffs)
 
@@ -19,19 +19,19 @@ func (evaluator *Evaluator) EvaluatePolyFast(ct0 *Ciphertext, coeffs interface{}
 	L := uint64(M >> 1)
 
 	for i := uint64(2); i <= (1 << L); i++ {
-		computePowerBasis(i, C, evaluator, evakey)
+		computePowerBasis(i, C, eval, evakey)
 	}
 
 	for i := L + 1; i < M; i++ {
-		computePowerBasis(1<<i, C, evaluator, evakey)
+		computePowerBasis(1<<i, C, eval, evakey)
 	}
 
-	return recurse(degree, L, M, coeffsMap, C, evaluator, evakey)
+	return recurse(degree, L, M, coeffsMap, C, eval, evakey)
 }
 
 // EvaluatePolyEco evaluates the polynomial a + bx + cx^2... on the input Ciphertext.
 // It is slower than EvaluatePolyFast, but it consumes one less level (ceil(log2(deg))).
-func (evaluator *Evaluator) EvaluatePolyEco(ct0 *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (ctOut *Ciphertext) {
+func (eval *evaluator) EvaluatePolyEco(ct0 *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (ctOut *Ciphertext) {
 
 	degree, coeffsMap := convertCoeffs(coeffs)
 
@@ -43,14 +43,14 @@ func (evaluator *Evaluator) EvaluatePolyEco(ct0 *Ciphertext, coeffs interface{},
 	L := uint64(1)
 
 	for i := uint64(2); i <= (1 << L); i++ {
-		computePowerBasis(i, C, evaluator, evakey)
+		computePowerBasis(i, C, eval, evakey)
 	}
 
 	for i := L + 1; i < M; i++ {
-		computePowerBasis(1<<i, C, evaluator, evakey)
+		computePowerBasis(1<<i, C, eval, evakey)
 	}
 
-	return recurse(degree, L, M, coeffsMap, C, evaluator, evakey)
+	return recurse(degree, L, M, coeffsMap, C, eval, evakey)
 }
 
 func convertCoeffs(coeffs interface{}) (degree uint64, coeffsMap map[uint64]complex128) {
@@ -73,7 +73,7 @@ func convertCoeffs(coeffs interface{}) (degree uint64, coeffsMap map[uint64]comp
 	return uint64(len(coeffsMap)) - 1, coeffsMap
 }
 
-func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) {
+func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) {
 
 	if C[n] == nil {
 
@@ -112,7 +112,7 @@ func splitCoeffs(coeffs map[uint64]complex128, degree, maxDegree uint64) (coeffs
 	return coeffsq, coeffsr
 }
 
-func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	if maxDegree <= (1 << L) {
 		return evaluatePolyFromPowerBasis(coeffs, C, evaluator, evakey)
@@ -139,7 +139,7 @@ func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]
 
 }
 
-func evaluatePolyFromPowerBasis(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func evaluatePolyFromPowerBasis(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	res = NewCiphertext(evaluator.params, 1, C[1].Level(), C[1].Scale())
 

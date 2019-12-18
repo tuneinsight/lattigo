@@ -2,12 +2,13 @@ package bfv
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(t *testing.T, err error) {
@@ -24,14 +25,14 @@ func testString(opname string, params *Parameters) string {
 type bfvParams struct {
 	params      *Parameters
 	bfvContext  *bfvContext
-	encoder     *Encoder
-	kgen        *KeyGenerator
+	encoder     Encoder
+	kgen        KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
-	encryptorPk *Encryptor
-	encryptorSk *Encryptor
-	decryptor   *Decryptor
-	evaluator   *Evaluator
+	encryptorPk Encryptor
+	encryptorSk Encryptor
+	decryptor   Decryptor
+	evaluator   Evaluator
 }
 
 type bfvTestParameters struct {
@@ -264,7 +265,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 }
 
-func newTestVectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectors(params *bfvParams, encryptor Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	coeffs = params.bfvContext.contextT.NewUniformPoly()
 
@@ -279,7 +280,7 @@ func newTestVectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (coef
 	return coeffs, plaintext, ciphertext
 }
 
-func verifyTestVectors(params *bfvParams, decryptor *Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
+func verifyTestVectors(params *bfvParams, decryptor Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
 
 	var coeffsTest []uint64
 

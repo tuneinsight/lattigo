@@ -5,7 +5,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Operand is a common interface between Ciphertexts and Plaintexts types.
+// Operand is a common interface for Ciphertext and Plaintext types.
 type Operand interface {
 	Element() *ckksElement
 	Degree() uint64
@@ -19,7 +19,7 @@ type ckksElement struct {
 	isNTT bool
 }
 
-// NewCkksElement returns a new ckksElement with zero values.
+// newCkksElement returns a new ckksElement with zero values.
 func newCkksElement() *ckksElement {
 	return &ckksElement{}
 }
@@ -49,7 +49,7 @@ func (el *ckksElement) Scale() float64 {
 	return el.scale
 }
 
-// SetScale sets the scale of the the target element with the input scale.
+// SetScale sets the scale of the the target element to the input scale.
 func (el *ckksElement) SetScale(scale float64) {
 	el.scale = scale
 }
@@ -59,7 +59,7 @@ func (el *ckksElement) MulScale(scale float64) {
 	el.scale *= scale
 }
 
-// DivScale divides the scale of the target element with the input scale.
+// DivScale divides the scale of the target element by the input scale.
 func (el *ckksElement) DivScale(scale float64) {
 	el.scale /= scale
 }
@@ -89,10 +89,10 @@ func (el *ckksElement) SetIsNTT(value bool) {
 	el.isNTT = value
 }
 
-// NTT puts the target element in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
+// NTT puts the target element in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, it does nothing.
 func (el *ckksElement) NTT(context *ring.Context, c *ckksElement) error {
 	if el.Degree() != c.Degree() {
-		return errors.New("error : receiver element invalide degree (does not match)")
+		return errors.New("error: receiver element has invalid degree (it does not match)")
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
@@ -103,10 +103,10 @@ func (el *ckksElement) NTT(context *ring.Context, c *ckksElement) error {
 	return nil
 }
 
-// InvNTT puts the target element outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, does nothing.
+// InvNTT puts the target element outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, it does nothing.
 func (el *ckksElement) InvNTT(context *ring.Context, c *ckksElement) error {
 	if el.Degree() != c.Degree() {
-		return errors.New("error : receiver element invalide degree (does not match)")
+		return errors.New("error: receiver element invalid degree (it does not match)")
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {
@@ -117,7 +117,7 @@ func (el *ckksElement) InvNTT(context *ring.Context, c *ckksElement) error {
 	return nil
 }
 
-// CopyNew creates a new element which is a copy of the target element.
+// CopyNew creates a new element as a copy of the target element.
 func (el *ckksElement) CopyNew() *ckksElement {
 
 	ctxCopy := new(ckksElement)
@@ -151,17 +151,17 @@ func (el *ckksElement) CopyParams(ckkselement *ckksElement) {
 	el.SetIsNTT(ckkselement.IsNTT())
 }
 
-// Element sets the target element's type to Element.
+// Element sets the target element type to Element.
 func (el *ckksElement) Element() *ckksElement {
 	return el
 }
 
-// Ciphertext sets the target element's type to Ciphertext.
+// Ciphertext sets the target element type to Ciphertext.
 func (el *ckksElement) Ciphertext() *Ciphertext {
 	return &Ciphertext{el}
 }
 
-// Plaintext sets the target element's type to Plaintext.
+// Plaintext sets the target element type to Plaintext.
 func (el *ckksElement) Plaintext() *Plaintext {
 	return &Plaintext{el, el.value[0]}
 }

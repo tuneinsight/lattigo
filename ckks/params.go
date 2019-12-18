@@ -15,7 +15,7 @@ const MaxLogN = 16
 // MaxModuliCount is the largest supported number of moduli in the RNS representation.
 const MaxModuliCount = 34
 
-// MaxModuliSize is the largest bitlength supported for the moduli in teh RNS representation.
+// MaxModuliSize is the largest bit-length supported for the moduli in the RNS representation.
 const MaxModuliSize = 60
 
 func init() {
@@ -104,7 +104,7 @@ func (m *Moduli) Copy() Moduli {
 	return Moduli{Qi, Pi}
 }
 
-// LogModuli stores the bitlength of the NTT primes of the RNS representation.
+// LogModuli stores the bit-length of the NTT primes of the RNS representation.
 type LogModuli struct {
 	LogQi []uint64 // Ciphertext prime moduli bit-size
 	LogPi []uint64 // Keys additional prime moduli bit-size
@@ -205,7 +205,7 @@ func (p *Parameters) IsValid() bool {
 	return p.isValid
 }
 
-// NewPolyQ returns a new empty polynmial of degree 2^LogN in basis Qi.
+// NewPolyQ returns a new empty polynomial of degree 2^LogN in basis Qi.
 func (p *Parameters) NewPolyQ() *ring.Poly {
 	return ring.NewPoly(1<<p.LogN, uint64(len(p.Qi)))
 }
@@ -238,7 +238,7 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 	return
 }
 
-// Equals compares two sets of parameters for equality
+// Equals compares two sets of parameters for equality.
 func (p *Parameters) Equals(other *Parameters) (res bool) {
 
 	if p == other {
@@ -266,14 +266,14 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 	return
 }
 
-// MarshalBinary returns a []byte representation of the parameter set
+// MarshalBinary returns a []byte representation of the parameter set.
 func (p *Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
 
 	if !p.IsValid() {
-		return nil, errors.New("cannot marshal -> parameters not generated or invalids")
+		return nil, errors.New("cannot MarshalBinary: parameters not generated or invalid")
 	}
 
 	b := utils.NewBuffer(make([]byte, 0, 21+(len(p.LogQi)+len(p.LogPi))<<3))
@@ -367,7 +367,7 @@ func (p *Parameters) GenFromModuli() {
 	p.isValid = true
 }
 
-// GenFromLogModuli generates the parameters using the given bitsize for the moduli.
+// GenFromLogModuli generates the parameters using the given bit-size for the moduli.
 func (p *Parameters) GenFromLogModuli() {
 
 	if err := p.checkLogModuli(); err != nil {
@@ -391,13 +391,13 @@ func (p *Parameters) checkModuli() error {
 
 	for i, qi := range p.Qi {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize {
-			return fmt.Errorf("Qi bitsize n°%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("Qi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, pi := range p.Pi {
 		if uint64(bits.Len64(pi)-1) > MaxModuliSize {
-			return fmt.Errorf("Pi bitsize n°%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
 
@@ -405,13 +405,13 @@ func (p *Parameters) checkModuli() error {
 
 	for i, qi := range p.Qi {
 		if !ring.IsPrime(qi) || qi&((N<<1)-1) != 1 {
-			return fmt.Errorf("Qi n°%d is not an NTT prime", i)
+			return fmt.Errorf("Qi (i=%d) is not an NTT prime", i)
 		}
 	}
 
 	for i, pi := range p.Pi {
 		if !ring.IsPrime(pi) || pi&((N<<1)-1) != 1 {
-			return fmt.Errorf("Pi n°%d is not an NTT prime", i)
+			return fmt.Errorf("Pi (i=%d) is not an NTT prime", i)
 		}
 	}
 
@@ -430,13 +430,13 @@ func (p *Parameters) checkLogModuli() error {
 
 	for i, qi := range p.LogQi {
 		if qi > MaxModuliSize {
-			return fmt.Errorf("LogQi n°%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("LogQi (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, pi := range p.LogPi {
 		if pi > MaxModuliSize {
-			return fmt.Errorf("LogPi n°%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("LogPi (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
 

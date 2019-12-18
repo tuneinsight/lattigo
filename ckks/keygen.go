@@ -60,12 +60,12 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 	return swk.evakey
 }
 
-// NewKeyGenerator creates a new keygenerator, from which the secret and public keys, as well as the evaluation,
+// NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params *Parameters) (keygen *KeyGenerator) {
 
 	if !params.isValid {
-		panic("cannot create new KeyGenerator, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewKeyGenerator: parameters are invalid (check if the generation was done properly)")
 	}
 
 	keygen = new(KeyGenerator)
@@ -88,7 +88,7 @@ func (keygen *KeyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	return sk
 }
 
-// GenSecretKeySparse generates a new SecretKey with exactly hw non zero coefficients.
+// GenSecretKeySparse generates a new SecretKey with exactly hw non-zero coefficients.
 func (keygen *KeyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.sk = keygen.ckksContext.contextQP.SampleTernarySparseMontgomeryNTTNew(hw)
@@ -99,7 +99,7 @@ func (keygen *KeyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
 func NewSecretKey(params *Parameters) *SecretKey {
 
 	if !params.isValid {
-		panic("cannot create new Secretkey, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewSecretkey: parameters are invalid (check if the generation was done properly)")
 	}
 
 	sk := new(SecretKey)
@@ -107,7 +107,7 @@ func NewSecretKey(params *Parameters) *SecretKey {
 	return sk
 }
 
-// Get returns the SecretKey value of the SecretKey.
+// Get returns the value of the SecretKey.
 func (sk *SecretKey) Get() *ring.Poly {
 	return sk.sk
 }
@@ -137,7 +137,7 @@ func (keygen *KeyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
 
 	if !params.isValid {
-		panic("cannot create new new PublicKey, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewPublicKey: parameters are invalid (check if the generation was done properly)")
 	}
 
 	pk = new(PublicKey)
@@ -159,19 +159,19 @@ func (pk *PublicKey) Set(poly [2]*ring.Poly) {
 	pk.pk[1] = poly[1].CopyNew()
 }
 
-// GenKeyPair generates a new secretkey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
+// GenKeyPair generates a new SecretKey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
 func (keygen *KeyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.GenSecretKey()
 	return sk, keygen.GenPublicKey(sk)
 }
 
-// GenKeyPairSparse generates a new secretkey with exactly hw non zero coefficients [1/2, 0, 1/2].
+// GenKeyPairSparse generates a new SecretKey with exactly hw non zero coefficients [1/2, 0, 1/2].
 func (keygen *KeyGenerator) GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.GenSecretKeySparse(hw)
 	return sk, keygen.GenPublicKey(sk)
 }
 
-// GenRelinKey generates a new evaluation key that will be used to relinearize the ciphertexts during multiplication.
+// GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
 func (keygen *KeyGenerator) GenRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 
 	evakey = new(EvaluationKey)
@@ -183,11 +183,11 @@ func (keygen *KeyGenerator) GenRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 	return
 }
 
-// NewRelinKey returns  new EvaluationKey with zero values.
+// NewRelinKey returns a new EvaluationKey with zero values.
 func NewRelinKey(params *Parameters) (evakey *EvaluationKey) {
 
 	if !params.isValid {
-		panic("cannot create new EvaluationKey, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewRelinKey: parameters are invalid (check if the generation was done properly)")
 	}
 
 	evakey = new(EvaluationKey)
@@ -206,7 +206,7 @@ func NewRelinKey(params *Parameters) (evakey *EvaluationKey) {
 	return
 }
 
-// Get returns the slice of switchintkeys of the evaluation-key.
+// Get returns the slice of switching keys of the evaluation-key.
 func (evk *EvaluationKey) Get() *SwitchingKey {
 	return evk.evakey
 }
@@ -222,7 +222,7 @@ func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 	}
 }
 
-// GenSwitchingKey generated a new keyswitching key, that will re-encrypt a ciphertext encrypted under the input key to the output key.
+// GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
 func (keygen *KeyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
 	keygen.ringContext.Sub(skInput.Get(), skOutput.Get(), keygen.polypool)
 	newevakey = keygen.newSwitchingKey(keygen.polypool, skOutput.Get())
@@ -234,7 +234,7 @@ func (keygen *KeyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newev
 func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 
 	if !params.isValid {
-		panic("cannot create new SwitchingKey, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewSwitchingKey: parameters are invalid (check if the generation was done properly)")
 	}
 
 	evakey = new(SwitchingKey)
@@ -275,7 +275,7 @@ func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 		switchingkey.evakey[i][0] = keygen.ckksContext.gaussianSampler.SampleNTTNew()
 		context.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 
-		// a (since a is uniform, we consider we already sample it in the NTT and montgomery domain)
+		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
 		switchingkey.evakey[i][1] = keygen.ringContext.NewUniformPoly()
 
 		// e + (skIn * P) * (q_star * q_tild) mod QP
@@ -297,7 +297,7 @@ func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 			}
 
-			// Handles the case where nb pj does not divides nb qi
+			// It handles the case where nb pj does not divide nb qi
 			if index >= keygen.ckksContext.levels-1 {
 				break
 			}
@@ -310,13 +310,13 @@ func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 	return
 }
 
-// NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
+// NewRotationKeys generates a new instance of RotationKeys, with the provided rotation to the left, right and conjugation if requested.
 func NewRotationKeys() (rotKey *RotationKeys) {
 	rotKey = new(RotationKeys)
 	return
 }
 
-// GenRot populates input RotationKeys with a SwitchingKey for the given rotation type and amount.
+// GenRot populates the input RotationKeys with a SwitchingKey for the given rotation type and amount.
 func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
 	switch rotType {
 	case RotationLeft:
@@ -355,7 +355,7 @@ func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 	}
 }
 
-// GenRotationKeysPow2 generates a new rotation key with all the power of two rotation to the left and right, as well as the conjugation.
+// GenRotationKeysPow2 generates a new rotation key with all the power-of-two rotations to the left and right, as well as the conjugation.
 func (keygen *KeyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
@@ -384,7 +384,7 @@ func (keygen *KeyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly, rotType Rotation, k uint64) {
 
 	if !params.isValid {
-		panic("cannot SetRotKey, parameters are invalid (check if the generation was done properly)")
+		panic("cannot SetRotKey: parameters are invalid (check if the generation was done properly)")
 	}
 
 	switch rotType {

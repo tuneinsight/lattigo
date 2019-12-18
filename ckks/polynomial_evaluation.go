@@ -5,15 +5,15 @@ import (
 	"math/bits"
 )
 
-// EvaluatePolyFast evaluates the polynomial a + bx + cx^2... with the input ciphertext.
-// Faster than EvaluatePolyEco but consumes ceil(log2(deg)) + 1 levels.
-func (evaluator *Evaluator) EvaluatePolyFast(ct *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (res *Ciphertext) {
+// EvaluatePolyFast evaluates the polynomial a + bx + cx^2... on the input Ciphertext.
+// It is faster than EvaluatePolyEco, but consumes ceil(log2(deg)) + 1 levels.
+func (evaluator *Evaluator) EvaluatePolyFast(ct0 *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (ctOut *Ciphertext) {
 
 	degree, coeffsMap := convertCoeffs(coeffs)
 
 	C := make(map[uint64]*Ciphertext)
 
-	C[1] = ct.CopyNew().Ciphertext()
+	C[1] = ct0.CopyNew().Ciphertext()
 
 	M := uint64(bits.Len64(degree - 1))
 	L := uint64(M >> 1)
@@ -29,15 +29,15 @@ func (evaluator *Evaluator) EvaluatePolyFast(ct *Ciphertext, coeffs interface{},
 	return recurse(degree, L, M, coeffsMap, C, evaluator, evakey)
 }
 
-// EvaluatePolyEco evaluates the polynomial a + bx + cx^2... with the input ciphertext.
-// Slower than EvaluatePolyFast but consumes ceil(log2(deg)) levels.
-func (evaluator *Evaluator) EvaluatePolyEco(ct *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (res *Ciphertext) {
+// EvaluatePolyEco evaluates the polynomial a + bx + cx^2... on the input Ciphertext.
+// It is slower than EvaluatePolyFast, but it consumes one less level (ceil(log2(deg))).
+func (evaluator *Evaluator) EvaluatePolyEco(ct0 *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (ctOut *Ciphertext) {
 
 	degree, coeffsMap := convertCoeffs(coeffs)
 
 	C := make(map[uint64]*Ciphertext)
 
-	C[1] = ct.CopyNew().Ciphertext()
+	C[1] = ct0.CopyNew().Ciphertext()
 
 	M := uint64(bits.Len64(degree - 1))
 	L := uint64(1)
@@ -67,7 +67,7 @@ func convertCoeffs(coeffs interface{}) (degree uint64, coeffsMap map[uint64]comp
 			coeffsMap[uint64(i)] = complex(coeffs.([]float64)[i], 0)
 		}
 	default:
-		panic("EvaluatePoly -> coeffs type must be complex128 or float64")
+		panic("cannot convertCoeffs: coeffs type must be complex128 or float64")
 	}
 
 	return uint64(len(coeffsMap)) - 1, coeffsMap

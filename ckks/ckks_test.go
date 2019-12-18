@@ -223,7 +223,7 @@ func verifyTestVectors(contextParams *ckksParams, decryptor *Decryptor, valuesWa
 	}
 
 	if math.Log2(1/real(medianprec)) < testParams.medianprec || math.Log2(1/imag(medianprec)) < testParams.medianprec {
-		t.Errorf("Mean precision error : target (%.2f, %.2f) > result (%.2f, %.2f)", testParams.medianprec, testParams.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
+		t.Errorf("Mean precision error: target (%.2f, %.2f) > result (%.2f, %.2f)", testParams.medianprec, testParams.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
 	}
 }
 
@@ -958,15 +958,15 @@ func testMarshaller(t *testing.T) {
 			check(t, err)
 
 			if ciphertextWant.Degree() != ciphertextTest.Degree() {
-				t.Errorf("Marshal Cipehrtext Degree")
+				t.Errorf("Marshal Ciphertext Degree")
 			}
 
 			if ciphertextWant.Level() != ciphertextTest.Level() {
-				t.Errorf("Marshal Cipehrtext Level")
+				t.Errorf("Marshal Ciphertext Level")
 			}
 
 			if ciphertextWant.Scale() != ciphertextTest.Scale() {
-				t.Errorf("Marshal Cipehrtext Scale")
+				t.Errorf("Marshal Ciphertext Scale")
 			}
 
 			for i := range ciphertextWant.value {
@@ -1049,7 +1049,7 @@ func testMarshaller(t *testing.T) {
 
 				for k := range evakeyWant[j] {
 					if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-						t.Errorf("Marshal Switchkey element [%d][%d]", j, k)
+						t.Errorf("Marshal Switchingkey element [%d][%d]", j, k)
 					}
 				}
 			}
@@ -1083,14 +1083,14 @@ func testMarshaller(t *testing.T) {
 					evakeyNTTIndexTest := resRotationKey.permuteNTTLeftIndex[i]
 
 					if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
-						t.Errorf("Marshal RotKey RotateLeft PermuteNTTIndex")
+						t.Errorf("Marshal RotationKey RotateLeft PermuteNTTIndex")
 					}
 
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
 							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-								t.Errorf("Marshal RotKey RotateLeft %d element [%d][%d]", i, j, k)
+								t.Errorf("Marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
 							}
 						}
 					}
@@ -1105,14 +1105,14 @@ func testMarshaller(t *testing.T) {
 					evakeyNTTIndexTest := resRotationKey.permuteNTTRightIndex[i]
 
 					if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
-						t.Errorf("Marshal RotKey RotateRight PermuteNTTIndex")
+						t.Errorf("Marshal RotationKey RotateRight PermuteNTTIndex")
 					}
 
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
 							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-								t.Errorf("Marshal RotKey RotateRight %d element [%d][%d]", i, j, k)
+								t.Errorf("Marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
 							}
 						}
 					}
@@ -1128,14 +1128,14 @@ func testMarshaller(t *testing.T) {
 				evakeyNTTIndexTest := resRotationKey.permuteNTTConjugateIndex
 
 				if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
-					t.Errorf("Marshal RotKey Conjugate PermuteNTTIndex")
+					t.Errorf("Marshal RotationKey Conjugate PermuteNTTIndex")
 				}
 
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
 						if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-							t.Errorf("Marshal RotKey RotateRow element [%d][%d]", j, k)
+							t.Errorf("Marshal RotationKey RotateRow element [%d][%d]", j, k)
 						}
 					}
 				}

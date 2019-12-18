@@ -7,7 +7,7 @@ import (
 	"math"
 )
 
-// Evaluator is a struct holding the necessary elements to operates the homomorphic operations between ciphertext and/or plaintexts.
+// Evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
 type Evaluator struct {
 	params      *Parameters
@@ -24,12 +24,12 @@ type Evaluator struct {
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
-// operations on the ciphertexts and/or plaintexts. It stores a small pool of polynomials
-// and ciphertexts that will be used for intermediate values.
+// operations on the Ciphertexts and/or Plaintexts. It stores a small pool of polynomials
+// and Ciphertexts that will be used for intermediate values.
 func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 
 	if !params.isValid {
-		panic("cannot create new Evaluator, parameters are invalid (check if the generation was done properly)")
+		panic("cannot newEvaluator: parameters are invalid (check if the generation was done properly)")
 	}
 
 	evaluator = new(Evaluator)
@@ -60,15 +60,15 @@ func NewEvaluator(params *Parameters) (evaluator *Evaluator) {
 
 func (evaluator *Evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *ckksElement) {
 	if op0 == nil || op1 == nil || opOut == nil {
-		panic("operands cannot be nil")
+		panic("cannot getElemAndCheckBinary: operands cannot be nil")
 	}
 
 	if op0.Degree()+op1.Degree() == 0 {
-		panic("operands cannot be both plaintext")
+		panic("cannot getElemAndCheckBinary: operands cannot be both plaintext")
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		panic("receiver operand degree is too small")
+		panic("cannot getElemAndCheckBinary: receiver operand degree is too small")
 	}
 	el0, el1, elOut = op0.Element(), op1.Element(), opOut.Element()
 	return // TODO: more checks on elements
@@ -76,15 +76,15 @@ func (evaluator *Evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOut
 
 func (evaluator *Evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *ckksElement) {
 	if op0 == nil || opOut == nil {
-		panic("operand cannot be nil")
+		panic("cannot getElemAndCheckUnary: operand cannot be nil")
 	}
 
 	if op0.Degree() == 0 {
-		panic("operand cannot be plaintext")
+		panic("cannot getElemAndCheckUnary: operand cannot be Plaintext")
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		panic("receiver operand degree is too small")
+		panic("cannot getElemAndCheckUnary: receiver operand degree is too small")
 	}
 	el0, elOut = op0.Element(), opOut.Element()
 	return // TODO: more checks on elements
@@ -99,33 +99,33 @@ func (evaluator *Evaluator) newCiphertextBinary(op0, op1 Operand) (ctOut *Cipher
 	return NewCiphertext(evaluator.params, maxDegree, minLevel, maxScale)
 }
 
-// Add adds op0 to op1 and returns the result on ctOut.
+// Add adds op0 to op1 and returns the result in ctOut.
 func (evaluator *Evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluator.evaluateInPlace(el0, el1, elOut, evaluator.ckksContext.contextQ.AddLvl)
 }
 
-// AddNoMod adds op0 to op1 and returns the result on ctOut, without modular reduction.
+// AddNoMod adds op0 to op1 and returns the result in ctOut, without modular reduction.
 func (evaluator *Evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	evaluator.evaluateInPlace(el0, el1, elOut, evaluator.ckksContext.contextQ.AddNoModLvl)
 }
 
-// AddNew adds op0 to op1 and returns the result on a newly created element.
+// AddNew adds op0 to op1 and returns the result in a newly created element.
 func (evaluator *Evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.newCiphertextBinary(op0, op1)
 	evaluator.Add(op0, op1, ctOut)
 	return
 }
 
-// AddNoModNew adds op0 to op1 without modular reduction, and returns the result on a newly created element.
+// AddNoModNew adds op0 to op1 without modular reduction, and returns the result in a newly created element.
 func (evaluator *Evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.newCiphertextBinary(op0, op1)
 	evaluator.AddNoMod(op0, op1, ctOut)
 	return
 }
 
-// Sub subtracts op0 to op1 and returns the result on ctOut.
+// Sub subtracts op1 from op0 and returns the result in ctOut.
 func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 
 	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
@@ -142,7 +142,7 @@ func (evaluator *Evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 
 }
 
-// SubNoMod subtracts op0 to op1 and returns the result on ctOut, without modular reduction.
+// SubNoMod subtracts op1 from op0 and returns the result in ctOut, without modular reduction.
 func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 
 	el0, el1, elOut := evaluator.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
@@ -159,14 +159,14 @@ func (evaluator *Evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 
 }
 
-// SubNew subtracts op0 to op1 and returns the result on a newly created element.
+// SubNew subtracts op1 from op0 and returns the result in a newly created element.
 func (evaluator *Evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.newCiphertextBinary(op0, op1)
 	evaluator.Sub(op0, op1, ctOut)
 	return
 }
 
-// SubNoModNew subtracts op0 to op1 without modular reduction, and returns the result on a newly created element.
+// SubNoModNew subtracts op1 from op0 without modular reduction, and returns the result in a newly created element.
 func (evaluator *Evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = evaluator.newCiphertextBinary(op0, op1)
 	evaluator.SubNoMod(op0, op1, ctOut)
@@ -186,7 +186,7 @@ func (evaluator *Evaluator) evaluateInPlace(c0, c1, ctOut *ckksElement, evaluate
 	ctOut.Resize(evaluator.params, maxDegree)
 	evaluator.DropLevel(ctOut.Ciphertext(), ctOut.Level()-utils.MinUint64(c0.Level(), c1.Level()))
 
-	// Checks wether or not the receiver element is the same as one of the input elements
+	// Checks whether or not the receiver element is the same as one of the input elements
 	// and acts accordingly to avoid unnecessary element creation or element overwriting,
 	// and scales properly the element before the evaluation.
 	if ctOut == c0 {
@@ -276,8 +276,8 @@ func (evaluator *Evaluator) evaluateInPlace(c0, c1, ctOut *ckksElement, evaluate
 
 	ctOut.SetScale(utils.MaxFloat64(c0.Scale(), c1.Scale()))
 
-	// If the inputs degree differ, copies the remaining degree on the receiver
-	// Also checks that the receiver is ont one of the inputs to avoid unnecessary work.
+	// If the inputs degrees differ, it copies the remaining degree on the receiver.
+	// Also checks that the receiver is not one of the inputs to avoid unnecessary work.
 
 	if c0.Degree() > c1.Degree() && tmp0 != ctOut {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
@@ -290,13 +290,13 @@ func (evaluator *Evaluator) evaluateInPlace(c0, c1, ctOut *ckksElement, evaluate
 	}
 }
 
-// Neg negates the ct0 and returns the result on ctOut.
+// Neg negates the value of ct0 and returns the result in ctOut.
 func (evaluator *Evaluator) Neg(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
 
 	if ct0.Degree() != ctOut.Degree() {
-		panic("cannot negate -> invalid receiver ciphertext does not match input ciphertext degree")
+		panic("cannot Negate: invalid receiver Ciphertext does not match input Ciphertext degree")
 	}
 
 	for i := range ct0.value {
@@ -304,21 +304,21 @@ func (evaluator *Evaluator) Neg(ct0 *Ciphertext, ctOut *Ciphertext) {
 	}
 }
 
-// NegNew negates ct0 and returns the result on a newly created element.
+// NegNew negates ct0 and returns the result in a newly created element.
 func (evaluator *Evaluator) NegNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(evaluator.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	evaluator.Neg(ct0, ctOut)
 	return
 }
 
-// AddConstNew adds the input constant (which can be an uint64, int64, float64 or complex128) to ct0 and returns the result on a new element.
+// AddConstNew adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in a new element.
 func (evaluator *Evaluator) AddConstNew(ct0 *Ciphertext, constant interface{}) (ctOut *Ciphertext) {
 	ctOut = ct0.CopyNew().Ciphertext()
 	evaluator.AddConst(ct0, constant, ctOut)
 	return ctOut
 }
 
-// AddConst adds the input constant (which can be an uint64, int64, float64 or complex128) to ct0 and returns the result on ctOut.
+// AddConst adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in ctOut.
 func (evaluator *Evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
 	var level uint64
@@ -353,10 +353,10 @@ func (evaluator *Evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOu
 
 	context := evaluator.ckksContext.contextQ
 
-	// Component wise addition of the following vector to the ciphertext :
+	// Component wise addition of the following vector to the ciphertext:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
 	// [{                  N/2                }{                N/2               }]
-	// Which is equivalent outside of the NTT domain of adding a to the first coefficient of ct0 and b to the N/2th coefficient of ct0.
+	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
 	var qi uint64
 	for i := uint64(0); i < level+1; i++ {
 		scaledConstReal = 0
@@ -392,9 +392,9 @@ func (evaluator *Evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOu
 	}
 }
 
-// MultByConstAndAdd multiplies ct0 by the input constant, and adds it to the receiver element (does not modify the input
-// element), ex. ctOut(x) = ctOut(x) + ct0(x) * (a+bi). This functions  removes the need of storing the intermediate value c(x) * (a+bi).
-// This function will modifie the level and the scale of the receiver element depending on the level and the scale of the input
+// MultByConstAndAdd multiplies ct0 by the input constant, and adds it to the receiver element (it does not modify the input
+// element), e.g., ctOut(x) = ctOut(x) + ct0(x) * (a+bi). This functions removes the need of storing the intermediate value c(x) * (a+bi).
+// This function will modify the level and the scale of the receiver element depending on the level and the scale of the input
 // element and the type of the constant. The level of the receiver element will be set to min(input.level, receiver.level).
 // The scale of the receiver element will be set to the scale that the input element would have after the multiplication by the constant.
 func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
@@ -403,7 +403,7 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 
 	level = utils.MinUint64(ct0.Level(), ctOut.Level())
 
-	// Forces a drop of cOut level to ct0 level
+	// Forces a drop of ctOut level to ct0 level
 	if ctOut.Level() > level {
 		evaluator.DropLevel(ctOut, ctOut.Level()-level)
 	}
@@ -411,7 +411,7 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 	var cReal, cImag float64
 	var scale float64
 
-	// Converts to float64 and determines if a scale is required (which is the case if either real or imag has a rational part)
+	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
 	scale = 1
 	switch constant.(type) {
 	case complex128:
@@ -466,12 +466,12 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 
 	context := evaluator.ckksContext.contextQ
 
-	// If a scaling will be required to multiply by the constant,
-	// equalizes scales such that the scales match in the end.
+	// If a scaling would be required to multiply by the constant,
+	// it equalizes scales such that the scales match in the end.
 	if scale != 1 {
 
 		// If ctOut scaling is smaller than ct0's scale + the default scaling,
-		// then brings ctOut scale to ct0's scale.
+		// then it brings ctOut scale to ct0's scale.
 		if ctOut.Scale() < ct0.Scale()*evaluator.ckksContext.scale {
 
 			if uint64((evaluator.ckksContext.scale*ct0.Scale())/ctOut.Scale()) != 0 {
@@ -482,14 +482,14 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 
 			ctOut.SetScale(evaluator.ckksContext.scale * ct0.Scale())
 
-			// If ctOut.Scale() > ((a+bi)*scale)*ct0(x), then sets the scale to
+			// If ctOut.Scale() > ((a+bi)*scale)*ct0(x), then it sets the scale to
 			// bring c(x)*scale to the level of ctOut(x) scale
 		} else if ctOut.Scale() > ct0.Scale()*evaluator.ckksContext.scale {
 			scale = ctOut.Scale() / ct0.Scale()
 		}
 
-		// If no scaling is required, the sets the appropriate scale such that
-		// ct0(x)*scale matches ctOut(x) scale without modifiying ct0(x) scale.
+		// If no scaling is required, then it sets the appropriate scale such that
+		// ct0(x)*scale matches ctOut(x) scale without modifying ct0(x) scale.
 	} else {
 
 		if ctOut.Scale() > ct0.Scale() {
@@ -506,10 +506,10 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 		}
 	}
 
-	// Component wise multiplication of the following vector to the ciphertext :
+	// Component-wise multiplication of the following vector to the ciphertext:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
 	// [{                  N/2                }{                N/2               }]
-	// Which is equivalent outside of the NTT domain of adding a to the first coefficient of ct0 and b to the N/2th coefficient of ct0.
+	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
 	for i := uint64(0); i < level+1; i++ {
 
 		qi := context.Modulus[i]
@@ -556,18 +556,18 @@ func (evaluator *Evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interfac
 	}
 }
 
-// MultByConstNew multiplies ct0 by the input constant and returns the result on a newly created element.
+// MultByConstNew multiplies ct0 by the input constant and returns the result in a newly created element.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
-// needs to be scaled (its rational part is not zero)). The constant can be an uint64, int64, float64 or complex128.
+// needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
 func (evaluator *Evaluator) MultByConstNew(ct0 *Ciphertext, constant interface{}) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(evaluator.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	evaluator.MultByConst(ct0, constant, ctOut)
 	return
 }
 
-// MultByConst multiplies ct0 by the input constant and returns the result on ctOut.
+// MultByConst multiplies ct0 by the input constant and returns the result in ctOut.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
-// needs to be scaled (its rational part is not zero)). The constant can be an uint64, int64, float64 or complex128.
+// needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
 func (evaluator *Evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
 	var level uint64
@@ -577,7 +577,7 @@ func (evaluator *Evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, c
 	var cReal, cImag float64
 	var scale float64
 
-	// Converts to float64 and determines if a scale is required (which is the case if either real or imag has a rational part)
+	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
 	scale = 1
 	switch constant.(type) {
 	case complex128:
@@ -628,10 +628,10 @@ func (evaluator *Evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, c
 		cImag = float64(0)
 	}
 
-	// Component wise multiplication of the following vector to the ciphertext :
+	// Component wise multiplication of the following vector with the ciphertext:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
 	// [{                  N/2                }{                N/2               }]
-	// Which is equivalent outside of the NTT domain of adding a to the first coefficient of ct0 and b to the N/2th coefficient of ct0.
+	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
 	context := evaluator.ckksContext.contextQ
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 	for i := uint64(0); i < level+1; i++ {

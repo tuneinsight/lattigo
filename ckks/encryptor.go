@@ -4,7 +4,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Encryptor is a struct used to encrypt plaintext and storing the public-key and/or secret-key.
+// Encryptor is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
 type Encryptor struct {
 	params      *Parameters
 	ckksContext *Context
@@ -18,31 +18,31 @@ type Encryptor struct {
 }
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
-// This encryptor can be used to encrypt plaintexts, using the stored key.
+// This Encryptor can be used to encrypt Plaintexts, using the stored key.
 func NewEncryptorFromPk(params *Parameters, pk *PublicKey) *Encryptor {
 	return newEncryptor(params, pk, nil)
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
-// This encryptor can be used to encrypt plaintexts, using the stored key.
+// This Encryptor can be used to encrypt Plaintexts, using the stored key.
 func NewEncryptorFromSk(params *Parameters, sk *SecretKey) *Encryptor {
 	return newEncryptor(params, nil, sk)
 }
 
 // NewEncryptor creates a new Encryptor with the input public-key and/or secret-key.
-// This encryptor can be used to encrypt plaintexts, using the stored keys.
+// This Encryptor can be used to encrypt Plaintexts, using the stored keys.
 func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *Encryptor) {
 
 	if !params.isValid {
-		panic("cannot create new Encryptor, parameters are invalid (check if the generation was done properly)")
+		panic("cannot newEncryptor: parameters are invalid (check if the generation was done properly)")
 	}
 
 	if pk != nil && (uint64(pk.pk[0].GetDegree()) != uint64(1<<params.LogN) || uint64(pk.pk[1].GetDegree()) != uint64(1<<params.LogN)) {
-		panic("pk ring degree doesn't match ckkscontext ring degree")
+		panic("cannot newEncrpytor: pk ring degree does not match params ring degree")
 	}
 
 	if sk != nil && uint64(sk.sk.GetDegree()) != uint64(1<<params.LogN) {
-		panic("sk ring degree doesn't match ckkscontext ring degree")
+		panic("cannot newEncryptor: sk ring degree does not match params ring degree")
 	}
 
 	encryptor = new(Encryptor)
@@ -62,11 +62,11 @@ func newEncryptor(params *Parameters, pk *PublicKey, sk *SecretKey) (encryptor *
 	return encryptor
 }
 
-// EncryptNew encrypts the input plaintext using the stored key and returns
-// the result on a newly created ciphertext.
+// EncryptNew encrypts the input Plaintext using the stored key and returns
+// the result on a newly created Ciphertext.
 //
-// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
-// encrypt with sk : ciphertext = [-a*sk + m + e, a]
+// encrypt with pk: ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+// encrypt with sk: ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
 
 	ciphertext = NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
@@ -74,15 +74,15 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Cipher
 	return
 }
 
-// Encrypt encrypts the input plaintext using the stored key, and returns the result
-// on the reciver ciphertext.
+// Encrypt encrypts the input Plaintext using the stored key, and returns the result
+// on the receiver Ciphertext.
 //
-// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
-// encrypt with sk : ciphertext = [-a*sk + m + e, a]
+// encrypt with pk: ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+// encrypt with sk: ciphertext = [-a*sk + m + e, a]
 func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	if plaintext.Level() != encryptor.ckksContext.levels-1 {
-		panic("cannot encrypt -> plaintext not at maximum level")
+		panic("cannot Encrypt: Plaintext not at maximum level")
 	}
 
 	if encryptor.sk != nil {
@@ -95,13 +95,13 @@ func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext
 
 	} else {
 
-		panic("cannot encrypt -> public-key and/or secret-key has not been set")
+		panic("cannot Encrypt: public-key and/or secret-key has not been set")
 	}
 }
 
 func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	// We sample a R-WLE instance (encryption of zero) over the keys context (ciphertext context + special prime)
+	// We sample a R-LWE instance (encryption of zero) over the keys context (ciphertext context + special prime)
 
 	contextQP := encryptor.ckksContext.contextQP
 	contextQ := encryptor.ckksContext.contextQ
@@ -155,7 +155,7 @@ func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphe
 	// ct0 = -s*a + e
 	encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
 
-	// We rescal by the special prime, dividing the error by this prime
+	// We rescale by the special prime, dividing the error by this prime
 	// ct0 = (-s*a + e)/P
 	encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
 

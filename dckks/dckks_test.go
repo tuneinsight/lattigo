@@ -101,8 +101,8 @@ func gendckksTestContext(contextParameters *ckks.Parameters) (params *dckksTestC
 	tmp1 := params.dckksContext.contextQP.NewPoly()
 
 	for j := uint64(0); j < testParams.parties; j++ {
-		params.sk0Shards[j] = kgen.NewSecretKey()
-		params.sk1Shards[j] = kgen.NewSecretKey()
+		params.sk0Shards[j] = kgen.GenSecretKey()
+		params.sk1Shards[j] = kgen.GenSecretKey()
 		params.dckksContext.contextQP.Add(tmp0, params.sk0Shards[j].Get(), tmp0)
 		params.dckksContext.contextQP.Add(tmp1, params.sk1Shards[j].Get(), tmp1)
 	}
@@ -114,8 +114,8 @@ func gendckksTestContext(contextParameters *ckks.Parameters) (params *dckksTestC
 	params.sk1.Set(tmp1)
 
 	// Publickeys
-	params.pk0 = kgen.NewPublicKey(params.sk0)
-	params.pk1 = kgen.NewPublicKey(params.sk1)
+	params.pk0 = kgen.GenPublicKey(params.sk0)
+	params.pk1 = kgen.GenPublicKey(params.sk1)
 
 	params.encryptorPk0 = ckks.NewEncryptorFromPk(contextParameters, params.pk0)
 

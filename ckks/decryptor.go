@@ -1,6 +1,6 @@
 package ckks
 
-// Decryptor is an interface for decryptors
+// Decryptor is an interface for decrypting Ciphertexts. A Decryptor stores the secret-key.
 type Decryptor interface {
 	// DecryptNew decrypts the ciphertext and returns a newly created
 	// plaintext. A Horner method is used for evaluating the decryption.
@@ -19,15 +19,15 @@ type decryptor struct {
 	sk          *SecretKey
 }
 
-// NewDecryptor instanciates a new decryptor that will be able to decrypt ciphertext
+// NewDecryptor instantiates a new Decryptor that will be able to decrypt ciphertexts
 // encrypted under the provided secret-key.
 func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 	if !params.isValid {
-		panic("cannot create new Decryptor, parameters are invalid (check if the generation was done properly)")
+		panic("cannot newDecryptor: parameters are invalid (check if the generation was done properly)")
 	}
 
 	if sk.sk.GetDegree() != int(1<<params.LogN) {
-		panic("secret_key degree must match context degree")
+		panic("cannot newDecryptor: secret_key degree must match context degree")
 	}
 
 	return &decryptor{
@@ -37,15 +37,21 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 	}
 }
 
-func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) *Plaintext {
-	plaintext := NewPlaintext(decryptor.params, ciphertext.Level(), ciphertext.Scale())
+// DecryptNew decrypts the Ciphertext and returns a newly created Plaintext.
+// Horner method is used for evaluating the decryption.
+func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
+
+	plaintext = NewPlaintext(decryptor.params, ciphertext.Level(), ciphertext.Scale())
 
 	decryptor.Decrypt(ciphertext, plaintext)
 
 	return plaintext
 }
 
+// Decrypt decrypts the Ciphertext and returns the result on the provided receiver Plaintext.
+// Horner method is used for evaluating the decryption.
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
+
 	context := decryptor.ckksContext.contextQ
 
 	level := ciphertext.Level()

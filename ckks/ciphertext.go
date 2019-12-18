@@ -4,16 +4,16 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Ciphertext is a BigPoly of degree > 0.
+// Ciphertext is *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
 type Ciphertext struct {
 	*ckksElement
 }
 
-// NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
+// NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
 func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float64) (ciphertext *Ciphertext) {
 
 	if !params.isValid {
-		panic("cannot create NewCiphertext, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewCiphertext: parameters are invalid (check if the generation was done properly)")
 	}
 
 	ciphertext = &Ciphertext{&ckksElement{}}
@@ -29,11 +29,11 @@ func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float6
 	return ciphertext
 }
 
-// NewCiphertextRandom generates a new uniformely distributed ciphertext of degree, level and scale.
+// NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 
 	if !params.isValid {
-		panic("cannot create NewCiphertextRandom, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewCiphertextRandom: parameters are invalid (check if the generation was done properly)")
 	}
 
 	ciphertext = &Ciphertext{&ckksElement{}}

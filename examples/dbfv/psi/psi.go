@@ -73,7 +73,7 @@ func main() {
 		crp[i] = crsGen.ClockNew()
 	}
 
-	tsk, tpk := bfv.NewKeyGenerator(params).NewKeyPair()
+	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
 	colSk := bfv.NewSecretKey(params)
 
 	expRes := make([]uint64, 1<<params.LogN, 1<<params.LogN)
@@ -88,7 +88,7 @@ func main() {
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
-		pi.sk = bfv.NewKeyGenerator(params).NewSecretKey()
+		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
 		pi.rlkEphemSk = contextKeys.SampleTernaryMontgomeryNTTNew(1.0 / 3)
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for i := range pi.input {

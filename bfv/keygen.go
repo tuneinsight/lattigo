@@ -6,14 +6,14 @@ import (
 
 // KeyGenerator is an interface implementing the methods of the keyGenerator.
 type KeyGenerator interface {
-	NewSecretKey() (sk *SecretKey)
-	NewSecretkeyWithDistrib(p float64) (sk *SecretKey)
-	NewPublicKey(sk *SecretKey) (pk *PublicKey)
-	NewKeyPair() (sk *SecretKey, pk *PublicKey)
-	NewRelinKey(sk *SecretKey, maxDegree uint64) (evk *EvaluationKey)
-	NewSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey)
+	GenSecretKey() (sk *SecretKey)
+	GenSecretkeyWithDistrib(p float64) (sk *SecretKey)
+	GenPublicKey(sk *SecretKey) (pk *PublicKey)
+	GenKeyPair() (sk *SecretKey, pk *PublicKey)
+	GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *EvaluationKey)
+	GenSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey)
 	GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
-	NewRotationKeysPow2(sk *SecretKey) (rotKey *RotationKeys)
+	GenRotationKeysPow2(sk *SecretKey) (rotKey *RotationKeys)
 }
 
 // keyGenerator is a structure that stores the elements required to create new keys,
@@ -83,13 +83,13 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	}
 }
 
-// NewSecretKey creates a new SecretKey with the distribution [1/3, 1/3, 1/3].
-func (keygen *keyGenerator) NewSecretKey() (sk *SecretKey) {
-	return keygen.NewSecretkeyWithDistrib(1.0 / 3)
+// GenSecretKey creates a new SecretKey with the distribution [1/3, 1/3, 1/3].
+func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
+	return keygen.GenSecretkeyWithDistrib(1.0 / 3)
 }
 
-// NewSecretkeyWithDistrib creates a new SecretKey with the distribution [(1-p)/2, p, (1-p)/2].
-func (keygen *keyGenerator) NewSecretkeyWithDistrib(p float64) (sk *SecretKey) {
+// GenSecretkeyWithDistrib creates a new SecretKey with the distribution [(1-p)/2, p, (1-p)/2].
+func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.sk = keygen.bfvContext.contextQP.SampleTernaryMontgomeryNTTNew(p)
 	return sk
@@ -117,8 +117,8 @@ func (sk *SecretKey) Set(poly *ring.Poly) {
 	sk.sk = poly.CopyNew()
 }
 
-// NewPublicKey generates a new PublicKey from the provided SecretKey.
-func (keygen *keyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
+// GenPublicKey generates a new PublicKey from the provided SecretKey.
+func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = new(PublicKey)
 
@@ -162,14 +162,14 @@ func (pk *PublicKey) Set(p [2]*ring.Poly) {
 }
 
 // NewKeyPair generates a new SecretKey with distribution [1/3, 1/3, 1/3] and a corresponding PublicKey.
-func (keygen *keyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
-	sk = keygen.NewSecretKey()
-	return sk, keygen.NewPublicKey(sk)
+func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
+	sk = keygen.GenSecretKey()
+	return sk, keygen.GenPublicKey(sk)
 }
 
 // NewRelinKey generates a new evaluation key from the provided SecretKey. It will be used to relinearize a ciphertext (encrypted under a PublicKey generated from the provided SecretKey)
 // of degree > 1 to a ciphertext of degree 1. Max degree is the maximum degree of the ciphertext allowed to relinearize.
-func (keygen *keyGenerator) NewRelinKey(sk *SecretKey, maxDegree uint64) (evk *EvaluationKey) {
+func (keygen *keyGenerator) GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *EvaluationKey) {
 
 	evk = new(EvaluationKey)
 
@@ -239,8 +239,8 @@ func (evk *EvaluationKey) SetRelinKeys(rlk [][][2]*ring.Poly) {
 	}
 }
 
-// NewSwitchingKey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key.
-func (keygen *keyGenerator) NewSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey) {
+// GenSwitchingKey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key.
+func (keygen *keyGenerator) GenSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey) {
 
 	ringContext := keygen.bfvContext.contextQP
 
@@ -357,9 +357,9 @@ func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 	}
 }
 
-// NewRotationKeysPow2 generates a new struct of RotationKeys that stores the keys of all the left and right powers of two rotations. The provided SecretKey must be the SecretKey used to generate the PublicKey under
+// GenRotationKeysPow2 generates a new struct of RotationKeys that stores the keys of all the left and right powers of two rotations. The provided SecretKey must be the SecretKey used to generate the PublicKey under
 // which the ciphertexts to rotate are encrypted under. rows is a boolean value that indicates if the keys for the row rotation have to be generated.
-func (keygen *keyGenerator) NewRotationKeysPow2(sk *SecretKey) (rotKey *RotationKeys) {
+func (keygen *keyGenerator) GenRotationKeysPow2(sk *SecretKey) (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
 

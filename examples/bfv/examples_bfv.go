@@ -58,7 +58,7 @@ func obliviousRiding() {
 	// Rider's keygen
 	kgen := bfv.NewKeyGenerator(params)
 
-	riderSk, riderPk := kgen.NewKeyPair()
+	riderSk, riderPk := kgen.GenKeyPair()
 
 	decryptor := bfv.NewDecryptor(params, riderSk)
 

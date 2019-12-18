@@ -5,56 +5,56 @@ import (
 	"math/bits"
 )
 
-// EvaluateChebyFast evaluates the input Chebyshev polynomial with the input ciphertext.
+// EvaluateChebyFast evaluates the input Chebyshev polynomial on the input ciphertext.
 // Faster than EvaluateChebyEco but consumes ceil(log(deg)) + 2 levels.
-func (evaluator *evaluator) EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
+func (eval *evaluator) EvaluateChebyFast(op *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
 
-	C[1] = ct.CopyNew().Ciphertext()
+	C[1] = op.CopyNew().Ciphertext()
 
-	evaluator.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
-	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
+	eval.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
+	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
+	eval.Rescale(C[1], eval.ckksContext.scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(M >> 1)
 
 	for i := uint64(2); i <= (1 << L); i++ {
-		computePowerBasisCheby(i, C, evaluator, evakey)
+		computePowerBasisCheby(i, C, eval, evakey)
 	}
 
 	for i := L + 1; i < M; i++ {
-		computePowerBasisCheby(1<<i, C, evaluator, evakey)
+		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
+	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, eval, evakey)
 }
 
-// EvaluateChebyEco evaluates the input Chebyshev polynomial with the input ciphertext.
-// Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
-func (evaluator *evaluator) EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
+// EvaluateChebyEco evaluates the input Chebyshev polynomial on the input ciphertext.
+// It is slower than EvaluateChebyFast but consumes one less level (ceil(log(deg)) + 1 levels).
+func (eval *evaluator) EvaluateChebyEco(op *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
 
-	C[1] = ct.CopyNew().Ciphertext()
+	C[1] = op.CopyNew().Ciphertext()
 
-	evaluator.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
-	evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
+	eval.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
+	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
+	eval.Rescale(C[1], eval.ckksContext.scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree - 1))
 	L := uint64(1)
 
 	for i := uint64(2); i <= (1 << L); i++ {
-		computePowerBasisCheby(i, C, evaluator, evakey)
+		computePowerBasisCheby(i, C, eval, evakey)
 	}
 
 	for i := L + 1; i < M; i++ {
-		computePowerBasisCheby(1<<i, C, evaluator, evakey)
+		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, evaluator, evakey)
+	return recurseCheby(cheby.degree, L, M, cheby.coeffs, C, eval, evakey)
 }
 
 func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) {
@@ -65,7 +65,7 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evalu
 	// C2 = 2*C1*C1 - C0
 	// Evaluates the nth degree Chebyshev ring in a recursive manner, storing intermediate results in the hashtable.
 	// Consumes at most ceil(sqrt(n)) levels for an evaluation at Cn.
-	// Uses the following property : for a given Chebyshev ring Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
+	// Uses the following property: for a given Chebyshev ring Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
 
 	if C[n] == nil {
 
@@ -100,9 +100,8 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evalu
 	}
 }
 
+// recurseCheby recursively computes the evaluation of the Chebyshev polynomial using a baby-step giant-step algorithm.
 func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
-
-	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 
 	if maxDegree <= (1 << L) {
 		return evaluatePolyFromPowerBasis(coeffs, C, evaluator, evakey)
@@ -129,9 +128,8 @@ func recurseCheby(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[ui
 
 }
 
+// splitCoeffsCheby splits a Chebyshev polynomial p such that p = q*C^degree + r, where q and r are a linear combination of a Chebyshev basis.
 func splitCoeffsCheby(coeffs map[uint64]complex128, degree, maxDegree uint64) (coeffsq, coeffsr map[uint64]complex128) {
-
-	// Splits a Chebyshev polynomial p such that p = q*C^degree + r, where q and r are a linear combination of a Chebyshev basis.
 
 	coeffsr = make(map[uint64]complex128)
 	coeffsq = make(map[uint64]complex128)

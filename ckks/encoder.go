@@ -13,6 +13,7 @@ type Encoder interface {
 	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
 }
 
+// encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
 type encoder struct {
 	params       *Parameters
 	ckksContext  *Context
@@ -26,11 +27,11 @@ type encoder struct {
 	rotGroup     []uint64
 }
 
-// NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
+// NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a Plaintext.
 func NewEncoder(params *Parameters) Encoder {
 
 	if !params.isValid {
-		panic("cannot create new Encoder, parameters are invalid (check if the generation was done properly)")
+		panic("cannot newEncoder: parameters are invalid (check if the generation was done properly)")
 	}
 
 	m := uint64(2 << params.LogN)
@@ -73,19 +74,19 @@ func (encoder *encoder) EncodeNew(values []complex128, slots uint64) (plaintext 
 	return
 }
 
-// Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
+// Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it in the receiver Plaintext.
 func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
 
 	if uint64(len(values)) > encoder.ckksContext.maxSlots || uint64(len(values)) > slots {
-		panic("cannot Encode -> to many values for the given number of slots")
+		panic("cannot Encode: too many values for the given number of slots")
 	}
 
 	if slots == 0 && slots&(slots-1) == 0 {
-		panic("cannot Encode -> slots must be a power of two between 1 and N/2")
+		panic("cannot Encode: slots must be a power of two between 1 and N/2")
 	}
 
 	if uint64(len(values)) != slots {
-		panic("cannot Encode -> number of values must be equal to slots")
+		panic("cannot Encode: number of values must be equal to slots")
 	}
 
 	for i := uint64(0); i < slots; i++ {
@@ -114,7 +115,7 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 	}
 }
 
-// Decode decodes the plaintext values to a slice of complex128 values of size at most N/2.
+// Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *encoder) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 
 	encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
@@ -133,14 +134,14 @@ func (encoder *encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 
 	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
 
-		// Centers the value arounds the current modulus
+		// Centers the value around the current modulus
 		encoder.bigintCoeffs[idx].Mod(encoder.bigintCoeffs[idx], Q)
 		sign = encoder.bigintCoeffs[idx].Cmp(encoder.qHalf)
 		if sign == 1 || sign == 0 {
 			encoder.bigintCoeffs[idx].Sub(encoder.bigintCoeffs[idx], Q)
 		}
 
-		// Centers the value arounds the current modulus
+		// Centers the value around the current modulus
 		encoder.bigintCoeffs[idx+maxSlots].Mod(encoder.bigintCoeffs[idx+maxSlots], Q)
 		sign = encoder.bigintCoeffs[idx+maxSlots].Cmp(encoder.qHalf)
 		if sign == 1 || sign == 0 {

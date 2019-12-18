@@ -51,13 +51,13 @@ func benchKeyGen(b *testing.B) {
 
 		b.Run(testString("KeyPairGen/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				kgen.NewKeyPair()
+				kgen.GenKeyPair()
 			}
 		})
 
 		b.Run(testString("SwitchKeyGen/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				kgen.NewRelinKey(sk, 1)
+				kgen.GenRelinKey(sk, 1)
 			}
 		})
 	}
@@ -113,7 +113,7 @@ func benchEvaluator(b *testing.B) {
 		ciphertext2 := NewCiphertextRandom(parameters, 1)
 		receiver := NewCiphertextRandom(parameters, 2)
 
-		rlk := params.kgen.NewRelinKey(params.sk, 1)
+		rlk := params.kgen.GenRelinKey(params.sk, 1)
 		rotkey := NewRotationKeys()
 		params.kgen.GenRot(RotationLeft, params.sk, 1, rotkey)
 		params.kgen.GenRot(RotationRow, params.sk, 0, rotkey)

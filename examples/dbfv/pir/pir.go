@@ -113,7 +113,7 @@ func main() {
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
-		pi.sk = kgen.NewSecretKey()
+		pi.sk = kgen.GenSecretKey()
 		pi.rlkEphemSk = contextKeys.SampleTernaryMontgomeryNTTNew(1.0 / 3)
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for j := range pi.input {

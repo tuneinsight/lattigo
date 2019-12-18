@@ -20,7 +20,7 @@ type ckksElement struct {
 }
 
 // NewCkksElement returns a new ckksElement with zero values.
-func NewCkksElement() *ckksElement {
+func newCkksElement() *ckksElement {
 	return &ckksElement{}
 }
 

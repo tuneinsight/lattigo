@@ -36,11 +36,11 @@ func chebyshevinterpolation() {
 	kgen := ckks.NewKeyGenerator(params)
 	var sk *ckks.SecretKey
 	var pk *ckks.PublicKey
-	sk, pk = kgen.NewKeyPair()
+	sk, pk = kgen.GenKeyPair()
 
 	// Relinearization key
 	var rlk *ckks.EvaluationKey
-	rlk = kgen.NewRelinKey(sk)
+	rlk = kgen.GenRelinKey(sk)
 
 	// Encryptor
 	var encryptor *ckks.Encryptor

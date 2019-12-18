@@ -305,7 +305,7 @@ func (basisextender *FastBasisExtender) ModDownSplitedPQ(level uint64, p1Q, p1P,
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
-// ModDownSplited reduces the basis of a polynomial.
+// ModDownSplitedQP reduces the basis of a polynomial.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qi} and {P0,P1...Pj}
 // Reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {P0,P1...Pj}
 // and does a runded integer division of the result by Q.

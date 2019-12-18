@@ -54,6 +54,8 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 // methode NewCiphertext(uint64).
 func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 
+	ciphertext.ckksElement = new(ckksElement)
+
 	ciphertext.value = make([]*ring.Poly, uint8(data[0]))
 
 	ciphertext.scale = math.Float64frombits(binary.LittleEndian.Uint64(data[1:9]))

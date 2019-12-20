@@ -43,8 +43,7 @@ See CHANGELOG.md for the current and past versions.
 ### Upcoming features
 
 - Bootstrapping for CKKS.
-- Modulable CRT decomposition for the key-switching keys.
-- Examples for the distributed schemes.
+- README for distributed schemes
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
 
@@ -65,9 +64,9 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo 1.1.0},
+	    title = {Lattigo 1.3.0},
 	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
-	    month = oct,
+	    month = dec,
 	    year = 2019,
 	    note = {EPFL-LDS}
     }

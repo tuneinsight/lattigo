@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - All schemes : Encryptor, Decryptor, Encoder, Evaluator, KeyGenerator are now interface types.
 - All schemes : Improved Godoc and error strings.
+- ALl schemes : greatly reduced the number of methods that could return an error.
 - All schemes : new tests and benchmarks with fully supported regex.
 - All schemes : coefficient wise arithmetic using double slices is now substentially faster.
 - BFV/CKKS : changed the name of the underlying ring contexts. Q now represents the ciphertext modulus (with QMul being the extended ciphertext modulus for BFV) and QP represents modulus of the keys (P being the special primes used during the new key-switching).
@@ -38,7 +39,7 @@ All notable changes to this project will be documented in this file.
 - BFV : quantization during multiplication doesn't use Float128 any more, resulting in a substential speed improvement.
 - BFV : BatchEncoder has been renamed Encoder.
 - CKKS : the scale is now stored as a float64 instead of a power of 2.
-- CKKS : rounding is applied instead of flooring when a real value is converted to an integer value. This changes affects the rescaling and the encoding.
+- CKKS : rounding is applied instead of flooring when a real value is converted to an integer value. This change affects the rescaling and the encoding.
 - CKKS : previously needed one ring context per level, now only uses one context for all levels.
 - CKKS : new baby-step giant-step algorithm for evaluating polynomials in standard and Chebyshev basis.
 - CKKS : reduced the number of NTT needed during the encryption.

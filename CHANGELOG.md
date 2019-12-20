@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 - Bootstrapping for CKKS.
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
-## [1.3.0] - 2019-12-01
+## [1.3.0] - 2019-12-20
 ### Added
 - All schemes : new switching-keys and key-switching algorithm based on the concept presented in https://eprint.iacr.org/2019/688.pdf.
 - All schemes : new marshaling interface for all structures.

@@ -714,8 +714,6 @@ func Test_Marshalling(t *testing.T) {
 		//now we marshall it
 		data, err := KeyGenShareBefore.MarshalBinary()
 
-		fmt.Println("CPK Data (kB) :", len(data)/1000)
-
 		if err != nil {
 			log.Fatal("Could not marshal the CKGShare : ", err)
 
@@ -752,7 +750,6 @@ func Test_Marshalling(t *testing.T) {
 		KeySwitchProtocol.GenShare(sk.Get(), pk, Ciphertext, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
-		fmt.Println("PCKS Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Print("Error on PCKSShare marshalling : ", err)
 			t.Fail()
@@ -792,7 +789,6 @@ func Test_Marshalling(t *testing.T) {
 		cksp.GenShare(skIn.Get(), skOut.Get(), Ciphertext, cksshare)
 
 		data, err := cksshare.MarshalBinary()
-		fmt.Println("CKS Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Print("Error on marshalling CKSShare : ", err)
 			t.Fail()
@@ -828,7 +824,6 @@ func Test_Marshalling(t *testing.T) {
 		refreshproto.GenShares(sk.Get(), Ciphertext, crs, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
-		fmt.Println("Refresh Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Fatal("Could not marshal RefreshShare", err)
 		}
@@ -868,7 +863,6 @@ func Test_Marshalling(t *testing.T) {
 		rotProto.GenShare(1, 64, sk.Get(), crp, &rtgShare)
 
 		data, err := rtgShare.MarshalBinary()
-		fmt.Println("RTG Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Fatal("could not marshal RTGshare :", err)
 		}
@@ -925,12 +919,10 @@ func Test_Relin_Marshalling(t *testing.T) {
 		rlk := NewEkgProtocol(params)
 		u := rlk.NewEphemeralKey(1 / 3.0)
 		sk := bfv.NewKeyGenerator(params).GenSecretKey()
-		log.Print("Starting to test marshalling for share one")
 
 		r1, r2, r3 := rlk.AllocateShares()
 		rlk.GenShareRoundOne(u, sk.Get(), crp, r1)
 		data, err := r1.MarshalBinary()
-		fmt.Println("RKG R1 Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Print("Error in marshalling round 1 key : ", err)
 			t.Fail()
@@ -943,8 +935,6 @@ func Test_Relin_Marshalling(t *testing.T) {
 			t.Fail()
 		}
 
-		log.Print("Now comparing keys for round 1 ")
-
 		for i := 0; i < (len(r1)); i++ {
 			a := r1[i]
 			b := (*r1After)[i]
@@ -956,13 +946,9 @@ func Test_Relin_Marshalling(t *testing.T) {
 			}
 		}
 
-		log.Print("Sucess : relin key round 1 ok ")
-
-		log.Print("Starting to test marshalling for share two")
 		rlk.GenShareRoundTwo(r1, sk.Get(), crp, r2)
 
 		data, err = r2.MarshalBinary()
-		fmt.Println("RKG R2 Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Print("Error on marshalling relin key round 2 : ", err)
 			t.Fail()
@@ -974,8 +960,6 @@ func Test_Relin_Marshalling(t *testing.T) {
 			log.Print("Error on unmarshalling relin key round 2 : ", err)
 			t.Fail()
 		}
-
-		log.Print("Now comparing keys for round 2 ")
 
 		for i := 0; i < (len(r2)); i++ {
 			for idx := 0; idx < 2; idx++ {
@@ -991,14 +975,9 @@ func Test_Relin_Marshalling(t *testing.T) {
 
 		}
 
-		log.Print("Success : reling key round 2 ok ")
-
-		log.Print("Starting to test marshalling for share three")
-
 		rlk.GenShareRoundThree(r2, u, sk.Get(), r3)
 
 		data, err = r3.MarshalBinary()
-		fmt.Println("RKG R3 Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Print("Error in marshalling round 3 key : ", err)
 			t.Fail()
@@ -1011,8 +990,6 @@ func Test_Relin_Marshalling(t *testing.T) {
 			t.Fail()
 		}
 
-		log.Print("Now comparing keys for round 3 ")
-
 		for i := 0; i < (len(r3)); i++ {
 			a := r3[i]
 			b := (*r3After)[i]
@@ -1024,10 +1001,6 @@ func Test_Relin_Marshalling(t *testing.T) {
 			}
 
 		}
-
-		log.Print("Success : relin key for round 3 ok ")
-
-		log.Print("All marshalling is passed for relin keys")
 	})
 
 }

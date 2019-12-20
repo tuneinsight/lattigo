@@ -73,7 +73,6 @@ Please use the following BibTex entry for citing Lattigo:
     }
     
 
-
 ## References
 
 1. Somewhat Practical Fully Homomorphic Encryption (<https://eprint.iacr.org/2012/144>)
@@ -87,3 +86,5 @@ Please use the following BibTex entry for citing Lattigo:
 1. Faster arithmetic for number-theoretic transforms (<https://arxiv.org/abs/1205.2926>)
 1. Speeding up the Number Theoretic Transform for Faster Ideal Lattice-Based Cryptography (<https://eprint.iacr.org/2016/504>)
 1. Gaussian sampling in lattice-based cryptography (<https://tel.archives-ouvertes.fr/tel-01245066v2>)
+
+The Lattigo logo is a lattice-based version of the original Golang mascot by [Renee French](http://reneefrench.blogspot.com/).

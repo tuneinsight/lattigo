@@ -4,9 +4,59 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 ### Added
 - Bootstrapping for CKKS.
-- Modulable CRT decomposition for the key-switching keys.
-- Examples for the distributed schemes.
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
+
+## [1.3.0] - 2019-12-20
+### Added
+- All schemes : new switching-keys and key-switching algorithm based on the concept presented in https://eprint.iacr.org/2019/688.pdf.
+- All schemes : new marshaling interface for all structures.
+- BFV/CKKS : new Parameters structs and API enabling a better customization and fine tuning for specific applications.
+- CKKS : new API for hoisted rotations, which is faster than sequential rotations.
+- DBFV/DCKKS : added collective refresh of a ciphertext (decentralized bootstrapping).
+- RING : added Ziggurat sampling, available from the context.
+- RING : enabled dense and sparse ternary polynomials sampling directly from the context.
+- RING : new API enabling "level" wise polynomial arithmetic.
+- RING : new API for modulus switching with flooring and rounding.
+- UTILS : utils now regroups all the utility methods which were previously duplicated among packages.
+### Removed
+- BFV/CKKS/DBFV/DCKKS : removed their respective context. Ring context remains public.
+- All schemes : removed key-switching with bit decomposition. This option will however be re-introduced at a later stage since applications using small parameters can suffer from this change.
+- BFV/CKKS/RING : removed redudant/irrelevant tests and benchmarks.
+- BFV : removed context QP as it is not any more used in the multiplication.
+- BFV : removed int encoder, now only batch encoding is supported.
+- CKKS : modulus switching is now located in Ring.
+- RING : removed the algorithms that needed Float128 during the BFV multiplication.
+- RING : removed most wrapping methods for bigInt, which are now replaced by the native math/big package.
+- RING : removed ternary sampler, which is now part of the context.
+### Changed
+- All schemes : Encryptor, Decryptor, Encoder, Evaluator, KeyGenerator are now interface types.
+- All schemes : Improved Godoc and error strings.
+- ALl schemes : greatly reduced the number of methods that could return an error.
+- All schemes : new tests and benchmarks with fully supported regex.
+- All schemes : coefficient wise arithmetic using double slices is now substentially faster.
+- BFV/CKKS : changed the name of the underlying ring contexts. Q now represents the ciphertext modulus (with QMul being the extended ciphertext modulus for BFV) and QP represents modulus of the keys (P being the special primes used during the new key-switching).
+- BFV/CKKS/DBFV/DCKKS : structures are now created using the parameters instead of the context.
+- BFV : quantization during multiplication doesn't use Float128 any more, resulting in a substential speed improvement.
+- BFV : BatchEncoder has been renamed Encoder.
+- CKKS : the scale is now stored as a float64 instead of a power of 2.
+- CKKS : rounding is applied instead of flooring when a real value is converted to an integer value. This change affects the rescaling and the encoding.
+- CKKS : previously needed one ring context per level, now only uses one context for all levels.
+- CKKS : new baby-step giant-step algorithm for evaluating polynomials in standard and Chebyshev basis.
+- CKKS : reduced the number of NTT needed during the encryption.
+- CKKS : API for MultConst is now MultByConst.
+- BFV/CKKS : new API for the rotation-keys generation.
+- DBFV/DCKKS : complete revamp of the API and interfaces enabling a much easier integration into larger systems.
+- DBFV/DCKKS : improved PCKS and CKS using the concept of the new key-switching technique which enables to reduces the added noise.
+- DCKKS : all protocols work for ciphertexts at any levels.
+- RING : faster MulScalarBigint (now similar to MulScalar).
+- UTILS : PRNG must be keyed to be forward secure.
+### Fixes
+- All packages : typos, godoc and golint.
+- CKKS : ciphertext rotation now correctly sets the scale of the output ciphertext.
+- DBFV/DCKKS : correctness is now ensured when the same protocol instance is used to generate multiples shares.
+
+## [1.2.0] - 2019-12-01
+Internal version, merged with 1.3.0.
 
 ## [1.1.0] - 2019-10-01
 ### Added

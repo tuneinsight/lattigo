@@ -37,7 +37,7 @@ func Float128SetUint53(i uint64) (result Float128) {
 
 // Float128SetUint64 sets 128-bit floating point object from uint64
 // Allows to import integers bigger than 53 bits and do computation with result of up to 64 bits.
-// However the variable will be scaled by a 1/4096 factor that has to be taked into account when
+// However the variable will be scaled by a 1/4096 factor that has to be taken into account when
 // doing computation.
 // Unsafe to use for values below 2^64/4096 since it will set the first element to zero.
 func Float128SetUint64(i uint64) (result Float128) {
@@ -48,7 +48,7 @@ func Float128SetUint64(i uint64) (result Float128) {
 
 // Float128SetInt64 sets 128-bit floating point object from int64
 // Allows to import integers bigger than 53 bits and do computation with a result of up to 64 bits.
-// However the variable will be scaled by a 1/4096 factor that has to be taked into account when
+// However the variable will be scaled by a 1/4096 factor that has to be taken into account when
 // doing computation.
 // Unsafe to use for values below 2^64/4096 since it will set the first element to zero.
 func Float128SetInt64(i int64) (result Float128) {
@@ -73,9 +73,9 @@ func Float128ToUint53(f Float128) uint64 {
 }
 
 // Float128ToUint64 reconstructs an uint64 integer from a Float128 that was imported with the Float128SetUint64() function.
-// Isolates the integer part from the floatting point part, then adds the rounded floating point
+// Isolates the integer part from the floating point part, then adds the rounded floating point
 // part to the integer part (this prevents occasional rounding errors when the second floating element is negative).
-// The value need to be scaled by 1/4096 to be reconstructed correctly.
+// The value needs to be scaled by 1/4096 to be reconstructed correctly.
 func Float128ToUint64(f Float128) uint64 {
 	return uint64(f[0]*4096) + uint64(math.Round((f[0]*4096)-float64(uint64(f[0]*4096))+f[1]*4096))
 }

@@ -1,167 +1,164 @@
 package bfv
 
 import (
-	"fmt"
 	"testing"
 )
 
-func Benchmark_BFVScheme(b *testing.B) {
+type benchParams struct {
+	params Parameters
+}
 
-	paramSets := DefaultParams
+func BenchmarkBFV(b *testing.B) {
+	b.Run("Encoder", benchEncoder)
+	b.Run("KeyGen", benchKeyGen)
+	b.Run("Encrypt", benchEncrypt)
+	b.Run("Decrypt", benchDecrypt)
+	b.Run("Evaluator", benchEvaluator)
+}
 
-	bitDecomps := []uint64{60}
+func benchEncoder(b *testing.B) {
 
-	for _, params := range paramSets {
+	for _, parameters := range testParams.bfvParameters {
 
-		bfvContext := NewBfvContext()
-		if err := bfvContext.SetParameters(&params); err != nil {
-			b.Error(err)
-		}
+		params := genBfvParams(parameters)
 
-		var sk *SecretKey
-		var pk *PublicKey
-		var err error
+		encoder := params.encoder
 
-		kgen := bfvContext.NewKeyGenerator()
+		coeffs := params.bfvContext.contextT.NewUniformPoly()
+		plaintext := NewPlaintext(params.params)
 
-		// Public Key Generation
-		b.Run(fmt.Sprintf("params=%d/KeyGen", params.N), func(b *testing.B) {
+		b.Run(testString("Encode/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				sk, pk = kgen.NewKeyPair()
-				if err != nil {
-					b.Error(err)
-				}
+				encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 			}
 		})
 
-		// Encryption
-		encryptorPk, err := bfvContext.NewEncryptorFromPk(pk)
-		encryptorSk, err := bfvContext.NewEncryptorFromSk(sk)
-
-		if err != nil {
-			b.Error(err)
-		}
-
-		ptcoeffs := bfvContext.NewRandomPlaintextCoeffs()
-		pt := bfvContext.NewPlaintext()
-		pt.setCoefficientsUint64(bfvContext, ptcoeffs)
-		b.Run(fmt.Sprintf("params=%d/EncryptFromPkNew", params.N), func(b *testing.B) {
+		b.Run(testString("Decode/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, _ = encryptorPk.EncryptNew(pt)
+				params.encoder.DecodeUint(plaintext)
+			}
+		})
+	}
+}
+
+func benchKeyGen(b *testing.B) {
+
+	for _, parameters := range testParams.bfvParameters {
+
+		params := genBfvParams(parameters)
+		kgen := params.kgen
+		sk := params.sk
+
+		b.Run(testString("KeyPairGen/", parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				kgen.GenKeyPair()
 			}
 		})
 
-		ctd1 := bfvContext.NewCiphertext(1)
-		b.Run(fmt.Sprintf("params=%d/EncryptFromPk", params.N), func(b *testing.B) {
+		b.Run(testString("SwitchKeyGen/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = encryptorPk.Encrypt(pt, ctd1)
+				kgen.GenRelinKey(sk, 1)
+			}
+		})
+	}
+}
+
+func benchEncrypt(b *testing.B) {
+	for _, parameters := range testParams.bfvParameters {
+
+		params := genBfvParams(parameters)
+		encryptorPk := params.encryptorPk
+		encryptorSk := params.encryptorSk
+
+		plaintext := NewPlaintext(parameters)
+		ciphertext := NewCiphertextRandom(parameters, 1)
+
+		b.Run(testString("Sk/", parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				encryptorPk.Encrypt(plaintext, ciphertext)
 			}
 		})
 
-		b.Run(fmt.Sprintf("params=%d/EncryptFromSkNew", params.N), func(b *testing.B) {
+		b.Run(testString("Pk/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, _ = encryptorSk.EncryptNew(pt)
+				encryptorSk.Encrypt(plaintext, ciphertext)
+			}
+		})
+	}
+}
+
+func benchDecrypt(b *testing.B) {
+	for _, parameters := range testParams.bfvParameters {
+
+		params := genBfvParams(parameters)
+		decryptor := params.decryptor
+
+		plaintext := NewPlaintext(parameters)
+		ciphertext := NewCiphertextRandom(parameters, 1)
+
+		b.Run(testString("", parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				decryptor.Decrypt(ciphertext, plaintext)
+			}
+		})
+	}
+}
+
+func benchEvaluator(b *testing.B) {
+	for _, parameters := range testParams.bfvParameters {
+		params := genBfvParams(parameters)
+		evaluator := params.evaluator
+
+		ciphertext1 := NewCiphertextRandom(parameters, 1)
+		ciphertext2 := NewCiphertextRandom(parameters, 1)
+		receiver := NewCiphertextRandom(parameters, 2)
+
+		rlk := params.kgen.GenRelinKey(params.sk, 1)
+		rotkey := NewRotationKeys()
+		params.kgen.GenRot(RotationLeft, params.sk, 1, rotkey)
+		params.kgen.GenRot(RotationRow, params.sk, 0, rotkey)
+
+		b.Run(testString("Add/", parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
 			}
 		})
 
-		b.Run(fmt.Sprintf("params=%d/EncryptFromSk", params.N), func(b *testing.B) {
+		b.Run(testString("MulScalar/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = encryptorSk.Encrypt(pt, ctd1)
+				evaluator.MulScalar(ciphertext1, 5, ciphertext1)
 			}
 		})
 
-		// Decryption
-		decryptor, err := bfvContext.NewDecryptor(sk)
-		if err != nil {
-			b.Error(err)
-		}
-		ptp := bfvContext.NewPlaintext()
-		b.Run(fmt.Sprintf("params=%d/Decrypt", params.N), func(b *testing.B) {
+		b.Run(testString("Mul/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				decryptor.Decrypt(ctd1, ptp)
-			}
-			_ = ptp
-		})
-
-		evaluator := bfvContext.NewEvaluator()
-
-		ct1, err := encryptorSk.EncryptNew(pt)
-		if err != nil {
-			b.Error(err)
-		}
-
-		ct2, err := encryptorSk.EncryptNew(pt)
-		if err != nil {
-			b.Error(err)
-		}
-
-		// Addition
-		b.Run(fmt.Sprintf("params=%d/Add", params.N), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				if err := evaluator.Add(ct1, ct2, ctd1); err != nil {
-					b.Error(err)
-				}
+				evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			}
 		})
 
-		// Subtraction
-		b.Run(fmt.Sprintf("params=%d/Sub", params.N), func(b *testing.B) {
+		b.Run(testString("Square/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				if err := evaluator.Sub(ct1, ct2, ctd1); err != nil {
-					b.Error(err)
-				}
+				evaluator.Mul(ciphertext1, ciphertext1, receiver)
 			}
 		})
 
-		// Multiplication
-		ctd2 := bfvContext.NewCiphertext(2)
-		b.Run(fmt.Sprintf("params=%d/Multiply", params.N), func(b *testing.B) {
+		b.Run(testString("Relin/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = evaluator.Mul(ct1, ct2, ctd2)
+				evaluator.Relinearize(receiver, rlk, ciphertext1)
 			}
 		})
 
-		// Square is Mul(ct, ct) for now
-		b.Run(fmt.Sprintf("params=%d/Square", params.N), func(b *testing.B) {
+		b.Run(testString("RotateRows/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = evaluator.Mul(ct1, ct1, ctd2)
+				evaluator.RotateRows(ciphertext1, rotkey, ciphertext1)
 			}
 		})
 
-		for _, bitDecomp := range bitDecomps {
+		b.Run(testString("RotateCols/", parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
+			}
+		})
 
-			// Relinearization Key Generation not becnhmarked (no inplace gen)
-			rlk := kgen.NewRelinKey(sk, 2, bitDecomp)
-
-			// Relinearization
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/Relin", params.N, bitDecomp), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					if err := evaluator.Relinearize(ctd2, rlk, ctd1); err != nil {
-						b.Error(err)
-					}
-				}
-			})
-
-			// Rotation Key Generation not benchmarked (no inplace gen)
-			rtk := kgen.NewRotationKeysPow2(sk, bitDecomp, true)
-
-			// Rotation Rows
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/RotateRows", params.N, bitDecomp), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					if err := evaluator.RotateRows(ct1, rtk, ctd1); err != nil {
-						b.Error(err)
-					}
-				}
-			})
-
-			// Rotation Cols
-			b.Run(fmt.Sprintf("params=%d/decomp=%d/RotateCols", params.N, bitDecomp), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					if err := evaluator.RotateColumns(ct1, 1, rtk, ctd1); err != nil {
-						b.Error(err)
-					}
-				}
-			})
-		}
 	}
 }

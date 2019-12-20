@@ -27,7 +27,9 @@ test_lint:
 	}
 
 test_local:
-	go test -v -race -short -p=1 ./...
+	go test -v -short -p=1 ./... -timeout=0
+	go run ./examples/bfv/examples_bfv.go
+	go run ./examples/ckks/examples_ckks.go
 
 test: test_fmt test_local
 

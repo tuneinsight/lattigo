@@ -1,51 +1,85 @@
 package bfv
 
-// equalslice compares two slices of uint64 values, and return true if they are equal, else false.
-func equalslice(a, b []uint64) bool {
+import (
+	"github.com/ldsec/lattigo/ring"
+	"math/big"
+)
 
-	if len(a) != len(b) {
-		return false
+// GenLiftParams generates the lifting parameters.
+func GenLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
+
+	delta := new(big.Int).Quo(context.ModulusBigint, ring.NewUint(t))
+
+	deltaMont = make([]uint64, len(context.Modulus))
+
+	tmp := new(big.Int)
+	bredParams := context.GetBredParams()
+	for i, Qi := range context.Modulus {
+		deltaMont[i] = tmp.Mod(delta, ring.NewUint(Qi)).Uint64()
+		deltaMont[i] = ring.MForm(deltaMont[i], Qi, bredParams[i])
 	}
 
-	for i := range a {
-		if a[i] != b[i] {
-			return false
+	return
+}
+
+// GenModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
+func GenModuli(params *Parameters) (Q []uint64, P []uint64, QMul []uint64) {
+
+	// Extracts all the different primes bit-size and maps their number
+	primesbitlen := make(map[uint64]uint64)
+
+	for _, qi := range params.LogQi {
+
+		primesbitlen[qi]++
+
+		if qi > 60 {
+			panic("cannot GenModuli: the provided LogQi must be smaller than 61")
 		}
 	}
-	return true
-}
 
-// min returns the minimum value of the input slice of uint64 values.
-func min(a, b uint64) (r uint64) {
-	if a <= b {
-		return a
-	}
-	return b
-}
+	for _, pj := range params.LogPi {
 
-// max returns the maximum value of the input slice of uint64 values.
-func max(a, b uint64) (r uint64) {
-	if a >= b {
-		return a
-	}
-	return b
-}
+		primesbitlen[pj]++
 
-// bitReverse64 returns the bit-reverse value of the input value, within a context of 2^bitLen.
-func bitReverse64(index, bitLen uint64) uint64 {
-	indexReverse := uint64(0)
-	for i := uint64(0); i < bitLen; i++ {
-		if (index>>i)&1 != 0 {
-			indexReverse |= 1 << (bitLen - 1 - i)
+		if pj > 60 {
+			panic("cannot GenModuli: the provided LogPi must be smaller than 61")
 		}
 	}
-	return indexReverse
-}
 
-// hammingWeight64 returns the hammingweight if the input value.
-func hammingWeight64(x uint64) uint64 {
-	x -= (x >> 1) & 0x5555555555555555
-	x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333)
-	x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0f
-	return ((x * 0x0101010101010101) & 0xffffffffffffffff) >> 56
+	for _, qi := range params.LogQiMul {
+
+		primesbitlen[qi]++
+
+		if qi > 60 {
+			panic("cannot GenModuli: the provided LogQiMul must be smaller than 61")
+		}
+	}
+
+	// For each bit-size, it finds that many primes
+	primes := make(map[uint64][]uint64)
+	for key, value := range primesbitlen {
+		primes[key] = ring.GenerateNTTPrimes(key, params.LogN, value)
+	}
+
+	// Assigns the primes to the CKKS moduli chain
+	Q = make([]uint64, len(params.LogQi))
+	for i, qi := range params.LogQi {
+		Q[i] = primes[qi][0]
+		primes[qi] = primes[qi][1:]
+	}
+
+	// Assigns the primes to the special primes list for the the keys context
+	P = make([]uint64, len(params.LogPi))
+	for i, pj := range params.LogPi {
+		P[i] = primes[pj][0]
+		primes[pj] = primes[pj][1:]
+	}
+
+	QMul = make([]uint64, len(params.LogQiMul))
+	for i, qi := range params.LogQiMul {
+		QMul[i] = primes[qi][0]
+		primes[qi] = primes[qi][1:]
+	}
+
+	return Q, P, QMul
 }

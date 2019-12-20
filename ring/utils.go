@@ -1,11 +1,10 @@
 package ring
 
 import (
-	"errors"
 	"math/bits"
 )
 
-// PowerOf2 returns (x*2^n)%q where x is in montgomery form
+// PowerOf2 returns (x*2^n)%q where x is in Montgomery form
 func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 	ahi, alo := x>>(64-n), x<<n
 	R := alo * qInv
@@ -21,7 +20,7 @@ func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 //=== MODULAR EXPONENTIATION ===
 //==============================
 
-// Modexp performes the modular exponentiation x^e mod p,
+// ModExp performes the modular exponentiation x^e mod p,
 // x and p are required to be a most 64 bits to avoid an overflow.
 func ModExp(x, e, p uint64) (result uint64) {
 	params := BRedParams(p)
@@ -36,7 +35,7 @@ func ModExp(x, e, p uint64) (result uint64) {
 }
 
 // modexpMontgomery performes the modular exponentiation x^e mod p,
-// where x is in montgomery form, and returns x^2 in montgomery form.
+// where x is in Montgomery form, and returns x^2 in Montgomery form.
 func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64) {
 
 	result = MForm(1, q, bredParams)
@@ -48,11 +47,6 @@ func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64)
 		x = MRed(x, x, q, qInv)
 	}
 	return result
-}
-
-// bitReverse calculates the bit-reverse index. For example, given index=6 (110) and its bit-length bitLen=3, the indexReverse would be 3 (011)
-func bitReverse64(index, bitLen uint64) uint64 {
-	return bits.Reverse64(index) >> (64 - bitLen)
 }
 
 // gcd compues gcd(a,b) for a,b uint64 variables
@@ -77,9 +71,6 @@ func gcdInt64(a, b int64) int64 {
 	return a
 }
 
-//===========================
-//===     MILLER-RABIN    ===
-//===========================
 // IsPrime applies a Miller-Rabin test on the given uint64 variable, returning true if num is probably prime, else false.
 func IsPrime(num uint64) bool {
 
@@ -103,74 +94,81 @@ func IsPrime(num uint64) bool {
 	k := 0
 	for (s & 1) == 0 {
 		s >>= 1
-		k += 1
+		k++
 	}
 
 	bredParams := BRedParams(num)
-	var mask uint64
+	var mask, b uint64
 	mask = (1 << uint64(bits.Len64(num))) - 1
 
 	for trial := 0; trial < 50; trial++ {
-		b := RandUniform(num-1, mask)
+
+		b = RandUniform(num-1, mask)
+
+		for b < 2 {
+			b = RandUniform(num-1, mask)
+		}
+
 		x := ModExp(b, s, num)
+
 		if x != 1 {
 			i := 0
 			for x != num-1 {
+
 				if i == k-1 {
 					return false
-				} else {
-					i += 1
-					x = BRed(x, x, num, bredParams)
 				}
+
+				i++
+				x = BRed(x, x, num, bredParams)
 			}
 		}
 	}
 	return true
 }
 
-// GenerateNTTPrimes generates "n" primes of bitlen "bitLen", stuited for NTT with "N",
-// starting from the integer "start" (which must be 1 mod 2N) and increasing (true) / decreasing (false) order
-func GenerateNTTPrimes(N, start, n, bitLen uint64, sign bool) ([]uint64, error) {
-	var x, v uint64
+// GenerateNTTPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
+// of levels required. Will return all the appropriate primes, up to the number of level, with the
+// best avaliable deviation from the base power of 2 for the given level.
+func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 
-	if uint64(bits.Len64(start)) != bitLen {
-		return nil, errors.New("error : start != bitLen")
+	if logQ > 60 {
+		panic("logQ must be between 1 and 60")
 	}
 
-	v = N << 1
-	if start != 0 {
-		if start&((N<<1)-1) != 1 {
-			return nil, errors.New("error : start != 1 mod 2*N")
+	var x, y, Qpow2, _2N uint64
+
+	primes = []uint64{}
+
+	Qpow2 = 1 << logQ
+
+	_2N = 2 << logN
+
+	x = Qpow2 + 1
+	y = Qpow2 + 1
+
+	for true {
+
+		if IsPrime(y) {
+			primes = append(primes, y)
+			if uint64(len(primes)) == levels {
+				return primes
+			}
 		}
-		x = start
-	} else {
-		x = v<<(bitLen-uint64(bits.Len64(v))) + 1
-	}
 
-	primes := make([]uint64, n)
-
-	i := uint64(0)
-
-	for i < n {
-
-		// x gets out of the bitLen bound
-		if uint64(bits.Len64(x)) != bitLen {
-			return primes, nil
-		}
+		y -= _2N
 
 		if IsPrime(x) {
-			primes[i] = x
-			i += 1
+			primes = append(primes, x)
+			if uint64(len(primes)) == levels {
+				return primes
+			}
 		}
 
-		if sign {
-			x += v
-		} else {
-			x -= v
-		}
+		x += _2N
 	}
 
-	return primes, nil
+	return
 }
 
 //===========================
@@ -189,7 +187,7 @@ func primitiveRoot(q uint64) uint64 {
 	g = 2
 
 	for notFoundPrimitiveRoot {
-		g += 1
+		g++
 		for _, factor := range factors {
 			tmp = (q - 1) / factor
 			// if for any factor of q-1, g^(q-1)/factor = 1 mod q, g is not a primitive root

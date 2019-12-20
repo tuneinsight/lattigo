@@ -2,397 +2,396 @@ package ring
 
 import (
 	"fmt"
+	"math/bits"
 	"math/rand"
 	"testing"
 )
 
-func Benchmark_Polynomial(b *testing.B) {
+func BenchmarkRing(b *testing.B) {
+	b.Run("GenRingContext", benchGenRingContext)
+	b.Run("Marshalling", benchMarshalling)
+	b.Run("Sampling", benchSampling)
+	b.Run("Montgomery", benchMontgomeryForm)
+	b.Run("NTT", benchNTT)
+	b.Run("MulCoeffs", benchMulCoeffs)
+	b.Run("AddCoeffs", benchAddCoeffs)
+	b.Run("SubCoeffs", benchSubCoeffs)
+	b.Run("NegCoeffs", benchNegCoeffs)
+	b.Run("MulScalar", benchMulScalar)
+	b.Run("ExtendBasis", benchExtendBasis)
+	b.Run("DivByLastModulus", benchDivByLastModulus)
+	b.Run("MRed", benchMRed)
+	b.Run("BRed", benchBRed)
+	b.Run("BRedAdd", benchBRedAdd)
 
-	for i := uint64(0); i < 1; i++ {
+}
 
-		N := uint64(1 << (12 + i))
-		T := uint64(65537)
+func benchGenRingContext(b *testing.B) {
 
-		Qi := Qi60[uint64(len(Qi60))-2<<i:]
+	for _, parameters := range testParams.polyParams {
 
-		Pi := Pi60[uint64(len(Pi60))-((2<<i)+1):]
+		context := genPolyContext(parameters[0])
 
-		sigma := 3.19
+		b.Run(testString("", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				genPolyContext(parameters[0])
+			}
 
-		contextT := NewContext()
-		contextT.SetParameters(N, []uint64{T})
-		contextT.GenNTTParams()
+		})
+	}
+}
 
-		contextQ := NewContext()
-		contextQ.SetParameters(N, Qi)
-		contextQ.GenNTTParams()
+func benchMarshalling(b *testing.B) {
 
-		contextP := NewContext()
-		contextP.SetParameters(N, Pi)
-		contextP.GenNTTParams()
+	for _, parameters := range testParams.polyParams {
 
-		contextQP := NewContext()
-		contextQP.Merge(contextQ, contextP)
+		context := genPolyContext(parameters[0])
 
-		benchmark_Context(N, Qi, b)
+		p := context.NewUniformPoly()
 
-		benchmark_KYSGaussPoly(sigma, contextQ, b)
+		b.Run(testString("Marshal/Poly/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.MarshalBinary()
+			}
 
-		benchmark_TernaryPoly(contextQ, b)
+		})
 
-		benchmark_UniformPoly(contextQ, b)
+		data, _ := p.MarshalBinary()
 
-		benchmark_MForm(contextQ, b)
+		b.Run(testString("Unmarshal/Poly/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.UnmarshalBinary(data)
+			}
+		})
+	}
+}
 
-		benchmark_NTT(contextQ, b)
+func benchSampling(b *testing.B) {
 
-		benchmark_InvNTT(contextQ, b)
+	sigma := 3.19
 
-		benchmark_MulScalar(contextQ, b)
+	bound := uint64(sigma * 6)
 
-		benchmark_Neg(contextQ, b)
+	for _, parameters := range testParams.polyParams {
 
-		benchmark_Sub(contextQ, b)
+		context := genPolyContext(parameters[0])
 
-		benchmark_Add(contextQ, b)
+		pol := context.NewPoly()
 
-		benchmark_MulCoeffs(contextQ, b)
+		b.Run(testString("Gaussian/Ziggurat/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.SampleGaussian(pol, sigma, bound)
+			}
+		})
 
-		benchmark_MulCoeffsMontgomery(contextQ, b)
+		KYS := context.NewKYSampler(sigma, int(bound))
 
-		benchmark_MulPoly(contextQ, b)
+		b.Run(testString("Gaussian/Knuth-Yao/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				KYS.Sample(pol)
+			}
+		})
 
-		benchmark_MulPolyMontgomery(contextQ, b)
+		b.Run(testString("Ternary/0.3/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.SampleTernary(pol, 1.0/3)
+			}
+		})
 
-		//benchmark_MulPolyNaiveMontgomery(contextQ, b)
+		b.Run(testString("Ternary/0.5/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.SampleTernary(pol, 0.5)
+			}
+		})
 
-		benchmark_ExtendBasis(contextQ, contextP, contextQP, b)
+		b.Run(testString("Ternary/sparse128/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.SampleTernarySparse(pol, 128)
+			}
+		})
 
-		benchmark_SimpleScaler_Scale(T, contextQ, b)
+		b.Run(testString("Uniform/cryptoRand/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.UniformPoly(pol)
+			}
+		})
 
-		benchmark_ComplexScaler_Scale(T, contextQ, contextP, contextQP, b)
+		crsGenerator := NewCRPGenerator(nil, context)
+		crsGenerator.Seed(nil)
 
-		benchmark_Marshaler(contextQ, b)
+		b.Run(testString("Uniform/PRNG/", context), func(b *testing.B) {
 
-		benchmark_UnMarshaler(contextQ, b)
-
-		benchmark_BRed(b)
-
-		benchmark_BRedAdd(b)
-
-		benchmark_MRed(b)
+			for i := 0; i < b.N; i++ {
+				crsGenerator.Clock(pol)
+			}
+		})
 
 	}
 }
 
-func benchmark_Context(N uint64, Qi []uint64, b *testing.B) {
-	var context *Context
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/Context", N, len(Qi)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context = NewContext()
-			context.SetParameters(N, Qi)
-			context.GenNTTParams()
-		}
-	})
+func benchMontgomeryForm(b *testing.B) {
+
+	for _, parameters := range testParams.polyParams {
+
+		context := genPolyContext(parameters[0])
+
+		p := context.NewUniformPoly()
+
+		b.Run(testString("MForm/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.MForm(p, p)
+			}
+		})
+
+		b.Run(testString("InvMForm/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.InvMForm(p, p)
+			}
+		})
+	}
 }
 
-func benchmark_UnMarshaler(context *Context, b *testing.B) {
+func benchNTT(b *testing.B) {
 
-	p := context.NewUniformPoly()
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/MarshalBinary", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.MarshalBinary()
-		}
-	})
+	for _, parameters := range testParams.polyParams {
+
+		context := genPolyContext(parameters[0])
+
+		p := context.NewUniformPoly()
+
+		b.Run(testString("NTT/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.NTT(p, p)
+			}
+		})
+
+		b.Run(testString("InvNTT/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.InvNTT(p, p)
+			}
+		})
+	}
 }
 
-func benchmark_Marshaler(context *Context, b *testing.B) {
+func benchMulCoeffs(b *testing.B) {
 
-	p := context.NewUniformPoly()
+	for _, parameters := range testParams.polyParams {
 
-	data, _ := p.MarshalBinary()
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/UnMarshalBinary", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.UnMarshalBinary(data)
-		}
-	})
+		context := genPolyContext(parameters[0])
+
+		p0 := context.NewUniformPoly()
+		p1 := context.NewUniformPoly()
+
+		b.Run(testString("Barrett/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.MulCoeffs(p0, p1, p0)
+			}
+		})
+
+		b.Run(testString("BarrettConstant/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.MulCoeffsConstant(p0, p1, p0)
+			}
+		})
+
+		b.Run(testString("Montgomery/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.MulCoeffsMontgomery(p0, p1, p0)
+			}
+		})
+
+		b.Run(testString("MontgomeryConstant/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.MulCoeffsMontgomeryConstant(p0, p1, p0)
+			}
+		})
+	}
 }
 
-func benchmark_KYSGaussPoly(sigma float64, context *Context, b *testing.B) {
+func benchAddCoeffs(b *testing.B) {
+	for _, parameters := range testParams.polyParams {
 
-	bound := int(sigma * 6)
+		context := genPolyContext(parameters[0])
 
-	KYS := context.NewKYSampler(sigma, bound)
+		p0 := context.NewUniformPoly()
+		p1 := context.NewUniformPoly()
 
-	pol := context.NewPoly()
+		b.Run(testString("Add/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.Add(p0, p1, p0)
+			}
+		})
 
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/KYS.Sample", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			KYS.Sample(pol)
-		}
-	})
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/KYS.SampleNTT", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			KYS.SampleNTT(pol)
-		}
-	})
+		b.Run(testString("AddConstant/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.AddNoMod(p0, p1, p0)
+			}
+		})
+	}
 }
 
-func benchmark_TernaryPoly(context *Context, b *testing.B) {
+func benchSubCoeffs(b *testing.B) {
+	for _, parameters := range testParams.polyParams {
 
-	ternarySampler := context.NewTernarySampler()
+		context := genPolyContext(parameters[0])
 
-	pol := context.NewPoly()
+		p0 := context.NewUniformPoly()
+		p1 := context.NewUniformPoly()
 
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(0.5)", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ternarySampler.Sample(0.5, pol)
-		}
-	})
+		b.Run(testString("Sub/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.Sub(p0, p1, p0)
+			}
+		})
 
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(0.5)MontgomeryNTT", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ternarySampler.SampleMontgomeryNTT(0.5, pol)
-		}
-	})
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(1/3)", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ternarySampler.Sample(1.0/3, pol)
-		}
-	})
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/SampleTernary(1/3)MontgomeryNTT", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ternarySampler.SampleMontgomeryNTT(1.0/3, pol)
-
-		}
-	})
+		b.Run(testString("SubConstant/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.SubNoMod(p0, p1, p0)
+			}
+		})
+	}
 }
 
-func benchmark_UniformPoly(context *Context, b *testing.B) {
+func benchNegCoeffs(b *testing.B) {
+	for _, parameters := range testParams.polyParams {
 
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/NewUniformPoly", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.NewUniformPoly()
-		}
-	})
+		context := genPolyContext(parameters[0])
+
+		p0 := context.NewUniformPoly()
+
+		b.Run(testString("Neg", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.Neg(p0, p0)
+			}
+		})
+	}
 }
 
-func benchmark_MForm(context *Context, b *testing.B) {
+func benchMulScalar(b *testing.B) {
 
-	p := context.NewUniformPoly()
+	for _, parameters := range testParams.polyParams {
 
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/MForm", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.MForm(p, p)
-		}
-	})
+		context := genPolyContext(parameters[0])
+
+		p := context.NewUniformPoly()
+
+		rand1 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+		rand2 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+
+		scalarBigint := NewUint(rand1)
+		scalarBigint.Mul(scalarBigint, NewUint(rand2))
+
+		b.Run(testString("uint64/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.MulScalar(p, rand1, p)
+			}
+		})
+
+		b.Run(testString("big.Int", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.MulScalarBigint(p, scalarBigint, p)
+			}
+		})
+	}
 }
 
-func benchmark_NTT(context *Context, b *testing.B) {
+func benchExtendBasis(b *testing.B) {
+	for _, parameters := range testParams.polyParams {
 
-	p := context.NewUniformPoly()
-	b.ResetTimer()
+		contextQ := genPolyContext(parameters[0])
+		contextP := genPolyContext(parameters[1])
 
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/NTT", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.NTT(p, p)
+		rescaleParams := make([]uint64, len(contextP.Modulus))
+
+		for i, pi := range contextP.Modulus {
+			rescaleParams[i] = RandUniform(pi, (1<<uint64(bits.Len64(pi)-1) - 1))
 		}
-	})
+
+		basisExtender := NewFastBasisExtender(contextQ, contextP)
+
+		p0 := contextQ.NewUniformPoly()
+		p1 := contextP.NewUniformPoly()
+
+		level := uint64(len(contextQ.Modulus) - 1)
+
+		b.Run(fmt.Sprintf("ModUp/N=%d/limbsQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				basisExtender.ModUpSplitQP(level, p0, p1)
+			}
+		})
+
+		b.Run(fmt.Sprintf("ModDown/N=%d/limbsQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				basisExtender.ModDownSplitedPQ(level, p0, p1, p0)
+			}
+		})
+
+		b.Run(fmt.Sprintf("ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				basisExtender.ModDownSplitedNTTPQ(level, p0, p1, p0)
+			}
+		})
+	}
 }
 
-func benchmark_InvNTT(context *Context, b *testing.B) {
+func benchDivByLastModulus(b *testing.B) {
+	for _, parameters := range testParams.polyParams {
 
-	p := context.NewUniformPoly()
+		context := genPolyContext(parameters[0])
 
-	b.ResetTimer()
+		var p0 *Poly
 
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/InvNTT", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.InvNTT(p, p)
-		}
-	})
+		b.Run(testString("Floor/", context), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+
+				b.StopTimer()
+				p0 = context.NewUniformPoly()
+				b.StartTimer()
+
+				context.DivFloorByLastModulus(p0)
+			}
+		})
+
+		b.Run(testString("FloorNTT/", context), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+
+				b.StopTimer()
+				p0 = context.NewUniformPoly()
+				b.StartTimer()
+
+				context.DivFloorByLastModulusNTT(p0)
+			}
+		})
+
+		b.Run(testString("Round/", context), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+
+				b.StopTimer()
+				p0 = context.NewUniformPoly()
+				b.StartTimer()
+
+				context.DivRoundByLastModulus(p0)
+			}
+		})
+
+		b.Run(testString("RoundNTT/", context), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+
+				b.StopTimer()
+				p0 = context.NewUniformPoly()
+				b.StartTimer()
+
+				context.DivRoundByLastModulusNTT(p0)
+			}
+		})
+	}
 }
 
-func benchmark_MulCoeffs(context *Context, b *testing.B) {
-
-	p := context.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/MulCoeffs", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.MulCoeffs(p, p, p)
-		}
-	})
-}
-
-func benchmark_MulCoeffsMontgomery(context *Context, b *testing.B) {
-
-	p := context.NewUniformPoly()
-
-	context.MForm(p, p)
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/MulCoeffs_Montgomery", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.MulCoeffsMontgomery(p, p, p)
-		}
-	})
-}
-
-func benchmark_MulPoly(context *Context, b *testing.B) {
-
-	p := context.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/MulPoly", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.MulPoly(p, p, p)
-		}
-	})
-}
-
-func benchmark_MulPolyMontgomery(context *Context, b *testing.B) {
-
-	p := context.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/MulPoly_Montgomery", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.MulPolyMontgomery(p, p, p)
-		}
-	})
-}
-
-func benchmark_MulPolyNaiveMontgomery(context *Context, b *testing.B) {
-
-	p := context.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/MulPoly_Naive_Montgomery", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.MulPolyNaiveMontgomery(p, p, p)
-		}
-	})
-}
-
-func benchmark_Add(context *Context, b *testing.B) {
-
-	p := context.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/Add", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.Add(p, p, p)
-		}
-	})
-}
-
-func benchmark_Sub(context *Context, b *testing.B) {
-
-	p := context.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/Sub", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.Sub(p, p, p)
-		}
-	})
-}
-
-func benchmark_Neg(context *Context, b *testing.B) {
-
-	p := context.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/Neg", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.Neg(p, p)
-		}
-	})
-}
-
-func benchmark_MulScalar(context *Context, b *testing.B) {
-
-	p := context.NewUniformPoly()
-
-	scalar := uint64(12345678987654321)
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/MulScalar", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			context.MulScalar(p, scalar, p)
-		}
-	})
-}
-
-func benchmark_ExtendBasis(contextQ, contextP, contextQP *Context, b *testing.B) {
-
-	BasisExtenderQP := NewBasisExtender(contextQ, contextP)
-
-	p0 := contextQ.NewUniformPoly()
-	p1 := contextQP.NewPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ExtendBasis", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			BasisExtenderQP.ExtendBasis(p0, p1)
-		}
-	})
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ExtendBasis_Approximate", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			BasisExtenderQP.ExtendBasisApproximate(p0, p1)
-		}
-	})
-}
-
-func benchmark_SimpleScaler_Scale(T uint64, context *Context, b *testing.B) {
-
-	SimpleScaler := NewSimpleScaler(T, context)
-
-	p0 := context.NewUniformPoly()
-	p1 := context.NewPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d/SimpleScaling", context.N, len(context.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			SimpleScaler.Scale(p0, p1)
-		}
-	})
-}
-
-func benchmark_ComplexScaler_Scale(T uint64, contextQ, contextP, contextQP *Context, b *testing.B) {
-
-	ComplexScalerQP := NewComplexScaler(T, contextQ, contextP)
-
-	p0 := contextQP.NewUniformPoly()
-	p1 := contextQ.NewUniformPoly()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("N=%d/limbs=%d+%d/ComplexScaling", contextQ.N, len(contextP.Modulus), len(contextQ.Modulus)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ComplexScalerQP.Scale(p0, p1)
-
-		}
-	})
-}
-
-func benchmark_BRed(b *testing.B) {
+func benchMRed(b *testing.B) {
 
 	q := uint64(1033576114481528833)
 	u := BRedParams(q)
@@ -409,23 +408,7 @@ func benchmark_BRed(b *testing.B) {
 	})
 }
 
-func benchmark_BRedAdd(b *testing.B) {
-
-	q := uint64(1033576114481528833)
-	u := BRedParams(q)
-
-	x := rand.Uint64()
-
-	b.ResetTimer()
-
-	b.Run(fmt.Sprintf("BRedAdd"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			BRedAdd(x, q, u)
-		}
-	})
-}
-
-func benchmark_MRed(b *testing.B) {
+func benchBRed(b *testing.B) {
 
 	q := uint64(1033576114481528833)
 
@@ -443,6 +426,22 @@ func benchmark_MRed(b *testing.B) {
 	b.Run(fmt.Sprintf("MRed"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			x = MRed(x, y, q, m)
+		}
+	})
+}
+
+func benchBRedAdd(b *testing.B) {
+
+	q := uint64(1033576114481528833)
+	u := BRedParams(q)
+
+	x := rand.Uint64()
+
+	b.ResetTimer()
+
+	b.Run(fmt.Sprintf("BRedAdd"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			BRedAdd(x, q, u)
 		}
 	})
 }

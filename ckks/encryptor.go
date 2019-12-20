@@ -1,121 +1,174 @@
 package ckks
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Encreyptor is a struct used to encrypt plaintext and storing the public-key and/or secret-key.
-type Encryptor struct {
-	ckkscontext *CkksContext
-	pk          *PublicKey
-	sk          *SecretKey
-	polypool    *ring.Poly
+// Encryptor in an interface for encryptors
+//
+// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+// encrypt with sk : ciphertext = [-a*sk + m + e, a]
+type Encryptor interface {
+	// EncryptNew encrypts the input plaintext using the stored key and returns
+	// the result on a newly created ciphertext.
+	EncryptNew(plaintext *Plaintext) *Ciphertext
+
+	// Encrypt encrypts the input plaintext using the stored key, and returns
+	// the result on the reciver ciphertext.
+	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
+}
+
+// encryptor is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
+type encryptor struct {
+	params      *Parameters
+	ckksContext *Context
+	polypool    [3]*ring.Poly
+
+	baseconverter *ring.FastBasisExtender
+}
+
+type pkEncryptor struct {
+	encryptor
+	pk *PublicKey
+}
+
+type skEncryptor struct {
+	encryptor
+	sk *SecretKey
 }
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
-// This encryptor can be used to encrypt plaintexts, using the stored key.
-func (ckkscontext *CkksContext) NewEncryptorFromPk(pk *PublicKey) (*Encryptor, error) {
-	return ckkscontext.newEncryptor(pk, nil)
+// This Encryptor can be used to encrypt Plaintexts, using the stored key.
+func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
+	enc := newEncryptor(params)
+
+	if uint64(pk.pk[0].GetDegree()) != uint64(1<<params.LogN) || uint64(pk.pk[1].GetDegree()) != uint64(1<<params.LogN) {
+		panic("cannot newEncrpytor: pk ring degree does not match params ring degree")
+	}
+
+	return &pkEncryptor{enc, pk}
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
-// This encryptor can be used to encrypt plaintexts, using the stored key.
-func (ckkscontext *CkksContext) NewEncryptorFromSk(sk *SecretKey) (*Encryptor, error) {
-	return ckkscontext.newEncryptor(nil, sk)
-}
+// This Encryptor can be used to encrypt Plaintexts, using the stored key.
+func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
+	enc := newEncryptor(params)
 
-// NewEncryptor creates a new Encryptor with the input public-key and/or secret-key.
-// This encryptor can be used to encrypt plaintexts, using the stored keys.
-func (ckkscontext *CkksContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
-
-	if pk != nil && (uint64(pk.pk[0].GetDegree()) != ckkscontext.n || uint64(pk.pk[1].GetDegree()) != ckkscontext.n) {
-		return nil, errors.New("error : pk ring degree doesn't match ckkscontext ring degree")
+	if uint64(sk.sk.GetDegree()) != uint64(1<<params.LogN) {
+		panic("cannot newEncryptor: sk ring degree does not match params ring degree")
 	}
 
-	if sk != nil && uint64(sk.sk.GetDegree()) != ckkscontext.n {
-		return nil, errors.New("error : sk ring degree doesn't match ckkscontext ring degree")
-	}
-
-	encryptor = new(Encryptor)
-	encryptor.ckkscontext = ckkscontext
-	encryptor.pk = pk
-	encryptor.sk = sk
-	encryptor.polypool = ckkscontext.contextLevel[ckkscontext.levels-1].NewPoly()
-
-	return encryptor, nil
+	return &skEncryptor{enc, sk}
 }
 
-// EncryptFromPkNew encrypts the input plaintext using the stored public-key and returns
-// the result on a newly created ciphertext. It will encrypt the plaintext with the stored key, which can be
-// private or public, a private-key encryption puts initial noise.
+func newEncryptor(params *Parameters) encryptor {
+	if !params.isValid {
+		panic("cannot newEncryptor: parameters are invalid (check if the generation was done properly)")
+	}
+
+	ctx := newContext(params)
+	qp := ctx.contextQP
+
+	return encryptor{
+		params:        params.Copy(),
+		ckksContext:   ctx,
+		polypool:      [3]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly()},
+		baseconverter: ring.NewFastBasisExtender(ctx.contextQ, ctx.contextP),
+	}
+}
+
+// EncryptNew encrypts the input Plaintext using the stored key and returns
+// the result on a newly created Ciphertext.
 //
-// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
-// encrypt with sk : ciphertext = [-a*sk + m + e, a]
-func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext, err error) {
+// encrypt with pk: ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+// encrypt with sk: ciphertext = [-a*sk + m + e, a]
+func (encryptor *pkEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
+	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
+	encryptor.Encrypt(plaintext, ciphertext)
 
-	ciphertext = encryptor.ckkscontext.NewCiphertext(1, plaintext.Level(), plaintext.Scale())
-
-	return ciphertext, encryptor.Encrypt(plaintext, ciphertext)
+	return ciphertext
 }
 
-// EncryptFromPk encrypts the input plaintext using the stored public-key, and returns the result
-// on the reciver ciphertext. It will encrypt the plaintext with the stored key, which can be
-// private or public, a private-key encryption puts initial noise.
+// Encrypt encrypts the input Plaintext using the stored key, and returns the result
+// on the receiver Ciphertext.
 //
-// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
-// encrypt with sk : ciphertext = [-a*sk + m + e, a]
-func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
+// encrypt with pk: ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+// encrypt with sk: ciphertext = [-a*sk + m + e, a]
+func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
+	// We sample a R-WLE instance (encryption of zero) over the keys context (ciphertext context + special prime)
 
-	if encryptor.sk != nil {
+	contextQP := encryptor.ckksContext.contextQP
+	contextQ := encryptor.ckksContext.contextQ
 
-		encryptfromsk(encryptor, plaintext, ciphertext)
+	encryptor.ckksContext.contextQP.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
 
-	} else if encryptor.pk != nil {
+	// ct0 = u*pk0
+	contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
+	// ct1 = u*pk1
+	contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
-		encryptfrompk(encryptor, plaintext, ciphertext)
+	// 2*(#Q + #P) NTT
+	contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	contextQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
-	} else {
+	// ct0 = u*pk0 + e0
+	encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+	// ct1 = u*pk1 + e1
+	encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[1])
 
-		return errors.New("cannot encrypt -> public-key and/or secret-key has not been set")
-	}
+	// ct0 = (u*pk0 + e0)/P
+	encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
 
-	return nil
-}
+	// ct1 = (u*pk1 + e1)/P
+	encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[1], ciphertext.value[1])
 
-func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
+	// 2*#Q NTT
+	contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
+	contextQ.NTT(ciphertext.value[1], ciphertext.value[1])
 
-	context := encryptor.ckkscontext.contextLevel[plaintext.Level()]
-
-	encryptor.ckkscontext.ternarySampler.SampleMontgomeryNTT(0.5, encryptor.polypool)
-
-	context.MulCoeffsMontgomery(encryptor.polypool, encryptor.pk.pk[0], ciphertext.value[0])
-	context.MulCoeffsMontgomery(encryptor.polypool, encryptor.pk.pk[1], ciphertext.value[1])
-
-	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool)
-	context.Add(ciphertext.value[0], encryptor.polypool, ciphertext.value[0])
-
-	encryptor.ckkscontext.gaussianSampler.SampleNTT(encryptor.polypool)
-	context.Add(ciphertext.value[1], encryptor.polypool, ciphertext.value[1])
-
-	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
-
-	encryptor.polypool.Zero()
+	// ct0 = (u*pk0 + e0)/P + m
+	contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
 	ciphertext.isNTT = true
 }
 
-func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
-	context := encryptor.ckkscontext.contextLevel[plaintext.Level()]
+func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
+	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
+	encryptor.Encrypt(plaintext, ciphertext)
 
-	// ct = [e, a]
-	ciphertext.value[1] = context.NewUniformPoly()
-	encryptor.ckkscontext.gaussianSampler.SampleNTT(ciphertext.value[0])
+	return ciphertext
+}
 
-	// ct = [-s*a + e, a]
-	context.MulCoeffsMontgomeryAndSub(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
+func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
+	contextQP := encryptor.ckksContext.contextQP
+	contextQ := encryptor.ckksContext.contextQ
 
-	// ct = [-s*a + m + e, a]
-	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+	// ct1 = a
+	contextQP.UniformPoly(encryptor.polypool[1])
 
+	// ct0 = -s*a
+	contextQP.MulCoeffsMontgomery(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
+	contextQP.Neg(encryptor.polypool[0], encryptor.polypool[0])
+
+	// #Q + #P NTT
+	contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+
+	// ct0 = -s*a + e
+	encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+
+	// We rescale by the special prime, dividing the error by this prime
+	// ct0 = (-s*a + e)/P
+	encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
+
+	// #Q + #P NTT
+	// ct1 = a/P
+	encryptor.baseconverter.ModDownNTTPQ(plaintext.Level(), encryptor.polypool[1], ciphertext.value[1])
+
+	// #Q NTT
+	contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
+
+	// ct0 = -s*a + m + e
+	contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+
+	ciphertext.isNTT = true
 }

@@ -1,133 +1,147 @@
 package bfv
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Encryptor is a structure holding the parameters needed to encrypt plaintexts.
-type Encryptor struct {
-	bfvcontext *BfvContext
-	pk         *PublicKey
-	sk         *SecretKey
-	polypool   *ring.Poly
+// Encryptor is an interface for encryptors
+//
+// encrypt with pk: ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
+// encrypt with sk: ciphertext = [-a*sk + m + e, a]
+type Encryptor interface {
+	// EncryptNew encrypts the input plaintext using the stored key and returns
+	// the result on a newly created ciphertext.
+	EncryptNew(plaintext *Plaintext) *Ciphertext
+
+	// Encrypt encrypts the input plaintext using the stored key, and returns
+	// the result on the receiver ciphertext.
+	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
+}
+
+// encryptor is a structure that holds the parameters needed to encrypt plaintexts.
+type encryptor struct {
+	params     *Parameters
+	bfvContext *bfvContext
+	polypool   [3]*ring.Poly
+
+	baseconverter *ring.FastBasisExtender
+}
+
+type pkEncryptor struct {
+	encryptor
+	pk *PublicKey
+}
+
+type skEncryptor struct {
+	encryptor
+	sk *SecretKey
 }
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (bfvcontext *BfvContext) NewEncryptorFromPk(pk *PublicKey) (*Encryptor, error) {
-	return bfvcontext.newEncryptor(pk, nil)
+func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
+	enc := newEncryptor(params)
+
+	if uint64(pk.pk[0].GetDegree()) != uint64(1<<params.LogN) || uint64(pk.pk[1].GetDegree()) != uint64(1<<params.LogN) {
+		panic("error: pk ring degree doesn't match bfvcontext ring degree")
+	}
+
+	return &pkEncryptor{enc, pk}
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func (bfvcontext *BfvContext) NewEncryptorFromSk(sk *SecretKey) (*Encryptor, error) {
-	return bfvcontext.newEncryptor(nil, sk)
-}
+func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
+	enc := newEncryptor(params)
 
-func (bfvcontext *BfvContext) newEncryptor(pk *PublicKey, sk *SecretKey) (encryptor *Encryptor, err error) {
-
-	if pk != nil && (uint64(pk.pk[0].GetDegree()) != bfvcontext.n || uint64(pk.pk[1].GetDegree()) != bfvcontext.n) {
-		return nil, errors.New("error : pk ring degree doesn't match bfvcontext ring degree")
+	if uint64(sk.sk.GetDegree()) != uint64(1<<params.LogN) {
+		panic("error: sk ring degree doesn't match bfvcontext ring degree")
 	}
 
-	if sk != nil && uint64(sk.sk.GetDegree()) != bfvcontext.n {
-		return nil, errors.New("error : sk ring degree doesn't match bfvcontext ring degree")
+	return &skEncryptor{enc, sk}
+}
+
+func newEncryptor(params *Parameters) encryptor {
+	if !params.isValid {
+		panic("cannot NewEncryptor: params not valid (check if they were generated properly)")
 	}
 
-	encryptor = new(Encryptor)
-	encryptor.bfvcontext = bfvcontext
-	encryptor.pk = pk
-	encryptor.sk = sk
-	encryptor.polypool = bfvcontext.contextQ.NewPoly()
+	ctx := newBFVContext(params)
+	qp := ctx.contextQP
 
-	return encryptor, nil
-}
-
-// EncryptFromPkNew encrypts the input plaintext using the stored public-key and returns
-// the result on a newly created ciphertext. It will encrypt the plaintext with the stored key, which can be
-// private or public, a private-key encryption puts initial noise.
-//
-// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
-// encrypt with sk : ciphertext = [-a*sk + m + e, a]
-func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext, err error) {
-
-	ciphertext = encryptor.bfvcontext.NewCiphertext(1)
-
-	return ciphertext, encryptor.Encrypt(plaintext, ciphertext)
-}
-
-// EncryptFromPk encrypts the input plaintext using the stored public-key, and returns the result
-// on the reciver ciphertext. It will encrypt the plaintext with the stored key, which can be
-// private or public, a private-key encryption puts initial noise.
-//
-// encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
-// encrypt with sk : ciphertext = [-a*sk + m + e, a]
-func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) (err error) {
-
-	if encryptor.sk != nil {
-
-		encryptfromsk(encryptor, plaintext, ciphertext)
-
-	} else if encryptor.pk != nil {
-
-		encryptfrompk(encryptor, plaintext, ciphertext)
-
-	} else {
-
-		return errors.New("cannot encrypt -> public-key and/or secret-key has not been set")
+	return encryptor{
+		params:        params.Copy(),
+		bfvContext:    ctx,
+		polypool:      [3]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly()},
+		baseconverter: ring.NewFastBasisExtender(ctx.contextQ, ctx.contextP),
 	}
-
-	return nil
 }
 
-func encryptfrompk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
+func (encryptor *pkEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
+	ciphertext := NewCiphertext(encryptor.params, 1)
+	encryptor.Encrypt(plaintext, ciphertext)
 
-	context := encryptor.bfvcontext.contextQ
+	return ciphertext
+}
+
+func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
+	ringContext := encryptor.bfvContext.contextQP
 
 	// u
-	encryptor.bfvcontext.ternarySampler.SampleMontgomeryNTT(0.5, encryptor.polypool)
+	ringContext.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
 
 	// ct[0] = pk[0]*u
 	// ct[1] = pk[1]*u
-	context.MulCoeffsMontgomery(encryptor.polypool, encryptor.pk.pk[0], ciphertext.value[0])
-	context.MulCoeffsMontgomery(encryptor.polypool, encryptor.pk.pk[1], ciphertext.value[1])
+	ringContext.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
+	ringContext.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
-	context.InvNTT(ciphertext.value[0], ciphertext.value[0])
-	context.InvNTT(ciphertext.value[1], ciphertext.value[1])
+	ringContext.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	ringContext.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 	// ct[0] = pk[0]*u + e0
-	encryptor.bfvcontext.gaussianSampler.Sample(encryptor.polypool)
-	context.Add(ciphertext.value[0], encryptor.polypool, ciphertext.value[0])
+	encryptor.bfvContext.gaussianSampler.Sample(encryptor.polypool[2])
+	ringContext.Add(encryptor.polypool[0], encryptor.polypool[2], encryptor.polypool[0])
 
 	// ct[1] = pk[1]*u + e1
-	encryptor.bfvcontext.gaussianSampler.Sample(encryptor.polypool)
-	context.Add(ciphertext.value[1], encryptor.polypool, ciphertext.value[1])
+	encryptor.bfvContext.gaussianSampler.Sample(encryptor.polypool[2])
+	ringContext.Add(encryptor.polypool[1], encryptor.polypool[2], encryptor.polypool[1])
+
+	// We rescale the encryption of zero by the special prime, dividing the error by this prime
+	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
+	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])
+
+	ringContext = encryptor.bfvContext.contextQ
 
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
-	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
-
-	encryptor.polypool.Zero()
+	ringContext.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 }
 
-func encryptfromsk(encryptor *Encryptor, plaintext *Plaintext, ciphertext *Ciphertext) {
+func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
+	ciphertext := NewCiphertext(encryptor.params, 1)
+	encryptor.Encrypt(plaintext, ciphertext)
 
-	context := encryptor.bfvcontext.contextQ
+	return ciphertext
+}
 
-	// ct = [-a*s , a]
-	ciphertext.value[1] = context.NewUniformPoly()
-	context.MulCoeffsMontgomery(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
-	context.Neg(ciphertext.value[0], ciphertext.value[0])
-	context.InvNTT(ciphertext.value[0], ciphertext.value[0])
-	context.InvNTT(ciphertext.value[1], ciphertext.value[1])
+func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
+	ringContext := encryptor.bfvContext.contextQP
 
-	// ct = [-a*s + e, a]
-	encryptor.bfvcontext.gaussianSampler.Sample(encryptor.polypool)
-	context.Add(ciphertext.value[0], encryptor.polypool, ciphertext.value[0])
+	// ct = [(-a*s + e)/P , a/P]
+	ringContext.UniformPoly(encryptor.polypool[1])
+	ringContext.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
+
+	// We rescale the encryption of zero by the special prime, dividing the error by this prime
+	ringContext.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	ringContext.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+
+	encryptor.bfvContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+
+	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
+	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])
+
+	ringContext = encryptor.bfvContext.contextQ
 
 	// ct = [-a*s + m + e , a]
-	context.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
-
-	encryptor.polypool.Zero()
+	ringContext.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 }

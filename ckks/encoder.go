@@ -1,311 +1,226 @@
 package ckks
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math"
-	"math/bits"
-	"math/cmplx"
+	"math/big"
 )
 
-// Encoder is a struct storing the necessary parameters to encode a slice of complex number on a plaintext.
-type Encoder struct {
-	ckkscontext   *CkksContext
-	values        []complex128
-	bigint_coeffs []*ring.Int
-	q_half        *ring.Int
-	polypool      *ring.Poly
-
-	// Encoding and Decoding params
-	slots       uint64
-	indexMatrix []uint64
-	gap         uint64
-	roots       []complex128
-	inv_roots   []complex128
+// Encoder is an interface implenting the encoding algorithms.
+type Encoder interface {
+	Encode(plaintext *Plaintext, values []complex128, slots uint64)
+	EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext)
+	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
 }
 
-// NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a plaintext.
-func (ckkscontext *CkksContext) NewEncoder() (encoder *Encoder) {
-	encoder = new(Encoder)
-	encoder.ckkscontext = ckkscontext
-	encoder.values = make([]complex128, ckkscontext.n)
-	encoder.bigint_coeffs = make([]*ring.Int, ckkscontext.n)
-	encoder.q_half = ring.NewUint(0)
-	encoder.polypool = ckkscontext.contextLevel[ckkscontext.levels-1].NewPoly()
+// encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
+type encoder struct {
+	params       *Parameters
+	ckksContext  *Context
+	values       []complex128
+	valuesfloat  []float64
+	bigintCoeffs []*big.Int
+	qHalf        *big.Int
+	polypool     *ring.Poly
+	m            uint64
+	roots        []complex128
+	rotGroup     []uint64
+}
 
-	encoder.slots = ckkscontext.slots
+// NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a Plaintext.
+func NewEncoder(params *Parameters) Encoder {
 
-	var pos, index1, index2, m, mask uint64
-
-	m = ckkscontext.n << 1
-
-	mask = m - 1
-
-	encoder.gap = 1 //gap-1 is the gap between each slot, here 1 means no gap.
-
-	encoder.indexMatrix = make([]uint64, ckkscontext.n)
-
-	pos = 1
-
-	for i := uint64(0); i < ckkscontext.slots; i++ {
-
-		index1 = (pos - 1) >> 1
-		index2 = (m - pos - 1) >> 1
-
-		encoder.indexMatrix[i] = bitReverse64(index1, ckkscontext.logN)
-		encoder.indexMatrix[i|encoder.slots] = bitReverse64(index2, ckkscontext.logN)
-
-		pos *= ckkscontext.gen
-		pos &= mask
+	if !params.isValid {
+		panic("cannot newEncoder: parameters are invalid (check if the generation was done properly)")
 	}
 
-	encoder.roots = make([]complex128, ckkscontext.n)
-	encoder.inv_roots = make([]complex128, ckkscontext.n)
+	m := uint64(2 << params.LogN)
 
-	angle := 6.283185307179586 / float64(m)
-	psi := complex(math.Cos(angle), math.Sin(angle))
-	psiInv := complex(1, 0) / psi
-
-	encoder.roots[0] = 1
-	encoder.inv_roots[0] = 1
-
-	for j := uint64(1); j < ckkscontext.n; j++ {
-
-		indexReversePrev := bitReverse64(j-1, ckkscontext.logN)
-		indexReverseNext := bitReverse64(j, ckkscontext.logN)
-
-		encoder.roots[indexReverseNext] = encoder.roots[indexReversePrev] * psi
-		encoder.inv_roots[indexReverseNext] = encoder.inv_roots[indexReversePrev] * psiInv
+	rotGroup := make([]uint64, m>>1)
+	fivePows := uint64(1)
+	for i := uint64(0); i < m>>2; i++ {
+		rotGroup[i] = fivePows
+		fivePows *= 5
+		fivePows &= (m - 1)
 	}
 
+	var angle float64
+	roots := make([]complex128, m+1)
+	for i := uint64(0); i < m; i++ {
+		angle = 2 * 3.141592653589793 * float64(i) / float64(m)
+		roots[i] = complex(math.Cos(angle), math.Sin(angle))
+	}
+	roots[m] = roots[0]
+
+	ckksContext := newContext(params)
+
+	return &encoder{
+		params:       params.Copy(),
+		ckksContext:  ckksContext,
+		values:       make([]complex128, m>>2),
+		valuesfloat:  make([]float64, m>>1),
+		bigintCoeffs: make([]*big.Int, m>>1),
+		qHalf:        ring.NewUint(0),
+		polypool:     ckksContext.contextQ.NewPoly(),
+		m:            m,
+		rotGroup:     rotGroup,
+		roots:        roots,
+	}
+}
+
+func (encoder *encoder) EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale)
+	encoder.Encode(plaintext, values, slots)
 	return
 }
 
-// EncodeFloat takes a slice of float64 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
-func (encoder *Encoder) EncodeFloat(plaintext *Plaintext, coeffs []float64) (err error) {
+// Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it in the receiver Plaintext.
+func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
 
-	if len(coeffs) > (len(encoder.indexMatrix)>>1)/int(encoder.gap) {
-		return errors.New("error : invalid input to encode (number of coefficients must be smaller or equal to the context)")
+	if uint64(len(values)) > encoder.ckksContext.maxSlots || uint64(len(values)) > slots {
+		panic("cannot Encode: too many values for the given number of slots")
 	}
 
-	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
-		return errors.New("error : invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
+	if slots == 0 && slots&(slots-1) == 0 {
+		panic("cannot Encode: slots must be a power of two between 1 and N/2")
 	}
 
-	preprocessFloat(coeffs, encoder)
-	encodeFromComplex(plaintext, encoder)
+	if uint64(len(values)) != slots {
+		panic("cannot Encode: number of values must be equal to slots")
+	}
 
-	return nil
+	for i := uint64(0); i < slots; i++ {
+		encoder.values[i] = values[i]
+	}
+
+	encoder.invfft(encoder.values, slots)
+
+	gap := encoder.ckksContext.maxSlots / slots
+
+	for i, jdx, idx := uint64(0), encoder.ckksContext.maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+		encoder.valuesfloat[idx] = real(encoder.values[i])
+		encoder.valuesfloat[jdx] = imag(encoder.values[i])
+	}
+
+	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
+
+	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+
+	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
+		encoder.values[i] = 0
+	}
+
+	for i := uint64(0); i < encoder.ckksContext.n; i++ {
+		encoder.valuesfloat[i] = 0
+	}
 }
 
-func preprocessFloat(coeffs []float64, encoder *Encoder) {
+// Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
+func (encoder *encoder) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 
-	for i := 0; i < len(coeffs); i++ {
+	encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	encoder.ckksContext.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
-		encoder.values[encoder.indexMatrix[i*int(encoder.gap)]] = complex(coeffs[i], 0)
-		encoder.values[encoder.indexMatrix[i*int(encoder.gap)+int(encoder.slots)]] = complex(coeffs[i], 0)
+	Q := encoder.ckksContext.bigintChain[plaintext.Level()]
 
-		for j := 0; j < int(encoder.gap)-1; j++ {
-			encoder.values[encoder.indexMatrix[i*int(encoder.gap)+j+1]] = complex(0, 0)
-			encoder.values[encoder.indexMatrix[i*int(encoder.gap)+int(encoder.slots)+j+1]] = complex(0, 0)
-		}
-	}
+	maxSlots := encoder.ckksContext.maxSlots
 
-	for i := len(coeffs) * int(encoder.gap); i < int(encoder.slots); i++ {
-		encoder.values[encoder.indexMatrix[i]] = complex(0, 0)
-		encoder.values[encoder.indexMatrix[i+int(encoder.slots)]] = complex(0, 0)
-	}
+	encoder.qHalf.Set(Q)
+	encoder.qHalf.Rsh(encoder.qHalf, 1)
 
-	return
-}
-
-// EncodeFloat takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it on the receiver plaintext.
-func (encoder *Encoder) EncodeComplex(plaintext *Plaintext, coeffs []complex128) (err error) {
-
-	if len(coeffs) > (len(encoder.indexMatrix)>>1)/int(encoder.gap) {
-		return errors.New("error : invalid input to encode (number of coefficients must be smaller or equal to the context)")
-	}
-
-	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
-		return errors.New("error : invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder")
-	}
-
-	preprocessCmplx(coeffs, encoder)
-	encodeFromComplex(plaintext, encoder)
-
-	return nil
-}
-
-// DecodeFloat decodes the plaintext values to a slice of float64 values of size at most N/2.
-func (encoder *Encoder) DecodeFloat(plaintext *Plaintext) (res []float64) {
-
-	decodeToComplex(plaintext, encoder)
-
-	res = make([]float64, int(encoder.slots)/int(encoder.gap))
-
-	for i := range res {
-		res[i] = real(encoder.values[encoder.indexMatrix[i*int(encoder.gap)]])
-	}
-
-	return
-}
-
-// DecodeFloat decodes the plaintext values to a slice of complex128 values of size at most N/2.
-func (encoder *Encoder) DecodeComplex(plaintext *Plaintext) (res []complex128) {
-
-	decodeToComplex(plaintext, encoder)
-
-	res = make([]complex128, int(encoder.slots)/int(encoder.gap))
-
-	for i := range res {
-		res[i] = encoder.values[encoder.indexMatrix[i*int(encoder.gap)]]
-	}
-
-	return
-}
-
-func encodeFromComplex(plaintext *Plaintext, encoder *Encoder) {
-
-	invfft(encoder.values, encoder.inv_roots)
-
-	for i, qi := range encoder.ckkscontext.moduli {
-
-		for j := uint64(0); j < encoder.ckkscontext.n; j++ {
-
-			if real(encoder.values[j]) != 0 {
-				plaintext.value.Coeffs[i][j] = scaleUp(real(encoder.values[j]), plaintext.scale, qi)
-			} else {
-				plaintext.value.Coeffs[i][j] = 0
-			}
-		}
-	}
-
-	encoder.ckkscontext.contextLevel[plaintext.Level()].NTT(plaintext.value, plaintext.value)
-}
-
-func decodeToComplex(plaintext *Plaintext, encoder *Encoder) {
-
-	encoder.ckkscontext.contextLevel[plaintext.Level()].InvNTT(plaintext.value, encoder.polypool)
-	encoder.ckkscontext.contextLevel[plaintext.Level()].PolyToBigint(encoder.polypool, encoder.bigint_coeffs)
-
-	encoder.q_half.SetBigInt(plaintext.currentModulus)
-	encoder.q_half.Rsh(encoder.q_half, 1)
+	gap := encoder.ckksContext.maxSlots / slots
 
 	var sign int
 
-	for i := range encoder.bigint_coeffs {
+	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
 
-		// Centers the value arounds the current modulus
-		encoder.bigint_coeffs[i].Mod(encoder.bigint_coeffs[i], plaintext.currentModulus)
-		sign = encoder.bigint_coeffs[i].Compare(encoder.q_half)
+		// Centers the value around the current modulus
+		encoder.bigintCoeffs[idx].Mod(encoder.bigintCoeffs[idx], Q)
+		sign = encoder.bigintCoeffs[idx].Cmp(encoder.qHalf)
 		if sign == 1 || sign == 0 {
-			encoder.bigint_coeffs[i].Sub(encoder.bigint_coeffs[i], plaintext.currentModulus)
+			encoder.bigintCoeffs[idx].Sub(encoder.bigintCoeffs[idx], Q)
 		}
 
-		encoder.values[i] = complex(scaleDown(encoder.bigint_coeffs[i], plaintext.scale), 0)
+		// Centers the value around the current modulus
+		encoder.bigintCoeffs[idx+maxSlots].Mod(encoder.bigintCoeffs[idx+maxSlots], Q)
+		sign = encoder.bigintCoeffs[idx+maxSlots].Cmp(encoder.qHalf)
+		if sign == 1 || sign == 0 {
+			encoder.bigintCoeffs[idx+maxSlots].Sub(encoder.bigintCoeffs[idx+maxSlots], Q)
+		}
+
+		encoder.values[i] = complex(scaleDown(encoder.bigintCoeffs[idx], plaintext.scale), scaleDown(encoder.bigintCoeffs[idx+maxSlots], plaintext.scale))
 	}
 
-	fft(encoder.values, encoder.roots)
+	encoder.fft(encoder.values, slots)
+
+	res = make([]complex128, slots)
+
+	for i := range res {
+		res[i] = encoder.values[i]
+
+	}
+
+	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
+		encoder.values[i] = 0
+	}
 
 	return
 }
 
-func preprocessCmplx(coeffs []complex128, encoder *Encoder) {
+func (encoder *encoder) invfftlazy(values []complex128, N uint64) {
 
-	for i := 0; i < len(coeffs); i++ {
+	var lenh, lenq, gap, idx uint64
+	var u, v complex128
 
-		encoder.values[encoder.indexMatrix[i*int(encoder.gap)]] = coeffs[i]
-		encoder.values[encoder.indexMatrix[i*int(encoder.gap)+int(encoder.slots)]] = cmplx.Conj(coeffs[i])
+	for len := N; len >= 1; len >>= 1 {
+		for i := uint64(0); i < N; i += len {
+			lenh = len >> 1
+			lenq = len << 2
+			gap = encoder.m / lenq
+			for j := uint64(0); j < lenh; j++ {
+				idx = (lenq - (encoder.rotGroup[j] % lenq)) * gap
+				u = values[i+j] + values[i+j+lenh]
+				v = values[i+j] - values[i+j+lenh]
+				v *= encoder.roots[idx]
+				values[i+j] = u
+				values[i+j+lenh] = v
 
-		for j := 0; j < int(encoder.gap)-1; j++ {
-			encoder.values[encoder.indexMatrix[i*int(encoder.gap)+j+1]] = complex(0, 0)
-			encoder.values[encoder.indexMatrix[i*int(encoder.gap)+int(encoder.slots)+j+1]] = complex(0, 0)
-		}
-	}
-
-	for i := len(coeffs) * int(encoder.gap); i < int(encoder.slots); i++ {
-		encoder.values[encoder.indexMatrix[i]] = complex(0, 0)
-		encoder.values[encoder.indexMatrix[i+int(encoder.slots)]] = complex(0, 0)
-	}
-
-	return
-}
-
-func invfft(values, inv_roots []complex128) {
-
-	var logN, N, mm, k_start, k_end, h, t uint64
-	var u, v, psi complex128
-
-	logN = uint64(bits.Len64(uint64(len(values))) - 1)
-	N = 1 << logN
-
-	t = 1
-
-	for i := uint64(0); i < logN; i++ {
-
-		mm = 1 << (logN - i)
-		k_start = 0
-		h = mm >> 1
-
-		for j := uint64(0); j < h; j++ {
-
-			k_end = k_start + t
-			psi = inv_roots[h+j]
-
-			for k := k_start; k < k_end; k++ {
-
-				u = values[k]
-				v = values[k+t]
-				values[k] = u + v
-				values[k+t] = (u - v) * psi
 			}
-
-			k_start += (t << 1)
 		}
-
-		t <<= 1
 	}
+
+	sliceBitReverseInPlaceComplex128(values, N)
+}
+
+func (encoder *encoder) invfft(values []complex128, N uint64) {
+
+	encoder.invfftlazy(values, N)
 
 	for i := uint64(0); i < N; i++ {
 		values[i] /= complex(float64(N), 0)
 	}
 }
 
-func fft(values, roots []complex128) {
+func (encoder *encoder) fft(values []complex128, N uint64) {
 
-	var logN, t, mm, j1, j2 uint64
-	var psi, u, v complex128
+	var lenh, lenq, gap, idx uint64
+	var u, v complex128
 
-	t = uint64(len(values))
+	sliceBitReverseInPlaceComplex128(values, N)
 
-	logN = uint64(bits.Len64(t) - 1)
-
-	for i := uint64(0); i < logN; i++ {
-		mm = 1 << i
-		t >>= 1
-
-		for j := uint64(0); j < mm; j++ {
-			j1 = 2 * j * t
-			j2 = j1 + t - 1
-			psi = roots[mm+j]
-
-			for k := j1; k < j2+1; k++ {
-
-				u = values[k]
-				v = values[k+t] * psi
-				values[k] = u + v
-				values[k+t] = u - v
+	for len := uint64(2); len <= N; len <<= 1 {
+		for i := uint64(0); i < N; i += len {
+			lenh = len >> 1
+			lenq = len << 2
+			gap = encoder.m / lenq
+			for j := uint64(0); j < lenh; j++ {
+				idx = (encoder.rotGroup[j] % lenq) * gap
+				u = values[i+j]
+				v = values[i+j+lenh]
+				v *= encoder.roots[idx]
+				values[i+j] = u + v
+				values[i+j+lenh] = u - v
 			}
-		}
-	}
-}
-
-func arrayBitReverse(values []complex128, logN uint64) {
-
-	for i := uint64(0); i < 1<<logN; i++ {
-		j := bitReverse64(i, logN)
-		if i < j {
-			values[i], values[j] = values[j], values[i]
 		}
 	}
 }

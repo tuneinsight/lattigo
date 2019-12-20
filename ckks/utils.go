@@ -1,179 +1,214 @@
 package ckks
 
 import (
-	"errors"
 	"github.com/ldsec/lattigo/ring"
-	"math"
 	"math/big"
-	"math/bits"
+	"math/cmplx"
+	"math/rand"
 )
 
-// Multiplies x by 2^n and returns the result mod q
-// Unaffected by overflows, arbitrary n allowed.
-// Expects inputs in the range of uint64.
-func scaleUp(x float64, n, q uint64) uint64 {
+func exp2pi(x complex128) complex128 {
+	return cmplx.Exp(2 * 3.141592653589793 * complex(0, 1) * x)
+}
 
-	var a uint64
-	if n < 53 {
-		a = n
+func randomFloat(min, max float64) float64 {
+	return min + rand.Float64()*(max-min)
+}
+
+func randomComplex(min, max float64) complex128 {
+	return complex(randomFloat(min, max), randomFloat(min, max))
+}
+
+func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
+
+	var isNegative bool
+	var xFlo *big.Float
+	var xInt *big.Int
+
+	isNegative = false
+	if value < 0 {
+		isNegative = true
+		xFlo = big.NewFloat(-n * value)
 	} else {
-		a = 53
+		xFlo = big.NewFloat(n * value)
 	}
 
-	var is_negative bool
+	xFlo.Add(xFlo, big.NewFloat(0.5))
 
-	if x < 0 {
-		is_negative = true
-		x *= -1
+	xInt = new(big.Int)
+	xFlo.Int(xInt)
+	xInt.Mod(xInt, ring.NewUint(q))
+
+	res = xInt.Uint64()
+
+	if isNegative {
+		res = q - res
 	}
 
-	x_int := uint64(x)
-	x_flo := x - float64(x_int)
-	x_int %= q
+	return
+}
 
-	for i := uint64(0); i < a; i++ { // stops at 53 to avoid an overflow of the float
-		x_int <<= 1
-		x_flo *= 2
-		if x_int >= q {
-			x_int -= q
-		}
-	}
+func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]uint64) {
 
-	x_int += uint64(math.Round(x_flo))
-	x_int %= q
+	var isNegative bool
+	var xFlo *big.Float
+	var xInt *big.Int
+	tmp := new(big.Int)
 
-	if n > 53 { // continues with int and and float merged without a risk of overflow
-		for i := a; i < n; i++ {
-			x_int <<= 1
-			if x_int >= q {
-				x_int -= q
+	for i := range values {
+
+		if n*values[i] > 1.8446744073709552e+19 {
+
+			isNegative = false
+			if values[i] < 0 {
+				isNegative = true
+				xFlo = big.NewFloat(-n * values[i])
+			} else {
+				xFlo = big.NewFloat(n * values[i])
+			}
+
+			xFlo.Add(xFlo, big.NewFloat(0.5))
+
+			xInt = new(big.Int)
+			xFlo.Int(xInt)
+
+			for j := range moduli {
+				tmp.Mod(xInt, ring.NewUint(moduli[j]))
+				if isNegative {
+					coeffs[j][i] = moduli[j] - tmp.Uint64()
+				} else {
+					coeffs[j][i] = tmp.Uint64()
+				}
+			}
+		} else {
+
+			if values[i] < 0 {
+				for j := range moduli {
+					coeffs[j][i] = moduli[j] - (uint64(-n*values[i]+0.5) % moduli[j])
+				}
+			} else {
+				for j := range moduli {
+					coeffs[j][i] = uint64(n*values[i]+0.5) % moduli[j]
+				}
 			}
 		}
 	}
 
-	if is_negative {
-		return q - x_int
-	} else {
-		return x_int
+	return
+}
+
+func modVec(values []*big.Int, q uint64, coeffs []uint64) {
+	tmp := new(big.Int)
+	for i := range values {
+		coeffs[i] = tmp.Mod(values[i], ring.NewUint(q)).Uint64()
 	}
 }
 
 // Divides x by n^2, returns a float
-func scaleDown(coeff *ring.Int, n uint64) (x float64) {
+func scaleDown(coeff *big.Int, n float64) (x float64) {
 
-	if n > 53 { // if n > float64 precision, then first reduce the integer to 53 bits, and the scales down
-		coeff.Rsh(coeff, n-53)
-		n -= (n - 53)
-	}
-
-	x, _ = new(big.Float).SetInt(&coeff.Value).Float64()
-
-	x /= float64(uint64(1 << n))
+	x, _ = new(big.Float).SetInt(coeff).Float64()
+	x /= n
 
 	return
 }
 
-// Generates CKKS Primes given logQ = size of the primes, logN = size of N and level, the number
-// of levels we require. Will return all the appropriate primes, up to the number of level, with the
-// best avaliable precision for the given level.
-func GenerateCKKSPrimes(logQ, logN, levels uint64) ([]uint64, error) {
+func genBigIntChain(Q []uint64) (bigintChain []*big.Int) {
 
-	if logQ > 60 {
-		return nil, errors.New("error : logQ must be between 1 and 62")
-	}
-
-	var x, y, Qpow2, _2N uint64
-
-	primes := []uint64{}
-
-	Qpow2 = 1 << logQ
-
-	_2N = 2 << logN
-
-	x = Qpow2 + 1
-	y = Qpow2 + 1
-
-	for true {
-
-		if ring.IsPrime(y) {
-			primes = append(primes, y)
-			if uint64(len(primes)) == levels {
-				return primes, nil
-			}
-		}
-
-		y -= _2N
-
-		if ring.IsPrime(x) {
-			primes = append(primes, x)
-			if uint64(len(primes)) == levels {
-				return primes, nil
-			}
-		}
-
-		x += _2N
-	}
-
-	return primes, nil
-}
-
-func equalslice64(a, b []uint64) bool {
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func equalslice8(a, b []uint8) bool {
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func min(values []uint64) (r uint64) {
-	r = values[0]
-	for _, i := range values[1:] {
-		if i < r {
-			r = i
-		}
+	bigintChain = make([]*big.Int, len(Q))
+	bigintChain[0] = ring.NewUint(Q[0])
+	for i := 1; i < len(Q); i++ {
+		bigintChain[i] = ring.NewUint(Q[i])
+		bigintChain[i].Mul(bigintChain[i], bigintChain[i-1])
 	}
 	return
 }
 
-func max(values []uint64) (r uint64) {
-	r = values[0]
-	for _, i := range values[1:] {
-		if i > r {
-			r = i
-		}
+// GenSwitchkeysRescalingParams generates the parameters for rescaling the switching keys
+func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
+
+	params = make([]uint64, len(Q))
+
+	PBig := ring.NewUint(1)
+	for _, pj := range P {
+		PBig.Mul(PBig, ring.NewUint(pj))
 	}
+
+	tmp := ring.NewUint(0)
+
+	for i := 0; i < len(Q); i++ {
+
+		params[i] = tmp.Mod(PBig, ring.NewUint(Q[i])).Uint64()
+		params[i] = ring.ModExp(params[i], Q[i]-2, Q[i])
+		params[i] = ring.MForm(params[i], Q[i], ring.BRedParams(Q[i]))
+	}
+
 	return
 }
 
-func bitReverse64(index, bitLen uint64) uint64 {
-	return bits.Reverse64(index) >> (64 - bitLen)
+// GenModuli generates the appropriate primes from the parameters using generateCKKSPrimes, such that all the primes are different.
+func GenModuli(params *Parameters) (Q []uint64, P []uint64) {
+
+	// Extracts all the different primes bit size and maps their number
+	primesbitlen := make(map[uint64]uint64)
+	for _, qi := range params.LogQi {
+
+		primesbitlen[qi]++
+
+		if qi > 60 {
+			panic("cannot GenModuli: the provided LogQi must be smaller than 61")
+		}
+	}
+
+	for _, pj := range params.LogPi {
+
+		primesbitlen[pj]++
+
+		if pj > 60 {
+			panic("cannot GenModuli: the provided LogPi must be smaller than 61")
+		}
+	}
+
+	// For each bit-size, finds that many primes
+	primes := make(map[uint64][]uint64)
+	for key, value := range primesbitlen {
+		primes[key] = ring.GenerateNTTPrimes(key, params.LogN, value)
+	}
+
+	// Assigns the primes to the ckks moduli chain
+	Q = make([]uint64, len(params.LogQi))
+	for i, qi := range params.LogQi {
+		Q[i] = primes[qi][0]
+		primes[qi] = primes[qi][1:]
+	}
+
+	// Assigns the primes to the special primes list for the keys context
+	P = make([]uint64, len(params.LogPi))
+	for i, pj := range params.LogPi {
+		P[i] = primes[pj][0]
+		primes[pj] = primes[pj][1:]
+	}
+
+	return Q, P
 }
 
-func hammingWeight64(x uint64) uint64 {
-	x -= (x >> 1) & 0x5555555555555555
-	x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333)
-	x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0f
-	return ((x * 0x0101010101010101) & 0xffffffffffffffff) >> 56
+func sliceBitReverseInPlaceComplex128(slice []complex128, N uint64) {
+
+	var bit, j uint64
+
+	for i := uint64(1); i < N; i++ {
+
+		bit = N >> 1
+
+		for j >= bit {
+			j -= bit
+			bit >>= 1
+		}
+
+		j += bit
+
+		if i < j {
+			slice[i], slice[j] = slice[j], slice[i]
+		}
+	}
 }

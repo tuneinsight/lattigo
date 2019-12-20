@@ -1,16 +1,17 @@
 package ring
 
 import (
+	"math/big"
 	"math/bits"
 )
 
 //============================
-//=== MONTGOMERY REDUCTION ===
+//=== Montgomery REDUCTION ===
 //============================
 
-// MForm returns a*2^64 mod q. It take thes input a in
-// conventional form and return r which is the
-// the montgomery form of a of a mod q with a radix of 2^64.
+// MForm returns a*2^64 mod q. It takes the input a in
+// conventional form and returns r which is the
+// the Montgomery form of a of a mod q with a radix of 2^64.
 func MForm(a, q uint64, u []uint64) (r uint64) {
 	mhi, _ := bits.Mul64(a, u[1])
 	r = -(a*u[0] + mhi) * q
@@ -29,7 +30,7 @@ func MFormConstant(a, q uint64, u []uint64) (r uint64) {
 }
 
 // InvMForm returns a*(1/2^64) mod q. It takes the input a in
-// montgomery form mod q with a radix of 2^ 64and returns r which is the normal form of a mod q.
+// Montgomery form mod q with a radix of 2^64 and returns r which is the normal form of a mod q.
 func InvMForm(a, q, qInv uint64) (r uint64) {
 	r, _ = bits.Mul64(a*qInv, q)
 	r = q - r
@@ -63,9 +64,9 @@ func MRedParams(q uint64) (qInv uint64) {
 }
 
 // MRed computes x * y * (1/2^64) mod q. Requires that at least one of the inputs is in
-// montgomery form. If only one of the inputs is in montgomery form (ex : a pre-computed constant),
-// the result will be in normal form. If both inputs are in montgomery form, then the result
-// will be in montgomery form.
+// Montgomery form. If only one of the inputs is in Montgomery form (ex : a pre-computed constant),
+// the result will be in normal form. If both inputs are in Montgomery form, then the result
+// will be in Montgomery form.
 func MRed(x, y, q, qInv uint64) (r uint64) {
 	ahi, alo := bits.Mul64(x, y)
 	R := alo * qInv
@@ -94,11 +95,11 @@ func MRedConstant(x, y, q, qInv uint64) (r uint64) {
 // BRedParams computes the parameters required for the BRed with
 // a radix of 2^128.
 func BRedParams(q uint64) (params []uint64) {
-	bigR := new(Int).Lsh(NewUint(1), 128)
-	bigR.Div(bigR, NewUint(q))
+	bigR := new(big.Int).Lsh(NewUint(1), 128)
+	bigR.Quo(bigR, NewUint(q))
 
 	// 2^radix // q
-	mhi := new(Int).Rsh(bigR, 64).Uint64()
+	mhi := new(big.Int).Rsh(bigR, 64).Uint64()
 	mlo := bigR.Uint64()
 
 	return []uint64{mhi, mlo}
@@ -124,10 +125,10 @@ func BRedAddConstant(x, q uint64, u []uint64) uint64 {
 	return x - s0*q
 }
 
-// BRed compute a*b mod q for arbitrary a,b uint64. To be used
-// when both a,b can not be pre-computed. However applying a montgomery
+// BRed compute x*y mod q for arbitrary x,y uint64. To be used
+// when both x,y can not be pre-computed. However applying a Montgomery
 // transform on either a or b might be faster depending on the computation
-// to do, especially if either a or b need to be multiplied with several other
+// to do, especially if either x or y needs to be multiplied with several other
 // values.
 func BRed(x, y, q uint64, u []uint64) (r uint64) {
 

@@ -1,226 +1,415 @@
 package dbfv
 
 import (
-	"fmt"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	"testing"
 )
 
-func Benchmark_DBFVScheme(b *testing.B) {
+func Benchmark_DBFV(b *testing.B) {
+	b.Run("PublicKeyGen", benchPublicKeyGen)
+	b.Run("RelinKeyGen", benchRelinKeyGen)
+	b.Run("RelinKeyGenNaive", benchRelinKeyGenNaive)
+	b.Run("KeySwitching", benchKeyswitching)
+	b.Run("PublicKeySwitching", benchPublicKeySwitching)
+	b.Run("RotKeyGen", benchRotKeyGen)
+	b.Run("Refresh", benchRefresh)
+}
 
-	paramSets := bfv.DefaultParams[3:4]
-	bitDecomps := []uint64{60}
-	nParties := []int{2}
+func benchPublicKeyGen(b *testing.B) {
 
-	for _, params := range paramSets {
+	parties := testParams.parties
 
-		bfvContext := bfv.NewBfvContext()
-		if err := bfvContext.SetParameters(&params); err != nil {
-			b.Error(err)
-		}
+	for _, parameters := range testParams.contexts {
 
-		context := bfvContext.ContextQ()
+		testCtx := genDBFVTestContext(parameters)
 
-		kgen := bfvContext.NewKeyGenerator()
+		sk0Shards := testCtx.sk0Shards
 
-		sk0, pk0 := kgen.NewKeyPair()
-		sk1, pk1 := kgen.NewKeyPair()
-
-		crpGenerator, err := NewCRPGenerator(nil, context)
-		if err != nil {
-			b.Error(err)
-		}
+		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
 
 		crpGenerator.Seed([]byte{})
+		crp := crpGenerator.ClockNew()
 
-		// EKG_Naive
-		for _, parties := range nParties {
-
-			for _, bitDecomp := range bitDecomps {
-
-				ekgV2Naive := NewEkgProtocolNaive(context, bitDecomp)
-
-				// [nParties][CrtDecomp][WDecomp][2]
-				samples := make([][][][2]*ring.Poly, parties)
-				for i := 0; i < parties; i++ {
-					samples[i] = ekgV2Naive.GenSamples(sk0.Get(), pk0.Get())
-				}
-
-				aggregatedSamples := make([][][][2]*ring.Poly, parties)
-				for i := 0; i < parties; i++ {
-					aggregatedSamples[i] = ekgV2Naive.Aggregate(sk0.Get(), pk0.Get(), samples)
-				}
-
-				//EKG_V2_Naive_Round_0
-				b.Run(fmt.Sprintf("params=%d/parties=%d/decomp=%d/EKG_Naive_Round0", params.N, parties, bitDecomp), func(b *testing.B) {
-					for i := 0; i < b.N; i++ {
-						ekgV2Naive.GenSamples(sk0.Get(), pk1.Get())
-					}
-				})
-
-				//EKG_V2_Naive_Round_1
-				b.Run(fmt.Sprintf("params=%d/parties=%d/decomp=%d/EKG_Naive_Round1", params.N, parties, bitDecomp), func(b *testing.B) {
-					for i := 0; i < b.N; i++ {
-						ekgV2Naive.Aggregate(sk0.Get(), pk1.Get(), samples)
-					}
-				})
-
-				//EKG_V2_Naive_Round_2
-				b.Run(fmt.Sprintf("params=%d/parties=%d/decomp=%d/EKG_Naive_Round2", params.N, parties, bitDecomp), func(b *testing.B) {
-					for i := 0; i < b.N; i++ {
-						ekgV2Naive.Finalize(aggregatedSamples)
-					}
-				})
-			}
+		type Party struct {
+			*CKGProtocol
+			s  *ring.Poly
+			s1 CKGShare
 		}
 
-		// EKG
-		for _, parties := range nParties {
+		p := new(Party)
+		p.CKGProtocol = NewCKGProtocol(parameters)
+		p.s = sk0Shards[0].Get()
+		p.s1 = p.AllocateShares()
 
-			for _, bitDecomp := range bitDecomps {
+		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
 
-				bitLog := uint64((60 + (60 % bitDecomp)) / bitDecomp)
-
-				EkgProtocol := NewEkgProtocol(context, bitDecomp)
-
-				crp := make([][]*ring.Poly, len(context.Modulus))
-
-				for i := 0; i < len(context.Modulus); i++ {
-					crp[i] = make([]*ring.Poly, bitLog)
-					for j := uint64(0); j < bitLog; j++ {
-						crp[i][j] = crpGenerator.Clock()
-					}
-				}
-
-				samples := make([][][]*ring.Poly, parties)
-				for i := 0; i < parties; i++ {
-					samples[i] = make([][]*ring.Poly, len(context.Modulus))
-					samples[i] = EkgProtocol.GenSamples(sk0.Get(), sk1.Get(), crp)
-				}
-
-				aggregatedSamples := make([][][][2]*ring.Poly, parties)
-				for i := 0; i < parties; i++ {
-					aggregatedSamples[i] = EkgProtocol.Aggregate(sk1.Get(), samples, crp)
-				}
-
-				keySwitched := make([][][]*ring.Poly, parties)
-
-				sum := EkgProtocol.Sum(aggregatedSamples)
-				for i := 0; i < parties; i++ {
-					keySwitched[i] = EkgProtocol.KeySwitch(sk0.Get(), sk1.Get(), sum)
-				}
-
-				//EKG_V2_Round_0
-				b.Run(fmt.Sprintf("params=%d/parties=%d/decomp=%d/EKG_Round0", params.N, parties, bitDecomp), func(b *testing.B) {
-					for i := 0; i < b.N; i++ {
-						EkgProtocol.GenSamples(sk0.Get(), sk1.Get(), crp)
-					}
-				})
-
-				//EKG_V2_Round_1
-				b.Run(fmt.Sprintf("params=%d/parties=%d/decomp=%d/EKG_Round1", params.N, parties, bitDecomp), func(b *testing.B) {
-					for i := 0; i < b.N; i++ {
-						EkgProtocol.Aggregate(sk1.Get(), samples, crp)
-					}
-				})
-
-				//EKG_V2_Round_2
-				b.Run(fmt.Sprintf("params=%d/parties=%d/decomp=%d/EKG_Round2", params.N, parties, bitDecomp), func(b *testing.B) {
-					for i := 0; i < b.N; i++ {
-						EkgProtocol.KeySwitch(sk1.Get(), sk1.Get(), EkgProtocol.Sum(aggregatedSamples))
-					}
-				})
-
-				//EKG_V2_Round_3
-				b.Run(fmt.Sprintf("params=%d/parties=%d/decomp=%d/EKG_Round3", params.N, parties, bitDecomp), func(b *testing.B) {
-					for i := 0; i < b.N; i++ {
-						EkgProtocol.ComputeEVK(keySwitched, sum)
-					}
-				})
+			for i := 0; i < b.N; i++ {
+				p.GenShare(p.s, crp, p.s1)
 			}
+		})
+
+		b.Run(testString("Round1/Agg", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.AggregateShares(p.s1, p.s1, p.s1)
+			}
+		})
+
+		pk := bfv.NewPublicKey(parameters)
+		b.Run(testString("Finalize", parties, parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.GenPublicKey(p.s1, crp, pk)
+			}
+		})
+
+	}
+}
+
+func benchRelinKeyGen(b *testing.B) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		testCtx := genDBFVTestContext(parameters)
+
+		sk0Shards := testCtx.sk0Shards
+
+		type Party struct {
+			*RKGProtocol
+			u      *ring.Poly
+			s      *ring.Poly
+			share1 RKGShareRoundOne
+			share2 RKGShareRoundTwo
+			share3 RKGShareRoundThree
+
+			rlk *bfv.EvaluationKey
 		}
 
-		//CKG
-		for _, parties := range nParties {
+		p := new(Party)
+		p.RKGProtocol = NewEkgProtocol(parameters)
+		p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
+		p.s = sk0Shards[0].Get()
+		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
+		p.rlk = bfv.NewRelinKey(parameters, 2)
 
-			ckgInstance := NewCKG(context, crpGenerator.Clock())
-			ckgInstance.GenShare(sk0.Get())
+		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
 
-			shares := make([]*ring.Poly, parties)
-			for i := 0; i < parties; i++ {
-				shares[i] = ckgInstance.GetShare()
-			}
+		crpGenerator.Seed([]byte{})
+		crp := make([]*ring.Poly, parameters.Beta())
 
-			// CKG_Round_0
-			b.Run(fmt.Sprintf("params=%d/parties=%d/CKG_Round0", params.N, parties), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					ckgInstance.GenShare(sk0.Get())
-				}
-			})
-
-			// CKG_Round_1
-			b.Run(fmt.Sprintf("params=%d/parties=%d/CKG_Round1", params.N, parties), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					ckgInstance.AggregateShares(shares)
-					//ckgInstance.Finalize()
-				}
-			})
+		for i := uint64(0); i < parameters.Beta(); i++ {
+			crp[i] = crpGenerator.ClockNew()
 		}
 
-		//CKS
-		sigmaSmudging := 3.19
-		for _, parties := range nParties {
-
-			cksInstance := NewCKS(sk0.Get(), sk1.Get(), context, sigmaSmudging)
-
-			ciphertext := bfvContext.NewRandomCiphertext(1)
-
-			hi := make([]*ring.Poly, parties)
-			for i := 0; i < parties; i++ {
-				hi[i] = cksInstance.KeySwitch(ciphertext.Value()[1])
+		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.GenShareRoundOne(p.u, p.s, crp, p.share1)
 			}
+		})
 
-			// CKS_Round_0
-			b.Run(fmt.Sprintf("params=%d/parties=%d/sigmaSmudging=%f/CKS_Round0", params.N, parties, sigmaSmudging), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					cksInstance.KeySwitch(ciphertext.Value()[1])
-				}
-			})
+		b.Run(testString("Round1/Agg", parties, parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.AggregateShareRoundOne(p.share1, p.share1, p.share1)
+			}
+		})
 
-			// CKS_Round_1
-			b.Run(fmt.Sprintf("params=%d/parties=%d/sigmaSmudging=%f/CKS_Round1", params.N, parties, sigmaSmudging), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					cksInstance.Aggregate(ciphertext.Value()[0], hi)
-				}
-			})
+		b.Run(testString("Round2/Gen", parties, parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.GenShareRoundTwo(p.share1, p.s, crp, p.share2)
+			}
+		})
+
+		b.Run(testString("Round2/Agg", parties, parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.AggregateShareRoundTwo(p.share2, p.share2, p.share2)
+			}
+		})
+
+		b.Run(testString("Round3/Gen", parties, parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.GenShareRoundThree(p.share2, p.u, p.s, p.share3)
+			}
+		})
+
+		b.Run(testString("Round3/Agg", parties, parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.AggregateShareRoundThree(p.share3, p.share3, p.share3)
+			}
+		})
+
+		b.Run(testString("Finalize", parties, parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.GenRelinearizationKey(p.share2, p.share3, p.rlk)
+			}
+		})
+	}
+}
+
+func benchRelinKeyGenNaive(b *testing.B) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVTestContext(parameters)
+
+		pk0 := params.pk0
+		sk0Shards := params.sk0Shards
+
+		type Party struct {
+			*RKGProtocolNaive
+			u      *ring.Poly
+			s      *ring.Poly
+			share1 RKGNaiveShareRoundOne
+			share2 RKGNaiveShareRoundTwo
+
+			rlk *bfv.EvaluationKey
 		}
 
-		//CKS_Trustless
-		for _, parties := range nParties {
+		p := new(Party)
+		p.RKGProtocolNaive = NewRKGProtocolNaive(parameters)
+		p.s = sk0Shards[0].Get()
+		p.share1, p.share2 = p.AllocateShares()
+		p.rlk = bfv.NewRelinKey(parameters, 2)
 
-			pcks := NewPCKS(sk0.Get(), pk1.Get(), context, sigmaSmudging)
+		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
 
-			ciphertext := bfvContext.NewRandomCiphertext(1)
-
-			hi := make([][2]*ring.Poly, parties)
-			for i := 0; i < parties; i++ {
-				hi[i] = pcks.KeySwitch(ciphertext.Value()[1])
+			for i := 0; i < b.N; i++ {
+				p.GenShareRoundOne(p.s, pk0.Get(), p.share1)
 			}
+		})
 
-			// CKS_Trustless_Round_0
-			b.Run(fmt.Sprintf("params=%d/parties=%d/sigmaSmudging=%f/PCKS_Round0", params.N, parties, sigmaSmudging), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					pcks.KeySwitch(ciphertext.Value()[1])
-				}
-			})
+		b.Run(testString("Round1/Agg", parties, parameters), func(b *testing.B) {
 
-			// CKS_Trustless_Round_1
-			b.Run(fmt.Sprintf("params=%d/parties=%d/sigmaSmudging=%f/PCKS_Round1", params.N, parties, sigmaSmudging), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					pcks.Aggregate(ciphertext.Value(), hi)
-				}
-			})
+			for i := 0; i < b.N; i++ {
+				p.AggregateShareRoundOne(p.share1, p.share1, p.share1)
+			}
+		})
+
+		b.Run(testString("Round2/Gen", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShareRoundTwo(p.share1, p.s, pk0.Get(), p.share2)
+			}
+		})
+
+		b.Run(testString("Round2/Agg", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.AggregateShareRoundTwo(p.share2, p.share2, p.share2)
+			}
+		})
+
+		b.Run(testString("Finalize", parties, parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.GenRelinearizationKey(p.share2, p.rlk)
+			}
+		})
+	}
+}
+
+func benchKeyswitching(b *testing.B) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVTestContext(parameters)
+
+		sk0Shards := params.sk0Shards
+		sk1Shards := params.sk1Shards
+
+		type Party struct {
+			*CKSProtocol
+			s0    *ring.Poly
+			s1    *ring.Poly
+			share CKSShare
 		}
+
+		p := new(Party)
+		p.CKSProtocol = NewCKSProtocol(parameters, 6.36)
+		p.s0 = sk0Shards[0].Get()
+		p.s1 = sk1Shards[0].Get()
+		p.share = p.AllocateShare()
+
+		ciphertext := bfv.NewCiphertextRandom(parameters, 1)
+
+		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShare(p.s0, p.s1, ciphertext, p.share)
+			}
+		})
+
+		b.Run(testString("Round1/Agg", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.AggregateShares(p.share, p.share, p.share)
+			}
+		})
+
+		b.Run(testString("Finalize", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.KeySwitch(p.share, ciphertext, ciphertext)
+			}
+		})
+	}
+}
+
+func benchPublicKeySwitching(b *testing.B) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		params := genDBFVTestContext(parameters)
+
+		sk0Shards := params.sk0Shards
+		pk1 := params.pk1
+
+		ciphertext := bfv.NewCiphertextRandom(parameters, 1)
+
+		type Party struct {
+			*PCKSProtocol
+			s     *ring.Poly
+			share PCKSShare
+		}
+
+		p := new(Party)
+		p.PCKSProtocol = NewPCKSProtocol(parameters, 6.36)
+		p.s = sk0Shards[0].Get()
+		p.share = p.AllocateShares()
+
+		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShare(p.s, pk1, ciphertext, p.share)
+
+			}
+		})
+
+		b.Run(testString("Round1/Agg", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.AggregateShares(p.share, p.share, p.share)
+			}
+		})
+
+		b.Run(testString("Finalize", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.KeySwitch(p.share, ciphertext, ciphertext)
+			}
+		})
+	}
+}
+
+func benchRotKeyGen(b *testing.B) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		testCtx := genDBFVTestContext(parameters)
+
+		sk0Shards := testCtx.sk0Shards
+
+		type Party struct {
+			*RTGProtocol
+			s     *ring.Poly
+			share RTGShare
+		}
+
+		p := new(Party)
+		p.RTGProtocol = NewRotKGProtocol(parameters)
+		p.s = sk0Shards[0].Get()
+		p.share = p.AllocateShare()
+
+		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+		crpGenerator.Seed([]byte{})
+		crp := make([]*ring.Poly, parameters.Beta())
+
+		for i := uint64(0); i < parameters.Beta(); i++ {
+			crp[i] = crpGenerator.ClockNew()
+		}
+
+		mask := (testCtx.n >> 1) - 1
+
+		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShare(bfv.RotationRight, uint64(i)&mask, sk0Shards[0].Get(), crp, &p.share)
+			}
+		})
+
+		b.Run(testString("Round1/Agg", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Aggregate(p.share, p.share, p.share)
+			}
+		})
+
+		rotKey := bfv.NewRotationKeys()
+		b.Run(testString("Finalize", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Finalize(p.share, crp, rotKey)
+			}
+		})
+
+	}
+
+}
+
+func benchRefresh(b *testing.B) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		testCtx := genDBFVTestContext(parameters)
+
+		sk0Shards := testCtx.sk0Shards
+
+		type Party struct {
+			*RefreshProtocol
+			s     *ring.Poly
+			share RefreshShare
+		}
+
+		p := new(Party)
+		p.RefreshProtocol = NewRefreshProtocol(parameters)
+		p.s = sk0Shards[0].Get()
+		p.share = p.AllocateShares()
+
+		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+		crpGenerator.Seed([]byte{})
+		crp := crpGenerator.ClockNew()
+
+		ciphertext := bfv.NewCiphertextRandom(parameters, 1)
+
+		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShares(p.s, ciphertext, crp, p.share)
+			}
+		})
+
+		b.Run(testString("Round1/Agg", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Aggregate(p.share, p.share, p.share)
+			}
+		})
+
+		b.Run(testString("Finalize", parties, parameters), func(b *testing.B) {
+			ctOut := bfv.NewCiphertext(parameters, 1)
+			for i := 0; i < b.N; i++ {
+				p.Finalize(ciphertext, crp, p.share, ctOut) // TODO: why does this fail ?
+			}
+		})
 	}
 }

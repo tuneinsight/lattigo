@@ -4,21 +4,26 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Plaintext is BigPoly of degree 0.
+// Plaintext is is a ckksElement with only one Poly.
 type Plaintext struct {
 	*ckksElement
 	value *ring.Poly
 }
 
-// NewPlaintext creates a new plaintext of level level and scale scale.
-func (ckkscontext *CkksContext) NewPlaintext(level uint64, scale uint64) *Plaintext {
+// NewPlaintext creates a new Plaintext of level level and scale scale.
+func NewPlaintext(params *Parameters, level uint64, scale float64) *Plaintext {
+
+	if !params.isValid {
+		panic("cannot NewPlaintext: parameters are invalid (check if the generation was done properly)")
+	}
+
 	plaintext := &Plaintext{&ckksElement{}, nil}
 
-	plaintext.ckksElement.value = []*ring.Poly{ckkscontext.contextLevel[level].NewPoly()}
+	plaintext.ckksElement.value = []*ring.Poly{ring.NewPoly(1<<params.LogN, level+1)}
+
 	plaintext.value = plaintext.ckksElement.value[0]
 
 	plaintext.scale = scale
-	plaintext.currentModulus = ring.Copy(ckkscontext.contextLevel[level].ModulusBigint)
 	plaintext.isNTT = true
 
 	return plaintext

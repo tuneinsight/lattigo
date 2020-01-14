@@ -5,9 +5,23 @@ import (
 	"math"
 )
 
+// KeyGenerator is an interface implementing the methods of the KeyGenerator.
+type KeyGenerator interface {
+	GenSecretKey() (sk *SecretKey)
+	GenSecretKeyWithDistrib(p float64) (sk *SecretKey)
+	GenSecretKeySparse(hw uint64) (sk *SecretKey)
+	GenPublicKey(sk *SecretKey) (pk *PublicKey)
+	GenKeyPair() (sk *SecretKey, pk *PublicKey)
+	GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey)
+	GenRelinKey(sk *SecretKey) (evakey *EvaluationKey)
+	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
+	GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys)
+	GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
+}
+
 // KeyGenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
-type KeyGenerator struct {
+type keyGenerator struct {
 	params      *Parameters
 	ckksContext *Context
 	ringContext *ring.Context
@@ -60,36 +74,39 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 	return swk.evakey
 }
 
-// NewKeyGenerator creates a new keygenerator, from which the secret and public keys, as well as the evaluation,
+// NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
-func NewKeyGenerator(params *Parameters) (keygen *KeyGenerator) {
+func NewKeyGenerator(params *Parameters) KeyGenerator {
 
 	if !params.isValid {
-		panic("cannot create new KeyGenerator, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewKeyGenerator: parameters are invalid (check if the generation was done properly)")
 	}
 
-	keygen = new(KeyGenerator)
-	keygen.params = params.Copy()
-	keygen.ckksContext = newContext(params)
-	keygen.ringContext = keygen.ckksContext.contextQP
-	keygen.polypool = keygen.ringContext.NewPoly()
-	return
+	ckksContext := newContext(params)
+	ringContext := ckksContext.contextQP
+
+	return &keyGenerator{
+		params:      params.Copy(),
+		ckksContext: ckksContext,
+		ringContext: ringContext,
+		polypool:    ringContext.NewPoly(),
+	}
 }
 
-// NewSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
-func (keygen *KeyGenerator) NewSecretKey() (sk *SecretKey) {
-	return keygen.NewSecretKeyWithDistrib(1.0 / 3)
+// GenSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
+func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
+	return keygen.GenSecretKeyWithDistrib(1.0 / 3)
 }
 
-// NewSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].
-func (keygen *KeyGenerator) NewSecretKeyWithDistrib(p float64) (sk *SecretKey) {
+// GenSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].
+func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.sk = keygen.ckksContext.contextQP.SampleTernaryMontgomeryNTTNew(p)
 	return sk
 }
 
-// NewSecretKeySparse generates a new SecretKey with exactly hw non zero coefficients.
-func (keygen *KeyGenerator) NewSecretKeySparse(hw uint64) (sk *SecretKey) {
+// GenSecretKeySparse generates a new SecretKey with exactly hw non-zero coefficients.
+func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.sk = keygen.ckksContext.contextQP.SampleTernarySparseMontgomeryNTTNew(hw)
 	return sk
@@ -99,7 +116,7 @@ func (keygen *KeyGenerator) NewSecretKeySparse(hw uint64) (sk *SecretKey) {
 func NewSecretKey(params *Parameters) *SecretKey {
 
 	if !params.isValid {
-		panic("cannot create new Secretkey, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewSecretkey: parameters are invalid (check if the generation was done properly)")
 	}
 
 	sk := new(SecretKey)
@@ -107,7 +124,7 @@ func NewSecretKey(params *Parameters) *SecretKey {
 	return sk
 }
 
-// Get returns the SecretKey value of the SecretKey.
+// Get returns the value of the SecretKey.
 func (sk *SecretKey) Get() *ring.Poly {
 	return sk.sk
 }
@@ -117,8 +134,8 @@ func (sk *SecretKey) Set(poly *ring.Poly) {
 	sk.sk = poly.CopyNew()
 }
 
-// NewPublicKey generates a new public key from the provided SecretKey.
-func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
+// GenPublicKey generates a new public key from the provided SecretKey.
+func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = new(PublicKey)
 
@@ -137,7 +154,7 @@ func (keygen *KeyGenerator) NewPublicKey(sk *SecretKey) (pk *PublicKey) {
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
 
 	if !params.isValid {
-		panic("cannot create new new PublicKey, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewPublicKey: parameters are invalid (check if the generation was done properly)")
 	}
 
 	pk = new(PublicKey)
@@ -159,20 +176,20 @@ func (pk *PublicKey) Set(poly [2]*ring.Poly) {
 	pk.pk[1] = poly[1].CopyNew()
 }
 
-// NewKeyPair generates a new secretkey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
-func (keygen *KeyGenerator) NewKeyPair() (sk *SecretKey, pk *PublicKey) {
-	sk = keygen.NewSecretKey()
-	return sk, keygen.NewPublicKey(sk)
+// GenKeyPair generates a new SecretKey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
+func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
+	sk = keygen.GenSecretKey()
+	return sk, keygen.GenPublicKey(sk)
 }
 
-// NewKeyPairSparse generates a new secretkey with exactly hw non zero coefficients [1/2, 0, 1/2].
-func (keygen *KeyGenerator) NewKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey) {
-	sk = keygen.NewSecretKeySparse(hw)
-	return sk, keygen.NewPublicKey(sk)
+// GenKeyPairSparse generates a new SecretKey with exactly hw non zero coefficients [1/2, 0, 1/2].
+func (keygen *keyGenerator) GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey) {
+	sk = keygen.GenSecretKeySparse(hw)
+	return sk, keygen.GenPublicKey(sk)
 }
 
-// NewRelinKey generates a new evaluation key that will be used to relinearize the ciphertexts during multiplication.
-func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
+// GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
+func (keygen *keyGenerator) GenRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 
 	evakey = new(EvaluationKey)
 	keygen.polypool.Copy(sk.Get())
@@ -183,11 +200,11 @@ func (keygen *KeyGenerator) NewRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 	return
 }
 
-// NewRelinKey returns  new EvaluationKey with zero values.
+// NewRelinKey returns a new EvaluationKey with zero values.
 func NewRelinKey(params *Parameters) (evakey *EvaluationKey) {
 
 	if !params.isValid {
-		panic("cannot create new EvaluationKey, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewRelinKey: parameters are invalid (check if the generation was done properly)")
 	}
 
 	evakey = new(EvaluationKey)
@@ -206,7 +223,7 @@ func NewRelinKey(params *Parameters) (evakey *EvaluationKey) {
 	return
 }
 
-// Get returns the slice of switchintkeys of the evaluation-key.
+// Get returns the slice of switching keys of the evaluation-key.
 func (evk *EvaluationKey) Get() *SwitchingKey {
 	return evk.evakey
 }
@@ -222,8 +239,8 @@ func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 	}
 }
 
-// NewSwitchingKey generated a new keyswitching key, that will re-encrypt a ciphertext encrypted under the input key to the output key.
-func (keygen *KeyGenerator) NewSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
+// GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
+func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
 	keygen.ringContext.Sub(skInput.Get(), skOutput.Get(), keygen.polypool)
 	newevakey = keygen.newSwitchingKey(keygen.polypool, skOutput.Get())
 	keygen.polypool.Zero()
@@ -234,7 +251,7 @@ func (keygen *KeyGenerator) NewSwitchingKey(skInput, skOutput *SecretKey) (newev
 func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 
 	if !params.isValid {
-		panic("cannot create new SwitchingKey, parameters are invalid (check if the generation was done properly)")
+		panic("cannot NewSwitchingKey: parameters are invalid (check if the generation was done properly)")
 	}
 
 	evakey = new(SwitchingKey)
@@ -252,7 +269,7 @@ func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 	return
 }
 
-func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingkey *SwitchingKey) {
+func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingkey *SwitchingKey) {
 
 	switchingkey = new(SwitchingKey)
 
@@ -275,7 +292,7 @@ func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 		switchingkey.evakey[i][0] = keygen.ckksContext.gaussianSampler.SampleNTTNew()
 		context.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 
-		// a (since a is uniform, we consider we already sample it in the NTT and montgomery domain)
+		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
 		switchingkey.evakey[i][1] = keygen.ringContext.NewUniformPoly()
 
 		// e + (skIn * P) * (q_star * q_tild) mod QP
@@ -297,7 +314,7 @@ func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 			}
 
-			// Handles the case where nb pj does not divides nb qi
+			// It handles the case where nb pj does not divide nb qi
 			if index >= keygen.ckksContext.levels-1 {
 				break
 			}
@@ -310,14 +327,14 @@ func (keygen *KeyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 	return
 }
 
-// NewRotationKeys generates a new instance of rotationkeys, with the provided rotation to the left, right and conjugation if asked.
+// NewRotationKeys generates a new instance of RotationKeys, with the provided rotation to the left, right and conjugation if requested.
 func NewRotationKeys() (rotKey *RotationKeys) {
 	rotKey = new(RotationKeys)
 	return
 }
 
-// GenRot populates input RotationKeys with a SwitchingKey for the given rotation type and amount.
-func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
+// GenRot populates the input RotationKeys with a SwitchingKey for the given rotation type and amount.
+func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
 	switch rotType {
 	case RotationLeft:
 
@@ -355,8 +372,8 @@ func (keygen *KeyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 	}
 }
 
-// NewRotationKeysPow2 generates a new rotation key with all the power of two rotation to the left and right, as well as the conjugation.
-func (keygen *KeyGenerator) NewRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys) {
+// GenRotationKeysPow2 generates a new rotation key with all the power-of-two rotations to the left and right, as well as the conjugation.
+func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys) {
 
 	rotKey = new(RotationKeys)
 
@@ -384,7 +401,7 @@ func (keygen *KeyGenerator) NewRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly, rotType Rotation, k uint64) {
 
 	if !params.isValid {
-		panic("cannot SetRotKey, parameters are invalid (check if the generation was done properly)")
+		panic("cannot SetRotKey: parameters are invalid (check if the generation was done properly)")
 	}
 
 	switch rotType {
@@ -448,7 +465,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 	}
 }
 
-func (keygen *KeyGenerator) genrotKey(skOutput *ring.Poly, gen uint64) (switchingkey *SwitchingKey) {
+func (keygen *keyGenerator) genrotKey(skOutput *ring.Poly, gen uint64) (switchingkey *SwitchingKey) {
 
 	ring.PermuteNTT(skOutput, gen, keygen.polypool)
 	keygen.ringContext.Sub(keygen.polypool, skOutput, keygen.polypool)

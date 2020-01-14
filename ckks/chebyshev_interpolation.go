@@ -16,8 +16,8 @@ func (cheby *ChebyshevInterpolation) Poly() *poly {
 	return &poly{cheby.maxDeg, cheby.coeffs}
 }
 
-// Approximate computes a Chebyshev approximation of the input function, for the tange [-a, b] of degree degree.
-// To be used in conjonction with the function EvaluateCheby.
+// Approximate computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
+// To be used in conjunction with the function EvaluateCheby.
 func Approximate(function func(complex128) complex128, a, b complex128, degree int) (cheby *ChebyshevInterpolation) {
 
 	cheby = new(ChebyshevInterpolation)

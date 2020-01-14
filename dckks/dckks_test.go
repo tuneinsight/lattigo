@@ -2,11 +2,12 @@ package dckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
 	"math"
 	"sort"
 	"testing"
+
+	"github.com/ldsec/lattigo/ckks"
+	"github.com/ldsec/lattigo/ring"
 )
 
 func check(t *testing.T, err error) {
@@ -29,12 +30,12 @@ func testString(opname string, parties uint64, params *ckks.Parameters) string {
 type dckksTestContext struct {
 	params       *ckks.Parameters
 	dckksContext *dckksContext
-	encoder      *ckks.Encoder
-	evaluator    *ckks.Evaluator
+	encoder      ckks.Encoder
+	evaluator    ckks.Evaluator
 
-	encryptorPk0 *ckks.Encryptor
-	decryptorSk0 *ckks.Decryptor
-	decryptorSk1 *ckks.Decryptor
+	encryptorPk0 ckks.Encryptor
+	decryptorSk0 ckks.Decryptor
+	decryptorSk1 ckks.Decryptor
 
 	pk0 *ckks.PublicKey
 	pk1 *ckks.PublicKey
@@ -100,8 +101,8 @@ func gendckksTestContext(contextParameters *ckks.Parameters) (params *dckksTestC
 	tmp1 := params.dckksContext.contextQP.NewPoly()
 
 	for j := uint64(0); j < testParams.parties; j++ {
-		params.sk0Shards[j] = kgen.NewSecretKey()
-		params.sk1Shards[j] = kgen.NewSecretKey()
+		params.sk0Shards[j] = kgen.GenSecretKey()
+		params.sk1Shards[j] = kgen.GenSecretKey()
 		params.dckksContext.contextQP.Add(tmp0, params.sk0Shards[j].Get(), tmp0)
 		params.dckksContext.contextQP.Add(tmp1, params.sk1Shards[j].Get(), tmp1)
 	}
@@ -113,8 +114,8 @@ func gendckksTestContext(contextParameters *ckks.Parameters) (params *dckksTestC
 	params.sk1.Set(tmp1)
 
 	// Publickeys
-	params.pk0 = kgen.NewPublicKey(params.sk0)
-	params.pk1 = kgen.NewPublicKey(params.sk1)
+	params.pk0 = kgen.GenPublicKey(params.sk0)
+	params.pk1 = kgen.GenPublicKey(params.sk1)
 
 	params.encryptorPk0 = ckks.NewEncryptorFromPk(contextParameters, params.pk0)
 
@@ -660,7 +661,7 @@ func testRefresh(t *testing.T) {
 	}
 }
 
-func newTestVectors(contextParams *dckksTestContext, encryptor *ckks.Encryptor, a float64, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
+func newTestVectors(contextParams *dckksTestContext, encryptor ckks.Encryptor, a float64, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
 
 	slots := uint64(1 << contextParams.params.LogSlots)
 
@@ -681,7 +682,7 @@ func newTestVectors(contextParams *dckksTestContext, encryptor *ckks.Encryptor, 
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(contextParams *dckksTestContext, decryptor *ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(contextParams *dckksTestContext, decryptor ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128

@@ -15,7 +15,7 @@ const MaxLogN = 16
 // MaxModuliCount is the largest supported number of moduli in the RNS representation.
 const MaxModuliCount = 34
 
-// MaxModuliSize is the largest bitlength supported for the moduli in teh RNS representation.
+// MaxModuliSize is the largest bit-length supported for the moduli in the RNS representation.
 const MaxModuliSize = 60
 
 func init() {
@@ -24,7 +24,7 @@ func init() {
 	}
 }
 
-// Plaintext modulus allowing batching for the corresponding N in ascending bitsize.
+// Plaintext moduli allowing batching for the corresponding N in ascending bit-size.
 var tBatching = map[uint64][]uint64{
 	4096: {40961, 114689, 188417, 417793, 1032193, 2056193, 4169729, 8380417, 16760833, 33538049, 67084289, 134176769,
 		268369921, 536813569, 1073692673, 2147377153, 4294828033},
@@ -109,7 +109,7 @@ func (m *Moduli) Copy() Moduli {
 	return Moduli{Qi, Pi, QiMul}
 }
 
-// LogModuli stores the bitlength of the NTT primes of the RNS representation.
+// LogModuli stores the bit-length of the NTT primes of the RNS representation.
 type LogModuli struct {
 	LogQi    []uint64 // Ciphertext prime moduli bit-size
 	LogPi    []uint64 // Keys additional prime moduli bit-size
@@ -137,7 +137,7 @@ type Parameters struct {
 	LogModuli
 	LogN  uint64  // Ring degree (power of 2)
 	T     uint64  // Plaintext modulus
-	Sigma float64 // Gaussian sampling variance
+	Sigma float64 // Gaussian sampling standard deviation
 
 	logQP uint64
 	alpha uint64
@@ -146,11 +146,11 @@ type Parameters struct {
 	isValid bool
 }
 
-// NewParametersFromModuli generates a new set or bfv parameters from the input parameters.
+// NewParametersFromModuli generates a new set or BFV parameters from the input parameters.
 func NewParametersFromModuli(LogN, T uint64, moduli Moduli, sigma float64) (params *Parameters) {
 
 	if LogN > MaxLogN {
-		panic(fmt.Errorf("LogN is larger than %d", MaxLogN))
+		panic(fmt.Errorf("cannot NewParametersFromModuli: LogN is larger than %d", MaxLogN))
 	}
 
 	params = new(Parameters)
@@ -162,11 +162,11 @@ func NewParametersFromModuli(LogN, T uint64, moduli Moduli, sigma float64) (para
 	return
 }
 
-// NewParametersFromLogModuli generates a new set or bfv parameters from the input parameters.
+// NewParametersFromLogModuli generates a new set or BFV parameters from the input parameters.
 func NewParametersFromLogModuli(LogN, T uint64, logModuli LogModuli, sigma float64) (params *Parameters) {
 
 	if LogN > MaxLogN {
-		panic(fmt.Errorf("LogN is larger than %d", MaxLogN))
+		panic(fmt.Errorf("cannot NewParametersFromLogModuli: LogN is larger than %d", MaxLogN))
 	}
 
 	params = new(Parameters)
@@ -188,17 +188,17 @@ func (p *Parameters) Beta() uint64 {
 	return p.beta
 }
 
-// LogQP returns the bitlength of prod(Qi) * prod(Pi)
+// LogQP returns the bit-length of prod(Qi) * prod(Pi)
 func (p *Parameters) LogQP() uint64 {
 	return p.logQP
 }
 
-// IsValid returns a true if the parameters are complete and valid, else false.
+// IsValid returns a true if the parameters are complete and valid, and false otherwise.
 func (p *Parameters) IsValid() bool {
 	return p.isValid
 }
 
-// NewPolyQ returns a new empty polynmial of degree 2^LogN in basis Qi.
+// NewPolyQ returns a new empty polynomial of degree 2^LogN in basis Qi.
 func (p *Parameters) NewPolyQ() *ring.Poly {
 	return ring.NewPoly(1<<p.LogN, uint64(len(p.Qi)))
 }
@@ -213,7 +213,7 @@ func (p *Parameters) NewPolyQP() *ring.Poly {
 	return ring.NewPoly(1<<p.LogN, uint64(len(p.Qi)+len(p.Pi)))
 }
 
-// Copy creates a copy of the target parameters.
+// Copy creates a copy of the target Parameters.
 func (p *Parameters) Copy() (paramsCopy *Parameters) {
 
 	paramsCopy = new(Parameters)
@@ -230,7 +230,7 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 	return
 }
 
-// Equals compares two sets of parameters for equality
+// Equals compares two sets of parameters for equality.
 func (p *Parameters) Equals(other *Parameters) (res bool) {
 
 	if p == other {
@@ -259,14 +259,14 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 	return
 }
 
-// MarshalBinary returns a []byte representation of the parameter set
+// MarshalBinary returns a []byte representation of the parameter set.
 func (p *Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
 
 	if !p.IsValid() {
-		return nil, errors.New("cannot marshal -> parameters not generated or invalids")
+		return nil, errors.New("cannot MarshalBinary: parameters not generated or invalid")
 	}
 
 	b := utils.NewBuffer(make([]byte, 0, 20+(len(p.LogQi)+len(p.LogPi)+len(p.LogQiMul))<<3))
@@ -284,7 +284,7 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// UnmarshalBinary decodes a []byte into a parameter set struct
+// UnmarshalBinary decodes a []byte into a parameter set struct.
 func (p *Parameters) UnmarshalBinary(data []byte) error {
 	if len(data) < 3 {
 		return errors.New("invalid parameters encoding")
@@ -320,6 +320,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// GenFromModuli generates a set of parameters from the moduli chain.
 func (p *Parameters) GenFromModuli() {
 
 	if err := p.checkModuli(); err != nil {
@@ -359,6 +360,7 @@ func (p *Parameters) GenFromModuli() {
 	p.isValid = true
 }
 
+// GenFromLogModuli generates a set of parameters, including the actual moduli, from the target bit-sizes of the moduli chain.
 func (p *Parameters) GenFromLogModuli() {
 
 	if err := p.checkLogModuli(); err != nil {
@@ -386,13 +388,13 @@ func (p *Parameters) checkModuli() error {
 
 	for i, qi := range p.Qi {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize {
-			return fmt.Errorf("Qi bitsize n°%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("Qi bit-size for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, pi := range p.Pi {
 		if uint64(bits.Len64(pi)-1) > MaxModuliSize {
-			return fmt.Errorf("Pi bitsize n°%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("Pi bit-size for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
@@ -441,19 +443,19 @@ func (p *Parameters) checkLogModuli() error {
 
 	for i, qi := range p.LogQi {
 		if qi > MaxModuliSize {
-			return fmt.Errorf("LogQi n°%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("LogQi for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, pi := range p.LogPi {
 		if pi > MaxModuliSize {
-			return fmt.Errorf("LogPi n°%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("LogPi for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, qi := range p.LogQiMul {
 		if qi > MaxModuliSize {
-			return fmt.Errorf("LogQiMul n°%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("LogQiMul for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 

@@ -43,8 +43,7 @@ See CHANGELOG.md for the current and past versions.
 ### Upcoming features
 
 - Bootstrapping for CKKS.
-- Modulable CRT decomposition for the key-switching keys.
-- Examples for the distributed schemes.
+- README for distributed schemes
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
 
@@ -65,14 +64,13 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo 1.1.0},
+	    title = {Lattigo 1.3.0},
 	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
-	    month = oct,
+	    month = dec,
 	    year = 2019,
 	    note = {EPFL-LDS}
     }
     
-
 
 ## References
 
@@ -87,3 +85,5 @@ Please use the following BibTex entry for citing Lattigo:
 1. Faster arithmetic for number-theoretic transforms (<https://arxiv.org/abs/1205.2926>)
 1. Speeding up the Number Theoretic Transform for Faster Ideal Lattice-Based Cryptography (<https://eprint.iacr.org/2016/504>)
 1. Gaussian sampling in lattice-based cryptography (<https://tel.archives-ouvertes.fr/tel-01245066v2>)
+
+The Lattigo logo is a lattice-based version of the original Golang mascot by [Renee French](http://reneefrench.blogspot.com/).

@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
 	"math"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/ring"
 )
 
 func obliviousRiding() {
@@ -57,7 +58,7 @@ func obliviousRiding() {
 	// Rider's keygen
 	kgen := bfv.NewKeyGenerator(params)
 
-	riderSk, riderPk := kgen.NewKeyPair()
+	riderSk, riderPk := kgen.GenKeyPair()
 
 	decryptor := bfv.NewDecryptor(params, riderSk)
 

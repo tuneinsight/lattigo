@@ -5,11 +5,12 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// GaloisGen is ... [FIXME]
+// GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1. The j-th ring automorphism takes the root zeta to zeta^(5j).
+// Any other integer or order N/2 modulo M and congruent with 1 modulo 4 could be used instead.
 const GaloisGen uint64 = 5
 
-// bfvContext is a struct which contains all the elements required to instantiate the BFV Scheme. This includes the parameters (N, plaintext modulus, ciphertext modulus,
-// sampling, polynomial contexts and other parameters required for the homomorphic operations).
+// bfvContext is a struct which contains all the elements required to instantiate the BFV Scheme. This includes the parameters (polynomial degree, plaintext modulus, ciphertext modulus,
+// Gaussian sampler, polynomial contexts and other parameters required for the homomorphic operations).
 type bfvContext struct {
 	params *Parameters
 
@@ -33,7 +34,7 @@ type bfvContext struct {
 func newBFVContext(params *Parameters) (context *bfvContext) {
 
 	if !params.isValid {
-		panic("cannot newBFVContext : params not valid (check if they where generated properly)")
+		panic("cannot newBFVContext: params not valid (check if they were generated properly)")
 	}
 
 	context = new(bfvContext)

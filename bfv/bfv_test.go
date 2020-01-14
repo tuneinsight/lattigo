@@ -2,12 +2,13 @@ package bfv
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(t *testing.T, err error) {
@@ -24,14 +25,14 @@ func testString(opname string, params *Parameters) string {
 type bfvParams struct {
 	params      *Parameters
 	bfvContext  *bfvContext
-	encoder     *Encoder
-	kgen        *KeyGenerator
+	encoder     Encoder
+	kgen        KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
-	encryptorPk *Encryptor
-	encryptorSk *Encryptor
-	decryptor   *Decryptor
-	evaluator   *Evaluator
+	encryptorPk Encryptor
+	encryptorSk Encryptor
+	decryptor   Decryptor
+	evaluator   Evaluator
 }
 
 type bfvTestParameters struct {
@@ -79,13 +80,13 @@ func testMarshaller(t *testing.T) {
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)
 
-			ciphertextTest := newBfvElement(params.params, 1).Ciphertext()
+			ciphertextTest := new(Ciphertext)
 			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 			check(t, err)
 
 			for i := range ciphertextWant.value {
 				if !params.bfvContext.contextQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]) {
-					t.Errorf("Marshal Ciphertext")
+					t.Errorf("marshal Ciphertext")
 				}
 			}
 		})
@@ -100,7 +101,7 @@ func testMarshaller(t *testing.T) {
 			check(t, err)
 
 			if !contextQP.Equal(sk.sk, params.sk.sk) {
-				t.Errorf("Marshal SecretKey")
+				t.Errorf("marshal SecretKey")
 			}
 
 		})
@@ -116,14 +117,14 @@ func testMarshaller(t *testing.T) {
 
 			for k := range params.pk.pk {
 				if !contextQP.Equal(pk.pk[k], params.pk.pk[k]) {
-					t.Errorf("Marshal PublicKey element [%d]", k)
+					t.Errorf("marshal PublicKey element [%d]", k)
 				}
 			}
 		})
 
 		t.Run(testString("EvaluationKey/", parameters), func(t *testing.T) {
 
-			evalkey := params.kgen.NewRelinKey(params.sk, 2)
+			evalkey := params.kgen.GenRelinKey(params.sk, 2)
 			data, err := evalkey.MarshalBinary()
 			check(t, err)
 
@@ -140,7 +141,7 @@ func testMarshaller(t *testing.T) {
 
 					for k := range evakeyWant[j] {
 						if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-							t.Errorf("Marshal EvaluationKey deg %d element [%d][%d]", deg, j, k)
+							t.Errorf("marshal EvaluationKey deg %d element [%d][%d]", deg, j, k)
 						}
 					}
 				}
@@ -149,9 +150,9 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("SwitchingKey/", parameters), func(t *testing.T) {
 
-			skOut := params.kgen.NewSecretKey()
+			skOut := params.kgen.GenSecretKey()
 
-			switchingKey := params.kgen.NewSwitchingKey(params.sk, skOut)
+			switchingKey := params.kgen.GenSwitchingKey(params.sk, skOut)
 			data, err := switchingKey.MarshalBinary()
 			check(t, err)
 
@@ -166,7 +167,7 @@ func testMarshaller(t *testing.T) {
 
 				for k := range evakeyWant[j] {
 					if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-						t.Errorf("Marshal Switchkey element [%d][%d]", j, k)
+						t.Errorf("marshal SwitchingKey element [%d][%d]", j, k)
 					}
 				}
 			}
@@ -200,7 +201,7 @@ func testMarshaller(t *testing.T) {
 
 						for k := range evakeyWant[j] {
 							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-								t.Errorf("Marshal RotKey RotateLeft %d element [%d][%d]", i, j, k)
+								t.Errorf("marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
 							}
 						}
 					}
@@ -215,7 +216,7 @@ func testMarshaller(t *testing.T) {
 
 						for k := range evakeyWant[j] {
 							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-								t.Errorf("Marshal RotKey RotateRight %d element [%d][%d]", i, j, k)
+								t.Errorf("marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
 							}
 						}
 					}
@@ -231,7 +232,7 @@ func testMarshaller(t *testing.T) {
 
 					for k := range evakeyWant[j] {
 						if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-							t.Errorf("Marshal RotKey RotateRow element [%d][%d]", j, k)
+							t.Errorf("marshal RotationKey RotateRow element [%d][%d]", j, k)
 						}
 					}
 				}
@@ -250,7 +251,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 	params.kgen = NewKeyGenerator(contextParameters)
 
-	params.sk, params.pk = params.kgen.NewKeyPair()
+	params.sk, params.pk = params.kgen.GenKeyPair()
 
 	params.encoder = NewEncoder(contextParameters)
 
@@ -264,7 +265,7 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 }
 
-func newTestVectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectors(params *bfvParams, encryptor Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	coeffs = params.bfvContext.contextT.NewUniformPoly()
 
@@ -279,7 +280,7 @@ func newTestVectors(params *bfvParams, encryptor *Encryptor, t *testing.T) (coef
 	return coeffs, plaintext, ciphertext
 }
 
-func verifyTestVectors(params *bfvParams, decryptor *Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
+func verifyTestVectors(params *bfvParams, decryptor Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
 
 	var coeffsTest []uint64
 
@@ -433,7 +434,7 @@ func testEvaluatorMul(t *testing.T) {
 
 		params := genBfvParams(parameters)
 
-		rlk := params.kgen.NewRelinKey(params.sk, 1)
+		rlk := params.kgen.GenRelinKey(params.sk, 1)
 
 		t.Run(testString("CtCt/", parameters), func(t *testing.T) {
 
@@ -482,9 +483,9 @@ func testKeySwitch(t *testing.T) {
 
 		params := genBfvParams(parameters)
 
-		sk2 := params.kgen.NewSecretKey()
+		sk2 := params.kgen.GenSecretKey()
 		decryptorSk2 := NewDecryptor(parameters, sk2)
-		switchKey := params.kgen.NewSwitchingKey(params.sk, sk2)
+		switchKey := params.kgen.GenSwitchingKey(params.sk, sk2)
 
 		t.Run(testString("InPlace/", parameters), func(t *testing.T) {
 
@@ -544,7 +545,7 @@ func testRotateCols(t *testing.T) {
 
 		params := genBfvParams(parameters)
 
-		rotkey := params.kgen.NewRotationKeysPow2(params.sk)
+		rotkey := params.kgen.GenRotationKeysPow2(params.sk)
 
 		valuesWant := params.bfvContext.contextT.NewPoly()
 		mask := (params.bfvContext.n >> 1) - 1

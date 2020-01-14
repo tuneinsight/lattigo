@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math"
 	"math/cmplx"
@@ -10,6 +9,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(t *testing.T, err error) {
@@ -32,14 +33,14 @@ func testString(opname string, params *Parameters) string {
 type ckksParams struct {
 	params      *Parameters
 	ckkscontext *Context
-	encoder     *Encoder
-	kgen        *KeyGenerator
+	encoder     Encoder
+	kgen        KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
-	encryptorPk *Encryptor
-	encryptorSk *Encryptor
-	decryptor   *Decryptor
-	evaluator   *Evaluator
+	encryptorPk Encryptor
+	encryptorSk Encryptor
+	decryptor   Decryptor
+	evaluator   Evaluator
 }
 
 type ckksTestParameters struct {
@@ -92,7 +93,7 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 	params.kgen = NewKeyGenerator(contextParameters)
 
-	params.sk, params.pk = params.kgen.NewKeyPairSparse(128)
+	params.sk, params.pk = params.kgen.GenKeyPairSparse(128)
 
 	params.encoder = NewEncoder(contextParameters)
 
@@ -106,7 +107,7 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 }
 
-func newTestVectors(contextParams *ckksParams, encryptor *Encryptor, a float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectors(contextParams *ckksParams, encryptor Encryptor, a float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	slots := uint64(1 << contextParams.params.LogSlots)
 
@@ -129,7 +130,7 @@ func newTestVectors(contextParams *ckksParams, encryptor *Encryptor, a float64, 
 	return values, plaintext, ciphertext
 }
 
-func newTestVectorsReals(contextParams *ckksParams, encryptor *Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectorsReals(contextParams *ckksParams, encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	slots := uint64(1 << contextParams.params.LogSlots)
 
@@ -152,7 +153,7 @@ func newTestVectorsReals(contextParams *ckksParams, encryptor *Encryptor, a, b f
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(contextParams *ckksParams, decryptor *Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	var plaintextTest *Plaintext
 	var valuesTest []complex128
@@ -224,7 +225,7 @@ func verifyTestVectors(contextParams *ckksParams, decryptor *Decryptor, valuesWa
 	}
 
 	if math.Log2(1/real(medianprec)) < testParams.medianprec || math.Log2(1/imag(medianprec)) < testParams.medianprec {
-		t.Errorf("Mean precision error : target (%.2f, %.2f) > result (%.2f, %.2f)", testParams.medianprec, testParams.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
+		t.Errorf("Mean precision error: target (%.2f, %.2f) > result (%.2f, %.2f)", testParams.medianprec, testParams.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
 	}
 }
 
@@ -631,7 +632,7 @@ func testEvaluatorMul(t *testing.T) {
 
 		t.Run(testString("Relinearize/", parameters), func(t *testing.T) {
 
-			rlk := params.kgen.NewRelinKey(params.sk)
+			rlk := params.kgen.GenRelinKey(params.sk)
 
 			values1, _, ciphertext1 := newTestVectors(params, params.encryptorSk, 1, t)
 			values2, _, ciphertext2 := newTestVectors(params, params.encryptorSk, 1, t)
@@ -659,7 +660,7 @@ func testFunctions(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		rlk := params.kgen.NewRelinKey(params.sk)
+		rlk := params.kgen.GenRelinKey(params.sk)
 
 		t.Run(testString("PowerOf2/", parameters), func(t *testing.T) {
 
@@ -723,7 +724,7 @@ func testEvaluatePoly(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		rlk := params.kgen.NewRelinKey(params.sk)
+		rlk := params.kgen.GenRelinKey(params.sk)
 
 		if parameters.MaxLevel() > 4 {
 
@@ -769,7 +770,7 @@ func testChebyshevInterpolator(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		rlk := params.kgen.NewRelinKey(params.sk)
+		rlk := params.kgen.GenRelinKey(params.sk)
 
 		if parameters.MaxLevel() > 5 {
 
@@ -867,9 +868,9 @@ func testSwitchKeys(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		sk2 := params.kgen.NewSecretKey()
+		sk2 := params.kgen.GenSecretKey()
 		decryptorSk2 := NewDecryptor(parameters, sk2)
-		switchingKey := params.kgen.NewSwitchingKey(params.sk, sk2)
+		switchingKey := params.kgen.GenSwitchingKey(params.sk, sk2)
 
 		t.Run(testString("InPlace/", parameters), func(t *testing.T) {
 
@@ -934,7 +935,7 @@ func testRotateColumns(t *testing.T) {
 
 		params := genCkksParams(parameters)
 
-		rotKey := params.kgen.NewRotationKeysPow2(params.sk)
+		rotKey := params.kgen.GenRotationKeysPow2(params.sk)
 
 		t.Run(testString("InPlace/", parameters), func(t *testing.T) {
 
@@ -1018,20 +1019,20 @@ func testMarshaller(t *testing.T) {
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)
 
-			ciphertextTest := NewCkksElement().Ciphertext()
+			ciphertextTest := new(Ciphertext)
 			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 			check(t, err)
 
 			if ciphertextWant.Degree() != ciphertextTest.Degree() {
-				t.Errorf("Marshal Cipehrtext Degree")
+				t.Errorf("Marshal Ciphertext Degree")
 			}
 
 			if ciphertextWant.Level() != ciphertextTest.Level() {
-				t.Errorf("Marshal Cipehrtext Level")
+				t.Errorf("Marshal Ciphertext Level")
 			}
 
 			if ciphertextWant.Scale() != ciphertextTest.Scale() {
-				t.Errorf("Marshal Cipehrtext Scale")
+				t.Errorf("Marshal Ciphertext Scale")
 			}
 
 			for i := range ciphertextWant.value {
@@ -1074,7 +1075,7 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("EvaluationKey", parameters), func(t *testing.T) {
 
-			evalKey := params.kgen.NewRelinKey(params.sk)
+			evalKey := params.kgen.GenRelinKey(params.sk)
 			data, err := evalKey.MarshalBinary()
 			check(t, err)
 
@@ -1097,9 +1098,9 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("SwitchingKey", parameters), func(t *testing.T) {
 
-			skOut := params.kgen.NewSecretKey()
+			skOut := params.kgen.GenSecretKey()
 
-			switchingKey := params.kgen.NewSwitchingKey(params.sk, skOut)
+			switchingKey := params.kgen.GenSwitchingKey(params.sk, skOut)
 			data, err := switchingKey.MarshalBinary()
 			check(t, err)
 
@@ -1114,7 +1115,7 @@ func testMarshaller(t *testing.T) {
 
 				for k := range evakeyWant[j] {
 					if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-						t.Errorf("Marshal Switchkey element [%d][%d]", j, k)
+						t.Errorf("Marshal Switchingkey element [%d][%d]", j, k)
 					}
 				}
 			}
@@ -1148,14 +1149,14 @@ func testMarshaller(t *testing.T) {
 					evakeyNTTIndexTest := resRotationKey.permuteNTTLeftIndex[i]
 
 					if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
-						t.Errorf("Marshal RotKey RotateLeft PermuteNTTIndex")
+						t.Errorf("Marshal RotationKey RotateLeft PermuteNTTIndex")
 					}
 
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
 							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-								t.Errorf("Marshal RotKey RotateLeft %d element [%d][%d]", i, j, k)
+								t.Errorf("Marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
 							}
 						}
 					}
@@ -1170,14 +1171,14 @@ func testMarshaller(t *testing.T) {
 					evakeyNTTIndexTest := resRotationKey.permuteNTTRightIndex[i]
 
 					if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
-						t.Errorf("Marshal RotKey RotateRight PermuteNTTIndex")
+						t.Errorf("Marshal RotationKey RotateRight PermuteNTTIndex")
 					}
 
 					for j := range evakeyWant {
 
 						for k := range evakeyWant[j] {
 							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-								t.Errorf("Marshal RotKey RotateRight %d element [%d][%d]", i, j, k)
+								t.Errorf("Marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
 							}
 						}
 					}
@@ -1193,14 +1194,14 @@ func testMarshaller(t *testing.T) {
 				evakeyNTTIndexTest := resRotationKey.permuteNTTConjugateIndex
 
 				if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
-					t.Errorf("Marshal RotKey Conjugate PermuteNTTIndex")
+					t.Errorf("Marshal RotationKey Conjugate PermuteNTTIndex")
 				}
 
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
 						if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-							t.Errorf("Marshal RotKey RotateRow element [%d][%d]", j, k)
+							t.Errorf("Marshal RotationKey RotateRow element [%d][%d]", j, k)
 						}
 					}
 				}

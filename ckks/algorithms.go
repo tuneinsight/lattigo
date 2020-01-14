@@ -4,52 +4,52 @@ import (
 	"math/bits"
 )
 
-// PowerOf2 compute ct0^(2^logPow2), consuming logPow2 levels, and returns the result on ct1. Providing an evaluation
+// PowerOf2 computes op^(2^logPow2), consuming logPow2 levels, and returns the result on opOut. Providing an evaluation
 // key is necessary when logPow2 > 1.
-func (evaluator *Evaluator) PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *EvaluationKey, elOut *Ciphertext) {
+func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 uint64, evakey *EvaluationKey, opOut *Ciphertext) {
 
 	if logPow2 == 0 {
 
-		if el0 != elOut {
+		if op != opOut {
 
-			elOut.Copy(el0.Element())
+			opOut.Copy(op.Element())
 		}
 
 	} else {
 
-		evaluator.MulRelin(el0.Element(), el0.Element(), evakey, elOut)
+		eval.MulRelin(op.Element(), op.Element(), evakey, opOut)
 
-		evaluator.Rescale(elOut, evaluator.ckksContext.scale, elOut)
+		eval.Rescale(opOut, eval.ckksContext.scale, opOut)
 
 		for i := uint64(1); i < logPow2; i++ {
 
-			evaluator.MulRelin(elOut.Element(), elOut.Element(), evakey, elOut)
+			eval.MulRelin(opOut.Element(), opOut.Element(), evakey, opOut)
 
-			evaluator.Rescale(elOut, evaluator.ckksContext.scale, elOut)
+			eval.Rescale(opOut, eval.ckksContext.scale, opOut)
 		}
 	}
 }
 
-// PowerNew compute ct0^degree, consuming log(degree) levels, and returns the result on a new element. Providing an evaluation
+// PowerNew computes op^degree, consuming log(degree) levels, and returns the result on a new element. Providing an evaluation
 // key is necessary when degree > 2.
-func (evaluator *Evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext) {
-	opOut = NewCiphertext(evaluator.params, 1, op.Level(), op.Scale())
-	evaluator.Power(op, degree, evakey, opOut)
+func (eval *evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext) {
+	opOut = NewCiphertext(eval.params, 1, op.Level(), op.Scale())
+	eval.Power(op, degree, evakey, opOut)
 	return
 }
 
-// Power compute ct0^degree, consuming log(degree) levels, and returns the result on res. Providing an evaluation
+// Power computes op^degree, consuming log(degree) levels, and returns the result on opOut. Providing an evaluation
 // key is necessary when degree > 2.
-func (evaluator *Evaluator) Power(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey, res *Ciphertext) {
+func (eval *evaluator) Power(op *Ciphertext, degree uint64, evakey *EvaluationKey, opOut *Ciphertext) {
 
-	tmpct0 := ct0.CopyNew()
+	tmpct0 := op.CopyNew()
 
 	var logDegree, po2Degree uint64
 
 	logDegree = uint64(bits.Len64(degree)) - 1
 	po2Degree = 1 << logDegree
 
-	evaluator.PowerOf2(tmpct0.Ciphertext(), logDegree, evakey, res)
+	eval.PowerOf2(tmpct0.Ciphertext(), logDegree, evakey, opOut)
 
 	degree -= po2Degree
 
@@ -58,43 +58,43 @@ func (evaluator *Evaluator) Power(ct0 *Ciphertext, degree uint64, evakey *Evalua
 		logDegree = uint64(bits.Len64(degree)) - 1
 		po2Degree = 1 << logDegree
 
-		tmp := NewCiphertext(evaluator.params, 1, tmpct0.Level(), tmpct0.Scale())
+		tmp := NewCiphertext(eval.params, 1, tmpct0.Level(), tmpct0.Scale())
 
-		evaluator.PowerOf2(tmpct0.Ciphertext(), logDegree, evakey, tmp)
+		eval.PowerOf2(tmpct0.Ciphertext(), logDegree, evakey, tmp)
 
-		evaluator.MulRelin(res.Element(), tmp.Element(), evakey, res)
+		eval.MulRelin(opOut.Element(), tmp.Element(), evakey, opOut)
 
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		eval.Rescale(opOut, eval.ckksContext.scale, opOut)
 
 		degree -= po2Degree
 	}
 }
 
-// InverseNew computes 1/ct0 and returns the result on a new element, iterating for n steps and consuming n levels. The algorithm requires the encrypted values to be in the range
-// [-1.5 - 1.5i, 1.5 + 1.5i]  or the result will be  wrong. Each iteration increases the precision.
-func (evaluator *Evaluator) InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext) {
+// InverseNew computes 1/op and returns the result on a new element, iterating for n steps and consuming n levels. The algorithm requires the encrypted values to be in the range
+// [-1.5 - 1.5i, 1.5 + 1.5i] or the result will be wrong. Each iteration increases the precision.
+func (eval *evaluator) InverseNew(op *Ciphertext, steps uint64, evakey *EvaluationKey) (opOut *Ciphertext) {
 
-	cbar := evaluator.NegNew(ct0)
+	cbar := eval.NegNew(op)
 
-	evaluator.AddConst(cbar, 1, cbar)
+	eval.AddConst(cbar, 1, cbar)
 
-	tmp := evaluator.AddConstNew(cbar, 1)
-	res = tmp.CopyNew().Ciphertext()
+	tmp := eval.AddConstNew(cbar, 1)
+	opOut = tmp.CopyNew().Ciphertext()
 
 	for i := uint64(1); i < steps; i++ {
 
-		evaluator.MulRelin(cbar.Element(), cbar.Element(), evakey, cbar.Ciphertext())
+		eval.MulRelin(cbar.Element(), cbar.Element(), evakey, cbar.Ciphertext())
 
-		evaluator.Rescale(cbar, evaluator.ckksContext.scale, cbar)
+		eval.Rescale(cbar, eval.ckksContext.scale, cbar)
 
-		tmp = evaluator.AddConstNew(cbar, 1)
+		tmp = eval.AddConstNew(cbar, 1)
 
-		evaluator.MulRelin(tmp.Element(), res.Element(), evakey, tmp.Ciphertext())
+		eval.MulRelin(tmp.Element(), opOut.Element(), evakey, tmp.Ciphertext())
 
-		evaluator.Rescale(tmp, evaluator.ckksContext.scale, tmp)
+		eval.Rescale(tmp, eval.ckksContext.scale, tmp)
 
-		res = tmp.CopyNew().Ciphertext()
+		opOut = tmp.CopyNew().Ciphertext()
 	}
 
-	return res
+	return opOut
 }

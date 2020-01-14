@@ -146,7 +146,7 @@ func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 	return
 }
 
-// GenModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
+// GenModuli generates the appropriate primes from the parameters using generateCKKSPrimes, such that all the primes are different.
 func GenModuli(params *Parameters) (Q []uint64, P []uint64) {
 
 	// Extracts all the different primes bit size and maps their number
@@ -156,7 +156,7 @@ func GenModuli(params *Parameters) (Q []uint64, P []uint64) {
 		primesbitlen[qi]++
 
 		if qi > 60 {
-			panic("provided LogQi must be smaller than 61")
+			panic("cannot GenModuli: the provided LogQi must be smaller than 61")
 		}
 	}
 
@@ -165,11 +165,11 @@ func GenModuli(params *Parameters) (Q []uint64, P []uint64) {
 		primesbitlen[pj]++
 
 		if pj > 60 {
-			panic("provided LogPi must be smaller than 61")
+			panic("cannot GenModuli: the provided LogPi must be smaller than 61")
 		}
 	}
 
-	// For each bitsize, finds that many primes
+	// For each bit-size, finds that many primes
 	primes := make(map[uint64][]uint64)
 	for key, value := range primesbitlen {
 		primes[key] = ring.GenerateNTTPrimes(key, params.LogN, value)
@@ -182,7 +182,7 @@ func GenModuli(params *Parameters) (Q []uint64, P []uint64) {
 		primes[qi] = primes[qi][1:]
 	}
 
-	// Assigns the primes to the special primes list for the the keyscontext
+	// Assigns the primes to the special primes list for the keys context
 	P = make([]uint64, len(params.LogPi))
 	for i, pj := range params.LogPi {
 		P[i] = primes[pj][0]

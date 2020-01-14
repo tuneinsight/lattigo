@@ -2,12 +2,13 @@ package dbfv
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/big"
 	"testing"
+
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(t *testing.T, err error) {
@@ -25,7 +26,7 @@ type dbfvTestContext struct {
 
 	params *bfv.Parameters
 
-	encoder *bfv.Encoder
+	encoder bfv.Encoder
 	kgen    *bfv.KeyGenerator
 
 	sk0Shards []*bfv.SecretKey
@@ -37,10 +38,10 @@ type dbfvTestContext struct {
 	pk0 *bfv.PublicKey
 	pk1 *bfv.PublicKey
 
-	encryptorPk0 *bfv.Encryptor
-	decryptorSk0 *bfv.Decryptor
-	decryptorSk1 *bfv.Decryptor
-	evaluator    *bfv.Evaluator
+	encryptorPk0 bfv.Encryptor
+	decryptorSk0 bfv.Decryptor
+	decryptorSk1 bfv.Decryptor
+	evaluator    bfv.Evaluator
 }
 
 type dbfvTestParameters struct {
@@ -89,8 +90,8 @@ func genDBFVTestContext(params *bfv.Parameters) (testCtx *dbfvTestContext) {
 	tmp1 := testCtx.contextQP.NewPoly()
 
 	for j := uint64(0); j < testParams.parties; j++ {
-		testCtx.sk0Shards[j] = kgen.NewSecretKey()
-		testCtx.sk1Shards[j] = kgen.NewSecretKey()
+		testCtx.sk0Shards[j] = kgen.GenSecretKey()
+		testCtx.sk1Shards[j] = kgen.GenSecretKey()
 		testCtx.contextQP.Add(tmp0, testCtx.sk0Shards[j].Get(), tmp0)
 		testCtx.contextQP.Add(tmp1, testCtx.sk1Shards[j].Get(), tmp1)
 	}
@@ -102,8 +103,8 @@ func genDBFVTestContext(params *bfv.Parameters) (testCtx *dbfvTestContext) {
 	testCtx.sk1.Set(tmp1)
 
 	// Publickeys
-	testCtx.pk0 = kgen.NewPublicKey(testCtx.sk0)
-	testCtx.pk1 = kgen.NewPublicKey(testCtx.sk1)
+	testCtx.pk0 = kgen.GenPublicKey(testCtx.sk0)
+	testCtx.pk1 = kgen.GenPublicKey(testCtx.sk1)
 
 	testCtx.encryptorPk0 = bfv.NewEncryptorFromPk(params, testCtx.pk0)
 	testCtx.decryptorSk0 = bfv.NewDecryptor(params, testCtx.sk0)
@@ -578,7 +579,7 @@ func testRefresh(t *testing.T) {
 
 		kgen := bfv.NewKeyGenerator(parameters)
 
-		rlk := kgen.NewRelinKey(testCtx.sk0, 2)
+		rlk := kgen.GenRelinKey(testCtx.sk0, 2)
 
 		t.Run(fmt.Sprintf("N=%d/logQ=%d/Refresh", testCtx.n, testCtx.contextQP.ModulusBigint.BitLen()), func(t *testing.T) {
 
@@ -678,7 +679,7 @@ func testRefresh(t *testing.T) {
 	}
 }
 
-func newTestVectors(contextParams *dbfvTestContext, encryptor *bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
+func newTestVectors(contextParams *dbfvTestContext, encryptor bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
 	coeffsPol := contextParams.contextT.NewUniformPoly()
 	plaintext = bfv.NewPlaintext(contextParams.params)
 	contextParams.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
@@ -686,7 +687,7 @@ func newTestVectors(contextParams *dbfvTestContext, encryptor *bfv.Encryptor, t 
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 
-func verifyTestVectors(contextParams *dbfvTestContext, decryptor *bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
+func verifyTestVectors(contextParams *dbfvTestContext, decryptor bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
 	if utils.EqualSliceUint64(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
 		t.Errorf("decryption error")
 	}
@@ -699,7 +700,7 @@ func Test_Marshalling(t *testing.T) {
 	dbfvCtx := newDbfvContext(params)
 	KeyGenerator := bfv.NewKeyGenerator(params)
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, dbfvCtx.contextQP)
-	sk := KeyGenerator.NewSecretKey()
+	sk := KeyGenerator.GenSecretKey()
 	crs := crsGen.ClockNew()
 	contextQ := dbfvCtx.contextQ
 	contextPKeys := dbfvCtx.contextP
@@ -712,8 +713,6 @@ func Test_Marshalling(t *testing.T) {
 		keygenProtocol.GenShare(sk.Get(), crs, KeyGenShareBefore)
 		//now we marshall it
 		data, err := KeyGenShareBefore.MarshalBinary()
-
-		fmt.Println("CPK Data (kB) :", len(data)/1000)
 
 		if err != nil {
 			log.Fatal("Could not marshal the CKGShare : ", err)
@@ -747,11 +746,10 @@ func Test_Marshalling(t *testing.T) {
 
 		KeySwitchProtocol := NewPCKSProtocol(params, dbfvCtx.params.Sigma)
 		SwitchShare := KeySwitchProtocol.AllocateShares()
-		pk := KeyGenerator.NewPublicKey(sk)
+		pk := KeyGenerator.GenPublicKey(sk)
 		KeySwitchProtocol.GenShare(sk.Get(), pk, Ciphertext, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
-		fmt.Println("PCKS Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Print("Error on PCKSShare marshalling : ", err)
 			t.Fail()
@@ -786,12 +784,11 @@ func Test_Marshalling(t *testing.T) {
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(params, dbfvCtx.params.Sigma)
 		cksshare := cksp.AllocateShare()
-		skIn := KeyGenerator.NewSecretKey()
-		skOut := KeyGenerator.NewSecretKey()
+		skIn := KeyGenerator.GenSecretKey()
+		skOut := KeyGenerator.GenSecretKey()
 		cksp.GenShare(skIn.Get(), skOut.Get(), Ciphertext, cksshare)
 
 		data, err := cksshare.MarshalBinary()
-		fmt.Println("CKS Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Print("Error on marshalling CKSShare : ", err)
 			t.Fail()
@@ -827,7 +824,6 @@ func Test_Marshalling(t *testing.T) {
 		refreshproto.GenShares(sk.Get(), Ciphertext, crs, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
-		fmt.Println("Refresh Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Fatal("Could not marshal RefreshShare", err)
 		}
@@ -867,7 +863,6 @@ func Test_Marshalling(t *testing.T) {
 		rotProto.GenShare(1, 64, sk.Get(), crp, &rtgShare)
 
 		data, err := rtgShare.MarshalBinary()
-		fmt.Println("RTG Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Fatal("could not marshal RTGshare :", err)
 		}
@@ -923,13 +918,11 @@ func Test_Relin_Marshalling(t *testing.T) {
 
 		rlk := NewEkgProtocol(params)
 		u := rlk.NewEphemeralKey(1 / 3.0)
-		sk := bfv.NewKeyGenerator(params).NewSecretKey()
-		log.Print("Starting to test marshalling for share one")
+		sk := bfv.NewKeyGenerator(params).GenSecretKey()
 
 		r1, r2, r3 := rlk.AllocateShares()
 		rlk.GenShareRoundOne(u, sk.Get(), crp, r1)
 		data, err := r1.MarshalBinary()
-		fmt.Println("RKG R1 Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Print("Error in marshalling round 1 key : ", err)
 			t.Fail()
@@ -942,8 +935,6 @@ func Test_Relin_Marshalling(t *testing.T) {
 			t.Fail()
 		}
 
-		log.Print("Now comparing keys for round 1 ")
-
 		for i := 0; i < (len(r1)); i++ {
 			a := r1[i]
 			b := (*r1After)[i]
@@ -955,13 +946,9 @@ func Test_Relin_Marshalling(t *testing.T) {
 			}
 		}
 
-		log.Print("Sucess : relin key round 1 ok ")
-
-		log.Print("Starting to test marshalling for share two")
 		rlk.GenShareRoundTwo(r1, sk.Get(), crp, r2)
 
 		data, err = r2.MarshalBinary()
-		fmt.Println("RKG R2 Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Print("Error on marshalling relin key round 2 : ", err)
 			t.Fail()
@@ -973,8 +960,6 @@ func Test_Relin_Marshalling(t *testing.T) {
 			log.Print("Error on unmarshalling relin key round 2 : ", err)
 			t.Fail()
 		}
-
-		log.Print("Now comparing keys for round 2 ")
 
 		for i := 0; i < (len(r2)); i++ {
 			for idx := 0; idx < 2; idx++ {
@@ -990,14 +975,9 @@ func Test_Relin_Marshalling(t *testing.T) {
 
 		}
 
-		log.Print("Success : reling key round 2 ok ")
-
-		log.Print("Starting to test marshalling for share three")
-
 		rlk.GenShareRoundThree(r2, u, sk.Get(), r3)
 
 		data, err = r3.MarshalBinary()
-		fmt.Println("RKG R3 Data (kB) :", len(data)/1000)
 		if err != nil {
 			log.Print("Error in marshalling round 3 key : ", err)
 			t.Fail()
@@ -1010,8 +990,6 @@ func Test_Relin_Marshalling(t *testing.T) {
 			t.Fail()
 		}
 
-		log.Print("Now comparing keys for round 3 ")
-
 		for i := 0; i < (len(r3)); i++ {
 			a := r3[i]
 			b := (*r3After)[i]
@@ -1023,10 +1001,6 @@ func Test_Relin_Marshalling(t *testing.T) {
 			}
 
 		}
-
-		log.Print("Success : relin key for round 3 ok ")
-
-		log.Print("All marshalling is passed for relin keys")
 	})
 
 }

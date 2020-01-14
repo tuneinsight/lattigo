@@ -4,7 +4,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Plaintext is a BigPoly of degree 0.
+// Plaintext is a bfvElement with only one Poly.
 type Plaintext struct {
 	*bfvElement
 	value *ring.Poly
@@ -14,7 +14,7 @@ type Plaintext struct {
 func NewPlaintext(params *Parameters) *Plaintext {
 
 	if !params.isValid {
-		panic("cannot NewPlaintext : params not valid (check if they where generated properly)")
+		panic("cannot NewPlaintext: params not valid (check if they were generated properly)")
 	}
 
 	plaintext := &Plaintext{newBfvElement(params, 0), nil}

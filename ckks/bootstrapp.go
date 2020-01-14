@@ -14,7 +14,7 @@ type BootContext struct {
 	params      *Parameters
 	ckkscontext *Context
 
-	encoder *Encoder
+	encoder Encoder
 	slots   uint64
 	dslots  uint64
 
@@ -50,7 +50,7 @@ func cos2pi2pi(x complex128) complex128 {
 	return cmplx.Cos(6.283185307179586*(1.0/1.0)*x) * (1.0 / 1.7724538509055159)
 }
 
-func showcoeffs(decryptor *Decryptor, encoder *Encoder, slots uint64, ciphertext *Ciphertext, message string) (coeffs []complex128) {
+func showcoeffs(decryptor Decryptor, encoder Encoder, slots uint64, ciphertext *Ciphertext, message string) (coeffs []complex128) {
 
 	coeffs = encoder.Decode(decryptor.DecryptNew(ciphertext), slots)
 
@@ -170,7 +170,7 @@ func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64
 		kgen.GenRot(RotationLeft, sk, uint64(i), bootcontext.rotkeys)
 	}
 
-	bootcontext.relinkey = kgen.NewRelinKey(sk)
+	bootcontext.relinkey = kgen.GenRelinKey(sk)
 
 	bootcontext.ctxpool[0] = NewCiphertext(params, 1, params.MaxLevel(), 0)
 	bootcontext.ctxpool[1] = NewCiphertext(params, 1, params.MaxLevel(), 0)
@@ -180,7 +180,7 @@ func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64
 }
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel.
-func (evaluator *Evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext) *Ciphertext {
+func (evaluator *evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext) *Ciphertext {
 
 	var ct0, ct1 *Ciphertext
 
@@ -265,7 +265,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 	return ct
 }
 
-func (bootcontext *BootContext) coeffsToSlots(evaluator *Evaluator, vec *Ciphertext) (ct0, ct1 *Ciphertext) {
+func (bootcontext *BootContext) coeffsToSlots(evaluator *evaluator, vec *Ciphertext) (ct0, ct1 *Ciphertext) {
 
 	var zV, zVconj *Ciphertext
 
@@ -296,7 +296,7 @@ func (bootcontext *BootContext) coeffsToSlots(evaluator *Evaluator, vec *Ciphert
 	return ct0, ct1
 }
 
-func (bootcontext *BootContext) slotsToCoeffs(evaluator *Evaluator, ct0, ct1 *Ciphertext) (ct *Ciphertext) {
+func (bootcontext *BootContext) slotsToCoeffs(evaluator *evaluator, ct0, ct1 *Ciphertext) (ct *Ciphertext) {
 
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if !bootcontext.repack {
@@ -309,7 +309,7 @@ func (bootcontext *BootContext) slotsToCoeffs(evaluator *Evaluator, ct0, ct1 *Ci
 	return bootcontext.dft(evaluator, ct0, bootcontext.pDFT, false)
 }
 
-func (bootcontext *BootContext) dft(evaluator *Evaluator, vec *Ciphertext, plainVectors []*dftvectors, forward bool) (w *Ciphertext) {
+func (bootcontext *BootContext) dft(evaluator *evaluator, vec *Ciphertext, plainVectors []*dftvectors, forward bool) (w *Ciphertext) {
 
 	levels := uint64(len(plainVectors))
 
@@ -326,7 +326,7 @@ func (bootcontext *BootContext) dft(evaluator *Evaluator, vec *Ciphertext, plain
 	return w
 }
 
-func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *Evaluator) (*Ciphertext, *Ciphertext) {
+func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *evaluator) (*Ciphertext, *Ciphertext) {
 
 	// Reference scale is changed to the new ciphertext's scale.
 	evaluator.ckksContext.scale = float64(bootcontext.params.Qi[ct0.Level()-1])
@@ -349,12 +349,10 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *Ev
 	// Reference scale is changed back to the current ciphertext's scale.
 	evaluator.ckksContext.scale = ct0.Scale()
 
-	fmt.Println(ct0.Level(), ct0.Scale())
-
 	return ct0, ct1
 }
 
-func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciphertext) (res *Ciphertext) {
+func (bootcontext *BootContext) evaluateChebyBoot(evaluator *evaluator, ct *Ciphertext) (res *Ciphertext) {
 
 	// Chebyshev params
 	a := bootcontext.chebycoeffs.a
@@ -385,7 +383,7 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *Evaluator, ct *Ciph
 	return recurseCheby(degree, L, M, bootcontext.chebycoeffs.Poly(), C, evaluator, bootcontext.relinkey)
 }
 
-func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *Evaluator, vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
+func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *evaluator, vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
 
 	var N1 uint64
 

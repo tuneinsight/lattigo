@@ -818,7 +818,7 @@ func testChebyshevBoot(t *testing.T) {
 
 			params := genCkksParams(parameters)
 
-			rlk := params.kgen.NewRelinKey(params.sk)
+			rlk := params.kgen.GenRelinKey(params.sk)
 
 			t.Run(testString("Sin/", parameters), func(t *testing.T) {
 

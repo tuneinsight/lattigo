@@ -57,6 +57,7 @@ type Evaluator interface {
 	EvaluatePolyEco(ct *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (res *Ciphertext)
 	EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
 	EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
+	Bootstrapp(ct *Ciphertext, bootcontext *BootContext) (res *Ciphertext)
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
@@ -465,7 +466,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
+				scale = float64(eval.ckksContext.contextQ.Modulus[level])
 			}
 		}
 
@@ -474,7 +475,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 			valueFloat := cImag - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
+				scale = float64(eval.ckksContext.contextQ.Modulus[level])
 			}
 		}
 
@@ -487,7 +488,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
+				scale = float64(eval.ckksContext.contextQ.Modulus[level])
 			}
 		}
 
@@ -518,7 +519,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 
 			if uint64((scale*ct0.Scale())/ctOut.Scale()) != 0 {
 
-				evaluator.MultByConst(ctOut, uint64((scale*ct0.Scale())/ctOut.Scale()), ctOut)
+				eval.MultByConst(ctOut, uint64((scale*ct0.Scale())/ctOut.Scale()), ctOut)
 
 			}
 
@@ -631,7 +632,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
+				scale = float64(eval.ckksContext.contextQ.Modulus[level])
 			}
 		}
 
@@ -640,7 +641,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 			valueFloat := cImag - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
+				scale = float64(eval.ckksContext.contextQ.Modulus[level])
 			}
 		}
 
@@ -653,7 +654,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(evaluator.ckksContext.contextQ.Modulus[level])
+				scale = float64(eval.ckksContext.contextQ.Modulus[level])
 			}
 		}
 

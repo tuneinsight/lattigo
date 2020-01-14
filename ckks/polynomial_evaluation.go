@@ -108,7 +108,7 @@ func splitCoeffs(coeffs []complex128, degree, maxDegree uint64) (coeffsq, coeffs
 	return coeffsq, coeffsr
 }
 
-func recurse(maxDegree, L, M uint64, coeffs []complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func recurse(maxDegree, L, M uint64, coeffs []complex128, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	if maxDegree <= (1 << L) {
 		return evaluatePolyFromPowerBasis(coeffs, C, evaluator, evakey)
@@ -135,7 +135,7 @@ func recurse(maxDegree, L, M uint64, coeffs []complex128, C map[uint64]*Cipherte
 
 }
 
-func evaluatePolyFromPowerBasis(coeffs []complex128, C map[uint64]*Ciphertext, evaluator *Evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func evaluatePolyFromPowerBasis(coeffs []complex128, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	res = NewCiphertext(evaluator.params, 1, C[1].Level(), C[1].Scale())
 

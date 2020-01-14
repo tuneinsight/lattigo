@@ -12,8 +12,8 @@ func Test_Bootstrapp(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	bootParams := new(Parameters)
-	bootParams.LogN = 14
-	bootParams.LogSlots = 10
+	bootParams.LogN = 15
+	bootParams.LogSlots = 12
 	bootParams.Scale = 1 << 40
 	bootParams.LogQi = []uint64{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
 	bootParams.LogPi = []uint64{55, 55, 55, 55}

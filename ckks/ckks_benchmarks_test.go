@@ -243,9 +243,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	var err error
 	var bootcontext *BootContext
-	var kgen *KeyGenerator
+	var kgen KeyGenerator
 	var sk *SecretKey
-	var evaluator *Evaluator
+	var eval Evaluator
 	var ciphertext *Ciphertext
 
 	bootParams := new(Parameters)
@@ -265,9 +265,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	kgen = NewKeyGenerator(bootParams)
 
-	sk = kgen.NewSecretKey()
+	sk = kgen.GenSecretKey()
 
-	evaluator = NewEvaluator(bootParams)
+	eval = NewEvaluator(bootParams)
 
 	if bootcontext, err = NewBootContext(bootParams, sk, ctsDepth, stcDepth); err != nil {
 		b.Error()
@@ -282,7 +282,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 			ciphertext = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel(), bootParams.Scale)
 			b.StartTimer()
 
-			ct0, ct1 = bootcontext.coeffsToSlots(evaluator, ciphertext)
+			ct0, ct1 = bootcontext.coeffsToSlots(eval.(*evaluator), ciphertext)
 		}
 	})
 
@@ -301,7 +301,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 			}
 			b.StartTimer()
 
-			ct2, ct3 = bootcontext.evaluateSine(ct0, ct1, evaluator)
+			ct2, ct3 = bootcontext.evaluateSine(ct0, ct1, eval.(*evaluator))
 		}
 	})
 
@@ -319,7 +319,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 			}
 			b.StartTimer()
 
-			bootcontext.slotsToCoeffs(evaluator, ct2, ct3)
+			bootcontext.slotsToCoeffs(eval.(*evaluator), ct2, ct3)
 		}
 	})
 

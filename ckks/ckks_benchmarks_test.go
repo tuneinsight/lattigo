@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"fmt"
 	"github.com/ldsec/lattigo/ring"
 	"testing"
 )
@@ -273,6 +274,24 @@ func BenchmarkBootstrapp(b *testing.B) {
 		b.Error()
 	}
 
+	fmt.Println(123)
+
+	b.Run(testString("ModUp/", bootParams), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			ciphertext = NewCiphertextRandom(bootParams, 1, 0, bootParams.Scale)
+			b.StartTimer()
+
+			ciphertext = bootcontext.modUp(ciphertext)
+		}
+	})
+
+	b.Run(testString("SubSum/", bootParams), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ciphertext = bootcontext.subSum(eval.(*evaluator), ciphertext)
+		}
+	})
+
 	// Coeffs To Slots
 	var ct0, ct1 *Ciphertext
 	b.Run(testString("CoeffsToSlots/", bootParams), func(b *testing.B) {
@@ -301,7 +320,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 			}
 			b.StartTimer()
 
-			ct2, ct3 = bootcontext.evaluateSine(ct0, ct1, eval.(*evaluator))
+			ct2, ct3 = bootcontext.evaluateSine(eval.(*evaluator), ct0, ct1)
 		}
 	})
 

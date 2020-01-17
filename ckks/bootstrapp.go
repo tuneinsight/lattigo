@@ -195,6 +195,20 @@ func (evaluator *evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext)
 	ct = bootcontext.modUp(ct)
 
 	//SubSum X -> (N/dslots) * Y^dslots
+	ct = bootcontext.subSum(evaluator, ct)
+
+	// Part 1 : Coeffs to slots
+	ct0, ct1 = bootcontext.coeffsToSlots(evaluator, ct)
+
+	// Part 2 : SineEval
+	ct0, ct1 = bootcontext.evaluateSine(evaluator, ct0, ct1)
+
+	// Part 3 : Slots to coeffs
+	return bootcontext.slotsToCoeffs(evaluator, ct0, ct1)
+}
+
+func (bootcontext *BootContext) subSum(evaluator *evaluator, ct *Ciphertext) *Ciphertext {
+
 	logSlots := uint64(bits.Len64(bootcontext.slots) - 1)
 	logMaxSlots := uint64(bits.Len64(bootcontext.ckkscontext.maxSlots) - 1)
 	for i := logSlots; i < logMaxSlots; i++ {
@@ -204,14 +218,7 @@ func (evaluator *evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext)
 		evaluator.Add(ct, bootcontext.ctxpool[0], ct)
 	}
 
-	// Part 1 : Coeffs to slots
-	ct0, ct1 = bootcontext.coeffsToSlots(evaluator, ct)
-
-	// Part 2 : SineEval
-	ct0, ct1 = bootcontext.evaluateSine(ct0, ct1, evaluator)
-
-	// Part 3 : Slots to coeffs
-	return bootcontext.slotsToCoeffs(evaluator, ct0, ct1)
+	return ct
 }
 
 func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
@@ -326,7 +333,7 @@ func (bootcontext *BootContext) dft(evaluator *evaluator, vec *Ciphertext, plain
 	return w
 }
 
-func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext, evaluator *evaluator) (*Ciphertext, *Ciphertext) {
+func (bootcontext *BootContext) evaluateSine(evaluator *evaluator, ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphertext) {
 
 	// Reference scale is changed to the new ciphertext's scale.
 	evaluator.ckksContext.scale = float64(bootcontext.params.Qi[ct0.Level()-1])

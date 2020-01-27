@@ -30,6 +30,7 @@ const (
 	PN14QP438
 	PN15QP880
 	PN16QP1761
+	PN16BootCheby
 )
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
@@ -83,6 +84,15 @@ var DefaultParams = []*Parameters{
 			LogPi: []uint64{55, 55, 55, 55},
 		},
 		Scale: 1 << 45,
+		Sigma: 3.2},
+	//LogQi = 1761
+	{LogN: 16,
+		LogSlots: 14,
+		LogModuli: LogModuli{
+			LogQi: []uint64{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55},
+			LogPi: []uint64{55, 55, 55, 55},
+		},
+		Scale: 1 << 55,
 		Sigma: 3.2},
 }
 

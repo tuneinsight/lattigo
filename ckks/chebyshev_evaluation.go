@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"fmt"
 	"math"
 	"math/bits"
 )
@@ -145,6 +146,7 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evalu
 		}
 
 		// Computes C[n] = C[a]*C[b]
+		fmt.Println("Mul", C[a].Level(), C[b].Level())
 		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
 
 		evaluator.Rescale(C[n], evaluator.ckksContext.scale, C[n])
@@ -202,6 +204,7 @@ func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext
 	var tmp *Ciphertext
 	tmp = recurseCheby((1<<(M-1))-1, L, M-1, coeffsr, C, evaluator, evakey)
 
+	fmt.Println("Mul", res.Level(), C[1<<(M-1)].Level())
 	evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
 
 	evaluator.Add(res, tmp, res)
@@ -213,7 +216,7 @@ func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext
 
 func evaluatePolyFromChebyBasis(coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
-	res = NewCiphertext(evaluator.params, 1, C[1].Level(), C[1].Scale())
+	res = NewCiphertext(evaluator.params, 1, C[coeffs.degree()+1].Level(), C[1].Scale())
 
 	for key := coeffs.degree(); key > 0; key-- {
 		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-15 || math.Abs(imag(coeffs.coeffs[key])) > 1e-15) {

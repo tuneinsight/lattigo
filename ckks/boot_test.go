@@ -21,7 +21,7 @@ func TestBootstrapp(t *testing.T) {
 	_ = LTScale
 	SineScale = 1 << 55
 
-	logSlots := uint64(10)
+	logSlots := uint64(14)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 

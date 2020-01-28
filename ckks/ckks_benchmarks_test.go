@@ -249,10 +249,16 @@ func BenchmarkBootstrapp(b *testing.B) {
 	var eval Evaluator
 	var ciphertext *Ciphertext
 
+	var DefaultScale, LTScale float64
+
+	DefaultScale = 1 << 40
+	LTScale = 1 << 45
+	//SineScale = 1 << 55
+
 	bootParams := new(Parameters)
 	bootParams.LogN = 16
-	bootParams.LogSlots = 14
-	bootParams.Scale = 1 << 40
+	bootParams.LogSlots = 10
+	bootParams.Scale = DefaultScale
 	bootParams.LogQi = []uint64{55, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}
 	bootParams.LogPi = []uint64{55, 55, 55, 55}
 	bootParams.Sigma = 3.2
@@ -274,12 +280,10 @@ func BenchmarkBootstrapp(b *testing.B) {
 		b.Error()
 	}
 
-	fmt.Println(123)
-
 	b.Run(testString("ModUp/", bootParams), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
-			ciphertext = NewCiphertextRandom(bootParams, 1, 0, bootParams.Scale)
+			ciphertext = NewCiphertextRandom(bootParams, 1, 0, LTScale)
 			b.StartTimer()
 
 			ciphertext = bootcontext.modUp(ciphertext)
@@ -297,8 +301,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 	b.Run(testString("CoeffsToSlots/", bootParams), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
+
 			b.StopTimer()
-			ciphertext = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel(), bootParams.Scale)
+			ciphertext = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel(), LTScale)
 			b.StartTimer()
 
 			ct0, ct1 = bootcontext.coeffsToSlots(eval.(*evaluator), ciphertext)
@@ -312,15 +317,52 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct0 = NewCiphertextRandom(bootParams, 1, ct0.Level(), bootParams.Scale)
+			ct0 = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel()-ctsDepth, LTScale)
 			if bootParams.LogSlots == bootParams.LogN-1 {
-				ct1 = NewCiphertextRandom(bootParams, 1, ct1.Level(), bootParams.Scale)
+				ct1 = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel()-ctsDepth, LTScale)
 			} else {
 				ct1 = nil
 			}
 			b.StartTimer()
 
 			ct2, ct3 = bootcontext.evaluateSine(eval.(*evaluator), ct0, ct1)
+
+			if ct2.Level() != bootParams.MaxLevel()-ctsDepth-9 {
+				panic("scaling error during eval sinebetter bench")
+			}
+
+			if ct3 != nil {
+				if ct3.Level() != bootParams.MaxLevel()-ctsDepth-9 {
+					panic("scaling error during eval sinebetter bench")
+				}
+			}
+		}
+	})
+
+	b.Run(testString("EvalSineBetter/", bootParams), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+
+			b.StopTimer()
+			ct0 = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel()-ctsDepth, LTScale)
+			if bootParams.LogSlots == bootParams.LogN-1 {
+				ct1 = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel()-ctsDepth, LTScale)
+			} else {
+				ct1 = nil
+			}
+			b.StartTimer()
+
+			ct2, ct3 = bootcontext.evaluateBetterSine(eval.(*evaluator), ct0, ct1)
+
+			if ct2.Level() != bootParams.MaxLevel()-ctsDepth-9 {
+				panic("scaling error during eval sinebetter bench")
+			}
+
+			if ct3 != nil {
+				if ct3.Level() != bootParams.MaxLevel()-ctsDepth-9 {
+					panic("scaling error during eval sinebetter bench")
+				}
+			}
 		}
 	})
 
@@ -330,15 +372,16 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct0 = NewCiphertextRandom(bootParams, 1, ct2.Level(), bootParams.Scale)
+			ct2 = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel()-ctsDepth-9, LTScale)
 			if bootParams.LogSlots == bootParams.LogN-1 {
-				ct1 = NewCiphertextRandom(bootParams, 1, ct3.Level(), bootParams.Scale)
+				ct3 = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel()-ctsDepth-9, LTScale)
 			} else {
-				ct1 = nil
+				ct3 = nil
 			}
 			b.StartTimer()
 
 			bootcontext.slotsToCoeffs(eval.(*evaluator), ct2, ct3)
+
 		}
 	})
 

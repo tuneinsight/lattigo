@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ldsec/lattigo/bettersine"
 	"github.com/ldsec/lattigo/utils"
 )
 
@@ -77,7 +76,6 @@ func TestCKKS(t *testing.T) {
 	t.Run("Evaluator/Functions", testFunctions)
 	t.Run("Evaluator/EvaluatePoly", testEvaluatePoly)
 	t.Run("Evaluator/ChebyshevInterpolator", testChebyshevInterpolator)
-	t.Run("Evaluator/ChebyshevBoot", testChebyshevBoot)
 	t.Run("Evaluator/SwitchKeys", testSwitchKeys)
 	t.Run("Evaluator/Conjugate", testConjugate)
 	t.Run("Evaluator/RotateColumns", testRotateColumns)
@@ -190,8 +188,6 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 	slots := uint64(1 << contextParams.params.LogSlots)
 
 	valuesTest = contextParams.encoder.Decode(plaintextTest, slots)
-
-	fmt.Println(valuesTest[:3])
 
 	var deltaReal, deltaImag float64
 
@@ -830,96 +826,6 @@ func testChebyshevInterpolator(t *testing.T) {
 
 				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 			})
-		}
-	}
-}
-
-func testChebyshevBoot(t *testing.T) {
-
-	for _, parameters := range testParams.ckksParameters {
-
-		if parameters.MaxLevel() > 8 {
-
-			params := genCkksParams(parameters)
-
-			rlk := params.kgen.GenRelinKey(params.sk)
-
-			t.Run(testString("Sin/", parameters), func(t *testing.T) {
-
-				values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -15, 15, t)
-
-				cheby := Approximate(sin2pi2pi, -15, 15, 127)
-
-				for i := range values {
-					values[i] = sin2pi2pi(values[i])
-				}
-
-				ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
-
-				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-			})
-
-			t.Run(testString("Cos/", parameters), func(t *testing.T) {
-
-				r := int(2)
-
-				n := complex(float64(int(1<<r)), 0)
-
-				values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -11, 11, t)
-
-				//cheby := Approximate(cos2pi2pi, -15/n, 15/n, 55)
-
-				K := 12
-				deg := 30
-				dev := 10
-				sc_num := r
-
-				cheby := new(ChebyshevInterpolation)
-				cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
-				cheby.maxDeg = 31
-				cheby.a = -12 / n
-				cheby.b = 12 / n
-
-				for i := range values {
-
-					values[i] = cmplx.Cos(6.283185307179586 * (1 / n) * (values[i] - 0.25))
-
-					for j := 0; j < r; j++ {
-						values[i] = 2*values[i]*values[i] - 1
-					}
-
-					values[i] /= 6.283185307179586
-				}
-
-				params.evaluator.AddConst(ciphertext, -0.25, ciphertext)
-
-				ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, n, cheby, rlk)
-
-				/*
-					for i:= 0 ; i < r; i++ {
-						params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
-						params.evaluator.MultByConst(ciphertext, 2, ciphertext)
-						params.evaluator.AddConst(ciphertext, -1, ciphertext)
-						params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
-					}
-
-					params.evaluator.MultByConst(ciphertext, 1.0 / 6.283185307179586, ciphertext)
-				*/
-
-				params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
-				params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
-				y := params.evaluator.AddConstNew(ciphertext, -0.5641895835477563)
-
-				params.evaluator.MulRelin(ciphertext, y, rlk, ciphertext)
-				params.evaluator.MultByConst(ciphertext, 4, ciphertext)
-				params.evaluator.AddConst(ciphertext, 1.0/6.283185307179586, ciphertext)
-
-				params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
-
-				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-
-			})
-
 		}
 	}
 }

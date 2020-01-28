@@ -60,6 +60,7 @@ type Evaluator interface {
 	EvaluateChebyEcoSpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
 	EvaluateChebyFastSpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
 	Bootstrapp(ct *Ciphertext, bootcontext *BootContext) (res *Ciphertext)
+	BootstrappBetterSine(ct *Ciphertext, bootcontext *BootContext) (res *Ciphertext)
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.

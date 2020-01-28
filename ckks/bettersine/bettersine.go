@@ -1,20 +1,25 @@
 package bettersine
 
+/*
+ * This program is Licensed under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. See accompanying LICENSE file.
+ */
+
+// Original code : https://github.com/DohyeongKi/better-homomorphic-sine-evaluation
+
 import (
-	"fmt"
-	"math"
 	"math/big"
 )
 
 var pi = "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989"
 var M_PI = 3.141592653589793238462643383279502884
-
-func NewFloat(x float64) (y *big.Float) {
-	y = new(big.Float)
-	y.SetPrec(1000) // decimal precision
-	y.SetFloat64(x)
-	return
-}
 
 func maxIndex(array []float64) (max_ind int) {
 	max := array[0]
@@ -26,55 +31,6 @@ func maxIndex(array []float64) (max_ind int) {
 	}
 
 	return
-}
-
-// Arbitrary precision computation of Cos(x)
-// Iterative process with an error of ~10^{−0.60206*k} after k iterations.
-// ref : Johansson, B. Tomas, An elementary algorithm to evaluate trigonometric functions to high precision, 2018
-func Cos(x *big.Float) (cosx *big.Float) {
-	tmp := new(big.Float)
-
-	k := 1000 // number of iterations
-	t := NewFloat(0.5)
-	half := new(big.Float).Copy(t)
-
-	for i := 1; i < k-1; i++ {
-		t.Mul(t, half)
-	}
-
-	s := new(big.Float).Mul(x, t)
-	s.Mul(s, x)
-	s.Mul(s, t)
-
-	four := NewFloat(4.0)
-
-	for i := 1; i < k; i++ {
-		tmp.Sub(four, s)
-		s.Mul(s, tmp)
-	}
-
-	cosx = new(big.Float).Quo(s, NewFloat(2.0))
-	cosx.Sub(NewFloat(1.0), cosx)
-	return
-
-}
-
-func Sin(x *big.Float) (sinx *big.Float) {
-
-	sinx = NewFloat(1)
-	tmp := Cos(x)
-	tmp.Mul(tmp, tmp)
-	sinx.Add(sinx, tmp)
-	sinx.Sqrt(sinx)
-	return
-}
-
-func log2(x float64) float64 {
-	return math.Log2(x)
-}
-
-func abs(x float64) float64 {
-	return math.Abs(x)
 }
 
 func Approximate(K, degree, dev, sc_num int) []complex128 {
@@ -232,7 +188,6 @@ func Approximate(K, degree, dev, sc_num int) []complex128 {
 
 		//tmp := new(big.Float).Sqrt(PI)
 		//tmp.Sqrt(tmp)
-
 		//d[i].Quo(d[i], tmp)
 	}
 
@@ -353,7 +308,7 @@ func Approximate(K, degree, dev, sc_num int) []complex128 {
 	//fmt.Printf("[")
 	for i := 0; i < tot_deg; i++ {
 		tmp, _ := c[i].Float64()
-		res[i] = complex(tmp*0.7511255444649425, 0)
+		res[i] = complex(tmp, 0)
 		//fmt.Printf("%.20f, ", real(res[i]))
 	}
 	//fmt.Printf("]\n")

@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"fmt"
+	"github.com/ldsec/lattigo/ckks/bettersine"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
 	"math"
@@ -96,7 +97,7 @@ func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64
 
 	sineDeg := 127
 
-	bootcontext.chebycoeffs = Approximate(sin2pi2pi, -15, 15, sineDeg)
+	bootcontext.chebycoeffs = Approximate(sin2pi2pi, -12, 12, sineDeg)
 
 	bootcontext.sinDepth = uint64(math.Ceil(math.Log2(float64(sineDeg))) + 2)
 
@@ -203,6 +204,34 @@ func (evaluator *evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext)
 
 	// Part 2 : SineEval
 	ct0, ct1 = bootcontext.evaluateSine(evaluator, ct0, ct1)
+
+	// Part 3 : Slots to coeffs
+	return bootcontext.slotsToCoeffs(evaluator, ct0, ct1)
+}
+
+// Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel.
+func (evaluator *evaluator) BootstrappBetterSine(ct *Ciphertext, bootcontext *BootContext) *Ciphertext {
+
+	var ct0, ct1 *Ciphertext
+
+	for ct.Level() != 0 {
+		evaluator.DropLevel(ct, 1)
+	}
+
+	// TODO : better management of the initial scale
+	evaluator.ScaleUp(ct, math.Round(float64(1<<45)/ct.Scale()), ct)
+
+	// ModUp ct_{Q_0} -> ct_{Q_L}
+	ct = bootcontext.modUp(ct)
+
+	//SubSum X -> (N/dslots) * Y^dslots
+	ct = bootcontext.subSum(evaluator, ct)
+
+	// Part 1 : Coeffs to slots
+	ct0, ct1 = bootcontext.coeffsToSlots(evaluator, ct)
+
+	// Part 2 : SineEval
+	ct0, ct1 = bootcontext.evaluateBetterSine(evaluator, ct0, ct1)
 
 	// Part 3 : Slots to coeffs
 	return bootcontext.slotsToCoeffs(evaluator, ct0, ct1)
@@ -360,6 +389,34 @@ func (bootcontext *BootContext) evaluateSine(evaluator *evaluator, ct0, ct1 *Cip
 	return ct0, ct1
 }
 
+func (bootcontext *BootContext) evaluateBetterSine(evaluator *evaluator, ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphertext) {
+
+	// Reference scale is changed to the new ciphertext's scale.
+	evaluator.ckksContext.scale = float64(bootcontext.params.Qi[ct0.Level()-1])
+
+	// TODO : manage scale dynamicly depending on Q_0, the Qi of the SineEval and the ciphertext's scale.
+	ct0.MulScale(1024)
+
+	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
+	ct0 = bootcontext.evaluateChebyBootBetterSine(evaluator, ct0)
+
+	ct0.DivScale(1024)
+
+	if ct1 != nil {
+
+		ct1.MulScale(1024)
+
+		ct0 = bootcontext.evaluateChebyBootBetterSine(evaluator, ct1)
+
+		ct1.DivScale(1024)
+	}
+
+	// Reference scale is changed back to the current ciphertext's scale.
+	evaluator.ckksContext.scale = ct0.Scale()
+
+	return ct0, ct1
+}
+
 func (bootcontext *BootContext) evaluateChebyBoot(evaluator *evaluator, ct *Ciphertext) (res *Ciphertext) {
 
 	// Chebyshev params
@@ -389,6 +446,69 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *evaluator, ct *Ciph
 	}
 
 	return recurseCheby(degree, L, M, bootcontext.chebycoeffs.Poly(), C, evaluator, bootcontext.relinkey)
+}
+
+func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator, ct *Ciphertext) (res *Ciphertext) {
+
+	K := 12
+	deg := 30
+	dev := 10
+	sc_num := 2
+
+	sc_fac := complex(float64(int(1<<sc_num)), 0)
+
+	cheby := new(ChebyshevInterpolation)
+	cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
+
+	for i := range cheby.coeffs {
+		cheby.coeffs[i] *= 0.7511255444649425
+	}
+
+	cheby.maxDeg = uint64(deg) + 1
+	cheby.a = complex(float64(-K), 0) / sc_fac
+	cheby.b = complex(float64(K), 0) / sc_fac
+
+	// Chebyshev params
+	a := cheby.a
+	b := cheby.b
+	degree := cheby.maxDeg - 1
+
+	// SubSum + CoeffsToSlots cancelling factor
+	n := complex(float64(bootcontext.ckkscontext.contextQ.N), 0)
+
+	C := make(map[uint64]*Ciphertext)
+	C[1] = ct.CopyNew().Ciphertext()
+
+	evaluator.AddConst(C[1], -0.25*n, C[1])
+
+	evaluator.MultByConst(C[1], 2/((b-a)*n*sc_fac), C[1])
+	evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
+	evaluator.Rescale(C[1], evaluator.params.Scale, C[1])
+
+	M := uint64(bits.Len64(degree - 1))
+	L := uint64(M >> 1)
+
+	for i := uint64(2); i < (1<<L)+1; i++ {
+		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
+	}
+
+	for i := L + 1; i < M; i++ {
+		computePowerBasisCheby(1<<i, C, evaluator, bootcontext.relinkey)
+	}
+
+	res = recurseCheby(degree, L, M, cheby.Poly(), C, evaluator, bootcontext.relinkey)
+
+	evaluator.MulRelin(res, res, bootcontext.relinkey, res)
+	evaluator.Rescale(res, evaluator.params.Scale, res)
+	y := evaluator.AddConstNew(res, -0.5641895835477563)
+
+	evaluator.MulRelin(res, y, bootcontext.relinkey, res)
+	evaluator.MultByConst(res, 4, res)
+	evaluator.AddConst(res, 1.0/6.283185307179586, res)
+
+	evaluator.Rescale(res, evaluator.params.Scale, res)
+
+	return
 }
 
 func (bootcontext *BootContext) multiplyByDiagMatrice(evaluator *evaluator, vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {

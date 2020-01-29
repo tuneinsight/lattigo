@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"fmt"
+	//"fmt"
 	"math"
 	"math/bits"
 )
@@ -146,7 +146,7 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evalu
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		fmt.Println("Mul", C[a].Level(), C[b].Level())
+		//fmt.Println("Mul", C[a].Level(), C[b].Level())
 		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
 
 		evaluator.Rescale(C[n], evaluator.ckksContext.scale, C[n])
@@ -204,7 +204,7 @@ func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext
 	var tmp *Ciphertext
 	tmp = recurseCheby((1<<(M-1))-1, L, M-1, coeffsr, C, evaluator, evakey)
 
-	fmt.Println("Mul", res.Level(), C[1<<(M-1)].Level())
+	//fmt.Println("Mul", res.Level(), C[1<<(M-1)].Level())
 	evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
 
 	evaluator.Add(res, tmp, res)

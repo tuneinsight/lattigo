@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"fmt"
 	"github.com/ldsec/lattigo/ring"
 	"testing"
 )

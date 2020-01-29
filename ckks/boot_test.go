@@ -21,12 +21,12 @@ func TestBootstrapp(t *testing.T) {
 	_ = LTScale
 	SineScale = 1 << 55
 
-	logSlots := uint64(14)
+	logSlots := uint64(13)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 
 	bootParams := new(Parameters)
-	bootParams.LogN = 16
+	bootParams.LogN = 15
 	bootParams.LogSlots = logSlots
 	bootParams.Scale = DefaultScale
 	bootParams.LogQi = []uint64{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
@@ -70,14 +70,12 @@ func TestBootstrapp(t *testing.T) {
 
 		evaluator := NewEvaluator(bootParams)
 
-		r := int(2)
-
-		n := complex(float64(int(1<<r)), 0)
-
-		K := 12
-		deg := 30
+		K := 20
+		deg := 96
 		dev := 10
-		sc_num := r
+		sc_num := 1
+
+		sc_fac := complex(float64(int(1<<sc_num)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, float64(-K+1), float64(K-1), t)
 		evaluator.DropLevel(ciphertext, ctsDepth)
@@ -85,19 +83,33 @@ func TestBootstrapp(t *testing.T) {
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
 
-		for i := range cheby.coeffs {
-			cheby.coeffs[i] *= 0.7511255444649425
+		if sc_num == 0 {
+			for i := range cheby.coeffs {
+				cheby.coeffs[i] *= 0.15915494309189535
+			}
+		}
+		
+		if sc_num == 1 {
+			for i := range cheby.coeffs {
+				cheby.coeffs[i] *= 0.5641895835477563
+			}
+		}
+
+		if sc_num == 2{
+			for i := range cheby.coeffs {
+				cheby.coeffs[i] *= 0.7511255444649425
+			}
 		}
 
 		cheby.maxDeg = uint64(deg) + 1
-		cheby.a = complex(float64(-K), 0) / n
-		cheby.b = complex(float64(K), 0) / n
+		cheby.a = complex(float64(-K), 0) / sc_fac
+		cheby.b = complex(float64(K), 0) / sc_fac
 
 		for i := range values {
 
-			values[i] = cmplx.Cos(6.283185307179586 * (1 / n) * (values[i] - 0.25))
+			values[i] = cmplx.Cos(6.283185307179586 * (1 / sc_fac) * (values[i] - 0.25))
 
-			for j := 0; j < r; j++ {
+			for j := 0; j < sc_num; j++ {
 				values[i] = 2*values[i]*values[i] - 1
 			}
 
@@ -106,28 +118,40 @@ func TestBootstrapp(t *testing.T) {
 
 		params.evaluator.AddConst(ciphertext, -0.25, ciphertext)
 
-		ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, n, cheby, rlk)
+		ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, sc_fac, cheby, rlk)
 
+		
 		/*
-			for i:= 0 ; i < r; i++ {
-				params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
-				params.evaluator.MultByConst(ciphertext, 2, ciphertext)
-				params.evaluator.AddConst(ciphertext, -1, ciphertext)
-				params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
-			}
+		for i:= 0 ; i < r; i++ {
+			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
+			params.evaluator.MultByConst(ciphertext, 2, ciphertext)
+			params.evaluator.AddConst(ciphertext, -1, ciphertext)
+			params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+		}
 
-			params.evaluator.MultByConst(ciphertext, 1.0 / 6.283185307179586, ciphertext)
+		params.evaluator.MultByConst(ciphertext, 1.0 / 6.283185307179586, ciphertext)
 		*/
 
-		params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
-		params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
-		y := params.evaluator.AddConstNew(ciphertext, -0.5641895835477563)
+		
+		if sc_num == 1 {
+			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
+			params.evaluator.AddConst(ciphertext, -1.0/6.283185307179586, ciphertext)
+			params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+		}
 
-		params.evaluator.MulRelin(ciphertext, y, rlk, ciphertext)
-		params.evaluator.MultByConst(ciphertext, 4, ciphertext)
-		params.evaluator.AddConst(ciphertext, 1.0/6.283185307179586, ciphertext)
+		if sc_num == 2 {
 
-		params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
+			params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+			y := params.evaluator.AddConstNew(ciphertext, -0.5641895835477563)
+
+			params.evaluator.MulRelin(ciphertext, y, rlk, ciphertext)
+			params.evaluator.MultByConst(ciphertext, 4, ciphertext)
+			params.evaluator.AddConst(ciphertext, 1.0/6.283185307179586, ciphertext)
+
+			params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+		}
+		
 
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 

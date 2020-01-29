@@ -235,7 +235,7 @@ func (evaluator *evaluator) BootstrappBetterSine(ct *Ciphertext, bootcontext *Bo
 	// Part 2 : SineEval
 	ct0, ct1 = bootcontext.evaluateBetterSine(evaluator, ct0, ct1)
 
-	fmt.Println(ct0.Level())
+	return ct0
 
 	// Part 3 : Slots to coeffs
 	return bootcontext.slotsToCoeffs(evaluator, ct0, ct1)
@@ -458,20 +458,29 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *evaluator, ct *Ciph
 
 func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator, ct *Ciphertext) (res *Ciphertext) {
 
-	K := 15
-	deg := 30
+	K := 12
+	deg := 63
 	dev := 10
-	sc_num := 2
+	sc_num := 1
 
 	sc_fac := complex(float64(int(1<<sc_num)), 0)
 
 	cheby := new(ChebyshevInterpolation)
 	cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
 
-	for i := range cheby.coeffs {
-		cheby.coeffs[i] *= 0.7511255444649425
+	if sc_num == 1 {
+		for i := range cheby.coeffs {
+			fmt.Println(cheby.coeffs[i])
+			cheby.coeffs[i] *= 0.5641895835477563
+		}
 	}
 
+	if sc_num == 2 {
+		for i := range cheby.coeffs {
+			cheby.coeffs[i] *= 0.7511255444649425
+		}
+	}
+	
 	cheby.maxDeg = uint64(deg) + 1
 	cheby.a = complex(float64(-K), 0) / sc_fac
 	cheby.b = complex(float64(K), 0) / sc_fac
@@ -506,20 +515,33 @@ func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator
 
 	res = recurseCheby(degree, L, M, cheby.Poly(), C, evaluator, bootcontext.relinkey)
 
-	fmt.Println()
+	return res
 
-	fmt.Println("Mul", res.Level(), res.Level(), res.Scale())
-	evaluator.MulRelin(res, res, bootcontext.relinkey, res)
-	evaluator.Rescale(res, evaluator.params.Scale, res)
+	if sc_num == 1 {
+		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
+		evaluator.Rescale(res, evaluator.params.Scale, res)
+		evaluator.MultByConst(res, 2, res)
 
-	y := evaluator.AddConstNew(res, -0.5641895835477563)
-	fmt.Println("Mul", res.Level(), y.Level())
-	evaluator.MulRelin(res, y, bootcontext.relinkey, res)
-	evaluator.MultByConst(res, 4, res)
-	evaluator.AddConst(res, 1.0/6.283185307179586, res)
-	evaluator.Rescale(res, evaluator.params.Scale, res)
+		evaluator.AddConst(res, -1.0/6.283185307179586, res)
+	}
 
-	fmt.Println(res.Level())
+	if sc_num == 2 {
+		//fmt.Println()
+
+		//fmt.Println("Mul", res.Level(), res.Level(), res.Scale())
+		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
+		evaluator.Rescale(res, evaluator.params.Scale, res)
+
+		y := evaluator.AddConstNew(res, -0.5641895835477563)
+		//fmt.Println("Mul", res.Level(), y.Level())
+		evaluator.MulRelin(res, y, bootcontext.relinkey, res)
+		evaluator.MultByConst(res, 4, res)
+		evaluator.AddConst(res, 1.0/6.283185307179586, res)
+		evaluator.Rescale(res, evaluator.params.Scale, res)
+
+		fmt.Println(res.Level())
+	}
+	
 	return
 }
 

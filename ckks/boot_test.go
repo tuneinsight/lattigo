@@ -30,7 +30,7 @@ func TestBootstrapp(t *testing.T) {
 	bootParams.LogN = 16
 	bootParams.LogSlots = logSlots
 	bootParams.Scale = DefaultScale
-	bootParams.LogQi = []uint64{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	bootParams.LogQi = []uint64{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
 	bootParams.LogPi = []uint64{55, 55, 55, 55}
 	bootParams.Sigma = 3.2
 
@@ -122,8 +122,9 @@ func TestBootstrapp(t *testing.T) {
 
 		params.evaluator.AddConst(ciphertext, -0.25, ciphertext)
 
+		fmt.Println(ciphertext.Level())
 		ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, sc_fac, cheby, rlk)
-
+		fmt.Println(ciphertext.Level())
 		
 		
 
@@ -158,6 +159,8 @@ func TestBootstrapp(t *testing.T) {
 
 			params.evaluator.MultByConst(ciphertext, 1.0 / 6.283185307179586, ciphertext)
 		}
+
+
 		
 
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)

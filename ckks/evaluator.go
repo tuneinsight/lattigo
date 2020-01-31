@@ -30,6 +30,7 @@ type Evaluator interface {
 	DivByi(ct0 *Ciphertext, ct1 *Ciphertext)
 	ScaleUpNew(ct0 *Ciphertext, scale float64) (ctOut *Ciphertext)
 	ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext)
+	SetScale(ct *Ciphertext, scale float64)
 	MulByPow2New(ct0 *Ciphertext, pow2 uint64) (ctOut *Ciphertext)
 	MulByPow2(ct0 *ckksElement, pow2 uint64, ctOut *ckksElement)
 	ReduceNew(ct0 *Ciphertext) (ctOut *Ciphertext)
@@ -839,6 +840,25 @@ func (eval *evaluator) ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext
 	eval.MultByConst(ct0, uint64(scale), ctOut)
 	ctOut.SetScale(ct0.Scale() * scale)
 	return
+}
+
+func (evaluator *evaluator) SetScale(ct *Ciphertext, scale float64) {
+
+	var tmp float64
+
+	tmp = evaluator.params.Scale
+
+	evaluator.params.Scale = scale
+
+	evaluator.MultByConst(ct, scale/ct.Scale(), ct)
+
+	if err = evaluator.Rescale(ct, scale, ct); err != nil {
+		panic(err)
+	}
+
+	ct.SetScale(scale)
+
+	evaluator.params.Scale = tmp
 }
 
 // MulByPow2New multiplies ct0 by 2^pow2 and returns the result in a newly created element.

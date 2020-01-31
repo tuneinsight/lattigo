@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+	"fmt"
 
 	"github.com/ldsec/lattigo/ckks/bettersine"
 )
@@ -21,12 +22,12 @@ func TestBootstrapp(t *testing.T) {
 	_ = LTScale
 	SineScale = 1 << 55
 
-	logSlots := uint64(13)
+	logSlots := uint64(14)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 
 	bootParams := new(Parameters)
-	bootParams.LogN = 15
+	bootParams.LogN = 16
 	bootParams.LogSlots = logSlots
 	bootParams.Scale = DefaultScale
 	bootParams.LogQi = []uint64{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
@@ -47,11 +48,13 @@ func TestBootstrapp(t *testing.T) {
 
 		evaluator := NewEvaluator(bootParams)
 
-		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -15, 15, t)
+		deg := 131
+		K := float64(16)
 
+		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
 		evaluator.DropLevel(ciphertext, ctsDepth)
 
-		cheby := Approximate(sin2pi2pi, -15, 15, 127)
+		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
 
 		for i := range values {
 			values[i] = sin2pi2pi(values[i])
@@ -70,10 +73,10 @@ func TestBootstrapp(t *testing.T) {
 
 		evaluator := NewEvaluator(bootParams)
 
-		K := 20
-		deg := 96
+		K := 12
+		deg := 137
 		dev := 10
-		sc_num := 1
+		sc_num := 0
 
 		sc_fac := complex(float64(int(1<<sc_num)), 0)
 
@@ -82,6 +85,11 @@ func TestBootstrapp(t *testing.T) {
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
+		cheby.maxDeg = uint64(len(cheby.coeffs)-1)
+		cheby.a = complex(float64(-K), 0) / sc_fac
+		cheby.b = complex(float64(K), 0) / sc_fac
+
+		fmt.Println(len(cheby.coeffs)-1, cheby.coeffs[len(cheby.coeffs)-1], max(cheby.coeffs), min(cheby.coeffs))
 
 		if sc_num == 0 {
 			for i := range cheby.coeffs {
@@ -101,10 +109,6 @@ func TestBootstrapp(t *testing.T) {
 			}
 		}
 
-		cheby.maxDeg = uint64(deg) + 1
-		cheby.a = complex(float64(-K), 0) / sc_fac
-		cheby.b = complex(float64(K), 0) / sc_fac
-
 		for i := range values {
 
 			values[i] = cmplx.Cos(6.283185307179586 * (1 / sc_fac) * (values[i] - 0.25))
@@ -121,16 +125,7 @@ func TestBootstrapp(t *testing.T) {
 		ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, sc_fac, cheby, rlk)
 
 		
-		/*
-		for i:= 0 ; i < r; i++ {
-			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
-			params.evaluator.MultByConst(ciphertext, 2, ciphertext)
-			params.evaluator.AddConst(ciphertext, -1, ciphertext)
-			params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
-		}
-
-		params.evaluator.MultByConst(ciphertext, 1.0 / 6.283185307179586, ciphertext)
-		*/
+		
 
 		
 		if sc_num == 1 {
@@ -150,6 +145,18 @@ func TestBootstrapp(t *testing.T) {
 			params.evaluator.AddConst(ciphertext, 1.0/6.283185307179586, ciphertext)
 
 			params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+		}
+
+
+		if sc_num == 3 {
+			for i:= 0 ; i < sc_num; i++ {
+				params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
+				params.evaluator.MultByConst(ciphertext, 2, ciphertext)
+				params.evaluator.AddConst(ciphertext, -1, ciphertext)
+				params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+			}
+
+			params.evaluator.MultByConst(ciphertext, 1.0 / 6.283185307179586, ciphertext)
 		}
 		
 

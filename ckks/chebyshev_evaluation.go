@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	//"fmt"
 	"math"
 	"math/bits"
 )
@@ -90,6 +89,8 @@ func (eval *evaluator) EvaluateChebyEcoSpecial(ct *Ciphertext, n complex128, che
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
+
+
 	return recurseCheby(cheby.degree(), L, M, cheby.Poly(), C, eval, evakey)
 }
 
@@ -166,7 +167,6 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evalu
 func splitCoeffsCheby(coeffs *poly, degree, maxDegree uint64) (coeffsq, coeffsr *poly) {
 
 	// Splits a Chebyshev polynomial p such that p = q*C^degree + r, where q and r are a linear combination of a Chebyshev basis.
-
 	coeffsr = new(poly)
 	coeffsr.maxDeg = coeffs.maxDeg - degree
 	coeffsr.coeffs = make([]complex128, degree)
@@ -215,8 +215,12 @@ func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext
 }
 
 func evaluatePolyFromChebyBasis(coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
-
-	res = NewCiphertext(evaluator.params, 1, C[coeffs.degree()+1].Level(), C[1].Scale())
+	
+	if coeffs.degree() != 0 {
+		res = NewCiphertext(evaluator.params, 1, C[coeffs.degree()].Level(), C[1].Scale())
+	}else{
+		res = NewCiphertext(evaluator.params, 1, C[1].Level(), C[1].Scale())
+	}
 
 	for key := coeffs.degree(); key > 0; key-- {
 		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-15 || math.Abs(imag(coeffs.coeffs[key])) > 1e-15) {

@@ -205,8 +205,6 @@ func (evaluator *evaluator) Bootstrapp(ct *Ciphertext, bootcontext *BootContext)
 	// Part 2 : SineEval
 	ct0, ct1 = bootcontext.evaluateSine(evaluator, ct0, ct1)
 
-	fmt.Println(ct0.Level())
-
 	// Part 3 : Slots to coeffs
 	return bootcontext.slotsToCoeffs(evaluator, ct0, ct1)
 }
@@ -234,8 +232,6 @@ func (evaluator *evaluator) BootstrappBetterSine(ct *Ciphertext, bootcontext *Bo
 
 	// Part 2 : SineEval
 	ct0, ct1 = bootcontext.evaluateBetterSine(evaluator, ct0, ct1)
-
-	return ct0
 
 	// Part 3 : Slots to coeffs
 	return bootcontext.slotsToCoeffs(evaluator, ct0, ct1)
@@ -470,7 +466,6 @@ func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator
 
 	if sc_num == 1 {
 		for i := range cheby.coeffs {
-			fmt.Println(cheby.coeffs[i])
 			cheby.coeffs[i] *= 0.5641895835477563
 		}
 	}
@@ -515,13 +510,9 @@ func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator
 
 	res = recurseCheby(degree, L, M, cheby.Poly(), C, evaluator, bootcontext.relinkey)
 
-	return res
-
 	if sc_num == 1 {
 		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
 		evaluator.Rescale(res, evaluator.params.Scale, res)
-		evaluator.MultByConst(res, 2, res)
-
 		evaluator.AddConst(res, -1.0/6.283185307179586, res)
 	}
 

@@ -435,7 +435,7 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *evaluator, ct *Ciph
 	evaluator.Rescale(C[1], bootcontext.ckkscontext.scale, C[1])
 
 	M := uint64(bits.Len64(degree - 1))
-	L := uint64(M>>1) + 1
+	L := uint64(M>>1)
 
 	for i := uint64(2); i < (1<<L)+1; i++ {
 		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
@@ -447,17 +447,15 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *evaluator, ct *Ciph
 
 	res = recurseCheby(degree, L, M, bootcontext.chebycoeffs.Poly(), C, evaluator, bootcontext.relinkey)
 
-	fmt.Println(res.Level())
-
 	return
 }
 
 func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator, ct *Ciphertext) (res *Ciphertext) {
 
 	K := 12
-	deg := 63
+	deg := 30
 	dev := 10
-	sc_num := 1
+	sc_num := 2
 
 	sc_fac := complex(float64(int(1<<sc_num)), 0)
 
@@ -498,7 +496,7 @@ func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator
 	evaluator.Rescale(C[1], evaluator.params.Scale, C[1])
 
 	M := uint64(bits.Len64(degree - 1))
-	L := uint64(M>>1) + 1
+	L := uint64(M>>1)
 
 	for i := uint64(2); i < (1<<L)+1; i++ {
 		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
@@ -529,8 +527,6 @@ func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator
 		evaluator.MultByConst(res, 4, res)
 		evaluator.AddConst(res, 1.0/6.283185307179586, res)
 		evaluator.Rescale(res, evaluator.params.Scale, res)
-
-		fmt.Println(res.Level())
 	}
 	
 	return

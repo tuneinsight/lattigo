@@ -22,7 +22,7 @@ func TestBootstrapp(t *testing.T) {
 	_ = LTScale
 	SineScale = 1 << 55
 
-	logSlots := uint64(14)
+	logSlots := uint64(13)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 
@@ -42,14 +42,14 @@ func TestBootstrapp(t *testing.T) {
 
 	rlk := params.kgen.GenRelinKey(params.sk)
 
-	t.Run(testString("OriginalSine/", bootParams), func(t *testing.T) {
+	t.Run(testString("SineOriginal/", bootParams), func(t *testing.T) {
 
 		params.params.Scale = SineScale
 
 		evaluator := NewEvaluator(bootParams)
 
-		deg := 131
-		K := float64(16)
+		deg := 127
+		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
 		evaluator.DropLevel(ciphertext, ctsDepth)
@@ -67,7 +67,7 @@ func TestBootstrapp(t *testing.T) {
 		params.params.Scale = DefaultScale
 	})
 
-	t.Run(testString("FasterSine/", bootParams), func(t *testing.T) {
+	t.Run(testString("SineFaster/", bootParams), func(t *testing.T) {
 
 		params.params.Scale = SineScale
 

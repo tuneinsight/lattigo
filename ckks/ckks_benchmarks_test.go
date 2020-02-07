@@ -256,7 +256,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	bootParams := new(Parameters)
 	bootParams.LogN = 16
-	bootParams.LogSlots = 10
+	bootParams.LogSlots = 14
 	bootParams.Scale = DefaultScale
 	bootParams.LogQi = []uint64{55, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}
 	bootParams.LogPi = []uint64{55, 55, 55, 55}
@@ -385,6 +385,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	})
 }
 
+/*
 func BenchmarkBootstrappMultiplications(b *testing.B) {
 
 	var kgen KeyGenerator
@@ -504,7 +505,5 @@ func BenchmarkBootstrappMultiplications(b *testing.B) {
 			eval.MulRelinNew(ct0, ct1, rlk)
 		}
 	})
-
-	
-
 }
+*/

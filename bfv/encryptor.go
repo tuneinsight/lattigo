@@ -16,6 +16,9 @@ type Encryptor interface {
 	// Encrypt encrypts the input plaintext using the stored key, and returns
 	// the result on the receiver ciphertext.
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
+
+	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
+	EncryptFromCRP(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
 }
 
 // encryptor is a structure that holds the parameters needed to encrypt plaintexts.
@@ -117,6 +120,15 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	ringContext.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 }
 
+func (encryptor *pkEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
+	encryptor.EncryptFromCRP(nil, nil, nil)
+	return nil
+}
+
+func (encryptor *pkEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
+	panic("Cannot encrypt from CRP using an encryptor instantiated from PK")
+}
+
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 	ciphertext := NewCiphertext(encryptor.params, 1)
 	encryptor.Encrypt(plaintext, ciphertext)
@@ -129,6 +141,7 @@ func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 	// ct = [(-a*s + e)/P , a/P]
 	ringContext.UniformPoly(encryptor.polypool[1])
+	encryptor.polypool[0].Zero()
 	ringContext.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
 
 	// We rescale the encryption of zero by the special prime, dividing the error by this prime
@@ -136,6 +149,36 @@ func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	ringContext.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 	encryptor.bfvContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+
+	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
+	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])
+
+	ringContext = encryptor.bfvContext.contextQ
+
+	// ct = [-a*s + m + e , a]
+	ringContext.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+}
+
+func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
+	ciphertext := NewCiphertext(encryptor.params, 1)
+	encryptor.EncryptFromCRP(plaintext, ciphertext, crp)
+
+	return ciphertext
+}
+
+func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
+	ringContext := encryptor.bfvContext.contextQP
+
+	// ct = [(-a*s + e)/P , a/P]
+	ringContext.Copy(crp, encryptor.polypool[1])
+	encryptor.polypool[0].Zero()
+	ringContext.MulCoeffsMontgomeryAndSub(encryptor.polypool[1], encryptor.sk.sk, encryptor.polypool[0])
+
+	// We rescale the encryption of zero by the special prime, dividing the error by this prime
+	ringContext.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+	ringContext.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+
+	//encryptor.bfvContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
 
 	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
 	encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])

@@ -8,6 +8,14 @@ All notable changes to this project will be documented in this file.
 
 ## [1.3.0] - 2019-12-20
 ### Added
+- BFV/CKKS : added API for encrypting using a CRP (common reference polynomial)
+- BFV/CKKS : added API for encrypting faster (encrypts zero directly in Q instead of QP and does not need to divide by P)
+### Fixes
+- BFV/CKKS : Fixed EncryptFromSK that was not correctly wiping the memory pool before using it, which lead to back encryptions.
+- BFV : Fixed an index out of bound error that would happen during the multiplication if #QMul > #Qi.
+
+## [1.3.0] - 2019-12-20
+### Added
 - All schemes : new switching-keys and key-switching algorithm based on the concept presented in https://eprint.iacr.org/2019/688.pdf.
 - All schemes : new marshaling interface for all structures.
 - BFV/CKKS : new Parameters structs and API enabling a better customization and fine tuning for specific applications.

@@ -292,6 +292,25 @@ func testEncryptor(t *testing.T) {
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
+
+		t.Run(testString("EncryptFromPkFast/", parameters), func(t *testing.T) {
+
+			slots := uint64(1 << params.params.LogSlots)
+
+			values := make([]complex128, slots)
+
+			for i := uint64(0); i < slots; i++ {
+				values[i] = randomComplex(-1, 1)
+			}
+
+			values[0] = complex(0.607538, 0.555668)
+
+			plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale)
+
+			params.encoder.Encode(plaintext, values, slots)
+
+			verifyTestVectors(params, params.decryptor, values, params.encryptorPk.EncryptFastNew(plaintext), t)
+		})
 	}
 
 	for _, parameters := range testParams.ckksParameters {
@@ -303,6 +322,25 @@ func testEncryptor(t *testing.T) {
 			values, _, ciphertext := newTestVectors(params, params.encryptorSk, 1, t)
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+		})
+
+		t.Run(testString("EncryptFromSkFast/", parameters), func(t *testing.T) {
+
+			slots := uint64(1 << params.params.LogSlots)
+
+			values := make([]complex128, slots)
+
+			for i := uint64(0); i < slots; i++ {
+				values[i] = randomComplex(-1, 1)
+			}
+
+			values[0] = complex(0.607538, 0.555668)
+
+			plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale)
+
+			params.encoder.Encode(plaintext, values, slots)
+
+			verifyTestVectors(params, params.decryptor, values, params.encryptorSk.EncryptFastNew(plaintext), t)
 		})
 	}
 }

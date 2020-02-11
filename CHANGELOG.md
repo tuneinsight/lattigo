@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 - Bootstrapping for CKKS.
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
-## [1.3.0] - 2019-12-20
+## [1.3.1] - 2019-12-20
 ### Added
 - BFV/CKKS : added API for encrypting using a CRP (common reference polynomial).
 - BFV/CKKS : added API for encrypting faster (encrypts zero directly in Q instead of QP and does not need to divide by P).

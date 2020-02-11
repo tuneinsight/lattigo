@@ -271,7 +271,8 @@ func (evaluator *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	contextQ := evaluator.bfvContext.contextQ
 	contextQMul := evaluator.bfvContext.contextQMul
 
-	level := uint64(len(contextQ.Modulus) - 1)
+	levelQ := uint64(len(contextQ.Modulus) - 1)
+	levelQMul := uint64(len(contextQMul.Modulus) - 1)
 
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them to NTT form
@@ -286,7 +287,7 @@ func (evaluator *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	c2Q2 := evaluator.poolP[2]
 
 	for i := range ct0.value {
-		evaluator.baseconverterQ1Q2.ModUpSplitQP(level, ct0.value[i], c0Q2[i])
+		evaluator.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct0.value[i], c0Q2[i])
 
 		contextQ.NTT(ct0.value[i], c0Q1[i])
 		contextQMul.NTT(c0Q2[i], c0Q2[i])
@@ -295,7 +296,7 @@ func (evaluator *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	if ct0 != ct1 {
 
 		for i := range ct1.value {
-			evaluator.baseconverterQ1Q2.ModUpSplitQP(level, ct1.value[i], c1Q2[i])
+			evaluator.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct1.value[i], c1Q2[i])
 
 			contextQ.NTT(ct1.value[i], c1Q1[i])
 			contextQMul.NTT(c1Q2[i], c1Q2[i])
@@ -404,22 +405,48 @@ func (evaluator *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		}
 	}
 
+	//fmt.Println(contextQ.Modulus)
+	//contextBig, _ := ring.NewContextWithParams(contextQ.N, append(evaluator.params.Qi, evaluator.params.QiMul...))
+	//polyBig := contextBig.NewPoly()
+
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q
 	for i := range ctOut.value {
 		contextQ.InvNTT(c2Q1[i], c2Q1[i])
 		contextQMul.InvNTT(c2Q2[i], c2Q2[i])
 
+		/*
+			for j := range contextQ.Modulus {
+				for k := uint64(0) ; k < contextQ.N; k++ {
+					polyBig.Coeffs[j][k] = c2Q1[i].Coeffs[j][k]
+				}
+			}
+
+			for j := range contextQMul.Modulus {
+				for k := uint64(0) ; k < contextQ.N; k++ {
+					polyBig.Coeffs[j+len(contextQ.Modulus)][k] = c2Q2[i].Coeffs[j][k]
+				}
+			}
+		*/
+
 		// Option (1) (ct(x) * T)/Q; doing so requires that Q*P > Q*Q*T; it is slower but has smaller error.
 		//contextQ.MulScalar(c2Q1[i], evaluator.bfvContext.contextT.Modulus[0], c2Q1[i])
 		//contextQMul.MulScalar(c2Q2[i], evaluator.bfvContext.contextT.Modulus[0], c2Q2[i])
 
+		//coeffs_bigint := make([]*big.Int, contextQ.N)
+		//contextBig.PolyToBigint(polyBig, coeffs_bigint)
+		//fmt.Println(coeffs_bigint[0])
+
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		evaluator.baseconverterQ1Q2.ModDownSplitedQP(level, c2Q1[i], c2Q2[i], c2Q2[i])
+		evaluator.baseconverterQ1Q2.ModDownSplitedQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
+
+		//contextQMul.PolyToBigint(c2Q2[i], coeffs_bigint)
+		//fmt.Println(coeffs_bigint[0])
+		//fmt.Println()
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
 		contextQMul.AddScalarBigint(c2Q2[i], evaluator.pHalf, c2Q2[i])
-		evaluator.baseconverterQ1Q2.ModUpSplitPQ(level, c2Q2[i], ctOut.value[i])
+		evaluator.baseconverterQ1Q2.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.value[i])
 		contextQ.SubScalarBigint(ctOut.value[i], evaluator.pHalf, ctOut.value[i])
 
 		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|

@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 ### Fixes
 - BFV/CKKS : Fixed EncryptFromSK that was not correctly wiping the memory pool before using it, which lead to back encryptions.
 - BFV : Fixed an index out of bound error that would happen during the multiplication if #QMul > #Qi.
+- CKKS : removed some redundant operations in the hoisted rotations.
 
 ## [1.3.0] - 2019-12-20
 ### Added

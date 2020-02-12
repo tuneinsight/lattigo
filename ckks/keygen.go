@@ -241,7 +241,8 @@ func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
-	keygen.ringContext.Sub(skInput.Get(), skOutput.Get(), keygen.polypool)
+	//keygen.ringContext.Sub(skInput.Get(), skOutput.Get(), keygen.polypool)
+	keygen.ringContext.Copy(skInput.Get(), keygen.polypool)
 	newevakey = keygen.newSwitchingKey(keygen.polypool, skOutput.Get())
 	keygen.polypool.Zero()
 	return
@@ -468,7 +469,6 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 func (keygen *keyGenerator) genrotKey(skOutput *ring.Poly, gen uint64) (switchingkey *SwitchingKey) {
 
 	ring.PermuteNTT(skOutput, gen, keygen.polypool)
-	keygen.ringContext.Sub(keygen.polypool, skOutput, keygen.polypool)
 	switchingkey = keygen.newSwitchingKey(keygen.polypool, skOutput)
 	keygen.polypool.Zero()
 

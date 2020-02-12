@@ -974,6 +974,29 @@ func testRotateColumns(t *testing.T) {
 			}
 
 		})
+
+		t.Run(testString("Hoisted/", parameters), func(t *testing.T) {
+
+			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
+
+			values2 := make([]complex128, len(values1))
+			rotations := []uint64{0, 1, 2, 3, 4, 5}
+			for _, n := range rotations {
+				params.kgen.GenRot(RotationLeft, params.sk, n, rotKey)
+			}
+
+			ciphertexts := params.evaluator.RotateHoisted(ciphertext1, rotations, rotKey)
+
+			for _, n := range rotations {
+
+				for i := range values1 {
+					values2[i] = values1[(i+int(n))%len(values1)]
+				}
+
+				verifyTestVectors(params, params.decryptor, values2, ciphertexts[n], t)
+			}
+
+		})
 	}
 }
 

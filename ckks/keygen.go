@@ -191,6 +191,10 @@ func (keygen *keyGenerator) GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *Publ
 // GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
 func (keygen *keyGenerator) GenRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 
+	if keygen.ckksContext.contextP == nil {
+		panic("Cannot GenRelinKey: modulus P is empty")
+	}
+
 	evakey = new(EvaluationKey)
 	keygen.polypool.Copy(sk.Get())
 	keygen.ringContext.MulCoeffsMontgomery(keygen.polypool, sk.Get(), keygen.polypool)
@@ -241,6 +245,11 @@ func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
+
+	if keygen.ckksContext.contextP == nil {
+		panic("Cannot GenSwitchingKey: modulus P is empty")
+	}
+
 	//keygen.ringContext.Sub(skInput.Get(), skOutput.Get(), keygen.polypool)
 	keygen.ringContext.Copy(skInput.Get(), keygen.polypool)
 	newevakey = keygen.newSwitchingKey(keygen.polypool, skOutput.Get())
@@ -336,6 +345,11 @@ func NewRotationKeys() (rotKey *RotationKeys) {
 
 // GenRot populates the input RotationKeys with a SwitchingKey for the given rotation type and amount.
 func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
+
+	if keygen.ckksContext.contextP == nil {
+		panic("Cannot GenRot: modulus P is empty")
+	}
+
 	switch rotType {
 	case RotationLeft:
 
@@ -375,6 +389,10 @@ func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 
 // GenRotationKeysPow2 generates a new rotation key with all the power-of-two rotations to the left and right, as well as the conjugation.
 func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys) {
+
+	if keygen.ckksContext.contextP == nil {
+		panic("Cannot GenRotationKeysPow2: modulus P is empty")
+	}
 
 	rotKey = new(RotationKeys)
 

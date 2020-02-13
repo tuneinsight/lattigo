@@ -68,8 +68,10 @@ func newContext(params *Parameters) (ckkscontext *Context) {
 		panic(err)
 	}
 
-	if ckkscontext.contextP, err = ring.NewContextWithParams(N, params.Pi); err != nil {
-		panic(err)
+	if len(params.Pi) != 0 {
+		if ckkscontext.contextP, err = ring.NewContextWithParams(N, params.Pi); err != nil {
+			panic(err)
+		}
 	}
 
 	if ckkscontext.contextQP, err = ring.NewContextWithParams(N, append(params.Qi, params.Pi...)); err != nil {

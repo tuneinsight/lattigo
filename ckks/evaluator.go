@@ -88,15 +88,24 @@ func NewEvaluator(params *Parameters) Evaluator {
 	q := ckksContext.contextQ
 	p := ckksContext.contextP
 
+	var baseconverter *ring.FastBasisExtender
+	var decomposer *ring.Decomposer
+	var poolP [3]*ring.Poly
+	if len(params.Pi) != 0 {
+		baseconverter = ring.NewFastBasisExtender(q, p)
+		decomposer = ring.NewDecomposer(q.Modulus, p.Modulus)
+		poolP = [3]*ring.Poly{p.NewPoly(), p.NewPoly(), p.NewPoly()}
+	}
+
 	return &evaluator{
 		params:        params.Copy(),
 		ckksContext:   ckksContext,
 		ringpool:      [6]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly()},
 		poolQ:         [4]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly()},
-		poolP:         [3]*ring.Poly{p.NewPoly(), p.NewPoly(), p.NewPoly()},
+		poolP:         poolP,
 		ctxpool:       NewCiphertext(params, 1, params.MaxLevel(), params.Scale),
-		baseconverter: ring.NewFastBasisExtender(q, p),
-		decomposer:    ring.NewDecomposer(q.Modulus, p.Modulus),
+		baseconverter: baseconverter,
+		decomposer:    decomposer,
 	}
 }
 

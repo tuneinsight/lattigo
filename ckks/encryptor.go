@@ -105,11 +105,16 @@ func newEncryptor(params *Parameters) encryptor {
 	ctx := newContext(params)
 	qp := ctx.contextQP
 
+	var baseconverter *ring.FastBasisExtender
+	if len(params.Pi) != 0 {
+		baseconverter = ring.NewFastBasisExtender(ctx.contextQ, ctx.contextP)
+	}
+
 	return encryptor{
 		params:        params.Copy(),
 		ckksContext:   ctx,
 		polypool:      [3]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly()},
-		baseconverter: ring.NewFastBasisExtender(ctx.contextQ, ctx.contextP),
+		baseconverter: baseconverter,
 	}
 }
 
@@ -119,6 +124,11 @@ func newEncryptor(params *Parameters) encryptor {
 // encrypt with pk: ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
 // encrypt with sk: ciphertext = [-a*sk + m + e, a]
 func (encryptor *pkEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
+
+	if encryptor.baseconverter == nil {
+		panic("Cannot EncryptNew : modulus P is empty -> use instead EncryptFastNew")
+	}
+
 	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
 	encryptor.encrypt(plaintext, ciphertext, false)
 
@@ -126,6 +136,11 @@ func (encryptor *pkEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 }
 
 func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
+
+	if encryptor.baseconverter == nil {
+		panic("Cannot Encrypt : modulus P is empty -> use instead EncryptFast")
+	}
+
 	encryptor.encrypt(plaintext, ciphertext, false)
 }
 
@@ -222,12 +237,22 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 }
 
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
+
+	if encryptor.baseconverter == nil {
+		panic("Cannot EncryptNew : modulus P is empty -> use instead EncryptFastNew")
+	}
+
 	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
 	encryptor.Encrypt(plaintext, ciphertext)
 	return ciphertext
 }
 
 func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
+
+	if encryptor.baseconverter == nil {
+		panic("Cannot Encrypt : modulus P is empty -> use instead EncryptFast")
+	}
+
 	encryptor.encryptSample(plaintext, ciphertext, false)
 }
 
@@ -242,12 +267,22 @@ func (encryptor *skEncryptor) EncryptFast(plaintext *Plaintext, ciphertext *Ciph
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
+
+	if encryptor.baseconverter == nil {
+		panic("Cannot EncryptFromCRPNew : modulus P is empty -> use instead EncryptFromCRPFastNew")
+	}
+
 	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
 	encryptor.EncryptFromCRP(plaintext, ciphertext, crp)
 	return ciphertext
 }
 
 func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
+
+	if encryptor.baseconverter == nil {
+		panic("Cannot EncryptFromCRP : modulus P is empty -> use instead EncryptFromCRPFast")
+	}
+
 	encryptor.encryptFromCRP(plaintext, ciphertext, crp, false)
 }
 

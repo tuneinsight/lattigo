@@ -149,15 +149,6 @@ func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 
 	for true {
 
-		if IsPrime(y) {
-			primes = append(primes, y)
-			if uint64(len(primes)) == levels {
-				return primes
-			}
-		}
-
-		y -= _2N
-
 		if IsPrime(x) {
 			primes = append(primes, x)
 			if uint64(len(primes)) == levels {
@@ -166,6 +157,16 @@ func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 		}
 
 		x += _2N
+		y -= _2N
+
+		if IsPrime(y) {
+			primes = append(primes, y)
+			if uint64(len(primes)) == levels {
+				return primes
+			}
+		}
+
+		
 	}
 
 	return

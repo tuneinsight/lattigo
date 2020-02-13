@@ -8,13 +8,13 @@ All notable changes to this project will be documented in this file.
 
 ## [1.3.1] - 2020-02-12
 ### Added
-- BFV/CKKS : added API for encrypting using a CRP (common reference polynomial).
-- BFV/CKKS : added API for encrypting faster (encrypts zero directly in Q instead of QP and does not need to divide by P).
-- BFV : added hoisted rotations.
-- BFV/CKKS : added tests for hoisted rotations.
+- CKKS : added API for encrypting using a CRP (common reference polynomial).
+- CKKS : added API for encrypting faster (encrypts zero directly in Q instead of QP and does not need to divide by P).
+- CKKS : Parameters can now be created without the modulus P, but this disables all key-switching operations.
+- CKKS : added tests for hoisted rotations.
 - RING : added benchmarks for a NTT using purely Barrett reduction for comparison purposes.
 ### Changed :
-- BFV/CKKS : changed the switching keys from (-as1 + (s0-s1) + e, a) to (-as1 + s0 + e, a).
+- CKKS : changed the switching keys from (-as1 + (s0-s1) + e, a) to (-as1 + s0 + e, a).
 ### Fixes
 - BFV/CKKS : Fixed EncryptFromSK that was not correctly wiping the memory pool before using it, which lead to back encryptions.
 - BFV : Fixed an index out of bound error that would happen during the multiplication if #QMul > #Qi.

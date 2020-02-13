@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - BFV/CKKS : Fixed EncryptFromSK that was not correctly wiping the memory pool before using it, which lead to back encryptions.
 - BFV : Fixed an index out of bound error that would happen during the multiplication if #QMul > #Qi.
 - CKKS : removed some redundant operations in the hoisted rotations.
+- Ring : fixed GenerateNTTPrimes that could return twice the same prime if the initial value was prime.
 
 ## [1.3.0] - 2019-12-20
 ### Added

@@ -1091,8 +1091,8 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 
 			context.MulCoeffsMontgomeryLvl(level, c00, el1.value[0], c0) // c0 = c0[0]*c0[0]
 			context.MulCoeffsMontgomeryLvl(level, c00, el1.value[1], c1)
-			context.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, el1.value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
-			context.MulCoeffsMontgomeryLvl(level, c01, el1.value[1], c2)            // c2 = c0[1]*c1[1]
+			context.MulCoeffsMontgomeryAndAddLvl(level, c01, el1.value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
+			context.MulCoeffsMontgomeryLvl(level, c01, el1.value[1], c2)       // c2 = c0[1]*c1[1]
 		}
 
 		// Relinearize if a key was provided

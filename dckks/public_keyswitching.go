@@ -106,6 +106,8 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *ckks.Ciphertext) {
 
+	ctOut.SetScale(ct.Scale())
+
 	pcks.dckksContext.contextQ.AddLvl(ct.Level(), ct.Value()[0], combined[0], ctOut.Value()[0])
 	pcks.dckksContext.contextQ.CopyLvl(ct.Level(), combined[1], ctOut.Value()[1])
 }

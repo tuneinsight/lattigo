@@ -298,12 +298,20 @@ func (encryptor *skEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertex
 }
 
 func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
-	encryptor.ckksContext.contextQP.UniformPoly(encryptor.polypool[1])
+	if fast {
+		encryptor.ckksContext.contextQ.UniformPoly(encryptor.polypool[1])
+	} else {
+		encryptor.ckksContext.contextQP.UniformPoly(encryptor.polypool[1])
+	}
 	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1], fast)
 }
 
 func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly, fast bool) {
-	encryptor.ckksContext.contextQP.Copy(crp, encryptor.polypool[1])
+	if fast {
+		encryptor.ckksContext.contextQ.Copy(crp, encryptor.polypool[1])
+	} else {
+		encryptor.ckksContext.contextQP.Copy(crp, encryptor.polypool[1])
+	}
 	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1], fast)
 }
 

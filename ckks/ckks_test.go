@@ -311,11 +311,6 @@ func testEncryptor(t *testing.T) {
 
 			verifyTestVectors(params, params.decryptor, values, params.encryptorPk.EncryptFastNew(plaintext), t)
 		})
-	}
-
-	for _, parameters := range testParams.ckksParameters {
-
-		params := genCkksParams(parameters)
 
 		t.Run(testString("EncryptFromSk/", parameters), func(t *testing.T) {
 

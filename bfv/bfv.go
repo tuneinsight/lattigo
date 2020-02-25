@@ -57,8 +57,10 @@ func newBFVContext(params *Parameters) (context *bfvContext) {
 		panic(err)
 	}
 
-	if context.contextP, err = ring.NewContextWithParams(N, params.Pi); err != nil {
-		panic(err)
+	if len(params.Pi) != 0 {
+		if context.contextP, err = ring.NewContextWithParams(N, params.Pi); err != nil {
+			panic(err)
+		}
 	}
 
 	if context.contextQP, err = ring.NewContextWithParams(N, append(params.Qi, params.Pi...)); err != nil {

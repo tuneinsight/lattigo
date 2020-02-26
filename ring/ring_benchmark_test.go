@@ -170,6 +170,18 @@ func benchNTT(b *testing.B) {
 				context.InvNTT(p, p)
 			}
 		})
+
+		b.Run(testString("NTTBarrett/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.NTTBarrett(p, p)
+			}
+		})
+
+		b.Run(testString("InvNTTBarrett/", context), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				context.InvNTTBarrett(p, p)
+			}
+		})
 	}
 }
 

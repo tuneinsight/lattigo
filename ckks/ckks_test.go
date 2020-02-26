@@ -292,17 +292,50 @@ func testEncryptor(t *testing.T) {
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
-	}
 
-	for _, parameters := range testParams.ckksParameters {
+		t.Run(testString("EncryptFromPkFast/", parameters), func(t *testing.T) {
 
-		params := genCkksParams(parameters)
+			slots := uint64(1 << params.params.LogSlots)
+
+			values := make([]complex128, slots)
+
+			for i := uint64(0); i < slots; i++ {
+				values[i] = randomComplex(-1, 1)
+			}
+
+			values[0] = complex(0.607538, 0.555668)
+
+			plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale)
+
+			params.encoder.Encode(plaintext, values, slots)
+
+			verifyTestVectors(params, params.decryptor, values, params.encryptorPk.EncryptFastNew(plaintext), t)
+		})
 
 		t.Run(testString("EncryptFromSk/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorSk, 1, t)
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+		})
+
+		t.Run(testString("EncryptFromSkFast/", parameters), func(t *testing.T) {
+
+			slots := uint64(1 << params.params.LogSlots)
+
+			values := make([]complex128, slots)
+
+			for i := uint64(0); i < slots; i++ {
+				values[i] = randomComplex(-1, 1)
+			}
+
+			values[0] = complex(0.607538, 0.555668)
+
+			plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale)
+
+			params.encoder.Encode(plaintext, values, slots)
+
+			verifyTestVectors(params, params.decryptor, values, params.encryptorSk.EncryptFastNew(plaintext), t)
 		})
 	}
 }
@@ -933,6 +966,29 @@ func testRotateColumns(t *testing.T) {
 				params.evaluator.RotateColumns(ciphertext1, rand, rotKey, ciphertext2)
 
 				verifyTestVectors(params, params.decryptor, values2, ciphertext2, t)
+			}
+
+		})
+
+		t.Run(testString("Hoisted/", parameters), func(t *testing.T) {
+
+			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
+
+			values2 := make([]complex128, len(values1))
+			rotations := []uint64{0, 1, 2, 3, 4, 5}
+			for _, n := range rotations {
+				params.kgen.GenRot(RotationLeft, params.sk, n, rotKey)
+			}
+
+			ciphertexts := params.evaluator.RotateHoisted(ciphertext1, rotations, rotKey)
+
+			for _, n := range rotations {
+
+				for i := range values1 {
+					values2[i] = values1[(i+int(n))%len(values1)]
+				}
+
+				verifyTestVectors(params, params.decryptor, values2, ciphertexts[n], t)
 			}
 
 		})

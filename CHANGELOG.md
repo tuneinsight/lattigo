@@ -6,6 +6,24 @@ All notable changes to this project will be documented in this file.
 - Bootstrapping for CKKS.
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
+## [1.3.1] - 2020-02-26
+### Added
+- BFV/CKKS : added API for encrypting using a CRP (common reference polynomial).
+- BFV/CKKS : added API for encrypting faster (encrypts zero directly in Q instead of QP and does not need to divide by P).
+- BFV/CKKS : Parameters can now be created without the modulus P, but this disables all key-switching operations.
+- CKKS : added tests for hoisted rotations.
+- RinG : added benchmarks for a NTT using purely Barrett reduction for comparison purposes.
+### Changed :
+- BFV/CKKS : changed the switching keys from (-as1 + (s0-s1) + e, a) to (-as1 + s0 + e, a). This does not affect the user expercience as it only changes what is happening in the background, however older Rotations and KeySwitching keys will induce wrong results and will need to be re-generated.
+### Fixes
+- BFV : Fixed EncryptFromSK that was not correctly wiping the memory pool before using it, which lead to back encryptions.
+- BFV : Fixed an index out of bound error that would happen during the multiplication if #QMul > #Qi.
+- CKKS : removed some redundant operations in the hoisted rotations.
+- CKKS : MulRelin now always returns a fully reduced ciphertext.
+- DCKKS : PCKS and CKS now correctly set the scale of the output ciphertext to the scale of the input ciphertext.
+- Ring : fixed GenerateNTTPrimes that could return twice the same prime if the initial value was prime.
+- Ring : context.UniformPoly now samples based on the number of moduli of the context rather than based on the input polynomial.
+
 ## [1.3.0] - 2019-12-20
 ### Added
 - All schemes : new switching-keys and key-switching algorithm based on the concept presented in https://eprint.iacr.org/2019/688.pdf.

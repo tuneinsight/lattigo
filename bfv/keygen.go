@@ -171,6 +171,10 @@ func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 // of degree > 1 to a ciphertext of degree 1. Max degree is the maximum degree of the ciphertext allowed to relinearize.
 func (keygen *keyGenerator) GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *EvaluationKey) {
 
+	if keygen.bfvContext.contextP == nil {
+		panic("Cannot GenRelinKey: modulus P is empty")
+	}
+
 	evk = new(EvaluationKey)
 
 	evk.evakey = make([]*SwitchingKey, maxDegree)
@@ -242,11 +246,13 @@ func (evk *EvaluationKey) SetRelinKeys(rlk [][][2]*ring.Poly) {
 // GenSwitchingKey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key.
 func (keygen *keyGenerator) GenSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey) {
 
+	if keygen.bfvContext.contextP == nil {
+		panic("Cannot GenRelinKey: modulus P is empty")
+	}
+
 	ringContext := keygen.bfvContext.contextQP
 
-	ringContext.Sub(skIn.Get(), skOut.Get(), keygen.polypool)
-
-	ringContext.MulScalarBigint(keygen.polypool, keygen.bfvContext.contextP.ModulusBigint, keygen.polypool)
+	ringContext.MulScalarBigint(skIn.Get(), keygen.bfvContext.contextP.ModulusBigint, keygen.polypool)
 
 	evk = keygen.newswitchingkey(keygen.polypool, skOut.Get())
 	keygen.polypool.Zero()
@@ -335,6 +341,10 @@ func NewRotationKeys() (rotKey *RotationKeys) {
 // GenRot populates the target RotationKeys with a SwitchingKey for the desired rotation type and amount.
 func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
 
+	if keygen.bfvContext.contextP == nil {
+		panic("Cannot GenRelinKey: modulus P is empty")
+	}
+
 	k &= ((keygen.bfvContext.n >> 1) - 1)
 
 	switch rotType {
@@ -421,7 +431,6 @@ func genrotkey(keygen *keyGenerator, sk *ring.Poly, gen uint64) (switchkey *Swit
 	ringContext := keygen.bfvContext.contextQP
 
 	ring.PermuteNTT(sk, gen, keygen.polypool)
-	ringContext.Sub(keygen.polypool, sk, keygen.polypool)
 
 	ringContext.MulScalarBigint(keygen.polypool, keygen.bfvContext.contextP.ModulusBigint, keygen.polypool)
 

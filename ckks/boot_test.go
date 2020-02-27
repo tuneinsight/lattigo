@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"fmt"
-	"log"
 	"math/cmplx"
 	"math/rand"
 	"testing"
@@ -17,20 +16,21 @@ func TestBootstrapp(t *testing.T) {
 
 	var DefaultScale, LTScale, SineScale float64
 
-	DefaultScale = 1 << 30
+	DefaultScale = 1 << 45
 	LTScale = 1 << 45
 	_ = LTScale
 	SineScale = 1 << 55
 
-	logSlots := uint64(15)
+	logN := uint64(16)
+	logSlots := uint64(10)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 
 	bootParams := new(Parameters)
-	bootParams.LogN = 16
+	bootParams.LogN = logN
 	bootParams.LogSlots = logSlots
 	bootParams.Scale = DefaultScale
-	bootParams.LogQi = []uint64{55, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	bootParams.LogQi = []uint64{55, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
 	bootParams.LogPi = []uint64{55, 55, 55, 55}
 	bootParams.Sigma = 3.2
 
@@ -164,23 +164,18 @@ func TestBootstrapp(t *testing.T) {
 
 	t.Run(testString("BootstrappOriginal/", bootParams), func(t *testing.T) {
 
-		var bootcontext *BootContext
-		var err error
-
-		if bootcontext, err = NewBootContext(bootParams, params.sk, ctsDepth, stcDepth); err != nil {
-			log.Fatal(err)
-		}
+		bootcontext := NewBootContext(bootParams, params.sk, ctsDepth, stcDepth)
 
 		values := make([]complex128, slots)
 		for i := range values {
-			values[i] = complex(randomFloat(-1, 1), 0)
+			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 		}
 
-		values[0] = complex(0.516015, 0)
-		values[1] = complex(0.772621, 0)
+		values[0] = complex(0.9238795325112867, 0.3826834323650898)
+		values[1] = complex(0.9238795325112867, 0.3826834323650898)
 		if slots > 2 {
-			values[2] = complex(0.939175, 0)
-			values[3] = complex(0.345987, 0)
+			values[2] = complex(0.9238795325112867, 0.3826834323650898)
+			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
 		plaintext := NewPlaintext(bootParams, bootParams.MaxLevel(), bootParams.Scale)
@@ -190,7 +185,8 @@ func TestBootstrapp(t *testing.T) {
 
 		for i := 0; i < 1; i++ {
 
-			ciphertext = params.evaluator.Bootstrapp(ciphertext, bootcontext)
+			ciphertext = bootcontext.Bootstrapp(ciphertext)
+			fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 			//if err = evaluator.SetScale(ciphertext, params.Scale); err != nil {
 			//	log.Fatal(err)
@@ -203,23 +199,18 @@ func TestBootstrapp(t *testing.T) {
 
 	t.Run(testString("BootstrappBetterSine/", bootParams), func(t *testing.T) {
 
-		var bootcontext *BootContext
-		var err error
-
-		if bootcontext, err = NewBootContext(bootParams, params.sk, ctsDepth, stcDepth); err != nil {
-			log.Fatal(err)
-		}
+		bootcontext := NewBootContextBetterSine(bootParams, params.sk, ctsDepth, stcDepth)
 
 		values := make([]complex128, slots)
 		for i := range values {
-			values[i] = complex(randomFloat(-1, 1), 0)
+			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 		}
 
-		values[0] = complex(0.516015, 0)
-		values[1] = complex(0.772621, 0)
+		values[0] = complex(0.9238795325112867, 0.3826834323650898)
+		values[1] = complex(0.9238795325112867, 0.3826834323650898)
 		if slots > 2 {
-			values[2] = complex(0.939175, 0)
-			values[3] = complex(0.345987, 0)
+			values[2] = complex(0.9238795325112867, 0.3826834323650898)
+			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
 		plaintext := NewPlaintext(bootParams, bootParams.MaxLevel(), bootParams.Scale)
@@ -229,7 +220,8 @@ func TestBootstrapp(t *testing.T) {
 
 		for i := 0; i < 1; i++ {
 
-			ciphertext = params.evaluator.BootstrappBetterSine(ciphertext, bootcontext)
+			ciphertext = bootcontext.Bootstrapp(ciphertext)
+			fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 			//if err = evaluator.SetScale(ciphertext, params.Scale); err != nil {
 			//	log.Fatal(err)

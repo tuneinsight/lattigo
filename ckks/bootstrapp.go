@@ -396,18 +396,14 @@ func (bootcontext *BootContext) evaluateBetterSine(evaluator *evaluator, ct0, ct
 
 	// TODO : manage scale dynamicly depending on Q_0, the Qi of the SineEval and the ciphertext's scale.
 	ct0.MulScale(1024)
-
 	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
 	ct0 = bootcontext.evaluateChebyBootBetterSine(evaluator, ct0)
-
 	ct0.DivScale(1024)
 
 	if ct1 != nil {
 
 		ct1.MulScale(1024)
-
-		ct0 = bootcontext.evaluateChebyBootBetterSine(evaluator, ct1)
-
+		ct1 = bootcontext.evaluateChebyBootBetterSine(evaluator, ct1)
 		ct1.DivScale(1024)
 	}
 
@@ -435,7 +431,7 @@ func (bootcontext *BootContext) evaluateChebyBoot(evaluator *evaluator, ct *Ciph
 	evaluator.Rescale(C[1], bootcontext.ckkscontext.scale, C[1])
 
 	M := uint64(bits.Len64(degree - 1))
-	L := uint64(M>>1)
+	L := uint64(M >> 1)
 
 	for i := uint64(2); i < (1<<L)+1; i++ {
 		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
@@ -473,7 +469,7 @@ func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator
 			cheby.coeffs[i] *= 0.7511255444649425
 		}
 	}
-	
+
 	cheby.maxDeg = uint64(deg) + 1
 	cheby.a = complex(float64(-K), 0) / sc_fac
 	cheby.b = complex(float64(K), 0) / sc_fac
@@ -490,13 +486,12 @@ func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator
 	C[1] = ct.CopyNew().Ciphertext()
 
 	evaluator.AddConst(C[1], -0.25*n, C[1])
-
 	evaluator.MultByConst(C[1], 2/((b-a)*n*sc_fac), C[1])
 	evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
 	evaluator.Rescale(C[1], evaluator.params.Scale, C[1])
 
 	M := uint64(bits.Len64(degree - 1))
-	L := uint64(M>>1)
+	L := uint64(M >> 1)
 
 	for i := uint64(2); i < (1<<L)+1; i++ {
 		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
@@ -510,25 +505,20 @@ func (bootcontext *BootContext) evaluateChebyBootBetterSine(evaluator *evaluator
 
 	if sc_num == 1 {
 		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
-		evaluator.Rescale(res, evaluator.params.Scale, res)
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 		evaluator.AddConst(res, -1.0/6.283185307179586, res)
 	}
 
 	if sc_num == 2 {
-		//fmt.Println()
-
-		//fmt.Println("Mul", res.Level(), res.Level(), res.Scale())
 		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
-		evaluator.Rescale(res, evaluator.params.Scale, res)
-
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 		y := evaluator.AddConstNew(res, -0.5641895835477563)
-		//fmt.Println("Mul", res.Level(), y.Level())
 		evaluator.MulRelin(res, y, bootcontext.relinkey, res)
 		evaluator.MultByConst(res, 4, res)
 		evaluator.AddConst(res, 1.0/6.283185307179586, res)
-		evaluator.Rescale(res, evaluator.params.Scale, res)
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 	}
-	
+
 	return
 }
 

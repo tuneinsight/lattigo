@@ -1,12 +1,12 @@
 package ckks
 
 import (
+	"fmt"
 	"log"
 	"math/cmplx"
 	"math/rand"
 	"testing"
 	"time"
-	"fmt"
 
 	"github.com/ldsec/lattigo/ckks/bettersine"
 )
@@ -17,12 +17,12 @@ func TestBootstrapp(t *testing.T) {
 
 	var DefaultScale, LTScale, SineScale float64
 
-	DefaultScale = 1 << 40
+	DefaultScale = 1 << 30
 	LTScale = 1 << 45
 	_ = LTScale
 	SineScale = 1 << 55
 
-	logSlots := uint64(13)
+	logSlots := uint64(15)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 
@@ -30,7 +30,7 @@ func TestBootstrapp(t *testing.T) {
 	bootParams.LogN = 16
 	bootParams.LogSlots = logSlots
 	bootParams.Scale = DefaultScale
-	bootParams.LogQi = []uint64{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	bootParams.LogQi = []uint64{55, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
 	bootParams.LogPi = []uint64{55, 55, 55, 55}
 	bootParams.Sigma = 3.2
 
@@ -85,7 +85,7 @@ func TestBootstrapp(t *testing.T) {
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
-		cheby.maxDeg = uint64(len(cheby.coeffs)-1)
+		cheby.maxDeg = uint64(len(cheby.coeffs) - 1)
 		cheby.a = complex(float64(-K), 0) / sc_fac
 		cheby.b = complex(float64(K), 0) / sc_fac
 
@@ -96,14 +96,14 @@ func TestBootstrapp(t *testing.T) {
 				cheby.coeffs[i] *= 0.15915494309189535
 			}
 		}
-		
+
 		if sc_num == 1 {
 			for i := range cheby.coeffs {
 				cheby.coeffs[i] *= 0.5641895835477563
 			}
 		}
 
-		if sc_num == 2{
+		if sc_num == 2 {
 			for i := range cheby.coeffs {
 				cheby.coeffs[i] *= 0.7511255444649425
 			}
@@ -125,10 +125,7 @@ func TestBootstrapp(t *testing.T) {
 		fmt.Println(ciphertext.Level())
 		ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, sc_fac, cheby, rlk)
 		fmt.Println(ciphertext.Level())
-		
-		
 
-		
 		if sc_num == 1 {
 			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
 			params.evaluator.AddConst(ciphertext, -1.0/6.283185307179586, ciphertext)
@@ -148,20 +145,16 @@ func TestBootstrapp(t *testing.T) {
 			params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
 		}
 
-
 		if sc_num == 3 {
-			for i:= 0 ; i < sc_num; i++ {
+			for i := 0; i < sc_num; i++ {
 				params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
 				params.evaluator.MultByConst(ciphertext, 2, ciphertext)
 				params.evaluator.AddConst(ciphertext, -1, ciphertext)
 				params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
 			}
 
-			params.evaluator.MultByConst(ciphertext, 1.0 / 6.283185307179586, ciphertext)
+			params.evaluator.MultByConst(ciphertext, 1.0/6.283185307179586, ciphertext)
 		}
-
-
-		
 
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
@@ -169,7 +162,7 @@ func TestBootstrapp(t *testing.T) {
 
 	})
 
-	t.Run(testString("Bootstrapp/", bootParams), func(t *testing.T) {
+	t.Run(testString("BootstrappOriginal/", bootParams), func(t *testing.T) {
 
 		var bootcontext *BootContext
 		var err error

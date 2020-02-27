@@ -213,20 +213,20 @@ func sliceBitReverseInPlaceComplex128(slice []complex128, N uint64) {
 	}
 }
 
-func max(array []complex128) (m float64){
+func max(array []complex128) (m float64) {
 	m = real(array[0])
-	for _,i := range array[1:] {
-		if real(i) > m{
+	for _, i := range array[1:] {
+		if real(i) > m {
 			m = real(i)
 		}
 	}
 	return
 }
 
-func min(array []complex128) (m float64){
+func min(array []complex128) (m float64) {
 	m = real(array[0])
-	for _,i := range array[1:] {
-		if real(i) < m{
+	for _, i := range array[1:] {
+		if real(i) < m {
 			m = real(i)
 		}
 	}

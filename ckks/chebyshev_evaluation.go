@@ -15,13 +15,13 @@ func (p *poly) degree() uint64 {
 	return uint64(len(p.coeffs) - 1)
 }
 
-func optimalL(M uint64) (uint64){
-	L := M>>1
-	a := (1<<L) + (1<<(M-L)) + M - L - 3
-	b := (1<<(L+1)) + (1<<(M-L-1)) + M - L - 4
-	if a > b{
-		return L+1
-	}else{
+func optimalL(M uint64) uint64 {
+	L := M >> 1
+	a := (1 << L) + (1 << (M - L)) + M - L - 3
+	b := (1 << (L + 1)) + (1 << (M - L - 1)) + M - L - 4
+	if a > b {
+		return L + 1
+	} else {
 		return L
 	}
 }
@@ -39,7 +39,7 @@ func (eval *evaluator) EvaluateChebyFast(op *Ciphertext, cheby *ChebyshevInterpo
 	eval.Rescale(C[1], eval.ckksContext.scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree()))
-	L := (M>>1) //optimalL(M)
+	L := (M >> 1) //optimalL(M)
 
 	for i := uint64(2); i <= (1 << L); i++ {
 		computePowerBasisCheby(i, C, eval, evakey)
@@ -101,8 +101,6 @@ func (eval *evaluator) EvaluateChebyEcoSpecial(ct *Ciphertext, n complex128, che
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-
-
 	return recurseCheby(cheby.degree(), L, M, cheby.Poly(), C, eval, evakey)
 }
 
@@ -119,7 +117,7 @@ func (eval *evaluator) EvaluateChebyFastSpecial(ct *Ciphertext, n complex128, ch
 	eval.Rescale(C[1], eval.params.Scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree()))
-	L := (M>>1) //optimalL(M)
+	L := (M >> 1) //optimalL(M)
 
 	for i := uint64(2); i <= (1 << L); i++ {
 		computePowerBasisCheby(i, C, eval, evakey)
@@ -227,10 +225,10 @@ func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext
 }
 
 func evaluatePolyFromChebyBasis(coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
-	
+
 	if coeffs.degree() != 0 {
 		res = NewCiphertext(evaluator.params, 1, C[coeffs.degree()].Level(), C[1].Scale())
-	}else{
+	} else {
 		res = NewCiphertext(evaluator.params, 1, C[1].Level(), C[1].Scale())
 	}
 

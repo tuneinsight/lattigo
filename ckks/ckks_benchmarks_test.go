@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"fmt"
 	"github.com/ldsec/lattigo/ring"
 	"testing"
 )
@@ -250,15 +251,16 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	var DefaultScale, LTScale float64
 
-	DefaultScale = 1 << 40
+	DefaultScale = 1 << 30
 	LTScale = 1 << 45
 	//SineScale = 1 << 55
 
 	bootParams := new(Parameters)
 	bootParams.LogN = 16
-	bootParams.LogSlots = 14
+	bootParams.LogSlots = 15
 	bootParams.Scale = DefaultScale
-	bootParams.LogQi = []uint64{55, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45, 45}
+	// (15,18.5) - 1401 - 475  : bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	bootParams.LogQi = []uint64{55, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
 	bootParams.LogPi = []uint64{55, 55, 55, 55}
 	bootParams.Sigma = 3.2
 
@@ -266,7 +268,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	var ctsDepth, stcDepth uint64
 
-	ctsDepth = 4
+	ctsDepth = 3
 	stcDepth = 3
 
 	kgen = NewKeyGenerator(bootParams)
@@ -354,11 +356,13 @@ func BenchmarkBootstrapp(b *testing.B) {
 			ct2, ct3 = bootcontext.evaluateBetterSine(eval.(*evaluator), ct0, ct1)
 
 			if ct2.Level() != bootParams.MaxLevel()-ctsDepth-9 {
+				fmt.Println(ct2.Level(), ct0.Level())
 				panic("scaling error during eval sinebetter bench")
 			}
 
 			if ct3 != nil {
 				if ct3.Level() != bootParams.MaxLevel()-ctsDepth-9 {
+					fmt.Println(ct2.Level(), ct0.Level())
 					panic("scaling error during eval sinebetter bench")
 				}
 			}

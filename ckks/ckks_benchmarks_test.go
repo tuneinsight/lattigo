@@ -264,16 +264,19 @@ func BenchmarkBootstrapp(b *testing.B) {
 	bootParams.GenFromLogModuli()
 
 	var ctsDepth, stcDepth, sinDepth uint64
+	var ctsRescale, stcRescale bool
 
 	ctsDepth = 3
 	stcDepth = 3
 	sinDepth = 8
+	ctsRescale = true
+	stcRescale = true
 
 	kgen = NewKeyGenerator(bootParams)
 
 	sk = kgen.GenSecretKey()
 
-	bootcontext = NewBootContext(bootParams, sk, ctsDepth, stcDepth)
+	bootcontext = NewBootContext(bootParams, sk, ctsDepth, stcDepth, ctsRescale, stcRescale)
 
 	b.Run(testString("ModUp/", bootParams), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -378,16 +381,20 @@ func BenchmarkBootstrappBetterSine(b *testing.B) {
 
 	bootParams.GenFromLogModuli()
 
-	var ctsDepth, stcDepth uint64
+	var ctsDepth, stcDepth, sinDepth uint64
+	var ctsRescale, stcRescale bool
 
 	ctsDepth = 3
 	stcDepth = 3
+	sinDepth = 8
+	ctsRescale = true
+	stcRescale = true
 
 	kgen = NewKeyGenerator(bootParams)
 
 	sk = kgen.GenSecretKey()
 
-	bootcontext = NewBootContextBetterSine(bootParams, sk, ctsDepth, stcDepth)
+	bootcontext = NewBootContextBetterSine(bootParams, sk, ctsDepth, stcDepth, ctsRescale, stcRescale)
 
 	b.Run(testString("ModUp/", bootParams), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -454,9 +461,9 @@ func BenchmarkBootstrappBetterSine(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct2 = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel()-ctsDepth-9, LTScale)
+			ct2 = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel()-ctsDepth-sinDepth, LTScale)
 			if bootParams.LogSlots == bootParams.LogN-1 {
-				ct3 = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel()-ctsDepth-9, LTScale)
+				ct3 = NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel()-ctsDepth-sinDepth, LTScale)
 			} else {
 				ct3 = nil
 			}

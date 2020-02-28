@@ -189,9 +189,12 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 
 	valuesTest = contextParams.encoder.Decode(plaintextTest, slots)
 
+	fmt.Println(valuesTest[:4])
+	fmt.Println(valuesWant[:4])
+
 	var deltaReal, deltaImag float64
 
-	var minprec, maxprec, meanprec, medianprec complex128
+	var delta, minprec, maxprec, meanprec, medianprec complex128
 
 	diff := make([]complex128, slots)
 
@@ -205,28 +208,28 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 
 	for i := range valuesWant {
 
-		deltaReal = math.Abs(real(valuesTest[i]) - real(valuesWant[i]))
-		deltaImag = math.Abs(imag(valuesTest[i]) - imag(valuesWant[i]))
+		delta = valuesTest[i] - valuesWant[i]
+		deltaReal = math.Abs(real(delta))
+		deltaImag = math.Abs(imag(delta))
 
-		diff[i] += complex(deltaReal, 0)
-		diff[i] += complex(0, deltaImag)
+		diff[i] += complex(deltaReal, deltaImag)
 
 		meanprec += diff[i]
 
-		if real(diff[i]) > real(minprec) {
-			minprec = complex(real(diff[i]), 0)
+		if deltaReal > real(minprec) {
+			minprec = complex(deltaReal, imag(minprec))
 		}
 
-		if imag(diff[i]) > imag(minprec) {
-			minprec = complex(real(minprec), imag(diff[i]))
+		if deltaReal < real(maxprec) {
+			maxprec = complex(deltaReal, imag(minprec))
 		}
 
-		if real(diff[i]) < real(maxprec) {
-			maxprec = complex(real(diff[i]), 0)
+		if deltaImag > imag(minprec) {
+			minprec = complex(real(minprec), deltaImag)
 		}
 
-		if imag(diff[i]) < imag(maxprec) {
-			maxprec = complex(real(maxprec), imag(diff[i]))
+		if deltaImag < imag(maxprec) {
+			maxprec = complex(real(maxprec), deltaImag)
 		}
 
 		distribReal[uint64(math.Floor(math.Log2(1/real(diff[i]))))]++

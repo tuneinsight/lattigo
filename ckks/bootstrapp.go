@@ -28,6 +28,9 @@ type bootParams struct {
 
 	plaintextSize uint64
 
+	ctsRescale bool
+	stcRescale bool
+
 	ctsDepth uint64
 	stcDepth uint64
 	sinDepth uint64
@@ -89,7 +92,7 @@ func showcoeffs(decryptor Decryptor, encoder Encoder, slots uint64, ciphertext *
 }
 
 // NewBootContext creates a new bootcontext.
-func (bootcontext *BootContext) newBootParams(params *Parameters, ctsDepth, stcDepth uint64) {
+func (bootcontext *BootContext) newBootParams(params *Parameters, ctsDepth, stcDepth uint64, ctsRescale, stcRescale bool) {
 
 	bootcontext.bootParams = new(bootParams)
 
@@ -111,6 +114,9 @@ func (bootcontext *BootContext) newBootParams(params *Parameters, ctsDepth, stcD
 
 	bootcontext.ctsDepth = ctsDepth
 	bootcontext.stcDepth = stcDepth
+
+	bootcontext.ctsRescale = ctsRescale
+	bootcontext.stcRescale = stcRescale
 
 	bootcontext.encoder = NewEncoder(params)
 	bootcontext.evaluator = NewEvaluator(params)
@@ -208,6 +214,10 @@ func (bootcontext *BootContext) newBootSine() {
 	bootcontext.chebycoeffs = Approximate(sin2pi2pi, -K, K, sineDeg)
 
 	bootcontext.sinDepth = uint64(math.Ceil(math.Log2(float64(sineDeg))) + 1)
+
+	if !bootcontext.ctsRescale {
+		bootcontext.sinDepth++
+	}
 }
 
 func (bootcontext *BootContextBetterSine) newBootBetterSine() {
@@ -245,26 +255,40 @@ func (bootcontext *BootContextBetterSine) newBootBetterSine() {
 	bootcontext.chebycoeffs = cheby
 
 	bootcontext.sinDepth = uint64(math.Ceil(math.Log2(float64(deg))) + float64(sc_num) + 1)
+
+	if !bootcontext.ctsRescale {
+		bootcontext.sinDepth++
+	}
 }
 
 func (bootcontext *BootContext) newBootDFT() {
 
 	bootcontext.bootDFT = new(bootDFT)
 
-	// Change of variable + SubSum + CoeffsToSlots cancelling factor
-	//a := real(bootcontext.chebycoeffs.a)
-	//b := real(bootcontext.chebycoeffs.b)
-	//n := float64(bootcontext.n)
-
 	// ==========================================================
 	// Constant multiplication to be merged with the DFT vectors
 	// ==========================================================
-	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum
-	bootcontext.coeffsToSlotsDiffScale = complex(1, 0) //complex(math.Pow(2/((b-a)*n), 1.0/float64(bootcontext.ctsDepth)), 0)
 
-	// Rescaling factor to set the final ciphertext to the desired scale
-	bootcontext.slotsToCoeffsDiffScale = complex(1, 0) //complex(math.Pow(bootcontext.sineScale/bootcontext.params.Scale, 1.0/float64(bootcontext.stcDepth)), 0)
-	// ==========================================================
+	if bootcontext.ctsRescale {
+		// Change of variable + SubSum + CoeffsToSlots cancelling factor
+		a := real(bootcontext.chebycoeffs.a)
+		b := real(bootcontext.chebycoeffs.b)
+		n := float64(bootcontext.n)
+
+		// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum
+		bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2/((b-a)*n), 1.0/float64(bootcontext.ctsDepth)), 0)
+
+	} else {
+		bootcontext.coeffsToSlotsDiffScale = complex(1, 0)
+
+	}
+
+	if bootcontext.stcRescale {
+		// Rescaling factor to set the final ciphertext to the desired scale
+		bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.sineScale/bootcontext.params.Scale, 1.0/float64(bootcontext.stcDepth)), 0)
+	} else {
+		bootcontext.slotsToCoeffsDiffScale = complex(1, 0)
+	}
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	bootcontext.computePlaintextVectors()
@@ -274,22 +298,31 @@ func (bootcontext *BootContextBetterSine) newBootDFTBetterSine() {
 
 	bootcontext.bootDFT = new(bootDFT)
 
-	// Change of variable + SubSum + CoeffsToSlots cancelling factor
-
-	a := real(bootcontext.chebycoeffs.a)
-	b := real(bootcontext.chebycoeffs.b)
-	n := float64(bootcontext.n)
-	sc_fac := float64(int(1 << bootcontext.sc_num))
-
 	// ==========================================================
 	// Constant multiplication to be merged with the DFT vectors
 	// ==========================================================
-	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum
-	bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2/((b-a)*n*sc_fac), 1.0/float64(bootcontext.ctsDepth)), 0)
 
-	// Rescaling factor to set the final ciphertext to the desired scale
-	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.sineScale/bootcontext.params.Scale, 1.0/float64(bootcontext.stcDepth)), 0)
-	// ==========================================================
+	if bootcontext.ctsRescale {
+
+		// Change of variable + SubSum + CoeffsToSlots cancelling factor
+		a := real(bootcontext.chebycoeffs.a)
+		b := real(bootcontext.chebycoeffs.b)
+		n := float64(bootcontext.n)
+		sc_fac := float64(int(1 << bootcontext.sc_num))
+
+		// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum
+		bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2/((b-a)*n*sc_fac), 1.0/float64(bootcontext.ctsDepth)), 0)
+
+	} else {
+		bootcontext.coeffsToSlotsDiffScale = complex(1, 0)
+	}
+
+	if bootcontext.stcRescale {
+		// Rescaling factor to set the final ciphertext to the desired scale
+		bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.sineScale/bootcontext.params.Scale, 1.0/float64(bootcontext.stcDepth)), 0)
+	} else {
+		bootcontext.slotsToCoeffsDiffScale = complex(1, 0)
+	}
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	bootcontext.computePlaintextVectors()
@@ -298,10 +331,10 @@ func (bootcontext *BootContextBetterSine) newBootDFTBetterSine() {
 }
 
 // NewBootContext creates a new bootcontext.
-func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64) (bootcontext *BootContext) {
+func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64, ctsRescale, stcRescale bool) (bootcontext *BootContext) {
 
 	bootcontext = new(BootContext)
-	bootcontext.newBootParams(params, ctsDepth, stcDepth)
+	bootcontext.newBootParams(params, ctsDepth, stcDepth, ctsRescale, stcRescale)
 	bootcontext.newBootSine()
 	bootcontext.newBootDFT()
 	bootcontext.newBootKeys(sk)
@@ -310,11 +343,11 @@ func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64
 }
 
 // NewBootContext creates a new bootcontext.
-func NewBootContextBetterSine(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64) (bootcontext *BootContextBetterSine) {
+func NewBootContextBetterSine(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64, ctsRescale, stcRescale bool) (bootcontext *BootContextBetterSine) {
 
 	bootcontext = new(BootContextBetterSine)
 
-	bootcontext.newBootParams(params, ctsDepth, stcDepth)
+	bootcontext.newBootParams(params, ctsDepth, stcDepth, ctsRescale, stcRescale)
 	bootcontext.newBootBetterSine()
 	bootcontext.newBootDFTBetterSine()
 	bootcontext.newBootKeys(sk)
@@ -487,21 +520,17 @@ func (bootcontext *BootContext) slotsToCoeffs(ct0, ct1 *Ciphertext) (ct *Ciphert
 	return bootcontext.dft(ct0, bootcontext.pDFT, false)
 }
 
-func (bootcontext *BootContext) dft(vec *Ciphertext, plainVectors []*dftvectors, forward bool) (w *Ciphertext) {
+func (bootcontext *BootContext) dft(vec *Ciphertext, plainVectors []*dftvectors, forward bool) *Ciphertext {
 
-	levels := uint64(len(plainVectors))
-
-	w = vec.CopyNew().Ciphertext()
+	evaluator := bootcontext.evaluator.(*evaluator)
 
 	// Sequencially multiplies w with the provided dft matrices.
-	for i := uint64(0); i < levels; i++ {
-
-		w = bootcontext.multiplyByDiagMatrice(w, plainVectors[i])
-
-		bootcontext.evaluator.Rescale(w, bootcontext.params.Scale, w)
+	for _, plainVector := range plainVectors {
+		vec = bootcontext.multiplyByDiagMatrice(vec, plainVector)
+		evaluator.Rescale(vec, evaluator.ckksContext.scale, vec)
 	}
 
-	return w
+	return vec
 }
 
 func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphertext) {
@@ -516,7 +545,11 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
 	ct0 = bootcontext.evaluateChebyBoot(ct0)
 
-	ct0.SetScale(bootcontext.params.Scale)
+	if bootcontext.stcRescale {
+		ct0.SetScale(bootcontext.params.Scale)
+	} else {
+		ct0.DivScale(1024)
+	}
 
 	if ct1 != nil {
 
@@ -524,7 +557,11 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 		// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
 		ct1 = bootcontext.evaluateChebyBoot(ct1)
 
-		ct1.SetScale(bootcontext.params.Scale)
+		if bootcontext.stcRescale {
+			ct1.SetScale(bootcontext.params.Scale)
+		} else {
+			ct1.DivScale(1024)
+		}
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
@@ -546,7 +583,11 @@ func (bootcontext *BootContextBetterSine) evaluateSine(ct0, ct1 *Ciphertext) (*C
 	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
 	ct0 = bootcontext.evaluateChebyBootBetterSine(ct0)
 
-	ct0.SetScale(bootcontext.params.Scale)
+	if bootcontext.stcRescale {
+		ct0.SetScale(bootcontext.params.Scale)
+	} else {
+		ct0.DivScale(1024)
+	}
 
 	if ct1 != nil {
 
@@ -554,7 +595,11 @@ func (bootcontext *BootContextBetterSine) evaluateSine(ct0, ct1 *Ciphertext) (*C
 
 		ct1 = bootcontext.evaluateChebyBootBetterSine(ct1)
 
-		ct1.SetScale(bootcontext.params.Scale)
+		if bootcontext.stcRescale {
+			ct1.SetScale(bootcontext.params.Scale)
+		} else {
+			ct1.DivScale(1024)
+		}
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
@@ -571,14 +616,18 @@ func (bootcontext *BootContext) evaluateChebyBoot(ct *Ciphertext) (res *Cipherte
 	a := bootcontext.chebycoeffs.a
 	b := bootcontext.chebycoeffs.b
 	degree := bootcontext.chebycoeffs.degree()
-	n := complex(float64(bootcontext.n), 0)
 
 	C := make(map[uint64]*Ciphertext)
 	C[1] = ct.CopyNew().Ciphertext()
 
-	evaluator.MultByConst(C[1], 2/((b-a)*n), C[1])
-	evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
-	evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
+	if bootcontext.ctsRescale {
+		evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
+	} else {
+		n := complex(float64(bootcontext.n), 0)
+		evaluator.MultByConst(C[1], 2/((b-a)*n), C[1])
+		evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
+		evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
+	}
 
 	M := uint64(bits.Len64(degree - 1))
 	L := uint64(M >> 1)
@@ -612,7 +661,15 @@ func (bootcontext *BootContextBetterSine) evaluateChebyBootBetterSine(ct *Cipher
 	C := make(map[uint64]*Ciphertext)
 	C[1] = ct.CopyNew().Ciphertext()
 
-	evaluator.AddConst(C[1], (-a-b-(2*0.25/sc_fac))/(b-a), C[1])
+	if bootcontext.ctsRescale {
+		evaluator.AddConst(C[1], (-a-b-(2*0.25/sc_fac))/(b-a), C[1])
+	} else {
+		n := complex(float64(bootcontext.n), 0)
+		evaluator.AddConst(C[1], -0.25*n, C[1])
+		evaluator.MultByConst(C[1], 2/((b-a)*n*sc_fac), C[1])
+		evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
+		evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
+	}
 
 	M := uint64(bits.Len64(degree - 1))
 	L := uint64(M >> 1)

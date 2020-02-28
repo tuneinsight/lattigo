@@ -16,7 +16,7 @@ func TestBootstrapp(t *testing.T) {
 
 	var DefaultScale, LTScale, SineScale float64
 
-	DefaultScale = 1 << 45
+	DefaultScale = 1 << 30
 	LTScale = 1 << 45
 	_ = LTScale
 	SineScale = 1 << 55
@@ -25,6 +25,8 @@ func TestBootstrapp(t *testing.T) {
 	logSlots := uint64(10)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
+	ctsRescale := false
+	stcRescale := true
 
 	bootParams := new(Parameters)
 	bootParams.LogN = logN
@@ -164,7 +166,7 @@ func TestBootstrapp(t *testing.T) {
 
 	t.Run(testString("BootstrappOriginal/", bootParams), func(t *testing.T) {
 
-		bootcontext := NewBootContext(bootParams, params.sk, ctsDepth, stcDepth)
+		bootcontext := NewBootContext(bootParams, params.sk, ctsDepth, stcDepth, ctsRescale, stcRescale)
 
 		values := make([]complex128, slots)
 		for i := range values {
@@ -199,7 +201,7 @@ func TestBootstrapp(t *testing.T) {
 
 	t.Run(testString("BootstrappBetterSine/", bootParams), func(t *testing.T) {
 
-		bootcontext := NewBootContextBetterSine(bootParams, params.sk, ctsDepth, stcDepth)
+		bootcontext := NewBootContextBetterSine(bootParams, params.sk, ctsDepth, stcDepth, ctsRescale, stcRescale)
 
 		values := make([]complex128, slots)
 		for i := range values {

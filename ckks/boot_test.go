@@ -16,7 +16,7 @@ func TestBootstrapp(t *testing.T) {
 
 	var DefaultScale, LTScale, SineScale float64
 
-	DefaultScale = 1 << 30
+	DefaultScale = 1 << 45
 	LTScale = 1 << 45
 	_ = LTScale
 	SineScale = 1 << 55

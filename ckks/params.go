@@ -406,7 +406,7 @@ func (p *Parameters) checkModuli() error {
 	}
 
 	for i, pi := range p.Pi {
-		if uint64(bits.Len64(pi)-1) > MaxModuliSize {
+		if uint64(bits.Len64(pi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
@@ -445,7 +445,7 @@ func (p *Parameters) checkLogModuli() error {
 	}
 
 	for i, pi := range p.LogPi {
-		if pi > MaxModuliSize {
+		if pi > MaxModuliSize+1 {
 			return fmt.Errorf("LogPi (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}

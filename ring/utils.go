@@ -130,11 +130,21 @@ func IsPrime(num uint64) bool {
 // GenerateNTTPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
 // of levels required. Will return all the appropriate primes, up to the number of level, with the
 // best avaliable deviation from the base power of 2 for the given level.
+
 func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 
-	if logQ > 60 {
-		panic("logQ must be between 1 and 60")
+	if logQ > 61 {
+		panic("logQ  must be between 1 and 61")
 	}
+
+	if logQ == 61 {
+		return GenerateNTTPrimesP(logQ, logN, levels)
+	}
+
+	return GenerateNTTPrimesQ(logQ, logN, levels)
+}
+
+func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 
 	var x, y, Qpow2, _2N uint64
 
@@ -166,6 +176,33 @@ func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 		}
 
 		x += _2N
+	}
+
+	return
+}
+
+func GenerateNTTPrimesP(logP, logN, n uint64) (primes []uint64) {
+
+	var x, Ppow2, _2N uint64
+
+	primes = []uint64{}
+
+	Ppow2 = 1 << logP
+
+	_2N = 2 << logN
+
+	x = Ppow2 + 1
+
+	for true {
+
+		x -= _2N
+
+		if IsPrime(x) {
+			primes = append(primes, x)
+			if uint64(len(primes)) == n {
+				return primes
+			}
+		}
 	}
 
 	return

@@ -164,8 +164,8 @@ func GenModuli(params *Parameters) (Q []uint64, P []uint64) {
 
 		primesbitlen[pj]++
 
-		if pj > 60 {
-			panic("cannot GenModuli: the provided LogPi must be smaller than 61")
+		if pj > 61 {
+			panic("cannot GenModuli: the provided LogPi must be smaller than 62")
 		}
 	}
 

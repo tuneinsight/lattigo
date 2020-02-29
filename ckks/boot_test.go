@@ -22,7 +22,7 @@ func TestBootstrapp(t *testing.T) {
 	SineScale = 1 << 55
 
 	logN := uint64(16)
-	logSlots := uint64(10)
+	logSlots := uint64(5)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
 	ctsRescale := false
@@ -37,9 +37,6 @@ func TestBootstrapp(t *testing.T) {
 	bootParams.Sigma = 3.2
 
 	bootParams.GenFromLogModuli()
-
-	fmt.Println(bootParams.Qi)
-	fmt.Println(bootParams.Pi)
 
 	params := genCkksParams(bootParams)
 

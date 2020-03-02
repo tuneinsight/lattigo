@@ -57,7 +57,7 @@ var testParams = new(ckksTestParameters)
 func init() {
 	rand.Seed(time.Now().UnixNano())
 
-	testParams.medianprec = 15
+	testParams.medianprec = 30
 	testParams.verbose = true
 
 	testParams.ckksParameters = DefaultParams[PN16BootCheby : PN16BootCheby+1]
@@ -203,6 +203,8 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 	distribReal := make(map[uint64]uint64)
 	distribImag := make(map[uint64]uint64)
 
+	distribPrec := float64(10)
+
 	for i := range valuesWant {
 
 		delta = valuesTest[i] - valuesWant[i]
@@ -218,7 +220,7 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 		}
 
 		if deltaReal < real(maxprec) {
-			maxprec = complex(deltaReal, imag(minprec))
+			maxprec = complex(deltaReal, imag(maxprec))
 		}
 
 		if deltaImag > imag(minprec) {
@@ -229,8 +231,8 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 			maxprec = complex(real(maxprec), deltaImag)
 		}
 
-		distribReal[uint64(math.Floor(math.Log2(1/real(diff[i]))))]++
-		distribImag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))]++
+		distribReal[uint64(math.Floor(distribPrec*math.Log2(1/deltaReal)))]++
+		distribImag[uint64(math.Floor(distribPrec*math.Log2(1/deltaImag)))]++
 	}
 
 	meanprec /= complex(float64(slots), 0)
@@ -247,6 +249,32 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 	if math.Log2(1/real(medianprec)) < testParams.medianprec || math.Log2(1/imag(medianprec)) < testParams.medianprec {
 		t.Errorf("Mean precision error: target (%.2f, %.2f) > result (%.2f, %.2f)", testParams.medianprec, testParams.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
 	}
+
+	/*
+	fmt.Println()
+	fmt.Println("Distribution of the precision :")
+	fmt.Println()
+	keys_real := []int{}
+	keys_imag := []int{}
+	for i := range distribReal {
+		keys_real = append(keys_real, int(i))
+	}
+	for i := range distribImag {
+		keys_imag = append(keys_imag, int(i))
+	}
+	sort.Ints(keys_real)
+	sort.Ints(keys_imag)
+	fmt.Println("Reals")
+	for _, i := range keys_real {
+		fmt.Printf("(%.2f,%.2f)", float64(i)/distribPrec, (float64(distribReal[uint64(i)])/float64(slots))*100)
+	}
+	fmt.Println()
+	fmt.Println("Imag")
+	for _, i := range keys_imag {
+		fmt.Printf("(%.2f,%.2f)", float64(i)/distribPrec, (float64(distribImag[uint64(i)])/float64(slots))*100)
+	}
+	fmt.Println()
+	*/
 }
 
 func calcmedian(values []complex128) (median complex128) {

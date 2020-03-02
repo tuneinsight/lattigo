@@ -22,17 +22,17 @@ func TestBootstrapp(t *testing.T) {
 	SineScale = 1 << 55
 
 	logN := uint64(16)
-	logSlots := uint64(5)
+	logSlots := uint64(3)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
-	ctsRescale := false
+	ctsRescale := true
 	stcRescale := true
 
 	bootParams := new(Parameters)
 	bootParams.LogN = logN
 	bootParams.LogSlots = logSlots
 	bootParams.Scale = DefaultScale
-	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 30, 30, 30, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 31, 31, 31, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
 	bootParams.LogPi = []uint64{61, 61, 61, 61}
 	bootParams.Sigma = 3.2
 
@@ -124,9 +124,7 @@ func TestBootstrapp(t *testing.T) {
 
 		params.evaluator.AddConst(ciphertext, -0.25, ciphertext)
 
-		fmt.Println(ciphertext.Level())
 		ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, sc_fac, cheby, rlk)
-		fmt.Println(ciphertext.Level())
 
 		if sc_num == 1 {
 			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
@@ -188,7 +186,6 @@ func TestBootstrapp(t *testing.T) {
 		for i := 0; i < 1; i++ {
 
 			ciphertext = bootcontext.Bootstrapp(ciphertext)
-			fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 			//if err = evaluator.SetScale(ciphertext, params.Scale); err != nil {
 			//	log.Fatal(err)

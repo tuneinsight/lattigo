@@ -93,9 +93,9 @@ func example() {
 	printDebug(ciphertext, values, decryptor, encoder)
 
 	fmt.Println()
-	fmt.Println("=========================================")
-	fmt.Println("             EVALUATION OF i*x           ")
-	fmt.Println("=========================================")
+	fmt.Println("===============================================")
+	fmt.Printf("        EVALUATION OF i*x on %d values\n", slots)
+	fmt.Println("===============================================")
 	fmt.Println()
 
 	start = time.Now()
@@ -111,9 +111,9 @@ func example() {
 	printDebug(ciphertext, values, decryptor, encoder)
 
 	fmt.Println()
-	fmt.Println("=========================================")
-	fmt.Println("            EVALUATION of x/r            ")
-	fmt.Println("=========================================")
+	fmt.Println("===============================================")
+	fmt.Printf("       EVALUATION of x/r on %d values\n", slots)
+	fmt.Println("===============================================")
 	fmt.Println()
 
 	start = time.Now()
@@ -129,9 +129,9 @@ func example() {
 	printDebug(ciphertext, values, decryptor, encoder)
 
 	fmt.Println()
-	fmt.Println("=========================================")
-	fmt.Println("            EVALUATION of e^x            ")
-	fmt.Println("=========================================")
+	fmt.Println("===============================================")
+	fmt.Printf("       EVALUATION of e^x on %d values\n", slots)
+	fmt.Println("===============================================")
 	fmt.Println()
 
 	start = time.Now()
@@ -149,9 +149,9 @@ func example() {
 	printDebug(ciphertext, values, decryptor, encoder)
 
 	fmt.Println()
-	fmt.Println("=========================================")
-	fmt.Println("            EVALUATION of x^r            ")
-	fmt.Println("=========================================")
+	fmt.Println("===============================================")
+	fmt.Printf("       EVALUATION of x^r on %d values\n", slots)
+	fmt.Println("===============================================")
 	fmt.Println()
 
 	start = time.Now()

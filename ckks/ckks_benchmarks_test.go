@@ -256,9 +256,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 	bootParams.LogN = 16
 	bootParams.LogSlots = 15
 	bootParams.Scale = DefaultScale
-	// (15,18.5) - 1421 - 475  : {55, 60, 60, 60, 60, 60, 60, 60, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45} - {60, 60, 60, 60}
+	// (15,18.5) - 1421 - 475  : {55, 60, 60, 60, 60, 60, 60, 60, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45} - {61, 61, 61, 61}
 	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
-	bootParams.LogPi = []uint64{60, 60, 60, 60}
+	bootParams.LogPi = []uint64{61, 61, 61, 61}
 	bootParams.Sigma = 3.2
 
 	bootParams.GenFromLogModuli()

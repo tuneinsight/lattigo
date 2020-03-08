@@ -22,18 +22,20 @@ func TestBootstrapp(t *testing.T) {
 	SineScale = 1 << 55
 
 	logN := uint64(16)
-	logSlots := uint64(3)
+	logSlots := uint64(15)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
-	ctsRescale := true
+	ctsRescale := false
 	stcRescale := true
 
 	bootParams := new(Parameters)
 	bootParams.LogN = logN
 	bootParams.LogSlots = logSlots
 	bootParams.Scale = DefaultScale
-	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 31, 31, 31, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
+	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 31, 31, 31, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
 	bootParams.LogPi = []uint64{61, 61, 61, 61}
+	//bootParams.LogQi = []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 30, 30, 30, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	//bootParams.LogPi = []uint64{55, 55, 55, 55}
 	bootParams.Sigma = 3.2
 
 	bootParams.GenFromLogModuli()
@@ -44,14 +46,14 @@ func TestBootstrapp(t *testing.T) {
 
 	rlk := params.kgen.GenRelinKey(params.sk)
 
-	t.Run(testString("SineOriginal/", bootParams), func(t *testing.T) {
+	t.Run(testString("SineStepOriginal/", bootParams), func(t *testing.T) {
 
 		params.params.Scale = SineScale
 
 		evaluator := NewEvaluator(bootParams)
 
-		deg := 127
-		K := float64(15)
+		deg := 131
+		K := float64(16)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
 		evaluator.DropLevel(ciphertext, ctsDepth)
@@ -62,23 +64,27 @@ func TestBootstrapp(t *testing.T) {
 			values[i] = sin2pi2pi(values[i])
 		}
 
+		fmt.Println(ciphertext.Level())
+		start := time.Now()
 		ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
+		fmt.Printf("Elapsed : %s \n", time.Since(start))
+		fmt.Println(ciphertext.Level())
 
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
 		params.params.Scale = DefaultScale
 	})
 
-	t.Run(testString("SineFaster/", bootParams), func(t *testing.T) {
+	t.Run(testString("SineStepFaster/", bootParams), func(t *testing.T) {
 
 		params.params.Scale = SineScale
 
 		evaluator := NewEvaluator(bootParams)
 
-		K := 12
-		deg := 137
+		K := 14
+		deg := 26
 		dev := 10
-		sc_num := 0
+		sc_num := 3
 
 		sc_fac := complex(float64(int(1<<sc_num)), 0)
 
@@ -90,8 +96,6 @@ func TestBootstrapp(t *testing.T) {
 		cheby.maxDeg = uint64(len(cheby.coeffs) - 1)
 		cheby.a = complex(float64(-K), 0) / sc_fac
 		cheby.b = complex(float64(K), 0) / sc_fac
-
-		fmt.Println(len(cheby.coeffs)-1, cheby.coeffs[len(cheby.coeffs)-1], max(cheby.coeffs), min(cheby.coeffs))
 
 		if sc_num == 0 {
 			for i := range cheby.coeffs {
@@ -124,6 +128,8 @@ func TestBootstrapp(t *testing.T) {
 
 		params.evaluator.AddConst(ciphertext, -0.25, ciphertext)
 
+		fmt.Println(ciphertext.Level())
+		start := time.Now()
 		ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, sc_fac, cheby, rlk)
 
 		if sc_num == 1 {
@@ -155,7 +161,8 @@ func TestBootstrapp(t *testing.T) {
 
 			params.evaluator.MultByConst(ciphertext, 1.0/6.283185307179586, ciphertext)
 		}
-
+		fmt.Printf("Elapsed : %s \n", time.Since(start))
+		fmt.Println(ciphertext.Level())
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
 		params.params.Scale = DefaultScale

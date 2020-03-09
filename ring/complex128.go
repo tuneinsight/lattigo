@@ -1,8 +1,6 @@
-package bettersine
+package ring
 
 import (
-	//"fmt"
-	"math"
 	"math/big"
 )
 
@@ -54,10 +52,53 @@ func Sin(x *big.Float) (sinx *big.Float) {
 	return
 }
 
-func log2(x float64) float64 {
-	return math.Log2(x)
+type Complex [2]*big.Float
+
+func NewComplex(a, b *big.Float) (c *Complex) {
+	c = new(Complex)
+	for i := 0; i < 2; i++ {
+		c[i] = new(big.Float)
+		c[i].SetPrec(1000)
+	}
+
+	c[0].Set(a)
+	c[1].Set(b)
+
+	return
 }
 
-func abs(x float64) float64 {
-	return math.Abs(x)
+func (c *Complex) Float64() complex128 {
+	a, _ := c[0].Float64()
+	b, _ := c[1].Float64()
+
+	return complex(a, b)
+}
+
+func (c *Complex) Add(a, b *Complex) {
+	c[0].Add(a[0], b[0])
+	c[1].Add(a[1], b[1])
+}
+
+func (c *Complex) Sub(a, b *Complex) {
+	c[0].Sub(a[0], b[0])
+	c[1].Sub(a[1], b[1])
+}
+
+func (c *Complex) Mul(a, b *Complex) {
+
+	tmp0 := new(big.Float)
+	tmp1 := new(big.Float)
+	tmp2 := new(big.Float)
+	tmp3 := new(big.Float)
+
+	tmp0.Mul(a[0], b[0])
+	tmp1.Mul(a[1], b[1])
+	tmp2.Mul(a[0], b[1])
+	tmp3.Mul(a[1], b[0])
+
+	c[0].Set(tmp0)
+	c[0].Sub(c[0], tmp1)
+
+	c[1].Set(tmp2)
+	c[1].Add(c[1], tmp3)
 }

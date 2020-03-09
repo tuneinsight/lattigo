@@ -989,8 +989,13 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 				level = bootcontext.params.MaxLevel() - k
 				scale = float64(bootcontext.params.Qi[level])
 			} else {
-				level = bootcontext.params.MaxLevel() - k - bootcontext.ctsDepth - bootcontext.sinDepth
-				scale = float64(bootcontext.params.Qi[level])
+				level = bootcontext.params.MaxLevel() - k/2 - bootcontext.ctsDepth - bootcontext.sinDepth
+
+				if bootcontext.stcRescale {
+					scale = 1 << 30
+				} else {
+					scale = 1 << 25
+				}
 			}
 
 			plaintextVec.Vec[N1*j+uint64(i)] = NewPlaintext(bootcontext.params, level, scale)

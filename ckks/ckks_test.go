@@ -21,9 +21,10 @@ func check(t *testing.T, err error) {
 }
 
 func testString(opname string, params *Parameters) string {
-	return fmt.Sprintf("%slogN=%d/logQ=%d/levels=%d/a=%d/b=%d",
+	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%d/levels=%d/a=%d/b=%d",
 		opname,
 		params.LogN,
+		params.LogSlots,
 		params.LogQP(),
 		params.MaxLevel()+1,
 		params.Alpha(),
@@ -250,35 +251,36 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 		t.Errorf("Mean precision error: target (%.2f, %.2f) > result (%.2f, %.2f)", testParams.medianprec, testParams.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
 	}
 
-	
-	fmt.Println()
-	fmt.Println("Distribution of the precision :")
-	fmt.Println()
-	keys_real := []int{}
-	keys_imag := []int{}
-	for i := range distribReal {
-		keys_real = append(keys_real, int(i))
-	}
-	for i := range distribImag {
-		keys_imag = append(keys_imag, int(i))
-	}
-	sort.Ints(keys_real)
-	sort.Ints(keys_imag)
-	fmt.Println("Reals")
-	fmt.Printf("[")
-	for _, i := range keys_real {
-		fmt.Printf("(%.5f,%.5f),", float64(i)/distribPrec, (float64(distribReal[uint64(i)])/float64(slots))*100)
-	}
-	fmt.Printf("],")
-	fmt.Println()
-	fmt.Println("Imag")
-	fmt.Printf("[")
-	for _, i := range keys_imag {
-		fmt.Printf("(%.5f,%.5f),", float64(i)/distribPrec, (float64(distribImag[uint64(i)])/float64(slots))*100)
-	}
-	fmt.Printf("],")
-	fmt.Println()
-	
+	/*
+		fmt.Println()
+		fmt.Println("Distribution of the precision :")
+		fmt.Println()
+		keys_real := []int{}
+		keys_imag := []int{}
+		for i := range distribReal {
+			keys_real = append(keys_real, int(i))
+		}
+		for i := range distribImag {
+			keys_imag = append(keys_imag, int(i))
+		}
+		sort.Ints(keys_real)
+		sort.Ints(keys_imag)
+		fmt.Println("Reals")
+		fmt.Printf("[")
+		for _, i := range keys_real {
+			fmt.Printf("(%.5f,%.5f),", float64(i)/distribPrec, (float64(distribReal[uint64(i)])/float64(slots))*100)
+		}
+		fmt.Printf("],")
+		fmt.Println()
+		fmt.Println("Imag")
+		fmt.Printf("[")
+		for _, i := range keys_imag {
+			fmt.Printf("(%.5f,%.5f),", float64(i)/distribPrec, (float64(distribImag[uint64(i)])/float64(slots))*100)
+		}
+		fmt.Printf("],")
+		fmt.Println()
+	*/
+
 }
 
 func calcmedian(values []complex128) (median complex128) {

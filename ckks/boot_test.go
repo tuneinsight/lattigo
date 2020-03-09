@@ -22,20 +22,38 @@ func TestBootstrapp(t *testing.T) {
 	SineScale = 1 << 55
 
 	logN := uint64(16)
-	logSlots := uint64(15)
+	logSlots := uint64(10)
 	ctsDepth := uint64(3)
 	stcDepth := uint64(3)
-	ctsRescale := false
-	stcRescale := true
-
 	bootParams := new(Parameters)
 	bootParams.LogN = logN
 	bootParams.LogSlots = logSlots
 	bootParams.Scale = DefaultScale
-	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 31, 31, 31, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
-	bootParams.LogPi = []uint64{61, 61, 61, 61}
-	//bootParams.LogQi = []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 30, 30, 30, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+
+	// 1430
+	//ctsRescale := false
+	//stcRescale := false
+	//bootParams.LogQi = []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
 	//bootParams.LogPi = []uint64{55, 55, 55, 55}
+
+	// 1435
+	//ctsRescale := true
+	//stcRescale := false
+	//bootParams.LogQi = []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
+	//bootParams.LogPi = []uint64{55, 55, 55, 55}
+
+	// 1440
+	//ctsRescale := false
+	//stcRescale := true
+	//bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 30, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	//bootParams.LogPi = []uint64{61, 61, 61, 61}
+
+	// 1440
+	ctsRescale := true
+	stcRescale := true
+	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
+	bootParams.LogPi = []uint64{61, 61, 61, 61}
+
 	bootParams.Sigma = 3.2
 
 	bootParams.GenFromLogModuli()
@@ -46,7 +64,7 @@ func TestBootstrapp(t *testing.T) {
 
 	rlk := params.kgen.GenRelinKey(params.sk)
 
-	t.Run(testString("SineStepOriginal/", bootParams), func(t *testing.T) {
+	t.Run(testString("Sin/", bootParams), func(t *testing.T) {
 
 		params.params.Scale = SineScale
 
@@ -75,7 +93,7 @@ func TestBootstrapp(t *testing.T) {
 		params.params.Scale = DefaultScale
 	})
 
-	t.Run(testString("SineStepFaster/", bootParams), func(t *testing.T) {
+	t.Run(testString("Cos/", bootParams), func(t *testing.T) {
 
 		params.params.Scale = SineScale
 
@@ -169,7 +187,7 @@ func TestBootstrapp(t *testing.T) {
 
 	})
 
-	t.Run(testString("BootstrappOriginal/", bootParams), func(t *testing.T) {
+	t.Run(testString("BootstrappSine/", bootParams), func(t *testing.T) {
 
 		bootcontext := NewBootContext(bootParams, params.sk, ctsDepth, stcDepth, ctsRescale, stcRescale)
 
@@ -194,16 +212,14 @@ func TestBootstrapp(t *testing.T) {
 
 			ciphertext = bootcontext.Bootstrapp(ciphertext)
 
-			//if err = evaluator.SetScale(ciphertext, params.Scale); err != nil {
-			//	log.Fatal(err)
-			//}
+			fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		}
 
 	})
 
-	t.Run(testString("BootstrappBetterSine/", bootParams), func(t *testing.T) {
+	t.Run(testString("BootstrappCos/", bootParams), func(t *testing.T) {
 
 		bootcontext := NewBootContextBetterSine(bootParams, params.sk, ctsDepth, stcDepth, ctsRescale, stcRescale)
 
@@ -228,10 +244,6 @@ func TestBootstrapp(t *testing.T) {
 
 			ciphertext = bootcontext.Bootstrapp(ciphertext)
 			fmt.Println(ciphertext.Level(), ciphertext.Scale())
-
-			//if err = evaluator.SetScale(ciphertext, params.Scale); err != nil {
-			//	log.Fatal(err)
-			//}
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		}

@@ -239,7 +239,7 @@ func benchHoistedRotations(b *testing.B) {
 	}
 }
 
-func BenchmarkBootstrapp(b *testing.B) {
+func BenchmarkBootstrappSine(b *testing.B) {
 
 	var bootcontext *BootContext
 	var kgen KeyGenerator
@@ -247,30 +247,62 @@ func BenchmarkBootstrapp(b *testing.B) {
 	var ciphertext *Ciphertext
 
 	var DefaultScale, LTScale float64
+	var ctsDepth, stcDepth, sinDepth uint64
+	var ctsRescale, stcRescale bool
 
-	DefaultScale = 1 << 30
 	LTScale = 1 << 45
 	//SineScale = 1 << 55
 
 	bootParams := new(Parameters)
 	bootParams.LogN = 16
-	bootParams.LogSlots = 15
-	bootParams.Scale = DefaultScale
-	// (15,18.5) - 1421 - 475  : {55, 60, 60, 60, 60, 60, 60, 60, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45} - {61, 61, 61, 61}
-	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	bootParams.LogSlots = 10
+
+	// 1430
+	//DefaultScale = 1 << 45
+	//ctsRescale = false
+	//stcRescale = false
+	//ctsDepth = 3
+	//stcDepth = 3
+	//sinDepth = 9
+	//bootParams.LogQi = []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	//bootParams.LogPi = []uint64{55, 55, 55, 55}
+
+	// 1435
+	//DefaultScale = 1 << 45
+	//ctsRescale = true
+	//stcRescale = false
+	//ctsDepth = 3
+	//stcDepth = 3
+	//sinDepth = 8
+	//bootParams.LogQi = []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
+	//bootParams.LogPi = []uint64{55, 55, 55, 55}
+
+	// 1440
+	//DefaultScale = 1 << 30
+	//ctsRescale = false
+	//stcRescale = true
+	//ctsDepth = 3
+	//stcDepth = 3
+	//sinDepth = 9
+	//bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 30, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	//bootParams.LogPi = []uint64{61, 61, 61, 61}
+
+	// 1440
+	DefaultScale = 1 << 30
+	ctsRescale = true
+	stcRescale = true
+	ctsDepth = 3
+	stcDepth = 3
+	sinDepth = 8
+	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
 	bootParams.LogPi = []uint64{61, 61, 61, 61}
+
+	bootParams.Scale = DefaultScale
 	bootParams.Sigma = 3.2
 
 	bootParams.GenFromLogModuli()
 
-	var ctsDepth, stcDepth, sinDepth uint64
-	var ctsRescale, stcRescale bool
-
-	ctsDepth = 3
-	stcDepth = 3
-	sinDepth = 8
-	ctsRescale = true
-	stcRescale = true
+	testString("Params/", bootParams)
 
 	kgen = NewKeyGenerator(bootParams)
 
@@ -325,12 +357,12 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 			ct2, ct3 = bootcontext.evaluateSine(ct0, ct1)
 
-			if ct2.Level() != bootParams.MaxLevel()-ctsDepth-9 {
+			if ct2.Level() != bootParams.MaxLevel()-ctsDepth-sinDepth {
 				panic("scaling error during eval sinebetter bench")
 			}
 
 			if ct3 != nil {
-				if ct3.Level() != bootParams.MaxLevel()-ctsDepth-9 {
+				if ct3.Level() != bootParams.MaxLevel()-ctsDepth-sinDepth {
 					panic("scaling error during eval sinebetter bench")
 				}
 			}
@@ -355,9 +387,19 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 		}
 	})
+
+	b.Run(testString("Bootstrapp/", bootParams), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			ct := NewCiphertext(bootParams, 1, 0, bootParams.Scale)
+			b.StartTimer()
+
+			bootcontext.Bootstrapp(ct)
+		}
+	})
 }
 
-func BenchmarkBootstrappBetterSine(b *testing.B) {
+func BenchmarkBootstrappCos(b *testing.B) {
 
 	var bootcontext *BootContextBetterSine
 	var kgen KeyGenerator
@@ -365,6 +407,8 @@ func BenchmarkBootstrappBetterSine(b *testing.B) {
 	var ciphertext *Ciphertext
 
 	var DefaultScale, LTScale float64
+	var ctsDepth, stcDepth, sinDepth uint64
+	var ctsRescale, stcRescale bool
 
 	DefaultScale = 1 << 30
 	LTScale = 1 << 45
@@ -372,23 +416,52 @@ func BenchmarkBootstrappBetterSine(b *testing.B) {
 
 	bootParams := new(Parameters)
 	bootParams.LogN = 16
-	bootParams.LogSlots = 15
+	bootParams.LogSlots = 10
+
+	// 1430
+	DefaultScale = 1 << 45
+	ctsRescale = false
+	stcRescale = false
+	ctsDepth = 3
+	stcDepth = 3
+	sinDepth = 9
+	bootParams.LogQi = []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	bootParams.LogPi = []uint64{55, 55, 55, 55}
+
+	// 1435
+	//DefaultScale = 1 << 45
+	//ctsRescale = true
+	//stcRescale = false
+	//ctsDepth = 3
+	//stcDepth = 3
+	//sinDepth = 8
+	//bootParams.LogQi = []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
+	//bootParams.LogPi = []uint64{55, 55, 55, 55}
+
+	// 1440
+	//DefaultScale = 1 << 30
+	//ctsRescale = false
+	//stcRescale = true
+	//ctsDepth = 3
+	//stcDepth = 3
+	//sinDepth = 9
+	//bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 30, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
+	//bootParams.LogPi = []uint64{61, 61, 61, 61}
+
+	// 1440
+	//DefaultScale = 1 << 30
+	//ctsRescale = true
+	//stcRescale = true
+	//ctsDepth = 3
+	//stcDepth = 3
+	//sinDepth = 8
+	//bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
+	//bootParams.LogPi = []uint64{61, 61, 61, 61}
+
 	bootParams.Scale = DefaultScale
-	// (15,18.5) - 1421 - 475  : {55, 60, 60, 60, 60, 60, 60, 60, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45} - {60, 60, 60, 60}
-	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 25, 25, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
-	bootParams.LogPi = []uint64{60, 60, 60, 60}
 	bootParams.Sigma = 3.2
 
 	bootParams.GenFromLogModuli()
-
-	var ctsDepth, stcDepth, sinDepth uint64
-	var ctsRescale, stcRescale bool
-
-	ctsDepth = 3
-	stcDepth = 3
-	sinDepth = 8
-	ctsRescale = true
-	stcRescale = true
 
 	kgen = NewKeyGenerator(bootParams)
 
@@ -443,12 +516,12 @@ func BenchmarkBootstrappBetterSine(b *testing.B) {
 
 			ct2, ct3 = bootcontext.evaluateSine(ct0, ct1)
 
-			if ct2.Level() != bootParams.MaxLevel()-ctsDepth-9 {
+			if ct2.Level() != bootParams.MaxLevel()-ctsDepth-sinDepth {
 				panic("scaling error during eval sinebetter bench")
 			}
 
 			if ct3 != nil {
-				if ct3.Level() != bootParams.MaxLevel()-ctsDepth-9 {
+				if ct3.Level() != bootParams.MaxLevel()-ctsDepth-sinDepth {
 					panic("scaling error during eval sinebetter bench")
 				}
 			}
@@ -471,6 +544,16 @@ func BenchmarkBootstrappBetterSine(b *testing.B) {
 
 			bootcontext.slotsToCoeffs(ct2, ct3)
 
+		}
+	})
+
+	b.Run(testString("Bootstrapp/", bootParams), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			ct := NewCiphertext(bootParams, 1, 0, bootParams.Scale)
+			b.StartTimer()
+
+			bootcontext.Bootstrapp(ct)
 		}
 	})
 }

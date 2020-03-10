@@ -22,8 +22,8 @@ type BootParams struct {
 type SinType uint64
 
 const (
-	Sin = uint64(0)
-	Cos = uint64(1)
+	Sin = SinType(0)
+	Cos = SinType(1)
 )
 
 func (b *BootParams) GenFromLogModuli() {
@@ -54,7 +54,7 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 45,
 		Sigma: 3.2,
 	},
-		sinType:    SinType(Sin),
+		sinType:    Sin,
 		sinDeg:     127,
 		sinRescal:  0,
 		ctsDepth:   3,
@@ -73,7 +73,7 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 45,
 		Sigma: 3.2,
 	},
-		sinType:    SinType(Sin),
+		sinType:    Sin,
 		sinDeg:     127,
 		sinRescal:  0,
 		ctsDepth:   3,
@@ -92,7 +92,7 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 30,
 		Sigma: 3.2,
 	},
-		sinType:    SinType(Sin),
+		sinType:    Sin,
 		sinDeg:     127,
 		sinRescal:  0,
 		ctsDepth:   3,
@@ -111,7 +111,7 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 30,
 		Sigma: 3.2,
 	},
-		sinType:    SinType(Sin),
+		sinType:    Sin,
 		sinDeg:     127,
 		sinRescal:  0,
 		ctsDepth:   3,
@@ -130,7 +130,7 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 30,
 		Sigma: 3.2,
 	},
-		sinType:    SinType(Cos),
+		sinType:    Cos,
 		sinDeg:     30,
 		sinRescal:  3,
 		ctsDepth:   3,

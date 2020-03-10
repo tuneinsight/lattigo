@@ -101,6 +101,12 @@ func TestBootstrapp(t *testing.T) {
 			}
 		}
 
+		if sc_num == 2 {
+			for i := range cheby.coeffs {
+				cheby.coeffs[i] *= 0.8666749935615672
+			}
+		}
+
 		for i := range values {
 
 			values[i] = cmplx.Cos(6.283185307179586 * (1 / sc_fac) * (values[i] - 0.25))
@@ -138,14 +144,36 @@ func TestBootstrapp(t *testing.T) {
 		}
 
 		if sc_num == 3 {
-			for i := 0; i < sc_num; i++ {
-				params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
-				params.evaluator.MultByConst(ciphertext, 2, ciphertext)
-				params.evaluator.AddConst(ciphertext, -1, ciphertext)
-				params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
-			}
 
-			params.evaluator.MultByConst(ciphertext, 1.0/6.283185307179586, ciphertext)
+			// r = 16*(y4 * (a*y4 - b*y2 + c) - d*y2) + 1/(2*pi)
+
+			a := 4.0
+			b := -6.00900435571954
+			c := 2.8209479177387813
+			d := -0.42377720812375763
+
+			y2 := evaluator.MulRelinNew(ciphertext, ciphertext, rlk)
+			evaluator.Rescale(y2, parameters.Scale, y2)
+
+			y4 := evaluator.MulRelinNew(y2, y2, rlk)
+
+			ciphertext = y4.CopyNew().Ciphertext()
+
+			evaluator.MultByConst(ciphertext, a, ciphertext)
+			evaluator.MultByConstAndAdd(y2, b, ciphertext)
+			evaluator.AddConst(ciphertext, c, ciphertext)
+			evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
+			evaluator.Rescale(y4, parameters.Scale, y4)
+
+			evaluator.MulRelin(ciphertext, y4, rlk, ciphertext)
+			evaluator.MultByConstAndAdd(y2, d, ciphertext)
+
+			evaluator.MultByConst(ciphertext, 16, ciphertext)
+
+			evaluator.AddConst(ciphertext, 1.0/6.283185307179586, ciphertext)
+
+			evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
+
 		}
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
 		fmt.Println(ciphertext.Level())

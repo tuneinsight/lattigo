@@ -28,12 +28,16 @@ type bootParams struct {
 
 	plaintextSize uint64
 
-	ctsRescale bool
-	stcRescale bool
+	sinType   SinType
+	sinDeg    uint64
+	sinDepth  uint64
+	sinRescal uint64
 
 	ctsDepth uint64
 	stcDepth uint64
-	sinDepth uint64
+
+	ctsRescale bool
+	stcRescale bool
 
 	repack    bool
 	sineScale float64
@@ -112,6 +116,10 @@ func (bootcontext *BootContext) newBootParams(bootparams *BootParams) {
 		bootcontext.dslots <<= 1
 	}
 
+	bootcontext.sinType = bootparams.sinType
+	bootcontext.sinDeg = bootparams.sinDeg
+	bootcontext.sinDepth = bootparams.sinDepth
+	bootcontext.sinRescal = bootparams.sinRescal
 	bootcontext.sineScale = 1 << 45
 
 	bootcontext.ctsDepth = bootparams.ctsDepth
@@ -209,27 +217,19 @@ func (bootcontext *BootContext) newBootSine() {
 
 	bootcontext.bootSine = new(bootSine)
 
-	sineDeg := 127
-
 	K := complex(15, 0)
 
-	bootcontext.chebycoeffs = Approximate(sin2pi2pi, -K, K, sineDeg)
-
-	bootcontext.sinDepth = uint64(math.Ceil(math.Log2(float64(sineDeg))) + 1)
-
-	if !bootcontext.ctsRescale {
-		bootcontext.sinDepth++
-	}
+	bootcontext.chebycoeffs = Approximate(sin2pi2pi, -K, K, int(bootcontext.sinDeg))
 }
 
 func (bootcontext *BootContextBetterSine) newBootBetterSine() {
 
 	bootcontext.bootSine = new(bootSine)
 
-	K := 16
-	deg := 40
+	K := 15
+	deg := int(bootcontext.sinDeg)
 	dev := 10
-	sc_num := 2
+	sc_num := int(bootcontext.sinRescal)
 
 	bootcontext.sc_num = sc_num
 
@@ -250,17 +250,17 @@ func (bootcontext *BootContextBetterSine) newBootBetterSine() {
 		}
 	}
 
+	if sc_num == 3 {
+		for i := range cheby.coeffs {
+			cheby.coeffs[i] *= 0.8666749935615672
+		}
+	}
+
 	cheby.maxDeg = uint64(deg) + 1
 	cheby.a = complex(float64(-K), 0) / sc_fac
 	cheby.b = complex(float64(K), 0) / sc_fac
 
 	bootcontext.chebycoeffs = cheby
-
-	bootcontext.sinDepth = uint64(math.Ceil(math.Log2(float64(deg))) + float64(sc_num) + 1)
-
-	if !bootcontext.ctsRescale {
-		bootcontext.sinDepth++
-	}
 }
 
 func (bootcontext *BootContext) newBootDFT() {
@@ -687,24 +687,70 @@ func (bootcontext *BootContextBetterSine) evaluateChebyBootBetterSine(ct *Cipher
 	res = recurseCheby(degree, L, M, cheby.Poly(), C, evaluator, bootcontext.relinkey)
 
 	if sc_num == 1 {
+		// r = 2*y2 - a
+		a := -1.0 / 6.283185307179586
+
 		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
-		evaluator.AddConst(res, -1.0/6.283185307179586, res)
+		evaluator.AddConst(res, a, res)
 	}
 
 	if sc_num == 2 {
-		//fmt.Println()
 
-		//fmt.Println("Mul", res.Level(), res.Level(), res.Scale())
+		// r = 4 * y2 * (y2 - a) + b
+
+		a := -0.5641895835477563
+		b := 1.0 / 6.283185307179586
+
 		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 
-		y := evaluator.AddConstNew(res, -0.5641895835477563)
-		//fmt.Println("Mul", res.Level(), y.Level())
+		y := evaluator.AddConstNew(res, a)
+
 		evaluator.MulRelin(res, y, bootcontext.relinkey, res)
 
 		evaluator.MultByConst(res, 4, res)
-		evaluator.AddConst(res, 1.0/6.283185307179586, res)
+		evaluator.AddConst(res, b, res)
+
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+	}
+
+	if sc_num == 3 {
+
+		// r = 16*(y4 * (a*y4 - b*y2 + c) - d*y2) + 1/(2*pi)
+
+		a := 4.0
+		b := -6.00900435571954
+		c := 2.8209479177387813
+		d := -0.42377720812375763
+		e := 0.15915494309189535
+
+		y2 := evaluator.MulRelinNew(res, res, bootcontext.relinkey)
+		evaluator.Rescale(y2, evaluator.ckksContext.scale, y2)
+
+		y4 := evaluator.MulRelinNew(y2, y2, bootcontext.relinkey)
+		evaluator.Rescale(y4, evaluator.ckksContext.scale, y4)
+
+		res = y4.CopyNew().Ciphertext()
+
+		evaluator.MultByConst(res, a, res)
+
+		tmp := y2.CopyNew().Ciphertext()
+		evaluator.MultByConst(tmp, b, tmp)
+
+		evaluator.Add(res, tmp, res)
+
+		evaluator.AddConst(res, c, res)
+
+		evaluator.MulRelin(res, y4, bootcontext.relinkey, res)
+
+		tmp = y2.CopyNew().Ciphertext()
+		evaluator.MultByConst(tmp, d, tmp)
+		evaluator.Add(res, tmp, res)
+
+		evaluator.MultByConst(res, 16, res)
+
+		evaluator.AddConst(res, e, res)
 
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 	}

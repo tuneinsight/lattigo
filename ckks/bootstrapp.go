@@ -92,7 +92,9 @@ func showcoeffs(decryptor Decryptor, encoder Encoder, slots uint64, ciphertext *
 }
 
 // NewBootContext creates a new bootcontext.
-func (bootcontext *BootContext) newBootParams(params *Parameters, ctsDepth, stcDepth uint64, ctsRescale, stcRescale bool) {
+func (bootcontext *BootContext) newBootParams(bootparams *BootParams) {
+
+	params := &bootparams.Parameters
 
 	bootcontext.bootParams = new(bootParams)
 
@@ -112,11 +114,11 @@ func (bootcontext *BootContext) newBootParams(params *Parameters, ctsDepth, stcD
 
 	bootcontext.sineScale = 1 << 45
 
-	bootcontext.ctsDepth = ctsDepth
-	bootcontext.stcDepth = stcDepth
+	bootcontext.ctsDepth = bootparams.ctsDepth
+	bootcontext.stcDepth = bootparams.stcDepth
 
-	bootcontext.ctsRescale = ctsRescale
-	bootcontext.stcRescale = stcRescale
+	bootcontext.ctsRescale = bootparams.ctsRescale
+	bootcontext.stcRescale = bootparams.stcRescale
 
 	bootcontext.encoder = NewEncoder(params)
 	bootcontext.evaluator = NewEvaluator(params)
@@ -224,8 +226,8 @@ func (bootcontext *BootContextBetterSine) newBootBetterSine() {
 
 	bootcontext.bootSine = new(bootSine)
 
-	K := 12
-	deg := 30
+	K := 16
+	deg := 40
 	dev := 10
 	sc_num := 2
 
@@ -331,10 +333,10 @@ func (bootcontext *BootContextBetterSine) newBootDFTBetterSine() {
 }
 
 // NewBootContext creates a new bootcontext.
-func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64, ctsRescale, stcRescale bool) (bootcontext *BootContext) {
+func NewBootContext(bootparams *BootParams, sk *SecretKey) (bootcontext *BootContext) {
 
 	bootcontext = new(BootContext)
-	bootcontext.newBootParams(params, ctsDepth, stcDepth, ctsRescale, stcRescale)
+	bootcontext.newBootParams(bootparams)
 	bootcontext.newBootSine()
 	bootcontext.newBootDFT()
 	bootcontext.newBootKeys(sk)
@@ -343,11 +345,11 @@ func NewBootContext(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64
 }
 
 // NewBootContext creates a new bootcontext.
-func NewBootContextBetterSine(params *Parameters, sk *SecretKey, ctsDepth, stcDepth uint64, ctsRescale, stcRescale bool) (bootcontext *BootContextBetterSine) {
+func NewBootContextBetterSine(bootparams *BootParams, sk *SecretKey) (bootcontext *BootContextBetterSine) {
 
 	bootcontext = new(BootContextBetterSine)
 
-	bootcontext.newBootParams(params, ctsDepth, stcDepth, ctsRescale, stcRescale)
+	bootcontext.newBootParams(bootparams)
 	bootcontext.newBootBetterSine()
 	bootcontext.newBootDFTBetterSine()
 	bootcontext.newBootKeys(sk)
@@ -672,7 +674,7 @@ func (bootcontext *BootContextBetterSine) evaluateChebyBootBetterSine(ct *Cipher
 	}
 
 	M := uint64(bits.Len64(degree - 1))
-	L := uint64(M >> 1)
+	L := uint64(2)
 
 	for i := uint64(2); i < (1<<L)+1; i++ {
 		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)

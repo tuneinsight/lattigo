@@ -16,65 +16,33 @@ func TestBootstrapp(t *testing.T) {
 
 	var DefaultScale, LTScale, SineScale float64
 
-	DefaultScale = 1 << 30
 	LTScale = 1 << 45
 	_ = LTScale
 	SineScale = 1 << 55
 
-	logN := uint64(16)
-	logSlots := uint64(10)
-	ctsDepth := uint64(3)
-	stcDepth := uint64(3)
-	bootParams := new(Parameters)
-	bootParams.LogN = logN
-	bootParams.LogSlots = logSlots
-	bootParams.Scale = DefaultScale
+	bootparams := BootstrappParams[4]
 
-	// 1430
-	//ctsRescale := false
-	//stcRescale := false
-	//bootParams.LogQi = []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
-	//bootParams.LogPi = []uint64{55, 55, 55, 55}
+	parameters := &bootparams.Parameters
 
-	// 1435
-	//ctsRescale := true
-	//stcRescale := false
-	//bootParams.LogQi = []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
-	//bootParams.LogPi = []uint64{55, 55, 55, 55}
+	bootparams.GenFromLogModuli()
 
-	// 1440
-	//ctsRescale := false
-	//stcRescale := true
-	//bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 30, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
-	//bootParams.LogPi = []uint64{61, 61, 61, 61}
+	params := genCkksParams(parameters)
 
-	// 1440
-	ctsRescale := true
-	stcRescale := true
-	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
-	bootParams.LogPi = []uint64{61, 61, 61, 61}
-
-	bootParams.Sigma = 3.2
-
-	bootParams.GenFromLogModuli()
-
-	params := genCkksParams(bootParams)
-
-	slots := uint64(1 << logSlots)
+	slots := uint64(1 << bootparams.Parameters.LogSlots)
 
 	rlk := params.kgen.GenRelinKey(params.sk)
 
-	t.Run(testString("Sin/", bootParams), func(t *testing.T) {
+	t.Run(testString("ChebySin/", parameters), func(t *testing.T) {
 
-		params.params.Scale = SineScale
+		parameters.Scale = SineScale
 
-		evaluator := NewEvaluator(bootParams)
+		evaluator := NewEvaluator(parameters)
 
 		deg := 131
 		K := float64(16)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
-		evaluator.DropLevel(ciphertext, ctsDepth)
+		evaluator.DropLevel(ciphertext, bootparams.ctsDepth)
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
 
@@ -90,24 +58,24 @@ func TestBootstrapp(t *testing.T) {
 
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
-		params.params.Scale = DefaultScale
+		parameters.Scale = DefaultScale
 	})
 
-	t.Run(testString("Cos/", bootParams), func(t *testing.T) {
+	t.Run(testString("ChebyCos/", parameters), func(t *testing.T) {
 
-		params.params.Scale = SineScale
+		parameters.Scale = SineScale
 
-		evaluator := NewEvaluator(bootParams)
+		evaluator := NewEvaluator(parameters)
 
-		K := 14
-		deg := 26
+		K := 16
+		deg := 38
 		dev := 10
-		sc_num := 3
+		sc_num := 2
 
 		sc_fac := complex(float64(int(1<<sc_num)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, float64(-K+1), float64(K-1), t)
-		evaluator.DropLevel(ciphertext, ctsDepth)
+		evaluator.DropLevel(ciphertext, bootparams.ctsDepth)
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
@@ -153,20 +121,20 @@ func TestBootstrapp(t *testing.T) {
 		if sc_num == 1 {
 			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
 			params.evaluator.AddConst(ciphertext, -1.0/6.283185307179586, ciphertext)
-			params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+			params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 		}
 
 		if sc_num == 2 {
 
 			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
-			params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+			params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 			y := params.evaluator.AddConstNew(ciphertext, -0.5641895835477563)
 
 			params.evaluator.MulRelin(ciphertext, y, rlk, ciphertext)
 			params.evaluator.MultByConst(ciphertext, 4, ciphertext)
 			params.evaluator.AddConst(ciphertext, 1.0/6.283185307179586, ciphertext)
 
-			params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+			params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 		}
 
 		if sc_num == 3 {
@@ -174,7 +142,7 @@ func TestBootstrapp(t *testing.T) {
 				params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
 				params.evaluator.MultByConst(ciphertext, 2, ciphertext)
 				params.evaluator.AddConst(ciphertext, -1, ciphertext)
-				params.evaluator.Rescale(ciphertext, params.params.Scale, ciphertext)
+				params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 			}
 
 			params.evaluator.MultByConst(ciphertext, 1.0/6.283185307179586, ciphertext)
@@ -183,13 +151,13 @@ func TestBootstrapp(t *testing.T) {
 		fmt.Println(ciphertext.Level())
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
-		params.params.Scale = DefaultScale
+		parameters.Scale = DefaultScale
 
 	})
 
-	t.Run(testString("BootstrappSine/", bootParams), func(t *testing.T) {
+	t.Run(testString("BootstrappSine/", parameters), func(t *testing.T) {
 
-		bootcontext := NewBootContext(bootParams, params.sk, ctsDepth, stcDepth, ctsRescale, stcRescale)
+		bootcontext := NewBootContext(bootparams, params.sk)
 
 		values := make([]complex128, slots)
 		for i := range values {
@@ -203,7 +171,7 @@ func TestBootstrapp(t *testing.T) {
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := NewPlaintext(bootParams, bootParams.MaxLevel(), bootParams.Scale)
+		plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
 		params.encoder.Encode(plaintext, values, slots)
 
 		ciphertext := params.encryptorPk.EncryptNew(plaintext)
@@ -219,9 +187,9 @@ func TestBootstrapp(t *testing.T) {
 
 	})
 
-	t.Run(testString("BootstrappCos/", bootParams), func(t *testing.T) {
+	t.Run(testString("BootstrappCos/", parameters), func(t *testing.T) {
 
-		bootcontext := NewBootContextBetterSine(bootParams, params.sk, ctsDepth, stcDepth, ctsRescale, stcRescale)
+		bootcontext := NewBootContextBetterSine(bootparams, params.sk)
 
 		values := make([]complex128, slots)
 		for i := range values {
@@ -235,7 +203,7 @@ func TestBootstrapp(t *testing.T) {
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := NewPlaintext(bootParams, bootParams.MaxLevel(), bootParams.Scale)
+		plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
 		params.encoder.Encode(plaintext, values, slots)
 
 		ciphertext := params.encryptorPk.EncryptNew(plaintext)

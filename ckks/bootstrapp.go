@@ -238,6 +238,7 @@ func (bootcontext *BootContextBetterSine) newBootBetterSine() {
 	cheby := new(ChebyshevInterpolation)
 	cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
 
+
 	if sc_num == 1 {
 		for i := range cheby.coeffs {
 			cheby.coeffs[i] *= 0.5641895835477563
@@ -255,6 +256,7 @@ func (bootcontext *BootContextBetterSine) newBootBetterSine() {
 			cheby.coeffs[i] *= 0.8666749935615672
 		}
 	}
+
 
 	cheby.maxDeg = uint64(deg) + 1
 	cheby.a = complex(float64(-K), 0) / sc_fac
@@ -686,6 +688,15 @@ func (bootcontext *BootContextBetterSine) evaluateChebyBootBetterSine(ct *Cipher
 
 	res = recurseCheby(degree, L, M, cheby.Poly(), C, evaluator, bootcontext.relinkey)
 
+	/*
+	for i := 0; i < sc_num; i++ {
+		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
+		evaluator.MultByConst(res, 2, res)
+		evaluator.AddConst(res, -1, res)
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+	}
+	*/
+
 	if sc_num == 1 {
 		// r = 2*y2 - a
 		a := -1.0 / 6.283185307179586
@@ -717,42 +728,60 @@ func (bootcontext *BootContextBetterSine) evaluateChebyBootBetterSine(ct *Cipher
 
 	if sc_num == 3 {
 
-		// r = 16*(y4 * (a*y4 - b*y2 + c) - d*y2) + 1/(2*pi)
+		// r = e*(y4 * (a*y4 - b*y2 + c) - d*y2) + f
 
 		a := 4.0
 		b := -6.00900435571954
 		c := 2.8209479177387813
 		d := -0.42377720812375763
-		e := 0.15915494309189535
+		e := 16.0
+		f := 0.15915494309189535
 
+		// y2 (10, 16)
 		y2 := evaluator.MulRelinNew(res, res, bootcontext.relinkey)
 		evaluator.Rescale(y2, evaluator.ckksContext.scale, y2)
 
-		y4 := evaluator.MulRelinNew(y2, y2, bootcontext.relinkey)
-		evaluator.Rescale(y4, evaluator.ckksContext.scale, y4)
+		// tmp1 (10, 33)
+		tmp1 := y2.CopyNew().Ciphertext()
+		evaluator.MultByConst(tmp1, b, tmp1)
 
+
+		// tmp2 (10, 33)
+		tmp2 := y2.CopyNew().Ciphertext()
+		evaluator.MultByConst(tmp2, d, tmp2)
+		
+
+		// y4 (10, 33)
+		y4 := evaluator.MulRelinNew(y2, y2, bootcontext.relinkey)
+
+		// res (10, 33)
 		res = y4.CopyNew().Ciphertext()
 
+		// y4 (9, 16)
+		evaluator.Rescale(y4, evaluator.ckksContext.scale, y4)
+
+		// res (10, 33)
 		evaluator.MultByConst(res, a, res)
 
-		tmp := y2.CopyNew().Ciphertext()
-		evaluator.MultByConst(tmp, b, tmp)
-
-		evaluator.Add(res, tmp, res)
-
+		// res (10, 33) + tmp1 (10, 33)
+		evaluator.Add(res, tmp1, res)
 		evaluator.AddConst(res, c, res)
 
-		evaluator.MulRelin(res, y4, bootcontext.relinkey, res)
-
-		tmp = y2.CopyNew().Ciphertext()
-		evaluator.MultByConst(tmp, d, tmp)
-		evaluator.Add(res, tmp, res)
-
-		evaluator.MultByConst(res, 16, res)
-
-		evaluator.AddConst(res, e, res)
-
+		// res (9, 16)
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+
+		// res (9, 16) * y4 (9, 16) = res (9, 33)
+		evaluator.MulRelin(res, y4, bootcontext.relinkey, res)
+		
+		// res (9, 33) + tmp2 (10, 33)
+		evaluator.Add(res, tmp2, res)
+		
+		evaluator.MultByConst(res, e, res)
+		evaluator.AddConst(res, f, res)
+
+		// res (8, 16)
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+
 	}
 
 	return

@@ -22,8 +22,8 @@ func BenchmarkBootstrappSine(b *testing.B) {
 
 	bootparams.GenFromLogModuli()
 
-	ctsDepth := bootparams.ctsDepth
-	sinDepth := bootparams.sinDepth
+	ctsDepth := bootparams.CtSDepth
+	sinDepth := bootparams.SinDepth
 
 	testString("Params/", parameters)
 
@@ -32,122 +32,6 @@ func BenchmarkBootstrappSine(b *testing.B) {
 	sk = kgen.GenSecretKey()
 
 	bootcontext = NewBootContext(bootparams, sk)
-
-	b.Run(testString("ModUp/", parameters), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			b.StopTimer()
-			ciphertext = NewCiphertextRandom(parameters, 1, 0, LTScale)
-			b.StartTimer()
-
-			ciphertext = bootcontext.modUp(ciphertext)
-		}
-	})
-
-	b.Run(testString("SubSum/", parameters), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ciphertext = bootcontext.subSum(ciphertext)
-		}
-	})
-
-	// Coeffs To Slots
-	var ct0, ct1 *Ciphertext
-	b.Run(testString("CoeffsToSlots/", parameters), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			ciphertext = NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), LTScale)
-			b.StartTimer()
-
-			ct0, ct1 = bootcontext.coeffsToSlots(ciphertext)
-		}
-	})
-
-	// Sine evaluation
-	var ct2, ct3 *Ciphertext
-	b.Run(testString("EvalSine/", parameters), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			ct0 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel()-ctsDepth, LTScale)
-			if parameters.LogSlots == parameters.LogN-1 {
-				ct1 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel()-ctsDepth, LTScale)
-			} else {
-				ct1 = nil
-			}
-			b.StartTimer()
-
-			ct2, ct3 = bootcontext.evaluateSine(ct0, ct1)
-
-			if ct2.Level() != parameters.MaxLevel()-ctsDepth-sinDepth {
-				panic("scaling error during eval sinebetter bench")
-			}
-
-			if ct3 != nil {
-				if ct3.Level() != parameters.MaxLevel()-ctsDepth-sinDepth {
-					panic("scaling error during eval sinebetter bench")
-				}
-			}
-		}
-	})
-
-	// Slots To Coeffs
-	b.Run(testString("SlotsToCoeffs/", parameters), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			ct2 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel()-ctsDepth-sinDepth, LTScale)
-			if parameters.LogSlots == parameters.LogN-1 {
-				ct3 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel()-ctsDepth-sinDepth, LTScale)
-			} else {
-				ct3 = nil
-			}
-			b.StartTimer()
-
-			bootcontext.slotsToCoeffs(ct2, ct3)
-
-		}
-	})
-
-	b.Run(testString("Bootstrapp/", parameters), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			b.StopTimer()
-			ct := NewCiphertext(parameters, 1, 0, parameters.Scale)
-			b.StartTimer()
-
-			bootcontext.Bootstrapp(ct)
-		}
-	})
-}
-
-func BenchmarkBootstrappCos(b *testing.B) {
-
-	var bootcontext *BootContextBetterSine
-	var kgen KeyGenerator
-	var sk *SecretKey
-	var ciphertext *Ciphertext
-
-	var LTScale float64
-
-	LTScale = 1 << 45
-	//SineScale = 1 << 55
-
-	bootparams := BootstrappParams[4]
-
-	parameters := &bootparams.Parameters
-
-	bootparams.GenFromLogModuli()
-
-	ctsDepth := bootparams.ctsDepth
-	sinDepth := bootparams.sinDepth
-
-	kgen = NewKeyGenerator(parameters)
-
-	sk = kgen.GenSecretKey()
-
-	bootcontext = NewBootContextBetterSine(bootparams, sk)
 
 	b.Run(testString("ModUp/", parameters), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

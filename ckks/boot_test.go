@@ -20,7 +20,7 @@ func TestBootstrapp(t *testing.T) {
 	_ = LTScale
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[4]
+	bootparams := BootstrappParams[1]
 
 	parameters := &bootparams.Parameters
 
@@ -42,7 +42,7 @@ func TestBootstrapp(t *testing.T) {
 		K := float64(16)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
-		evaluator.DropLevel(ciphertext, bootparams.ctsDepth)
+		evaluator.DropLevel(ciphertext, bootparams.CtSDepth)
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
 
@@ -75,7 +75,7 @@ func TestBootstrapp(t *testing.T) {
 		sc_fac := complex(float64(int(1<<sc_num)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, float64(-K+1), float64(K-1), t)
-		evaluator.DropLevel(ciphertext, bootparams.ctsDepth)
+		evaluator.DropLevel(ciphertext, bootparams.CtSDepth)
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
@@ -183,7 +183,7 @@ func TestBootstrapp(t *testing.T) {
 
 	})
 
-	t.Run(testString("BootstrappSine/", parameters), func(t *testing.T) {
+	t.Run(testString("Bootstrapp/", parameters), func(t *testing.T) {
 
 		bootcontext := NewBootContext(bootparams, params.sk)
 
@@ -207,39 +207,6 @@ func TestBootstrapp(t *testing.T) {
 		for i := 0; i < 1; i++ {
 
 			ciphertext = bootcontext.Bootstrapp(ciphertext)
-
-			fmt.Println(ciphertext.Level(), ciphertext.Scale())
-
-			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-		}
-
-	})
-
-	t.Run(testString("BootstrappCos/", parameters), func(t *testing.T) {
-
-		bootcontext := NewBootContextBetterSine(bootparams, params.sk)
-
-		values := make([]complex128, slots)
-		for i := range values {
-			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
-		}
-
-		values[0] = complex(0.9238795325112867, 0.3826834323650898)
-		values[1] = complex(0.9238795325112867, 0.3826834323650898)
-		if slots > 2 {
-			values[2] = complex(0.9238795325112867, 0.3826834323650898)
-			values[3] = complex(0.9238795325112867, 0.3826834323650898)
-		}
-
-		plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
-		params.encoder.Encode(plaintext, values, slots)
-
-		ciphertext := params.encryptorPk.EncryptNew(plaintext)
-
-		for i := 0; i < 1; i++ {
-
-			ciphertext = bootcontext.Bootstrapp(ciphertext)
-			fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		}

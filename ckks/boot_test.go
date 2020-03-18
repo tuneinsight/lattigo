@@ -20,7 +20,7 @@ func TestBootstrapp(t *testing.T) {
 	_ = LTScale
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[1]
+	bootparams := BootstrappParams[2]
 
 	parameters := &bootparams.Parameters
 
@@ -204,11 +204,14 @@ func TestBootstrapp(t *testing.T) {
 
 		ciphertext := params.encryptorPk.EncryptNew(plaintext)
 
-		for i := 0; i < 1; i++ {
+		for i := 0; i < 50; i++ {
 
 			ciphertext = bootcontext.Bootstrapp(ciphertext)
 
+			params.evaluator.SetScale(ciphertext, parameters.Scale)
+
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+			fmt.Println()
 		}
 
 	})

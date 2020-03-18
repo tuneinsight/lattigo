@@ -41,6 +41,8 @@ type BootContext struct {
 	rotkeys  *RotationKeys  // Rotation and conjugation keys
 
 	ctxpool [3]*Ciphertext // Memory pool
+
+	decryptor Decryptor
 }
 
 type dftvectors struct {
@@ -52,17 +54,16 @@ func sin2pi2pi(x complex128) complex128 {
 	return cmplx.Sin(6.283185307179586*x) / 6.283185307179586
 }
 
-func showcoeffs(decryptor Decryptor, encoder Encoder, slots uint64, ciphertext *Ciphertext, message string) (coeffs []complex128) {
 
-	coeffs = encoder.Decode(decryptor.DecryptNew(ciphertext), slots)
+func (b *BootContext) printDebug(message string, ciphertext *Ciphertext) {
 
-	if slots == 2 {
-		fmt.Printf(message+"%22.10f %22.10f...\n", coeffs[0], coeffs[1])
+	coeffs := b.encoder.Decode(b.decryptor.DecryptNew(ciphertext), b.dslots)
+
+	if b.dslots == 2 {
+		fmt.Printf(message+"%.10f %.10f...\n", coeffs[0], coeffs[1])
 	} else {
-		fmt.Printf(message+"%22.10f %22.10f %22.10f %22.10f...\n", coeffs[0], coeffs[1], coeffs[2], coeffs[3])
+		fmt.Printf(message+"%.10f %.10f %.10f %.10f...\n", coeffs[0], coeffs[1], coeffs[2], coeffs[3])
 	}
-
-	return coeffs
 }
 
 // NewBootContext creates a new bootcontext.
@@ -93,6 +94,7 @@ func NewBootContext(bootparams *BootParams, sk *SecretKey) (bootcontext *BootCon
 	bootcontext.newBootKeys(sk)
 
 	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
+	bootcontext.decryptor = NewDecryptor(&bootparams.Parameters, sk)
 
 	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
 	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
@@ -101,7 +103,111 @@ func NewBootContext(bootparams *BootParams, sk *SecretKey) (bootcontext *BootCon
 	return bootcontext
 }
 
-// NewBootContext creates a new bootcontext.
+func (bootcontext *BootContext) newBootDFT() {
+
+	if bootcontext.SinType == Sin {
+
+		if bootcontext.CtSRescale {
+			// Change of variable + SubSum + CoeffsToSlots cancelling factor
+			a := real(bootcontext.chebycoeffs.a)
+			b := real(bootcontext.chebycoeffs.b)
+			n := float64(bootcontext.n)
+
+			// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum
+			bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2/((b-a)*n), 1.0/float64(bootcontext.CtSDepth)), 0)
+
+		} else {
+			bootcontext.coeffsToSlotsDiffScale = complex(1, 0)
+		}
+
+		if bootcontext.StCRescale {
+			// Rescaling factor to set the final ciphertext to the desired scale
+			bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.sinScale/bootcontext.Scale, 1.0/float64(bootcontext.StCDepth)), 0)
+		} else {
+			bootcontext.slotsToCoeffsDiffScale = complex(1, 0)
+		}
+
+	} else if bootcontext.SinType == Cos {
+
+		if bootcontext.CtSRescale {
+
+			// Change of variable + SubSum + CoeffsToSlots cancelling factor
+			a := real(bootcontext.chebycoeffs.a)
+			b := real(bootcontext.chebycoeffs.b)
+			n := float64(bootcontext.n)
+			sc_fac := float64(int(1 << bootcontext.SinRescal))
+
+			// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum
+			bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2/((b-a)*n*sc_fac), 1.0/float64(bootcontext.CtSDepth)), 0)
+
+		} else {
+			bootcontext.coeffsToSlotsDiffScale = complex(1, 0)
+		}
+
+		if bootcontext.StCRescale {
+			// Rescaling factor to set the final ciphertext to the desired scale
+			bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.sinScale/bootcontext.Scale, 1.0/float64(bootcontext.StCDepth)), 0)
+		} else {
+			bootcontext.slotsToCoeffsDiffScale = complex(1, 0)
+		}
+
+	} else {
+		panic("bootcontext -> invalid sineType")
+	}
+
+	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
+	bootcontext.computePlaintextVectors()
+
+	return
+}
+
+func (bootcontext *BootContext) newBootSine() {
+
+	if bootcontext.SinType == Sin {
+
+		K := complex(float64(bootcontext.SinRange), 0)
+
+		bootcontext.chebycoeffs = Approximate(sin2pi2pi, -K, K, int(bootcontext.SinDeg))
+
+	} else if bootcontext.SinType == Cos {
+
+		K := int(bootcontext.SinRange)
+		deg := int(bootcontext.SinDeg)
+		dev := 10
+		sc_fac := complex(float64(int(1<<bootcontext.SinRescal)), 0)
+
+		cheby := new(ChebyshevInterpolation)
+
+		cheby.coeffs = bettersine.Approximate(K, deg, dev, int(bootcontext.SinRescal))
+
+		if int(bootcontext.SinRescal) == 1 {
+			for i := range cheby.coeffs {
+				cheby.coeffs[i] *= 0.5641895835477563
+			}
+		}
+
+		if int(bootcontext.SinRescal) == 2 {
+			for i := range cheby.coeffs {
+				cheby.coeffs[i] *= 0.7511255444649425
+			}
+		}
+
+		if int(bootcontext.SinRescal) == 3 {
+			for i := range cheby.coeffs {
+				cheby.coeffs[i] *= 0.8666749935615672
+			}
+		}
+
+		cheby.maxDeg = uint64(deg) + 1
+		cheby.a = complex(float64(-K), 0) / sc_fac
+		cheby.b = complex(float64(K), 0) / sc_fac
+
+		bootcontext.chebycoeffs = cheby
+
+	} else {
+		panic("bootcontext -> invalid sineType")
+	}
+}
 
 func (bootcontext *BootContext) newBootKeys(sk *SecretKey) {
 
@@ -178,116 +284,6 @@ func (bootcontext *BootContext) newBootKeys(sk *SecretKey) {
 	return
 }
 
-func (bootcontext *BootContext) newBootSine() {
-
-	if bootcontext.SinType == Sin {
-
-		K := complex(float64(bootcontext.SinRange), 0)
-
-		bootcontext.chebycoeffs = Approximate(sin2pi2pi, -K, K, int(bootcontext.SinDeg))
-
-	} else if bootcontext.SinType == Cos {
-
-		K := int(bootcontext.SinRange)
-		deg := int(bootcontext.SinDeg)
-		dev := 10
-		sc_fac := complex(float64(int(1<<bootcontext.SinRescal)), 0)
-
-		cheby := new(ChebyshevInterpolation)
-
-		cheby.coeffs = bettersine.Approximate(K, deg, dev, int(bootcontext.SinRescal))
-
-		if int(bootcontext.SinRescal) == 1 {
-			for i := range cheby.coeffs {
-				cheby.coeffs[i] *= 0.5641895835477563
-			}
-		}
-
-		if int(bootcontext.SinRescal) == 2 {
-			for i := range cheby.coeffs {
-				cheby.coeffs[i] *= 0.7511255444649425
-			}
-		}
-
-		if int(bootcontext.SinRescal) == 3 {
-			for i := range cheby.coeffs {
-				cheby.coeffs[i] *= 0.8666749935615672
-			}
-		}
-
-		cheby.maxDeg = uint64(deg) + 1
-		cheby.a = complex(float64(-K), 0) / sc_fac
-		cheby.b = complex(float64(K), 0) / sc_fac
-
-		bootcontext.chebycoeffs = cheby
-
-	} else {
-		panic("bootcontext -> invalid sineType")
-	}
-
-}
-
-func (bootcontext *BootContext) newBootDFT() {
-
-	// ==========================================================
-	// Constant multiplication to be merged with the DFT vectors
-	// ==========================================================
-
-	if bootcontext.SinType == Sin {
-
-		if bootcontext.CtSRescale {
-			// Change of variable + SubSum + CoeffsToSlots cancelling factor
-			a := real(bootcontext.chebycoeffs.a)
-			b := real(bootcontext.chebycoeffs.b)
-			n := float64(bootcontext.n)
-
-			// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum
-			bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2/((b-a)*n), 1.0/float64(bootcontext.CtSDepth)), 0)
-
-		} else {
-			bootcontext.coeffsToSlotsDiffScale = complex(1, 0)
-		}
-
-		if bootcontext.StCRescale {
-			// Rescaling factor to set the final ciphertext to the desired scale
-			bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.sinScale/bootcontext.Scale, 1.0/float64(bootcontext.StCDepth)), 0)
-		} else {
-			bootcontext.slotsToCoeffsDiffScale = complex(1, 0)
-		}
-
-	} else if bootcontext.SinType == Cos {
-
-		if bootcontext.CtSRescale {
-
-			// Change of variable + SubSum + CoeffsToSlots cancelling factor
-			a := real(bootcontext.chebycoeffs.a)
-			b := real(bootcontext.chebycoeffs.b)
-			n := float64(bootcontext.n)
-			sc_fac := float64(int(1 << bootcontext.SinRescal))
-
-			// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum
-			bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2/((b-a)*n*sc_fac), 1.0/float64(bootcontext.CtSDepth)), 0)
-
-		} else {
-			bootcontext.coeffsToSlotsDiffScale = complex(1, 0)
-		}
-
-		if bootcontext.StCRescale {
-			// Rescaling factor to set the final ciphertext to the desired scale
-			bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.sinScale/bootcontext.Scale, 1.0/float64(bootcontext.StCDepth)), 0)
-		} else {
-			bootcontext.slotsToCoeffsDiffScale = complex(1, 0)
-		}
-
-	} else {
-		panic("bootcontext -> invalid sineType")
-	}
-
-	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
-	bootcontext.computePlaintextVectors()
-
-	return
-}
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel.
 func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
@@ -311,7 +307,6 @@ func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	ct0, ct1 = bootcontext.coeffsToSlots(ct)
 
 	// Part 2 : SineEval
-
 	ct0, ct1 = bootcontext.evaluateSine(ct0, ct1)
 
 	// Part 3 : Slots to coeffs
@@ -459,11 +454,8 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 		panic("bootstrapp -> evaluate sine -> invalid sineType")
 	}
 
-	if bootcontext.StCRescale {
-		ct0.SetScale(bootcontext.Scale)
-	} else {
-		ct0.DivScale(1024)
-	}
+	ct0.SetScale(bootcontext.Scale)
+
 
 	if ct1 != nil {
 
@@ -478,11 +470,8 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 			panic("bootstrapp -> evaluate sine -> invalid sineType")
 		}
 
-		if bootcontext.StCRescale {
-			ct1.SetScale(bootcontext.Scale)
-		} else {
-			ct1.DivScale(1024)
-		}
+		ct1.SetScale(bootcontext.Scale)
+
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
@@ -942,12 +931,13 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 				level = bootcontext.MaxLevel() - k
 				scale = float64(bootcontext.Qi[level])
 			} else {
-				level = bootcontext.MaxLevel() - k/2 - bootcontext.CtSDepth - bootcontext.SinDepth
-
-				if bootcontext.StCRescale {
-					scale = 1 << 30
-				} else {
-					scale = 1 << 25
+				level = bootcontext.MaxLevel() - uint64((float64(k)/2.0)+0.5) - bootcontext.CtSDepth - bootcontext.SinDepth
+				
+				// If the first moduli
+				if bootcontext.LogQi[level] > 30 {
+					scale = float64(uint64(1<<(bootcontext.LogQi[level]>>1)))
+				}else{
+					scale = float64(bootcontext.Qi[level])
 				}
 			}
 

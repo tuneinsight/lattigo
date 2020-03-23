@@ -285,7 +285,7 @@ func (bootcontext *BootContext) newBootKeys(sk *SecretKey) {
 }
 
 
-// Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel.
+// Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
 func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 	var ct0, ct1 *Ciphertext

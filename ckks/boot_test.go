@@ -204,7 +204,7 @@ func TestBootstrapp(t *testing.T) {
 
 		ciphertext := params.encryptorPk.EncryptNew(plaintext)
 
-		for i := 0; i < 50; i++ {
+		for i := 0; i < 1; i++ {
 
 			ciphertext = bootcontext.Bootstrapp(ciphertext)
 

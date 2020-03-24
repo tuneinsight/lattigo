@@ -6,10 +6,14 @@ import (
 
 // ChebyshevInterpolation is a struct storing the coefficients, degree and range of a Chebyshev interpolation polynomial.
 type ChebyshevInterpolation struct {
-	coeffs map[uint64]complex128
-	degree uint64
-	a      complex128
-	b      complex128
+	poly
+	a complex128
+	b complex128
+}
+
+// Poly returns the polynomial coefficients of the ChebyshevInterpolation
+func (cheby *ChebyshevInterpolation) Poly() *poly {
+	return &poly{cheby.maxDeg, cheby.coeffs}
 }
 
 // Approximate computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
@@ -17,10 +21,9 @@ type ChebyshevInterpolation struct {
 func Approximate(function func(complex128) complex128, a, b complex128, degree int) (cheby *ChebyshevInterpolation) {
 
 	cheby = new(ChebyshevInterpolation)
-	cheby.coeffs = make(map[uint64]complex128)
 	cheby.a = a
 	cheby.b = b
-	cheby.degree = uint64(degree)
+	cheby.maxDeg = uint64(degree)
 
 	nodes := chebyshevNodes(degree+1, a, b)
 
@@ -29,11 +32,7 @@ func Approximate(function func(complex128) complex128, a, b complex128, degree i
 		fi[i] = function(nodes[i])
 	}
 
-	coeffs := chebyCoeffs(nodes, fi, a, b)
-
-	for i := range coeffs {
-		cheby.coeffs[uint64(i)] = coeffs[i]
-	}
+	cheby.coeffs = chebyCoeffs(nodes, fi, a, b)
 
 	return
 }

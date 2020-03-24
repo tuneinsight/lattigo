@@ -164,8 +164,8 @@ func GenModuli(params *Parameters) (Q []uint64, P []uint64) {
 
 		primesbitlen[pj]++
 
-		if pj > 60 {
-			panic("cannot GenModuli: the provided LogPi must be smaller than 61")
+		if pj > 61 {
+			panic("cannot GenModuli: the provided LogPi must be smaller than 62")
 		}
 	}
 
@@ -211,4 +211,24 @@ func sliceBitReverseInPlaceComplex128(slice []complex128, N uint64) {
 			slice[i], slice[j] = slice[j], slice[i]
 		}
 	}
+}
+
+func max(array []complex128) (m float64) {
+	m = real(array[0])
+	for _, i := range array[1:] {
+		if real(i) > m {
+			m = real(i)
+		}
+	}
+	return
+}
+
+func min(array []complex128) (m float64) {
+	m = real(array[0])
+	for _, i := range array[1:] {
+		if real(i) < m {
+			m = real(i)
+		}
+	}
+	return
 }

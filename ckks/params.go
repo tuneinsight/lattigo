@@ -25,16 +25,12 @@ func init() {
 }
 
 const (
-	// PN12QP109 is a set of parameters with N = 2^12 and log(QP) = 109
 	PN12QP109 = iota
-	// PN13QP218 is a set of parameters with N = 2^13 and log(QP) = 218
 	PN13QP218
-	// PN14QP438 is a set of parameters with N = 2^14 and log(QP) = 438
 	PN14QP438
-	// PN15QP880 is a set of parameters with N = 2^15 and log(QP) = 880
 	PN15QP880
-	// PN16QP1761 is a set of parameters with N = 2^16 and log(QP) = 1761
 	PN16QP1761
+	PN16BootCheby
 )
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
@@ -88,6 +84,15 @@ var DefaultParams = []*Parameters{
 			LogPi: []uint64{55, 55, 55, 55},
 		},
 		Scale: 1 << 45,
+		Sigma: 3.2},
+	//LogQi = 1761
+	{LogN: 16,
+		LogSlots: 14,
+		LogModuli: LogModuli{
+			LogQi: []uint64{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55},
+			LogPi: []uint64{55, 55, 55, 55},
+		},
+		Scale: 1 << 55,
 		Sigma: 3.2},
 }
 
@@ -401,7 +406,7 @@ func (p *Parameters) checkModuli() error {
 	}
 
 	for i, pi := range p.Pi {
-		if uint64(bits.Len64(pi)-1) > MaxModuliSize {
+		if uint64(bits.Len64(pi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
@@ -440,7 +445,7 @@ func (p *Parameters) checkLogModuli() error {
 	}
 
 	for i, pi := range p.LogPi {
-		if pi > MaxModuliSize {
+		if pi > MaxModuliSize+1 {
 			return fmt.Errorf("LogPi (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}

@@ -132,9 +132,18 @@ func IsPrime(num uint64) bool {
 // best avaliable deviation from the base power of 2 for the given level.
 func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 
-	if logQ > 60 {
-		panic("logQ must be between 1 and 60")
+	if logQ > 61 {
+		panic("logQ  must be between 1 and 61")
 	}
+
+	if logQ == 61 {
+		return GenerateNTTPrimesP(logQ, logN, levels)
+	}
+
+	return GenerateNTTPrimesQ(logQ, logN, levels)
+}
+
+func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 
 	var x, y, Qpow2, _2N uint64
 
@@ -149,6 +158,15 @@ func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 
 	for true {
 
+		if IsPrime(y) {
+			primes = append(primes, y)
+			if uint64(len(primes)) == levels {
+				return primes
+			}
+		}
+
+		y -= _2N
+
 		if IsPrime(x) {
 			primes = append(primes, x)
 			if uint64(len(primes)) == levels {
@@ -157,16 +175,31 @@ func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 		}
 
 		x += _2N
+	}
 
-		if _2N > y {
+	return
+}
 
-			y -= _2N
+func GenerateNTTPrimesP(logP, logN, n uint64) (primes []uint64) {
 
-			if IsPrime(y) {
-				primes = append(primes, y)
-				if uint64(len(primes)) == levels {
-					return primes
-				}
+	var x, Ppow2, _2N uint64
+
+	primes = []uint64{}
+
+	Ppow2 = 1 << logP
+
+	_2N = 2 << logN
+
+	x = Ppow2 + 1
+
+	for true {
+
+		x -= _2N
+
+		if IsPrime(x) {
+			primes = append(primes, x)
+			if uint64(len(primes)) == n {
+				return primes
 			}
 		}
 	}

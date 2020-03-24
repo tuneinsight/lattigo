@@ -69,6 +69,7 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 	}
 }
 
+// NewCRPGenerator creates a new deterministic random polynomial generator.
 func NewCRPGenerator(params *bfv.Parameters, key []byte) *ring.CRPGenerator {
 	ctx := newDbfvContext(params)
 	return ring.NewCRPGenerator(key, ctx.contextQP)

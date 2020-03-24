@@ -40,7 +40,7 @@ func NewEncoder(params *Parameters) Encoder {
 	fivePows := uint64(1)
 	for i := uint64(0); i < m>>2; i++ {
 		rotGroup[i] = fivePows
-		fivePows *= 5
+		fivePows *= GaloisGen
 		fivePows &= (m - 1)
 	}
 

@@ -54,7 +54,6 @@ func sin2pi2pi(x complex128) complex128 {
 	return cmplx.Sin(6.283185307179586*x) / 6.283185307179586
 }
 
-
 func (b *BootContext) printDebug(message string, ciphertext *Ciphertext) {
 
 	coeffs := b.encoder.Decode(b.decryptor.DecryptNew(ciphertext), b.dslots)
@@ -284,7 +283,6 @@ func (bootcontext *BootContext) newBootKeys(sk *SecretKey) {
 	return
 }
 
-
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
 func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
@@ -455,7 +453,6 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	}
 
 	ct0.SetScale(bootcontext.Scale)
-
 
 	if ct1 != nil {
 
@@ -932,11 +929,11 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 				scale = float64(bootcontext.Qi[level])
 			} else {
 				level = bootcontext.MaxLevel() - uint64((float64(k)/2.0)+0.5) - bootcontext.CtSDepth - bootcontext.SinDepth
-				
+
 				// If the first moduli
 				if bootcontext.LogQi[level] > 30 {
-					scale = float64(uint64(1<<(bootcontext.LogQi[level]>>1)))
-				}else{
+					scale = float64(uint64(1 << (bootcontext.LogQi[level] >> 1)))
+				} else {
 					scale = float64(bootcontext.Qi[level])
 				}
 			}

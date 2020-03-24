@@ -82,15 +82,24 @@ func NewEvaluator(params *Parameters) Evaluator {
 		}
 	}
 
+	var baseconverter *ring.FastBasisExtender
+	var decomposer *ring.Decomposer
+	var keyswitchpool [5]*ring.Poly
+	if len(params.Pi) != 0 {
+		baseconverter = ring.NewFastBasisExtender(q, p)
+		decomposer = ring.NewDecomposer(q.Modulus, p.Modulus)
+		keyswitchpool = [5]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly(), qp.NewPoly(), qp.NewPoly()}
+	}
+
 	return &evaluator{
 		params:            params.Copy(),
 		bfvContext:        bfvContext,
 		baseconverterQ1Q2: ring.NewFastBasisExtender(q, qm),
-		baseconverterQ1P:  ring.NewFastBasisExtender(q, p),
-		decomposer:        ring.NewDecomposer(q.Modulus, p.Modulus),
+		baseconverterQ1P:  baseconverter,
+		decomposer:        decomposer,
 		pHalf:             new(big.Int).Rsh(qm.ModulusBigint, 1),
 		polypool:          [2]*ring.Poly{q.NewPoly(), q.NewPoly()},
-		keyswitchpool:     [5]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly(), qp.NewPoly(), qp.NewPoly()},
+		keyswitchpool:     keyswitchpool,
 		poolQ:             poolQ,
 		poolP:             poolP,
 	}
@@ -271,7 +280,8 @@ func (evaluator *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	contextQ := evaluator.bfvContext.contextQ
 	contextQMul := evaluator.bfvContext.contextQMul
 
-	level := uint64(len(contextQ.Modulus) - 1)
+	levelQ := uint64(len(contextQ.Modulus) - 1)
+	levelQMul := uint64(len(contextQMul.Modulus) - 1)
 
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them to NTT form
@@ -286,7 +296,7 @@ func (evaluator *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	c2Q2 := evaluator.poolP[2]
 
 	for i := range ct0.value {
-		evaluator.baseconverterQ1Q2.ModUpSplitQP(level, ct0.value[i], c0Q2[i])
+		evaluator.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct0.value[i], c0Q2[i])
 
 		contextQ.NTT(ct0.value[i], c0Q1[i])
 		contextQMul.NTT(c0Q2[i], c0Q2[i])
@@ -295,7 +305,7 @@ func (evaluator *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	if ct0 != ct1 {
 
 		for i := range ct1.value {
-			evaluator.baseconverterQ1Q2.ModUpSplitQP(level, ct1.value[i], c1Q2[i])
+			evaluator.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct1.value[i], c1Q2[i])
 
 			contextQ.NTT(ct1.value[i], c1Q1[i])
 			contextQMul.NTT(c1Q2[i], c1Q2[i])
@@ -404,22 +414,48 @@ func (evaluator *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		}
 	}
 
+	//fmt.Println(contextQ.Modulus)
+	//contextBig, _ := ring.NewContextWithParams(contextQ.N, append(evaluator.params.Qi, evaluator.params.QiMul...))
+	//polyBig := contextBig.NewPoly()
+
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q
 	for i := range ctOut.value {
 		contextQ.InvNTT(c2Q1[i], c2Q1[i])
 		contextQMul.InvNTT(c2Q2[i], c2Q2[i])
 
+		/*
+			for j := range contextQ.Modulus {
+				for k := uint64(0) ; k < contextQ.N; k++ {
+					polyBig.Coeffs[j][k] = c2Q1[i].Coeffs[j][k]
+				}
+			}
+
+			for j := range contextQMul.Modulus {
+				for k := uint64(0) ; k < contextQ.N; k++ {
+					polyBig.Coeffs[j+len(contextQ.Modulus)][k] = c2Q2[i].Coeffs[j][k]
+				}
+			}
+		*/
+
 		// Option (1) (ct(x) * T)/Q; doing so requires that Q*P > Q*Q*T; it is slower but has smaller error.
 		//contextQ.MulScalar(c2Q1[i], evaluator.bfvContext.contextT.Modulus[0], c2Q1[i])
 		//contextQMul.MulScalar(c2Q2[i], evaluator.bfvContext.contextT.Modulus[0], c2Q2[i])
 
+		//coeffs_bigint := make([]*big.Int, contextQ.N)
+		//contextBig.PolyToBigint(polyBig, coeffs_bigint)
+		//fmt.Println(coeffs_bigint[0])
+
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		evaluator.baseconverterQ1Q2.ModDownSplitedQP(level, c2Q1[i], c2Q2[i], c2Q2[i])
+		evaluator.baseconverterQ1Q2.ModDownSplitedQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
+
+		//contextQMul.PolyToBigint(c2Q2[i], coeffs_bigint)
+		//fmt.Println(coeffs_bigint[0])
+		//fmt.Println()
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
 		contextQMul.AddScalarBigint(c2Q2[i], evaluator.pHalf, c2Q2[i])
-		evaluator.baseconverterQ1Q2.ModUpSplitPQ(level, c2Q2[i], ctOut.value[i])
+		evaluator.baseconverterQ1Q2.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.value[i])
 		contextQ.SubScalarBigint(ctOut.value[i], evaluator.pHalf, ctOut.value[i])
 
 		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
@@ -443,13 +479,20 @@ func (evaluator *evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphert
 // relinearize is a method common to Relinearize and RelinearizeNew. It switches ct0 to the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
 func (evaluator *evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
 
+	context := evaluator.bfvContext.contextQ
+
 	if ctOut != ct0 {
 		evaluator.bfvContext.contextQ.Copy(ct0.value[0], ctOut.value[0])
 		evaluator.bfvContext.contextQ.Copy(ct0.value[1], ctOut.value[1])
 	}
 
+	p0 := evaluator.keyswitchpool[2]
+	p1 := evaluator.keyswitchpool[3]
+
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
-		evaluator.switchKeys(ct0.value[deg], evakey.evakey[deg-2], ctOut)
+		evaluator.switchKeys(ct0.value[deg], evakey.evakey[deg-2], p0, p1)
+		context.Add(ctOut.value[0], p0, ctOut.value[0])
+		context.Add(ctOut.value[1], p1, ctOut.value[1])
 	}
 
 	ctOut.SetValue(ctOut.value[:2])
@@ -496,16 +539,19 @@ func (evaluator *evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKe
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
 func (evaluator *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext) {
 
+	context := evaluator.bfvContext.contextQ
+
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot SwitchKeys: input and output must be of degree 1 to allow key switching")
 	}
 
-	if ct0 != ctOut {
-		evaluator.bfvContext.contextQ.Copy(ct0.value[0], ctOut.value[0])
-		evaluator.bfvContext.contextQ.Copy(ct0.value[1], ctOut.value[1])
-	}
+	p0 := evaluator.keyswitchpool[2]
+	p1 := evaluator.keyswitchpool[3]
 
-	evaluator.switchKeys(ct0.value[1], switchKey, ctOut)
+	evaluator.switchKeys(ct0.value[1], switchKey, p0, p1)
+
+	context.Add(ct0.value[0], p0, ctOut.value[0])
+	context.Copy(p1, ctOut.value[1])
 }
 
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
@@ -677,22 +723,24 @@ func (evaluator *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey
 	context.Permute(ct0.value[0], generator, el0)
 	context.Permute(ct0.value[1], generator, el1)
 
-	if el0 != ctOut.value[0] || el1 != ctOut.value[1] {
-		context.Copy(el0, ctOut.value[0])
-		context.Copy(el1, ctOut.value[1])
-	}
+	p0 := evaluator.keyswitchpool[2]
+	p1 := evaluator.keyswitchpool[3]
 
-	evaluator.switchKeys(el1, switchKey, ctOut)
+	evaluator.switchKeys(el1, switchKey, p0, p1)
+
+	context.Add(el0, p0, ctOut.value[0])
+	context.Copy(p1, ctOut.value[1])
 }
 
 // switchKeys applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
-func (evaluator *evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOut *Ciphertext) {
+func (evaluator *evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
 
 	var level, reduce uint64
 
-	level = uint64(len(ctOut.value[0].Coeffs)) - 1
 	context := evaluator.bfvContext.contextQ
 	contextKeys := evaluator.bfvContext.contextQP
+
+	level = uint64(len(context.Modulus)) - 1
 
 	for i := range evaluator.keyswitchpool {
 		evaluator.keyswitchpool[i].Zero()
@@ -735,8 +783,8 @@ func (evaluator *evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 
 			key0 := evakey.evakey[i][0].Coeffs[x]
 			key1 := evakey.evakey[i][1].Coeffs[x]
-			p2tmp := evaluator.keyswitchpool[2].Coeffs[x]
-			p3tmp := evaluator.keyswitchpool[3].Coeffs[x]
+			p2tmp := p0.Coeffs[x]
+			p3tmp := p1.Coeffs[x]
 
 			for y := uint64(0); y < context.N; y++ {
 				p2tmp[y] += ring.MRed(key0[y], c2QiNtt[y], qi, mredParams)
@@ -745,24 +793,21 @@ func (evaluator *evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, ctOu
 		}
 
 		if reduce&7 == 7 {
-			contextKeys.Reduce(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
-			contextKeys.Reduce(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
+			contextKeys.Reduce(p0, p0)
+			contextKeys.Reduce(p1, p1)
 		}
 
 		reduce++
 	}
 
 	if (reduce-1)&7 != 7 {
-		contextKeys.Reduce(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
-		contextKeys.Reduce(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
+		contextKeys.Reduce(p0, p0)
+		contextKeys.Reduce(p1, p1)
 	}
 
-	contextKeys.InvNTT(evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
-	contextKeys.InvNTT(evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
+	contextKeys.InvNTT(p0, p0)
+	contextKeys.InvNTT(p1, p1)
 
-	evaluator.baseconverterQ1P.ModDownPQ(level, evaluator.keyswitchpool[2], evaluator.keyswitchpool[2])
-	evaluator.baseconverterQ1P.ModDownPQ(level, evaluator.keyswitchpool[3], evaluator.keyswitchpool[3])
-
-	context.Add(ctOut.value[0], evaluator.keyswitchpool[2], ctOut.value[0])
-	context.Add(ctOut.value[1], evaluator.keyswitchpool[3], ctOut.value[1])
+	evaluator.baseconverterQ1P.ModDownPQ(level, p0, p0)
+	evaluator.baseconverterQ1P.ModDownPQ(level, p1, p1)
 }

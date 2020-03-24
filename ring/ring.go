@@ -294,6 +294,20 @@ func (context *Context) MulCoeffsMontgomeryAndAddNoModLvl(level uint64, p1, p2, 
 	}
 }
 
+// MulCoeffsMontgomeryConstantAndAddNoModLvl multiplies p1 by p2 coefficient wise with a constant time Montgomery modular reduction, adding the result to p3 without modular reduction.
+// Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
+func (context *Context) MulCoeffsMontgomeryConstantAndAddNoModLvl(level uint64, p1, p2, p3 *Poly) {
+	var qi uint64
+	for i := uint64(0); i < level+1; i++ {
+		qi = context.Modulus[i]
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := context.mredParams[i]
+		for j := uint64(0); j < context.N; j++ {
+			p3tmp[j] += MRedConstant(p1tmp[j], p2tmp[j], qi, mredParams)
+		}
+	}
+}
+
 // MulCoeffsMontgomeryAndSub multiplies p1 by p2 coefficient wise with a Montgomery modular reduction, subtractsing the result to p3 with modular reduction.
 // Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryAndSub(p1, p2, p3 *Poly) {

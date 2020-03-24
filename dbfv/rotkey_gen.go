@@ -141,7 +141,6 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 	contextKeys := rtg.context.contextQP
 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly)
-	contextKeys.Sub(rtg.tmpPoly, sk, rtg.tmpPoly)
 
 	contextKeys.MulScalarBigint(rtg.tmpPoly, rtg.context.contextP.ModulusBigint, rtg.tmpPoly)
 	contextKeys.InvMForm(rtg.tmpPoly, rtg.tmpPoly)

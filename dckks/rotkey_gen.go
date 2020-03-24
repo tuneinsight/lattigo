@@ -75,7 +75,7 @@ func NewRotKGProtocol(params *ckks.Parameters) (rtg *RTGProtocol) {
 // GenShare is the first and unique round of the rotkg protocol. Each party, using its secret share of the collective secret-key
 // and a collective random polynomial, a public share of the rotation-key by computing :
 //
-// [a*s_i + (pi(s_i) - s_i) + e]
+// [a*s_i + pi(s_i) + e]
 //
 // and broadcasts it to the other j-1 parties. The protocol must be repeated for each desired rotation.
 func (rtg *RTGProtocol) GenShare(rotType ckks.Rotation, k uint64, sk *ring.Poly, crp []*ring.Poly, shareOut *RTGShare) {
@@ -97,7 +97,6 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 	contextQP := rtg.dckksContext.contextQP
 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly)
-	contextQP.Sub(rtg.tmpPoly, sk, rtg.tmpPoly)
 
 	contextQP.MulScalarBigint(rtg.tmpPoly, rtg.dckksContext.contextP.ModulusBigint, rtg.tmpPoly)
 
@@ -146,7 +145,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 // Aggregate is the second part of the unique round of the rotkg protocol. Uppon receiving the j-1 public shares,
 // each party computes  :
 //
-// [sum(a*a_j + (pi(a_j) - a_j) + e_j), a]
+// [sum(a*a_j + pi(s_j) + e_j), a]
 func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
 	contextQP := rtg.dckksContext.contextQP
 

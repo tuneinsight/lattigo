@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"math"
-	"math/bits"
 	//"math/rand"
 )
 
@@ -24,14 +23,12 @@ func (context *Context) UniformPoly(Pol *Poly) {
 		panic("crypto rand error")
 	}
 
-	level := uint64(len(Pol.Coeffs) - 1)
-
-	for j := uint64(0); j < level+1; j++ {
+	for j := range context.Modulus {
 
 		qi = context.Modulus[j]
 
 		// Starts by computing the mask
-		mask = (1 << uint64(bits.Len64(qi))) - 1
+		mask = context.mask[j]
 
 		ptmp := Pol.Coeffs[j]
 

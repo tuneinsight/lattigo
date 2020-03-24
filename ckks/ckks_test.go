@@ -58,10 +58,10 @@ var testParams = new(ckksTestParameters)
 func init() {
 	rand.Seed(time.Now().UnixNano())
 
-	testParams.medianprec = 50
+	testParams.medianprec = 15
 	testParams.verbose = true
 
-	testParams.ckksParameters = DefaultParams[PN16BootCheby : PN16BootCheby+1]
+	testParams.ckksParameters = DefaultParams[PN12QP109 : PN12QP109+3]
 }
 
 func TestCKKS(t *testing.T) {
@@ -350,17 +350,50 @@ func testEncryptor(t *testing.T) {
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
-	}
 
-	for _, parameters := range testParams.ckksParameters {
+		t.Run(testString("EncryptFromPkFast/", parameters), func(t *testing.T) {
 
-		params := genCkksParams(parameters)
+			slots := uint64(1 << params.params.LogSlots)
+
+			values := make([]complex128, slots)
+
+			for i := uint64(0); i < slots; i++ {
+				values[i] = randomComplex(-1, 1)
+			}
+
+			values[0] = complex(0.607538, 0.555668)
+
+			plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale)
+
+			params.encoder.Encode(plaintext, values, slots)
+
+			verifyTestVectors(params, params.decryptor, values, params.encryptorPk.EncryptFastNew(plaintext), t)
+		})
 
 		t.Run(testString("EncryptFromSk/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorSk, 1, t)
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+		})
+
+		t.Run(testString("EncryptFromSkFast/", parameters), func(t *testing.T) {
+
+			slots := uint64(1 << params.params.LogSlots)
+
+			values := make([]complex128, slots)
+
+			for i := uint64(0); i < slots; i++ {
+				values[i] = randomComplex(-1, 1)
+			}
+
+			values[0] = complex(0.607538, 0.555668)
+
+			plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale)
+
+			params.encoder.Encode(plaintext, values, slots)
+
+			verifyTestVectors(params, params.decryptor, values, params.encryptorSk.EncryptFastNew(plaintext), t)
 		})
 	}
 }
@@ -548,7 +581,7 @@ func testEvaluatorRescale(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorSk, 1, t)
 
-			nbRescales := uint64(2)
+			nbRescales := parameters.MaxLevel()
 
 			for i := uint64(0); i < nbRescales; i++ {
 				constant := params.ckkscontext.contextQ.Modulus[ciphertext.Level()]
@@ -560,6 +593,7 @@ func testEvaluatorRescale(t *testing.T) {
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
+
 	}
 }
 
@@ -719,42 +753,48 @@ func testFunctions(t *testing.T) {
 
 		rlk := params.kgen.GenRelinKey(params.sk)
 
-		t.Run(testString("PowerOf2/", parameters), func(t *testing.T) {
+		if parameters.MaxLevel() > 2 {
 
-			values, _, ciphertext := newTestVectors(params, params.encryptorSk, 1, t)
+			t.Run(testString("PowerOf2/", parameters), func(t *testing.T) {
 
-			n := uint64(2)
+				values, _, ciphertext := newTestVectors(params, params.encryptorSk, 1, t)
 
-			valuesWant := make([]complex128, len(values))
-			for i := 0; i < len(valuesWant); i++ {
-				valuesWant[i] = values[i]
-			}
+				n := uint64(2)
 
-			for i := uint64(0); i < n; i++ {
-				for j := 0; j < len(valuesWant); j++ {
-					valuesWant[j] *= valuesWant[j]
+				valuesWant := make([]complex128, len(values))
+				for i := 0; i < len(valuesWant); i++ {
+					valuesWant[i] = values[i]
 				}
-			}
 
-			params.evaluator.PowerOf2(ciphertext, n, rlk, ciphertext)
+				for i := uint64(0); i < n; i++ {
+					for j := 0; j < len(valuesWant); j++ {
+						valuesWant[j] *= valuesWant[j]
+					}
+				}
 
-			verifyTestVectors(params, params.decryptor, valuesWant, ciphertext, t)
-		})
+				params.evaluator.PowerOf2(ciphertext, n, rlk, ciphertext)
 
-		t.Run(testString("Power/", parameters), func(t *testing.T) {
+				verifyTestVectors(params, params.decryptor, valuesWant, ciphertext, t)
+			})
+		}
 
-			values, _, ciphertext := newTestVectors(params, params.encryptorSk, 1, t)
+		if parameters.MaxLevel() > 3 {
 
-			n := uint64(7)
+			t.Run(testString("Power/", parameters), func(t *testing.T) {
 
-			for i := range values {
-				values[i] = cmplx.Pow(values[i], complex(float64(n), 0))
-			}
+				values, _, ciphertext := newTestVectors(params, params.encryptorSk, 1, t)
 
-			params.evaluator.Power(ciphertext, n, rlk, ciphertext)
+				n := uint64(3)
 
-			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-		})
+				for i := range values {
+					values[i] = cmplx.Pow(values[i], complex(float64(n), 0))
+				}
+
+				params.evaluator.Power(ciphertext, n, rlk, ciphertext)
+
+				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+			})
+		}
 
 		if parameters.MaxLevel() > 6 {
 			t.Run(testString("Inverse/", parameters), func(t *testing.T) {
@@ -1003,6 +1043,29 @@ func testRotateColumns(t *testing.T) {
 				params.evaluator.RotateColumns(ciphertext1, rand, rotKey, ciphertext2)
 
 				verifyTestVectors(params, params.decryptor, values2, ciphertext2, t)
+			}
+
+		})
+
+		t.Run(testString("Hoisted/", parameters), func(t *testing.T) {
+
+			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
+
+			values2 := make([]complex128, len(values1))
+			rotations := []uint64{0, 1, 2, 3, 4, 5}
+			for _, n := range rotations {
+				params.kgen.GenRot(RotationLeft, params.sk, n, rotKey)
+			}
+
+			ciphertexts := params.evaluator.RotateHoisted(ciphertext1, rotations, rotKey)
+
+			for _, n := range rotations {
+
+				for i := range values1 {
+					values2[i] = values1[(i+int(n))%len(values1)]
+				}
+
+				verifyTestVectors(params, params.decryptor, values2, ciphertexts[n], t)
 			}
 
 		})

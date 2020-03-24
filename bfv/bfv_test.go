@@ -328,11 +328,33 @@ func testEncryptor(t *testing.T) {
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 
+		t.Run(testString("EncryptFromPkFast/", parameters), func(t *testing.T) {
+
+			coeffs := params.bfvContext.contextT.NewUniformPoly()
+
+			plaintext := NewPlaintext(params.params)
+
+			params.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
+
+			verifyTestVectors(params, params.decryptor, coeffs, params.encryptorPk.EncryptFastNew(plaintext), t)
+		})
+
 		t.Run(testString("EncryptFromSk/", parameters), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorSk, t)
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+		})
+
+		t.Run(testString("EncryptFromSkFast/", parameters), func(t *testing.T) {
+
+			coeffs := params.bfvContext.contextT.NewUniformPoly()
+
+			plaintext := NewPlaintext(params.params)
+
+			params.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
+
+			verifyTestVectors(params, params.decryptor, coeffs, params.encryptorSk.EncryptFastNew(plaintext), t)
 		})
 	}
 }

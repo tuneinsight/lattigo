@@ -21,9 +21,9 @@ func optimalL(M uint64) uint64 {
 	b := (1 << (L + 1)) + (1 << (M - L - 1)) + M - L - 4
 	if a > b {
 		return L + 1
-	} else {
-		return L
 	}
+
+	return L
 }
 
 // EvaluateChebyFast evaluates the input Chebyshev polynomial with the input ciphertext.

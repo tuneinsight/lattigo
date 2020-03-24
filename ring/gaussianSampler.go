@@ -34,6 +34,35 @@ func (context *Context) SampleGaussian(pol *Poly, sigma float64, bound uint64) {
 	}
 }
 
+// SampleGaussianAndAdd samples a truncated gaussian polynomial with variance sigma within the given bound using the Ziggurat algorithm.
+func (context *Context) SampleGaussianAndAdd(pol *Poly, sigma float64, bound uint64) {
+
+	var coeffFlo float64
+	var coeffInt uint64
+	var sign uint64
+
+	randomBytes := make([]byte, 1024)
+
+	if _, err := rand.Read(randomBytes); err != nil {
+		panic("crypto rand error")
+	}
+
+	for i := uint64(0); i < context.N; i++ {
+
+		for {
+			coeffFlo, sign, randomBytes = normFloat64(randomBytes)
+
+			if coeffInt = uint64(coeffFlo * sigma); coeffInt <= bound {
+				break
+			}
+		}
+
+		for j := 0; j < len(pol.Coeffs); j++ {
+			pol.Coeffs[j][i] = CRed(pol.Coeffs[j][i]+((coeffInt*sign)|(context.Modulus[j]-coeffInt)*(sign^1)), context.Modulus[j])
+		}
+	}
+}
+
 // SampleGaussianNew samples a new truncated gaussian polynomial with variance sigma within the given bound using the Ziggurat algorithm.
 func (context *Context) SampleGaussianNew(sigma float64, bound uint64) (pol *Poly) {
 	pol = context.NewPoly()

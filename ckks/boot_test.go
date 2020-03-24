@@ -14,13 +14,11 @@ func TestBootstrapp(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 
-	var DefaultScale, LTScale, SineScale float64
+	var SineScale float64
 
-	LTScale = 1 << 45
-	_ = LTScale
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[2]
+	bootparams := BootstrappParams[0]
 
 	parameters := &bootparams.Parameters
 
@@ -34,12 +32,15 @@ func TestBootstrapp(t *testing.T) {
 
 	t.Run(testString("ChebySin/", parameters), func(t *testing.T) {
 
+		DefaultScale := parameters.Scale
+
+		params.params.Scale = SineScale
 		parameters.Scale = SineScale
 
 		evaluator := NewEvaluator(parameters)
 
-		deg := 131
-		K := float64(16)
+		deg := 127
+		K := float64(12)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
 		evaluator.DropLevel(ciphertext, bootparams.CtSDepth)
@@ -58,17 +59,21 @@ func TestBootstrapp(t *testing.T) {
 
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
+		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale
 	})
 
 	t.Run(testString("ChebyCos/", parameters), func(t *testing.T) {
 
+		DefaultScale := parameters.Scale
+
+		params.params.Scale = SineScale
 		parameters.Scale = SineScale
 
 		evaluator := NewEvaluator(parameters)
 
-		K := 16
-		deg := 38
+		K := 12
+		deg := 30
 		dev := 10
 		sc_num := 2
 
@@ -101,7 +106,7 @@ func TestBootstrapp(t *testing.T) {
 			}
 		}
 
-		if sc_num == 2 {
+		if sc_num == 3 {
 			for i := range cheby.coeffs {
 				cheby.coeffs[i] *= 0.8666749935615672
 			}
@@ -179,11 +184,14 @@ func TestBootstrapp(t *testing.T) {
 		fmt.Println(ciphertext.Level())
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
+		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale
 
 	})
 
 	t.Run(testString("Bootstrapp/", parameters), func(t *testing.T) {
+
+		fmt.Println(parameters.Scale)
 
 		bootcontext := NewBootContext(bootparams, params.sk)
 

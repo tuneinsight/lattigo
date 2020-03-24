@@ -13,7 +13,8 @@ type FastBasisExtender struct {
 	paramsPQ        *modupParams
 	modDownParamsPQ []uint64
 	modDownParamsQP []uint64
-	polypool        *Poly
+	polypoolQ       *Poly
+	polypoolP       *Poly
 }
 
 type modupParams struct {
@@ -66,7 +67,8 @@ func NewFastBasisExtender(contextQ, contextP *Context) *FastBasisExtender {
 	newParams.modDownParamsPQ = genModDownParams(contextQ, contextP)
 	newParams.modDownParamsQP = genModDownParams(contextP, contextQ)
 
-	newParams.polypool = contextQ.NewPoly()
+	newParams.polypoolQ = contextQ.NewPoly()
+	newParams.polypoolP = contextP.NewPoly()
 
 	return newParams
 }
@@ -150,7 +152,7 @@ func (basisextender *FastBasisExtender) ModUpSplitQP(level uint64, p1, p2 *Poly)
 // Given a polynomial with coefficients in basis {P0,P1....Pi}
 // Extends its basis from {P0,P1....Pi} to {Q0,Q1...Qj}
 func (basisextender *FastBasisExtender) ModUpSplitPQ(level uint64, p1, p2 *Poly) {
-	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[:uint64(len(basisextender.paramsPQ.Q))], basisextender.paramsPQ)
+	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[:uint64(len(basisextender.paramsPQ.P))], basisextender.paramsPQ)
 }
 
 // ModDownNTTPQ reduces the basis of a polynomial.
@@ -163,7 +165,7 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 	contextQ := basisextender.contextQ
 	contextP := basisextender.contextP
 	modDownParams := basisextender.modDownParamsPQ
-	polypool := basisextender.polypool
+	polypool := basisextender.polypoolQ
 
 	// First we get the P basis part of p1 out of the NTT domain
 	for j := 0; j < len(contextP.Modulus); j++ {
@@ -207,7 +209,7 @@ func (basisextender *FastBasisExtender) ModDownSplitedNTTPQ(level uint64, p1Q, p
 	contextQ := basisextender.contextQ
 	contextP := basisextender.contextP
 	modDownParams := basisextender.modDownParamsPQ
-	polypool := basisextender.polypool
+	polypool := basisextender.polypoolQ
 
 	// First we get the P basis part of p1 out of the NTT domain
 	contextP.InvNTT(p1P, p1P)
@@ -247,7 +249,7 @@ func (basisextender *FastBasisExtender) ModDownPQ(level uint64, p1, p2 *Poly) {
 
 	context := basisextender.contextQ
 	modDownParams := basisextender.modDownParamsPQ
-	polypool := basisextender.polypool
+	polypool := basisextender.polypoolQ
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
@@ -280,7 +282,7 @@ func (basisextender *FastBasisExtender) ModDownSplitedPQ(level uint64, p1Q, p1P,
 
 	contextQ := basisextender.contextQ
 	modDownParams := basisextender.modDownParamsPQ
-	polypool := basisextender.polypool
+	polypool := basisextender.polypoolQ
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
@@ -309,18 +311,27 @@ func (basisextender *FastBasisExtender) ModDownSplitedPQ(level uint64, p1Q, p1P,
 // Given a polynomial with coefficients in basis {Q0,Q1....Qi} and {P0,P1...Pj}
 // Reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {P0,P1...Pj}
 // and does a runded integer division of the result by Q.
-func (basisextender *FastBasisExtender) ModDownSplitedQP(level uint64, p1Q, p1P, p2 *Poly) {
+func (basisextender *FastBasisExtender) ModDownSplitedQP(levelQ, levelP uint64, p1Q, p1P, p2 *Poly) {
 
 	contextP := basisextender.contextP
+	//contextQ := basisextender.contextQ
 	modDownParams := basisextender.modDownParamsQP
-	polypool := basisextender.polypool
+	polypool := basisextender.polypoolP
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	basisextender.ModUpSplitQP(level, p1Q, polypool)
+
+	//bigint_coeffs := make([]*big.Int, contextP.N)
+	//contextQ.PolyToBigint(p1Q, bigint_coeffs)
+	//fmt.Println("Q", bigint_coeffs[0])
+
+	basisextender.ModUpSplitQP(levelQ, p1Q, polypool)
+
+	//contextP.PolyToBigint(polypool, bigint_coeffs)
+	//fmt.Println("P", bigint_coeffs[0])
 
 	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
-	for i := uint64(0); i < level+1; i++ {
+	for i := uint64(0); i < levelP+1; i++ {
 
 		qi := contextP.Modulus[i]
 		p1tmp := p1P.Coeffs[i]

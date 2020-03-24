@@ -53,18 +53,16 @@ func (eval *evaluator) EvaluatePolyEco(ct0 *Ciphertext, coeffs interface{}, evak
 	return recurse(degree, L, M, coeffsMap, C, eval, evakey)
 }
 
-func convertCoeffs(coeffs interface{}) (degree uint64, coeffsMap map[uint64]complex128) {
-
-	coeffsMap = make(map[uint64]complex128)
+func convertCoeffs(coeffs interface{}) (degree uint64, coeffsMap []complex128) {
 
 	switch coeffs.(type) {
 	case []complex128:
 		for i := range coeffs.([]complex128) {
-			coeffsMap[uint64(i)] = coeffs.([]complex128)[i]
+			coeffsMap = append(coeffsMap, coeffs.([]complex128)[i])
 		}
 	case []float64:
 		for i := range coeffs.([]float64) {
-			coeffsMap[uint64(i)] = complex(coeffs.([]float64)[i], 0)
+			coeffsMap = append(coeffsMap, complex(coeffs.([]float64)[i], 0))
 		}
 	default:
 		panic("cannot convertCoeffs: coeffs type must be complex128 or float64")
@@ -92,19 +90,17 @@ func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator,
 	}
 }
 
-func splitCoeffs(coeffs map[uint64]complex128, degree, maxDegree uint64) (coeffsq, coeffsr map[uint64]complex128) {
+func splitCoeffs(coeffs []complex128, degree, maxDegree uint64) (coeffsq, coeffsr []complex128) {
 
 	// Splits a polynomial p such that p = q*C^degree + r.
 
-	coeffsr = make(map[uint64]complex128)
-	coeffsq = make(map[uint64]complex128)
-
+	coeffsr = make([]complex128, degree)
 	for i := uint64(0); i < degree; i++ {
 		coeffsr[i] = coeffs[i]
 	}
 
+	coeffsq = make([]complex128, maxDegree-degree+1)
 	coeffsq[0] = coeffs[degree]
-
 	for i := uint64(degree + 1); i < maxDegree+1; i++ {
 		coeffsq[i-degree] = coeffs[i]
 	}
@@ -112,7 +108,7 @@ func splitCoeffs(coeffs map[uint64]complex128, degree, maxDegree uint64) (coeffs
 	return coeffsq, coeffsr
 }
 
-func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func recurse(maxDegree, L, M uint64, coeffs []complex128, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	if maxDegree <= (1 << L) {
 		return evaluatePolyFromPowerBasis(coeffs, C, evaluator, evakey)
@@ -139,7 +135,7 @@ func recurse(maxDegree, L, M uint64, coeffs map[uint64]complex128, C map[uint64]
 
 }
 
-func evaluatePolyFromPowerBasis(coeffs map[uint64]complex128, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func evaluatePolyFromPowerBasis(coeffs []complex128, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	res = NewCiphertext(evaluator.params, 1, C[1].Level(), C[1].Scale())
 
@@ -147,7 +143,7 @@ func evaluatePolyFromPowerBasis(coeffs map[uint64]complex128, C map[uint64]*Ciph
 		evaluator.AddConst(res, coeffs[0], res)
 	}
 
-	for key := range coeffs {
+	for key := uint64(len(coeffs)) - 1; key > 0; key-- {
 		if key != 0 && (math.Abs(real(coeffs[key])) > 1e-15 || math.Abs(imag(coeffs[key])) > 1e-15) {
 			evaluator.MultByConstAndAdd(C[key], coeffs[key], res)
 		}

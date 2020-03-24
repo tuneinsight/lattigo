@@ -252,9 +252,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skIn, skOut *SecretKey) (evk *Switch
 
 	ringContext := keygen.bfvContext.contextQP
 
-	ringContext.Sub(skIn.Get(), skOut.Get(), keygen.polypool)
-
-	ringContext.MulScalarBigint(keygen.polypool, keygen.bfvContext.contextP.ModulusBigint, keygen.polypool)
+	ringContext.MulScalarBigint(skIn.Get(), keygen.bfvContext.contextP.ModulusBigint, keygen.polypool)
 
 	evk = keygen.newswitchingkey(keygen.polypool, skOut.Get())
 	keygen.polypool.Zero()
@@ -433,7 +431,6 @@ func genrotkey(keygen *keyGenerator, sk *ring.Poly, gen uint64) (switchkey *Swit
 	ringContext := keygen.bfvContext.contextQP
 
 	ring.PermuteNTT(sk, gen, keygen.polypool)
-	ringContext.Sub(keygen.polypool, sk, keygen.polypool)
 
 	ringContext.MulScalarBigint(keygen.polypool, keygen.bfvContext.contextP.ModulusBigint, keygen.polypool)
 

@@ -25,10 +25,15 @@ func init() {
 }
 
 const (
+	// PN12QP109 is a set of parameters with N = 2^12 and log(QP) = 109
 	PN12QP109 = iota
+	// PN13QP218 is a set of parameters with N = 2^13 and log(QP) = 218
 	PN13QP218
+	// PN14QP438 is a set of parameters with N = 2^14 and log(QP) = 438
 	PN14QP438
+	// PN15QP880 is a set of parameters with N = 2^15 and log(QP) = 880
 	PN15QP880
+	// PN16QP1761 is a set of parameters with N = 2^16 and log(QP) = 1761
 	PN16QP1761
 )
 

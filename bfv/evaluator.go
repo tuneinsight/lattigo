@@ -551,7 +551,7 @@ func (evaluator *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey,
 	evaluator.switchKeys(ct0.value[1], switchKey, p0, p1)
 
 	context.Add(ct0.value[0], p0, ctOut.value[0])
-	context.Copy(p1, ctOut.value[1])
+	context.Add(ct0.value[1], p1, ctOut.value[1])
 }
 
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
@@ -729,7 +729,7 @@ func (evaluator *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey
 	evaluator.switchKeys(el1, switchKey, p0, p1)
 
 	context.Add(el0, p0, ctOut.value[0])
-	context.Copy(p1, ctOut.value[1])
+	context.Add(el1, p1, ctOut.value[1])
 }
 
 // switchKeys applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]

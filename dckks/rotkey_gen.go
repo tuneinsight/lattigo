@@ -98,6 +98,8 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly)
 
+	contextQP.Sub(rtg.tmpPoly, sk, rtg.tmpPoly)
+
 	contextQP.MulScalarBigint(rtg.tmpPoly, rtg.dckksContext.contextP.ModulusBigint, rtg.tmpPoly)
 
 	contextQP.InvMForm(rtg.tmpPoly, rtg.tmpPoly)

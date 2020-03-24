@@ -1185,7 +1185,7 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, c
 	eval.switchKeysInPlace(level, ct0.value[1], switchingKey, eval.poolQ[1], eval.poolQ[2])
 
 	context.AddLvl(level, ct0.value[0], eval.poolQ[1], ctOut.value[0])
-	context.CopyLvl(level, eval.poolQ[2], ctOut.value[1])
+	context.AddLvl(level, ct0.value[1], eval.poolQ[2], ctOut.value[1])
 }
 
 // RotateColumnsNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
@@ -1312,8 +1312,11 @@ func (eval *evaluator) switchKeyHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecom
 	if ct0 != ctOut {
 		ring.PermuteNTTWithIndex(ct0.value[0], evakey.permuteNTTLeftIndex[k], eval.ringpool[0])
 		contextQ.CopyLvl(level, eval.ringpool[0], ctOut.value[0])
+		ring.PermuteNTTWithIndex(ct0.value[1], evakey.permuteNTTLeftIndex[k], eval.ringpool[0])
+		contextQ.CopyLvl(level, eval.ringpool[0], ctOut.value[1])
 	} else {
 		ring.PermuteNTTWithIndex(ct0.value[0], evakey.permuteNTTLeftIndex[k], ctOut.value[0])
+		ring.PermuteNTTWithIndex(ct0.value[1], evakey.permuteNTTLeftIndex[k], ctOut.value[1])
 	}
 
 	for i := range eval.poolQ {
@@ -1388,7 +1391,7 @@ func (eval *evaluator) switchKeyHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecom
 	eval.baseconverter.ModDownSplitedNTTPQ(level, pool3Q, pool3P, pool3Q)
 
 	contextQ.AddLvl(level, ctOut.value[0], pool2Q, ctOut.value[0])
-	contextQ.CopyLvl(level, pool3Q, ctOut.value[1])
+	contextQ.AddLvl(level, ctOut.value[1], pool3Q, ctOut.value[1])
 }
 
 func (eval *evaluator) rotateColumnsLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
@@ -1468,7 +1471,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, index []uint64, evakey *Switc
 	eval.switchKeysInPlace(ctOut.Level(), el1, evakey, eval.poolQ[1], eval.poolQ[2])
 
 	context.AddLvl(level, el0, eval.poolQ[1], ctOut.value[0])
-	context.CopyLvl(level, eval.poolQ[2], ctOut.value[1])
+	context.AddLvl(level, el1, eval.poolQ[2], ctOut.value[1])
 }
 
 // switchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]

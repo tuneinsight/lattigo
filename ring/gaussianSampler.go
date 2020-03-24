@@ -34,7 +34,7 @@ func (context *Context) SampleGaussian(pol *Poly, sigma float64, bound uint64) {
 	}
 }
 
-// SampleGaussian samples a truncated gaussian polynomial with variance sigma within the given bound using the Ziggurat algorithm.
+// SampleGaussianAndAdd samples a truncated gaussian polynomial with variance sigma within the given bound using the Ziggurat algorithm.
 func (context *Context) SampleGaussianAndAdd(pol *Poly, sigma float64, bound uint64) {
 
 	var coeffFlo float64

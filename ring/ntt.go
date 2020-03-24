@@ -142,19 +142,21 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 /// For benchmark purposes only ///
 ///////////////////////////////////
 
+// NTTBarrett performs the NTT operation with only Barrett reduction. For benchmark purposes only.
 func (context *Context) NTTBarrett(p1, p2 *Poly) {
 	for x := range context.Modulus {
 		NTTBarrett(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsi[x], context.Modulus[x], context.bredParams[x])
 	}
 }
 
+// InvNTTBarrett performs the inverse NTT operation with only Barrett reduction. For benchmark purposes only.
 func (context *Context) InvNTTBarrett(p1, p2 *Poly) {
 	for x := range context.Modulus {
 		InvNTTBarrett(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsiInv[x], context.nttNInv[x], context.Modulus[x], context.bredParams[x])
 	}
 }
 
-// Butterfly computes X, Y = U + V*Psi, U - V*Psi mod Q.
+// ButterflyBarrett computes X, Y = U + V*Psi, U - V*Psi mod Q with Barrett reduction. For benchmark purposes only.
 func ButterflyBarrett(U, V, Psi, Q uint64, bredParams []uint64) (X, Y uint64) {
 	if U > 2*Q {
 		U -= 2 * Q
@@ -165,7 +167,7 @@ func ButterflyBarrett(U, V, Psi, Q uint64, bredParams []uint64) (X, Y uint64) {
 	return
 }
 
-// InvButterfly computes X, Y = U + V, (U - V) * Psi mod Q.
+// InvButterflyBarrett computes X, Y = U + V, (U - V) * Psi mod Q with Barrett reduction. For benchmark purposes only.
 func InvButterflyBarrett(U, V, Psi, Q uint64, bredParams []uint64) (X, Y uint64) {
 	X = U + V
 	if X > 2*Q {
@@ -175,7 +177,7 @@ func InvButterflyBarrett(U, V, Psi, Q uint64, bredParams []uint64) (X, Y uint64)
 	return
 }
 
-// NTT computes the NTT transformation on the input coefficients given the provided params.
+// NTTBarrett computes the NTT transformation on the input coefficients given the provided params. For benchmark purposes only.
 func NTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q uint64, bredParams []uint64) {
 	var j1, j2, t uint64
 	var F uint64
@@ -211,7 +213,7 @@ func NTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q uint6
 	}
 }
 
-// InvNTT computes the InvNTT transformation on the input coefficients given the provided params.
+// InvNTTBarrett computes the InvNTT transformation on the input coefficients given the provided params. For benchmark purposes only.
 func InvNTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv, Q uint64, bredParams []uint64) {
 
 	var j1, j2, h, t uint64

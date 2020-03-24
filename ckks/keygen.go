@@ -250,8 +250,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newev
 		panic("Cannot GenSwitchingKey: modulus P is empty")
 	}
 
-	//keygen.ringContext.Sub(skInput.Get(), skOutput.Get(), keygen.polypool)
-	keygen.ringContext.Copy(skInput.Get(), keygen.polypool)
+	keygen.ringContext.Sub(skInput.Get(), skOutput.Get(), keygen.polypool)
 	newevakey = keygen.newSwitchingKey(keygen.polypool, skOutput.Get())
 	keygen.polypool.Zero()
 	return
@@ -487,6 +486,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 func (keygen *keyGenerator) genrotKey(skOutput *ring.Poly, gen uint64) (switchingkey *SwitchingKey) {
 
 	ring.PermuteNTT(skOutput, gen, keygen.polypool)
+	keygen.ringContext.Sub(keygen.polypool, skOutput, keygen.polypool)
 	switchingkey = keygen.newSwitchingKey(keygen.polypool, skOutput)
 	keygen.polypool.Zero()
 

@@ -294,6 +294,8 @@ func (context *Context) MulCoeffsMontgomeryAndAddNoModLvl(level uint64, p1, p2, 
 	}
 }
 
+// MulCoeffsMontgomeryConstantAndAddNoModLvl multiplies p1 by p2 coefficient wise with a constant time Montgomery modular reduction, adding the result to p3 without modular reduction.
+// Expects p1 and/or p2 to be in Montgomery form for correctness (see MRed).
 func (context *Context) MulCoeffsMontgomeryConstantAndAddNoModLvl(level uint64, p1, p2, p3 *Poly) {
 	var qi uint64
 	for i := uint64(0); i < level+1; i++ {

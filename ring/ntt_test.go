@@ -12,7 +12,6 @@ import (
 var folder = "test_data/"
 
 // Name of the test vectors files
-
 var files60 = []string{
 	"test_pol_60____8_2",
 	"test_pol_60___16_2",
@@ -24,7 +23,6 @@ var files60 = []string{
 }
 
 // Name of the test vectors files
-
 var filesNTT60 = []string{
 	"test_pol_NTT_60____8_2",
 	"test_pol_NTT_60___16_2",

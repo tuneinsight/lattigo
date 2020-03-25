@@ -15,7 +15,7 @@ type CRPGenerator struct {
 }
 
 // NewCRPGenerator creates a new CRPGenerator, that will deterministically and securely generate uniform polynomials
-// in the input context using the hash function blake2b. The PRNG can be instantiated with a key on top
+// in the domain of the input context using the hash function blake2b. The PRNG can be instantiated with a key on top
 // of the public seed. If no key is used, set key=nil.
 func NewCRPGenerator(key []byte, context *Context) *CRPGenerator {
 	var err error
@@ -59,14 +59,14 @@ func (crpgenerator *CRPGenerator) SetClock(n uint64) {
 	}
 }
 
-// ClockNew generates and returns a new uniform polynomial. Also increases the clock cycle by 1.
+// ClockNew generates and returns a new uniform polynomial and increases the clock cycle by 1.
 func (crpgenerator *CRPGenerator) ClockNew() (crp *Poly) {
 	crp = crpgenerator.context.NewPoly()
 	crpgenerator.Clock(crp)
 	return
 }
 
-// Clock generates and returns a uniform polynomial. Also increases the clock cycle by 1.
+// Clock samples a random polynomial on the probided polynomial and increases the clock cycle by 1.
 func (crpgenerator *CRPGenerator) Clock(crp *Poly) {
 	var coeff uint64
 	var randomBytes []byte

@@ -1233,11 +1233,11 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rotation
 			// If yes, it computes the least amount of rotation between left and right required to apply the demanded rotation
 			if hasPow2Rotations {
 
-				if utils.HammingWeight64(k) <= utils.HammingWeight64((eval.ckksContext.n>>1)-k) {
+				// if utils.HammingWeight64(k) <= utils.HammingWeight64((eval.ckksContext.n>>1)-k) {
 					eval.rotateColumnsLPow2(ct0, k, evakey, ctOut)
-				} else {
-					eval.rotateColumnsRPow2(ct0, (eval.ckksContext.n>>1)-k, evakey, ctOut)
-				}
+				// } else {
+				// 	eval.rotateColumnsRPow2(ct0, (eval.ckksContext.n>>1)-k, evakey, ctOut)
+				// }
 
 				// Otherwise, it returns an error indicating that the keys have not been generated
 			} else {

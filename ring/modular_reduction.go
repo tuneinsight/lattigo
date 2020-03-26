@@ -16,7 +16,7 @@ func MForm(a, q uint64, u []uint64) (r uint64) {
 	return
 }
 
-// MForm switches a to the Montgomery domain by computing
+// MFormConstant switches a to the Montgomery domain by computing
 // a*2^64 mod q in constant time.
 // The result is between 0 and 2*q-1.
 func MFormConstant(a, q uint64, u []uint64) (r uint64) {
@@ -36,7 +36,7 @@ func InvMForm(a, q, qInv uint64) (r uint64) {
 	return
 }
 
-// InvMForm switches a from the Montgomery domain back to the
+// InvMFormConstant switches a from the Montgomery domain back to the
 // standard domain by computing a*(1/2^64) mod q in constant time.
 // The result is between 0 and 2*q-1.
 func InvMFormConstant(a, q, qInv uint64) (r uint64) {
@@ -72,7 +72,7 @@ func MRed(x, y, q, qInv uint64) (r uint64) {
 	return
 }
 
-// MRed computes x * y * (1/2^64) mod q in constant time.
+// MRedConstant computes x * y * (1/2^64) mod q in constant time.
 // The result is between 0 and 2*q-1.
 func MRedConstant(x, y, q, qInv uint64) (r uint64) {
 	ahi, alo := bits.Mul64(x, y)
@@ -105,7 +105,7 @@ func BRedAdd(x, q uint64, u []uint64) (r uint64) {
 	return
 }
 
-// BRedAdd computes a mod q in constant time.
+// BRedAddConstant computes a mod q in constant time.
 // The result is between 0 and 2*q-1.
 func BRedAddConstant(x, q uint64, u []uint64) uint64 {
 	s0, _ := bits.Mul64(x, u[0])
@@ -150,7 +150,7 @@ func BRed(x, y, q uint64, u []uint64) (r uint64) {
 	return
 }
 
-// BRed compute x*y mod q in constant time.
+// BRedConstant compute x*y mod q in constant time.
 // The result is between 0 and 2*q-1.
 func BRedConstant(x, y, q uint64, u []uint64) (r uint64) {
 

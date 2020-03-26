@@ -282,7 +282,7 @@ func (kys *KYSampler) SampleAndAddLvl(level uint64, Pol *Poly) {
 	}
 }
 
-// SampleAndAddLvl adds on the input polynomial a polynomial a with a discret gaussian distribution.
+// SampleAndAdd adds on the input polynomial a polynomial a with a discret gaussian distribution.
 func (kys *KYSampler) SampleAndAdd(Pol *Poly) {
 	kys.SampleAndAddLvl(uint64(len(kys.context.Modulus))-1, Pol)
 }

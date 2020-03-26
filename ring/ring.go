@@ -578,7 +578,7 @@ func (context *Context) MForm(p1, p2 *Poly) {
 	}
 }
 
-// MForm switches p1 to the Montgomery domain for the moduli q_0 up to q_level and writes the result on p2.
+// MFormLvl switches p1 to the Montgomery domain for the moduli q_0 up to q_level and writes the result on p2.
 func (context *Context) MFormLvl(level uint64, p1, p2 *Poly) {
 	for i := uint64(0); i < level+1; i++ {
 		qi := context.Modulus[i]
@@ -640,7 +640,7 @@ func (context *Context) MultByMonomialNew(p1 *Poly, monomialDeg uint64) (p2 *Pol
 	return
 }
 
-// MultByMonomialNew multiplies p1 by x^monomialDeg and writes the result on p2.
+// MultByMonomial multiplies p1 by x^monomialDeg and writes the result on p2.
 func (context *Context) MultByMonomial(p1 *Poly, monomialDeg uint64, p2 *Poly) {
 
 	shift := monomialDeg % (context.N << 1)

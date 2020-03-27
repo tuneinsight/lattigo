@@ -12,7 +12,7 @@ type Poly struct {
 	Coeffs [][]uint64 //Coefficients in CRT representation
 }
 
-// NewPoly ... [FIXME]
+// NewPoly creates a new polynomial with N coefficients set to zero and nbModuli moduli.
 func NewPoly(N, nbModuli uint64) (pol *Poly) {
 	pol = new(Poly)
 	pol.Coeffs = make([][]uint64, nbModuli)
@@ -22,7 +22,7 @@ func NewPoly(N, nbModuli uint64) (pol *Poly) {
 	return
 }
 
-// NewPolyUniform ... [FIXME]
+// NewPolyUniform creates a new polynomial with N coefficients uniform between 0 and 2^64 -1 and nbModuli moduli.
 func NewPolyUniform(N, nbModuli uint64) (pol *Poly) {
 	pol = new(Poly)
 
@@ -60,7 +60,7 @@ func (pol *Poly) GetLenModuli() int {
 func (pol *Poly) Zero() {
 	for i := range pol.Coeffs {
 		p0tmp := pol.Coeffs[i]
-		for j := range pol.Coeffs[0] {
+		for j := range p0tmp {
 			p0tmp[j] = 0
 		}
 	}
@@ -81,7 +81,7 @@ func (pol *Poly) CopyNew() (p1 *Poly) {
 	return p1
 }
 
-// Copy copies the coefficients of p0 on p1 within the given context. Requires p1 to be as big as the target context.
+// Copy copies the coefficients of p0 on p1 within the given context. Requires p1 to be at least as big p0.
 func (context *Context) Copy(p0, p1 *Poly) {
 
 	if p0 != p1 {
@@ -94,7 +94,8 @@ func (context *Context) Copy(p0, p1 *Poly) {
 	}
 }
 
-// CopyLvl copies the coefficients of p0 on p1 within the given context. Requiers p1 to be as big as the target context.
+// CopyLvl copies the coefficients of p0 on p1 within the given context for the moduli from 0 to level.
+// Requires p1 to be as big as the target context.
 func (context *Context) CopyLvl(level uint64, p0, p1 *Poly) {
 
 	if p0 != p1 {
@@ -107,7 +108,7 @@ func (context *Context) CopyLvl(level uint64, p0, p1 *Poly) {
 	}
 }
 
-// Copy copies the receiver's coefficients from p1.
+// Copy copies the coefficients of p1 on the target polynomial.
 func (pol *Poly) Copy(p1 *Poly) {
 
 	if pol != p1 {
@@ -123,15 +124,15 @@ func (pol *Poly) Copy(p1 *Poly) {
 // SetCoefficients sets the coefficients of polynomial directly from a CRT format (double slice).
 func (pol *Poly) SetCoefficients(coeffs [][]uint64) {
 	for i := range coeffs {
-		for j := range coeffs[0] {
+		for j := range coeffs[i] {
 			pol.Coeffs[i][j] = coeffs[i][j]
 		}
 	}
 }
 
-// GetCoefficients returns a double slice containing the coefficients of the polynomial.
-func (pol *Poly) GetCoefficients() [][]uint64 {
-	coeffs := make([][]uint64, len(pol.Coeffs))
+// GetCoefficients returns new a double slice containing the coefficients of the polynomial.
+func (pol *Poly) GetCoefficients() (coeffs [][]uint64) {
+	coeffs = make([][]uint64, len(pol.Coeffs))
 
 	for i := range pol.Coeffs {
 		coeffs[i] = make([]uint64, len(pol.Coeffs[i]))
@@ -140,7 +141,7 @@ func (pol *Poly) GetCoefficients() [][]uint64 {
 		}
 	}
 
-	return coeffs
+	return
 }
 
 // WriteCoeffsTo converts a matrix of coefficients to a byte array.
@@ -156,7 +157,7 @@ func WriteCoeffsTo(pointer, N, numberModuli uint64, coeffs [][]uint64, data []by
 	return pointer, nil
 }
 
-// WriteTo writes the given poly to the data array
+// WriteTo writes the given poly to the data array and
 // returns the number of bytes written and error if it occured.
 func (pol *Poly) WriteTo(data []byte) (uint64, error) {
 
@@ -184,14 +185,15 @@ func (pol *Poly) WriteCoeffs(data []byte) (uint64, error) {
 
 }
 
-// GetDataLen returns the lenght the poly will take when written to data.
+// GetDataLen returns the number of bytes the polynomial will take when written to data.
 // Can take into account meta data if necessary.
-func (pol *Poly) GetDataLen(WithMetadata bool) uint64 {
-	cnt := 0
+func (pol *Poly) GetDataLen(WithMetadata bool) (cnt uint64) {
+	cnt = uint64((pol.GetLenModuli() * pol.GetDegree()) << 3)
+
 	if WithMetadata {
-		cnt = 2
+		cnt += 2
 	}
-	return uint64(cnt + (pol.GetLenModuli()*pol.GetDegree())<<3)
+	return
 }
 
 // DecodeCoeffs converts a byte array to a matrix of coefficients.
@@ -222,31 +224,10 @@ func DecodeCoeffsNew(pointer, N, numberModuli uint64, coeffs [][]uint64, data []
 }
 
 // MarshalBinary encodes the target polynomial on a slice of bytes.
-func (pol *Poly) MarshalBinary() ([]byte, error) {
-
-	//N := uint64(len(pol.Coeffs[0]))
-	//numberModulies := uint64(len(pol.Coeffs))
-	data := make([]byte, pol.GetDataLen(true))
-
-	_, err := pol.WriteTo(data)
-	return data, err
-	//if numberModulies > 0xFF {
-	//	return nil, errors.New("error : poly max modulies uint16 overflow")
-	//}
-	//
-	//data[0] = uint8(bits.Len64(uint64(N)) - 1)
-	//data[1] = uint8(numberModulies)
-	//
-	//var pointer uint64
-	//
-	//pointer = 2
-	////test to check if our method works.
-	//
-	//if _, err := WriteCoeffsTo(pointer, N, numberModulies, pol.Coeffs, data); err != nil {
-	//	return nil, err
-	//}
-
-	//return data, nil
+func (pol *Poly) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, pol.GetDataLen(true))
+	_, err = pol.WriteTo(data)
+	return
 }
 
 // UnmarshalBinary decodes a slice of byte on the target polynomial.
@@ -254,14 +235,12 @@ func (pol *Poly) UnmarshalBinary(data []byte) (err error) {
 
 	N := uint64(1 << data[0])
 	numberModulies := uint64(data[1])
-
-	var pointer uint64
-
-	pointer = 2
+	pointer := uint64(2)
 
 	if ((uint64(len(data)) - pointer) >> 3) != N*numberModulies {
 		return errors.New("error : invalid polynomial encoding")
 	}
+
 	if _, err = pol.DecodePolyNew(data); err != nil {
 		return err
 	}
@@ -275,12 +254,12 @@ func (pol *Poly) DecodePolyNew(data []byte) (pointer uint64, err error) {
 
 	N := uint64(1 << data[0])
 	numberModulies := uint64(data[1])
-
 	pointer = 2
 
 	if pol.Coeffs == nil {
 		pol.Coeffs = make([][]uint64, numberModulies)
 	}
+
 	if pointer, err = DecodeCoeffsNew(pointer, N, numberModulies, pol.Coeffs, data); err != nil {
 		return pointer, err
 	}

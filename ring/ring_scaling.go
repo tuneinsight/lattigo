@@ -83,6 +83,7 @@ func (context *Context) DivRoundByLastModulusNTT(p0 *Poly) {
 	pHalf = (context.Modulus[level] - 1) >> 1
 	p0tmp := p0.Coeffs[level]
 	pj := context.Modulus[level]
+
 	for i := uint64(0); i < context.N; i++ {
 		p0tmp[i] = CRed(p0tmp[i]+pHalf, pj)
 	}
@@ -125,6 +126,7 @@ func (context *Context) DivRoundByLastModulus(p0 *Poly) {
 	p0tmp := p0.Coeffs[level]
 	pj := context.Modulus[level]
 	pHalf = (context.Modulus[level] - 1) >> 1
+
 	for i := uint64(0); i < context.N; i++ {
 		p0tmp[i] = CRed(p0tmp[i]+pHalf, pj)
 	}
@@ -164,7 +166,8 @@ func (context *Context) DivRoundByLastModulusMany(p0 *Poly, nbRescales uint64) {
 }
 
 // SimpleScaler is the structure storing the parameters to reconstruct a polynomial, scale it by t/Q and return the results modulo t.
-// Algorithm from https://eprint.iacr.org/2018/117.pdf
+// Used during the BFV decoding.
+// Algorithm from https://eprint.iacr.org/2018/117.pdf.
 type SimpleScaler struct {
 	context *Context
 
@@ -179,8 +182,10 @@ type SimpleScaler struct {
 	reducealgoMulParam uint64
 }
 
-// NewSimpleScaler creates a new SimpleScaler from t (the modulus under which the reconstruction is returned) and context (the context in which the polynomial
-// to reconstruct will be represented).
+// NewSimpleScaler creates a new SimpleScaler from t (the modulus under which the reconstruction is returned) and
+// context (the context in which the polynomial to reconstruct will be represented).
+// Used during the BFV decoding.
+// Algorithm from https://eprint.iacr.org/2018/117.pdf.
 func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 
 	newParams = new(SimpleScaler)

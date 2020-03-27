@@ -2,6 +2,8 @@ package ring
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_Float128_DivMult(t *testing.T) {
@@ -16,9 +18,7 @@ func Test_Float128_DivMult(t *testing.T) {
 	xFloat = Float128Div(xFloat, yFloat)
 	xFloat = Float128Mul(xFloat, yFloat)
 
-	if x != Float128ToUint64(xFloat) {
-		t.Errorf("DivMult")
-	}
+	require.Equal(t, x, Float128ToUint64(xFloat))
 }
 
 func Benchmark_Float128_Add(b *testing.B) {

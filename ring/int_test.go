@@ -4,6 +4,8 @@ import (
 	"math"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // test vectors for function DivRound
@@ -31,9 +33,7 @@ func TestDivRound(t *testing.T) {
 	z := new(big.Int)
 	for i, testPair := range divRoundVec {
 		DivRound(testPair.x, testPair.y, z)
-		if z.Cmp(testPair.want) != 0 {
-			t.Errorf("Error DivRound test pair %v", i)
-		}
+		require.Zerof(t, z.Cmp(testPair.want), "Error DivRound test pair %v", i)
 	}
 }
 

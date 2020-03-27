@@ -9,13 +9,8 @@ import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
+	"github.com/stretchr/testify/require"
 )
-
-func check(t *testing.T, err error) {
-	if err != nil {
-		t.Error(err)
-	}
-}
 
 func testString(opname string, parties uint64, params *bfv.Parameters) string {
 	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN, params.LogQP)
@@ -672,9 +667,7 @@ func testRefresh(t *testing.T) {
 			}
 
 			//Decrypts and compare
-			if utils.EqualSliceUint64(coeffs, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertext))) != true {
-				t.Errorf("error : BOOT")
-			}
+			require.True(t, utils.EqualSliceUint64(coeffs, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertext))))
 		})
 	}
 }
@@ -688,9 +681,7 @@ func newTestVectors(contextParams *dbfvTestContext, encryptor bfv.Encryptor, t *
 }
 
 func verifyTestVectors(contextParams *dbfvTestContext, decryptor bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
-	if utils.EqualSliceUint64(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))) != true {
-		t.Errorf("decryption error")
-	}
+	require.True(t, utils.EqualSliceUint64(coeffs, contextParams.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))))
 }
 
 func Test_Marshalling(t *testing.T) {
@@ -727,18 +718,11 @@ func Test_Marshalling(t *testing.T) {
 		}
 
 		//comparing the results
-		if KeyGenShareBefore.GetDegree() != KeyGenShareAfter.GetDegree() || KeyGenShareBefore.GetLenModuli() != KeyGenShareAfter.GetLenModuli() {
-			log.Print("Unmatched degree or moduli length on key gen shares")
-			t.Fail()
-		}
+		require.Equal(t, KeyGenShareBefore.GetDegree(), KeyGenShareAfter.GetDegree())
+		require.Equal(t, KeyGenShareBefore.GetLenModuli(), KeyGenShareAfter.GetLenModuli())
 
-		for i := 0; i < KeyGenShareBefore.GetLenModuli(); i++ {
-			if !utils.EqualSliceUint64(KeyGenShareAfter.Coeffs[i], KeyGenShareBefore.Coeffs[i]) {
-				log.Print("Non equal slices in CKGShare")
-				t.Fail()
-			}
-
-		}
+		moduli := KeyGenShareBefore.GetLenModuli()
+		require.Equal(t, KeyGenShareAfter.Coeffs[:moduli], KeyGenShareBefore.Coeffs[:moduli])
 	})
 
 	t.Run(fmt.Sprintf("PCKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
@@ -750,32 +734,19 @@ func Test_Marshalling(t *testing.T) {
 		KeySwitchProtocol.GenShare(sk.Get(), pk, Ciphertext, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
-		if err != nil {
-			log.Print("Error on PCKSShare marshalling : ", err)
-			t.Fail()
-		}
+		require.NoError(t, err)
+
 		SwitchShareReceiver := new(PCKSShare)
 		err = SwitchShareReceiver.UnmarshalBinary(data)
-		if err != nil {
-			log.Print("Error on PCKSShare unmarshalling : ", err)
-			t.Fail()
-		}
+		require.NoError(t, err)
 
 		for i := 0; i < 2; i++ {
 			//compare the shares.
 			ringBefore := SwitchShare[i]
 			ringAfter := SwitchShareReceiver[i]
-			if ringBefore.GetDegree() != ringAfter.GetDegree() {
-				log.Print("Error on degree matching")
-				t.Fail()
-			}
-			for d := 0; d < ringAfter.GetLenModuli(); d++ {
-				if !utils.EqualSliceUint64(ringAfter.Coeffs[d], ringBefore.Coeffs[d]) {
-					log.Print("Non equal slices in PCKSShare")
-					t.Fail()
-				}
-			}
-
+			require.Equal(t, ringBefore.GetDegree(), ringAfter.GetDegree())
+			moduli := ringAfter.GetLenModuli()
+			require.Equal(t, ringAfter.Coeffs[:moduli], ringBefore.Coeffs[:moduli])
 		}
 	})
 
@@ -789,31 +760,18 @@ func Test_Marshalling(t *testing.T) {
 		cksp.GenShare(skIn.Get(), skOut.Get(), Ciphertext, cksshare)
 
 		data, err := cksshare.MarshalBinary()
-		if err != nil {
-			log.Print("Error on marshalling CKSShare : ", err)
-			t.Fail()
-		}
+		require.NoError(t, err)
 		cksshareAfter := new(CKSShare)
 		err = cksshareAfter.UnmarshalBinary(data)
-		if err != nil {
-			log.Print("Error on unmarshalling CKSShare : ", err)
-			t.Fail()
-		}
+		require.NoError(t, err)
 
 		//now compare both shares.
 
-		if cksshare.GetDegree() != cksshareAfter.GetDegree() || cksshare.GetLenModuli() != cksshareAfter.GetLenModuli() {
-			log.Print("Unmatched degree or moduli lenght on CKSShare")
-			t.Fail()
-		}
+		require.Equal(t, cksshare.GetDegree(), cksshareAfter.GetDegree())
+		require.Equal(t, cksshare.GetLenModuli(), cksshareAfter.GetLenModuli())
 
-		for i := 0; i < cksshare.GetLenModuli(); i++ {
-			if !utils.EqualSliceUint64(cksshare.Coeffs[i], cksshareAfter.Coeffs[i]) {
-				log.Print("Non equal slices in CKSShare")
-				t.Fail()
-			}
-
-		}
+		moduli := cksshare.GetLenModuli()
+		require.Equal(t, cksshare.Coeffs[:moduli], cksshareAfter.Coeffs[:moduli])
 	})
 
 	t.Run(fmt.Sprintf("Refresh/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
@@ -923,54 +881,34 @@ func Test_Relin_Marshalling(t *testing.T) {
 		r1, r2, r3 := rlk.AllocateShares()
 		rlk.GenShareRoundOne(u, sk.Get(), crp, r1)
 		data, err := r1.MarshalBinary()
-		if err != nil {
-			log.Print("Error in marshalling round 1 key : ", err)
-			t.Fail()
-		}
+		require.NoError(t, err)
 
 		r1After := new(RKGShareRoundOne)
 		err = r1After.UnmarshalBinary(data)
-		if err != nil {
-			log.Print("Error in unmarshalling round 1 key : ", err)
-			t.Fail()
-		}
+		require.NoError(t, err)
 
 		for i := 0; i < (len(r1)); i++ {
 			a := r1[i]
 			b := (*r1After)[i]
-			for k := 0; k < a.GetLenModuli(); k++ {
-				if !utils.EqualSliceUint64(a.Coeffs[k], b.Coeffs[k]) {
-					log.Print("Error : coeffs of rings do not match")
-					t.Fail()
-				}
-			}
+			moduli := a.GetLenModuli()
+			require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 		}
 
 		rlk.GenShareRoundTwo(r1, sk.Get(), crp, r2)
 
 		data, err = r2.MarshalBinary()
-		if err != nil {
-			log.Print("Error on marshalling relin key round 2 : ", err)
-			t.Fail()
-		}
+		require.NoError(t, err)
 
 		r2After := new(RKGShareRoundTwo)
 		err = r2After.UnmarshalBinary(data)
-		if err != nil {
-			log.Print("Error on unmarshalling relin key round 2 : ", err)
-			t.Fail()
-		}
+		require.NoError(t, err)
 
 		for i := 0; i < (len(r2)); i++ {
 			for idx := 0; idx < 2; idx++ {
 				a := r2[i][idx]
 				b := (*r2After)[i][idx]
-				for k := 0; k < a.GetLenModuli(); k++ {
-					if !utils.EqualSliceUint64(a.Coeffs[k], b.Coeffs[k]) {
-						log.Print("Error : coeffs of rings do not match")
-						t.Fail()
-					}
-				}
+				moduli := a.GetLenModuli()
+				require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 			}
 
 		}
@@ -978,28 +916,17 @@ func Test_Relin_Marshalling(t *testing.T) {
 		rlk.GenShareRoundThree(r2, u, sk.Get(), r3)
 
 		data, err = r3.MarshalBinary()
-		if err != nil {
-			log.Print("Error in marshalling round 3 key : ", err)
-			t.Fail()
-		}
+		require.NoError(t, err)
 
 		r3After := new(RKGShareRoundThree)
 		err = r3After.UnmarshalBinary(data)
-		if err != nil {
-			log.Print("Error in unmarshalling round 3 key : ", err)
-			t.Fail()
-		}
+		require.NoError(t, err)
 
 		for i := 0; i < (len(r3)); i++ {
 			a := r3[i]
 			b := (*r3After)[i]
-			for k := 0; k < a.GetLenModuli(); k++ {
-				if !utils.EqualSliceUint64(a.Coeffs[k], b.Coeffs[k]) {
-					log.Print("Error : coeffs of rings do not match")
-					t.Fail()
-				}
-			}
-
+			moduli := a.GetLenModuli()
+			require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 		}
 	})
 

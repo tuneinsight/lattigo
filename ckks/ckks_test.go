@@ -1069,23 +1069,43 @@ func testMarshaller(t *testing.T) {
 		contextQP := params.ckkscontext.contextQP
 
 		t.Run(testString("Ciphertext/", parameters), func(t *testing.T) {
+			t.Run(testString("Ciphertext/EndToEnd", parameters), func(t *testing.T) {
+				t.Parallel()
 
-			ciphertextWant := NewCiphertextRandom(parameters, 2, parameters.MaxLevel, parameters.Scale)
+				ciphertextWant := NewCiphertextRandom(parameters, 2, parameters.MaxLevel, parameters.Scale)
 
-			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
-			require.NoError(t, err)
+				marshalledCiphertext, err := ciphertextWant.MarshalBinary()
+				require.NoError(t, err)
 
-			ciphertextTest := new(Ciphertext)
-			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
-			require.NoError(t, err)
+				ciphertextTest := new(Ciphertext)
+				require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
 
-			require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
-			require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
-			require.Equal(t, ciphertextWant.Scale(), ciphertextTest.Scale())
+				require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
+				require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
+				require.Equal(t, ciphertextWant.Scale(), ciphertextTest.Scale())
 
-			for i := range ciphertextWant.value {
-				require.True(t, params.ckkscontext.contextQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]))
-			}
+				for i := range ciphertextWant.value {
+					require.True(t, params.ckkscontext.contextQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]))
+				}
+			})
+
+			t.Run(testString("Ciphertext/Minimal", parameters), func(t *testing.T) {
+				t.Parallel()
+
+				ciphertext := NewCiphertextRandom(parameters, 0, parameters.MaxLevel, parameters.Scale)
+
+				marshalledCiphertext, err := ciphertext.MarshalBinary()
+				require.NoError(t, err)
+
+				ciphertextTest := new(Ciphertext)
+				require.Error(t, ciphertextTest.UnmarshalBinary(nil))
+				require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
+
+				require.Equal(t, ciphertext.Degree(), uint64(0))
+				require.Equal(t, ciphertext.Level(), parameters.MaxLevel)
+				require.Equal(t, ciphertext.Scale(), parameters.Scale)
+				require.Equal(t, len(ciphertext.Value()), 1)
+			})
 		})
 
 		t.Run(testString("Sk", parameters), func(t *testing.T) {

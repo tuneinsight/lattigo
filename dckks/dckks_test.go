@@ -6,15 +6,11 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
 )
-
-func check(t *testing.T, err error) {
-	if err != nil {
-		t.Error(err)
-	}
-}
 
 func testString(opname string, parties uint64, params *ckks.Parameters) string {
 	return fmt.Sprintf("%sparties=%d/logN=%d/logQ=%d/levels=%d/a=%d/b=%d",
@@ -262,9 +258,7 @@ func testRelinKeyGen(t *testing.T) {
 
 			evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 
-			if ciphertext.Degree() != 1 {
-				t.Errorf("EKG_NAIVE -> bad relinearize")
-			}
+			require.Equal(t, ciphertext.Degree(), uint64(1))
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
 
@@ -335,9 +329,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 
 			evaluator.MulRelin(ciphertext, ciphertext, evk, ciphertext)
 
-			if ciphertext.Degree() != 1 {
-				t.Errorf("EKG_NAIVE -> bad relinearize")
-			}
+			require.Equal(t, ciphertext.Degree(), uint64(1))
 
 			evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 
@@ -651,9 +643,7 @@ func testRefresh(t *testing.T) {
 			P0.Recode(ciphertext)                  // Masked re-encoding
 			P0.Recrypt(ciphertext, crp, P0.share2) // Masked re-encryption
 
-			if ciphertext.Level() != parameters.MaxLevel() {
-				t.Errorf("error refresh")
-			}
+			require.Equal(t, ciphertext.Level(), parameters.MaxLevel())
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
 
@@ -753,9 +743,8 @@ func verifyTestVectors(contextParams *dckksTestContext, decryptor ckks.Decryptor
 		t.Log()
 	}
 
-	if math.Log2(1/real(medianprec)) < testParams.medianprec || math.Log2(1/imag(medianprec)) < testParams.medianprec {
-		t.Errorf("Mean precision error : target (%.2f, %.2f) > result (%.2f, %.2f)", testParams.medianprec, testParams.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
-	}
+	require.GreaterOrEqual(t, math.Log2(1/real(medianprec)), testParams.medianprec)
+	require.GreaterOrEqual(t, math.Log2(1/imag(medianprec)), testParams.medianprec)
 }
 
 func calcmedian(values []complex128) (median complex128) {

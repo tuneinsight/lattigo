@@ -73,7 +73,7 @@ func obliviousRiding() {
 	fmt.Println("============================================")
 	fmt.Println()
 	fmt.Printf("Parameters : N=%d, T=%d, Q = %d bits, sigma = %f \n",
-		1<<params.LogN, params.T, params.LogQP(), params.Sigma)
+		1<<params.LogN, params.T, params.LogQP, params.Sigma)
 	fmt.Println()
 
 	maxvalue := uint64(math.Sqrt(float64(params.T)))    // max values = floor(sqrt(plaintext modulus))

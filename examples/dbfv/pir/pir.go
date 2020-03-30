@@ -86,13 +86,13 @@ func main() {
 	crsGen.Seed([]byte{'p', 'i', 'r', ' ', 'e', 'x', 'a', 'm', 'p', 'l', 'e'})
 
 	// Generation of the common reference polynomials
-	crs := crsGen.ClockNew()                    // for the public-key
-	crp := make([]*ring.Poly, params.Beta())    // for the relinearization keys
-	crpRot := make([]*ring.Poly, params.Beta()) // for the rotation keys
-	for i := uint64(0); i < params.Beta(); i++ {
+	crs := crsGen.ClockNew()                  // for the public-key
+	crp := make([]*ring.Poly, params.Beta)    // for the relinearization keys
+	crpRot := make([]*ring.Poly, params.Beta) // for the rotation keys
+	for i := uint64(0); i < params.Beta; i++ {
 		crp[i] = crsGen.ClockNew()
 	}
-	for i := uint64(0); i < params.Beta(); i++ {
+	for i := uint64(0); i < params.Beta; i++ {
 		crpRot[i] = crsGen.ClockNew()
 	}
 

@@ -19,7 +19,7 @@ func check(t *testing.T, err error) {
 }
 
 func testString(opname string, params *Parameters) string {
-	return fmt.Sprintf("%sLogN=%d/logQ=%d", opname, params.LogN, params.logQP)
+	return fmt.Sprintf("%sLogN=%d/logQ=%d", opname, params.LogN, params.LogQP)
 }
 
 type bfvParams struct {

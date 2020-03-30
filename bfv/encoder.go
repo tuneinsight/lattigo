@@ -3,6 +3,7 @@ package bfv
 import (
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
+	"math/big"
 	"math/bits"
 )
 
@@ -65,6 +66,23 @@ func NewEncoder(params *Parameters) Encoder {
 		simplescaler: ring.NewSimpleScaler(params.T, bfvContext.contextQ),
 		polypool:     bfvContext.contextT.NewPoly(),
 	}
+}
+
+// GenLiftParams generates the lifting parameters.
+func GenLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
+
+	delta := new(big.Int).Quo(context.ModulusBigint, ring.NewUint(t))
+
+	deltaMont = make([]uint64, len(context.Modulus))
+
+	tmp := new(big.Int)
+	bredParams := context.GetBredParams()
+	for i, Qi := range context.Modulus {
+		deltaMont[i] = tmp.Mod(delta, ring.NewUint(Qi)).Uint64()
+		deltaMont[i] = ring.MForm(deltaMont[i], Qi, bredParams[i])
+	}
+
+	return
 }
 
 // EncodeUint encodes an uint64 slice of size at most N on a plaintext.

@@ -33,7 +33,7 @@ func example() {
 
 	start = time.Now()
 
-	params.GenFromLogModuli()
+	params.Gen()
 
 	kgen := ckks.NewKeyGenerator(params)
 
@@ -52,7 +52,7 @@ func example() {
 	fmt.Printf("Done in %s \n", time.Since(start))
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN, params.LogSlots, params.LogQP(), params.MaxLevel()+1, params.Scale, params.Sigma)
+	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN, params.LogSlots, params.LogQP, params.MaxLevel+1, params.Scale, params.Sigma)
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -73,7 +73,7 @@ func example() {
 		values[i] = complex(2*pi, 0)
 	}
 
-	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale/r)
+	plaintext := ckks.NewPlaintext(params, params.MaxLevel, params.Scale/r)
 	encoder.Encode(plaintext, values, slots)
 
 	fmt.Printf("Done in %s \n", time.Since(start))

@@ -21,10 +21,10 @@ func testString(opname string, parties uint64, params *ckks.Parameters) string {
 		opname,
 		parties,
 		params.LogN,
-		params.LogQP(),
-		params.MaxLevel()+1,
-		params.Alpha(),
-		params.Beta())
+		params.LogQP,
+		params.MaxLevel+1,
+		params.Alpha,
+		params.Beta)
 }
 
 type dckksTestContext struct {
@@ -219,9 +219,9 @@ func testRelinKeyGen(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, parameters.Beta())
+			crp := make([]*ring.Poly, parameters.Beta)
 
-			for i := uint64(0); i < parameters.Beta(); i++ {
+			for i := uint64(0); i < parameters.Beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
@@ -488,9 +488,9 @@ func testRotKeyGenConjugate(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, parameters.Beta())
+			crp := make([]*ring.Poly, parameters.Beta)
 
-			for i := uint64(0); i < parameters.Beta(); i++ {
+			for i := uint64(0); i < parameters.Beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
@@ -555,9 +555,9 @@ func testRotKeyGenCols(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, parameters.Beta())
+			crp := make([]*ring.Poly, parameters.Beta)
 
-			for i := uint64(0); i < parameters.Beta(); i++ {
+			for i := uint64(0); i < parameters.Beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
@@ -651,7 +651,7 @@ func testRefresh(t *testing.T) {
 			P0.Recode(ciphertext)                  // Masked re-encoding
 			P0.Recrypt(ciphertext, crp, P0.share2) // Masked re-encryption
 
-			if ciphertext.Level() != parameters.MaxLevel() {
+			if ciphertext.Level() != parameters.MaxLevel {
 				t.Errorf("error refresh")
 			}
 
@@ -673,7 +673,7 @@ func newTestVectors(contextParams *dckksTestContext, encryptor ckks.Encryptor, a
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = ckks.NewPlaintext(contextParams.params, contextParams.params.MaxLevel(), contextParams.params.Scale)
+	plaintext = ckks.NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 

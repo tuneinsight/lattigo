@@ -83,9 +83,9 @@ func benchRelinKeyGen(b *testing.B) {
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
 		crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
 		crpGenerator.Seed([]byte{})
-		crp := make([]*ring.Poly, parameters.Beta())
+		crp := make([]*ring.Poly, parameters.Beta)
 
-		for i := uint64(0); i < parameters.Beta(); i++ {
+		for i := uint64(0); i < parameters.Beta; i++ {
 			crp[i] = crpGenerator.ClockNew()
 		}
 
@@ -212,7 +212,7 @@ func benchKeySwitching(b *testing.B) {
 		p.s1 = sk1Shards[0].Get()
 		p.share = p.AllocateShare()
 
-		ciphertext := ckks.NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
+		ciphertext := ckks.NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
 
 		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {
 
@@ -247,7 +247,7 @@ func benchPublicKeySwitching(b *testing.B) {
 		sk0Shards := params.sk0Shards
 		pk1 := params.pk1
 
-		ciphertext := ckks.NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
+		ciphertext := ckks.NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
 
 		type Party struct {
 			*PCKSProtocol
@@ -307,9 +307,9 @@ func benchRotKeyGen(b *testing.B) {
 
 		crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
 		crpGenerator.Seed([]byte{})
-		crp := make([]*ring.Poly, parameters.Beta())
+		crp := make([]*ring.Poly, parameters.Beta)
 
-		for i := uint64(0); i < parameters.Beta(); i++ {
+		for i := uint64(0); i < parameters.Beta; i++ {
 			crp[i] = crpGenerator.ClockNew()
 		}
 

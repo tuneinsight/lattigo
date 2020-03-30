@@ -69,7 +69,7 @@ func NewEncoder(params *Parameters) Encoder {
 }
 
 func (encoder *encoder) EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale)
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel, encoder.params.Scale)
 	encoder.Encode(plaintext, values, slots)
 	return
 }

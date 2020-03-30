@@ -30,7 +30,7 @@ func benchEncoder(b *testing.B) {
 				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
-			plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
+			plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
 
 			for i := 0; i < b.N; i++ {
 				encoder.Encode(plaintext, values, slots)
@@ -44,7 +44,7 @@ func benchEncoder(b *testing.B) {
 				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
-			plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
+			plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
 			encoder.Encode(plaintext, values, slots)
 
 			for i := 0; i < b.N; i++ {
@@ -83,8 +83,8 @@ func benchEncrypt(b *testing.B) {
 		encryptorPk := params.encryptorPk
 		encryptorSk := params.encryptorSk
 
-		plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
-		ciphertext := NewCiphertext(parameters, 1, parameters.MaxLevel(), parameters.Scale)
+		plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
+		ciphertext := NewCiphertext(parameters, 1, parameters.MaxLevel, parameters.Scale)
 
 		b.Run(testString("Sk/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -106,8 +106,8 @@ func benchDecrypt(b *testing.B) {
 		params := genCkksParams(parameters)
 		decryptor := params.decryptor
 
-		plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
-		ciphertext := NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
+		plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
+		ciphertext := NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
 
 		b.Run(testString("", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -122,9 +122,9 @@ func benchEvaluator(b *testing.B) {
 		params := genCkksParams(parameters)
 		evaluator := params.evaluator
 
-		ciphertext1 := NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
-		ciphertext2 := NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
-		receiver := NewCiphertextRandom(parameters, 2, parameters.MaxLevel(), parameters.Scale)
+		ciphertext1 := NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
+		ciphertext2 := NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
+		receiver := NewCiphertextRandom(parameters, 2, parameters.MaxLevel, parameters.Scale)
 
 		rlk := params.kgen.GenRelinKey(params.sk)
 		rotkey := NewRotationKeys()
@@ -158,7 +158,7 @@ func benchEvaluator(b *testing.B) {
 				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
 
 				b.StopTimer()
-				ciphertext1 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
+				ciphertext1 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
 				b.StartTimer()
 			}
 		})
@@ -206,7 +206,7 @@ func benchHoistedRotations(b *testing.B) {
 		rotkey := NewRotationKeys()
 		params.kgen.GenRot(RotationLeft, params.sk, 5, rotkey)
 
-		ciphertext := NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
+		ciphertext := NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
 
 		contextQ := params.ckkscontext.contextQ
 		contextP := params.ckkscontext.contextP
@@ -215,17 +215,17 @@ func benchHoistedRotations(b *testing.B) {
 		c2InvNTT := contextQ.NewPoly()
 		contextQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
 
-		c2QiQDecomp := make([]*ring.Poly, parameters.Beta())
-		c2QiPDecomp := make([]*ring.Poly, parameters.Beta())
+		c2QiQDecomp := make([]*ring.Poly, parameters.Beta)
+		c2QiPDecomp := make([]*ring.Poly, parameters.Beta)
 
-		for i := uint64(0); i < parameters.Beta(); i++ {
+		for i := uint64(0); i < parameters.Beta; i++ {
 			c2QiQDecomp[i] = contextQ.NewPoly()
 			c2QiPDecomp[i] = contextP.NewPoly()
 		}
 
 		b.Run(testString("DecomposeNTT/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				for j := uint64(0); j < parameters.Beta(); j++ {
+				for j := uint64(0); j < parameters.Beta; j++ {
 					evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
 				}
 			}

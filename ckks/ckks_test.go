@@ -25,10 +25,10 @@ func testString(opname string, params *Parameters) string {
 		opname,
 		params.LogN,
 		params.LogSlots,
-		params.LogQP(),
-		params.MaxLevel()+1,
-		params.Alpha(),
-		params.Beta())
+		params.LogQP,
+		params.MaxLevel+1,
+		params.Alpha,
+		params.Beta)
 }
 
 type ckksParams struct {
@@ -119,7 +119,7 @@ func newTestVectors(contextParams *ckksParams, encryptor Encryptor, a float64, t
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel(), contextParams.params.Scale)
+	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -142,7 +142,7 @@ func newTestVectorsReals(contextParams *ckksParams, encryptor Encryptor, a, b fl
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel(), contextParams.params.Scale)
+	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -163,7 +163,7 @@ func newTestVectorsSineBoot(contextParams *ckksParams, encryptor Encryptor, a, b
 		values[i] = complex(math.Round(randomFloat(a, b))+randomFloat(-1, 1)/1000, 0)
 	}
 
-	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel(), contextParams.params.Scale)
+	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -360,7 +360,7 @@ func testEncryptor(t *testing.T) {
 
 			values[0] = complex(0.607538, 0.555668)
 
-			plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale)
+			plaintext := NewPlaintext(params.params, params.params.MaxLevel, params.params.Scale)
 
 			params.encoder.Encode(plaintext, values, slots)
 
@@ -386,7 +386,7 @@ func testEncryptor(t *testing.T) {
 
 			values[0] = complex(0.607538, 0.555668)
 
-			plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale)
+			plaintext := NewPlaintext(params.params, params.params.MaxLevel, params.params.Scale)
 
 			params.encoder.Encode(plaintext, values, slots)
 
@@ -578,7 +578,7 @@ func testEvaluatorRescale(t *testing.T) {
 
 			values, _, ciphertext := newTestVectors(params, params.encryptorSk, 1, t)
 
-			nbRescales := parameters.MaxLevel()
+			nbRescales := parameters.MaxLevel
 
 			for i := uint64(0); i < nbRescales; i++ {
 				constant := params.ckkscontext.contextQ.Modulus[ciphertext.Level()]
@@ -750,7 +750,7 @@ func testFunctions(t *testing.T) {
 
 		rlk := params.kgen.GenRelinKey(params.sk)
 
-		if parameters.MaxLevel() > 2 {
+		if parameters.MaxLevel > 2 {
 
 			t.Run(testString("PowerOf2/", parameters), func(t *testing.T) {
 
@@ -775,7 +775,7 @@ func testFunctions(t *testing.T) {
 			})
 		}
 
-		if parameters.MaxLevel() > 3 {
+		if parameters.MaxLevel > 3 {
 
 			t.Run(testString("Power/", parameters), func(t *testing.T) {
 
@@ -793,7 +793,7 @@ func testFunctions(t *testing.T) {
 			})
 		}
 
-		if parameters.MaxLevel() > 6 {
+		if parameters.MaxLevel > 6 {
 			t.Run(testString("Inverse/", parameters), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, 0.1, 1, t)
@@ -820,7 +820,7 @@ func testEvaluatePoly(t *testing.T) {
 
 		rlk := params.kgen.GenRelinKey(params.sk)
 
-		if parameters.MaxLevel() > 4 {
+		if parameters.MaxLevel > 4 {
 
 			t.Run(testString("Fast/Exp/", parameters), func(t *testing.T) {
 
@@ -838,7 +838,7 @@ func testEvaluatePoly(t *testing.T) {
 			})
 		}
 
-		if parameters.MaxLevel() > 3 {
+		if parameters.MaxLevel > 3 {
 
 			t.Run(testString("Eco/Exp/", parameters), func(t *testing.T) {
 
@@ -866,7 +866,7 @@ func testChebyshevInterpolator(t *testing.T) {
 
 		rlk := params.kgen.GenRelinKey(params.sk)
 
-		if parameters.MaxLevel() > 5 {
+		if parameters.MaxLevel > 5 {
 
 			t.Run(testString("Fast/Sin/", parameters), func(t *testing.T) {
 
@@ -884,7 +884,7 @@ func testChebyshevInterpolator(t *testing.T) {
 			})
 		}
 
-		if parameters.MaxLevel() > 4 {
+		if parameters.MaxLevel > 4 {
 
 			t.Run(testString("Eco/Sin/", parameters), func(t *testing.T) {
 
@@ -1079,7 +1079,7 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("Ciphertext/", parameters), func(t *testing.T) {
 
-			ciphertextWant := NewCiphertextRandom(parameters, 2, parameters.MaxLevel(), parameters.Scale)
+			ciphertextWant := NewCiphertextRandom(parameters, 2, parameters.MaxLevel, parameters.Scale)
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			check(t, err)

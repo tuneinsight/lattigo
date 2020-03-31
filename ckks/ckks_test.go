@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"math/cmplx"
 	"math/rand"
@@ -10,15 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ldsec/lattigo/utils"
 )
-
-func check(t *testing.T, err error) {
-	if err != nil {
-		t.Error(err)
-		log.Fatal(err)
-	}
-}
 
 func testString(opname string, params *Parameters) string {
 	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%d/levels=%d/a=%d/b=%d",
@@ -247,40 +241,8 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 		t.Log()
 	}
 
-	if math.Log2(1/real(medianprec)) < testParams.medianprec || math.Log2(1/imag(medianprec)) < testParams.medianprec {
-		t.Errorf("Mean precision error: target (%.2f, %.2f) > result (%.2f, %.2f)", testParams.medianprec, testParams.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
-	}
-
-	/*
-		fmt.Println()
-		fmt.Println("Distribution of the precision :")
-		fmt.Println()
-		keys_real := []int{}
-		keys_imag := []int{}
-		for i := range distribReal {
-			keys_real = append(keys_real, int(i))
-		}
-		for i := range distribImag {
-			keys_imag = append(keys_imag, int(i))
-		}
-		sort.Ints(keys_real)
-		sort.Ints(keys_imag)
-		fmt.Println("Reals")
-		fmt.Printf("[")
-		for _, i := range keys_real {
-			fmt.Printf("(%.5f,%.5f),", float64(i)/distribPrec, (float64(distribReal[uint64(i)])/float64(slots))*100)
-		}
-		fmt.Printf("],")
-		fmt.Println()
-		fmt.Println("Imag")
-		fmt.Printf("[")
-		for _, i := range keys_imag {
-			fmt.Printf("(%.5f,%.5f),", float64(i)/distribPrec, (float64(distribImag[uint64(i)])/float64(slots))*100)
-		}
-		fmt.Printf("],")
-		fmt.Println()
-	*/
-
+	require.GreaterOrEqual(t, math.Log2(1/real(medianprec)), testParams.medianprec)
+	require.GreaterOrEqual(t, math.Log2(1/imag(medianprec)), testParams.medianprec)
 }
 
 func calcmedian(values []complex128) (median complex128) {
@@ -733,9 +695,7 @@ func testEvaluatorMul(t *testing.T) {
 
 			params.evaluator.Relinearize(ciphertext2, rlk, ciphertext2)
 
-			if ciphertext2.Degree() != 1 {
-				t.Errorf("Relinearize error")
-			}
+			require.Equal(t, ciphertext2.Degree(), uint64(1))
 
 			verifyTestVectors(params, params.decryptor, values2, ciphertext2, t)
 		})
@@ -1078,63 +1038,69 @@ func testMarshaller(t *testing.T) {
 		contextQP := params.ckkscontext.contextQP
 
 		t.Run(testString("Ciphertext/", parameters), func(t *testing.T) {
+			t.Run(testString("Ciphertext/EndToEnd", parameters), func(t *testing.T) {
+				t.Parallel()
 
-			ciphertextWant := NewCiphertextRandom(parameters, 2, parameters.MaxLevel, parameters.Scale)
+				ciphertextWant := NewCiphertextRandom(parameters, 2, parameters.MaxLevel, parameters.Scale)
 
-			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
-			check(t, err)
+				marshalledCiphertext, err := ciphertextWant.MarshalBinary()
+				require.NoError(t, err)
 
-			ciphertextTest := new(Ciphertext)
-			err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
-			check(t, err)
+				ciphertextTest := new(Ciphertext)
+				require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
 
-			if ciphertextWant.Degree() != ciphertextTest.Degree() {
-				t.Errorf("Marshal Ciphertext Degree")
-			}
+				require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
+				require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
+				require.Equal(t, ciphertextWant.Scale(), ciphertextTest.Scale())
 
-			if ciphertextWant.Level() != ciphertextTest.Level() {
-				t.Errorf("Marshal Ciphertext Level")
-			}
-
-			if ciphertextWant.Scale() != ciphertextTest.Scale() {
-				t.Errorf("Marshal Ciphertext Scale")
-			}
-
-			for i := range ciphertextWant.value {
-				if !params.ckkscontext.contextQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]) {
-					t.Errorf("Marshal Ciphertext Coefficients")
+				for i := range ciphertextWant.value {
+					require.True(t, params.ckkscontext.contextQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]))
 				}
-			}
+			})
+
+			t.Run(testString("Ciphertext/Minimal", parameters), func(t *testing.T) {
+				t.Parallel()
+
+				ciphertext := NewCiphertextRandom(parameters, 0, parameters.MaxLevel, parameters.Scale)
+
+				marshalledCiphertext, err := ciphertext.MarshalBinary()
+				require.NoError(t, err)
+
+				ciphertextTest := new(Ciphertext)
+				require.Error(t, ciphertextTest.UnmarshalBinary(nil))
+				require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
+
+				require.Equal(t, ciphertext.Degree(), uint64(0))
+				require.Equal(t, ciphertext.Level(), parameters.MaxLevel)
+				require.Equal(t, ciphertext.Scale(), parameters.Scale)
+				require.Equal(t, len(ciphertext.Value()), 1)
+			})
 		})
 
 		t.Run(testString("Sk", parameters), func(t *testing.T) {
 
 			marshalledSk, err := params.sk.MarshalBinary()
-			check(t, err)
+			require.NoError(t, err)
 
 			sk := new(SecretKey)
 			err = sk.UnmarshalBinary(marshalledSk)
-			check(t, err)
+			require.NoError(t, err)
 
-			if !contextQP.Equal(sk.sk, params.sk.sk) {
-				t.Errorf("Marshal SecretKey")
-			}
+			require.True(t, contextQP.Equal(sk.sk, params.sk.sk))
 
 		})
 
 		t.Run(testString("Pk", parameters), func(t *testing.T) {
 
 			marshalledPk, err := params.pk.MarshalBinary()
-			check(t, err)
+			require.NoError(t, err)
 
 			pk := new(PublicKey)
 			err = pk.UnmarshalBinary(marshalledPk)
-			check(t, err)
+			require.NoError(t, err)
 
 			for k := range params.pk.pk {
-				if !contextQP.Equal(pk.pk[k], params.pk.pk[k]) {
-					t.Errorf("Marshal PublicKey element [%d]", k)
-				}
+				require.Truef(t, contextQP.Equal(pk.pk[k], params.pk.pk[k]), "Marshal PublicKey element [%d]", k)
 			}
 		})
 
@@ -1142,21 +1108,18 @@ func testMarshaller(t *testing.T) {
 
 			evalKey := params.kgen.GenRelinKey(params.sk)
 			data, err := evalKey.MarshalBinary()
-			check(t, err)
+			require.NoError(t, err)
 
 			resEvalKey := new(EvaluationKey)
 			err = resEvalKey.UnmarshalBinary(data)
-			check(t, err)
+			require.NoError(t, err)
 
 			evakeyWant := evalKey.evakey.evakey
 			evakeyTest := resEvalKey.evakey.evakey
 
 			for j := range evakeyWant {
-
 				for k := range evakeyWant[j] {
-					if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-						t.Errorf("Marshal EvaluationKey element [%d][%d]", j, k)
-					}
+					require.Truef(t, contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal EvaluationKey element [%d][%d]", j, k)
 				}
 			}
 		})
@@ -1167,21 +1130,18 @@ func testMarshaller(t *testing.T) {
 
 			switchingKey := params.kgen.GenSwitchingKey(params.sk, skOut)
 			data, err := switchingKey.MarshalBinary()
-			check(t, err)
+			require.NoError(t, err)
 
 			resSwitchingKey := new(SwitchingKey)
 			err = resSwitchingKey.UnmarshalBinary(data)
-			check(t, err)
+			require.NoError(t, err)
 
 			evakeyWant := switchingKey.evakey
 			evakeyTest := resSwitchingKey.evakey
 
 			for j := range evakeyWant {
-
 				for k := range evakeyWant[j] {
-					if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-						t.Errorf("Marshal Switchingkey element [%d][%d]", j, k)
-					}
+					require.True(t, contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]))
 				}
 			}
 		})
@@ -1197,11 +1157,11 @@ func testMarshaller(t *testing.T) {
 			params.kgen.GenRot(RotationRight, params.sk, 5, rotationKey)
 
 			data, err := rotationKey.MarshalBinary()
-			check(t, err)
+			require.NoError(t, err)
 
 			resRotationKey := new(RotationKeys)
 			err = resRotationKey.UnmarshalBinary(data)
-			check(t, err)
+			require.NoError(t, err)
 
 			for i := uint64(1); i < params.ckkscontext.n>>1; i++ {
 
@@ -1213,16 +1173,11 @@ func testMarshaller(t *testing.T) {
 					evakeyNTTIndexWant := rotationKey.permuteNTTLeftIndex[i]
 					evakeyNTTIndexTest := resRotationKey.permuteNTTLeftIndex[i]
 
-					if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
-						t.Errorf("Marshal RotationKey RotateLeft PermuteNTTIndex")
-					}
+					require.True(t, utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest))
 
 					for j := range evakeyWant {
-
 						for k := range evakeyWant[j] {
-							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-								t.Errorf("Marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
-							}
+							require.Truef(t, contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
 						}
 					}
 				}
@@ -1235,16 +1190,11 @@ func testMarshaller(t *testing.T) {
 					evakeyNTTIndexWant := rotationKey.permuteNTTRightIndex[i]
 					evakeyNTTIndexTest := resRotationKey.permuteNTTRightIndex[i]
 
-					if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
-						t.Errorf("Marshal RotationKey RotateRight PermuteNTTIndex")
-					}
+					require.True(t, utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest))
 
 					for j := range evakeyWant {
-
 						for k := range evakeyWant[j] {
-							if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-								t.Errorf("Marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
-							}
+							require.Truef(t, contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
 						}
 					}
 				}
@@ -1258,16 +1208,11 @@ func testMarshaller(t *testing.T) {
 				evakeyNTTIndexWant := rotationKey.permuteNTTConjugateIndex
 				evakeyNTTIndexTest := resRotationKey.permuteNTTConjugateIndex
 
-				if !utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest) {
-					t.Errorf("Marshal RotationKey Conjugate PermuteNTTIndex")
-				}
+				require.True(t, utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest))
 
 				for j := range evakeyWant {
-
 					for k := range evakeyWant[j] {
-						if !contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]) {
-							t.Errorf("Marshal RotationKey RotateRow element [%d][%d]", j, k)
-						}
+						require.Truef(t, contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateRow element [%d][%d]", j, k)
 					}
 				}
 			}

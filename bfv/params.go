@@ -20,7 +20,11 @@ const MaxModuliSize = 60
 
 func init() {
 	for _, params := range DefaultParams {
-		params.GenFromLogModuli()
+
+		if err := params.Gen(); err != nil {
+			panic(err)
+		}
+
 	}
 }
 
@@ -139,62 +143,16 @@ func (m *LogModuli) Copy() LogModuli {
 type Parameters struct {
 	Moduli
 	LogModuli
-	LogN  uint64  // Ring degree (power of 2)
+	LogN  uint64  // Log Ring degree (power of 2)
+	N     uint64  // Ring degree
 	T     uint64  // Plaintext modulus
 	Sigma float64 // Gaussian sampling standard deviation
 
-	logQP uint64
-	alpha uint64
-	beta  uint64
+	LogQP uint64
+	Alpha uint64
+	Beta  uint64
 
 	isValid bool
-}
-
-// NewParametersFromModuli generates a new set or BFV parameters from the input parameters.
-func NewParametersFromModuli(LogN, T uint64, moduli Moduli, sigma float64) (params *Parameters) {
-
-	if LogN > MaxLogN {
-		panic(fmt.Errorf("cannot NewParametersFromModuli: LogN is larger than %d", MaxLogN))
-	}
-
-	params = new(Parameters)
-	params.LogN = LogN
-	params.T = T
-	params.Sigma = sigma
-	params.Moduli = moduli.Copy()
-	params.GenFromModuli()
-	return
-}
-
-// NewParametersFromLogModuli generates a new set or BFV parameters from the input parameters.
-func NewParametersFromLogModuli(LogN, T uint64, logModuli LogModuli, sigma float64) (params *Parameters) {
-
-	if LogN > MaxLogN {
-		panic(fmt.Errorf("cannot NewParametersFromLogModuli: LogN is larger than %d", MaxLogN))
-	}
-
-	params = new(Parameters)
-	params.LogN = LogN
-	params.T = T
-	params.Sigma = sigma
-	params.LogModuli = logModuli.Copy()
-	params.GenFromLogModuli()
-	return
-}
-
-// Alpha returns #Pi.
-func (p *Parameters) Alpha() uint64 {
-	return p.alpha
-}
-
-// Beta returns ceil(#Qi/#Pi).
-func (p *Parameters) Beta() uint64 {
-	return p.beta
-}
-
-// LogQP returns the bit-length of prod(Qi) * prod(Pi)
-func (p *Parameters) LogQP() uint64 {
-	return p.logQP
 }
 
 // IsValid returns a true if the parameters are complete and valid, and false otherwise.
@@ -222,13 +180,14 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 
 	paramsCopy = new(Parameters)
 	paramsCopy.LogN = p.LogN
+	paramsCopy.N = p.N
 	paramsCopy.T = p.T
 	paramsCopy.Sigma = p.Sigma
 	paramsCopy.Moduli = p.Moduli.Copy()
 	paramsCopy.LogModuli = p.LogModuli.Copy()
-	paramsCopy.logQP = p.logQP
-	paramsCopy.alpha = p.alpha
-	paramsCopy.beta = p.beta
+	paramsCopy.LogQP = p.LogQP
+	paramsCopy.Alpha = p.Alpha
+	paramsCopy.Beta = p.Beta
 	paramsCopy.isValid = p.isValid
 
 	return
@@ -242,6 +201,7 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 	}
 
 	res = res && (p.LogN == other.LogN)
+	res = res && (p.N == other.N)
 	res = res && (p.T == other.T)
 	res = res && (p.Sigma == other.Sigma)
 
@@ -252,9 +212,9 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 	res = res && utils.EqualSliceUint64(p.LogPi, other.LogPi)
 	res = res && utils.EqualSliceUint64(p.LogQiMul, other.LogQiMul)
 
-	res = res && (p.alpha == other.alpha)
-	res = res && (p.beta == other.beta)
-	res = res && (p.logQP == other.logQP)
+	res = res && (p.Alpha == other.Alpha)
+	res = res && (p.Beta == other.Beta)
+	res = res && (p.LogQP == other.LogQP)
 
 	res = res && (p.isValid == other.isValid)
 
@@ -296,6 +256,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b := utils.NewBuffer(data)
 
 	p.LogN = uint64(b.ReadUint8())
+	p.N = 1 << p.LogN
 
 	if p.LogN > MaxLogN {
 		return fmt.Errorf("LogN larger than %d", MaxLogN)
@@ -315,20 +276,35 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(p.Pi)
 	b.ReadUint64Slice(p.QiMul)
 
-	if err := p.checkModuli(); err != nil {
-		return err
-	}
-
-	p.GenFromModuli()
-
-	return nil
+	return p.Gen()
 }
 
-// GenFromModuli generates a set of parameters from the moduli chain.
-func (p *Parameters) GenFromModuli() {
+// Gen populates the parameter structs fromt the provided parameters.
+func (p *Parameters) Gen() (err error) {
 
-	if err := p.checkModuli(); err != nil {
-		panic(err)
+	// Checks if the parameters are empty
+	if (len(p.Qi) + len(p.Pi) + len(p.QiMul) + len(p.LogQi) + len(p.LogPi) + len(p.LogQiMul)) == 0 {
+		return fmt.Errorf("cannot p.Gen() -> Moduli & LogModuli are both empty -> must set one of them")
+	}
+
+	// Checks if both Moduli and LogModuli are set
+	if (len(p.Qi)+len(p.Pi)+len(p.QiMul) != 0) && (len(p.LogQi)+len(p.LogPi)+len(p.LogQiMul) != 0) {
+		return fmt.Errorf("warning Moduli & LogModuli are both set -> LogModuli will be overwritten")
+	}
+
+	// If Moduli is not set, then checks if LogModuli is valid and then generates the moduli
+	if len(p.Qi)+len(p.Pi)+len(p.QiMul) == 0 {
+
+		if err = p.checkLogModuli(); err != nil {
+			return err
+		}
+
+		p.Qi, p.Pi, p.QiMul = GenModuli(p)
+	}
+
+	// Checks if Moduli is valid
+	if err = p.checkModuli(); err != nil {
+		return err
 	}
 
 	tmp := ring.NewUint(1)
@@ -341,7 +317,7 @@ func (p *Parameters) GenFromModuli() {
 		tmp.Mul(tmp, ring.NewUint(pi))
 	}
 
-	p.logQP = uint64(tmp.BitLen())
+	p.LogQP = uint64(tmp.BitLen())
 
 	p.LogQi = make([]uint64, len(p.Qi), len(p.Qi))
 	for i := range p.Qi {
@@ -358,25 +334,18 @@ func (p *Parameters) GenFromModuli() {
 		p.LogQiMul[i] = uint64(bits.Len64(p.QiMul[i]) - 1)
 	}
 
-	p.alpha = uint64(len(p.Pi))
-	p.beta = uint64(math.Ceil(float64(len(p.Qi)) / float64(len(p.Pi))))
-
-	p.isValid = true
-}
-
-// GenFromLogModuli generates a set of parameters, including the actual moduli, from the target bit-sizes of the moduli chain.
-func (p *Parameters) GenFromLogModuli() {
-
-	if err := p.checkLogModuli(); err != nil {
-		panic(err)
+	p.N = 1 << p.LogN
+	if len(p.LogPi) != 0 {
+		p.Alpha = uint64(len(p.Pi))
+		p.Beta = uint64(math.Ceil(float64(len(p.Qi)) / float64(len(p.Pi))))
 	}
 
-	p.Qi, p.Pi, p.QiMul = GenModuli(p)
+	p.isValid = true
 
-	p.GenFromModuli()
+	return nil
 }
 
-func (p *Parameters) checkModuli() error {
+func (p *Parameters) checkModuli() (err error) {
 
 	if len(p.Qi) > MaxModuliCount {
 		return fmt.Errorf("#LogQi is larger than %d", MaxModuliCount)
@@ -391,19 +360,19 @@ func (p *Parameters) checkModuli() error {
 	}
 
 	for i, qi := range p.Qi {
-		if uint64(bits.Len64(qi)-1) > MaxModuliSize {
+		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("Qi bit-size for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, pi := range p.Pi {
-		if uint64(bits.Len64(pi)-1) > MaxModuliSize {
+		if uint64(bits.Len64(pi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("Pi bit-size for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, qi := range p.QiMul {
-		if uint64(bits.Len64(qi)-1) > MaxModuliSize {
+		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("QiMul bitsize n°%d is larger than %d", i, MaxModuliSize)
 		}
 	}
@@ -431,7 +400,7 @@ func (p *Parameters) checkModuli() error {
 	return nil
 }
 
-func (p *Parameters) checkLogModuli() error {
+func (p *Parameters) checkLogModuli() (err error) {
 
 	if len(p.LogQi) > MaxModuliCount {
 		return fmt.Errorf("#LogQi is larger than %d", MaxModuliCount)
@@ -464,4 +433,51 @@ func (p *Parameters) checkLogModuli() error {
 	}
 
 	return nil
+}
+
+// GenModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
+func GenModuli(params *Parameters) (Q []uint64, P []uint64, QMul []uint64) {
+
+	// Extracts all the different primes bit-size and maps their number
+	primesbitlen := make(map[uint64]uint64)
+
+	for _, qi := range params.LogQi {
+		primesbitlen[qi]++
+	}
+
+	for _, pj := range params.LogPi {
+		primesbitlen[pj]++
+	}
+
+	for _, qi := range params.LogQiMul {
+		primesbitlen[qi]++
+	}
+
+	// For each bit-size, it finds that many primes
+	primes := make(map[uint64][]uint64)
+	for key, value := range primesbitlen {
+		primes[key] = ring.GenerateNTTPrimes(key, params.LogN, value)
+	}
+
+	// Assigns the primes to the CKKS moduli chain
+	Q = make([]uint64, len(params.LogQi))
+	for i, qi := range params.LogQi {
+		Q[i] = primes[qi][0]
+		primes[qi] = primes[qi][1:]
+	}
+
+	// Assigns the primes to the special primes list for the the keys context
+	P = make([]uint64, len(params.LogPi))
+	for i, pj := range params.LogPi {
+		P[i] = primes[pj][0]
+		primes[pj] = primes[pj][1:]
+	}
+
+	QMul = make([]uint64, len(params.LogQiMul))
+	for i, qi := range params.LogQiMul {
+		QMul[i] = primes[qi][0]
+		primes[qi] = primes[qi][1:]
+	}
+
+	return Q, P, QMul
 }

@@ -35,11 +35,11 @@ func Float128SetUint53(i uint64) (result Float128) {
 	return
 }
 
-// Float128SetUint64 sets 128-bit floating point object from uint64
+// Float128SetUint64 sets 128-bit floating point object from uint64.
 // Allows to import integers bigger than 53 bits and do computation with result of up to 64 bits.
 // However the variable will be scaled by a 1/4096 factor that has to be taken into account when
 // doing computation.
-// Unsafe to use for values below 2^64/4096 since it will set the first element to zero.
+// Unsafe to use for values below 2^64/4096 since it might set the first element to zero.
 func Float128SetUint64(i uint64) (result Float128) {
 	result[0] = float64(i >> 12)
 	result[1] = float64(i&0xfff) / float64(4096)
@@ -50,7 +50,7 @@ func Float128SetUint64(i uint64) (result Float128) {
 // Allows to import integers bigger than 53 bits and do computation with a result of up to 64 bits.
 // However the variable will be scaled by a 1/4096 factor that has to be taken into account when
 // doing computation.
-// Unsafe to use for values below 2^64/4096 since it will set the first element to zero.
+// Unsafe to use for values below 2^64/4096 since it might set the first element to zero.
 func Float128SetInt64(i int64) (result Float128) {
 	sign := i < 0
 	if sign {
@@ -95,7 +95,7 @@ func quickTwoSum(a, b float64) (s, err float64) {
 	return
 }
 
-// Float128Add computes f = a + b
+// Float128Add computes f = a + b.
 func Float128Add(a, b Float128) (f Float128) {
 	s1, s2 := twoSum(a[0], b[0])
 	t1, t2 := twoSum(a[1], b[1])
@@ -114,7 +114,7 @@ func twoDiff(a, b float64) (s, err float64) {
 	return
 }
 
-// Float128Sub computes f = a - b
+// Float128Sub computes f = a - b.
 func Float128Sub(a, b Float128) (f Float128) {
 	s1, s2 := twoDiff(a[0], b[0])
 	t1, t2 := twoDiff(a[1], b[1])
@@ -126,7 +126,7 @@ func Float128Sub(a, b Float128) (f Float128) {
 	return
 }
 
-// split computes high and low words of a float64 value
+// split computes high and low words of a float64 value.
 func split(a float64) (hi, lo float64) {
 	temp := 134217729.0 * a
 	hi = temp - (temp - a)
@@ -143,7 +143,7 @@ func twoProd(a, b float64) (p, err float64) {
 	return
 }
 
-// Float128Mul computes f = a * b
+// Float128Mul computes f = a * b.
 func Float128Mul(a, b Float128) (f Float128) {
 	p1, p2 := twoProd(a[0], b[0])
 	p2 += a[0]*b[1] + a[1]*b[0]
@@ -151,7 +151,7 @@ func Float128Mul(a, b Float128) (f Float128) {
 	return
 }
 
-// Float128Div computes f = a / b
+// Float128Div computes f = a / b.
 func Float128Div(a, b Float128) (f Float128) {
 
 	var q1, p1, p2, p3, p4, v1, v2, r, t0, t1 float64

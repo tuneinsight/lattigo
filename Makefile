@@ -28,8 +28,10 @@ test_lint:
 
 test_local:
 	go test -v -short -p=1 ./... -timeout=0
-	go run ./examples/bfv/examples_bfv.go
-	go run ./examples/ckks/examples_ckks.go
+	@echo Running the exemples
+	go run ./examples/bfv/examples_bfv.go > /dev/null
+	go run ./examples/ckks/euler/euler.go > /dev/null
+	go run ./examples/ckks/sigmoid/sigmoid.go > /dev/null
 
 test: test_fmt test_local
 

@@ -51,16 +51,14 @@ func chebyshevinterpolation() {
 	// Evaluator
 	evaluator := ckks.NewEvaluator(params)
 
-	slots := uint64(1 << (params.LogN - 1))
-
 	// Values to encrypt
-	values := make([]complex128, slots)
+	values := make([]complex128, params.Slots)
 	for i := range values {
 		values[i] = complex(randomFloat(-8, 8), 0)
 	}
 
 	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n",
-		params.LogN, params.LogQP(), params.MaxLevel()+1, params.Scale, params.Sigma)
+		params.LogN, params.LogQP, params.MaxLevel+1, params.Scale, params.Sigma)
 
 	fmt.Println()
 	fmt.Printf("Values     : %6f %6f %6f %6f...\n",
@@ -68,8 +66,8 @@ func chebyshevinterpolation() {
 	fmt.Println()
 
 	// Plaintext creation and encoding process
-	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale)
-	encoder.Encode(plaintext, values, slots)
+	plaintext := ckks.NewPlaintext(params, params.MaxLevel, params.Scale)
+	encoder.Encode(plaintext, values, params.Slots)
 
 	// Encryption process
 	var ciphertext *ckks.Ciphertext
@@ -84,10 +82,10 @@ func chebyshevinterpolation() {
 	// We evaluate the interpolated chebyshev polynomial on the ciphertext
 	ciphertext = evaluator.EvaluateChebyEco(ciphertext, chebyapproximation, rlk)
 
-	fmt.Println("Done... Consumed levels :", params.MaxLevel()-ciphertext.Level())
+	fmt.Println("Done... Consumed levels :", params.MaxLevel-ciphertext.Level())
 
 	// Decryption process + Decoding process
-	valuesTest := encoder.Decode(decryptor.DecryptNew(ciphertext), slots)
+	valuesTest := encoder.Decode(decryptor.DecryptNew(ciphertext), params.Slots)
 
 	// Computation of the reference values
 	for i := range values {

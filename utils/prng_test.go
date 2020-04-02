@@ -3,6 +3,8 @@ package utils
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_PRNG(t *testing.T) {
@@ -27,12 +29,7 @@ func Test_PRNG(t *testing.T) {
 		a := Ha.Clock()
 		b := Hb.Clock()
 
-		for i := 0; i < 64; i++ {
-			if a[i] != b[i] {
-				t.Errorf("prng")
-				break
-			}
-		}
+		require.Equal(t, a, b)
 	})
 
 }

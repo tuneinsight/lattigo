@@ -7,12 +7,13 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 var folder = "test_data/"
 
 // Name of the test vectors files
-
 var files60 = []string{
 	"test_pol_60____8_2",
 	"test_pol_60___16_2",
@@ -24,7 +25,6 @@ var files60 = []string{
 }
 
 // Name of the test vectors files
-
 var filesNTT60 = []string{
 	"test_pol_NTT_60____8_2",
 	"test_pol_NTT_60___16_2",
@@ -119,10 +119,7 @@ func Test_NTT(t *testing.T) {
 
 			for i := range context.Modulus {
 				for j := range Polx.Coeffs {
-					if Polx.Coeffs[i][j] != PolNTT.Coeffs[i][j] {
-						t.Errorf("error : NTT coeffs file n°%v: want %v, have %v", x, PolNTT.Coeffs[i][j], Polx.Coeffs[i][j])
-						continue
-					}
+					require.Equal(t, Polx.Coeffs[i][j], PolNTT.Coeffs[i][j], "NTT coeffs file n°%v", x)
 				}
 			}
 
@@ -130,11 +127,7 @@ func Test_NTT(t *testing.T) {
 
 			for i := range context.Modulus {
 				for j := range Polx.Coeffs {
-					if Polx.Coeffs[i][j] != CRTCoeffs[i][j] {
-						t.Errorf("error : InvNTT coeffs file n°%v: want %v, have %v", x, CRTCoeffs[i][j], Polx.Coeffs[i][j])
-						continue
-					}
-
+					require.Equal(t, Polx.Coeffs[i][j], CRTCoeffs[i][j], "InvNTT coeffs file n°%v", x)
 				}
 			}
 		})

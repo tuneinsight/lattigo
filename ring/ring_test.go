@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 type PolynomialTestParams struct {
@@ -84,9 +86,7 @@ func testPRNG(t *testing.T) {
 			p0 := crsGenerator1.ClockNew()
 			p1 := crsGenerator2.ClockNew()
 
-			if context.Equal(p0, p1) != true {
-				t.Errorf("crs prng generator")
-			}
+			require.True(t, context.Equal(p0, p1))
 		})
 	}
 }
@@ -102,10 +102,8 @@ func testGenerateNTTPrimes(t *testing.T) {
 			primes := GenerateNTTPrimes(55, uint64(bits.Len64(context.N)-1), uint64(len(context.Modulus)))
 
 			for _, q := range primes {
-				if q&((context.N<<1)-1) != 1 || IsPrime(q) != true {
-					t.Errorf("GenerateNTTPrimes for q = %v", q)
-					break
-				}
+				require.Equal(t, q&((context.N<<1)-1), uint64(1))
+				require.True(t, IsPrime(q), q)
 			}
 		})
 	}
@@ -124,9 +122,7 @@ func testImportExportPolyString(t *testing.T) {
 
 			context.SetCoefficientsString(context.PolyToString(p0), p1)
 
-			if context.Equal(p0, p1) != true {
-				t.Errorf("import/export ring from/to string")
-			}
+			require.True(t, context.Equal(p0, p1))
 		})
 	}
 }
@@ -162,13 +158,9 @@ func testDivFloorByLastModulusMany(t *testing.T) {
 			context.SetCoefficientsBigint(coeffsWant, polWant)
 
 			context.DivFloorByLastModulusMany(polTest, uint64(nbRescals))
-			state := true
-			for i := uint64(0); i < context.N && state; i++ {
-				for j := 0; j < len(context.Modulus)-nbRescals && state; j++ {
-					if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
-						t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
-						state = false
-					}
+			for i := uint64(0); i < context.N; i++ {
+				for j := 0; j < len(context.Modulus)-nbRescals; j++ {
+					require.Equalf(t, polWant.Coeffs[j][i], polTest.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
 				}
 			}
 		})
@@ -206,13 +198,9 @@ func testDivRoundByLastModulusMany(t *testing.T) {
 			context.SetCoefficientsBigint(coeffsWant, polWant)
 
 			context.DivRoundByLastModulusMany(polTest, uint64(nbRescals))
-			state := true
-			for i := uint64(0); i < context.N && state; i++ {
-				for j := 0; j < len(context.Modulus)-nbRescals && state; j++ {
-					if polWant.Coeffs[j][i] != polTest.Coeffs[j][i] {
-						t.Errorf("error : coeff %v Qi%v = %s, want %v have %v", i, j, coeffs[i].String(), polWant.Coeffs[j][i], polTest.Coeffs[j][i])
-						state = false
-					}
+			for i := uint64(0); i < context.N; i++ {
+				for j := 0; j < len(context.Modulus)-nbRescals; j++ {
+					require.Equalf(t, polWant.Coeffs[j][i], polTest.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
 				}
 			}
 		})
@@ -232,15 +220,8 @@ func testMarshalBinary(t *testing.T) {
 			contextTest := NewContext()
 			contextTest.UnmarshalBinary(data)
 
-			if contextTest.N != context.N {
-				t.Errorf("ERROR encoding/decoding N")
-			}
-
-			for i := range context.Modulus {
-				if contextTest.Modulus[i] != context.Modulus[i] {
-					t.Errorf("ERROR encoding/decoding Modulus")
-				}
-			}
+			require.Equal(t, contextTest.N, context.N)
+			require.Equal(t, contextTest.Modulus, context.Modulus)
 		})
 
 		t.Run(testString("Poly/", context), func(t *testing.T) {
@@ -253,11 +234,7 @@ func testMarshalBinary(t *testing.T) {
 			_ = pTest.UnmarshalBinary(data)
 
 			for i := range context.Modulus {
-				for j := uint64(0); j < context.N; j++ {
-					if p.Coeffs[i][j] != pTest.Coeffs[i][j] {
-						t.Errorf("PolyBytes Import Error : want %v, have %v", p.Coeffs[i][j], pTest.Coeffs[i][j])
-					}
-				}
+				require.Equal(t, p.Coeffs[i][:context.N], pTest.Coeffs[i][:context.N])
 			}
 		})
 	}
@@ -280,24 +257,10 @@ func testGaussianSampler(t *testing.T) {
 
 			KYS.Sample(pol)
 
-			state := true
-
 			for i := uint64(0); i < context.N; i++ {
 				for j, qi := range context.Modulus {
-
-					if (uint64(bound) < pol.Coeffs[j][i]) && (pol.Coeffs[j][i] < (qi - uint64(bound))) {
-						state = false
-						break
-					}
+					require.False(t, uint64(bound) < pol.Coeffs[j][i] && pol.Coeffs[j][i] < (qi-uint64(bound)))
 				}
-
-				if !state {
-					break
-				}
-			}
-
-			if !state {
-				t.Errorf("GaussianSampler")
 			}
 		})
 	}
@@ -342,9 +305,8 @@ func testTernarySampler(t *testing.T) {
 			min := ((1 - rho) / rho) * (1.0 - threshold)
 			max := ((1 - rho) / rho) * (1.0 + threshold)
 
-			if min > ratio || max < ratio {
-				t.Errorf("TernarySampler : bad distribution %f < %f < %f", min, ratio, max)
-			}
+			require.Greater(t, ratio, min)
+			require.Less(t, ratio, max)
 		})
 	}
 }
@@ -369,13 +331,7 @@ func testBRed(t *testing.T) {
 					result.Mul(result, NewUint(y))
 					result.Mod(result, bigQ)
 
-					test := BRed(x, y, q, context.bredParams[j])
-					want := result.Uint64()
-
-					if test != want {
-						t.Errorf("128bit barrett multiplication, x = %v, y=%v, have = %v, want =%v", x, y, test, want)
-						break
-					}
+					require.Equalf(t, BRed(x, y, q, context.bredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
 				}
 			}
 		})
@@ -405,14 +361,7 @@ func testMRed(t *testing.T) {
 					result.Mul(result, NewUint(y))
 					result.Mod(result, bigQ)
 
-					test := MRed(x, MForm(y, q, context.bredParams[j]), q, context.mredParams[j])
-					want := result.Uint64()
-
-					if test != want {
-						t.Errorf("128bit montgomery multiplication, x = %v, y=%v, have = %v, want =%v", x, y, test, want)
-						break
-					}
-
+					require.Equalf(t, MRed(x, MForm(y, q, context.bredParams[j]), q, context.mredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
 				}
 			}
 		})
@@ -440,12 +389,7 @@ func testGaloisShift(t *testing.T) {
 			context.Shift(pWant, 1, pWant)
 
 			for i := range context.Modulus {
-				for j := uint64(0); j < context.N; j++ {
-					if pTest.Coeffs[i][j] != pWant.Coeffs[i][j] {
-						t.Errorf("GaloisShiftR")
-						break
-					}
-				}
+				require.Equal(t, pTest.Coeffs[i][:context.N], pWant.Coeffs[i][:context.N])
 			}
 		})
 	}
@@ -465,9 +409,7 @@ func testMForm(t *testing.T) {
 			context.MForm(polWant, polTest)
 			context.InvMForm(polTest, polTest)
 
-			if context.Equal(polWant, polTest) != true {
-				t.Errorf("128bit MForm/InvMForm")
-			}
+			require.True(t, context.Equal(polWant, polTest))
 		})
 	}
 }
@@ -493,9 +435,7 @@ func testMulScalarBigint(t *testing.T) {
 			context.MulScalar(polWant, rand2, polWant)
 			context.MulScalarBigint(polTest, scalarBigint, polTest)
 
-			if context.Equal(polWant, polTest) != true {
-				t.Errorf("error : mulScalarBigint")
-			}
+			require.True(t, context.Equal(polWant, polTest))
 		})
 	}
 }
@@ -520,12 +460,7 @@ func testMulPoly(t *testing.T) {
 
 			context.MulPoly(p1, p2, p3Test)
 
-			for i := uint64(0); i < context.N; i++ {
-				if p3Want.Coeffs[0][i] != p3Test.Coeffs[0][i] {
-					t.Errorf("MULPOLY COEFF %v, want %v - has %v", i, p3Want.Coeffs[0][i], p3Test.Coeffs[0][i])
-					break
-				}
-			}
+			require.Equal(t, p3Want.Coeffs[0][:context.N], p3Test.Coeffs[0][:context.N])
 		})
 
 		t.Run(testString("MulPolyMontgomery/", context), func(t *testing.T) {
@@ -537,12 +472,7 @@ func testMulPoly(t *testing.T) {
 
 			context.InvMForm(p3Test, p3Test)
 
-			for i := uint64(0); i < context.N; i++ {
-				if p3Want.Coeffs[0][i] != p3Test.Coeffs[0][i] {
-					t.Errorf("MULPOLY COEFF %v, want %v - has %v", i, p3Want.Coeffs[0][i], p3Test.Coeffs[0][i])
-					break
-				}
-			}
+			require.Equal(t, p3Want.Coeffs[0][:context.N], p3Test.Coeffs[0][:context.N])
 		})
 	}
 }
@@ -573,12 +503,7 @@ func testExtendBasis(t *testing.T) {
 			basisextender.ModUpSplitQP(uint64(len(contextQ.Modulus)-1), Pol, PolTest)
 
 			for i := range contextP.Modulus {
-				for j := uint64(0); j < contextQ.N; j++ {
-					if PolTest.Coeffs[i][j] != PolWant.Coeffs[i][j] {
-						t.Errorf("error extendBasis, have %v - want %v", PolTest.Coeffs[i][j], PolWant.Coeffs[i][j])
-						break
-					}
-				}
+				require.Equal(t, PolTest.Coeffs[i][:contextQ.N], PolWant.Coeffs[i][:contextQ.N])
 			}
 		})
 	}
@@ -614,10 +539,7 @@ func testSimpleScaling(t *testing.T) {
 			rescaler.Scale(PolTest, PolTest)
 
 			for i := uint64(0); i < context.N; i++ {
-				if PolTest.Coeffs[0][i] != coeffsWant[i].Uint64() {
-					t.Errorf("simple scaling, coeffs %v want %v have %v", i, coeffsWant[i].Uint64(), PolTest.Coeffs[0][i])
-					break
-				}
+				require.Equal(t, PolTest.Coeffs[0][i], coeffsWant[i].Uint64())
 			}
 		})
 	}
@@ -641,12 +563,7 @@ func testMultByMonomial(t *testing.T) {
 
 			context.MultByMonomial(p1, 9, p3Want)
 
-			for i := uint64(0); i < context.N; i++ {
-				if p3Want.Coeffs[0][i] != p3Test.Coeffs[0][i] {
-					t.Errorf("MULT BY MONOMIAL %v, want %v - has %v", i, p3Want.Coeffs[0][i], p3Test.Coeffs[0][i])
-					break
-				}
-			}
+			require.Equal(t, p3Want.Coeffs[0][:context.N], p3Test.Coeffs[0][:context.N])
 		})
 	}
 }

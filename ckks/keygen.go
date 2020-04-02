@@ -288,8 +288,8 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 	context.MulScalarBigint(skIn, keygen.ckksContext.contextP.ModulusBigint, skIn)
 
-	alpha := keygen.params.Alpha()
-	beta := keygen.params.Beta()
+	alpha := keygen.params.Alpha
+	beta := keygen.params.Beta
 
 	var index uint64
 

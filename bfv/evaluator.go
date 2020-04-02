@@ -758,9 +758,9 @@ func (evaluator *evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, p0, 
 	c2QiNtt := make([]uint64, N)
 
 	// Key switching with CRT decomposition for the Qi
-	for i := uint64(0); i < evaluator.params.beta; i++ {
+	for i := uint64(0); i < evaluator.params.Beta; i++ {
 
-		p0idxst := i * evaluator.params.alpha
+		p0idxst := i * evaluator.params.Alpha
 		p0idxed := p0idxst + evaluator.decomposer.Xalpha()[i]
 
 		// c2Qi = cx mod qi

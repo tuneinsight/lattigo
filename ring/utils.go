@@ -16,10 +16,6 @@ func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 	return
 }
 
-//==============================
-//=== MODULAR EXPONENTIATION ===
-//==============================
-
 // ModExp performes the modular exponentiation x^e mod p,
 // x and p are required to be a most 64 bits to avoid an overflow.
 func ModExp(x, e, p uint64) (result uint64) {
@@ -51,17 +47,6 @@ func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64)
 
 // gcd compues gcd(a,b) for a,b uint64 variables
 func gcd(a, b uint64) uint64 {
-	if a == 0 || b == 0 {
-		return 0
-	}
-	for b != 0 {
-		a, b = b, a%b
-	}
-	return a
-}
-
-// gcdInt64 compues gcd(a,b) for a,b int64 variables.
-func gcdInt64(a, b int64) int64 {
 	if a == 0 || b == 0 {
 		return 0
 	}
@@ -144,6 +129,8 @@ func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 	return GenerateNTTPrimesQ(logQ, logN, levels)
 }
 
+// GenerateNTTPrimesQ generates "levels" different "2**LogN" NTT compliant
+// primes starting from 2**LogQ and going upward and downward.
 func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 
 	var x, y, Qpow2, _2N uint64
@@ -181,6 +168,8 @@ func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 	return
 }
 
+// GenerateNTTPrimesP generates "levels" different "2**logN" NTT compliant
+// primes starting from 2**LogP and downward.
 func GenerateNTTPrimesP(logP, logN, n uint64) (primes []uint64) {
 
 	var x, Ppow2, _2N uint64
@@ -208,14 +197,9 @@ func GenerateNTTPrimesP(logP, logN, n uint64) (primes []uint64) {
 	return
 }
 
-//===========================
-//===    PRIMITIVE ROOT   ===
-//===========================
-
 // primitiveRoot computes one primitive root (the smallest) of for the given prime q
-func primitiveRoot(q uint64) uint64 {
+func primitiveRoot(q uint64) (g uint64) {
 	var tmp uint64
-	var g uint64
 
 	notFoundPrimitiveRoot := true
 
@@ -235,26 +219,21 @@ func primitiveRoot(q uint64) uint64 {
 			notFoundPrimitiveRoot = false
 		}
 	}
-	return g
+	return
 }
 
-//===========================================
-//=====   POLLARD'S RHO FACTORIZATION   =====
-//===========================================
-
 // polynomialPollardsRho calculates x1^2 + c mod x2, and is used in factorizationPollardsRho
-func polynomialPollardsRho(x1, x2, c uint64) uint64 {
-
-	z := ModExp(x1, 2, x2) // x1^2 mod x2
-	z += c                 // (x1^2 mod x2) + 1
-	z %= x2                // (x1^2 + 1) mod x2
-	return z
+func polynomialPollardsRho(x1, x2, c uint64) (z uint64) {
+	z = ModExp(x1, 2, x2) // x1^2 mod x2
+	z += c                // (x1^2 mod x2) + 1
+	z %= x2               // (x1^2 + 1) mod x2
+	return
 }
 
 // factorizationPollardsRho realizes Pollard's Rho algorithm for fast prime factorization,
 // but this function only returns one factor a time
-func factorizationPollardsRho(m uint64) uint64 {
-	var x, y, d, c uint64
+func factorizationPollardsRho(m uint64) (d uint64) {
+	var x, y, c uint64
 
 	// c is to change the ring used in Pollard's Rho algorithm,
 	// Every time the algorithm fails to get a factor, increasing c to retry,
@@ -269,10 +248,12 @@ func factorizationPollardsRho(m uint64) uint64 {
 			x = polynomialPollardsRho(x, m, c)
 			y = polynomialPollardsRho(polynomialPollardsRho(y, m, c), m, c)
 
-			if y > x {
+			if y > x { // swaps to avoid overflow
 				x, y = y, x
 			}
+
 			d = gcd(x-y, m)
+
 			if d > 1 {
 				return d
 			}
@@ -282,10 +263,8 @@ func factorizationPollardsRho(m uint64) uint64 {
 }
 
 // getFactors returns all the prime factors of m.
-func getFactors(n uint64) []uint64 {
-	var factor uint64
-	var factors []uint64
-	var m uint64
+func getFactors(n uint64) (factors []uint64) {
+	var factor, m uint64
 	m = n
 
 	// first, append small prime factors
@@ -318,7 +297,7 @@ func getFactors(n uint64) []uint64 {
 		}
 		factors = append(factors, factor)
 	}
-	return factors
+	return
 }
 
 var smallPrimes = []uint64{

@@ -68,8 +68,8 @@ func main() {
 
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, contextKeys)
 	crs := crsGen.ClockNew()
-	crp := make([]*ring.Poly, params.Beta())
-	for i := uint64(0); i < params.Beta(); i++ {
+	crp := make([]*ring.Poly, params.Beta)
+	for i := uint64(0); i < params.Beta; i++ {
 		crp[i] = crsGen.ClockNew()
 	}
 

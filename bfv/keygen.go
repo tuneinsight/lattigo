@@ -204,7 +204,7 @@ func NewRelinKey(params *Parameters, maxDegree uint64) (evakey *EvaluationKey) {
 
 	evakey = new(EvaluationKey)
 
-	beta := params.beta
+	beta := params.Beta
 
 	evakey.evakey = make([]*SwitchingKey, maxDegree)
 
@@ -269,7 +269,7 @@ func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 
 	evakey = new(SwitchingKey)
 
-	beta := params.beta
+	beta := params.Beta
 
 	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
 	evakey.evakey = make([][2]*ring.Poly, beta)
@@ -293,9 +293,9 @@ func (keygen *keyGenerator) newswitchingkey(skIn, skOut *ring.Poly) (switchkey *
 
 	// delta_sk = skIn - skOut = GaloisEnd(skOut, rotation) - skOut
 
-	switchkey.evakey = make([][2]*ring.Poly, keygen.params.beta)
+	switchkey.evakey = make([][2]*ring.Poly, keygen.params.Beta)
 
-	for i := uint64(0); i < keygen.params.beta; i++ {
+	for i := uint64(0); i < keygen.params.Beta; i++ {
 
 		// e
 		switchkey.evakey[i][0] = bfvContext.gaussianSampler.SampleNTTNew()
@@ -306,9 +306,9 @@ func (keygen *keyGenerator) newswitchingkey(skIn, skOut *ring.Poly) (switchkey *
 		// e + skIn * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
 
-		for j := uint64(0); j < keygen.params.alpha; j++ {
+		for j := uint64(0); j < keygen.params.Alpha; j++ {
 
-			index = i*keygen.params.alpha + j
+			index = i*keygen.params.Alpha + j
 
 			qi := ringContext.Modulus[index]
 			p0tmp := skIn.Coeffs[index]

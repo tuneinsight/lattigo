@@ -5,7 +5,8 @@ import (
 	"math"
 )
 
-// SampleGaussian samples a truncated gaussian polynomial with variance sigma within the given bound using the Ziggurat algorithm.
+// SampleGaussian samples a truncated gaussian polynomial with variance
+// sigma within the given bound using the Ziggurat algorithm.
 func (context *Context) SampleGaussian(pol *Poly, sigma float64, bound uint64) {
 
 	var coeffFlo float64
@@ -34,7 +35,8 @@ func (context *Context) SampleGaussian(pol *Poly, sigma float64, bound uint64) {
 	}
 }
 
-// SampleGaussianAndAdd samples a truncated gaussian polynomial with variance sigma within the given bound using the Ziggurat algorithm.
+// SampleGaussianAndAdd adds on the input polynomial a truncated gaussian polynomial
+// with variance sigma within the given bound using the Ziggurat algorithm.
 func (context *Context) SampleGaussianAndAdd(pol *Poly, sigma float64, bound uint64) {
 
 	var coeffFlo float64
@@ -63,20 +65,23 @@ func (context *Context) SampleGaussianAndAdd(pol *Poly, sigma float64, bound uin
 	}
 }
 
-// SampleGaussianNew samples a new truncated gaussian polynomial with variance sigma within the given bound using the Ziggurat algorithm.
+// SampleGaussianNew samples a new truncated gaussian polynomial with
+// variance sigma within the given bound using the Ziggurat algorithm.
 func (context *Context) SampleGaussianNew(sigma float64, bound uint64) (pol *Poly) {
 	pol = context.NewPoly()
 	context.SampleGaussian(pol, sigma, bound)
 	return
 }
 
-// SampleGaussianNTT samples a trucated gaussian polynomial in the NTT domain with variance sigma within the given bound using the Ziggurat algorithm.
+// SampleGaussianNTT samples a trucated gaussian polynomial in the NTT domain
+// with variance sigma within the given bound using the Ziggurat algorithm.
 func (context *Context) SampleGaussianNTT(pol *Poly, sigma float64, bound uint64) {
 	context.SampleGaussian(pol, sigma, bound)
 	context.NTT(pol, pol)
 }
 
-// SampleGaussianNTTNew samples a new trucated gaussian polynomial in the NTT domain with variance sigma within the given bound using the Ziggurat algorithm
+// SampleGaussianNTTNew samples a new trucated gaussian polynomial in the NTT domain
+// with variance sigma within the given bound using the Ziggurat algorithm
 func (context *Context) SampleGaussianNTTNew(sigma float64, bound uint64) (pol *Poly) {
 	pol = context.SampleGaussianNew(sigma, bound)
 	context.NTT(pol, pol)
@@ -91,7 +96,8 @@ type KYSampler struct {
 	Matrix  [][]uint8
 }
 
-// NewKYSampler creates a new KYSampler with sigma and bound that will be used to sample polynomial within the provided discret gaussian distribution.
+// NewKYSampler creates a new KYSampler with the variance sigma and a bound that will be used
+// to sample polynomial within the provided discret gaussian distribution.
 func (context *Context) NewKYSampler(sigma float64, bound int) *KYSampler {
 	kysampler := new(KYSampler)
 	kysampler.context = context
@@ -101,7 +107,8 @@ func (context *Context) NewKYSampler(sigma float64, bound int) *KYSampler {
 	return kysampler
 }
 
-//gaussian computes (1/variange*sqrt(pi)) * exp((x^2) / (2*variance^2)),  2.50662827463100050241576528481104525300698674060993831662992357 = sqrt(2*pi)
+// gaussian computes (1/variange*sqrt(pi)) * exp((x^2) / (2*variance^2)),
+// 2.50662827463100050241576528481104525300698674060993831662992357 = sqrt(2*pi)
 func gaussian(x, sigma float64) float64 {
 	return (1 / (sigma * 2.5066282746310007)) * math.Exp(-((math.Pow(x, 2)) / (2 * sigma * sigma)))
 }
@@ -149,6 +156,7 @@ func computeMatrix(sigma float64, bound int) [][]uint8 {
 	return M
 }
 
+// kysampling use the binary expension and random bytes matrix to sample a discret gaussian value and its sign.
 func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64, []byte, uint8) {
 
 	var sign uint8
@@ -219,14 +227,14 @@ func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 	}
 }
 
-// SampleNew samples a new polynomial with gaussian distribution given the target kys parameters.
+// SampleNew samples a new polynomial with a discret gaussian distribution.
 func (kys *KYSampler) SampleNew() *Poly {
 	Pol := kys.context.NewPoly()
 	kys.Sample(Pol)
 	return Pol
 }
 
-// Sample samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
+// Sample samples on the target polynomial coefficients with a discret gaussian distribution.
 func (kys *KYSampler) Sample(Pol *Poly) {
 
 	var coeff uint64
@@ -250,7 +258,8 @@ func (kys *KYSampler) Sample(Pol *Poly) {
 	}
 }
 
-// SampleAndAddLvl samples on the target polynomial coefficients with gaussian distribution given the target kys parameters.
+// SampleAndAddLvl adds on the input polynomial a polynomial a with a discret gaussian distribution.
+// The parameter level defines the number of CRT moduli of the input polynomial.
 func (kys *KYSampler) SampleAndAddLvl(level uint64, Pol *Poly) {
 
 	var coeff uint64
@@ -273,19 +282,20 @@ func (kys *KYSampler) SampleAndAddLvl(level uint64, Pol *Poly) {
 	}
 }
 
-// SampleAndAdd samples a gaussian polynomial and adds it on the int polynomial.
+// SampleAndAdd adds on the input polynomial a polynomial a with a discret gaussian distribution.
 func (kys *KYSampler) SampleAndAdd(Pol *Poly) {
 	kys.SampleAndAddLvl(uint64(len(kys.context.Modulus))-1, Pol)
 }
 
-// SampleNTTNew samples a polynomial with gaussian distribution given the target kys context and apply the NTT.
+// SampleNTTNew samples in the NTT domain a new polynomial with a discret gaussian distribution.
 func (kys *KYSampler) SampleNTTNew() *Poly {
 	Pol := kys.SampleNew()
 	kys.context.NTT(Pol, Pol)
 	return Pol
 }
 
-// SampleNTT samples on the target polynomial coefficients with gaussian distribution given the target kys parameters,and applies the NTT.
+// SampleNTT adds on the input polynomial a polynomial with a discret gaussian distribution and switch the input
+// polynomial in the NTT domain.
 func (kys *KYSampler) SampleNTT(Pol *Poly) {
 	kys.Sample(Pol)
 	kys.context.NTT(Pol, Pol)

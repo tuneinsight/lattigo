@@ -203,8 +203,6 @@ func (context *Context) sampleTernary(samplerMatrix [][]uint64, p float64, pol *
 
 func (context *Context) sampleTernarySparse(samplerMatrix [][]uint64, pol *Poly, hw uint64) {
 
-	// Samples
-
 	if hw > context.N {
 		hw = context.N
 	}

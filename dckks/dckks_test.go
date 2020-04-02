@@ -6,25 +6,21 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
 )
-
-func check(t *testing.T, err error) {
-	if err != nil {
-		t.Error(err)
-	}
-}
 
 func testString(opname string, parties uint64, params *ckks.Parameters) string {
 	return fmt.Sprintf("%sparties=%d/logN=%d/logQ=%d/levels=%d/a=%d/b=%d",
 		opname,
 		parties,
 		params.LogN,
-		params.LogQP(),
-		params.MaxLevel()+1,
-		params.Alpha(),
-		params.Beta())
+		params.LogQP,
+		params.MaxLevel+1,
+		params.Alpha,
+		params.Beta)
 }
 
 type dckksTestContext struct {
@@ -219,9 +215,9 @@ func testRelinKeyGen(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, parameters.Beta())
+			crp := make([]*ring.Poly, parameters.Beta)
 
-			for i := uint64(0); i < parameters.Beta(); i++ {
+			for i := uint64(0); i < parameters.Beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
@@ -262,9 +258,7 @@ func testRelinKeyGen(t *testing.T) {
 
 			evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 
-			if ciphertext.Degree() != 1 {
-				t.Errorf("EKG_NAIVE -> bad relinearize")
-			}
+			require.Equal(t, ciphertext.Degree(), uint64(1))
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
 
@@ -335,9 +329,7 @@ func testRelinKeyGenNaive(t *testing.T) {
 
 			evaluator.MulRelin(ciphertext, ciphertext, evk, ciphertext)
 
-			if ciphertext.Degree() != 1 {
-				t.Errorf("EKG_NAIVE -> bad relinearize")
-			}
+			require.Equal(t, ciphertext.Degree(), uint64(1))
 
 			evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 
@@ -488,9 +480,9 @@ func testRotKeyGenConjugate(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, parameters.Beta())
+			crp := make([]*ring.Poly, parameters.Beta)
 
-			for i := uint64(0); i < parameters.Beta(); i++ {
+			for i := uint64(0); i < parameters.Beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
@@ -555,9 +547,9 @@ func testRotKeyGenCols(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
 			crpGenerator.Seed([]byte{})
-			crp := make([]*ring.Poly, parameters.Beta())
+			crp := make([]*ring.Poly, parameters.Beta)
 
-			for i := uint64(0); i < parameters.Beta(); i++ {
+			for i := uint64(0); i < parameters.Beta; i++ {
 				crp[i] = crpGenerator.ClockNew()
 			}
 
@@ -651,9 +643,7 @@ func testRefresh(t *testing.T) {
 			P0.Recode(ciphertext)                  // Masked re-encoding
 			P0.Recrypt(ciphertext, crp, P0.share2) // Masked re-encryption
 
-			if ciphertext.Level() != parameters.MaxLevel() {
-				t.Errorf("error refresh")
-			}
+			require.Equal(t, ciphertext.Level(), parameters.MaxLevel)
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
 
@@ -673,7 +663,7 @@ func newTestVectors(contextParams *dckksTestContext, encryptor ckks.Encryptor, a
 
 	values[0] = complex(0.607538, 0.555668)
 
-	plaintext = ckks.NewPlaintext(contextParams.params, contextParams.params.MaxLevel(), contextParams.params.Scale)
+	plaintext = ckks.NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
 
 	contextParams.encoder.Encode(plaintext, values, slots)
 
@@ -753,9 +743,8 @@ func verifyTestVectors(contextParams *dckksTestContext, decryptor ckks.Decryptor
 		t.Log()
 	}
 
-	if math.Log2(1/real(medianprec)) < testParams.medianprec || math.Log2(1/imag(medianprec)) < testParams.medianprec {
-		t.Errorf("Mean precision error : target (%.2f, %.2f) > result (%.2f, %.2f)", testParams.medianprec, testParams.medianprec, math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
-	}
+	require.GreaterOrEqual(t, math.Log2(1/real(medianprec)), testParams.medianprec)
+	require.GreaterOrEqual(t, math.Log2(1/imag(medianprec)), testParams.medianprec)
 }
 
 func calcmedian(values []complex128) (median complex128) {

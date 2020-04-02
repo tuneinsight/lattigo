@@ -29,7 +29,7 @@ const (
 	Cos = SinType(1)
 )
 
-func (b *BootParams) GenFromLogModuli() {
+func (b *BootParams) Gen() {
 
 	if b.SinType == SinType(Sin) && b.SinRescal != 0 {
 		panic("BootParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
@@ -41,7 +41,7 @@ func (b *BootParams) GenFromLogModuli() {
 		b.SinDepth++
 	}
 
-	b.Parameters.GenFromLogModuli()
+	b.Parameters.Gen()
 }
 
 var BootstrappParams = []*BootParams{

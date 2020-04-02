@@ -22,7 +22,7 @@ func TestBootstrapp(t *testing.T) {
 
 	parameters := &bootparams.Parameters
 
-	bootparams.GenFromLogModuli()
+	bootparams.Gen()
 
 	params := genCkksParams(parameters)
 
@@ -207,7 +207,7 @@ func TestBootstrapp(t *testing.T) {
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
+		plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
 		params.encoder.Encode(plaintext, values, slots)
 
 		ciphertext := params.encryptorPk.EncryptNew(plaintext)

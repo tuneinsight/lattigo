@@ -95,9 +95,9 @@ func NewBootContext(bootparams *BootParams, sk *SecretKey) (bootcontext *BootCon
 	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
 	bootcontext.decryptor = NewDecryptor(&bootparams.Parameters, sk)
 
-	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
-	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
-	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
+	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
+	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
+	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
 
 	return bootcontext
 }
@@ -266,7 +266,7 @@ func (bootcontext *BootContext) newBootKeys(sk *SecretKey) {
 	}
 
 	fmt.Println("DFT vector size (GB) :", float64(bootcontext.plaintextSize)/float64(1000000000))
-	fmt.Println("Switching-Keys size (GB) :", float64(bootcontext.n*2*uint64(len(rotations))*bootcontext.Beta()*uint64(len(bootcontext.Qi)+len(bootcontext.Pi))*8)/float64(1000000000), "(", len(rotations), "keys)")
+	fmt.Println("Switching-Keys size (GB) :", float64(bootcontext.n*2*uint64(len(rotations))*bootcontext.Beta*uint64(len(bootcontext.Qi)+len(bootcontext.Pi))*8)/float64(1000000000), "(", len(rotations), "keys)")
 
 	kgen := NewKeyGenerator(&bootcontext.Parameters)
 
@@ -331,8 +331,8 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 
 	// Extend the ciphertext with zero polynomials.
 	for u := range ct.Value() {
-		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, bootcontext.MaxLevel())...)
-		for i := uint64(1); i < bootcontext.MaxLevel()+1; i++ {
+		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, bootcontext.MaxLevel)...)
+		for i := uint64(1); i < bootcontext.MaxLevel+1; i++ {
 			ct.Value()[u].Coeffs[i] = make([]uint64, bootcontext.n)
 		}
 	}
@@ -348,7 +348,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 
 			coeff = ct.Value()[u].Coeffs[0][j]
 
-			for i := uint64(1); i < bootcontext.MaxLevel()+1; i++ {
+			for i := uint64(1); i < bootcontext.MaxLevel+1; i++ {
 
 				qi = contextQ.Modulus[i]
 
@@ -684,8 +684,8 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 
 	var tmpVec, tmp *Ciphertext
 
-	tmpVec = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel(), vec.Scale())
-	tmp = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel(), vec.Scale())
+	tmpVec = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
+	tmp = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
 
 	for j := range index {
 
@@ -925,10 +925,10 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 		for _, i := range index[j] {
 
 			if forward {
-				level = bootcontext.MaxLevel() - k
+				level = bootcontext.MaxLevel - k
 				scale = float64(bootcontext.Qi[level])
 			} else {
-				level = bootcontext.MaxLevel() - uint64((float64(k)/2.0)+0.5) - bootcontext.CtSDepth - bootcontext.SinDepth
+				level = bootcontext.MaxLevel - uint64((float64(k)/2.0)+0.5) - bootcontext.CtSDepth - bootcontext.SinDepth
 
 				// If the first moduli
 				if bootcontext.LogQi[level] > 30 {

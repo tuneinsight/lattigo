@@ -16,11 +16,11 @@ func BenchmarkBootstrappSine(b *testing.B) {
 	LTScale = 1 << 45
 	//SineScale = 1 << 55
 
-	bootparams := BootstrappParams[0]
+	bootparams := BootstrappParams[4]
 
 	parameters := &bootparams.Parameters
 
-	bootparams.GenFromLogModuli()
+	bootparams.Gen()
 
 	ctsDepth := bootparams.CtSDepth
 	sinDepth := bootparams.SinDepth
@@ -56,7 +56,7 @@ func BenchmarkBootstrappSine(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ciphertext = NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), LTScale)
+			ciphertext = NewCiphertextRandom(parameters, 1, parameters.MaxLevel, LTScale)
 			b.StartTimer()
 
 			ct0, ct1 = bootcontext.coeffsToSlots(ciphertext)
@@ -70,9 +70,9 @@ func BenchmarkBootstrappSine(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct0 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel()-ctsDepth, LTScale)
+			ct0 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel-ctsDepth, LTScale)
 			if parameters.LogSlots == parameters.LogN-1 {
-				ct1 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel()-ctsDepth, LTScale)
+				ct1 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel-ctsDepth, LTScale)
 			} else {
 				ct1 = nil
 			}
@@ -80,12 +80,12 @@ func BenchmarkBootstrappSine(b *testing.B) {
 
 			ct2, ct3 = bootcontext.evaluateSine(ct0, ct1)
 
-			if ct2.Level() != parameters.MaxLevel()-ctsDepth-sinDepth {
+			if ct2.Level() != parameters.MaxLevel-ctsDepth-sinDepth {
 				panic("scaling error during eval sinebetter bench")
 			}
 
 			if ct3 != nil {
-				if ct3.Level() != parameters.MaxLevel()-ctsDepth-sinDepth {
+				if ct3.Level() != parameters.MaxLevel-ctsDepth-sinDepth {
 					panic("scaling error during eval sinebetter bench")
 				}
 			}
@@ -98,9 +98,9 @@ func BenchmarkBootstrappSine(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct2 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel()-ctsDepth-sinDepth, LTScale)
+			ct2 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel-ctsDepth-sinDepth, LTScale)
 			if parameters.LogSlots == parameters.LogN-1 {
-				ct3 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel()-ctsDepth-sinDepth, LTScale)
+				ct3 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel-ctsDepth-sinDepth, LTScale)
 			} else {
 				ct3 = nil
 			}
@@ -159,8 +159,8 @@ func BenchmarkBootstrappMultiplications(b *testing.B) {
 	eval = NewEvaluator(bootParams)
 
 
-	ct0 := NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel() - ctsDepth, LTScale)
-	ct1 := NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel() - ctsDepth, LTScale)
+	ct0 := NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel - ctsDepth, LTScale)
+	ct1 := NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel - ctsDepth, LTScale)
 
 
 

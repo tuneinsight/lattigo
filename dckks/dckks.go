@@ -11,8 +11,6 @@ type dckksContext struct {
 
 	n uint64
 
-	gaussianSampler *ring.KYSampler
-
 	contextQ  *ring.Context
 	contextP  *ring.Context
 	contextQP *ring.Context
@@ -49,8 +47,6 @@ func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 	if context.contextQP, err = ring.NewContextWithParams(n, append(params.Qi, params.Pi...)); err != nil {
 		panic(err)
 	}
-
-	context.gaussianSampler = context.contextQP.NewKYSampler(params.Sigma, int(params.Sigma*6))
 
 	return
 }

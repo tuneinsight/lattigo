@@ -139,13 +139,15 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = new(PublicKey)
 
+	ringContext := keygen.ringContext
+
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
-	pk.pk[0] = keygen.ckksContext.gaussianSampler.SampleNTTNew()
-	pk.pk[1] = keygen.ringContext.NewUniformPoly()
+	pk.pk[0] = ringContext.SampleGaussianNTTNew(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
+	pk.pk[1] = ringContext.NewUniformPoly()
 
-	keygen.ringContext.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
-	keygen.ringContext.Neg(pk.pk[0], pk.pk[0])
+	ringContext.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
+	ringContext.Neg(pk.pk[0], pk.pk[0])
 
 	return pk
 }
@@ -298,7 +300,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-		switchingkey.evakey[i][0] = keygen.ckksContext.gaussianSampler.SampleNTTNew()
+		switchingkey.evakey[i][0] = keygen.ringContext.SampleGaussianNTTNew(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
 		context.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)

@@ -80,7 +80,7 @@ func benchSampling(b *testing.B) {
 
 		b.Run(testString("Gaussian/Ziggurat/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.SampleGaussian(pol, sigma, bound)
+				context.SampleGaussianLvl(uint64(len(context.Modulus)-1), pol, sigma, bound)
 			}
 		})
 

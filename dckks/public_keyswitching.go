@@ -9,8 +9,7 @@ import (
 type PCKSProtocol struct {
 	dckksContext *dckksContext
 
-	sigmaSmudging         float64
-	gaussianSamplerSmudge *ring.KYSampler
+	sigmaSmudging float64
 
 	tmp *ring.Poly
 
@@ -36,8 +35,6 @@ func NewPCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) *PCKSProtoc
 	dckksContext := newDckksContext(params)
 
 	pcks.dckksContext = dckksContext
-
-	pcks.gaussianSamplerSmudge = dckksContext.contextQP.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
 
 	pcks.tmp = dckksContext.contextQP.NewPoly()
 	pcks.share0tmp = dckksContext.contextQP.NewPoly()
@@ -73,10 +70,10 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSamplerSmudge.SampleNTT(pcks.tmp)
+	contextKeys.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), pcks.tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
 	contextKeys.Add(pcks.share0tmp, pcks.tmp, pcks.share0tmp)
 	// h_1 = u_i * pk_1 + e1
-	pcks.dckksContext.gaussianSampler.SampleNTT(pcks.tmp)
+	contextKeys.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), pcks.tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
 	contextKeys.Add(pcks.share1tmp, pcks.tmp, pcks.share1tmp)
 
 	// h_0 = (u_i * pk_0 + e0)/P

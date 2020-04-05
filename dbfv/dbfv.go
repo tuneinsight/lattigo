@@ -14,9 +14,6 @@ type dbfvContext struct {
 	// floor(Q/T) mod each Qi in Montgomery form
 	deltaMont []uint64
 
-	// Ternary and Gaussian samplers
-	gaussianSampler *ring.KYSampler
-
 	// Polynomial contexts
 	contextT  *ring.Context
 	contextQ  *ring.Context
@@ -55,17 +52,14 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 
 	deltaMont := bfv.GenLiftParams(contextQ, params.T)
 
-	gaussianSampler := contextQP.NewKYSampler(params.Sigma, int(6*params.Sigma))
-
 	return &dbfvContext{
-		params:          params.Copy(),
-		n:               n,
-		deltaMont:       deltaMont,
-		gaussianSampler: gaussianSampler,
-		contextT:        contextT,
-		contextQ:        contextQ,
-		contextP:        contextP,
-		contextQP:       contextQP,
+		params:    params.Copy(),
+		n:         n,
+		deltaMont: deltaMont,
+		contextT:  contextT,
+		contextQ:  contextQ,
+		contextP:  contextP,
+		contextQP: contextQP,
 	}
 }
 

@@ -184,6 +184,8 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 	if fast {
 
+		level := uint64(len(contextQ.Modulus) - 1)
+
 		encryptor.ckksContext.contextQ.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
 
 		// ct0 = u*pk0
@@ -192,16 +194,18 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		contextQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], ciphertext.value[1])
 
 		// ct0 = u*pk0 + e0
-		encryptor.ckksContext.gaussianSampler.SampleNTT(encryptor.polypool[0])
+		contextQ.SampleGaussianNTTLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 		contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 
 		// ct0 = u*pk1 + e1
-		encryptor.ckksContext.gaussianSampler.SampleNTT(encryptor.polypool[0])
+		contextQ.SampleGaussianNTTLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 		contextQ.Add(ciphertext.value[1], encryptor.polypool[0], ciphertext.value[1])
 
 	} else {
 
 		contextQP := encryptor.ckksContext.contextQP
+
+		level := uint64(len(contextQP.Modulus) - 1)
 
 		encryptor.ckksContext.contextQP.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
 
@@ -215,9 +219,9 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		contextQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct0 = u*pk0 + e0
-		encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+		contextQP.SampleGaussianAndAddLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 		// ct1 = u*pk1 + e1
-		encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[1])
+		contextQP.SampleGaussianAndAddLvl(level, encryptor.polypool[1], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 
 		// ct0 = (u*pk0 + e0)/P
 		encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
@@ -321,10 +325,12 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 	if fast {
 
+		level := uint64(len(contextQ.Modulus) - 1)
+
 		contextQ.MulCoeffsMontgomery(crp, encryptor.sk.sk, ciphertext.value[0])
 		contextQ.Neg(ciphertext.value[0], ciphertext.value[0])
 
-		encryptor.ckksContext.gaussianSampler.SampleNTT(encryptor.polypool[0])
+		contextQ.SampleGaussianNTTLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 		contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 
 		contextQ.Copy(crp, ciphertext.value[1])
@@ -332,6 +338,8 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	} else {
 
 		contextQP := encryptor.ckksContext.contextQP
+
+		level := uint64(len(contextQP.Modulus) - 1)
 
 		// ct0 = -s*a
 		contextQP.MulCoeffsMontgomery(crp, encryptor.sk.sk, encryptor.polypool[0])
@@ -341,7 +349,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
 
 		// ct0 = -s*a + e
-		encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+		contextQP.SampleGaussianAndAddLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 
 		// We rescale by the special prime, dividing the error by this prime
 		// ct0 = (-s*a + e)/P

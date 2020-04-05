@@ -9,8 +9,7 @@ import (
 type PCKSProtocol struct {
 	context *dbfvContext
 
-	sigmaSmudging         float64
-	gaussianSamplerSmudge *ring.KYSampler
+	sigmaSmudging float64
 
 	tmp       *ring.Poly
 	share0tmp *ring.Poly
@@ -85,7 +84,7 @@ func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtoco
 
 	pcks.context = context
 
-	pcks.gaussianSamplerSmudge = context.contextQP.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	pcks.sigmaSmudging = sigmaSmudging
 
 	pcks.tmp = context.contextQP.NewPoly()
 	pcks.share0tmp = context.contextQP.NewPoly()
@@ -124,9 +123,10 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	contextKeys.InvNTT(pcks.share1tmp, pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSamplerSmudge.SampleAndAdd(pcks.share0tmp)
+	contextKeys.SampleGaussianAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share0tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+
 	// h_1 = u_i * pk_1 + e1
-	pcks.context.gaussianSampler.SampleAndAdd(pcks.share1tmp)
+	contextKeys.SampleGaussianAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share1tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
 
 	// h_0 = (u_i * pk_0 + e0)/P
 	pcks.baseconverter.ModDownPQ(uint64(len(contextQ.Modulus))-1, pcks.share0tmp, shareOut[0])

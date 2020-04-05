@@ -47,7 +47,7 @@ func NewCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *CKSProtocol 
 
 	cks.context = context
 
-	cks.gaussianSamplerSmudge = context.contextQP.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	cks.sigmaSmudging = sigmaSmudging
 
 	cks.tmpNtt = cks.context.contextQP.NewPoly()
 	cks.tmpDelta = cks.context.contextQ.NewPoly()
@@ -84,6 +84,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 
 	contextQ := cks.context.contextQ
 	contextP := cks.context.contextP
+	contextQP := cks.context.contextQP
 
 	contextQ.NTT(ct.Value()[1], cks.tmpNtt)
 	contextQ.MulCoeffsMontgomery(cks.tmpNtt, skDelta, shareOut.Poly)
@@ -91,7 +92,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 
 	contextQ.InvNTT(shareOut.Poly, shareOut.Poly)
 
-	cks.gaussianSamplerSmudge.Sample(cks.tmpNtt)
+	contextQP.SampleGaussianLvl(uint64(len(contextQP.Modulus)-1), cks.tmpNtt, cks.sigmaSmudging, uint64(6*cks.sigmaSmudging))
 	contextQ.Add(shareOut.Poly, cks.tmpNtt, shareOut.Poly)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.context.contextQP.Modulus)); x, i = x+1, i+1 {

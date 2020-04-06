@@ -294,6 +294,35 @@ func testEncoder(t *testing.T) {
 
 			verifyTestVectors(params, params.decryptor, values, plaintext, t)
 		})
+
+		t.Run(testString("EncodeCoeffs/", parameters), func(t *testing.T) {
+
+			slots := parameters.N
+
+			valuesWant := make([]float64, slots)
+
+			for i := uint64(0); i < slots; i++ {
+				valuesWant[i] = randomFloat(-1, 1)
+			}
+
+			valuesWant[0] = 0.607538
+
+			plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
+
+			params.encoder.EncodeCoeffs(valuesWant, plaintext)
+
+			valuesTest := params.encoder.DecodeCoeffs(plaintext)
+
+			var meanprec float64
+
+			for i := range valuesWant {
+				meanprec += math.Abs(valuesTest[i] - valuesWant[i])
+			}
+
+			meanprec /= float64(slots)
+
+			require.GreaterOrEqual(t, math.Log2(1/meanprec), testParams.medianprec)
+		})
 	}
 }
 

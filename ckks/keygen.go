@@ -8,6 +8,7 @@ import (
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
 type KeyGenerator interface {
 	GenSecretKey() (sk *SecretKey)
+	GenSecretKeyGaussian(sigma float64) (sk *SecretKey)
 	GenSecretKeyWithDistrib(p float64) (sk *SecretKey)
 	GenSecretKeySparse(hw uint64) (sk *SecretKey)
 	GenPublicKey(sk *SecretKey) (pk *PublicKey)
@@ -96,6 +97,12 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 // GenSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
 func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 	return keygen.GenSecretKeyWithDistrib(1.0 / 3)
+}
+
+func (keygen *keyGenerator) GenSecretKeyGaussian(sigma float64) (sk *SecretKey) {
+	sk = new(SecretKey)
+	sk.sk = keygen.ckksContext.contextQP.SampleGaussianNTTNew(sigma, uint64(6*sigma))
+	return sk
 }
 
 // GenSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].

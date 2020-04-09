@@ -52,7 +52,7 @@ func PermuteNTTIndex(gen, power, N uint64) (index []uint64) {
 // PermuteNTT applies the galois transform on a polynomial in the NTT domain.
 // It maps the coefficients x^i to x^(gen*i)
 // Careful, not inplace!
-func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
+func PermuteNTTLvl(level uint64, polIn *Poly, gen uint64, polOut *Poly) {
 
 	var N, tmp, mask, logN, tmp1, tmp2 uint64
 
@@ -76,7 +76,7 @@ func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
 
 		tmp = index[j]
 
-		for i := 0; i < len(polIn.Coeffs); i++ {
+		for i := uint64(0); i < level+1; i++ {
 
 			polOut.Coeffs[i][j] = polIn.Coeffs[i][tmp]
 		}
@@ -86,7 +86,7 @@ func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
 // PermuteNTTWithIndex applies the galois transform on a polynomial in the NTT domain.
 // It maps the coefficients x^i to x^(gen*i) using the PermuteNTTIndex table.
 // Careful, not inplace!
-func PermuteNTTWithIndex(polIn *Poly, index []uint64, polOut *Poly) {
+func PermuteNTTWithIndexLvl(level uint64, polIn *Poly, index []uint64, polOut *Poly) {
 
 	var tmp uint64
 
@@ -94,7 +94,7 @@ func PermuteNTTWithIndex(polIn *Poly, index []uint64, polOut *Poly) {
 
 		tmp = index[j]
 
-		for i := 0; i < len(polIn.Coeffs); i++ {
+		for i := uint64(0); i < level+1; i++ {
 			polOut.Coeffs[i][j] = polIn.Coeffs[i][tmp]
 		}
 	}

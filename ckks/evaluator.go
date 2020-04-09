@@ -1118,10 +1118,10 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 		// Relinearize if a key was provided
 		if evakey != nil {
 
-			eval.switchKeysInPlace(level, c2, evakey.evakey, eval.poolQ[1], eval.poolQ[2])
+			eval.switchKeysInPlace(level, c2, evakey.evakey, eval.poolQ[0], eval.poolQ[1])
 
-			context.AddLvl(level, c0, eval.poolQ[1], elOut.value[0])
-			context.AddLvl(level, c1, eval.poolQ[2], elOut.value[1])
+			context.AddLvl(level, c0, eval.poolQ[0], elOut.value[0])
+			context.AddLvl(level, c1, eval.poolQ[1], elOut.value[1])
 
 		} else { // Or copy the result on the output Ciphertext if it was one of the inputs
 			if elOut == el0 || elOut == el1 {
@@ -1173,10 +1173,13 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
 	context := eval.ckksContext.contextQ
 
-	eval.switchKeysInPlace(level, ct0.value[2], evakey.evakey, eval.poolQ[1], eval.poolQ[2])
+	pool2Q := eval.poolQ[0]
+	pool3Q := eval.poolQ[1]
 
-	context.AddLvl(level, ct0.value[0], eval.poolQ[1], ctOut.value[0])
-	context.AddLvl(level, ct0.value[1], eval.poolQ[2], ctOut.value[1])
+	eval.switchKeysInPlace(level, ct0.value[2], evakey.evakey, pool2Q, pool3Q)
+
+	context.AddLvl(level, ct0.value[0], pool2Q, ctOut.value[0])
+	context.AddLvl(level, ct0.value[1], pool3Q, ctOut.value[1])
 
 	ctOut.Resize(eval.params, 1)
 }
@@ -1202,10 +1205,13 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, c
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
 	context := eval.ckksContext.contextQ
 
-	eval.switchKeysInPlace(level, ct0.value[1], switchingKey, eval.poolQ[1], eval.poolQ[2])
+	pool2Q := eval.poolQ[0]
+	pool3Q := eval.poolQ[1]
 
-	context.AddLvl(level, ct0.value[0], eval.poolQ[1], ctOut.value[0])
-	context.CopyLvl(level, eval.poolQ[2], ctOut.value[1])
+	eval.switchKeysInPlace(level, ct0.value[1], switchingKey, pool2Q, pool3Q)
+
+	context.AddLvl(level, ct0.value[0], pool2Q, ctOut.value[0])
+	context.CopyLvl(level, pool3Q, ctOut.value[1])
 }
 
 // RotateColumnsNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
@@ -1267,151 +1273,6 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rotation
 	}
 }
 
-// RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
-// rotation by one element of the list. It is much faster than sequential calls to RotateColumns.
-func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOut map[uint64]*Ciphertext) {
-
-	// Pre-computation for rotations using hoisting
-	contextQ := eval.ckksContext.contextQ
-	contextP := eval.ckksContext.contextP
-
-	c2NTT := ct0.value[1]
-	c2InvNTT := contextQ.NewPoly()
-	contextQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
-
-	alpha := eval.params.Alpha
-	beta := uint64(math.Ceil(float64(ct0.Level()+1) / float64(alpha)))
-
-	c2QiQDecomp := make([]*ring.Poly, beta)
-	c2QiPDecomp := make([]*ring.Poly, beta)
-
-	for i := uint64(0); i < beta; i++ {
-		c2QiQDecomp[i] = contextQ.NewPoly()
-		c2QiPDecomp[i] = contextP.NewPoly()
-		eval.decomposeAndSplitNTT(ct0.Level(), i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
-	}
-
-	cOut = make(map[uint64]*Ciphertext)
-
-	for _, i := range rotations {
-
-		i &= ((eval.ckksContext.n >> 1) - 1)
-
-		if i == 0 {
-			cOut[i] = ct0.CopyNew().Ciphertext()
-		} else {
-			cOut[i] = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale())
-			eval.switchKeyHoisted(ct0, c2QiQDecomp, c2QiPDecomp, i, rotkeys, cOut[i])
-		}
-	}
-
-	return
-}
-
-func (eval *evaluator) switchKeyHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-
-	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("cannot switchKeyHoisted: input and output Ciphertext must be of degree 1")
-	}
-
-	k &= (1 << (eval.ckksContext.logN - 1)) - 1
-
-	if evakey.permuteNTTLeftIndex[k] == nil {
-		panic("cannot switchKeyHoisted: specific rotation has not been generated")
-	}
-
-	ctOut.SetScale(ct0.Scale())
-
-	var level, reduce uint64
-
-	level = ctOut.Level()
-
-	contextQ := eval.ckksContext.contextQ
-	contextP := eval.ckksContext.contextP
-
-	if ct0 != ctOut {
-		ring.PermuteNTTWithIndex(ct0.value[0], evakey.permuteNTTLeftIndex[k], eval.ringpool[0])
-		contextQ.CopyLvl(level, eval.ringpool[0], ctOut.value[0])
-	} else {
-		ring.PermuteNTTWithIndex(ct0.value[0], evakey.permuteNTTLeftIndex[k], ctOut.value[0])
-	}
-
-	for i := range eval.poolQ {
-		eval.poolQ[i].Zero()
-	}
-
-	for i := range eval.poolP {
-		eval.poolP[i].Zero()
-	}
-
-	c2QiQPermute := eval.poolQ[0]
-	c2QiPPermute := eval.poolP[0]
-
-	pool2Q := eval.poolQ[1]
-	pool2P := eval.poolP[1]
-
-	pool3Q := eval.poolQ[2]
-	pool3P := eval.poolP[2]
-
-	reduce = 0
-
-	alpha := eval.params.Alpha
-	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
-
-	// Key switching with CRT decomposition for the Qi
-	for i := uint64(0); i < beta; i++ {
-
-		ring.PermuteNTTWithIndex(c2QiQDecomp[i], evakey.permuteNTTLeftIndex[k], c2QiQPermute)
-		ring.PermuteNTTWithIndex(c2QiPDecomp[i], evakey.permuteNTTLeftIndex[k], c2QiPPermute)
-
-		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakeyRotColLeft[k].evakey[i][0], c2QiQPermute, pool2Q)
-		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakeyRotColLeft[k].evakey[i][1], c2QiQPermute, pool3Q)
-
-		// We continue with the key-switch primes.
-		for j, keysindex := uint64(0), eval.ckksContext.levels; j < uint64(len(contextP.Modulus)); j, keysindex = j+1, keysindex+1 {
-
-			pj := contextP.Modulus[j]
-			mredParams := contextP.GetMredParams()[j]
-
-			key0 := evakey.evakeyRotColLeft[k].evakey[i][0].Coeffs[keysindex]
-			key1 := evakey.evakeyRotColLeft[k].evakey[i][1].Coeffs[keysindex]
-			p2tmp := pool2P.Coeffs[j]
-			p3tmp := pool3P.Coeffs[j]
-			c2tmp := c2QiPPermute.Coeffs[j]
-
-			for y := uint64(0); y < contextP.N; y++ {
-				p2tmp[y] += ring.MRed(key0[y], c2tmp[y], pj, mredParams)
-				p3tmp[y] += ring.MRed(key1[y], c2tmp[y], pj, mredParams)
-			}
-		}
-
-		if reduce&7 == 1 {
-			contextQ.ReduceLvl(level, pool2Q, pool2Q)
-			contextQ.ReduceLvl(level, pool3Q, pool3Q)
-			contextP.Reduce(pool2P, pool2P)
-			contextP.Reduce(pool3P, pool3P)
-		}
-
-		reduce++
-	}
-
-	if (reduce-1)&7 != 1 {
-		contextQ.ReduceLvl(level, pool2Q, pool2Q)
-		contextQ.ReduceLvl(level, pool3Q, pool3Q)
-		contextP.Reduce(pool2P, pool2P)
-		contextP.Reduce(pool3P, pool3P)
-	}
-
-	// Independent of context (parameter: level)
-	// Computes pool2Q = pool2Q/pool2P and pool3Q = pool3Q/pool3P
-	eval.baseconverter.ModDownSplitedNTTPQ(level, pool2Q, pool2P, pool2Q)
-	eval.baseconverter.ModDownSplitedNTTPQ(level, pool3Q, pool3P, pool3Q)
-
-	// Independent of context (parameter: level)
-	contextQ.AddLvl(level, ctOut.value[0], pool2Q, ctOut.value[0])
-	contextQ.CopyLvl(level, pool3Q, ctOut.value[1])
-}
-
 func (eval *evaluator) rotateColumnsLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
 	eval.rotateColumnsPow2(ct0, k, evakey.permuteNTTLeftIndex, evakey.evakeyRotColLeft, ctOut)
 }
@@ -1470,70 +1331,54 @@ func (eval *evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctOut *C
 	eval.permuteNTT(ct0, evakey.permuteNTTConjugateIndex, evakey.evakeyConjugate, ctOut)
 }
 
-func (eval *evaluator) permuteNTT(ct0 *Ciphertext, index []uint64, evakey *SwitchingKey, ctOut *Ciphertext) {
-
-	var el0, el1 *ring.Poly
-
-	if ct0 != ctOut {
-		el0, el1 = ctOut.value[0], ctOut.value[1]
-	} else {
-		el0, el1 = eval.ringpool[0], eval.ringpool[1]
-	}
-
-	ring.PermuteNTTWithIndex(ct0.value[0], index, el0)
-	ring.PermuteNTTWithIndex(ct0.value[1], index, el1)
+func (eval *evaluator) permuteNTT(ct0 *Ciphertext, index []uint64, rotKeys *SwitchingKey, ctOut *Ciphertext) {
 
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
-	context := eval.ckksContext.contextQ
 
-	eval.switchKeysInPlace(ctOut.Level(), el1, evakey, eval.poolQ[1], eval.poolQ[2])
+	pool2Q := eval.poolQ[0]
+	pool3Q := eval.poolQ[1]
 
-	context.AddLvl(level, el0, eval.poolQ[1], ctOut.value[0])
-	context.CopyLvl(level, eval.poolQ[2], ctOut.value[1])
+	eval.switchKeysInPlace(level, ct0.Value()[1], rotKeys, pool2Q, pool3Q)
+
+	eval.ckksContext.contextQ.AddLvl(level, pool2Q, ct0.value[0], pool2Q)
+
+	ring.PermuteNTTWithIndexLvl(level, pool2Q, index, ctOut.value[0])
+	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.value[1])
 }
 
 // switchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
-func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
-	var reduce uint64
+func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *SwitchingKey, pool2Q, pool3Q *ring.Poly) {
 
 	contextQ := eval.ckksContext.contextQ
 	contextP := eval.ckksContext.contextP
 
-	for i := range eval.poolQ {
-		eval.poolQ[i].Zero()
-	}
+	pool2P := eval.poolP[0]
+	pool3P := eval.poolP[1]
 
-	for i := range eval.poolP {
-		eval.poolP[i].Zero()
-	}
-
-	c2QiQ := eval.poolQ[0]
-	c2QiP := eval.poolP[0]
-
-	pool2Q := p0
-	pool2P := eval.poolP[1]
-
-	pool3Q := p1
-	pool3P := eval.poolP[2]
+	c2QiQDecomp := eval.poolQ[2]
+	c2QiPDecomp := eval.poolP[2]
 
 	c2 := eval.poolQ[3]
 
 	// We switch the element on which the switching key operation will be conducted out of the NTT domain
-
 	contextQ.InvNTTLvl(level, cx, c2)
-
-	reduce = 0
 
 	alpha := eval.params.Alpha
 	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
 
 	// Key switching with CRT decomposition for the Qi
+	var reduce uint64
 	for i := uint64(0); i < beta; i++ {
 
-		eval.decomposeAndSplitNTT(level, i, cx, c2, c2QiQ, c2QiP)
+		eval.decomposeAndSplitNTT(level, i, cx, c2, c2QiQDecomp, c2QiPDecomp)
 
-		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey[i][0], c2QiQ, pool2Q)
-		contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey[i][1], c2QiQ, pool3Q)
+		if i == 0 {
+			contextQ.MulCoeffsMontgomeryLvl(level, evakey.evakey[i][0], c2QiQDecomp, pool2Q)
+			contextQ.MulCoeffsMontgomeryLvl(level, evakey.evakey[i][1], c2QiQDecomp, pool3Q)
+		} else {
+			contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey[i][0], c2QiQDecomp, pool2Q)
+			contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey[i][1], c2QiQDecomp, pool3Q)
+		}
 
 		// We continue with the key-switch primes.
 		for j, keysindex := uint64(0), eval.ckksContext.levels; j < uint64(len(contextP.Modulus)); j, keysindex = j+1, keysindex+1 {
@@ -1543,13 +1388,23 @@ func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *Sw
 
 			key0 := evakey.evakey[i][0].Coeffs[keysindex]
 			key1 := evakey.evakey[i][1].Coeffs[keysindex]
-			c2tmp := c2QiP.Coeffs[j]
 			p2tmp := pool2P.Coeffs[j]
 			p3tmp := pool3P.Coeffs[j]
+			c2tmp := c2QiPDecomp.Coeffs[j]
 
-			for y := uint64(0); y < contextP.N; y++ {
-				p2tmp[y] += ring.MRed(key0[y], c2tmp[y], pj, mredParams)
-				p3tmp[y] += ring.MRed(key1[y], c2tmp[y], pj, mredParams)
+			if i == 0 {
+
+				for y := uint64(0); y < contextP.N; y++ {
+					p2tmp[y] = ring.MRed(key0[y], c2tmp[y], pj, mredParams)
+					p3tmp[y] = ring.MRed(key1[y], c2tmp[y], pj, mredParams)
+				}
+
+			} else {
+
+				for y := uint64(0); y < contextP.N; y++ {
+					p2tmp[y] += ring.MRed(key0[y], c2tmp[y], pj, mredParams)
+					p3tmp[y] += ring.MRed(key1[y], c2tmp[y], pj, mredParams)
+				}
 			}
 		}
 
@@ -1608,4 +1463,143 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 	}
 	// c2QiP = c2 mod qi mod pj
 	contextP.NTT(c2QiP, c2QiP)
+}
+
+// RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
+// rotation by one element of the list. It is much faster than sequential calls to RotateColumns.
+func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOut map[uint64]*Ciphertext) {
+
+	// Pre-computation for rotations using hoisting
+	contextQ := eval.ckksContext.contextQ
+	contextP := eval.ckksContext.contextP
+
+	c2NTT := ct0.value[1]
+	c2InvNTT := contextQ.NewPoly()
+	contextQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
+
+	alpha := eval.params.Alpha
+	beta := uint64(math.Ceil(float64(ct0.Level()+1) / float64(alpha)))
+
+	c2QiQDecomp := make([]*ring.Poly, beta)
+	c2QiPDecomp := make([]*ring.Poly, beta)
+
+	for i := uint64(0); i < beta; i++ {
+		c2QiQDecomp[i] = contextQ.NewPoly()
+		c2QiPDecomp[i] = contextP.NewPoly()
+		eval.decomposeAndSplitNTT(ct0.Level(), i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
+	}
+
+	cOut = make(map[uint64]*Ciphertext)
+
+	for _, i := range rotations {
+
+		i &= ((eval.ckksContext.n >> 1) - 1)
+
+		if i == 0 {
+			cOut[i] = ct0.CopyNew().Ciphertext()
+		} else {
+			cOut[i] = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale())
+			eval.permuteNTTHoisted(ct0, c2QiQDecomp, c2QiPDecomp, i, rotkeys, cOut[i])
+		}
+	}
+
+	return
+}
+
+func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k uint64, rotKeys *RotationKeys, ctOut *Ciphertext) {
+
+	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("cannot switchKeyHoisted: input and output Ciphertext must be of degree 1")
+	}
+
+	k &= (1 << (eval.ckksContext.logN - 1)) - 1
+
+	if rotKeys.permuteNTTLeftIndex[k] == nil {
+		panic("cannot switchKeyHoisted: specific rotation has not been generated")
+	}
+
+	ctOut.SetScale(ct0.Scale())
+
+	pool2Q := eval.poolQ[0]
+	pool3Q := eval.poolQ[1]
+
+	pool2P := eval.poolP[0]
+	pool3P := eval.poolP[1]
+
+	level := ctOut.Level()
+
+	eval.keyswitchHoisted(level, c2QiQDecomp, c2QiPDecomp, rotKeys.evakeyRotColLeft[k], pool2Q, pool3Q, pool2P, pool3P)
+
+	eval.ckksContext.contextQ.AddLvl(level, pool2Q, ct0.value[0], pool2Q)
+
+	ring.PermuteNTTWithIndexLvl(level, pool2Q, rotKeys.permuteNTTLeftIndex[k], ctOut.value[0])
+	ring.PermuteNTTWithIndexLvl(level, pool3Q, rotKeys.permuteNTTLeftIndex[k], ctOut.value[1])
+}
+
+func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
+
+	contextQ := eval.ckksContext.contextQ
+	contextP := eval.ckksContext.contextP
+
+	alpha := eval.params.Alpha
+	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
+
+	// Key switching with CRT decomposition for the Qi
+	var reduce uint64
+	for i := uint64(0); i < beta; i++ {
+
+		// Multiplication with the modulis Q_level of evakey[0] and evakey[1]
+		if i == 0 {
+			contextQ.MulCoeffsMontgomeryLvl(level, evakey.evakey[i][0], c2QiQDecomp[i], pool2Q)
+			contextQ.MulCoeffsMontgomeryLvl(level, evakey.evakey[i][1], c2QiQDecomp[i], pool3Q)
+		} else {
+			contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey[i][0], c2QiQDecomp[i], pool2Q)
+			contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey[i][1], c2QiQDecomp[i], pool3Q)
+		}
+
+		// Multiplication with the modulis P of evakey[0] and evakey[1]
+		for j, keysindex := uint64(0), eval.ckksContext.levels; j < uint64(len(contextP.Modulus)); j, keysindex = j+1, keysindex+1 {
+
+			pj := contextP.Modulus[j]
+			mredParams := contextP.GetMredParams()[j]
+
+			key0 := evakey.evakey[i][0].Coeffs[keysindex]
+			key1 := evakey.evakey[i][1].Coeffs[keysindex]
+			p2tmp := pool2P.Coeffs[j]
+			p3tmp := pool3P.Coeffs[j]
+			c2tmp := c2QiPDecomp[i].Coeffs[j]
+
+			if i == 0 {
+				for y := uint64(0); y < contextP.N; y++ {
+					p2tmp[y] = ring.MRed(key0[y], c2tmp[y], pj, mredParams)
+					p3tmp[y] = ring.MRed(key1[y], c2tmp[y], pj, mredParams)
+				}
+			} else {
+				for y := uint64(0); y < contextP.N; y++ {
+					p2tmp[y] += ring.MRed(key0[y], c2tmp[y], pj, mredParams)
+					p3tmp[y] += ring.MRed(key1[y], c2tmp[y], pj, mredParams)
+				}
+			}
+		}
+
+		if reduce&7 == 1 {
+			contextQ.ReduceLvl(level, pool2Q, pool2Q)
+			contextQ.ReduceLvl(level, pool3Q, pool3Q)
+			contextP.Reduce(pool2P, pool2P)
+			contextP.Reduce(pool3P, pool3P)
+		}
+
+		reduce++
+	}
+
+	if (reduce-1)&7 != 1 {
+		contextQ.ReduceLvl(level, pool2Q, pool2Q)
+		contextQ.ReduceLvl(level, pool3Q, pool3Q)
+		contextP.Reduce(pool2P, pool2P)
+		contextP.Reduce(pool3P, pool3P)
+	}
+
+	// Computes pool2Q = pool2Q/pool2P and pool3Q = pool3Q/pool3P
+	eval.baseconverter.ModDownSplitedNTTPQ(level, pool2Q, pool2P, pool2Q)
+	eval.baseconverter.ModDownSplitedNTTPQ(level, pool3Q, pool3P, pool3Q)
 }

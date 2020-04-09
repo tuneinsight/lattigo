@@ -233,7 +233,7 @@ func benchHoistedRotations(b *testing.B) {
 
 		b.Run(testString("RotateHoisted/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.switchKeyHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, rotkey, ciphertext)
+				evaluator.permuteNTTHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, rotkey, ciphertext)
 			}
 		})
 	}

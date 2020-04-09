@@ -55,7 +55,7 @@ func init() {
 	testParams.medianprec = 15
 	testParams.verbose = true
 
-	testParams.ckksParameters = DefaultParams[PN12QP109 : PN12QP109+3]
+	testParams.ckksParameters = DefaultParams[PN12QP109 : PN12QP109+4]
 }
 
 func TestCKKS(t *testing.T) {
@@ -1012,7 +1012,8 @@ func testRotateColumns(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
 			values2 := make([]complex128, len(values1))
-			rotations := []uint64{0, 1, 2, 3, 4, 5}
+			rotations := []uint64{1, 2, 3, 4, 5, 17, 31, 97, 127, 511}
+
 			for _, n := range rotations {
 				params.kgen.GenRot(RotationLeft, params.sk, n, rotKey)
 			}
@@ -1027,7 +1028,6 @@ func testRotateColumns(t *testing.T) {
 
 				verifyTestVectors(params, params.decryptor, values2, ciphertexts[n], t)
 			}
-
 		})
 	}
 }

@@ -1,4 +1,4 @@
-# Distributed machine learning based on lattigo
+# Distributed machine learning based on lattigo(It's still a draft. It's being updated)
 
 ## Install and usage
 ### linux

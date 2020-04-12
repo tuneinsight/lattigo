@@ -110,7 +110,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	contextT := rfp.context.contextT
 	contextKeys := rfp.context.contextQP
 	contextP := rfp.context.contextP
-	sampler := rfp.context.contextQP.NewKYSampler(3.19, 19) // TODO : add smudging noise
+	sampler := rfp.context.contextQP.NewSampler(3.19, 19) // TODO : add smudging noise
 
 	// h0 = s*ct[1]
 	contextQ.NTT(ciphertext.Value()[1], rfp.tmp1)

@@ -10,7 +10,7 @@ type PCKSProtocol struct {
 	context *dbfvContext
 
 	sigmaSmudging         float64
-	gaussianSamplerSmudge *ring.KYSampler
+	gaussianSamplerSmudge *ring.Sampler
 
 	tmp       *ring.Poly
 	share0tmp *ring.Poly
@@ -85,7 +85,7 @@ func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtoco
 
 	pcks.context = context
 
-	pcks.gaussianSamplerSmudge = context.contextQP.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	pcks.gaussianSamplerSmudge = context.contextQP.NewSampler(sigmaSmudging, uint64(6*sigmaSmudging))
 
 	pcks.tmp = context.contextQP.NewPoly()
 	pcks.share0tmp = context.contextQP.NewPoly()

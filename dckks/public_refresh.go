@@ -43,7 +43,7 @@ func (refreshProtocol *RefreshProtocol) AllocateShares(levelStart uint64) (Refre
 func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
 
 	context := refreshProtocol.dckksContext.contextQ
-	sampler := context.NewKYSampler(3.19, 19)
+	sampler := context.NewSampler(3.19, 19)
 
 	bound := ring.NewUint(context.Modulus[0])
 	for i := uint64(1); i < levelStart+1; i++ {

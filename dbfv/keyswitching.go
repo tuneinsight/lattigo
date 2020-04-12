@@ -10,7 +10,7 @@ type CKSProtocol struct {
 	context *dbfvContext
 
 	sigmaSmudging         float64
-	gaussianSamplerSmudge *ring.KYSampler
+	gaussianSamplerSmudge *ring.Sampler
 
 	tmpNtt   *ring.Poly
 	tmpDelta *ring.Poly
@@ -47,7 +47,7 @@ func NewCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *CKSProtocol 
 
 	cks.context = context
 
-	cks.gaussianSamplerSmudge = context.contextQP.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	cks.gaussianSamplerSmudge = context.contextQP.NewSampler(sigmaSmudging, uint64(6*sigmaSmudging))
 
 	cks.tmpNtt = cks.context.contextQP.NewPoly()
 	cks.tmpDelta = cks.context.contextQ.NewPoly()

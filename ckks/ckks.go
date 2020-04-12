@@ -33,7 +33,7 @@ type Context struct {
 	contextQP *ring.Context
 
 	// Samplers
-	gaussianSampler *ring.KYSampler
+	gaussianSampler *ring.Sampler
 
 	// Rotation params
 	galElConjugate   uint64
@@ -78,7 +78,7 @@ func newContext(params *Parameters) (ckkscontext *Context) {
 		panic(err)
 	}
 
-	ckkscontext.gaussianSampler = ckkscontext.contextQP.NewKYSampler(params.Sigma, int(6*params.Sigma))
+	ckkscontext.gaussianSampler = ckkscontext.contextQP.NewSampler(params.Sigma, uint64(6*params.Sigma))
 
 	ckkscontext.galElRotColLeft = ring.GenGaloisParams(N, GaloisGen)
 	ckkscontext.galElRotColRight = ring.GenGaloisParams(N, ring.ModExp(GaloisGen, 2*N-1, 2*N))

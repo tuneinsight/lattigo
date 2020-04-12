@@ -2,7 +2,6 @@ package ring
 
 import (
 	"crypto/rand"
-	"math"
 )
 
 // SampleGaussian samples a truncated gaussian polynomial with variance
@@ -88,76 +87,56 @@ func (context *Context) SampleGaussianNTTNew(sigma float64, bound uint64) (pol *
 	return
 }
 
-// KYSampler is the structure holding the parameters for the gaussian sampling.
-type KYSampler struct {
+// Kept for backwards compatibility
+type Sampler struct {
 	context *Context
 	sigma   float64
-	bound   int
-	Matrix  [][]uint8
+	bound   uint64
 }
 
-// NewKYSampler creates a new KYSampler with the variance sigma and a bound that will be used
-// to sample polynomial within the provided discret gaussian distribution.
-func (context *Context) NewKYSampler(sigma float64, bound int) *KYSampler {
-	kysampler := new(KYSampler)
-	kysampler.context = context
-	kysampler.sigma = sigma
-	kysampler.bound = bound
-	kysampler.Matrix = computeMatrix(sigma, bound)
-	return kysampler
+// Kept for backwards compatibility
+func (context *Context) NewSampler(sigma float64, bound uint64) *Sampler {
+	sampler := new(Sampler)
+	sampler.context = context
+	sampler.sigma = sigma
+	sampler.bound = bound
+	return sampler
 }
 
-// gaussian computes (1/variange*sqrt(pi)) * exp((x^2) / (2*variance^2)),
-// 2.50662827463100050241576528481104525300698674060993831662992357 = sqrt(2*pi)
-func gaussian(x, sigma float64) float64 {
-	return (1 / (sigma * 2.5066282746310007)) * math.Exp(-((math.Pow(x, 2)) / (2 * sigma * sigma)))
+// Kept for backwards compatibility
+func (sampler *Sampler) SampleNew() *Poly {
+	Pol := sampler.context.NewPoly()
+	sampler.Sample(Pol)
+	return Pol
 }
 
-// computeMatrix computes the binary expension with precision x in bits of the normal distribution
-// with sigma and bound. Returns a matrix of the form M = [[0,1,0,0,...],[0,0,1,,0,...]],
-// where each row is the binary expension of the normal distribution of index(row) with sigma and bound (center=0).
-func computeMatrix(sigma float64, bound int) [][]uint8 {
-	var g float64
-	var x uint64
+// Kept for backwards compatibility
+func (sampler *Sampler) Sample(Pol *Poly) {
+	sampler.context.SampleGaussian(Pol, sampler.sigma, sampler.bound)
+	return
+}
 
-	precision := uint64(56)
+// Kept for backwards compatibility
+func (sampler *Sampler) SampleAndAdd(Pol *Poly) {
+	sampler.context.SampleGaussianAndAdd(Pol, sampler.sigma, sampler.bound)
+}
 
-	M := make([][]uint8, bound)
+// Kept for backwards compatibility
+func (sampler *Sampler) SampleNTTNew() *Poly {
+	Pol := sampler.SampleNew()
+	sampler.context.NTT(Pol, Pol)
+	return Pol
+}
 
-	breakCounter := 0
-
-	for i := 0; i < bound; i++ {
-
-		g = gaussian(float64(i), sigma)
-
-		if i == 0 {
-			g *= math.Exp2(float64(precision) - 1)
-		} else {
-			g *= math.Exp2(float64(precision))
-		}
-
-		x = uint64(g)
-
-		if x == 0 {
-			break
-		}
-
-		M[i] = make([]uint8, precision-1)
-
-		for j := uint64(0); j < precision-1; j++ {
-			M[i][j] = uint8((x >> (precision - j - 2)) & 1)
-		}
-
-		breakCounter++
-	}
-
-	M = M[:breakCounter]
-
-	return M
+// Kept for backwards compatibility
+func (sampler *Sampler) SampleNTT(Pol *Poly) {
+	sampler.Sample(Pol)
+	sampler.context.NTT(Pol, Pol)
 }
 
 // kysampling use the binary expension and random bytes matrix to sample a discret gaussian value and its sign.
-func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64, []byte, uint8) {
+// Kept For ternarySampler functionality
+func kysampling(M [][]uint8, randomBytes []byte, pointer uint8, bytePointer uint64, byteLength uint64) (uint64, uint64, []byte, uint8, uint64) {
 
 	var sign uint8
 
@@ -170,12 +149,12 @@ func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 		// Uses one random byte per cycle and cycle through the randombytes
 		for i := pointer; i < 8; i++ {
 
-			d = (d << 1) + 1 - int((uint8(randomBytes[0])>>i)&1)
+			d = (d << 1) + 1 - int((uint8(randomBytes[bytePointer])>>i)&1)
 
 			// There is small probability that it will get out of the bound, then
 			// rerun until it gets a proper output
 			if d > colLen-1 {
-				return kysampling(M, randomBytes, i)
+				return kysampling(M, randomBytes, i, bytePointer, byteLength)
 			}
 
 			for row := colLen - 1; row >= 0; row-- {
@@ -187,25 +166,25 @@ func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 					// Sign
 					if i == 7 {
 						pointer = 0
-						// If the last bit of the byte was read, samples a new byte for the sign
-						randomBytes = randomBytes[1:]
+						bytePointer++
 
-						if len(randomBytes) == 0 {
-							randomBytes = make([]byte, 8)
+						// If the last bit of the byte was read, samples a new byte for the sign
+						if bytePointer >= byteLength {
+							bytePointer = 0
 							if _, err := rand.Read(randomBytes); err != nil {
 								panic("crypto rand error")
 							}
 						}
 
-						sign = uint8(randomBytes[0]) & 1
+						sign = uint8(randomBytes[bytePointer]) & 1
 
 					} else {
 						pointer = i
 						// Else the sign is the next bit of the byte
-						sign = uint8(randomBytes[0]>>(i+1)) & 1
+						sign = uint8(randomBytes[bytePointer]>>(i+1)) & 1
 					}
 
-					return uint64(row), uint64(sign), randomBytes, pointer + 1
+					return uint64(row), uint64(sign), randomBytes, pointer + 1, bytePointer
 				}
 			}
 
@@ -214,89 +193,15 @@ func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 
 		// Resets the bit pointer and discards the used byte
 		pointer = 0
-		randomBytes = randomBytes[1:]
+		bytePointer++
 
-		// Sample 8 new bytes if the last byte was discarded
-		if len(randomBytes) == 0 {
-			randomBytes = make([]byte, 8)
+		// Sample new bytes if the last byte was discarded
+		if bytePointer >= byteLength {
+			bytePointer = 0
 			if _, err := rand.Read(randomBytes); err != nil {
 				panic("crypto rand error")
 			}
 		}
 
 	}
-}
-
-// SampleNew samples a new polynomial with a discret gaussian distribution.
-func (kys *KYSampler) SampleNew() *Poly {
-	Pol := kys.context.NewPoly()
-	kys.Sample(Pol)
-	return Pol
-}
-
-// Sample samples on the target polynomial coefficients with a discret gaussian distribution.
-func (kys *KYSampler) Sample(Pol *Poly) {
-
-	var coeff uint64
-	var sign uint64
-
-	randomBytes := make([]byte, 8)
-	pointer := uint8(0)
-
-	if _, err := rand.Read(randomBytes); err != nil {
-		panic("crypto rand error")
-	}
-
-	for i := uint64(0); i < kys.context.N; i++ {
-
-		coeff, sign, randomBytes, pointer = kysampling(kys.Matrix, randomBytes, pointer)
-
-		for j, qi := range kys.context.Modulus {
-			Pol.Coeffs[j][i] = (coeff & (sign * 0xFFFFFFFFFFFFFFFF)) | ((qi - coeff) & ((sign ^ 1) * 0xFFFFFFFFFFFFFFFF))
-
-		}
-	}
-}
-
-// SampleAndAddLvl adds on the input polynomial a polynomial a with a discret gaussian distribution.
-// The parameter level defines the number of CRT moduli of the input polynomial.
-func (kys *KYSampler) SampleAndAddLvl(level uint64, Pol *Poly) {
-
-	var coeff uint64
-	var sign uint64
-
-	randomBytes := make([]byte, 8)
-	pointer := uint8(0)
-
-	if _, err := rand.Read(randomBytes); err != nil {
-		panic("crypto rand error")
-	}
-
-	for i := uint64(0); i < kys.context.N; i++ {
-
-		coeff, sign, randomBytes, pointer = kysampling(kys.Matrix, randomBytes, pointer)
-
-		for j := uint64(0); j < level+1; j++ {
-			Pol.Coeffs[j][i] = CRed(Pol.Coeffs[j][i]+((coeff*sign)|(kys.context.Modulus[j]-coeff)*(sign^1)), kys.context.Modulus[j])
-		}
-	}
-}
-
-// SampleAndAddLvl adds on the input polynomial a polynomial a with a discret gaussian distribution.
-func (kys *KYSampler) SampleAndAdd(Pol *Poly) {
-	kys.SampleAndAddLvl(uint64(len(kys.context.Modulus))-1, Pol)
-}
-
-// SampleNTTNew samples in the NTT domain a new polynomial with a discret gaussian distribution.
-func (kys *KYSampler) SampleNTTNew() *Poly {
-	Pol := kys.SampleNew()
-	kys.context.NTT(Pol, Pol)
-	return Pol
-}
-
-// SampleNTT adds on the input polynomial a polynomial with a discret gaussian distribution and switch the input
-// polynomial in the NTT domain.
-func (kys *KYSampler) SampleNTT(Pol *Poly) {
-	kys.Sample(Pol)
-	kys.context.NTT(Pol, Pol)
 }

@@ -17,7 +17,7 @@ type bfvContext struct {
 	// Polynomial degree
 	n uint64
 
-	gaussianSampler *ring.KYSampler
+	gaussianSampler *ring.Sampler
 
 	// Polynomial contexts
 	contextT    *ring.Context
@@ -67,7 +67,7 @@ func newBFVContext(params *Parameters) (context *bfvContext) {
 		panic(err)
 	}
 
-	context.gaussianSampler = context.contextQP.NewKYSampler(params.Sigma, int(6*params.Sigma))
+	context.gaussianSampler = context.contextQP.NewSampler(params.Sigma, uint64(6*params.Sigma))
 
 	context.galElRotColLeft = ring.GenGaloisParams(context.n, GaloisGen)
 	context.galElRotColRight = ring.GenGaloisParams(context.n, ring.ModExp(GaloisGen, 2*context.n-1, 2*context.n))

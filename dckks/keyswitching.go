@@ -10,7 +10,7 @@ type CKSProtocol struct {
 	dckksContext *dckksContext
 
 	sigmaSmudging         float64
-	gaussianSamplerSmudge *ring.KYSampler
+	gaussianSamplerSmudge *ring.Sampler
 
 	tmp      *ring.Poly
 	tmpDelta *ring.Poly
@@ -37,7 +37,7 @@ func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSPro
 
 	cks.dckksContext = dckksContext
 
-	cks.gaussianSamplerSmudge = dckksContext.contextQP.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	cks.gaussianSamplerSmudge = dckksContext.contextQP.NewSampler(sigmaSmudging, uint64(6*sigmaSmudging))
 
 	cks.tmp = dckksContext.contextQP.NewPoly()
 	cks.tmpDelta = dckksContext.contextQ.NewPoly()

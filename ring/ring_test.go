@@ -266,7 +266,7 @@ func testMarshalBinary(t *testing.T) {
 func testGaussianSampler(t *testing.T) {
 
 	sigma := testParams.sigma
-	bound := int(sigma * 6)
+	bound := uint64(sigma * 6)
 
 	for _, parameters := range testParams.polyParams {
 
@@ -274,18 +274,18 @@ func testGaussianSampler(t *testing.T) {
 
 		t.Run(testString("", context), func(t *testing.T) {
 
-			KYS := context.NewKYSampler(sigma, bound)
+			Sampler := context.NewSampler(sigma, bound)
 
 			pol := context.NewPoly()
 
-			KYS.Sample(pol)
+			Sampler.Sample(pol)
 
 			state := true
 
 			for i := uint64(0); i < context.N; i++ {
 				for j, qi := range context.Modulus {
 
-					if (uint64(bound) < pol.Coeffs[j][i]) && (pol.Coeffs[j][i] < (qi - uint64(bound))) {
+					if (bound < pol.Coeffs[j][i]) && (pol.Coeffs[j][i] < (qi - bound)) {
 						state = false
 						break
 					}

@@ -84,14 +84,6 @@ func benchSampling(b *testing.B) {
 			}
 		})
 
-		KYS := context.NewKYSampler(sigma, int(bound))
-
-		b.Run(testString("Gaussian/Knuth-Yao/", context), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				KYS.Sample(pol)
-			}
-		})
-
 		b.Run(testString("Ternary/0.3/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				context.SampleTernary(pol, 1.0/3)

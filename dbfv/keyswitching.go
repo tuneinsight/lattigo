@@ -9,8 +9,7 @@ import (
 type CKSProtocol struct {
 	context *dbfvContext
 
-	sigmaSmudging         float64
-	gaussianSamplerSmudge *ring.KYSampler
+	sigmaSmudging float64
 
 	tmpNtt   *ring.Poly
 	tmpDelta *ring.Poly

@@ -43,7 +43,6 @@ func (refreshProtocol *RefreshProtocol) AllocateShares(levelStart uint64) (Refre
 func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
 
 	context := refreshProtocol.dckksContext.contextQ
-	sampler := context.NewKYSampler(3.19, 19)
 
 	bound := ring.NewUint(context.Modulus[0])
 	for i := uint64(1); i < levelStart+1; i++ {
@@ -81,11 +80,11 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 	context.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
 
 	// h0 = sk*c1 + mask + e0
-	sampler.SampleNTT(refreshProtocol.tmp)
+	context.SampleGaussianNTTLvl(uint64(len(context.Modulus)-1), refreshProtocol.tmp, 3.19, 19)
 	context.AddLvl(levelStart, shareDecrypt, refreshProtocol.tmp, shareDecrypt)
 
 	// h1 = sk*a + mask + e1
-	sampler.SampleNTT(refreshProtocol.tmp)
+	context.SampleGaussianNTTLvl(uint64(len(context.Modulus)-1), refreshProtocol.tmp, 3.19, 19)
 	context.Add(shareRecrypt, refreshProtocol.tmp, shareRecrypt)
 
 	// h1 = -sk*c1 - mask - e0

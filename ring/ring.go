@@ -464,7 +464,7 @@ func (context *Context) Exp(p1 *Poly, e uint64, p2 *Poly) {
 // context.modulus^context.N - 1 and writes the result in p2
 // TODO: implement Euclidian or faster algorithm
 func (context *Context) InvNaive(p1 *Poly, p2 *Poly) {
-	context.Exp(p1, Pow(context.modulus,context.N) - 2, p2)
+	context.Exp(p1, Pow(context.modulus,context.N) -1, p2)
 }
 
 // AddScalar adds to each coefficient of p1 a scalar and writes the result on p2.

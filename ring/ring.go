@@ -460,13 +460,6 @@ func (context *Context) Exp(p1 *Poly, e uint64, p2 *Poly) {
 	context.InvNTT(p1, p2)
 }
 
-// InvNaive compute the inverse of p1 by taking it to the power
-// context.modulus^context.N - 1 and writes the result in p2
-// TODO: implement Euclidian or faster algorithm
-func (context *Context) InvNaive(p1 *Poly, p2 *Poly) {
-	context.Exp(p1, Pow(context.modulus,context.N) -1, p2)
-}
-
 // AddScalar adds to each coefficient of p1 a scalar and writes the result on p2.
 func (context *Context) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	for i, Qi := range context.Modulus {

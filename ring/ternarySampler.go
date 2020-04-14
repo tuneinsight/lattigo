@@ -180,9 +180,10 @@ func (context *Context) sampleTernary(samplerMatrix [][]uint64, p float64, pol *
 
 		matrix := computeMatrixTernary(p)
 
-		randomBytes := make([]byte, 8)
+		randomBytes := make([]byte, context.N)
 
 		pointer := uint8(0)
+		bytePointer := uint64(0)
 
 		if _, err := rand.Read(randomBytes); err != nil {
 			panic("crypto rand error")
@@ -190,7 +191,7 @@ func (context *Context) sampleTernary(samplerMatrix [][]uint64, p float64, pol *
 
 		for i := uint64(0); i < context.N; i++ {
 
-			coeff, sign, randomBytes, pointer = kysampling(matrix, randomBytes, pointer)
+			coeff, sign, randomBytes, pointer, bytePointer = kysampling(matrix, randomBytes, pointer, bytePointer, context.N)
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 

@@ -88,7 +88,7 @@ func (context *Context) SampleGaussianNTTNew(sigma float64, bound uint64) (pol *
 }
 
 // kysampling use the binary expension and random bytes matrix to sample a discret gaussian value and its sign.
-func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64, []byte, uint8) {
+func kysampling(M [][]uint8, randomBytes []byte, pointer uint8, bytePointer uint64, byteLength uint64) (uint64, uint64, []byte, uint8, uint64) {
 
 	var sign uint8
 
@@ -101,12 +101,12 @@ func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 		// Uses one random byte per cycle and cycle through the randombytes
 		for i := pointer; i < 8; i++ {
 
-			d = (d << 1) + 1 - int((uint8(randomBytes[0])>>i)&1)
+			d = (d << 1) + 1 - int((uint8(randomBytes[bytePointer])>>i)&1)
 
 			// There is small probability that it will get out of the bound, then
 			// rerun until it gets a proper output
 			if d > colLen-1 {
-				return kysampling(M, randomBytes, i)
+				return kysampling(M, randomBytes, i, bytePointer, byteLength)
 			}
 
 			for row := colLen - 1; row >= 0; row-- {
@@ -118,25 +118,25 @@ func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 					// Sign
 					if i == 7 {
 						pointer = 0
-						// If the last bit of the byte was read, samples a new byte for the sign
-						randomBytes = randomBytes[1:]
+						// If the last bit of the array was read, samples a new one
+						bytePointer++
 
-						if len(randomBytes) == 0 {
-							randomBytes = make([]byte, 8)
+						if bytePointer >= byteLength {
+							bytePointer = 0
 							if _, err := rand.Read(randomBytes); err != nil {
 								panic("crypto rand error")
 							}
 						}
 
-						sign = uint8(randomBytes[0]) & 1
+						sign = uint8(randomBytes[bytePointer]) & 1
 
 					} else {
 						pointer = i
 						// Else the sign is the next bit of the byte
-						sign = uint8(randomBytes[0]>>(i+1)) & 1
+						sign = uint8(randomBytes[bytePointer]>>(i+1)) & 1
 					}
 
-					return uint64(row), uint64(sign), randomBytes, pointer + 1
+					return uint64(row), uint64(sign), randomBytes, pointer + 1, bytePointer
 				}
 			}
 
@@ -145,11 +145,11 @@ func kysampling(M [][]uint8, randomBytes []byte, pointer uint8) (uint64, uint64,
 
 		// Resets the bit pointer and discards the used byte
 		pointer = 0
-		randomBytes = randomBytes[1:]
+		// If the last bit of the array was read, samples a new one
+		bytePointer++
 
-		// Sample 8 new bytes if the last byte was discarded
-		if len(randomBytes) == 0 {
-			randomBytes = make([]byte, 8)
+		if bytePointer >= byteLength {
+			bytePointer = 0
 			if _, err := rand.Read(randomBytes); err != nil {
 				panic("crypto rand error")
 			}

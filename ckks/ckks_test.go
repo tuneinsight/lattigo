@@ -115,7 +115,7 @@ func newTestVectors(contextParams *ckksParams, encryptor Encryptor, a float64, t
 
 	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
 
-	contextParams.encoder.Encode(plaintext, values, slots)
+	contextParams.encoder.EncodeNTT(plaintext, values, slots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)
@@ -138,7 +138,7 @@ func newTestVectorsReals(contextParams *ckksParams, encryptor Encryptor, a, b fl
 
 	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
 
-	contextParams.encoder.Encode(plaintext, values, slots)
+	contextParams.encoder.EncodeNTT(plaintext, values, slots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)
@@ -159,7 +159,7 @@ func newTestVectorsSineBoot(contextParams *ckksParams, encryptor Encryptor, a, b
 
 	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
 
-	contextParams.encoder.Encode(plaintext, values, slots)
+	contextParams.encoder.EncodeNTT(plaintext, values, slots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)

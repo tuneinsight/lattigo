@@ -193,13 +193,25 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		// ct1 = u*pk1
 		contextQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], ciphertext.value[1])
 
-		// ct0 = u*pk0 + e0
-		contextQ.SampleGaussianNTTLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
-		contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
-
-		// ct0 = u*pk1 + e1
+		// ct1 = u*pk1 + e1
 		contextQ.SampleGaussianNTTLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 		contextQ.Add(ciphertext.value[1], encryptor.polypool[0], ciphertext.value[1])
+
+		if !plaintext.isNTT {
+
+			// ct0 = u*pk0 + e0
+			contextQ.SampleGaussianLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+			// ct0 = (u*pk0 + e0)/P + m
+			contextQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
+			contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+
+		} else {
+			// ct0 = u*pk0 + e0
+			contextQ.SampleGaussianNTTLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		}
 
 	} else {
 
@@ -229,13 +241,19 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		// ct1 = (u*pk1 + e1)/P
 		encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[1], ciphertext.value[1])
 
+		if !plaintext.isNTT {
+			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		}
+
 		// 2*#Q NTT
 		contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
 		contextQ.NTT(ciphertext.value[1], ciphertext.value[1])
-	}
 
-	// ct0 = (u*pk0 + e0)/P + m
-	contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		if plaintext.isNTT {
+			// ct0 = (u*pk0 + e0)/P + m
+			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		}
+	}
 
 	ciphertext.isNTT = true
 }
@@ -303,20 +321,24 @@ func (encryptor *skEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertex
 
 func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
 	if fast {
-		encryptor.ckksContext.contextQ.UniformPoly(encryptor.polypool[1])
+		encryptor.ckksContext.contextQ.UniformPoly(ciphertext.value[1])
+		encryptor.encrypt(plaintext, ciphertext, ciphertext.value[1], fast)
 	} else {
 		encryptor.ckksContext.contextQP.UniformPoly(encryptor.polypool[1])
+		encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1], fast)
 	}
-	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1], fast)
+
 }
 
 func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly, fast bool) {
 	if fast {
-		encryptor.ckksContext.contextQ.Copy(crp, encryptor.polypool[1])
+		encryptor.ckksContext.contextQ.Copy(crp, ciphertext.value[1])
+		encryptor.encrypt(plaintext, ciphertext, ciphertext.value[1], fast)
 	} else {
 		encryptor.ckksContext.contextQP.Copy(crp, encryptor.polypool[1])
+		encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1], fast)
 	}
-	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1], fast)
+
 }
 
 func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly, fast bool) {
@@ -327,13 +349,19 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		level := uint64(len(contextQ.Modulus) - 1)
 
-		contextQ.MulCoeffsMontgomery(crp, encryptor.sk.sk, ciphertext.value[0])
+		contextQ.MulCoeffsMontgomery(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
 		contextQ.Neg(ciphertext.value[0], ciphertext.value[0])
 
-		contextQ.SampleGaussianNTTLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
-		contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
-
-		contextQ.Copy(crp, ciphertext.value[1])
+		if plaintext.isNTT {
+			contextQ.SampleGaussianNTTLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		} else {
+			contextQ.SampleGaussianLvl(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+			contextQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
+			contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+		}
 
 	} else {
 
@@ -359,12 +387,18 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		// ct1 = a/P
 		encryptor.baseconverter.ModDownNTTPQ(plaintext.Level(), crp, ciphertext.value[1])
 
+		if !plaintext.isNTT {
+			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		}
+
 		// #Q NTT
 		contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
-	}
 
-	// ct0 = -s*a + m + e
-	contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		if plaintext.isNTT {
+			// ct0 = (u*pk0 + e0)/P + m
+			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		}
+	}
 
 	ciphertext.isNTT = true
 }

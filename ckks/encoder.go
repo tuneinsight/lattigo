@@ -10,6 +10,8 @@ import (
 type Encoder interface {
 	Encode(plaintext *Plaintext, values []complex128, slots uint64)
 	EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext)
+	EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64)
+	EncodeNTTNew(values []complex128, slots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
@@ -106,8 +108,6 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 
 	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
-	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
-
 	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
 		encoder.values[i] = 0
 	}
@@ -115,6 +115,23 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 	for i := uint64(0); i < encoder.ckksContext.n; i++ {
 		encoder.valuesfloat[i] = 0
 	}
+
+	plaintext.isNTT = false
+}
+
+func (encoder *encoder) EncodeNTTNew(values []complex128, slots uint64) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel, encoder.params.Scale)
+	encoder.EncodeNTT(plaintext, values, slots)
+	return
+}
+
+func (encoder *encoder) EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64) {
+
+	encoder.Encode(plaintext, values, slots)
+
+	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+
+	plaintext.isNTT = true
 }
 
 // EncodeCoefficients takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient

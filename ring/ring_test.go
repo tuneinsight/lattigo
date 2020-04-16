@@ -83,8 +83,8 @@ func testPRNG(t *testing.T) {
 			crsGenerator1.SetClock(256)
 			crsGenerator2.SetClock(256)
 
-			p0 := crsGenerator1.ClockNew()
-			p1 := crsGenerator2.ClockNew()
+			p0 := crsGenerator1.ClockUniformNew()
+			p1 := crsGenerator2.ClockUniformNew()
 
 			require.True(t, context.Equal(p0, p1))
 		})

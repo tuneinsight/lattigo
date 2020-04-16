@@ -10,15 +10,10 @@ import (
 // UniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
 func (context *Context) UniformPoly(Pol *Poly) {
 
-	var randomBytes []byte
 	var randomUint, mask, qi uint64
+	var ptr uint64
 
-	n := context.N
-	if n < 8 {
-		n = 8
-	}
-
-	randomBytes = make([]byte, n)
+	randomBytes := make([]byte, context.N)
 	if _, err := rand.Read(randomBytes); err != nil {
 		panic("crypto rand error")
 	}
@@ -39,16 +34,16 @@ func (context *Context) UniformPoly(Pol *Poly) {
 			for {
 
 				// Replenishes the pool if it runs empty
-				if len(randomBytes) < 8 {
-					randomBytes = make([]byte, n)
+				if ptr == context.N {
 					if _, err := rand.Read(randomBytes); err != nil {
 						panic("crypto rand error")
 					}
+					ptr = 0
 				}
 
 				// Reads bytes from the pool
-				randomUint = binary.BigEndian.Uint64(randomBytes[:8]) & mask
-				randomBytes = randomBytes[8:] // Discard the used bytes
+				randomUint = binary.BigEndian.Uint64(randomBytes[ptr:ptr+8]) & mask
+				ptr += 8
 
 				// If the integer is between [0, qi-1], breaks the loop
 				if randomUint < qi {
@@ -141,20 +136,19 @@ func randFloat64(randomBytes []byte) float64 {
 //
 //  sample = NormFloat64() * desiredStdDev + desiredMean
 // Algorithm adapted from https://golang.org/src/math/rand/normal.go
-func normFloat64(randomBytes []byte) (float64, uint64, []byte) {
+func normFloat64(ptr uint64, randomBytes []byte) (float64, uint64, []byte, uint64) {
 
 	for {
 
-		if len(randomBytes) < 4 {
-			randomBytes = make([]byte, 1024)
-
+		if ptr == uint64(len(randomBytes)) {
 			if _, err := rand.Read(randomBytes); err != nil {
 				panic("crypto rand error")
 			}
+			ptr = 0
 		}
 
 		juint32 := binary.BigEndian.Uint32(randomBytes[:4])
-		randomBytes = randomBytes[4:]
+		ptr += 8
 
 		j := int32(juint32 & 0x7fffffff)
 		sign := uint64(juint32 >> 31)
@@ -167,7 +161,7 @@ func normFloat64(randomBytes []byte) (float64, uint64, []byte) {
 		if uint32(j) < kn[i] {
 
 			// This case should be hit better than 99% of the time.
-			return x, sign, randomBytes
+			return x, sign, randomBytes, ptr
 		}
 
 		// 2
@@ -176,38 +170,46 @@ func normFloat64(randomBytes []byte) (float64, uint64, []byte) {
 			// This extra work is only required for the base strip.
 			for {
 
-				if len(randomBytes) < 16 {
-					randomBytes = make([]byte, 1024)
-
+				if ptr == uint64(len(randomBytes)) {
 					if _, err := rand.Read(randomBytes); err != nil {
 						panic("crypto rand error")
 					}
+					ptr = 0
 				}
 
-				x = -math.Log(randFloat64(randomBytes)) * (1.0 / 3.442619855899)
+				x = -math.Log(randFloat64(randomBytes[ptr:ptr+8])) * (1.0 / 3.442619855899)
+				ptr += 8
 
-				y := -math.Log(randFloat64(randomBytes))
+				if ptr == uint64(len(randomBytes)) {
+					if _, err := rand.Read(randomBytes); err != nil {
+						panic("crypto rand error")
+					}
+					ptr = 0
+				}
+
+				y := -math.Log(randFloat64(randomBytes[ptr : ptr+8]))
+				ptr += 8
 
 				if y+y >= x*x {
 					break
 				}
 			}
 
-			return x + 3.442619855899, sign, randomBytes
+			return x + 3.442619855899, sign, randomBytes, ptr
 		}
 
-		if len(randomBytes) < 8 {
-			randomBytes = make([]byte, 1024)
-
+		if ptr == uint64(len(randomBytes)) {
 			if _, err := rand.Read(randomBytes); err != nil {
 				panic("crypto rand error")
 			}
+			ptr = 0
 		}
 
 		// 3
-		if fn[i]+float32(randFloat64(randomBytes))*(fn[i-1]-fn[i]) < float32(math.Exp(-0.5*x*x)) {
-			return x, sign, randomBytes
+		if fn[i]+float32(randFloat64(randomBytes[ptr:ptr+8]))*(fn[i-1]-fn[i]) < float32(math.Exp(-0.5*x*x)) {
+			return x, sign, randomBytes, ptr + 8
 		}
+		ptr += 8
 	}
 }
 

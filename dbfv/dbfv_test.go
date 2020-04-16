@@ -123,7 +123,7 @@ func testPublicKeyGen(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
 			crpGenerator.Seed([]byte{})
-			crp := crpGenerator.ClockNew()
+			crp := crpGenerator.ClockUniformNew()
 
 			type Party struct {
 				*CKGProtocol
@@ -203,7 +203,7 @@ func testRelinKeyGen(t *testing.T) {
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.ClockNew()
+				crp[i] = crpGenerator.ClockUniformNew()
 			}
 
 			// ROUND 1
@@ -462,7 +462,7 @@ func testRotKeyGenRotRows(t *testing.T) {
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.ClockNew()
+				crp[i] = crpGenerator.ClockUniformNew()
 			}
 
 			for i, p := range pcksParties {
@@ -524,7 +524,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.ClockNew()
+				crp[i] = crpGenerator.ClockUniformNew()
 			}
 
 			mask := (testCtx.n >> 1) - 1
@@ -599,7 +599,7 @@ func testRefresh(t *testing.T) {
 
 			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
 			crpGenerator.Seed([]byte{})
-			crp := crpGenerator.ClockNew()
+			crp := crpGenerator.ClockUniformNew()
 
 			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
@@ -692,7 +692,7 @@ func Test_Marshalling(t *testing.T) {
 	KeyGenerator := bfv.NewKeyGenerator(params)
 	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, dbfvCtx.contextQP)
 	sk := KeyGenerator.GenSecretKey()
-	crs := crsGen.ClockNew()
+	crs := crsGen.ClockUniformNew()
 	contextQ := dbfvCtx.contextQ
 	contextPKeys := dbfvCtx.contextP
 
@@ -812,7 +812,7 @@ func Test_Marshalling(t *testing.T) {
 		modulus := (dbfvCtx.contextQ.Modulus)
 		crp := make([]*ring.Poly, len(modulus))
 		for j := 0; j < len(modulus); j++ {
-			crp[j] = crpGenerator.ClockNew() //make([]*ring.Poly, bitLog)
+			crp[j] = crpGenerator.ClockUniformNew() //make([]*ring.Poly, bitLog)
 
 		}
 
@@ -866,9 +866,9 @@ func Test_Relin_Marshalling(t *testing.T) {
 
 	crp := make([]*ring.Poly, len(modulus))
 	for j := 0; j < len(modulus); j++ {
-		crp[j] = crpGenerator.ClockNew() //make([]*ring.Poly, bitLog)
+		crp[j] = crpGenerator.ClockUniformNew() //make([]*ring.Poly, bitLog)
 		//for u := uint64(0); u < bitLog; u++ {
-		//	crp[j][u] = crpGenerator.ClockNew()
+		//	crp[j][u] = crpGenerator.ClockUniformNew()
 		//}
 	}
 

@@ -20,16 +20,19 @@ func Test_PRNG(t *testing.T) {
 		Ha, _ := NewPRNG(key)
 		Hb, _ := NewPRNG(key)
 
+		sum0 := make([]byte, 512)
+		sum1 := make([]byte, 512)
+
 		Ha.Seed(seed)
 		Hb.Seed(seed)
 
-		Ha.SetClock(256)
-		Hb.SetClock(256)
+		Ha.SetClock(sum0, 256)
+		Hb.SetClock(sum1, 256)
 
-		a := Ha.Clock()
-		b := Hb.Clock()
+		Ha.Clock(sum0)
+		Hb.Clock(sum1)
 
-		require.Equal(t, a, b)
+		require.Equal(t, sum0, sum1)
 	})
 
 }

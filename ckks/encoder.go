@@ -147,6 +147,13 @@ func (encoder *encoder) EncodeCoeffs(values []float64, plaintext *Plaintext) {
 	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 }
 
+// EncodeCoefficients takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient
+// and returns a scaled integer plaintext polynomial in NTT.
+func (encoder *encoder) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
+	encoder.EncodeCoeffs(values, plaintext)
+	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+}
+
 // DecodeCoeffs takes as input a plaintext and returns the scaled down coefficient of the plaintext in flaot64
 func (encoder *encoder) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
 

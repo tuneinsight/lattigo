@@ -6,7 +6,7 @@ import (
 
 // Ciphertext is *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
 type Ciphertext struct {
-	*ckksElement
+	*CkksElement
 }
 
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
@@ -16,7 +16,7 @@ func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float6
 		panic("cannot NewCiphertext: parameters are invalid (check if the generation was done properly)")
 	}
 
-	ciphertext = &Ciphertext{&ckksElement{}}
+	ciphertext = &Ciphertext{&CkksElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -36,7 +36,7 @@ func NewCiphertextRandom(params *Parameters, degree, level uint64, scale float64
 		panic("cannot NewCiphertextRandom: parameters are invalid (check if the generation was done properly)")
 	}
 
-	ciphertext = &Ciphertext{&ckksElement{}}
+	ciphertext = &Ciphertext{&CkksElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {

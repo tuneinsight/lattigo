@@ -58,7 +58,7 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		return errors.New("too small bytearray")
 	}
 
-	ciphertext.ckksElement = new(ckksElement)
+	ciphertext.CkksElement = new(CkksElement)
 
 	ciphertext.value = make([]*ring.Poly, uint8(data[0]))
 
@@ -76,86 +76,6 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		ciphertext.value[i] = new(ring.Poly)
 
 		if inc, err = ciphertext.value[i].DecodePolyNew(data[pointer:]); err != nil {
-			return err
-		}
-
-		pointer += inc
-	}
-
-	if pointer != uint64(len(data)) {
-		return errors.New("remaining unparsed data")
-	}
-
-	return nil
-}
-
-// GetDataLen returns the length in bytes of the target Ciphertext.
-func (ciphertext *Ciphertext) GetDataLen32(WithMetaData bool) (dataLen uint64) {
-	if WithMetaData {
-		dataLen += 11
-	}
-
-	for _, el := range ciphertext.value {
-		dataLen += el.GetDataLen32(WithMetaData)
-	}
-
-	return dataLen
-}
-
-func (ciphertext *Ciphertext) MarshalBinary32() (data []byte, err error) {
-
-	data = make([]byte, ciphertext.GetDataLen32(true))
-
-	data[0] = uint8(ciphertext.Degree() + 1)
-
-	binary.LittleEndian.PutUint64(data[1:9], math.Float64bits(ciphertext.Scale()))
-
-	if ciphertext.isNTT {
-		data[10] = 1
-	}
-
-	var pointer, inc uint64
-
-	pointer = 11
-
-	for _, el := range ciphertext.value {
-
-		if inc, err = el.WriteTo32(data[pointer:]); err != nil {
-			return nil, err
-		}
-
-		pointer += inc
-	}
-
-	return data, nil
-}
-
-// UnmarshalBinary decodes a previously marshaled Ciphertext on the target Ciphertext.
-// The target Ciphertext must be of the appropriate format and size, it can be created with the
-// method NewCiphertext(uint64).
-func (ciphertext *Ciphertext) UnmarshalBinary32(data []byte) (err error) {
-	if len(data) < 11 {
-		return errors.New("too small bytearray")
-	}
-
-	ciphertext.ckksElement = new(ckksElement)
-
-	ciphertext.value = make([]*ring.Poly, uint8(data[0]))
-
-	ciphertext.scale = math.Float64frombits(binary.LittleEndian.Uint64(data[1:9]))
-
-	if uint8(data[10]) == 1 {
-		ciphertext.isNTT = true
-	}
-
-	var pointer, inc uint64
-	pointer = 11
-
-	for i := range ciphertext.value {
-
-		ciphertext.value[i] = new(ring.Poly)
-
-		if inc, err = ciphertext.value[i].DecodePolyNew32(data[pointer:]); err != nil {
 			return err
 		}
 

@@ -144,7 +144,7 @@ func (encoder *encoder) EncodeCoeffs(values []float64, plaintext *Plaintext) {
 
 	scaleUpVecExact(values, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
-	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+	plaintext.isNTT = false
 }
 
 // EncodeCoefficients takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient
@@ -152,12 +152,17 @@ func (encoder *encoder) EncodeCoeffs(values []float64, plaintext *Plaintext) {
 func (encoder *encoder) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
 	encoder.EncodeCoeffs(values, plaintext)
 	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+	plaintext.isNTT = true
 }
 
 // DecodeCoeffs takes as input a plaintext and returns the scaled down coefficient of the plaintext in flaot64
 func (encoder *encoder) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
 
-	encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	if plaintext.isNTT {
+		encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	} else {
+		encoder.ckksContext.contextQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	}
 
 	res = make([]float64, encoder.params.N)
 
@@ -209,7 +214,11 @@ func (encoder *encoder) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *encoder) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 
-	encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	if plaintext.isNTT {
+		encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	} else {
+		encoder.ckksContext.contextQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	}
 
 	maxSlots := encoder.ckksContext.maxSlots
 	gap := maxSlots / slots

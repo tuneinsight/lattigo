@@ -133,6 +133,34 @@ func (crpgenerator *CRPGenerator) ClockGaussian(crp *Poly, sigma float64, bound 
 	}
 }
 
+func (crpgenerator *CRPGenerator) ClockGaussianAndAdd(crp *Poly, sigma float64, bound uint64) {
+
+	var coeffFlo float64
+	var coeffInt uint64
+	var sign uint64
+	var ptr uint64
+
+	context := crpgenerator.context
+
+	crpgenerator.prng.Clock(crpgenerator.sum)
+
+	for i := uint64(0); i < context.N; i++ {
+
+		for {
+
+			coeffFlo, sign, ptr = crpgenerator.normFloat64(ptr)
+
+			if coeffInt = uint64(coeffFlo * sigma); coeffInt <= bound {
+				break
+			}
+		}
+
+		for j, qi := range context.Modulus {
+			crp.Coeffs[j][i] = CRed(crp.Coeffs[j][i]+((coeffInt*sign)|(qi-coeffInt)*(sign^1)), qi)
+		}
+	}
+}
+
 // NormFloat64 returns a normally distributed float64 in
 // the range -math.MaxFloat64 through +math.MaxFloat64 inclusive,
 // with standard normal distribution (mean = 0, stddev = 1).

@@ -43,7 +43,8 @@ func (prng *prng) GetClock() uint64 {
 // Seed will also reset the clock cycle to 0.
 func (prng *prng) Seed(seed []byte) {
 	prng.xof.Reset()
-	prng.seed = seed[:]
+	prng.seed = make([]byte, len(seed))
+	copy(prng.seed, seed)
 	prng.xof.Write(seed)
 	prng.clock = 0
 }

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
+	"github.com/stretchr/testify/require"
 )
 
 func testString(opname string, params *Parameters) string {
@@ -325,6 +325,45 @@ func testEncoder(t *testing.T) {
 			meanprec /= float64(slots)
 
 			require.GreaterOrEqual(t, math.Log2(1/meanprec), testParams.medianprec)
+		})
+
+		t.Run(testString("EncodeBigComplex/", parameters), func(t *testing.T) {
+
+			prec := uint64(parameters.LogQP >> 1)
+
+			encoder := NewEncoderBigComplex(parameters, prec)
+
+			scale := math.Pow(2, float64(prec))
+
+			values := make([]*ring.Complex, parameters.Slots)
+
+			for i := range values {
+				values[i] = ring.NewComplex(ring.NewFloat(float64(i+1), prec), ring.NewFloat(0, prec))
+			}
+
+			plaintext := NewPlaintext(parameters, parameters.MaxLevel, scale)
+
+			encoder.Encode(plaintext, values, parameters.Slots)
+
+			valuesTest := encoder.Decode(plaintext, parameters.Slots)
+
+			error := ring.NewFloat(math.Pow(2, float64(prec-1)), prec)
+
+			for i := range values {
+				values[i].Sub(values[i], valuesTest[i])
+				values[i].Real().Abs(values[i].Real())
+				values[i].Imag().Abs(values[i].Imag())
+
+				/*
+					if i == 0 {
+						fmt.Println(prec)
+						fmt.Println(values[i].Float64())
+					}
+				*/
+
+				require.Greater(t, 1, values[i].Real().Cmp(error))
+				require.Greater(t, 1, values[i].Imag().Cmp(error))
+			}
 		})
 	}
 }

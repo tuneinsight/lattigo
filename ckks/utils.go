@@ -97,6 +97,48 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 	return
 }
 
+func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64, coeffs [][]uint64) {
+
+	prec := uint64(values[0].Prec())
+
+	xFlo := ring.NewFloat(0, prec)
+	xInt := new(big.Int)
+	tmp := new(big.Int)
+
+	zero := ring.NewFloat(0, prec)
+
+	scaleFlo := ring.NewFloat(scale, prec)
+	half := ring.NewFloat(0.5, prec)
+
+	for i := range values {
+
+		xFlo.Mul(scaleFlo, values[i])
+
+		if values[i].Cmp(zero) < 0 {
+			xFlo.Sub(xFlo, half)
+		} else {
+			xFlo.Add(xFlo, half)
+		}
+
+		xFlo.Int(xInt)
+
+		for j := range moduli {
+
+			Q := ring.NewUint(moduli[j])
+
+			tmp.Mod(xInt, Q)
+
+			if values[i].Cmp(zero) < 0 {
+				tmp.Add(tmp, Q)
+			}
+
+			coeffs[j][i] = tmp.Uint64()
+		}
+	}
+
+	return
+}
+
 func modVec(values []*big.Int, q uint64, coeffs []uint64) {
 	tmp := new(big.Int)
 	for i := range values {
@@ -147,6 +189,27 @@ func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 }
 
 func sliceBitReverseInPlaceComplex128(slice []complex128, N uint64) {
+
+	var bit, j uint64
+
+	for i := uint64(1); i < N; i++ {
+
+		bit = N >> 1
+
+		for j >= bit {
+			j -= bit
+			bit >>= 1
+		}
+
+		j += bit
+
+		if i < j {
+			slice[i], slice[j] = slice[j], slice[i]
+		}
+	}
+}
+
+func sliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N uint64) {
 
 	var bit, j uint64
 

@@ -14,8 +14,13 @@ func Test_Complex128_Mul(t *testing.T) {
 	prec := uint64(256)
 
 	var PI = new(big.Float)
-	PI.SetPrec(256)
+	PI.SetPrec(uint(prec))
 	PI.SetString(pi)
+
+	var PIHalf = new(big.Float)
+	PIHalf.SetPrec(uint(prec))
+	PIHalf.SetString(pi)
+	PIHalf.Quo(PIHalf, NewFloat(2.0, prec))
 
 	cMul := NewComplexMultiplier()
 
@@ -41,7 +46,13 @@ func Test_Complex128_Mul(t *testing.T) {
 		angle.Mul(angle, NewFloat(float64(i), prec))
 		angle.Quo(angle, NewFloat(float64(m), prec))
 
-		roots[i] = NewComplex(Cos(angle), Sin(angle))
+		real := Cos(angle)
+
+		angle.Sub(PIHalf, angle)
+
+		imag := Cos(angle)
+
+		roots[i] = NewComplex(real, imag)
 	}
 	time1 := time.Now()
 
@@ -79,7 +90,6 @@ func Test_Complex128_Mul(t *testing.T) {
 
 				values[i+j].Set(u)
 				values[i+j+lenh].Set(v)
-
 			}
 		}
 	}

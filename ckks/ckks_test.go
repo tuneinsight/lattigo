@@ -331,7 +331,7 @@ func testEncoder(t *testing.T) {
 
 			prec := uint64(parameters.LogQP >> 1)
 
-			encoder := NewEncoderBigComplex(parameters, prec+10)
+			encoder := NewEncoderBigComplex(parameters, prec+15)
 
 			scale := math.Pow(2, float64(prec))
 
@@ -347,7 +347,7 @@ func testEncoder(t *testing.T) {
 
 			valuesTest := encoder.Decode(plaintext, parameters.Slots)
 
-			error := ring.NewFloat(math.Pow(2, -float64(prec-10)), prec)
+			error := ring.NewFloat(math.Pow(2, -float64(prec-15)), prec)
 
 			for i := range values {
 				values[i].Sub(values[i], valuesTest[i])

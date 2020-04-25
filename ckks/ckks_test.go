@@ -331,7 +331,7 @@ func testEncoder(t *testing.T) {
 
 			prec := uint64(parameters.LogQP >> 1)
 
-			encoder := NewEncoderBigComplex(parameters, prec)
+			encoder := NewEncoderBigComplex(parameters, prec+10)
 
 			scale := math.Pow(2, float64(prec))
 
@@ -343,11 +343,11 @@ func testEncoder(t *testing.T) {
 
 			plaintext := NewPlaintext(parameters, parameters.MaxLevel, scale)
 
-			encoder.Encode(plaintext, values, parameters.Slots)
+			encoder.EncodeNTT(plaintext, values, parameters.Slots)
 
 			valuesTest := encoder.Decode(plaintext, parameters.Slots)
 
-			error := ring.NewFloat(math.Pow(2, float64(prec-1)), prec)
+			error := ring.NewFloat(math.Pow(2, -float64(prec-10)), prec)
 
 			for i := range values {
 				values[i].Sub(values[i], valuesTest[i])
@@ -357,12 +357,15 @@ func testEncoder(t *testing.T) {
 				/*
 					if i == 0 {
 						fmt.Println(prec)
+						fmt.Println(error.Float64())
 						fmt.Println(values[i].Float64())
+						fmt.Println(error.Cmp(values[i].Real()))
 					}
 				*/
 
-				require.Greater(t, 1, values[i].Real().Cmp(error))
-				require.Greater(t, 1, values[i].Imag().Cmp(error))
+				// Checks that 2^-{prec} > abs(have-want)
+				require.Greater(t, error.Cmp(values[i].Real()), 0)
+				require.Greater(t, error.Cmp(values[i].Imag()), 0)
 			}
 		})
 	}

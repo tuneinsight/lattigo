@@ -32,7 +32,7 @@ type Evaluator interface {
 	ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext)
 	SetScale(ct *Ciphertext, scale float64)
 	MulByPow2New(ct0 *Ciphertext, pow2 uint64) (ctOut *Ciphertext)
-	MulByPow2(ct0 *ckksElement, pow2 uint64, ctOut *ckksElement)
+	MulByPow2(ct0 *CkksElement, pow2 uint64, ctOut *CkksElement)
 	ReduceNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	Reduce(ct0 *Ciphertext, ctOut *Ciphertext) error
 	DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciphertext)
@@ -112,7 +112,7 @@ func NewEvaluator(params *Parameters) Evaluator {
 	}
 }
 
-func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *ckksElement) {
+func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *CkksElement) {
 	if op0 == nil || op1 == nil || opOut == nil {
 		panic("operands cannot be nil")
 	}
@@ -128,7 +128,7 @@ func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDe
 	return // TODO: more checks on elements
 }
 
-func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *ckksElement) {
+func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *CkksElement) {
 	if op0 == nil || opOut == nil {
 		panic("operand cannot be nil")
 	}
@@ -227,9 +227,9 @@ func (eval *evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	return
 }
 
-func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *ckksElement, evaluate func(uint64, *ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *CkksElement, evaluate func(uint64, *ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	var tmp0, tmp1 *ckksElement // TODO : use eval mem pool
+	var tmp0, tmp1 *CkksElement // TODO : use eval mem pool
 
 	level := utils.MinUint64(utils.MinUint64(c0.Level(), c1.Level()), ctOut.Level())
 
@@ -875,7 +875,7 @@ func (eval *evaluator) MulByPow2New(ct0 *Ciphertext, pow2 uint64) (ctOut *Cipher
 }
 
 // MulByPow2 multiplies ct0 by 2^pow2 and returns the result in ctOut.
-func (eval *evaluator) MulByPow2(ct0 *ckksElement, pow2 uint64, ctOut *ckksElement) {
+func (eval *evaluator) MulByPow2(ct0 *CkksElement, pow2 uint64, ctOut *CkksElement) {
 	var level uint64
 	level = utils.MinUint64(ct0.Level(), ctOut.Level())
 	for i := range ctOut.Value() {
@@ -1135,7 +1135,7 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
 	} else {
 
-		var tmp0, tmp1 *ckksElement
+		var tmp0, tmp1 *CkksElement
 
 		if el0.Degree() == 1 {
 			tmp0, tmp1 = el1, el0

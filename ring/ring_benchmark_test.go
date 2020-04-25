@@ -78,17 +78,19 @@ func benchSampling(b *testing.B) {
 
 		pol := context.NewPoly()
 
-		b.Run(testString("Gaussian/Ziggurat/", context), func(b *testing.B) {
+		crsGenerator := NewCRPGenerator(nil, context)
+		crsGenerator.Seed(nil)
+
+		b.Run(testString("Gaussian/cryptorRand/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.SampleGaussian(pol, sigma, bound)
+				context.SampleGaussianLvl(uint64(len(context.Modulus)-1), pol, sigma, bound)
 			}
 		})
 
-		KYS := context.NewKYSampler(sigma, int(bound))
+		b.Run(testString("Gaussian/PRNG/", context), func(b *testing.B) {
 
-		b.Run(testString("Gaussian/Knuth-Yao/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				KYS.Sample(pol)
+				crsGenerator.ClockGaussian(pol, sigma, bound)
 			}
 		})
 
@@ -116,16 +118,12 @@ func benchSampling(b *testing.B) {
 			}
 		})
 
-		crsGenerator := NewCRPGenerator(nil, context)
-		crsGenerator.Seed(nil)
-
 		b.Run(testString("Uniform/PRNG/", context), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				crsGenerator.Clock(pol)
+				crsGenerator.ClockUniform(pol)
 			}
 		})
-
 	}
 }
 

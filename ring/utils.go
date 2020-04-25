@@ -4,6 +4,14 @@ import (
 	"math/bits"
 )
 
+func Min(x, y int) int {
+	if x > y {
+		return y
+	}
+
+	return x
+}
+
 // PowerOf2 returns (x*2^n)%q where x is in Montgomery form
 func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 	ahi, alo := x>>(64-n), x<<n

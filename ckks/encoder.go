@@ -10,7 +10,11 @@ import (
 type Encoder interface {
 	Encode(plaintext *Plaintext, values []complex128, slots uint64)
 	EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext)
+	EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64)
+	EncodeNTTNew(values []complex128, slots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
+	EncodeCoeffs(values []float64, plaintext *Plaintext)
+	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 }
 
 // encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
@@ -104,8 +108,6 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 
 	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
-	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
-
 	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
 		encoder.values[i] = 0
 	}
@@ -113,42 +115,167 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 	for i := uint64(0); i < encoder.ckksContext.n; i++ {
 		encoder.valuesfloat[i] = 0
 	}
+
+	plaintext.isNTT = false
+}
+
+func (encoder *encoder) EncodeNTTNew(values []complex128, slots uint64) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel, encoder.params.Scale)
+	encoder.EncodeNTT(plaintext, values, slots)
+	return
+}
+
+func (encoder *encoder) EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64) {
+
+	encoder.Encode(plaintext, values, slots)
+
+	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+
+	plaintext.isNTT = true
+}
+
+// EncodeCoefficients takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient
+// and returns a scaled integer plaintext polynomial in NTT.
+func (encoder *encoder) EncodeCoeffs(values []float64, plaintext *Plaintext) {
+
+	if uint64(len(values)) > encoder.params.N {
+		panic("cannot EncodeCoeffs : too many values (maximum is N)")
+	}
+
+	scaleUpVecExact(values, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
+
+	plaintext.isNTT = false
+}
+
+// EncodeCoefficients takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient
+// and returns a scaled integer plaintext polynomial in NTT.
+func (encoder *encoder) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
+	encoder.EncodeCoeffs(values, plaintext)
+	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+	plaintext.isNTT = true
+}
+
+// DecodeCoeffs takes as input a plaintext and returns the scaled down coefficient of the plaintext in flaot64
+func (encoder *encoder) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
+
+	if plaintext.isNTT {
+		encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	} else {
+		encoder.ckksContext.contextQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	}
+
+	res = make([]float64, encoder.params.N)
+
+	// We have more than one moduli and need the CRT reconstruction
+	if plaintext.Level() > 0 {
+
+		encoder.ckksContext.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
+
+		Q := encoder.ckksContext.bigintChain[plaintext.Level()]
+
+		encoder.qHalf.Set(Q)
+		encoder.qHalf.Rsh(encoder.qHalf, 1)
+
+		var sign int
+
+		for i := range res {
+
+			// Centers the value around the current modulus
+			encoder.bigintCoeffs[i].Mod(encoder.bigintCoeffs[i], Q)
+
+			sign = encoder.bigintCoeffs[i].Cmp(encoder.qHalf)
+			if sign == 1 || sign == 0 {
+				encoder.bigintCoeffs[i].Sub(encoder.bigintCoeffs[i], Q)
+			}
+
+			res[i] = scaleDown(encoder.bigintCoeffs[i], plaintext.scale)
+		}
+		// We can directly get the coefficients
+	} else {
+
+		Q := encoder.ckksContext.contextQ.Modulus[0]
+		coeffs := encoder.polypool.Coeffs[0]
+
+		for i := range res {
+
+			if coeffs[i] >= Q>>1 {
+				res[i] = -float64(Q - coeffs[i])
+			} else {
+				res[i] = float64(coeffs[i])
+			}
+
+			res[i] /= plaintext.scale
+		}
+	}
+
+	return
 }
 
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *encoder) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 
-	encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
-	encoder.ckksContext.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
-
-	Q := encoder.ckksContext.bigintChain[plaintext.Level()]
+	if plaintext.isNTT {
+		encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	} else {
+		encoder.ckksContext.contextQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	}
 
 	maxSlots := encoder.ckksContext.maxSlots
+	gap := maxSlots / slots
 
-	encoder.qHalf.Set(Q)
-	encoder.qHalf.Rsh(encoder.qHalf, 1)
+	// We have more than one moduli and need the CRT reconstruction
+	if plaintext.Level() > 0 {
 
-	gap := encoder.ckksContext.maxSlots / slots
+		encoder.ckksContext.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
-	var sign int
+		Q := encoder.ckksContext.bigintChain[plaintext.Level()]
 
-	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
+		encoder.qHalf.Set(Q)
+		encoder.qHalf.Rsh(encoder.qHalf, 1)
 
-		// Centers the value around the current modulus
-		encoder.bigintCoeffs[idx].Mod(encoder.bigintCoeffs[idx], Q)
-		sign = encoder.bigintCoeffs[idx].Cmp(encoder.qHalf)
-		if sign == 1 || sign == 0 {
-			encoder.bigintCoeffs[idx].Sub(encoder.bigintCoeffs[idx], Q)
+		var sign int
+
+		for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
+
+			// Centers the value around the current modulus
+			encoder.bigintCoeffs[idx].Mod(encoder.bigintCoeffs[idx], Q)
+			sign = encoder.bigintCoeffs[idx].Cmp(encoder.qHalf)
+			if sign == 1 || sign == 0 {
+				encoder.bigintCoeffs[idx].Sub(encoder.bigintCoeffs[idx], Q)
+			}
+
+			// Centers the value around the current modulus
+			encoder.bigintCoeffs[idx+maxSlots].Mod(encoder.bigintCoeffs[idx+maxSlots], Q)
+			sign = encoder.bigintCoeffs[idx+maxSlots].Cmp(encoder.qHalf)
+			if sign == 1 || sign == 0 {
+				encoder.bigintCoeffs[idx+maxSlots].Sub(encoder.bigintCoeffs[idx+maxSlots], Q)
+			}
+
+			encoder.values[i] = complex(scaleDown(encoder.bigintCoeffs[idx], plaintext.scale), scaleDown(encoder.bigintCoeffs[idx+maxSlots], plaintext.scale))
 		}
+		// We can directly get the coefficients
+	} else {
 
-		// Centers the value around the current modulus
-		encoder.bigintCoeffs[idx+maxSlots].Mod(encoder.bigintCoeffs[idx+maxSlots], Q)
-		sign = encoder.bigintCoeffs[idx+maxSlots].Cmp(encoder.qHalf)
-		if sign == 1 || sign == 0 {
-			encoder.bigintCoeffs[idx+maxSlots].Sub(encoder.bigintCoeffs[idx+maxSlots], Q)
+		Q := encoder.ckksContext.contextQ.Modulus[0]
+		coeffs := encoder.polypool.Coeffs[0]
+
+		var real, imag float64
+		for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
+
+			if coeffs[idx] >= Q>>1 {
+				real = -float64(Q - coeffs[idx])
+			} else {
+				real = float64(coeffs[idx])
+			}
+
+			if coeffs[idx+maxSlots] >= Q>>1 {
+				imag = -float64(Q - coeffs[idx+maxSlots])
+			} else {
+				imag = float64(coeffs[idx+maxSlots])
+			}
+
+			encoder.values[i] = complex(real, imag) / complex(plaintext.scale, 0)
 		}
-
-		encoder.values[i] = complex(scaleDown(encoder.bigintCoeffs[idx], plaintext.scale), scaleDown(encoder.bigintCoeffs[idx+maxSlots], plaintext.scale))
 	}
 
 	encoder.fft(encoder.values, slots)
@@ -157,7 +284,6 @@ func (encoder *encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 
 	for i := range res {
 		res[i] = encoder.values[i]
-
 	}
 
 	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {

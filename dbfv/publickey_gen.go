@@ -8,8 +8,8 @@ import (
 
 // CKGProtocol is the structure storing the parameters and state for a party in the collective key generation protocol.
 type CKGProtocol struct {
-	context         *ring.Context
-	gaussianSampler *ring.KYSampler
+	context *ring.Context
+	sigma   float64
 }
 
 // CKGShare is a struct holding a CKG share.
@@ -37,7 +37,7 @@ func NewCKGProtocol(params *bfv.Parameters) *CKGProtocol {
 	context := newDbfvContext(params)
 	ckg := new(CKGProtocol)
 	ckg.context = context.contextQP
-	ckg.gaussianSampler = context.gaussianSampler
+	ckg.sigma = params.Sigma
 	return ckg
 }
 
@@ -52,7 +52,7 @@ func (ckg *CKGProtocol) AllocateShares() CKGShare {
 //
 // for the receiver protocol. Has no effect is the share was already generated.
 func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut CKGShare) {
-	ckg.gaussianSampler.SampleNTT(shareOut.Poly)
+	ckg.context.SampleGaussianNTTLvl(uint64(len(ckg.context.Modulus)-1), shareOut.Poly, ckg.sigma, uint64(6*ckg.sigma))
 	ckg.context.MulCoeffsMontgomeryAndSub(sk, crs, shareOut.Poly)
 }
 

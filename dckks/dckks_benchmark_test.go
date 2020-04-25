@@ -28,7 +28,7 @@ func benchPublicKeyGen(b *testing.B) {
 
 		crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
 		crpGenerator.Seed([]byte{})
-		crp := crpGenerator.ClockNew()
+		crp := crpGenerator.ClockUniformNew()
 
 		type Party struct {
 			*CKGProtocol
@@ -86,7 +86,7 @@ func benchRelinKeyGen(b *testing.B) {
 		crp := make([]*ring.Poly, parameters.Beta)
 
 		for i := uint64(0); i < parameters.Beta; i++ {
-			crp[i] = crpGenerator.ClockNew()
+			crp[i] = crpGenerator.ClockUniformNew()
 		}
 
 		b.Run(testString("Round1Gen/", parties, parameters), func(b *testing.B) {
@@ -310,7 +310,7 @@ func benchRotKeyGen(b *testing.B) {
 		crp := make([]*ring.Poly, parameters.Beta)
 
 		for i := uint64(0); i < parameters.Beta; i++ {
-			crp[i] = crpGenerator.ClockNew()
+			crp[i] = crpGenerator.ClockUniformNew()
 		}
 
 		mask := uint64((contextKeys.N >> 1) - 1)
@@ -366,7 +366,7 @@ func benchRefresh(b *testing.B) {
 
 		crpGenerator := ring.NewCRPGenerator(nil, contextQ)
 		crpGenerator.Seed([]byte{})
-		crp := crpGenerator.ClockNew()
+		crp := crpGenerator.ClockUniformNew()
 
 		ciphertext := ckks.NewCiphertextRandom(parameters, 1, levelStart, parameters.Scale)
 

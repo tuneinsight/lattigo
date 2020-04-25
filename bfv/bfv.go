@@ -16,8 +16,6 @@ type bfvContext struct {
 	// Polynomial degree
 	n uint64
 
-	gaussianSampler *ring.KYSampler
-
 	// Polynomial contexts
 	contextT    *ring.Context // Plaintext modulus
 	contextQ    *ring.Context // Ciphertext modulus
@@ -65,8 +63,6 @@ func newBFVContext(params *Parameters) (context *bfvContext) {
 	if context.contextQP, err = ring.NewContextWithParams(N, append(params.Qi, params.Pi...)); err != nil {
 		panic(err)
 	}
-
-	context.gaussianSampler = context.contextQP.NewKYSampler(params.Sigma, int(6*params.Sigma))
 
 	context.galElRotColLeft = ring.GenGaloisParams(N, GaloisGen)
 	context.galElRotColRight = ring.GenGaloisParams(N, ring.ModExp(GaloisGen, 2*N-1, 2*N))

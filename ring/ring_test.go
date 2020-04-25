@@ -83,8 +83,8 @@ func testPRNG(t *testing.T) {
 			crsGenerator1.SetClock(256)
 			crsGenerator2.SetClock(256)
 
-			p0 := crsGenerator1.ClockNew()
-			p1 := crsGenerator2.ClockNew()
+			p0 := crsGenerator1.ClockUniformNew()
+			p1 := crsGenerator2.ClockUniformNew()
 
 			require.True(t, context.Equal(p0, p1))
 		})
@@ -243,7 +243,7 @@ func testMarshalBinary(t *testing.T) {
 func testGaussianSampler(t *testing.T) {
 
 	sigma := testParams.sigma
-	bound := int(sigma * 6)
+	bound := uint64(sigma * 6)
 
 	for _, parameters := range testParams.polyParams {
 
@@ -251,11 +251,7 @@ func testGaussianSampler(t *testing.T) {
 
 		t.Run(testString("", context), func(t *testing.T) {
 
-			KYS := context.NewKYSampler(sigma, bound)
-
-			pol := context.NewPoly()
-
-			KYS.Sample(pol)
+			pol := context.SampleGaussianNew(sigma, bound)
 
 			for i := uint64(0); i < context.N; i++ {
 				for j, qi := range context.Modulus {

@@ -942,7 +942,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 
 			bootcontext.plaintextSize += (level + 1) * 8 * bootcontext.n
 
-			bootcontext.encoder.Encode(plaintextVec.Vec[N1*j+uint64(i)], rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
+			bootcontext.encoder.EncodeNTT(plaintextVec.Vec[N1*j+uint64(i)], rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
 		}
 	}
 }

@@ -51,11 +51,11 @@ func TestBootstrapp(t *testing.T) {
 			values[i] = sin2pi2pi(values[i])
 		}
 
-		fmt.Println(ciphertext.Level())
-		start := time.Now()
+		//fmt.Println(ciphertext.Level())
+		//start := time.Now()
 		ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
-		fmt.Printf("Elapsed : %s \n", time.Since(start))
-		fmt.Println(ciphertext.Level())
+		//fmt.Printf("Elapsed : %s \n", time.Since(start))
+		//fmt.Println(ciphertext.Level())
 
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
@@ -125,8 +125,8 @@ func TestBootstrapp(t *testing.T) {
 
 		params.evaluator.AddConst(ciphertext, -0.25, ciphertext)
 
-		fmt.Println(ciphertext.Level())
-		start := time.Now()
+		//fmt.Println(ciphertext.Level())
+		//start := time.Now()
 		ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, sc_fac, cheby, rlk)
 
 		if sc_num == 1 {
@@ -180,8 +180,8 @@ func TestBootstrapp(t *testing.T) {
 			evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 
 		}
-		fmt.Printf("Elapsed : %s \n", time.Since(start))
-		fmt.Println(ciphertext.Level())
+		//fmt.Printf("Elapsed : %s \n", time.Since(start))
+		//fmt.Println(ciphertext.Level())
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
 		params.params.Scale = DefaultScale
@@ -219,7 +219,7 @@ func TestBootstrapp(t *testing.T) {
 			params.evaluator.SetScale(ciphertext, parameters.Scale)
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-			fmt.Println()
+			//fmt.Println()
 		}
 
 	})

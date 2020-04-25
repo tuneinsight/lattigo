@@ -165,9 +165,22 @@ func (rtg *RTGProtocol) Finalize(params *ckks.Parameters, share RTGShare, crp []
 
 	k := share.K & ((rtg.dckksContext.n >> 1) - 1)
 
+	var galEl uint64
+
+	switch share.Type {
+	case ckks.RotationRight, ckks.RotationLeft:
+		galEl = rtg.galElRotCol[(share.Type+1)&1][k]
+	case ckks.Conjugate:
+		galEl = rtg.galElRotRow
+	}
+
 	for i := uint64(0); i < rtg.dckksContext.beta; i++ {
-		rtg.tmpSwitchKey[i][0].Copy(share.Value[i])
-		rtg.dckksContext.contextQP.MForm(crp[i], rtg.tmpSwitchKey[i][1])
+
+		ring.PermuteNTT(share.Value[i], galEl, rtg.tmpSwitchKey[i][0])
+
+		ring.PermuteNTT(crp[i], galEl, rtg.tmpSwitchKey[i][1])
+
+		rtg.dckksContext.contextQP.MForm(rtg.tmpSwitchKey[i][1], rtg.tmpSwitchKey[i][1])
 	}
 
 	rotKey.SetRotKey(params, rtg.tmpSwitchKey, share.Type, k)

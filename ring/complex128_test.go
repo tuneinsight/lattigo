@@ -11,7 +11,7 @@ var pi = "3.14159265358979323846264338327950288419716939937510582097494459230781
 
 func Test_Complex128_Mul(t *testing.T) {
 
-	prec := uint64(256)
+	prec := uint64(128)
 
 	var PI = new(big.Float)
 	PI.SetPrec(uint(prec))
@@ -24,7 +24,7 @@ func Test_Complex128_Mul(t *testing.T) {
 
 	cMul := NewComplexMultiplier()
 
-	LogN := 15
+	LogN := 13
 	N := uint64(1 << LogN)
 
 	m := uint64(2 << LogN)
@@ -90,6 +90,8 @@ func Test_Complex128_Mul(t *testing.T) {
 
 				values[i+j].Set(u)
 				values[i+j+lenh].Set(v)
+
+				fmt.Println(values[0][0].Prec())
 			}
 		}
 	}
@@ -102,7 +104,7 @@ func Test_Complex128_Mul(t *testing.T) {
 
 	time1 = time.Now()
 
-	fmt.Printf("Computed FFT in %s sec \n", time1.Sub(time0))
+	fmt.Printf("Computed FFT for LogSlots = %d in %s sec \n", N, time1.Sub(time0))
 
 	fmt.Println(values[0][0])
 	fmt.Println(values[0][1])

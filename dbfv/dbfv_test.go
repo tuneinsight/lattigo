@@ -49,7 +49,7 @@ var err error
 var testParams = new(dbfvTestParameters)
 
 func init() {
-	testParams.parties = 3
+	testParams.parties = 2
 
 	testParams.contexts = bfv.DefaultParams
 }
@@ -63,6 +63,7 @@ func Test_DBFV(t *testing.T) {
 	t.Run("RotKeyGenRotRows", testRotKeyGenRotRows)
 	t.Run("RotKeyGenRotCols", testRotKeyGenRotCols)
 	t.Run("Refresh", testRefresh)
+	t.Run("RefreshAndPermute", testRefreshAndPermutation)
 
 }
 
@@ -668,6 +669,80 @@ func testRefresh(t *testing.T) {
 
 			//Decrypts and compare
 			require.True(t, utils.EqualSliceUint64(coeffs, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertext))))
+		})
+	}
+}
+
+func testRefreshAndPermutation(t *testing.T) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.contexts {
+
+		testCtx := genDBFVTestContext(parameters)
+
+		encryptorPk0 := testCtx.encryptorPk0
+		sk0Shards := testCtx.sk0Shards
+		encoder := testCtx.encoder
+		decryptorSk0 := testCtx.decryptorSk0
+
+		t.Run(fmt.Sprintf("N=%d/logQ=%d/RefreshAndPermute", testCtx.n, testCtx.contextQP.ModulusBigint.BitLen()), func(t *testing.T) {
+
+			type Party struct {
+				*PermuteProtocol
+				s       *ring.Poly
+				share   RefreshShare
+				ptShare *bfv.Plaintext
+			}
+
+			RefreshParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.PermuteProtocol = NewPermuteProtocol(parameters)
+				p.s = sk0Shards[i].Get()
+				p.share = p.AllocateShares()
+				p.ptShare = bfv.NewPlaintext(parameters)
+				RefreshParties[i] = p
+			}
+
+			P0 := RefreshParties[0]
+
+			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+			crpGenerator.Seed([]byte{})
+			crp := crpGenerator.ClockUniformNew()
+
+			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
+
+			permutation := make([]uint64, len(coeffs))
+
+			for i := range permutation {
+				permutation[i] = ring.RandUniform(parameters.N, parameters.N-1)
+			}
+
+			for i, p := range RefreshParties {
+				p.GenShares(p.s, ciphertext, crp, permutation, p.share)
+				if i > 0 {
+					P0.Aggregate(p.share, P0.share, P0.share)
+				}
+			}
+
+			// We refresh the ciphertext with the simulated error
+			P0.Decrypt(ciphertext, P0.share.RefreshShareDecrypt, P0.ptShare.Value()[0])      // Masked decryption
+			P0.Permute(P0.ptShare.Value()[0], permutation, P0.ptShare.Value()[0])            // Masked re-encoding
+			P0.Recrypt(P0.ptShare.Value()[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption$
+
+			// The refresh also be called all at once with P0.Finalize(ciphertext, crp, P0.share, ctOut)
+
+			coeffsPermute := make([]uint64, len(coeffs))
+
+			for i := range coeffs {
+				coeffsPermute[i] = coeffs[permutation[i]]
+			}
+
+			coeffsHave := encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertext))
+
+			//Decrypts and compare
+			require.True(t, utils.EqualSliceUint64(coeffsPermute, coeffsHave))
 		})
 	}
 }

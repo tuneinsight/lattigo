@@ -14,6 +14,7 @@ func BenchmarkDCKKS(b *testing.B) {
 	b.Run("PublicKeySwitching", benchPublicKeySwitching)
 	b.Run("RotKeyGen", benchRotKeyGen)
 	b.Run("Refresh", benchRefresh)
+	b.Run("RefreshAndPermute", benchRefreshAndPermute)
 }
 
 func benchPublicKeyGen(b *testing.B) {
@@ -398,6 +399,83 @@ func benchRefresh(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.Recode(ciphertext)
+			}
+		})
+
+		b.Run(testString("Recrypt/", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Recrypt(ciphertext, crp, p.share2)
+			}
+		})
+	}
+}
+
+func benchRefreshAndPermute(b *testing.B) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.ckksParameters {
+
+		params := gendckksTestContext(parameters)
+
+		sk0Shards := params.sk0Shards
+		contextQ := params.dckksContext.contextQ
+
+		levelStart := uint64(2)
+
+		type Party struct {
+			*PermuteProtocol
+			s      *ring.Poly
+			share1 RefreshShareDecrypt
+			share2 RefreshShareRecrypt
+		}
+
+		p := new(Party)
+		p.PermuteProtocol = NewPermuteProtocol(parameters)
+		p.s = sk0Shards[0].Get()
+		p.share1, p.share2 = p.AllocateShares(levelStart)
+
+		crpGenerator := ring.NewCRPGenerator(nil, contextQ)
+		crpGenerator.Seed([]byte{})
+		crp := crpGenerator.ClockUniformNew()
+
+		ciphertext := ckks.NewCiphertextRandom(parameters, 1, levelStart, parameters.Scale)
+
+		contextQ.UniformPolyLvl(levelStart, ciphertext.Value()[0])
+		contextQ.UniformPolyLvl(levelStart, ciphertext.Value()[1])
+
+		permutation := make([]uint64, parameters.Slots)
+
+		for i := range permutation {
+			permutation[i] = ring.RandUniform(parameters.Slots, parameters.Slots-1)
+		}
+
+		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShares(p.s, levelStart, parties, ciphertext, crp, parameters.Slots, permutation, p.share1, p.share2)
+			}
+		})
+
+		b.Run(testString("Agg/", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Aggregate(p.share1, p.share1, p.share1)
+			}
+		})
+
+		b.Run(testString("Decrypt/", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Decrypt(ciphertext, p.share1)
+			}
+		})
+
+		b.Run(testString("Permute/", parties, parameters), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Permute(ciphertext, permutation, parameters.Slots)
 			}
 		})
 

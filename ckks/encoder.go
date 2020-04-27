@@ -26,6 +26,9 @@ type EncoderBigComplex interface {
 	EncodeNTT(plaintext *Plaintext, values []*ring.Complex, slots uint64)
 	EncodeNTTNew(values []*ring.Complex, slots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, slots uint64) (res []*ring.Complex)
+	FFT(values []*ring.Complex, N uint64)
+	InvFFT(values []*ring.Complex, N uint64)
+
 	//EncodeCoeffs(values []*big.Float, plaintext *Plaintext)
 	//DecodeCoeffs(plaintext *Plaintext) (res []*big.Float)
 }
@@ -457,7 +460,7 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 		encoder.values[i].Set(values[i])
 	}
 
-	encoder.invfft(encoder.values, slots)
+	encoder.InvFFT(encoder.values, slots)
 
 	gap := encoder.ckksContext.maxSlots / slots
 
@@ -538,7 +541,7 @@ func (encoder *encoderBigComplex) Decode(plaintext *Plaintext, slots uint64) (re
 		encoder.values[i].Imag().Quo(encoder.values[i].Imag(), scaleFlo)
 	}
 
-	encoder.fft(encoder.values, slots)
+	encoder.FFT(encoder.values, slots)
 
 	res = make([]*ring.Complex, slots)
 
@@ -554,7 +557,7 @@ func (encoder *encoderBigComplex) Decode(plaintext *Plaintext, slots uint64) (re
 	return
 }
 
-func (encoder *encoderBigComplex) invfft(values []*ring.Complex, N uint64) {
+func (encoder *encoderBigComplex) InvFFT(values []*ring.Complex, N uint64) {
 
 	var lenh, lenq, gap, idx uint64
 	u := ring.NewComplex(nil, nil)
@@ -585,7 +588,7 @@ func (encoder *encoderBigComplex) invfft(values []*ring.Complex, N uint64) {
 	sliceBitReverseInPlaceRingComplex(values, N)
 }
 
-func (encoder *encoderBigComplex) fft(values []*ring.Complex, N uint64) {
+func (encoder *encoderBigComplex) FFT(values []*ring.Complex, N uint64) {
 
 	var lenh, lenq, gap, idx uint64
 

@@ -7,6 +7,11 @@ import (
 
 // UniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
 func (context *Context) UniformPoly(Pol *Poly) {
+	context.UniformPolyLvl(uint64(len(Pol.Coeffs)-1), Pol)
+}
+
+// UniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
+func (context *Context) UniformPolyLvl(level uint64, Pol *Poly) {
 
 	var randomUint, mask, qi uint64
 	var ptr uint64
@@ -16,7 +21,7 @@ func (context *Context) UniformPoly(Pol *Poly) {
 		panic("crypto rand error")
 	}
 
-	for j := range context.Modulus {
+	for j := uint64(0); j < level; j++ {
 
 		qi = context.Modulus[j]
 

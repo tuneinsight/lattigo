@@ -61,7 +61,7 @@ func init() {
 	testParams.medianprec = 15
 	testParams.verbose = false
 
-	testParams.ckksParameters = ckks.DefaultParams[ckks.PN13QP218 : ckks.PN14QP438+1]
+	testParams.ckksParameters = ckks.DefaultParams[ckks.PN13QP218 : ckks.PN14QP438+2]
 }
 
 func TestDCKKS(t *testing.T) {
@@ -73,6 +73,7 @@ func TestDCKKS(t *testing.T) {
 	t.Run("RotKeyGenConjugate", testRotKeyGenConjugate)
 	t.Run("RotKeyGenCols", testRotKeyGenCols)
 	t.Run("Refresh", testRefresh)
+	t.Run("RefreshAndPermute", testRefreshAndPermute)
 }
 
 func gendckksTestContext(contextParameters *ckks.Parameters) (params *dckksTestContext) {
@@ -646,6 +647,84 @@ func testRefresh(t *testing.T) {
 			require.Equal(t, ciphertext.Level(), parameters.MaxLevel)
 
 			verifyTestVectors(params, decryptorSk0, coeffs, ciphertext, t)
+
+		})
+	}
+}
+
+func testRefreshAndPermute(t *testing.T) {
+
+	parties := testParams.parties
+
+	for _, parameters := range testParams.ckksParameters {
+
+		params := gendckksTestContext(parameters)
+
+		evaluator := params.evaluator
+		encryptorPk0 := params.encryptorPk0
+		decryptorSk0 := params.decryptorSk0
+		sk0Shards := params.sk0Shards
+
+		levelStart := uint64(3)
+
+		t.Run(testString("", parties, parameters), func(t *testing.T) {
+
+			type Party struct {
+				*PermuteProtocol
+				s      *ring.Poly
+				share1 RefreshShareDecrypt
+				share2 RefreshShareRecrypt
+			}
+
+			RefreshParties := make([]*Party, parties)
+			for i := uint64(0); i < parties; i++ {
+				p := new(Party)
+				p.PermuteProtocol = NewPermuteProtocol(parameters)
+				p.s = sk0Shards[i].Get()
+				p.share1, p.share2 = p.AllocateShares(levelStart)
+				RefreshParties[i] = p
+			}
+
+			P0 := RefreshParties[0]
+
+			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQ)
+			crpGenerator.Seed([]byte{})
+			crp := crpGenerator.ClockUniformNew()
+
+			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1.0, t)
+
+			for ciphertext.Level() != levelStart {
+				evaluator.DropLevel(ciphertext, 1)
+			}
+
+			permutation := make([]uint64, parameters.Slots)
+
+			for i := range permutation {
+				permutation[i] = ring.RandUniform(parameters.Slots, parameters.Slots-1)
+			}
+
+			for i, p := range RefreshParties {
+				p.GenShares(p.s, levelStart, parties, ciphertext, crp, parameters.Slots, permutation, p.share1, p.share2)
+				if i > 0 {
+					P0.Aggregate(p.share1, P0.share1, P0.share1)
+					P0.Aggregate(p.share2, P0.share2, P0.share2)
+				}
+			}
+
+			// We refresh the ciphertext with the simulated error
+			P0.Decrypt(ciphertext, P0.share1)                     // Masked decryption
+			P0.Permute(ciphertext, permutation, parameters.Slots) // Masked re-encoding
+			P0.Recrypt(ciphertext, crp, P0.share2)                // Masked re-encryption
+
+			coeffsPermute := make([]complex128, len(coeffs))
+
+			for i := range coeffs {
+				coeffsPermute[i] = coeffs[permutation[i]]
+			}
+
+			require.Equal(t, ciphertext.Level(), parameters.MaxLevel)
+
+			verifyTestVectors(params, decryptorSk0, coeffsPermute, ciphertext, t)
 
 		})
 	}

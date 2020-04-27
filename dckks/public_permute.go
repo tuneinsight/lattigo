@@ -80,30 +80,16 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 	maxSlots := pp.dckksContext.n >> 1
 	gap := maxSlots / slots
 
+	// Samples the whole N coefficients for h0
 	var sign int
-	for i, jdx, idx := uint64(0), maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+	for i := uint64(0); i < 2*maxSlots; i++ {
 
-		pp.maskBigint[idx] = ring.RandInt(bound)
+		pp.maskBigint[i] = ring.RandInt(bound)
 
-		sign = pp.maskBigint[idx].Cmp(boundHalf)
+		sign = pp.maskBigint[i].Cmp(boundHalf)
 		if sign == 1 || sign == 0 {
-			pp.maskBigint[idx].Sub(pp.maskBigint[idx], bound)
+			pp.maskBigint[i].Sub(pp.maskBigint[i], bound)
 		}
-
-		pp.maskFloat[idx].SetInt(pp.maskBigint[idx])
-
-		pp.maskBigint[jdx] = ring.RandInt(bound)
-
-		sign = pp.maskBigint[jdx].Cmp(boundHalf)
-		if sign == 1 || sign == 0 {
-			pp.maskBigint[jdx].Sub(pp.maskBigint[jdx], bound)
-		}
-
-		pp.maskFloat[jdx].SetInt(pp.maskBigint[jdx])
-
-		pp.maskComplex[idx][0] = pp.maskFloat[idx]
-		pp.maskComplex[idx][1] = pp.maskFloat[jdx]
-
 	}
 
 	// h0 = mask (at level min)
@@ -115,11 +101,17 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 	context.SampleGaussianNTTLvl(uint64(len(context.Modulus)-1), pp.tmp, 3.19, 19)
 	context.AddLvl(levelStart, shareDecrypt, pp.tmp, shareDecrypt)
 
+	// Permutes only the (sparse) plaintext coefficients of h1
+	for i, jdx, idx := uint64(0), maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+		pp.maskFloat[idx].SetInt(pp.maskBigint[idx])
+		pp.maskFloat[jdx].SetInt(pp.maskBigint[jdx])
+		pp.maskComplex[idx][0] = pp.maskFloat[idx]
+		pp.maskComplex[idx][1] = pp.maskFloat[jdx]
+	}
+
 	// h1 = pi(mask) (at level max)
 	pp.encoder.FFT(pp.maskComplex, slots)
-
 	pp.permuteWithIndex(permutation, pp.maskComplex)
-
 	pp.encoder.InvFFT(pp.maskComplex, slots)
 
 	for i, jdx, idx := uint64(0), maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {

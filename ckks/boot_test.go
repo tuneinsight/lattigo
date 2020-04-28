@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"fmt"
 	"math/cmplx"
 	"math/rand"
 	"testing"
@@ -18,7 +17,7 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[0]
+	bootparams := BootstrappParams[4]
 
 	parameters := &bootparams.Parameters
 
@@ -190,8 +189,6 @@ func TestBootstrapp(t *testing.T) {
 	})
 
 	t.Run(testString("Bootstrapp/", parameters), func(t *testing.T) {
-
-		fmt.Println(parameters.Scale)
 
 		bootcontext := NewBootContext(bootparams, params.sk)
 

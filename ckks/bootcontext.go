@@ -9,7 +9,6 @@ import (
 	"math/cmplx"
 )
 
-
 // BootContext stores the parameters for the bootstrapping.
 type BootContext struct {
 	BootParams
@@ -46,9 +45,9 @@ type BootContext struct {
 }
 
 type dftvectors struct {
-	N1  uint64
+	N1    uint64
 	Level uint64
-	Vec map[uint64]*Plaintext
+	Vec   map[uint64]*Plaintext
 }
 
 func sin2pi2pi(x complex128) complex128 {
@@ -270,10 +269,10 @@ func (bootcontext *BootContext) newBootKeys(sk *SecretKey) {
 
 	nbKeys := uint64(len(rotations))
 	nbPoly := bootcontext.Beta
-	nbCoefficients := 2*bootcontext.n*uint64(len(bootcontext.Qi)+len(bootcontext.Pi))
+	nbCoefficients := 2 * bootcontext.n * uint64(len(bootcontext.Qi)+len(bootcontext.Pi))
 	bytesPerCoeff := uint64(8)
 
-	fmt.Println("Switching-Keys size (GB) :", float64(nbKeys * nbPoly * nbCoefficients * bytesPerCoeff)/float64(1000000000), "(", len(rotations), "keys)")
+	fmt.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", len(rotations), "keys)")
 
 	kgen := NewKeyGenerator(&bootcontext.Parameters)
 

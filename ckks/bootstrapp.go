@@ -428,5 +428,3 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 
 	return res
 }
-
-

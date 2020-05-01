@@ -141,7 +141,8 @@ func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 // primes starting from 2**LogQ and going upward and downward.
 func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 
-	var x, y, Qpow2, _2N uint64
+	var nextPrime, previousPrime, Qpow2, _2N uint64
+	var checkfornextprime, checkforpreviousprime bool
 
 	primes = []uint64{}
 
@@ -149,28 +150,47 @@ func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 
 	_2N = 2 << logN
 
-	x = Qpow2 + 1
-	y = Qpow2 + 1
+	nextPrime = Qpow2 + 1
+	previousPrime = Qpow2 + 1
+
+	checkfornextprime = true
+	checkforpreviousprime = true
 
 	for true {
 
-		if IsPrime(y) {
-			primes = append(primes, y)
-			if uint64(len(primes)) == levels {
-				return primes
+		if !(checkfornextprime || checkforpreviousprime) {
+			panic("GenerateNTTPrimesQ error -> cannot generate enough primes for the given parameters")
+		}
+
+		if checkforpreviousprime {
+			if IsPrime(previousPrime) {
+				primes = append(primes, previousPrime)
+				if uint64(len(primes)) == levels {
+					return
+				}
+			}
+
+			if previousPrime < _2N {
+				checkforpreviousprime = false
+			} else {
+				previousPrime -= _2N
 			}
 		}
 
-		y -= _2N
+		if checkfornextprime {
+			if IsPrime(nextPrime) {
+				primes = append(primes, nextPrime)
+				if uint64(len(primes)) == levels {
+					return
+				}
+			}
 
-		if IsPrime(x) {
-			primes = append(primes, x)
-			if uint64(len(primes)) == levels {
-				return primes
+			if nextPrime > 0xffffffffffffffff-_2N {
+				checkfornextprime = false
+			} else {
+				nextPrime += _2N
 			}
 		}
-
-		x += _2N
 	}
 
 	return

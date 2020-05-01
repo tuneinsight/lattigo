@@ -123,7 +123,6 @@ func IsPrime(num uint64) bool {
 // GenerateNTTPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
 // of levels required. Will return all the appropriate primes, up to the number of level, with the
 // best avaliable deviation from the base power of 2 for the given level.
-
 func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 
 	if logQ > 61 {
@@ -138,7 +137,7 @@ func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 }
 
 // GenerateNTTPrimesQ generates "levels" different "2**LogN" NTT compliant
-// primes starting from 2**LogQ and going upward and downward.
+// primes starting from 2**LogQ and alternating between upward and downward.
 func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 
 	var nextPrime, previousPrime, Qpow2, _2N uint64
@@ -162,34 +161,47 @@ func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 			panic("GenerateNTTPrimesQ error -> cannot generate enough primes for the given parameters")
 		}
 
-		if checkforpreviousprime {
-			if IsPrime(previousPrime) {
-				primes = append(primes, previousPrime)
-				if uint64(len(primes)) == levels {
-					return
-				}
-			}
+		if checkfornextprime {
 
-			if previousPrime < _2N {
-				checkforpreviousprime = false
+			if nextPrime > 0xffffffffffffffff-_2N {
+
+				checkfornextprime = false
+
 			} else {
-				previousPrime -= _2N
+
+				nextPrime += _2N
+
+				if IsPrime(nextPrime) {
+
+					primes = append(primes, nextPrime)
+
+					if uint64(len(primes)) == levels {
+						return
+					}
+				}
 			}
 		}
 
-		if checkfornextprime {
-			if IsPrime(nextPrime) {
-				primes = append(primes, nextPrime)
-				if uint64(len(primes)) == levels {
-					return
+		if checkforpreviousprime {
+
+			if previousPrime < _2N {
+
+				checkforpreviousprime = false
+
+			} else {
+
+				previousPrime -= _2N
+
+				if IsPrime(previousPrime) {
+
+					primes = append(primes, previousPrime)
+
+					if uint64(len(primes)) == levels {
+						return
+					}
 				}
 			}
 
-			if nextPrime > 0xffffffffffffffff-_2N {
-				checkfornextprime = false
-			} else {
-				nextPrime += _2N
-			}
 		}
 	}
 
@@ -198,6 +210,7 @@ func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 
 // GenerateNTTPrimesP generates "levels" different "2**logN" NTT compliant
 // primes starting from 2**LogP and downward.
+// Special case were we want primes close to 2^{LogP} but with a smaller bitsize than LogP.
 func GenerateNTTPrimesP(logP, logN, n uint64) (primes []uint64) {
 
 	var x, Ppow2, _2N uint64
@@ -212,13 +225,23 @@ func GenerateNTTPrimesP(logP, logN, n uint64) (primes []uint64) {
 
 	for true {
 
-		x -= _2N
+		// We start by subtracting 2N to ensure that the prime bitlength is smaller than LogP
 
-		if IsPrime(x) {
-			primes = append(primes, x)
-			if uint64(len(primes)) == n {
-				return primes
+		if x > _2N {
+
+			x -= _2N
+
+			if IsPrime(x) {
+
+				primes = append(primes, x)
+
+				if uint64(len(primes)) == n {
+					return primes
+				}
 			}
+
+		} else {
+			panic("GenerateNTTPrimesP error -> cannot generate enough primes for the given parameters")
 		}
 	}
 

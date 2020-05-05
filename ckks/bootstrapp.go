@@ -157,6 +157,62 @@ func (bootcontext *BootContext) dft(vec *Ciphertext, plainVectors []*dftvectors,
 	return vec
 }
 
+func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
+
+	evaluator := bootcontext.evaluator
+
+	var N1 uint64
+
+	res = NewCiphertext(&bootcontext.Parameters, 1, vec.Level(), vec.Scale())
+
+	// N1*N2 = N
+	N1 = plainVectors.N1
+
+	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
+	index := make(map[uint64][]uint64)
+	rotations := []uint64{}
+	for key := range plainVectors.Vec {
+
+		idx1 := key / N1
+		idx2 := key & (N1 - 1)
+
+		if index[idx1] == nil {
+			index[idx1] = []uint64{idx2}
+		} else {
+			index[idx1] = append(index[idx1], idx2)
+		}
+
+		if !utils.IsInSliceUint64(idx2, rotations) {
+			rotations = append(rotations, idx2)
+		}
+	}
+
+	// Pre-rotates ciphertext for the baby-step giant-step algorithm
+	vecRot := evaluator.RotateHoisted(vec, rotations, bootcontext.rotkeys)
+
+	var tmpVec, tmp *Ciphertext
+
+	tmpVec = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
+	tmp = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
+
+	for j := range index {
+
+		tmpVec.Value()[0].Zero()
+		tmpVec.Value()[1].Zero()
+
+		for _, i := range index[j] {
+			evaluator.MulRelin(vecRot[uint64(i)], plainVectors.Vec[N1*j+uint64(i)], nil, tmp)
+			evaluator.Add(tmpVec, tmp, tmpVec)
+		}
+
+		evaluator.RotateColumns(tmpVec, N1*j, bootcontext.rotkeys, tmp)
+
+		evaluator.Add(res, tmp, res)
+	}
+
+	return res
+}
+
 func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphertext) {
 
 	evaluator := bootcontext.evaluator.(*evaluator)
@@ -164,10 +220,17 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	// Reference scale is changed to the new ciphertext's scale.
 	evaluator.ckksContext.scale = float64(bootcontext.Qi[ct0.Level()-1])
 
-	// TODO : manage scale dynamicly depending on Q_0, the Qi of the SineEval and the ciphertext's scale.
-	ct0.MulScale(1024)
-	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
+	var scaleUp, scaleDown float64
 
+	if bootcontext.CtSRescale{
+		scaleUp = float64(bootcontext.Qi[0])/float64(bootcontext.sinScale)
+	}else{
+		scaleUp = 1024
+	}
+
+	ct0.MulScale(scaleUp)
+	
+	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
 	if bootcontext.SinType == Sin {
 		ct0 = bootcontext.evaluateChebySin(ct0)
 	} else if bootcontext.SinType == Cos {
@@ -175,12 +238,18 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	} else {
 		panic("bootstrapp -> evaluate sine -> invalid sineType")
 	}
+	
+	if bootcontext.StCRescale{
+		scaleDown = float64(bootcontext.Scale) / float64(bootcontext.Qi[0])
+	}else{
+		scaleDown = float64(bootcontext.Scale) / ct0.Scale()
+	}
 
 	ct0.SetScale(bootcontext.Scale)
 
 	if ct1 != nil {
 
-		ct1.MulScale(1024)
+		ct1.MulScale(scaleUp)
 
 		// Sine Evaluation ct1 = Q/(2pi) * sin((2pi/Q) * ct1)
 		if bootcontext.SinType == Sin {
@@ -191,8 +260,7 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 			panic("bootstrapp -> evaluate sine -> invalid sineType")
 		}
 
-		ct1.SetScale(bootcontext.Scale)
-
+		ct1.MulScale(scaleDown)
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
@@ -373,58 +441,4 @@ func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertex
 	return
 }
 
-func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
 
-	evaluator := bootcontext.evaluator
-
-	var N1 uint64
-
-	res = NewCiphertext(&bootcontext.Parameters, 1, vec.Level(), vec.Scale())
-
-	// N1*N2 = N
-	N1 = plainVectors.N1
-
-	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
-	index := make(map[uint64][]uint64)
-	rotations := []uint64{}
-	for key := range plainVectors.Vec {
-
-		idx1 := key / N1
-		idx2 := key & (N1 - 1)
-
-		if index[idx1] == nil {
-			index[idx1] = []uint64{idx2}
-		} else {
-			index[idx1] = append(index[idx1], idx2)
-		}
-
-		if !utils.IsInSliceUint64(idx2, rotations) {
-			rotations = append(rotations, idx2)
-		}
-	}
-
-	// Pre-rotates ciphertext for the baby-step giant-step algorithm
-	vecRot := evaluator.RotateHoisted(vec, rotations, bootcontext.rotkeys)
-
-	var tmpVec, tmp *Ciphertext
-
-	tmpVec = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
-	tmp = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
-
-	for j := range index {
-
-		tmpVec.Value()[0].Zero()
-		tmpVec.Value()[1].Zero()
-
-		for _, i := range index[j] {
-			evaluator.MulRelin(vecRot[uint64(i)], plainVectors.Vec[N1*j+uint64(i)], nil, tmp)
-			evaluator.Add(tmpVec, tmp, tmpVec)
-		}
-
-		evaluator.RotateColumns(tmpVec, N1*j, bootcontext.rotkeys, tmp)
-
-		evaluator.Add(res, tmp, res)
-	}
-
-	return res
-}

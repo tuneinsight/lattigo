@@ -149,5 +149,5 @@ var BootstrappParams = []*BootParams{
 		CtSDepth:   3,
 		StCDepth:   3,
 		CtSRescale: true,
-		StCRescale: true},
+		StCRescale: false},
 }

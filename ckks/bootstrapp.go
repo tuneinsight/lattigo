@@ -220,16 +220,8 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	// Reference scale is changed to the new ciphertext's scale.
 	evaluator.ckksContext.scale = float64(bootcontext.Qi[ct0.Level()-1])
 
-	var scaleUp, scaleDown float64
+	ct0.MulScale(1024)
 
-	if bootcontext.CtSRescale{
-		scaleUp = float64(bootcontext.Qi[0])/float64(bootcontext.sinScale)
-	}else{
-		scaleUp = 1024
-	}
-
-	ct0.MulScale(scaleUp)
-	
 	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
 	if bootcontext.SinType == Sin {
 		ct0 = bootcontext.evaluateChebySin(ct0)
@@ -238,18 +230,12 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	} else {
 		panic("bootstrapp -> evaluate sine -> invalid sineType")
 	}
-	
-	if bootcontext.StCRescale{
-		scaleDown = float64(bootcontext.Scale) / float64(bootcontext.Qi[0])
-	}else{
-		scaleDown = float64(bootcontext.Scale) / ct0.Scale()
-	}
 
 	ct0.SetScale(bootcontext.Scale)
 
 	if ct1 != nil {
 
-		ct1.MulScale(scaleUp)
+		ct1.MulScale(1024)
 
 		// Sine Evaluation ct1 = Q/(2pi) * sin((2pi/Q) * ct1)
 		if bootcontext.SinType == Sin {
@@ -260,7 +246,7 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 			panic("bootstrapp -> evaluate sine -> invalid sineType")
 		}
 
-		ct1.MulScale(scaleDown)
+		ct1.SetScale(bootcontext.Scale)
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
@@ -281,14 +267,7 @@ func (bootcontext *BootContext) evaluateChebySin(ct *Ciphertext) (res *Ciphertex
 	C := make(map[uint64]*Ciphertext)
 	C[1] = ct.CopyNew().Ciphertext()
 
-	if bootcontext.CtSRescale {
-		evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
-	} else {
-		n := complex(float64(bootcontext.n), 0)
-		evaluator.MultByConst(C[1], 2/((b-a)*n), C[1])
-		evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
-		evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
-	}
+	evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
 
 	M := uint64(bits.Len64(degree - 1))
 	L := bootcontext.BabySplit
@@ -321,15 +300,7 @@ func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertex
 	C := make(map[uint64]*Ciphertext)
 	C[1] = ct.CopyNew().Ciphertext()
 
-	if bootcontext.CtSRescale {
-		evaluator.AddConst(C[1], (-a-b-(2*0.25/sc_fac))/(b-a), C[1])
-	} else {
-		n := complex(float64(bootcontext.n), 0)
-		evaluator.AddConst(C[1], -0.25*n, C[1])
-		evaluator.MultByConst(C[1], 2/((b-a)*n*sc_fac), C[1])
-		evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
-		evaluator.Rescale(C[1], evaluator.ckksContext.scale, C[1])
-	}
+	evaluator.AddConst(C[1], (-a-b-(2*0.25/sc_fac))/(b-a), C[1])
 
 	M := uint64(bits.Len64(degree - 1))
 	L := bootcontext.BabySplit
@@ -440,5 +411,3 @@ func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertex
 
 	return
 }
-
-

@@ -16,9 +16,6 @@ type BootParams struct {
 	CtSDepth uint64 // Depth of the Coeffs To Slots
 	StCDepth uint64 // Depth of the Slots To Coeffs
 
-	CtSRescale bool // Rescaling by 1/(2*SinRange*N*2^{SinRescal}) during Coeffs To Slots
-	StCRescale bool // Rescaling by 2^45/(initial scale) during Slots To Coeffs
-
 	SinDepth uint64 // Automatically set
 }
 
@@ -37,82 +34,55 @@ func (b *BootParams) Gen() {
 
 	b.SinDepth = uint64(math.Ceil(math.Log2(float64(b.SinDeg))) + float64(b.SinRescal) + 1)
 
-	if !b.CtSRescale {
-		b.SinDepth++
-	}
-
 	b.Parameters.Gen()
 }
 
 var BootstrappParams = []*BootParams{
 
-	// 1430 Sin
+	// 1435 Sin
 	{Parameters: Parameters{
 		LogN:     16,
-		LogSlots: 10,
+		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45},
+			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50},
 			LogPi: []uint64{55, 55, 55, 55},
 		},
 		Scale: 1 << 45,
 		Sigma: 3.2,
 	},
-		SinType:    Sin,
-		SinRange:   15,
-		SinDeg:     127,
-		SinRescal:  0,
-		BabySplit:  3,
-		CtSDepth:   3,
-		StCDepth:   3,
-		CtSRescale: false,
-		StCRescale: false},
+		SinType:   Sin,
+		SinRange:  15,
+		SinDeg:    127,
+		SinRescal: 0,
+		BabySplit: 3,
+		CtSDepth:  3,
+		StCDepth:  3,
+	},
 
 	// 1435 Sin
 	{Parameters: Parameters{
 		LogN:     16,
-		LogSlots: 10,
+		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50},
+			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50},
 			LogPi: []uint64{55, 55, 55, 55},
 		},
 		Scale: 1 << 45,
 		Sigma: 3.2,
 	},
-		SinType:    Sin,
-		SinRange:   15,
-		SinDeg:     127,
-		SinRescal:  0,
-		BabySplit:  3,
-		CtSDepth:   3,
-		StCDepth:   3,
-		CtSRescale: true,
-		StCRescale: false},
-
-	// 1440 Sin
-	{Parameters: Parameters{
-		LogN:     16,
-		LogSlots: 10,
-		LogModuli: LogModuli{
-			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 30, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45},
-			LogPi: []uint64{61, 61, 61, 61},
-		},
-		Scale: 1 << 30,
-		Sigma: 3.2,
+		SinType:   Cos,
+		SinRange:  15,
+		SinDeg:    38,
+		SinRescal: 2,
+		BabySplit: 2,
+		CtSDepth:  3,
+		StCDepth:  3,
 	},
-		SinType:    Sin,
-		SinRange:   15,
-		SinDeg:     127,
-		SinRescal:  0,
-		BabySplit:  3,
-		CtSDepth:   3,
-		StCDepth:   3,
-		CtSRescale: false,
-		StCRescale: true},
 
 	// 1430 Sin
 	{Parameters: Parameters{
 		LogN:     16,
-		LogSlots: 10,
+		LogSlots: 15,
 		LogModuli: LogModuli{
 			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50},
 			LogPi: []uint64{61, 61, 61, 61},
@@ -120,20 +90,19 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 30,
 		Sigma: 3.2,
 	},
-		SinType:    Sin,
-		SinRange:   15,
-		SinDeg:     127,
-		SinRescal:  0,
-		BabySplit:  3,
-		CtSDepth:   3,
-		StCDepth:   3,
-		CtSRescale: true,
-		StCRescale: true},
+		SinType:   Sin,
+		SinRange:  15,
+		SinDeg:    127,
+		SinRescal: 0,
+		BabySplit: 3,
+		CtSDepth:  3,
+		StCDepth:  3,
+	},
 
 	// 1425 cos
 	{Parameters: Parameters{
 		LogN:     16,
-		LogSlots: 10,
+		LogSlots: 15,
 		LogModuli: LogModuli{
 			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50},
 			LogPi: []uint64{61, 61, 61, 61},
@@ -141,13 +110,12 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 30,
 		Sigma: 3.2,
 	},
-		SinType:    Cos,
-		SinRange:   15,
-		SinDeg:     38,
-		SinRescal:  2,
-		BabySplit:  2,
-		CtSDepth:   3,
-		StCDepth:   3,
-		CtSRescale: true,
-		StCRescale: false},
+		SinType:   Cos,
+		SinRange:  15,
+		SinDeg:    38,
+		SinRescal: 2,
+		BabySplit: 2,
+		CtSDepth:  3,
+		StCDepth:  3,
+	},
 }

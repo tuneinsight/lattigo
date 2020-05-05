@@ -104,55 +104,17 @@ func NewBootContext(bootparams *BootParams, sk *SecretKey) (bootcontext *BootCon
 
 func (bootcontext *BootContext) newBootDFT() {
 
-	if bootcontext.SinType == Sin {
+	a := real(bootcontext.chebycoeffs.a)
+	b := real(bootcontext.chebycoeffs.b)
+	n := float64(bootcontext.n)
+	sc_fac := float64(int(1 << bootcontext.SinRescal))
+	qDiff := float64(bootcontext.Qi[0]) / float64(1<<55)
 
-		if bootcontext.CtSRescale {
-			// Change of variable + SubSum + CoeffsToSlots cancelling factor
-			a := real(bootcontext.chebycoeffs.a)
-			b := real(bootcontext.chebycoeffs.b)
-			n := float64(bootcontext.n)
+	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
+	bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(bootcontext.CtSDepth)), 0)
 
-			// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum
-			bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2/((b-a)*n), 1.0/float64(bootcontext.CtSDepth)), 0)
-
-		} else {
-			bootcontext.coeffsToSlotsDiffScale = complex(1, 0)
-		}
-
-		if bootcontext.StCRescale {
-			// Rescaling factor to set the final ciphertext to the desired scale
-			bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.sinScale/bootcontext.Scale, 1.0/float64(bootcontext.StCDepth)), 0)
-		} else {
-			bootcontext.slotsToCoeffsDiffScale = complex(1, 0)
-		}
-
-	} else if bootcontext.SinType == Cos {
-
-		if bootcontext.CtSRescale {
-
-			// Change of variable + SubSum + CoeffsToSlots cancelling factor
-			a := real(bootcontext.chebycoeffs.a)
-			b := real(bootcontext.chebycoeffs.b)
-			n := float64(bootcontext.n)
-			sc_fac := float64(int(1 << bootcontext.SinRescal))
-
-			// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum
-			bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2/((b-a)*n*sc_fac), 1.0/float64(bootcontext.CtSDepth)), 0)
-
-		} else {
-			bootcontext.coeffsToSlotsDiffScale = complex(1, 0)
-		}
-
-		if bootcontext.StCRescale {
-			// Rescaling factor to set the final ciphertext to the desired scale
-			bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.sinScale/bootcontext.Scale, 1.0/float64(bootcontext.StCDepth)), 0)
-		} else {
-			bootcontext.slotsToCoeffsDiffScale = complex(1, 0)
-		}
-
-	} else {
-		panic("bootcontext -> invalid sineType")
-	}
+	// Rescaling factor to set the final ciphertext to the desired scale
+	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.Scale/bootcontext.sinScale, 1.0/float64(bootcontext.StCDepth)), 0)
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	bootcontext.computePlaintextVectors()
@@ -622,7 +584,7 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, p
 		for j := range plainVector {
 			for x := range plainVector[j] {
 				for i := range plainVector[j][x] {
-					plainVector[j][x][i] /= diffscale
+					plainVector[j][x][i] *= diffscale
 				}
 			}
 		}

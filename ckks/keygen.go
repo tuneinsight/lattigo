@@ -51,8 +51,8 @@ const (
 
 // RotationKeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
-	permuteNTTRightIndex     map[uint64][]uint64
 	permuteNTTLeftIndex      map[uint64][]uint64
+	permuteNTTRightIndex     map[uint64][]uint64
 	permuteNTTConjugateIndex []uint64
 
 	evakeyRotColLeft  map[uint64]*SwitchingKey

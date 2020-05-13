@@ -190,7 +190,15 @@ func TestBootstrapp(t *testing.T) {
 
 	t.Run(testString("Bootstrapp/", parameters), func(t *testing.T) {
 
-		bootcontext := NewBootContext(bootparams, params.sk)
+		bootcontext := NewBootContext(bootparams)
+		bootcontext.GenBootKeys(params.sk)
+
+		rlk, rotkey := bootcontext.ExportKeys()
+
+		bootcontext.ImportKeys(rlk, rotkey)
+		if err := bootcontext.CheckKeys(); err != nil {
+			panic(err)
+		}
 
 		values := make([]complex128, slots)
 		for i := range values {

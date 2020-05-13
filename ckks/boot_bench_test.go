@@ -31,7 +31,8 @@ func BenchmarkBootstrappSine(b *testing.B) {
 
 	sk = kgen.GenSecretKey()
 
-	bootcontext = NewBootContext(bootparams, sk)
+	bootcontext = NewBootContext(bootparams)
+	bootcontext.GenBootKeys(sk)
 
 	b.Run(testString("ModUp/", parameters), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

@@ -36,8 +36,9 @@ type BootContext struct {
 	pDFT                   []*dftvectors // Matrice vectors
 	pDFTInv                []*dftvectors // Matrice vectors
 
-	relinkey *EvaluationKey // Relinearization key
-	rotkeys  *RotationKeys  // Rotation and conjugation keys
+	rotKeyIndex []uint64       // a list of the required rotation keys
+	relinkey    *EvaluationKey // Relinearization key
+	rotkeys     *RotationKeys  // Rotation and conjugation keys
 
 	ctxpool [3]*Ciphertext // Memory pool
 
@@ -66,7 +67,7 @@ func (b *BootContext) printDebug(message string, ciphertext *Ciphertext) {
 }
 
 // NewBootContext creates a new bootcontext.
-func NewBootContext(bootparams *BootParams, sk *SecretKey) (bootcontext *BootContext) {
+func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 
 	bootcontext = new(BootContext)
 
@@ -90,16 +91,74 @@ func NewBootContext(bootparams *BootParams, sk *SecretKey) (bootcontext *BootCon
 
 	bootcontext.newBootSine()
 	bootcontext.newBootDFT()
-	bootcontext.newBootKeys(sk)
 
 	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
-	bootcontext.decryptor = NewDecryptor(&bootparams.Parameters, sk)
+	//bootcontext.decryptor = NewDecryptor(&bootparams.Parameters, sk)
 
 	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
 	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
 	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
 
 	return bootcontext
+}
+
+func (bootcontext *BootContext) GenBootKeys(sk *SecretKey) {
+
+	fmt.Println("DFT vector size (GB) :", float64(bootcontext.plaintextSize)/float64(1000000000))
+
+	nbKeys := uint64(len(bootcontext.rotKeyIndex)) + 2 //rot keys + conj key + relin key
+	nbPoly := bootcontext.Beta
+	nbCoefficients := 2 * bootcontext.n * uint64(len(bootcontext.Qi)+len(bootcontext.Pi))
+	bytesPerCoeff := uint64(8)
+
+	fmt.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
+
+	kgen := NewKeyGenerator(&bootcontext.Parameters)
+
+	bootcontext.rotkeys = NewRotationKeys()
+
+	kgen.GenRot(Conjugate, sk, 0, bootcontext.rotkeys)
+
+	for _, i := range bootcontext.rotKeyIndex {
+		kgen.GenRot(RotationLeft, sk, uint64(i), bootcontext.rotkeys)
+	}
+
+	bootcontext.relinkey = kgen.GenRelinKey(sk)
+
+	return
+}
+
+func (bootcontext *BootContext) ExportKeys() (rlk *EvaluationKey, rotkeys *RotationKeys) {
+	return bootcontext.relinkey, bootcontext.rotkeys
+}
+
+func (bootcontext *BootContext) ImportKeys(rlk *EvaluationKey, rotkeys *RotationKeys) {
+	bootcontext.relinkey = rlk
+	bootcontext.rotkeys = rotkeys
+}
+
+func (bootcontext *BootContext) CheckKeys() (err error) {
+
+	if bootcontext.relinkey == nil || bootcontext.rotkeys == nil {
+		return fmt.Errorf("empty relinkkey and/or rotkeys")
+	}
+
+	if bootcontext.rotkeys.evakeyConjugate == nil {
+		return fmt.Errorf("missing conjugate key")
+	}
+
+	rotMissing := []uint64{}
+	for _, i := range bootcontext.rotKeyIndex {
+		if bootcontext.rotkeys.evakeyRotColLeft[i] == nil || bootcontext.rotkeys.permuteNTTLeftIndex[i] == nil {
+			rotMissing = append(rotMissing, i)
+		}
+	}
+
+	if len(rotMissing) != 0 {
+		return fmt.Errorf("missing rotation keys : %d", rotMissing)
+	}
+
+	return nil
 }
 
 func (bootcontext *BootContext) newBootDFT() {
@@ -118,6 +177,61 @@ func (bootcontext *BootContext) newBootDFT() {
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	bootcontext.computePlaintextVectors()
+
+	slots := bootcontext.slots
+
+	// List of the rotation key values to needed for the bootstrapp
+	bootcontext.rotKeyIndex = []uint64{}
+
+	//SubSum rotation needed X -> Y^slots rotations
+	for i := bootcontext.LogSlots; i < bootcontext.LogN-1; i++ {
+		if !utils.IsInSliceUint64(1<<i, bootcontext.rotKeyIndex) {
+			bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, 1<<i)
+		}
+	}
+
+	var index uint64
+	// Coeffs to Slots rotations
+	for i := range bootcontext.pDFTInv {
+		for j := range bootcontext.pDFTInv[i].Vec {
+
+			index = ((j / bootcontext.pDFTInv[i].N1) * bootcontext.pDFTInv[i].N1) & (slots - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, bootcontext.rotKeyIndex) {
+				bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, index)
+			}
+
+			index = j & (bootcontext.pDFTInv[i].N1 - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, bootcontext.rotKeyIndex) {
+				bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, index)
+			}
+		}
+	}
+
+	// Slots to Coeffs rotations
+	for i := range bootcontext.pDFT {
+		for j := range bootcontext.pDFT[i].Vec {
+
+			if bootcontext.repack && i == 0 {
+				// Sparse repacking, occuring during the first DFT matrix of the CoeffsToSlots.
+				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (2*slots - 1)
+			} else {
+				// Other cases
+				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (slots - 1)
+			}
+
+			if index != 0 && !utils.IsInSliceUint64(index, bootcontext.rotKeyIndex) {
+				bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, index)
+			}
+
+			index = j & (bootcontext.pDFT[i].N1 - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, bootcontext.rotKeyIndex) {
+				bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, index)
+			}
+		}
+	}
 
 	return
 }
@@ -168,87 +282,6 @@ func (bootcontext *BootContext) newBootSine() {
 	} else {
 		panic("bootcontext -> invalid sineType")
 	}
-}
-
-func (bootcontext *BootContext) newBootKeys(sk *SecretKey) {
-
-	slots := bootcontext.slots
-
-	// List of the rotation key values to needed for the bootstrapp
-	rotations := []uint64{}
-
-	//SubSum rotation needed X -> Y^slots rotations
-	for i := bootcontext.LogSlots; i < bootcontext.LogN-1; i++ {
-		if !utils.IsInSliceUint64(1<<i, rotations) {
-			rotations = append(rotations, 1<<i)
-		}
-	}
-
-	var index uint64
-	// Coeffs to Slots rotations
-	for i := range bootcontext.pDFTInv {
-		for j := range bootcontext.pDFTInv[i].Vec {
-
-			index = ((j / bootcontext.pDFTInv[i].N1) * bootcontext.pDFTInv[i].N1) & (slots - 1)
-
-			if !utils.IsInSliceUint64(index, rotations) {
-				rotations = append(rotations, index)
-			}
-
-			index = j & (bootcontext.pDFTInv[i].N1 - 1)
-
-			if !utils.IsInSliceUint64(index, rotations) {
-				rotations = append(rotations, index)
-			}
-		}
-	}
-
-	// Slots to Coeffs rotations
-	for i := range bootcontext.pDFT {
-		for j := range bootcontext.pDFT[i].Vec {
-
-			if bootcontext.repack && i == 0 {
-				// Sparse repacking, occuring during the first DFT matrix of the CoeffsToSlots.
-				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (2*slots - 1)
-			} else {
-				// Other cases
-				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (slots - 1)
-			}
-
-			if !utils.IsInSliceUint64(index, rotations) {
-				rotations = append(rotations, index)
-			}
-
-			index = j & (bootcontext.pDFT[i].N1 - 1)
-
-			if !utils.IsInSliceUint64(index, rotations) {
-				rotations = append(rotations, index)
-			}
-		}
-	}
-
-	fmt.Println("DFT vector size (GB) :", float64(bootcontext.plaintextSize)/float64(1000000000))
-
-	nbKeys := uint64(len(rotations))
-	nbPoly := bootcontext.Beta
-	nbCoefficients := 2 * bootcontext.n * uint64(len(bootcontext.Qi)+len(bootcontext.Pi))
-	bytesPerCoeff := uint64(8)
-
-	fmt.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", len(rotations), "keys)")
-
-	kgen := NewKeyGenerator(&bootcontext.Parameters)
-
-	bootcontext.rotkeys = NewRotationKeys()
-
-	kgen.GenRot(Conjugate, sk, 0, bootcontext.rotkeys)
-
-	for _, i := range rotations {
-		kgen.GenRot(RotationLeft, sk, uint64(i), bootcontext.rotkeys)
-	}
-
-	bootcontext.relinkey = kgen.GenRelinKey(sk)
-
-	return
 }
 
 func computeRoots(N uint64) (roots []complex128) {

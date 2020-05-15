@@ -39,7 +39,7 @@ func (b *BootParams) Gen() {
 
 var BootstrappParams = []*BootParams{
 
-	// 1435 Sin
+	// 1390 Sin
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
@@ -59,7 +59,7 @@ var BootstrappParams = []*BootParams{
 		StCDepth:  3,
 	},
 
-	// 1435 Sin
+	// 1390 Sin
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,

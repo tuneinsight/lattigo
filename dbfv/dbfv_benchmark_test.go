@@ -26,7 +26,7 @@ func benchPublicKeyGen(b *testing.B) {
 
 		sk0Shards := testCtx.sk0Shards
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+		crpGenerator := ring.NewCRPGenerator(true, nil, testCtx.contextQP)
 
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.ClockUniformNew()
@@ -94,7 +94,7 @@ func benchRelinKeyGen(b *testing.B) {
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
 		p.rlk = bfv.NewRelinKey(parameters, 2)
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+		crpGenerator := ring.NewCRPGenerator(true, nil, testCtx.contextQP)
 
 		crpGenerator.Seed([]byte{})
 		crp := make([]*ring.Poly, parameters.Beta)
@@ -328,7 +328,7 @@ func benchRotKeyGen(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShare()
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+		crpGenerator := ring.NewCRPGenerator(true, nil, testCtx.contextQP)
 		crpGenerator.Seed([]byte{})
 		crp := make([]*ring.Poly, parameters.Beta)
 
@@ -385,7 +385,7 @@ func benchRefresh(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShares()
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+		crpGenerator := ring.NewCRPGenerator(true, nil, testCtx.contextQP)
 		crpGenerator.Seed([]byte{})
 		crp := crpGenerator.ClockUniformNew()
 

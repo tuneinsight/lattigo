@@ -787,14 +787,13 @@ func (evaluator *evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, p0, 
 					p2tmp[y] = ring.MRed(key0[y], c2QiNtt[y], qi, mredParams)
 					p3tmp[y] = ring.MRed(key1[y], c2QiNtt[y], qi, mredParams)
 				}
-			}else{
+			} else {
 				for y := uint64(0); y < context.N; y++ {
 					p2tmp[y] += ring.MRed(key0[y], c2QiNtt[y], qi, mredParams)
 					p3tmp[y] += ring.MRed(key1[y], c2QiNtt[y], qi, mredParams)
 				}
 			}
 
-			
 		}
 
 		if reduce&7 == 7 {

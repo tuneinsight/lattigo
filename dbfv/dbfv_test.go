@@ -121,7 +121,7 @@ func testPublicKeyGen(t *testing.T) {
 
 		t.Run(testString("", parties, parameters), func(t *testing.T) {
 
-			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+			crpGenerator := ring.NewCRPGenerator(true, nil, testCtx.contextQP)
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.ClockUniformNew()
 
@@ -198,7 +198,7 @@ func testRelinKeyGen(t *testing.T) {
 
 			P0 := rkgParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+			crpGenerator := ring.NewCRPGenerator(true, nil, testCtx.contextQP)
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, parameters.Beta)
 
@@ -457,7 +457,7 @@ func testRotKeyGenRotRows(t *testing.T) {
 			}
 			P0 := pcksParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+			crpGenerator := ring.NewCRPGenerator(true, nil, testCtx.contextQP)
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, parameters.Beta)
 
@@ -519,7 +519,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 
 			P0 := pcksParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+			crpGenerator := ring.NewCRPGenerator(true, nil, testCtx.contextQP)
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, parameters.Beta)
 
@@ -597,7 +597,7 @@ func testRefresh(t *testing.T) {
 
 			P0 := RefreshParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+			crpGenerator := ring.NewCRPGenerator(true, nil, testCtx.contextQP)
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.ClockUniformNew()
 
@@ -690,7 +690,7 @@ func Test_Marshalling(t *testing.T) {
 	//verify if the un.marshalling works properly
 	dbfvCtx := newDbfvContext(params)
 	KeyGenerator := bfv.NewKeyGenerator(params)
-	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, dbfvCtx.contextQP)
+	crsGen := ring.NewCRPGenerator(true, []byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, dbfvCtx.contextQP)
 	sk := KeyGenerator.GenSecretKey()
 	crs := crsGen.ClockUniformNew()
 	contextQ := dbfvCtx.contextQ
@@ -808,7 +808,7 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("RTG/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 
 		//check RTGShare
-		crpGenerator := ring.NewCRPGenerator(nil, dbfvCtx.contextQP)
+		crpGenerator := ring.NewCRPGenerator(true, nil, dbfvCtx.contextQP)
 		modulus := (dbfvCtx.contextQ.Modulus)
 		crp := make([]*ring.Poly, len(modulus))
 		for j := 0; j < len(modulus); j++ {
@@ -862,7 +862,7 @@ func Test_Relin_Marshalling(t *testing.T) {
 	contextPKeys := dbfvCtx.contextP
 	modulus := dbfvCtx.contextQ.Modulus
 
-	crpGenerator := ring.NewCRPGenerator(nil, dbfvCtx.contextQP)
+	crpGenerator := ring.NewCRPGenerator(true, nil, dbfvCtx.contextQP)
 
 	crp := make([]*ring.Poly, len(modulus))
 	for j := 0; j < len(modulus); j++ {

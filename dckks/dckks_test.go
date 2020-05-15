@@ -135,7 +135,7 @@ func testPublicKeyGen(t *testing.T) {
 
 		t.Run(testString("", parties, parameters), func(t *testing.T) {
 
-			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
+			crpGenerator := ring.NewCRPGenerator(true, nil, params.dckksContext.contextQP)
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.ClockUniformNew()
 
@@ -213,7 +213,7 @@ func testRelinKeyGen(t *testing.T) {
 
 			P0 := rkgParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
+			crpGenerator := ring.NewCRPGenerator(true, nil, params.dckksContext.contextQP)
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, parameters.Beta)
 
@@ -478,7 +478,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 			}
 			P0 := pcksParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
+			crpGenerator := ring.NewCRPGenerator(true, nil, params.dckksContext.contextQP)
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, parameters.Beta)
 
@@ -545,7 +545,7 @@ func testRotKeyGenCols(t *testing.T) {
 
 			P0 := pcksParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
+			crpGenerator := ring.NewCRPGenerator(true, nil, contextKeys)
 			crpGenerator.Seed([]byte{})
 			crp := make([]*ring.Poly, parameters.Beta)
 
@@ -620,7 +620,7 @@ func testRefresh(t *testing.T) {
 
 			P0 := RefreshParties[0]
 
-			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQ)
+			crpGenerator := ring.NewCRPGenerator(true, nil, params.dckksContext.contextQ)
 			crpGenerator.Seed([]byte{})
 			crp := crpGenerator.ClockUniformNew()
 

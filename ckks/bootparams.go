@@ -59,12 +59,13 @@ var BootstrappParams = []*BootParams{
 		StCLevel:  []uint64{12, 11, 11},
 	},
 
-	// 1390 Sin
+	// 1399 Sin - 505
+	// 15 : 19.55
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50},
+			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
 			LogPi: []uint64{55, 55, 55, 55},
 		},
 		Scale: 1 << 45,
@@ -76,7 +77,7 @@ var BootstrappParams = []*BootParams{
 		SinRescal: 2,
 		BabySplit: 2,
 		CtSLevel:  []uint64{23, 22, 21},
-		StCLevel:  []uint64{11, 10, 10},
+		StCLevel:  []uint64{12, 12, 11},
 	},
 
 	// 1430 Sin
@@ -99,7 +100,7 @@ var BootstrappParams = []*BootParams{
 		StCLevel:  []uint64{9, 9, 8},
 	},
 
-	// 1436 cos
+	// 1436 cos - 505
 	// 10 : 21.44
 	// 11 : 21.00
 	// 12 : 20.46

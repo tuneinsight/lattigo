@@ -1,9 +1,9 @@
 package ckks
 
 import (
+	"fmt"
 	"math"
 	"math/bits"
-	//"fmt"
 )
 
 type poly struct {
@@ -206,7 +206,7 @@ func splitCoeffsCheby(coeffs *poly, degree, maxDegree uint64) (coeffsq, coeffsr 
 func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
-	if maxDegree <= (1 << L) {
+	if maxDegree < (1 << L) {
 		return evaluatePolyFromChebyBasis(coeffs, C, evaluator, evakey)
 	}
 
@@ -225,6 +225,8 @@ func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext
 
 	//fmt.Println("Mul", res.Level(), C[1<<(M-1)].Level())
 	evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
+
+	fmt.Println(res.Level(), res.Scale(), tmp.Level(), tmp.Scale())
 
 	if res.Level() > tmp.Level() {
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)

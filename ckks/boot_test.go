@@ -47,7 +47,7 @@ func TestBootstrapp(t *testing.T) {
 		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
-		evaluator.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel)))
+		evaluator.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
 
@@ -78,18 +78,19 @@ func TestBootstrapp(t *testing.T) {
 		evaluator := NewEvaluator(parameters)
 
 		K := 16
-		deg := 44
+		deg := 48
 		dev := 10
 		sc_num := 2
 
 		sc_fac := complex(float64(int(1<<sc_num)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, float64(-K+1), float64(K-1), t)
-		evaluator.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel)))
+		evaluator.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
 		cheby.maxDeg = uint64(len(cheby.coeffs) - 1)
+		fmt.Println(cheby.maxDeg)
 		cheby.a = complex(float64(-K), 0) / sc_fac
 		cheby.b = complex(float64(K), 0) / sc_fac
 

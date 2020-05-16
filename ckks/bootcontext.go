@@ -170,10 +170,10 @@ func (bootcontext *BootContext) newBootDFT() {
 	qDiff := float64(bootcontext.Qi[0]) / float64(1<<55)
 
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
-	bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(bootcontext.CtSDepth)), 0)
+	bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(len(bootcontext.CtSLevel))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
-	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.Scale/bootcontext.sinScale, 1.0/float64(bootcontext.StCDepth)), 0)
+	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.Scale/bootcontext.sinScale, 1.0/float64(len(bootcontext.StCLevel))), 0)
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	bootcontext.computePlaintextVectors()
@@ -400,8 +400,8 @@ func (bootcontext *BootContext) computePlaintextVectors() {
 	slots := bootcontext.slots
 	dslots := bootcontext.dslots
 
-	CtSDepth := bootcontext.CtSDepth
-	StCDepth := bootcontext.StCDepth
+	CtSLevel := bootcontext.CtSLevel
+	StCLevel := bootcontext.StCLevel
 
 	roots := computeRoots(slots << 1)
 	pow5 := make([]uint64, (slots<<1)+1)
@@ -412,31 +412,21 @@ func (bootcontext *BootContext) computePlaintextVectors() {
 	}
 
 	// CoeffsToSlots vectors
-	bootcontext.pDFTInv = make([]*dftvectors, CtSDepth)
-
+	bootcontext.pDFTInv = make([]*dftvectors, len(CtSLevel))
 	pVecDFTInv := bootcontext.computeDFTPlaintextVectors(roots, pow5, bootcontext.coeffsToSlotsDiffScale, true)
-
-	for i := uint64(0); i < bootcontext.CtSDepth; i++ {
-
+	for i, lvl := range CtSLevel {
 		bootcontext.pDFTInv[i] = new(dftvectors)
-
 		bootcontext.pDFTInv[i].N1 = findbestbabygiantstepsplit(pVecDFTInv[i], dslots)
-
-		bootcontext.encodePVec(pVecDFTInv[i], bootcontext.pDFTInv[i], i, true)
+		bootcontext.encodePVec(pVecDFTInv[i], bootcontext.pDFTInv[i], lvl, true)
 	}
 
 	// SlotsToCoeffs vectors
-	bootcontext.pDFT = make([]*dftvectors, StCDepth)
-
+	bootcontext.pDFT = make([]*dftvectors, len(CtSLevel))
 	pVecDFT := bootcontext.computeDFTPlaintextVectors(roots, pow5, bootcontext.slotsToCoeffsDiffScale, false)
-
-	for i := uint64(0); i < StCDepth; i++ {
-
+	for i, lvl := range StCLevel {
 		bootcontext.pDFT[i] = new(dftvectors)
-
 		bootcontext.pDFT[i].N1 = findbestbabygiantstepsplit(pVecDFT[i], dslots)
-
-		bootcontext.encodePVec(pVecDFT[i], bootcontext.pDFT[i], i, false)
+		bootcontext.encodePVec(pVecDFT[i], bootcontext.pDFT[i], lvl, false)
 	}
 }
 
@@ -476,8 +466,8 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (mi
 	return
 }
 
-func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plaintextVec *dftvectors, k uint64, forward bool) {
-	var N, N1, level uint64
+func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plaintextVec *dftvectors, level uint64, forward bool) {
+	var N, N1 uint64
 	var scale float64
 
 	// N1*N2 = N
@@ -499,11 +489,8 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	plaintextVec.Vec = make(map[uint64]*Plaintext)
 
 	if forward {
-		level = bootcontext.MaxLevel - k
 		scale = float64(bootcontext.Qi[level])
 	} else {
-		level = bootcontext.MaxLevel - uint64((float64(k)/2.0)+0.5) - bootcontext.CtSDepth - bootcontext.SinDepth
-
 		// If the first moduli
 		if bootcontext.LogQi[level] > 30 {
 			scale = float64(uint64(1 << (bootcontext.LogQi[level] >> 1)))
@@ -542,10 +529,10 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, p
 	var maxDepth uint64
 
 	if forward {
-		maxDepth = bootcontext.CtSDepth
+		maxDepth = uint64(len(bootcontext.CtSLevel))
 		a, b, c = fftInvPlainVec(slots, roots, pow5)
 	} else {
-		maxDepth = bootcontext.StCDepth
+		maxDepth = uint64(len(bootcontext.StCLevel))
 		a, b, c = fftPlainVec(slots, roots, pow5)
 	}
 
@@ -612,23 +599,11 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, p
 		}
 	}
 
-	if !forward {
-		// Rescaling of the DFT matrix of the SlotsToCoeffs to match the desired output scale
-		for j := range plainVector {
-			for x := range plainVector[j] {
-				for i := range plainVector[j][x] {
-					plainVector[j][x][i] *= diffscale
-				}
-			}
-		}
-	} else {
-		// Rescaling of the DFT matrix of the SlotsToCoeffs to operate the change of variable for
-		// the evaluation of the Chebyshev polynomial and the DFT + SubSum cancellation factor.
-		for j := range plainVector {
-			for x := range plainVector[j] {
-				for i := range plainVector[j][x] {
-					plainVector[j][x][i] *= diffscale
-				}
+	// Rescaling of the DFT matrix of the SlotsToCoeffs/CoeffsToSlots
+	for j := range plainVector {
+		for x := range plainVector[j] {
+			for i := range plainVector[j][x] {
+				plainVector[j][x][i] *= diffscale
 			}
 		}
 	}

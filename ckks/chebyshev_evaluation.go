@@ -3,6 +3,7 @@ package ckks
 import (
 	"math"
 	"math/bits"
+	//"fmt"
 )
 
 type poly struct {
@@ -38,7 +39,9 @@ func (eval *evaluator) EvaluateChebyFast(op *Ciphertext, cheby *ChebyshevInterpo
 	eval.Rescale(C[1], eval.ckksContext.scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree()))
-	L := (M >> 1) //optimalL(M)
+	L := optimalL(M)
+
+	//fmt.Println(M, L)
 
 	for i := uint64(2); i <= (1 << L); i++ {
 		computePowerBasisCheby(i, C, eval, evakey)
@@ -125,6 +128,11 @@ func (eval *evaluator) EvaluateChebyFastSpecial(ct *Ciphertext, n complex128, ch
 	for i := L + 1; i < M; i++ {
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
+
+	//for i := range C{
+	//	fmt.Println(i, C[i].Level(), C[i].Scale())
+	//}
+	//fmt.Println()
 
 	return recurseCheby(cheby.degree(), L, M, cheby.Poly(), C, eval, evakey)
 }
@@ -213,11 +221,22 @@ func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext
 	var tmp *Ciphertext
 	tmp = recurseCheby((1<<(M-1))-1, L, M-1, coeffsr, C, evaluator, evakey)
 
+	//fmt.Println(1<<(M-1), res.Level(), tmp.Level(), res.Scale(), tmp.Scale())
+
 	//fmt.Println("Mul", res.Level(), C[1<<(M-1)].Level())
 	evaluator.MulRelin(res, C[1<<(M-1)], evakey, res)
 
-	evaluator.Add(res, tmp, res)
-	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+	if res.Level() > tmp.Level() {
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		evaluator.Add(res, tmp, res)
+
+	} else {
+		evaluator.Add(res, tmp, res)
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+	}
+
+	//fmt.Println(res.Level())
+	//fmt.Println()
 
 	return res
 

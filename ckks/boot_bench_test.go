@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func BenchmarkBootstrappSine(b *testing.B) {
+func BenchmarkBootstrapp(b *testing.B) {
 
 	var bootcontext *BootContext
 	var kgen KeyGenerator
@@ -16,13 +16,13 @@ func BenchmarkBootstrappSine(b *testing.B) {
 	LTScale = 1 << 45
 	//SineScale = 1 << 55
 
-	bootparams := BootstrappParams[4]
+	bootparams := BootstrappParams[3]
 
 	parameters := &bootparams.Parameters
 
 	bootparams.Gen()
 
-	ctsDepth := bootparams.CtSDepth
+	ctsDepth := uint64(len(bootparams.CtSLevel))
 	sinDepth := bootparams.SinDepth
 
 	testString("Params/", parameters)

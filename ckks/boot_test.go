@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"fmt"
 	"math/cmplx"
 	"math/rand"
 	"testing"
@@ -23,6 +24,10 @@ func TestBootstrapp(t *testing.T) {
 
 	bootparams.Gen()
 
+	//for i, qi := range bootparams.Qi{
+	//	fmt.Println(i, qi)
+	//}
+
 	params := genCkksParams(parameters)
 
 	slots := uint64(1 << bootparams.Parameters.LogSlots)
@@ -38,11 +43,11 @@ func TestBootstrapp(t *testing.T) {
 
 		evaluator := NewEvaluator(parameters)
 
-		deg := 127
-		K := float64(12)
+		deg := 123
+		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
-		evaluator.DropLevel(ciphertext, bootparams.CtSDepth)
+		evaluator.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel)))
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
 
@@ -51,12 +56,13 @@ func TestBootstrapp(t *testing.T) {
 		}
 
 		//fmt.Println(ciphertext.Level())
-		//start := time.Now()
+		start := time.Now()
 		ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
-		//fmt.Printf("Elapsed : %s \n", time.Since(start))
+		fmt.Printf("Elapsed : %s \n", time.Since(start))
 		//fmt.Println(ciphertext.Level())
 
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+		t.Fail()
 
 		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale
@@ -71,15 +77,15 @@ func TestBootstrapp(t *testing.T) {
 
 		evaluator := NewEvaluator(parameters)
 
-		K := 12
-		deg := 30
+		K := 16
+		deg := 44
 		dev := 10
 		sc_num := 2
 
 		sc_fac := complex(float64(int(1<<sc_num)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, float64(-K+1), float64(K-1), t)
-		evaluator.DropLevel(ciphertext, bootparams.CtSDepth)
+		evaluator.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel)))
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
@@ -124,9 +130,10 @@ func TestBootstrapp(t *testing.T) {
 
 		params.evaluator.AddConst(ciphertext, -0.25, ciphertext)
 
-		//fmt.Println(ciphertext.Level())
-		//start := time.Now()
+		fmt.Println(ciphertext.Level(), ciphertext.Scale())
+		start := time.Now()
 		ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, sc_fac, cheby, rlk)
+		fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 		if sc_num == 1 {
 			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
@@ -179,9 +186,11 @@ func TestBootstrapp(t *testing.T) {
 			evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 
 		}
-		//fmt.Printf("Elapsed : %s \n", time.Since(start))
-		//fmt.Println(ciphertext.Level())
+		fmt.Printf("Elapsed : %s \n", time.Since(start))
+		fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+
+		t.Fail()
 
 		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale

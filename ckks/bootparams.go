@@ -13,8 +13,8 @@ type BootParams struct {
 	SinRescal uint64  // Number of rescale and double angle formula (only applies for cos)
 	BabySplit uint64  // L parameter of the Baby-step giant-step algorithm (the smallest the more precision but the more non-scalr multiplications)
 
-	CtSDepth uint64 // Depth of the Coeffs To Slots
-	StCDepth uint64 // Depth of the Slots To Coeffs
+	CtSLevel []uint64 // Level of the Coeffs To Slots
+	StCLevel []uint64 // Level of the Slots To Coeffs
 
 	SinDepth uint64 // Automatically set
 }
@@ -55,8 +55,8 @@ var BootstrappParams = []*BootParams{
 		SinDeg:    127,
 		SinRescal: 0,
 		BabySplit: 3,
-		CtSDepth:  3,
-		StCDepth:  3,
+		CtSLevel:  []uint64{23, 22, 21},
+		StCLevel:  []uint64{12, 11, 11},
 	},
 
 	// 1390 Sin
@@ -75,8 +75,8 @@ var BootstrappParams = []*BootParams{
 		SinDeg:    38,
 		SinRescal: 2,
 		BabySplit: 2,
-		CtSDepth:  3,
-		StCDepth:  3,
+		CtSLevel:  []uint64{23, 22, 21},
+		StCLevel:  []uint64{11, 10, 10},
 	},
 
 	// 1430 Sin
@@ -95,16 +95,22 @@ var BootstrappParams = []*BootParams{
 		SinDeg:    127,
 		SinRescal: 0,
 		BabySplit: 3,
-		CtSDepth:  3,
-		StCDepth:  3,
+		CtSLevel:  []uint64{20, 19, 18},
+		StCLevel:  []uint64{9, 9, 8},
 	},
 
-	// 1425 cos
+	// 1436 cos
+	// 10 : 21.44
+	// 11 : 21.00
+	// 12 : 20.46
+	// 13 : 19.89
+	// 14 : 19.31
+	// 15 : 19.42
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50},
+			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
 			LogPi: []uint64{61, 61, 61, 61},
 		},
 		Scale: 1 << 30,
@@ -115,7 +121,7 @@ var BootstrappParams = []*BootParams{
 		SinDeg:    38,
 		SinRescal: 2,
 		BabySplit: 2,
-		CtSDepth:  3,
-		StCDepth:  3,
+		CtSLevel:  []uint64{20, 19, 18},
+		StCLevel:  []uint64{9, 9, 8},
 	},
 }

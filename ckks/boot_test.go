@@ -18,7 +18,7 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[3]
+	bootparams := BootstrappParams[0]
 
 	parameters := &bootparams.Parameters
 
@@ -43,7 +43,7 @@ func TestBootstrapp(t *testing.T) {
 
 		evaluator := NewEvaluator(parameters)
 
-		deg := 123
+		deg := 127
 		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
@@ -55,7 +55,7 @@ func TestBootstrapp(t *testing.T) {
 			values[i] = sin2pi2pi(values[i])
 		}
 
-		//fmt.Println(ciphertext.Level())
+		fmt.Println(ciphertext.Level())
 		start := time.Now()
 		ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
@@ -78,7 +78,7 @@ func TestBootstrapp(t *testing.T) {
 		evaluator := NewEvaluator(parameters)
 
 		K := 16
-		deg := 48
+		deg := 40
 		dev := 10
 		sc_num := 2
 

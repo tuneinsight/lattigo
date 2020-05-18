@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"testing"
+	"fmt"
 )
 
 func BenchmarkBootstrapp(b *testing.B) {
@@ -123,7 +124,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	})
 }
 
-/*
+
 func BenchmarkBootstrappMultiplications(b *testing.B) {
 
 	var kgen KeyGenerator
@@ -139,109 +140,37 @@ func BenchmarkBootstrappMultiplications(b *testing.B) {
 
 	bootParams := new(Parameters)
 	bootParams.LogN = 16
-	bootParams.LogSlots = 10
+	bootParams.LogSlots = 15
 	bootParams.Scale = DefaultScale
-	bootParams.LogQi = []uint64{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55, 45, 45, 45}
-	bootParams.LogPi = []uint64{55, 55, 55, 55}
+	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
+	bootParams.LogPi = []uint64{61, 61, 61, 61}
 	bootParams.Sigma = 3.2
 
-	bootParams.GenFromLogModuli()
-
-	var ctsDepth uint64
-
-	ctsDepth = 3
+	bootParams.Gen()
 
 	kgen = NewKeyGenerator(bootParams)
-
 	sk = kgen.GenSecretKey()
-
 	rlk = kgen.GenRelinKey(sk)
-
 	eval = NewEvaluator(bootParams)
 
+	ct0 := NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel, LTScale)
+	ct1 := NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel, LTScale)
 
-	ct0 := NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel - ctsDepth, LTScale)
-	ct1 := NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel - ctsDepth, LTScale)
+	for true {
 
+		b.Run(testString(fmt.Sprintf("Mul%.2d/", ct0.Level()), bootParams), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				eval.MulRelinNew(ct0, ct1, rlk)
+			}
+		})
 
-
-
-	b.Run(testString("Mul20/", bootParams), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulRelinNew(ct0, ct1, rlk)
+		if ct0.Level() == 0 {
+			break
 		}
-	})
 
-	eval.DropLevel(ct0, 1)
-	eval.DropLevel(ct1, 1)
+		eval.DropLevel(ct0, 1)
+		eval.DropLevel(ct1, 1)
 
-	b.Run(testString("Mul19/", bootParams), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulRelinNew(ct0, ct1, rlk)
-		}
-	})
-
-	eval.DropLevel(ct0, 1)
-	eval.DropLevel(ct1, 1)
-
-	b.Run(testString("Mul18/", bootParams), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulRelinNew(ct0, ct1, rlk)
-		}
-	})
-
-	eval.DropLevel(ct0, 1)
-	eval.DropLevel(ct1, 1)
-
-	b.Run(testString("Mul17/", bootParams), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulRelinNew(ct0, ct1, rlk)
-		}
-	})
-
-	eval.DropLevel(ct0, 1)
-	eval.DropLevel(ct1, 1)
-
-	b.Run(testString("Mul16/", bootParams), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulRelinNew(ct0, ct1, rlk)
-		}
-	})
-
-	eval.DropLevel(ct0, 1)
-	eval.DropLevel(ct1, 1)
-
-	b.Run(testString("Mul15/", bootParams), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulRelinNew(ct0, ct1, rlk)
-		}
-	})
-
-	eval.DropLevel(ct0, 1)
-	eval.DropLevel(ct1, 1)
-
-	b.Run(testString("Mul14/", bootParams), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulRelinNew(ct0, ct1, rlk)
-		}
-	})
-
-	eval.DropLevel(ct0, 1)
-	eval.DropLevel(ct1, 1)
-
-	b.Run(testString("Mul13/", bootParams), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulRelinNew(ct0, ct1, rlk)
-		}
-	})
-
-	eval.DropLevel(ct0, 1)
-	eval.DropLevel(ct1, 1)
-
-	b.Run(testString("Mul12/", bootParams), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulRelinNew(ct0, ct1, rlk)
-		}
-	})
+	}
 }
-*/
+

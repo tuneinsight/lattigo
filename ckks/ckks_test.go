@@ -856,7 +856,7 @@ func testEvaluatePoly(t *testing.T) {
 
 		if parameters.MaxLevel > 4 {
 
-			t.Run(testString("Fast/Exp/", parameters), func(t *testing.T) {
+			t.Run(testString("Exp/", parameters), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
@@ -867,24 +867,6 @@ func testEvaluatePoly(t *testing.T) {
 				}
 
 				ciphertext = params.evaluator.EvaluatePolyFast(ciphertext, coeffs, rlk)
-
-				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-			})
-		}
-
-		if parameters.MaxLevel > 3 {
-
-			t.Run(testString("Eco/Exp/", parameters), func(t *testing.T) {
-
-				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
-
-				coeffs := []float64{1.0, 1.0, 1.0 / 2, 1.0 / 6, 1.0 / 24, 1.0 / 120, 1.0 / 720, 1.0 / 5040}
-
-				for i := range values {
-					values[i] = cmplx.Exp(values[i])
-				}
-
-				ciphertext = params.evaluator.EvaluatePolyEco(ciphertext, coeffs, rlk)
 
 				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 			})
@@ -902,7 +884,7 @@ func testChebyshevInterpolator(t *testing.T) {
 
 		if parameters.MaxLevel > 5 {
 
-			t.Run(testString("Fast/Sin/", parameters), func(t *testing.T) {
+			t.Run(testString("Sin/", parameters), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
@@ -913,24 +895,6 @@ func testChebyshevInterpolator(t *testing.T) {
 				}
 
 				ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
-
-				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-			})
-		}
-
-		if parameters.MaxLevel > 4 {
-
-			t.Run(testString("Eco/Sin/", parameters), func(t *testing.T) {
-
-				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -3, 3, t)
-
-				cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
-
-				for i := range values {
-					values[i] = cmplx.Sin(values[i])
-				}
-
-				ciphertext = params.evaluator.EvaluateChebyEco(ciphertext, cheby, rlk)
 
 				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 			})

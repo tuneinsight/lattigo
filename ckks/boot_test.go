@@ -89,8 +89,7 @@ func TestBootstrapp(t *testing.T) {
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
-		cheby.maxDeg = uint64(len(cheby.coeffs) - 1)
-		fmt.Println(cheby.maxDeg)
+		cheby.maxDeg = cheby.degree()
 		cheby.a = complex(float64(-K), 0) / sc_fac
 		cheby.b = complex(float64(K), 0) / sc_fac
 

@@ -37,18 +37,7 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	eval.Rescale(C[1], eval.ckksContext.scale, C[1])
 
-	M := uint64(bits.Len64(cheby.degree()))
-	L := (M >> 1)
-
-	for i := uint64(2); i <= (1 << L); i++ {
-		computePowerBasisCheby(i, C, eval, evakey)
-	}
-
-	for i := L + 1; i < M; i++ {
-		computePowerBasisCheby(1<<i, C, eval, evakey)
-	}
-
-	return recurseCheby(L, cheby.Poly(), C, eval, evakey)
+	return eval.evalCheby(cheby, C, evakey)
 }
 
 // EvaluateChebyFastSpecial evaluates the input Chebyshev polynomial with the input ciphertext.
@@ -63,18 +52,23 @@ func (eval *evaluator) EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby 
 	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	eval.Rescale(C[1], eval.params.Scale, C[1])
 
-	M := uint64(bits.Len64(cheby.degree()))
-	L := (M >> 1) //optimalL(M)
+	return eval.evalCheby(cheby, C, evakey)
+}
 
-	for i := uint64(2); i <= (1 << L); i++ {
+func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ciphertext, evakey *EvaluationKey) (res *Ciphertext) {
+
+	logDegree := uint64(bits.Len64(cheby.degree()))
+	logSplit := (logDegree >> 1) //optimalL(M)
+
+	for i := uint64(2); i < (1 << logSplit); i++ {
 		computePowerBasisCheby(i, C, eval, evakey)
 	}
 
-	for i := L + 1; i < M; i++ {
+	for i := logSplit; i < logDegree; i++ {
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	return recurseCheby(L, cheby.Poly(), C, eval, evakey)
+	return recurseCheby(logSplit, cheby.Poly(), C, eval, evakey)
 }
 
 func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) {
@@ -156,7 +150,7 @@ func recurseCheby(L uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *e
 		return evaluatePolyFromChebyBasis(coeffs, C, evaluator, evakey)
 	}
 
-	var nextPower = uint64(1<<L)
+	var nextPower = uint64(1 << L)
 	for nextPower < (coeffs.degree()>>1)+1 {
 		nextPower <<= 1
 	}

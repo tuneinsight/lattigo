@@ -180,9 +180,7 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 		plaintextTest = element.(*Plaintext)
 	}
 
-	slots := uint64(1 << contextParams.params.LogSlots)
-
-	valuesTest = contextParams.encoder.Decode(plaintextTest, slots)
+	valuesTest = contextParams.encoder.Decode(plaintextTest, contextParams.params.Slots)
 
 	//fmt.Println(valuesTest[:4])
 	//fmt.Println(valuesWant[:4])
@@ -191,7 +189,7 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 
 	var delta, minprec, maxprec, meanprec, medianprec complex128
 
-	diff := make([]complex128, slots)
+	diff := make([]complex128, contextParams.params.Slots)
 
 	minprec = complex(0, 0)
 	maxprec = complex(1, 1)
@@ -233,7 +231,7 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 		distribImag[uint64(math.Floor(distribPrec*math.Log2(1/deltaImag)))]++
 	}
 
-	meanprec /= complex(float64(slots), 0)
+	meanprec /= complex(float64(contextParams.params.Slots), 0)
 	medianprec = calcmedian(diff)
 
 	if testParams.verbose {

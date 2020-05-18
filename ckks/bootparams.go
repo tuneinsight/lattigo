@@ -39,7 +39,7 @@ func (b *BootParams) Gen() {
 
 var BootstrappParams = []*BootParams{
 
-	// 1390 Sin - 550
+	// 1435 Sin - 550
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
@@ -58,27 +58,13 @@ var BootstrappParams = []*BootParams{
 		StCLevel:  []uint64{13, 12, 12},
 	},
 
-	// 1399 Sin - 505
-	// 15 : 19.55
-	{Parameters: Parameters{
-		LogN:     16,
-		LogSlots: 15,
-		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
-			LogPi: []uint64{55, 55, 55, 55},
-		},
-		Scale: 1 << 45,
-		Sigma: 3.2,
-	},
-		SinType:   Cos,
-		SinRange:  15,
-		SinDeg:    38,
-		SinRescal: 2,
-		CtSLevel:  []uint64{23, 22, 21},
-		StCLevel:  []uint64{12, 12, 11},
-	},
-
 	// 1439 Sin - 505
+	// 10 : 20.67
+	// 11 : 20.17
+	// 12 : 19.67
+	// 13 : 19.15
+	// 14 : 18.63
+	// 15 : 18.30
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
@@ -97,12 +83,37 @@ var BootstrappParams = []*BootParams{
 		StCLevel:  []uint64{9, 9, 8},
 	},
 
-	// 1439 cos - 505
+	// 1453 Cos - 550
+	// 10 : 20.91
+	// 11 : 19.93
+	// 12 : 19.14
+	// 13 : 17.43
+	// 14 : 17.12
+	// 15 : 20.38
+	{Parameters: Parameters{
+		LogN:     16,
+		LogSlots: 15,
+		LogModuli: LogModuli{
+			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
+			LogPi: []uint64{55, 55, 55, 55},
+		},
+		Scale: 1 << 45,
+		Sigma: 3.2,
+	},
+		SinType:   Cos,
+		SinRange:  15,
+		SinDeg:    38,
+		SinRescal: 2,
+		CtSLevel:  []uint64{24, 23, 22},
+		StCLevel:  []uint64{13, 12, 12},
+	},
+
+	// 1439 Cos - 505
 	// 10 : 21.44
 	// 11 : 21.00
 	// 12 : 20.46
 	// 13 : 19.89
-	// 14 : 19.31
+	// 14 : 19.37
 	// 15 : 19.51
 	{Parameters: Parameters{
 		LogN:     16,
@@ -115,7 +126,7 @@ var BootstrappParams = []*BootParams{
 		Sigma: 3.2,
 	},
 		SinType:   Cos,
-		SinRange:  15,
+		SinRange:  16,
 		SinDeg:    38,
 		SinRescal: 2,
 		CtSLevel:  []uint64{20, 19, 18},

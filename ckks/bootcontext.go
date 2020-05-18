@@ -173,7 +173,7 @@ func (bootcontext *BootContext) newBootDFT() {
 	bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(len(bootcontext.CtSLevel))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
-	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow(bootcontext.Scale/bootcontext.sinScale, 1.0/float64(len(bootcontext.StCLevel))), 0)
+	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*bootcontext.Scale)/bootcontext.sinScale, 1.0/float64(len(bootcontext.StCLevel))), 0)
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	bootcontext.computePlaintextVectors()
@@ -421,7 +421,7 @@ func (bootcontext *BootContext) computePlaintextVectors() {
 	}
 
 	// SlotsToCoeffs vectors
-	bootcontext.pDFT = make([]*dftvectors, len(CtSLevel))
+	bootcontext.pDFT = make([]*dftvectors, len(StCLevel))
 	pVecDFT := bootcontext.computeDFTPlaintextVectors(roots, pow5, bootcontext.slotsToCoeffsDiffScale, false)
 	for i, lvl := range StCLevel {
 		bootcontext.pDFT[i] = new(dftvectors)

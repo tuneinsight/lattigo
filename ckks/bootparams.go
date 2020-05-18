@@ -39,12 +39,12 @@ func (b *BootParams) Gen() {
 
 var BootstrappParams = []*BootParams{
 
-	// 1390 Sin
+	// 1390 Sin - 550
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
+			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
 			LogPi: []uint64{55, 55, 55, 55},
 		},
 		Scale: 1 << 45,
@@ -55,8 +55,8 @@ var BootstrappParams = []*BootParams{
 		SinDeg:    127,
 		SinRescal: 0,
 		BabySplit: 3,
-		CtSLevel:  []uint64{23, 22, 21},
-		StCLevel:  []uint64{12, 11, 11},
+		CtSLevel:  []uint64{24, 23, 22},
+		StCLevel:  []uint64{13, 12, 12},
 	},
 
 	// 1399 Sin - 505

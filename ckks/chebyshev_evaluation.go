@@ -51,7 +51,7 @@ func (eval *evaluator) EvaluateChebyFast(op *Ciphertext, cheby *ChebyshevInterpo
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	return recurseCheby(cheby.degree(), L, M, cheby.Poly(), C, eval, evakey)
+	return recurseCheby(L, M, cheby.Poly(), C, eval, evakey)
 }
 
 // EvaluateChebyFastSpecial evaluates the input Chebyshev polynomial with the input ciphertext.
@@ -82,7 +82,7 @@ func (eval *evaluator) EvaluateChebyFastSpecial(ct *Ciphertext, n complex128, ch
 	//}
 	//fmt.Println()
 
-	return recurseCheby(cheby.degree(), L, M, cheby.Poly(), C, eval, evakey)
+	return recurseCheby(L, M, cheby.Poly(), C, eval, evakey)
 }
 
 func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) {
@@ -129,45 +129,51 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evalu
 	}
 }
 
-func splitCoeffsCheby(coeffs *poly, degree, maxDegree uint64) (coeffsq, coeffsr *poly) {
+func splitCoeffsCheby(coeffs *poly, split uint64) (coeffsq, coeffsr *poly) {
 
 	// Splits a Chebyshev polynomial p such that p = q*C^degree + r, where q and r are a linear combination of a Chebyshev basis.
 	coeffsr = new(poly)
-	coeffsr.maxDeg = coeffs.maxDeg - degree
-	coeffsr.coeffs = make([]complex128, degree)
-	for i := uint64(0); i < degree; i++ {
+	coeffsr.coeffs = make([]complex128, split)
+	if coeffs.maxDeg == coeffs.degree() {
+		coeffsr.maxDeg = split - 1
+	} else {
+		coeffsr.maxDeg = coeffs.maxDeg - (coeffs.degree() - split + 1)
+	}
+
+	for i := uint64(0); i < split; i++ {
 		coeffsr.coeffs[i] = coeffs.coeffs[i]
 	}
 
 	coeffsq = new(poly)
-	coeffsq.coeffs = make([]complex128, maxDegree-degree+1)
+	coeffsq.coeffs = make([]complex128, coeffs.degree()-split+1)
 	coeffsq.maxDeg = coeffs.maxDeg
-	coeffsq.coeffs[0] = coeffs.coeffs[degree]
-	for i := uint64(degree + 1); i < maxDegree+1; i++ {
-		coeffsq.coeffs[i-degree] = 2 * coeffs.coeffs[i]
-		coeffsr.coeffs[2*degree-i] -= coeffs.coeffs[i]
+
+	coeffsq.coeffs[0] = coeffs.coeffs[split]
+	for i, j := split+1, uint64(1); i < coeffs.degree()+1; i, j = i+1, j+1 {
+		coeffsq.coeffs[i-split] = 2 * coeffs.coeffs[i]
+		coeffsr.coeffs[split-j] -= coeffs.coeffs[i]
 	}
 
 	return coeffsq, coeffsr
 }
 
-func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func recurseCheby(L, M uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.degree() < (1 << L) {
 		return evaluatePolyFromChebyBasis(coeffs, C, evaluator, evakey)
 	}
 
-	for 1<<(M-1) > maxDegree {
+	for 1<<(M-1) > coeffs.degree() {
 		M--
 	}
 
-	coeffsq, coeffsr := splitCoeffsCheby(coeffs, 1<<(M-1), maxDegree)
+	coeffsq, coeffsr := splitCoeffsCheby(coeffs, 1<<(M-1))
 
-	res = recurseCheby(maxDegree-(1<<(M-1)), L, M-1, coeffsq, C, evaluator, evakey)
+	res = recurseCheby(L, M-1, coeffsq, C, evaluator, evakey)
 
 	var tmp *Ciphertext
-	tmp = recurseCheby((1<<(M-1))-1, L, M-1, coeffsr, C, evaluator, evakey)
+	tmp = recurseCheby(L, M-1, coeffsr, C, evaluator, evakey)
 
 	//fmt.Println(1<<(M-1), res.Level(), tmp.Level(), res.Scale(), tmp.Scale())
 
@@ -194,8 +200,6 @@ func recurseCheby(maxDegree, L, M uint64, coeffs *poly, C map[uint64]*Ciphertext
 
 func evaluatePolyFromChebyBasis(coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
-	fmt.Println(coeffs)
-
 	if coeffs.degree() != 0 {
 		res = NewCiphertext(evaluator.params, 1, C[coeffs.degree()].Level(), C[1].Scale())
 	} else {
@@ -203,12 +207,12 @@ func evaluatePolyFromChebyBasis(coeffs *poly, C map[uint64]*Ciphertext, evaluato
 	}
 
 	for key := coeffs.degree(); key > 0; key-- {
-		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-15 || math.Abs(imag(coeffs.coeffs[key])) > 1e-15) {
+		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-14 || math.Abs(imag(coeffs.coeffs[key])) > 1e-14) {
 			evaluator.MultByConstAndAdd(C[key], coeffs.coeffs[key], res)
 		}
 	}
 
-	if math.Abs(real(coeffs.coeffs[0])) > 1e-15 || math.Abs(imag(coeffs.coeffs[0])) > 1e-15 {
+	if math.Abs(real(coeffs.coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.coeffs[0])) > 1e-14 {
 		evaluator.AddConst(res, coeffs.coeffs[0], res)
 	}
 

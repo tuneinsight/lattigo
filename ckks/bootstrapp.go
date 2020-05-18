@@ -294,7 +294,7 @@ func (bootcontext *BootContext) evaluateChebySin(ct *Ciphertext) (res *Ciphertex
 		computePowerBasisCheby(1<<i, C, evaluator, bootcontext.relinkey)
 	}
 
-	res = recurseCheby(degree, L, M, bootcontext.chebycoeffs.Poly(), C, evaluator, bootcontext.relinkey)
+	res = recurseCheby(L, M, bootcontext.chebycoeffs.Poly(), C, evaluator, bootcontext.relinkey)
 
 	return
 }
@@ -327,7 +327,7 @@ func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertex
 		computePowerBasisCheby(1<<i, C, evaluator, bootcontext.relinkey)
 	}
 
-	res = recurseCheby(degree, L, M, cheby.Poly(), C, evaluator, bootcontext.relinkey)
+	res = recurseCheby(L, M, cheby.Poly(), C, evaluator, bootcontext.relinkey)
 
 	/*
 		for i := uint64(0); i < bootcontext.SinRescal; i++ {

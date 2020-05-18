@@ -1,8 +1,8 @@
 package ckks
 
 import (
-	"testing"
 	"fmt"
+	"testing"
 )
 
 func BenchmarkBootstrapp(b *testing.B) {
@@ -124,7 +124,6 @@ func BenchmarkBootstrapp(b *testing.B) {
 	})
 }
 
-
 func BenchmarkBootstrappMultiplications(b *testing.B) {
 
 	var kgen KeyGenerator
@@ -173,4 +172,3 @@ func BenchmarkBootstrappMultiplications(b *testing.B) {
 
 	}
 }
-

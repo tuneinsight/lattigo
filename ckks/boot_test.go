@@ -18,7 +18,7 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[0]
+	bootparams := BootstrappParams[2]
 
 	parameters := &bootparams.Parameters
 
@@ -57,7 +57,7 @@ func TestBootstrapp(t *testing.T) {
 
 		fmt.Println(ciphertext.Level())
 		start := time.Now()
-		ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
+		ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, rlk)
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
 		//fmt.Println(ciphertext.Level())
 
@@ -133,7 +133,7 @@ func TestBootstrapp(t *testing.T) {
 
 		fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		start := time.Now()
-		ciphertext = params.evaluator.EvaluateChebyFastSpecial(ciphertext, sc_fac, cheby, rlk)
+		ciphertext = params.evaluator.EvaluateChebySpecial(ciphertext, sc_fac, cheby, rlk)
 		fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 		if sc_num == 1 {

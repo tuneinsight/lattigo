@@ -894,7 +894,7 @@ func testChebyshevInterpolator(t *testing.T) {
 					values[i] = cmplx.Sin(values[i])
 				}
 
-				ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
+				ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, rlk)
 
 				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 			})

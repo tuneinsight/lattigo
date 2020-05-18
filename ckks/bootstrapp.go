@@ -227,6 +227,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	return res
 }
 
+// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
 func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphertext) {
 
 	evaluator := bootcontext.evaluator.(*evaluator)
@@ -235,31 +236,12 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	evaluator.ckksContext.scale = float64(bootcontext.Qi[ct0.Level()-1])
 
 	ct0.MulScale(1024)
-
-	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
-	if bootcontext.SinType == Sin {
-		ct0 = bootcontext.evaluateChebySin(ct0)
-	} else if bootcontext.SinType == Cos {
-		ct0 = bootcontext.evaluateChebyCos(ct0)
-	} else {
-		panic("bootstrapp -> evaluate sine -> invalid sineType")
-	}
-
+	ct0 = bootcontext.evaluateCheby(ct0)
 	ct0.SetScale(bootcontext.Scale)
 
 	if ct1 != nil {
-
 		ct1.MulScale(1024)
-
-		// Sine Evaluation ct1 = Q/(2pi) * sin((2pi/Q) * ct1)
-		if bootcontext.SinType == Sin {
-			ct1 = bootcontext.evaluateChebySin(ct1)
-		} else if bootcontext.SinType == Cos {
-			ct1 = bootcontext.evaluateChebyCos(ct1)
-		} else {
-			panic("bootstrapp -> evaluate sine -> invalid sineType")
-		}
-
+		ct1 = bootcontext.evaluateCheby(ct1)
 		ct1.SetScale(bootcontext.Scale)
 	}
 
@@ -269,55 +251,23 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	return ct0, ct1
 }
 
-func (bootcontext *BootContext) evaluateChebySin(ct *Ciphertext) (res *Ciphertext) {
+func (bootcontext *BootContext) evaluateCheby(ct *Ciphertext) (res *Ciphertext) {
 
 	evaluator := bootcontext.evaluator.(*evaluator)
-
-	// Chebyshev params
-	a := bootcontext.chebycoeffs.a
-	b := bootcontext.chebycoeffs.b
-	degree := bootcontext.chebycoeffs.degree()
 
 	C := make(map[uint64]*Ciphertext)
 	C[1] = ct.CopyNew().Ciphertext()
-
-	evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
-
-	M := uint64(bits.Len64(degree - 1))
-	L := bootcontext.BabySplit
-
-	for i := uint64(2); i < (1<<L)+1; i++ {
-		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
-	}
-
-	for i := L + 1; i < M; i++ {
-		computePowerBasisCheby(1<<i, C, evaluator, bootcontext.relinkey)
-	}
-
-	res = recurseCheby(L, M, bootcontext.chebycoeffs.Poly(), C, evaluator, bootcontext.relinkey)
-
-	return
-}
-
-func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertext) {
-
-	evaluator := bootcontext.evaluator.(*evaluator)
 
 	cheby := bootcontext.chebycoeffs
-	sc_fac := complex(float64(int(1<<bootcontext.SinRescal)), 0)
-
-	// Chebyshev params
-	a := cheby.a
-	b := cheby.b
-	degree := cheby.maxDeg - 1
-
-	C := make(map[uint64]*Ciphertext)
-	C[1] = ct.CopyNew().Ciphertext()
-
-	evaluator.AddConst(C[1], (-a-b-(2*0.25/sc_fac))/(b-a), C[1])
-
-	M := uint64(bits.Len64(degree - 1))
-	L := bootcontext.BabySplit
+	if bootcontext.SinType == Sin {
+		evaluator.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
+	}else{
+		sc_fac := complex(float64(int(1<<bootcontext.SinRescal)), 0)
+		evaluator.AddConst(C[1], (-cheby.a-cheby.b-(2*0.25/sc_fac))/(cheby.b-cheby.a), C[1])
+	}
+	
+	M := uint64(bits.Len64(cheby.degree() - 1))
+	L := (M>>1)
 
 	for i := uint64(2); i < (1<<L)+1; i++ {
 		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
@@ -327,7 +277,7 @@ func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertex
 		computePowerBasisCheby(1<<i, C, evaluator, bootcontext.relinkey)
 	}
 
-	res = recurseCheby(L, M, cheby.Poly(), C, evaluator, bootcontext.relinkey)
+	res = recurseCheby(L, cheby.Poly(), C, evaluator, bootcontext.relinkey)
 
 	/*
 		for i := uint64(0); i < bootcontext.SinRescal; i++ {
@@ -349,10 +299,11 @@ func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertex
 
 	if bootcontext.SinRescal == 2 {
 
-		// r = 4 * y2 * (y2 - a) + b
+		// r = c * y2 * (y2 - a) + b
 
 		a := -0.5641895835477563
 		b := 1.0 / 6.283185307179586
+		c := 4.0
 
 		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
@@ -361,7 +312,7 @@ func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertex
 
 		evaluator.MulRelin(res, y, bootcontext.relinkey, res)
 
-		evaluator.MultByConst(res, 4, res)
+		evaluator.MultByConst(res, c, res)
 		evaluator.AddConst(res, b, res)
 
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
@@ -369,7 +320,7 @@ func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertex
 
 	if bootcontext.SinRescal == 3 {
 
-		// r = e*(y4 * (a*y4 - b*y2 + c) - d*y2) + f
+		// r = e * (y4 * (a * y4 - b * y2 + c) - d * y2) + f
 
 		a := 4.0
 		b := -6.00900435571954

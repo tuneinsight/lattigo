@@ -77,8 +77,8 @@ func TestBootstrapp(t *testing.T) {
 
 		evaluator := NewEvaluator(parameters)
 
-		K := 16
-		deg := 40
+		K := 18
+		deg := 63
 		dev := 10
 		sc_num := 2
 

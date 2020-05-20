@@ -58,7 +58,7 @@ func (eval *evaluator) EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby 
 func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ciphertext, evakey *EvaluationKey) (res *Ciphertext) {
 
 	logDegree := uint64(bits.Len64(cheby.degree()))
-	logSplit := (logDegree >> 1) //optimalL(M)
+	logSplit := (logDegree >> 1)-1 //optimalL(M)
 
 	for i := uint64(2); i < (1 << logSplit); i++ {
 		computePowerBasisCheby(i, C, eval, evakey)

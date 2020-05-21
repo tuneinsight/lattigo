@@ -228,3 +228,49 @@ func evaluatePolyFromChebyBasis(target_scale float64, coeffs *poly, C map[uint64
 
 	return
 }
+
+func evaluate( C map[uint64]*Ciphertext){
+
+	eval := bootcontext.evaluator.(*evaluator)
+	scale := eval.ckksContext.scale
+
+	coeffs := computeSmallPoly(bootcontext.chebycoeffs.degree(), L, bootcontext.chebycoeffs.Poly())
+
+	ciphertexts := make([]*Ciphertext, 1<<(M-L))
+
+	for i := range coeffs; i++ {
+		ciphertexts[i] = evaluatePolyFromChebyBasis(coeffs[len(coeffs)-i-1], C, eval, bootcontext.relinkey)
+	}
+	
+	//Each work must be a multiple of two (each operation is (a+bx))
+	totalWork := int(math.Ceil(float64(len(coeffs))/float64(2)))
+
+	for i := L ; i < M; i++ {
+
+		for j := 0; j < totalWork; j += 2{
+
+			if ciphertexts[j+1] != nil {
+				eval.MulRelin(ciphertexts[j+1], C[1<<i], bootcontext.relinkey, ciphertexts[j+1])
+				if ciphertexts[j] != nil {
+					eval.Add(ciphertexts[j], ciphertexts[j+1], ciphertexts[j])
+					eval.Rescale(ciphertexts[j], scale, ciphertexts[j])
+				}else{
+					eval.Rescale(ciphertexts[j+1], scale, ciphertexts[j+1])
+				}
+			}
+		}
+
+
+		for j := 0 ; j < len(ciphertexts)>>1; j++{
+			ciphertexts[j] = ciphertexts[j*2]
+		}
+
+		ciphertexts = ciphertexts[:len(ciphertexts)/2]
+
+		totalWork = int(math.Ceil(float64(totalWork)/float64(2)))
+	}
+
+	res = ciphertexts[0]
+
+	return res
+}

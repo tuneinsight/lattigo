@@ -3,6 +3,8 @@ package ckks
 import (
 	"math"
 	"math/bits"
+	"fmt"
+	//"github.com/ldsec/lattigo/utils"
 )
 
 type poly struct {
@@ -68,7 +70,7 @@ func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ci
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	return recurseCheby(logSplit, cheby.Poly(), C, eval, evakey)
+	return recurseCheby(eval.ckksContext.scale, logSplit, cheby.Poly(), C, eval, evakey)
 }
 
 func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) {
@@ -143,11 +145,11 @@ func splitCoeffsCheby(coeffs *poly, split uint64) (coeffsq, coeffsr *poly) {
 	return coeffsq, coeffsr
 }
 
-func recurseCheby(L uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func recurseCheby(target_scale float64, L uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.degree() < (1 << L) {
-		return evaluatePolyFromChebyBasis(coeffs, C, evaluator, evakey)
+		return evaluatePolyFromChebyBasis(target_scale, coeffs, C, evaluator, evakey)
 	}
 
 	var nextPower = uint64(1 << L)
@@ -157,40 +159,69 @@ func recurseCheby(L uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *e
 
 	coeffsq, coeffsr := splitCoeffsCheby(coeffs, nextPower)
 
-	res = recurseCheby(L, coeffsq, C, evaluator, evakey)
-	tmp := recurseCheby(L, coeffsr, C, evaluator, evakey)
+	current_qi := float64(evaluator.params.Qi[C[nextPower].Level()])
+
+	target := target_scale * current_qi / C[nextPower].Scale()
+	fmt.Println("Target", target)
+	res = recurseCheby(target_scale * current_qi / C[nextPower].Scale(), L, coeffsq, C, evaluator, evakey)
+	fmt.Println("ResTarget", target)
 
 	evaluator.MulRelin(res, C[nextPower], evakey, res)
+	tmp := recurseCheby(target_scale, L, coeffsr, C, evaluator, evakey)
 
 	if res.Level() > tmp.Level() {
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 		evaluator.Add(res, tmp, res)
-
-	} else {
+	}else{
 		evaluator.Add(res, tmp, res)
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 	}
+
+	fmt.Println("resScale", target_scale, res.Scale())
+	fmt.Println("tmpScale", res.Scale(), tmp.Scale())
+	fmt.Println()
 
 	return res
 
 }
 
-func evaluatePolyFromChebyBasis(coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func evaluatePolyFromChebyBasis(target_scale float64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+
+	current_qi := float64(evaluator.params.Qi[C[coeffs.degree()].Level()])
+
+	ct_scale := target_scale*current_qi
+
+	//fmt.Println("current Qi", evaluator.params.Qi[C[coeffs.degree()].Level()])
 
 	if coeffs.degree() != 0 {
-		res = NewCiphertext(evaluator.params, 1, C[coeffs.degree()].Level(), C[1].Scale())
+		res = NewCiphertext(evaluator.params, 1, C[coeffs.degree()].Level(), ct_scale)
 	} else {
-		res = NewCiphertext(evaluator.params, 1, C[1].Level(), C[1].Scale())
-	}
-
-	for key := coeffs.degree(); key > 0; key-- {
-		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-14 || math.Abs(imag(coeffs.coeffs[key])) > 1e-14) {
-			evaluator.MultByConstAndAdd(C[key], coeffs.coeffs[key], res)
-		}
+		res = NewCiphertext(evaluator.params, 1, C[1].Level(), ct_scale)
 	}
 
 	if math.Abs(real(coeffs.coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.coeffs[0])) > 1e-14 {
 		evaluator.AddConst(res, coeffs.coeffs[0], res)
+	}
+
+	for key := coeffs.degree(); key > 0; key-- {
+
+		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-14 || math.Abs(imag(coeffs.coeffs[key])) > 1e-14) {
+
+			// Target scale * rescale-scale / power basis scale
+			current_ct := C[key].Scale()
+			const_scale := target_scale * current_qi / current_ct
+
+			cReal := int64(real(coeffs.coeffs[key]) * const_scale)
+			cImag := int64(imag(coeffs.coeffs[key]) * const_scale)
+
+			tmp := NewCiphertext(evaluator.params, C[key].Degree(), C[key].Level(), ct_scale)
+
+			evaluator.multByGaussianInteger(C[key], cReal, cImag, tmp)
+
+			//evaluator.MultByConstAndAdd(C[key], coeffs.coeffs[key], res)
+
+			evaluator.Add(res, tmp, res)
+		}
 	}
 
 	evaluator.Rescale(res, evaluator.ckksContext.scale, res)

@@ -608,6 +608,9 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 	}
 }
 
+
+
+
 // MultByConstNew multiplies ct0 by the input constant and returns the result in a newly created element.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
 // needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
@@ -732,6 +735,67 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 	}
 
 	ctOut.SetScale(ct0.Scale() * scale)
+}
+
+func (eval *evaluator) multByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext){
+
+	context := eval.ckksContext.contextQ
+
+	level := utils.MinUint64(ct0.Level(), ctOut.Level())
+	var scaledConst, scaledConstReal, scaledConstImag uint64
+
+	for i := uint64(0); i < level+1; i++ {
+
+		qi := context.Modulus[i]
+		bredParams := context.GetBredParams()[i]
+		mredParams := context.GetMredParams()[i]
+
+		scaledConstReal = 0
+		scaledConstImag = 0
+		scaledConst = 0
+
+		if cReal != 0 {
+			if cReal < 0 {
+				scaledConstReal = uint64(int64(qi) + cReal % int64(qi))
+			}else{
+				scaledConstReal = uint64(cReal)
+			}
+			scaledConst = scaledConstReal
+		}
+
+		if cImag != 0 {
+			if cImag < 0 {
+				scaledConstImag = uint64(int64(qi) + cImag % int64(qi))
+			}else{
+				scaledConstImag = uint64(cImag)
+			}
+			scaledConstImag = ring.MRed(scaledConstImag, context.GetNttPsi()[i][1], qi, mredParams)
+			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
+		}
+
+		scaledConst = ring.MForm(scaledConst, qi, bredParams)
+
+		for u := range ct0.Value() {
+			p0tmp := ct0.Value()[u].Coeffs[i]
+			p1tmp := ctOut.Value()[u].Coeffs[i]
+			for j := uint64(0); j < eval.ckksContext.n>>1; j++ {
+				p1tmp[j] = ring.MRed(p0tmp[j], scaledConst, qi, mredParams)
+			}
+		}
+
+		if cImag != 0 {
+			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
+			scaledConst = ring.MForm(scaledConst, qi, bredParams)
+		}
+
+		for u := range ct0.Value() {
+			p0tmp := ct0.Value()[u].Coeffs[i]
+			p1tmp := ctOut.Value()[u].Coeffs[i]
+			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j++ {
+				p1tmp[j] = ring.MRed(p0tmp[j], scaledConst, qi, mredParams)
+			}
+		}
+	}
 }
 
 // MultByiNew multiplies ct0 by the imaginary number i, and returns the result in a newly created element.

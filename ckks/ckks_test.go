@@ -182,8 +182,8 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 
 	valuesTest = contextParams.encoder.Decode(plaintextTest, contextParams.params.Slots)
 
-	//fmt.Println(valuesTest[:4])
-	//fmt.Println(valuesWant[:4])
+	fmt.Println(valuesTest[:4])
+	fmt.Println(valuesWant[:4])
 
 	var deltaReal, deltaImag float64
 

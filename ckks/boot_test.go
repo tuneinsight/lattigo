@@ -18,7 +18,7 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[2]
+	bootparams := BootstrappParams[3]
 
 	parameters := &bootparams.Parameters
 

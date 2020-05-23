@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/bits"
 	"fmt"
-	//"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/utils"
 )
 
 type poly struct {
@@ -70,7 +70,9 @@ func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ci
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	return recurseCheby(eval.ckksContext.scale, logSplit, cheby.Poly(), C, eval, evakey)
+	_, res = recurseCheby(eval.ckksContext.scale, logSplit, cheby.Poly(), C, eval, evakey)
+
+	return res
 }
 
 func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) {
@@ -145,11 +147,12 @@ func splitCoeffsCheby(coeffs *poly, split uint64) (coeffsq, coeffsr *poly) {
 	return coeffsq, coeffsr
 }
 
-func recurseCheby(target_scale float64, L uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func recurseCheby(target_scale float64, L uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (treeIndex uint64, res *Ciphertext) {
 
+	var treeIndex0, treeIndex1 uint64
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.degree() < (1 << L) {
-		return evaluatePolyFromChebyBasis(target_scale, coeffs, C, evaluator, evakey)
+		return coeffs.maxDeg, evaluatePolyFromChebyBasis(target_scale, coeffs, C, evaluator, evakey)
 	}
 
 	var nextPower = uint64(1 << L)
@@ -161,27 +164,58 @@ func recurseCheby(target_scale float64, L uint64, coeffs *poly, C map[uint64]*Ci
 
 	current_qi := float64(evaluator.params.Qi[C[nextPower].Level()])
 
-	target := target_scale * current_qi / C[nextPower].Scale()
-	fmt.Println("Target", target)
-	res = recurseCheby(target_scale * current_qi / C[nextPower].Scale(), L, coeffsq, C, evaluator, evakey)
-	fmt.Println("ResTarget", target)
+	
+	fmt.Println("===== Target =====")
+	fmt.Printf("Target : %f\n", target_scale)
+	fmt.Printf("coeffs q:(%d, %d) r:(%d, %d) \n", coeffsq.maxDeg, coeffsq.degree(), coeffsr.maxDeg, coeffsr.degree())
+	fmt.Printf("Scale X^%d : %f\n", nextPower, C[nextPower].Scale())
+	fmt.Printf("Qi : %f\n", current_qi)
+	fmt.Printf("res : %f\n", target_scale * current_qi / C[nextPower].Scale())
+	fmt.Printf("tmp : %f\n", target_scale)
+	fmt.Println()
+	
+	
+
+	treeIndex0, res = recurseCheby(target_scale * current_qi / C[nextPower].Scale(), L, coeffsq, C, evaluator, evakey)
+	
+	var tmp *Ciphertext
+	treeIndex1, tmp = recurseCheby(target_scale, L, coeffsr, C, evaluator, evakey)
+
+	
+	fmt.Println("====== CHECK =====")
+	fmt.Printf("Target : %f\n", target_scale)
+	fmt.Printf("Scale X^%d (%d, %d): %f\n", nextPower, treeIndex0, treeIndex1, C[nextPower].Scale())
+	fmt.Printf("Qi : %f\n", current_qi)
+	fmt.Printf("res : %f\n", res.Scale())
+	fmt.Printf("tmp : %f\n", tmp.Scale())
+	
+	
+
+	//real_scale := res.Scale() * C[nextPower].Scale() / current_qi
+
+	//fmt.Printf("Diff Scale ct0=%d ct1=%d X^%d %f\n", treeIndex0, treeIndex1, nextPower, real_scale-tmp.Scale())
 
 	evaluator.MulRelin(res, C[nextPower], evakey, res)
-	tmp := recurseCheby(target_scale, L, coeffsr, C, evaluator, evakey)
+
+	fmt.Println("res lvl", res.Level(), "C level", C[nextPower].Level(), "tmp lvl", tmp.Level())
 
 	if res.Level() > tmp.Level() {
+		fmt.Printf("Befor Rescale : %f\n", res.Scale())
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		fmt.Printf("After Rescale : %f\n", res.Scale())
 		evaluator.Add(res, tmp, res)
+		fmt.Printf("After Add     : %f\n", res.Scale())
 	}else{
+		fmt.Printf("Befor Add     : %f\n", res.Scale())
 		evaluator.Add(res, tmp, res)
+		fmt.Printf("After Add     : %f\n", res.Scale())
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		fmt.Printf("After Rescale : %f\n", res.Scale())
 	}
 
-	fmt.Println("resScale", target_scale, res.Scale())
-	fmt.Println("tmpScale", res.Scale(), tmp.Scale())
 	fmt.Println()
 
-	return res
+	return utils.MaxUint64(treeIndex0, treeIndex1), res
 
 }
 
@@ -190,6 +224,8 @@ func evaluatePolyFromChebyBasis(target_scale float64, coeffs *poly, C map[uint64
 	current_qi := float64(evaluator.params.Qi[C[coeffs.degree()].Level()])
 
 	ct_scale := target_scale*current_qi
+
+	//fmt.Println(coeffs.maxDeg, target_scale)
 
 	//fmt.Println("current Qi", evaluator.params.Qi[C[coeffs.degree()].Level()])
 
@@ -227,50 +263,4 @@ func evaluatePolyFromChebyBasis(target_scale float64, coeffs *poly, C map[uint64
 	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 
 	return
-}
-
-func evaluate( C map[uint64]*Ciphertext){
-
-	eval := bootcontext.evaluator.(*evaluator)
-	scale := eval.ckksContext.scale
-
-	coeffs := computeSmallPoly(bootcontext.chebycoeffs.degree(), L, bootcontext.chebycoeffs.Poly())
-
-	ciphertexts := make([]*Ciphertext, 1<<(M-L))
-
-	for i := range coeffs; i++ {
-		ciphertexts[i] = evaluatePolyFromChebyBasis(coeffs[len(coeffs)-i-1], C, eval, bootcontext.relinkey)
-	}
-	
-	//Each work must be a multiple of two (each operation is (a+bx))
-	totalWork := int(math.Ceil(float64(len(coeffs))/float64(2)))
-
-	for i := L ; i < M; i++ {
-
-		for j := 0; j < totalWork; j += 2{
-
-			if ciphertexts[j+1] != nil {
-				eval.MulRelin(ciphertexts[j+1], C[1<<i], bootcontext.relinkey, ciphertexts[j+1])
-				if ciphertexts[j] != nil {
-					eval.Add(ciphertexts[j], ciphertexts[j+1], ciphertexts[j])
-					eval.Rescale(ciphertexts[j], scale, ciphertexts[j])
-				}else{
-					eval.Rescale(ciphertexts[j+1], scale, ciphertexts[j+1])
-				}
-			}
-		}
-
-
-		for j := 0 ; j < len(ciphertexts)>>1; j++{
-			ciphertexts[j] = ciphertexts[j*2]
-		}
-
-		ciphertexts = ciphertexts[:len(ciphertexts)/2]
-
-		totalWork = int(math.Ceil(float64(totalWork)/float64(2)))
-	}
-
-	res = ciphertexts[0]
-
-	return res
 }

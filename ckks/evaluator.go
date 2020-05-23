@@ -608,9 +608,6 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 	}
 }
 
-
-
-
 // MultByConstNew multiplies ct0 by the input constant and returns the result in a newly created element.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
 // needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
@@ -737,7 +734,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 	ctOut.SetScale(ct0.Scale() * scale)
 }
 
-func (eval *evaluator) multByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext){
+func (eval *evaluator) multByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext) {
 
 	context := eval.ckksContext.contextQ
 
@@ -756,8 +753,8 @@ func (eval *evaluator) multByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 
 		if cReal != 0 {
 			if cReal < 0 {
-				scaledConstReal = uint64(int64(qi) + cReal % int64(qi))
-			}else{
+				scaledConstReal = uint64(int64(qi) + cReal%int64(qi))
+			} else {
 				scaledConstReal = uint64(cReal)
 			}
 			scaledConst = scaledConstReal
@@ -765,8 +762,8 @@ func (eval *evaluator) multByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 
 		if cImag != 0 {
 			if cImag < 0 {
-				scaledConstImag = uint64(int64(qi) + cImag % int64(qi))
-			}else{
+				scaledConstImag = uint64(int64(qi) + cImag%int64(qi))
+			} else {
 				scaledConstImag = uint64(cImag)
 			}
 			scaledConstImag = ring.MRed(scaledConstImag, context.GetNttPsi()[i][1], qi, mredParams)

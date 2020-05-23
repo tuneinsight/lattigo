@@ -5,7 +5,6 @@ import (
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
 	"math"
-	"math/bits"
 	"time"
 )
 
@@ -227,6 +226,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	return res
 }
 
+// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
 func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphertext) {
 
 	evaluator := bootcontext.evaluator.(*evaluator)
@@ -235,31 +235,12 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	evaluator.ckksContext.scale = float64(bootcontext.Qi[ct0.Level()-1])
 
 	ct0.MulScale(1024)
-
-	// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
-	if bootcontext.SinType == Sin {
-		ct0 = bootcontext.evaluateChebySin(ct0)
-	} else if bootcontext.SinType == Cos {
-		ct0 = bootcontext.evaluateChebyCos(ct0)
-	} else {
-		panic("bootstrapp -> evaluate sine -> invalid sineType")
-	}
-
+	ct0 = bootcontext.evaluateCheby(ct0)
 	ct0.SetScale(bootcontext.Scale)
 
 	if ct1 != nil {
-
 		ct1.MulScale(1024)
-
-		// Sine Evaluation ct1 = Q/(2pi) * sin((2pi/Q) * ct1)
-		if bootcontext.SinType == Sin {
-			ct1 = bootcontext.evaluateChebySin(ct1)
-		} else if bootcontext.SinType == Cos {
-			ct1 = bootcontext.evaluateChebyCos(ct1)
-		} else {
-			panic("bootstrapp -> evaluate sine -> invalid sineType")
-		}
-
+		ct1 = bootcontext.evaluateCheby(ct1)
 		ct1.SetScale(bootcontext.Scale)
 	}
 
@@ -269,72 +250,29 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	return ct0, ct1
 }
 
-func (bootcontext *BootContext) evaluateChebySin(ct *Ciphertext) (res *Ciphertext) {
+func (bootcontext *BootContext) evaluateCheby(ct *Ciphertext) (res *Ciphertext) {
 
-	evaluator := bootcontext.evaluator.(*evaluator)
-
-	// Chebyshev params
-	a := bootcontext.chebycoeffs.a
-	b := bootcontext.chebycoeffs.b
-	degree := bootcontext.chebycoeffs.degree()
+	eval := bootcontext.evaluator.(*evaluator)
 
 	C := make(map[uint64]*Ciphertext)
 	C[1] = ct.CopyNew().Ciphertext()
-
-	evaluator.AddConst(C[1], (-a-b)/(b-a), C[1])
-
-	M := uint64(bits.Len64(degree - 1))
-	L := bootcontext.BabySplit
-
-	for i := uint64(2); i < (1<<L)+1; i++ {
-		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
-	}
-
-	for i := L + 1; i < M; i++ {
-		computePowerBasisCheby(1<<i, C, evaluator, bootcontext.relinkey)
-	}
-
-	res = recurseCheby(degree, L, M, bootcontext.chebycoeffs.Poly(), C, evaluator, bootcontext.relinkey)
-
-	return
-}
-
-func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertext) {
-
-	evaluator := bootcontext.evaluator.(*evaluator)
 
 	cheby := bootcontext.chebycoeffs
-	sc_fac := complex(float64(int(1<<bootcontext.SinRescal)), 0)
-
-	// Chebyshev params
-	a := cheby.a
-	b := cheby.b
-	degree := cheby.maxDeg - 1
-
-	C := make(map[uint64]*Ciphertext)
-	C[1] = ct.CopyNew().Ciphertext()
-
-	evaluator.AddConst(C[1], (-a-b-(2*0.25/sc_fac))/(b-a), C[1])
-
-	M := uint64(bits.Len64(degree - 1))
-	L := bootcontext.BabySplit
-
-	for i := uint64(2); i < (1<<L)+1; i++ {
-		computePowerBasisCheby(i, C, evaluator, bootcontext.relinkey)
+	if bootcontext.SinType == Sin {
+		eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
+	} else {
+		sc_fac := complex(float64(int(1<<bootcontext.SinRescal)), 0)
+		eval.AddConst(C[1], (-cheby.a-cheby.b-(2*0.25/sc_fac))/(cheby.b-cheby.a), C[1])
 	}
 
-	for i := L + 1; i < M; i++ {
-		computePowerBasisCheby(1<<i, C, evaluator, bootcontext.relinkey)
-	}
-
-	res = recurseCheby(degree, L, M, cheby.Poly(), C, evaluator, bootcontext.relinkey)
+	res = eval.evalCheby(cheby, C, bootcontext.relinkey)
 
 	/*
 		for i := uint64(0); i < bootcontext.SinRescal; i++ {
-			evaluator.MulRelin(res, res, bootcontext.relinkey, res)
-			evaluator.MultByConst(res, 2, res)
-			evaluator.AddConst(res, -1, res)
-			evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+			eval.MulRelin(res, res, bootcontext.relinkey, res)
+			eval.MultByConst(res, 2, res)
+			eval.AddConst(res, -1, res)
+			eval.Rescale(res, eval.ckksContext.scale, res)
 		}
 	*/
 
@@ -342,34 +280,35 @@ func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertex
 		// r = 2*y2 - a
 		a := -1.0 / 6.283185307179586
 
-		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
-		evaluator.AddConst(res, a, res)
+		eval.MulRelin(res, res, bootcontext.relinkey, res)
+		eval.Rescale(res, eval.ckksContext.scale, res)
+		eval.AddConst(res, a, res)
 	}
 
 	if bootcontext.SinRescal == 2 {
 
-		// r = 4 * y2 * (y2 - a) + b
+		// r = c * y2 * (y2 - a) + b
 
 		a := -0.5641895835477563
 		b := 1.0 / 6.283185307179586
+		c := 4.0
 
-		evaluator.MulRelin(res, res, bootcontext.relinkey, res)
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		eval.MulRelin(res, res, bootcontext.relinkey, res)
+		eval.Rescale(res, eval.ckksContext.scale, res)
 
-		y := evaluator.AddConstNew(res, a)
+		y := eval.AddConstNew(res, a)
 
-		evaluator.MulRelin(res, y, bootcontext.relinkey, res)
+		eval.MulRelin(res, y, bootcontext.relinkey, res)
 
-		evaluator.MultByConst(res, 4, res)
-		evaluator.AddConst(res, b, res)
+		eval.MultByConst(res, c, res)
+		eval.AddConst(res, b, res)
 
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		eval.Rescale(res, eval.ckksContext.scale, res)
 	}
 
 	if bootcontext.SinRescal == 3 {
 
-		// r = e*(y4 * (a*y4 - b*y2 + c) - d*y2) + f
+		// r = e * (y4 * (a * y4 - b * y2 + c) - d * y2) + f
 
 		a := 4.0
 		b := -6.00900435571954
@@ -379,47 +318,47 @@ func (bootcontext *BootContext) evaluateChebyCos(ct *Ciphertext) (res *Ciphertex
 		f := 0.15915494309189535
 
 		// y2 (10, 16)
-		y2 := evaluator.MulRelinNew(res, res, bootcontext.relinkey)
-		evaluator.Rescale(y2, evaluator.ckksContext.scale, y2)
+		y2 := eval.MulRelinNew(res, res, bootcontext.relinkey)
+		eval.Rescale(y2, eval.ckksContext.scale, y2)
 
 		// tmp1 (10, 33)
 		tmp1 := y2.CopyNew().Ciphertext()
-		evaluator.MultByConst(tmp1, b, tmp1)
+		eval.MultByConst(tmp1, b, tmp1)
 
 		// tmp2 (10, 33)
 		tmp2 := y2.CopyNew().Ciphertext()
-		evaluator.MultByConst(tmp2, d, tmp2)
+		eval.MultByConst(tmp2, d, tmp2)
 
 		// y4 (10, 33)
-		y4 := evaluator.MulRelinNew(y2, y2, bootcontext.relinkey)
+		y4 := eval.MulRelinNew(y2, y2, bootcontext.relinkey)
 
 		// res (10, 33)
 		res = y4.CopyNew().Ciphertext()
 
 		// y4 (9, 16)
-		evaluator.Rescale(y4, evaluator.ckksContext.scale, y4)
+		eval.Rescale(y4, eval.ckksContext.scale, y4)
 
 		// res (10, 33)
-		evaluator.MultByConst(res, a, res)
+		eval.MultByConst(res, a, res)
 
 		// res (10, 33) + tmp1 (10, 33)
-		evaluator.Add(res, tmp1, res)
-		evaluator.AddConst(res, c, res)
+		eval.Add(res, tmp1, res)
+		eval.AddConst(res, c, res)
 
 		// res (9, 16)
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		eval.Rescale(res, eval.ckksContext.scale, res)
 
 		// res (9, 16) * y4 (9, 16) = res (9, 33)
-		evaluator.MulRelin(res, y4, bootcontext.relinkey, res)
+		eval.MulRelin(res, y4, bootcontext.relinkey, res)
 
 		// res (9, 33) + tmp2 (10, 33)
-		evaluator.Add(res, tmp2, res)
+		eval.Add(res, tmp2, res)
 
-		evaluator.MultByConst(res, e, res)
-		evaluator.AddConst(res, f, res)
+		eval.MultByConst(res, e, res)
+		eval.AddConst(res, f, res)
 
 		// res (8, 16)
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		eval.Rescale(res, eval.ckksContext.scale, res)
 
 	}
 

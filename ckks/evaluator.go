@@ -56,10 +56,8 @@ type Evaluator interface {
 	InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext)
 	EvaluatePolyFast(ct *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (res *Ciphertext)
 	EvaluatePolyEco(ct *Ciphertext, coeffs interface{}, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluateChebyFast(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluateChebyEco(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluateChebyEcoSpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluateChebyFastSpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
+	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
+	EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
@@ -734,6 +732,67 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 	}
 
 	ctOut.SetScale(ct0.Scale() * scale)
+}
+
+func (eval *evaluator) multByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext) {
+
+	context := eval.ckksContext.contextQ
+
+	level := utils.MinUint64(ct0.Level(), ctOut.Level())
+	var scaledConst, scaledConstReal, scaledConstImag uint64
+
+	for i := uint64(0); i < level+1; i++ {
+
+		qi := context.Modulus[i]
+		bredParams := context.GetBredParams()[i]
+		mredParams := context.GetMredParams()[i]
+
+		scaledConstReal = 0
+		scaledConstImag = 0
+		scaledConst = 0
+
+		if cReal != 0 {
+			if cReal < 0 {
+				scaledConstReal = uint64(int64(qi) + cReal%int64(qi))
+			} else {
+				scaledConstReal = uint64(cReal)
+			}
+			scaledConst = scaledConstReal
+		}
+
+		if cImag != 0 {
+			if cImag < 0 {
+				scaledConstImag = uint64(int64(qi) + cImag%int64(qi))
+			} else {
+				scaledConstImag = uint64(cImag)
+			}
+			scaledConstImag = ring.MRed(scaledConstImag, context.GetNttPsi()[i][1], qi, mredParams)
+			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
+		}
+
+		scaledConst = ring.MForm(scaledConst, qi, bredParams)
+
+		for u := range ct0.Value() {
+			p0tmp := ct0.Value()[u].Coeffs[i]
+			p1tmp := ctOut.Value()[u].Coeffs[i]
+			for j := uint64(0); j < eval.ckksContext.n>>1; j++ {
+				p1tmp[j] = ring.MRed(p0tmp[j], scaledConst, qi, mredParams)
+			}
+		}
+
+		if cImag != 0 {
+			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
+			scaledConst = ring.MForm(scaledConst, qi, bredParams)
+		}
+
+		for u := range ct0.Value() {
+			p0tmp := ct0.Value()[u].Coeffs[i]
+			p1tmp := ctOut.Value()[u].Coeffs[i]
+			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j++ {
+				p1tmp[j] = ring.MRed(p0tmp[j], scaledConst, qi, mredParams)
+			}
+		}
+	}
 }
 
 // MultByiNew multiplies ct0 by the imaginary number i, and returns the result in a newly created element.

@@ -180,18 +180,16 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 		plaintextTest = element.(*Plaintext)
 	}
 
-	slots := uint64(1 << contextParams.params.LogSlots)
+	valuesTest = contextParams.encoder.Decode(plaintextTest, contextParams.params.Slots)
 
-	valuesTest = contextParams.encoder.Decode(plaintextTest, slots)
-
-	//fmt.Println(valuesTest[:4])
-	//fmt.Println(valuesWant[:4])
+	fmt.Println(valuesTest[:4])
+	fmt.Println(valuesWant[:4])
 
 	var deltaReal, deltaImag float64
 
 	var delta, minprec, maxprec, meanprec, medianprec complex128
 
-	diff := make([]complex128, slots)
+	diff := make([]complex128, contextParams.params.Slots)
 
 	minprec = complex(0, 0)
 	maxprec = complex(1, 1)
@@ -233,7 +231,7 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 		distribImag[uint64(math.Floor(distribPrec*math.Log2(1/deltaImag)))]++
 	}
 
-	meanprec /= complex(float64(slots), 0)
+	meanprec /= complex(float64(contextParams.params.Slots), 0)
 	medianprec = calcmedian(diff)
 
 	if testParams.verbose {
@@ -856,7 +854,7 @@ func testEvaluatePoly(t *testing.T) {
 
 		if parameters.MaxLevel > 4 {
 
-			t.Run(testString("Fast/Exp/", parameters), func(t *testing.T) {
+			t.Run(testString("Exp/", parameters), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
@@ -867,24 +865,6 @@ func testEvaluatePoly(t *testing.T) {
 				}
 
 				ciphertext = params.evaluator.EvaluatePolyFast(ciphertext, coeffs, rlk)
-
-				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-			})
-		}
-
-		if parameters.MaxLevel > 3 {
-
-			t.Run(testString("Eco/Exp/", parameters), func(t *testing.T) {
-
-				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
-
-				coeffs := []float64{1.0, 1.0, 1.0 / 2, 1.0 / 6, 1.0 / 24, 1.0 / 120, 1.0 / 720, 1.0 / 5040}
-
-				for i := range values {
-					values[i] = cmplx.Exp(values[i])
-				}
-
-				ciphertext = params.evaluator.EvaluatePolyEco(ciphertext, coeffs, rlk)
 
 				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 			})
@@ -902,7 +882,7 @@ func testChebyshevInterpolator(t *testing.T) {
 
 		if parameters.MaxLevel > 5 {
 
-			t.Run(testString("Fast/Sin/", parameters), func(t *testing.T) {
+			t.Run(testString("Sin/", parameters), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
@@ -912,25 +892,7 @@ func testChebyshevInterpolator(t *testing.T) {
 					values[i] = cmplx.Sin(values[i])
 				}
 
-				ciphertext = params.evaluator.EvaluateChebyFast(ciphertext, cheby, rlk)
-
-				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-			})
-		}
-
-		if parameters.MaxLevel > 4 {
-
-			t.Run(testString("Eco/Sin/", parameters), func(t *testing.T) {
-
-				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -3, 3, t)
-
-				cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
-
-				for i := range values {
-					values[i] = cmplx.Sin(values[i])
-				}
-
-				ciphertext = params.evaluator.EvaluateChebyEco(ciphertext, cheby, rlk)
+				ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, rlk)
 
 				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 			})

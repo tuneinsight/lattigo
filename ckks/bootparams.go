@@ -39,12 +39,12 @@ func (b *BootParams) Gen() {
 
 var BootstrappParams = []*BootParams{
 
-	// 1390 Sin
+	// 1453 Sin - 550
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50},
+			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
 			LogPi: []uint64{55, 55, 55, 55},
 		},
 		Scale: 1 << 45,
@@ -52,60 +52,69 @@ var BootstrappParams = []*BootParams{
 	},
 		SinType:   Sin,
 		SinRange:  15,
-		SinDeg:    127,
+		SinDeg:    124,
 		SinRescal: 0,
-		BabySplit: 3,
-		CtSLevel:  []uint64{23, 22, 21},
-		StCLevel:  []uint64{12, 11, 11},
+		CtSLevel:  []uint64{24, 23, 22},
+		StCLevel:  []uint64{13, 12, 12},
 	},
 
-	// 1390 Sin
+	// 1439 Sin - 505
+	// 10 : 20.67
+	// 11 : 20.17
+	// 12 : 19.67
+	// 13 : 19.15
+	// 14 : 18.63
+	// 15 : 18.30
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 50, 25, 55, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50},
-			LogPi: []uint64{55, 55, 55, 55},
-		},
-		Scale: 1 << 45,
-		Sigma: 3.2,
-	},
-		SinType:   Cos,
-		SinRange:  15,
-		SinDeg:    38,
-		SinRescal: 2,
-		BabySplit: 2,
-		CtSLevel:  []uint64{23, 22, 21},
-		StCLevel:  []uint64{11, 10, 10},
-	},
-
-	// 1430 Sin
-	{Parameters: Parameters{
-		LogN:     16,
-		LogSlots: 15,
-		LogModuli: LogModuli{
-			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50},
+			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
 			LogPi: []uint64{61, 61, 61, 61},
 		},
 		Scale: 1 << 30,
 		Sigma: 3.2,
 	},
 		SinType:   Sin,
-		SinRange:  15,
-		SinDeg:    127,
+		SinRange:  16,
+		SinDeg:    155,
 		SinRescal: 0,
-		BabySplit: 3,
-		CtSLevel:  []uint64{20, 19, 18},
+		CtSLevel:  []uint64{21, 20, 19},
 		StCLevel:  []uint64{9, 9, 8},
 	},
 
-	// 1436 cos
+	// 1453 Cos - 550
+	// 10 : 20.91
+	// 11 : 19.93
+	// 12 : 19.14
+	// 13 : 17.43
+	// 14 : 17.12
+	// 15 : 20.38
+	{Parameters: Parameters{
+		LogN:     16,
+		LogSlots: 15,
+		LogModuli: LogModuli{
+			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
+			LogPi: []uint64{55, 55, 55, 55},
+		},
+		Scale: 1 << 45,
+		Sigma: 3.2,
+	},
+		SinType:   Cos,
+		SinRange:  16,
+		SinDeg:    38,
+		SinRescal: 2,
+		CtSLevel:  []uint64{24, 23, 22},
+		StCLevel:  []uint64{13, 12, 12},
+	},
+
+	// 1439 Cos - 505
 	// 10 : 21.44
 	// 11 : 21.00
 	// 12 : 20.46
 	// 13 : 19.89
-	// 14 : 19.31
-	// 15 : 19.42
+	// 14 : 19.37
+	// 15 : 19.51
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
@@ -117,10 +126,9 @@ var BootstrappParams = []*BootParams{
 		Sigma: 3.2,
 	},
 		SinType:   Cos,
-		SinRange:  15,
+		SinRange:  16,
 		SinDeg:    38,
 		SinRescal: 2,
-		BabySplit: 2,
 		CtSLevel:  []uint64{20, 19, 18},
 		StCLevel:  []uint64{9, 9, 8},
 	},

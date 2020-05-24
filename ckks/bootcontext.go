@@ -273,7 +273,7 @@ func (bootcontext *BootContext) newBootSine() {
 			}
 		}
 
-		cheby.maxDeg = uint64(deg) + 1
+		cheby.maxDeg = cheby.degree()
 		cheby.a = complex(float64(-K), 0) / sc_fac
 		cheby.b = complex(float64(K), 0) / sc_fac
 

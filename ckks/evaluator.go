@@ -837,7 +837,7 @@ func (eval *evaluator) multByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
 			for j := uint64(0); j < eval.ckksContext.n>>1; j++ {
-				p1tmp[j] = ring.CRed(p1tmp[j] + ring.MRed(p0tmp[j], scaledConst, qi, mredParams), qi)
+				p1tmp[j] = ring.CRed(p1tmp[j]+ring.MRed(p0tmp[j], scaledConst, qi, mredParams), qi)
 			}
 		}
 
@@ -850,7 +850,7 @@ func (eval *evaluator) multByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
 			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j++ {
-				p1tmp[j] = ring.CRed(p1tmp[j] + ring.MRed(p0tmp[j], scaledConst, qi, mredParams), qi)
+				p1tmp[j] = ring.CRed(p1tmp[j]+ring.MRed(p0tmp[j], scaledConst, qi, mredParams), qi)
 			}
 		}
 	}

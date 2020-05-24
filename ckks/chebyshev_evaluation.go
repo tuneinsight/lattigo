@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/utils"
 	"math"
 	"math/bits"
 )
@@ -13,28 +12,19 @@ type poly struct {
 	lead   bool
 }
 
-
-func (p *poly) depth() (d uint64) {
-	d = uint64(bits.Len64(p.degree())+1)
-	if p.lead{
-		d--
-	}
-	return
-}
-
 func (p *poly) degree() uint64 {
 	return uint64(len(p.coeffs) - 1)
 }
 
-func optimalL(M uint64) uint64 {
-	L := M >> 1
-	a := (1 << L) + (1 << (M - L)) + M - L - 3
-	b := (1 << (L + 1)) + (1 << (M - L - 1)) + M - L - 4
+func optimalSplit(logDegree uint64) (logSplit uint64) {
+	logSplit = logDegree >> 1
+	a := (1 << logSplit) + (1 << (logDegree - logSplit)) + logDegree - logSplit - 3
+	b := (1 << (logSplit + 1)) + (1 << (logDegree - logSplit - 1)) + logDegree - logSplit - 4
 	if a > b {
-		return L + 1
+		logSplit++
 	}
 
-	return L
+	return
 }
 
 // EvaluateChebyFast evaluates the input Chebyshev polynomial with the input ciphertext.
@@ -70,7 +60,7 @@ func (eval *evaluator) EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby 
 func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ciphertext, evakey *EvaluationKey) (res *Ciphertext) {
 
 	logDegree := uint64(bits.Len64(cheby.degree()))
-	logSplit := (logDegree >> 1) - 1 //optimalL(M)
+	logSplit := optimalSplit(logDegree) //(logDegree >> 1) - 1 //
 
 	for i := uint64(2); i < (1 << logSplit); i++ {
 		computePowerBasisCheby(i, C, eval, evakey)
@@ -80,10 +70,11 @@ func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ci
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	res =  evaluateInLine(eval.ckksContext.scale, logSplit, cheby.Poly(), C, eval, evakey)
-	//_, res = recurseCheby(eval.ckksContext.scale, logSplit, cheby.Poly(), C, eval, evakey)
+	for i := range C {
+		fmt.Println(i, C[i].Level(), C[i].Scale())
+	}
 
-	return res
+	return recurseCheby(eval.ckksContext.scale, logSplit, logDegree, cheby.Poly(), C, eval, evakey)
 
 }
 
@@ -178,94 +169,95 @@ func splitCoeffsCheby(coeffs *poly, split uint64) (coeffsq, coeffsr *poly) {
 	if coeffs.lead {
 		coeffsq.lead = true
 	}
-	
+
 	return coeffsq, coeffsr
 }
 
-func recurseCheby(target_scale float64, L uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (treeIndex uint64, res *Ciphertext) {
+func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 
-	var treeIndex0, treeIndex1 uint64
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
-	if coeffs.degree() < (1 << L) {
-		return coeffs.maxDeg, evaluatePolyFromChebyBasis(target_scale, coeffs, C, evaluator)
+	if coeffs.degree() < (1 << logSplit) {
+
+		/*
+			if coeffs.lead && logSplit > 1 && coeffs.degree() > 1<<(logSplit-1){
+
+				logDegree = uint64(bits.Len64(coeffs.degree()))
+				logSplit = optimalSplit(logDegree)
+
+				return recurseCheby(target_scale, logSplit, logDegree, coeffs, C, evaluator, evakey)
+			}
+		*/
+
+		return evaluatePolyFromChebyBasis(target_scale, coeffs, C, evaluator)
 	}
 
-	var nextPower = uint64(1 << L)
+	var nextPower = uint64(1 << logSplit)
 	for nextPower < (coeffs.degree()>>1)+1 {
 		nextPower <<= 1
 	}
 
 	coeffsq, coeffsr := splitCoeffsCheby(coeffs, nextPower)
 
-	//current_qi := float64(evaluator.params.Qi[C[nextPower].Level()])
+	level := C[nextPower].Level() - 1
 
-	/*
-		fmt.Println("===== Target =====")
-		fmt.Printf("Target : %f\n", target_scale)
-		fmt.Printf("coeffs q:(%d, %d) r:(%d, %d) \n", coeffsq.maxDeg, coeffsq.degree(), coeffsr.maxDeg, coeffsr.degree())
-		fmt.Printf("Scale X^%d : %f\n", nextPower, C[nextPower].Scale())
-		fmt.Printf("Qi : %f\n", current_qi)
-		fmt.Printf("res : %f\n", target_scale * current_qi / C[nextPower].Scale())
-		fmt.Printf("tmp : %f\n", target_scale)
-		fmt.Println()
-	*/
-
-	//* current_qi / C[nextPower].Scale()
-	treeIndex0, res = recurseCheby(target_scale, L, coeffsq, C, evaluator, evakey)
-
-	var tmp *Ciphertext
-	treeIndex1, tmp = recurseCheby(target_scale, L, coeffsr, C, evaluator, evakey)
-
-	evaluator.MulRelin(res, C[nextPower], evakey, res)
-
-	//fmt.Println("====== CHECK =====")
-	//fmt.Printf("Target : %f\n", target_scale)
-	fmt.Printf("Scale X^%d (%d, %d): %f\n", nextPower, treeIndex0, treeIndex1, C[nextPower].Scale())
-	//fmt.Printf("Qi : %f\n", current_qi)
-	fmt.Printf("res : %d %f\n", res.Level(), res.Scale())
-	fmt.Printf("tmp : %d %f\n", tmp.Level(), tmp.Scale())
-
-	//real_scale := res.Scale() * C[nextPower].Scale() / current_qi
-
-	//fmt.Printf("Diff Scale ct0=%d ct1=%d X^%d %f\n", treeIndex0, treeIndex1, nextPower, real_scale-tmp.Scale())
-
-	//fmt.Println("res lvl", res.Level(), "C level", C[nextPower].Level(), "tmp lvl", tmp.Level())
-
-	if res.Level() > tmp.Level() {
-		//fmt.Printf("Befor Rescale : %f\n", res.Scale())
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
-		//fmt.Printf("After Rescale : %f\n", res.Scale())
-		evaluator.Add(res, tmp, res)
-		//fmt.Printf("After Add     : %f\n", res.Scale())
-	} else {
-		//fmt.Printf("Befor Add     : %f\n", res.Scale())
-		evaluator.Add(res, tmp, res)
-		//fmt.Printf("After Add     : %f\n", res.Scale())
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
-		//fmt.Printf("After Rescale : %f\n", res.Scale())
+	if coeffsq.maxDeg >= 1<<(logDegree-1) && coeffsq.lead {
+		level++
 	}
 
-	fmt.Println()
+	current_qi := float64(evaluator.params.Qi[level])
 
-	return utils.MaxUint64(treeIndex0, treeIndex1), res
+	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
+	//fmt.Printf("X^%2d: %f %f\n", nextPower, target_scale, target_scale* current_qi / C[nextPower].Scale())
+	//fmt.Println()
+
+	//fmt.Printf("X^%2d : qi %d %t %d %d\n", nextPower, level, coeffsq.lead, coeffsq.maxDeg, 1<<(logDegree-1))
+
+	res = recurseCheby(target_scale*current_qi/C[nextPower].Scale(), logSplit, logDegree, coeffsq, C, evaluator, evakey)
+
+	var tmp *Ciphertext
+	tmp = recurseCheby(target_scale, logSplit, logDegree, coeffsr, C, evaluator, evakey)
+
+	if res.Level() > tmp.Level() {
+		for res.Level() != tmp.Level()+1 {
+			evaluator.DropLevel(res, 1)
+		}
+	}
+
+	fmt.Printf("X^%2d: (%d %f -> ", nextPower, res.Level(), res.Scale())
+	evaluator.MulRelin(res, C[nextPower], evakey, res)
+	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+	fmt.Printf("%f = %d) + (%d %f) = ", res.Scale(), res.Level(), tmp.Level(), tmp.Scale())
+	evaluator.Add(res, tmp, res)
+	fmt.Printf("(%d %f) %f\n", res.Level(), res.Scale(), res.Scale()-tmp.Scale())
+
+	return
 
 }
 
 func evaluatePolyFromChebyBasis(target_scale float64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator) (res *Ciphertext) {
 
+	//fmt.Println(coeffs)
+
+	if coeffs.degree() == 0 {
+
+		res = NewCiphertext(evaluator.params, 1, C[1].Level(), target_scale)
+
+		if math.Abs(real(coeffs.coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.coeffs[0])) > 1e-14 {
+			evaluator.AddConst(res, coeffs.coeffs[0], res)
+		}
+
+		return
+	}
+
 	current_qi := float64(evaluator.params.Qi[C[coeffs.degree()].Level()])
 
 	ct_scale := target_scale * current_qi
 
-	//fmt.Println(coeffs.maxDeg, target_scale)
-
+	//fmt.Printf("%d %f\n", coeffs.maxDeg, target_scale)
 	//fmt.Println("current Qi", evaluator.params.Qi[C[coeffs.degree()].Level()])
+	//fmt.Println(coeffs.degree(), C[coeffs.degree()].Level())
 
-	if coeffs.degree() != 0 {
-		res = NewCiphertext(evaluator.params, 1, C[coeffs.degree()].Level(), ct_scale)
-	} else {
-		res = NewCiphertext(evaluator.params, 1, C[1].Level(), ct_scale)
-	}
+	res = NewCiphertext(evaluator.params, 1, C[coeffs.degree()].Level(), ct_scale)
 
 	if math.Abs(real(coeffs.coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.coeffs[0])) > 1e-14 {
 		evaluator.AddConst(res, coeffs.coeffs[0], res)
@@ -276,8 +268,7 @@ func evaluatePolyFromChebyBasis(target_scale float64, coeffs *poly, C map[uint64
 		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-14 || math.Abs(imag(coeffs.coeffs[key])) > 1e-14) {
 
 			// Target scale * rescale-scale / power basis scale
-			current_ct := C[key].Scale()
-			const_scale := target_scale * current_qi / current_ct
+			const_scale := target_scale * current_qi / C[key].Scale()
 
 			cReal := int64(real(coeffs.coeffs[key]) * const_scale)
 			cImag := int64(imag(coeffs.coeffs[key]) * const_scale)
@@ -291,7 +282,7 @@ func evaluatePolyFromChebyBasis(target_scale float64, coeffs *poly, C map[uint64
 	return
 }
 
-
+/*
 func evaluateInLine(target_scale float64, L uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) *Ciphertext {
 
 	cf := computeSmallPoly(L, coeffs)
@@ -308,10 +299,6 @@ func evaluateInLine(target_scale float64, L uint64, coeffs *poly, C map[uint64]*
 		fmt.Printf("C[%d] : %d %f\n", i, C[i].Level(), C[i].Scale())
 	}
 	fmt.Println()
-
-	for i, c := range cf{
-		fmt.Println(i, c.lead, c.degree(), c.depth())
-	}
 
 	target_scale03 := target_scale
 	res03 := evaluatePolyFromChebyBasis(target_scale03, cf[9], C, evaluator)
@@ -413,3 +400,4 @@ func evaluateInLine(target_scale float64, L uint64, coeffs *poly, C map[uint64]*
 
 	return res38
 }
+*/

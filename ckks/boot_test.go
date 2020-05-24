@@ -18,7 +18,7 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[2]
+	bootparams := BootstrappParams[0]
 
 	parameters := &bootparams.Parameters
 
@@ -36,14 +36,15 @@ func TestBootstrapp(t *testing.T) {
 
 	t.Run(testString("ChebySin/", parameters), func(t *testing.T) {
 
+		eval := params.evaluator
+
 		DefaultScale := parameters.Scale
 
 		params.params.Scale = SineScale
 		parameters.Scale = SineScale
+		eval.(*evaluator).ckksContext.scale = SineScale
 
-		eval := NewEvaluator(parameters)
-
-		deg := 127
+		deg := 124
 		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
@@ -59,13 +60,14 @@ func TestBootstrapp(t *testing.T) {
 		start := time.Now()
 		ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, rlk)
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
-		//fmt.Println(ciphertext.Level())
+		fmt.Println(ciphertext.Level())
 
 		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		t.Fail()
 
 		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale
+		eval.(*evaluator).params.Scale = DefaultScale
 	})
 
 	t.Run(testString("ChebyCos/", parameters), func(t *testing.T) {
@@ -79,7 +81,7 @@ func TestBootstrapp(t *testing.T) {
 		eval.(*evaluator).ckksContext.scale = SineScale
 
 		K := 16
-		deg := 38
+		deg := 40
 		dev := 10
 		sc_num := 2
 

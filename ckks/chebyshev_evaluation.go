@@ -10,6 +10,16 @@ import (
 type poly struct {
 	maxDeg uint64
 	coeffs []complex128
+	lead   bool
+}
+
+
+func (p *poly) depth() (d uint64) {
+	d = uint64(bits.Len64(p.degree())+1)
+	if p.lead{
+		d--
+	}
+	return
 }
 
 func (p *poly) degree() uint64 {
@@ -70,8 +80,8 @@ func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ci
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	//res =  evaluateInLine(eval.ckksContext.scale, logSplit, cheby.Poly(), C, eval, evakey)
-	_, res = recurseCheby(eval.ckksContext.scale, logSplit, cheby.Poly(), C, eval, evakey)
+	res =  evaluateInLine(eval.ckksContext.scale, logSplit, cheby.Poly(), C, eval, evakey)
+	//_, res = recurseCheby(eval.ckksContext.scale, logSplit, cheby.Poly(), C, eval, evakey)
 
 	return res
 
@@ -165,6 +175,10 @@ func splitCoeffsCheby(coeffs *poly, split uint64) (coeffsq, coeffsr *poly) {
 		coeffsr.coeffs[split-j] -= coeffs.coeffs[i]
 	}
 
+	if coeffs.lead {
+		coeffsq.lead = true
+	}
+	
 	return coeffsq, coeffsr
 }
 
@@ -268,13 +282,7 @@ func evaluatePolyFromChebyBasis(target_scale float64, coeffs *poly, C map[uint64
 			cReal := int64(real(coeffs.coeffs[key]) * const_scale)
 			cImag := int64(imag(coeffs.coeffs[key]) * const_scale)
 
-			tmp := NewCiphertext(evaluator.params, C[key].Degree(), C[key].Level(), ct_scale)
-
-			evaluator.multByGaussianInteger(C[key], cReal, cImag, tmp)
-
-			//evaluator.MultByConstAndAdd(C[key], coeffs.coeffs[key], res)
-
-			evaluator.Add(res, tmp, res)
+			evaluator.multByGaussianIntegerAndAdd(C[key], cReal, cImag, res)
 		}
 	}
 
@@ -283,11 +291,13 @@ func evaluatePolyFromChebyBasis(target_scale float64, coeffs *poly, C map[uint64
 	return
 }
 
+
 func evaluateInLine(target_scale float64, L uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) *Ciphertext {
 
-	coefficients := computeSmallPoly(L, coeffs)
+	cf := computeSmallPoly(L, coeffs)
 
 	lvl := C[1].Level() - 2
+	fmt.Println(lvl, C[1].Level())
 
 	for i := lvl; i > lvl-5; i-- {
 		fmt.Println(i, evaluator.params.Qi[i])
@@ -299,35 +309,39 @@ func evaluateInLine(target_scale float64, L uint64, coeffs *poly, C map[uint64]*
 	}
 	fmt.Println()
 
+	for i, c := range cf{
+		fmt.Println(i, c.lead, c.degree(), c.depth())
+	}
+
 	target_scale03 := target_scale
-	res03 := evaluatePolyFromChebyBasis(target_scale03, coefficients[9], C, evaluator)
+	res03 := evaluatePolyFromChebyBasis(target_scale03, cf[9], C, evaluator)
 
 	target_scale07 := target_scale03 * float64(evaluator.params.Qi[lvl-1]) / C[4].Scale()
-	res07 := evaluatePolyFromChebyBasis(target_scale07, coefficients[8], C, evaluator)
+	res07 := evaluatePolyFromChebyBasis(target_scale07, cf[8], C, evaluator)
 
 	target_scale11 := target_scale * float64(evaluator.params.Qi[lvl-2]) / C[8].Scale()
-	res11 := evaluatePolyFromChebyBasis(target_scale11, coefficients[7], C, evaluator)
+	res11 := evaluatePolyFromChebyBasis(target_scale11, cf[7], C, evaluator)
 
 	target_scale15 := target_scale11 * float64(evaluator.params.Qi[lvl-1]) / C[4].Scale()
-	res15 := evaluatePolyFromChebyBasis(target_scale15, coefficients[6], C, evaluator)
+	res15 := evaluatePolyFromChebyBasis(target_scale15, cf[6], C, evaluator)
 
 	target_scale19 := target_scale * float64(evaluator.params.Qi[lvl-3]) / C[16].Scale()
-	res19 := evaluatePolyFromChebyBasis(target_scale19, coefficients[5], C, evaluator)
+	res19 := evaluatePolyFromChebyBasis(target_scale19, cf[5], C, evaluator)
 
 	target_scale23 := target_scale19 * float64(evaluator.params.Qi[lvl-1]) / C[4].Scale()
-	res23 := evaluatePolyFromChebyBasis(target_scale23, coefficients[4], C, evaluator)
+	res23 := evaluatePolyFromChebyBasis(target_scale23, cf[4], C, evaluator)
 
 	target_scale27 := target_scale19 * float64(evaluator.params.Qi[lvl-2]) / C[8].Scale()
-	res27 := evaluatePolyFromChebyBasis(target_scale27, coefficients[3], C, evaluator)
+	res27 := evaluatePolyFromChebyBasis(target_scale27, cf[3], C, evaluator)
 
 	target_scale31 := target_scale27 * float64(evaluator.params.Qi[lvl-1]) / C[4].Scale()
-	res31 := evaluatePolyFromChebyBasis(target_scale31, coefficients[2], C, evaluator)
+	res31 := evaluatePolyFromChebyBasis(target_scale31, cf[2], C, evaluator)
 
 	target_scale35 := target_scale * float64(evaluator.params.Qi[lvl-3]) / C[32].Scale()
-	res35 := evaluatePolyFromChebyBasis(target_scale35, coefficients[1], C, evaluator)
+	res35 := evaluatePolyFromChebyBasis(target_scale35, cf[1], C, evaluator)
 
 	target_scale38 := target_scale35 * float64(evaluator.params.Qi[lvl]) / C[4].Scale()
-	res38 := evaluatePolyFromChebyBasis(target_scale38, coefficients[0], C, evaluator)
+	res38 := evaluatePolyFromChebyBasis(target_scale38, cf[0], C, evaluator)
 
 	fmt.Printf("res03 : %d %f\n", res03.Level(), res03.Scale())
 	fmt.Printf("res07 : %d %f\n", res07.Level(), res07.Scale())

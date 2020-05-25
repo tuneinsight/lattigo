@@ -37,14 +37,21 @@ func (b *BootParams) Gen() {
 	b.Parameters.Gen()
 }
 
+//TODO : hardcode moduli chain
 var BootstrappParams = []*BootParams{
 
-	// 1453 Sin - 550
+	// 1398 Sin - 550
+	// 10 : 20.67
+	// 11 : 20.09
+	// 12 : 19.32
+	// 13 : 18.16
+	// 14 : 17.60
+	// 15 : 18.31
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
+			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 55, 56, 28, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
 			LogPi: []uint64{55, 55, 55, 55},
 		},
 		Scale: 1 << 45,
@@ -54,22 +61,22 @@ var BootstrappParams = []*BootParams{
 		SinRange:  15,
 		SinDeg:    127,
 		SinRescal: 0,
-		CtSLevel:  []uint64{24, 23, 22},
+		CtSLevel:  []uint64{23, 22, 21},
 		StCLevel:  []uint64{13, 12, 12},
 	},
 
-	// 1439 Sin - 505
-	// 10 : 20.67
-	// 11 : 20.17
-	// 12 : 19.67
-	// 13 : 19.15
-	// 14 : 18.63
-	// 15 : 18.30
+	// 1384 Sin - 505
+	// 10 : 20.57
+	// 11 : 20.00
+	// 12 : 19.50
+	// 13 : 19.01
+	// 14 : 18.50
+	// 15 : 18.20
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
+			LogQi: []uint64{55, 60, 60, 60, 60, 55, 55, 55, 60, 60, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
 			LogPi: []uint64{61, 61, 61, 61},
 		},
 		Scale: 1 << 30,
@@ -79,22 +86,22 @@ var BootstrappParams = []*BootParams{
 		SinRange:  15,
 		SinDeg:    127,
 		SinRescal: 0,
-		CtSLevel:  []uint64{21, 20, 19},
+		CtSLevel:  []uint64{19, 18, 17},
 		StCLevel:  []uint64{9, 9, 8},
 	},
 
-	// 1453 Cos - 550
+	// 1408 Cos - 550
 	// 10 : 20.91
 	// 11 : 19.93
-	// 12 : 19.14
-	// 13 : 17.43
-	// 14 : 17.12
-	// 15 : 20.38
+	// 12 : 19.54
+	// 13 : 18.27
+	// 14 : 17.60 40
+	// 15 : 20.10 40
 	{Parameters: Parameters{
 		LogN:     16,
-		LogSlots: 15,
+		LogSlots: 14,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
+			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
 			LogPi: []uint64{55, 55, 55, 55},
 		},
 		Scale: 1 << 45,
@@ -104,8 +111,8 @@ var BootstrappParams = []*BootParams{
 		SinRange:  16,
 		SinDeg:    40,
 		SinRescal: 2,
-		CtSLevel:  []uint64{24, 23, 22},
-		StCLevel:  []uint64{13, 12, 12},
+		CtSLevel:  []uint64{23, 22, 21},
+		StCLevel:  []uint64{12, 11, 11},
 	},
 
 	// 1439 Cos - 505

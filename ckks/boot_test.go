@@ -18,15 +18,21 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[0]
+	bootparams := BootstrappParams[3]
 
 	parameters := &bootparams.Parameters
 
 	bootparams.Gen()
 
-	//for i, qi := range bootparams.Qi{
-	//	fmt.Println(i, qi)
-	//}
+	/*
+		for i, qi := range bootparams.Qi{
+			fmt.Printf("%d : 0x%x\n", i, qi)
+		}
+
+		for i, pj := range bootparams.Pi{
+			fmt.Printf("%d : 0x%x\n", i, pj)
+		}
+	*/
 
 	params := genCkksParams(parameters)
 
@@ -44,7 +50,7 @@ func TestBootstrapp(t *testing.T) {
 		parameters.Scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
-		deg := 124
+		deg := 127
 		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
@@ -56,7 +62,7 @@ func TestBootstrapp(t *testing.T) {
 			values[i] = sin2pi2pi(values[i])
 		}
 
-		fmt.Println(ciphertext.Level())
+		fmt.Println(ciphertext.Level() - 1)
 		start := time.Now()
 		ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, rlk)
 		fmt.Printf("Elapsed : %s \n", time.Since(start))

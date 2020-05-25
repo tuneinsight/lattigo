@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"fmt"
+	//"fmt"
 	"math"
 	"math/bits"
 )
@@ -60,7 +60,7 @@ func (eval *evaluator) EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby 
 func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ciphertext, evakey *EvaluationKey) (res *Ciphertext) {
 
 	logDegree := uint64(bits.Len64(cheby.degree()))
-	logSplit := optimalSplit(logDegree) //(logDegree >> 1) - 1 //
+	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
 
 	for i := uint64(2); i < (1 << logSplit); i++ {
 		computePowerBasisCheby(i, C, eval, evakey)
@@ -70,9 +70,11 @@ func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ci
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	for i := range C {
-		fmt.Println(i, C[i].Level(), C[i].Scale())
-	}
+	/*
+		for i := range C {
+			fmt.Println(i, C[i].Level(), C[i].Scale())
+		}
+	*/
 
 	return recurseCheby(eval.ckksContext.scale, logSplit, logDegree, cheby.Poly(), C, eval, evakey)
 
@@ -178,15 +180,13 @@ func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *poly
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.degree() < (1 << logSplit) {
 
-		/*
-			if coeffs.lead && logSplit > 1 && coeffs.degree() > 1<<(logSplit-1){
+		if coeffs.lead && logSplit > 1 && coeffs.degree() > 1<<(logSplit-1) {
 
-				logDegree = uint64(bits.Len64(coeffs.degree()))
-				logSplit = optimalSplit(logDegree)
+			logDegree = uint64(bits.Len64(coeffs.degree()))
+			logSplit = optimalSplit(logDegree)
 
-				return recurseCheby(target_scale, logSplit, logDegree, coeffs, C, evaluator, evakey)
-			}
-		*/
+			return recurseCheby(target_scale, logSplit, logDegree, coeffs, C, evaluator, evakey)
+		}
 
 		return evaluatePolyFromChebyBasis(target_scale, coeffs, C, evaluator)
 	}
@@ -208,9 +208,8 @@ func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *poly
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, target_scale, target_scale* current_qi / C[nextPower].Scale())
-	//fmt.Println()
-
 	//fmt.Printf("X^%2d : qi %d %t %d %d\n", nextPower, level, coeffsq.lead, coeffsq.maxDeg, 1<<(logDegree-1))
+	//fmt.Println()
 
 	res = recurseCheby(target_scale*current_qi/C[nextPower].Scale(), logSplit, logDegree, coeffsq, C, evaluator, evakey)
 
@@ -223,12 +222,18 @@ func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *poly
 		}
 	}
 
-	fmt.Printf("X^%2d: (%d %f -> ", nextPower, res.Level(), res.Scale())
+	//fmt.Printf("X^%2d: (%d %f -> ", nextPower, res.Level(), res.Scale())
 	evaluator.MulRelin(res, C[nextPower], evakey, res)
-	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
-	fmt.Printf("%f = %d) + (%d %f) = ", res.Scale(), res.Level(), tmp.Level(), tmp.Scale())
-	evaluator.Add(res, tmp, res)
-	fmt.Printf("(%d %f) %f\n", res.Level(), res.Scale(), res.Scale()-tmp.Scale())
+
+	if res.Level() > tmp.Level() {
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		//fmt.Printf("%f = %d) + (%d %f) = ", res.Scale(), res.Level(), tmp.Level(), tmp.Scale())
+		evaluator.Add(res, tmp, res)
+		//fmt.Printf("(%d %f) %f\n", res.Level(), res.Scale(), res.Scale()-tmp.Scale())
+	} else {
+		evaluator.Add(res, tmp, res)
+		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+	}
 
 	return
 

@@ -26,7 +26,7 @@ const (
 	Cos = SinType(1)
 )
 
-func (b *BootParams) Gen() {
+func (b *BootParams) Gen() error { // TODO "Generate" ?
 
 	if b.SinType == SinType(Sin) && b.SinRescal != 0 {
 		panic("BootParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
@@ -34,7 +34,7 @@ func (b *BootParams) Gen() {
 
 	b.SinDepth = uint64(math.Ceil(math.Log2(float64(b.SinDeg))) + float64(b.SinRescal) + 1)
 
-	b.Parameters.Gen()
+	return b.Parameters.Gen()
 }
 
 var BootstrappParams = []*BootParams{

@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"github.com/ldsec/lattigo/ckks/bettersine"
 	"github.com/ldsec/lattigo/utils"
+	"log"
 	"math"
 	"math/bits"
 	"math/cmplx"
 )
 
 // BootContext stores the parameters for the bootstrapping.
-type BootContext struct {
+type BootContext struct { // TODO: change to "Bootstrapper" ?
 	BootParams
 
 	n    uint64 // Ring degree
@@ -104,14 +105,14 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 
 func (bootcontext *BootContext) GenBootKeys(sk *SecretKey) {
 
-	fmt.Println("DFT vector size (GB) :", float64(bootcontext.plaintextSize)/float64(1000000000))
+	log.Println("DFT vector size (GB) :", float64(bootcontext.plaintextSize)/float64(1000000000))
 
 	nbKeys := uint64(len(bootcontext.rotKeyIndex)) + 2 //rot keys + conj key + relin key
 	nbPoly := bootcontext.Beta
 	nbCoefficients := 2 * bootcontext.n * uint64(len(bootcontext.Qi)+len(bootcontext.Pi))
 	bytesPerCoeff := uint64(8)
 
-	fmt.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
+	log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
 
 	kgen := NewKeyGenerator(&bootcontext.Parameters)
 

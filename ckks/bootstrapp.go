@@ -1,9 +1,9 @@
 package ckks
 
 import (
-	"fmt"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
+	"log"
 	"math"
 	"time"
 )
@@ -24,27 +24,27 @@ func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 	t = time.Now()
 	ct = bootcontext.modUp(ct)
-	fmt.Println("After ModUp  :", time.Now().Sub(t), ct.Level(), ct.Scale())
+	log.Println("After ModUp  :", time.Now().Sub(t), ct.Level(), ct.Scale())
 
 	//SubSum X -> (N/dslots) * Y^dslots
 	t = time.Now()
 	ct = bootcontext.subSum(ct)
-	fmt.Println("After SubSum :", time.Now().Sub(t), ct.Level(), ct.Scale())
+	log.Println("After SubSum :", time.Now().Sub(t), ct.Level(), ct.Scale())
 	// Part 1 : Coeffs to slots
 
 	t = time.Now()
 	ct0, ct1 = bootcontext.coeffsToSlots(ct)
-	fmt.Println("After CtS    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
+	log.Println("After CtS    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 
 	// Part 2 : SineEval
 	t = time.Now()
 	ct0, ct1 = bootcontext.evaluateSine(ct0, ct1)
-	fmt.Println("After Sine   :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
+	log.Println("After Sine   :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 
 	// Part 3 : Slots to coeffs
 	t = time.Now()
 	ct0 = bootcontext.slotsToCoeffs(ct0, ct1)
-	fmt.Println("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
+	log.Println("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 	return ct0
 }
 

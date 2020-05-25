@@ -12,8 +12,12 @@ type ChebyshevInterpolation struct {
 }
 
 // Poly returns the polynomial coefficients of the ChebyshevInterpolation
-func (cheby *ChebyshevInterpolation) Poly() *poly {
-	return &poly{cheby.maxDeg, cheby.coeffs}
+func (cheby *ChebyshevInterpolation) Poly() (p *poly) {
+	p = new(poly)
+	p.maxDeg = cheby.maxDeg
+	p.coeffs = cheby.coeffs
+	p.lead = true
+	return p
 }
 
 // Approximate computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.

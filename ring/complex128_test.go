@@ -91,7 +91,7 @@ func Test_Complex128_Mul(t *testing.T) {
 				values[i+j].Set(u)
 				values[i+j+lenh].Set(v)
 
-				fmt.Println(values[0][0].Prec())
+				//fmt.Println(values[0][0].Prec())
 			}
 		}
 	}

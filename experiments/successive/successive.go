@@ -18,7 +18,6 @@ func main() {
 	keyGen := ckks.NewKeyGenerator(&params.Parameters)
 	sk, pk := keyGen.GenKeyPairSparse(128)
 
-
 	encoder := ckks.NewEncoder(&params.Parameters)
 	encryptorPk := ckks.NewEncryptorFromPk(&params.Parameters, pk)
 	decryptor := ckks.NewDecryptor(&params.Parameters, sk)
@@ -43,9 +42,6 @@ func main() {
 	}
 	fmt.Println(formatSuccessive(stats))
 }
-
-
-
 
 func formatSuccessive(stats []ckks.PrecisionStats) string {
 	w := new(bytes.Buffer)

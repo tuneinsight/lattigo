@@ -8,12 +8,13 @@ import (
 
 type PrecisionStats struct {
 	Min, Max, Mean, Median complex128
+	RealDist, ImagDist     map[uint64]uint64
 }
 
 func (prec PrecisionStats) String() string {
-	return fmt.Sprintf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Min)), math.Log2(1/imag(prec.Min)))+
-		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Max)), math.Log2(1/imag(prec.Max)))+
-		fmt.Sprintf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Mean)), math.Log2(1/imag(prec.Mean)))+
+	return fmt.Sprintf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Min)), math.Log2(1/imag(prec.Min))) +
+		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Max)), math.Log2(1/imag(prec.Max))) +
+		fmt.Sprintf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Mean)), math.Log2(1/imag(prec.Mean))) +
 		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Max)), math.Log2(1/imag(prec.Median)))
 }
 
@@ -44,8 +45,8 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	prec.Mean = complex(0, 0)
 
-	distribReal := make(map[uint64]uint64)
-	distribImag := make(map[uint64]uint64)
+	prec.RealDist = make(map[uint64]uint64)
+	prec.ImagDist = make(map[uint64]uint64)
 
 	distribPrec := float64(25)
 
@@ -75,8 +76,8 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 			prec.Max = complex(real(prec.Max), deltaImag)
 		}
 
-		distribReal[uint64(math.Floor(distribPrec*math.Log2(1/deltaReal)))]++
-		distribImag[uint64(math.Floor(distribPrec*math.Log2(1/deltaImag)))]++
+		prec.RealDist[uint64(math.Floor(distribPrec*math.Log2(1/deltaReal)))]++
+		prec.ImagDist[uint64(math.Floor(distribPrec*math.Log2(1/deltaImag)))]++
 	}
 
 	prec.Mean /= complex(float64(params.Slots), 0)

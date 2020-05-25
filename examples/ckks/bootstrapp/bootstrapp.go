@@ -53,7 +53,8 @@ func main() {
 	// Make it so they can be given as input to the bootstrapp.
 	fmt.Println()
 	fmt.Println("Generating bootstrappign keys...")
-	bootcontext = ckks.NewBootContext(bootparams, sk)
+	bootcontext = ckks.NewBootContext(bootparams)
+	bootcontext.GenBootKeys(sk)
 	fmt.Println("Done")
 
 	// Generates a random plaintext

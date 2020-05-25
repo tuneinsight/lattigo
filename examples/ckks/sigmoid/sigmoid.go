@@ -80,7 +80,7 @@ func chebyshevinterpolation() {
 	chebyapproximation := ckks.Approximate(f, -8, 8, 33)
 
 	// We evaluate the interpolated chebyshev polynomial on the ciphertext
-	ciphertext = evaluator.EvaluateChebyEco(ciphertext, chebyapproximation, rlk)
+	evaluator.EvaluatePolyEco(ciphertext, chebyapproximation, rlk)
 
 	fmt.Println("Done... Consumed levels :", params.MaxLevel-ciphertext.Level())
 

@@ -18,15 +18,21 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[2]
+	bootparams := BootstrappParams[3]
 
 	parameters := &bootparams.Parameters
 
 	bootparams.Gen()
 
-	//for i, qi := range bootparams.Qi{
-	//	fmt.Println(i, qi)
-	//}
+	/*
+		for i, qi := range bootparams.Qi{
+			fmt.Printf("%d : 0x%x\n", i, qi)
+		}
+
+		for i, pj := range bootparams.Pi{
+			fmt.Printf("%d : 0x%x\n", i, pj)
+		}
+	*/
 
 	params := genCkksParams(parameters)
 
@@ -36,18 +42,19 @@ func TestBootstrapp(t *testing.T) {
 
 	t.Run(testString("ChebySin/", parameters), func(t *testing.T) {
 
+		eval := params.evaluator
+
 		DefaultScale := parameters.Scale
 
 		params.params.Scale = SineScale
 		parameters.Scale = SineScale
-
-		evaluator := NewEvaluator(parameters)
+		eval.(*evaluator).ckksContext.scale = SineScale
 
 		deg := 127
 		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
-		evaluator.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
+		eval.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
 
@@ -55,37 +62,39 @@ func TestBootstrapp(t *testing.T) {
 			values[i] = sin2pi2pi(values[i])
 		}
 
-		fmt.Println(ciphertext.Level())
+		fmt.Println(ciphertext.Level() - 1)
 		start := time.Now()
 		ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, rlk)
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
-		//fmt.Println(ciphertext.Level())
+		fmt.Println(ciphertext.Level())
 
 		verifyTestVectors(parameters, params.encoder, params.decryptor, values, ciphertext, t)
 		t.Fail()
 
 		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale
+		eval.(*evaluator).params.Scale = DefaultScale
 	})
 
 	t.Run(testString("ChebyCos/", parameters), func(t *testing.T) {
+
+		eval := params.evaluator
 
 		DefaultScale := parameters.Scale
 
 		params.params.Scale = SineScale
 		parameters.Scale = SineScale
+		eval.(*evaluator).ckksContext.scale = SineScale
 
-		evaluator := NewEvaluator(parameters)
-
-		K := 18
-		deg := 63
+		K := 16
+		deg := 40
 		dev := 10
 		sc_num := 2
 
 		sc_fac := complex(float64(int(1<<sc_num)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, float64(-K+1), float64(K-1), t)
-		evaluator.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
+		eval.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
@@ -163,27 +172,27 @@ func TestBootstrapp(t *testing.T) {
 			c := 2.8209479177387813
 			d := -0.42377720812375763
 
-			y2 := evaluator.MulRelinNew(ciphertext, ciphertext, rlk)
-			evaluator.Rescale(y2, parameters.Scale, y2)
+			y2 := eval.MulRelinNew(ciphertext, ciphertext, rlk)
+			eval.Rescale(y2, parameters.Scale, y2)
 
-			y4 := evaluator.MulRelinNew(y2, y2, rlk)
+			y4 := eval.MulRelinNew(y2, y2, rlk)
 
 			ciphertext = y4.CopyNew().Ciphertext()
 
-			evaluator.MultByConst(ciphertext, a, ciphertext)
-			evaluator.MultByConstAndAdd(y2, b, ciphertext)
-			evaluator.AddConst(ciphertext, c, ciphertext)
-			evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
-			evaluator.Rescale(y4, parameters.Scale, y4)
+			eval.MultByConst(ciphertext, a, ciphertext)
+			eval.MultByConstAndAdd(y2, b, ciphertext)
+			eval.AddConst(ciphertext, c, ciphertext)
+			eval.Rescale(ciphertext, parameters.Scale, ciphertext)
+			eval.Rescale(y4, parameters.Scale, y4)
 
-			evaluator.MulRelin(ciphertext, y4, rlk, ciphertext)
-			evaluator.MultByConstAndAdd(y2, d, ciphertext)
+			eval.MulRelin(ciphertext, y4, rlk, ciphertext)
+			eval.MultByConstAndAdd(y2, d, ciphertext)
 
-			evaluator.MultByConst(ciphertext, 16, ciphertext)
+			eval.MultByConst(ciphertext, 16, ciphertext)
 
-			evaluator.AddConst(ciphertext, 1.0/6.283185307179586, ciphertext)
+			eval.AddConst(ciphertext, 1.0/6.283185307179586, ciphertext)
 
-			evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
+			eval.Rescale(ciphertext, parameters.Scale, ciphertext)
 
 		}
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
@@ -194,6 +203,7 @@ func TestBootstrapp(t *testing.T) {
 
 		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale
+		eval.(*evaluator).params.Scale = DefaultScale
 
 	})
 

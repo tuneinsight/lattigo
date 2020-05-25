@@ -231,17 +231,25 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 
 	evaluator := bootcontext.evaluator.(*evaluator)
 
-	// Reference scale is changed to the new ciphertext's scale.
-	evaluator.ckksContext.scale = float64(bootcontext.Qi[ct0.Level()-1])
-
 	ct0.MulScale(1024)
+	evaluator.ckksContext.scale = ct0.Scale() // Reference scale is changed to the new ciphertext's scale.
+
+	// pre-computes the target scale for the output of the polynomial evaluation such that
+	// the output scale after the polynomial evaluation followed by the double angle formula
+	// does not change the scale of the ciphertext.
+	for i := uint64(0); i < bootcontext.SinRescal; i++ {
+		evaluator.ckksContext.scale *= float64(evaluator.params.Qi[bootcontext.StCLevel[0]+i+1])
+		evaluator.ckksContext.scale = math.Sqrt(evaluator.ckksContext.scale)
+	}
+
 	ct0 = bootcontext.evaluateCheby(ct0)
-	ct0.SetScale(bootcontext.Scale)
+
+	ct0.DivScale(1024 * bootcontext.sinScale / bootcontext.Scale)
 
 	if ct1 != nil {
 		ct1.MulScale(1024)
 		ct1 = bootcontext.evaluateCheby(ct1)
-		ct1.SetScale(bootcontext.Scale)
+		ct1.DivScale(1024 * bootcontext.sinScale / bootcontext.Scale)
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
@@ -267,17 +275,17 @@ func (bootcontext *BootContext) evaluateCheby(ct *Ciphertext) (res *Ciphertext) 
 
 	res = eval.evalCheby(cheby, C, bootcontext.relinkey)
 
-	/*
-		for i := uint64(0); i < bootcontext.SinRescal; i++ {
-			eval.MulRelin(res, res, bootcontext.relinkey, res)
-			eval.MultByConst(res, 2, res)
-			eval.AddConst(res, -1, res)
-			eval.Rescale(res, eval.ckksContext.scale, res)
-		}
+	/* Doing so : ~1 bit less because we need to mult by 1/2pi during the DFT
+	for i := uint64(0); i < bootcontext.SinRescal; i++ {
+		eval.MulRelin(res, res, bootcontext.relinkey, res)
+		eval.Add(res, res, res)
+		eval.AddConst(res, -1, res)
+		eval.Rescale(res, eval.ckksContext.scale, res)
+	}
 	*/
 
 	if bootcontext.SinRescal == 1 {
-		// r = 2*y2 - a
+		// r = 2*y^2 - a
 		a := -1.0 / 6.283185307179586
 
 		eval.MulRelin(res, res, bootcontext.relinkey, res)
@@ -287,16 +295,16 @@ func (bootcontext *BootContext) evaluateCheby(ct *Ciphertext) (res *Ciphertext) 
 
 	if bootcontext.SinRescal == 2 {
 
-		// r = c * y2 * (y2 - a) + b
+		// r = c * y^2 * (y^2 - a) + b
 
-		a := -0.5641895835477563
+		a := 0.5641895835477563
 		b := 1.0 / 6.283185307179586
 		c := 4.0
 
 		eval.MulRelin(res, res, bootcontext.relinkey, res)
 		eval.Rescale(res, eval.ckksContext.scale, res)
 
-		y := eval.AddConstNew(res, a)
+		y := eval.AddConstNew(res, -a)
 
 		eval.MulRelin(res, y, bootcontext.relinkey, res)
 
@@ -308,7 +316,7 @@ func (bootcontext *BootContext) evaluateCheby(ct *Ciphertext) (res *Ciphertext) 
 
 	if bootcontext.SinRescal == 3 {
 
-		// r = e * (y4 * (a * y4 - b * y2 + c) - d * y2) + f
+		// r = e * (y^4 * (a * y^4 - b * y^2 + c) - d * y^2) + f
 
 		a := 4.0
 		b := -6.00900435571954

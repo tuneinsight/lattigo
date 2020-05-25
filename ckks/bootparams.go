@@ -99,7 +99,7 @@ var BootstrappParams = []*BootParams{
 	// 15 : 20.10 40
 	{Parameters: Parameters{
 		LogN:     16,
-		LogSlots: 14,
+		LogSlots: 15,
 		LogModuli: LogModuli{
 			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
 			LogPi: []uint64{55, 55, 55, 55},

@@ -8,7 +8,7 @@ import (
 
 type PrecisionStats struct {
 	Min, Max, Mean, Median complex128
-	RealDist, ImagDist     map[uint64]uint64
+	RealDist, ImagDist     map[float64]uint64
 }
 
 func (prec PrecisionStats) String() string {
@@ -45,8 +45,8 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	prec.Mean = complex(0, 0)
 
-	prec.RealDist = make(map[uint64]uint64)
-	prec.ImagDist = make(map[uint64]uint64)
+	prec.RealDist = make(map[float64]uint64)
+	prec.ImagDist = make(map[float64]uint64)
 
 	distribPrec := float64(25)
 
@@ -76,8 +76,8 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 			prec.Max = complex(real(prec.Max), deltaImag)
 		}
 
-		prec.RealDist[uint64(math.Floor(distribPrec*math.Log2(1/deltaReal)))]++
-		prec.ImagDist[uint64(math.Floor(distribPrec*math.Log2(1/deltaImag)))]++
+		prec.RealDist[math.Floor(distribPrec*math.Log2(1/deltaReal))/distribPrec]++
+		prec.ImagDist[math.Floor(distribPrec*math.Log2(1/deltaImag))/distribPrec]++
 	}
 
 	prec.Mean /= complex(float64(params.Slots), 0)

@@ -37,6 +37,23 @@ func (b *BootParams) Gen() error { // TODO "Generate" ?
 	return b.Parameters.Gen()
 }
 
+func (b *BootParams) Copy() *BootParams {
+	paramsCopy := &BootParams{
+		Parameters: *b.Parameters.Copy(),
+		SinType:    b.SinType,
+		SinRange:   b.SinRange,
+		SinDeg:     b.SinDeg,
+		SinRescal:  b.SinRescal,
+		BabySplit:  b.BabySplit,
+		CtSLevel:   make([]uint64, len(b.CtSLevel)),
+		StCLevel:   make([]uint64, len(b.StCLevel)),
+		SinDepth:   b.SinDepth,
+	}
+	copy(paramsCopy.CtSLevel, b.CtSLevel)
+	copy(paramsCopy.StCLevel, b.StCLevel)
+	return paramsCopy
+}
+
 //TODO : hardcode moduli chain
 var BootstrappParams = []*BootParams{
 

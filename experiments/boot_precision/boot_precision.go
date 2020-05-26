@@ -32,7 +32,7 @@ func main() {
 	fmt.Println(formatParams(*paramSet, *nboot, *hw, *logslot))
 	switch exp {
 	case "successive":
-		encoder, encryptor, decryptor, bootstrapper := instanciateExperiment(params)
+		encoder, encryptor, evaluator, decryptor, bootstrapper := instanciateExperiment(params)
 		log.Println("Generating a plaintext of", params.Slots, "random values...")
 		values := make([]complex128, params.Slots)
 		for i := range values {
@@ -47,6 +47,7 @@ func main() {
 		for i := range stats {
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
 			stats[i] = ckks.GetPrecisionStats(&params.Parameters, encoder, decryptor, values, ciphertext)
+			evaluator.SetScale(ciphertext, params.Scale)
 		}
 
 		fmt.Println(formatSuccessive(stats))
@@ -55,7 +56,7 @@ func main() {
 
 	case "slotdist":
 
-		encoder, encryptor, decryptor, bootstrapper := instanciateExperiment(params)
+		encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params)
 		stats := make([]ckks.PrecisionStats, *nboot, *nboot)
 		for i := range stats {
 			values := make([]complex128, params.Slots)
@@ -80,7 +81,7 @@ func main() {
 			log.Println("running experiment for logslot =", logSloti)
 			params := ckks.BootstrappParams[*paramSet].Copy()
 			params.LogSlots = logSloti
-			encoder, encryptor, decryptor, bootstrapper := instanciateExperiment(params)
+			encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params)
 
 			values := make([]complex128, params.Slots)
 			for j := range values {
@@ -99,7 +100,7 @@ func main() {
 	}
 }
 
-func instanciateExperiment(params *ckks.BootParams) (encoder ckks.Encoder, encryptor ckks.Encryptor, decryptor ckks.Decryptor, bootstrapper *ckks.BootContext) {
+func instanciateExperiment(params *ckks.BootParams) (encoder ckks.Encoder, encryptor ckks.Encryptor, evaluator ckks.Evaluator, decryptor ckks.Decryptor, bootstrapper *ckks.BootContext) {
 
 	if err := params.Gen(); err != nil {
 		log.Fatal(err)
@@ -110,6 +111,8 @@ func instanciateExperiment(params *ckks.BootParams) (encoder ckks.Encoder, encry
 	encoder = ckks.NewEncoder(&params.Parameters)
 	encryptor = ckks.NewEncryptorFromPk(&params.Parameters, pk)
 	decryptor = ckks.NewDecryptor(&params.Parameters, sk)
+
+	evaluator = ckks.NewEvaluator(&params.Parameters)
 
 	bootstrapper = ckks.NewBootContext(params)
 	log.Println("Generating the keys...")

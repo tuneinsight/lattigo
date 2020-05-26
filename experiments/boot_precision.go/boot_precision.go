@@ -2,21 +2,38 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"github.com/ldsec/lattigo/ckks"
 	"log"
 	"math"
+	"os"
 )
 
+var succ = flag.Int("succ", 3, "number of successive bootstrapping")
+var slot = flag.Uint64("logSlot", 15, "number of slots per ciphertext")
+var params = flag.Int("params", 1, "index in BootStrappParams")
+var hw = flag.Uint64("hw", 128, "secret key hamming weight")
+
 func main() {
-	n_boot := 5
-	params := ckks.BootstrappParams[1]
+
+	flag.Parse()
+
+	if flag.NArg() != 1 {
+		fmt.Println("Usage: ./boot_precision [-flags] [successive]")
+		os.Exit(1)
+	}
+	exp := flag.Args()[0]
+
+	n_boot := *succ
+	params := ckks.BootstrappParams[*params]
+	params.LogSlots = *slot
 	params.Gen()
 
 	//ckkscontext := newContext(&params.Parameters)
 
 	keyGen := ckks.NewKeyGenerator(&params.Parameters)
-	sk, pk := keyGen.GenKeyPairSparse(128)
+	sk, pk := keyGen.GenKeyPairSparse(*hw)
 
 	encoder := ckks.NewEncoder(&params.Parameters)
 	encryptorPk := ckks.NewEncryptorFromPk(&params.Parameters, pk)
@@ -40,7 +57,11 @@ func main() {
 		ciphertext = bootstrapper.Bootstrapp(ciphertext)
 		stats[i] = ckks.GetPrecisionStats(&params.Parameters, encoder, decryptor, values, ciphertext)
 	}
-	fmt.Println(formatSuccessive(stats))
+
+	switch exp {
+	case "successive":
+		fmt.Println(formatSuccessive(stats))
+	}
 }
 
 func formatSuccessive(stats []ckks.PrecisionStats) string {

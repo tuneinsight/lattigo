@@ -53,7 +53,6 @@ func main() {
 		fmt.Println(formatSuccessive(stats))
 		break
 
-
 	case "slotdist":
 
 		encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params)
@@ -166,7 +165,7 @@ func formatSlotDist(stats []ckks.PrecisionStats, logSlot uint64) string {
 	fmt.Fprintln(w, "\n% Imag")
 	for precBin, count := range aggrImag {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(w, "(%.2f, %.6f)",  precBin, float64(count)/float64(slotCount))
+		fmt.Fprintf(w, "(%.2f, %.6f)", precBin, float64(count)/float64(slotCount))
 	}
 	fmt.Fprintln(w)
 	return w.String()

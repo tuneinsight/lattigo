@@ -12,7 +12,7 @@ type PrecisionStats struct {
 }
 
 func (prec PrecisionStats) String() string {
-	return fmt.Sprintf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Min)), math.Log2(1/imag(prec.Min))) +
+	return fmt.Sprintf("\nMinimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Min)), math.Log2(1/imag(prec.Min))) +
 		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Max)), math.Log2(1/imag(prec.Max))) +
 		fmt.Sprintf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Mean)), math.Log2(1/imag(prec.Mean))) +
 		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Max)), math.Log2(1/imag(prec.Median)))

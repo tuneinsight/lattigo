@@ -156,6 +156,8 @@ func newTestVectorsSineBoot(contextParams *ckksParams, encryptor Encryptor, a, b
 		values[i] = complex(math.Round(RandomFloat(a, b))+RandomFloat(-1, 1)/1000, 0)
 	}
 
+	values[0] = complex(math.Round(RandomFloat(a, b))+0.9238795325112867/1000, 0)
+
 	plaintext = NewPlaintext(contextParams.params, contextParams.params.MaxLevel, contextParams.params.Scale)
 
 	contextParams.encoder.EncodeNTT(plaintext, values, slots)

@@ -275,99 +275,14 @@ func (bootcontext *BootContext) evaluateCheby(ct *Ciphertext) (res *Ciphertext) 
 
 	res = eval.evalCheby(cheby, C, bootcontext.relinkey)
 
-	/* Doing so : ~1 bit less because we need to mult by 1/2pi during the DFT
+	sqrt2pi := math.Pow(0.15915494309189535, 1.0/float64(int(1<<bootcontext.SinRescal)))
+
 	for i := uint64(0); i < bootcontext.SinRescal; i++ {
+		sqrt2pi *= sqrt2pi
 		eval.MulRelin(res, res, bootcontext.relinkey, res)
 		eval.Add(res, res, res)
-		eval.AddConst(res, -1, res)
+		eval.AddConst(res, -sqrt2pi, res)
 		eval.Rescale(res, eval.ckksContext.scale, res)
-	}
-	*/
-
-	if bootcontext.SinRescal == 1 {
-		// r = 2*y^2 - a
-		a := -1.0 / 6.283185307179586
-
-		eval.MulRelin(res, res, bootcontext.relinkey, res)
-		eval.Rescale(res, eval.ckksContext.scale, res)
-		eval.AddConst(res, a, res)
-	}
-
-	if bootcontext.SinRescal == 2 {
-
-		// r = c * y^2 * (y^2 - a) + b
-
-		a := 0.5641895835477563
-		b := 1.0 / 6.283185307179586
-		c := 4.0
-
-		eval.MulRelin(res, res, bootcontext.relinkey, res)
-		eval.Rescale(res, eval.ckksContext.scale, res)
-
-		y := eval.AddConstNew(res, -a)
-
-		eval.MulRelin(res, y, bootcontext.relinkey, res)
-
-		eval.MultByConst(res, c, res)
-		eval.AddConst(res, b, res)
-
-		eval.Rescale(res, eval.ckksContext.scale, res)
-	}
-
-	if bootcontext.SinRescal == 3 {
-
-		// r = e * (y^4 * (a * y^4 - b * y^2 + c) - d * y^2) + f
-
-		a := 4.0
-		b := -6.00900435571954
-		c := 2.8209479177387813
-		d := -0.42377720812375763
-		e := 16.0
-		f := 0.15915494309189535
-
-		// y2 (10, 16)
-		y2 := eval.MulRelinNew(res, res, bootcontext.relinkey)
-		eval.Rescale(y2, eval.ckksContext.scale, y2)
-
-		// tmp1 (10, 33)
-		tmp1 := y2.CopyNew().Ciphertext()
-		eval.MultByConst(tmp1, b, tmp1)
-
-		// tmp2 (10, 33)
-		tmp2 := y2.CopyNew().Ciphertext()
-		eval.MultByConst(tmp2, d, tmp2)
-
-		// y4 (10, 33)
-		y4 := eval.MulRelinNew(y2, y2, bootcontext.relinkey)
-
-		// res (10, 33)
-		res = y4.CopyNew().Ciphertext()
-
-		// y4 (9, 16)
-		eval.Rescale(y4, eval.ckksContext.scale, y4)
-
-		// res (10, 33)
-		eval.MultByConst(res, a, res)
-
-		// res (10, 33) + tmp1 (10, 33)
-		eval.Add(res, tmp1, res)
-		eval.AddConst(res, c, res)
-
-		// res (9, 16)
-		eval.Rescale(res, eval.ckksContext.scale, res)
-
-		// res (9, 16) * y4 (9, 16) = res (9, 33)
-		eval.MulRelin(res, y4, bootcontext.relinkey, res)
-
-		// res (9, 33) + tmp2 (10, 33)
-		eval.Add(res, tmp2, res)
-
-		eval.MultByConst(res, e, res)
-		eval.AddConst(res, f, res)
-
-		// res (8, 16)
-		eval.Rescale(res, eval.ckksContext.scale, res)
-
 	}
 
 	return

@@ -256,22 +256,10 @@ func (bootcontext *BootContext) newBootSine() {
 
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, int(bootcontext.SinRescal))
 
-		if int(bootcontext.SinRescal) == 1 {
-			for i := range cheby.coeffs {
-				cheby.coeffs[i] *= 0.5641895835477563
-			}
-		}
+		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(sc_fac))
 
-		if int(bootcontext.SinRescal) == 2 {
-			for i := range cheby.coeffs {
-				cheby.coeffs[i] *= 0.7511255444649425
-			}
-		}
-
-		if int(bootcontext.SinRescal) == 3 {
-			for i := range cheby.coeffs {
-				cheby.coeffs[i] *= 0.8666749935615672
-			}
+		for i := range cheby.coeffs {
+			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
 
 		cheby.maxDeg = cheby.degree()

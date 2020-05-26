@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"fmt"
+	"math"
 	"math/cmplx"
 	"math/rand"
 	"testing"
@@ -101,28 +102,10 @@ func TestBootstrapp(t *testing.T) {
 		cheby.a = complex(float64(-K), 0) / sc_fac
 		cheby.b = complex(float64(K), 0) / sc_fac
 
-		if sc_num == 0 {
-			for i := range cheby.coeffs {
-				cheby.coeffs[i] *= 0.15915494309189535
-			}
-		}
+		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(sc_fac))
 
-		if sc_num == 1 {
-			for i := range cheby.coeffs {
-				cheby.coeffs[i] *= 0.5641895835477563
-			}
-		}
-
-		if sc_num == 2 {
-			for i := range cheby.coeffs {
-				cheby.coeffs[i] *= 0.7511255444649425
-			}
-		}
-
-		if sc_num == 3 {
-			for i := range cheby.coeffs {
-				cheby.coeffs[i] *= 0.8666749935615672
-			}
+		for i := range cheby.coeffs {
+			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
 
 		for i := range values {
@@ -143,57 +126,14 @@ func TestBootstrapp(t *testing.T) {
 		ciphertext = params.evaluator.EvaluateChebySpecial(ciphertext, sc_fac, cheby, rlk)
 		fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
-		if sc_num == 1 {
+		for i := 0; i < sc_num; i++ {
+			sqrt2pi *= sqrt2pi
 			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
-			params.evaluator.AddConst(ciphertext, -1.0/6.283185307179586, ciphertext)
+			params.evaluator.Add(ciphertext, ciphertext, ciphertext)
+			params.evaluator.AddConst(ciphertext, -sqrt2pi, ciphertext)
 			params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
 		}
 
-		if sc_num == 2 {
-
-			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
-			params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
-			y := params.evaluator.AddConstNew(ciphertext, -0.5641895835477563)
-
-			params.evaluator.MulRelin(ciphertext, y, rlk, ciphertext)
-			params.evaluator.MultByConst(ciphertext, 4, ciphertext)
-			params.evaluator.AddConst(ciphertext, 1.0/6.283185307179586, ciphertext)
-
-			params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
-		}
-
-		if sc_num == 3 {
-
-			// r = 16*(y4 * (a*y4 - b*y2 + c) - d*y2) + 1/(2*pi)
-
-			a := 4.0
-			b := -6.00900435571954
-			c := 2.8209479177387813
-			d := -0.42377720812375763
-
-			y2 := eval.MulRelinNew(ciphertext, ciphertext, rlk)
-			eval.Rescale(y2, parameters.Scale, y2)
-
-			y4 := eval.MulRelinNew(y2, y2, rlk)
-
-			ciphertext = y4.CopyNew().Ciphertext()
-
-			eval.MultByConst(ciphertext, a, ciphertext)
-			eval.MultByConstAndAdd(y2, b, ciphertext)
-			eval.AddConst(ciphertext, c, ciphertext)
-			eval.Rescale(ciphertext, parameters.Scale, ciphertext)
-			eval.Rescale(y4, parameters.Scale, y4)
-
-			eval.MulRelin(ciphertext, y4, rlk, ciphertext)
-			eval.MultByConstAndAdd(y2, d, ciphertext)
-
-			eval.MultByConst(ciphertext, 16, ciphertext)
-
-			eval.AddConst(ciphertext, 1.0/6.283185307179586, ciphertext)
-
-			eval.Rescale(ciphertext, parameters.Scale, ciphertext)
-
-		}
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
 		fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		verifyTestVectors(parameters, params.encoder, params.decryptor, values, ciphertext, t)

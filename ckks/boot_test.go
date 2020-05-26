@@ -69,7 +69,6 @@ func TestBootstrapp(t *testing.T) {
 		fmt.Println(ciphertext.Level())
 
 		verifyTestVectors(parameters, params.encoder, params.decryptor, values, ciphertext, t)
-		t.Fail()
 
 		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale
@@ -199,8 +198,6 @@ func TestBootstrapp(t *testing.T) {
 		fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		verifyTestVectors(parameters, params.encoder, params.decryptor, values, ciphertext, t)
 
-		t.Fail()
-
 		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale
 		eval.(*evaluator).params.Scale = DefaultScale
@@ -245,7 +242,6 @@ func TestBootstrapp(t *testing.T) {
 			verifyTestVectors(parameters, params.encoder, params.decryptor, values, ciphertext, t)
 			//fmt.Println()
 		}
-		t.Fail()
 
 	})
 }

@@ -70,7 +70,6 @@ func main() {
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
 			stats[i] = ckks.GetPrecisionStats(&params.Parameters, encoder, decryptor, values, ciphertext)
 		}
-
 		fmt.Println(formatSlotDist(stats, *logslot))
 		break
 
@@ -128,44 +127,30 @@ func formatSlotCount(stats []ckks.PrecisionStats) string {
 	fmt.Fprintln(w, "% Real")
 	for logSlot, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(w, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, math.Log2(1/real(prec.Median)), math.Log2(1/real(prec.Max)), math.Log2(1/real(prec.Min)))
+		fmt.Fprintf(w, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, math.Log2(1/real(prec.Median)), math.Log2(1/real(prec.MaxDelta)), math.Log2(1/real(prec.MinDelta)))
 	}
 	fmt.Fprintln(w, "% Imag")
 	for logSlot, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(w, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, math.Log2(1/imag(prec.Median)), math.Log2(1/imag(prec.Max)), math.Log2(1/imag(prec.Min)))
+		fmt.Fprintf(w, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, math.Log2(1/imag(prec.Median)), math.Log2(1/imag(prec.MaxDelta)), math.Log2(1/imag(prec.MinDelta)))
 	}
 	return w.String()
 }
 
 func formatSlotDist(stats []ckks.PrecisionStats, logSlot uint64) string {
 
-	aggrReal := make(map[float64]uint64)
-	aggrImag := make(map[float64]uint64)
-
-	for _, stat := range stats {
-		for precBin, count := range stat.RealDist {
-			aggrReal[precBin] += count
-		}
-		for precBin, count := range stat.ImagDist {
-			aggrImag[precBin] += count
-		}
-	}
-
 	w := new(bytes.Buffer)
 	slotCount := 1 << logSlot
 	fmt.Fprintln(w, "% Real")
-	var tot uint64
-	for precBin, count := range aggrReal {
+	for _, point := range stats[0].RealDist {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(w, "(%.2f, %.6f)", precBin, float64(count)/float64(slotCount))
-		tot += count
+		fmt.Fprintf(w, "(%.2f, %.4f)", point.Prec, float64(point.Count)/float64(slotCount))
 	}
 
 	fmt.Fprintln(w, "\n% Imag")
-	for precBin, count := range aggrImag {
+	for _, point := range stats[0].ImagDist {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(w, "(%.2f, %.6f)", precBin, float64(count)/float64(slotCount))
+		fmt.Fprintf(w, "(%.2f, %.4f)", point.Prec, float64(point.Count)/float64(slotCount))
 	}
 	fmt.Fprintln(w)
 	return w.String()
@@ -176,12 +161,12 @@ func formatSuccessive(stats []ckks.PrecisionStats) string {
 	fmt.Fprintln(w, "% Real")
 	for i, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(w, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, math.Log2(1/real(prec.Median)), math.Log2(1/real(prec.Max)), math.Log2(1/real(prec.Min)))
+		fmt.Fprintf(w, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, math.Log2(1/real(prec.Median)), math.Log2(1/real(prec.MaxDelta)), math.Log2(1/real(prec.MinDelta)))
 	}
 	fmt.Fprintln(w, "% Imag")
 	for i, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(w, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, math.Log2(1/imag(prec.Median)), math.Log2(1/imag(prec.Max)), math.Log2(1/imag(prec.Min)))
+		fmt.Fprintf(w, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, math.Log2(1/imag(prec.Median)), math.Log2(1/imag(prec.MaxDelta)), math.Log2(1/imag(prec.MinDelta)))
 	}
 	return w.String()
 }

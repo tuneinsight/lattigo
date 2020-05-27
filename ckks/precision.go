@@ -7,15 +7,17 @@ import (
 )
 
 type PrecisionStats struct {
-	Min, Max, Mean, Median complex128
-	RealDist, ImagDist     map[float64]uint64
+	MinDelta, MaxDelta, Mean, Median complex128
+	RealDist, ImagDist               []struct{Prec float64; Count int}
+
+	cdfResol int
 }
 
 func (prec PrecisionStats) String() string {
-	return fmt.Sprintf("\nMinimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Min)), math.Log2(1/imag(prec.Min))) +
-		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Max)), math.Log2(1/imag(prec.Max))) +
+	return fmt.Sprintf("\nMinimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MinDelta)), math.Log2(1/imag(prec.MinDelta))) +
+		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MaxDelta)), math.Log2(1/imag(prec.MaxDelta))) +
 		fmt.Sprintf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Mean)), math.Log2(1/imag(prec.Mean))) +
-		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Max)), math.Log2(1/imag(prec.Median)))
+		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MaxDelta)), math.Log2(1/imag(prec.Median)))
 }
 
 func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}) (prec PrecisionStats) {
@@ -40,49 +42,74 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	diff := make([]complex128, params.Slots)
 
-	prec.Min = complex(0, 0)
-	prec.Max = complex(1, 1)
+	prec.MinDelta = complex(0, 0)
+	prec.MaxDelta = complex(1, 1)
 
 	prec.Mean = complex(0, 0)
 
-	prec.RealDist = make(map[float64]uint64)
-	prec.ImagDist = make(map[float64]uint64)
+	prec.cdfResol = 500
 
-	distribPrec := float64(25)
+	prec.RealDist = make([]struct{Prec float64; Count int}, prec.cdfResol)
+	prec.ImagDist = make([]struct{Prec float64; Count int}, prec.cdfResol)
+
+	precReal := make([]float64, len(valuesWant))
+	precImag := make([]float64, len(valuesWant))
+
+	//distribPrec := float64(25)
 
 	for i := range valuesWant {
 
 		delta = valuesTest[i] - valuesWant[i]
 		deltaReal = math.Abs(real(delta))
 		deltaImag = math.Abs(imag(delta))
+		precReal[i] =  math.Log2(1/deltaReal)
+		precImag[i] =  math.Log2(1/deltaImag)
 
 		diff[i] += complex(deltaReal, deltaImag)
 
 		prec.Mean += diff[i]
 
-		if deltaReal > real(prec.Min) {
-			prec.Min = complex(deltaReal, imag(prec.Min))
+		if deltaReal > real(prec.MinDelta) { // TODO: Min is in fact the Min precision (so the MaxDelta...) to be clarified
+			prec.MinDelta = complex(deltaReal, imag(prec.MinDelta))
 		}
 
-		if deltaImag > imag(prec.Min) {
-			prec.Min = complex(real(prec.Min), deltaImag)
+		if deltaImag > imag(prec.MinDelta) {
+			prec.MinDelta = complex(real(prec.MinDelta), deltaImag)
 		}
 
-		if deltaReal < real(prec.Max) {
-			prec.Max = complex(deltaReal, imag(prec.Max))
+		if deltaReal < real(prec.MaxDelta) {
+			prec.MaxDelta = complex(deltaReal, imag(prec.MaxDelta))
 		}
 
-		if deltaImag < imag(prec.Max) {
-			prec.Max = complex(real(prec.Max), deltaImag)
+		if deltaImag < imag(prec.MaxDelta) {
+			prec.MaxDelta = complex(real(prec.MaxDelta), deltaImag)
 		}
-
-		prec.RealDist[math.Floor(distribPrec*math.Log2(1/deltaReal))/distribPrec]++
-		prec.ImagDist[math.Floor(distribPrec*math.Log2(1/deltaImag))/distribPrec]++
 	}
+
+	prec.calcCDF(precReal, prec.RealDist)
+	prec.calcCDF(precImag, prec.ImagDist)
 
 	prec.Mean /= complex(float64(params.Slots), 0)
 	prec.Median = calcmedian(diff)
 	return prec
+}
+
+func (prec *PrecisionStats) calcCDF(precs []float64, res []struct{Prec float64; Count int}) {
+	sortedPrecs := make([]float64, len(precs))
+	copy(sortedPrecs, precs)
+	sort.Float64s(sortedPrecs)
+	minPrec := sortedPrecs[0]//math.Log2(1/real(prec.MinDelta))
+	maxPrec := sortedPrecs[len(sortedPrecs)-1]//math.Log2(1/real(prec.MaxDelta))
+	for i := 0; i < prec.cdfResol; i += 1{
+		curPrec := minPrec + float64(i)*(maxPrec - minPrec)/float64(prec.cdfResol)
+		for countSmaller, p := range sortedPrecs {
+			if p >= curPrec {
+				res[i].Prec = curPrec
+				res[i].Count = countSmaller
+				break
+			}
+		}
+	}
 }
 
 func calcmedian(values []complex128) (median complex128) {

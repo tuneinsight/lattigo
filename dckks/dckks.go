@@ -52,7 +52,7 @@ func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 }
 
 // NewCRPGenerator creates a new deterministic random polynomial generator.
-func NewCRPGenerator(seeded bool, params *ckks.Parameters, key []byte) *ring.CRPGenerator {
+func NewCRPGenerator(params *ckks.Parameters, key []byte) *ring.CRPGenerator {
 	ctx := newDckksContext(params)
-	return ring.NewCRPGenerator(seeded, key, ctx.contextQP)
+	return ring.NewCRPGenerator(key, ctx.contextQP)
 }

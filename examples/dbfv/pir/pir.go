@@ -81,9 +81,8 @@ func main() {
 	params.T = 65537
 
 	// Common reference polynomial generator keyed with
-	// "lattigo" and seeded with "pir example".
-	crsGen := dbfv.NewCRPGenerator(true, params, []byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
-	crsGen.Seed([]byte{'p', 'i', 'r', ' ', 'e', 'x', 'a', 'm', 'p', 'l', 'e'})
+	// "lattigo"
+	crsGen := dbfv.NewCRPGenerator(params, []byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 
 	// Generation of the common reference polynomials
 	crs := crsGen.ClockUniformNew()           // for the public-key

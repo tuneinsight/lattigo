@@ -74,11 +74,8 @@ func testPRNG(t *testing.T) {
 
 		t.Run(testString("", context), func(t *testing.T) {
 
-			crsGenerator1 := NewCRPGenerator(true, nil, context)
-			crsGenerator2 := NewCRPGenerator(true, nil, context)
-
-			crsGenerator1.Seed(nil)
-			crsGenerator2.Seed(nil)
+			crsGenerator1 := NewCRPGenerator(nil, context)
+			crsGenerator2 := NewCRPGenerator(nil, context)
 
 			crsGenerator1.SetClock(256)
 			crsGenerator2.SetClock(256)

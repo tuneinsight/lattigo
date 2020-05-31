@@ -14,25 +14,19 @@ type CRPGenerator struct {
 	context *Context
 	sum     []byte
 	masks   []uint64
-	seeded  bool
 }
 
 // NewCRPGenerator creates a new CRPGenerator, that will deterministically and securely generate uniform polynomials
-// in the domain of the input context using the hash function blake2b. The PRNG can be instantiated with a key on top
-// of the public seed. If no key is used, set key=nil.
-func NewCRPGenerator(seeded bool, key []byte, context *Context) *CRPGenerator {
+// in the domain of the input context using the hash function blake2b. The PRNG can be instantiated with a key, if no
+// key is used, set key=nil.
+func NewCRPGenerator(key []byte, context *Context) *CRPGenerator {
 	var err error
 	crpgenerator := new(CRPGenerator)
 
-	if seeded {
-		if crpgenerator.prng, err = utils.NewSeededPRNG(key); err != nil {
-			panic(err)
-		}
-	} else {
-		crpgenerator.prng = new(utils.OSrandPRNG)
+	if crpgenerator.prng, err = utils.NewKeyedPRNG(key); err != nil {
+		panic(err)
 	}
 
-	crpgenerator.seeded = seeded
 	crpgenerator.context = context
 	crpgenerator.masks = make([]uint64, len(context.Modulus))
 
@@ -47,41 +41,15 @@ func NewCRPGenerator(seeded bool, key []byte, context *Context) *CRPGenerator {
 
 // GetClock returns the current clock of the CRPGenerator.
 func (crpgenerator *CRPGenerator) GetClock() uint64 {
-	if crpgenerator.seeded {
-		return crpgenerator.prng.(*utils.SeededPRNG).GetClock()
-	} else {
-		panic("Cannot get clock of an unseeded PRNG")
-	}
-}
-
-// Seed resets the CRPGenerator and instantiates it with a new seed. Does not change the key.
-func (crpgenerator *CRPGenerator) Seed(seed []byte) {
-	if crpgenerator.seeded {
-		crpgenerator.prng.(*utils.SeededPRNG).Seed(seed)
-	} else {
-		panic("Cannot change seed of an unseeded PRNG")
-	}
-}
-
-// GetSeed returns the seed of the CRPGenerator.
-func (crpgenerator *CRPGenerator) GetSeed() []byte {
-	if crpgenerator.seeded {
-		return crpgenerator.prng.(*utils.SeededPRNG).GetSeed()
-	} else {
-		panic("Cannot get seed of an unseeded PRNG")
-	}
+	return crpgenerator.prng.GetClock()
 }
 
 // SetClock sets the clock of the CRPGenerator to the given input by clocking it until the
 // clock cycle reaches the desired number. If the given input is smaller than the current clock,
 // it will panic.
 func (crpgenerator *CRPGenerator) SetClock(n uint64) {
-	if crpgenerator.seeded {
-		if err := crpgenerator.prng.(*utils.SeededPRNG).SetClock(crpgenerator.sum, n); err != nil {
-			panic(err)
-		}
-	} else {
-		panic("Cannot set Clock of an unseeded PRNG")
+	if err := crpgenerator.prng.SetClock(crpgenerator.sum, n); err != nil {
+		panic(err)
 	}
 }
 

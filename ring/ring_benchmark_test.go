@@ -78,8 +78,7 @@ func benchSampling(b *testing.B) {
 
 		pol := context.NewPoly()
 
-		crsGenerator := NewCRPGenerator(true, nil, context)
-		crsGenerator.Seed(nil)
+		crsGenerator := NewCRPGenerator(nil, context)
 
 		b.Run(testString("Gaussian/cryptorRand/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {

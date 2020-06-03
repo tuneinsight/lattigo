@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"crypto/rand"
 	"errors"
 	"golang.org/x/crypto/blake2b"
 )
@@ -27,6 +28,19 @@ func NewKeyedPRNG(key []byte) (*KeyedPRNG, error) {
 	prng := new(KeyedPRNG)
 	prng.clock = 0
 	prng.xof, err = blake2b.NewXOF(blake2b.OutputLengthUnknown, key)
+	return prng, err
+}
+
+// NewPRNG creates KeyedPRNG keyed from rand.Read for instances were no key should be provided by the user
+func NewPRNG() (*KeyedPRNG, error) {
+	var err error
+	prng := new(KeyedPRNG)
+	prng.clock = 0
+	randomBytes := make([]byte, 32)
+	if _, err := rand.Read(randomBytes); err != nil {
+		panic("crypto rand error")
+	}
+	prng.xof, err = blake2b.NewXOF(blake2b.OutputLengthUnknown, randomBytes)
 	return prng, err
 }
 

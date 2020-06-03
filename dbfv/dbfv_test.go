@@ -668,7 +668,13 @@ func testRefresh(t *testing.T) {
 }
 
 func newTestVectors(contextParams *dbfvTestContext, encryptor bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
-	coeffsPol := contextParams.contextT.NewUniformPoly()
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	uniformSampler := ring.NewUniformSampler(prng, contextParams.contextT)
+
+	coeffsPol := uniformSampler.NewUniformPoly()
 	plaintext = bfv.NewPlaintext(contextParams.params)
 	contextParams.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)

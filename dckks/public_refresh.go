@@ -3,6 +3,7 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"math/big"
 )
 
@@ -61,6 +62,12 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 		}
 	}
 
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	gaussianSampler := ring.NewGaussianSampler(prng, context)
+
 	// h0 = mask (at level min)
 	context.SetCoefficientsBigintLvl(levelStart, refreshProtocol.maskBigint, shareDecrypt)
 	// h1 = mask (at level max)
@@ -80,11 +87,11 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 	context.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
 
 	// h0 = sk*c1 + mask + e0
-	context.SampleGaussianNTTLvl(uint64(len(context.Modulus)-1), refreshProtocol.tmp, 3.19, 19)
+	gaussianSampler.SampleGaussianNTTLvl(uint64(len(context.Modulus)-1), refreshProtocol.tmp, 3.19, 19)
 	context.AddLvl(levelStart, shareDecrypt, refreshProtocol.tmp, shareDecrypt)
 
 	// h1 = sk*a + mask + e1
-	context.SampleGaussianNTTLvl(uint64(len(context.Modulus)-1), refreshProtocol.tmp, 3.19, 19)
+	gaussianSampler.SampleGaussianNTTLvl(uint64(len(context.Modulus)-1), refreshProtocol.tmp, 3.19, 19)
 	context.Add(shareRecrypt, refreshProtocol.tmp, shareRecrypt)
 
 	// h1 = -sk*c1 - mask - e0

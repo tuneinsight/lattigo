@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
@@ -139,6 +140,11 @@ func (rtg *RTGProtocol) GenShare(rotType bfv.Rotation, k uint64, sk *ring.Poly, 
 func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, evakey []*ring.Poly) {
 
 	contextKeys := rtg.context.contextQP
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	gaussianSampler := ring.NewGaussianSampler(prng, contextKeys)
 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly)
 
@@ -150,7 +156,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 	for i := uint64(0); i < rtg.context.params.Beta; i++ {
 
 		// e
-		evakey[i] = contextKeys.SampleGaussianNTTNew(rtg.context.params.Sigma, uint64(6*rtg.context.params.Sigma))
+		evakey[i] = gaussianSampler.SampleGaussianNTTNew(rtg.context.params.Sigma, uint64(6*rtg.context.params.Sigma))
 
 		// a is the CRP
 

@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"math"
 )
 
@@ -101,21 +102,39 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 
 func (keygen *keyGenerator) GenSecretKeyGaussian(sigma float64) (sk *SecretKey) {
 	sk = new(SecretKey)
-	sk.sk = keygen.ckksContext.contextQP.SampleGaussianNTTNew(sigma, uint64(6*sigma))
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	gaussianSampler := ring.NewGaussianSampler(prng, keygen.ckksContext.contextQP)
+
+	sk.sk = gaussianSampler.SampleGaussianNTTNew(sigma, uint64(6*sigma))
 	return sk
 }
 
 // GenSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].
 func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
-	sk.sk = keygen.ckksContext.contextQP.SampleTernaryMontgomeryNTTNew(p)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ternarySampler := ring.NewTernarySampler(prng, keygen.ckksContext.contextQP)
+
+	sk.sk = ternarySampler.SampleTernaryMontgomeryNTTNew(p)
 	return sk
 }
 
 // GenSecretKeySparse generates a new SecretKey with exactly hw non-zero coefficients.
 func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
 	sk = new(SecretKey)
-	sk.sk = keygen.ckksContext.contextQP.SampleTernarySparseMontgomeryNTTNew(hw)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ternarySampler := ring.NewTernarySampler(prng, keygen.ckksContext.contextQP)
+
+	sk.sk = ternarySampler.SampleTernarySparseMontgomeryNTTNew(hw)
 	return sk
 }
 
@@ -147,11 +166,17 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	pk = new(PublicKey)
 
 	ringContext := keygen.ringContext
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	gaussianSampler := ring.NewGaussianSampler(prng, ringContext)
+	uniformSampler := ring.NewUniformSampler(prng, ringContext)
 
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
-	pk.pk[0] = ringContext.SampleGaussianNTTNew(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
-	pk.pk[1] = ringContext.NewUniformPoly()
+	pk.pk[0] = gaussianSampler.SampleGaussianNTTNew(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
+	pk.pk[1] = uniformSampler.NewUniformPoly()
 
 	ringContext.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
 	ringContext.Neg(pk.pk[0], pk.pk[0])
@@ -303,15 +328,21 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 	var index uint64
 
 	switchingkey.evakey = make([][2]*ring.Poly, beta)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	gaussianSampler := ring.NewGaussianSampler(prng, keygen.ringContext)
+	uniformSampler := ring.NewUniformSampler(prng, keygen.ringContext)
 
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-		switchingkey.evakey[i][0] = keygen.ringContext.SampleGaussianNTTNew(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
+		switchingkey.evakey[i][0] = gaussianSampler.SampleGaussianNTTNew(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
 		context.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
-		switchingkey.evakey[i][1] = keygen.ringContext.NewUniformPoly()
+		switchingkey.evakey[i][1] = uniformSampler.NewUniformPoly()
 
 		// e + (skIn * P) * (q_star * q_tild) mod QP
 		//

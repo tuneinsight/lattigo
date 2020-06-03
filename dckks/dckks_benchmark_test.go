@@ -3,6 +3,7 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"testing"
 )
 
@@ -366,8 +367,14 @@ func benchRefresh(b *testing.B) {
 
 		ciphertext := ckks.NewCiphertextRandom(parameters, 1, levelStart, parameters.Scale)
 
-		contextQ.UniformPoly(ciphertext.Value()[0])
-		contextQ.UniformPoly(ciphertext.Value()[1])
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := ring.NewUniformSampler(prng, contextQ)
+
+		uniformSampler.UniformPoly(ciphertext.Value()[0])
+		uniformSampler.UniformPoly(ciphertext.Value()[1])
 
 		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {
 

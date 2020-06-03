@@ -3,6 +3,7 @@ package dbfv
 import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // RKGProtocolNaive is a structure storing the parameters for the naive EKG protocol.
@@ -59,6 +60,12 @@ func (rkg *RKGProtocolNaive) AllocateShares() (r1 RKGNaiveShareRoundOne, r2 RKGN
 func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, shareOut RKGNaiveShareRoundOne) {
 
 	contextKeys := rkg.context.contextQP
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	gaussianSampler := ring.NewGaussianSampler(prng, contextKeys)
+	ternarySampler := ring.NewTernarySampler(prng, contextKeys)
 
 	rkg.polypool.Copy(sk)
 
@@ -71,9 +78,9 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 
 		// h_0 = e0
-		contextKeys.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), shareOut[i][0], rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
+		gaussianSampler.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), shareOut[i][0], rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
 		// h_1 = e1
-		contextKeys.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), shareOut[i][1], rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
+		gaussianSampler.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), shareOut[i][1], rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
 
 		// h_0 = e0 + [sk*P*(qiBarre*qiStar)%qi = sk*P, else 0]
 
@@ -99,7 +106,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 		// u
-		contextKeys.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
+		ternarySampler.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
 		// h_0 = pk_0 * u + e0 + P * sk * (qiBarre*qiStar)%qi
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
 		// h_1 = pk_1 * u + e1 + P * sk * (qiBarre*qiStar)%qi
@@ -135,6 +142,12 @@ func (rkg *RKGProtocolNaive) AggregateShareRoundOne(share1, share2, shareOut RKG
 func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *ring.Poly, pk [2]*ring.Poly, shareOut RKGNaiveShareRoundTwo) {
 
 	contextKeys := rkg.context.contextQP
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	gaussianSampler := ring.NewGaussianSampler(prng, contextKeys)
+	ternarySampler := ring.NewTernarySampler(prng, contextKeys)
 
 	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 
@@ -144,7 +157,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 		contextKeys.MulCoeffsMontgomery(round1[i][1], sk, shareOut[i][1])
 
 		// v
-		contextKeys.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
+		ternarySampler.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
@@ -153,11 +166,11 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[1], rkg.polypool, shareOut[i][1])
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v + e2
-		contextKeys.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), rkg.polypool, rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
+		gaussianSampler.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), rkg.polypool, rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
 		contextKeys.Add(shareOut[i][0], rkg.polypool, shareOut[i][0])
 
 		// h_1 = sum(samples[1]) * sk + pk1 * v + e3
-		contextKeys.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), rkg.polypool, rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
+		gaussianSampler.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), rkg.polypool, rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
 		contextKeys.Add(shareOut[i][1], rkg.polypool, shareOut[i][1])
 
 	}

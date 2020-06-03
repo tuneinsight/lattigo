@@ -3,6 +3,7 @@ package dbfv
 import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // CKSProtocol is a structure storing the parameters for the collective key-switching protocol.
@@ -84,6 +85,11 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 	contextQ := cks.context.contextQ
 	contextP := cks.context.contextP
 	contextQP := cks.context.contextQP
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	gaussianSampler := ring.NewGaussianSampler(prng, contextQP)
 
 	contextQ.NTT(ct.Value()[1], cks.tmpNtt)
 	contextQ.MulCoeffsMontgomery(cks.tmpNtt, skDelta, shareOut.Poly)
@@ -91,7 +97,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 
 	contextQ.InvNTT(shareOut.Poly, shareOut.Poly)
 
-	contextQP.SampleGaussianLvl(uint64(len(contextQP.Modulus)-1), cks.tmpNtt, cks.sigmaSmudging, uint64(6*cks.sigmaSmudging))
+	gaussianSampler.SampleGaussianLvl(uint64(len(contextQP.Modulus)-1), cks.tmpNtt, cks.sigmaSmudging, uint64(6*cks.sigmaSmudging))
 	contextQ.Add(shareOut.Poly, cks.tmpNtt, shareOut.Poly)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.context.contextQP.Modulus)); x, i = x+1, i+1 {

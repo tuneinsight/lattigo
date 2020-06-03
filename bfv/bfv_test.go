@@ -244,7 +244,13 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 
 func newTestVectors(params *bfvParams, encryptor Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	coeffs = params.bfvContext.contextT.NewUniformPoly()
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	uniformSampler := ring.NewUniformSampler(prng, params.bfvContext.contextT)
+
+	coeffs = uniformSampler.NewUniformPoly()
 
 	plaintext = NewPlaintext(params.params)
 
@@ -305,7 +311,13 @@ func testEncryptor(t *testing.T) {
 
 		t.Run(testString("EncryptFromPkFast/", parameters), func(t *testing.T) {
 
-			coeffs := params.bfvContext.contextT.NewUniformPoly()
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			uniformSampler := ring.NewUniformSampler(prng, params.bfvContext.contextT)
+
+			coeffs := uniformSampler.NewUniformPoly()
 
 			plaintext := NewPlaintext(params.params)
 
@@ -323,7 +335,13 @@ func testEncryptor(t *testing.T) {
 
 		t.Run(testString("EncryptFromSkFast/", parameters), func(t *testing.T) {
 
-			coeffs := params.bfvContext.contextT.NewUniformPoly()
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			uniformSampler := ring.NewUniformSampler(prng, params.bfvContext.contextT)
+
+			coeffs := uniformSampler.NewUniformPoly()
 
 			plaintext := NewPlaintext(params.params)
 
@@ -588,9 +606,14 @@ func testRotateCols(t *testing.T) {
 			values, _, ciphertext := newTestVectors(params, params.encryptorPk, t)
 
 			receiver := NewCiphertext(parameters, 1)
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+
 			for n := 0; n < 4; n++ {
 
-				rand := ring.RandUniform(slots, mask)
+				rand := ring.RandUniform(prng, slots, mask)
 
 				params.evaluator.RotateColumns(ciphertext, rand, rotkey, receiver)
 

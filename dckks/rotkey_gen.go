@@ -3,6 +3,7 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
@@ -95,6 +96,11 @@ func (rtg *RTGProtocol) GenShare(rotType ckks.Rotation, k uint64, sk *ring.Poly,
 func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, evakey []*ring.Poly) {
 
 	contextQP := rtg.dckksContext.contextQP
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	gaussianSampler := ring.NewGaussianSampler(prng, contextQP)
 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly)
 
@@ -107,7 +113,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 	for i := uint64(0); i < rtg.dckksContext.beta; i++ {
 
 		// e
-		evakey[i] = contextQP.SampleGaussianNTTNew(rtg.dckksContext.params.Sigma, uint64(6*rtg.dckksContext.params.Sigma))
+		evakey[i] = gaussianSampler.SampleGaussianNTTNew(rtg.dckksContext.params.Sigma, uint64(6*rtg.dckksContext.params.Sigma))
 
 		// a is the CRP
 

@@ -2,6 +2,7 @@ package dckks
 
 import (
 	"fmt"
+	"github.com/ldsec/lattigo/utils"
 	"math"
 	"sort"
 	"testing"
@@ -652,8 +653,13 @@ func newTestVectors(contextParams *dckksTestContext, encryptor ckks.Encryptor, a
 
 	values = make([]complex128, slots)
 
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
 	for i := uint64(0); i < slots; i++ {
-		values[i] = randomComplex(a)
+		values[i] = randomComplex(prng, a)
 	}
 
 	values[0] = complex(0.607538, 0.555668)

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	//"fmt"
 )
 
@@ -110,6 +111,12 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	contextT := rfp.context.contextT
 	contextKeys := rfp.context.contextQP
 	contextP := rfp.context.contextP
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	gaussianSampler := ring.NewGaussianSampler(prng, contextKeys)
+	uniformSampler := ring.NewUniformSampler(prng, contextT)
 
 	// h0 = s*ct[1]
 	contextQ.NTT(ciphertext.Value()[1], rfp.tmp1)
@@ -121,7 +128,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	contextQ.MulScalarBigint(share.RefreshShareDecrypt, contextP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
-	contextKeys.SampleGaussianLvl(uint64(len(contextKeys.Modulus)-1), rfp.tmp1, 3.19, 19) // TODO : add smudging noise
+	gaussianSampler.SampleGaussianLvl(uint64(len(contextKeys.Modulus)-1), rfp.tmp1, 3.19, 19) // TODO : add smudging noise
 	contextQ.Add(share.RefreshShareDecrypt, rfp.tmp1, share.RefreshShareDecrypt)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(rfp.context.contextQP.Modulus)); x, i = x+1, i+1 {
@@ -142,13 +149,13 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	contextKeys.InvNTT(rfp.tmp2, rfp.tmp2)
 
 	// h1 = s*a + e'
-	contextKeys.SampleGaussianAndAddLvl(uint64(len(contextKeys.Modulus)-1), rfp.tmp2, 3.19, 19)
+	gaussianSampler.SampleGaussianAndAddLvl(uint64(len(contextKeys.Modulus)-1), rfp.tmp2, 3.19, 19)
 
 	// h1 = (-s*a + e')/P
 	rfp.baseconverter.ModDownPQ(level, rfp.tmp2, share.RefreshShareRecrypt)
 
 	// mask = (uniform plaintext in [0, T-1]) * floor(Q/T)
-	coeffs := contextT.NewUniformPoly()
+	coeffs := uniformSampler.NewUniformPoly()
 	lift(coeffs, rfp.tmp1, rfp.context)
 
 	// h0 = (s*ct[1]*P + e)/P + mask

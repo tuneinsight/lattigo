@@ -1,6 +1,8 @@
 package bfv
 
 import (
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"testing"
 )
 
@@ -23,8 +25,13 @@ func benchEncoder(b *testing.B) {
 		params := genBfvParams(parameters)
 
 		encoder := params.encoder
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := ring.NewUniformSampler(prng, params.bfvContext.contextT)
 
-		coeffs := params.bfvContext.contextT.NewUniformPoly()
+		coeffs := uniformSampler.NewUniformPoly()
 		plaintext := NewPlaintext(params.params)
 
 		b.Run(testString("Encode/", parameters), func(b *testing.B) {

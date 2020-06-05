@@ -22,7 +22,8 @@ type KeyedPRNG struct {
 }
 
 // NewKeyedPRNG creates a new instance of KeyedPRNG.
-// Accepts an optional key, else set key=nil.
+// Accepts an optional key, else set key=nil which is treated as key=[]byte{}
+// WARNING: A PRNG INITIALISED WITH key=nil IS INSECURE!
 func NewKeyedPRNG(key []byte) (*KeyedPRNG, error) {
 	var err error
 	prng := new(KeyedPRNG)

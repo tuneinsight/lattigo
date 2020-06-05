@@ -73,10 +73,10 @@ func main() {
 	}
 
 	crsGen := ring.NewUniformSampler(lattigoPRNG, contextKeys)
-	crs := crsGen.NewUniformPoly()
+	crs := crsGen.SampleNew()
 	crp := make([]*ring.Poly, params.Beta)
 	for i := uint64(0); i < params.Beta; i++ {
-		crp[i] = crsGen.NewUniformPoly()
+		crp[i] = crsGen.SampleNew()
 	}
 
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
@@ -100,7 +100,7 @@ func main() {
 	for i := range P {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
-		pi.rlkEphemSk = ternarySampler.SampleTernaryMontgomeryNTTNew(1.0 / 3)
+		pi.rlkEphemSk = ternarySampler.SampleMontgomeryNTTNew(1.0 / 3)
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for i := range pi.input {
 			if rand.Float32() > 0.3 || i == 4 {

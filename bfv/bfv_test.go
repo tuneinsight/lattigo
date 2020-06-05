@@ -250,7 +250,7 @@ func newTestVectors(params *bfvParams, encryptor Encryptor, t *testing.T) (coeff
 	}
 	uniformSampler := ring.NewUniformSampler(prng, params.bfvContext.contextT)
 
-	coeffs = uniformSampler.NewUniformPoly()
+	coeffs = uniformSampler.SampleNew()
 
 	plaintext = NewPlaintext(params.params)
 
@@ -317,7 +317,7 @@ func testEncryptor(t *testing.T) {
 			}
 			uniformSampler := ring.NewUniformSampler(prng, params.bfvContext.contextT)
 
-			coeffs := uniformSampler.NewUniformPoly()
+			coeffs := uniformSampler.SampleNew()
 
 			plaintext := NewPlaintext(params.params)
 
@@ -341,7 +341,7 @@ func testEncryptor(t *testing.T) {
 			}
 			uniformSampler := ring.NewUniformSampler(prng, params.bfvContext.contextT)
 
-			coeffs := uniformSampler.NewUniformPoly()
+			coeffs := uniformSampler.SampleNew()
 
 			plaintext := NewPlaintext(params.params)
 

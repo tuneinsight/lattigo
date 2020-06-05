@@ -126,7 +126,7 @@ func testPublicKeyGen(t *testing.T) {
 		t.Run(testString("", parties, parameters), func(t *testing.T) {
 
 			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
-			crp := crpGenerator.NewUniformPoly()
+			crp := crpGenerator.SampleNew()
 
 			type Party struct {
 				*CKGProtocol
@@ -209,7 +209,7 @@ func testRelinKeyGen(t *testing.T) {
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.NewUniformPoly()
+				crp[i] = crpGenerator.SampleNew()
 			}
 
 			// ROUND 1
@@ -471,7 +471,7 @@ func testRotKeyGenRotRows(t *testing.T) {
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.NewUniformPoly()
+				crp[i] = crpGenerator.SampleNew()
 			}
 
 			for i, p := range pcksParties {
@@ -536,7 +536,7 @@ func testRotKeyGenRotCols(t *testing.T) {
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.NewUniformPoly()
+				crp[i] = crpGenerator.SampleNew()
 			}
 
 			mask := (testCtx.n >> 1) - 1
@@ -614,7 +614,7 @@ func testRefresh(t *testing.T) {
 			}
 
 			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
-			crp := crpGenerator.NewUniformPoly()
+			crp := crpGenerator.SampleNew()
 
 			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
@@ -694,7 +694,7 @@ func newTestVectors(contextParams *dbfvTestContext, encryptor bfv.Encryptor, t *
 	}
 	uniformSampler := ring.NewUniformSampler(prng, contextParams.contextT)
 
-	coeffsPol := uniformSampler.NewUniformPoly()
+	coeffsPol := uniformSampler.SampleNew()
 	plaintext = bfv.NewPlaintext(contextParams.params)
 	contextParams.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
@@ -717,7 +717,7 @@ func Test_Marshalling(t *testing.T) {
 	}
 	crsGen := ring.NewUniformSampler(prng, dbfvCtx.contextQP)
 	sk := KeyGenerator.GenSecretKey()
-	crs := crsGen.NewUniformPoly()
+	crs := crsGen.SampleNew()
 	contextQ := dbfvCtx.contextQ
 	contextPKeys := dbfvCtx.contextP
 
@@ -841,7 +841,7 @@ func Test_Marshalling(t *testing.T) {
 		modulus := (dbfvCtx.contextQ.Modulus)
 		crp := make([]*ring.Poly, len(modulus))
 		for j := 0; j < len(modulus); j++ {
-			crp[j] = crpGenerator.NewUniformPoly() //make([]*ring.Poly, bitLog)
+			crp[j] = crpGenerator.SampleNew() //make([]*ring.Poly, bitLog)
 
 		}
 
@@ -899,7 +899,7 @@ func Test_Relin_Marshalling(t *testing.T) {
 
 	crp := make([]*ring.Poly, len(modulus))
 	for j := 0; j < len(modulus); j++ {
-		crp[j] = crpGenerator.NewUniformPoly() //make([]*ring.Poly, bitLog)
+		crp[j] = crpGenerator.SampleNew() //make([]*ring.Poly, bitLog)
 		//for u := uint64(0); u < bitLog; u++ {
 		//	crp[j][u] = crpGenerator.ClockUniformNew()
 		//}

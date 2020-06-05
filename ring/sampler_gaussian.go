@@ -22,9 +22,9 @@ func NewGaussianSampler(prng utils.PRNG, context *Context) *GaussianSampler {
 	return gaussianSampler
 }
 
-// SampleGaussianLvl samples a truncated gaussian polynomial with variance
+// Sample samples a truncated gaussian polynomial with variance
 // sigma of moduli 0 to level within the given bound using the Ziggurat algorithm.
-func (gaussianSampler *GaussianSampler) SampleGaussianLvl(level uint64, pol *Poly, sigma float64, bound uint64) {
+func (gaussianSampler *GaussianSampler) SampleLvl(level uint64, pol *Poly, sigma float64, bound uint64) {
 
 	var coeffFlo float64
 	var coeffInt uint64
@@ -49,9 +49,9 @@ func (gaussianSampler *GaussianSampler) SampleGaussianLvl(level uint64, pol *Pol
 	}
 }
 
-// SampleGaussianAndAddLvl adds on the input polynomial a truncated gaussian polynomial of moduli 0 to level
+// SampleAndAddLvl adds on the input polynomial a truncated gaussian polynomial of moduli 0 to level
 // with variance sigma within the given bound using the Ziggurat algorithm.
-func (gaussianSampler *GaussianSampler) SampleGaussianAndAddLvl(level uint64, pol *Poly, sigma float64, bound uint64) {
+func (gaussianSampler *GaussianSampler) SampleAndAddLvl(level uint64, pol *Poly, sigma float64, bound uint64) {
 
 	var coeffFlo float64
 	var coeffInt uint64
@@ -76,25 +76,25 @@ func (gaussianSampler *GaussianSampler) SampleGaussianAndAddLvl(level uint64, po
 	}
 }
 
-// SampleGaussianNew samples a new truncated gaussian polynomial with
+// SampleNew samples a new truncated gaussian polynomial with
 // variance sigma within the given bound using the Ziggurat algorithm.
-func (gaussianSampler *GaussianSampler) SampleGaussianNew(sigma float64, bound uint64) (pol *Poly) {
+func (gaussianSampler *GaussianSampler) SampleNew(sigma float64, bound uint64) (pol *Poly) {
 	pol = gaussianSampler.context.NewPoly()
-	gaussianSampler.SampleGaussianLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol, sigma, bound)
+	gaussianSampler.SampleLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol, sigma, bound)
 	return
 }
 
-// SampleGaussianNTTLvl samples a trucated gaussian polynomial in the NTT domain of moduli 0 to level
+// SampleNTTLvl samples a trucated gaussian polynomial in the NTT domain of moduli 0 to level
 // with variance sigma within the given bound using the Ziggurat algorithm.
-func (gaussianSampler *GaussianSampler) SampleGaussianNTTLvl(level uint64, pol *Poly, sigma float64, bound uint64) {
-	gaussianSampler.SampleGaussianLvl(level, pol, sigma, bound)
+func (gaussianSampler *GaussianSampler) SampleNTTLvl(level uint64, pol *Poly, sigma float64, bound uint64) {
+	gaussianSampler.SampleLvl(level, pol, sigma, bound)
 	gaussianSampler.context.NTT(pol, pol)
 }
 
-// SampleGaussianNTTNew samples a new trucated gaussian polynomial in the NTT domain
+// SampleNTTNew samples a new trucated gaussian polynomial in the NTT domain
 // with variance sigma within the given bound using the Ziggurat algorithm
-func (gaussianSampler *GaussianSampler) SampleGaussianNTTNew(sigma float64, bound uint64) (pol *Poly) {
-	pol = gaussianSampler.SampleGaussianNew(sigma, bound)
+func (gaussianSampler *GaussianSampler) SampleNTTNew(sigma float64, bound uint64) (pol *Poly) {
+	pol = gaussianSampler.SampleNew(sigma, bound)
 	gaussianSampler.context.NTT(pol, pol)
 	return
 }

@@ -45,7 +45,7 @@ func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut CKGShar
 	}
 	gaussianSampler := ring.NewGaussianSampler(prng, contextQP)
 
-	gaussianSampler.SampleGaussianNTTLvl(uint64(len(contextQP.Modulus)-1), shareOut, ckg.dckksContext.params.Sigma, uint64(6*ckg.dckksContext.params.Sigma))
+	gaussianSampler.SampleNTTLvl(uint64(len(contextQP.Modulus)-1), shareOut, ckg.dckksContext.params.Sigma, uint64(6*ckg.dckksContext.params.Sigma))
 	contextQP.MulCoeffsMontgomeryAndSub(sk, crs, shareOut)
 }
 

@@ -86,14 +86,14 @@ func main() {
 	crsGen := dbfv.NewCRPGenerator(params, []byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 
 	// Generation of the common reference polynomials
-	crs := crsGen.NewUniformPoly()            // for the public-key
+	crs := crsGen.SampleNew()                 // for the public-key
 	crp := make([]*ring.Poly, params.Beta)    // for the relinearization keys
 	crpRot := make([]*ring.Poly, params.Beta) // for the rotation keys
 	for i := uint64(0); i < params.Beta; i++ {
-		crp[i] = crsGen.NewUniformPoly()
+		crp[i] = crsGen.SampleNew()
 	}
 	for i := uint64(0); i < params.Beta; i++ {
-		crpRot[i] = crsGen.NewUniformPoly()
+		crpRot[i] = crsGen.SampleNew()
 	}
 
 	// Collective secret key = sum(individual secret keys)
@@ -119,7 +119,7 @@ func main() {
 	for i := range P {
 		pi := &party{}
 		pi.sk = kgen.GenSecretKey()
-		pi.rlkEphemSk = ternarySampler.SampleTernaryMontgomeryNTTNew(1.0 / 3)
+		pi.rlkEphemSk = ternarySampler.SampleMontgomeryNTTNew(1.0 / 3)
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for j := range pi.input {
 			pi.input[j] = uint64(i)

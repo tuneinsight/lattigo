@@ -90,8 +90,8 @@ func testPRNG(t *testing.T) {
 			crsGenerator1 := NewUniformSampler(prng1, context)
 			crsGenerator2 := NewUniformSampler(prng2, context)
 
-			p0 := crsGenerator1.NewUniformPoly()
-			p1 := crsGenerator2.NewUniformPoly()
+			p0 := crsGenerator1.SampleNew()
+			p1 := crsGenerator2.SampleNew()
 
 			require.True(t, context.Equal(p0, p1))
 		})
@@ -129,7 +129,7 @@ func testImportExportPolyString(t *testing.T) {
 
 		t.Run(testString("", context), func(t *testing.T) {
 
-			p0 := uniformSampler.NewUniformPoly()
+			p0 := uniformSampler.SampleNew()
 			p1 := context.NewPoly()
 
 			context.SetCoefficientsString(context.PolyToString(p0), p1)
@@ -243,7 +243,7 @@ func testMarshalBinary(t *testing.T) {
 			}
 			uniformSampler := NewUniformSampler(prng, context)
 
-			p := uniformSampler.NewUniformPoly()
+			p := uniformSampler.SampleNew()
 			pTest := context.NewPoly()
 
 			data, _ := p.MarshalBinary()
@@ -272,7 +272,7 @@ func testGaussianSampler(t *testing.T) {
 				panic(err)
 			}
 			gaussianSampler := NewGaussianSampler(prng, context)
-			pol := gaussianSampler.SampleGaussianNew(sigma, bound)
+			pol := gaussianSampler.SampleNew(sigma, bound)
 
 			for i := uint64(0); i < context.N; i++ {
 				for j, qi := range context.Modulus {
@@ -305,7 +305,7 @@ func testTernarySampler(t *testing.T) {
 			}
 			ternarySampler := NewTernarySampler(prng, context)
 
-			ternarySampler.SampleTernary(pol, rho)
+			ternarySampler.Sample(pol, rho)
 
 			for i := range pol.Coeffs[0] {
 				if pol.Coeffs[0][i] == context.Modulus[0]-1 {
@@ -404,7 +404,7 @@ func testGaloisShift(t *testing.T) {
 			}
 			uniformSampler := NewUniformSampler(prng, context)
 
-			pWant := uniformSampler.NewUniformPoly()
+			pWant := uniformSampler.SampleNew()
 			pTest := pWant.CopyNew()
 
 			context.BitReverse(pTest, pTest)
@@ -437,7 +437,7 @@ func testMForm(t *testing.T) {
 			}
 			uniformSampler := NewUniformSampler(prng, context)
 
-			polWant := uniformSampler.NewUniformPoly()
+			polWant := uniformSampler.SampleNew()
 			polTest := context.NewPoly()
 
 			context.MForm(polWant, polTest)
@@ -461,7 +461,7 @@ func testMulScalarBigint(t *testing.T) {
 			}
 			uniformSampler := NewUniformSampler(prng, context)
 
-			polWant := uniformSampler.NewUniformPoly()
+			polWant := uniformSampler.SampleNew()
 			polTest := polWant.CopyNew()
 
 			rand1 := RandUniform(prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
@@ -490,8 +490,8 @@ func testMulPoly(t *testing.T) {
 		}
 		uniformSampler := NewUniformSampler(prng, context)
 
-		p1 := uniformSampler.NewUniformPoly()
-		p2 := uniformSampler.NewUniformPoly()
+		p1 := uniformSampler.SampleNew()
+		p2 := uniformSampler.SampleNew()
 		p3Test := context.NewPoly()
 		p3Want := context.NewPoly()
 
@@ -603,7 +603,7 @@ func testMultByMonomial(t *testing.T) {
 			}
 			uniformSampler := NewUniformSampler(prng, context)
 
-			p1 := uniformSampler.NewUniformPoly()
+			p1 := uniformSampler.SampleNew()
 
 			p3Test := context.NewPoly()
 			p3Want := context.NewPoly()

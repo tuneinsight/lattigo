@@ -59,7 +59,7 @@ func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut CKGShar
 	}
 	gaussianSampler := ring.NewGaussianSampler(prng, ckg.context)
 
-	gaussianSampler.SampleGaussianNTTLvl(uint64(len(ckg.context.Modulus)-1), shareOut.Poly, ckg.sigma, uint64(6*ckg.sigma))
+	gaussianSampler.SampleNTTLvl(uint64(len(ckg.context.Modulus)-1), shareOut.Poly, ckg.sigma, uint64(6*ckg.sigma))
 	ckg.context.MulCoeffsMontgomeryAndSub(sk, crs, shareOut.Poly)
 }
 

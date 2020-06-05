@@ -119,7 +119,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	gaussianSampler := ring.NewGaussianSampler(prng, contextKeys)
 	ternarySampler := ring.NewTernarySampler(prng, contextKeys)
 
-	ternarySampler.SampleTernaryMontgomeryNTT(pcks.tmp, 0.5)
+	ternarySampler.SampleMontgomeryNTT(pcks.tmp, 0.5)
 
 	// h_0 = u_i * pk_0
 	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
@@ -130,10 +130,10 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	contextKeys.InvNTT(pcks.share1tmp, pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	gaussianSampler.SampleGaussianAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share0tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+	gaussianSampler.SampleAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share0tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
 
 	// h_1 = u_i * pk_1 + e1
-	gaussianSampler.SampleGaussianAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share1tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+	gaussianSampler.SampleAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share1tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
 
 	// h_0 = (u_i * pk_0 + e0)/P
 	pcks.baseconverter.ModDownPQ(uint64(len(contextQ.Modulus))-1, pcks.share0tmp, shareOut[0])

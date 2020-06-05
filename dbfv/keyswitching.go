@@ -97,7 +97,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 
 	contextQ.InvNTT(shareOut.Poly, shareOut.Poly)
 
-	gaussianSampler.SampleGaussianLvl(uint64(len(contextQP.Modulus)-1), cks.tmpNtt, cks.sigmaSmudging, uint64(6*cks.sigmaSmudging))
+	gaussianSampler.SampleLvl(uint64(len(contextQP.Modulus)-1), cks.tmpNtt, cks.sigmaSmudging, uint64(6*cks.sigmaSmudging))
 	contextQ.Add(shareOut.Poly, cks.tmpNtt, shareOut.Poly)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.context.contextQP.Modulus)); x, i = x+1, i+1 {

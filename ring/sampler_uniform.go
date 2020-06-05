@@ -21,8 +21,8 @@ func NewUniformSampler(prng utils.PRNG, context *Context) *UniformSampler {
 	return uniformSampler
 }
 
-// UniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-func (uniformSampler *UniformSampler) UniformPoly(Pol *Poly) {
+// Sample generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
+func (uniformSampler *UniformSampler) Sample(Pol *Poly) {
 
 	var randomUint, mask, qi uint64
 	var ptr uint64
@@ -67,22 +67,22 @@ func (uniformSampler *UniformSampler) UniformPoly(Pol *Poly) {
 	return
 }
 
-// NewUniformPoly generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-func (uniformSampler *UniformSampler) NewUniformPoly() (Pol *Poly) {
+// SampleNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
+func (uniformSampler *UniformSampler) SampleNew() (Pol *Poly) {
 
 	Pol = uniformSampler.context.NewPoly()
 
-	uniformSampler.UniformPoly(Pol)
+	uniformSampler.Sample(Pol)
 
 	return
 }
 
-// NewUniformPolyLvl generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-func (uniformSampler *UniformSampler) NewUniformPolyLvl(level uint64) (Pol *Poly) {
+// SampleLvlNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
+func (uniformSampler *UniformSampler) SampleLvlNew(level uint64) (Pol *Poly) {
 
 	Pol = uniformSampler.context.NewPolyLvl(level)
 
-	uniformSampler.UniformPoly(Pol)
+	uniformSampler.Sample(Pol)
 
 	return
 }

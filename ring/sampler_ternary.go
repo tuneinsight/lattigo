@@ -41,110 +41,110 @@ func (ternarySampler *TernarySampler) InitialiseMatrix() {
 	}
 }
 
-// SampleTernaryUniform samples a ternary polynomial with distribution [1/3, 1/3, 1/3].
-func (ternarySampler *TernarySampler) SampleTernaryUniform(pol *Poly) {
-	ternarySampler.sampleTernary(ternarySampler.matrixTernary, 1.0/3.0, pol)
+// SampleUniform samples a ternary polynomial with distribution [1/3, 1/3, 1/3].
+func (ternarySampler *TernarySampler) SampleUniform(pol *Poly) {
+	ternarySampler.sample(ternarySampler.matrixTernary, 1.0/3.0, pol)
 }
 
-// SampleTernary samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2].
-func (ternarySampler *TernarySampler) SampleTernary(pol *Poly, p float64) {
-	ternarySampler.sampleTernary(ternarySampler.matrixTernary, p, pol)
+// Sample samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2].
+func (ternarySampler *TernarySampler) Sample(pol *Poly, p float64) {
+	ternarySampler.sample(ternarySampler.matrixTernary, p, pol)
 }
 
-// SampleTernaryMontgomery samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in Montgomery form.
-func (ternarySampler *TernarySampler) SampleTernaryMontgomery(pol *Poly, p float64) {
-	ternarySampler.sampleTernary(ternarySampler.matrixTernaryMontgomery, p, pol)
+// SampleMontgomery samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in Montgomery form.
+func (ternarySampler *TernarySampler) SampleMontgomery(pol *Poly, p float64) {
+	ternarySampler.sample(ternarySampler.matrixTernaryMontgomery, p, pol)
 }
 
-// SampleTernaryNew samples a new ternary polynomial with distribution [(1-p)/2, p, (1-p)/2].
-func (ternarySampler *TernarySampler) SampleTernaryNew(p float64) (pol *Poly) {
+// SampleNew samples a new ternary polynomial with distribution [(1-p)/2, p, (1-p)/2].
+func (ternarySampler *TernarySampler) SampleNew(p float64) (pol *Poly) {
 	pol = ternarySampler.context.NewPoly()
-	ternarySampler.SampleTernary(pol, p)
+	ternarySampler.Sample(pol, p)
 	return pol
 }
 
-// SampleTernaryMontgomeryNew samples a nes ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in Montgomery form.
-func (ternarySampler *TernarySampler) SampleTernaryMontgomeryNew(p float64) (pol *Poly) {
+// SampleMontgomeryNew samples a nes ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in Montgomery form.
+func (ternarySampler *TernarySampler) SampleMontgomeryNew(p float64) (pol *Poly) {
 	pol = ternarySampler.context.NewPoly()
-	ternarySampler.SampleTernaryMontgomery(pol, p)
+	ternarySampler.SampleMontgomery(pol, p)
 	return
 }
 
-// SampleTernaryNTTNew samples a new ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT form.
-func (ternarySampler *TernarySampler) SampleTernaryNTTNew(p float64) (pol *Poly) {
+// SampleNTTNew samples a new ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT form.
+func (ternarySampler *TernarySampler) SampleNTTNew(p float64) (pol *Poly) {
 	pol = ternarySampler.context.NewPoly()
-	ternarySampler.SampleTernary(pol, p)
-	ternarySampler.context.NTT(pol, pol)
-	return
-}
-
-// SampleTernaryNTT samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT form.
-func (ternarySampler *TernarySampler) SampleTernaryNTT(pol *Poly, p float64) {
-	ternarySampler.SampleTernary(pol, p)
-	ternarySampler.context.NTT(pol, pol)
-}
-
-// SampleTernaryMontgomeryNTTNew samples a new ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT and Montgomery form.
-func (ternarySampler *TernarySampler) SampleTernaryMontgomeryNTTNew(p float64) (pol *Poly) {
-	pol = ternarySampler.SampleTernaryMontgomeryNew(p)
+	ternarySampler.Sample(pol, p)
 	ternarySampler.context.NTT(pol, pol)
 	return
 }
 
-// SampleTernaryMontgomeryNTT samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT and Montgomery form.
-func (ternarySampler *TernarySampler) SampleTernaryMontgomeryNTT(pol *Poly, p float64) {
-	ternarySampler.SampleTernaryMontgomery(pol, p)
+// SampleNTT samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT form.
+func (ternarySampler *TernarySampler) SampleNTT(pol *Poly, p float64) {
+	ternarySampler.Sample(pol, p)
 	ternarySampler.context.NTT(pol, pol)
 }
 
-// SampleTernarySparse samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients.
-func (ternarySampler *TernarySampler) SampleTernarySparse(pol *Poly, hw uint64) {
-	ternarySampler.sampleTernarySparse(ternarySampler.matrixTernary, pol, hw)
+// SampleMontgomeryNTTNew samples a new ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT and Montgomery form.
+func (ternarySampler *TernarySampler) SampleMontgomeryNTTNew(p float64) (pol *Poly) {
+	pol = ternarySampler.SampleMontgomeryNew(p)
+	ternarySampler.context.NTT(pol, pol)
+	return
 }
 
-// SampleTernarySparseNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients.
-func (ternarySampler *TernarySampler) SampleTernarySparseNew(hw uint64) (pol *Poly) {
+// SampleMontgomeryNTT samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT and Montgomery form.
+func (ternarySampler *TernarySampler) SampleMontgomeryNTT(pol *Poly, p float64) {
+	ternarySampler.SampleMontgomery(pol, p)
+	ternarySampler.context.NTT(pol, pol)
+}
+
+// SampleSparse samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients.
+func (ternarySampler *TernarySampler) SampleSparse(pol *Poly, hw uint64) {
+	ternarySampler.sampleSparse(ternarySampler.matrixTernary, pol, hw)
+}
+
+// SampleSparseNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients.
+func (ternarySampler *TernarySampler) SampleSparseNew(hw uint64) (pol *Poly) {
 	pol = ternarySampler.context.NewPoly()
-	ternarySampler.SampleTernarySparse(pol, hw)
+	ternarySampler.SampleSparse(pol, hw)
 	return pol
 }
 
-// SampleTernarySparseNTT samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT form.
-func (ternarySampler *TernarySampler) SampleTernarySparseNTT(pol *Poly, hw uint64) {
-	ternarySampler.SampleTernarySparse(pol, hw)
+// SampleSparseNTT samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT form.
+func (ternarySampler *TernarySampler) SampleSparseNTT(pol *Poly, hw uint64) {
+	ternarySampler.SampleSparse(pol, hw)
 	ternarySampler.context.NTT(pol, pol)
 }
 
-// SampleTernarySparseNTTNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT form.
-func (ternarySampler *TernarySampler) SampleTernarySparseNTTNew(hw uint64) (pol *Poly) {
+// SampleSparseNTTNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT form.
+func (ternarySampler *TernarySampler) SampleSparseNTTNew(hw uint64) (pol *Poly) {
 	pol = ternarySampler.context.NewPoly()
-	ternarySampler.sampleTernarySparse(ternarySampler.matrixTernaryMontgomery, pol, hw)
+	ternarySampler.sampleSparse(ternarySampler.matrixTernaryMontgomery, pol, hw)
 	ternarySampler.context.NTT(pol, pol)
 	return pol
 }
 
-// SampleTernarySparseMontgomery samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in Montgomery form.
-func (ternarySampler *TernarySampler) SampleTernarySparseMontgomery(pol *Poly, hw uint64) {
-	ternarySampler.sampleTernarySparse(ternarySampler.matrixTernaryMontgomery, pol, hw)
+// SampleSparseMontgomery samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in Montgomery form.
+func (ternarySampler *TernarySampler) SampleSparseMontgomery(pol *Poly, hw uint64) {
+	ternarySampler.sampleSparse(ternarySampler.matrixTernaryMontgomery, pol, hw)
 }
 
 // SampleSparseMontgomeryNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in Montgomery form.
 func (ternarySampler *TernarySampler) SampleSparseMontgomeryNew(hw uint64) (pol *Poly) {
 	pol = ternarySampler.context.NewPoly()
-	ternarySampler.sampleTernarySparse(ternarySampler.matrixTernaryMontgomery, pol, hw)
+	ternarySampler.sampleSparse(ternarySampler.matrixTernaryMontgomery, pol, hw)
 	return pol
 }
 
-// SampleTernarySparseMontgomeryNTTNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT and Montgomery form.
-func (ternarySampler *TernarySampler) SampleTernarySparseMontgomeryNTTNew(hw uint64) (pol *Poly) {
+// SampleSparseMontgomeryNTTNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT and Montgomery form.
+func (ternarySampler *TernarySampler) SampleSparseMontgomeryNTTNew(hw uint64) (pol *Poly) {
 	pol = ternarySampler.SampleSparseMontgomeryNew(hw)
 	ternarySampler.context.NTT(pol, pol)
 	return pol
 }
 
-// SampleTernarySparseMontgomeryNTT samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT and Montgomery form.
-func (ternarySampler *TernarySampler) SampleTernarySparseMontgomeryNTT(pol *Poly, hw uint64) {
-	ternarySampler.SampleTernarySparseMontgomery(pol, hw)
+// SampleSparseMontgomeryNTT samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT and Montgomery form.
+func (ternarySampler *TernarySampler) SampleSparseMontgomeryNTT(pol *Poly, hw uint64) {
+	ternarySampler.SampleSparseMontgomery(pol, hw)
 	ternarySampler.context.NTT(pol, pol)
 }
 
@@ -177,7 +177,7 @@ func computeMatrixTernary(p float64) (M [][]uint8) {
 	return M
 }
 
-func (ternarySampler *TernarySampler) sampleTernary(samplerMatrix [][]uint64, p float64, pol *Poly) {
+func (ternarySampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64, pol *Poly) {
 
 	if p == 0 {
 		panic("cannot sample -> p = 0")
@@ -231,7 +231,7 @@ func (ternarySampler *TernarySampler) sampleTernary(samplerMatrix [][]uint64, p 
 	}
 }
 
-func (ternarySampler *TernarySampler) sampleTernarySparse(samplerMatrix [][]uint64, pol *Poly, hw uint64) {
+func (ternarySampler *TernarySampler) sampleSparse(samplerMatrix [][]uint64, pol *Poly, hw uint64) {
 
 	if hw > ternarySampler.context.N {
 		hw = ternarySampler.context.N

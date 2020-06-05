@@ -78,9 +78,9 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 
 		// h_0 = e0
-		gaussianSampler.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), shareOut[i][0], rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
+		gaussianSampler.SampleNTTLvl(uint64(len(contextKeys.Modulus)-1), shareOut[i][0], rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
 		// h_1 = e1
-		gaussianSampler.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), shareOut[i][1], rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
+		gaussianSampler.SampleNTTLvl(uint64(len(contextKeys.Modulus)-1), shareOut[i][1], rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
 
 		// h_0 = e0 + [sk*P*(qiBarre*qiStar)%qi = sk*P, else 0]
 
@@ -106,7 +106,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 		// u
-		ternarySampler.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
+		ternarySampler.SampleMontgomeryNTT(rkg.polypool, 0.5)
 		// h_0 = pk_0 * u + e0 + P * sk * (qiBarre*qiStar)%qi
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
 		// h_1 = pk_1 * u + e1 + P * sk * (qiBarre*qiStar)%qi
@@ -157,7 +157,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 		contextKeys.MulCoeffsMontgomery(round1[i][1], sk, shareOut[i][1])
 
 		// v
-		ternarySampler.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
+		ternarySampler.SampleMontgomeryNTT(rkg.polypool, 0.5)
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
@@ -166,11 +166,11 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[1], rkg.polypool, shareOut[i][1])
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v + e2
-		gaussianSampler.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), rkg.polypool, rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
+		gaussianSampler.SampleNTTLvl(uint64(len(contextKeys.Modulus)-1), rkg.polypool, rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
 		contextKeys.Add(shareOut[i][0], rkg.polypool, shareOut[i][0])
 
 		// h_1 = sum(samples[1]) * sk + pk1 * v + e3
-		gaussianSampler.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), rkg.polypool, rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
+		gaussianSampler.SampleNTTLvl(uint64(len(contextKeys.Modulus)-1), rkg.polypool, rkg.context.params.Sigma, uint64(6*rkg.context.params.Sigma))
 		contextKeys.Add(shareOut[i][1], rkg.polypool, shareOut[i][1])
 
 	}

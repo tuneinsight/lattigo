@@ -7,8 +7,9 @@ import (
 )
 
 type GaussianSampler struct {
-	prng    utils.PRNG
-	context *Context
+	prng          utils.PRNG
+	context       *Context
+	randomBufferN []byte
 }
 
 // NewGaussianSampler creates a new instance of GaussianSampler.
@@ -17,6 +18,7 @@ func NewGaussianSampler(prng utils.PRNG, context *Context) *GaussianSampler {
 	gaussianSampler := new(GaussianSampler)
 	gaussianSampler.context = context
 	gaussianSampler.prng = prng
+	gaussianSampler.randomBufferN = make([]byte, context.N)
 	return gaussianSampler
 }
 
@@ -29,14 +31,12 @@ func (gaussianSampler *GaussianSampler) SampleGaussianLvl(level uint64, pol *Pol
 	var sign uint64
 	var ptr uint64
 
-	randomBytes := make([]byte, gaussianSampler.context.N)
-
-	gaussianSampler.prng.Clock(randomBytes)
+	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
 
 	for i := uint64(0); i < gaussianSampler.context.N; i++ {
 
 		for {
-			coeffFlo, sign, randomBytes, ptr = normFloat64(ptr, randomBytes, gaussianSampler.prng)
+			coeffFlo, sign, gaussianSampler.randomBufferN, ptr = normFloat64(ptr, gaussianSampler.randomBufferN, gaussianSampler.prng)
 
 			if coeffInt = uint64(coeffFlo * sigma); coeffInt <= bound {
 				break
@@ -58,14 +58,12 @@ func (gaussianSampler *GaussianSampler) SampleGaussianAndAddLvl(level uint64, po
 	var sign uint64
 	var ptr uint64
 
-	randomBytes := make([]byte, gaussianSampler.context.N)
-
-	gaussianSampler.prng.Clock(randomBytes)
+	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
 
 	for i := uint64(0); i < gaussianSampler.context.N; i++ {
 
 		for {
-			coeffFlo, sign, randomBytes, ptr = normFloat64(ptr, randomBytes, gaussianSampler.prng)
+			coeffFlo, sign, gaussianSampler.randomBufferN, ptr = normFloat64(ptr, gaussianSampler.randomBufferN, gaussianSampler.prng)
 
 			if coeffInt = uint64(coeffFlo * sigma); coeffInt <= bound {
 				break

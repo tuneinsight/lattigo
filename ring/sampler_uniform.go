@@ -6,8 +6,9 @@ import (
 )
 
 type UniformSampler struct {
-	prng    utils.PRNG
-	context *Context
+	prng          utils.PRNG
+	context       *Context
+	randomBufferN []byte
 }
 
 // NewUniformSampler creates a new instance of UniformSampler.
@@ -16,6 +17,7 @@ func NewUniformSampler(prng utils.PRNG, context *Context) *UniformSampler {
 	uniformSampler := new(UniformSampler)
 	uniformSampler.context = context
 	uniformSampler.prng = prng
+	uniformSampler.randomBufferN = make([]byte, context.N)
 	return uniformSampler
 }
 
@@ -25,8 +27,7 @@ func (uniformSampler *UniformSampler) UniformPoly(Pol *Poly) {
 	var randomUint, mask, qi uint64
 	var ptr uint64
 
-	randomBytes := make([]byte, uniformSampler.context.N)
-	uniformSampler.prng.Clock(randomBytes)
+	uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 
 	for j := range uniformSampler.context.Modulus {
 
@@ -45,12 +46,12 @@ func (uniformSampler *UniformSampler) UniformPoly(Pol *Poly) {
 
 				// Replenishes the pool if it runs empty
 				if ptr == uniformSampler.context.N {
-					uniformSampler.prng.Clock(randomBytes)
+					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 					ptr = 0
 				}
 
 				// Reads bytes from the pool
-				randomUint = binary.BigEndian.Uint64(randomBytes[ptr:ptr+8]) & mask
+				randomUint = binary.BigEndian.Uint64(uniformSampler.randomBufferN[ptr:ptr+8]) & mask
 				ptr += 8
 
 				// If the integer is between [0, qi-1], breaks the loop

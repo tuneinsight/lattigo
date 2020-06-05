@@ -133,11 +133,16 @@ func testPublicKeyGen(t *testing.T) {
 
 		decryptorSk0 := params.decryptorSk0
 		sk0Shards := params.sk0Shards
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
+
+		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
 
 		t.Run(testString("", parties, parameters), func(t *testing.T) {
 
-			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
-			crp := crpGenerator.ClockUniformNew()
+			crp := crpGenerator.NewUniformPoly()
 
 			type Party struct {
 				*CKGProtocol
@@ -212,12 +217,16 @@ func testRelinKeyGen(t *testing.T) {
 			}
 
 			P0 := rkgParties[0]
+			prng, err := utils.NewKeyedPRNG(nil)
+			if err != nil {
+				panic(err)
+			}
 
-			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
+			crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.ClockUniformNew()
+				crp[i] = crpGenerator.NewUniformPoly()
 			}
 
 			// ROUND 1
@@ -476,12 +485,16 @@ func testRotKeyGenConjugate(t *testing.T) {
 				pcksParties[i] = p
 			}
 			P0 := pcksParties[0]
+			prng, err := utils.NewKeyedPRNG(nil)
+			if err != nil {
+				panic(err)
+			}
 
-			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
+			crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.ClockUniformNew()
+				crp[i] = crpGenerator.NewUniformPoly()
 			}
 
 			for i, p := range pcksParties {
@@ -542,12 +555,16 @@ func testRotKeyGenCols(t *testing.T) {
 			}
 
 			P0 := pcksParties[0]
+			prng, err := utils.NewKeyedPRNG(nil)
+			if err != nil {
+				panic(err)
+			}
 
-			crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
+			crpGenerator := ring.NewUniformSampler(prng, contextKeys)
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.ClockUniformNew()
+				crp[i] = crpGenerator.NewUniformPoly()
 			}
 
 			mask := (contextKeys.N >> 1) - 1
@@ -616,9 +633,13 @@ func testRefresh(t *testing.T) {
 			}
 
 			P0 := RefreshParties[0]
+			prng, err := utils.NewKeyedPRNG(nil)
+			if err != nil {
+				panic(err)
+			}
 
-			crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQ)
-			crp := crpGenerator.ClockUniformNew()
+			crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQ)
+			crp := crpGenerator.NewUniformPoly()
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1.0, t)
 

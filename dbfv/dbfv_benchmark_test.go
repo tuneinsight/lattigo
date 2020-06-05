@@ -3,6 +3,7 @@ package dbfv
 import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"testing"
 )
 
@@ -25,10 +26,13 @@ func benchPublicKeyGen(b *testing.B) {
 		testCtx := genDBFVTestContext(parameters)
 
 		sk0Shards := testCtx.sk0Shards
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
-
-		crp := crpGenerator.ClockUniformNew()
+		crp := crpGenerator.NewUniformPoly()
 
 		type Party struct {
 			*CKGProtocol
@@ -92,13 +96,17 @@ func benchRelinKeyGen(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
 		p.rlk = bfv.NewRelinKey(parameters, 2)
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
 
 		crp := make([]*ring.Poly, parameters.Beta)
 
 		for i := uint64(0); i < parameters.Beta; i++ {
-			crp[i] = crpGenerator.ClockUniformNew()
+			crp[i] = crpGenerator.NewUniformPoly()
 		}
 
 		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
@@ -325,12 +333,16 @@ func benchRotKeyGen(b *testing.B) {
 		p.RTGProtocol = NewRotKGProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShare()
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
 		crp := make([]*ring.Poly, parameters.Beta)
 
 		for i := uint64(0); i < parameters.Beta; i++ {
-			crp[i] = crpGenerator.ClockUniformNew()
+			crp[i] = crpGenerator.NewUniformPoly()
 		}
 
 		mask := (testCtx.n >> 1) - 1
@@ -381,9 +393,13 @@ func benchRefresh(b *testing.B) {
 		p.RefreshProtocol = NewRefreshProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShares()
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
-		crp := crpGenerator.ClockUniformNew()
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
+		crp := crpGenerator.NewUniformPoly()
 
 		ciphertext := bfv.NewCiphertextRandom(parameters, 1)
 

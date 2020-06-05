@@ -67,11 +67,16 @@ func main() {
 
 	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN, append(params.Qi, params.Pi...))
 
-	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, contextKeys)
-	crs := crsGen.ClockUniformNew()
+	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+	if err != nil {
+		panic(err)
+	}
+
+	crsGen := ring.NewUniformSampler(lattigoPRNG, contextKeys)
+	crs := crsGen.NewUniformPoly()
 	crp := make([]*ring.Poly, params.Beta)
 	for i := uint64(0); i < params.Beta; i++ {
-		crp[i] = crsGen.ClockUniformNew()
+		crp[i] = crsGen.NewUniformPoly()
 	}
 
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()

@@ -26,9 +26,13 @@ func benchPublicKeyGen(b *testing.B) {
 		params := gendckksTestContext(parameters)
 
 		sk0Shards := params.sk0Shards
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
-		crp := crpGenerator.ClockUniformNew()
+		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
+		crp := crpGenerator.NewUniformPoly()
 
 		type Party struct {
 			*CKGProtocol
@@ -81,11 +85,15 @@ func benchRelinKeyGen(b *testing.B) {
 		p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
-		crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
+		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
 		crp := make([]*ring.Poly, parameters.Beta)
 
 		for i := uint64(0); i < parameters.Beta; i++ {
-			crp[i] = crpGenerator.ClockUniformNew()
+			crp[i] = crpGenerator.NewUniformPoly()
 		}
 
 		b.Run(testString("Round1Gen/", parties, parameters), func(b *testing.B) {
@@ -303,12 +311,16 @@ func benchRotKeyGen(b *testing.B) {
 		p.RTGProtocol = NewRotKGProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShare()
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
+		crpGenerator := ring.NewUniformSampler(prng, contextKeys)
 		crp := make([]*ring.Poly, parameters.Beta)
 
 		for i := uint64(0); i < parameters.Beta; i++ {
-			crp[i] = crpGenerator.ClockUniformNew()
+			crp[i] = crpGenerator.NewUniformPoly()
 		}
 
 		mask := uint64((contextKeys.N >> 1) - 1)
@@ -361,9 +373,13 @@ func benchRefresh(b *testing.B) {
 		p.RefreshProtocol = NewRefreshProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares(levelStart)
+		keyedPRNG, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, contextQ)
-		crp := crpGenerator.ClockUniformNew()
+		crpGenerator := ring.NewUniformSampler(keyedPRNG, contextQ)
+		crp := crpGenerator.NewUniformPoly()
 
 		ciphertext := ckks.NewCiphertextRandom(parameters, 1, levelStart, parameters.Scale)
 

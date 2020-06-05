@@ -72,17 +72,26 @@ func testPRNG(t *testing.T) {
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
+		sum := make([]byte, context.N)
 
 		t.Run(testString("", context), func(t *testing.T) {
+			prng1, err := utils.NewKeyedPRNG(nil)
+			if err != nil {
+				panic(err)
+			}
+			prng2, err := utils.NewKeyedPRNG(nil)
+			if err != nil {
+				panic(err)
+			}
 
-			crsGenerator1 := NewCRPGenerator(nil, context)
-			crsGenerator2 := NewCRPGenerator(nil, context)
+			prng1.SetClock(sum, 256)
+			prng2.SetClock(sum, 256)
 
-			crsGenerator1.SetClock(256)
-			crsGenerator2.SetClock(256)
+			crsGenerator1 := NewUniformSampler(prng1, context)
+			crsGenerator2 := NewUniformSampler(prng2, context)
 
-			p0 := crsGenerator1.ClockUniformNew()
-			p1 := crsGenerator2.ClockUniformNew()
+			p0 := crsGenerator1.NewUniformPoly()
+			p1 := crsGenerator2.NewUniformPoly()
 
 			require.True(t, context.Equal(p0, p1))
 		})

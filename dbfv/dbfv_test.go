@@ -118,11 +118,15 @@ func testPublicKeyGen(t *testing.T) {
 
 		sk0Shards := testCtx.sk0Shards
 		decryptorSk0 := testCtx.decryptorSk0
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
 		t.Run(testString("", parties, parameters), func(t *testing.T) {
 
-			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
-			crp := crpGenerator.ClockUniformNew()
+			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
+			crp := crpGenerator.NewUniformPoly()
 
 			type Party struct {
 				*CKGProtocol
@@ -196,12 +200,16 @@ func testRelinKeyGen(t *testing.T) {
 			}
 
 			P0 := rkgParties[0]
+			prng, err := utils.NewKeyedPRNG(nil)
+			if err != nil {
+				panic(err)
+			}
 
-			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.ClockUniformNew()
+				crp[i] = crpGenerator.NewUniformPoly()
 			}
 
 			// ROUND 1
@@ -454,12 +462,16 @@ func testRotKeyGenRotRows(t *testing.T) {
 				pcksParties[i] = p
 			}
 			P0 := pcksParties[0]
+			prng, err := utils.NewKeyedPRNG(nil)
+			if err != nil {
+				panic(err)
+			}
 
-			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.ClockUniformNew()
+				crp[i] = crpGenerator.NewUniformPoly()
 			}
 
 			for i, p := range pcksParties {
@@ -515,12 +527,16 @@ func testRotKeyGenRotCols(t *testing.T) {
 			}
 
 			P0 := pcksParties[0]
+			prng, err := utils.NewKeyedPRNG(nil)
+			if err != nil {
+				panic(err)
+			}
 
-			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.ClockUniformNew()
+				crp[i] = crpGenerator.NewUniformPoly()
 			}
 
 			mask := (testCtx.n >> 1) - 1
@@ -592,9 +608,13 @@ func testRefresh(t *testing.T) {
 			}
 
 			P0 := RefreshParties[0]
+			prng, err := utils.NewKeyedPRNG(nil)
+			if err != nil {
+				panic(err)
+			}
 
-			crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
-			crp := crpGenerator.ClockUniformNew()
+			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
+			crp := crpGenerator.NewUniformPoly()
 
 			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
@@ -691,9 +711,13 @@ func Test_Marshalling(t *testing.T) {
 	//verify if the un.marshalling works properly
 	dbfvCtx := newDbfvContext(params)
 	KeyGenerator := bfv.NewKeyGenerator(params)
-	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, dbfvCtx.contextQP)
+	prng, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+	if err != nil {
+		panic(err)
+	}
+	crsGen := ring.NewUniformSampler(prng, dbfvCtx.contextQP)
 	sk := KeyGenerator.GenSecretKey()
-	crs := crsGen.ClockUniformNew()
+	crs := crsGen.NewUniformPoly()
 	contextQ := dbfvCtx.contextQ
 	contextPKeys := dbfvCtx.contextP
 
@@ -809,11 +833,15 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("RTG/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 
 		//check RTGShare
-		crpGenerator := ring.NewCRPGenerator(nil, dbfvCtx.contextQP)
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
+		crpGenerator := ring.NewUniformSampler(prng, dbfvCtx.contextQP)
 		modulus := (dbfvCtx.contextQ.Modulus)
 		crp := make([]*ring.Poly, len(modulus))
 		for j := 0; j < len(modulus); j++ {
-			crp[j] = crpGenerator.ClockUniformNew() //make([]*ring.Poly, bitLog)
+			crp[j] = crpGenerator.NewUniformPoly() //make([]*ring.Poly, bitLog)
 
 		}
 
@@ -862,12 +890,16 @@ func Test_Relin_Marshalling(t *testing.T) {
 	contextQ := dbfvCtx.contextQ
 	contextPKeys := dbfvCtx.contextP
 	modulus := dbfvCtx.contextQ.Modulus
+	prng, err := utils.NewKeyedPRNG(nil)
+	if err != nil {
+		panic(err)
+	}
 
-	crpGenerator := ring.NewCRPGenerator(nil, dbfvCtx.contextQP)
+	crpGenerator := ring.NewUniformSampler(prng, dbfvCtx.contextQP)
 
 	crp := make([]*ring.Poly, len(modulus))
 	for j := 0; j < len(modulus); j++ {
-		crp[j] = crpGenerator.ClockUniformNew() //make([]*ring.Poly, bitLog)
+		crp[j] = crpGenerator.NewUniformPoly() //make([]*ring.Poly, bitLog)
 		//for u := uint64(0); u < bitLog; u++ {
 		//	crp[j][u] = crpGenerator.ClockUniformNew()
 		//}

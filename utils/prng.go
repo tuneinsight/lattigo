@@ -37,7 +37,7 @@ func NewPRNG() (*KeyedPRNG, error) {
 	var err error
 	prng := new(KeyedPRNG)
 	prng.clock = 0
-	randomBytes := make([]byte, 32)
+	randomBytes := make([]byte, 64)
 	if _, err := rand.Read(randomBytes); err != nil {
 		panic("crypto rand error")
 	}

@@ -8,8 +8,10 @@ import (
 
 // RKGProtocol is a structure storing the parameters for the collective evaluation-key generation.
 type RKGProtocol struct {
-	dckksContext *dckksContext
-	polypool     *ring.Poly
+	dckksContext    *dckksContext
+	polypool        *ring.Poly
+	gaussianSampler *ring.GaussianSampler
+	ternarySampler  *ring.TernarySampler
 }
 
 // RKGShareRoundOne is a struct storing the round one share of the RKG protocol.
@@ -49,7 +51,12 @@ func NewEkgProtocol(params *ckks.Parameters) *RKGProtocol {
 	dckksContext := newDckksContext(params)
 	ekg.dckksContext = dckksContext
 	ekg.polypool = ekg.dckksContext.contextQP.NewPoly()
-
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ekg.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP)
+	ekg.ternarySampler = ring.NewTernarySampler(prng, dckksContext.contextQP)
 	return ekg
 }
 
@@ -57,12 +64,7 @@ func NewEkgProtocol(params *ckks.Parameters) *RKGProtocol {
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
 func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly) {
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	ternarySampler := ring.NewTernarySampler(prng, ekg.dckksContext.contextQP)
-	return ternarySampler.SampleMontgomeryNTTNew(p)
+	return ekg.ternarySampler.SampleMontgomeryNTTNew(p)
 }
 
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
@@ -71,11 +73,6 @@ func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly) {
 func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, shareOut RKGShareRoundOne) {
 
 	contextQP := ekg.dckksContext.contextQP
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	gaussianSampler := ring.NewGaussianSampler(prng, contextQP)
 
 	var index uint64
 
@@ -92,7 +89,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 	for i := uint64(0); i < ekg.dckksContext.beta; i++ {
 
 		// h = e
-		gaussianSampler.SampleNTTLvl(uint64(len(contextQP.Modulus)-1), shareOut[i], ekg.dckksContext.params.Sigma, uint64(6*ekg.dckksContext.params.Sigma))
+		ekg.gaussianSampler.SampleNTTLvl(uint64(len(contextQP.Modulus)-1), shareOut[i], ekg.dckksContext.params.Sigma, uint64(6*ekg.dckksContext.params.Sigma))
 
 		// h = sk*CrtBaseDecompQi + e
 		for j := uint64(0); j < ekg.dckksContext.alpha; j++ {
@@ -143,11 +140,6 @@ func (ekg *RKGProtocol) AggregateShareRoundOne(share1, share2, shareOut RKGShare
 func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly, crp []*ring.Poly, shareOut RKGShareRoundTwo) {
 
 	contextQP := ekg.dckksContext.contextQP
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	gaussianSampler := ring.NewGaussianSampler(prng, contextQP)
 
 	// Each sample is of the form [-u*a_i + s*w_i + e_i]
 	// So for each element of the base decomposition w_i :
@@ -159,12 +151,12 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly,
 		contextQP.MulCoeffsMontgomery(round1[i], sk, shareOut[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
-		gaussianSampler.SampleNTTLvl(uint64(len(contextQP.Modulus)-1), ekg.polypool, ekg.dckksContext.params.Sigma, uint64(6*ekg.dckksContext.params.Sigma))
+		ekg.gaussianSampler.SampleNTTLvl(uint64(len(contextQP.Modulus)-1), ekg.polypool, ekg.dckksContext.params.Sigma, uint64(6*ekg.dckksContext.params.Sigma))
 		contextQP.Add(shareOut[i][0], ekg.polypool, shareOut[i][0])
 
 		// Second Element
 		// e_2i
-		gaussianSampler.SampleNTTLvl(uint64(len(contextQP.Modulus)-1), shareOut[i][1], ekg.dckksContext.params.Sigma, uint64(6*ekg.dckksContext.params.Sigma))
+		ekg.gaussianSampler.SampleNTTLvl(uint64(len(contextQP.Modulus)-1), shareOut[i][1], ekg.dckksContext.params.Sigma, uint64(6*ekg.dckksContext.params.Sigma))
 		// s*a + e_2i
 		contextQP.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut[i][1])
 	}
@@ -199,11 +191,6 @@ func (ekg *RKGProtocol) AggregateShareRoundTwo(share1, share2, shareOut RKGShare
 func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.Poly, shareOut RKGShareRoundThree) {
 
 	contextQP := ekg.dckksContext.contextQP
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	gaussianSampler := ring.NewGaussianSampler(prng, contextQP)
 
 	// (u_i - s_i)
 	contextQP.Sub(u, sk, ekg.polypool)
@@ -211,7 +198,7 @@ func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.
 	for i := uint64(0); i < ekg.dckksContext.beta; i++ {
 
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
-		gaussianSampler.SampleNTTLvl(uint64(len(contextQP.Modulus)-1), shareOut[i], ekg.dckksContext.params.Sigma, uint64(6*ekg.dckksContext.params.Sigma))
+		ekg.gaussianSampler.SampleNTTLvl(uint64(len(contextQP.Modulus)-1), shareOut[i], ekg.dckksContext.params.Sigma, uint64(6*ekg.dckksContext.params.Sigma))
 		contextQP.MulCoeffsMontgomeryAndAdd(ekg.polypool, round2[i][1], shareOut[i])
 	}
 }

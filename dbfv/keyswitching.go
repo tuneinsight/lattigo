@@ -16,7 +16,8 @@ type CKSProtocol struct {
 	tmpDelta *ring.Poly
 	hP       *ring.Poly
 
-	baseconverter *ring.FastBasisExtender
+	baseconverter   *ring.FastBasisExtender
+	gaussianSampler *ring.GaussianSampler
 }
 
 // CKSShare is a type for the CKS protocol shares.
@@ -54,6 +55,11 @@ func NewCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *CKSProtocol 
 	cks.hP = cks.context.contextP.NewPoly()
 
 	cks.baseconverter = ring.NewFastBasisExtender(cks.context.contextQ, cks.context.contextP)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	cks.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP)
 
 	return cks
 }
@@ -85,11 +91,6 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 	contextQ := cks.context.contextQ
 	contextP := cks.context.contextP
 	contextQP := cks.context.contextQP
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	gaussianSampler := ring.NewGaussianSampler(prng, contextQP)
 
 	contextQ.NTT(ct.Value()[1], cks.tmpNtt)
 	contextQ.MulCoeffsMontgomery(cks.tmpNtt, skDelta, shareOut.Poly)
@@ -97,7 +98,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 
 	contextQ.InvNTT(shareOut.Poly, shareOut.Poly)
 
-	gaussianSampler.SampleLvl(uint64(len(contextQP.Modulus)-1), cks.tmpNtt, cks.sigmaSmudging, uint64(6*cks.sigmaSmudging))
+	cks.gaussianSampler.SampleLvl(uint64(len(contextQP.Modulus)-1), cks.tmpNtt, cks.sigmaSmudging, uint64(6*cks.sigmaSmudging))
 	contextQ.Add(shareOut.Poly, cks.tmpNtt, shareOut.Poly)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.context.contextQP.Modulus)); x, i = x+1, i+1 {

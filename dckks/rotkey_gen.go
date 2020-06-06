@@ -13,8 +13,9 @@ type RTGProtocol struct {
 	galElRotRow uint64
 	galElRotCol map[ckks.Rotation][]uint64
 
-	tmpSwitchKey [][2]*ring.Poly
-	tmpPoly      *ring.Poly
+	tmpSwitchKey    [][2]*ring.Poly
+	tmpPoly         *ring.Poly
+	gaussianSampler *ring.GaussianSampler
 }
 
 // RTGShare is a struct storing the share of the RTG protocol.
@@ -68,6 +69,12 @@ func NewRotKGProtocol(params *ckks.Parameters) (rtg *RTGProtocol) {
 
 	}
 
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	rtg.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP)
+
 	rtg.galElRotRow = (N << 1) - 1
 
 	return rtg
@@ -96,11 +103,6 @@ func (rtg *RTGProtocol) GenShare(rotType ckks.Rotation, k uint64, sk *ring.Poly,
 func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, evakey []*ring.Poly) {
 
 	contextQP := rtg.dckksContext.contextQP
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	gaussianSampler := ring.NewGaussianSampler(prng, contextQP)
 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly)
 
@@ -113,7 +115,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 	for i := uint64(0); i < rtg.dckksContext.beta; i++ {
 
 		// e
-		evakey[i] = gaussianSampler.SampleNTTNew(rtg.dckksContext.params.Sigma, uint64(6*rtg.dckksContext.params.Sigma))
+		evakey[i] = rtg.gaussianSampler.SampleNTTNew(rtg.dckksContext.params.Sigma, uint64(6*rtg.dckksContext.params.Sigma))
 
 		// a is the CRP
 

@@ -16,7 +16,9 @@ type PCKSProtocol struct {
 	share0tmp *ring.Poly
 	share1tmp *ring.Poly
 
-	baseconverter *ring.FastBasisExtender
+	baseconverter   *ring.FastBasisExtender
+	gaussianSampler *ring.GaussianSampler
+	ternarySampler  *ring.TernarySampler
 }
 
 // PCKSShare is a type for the PCKS protocol shares.
@@ -92,6 +94,12 @@ func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtoco
 	pcks.share1tmp = context.contextQP.NewPoly()
 
 	pcks.baseconverter = ring.NewFastBasisExtender(context.contextQ, context.contextP)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	pcks.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP)
+	pcks.ternarySampler = ring.NewTernarySampler(prng, context.contextQP)
 
 	return pcks
 }
@@ -112,14 +120,8 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 
 	contextQ := pcks.context.contextQ
 	contextKeys := pcks.context.contextQP
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	gaussianSampler := ring.NewGaussianSampler(prng, contextKeys)
-	ternarySampler := ring.NewTernarySampler(prng, contextKeys)
 
-	ternarySampler.SampleMontgomeryNTT(pcks.tmp, 0.5)
+	pcks.ternarySampler.SampleMontgomeryNTT(pcks.tmp, 0.5)
 
 	// h_0 = u_i * pk_0
 	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
@@ -130,10 +132,10 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	contextKeys.InvNTT(pcks.share1tmp, pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	gaussianSampler.SampleAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share0tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+	pcks.gaussianSampler.SampleAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share0tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
 
 	// h_1 = u_i * pk_1 + e1
-	gaussianSampler.SampleAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share1tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+	pcks.gaussianSampler.SampleAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share1tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
 
 	// h_0 = (u_i * pk_0 + e0)/P
 	pcks.baseconverter.ModDownPQ(uint64(len(contextQ.Modulus))-1, pcks.share0tmp, shareOut[0])

@@ -16,7 +16,8 @@ type CKSProtocol struct {
 	tmpDelta *ring.Poly
 	hP       *ring.Poly
 
-	baseconverter *ring.FastBasisExtender
+	baseconverter   *ring.FastBasisExtender
+	gaussianSampler *ring.GaussianSampler
 }
 
 // CKSShare is a struct holding a share of the CKS protocol.
@@ -42,6 +43,11 @@ func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSPro
 	cks.hP = dckksContext.contextP.NewPoly()
 
 	cks.baseconverter = ring.NewFastBasisExtender(dckksContext.contextQ, dckksContext.contextP)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	cks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP)
 
 	return cks
 }
@@ -74,14 +80,9 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 
 	contextQ.MulScalarBigintLvl(ct.Level(), shareOut, contextP.ModulusBigint, shareOut)
 
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	gaussianSampler := ring.NewGaussianSampler(prng, contextKeys)
-
 	// TODO : improve by only computing the NTT for the required primes
-	gaussianSampler.SampleNTTLvl(uint64(len(contextKeys.Modulus)-1), cks.tmp, cks.sigmaSmudging, uint64(6*cks.sigmaSmudging))
+	cks.gaussianSampler.SampleNTTLvl(uint64(len(contextKeys.Modulus)-1), cks.tmp, cks.sigmaSmudging, uint64(6*cks.sigmaSmudging))
+
 	contextQ.AddLvl(ct.Level(), shareOut, cks.tmp, shareOut)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.dckksContext.contextQP.Modulus)); x, i = x+1, i+1 {

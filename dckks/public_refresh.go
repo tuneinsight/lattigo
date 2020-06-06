@@ -9,9 +9,10 @@ import (
 
 // RefreshProtocol is a struct storing the parameters for the Refresh protocol.
 type RefreshProtocol struct {
-	dckksContext *dckksContext
-	tmp          *ring.Poly
-	maskBigint   []*big.Int
+	dckksContext    *dckksContext
+	tmp             *ring.Poly
+	maskBigint      []*big.Int
+	gaussianSampler *ring.GaussianSampler
 }
 
 // RefreshShareDecrypt is a struct storing the masked decryption share.
@@ -32,6 +33,12 @@ func NewRefreshProtocol(params *ckks.Parameters) (refreshProtocol *RefreshProtoc
 	refreshProtocol.dckksContext = dckksContext
 	refreshProtocol.tmp = dckksContext.contextQ.NewPoly()
 	refreshProtocol.maskBigint = make([]*big.Int, dckksContext.n)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQ)
+
 	return
 }
 
@@ -62,12 +69,6 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 		}
 	}
 
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	gaussianSampler := ring.NewGaussianSampler(prng, context)
-
 	// h0 = mask (at level min)
 	context.SetCoefficientsBigintLvl(levelStart, refreshProtocol.maskBigint, shareDecrypt)
 	// h1 = mask (at level max)
@@ -87,11 +88,11 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 	context.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
 
 	// h0 = sk*c1 + mask + e0
-	gaussianSampler.SampleNTTLvl(uint64(len(context.Modulus)-1), refreshProtocol.tmp, 3.19, 19)
+	refreshProtocol.gaussianSampler.SampleNTTLvl(uint64(len(context.Modulus)-1), refreshProtocol.tmp, 3.19, 19)
 	context.AddLvl(levelStart, shareDecrypt, refreshProtocol.tmp, shareDecrypt)
 
 	// h1 = sk*a + mask + e1
-	gaussianSampler.SampleNTTLvl(uint64(len(context.Modulus)-1), refreshProtocol.tmp, 3.19, 19)
+	refreshProtocol.gaussianSampler.SampleNTTLvl(uint64(len(context.Modulus)-1), refreshProtocol.tmp, 3.19, 19)
 	context.Add(shareRecrypt, refreshProtocol.tmp, shareRecrypt)
 
 	// h1 = -sk*c1 - mask - e0

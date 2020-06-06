@@ -371,8 +371,8 @@ func benchRefresh(b *testing.B) {
 
 		ciphertext := ckks.NewCiphertextRandom(parameters, 1, levelStart, parameters.Scale)
 
-		contextQ.UniformPoly(ciphertext.Value()[0])
-		contextQ.UniformPoly(ciphertext.Value()[1])
+		contextQ.UniformPolyLvl(ciphertext.Level(), ciphertext.Value()[0])
+		contextQ.UniformPolyLvl(ciphertext.Level(), ciphertext.Value()[1])
 
 		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {
 

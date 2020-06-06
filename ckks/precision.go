@@ -8,7 +8,10 @@ import (
 
 type PrecisionStats struct {
 	MinDelta, MaxDelta, Mean, Median complex128
-	RealDist, ImagDist               []struct{Prec float64; Count int}
+	RealDist, ImagDist               []struct {
+		Prec  float64
+		Count int
+	}
 
 	cdfResol int
 }
@@ -49,8 +52,14 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	prec.cdfResol = 500
 
-	prec.RealDist = make([]struct{Prec float64; Count int}, prec.cdfResol)
-	prec.ImagDist = make([]struct{Prec float64; Count int}, prec.cdfResol)
+	prec.RealDist = make([]struct {
+		Prec  float64
+		Count int
+	}, prec.cdfResol)
+	prec.ImagDist = make([]struct {
+		Prec  float64
+		Count int
+	}, prec.cdfResol)
 
 	precReal := make([]float64, len(valuesWant))
 	precImag := make([]float64, len(valuesWant))
@@ -62,8 +71,8 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 		delta = valuesTest[i] - valuesWant[i]
 		deltaReal = math.Abs(real(delta))
 		deltaImag = math.Abs(imag(delta))
-		precReal[i] =  math.Log2(1/deltaReal)
-		precImag[i] =  math.Log2(1/deltaImag)
+		precReal[i] = math.Log2(1 / deltaReal)
+		precImag[i] = math.Log2(1 / deltaImag)
 
 		diff[i] += complex(deltaReal, deltaImag)
 
@@ -94,14 +103,17 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 	return prec
 }
 
-func (prec *PrecisionStats) calcCDF(precs []float64, res []struct{Prec float64; Count int}) {
+func (prec *PrecisionStats) calcCDF(precs []float64, res []struct {
+	Prec  float64
+	Count int
+}) {
 	sortedPrecs := make([]float64, len(precs))
 	copy(sortedPrecs, precs)
 	sort.Float64s(sortedPrecs)
-	minPrec := sortedPrecs[0]//math.Log2(1/real(prec.MinDelta))
-	maxPrec := sortedPrecs[len(sortedPrecs)-1]//math.Log2(1/real(prec.MaxDelta))
-	for i := 0; i < prec.cdfResol; i += 1{
-		curPrec := minPrec + float64(i)*(maxPrec - minPrec)/float64(prec.cdfResol)
+	minPrec := sortedPrecs[0]                  //math.Log2(1/real(prec.MinDelta))
+	maxPrec := sortedPrecs[len(sortedPrecs)-1] //math.Log2(1/real(prec.MaxDelta))
+	for i := 0; i < prec.cdfResol; i += 1 {
+		curPrec := minPrec + float64(i)*(maxPrec-minPrec)/float64(prec.cdfResol)
 		for countSmaller, p := range sortedPrecs {
 			if p >= curPrec {
 				res[i].Prec = curPrec

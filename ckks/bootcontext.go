@@ -452,6 +452,8 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (mi
 		minN = 1
 	}
 
+	minN *= 2
+
 	return
 }
 

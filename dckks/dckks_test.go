@@ -56,7 +56,7 @@ var testParams = new(dckksTestParameters)
 
 func init() {
 
-	testParams.parties = 3
+	testParams.parties = 10
 
 	testParams.medianprec = 15
 	testParams.verbose = false

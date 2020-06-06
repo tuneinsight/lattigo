@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	//"fmt"
 	"math"
 	"math/bits"
 )
@@ -176,11 +175,10 @@ func splitCoeffsCheby(coeffs *poly, split uint64) (coeffsq, coeffsr *poly) {
 }
 
 func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
-
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.degree() < (1 << logSplit) {
 
-		if coeffs.lead && logSplit > 1 && coeffs.degree() > 1<<(logSplit-1) {
+		if coeffs.lead && coeffs.maxDeg > ((1<<logDegree)-(1<<(logSplit-1))) && logSplit > 1 {
 
 			logDegree = uint64(bits.Len64(coeffs.degree()))
 			logSplit = optimalSplit(logDegree)
@@ -222,7 +220,7 @@ func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *poly
 		}
 	}
 
-	//fmt.Printf("X^%2d: (%d %f -> ", nextPower, res.Level(), res.Scale())
+	//fmt.Printf("X^%2d: (%d %f -> \n", nextPower, res.Level(), res.Scale())
 	evaluator.MulRelin(res, C[nextPower], evakey, res)
 
 	if res.Level() > tmp.Level() {

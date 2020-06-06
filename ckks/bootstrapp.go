@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"fmt"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
 	"log"
@@ -201,6 +202,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	}
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm
+
 	vecRot := evaluator.RotateHoisted(vec, rotations, bootcontext.rotkeys)
 
 	var tmpVec, tmp *Ciphertext
@@ -208,6 +210,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	tmpVec = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
 	tmp = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
 
+	var tot int
 	for j := range index {
 
 		tmpVec.Value()[0].Zero()
@@ -218,10 +221,16 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			evaluator.Add(tmpVec, tmp, tmpVec)
 		}
 
+		if N1*j != 0 {
+			tot++
+		}
+
 		evaluator.RotateColumns(tmpVec, N1*j, bootcontext.rotkeys, tmp)
 
 		evaluator.Add(res, tmp, res)
 	}
+
+	fmt.Printf("%d + %d KeySwitch at level %d\n", len(rotations)-1, tot, vec.Level())
 
 	return res
 }

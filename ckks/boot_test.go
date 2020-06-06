@@ -19,7 +19,7 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[3]
+	bootparams := BootstrappParams[1]
 
 	parameters := &bootparams.Parameters
 
@@ -51,7 +51,7 @@ func TestBootstrapp(t *testing.T) {
 		parameters.Scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
-		deg := 127
+		deg := 119
 		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)

@@ -205,7 +205,7 @@ func NewEkgProtocol(params *bfv.Parameters) *RKGProtocol {
 	if err != nil {
 		panic(err)
 	}
-	ekg.ternarySampler = ring.NewTernarySampler(prng, ekg.context.contextQP)
+	ekg.ternarySampler = ring.NewTernarySampler(prng, ekg.context.contextQP, 0.5, true)
 	ekg.gaussianSampler = ring.NewGaussianSampler(prng, ekg.context.contextQP)
 
 	return ekg
@@ -214,8 +214,8 @@ func NewEkgProtocol(params *bfv.Parameters) *RKGProtocol {
 // NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first rounds).
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
-func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly) {
-	return ekg.ternarySampler.SampleMontgomeryNTTNew(p)
+func (ekg *RKGProtocol) NewEphemeralKey() (ephemeralKey *ring.Poly) {
+	return ekg.ternarySampler.ReadNewNTT()
 }
 
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of

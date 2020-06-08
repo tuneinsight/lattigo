@@ -30,7 +30,6 @@ type keyGenerator struct {
 	polypool        *ring.Poly
 	gaussianSampler *ring.GaussianSampler
 	uniformSampler  *ring.UniformSampler
-	ternarySampler  *ring.TernarySampler
 }
 
 // SecretKey is a structure that stores the SecretKey
@@ -96,7 +95,6 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	}
 	gaussianSampler := ring.NewGaussianSampler(prng, ringContext)
 	uniformSampler := ring.NewUniformSampler(prng, ringContext)
-	ternarySampler := ring.NewTernarySampler(prng, ringContext)
 
 	return &keyGenerator{
 		params:          params.Copy(),
@@ -105,7 +103,6 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 		polypool:        ringContext.NewPoly(),
 		gaussianSampler: gaussianSampler,
 		uniformSampler:  uniformSampler,
-		ternarySampler:  ternarySampler,
 	}
 }
 
@@ -123,17 +120,27 @@ func (keygen *keyGenerator) GenSecretKeyGaussian(sigma float64) (sk *SecretKey) 
 
 // GenSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].
 func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
-	sk = new(SecretKey)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ternarySampler := ring.NewTernarySampler(prng, keygen.ringContext, p, true)
 
-	sk.sk = keygen.ternarySampler.SampleMontgomeryNTTNew(p)
+	sk = new(SecretKey)
+	sk.sk = ternarySampler.ReadNewNTT()
 	return sk
 }
 
 // GenSecretKeySparse generates a new SecretKey with exactly hw non-zero coefficients.
 func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
-	sk = new(SecretKey)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ternarySampler := ring.NewTernarySamplerSparse(prng, keygen.ringContext, hw, true)
 
-	sk.sk = keygen.ternarySampler.SampleSparseMontgomeryNTTNew(hw)
+	sk = new(SecretKey)
+	sk.sk = ternarySampler.ReadNewNTT()
 	return sk
 }
 

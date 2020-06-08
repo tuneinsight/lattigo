@@ -121,10 +121,8 @@ func newEncryptor(params *Parameters) encryptor {
 	if err != nil {
 		panic(err)
 	}
-	ternarySamplerQ := ring.NewTernarySampler(prng, ctx.contextQ)
 	gaussianSamplerQ := ring.NewGaussianSampler(prng, ctx.contextQ)
 	uniformSamplerQ := ring.NewUniformSampler(prng, ctx.contextQ)
-	ternarySamplerQP := ring.NewTernarySampler(prng, ctx.contextQP)
 	gaussianSamplerQP := ring.NewGaussianSampler(prng, ctx.contextQP)
 	uniformSamplerQP := ring.NewUniformSampler(prng, ctx.contextQP)
 
@@ -135,10 +133,10 @@ func newEncryptor(params *Parameters) encryptor {
 		baseconverter:     baseconverter,
 		gaussianSamplerQ:  gaussianSamplerQ,
 		uniformSamplerQ:   uniformSamplerQ,
-		ternarySamplerQ:   ternarySamplerQ,
+		ternarySamplerQ:   ring.NewTernarySampler(prng, ctx.contextQ, 0.5, true),
 		gaussianSamplerQP: gaussianSamplerQP,
 		uniformSamplerQP:  uniformSamplerQP,
-		ternarySamplerQP:  ternarySamplerQP,
+		ternarySamplerQP:  ring.NewTernarySampler(prng, ctx.contextQP, 0.5, true),
 	}
 }
 
@@ -197,7 +195,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	if fast {
 		ringContext = encryptor.bfvContext.contextQ
 
-		encryptor.ternarySamplerQ.SampleMontgomeryNTT(encryptor.polypool[2], 0.5)
+		encryptor.ternarySamplerQ.ReadNTT(encryptor.polypool[2])
 
 		ringContext.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 		ringContext.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
@@ -216,7 +214,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringContext = encryptor.bfvContext.contextQP
 
 		// u
-		encryptor.ternarySamplerQP.SampleMontgomeryNTT(encryptor.polypool[2], 0.5)
+		encryptor.ternarySamplerQP.ReadNTT(encryptor.polypool[2])
 
 		// ct[0] = pk[0]*u
 		// ct[1] = pk[1]*u

@@ -112,14 +112,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ternarySampler := ring.NewTernarySampler(prng, contextKeys)
+	ternarySampler := ring.NewTernarySampler(prng, contextKeys, 0.5, true)
 
 	// Creates each party, and allocates the memory for all the shares that the protocols will need
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
 		pi.sk = kgen.GenSecretKey()
-		pi.rlkEphemSk = ternarySampler.SampleMontgomeryNTTNew(1.0 / 3)
+		pi.rlkEphemSk = ternarySampler.ReadNewNTT()
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for j := range pi.input {
 			pi.input[j] = uint64(i)

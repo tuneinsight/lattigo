@@ -8,154 +8,90 @@ import (
 
 const precision = uint64(56)
 
+type baseSampler struct {
+	prng    utils.PRNG
+	context *Context
+}
+
 type TernarySampler struct {
-	prng                    utils.PRNG
-	context                 *Context
-	M                       [][]uint8
-	matrixTernary           [][]uint64
-	matrixTernaryMontgomery [][]uint64
+	baseSampler
+	matrixProba  [2][precision - 1]uint8
+	matrixValues [][3]uint64
+	p            float64
+	hw           uint64
+	sample       func(poly *Poly)
 }
 
 // NewTernarySampler creates a new instance of TernarySampler.
 // Accepts a PRNG and context and samples different kinds of ternary polynomials
-func NewTernarySampler(prng utils.PRNG, context *Context) *TernarySampler {
+func NewTernarySampler(prng utils.PRNG, context *Context, p float64, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
 	ternarySampler.context = context
 	ternarySampler.prng = prng
-	ternarySampler.M = make([][]uint8, 2)
-	ternarySampler.M[0] = make([]uint8, precision-1)
-	ternarySampler.M[1] = make([]uint8, precision-1)
-	ternarySampler.InitialiseMatrix()
+	ternarySampler.p = p
+	ternarySampler.sample = ternarySampler.sampleProba
+
+	ternarySampler.initialiseMatrix(montgomery)
+
+	if p != 0.5 {
+		ternarySampler.computeMatrixTernary(p)
+	}
 
 	return ternarySampler
 }
 
-func (ternarySampler *TernarySampler) InitialiseMatrix() {
-	ternarySampler.matrixTernary = make([][]uint64, len(ternarySampler.context.Modulus))
-	ternarySampler.matrixTernaryMontgomery = make([][]uint64, len(ternarySampler.context.Modulus))
+func NewTernarySamplerSparse(prng utils.PRNG, context *Context, hw uint64, montgomery bool) *TernarySampler {
+	ternarySampler := new(TernarySampler)
+	ternarySampler.context = context
+	ternarySampler.prng = prng
+	ternarySampler.hw = hw
+	ternarySampler.sample = ternarySampler.sampleSparse
+
+	ternarySampler.initialiseMatrix(montgomery)
+
+	return ternarySampler
+}
+
+func (ts *TernarySampler) Read(pol *Poly) {
+	ts.sample(pol)
+}
+
+func (ts *TernarySampler) ReadNew() (pol *Poly) {
+	pol = ts.context.NewPoly()
+	ts.sample(pol)
+	return pol
+}
+
+func (ts *TernarySampler) ReadNTT(pol *Poly) {
+	ts.sample(pol)
+	ts.context.NTT(pol, pol)
+}
+
+func (ts *TernarySampler) ReadNewNTT() (pol *Poly) {
+	pol = ts.context.NewPoly()
+	ts.sample(pol)
+	ts.context.NTT(pol, pol)
+	return pol
+}
+
+func (ternarySampler *TernarySampler) initialiseMatrix(montgomery bool) {
+	ternarySampler.matrixValues = make([][3]uint64, len(ternarySampler.context.Modulus))
 
 	for i, Qi := range ternarySampler.context.Modulus {
 
-		ternarySampler.matrixTernary[i] = make([]uint64, 3)
-		ternarySampler.matrixTernary[i][0] = 0
-		ternarySampler.matrixTernary[i][1] = 1
-		ternarySampler.matrixTernary[i][2] = Qi - 1
+		ternarySampler.matrixValues[i][0] = 0
 
-		ternarySampler.matrixTernaryMontgomery[i] = make([]uint64, 3)
-		ternarySampler.matrixTernaryMontgomery[i][0] = 0
-		ternarySampler.matrixTernaryMontgomery[i][1] = MForm(1, Qi, ternarySampler.context.bredParams[i])
-		ternarySampler.matrixTernaryMontgomery[i][2] = MForm(Qi-1, Qi, ternarySampler.context.bredParams[i])
+		if montgomery {
+			ternarySampler.matrixValues[i][1] = MForm(1, Qi, ternarySampler.context.bredParams[i])
+			ternarySampler.matrixValues[i][2] = MForm(Qi-1, Qi, ternarySampler.context.bredParams[i])
+		} else {
+			ternarySampler.matrixValues[i][1] = 1
+			ternarySampler.matrixValues[i][2] = Qi - 1
+		}
 	}
 }
 
-// SampleUniform samples a ternary polynomial with distribution [1/3, 1/3, 1/3].
-func (ternarySampler *TernarySampler) SampleUniform(pol *Poly) {
-	ternarySampler.sample(ternarySampler.matrixTernary, 1.0/3.0, pol)
-}
-
-// Sample samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2].
-func (ternarySampler *TernarySampler) Sample(pol *Poly, p float64) {
-	ternarySampler.sample(ternarySampler.matrixTernary, p, pol)
-}
-
-// SampleMontgomery samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in Montgomery form.
-func (ternarySampler *TernarySampler) SampleMontgomery(pol *Poly, p float64) {
-	ternarySampler.sample(ternarySampler.matrixTernaryMontgomery, p, pol)
-}
-
-// SampleNew samples a new ternary polynomial with distribution [(1-p)/2, p, (1-p)/2].
-func (ternarySampler *TernarySampler) SampleNew(p float64) (pol *Poly) {
-	pol = ternarySampler.context.NewPoly()
-	ternarySampler.Sample(pol, p)
-	return pol
-}
-
-// SampleMontgomeryNew samples a nes ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in Montgomery form.
-func (ternarySampler *TernarySampler) SampleMontgomeryNew(p float64) (pol *Poly) {
-	pol = ternarySampler.context.NewPoly()
-	ternarySampler.SampleMontgomery(pol, p)
-	return
-}
-
-// SampleNTTNew samples a new ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT form.
-func (ternarySampler *TernarySampler) SampleNTTNew(p float64) (pol *Poly) {
-	pol = ternarySampler.context.NewPoly()
-	ternarySampler.Sample(pol, p)
-	ternarySampler.context.NTT(pol, pol)
-	return
-}
-
-// SampleNTT samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT form.
-func (ternarySampler *TernarySampler) SampleNTT(pol *Poly, p float64) {
-	ternarySampler.Sample(pol, p)
-	ternarySampler.context.NTT(pol, pol)
-}
-
-// SampleMontgomeryNTTNew samples a new ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT and Montgomery form.
-func (ternarySampler *TernarySampler) SampleMontgomeryNTTNew(p float64) (pol *Poly) {
-	pol = ternarySampler.SampleMontgomeryNew(p)
-	ternarySampler.context.NTT(pol, pol)
-	return
-}
-
-// SampleMontgomeryNTT samples a ternary polynomial with distribution [(1-p)/2, p, (1-p)/2] in NTT and Montgomery form.
-func (ternarySampler *TernarySampler) SampleMontgomeryNTT(pol *Poly, p float64) {
-	ternarySampler.SampleMontgomery(pol, p)
-	ternarySampler.context.NTT(pol, pol)
-}
-
-// SampleSparse samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients.
-func (ternarySampler *TernarySampler) SampleSparse(pol *Poly, hw uint64) {
-	ternarySampler.sampleSparse(ternarySampler.matrixTernary, pol, hw)
-}
-
-// SampleSparseNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients.
-func (ternarySampler *TernarySampler) SampleSparseNew(hw uint64) (pol *Poly) {
-	pol = ternarySampler.context.NewPoly()
-	ternarySampler.SampleSparse(pol, hw)
-	return pol
-}
-
-// SampleSparseNTT samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT form.
-func (ternarySampler *TernarySampler) SampleSparseNTT(pol *Poly, hw uint64) {
-	ternarySampler.SampleSparse(pol, hw)
-	ternarySampler.context.NTT(pol, pol)
-}
-
-// SampleSparseNTTNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT form.
-func (ternarySampler *TernarySampler) SampleSparseNTTNew(hw uint64) (pol *Poly) {
-	pol = ternarySampler.context.NewPoly()
-	ternarySampler.sampleSparse(ternarySampler.matrixTernaryMontgomery, pol, hw)
-	ternarySampler.context.NTT(pol, pol)
-	return pol
-}
-
-// SampleSparseMontgomery samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in Montgomery form.
-func (ternarySampler *TernarySampler) SampleSparseMontgomery(pol *Poly, hw uint64) {
-	ternarySampler.sampleSparse(ternarySampler.matrixTernaryMontgomery, pol, hw)
-}
-
-// SampleSparseMontgomeryNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in Montgomery form.
-func (ternarySampler *TernarySampler) SampleSparseMontgomeryNew(hw uint64) (pol *Poly) {
-	pol = ternarySampler.context.NewPoly()
-	ternarySampler.sampleSparse(ternarySampler.matrixTernaryMontgomery, pol, hw)
-	return pol
-}
-
-// SampleSparseMontgomeryNTTNew samples a new polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT and Montgomery form.
-func (ternarySampler *TernarySampler) SampleSparseMontgomeryNTTNew(hw uint64) (pol *Poly) {
-	pol = ternarySampler.SampleSparseMontgomeryNew(hw)
-	ternarySampler.context.NTT(pol, pol)
-	return pol
-}
-
-// SampleSparseMontgomeryNTT samples a polynomial with distribution [-1, 1] = [1/2, 1/2] with exactly hw non zero coefficients in NTT and Montgomery form.
-func (ternarySampler *TernarySampler) SampleSparseMontgomeryNTT(pol *Poly, hw uint64) {
-	ternarySampler.SampleSparseMontgomery(pol, hw)
-	ternarySampler.context.NTT(pol, pol)
-}
-
-func computeMatrixTernary(p float64, M [][]uint8) {
+func (ts *TernarySampler) computeMatrixTernary(p float64) {
 	var g float64
 	var x uint64
 
@@ -164,7 +100,7 @@ func computeMatrixTernary(p float64, M [][]uint8) {
 	x = uint64(g)
 
 	for j := uint64(0); j < precision-1; j++ {
-		M[0][j] = uint8((x >> (precision - j - 1)) & 1)
+		ts.matrixProba[0][j] = uint8((x >> (precision - j - 1)) & 1)
 	}
 
 	g = 1 - p
@@ -172,14 +108,14 @@ func computeMatrixTernary(p float64, M [][]uint8) {
 	x = uint64(g)
 
 	for j := uint64(0); j < precision-1; j++ {
-		M[1][j] = uint8((x >> (precision - j - 1)) & 1)
+		ts.matrixProba[1][j] = uint8((x >> (precision - j - 1)) & 1)
 	}
 
 }
 
-func (ternarySampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64, pol *Poly) {
+func (ternarySampler *TernarySampler) sampleProba(pol *Poly) {
 
-	if p == 0 {
+	if ternarySampler.p == 0 {
 		panic("cannot sample -> p = 0")
 	}
 
@@ -187,7 +123,7 @@ func (ternarySampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64
 	var sign uint64
 	var index uint64
 
-	if p == 0.5 {
+	if ternarySampler.p == 0.5 {
 
 		randomBytesCoeffs := make([]byte, ternarySampler.context.N>>3)
 		randomBytesSign := make([]byte, ternarySampler.context.N>>3)
@@ -203,13 +139,11 @@ func (ternarySampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
 			for j := range ternarySampler.context.Modulus {
-				pol.Coeffs[j][i] = samplerMatrix[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+				pol.Coeffs[j][i] = ternarySampler.matrixValues[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
 			}
 		}
 
 	} else {
-
-		computeMatrixTernary(p, ternarySampler.M)
 
 		randomBytes := make([]byte, ternarySampler.context.N)
 
@@ -220,21 +154,21 @@ func (ternarySampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64
 
 		for i := uint64(0); i < ternarySampler.context.N; i++ {
 
-			coeff, sign, randomBytes, pointer, bytePointer = kysampling(ternarySampler.prng, ternarySampler.M, randomBytes, pointer, bytePointer, ternarySampler.context.N)
+			coeff, sign, randomBytes, pointer, bytePointer = ternarySampler.kysampling(ternarySampler.prng, randomBytes, pointer, bytePointer, ternarySampler.context.N)
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
 			for j := range ternarySampler.context.Modulus {
-				pol.Coeffs[j][i] = samplerMatrix[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+				pol.Coeffs[j][i] = ternarySampler.matrixValues[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
 			}
 		}
 	}
 }
 
-func (ternarySampler *TernarySampler) sampleSparse(samplerMatrix [][]uint64, pol *Poly, hw uint64) {
+func (ternarySampler *TernarySampler) sampleSparse(pol *Poly) {
 
-	if hw > ternarySampler.context.N {
-		hw = ternarySampler.context.N
+	if ternarySampler.hw > ternarySampler.context.N {
+		ternarySampler.hw = ternarySampler.context.N
 	}
 
 	var mask, j uint64
@@ -245,12 +179,12 @@ func (ternarySampler *TernarySampler) sampleSparse(samplerMatrix [][]uint64, pol
 		index[i] = i
 	}
 
-	randomBytes := make([]byte, (uint64(math.Ceil(float64(hw) / 8.0)))) // We sample ceil(hw/8) bytes
+	randomBytes := make([]byte, (uint64(math.Ceil(float64(ternarySampler.hw) / 8.0)))) // We sample ceil(hw/8) bytes
 	pointer := uint8(0)
 
 	ternarySampler.prng.Clock(randomBytes)
 
-	for i := uint64(0); i < hw; i++ {
+	for i := uint64(0); i < ternarySampler.hw; i++ {
 		mask = (1 << uint64(bits.Len64(ternarySampler.context.N-i))) - 1 // rejection sampling of a random variable between [0, len(index)]
 
 		j = randInt32(ternarySampler.prng, mask)
@@ -260,7 +194,7 @@ func (ternarySampler *TernarySampler) sampleSparse(samplerMatrix [][]uint64, pol
 
 		coeff = (uint8(randomBytes[0]) >> (i & 7)) & 1 // random binary digit [0, 1] from the random bytes
 		for i := range ternarySampler.context.Modulus {
-			pol.Coeffs[i][index[j]] = samplerMatrix[i][coeff]
+			pol.Coeffs[i][index[j]] = ternarySampler.matrixValues[i][coeff]
 		}
 
 		// Removes the element in position j of the slice (order not preserved)
@@ -277,13 +211,13 @@ func (ternarySampler *TernarySampler) sampleSparse(samplerMatrix [][]uint64, pol
 }
 
 // kysampling use the binary expension and random bytes matrix to sample a discret gaussian value and its sign.
-func kysampling(prng utils.PRNG, M [][]uint8, randomBytes []byte, pointer uint8, bytePointer uint64, byteLength uint64) (uint64, uint64, []byte, uint8, uint64) {
+func (ts *TernarySampler) kysampling(prng utils.PRNG, randomBytes []byte, pointer uint8, bytePointer uint64, byteLength uint64) (uint64, uint64, []byte, uint8, uint64) {
 
 	var sign uint8
 
 	d := 0
 	col := 0
-	colLen := len(M)
+	colLen := len(ts.matrixProba)
 
 	for {
 
@@ -295,12 +229,12 @@ func kysampling(prng utils.PRNG, M [][]uint8, randomBytes []byte, pointer uint8,
 			// There is small probability that it will get out of the bound, then
 			// rerun until it gets a proper output
 			if d > colLen-1 {
-				return kysampling(prng, M, randomBytes, i, bytePointer, byteLength)
+				return ts.kysampling(prng, randomBytes, i, bytePointer, byteLength)
 			}
 
 			for row := colLen - 1; row >= 0; row-- {
 
-				d -= int(M[row][col])
+				d -= int(ts.matrixProba[row][col])
 
 				if d == -1 {
 

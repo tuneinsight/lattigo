@@ -82,7 +82,7 @@ func benchRelinKeyGen(b *testing.B) {
 
 		p := new(Party)
 		p.RKGProtocol = NewEkgProtocol(parameters)
-		p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
+		p.u = p.RKGProtocol.NewEphemeralKey()
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
 		prng, err := utils.NewKeyedPRNG(nil)

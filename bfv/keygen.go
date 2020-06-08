@@ -25,7 +25,6 @@ type keyGenerator struct {
 	polypool        *ring.Poly
 	gaussianSampler *ring.GaussianSampler
 	uniformSampler  *ring.UniformSampler
-	ternarySampler  *ring.TernarySampler
 }
 
 // SecretKey is a structure that stores the SecretKey.
@@ -80,13 +79,12 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 
 	bfvContext := newBFVContext(params)
 	prng, err := utils.NewPRNG()
-
 	if err != nil {
 		panic(err)
 	}
+
 	gaussianSampler := ring.NewGaussianSampler(prng, bfvContext.contextQP)
 	uniformSampler := ring.NewUniformSampler(prng, bfvContext.contextQP)
-	ternarySampler := ring.NewTernarySampler(prng, bfvContext.contextQP)
 
 	return &keyGenerator{
 		params:          params.Copy(),
@@ -94,7 +92,6 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 		polypool:        bfvContext.contextQP.NewPoly(),
 		gaussianSampler: gaussianSampler,
 		uniformSampler:  uniformSampler,
-		ternarySampler:  ternarySampler,
 	}
 }
 
@@ -105,8 +102,14 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 
 // GenSecretkeyWithDistrib creates a new SecretKey with the distribution [(1-p)/2, p, (1-p)/2].
 func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ternarySampler := ring.NewTernarySampler(prng, keygen.bfvContext.contextQP, p, true)
+
 	sk = new(SecretKey)
-	sk.sk = keygen.ternarySampler.SampleMontgomeryNTTNew(p)
+	sk.sk = ternarySampler.ReadNewNTT()
 	return sk
 }
 

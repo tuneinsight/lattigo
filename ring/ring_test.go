@@ -303,9 +303,9 @@ func testTernarySampler(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			ternarySampler := NewTernarySampler(prng, context)
+			ternarySampler := NewTernarySampler(prng, context, rho, false)
 
-			ternarySampler.Sample(pol, rho)
+			ternarySampler.Read(pol)
 
 			for i := range pol.Coeffs[0] {
 				if pol.Coeffs[0][i] == context.Modulus[0]-1 {

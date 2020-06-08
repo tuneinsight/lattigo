@@ -101,10 +101,10 @@ func benchSampling(b *testing.B) {
 			if err != nil {
 				panic(err)
 			}
-			ternarySampler := NewTernarySampler(prng, context)
+			ternarySampler := NewTernarySampler(prng, context, 1.0/3, true)
 
 			for i := 0; i < b.N; i++ {
-				ternarySampler.Sample(pol, 1.0/3)
+				ternarySampler.Read(pol)
 			}
 		})
 
@@ -113,10 +113,10 @@ func benchSampling(b *testing.B) {
 			if err != nil {
 				panic(err)
 			}
-			ternarySampler := NewTernarySampler(prng, context)
+			ternarySampler := NewTernarySampler(prng, context, 0.5, true)
 
 			for i := 0; i < b.N; i++ {
-				ternarySampler.Sample(pol, 0.5)
+				ternarySampler.Read(pol)
 			}
 		})
 
@@ -125,10 +125,10 @@ func benchSampling(b *testing.B) {
 			if err != nil {
 				panic(err)
 			}
-			ternarySampler := NewTernarySampler(prng, context)
+			ternarySampler := NewTernarySamplerSparse(prng, context, 128, true)
 
 			for i := 0; i < b.N; i++ {
-				ternarySampler.SampleSparse(pol, 128)
+				ternarySampler.Read(pol)
 			}
 		})
 

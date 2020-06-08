@@ -6,9 +6,12 @@ import (
 	"math/bits"
 )
 
+const precision = uint64(56)
+
 type TernarySampler struct {
 	prng                    utils.PRNG
 	context                 *Context
+	M                       [][]uint8
 	matrixTernary           [][]uint64
 	matrixTernaryMontgomery [][]uint64
 }
@@ -19,7 +22,11 @@ func NewTernarySampler(prng utils.PRNG, context *Context) *TernarySampler {
 	ternarySampler := new(TernarySampler)
 	ternarySampler.context = context
 	ternarySampler.prng = prng
+	ternarySampler.M = make([][]uint8, 2)
+	ternarySampler.M[0] = make([]uint8, precision-1)
+	ternarySampler.M[1] = make([]uint8, precision-1)
 	ternarySampler.InitialiseMatrix()
+
 	return ternarySampler
 }
 
@@ -148,19 +155,14 @@ func (ternarySampler *TernarySampler) SampleSparseMontgomeryNTT(pol *Poly, hw ui
 	ternarySampler.context.NTT(pol, pol)
 }
 
-func computeMatrixTernary(p float64) (M [][]uint8) {
+func computeMatrixTernary(p float64, M [][]uint8) {
 	var g float64
 	var x uint64
-
-	precision := uint64(56)
-
-	M = make([][]uint8, 2)
 
 	g = p
 	g *= math.Exp2(float64(precision))
 	x = uint64(g)
 
-	M[0] = make([]uint8, precision-1)
 	for j := uint64(0); j < precision-1; j++ {
 		M[0][j] = uint8((x >> (precision - j - 1)) & 1)
 	}
@@ -169,12 +171,10 @@ func computeMatrixTernary(p float64) (M [][]uint8) {
 	g *= math.Exp2(float64(precision))
 	x = uint64(g)
 
-	M[1] = make([]uint8, precision-1)
 	for j := uint64(0); j < precision-1; j++ {
 		M[1][j] = uint8((x >> (precision - j - 1)) & 1)
 	}
 
-	return M
 }
 
 func (ternarySampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64, pol *Poly) {
@@ -209,7 +209,7 @@ func (ternarySampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64
 
 	} else {
 
-		matrix := computeMatrixTernary(p)
+		computeMatrixTernary(p, ternarySampler.M)
 
 		randomBytes := make([]byte, ternarySampler.context.N)
 
@@ -220,7 +220,7 @@ func (ternarySampler *TernarySampler) sample(samplerMatrix [][]uint64, p float64
 
 		for i := uint64(0); i < ternarySampler.context.N; i++ {
 
-			coeff, sign, randomBytes, pointer, bytePointer = kysampling(ternarySampler.prng, matrix, randomBytes, pointer, bytePointer, ternarySampler.context.N)
+			coeff, sign, randomBytes, pointer, bytePointer = kysampling(ternarySampler.prng, ternarySampler.M, randomBytes, pointer, bytePointer, ternarySampler.context.N)
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 

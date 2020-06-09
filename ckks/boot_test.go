@@ -19,21 +19,19 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[1]
+	bootparams := BootstrappParams[2]
 
 	parameters := &bootparams.Parameters
 
 	bootparams.Gen()
 
-	/*
-		for i, qi := range bootparams.Qi{
-			fmt.Printf("%d : 0x%x\n", i, qi)
-		}
+	for i, qi := range bootparams.Qi {
+		fmt.Printf("%d : 0x%x\n", i, qi)
+	}
 
-		for i, pj := range bootparams.Pi{
-			fmt.Printf("%d : 0x%x\n", i, pj)
-		}
-	*/
+	for i, pj := range bootparams.Pi {
+		fmt.Printf("%d : 0x%x\n", i, pj)
+	}
 
 	params := genCkksParams(parameters)
 

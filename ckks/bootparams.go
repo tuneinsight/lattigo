@@ -67,9 +67,39 @@ var BootstrappParams = []*BootParams{
 	{Parameters: Parameters{
 		LogN:     16,
 		LogSlots: 15,
-		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 55, 56, 28, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
-			LogPi: []uint64{55, 55, 55, 55},
+		Moduli: Moduli{
+			Qi: []uint64{
+				0x80000000080001,
+				0x2000000a0001,
+				0x2000000e0001,
+				0x1fffffc20001,
+				0x200000440001,
+				0x200000500001,
+				0x200000620001,
+				0x1fffff980001,
+				0x2000006a0001,
+				0x1fffff7e0001,
+				0x200000860001,
+				0x200000a60001,
+				0x100000000060001,
+				0xffa0001,
+				0x7fffffffba0001,
+				0x80000000500001,
+				0x7fffffffaa0001,
+				0x800000005e0001,
+				0x7fffffff7e0001,
+				0x7fffffff380001,
+				0x80000000ca0001,
+				0x200000000e0001,
+				0x20000000140001,
+				0x20000000280001,
+			},
+			Pi: []uint64{
+				0x80000000e00001,
+				0x7ffffffef00001,
+				0x800000011c0001,
+				0x7ffffffeba0001,
+			},
 		},
 		Scale: 1 << 45,
 		Sigma: 3.2,
@@ -91,7 +121,7 @@ var BootstrappParams = []*BootParams{
 	// 15 : 18.28
 	{Parameters: Parameters{
 		LogN:     16,
-		LogSlots: 14,
+		LogSlots: 15,
 		Moduli: Moduli{
 			Qi: []uint64{
 				0x80000000080001,

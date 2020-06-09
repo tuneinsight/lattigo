@@ -19,7 +19,7 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[2]
+	bootparams := BootstrappParams[6]
 
 	parameters := &bootparams.Parameters
 
@@ -84,8 +84,8 @@ func TestBootstrapp(t *testing.T) {
 		parameters.Scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
-		K := 16
-		deg := 40
+		K := 19
+		deg := 48
 		dev := 10
 		sc_num := 2
 

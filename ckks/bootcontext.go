@@ -422,10 +422,6 @@ func (bootcontext *BootContext) computePlaintextVectors() {
 // Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
 func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (minN uint64) {
 
-	var sum uint64
-
-	sum = maxN
-
 	for N1 := uint64(1); N1 < maxN; N1 <<= 1 {
 
 		index := make(map[uint64][]uint64)
@@ -442,19 +438,31 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (mi
 			}
 		}
 
-		if uint64(len(index)+len(index[0])) < sum {
-			minN = N1
-			sum = uint64(len(index) + len(index[0]))
+		if len(index[0]) > 0 {
+
+			hoisted := len(index[0]) - 1
+			normal := len(index) - 1
+
+			if hoisted > normal {
+
+				// Finds the next split that has a ratio hoisted/normal greater or equal to 3
+				for float64(hoisted)/float64(normal) < 3 {
+					N1 *= 2
+					hoisted = hoisted*2 + 1
+					normal = normal / 2
+				}
+
+				// If the ratio is greater than 7 then reverts back to the previous split
+				if float64(hoisted)/float64(normal) > 7.01 {
+					return N1 >> 1
+				} else {
+					return N1
+				}
+			}
 		}
 	}
 
-	if minN == 0 {
-		minN = 1
-	}
-
-	minN *= 2
-
-	return
+	return 1
 }
 
 func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plaintextVec *dftvectors, level uint64, forward bool) {

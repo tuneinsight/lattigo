@@ -57,6 +57,7 @@ func (b *BootParams) Copy() *BootParams {
 //TODO : hardcode moduli chain
 var BootstrappParams = []*BootParams{
 
+	// h = 128
 	// 1398 Sin - 550
 	// 10 : 20.67
 	// 11 : 20.09
@@ -112,6 +113,7 @@ var BootstrappParams = []*BootParams{
 		StCLevel:  []uint64{13, 12, 12},
 	},
 
+	// h = 128
 	// 1384 Sin - 505
 	// 10 : 20.57
 	// 11 : 20.00
@@ -163,6 +165,7 @@ var BootstrappParams = []*BootParams{
 		StCLevel:  []uint64{9, 9, 8},
 	},
 
+	// h = 128
 	// 1408 Cos - 550
 	// 10 : 20.91
 	// 11 : 19.93
@@ -188,6 +191,7 @@ var BootstrappParams = []*BootParams{
 		StCLevel:  []uint64{12, 11, 11},
 	},
 
+	// h = 128
 	// 1439 Cos - 505
 	// 10 : 21.44
 	// 11 : 21.00
@@ -210,6 +214,69 @@ var BootstrappParams = []*BootParams{
 		SinDeg:    40,
 		SinRescal: 2,
 		CtSLevel:  []uint64{20, 19, 18},
+		StCLevel:  []uint64{9, 9, 8},
+	},
+
+	// h = 192
+	// 1559 Cos - 625
+	// 15 : 18.7
+	{Parameters: Parameters{
+		LogN:     16,
+		LogSlots: 15,
+		LogModuli: LogModuli{
+			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
+			LogPi: []uint64{61, 61, 61, 61},
+		},
+		Scale: 1 << 30,
+		Sigma: 3.2,
+	},
+		SinType:   Cos,
+		SinRange:  19,
+		SinDeg:    48,
+		SinRescal: 2,
+		CtSLevel:  []uint64{22, 21, 20},
+		StCLevel:  []uint64{11, 11, 10},
+	},
+
+	// h = 192
+	// 1559 Cos - 565
+	// 15 : 19.3
+	{Parameters: Parameters{
+		LogN:     16,
+		LogSlots: 15,
+		LogModuli: LogModuli{
+			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53, 53},
+			LogPi: []uint64{61, 61, 61, 61},
+		},
+		Scale: 1 << 30,
+		Sigma: 3.2,
+	},
+		SinType:   Cos,
+		SinRange:  19,
+		SinDeg:    48,
+		SinRescal: 2,
+		CtSLevel:  []uint64{22, 21, 20, 19},
+		StCLevel:  []uint64{10, 10, 9},
+	},
+
+	// h = 128
+	// 1553 Cos - 505
+	// 15 : 19.3
+	{Parameters: Parameters{
+		LogN:     16,
+		LogSlots: 15,
+		LogModuli: LogModuli{
+			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53, 53},
+			LogPi: []uint64{61, 61, 61, 61, 61},
+		},
+		Scale: 1 << 30,
+		Sigma: 3.2,
+	},
+		SinType:   Cos,
+		SinRange:  19,
+		SinDeg:    48,
+		SinRescal: 2,
+		CtSLevel:  []uint64{21, 20, 19, 18},
 		StCLevel:  []uint64{9, 9, 8},
 	},
 }

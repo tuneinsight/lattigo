@@ -20,7 +20,7 @@ func (prec PrecisionStats) String() string {
 	return fmt.Sprintf("\nMinimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MinDelta)), math.Log2(1/imag(prec.MinDelta))) +
 		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MaxDelta)), math.Log2(1/imag(prec.MaxDelta))) +
 		fmt.Sprintf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Mean)), math.Log2(1/imag(prec.Mean))) +
-		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MaxDelta)), math.Log2(1/imag(prec.Median)))
+		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Median)), math.Log2(1/imag(prec.Median)))
 }
 
 func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}) (prec PrecisionStats) {

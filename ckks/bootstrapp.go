@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"fmt"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
 	"log"
@@ -230,7 +229,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 		evaluator.Add(res, tmp, res)
 	}
 
-	fmt.Printf("%d + %d KeySwitch at level %d\n", len(rotations)-1, tot, vec.Level())
+	log.Printf("%d + %d KeySwitch at level %d\n", len(rotations)-1, tot, vec.Level())
 
 	return res
 }

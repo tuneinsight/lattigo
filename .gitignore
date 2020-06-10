@@ -47,3 +47,5 @@ _testmain.go
 # vendor/
 
 .idea/
+
+experiments/boot_precision/out

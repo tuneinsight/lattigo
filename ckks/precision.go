@@ -7,8 +7,8 @@ import (
 )
 
 type PrecisionStats struct {
-	MinDelta, MaxDelta, Mean, Median complex128
-	RealDist, ImagDist               []struct {
+	Min, Max, Mean, Median complex128
+	RealDist, ImagDist     []struct {
 		Prec  float64
 		Count int
 	}
@@ -17,8 +17,8 @@ type PrecisionStats struct {
 }
 
 func (prec PrecisionStats) String() string {
-	return fmt.Sprintf("\nMinimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MinDelta)), math.Log2(1/imag(prec.MinDelta))) +
-		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MaxDelta)), math.Log2(1/imag(prec.MaxDelta))) +
+	return fmt.Sprintf("\nMinimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Min)), math.Log2(1/imag(prec.Min))) +
+		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Max)), math.Log2(1/imag(prec.Max))) +
 		fmt.Sprintf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Mean)), math.Log2(1/imag(prec.Mean))) +
 		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.Median)), math.Log2(1/imag(prec.Median)))
 }
@@ -45,8 +45,8 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	diff := make([]complex128, params.Slots)
 
-	prec.MinDelta = complex(0, 0)
-	prec.MaxDelta = complex(1, 1)
+	prec.Min = complex(0, 0)
+	prec.Max = complex(1, 1)
 
 	prec.Mean = complex(0, 0)
 
@@ -78,20 +78,20 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 		prec.Mean += diff[i]
 
-		if deltaReal > real(prec.MinDelta) { // TODO: Min is in fact the Min precision (so the MaxDelta...) to be clarified
-			prec.MinDelta = complex(deltaReal, imag(prec.MinDelta))
+		if deltaReal > real(prec.Min) { // TODO: Min is in fact the Min precision (so the Max...) to be clarified
+			prec.Min = complex(deltaReal, imag(prec.Min))
 		}
 
-		if deltaImag > imag(prec.MinDelta) {
-			prec.MinDelta = complex(real(prec.MinDelta), deltaImag)
+		if deltaImag > imag(prec.Min) {
+			prec.Min = complex(real(prec.Min), deltaImag)
 		}
 
-		if deltaReal < real(prec.MaxDelta) {
-			prec.MaxDelta = complex(deltaReal, imag(prec.MaxDelta))
+		if deltaReal < real(prec.Max) {
+			prec.Max = complex(deltaReal, imag(prec.Max))
 		}
 
-		if deltaImag < imag(prec.MaxDelta) {
-			prec.MaxDelta = complex(real(prec.MaxDelta), deltaImag)
+		if deltaImag < imag(prec.Max) {
+			prec.Max = complex(real(prec.Max), deltaImag)
 		}
 	}
 
@@ -110,8 +110,8 @@ func (prec *PrecisionStats) calcCDF(precs []float64, res []struct {
 	sortedPrecs := make([]float64, len(precs))
 	copy(sortedPrecs, precs)
 	sort.Float64s(sortedPrecs)
-	minPrec := sortedPrecs[0]                  //math.Log2(1/real(prec.MinDelta))
-	maxPrec := sortedPrecs[len(sortedPrecs)-1] //math.Log2(1/real(prec.MaxDelta))
+	minPrec := sortedPrecs[0]                  //math.Log2(1/real(prec.Min))
+	maxPrec := sortedPrecs[len(sortedPrecs)-1] //math.Log2(1/real(prec.Max))
 	for i := 0; i < prec.cdfResol; i += 1 {
 		curPrec := minPrec + float64(i)*(maxPrec-minPrec)/float64(prec.cdfResol)
 		for countSmaller, p := range sortedPrecs {

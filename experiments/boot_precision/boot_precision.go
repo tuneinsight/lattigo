@@ -132,17 +132,17 @@ func instanciateExperiment(params *ckks.BootParams) (encoder ckks.Encoder, encry
 }
 
 func formatParams(params, succ int, hw, logSlot uint64) string {
-	return fmt.Sprintf("%% paramSet=%d, nboot=%d, hw=%d, logslot=%d\n", params, succ, hw, logSlot)
+	return fmt.Sprintf("%% program args: paramSet=%d, nboot=%d, hw=%d, logslot=%d\n", params, succ, hw, logSlot)
 }
 
 func formatSlotCount(stats []ckks.PrecisionStats, wReal, wImag io.Writer) {
 	for logSlot, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, math.Log2(1/real(prec.Median)), math.Log2(1/real(prec.MaxDelta)), math.Log2(1/real(prec.MinDelta)))
+		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, math.Log2(1/real(prec.Median)), math.Log2(1/real(prec.Max)), math.Log2(1/real(prec.Min)))
 	}
 	for logSlot, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, math.Log2(1/imag(prec.Median)), math.Log2(1/imag(prec.MaxDelta)), math.Log2(1/imag(prec.MinDelta)))
+		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, math.Log2(1/imag(prec.Median)), math.Log2(1/imag(prec.Max)), math.Log2(1/imag(prec.Min)))
 	}
 }
 
@@ -161,11 +161,11 @@ func formatSlotDist(stats []ckks.PrecisionStats, logSlot uint64, wReal, wImag io
 func formatSuccessive(stats []ckks.PrecisionStats, wReal, wImag io.Writer) {
 	for i, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, math.Log2(1/real(prec.Median)), math.Log2(1/real(prec.MaxDelta)), math.Log2(1/real(prec.MinDelta)))
+		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, math.Log2(1/real(prec.Median)), math.Log2(1/real(prec.Max)), math.Log2(1/real(prec.Min)))
 	}
 	for i, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, math.Log2(1/imag(prec.Median)), math.Log2(1/imag(prec.MaxDelta)), math.Log2(1/imag(prec.MinDelta)))
+		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, math.Log2(1/imag(prec.Median)), math.Log2(1/imag(prec.Max)), math.Log2(1/imag(prec.Min)))
 	}
 }
 

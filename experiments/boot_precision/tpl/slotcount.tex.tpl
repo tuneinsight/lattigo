@@ -15,13 +15,10 @@
     ]
     \addplot+[color=red, mark=triangle*, error bars/.cd, y dir=both, y explicit]
         coordinates{
-        % Real
-{{.DataReal}}
-        };
+        {{.DataReal}}};
     \addplot+[color=blue, mark=square*, error bars/.cd, y dir=both, y explicit]
         coordinates{
-        % Imag
-{{.DataImag}}
+        {{.DataImag}}
         };
     \legend{Real, Imag}
         

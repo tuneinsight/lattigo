@@ -5,16 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ldsec/lattigo/ckks"
-	"text/template"
 	"io"
 	"log"
-	"math"
 	"os"
+	"text/template"
 )
 
 var paramSet = flag.Int("paramSet", 1, "index in BootStrappParams")
 var nboot = flag.Int("nboot", 1, "number of bootstrapping (on the same ct for successive and on different ct for slotdist)")
-var logslot = flag.Uint64("logslot", 10, "number of slots per ciphertext (max number for slotcount)")
+var logslot = flag.Uint64("logslot", 8, "number of slots per ciphertext (max number for slotcount)")
 var hw = flag.Uint64("hw", 128, "secret key hamming weight")
 var makePlot = flag.Bool("makeplot", false, "output a .tex plot")
 
@@ -65,7 +64,7 @@ func main() {
 	case "slotdist":
 
 		encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params)
-		stats = make([]ckks.PrecisionStats, *nboot, *nboot)
+		stats = make([]ckks.PrecisionStats, 1, 1) // Experiment seems stable enough
 		for i := range stats {
 			values := make([]complex128, params.Slots)
 			for i := range values {
@@ -138,16 +137,17 @@ func formatParams(params, succ int, hw, logSlot uint64) string {
 func formatSlotCount(stats []ckks.PrecisionStats, wReal, wImag io.Writer) {
 	for logSlot, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, math.Log2(1/real(prec.Median)), math.Log2(1/real(prec.Max)), math.Log2(1/real(prec.Min)))
+		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, real(prec.MedianPrecision), real(prec.MaxPrecision - prec.MedianPrecision), real(prec.MedianPrecision - prec.MinPrecision))
 	}
 	for logSlot, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, math.Log2(1/imag(prec.Median)), math.Log2(1/imag(prec.Max)), math.Log2(1/imag(prec.Min)))
+		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, real(prec.MedianPrecision), real(prec.MaxPrecision - prec.MedianPrecision), real(prec.MedianPrecision - prec.MinPrecision))
 	}
 }
 
 func formatSlotDist(stats []ckks.PrecisionStats, logSlot uint64, wReal, wImag io.Writer) {
 	slotCount := 1 << logSlot
+
 	for _, point := range stats[0].RealDist {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
 		fmt.Fprintf(wReal, "(%.2f, %.4f)\n", point.Prec, float64(point.Count)/float64(slotCount))
@@ -161,11 +161,11 @@ func formatSlotDist(stats []ckks.PrecisionStats, logSlot uint64, wReal, wImag io
 func formatSuccessive(stats []ckks.PrecisionStats, wReal, wImag io.Writer) {
 	for i, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, math.Log2(1/real(prec.Median)), math.Log2(1/real(prec.Max)), math.Log2(1/real(prec.Min)))
+		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, real(prec.MedianPrecision), real(prec.MaxPrecision - prec.MedianPrecision), real(prec.MedianPrecision - prec.MinPrecision))
 	}
 	for i, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, math.Log2(1/imag(prec.Median)), math.Log2(1/imag(prec.Max)), math.Log2(1/imag(prec.Min)))
+		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, imag(prec.MedianPrecision), imag(prec.MaxPrecision - prec.MedianPrecision), imag(prec.MedianPrecision - prec.MinPrecision))
 	}
 }
 
@@ -184,5 +184,5 @@ func output(out io.Writer, exp string, stats []ckks.PrecisionStats, makePlot boo
 		}
 		return
 	}
-	fmt.Fprintln(out, "% Real\n", rReal.String(), "% Imag", rImag.String())
+	fmt.Fprintln(out, "% Real\n", rReal.String(), "% Imag\n", rImag.String())
 }

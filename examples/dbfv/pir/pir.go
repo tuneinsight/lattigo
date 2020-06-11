@@ -45,7 +45,7 @@ func main() {
 	// $go run pir.go arg1 arg2
 	// arg1 : number of parties
 	// arg2 : number of Go routines
-	// Max number of parties for n=8192 : 512 parties (!memory intensive!)
+	// MinDelta number of parties for n=8192 : 512 parties (!memory intensive!)
 
 	N := 3 // default number of parties
 	var err error

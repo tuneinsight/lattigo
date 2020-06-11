@@ -177,8 +177,8 @@ func verifyTestVectors(params *Parameters, encoder Encoder, decryptor Decryptor,
 		t.Log(prec)
 	}
 
-	require.GreaterOrEqual(t, math.Log2(1/real(prec.Mean)), testParams.medianprec)
-	require.GreaterOrEqual(t, math.Log2(1/imag(prec.Median)), testParams.medianprec)
+	require.GreaterOrEqual(t, math.Log2(1/real(prec.MeanDelta)), testParams.medianprec)
+	require.GreaterOrEqual(t, math.Log2(1/imag(prec.MedianDelta)), testParams.medianprec)
 }
 
 func testEncoder(t *testing.T) {

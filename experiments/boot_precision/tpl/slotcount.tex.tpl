@@ -1,8 +1,8 @@
 \begin{tikzpicture}
     \begin{axis}[
         title={},
-        width=0.55\textwidth,
-        height=0.55\textwidth,
+        width=0.50\textwidth,
+        height=0.50\textwidth,
         xlabel={$\log(\text{slots})$},
         ylabel={Precision (bits)},
         xmin=2, xmax=16,

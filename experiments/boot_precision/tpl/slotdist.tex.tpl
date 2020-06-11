@@ -1,8 +1,8 @@
 \begin{tikzpicture}
     \begin{axis}[
         title={},
-        width=1.3\textwidth,
-        height=1.2\textwidth,
+        width=0.5\textwidth,
+        height=0.5\textwidth,
         xlabel={Precision (bits)},
         ylabel={$\Pr[\mathsf{prec}(\mathsf{slot})<x]$},
         xmin=15, xmax=32,

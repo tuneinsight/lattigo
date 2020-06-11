@@ -1,8 +1,8 @@
 \begin{tikzpicture}
     \begin{axis}[
         title={},
-        width=1\textwidth,
-        height=0.55\textwidth,
+        width=\textwidth,
+        height=0.5\textwidth,
         xlabel={Iteration},
         ylabel={Precision (bits)},
         xmin=0, xmax=51,

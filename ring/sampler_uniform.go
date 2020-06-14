@@ -6,8 +6,7 @@ import (
 )
 
 type UniformSampler struct {
-	prng          utils.PRNG
-	context       *Context
+	baseSampler
 	randomBufferN []byte
 }
 
@@ -21,8 +20,8 @@ func NewUniformSampler(prng utils.PRNG, context *Context) *UniformSampler {
 	return uniformSampler
 }
 
-// Sample generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-func (uniformSampler *UniformSampler) Sample(Pol *Poly) {
+// Read generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
+func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 
 	var randomUint, mask, qi uint64
 	var ptr uint64
@@ -67,22 +66,22 @@ func (uniformSampler *UniformSampler) Sample(Pol *Poly) {
 	return
 }
 
-// SampleNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-func (uniformSampler *UniformSampler) SampleNew() (Pol *Poly) {
+// ReadNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
+func (uniformSampler *UniformSampler) ReadNew() (Pol *Poly) {
 
 	Pol = uniformSampler.context.NewPoly()
 
-	uniformSampler.Sample(Pol)
+	uniformSampler.Read(Pol)
 
 	return
 }
 
-// SampleLvlNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-func (uniformSampler *UniformSampler) SampleLvlNew(level uint64) (Pol *Poly) {
+// ReadNewLvl generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
+func (uniformSampler *UniformSampler) ReadNewLvl(level uint64) (Pol *Poly) {
 
 	Pol = uniformSampler.context.NewPolyLvl(level)
 
-	uniformSampler.Sample(Pol)
+	uniformSampler.Read(Pol)
 
 	return
 }

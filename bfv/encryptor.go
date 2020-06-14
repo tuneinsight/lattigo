@@ -121,9 +121,9 @@ func newEncryptor(params *Parameters) encryptor {
 	if err != nil {
 		panic(err)
 	}
-	gaussianSamplerQ := ring.NewGaussianSampler(prng, ctx.contextQ)
+	gaussianSamplerQ := ring.NewGaussianSamplerLvl(prng, ctx.contextQ)
 	uniformSamplerQ := ring.NewUniformSampler(prng, ctx.contextQ)
-	gaussianSamplerQP := ring.NewGaussianSampler(prng, ctx.contextQP)
+	gaussianSamplerQP := ring.NewGaussianSamplerLvl(prng, ctx.contextQP)
 	uniformSamplerQP := ring.NewUniformSampler(prng, ctx.contextQP)
 
 	return encryptor{
@@ -204,10 +204,10 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringContext.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSamplerQ.SampleAndAddLvl(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQ.Read(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSamplerQ.SampleAndAddLvl(uint64(len(ringContext.Modulus)-1), encryptor.polypool[1], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQ.Read(uint64(len(ringContext.Modulus)-1), encryptor.polypool[1], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 
 	} else {
 
@@ -225,10 +225,10 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringContext.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSamplerQP.SampleAndAddLvl(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQP.Read(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSamplerQP.SampleAndAddLvl(uint64(len(ringContext.Modulus)-1), encryptor.polypool[1], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQP.Read(uint64(len(ringContext.Modulus)-1), encryptor.polypool[1], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 
 		// We rescale the encryption of zero by the special prime, dividing the error by this prime
 		encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
@@ -304,9 +304,9 @@ func (encryptor *skEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertex
 
 func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
 	if fast {
-		encryptor.uniformSamplerQ.Sample(encryptor.polypool[1])
+		encryptor.uniformSamplerQ.Read(encryptor.polypool[1])
 	} else {
-		encryptor.uniformSamplerQP.Sample(encryptor.polypool[1])
+		encryptor.uniformSamplerQP.Read(encryptor.polypool[1])
 	}
 
 	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1], fast)
@@ -336,7 +336,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringContext.InvNTT(ciphertext.value[0], ciphertext.value[0])
 		ringContext.InvNTT(crp, ciphertext.value[1])
 
-		encryptor.gaussianSamplerQ.SampleAndAddLvl(uint64(len(ringContext.Modulus)-1), ciphertext.value[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQ.Read(uint64(len(ringContext.Modulus)-1), ciphertext.value[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 
 	} else {
 		ringContext = encryptor.bfvContext.contextQP
@@ -349,7 +349,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringContext.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
 		ringContext.InvNTT(crp, crp)
 
-		encryptor.gaussianSamplerQP.SampleAndAddLvl(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQP.Read(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
 
 		encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
 		encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, crp, ciphertext.value[1])

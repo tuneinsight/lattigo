@@ -145,8 +145,8 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
 
-	pk.pk[0] = keygen.gaussianSampler.SampleNTTNew(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
-	pk.pk[1] = keygen.uniformSampler.SampleNew()
+	pk.pk[0] = keygen.gaussianSampler.ReadNewNTT(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
+	pk.pk[1] = keygen.uniformSampler.ReadNew()
 
 	ringContext.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
 	ringContext.Neg(pk.pk[0], pk.pk[0])
@@ -317,10 +317,10 @@ func (keygen *keyGenerator) newswitchingkey(skIn, skOut *ring.Poly) (switchkey *
 	for i := uint64(0); i < keygen.params.Beta; i++ {
 
 		// e
-		switchkey.evakey[i][0] = keygen.gaussianSampler.SampleNTTNew(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
+		switchkey.evakey[i][0] = keygen.gaussianSampler.ReadNewNTT(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
 		ringContext.MForm(switchkey.evakey[i][0], switchkey.evakey[i][0])
 		// a
-		switchkey.evakey[i][1] = keygen.uniformSampler.SampleNew()
+		switchkey.evakey[i][1] = keygen.uniformSampler.ReadNew()
 
 		// e + skIn * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0

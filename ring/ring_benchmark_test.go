@@ -53,7 +53,7 @@ func benchMarshalling(b *testing.B) {
 		}
 		uniformSampler := NewUniformSampler(prng, context)
 
-		p := uniformSampler.SampleNew()
+		p := uniformSampler.ReadNew()
 
 		b.Run(testString("Marshal/Poly/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -92,7 +92,7 @@ func benchSampling(b *testing.B) {
 			gaussianSampler := NewGaussianSampler(prng, context)
 
 			for i := 0; i < b.N; i++ {
-				gaussianSampler.SampleLvl(uint64(len(context.Modulus)-1), pol, sigma, bound)
+				gaussianSampler.Read(uint64(len(context.Modulus)-1), pol, sigma, bound)
 			}
 		})
 
@@ -140,7 +140,7 @@ func benchSampling(b *testing.B) {
 			uniformSampler := NewUniformSampler(prng, context)
 
 			for i := 0; i < b.N; i++ {
-				uniformSampler.Sample(pol)
+				uniformSampler.Read(pol)
 			}
 		})
 
@@ -158,7 +158,7 @@ func benchMontgomeryForm(b *testing.B) {
 		}
 		uniformSampler := NewUniformSampler(prng, context)
 
-		p := uniformSampler.SampleNew()
+		p := uniformSampler.ReadNew()
 
 		b.Run(testString("MForm/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -185,7 +185,7 @@ func benchNTT(b *testing.B) {
 		}
 		uniformSampler := NewUniformSampler(prng, context)
 
-		p := uniformSampler.SampleNew()
+		p := uniformSampler.ReadNew()
 
 		b.Run(testString("NTT/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -224,8 +224,8 @@ func benchMulCoeffs(b *testing.B) {
 		}
 		uniformSampler := NewUniformSampler(prng, context)
 
-		p0 := uniformSampler.SampleNew()
-		p1 := uniformSampler.SampleNew()
+		p0 := uniformSampler.ReadNew()
+		p1 := uniformSampler.ReadNew()
 
 		b.Run(testString("Barrett/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -263,8 +263,8 @@ func benchAddCoeffs(b *testing.B) {
 		}
 		uniformSampler := NewUniformSampler(prng, context)
 
-		p0 := uniformSampler.SampleNew()
-		p1 := uniformSampler.SampleNew()
+		p0 := uniformSampler.ReadNew()
+		p1 := uniformSampler.ReadNew()
 
 		b.Run(testString("Add/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -290,8 +290,8 @@ func benchSubCoeffs(b *testing.B) {
 		}
 		uniformSampler := NewUniformSampler(prng, context)
 
-		p0 := uniformSampler.SampleNew()
-		p1 := uniformSampler.SampleNew()
+		p0 := uniformSampler.ReadNew()
+		p1 := uniformSampler.ReadNew()
 
 		b.Run(testString("Sub/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -317,7 +317,7 @@ func benchNegCoeffs(b *testing.B) {
 		}
 		uniformSampler := NewUniformSampler(prng, context)
 
-		p0 := uniformSampler.SampleNew()
+		p0 := uniformSampler.ReadNew()
 
 		b.Run(testString("Neg", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -338,7 +338,7 @@ func benchMulScalar(b *testing.B) {
 		}
 		uniformSampler := NewUniformSampler(prng, context)
 
-		p := uniformSampler.SampleNew()
+		p := uniformSampler.ReadNew()
 
 		rand1 := RandUniform(prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
 		rand2 := RandUniform(prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
@@ -381,8 +381,8 @@ func benchExtendBasis(b *testing.B) {
 
 		basisExtender := NewFastBasisExtender(contextQ, contextP)
 
-		p0 := uniformSamplerQ.SampleNew()
-		p1 := uniformSamplerP.SampleNew()
+		p0 := uniformSamplerQ.ReadNew()
+		p1 := uniformSamplerP.ReadNew()
 
 		level := uint64(len(contextQ.Modulus) - 1)
 
@@ -423,7 +423,7 @@ func benchDivByLastModulus(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 
 				b.StopTimer()
-				p0 = uniformSampler.SampleNew()
+				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
 				context.DivFloorByLastModulus(p0)
@@ -440,7 +440,7 @@ func benchDivByLastModulus(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 
 				b.StopTimer()
-				p0 = uniformSampler.SampleNew()
+				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
 				context.DivFloorByLastModulusNTT(p0)
@@ -457,7 +457,7 @@ func benchDivByLastModulus(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 
 				b.StopTimer()
-				p0 = uniformSampler.SampleNew()
+				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
 				context.DivRoundByLastModulus(p0)
@@ -474,7 +474,7 @@ func benchDivByLastModulus(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 
 				b.StopTimer()
-				p0 = uniformSampler.SampleNew()
+				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
 				context.DivRoundByLastModulusNTT(p0)

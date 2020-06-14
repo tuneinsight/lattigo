@@ -86,14 +86,14 @@ func main() {
 	crsGen := dbfv.NewCRPGenerator(params, []byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 
 	// Generation of the common reference polynomials
-	crs := crsGen.SampleNew()                 // for the public-key
+	crs := crsGen.ReadNew()                   // for the public-key
 	crp := make([]*ring.Poly, params.Beta)    // for the relinearization keys
 	crpRot := make([]*ring.Poly, params.Beta) // for the rotation keys
 	for i := uint64(0); i < params.Beta; i++ {
-		crp[i] = crsGen.SampleNew()
+		crp[i] = crsGen.ReadNew()
 	}
 	for i := uint64(0); i < params.Beta; i++ {
-		crpRot[i] = crsGen.SampleNew()
+		crpRot[i] = crsGen.ReadNew()
 	}
 
 	// Collective secret key = sum(individual secret keys)

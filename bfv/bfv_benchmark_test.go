@@ -31,7 +31,7 @@ func benchEncoder(b *testing.B) {
 		}
 		uniformSampler := ring.NewUniformSampler(prng, params.bfvContext.contextT)
 
-		coeffs := uniformSampler.SampleNew()
+		coeffs := uniformSampler.ReadNew()
 		plaintext := NewPlaintext(params.params)
 
 		b.Run(testString("Encode/", parameters), func(b *testing.B) {

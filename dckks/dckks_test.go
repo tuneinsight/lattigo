@@ -142,7 +142,7 @@ func testPublicKeyGen(t *testing.T) {
 
 		t.Run(testString("", parties, parameters), func(t *testing.T) {
 
-			crp := crpGenerator.SampleNew()
+			crp := crpGenerator.ReadNew()
 
 			type Party struct {
 				*CKGProtocol
@@ -226,7 +226,7 @@ func testRelinKeyGen(t *testing.T) {
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.SampleNew()
+				crp[i] = crpGenerator.ReadNew()
 			}
 
 			// ROUND 1
@@ -494,7 +494,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.SampleNew()
+				crp[i] = crpGenerator.ReadNew()
 			}
 
 			for i, p := range pcksParties {
@@ -564,7 +564,7 @@ func testRotKeyGenCols(t *testing.T) {
 			crp := make([]*ring.Poly, parameters.Beta)
 
 			for i := uint64(0); i < parameters.Beta; i++ {
-				crp[i] = crpGenerator.SampleNew()
+				crp[i] = crpGenerator.ReadNew()
 			}
 
 			mask := (contextKeys.N >> 1) - 1
@@ -639,7 +639,7 @@ func testRefresh(t *testing.T) {
 			}
 
 			crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQ)
-			crp := crpGenerator.SampleNew()
+			crp := crpGenerator.ReadNew()
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1.0, t)
 

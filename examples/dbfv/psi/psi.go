@@ -73,10 +73,10 @@ func main() {
 	}
 
 	crsGen := ring.NewUniformSampler(lattigoPRNG, contextKeys)
-	crs := crsGen.SampleNew()
+	crs := crsGen.ReadNew()
 	crp := make([]*ring.Poly, params.Beta)
 	for i := uint64(0); i < params.Beta; i++ {
-		crp[i] = crsGen.SampleNew()
+		crp[i] = crsGen.ReadNew()
 	}
 
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()

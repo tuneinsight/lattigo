@@ -129,7 +129,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	contextQ.MulScalarBigint(share.RefreshShareDecrypt, contextP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
-	rfp.gaussianSampler.SampleLvl(uint64(len(contextKeys.Modulus)-1), rfp.tmp1, 3.19, 19) // TODO : add smudging noise
+	rfp.gaussianSampler.Read(uint64(len(contextKeys.Modulus)-1), rfp.tmp1, 3.19, 19) // TODO : add smudging noise
 	contextQ.Add(share.RefreshShareDecrypt, rfp.tmp1, share.RefreshShareDecrypt)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(rfp.context.contextQP.Modulus)); x, i = x+1, i+1 {
@@ -156,7 +156,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	rfp.baseconverter.ModDownPQ(level, rfp.tmp2, share.RefreshShareRecrypt)
 
 	// mask = (uniform plaintext in [0, T-1]) * floor(Q/T)
-	coeffs := rfp.uniformSampler.SampleNew()
+	coeffs := rfp.uniformSampler.ReadNew()
 	lift(coeffs, rfp.tmp1, rfp.context)
 
 	// h0 = (s*ct[1]*P + e)/P + mask

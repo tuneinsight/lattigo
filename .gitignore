@@ -47,3 +47,6 @@ _testmain.go
 # vendor/
 
 .idea/
+
+# generated
+/Coding

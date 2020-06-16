@@ -56,6 +56,7 @@ func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 	return
 }
 
+// NewCRPGenerator creates a CRPGenerator
 func NewCRPGenerator(params *ckks.Parameters, key []byte) *ring.CRPGenerator {
 	ctx := newDckksContext(params)
 	return ring.NewCRPGenerator(key, ctx.contextQP)

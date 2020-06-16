@@ -37,9 +37,13 @@ var tBatching = map[uint64][]uint64{
 }
 
 const (
+	// PN12QP109 is the index in DefaultParams for logQ1+P = 109
 	PN12QP109 = iota
+	// PN13QP218 is the index in DefaultParams for logQ1+P = 218
 	PN13QP218
+	// PN14QP438 is the index in DefaultParams for logQ1+P = 438
 	PN14QP438
+	// PN15QP880 is the index in DefaultParams for logQ1+P = 880
 	PN15QP880
 )
 

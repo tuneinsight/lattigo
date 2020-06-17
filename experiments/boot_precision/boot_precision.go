@@ -83,7 +83,7 @@ func main() {
 
 	case "slotcount":
 		stats = make([]ckks.PrecisionStats, *logslot-2, *logslot-2)
-		for i, logSloti := 0, uint64(3); logSloti <= *logslot; i, logSloti = i+1, logSloti+1 {
+		for i, logSloti := 0, uint64(4); logSloti <= *logslot; i, logSloti = i+1, logSloti+1 {
 			log.Println("running experiment for logslot =", logSloti)
 			params := ckks.BootstrappParams[*paramSet].Copy()
 			params.LogSlots = logSloti

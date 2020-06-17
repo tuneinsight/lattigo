@@ -273,7 +273,7 @@ var BootstrappParams = []*BootParams{
 		LogN:     16,
 		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53, 53, 53},
+			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53, 53},
 			LogPi: []uint64{61, 61, 61, 61, 61},
 		},
 		Scale: 1 << 30,
@@ -283,7 +283,7 @@ var BootstrappParams = []*BootParams{
 		SinRange:  19,
 		SinDeg:    48,
 		SinRescal: 2,
-		CtSLevel:  []uint64{22, 21, 20, 19, 18},
+		CtSLevel:  []uint64{21, 20, 19, 18},
 		StCLevel:  []uint64{9, 9, 8},
 	},
 }

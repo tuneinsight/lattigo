@@ -44,7 +44,7 @@ func NewCKGProtocol(params *bfv.Parameters) *CKGProtocol {
 	if err != nil {
 		panic(err)
 	}
-	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.context)
+	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.context, params.Sigma, uint64(6*params.Sigma))
 	return ckg
 }
 
@@ -59,7 +59,7 @@ func (ckg *CKGProtocol) AllocateShares() CKGShare {
 //
 // for the receiver protocol. Has no effect is the share was already generated.
 func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut CKGShare) {
-	ckg.gaussianSampler.ReadNTT(uint64(len(ckg.context.Modulus)-1), shareOut.Poly, ckg.sigma, uint64(6*ckg.sigma))
+	ckg.gaussianSampler.ReadNTT(uint64(len(ckg.context.Modulus)-1), shareOut.Poly)
 	ckg.context.MulCoeffsMontgomeryAndSub(sk, crs, shareOut.Poly)
 }
 

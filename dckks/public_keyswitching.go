@@ -48,7 +48,7 @@ func NewPCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) *PCKSProtoc
 	if err != nil {
 		panic(err)
 	}
-	pcks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP)
+	pcks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma, uint64(6*params.Sigma))
 	pcks.ternarySampler = ring.NewTernarySampler(prng, dckksContext.contextQP, 0.5, true)
 
 	return pcks
@@ -79,10 +79,10 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSampler.ReadNTT(uint64(len(contextKeys.Modulus)-1), pcks.tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+	pcks.gaussianSampler.ReadNTT(uint64(len(contextKeys.Modulus)-1), pcks.tmp)
 	contextKeys.Add(pcks.share0tmp, pcks.tmp, pcks.share0tmp)
 	// h_1 = u_i * pk_1 + e1
-	pcks.gaussianSampler.ReadNTT(uint64(len(contextKeys.Modulus)-1), pcks.tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+	pcks.gaussianSampler.ReadNTT(uint64(len(contextKeys.Modulus)-1), pcks.tmp)
 	contextKeys.Add(pcks.share1tmp, pcks.tmp, pcks.share1tmp)
 
 	// h_0 = (u_i * pk_0 + e0)/P

@@ -89,10 +89,10 @@ func benchSampling(b *testing.B) {
 			if err != nil {
 				panic(err)
 			}
-			gaussianSampler := NewGaussianSampler(prng, context)
+			gaussianSampler := NewGaussianSampler(prng, context, sigma, bound)
 
 			for i := 0; i < b.N; i++ {
-				gaussianSampler.Read(uint64(len(context.Modulus)-1), pol, sigma, bound)
+				gaussianSampler.ReadLvl(uint64(len(context.Modulus)-1), pol)
 			}
 		})
 

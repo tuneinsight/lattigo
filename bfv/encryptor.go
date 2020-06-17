@@ -121,9 +121,9 @@ func newEncryptor(params *Parameters) encryptor {
 	if err != nil {
 		panic(err)
 	}
-	gaussianSamplerQ := ring.NewGaussianSamplerLvl(prng, ctx.contextQ)
+	gaussianSamplerQ := ring.NewGaussianSampler(prng, ctx.contextQ, params.Sigma, uint64(6*params.Sigma))
 	uniformSamplerQ := ring.NewUniformSampler(prng, ctx.contextQ)
-	gaussianSamplerQP := ring.NewGaussianSamplerLvl(prng, ctx.contextQP)
+	gaussianSamplerQP := ring.NewGaussianSampler(prng, ctx.contextQP, params.Sigma, uint64(6*params.Sigma))
 	uniformSamplerQP := ring.NewUniformSampler(prng, ctx.contextQP)
 
 	return encryptor{
@@ -204,10 +204,10 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringContext.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSamplerQ.Read(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQ.ReadAndAddLvl(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0])
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSamplerQ.Read(uint64(len(ringContext.Modulus)-1), encryptor.polypool[1], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQ.ReadAndAddLvl(uint64(len(ringContext.Modulus)-1), encryptor.polypool[1])
 
 	} else {
 
@@ -225,10 +225,10 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringContext.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSamplerQP.Read(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQP.ReadAndAddLvl(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0])
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSamplerQP.Read(uint64(len(ringContext.Modulus)-1), encryptor.polypool[1], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQP.ReadAndAddLvl(uint64(len(ringContext.Modulus)-1), encryptor.polypool[1])
 
 		// We rescale the encryption of zero by the special prime, dividing the error by this prime
 		encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
@@ -336,7 +336,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringContext.InvNTT(ciphertext.value[0], ciphertext.value[0])
 		ringContext.InvNTT(crp, ciphertext.value[1])
 
-		encryptor.gaussianSamplerQ.Read(uint64(len(ringContext.Modulus)-1), ciphertext.value[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQ.ReadAndAddLvl(uint64(len(ringContext.Modulus)-1), ciphertext.value[0])
 
 	} else {
 		ringContext = encryptor.bfvContext.contextQP
@@ -349,7 +349,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringContext.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
 		ringContext.InvNTT(crp, crp)
 
-		encryptor.gaussianSamplerQP.Read(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQP.ReadAndAddLvl(uint64(len(ringContext.Modulus)-1), encryptor.polypool[0])
 
 		encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
 		encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, crp, ciphertext.value[1])

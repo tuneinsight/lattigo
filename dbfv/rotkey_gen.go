@@ -119,7 +119,7 @@ func NewRotKGProtocol(params *bfv.Parameters) (rtg *RTGProtocol) {
 	if err != nil {
 		panic(err)
 	}
-	rtg.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP)
+	rtg.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma, uint64(6*params.Sigma))
 
 	return rtg
 }
@@ -157,7 +157,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 	for i := uint64(0); i < rtg.context.params.Beta; i++ {
 
 		// e
-		evakey[i] = rtg.gaussianSampler.ReadNewNTT(rtg.context.params.Sigma, uint64(6*rtg.context.params.Sigma))
+		evakey[i] = rtg.gaussianSampler.ReadNewNTT()
 
 		// a is the CRP
 

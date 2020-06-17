@@ -280,7 +280,7 @@ func testUniformSampler(t *testing.T) {
 			}
 		})
 
-		t.Run(testString("ReadNew", context), func(t *testing.T) {
+		t.Run(testString("ReadNewLvl", context), func(t *testing.T) {
 			pol := uniformSampler.ReadNew()
 			for i := uint64(0); i < context.N; i++ {
 				for j, qi := range context.Modulus {
@@ -306,8 +306,8 @@ func testGaussianSampler(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			gaussianSampler := NewGaussianSampler(prng, context)
-			pol := gaussianSampler.ReadNew(sigma, bound)
+			gaussianSampler := NewGaussianSampler(prng, context, sigma, bound)
+			pol := gaussianSampler.ReadNewLvl()
 
 			for i := uint64(0); i < context.N; i++ {
 				for j, qi := range context.Modulus {

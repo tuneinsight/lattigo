@@ -121,9 +121,9 @@ func newEncryptor(params *Parameters) encryptor {
 	if err != nil {
 		panic(err)
 	}
-	gaussianSamplerQ := ring.NewGaussianSampler(prng, ctx.contextQ)
+	gaussianSamplerQ := ring.NewGaussianSampler(prng, ctx.contextQ, params.Sigma, uint64(6*params.Sigma))
 	uniformSamplerQ := ring.NewUniformSampler(prng, ctx.contextQ)
-	gaussianSamplerQP := ring.NewGaussianSamplerLvl(prng, ctx.contextQP)
+	gaussianSamplerQP := ring.NewGaussianSampler(prng, ctx.contextQP, params.Sigma, uint64(6*params.Sigma))
 	uniformSamplerQP := ring.NewUniformSampler(prng, ctx.contextQP)
 
 	return encryptor{
@@ -216,13 +216,13 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		contextQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], ciphertext.value[1])
 
 		// ct1 = u*pk1 + e1
-		encryptor.gaussianSamplerQ.ReadNTT(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQ.ReadNTT(level, encryptor.polypool[0])
 		contextQ.Add(ciphertext.value[1], encryptor.polypool[0], ciphertext.value[1])
 
 		if !plaintext.isNTT {
 
 			// ct0 = u*pk0 + e0
-			encryptor.gaussianSamplerQ.Read(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+			encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
 			// ct0 = (u*pk0 + e0)/P + m
 			contextQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
 			contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
@@ -230,7 +230,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		} else {
 			// ct0 = u*pk0 + e0
-			encryptor.gaussianSamplerQ.ReadNTT(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+			encryptor.gaussianSamplerQ.ReadNTT(level, encryptor.polypool[0])
 			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 		}
@@ -253,9 +253,9 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		contextQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct0 = u*pk0 + e0
-		encryptor.gaussianSamplerQP.Read(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQP.ReadAndAddLvl(level, encryptor.polypool[0])
 		// ct1 = u*pk1 + e1
-		encryptor.gaussianSamplerQP.Read(level, encryptor.polypool[1], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQP.ReadAndAddLvl(level, encryptor.polypool[1])
 
 		// ct0 = (u*pk0 + e0)/P
 		encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
@@ -375,11 +375,11 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		contextQ.Neg(ciphertext.value[0], ciphertext.value[0])
 
 		if plaintext.isNTT {
-			encryptor.gaussianSamplerQ.ReadNTT(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+			encryptor.gaussianSamplerQ.ReadNTT(level, encryptor.polypool[0])
 			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 		} else {
-			encryptor.gaussianSamplerQ.Read(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+			encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
 			contextQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
 			contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
 			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
@@ -399,7 +399,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
 
 		// ct0 = -s*a + e
-		encryptor.gaussianSamplerQP.Read(level, encryptor.polypool[0], encryptor.params.Sigma, uint64(6*encryptor.params.Sigma))
+		encryptor.gaussianSamplerQP.ReadAndAddLvl(level, encryptor.polypool[0])
 
 		// We rescale by the special prime, dividing the error by this prime
 		// ct0 = (-s*a + e)/P

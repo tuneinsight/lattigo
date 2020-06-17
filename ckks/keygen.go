@@ -9,7 +9,7 @@ import (
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
 type KeyGenerator interface {
 	GenSecretKey() (sk *SecretKey)
-	GenSecretKeyGaussian(sigma float64) (sk *SecretKey)
+	GenSecretKeyGaussian() (sk *SecretKey)
 	GenSecretKeyWithDistrib(p float64) (sk *SecretKey)
 	GenSecretKeySparse(hw uint64) (sk *SecretKey)
 	GenPublicKey(sk *SecretKey) (pk *PublicKey)
@@ -93,7 +93,7 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	if err != nil {
 		panic(err)
 	}
-	gaussianSampler := ring.NewGaussianSampler(prng, ringContext)
+	gaussianSampler := ring.NewGaussianSampler(prng, ringContext, params.Sigma, uint64(6*params.Sigma))
 	uniformSampler := ring.NewUniformSampler(prng, ringContext)
 
 	return &keyGenerator{
@@ -111,10 +111,10 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 	return keygen.GenSecretKeyWithDistrib(1.0 / 3)
 }
 
-func (keygen *keyGenerator) GenSecretKeyGaussian(sigma float64) (sk *SecretKey) {
+func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	sk = new(SecretKey)
 
-	sk.sk = keygen.gaussianSampler.ReadNewNTT(sigma, uint64(6*sigma))
+	sk.sk = keygen.gaussianSampler.ReadNewNTT()
 	return sk
 }
 
@@ -175,7 +175,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
-	pk.pk[0] = keygen.gaussianSampler.ReadNewNTT(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
+	pk.pk[0] = keygen.gaussianSampler.ReadNewNTT()
 	pk.pk[1] = keygen.uniformSampler.ReadNew()
 
 	ringContext.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
@@ -332,7 +332,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNewNTT(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
+		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNewNTT()
 		context.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)

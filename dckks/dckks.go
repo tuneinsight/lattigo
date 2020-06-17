@@ -38,6 +38,7 @@ func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 	context.alpha = uint64(len(params.Pi))
 	context.beta = uint64(math.Ceil(float64(len(params.Qi)) / float64(context.alpha)))
 
+	var err error
 	if context.contextQ, err = ring.NewContextWithParams(n, params.Qi); err != nil {
 		panic(err)
 	}

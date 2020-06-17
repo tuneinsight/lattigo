@@ -275,7 +275,7 @@ func testUniformSampler(t *testing.T) {
 			uniformSampler.Read(pol)
 			for i := uint64(0); i < context.N; i++ {
 				for j, qi := range context.Modulus {
-					require.False(t,  pol.Coeffs[j][i] > qi)
+					require.False(t, pol.Coeffs[j][i] > qi)
 				}
 			}
 		})
@@ -284,20 +284,11 @@ func testUniformSampler(t *testing.T) {
 			pol := uniformSampler.ReadNew()
 			for i := uint64(0); i < context.N; i++ {
 				for j, qi := range context.Modulus {
-					require.False(t,  pol.Coeffs[j][i] > qi)
+					require.False(t, pol.Coeffs[j][i] > qi)
 				}
 			}
 		})
 
-		t.Run(testString("ReadNewLvl", context), func(t *testing.T) {
-			pol := uniformSampler.ReadNewLvl(0)
-			require.Equal(t, 1, len(pol.Coeffs))
-			for i := uint64(0); i < context.N; i++ {
-				for j, qi := range context.Modulus {
-					require.False(t,  pol.Coeffs[j][i] > qi)
-				}
-			}
-		})
 	}
 }
 

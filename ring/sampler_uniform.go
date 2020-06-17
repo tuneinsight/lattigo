@@ -76,16 +76,6 @@ func (uniformSampler *UniformSampler) ReadNew() (Pol *Poly) {
 	return
 }
 
-// ReadNewLvl generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-func (uniformSampler *UniformSampler) ReadNewLvl(level uint64) (Pol *Poly) {
-
-	Pol = uniformSampler.context.NewPolyLvl(level)
-
-	uniformSampler.Read(Pol)
-
-	return
-}
-
 // RandUniform samples a uniform randomInt variable in the range [0, mask] until randomInt is in the range [0, v-1].
 // mask needs to be of the form 2^n -1.
 func RandUniform(prng utils.PRNG, v uint64, mask uint64) (randomInt uint64) {

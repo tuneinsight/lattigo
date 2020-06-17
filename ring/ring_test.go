@@ -48,6 +48,7 @@ func TestRing(t *testing.T) {
 	t.Run("DivFloorByLastModulusMany", testDivFloorByLastModulusMany)
 	t.Run("DivRoundByLastModulusMany", testDivRoundByLastModulusMany)
 	t.Run("MarshalBinary", testMarshalBinary)
+	t.Run("UniformSampler", testUniformSampler)
 	t.Run("GaussianSampler", testGaussianSampler)
 	t.Run("TernarySampler", testTernarySampler)
 	t.Run("GaloisShift", testGaloisShift)
@@ -252,6 +253,49 @@ func testMarshalBinary(t *testing.T) {
 
 			for i := range context.Modulus {
 				require.Equal(t, p.Coeffs[i][:context.N], pTest.Coeffs[i][:context.N])
+			}
+		})
+	}
+}
+
+func testUniformSampler(t *testing.T) {
+
+	for _, parameters := range testParams.polyParams {
+
+		context := genPolyContext(parameters[0])
+
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := NewUniformSampler(prng, context)
+
+		t.Run(testString("Read", context), func(t *testing.T) {
+			pol := context.NewPoly()
+			uniformSampler.Read(pol)
+			for i := uint64(0); i < context.N; i++ {
+				for j, qi := range context.Modulus {
+					require.False(t,  pol.Coeffs[j][i] > qi)
+				}
+			}
+		})
+
+		t.Run(testString("ReadNew", context), func(t *testing.T) {
+			pol := uniformSampler.ReadNew()
+			for i := uint64(0); i < context.N; i++ {
+				for j, qi := range context.Modulus {
+					require.False(t,  pol.Coeffs[j][i] > qi)
+				}
+			}
+		})
+
+		t.Run(testString("ReadNewLvl", context), func(t *testing.T) {
+			pol := uniformSampler.ReadNewLvl(0)
+			require.Equal(t, 1, len(pol.Coeffs))
+			for i := uint64(0); i < context.N; i++ {
+				for j, qi := range context.Modulus {
+					require.False(t,  pol.Coeffs[j][i] > qi)
+				}
 			}
 		})
 	}

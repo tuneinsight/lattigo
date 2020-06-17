@@ -223,50 +223,6 @@ var BootstrappParams = []*BootParams{
 
 	// SET V
 	// h = 192
-	// 1559 Cos - 625
-	// 15 : 18.7
-	{Parameters: Parameters{
-		LogN:     16,
-		LogSlots: 15,
-		LogModuli: LogModuli{
-			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
-			LogPi: []uint64{61, 61, 61, 61},
-		},
-		Scale: 1 << 30,
-		Sigma: 3.2,
-	},
-		SinType:   Cos,
-		SinRange:  19,
-		SinDeg:    48,
-		SinRescal: 2,
-		CtSLevel:  []uint64{22, 21, 20},
-		StCLevel:  []uint64{11, 11, 10},
-	},
-
-	// SET VI
-	// h = 192
-	// 1559 Cos - 565
-	// 15 : 19.5
-	{Parameters: Parameters{
-		LogN:     16,
-		LogSlots: 15,
-		LogModuli: LogModuli{
-			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53, 53},
-			LogPi: []uint64{61, 61, 61, 61},
-		},
-		Scale: 1 << 30,
-		Sigma: 3.2,
-	},
-		SinType:   Cos,
-		SinRange:  19,
-		SinDeg:    48,
-		SinRescal: 2,
-		CtSLevel:  []uint64{22, 21, 20, 19},
-		StCLevel:  []uint64{10, 10, 9},
-	},
-
-	// SET VII
-	// h = 192
 	// 1553 Cos - 505
 	// 15 : 19.5
 	{Parameters: Parameters{

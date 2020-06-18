@@ -127,7 +127,7 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	ternarySampler := ring.NewTernarySampler(prng, keygen.ringContext, p, true)
 
 	sk = new(SecretKey)
-	sk.sk = ternarySampler.ReadNewNTT()
+	sk.sk = ternarySampler.ReadNTTNew()
 	return sk
 }
 
@@ -140,7 +140,7 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
 	ternarySampler := ring.NewTernarySamplerSparse(prng, keygen.ringContext, hw, true)
 
 	sk = new(SecretKey)
-	sk.sk = ternarySampler.ReadNewNTT()
+	sk.sk = ternarySampler.ReadNTTNew()
 	return sk
 }
 

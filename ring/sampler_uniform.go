@@ -5,13 +5,13 @@ import (
 	"github.com/ldsec/lattigo/utils"
 )
 
+// UniformSampler wraps around a util.PRNG and represents the state of a uniform-polynomial sampler.
 type UniformSampler struct {
 	baseSampler
 	randomBufferN []byte
 }
 
-// NewUniformSampler creates a new instance of UniformSampler.
-// Accepts a PRNG and context and samples different kinds of polynomials following uniform distributions
+// NewUniformSampler creates a new instance of UniformSampler from a PRNG and ring definition.
 func NewUniformSampler(prng utils.PRNG, context *Context) *UniformSampler {
 	uniformSampler := new(UniformSampler)
 	uniformSampler.context = context

@@ -6,6 +6,7 @@ import (
 	"math"
 )
 
+// GaussianSampler is the state of a truncated Gaussian polynomial sampler.
 type GaussianSampler struct {
 	baseSampler
 	randomBufferN []byte
@@ -14,8 +15,9 @@ type GaussianSampler struct {
 	bound         uint64
 }
 
-// NewGaussianSampler creates a new instance of GaussianSampler.
-// Accepts a PRNG and context and samples different kinds of gaussian polynomials
+// NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
+// Gaussian distribution parameters. Sigma is the desired variance and bound is the maximum coefficient norm in absolute
+// value.
 func NewGaussianSampler(prng utils.PRNG, context *Context, sigma float64, bound uint64) *GaussianSampler {
 	gaussianSampler := new(GaussianSampler)
 	gaussianSampler.context = context
@@ -27,30 +29,25 @@ func NewGaussianSampler(prng utils.PRNG, context *Context, sigma float64, bound 
 	return gaussianSampler
 }
 
-// Read samples a truncated gaussian polynomial into pol with variance
-// sigma of moduli at the largest level within the given absolute bound.
+// Read samples a polynomial at the maximum level into pol
 func (gaussianSampler *GaussianSampler) Read(pol *Poly) {
 	gaussianSampler.ReadLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
 }
 
-// ReadNTT samples a truncated gaussian polynomial into pol with variance
-// sigma of moduli at the largest level within the given absolute bound, then
-// operates the NTT transform on it.
+// ReadNTT samples a polynomial at the maximum level into pol then operates the NTT transform on it.
 func (gaussianSampler *GaussianSampler) ReadNTT(pol *Poly) {
 	gaussianSampler.ReadLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
 	gaussianSampler.context.NTT(pol, pol)
 }
 
-// ReadNew samples a new truncated gaussian polynomial with
-// variance sigma within the given bound using the Ziggurat algorithm.
+// ReadNew allocates and samples a polynomial at the maximum level.
 func (gaussianSampler *GaussianSampler) ReadNew() (pol *Poly) {
 	pol = gaussianSampler.context.NewPoly()
 	gaussianSampler.Read(pol)
 	return pol
 }
 
-// ReadLvl samples a truncated gaussian polynomial into pol with variance
-// sigma of moduli 0 to level within the given absolute bound.
+// ReadLvl samples a polynomial at the given level into pol.
 func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly) {
 
 	var coeffFlo float64
@@ -75,29 +72,25 @@ func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly) {
 	}
 }
 
-// ReadLvlNTT samples a trucated gaussian polynomial in the NTT domain of moduli 0 to level
-// with variance sigma within the given bound using the Ziggurat algorithm.
+// ReadLvl samples a polynomial at the given level into pol, then operates the NTT transform on it.
 func (gaussianSampler *GaussianSampler) ReadLvlNTT(level uint64, pol *Poly) {
 	gaussianSampler.ReadLvl(level, pol)
 	gaussianSampler.context.NTT(pol, pol)
 }
 
-// ReadNTTNew samples a new trucated gaussian polynomial in the NTT domain
-// with variance sigma within the given bound using the Ziggurat algorithm
+// ReadNTTNew allocates and samples a polynomial at the maximum level, then operates the NTT transform on it.
 func (gaussianSampler *GaussianSampler) ReadNTTNew() (pol *Poly) {
 	pol = gaussianSampler.ReadNew()
 	gaussianSampler.context.NTT(pol, pol)
 	return pol
 }
 
-// ReadAndAdd adds on the input polynomial a truncated gaussian polynomial of at the maximum level
-// with variance sigma within the given bound using the Ziggurat algorithm.
+// ReadAndAdd samples and adds a polynomial at the maximum level directly into pol.
 func (gaussianSampler *GaussianSampler) ReadAndAdd(pol *Poly) {
 	gaussianSampler.ReadAndAddLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
 }
 
-// ReadAndAddLvl adds on the input polynomial a truncated gaussian polynomial of moduli 0 to level
-// with variance sigma within the given bound using the Ziggurat algorithm.
+// ReadAndAddLvl samples and adds a polynomial at the given level directly into pol. pol must be at the given level.
 func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level uint64, pol *Poly) {
 
 	var coeffFlo float64

@@ -64,7 +64,7 @@ func NewEkgProtocol(params *ckks.Parameters) *RKGProtocol {
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
 func (ekg *RKGProtocol) NewEphemeralKey() (ephemeralKey *ring.Poly) {
-	return ekg.ternarySampler.ReadNewNTT()
+	return ekg.ternarySampler.ReadNTTNew()
 }
 
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of

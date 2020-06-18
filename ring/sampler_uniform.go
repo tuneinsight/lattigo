@@ -66,7 +66,7 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 	return
 }
 
-// ReadNewLvl generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
+// ReadNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
 func (uniformSampler *UniformSampler) ReadNew() (Pol *Poly) {
 
 	Pol = uniformSampler.context.NewPoly()

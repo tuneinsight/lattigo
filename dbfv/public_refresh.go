@@ -150,7 +150,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	contextKeys.InvNTT(rfp.tmp2, rfp.tmp2)
 
 	// h1 = s*a + e'
-	rfp.gaussianSampler.ReadAndAddLvl(uint64(len(contextKeys.Modulus)-1), rfp.tmp2)
+	rfp.gaussianSampler.ReadAndAdd(rfp.tmp2)
 
 	// h1 = (-s*a + e')/P
 	rfp.baseconverter.ModDownPQ(level, rfp.tmp2, share.RefreshShareRecrypt)

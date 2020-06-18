@@ -132,10 +132,10 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	contextKeys.InvNTT(pcks.share1tmp, pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSampler.ReadAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share0tmp)
+	pcks.gaussianSampler.ReadAndAdd(pcks.share0tmp)
 
 	// h_1 = u_i * pk_1 + e1
-	pcks.gaussianSampler.ReadAndAddLvl(uint64(len(contextKeys.Modulus)-1), pcks.share1tmp)
+	pcks.gaussianSampler.ReadAndAdd(pcks.share1tmp)
 
 	// h_0 = (u_i * pk_0 + e0)/P
 	pcks.baseconverter.ModDownPQ(uint64(len(contextQ.Modulus))-1, pcks.share0tmp, shareOut[0])

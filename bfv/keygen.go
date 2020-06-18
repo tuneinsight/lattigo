@@ -145,7 +145,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
 
-	pk.pk[0] = keygen.gaussianSampler.ReadNewNTT()
+	pk.pk[0] = keygen.gaussianSampler.ReadNTTNew()
 	pk.pk[1] = keygen.uniformSampler.ReadNew()
 
 	ringContext.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
@@ -317,7 +317,7 @@ func (keygen *keyGenerator) newswitchingkey(skIn, skOut *ring.Poly) (switchkey *
 	for i := uint64(0); i < keygen.params.Beta; i++ {
 
 		// e
-		switchkey.evakey[i][0] = keygen.gaussianSampler.ReadNewNTT()
+		switchkey.evakey[i][0] = keygen.gaussianSampler.ReadNTTNew()
 		ringContext.MForm(switchkey.evakey[i][0], switchkey.evakey[i][0])
 		// a
 		switchkey.evakey[i][1] = keygen.uniformSampler.ReadNew()

@@ -89,7 +89,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 	for i := uint64(0); i < ekg.dckksContext.beta; i++ {
 
 		// h = e
-		ekg.gaussianSampler.ReadNTT(uint64(len(contextQP.Modulus)-1), shareOut[i])
+		ekg.gaussianSampler.ReadNTT(shareOut[i])
 
 		// h = sk*CrtBaseDecompQi + e
 		for j := uint64(0); j < ekg.dckksContext.alpha; j++ {
@@ -151,12 +151,12 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly,
 		contextQP.MulCoeffsMontgomery(round1[i], sk, shareOut[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
-		ekg.gaussianSampler.ReadNTT(uint64(len(contextQP.Modulus)-1), ekg.polypool)
+		ekg.gaussianSampler.ReadNTT(ekg.polypool)
 		contextQP.Add(shareOut[i][0], ekg.polypool, shareOut[i][0])
 
 		// Second Element
 		// e_2i
-		ekg.gaussianSampler.ReadNTT(uint64(len(contextQP.Modulus)-1), shareOut[i][1])
+		ekg.gaussianSampler.ReadNTT(shareOut[i][1])
 		// s*a + e_2i
 		contextQP.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut[i][1])
 	}
@@ -198,7 +198,7 @@ func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.
 	for i := uint64(0); i < ekg.dckksContext.beta; i++ {
 
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
-		ekg.gaussianSampler.ReadNTT(uint64(len(contextQP.Modulus)-1), shareOut[i])
+		ekg.gaussianSampler.ReadNTT(shareOut[i])
 		contextQP.MulCoeffsMontgomeryAndAdd(ekg.polypool, round2[i][1], shareOut[i])
 	}
 }

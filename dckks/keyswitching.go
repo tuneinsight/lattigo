@@ -74,14 +74,13 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 
 	contextQ := cks.dckksContext.contextQ
 	contextP := cks.dckksContext.contextP
-	contextKeys := cks.dckksContext.contextQP
 
 	contextQ.MulCoeffsMontgomeryLvl(ct.Level(), ct.Value()[1], skDelta, shareOut)
 
 	contextQ.MulScalarBigintLvl(ct.Level(), shareOut, contextP.ModulusBigint, shareOut)
 
 	// TODO : improve by only computing the NTT for the required primes
-	cks.gaussianSampler.ReadNTT(uint64(len(contextKeys.Modulus)-1), cks.tmp)
+	cks.gaussianSampler.ReadNTT(cks.tmp)
 
 	contextQ.AddLvl(ct.Level(), shareOut, cks.tmp, shareOut)
 

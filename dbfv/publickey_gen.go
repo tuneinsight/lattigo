@@ -59,7 +59,8 @@ func (ckg *CKGProtocol) AllocateShares() CKGShare {
 //
 // for the receiver protocol. Has no effect is the share was already generated.
 func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut CKGShare) {
-	ckg.gaussianSampler.ReadNTT(shareOut.Poly)
+	ckg.gaussianSampler.Read(shareOut.Poly)
+	ckg.context.NTT(shareOut.Poly, shareOut.Poly)
 	ckg.context.MulCoeffsMontgomeryAndSub(sk, crs, shareOut.Poly)
 }
 

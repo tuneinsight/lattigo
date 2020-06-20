@@ -208,7 +208,8 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		level := uint64(len(contextQ.Modulus) - 1)
 
-		encryptor.ternarySamplerQ.ReadNTT(encryptor.polypool[2])
+		encryptor.ternarySamplerQ.Read(encryptor.polypool[2])
+		contextQ.NTT(encryptor.polypool[2], encryptor.polypool[2])
 
 		// ct0 = u*pk0
 		contextQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], ciphertext.value[0])
@@ -216,7 +217,8 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		contextQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], ciphertext.value[1])
 
 		// ct1 = u*pk1 + e1
-		encryptor.gaussianSamplerQ.ReadLvlNTT(level, encryptor.polypool[0])
+		encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
+		contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
 		contextQ.Add(ciphertext.value[1], encryptor.polypool[0], ciphertext.value[1])
 
 		if !plaintext.isNTT {
@@ -230,7 +232,8 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		} else {
 			// ct0 = u*pk0 + e0
-			encryptor.gaussianSamplerQ.ReadLvlNTT(level, encryptor.polypool[0])
+			encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
+			contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
 			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 		}
@@ -241,7 +244,8 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		level := uint64(len(contextQP.Modulus) - 1)
 
-		encryptor.ternarySamplerQP.ReadNTT(encryptor.polypool[2])
+		encryptor.ternarySamplerQP.Read(encryptor.polypool[2])
+		contextQP.NTT(encryptor.polypool[2], encryptor.polypool[2])
 
 		// ct0 = u*pk0
 		contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
@@ -375,7 +379,8 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		contextQ.Neg(ciphertext.value[0], ciphertext.value[0])
 
 		if plaintext.isNTT {
-			encryptor.gaussianSamplerQ.ReadLvlNTT(level, encryptor.polypool[0])
+			encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
+			contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
 			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 		} else {

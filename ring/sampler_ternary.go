@@ -62,18 +62,6 @@ func (ts *TernarySampler) ReadNew() (pol *Poly) {
 	return pol
 }
 
-func (ts *TernarySampler) ReadNTT(pol *Poly) {
-	ts.sample(pol)
-	ts.context.NTT(pol, pol)
-}
-
-func (ts *TernarySampler) ReadNewNTT() (pol *Poly) {
-	pol = ts.context.NewPoly()
-	ts.sample(pol)
-	ts.context.NTT(pol, pol)
-	return pol
-}
-
 func (ternarySampler *TernarySampler) initialiseMatrix(montgomery bool) {
 	ternarySampler.matrixValues = make([][3]uint64, len(ternarySampler.context.Modulus))
 

@@ -46,7 +46,8 @@ func (ckg *CKGProtocol) AllocateShares() CKGShare {
 func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut CKGShare) {
 	contextQP := ckg.dckksContext.contextQP
 
-	ckg.gaussianSampler.ReadNTT(shareOut)
+	ckg.gaussianSampler.Read(shareOut)
+	contextQP.NTT(shareOut, shareOut)
 	contextQP.MulCoeffsMontgomeryAndSub(sk, crs, shareOut)
 }
 

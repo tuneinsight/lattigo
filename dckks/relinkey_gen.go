@@ -64,7 +64,9 @@ func NewEkgProtocol(params *ckks.Parameters) *RKGProtocol {
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
 func (ekg *RKGProtocol) NewEphemeralKey() (ephemeralKey *ring.Poly) {
-	return ekg.ternarySampler.ReadNewNTT()
+	ephemeralKey = ekg.ternarySampler.ReadNew()
+	ekg.dckksContext.contextQP.NTT(ephemeralKey, ephemeralKey)
+	return ephemeralKey
 }
 
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
@@ -89,7 +91,8 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 	for i := uint64(0); i < ekg.dckksContext.beta; i++ {
 
 		// h = e
-		ekg.gaussianSampler.ReadNTT(shareOut[i])
+		ekg.gaussianSampler.Read(shareOut[i])
+		contextQP.NTT(shareOut[i], shareOut[i])
 
 		// h = sk*CrtBaseDecompQi + e
 		for j := uint64(0); j < ekg.dckksContext.alpha; j++ {
@@ -151,12 +154,14 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly,
 		contextQP.MulCoeffsMontgomery(round1[i], sk, shareOut[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
-		ekg.gaussianSampler.ReadNTT(ekg.polypool)
+		ekg.gaussianSampler.Read(ekg.polypool)
+		contextQP.NTT(ekg.polypool, ekg.polypool)
 		contextQP.Add(shareOut[i][0], ekg.polypool, shareOut[i][0])
 
 		// Second Element
 		// e_2i
-		ekg.gaussianSampler.ReadNTT(shareOut[i][1])
+		ekg.gaussianSampler.Read(shareOut[i][1])
+		contextQP.NTT(shareOut[i][1], shareOut[i][1])
 		// s*a + e_2i
 		contextQP.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut[i][1])
 	}
@@ -198,7 +203,8 @@ func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.
 	for i := uint64(0); i < ekg.dckksContext.beta; i++ {
 
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
-		ekg.gaussianSampler.ReadNTT(shareOut[i])
+		ekg.gaussianSampler.Read(shareOut[i])
+		contextQP.NTT(shareOut[i], shareOut[i])
 		contextQP.MulCoeffsMontgomeryAndAdd(ekg.polypool, round2[i][1], shareOut[i])
 	}
 }

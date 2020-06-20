@@ -33,14 +33,6 @@ func (gaussianSampler *GaussianSampler) Read(pol *Poly) {
 	gaussianSampler.ReadLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
 }
 
-// ReadNTT samples a truncated gaussian polynomial into pol with variance
-// sigma of moduli at the largest level within the given absolute bound, then
-// operates the NTT transform on it.
-func (gaussianSampler *GaussianSampler) ReadNTT(pol *Poly) {
-	gaussianSampler.ReadLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
-	gaussianSampler.context.NTT(pol, pol)
-}
-
 // ReadNew samples a new truncated gaussian polynomial with
 // variance sigma within the given bound using the Ziggurat algorithm.
 func (gaussianSampler *GaussianSampler) ReadNew() (pol *Poly) {
@@ -73,21 +65,6 @@ func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly) {
 			pol.Coeffs[j][i] = (coeffInt * sign) | (qi-coeffInt)*(sign^1)
 		}
 	}
-}
-
-// ReadLvlNTT samples a trucated gaussian polynomial in the NTT domain of moduli 0 to level
-// with variance sigma within the given bound using the Ziggurat algorithm.
-func (gaussianSampler *GaussianSampler) ReadLvlNTT(level uint64, pol *Poly) {
-	gaussianSampler.ReadLvl(level, pol)
-	gaussianSampler.context.NTT(pol, pol)
-}
-
-// ReadNTTNew samples a new trucated gaussian polynomial in the NTT domain
-// with variance sigma within the given bound using the Ziggurat algorithm
-func (gaussianSampler *GaussianSampler) ReadNTTNew() (pol *Poly) {
-	pol = gaussianSampler.ReadNew()
-	gaussianSampler.context.NTT(pol, pol)
-	return pol
 }
 
 // ReadAndAdd adds on the input polynomial a truncated gaussian polynomial of at the maximum level

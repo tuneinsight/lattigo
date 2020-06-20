@@ -114,7 +114,8 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	sk = new(SecretKey)
 
-	sk.sk = keygen.gaussianSampler.ReadNTTNew()
+	sk.sk = keygen.gaussianSampler.ReadNew()
+	keygen.ringContext.NTT(sk.sk, sk.sk)
 	return sk
 }
 
@@ -127,7 +128,8 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	ternarySampler := ring.NewTernarySampler(prng, keygen.ringContext, p, true)
 
 	sk = new(SecretKey)
-	sk.sk = ternarySampler.ReadNewNTT()
+	sk.sk = ternarySampler.ReadNew()
+	keygen.ringContext.NTT(sk.sk, sk.sk)
 	return sk
 }
 
@@ -140,7 +142,8 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
 	ternarySampler := ring.NewTernarySamplerSparse(prng, keygen.ringContext, hw, true)
 
 	sk = new(SecretKey)
-	sk.sk = ternarySampler.ReadNewNTT()
+	sk.sk = ternarySampler.ReadNew()
+	keygen.ringContext.NTT(sk.sk, sk.sk)
 	return sk
 }
 
@@ -175,7 +178,8 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
-	pk.pk[0] = keygen.gaussianSampler.ReadNTTNew()
+	pk.pk[0] = keygen.gaussianSampler.ReadNew()
+	ringContext.NTT(pk.pk[0], pk.pk[0])
 	pk.pk[1] = keygen.uniformSampler.ReadNew()
 
 	ringContext.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
@@ -332,7 +336,8 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNTTNew()
+		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNew()
+		context.NTT(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 		context.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)

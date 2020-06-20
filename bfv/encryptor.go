@@ -195,7 +195,8 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	if fast {
 		ringContext = encryptor.bfvContext.contextQ
 
-		encryptor.ternarySamplerQ.ReadNTT(encryptor.polypool[2])
+		encryptor.ternarySamplerQ.Read(encryptor.polypool[2])
+		ringContext.NTT(encryptor.polypool[2], encryptor.polypool[2])
 
 		ringContext.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 		ringContext.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
@@ -214,7 +215,8 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringContext = encryptor.bfvContext.contextQP
 
 		// u
-		encryptor.ternarySamplerQP.ReadNTT(encryptor.polypool[2])
+		encryptor.ternarySamplerQP.Read(encryptor.polypool[2])
+		ringContext.NTT(encryptor.polypool[2], encryptor.polypool[2])
 
 		// ct[0] = pk[0]*u
 		// ct[1] = pk[1]*u

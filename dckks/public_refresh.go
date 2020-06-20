@@ -88,11 +88,13 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 	context.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
 
 	// h0 = sk*c1 + mask + e0
-	refreshProtocol.gaussianSampler.ReadNTT(refreshProtocol.tmp)
+	refreshProtocol.gaussianSampler.Read(refreshProtocol.tmp)
+	context.NTT(refreshProtocol.tmp, refreshProtocol.tmp)
 	context.AddLvl(levelStart, shareDecrypt, refreshProtocol.tmp, shareDecrypt)
 
 	// h1 = sk*a + mask + e1
-	refreshProtocol.gaussianSampler.ReadNTT(refreshProtocol.tmp)
+	refreshProtocol.gaussianSampler.Read(refreshProtocol.tmp)
+	context.NTT(refreshProtocol.tmp, refreshProtocol.tmp)
 	context.Add(shareRecrypt, refreshProtocol.tmp, shareRecrypt)
 
 	// h1 = -sk*c1 - mask - e0

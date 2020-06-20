@@ -100,7 +100,8 @@ func main() {
 	for i := range P {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
-		pi.rlkEphemSk = ternarySampler.ReadNewNTT()
+		pi.rlkEphemSk = ternarySampler.ReadNew()
+		contextKeys.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for i := range pi.input {
 			if rand.Float32() > 0.3 || i == 4 {

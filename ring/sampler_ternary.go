@@ -13,6 +13,7 @@ type baseSampler struct {
 	context *Context
 }
 
+// TernarySampler is the state of a polynomial sampler in the ternary distribution.
 type TernarySampler struct {
 	baseSampler
 	matrixProba  [2][precision - 1]uint8
@@ -22,8 +23,9 @@ type TernarySampler struct {
 	sample       func(poly *Poly)
 }
 
-// NewTernarySampler creates a new instance of TernarySampler.
-// Accepts a PRNG and context and samples different kinds of ternary polynomials
+// NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
+// parameters: p is the probability of a coefficient being 0, (1-p)/2 is the probability of 1 and -1. If montgomery
+// is set to true, polynomials read from this sampler are in Montgomery form.
 func NewTernarySampler(prng utils.PRNG, context *Context, p float64, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
 	ternarySampler.context = context
@@ -40,6 +42,9 @@ func NewTernarySampler(prng utils.PRNG, context *Context, p float64, montgomery 
 	return ternarySampler
 }
 
+// NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the desired
+// hamming weight for the output polynomials. If montgomery is set to true, polynomials read from this sampler
+// are in Montgomery form.
 func NewTernarySamplerSparse(prng utils.PRNG, context *Context, hw uint64, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
 	ternarySampler.context = context
@@ -52,10 +57,12 @@ func NewTernarySamplerSparse(prng utils.PRNG, context *Context, hw uint64, montg
 	return ternarySampler
 }
 
+// Read samples a polynomial into pol.
 func (ts *TernarySampler) Read(pol *Poly) {
 	ts.sample(pol)
 }
 
+// ReadNew allocates and samples a polynomial.
 func (ts *TernarySampler) ReadNew() (pol *Poly) {
 	pol = ts.context.NewPoly()
 	ts.sample(pol)

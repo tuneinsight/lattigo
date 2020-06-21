@@ -32,7 +32,7 @@ func (b *BootParams) Gen() error { // TODO "Generate" ?
 		panic("BootParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
 	}
 
-	b.SinDepth = uint64(math.Ceil(math.Log2(float64(b.SinDeg))) + float64(b.SinRescal) + 1)
+	b.SinDepth = uint64(math.Ceil(math.Log2(float64(b.SinDeg))) + float64(b.SinRescal))
 
 	return b.Parameters.Gen()
 }
@@ -165,7 +165,7 @@ var BootstrappParams = []*BootParams{
 				0xfffffffff5a0001,
 				0x1000000000b00001,
 				0x1000000000ce0001,
-				0x7fffffffaa0001,
+				0x7fffffffaa0001, 
 				0x800000005e0001,
 				0x7fffffff7e0001,
 				0x7fffffff380001,
@@ -227,7 +227,7 @@ var BootstrappParams = []*BootParams{
 	// 15 : 19.5
 	{Parameters: Parameters{
 		LogN:     16,
-		LogSlots: 15,
+		LogSlots: 10,
 		LogModuli: LogModuli{
 			LogQi: []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53, 53},
 			LogPi: []uint64{61, 61, 61, 61, 61},

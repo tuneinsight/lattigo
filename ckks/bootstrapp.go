@@ -229,7 +229,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 		evaluator.Add(res, tmp, res)
 	}
 
-	log.Printf("%d + %d KeySwitch at level %d\n", len(rotations)-1, tot, vec.Level())
+	//log.Printf("%d + %d KeySwitch at level %d\n", len(rotations)-1, tot, vec.Level())
 
 	return res
 }

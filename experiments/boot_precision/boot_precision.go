@@ -137,11 +137,11 @@ func formatParams(params, succ int, hw, logSlot uint64) string {
 func formatSlotCount(stats []ckks.PrecisionStats, wReal, wImag io.Writer) {
 	for logSlot, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, real(prec.MedianPrecision), real(prec.MaxPrecision - prec.MedianPrecision), real(prec.MedianPrecision - prec.MinPrecision))
+		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, real(prec.MedianPrecision), real(prec.MaxPrecision-prec.MedianPrecision), real(prec.MedianPrecision-prec.MinPrecision))
 	}
 	for logSlot, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, real(prec.MedianPrecision), real(prec.MaxPrecision - prec.MedianPrecision), real(prec.MedianPrecision - prec.MinPrecision))
+		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, real(prec.MedianPrecision), real(prec.MaxPrecision-prec.MedianPrecision), real(prec.MedianPrecision-prec.MinPrecision))
 	}
 }
 
@@ -161,17 +161,17 @@ func formatSlotDist(stats []ckks.PrecisionStats, logSlot uint64, wReal, wImag io
 func formatSuccessive(stats []ckks.PrecisionStats, wReal, wImag io.Writer) {
 	for i, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, real(prec.MedianPrecision), real(prec.MaxPrecision - prec.MedianPrecision), real(prec.MedianPrecision - prec.MinPrecision))
+		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, real(prec.MedianPrecision), real(prec.MaxPrecision-prec.MedianPrecision), real(prec.MedianPrecision-prec.MinPrecision))
 	}
 	for i, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, imag(prec.MedianPrecision), imag(prec.MaxPrecision - prec.MedianPrecision), imag(prec.MedianPrecision - prec.MinPrecision))
+		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", i, imag(prec.MedianPrecision), imag(prec.MaxPrecision-prec.MedianPrecision), imag(prec.MedianPrecision-prec.MinPrecision))
 	}
 }
 
 func output(out io.Writer, exp string, stats []ckks.PrecisionStats, makePlot bool, rReal, rImag *bytes.Buffer) {
 	if makePlot {
-		t := template.Must(template.ParseFiles("tpl"+string(os.PathSeparator)+exp+".tex.tpl"))
+		t := template.Must(template.ParseFiles("tpl" + string(os.PathSeparator) + exp + ".tex.tpl"))
 		err := t.Execute(out, struct {
 			DataReal string
 			DataImag string

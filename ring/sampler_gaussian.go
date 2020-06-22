@@ -1,94 +1,101 @@
 package ring
 
 import (
-	"crypto/rand"
 	"encoding/binary"
+	"github.com/ldsec/lattigo/utils"
 	"math"
 )
 
-// SampleGaussianLvl samples a truncated gaussian polynomial with variance
-// sigma of moduli 0 to level within the given bound using the Ziggurat algorithm.
-func (context *Context) SampleGaussianLvl(level uint64, pol *Poly, sigma float64, bound uint64) {
+// GaussianSampler is the state of a truncated Gaussian polynomial sampler.
+type GaussianSampler struct {
+	baseSampler
+	randomBufferN []byte
+	ptr           uint64
+	sigma         float64
+	bound         uint64
+}
+
+// NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
+// Gaussian distribution parameters. Sigma is the desired variance and bound is the maximum coefficient norm in absolute
+// value.
+func NewGaussianSampler(prng utils.PRNG, context *Context, sigma float64, bound uint64) *GaussianSampler {
+	gaussianSampler := new(GaussianSampler)
+	gaussianSampler.context = context
+	gaussianSampler.prng = prng
+	gaussianSampler.randomBufferN = make([]byte, context.N)
+	gaussianSampler.ptr = 0
+	gaussianSampler.sigma = sigma
+	gaussianSampler.bound = bound
+	return gaussianSampler
+}
+
+// Read samples a polynomial at the maximum level into pol
+func (gaussianSampler *GaussianSampler) Read(pol *Poly) {
+	gaussianSampler.ReadLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
+}
+
+// ReadNew samples a new truncated gaussian polynomial with
+// variance sigma within the given bound using the Ziggurat algorithm.
+func (gaussianSampler *GaussianSampler) ReadNew() (pol *Poly) {
+	pol = gaussianSampler.context.NewPoly()
+	gaussianSampler.Read(pol)
+	return pol
+}
+
+// ReadLvl samples a polynomial at the given level into pol.
+func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly) {
 
 	var coeffFlo float64
 	var coeffInt uint64
 	var sign uint64
-	var ptr uint64
 
-	randomBytes := make([]byte, context.N)
+	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
 
-	if _, err := rand.Read(randomBytes); err != nil {
-		panic("crypto rand error")
-	}
-
-	for i := uint64(0); i < context.N; i++ {
+	for i := uint64(0); i < gaussianSampler.context.N; i++ {
 
 		for {
-			coeffFlo, sign, randomBytes, ptr = normFloat64(ptr, randomBytes)
+			coeffFlo, sign = gaussianSampler.normFloat64()
 
-			if coeffInt = uint64(coeffFlo * sigma); coeffInt <= bound {
+			if coeffInt = uint64(coeffFlo * gaussianSampler.sigma); coeffInt <= gaussianSampler.bound {
 				break
 			}
 		}
 
-		for j, qi := range context.Modulus[:level+1] {
+		for j, qi := range gaussianSampler.context.Modulus[:level+1] {
 			pol.Coeffs[j][i] = (coeffInt * sign) | (qi-coeffInt)*(sign^1)
 		}
 	}
 }
 
-// SampleGaussianAndAddLvl adds on the input polynomial a truncated gaussian polynomial of moduli 0 to level
+// ReadAndAdd adds on the input polynomial a truncated gaussian polynomial of at the maximum level
 // with variance sigma within the given bound using the Ziggurat algorithm.
-func (context *Context) SampleGaussianAndAddLvl(level uint64, pol *Poly, sigma float64, bound uint64) {
+func (gaussianSampler *GaussianSampler) ReadAndAdd(pol *Poly) {
+	gaussianSampler.ReadAndAddLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
+}
+
+// ReadAndAddLvl samples and adds a polynomial at the given level directly into pol. pol must be at the given level.
+func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level uint64, pol *Poly) {
 
 	var coeffFlo float64
 	var coeffInt uint64
 	var sign uint64
-	var ptr uint64
 
-	randomBytes := make([]byte, context.N)
+	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
 
-	if _, err := rand.Read(randomBytes); err != nil {
-		panic("crypto rand error")
-	}
-
-	for i := uint64(0); i < context.N; i++ {
+	for i := uint64(0); i < gaussianSampler.context.N; i++ {
 
 		for {
-			coeffFlo, sign, randomBytes, ptr = normFloat64(ptr, randomBytes)
+			coeffFlo, sign = gaussianSampler.normFloat64()
 
-			if coeffInt = uint64(coeffFlo * sigma); coeffInt <= bound {
+			if coeffInt = uint64(coeffFlo * gaussianSampler.sigma); coeffInt <= gaussianSampler.bound {
 				break
 			}
 		}
 
-		for j, qi := range context.Modulus[:level+1] {
+		for j, qi := range gaussianSampler.context.Modulus[:level+1] {
 			pol.Coeffs[j][i] = CRed(pol.Coeffs[j][i]+((coeffInt*sign)|(qi-coeffInt)*(sign^1)), qi)
 		}
 	}
-}
-
-// SampleGaussianNew samples a new truncated gaussian polynomial with
-// variance sigma within the given bound using the Ziggurat algorithm.
-func (context *Context) SampleGaussianNew(sigma float64, bound uint64) (pol *Poly) {
-	pol = context.NewPoly()
-	context.SampleGaussianLvl(uint64(len(context.Modulus)-1), pol, sigma, bound)
-	return
-}
-
-// SampleGaussianNTTLvl samples a trucated gaussian polynomial in the NTT domain of moduli 0 to level
-// with variance sigma within the given bound using the Ziggurat algorithm.
-func (context *Context) SampleGaussianNTTLvl(level uint64, pol *Poly, sigma float64, bound uint64) {
-	context.SampleGaussianLvl(level, pol, sigma, bound)
-	context.NTT(pol, pol)
-}
-
-// SampleGaussianNTTNew samples a new trucated gaussian polynomial in the NTT domain
-// with variance sigma within the given bound using the Ziggurat algorithm
-func (context *Context) SampleGaussianNTTNew(sigma float64, bound uint64) (pol *Poly) {
-	pol = context.SampleGaussianNew(sigma, bound)
-	context.NTT(pol, pol)
-	return
 }
 
 // randFloat64 returns a uniform float64 value between 0 and 1
@@ -104,19 +111,17 @@ func randFloat64(randomBytes []byte) float64 {
 //
 //  sample = NormFloat64() * desiredStdDev + desiredMean
 // Algorithm adapted from https://golang.org/src/math/rand/normal.go
-func normFloat64(ptr uint64, randomBytes []byte) (float64, uint64, []byte, uint64) {
+func (gaussianSampler *GaussianSampler) normFloat64() (float64, uint64) {
 
 	for {
 
-		if ptr == uint64(len(randomBytes)) {
-			if _, err := rand.Read(randomBytes); err != nil {
-				panic("crypto rand error")
-			}
-			ptr = 0
+		if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
+			gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+			gaussianSampler.ptr = 0
 		}
 
-		juint32 := binary.BigEndian.Uint32(randomBytes[ptr : ptr+4])
-		ptr += 8
+		juint32 := binary.BigEndian.Uint32(gaussianSampler.randomBufferN[gaussianSampler.ptr : gaussianSampler.ptr+4])
+		gaussianSampler.ptr += 8
 
 		j := int32(juint32 & 0x7fffffff)
 		sign := uint64(juint32 >> 31)
@@ -129,7 +134,7 @@ func normFloat64(ptr uint64, randomBytes []byte) (float64, uint64, []byte, uint6
 		if uint32(j) < kn[i] {
 
 			// This case should be hit better than 99% of the time.
-			return x, sign, randomBytes, ptr
+			return x, sign
 		}
 
 		// 2
@@ -138,46 +143,41 @@ func normFloat64(ptr uint64, randomBytes []byte) (float64, uint64, []byte, uint6
 			// This extra work is only required for the base strip.
 			for {
 
-				if ptr == uint64(len(randomBytes)) {
-					if _, err := rand.Read(randomBytes); err != nil {
-						panic("crypto rand error")
-					}
-					ptr = 0
+				if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
+					gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+					gaussianSampler.ptr = 0
 				}
 
-				x = -math.Log(randFloat64(randomBytes[ptr:ptr+8])) * (1.0 / 3.442619855899)
-				ptr += 8
+				x = -math.Log(randFloat64(gaussianSampler.randomBufferN[gaussianSampler.ptr:gaussianSampler.ptr+8])) * (1.0 / 3.442619855899)
+				gaussianSampler.ptr += 8
 
-				if ptr == uint64(len(randomBytes)) {
-					if _, err := rand.Read(randomBytes); err != nil {
-						panic("crypto rand error")
-					}
-					ptr = 0
+				if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
+					gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+					gaussianSampler.ptr = 0
 				}
 
-				y := -math.Log(randFloat64(randomBytes[ptr : ptr+8]))
-				ptr += 8
+				y := -math.Log(randFloat64(gaussianSampler.randomBufferN[gaussianSampler.ptr : gaussianSampler.ptr+8]))
+				gaussianSampler.ptr += 8
 
 				if y+y >= x*x {
 					break
 				}
 			}
 
-			return x + 3.442619855899, sign, randomBytes, ptr
+			return x + 3.442619855899, sign
 		}
 
-		if ptr == uint64(len(randomBytes)) {
-			if _, err := rand.Read(randomBytes); err != nil {
-				panic("crypto rand error")
-			}
-			ptr = 0
+		if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
+			gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+			gaussianSampler.ptr = 0
 		}
 
 		// 3
-		if fn[i]+float32(randFloat64(randomBytes[ptr:ptr+8]))*(fn[i-1]-fn[i]) < float32(math.Exp(-0.5*x*x)) {
-			return x, sign, randomBytes, ptr + 8
+		if fn[i]+float32(randFloat64(gaussianSampler.randomBufferN[gaussianSampler.ptr:gaussianSampler.ptr+8]))*(fn[i-1]-fn[i]) < float32(math.Exp(-0.5*x*x)) {
+			gaussianSampler.ptr += 8
+			return x, sign
 		}
-		ptr += 8
+		gaussianSampler.ptr += 8
 	}
 }
 

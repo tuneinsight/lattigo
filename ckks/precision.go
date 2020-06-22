@@ -8,7 +8,7 @@ import (
 
 type PrecisionStats struct {
 	MaxDelta, MinDelta, MaxPrecision, MinPrecision, MeanDelta, MeanPrecision, MedianDelta, MedianPrecision complex128
-	RealDist, ImagDist                                                     []struct {
+	RealDist, ImagDist                                                                                     []struct {
 		Prec  float64
 		Count int
 	}

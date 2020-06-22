@@ -8,12 +8,14 @@ import (
 )
 
 type PermuteProtocol struct {
-	context       *dbfvContext
-	indexMatrix   []uint64
-	tmp1          *ring.Poly
-	tmp2          *ring.Poly
-	hP            *ring.Poly
-	baseconverter *ring.FastBasisExtender
+	context         *dbfvContext
+	indexMatrix     []uint64
+	tmp1            *ring.Poly
+	tmp2            *ring.Poly
+	hP              *ring.Poly
+	baseconverter   *ring.FastBasisExtender
+	gaussianSampler *ring.GaussianSampler
+	uniformSampler  *ring.UniformSampler
 }
 
 func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtocol) {
@@ -56,6 +58,14 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 
 	refreshProtocol.indexMatrix = indexMatrix
 
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma, uint64(6*params.Sigma))
+	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.contextT)
+
 	return
 }
 
@@ -83,7 +93,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	contextQ.MulScalarBigint(share.RefreshShareDecrypt, contextP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
-	contextKeys.SampleGaussianLvl(uint64(len(contextKeys.Modulus)-1), pp.tmp1, 3.19, 19) // TODO : add smudging noise
+	pp.gaussianSampler.ReadLvl(uint64(len(contextKeys.Modulus)-1), pp.tmp1)
 	contextQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(pp.context.contextQP.Modulus)); x, i = x+1, i+1 {
@@ -104,7 +114,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	contextKeys.InvNTT(pp.tmp2, pp.tmp2)
 
 	// h1 = s*a + e'
-	contextKeys.SampleGaussianAndAddLvl(uint64(len(contextKeys.Modulus)-1), pp.tmp2, 3.19, 19)
+	pp.gaussianSampler.ReadAndAdd(pp.tmp2)
 
 	// h1 = (-s*a + e')/P
 	pp.baseconverter.ModDownPQ(level, pp.tmp2, share.RefreshShareRecrypt)
@@ -112,7 +122,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	// mask = (uniform plaintext in [0, T-1]) * floor(Q/T)
 
 	// Mask in the time domain
-	coeffs := contextT.NewUniformPoly()
+	coeffs := pp.uniformSampler.ReadNew()
 
 	// Multiply by Q/t
 	lift(coeffs, pp.tmp1, pp.context)

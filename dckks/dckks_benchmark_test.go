@@ -3,6 +3,7 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"testing"
 )
 
@@ -26,10 +27,13 @@ func benchPublicKeyGen(b *testing.B) {
 		params := gendckksTestContext(parameters)
 
 		sk0Shards := params.sk0Shards
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
-		crpGenerator.Seed([]byte{})
-		crp := crpGenerator.ClockUniformNew()
+		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
+		crp := crpGenerator.ReadNew()
 
 		type Party struct {
 			*CKGProtocol
@@ -79,15 +83,18 @@ func benchRelinKeyGen(b *testing.B) {
 
 		p := new(Party)
 		p.RKGProtocol = NewEkgProtocol(parameters)
-		p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
+		p.u = p.RKGProtocol.NewEphemeralKey()
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
-		crpGenerator := ring.NewCRPGenerator(nil, params.dckksContext.contextQP)
-		crpGenerator.Seed([]byte{})
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
+		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
 		crp := make([]*ring.Poly, parameters.Beta)
 
 		for i := uint64(0); i < parameters.Beta; i++ {
-			crp[i] = crpGenerator.ClockUniformNew()
+			crp[i] = crpGenerator.ReadNew()
 		}
 
 		b.Run(testString("Round1Gen/", parties, parameters), func(b *testing.B) {
@@ -305,13 +312,16 @@ func benchRotKeyGen(b *testing.B) {
 		p.RTGProtocol = NewRotKGProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShare()
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, contextKeys)
-		crpGenerator.Seed([]byte{})
+		crpGenerator := ring.NewUniformSampler(prng, contextKeys)
 		crp := make([]*ring.Poly, parameters.Beta)
 
 		for i := uint64(0); i < parameters.Beta; i++ {
-			crp[i] = crpGenerator.ClockUniformNew()
+			crp[i] = crpGenerator.ReadNew()
 		}
 
 		mask := uint64((contextKeys.N >> 1) - 1)
@@ -364,15 +374,24 @@ func benchRefresh(b *testing.B) {
 		p.RefreshProtocol = NewRefreshProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares(levelStart)
+		keyedPRNG, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, contextQ)
-		crpGenerator.Seed([]byte{})
-		crp := crpGenerator.ClockUniformNew()
+		crpGenerator := ring.NewUniformSampler(keyedPRNG, contextQ)
+		crp := crpGenerator.ReadNew()
 
 		ciphertext := ckks.NewCiphertextRandom(parameters, 1, levelStart, parameters.Scale)
 
-		contextQ.UniformPolyLvl(ciphertext.Level(), ciphertext.Value()[0])
-		contextQ.UniformPolyLvl(ciphertext.Level(), ciphertext.Value()[1])
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := ring.NewUniformSampler(prng, contextQ)
+
+		uniformSampler.Read(ciphertext.Value()[0])
+		uniformSampler.Read(ciphertext.Value()[1])
 
 		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {
 
@@ -420,7 +439,6 @@ func benchRefreshAndPermute(b *testing.B) {
 		params := gendckksTestContext(parameters)
 
 		sk0Shards := params.sk0Shards
-		contextQ := params.dckksContext.contextQ
 
 		levelStart := uint64(2)
 
@@ -436,19 +454,23 @@ func benchRefreshAndPermute(b *testing.B) {
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2 = p.AllocateShares(levelStart)
 
-		crpGenerator := ring.NewCRPGenerator(nil, contextQ)
-		crpGenerator.Seed([]byte{})
-		crp := crpGenerator.ClockUniformNew()
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
+
+		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
+		crp := crpGenerator.ReadNew()
 
 		ciphertext := ckks.NewCiphertextRandom(parameters, 1, levelStart, parameters.Scale)
 
-		contextQ.UniformPolyLvl(levelStart, ciphertext.Value()[0])
-		contextQ.UniformPolyLvl(levelStart, ciphertext.Value()[1])
+		crpGenerator.Readlvl(levelStart, ciphertext.Value()[0])
+		crpGenerator.Readlvl(levelStart, ciphertext.Value()[1])
 
 		permutation := make([]uint64, parameters.Slots)
 
 		for i := range permutation {
-			permutation[i] = ring.RandUniform(parameters.Slots, parameters.Slots-1)
+			permutation[i] = ring.RandUniform(prng, parameters.Slots, parameters.Slots-1)
 		}
 
 		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {

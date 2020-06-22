@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ldsec/lattigo/utils"
 	"math"
 	"math/bits"
 
@@ -83,8 +84,12 @@ func obliviousRiding() {
 		nbDrivers, maxvalue, maxvalue)
 	fmt.Println()
 
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
 	// Rider coordinates [x, y, x, y, ....., x, y]
-	riderPosX, riderPosY := ring.RandUniform(maxvalue, mask), ring.RandUniform(maxvalue, mask)
+	riderPosX, riderPosY := ring.RandUniform(prng, maxvalue, mask), ring.RandUniform(prng, maxvalue, mask)
 
 	Rider := make([]uint64, 1<<params.LogN)
 	for i := uint64(0); i < nbDrivers; i++ {
@@ -101,8 +106,8 @@ func obliviousRiding() {
 	driversPlaintexts := make([]*bfv.Plaintext, nbDrivers)
 	for i := uint64(0); i < nbDrivers; i++ {
 		driversData[i] = make([]uint64, 1<<params.LogN)
-		driversData[i][(i << 1)] = ring.RandUniform(maxvalue, mask)
-		driversData[i][(i<<1)+1] = ring.RandUniform(maxvalue, mask)
+		driversData[i][(i << 1)] = ring.RandUniform(prng, maxvalue, mask)
+		driversData[i][(i<<1)+1] = ring.RandUniform(prng, maxvalue, mask)
 		driversPlaintexts[i] = bfv.NewPlaintext(params)
 		encoder.EncodeUint(driversData[i], driversPlaintexts[i])
 	}

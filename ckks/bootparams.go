@@ -165,7 +165,7 @@ var BootstrappParams = []*BootParams{
 				0xfffffffff5a0001,
 				0x1000000000b00001,
 				0x1000000000ce0001,
-				0x7fffffffaa0001, 
+				0x7fffffffaa0001,
 				0x800000005e0001,
 				0x7fffffff7e0001,
 				0x7fffffff380001,

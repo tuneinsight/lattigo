@@ -3,17 +3,19 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"math/big"
 )
 
 // RefreshProtocol is a struct storing the parameters for the Refresh protocol.
 type PermuteProtocol struct {
-	dckksContext *dckksContext
-	encoder      ckks.EncoderBigComplex
-	tmp          *ring.Poly
-	maskBigint   []*big.Int
-	maskFloat    []*big.Float
-	maskComplex  []*ring.Complex
+	dckksContext    *dckksContext
+	encoder         ckks.EncoderBigComplex
+	tmp             *ring.Poly
+	maskBigint      []*big.Int
+	maskFloat       []*big.Float
+	maskComplex     []*ring.Complex
+	gaussianSampler *ring.GaussianSampler
 }
 
 // NewRefreshProtocol creates a new instance of the Refresh protocol.
@@ -43,6 +45,12 @@ func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
 
 		pp.maskComplex[i] = new(ring.Complex)
 	}
+
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	pp.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQ, params.Sigma, uint64(6*params.Sigma))
 
 	return
 }
@@ -98,7 +106,8 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 	// h0 = sk*c1 + mask
 	context.MulCoeffsMontgomeryAndAddLvl(levelStart, sk, ciphertext.Value()[1], shareDecrypt)
 	// h0 = sk*c1 + mask + e0
-	context.SampleGaussianNTTLvl(uint64(len(context.Modulus)-1), pp.tmp, 3.19, 19)
+	pp.gaussianSampler.Read(pp.tmp)
+	context.NTT(pp.tmp, pp.tmp)
 	context.AddLvl(levelStart, shareDecrypt, pp.tmp, shareDecrypt)
 
 	// Permutes only the (sparse) plaintext coefficients of h1
@@ -127,10 +136,11 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 	context.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
 
 	// h1 = sk*a + mask + e1
-	context.SampleGaussianNTTLvl(uint64(len(context.Modulus)-1), pp.tmp, 3.19, 19)
+	pp.gaussianSampler.Read(pp.tmp)
+	context.NTT(pp.tmp, pp.tmp)
 	context.Add(shareRecrypt, pp.tmp, shareRecrypt)
 
-	// h1 = -sk*c1 - mask - e0
+	// h1 = -sk*c1 - mask - e1
 	context.Neg(shareRecrypt, shareRecrypt)
 
 	pp.tmp.Zero()

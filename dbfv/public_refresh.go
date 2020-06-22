@@ -4,16 +4,19 @@ import (
 	"encoding/binary"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	//"fmt"
 )
 
 // RefreshProtocol is a struct storing the relevant parameters for the Refresh protocol.
 type RefreshProtocol struct {
-	context       *dbfvContext
-	tmp1          *ring.Poly
-	tmp2          *ring.Poly
-	hP            *ring.Poly
-	baseconverter *ring.FastBasisExtender
+	context         *dbfvContext
+	tmp1            *ring.Poly
+	tmp2            *ring.Poly
+	hP              *ring.Poly
+	baseconverter   *ring.FastBasisExtender
+	gaussianSampler *ring.GaussianSampler
+	uniformSampler  *ring.UniformSampler
 }
 
 // RefreshShareDecrypt is a struct storing the decrpytion share.
@@ -92,6 +95,13 @@ func NewRefreshProtocol(params *bfv.Parameters) (refreshProtocol *RefreshProtoco
 
 	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.contextQ, context.contextP)
 
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma, uint64(6*params.Sigma))
+	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.contextT)
+
 	return
 }
 
@@ -107,7 +117,6 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	level := uint64(len(ciphertext.Value()[1].Coeffs) - 1)
 
 	contextQ := rfp.context.contextQ
-	contextT := rfp.context.contextT
 	contextKeys := rfp.context.contextQP
 	contextP := rfp.context.contextP
 
@@ -121,7 +130,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	contextQ.MulScalarBigint(share.RefreshShareDecrypt, contextP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
-	contextKeys.SampleGaussianLvl(uint64(len(contextKeys.Modulus)-1), rfp.tmp1, 3.19, 19) // TODO : add smudging noise
+	rfp.gaussianSampler.ReadLvl(uint64(len(contextKeys.Modulus)-1), rfp.tmp1) // TODO : add smudging noise
 	contextQ.Add(share.RefreshShareDecrypt, rfp.tmp1, share.RefreshShareDecrypt)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(rfp.context.contextQP.Modulus)); x, i = x+1, i+1 {
@@ -142,13 +151,13 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	contextKeys.InvNTT(rfp.tmp2, rfp.tmp2)
 
 	// h1 = s*a + e'
-	contextKeys.SampleGaussianAndAddLvl(uint64(len(contextKeys.Modulus)-1), rfp.tmp2, 3.19, 19)
+	rfp.gaussianSampler.ReadAndAdd(rfp.tmp2)
 
 	// h1 = (-s*a + e')/P
 	rfp.baseconverter.ModDownPQ(level, rfp.tmp2, share.RefreshShareRecrypt)
 
 	// mask = (uniform plaintext in [0, T-1]) * floor(Q/T)
-	coeffs := contextT.NewUniformPoly()
+	coeffs := rfp.uniformSampler.ReadNew()
 	lift(coeffs, rfp.tmp1, rfp.context)
 
 	// h0 = (s*ct[1]*P + e)/P + mask

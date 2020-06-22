@@ -1,10 +1,49 @@
+
 # Changelog
 All notable changes to this project will be documented in this file. 
 
 ## [Unreleased]
 ### Added
-- Bootstrapping for CKKS.
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
+
+## [1.4.0] - 2020-06-15
+
+### Added
+- BFV/CKKS : added encrypt fast (directly in Q without the rescaling by P).
+- CKKS : added full RNS scale invariant bootstrapping.
+- CKKS : added parameterized tests for a range of experiments.
+- CKKS : added arbitrary precision encoding/decoding.
+- CKKS : added scale invariant polynomial evaluation.
+- CKKS : added encoding/decoding for coefficient packing.
+- CKKS : the user can now choose to encode plaintext in or out of the NTT domain (the second option leads to slightly faster encryptions).
+- CKKS : added secret-key gen with error distribution.
+- DBFV : added collective refresh with arbitrary permutation/linear transformation.
+- DCKKS : added collective refresh with arbitrary permutation/linear transformation.
+- RING : added arbitrary precision complex arithmetic, including cos and sin functions.
+- RING : added polynomial interpolation.
+- RING : added polynomial inversion.
+
+### Changed 
+- ALL : all tests now use "require"
+- BFV/CKKS : parameters without P can be used, but the key-switching is disabled.
+- BFV/CKKS : parameters do not use anymore methods to access internal values.
+- CKKS : now uses new rotations keys optimized for hoisting rotations of the form phi^{-1}(-as1 + phi(s0) + e, a).
+- CKKS : simplified the code of the hybrid key-switching (does not affect user experience).
+- CKKS : encoding/decoding at level 0 is now 500% faster.
+- RING : improved primes finding.
+- RING : all Gaussian sampling now uses Ziggurat sampling.
+- RING : revamp of the polynomial sampler to make them more memory efficient, consistent user friendly and enable parallel sampling.
+- UTILS : complete revamp of the PRNG (Blake2b XOF), to make it more user friendly and consistent.
+
+### Removed
+- BFV/CKKS : Parameters API generation GenFromLogModuli() and GenFromModuli() have been removed and replaced by Gen().
+
+### Fixes
+- BFV : fixed multiplication that was failing is #Qi != #QMul.
+- BFV : fixed a mempool corruption when encrypting from SK.
+- CKKS : mulrelin now always returns a fully reduced polynomial.
+- RING : prevented a rare case of uint64 overflow during prime sampling.
+- RING : prevented a rare case where two identical primes could be returned when sampling primes.
 
 ## [1.3.1] - 2020-02-26
 ### Added
@@ -13,7 +52,7 @@ All notable changes to this project will be documented in this file.
 - BFV/CKKS : Parameters can now be created without the modulus P, but this disables all key-switching operations.
 - CKKS : added tests for hoisted rotations.
 - RinG : added benchmarks for a NTT using purely Barrett reduction for comparison purposes.
-### Changed :
+### Changed 
 - BFV/CKKS : changed the switching keys from (-as1 + (s0-s1) + e, a) to (-as1 + s0 + e, a). This does not affect the user expercience as it only changes what is happening in the background, however older Rotations and KeySwitching keys will induce wrong results and will need to be re-generated.
 ### Fixes
 - BFV : Fixed EncryptFromSK that was not correctly wiping the memory pool before using it, which lead to back encryptions.

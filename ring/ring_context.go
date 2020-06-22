@@ -38,9 +38,6 @@ type Context struct {
 
 	rescaleParams [][]uint64
 
-	matrixTernary           [][]uint64
-	matrixTernaryMontgomery [][]uint64
-
 	//NTT Parameters
 	psiMont    []uint64 //2nth primitive root in Montgomery form
 	psiInvMont []uint64 //2nth inverse primitive root in Montgomery form
@@ -106,21 +103,6 @@ func (context *Context) SetParameters(N uint64, Modulus []uint64) {
 		}
 	}
 
-	context.matrixTernary = make([][]uint64, len(context.Modulus))
-	context.matrixTernaryMontgomery = make([][]uint64, len(context.Modulus))
-
-	for i, Qi := range context.Modulus {
-
-		context.matrixTernary[i] = make([]uint64, 3)
-		context.matrixTernary[i][0] = 0
-		context.matrixTernary[i][1] = 1
-		context.matrixTernary[i][2] = Qi - 1
-
-		context.matrixTernaryMontgomery[i] = make([]uint64, 3)
-		context.matrixTernaryMontgomery[i][0] = 0
-		context.matrixTernaryMontgomery[i][1] = MForm(1, Qi, context.bredParams[i])
-		context.matrixTernaryMontgomery[i][2] = MForm(Qi-1, Qi, context.bredParams[i])
-	}
 }
 
 // GenNTTParams checks that N has been correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).

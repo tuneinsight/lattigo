@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"github.com/ldsec/lattigo/utils"
 	"math/bits"
 )
 
@@ -94,12 +95,17 @@ func IsPrime(num uint64) bool {
 	var mask, b uint64
 	mask = (1 << uint64(bits.Len64(num))) - 1
 
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
 	for trial := 0; trial < 50; trial++ {
 
-		b = RandUniform(num-1, mask)
+		b = RandUniform(prng, num-1, mask)
 
 		for b < 2 {
-			b = RandUniform(num-1, mask)
+			b = RandUniform(prng, num-1, mask)
 		}
 
 		x := ModExp(b, s, num)

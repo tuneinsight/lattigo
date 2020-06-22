@@ -4,6 +4,7 @@ import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/dbfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/rand"
 	"os"
@@ -66,11 +67,16 @@ func main() {
 
 	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN, append(params.Qi, params.Pi...))
 
-	crsGen := ring.NewCRPGenerator([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, contextKeys)
-	crs := crsGen.ClockUniformNew()
+	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+	if err != nil {
+		panic(err)
+	}
+
+	crsGen := ring.NewUniformSampler(lattigoPRNG, contextKeys)
+	crs := crsGen.ReadNew()
 	crp := make([]*ring.Poly, params.Beta)
 	for i := uint64(0); i < params.Beta; i++ {
-		crp[i] = crsGen.ClockUniformNew()
+		crp[i] = crsGen.ReadNew()
 	}
 
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
@@ -84,12 +90,18 @@ func main() {
 	ckg := dbfv.NewCKGProtocol(params)
 	rkg := dbfv.NewEkgProtocol(params)
 	pcks := dbfv.NewPCKSProtocol(params, 3.19)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ternarySamplerMontgomery := ring.NewTernarySampler(prng, contextKeys, 0.5, true)
 
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
-		pi.rlkEphemSk = contextKeys.SampleTernaryMontgomeryNTTNew(1.0 / 3)
+		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
+		contextKeys.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for i := range pi.input {
 			if rand.Float32() > 0.3 || i == 4 {

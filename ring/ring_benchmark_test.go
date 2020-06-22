@@ -2,6 +2,7 @@ package ring
 
 import (
 	"fmt"
+	"github.com/ldsec/lattigo/utils"
 	"math/bits"
 	"math/rand"
 	"testing"
@@ -46,8 +47,13 @@ func benchMarshalling(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := NewUniformSampler(prng, context)
 
-		p := context.NewUniformPoly()
+		p := uniformSampler.ReadNew()
 
 		b.Run(testString("Marshal/Poly/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -78,52 +84,66 @@ func benchSampling(b *testing.B) {
 
 		pol := context.NewPoly()
 
-		crsGenerator := NewCRPGenerator(nil, context)
-		crsGenerator.Seed(nil)
-
-		b.Run(testString("Gaussian/cryptorRand/", context), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				context.SampleGaussianLvl(uint64(len(context.Modulus)-1), pol, sigma, bound)
-			}
-		})
-
 		b.Run(testString("Gaussian/PRNG/", context), func(b *testing.B) {
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			gaussianSampler := NewGaussianSampler(prng, context, sigma, bound)
 
 			for i := 0; i < b.N; i++ {
-				crsGenerator.ClockGaussian(pol, sigma, bound)
+				gaussianSampler.ReadLvl(uint64(len(context.Modulus)-1), pol)
 			}
 		})
 
 		b.Run(testString("Ternary/0.3/", context), func(b *testing.B) {
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			ternarySampler := NewTernarySampler(prng, context, 1.0/3, true)
+
 			for i := 0; i < b.N; i++ {
-				context.SampleTernary(pol, 1.0/3)
+				ternarySampler.Read(pol)
 			}
 		})
 
 		b.Run(testString("Ternary/0.5/", context), func(b *testing.B) {
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			ternarySampler := NewTernarySampler(prng, context, 0.5, true)
+
 			for i := 0; i < b.N; i++ {
-				context.SampleTernary(pol, 0.5)
+				ternarySampler.Read(pol)
 			}
 		})
 
 		b.Run(testString("Ternary/sparse128/", context), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				context.SampleTernarySparse(pol, 128)
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
 			}
-		})
+			ternarySampler := NewTernarySamplerSparse(prng, context, 128, true)
 
-		b.Run(testString("Uniform/cryptoRand/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.UniformPoly(pol)
+				ternarySampler.Read(pol)
 			}
 		})
 
 		b.Run(testString("Uniform/PRNG/", context), func(b *testing.B) {
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			uniformSampler := NewUniformSampler(prng, context)
 
 			for i := 0; i < b.N; i++ {
-				crsGenerator.ClockUniform(pol)
+				uniformSampler.Read(pol)
 			}
 		})
+
 	}
 }
 
@@ -132,8 +152,13 @@ func benchMontgomeryForm(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := NewUniformSampler(prng, context)
 
-		p := context.NewUniformPoly()
+		p := uniformSampler.ReadNew()
 
 		b.Run(testString("MForm/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -154,8 +179,13 @@ func benchNTT(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := NewUniformSampler(prng, context)
 
-		p := context.NewUniformPoly()
+		p := uniformSampler.ReadNew()
 
 		b.Run(testString("NTT/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -188,9 +218,14 @@ func benchMulCoeffs(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := NewUniformSampler(prng, context)
 
-		p0 := context.NewUniformPoly()
-		p1 := context.NewUniformPoly()
+		p0 := uniformSampler.ReadNew()
+		p1 := uniformSampler.ReadNew()
 
 		b.Run(testString("Barrett/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -222,9 +257,14 @@ func benchAddCoeffs(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := NewUniformSampler(prng, context)
 
-		p0 := context.NewUniformPoly()
-		p1 := context.NewUniformPoly()
+		p0 := uniformSampler.ReadNew()
+		p1 := uniformSampler.ReadNew()
 
 		b.Run(testString("Add/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -244,9 +284,14 @@ func benchSubCoeffs(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := NewUniformSampler(prng, context)
 
-		p0 := context.NewUniformPoly()
-		p1 := context.NewUniformPoly()
+		p0 := uniformSampler.ReadNew()
+		p1 := uniformSampler.ReadNew()
 
 		b.Run(testString("Sub/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -266,8 +311,13 @@ func benchNegCoeffs(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := NewUniformSampler(prng, context)
 
-		p0 := context.NewUniformPoly()
+		p0 := uniformSampler.ReadNew()
 
 		b.Run(testString("Neg", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -282,11 +332,16 @@ func benchMulScalar(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSampler := NewUniformSampler(prng, context)
 
-		p := context.NewUniformPoly()
+		p := uniformSampler.ReadNew()
 
-		rand1 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
-		rand2 := RandUniform(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+		rand1 := RandUniform(prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+		rand2 := RandUniform(prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
 
 		scalarBigint := NewUint(rand1)
 		scalarBigint.Mul(scalarBigint, NewUint(rand2))
@@ -313,14 +368,21 @@ func benchExtendBasis(b *testing.B) {
 
 		rescaleParams := make([]uint64, len(contextP.Modulus))
 
+		prng, err := utils.NewPRNG()
+		if err != nil {
+			panic(err)
+		}
+		uniformSamplerQ := NewUniformSampler(prng, contextQ)
+		uniformSamplerP := NewUniformSampler(prng, contextP)
+
 		for i, pi := range contextP.Modulus {
-			rescaleParams[i] = RandUniform(pi, (1<<uint64(bits.Len64(pi)-1) - 1))
+			rescaleParams[i] = RandUniform(prng, pi, (1<<uint64(bits.Len64(pi)-1) - 1))
 		}
 
 		basisExtender := NewFastBasisExtender(contextQ, contextP)
 
-		p0 := contextQ.NewUniformPoly()
-		p1 := contextP.NewUniformPoly()
+		p0 := uniformSamplerQ.ReadNew()
+		p1 := uniformSamplerP.ReadNew()
 
 		level := uint64(len(contextQ.Modulus) - 1)
 
@@ -352,11 +414,16 @@ func benchDivByLastModulus(b *testing.B) {
 		var p0 *Poly
 
 		b.Run(testString("Floor/", context), func(b *testing.B) {
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			uniformSampler := NewUniformSampler(prng, context)
 
 			for i := 0; i < b.N; i++ {
 
 				b.StopTimer()
-				p0 = context.NewUniformPoly()
+				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
 				context.DivFloorByLastModulus(p0)
@@ -364,11 +431,16 @@ func benchDivByLastModulus(b *testing.B) {
 		})
 
 		b.Run(testString("FloorNTT/", context), func(b *testing.B) {
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			uniformSampler := NewUniformSampler(prng, context)
 
 			for i := 0; i < b.N; i++ {
 
 				b.StopTimer()
-				p0 = context.NewUniformPoly()
+				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
 				context.DivFloorByLastModulusNTT(p0)
@@ -376,11 +448,16 @@ func benchDivByLastModulus(b *testing.B) {
 		})
 
 		b.Run(testString("Round/", context), func(b *testing.B) {
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			uniformSampler := NewUniformSampler(prng, context)
 
 			for i := 0; i < b.N; i++ {
 
 				b.StopTimer()
-				p0 = context.NewUniformPoly()
+				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
 				context.DivRoundByLastModulus(p0)
@@ -388,11 +465,16 @@ func benchDivByLastModulus(b *testing.B) {
 		})
 
 		b.Run(testString("RoundNTT/", context), func(b *testing.B) {
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			uniformSampler := NewUniformSampler(prng, context)
 
 			for i := 0; i < b.N; i++ {
 
 				b.StopTimer()
-				p0 = context.NewUniformPoly()
+				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
 				context.DivRoundByLastModulusNTT(p0)

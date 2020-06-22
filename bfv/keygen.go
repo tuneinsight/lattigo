@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // KeyGenerator is an interface implementing the methods of the keyGenerator.
@@ -19,9 +20,11 @@ type KeyGenerator interface {
 // keyGenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
 type keyGenerator struct {
-	params     *Parameters
-	bfvContext *bfvContext
-	polypool   *ring.Poly
+	params          *Parameters
+	bfvContext      *bfvContext
+	polypool        *ring.Poly
+	gaussianSampler *ring.GaussianSampler
+	uniformSampler  *ring.UniformSampler
 }
 
 // SecretKey is a structure that stores the SecretKey.
@@ -75,11 +78,17 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	}
 
 	bfvContext := newBFVContext(params)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
 
 	return &keyGenerator{
-		params:     params.Copy(),
-		bfvContext: bfvContext,
-		polypool:   bfvContext.contextQP.NewPoly(),
+		params:          params.Copy(),
+		bfvContext:      bfvContext,
+		polypool:        bfvContext.contextQP.NewPoly(),
+		gaussianSampler: ring.NewGaussianSampler(prng, bfvContext.contextQP, params.Sigma, uint64(6*params.Sigma)),
+		uniformSampler:  ring.NewUniformSampler(prng, bfvContext.contextQP),
 	}
 }
 
@@ -90,8 +99,15 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 
 // GenSecretkeyWithDistrib creates a new SecretKey with the distribution [(1-p)/2, p, (1-p)/2].
 func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.bfvContext.contextQP, p, true)
+
 	sk = new(SecretKey)
-	sk.sk = keygen.bfvContext.contextQP.SampleTernaryMontgomeryNTTNew(p)
+	sk.sk = ternarySamplerMontgomery.ReadNew()
+	keygen.bfvContext.contextQP.NTT(sk.sk, sk.sk)
 	return sk
 }
 
@@ -126,8 +142,10 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
-	pk.pk[0] = ringContext.SampleGaussianNTTNew(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
-	pk.pk[1] = ringContext.NewUniformPoly()
+
+	pk.pk[0] = keygen.gaussianSampler.ReadNew()
+	ringContext.NTT(pk.pk[0], pk.pk[0])
+	pk.pk[1] = keygen.uniformSampler.ReadNew()
 
 	ringContext.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
 	ringContext.Neg(pk.pk[0], pk.pk[0])
@@ -298,10 +316,11 @@ func (keygen *keyGenerator) newswitchingkey(skIn, skOut *ring.Poly) (switchkey *
 	for i := uint64(0); i < keygen.params.Beta; i++ {
 
 		// e
-		switchkey.evakey[i][0] = ringContext.SampleGaussianNTTNew(keygen.params.Sigma, uint64(6*keygen.params.Sigma))
+		switchkey.evakey[i][0] = keygen.gaussianSampler.ReadNew()
+		ringContext.NTT(switchkey.evakey[i][0], switchkey.evakey[i][0])
 		ringContext.MForm(switchkey.evakey[i][0], switchkey.evakey[i][0])
 		// a
-		switchkey.evakey[i][1] = ringContext.NewUniformPoly()
+		switchkey.evakey[i][1] = keygen.uniformSampler.ReadNew()
 
 		// e + skIn * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0

@@ -3,6 +3,7 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // CKSProtocol is a structure storing the parameters for the collective key-switching protocol.
@@ -15,7 +16,8 @@ type CKSProtocol struct {
 	tmpDelta *ring.Poly
 	hP       *ring.Poly
 
-	baseconverter *ring.FastBasisExtender
+	baseconverter   *ring.FastBasisExtender
+	gaussianSampler *ring.GaussianSampler
 }
 
 // CKSShare is a struct holding a share of the CKS protocol.
@@ -41,6 +43,11 @@ func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSPro
 	cks.hP = dckksContext.contextP.NewPoly()
 
 	cks.baseconverter = ring.NewFastBasisExtender(dckksContext.contextQ, dckksContext.contextP)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	cks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma, uint64(6*params.Sigma))
 
 	return cks
 }
@@ -67,14 +74,15 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 
 	contextQ := cks.dckksContext.contextQ
 	contextP := cks.dckksContext.contextP
-	contextKeys := cks.dckksContext.contextQP
 
 	contextQ.MulCoeffsMontgomeryLvl(ct.Level(), ct.Value()[1], skDelta, shareOut)
 
 	contextQ.MulScalarBigintLvl(ct.Level(), shareOut, contextP.ModulusBigint, shareOut)
 
 	// TODO : improve by only computing the NTT for the required primes
-	contextKeys.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), cks.tmp, cks.sigmaSmudging, uint64(6*cks.sigmaSmudging))
+	cks.gaussianSampler.Read(cks.tmp)
+	cks.dckksContext.contextQP.NTT(cks.tmp, cks.tmp)
+
 	contextQ.AddLvl(ct.Level(), shareOut, cks.tmp, shareOut)
 
 	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.dckksContext.contextQP.Modulus)); x, i = x+1, i+1 {

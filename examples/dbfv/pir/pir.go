@@ -4,6 +4,7 @@ import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/dbfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"log"
 	"os"
 	"strconv"
@@ -81,19 +82,18 @@ func main() {
 	params.T = 65537
 
 	// Common reference polynomial generator keyed with
-	// "lattigo" and seeded with "pir example".
+	// "lattigo"
 	crsGen := dbfv.NewCRPGenerator(params, []byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
-	crsGen.Seed([]byte{'p', 'i', 'r', ' ', 'e', 'x', 'a', 'm', 'p', 'l', 'e'})
 
 	// Generation of the common reference polynomials
-	crs := crsGen.ClockUniformNew()           // for the public-key
+	crs := crsGen.ReadNew()                   // for the public-key
 	crp := make([]*ring.Poly, params.Beta)    // for the relinearization keys
 	crpRot := make([]*ring.Poly, params.Beta) // for the rotation keys
 	for i := uint64(0); i < params.Beta; i++ {
-		crp[i] = crsGen.ClockUniformNew()
+		crp[i] = crsGen.ReadNew()
 	}
 	for i := uint64(0); i < params.Beta; i++ {
-		crpRot[i] = crsGen.ClockUniformNew()
+		crpRot[i] = crsGen.ReadNew()
 	}
 
 	// Collective secret key = sum(individual secret keys)
@@ -108,13 +108,19 @@ func main() {
 	kgen := bfv.NewKeyGenerator(params)
 
 	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN, append(params.Qi, params.Pi...))
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ternarySamplerMontgomery := ring.NewTernarySampler(prng, contextKeys, 0.5, true)
 
 	// Creates each party, and allocates the memory for all the shares that the protocols will need
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
 		pi.sk = kgen.GenSecretKey()
-		pi.rlkEphemSk = contextKeys.SampleTernaryMontgomeryNTTNew(1.0 / 3)
+		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
+		contextKeys.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for j := range pi.input {
 			pi.input[j] = uint64(i)

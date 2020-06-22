@@ -121,21 +121,17 @@ func newEncryptor(params *Parameters) encryptor {
 	if err != nil {
 		panic(err)
 	}
-	gaussianSamplerQ := ring.NewGaussianSampler(prng, ctx.contextQ, params.Sigma, uint64(6*params.Sigma))
-	uniformSamplerQ := ring.NewUniformSampler(prng, ctx.contextQ)
-	gaussianSamplerQP := ring.NewGaussianSampler(prng, ctx.contextQP, params.Sigma, uint64(6*params.Sigma))
-	uniformSamplerQP := ring.NewUniformSampler(prng, ctx.contextQP)
 
 	return encryptor{
 		params:            params.Copy(),
 		bfvContext:        ctx,
 		polypool:          [3]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly()},
 		baseconverter:     baseconverter,
-		gaussianSamplerQ:  gaussianSamplerQ,
-		uniformSamplerQ:   uniformSamplerQ,
+		gaussianSamplerQ:  ring.NewGaussianSampler(prng, ctx.contextQ, params.Sigma, uint64(6*params.Sigma)),
+		uniformSamplerQ:   ring.NewUniformSampler(prng, ctx.contextQ),
 		ternarySamplerQ:   ring.NewTernarySampler(prng, ctx.contextQ, 0.5, true),
-		gaussianSamplerQP: gaussianSamplerQP,
-		uniformSamplerQP:  uniformSamplerQP,
+		gaussianSamplerQP: ring.NewGaussianSampler(prng, ctx.contextQP, params.Sigma, uint64(6*params.Sigma)),
+		uniformSamplerQP:  ring.NewUniformSampler(prng, ctx.contextQP),
 		ternarySamplerQP:  ring.NewTernarySampler(prng, ctx.contextQP, 0.5, true),
 	}
 }

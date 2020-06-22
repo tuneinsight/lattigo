@@ -98,7 +98,7 @@ func NewRefreshProtocol(params *bfv.Parameters) (refreshProtocol *RefreshProtoco
 	if err != nil {
 		panic(err)
 	}
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, 3.19, 19)
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma, uint64(6*params.Sigma))
 	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.contextT)
 
 	return

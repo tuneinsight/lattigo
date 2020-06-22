@@ -37,7 +37,7 @@ func NewRefreshProtocol(params *ckks.Parameters) (refreshProtocol *RefreshProtoc
 	if err != nil {
 		panic(err)
 	}
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQ, 3.19, 19)
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQ, params.Sigma, uint64(6*params.Sigma))
 
 	return
 }

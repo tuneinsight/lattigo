@@ -93,16 +93,14 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	if err != nil {
 		panic(err)
 	}
-	gaussianSampler := ring.NewGaussianSampler(prng, ringContext, params.Sigma, uint64(6*params.Sigma))
-	uniformSampler := ring.NewUniformSampler(prng, ringContext)
 
 	return &keyGenerator{
 		params:          params.Copy(),
 		ckksContext:     ckksContext,
 		ringContext:     ringContext,
 		polypool:        ringContext.NewPoly(),
-		gaussianSampler: gaussianSampler,
-		uniformSampler:  uniformSampler,
+		gaussianSampler: ring.NewGaussianSampler(prng, ringContext, params.Sigma, uint64(6*params.Sigma)),
+		uniformSampler:  ring.NewUniformSampler(prng, ringContext),
 	}
 }
 

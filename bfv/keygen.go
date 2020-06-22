@@ -83,15 +83,12 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 		panic(err)
 	}
 
-	gaussianSampler := ring.NewGaussianSampler(prng, bfvContext.contextQP, params.Sigma, uint64(6*params.Sigma))
-	uniformSampler := ring.NewUniformSampler(prng, bfvContext.contextQP)
-
 	return &keyGenerator{
 		params:          params.Copy(),
 		bfvContext:      bfvContext,
 		polypool:        bfvContext.contextQP.NewPoly(),
-		gaussianSampler: gaussianSampler,
-		uniformSampler:  uniformSampler,
+		gaussianSampler: ring.NewGaussianSampler(prng, bfvContext.contextQP, params.Sigma, uint64(6*params.Sigma)),
+		uniformSampler:  ring.NewUniformSampler(prng, bfvContext.contextQP),
 	}
 }
 

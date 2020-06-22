@@ -157,7 +157,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 	for i := uint64(0); i < rtg.context.params.Beta; i++ {
 
 		// e
-		evakey[i] = rtg.gaussianSampler.ReadNew()
+		rtg.gaussianSampler.Read(evakey[i])
 		contextKeys.NTT(evakey[i], evakey[i])
 
 		// a is the CRP

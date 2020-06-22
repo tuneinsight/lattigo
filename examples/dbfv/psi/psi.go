@@ -94,13 +94,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ternarySampler := ring.NewTernarySampler(prng, contextKeys, 0.5, true)
+	ternarySamplerMontgomery := ring.NewTernarySampler(prng, contextKeys, 0.5, true)
 
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
-		pi.rlkEphemSk = ternarySampler.ReadNew()
+		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
 		contextKeys.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
 		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
 		for i := range pi.input {

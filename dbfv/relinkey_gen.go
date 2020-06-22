@@ -10,12 +10,12 @@ import (
 // RKGProtocol is the structure storing the parameters and state for a party in the collective relinearization key
 // generation protocol.
 type RKGProtocol struct {
-	context         *dbfvContext
-	tmpPoly1        *ring.Poly
-	tmpPoly2        *ring.Poly
-	polypool        *ring.Poly
-	gaussianSampler *ring.GaussianSampler
-	ternarySampler  *ring.TernarySampler
+	context                  *dbfvContext
+	tmpPoly1                 *ring.Poly
+	tmpPoly2                 *ring.Poly
+	polypool                 *ring.Poly
+	gaussianSampler          *ring.GaussianSampler
+	ternarySamplerMontgomery *ring.TernarySampler
 }
 
 // RKGShareRoundOne is a struct storing the round one RKG shares.
@@ -205,7 +205,7 @@ func NewEkgProtocol(params *bfv.Parameters) *RKGProtocol {
 	if err != nil {
 		panic(err)
 	}
-	ekg.ternarySampler = ring.NewTernarySampler(prng, ekg.context.contextQP, 0.5, true)
+	ekg.ternarySamplerMontgomery = ring.NewTernarySampler(prng, ekg.context.contextQP, 0.5, true)
 	ekg.gaussianSampler = ring.NewGaussianSampler(prng, ekg.context.contextQP, params.Sigma, uint64(6*params.Sigma))
 
 	return ekg
@@ -215,7 +215,7 @@ func NewEkgProtocol(params *bfv.Parameters) *RKGProtocol {
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
 func (ekg *RKGProtocol) NewEphemeralKey() (ephemeralKey *ring.Poly) {
-	ephemeralKey = ekg.ternarySampler.ReadNew()
+	ephemeralKey = ekg.ternarySamplerMontgomery.ReadNew()
 	ekg.context.contextQP.NTT(ephemeralKey, ephemeralKey)
 	return ephemeralKey
 }

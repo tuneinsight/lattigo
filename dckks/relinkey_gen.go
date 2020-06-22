@@ -8,10 +8,10 @@ import (
 
 // RKGProtocol is a structure storing the parameters for the collective evaluation-key generation.
 type RKGProtocol struct {
-	dckksContext    *dckksContext
-	polypool        *ring.Poly
-	gaussianSampler *ring.GaussianSampler
-	ternarySampler  *ring.TernarySampler
+	dckksContext             *dckksContext
+	polypool                 *ring.Poly
+	gaussianSampler          *ring.GaussianSampler
+	ternarySamplerMontgomery *ring.TernarySampler
 }
 
 // RKGShareRoundOne is a struct storing the round one share of the RKG protocol.
@@ -56,7 +56,7 @@ func NewEkgProtocol(params *ckks.Parameters) *RKGProtocol {
 		panic(err)
 	}
 	ekg.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma, uint64(6*params.Sigma))
-	ekg.ternarySampler = ring.NewTernarySampler(prng, dckksContext.contextQP, 0.5, true)
+	ekg.ternarySamplerMontgomery = ring.NewTernarySampler(prng, dckksContext.contextQP, 0.5, true)
 	return ekg
 }
 
@@ -64,7 +64,7 @@ func NewEkgProtocol(params *ckks.Parameters) *RKGProtocol {
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
 func (ekg *RKGProtocol) NewEphemeralKey() (ephemeralKey *ring.Poly) {
-	ephemeralKey = ekg.ternarySampler.ReadNew()
+	ephemeralKey = ekg.ternarySamplerMontgomery.ReadNew()
 	ekg.dckksContext.contextQP.NTT(ephemeralKey, ephemeralKey)
 	return ephemeralKey
 }

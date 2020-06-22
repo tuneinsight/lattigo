@@ -16,9 +16,9 @@ type PCKSProtocol struct {
 	share0tmp *ring.Poly
 	share1tmp *ring.Poly
 
-	baseconverter   *ring.FastBasisExtender
-	gaussianSampler *ring.GaussianSampler
-	ternarySampler  *ring.TernarySampler
+	baseconverter            *ring.FastBasisExtender
+	gaussianSampler          *ring.GaussianSampler
+	ternarySamplerMontgomery *ring.TernarySampler
 }
 
 // PCKSShare is a type for the PCKS protocol shares.
@@ -99,7 +99,7 @@ func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtoco
 		panic(err)
 	}
 	pcks.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, sigmaSmudging, uint64(6*sigmaSmudging))
-	pcks.ternarySampler = ring.NewTernarySampler(prng, context.contextQP, 0.5, true)
+	pcks.ternarySamplerMontgomery = ring.NewTernarySampler(prng, context.contextQP, 0.5, true)
 
 	return pcks
 }
@@ -121,7 +121,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	contextQ := pcks.context.contextQ
 	contextKeys := pcks.context.contextQP
 
-	pcks.ternarySampler.Read(pcks.tmp)
+	pcks.ternarySamplerMontgomery.Read(pcks.tmp)
 	contextKeys.NTT(pcks.tmp, pcks.tmp)
 
 	// h_0 = u_i * pk_0

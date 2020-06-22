@@ -8,10 +8,10 @@ import (
 
 // RKGProtocolNaive is a structure storing the parameters for the naive EKG protocol.
 type RKGProtocolNaive struct {
-	context         *dbfvContext
-	polypool        *ring.Poly
-	gaussianSampler *ring.GaussianSampler
-	ternarySampler  *ring.TernarySampler
+	context                  *dbfvContext
+	polypool                 *ring.Poly
+	gaussianSampler          *ring.GaussianSampler
+	ternarySamplerMontgomery *ring.TernarySampler
 }
 
 // NewRKGProtocolNaive creates a new RKGProtocolNaive object that will be used to generate a collective evaluation-key
@@ -31,7 +31,7 @@ func NewRKGProtocolNaive(params *bfv.Parameters) (rkg *RKGProtocolNaive) {
 		panic(err)
 	}
 	rkg.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma, uint64(6*params.Sigma))
-	rkg.ternarySampler = ring.NewTernarySampler(prng, context.contextQP, 0.5, true)
+	rkg.ternarySamplerMontgomery = ring.NewTernarySampler(prng, context.contextQP, 0.5, true)
 
 	return
 }
@@ -111,7 +111,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 	for i := uint64(0); i < rkg.context.params.Beta; i++ {
 		// u
-		rkg.ternarySampler.Read(rkg.polypool)
+		rkg.ternarySamplerMontgomery.Read(rkg.polypool)
 		contextKeys.NTT(rkg.polypool, rkg.polypool)
 		// h_0 = pk_0 * u + e0 + P * sk * (qiBarre*qiStar)%qi
 		contextKeys.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
@@ -157,7 +157,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 		contextKeys.MulCoeffsMontgomery(round1[i][1], sk, shareOut[i][1])
 
 		// v
-		rkg.ternarySampler.Read(rkg.polypool)
+		rkg.ternarySamplerMontgomery.Read(rkg.polypool)
 		contextKeys.NTT(rkg.polypool, rkg.polypool)
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v

@@ -103,10 +103,10 @@ func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 	if err != nil {
 		panic(err)
 	}
-	ternarySampler := ring.NewTernarySampler(prng, keygen.bfvContext.contextQP, p, true)
+	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.bfvContext.contextQP, p, true)
 
 	sk = new(SecretKey)
-	sk.sk = ternarySampler.ReadNew()
+	sk.sk = ternarySamplerMontgomery.ReadNew()
 	keygen.bfvContext.contextQP.NTT(sk.sk, sk.sk)
 	return sk
 }

@@ -294,6 +294,7 @@ func (context *Context) MulCoeffsMontgomeryAndAddNoModLvl(level uint64, p1, p2, 
 	}
 }
 
+// MulCoeffsMontgomeryConstantAndAddNoModLvl is like MulCoeffsMontgomeryAndAddNoModLvl but in constant time
 func (context *Context) MulCoeffsMontgomeryConstantAndAddNoModLvl(level uint64, p1, p2, p3 *Poly) {
 	var qi uint64
 	for i := uint64(0); i < level+1; i++ {

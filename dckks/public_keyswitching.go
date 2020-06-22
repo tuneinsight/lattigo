@@ -3,6 +3,7 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
@@ -16,7 +17,9 @@ type PCKSProtocol struct {
 	share0tmp *ring.Poly
 	share1tmp *ring.Poly
 
-	baseconverter *ring.FastBasisExtender
+	baseconverter            *ring.FastBasisExtender
+	gaussianSampler          *ring.GaussianSampler
+	ternarySamplerMontgomery *ring.TernarySampler
 }
 
 // PCKSShare is a struct storing the share of the PCKS protocol.
@@ -41,6 +44,12 @@ func NewPCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) *PCKSProtoc
 	pcks.share1tmp = dckksContext.contextQP.NewPoly()
 
 	pcks.baseconverter = ring.NewFastBasisExtender(dckksContext.contextQ, dckksContext.contextP)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	pcks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma, uint64(6*params.Sigma))
+	pcks.ternarySamplerMontgomery = ring.NewTernarySampler(prng, dckksContext.contextQP, 0.5, true)
 
 	return pcks
 }
@@ -62,7 +71,8 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	contextQ := pcks.dckksContext.contextQ
 	contextKeys := pcks.dckksContext.contextQP
 
-	contextKeys.SampleTernaryMontgomeryNTT(pcks.tmp, 0.5)
+	pcks.ternarySamplerMontgomery.Read(pcks.tmp)
+	contextKeys.NTT(pcks.tmp, pcks.tmp)
 
 	// h_0 = u_i * pk_0
 	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
@@ -70,10 +80,12 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	contextKeys.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), pcks.tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+	pcks.gaussianSampler.Read(pcks.tmp)
+	contextKeys.NTT(pcks.tmp, pcks.tmp)
 	contextKeys.Add(pcks.share0tmp, pcks.tmp, pcks.share0tmp)
 	// h_1 = u_i * pk_1 + e1
-	contextKeys.SampleGaussianNTTLvl(uint64(len(contextKeys.Modulus)-1), pcks.tmp, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+	pcks.gaussianSampler.Read(pcks.tmp)
+	contextKeys.NTT(pcks.tmp, pcks.tmp)
 	contextKeys.Add(pcks.share1tmp, pcks.tmp, pcks.share1tmp)
 
 	// h_0 = (u_i * pk_0 + e0)/P

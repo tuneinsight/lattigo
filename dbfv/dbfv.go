@@ -3,6 +3,7 @@ package dbfv
 import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 type dbfvContext struct {
@@ -64,7 +65,11 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 }
 
 // NewCRPGenerator creates a new deterministic random polynomial generator.
-func NewCRPGenerator(params *bfv.Parameters, key []byte) *ring.CRPGenerator {
+func NewCRPGenerator(params *bfv.Parameters, key []byte) *ring.UniformSampler {
 	ctx := newDbfvContext(params)
-	return ring.NewCRPGenerator(key, ctx.contextQP)
+	prng, err := utils.NewKeyedPRNG(key)
+	if err != nil {
+		panic(err)
+	}
+	return ring.NewUniformSampler(prng, ctx.contextQP)
 }

@@ -4,11 +4,13 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // CKGProtocol is the structure storing the parameters and state for a party in the collective key generation protocol.
 type CKGProtocol struct {
-	dckksContext *dckksContext
+	dckksContext    *dckksContext
+	gaussianSampler *ring.GaussianSampler
 }
 
 // CKGShare is a struct storing the CKG protocol's share.
@@ -23,6 +25,11 @@ func NewCKGProtocol(params *ckks.Parameters) *CKGProtocol {
 
 	ckg := new(CKGProtocol)
 	ckg.dckksContext = newDckksContext(params)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.dckksContext.contextQP, params.Sigma, uint64(6*params.Sigma))
 	return ckg
 }
 
@@ -38,7 +45,9 @@ func (ckg *CKGProtocol) AllocateShares() CKGShare {
 // for the receiver protocol. Has no effect is the share was already generated.
 func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut CKGShare) {
 	contextQP := ckg.dckksContext.contextQP
-	contextQP.SampleGaussianNTTLvl(uint64(len(contextQP.Modulus)-1), shareOut, ckg.dckksContext.params.Sigma, uint64(6*ckg.dckksContext.params.Sigma))
+
+	ckg.gaussianSampler.Read(shareOut)
+	contextQP.NTT(shareOut, shareOut)
 	contextQP.MulCoeffsMontgomeryAndSub(sk, crs, shareOut)
 }
 

@@ -4,15 +4,18 @@ import (
 	"errors"
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // RKGProtocol is the structure storing the parameters and state for a party in the collective relinearization key
 // generation protocol.
 type RKGProtocol struct {
-	context  *dbfvContext
-	tmpPoly1 *ring.Poly
-	tmpPoly2 *ring.Poly
-	polypool *ring.Poly
+	context                  *dbfvContext
+	tmpPoly1                 *ring.Poly
+	tmpPoly2                 *ring.Poly
+	polypool                 *ring.Poly
+	gaussianSampler          *ring.GaussianSampler
+	ternarySamplerMontgomery *ring.TernarySampler
 }
 
 // RKGShareRoundOne is a struct storing the round one RKG shares.
@@ -198,6 +201,12 @@ func NewEkgProtocol(params *bfv.Parameters) *RKGProtocol {
 	ekg.tmpPoly1 = ekg.context.contextQP.NewPoly()
 	ekg.tmpPoly2 = ekg.context.contextQP.NewPoly()
 	ekg.polypool = ekg.context.contextQP.NewPoly()
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ekg.ternarySamplerMontgomery = ring.NewTernarySampler(prng, ekg.context.contextQP, 0.5, true)
+	ekg.gaussianSampler = ring.NewGaussianSampler(prng, ekg.context.contextQP, params.Sigma, uint64(6*params.Sigma))
 
 	return ekg
 }
@@ -205,8 +214,10 @@ func NewEkgProtocol(params *bfv.Parameters) *RKGProtocol {
 // NewEphemeralKey generates a new Ephemeral Key u_i (needs to be stored for the 3 first rounds).
 // Each party is required to pre-compute a secret additional ephemeral key in addition to its share
 // of the collective secret-key.
-func (ekg *RKGProtocol) NewEphemeralKey(p float64) (ephemeralKey *ring.Poly) {
-	return ekg.context.contextQP.SampleTernaryMontgomeryNTTNew(p)
+func (ekg *RKGProtocol) NewEphemeralKey() (ephemeralKey *ring.Poly) {
+	ephemeralKey = ekg.ternarySamplerMontgomery.ReadNew()
+	ekg.context.contextQP.NTT(ephemeralKey, ephemeralKey)
+	return ephemeralKey
 }
 
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
@@ -231,7 +242,8 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 	for i := uint64(0); i < ekg.context.params.Beta; i++ {
 
 		// h = e
-		ringContext.SampleGaussianNTTLvl(uint64(len(ringContext.Modulus)-1), shareOut[i], ekg.context.params.Sigma, uint64(6*ekg.context.params.Sigma))
+		ekg.gaussianSampler.Read(shareOut[i])
+		ringContext.NTT(shareOut[i], shareOut[i])
 
 		// h = sk*CrtBaseDecompQi + e
 		for j := uint64(0); j < ekg.context.params.Alpha; j++ {
@@ -290,12 +302,14 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShareRoundOne, sk *ring.Poly,
 		ringContext.MulCoeffsMontgomery(round1[i], sk, shareOut[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
-		ringContext.SampleGaussianNTTLvl(uint64(len(ringContext.Modulus)-1), ekg.tmpPoly1, ekg.context.params.Sigma, uint64(6*ekg.context.params.Sigma))
+		ekg.gaussianSampler.Read(ekg.tmpPoly1)
+		ringContext.NTT(ekg.tmpPoly1, ekg.tmpPoly1)
 		ringContext.Add(shareOut[i][0], ekg.tmpPoly1, shareOut[i][0])
 
 		// Second Element
 		// e_2i
-		ringContext.SampleGaussianNTTLvl(uint64(len(ringContext.Modulus)-1), shareOut[i][1], ekg.context.params.Sigma, uint64(6*ekg.context.params.Sigma))
+		ekg.gaussianSampler.Read(shareOut[i][1])
+		ringContext.NTT(shareOut[i][1], shareOut[i][1])
 		// s*a + e_2i
 		ringContext.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut[i][1])
 	}
@@ -333,7 +347,8 @@ func (ekg *RKGProtocol) GenShareRoundThree(round2 RKGShareRoundTwo, u, sk *ring.
 	for i := uint64(0); i < ekg.context.params.Beta; i++ {
 
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
-		ringContext.SampleGaussianNTTLvl(uint64(len(ringContext.Modulus)-1), shareOut[i], ekg.context.params.Sigma, uint64(6*ekg.context.params.Sigma))
+		ekg.gaussianSampler.Read(shareOut[i])
+		ringContext.NTT(shareOut[i], shareOut[i])
 		ringContext.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round2[i][1], shareOut[i])
 	}
 }

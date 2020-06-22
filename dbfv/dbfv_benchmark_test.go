@@ -3,6 +3,7 @@ package dbfv
 import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 	"testing"
 )
 
@@ -25,11 +26,13 @@ func benchPublicKeyGen(b *testing.B) {
 		testCtx := genDBFVTestContext(parameters)
 
 		sk0Shards := testCtx.sk0Shards
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
-
-		crpGenerator.Seed([]byte{})
-		crp := crpGenerator.ClockUniformNew()
+		crp := crpGenerator.ReadNew()
 
 		type Party struct {
 			*CKGProtocol
@@ -89,18 +92,21 @@ func benchRelinKeyGen(b *testing.B) {
 
 		p := new(Party)
 		p.RKGProtocol = NewEkgProtocol(parameters)
-		p.u = p.RKGProtocol.NewEphemeralKey(1.0 / 3.0)
+		p.u = p.RKGProtocol.NewEphemeralKey()
 		p.s = sk0Shards[0].Get()
 		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
 		p.rlk = bfv.NewRelinKey(parameters, 2)
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
 
-		crpGenerator.Seed([]byte{})
 		crp := make([]*ring.Poly, parameters.Beta)
 
 		for i := uint64(0); i < parameters.Beta; i++ {
-			crp[i] = crpGenerator.ClockUniformNew()
+			crp[i] = crpGenerator.ReadNew()
 		}
 
 		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
@@ -327,13 +333,16 @@ func benchRotKeyGen(b *testing.B) {
 		p.RTGProtocol = NewRotKGProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShare()
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
-		crpGenerator.Seed([]byte{})
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
 		crp := make([]*ring.Poly, parameters.Beta)
 
 		for i := uint64(0); i < parameters.Beta; i++ {
-			crp[i] = crpGenerator.ClockUniformNew()
+			crp[i] = crpGenerator.ReadNew()
 		}
 
 		mask := (testCtx.n >> 1) - 1
@@ -384,10 +393,13 @@ func benchRefresh(b *testing.B) {
 		p.RefreshProtocol = NewRefreshProtocol(parameters)
 		p.s = sk0Shards[0].Get()
 		p.share = p.AllocateShares()
+		prng, err := utils.NewKeyedPRNG(nil)
+		if err != nil {
+			panic(err)
+		}
 
-		crpGenerator := ring.NewCRPGenerator(nil, testCtx.contextQP)
-		crpGenerator.Seed([]byte{})
-		crp := crpGenerator.ClockUniformNew()
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
+		crp := crpGenerator.ReadNew()
 
 		ciphertext := bfv.NewCiphertextRandom(parameters, 1)
 

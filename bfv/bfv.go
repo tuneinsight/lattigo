@@ -9,7 +9,7 @@ import (
 const GaloisGen uint64 = 5
 
 // bfvContext is a struct which contains all the elements required to instantiate the BFV Scheme. This includes the parameters (polynomial degree, plaintext modulus, ciphertext modulus,
-// Gaussian sampler, polynomial contexts and other parameters required for the homomorphic operations).
+// polynomial contexts and other parameters required for the homomorphic operations).
 type bfvContext struct {
 	params *Parameters
 

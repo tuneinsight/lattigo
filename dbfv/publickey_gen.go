@@ -4,12 +4,14 @@ package dbfv
 import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // CKGProtocol is the structure storing the parameters and state for a party in the collective key generation protocol.
 type CKGProtocol struct {
-	context *ring.Context
-	sigma   float64
+	context         *ring.Context
+	sigma           float64
+	gaussianSampler *ring.GaussianSampler
 }
 
 // CKGShare is a struct holding a CKG share.
@@ -38,6 +40,11 @@ func NewCKGProtocol(params *bfv.Parameters) *CKGProtocol {
 	ckg := new(CKGProtocol)
 	ckg.context = context.contextQP
 	ckg.sigma = params.Sigma
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.context, params.Sigma, uint64(6*params.Sigma))
 	return ckg
 }
 
@@ -52,7 +59,8 @@ func (ckg *CKGProtocol) AllocateShares() CKGShare {
 //
 // for the receiver protocol. Has no effect is the share was already generated.
 func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut CKGShare) {
-	ckg.context.SampleGaussianNTTLvl(uint64(len(ckg.context.Modulus)-1), shareOut.Poly, ckg.sigma, uint64(6*ckg.sigma))
+	ckg.gaussianSampler.Read(shareOut.Poly)
+	ckg.context.NTT(shareOut.Poly, shareOut.Poly)
 	ckg.context.MulCoeffsMontgomeryAndSub(sk, crs, shareOut.Poly)
 }
 

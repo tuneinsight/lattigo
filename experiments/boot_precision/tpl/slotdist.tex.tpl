@@ -4,7 +4,7 @@
         width=0.5\textwidth,
         height=0.5\textwidth,
         xlabel={Precision (bits)},
-        ylabel={$\Pr[\mathsf{prec}(\mathsf{slot})<x]$},
+        ylabel={$\Pr[\log(1/\epsilon_{i})<x]$},
         xmin=15, xmax=32,
         ymin=0, ymax=1,
         legend pos=north west,

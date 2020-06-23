@@ -4,7 +4,7 @@
         width=\textwidth,
         height=0.5\textwidth,
         xlabel={Iteration},
-        ylabel={Precision (bits)},
+        ylabel={$\log(1/\epsilon)$},
         xmin=0, xmax=51,
         ymin=10, ymax=36,
         xtick distance = 5,

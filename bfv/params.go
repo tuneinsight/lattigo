@@ -218,8 +218,6 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 
 	res = res && (p.isValid == other.isValid)
 
-	fmt.Println(res)
-
 	return
 }
 

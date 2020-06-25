@@ -200,7 +200,7 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 		return true
 	}
 
-	res = res && (p.LogN == other.LogN)
+	res = p.LogN == other.LogN
 	res = res && (p.N == other.N)
 	res = res && (p.T == other.T)
 	res = res && (p.Sigma == other.Sigma)

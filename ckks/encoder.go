@@ -85,12 +85,8 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 		panic("cannot Encode: too many values for the given number of slots")
 	}
 
-	if slots == 0 && slots&(slots-1) == 0 {
+	if slots == 0 && slots&(slots-1) != 0 {
 		panic("cannot Encode: slots must be a power of two between 1 and N/2")
-	}
-
-	if uint64(len(values)) != slots {
-		panic("cannot Encode: number of values must be equal to slots")
 	}
 
 	for i := uint64(0); i < slots; i++ {

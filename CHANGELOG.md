@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
 - CKKS : now uses new rotations keys optimized for hoisting rotations of the form phi^{-1}(-as1 + phi(s0) + e, a).
 - CKKS : simplified the code of the hybrid key-switching (does not affect user experience).
 - CKKS : encoding/decoding at level 0 is now 500% faster.
+- CKKS : the encoder now accepts slices of complex of length equal or smaller than the specified number of slots.
 - RING : improved primes finding.
 - RING : all Gaussian sampling now uses Ziggurat sampling.
 - RING : revamp of the polynomial sampler to make them more memory efficient, consistent user friendly and enable parallel sampling.
@@ -42,6 +43,7 @@ All notable changes to this project will be documented in this file.
 - BFV : fixed multiplication that was failing is #Qi != #QMul.
 - BFV : fixed a mempool corruption when encrypting from SK.
 - CKKS : mulrelin now always returns a fully reduced polynomial.
+- CKKS : the encoder now correctly checks that the number of slots is a power of two
 - RING : prevented a rare case of uint64 overflow during prime sampling.
 - RING : prevented a rare case where two identical primes could be returned when sampling primes.
 

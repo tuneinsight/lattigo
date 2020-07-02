@@ -104,11 +104,11 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 
 	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
-	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
+	for i := range encoder.values{
 		encoder.values[i] = 0
 	}
 
-	for i := uint64(0); i < encoder.ckksContext.n; i++ {
+	for i := range encoder.valuesfloat{
 		encoder.valuesfloat[i] = 0
 	}
 

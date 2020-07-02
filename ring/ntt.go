@@ -95,7 +95,6 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 
 	// Copies the result of the first round of butterflies on p2 with approximate reduction
 	t = 1
-	j1 = 0
 	h = N >> 1
 
 	for i := uint64(0); i < h; i++ {

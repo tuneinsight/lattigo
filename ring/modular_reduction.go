@@ -48,24 +48,19 @@ func InvMFormConstant(a, q, qInv uint64) (r uint64) {
 // MRedParams computes the parameter qInv = (q^-1) mod 2^64,
 // required for MRed.
 func MRedParams(q uint64) (qInv uint64) {
-	var x uint64
 	qInv = 1
-	x = q
 	for i := 0; i < 63; i++ {
-		qInv *= x
-		qInv &= 0xFFFFFFFFFFFFFFFF
-		x *= x
-		x &= 0xFFFFFFFFFFFFFFFF
+		qInv *= q
+		q *= q
 	}
 	return
 }
 
 // MRed computes x * y * (1/2^64) mod q.
-func MRed(x, y, q, qInv uint64) (r uint64) {
-	ahi, alo := bits.Mul64(x, y)
-	R := alo * qInv
-	H, _ := bits.Mul64(R, q)
-	r = ahi - H + q
+func MRed(a, b, q, qInv uint64) (r uint64) {
+	mhi, mlo := bits.Mul64(a, b)
+	hhi, _ := bits.Mul64(mlo * qInv, q)
+	r = mhi - hhi + q
 	if r >= q {
 		r -= q
 	}
@@ -96,9 +91,9 @@ func BRedParams(q uint64) (params []uint64) {
 }
 
 // BRedAdd computes a mod q.
-func BRedAdd(x, q uint64, u []uint64) (r uint64) {
-	s0, _ := bits.Mul64(x, u[0])
-	r = x - s0*q
+func BRedAdd(a, q uint64, u []uint64) (r uint64) {
+	mhi, _ := bits.Mul64(a, u[0])
+	r = a - mhi*q
 	if r >= q {
 		r -= q
 	}
@@ -113,35 +108,35 @@ func BRedAddConstant(x, q uint64, u []uint64) uint64 {
 }
 
 // BRed compute x*y mod q.
-func BRed(x, y, q uint64, u []uint64) (r uint64) {
+func BRed(a, b, q uint64, u []uint64) (r uint64) {
 
-	var lhi, mhi, mlo, s0, s1, carry uint64
+	var mhi, mlo, lhi, hhi, hlo, s0, carry uint64
 
-	ahi, alo := bits.Mul64(x, y)
+	mhi, mlo = bits.Mul64(a, b)
 
-	// (alo*ulo)>>64
+	// computes r = mhi * uhi + (mlo * uhi + mhi * ulo)<<64 + (mlo * ulo)) >> 128
 
-	lhi, _ = bits.Mul64(alo, u[1])
+	r = mhi*u[0] // r = mhi * uhi
 
-	// ((ahi*ulo + alo*uhi) + (alo*ulo))>>64
+	hhi, hlo = bits.Mul64(mlo, u[0]) // mlo * uhi
 
-	mhi, mlo = bits.Mul64(alo, u[0])
+	r += hhi
 
-	s0, carry = bits.Add64(mlo, lhi, 0)
+	lhi, _ = bits.Mul64(mlo, u[1]) // mlo * ulo
 
-	s1 = mhi + carry
+	s0, carry = bits.Add64(hlo, lhi, 0) 
 
-	mhi, mlo = bits.Mul64(ahi, u[1])
+	r += carry 
 
-	_, carry = bits.Add64(mlo, s0, 0)
+	hhi, hlo = bits.Mul64(mhi, u[1]) // mhi * ulo
 
-	lhi = mhi + carry
+	r += hhi
 
-	// (ahi*uhi) + (((ahi*ulo + alo*uhi) + (alo*ulo))>>64)
+	_, carry = bits.Add64(hlo, s0, 0) 
 
-	s0 = ahi*u[0] + s1 + lhi
+	r += carry
 
-	r = alo - s0*q
+	r = mlo - r*q
 
 	if r >= q {
 		r -= q
@@ -152,35 +147,35 @@ func BRed(x, y, q uint64, u []uint64) (r uint64) {
 
 // BRedConstant compute x*y mod q in constant time.
 // The result is between 0 and 2*q-1.
-func BRedConstant(x, y, q uint64, u []uint64) (r uint64) {
+func BRedConstant(a, b, q uint64, u []uint64) (r uint64) {
 
-	var lhi, mhi, mlo, s0, s1, carry uint64
+	var mhi, mlo, lhi, hhi, hlo, s0, carry uint64
 
-	ahi, alo := bits.Mul64(x, y)
+	mhi, mlo = bits.Mul64(a, b)
 
-	// alo*ulo
+	// computes r = mhi * uhi + (mlo * uhi + mhi * ulo)<<64 + (mlo * ulo)) >> 128
 
-	lhi, _ = bits.Mul64(alo, u[1])
+	r = mhi*u[0] // r = mhi * uhi
 
-	// ahi*ulo + alo*uhi
+	hhi, hlo = bits.Mul64(mlo, u[0]) // mlo * uhi
 
-	mhi, mlo = bits.Mul64(alo, u[0])
+	r += hhi
 
-	s0, carry = bits.Add64(mlo, lhi, 0)
+	lhi, _ = bits.Mul64(mlo, u[1]) // mlo * ulo
 
-	s1 = mhi + carry
+	s0, carry = bits.Add64(hlo, lhi, 0) 
 
-	mhi, mlo = bits.Mul64(ahi, u[1])
+	r += carry 
 
-	_, carry = bits.Add64(mlo, s0, 0)
+	hhi, hlo = bits.Mul64(mhi, u[1]) // mhi * ulo
 
-	lhi = mhi + carry
+	r += hhi
 
-	// ahi*uhi
+	_, carry = bits.Add64(hlo, s0, 0) 
 
-	s0 = ahi*u[0] + s1 + lhi
+	r += carry
 
-	r = alo - s0*q
+	r = mlo - r*q
 
 	return
 }

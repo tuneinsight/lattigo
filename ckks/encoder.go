@@ -89,7 +89,7 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 		panic("cannot Encode: slots must be a power of two between 1 and N/2")
 	}
 
-	for i := uint64(0); i < slots; i++ {
+	for i := range values{
 		encoder.values[i] = values[i]
 	}
 

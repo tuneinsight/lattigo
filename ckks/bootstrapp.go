@@ -202,9 +202,8 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 		}
 	}
 
-	// Pre-rotates ciphertext for the baby-step giant-step algorithm
-
-	vecRot := eval.RotateHoisted(vec, rotations, bootcontext.rotkeys)
+	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
+	vecRotQ, vecRotP := eval.RotateHoistedNoModDown(vec, rotations, bootcontext.rotkeys)
 
 	var tmpVec, tmp *Ciphertext
 
@@ -220,7 +219,6 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	tmpQ3 := contextQ.NewPoly()
 	tmpP2 := contextP.NewPoly()
 	tmpP3 := contextP.NewPoly()
-	tmpRes := contextQ.NewPoly()
 
 	levelQ := vec.Level()
 	levelP := uint64(len(contextP.Modulus) - 1)
@@ -231,71 +229,45 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	pool2P := eval.poolP[1]
 	pool3P := eval.poolP[2]
 
+	// OUTER LOOP
 	for j := range index {
 
 		if j != 0 {
 
-			tmpVec.Value()[0].Zero()
-			tmpVec.Value()[1].Zero()
-
-			tmpRes.Zero()
+			tmpQ2.Zero()
+			tmpQ3.Zero()
+			tmpP2.Zero()
+			tmpP3.Zero()
 
 			state := false
 
+			// INNER LOOP
 			for _, i := range index[j] {
-
-				tmpQ2.Zero()
-				tmpQ3.Zero()
-				tmpP2.Zero()
-				tmpP3.Zero()
 
 				if i == 0 {
 					state = true
+				} else {
+					contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j+uint64(i)].value, vecRotQ[i].value[0], tmpQ2) // phi(d0) * plaintext mod Q
+					contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j+uint64(i)].value, vecRotQ[i].value[1], tmpQ3) // phi(d1) * plaintext mod Q
+					contextP.MulCoeffsMontgomeryAndAdd(plainVectors.VecP[N1*j+uint64(i)].value, vecRotP[i].value[0], tmpP2)           // phi(d0) * plaintext mod P
+					contextP.MulCoeffsMontgomeryAndAdd(plainVectors.VecP[N1*j+uint64(i)].value, vecRotP[i].value[1], tmpP3)           // phi(d1) * plaintext mod P
 				}
-
-				if i != 0 {
-
-					eval.switchKeysInPlaceNoModDown(levelQ, vec.value[1], bootcontext.rotkeys.evakeyRotColLeft[i], pool2Q, pool2P, pool3Q, pool3P)
-
-					ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, bootcontext.rotkeys.permuteNTTLeftIndex[i], tmp.value[0])
-					contextQ.AddLvl(levelQ, tmpQ2, tmp.value[0], tmpQ2)
-
-					ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, bootcontext.rotkeys.permuteNTTLeftIndex[i], tmp.value[0])
-					contextQ.AddLvl(levelQ, tmpQ3, tmp.value[0], tmpQ3)
-
-					ring.PermuteNTTWithIndexLvl(levelP, pool2P, bootcontext.rotkeys.permuteNTTLeftIndex[i], tmp.value[0])
-					contextP.AddLvl(levelP, tmpP2, tmp.value[0], tmpP2)
-
-					ring.PermuteNTTWithIndexLvl(levelP, pool3P, bootcontext.rotkeys.permuteNTTLeftIndex[i], tmp.value[0])
-					contextP.AddLvl(levelP, tmpP3, tmp.value[0], tmpP3)
-
-					contextQ.MulCoeffsMontgomeryLvl(levelQ, plainVectors.Vec[N1*j+uint64(i)].value, tmpQ2, tmpQ2)
-					contextQ.MulCoeffsMontgomeryLvl(levelQ, plainVectors.Vec[N1*j+uint64(i)].value, tmpQ3, tmpQ3)
-
-					contextP.MulCoeffsMontgomery(plainVectors.VecP[N1*j+uint64(i)].value, tmpP2, tmpP2)
-					contextP.MulCoeffsMontgomery(plainVectors.VecP[N1*j+uint64(i)].value, tmpP3, tmpP3)
-
-					eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ2, tmpP2, tmpQ2)
-					eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ3, tmpP3, tmpQ3)
-
-					contextQ.AddLvl(levelQ, tmpVec.value[0], tmpQ2, tmpVec.value[0])
-					contextQ.AddLvl(levelQ, tmpVec.value[1], tmpQ3, tmpVec.value[1])
-
-				}
-
 			}
+
+			eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ2, tmpP2, tmpVec.value[0]) // sum(phi(d0) * plaintext)/P
+			eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ3, tmpP3, tmpVec.value[1]) // sum(phi(d1) * plaintext)/P
 
 			// INNER LOOP ROTATION ZERO
-			for _, i := range index[j] {
+			for _, i := range index[j] { // sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
 				if i != 0 {
-					ring.PermuteNTTWithIndexLvl(levelQ, vec.value[0], bootcontext.rotkeys.permuteNTTLeftIndex[i], tmpRes)
-					contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j+uint64(i)].value, tmpRes, tmpVec.value[0])
+					ring.PermuteNTTWithIndexLvl(levelQ, vec.value[0], bootcontext.rotkeys.permuteNTTLeftIndex[i], tmp.value[0])
+					contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j+uint64(i)].value, tmp.value[0], tmpVec.value[0])
 				}
 			}
 
-			if state {
-				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j].value, vec.value[0], tmpVec.value[0])
-				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j].value, vec.value[1], tmpVec.value[1])
+			if state { // If a rotation by zero should have happened in the inner loop
+				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j].value, vec.value[0], tmpVec.value[0]) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j].value, vec.value[1], tmpVec.value[1]) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
 			}
 			// ====
 
@@ -303,7 +275,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			ring.PermuteNTTWithIndexLvl(levelQ, tmpVec.value[0], bootcontext.rotkeys.permuteNTTLeftIndex[N1*j], tmp.value[0])
 			contextQ.AddLvl(levelQ, res.value[0], tmp.value[0], res.value[0])
 
-			eval.switchKeysInPlaceNoModDown(levelQ, tmpVec.Value()[1], bootcontext.rotkeys.evakeyRotColLeft[N1*j], pool2Q, pool2P, pool3Q, pool3P)
+			eval.switchKeysInPlaceNoModDown(levelQ, tmpVec.value[1], bootcontext.rotkeys.evakeyRotColLeft[N1*j], pool2Q, pool2P, pool3Q, pool3P)
 
 			ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, bootcontext.rotkeys.permuteNTTLeftIndex[N1*j], tmp.value[0])
 			contextQ.AddLvl(levelQ, tmpQ0, tmp.value[0], tmpQ0)
@@ -319,17 +291,51 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			// ====
 		}
 	}
+
 	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ0, tmpP0, tmpQ0)
 	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ1, tmpP1, tmpQ1)
 
 	contextQ.AddLvl(res.Level(), res.value[0], tmpQ0, res.value[0])
 	contextQ.AddLvl(res.Level(), res.value[1], tmpQ1, res.value[1])
 
+	tmpQ2.Zero()
+	tmpQ3.Zero()
+	tmpP2.Zero()
+	tmpP3.Zero()
+
+	state := false
+
 	// OUTER LOOP ROTATION ZERO
 	for _, i := range index[0] {
-		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[uint64(i)].value, vecRot[uint64(i)].value[0], res.value[0])
-		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[uint64(i)].value, vecRot[uint64(i)].value[1], res.value[1])
+		if i == 0 {
+			state = true
+		} else {
+			contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[uint64(i)].value, vecRotQ[i].value[0], tmpQ2) // phi(d0) * plaintext mod Q
+			contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[uint64(i)].value, vecRotQ[i].value[1], tmpQ3) // phi(d1) * plaintext mod Q
+			contextP.MulCoeffsMontgomeryAndAdd(plainVectors.VecP[uint64(i)].value, vecRotP[i].value[0], tmpP2)           // phi(d0) * plaintext mod P
+			contextP.MulCoeffsMontgomeryAndAdd(plainVectors.VecP[uint64(i)].value, vecRotP[i].value[1], tmpP3)           // phi(d1) * plaintext mod P
+		}
 	}
+
+	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ2, tmpP2, tmpVec.value[0]) // sum(phi(d0) * plaintext)/P
+	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ3, tmpP3, tmpVec.value[1]) // sum(phi(d1) * plaintext)/P
+
+	contextQ.AddLvl(levelQ, res.value[0], tmpVec.value[0], res.value[0])
+	contextQ.AddLvl(levelQ, res.value[1], tmpVec.value[1], res.value[1])
+
+	// INNER LOOP ROTATION ZERO WITH OUTER LOOP ROTATION ZERO
+	for _, i := range index[0] { // sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+		if i != 0 {
+			ring.PermuteNTTWithIndexLvl(levelQ, vec.value[0], bootcontext.rotkeys.permuteNTTLeftIndex[i], tmp.value[0])
+			contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[uint64(i)].value, tmp.value[0], res.value[0])
+		}
+	}
+
+	if state { // If a rotation by zero should have happened in the inner loop
+		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0].value, vec.value[0], res.value[0]) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0].value, vec.value[1], res.value[1]) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
+	}
+	// ====
 
 	res.SetScale(plainVectors.Vec[0].Scale() * vec.Scale())
 

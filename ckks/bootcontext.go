@@ -50,6 +50,7 @@ type dftvectors struct {
 	N1    uint64
 	Level uint64
 	Vec   map[uint64]*Plaintext
+	VecP  map[uint64]*Plaintext
 }
 
 func sin2pi2pi(x complex128) complex128 {
@@ -89,11 +90,11 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 	bootcontext.sinScale = 1 << 45
 
 	bootcontext.encoder = NewEncoder(&bootparams.Parameters)
+	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
 
 	bootcontext.newBootSine()
 	bootcontext.newBootDFT()
 
-	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
 	//bootcontext.decryptor = NewDecryptor(&bootparams.Parameters, sk)
 
 	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
@@ -486,6 +487,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	}
 
 	plaintextVec.Vec = make(map[uint64]*Plaintext)
+	plaintextVec.VecP = make(map[uint64]*Plaintext)
 
 	if forward {
 		scale = float64(bootcontext.Qi[level])
@@ -507,9 +509,14 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 			//  levels * n coefficients of 8 bytes each
 			bootcontext.plaintextSize += (level + 1) * 8 * bootcontext.n
 
-			plaintextVec.Vec[N1*j+uint64(i)] = NewPlaintext(&bootcontext.Parameters, level, scale)
+			plaintextQ, plaintextP := NewPlaintextQP(&bootcontext.Parameters, level, scale)
 
-			bootcontext.encoder.EncodeNTT(plaintextVec.Vec[N1*j+uint64(i)], rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
+			bootcontext.encoder.(*encoderComplex128).EncodeQPNTT(plaintextQ, plaintextP, rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
+			bootcontext.evaluator.(*evaluator).ckksContext.contextQ.MFormLvl(level, plaintextQ.value, plaintextQ.value)
+			bootcontext.evaluator.(*evaluator).ckksContext.contextP.MForm(plaintextP.value, plaintextP.value)
+			plaintextVec.Vec[N1*j+uint64(i)] = plaintextQ
+			plaintextVec.VecP[N1*j+uint64(i)] = plaintextP
+
 		}
 	}
 }

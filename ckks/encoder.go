@@ -145,6 +145,48 @@ func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex1
 	plaintext.isNTT = false
 }
 
+// Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it in the receiver Plaintext.
+func (encoder *encoderComplex128) EncodeQP(plaintextQ, plaintextP *Plaintext, values []complex128, slots uint64) {
+
+	if uint64(len(values)) > encoder.ckksContext.maxSlots || uint64(len(values)) > slots {
+		panic("cannot Encode: too many values for the given number of slots")
+	}
+
+	if slots == 0 && (slots&(slots-1)) != 0 {
+		panic("cannot Encode: slots must be a power of two between 1 and N/2")
+	}
+
+	for i := uint64(0); i < slots; i++ {
+		encoder.values[i] = values[i]
+	}
+
+	encoder.invfft(encoder.values, slots)
+
+	gap := encoder.ckksContext.maxSlots / slots
+
+	for i, jdx, idx := uint64(0), encoder.ckksContext.maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+		encoder.valuesfloat[idx] = real(encoder.values[i])
+		encoder.valuesfloat[jdx] = imag(encoder.values[i])
+	}
+
+	Qi := encoder.ckksContext.contextQ.Modulus[:plaintextQ.Level()+1]
+	Pi := encoder.ckksContext.contextP.Modulus
+
+	scaleUpVecExact(encoder.valuesfloat, plaintextQ.scale, Qi, plaintextQ.value.Coeffs)
+	scaleUpVecExact(encoder.valuesfloat, plaintextP.scale, Pi, plaintextP.value.Coeffs)
+
+	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
+		encoder.values[i] = 0
+	}
+
+	for i := uint64(0); i < encoder.ckksContext.n; i++ {
+		encoder.valuesfloat[i] = 0
+	}
+
+	plaintextQ.isNTT = false
+	plaintextP.isNTT = false
+}
+
 func (encoder *encoderComplex128) EncodeNTTNew(values []complex128, slots uint64) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel, encoder.params.Scale)
 	encoder.EncodeNTT(plaintext, values, slots)
@@ -158,6 +200,17 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 
 	plaintext.isNTT = true
+}
+
+func (encoder *encoderComplex128) EncodeQPNTT(plaintextQ, plaintextP *Plaintext, values []complex128, slots uint64) {
+
+	encoder.EncodeQP(plaintextQ, plaintextP, values, slots)
+
+	encoder.ckksContext.contextQ.NTTLvl(plaintextQ.Level(), plaintextQ.value, plaintextQ.value)
+	encoder.ckksContext.contextP.NTTLvl(plaintextP.Level(), plaintextP.value, plaintextP.value)
+
+	plaintextQ.isNTT = true
+	plaintextP.isNTT = true
 }
 
 // EncodeCoefficients takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient

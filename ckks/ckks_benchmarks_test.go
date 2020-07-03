@@ -181,6 +181,13 @@ func benchEvaluator(b *testing.B) {
 			}
 		})
 
+		b.Run(testString("PermuteNTT/", parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[0], rotkey.permuteNTTLeftIndex[1], ciphertext1.value[0])
+				ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[1], rotkey.permuteNTTLeftIndex[1], ciphertext1.value[1])
+			}
+		})
+
 		b.Run(testString("Conjugate/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)

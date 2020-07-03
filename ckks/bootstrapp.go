@@ -172,7 +172,9 @@ func (bootcontext *BootContext) dft(vec *Ciphertext, plainVectors []*dftvectors,
 
 func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
 
-	evaluator := bootcontext.evaluator
+	eval := bootcontext.evaluator.(*evaluator)
+	contextQ := eval.ckksContext.contextQ
+	contextP := eval.ckksContext.contextP
 
 	var N1 uint64
 
@@ -202,36 +204,90 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm
 
-	vecRot := evaluator.RotateHoisted(vec, rotations, bootcontext.rotkeys)
+	vecRot := eval.RotateHoisted(vec, rotations, bootcontext.rotkeys)
 
 	var tmpVec, tmp *Ciphertext
 
-	tmpVec = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
-	tmp = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
+	tmpVec = NewCiphertext(&bootcontext.Parameters, 1, vec.Level(), vec.Scale())
+	tmp = NewCiphertext(&bootcontext.Parameters, 1, vec.Level(), vec.Scale())
 
-	var tot int
+	tmpQ0 := contextQ.NewPoly()
+	tmpQ1 := contextQ.NewPoly()
+	tmpP0 := contextP.NewPoly()
+	tmpP1 := contextP.NewPoly()
+
+	_ = tmpQ0
+	_ = tmpQ1
+	_ = tmpP0
+	_ = tmpP1
+
+	var levelQ, levelP uint64
+
 	for j := range index {
 
-		tmpVec.Value()[0].Zero()
-		tmpVec.Value()[1].Zero()
+		if j != 0 {
 
-		for _, i := range index[j] {
-			evaluator.MulRelin(vecRot[uint64(i)], plainVectors.Vec[N1*j+uint64(i)], nil, tmp)
-			evaluator.Add(tmpVec, tmp, tmpVec)
+			tmpVec.Value()[0].Zero()
+			tmpVec.Value()[1].Zero()
+
+			for _, i := range index[j] {
+
+				eval.MulRelin(vecRot[uint64(i)], plainVectors.Vec[N1*j+uint64(i)], nil, tmp)
+				eval.Add(tmpVec, tmp, tmpVec)
+
+			}
+
+			levelQ = utils.MinUint64(tmpVec.Level(), tmp.Level())
+			levelP = uint64(len(contextP.Modulus)-1)
+
+			ring.PermuteNTTWithIndexLvl(levelQ, tmpVec.value[0], bootcontext.rotkeys.permuteNTTLeftIndex[N1*j], tmp.value[0])
+			contextQ.AddLvl(levelQ, res.value[0], tmp.value[0], res.value[0])
+
+			pool2Q := eval.poolQ[1]
+			pool3Q := eval.poolQ[2]
+
+			pool2P := eval.poolP[1]
+			pool3P := eval.poolP[2]
+
+			eval.switchKeysInPlaceNoModDown(levelQ, tmpVec.Value()[1], bootcontext.rotkeys.evakeyRotColLeft[N1*j], pool2Q, pool2P, pool3Q, pool3P)
+
+			ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, bootcontext.rotkeys.permuteNTTLeftIndex[N1*j], tmp.value[0])
+			contextQ.AddLvl(levelQ, tmpQ0, tmp.value[0], tmpQ0)
+
+			ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, bootcontext.rotkeys.permuteNTTLeftIndex[N1*j], tmp.value[0])
+			contextQ.AddLvl(levelQ, tmpQ1, tmp.value[0], tmpQ1)
+
+			ring.PermuteNTTWithIndexLvl(levelP, pool2P, bootcontext.rotkeys.permuteNTTLeftIndex[N1*j], tmp.value[0])
+			contextP.AddLvl(levelP, tmpP0, tmp.value[0], tmpP0)
+
+			ring.PermuteNTTWithIndexLvl(levelP, pool3P, bootcontext.rotkeys.permuteNTTLeftIndex[N1*j], tmp.value[0])
+			contextP.AddLvl(levelP, tmpP1, tmp.value[0], tmpP1)
 		}
-
-		if N1*j != 0 {
-			tot++
-		}
-
-		evaluator.RotateColumns(tmpVec, N1*j, bootcontext.rotkeys, tmp)
-
-		evaluator.Add(res, tmp, res)
 	}
 
-	//log.Printf("%d + %d KeySwitch at level %d\n", len(rotations)-1, tot, vec.Level())
+	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ0, tmpP0, tmpQ0)
+	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ1, tmpP1, tmpQ1)
 
-	return res
+	contextQ.AddLvl(res.Level(), res.value[0], tmpQ0, res.value[0])
+	contextQ.AddLvl(res.Level(), res.value[1], tmpQ1, res.value[1])
+
+
+	tmpVec.Value()[0].Zero()
+	tmpVec.Value()[1].Zero()
+
+	for _, i := range index[0] {
+
+		eval.MulRelin(vecRot[uint64(i)], plainVectors.Vec[uint64(i)], nil, tmp)
+		eval.Add(tmpVec, tmp, tmpVec)
+
+	}
+
+	contextQ.AddLvl(tmp.Level(), res.value[0], tmpVec.value[0], res.value[0])
+	contextQ.AddLvl(tmp.Level(), res.value[1], tmpVec.value[1], res.value[1])
+
+	res.SetScale(tmp.Scale())
+
+	return
 }
 
 // Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)

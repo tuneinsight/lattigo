@@ -1460,6 +1460,75 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, index []uint64, rotKeys *Swit
 	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.value[1])
 }
 
+
+func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, evakey *SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
+	var reduce uint64
+
+	contextQ := eval.ckksContext.contextQ
+	contextP := eval.ckksContext.contextP
+
+	// Pointers allocation
+	c2QiQ := eval.poolQ[0]
+	c2QiP := eval.poolP[0]
+
+	c2 := eval.poolQ[3]
+
+	evakey0Q := new(ring.Poly)
+	evakey1Q := new(ring.Poly)
+	evakey0P := new(ring.Poly)
+	evakey1P := new(ring.Poly)
+
+	// We switch the element on which the switching key operation will be conducted out of the NTT domain
+
+	//Independent of context (parameter: level)
+	contextQ.InvNTTLvl(level, cx, c2)
+
+	reduce = 0
+
+	alpha := eval.params.Alpha
+	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
+
+	// Key switching with CRT decomposition for the Qi
+	for i := uint64(0); i < beta; i++ {
+
+		eval.decomposeAndSplitNTT(level, i, cx, c2, c2QiQ, c2QiP)
+
+		evakey0Q.Coeffs = evakey.evakey[i][0].Coeffs[:level+1]
+		evakey1Q.Coeffs = evakey.evakey[i][1].Coeffs[:level+1]
+		evakey0P.Coeffs = evakey.evakey[i][0].Coeffs[eval.ckksContext.levels:]
+		evakey1P.Coeffs = evakey.evakey[i][1].Coeffs[eval.ckksContext.levels:]
+
+		if i == 0 {
+			contextQ.MulCoeffsMontgomeryLvl(level, evakey0Q, c2QiQ, pool2Q)
+			contextQ.MulCoeffsMontgomeryLvl(level, evakey1Q, c2QiQ, pool3Q)
+			contextP.MulCoeffsMontgomery(evakey0P, c2QiP, pool2P)
+			contextP.MulCoeffsMontgomery(evakey1P, c2QiP, pool3P)
+		} else {
+			contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey0Q, c2QiQ, pool2Q)
+			contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey1Q, c2QiQ, pool3Q)
+			contextP.MulCoeffsMontgomeryAndAddNoMod(evakey0P, c2QiP, pool2P)
+			contextP.MulCoeffsMontgomeryAndAddNoMod(evakey1P, c2QiP, pool3P)
+		}
+
+		if reduce&7 == 1 {
+			contextQ.ReduceLvl(level, pool2Q, pool2Q)
+			contextQ.ReduceLvl(level, pool3Q, pool3Q)
+			contextP.Reduce(pool2P, pool2P)
+			contextP.Reduce(pool3P, pool3P)
+		}
+
+		reduce++
+	}
+
+	//Independent of context (parameter: level)
+	if (reduce-1)&7 != 1 {
+		contextQ.ReduceLvl(level, pool2Q, pool2Q)
+		contextQ.ReduceLvl(level, pool3Q, pool3Q)
+		contextP.Reduce(pool2P, pool2P)
+		contextP.Reduce(pool3P, pool3P)
+	}
+}
+
 // switchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
 func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
 	var reduce uint64

@@ -17,7 +17,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	LTScale = 1 << 45
 	//SineScale = 1 << 55
 
-	bootparams := BootstrappParams[3]
+	bootparams := BootstrappParams[4]
 
 	parameters := &bootparams.Parameters
 

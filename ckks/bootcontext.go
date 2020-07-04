@@ -3,6 +3,7 @@ package ckks
 import (
 	"fmt"
 	"github.com/ldsec/lattigo/ckks/bettersine"
+	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math"
@@ -44,6 +45,9 @@ type BootContext struct { // TODO: change to "Bootstrapper" ?
 	ctxpool [3]*Ciphertext // Memory pool
 
 	decryptor Decryptor
+
+	poolQ [6]*ring.Poly
+	poolP [4]*ring.Poly
 }
 
 type dftvectors struct {
@@ -95,11 +99,21 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 	bootcontext.newBootSine()
 	bootcontext.newBootDFT()
 
-	//bootcontext.decryptor = NewDecryptor(&bootparams.Parameters, sk)
-
 	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
 	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
 	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
+
+	eval := bootcontext.evaluator.(*evaluator)
+	contextQ := eval.ckksContext.contextQ
+	contextP := eval.ckksContext.contextP
+
+	for i := range bootcontext.poolQ {
+		bootcontext.poolQ[i] = contextQ.NewPoly()
+	}
+
+	for i := range bootcontext.poolP {
+		bootcontext.poolP[i] = contextP.NewPoly()
+	}
 
 	return bootcontext
 }
@@ -444,10 +458,12 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (mi
 			hoisted := len(index[0]) - 1
 			normal := len(index) - 1
 
+			//fmt.Println(N1, hoisted, normal)
+
 			if hoisted > normal {
 
 				// Finds the next split that has a ratio hoisted/normal greater or equal to 3
-				for float64(hoisted)/float64(normal) < 3 {
+				for float64(hoisted)/float64(normal) < 10 {
 					N1 *= 2
 					hoisted = hoisted*2 + 1
 					normal = normal / 2
@@ -462,6 +478,7 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (mi
 			}
 		}
 	}
+	
 
 	return 1
 }

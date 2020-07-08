@@ -1,8 +1,9 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
 	"testing"
+
+	"github.com/ldsec/lattigo/ring"
 )
 
 func BenchmarkCKKSScheme(b *testing.B) {
@@ -107,7 +108,7 @@ func benchDecrypt(b *testing.B) {
 		decryptor := params.decryptor
 
 		plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
-		ciphertext := NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
+		ciphertext := NewCiphertextRandom(params.prng, parameters, 1, parameters.MaxLevel, parameters.Scale)
 
 		b.Run(testString("", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -122,9 +123,9 @@ func benchEvaluator(b *testing.B) {
 		params := genCkksParams(parameters)
 		evaluator := params.evaluator
 
-		ciphertext1 := NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
-		ciphertext2 := NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
-		receiver := NewCiphertextRandom(parameters, 2, parameters.MaxLevel, parameters.Scale)
+		ciphertext1 := NewCiphertextRandom(params.prng, parameters, 1, parameters.MaxLevel, parameters.Scale)
+		ciphertext2 := NewCiphertextRandom(params.prng, parameters, 1, parameters.MaxLevel, parameters.Scale)
+		receiver := NewCiphertextRandom(params.prng, parameters, 2, parameters.MaxLevel, parameters.Scale)
 
 		rlk := params.kgen.GenRelinKey(params.sk)
 		rotkey := NewRotationKeys()
@@ -158,7 +159,7 @@ func benchEvaluator(b *testing.B) {
 				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
 
 				b.StopTimer()
-				ciphertext1 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
+				ciphertext1 = NewCiphertextRandom(params.prng, parameters, 1, parameters.MaxLevel, parameters.Scale)
 				b.StartTimer()
 			}
 		})
@@ -206,7 +207,7 @@ func benchHoistedRotations(b *testing.B) {
 		rotkey := NewRotationKeys()
 		params.kgen.GenRot(RotationLeft, params.sk, 5, rotkey)
 
-		ciphertext := NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
+		ciphertext := NewCiphertextRandom(params.prng, parameters, 1, parameters.MaxLevel, parameters.Scale)
 
 		contextQ := params.ckkscontext.contextQ
 		contextP := params.ckkscontext.contextP

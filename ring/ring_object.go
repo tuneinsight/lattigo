@@ -1,7 +1,6 @@
 package ring
 
 import (
-	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"math/bits"
@@ -19,30 +18,6 @@ func NewPoly(N, nbModuli uint64) (pol *Poly) {
 	for i := uint64(0); i < nbModuli; i++ {
 		pol.Coeffs[i] = make([]uint64, N)
 	}
-	return
-}
-
-// NewPolyUniform creates a new polynomial with N coefficients uniform between 0 and 2^64 -1 and nbModuli moduli.
-func NewPolyUniform(N, nbModuli uint64) (pol *Poly) {
-	pol = new(Poly)
-
-	randomBytes := make([]byte, N<<3)
-
-	pol.Coeffs = make([][]uint64, nbModuli)
-	for i := uint64(0); i < nbModuli; i++ {
-		pol.Coeffs[i] = make([]uint64, N)
-
-		tmp := pol.Coeffs[i]
-
-		if _, err := rand.Read(randomBytes); err != nil {
-			panic("crypto rand error")
-		}
-
-		for j := uint64(0); j < N; j++ {
-			tmp[j] = binary.BigEndian.Uint64(randomBytes[j<<3 : (j+1)<<3])
-		}
-	}
-
 	return
 }
 

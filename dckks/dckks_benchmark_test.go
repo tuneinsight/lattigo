@@ -1,10 +1,11 @@
 package dckks
 
 import (
+	"testing"
+
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
-	"testing"
 )
 
 func BenchmarkDCKKS(b *testing.B) {
@@ -219,7 +220,7 @@ func benchKeySwitching(b *testing.B) {
 		p.s1 = sk1Shards[0].Get()
 		p.share = p.AllocateShare()
 
-		ciphertext := ckks.NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
+		ciphertext := ckks.NewCiphertextRandom(params.prng, parameters, 1, parameters.MaxLevel, parameters.Scale)
 
 		b.Run(testString("Gen/", parties, parameters), func(b *testing.B) {
 
@@ -254,7 +255,7 @@ func benchPublicKeySwitching(b *testing.B) {
 		sk0Shards := params.sk0Shards
 		pk1 := params.pk1
 
-		ciphertext := ckks.NewCiphertextRandom(parameters, 1, parameters.MaxLevel, parameters.Scale)
+		ciphertext := ckks.NewCiphertextRandom(params.prng, parameters, 1, parameters.MaxLevel, parameters.Scale)
 
 		type Party struct {
 			*PCKSProtocol
@@ -381,7 +382,7 @@ func benchRefresh(b *testing.B) {
 		crpGenerator := ring.NewUniformSampler(keyedPRNG, contextQ)
 		crp := crpGenerator.ReadNew()
 
-		ciphertext := ckks.NewCiphertextRandom(parameters, 1, levelStart, parameters.Scale)
+		ciphertext := ckks.NewCiphertextRandom(params.prng, parameters, 1, levelStart, parameters.Scale)
 
 		prng, err := utils.NewPRNG()
 		if err != nil {

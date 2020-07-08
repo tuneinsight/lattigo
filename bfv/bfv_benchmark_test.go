@@ -1,9 +1,9 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"testing"
+
+	"github.com/ldsec/lattigo/ring"
 )
 
 type benchParams struct {
@@ -25,11 +25,8 @@ func benchEncoder(b *testing.B) {
 		params := genBfvParams(parameters)
 
 		encoder := params.encoder
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
-		}
-		uniformSampler := ring.NewUniformSampler(prng, params.bfvContext.contextT)
+
+		uniformSampler := ring.NewUniformSampler(params.prng, params.bfvContext.contextT)
 
 		coeffs := uniformSampler.ReadNew()
 		plaintext := NewPlaintext(params.params)
@@ -74,11 +71,12 @@ func benchEncrypt(b *testing.B) {
 	for _, parameters := range testParams.bfvParameters {
 
 		params := genBfvParams(parameters)
+
 		encryptorPk := params.encryptorPk
 		encryptorSk := params.encryptorSk
 
 		plaintext := NewPlaintext(parameters)
-		ciphertext := NewCiphertextRandom(parameters, 1)
+		ciphertext := NewCiphertextRandom(params.prng, parameters, 1)
 
 		b.Run(testString("Sk/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -101,7 +99,7 @@ func benchDecrypt(b *testing.B) {
 		decryptor := params.decryptor
 
 		plaintext := NewPlaintext(parameters)
-		ciphertext := NewCiphertextRandom(parameters, 1)
+		ciphertext := NewCiphertextRandom(params.prng, parameters, 1)
 
 		b.Run(testString("", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -116,9 +114,9 @@ func benchEvaluator(b *testing.B) {
 		params := genBfvParams(parameters)
 		evaluator := params.evaluator
 
-		ciphertext1 := NewCiphertextRandom(parameters, 1)
-		ciphertext2 := NewCiphertextRandom(parameters, 1)
-		receiver := NewCiphertextRandom(parameters, 2)
+		ciphertext1 := NewCiphertextRandom(params.prng, parameters, 1)
+		ciphertext2 := NewCiphertextRandom(params.prng, parameters, 1)
+		receiver := NewCiphertextRandom(params.prng, parameters, 2)
 
 		rlk := params.kgen.GenRelinKey(params.sk, 1)
 		rotkey := NewRotationKeys()

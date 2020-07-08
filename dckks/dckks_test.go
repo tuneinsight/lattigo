@@ -2,10 +2,11 @@ package dckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/utils"
 	"math"
 	"sort"
 	"testing"
+
+	"github.com/ldsec/lattigo/utils"
 
 	"github.com/stretchr/testify/require"
 
@@ -27,8 +28,11 @@ func testString(opname string, parties uint64, params *ckks.Parameters) string {
 type dckksTestContext struct {
 	params       *ckks.Parameters
 	dckksContext *dckksContext
-	encoder      ckks.Encoder
-	evaluator    ckks.Evaluator
+
+	prng utils.PRNG
+
+	encoder   ckks.Encoder
+	evaluator ckks.Evaluator
 
 	encryptorPk0 ckks.Encryptor
 	decryptorSk0 ckks.Decryptor
@@ -85,6 +89,11 @@ func gendckksTestContext(contextParameters *ckks.Parameters) (params *dckksTestC
 	dckksContext := newDckksContext(contextParameters)
 
 	params.dckksContext = dckksContext
+
+	params.prng, err = utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
 
 	params.encoder = ckks.NewEncoder(contextParameters)
 	params.evaluator = ckks.NewEvaluator(contextParameters)

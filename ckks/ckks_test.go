@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"math/cmplx"
@@ -39,7 +40,6 @@ type ckksParams struct {
 }
 
 type ckksTestParameters struct {
-	verbose    bool
 	medianprec float64
 	slots      uint64
 
@@ -49,11 +49,12 @@ type ckksTestParameters struct {
 var err error
 var testParams = new(ckksTestParameters)
 
+var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 
 	testParams.medianprec = 15
-	testParams.verbose = true
 
 	testParams.ckksParameters = DefaultParams[PN12QP109 : PN12QP109+3]
 }
@@ -233,7 +234,7 @@ func verifyTestVectors(contextParams *ckksParams, decryptor Decryptor, valuesWan
 	meanprec /= complex(float64(slots), 0)
 	medianprec = calcmedian(diff)
 
-	if testParams.verbose {
+	if *printPrecisionStats {
 		t.Logf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
 		t.Logf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
 		t.Logf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))

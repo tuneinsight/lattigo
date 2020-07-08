@@ -420,7 +420,7 @@ func (bootcontext *BootContext) computePlaintextVectors() {
 	pVecDFTInv := bootcontext.computeDFTPlaintextVectors(roots, pow5, bootcontext.coeffsToSlotsDiffScale, true)
 	for i, lvl := range CtSLevel {
 		bootcontext.pDFTInv[i] = new(dftvectors)
-		bootcontext.pDFTInv[i].N1 = findbestbabygiantstepsplit(pVecDFTInv[i], dslots)
+		bootcontext.pDFTInv[i].N1 = findbestbabygiantstepsplit(pVecDFTInv[i], dslots, bootcontext.MaxN1N2Ratio)
 		bootcontext.encodePVec(pVecDFTInv[i], bootcontext.pDFTInv[i], lvl, true)
 	}
 
@@ -429,13 +429,13 @@ func (bootcontext *BootContext) computePlaintextVectors() {
 	pVecDFT := bootcontext.computeDFTPlaintextVectors(roots, pow5, bootcontext.slotsToCoeffsDiffScale, false)
 	for i, lvl := range StCLevel {
 		bootcontext.pDFT[i] = new(dftvectors)
-		bootcontext.pDFT[i].N1 = findbestbabygiantstepsplit(pVecDFT[i], dslots)
+		bootcontext.pDFT[i].N1 = findbestbabygiantstepsplit(pVecDFT[i], dslots, bootcontext.MaxN1N2Ratio)
 		bootcontext.encodePVec(pVecDFT[i], bootcontext.pDFT[i], lvl, false)
 	}
 }
 
 // Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (minN uint64) {
+func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, maxRatio float64) (minN uint64) {
 
 	for N1 := uint64(1); N1 < maxN; N1 <<= 1 {
 
@@ -458,27 +458,22 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (mi
 			hoisted := len(index[0]) - 1
 			normal := len(index) - 1
 
-			//fmt.Println(N1, hoisted, normal)
-
 			if hoisted > normal {
 
 				// Finds the next split that has a ratio hoisted/normal greater or equal to 3
-				for float64(hoisted)/float64(normal) < 10 {
+				for float64(hoisted)/float64(normal) < maxRatio {
+					if normal/2 == 0 {
+						break
+					}
 					N1 *= 2
 					hoisted = hoisted*2 + 1
 					normal = normal / 2
 				}
 
-				// If the ratio is greater than 7 then reverts back to the previous split
-				if float64(hoisted)/float64(normal) > 7.01 {
-					return N1 >> 1
-				} else {
-					return N1
-				}
+				return N1
 			}
 		}
 	}
-	
 
 	return 1
 }

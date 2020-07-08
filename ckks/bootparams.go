@@ -13,8 +13,9 @@ type BootParams struct {
 	SinRescal uint64  // Number of rescale and double angle formula (only applies for cos)
 	BabySplit uint64  // L parameter of the Baby-step giant-step algorithm (the smallest the more precision but the more non-scalr multiplications)
 
-	CtSLevel []uint64 // Level of the Coeffs To Slots
-	StCLevel []uint64 // Level of the Slots To Coeffs
+	CtSLevel     []uint64 // Level of the Coeffs To Slots
+	StCLevel     []uint64 // Level of the Slots To Coeffs
+	MaxN1N2Ratio float64  // n1/n2 ratio for the bsgs algo for matrix x vector eval
 
 	SinDepth uint64 // Automatically set
 }
@@ -39,15 +40,16 @@ func (b *BootParams) Gen() error { // TODO "Generate" ?
 
 func (b *BootParams) Copy() *BootParams {
 	paramsCopy := &BootParams{
-		Parameters: *b.Parameters.Copy(),
-		SinType:    b.SinType,
-		SinRange:   b.SinRange,
-		SinDeg:     b.SinDeg,
-		SinRescal:  b.SinRescal,
-		BabySplit:  b.BabySplit,
-		CtSLevel:   make([]uint64, len(b.CtSLevel)),
-		StCLevel:   make([]uint64, len(b.StCLevel)),
-		SinDepth:   b.SinDepth,
+		Parameters:   *b.Parameters.Copy(),
+		SinType:      b.SinType,
+		SinRange:     b.SinRange,
+		SinDeg:       b.SinDeg,
+		SinRescal:    b.SinRescal,
+		BabySplit:    b.BabySplit,
+		CtSLevel:     make([]uint64, len(b.CtSLevel)),
+		StCLevel:     make([]uint64, len(b.StCLevel)),
+		MaxN1N2Ratio: b.MaxN1N2Ratio,
+		SinDepth:     b.SinDepth,
 	}
 	copy(paramsCopy.CtSLevel, b.CtSLevel)
 	copy(paramsCopy.StCLevel, b.StCLevel)
@@ -106,12 +108,13 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 45,
 		Sigma: 3.2,
 	},
-		SinType:   Sin,
-		SinRange:  15,
-		SinDeg:    127,
-		SinRescal: 0,
-		CtSLevel:  []uint64{23, 22, 21},
-		StCLevel:  []uint64{13, 12, 12},
+		SinType:      Sin,
+		SinRange:     15,
+		SinDeg:       127,
+		SinRescal:    0,
+		CtSLevel:     []uint64{23, 22, 21},
+		StCLevel:     []uint64{13, 12, 12},
+		MaxN1N2Ratio: 16.0,
 	},
 
 	// SET II
@@ -133,12 +136,13 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 45,
 		Sigma: 3.2,
 	},
-		SinType:   Cos,
-		SinRange:  16,
-		SinDeg:    40,
-		SinRescal: 2,
-		CtSLevel:  []uint64{23, 22, 21},
-		StCLevel:  []uint64{12, 11, 11},
+		SinType:      Cos,
+		SinRange:     16,
+		SinDeg:       40,
+		SinRescal:    2,
+		CtSLevel:     []uint64{23, 22, 21},
+		StCLevel:     []uint64{12, 11, 11},
+		MaxN1N2Ratio: 16.0,
 	},
 
 	// SET III
@@ -186,12 +190,13 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 30,
 		Sigma: 3.2,
 	},
-		SinType:   Sin,
-		SinRange:  15,
-		SinDeg:    127,
-		SinRescal: 0,
-		CtSLevel:  []uint64{19, 18, 17},
-		StCLevel:  []uint64{9, 9, 8},
+		SinType:      Sin,
+		SinRange:     15,
+		SinDeg:       127,
+		SinRescal:    0,
+		CtSLevel:     []uint64{19, 18, 17},
+		StCLevel:     []uint64{9, 9, 8},
+		MaxN1N2Ratio: 16.0,
 	},
 
 	// SET IV
@@ -213,12 +218,13 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 30,
 		Sigma: 3.2,
 	},
-		SinType:   Cos,
-		SinRange:  16,
-		SinDeg:    40,
-		SinRescal: 2,
-		CtSLevel:  []uint64{20, 19, 18},
-		StCLevel:  []uint64{9, 9, 8},
+		SinType:      Cos,
+		SinRange:     16,
+		SinDeg:       40,
+		SinRescal:    2,
+		CtSLevel:     []uint64{20, 19, 18},
+		StCLevel:     []uint64{9, 9, 8},
+		MaxN1N2Ratio: 16.0,
 	},
 
 	// SET V
@@ -235,11 +241,12 @@ var BootstrappParams = []*BootParams{
 		Scale: 1 << 30,
 		Sigma: 3.2,
 	},
-		SinType:   Cos,
-		SinRange:  19,
-		SinDeg:    48,
-		SinRescal: 2,
-		CtSLevel:  []uint64{21, 20, 19, 18},
-		StCLevel:  []uint64{9, 9, 8},
+		SinType:      Cos,
+		SinRange:     19,
+		SinDeg:       48,
+		SinRescal:    2,
+		CtSLevel:     []uint64{21, 20, 19, 18},
+		StCLevel:     []uint64{9, 9, 8},
+		MaxN1N2Ratio: 16.0,
 	},
 }

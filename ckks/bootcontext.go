@@ -53,8 +53,8 @@ type BootContext struct { // TODO: change to "Bootstrapper" ?
 type dftvectors struct {
 	N1    uint64
 	Level uint64
-	Vec   map[uint64]*Plaintext
-	VecP  map[uint64]*Plaintext
+	Scale float64
+	Vec   map[uint64][2]*ring.Poly
 }
 
 func sin2pi2pi(x complex128) complex128 {
@@ -498,8 +498,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 		}
 	}
 
-	plaintextVec.Vec = make(map[uint64]*Plaintext)
-	plaintextVec.VecP = make(map[uint64]*Plaintext)
+	plaintextVec.Vec = make(map[uint64][2]*ring.Poly)
 
 	if forward {
 		scale = float64(bootcontext.Qi[level])
@@ -513,6 +512,10 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	}
 
 	plaintextVec.Level = level
+	plaintextVec.Scale = scale
+	contextQ := bootcontext.evaluator.(*evaluator).ckksContext.contextQ
+	contextP := bootcontext.evaluator.(*evaluator).ckksContext.contextP
+	encoder := bootcontext.encoder.(*encoderComplex128)
 
 	for j := range index {
 
@@ -521,13 +524,21 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 			//  levels * n coefficients of 8 bytes each
 			bootcontext.plaintextSize += (level + 1) * 8 * bootcontext.n
 
-			plaintextQ, plaintextP := NewPlaintextQP(&bootcontext.Parameters, level, scale)
+			encoder.embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
 
-			bootcontext.encoder.(*encoderComplex128).EncodeQPNTT(plaintextQ, plaintextP, rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
-			bootcontext.evaluator.(*evaluator).ckksContext.contextQ.MFormLvl(level, plaintextQ.value, plaintextQ.value)
-			bootcontext.evaluator.(*evaluator).ckksContext.contextP.MForm(plaintextP.value, plaintextP.value)
-			plaintextVec.Vec[N1*j+uint64(i)] = plaintextQ
-			plaintextVec.VecP[N1*j+uint64(i)] = plaintextP
+			plaintextQ := ring.NewPoly(bootcontext.Parameters.N, level+1)
+			encoder.scaleUp(plaintextQ, scale, contextQ.Modulus[:level+1])
+			contextQ.NTTLvl(level, plaintextQ, plaintextQ)
+			contextQ.MFormLvl(level, plaintextQ, plaintextQ)
+
+			plaintextP := ring.NewPoly(bootcontext.Parameters.N, level+1)
+			encoder.scaleUp(plaintextP, scale, contextP.Modulus)
+			contextP.NTT(plaintextP, plaintextP)
+			contextP.MForm(plaintextP, plaintextP)
+
+			plaintextVec.Vec[N1*j+uint64(i)] = [2]*ring.Poly{plaintextQ, plaintextP}
+
+			encoder.wipeInternalMemory()
 
 		}
 	}

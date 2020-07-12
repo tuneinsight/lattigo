@@ -28,25 +28,3 @@ func NewPlaintext(params *Parameters, level uint64, scale float64) *Plaintext {
 
 	return plaintext
 }
-
-// NewPlaintext creates a new Plaintext of level level and scale scale.
-func NewPlaintextQP(params *Parameters, level uint64, scale float64) (*Plaintext, *Plaintext) {
-
-	if !params.isValid {
-		panic("cannot NewPlaintext: parameters are invalid (check if the generation was done properly)")
-	}
-
-	plaintextQ := &Plaintext{&CkksElement{}, nil}
-	plaintextQ.CkksElement.value = []*ring.Poly{ring.NewPoly(1<<params.LogN, level+1)}
-	plaintextQ.value = plaintextQ.CkksElement.value[0]
-	plaintextQ.scale = scale
-	plaintextQ.isNTT = true
-
-	plaintextP := &Plaintext{&CkksElement{}, nil}
-	plaintextP.CkksElement.value = []*ring.Poly{ring.NewPoly(1<<params.LogN, uint64(len(params.Pi)))}
-	plaintextP.value = plaintextP.CkksElement.value[0]
-	plaintextP.scale = scale
-	plaintextP.isNTT = true
-
-	return plaintextQ, plaintextP
-}

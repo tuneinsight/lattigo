@@ -238,8 +238,8 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 
 					N1Rot++
 
-					plaintextQ := plainVectors.Vec[N1*j+uint64(i)].value
-					plaintextP := plainVectors.VecP[N1*j+uint64(i)].value
+					plaintextQ := plainVectors.Vec[N1*j+uint64(i)][0]
+					plaintextP := plainVectors.Vec[N1*j+uint64(i)][1]
 
 					if cnt1 == 0 {
 						contextQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(d0_Q) * plaintext
@@ -264,16 +264,16 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			// Inner loop rotation of c0 (in bas Q only)
 			for _, i := range index[j] {
 				if i != 0 {
-					ring.PermuteNTTWithIndexLvl(levelQ, vec.value[0], bootcontext.rotkeys.permuteNTTLeftIndex[i], tmpQ2)   // phi(c0)
-					contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j+uint64(i)].value, tmpQ2, tmpResQ0) // phi(c0) * plaintext mod Q
+					ring.PermuteNTTWithIndexLvl(levelQ, vec.value[0], bootcontext.rotkeys.permuteNTTLeftIndex[i], tmpQ2) // phi(c0)
+					contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j+uint64(i)][0], tmpQ2, tmpResQ0)  // phi(c0) * plaintext mod Q
 				}
 			}
 
 			// If a rotation by zero happens in the inner loop
 			if state {
 				N1Rot++
-				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j].value, vec.value[0], tmpResQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
-				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j].value, vec.value[1], tmpResQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
+				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[0], tmpResQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[1], tmpResQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
 			}
 
 			// Outer loop rotations
@@ -331,8 +331,8 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			state = true
 		} else {
 
-			plaintextQ := plainVectors.Vec[uint64(i)].value
-			plaintextP := plainVectors.VecP[uint64(i)].value
+			plaintextQ := plainVectors.Vec[uint64(i)][0]
+			plaintextP := plainVectors.Vec[uint64(i)][1]
 
 			N1Rot++
 
@@ -363,17 +363,17 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	for _, i := range index[0] { // sum(phi(d0_Q) * plaintext)/P + phi(c0_Q) * plaintext
 		if i != 0 {
 			ring.PermuteNTTWithIndexLvl(levelQ, vec.value[0], bootcontext.rotkeys.permuteNTTLeftIndex[i], tmpQ2)
-			contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[uint64(i)].value, tmpQ2, res.value[0]) // res += phi(c0_Q) * plaintext
+			contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[uint64(i)][0], tmpQ2, res.value[0]) // res += phi(c0_Q) * plaintext
 		}
 	}
 
 	if state { // If a rotation by zero should have happened in the inner loop
 		N1Rot++
-		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0].value, vec.value[0], res.value[0]) // res += c0_Q * plaintext
-		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0].value, vec.value[1], res.value[1]) // res += c1_Q * plaintext
+		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[0], res.value[0]) // res += c0_Q * plaintext
+		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[1], res.value[1]) // res += c1_Q * plaintext
 	}
 
-	res.SetScale(plainVectors.Vec[0].Scale() * vec.Scale())
+	res.SetScale(plainVectors.Scale * vec.Scale())
 
 	//log.Println(N1Rot, N2Rot)
 

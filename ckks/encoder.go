@@ -108,8 +108,7 @@ func (encoder *encoderComplex128) EncodeNew(values []complex128, slots uint64) (
 	return
 }
 
-// Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it in the receiver Plaintext.
-func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
+func (encoder *encoderComplex128) embed(values []complex128, slots uint64) {
 
 	if uint64(len(values)) > encoder.ckksContext.maxSlots || uint64(len(values)) > slots {
 		panic("cannot Encode: too many values for the given number of slots")
@@ -131,8 +130,13 @@ func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex1
 		encoder.valuesfloat[idx] = real(encoder.values[i])
 		encoder.valuesfloat[jdx] = imag(encoder.values[i])
 	}
+}
 
-	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
+func (encoder *encoderComplex128) scaleUp(pol *ring.Poly, scale float64, moduli []uint64) {
+	scaleUpVecExact(encoder.valuesfloat, scale, moduli, pol.Coeffs)
+}
+
+func (encoder *encoderComplex128) wipeInternalMemory() {
 
 	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
 		encoder.values[i] = 0
@@ -141,7 +145,13 @@ func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex1
 	for i := uint64(0); i < encoder.ckksContext.n; i++ {
 		encoder.valuesfloat[i] = 0
 	}
+}
 
+// Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it in the receiver Plaintext.
+func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
+	encoder.embed(values, slots)
+	encoder.scaleUp(plaintext.value, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1])
+	encoder.wipeInternalMemory()
 	plaintext.isNTT = false
 }
 
@@ -152,11 +162,8 @@ func (encoder *encoderComplex128) EncodeNTTNew(values []complex128, slots uint64
 }
 
 func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64) {
-
 	encoder.Encode(plaintext, values, slots)
-
 	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
-
 	plaintext.isNTT = true
 }
 

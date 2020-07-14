@@ -3,6 +3,7 @@ package ckks
 import (
 	"fmt"
 	"github.com/ldsec/lattigo/ckks/bettersine"
+	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math"
@@ -44,12 +45,16 @@ type BootContext struct { // TODO: change to "Bootstrapper" ?
 	ctxpool [3]*Ciphertext // Memory pool
 
 	decryptor Decryptor
+
+	poolQ [6]*ring.Poly
+	poolP [4]*ring.Poly
 }
 
 type dftvectors struct {
 	N1    uint64
 	Level uint64
-	Vec   map[uint64]*Plaintext
+	Scale float64
+	Vec   map[uint64][2]*ring.Poly
 }
 
 func sin2pi2pi(x complex128) complex128 {
@@ -89,16 +94,26 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 	bootcontext.sinScale = 1 << 45
 
 	bootcontext.encoder = NewEncoder(&bootparams.Parameters)
+	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
 
 	bootcontext.newBootSine()
 	bootcontext.newBootDFT()
 
-	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
-	//bootcontext.decryptor = NewDecryptor(&bootparams.Parameters, sk)
-
 	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
 	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
 	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
+
+	eval := bootcontext.evaluator.(*evaluator)
+	contextQ := eval.ckksContext.contextQ
+	contextP := eval.ckksContext.contextP
+
+	for i := range bootcontext.poolQ {
+		bootcontext.poolQ[i] = contextQ.NewPoly()
+	}
+
+	for i := range bootcontext.poolP {
+		bootcontext.poolP[i] = contextP.NewPoly()
+	}
 
 	return bootcontext
 }
@@ -405,7 +420,7 @@ func (bootcontext *BootContext) computePlaintextVectors() {
 	pVecDFTInv := bootcontext.computeDFTPlaintextVectors(roots, pow5, bootcontext.coeffsToSlotsDiffScale, true)
 	for i, lvl := range CtSLevel {
 		bootcontext.pDFTInv[i] = new(dftvectors)
-		bootcontext.pDFTInv[i].N1 = findbestbabygiantstepsplit(pVecDFTInv[i], dslots)
+		bootcontext.pDFTInv[i].N1 = findbestbabygiantstepsplit(pVecDFTInv[i], dslots, bootcontext.MaxN1N2Ratio)
 		bootcontext.encodePVec(pVecDFTInv[i], bootcontext.pDFTInv[i], lvl, true)
 	}
 
@@ -414,13 +429,13 @@ func (bootcontext *BootContext) computePlaintextVectors() {
 	pVecDFT := bootcontext.computeDFTPlaintextVectors(roots, pow5, bootcontext.slotsToCoeffsDiffScale, false)
 	for i, lvl := range StCLevel {
 		bootcontext.pDFT[i] = new(dftvectors)
-		bootcontext.pDFT[i].N1 = findbestbabygiantstepsplit(pVecDFT[i], dslots)
+		bootcontext.pDFT[i].N1 = findbestbabygiantstepsplit(pVecDFT[i], dslots, bootcontext.MaxN1N2Ratio)
 		bootcontext.encodePVec(pVecDFT[i], bootcontext.pDFT[i], lvl, false)
 	}
 }
 
 // Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (minN uint64) {
+func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, maxRatio float64) (minN uint64) {
 
 	for N1 := uint64(1); N1 < maxN; N1 <<= 1 {
 
@@ -446,18 +461,16 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64) (mi
 			if hoisted > normal {
 
 				// Finds the next split that has a ratio hoisted/normal greater or equal to 3
-				for float64(hoisted)/float64(normal) < 3 {
+				for float64(hoisted)/float64(normal) < maxRatio {
+					if normal/2 == 0 {
+						break
+					}
 					N1 *= 2
 					hoisted = hoisted*2 + 1
 					normal = normal / 2
 				}
 
-				// If the ratio is greater than 7 then reverts back to the previous split
-				if float64(hoisted)/float64(normal) > 7.01 {
-					return N1 >> 1
-				} else {
-					return N1
-				}
+				return N1
 			}
 		}
 	}
@@ -485,7 +498,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 		}
 	}
 
-	plaintextVec.Vec = make(map[uint64]*Plaintext)
+	plaintextVec.Vec = make(map[uint64][2]*ring.Poly)
 
 	if forward {
 		scale = float64(bootcontext.Qi[level])
@@ -499,6 +512,10 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	}
 
 	plaintextVec.Level = level
+	plaintextVec.Scale = scale
+	contextQ := bootcontext.evaluator.(*evaluator).ckksContext.contextQ
+	contextP := bootcontext.evaluator.(*evaluator).ckksContext.contextP
+	encoder := bootcontext.encoder.(*encoderComplex128)
 
 	for j := range index {
 
@@ -507,9 +524,22 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 			//  levels * n coefficients of 8 bytes each
 			bootcontext.plaintextSize += (level + 1) * 8 * bootcontext.n
 
-			plaintextVec.Vec[N1*j+uint64(i)] = NewPlaintext(&bootcontext.Parameters, level, scale)
+			encoder.embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
 
-			bootcontext.encoder.EncodeNTT(plaintextVec.Vec[N1*j+uint64(i)], rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
+			plaintextQ := ring.NewPoly(bootcontext.Parameters.N, level+1)
+			encoder.scaleUp(plaintextQ, scale, contextQ.Modulus[:level+1])
+			contextQ.NTTLvl(level, plaintextQ, plaintextQ)
+			contextQ.MFormLvl(level, plaintextQ, plaintextQ)
+
+			plaintextP := ring.NewPoly(bootcontext.Parameters.N, level+1)
+			encoder.scaleUp(plaintextP, scale, contextP.Modulus)
+			contextP.NTT(plaintextP, plaintextP)
+			contextP.MForm(plaintextP, plaintextP)
+
+			plaintextVec.Vec[N1*j+uint64(i)] = [2]*ring.Poly{plaintextQ, plaintextP}
+
+			encoder.wipeInternalMemory()
+
 		}
 	}
 }

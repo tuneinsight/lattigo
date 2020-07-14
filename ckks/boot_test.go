@@ -25,13 +25,15 @@ func TestBootstrapp(t *testing.T) {
 
 	bootparams.Gen()
 
-	for i, qi := range bootparams.Qi {
-		fmt.Printf("%d : 0x%x\n", i, qi)
-	}
+	/*
+		for i, qi := range bootparams.Qi {
+			fmt.Printf("%d : 0x%x\n", i, qi)
+		}
 
-	for i, pj := range bootparams.Pi {
-		fmt.Printf("%d : 0x%x\n", i, pj)
-	}
+		for i, pj := range bootparams.Pi {
+			fmt.Printf("%d : 0x%x\n", i, pj)
+		}
+	*/
 
 	params := genCkksParams(parameters)
 
@@ -49,8 +51,8 @@ func TestBootstrapp(t *testing.T) {
 		parameters.Scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
-		deg := 119
-		K := float64(15)
+		deg := 145
+		K := float64(18)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
 		eval.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
@@ -84,8 +86,8 @@ func TestBootstrapp(t *testing.T) {
 		parameters.Scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
-		K := 19
-		deg := 48
+		K := 18
+		deg := 44
 		dev := 10
 		sc_num := 2
 

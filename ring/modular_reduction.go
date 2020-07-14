@@ -59,7 +59,7 @@ func MRedParams(q uint64) (qInv uint64) {
 // MRed computes x * y * (1/2^64) mod q.
 func MRed(a, b, q, qInv uint64) (r uint64) {
 	mhi, mlo := bits.Mul64(a, b)
-	hhi, _ := bits.Mul64(mlo * qInv, q)
+	hhi, _ := bits.Mul64(mlo*qInv, q)
 	r = mhi - hhi + q
 	if r >= q {
 		r -= q
@@ -116,7 +116,7 @@ func BRed(a, b, q uint64, u []uint64) (r uint64) {
 
 	// computes r = mhi * uhi + (mlo * uhi + mhi * ulo)<<64 + (mlo * ulo)) >> 128
 
-	r = mhi*u[0] // r = mhi * uhi
+	r = mhi * u[0] // r = mhi * uhi
 
 	hhi, hlo = bits.Mul64(mlo, u[0]) // mlo * uhi
 
@@ -124,15 +124,15 @@ func BRed(a, b, q uint64, u []uint64) (r uint64) {
 
 	lhi, _ = bits.Mul64(mlo, u[1]) // mlo * ulo
 
-	s0, carry = bits.Add64(hlo, lhi, 0) 
+	s0, carry = bits.Add64(hlo, lhi, 0)
 
-	r += carry 
+	r += carry
 
 	hhi, hlo = bits.Mul64(mhi, u[1]) // mhi * ulo
 
 	r += hhi
 
-	_, carry = bits.Add64(hlo, s0, 0) 
+	_, carry = bits.Add64(hlo, s0, 0)
 
 	r += carry
 
@@ -155,7 +155,7 @@ func BRedConstant(a, b, q uint64, u []uint64) (r uint64) {
 
 	// computes r = mhi * uhi + (mlo * uhi + mhi * ulo)<<64 + (mlo * ulo)) >> 128
 
-	r = mhi*u[0] // r = mhi * uhi
+	r = mhi * u[0] // r = mhi * uhi
 
 	hhi, hlo = bits.Mul64(mlo, u[0]) // mlo * uhi
 
@@ -163,15 +163,15 @@ func BRedConstant(a, b, q uint64, u []uint64) (r uint64) {
 
 	lhi, _ = bits.Mul64(mlo, u[1]) // mlo * ulo
 
-	s0, carry = bits.Add64(hlo, lhi, 0) 
+	s0, carry = bits.Add64(hlo, lhi, 0)
 
-	r += carry 
+	r += carry
 
 	hhi, hlo = bits.Mul64(mhi, u[1]) // mhi * ulo
 
 	r += hhi
 
-	_, carry = bits.Add64(hlo, s0, 0) 
+	_, carry = bits.Add64(hlo, s0, 0)
 
 	r += carry
 

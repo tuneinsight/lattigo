@@ -90,18 +90,10 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 				qi = contextQ.Modulus[i]
 
 				if coeff > (Q >> 1) {
-					ct.Value()[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff+1, qi, bredparams[i])
+					ct.Value()[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
 				} else {
 					ct.Value()[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
 				}
-			}
-
-			qi = contextQ.Modulus[0]
-
-			if coeff > (Q >> 1) {
-				ct.Value()[u].Coeffs[0][j] = qi - ring.BRedAdd(Q-coeff+1, qi, bredparams[0])
-			} else {
-				ct.Value()[u].Coeffs[0][j] = ring.BRedAdd(coeff, qi, bredparams[0])
 			}
 		}
 	}
@@ -172,7 +164,12 @@ func (bootcontext *BootContext) dft(vec *Ciphertext, plainVectors []*dftvectors,
 
 func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
 
-	evaluator := bootcontext.evaluator
+	eval := bootcontext.evaluator.(*evaluator)
+	contextQ := eval.ckksContext.contextQ
+	contextP := eval.ckksContext.contextP
+
+	levelQ := vec.Level()
+	levelP := uint64(len(contextP.Modulus) - 1)
 
 	var N1 uint64
 
@@ -200,38 +197,187 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 		}
 	}
 
-	// Pre-rotates ciphertext for the baby-step giant-step algorithm
+	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
+	vecRotQ, vecRotP := eval.RotateHoistedNoModDown(vec, rotations, bootcontext.rotkeys)
 
-	vecRot := evaluator.RotateHoisted(vec, rotations, bootcontext.rotkeys)
+	tmpQ0 := bootcontext.poolQ[0]
+	tmpQ1 := bootcontext.poolQ[1]
+	tmpQ2 := bootcontext.poolQ[2]
+	tmpQ3 := bootcontext.poolQ[3]
 
-	var tmpVec, tmp *Ciphertext
+	tmpP0 := bootcontext.poolP[0]
+	tmpP1 := bootcontext.poolP[1]
+	tmpP2 := bootcontext.poolP[2]
+	tmpP3 := bootcontext.poolP[3]
 
-	tmpVec = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
-	tmp = NewCiphertext(&bootcontext.Parameters, 1, bootcontext.MaxLevel, vec.Scale())
+	tmpResQ0 := bootcontext.poolQ[4]
+	tmpResQ1 := bootcontext.poolQ[5]
 
-	var tot int
+	pool2Q := eval.poolQ[1]
+	pool3Q := eval.poolQ[2]
+	pool2P := eval.poolP[1]
+	pool3P := eval.poolP[2]
+
+	N1Rot := 0
+	N2Rot := 0
+
+	// OUTER LOOP
+	cnt0 := 0
 	for j := range index {
 
-		tmpVec.Value()[0].Zero()
-		tmpVec.Value()[1].Zero()
+		if j != 0 {
 
-		for _, i := range index[j] {
-			evaluator.MulRelin(vecRot[uint64(i)], plainVectors.Vec[N1*j+uint64(i)], nil, tmp)
-			evaluator.Add(tmpVec, tmp, tmpVec)
+			// INNER LOOP
+			state := false
+			cnt1 := 0
+			for _, i := range index[j] {
+
+				if i == 0 {
+					state = true
+				} else {
+
+					N1Rot++
+
+					plaintextQ := plainVectors.Vec[N1*j+uint64(i)][0]
+					plaintextP := plainVectors.Vec[N1*j+uint64(i)][1]
+
+					if cnt1 == 0 {
+						contextQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(d0_Q) * plaintext
+						contextQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
+						contextP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
+						contextP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
+					} else {
+						contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(d0_Q) * plaintext
+						contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
+						contextP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
+						contextP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
+					}
+
+					cnt1++
+				}
+			}
+
+			// Hoisting of the ModDown of sum(sum(phi(d0) * plaintext)) and sum(sum(phi(d1) * plaintext))
+			eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ2, tmpP2, tmpResQ0) // sum(phi(d0) * plaintext)/P
+			eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ3, tmpP3, tmpResQ1) // sum(phi(d1) * plaintext)/P
+
+			// Inner loop rotation of c0 (in bas Q only)
+			for _, i := range index[j] {
+				if i != 0 {
+					ring.PermuteNTTWithIndexLvl(levelQ, vec.value[0], bootcontext.rotkeys.permuteNTTLeftIndex[i], tmpQ2) // phi(c0)
+					contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j+uint64(i)][0], tmpQ2, tmpResQ0)  // phi(c0) * plaintext mod Q
+				}
+			}
+
+			// If a rotation by zero happens in the inner loop
+			if state {
+				N1Rot++
+				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[0], tmpResQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[1], tmpResQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
+			}
+
+			// Outer loop rotations
+			ring.PermuteNTTWithIndexLvl(levelQ, tmpResQ0, bootcontext.rotkeys.permuteNTTLeftIndex[N1*j], tmpQ2) // phi(tmpRes_0)
+			contextQ.AddLvl(levelQ, res.value[0], tmpQ2, res.value[0])                                          // res += phi(tmpRes)
+
+			eval.switchKeysInPlaceNoModDown(levelQ, tmpResQ1, bootcontext.rotkeys.evakeyRotColLeft[N1*j], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
+
+			rot := bootcontext.rotkeys.permuteNTTLeftIndex[N1*j]
+
+			N2Rot++
+
+			if cnt0 == 0 {
+				ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, rot, tmpQ0) // sum(phi(d0_Q))
+				ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, rot, tmpQ1) // sum(phi(d1_Q))
+				ring.PermuteNTTWithIndexLvl(levelP, pool2P, rot, tmpP0) // sum(phi(d0_P))
+				ring.PermuteNTTWithIndexLvl(levelP, pool3P, rot, tmpP1) // sum(phi(d1_P))
+			} else {
+				ring.PermuteNTTWithIndexAndAddNoModLvl(levelQ, pool2Q, rot, tmpQ0) // sum(phi(d0_Q))
+				ring.PermuteNTTWithIndexAndAddNoModLvl(levelQ, pool3Q, rot, tmpQ1) // sum(phi(d1_Q))
+				ring.PermuteNTTWithIndexAndAddNoModLvl(levelP, pool2P, rot, tmpP0) // sum(phi(d0_P))
+				ring.PermuteNTTWithIndexAndAddNoModLvl(levelP, pool3P, rot, tmpP1) // sum(phi(d1_P))
+			}
+
+			if cnt0 == 7 {
+				contextQ.ReduceLvl(levelQ, tmpQ0, tmpQ0)
+				contextQ.ReduceLvl(levelQ, tmpQ1, tmpQ1)
+				contextP.Reduce(tmpP0, tmpP0)
+				contextP.Reduce(tmpP1, tmpP1)
+			}
+
+			cnt0++
 		}
-
-		if N1*j != 0 {
-			tot++
-		}
-
-		evaluator.RotateColumns(tmpVec, N1*j, bootcontext.rotkeys, tmp)
-
-		evaluator.Add(res, tmp, res)
 	}
 
-	//log.Printf("%d + %d KeySwitch at level %d\n", len(rotations)-1, tot, vec.Level())
+	if cnt0 != 7 {
+		contextQ.ReduceLvl(levelQ, tmpQ0, tmpQ0)
+		contextQ.ReduceLvl(levelQ, tmpQ1, tmpQ1)
+		contextP.Reduce(tmpP0, tmpP0)
+		contextP.Reduce(tmpP1, tmpP1)
+	}
 
-	return res
+	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ0, tmpP0, tmpQ0) // sum(phi(d0_QP))/P
+	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ1, tmpP1, tmpQ1) // sum(phi(d1_QP))/P
+
+	contextQ.AddLvl(levelQ, res.value[0], tmpQ0, res.value[0]) // res += sum(phi(d0_QP))/P
+	contextQ.AddLvl(levelQ, res.value[1], tmpQ1, res.value[1]) // res += sum(phi(d1_QP))/P
+
+	// INNER LOOP ROTATION NON ZERO WITH OUTER LOOP ROTATION ZERO
+	state := false
+	cnt0 = 0
+	for _, i := range index[0] {
+
+		if i == 0 {
+			state = true
+		} else {
+
+			plaintextQ := plainVectors.Vec[uint64(i)][0]
+			plaintextP := plainVectors.Vec[uint64(i)][1]
+
+			N1Rot++
+
+			// keyswitch(c1_Q) = (d0_QP, d1_QP)
+
+			if cnt0 == 0 {
+				contextQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(d0_Q) * plaintext
+				contextQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
+				contextP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
+				contextP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
+			} else {
+				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(d0_Q) * plaintext
+				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
+				contextP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
+				contextP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
+			}
+			cnt0++
+		}
+	}
+
+	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ2, tmpP2, tmpResQ0) // sum(phi(d0_QP) * plaintext)/P
+	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ3, tmpP3, tmpResQ1) // sum(phi(d1_QP) * plaintext)/P
+
+	contextQ.AddLvl(levelQ, res.value[0], tmpResQ0, res.value[0]) // res += sum(phi(d0_QP) * plaintext)/P
+	contextQ.AddLvl(levelQ, res.value[1], tmpResQ1, res.value[1]) // res += sum(phi(d1_QP) * plaintext)/P
+
+	// INNER LOOP ROTATION ZERO WITH OUTER LOOP ROTATION ZERO
+	for _, i := range index[0] { // sum(phi(d0_Q) * plaintext)/P + phi(c0_Q) * plaintext
+		if i != 0 {
+			ring.PermuteNTTWithIndexLvl(levelQ, vec.value[0], bootcontext.rotkeys.permuteNTTLeftIndex[i], tmpQ2)
+			contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[uint64(i)][0], tmpQ2, res.value[0]) // res += phi(c0_Q) * plaintext
+		}
+	}
+
+	if state { // If a rotation by zero should have happened in the inner loop
+		N1Rot++
+		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[0], res.value[0]) // res += c0_Q * plaintext
+		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[1], res.value[1]) // res += c1_Q * plaintext
+	}
+
+	res.SetScale(plainVectors.Scale * vec.Scale())
+
+	//log.Println(N1Rot, N2Rot)
+
+	return
 }
 
 // Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)

@@ -420,11 +420,10 @@ func (bootcontext *BootContext) evaluateCheby(ct *Ciphertext) (res *Ciphertext) 
 	C[1] = ct.CopyNew().Ciphertext()
 
 	cheby := bootcontext.chebycoeffs
-	if bootcontext.SinType == Sin {
-		eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	} else {
+
+	if bootcontext.SinType == Cos {
 		sc_fac := complex(float64(int(1<<bootcontext.SinRescal)), 0)
-		eval.AddConst(C[1], (-cheby.a-cheby.b-(2*0.25/sc_fac))/(cheby.b-cheby.a), C[1])
+		eval.AddConst(C[1], -0.5/(sc_fac*(cheby.b-cheby.a)), C[1])
 	}
 
 	res = eval.evalCheby(cheby, C, bootcontext.relinkey)

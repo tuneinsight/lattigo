@@ -171,9 +171,9 @@ func (context *Context) DivRoundByLastModulusMany(p0 *Poly, nbRescales uint64) {
 type SimpleScaler struct {
 	context *Context
 
-	t  uint64     //Plaintext modulus
-	wi []uint64   //Integer parts of   ([Q/Qi]^(-1))_{Qi} * t/Qi
-	ti []Float128 //Fractional part of ([Q/Qi]^(-1))_{Qi} * t/Qi
+	t  uint64   //Plaintext modulus
+	wi []uint64 //Integer parts of   ([Q/Qi]^(-1))_{Qi} * t/Qi
+	ti []*big.Float
 
 	reducealgoMul func(x, y uint64) uint64
 	reducealgoAdd func(x uint64) uint64
@@ -181,6 +181,9 @@ type SimpleScaler struct {
 	reducealgoAddParam uint64
 	reducealgoMulParam uint64
 }
+
+// SimpleScalerFloatPrecision is the precision in bits for the big.Float in the scaling by t/Q.
+const SimpleScalerFloatPrecision = 80
 
 // NewSimpleScaler creates a new SimpleScaler from t (the modulus under which the reconstruction is returned) and
 // context (the context in which the polynomial to reconstruct will be represented).
@@ -190,10 +193,13 @@ func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 
 	newParams = new(SimpleScaler)
 
-	var tmp Float128
-	QiB := new(big.Int)     // Qi
-	QiStar := new(big.Int)  // Q/Qi
-	QiBarre := new(big.Int) // (Q/Qi)^(-1) mod Qi
+	var tmp *big.Float
+	QiB := new(big.Int)         // Qi
+	QiBF := new(big.Float)      // Qi
+	QiStar := new(big.Int)      // Q/Qi
+	QiBarre := new(big.Int)     // (Q/Qi)^(-1) mod Qi
+	QiBarreBF := new(big.Float) // (Q/Qi)^(-1) mod Qi
+	tBF := new(big.Float).SetUint64(t)
 
 	newParams.t = t
 	newParams.context = context
@@ -247,21 +253,22 @@ func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 
 	// Integer and rational part of QiBarre * t/Qi
 	newParams.wi = make([]uint64, len(context.Modulus))
-	newParams.ti = make([]Float128, len(context.Modulus))
+	newParams.ti = make([]*big.Float, len(context.Modulus))
 
 	for i, qi := range context.Modulus {
 
 		QiB.SetUint64(qi)
+		QiBF.SetUint64(qi)
 		QiStar.Quo(context.ModulusBigint, QiB)
 		QiBarre.ModInverse(QiStar, QiB)
 		QiBarre.Mod(QiBarre, QiB)
+		QiBarreBF.SetInt(QiBarre)
 
-		tmp = Float128Div(Float128SetUint53(t), Float128SetUint64(qi))
-
-		tmp = Float128Mul(tmp, Float128SetUint64(QiBarre.Uint64()))
+		tmp = new(big.Float).Quo(tBF, QiBF)
+		tmp.Mul(tmp, QiBarreBF)
 
 		//floor( ([Q/Qi]^(-1))_{Qi} * t/Qi )
-		newParams.wi[i] = Float128ToUint53(tmp)
+		newParams.wi[i], _ = tmp.Uint64()
 
 		// If t is not a power of 2 converts in Montgomery form
 		if (t&(t-1)) != 0 && t != 0 {
@@ -270,8 +277,9 @@ func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 
 		QiBarre.Mul(QiBarre, NewUint(t))
 		QiBarre.Mod(QiBarre, QiB)
+		QiBarreBF.SetInt(QiBarre)
 
-		newParams.ti[i] = Float128Div(Float128SetUint64(QiBarre.Uint64()), Float128SetUint64(qi)) //floor( ([Q/Qi]^(-1))_{Qi} * t/Qi ) - ( ([Q/Qi]^(-1))_{Qi} * t/Qi )
+		newParams.ti[i] = new(big.Float).SetPrec(SimpleScalerFloatPrecision).Quo(QiBarreBF, QiBF)
 	}
 
 	return
@@ -280,23 +288,25 @@ func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
 // Scale returns the reconstruction of p1 scaled by a factor t/Q and mod t on the reciever p2.
 func (parameters *SimpleScaler) Scale(p1, p2 *Poly) {
 
-	var a uint64
-	var b Float128
-
 	for i := uint64(0); i < parameters.context.N; i++ {
 
-		a = 0
-		b[0], b[1] = 0, 0
-
+		var a uint64
+		var bBF big.Float
+		var p1j big.Float
 		for j := range parameters.context.Modulus {
 			// round(xi*wi + xi*ti)%t
 			a += parameters.reducealgoMul(parameters.wi[j], p1.Coeffs[j][i])
 
-			b = Float128Add(b, Float128Mul(parameters.ti[j], Float128SetUint64(p1.Coeffs[j][i])))
+			p1j.SetPrec(SimpleScalerFloatPrecision).SetUint64(p1.Coeffs[j][i])
+			bBF.SetPrec(SimpleScalerFloatPrecision).Add(&bBF, p1j.Mul(&p1j, parameters.ti[j]))
 		}
 
-		a += Float128ToUint64(b)
-		a = parameters.reducealgoAdd(a)
+		bBF.Add(&bBF, new(big.Float).SetFloat64(0.5))
+		buint64, _ := bBF.Uint64()
+
+		abf := a + buint64
+
+		a = parameters.reducealgoAdd(abf)
 
 		for j := 0; j < len(p2.Coeffs); j++ {
 			p2.Coeffs[j][i] = a

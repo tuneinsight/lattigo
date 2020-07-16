@@ -2,13 +2,14 @@ package ring
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/utils"
 	"math"
 	"math/big"
 	"math/bits"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ldsec/lattigo/utils"
 
 	"github.com/stretchr/testify/require"
 )

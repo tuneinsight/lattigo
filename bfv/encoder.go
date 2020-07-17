@@ -18,12 +18,12 @@ type Encoder interface {
 
 // Encoder is a structure that stores the parameters to encode values on a plaintext in a SIMD (Single-Instruction Multiple-Data) fashion.
 type encoder struct {
-	params       *Parameters
-	bfvContext   *bfvContext
-	indexMatrix  []uint64
-	simplescaler *ring.SimpleScaler
-	polypool     *ring.Poly
-	deltaMont    []uint64
+	params      *Parameters
+	bfvContext  *bfvContext
+	indexMatrix []uint64
+	scaler      ring.Scaler
+	polypool    *ring.Poly
+	deltaMont   []uint64
 }
 
 // NewEncoder creates a new encoder from the provided parameters.
@@ -60,12 +60,12 @@ func NewEncoder(params *Parameters) Encoder {
 	}
 
 	return &encoder{
-		params:       params.Copy(),
-		bfvContext:   bfvContext,
-		indexMatrix:  indexMatrix,
-		deltaMont:    GenLiftParams(bfvContext.contextQ, params.T),
-		simplescaler: ring.NewSimpleScaler(params.T, bfvContext.contextQ),
-		polypool:     bfvContext.contextT.NewPoly(),
+		params:      params.Copy(),
+		bfvContext:  bfvContext,
+		indexMatrix: indexMatrix,
+		deltaMont:   GenLiftParams(bfvContext.contextQ, params.T),
+		scaler:      ring.NewRNSScaler(params.T, bfvContext.contextQ),
+		polypool:    bfvContext.contextT.NewPoly(),
 	}
 }
 
@@ -158,7 +158,7 @@ func (encoder *encoder) encodePlaintext(p *Plaintext) {
 // DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.
 func (encoder *encoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64) {
 
-	encoder.simplescaler.Scale(plaintext.value, encoder.polypool)
+	encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
 
 	encoder.bfvContext.contextT.NTT(encoder.polypool, encoder.polypool)
 
@@ -178,7 +178,7 @@ func (encoder *encoder) DecodeInt(plaintext *Plaintext) (coeffs []int64) {
 
 	var value int64
 
-	encoder.simplescaler.Scale(plaintext.value, encoder.polypool)
+	encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
 
 	encoder.bfvContext.contextT.NTT(encoder.polypool, encoder.polypool)
 

@@ -311,7 +311,7 @@ func (basisextender *FastBasisExtender) ModDownSplitedPQ(level uint64, p1Q, p1P,
 // ModDownSplitedQP reduces the basis of a polynomial.
 // Given a polynomial with coefficients in basis {Q0,Q1....QlevelQ} and {P0,P1...PlevelP}
 // Reduces its basis from {Q0,Q1....QlevelQ} and {P0,P1...PlevelP} to {P0,P1...PlevelP}
-// and does a runded integer division of the result by Q.
+// and does a floored integer division of the result by Q.
 func (basisextender *FastBasisExtender) ModDownSplitedQP(levelQ, levelP uint64, p1Q, p1P, p2 *Poly) {
 
 	contextP := basisextender.contextP

@@ -89,7 +89,7 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 		panic("cannot Encode: slots must be a power of two between 1 and N/2")
 	}
 
-	for i := range values{
+	for i := range values {
 		encoder.values[i] = values[i]
 	}
 
@@ -104,11 +104,11 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 
 	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
-	for i := range encoder.values{
+	for i := range encoder.values {
 		encoder.values[i] = 0
 	}
 
-	for i := range encoder.valuesfloat{
+	for i := range encoder.valuesfloat {
 		encoder.valuesfloat[i] = 0
 	}
 

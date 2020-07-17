@@ -58,7 +58,7 @@ func TestRing(t *testing.T) {
 	t.Run("MulScalarBigint", testMulScalarBigint)
 	t.Run("MulPoly", testMulPoly)
 	t.Run("ExtendBasis", testExtendBasis)
-	t.Run("SimpleScaling", testSimpleScaling)
+	t.Run("Scaling", testScaling)
 	t.Run("MultByMonomial", testMultByMonomial)
 }
 
@@ -589,13 +589,13 @@ func testExtendBasis(t *testing.T) {
 	}
 }
 
-func testSimpleScaling(t *testing.T) {
+func testScaling(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("SimpleScaling", context), func(t *testing.T) {
 
 			rescaler := NewSimpleScaler(testParams.T, context)
 
@@ -616,10 +616,38 @@ func testSimpleScaling(t *testing.T) {
 
 			context.SetCoefficientsBigint(coeffs, PolTest)
 
-			rescaler.Scale(PolTest, PolTest)
+			rescaler.DivByQOverTRounded(PolTest, PolTest)
 
 			for i := uint64(0); i < context.N; i++ {
 				require.Equal(t, PolTest.Coeffs[0][i], coeffsWant[i].Uint64())
+			}
+		})
+
+		t.Run(testString("RNSScaling", context), func(t *testing.T) {
+
+			scaler := NewRNSScaler(testParams.T, context)
+
+			coeffs := make([]*big.Int, context.N)
+			for i := uint64(0); i < context.N; i++ {
+				coeffs[i] = RandInt(context.ModulusBigint)
+			}
+
+			coeffsWant := make([]*big.Int, context.N)
+			for i := range coeffs {
+				coeffsWant[i] = new(big.Int).Set(coeffs[i])
+				coeffsWant[i].Mul(coeffsWant[i], NewUint(testParams.T))
+				DivRound(coeffsWant[i], context.ModulusBigint, coeffsWant[i])
+				coeffsWant[i].Mod(coeffsWant[i], NewUint(testParams.T))
+			}
+
+			polyQ := context.NewPoly()
+			polyT := NewPoly(context.N, 1)
+			context.SetCoefficientsBigint(coeffs, polyQ)
+
+			scaler.DivByQOverTRounded(polyQ, polyT)
+
+			for i := uint64(0); i < context.N; i++ {
+				require.Equal(t, polyT.Coeffs[0][i], coeffsWant[i].Uint64())
 			}
 		})
 	}

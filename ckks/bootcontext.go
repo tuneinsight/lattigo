@@ -522,7 +522,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 		for _, i := range index[j] {
 
 			//  levels * n coefficients of 8 bytes each
-			bootcontext.plaintextSize += (level + 1) * 8 * bootcontext.n
+			bootcontext.plaintextSize += (level + 1 + uint64(len(contextP.Modulus))) * 8 * bootcontext.n
 
 			encoder.embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
 

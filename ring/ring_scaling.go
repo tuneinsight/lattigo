@@ -20,11 +20,11 @@ type RNSScaler struct {
 	modDownParamsQT uint64
 	polypoolT       *Poly
 
-	qHalf     *big.Int
-	qHalfModT uint64
+	qHalf     *big.Int // (q-1)/2
+	qHalfModT uint64 // (q-1)/2 mod t
 
 	t    uint64
-	tInv uint64
+	qInv uint64 //(q mod t)^-1 mod t
 
 	bredParamsT []uint64
 	mredParamsT uint64
@@ -46,9 +46,9 @@ func NewRNSScaler(t uint64, contextQ *Context) (rnss *RNSScaler) {
 
 	rnss.t = t
 	rnss.qHalf = new(big.Int)
-	rnss.tInv = rnss.qHalf.Mod(contextQ.ModulusBigint, NewUint(t)).Uint64()
-	rnss.tInv = ModExp(rnss.tInv, t-2, t)
-	rnss.tInv = MForm(rnss.tInv, t, BRedParams(t))
+	rnss.qInv = rnss.qHalf.Mod(contextQ.ModulusBigint, NewUint(t)).Uint64()
+	rnss.qInv = ModExp(rnss.qInv, t-2, t)
+	rnss.qInv = MForm(rnss.qInv, t, BRedParams(t))
 
 	rnss.qHalf.Set(contextQ.ModulusBigint)
 	rnss.qHalf.Rsh(rnss.qHalf, 1)
@@ -71,17 +71,23 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 	p2tmp := p2T.Coeffs[0]
 	p3tmp := rnss.polypoolT.Coeffs[0]
 	mredParams := rnss.mredParamsT
-	TInv := rnss.tInv
+	qInv := rnss.qInv
 	qHalfModT := rnss.qHalfModT
 
+	// Multiplies P_{Q} by t and extends the basis from P_{Q} to t*(P_{Q}||P_{t})
+	// Since the coefficients of P_{t} are multiplied by t, they are all zero, 
+	// hence the basis extension can be omited
 	contextQ.MulScalar(p1Q, T, p1Q)
+
+	// Centers  t*P_{Q} around (Q-1)/2 to round instead of floor during the division
 	contextQ.AddScalarBigint(p1Q, rnss.qHalf, p1Q)
 
+	// Extends the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2) 
 	modUpExact(p1Q.Coeffs, rnss.polypoolT.Coeffs, rnss.paramsQP)
 
-	// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
+	// Computes [Q^{-1} * (t*P_{t} -   (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
 	for j := uint64(0); j < contextQ.N; j++ {
-		p2tmp[j] = MRed(qHalfModT+T-p3tmp[j], TInv, T, mredParams)
+		p2tmp[j] = MRed(qHalfModT+T-p3tmp[j], qInv, T, mredParams)
 	}
 }
 

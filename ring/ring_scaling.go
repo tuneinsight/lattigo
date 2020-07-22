@@ -21,7 +21,7 @@ type RNSScaler struct {
 	polypoolT       *Poly
 
 	qHalf     *big.Int // (q-1)/2
-	qHalfModT uint64 // (q-1)/2 mod t
+	qHalfModT uint64   // (q-1)/2 mod t
 
 	t    uint64
 	qInv uint64 //(q mod t)^-1 mod t
@@ -75,14 +75,14 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 	qHalfModT := rnss.qHalfModT
 
 	// Multiplies P_{Q} by t and extends the basis from P_{Q} to t*(P_{Q}||P_{t})
-	// Since the coefficients of P_{t} are multiplied by t, they are all zero, 
+	// Since the coefficients of P_{t} are multiplied by t, they are all zero,
 	// hence the basis extension can be omited
 	contextQ.MulScalar(p1Q, T, p1Q)
 
 	// Centers  t*P_{Q} around (Q-1)/2 to round instead of floor during the division
 	contextQ.AddScalarBigint(p1Q, rnss.qHalf, p1Q)
 
-	// Extends the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2) 
+	// Extends the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
 	modUpExact(p1Q.Coeffs, rnss.polypoolT.Coeffs, rnss.paramsQP)
 
 	// Computes [Q^{-1} * (t*P_{t} -   (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t

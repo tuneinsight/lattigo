@@ -11,12 +11,12 @@ func exp2pi(x complex128) complex128 {
 	return cmplx.Exp(2 * 3.141592653589793 * complex(0, 1) * x)
 }
 
-func RandomFloat(min, max float64) float64 {
+func randomFloat(min, max float64) float64 {
 	return min + rand.Float64()*(max-min)
 }
 
 func randomComplex(min, max float64) complex128 {
-	return complex(RandomFloat(min, max), RandomFloat(min, max))
+	return complex(randomFloat(min, max), randomFloat(min, max))
 }
 
 func scaleUpExact(value float64, n float64, q uint64) (res uint64) {

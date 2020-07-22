@@ -69,7 +69,7 @@ func TestBootstrapp(t *testing.T) {
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
 		fmt.Println(ciphertext.Level())
 
-		verifyTestVectors(parameters, params.encoder, params.decryptor, values, ciphertext, t)
+		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
 		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale
@@ -136,7 +136,7 @@ func TestBootstrapp(t *testing.T) {
 
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
 		fmt.Println(ciphertext.Level(), ciphertext.Scale())
-		verifyTestVectors(parameters, params.encoder, params.decryptor, values, ciphertext, t)
+		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 
 		params.params.Scale = DefaultScale
 		parameters.Scale = DefaultScale
@@ -158,7 +158,7 @@ func TestBootstrapp(t *testing.T) {
 
 		values := make([]complex128, slots)
 		for i := range values {
-			values[i] = complex(RandomFloat(-1, 1), RandomFloat(-1, 1))
+			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 		}
 
 		values[0] = complex(0.9238795325112867, 0.3826834323650898)
@@ -179,7 +179,7 @@ func TestBootstrapp(t *testing.T) {
 
 			//params.evaluator.SetScale(ciphertext, parameters.Scale)
 
-			verifyTestVectors(parameters, params.encoder, params.decryptor, values, ciphertext, t)
+			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 			//fmt.Println()
 		}
 

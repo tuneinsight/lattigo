@@ -136,6 +136,7 @@ func (encoder *encoderComplex128) scaleUp(pol *ring.Poly, scale float64, moduli 
 	scaleUpVecExact(encoder.valuesfloat, scale, moduli, pol.Coeffs)
 }
 
+func (encoder *encoderComplex128) wipeInternalMemory() {
 	for i := range encoder.values {
 		encoder.values[i] = 0
 	}

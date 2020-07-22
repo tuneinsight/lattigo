@@ -463,7 +463,7 @@ func benchRefreshAndPermute(b *testing.B) {
 		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
 		crp := crpGenerator.ReadNew()
 
-		ciphertext := ckks.NewCiphertextRandom(parameters, 1, levelStart, parameters.Scale)
+		ciphertext := ckks.NewCiphertextRandom(prng, parameters, 1, levelStart, parameters.Scale)
 
 		crpGenerator.Readlvl(levelStart, ciphertext.Value()[0])
 		crpGenerator.Readlvl(levelStart, ciphertext.Value()[1])

@@ -7,9 +7,14 @@ import (
 	"github.com/ldsec/lattigo/ckks"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"text/template"
 )
+
+func randomFloat(min, max float64) float64 {
+	return min + rand.Float64()*(max-min)
+}
 
 var paramSet = flag.Int("paramSet", 1, "index in BootStrappParams")
 var nboot = flag.Int("nboot", 1, "number of bootstrapping (on the same ct for successive and on different ct for slotdist)")
@@ -44,7 +49,7 @@ func main() {
 		log.Println("Generating a plaintext of", params.Slots, "random values...")
 		values := make([]complex128, params.Slots)
 		for i := range values {
-			values[i] = complex(ckks.RandomFloat(-1, 1), ckks.RandomFloat(-1, 1))
+			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 		}
 
 		plaintext := ckks.NewPlaintext(&params.Parameters, params.MaxLevel, params.Scale)
@@ -68,7 +73,7 @@ func main() {
 		for i := range stats {
 			values := make([]complex128, params.Slots)
 			for i := range values {
-				values[i] = complex(ckks.RandomFloat(-1, 1), ckks.RandomFloat(-1, 1))
+				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
 			plaintext := ckks.NewPlaintext(&params.Parameters, params.MaxLevel, params.Scale)
@@ -91,7 +96,7 @@ func main() {
 
 			values := make([]complex128, params.Slots)
 			for j := range values {
-				values[j] = complex(ckks.RandomFloat(-1, 1), ckks.RandomFloat(-1, 1))
+				values[j] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
 			plaintext := ckks.NewPlaintext(&params.Parameters, params.MaxLevel, params.Scale)

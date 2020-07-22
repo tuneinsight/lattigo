@@ -28,7 +28,7 @@ func benchEncoder(b *testing.B) {
 
 			values := make([]complex128, slots)
 			for i := uint64(0); i < slots; i++ {
-				values[i] = complex(RandomFloat(-1, 1), RandomFloat(-1, 1))
+				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
 			plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
@@ -42,7 +42,7 @@ func benchEncoder(b *testing.B) {
 
 			values := make([]complex128, slots)
 			for i := uint64(0); i < slots; i++ {
-				values[i] = complex(RandomFloat(-1, 1), RandomFloat(-1, 1))
+				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
 			plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)

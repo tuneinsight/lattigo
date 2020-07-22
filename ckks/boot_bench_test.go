@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"fmt"
+	"github.com/ldsec/lattigo/utils"
 	"testing"
 )
 
@@ -23,6 +24,11 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	bootparams.Gen()
 
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
 	ctsDepth := uint64(len(bootparams.CtSLevel))
 	sinDepth := bootparams.SinDepth
 
@@ -38,7 +44,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	b.Run(testString("ModUp/", parameters), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
-			ciphertext = NewCiphertextRandom(parameters, 1, 0, LTScale)
+			ciphertext = NewCiphertextRandom(prng, parameters, 1, 0, LTScale)
 			b.StartTimer()
 
 			ciphertext = bootcontext.modUp(ciphertext)
@@ -58,7 +64,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ciphertext = NewCiphertextRandom(parameters, 1, parameters.MaxLevel, LTScale)
+			ciphertext = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel, LTScale)
 			b.StartTimer()
 
 			ct0, ct1 = bootcontext.coeffsToSlots(ciphertext)
@@ -72,9 +78,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct0 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel-ctsDepth, LTScale)
+			ct0 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel-ctsDepth, LTScale)
 			if parameters.LogSlots == parameters.LogN-1 {
-				ct1 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel-ctsDepth, LTScale)
+				ct1 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel-ctsDepth, LTScale)
 			} else {
 				ct1 = nil
 			}
@@ -100,9 +106,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct2 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel-ctsDepth-sinDepth, LTScale)
+			ct2 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel-ctsDepth-sinDepth, LTScale)
 			if parameters.LogSlots == parameters.LogN-1 {
-				ct3 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel-ctsDepth-sinDepth, LTScale)
+				ct3 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel-ctsDepth-sinDepth, LTScale)
 			} else {
 				ct3 = nil
 			}
@@ -137,6 +143,11 @@ func BenchmarkBootstrappMultiplications(b *testing.B) {
 	LTScale = 1 << 45
 	//SineScale = 1 << 55
 
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
 	bootParams := new(Parameters)
 	bootParams.LogN = 16
 	bootParams.LogSlots = 15
@@ -152,8 +163,8 @@ func BenchmarkBootstrappMultiplications(b *testing.B) {
 	rlk = kgen.GenRelinKey(sk)
 	eval = NewEvaluator(bootParams)
 
-	ct0 := NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel, LTScale)
-	ct1 := NewCiphertextRandom(bootParams, 1, bootParams.MaxLevel, LTScale)
+	ct0 := NewCiphertextRandom(prng, bootParams, 1, bootParams.MaxLevel, LTScale)
+	ct1 := NewCiphertextRandom(prng, bootParams, 1, bootParams.MaxLevel, LTScale)
 
 	for true {
 

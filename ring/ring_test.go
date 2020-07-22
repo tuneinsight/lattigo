@@ -35,8 +35,8 @@ func init() {
 		{DefaultParamsQi[12], DefaultParamsPi[12]},
 		{DefaultParamsQi[13], DefaultParamsPi[13]},
 		{DefaultParamsQi[14], DefaultParamsPi[14]},
-		{DefaultParamsQi[15], DefaultParamsPi[15]},
-		{DefaultParamsQi[16], DefaultParamsPi[16]},
+		//{DefaultParamsQi[15], DefaultParamsPi[15]},
+		//{DefaultParamsQi[16], DefaultParamsPi[16]},
 	}
 
 	testParams.sigma = 3.19

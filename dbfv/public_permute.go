@@ -14,6 +14,7 @@ type PermuteProtocol struct {
 	tmp2            *ring.Poly
 	hP              *ring.Poly
 	baseconverter   *ring.FastBasisExtender
+	scaler          ring.Scaler
 	gaussianSampler *ring.GaussianSampler
 	uniformSampler  *ring.UniformSampler
 }
@@ -57,6 +58,7 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 	}
 
 	refreshProtocol.indexMatrix = indexMatrix
+	refreshProtocol.scaler = ring.NewRNSScaler(params.T, context.contextQ)
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -162,9 +164,7 @@ func (pp *PermuteProtocol) Permute(sharePlaintext *ring.Poly, permutation []uint
 
 	contextT := pp.context.contextT
 
-	scaler := ring.NewSimpleScaler(pp.context.params.T, pp.context.contextQ)
-
-	scaler.Scale(sharePlaintext, sharePlaintextOut)
+	pp.scaler.DivByQOverTRounded(sharePlaintext, sharePlaintextOut)
 
 	contextT.NTT(sharePlaintextOut, sharePlaintextOut)
 

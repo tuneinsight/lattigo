@@ -228,7 +228,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	for _, i := range rotations {
 		if i != 0 {
 			ring.PermuteNTTWithIndexLvl(levelQ, c0, bootcontext.rotkeys.permuteNTTLeftIndex[i], tmpQ0) // phi(P*c0)
-			contextQ.AddLvl(levelQ, vecRotQ[i].value[0], tmpQ0, vecRotQ[i].value[0])				   // phi(d0_Q) += phi(P*c0) 
+			contextQ.AddLvl(levelQ, vecRotQ[i].value[0], tmpQ0, vecRotQ[i].value[0])                   // phi(d0_Q) += phi(P*c0)
 		}
 	}
 
@@ -271,7 +271,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			// Hoisting of the ModDown of sum(sum(phi(d0 + P*c0) * plaintext)) and sum(sum(phi(d1) * plaintext))
 			eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ2, tmpP2, tmpResQ0) // sum(phi(d0) * plaintext)/P
 			eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ3, tmpP3, tmpResQ1) // sum(phi(d1) * plaintext)/P
-			
+
 			// If i == 0
 			if state {
 				N1Rot++
@@ -344,7 +344,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	contextQ.AddLvl(levelQ, res.value[0], tmpQ0, res.value[0]) // res += sum(phi(c0 * P + d0_QP))/P
 	contextQ.AddLvl(levelQ, res.value[1], tmpQ1, res.value[1]) // res += sum(phi(d1_QP))/P
 
-	if state { // Rotation by zero 
+	if state { // Rotation by zero
 		N1Rot++
 		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[0], res.value[0]) // res += c0_Q * plaintext
 		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[1], res.value[1]) // res += c1_Q * plaintext

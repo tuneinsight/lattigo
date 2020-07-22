@@ -1,10 +1,11 @@
 package dbfv
 
 import (
+	"testing"
+
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
-	"testing"
 )
 
 func Benchmark_DBFV(b *testing.B) {
@@ -240,7 +241,7 @@ func benchKeyswitching(b *testing.B) {
 		p.s1 = sk1Shards[0].Get()
 		p.share = p.AllocateShare()
 
-		ciphertext := bfv.NewCiphertextRandom(parameters, 1)
+		ciphertext := bfv.NewCiphertextRandom(params.prng, parameters, 1)
 
 		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
 
@@ -276,7 +277,7 @@ func benchPublicKeySwitching(b *testing.B) {
 		sk0Shards := params.sk0Shards
 		pk1 := params.pk1
 
-		ciphertext := bfv.NewCiphertextRandom(parameters, 1)
+		ciphertext := bfv.NewCiphertextRandom(params.prng, parameters, 1)
 
 		type Party struct {
 			*PCKSProtocol
@@ -401,7 +402,7 @@ func benchRefresh(b *testing.B) {
 		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
 		crp := crpGenerator.ReadNew()
 
-		ciphertext := bfv.NewCiphertextRandom(parameters, 1)
+		ciphertext := bfv.NewCiphertextRandom(testCtx.prng, parameters, 1)
 
 		b.Run(testString("Round1/Gen", parties, parameters), func(b *testing.B) {
 

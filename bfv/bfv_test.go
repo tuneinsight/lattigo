@@ -19,6 +19,7 @@ func testString(opname string, params *Parameters) string {
 type bfvParams struct {
 	params      *Parameters
 	bfvContext  *bfvContext
+	prng        utils.PRNG
 	encoder     Encoder
 	kgen        KeyGenerator
 	sk          *SecretKey
@@ -69,7 +70,7 @@ func testMarshaller(t *testing.T) {
 
 		t.Run(testString("Ciphertext/", parameters), func(t *testing.T) {
 
-			ciphertextWant := NewCiphertextRandom(parameters, 2)
+			ciphertextWant := NewCiphertextRandom(params.prng, parameters, 2)
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			require.NoError(t, err)
@@ -225,6 +226,11 @@ func genBfvParams(contextParameters *Parameters) (params *bfvParams) {
 	params.params = contextParameters.Copy()
 
 	params.bfvContext = newBFVContext(contextParameters)
+
+	params.prng, err = utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
 
 	params.kgen = NewKeyGenerator(contextParameters)
 

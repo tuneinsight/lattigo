@@ -2,6 +2,7 @@ package dbfv
 
 import (
 	"encoding/binary"
+
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
@@ -15,6 +16,7 @@ type RefreshProtocol struct {
 	tmp2            *ring.Poly
 	hP              *ring.Poly
 	baseconverter   *ring.FastBasisExtender
+	scaler          ring.Scaler
 	gaussianSampler *ring.GaussianSampler
 	uniformSampler  *ring.UniformSampler
 }
@@ -94,7 +96,7 @@ func NewRefreshProtocol(params *bfv.Parameters) (refreshProtocol *RefreshProtoco
 	refreshProtocol.hP = context.contextP.NewPoly()
 
 	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.contextQ, context.contextP)
-
+	refreshProtocol.scaler = ring.NewRNSScaler(params.T, context.contextQ)
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -180,9 +182,7 @@ func (rfp *RefreshProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt Ref
 
 // Recode decodes and re-encode (removing the error) the masked decrypted ciphertext.
 func (rfp *RefreshProtocol) Recode(sharePlaintext *ring.Poly, sharePlaintextOut *ring.Poly) {
-	scaler := ring.NewSimpleScaler(rfp.context.params.T, rfp.context.contextQ)
-
-	scaler.Scale(sharePlaintext, sharePlaintextOut)
+	rfp.scaler.DivByQOverTRounded(sharePlaintext, sharePlaintextOut)
 	lift(sharePlaintextOut, sharePlaintextOut, rfp.context)
 }
 

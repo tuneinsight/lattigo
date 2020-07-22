@@ -75,7 +75,7 @@ Please use the following BibTex entry for citing Lattigo:
 ## References
 
 1. Somewhat Practical Fully Homomorphic Encryption (<https://eprint.iacr.org/2012/144>)
-1. Computing accross Trust Boundaries using Distributed Homomorphic Cryptography (<https://eprint.iacr.org/2019/961>)
+1. Multiparty Homomorphic Encryption: From Theory to Practice (https://eprint.iacr.org/2020/304.pdf)
 1. A Full RNS Variant of FV Like Somewhat Homomorphic Encryption Schemes (<https://eprint.iacr.org/2016/510>)
 1. An Improved RNS Variant of the BFV Homomorphic Encryption Scheme (<https://eprint.iacr.org/2018/117>)
 1. Homomorphic Encryption for Arithmetic of Approximate Numbers (<https://eprint.iacr.org/2016/421>)

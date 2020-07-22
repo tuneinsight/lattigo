@@ -114,11 +114,11 @@ func (encoder *encoderComplex128) embed(values []complex128, slots uint64) {
 		panic("cannot Encode: too many values for the given number of slots")
 	}
 
-	if slots == 0 && (slots&(slots-1)) != 0 {
+	if slots == 0 && slots&(slots-1) != 0 {
 		panic("cannot Encode: slots must be a power of two between 1 and N/2")
 	}
 
-	for i := uint64(0); i < slots; i++ {
+	for i := range values {
 		encoder.values[i] = values[i]
 	}
 
@@ -136,13 +136,11 @@ func (encoder *encoderComplex128) scaleUp(pol *ring.Poly, scale float64, moduli 
 	scaleUpVecExact(encoder.valuesfloat, scale, moduli, pol.Coeffs)
 }
 
-func (encoder *encoderComplex128) wipeInternalMemory() {
-
-	for i := uint64(0); i < encoder.ckksContext.maxSlots; i++ {
+	for i := range encoder.values {
 		encoder.values[i] = 0
 	}
 
-	for i := uint64(0); i < encoder.ckksContext.n; i++ {
+	for i := range encoder.valuesfloat {
 		encoder.valuesfloat[i] = 0
 	}
 }

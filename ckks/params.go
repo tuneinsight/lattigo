@@ -201,7 +201,7 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 		return true
 	}
 
-	res = res && (p.LogN == other.LogN)
+	res = p.LogN == other.LogN
 	res = res && (p.N == other.N)
 	res = res && (p.LogSlots == other.LogSlots)
 	res = res && (p.Slots == other.Slots)
@@ -219,8 +219,6 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 	res = res && (p.LogQP == other.LogQP)
 
 	res = res && (p.isValid == other.isValid)
-
-	fmt.Println(res)
 
 	return
 }

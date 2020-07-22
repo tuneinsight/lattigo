@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"math/cmplx"
@@ -27,6 +28,7 @@ func testString(opname string, params *Parameters) string {
 type ckksParams struct {
 	params      *Parameters
 	ckkscontext *Context
+	prng        utils.PRNG
 	encoder     Encoder
 	kgen        KeyGenerator
 	sk          *SecretKey
@@ -38,7 +40,6 @@ type ckksParams struct {
 }
 
 type ckksTestParameters struct {
-	verbose    bool
 	medianprec float64
 	slots      uint64
 
@@ -48,11 +49,12 @@ type ckksTestParameters struct {
 var err error
 var testParams = new(ckksTestParameters)
 
+var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 
 	testParams.medianprec = 15
-	testParams.verbose = true
 
 	testParams.ckksParameters = DefaultParams[PN12QP109 : PN12QP109+2]
 }
@@ -83,6 +85,11 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 	params.params = contextParameters.Copy()
 
 	params.ckkscontext = newContext(contextParameters)
+
+	params.prng, err = utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
 
 	params.kgen = NewKeyGenerator(contextParameters)
 
@@ -173,8 +180,72 @@ func verifyTestVectors(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	prec := GetPrecisionStats(params, encoder, decryptor, valuesWant, element)
 
-	if testParams.verbose {
-		t.Log(prec)
+	switch element.(type) {
+	case *Ciphertext:
+		plaintextTest = decryptor.DecryptNew(element.(*Ciphertext))
+	case *Plaintext:
+		plaintextTest = element.(*Plaintext)
+	}
+
+	slots := uint64(1 << contextParams.params.LogSlots)
+
+	valuesTest = contextParams.encoder.Decode(plaintextTest, slots)
+
+	var deltaReal, deltaImag float64
+
+	var delta, minprec, maxprec, meanprec, medianprec complex128
+
+	diff := make([]complex128, slots)
+
+	minprec = complex(0, 0)
+	maxprec = complex(1, 1)
+
+	meanprec = complex(0, 0)
+
+	distribReal := make(map[uint64]uint64)
+	distribImag := make(map[uint64]uint64)
+
+	distribPrec := float64(25)
+
+	for i := range valuesWant {
+
+		delta = valuesTest[i] - valuesWant[i]
+		deltaReal = math.Abs(real(delta))
+		deltaImag = math.Abs(imag(delta))
+
+		diff[i] += complex(deltaReal, deltaImag)
+
+		meanprec += diff[i]
+
+		if deltaReal > real(minprec) {
+			minprec = complex(deltaReal, imag(minprec))
+		}
+
+		if deltaImag > imag(minprec) {
+			minprec = complex(real(minprec), deltaImag)
+		}
+
+		if deltaReal < real(maxprec) {
+			maxprec = complex(deltaReal, imag(maxprec))
+		}
+
+		if deltaImag < imag(maxprec) {
+			maxprec = complex(real(maxprec), deltaImag)
+		}
+
+		distribReal[uint64(math.Floor(distribPrec*math.Log2(1/deltaReal)))]++
+		distribImag[uint64(math.Floor(distribPrec*math.Log2(1/deltaImag)))]++
+	}
+
+	meanprec /= complex(float64(slots), 0)
+	medianprec = calcmedian(diff)
+
+	if *printPrecisionStats {
+		t.Logf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
+		t.Logf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
+		t.Logf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
+		t.Logf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
+		t.Log()
 	}
 
 	require.GreaterOrEqual(t, math.Log2(1/real(prec.MeanDelta)), testParams.medianprec)
@@ -975,7 +1046,7 @@ func testMarshaller(t *testing.T) {
 			t.Run(testString("Ciphertext/EndToEnd", parameters), func(t *testing.T) {
 				t.Parallel()
 
-				ciphertextWant := NewCiphertextRandom(parameters, 2, parameters.MaxLevel, parameters.Scale)
+				ciphertextWant := NewCiphertextRandom(params.prng, parameters, 2, parameters.MaxLevel, parameters.Scale)
 
 				marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 				require.NoError(t, err)
@@ -995,7 +1066,7 @@ func testMarshaller(t *testing.T) {
 			t.Run(testString("Ciphertext/Minimal", parameters), func(t *testing.T) {
 				t.Parallel()
 
-				ciphertext := NewCiphertextRandom(parameters, 0, parameters.MaxLevel, parameters.Scale)
+				ciphertext := NewCiphertextRandom(params.prng, parameters, 0, parameters.MaxLevel, parameters.Scale)
 
 				marshalledCiphertext, err := ciphertext.MarshalBinary()
 				require.NoError(t, err)

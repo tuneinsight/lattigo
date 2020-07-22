@@ -21,6 +21,8 @@ type dbfvTestContext struct {
 
 	params *bfv.Parameters
 
+	prng utils.PRNG
+
 	encoder bfv.Encoder
 	kgen    *bfv.KeyGenerator
 
@@ -72,6 +74,11 @@ func genDBFVTestContext(params *bfv.Parameters) (testCtx *dbfvTestContext) {
 
 	testCtx.params = params
 	testCtx.dbfvContext = newDbfvContext(params)
+
+	testCtx.prng, err = utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
 
 	testCtx.encoder = bfv.NewEncoder(params)
 	testCtx.evaluator = bfv.NewEvaluator(params)
@@ -721,7 +728,7 @@ func Test_Marshalling(t *testing.T) {
 	contextQ := dbfvCtx.contextQ
 	contextPKeys := dbfvCtx.contextP
 
-	Ciphertext := bfv.NewCiphertextRandom(params, 1)
+	Ciphertext := bfv.NewCiphertextRandom(prng, params, 1)
 
 	t.Run(fmt.Sprintf("CPK/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 		keygenProtocol := NewCKGProtocol(params)

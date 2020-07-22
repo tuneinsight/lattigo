@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
-	"github.com/ldsec/lattigo/utils"
 	"math/big"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/utils"
 )
 
 //==============================
@@ -393,6 +394,45 @@ func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
 
 		tmp.SetUint64(0)
 		coeffsBigint[x] = new(big.Int)
+
+		for i := uint64(0); i < level+1; i++ {
+			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), crtReconstruction[i]))
+		}
+
+		coeffsBigint[x].Mod(coeffsBigint[x], modulusBigint)
+	}
+}
+
+// PolyToBigint reconstructs p1 and returns the result in an pre-allocated array of Int.
+func (context *Context) PolyToBigintNoAlloc(p1 *Poly, coeffsBigint []*big.Int) {
+
+	var qi, level uint64
+
+	level = uint64(len(p1.Coeffs) - 1)
+
+	crtReconstruction := make([]*big.Int, level+1)
+
+	QiB := new(big.Int)
+	tmp := new(big.Int)
+	modulusBigint := NewUint(1)
+
+	for i := uint64(0); i < level+1; i++ {
+
+		qi = context.Modulus[i]
+		QiB.SetUint64(qi)
+
+		modulusBigint.Mul(modulusBigint, QiB)
+
+		crtReconstruction[i] = new(big.Int)
+		crtReconstruction[i].Quo(context.ModulusBigint, QiB)
+		tmp.ModInverse(crtReconstruction[i], QiB)
+		tmp.Mod(tmp, QiB)
+		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
+	}
+
+	for x := uint64(0); x < context.N; x++ {
+
+		tmp.SetUint64(0)
 
 		for i := uint64(0); i < level+1; i++ {
 			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), crtReconstruction[i]))

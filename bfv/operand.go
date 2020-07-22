@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // Operand is a common interface for Ciphertext and Plaintext.
@@ -33,16 +34,19 @@ func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 	return el
 }
 
-func newBfvElementRandom(params *Parameters, degree uint64) *bfvElement {
+func newBfvElementRandom(prng utils.PRNG, params *Parameters, degree uint64) *bfvElement {
 
 	if !params.isValid {
 		panic("cannot newBfvElementRandom: params not valid (check if they were generated properly)")
 	}
-
-	el := new(bfvElement)
-	el.value = make([]*ring.Poly, degree+1)
+	context, err := ring.NewContextWithParams(params.N, params.Qi)
+	if err != nil {
+		panic(err)
+	}
+	sampler := ring.NewUniformSampler(prng, context)
+	el := newBfvElement(params, degree)
 	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = ring.NewPolyUniform(1<<params.LogN, uint64(len(params.LogQi)))
+		sampler.Read(el.value[i])
 	}
 	el.isNTT = true
 	return el

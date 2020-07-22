@@ -2,10 +2,12 @@ package ring
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/utils"
+	"math/big"
 	"math/bits"
 	"math/rand"
 	"testing"
+
+	"github.com/ldsec/lattigo/utils"
 )
 
 func BenchmarkRing(b *testing.B) {
@@ -21,6 +23,7 @@ func BenchmarkRing(b *testing.B) {
 	b.Run("MulScalar", benchMulScalar)
 	b.Run("ExtendBasis", benchExtendBasis)
 	b.Run("DivByLastModulus", benchDivByLastModulus)
+	b.Run("DivByRNSBasis", benchDivByRNSBasis)
 	b.Run("MRed", benchMRed)
 	b.Run("BRed", benchBRed)
 	b.Run("BRedAdd", benchBRedAdd)
@@ -478,6 +481,69 @@ func benchDivByLastModulus(b *testing.B) {
 				b.StartTimer()
 
 				context.DivRoundByLastModulusNTT(p0)
+			}
+		})
+	}
+}
+
+func benchDivByRNSBasis(b *testing.B) {
+
+	for _, parameters := range testParams.polyParams {
+
+		context := genPolyContext(parameters[0])
+
+		b.Run(testString("SimpleScaler/DivByQOverTRounded/reconstructAndScale/", context), func(b *testing.B) {
+
+			rescaler := NewSimpleScaler(testParams.T, context)
+
+			coeffs := make([]*big.Int, context.N)
+			for i := uint64(0); i < context.N; i++ {
+				coeffs[i] = RandInt(context.ModulusBigint)
+			}
+
+			tmp0 := context.NewPoly()
+			tmp1 := context.NewPoly()
+
+			context.SetCoefficientsBigint(coeffs, tmp0)
+
+			for i := 0; i < b.N; i++ {
+				rescaler.reconstructAndScale(tmp0, tmp1)
+			}
+		})
+
+		b.Run(testString("SimpleScaler/DivByQOverTRounded/reconstructThenScale/", context), func(b *testing.B) {
+
+			rescaler := NewSimpleScaler(testParams.T, context)
+
+			coeffs := make([]*big.Int, context.N)
+			for i := uint64(0); i < context.N; i++ {
+				coeffs[i] = RandInt(context.ModulusBigint)
+			}
+
+			tmp0 := context.NewPoly()
+			tmp1 := context.NewPoly()
+
+			context.SetCoefficientsBigint(coeffs, tmp0)
+
+			for i := 0; i < b.N; i++ {
+				rescaler.reconstructThenScale(tmp0, tmp1)
+			}
+		})
+
+		b.Run(testString("RNSScaler/DivByQOverTRounded/", context), func(b *testing.B) {
+
+			coeffs := make([]*big.Int, context.N)
+			for i := uint64(0); i < context.N; i++ {
+				coeffs[i] = RandInt(context.ModulusBigint)
+			}
+
+			scaler := NewRNSScaler(testParams.T, context)
+			polyQ := context.NewPoly()
+			polyT := NewPoly(context.N, 1)
+			context.SetCoefficientsBigint(coeffs, polyQ)
+
+			for i := 0; i < b.N; i++ {
+				scaler.DivByQOverTRounded(polyQ, polyT)
 			}
 		})
 	}

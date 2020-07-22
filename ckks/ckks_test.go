@@ -29,6 +29,7 @@ func testString(opname string, params *Parameters) string {
 type ckksParams struct {
 	params      *Parameters
 	ckkscontext *Context
+	prng        utils.PRNG
 	encoder     Encoder
 	kgen        KeyGenerator
 	sk          *SecretKey
@@ -85,6 +86,11 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 	params.params = contextParameters.Copy()
 
 	params.ckkscontext = newContext(contextParameters)
+
+	params.prng, err = utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
 
 	params.kgen = NewKeyGenerator(contextParameters)
 
@@ -1071,7 +1077,7 @@ func testMarshaller(t *testing.T) {
 			t.Run(testString("Ciphertext/EndToEnd", parameters), func(t *testing.T) {
 				t.Parallel()
 
-				ciphertextWant := NewCiphertextRandom(parameters, 2, parameters.MaxLevel, parameters.Scale)
+				ciphertextWant := NewCiphertextRandom(params.prng, parameters, 2, parameters.MaxLevel, parameters.Scale)
 
 				marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 				require.NoError(t, err)
@@ -1091,7 +1097,7 @@ func testMarshaller(t *testing.T) {
 			t.Run(testString("Ciphertext/Minimal", parameters), func(t *testing.T) {
 				t.Parallel()
 
-				ciphertext := NewCiphertextRandom(parameters, 0, parameters.MaxLevel, parameters.Scale)
+				ciphertext := NewCiphertextRandom(params.prng, parameters, 0, parameters.MaxLevel, parameters.Scale)
 
 				marshalledCiphertext, err := ciphertext.MarshalBinary()
 				require.NoError(t, err)

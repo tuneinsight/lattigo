@@ -22,11 +22,14 @@ All notable changes to this project will be documented in this file.
 - RING : added arbitrary precision complex arithmetic, including cos and sin functions.
 - RING : added polynomial interpolation.
 - RING : added polynomial inversion.
+- RING : extracted interface type Scaler for polynomial coefficient scaling
+- RING : added type RNSScaler as an efficient, cross-platform implementation of the Scaler interface
 
 ### Changed 
 - ALL : all tests now use "require"
 - BFV/CKKS : parameters without P can be used, but the key-switching is disabled.
 - BFV/CKKS : parameters do not use anymore methods to access internal values.
+- BFV : Decoder uses the RNSScaler implementation of the Scaler interface to perform the t/Q rescaling
 - CKKS : now uses new rotations keys optimized for hoisting rotations of the form phi^{-1}(-as1 + phi(s0) + e, a).
 - CKKS : simplified the code of the hybrid key-switching (does not affect user experience).
 - CKKS : encoding/decoding at level 0 is now 500% faster.
@@ -34,10 +37,12 @@ All notable changes to this project will be documented in this file.
 - RING : improved primes finding.
 - RING : all Gaussian sampling now uses Ziggurat sampling.
 - RING : revamp of the polynomial sampler to make them more memory efficient, consistent user friendly and enable parallel sampling.
+- RING : the SimpleScaler type now use slightly slower but cross-platform big.Int/Float
 - UTILS : complete revamp of the PRNG (Blake2b XOF), to make it more user friendly and consistent.
 
 ### Removed
 - BFV/CKKS : Parameters API generation GenFromLogModuli() and GenFromModuli() have been removed and replaced by Gen().
+- RING : the Float128 type had cross-platform incompatilities and was removed.
 
 ### Fixes
 - BFV : fixed multiplication that was failing is #Qi != #QMul.

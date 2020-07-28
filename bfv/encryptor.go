@@ -105,9 +105,6 @@ func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
 }
 
 func newEncryptor(params *Parameters) encryptor {
-	if !params.isValid {
-		panic("cannot NewEncryptor: params not valid (check if they were generated properly)")
-	}
 
 	ctx := newBFVContext(params)
 	qp := ctx.contextQP

@@ -18,10 +18,6 @@ type RKGProtocolNaive struct {
 // among j parties in the given context with the given bit-decomposition.
 func NewRKGProtocolNaive(params *bfv.Parameters) (rkg *RKGProtocolNaive) {
 
-	if !params.IsValid() {
-		panic("cannot NewRKGProtocolNaive : params not valid (check if they where generated properly)")
-	}
-
 	context := newDbfvContext(params)
 	rkg = new(RKGProtocolNaive)
 	rkg.context = context

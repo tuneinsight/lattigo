@@ -1,9 +1,10 @@
 package bfv
 
 import (
+	"math/big"
+
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
-	"math/big"
 )
 
 // Evaluator is an interface implementing the public methodes of the evaluator.
@@ -60,10 +61,6 @@ type evaluator struct {
 // operations on ciphertexts and/or plaintexts. It stores a small pool of polynomials
 // and ciphertexts that will be used for intermediate values.
 func NewEvaluator(params *Parameters) Evaluator {
-
-	if !params.isValid {
-		panic("cannot NewEvaluator: params not valid (check if they were generated properly)")
-	}
 
 	bfvContext := newBFVContext(params)
 	q := bfvContext.contextQ

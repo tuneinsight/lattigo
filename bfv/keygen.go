@@ -78,10 +78,6 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params *Parameters) KeyGenerator {
 
-	if !params.isValid {
-		panic("cannot NewKeyGenerator: params not valid (check if they were generated properly)")
-	}
-
 	bfvContext := newBFVContext(params)
 	ringContext := bfvContext.contextQP
 	prng, err := utils.NewPRNG()
@@ -121,12 +117,8 @@ func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params *Parameters) *SecretKey {
 
-	if !params.isValid {
-		panic("cannot NewSecretKey: params not valid (check if they were generated properly)")
-	}
-
 	sk := new(SecretKey)
-	sk.sk = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
+	sk.sk = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Qi)+len(params.Pi)))
 	return sk
 }
 
@@ -163,14 +155,10 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
 
-	if !params.isValid {
-		panic("cannot NewPublicKey: params not valid (check if they were generated properly)")
-	}
-
 	pk = new(PublicKey)
 
-	pk.pk[0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
-	pk.pk[1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
+	pk.pk[0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Qi)+len(params.Pi)))
+	pk.pk[1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Qi)+len(params.Pi)))
 
 	return
 }
@@ -225,10 +213,6 @@ func (keygen *keyGenerator) GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *E
 // NewRelinKey creates a new EvaluationKey with zero values.
 func NewRelinKey(params *Parameters, maxDegree uint64) (evakey *EvaluationKey) {
 
-	if !params.isValid {
-		panic("cannot NewRelinKey: params not valid (check if they were generated properly)")
-	}
-
 	evakey = new(EvaluationKey)
 
 	beta := params.Beta
@@ -243,8 +227,8 @@ func NewRelinKey(params *Parameters, maxDegree uint64) (evakey *EvaluationKey) {
 
 		for i := uint64(0); i < beta; i++ {
 
-			evakey.evakey[w].evakey[i][0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
-			evakey.evakey[w].evakey[i][1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
+			evakey.evakey[w].evakey[i][0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Qi)+len(params.Pi)))
+			evakey.evakey[w].evakey[i][1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Qi)+len(params.Pi)))
 		}
 	}
 
@@ -272,7 +256,6 @@ func (evk *EvaluationKey) SetRelinKeys(rlk [][][2]*ring.Poly) {
 
 // GenSwitchingKey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key.
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
-
 	if keygen.bfvContext.contextP == nil {
 		panic("Cannot GenRelinKey: modulus P is empty")
 	}
@@ -280,15 +263,12 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newev
 	keygen.ringContext.Copy(skInput.Get(), keygen.polypool[0])
 	newevakey = keygen.newSwitchingKey(keygen.polypool[0], skOutput.Get())
 	keygen.polypool[0].Zero()
+
 	return
 }
 
 // NewSwitchingKey returns a new SwitchingKey with zero values.
 func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
-
-	if !params.isValid {
-		panic("cannot NewSwitchingKey: params not valid (check if they were generated properly)")
-	}
 
 	evakey = new(SwitchingKey)
 
@@ -296,10 +276,10 @@ func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 	evakey.evakey = make([][2]*ring.Poly, params.Beta)
 
 	for i := uint64(0); i < params.Beta; i++ {
-		evakey.evakey[i][0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
-		evakey.evakey[i][1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
-	}
+		evakey.evakey[i][0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Qi)+len(params.Pi)))
+		evakey.evakey[i][1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.Qi)+len(params.Pi)))
 
+	}
 	return
 }
 

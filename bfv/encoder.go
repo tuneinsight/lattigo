@@ -29,10 +29,6 @@ type encoder struct {
 // NewEncoder creates a new encoder from the provided parameters.
 func NewEncoder(params *Parameters) Encoder {
 
-	if !params.isValid {
-		panic("cannot NewEncoder: params not valid (check if they were generated properly)")
-	}
-
 	bfvContext := newBFVContext(params)
 
 	var m, pos, index1, index2 uint64

@@ -47,89 +47,109 @@ var DefaultParams = []*Parameters{
 
 	//logQ1+P = 109
 	{
-		LogN: 12,
-		N:    4096,
-		T:    65537,
+		logN: 12,
+		n:    4096,
+		t:    65537,
 		Moduli: Moduli{
-			Qi:    []uint64{0x7ffffec001, 0x8000016001},             // 39 + 39 bits
-			Pi:    []uint64{0x40002001},                             // 30 bits
-			QiMul: []uint64{0xfffffffffffc001, 0x100000000000e001}}, // 60 + 60 bits
-		Sigma: 3.2,
-		Alpha: 1,
-		Beta:  2,
+			qi:    []uint64{0x7ffffec001, 0x8000016001},             // 39 + 39 bits
+			pi:    []uint64{0x40002001},                             // 30 bits
+			qiMul: []uint64{0xfffffffffffc001, 0x100000000000e001}}, // 60 + 60 bits
+		sigma: 3.2,
+		alpha: 1,
+		beta:  2,
 	},
 
 	//logQ1+P = 218
 	{
-		LogN: 13,
-		N:    8192,
-		T:    65537,
+		logN: 13,
+		n:    8192,
+		t:    65537,
 		Moduli: Moduli{
-			Qi:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001},      // 54 + 54 + 54 bits
-			Pi:    []uint64{0x7ffffffffb4001},                                          // 55 bits
-			QiMul: []uint64{0xfffffffffffc001, 0xffffffffffe8001, 0x1000000000024001}}, // 60 + 60 + 60 bits
-		Sigma: 3.2,
-		Alpha: 1,
-		Beta:  3,
+			qi:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001},      // 54 + 54 + 54 bits
+			pi:    []uint64{0x7ffffffffb4001},                                          // 55 bits
+			qiMul: []uint64{0xfffffffffffc001, 0xffffffffffe8001, 0x1000000000024001}}, // 60 + 60 + 60 bits
+		sigma: 3.2,
+		alpha: 1,
+		beta:  3,
 	},
 
 	//logQ1+P = 438
 	{
-		LogN: 14,
-		N:    16384,
-		T:    65537,
+		logN: 14,
+		n:    16384,
+		t:    65537,
 		Moduli: Moduli{
-			Qi: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
+			qi: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
 				0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
-			Pi: []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
-			QiMul: []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001,
+			pi: []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
+			qiMul: []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001,
 				0x1000000000078001, 0xffffffffff28001, 0xfffffffffe38001}}, // 60 + 60 + 60 + 60 + 60 + 60 bits
-		Sigma: 3.2,
-		Alpha: 2,
-		Beta:  3,
+		sigma: 3.2,
+		alpha: 2,
+		beta:  3,
 	},
 
 	//logQ1+P = 880
 	{
-		LogN: 15,
-		N:    32768,
-		T:    65537,
+		logN: 15,
+		n:    32768,
+		t:    65537,
 		Moduli: Moduli{
-			Qi: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
+			qi: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
 				0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
 				0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
 				0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
-			Pi: []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
-			QiMul: []uint64{0xfffffffff840001, 0x1000000000860001, 0x1000000000870001, // 60 + 60 + 60 bits
+			pi: []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
+			qiMul: []uint64{0xfffffffff840001, 0x1000000000860001, 0x1000000000870001, // 60 + 60 + 60 bits
 				0x1000000000930001, 0xfffffffff6a0001, 0x1000000000980001, // 60 + 60 + 60 bits
 				0xfffffffff5a0001, 0xfffffffff550001, 0x1000000000b00001, // 60 + 60 + 60 bits
 				0xfffffffff330001, 0x1000000000ce0001, 0xfffffffff2a0001}}, // 60 + 60 + 60 bits
-		Sigma: 3.2,
-		Alpha: 3,
-		Beta:  4,
+		sigma: 3.2,
+		alpha: 3,
+		beta:  4,
 	},
 }
 
 // Moduli stores the NTT primes of the RNS representation.
 type Moduli struct {
-	Qi    []uint64 // Ciphertext prime moduli
-	Pi    []uint64 // Keys additional prime moduli
-	QiMul []uint64 // Ciphertext secondary prime moduli
+	qi    []uint64 // Ciphertext prime moduli
+	pi    []uint64 // Keys additional prime moduli
+	qiMul []uint64 // Ciphertext secondary prime moduli
+}
+
+func (m *Moduli) Qi() []uint64 {
+	qi := make([]uint64, len(m.qi))
+	copy(qi, m.qi)
+	return qi
+}
+
+func (m *Moduli) QiCount() int {
+	return len(m.qi)
+}
+
+func (m *Moduli) Pi() []uint64 {
+	pi := make([]uint64, len(m.pi))
+	copy(pi, m.pi)
+	return pi
+}
+
+func (m *Moduli) PiCount() int {
+	return len(m.pi)
 }
 
 // Copy creates a copy of the target Moduli.
 func (m *Moduli) Copy() Moduli {
 
-	Qi := make([]uint64, len(m.Qi))
-	copy(Qi, m.Qi)
+	qi := make([]uint64, len(m.qi))
+	copy(qi, m.qi)
 
-	Pi := make([]uint64, len(m.Pi))
-	copy(Pi, m.Pi)
+	pi := make([]uint64, len(m.pi))
+	copy(pi, m.pi)
 
-	QiMul := make([]uint64, len(m.QiMul))
-	copy(QiMul, m.QiMul)
+	qiMul := make([]uint64, len(m.qiMul))
+	copy(qiMul, m.qiMul)
 
-	return Moduli{Qi, Pi, QiMul}
+	return Moduli{qi, pi, qiMul}
 }
 
 // LogModuli stores the bit-length of the NTT primes of the RNS representation.
@@ -157,43 +177,74 @@ func (m *LogModuli) Copy() LogModuli {
 // Parameters represents a given parameter set for the BFV cryptosystem.
 type Parameters struct {
 	Moduli
-	LogN  uint64  // Log Ring degree (power of 2)
-	N     uint64  // Ring degree
-	T     uint64  // Plaintext modulus
-	Sigma float64 // Gaussian sampling standard deviation
+	logN  uint64  // Log Ring degree (power of 2)
+	n     uint64  // Ring degree
+	t     uint64  // Plaintext modulus
+	sigma float64 // Gaussian sampling standard deviation
 
-	LogQP uint64
-	Alpha uint64
-	Beta  uint64
+	logQP uint64
+	alpha uint64
+	beta  uint64
 }
 
-// NewPolyQ returns a new empty polynomial of degree 2^LogN in basis Qi.
+// LogN returns the log of the degree of the polynomial ring
+func (p *Parameters) LogN() uint64 {
+	return p.logN
+}
+
+func (p *Parameters) T() uint64 {
+	return p.t
+}
+
+func (p *Parameters) Sigma() float64 {
+	return p.sigma
+}
+
+func (p *Parameters) Alpha() uint64 {
+	return p.alpha
+}
+
+func (p *Parameters) Beta() uint64 {
+	return p.beta
+}
+
+func (p *Parameters) LogQP() uint64 {
+	return p.logQP
+}
+
+func (p *Parameters) WithT(t uint64) *Parameters {
+	pout := p.Copy()
+	pout.t = t
+	return pout
+}
+
+// NewPolyQ returns a new empty polynomial of degree 2^logN in basis qi.
 func (p *Parameters) NewPolyQ() *ring.Poly {
-	return ring.NewPoly(1<<p.LogN, uint64(len(p.Qi)))
+	return ring.NewPoly(1<<p.logN, uint64(len(p.qi)))
 }
 
-// NewPolyP returns a new empty polynomial of degree 2^LogN in basis Pi.
+// NewPolyP returns a new empty polynomial of degree 2^logN in basis Pi.
 func (p *Parameters) NewPolyP() *ring.Poly {
-	return ring.NewPoly(1<<p.LogN, uint64(len(p.Pi)))
+	return ring.NewPoly(1<<p.logN, uint64(len(p.pi)))
 }
 
-// NewPolyQP returns a new empty polynomial of degree 2^LogN in basis Qi + Pi.
+// NewPolyQP returns a new empty polynomial of degree 2^logN in basis qi + Pi.
 func (p *Parameters) NewPolyQP() *ring.Poly {
-	return ring.NewPoly(1<<p.LogN, uint64(len(p.Qi)+len(p.Pi)))
+	return ring.NewPoly(1<<p.logN, uint64(len(p.qi)+len(p.pi)))
 }
 
 // Copy creates a copy of the target Parameters.
 func (p *Parameters) Copy() (paramsCopy *Parameters) {
 
 	paramsCopy = new(Parameters)
-	paramsCopy.LogN = p.LogN
-	paramsCopy.N = p.N
-	paramsCopy.T = p.T
-	paramsCopy.Sigma = p.Sigma
+	paramsCopy.logN = p.logN
+	paramsCopy.n = p.n
+	paramsCopy.t = p.t
+	paramsCopy.sigma = p.sigma
 	paramsCopy.Moduli = p.Moduli.Copy()
-	paramsCopy.LogQP = p.LogQP
-	paramsCopy.Alpha = p.Alpha
-	paramsCopy.Beta = p.Beta
+	paramsCopy.logQP = p.logQP
+	paramsCopy.alpha = p.alpha
+	paramsCopy.beta = p.beta
 
 	return
 }
@@ -205,39 +256,39 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 		return true
 	}
 
-	res = p.LogN == other.LogN
-	res = res && (p.N == other.N)
-	res = res && (p.T == other.T)
-	res = res && (p.Sigma == other.Sigma)
+	res = p.logN == other.logN
+	res = res && (p.n == other.n)
+	res = res && (p.t == other.t)
+	res = res && (p.sigma == other.sigma)
 
-	res = res && utils.EqualSliceUint64(p.Qi, other.Qi)
-	res = res && utils.EqualSliceUint64(p.Pi, other.Pi)
-	res = res && utils.EqualSliceUint64(p.QiMul, other.QiMul)
+	res = res && utils.EqualSliceUint64(p.qi, other.qi)
+	res = res && utils.EqualSliceUint64(p.pi, other.pi)
+	res = res && utils.EqualSliceUint64(p.qiMul, other.qiMul)
 
-	res = res && (p.Alpha == other.Alpha)
-	res = res && (p.Beta == other.Beta)
-	res = res && (p.LogQP == other.LogQP)
+	res = res && (p.alpha == other.alpha)
+	res = res && (p.beta == other.beta)
+	res = res && (p.logQP == other.logQP)
 
 	return
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
 func (p *Parameters) MarshalBinary() ([]byte, error) {
-	if p.LogN == 0 { // if N is 0, then p is the zero value
+	if p.logN == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
 
-	b := utils.NewBuffer(make([]byte, 0, 20+(len(p.Qi)+len(p.Pi)+len(p.QiMul))<<3))
+	b := utils.NewBuffer(make([]byte, 0, 20+(len(p.qi)+len(p.pi)+len(p.qiMul))<<3))
 
-	b.WriteUint8(uint8(p.LogN))
-	b.WriteUint8(uint8(len(p.Qi)))
-	b.WriteUint8(uint8(len(p.Pi)))
-	b.WriteUint8(uint8(len(p.QiMul)))
-	b.WriteUint64(p.T)
-	b.WriteUint64(uint64(p.Sigma * (1 << 32)))
-	b.WriteUint64Slice(p.Qi)
-	b.WriteUint64Slice(p.Pi)
-	b.WriteUint64Slice(p.QiMul)
+	b.WriteUint8(uint8(p.logN))
+	b.WriteUint8(uint8(len(p.qi)))
+	b.WriteUint8(uint8(len(p.pi)))
+	b.WriteUint8(uint8(len(p.qiMul)))
+	b.WriteUint64(p.t)
+	b.WriteUint64(uint64(p.sigma * (1 << 32)))
+	b.WriteUint64Slice(p.qi)
+	b.WriteUint64Slice(p.pi)
+	b.WriteUint64Slice(p.qiMul)
 
 	return b.Bytes(), nil
 }
@@ -249,11 +300,11 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	}
 	b := utils.NewBuffer(data)
 
-	p.LogN = uint64(b.ReadUint8())
-	p.N = 1 << p.LogN
+	p.logN = uint64(b.ReadUint8())
+	p.n = 1 << p.logN
 
-	if p.LogN > MaxLogN {
-		return fmt.Errorf("LogN larger than %d", MaxLogN)
+	if p.logN > MaxLogN {
+		return fmt.Errorf("logN larger than %d", MaxLogN)
 	}
 
 	lenQi := b.ReadUint8()
@@ -261,21 +312,21 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	lenQiMul := b.ReadUint8()
 
 	if lenPi != 0 {
-		p.Alpha = uint64(lenPi)
-		p.Beta = uint64(math.Ceil(float64(lenQi) / float64(lenPi)))
+		p.alpha = uint64(lenPi)
+		p.beta = uint64(math.Ceil(float64(lenQi) / float64(lenPi)))
 	}
 
-	p.T = b.ReadUint64()
-	p.Sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
-	p.Qi = make([]uint64, lenQi, lenQi)
-	p.Pi = make([]uint64, lenPi, lenPi)
-	p.QiMul = make([]uint64, lenQiMul, lenQiMul)
+	p.t = b.ReadUint64()
+	p.sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
+	p.qi = make([]uint64, lenQi, lenQi)
+	p.pi = make([]uint64, lenPi, lenPi)
+	p.qiMul = make([]uint64, lenQiMul, lenQiMul)
 
-	b.ReadUint64Slice(p.Qi)
-	b.ReadUint64Slice(p.Pi)
-	b.ReadUint64Slice(p.QiMul)
+	b.ReadUint64Slice(p.qi)
+	b.ReadUint64Slice(p.pi)
+	b.ReadUint64Slice(p.qiMul)
 
-	return checkModuli(&p.Moduli, p.LogN) // TODO: check more than moduli.
+	return checkModuli(&p.Moduli, p.logN) // TODO: check more than moduli.
 }
 
 // GenFromLogModuli creates a new Parameters struct and returns a pointer to it.
@@ -299,20 +350,20 @@ func GenFromLogModuli(logN uint64, lm *LogModuli) (p *Parameters, err error) {
 
 	tmp := ring.NewUint(1)
 
-	for _, qi := range p.Qi {
+	for _, qi := range p.qi {
 		tmp.Mul(tmp, ring.NewUint(qi))
 	}
 
-	for _, pi := range p.Pi {
+	for _, pi := range p.pi {
 		tmp.Mul(tmp, ring.NewUint(pi))
 	}
 
-	p.LogQP = uint64(tmp.BitLen())
+	p.logQP = uint64(tmp.BitLen())
 
-	p.N = 1 << p.LogN
-	if len(p.Pi) != 0 {
-		p.Alpha = uint64(len(p.Pi))
-		p.Beta = uint64(math.Ceil(float64(len(p.Qi)) / float64(len(p.Pi))))
+	p.n = 1 << p.logN
+	if len(p.pi) != 0 {
+		p.alpha = uint64(len(p.pi))
+		p.beta = uint64(math.Ceil(float64(len(p.qi)) / float64(len(p.pi))))
 	}
 
 	return p, nil
@@ -321,72 +372,72 @@ func GenFromLogModuli(logN uint64, lm *LogModuli) (p *Parameters, err error) {
 // GetLogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
 func (p *Parameters) GetLogModuli() LogModuli {
 	var lm LogModuli
-	lm.LogQi = make([]uint64, len(p.Qi), len(p.Qi))
-	for i := range p.Qi {
-		lm.LogQi[i] = uint64(bits.Len64(p.Qi[i]) - 1)
+	lm.LogQi = make([]uint64, len(p.qi), len(p.qi))
+	for i := range p.qi {
+		lm.LogQi[i] = uint64(bits.Len64(p.qi[i]) - 1)
 	}
 
-	lm.LogPi = make([]uint64, len(p.Pi), len(p.Pi))
-	for i := range p.Pi {
-		lm.LogPi[i] = uint64(bits.Len64(p.Pi[i]) - 1)
+	lm.LogPi = make([]uint64, len(p.pi), len(p.pi))
+	for i := range p.pi {
+		lm.LogPi[i] = uint64(bits.Len64(p.pi[i]) - 1)
 	}
 
-	lm.LogQiMul = make([]uint64, len(p.QiMul), len(p.QiMul))
-	for i := range p.QiMul {
-		lm.LogQiMul[i] = uint64(bits.Len64(p.QiMul[i]) - 1)
+	lm.LogQiMul = make([]uint64, len(p.qiMul), len(p.qiMul))
+	for i := range p.qiMul {
+		lm.LogQiMul[i] = uint64(bits.Len64(p.qiMul[i]) - 1)
 	}
 	return lm
 }
 
 func checkModuli(m *Moduli, logN uint64) (err error) {
 
-	if len(m.Qi) > MaxModuliCount {
-		return fmt.Errorf("#LogQi is larger than %d", MaxModuliCount)
+	if len(m.qi) > MaxModuliCount {
+		return fmt.Errorf("#qi is larger than %d", MaxModuliCount)
 	}
 
-	if len(m.Pi) > MaxModuliCount {
+	if len(m.pi) > MaxModuliCount {
 		return fmt.Errorf("#Pi is larger than %d", MaxModuliCount)
 	}
 
-	if len(m.QiMul) > MaxModuliCount {
-		return fmt.Errorf("#QiMul is larger than %d", MaxModuliCount)
+	if len(m.qiMul) > MaxModuliCount {
+		return fmt.Errorf("#qiMul is larger than %d", MaxModuliCount)
 	}
 
-	for i, qi := range m.Qi {
+	for i, qi := range m.qi {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
-			return fmt.Errorf("Qi bit-size for i=%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("qi bit-size for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
-	for i, pi := range m.Pi {
+	for i, pi := range m.pi {
 		if uint64(bits.Len64(pi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("Pi bit-size for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
-	for i, qi := range m.QiMul {
+	for i, qi := range m.qiMul {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
-			return fmt.Errorf("QiMul bitsize n°%d is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("qiMul bitsize n°%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	N := uint64(1 << logN)
 
-	for i, qi := range m.Qi {
+	for i, qi := range m.qi {
 		if !ring.IsPrime(qi) || qi&((N<<1)-1) != 1 {
-			return fmt.Errorf("Qi n°%d is not an NTT prime", i)
+			return fmt.Errorf("qi n°%d is not an NTT prime", i)
 		}
 	}
 
-	for i, pi := range m.Pi {
+	for i, pi := range m.pi {
 		if !ring.IsPrime(pi) || pi&((N<<1)-1) != 1 {
 			return fmt.Errorf("Pi n°%d is not an NTT prime", i)
 		}
 	}
 
-	for i, qi := range m.QiMul {
+	for i, qi := range m.qiMul {
 		if !ring.IsPrime(qi) || qi&((N<<1)-1) != 1 {
-			return fmt.Errorf("QiMul n°%d is not an NTT prime", i)
+			return fmt.Errorf("qiMul n°%d is not an NTT prime", i)
 		}
 	}
 
@@ -458,22 +509,22 @@ func genModuli(lm *LogModuli, logN uint64) (m Moduli) {
 	}
 
 	// Assigns the primes to the CKKS moduli chain
-	m.Qi = make([]uint64, len(lm.LogQi))
+	m.qi = make([]uint64, len(lm.LogQi))
 	for i, qi := range lm.LogQi {
-		m.Qi[i] = primes[qi][0]
+		m.qi[i] = primes[qi][0]
 		primes[qi] = primes[qi][1:]
 	}
 
 	// Assigns the primes to the special primes list for the the keys context
-	m.Pi = make([]uint64, len(lm.LogPi))
+	m.pi = make([]uint64, len(lm.LogPi))
 	for i, pj := range lm.LogPi {
-		m.Pi[i] = primes[pj][0]
+		m.pi[i] = primes[pj][0]
 		primes[pj] = primes[pj][1:]
 	}
 
-	m.QiMul = make([]uint64, len(lm.LogQiMul))
+	m.qiMul = make([]uint64, len(lm.LogQiMul))
 	for i, qi := range lm.LogQiMul {
-		m.QiMul[i] = primes[qi][0]
+		m.qiMul[i] = primes[qi][0]
 		primes[qi] = primes[qi][1:]
 	}
 

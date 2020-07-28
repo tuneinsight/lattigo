@@ -92,12 +92,12 @@ func NewRefreshProtocol(params *bfv.Parameters) (refreshProtocol *RefreshProtoco
 	refreshProtocol.hP = context.contextP.NewPoly()
 
 	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.contextQ, context.contextP)
-	refreshProtocol.scaler = ring.NewRNSScaler(params.T, context.contextQ)
+	refreshProtocol.scaler = ring.NewRNSScaler(params.T(), context.contextQ)
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma, uint64(6*params.Sigma))
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma(), uint64(6*params.Sigma()))
 	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.contextT)
 
 	return

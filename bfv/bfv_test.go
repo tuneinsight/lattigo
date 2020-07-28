@@ -13,7 +13,7 @@ import (
 )
 
 func testString(opname string, params *Parameters) string {
-	return fmt.Sprintf("%sLogN=%d/logQ=%d", opname, params.LogN, params.LogQP)
+	return fmt.Sprintf("%sLogN=%d/logQ=%d", opname, params.logN, params.logQP)
 }
 
 type bfvParams struct {

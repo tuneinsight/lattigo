@@ -27,10 +27,6 @@ type decryptor struct {
 // given as input.
 func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 
-	if sk.sk.GetDegree() != int(1<<params.LogN) {
-		panic("cannot NewDecryptor: secret_key degree must match context degree")
-	}
-
 	ctx := newBFVContext(params)
 
 	return &decryptor{

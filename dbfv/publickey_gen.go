@@ -34,12 +34,12 @@ func NewCKGProtocol(params *bfv.Parameters) *CKGProtocol {
 	context := newDbfvContext(params)
 	ckg := new(CKGProtocol)
 	ckg.context = context.contextQP
-	ckg.sigma = params.Sigma
+	ckg.sigma = params.Sigma()
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.context, params.Sigma, uint64(6*params.Sigma))
+	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.context, params.Sigma(), uint64(6*params.Sigma()))
 	return ckg
 }
 

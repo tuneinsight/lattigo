@@ -13,7 +13,7 @@ import (
 )
 
 func testString(opname string, parties uint64, params *bfv.Parameters) string {
-	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN, params.LogQP)
+	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN(), params.LogQP())
 }
 
 type dbfvTestContext struct {
@@ -212,9 +212,9 @@ func testRelinKeyGen(t *testing.T) {
 			}
 
 			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
-			crp := make([]*ring.Poly, parameters.Beta)
+			crp := make([]*ring.Poly, parameters.Beta())
 
-			for i := uint64(0); i < parameters.Beta; i++ {
+			for i := uint64(0); i < parameters.Beta(); i++ {
 				crp[i] = crpGenerator.ReadNew()
 			}
 
@@ -466,9 +466,9 @@ func testRotKeyGenRotRows(t *testing.T) {
 			}
 
 			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
-			crp := make([]*ring.Poly, parameters.Beta)
+			crp := make([]*ring.Poly, parameters.Beta())
 
-			for i := uint64(0); i < parameters.Beta; i++ {
+			for i := uint64(0); i < parameters.Beta(); i++ {
 				crp[i] = crpGenerator.ReadNew()
 			}
 
@@ -531,9 +531,9 @@ func testRotKeyGenRotCols(t *testing.T) {
 			}
 
 			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
-			crp := make([]*ring.Poly, parameters.Beta)
+			crp := make([]*ring.Poly, parameters.Beta())
 
-			for i := uint64(0); i < parameters.Beta; i++ {
+			for i := uint64(0); i < parameters.Beta(); i++ {
 				crp[i] = crpGenerator.ReadNew()
 			}
 
@@ -751,7 +751,7 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("PCKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 		//Check marshalling for the PCKS
 
-		KeySwitchProtocol := NewPCKSProtocol(params, dbfvCtx.params.Sigma)
+		KeySwitchProtocol := NewPCKSProtocol(params, dbfvCtx.params.Sigma())
 		SwitchShare := KeySwitchProtocol.AllocateShares()
 		pk := KeyGenerator.GenPublicKey(sk)
 		KeySwitchProtocol.GenShare(sk.Get(), pk, Ciphertext, SwitchShare)
@@ -776,7 +776,7 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("CKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 
 		//Now for CKSShare ~ its similar to PKSShare
-		cksp := NewCKSProtocol(params, dbfvCtx.params.Sigma)
+		cksp := NewCKSProtocol(params, dbfvCtx.params.Sigma())
 		cksshare := cksp.AllocateShare()
 		skIn := KeyGenerator.GenSecretKey()
 		skOut := KeyGenerator.GenSecretKey()

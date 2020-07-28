@@ -62,10 +62,9 @@ func main() {
 		input []uint64
 	}
 
-	params := bfv.DefaultParams[bfv.PN14QP438]
-	params.T = 65537
+	params := bfv.DefaultParams[bfv.PN14QP438].WithT(65537)
 
-	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN, append(params.Qi, params.Pi...))
+	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN(), append(params.Qi(), params.Pi()...))
 
 	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 	if err != nil {
@@ -74,15 +73,15 @@ func main() {
 
 	crsGen := ring.NewUniformSampler(lattigoPRNG, contextKeys)
 	crs := crsGen.ReadNew()
-	crp := make([]*ring.Poly, params.Beta)
-	for i := uint64(0); i < params.Beta; i++ {
+	crp := make([]*ring.Poly, params.Beta())
+	for i := uint64(0); i < params.Beta(); i++ {
 		crp[i] = crsGen.ReadNew()
 	}
 
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
 	colSk := bfv.NewSecretKey(params)
 
-	expRes := make([]uint64, 1<<params.LogN, 1<<params.LogN)
+	expRes := make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 	for i := range expRes {
 		expRes[i] = 1
 	}
@@ -102,7 +101,7 @@ func main() {
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
 		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
 		contextKeys.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
-		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
+		pi.input = make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 		for i := range pi.input {
 			if rand.Float32() > 0.3 || i == 4 {
 				pi.input[i] = 1

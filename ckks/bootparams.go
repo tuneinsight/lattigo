@@ -227,6 +227,29 @@ var BootstrappParams = []*BootParams{
 		MaxN1N2Ratio: 16.0,
 	},
 
+	// SET 
+	// h = 192
+	// 776 Cos - 170
+	// 14 : 17.2
+	{Parameters: Parameters{
+		LogN:     15,
+		LogSlots: 14,
+		LogModuli: LogModuli{
+			LogQi: []uint64{40, 30, 30, 30, 30, 60, 50, 50, 50, 50, 50, 50, 50, 51, 51},
+			LogPi: []uint64{52, 52},
+		},
+		Scale: 1 << 30,
+		Sigma: 3.2,
+	},
+		SinType:      Cos,
+		SinRange:     12,
+		SinDeg:       30,
+		SinRescal:    2,
+		CtSLevel:     []uint64{14, 13},
+		StCLevel:     []uint64{5, 5},
+		MaxN1N2Ratio: 16.0,
+	},
+
 	// SET V
 	// h = 192
 	// 1553 Cos - 505

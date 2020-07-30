@@ -86,8 +86,8 @@ func TestBootstrapp(t *testing.T) {
 		parameters.Scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
-		K := 18
-		deg := 44
+		K := 26
+		deg := 63
 		dev := 10
 		sc_num := 2
 

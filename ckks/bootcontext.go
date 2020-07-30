@@ -30,7 +30,8 @@ type BootContext struct { // TODO: change to "Bootstrapper" ?
 	plaintextSize uint64 // Byte size of the plaintext DFT matrices
 
 	repack      bool                    // If true then can repack the CoeffsToSlots into on ciphertext
-	sinScale    float64                 // Input scale to the SineEval
+	prescale    float64                 // Q0/2^{10}
+	postscale   float64                 // Qi sineeval/2^{10}
 	chebycoeffs *ChebyshevInterpolation // Coefficients of the Chebyshev Interpolation of sin(2*pi*x) or cos(2*pi*x/r)
 
 	coeffsToSlotsDiffScale complex128    // Matrice rescaling
@@ -91,7 +92,8 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 		bootcontext.dslots <<= 1
 	}
 
-	bootcontext.sinScale = 1 << 45
+	bootcontext.prescale =  math.Exp2(math.Round(math.Log2(float64(bootparams.Qi[0]))))/1024
+	bootcontext.postscale = math.Exp2(math.Round(math.Log2(float64(bootparams.Qi[len(bootparams.Qi)-1-len(bootparams.CtSLevel)]))))/1024
 
 	bootcontext.encoder = NewEncoder(&bootparams.Parameters)
 	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
@@ -183,13 +185,13 @@ func (bootcontext *BootContext) newBootDFT() {
 	b := real(bootcontext.chebycoeffs.b)
 	n := float64(bootcontext.n)
 	sc_fac := float64(int(1 << bootcontext.SinRescal))
-	qDiff := float64(bootcontext.Qi[0]) / float64(1<<55)
+	qDiff := float64(bootcontext.Qi[0]) / float64(uint64(1<<(bits.Len64(bootcontext.Qi[0])-1)))
 
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
 	bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(len(bootcontext.CtSLevel))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
-	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*bootcontext.Scale)/bootcontext.sinScale, 1.0/float64(len(bootcontext.StCLevel))), 0)
+	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*bootcontext.Scale)/bootcontext.prescale, 1.0/float64(len(bootcontext.StCLevel))), 0)
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	bootcontext.computePlaintextVectors()

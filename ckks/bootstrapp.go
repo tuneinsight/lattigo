@@ -18,13 +18,17 @@ func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	}
 
 	// TODO : better management of the initial scale
-	bootcontext.evaluator.ScaleUp(ct, math.Round(bootcontext.sinScale/ct.Scale()), ct)
+	// Brings the ciphertext scale to Q0/2^{10}
+	bootcontext.evaluator.ScaleUp(ct, math.Round(bootcontext.prescale/ct.Scale()), ct)
 
 	// ModUp ct_{Q_0} -> ct_{Q_L}
 
 	t = time.Now()
 	ct = bootcontext.modUp(ct)
 	log.Println("After ModUp  :", time.Now().Sub(t), ct.Level(), ct.Scale())
+
+	// Brings the ciphertext scale to Q0/2^{10} to 2^{45} if its under
+	bootcontext.evaluator.ScaleUp(ct, math.Round(bootcontext.postscale/ct.Scale()), ct)
 
 	//SubSum X -> (N/dslots) * Y^dslots
 	t = time.Now()
@@ -375,12 +379,12 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 
 	ct0 = bootcontext.evaluateCheby(ct0)
 
-	ct0.DivScale(1024 * bootcontext.sinScale / bootcontext.Scale)
+	ct0.DivScale(1024 * bootcontext.prescale / bootcontext.Scale)
 
 	if ct1 != nil {
 		ct1.MulScale(1024)
 		ct1 = bootcontext.evaluateCheby(ct1)
-		ct1.DivScale(1024 * bootcontext.sinScale / bootcontext.Scale)
+		ct1.DivScale(1024 * bootcontext.prescale / bootcontext.Scale)
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.

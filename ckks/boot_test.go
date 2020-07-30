@@ -19,7 +19,7 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[4]
+	bootparams := BootstrappParams[5]
 
 	parameters := &bootparams.Parameters
 
@@ -88,7 +88,7 @@ func TestBootstrapp(t *testing.T) {
 
 		K := 26
 		deg := 63
-		dev := 10
+		dev := float64(bootparams.Qi[0])/DefaultScale
 		sc_num := 2
 
 		sc_fac := complex(float64(int(1<<sc_num)), 0)

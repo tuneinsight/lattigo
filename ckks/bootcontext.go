@@ -30,6 +30,7 @@ type BootContext struct { // TODO: change to "Bootstrapper" ?
 	plaintextSize uint64 // Byte size of the plaintext DFT matrices
 
 	repack      bool                    // If true then can repack the CoeffsToSlots into on ciphertext
+	deviation   float64                 // Q[0]/Scale
 	prescale    float64                 // Q0/2^{10}
 	postscale   float64                 // Qi sineeval/2^{10}
 	chebycoeffs *ChebyshevInterpolation // Coefficients of the Chebyshev Interpolation of sin(2*pi*x) or cos(2*pi*x/r)
@@ -92,8 +93,9 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 		bootcontext.dslots <<= 1
 	}
 
+	bootcontext.deviation = math.Round(float64(bootparams.Qi[0])/bootparams.Scale)
 	bootcontext.prescale =  math.Exp2(math.Round(math.Log2(float64(bootparams.Qi[0]))))/1024
-	bootcontext.postscale = math.Exp2(math.Round(math.Log2(float64(bootparams.Qi[len(bootparams.Qi)-1-len(bootparams.CtSLevel)]))))/1024
+	bootcontext.postscale = math.Exp2(math.Round(math.Log2(float64(bootparams.Qi[len(bootparams.Qi)-1-len(bootparams.CtSLevel)]))))/bootcontext.deviation
 
 	bootcontext.encoder = NewEncoder(&bootparams.Parameters)
 	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
@@ -185,7 +187,7 @@ func (bootcontext *BootContext) newBootDFT() {
 	b := real(bootcontext.chebycoeffs.b)
 	n := float64(bootcontext.n)
 	sc_fac := float64(int(1 << bootcontext.SinRescal))
-	qDiff := float64(bootcontext.Qi[0]) / float64(uint64(1<<(bits.Len64(bootcontext.Qi[0])-1)))
+	qDiff := float64(bootcontext.Qi[0]) / math.Exp2(math.Round(math.Log2(float64(bootcontext.Qi[0]))))
 
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
 	bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(len(bootcontext.CtSLevel))), 0)
@@ -266,12 +268,11 @@ func (bootcontext *BootContext) newBootSine() {
 
 		K := int(bootcontext.SinRange)
 		deg := int(bootcontext.SinDeg)
-		dev := 10
 		sc_fac := complex(float64(int(1<<bootcontext.SinRescal)), 0)
 
 		cheby := new(ChebyshevInterpolation)
 
-		cheby.coeffs = bettersine.Approximate(K, deg, dev, int(bootcontext.SinRescal))
+		cheby.coeffs = bettersine.Approximate(K, deg, bootcontext.deviation, int(bootcontext.SinRescal))
 
 		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(sc_fac))
 

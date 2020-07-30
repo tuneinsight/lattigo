@@ -19,15 +19,14 @@ func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 	// TODO : better management of the initial scale
 	// Brings the ciphertext scale to Q0/2^{10}
-	bootcontext.evaluator.ScaleUp(ct, math.Round(bootcontext.prescale/ct.Scale()), ct)
+	//bootcontext.evaluator.ScaleUp(ct, math.Round(bootcontext.prescale/ct.Scale()), ct)
 
 	// ModUp ct_{Q_0} -> ct_{Q_L}
-
 	t = time.Now()
 	ct = bootcontext.modUp(ct)
 	log.Println("After ModUp  :", time.Now().Sub(t), ct.Level(), ct.Scale())
 
-	// Brings the ciphertext scale to Q0/2^{10} to 2^{45} if its under
+	// Brings the ciphertext scale to sineQi/(Q0/scale) if its under
 	bootcontext.evaluator.ScaleUp(ct, math.Round(bootcontext.postscale/ct.Scale()), ct)
 
 	//SubSum X -> (N/dslots) * Y^dslots
@@ -366,7 +365,7 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 
 	evaluator := bootcontext.evaluator.(*evaluator)
 
-	ct0.MulScale(1024)
+	ct0.MulScale(bootcontext.deviation)
 	evaluator.ckksContext.scale = ct0.Scale() // Reference scale is changed to the new ciphertext's scale.
 
 	// pre-computes the target scale for the output of the polynomial evaluation such that
@@ -379,12 +378,12 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 
 	ct0 = bootcontext.evaluateCheby(ct0)
 
-	ct0.DivScale(1024 * bootcontext.prescale / bootcontext.Scale)
+	ct0.DivScale(bootcontext.deviation * bootcontext.prescale / bootcontext.Scale)
 
 	if ct1 != nil {
-		ct1.MulScale(1024)
+		ct1.MulScale(bootcontext.deviation)
 		ct1 = bootcontext.evaluateCheby(ct1)
-		ct1.DivScale(1024 * bootcontext.prescale / bootcontext.Scale)
+		ct1.DivScale(bootcontext.deviation * bootcontext.prescale / bootcontext.Scale)
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.

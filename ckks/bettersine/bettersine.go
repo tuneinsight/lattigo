@@ -33,7 +33,7 @@ func maxIndex(array []float64) (max_ind int) {
 	return
 }
 
-func Approximate(K, degree, dev, sc_num int) []complex128 {
+func Approximate(K, degree int, dev float64, sc_num int) []complex128 {
 
 	var PI = new(big.Float)
 	PI.SetPrec(1000)
@@ -47,7 +47,7 @@ func Approximate(K, degree, dev, sc_num int) []complex128 {
 	}
 	var tot_deg = 2*K - 1
 
-	var err = 1.0 / float64(int(1<<dev))
+	var err = 1.0 / dev
 
 	var sc_fac = NewFloat(float64(int(1 << sc_num)))
 
@@ -127,7 +127,7 @@ func Approximate(K, degree, dev, sc_num int) []complex128 {
 		fmt.Println("==============================================")
 	*/
 
-	var inter_size = NewFloat(1.0 / float64(int(1<<dev)))
+	var inter_size = NewFloat(1.0 / dev)
 
 	var z = make([]*big.Float, tot_deg)
 	var cnt int

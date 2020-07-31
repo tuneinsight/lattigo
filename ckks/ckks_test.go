@@ -93,7 +93,7 @@ func genCkksParams(contextParameters *Parameters) (params *ckksParams) {
 
 	params.kgen = NewKeyGenerator(contextParameters)
 
-	params.sk, params.pk = params.kgen.GenKeyPairSparse(128)
+	params.sk, params.pk = params.kgen.GenKeyPairSparse(192)
 
 	params.encoder = NewEncoder(contextParameters)
 

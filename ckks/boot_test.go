@@ -88,7 +88,7 @@ func TestBootstrapp(t *testing.T) {
 
 		K := 26
 		deg := 63
-		dev := float64(bootparams.Qi[0])/DefaultScale
+		dev := float64(bootparams.Qi[0]) / DefaultScale
 		sc_num := 2
 
 		sc_fac := complex(float64(int(1<<sc_num)), 0)
@@ -180,7 +180,6 @@ func TestBootstrapp(t *testing.T) {
 			//params.evaluator.SetScale(ciphertext, parameters.Scale)
 
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-			//fmt.Println()
 		}
 
 	})

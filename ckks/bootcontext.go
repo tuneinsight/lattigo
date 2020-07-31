@@ -31,7 +31,7 @@ type BootContext struct { // TODO: change to "Bootstrapper" ?
 
 	repack      bool                    // If true then can repack the CoeffsToSlots into on ciphertext
 	deviation   float64                 // Q[0]/Scale
-	prescale    float64                 // Q0/2^{10}
+	prescale    float64                 // Q[0]/1024
 	postscale   float64                 // Qi sineeval/2^{10}
 	chebycoeffs *ChebyshevInterpolation // Coefficients of the Chebyshev Interpolation of sin(2*pi*x) or cos(2*pi*x/r)
 
@@ -93,9 +93,9 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 		bootcontext.dslots <<= 1
 	}
 
-	bootcontext.deviation = math.Round(float64(bootparams.Qi[0])/bootparams.Scale)
-	bootcontext.prescale =  math.Exp2(math.Round(math.Log2(float64(bootparams.Qi[0]))))/1024
-	bootcontext.postscale = math.Exp2(math.Round(math.Log2(float64(bootparams.Qi[len(bootparams.Qi)-1-len(bootparams.CtSLevel)]))))/bootcontext.deviation
+	bootcontext.deviation = 1024.0
+	bootcontext.prescale = math.Round(float64(bootparams.Qi[0]) / bootcontext.deviation)
+	bootcontext.postscale = math.Exp2(math.Round(math.Log2(float64(bootparams.Qi[len(bootparams.Qi)-1-len(bootparams.CtSLevel)])))) / bootcontext.deviation
 
 	bootcontext.encoder = NewEncoder(&bootparams.Parameters)
 	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
@@ -193,7 +193,7 @@ func (bootcontext *BootContext) newBootDFT() {
 	bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(len(bootcontext.CtSLevel))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
-	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*bootcontext.Scale)/bootcontext.prescale, 1.0/float64(len(bootcontext.StCLevel))), 0)
+	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*bootcontext.Scale)/bootcontext.postscale, 1.0/float64(len(bootcontext.StCLevel))), 0)
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	bootcontext.computePlaintextVectors()
@@ -507,7 +507,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 		scale = float64(bootcontext.Qi[level])
 	} else {
 		// If the first moduli
-		if bootcontext.LogQi[level] > 30 {
+		if bootcontext.LogQi[level] > 56 {
 			scale = float64(uint64(1 << (bootcontext.LogQi[level] >> 1)))
 		} else {
 			scale = float64(bootcontext.Qi[level])

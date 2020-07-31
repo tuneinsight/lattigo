@@ -19,7 +19,7 @@ func randomFloat(min, max float64) float64 {
 var paramSet = flag.Int("paramSet", 1, "index in BootStrappParams")
 var nboot = flag.Int("nboot", 1, "number of bootstrapping (on the same ct for successive and on different ct for slotdist)")
 var logslot = flag.Uint64("logslot", 8, "number of slots per ciphertext (max number for slotcount)")
-var hw = flag.Uint64("hw", 128, "secret key hamming weight")
+var hw = flag.Uint64("hw", 192, "secret key hamming weight")
 var makePlot = flag.Bool("makeplot", false, "output a .tex plot")
 
 func main() {
@@ -60,7 +60,9 @@ func main() {
 		for i := range stats {
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
 			stats[i] = ckks.GetPrecisionStats(&params.Parameters, encoder, decryptor, values, ciphertext)
+			fmt.Println(stats[i])
 			evaluator.SetScale(ciphertext, params.Scale)
+			fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		}
 
 		formatSuccessive(stats, bReal, bImag)

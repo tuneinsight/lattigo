@@ -11,7 +11,6 @@ type BootParams struct {
 	SinRange  uint64  // K parameter (interpolation in the range -K to K)
 	SinDeg    uint64  // Degree of the interpolation
 	SinRescal uint64  // Number of rescale and double angle formula (only applies for cos)
-	BabySplit uint64  // L parameter of the Baby-step giant-step algorithm (the smallest the more precision but the more non-scalr multiplications)
 
 	CtSLevel     []uint64 // Level of the Coeffs To Slots
 	StCLevel     []uint64 // Level of the Slots To Coeffs
@@ -45,7 +44,6 @@ func (b *BootParams) Copy() *BootParams {
 		SinRange:     b.SinRange,
 		SinDeg:       b.SinDeg,
 		SinRescal:    b.SinRescal,
-		BabySplit:    b.BabySplit,
 		CtSLevel:     make([]uint64, len(b.CtSLevel)),
 		StCLevel:     make([]uint64, len(b.StCLevel)),
 		MaxN1N2Ratio: b.MaxN1N2Ratio,

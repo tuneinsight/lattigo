@@ -463,7 +463,7 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, max
 
 			if hoisted > normal {
 
-				// Finds the next split that has a ratio hoisted/normal greater or equal to 3
+				// Finds the next split that has a ratio hoisted/normal greater or equal to maxRatio
 				for float64(hoisted)/float64(normal) < maxRatio {
 					if normal/2 == 0 {
 						break

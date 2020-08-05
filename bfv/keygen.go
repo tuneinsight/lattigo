@@ -22,7 +22,8 @@ type KeyGenerator interface {
 type keyGenerator struct {
 	params          *Parameters
 	bfvContext      *bfvContext
-	polypool        *ring.Poly
+	ringContext     *ring.Context
+	polypool        [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
 	uniformSampler  *ring.UniformSampler
 }
@@ -49,6 +50,10 @@ const (
 
 // RotationKeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
+	permuteNTTLeftIndex      map[uint64][]uint64
+	permuteNTTRightIndex     map[uint64][]uint64
+	permuteNTTRowIndex		 []uint64
+
 	evakeyRotColLeft  map[uint64]*SwitchingKey
 	evakeyRotColRight map[uint64]*SwitchingKey
 	evakeyRotRow      *SwitchingKey
@@ -78,6 +83,7 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	}
 
 	bfvContext := newBFVContext(params)
+	ringContext := bfvContext.contextQP
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -86,7 +92,8 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	return &keyGenerator{
 		params:          params.Copy(),
 		bfvContext:      bfvContext,
-		polypool:        bfvContext.contextQP.NewPoly(),
+		ringContext:     ringContext,
+		polypool:        [2]*ring.Poly{ringContext.NewPoly(), ringContext.NewPoly()},
 		gaussianSampler: ring.NewGaussianSampler(prng, bfvContext.contextQP, params.Sigma, uint64(6*params.Sigma)),
 		uniformSampler:  ring.NewUniformSampler(prng, bfvContext.contextQP),
 	}
@@ -197,18 +204,20 @@ func (keygen *keyGenerator) GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *E
 
 	evk.evakey = make([]*SwitchingKey, maxDegree)
 
-	keygen.polypool.Copy(sk.Get())
+	keygen.polypool[0].Copy(sk.Get())
 
-	ringContext := keygen.bfvContext.contextQP
+	ringContext := keygen.ringContext
 
-	ringContext.MulScalarBigint(keygen.polypool, keygen.bfvContext.contextP.ModulusBigint, keygen.polypool)
+	ringContext.MulCoeffsMontgomery(sk.Get(), sk.Get(), keygen.polypool[1])
+	evk.evakey[0] = keygen.newSwitchingKey(keygen.polypool[1], sk.Get())
 
-	for i := uint64(0); i < maxDegree; i++ {
-		ringContext.MulCoeffsMontgomery(keygen.polypool, sk.Get(), keygen.polypool)
-		evk.evakey[i] = keygen.newswitchingkey(keygen.polypool, sk.Get())
+	for i := uint64(1); i < maxDegree; i++ {
+		ringContext.MulCoeffsMontgomery(keygen.polypool[1], sk.Get(), keygen.polypool[1])
+		evk.evakey[i] = keygen.newSwitchingKey(keygen.polypool[0], sk.Get())
 	}
 
-	keygen.polypool.Zero()
+	keygen.polypool[0].Zero()
+	keygen.polypool[1].Zero()
 
 	return
 }
@@ -262,19 +271,15 @@ func (evk *EvaluationKey) SetRelinKeys(rlk [][][2]*ring.Poly) {
 }
 
 // GenSwitchingKey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key.
-func (keygen *keyGenerator) GenSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
 
 	if keygen.bfvContext.contextP == nil {
 		panic("Cannot GenRelinKey: modulus P is empty")
 	}
 
-	ringContext := keygen.bfvContext.contextQP
-
-	ringContext.MulScalarBigint(skIn.Get(), keygen.bfvContext.contextP.ModulusBigint, keygen.polypool)
-
-	evk = keygen.newswitchingkey(keygen.polypool, skOut.Get())
-	keygen.polypool.Zero()
-
+	keygen.ringContext.Copy(skInput.Get(), keygen.polypool[0])
+	newevakey = keygen.newSwitchingKey(keygen.polypool[0], skOutput.Get())
+	keygen.polypool[0].Zero()
 	return
 }
 
@@ -287,65 +292,12 @@ func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 
 	evakey = new(SwitchingKey)
 
-	beta := params.Beta
-
 	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
-	evakey.evakey = make([][2]*ring.Poly, beta)
+	evakey.evakey = make([][2]*ring.Poly, params.Beta)
 
-	for i := uint64(0); i < beta; i++ {
+	for i := uint64(0); i < params.Beta; i++ {
 		evakey.evakey[i][0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
 		evakey.evakey[i][1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
-	}
-
-	return
-}
-
-func (keygen *keyGenerator) newswitchingkey(skIn, skOut *ring.Poly) (switchkey *SwitchingKey) {
-
-	switchkey = new(SwitchingKey)
-
-	bfvContext := keygen.bfvContext
-	ringContext := bfvContext.contextQP
-
-	var index uint64
-
-	// delta_sk = skIn - skOut = GaloisEnd(skOut, rotation) - skOut
-
-	switchkey.evakey = make([][2]*ring.Poly, keygen.params.Beta)
-
-	for i := uint64(0); i < keygen.params.Beta; i++ {
-
-		// e
-		switchkey.evakey[i][0] = keygen.gaussianSampler.ReadNew()
-		ringContext.NTT(switchkey.evakey[i][0], switchkey.evakey[i][0])
-		ringContext.MForm(switchkey.evakey[i][0], switchkey.evakey[i][0])
-		// a
-		switchkey.evakey[i][1] = keygen.uniformSampler.ReadNew()
-
-		// e + skIn * (qiBarre*qiStar) * 2^w
-		// (qiBarre*qiStar)%qi = 1, else 0
-
-		for j := uint64(0); j < keygen.params.Alpha; j++ {
-
-			index = i*keygen.params.Alpha + j
-
-			qi := ringContext.Modulus[index]
-			p0tmp := skIn.Coeffs[index]
-			p1tmp := switchkey.evakey[i][0].Coeffs[index]
-
-			for w := uint64(0); w < ringContext.N; w++ {
-				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
-			}
-
-			// Handles the case where nb pj does not divide nb qi
-			if index >= uint64(len(ringContext.Modulus)-1) {
-				break
-			}
-
-		}
-
-		// skIn * (qiBarre*qiStar) * 2^w - a*sk + e
-		ringContext.MulCoeffsMontgomeryAndSub(switchkey.evakey[i][1], skOut, switchkey.evakey[i][0])
 	}
 
 	return
@@ -361,59 +313,67 @@ func NewRotationKeys() (rotKey *RotationKeys) {
 func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
 
 	if keygen.bfvContext.contextP == nil {
-		panic("Cannot GenRelinKey: modulus P is empty")
+		panic("Cannot GenRot: modulus P is empty")
 	}
-
-	k &= ((keygen.bfvContext.n >> 1) - 1)
 
 	switch rotType {
 	case RotationLeft:
+
 		if rotKey.evakeyRotColLeft == nil {
 			rotKey.evakeyRotColLeft = make(map[uint64]*SwitchingKey)
 		}
+
 		if rotKey.evakeyRotColLeft[k] == nil && k != 0 {
-			rotKey.evakeyRotColLeft[k] = genrotkey(keygen, sk.Get(), keygen.bfvContext.galElRotColLeft[k])
+			rotKey.evakeyRotColLeft[k] = keygen.genrotKey(sk.Get(), keygen.bfvContext.galElRotColRight[k])
 		}
+
 	case RotationRight:
+
 		if rotKey.evakeyRotColRight == nil {
 			rotKey.evakeyRotColRight = make(map[uint64]*SwitchingKey)
 		}
+
 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
-			rotKey.evakeyRotColRight[k] = genrotkey(keygen, sk.Get(), keygen.bfvContext.galElRotColRight[k])
+			rotKey.evakeyRotColRight[k] = keygen.genrotKey(sk.Get(), keygen.bfvContext.galElRotColLeft[k])
 		}
+
 	case RotationRow:
-		rotKey.evakeyRotRow = genrotkey(keygen, sk.Get(), keygen.bfvContext.galElRotRow)
+		rotKey.evakeyRotRow = keygen.genrotKey(sk.Get(), keygen.bfvContext.galElRotRow)
 	}
 }
 
-// GenRotationKeysPow2 generates a new struct of RotationKeys that stores the keys of all the left and right powers of two rotations. The provided SecretKey must be the SecretKey used to generate the PublicKey under
-// which the ciphertexts to rotate are encrypted under. rows is a boolean value that indicates if the keys for the row rotation have to be generated.
-func (keygen *keyGenerator) GenRotationKeysPow2(sk *SecretKey) (rotKey *RotationKeys) {
 
-	rotKey = new(RotationKeys)
+// GenRotationKeysPow2 generates a new rotation key with all the power-of-two rotations to the left and right, as well as the conjugation.
+func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys) {
 
-	rotKey.evakeyRotColLeft = make(map[uint64]*SwitchingKey)
-	rotKey.evakeyRotColRight = make(map[uint64]*SwitchingKey)
-
-	for n := uint64(1); n < keygen.bfvContext.n>>1; n <<= 1 {
-
-		rotKey.evakeyRotColLeft[n] = genrotkey(keygen, sk.Get(), keygen.bfvContext.galElRotColLeft[n])
-		rotKey.evakeyRotColRight[n] = genrotkey(keygen, sk.Get(), keygen.bfvContext.galElRotColRight[n])
+	if keygen.bfvContext.contextP == nil {
+		panic("Cannot GenRotationKeysPow2: modulus P is empty")
 	}
 
-	rotKey.evakeyRotRow = genrotkey(keygen, sk.Get(), keygen.bfvContext.galElRotRow)
+	rotKey = NewRotationKeys()
+
+	for n := uint64(1); n < 1<<(keygen.params.LogN-1); n <<= 1 {
+		keygen.GenRot(RotationLeft, skOutput, n, rotKey)
+		keygen.GenRot(RotationRight, skOutput, n, rotKey)
+	}
+
+	//keygen.GenRot(Conjugate, skOutput, 0, rotKey)
 
 	return
 }
 
-// SetRotKey populates the target RotationKeys with a new SwitchingKey using the input polynomials.
+// SetRotKey sets the target RotationKeys' SwitchingKey for the specified rotation type and amount with the input polynomials.
 func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*ring.Poly) {
+
 	switch rotType {
 	case RotationLeft:
+
 		if rotKey.evakeyRotColLeft == nil {
 			rotKey.evakeyRotColLeft = make(map[uint64]*SwitchingKey)
 		}
+
 		if rotKey.evakeyRotColLeft[k] == nil && k != 0 {
+
 			rotKey.evakeyRotColLeft[k] = new(SwitchingKey)
 			rotKey.evakeyRotColLeft[k].evakey = make([][2]*ring.Poly, len(evakey))
 			for j := range evakey {
@@ -421,11 +381,15 @@ func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*r
 				rotKey.evakeyRotColLeft[k].evakey[j][1] = evakey[j][1].CopyNew()
 			}
 		}
+
 	case RotationRight:
+
 		if rotKey.evakeyRotColRight == nil {
 			rotKey.evakeyRotColRight = make(map[uint64]*SwitchingKey)
 		}
+
 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
+
 			rotKey.evakeyRotColRight[k] = new(SwitchingKey)
 			rotKey.evakeyRotColRight[k].evakey = make([][2]*ring.Poly, len(evakey))
 			for j := range evakey {
@@ -433,8 +397,11 @@ func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*r
 				rotKey.evakeyRotColRight[k].evakey[j][1] = evakey[j][1].CopyNew()
 			}
 		}
+
 	case RotationRow:
+
 		if rotKey.evakeyRotRow == nil {
+
 			rotKey.evakeyRotRow = new(SwitchingKey)
 			rotKey.evakeyRotRow.evakey = make([][2]*ring.Poly, len(evakey))
 			for j := range evakey {
@@ -445,16 +412,69 @@ func (rotKey *RotationKeys) SetRotKey(rotType Rotation, k uint64, evakey [][2]*r
 	}
 }
 
-func genrotkey(keygen *keyGenerator, sk *ring.Poly, gen uint64) (switchkey *SwitchingKey) {
+func (keygen *keyGenerator) genrotKey(sk *ring.Poly, gen uint64) (switchingkey *SwitchingKey) {
 
-	ringContext := keygen.bfvContext.contextQP
+	skIn := sk
+	skOut := keygen.polypool[1]
 
-	ring.PermuteNTT(sk, gen, keygen.polypool)
+	ring.PermuteNTT(skIn, gen, skOut)
 
-	ringContext.MulScalarBigint(keygen.polypool, keygen.bfvContext.contextP.ModulusBigint, keygen.polypool)
+	switchingkey = keygen.newSwitchingKey(skIn, skOut)
 
-	switchkey = keygen.newswitchingkey(keygen.polypool, sk)
-	keygen.polypool.Zero()
+	keygen.polypool[0].Zero()
+	keygen.polypool[1].Zero()
+
+	return
+}
+
+func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingkey *SwitchingKey) {
+
+	switchingkey = new(SwitchingKey)
+
+	ringContext := keygen.ringContext
+
+	var index uint64
+
+	// delta_sk = skIn - skOut = GaloisEnd(skOut, rotation) - skOut
+
+	ringContext.MulScalarBigint(skIn, keygen.bfvContext.contextP.ModulusBigint, keygen.polypool[0])
+
+	switchingkey.evakey = make([][2]*ring.Poly, keygen.params.Beta)
+
+	for i := uint64(0); i < keygen.params.Beta; i++ {
+
+		// e
+		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNew()
+		ringContext.NTT(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
+		ringContext.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
+		// a
+		switchingkey.evakey[i][1] = keygen.uniformSampler.ReadNew()
+
+		// e + skIn * (qiBarre*qiStar) * 2^w
+		// (qiBarre*qiStar)%qi = 1, else 0
+
+		for j := uint64(0); j < keygen.params.Alpha; j++ {
+
+			index = i*keygen.params.Alpha + j
+
+			qi := ringContext.Modulus[index]
+			p0tmp := keygen.polypool[0].Coeffs[index]
+			p1tmp := switchingkey.evakey[i][0].Coeffs[index]
+
+			for w := uint64(0); w < ringContext.N; w++ {
+				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
+			}
+
+			// Handles the case where nb pj does not divide nb qi
+			if index >= uint64(len(keygen.bfvContext.contextQ.Modulus)-1) {
+				break
+			}
+
+		}
+
+		// skIn * (qiBarre*qiStar) * 2^w - a*sk + e
+		ringContext.MulCoeffsMontgomeryAndSub(switchingkey.evakey[i][1], skOut, switchingkey.evakey[i][0])
+	}
 
 	return
 }

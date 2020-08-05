@@ -490,7 +490,7 @@ func (evaluator *evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, 
 	p1 := evaluator.keyswitchpool[3]
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
-		evaluator.switchKeys(ct0.value[deg], evakey.evakey[deg-2], p0, p1)
+		evaluator.switchKeysInPlace(ct0.value[deg], evakey.evakey[deg-2], p0, p1)
 		context.Add(ctOut.value[0], p0, ctOut.value[0])
 		context.Add(ctOut.value[1], p1, ctOut.value[1])
 	}
@@ -548,7 +548,7 @@ func (evaluator *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey,
 	p0 := evaluator.keyswitchpool[2]
 	p1 := evaluator.keyswitchpool[3]
 
-	evaluator.switchKeys(ct0.value[1], switchKey, p0, p1)
+	evaluator.switchKeysInPlace(ct0.value[1], switchKey, p0, p1)
 
 	context.Add(ct0.value[0], p0, ctOut.value[0])
 	context.Copy(p1, ctOut.value[1])
@@ -712,28 +712,16 @@ func (evaluator *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey
 
 	context := evaluator.bfvContext.contextQ
 
-	var el0, el1 *ring.Poly
+	evaluator.switchKeysInPlace(ct0.value[1], switchKey, evaluator.keyswitchpool[2], evaluator.keyswitchpool[3])
 
-	if ct0 != ctOut {
-		el0, el1 = ctOut.value[0], ctOut.value[1]
-	} else {
-		el0, el1 = evaluator.polypool[0], evaluator.polypool[1]
-	}
+	context.Add(evaluator.keyswitchpool[2], ct0.value[0], evaluator.keyswitchpool[2])
 
-	context.Permute(ct0.value[0], generator, el0)
-	context.Permute(ct0.value[1], generator, el1)
-
-	p0 := evaluator.keyswitchpool[2]
-	p1 := evaluator.keyswitchpool[3]
-
-	evaluator.switchKeys(el1, switchKey, p0, p1)
-
-	context.Add(el0, p0, ctOut.value[0])
-	context.Copy(p1, ctOut.value[1])
+	context.Permute(evaluator.keyswitchpool[2], generator, ctOut.value[0])
+	context.Permute(evaluator.keyswitchpool[3], generator, ctOut.value[1])
 }
 
 // switchKeys applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
-func (evaluator *evaluator) switchKeys(cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
+func (evaluator *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
 
 	var level, reduce uint64
 

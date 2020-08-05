@@ -53,7 +53,7 @@ func NewRotKGProtocol(params *ckks.Parameters) (rtg *RTGProtocol) {
 		rtg.tmpSwitchKey[i][1] = dckksContext.contextQP.NewPoly()
 	}
 
-	rtg.tmpPoly = [2]*ring.Poly{ dckksContext.contextQP.NewPoly(), dckksContext.contextQP.NewPoly()}
+	rtg.tmpPoly = [2]*ring.Poly{dckksContext.contextQP.NewPoly(), dckksContext.contextQP.NewPoly()}
 
 	N := dckksContext.n
 

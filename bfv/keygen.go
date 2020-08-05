@@ -50,9 +50,9 @@ const (
 
 // RotationKeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
-	permuteNTTLeftIndex      map[uint64][]uint64
-	permuteNTTRightIndex     map[uint64][]uint64
-	permuteNTTRowIndex		 []uint64
+	permuteNTTLeftIndex  map[uint64][]uint64
+	permuteNTTRightIndex map[uint64][]uint64
+	permuteNTTRowIndex   []uint64
 
 	evakeyRotColLeft  map[uint64]*SwitchingKey
 	evakeyRotColRight map[uint64]*SwitchingKey
@@ -341,7 +341,6 @@ func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 		rotKey.evakeyRotRow = keygen.genrotKey(sk.Get(), keygen.bfvContext.galElRotRow)
 	}
 }
-
 
 // GenRotationKeysPow2 generates a new rotation key with all the power-of-two rotations to the left and right, as well as the conjugation.
 func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys) {

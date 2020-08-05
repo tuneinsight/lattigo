@@ -156,7 +156,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 
 	var index uint64
 
-	for i := uint64(0); i <  rtg.context.params.Beta; i++ {
+	for i := uint64(0); i < rtg.context.params.Beta; i++ {
 
 		// e
 		rtg.gaussianSampler.Read(evakey[i])
@@ -167,7 +167,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 
 		// e + sk_in * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
-		for j := uint64(0); j <  rtg.context.params.Alpha; j++ {
+		for j := uint64(0); j < rtg.context.params.Alpha; j++ {
 
 			index = i*rtg.context.params.Alpha + j
 

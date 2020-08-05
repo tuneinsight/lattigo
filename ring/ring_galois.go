@@ -117,7 +117,6 @@ func PermuteNTTLvl(level uint64, polIn *Poly, gen uint64, polOut *Poly) {
 	}
 }
 
-
 // PermuteNTTWithIndex applies the galois transform on a polynomial in the NTT domain.
 // It maps the coefficients x^i to x^(gen*i) using the PermuteNTTIndex table.
 // Careful, not inplace!

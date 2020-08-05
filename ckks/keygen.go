@@ -301,12 +301,10 @@ func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 
 	evakey = new(SwitchingKey)
 
-	beta := uint64(math.Ceil(float64(len(params.Qi)) / float64(len(params.Pi))))
-
 	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
-	evakey.evakey = make([][2]*ring.Poly, beta)
+	evakey.evakey = make([][2]*ring.Poly, params.Beta)
 
-	for i := uint64(0); i < beta; i++ {
+	for i := uint64(0); i < params.Beta; i++ {
 		evakey.evakey[i][0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
 		evakey.evakey[i][1] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
 	}
@@ -524,7 +522,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 			}
 
 			// It handles the case where nb pj does not divide nb qi
-			if index >= keygen.ckksContext.levels-1 {
+			if index >= uint64(len(keygen.ckksContext.contextQ.Modulus))-1 {
 				break
 			}
 		}

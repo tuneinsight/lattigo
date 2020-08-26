@@ -136,9 +136,20 @@ func example() {
 
 	start = time.Now()
 
-	coeffs := []float64{1.0, 1.0, 1.0 / 2, 1.0 / 6, 1.0 / 24, 1.0 / 120, 1.0 / 720, 1.0 / 5040}
+	coeffs := []complex128{
+		complex(1.0, 0),
+		complex(1.0, 0),
+		complex(1.0/2, 0),
+		complex(1.0/6, 0),
+		complex(1.0/24, 0),
+		complex(1.0/120, 0),
+		complex(1.0/720, 0),
+		complex(1.0/5040, 0),
+	}
 
-	ciphertext = evaluator.EvaluatePolyFast(ciphertext, coeffs, rlk)
+	poly := ckks.NewPoly(coeffs)
+
+	ciphertext = evaluator.EvaluatePoly(ciphertext, poly, rlk)
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

@@ -334,7 +334,7 @@ func testEncryptor(t *testing.T) {
 			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 		})
 
-		t.Run(testString("EncryptFromSkFast/", parameters), func(t *testing.T) {
+		t.Run(testString("EncryptFromSk/", parameters), func(t *testing.T) {
 
 			slots := uint64(1 << params.params.LogSlots)
 
@@ -780,35 +780,28 @@ func testEvaluatePoly(t *testing.T) {
 
 		if parameters.MaxLevel > 4 {
 
-			t.Run(testString("Fast/Exp/", parameters), func(t *testing.T) {
+			t.Run(testString("Exp/", parameters), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
 
-				coeffs := []float64{1.0, 1.0, 1.0 / 2, 1.0 / 6, 1.0 / 24, 1.0 / 120, 1.0 / 720, 1.0 / 5040}
+				coeffs := []complex128{
+					complex(1.0, 0),
+					complex(1.0, 0),
+					complex(1.0/2, 0),
+					complex(1.0/6, 0),
+					complex(1.0/24, 0),
+					complex(1.0/120, 0),
+					complex(1.0/720, 0),
+					complex(1.0/5040, 0),
+				}
+
+				poly := NewPoly(coeffs)
 
 				for i := range values {
 					values[i] = cmplx.Exp(values[i])
 				}
 
-				ciphertext = params.evaluator.EvaluatePolyFast(ciphertext, coeffs, rlk)
-
-				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
-			})
-		}
-
-		if parameters.MaxLevel > 3 {
-
-			t.Run(testString("Eco/Exp/", parameters), func(t *testing.T) {
-
-				values, _, ciphertext := newTestVectorsReals(params, params.encryptorSk, -1, 1, t)
-
-				coeffs := []float64{1.0, 1.0, 1.0 / 2, 1.0 / 6, 1.0 / 24, 1.0 / 120, 1.0 / 720, 1.0 / 5040}
-
-				for i := range values {
-					values[i] = cmplx.Exp(values[i])
-				}
-
-				ciphertext = params.evaluator.EvaluatePolyEco(ciphertext, coeffs, rlk)
+				ciphertext = params.evaluator.EvaluatePoly(ciphertext, poly, rlk)
 
 				verifyTestVectors(params, params.decryptor, values, ciphertext, t)
 			})

@@ -51,8 +51,8 @@ func TestBootstrapp(t *testing.T) {
 		parameters.Scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
-		deg := 145
-		K := float64(18)
+		deg := 127
+		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
 		eval.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
@@ -98,9 +98,10 @@ func TestBootstrapp(t *testing.T) {
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
-		cheby.maxDeg = cheby.degree()
+		cheby.maxDeg = cheby.Degree()
 		cheby.a = complex(float64(-K), 0) / sc_fac
 		cheby.b = complex(float64(K), 0) / sc_fac
+		cheby.lead = true
 
 		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(sc_fac))
 

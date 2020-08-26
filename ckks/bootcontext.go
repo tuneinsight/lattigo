@@ -280,9 +280,10 @@ func (bootcontext *BootContext) newBootSine() {
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
 
-		cheby.maxDeg = cheby.degree()
+		cheby.maxDeg = cheby.Degree()
 		cheby.a = complex(float64(-K), 0) / sc_fac
 		cheby.b = complex(float64(K), 0) / sc_fac
+		cheby.lead = true
 
 		bootcontext.chebycoeffs = cheby
 

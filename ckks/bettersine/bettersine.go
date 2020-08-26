@@ -173,7 +173,7 @@ func Approximate(K, degree int, dev float64, sc_num int) []complex128 {
 		cnt++
 	}
 
-	// cos(2*pi*(x-0.25)/r)*(1/pi^{1/4})
+	// cos(2*pi*(x-0.25)/r)
 	var d = make([]*big.Float, tot_deg)
 	for i := 0; i < tot_deg; i++ {
 

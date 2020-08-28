@@ -71,8 +71,7 @@ func MRed(a, b, q, qInv uint64) (r uint64) {
 // The result is between 0 and 2*q-1.
 func MRedConstant(x, y, q, qInv uint64) (r uint64) {
 	ahi, alo := bits.Mul64(x, y)
-	R := alo * qInv
-	H, _ := bits.Mul64(R, q)
+	H, _ := bits.Mul64(alo * qInv, q)
 	r = ahi - H + q
 	return
 }

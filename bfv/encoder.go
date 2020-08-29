@@ -3,6 +3,7 @@ package bfv
 import (
 	"math/big"
 	"math/bits"
+	"unsafe"
 
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
@@ -149,8 +150,20 @@ func (encoder *encoder) encodePlaintext(p *Plaintext) {
 		deltaMont := encoder.deltaMont[i]
 		qi := ringContext.Modulus[i]
 		bredParams := ringContext.GetMredParams()[i]
-		for j := uint64(0); j < ringContext.N; j++ {
-			tmp1[j] = ring.MRed(tmp2[j], deltaMont, qi, bredParams)
+
+		for j := uint64(0); j < ringContext.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&tmp2[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&tmp1[j]))
+
+			z[0] = ring.MRed(x[0], deltaMont, qi, bredParams)
+			z[1] = ring.MRed(x[1], deltaMont, qi, bredParams)
+			z[2] = ring.MRed(x[2], deltaMont, qi, bredParams)
+			z[3] = ring.MRed(x[3], deltaMont, qi, bredParams)
+			z[4] = ring.MRed(x[4], deltaMont, qi, bredParams)
+			z[5] = ring.MRed(x[5], deltaMont, qi, bredParams)
+			z[6] = ring.MRed(x[6], deltaMont, qi, bredParams)
+			z[7] = ring.MRed(x[7], deltaMont, qi, bredParams)
 		}
 	}
 }

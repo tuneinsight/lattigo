@@ -4,6 +4,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
 	"math/big"
+	"unsafe"
 )
 
 // Evaluator is an interface implementing the public methodes of the evaluator.
@@ -758,8 +759,19 @@ func (evaluator *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 
 			if p0idxst <= uint64(x) && uint64(x) < p0idxed {
 				p2tmp := c2.Coeffs[x]
-				for j := uint64(0); j < N; j++ {
-					c2QiNtt[j] = p2tmp[j]
+				for j := uint64(0); j < N; j = j + 8 {
+
+					x := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+					z := (*[8]uint64)(unsafe.Pointer(&c2QiNtt[j]))
+
+					z[0] = x[0]
+					z[1] = x[1]
+					z[2] = x[2]
+					z[3] = x[3]
+					z[4] = x[4]
+					z[5] = x[5]
+					z[6] = x[6]
+					z[7] = x[7]
 				}
 			} else {
 				ring.NTT(c2Qi.Coeffs[x], c2QiNtt, N, nttPsi, qi, mredParams, bredParams)
@@ -771,14 +783,59 @@ func (evaluator *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 			p3tmp := p1.Coeffs[x]
 
 			if i == 0 {
-				for y := uint64(0); y < context.N; y++ {
-					p2tmp[y] = ring.MRed(key0[y], c2QiNtt[y], qi, mredParams)
-					p3tmp[y] = ring.MRed(key1[y], c2QiNtt[y], qi, mredParams)
+				for y := uint64(0); y < context.N; y = y + 8 {
+
+					x0 := (*[8]uint64)(unsafe.Pointer(&key0[y]))
+					x1 := (*[8]uint64)(unsafe.Pointer(&key1[y]))
+					x2 := (*[8]uint64)(unsafe.Pointer(&c2QiNtt[y]))
+					z0 := (*[8]uint64)(unsafe.Pointer(&p2tmp[y]))
+					z1 := (*[8]uint64)(unsafe.Pointer(&p3tmp[y]))
+
+					z0[0] = ring.MRed(x0[0], x2[0], qi, mredParams)
+					z0[1] = ring.MRed(x0[1], x2[1], qi, mredParams)
+					z0[2] = ring.MRed(x0[2], x2[2], qi, mredParams)
+					z0[3] = ring.MRed(x0[3], x2[3], qi, mredParams)
+					z0[4] = ring.MRed(x0[4], x2[4], qi, mredParams)
+					z0[5] = ring.MRed(x0[5], x2[5], qi, mredParams)
+					z0[6] = ring.MRed(x0[6], x2[6], qi, mredParams)
+					z0[7] = ring.MRed(x0[7], x2[7], qi, mredParams)
+
+					z1[0] = ring.MRed(x1[0], x2[0], qi, mredParams)
+					z1[1] = ring.MRed(x1[1], x2[1], qi, mredParams)
+					z1[2] = ring.MRed(x1[2], x2[2], qi, mredParams)
+					z1[3] = ring.MRed(x1[3], x2[3], qi, mredParams)
+					z1[4] = ring.MRed(x1[4], x2[4], qi, mredParams)
+					z1[5] = ring.MRed(x1[5], x2[5], qi, mredParams)
+					z1[6] = ring.MRed(x1[6], x2[6], qi, mredParams)
+					z1[7] = ring.MRed(x1[7], x2[7], qi, mredParams)
+
 				}
 			} else {
-				for y := uint64(0); y < context.N; y++ {
-					p2tmp[y] += ring.MRed(key0[y], c2QiNtt[y], qi, mredParams)
-					p3tmp[y] += ring.MRed(key1[y], c2QiNtt[y], qi, mredParams)
+				for y := uint64(0); y < context.N; y = y + 8 {
+
+					x0 := (*[8]uint64)(unsafe.Pointer(&key0[y]))
+					x1 := (*[8]uint64)(unsafe.Pointer(&key1[y]))
+					x2 := (*[8]uint64)(unsafe.Pointer(&c2QiNtt[y]))
+					z0 := (*[8]uint64)(unsafe.Pointer(&p2tmp[y]))
+					z1 := (*[8]uint64)(unsafe.Pointer(&p3tmp[y]))
+
+					z0[0] += ring.MRed(x0[0], x2[0], qi, mredParams)
+					z0[1] += ring.MRed(x0[1], x2[1], qi, mredParams)
+					z0[2] += ring.MRed(x0[2], x2[2], qi, mredParams)
+					z0[3] += ring.MRed(x0[3], x2[3], qi, mredParams)
+					z0[4] += ring.MRed(x0[4], x2[4], qi, mredParams)
+					z0[5] += ring.MRed(x0[5], x2[5], qi, mredParams)
+					z0[6] += ring.MRed(x0[6], x2[6], qi, mredParams)
+					z0[7] += ring.MRed(x0[7], x2[7], qi, mredParams)
+
+					z1[0] += ring.MRed(x1[0], x2[0], qi, mredParams)
+					z1[1] += ring.MRed(x1[1], x2[1], qi, mredParams)
+					z1[2] += ring.MRed(x1[2], x2[2], qi, mredParams)
+					z1[3] += ring.MRed(x1[3], x2[3], qi, mredParams)
+					z1[4] += ring.MRed(x1[4], x2[4], qi, mredParams)
+					z1[5] += ring.MRed(x1[5], x2[5], qi, mredParams)
+					z1[6] += ring.MRed(x1[6], x2[6], qi, mredParams)
+					z1[7] += ring.MRed(x1[7], x2[7], qi, mredParams)
 				}
 			}
 

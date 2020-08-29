@@ -5,6 +5,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
 	"math"
+	"unsafe"
 )
 
 // Evaluator is an interface implementing the methodes to conduct homomorphic operations between ciphertext and/or plaintexts.
@@ -429,16 +430,38 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 		p1tmp := ctOut.Value()[0].Coeffs[i]
 		p0tmp := ct0.value[0].Coeffs[i]
 
-		for j := uint64(0); j < eval.ckksContext.n>>1; j++ {
-			p1tmp[j] = ring.CRed(p0tmp[j]+scaledConst, qi)
+		for j := uint64(0); j < eval.ckksContext.n>>1; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+			z[0] = ring.CRed(x[0]+scaledConst, qi)
+			z[1] = ring.CRed(x[1]+scaledConst, qi)
+			z[2] = ring.CRed(x[2]+scaledConst, qi)
+			z[3] = ring.CRed(x[3]+scaledConst, qi)
+			z[4] = ring.CRed(x[4]+scaledConst, qi)
+			z[5] = ring.CRed(x[5]+scaledConst, qi)
+			z[6] = ring.CRed(x[6]+scaledConst, qi)
+			z[7] = ring.CRed(x[7]+scaledConst, qi)
 		}
 
 		if cImag != 0 {
 			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
 		}
 
-		for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j++ {
-			p1tmp[j] = ring.CRed(p0tmp[j]+scaledConst, qi)
+		for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+			z[0] = ring.CRed(x[0]+scaledConst, qi)
+			z[1] = ring.CRed(x[1]+scaledConst, qi)
+			z[2] = ring.CRed(x[2]+scaledConst, qi)
+			z[3] = ring.CRed(x[3]+scaledConst, qi)
+			z[4] = ring.CRed(x[4]+scaledConst, qi)
+			z[5] = ring.CRed(x[5]+scaledConst, qi)
+			z[6] = ring.CRed(x[6]+scaledConst, qi)
+			z[7] = ring.CRed(x[7]+scaledConst, qi)
 		}
 	}
 }
@@ -587,8 +610,20 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 		for u := range ct0.Value() {
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
-			for j := uint64(0); j < eval.ckksContext.n>>1; j++ {
-				p1tmp[j] = ring.CRed(p1tmp[j]+ring.MRed(p0tmp[j], scaledConst, qi, mredParams), qi)
+
+			for j := uint64(0); j < eval.ckksContext.n>>1; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
+				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
+				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
+				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
+				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
+				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
+				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
+				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
 			}
 		}
 
@@ -600,8 +635,19 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 		for u := range ct0.Value() {
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
-			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j++ {
-				p1tmp[j] = ring.CRed(p1tmp[j]+ring.MRed(p0tmp[j], scaledConst, qi, mredParams), qi)
+			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
+				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
+				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
+				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
+				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
+				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
+				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
+				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
 			}
 		}
 	}
@@ -711,8 +757,20 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 		for u := range ct0.Value() {
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
-			for j := uint64(0); j < eval.ckksContext.n>>1; j++ {
-				p1tmp[j] = ring.MRed(p0tmp[j], scaledConst, qi, mredParams)
+
+			for j := uint64(0); j < eval.ckksContext.n>>1; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
+				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
+				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
+				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
+				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
+				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
+				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
+				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
 			}
 		}
 
@@ -724,8 +782,19 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 		for u := range ct0.Value() {
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
-			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j++ {
-				p1tmp[j] = ring.MRed(p0tmp[j], scaledConst, qi, mredParams)
+			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
+				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
+				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
+				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
+				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
+				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
+				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
+				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
 			}
 		}
 	}
@@ -774,8 +843,19 @@ func (eval *evaluator) multByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 		for u := range ct0.Value() {
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
-			for j := uint64(0); j < eval.ckksContext.n>>1; j++ {
-				p1tmp[j] = ring.MRed(p0tmp[j], scaledConst, qi, mredParams)
+			for j := uint64(0); j < eval.ckksContext.n>>1; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
+				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
+				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
+				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
+				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
+				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
+				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
+				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
 			}
 		}
 
@@ -787,8 +867,19 @@ func (eval *evaluator) multByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 		for u := range ct0.Value() {
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
-			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j++ {
-				p1tmp[j] = ring.MRed(p0tmp[j], scaledConst, qi, mredParams)
+			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
+				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
+				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
+				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
+				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
+				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
+				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
+				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
 			}
 		}
 	}
@@ -835,8 +926,19 @@ func (eval *evaluator) multByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 		for u := range ct0.Value() {
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
-			for j := uint64(0); j < eval.ckksContext.n>>1; j++ {
-				p1tmp[j] = ring.CRed(p1tmp[j]+ring.MRed(p0tmp[j], scaledConst, qi, mredParams), qi)
+			for j := uint64(0); j < eval.ckksContext.n>>1; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
+				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
+				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
+				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
+				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
+				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
+				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
+				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
 			}
 		}
 
@@ -848,8 +950,19 @@ func (eval *evaluator) multByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 		for u := range ct0.Value() {
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
-			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j++ {
-				p1tmp[j] = ring.CRed(p1tmp[j]+ring.MRed(p0tmp[j], scaledConst, qi, mredParams), qi)
+			for j := eval.ckksContext.n >> 1; j < eval.ckksContext.n; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
+				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
+				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
+				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
+				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
+				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
+				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
+				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
 			}
 		}
 	}
@@ -886,8 +999,20 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.value {
 			p0tmp := ct0.value[u].Coeffs[i]
 			p1tmp := ctOut.value[u].Coeffs[i]
-			for j := uint64(0); j < context.N>>1; j++ {
-				p1tmp[j] = ring.MRed(p0tmp[j], imag, qi, mredParams)
+
+			for j := uint64(0); j < context.N>>1; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.MRed(x[0], imag, qi, mredParams)
+				z[1] = ring.MRed(x[1], imag, qi, mredParams)
+				z[2] = ring.MRed(x[2], imag, qi, mredParams)
+				z[3] = ring.MRed(x[3], imag, qi, mredParams)
+				z[4] = ring.MRed(x[4], imag, qi, mredParams)
+				z[5] = ring.MRed(x[5], imag, qi, mredParams)
+				z[6] = ring.MRed(x[6], imag, qi, mredParams)
+				z[7] = ring.MRed(x[7], imag, qi, mredParams)
 			}
 		}
 
@@ -896,8 +1021,19 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.value {
 			p0tmp := ct0.value[u].Coeffs[i]
 			p1tmp := ctOut.value[u].Coeffs[i]
-			for j := context.N >> 1; j < context.N; j++ {
-				p1tmp[j] = ring.MRed(p0tmp[j], imag, qi, mredParams)
+			for j := context.N >> 1; j < context.N; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.MRed(x[0], imag, qi, mredParams)
+				z[1] = ring.MRed(x[1], imag, qi, mredParams)
+				z[2] = ring.MRed(x[2], imag, qi, mredParams)
+				z[3] = ring.MRed(x[3], imag, qi, mredParams)
+				z[4] = ring.MRed(x[4], imag, qi, mredParams)
+				z[5] = ring.MRed(x[5], imag, qi, mredParams)
+				z[6] = ring.MRed(x[6], imag, qi, mredParams)
+				z[7] = ring.MRed(x[7], imag, qi, mredParams)
 
 			}
 		}
@@ -935,8 +1071,19 @@ func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.value {
 			p0tmp := ct0.value[u].Coeffs[i]
 			p1tmp := ctOut.value[u].Coeffs[i]
-			for j := uint64(0); j < context.N>>1; j++ {
-				p1tmp[j] = ring.MRed(p0tmp[j], imag, qi, mredParams)
+			for j := uint64(0); j < context.N>>1; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.MRed(x[0], imag, qi, mredParams)
+				z[1] = ring.MRed(x[1], imag, qi, mredParams)
+				z[2] = ring.MRed(x[2], imag, qi, mredParams)
+				z[3] = ring.MRed(x[3], imag, qi, mredParams)
+				z[4] = ring.MRed(x[4], imag, qi, mredParams)
+				z[5] = ring.MRed(x[5], imag, qi, mredParams)
+				z[6] = ring.MRed(x[6], imag, qi, mredParams)
+				z[7] = ring.MRed(x[7], imag, qi, mredParams)
 			}
 		}
 
@@ -945,8 +1092,19 @@ func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.value {
 			p0tmp := ct0.value[u].Coeffs[i]
 			p1tmp := ctOut.value[u].Coeffs[i]
-			for j := context.N >> 1; j < context.N; j++ {
-				p1tmp[j] = ring.MRed(p0tmp[j], imag, qi, mredParams)
+			for j := context.N >> 1; j < context.N; j = j + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+				z[0] = ring.MRed(x[0], imag, qi, mredParams)
+				z[1] = ring.MRed(x[1], imag, qi, mredParams)
+				z[2] = ring.MRed(x[2], imag, qi, mredParams)
+				z[3] = ring.MRed(x[3], imag, qi, mredParams)
+				z[4] = ring.MRed(x[4], imag, qi, mredParams)
+				z[5] = ring.MRed(x[5], imag, qi, mredParams)
+				z[6] = ring.MRed(x[6], imag, qi, mredParams)
+				z[7] = ring.MRed(x[7], imag, qi, mredParams)
 			}
 		}
 	}
@@ -1736,42 +1894,30 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 	alpha := eval.params.Alpha
 	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
 
+	evakey0Q := new(ring.Poly)
+	evakey1Q := new(ring.Poly)
+	evakey0P := new(ring.Poly)
+	evakey1P := new(ring.Poly)
+
 	// Key switching with CRT decomposition for the Qi
 	var reduce uint64
 	for i := uint64(0); i < beta; i++ {
 
-		// Multiplication with the modulis Q_level of evakey[0] and evakey[1]
+		evakey0Q.Coeffs = evakey.evakey[i][0].Coeffs[:level+1]
+		evakey1Q.Coeffs = evakey.evakey[i][1].Coeffs[:level+1]
+		evakey0P.Coeffs = evakey.evakey[i][0].Coeffs[eval.ckksContext.levels:]
+		evakey1P.Coeffs = evakey.evakey[i][1].Coeffs[eval.ckksContext.levels:]
+
 		if i == 0 {
-			contextQ.MulCoeffsMontgomeryLvl(level, evakey.evakey[i][0], c2QiQDecomp[i], pool2Q)
-			contextQ.MulCoeffsMontgomeryLvl(level, evakey.evakey[i][1], c2QiQDecomp[i], pool3Q)
+			contextQ.MulCoeffsMontgomeryLvl(level, evakey0Q, c2QiQDecomp[i], pool2Q)
+			contextQ.MulCoeffsMontgomeryLvl(level, evakey1Q, c2QiQDecomp[i], pool3Q)
+			contextP.MulCoeffsMontgomery(evakey0P, c2QiPDecomp[i], pool2P)
+			contextP.MulCoeffsMontgomery(evakey1P, c2QiPDecomp[i], pool3P)
 		} else {
-			contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey[i][0], c2QiQDecomp[i], pool2Q)
-			contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey.evakey[i][1], c2QiQDecomp[i], pool3Q)
-		}
-
-		// Multiplication with the modulis P of evakey[0] and evakey[1]
-		for j, keysindex := uint64(0), eval.ckksContext.levels; j < uint64(len(contextP.Modulus)); j, keysindex = j+1, keysindex+1 {
-
-			pj := contextP.Modulus[j]
-			mredParams := contextP.GetMredParams()[j]
-
-			key0 := evakey.evakey[i][0].Coeffs[keysindex]
-			key1 := evakey.evakey[i][1].Coeffs[keysindex]
-			p2tmp := pool2P.Coeffs[j]
-			p3tmp := pool3P.Coeffs[j]
-			c2tmp := c2QiPDecomp[i].Coeffs[j]
-
-			if i == 0 {
-				for y := uint64(0); y < contextP.N; y++ {
-					p2tmp[y] = ring.MRed(key0[y], c2tmp[y], pj, mredParams)
-					p3tmp[y] = ring.MRed(key1[y], c2tmp[y], pj, mredParams)
-				}
-			} else {
-				for y := uint64(0); y < contextP.N; y++ {
-					p2tmp[y] += ring.MRed(key0[y], c2tmp[y], pj, mredParams)
-					p3tmp[y] += ring.MRed(key1[y], c2tmp[y], pj, mredParams)
-				}
-			}
+			contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey0Q, c2QiQDecomp[i], pool2Q)
+			contextQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey1Q, c2QiQDecomp[i], pool3Q)
+			contextP.MulCoeffsMontgomeryAndAddNoMod(evakey0P, c2QiPDecomp[i], pool2P)
+			contextP.MulCoeffsMontgomeryAndAddNoMod(evakey1P, c2QiPDecomp[i], pool3P)
 		}
 
 		if reduce&7 == 1 {

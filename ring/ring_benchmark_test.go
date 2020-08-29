@@ -182,6 +182,14 @@ func benchNTT(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
 		context := genPolyContext(parameters[0])
+
+		var NTT func(*Poly, *Poly)
+		if context.N == 16384 {
+			NTT = context.NTT
+		} else {
+			NTT = context.NTT
+		}
+
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -192,7 +200,7 @@ func benchNTT(b *testing.B) {
 
 		b.Run(testString("NTT/", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.NTT(p, p)
+				NTT(p, p)
 			}
 		})
 
@@ -549,7 +557,7 @@ func benchDivByRNSBasis(b *testing.B) {
 	}
 }
 
-func benchMRed(b *testing.B) {
+func benchBRed(b *testing.B) {
 
 	q := uint64(1033576114481528833)
 	u := BRedParams(q)
@@ -566,7 +574,7 @@ func benchMRed(b *testing.B) {
 	})
 }
 
-func benchBRed(b *testing.B) {
+func benchMRed(b *testing.B) {
 
 	q := uint64(1033576114481528833)
 

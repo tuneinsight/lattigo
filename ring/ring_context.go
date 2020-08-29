@@ -128,7 +128,7 @@ func (context *Context) GenNTTParams() error {
 		}
 	}
 
-	context.rescaleParams = make([][]uint64, len(context.Modulus)-1)
+	context.rescaleParams = make([][]uint64, len(context.Modulus)-1, len(context.Modulus)-1)
 
 	for j := len(context.Modulus) - 1; j > 0; j-- {
 

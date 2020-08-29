@@ -3,6 +3,7 @@ package ring
 import (
 	"github.com/ldsec/lattigo/utils"
 	"math/bits"
+	"unsafe"
 )
 
 // GenGaloisParams generates the generators for the galois endomorphisms.
@@ -122,28 +123,46 @@ func PermuteNTTLvl(level uint64, polIn *Poly, gen uint64, polOut *Poly) {
 // Careful, not inplace!
 func PermuteNTTWithIndexLvl(level uint64, polIn *Poly, index []uint64, polOut *Poly) {
 
-	var tmp uint64
+	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j = j + 8 {
 
-	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j++ {
-
-		tmp = index[j]
+		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 
 		for i := uint64(0); i < level+1; i++ {
-			polOut.Coeffs[i][j] = polIn.Coeffs[i][tmp]
+
+			z := (*[8]uint64)(unsafe.Pointer(&polOut.Coeffs[i][j]))
+			y := polIn.Coeffs[i]
+
+			z[0] = y[x[0]]
+			z[1] = y[x[1]]
+			z[2] = y[x[2]]
+			z[3] = y[x[3]]
+			z[4] = y[x[4]]
+			z[5] = y[x[5]]
+			z[6] = y[x[6]]
+			z[7] = y[x[7]]
 		}
 	}
 }
 
 func PermuteNTTWithIndexAndAddNoModLvl(level uint64, polIn *Poly, index []uint64, polOut *Poly) {
 
-	var tmp uint64
+	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j = j + 8 {
 
-	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j++ {
-
-		tmp = index[j]
+		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 
 		for i := uint64(0); i < level+1; i++ {
-			polOut.Coeffs[i][j] += polIn.Coeffs[i][tmp]
+
+			z := (*[8]uint64)(unsafe.Pointer(&polOut.Coeffs[i][j]))
+			y := polIn.Coeffs[i]
+
+			z[0] += y[x[0]]
+			z[1] += y[x[1]]
+			z[2] += y[x[2]]
+			z[3] += y[x[3]]
+			z[4] += y[x[4]]
+			z[5] += y[x[5]]
+			z[6] += y[x[6]]
+			z[7] += y[x[7]]
 		}
 	}
 }

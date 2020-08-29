@@ -183,11 +183,10 @@ func benchNTT(b *testing.B) {
 
 		context := genPolyContext(parameters[0])
 
-
 		var NTT func(*Poly, *Poly)
-		if context.N == 16384{
+		if context.N == 16384 {
 			NTT = context.NTT
-		}else{
+		} else {
 			NTT = context.NTT
 		}
 
@@ -596,8 +595,6 @@ func benchMRed(b *testing.B) {
 		}
 	})
 }
-
-
 
 func benchBRedAdd(b *testing.B) {
 

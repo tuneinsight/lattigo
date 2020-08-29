@@ -66,7 +66,7 @@ func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level uint
 	if !params.isValid {
 		panic("cannot NewCiphertextRandom: parameters are invalid (check if the generation was done properly)")
 	}
-	context, err := ring.NewContextWithParams(params.N, params.Qi[:level])
+	context, err := ring.NewContextWithParams(params.N, params.Qi[:level+1])
 	if err != nil {
 		panic(err)
 	}

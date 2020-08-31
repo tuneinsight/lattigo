@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.4.0] - 2020-08-31
 
-### Some aren't public yet and will be on release.
+### Some changes aren't public yet and will be on release.
 
 ### Performances
 - Global 1.5x speed-up across all arithmetic (this does not include sampling).
@@ -41,7 +41,7 @@ All notable changes to this project will be documented in this file.
 - CKKS : the encoder now accepts slices of complex of length equal or smaller than the specified number of slots.
 - RING : improved primes finding.
 - RING : all Gaussian sampling now uses Ziggurat sampling.
-- RING : revamp of the polynomial sampler to make them more memory efficient, consistent user friendly and enable parallel sampling.
+- RING : revamp of the polynomial samplers to make them more memory efficient, consistent user friendly and enable parallel sampling.
 - RING : the SimpleScaler type now use slightly slower but cross-platform big.Int/Float.
 - UTILS : complete revamp of the PRNG (Blake2b XOF), to make it more user friendly and consistent.
 

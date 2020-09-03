@@ -87,15 +87,15 @@ func benchEncrypt(b *testing.B) {
 		plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
 		ciphertext := NewCiphertext(parameters, 1, parameters.MaxLevel, parameters.Scale)
 
-		b.Run(testString("Sk/", parameters), func(b *testing.B) {
+		b.Run(testString("Pk/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				encryptorPk.Encrypt(plaintext, ciphertext)
 			}
 		})
 
-		b.Run(testString("Pk/", parameters), func(b *testing.B) {
+		b.Run(testString("Sk/", parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				encryptorSk.Encrypt(plaintext, ciphertext)
+				encryptorSk.EncryptFast(plaintext, ciphertext)
 			}
 		})
 	}
@@ -123,6 +123,7 @@ func benchEvaluator(b *testing.B) {
 		params := genCkksParams(parameters)
 		evaluator := params.evaluator
 
+		plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
 		ciphertext1 := NewCiphertextRandom(params.prng, parameters, 1, parameters.MaxLevel, parameters.Scale)
 		ciphertext2 := NewCiphertextRandom(params.prng, parameters, 1, parameters.MaxLevel, parameters.Scale)
 		receiver := NewCiphertextRandom(params.prng, parameters, 2, parameters.MaxLevel, parameters.Scale)
@@ -161,6 +162,12 @@ func benchEvaluator(b *testing.B) {
 				b.StopTimer()
 				ciphertext1 = NewCiphertextRandom(params.prng, parameters, 1, parameters.MaxLevel, parameters.Scale)
 				b.StartTimer()
+			}
+		})
+
+		b.Run(testString("MulPlain/", parameters), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.MulRelin(ciphertext1, plaintext, nil, receiver)
 			}
 		})
 

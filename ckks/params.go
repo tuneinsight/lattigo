@@ -87,12 +87,13 @@ var DefaultParams = []*Parameters{
 		},
 		Scale: 1 << 45,
 		Sigma: 3.2},
+
 	//LogQi = 1761
 	{LogN: 16,
-		LogSlots: 14,
+		LogSlots: 15,
 		LogModuli: LogModuli{
-			LogQi: []uint64{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 45, 45, 45, 55, 55, 55, 55, 55, 55, 55, 55, 55},
-			LogPi: []uint64{55, 55, 55, 55},
+			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},
+			LogPi: []uint64{61},
 		},
 		Scale: 1 << 55,
 		Sigma: 3.2},

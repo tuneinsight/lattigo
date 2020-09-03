@@ -66,8 +66,8 @@ func NewContextWithParams(N uint64, Moduli []uint64) (context *Context, err erro
 func (context *Context) SetParameters(N uint64, Modulus []uint64) {
 
 	// Checks if N is a power of 2
-	if (N&(N-1)) != 0 && N != 0 {
-		panic("invalid ring degree (must be a power of 2)")
+	if (N<8) || (N&(N-1)) != 0 && N != 0 {
+		panic("invalid ring degree (must be a power of 2 >= 8)")
 	}
 
 	context.allowsNTT = false

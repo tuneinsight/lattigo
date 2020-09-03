@@ -9,3 +9,4 @@ mkdir -p out
 #./boot_precision -makeplot -logslot 15 -nboot 1 -paramSet 2 slotcount | tee out/slotcount_p2.tex
 #./boot_precision -makeplot -logslot 15 -nboot 1 -paramSet 3 slotcount | tee out/slotcount_p3.tex
 ./boot_precision -makeplot -logslot 15 -nboot 1 -paramSet 4 slotcount | tee out/slotcount_p4.tex
+

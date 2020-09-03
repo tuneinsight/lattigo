@@ -56,7 +56,7 @@ func init() {
 
 	testParams.medianprec = 15
 
-	testParams.ckksParameters = DefaultParams[PN12QP109 : PN12QP109+3]
+	testParams.ckksParameters = DefaultParams[PN16BootCheby : PN16BootCheby+1]
 }
 
 func TestCKKS(t *testing.T) {

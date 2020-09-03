@@ -508,7 +508,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 		scale = float64(bootcontext.Qi[level])
 	} else {
 		// If the first moduli
-		if bootcontext.LogQi[level] > 56 {
+		if bootcontext.LogQi[level] >= 56 {
 			scale = float64(uint64(1 << (bootcontext.LogQi[level] >> 1)))
 		} else {
 			scale = float64(bootcontext.Qi[level])

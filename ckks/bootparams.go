@@ -68,7 +68,7 @@ var BootstrappParams = []*BootParams{
 	// 15 : 18.31
 	{Parameters: Parameters{
 		LogN:     16,
-		LogSlots: 15,
+		LogSlots: 4,
 		Moduli: Moduli{
 			Qi: []uint64{
 				0x80000000080001,
@@ -116,27 +116,24 @@ var BootstrappParams = []*BootParams{
 	},
 
 	// SET II
-	// h = 128
-	// 1408 Cos - 550
-	// 10 : 20.91
-	// 11 : 19.93
-	// 12 : 19.54
-	// 13 : 18.27
-	// 14 : 17.60 40
-	// 15 : 20.10 40
+	// h = 196
+	// 1525 Cos - 550
+	// 10 : 23.1
+	// 14 : 20.1
+	// 15 : 19.8
 	{Parameters: Parameters{
 		LogN:     16,
-		LogSlots: 15,
+		LogSlots: 4,
 		LogModuli: LogModuli{
 			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53},
-			LogPi: []uint64{55, 55, 55, 55},
+			LogPi: []uint64{56, 56, 56, 56, 56},
 		},
 		Scale: 1 << 45,
 		Sigma: 3.2,
 	},
 		SinType:      Cos,
-		SinRange:     16,
-		SinDeg:       40,
+		SinRange:     21,
+		SinDeg:       52,
 		SinRescal:    2,
 		CtSLevel:     []uint64{23, 22, 21},
 		StCLevel:     []uint64{12, 11, 11},
@@ -225,13 +222,14 @@ var BootstrappParams = []*BootParams{
 		MaxN1N2Ratio: 16.0,
 	},
 
+	/*
 	// SET
 	// h = 192
 	// 778 Cos - 170
 	// 14 : 17.2
 	{Parameters: Parameters{
 		LogN:     15,
-		LogSlots: 10,
+		LogSlots: 14,
 		LogModuli: LogModuli{
 			LogQi: []uint64{40, 30, 30, 30, 30, 59, 50, 50, 50, 50, 50, 50, 50, 51, 51},
 			LogPi: []uint64{53, 53},
@@ -247,6 +245,7 @@ var BootstrappParams = []*BootParams{
 		StCLevel:     []uint64{5, 5},
 		MaxN1N2Ratio: 16.0,
 	},
+	*/
 
 	// SET V
 	// h = 192
@@ -270,4 +269,6 @@ var BootstrappParams = []*BootParams{
 		StCLevel:     []uint64{9, 9, 8},
 		MaxN1N2Ratio: 16.0,
 	},
+
+	
 }

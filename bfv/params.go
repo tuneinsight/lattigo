@@ -42,58 +42,61 @@ const (
 	PN15QP880
 )
 
+// DefaultSigma is the default error distribution standard deviation
+const DefaultSigma = 3.2
+
 // DefaultParams is a set of default BFV parameters ensuring 128 bit security.
 var DefaultParams = []*Parameters{
 
-	//logQ1+P = 109
 	{
-		logN: 12,
-		n:    4096,
-		t:    65537,
+		logN:  12,
+		n:     4096,
+		t:     65537,
+		logQP: 109,
 		Moduli: Moduli{
 			qi:    []uint64{0x7ffffec001, 0x8000016001},             // 39 + 39 bits
 			pi:    []uint64{0x40002001},                             // 30 bits
 			qiMul: []uint64{0xfffffffffffc001, 0x100000000000e001}}, // 60 + 60 bits
-		sigma: 3.2,
+		sigma: DefaultSigma,
 		alpha: 1,
 		beta:  2,
 	},
 
-	//logQ1+P = 218
 	{
-		logN: 13,
-		n:    8192,
-		t:    65537,
+		logN:  13,
+		n:     8192,
+		t:     65537,
+		logQP: 218,
 		Moduli: Moduli{
 			qi:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001},      // 54 + 54 + 54 bits
 			pi:    []uint64{0x7ffffffffb4001},                                          // 55 bits
 			qiMul: []uint64{0xfffffffffffc001, 0xffffffffffe8001, 0x1000000000024001}}, // 60 + 60 + 60 bits
-		sigma: 3.2,
+		sigma: DefaultSigma,
 		alpha: 1,
 		beta:  3,
 	},
 
-	//logQ1+P = 438
 	{
-		logN: 14,
-		n:    16384,
-		t:    65537,
+		logN:  14,
+		n:     16384,
+		t:     65537,
+		logQP: 438,
 		Moduli: Moduli{
 			qi: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
 				0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
 			pi: []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
 			qiMul: []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001,
 				0x1000000000078001, 0xffffffffff28001, 0xfffffffffe38001}}, // 60 + 60 + 60 + 60 + 60 + 60 bits
-		sigma: 3.2,
+		sigma: DefaultSigma,
 		alpha: 2,
 		beta:  3,
 	},
 
-	//logQ1+P = 880
 	{
-		logN: 15,
-		n:    32768,
-		t:    65537,
+		logN:  15,
+		n:     32768,
+		t:     65537,
+		logQP: 880,
 		Moduli: Moduli{
 			qi: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
 				0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
@@ -104,7 +107,7 @@ var DefaultParams = []*Parameters{
 				0x1000000000930001, 0xfffffffff6a0001, 0x1000000000980001, // 60 + 60 + 60 bits
 				0xfffffffff5a0001, 0xfffffffff550001, 0x1000000000b00001, // 60 + 60 + 60 bits
 				0xfffffffff330001, 0x1000000000ce0001, 0xfffffffff2a0001}}, // 60 + 60 + 60 bits
-		sigma: 3.2,
+		sigma: DefaultSigma,
 		alpha: 3,
 		beta:  4,
 	},
@@ -139,6 +142,18 @@ func (m *Moduli) Pi() []uint64 {
 // PiCount returns the number of factors of the ciphertext modulus extention p
 func (m *Moduli) PiCount() int {
 	return len(m.pi)
+}
+
+// LogQP returns the size of the extended modulus QP in bits
+func (m *Moduli) LogQP() uint64 {
+	tmp := ring.NewUint(1)
+	for _, qi := range m.qi {
+		tmp.Mul(tmp, ring.NewUint(qi))
+	}
+	for _, pi := range m.pi {
+		tmp.Mul(tmp, ring.NewUint(pi))
+	}
+	return uint64(tmp.BitLen())
 }
 
 // Copy creates a copy of the target Moduli.
@@ -191,6 +206,51 @@ type Parameters struct {
 	beta  uint64
 }
 
+// NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
+func NewParametersFromModuli(logN uint64, m Moduli, t uint64) (p *Parameters, err error) {
+
+	p = new(Parameters)
+
+	if logN < 0 || logN > MaxLogN {
+		return nil, fmt.Errorf("invalid polynomial ring log degree: %d", logN)
+	}
+
+	p.logN = logN
+
+	// Checks if Moduli is valid
+	if err = checkModuli(m, logN); err != nil {
+		return nil, err
+	}
+
+	p.Moduli = m.Copy()
+
+	p.logQP = p.Moduli.LogQP()
+
+	p.n = 1 << p.logN
+
+	if len(p.pi) != 0 {
+		p.alpha = uint64(len(p.pi))
+		p.beta = uint64(math.Ceil(float64(len(p.qi)) / float64(len(p.pi))))
+	}
+
+	p.sigma = DefaultSigma
+
+	p.t = t
+
+	return p, nil
+}
+
+// NewParametersFromLogModuli creates a new Parameters struct and returns a pointer to it.
+func NewParametersFromLogModuli(logN uint64, lm LogModuli, t uint64) (p *Parameters, err error) {
+
+	if err = checkLogModuli(lm); err != nil {
+		return nil, err
+	}
+
+	// If LogModuli is valid and then generates the moduli
+	return NewParametersFromModuli(logN, genModuli(lm, logN), t)
+}
+
 // LogN returns the log of the degree of the polynomial ring
 func (p *Parameters) LogN() uint64 {
 	return p.logN
@@ -226,6 +286,26 @@ func (p *Parameters) WithT(t uint64) *Parameters {
 	pout := p.Copy()
 	pout.t = t
 	return pout
+}
+
+// LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
+func (p *Parameters) LogModuli() LogModuli {
+	var lm LogModuli
+	lm.LogQi = make([]uint64, len(p.qi), len(p.qi))
+	for i := range p.qi {
+		lm.LogQi[i] = uint64(bits.Len64(p.qi[i]) - 1)
+	}
+
+	lm.LogPi = make([]uint64, len(p.pi), len(p.pi))
+	for i := range p.pi {
+		lm.LogPi[i] = uint64(bits.Len64(p.pi[i]) - 1)
+	}
+
+	lm.LogQiMul = make([]uint64, len(p.qiMul), len(p.qiMul))
+	for i := range p.qiMul {
+		lm.LogQiMul[i] = uint64(bits.Len64(p.qiMul[i]) - 1)
+	}
+	return lm
 }
 
 // NewPolyQ returns a new empty polynomial of degree 2^logN in basis qi.
@@ -336,70 +416,17 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(p.pi)
 	b.ReadUint64Slice(p.qiMul)
 
-	return checkModuli(&p.Moduli, p.logN) // TODO: check more than moduli.
+	err := checkModuli(p.Moduli, p.logN) // TODO: check more than moduli.
+	if err != nil {
+		return err
+	}
+
+	p.logQP = p.Moduli.LogQP()
+
+	return nil
 }
 
-// GenFromLogModuli creates a new Parameters struct and returns a pointer to it.
-func GenFromLogModuli(logN uint64, lm *LogModuli) (p *Parameters, err error) {
-
-	if logN < 0 || logN > MaxLogN {
-		return nil, fmt.Errorf("invalid polynomial ring log degree: %d", logN)
-	}
-
-	if err = checkLogModuli(lm); err != nil {
-		return nil, err
-	}
-
-	// If LogModuli is valid and then generates the moduli
-	p.Moduli = genModuli(lm, logN)
-
-	// Checks if Moduli is valid
-	if err = checkModuli(&p.Moduli, logN); err != nil {
-		return nil, err
-	}
-
-	tmp := ring.NewUint(1)
-
-	for _, qi := range p.qi {
-		tmp.Mul(tmp, ring.NewUint(qi))
-	}
-
-	for _, pi := range p.pi {
-		tmp.Mul(tmp, ring.NewUint(pi))
-	}
-
-	p.logQP = uint64(tmp.BitLen())
-
-	p.n = 1 << p.logN
-	if len(p.pi) != 0 {
-		p.alpha = uint64(len(p.pi))
-		p.beta = uint64(math.Ceil(float64(len(p.qi)) / float64(len(p.pi))))
-	}
-
-	return p, nil
-}
-
-// GetLogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
-func (p *Parameters) GetLogModuli() LogModuli {
-	var lm LogModuli
-	lm.LogQi = make([]uint64, len(p.qi), len(p.qi))
-	for i := range p.qi {
-		lm.LogQi[i] = uint64(bits.Len64(p.qi[i]) - 1)
-	}
-
-	lm.LogPi = make([]uint64, len(p.pi), len(p.pi))
-	for i := range p.pi {
-		lm.LogPi[i] = uint64(bits.Len64(p.pi[i]) - 1)
-	}
-
-	lm.LogQiMul = make([]uint64, len(p.qiMul), len(p.qiMul))
-	for i := range p.qiMul {
-		lm.LogQiMul[i] = uint64(bits.Len64(p.qiMul[i]) - 1)
-	}
-	return lm
-}
-
-func checkModuli(m *Moduli, logN uint64) (err error) {
+func checkModuli(m Moduli, logN uint64) (err error) {
 
 	if len(m.qi) > MaxModuliCount {
 		return fmt.Errorf("#qi is larger than %d", MaxModuliCount)
@@ -454,7 +481,7 @@ func checkModuli(m *Moduli, logN uint64) (err error) {
 	return nil
 }
 
-func checkLogModuli(lm *LogModuli) (err error) {
+func checkLogModuli(lm LogModuli) (err error) {
 
 	// Checks if the parameters are empty
 	if lm.LogQi == nil || len(lm.LogQi) == 0 {
@@ -494,8 +521,8 @@ func checkLogModuli(lm *LogModuli) (err error) {
 	return nil
 }
 
-// GenModuli generates the appropriate primes from the parameters using generateCKKSPrimes such that all primes are different.
-func genModuli(lm *LogModuli, logN uint64) (m Moduli) {
+// GenModuli generates the appropriate primes from the parameters using generateNTTPrimes such that all primes are different.
+func genModuli(lm LogModuli, logN uint64) (m Moduli) {
 
 	// Extracts all the different primes bit-size and maps their number
 	primesbitlen := make(map[uint64]uint64)

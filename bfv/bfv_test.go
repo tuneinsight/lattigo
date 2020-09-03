@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ldsec/lattigo/ring"
@@ -49,6 +50,7 @@ func init() {
 }
 
 func TestBFV(t *testing.T) {
+	t.Run("Parameters", testParameters)
 	t.Run("Encoder", testEncoder)
 	t.Run("Encryptor", testEncryptor)
 	t.Run("Evaluator/Add", testEvaluatorAdd)
@@ -60,7 +62,45 @@ func TestBFV(t *testing.T) {
 	t.Run("Marshalling", testMarshaller)
 }
 
+func testParameters(t *testing.T) {
+	t.Run("NewParametersFromModuli", func(t *testing.T) {
+		for _, params := range DefaultParams {
+			p, err := NewParametersFromModuli(params.logN, params.Moduli, params.t)
+			assert.NoError(t, err)
+			assert.True(t, p.Equals(params))
+		}
+	})
+
+	t.Run("NewParametersFromLogModuli", func(t *testing.T) {
+		for _, params := range DefaultParams {
+			p, err := NewParametersFromLogModuli(params.logN, params.LogModuli(), params.t)
+			assert.NoError(t, err)
+			assert.True(t, p.Equals(params))
+		}
+	})
+}
+
 func testMarshaller(t *testing.T) {
+
+	t.Run("Parameters/ZeroValue", func(t *testing.T) {
+		bytes, err := (&Parameters{}).MarshalBinary()
+		assert.Nil(t, err)
+		assert.Equal(t, []byte{}, bytes)
+		p := new(Parameters)
+		err = p.UnmarshalBinary(bytes)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("Parameters/SupportedParams", func(t *testing.T) {
+		for _, params := range DefaultParams {
+			bytes, err := params.MarshalBinary()
+			assert.Nil(t, err)
+			p := new(Parameters)
+			err = p.UnmarshalBinary(bytes)
+			assert.Nil(t, err)
+			assert.Equal(t, params, p)
+		}
+	})
 
 	for _, parameters := range testParams.bfvParameters {
 

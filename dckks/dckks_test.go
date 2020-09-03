@@ -209,9 +209,8 @@ func testRelinKeyGen(t *testing.T) {
 				*RKGProtocol
 				u      *ring.Poly
 				s      *ring.Poly
-				share1 RKGShareRoundOne
-				share2 RKGShareRoundTwo
-				share3 RKGShareRoundThree
+				share1 RKGShare
+				share2 RKGShare
 			}
 
 			rkgParties := make([]*Party, parties)
@@ -221,7 +220,7 @@ func testRelinKeyGen(t *testing.T) {
 				p.RKGProtocol = NewEkgProtocol(parameters)
 				p.u = p.NewEphemeralKey()
 				p.s = sk0Shards[i].Get()
-				p.share1, p.share2, p.share3 = p.AllocateShares()
+				p.share1, p.share2 = p.AllocateShares()
 				rkgParties[i] = p
 			}
 
@@ -248,22 +247,14 @@ func testRelinKeyGen(t *testing.T) {
 
 			//ROUND 2
 			for i, p := range rkgParties {
-				p.GenShareRoundTwo(P0.share1, p.s, crp, p.share2)
+				p.GenShareRoundTwo(P0.share1, p.u, p.s, crp, p.share2)
 				if i > 0 {
 					P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
 				}
 			}
 
-			// ROUND 3
-			for i, p := range rkgParties {
-				p.GenShareRoundThree(P0.share2, p.u, p.s, p.share3)
-				if i > 0 {
-					P0.AggregateShareRoundThree(p.share3, P0.share3, P0.share3)
-				}
-			}
-
 			evk := ckks.NewRelinKey(parameters)
-			P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
+			P0.GenRelinearizationKey(P0.share1, P0.share2, evk)
 
 			coeffs, _, ciphertext := newTestVectors(params, encryptorPk0, 1, t)
 

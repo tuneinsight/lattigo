@@ -1,15 +1,16 @@
 package main
 
 import (
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/dbfv"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/dbfv"
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(err error) {
@@ -68,12 +69,11 @@ func main() {
 		sk         *bfv.SecretKey
 		rlkEphemSk *ring.Poly
 
-		ckgShare      dbfv.CKGShare
-		rkgShareOne   dbfv.RKGShareRoundOne
-		rkgShareTwo   dbfv.RKGShareRoundTwo
-		rkgShareThree dbfv.RKGShareRoundThree
-		rtgShare      dbfv.RTGShare
-		cksShare      dbfv.CKSShare
+		ckgShare    dbfv.CKGShare
+		rkgShareOne dbfv.RKGShare
+		rkgShareTwo dbfv.RKGShare
+		rtgShare    dbfv.RTGShare
+		cksShare    dbfv.CKSShare
 
 		input []uint64
 	}
@@ -128,7 +128,7 @@ func main() {
 		contextKeys.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
 
 		pi.ckgShare = ckg.AllocateShares()
-		pi.rkgShareOne, pi.rkgShareTwo, pi.rkgShareThree = rkg.AllocateShares()
+		pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
 		pi.rtgShare = rtg.AllocateShare()
 		pi.cksShare = cks.AllocateShare()
 
@@ -167,7 +167,7 @@ func main() {
 		}
 	}, N)
 
-	rkgCombined1, rkgCombined2, rkgCombined3 := rkg.AllocateShares()
+	rkgCombined1, rkgCombined2 := rkg.AllocateShares()
 
 	elapsedRKGCloud = runTimed(func() {
 		for _, pi := range P {
@@ -177,29 +177,18 @@ func main() {
 
 	elapsedRKGParty += runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundTwo(rkgCombined1, pi.sk.Get(), crp, pi.rkgShareTwo)
-		}
-	}, N)
-
-	elapsedRKGCloud += runTimed(func() {
-		for _, pi := range P {
-			rkg.AggregateShareRoundTwo(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
-		}
-	})
-
-	elapsedRKGParty += runTimedParty(func() {
-		for _, pi := range P {
-			rkg.GenShareRoundThree(rkgCombined2, pi.rlkEphemSk, pi.sk.Get(), pi.rkgShareThree)
+			rkg.GenShareRoundTwo(rkgCombined1, pi.rlkEphemSk, pi.sk.Get(), crp, pi.rkgShareTwo)
 		}
 	}, N)
 
 	rlk := bfv.NewRelinKey(params, 1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
-			rkg.AggregateShareRoundThree(pi.rkgShareThree, rkgCombined3, rkgCombined3)
+			rkg.AggregateShareRoundTwo(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
 		}
-		rkg.GenRelinearizationKey(rkgCombined2, rkgCombined3, rlk)
+		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
 	})
+
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedRKGCloud, elapsedRKGParty)
 
 	// 3) Collective rotation keys geneneration

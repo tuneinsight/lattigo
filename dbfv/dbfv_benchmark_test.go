@@ -84,9 +84,8 @@ func benchRelinKeyGen(b *testing.B) {
 			*RKGProtocol
 			u      *ring.Poly
 			s      *ring.Poly
-			share1 RKGShareRoundOne
-			share2 RKGShareRoundTwo
-			share3 RKGShareRoundThree
+			share1 RKGShare
+			share2 RKGShare
 
 			rlk *bfv.EvaluationKey
 		}
@@ -95,7 +94,7 @@ func benchRelinKeyGen(b *testing.B) {
 		p.RKGProtocol = NewEkgProtocol(parameters)
 		p.u = p.RKGProtocol.NewEphemeralKey()
 		p.s = sk0Shards[0].Get()
-		p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
+		p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 		p.rlk = bfv.NewRelinKey(parameters, 2)
 		prng, err := utils.NewKeyedPRNG(nil)
 		if err != nil {
@@ -124,7 +123,7 @@ func benchRelinKeyGen(b *testing.B) {
 
 		b.Run(testString("Round2/Gen", parties, parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				p.GenShareRoundTwo(p.share1, p.s, crp, p.share2)
+				p.GenShareRoundTwo(p.share1, p.u, p.s, crp, p.share2)
 			}
 		})
 
@@ -134,21 +133,9 @@ func benchRelinKeyGen(b *testing.B) {
 			}
 		})
 
-		b.Run(testString("Round3/Gen", parties, parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				p.GenShareRoundThree(p.share2, p.u, p.s, p.share3)
-			}
-		})
-
-		b.Run(testString("Round3/Agg", parties, parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				p.AggregateShareRoundThree(p.share3, p.share3, p.share3)
-			}
-		})
-
 		b.Run(testString("Finalize", parties, parameters), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				p.GenRelinearizationKey(p.share2, p.share3, p.rlk)
+				p.GenRelinearizationKey(p.share1, p.share2, p.rlk)
 			}
 		})
 	}

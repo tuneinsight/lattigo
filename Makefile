@@ -32,6 +32,9 @@ test_local:
 	go run ./examples/bfv/examples_bfv.go > /dev/null
 	go run ./examples/ckks/euler/euler.go > /dev/null
 	go run ./examples/ckks/sigmoid/sigmoid.go > /dev/null
+	go run ./examples/dbfv/pir/pir.go &> /dev/null
+	go run ./examples/dbfv/psi/psi.go &> /dev/null
+	@echo ok
 
 test: test_fmt test_local
 

@@ -462,10 +462,15 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, max
 			hoisted := len(index[0]) - 1
 			normal := len(index) - 1
 
-			if hoisted > normal {
+			// The matrice is very sparse already
+			if normal == 0 {
+				return N1 / 2
+			}
 
+			if hoisted > normal {
 				// Finds the next split that has a ratio hoisted/normal greater or equal to maxRatio
 				for float64(hoisted)/float64(normal) < maxRatio {
+
 					if normal/2 == 0 {
 						break
 					}
@@ -473,7 +478,6 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, max
 					hoisted = hoisted*2 + 1
 					normal = normal / 2
 				}
-
 				return N1
 			}
 		}

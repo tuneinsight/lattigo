@@ -47,6 +47,7 @@ func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	// Part 3 : Slots to coeffs
 	t = time.Now()
 	ct0 = bootcontext.slotsToCoeffs(ct0, ct1)
+	ct0.SetScale(bootcontext.Parameters.Scale)
 	log.Println("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 	return ct0
 }

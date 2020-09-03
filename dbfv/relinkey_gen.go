@@ -163,7 +163,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index == uint64(len(ekg.context.params.Qi())-1) {
+			if index == uint64(ekg.context.params.QiCount()-1) {
 				break
 			}
 		}

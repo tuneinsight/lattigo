@@ -117,22 +117,26 @@ type Moduli struct {
 	qiMul []uint64 // Ciphertext secondary prime moduli
 }
 
+// Qi returns a new slice with the factors of the ciphertext modulus q
 func (m *Moduli) Qi() []uint64 {
 	qi := make([]uint64, len(m.qi))
 	copy(qi, m.qi)
 	return qi
 }
 
+// QiCount returns the number of factors of the ciphertext modulus q
 func (m *Moduli) QiCount() int {
 	return len(m.qi)
 }
 
+// Pi returns a new slice with the factors of the ciphertext modulus extention p
 func (m *Moduli) Pi() []uint64 {
 	pi := make([]uint64, len(m.pi))
 	copy(pi, m.pi)
 	return pi
 }
 
+// PiCount returns the number of factors of the ciphertext modulus extention p
 func (m *Moduli) PiCount() int {
 	return len(m.pi)
 }
@@ -192,26 +196,32 @@ func (p *Parameters) LogN() uint64 {
 	return p.logN
 }
 
+// T returns the plaintext coefficient modulus t
 func (p *Parameters) T() uint64 {
 	return p.t
 }
 
+// Sigma returns standard deviation of the noise distribution
 func (p *Parameters) Sigma() float64 {
 	return p.sigma
 }
 
+// Alpha returns the number of moduli in in P
 func (p *Parameters) Alpha() uint64 {
 	return p.alpha
 }
 
+// Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
 func (p *Parameters) Beta() uint64 {
 	return p.beta
 }
 
+// LogQP returns the size of the extanded modulus QP in bits
 func (p *Parameters) LogQP() uint64 {
 	return p.logQP
 }
 
+// WithT returns a copy of this parameter struct with the plaintext modulus set to t
 func (p *Parameters) WithT(t uint64) *Parameters {
 	pout := p.Copy()
 	pout.t = t

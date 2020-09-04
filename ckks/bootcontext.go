@@ -153,8 +153,13 @@ func (bootcontext *BootContext) ExportKeys() (rlk *EvaluationKey, rotkeys *Rotat
 }
 
 func (bootcontext *BootContext) ImportKeys(rlk *EvaluationKey, rotkeys *RotationKeys) {
-	bootcontext.relinkey = rlk
-	bootcontext.rotkeys = rotkeys
+	if rlk != nil {
+		bootcontext.relinkey = rlk
+	}
+
+	if rotkeys != nil {
+		bootcontext.rotkeys = rotkeys
+	}
 }
 
 func (bootcontext *BootContext) CheckKeys() (err error) {

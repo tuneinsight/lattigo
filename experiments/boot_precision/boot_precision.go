@@ -16,9 +16,11 @@ func randomFloat(min, max float64) float64 {
 	return min + rand.Float64()*(max-min)
 }
 
+var minLogSlots = int(4)
+
 var paramSet = flag.Int("paramSet", 1, "index in BootStrappParams")
 var nboot = flag.Int("nboot", 1, "number of bootstrapping (on the same ct for successive and on different ct for slotdist)")
-var logslot = flag.Uint64("logslot", 8, "number of slots per ciphertext (max number for slotcount)")
+var logslot = flag.Uint64("logslot", 15, "number of slots per ciphertext (max number for slotcount)")
 var hw = flag.Uint64("hw", 192, "secret key hamming weight")
 var makePlot = flag.Bool("makeplot", false, "output a .tex plot")
 
@@ -39,12 +41,13 @@ func main() {
 	}
 
 	params := ckks.BootstrappParams[*paramSet].Copy()
-	params.LogSlots = *logslot
 	bReal, bImag := new(bytes.Buffer), new(bytes.Buffer)
-	fmt.Println(formatParams(*paramSet, *nboot, *hw, *logslot))
 	var stats []ckks.PrecisionStats
+
 	switch exp {
 	case "successive":
+		params.LogSlots = *logslot
+		log.Printf("%% program args: paramSet=%d, nboot=%d, hw=%d, logslot=%d\n", *paramSet, *nboot, *hw, *logslot)
 		encoder, encryptor, evaluator, decryptor, bootstrapper := instanciateExperiment(params)
 		log.Println("Generating a plaintext of", params.Slots, "random values...")
 		values := make([]complex128, params.Slots)
@@ -61,7 +64,9 @@ func main() {
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
 			stats[i] = ckks.GetPrecisionStats(&params.Parameters, encoder, decryptor, values, ciphertext)
 			fmt.Println(stats[i])
-			evaluator.SetScale(ciphertext, params.Scale)
+			if ciphertext.Scale() != params.Scale {
+				evaluator.SetScale(ciphertext, params.Scale)
+			}
 			fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		}
 
@@ -69,7 +74,8 @@ func main() {
 		break
 
 	case "slotdist":
-
+		params.LogSlots = *logslot
+		log.Printf("%% program args: paramSet=%d, hw=%d, logslot=%d\n", *paramSet, *hw, *logslot)
 		encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params)
 		stats = make([]ckks.PrecisionStats, 1, 1) // Experiment seems stable enough
 		for i := range stats {
@@ -89,11 +95,13 @@ func main() {
 		break
 
 	case "slotcount":
-		stats = make([]ckks.PrecisionStats, *logslot-2, *logslot-2)
-		for i, logSloti := 0, uint64(4); logSloti <= *logslot; i, logSloti = i+1, logSloti+1 {
+		stats = make([]ckks.PrecisionStats, int(params.LogN)+1-minLogSlots, int(params.LogN)+1-minLogSlots)
+		log.Printf("%% program args: paramSet=%d, hw=%d\n", *paramSet, *hw)
+		for i, logSloti := 0, uint64(minLogSlots); logSloti <= params.LogN-1; i, logSloti = i+1, logSloti+1 {
 			log.Println("running experiment for logslot =", logSloti)
 			params := ckks.BootstrappParams[*paramSet].Copy()
 			params.LogSlots = logSloti
+
 			encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params)
 
 			values := make([]complex128, params.Slots)
@@ -107,6 +115,13 @@ func main() {
 
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
 			stats[i] = ckks.GetPrecisionStats(&params.Parameters, encoder, decryptor, values, ciphertext)
+
+			plaintext = nil
+			ciphertext = nil
+			bootstrapper = nil
+			encoder = nil
+			encryptor = nil
+			decryptor = nil
 		}
 		formatSlotCount(stats, bReal, bImag)
 		break
@@ -133,7 +148,9 @@ func instanciateExperiment(params *ckks.BootParams) (encoder ckks.Encoder, encry
 
 	bootstrapper = ckks.NewBootContext(params)
 	log.Println("Generating the keys...")
+
 	bootstrapper.GenBootKeys(sk)
+
 	return
 }
 
@@ -144,11 +161,11 @@ func formatParams(params, succ int, hw, logSlot uint64) string {
 func formatSlotCount(stats []ckks.PrecisionStats, wReal, wImag io.Writer) {
 	for logSlot, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, real(prec.MedianPrecision), real(prec.MaxPrecision-prec.MedianPrecision), real(prec.MedianPrecision-prec.MinPrecision))
+		fmt.Fprintf(wReal, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+minLogSlots, real(prec.MeanPrecision), real(prec.MaxPrecision-prec.MeanPrecision), real(prec.MeanPrecision-prec.MinPrecision))
 	}
 	for logSlot, prec := range stats {
 		// (1,  19.77) += (0, 13.1) -= (0, 4.87)
-		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+3, real(prec.MedianPrecision), real(prec.MaxPrecision-prec.MedianPrecision), real(prec.MedianPrecision-prec.MinPrecision))
+		fmt.Fprintf(wImag, "(%d, %.2f) += (0, %.2f) -= (0, %.2f)\n", logSlot+minLogSlots, imag(prec.MeanPrecision), imag(prec.MaxPrecision-prec.MeanPrecision), imag(prec.MeanPrecision-prec.MinPrecision))
 	}
 }
 

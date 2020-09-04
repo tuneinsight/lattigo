@@ -47,7 +47,7 @@ func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	// Part 3 : Slots to coeffs
 	t = time.Now()
 	ct0 = bootcontext.slotsToCoeffs(ct0, ct1)
-	ct0.SetScale(bootcontext.Parameters.Scale)
+	ct0.SetScale(math.Exp2(math.Round(math.Log2(ct0.Scale())))) // rounds to the nearest power of two
 	log.Println("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 	return ct0
 }
@@ -136,6 +136,9 @@ func (bootcontext *BootContext) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Cipher
 
 		return ct0, nil
 	}
+
+	zV = nil
+	zVconj = nil
 
 	return ct0, ct1
 }
@@ -356,6 +359,8 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 
 	res.SetScale(plainVectors.Scale * vec.Scale())
 
+	vecRotQ, vecRotP, c0 = nil, nil, nil
+
 	//log.Println(N1Rot, N2Rot)
 
 	return
@@ -418,6 +423,8 @@ func (bootcontext *BootContext) evaluateCheby(ct *Ciphertext) (res *Ciphertext) 
 		eval.AddConst(res, -sqrt2pi, res)
 		eval.Rescale(res, eval.ckksContext.scale, res)
 	}
+
+	C = nil
 
 	return
 }

@@ -309,6 +309,8 @@ func recurse(target_scale float64, logSplit, logDegree uint64, coeffs *Poly, C m
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 	}
 
+	tmp = nil
+
 	return
 }
 
@@ -370,6 +372,8 @@ func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *Poly
 		evaluator.Add(res, tmp, res)
 		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
 	}
+
+	tmp = nil
 
 	return
 

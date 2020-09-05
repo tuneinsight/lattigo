@@ -29,10 +29,6 @@ type PCKSShare [2]*ring.Poly
 // collective public-key.
 func NewPCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) *PCKSProtocol {
 
-	if !params.IsValid() {
-		panic("cannot NewPCKSProtocol : params not valid (check if they where generated properly)")
-	}
-
 	pcks := new(PCKSProtocol)
 
 	dckksContext := newDckksContext(params)
@@ -48,7 +44,7 @@ func NewPCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) *PCKSProtoc
 	if err != nil {
 		panic(err)
 	}
-	pcks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma, uint64(6*params.Sigma))
+	pcks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma(), uint64(6*params.Sigma()))
 	pcks.ternarySamplerMontgomery = ring.NewTernarySampler(prng, dckksContext.contextQP, 0.5, true)
 
 	return pcks

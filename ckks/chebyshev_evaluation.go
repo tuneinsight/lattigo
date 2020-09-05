@@ -88,7 +88,7 @@ func (eval *evaluator) EvaluateChebyEcoSpecial(ct *Ciphertext, n complex128, che
 
 	eval.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
 	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	eval.Rescale(C[1], eval.params.Scale, C[1])
+	eval.Rescale(C[1], eval.params.scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree()))
 	L := uint64(1)
@@ -114,7 +114,7 @@ func (eval *evaluator) EvaluateChebyFastSpecial(ct *Ciphertext, n complex128, ch
 
 	eval.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
 	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	eval.Rescale(C[1], eval.params.Scale, C[1])
+	eval.Rescale(C[1], eval.params.scale, C[1])
 
 	M := uint64(bits.Len64(cheby.degree()))
 	L := (M >> 1) //optimalL(M)

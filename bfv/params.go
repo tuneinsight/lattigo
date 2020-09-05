@@ -281,11 +281,15 @@ func (p *Parameters) LogQP() uint64 {
 	return p.logQP
 }
 
-// WithT returns a copy of this parameter struct with the plaintext modulus set to t
-func (p *Parameters) WithT(t uint64) *Parameters {
-	pout := p.Copy()
-	pout.t = t
-	return pout
+// LogQP returns the size of the extanded modulus QP in bits
+func (p *Parameters) SetT(T uint64) {
+	p.t = T
+}
+
+func (p *Parameters) WithT(T uint64) (pCopy *Parameters) {
+	pCopy = p.Copy()
+	pCopy.SetT(T)
+	return
 }
 
 // LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
@@ -293,34 +297,34 @@ func (p *Parameters) LogModuli() LogModuli {
 	var lm LogModuli
 	lm.LogQi = make([]uint64, len(p.qi), len(p.qi))
 	for i := range p.qi {
-		lm.LogQi[i] = uint64(bits.Len64(p.qi[i]) - 1)
+		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.qi[i]))))
 	}
 
 	lm.LogPi = make([]uint64, len(p.pi), len(p.pi))
 	for i := range p.pi {
-		lm.LogPi[i] = uint64(bits.Len64(p.pi[i]) - 1)
+		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
 	}
 
 	lm.LogQiMul = make([]uint64, len(p.qiMul), len(p.qiMul))
 	for i := range p.qiMul {
-		lm.LogQiMul[i] = uint64(bits.Len64(p.qiMul[i]) - 1)
+		lm.LogQiMul[i] = uint64(math.Round(math.Log2(float64(p.qiMul[i]))))
 	}
 	return lm
 }
 
 // NewPolyQ returns a new empty polynomial of degree 2^logN in basis qi.
 func (p *Parameters) NewPolyQ() *ring.Poly {
-	return ring.NewPoly(1<<p.logN, uint64(len(p.qi)))
+	return ring.NewPoly(p.n, uint64(len(p.qi)))
 }
 
 // NewPolyP returns a new empty polynomial of degree 2^logN in basis Pi.
 func (p *Parameters) NewPolyP() *ring.Poly {
-	return ring.NewPoly(1<<p.logN, uint64(len(p.pi)))
+	return ring.NewPoly(p.n, uint64(len(p.pi)))
 }
 
 // NewPolyQP returns a new empty polynomial of degree 2^logN in basis qi + Pi.
 func (p *Parameters) NewPolyQP() *ring.Poly {
-	return ring.NewPoly(1<<p.logN, uint64(len(p.qi)+len(p.pi)))
+	return ring.NewPoly(p.n, uint64(len(p.qi)+len(p.pi)))
 }
 
 // Copy creates a copy of the target Parameters.

@@ -286,6 +286,7 @@ func (p *Parameters) SetT(T uint64) {
 	p.t = T
 }
 
+// WithT returns a copy of the parmaters with a plaintext modulus set to T
 func (p *Parameters) WithT(T uint64) (pCopy *Parameters) {
 	pCopy = p.Copy()
 	pCopy.SetT(T)

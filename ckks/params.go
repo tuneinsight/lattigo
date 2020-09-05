@@ -18,6 +18,7 @@ const MaxModuliCount = 34
 // MaxModuliSize is the largest bit-length supported for the moduli in the RNS representation.
 const MaxModuliSize = 60
 
+// DefaultSigma is the default error distribution standard deviation
 const DefaultSigma = 3.2
 
 const (
@@ -249,6 +250,7 @@ func (p *Parameters) NewPolyQP() *ring.Poly {
 	return ring.NewPoly(p.n, uint64(len(p.qi)+len(p.pi)))
 }
 
+// N returns the ring degree
 func (p *Parameters) N() uint64 {
 	return p.n
 }
@@ -258,14 +260,17 @@ func (p *Parameters) LogN() uint64 {
 	return p.logN
 }
 
+// LogSlots returns the log of the number of slots
 func (p *Parameters) LogSlots() uint64 {
 	return p.logSlots
 }
 
+// MaxLevel returns the maximum ciphertext level
 func (p *Parameters) MaxLevel() uint64 {
 	return p.QiCount() - 1
 }
 
+// Levels returns then number of total levels enabled by the parameters
 func (p *Parameters) Levels() uint64 {
 	return p.QiCount()
 }
@@ -280,6 +285,7 @@ func (p *Parameters) MaxSlots() uint64 {
 	return p.n >> 1
 }
 
+// MaxLogSlots returns the log of the maximum number of slots enabled by the parameters
 func (p *Parameters) MaxLogSlots() uint64 {
 	return p.logN - 1
 }
@@ -314,6 +320,7 @@ func (p *Parameters) SetScale(scale float64) {
 	p.scale = scale
 }
 
+// SetLogSlots sets the value logSlots of the parameters.
 func (p *Parameters) SetLogSlots(logSlots uint64) (err error) {
 	if (logSlots == 0) || (logSlots > p.MaxLogSlots()) {
 		return fmt.Errorf("slots cannot be greater than LogN-1")
@@ -324,6 +331,7 @@ func (p *Parameters) SetLogSlots(logSlots uint64) (err error) {
 	return nil
 }
 
+// SetSigma sets the value sigma of the parameters
 func (p *Parameters) SetSigma(sigma float64) {
 	p.sigma = sigma
 }
@@ -499,7 +507,6 @@ func checkLogModuli(m LogModuli) error {
 	return nil
 }
 
-// GenModuli generates the appropriate primes from the parameters using generateCKKSPrimes, such that all the primes are different.
 func genModuli(lm LogModuli, logN uint64) (m Moduli) {
 
 	// Extracts all the different primes bit size and maps their number

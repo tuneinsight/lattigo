@@ -15,7 +15,7 @@ func NewPlaintext(params *Parameters, level uint64, scale float64) *Plaintext {
 
 	plaintext := &Plaintext{&CkksElement{}, nil}
 
-	plaintext.CkksElement.value = []*ring.Poly{ring.NewPoly(params.n, level+1)}
+	plaintext.CkksElement.value = []*ring.Poly{ring.NewPoly(params.N(), level+1)}
 
 	plaintext.value = plaintext.CkksElement.value[0]
 

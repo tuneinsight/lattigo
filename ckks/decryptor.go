@@ -23,7 +23,7 @@ type decryptor struct {
 // encrypted under the provided secret-key.
 func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 
-	if sk.sk.GetDegree() != int(params.n) {
+	if sk.sk.GetDegree() != int(params.N()) {
 		panic("cannot newDecryptor: secret_key degree must match context degree")
 	}
 

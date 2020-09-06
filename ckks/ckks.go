@@ -46,7 +46,7 @@ func newContext(params *Parameters) (ckkscontext *Context) {
 	ckkscontext = new(Context)
 
 	ckkscontext.logN = params.logN
-	ckkscontext.n = params.n
+	ckkscontext.n = params.N()
 	ckkscontext.maxSlots = params.MaxSlots()
 	ckkscontext.scale = params.scale
 
@@ -60,7 +60,7 @@ func newContext(params *Parameters) (ckkscontext *Context) {
 		panic(err)
 	}
 
-	if len(params.pi) != 0 {
+	if params.PiCount() != 0 {
 		if ckkscontext.contextP, err = ring.NewContextWithParams(n, params.pi); err != nil {
 			panic(err)
 		}

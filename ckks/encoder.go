@@ -53,7 +53,7 @@ type encoderComplex128 struct {
 
 func newEncoder(params *Parameters) encoder {
 
-	m := uint64(2 << params.logN)
+	m := 2 * params.N()
 
 	rotGroup := make([]uint64, m>>1)
 	fivePows := uint64(1)
@@ -106,7 +106,7 @@ func (encoder *encoderComplex128) EncodeNew(values []complex128, slots uint64) (
 
 func (encoder *encoderComplex128) embed(values []complex128, slots uint64) {
 
-	if uint64(len(values)) > encoder.ckksContext.maxSlots || uint64(len(values)) > slots {
+	if uint64(len(values)) > encoder.params.N()/2 || uint64(len(values)) > slots {
 		panic("cannot Encode: too many values for the given number of slots")
 	}
 
@@ -166,7 +166,7 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 // and returns a scaled integer plaintext polynomial in NTT.
 func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plaintext) {
 
-	if uint64(len(values)) > encoder.params.n {
+	if uint64(len(values)) > encoder.params.N() {
 		panic("cannot EncodeCoeffs : too many values (maximum is N)")
 	}
 
@@ -192,7 +192,7 @@ func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []floa
 		encoder.ckksContext.contextQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
 
-	res = make([]float64, encoder.params.n)
+	res = make([]float64, encoder.params.N())
 
 	// We have more than one moduli and need the CRT reconstruction
 	if plaintext.Level() > 0 {
@@ -469,7 +469,7 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 
 	scaleUpVecExactBigFloat(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
-	coeffsBigInt := make([]*big.Int, 1<<encoder.params.logN)
+	coeffsBigInt := make([]*big.Int, encoder.params.N())
 
 	encoder.ckksContext.contextQ.PolyToBigint(plaintext.value, coeffsBigInt)
 

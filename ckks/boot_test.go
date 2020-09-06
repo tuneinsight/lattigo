@@ -19,10 +19,7 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[0]
-
-	parameters := &bootparams.Parameters
-
+	bootparams := BootstrappParams[4]
 	bootparams.Gen()
 
 	/*
@@ -41,16 +38,13 @@ func TestBootstrapp(t *testing.T) {
 
 	slots := bootparams.Slots()
 
-	rlk := params.kgen.GenRelinKey(params.sk)
-
-	t.Run(testString("ChebySin/", parameters), func(t *testing.T) {
+	t.Run(testString("ChebySin/"), func(t *testing.T) {
 
 		eval := params.evaluator
 
-		DefaultScale := parameters.scale
+		DefaultScale := params.params.scale
 
 		params.params.scale = SineScale
-		parameters.scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
 		deg := 127
@@ -67,25 +61,23 @@ func TestBootstrapp(t *testing.T) {
 
 		fmt.Println(ciphertext.Level() - 1)
 		start := time.Now()
-		ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, rlk)
+		ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, params.rlk)
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
 		fmt.Println(ciphertext.Level())
 
 		verifyTestVectors(params.decryptor, values, ciphertext, t)
 
 		params.params.scale = DefaultScale
-		parameters.scale = DefaultScale
 		eval.(*evaluator).params.scale = DefaultScale
 	})
 
-	t.Run(testString("ChebyCos/", parameters), func(t *testing.T) {
+	t.Run(testString("ChebyCos/"), func(t *testing.T) {
 
 		eval := params.evaluator
 
-		DefaultScale := parameters.scale
+		DefaultScale := params.params.scale
 
 		params.params.scale = SineScale
-		parameters.scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
 		K := 26
@@ -126,15 +118,15 @@ func TestBootstrapp(t *testing.T) {
 
 		fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		start := time.Now()
-		ciphertext = params.evaluator.EvaluateChebySpecial(ciphertext, sc_fac, cheby, rlk)
+		ciphertext = params.evaluator.EvaluateChebySpecial(ciphertext, sc_fac, cheby, params.rlk)
 		fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 		for i := 0; i < sc_num; i++ {
 			sqrt2pi *= sqrt2pi
-			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
+			params.evaluator.MulRelin(ciphertext, ciphertext, params.rlk, ciphertext)
 			params.evaluator.Add(ciphertext, ciphertext, ciphertext)
 			params.evaluator.AddConst(ciphertext, -sqrt2pi, ciphertext)
-			params.evaluator.Rescale(ciphertext, parameters.scale, ciphertext)
+			params.evaluator.Rescale(ciphertext, params.params.scale, ciphertext)
 		}
 
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
@@ -142,12 +134,11 @@ func TestBootstrapp(t *testing.T) {
 		verifyTestVectors(params.decryptor, values, ciphertext, t)
 
 		params.params.scale = DefaultScale
-		parameters.scale = DefaultScale
 		eval.(*evaluator).params.scale = DefaultScale
 
 	})
 
-	t.Run(testString("Bootstrapp/", parameters), func(t *testing.T) {
+	t.Run(testString("Bootstrapp/"), func(t *testing.T) {
 
 		bootcontext := NewBootContext(bootparams)
 		bootcontext.GenBootKeys(params.sk)
@@ -171,7 +162,7 @@ func TestBootstrapp(t *testing.T) {
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.scale)
+		plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.scale)
 		params.encoder.Encode(plaintext, values, slots)
 
 		ciphertext := params.encryptorPk.EncryptNew(plaintext)
@@ -180,7 +171,7 @@ func TestBootstrapp(t *testing.T) {
 
 			ciphertext = bootcontext.Bootstrapp(ciphertext)
 
-			//params.evaluator.SetScale(ciphertext, parameters.scale)
+			//params.evaluator.SetScale(ciphertext, params.params.scale)
 
 			verifyTestVectors(params.decryptor, values, ciphertext, t)
 		}

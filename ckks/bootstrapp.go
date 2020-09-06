@@ -54,7 +54,7 @@ func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 func (bootcontext *BootContext) subSum(ct *Ciphertext) *Ciphertext {
 
-	for i := bootcontext.logSlots; i < bootcontext.logN-1; i++ {
+	for i := bootcontext.logSlots; i < bootcontext.LogMaxSlots(); i++ {
 
 		bootcontext.evaluator.RotateColumns(ct, 1<<i, bootcontext.rotkeys, bootcontext.ctxpool[0])
 
@@ -74,7 +74,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 	for u := range ct.Value() {
 		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, bootcontext.MaxLevel())...)
 		for i := uint64(1); i < bootcontext.MaxLevel()+1; i++ {
-			ct.Value()[u].Coeffs[i] = make([]uint64, bootcontext.n)
+			ct.Value()[u].Coeffs[i] = make([]uint64, bootcontext.N())
 		}
 	}
 
@@ -85,7 +85,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 	var coeff, qi uint64
 	for u := range ct.Value() {
 
-		for j := uint64(0); j < bootcontext.n; j++ {
+		for j := uint64(0); j < bootcontext.N(); j++ {
 
 			coeff = ct.Value()[u].Coeffs[0][j]
 
@@ -130,7 +130,7 @@ func (bootcontext *BootContext) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Cipher
 	if bootcontext.repack {
 
 		// The imaginary part is put in the right n/2 slots of ct0.
-		evaluator.RotateColumns(ct1, bootcontext.slots, bootcontext.rotkeys, ct1)
+		evaluator.RotateColumns(ct1, bootcontext.Slots(), bootcontext.rotkeys, ct1)
 
 		evaluator.Add(ct0, ct1, ct0)
 
@@ -176,7 +176,7 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	contextP := eval.ckksContext.contextP
 
 	levelQ := vec.Level()
-	levelP := uint64(len(contextP.Modulus) - 1)
+	levelP := bootcontext.PiCount() - 1
 
 	var N1 uint64
 

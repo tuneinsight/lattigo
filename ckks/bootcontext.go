@@ -7,7 +7,6 @@ import (
 	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math"
-	"math/bits"
 	"math/cmplx"
 )
 
@@ -15,13 +14,7 @@ import (
 type BootContext struct { // TODO: change to "Bootstrapper" ?
 	BootParams
 
-	n    uint64 // Ring degree
-	logn uint64 // log of the Ring degree
-
-	slots uint64 // Number of plaintext slots
-
-	dslots    uint64 // Number of plaintext slots after the re-encoding
-	logdslots uint64 // Log of the number of plaintext slots after the re-encoding
+	dslots uint64 // Number of plaintext slots after the re-encoding
 
 	encoder   Encoder   // Encoder
 	evaluator Evaluator // Evaluator
@@ -80,15 +73,9 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 
 	bootcontext.BootParams = *bootparams
 
-	bootcontext.n = uint64(1 << bootparams.Parameters.logN)
-	bootcontext.slots = uint64(1 << bootparams.Parameters.logSlots)
-
-	if bootparams.Parameters.logSlots < bootparams.Parameters.logN-1 {
+	bootcontext.dslots = bootcontext.Slots()
+	if bootparams.logSlots < bootparams.MaxLogSlots() {
 		bootcontext.repack = true
-	}
-
-	bootcontext.dslots = bootcontext.slots
-	if bootparams.Parameters.logSlots < bootparams.Parameters.logN-1 {
 		bootcontext.dslots <<= 1
 	}
 
@@ -102,9 +89,9 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 	bootcontext.newBootSine()
 	bootcontext.newBootDFT()
 
-	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
-	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
-	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
+	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.MaxLevel(), 0)
+	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.MaxLevel(), 0)
+	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.MaxLevel(), 0)
 
 	eval := bootcontext.evaluator.(*evaluator)
 	contextQ := eval.ckksContext.contextQ
@@ -127,7 +114,7 @@ func (bootcontext *BootContext) GenBootKeys(sk *SecretKey) {
 
 	nbKeys := uint64(len(bootcontext.rotKeyIndex)) + 2 //rot keys + conj key + relin key
 	nbPoly := bootcontext.beta
-	nbCoefficients := 2 * bootcontext.n * uint64(len(bootcontext.qi)+len(bootcontext.pi))
+	nbCoefficients := 2 * bootcontext.N() * bootcontext.QPiCount()
 	bytesPerCoeff := uint64(8)
 
 	log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
@@ -189,7 +176,7 @@ func (bootcontext *BootContext) newBootDFT() {
 
 	a := real(bootcontext.chebycoeffs.a)
 	b := real(bootcontext.chebycoeffs.b)
-	n := float64(bootcontext.n)
+	n := float64(bootcontext.N())
 	sc_fac := float64(int(1 << bootcontext.SinRescal))
 	qDiff := float64(bootcontext.qi[0]) / math.Exp2(math.Round(math.Log2(float64(bootcontext.qi[0]))))
 
@@ -202,13 +189,11 @@ func (bootcontext *BootContext) newBootDFT() {
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	bootcontext.computePlaintextVectors()
 
-	slots := bootcontext.slots
-
 	// List of the rotation key values to needed for the bootstrapp
 	bootcontext.rotKeyIndex = []uint64{}
 
 	//SubSum rotation needed X -> Y^slots rotations
-	for i := bootcontext.logSlots; i < bootcontext.logN-1; i++ {
+	for i := bootcontext.logSlots; i < bootcontext.LogMaxSlots(); i++ {
 		if !utils.IsInSliceUint64(1<<i, bootcontext.rotKeyIndex) {
 			bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, 1<<i)
 		}
@@ -219,7 +204,7 @@ func (bootcontext *BootContext) newBootDFT() {
 	for i := range bootcontext.pDFTInv {
 		for j := range bootcontext.pDFTInv[i].Vec {
 
-			index = ((j / bootcontext.pDFTInv[i].N1) * bootcontext.pDFTInv[i].N1) & (slots - 1)
+			index = ((j / bootcontext.pDFTInv[i].N1) * bootcontext.pDFTInv[i].N1) & (bootcontext.Slots() - 1)
 
 			if index != 0 && !utils.IsInSliceUint64(index, bootcontext.rotKeyIndex) {
 				bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, index)
@@ -239,10 +224,10 @@ func (bootcontext *BootContext) newBootDFT() {
 
 			if bootcontext.repack && i == 0 {
 				// Sparse repacking, occuring during the first DFT matrix of the CoeffsToSlots.
-				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (2*slots - 1)
+				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (2*bootcontext.Slots() - 1)
 			} else {
 				// Other cases
-				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (slots - 1)
+				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (bootcontext.Slots() - 1)
 			}
 
 			if index != 0 && !utils.IsInSliceUint64(index, bootcontext.rotKeyIndex) {
@@ -314,11 +299,11 @@ func computeRoots(N uint64) (roots []complex128) {
 	return
 }
 
-func fftPlainVec(N uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
+func fftPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
 
-	var logN, m, index, tt, gap, k, mask, idx1, idx2 uint64
+	var N, m, index, tt, gap, k, mask, idx1, idx2 uint64
 
-	logN = uint64(bits.Len64(N) - 1)
+	N = 1 << logN
 
 	a = make([][]complex128, logN)
 	b = make([][]complex128, logN)
@@ -360,11 +345,11 @@ func fftPlainVec(N uint64, roots []complex128, pow5 []uint64) (a, b, c [][]compl
 	return
 }
 
-func fftInvPlainVec(N uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
+func fftInvPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
 
-	var logN, m, index, tt, gap, k, mask, idx1, idx2 uint64
+	var N, m, index, tt, gap, k, mask, idx1, idx2 uint64
 
-	logN = uint64(bits.Len64(N) - 1)
+	N = 1 << logN
 
 	a = make([][]complex128, logN)
 	b = make([][]complex128, logN)
@@ -409,7 +394,7 @@ func fftInvPlainVec(N uint64, roots []complex128, pow5 []uint64) (a, b, c [][]co
 
 func (bootcontext *BootContext) computePlaintextVectors() {
 
-	slots := bootcontext.slots
+	slots := bootcontext.Slots()
 	dslots := bootcontext.dslots
 
 	CtSLevel := bootcontext.CtSLevel
@@ -495,7 +480,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	var scale float64
 
 	// N1*N2 = N
-	N = bootcontext.n
+	N = bootcontext.N()
 	N1 = plaintextVec.N1
 
 	index := make(map[uint64][]uint64)
@@ -535,7 +520,7 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 		for _, i := range index[j] {
 
 			//  levels * n coefficients of 8 bytes each
-			bootcontext.plaintextSize += (level + 1 + uint64(len(contextP.Modulus))) * 8 * bootcontext.n
+			bootcontext.plaintextSize += 8 * N * (level + 1 + bootcontext.PiCount())
 
 			encoder.embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
 
@@ -559,12 +544,9 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 
 func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, pow5 []uint64, diffscale complex128, forward bool) (plainVector []map[uint64][]complex128) {
 
-	var level, depth, nextLevel, slots, logSlots uint64
+	var level, depth, nextLevel, logSlots uint64
 
-	slots = bootcontext.slots
-
-	logSlots = uint64(bits.Len64(bootcontext.slots) - 1)
-
+	logSlots = bootcontext.logSlots
 	level = logSlots
 
 	var a, b, c [][]complex128
@@ -572,10 +554,10 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, p
 
 	if forward {
 		maxDepth = uint64(len(bootcontext.CtSLevel))
-		a, b, c = fftInvPlainVec(slots, roots, pow5)
+		a, b, c = fftInvPlainVec(bootcontext.logSlots, roots, pow5)
 	} else {
 		maxDepth = uint64(len(bootcontext.StCLevel))
-		a, b, c = fftPlainVec(slots, roots, pow5)
+		a, b, c = fftPlainVec(bootcontext.logSlots, roots, pow5)
 	}
 
 	plainVector = make([]map[uint64][]complex128, maxDepth)
@@ -635,8 +617,8 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, p
 	// Repacking after the CoeffsToSlots (we multiply the last DFT matrix with the vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0]).
 	if bootcontext.repack && forward {
 		for j := range plainVector[maxDepth-1] {
-			for x := uint64(0); x < slots; x++ {
-				plainVector[maxDepth-1][j][x+bootcontext.slots] = complex(0, 0)
+			for x := uint64(0); x < bootcontext.Slots(); x++ {
+				plainVector[maxDepth-1][j][x+bootcontext.Slots()] = complex(0, 0)
 			}
 		}
 	}

@@ -17,7 +17,7 @@ func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float6
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = ring.NewPoly(params.n, level+1)
+		ciphertext.value[i] = ring.NewPoly(params.N(), level+1)
 	}
 
 	ciphertext.scale = scale
@@ -33,7 +33,7 @@ func NewCiphertextQP(params *Parameters, degree uint64, level uint64, scale floa
 
 	ciphertextQ.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertextQ.value[i] = ring.NewPoly(1<<params.logN, level+1)
+		ciphertextQ.value[i] = ring.NewPoly(params.N(), level+1)
 	}
 
 	ciphertextQ.scale = scale
@@ -43,7 +43,7 @@ func NewCiphertextQP(params *Parameters, degree uint64, level uint64, scale floa
 
 	ciphertextP.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertextP.value[i] = ring.NewPoly(1<<params.logN, uint64(len(params.pi)))
+		ciphertextP.value[i] = ring.NewPoly(params.N(), params.PiCount())
 	}
 
 	ciphertextP.scale = scale
@@ -55,7 +55,7 @@ func NewCiphertextQP(params *Parameters, degree uint64, level uint64, scale floa
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 
-	context, err := ring.NewContextWithParams(1<<params.logN, params.qi[:level+1])
+	context, err := ring.NewContextWithParams(params.N(), params.qi[:level+1])
 	if err != nil {
 		panic(err)
 	}

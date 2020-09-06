@@ -182,11 +182,22 @@ type LogModuli struct {
 	LogPi []uint64 // Keys additional prime moduli bit-size
 }
 
+// Copy creates a copy of the target Moduli.
+func (m *LogModuli) Copy() LogModuli {
+
+	LogQi := make([]uint64, len(m.LogQi))
+	copy(LogQi, m.LogQi)
+
+	LogPi := make([]uint64, len(m.LogPi))
+	copy(LogPi, m.LogPi)
+
+	return LogModuli{LogQi, LogPi}
+}
+
 // Parameters represents a given parameter set for the BFV cryptosystem.
 type Parameters struct {
 	Moduli
 	logN     uint64 // Ring degree (power of 2)
-	n        uint64
 	logSlots uint64
 	scale    float64
 	sigma    float64 // Gaussian sampling variance
@@ -205,7 +216,6 @@ func NewParametersFromModuli(logN uint64, m Moduli) (p *Parameters, err error) {
 	}
 
 	p.logN = logN
-	p.n = 1 << logN
 
 	if err = checkModuli(m, logN); err != nil {
 		return nil, err
@@ -214,9 +224,9 @@ func NewParametersFromModuli(logN uint64, m Moduli) (p *Parameters, err error) {
 	p.Moduli = m.Copy()
 	p.logQP = p.Moduli.LogQP()
 
-	if len(p.pi) != 0 {
-		p.alpha = uint64(len(p.pi))
-		p.beta = uint64(math.Ceil(float64(len(p.qi)) / float64(len(p.pi))))
+	if p.PiCount() != 0 {
+		p.alpha = p.PiCount()
+		p.beta = uint64(math.Ceil(float64(p.QiCount()) / float64(p.PiCount())))
 	}
 
 	p.sigma = DefaultSigma
@@ -238,22 +248,22 @@ func NewParametersFromLogModuli(logN uint64, lm LogModuli) (p *Parameters, err e
 
 // NewPolyQ returns a new empty polynomial of degree 2^LogN in basis Qi.
 func (p *Parameters) NewPolyQ() *ring.Poly {
-	return ring.NewPoly(p.n, uint64(len(p.qi)))
+	return ring.NewPoly(p.N(), p.QiCount())
 }
 
 // NewPolyP returns a new empty polynomial of degree 2^LogN in basis Pi.
 func (p *Parameters) NewPolyP() *ring.Poly {
-	return ring.NewPoly(p.n, uint64(len(p.pi)))
+	return ring.NewPoly(p.N(), p.PiCount())
 }
 
 // NewPolyQP returns a new empty polynomial of degree 2^LogN in basis Qi + Pi.
 func (p *Parameters) NewPolyQP() *ring.Poly {
-	return ring.NewPoly(p.n, uint64(len(p.qi)+len(p.pi)))
+	return ring.NewPoly(p.N(), p.QPiCount())
 }
 
 // N returns the ring degree
 func (p *Parameters) N() uint64 {
-	return p.n
+	return 1 << p.logN
 }
 
 // LogN returns the log of the degree of the polynomial ring
@@ -283,7 +293,11 @@ func (p *Parameters) Slots() uint64 {
 
 // LogN returns the log of the degree of the polynomial ring
 func (p *Parameters) MaxSlots() uint64 {
-	return p.n >> 1
+	return p.N() >> 1
+}
+
+func (p *Parameters) LogMaxSlots() uint64 {
+	return p.logN - 1
 }
 
 // MaxLogSlots returns the log of the maximum number of slots enabled by the parameters
@@ -342,7 +356,6 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 
 	paramsCopy = new(Parameters)
 	paramsCopy.logN = p.logN
-	paramsCopy.n = p.n
 	paramsCopy.logSlots = p.logSlots
 	paramsCopy.scale = p.scale
 	paramsCopy.sigma = p.sigma
@@ -362,7 +375,6 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 	}
 
 	res = p.logN == other.logN
-	res = res && (p.n == other.n)
 	res = res && (p.logSlots == other.logSlots)
 	res = res && (p.scale == other.scale)
 	res = res && (p.sigma == other.sigma)
@@ -389,8 +401,8 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 	b.WriteUint8(uint8(p.logSlots))
 	b.WriteUint64(math.Float64bits(p.scale))
 	b.WriteUint64(math.Float64bits(p.sigma))
-	b.WriteUint8(uint8(len(p.qi)))
-	b.WriteUint8(uint8(len(p.pi)))
+	b.WriteUint8(uint8(p.QiCount()))
+	b.WriteUint8(uint8(p.PiCount()))
 	b.WriteUint64Slice(p.qi)
 	b.WriteUint64Slice(p.pi)
 

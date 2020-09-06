@@ -360,7 +360,7 @@ func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 
 	rotKey = NewRotationKeys()
 
-	for n := uint64(1); n < 1<<(keygen.params.logN-1); n <<= 1 {
+	for n := uint64(1); n < keygen.params.N()/2; n <<= 1 {
 		keygen.GenRot(RotationLeft, skOutput, n, rotKey)
 		keygen.GenRot(RotationRight, skOutput, n, rotKey)
 	}
@@ -386,7 +386,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyRotColLeft[k] == nil && k != 0 {
 
-			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, params.n)
+			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, params.N())
 
 			rotKey.evakeyRotColLeft[k] = new(SwitchingKey)
 			rotKey.evakeyRotColLeft[k].evakey = make([][2]*ring.Poly, len(evakey))
@@ -408,7 +408,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
 
-			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, (2<<params.logN)-1-k, params.n)
+			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, 2*params.N()-1-k, params.N())
 
 			rotKey.evakeyRotColRight[k] = new(SwitchingKey)
 			rotKey.evakeyRotColRight[k].evakey = make([][2]*ring.Poly, len(evakey))
@@ -422,7 +422,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyConjugate == nil {
 
-			rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex((2<<params.logN)-1, 1, params.n)
+			rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(2*params.N()-1, 1, params.N())
 
 			rotKey.evakeyConjugate = new(SwitchingKey)
 			rotKey.evakeyConjugate.evakey = make([][2]*ring.Poly, len(evakey))
@@ -439,7 +439,7 @@ func (keygen *keyGenerator) genrotKey(sk *ring.Poly, index []uint64) (switchingk
 	skIn := sk
 	skOut := keygen.polypool[1]
 
-	ring.PermuteNTTWithIndexLvl(uint64(len(sk.Coeffs)-1), skIn, index, skOut)
+	ring.PermuteNTTWithIndexLvl(keygen.params.QPiCount()-1, skIn, index, skOut)
 
 	switchingkey = keygen.newSwitchingKey(skIn, skOut)
 

@@ -88,7 +88,7 @@ func NewEvaluator(params *Parameters) Evaluator {
 	var baseconverter *ring.FastBasisExtender
 	var decomposer *ring.Decomposer
 	var poolP [3]*ring.Poly
-	if len(params.pi) != 0 {
+	if params.PiCount() != 0 {
 		baseconverter = ring.NewFastBasisExtender(q, p)
 		decomposer = ring.NewDecomposer(q.Modulus, p.Modulus)
 		poolP = [3]*ring.Poly{p.NewPoly(), p.NewPoly(), p.NewPoly()}
@@ -1774,7 +1774,7 @@ func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDeco
 		panic("cannot switchKeyHoisted: input and output Ciphertext must be of degree 1")
 	}
 
-	k &= (1 << (eval.ckksContext.logN - 1)) - 1
+	k &= 2*eval.ckksContext.n - 1
 
 	if rotKeys.permuteNTTLeftIndex[k] == nil {
 		panic("cannot switchKeyHoisted: specific rotation has not been generated")
@@ -1859,7 +1859,7 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, 
 		panic("cannot switchKeyHoisted: input and output Ciphertext must be of degree 1")
 	}
 
-	k &= (1 << (eval.ckksContext.logN - 1)) - 1
+	k &= 2*eval.ckksContext.n - 1
 
 	if rotKeys.permuteNTTLeftIndex[k] == nil {
 		panic("cannot switchKeyHoisted: specific rotation has not been generated")
@@ -1875,7 +1875,7 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, 
 	pool3P := eval.poolP[1]
 
 	levelQ := ctOutQ.Level()
-	levelP := uint64(len(eval.ckksContext.contextP.Modulus) - 1)
+	levelP := eval.params.PiCount() - 1
 
 	eval.keyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rotKeys.evakeyRotColLeft[k], pool2Q, pool3Q, pool2P, pool3P)
 

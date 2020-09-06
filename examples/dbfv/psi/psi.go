@@ -1,16 +1,17 @@
 package main
 
 import (
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/dbfv"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math/rand"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/dbfv"
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(err error) {
@@ -53,19 +54,17 @@ func main() {
 		sk         *bfv.SecretKey
 		rlkEphemSk *ring.Poly
 
-		ckgShare      dbfv.CKGShare
-		rkgShareOne   dbfv.RKGShareRoundOne
-		rkgShareTwo   dbfv.RKGShareRoundTwo
-		rkgShareThree dbfv.RKGShareRoundThree
-		pcksShare     dbfv.PCKSShare
+		ckgShare    dbfv.CKGShare
+		rkgShareOne dbfv.RKGShare
+		rkgShareTwo dbfv.RKGShare
+		pcksShare   dbfv.PCKSShare
 
 		input []uint64
 	}
 
-	params := bfv.DefaultParams[bfv.PN14QP438]
-	params.T = 65537
+	params := bfv.DefaultParams[bfv.PN14QP438].WithT(65537)
 
-	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN, append(params.Qi, params.Pi...))
+	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN(), append(params.Qi(), params.Pi()...))
 
 	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 	if err != nil {
@@ -74,15 +73,15 @@ func main() {
 
 	crsGen := ring.NewUniformSampler(lattigoPRNG, contextKeys)
 	crs := crsGen.ReadNew()
-	crp := make([]*ring.Poly, params.Beta)
-	for i := uint64(0); i < params.Beta; i++ {
+	crp := make([]*ring.Poly, params.Beta())
+	for i := uint64(0); i < params.Beta(); i++ {
 		crp[i] = crsGen.ReadNew()
 	}
 
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
 	colSk := bfv.NewSecretKey(params)
 
-	expRes := make([]uint64, 1<<params.LogN, 1<<params.LogN)
+	expRes := make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 	for i := range expRes {
 		expRes[i] = 1
 	}
@@ -102,7 +101,7 @@ func main() {
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
 		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
 		contextKeys.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
-		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
+		pi.input = make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 		for i := range pi.input {
 			if rand.Float32() > 0.3 || i == 4 {
 				pi.input[i] = 1
@@ -112,7 +111,7 @@ func main() {
 		contextKeys.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
 
 		pi.ckgShare = ckg.AllocateShares()
-		pi.rkgShareOne, pi.rkgShareTwo, pi.rkgShareThree = rkg.AllocateShares()
+		pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
 		pi.pcksShare = pcks.AllocateShares()
 
 		P[i] = pi
@@ -146,7 +145,7 @@ func main() {
 		}
 	}, N)
 
-	rkgCombined1, rkgCombined2, rkgCombined3 := rkg.AllocateShares()
+	rkgCombined1, rkgCombined2 := rkg.AllocateShares()
 
 	elapsedRKGCloud = runTimed(func() {
 		for _, pi := range P {
@@ -156,29 +155,18 @@ func main() {
 
 	elapsedRKGParty += runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundTwo(rkgCombined1, pi.sk.Get(), crp, pi.rkgShareTwo)
-		}
-	}, N)
-
-	elapsedRKGCloud += runTimed(func() {
-		for _, pi := range P {
-			rkg.AggregateShareRoundTwo(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
-		}
-	})
-
-	elapsedRKGParty += runTimedParty(func() {
-		for _, pi := range P {
-			rkg.GenShareRoundThree(rkgCombined2, pi.rlkEphemSk, pi.sk.Get(), pi.rkgShareThree)
+			rkg.GenShareRoundTwo(rkgCombined1, pi.rlkEphemSk, pi.sk.Get(), crp, pi.rkgShareTwo)
 		}
 	}, N)
 
 	rlk := bfv.NewRelinKey(params, 1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
-			rkg.AggregateShareRoundThree(pi.rkgShareThree, rkgCombined3, rkgCombined3)
+			rkg.AggregateShareRoundTwo(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
 		}
-		rkg.GenRelinearizationKey(rkgCombined2, rkgCombined3, rlk)
+		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
 	})
+
 	l.Printf("\tdone (cloud: %s, party: %s)\n",
 		elapsedRKGCloud, elapsedRKGParty)
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",

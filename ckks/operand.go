@@ -73,7 +73,7 @@ func (el *CkksElement) Resize(params *Parameters, degree uint64) {
 			el.value = append(el.value, []*ring.Poly{new(ring.Poly)}...)
 			el.value[el.Degree()].Coeffs = make([][]uint64, el.Level()+1)
 			for i := uint64(0); i < el.Level()+1; i++ {
-				el.value[el.Degree()].Coeffs[i] = make([]uint64, 1<<params.LogN)
+				el.value[el.Degree()].Coeffs[i] = make([]uint64, params.n)
 			}
 		}
 	}

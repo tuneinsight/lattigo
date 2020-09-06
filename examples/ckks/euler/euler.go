@@ -13,17 +13,24 @@ import (
 func example() {
 
 	var start time.Time
+	var err error
 
-	params := &ckks.Parameters{
-		LogN:     14,
-		LogSlots: 13,
-		LogModuli: ckks.LogModuli{
-			LogQi: []uint64{55, 40, 40, 40, 40, 40, 40, 40},
-			LogPi: []uint64{45, 45},
-		},
-		Scale: 1 << 40,
-		Sigma: 3.2,
+	LogN := uint64(14)
+	LogSlots := uint64(13)
+
+	LogModuli := ckks.LogModuli{
+		LogQi: []uint64{55, 40, 40, 40, 40, 40, 40, 40},
+		LogPi: []uint64{45, 45},
 	}
+
+	Scale := float64(1 << 40)
+
+	params, err := ckks.NewParametersFromLogModuli(LogN, LogModuli)
+	if err != nil {
+		panic(err)
+	}
+	params.SetScale(Scale)
+	params.SetLogSlots(LogSlots)
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -32,8 +39,6 @@ func example() {
 	fmt.Println()
 
 	start = time.Now()
-
-	params.Gen()
 
 	kgen := ckks.NewKeyGenerator(params)
 
@@ -52,7 +57,7 @@ func example() {
 	fmt.Printf("Done in %s \n", time.Since(start))
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN, params.LogSlots, params.LogQP, params.MaxLevel+1, params.Scale, params.Sigma)
+	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.MaxLevel()+1, params.Scale(), params.Sigma())
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -66,14 +71,14 @@ func example() {
 
 	pi := 3.141592653589793
 
-	slots := uint64(1 << params.LogSlots)
+	slots := params.Slots()
 
 	values := make([]complex128, slots)
 	for i := range values {
 		values[i] = complex(2*pi, 0)
 	}
 
-	plaintext := ckks.NewPlaintext(params, params.MaxLevel, params.Scale/r)
+	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale()/r)
 	encoder.Encode(plaintext, values, slots)
 
 	fmt.Printf("Done in %s \n", time.Since(start))

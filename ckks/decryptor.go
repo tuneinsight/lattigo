@@ -22,11 +22,8 @@ type decryptor struct {
 // NewDecryptor instantiates a new Decryptor that will be able to decrypt ciphertexts
 // encrypted under the provided secret-key.
 func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
-	if !params.isValid {
-		panic("cannot newDecryptor: parameters are invalid (check if the generation was done properly)")
-	}
 
-	if sk.sk.GetDegree() != int(1<<params.LogN) {
+	if sk.sk.GetDegree() != int(params.n) {
 		panic("cannot newDecryptor: secret_key degree must match context degree")
 	}
 

@@ -21,10 +21,6 @@ type PermuteProtocol struct {
 
 func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtocol) {
 
-	if !params.IsValid() {
-		panic("cannot NewRefreshProtocol : params not valid (check if they where generated properly)")
-	}
-
 	context := newDbfvContext(params)
 
 	refreshProtocol = new(PermuteProtocol)
@@ -37,12 +33,12 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 
 	var m, pos, index1, index2 uint64
 
-	indexMatrix := make([]uint64, params.N)
+	indexMatrix := make([]uint64, params.N())
 
-	logN := uint64(bits.Len64(params.N) - 1)
+	logN := uint64(bits.Len64(params.N()) - 1)
 
-	rowSize := params.N >> 1
-	m = (params.N << 1)
+	rowSize := params.N() >> 1
+	m = (params.N() << 1)
 	pos = 1
 
 	for i := uint64(0); i < rowSize; i++ {
@@ -58,14 +54,14 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 	}
 
 	refreshProtocol.indexMatrix = indexMatrix
-	refreshProtocol.scaler = ring.NewRNSScaler(params.T, context.contextQ)
+	refreshProtocol.scaler = ring.NewRNSScaler(params.T(), context.contextQ)
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma, uint64(6*params.Sigma))
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma(), uint64(6*params.Sigma()))
 	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.contextT)
 
 	return

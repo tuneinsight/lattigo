@@ -21,14 +21,10 @@ type bfvElement struct {
 // newBfvElement creates a new bfvElement of the target degree with zero values.
 func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 
-	if !params.isValid {
-		panic("cannot newBfvElement: params not valid (check if they were generated properly)")
-	}
-
 	el := new(bfvElement)
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = ring.NewPoly(1<<params.LogN, uint64(len(params.LogQi)))
+		el.value[i] = ring.NewPoly(1<<params.logN, uint64(len(params.qi)))
 	}
 	el.isNTT = true
 	return el
@@ -36,10 +32,7 @@ func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 
 func newBfvElementRandom(prng utils.PRNG, params *Parameters, degree uint64) *bfvElement {
 
-	if !params.isValid {
-		panic("cannot newBfvElementRandom: params not valid (check if they were generated properly)")
-	}
-	context, err := ring.NewContextWithParams(params.N, params.Qi)
+	context, err := ring.NewContextWithParams(params.n, params.qi)
 	if err != nil {
 		panic(err)
 	}
@@ -76,9 +69,9 @@ func (el *bfvElement) Resize(params *Parameters, degree uint64) {
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
 			el.value = append(el.value, []*ring.Poly{new(ring.Poly)}...)
-			el.value[el.Degree()].Coeffs = make([][]uint64, len(params.LogQi))
-			for i := 0; i < len(params.LogQi); i++ {
-				el.value[el.Degree()].Coeffs[i] = make([]uint64, uint64(1<<params.LogN))
+			el.value[el.Degree()].Coeffs = make([][]uint64, len(params.qi))
+			for i := 0; i < len(params.qi); i++ {
+				el.value[el.Degree()].Coeffs[i] = make([]uint64, uint64(1<<params.logN))
 			}
 		}
 	}

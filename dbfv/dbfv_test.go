@@ -13,7 +13,7 @@ import (
 )
 
 func testString(opname string, parties uint64, params *bfv.Parameters) string {
-	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN, params.LogQP)
+	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN(), params.LogQP())
 }
 
 type dbfvTestContext struct {
@@ -191,9 +191,8 @@ func testRelinKeyGen(t *testing.T) {
 				*RKGProtocol
 				u      *ring.Poly
 				s      *ring.Poly
-				share1 RKGShareRoundOne
-				share2 RKGShareRoundTwo
-				share3 RKGShareRoundThree
+				share1 RKGShare
+				share2 RKGShare
 			}
 
 			rkgParties := make([]*Party, parties)
@@ -203,7 +202,7 @@ func testRelinKeyGen(t *testing.T) {
 				p.RKGProtocol = NewEkgProtocol(parameters)
 				p.u = p.RKGProtocol.NewEphemeralKey()
 				p.s = sk0Shards[i].Get()
-				p.share1, p.share2, p.share3 = p.RKGProtocol.AllocateShares()
+				p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 				rkgParties[i] = p
 			}
 
@@ -214,9 +213,9 @@ func testRelinKeyGen(t *testing.T) {
 			}
 
 			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
-			crp := make([]*ring.Poly, parameters.Beta)
+			crp := make([]*ring.Poly, parameters.Beta())
 
-			for i := uint64(0); i < parameters.Beta; i++ {
+			for i := uint64(0); i < parameters.Beta(); i++ {
 				crp[i] = crpGenerator.ReadNew()
 			}
 
@@ -230,22 +229,14 @@ func testRelinKeyGen(t *testing.T) {
 
 			//ROUND 2
 			for i, p := range rkgParties {
-				p.GenShareRoundTwo(P0.share1, p.s, crp, p.share2)
+				p.GenShareRoundTwo(P0.share1, p.u, p.s, crp, p.share2)
 				if i > 0 {
 					P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
 				}
 			}
 
-			// ROUND 3
-			for i, p := range rkgParties {
-				p.GenShareRoundThree(P0.share2, p.u, p.s, p.share3)
-				if i > 0 {
-					P0.AggregateShareRoundThree(p.share3, P0.share3, P0.share3)
-				}
-			}
-
 			evk := bfv.NewRelinKey(parameters, 1)
-			P0.GenRelinearizationKey(P0.share2, P0.share3, evk)
+			P0.GenRelinearizationKey(P0.share1, P0.share2, evk)
 
 			coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
@@ -476,9 +467,9 @@ func testRotKeyGenRotRows(t *testing.T) {
 			}
 
 			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
-			crp := make([]*ring.Poly, parameters.Beta)
+			crp := make([]*ring.Poly, parameters.Beta())
 
-			for i := uint64(0); i < parameters.Beta; i++ {
+			for i := uint64(0); i < parameters.Beta(); i++ {
 				crp[i] = crpGenerator.ReadNew()
 			}
 
@@ -541,9 +532,9 @@ func testRotKeyGenRotCols(t *testing.T) {
 			}
 
 			crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
-			crp := make([]*ring.Poly, parameters.Beta)
+			crp := make([]*ring.Poly, parameters.Beta())
 
-			for i := uint64(0); i < parameters.Beta; i++ {
+			for i := uint64(0); i < parameters.Beta(); i++ {
 				crp[i] = crpGenerator.ReadNew()
 			}
 
@@ -742,7 +733,7 @@ func testRefreshAndPermutation(t *testing.T) {
 			permutation := make([]uint64, len(coeffs))
 
 			for i := range permutation {
-				permutation[i] = ring.RandUniform(prng, parameters.N, parameters.N-1)
+				permutation[i] = ring.RandUniform(prng, parameters.N(), parameters.N()-1)
 			}
 
 			for i, p := range RefreshParties {
@@ -839,7 +830,7 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("PCKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 		//Check marshalling for the PCKS
 
-		KeySwitchProtocol := NewPCKSProtocol(params, dbfvCtx.params.Sigma)
+		KeySwitchProtocol := NewPCKSProtocol(params, dbfvCtx.params.Sigma())
 		SwitchShare := KeySwitchProtocol.AllocateShares()
 		pk := KeyGenerator.GenPublicKey(sk)
 		KeySwitchProtocol.GenShare(sk.Get(), pk, Ciphertext, SwitchShare)
@@ -864,7 +855,7 @@ func Test_Marshalling(t *testing.T) {
 	t.Run(fmt.Sprintf("CKS/N=%d/limbQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextPKeys.Modulus)), func(t *testing.T) {
 
 		//Now for CKSShare ~ its similar to PKSShare
-		cksp := NewCKSProtocol(params, dbfvCtx.params.Sigma)
+		cksp := NewCKSProtocol(params, dbfvCtx.params.Sigma())
 		cksshare := cksp.AllocateShare()
 		skIn := KeyGenerator.GenSecretKey()
 		skOut := KeyGenerator.GenSecretKey()
@@ -997,28 +988,28 @@ func Test_Relin_Marshalling(t *testing.T) {
 		u := rlk.NewEphemeralKey()
 		sk := bfv.NewKeyGenerator(params).GenSecretKey()
 
-		r1, r2, r3 := rlk.AllocateShares()
+		r1, r2 := rlk.AllocateShares()
 		rlk.GenShareRoundOne(u, sk.Get(), crp, r1)
 		data, err := r1.MarshalBinary()
 		require.NoError(t, err)
 
-		r1After := new(RKGShareRoundOne)
+		r1After := new(RKGShare)
 		err = r1After.UnmarshalBinary(data)
 		require.NoError(t, err)
 
 		for i := 0; i < (len(r1)); i++ {
-			a := r1[i]
-			b := (*r1After)[i]
+			a := r1[i][0]
+			b := (*r1After)[i][0]
 			moduli := a.GetLenModuli()
 			require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 		}
 
-		rlk.GenShareRoundTwo(r1, sk.Get(), crp, r2)
+		rlk.GenShareRoundTwo(r1, u, sk.Get(), crp, r2)
 
 		data, err = r2.MarshalBinary()
 		require.NoError(t, err)
 
-		r2After := new(RKGShareRoundTwo)
+		r2After := new(RKGShare)
 		err = r2After.UnmarshalBinary(data)
 		require.NoError(t, err)
 
@@ -1030,22 +1021,6 @@ func Test_Relin_Marshalling(t *testing.T) {
 				require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 			}
 
-		}
-
-		rlk.GenShareRoundThree(r2, u, sk.Get(), r3)
-
-		data, err = r3.MarshalBinary()
-		require.NoError(t, err)
-
-		r3After := new(RKGShareRoundThree)
-		err = r3After.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		for i := 0; i < (len(r3)); i++ {
-			a := r3[i]
-			b := (*r3After)[i]
-			moduli := a.GetLenModuli()
-			require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 		}
 	})
 

@@ -37,7 +37,7 @@ func main() {
 	params := &bootparams.Parameters
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN, params.LogSlots, params.LogQP, params.MaxLevel+1, params.Scale, params.Sigma)
+	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.Levels(), params.Scale(), params.Sigma())
 
 	// Scheme context and keys
 	kgen = ckks.NewKeyGenerator(params)
@@ -58,13 +58,13 @@ func main() {
 	fmt.Println("Done")
 
 	// Generates a random plaintext
-	valuesWant := make([]complex128, params.Slots)
+	valuesWant := make([]complex128, params.Slots())
 	for i := range valuesWant {
 		valuesWant[i] = randomComplex(-1, 1)
 	}
 
-	plaintext = ckks.NewPlaintext(params, params.MaxLevel, params.Scale)
-	encoder.Encode(plaintext, valuesWant, params.Slots)
+	plaintext = ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
+	encoder.Encode(plaintext, valuesWant, params.Slots())
 
 	// Encrypts
 	ciphertext = encryptor.EncryptNew(plaintext)

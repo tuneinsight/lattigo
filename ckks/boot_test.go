@@ -19,7 +19,7 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[4]
+	bootparams := BootstrappParams[0]
 
 	parameters := &bootparams.Parameters
 
@@ -35,9 +35,11 @@ func TestBootstrapp(t *testing.T) {
 		}
 	*/
 
-	params := genCkksParams(parameters)
+	if err := genTestParams(bootparams); err != nil {
+		panic(err)
+	}
 
-	slots := uint64(1 << bootparams.Parameters.LogSlots)
+	slots := bootparams.Slots()
 
 	rlk := params.kgen.GenRelinKey(params.sk)
 
@@ -45,16 +47,16 @@ func TestBootstrapp(t *testing.T) {
 
 		eval := params.evaluator
 
-		DefaultScale := parameters.Scale
+		DefaultScale := parameters.scale
 
-		params.params.Scale = SineScale
-		parameters.Scale = SineScale
+		params.params.scale = SineScale
+		parameters.scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
 		deg := 127
 		K := float64(15)
 
-		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, -K+1, K-1, t)
+		values, _, ciphertext := newTestVectorsSineBoot(params.encryptorSk, -K+1, K-1, t)
 		eval.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
@@ -69,31 +71,31 @@ func TestBootstrapp(t *testing.T) {
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
 		fmt.Println(ciphertext.Level())
 
-		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+		verifyTestVectors(params.decryptor, values, ciphertext, t)
 
-		params.params.Scale = DefaultScale
-		parameters.Scale = DefaultScale
-		eval.(*evaluator).params.Scale = DefaultScale
+		params.params.scale = DefaultScale
+		parameters.scale = DefaultScale
+		eval.(*evaluator).params.scale = DefaultScale
 	})
 
 	t.Run(testString("ChebyCos/", parameters), func(t *testing.T) {
 
 		eval := params.evaluator
 
-		DefaultScale := parameters.Scale
+		DefaultScale := parameters.scale
 
-		params.params.Scale = SineScale
-		parameters.Scale = SineScale
+		params.params.scale = SineScale
+		parameters.scale = SineScale
 		eval.(*evaluator).ckksContext.scale = SineScale
 
 		K := 26
 		deg := 63
-		dev := float64(bootparams.Qi[0]) / DefaultScale
+		dev := float64(bootparams.qi[0]) / DefaultScale
 		sc_num := 2
 
 		sc_fac := complex(float64(int(1<<sc_num)), 0)
 
-		values, _, ciphertext := newTestVectorsSineBoot(params, params.encryptorSk, float64(-K+1), float64(K-1), t)
+		values, _, ciphertext := newTestVectorsSineBoot(params.encryptorSk, float64(-K+1), float64(K-1), t)
 		eval.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
 
 		cheby := new(ChebyshevInterpolation)
@@ -132,16 +134,16 @@ func TestBootstrapp(t *testing.T) {
 			params.evaluator.MulRelin(ciphertext, ciphertext, rlk, ciphertext)
 			params.evaluator.Add(ciphertext, ciphertext, ciphertext)
 			params.evaluator.AddConst(ciphertext, -sqrt2pi, ciphertext)
-			params.evaluator.Rescale(ciphertext, parameters.Scale, ciphertext)
+			params.evaluator.Rescale(ciphertext, parameters.scale, ciphertext)
 		}
 
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
 		fmt.Println(ciphertext.Level(), ciphertext.Scale())
-		verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+		verifyTestVectors(params.decryptor, values, ciphertext, t)
 
-		params.params.Scale = DefaultScale
-		parameters.Scale = DefaultScale
-		eval.(*evaluator).params.Scale = DefaultScale
+		params.params.scale = DefaultScale
+		parameters.scale = DefaultScale
+		eval.(*evaluator).params.scale = DefaultScale
 
 	})
 
@@ -169,7 +171,7 @@ func TestBootstrapp(t *testing.T) {
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := NewPlaintext(parameters, parameters.MaxLevel, parameters.Scale)
+		plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.scale)
 		params.encoder.Encode(plaintext, values, slots)
 
 		ciphertext := params.encryptorPk.EncryptNew(plaintext)
@@ -178,9 +180,9 @@ func TestBootstrapp(t *testing.T) {
 
 			ciphertext = bootcontext.Bootstrapp(ciphertext)
 
-			//params.evaluator.SetScale(ciphertext, parameters.Scale)
+			//params.evaluator.SetScale(ciphertext, parameters.scale)
 
-			verifyTestVectors(params, params.decryptor, values, ciphertext, t)
+			verifyTestVectors(params.decryptor, values, ciphertext, t)
 		}
 
 	})

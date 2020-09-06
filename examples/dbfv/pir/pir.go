@@ -1,15 +1,16 @@
 package main
 
 import (
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/dbfv"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/dbfv"
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 func check(err error) {
@@ -68,31 +69,29 @@ func main() {
 		sk         *bfv.SecretKey
 		rlkEphemSk *ring.Poly
 
-		ckgShare      dbfv.CKGShare
-		rkgShareOne   dbfv.RKGShareRoundOne
-		rkgShareTwo   dbfv.RKGShareRoundTwo
-		rkgShareThree dbfv.RKGShareRoundThree
-		rtgShare      dbfv.RTGShare
-		cksShare      dbfv.CKSShare
+		ckgShare    dbfv.CKGShare
+		rkgShareOne dbfv.RKGShare
+		rkgShareTwo dbfv.RKGShare
+		rtgShare    dbfv.RTGShare
+		cksShare    dbfv.CKSShare
 
 		input []uint64
 	}
 
-	params := bfv.DefaultParams[bfv.PN13QP218] // default params with N=8192
-	params.T = 65537
+	params := bfv.DefaultParams[bfv.PN13QP218].WithT(65537) // default params with N=8192
 
 	// Common reference polynomial generator keyed with
 	// "lattigo"
 	crsGen := dbfv.NewCRPGenerator(params, []byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 
 	// Generation of the common reference polynomials
-	crs := crsGen.ReadNew()                   // for the public-key
-	crp := make([]*ring.Poly, params.Beta)    // for the relinearization keys
-	crpRot := make([]*ring.Poly, params.Beta) // for the rotation keys
-	for i := uint64(0); i < params.Beta; i++ {
+	crs := crsGen.ReadNew()                     // for the public-key
+	crp := make([]*ring.Poly, params.Beta())    // for the relinearization keys
+	crpRot := make([]*ring.Poly, params.Beta()) // for the rotation keys
+	for i := uint64(0); i < params.Beta(); i++ {
 		crp[i] = crsGen.ReadNew()
 	}
-	for i := uint64(0); i < params.Beta; i++ {
+	for i := uint64(0); i < params.Beta(); i++ {
 		crpRot[i] = crsGen.ReadNew()
 	}
 
@@ -107,7 +106,7 @@ func main() {
 
 	kgen := bfv.NewKeyGenerator(params)
 
-	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN, append(params.Qi, params.Pi...))
+	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN(), append(params.Qi(), params.Pi()...))
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -121,14 +120,14 @@ func main() {
 		pi.sk = kgen.GenSecretKey()
 		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
 		contextKeys.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
-		pi.input = make([]uint64, 1<<params.LogN, 1<<params.LogN)
+		pi.input = make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 		for j := range pi.input {
 			pi.input[j] = uint64(i)
 		}
 		contextKeys.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
 
 		pi.ckgShare = ckg.AllocateShares()
-		pi.rkgShareOne, pi.rkgShareTwo, pi.rkgShareThree = rkg.AllocateShares()
+		pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
 		pi.rtgShare = rtg.AllocateShare()
 		pi.cksShare = cks.AllocateShare()
 
@@ -167,7 +166,7 @@ func main() {
 		}
 	}, N)
 
-	rkgCombined1, rkgCombined2, rkgCombined3 := rkg.AllocateShares()
+	rkgCombined1, rkgCombined2 := rkg.AllocateShares()
 
 	elapsedRKGCloud = runTimed(func() {
 		for _, pi := range P {
@@ -177,36 +176,25 @@ func main() {
 
 	elapsedRKGParty += runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundTwo(rkgCombined1, pi.sk.Get(), crp, pi.rkgShareTwo)
-		}
-	}, N)
-
-	elapsedRKGCloud += runTimed(func() {
-		for _, pi := range P {
-			rkg.AggregateShareRoundTwo(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
-		}
-	})
-
-	elapsedRKGParty += runTimedParty(func() {
-		for _, pi := range P {
-			rkg.GenShareRoundThree(rkgCombined2, pi.rlkEphemSk, pi.sk.Get(), pi.rkgShareThree)
+			rkg.GenShareRoundTwo(rkgCombined1, pi.rlkEphemSk, pi.sk.Get(), crp, pi.rkgShareTwo)
 		}
 	}, N)
 
 	rlk := bfv.NewRelinKey(params, 1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
-			rkg.AggregateShareRoundThree(pi.rkgShareThree, rkgCombined3, rkgCombined3)
+			rkg.AggregateShareRoundTwo(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
 		}
-		rkg.GenRelinearizationKey(rkgCombined2, rkgCombined3, rlk)
+		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
 	})
+
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedRKGCloud, elapsedRKGParty)
 
 	// 3) Collective rotation keys geneneration
 	l.Println("> RTG Phase")
 	rtk := bfv.NewRotationKeys()
 	for _, rot := range []bfv.Rotation{bfv.RotationRight, bfv.RotationLeft, bfv.RotationRow} {
-		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < 1<<(params.LogN-1)); k <<= 1 {
+		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < 1<<(params.LogN()-1)); k <<= 1 {
 
 			rtgShareCombined := rtg.AllocateShare()
 			rtgShareCombined.Type = rot
@@ -247,7 +235,7 @@ func main() {
 	// Plaintext masks : plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
 	// (zero with a 1 at the ith position).
 	for i := range plainMask {
-		maskCoeffs := make([]uint64, 1<<params.LogN)
+		maskCoeffs := make([]uint64, 1<<params.LogN())
 		maskCoeffs[i] = 1
 		plainMask[i] = bfv.NewPlaintext(params)
 		encoder.EncodeUint(maskCoeffs, plainMask[i])
@@ -278,7 +266,7 @@ func main() {
 	var elapsedRequestCloudCPU time.Duration
 
 	// Query ciphertext
-	queryCoeffs := make([]uint64, 1<<params.LogN)
+	queryCoeffs := make([]uint64, 1<<params.LogN())
 	queryCoeffs[queryIndex] = 1
 	query := bfv.NewPlaintext(params)
 	var encQuery *bfv.Ciphertext

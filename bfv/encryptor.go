@@ -85,10 +85,6 @@ type skEncryptor struct {
 func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 	enc := newEncryptor(params)
 
-	if uint64(pk.pk[0].GetDegree()) != uint64(1<<params.LogN) || uint64(pk.pk[1].GetDegree()) != uint64(1<<params.LogN) {
-		panic("error: pk ring degree doesn't match bfvcontext ring degree")
-	}
-
 	return &pkEncryptor{enc, pk}
 }
 
@@ -97,23 +93,16 @@ func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
 	enc := newEncryptor(params)
 
-	if uint64(sk.sk.GetDegree()) != uint64(1<<params.LogN) {
-		panic("error: sk ring degree doesn't match bfvcontext ring degree")
-	}
-
 	return &skEncryptor{enc, sk}
 }
 
 func newEncryptor(params *Parameters) encryptor {
-	if !params.isValid {
-		panic("cannot NewEncryptor: params not valid (check if they were generated properly)")
-	}
 
 	ctx := newBFVContext(params)
 	qp := ctx.contextQP
 
 	var baseconverter *ring.FastBasisExtender
-	if len(params.Pi) != 0 {
+	if len(params.pi) != 0 {
 		baseconverter = ring.NewFastBasisExtender(ctx.contextQ, ctx.contextP)
 	}
 
@@ -127,10 +116,10 @@ func newEncryptor(params *Parameters) encryptor {
 		bfvContext:                 ctx,
 		polypool:                   [3]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly()},
 		baseconverter:              baseconverter,
-		gaussianSamplerQ:           ring.NewGaussianSampler(prng, ctx.contextQ, params.Sigma, uint64(6*params.Sigma)),
+		gaussianSamplerQ:           ring.NewGaussianSampler(prng, ctx.contextQ, params.Sigma(), uint64(6*params.Sigma())),
 		uniformSamplerQ:            ring.NewUniformSampler(prng, ctx.contextQ),
 		ternarySamplerMontgomeryQ:  ring.NewTernarySampler(prng, ctx.contextQ, 0.5, true),
-		gaussianSamplerQP:          ring.NewGaussianSampler(prng, ctx.contextQP, params.Sigma, uint64(6*params.Sigma)),
+		gaussianSamplerQP:          ring.NewGaussianSampler(prng, ctx.contextQP, params.Sigma(), uint64(6*params.Sigma())),
 		uniformSamplerQP:           ring.NewUniformSampler(prng, ctx.contextQP),
 		ternarySamplerMontgomeryQP: ring.NewTernarySampler(prng, ctx.contextQP, 0.5, true),
 	}

@@ -103,7 +103,7 @@ func (eval *evaluator) EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby 
 
 	eval.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
 	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	eval.Rescale(C[1], eval.params.Scale, C[1])
+	eval.Rescale(C[1], eval.ckksContext.scale, C[1])
 
 	return eval.evalCheby(cheby, C, evakey)
 }
@@ -279,7 +279,7 @@ func recurse(target_scale float64, logSplit, logDegree uint64, coeffs *Poly, C m
 		level++
 	}
 
-	current_qi := float64(evaluator.params.Qi[level])
+	current_qi := float64(evaluator.params.qi[level])
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, target_scale, target_scale* current_qi / C[nextPower].Scale())
@@ -342,7 +342,7 @@ func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *Poly
 		level++
 	}
 
-	current_qi := float64(evaluator.params.Qi[level])
+	current_qi := float64(evaluator.params.qi[level])
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, target_scale, target_scale* current_qi / C[nextPower].Scale())
@@ -392,7 +392,7 @@ func evaluatePolyFromPowerBasis(target_scale float64, coeffs *Poly, C map[uint64
 		return
 	}
 
-	current_qi := float64(evaluator.params.Qi[C[coeffs.Degree()].Level()])
+	current_qi := float64(evaluator.params.qi[C[coeffs.Degree()].Level()])
 
 	ct_scale := target_scale * current_qi
 

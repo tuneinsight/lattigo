@@ -77,10 +77,6 @@ func (share *PCKSShare) UnmarshalBinary(data []byte) error {
 // collective public-key.
 func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtocol {
 
-	if !params.IsValid() {
-		panic("cannot NewPCKSProtocol : params not valid (check if they where generated properly)")
-	}
-
 	context := newDbfvContext(params)
 
 	pcks := new(PCKSProtocol)

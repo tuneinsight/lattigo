@@ -24,10 +24,6 @@ type RefreshShareRecrypt *ring.Poly
 // NewRefreshProtocol creates a new instance of the Refresh protocol.
 func NewRefreshProtocol(params *ckks.Parameters) (refreshProtocol *RefreshProtocol) {
 
-	if !params.IsValid() {
-		panic("cannot NewRefreshProtocol : params not valid (check if they where generated properly)")
-	}
-
 	refreshProtocol = new(RefreshProtocol)
 	dckksContext := newDckksContext(params)
 	refreshProtocol.dckksContext = dckksContext
@@ -37,7 +33,7 @@ func NewRefreshProtocol(params *ckks.Parameters) (refreshProtocol *RefreshProtoc
 	if err != nil {
 		panic(err)
 	}
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQ, params.Sigma, uint64(6*params.Sigma))
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQ, params.Sigma(), uint64(6*params.Sigma()))
 
 	return
 }
@@ -129,7 +125,7 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
 
 	QHalf := new(big.Int).Rsh(QStart, 1)
 
-	for ciphertext.Level() != uint64(len(dckksContext.params.Qi)-1) {
+	for ciphertext.Level() != dckksContext.params.MaxLevel() {
 		ciphertext.Value()[0].Coeffs = append(ciphertext.Value()[0].Coeffs, make([][]uint64, 1)...)
 		ciphertext.Value()[0].Coeffs[ciphertext.Level()] = make([]uint64, dckksContext.n)
 	}

@@ -38,10 +38,6 @@ func (share *CKSShare) UnmarshalBinary(data []byte) error {
 // parties.
 func NewCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *CKSProtocol {
 
-	if !params.IsValid() {
-		panic("cannot NewCKSProtocol : params not valid (check if they where generated properly)")
-	}
-
 	context := newDbfvContext(params)
 
 	cks := new(CKSProtocol)

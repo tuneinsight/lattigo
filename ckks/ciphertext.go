@@ -13,15 +13,11 @@ type Ciphertext struct {
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
 func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float64) (ciphertext *Ciphertext) {
 
-	if !params.isValid {
-		panic("cannot NewCiphertext: parameters are invalid (check if the generation was done properly)")
-	}
-
 	ciphertext = &Ciphertext{&CkksElement{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertext.value[i] = ring.NewPoly(1<<params.LogN, level+1)
+		ciphertext.value[i] = ring.NewPoly(params.n, level+1)
 	}
 
 	ciphertext.scale = scale
@@ -33,15 +29,11 @@ func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float6
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
 func NewCiphertextQP(params *Parameters, degree uint64, level uint64, scale float64) (ciphertextQ, ciphertextP *Ciphertext) {
 
-	if !params.isValid {
-		panic("cannot NewCiphertext: parameters are invalid (check if the generation was done properly)")
-	}
-
 	ciphertextQ = &Ciphertext{&CkksElement{}}
 
 	ciphertextQ.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertextQ.value[i] = ring.NewPoly(1<<params.LogN, level+1)
+		ciphertextQ.value[i] = ring.NewPoly(1<<params.logN, level+1)
 	}
 
 	ciphertextQ.scale = scale
@@ -51,7 +43,7 @@ func NewCiphertextQP(params *Parameters, degree uint64, level uint64, scale floa
 
 	ciphertextP.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		ciphertextP.value[i] = ring.NewPoly(1<<params.LogN, uint64(len(params.Pi)))
+		ciphertextP.value[i] = ring.NewPoly(1<<params.logN, uint64(len(params.pi)))
 	}
 
 	ciphertextP.scale = scale
@@ -63,13 +55,11 @@ func NewCiphertextQP(params *Parameters, degree uint64, level uint64, scale floa
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 
-	if !params.isValid {
-		panic("cannot NewCiphertextRandom: parameters are invalid (check if the generation was done properly)")
-	}
-	context, err := ring.NewContextWithParams(params.N, params.Qi[:level+1])
+	context, err := ring.NewContextWithParams(1<<params.logN, params.qi[:level+1])
 	if err != nil {
 		panic(err)
 	}
+
 	sampler := ring.NewUniformSampler(prng, context)
 	ciphertext = NewCiphertext(params, degree, level, scale)
 	for i := uint64(0); i < degree+1; i++ {

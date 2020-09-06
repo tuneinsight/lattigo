@@ -21,10 +21,6 @@ type PermuteProtocol struct {
 // NewRefreshProtocol creates a new instance of the Refresh protocol.
 func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
 
-	if !params.IsValid() {
-		panic("cannot NewRefreshProtocol : params not valid (check if they where generated properly)")
-	}
-
 	prec := uint64(256)
 
 	pp = new(PermuteProtocol)
@@ -50,7 +46,7 @@ func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
 	if err != nil {
 		panic(err)
 	}
-	pp.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQ, params.Sigma, uint64(6*params.Sigma))
+	pp.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQ, params.Sigma(), uint64(6*params.Sigma()))
 
 	return
 }
@@ -204,7 +200,7 @@ func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []ui
 		pp.maskComplex[i].Imag().Int(pp.maskBigint[jdx])
 	}
 
-	for ciphertext.Level() != uint64(len(dckksContext.params.Qi)-1) {
+	for ciphertext.Level() != dckksContext.params.MaxLevel() {
 		ciphertext.Value()[0].Coeffs = append(ciphertext.Value()[0].Coeffs, make([][]uint64, 1)...)
 		ciphertext.Value()[0].Coeffs[ciphertext.Level()] = make([]uint64, dckksContext.n)
 	}

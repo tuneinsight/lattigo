@@ -34,7 +34,16 @@ func (b *BootParams) Gen() error { // TODO "Generate" ?
 
 	b.SinDepth = uint64(math.Ceil(math.Log2(float64(b.SinDeg))) + float64(b.SinRescal))
 
-	return b.Parameters.Gen()
+	scale := b.Parameters.scale
+	logSlots := b.Parameters.logSlots
+
+	p, _ := NewParametersFromModuli(b.logN, b.Moduli)
+
+	b.Parameters = *p
+	b.SetScale(scale)
+	b.SetLogSlots(logSlots)
+
+	return nil
 }
 
 func (b *BootParams) Copy() *BootParams {
@@ -67,10 +76,10 @@ var BootstrappParams = []*BootParams{
 	// 14 : 17.60
 	// 15 : 18.31
 	{Parameters: Parameters{
-		LogN:     16,
-		LogSlots: 10,
+		logN:     16,
+		logSlots: 10,
 		Moduli: Moduli{
-			Qi: []uint64{
+			qi: []uint64{
 				0x80000000080001,
 				0x2000000a0001,
 				0x2000000e0001,
@@ -96,15 +105,15 @@ var BootstrappParams = []*BootParams{
 				0x20000000140001,
 				0x20000000280001,
 			},
-			Pi: []uint64{
+			pi: []uint64{
 				0x80000000e00001,
 				0x7ffffffef00001,
 				0x800000011c0001,
 				0x7ffffffeba0001,
 			},
 		},
-		Scale: 1 << 45,
-		Sigma: 3.2,
+		scale: 1 << 45,
+		sigma: DefaultSigma,
 	},
 		SinType:      Sin,
 		SinRange:     15,
@@ -114,7 +123,9 @@ var BootstrappParams = []*BootParams{
 		StCLevel:     []uint64{13, 12, 12},
 		MaxN1N2Ratio: 16.0,
 	},
+}
 
+/*
 	// SET II
 	// h = 196
 	// 1525 Cos - 550
@@ -122,7 +133,7 @@ var BootstrappParams = []*BootParams{
 	// 14 : 20.1
 	// 15 : 19.8
 	{Parameters: Parameters{
-		LogN:     16,
+		logN:     16,
 		LogSlots: 15,
 		LogModuli: LogModuli{
 			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 56, 28, 55, 55, 55, 55, 55, 55, 55, 55, 53, 53, 53, 53},
@@ -245,7 +256,7 @@ var BootstrappParams = []*BootParams{
 			StCLevel:     []uint64{5, 5},
 			MaxN1N2Ratio: 16.0,
 		},
-	*/
+
 
 	// SET V
 	// h = 192
@@ -270,3 +281,4 @@ var BootstrappParams = []*BootParams{
 		MaxN1N2Ratio: 16.0,
 	},
 }
+*/

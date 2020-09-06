@@ -54,7 +54,7 @@ func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 func (bootcontext *BootContext) subSum(ct *Ciphertext) *Ciphertext {
 
-	for i := bootcontext.LogSlots; i < bootcontext.LogN-1; i++ {
+	for i := bootcontext.logSlots; i < bootcontext.logN-1; i++ {
 
 		bootcontext.evaluator.RotateColumns(ct, 1<<i, bootcontext.rotkeys, bootcontext.ctxpool[0])
 
@@ -72,8 +72,8 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 
 	// Extend the ciphertext with zero polynomials.
 	for u := range ct.Value() {
-		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, bootcontext.MaxLevel)...)
-		for i := uint64(1); i < bootcontext.MaxLevel+1; i++ {
+		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, bootcontext.MaxLevel())...)
+		for i := uint64(1); i < bootcontext.MaxLevel()+1; i++ {
 			ct.Value()[u].Coeffs[i] = make([]uint64, bootcontext.n)
 		}
 	}
@@ -89,7 +89,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 
 			coeff = ct.Value()[u].Coeffs[0][j]
 
-			for i := uint64(1); i < bootcontext.MaxLevel+1; i++ {
+			for i := uint64(1); i < bootcontext.MaxLevel()+1; i++ {
 
 				qi = contextQ.Modulus[i]
 
@@ -378,18 +378,18 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	// the output scale after the polynomial evaluation followed by the double angle formula
 	// does not change the scale of the ciphertext.
 	for i := uint64(0); i < bootcontext.SinRescal; i++ {
-		evaluator.ckksContext.scale *= float64(evaluator.params.Qi[bootcontext.StCLevel[0]+i+1])
+		evaluator.ckksContext.scale *= float64(evaluator.params.qi[bootcontext.StCLevel[0]+i+1])
 		evaluator.ckksContext.scale = math.Sqrt(evaluator.ckksContext.scale)
 	}
 
 	ct0 = bootcontext.evaluateCheby(ct0)
 
-	ct0.DivScale(bootcontext.deviation * bootcontext.postscale / bootcontext.Scale)
+	ct0.DivScale(bootcontext.deviation * bootcontext.postscale / bootcontext.scale)
 
 	if ct1 != nil {
 		ct1.MulScale(bootcontext.deviation)
 		ct1 = bootcontext.evaluateCheby(ct1)
-		ct1.DivScale(bootcontext.deviation * bootcontext.postscale / bootcontext.Scale)
+		ct1.DivScale(bootcontext.deviation * bootcontext.postscale / bootcontext.scale)
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.

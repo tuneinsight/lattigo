@@ -53,11 +53,7 @@ type encoderComplex128 struct {
 
 func newEncoder(params *Parameters) encoder {
 
-	if !params.isValid {
-		panic("cannot newEncoder: parameters are invalid (check if the generation was done properly)")
-	}
-
-	m := uint64(2 << params.LogN)
+	m := uint64(2 << params.logN)
 
 	rotGroup := make([]uint64, m>>1)
 	fivePows := uint64(1)
@@ -103,7 +99,7 @@ func NewEncoder(params *Parameters) Encoder {
 }
 
 func (encoder *encoderComplex128) EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel, encoder.params.Scale)
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
 	encoder.Encode(plaintext, values, slots)
 	return
 }
@@ -155,7 +151,7 @@ func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex1
 }
 
 func (encoder *encoderComplex128) EncodeNTTNew(values []complex128, slots uint64) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel, encoder.params.Scale)
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
 	encoder.EncodeNTT(plaintext, values, slots)
 	return
 }
@@ -170,7 +166,7 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 // and returns a scaled integer plaintext polynomial in NTT.
 func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plaintext) {
 
-	if uint64(len(values)) > encoder.params.N {
+	if uint64(len(values)) > encoder.params.n {
 		panic("cannot EncodeCoeffs : too many values (maximum is N)")
 	}
 
@@ -196,7 +192,7 @@ func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []floa
 		encoder.ckksContext.contextQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
 
-	res = make([]float64, encoder.params.N)
+	res = make([]float64, encoder.params.n)
 
 	// We have more than one moduli and need the CRT reconstruction
 	if plaintext.Level() > 0 {
@@ -439,7 +435,7 @@ func NewEncoderBigComplex(params *Parameters, logPrecision uint64) EncoderBigCom
 }
 
 func (encoder *encoderBigComplex) EncodeNew(values []*ring.Complex, slots uint64) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel, encoder.params.Scale)
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
 	encoder.Encode(plaintext, values, slots)
 	return
 }
@@ -473,7 +469,7 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 
 	scaleUpVecExactBigFloat(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
-	coeffsBigInt := make([]*big.Int, encoder.params.N)
+	coeffsBigInt := make([]*big.Int, 1<<encoder.params.logN)
 
 	encoder.ckksContext.contextQ.PolyToBigint(plaintext.value, coeffsBigInt)
 
@@ -488,7 +484,7 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 }
 
 func (encoder *encoderBigComplex) EncodeNTTNew(values []*ring.Complex, slots uint64) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel, encoder.params.Scale)
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
 	encoder.EncodeNTT(plaintext, values, slots)
 	return
 }

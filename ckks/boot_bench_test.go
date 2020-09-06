@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"fmt"
 	"github.com/ldsec/lattigo/utils"
 	"testing"
 )
@@ -64,7 +63,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ciphertext = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel, LTScale)
+			ciphertext = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel(), LTScale)
 			b.StartTimer()
 
 			ct0, ct1 = bootcontext.coeffsToSlots(ciphertext)
@@ -78,9 +77,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct0 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel-ctsDepth, LTScale)
-			if parameters.LogSlots == parameters.LogN-1 {
-				ct1 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel-ctsDepth, LTScale)
+			ct0 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel()-ctsDepth, LTScale)
+			if parameters.logSlots == parameters.logN-1 {
+				ct1 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel()-ctsDepth, LTScale)
 			} else {
 				ct1 = nil
 			}
@@ -88,12 +87,12 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 			ct2, ct3 = bootcontext.evaluateSine(ct0, ct1)
 
-			if ct2.Level() != parameters.MaxLevel-ctsDepth-sinDepth {
+			if ct2.Level() != parameters.MaxLevel()-ctsDepth-sinDepth {
 				panic("scaling error during eval sinebetter bench")
 			}
 
 			if ct3 != nil {
-				if ct3.Level() != parameters.MaxLevel-ctsDepth-sinDepth {
+				if ct3.Level() != parameters.MaxLevel()-ctsDepth-sinDepth {
 					panic("scaling error during eval sinebetter bench")
 				}
 			}
@@ -106,9 +105,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct2 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel-ctsDepth-sinDepth, LTScale)
-			if parameters.LogSlots == parameters.LogN-1 {
-				ct3 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel-ctsDepth-sinDepth, LTScale)
+			ct2 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel()-ctsDepth-sinDepth, LTScale)
+			if parameters.logSlots == parameters.logN-1 {
+				ct3 = NewCiphertextRandom(prng, parameters, 1, parameters.MaxLevel()-ctsDepth-sinDepth, LTScale)
 			} else {
 				ct3 = nil
 			}
@@ -122,64 +121,10 @@ func BenchmarkBootstrapp(b *testing.B) {
 	b.Run(testString("Bootstrapp/", parameters), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
-			ct := NewCiphertext(parameters, 1, 0, parameters.Scale)
+			ct := NewCiphertext(parameters, 1, 0, parameters.scale)
 			b.StartTimer()
 
 			bootcontext.Bootstrapp(ct)
 		}
 	})
-}
-
-func BenchmarkBootstrappMultiplications(b *testing.B) {
-
-	var kgen KeyGenerator
-	var sk *SecretKey
-	var rlk *EvaluationKey
-	var eval Evaluator
-
-	var DefaultScale, LTScale float64
-
-	DefaultScale = 1 << 40
-	LTScale = 1 << 45
-	//SineScale = 1 << 55
-
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-
-	bootParams := new(Parameters)
-	bootParams.LogN = 16
-	bootParams.LogSlots = 15
-	bootParams.Scale = DefaultScale
-	bootParams.LogQi = []uint64{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 55, 55, 55, 55, 55, 55, 55, 55, 50, 50, 50}
-	bootParams.LogPi = []uint64{61, 61, 61, 61}
-	bootParams.Sigma = 3.2
-
-	bootParams.Gen()
-
-	kgen = NewKeyGenerator(bootParams)
-	sk = kgen.GenSecretKey()
-	rlk = kgen.GenRelinKey(sk)
-	eval = NewEvaluator(bootParams)
-
-	ct0 := NewCiphertextRandom(prng, bootParams, 1, bootParams.MaxLevel, LTScale)
-	ct1 := NewCiphertextRandom(prng, bootParams, 1, bootParams.MaxLevel, LTScale)
-
-	for true {
-
-		b.Run(testString(fmt.Sprintf("Mul%.2d/", ct0.Level()), bootParams), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.MulRelinNew(ct0, ct1, rlk)
-			}
-		})
-
-		if ct0.Level() == 0 {
-			break
-		}
-
-		eval.DropLevel(ct0, 1)
-		eval.DropLevel(ct1, 1)
-
-	}
 }

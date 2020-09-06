@@ -6,7 +6,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
-## [1.4.0] - 2020-06-15
+## [1.4.0] - 2020-08-31
+
+### Some changes aren't public yet and will be on release.
+
+### Performances
+- Global 1.5x speed-up across all arithmetic (this does not include sampling).
 
 ### Added
 - BFV/CKKS : added encrypt fast (directly in Q without the rescaling by P).
@@ -29,19 +34,22 @@ All notable changes to this project will be documented in this file.
 - ALL : all tests now use "require"
 - BFV/CKKS : parameters without P can be used, but the key-switching is disabled.
 - BFV/CKKS : parameters do not use anymore methods to access internal values.
-- BFV : Decoder uses the RNSScaler implementation of the Scaler interface to perform the t/Q rescaling
-- CKKS : now uses new rotations keys optimized for hoisting rotations of the form phi^{-1}(-as1 + phi(s0) + e, a).
+- BFV/CKKS : now uses new rotations keys optimized for hoisting rotations of the form (-phi^{-1}(s1)a + phi(s0) + e, a).
+- BFV : Decoder uses the RNSScaler implementation of the Scaler interface to perform the t/Q rescaling.
 - CKKS : simplified the code of the hybrid key-switching (does not affect user experience).
 - CKKS : encoding/decoding at level 0 is now 500% faster.
 - CKKS : the encoder now accepts slices of complex of length equal or smaller than the specified number of slots.
 - RING : improved primes finding.
 - RING : all Gaussian sampling now uses Ziggurat sampling.
-- RING : revamp of the polynomial sampler to make them more memory efficient, consistent user friendly and enable parallel sampling.
-- RING : the SimpleScaler type now use slightly slower but cross-platform big.Int/Float
+- RING : revamp of the polynomial samplers to make them more memory efficient, consistent user friendly and enable parallel sampling.
+- RING : the SimpleScaler type now use slightly slower but cross-platform big.Int/Float.
 - UTILS : complete revamp of the PRNG (Blake2b XOF), to make it more user friendly and consistent.
 
 ### Removed
 - BFV/CKKS : Parameters API generation GenFromLogModuli() and GenFromModuli() have been removed and replaced by Gen().
+- CKKS : EvaluatePolyFast(.) and EvaluatePolyEco(.) are replaced by EvaluatePoly(.).
+- CKKS : EvaluateChebyFast(.) and EvaluateChebyEco(.) are replaced by EvaluatePolyCheby(.).
+- CKKS : EvaluateChebyEcoSpecial(.) and EvaluateChebyFastSpecial(.) are replaced by EvaluatePolyChebySpecial(.).
 - RING : the Float128 type had cross-platform incompatilities and was removed.
 
 ### Fixes
@@ -58,7 +66,7 @@ All notable changes to this project will be documented in this file.
 - BFV/CKKS : added API for encrypting faster (encrypts zero directly in Q instead of QP and does not need to divide by P).
 - BFV/CKKS : Parameters can now be created without the modulus P, but this disables all key-switching operations.
 - CKKS : added tests for hoisted rotations.
-- RinG : added benchmarks for a NTT using purely Barrett reduction for comparison purposes.
+- Ring : added benchmarks for a NTT using purely Barrett reduction for comparison purposes.
 ### Changed 
 - BFV/CKKS : changed the switching keys from (-as1 + (s0-s1) + e, a) to (-as1 + s0 + e, a). This does not affect the user expercience as it only changes what is happening in the background, however older Rotations and KeySwitching keys will induce wrong results and will need to be re-generated.
 ### Fixes

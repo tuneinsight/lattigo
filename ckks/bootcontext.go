@@ -18,8 +18,7 @@ type BootContext struct { // TODO: change to "Bootstrapper" ?
 	n    uint64 // Ring degree
 	logn uint64 // log of the Ring degree
 
-	slots    uint64 // Number of plaintext slots
-	logSlots uint64 // Log of the number of plaintext slots
+	slots uint64 // Number of plaintext slots
 
 	dslots    uint64 // Number of plaintext slots after the re-encoding
 	logdslots uint64 // Log of the number of plaintext slots after the re-encoding
@@ -81,21 +80,21 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 
 	bootcontext.BootParams = *bootparams
 
-	bootcontext.n = uint64(1 << bootparams.Parameters.LogN)
-	bootcontext.slots = uint64(1 << bootparams.Parameters.LogSlots)
+	bootcontext.n = uint64(1 << bootparams.Parameters.logN)
+	bootcontext.slots = uint64(1 << bootparams.Parameters.logSlots)
 
-	if bootparams.Parameters.LogSlots < bootparams.Parameters.LogN-1 {
+	if bootparams.Parameters.logSlots < bootparams.Parameters.logN-1 {
 		bootcontext.repack = true
 	}
 
 	bootcontext.dslots = bootcontext.slots
-	if bootparams.Parameters.LogSlots < bootparams.Parameters.LogN-1 {
+	if bootparams.Parameters.logSlots < bootparams.Parameters.logN-1 {
 		bootcontext.dslots <<= 1
 	}
 
 	bootcontext.deviation = 1024.0
-	bootcontext.prescale = math.Round(float64(bootparams.Qi[0]) / bootcontext.deviation)
-	bootcontext.postscale = math.Exp2(math.Round(math.Log2(float64(bootparams.Qi[len(bootparams.Qi)-1-len(bootparams.CtSLevel)])))) / bootcontext.deviation
+	bootcontext.prescale = math.Round(float64(bootparams.qi[0]) / bootcontext.deviation)
+	bootcontext.postscale = math.Exp2(math.Round(math.Log2(float64(bootparams.qi[len(bootparams.qi)-1-len(bootparams.CtSLevel)])))) / bootcontext.deviation
 
 	bootcontext.encoder = NewEncoder(&bootparams.Parameters)
 	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
@@ -103,9 +102,9 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 	bootcontext.newBootSine()
 	bootcontext.newBootDFT()
 
-	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
-	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
-	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel, 0)
+	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
+	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
+	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.Parameters.MaxLevel(), 0)
 
 	eval := bootcontext.evaluator.(*evaluator)
 	contextQ := eval.ckksContext.contextQ
@@ -127,8 +126,8 @@ func (bootcontext *BootContext) GenBootKeys(sk *SecretKey) {
 	log.Println("DFT vector size (GB) :", float64(bootcontext.plaintextSize)/float64(1000000000))
 
 	nbKeys := uint64(len(bootcontext.rotKeyIndex)) + 2 //rot keys + conj key + relin key
-	nbPoly := bootcontext.Beta
-	nbCoefficients := 2 * bootcontext.n * uint64(len(bootcontext.Qi)+len(bootcontext.Pi))
+	nbPoly := bootcontext.beta
+	nbCoefficients := 2 * bootcontext.n * uint64(len(bootcontext.qi)+len(bootcontext.pi))
 	bytesPerCoeff := uint64(8)
 
 	log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
@@ -192,13 +191,13 @@ func (bootcontext *BootContext) newBootDFT() {
 	b := real(bootcontext.chebycoeffs.b)
 	n := float64(bootcontext.n)
 	sc_fac := float64(int(1 << bootcontext.SinRescal))
-	qDiff := float64(bootcontext.Qi[0]) / math.Exp2(math.Round(math.Log2(float64(bootcontext.Qi[0]))))
+	qDiff := float64(bootcontext.qi[0]) / math.Exp2(math.Round(math.Log2(float64(bootcontext.qi[0]))))
 
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
 	bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(len(bootcontext.CtSLevel))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
-	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*bootcontext.Scale)/bootcontext.postscale, 1.0/float64(len(bootcontext.StCLevel))), 0)
+	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*bootcontext.scale)/bootcontext.postscale, 1.0/float64(len(bootcontext.StCLevel))), 0)
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	bootcontext.computePlaintextVectors()
@@ -209,7 +208,7 @@ func (bootcontext *BootContext) newBootDFT() {
 	bootcontext.rotKeyIndex = []uint64{}
 
 	//SubSum rotation needed X -> Y^slots rotations
-	for i := bootcontext.LogSlots; i < bootcontext.LogN-1; i++ {
+	for i := bootcontext.logSlots; i < bootcontext.logN-1; i++ {
 		if !utils.IsInSliceUint64(1<<i, bootcontext.rotKeyIndex) {
 			bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, 1<<i)
 		}
@@ -514,13 +513,14 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	plaintextVec.Vec = make(map[uint64][2]*ring.Poly)
 
 	if forward {
-		scale = float64(bootcontext.Qi[level])
+		scale = float64(bootcontext.qi[level])
 	} else {
 		// If the first moduli
-		if bootcontext.LogQi[level] >= 56 {
-			scale = float64(uint64(1 << (bootcontext.LogQi[level] >> 1)))
+		logQi := math.Round(math.Log2(float64(bootcontext.qi[level])))
+		if logQi >= 56.0 {
+			scale = math.Exp2(logQi / 2)
 		} else {
-			scale = float64(bootcontext.Qi[level])
+			scale = float64(bootcontext.qi[level])
 		}
 	}
 
@@ -539,12 +539,12 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 
 			encoder.embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
 
-			plaintextQ := ring.NewPoly(bootcontext.Parameters.N, level+1)
+			plaintextQ := ring.NewPoly(N, level+1)
 			encoder.scaleUp(plaintextQ, scale, contextQ.Modulus[:level+1])
 			contextQ.NTTLvl(level, plaintextQ, plaintextQ)
 			contextQ.MFormLvl(level, plaintextQ, plaintextQ)
 
-			plaintextP := ring.NewPoly(bootcontext.Parameters.N, level+1)
+			plaintextP := ring.NewPoly(N, level+1)
 			encoder.scaleUp(plaintextP, scale, contextP.Modulus)
 			contextP.NTT(plaintextP, plaintextP)
 			contextP.MForm(plaintextP, plaintextP)

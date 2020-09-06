@@ -34,11 +34,7 @@ type encoder struct {
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a Plaintext.
 func NewEncoder(params *Parameters) Encoder {
 
-	if !params.isValid {
-		panic("cannot newEncoder: parameters are invalid (check if the generation was done properly)")
-	}
-
-	m := uint64(2 << params.LogN)
+	m := uint64(2 << params.logN)
 
 	rotGroup := make([]uint64, m>>1)
 	fivePows := uint64(1)
@@ -73,7 +69,7 @@ func NewEncoder(params *Parameters) Encoder {
 }
 
 func (encoder *encoder) EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel, encoder.params.Scale)
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
 	encoder.Encode(plaintext, values, slots)
 	return
 }
@@ -116,7 +112,7 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 }
 
 func (encoder *encoder) EncodeNTTNew(values []complex128, slots uint64) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel, encoder.params.Scale)
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
 	encoder.EncodeNTT(plaintext, values, slots)
 	return
 }
@@ -134,7 +130,7 @@ func (encoder *encoder) EncodeNTT(plaintext *Plaintext, values []complex128, slo
 // and returns a scaled integer plaintext polynomial in NTT.
 func (encoder *encoder) EncodeCoeffs(values []float64, plaintext *Plaintext) {
 
-	if uint64(len(values)) > encoder.params.N {
+	if uint64(len(values)) > encoder.params.n {
 		panic("cannot EncodeCoeffs : too many values (maximum is N)")
 	}
 
@@ -160,7 +156,7 @@ func (encoder *encoder) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
 		encoder.ckksContext.contextQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
 
-	res = make([]float64, encoder.params.N)
+	res = make([]float64, encoder.params.n)
 
 	// We have more than one moduli and need the CRT reconstruction
 	if plaintext.Level() > 0 {

@@ -83,10 +83,6 @@ type evaluator struct {
 // and Ciphertexts that will be used for intermediate values.
 func NewEvaluator(params *Parameters) Evaluator {
 
-	if !params.isValid {
-		panic("cannot newEvaluator: parameters are invalid (check if the generation was done properly)")
-	}
-
 	ckksContext := newContext(params)
 	q := ckksContext.contextQ
 	p := ckksContext.contextP
@@ -94,7 +90,7 @@ func NewEvaluator(params *Parameters) Evaluator {
 	var baseconverter *ring.FastBasisExtender
 	var decomposer *ring.Decomposer
 	var poolP [3]*ring.Poly
-	if len(params.Pi) != 0 {
+	if len(params.pi) != 0 {
 		baseconverter = ring.NewFastBasisExtender(q, p)
 		decomposer = ring.NewDecomposer(q.Modulus, p.Modulus)
 		poolP = [3]*ring.Poly{p.NewPoly(), p.NewPoly(), p.NewPoly()}
@@ -106,7 +102,7 @@ func NewEvaluator(params *Parameters) Evaluator {
 		ringpool:      [6]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly()},
 		poolQ:         [4]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly()},
 		poolP:         poolP,
-		ctxpool:       NewCiphertext(params, 1, params.MaxLevel, params.Scale),
+		ctxpool:       NewCiphertext(params, 1, params.MaxLevel(), params.scale),
 		baseconverter: baseconverter,
 		decomposer:    decomposer,
 	}
@@ -974,9 +970,9 @@ func (eval *evaluator) ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext
 // SetScale sets the scale of the ciphertext to the input scale (consumes a level)
 func (eval *evaluator) SetScale(ct *Ciphertext, scale float64) {
 
-	var tmp = eval.params.Scale
+	var tmp = eval.params.scale
 
-	eval.params.Scale = scale
+	eval.params.scale = scale
 
 	eval.MultByConst(ct, scale/ct.Scale(), ct)
 
@@ -986,7 +982,7 @@ func (eval *evaluator) SetScale(ct *Ciphertext, scale float64) {
 
 	ct.SetScale(scale)
 
-	eval.params.Scale = tmp
+	eval.params.scale = tmp
 }
 
 // MulByPow2New multiplies ct0 by 2^pow2 and returns the result in a newly created element.
@@ -1486,7 +1482,7 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 
 	reduce = 0
 
-	alpha := eval.params.Alpha
+	alpha := eval.params.alpha
 	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
 
 	// Key switching with CRT decomposition for the Qi
@@ -1547,7 +1543,7 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 
 	eval.decomposer.DecomposeAndSplit(level, beta, c2InvNTT, c2QiQ, c2QiP)
 
-	p0idxst := beta * eval.params.Alpha
+	p0idxst := beta * eval.params.alpha
 	p0idxed := p0idxst + eval.decomposer.Xalpha()[beta]
 
 	// c2_qi = cx mod qi mod qi
@@ -1584,7 +1580,7 @@ func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []uint64, rotkey
 	c2InvNTT := contextQ.NewPoly()
 	contextQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
 
-	alpha := eval.params.Alpha
+	alpha := eval.params.alpha
 	beta := uint64(math.Ceil(float64(ct0.Level()+1) / float64(alpha)))
 
 	c2QiQDecomp := make([]*ring.Poly, beta)
@@ -1657,7 +1653,7 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 	contextQ := eval.ckksContext.contextQ
 	contextP := eval.ckksContext.contextP
 
-	alpha := eval.params.Alpha
+	alpha := eval.params.alpha
 	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
 
 	// Key switching with CRT decomposition for the Qi

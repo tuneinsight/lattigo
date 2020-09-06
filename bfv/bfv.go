@@ -30,37 +30,32 @@ type bfvContext struct {
 
 func newBFVContext(params *Parameters) (context *bfvContext) {
 
-	if !params.isValid {
-		panic("cannot newBFVContext: params not valid (check if they were generated properly)")
-	}
-
 	context = new(bfvContext)
 	var err error
 
-	LogN := params.LogN
-	N := uint64(1 << LogN)
+	N := uint64(1 << params.logN)
 
 	context.n = N
 
-	if context.contextT, err = ring.NewContextWithParams(N, []uint64{params.T}); err != nil {
+	if context.contextT, err = ring.NewContextWithParams(N, []uint64{params.t}); err != nil {
 		panic(err)
 	}
 
-	if context.contextQ, err = ring.NewContextWithParams(N, params.Qi); err != nil {
+	if context.contextQ, err = ring.NewContextWithParams(N, params.qi); err != nil {
 		panic(err)
 	}
 
-	if context.contextQMul, err = ring.NewContextWithParams(N, params.QiMul); err != nil {
+	if context.contextQMul, err = ring.NewContextWithParams(N, params.qiMul); err != nil {
 		panic(err)
 	}
 
-	if len(params.Pi) != 0 {
-		if context.contextP, err = ring.NewContextWithParams(N, params.Pi); err != nil {
+	if len(params.pi) != 0 {
+		if context.contextP, err = ring.NewContextWithParams(N, params.pi); err != nil {
 			panic(err)
 		}
 	}
 
-	if context.contextQP, err = ring.NewContextWithParams(N, append(params.Qi, params.Pi...)); err != nil {
+	if context.contextQP, err = ring.NewContextWithParams(N, append(params.qi, params.pi...)); err != nil {
 		panic(err)
 	}
 

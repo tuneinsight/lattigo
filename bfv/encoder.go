@@ -29,10 +29,6 @@ type encoder struct {
 // NewEncoder creates a new encoder from the provided parameters.
 func NewEncoder(params *Parameters) Encoder {
 
-	if !params.isValid {
-		panic("cannot NewEncoder: params not valid (check if they were generated properly)")
-	}
-
 	bfvContext := newBFVContext(params)
 
 	var m, pos, index1, index2 uint64
@@ -63,8 +59,8 @@ func NewEncoder(params *Parameters) Encoder {
 		params:      params.Copy(),
 		bfvContext:  bfvContext,
 		indexMatrix: indexMatrix,
-		deltaMont:   GenLiftParams(bfvContext.contextQ, params.T),
-		scaler:      ring.NewRNSScaler(params.T, bfvContext.contextQ),
+		deltaMont:   GenLiftParams(bfvContext.contextQ, params.t),
+		scaler:      ring.NewRNSScaler(params.t, bfvContext.contextQ),
 		polypool:    bfvContext.contextT.NewPoly(),
 	}
 }
@@ -124,7 +120,7 @@ func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 	for i := 0; i < len(coeffs); i++ {
 
 		if coeffs[i] < 0 {
-			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.params.T) + coeffs[i])
+			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.params.t) + coeffs[i])
 		} else {
 			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(coeffs[i])
 		}
@@ -184,7 +180,7 @@ func (encoder *encoder) DecodeInt(plaintext *Plaintext) (coeffs []int64) {
 
 	coeffs = make([]int64, encoder.bfvContext.n)
 
-	modulus := int64(encoder.params.T)
+	modulus := int64(encoder.params.t)
 
 	for i := uint64(0); i < encoder.bfvContext.n; i++ {
 

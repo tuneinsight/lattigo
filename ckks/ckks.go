@@ -17,7 +17,6 @@ type Context struct {
 
 	// Context parameters
 	logN     uint64
-	logQ     uint64
 	scale    float64
 	n        uint64
 	maxSlots uint64
@@ -42,42 +41,38 @@ type Context struct {
 // correctness of the scheme (but it does not check for security).
 func newContext(params *Parameters) (ckkscontext *Context) {
 
-	if !params.isValid {
-		panic("cannot newContext: parameters are invalid (check if the generation was done properly)")
-	}
-
 	var err error
 
 	ckkscontext = new(Context)
 
-	ckkscontext.logN = uint64(params.LogN)
-	ckkscontext.n = 1 << uint64(params.LogN)
-	ckkscontext.maxSlots = 1 << (uint64(params.LogN) - 1)
-	ckkscontext.scale = params.Scale
+	ckkscontext.logN = params.logN
+	ckkscontext.n = params.n
+	ckkscontext.maxSlots = params.MaxSlots()
+	ckkscontext.scale = params.scale
 
-	ckkscontext.levels = uint64(len(params.Qi))
+	ckkscontext.levels = params.QiCount()
 
-	N := ckkscontext.n
+	n := ckkscontext.n
 
-	ckkscontext.bigintChain = genBigIntChain(params.Qi)
+	ckkscontext.bigintChain = genBigIntChain(params.qi)
 
-	if ckkscontext.contextQ, err = ring.NewContextWithParams(N, params.Qi); err != nil {
+	if ckkscontext.contextQ, err = ring.NewContextWithParams(n, params.qi); err != nil {
 		panic(err)
 	}
 
-	if len(params.Pi) != 0 {
-		if ckkscontext.contextP, err = ring.NewContextWithParams(N, params.Pi); err != nil {
+	if len(params.pi) != 0 {
+		if ckkscontext.contextP, err = ring.NewContextWithParams(n, params.pi); err != nil {
 			panic(err)
 		}
 	}
 
-	if ckkscontext.contextQP, err = ring.NewContextWithParams(N, append(params.Qi, params.Pi...)); err != nil {
+	if ckkscontext.contextQP, err = ring.NewContextWithParams(n, append(params.qi, params.pi...)); err != nil {
 		panic(err)
 	}
 
-	ckkscontext.galElRotColLeft = ring.GenGaloisParams(N, GaloisGen)
-	ckkscontext.galElRotColRight = ring.GenGaloisParams(N, ring.ModExp(GaloisGen, 2*N-1, 2*N))
-	ckkscontext.galElConjugate = 2*N - 1
+	ckkscontext.galElRotColLeft = ring.GenGaloisParams(n, GaloisGen)
+	ckkscontext.galElRotColRight = ring.GenGaloisParams(n, ring.ModExp(GaloisGen, 2*n-1, 2*n))
+	ckkscontext.galElConjugate = 2*n - 1
 
 	return ckkscontext
 

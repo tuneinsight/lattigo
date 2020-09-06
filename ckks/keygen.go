@@ -3,7 +3,6 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
-	"math"
 )
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
@@ -82,10 +81,6 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params *Parameters) KeyGenerator {
 
-	if !params.isValid {
-		panic("cannot NewKeyGenerator: parameters are invalid (check if the generation was done properly)")
-	}
-
 	ckksContext := newContext(params)
 	ringContext := ckksContext.contextQP
 
@@ -99,7 +94,7 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 		ckksContext:     ckksContext,
 		ringContext:     ringContext,
 		polypool:        [2]*ring.Poly{ringContext.NewPoly(), ringContext.NewPoly()},
-		gaussianSampler: ring.NewGaussianSampler(prng, ringContext, params.Sigma, uint64(6*params.Sigma)),
+		gaussianSampler: ring.NewGaussianSampler(prng, ringContext, params.sigma, uint64(6*params.sigma)),
 		uniformSampler:  ring.NewUniformSampler(prng, ringContext),
 	}
 }
@@ -148,12 +143,8 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params *Parameters) *SecretKey {
 
-	if !params.isValid {
-		panic("cannot NewSecretkey: parameters are invalid (check if the generation was done properly)")
-	}
-
 	sk := new(SecretKey)
-	sk.sk = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
+	sk.sk = params.NewPolyQP()
 	return sk
 }
 
@@ -189,14 +180,10 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
 
-	if !params.isValid {
-		panic("cannot NewPublicKey: parameters are invalid (check if the generation was done properly)")
-	}
-
 	pk = new(PublicKey)
 
-	pk.pk[0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
-	pk.pk[1] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
+	pk.pk[0] = params.NewPolyQP()
+	pk.pk[1] = params.NewPolyQP()
 
 	return
 }
@@ -242,21 +229,15 @@ func (keygen *keyGenerator) GenRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
 // NewRelinKey returns a new EvaluationKey with zero values.
 func NewRelinKey(params *Parameters) (evakey *EvaluationKey) {
 
-	if !params.isValid {
-		panic("cannot NewRelinKey: parameters are invalid (check if the generation was done properly)")
-	}
-
 	evakey = new(EvaluationKey)
 	evakey.evakey = new(SwitchingKey)
 
-	beta := uint64(math.Ceil(float64(len(params.Qi)) / float64(len(params.Pi))))
-
 	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
-	evakey.evakey.evakey = make([][2]*ring.Poly, beta)
-	for i := uint64(0); i < beta; i++ {
+	evakey.evakey.evakey = make([][2]*ring.Poly, params.beta)
+	for i := uint64(0); i < params.beta; i++ {
 
-		evakey.evakey.evakey[i][0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
-		evakey.evakey.evakey[i][1] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
+		evakey.evakey.evakey[i][0] = params.NewPolyQP()
+		evakey.evakey.evakey[i][1] = params.NewPolyQP()
 	}
 
 	return
@@ -295,18 +276,14 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newev
 // NewSwitchingKey returns a new SwitchingKey with zero values.
 func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 
-	if !params.isValid {
-		panic("cannot NewSwitchingKey: parameters are invalid (check if the generation was done properly)")
-	}
-
 	evakey = new(SwitchingKey)
 
 	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
-	evakey.evakey = make([][2]*ring.Poly, params.Beta)
+	evakey.evakey = make([][2]*ring.Poly, params.beta)
 
-	for i := uint64(0); i < params.Beta; i++ {
-		evakey.evakey[i][0] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
-		evakey.evakey[i][1] = ring.NewPoly(1<<params.LogN, uint64(len(params.Qi)+len(params.Pi)))
+	for i := uint64(0); i < params.beta; i++ {
+		evakey.evakey[i][0] = params.NewPolyQP()
+		evakey.evakey[i][1] = params.NewPolyQP()
 	}
 
 	return
@@ -382,7 +359,7 @@ func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 
 	rotKey = NewRotationKeys()
 
-	for n := uint64(1); n < 1<<(keygen.params.LogN-1); n <<= 1 {
+	for n := uint64(1); n < 1<<(keygen.params.logN-1); n <<= 1 {
 		keygen.GenRot(RotationLeft, skOutput, n, rotKey)
 		keygen.GenRot(RotationRight, skOutput, n, rotKey)
 	}
@@ -394,10 +371,6 @@ func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 
 // SetRotKey sets the target RotationKeys' SwitchingKey for the specified rotation type and amount with the input polynomials.
 func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly, rotType Rotation, k uint64) {
-
-	if !params.isValid {
-		panic("cannot SetRotKey: parameters are invalid (check if the generation was done properly)")
-	}
 
 	switch rotType {
 	case RotationLeft:
@@ -412,7 +385,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyRotColLeft[k] == nil && k != 0 {
 
-			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, 1<<params.LogN)
+			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, params.n)
 
 			rotKey.evakeyRotColLeft[k] = new(SwitchingKey)
 			rotKey.evakeyRotColLeft[k].evakey = make([][2]*ring.Poly, len(evakey))
@@ -434,7 +407,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
 
-			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, (2<<params.LogN)-1-k, 1<<params.LogN)
+			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, (2<<params.logN)-1-k, params.n)
 
 			rotKey.evakeyRotColRight[k] = new(SwitchingKey)
 			rotKey.evakeyRotColRight[k].evakey = make([][2]*ring.Poly, len(evakey))
@@ -448,7 +421,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyConjugate == nil {
 
-			rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex((2<<params.LogN)-1, 1, 1<<params.LogN)
+			rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex((2<<params.logN)-1, 1, params.n)
 
 			rotKey.evakeyConjugate = new(SwitchingKey)
 			rotKey.evakeyConjugate.evakey = make([][2]*ring.Poly, len(evakey))
@@ -485,8 +458,8 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 	context.MulScalarBigint(skIn, keygen.ckksContext.contextP.ModulusBigint, keygen.polypool[0])
 
-	alpha := keygen.params.Alpha
-	beta := keygen.params.Beta
+	alpha := keygen.params.alpha
+	beta := keygen.params.beta
 
 	var index uint64
 
@@ -522,7 +495,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 			}
 
 			// It handles the case where nb pj does not divide nb qi
-			if index >= uint64(len(keygen.ckksContext.contextQ.Modulus))-1 {
+			if index >= keygen.params.QiCount() {
 				break
 			}
 		}

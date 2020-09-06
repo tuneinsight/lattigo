@@ -18,10 +18,6 @@ type RKGProtocolNaive struct {
 // among j parties in the given context with the given bit-decomposition.
 func NewRKGProtocolNaive(params *ckks.Parameters) (rkg *RKGProtocolNaive) {
 
-	if !params.IsValid() {
-		panic("cannot NewRKGProtocolNaive : params not valid (check if they where generated properly)")
-	}
-
 	rkg = new(RKGProtocolNaive)
 	dckksContext := newDckksContext(params)
 	rkg.dckksContext = dckksContext
@@ -30,7 +26,7 @@ func NewRKGProtocolNaive(params *ckks.Parameters) (rkg *RKGProtocolNaive) {
 	if err != nil {
 		panic(err)
 	}
-	rkg.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma, uint64(6*params.Sigma))
+	rkg.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma(), uint64(6*params.Sigma()))
 	rkg.ternarySamplerMontgomery = ring.NewTernarySampler(prng, dckksContext.contextQP, 0.5, true)
 
 	return
@@ -103,7 +99,7 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= uint64(len(rkg.dckksContext.params.Qi)-1) {
+			if index >= rkg.dckksContext.params.QiCount() {
 				break
 			}
 		}

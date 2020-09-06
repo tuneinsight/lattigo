@@ -1,9 +1,10 @@
 package bfv
 
 import (
+	"math/big"
+
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
-	"math/big"
 )
 
 // Evaluator is an interface implementing the public methodes of the evaluator.
@@ -61,10 +62,6 @@ type evaluator struct {
 // and ciphertexts that will be used for intermediate values.
 func NewEvaluator(params *Parameters) Evaluator {
 
-	if !params.isValid {
-		panic("cannot NewEvaluator: params not valid (check if they were generated properly)")
-	}
-
 	bfvContext := newBFVContext(params)
 	q := bfvContext.contextQ
 	qm := bfvContext.contextQMul
@@ -85,7 +82,7 @@ func NewEvaluator(params *Parameters) Evaluator {
 	var baseconverter *ring.FastBasisExtender
 	var decomposer *ring.Decomposer
 	var keyswitchpool [5]*ring.Poly
-	if len(params.Pi) != 0 {
+	if len(params.pi) != 0 {
 		baseconverter = ring.NewFastBasisExtender(q, p)
 		decomposer = ring.NewDecomposer(q.Modulus, p.Modulus)
 		keyswitchpool = [5]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly(), qp.NewPoly(), qp.NewPoly()}
@@ -742,9 +739,9 @@ func (evaluator *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKe
 	c2QiNtt := make([]uint64, N)
 
 	// Key switching with CRT decomposition for the Qi
-	for i := uint64(0); i < evaluator.params.Beta; i++ {
+	for i := uint64(0); i < evaluator.params.Beta(); i++ {
 
-		p0idxst := i * evaluator.params.Alpha
+		p0idxst := i * evaluator.params.Alpha()
 		p0idxed := p0idxst + evaluator.decomposer.Xalpha()[i]
 
 		// c2Qi = cx mod qi

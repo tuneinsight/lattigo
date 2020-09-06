@@ -3,6 +3,7 @@ package dbfv
 import (
 	"encoding/binary"
 	"errors"
+
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
@@ -73,8 +74,8 @@ func (share *RTGShare) UnmarshalBinary(data []byte) error {
 
 // AllocateShare allocates the shares of the RTG protocol.
 func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
-	rtgShare.Value = make([]*ring.Poly, rtg.context.params.Beta)
-	for i := uint64(0); i < rtg.context.params.Beta; i++ {
+	rtgShare.Value = make([]*ring.Poly, rtg.context.params.Beta())
+	for i := uint64(0); i < rtg.context.params.Beta(); i++ {
 		rtgShare.Value[i] = rtg.context.contextQP.NewPoly()
 	}
 	return
@@ -83,16 +84,12 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 // NewRotKGProtocol creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
 func NewRotKGProtocol(params *bfv.Parameters) (rtg *RTGProtocol) {
 
-	if !params.IsValid() {
-		panic("cannot NewRotKGProtocol : params not valid (check if they where generated properly)")
-	}
-
 	context := newDbfvContext(params)
 
 	rtg = new(RTGProtocol)
 	rtg.context = context
 
-	rtg.tmpSwitchKey = make([][2]*ring.Poly, rtg.context.params.Beta)
+	rtg.tmpSwitchKey = make([][2]*ring.Poly, rtg.context.params.Beta())
 	for i := range rtg.tmpSwitchKey {
 		rtg.tmpSwitchKey[i][0] = context.contextQP.NewPoly()
 		rtg.tmpSwitchKey[i][1] = context.contextQP.NewPoly()
@@ -119,7 +116,7 @@ func NewRotKGProtocol(params *bfv.Parameters) (rtg *RTGProtocol) {
 	if err != nil {
 		panic(err)
 	}
-	rtg.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma, uint64(6*params.Sigma))
+	rtg.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma(), uint64(6*params.Sigma()))
 
 	return rtg
 }
@@ -156,7 +153,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 
 	var index uint64
 
-	for i := uint64(0); i < rtg.context.params.Beta; i++ {
+	for i := uint64(0); i < rtg.context.params.Beta(); i++ {
 
 		// e
 		rtg.gaussianSampler.Read(evakey[i])
@@ -167,9 +164,9 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 
 		// e + sk_in * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
-		for j := uint64(0); j < rtg.context.params.Alpha; j++ {
+		for j := uint64(0); j < rtg.context.params.Alpha(); j++ {
 
-			index = i*rtg.context.params.Alpha + j
+			index = i*rtg.context.params.Alpha() + j
 
 			qi := contextQP.Modulus[index]
 			tmp0 := rtg.tmpPoly[0].Coeffs[index]
@@ -180,7 +177,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= uint64(len(rtg.context.params.Qi)-1) {
+			if index >= uint64(rtg.context.params.QiCount()-1) {
 				break
 			}
 		}
@@ -208,7 +205,7 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
 
 	shareOut.Type = share1.Type
 	shareOut.K = share1.K
-	for i := uint64(0); i < rtg.context.params.Beta; i++ {
+	for i := uint64(0); i < rtg.context.params.Beta(); i++ {
 		contextKeys.Add(share1.Value[i], share2.Value[i], shareOut.Value[i])
 	}
 }
@@ -218,9 +215,9 @@ func (rtg *RTGProtocol) Finalize(share RTGShare, crp []*ring.Poly, rotKey *bfv.R
 
 	contextQP := rtg.context.contextQP
 
-	k := share.K & ((rtg.context.params.N >> 1) - 1)
+	k := share.K & ((rtg.context.n >> 1) - 1)
 
-	for i := uint64(0); i < rtg.context.params.Beta; i++ {
+	for i := uint64(0); i < rtg.context.params.Beta(); i++ {
 		contextQP.Copy(share.Value[i], rtg.tmpSwitchKey[i][0])
 		contextQP.Copy(crp[i], rtg.tmpSwitchKey[i][1])
 	}

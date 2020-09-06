@@ -78,10 +78,6 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params *Parameters) KeyGenerator {
 
-	if !params.isValid {
-		panic("cannot NewKeyGenerator: params not valid (check if they were generated properly)")
-	}
-
 	bfvContext := newBFVContext(params)
 	ringContext := bfvContext.contextQP
 	prng, err := utils.NewPRNG()
@@ -94,7 +90,7 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 		bfvContext:      bfvContext,
 		ringContext:     ringContext,
 		polypool:        [2]*ring.Poly{ringContext.NewPoly(), ringContext.NewPoly()},
-		gaussianSampler: ring.NewGaussianSampler(prng, bfvContext.contextQP, params.Sigma, uint64(6*params.Sigma)),
+		gaussianSampler: ring.NewGaussianSampler(prng, bfvContext.contextQP, params.Sigma(), uint64(6*params.Sigma())),
 		uniformSampler:  ring.NewUniformSampler(prng, bfvContext.contextQP),
 	}
 }
@@ -121,12 +117,8 @@ func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params *Parameters) *SecretKey {
 
-	if !params.isValid {
-		panic("cannot NewSecretKey: params not valid (check if they were generated properly)")
-	}
-
 	sk := new(SecretKey)
-	sk.sk = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
+	sk.sk = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
 	return sk
 }
 
@@ -163,14 +155,10 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
 
-	if !params.isValid {
-		panic("cannot NewPublicKey: params not valid (check if they were generated properly)")
-	}
-
 	pk = new(PublicKey)
 
-	pk.pk[0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
-	pk.pk[1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
+	pk.pk[0] = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
+	pk.pk[1] = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
 
 	return
 }
@@ -225,13 +213,9 @@ func (keygen *keyGenerator) GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *E
 // NewRelinKey creates a new EvaluationKey with zero values.
 func NewRelinKey(params *Parameters, maxDegree uint64) (evakey *EvaluationKey) {
 
-	if !params.isValid {
-		panic("cannot NewRelinKey: params not valid (check if they were generated properly)")
-	}
-
 	evakey = new(EvaluationKey)
 
-	beta := params.Beta
+	beta := params.Beta()
 
 	evakey.evakey = make([]*SwitchingKey, maxDegree)
 
@@ -243,8 +227,8 @@ func NewRelinKey(params *Parameters, maxDegree uint64) (evakey *EvaluationKey) {
 
 		for i := uint64(0); i < beta; i++ {
 
-			evakey.evakey[w].evakey[i][0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
-			evakey.evakey[w].evakey[i][1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
+			evakey.evakey[w].evakey[i][0] = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
+			evakey.evakey[w].evakey[i][1] = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
 		}
 	}
 
@@ -272,7 +256,6 @@ func (evk *EvaluationKey) SetRelinKeys(rlk [][][2]*ring.Poly) {
 
 // GenSwitchingKey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key.
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
-
 	if keygen.bfvContext.contextP == nil {
 		panic("Cannot GenRelinKey: modulus P is empty")
 	}
@@ -280,26 +263,75 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newev
 	keygen.ringContext.Copy(skInput.Get(), keygen.polypool[0])
 	newevakey = keygen.newSwitchingKey(keygen.polypool[0], skOutput.Get())
 	keygen.polypool[0].Zero()
+
 	return
 }
 
 // NewSwitchingKey returns a new SwitchingKey with zero values.
 func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 
-	if !params.isValid {
-		panic("cannot NewSwitchingKey: params not valid (check if they were generated properly)")
-	}
-
 	evakey = new(SwitchingKey)
 
-	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
-	evakey.evakey = make([][2]*ring.Poly, params.Beta)
+	beta := params.Beta()
 
-	for i := uint64(0); i < params.Beta; i++ {
-		evakey.evakey[i][0] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
-		evakey.evakey[i][1] = ring.NewPoly(uint64(1<<params.LogN), uint64(len(params.LogQi)+len(params.LogPi)))
+	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
+	evakey.evakey = make([][2]*ring.Poly, beta)
+
+	for i := uint64(0); i < beta; i++ {
+		evakey.evakey[i][0] = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
+		evakey.evakey[i][1] = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
 	}
 
+	return
+}
+
+func (keygen *keyGenerator) newswitchingkey(skIn, skOut *ring.Poly) (switchkey *SwitchingKey) {
+
+	switchkey = new(SwitchingKey)
+
+	bfvContext := keygen.bfvContext
+	ringContext := bfvContext.contextQP
+
+	var index uint64
+
+	// delta_sk = skIn - skOut = GaloisEnd(skOut, rotation) - skOut
+
+	switchkey.evakey = make([][2]*ring.Poly, keygen.params.Beta())
+
+	for i := uint64(0); i < keygen.params.Beta(); i++ {
+
+		// e
+		switchkey.evakey[i][0] = keygen.gaussianSampler.ReadNew()
+		ringContext.NTT(switchkey.evakey[i][0], switchkey.evakey[i][0])
+		ringContext.MForm(switchkey.evakey[i][0], switchkey.evakey[i][0])
+		// a
+		switchkey.evakey[i][1] = keygen.uniformSampler.ReadNew()
+
+		// e + skIn * (qiBarre*qiStar) * 2^w
+		// (qiBarre*qiStar)%qi = 1, else 0
+
+		for j := uint64(0); j < keygen.params.Alpha(); j++ {
+
+			index = i*keygen.params.Alpha() + j
+
+			qi := ringContext.Modulus[index]
+			p0tmp := skIn.Coeffs[index]
+			p1tmp := switchkey.evakey[i][0].Coeffs[index]
+
+			for w := uint64(0); w < ringContext.N; w++ {
+				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
+			}
+
+			// Handles the case where nb pj does not divide nb qi
+			if index >= uint64(len(ringContext.Modulus)-1) {
+				break
+			}
+
+		}
+
+		// skIn * (qiBarre*qiStar) * 2^w - a*sk + e
+		ringContext.MulCoeffsMontgomeryAndSub(switchkey.evakey[i][1], skOut, switchkey.evakey[i][0])
+	}
 	return
 }
 
@@ -351,7 +383,7 @@ func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 
 	rotKey = NewRotationKeys()
 
-	for n := uint64(1); n < 1<<(keygen.params.LogN-1); n <<= 1 {
+	for n := uint64(1); n < 1<<(keygen.params.LogN()-1); n <<= 1 {
 		keygen.GenRot(RotationLeft, skOutput, n, rotKey)
 		keygen.GenRot(RotationRight, skOutput, n, rotKey)
 	}
@@ -432,15 +464,18 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 	ringContext := keygen.ringContext
 
+	alpha := keygen.params.Alpha()
+	beta := keygen.params.Beta()
+
 	var index uint64
 
 	// delta_sk = skIn - skOut = GaloisEnd(skOut, rotation) - skOut
 
 	ringContext.MulScalarBigint(skIn, keygen.bfvContext.contextP.ModulusBigint, keygen.polypool[0])
 
-	switchingkey.evakey = make([][2]*ring.Poly, keygen.params.Beta)
+	switchingkey.evakey = make([][2]*ring.Poly, beta)
 
-	for i := uint64(0); i < keygen.params.Beta; i++ {
+	for i := uint64(0); i < beta; i++ {
 
 		// e
 		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNew()
@@ -452,9 +487,9 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 		// e + skIn * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
 
-		for j := uint64(0); j < keygen.params.Alpha; j++ {
+		for j := uint64(0); j < alpha; j++ {
 
-			index = i*keygen.params.Alpha + j
+			index = i*alpha + j
 
 			qi := ringContext.Modulus[index]
 			p0tmp := keygen.polypool[0].Coeffs[index]

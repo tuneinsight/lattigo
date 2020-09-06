@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/utils"
 	"math"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/utils"
 
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
@@ -48,11 +49,8 @@ func obliviousRiding() {
 	// Number of drivers in the area
 	nbDrivers := uint64(2048) //max is N
 
-	// BFV parameters (128 bit security)
-	params := bfv.DefaultParams[bfv.PN13QP218]
-
-	// Plaintext modulus
-	params.T = 0x3ee0001
+	// BFV parameters (128 bit security) with plaintext modulus 65929217
+	params := bfv.DefaultParams[bfv.PN13QP218].WithT(0x3ee0001)
 
 	encoder := bfv.NewEncoder(params)
 
@@ -74,10 +72,10 @@ func obliviousRiding() {
 	fmt.Println("============================================")
 	fmt.Println()
 	fmt.Printf("Parameters : N=%d, T=%d, Q = %d bits, sigma = %f \n",
-		1<<params.LogN, params.T, params.LogQP, params.Sigma)
+		1<<params.LogN(), params.T(), params.LogQP(), params.Sigma())
 	fmt.Println()
 
-	maxvalue := uint64(math.Sqrt(float64(params.T)))    // max values = floor(sqrt(plaintext modulus))
+	maxvalue := uint64(math.Sqrt(float64(params.T())))  // max values = floor(sqrt(plaintext modulus))
 	mask := uint64(1<<uint64(bits.Len64(maxvalue))) - 1 // binary mask uperbound for the uniform sampling
 
 	fmt.Printf("Generating %d driversData and 1 Rider randomly positioned on a grid of %d x %d units \n",
@@ -91,7 +89,7 @@ func obliviousRiding() {
 	// Rider coordinates [x, y, x, y, ....., x, y]
 	riderPosX, riderPosY := ring.RandUniform(prng, maxvalue, mask), ring.RandUniform(prng, maxvalue, mask)
 
-	Rider := make([]uint64, 1<<params.LogN)
+	Rider := make([]uint64, 1<<params.LogN())
 	for i := uint64(0); i < nbDrivers; i++ {
 		Rider[(i << 1)] = riderPosX
 		Rider[(i<<1)+1] = riderPosY
@@ -105,7 +103,7 @@ func obliviousRiding() {
 
 	driversPlaintexts := make([]*bfv.Plaintext, nbDrivers)
 	for i := uint64(0); i < nbDrivers; i++ {
-		driversData[i] = make([]uint64, 1<<params.LogN)
+		driversData[i] = make([]uint64, 1<<params.LogN())
 		driversData[i][(i << 1)] = ring.RandUniform(prng, maxvalue, mask)
 		driversData[i][(i<<1)+1] = ring.RandUniform(prng, maxvalue, mask)
 		driversPlaintexts[i] = bfv.NewPlaintext(params)
@@ -133,7 +131,7 @@ func obliviousRiding() {
 
 	result := encoder.DecodeUint(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)))
 
-	minIndex, minPosX, minPosY, minDist := uint64(0), params.T, params.T, params.T
+	minIndex, minPosX, minPosY, minDist := uint64(0), params.T(), params.T(), params.T()
 
 	errors := 0
 

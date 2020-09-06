@@ -28,10 +28,6 @@ type CKSShare *ring.Poly
 // parties.
 func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSProtocol) {
 
-	if !params.IsValid() {
-		panic("cannot NewCKSProtocol : params not valid (check if they where generated properly)")
-	}
-
 	cks = new(CKSProtocol)
 
 	dckksContext := newDckksContext(params)
@@ -47,7 +43,7 @@ func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSPro
 	if err != nil {
 		panic(err)
 	}
-	cks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma, uint64(6*params.Sigma))
+	cks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma(), uint64(6*params.Sigma()))
 
 	return cks
 }

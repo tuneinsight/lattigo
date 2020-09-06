@@ -37,10 +37,6 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 // NewRotKGProtocol creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
 func NewRotKGProtocol(params *ckks.Parameters) (rtg *RTGProtocol) {
 
-	if !params.IsValid() {
-		panic("cannot NewRotKGProtocol : params not valid (check if they where generated properly)")
-	}
-
 	rtg = new(RTGProtocol)
 
 	dckksContext := newDckksContext(params)
@@ -73,7 +69,7 @@ func NewRotKGProtocol(params *ckks.Parameters) (rtg *RTGProtocol) {
 	if err != nil {
 		panic(err)
 	}
-	rtg.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma, uint64(6*params.Sigma))
+	rtg.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma(), uint64(6*params.Sigma()))
 
 	rtg.galElRotRow = (N << 1) - 1
 
@@ -137,7 +133,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= uint64(len(rtg.dckksContext.params.Qi)-1) {
+			if index >= rtg.dckksContext.params.QiCount() {
 				break
 			}
 		}

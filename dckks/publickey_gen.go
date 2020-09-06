@@ -19,17 +19,13 @@ type CKGShare *ring.Poly
 // NewCKGProtocol creates a new CKGProtocol instance
 func NewCKGProtocol(params *ckks.Parameters) *CKGProtocol {
 
-	if !params.IsValid() {
-		panic("cannot NewCKGProtocol : params not valid (check if they where generated properly)")
-	}
-
 	ckg := new(CKGProtocol)
 	ckg.dckksContext = newDckksContext(params)
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.dckksContext.contextQP, params.Sigma, uint64(6*params.Sigma))
+	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.dckksContext.contextQP, params.Sigma(), uint64(6*params.Sigma()))
 	return ckg
 }
 

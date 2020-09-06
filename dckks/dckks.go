@@ -4,7 +4,6 @@ import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
-	"math"
 )
 
 type dckksContext struct {
@@ -22,31 +21,25 @@ type dckksContext struct {
 
 func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 
-	if !params.IsValid() {
-		panic("cannot newDckksContext : params not valid (check if they where generated properly)")
-	}
-
 	context = new(dckksContext)
 
 	context.params = params.Copy()
 
-	n := uint64(1 << params.LogN)
+	context.n = params.N()
 
-	context.n = n
-
-	context.alpha = uint64(len(params.Pi))
-	context.beta = uint64(math.Ceil(float64(len(params.Qi)) / float64(context.alpha)))
+	context.alpha = params.Alpha()
+	context.beta = params.Beta()
 
 	var err error
-	if context.contextQ, err = ring.NewContextWithParams(n, params.Qi); err != nil {
+	if context.contextQ, err = ring.NewContextWithParams(params.N(), params.Qi()); err != nil {
 		panic(err)
 	}
 
-	if context.contextP, err = ring.NewContextWithParams(n, params.Pi); err != nil {
+	if context.contextP, err = ring.NewContextWithParams(params.N(), params.Pi()); err != nil {
 		panic(err)
 	}
 
-	if context.contextQP, err = ring.NewContextWithParams(n, append(params.Qi, params.Pi...)); err != nil {
+	if context.contextQP, err = ring.NewContextWithParams(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
 		panic(err)
 	}
 

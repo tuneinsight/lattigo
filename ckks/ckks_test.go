@@ -82,6 +82,8 @@ func TestCKKS(t *testing.T) {
 
 func genTestParams(defaultParams *DefaultParam) (err error) {
 
+	params = new(testParams)
+
 	if params.params, err = NewParametersFromLogModuli(defaultParams.LogN, defaultParams.LogModuli); err != nil {
 		return err
 	}

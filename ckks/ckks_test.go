@@ -633,57 +633,60 @@ func testEvaluatorMultByConstAndAdd(t *testing.T) {
 
 func testEvaluatorMul(t *testing.T) {
 
-	t.Run(testString("CtCtInPlace/"), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
-		values2, _, ciphertext2 := newTestVectors(params.encryptorSk, 1, t)
-
-		for i := range values1 {
-			values2[i] *= values1[i]
-		}
-
-		params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext2)
-
-		verifyTestVectors(params.decryptor, values2, ciphertext2, t)
-	})
-
-	t.Run(testString("CtCtNew/"), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
-		values2, _, ciphertext2 := newTestVectors(params.encryptorSk, 1, t)
-
-		for i := range values1 {
-			values2[i] *= values1[i]
-		}
-
-		var ciphertext3 *Ciphertext
-		ciphertext3 = params.evaluator.MulRelinNew(ciphertext1, ciphertext2, nil)
-
-		verifyTestVectors(params.decryptor, values2, ciphertext3, t)
-	})
-
-	t.Run(testString("CtPlain/"), func(t *testing.T) {
+	t.Run(testString("ct0*pt->ct0/"), func(t *testing.T) {
 
 		values1, plaintext1, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
-		values2, plaintext2, ciphertext2 := newTestVectors(params.encryptorSk, 1, t)
 
 		for i := range values1 {
 			values1[i] *= values1[i]
-			values2[i] *= values2[i]
 		}
 
 		params.evaluator.MulRelin(ciphertext1, plaintext1, nil, ciphertext1)
 
 		verifyTestVectors(params.decryptor, values1, ciphertext1, t)
-
-		params.evaluator.MulRelin(plaintext2, ciphertext2, nil, ciphertext2)
-
-		verifyTestVectors(params.decryptor, values2, ciphertext2, t)
 	})
 
-	t.Run(testString("Relinearize/"), func(t *testing.T) {
+	t.Run(testString("pt*ct0->ct0/"), func(t *testing.T) {
 
-		rlk := params.kgen.GenRelinKey(params.sk)
+		values1, plaintext1, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
+
+		for i := range values1 {
+			values1[i] *= values1[i]
+		}
+
+		params.evaluator.MulRelin(ciphertext1, plaintext1, nil, ciphertext1)
+
+		verifyTestVectors(params.decryptor, values1, ciphertext1, t)
+	})
+
+	t.Run(testString("ct0*pt->ct1/"), func(t *testing.T) {
+
+		values1, plaintext1, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
+
+		for i := range values1 {
+			values1[i] *= values1[i]
+		}
+
+		ciphertext2 := params.evaluator.MulRelinNew(ciphertext1, plaintext1, nil)
+
+		verifyTestVectors(params.decryptor, values1, ciphertext2, t)
+	})
+
+	t.Run(testString("ct0*ct1->ct0/"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
+		values2, _, ciphertext2 := newTestVectors(params.encryptorSk, 1, t)
+
+		for i := range values1 {
+			values2[i] *= values1[i]
+		}
+
+		params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext1)
+
+		verifyTestVectors(params.decryptor, values2, ciphertext1, t)
+	})
+
+	t.Run(testString("ct0*ct1->ct1/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
 		values2, _, ciphertext2 := newTestVectors(params.encryptorSk, 1, t)
@@ -694,7 +697,79 @@ func testEvaluatorMul(t *testing.T) {
 
 		params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext2)
 
-		params.evaluator.Relinearize(ciphertext2, rlk, ciphertext2)
+		verifyTestVectors(params.decryptor, values2, ciphertext2, t)
+	})
+
+	t.Run(testString("ct0*ct1->ct2/"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
+		values2, _, ciphertext2 := newTestVectors(params.encryptorSk, 1, t)
+
+		for i := range values1 {
+			values2[i] *= values1[i]
+		}
+
+		ciphertext3 := params.evaluator.MulRelinNew(ciphertext1, ciphertext2, nil)
+
+		verifyTestVectors(params.decryptor, values2, ciphertext3, t)
+	})
+
+	t.Run(testString("ct0*ct0->ct0/"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
+
+		for i := range values1 {
+			values1[i] *= values1[i]
+		}
+
+		params.evaluator.MulRelin(ciphertext1, ciphertext1, nil, ciphertext1)
+
+		verifyTestVectors(params.decryptor, values1, ciphertext1, t)
+	})
+
+	t.Run(testString("ct0*ct0->ct1/"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
+
+		for i := range values1 {
+			values1[i] *= values1[i]
+		}
+
+		ciphertext2 := params.evaluator.MulRelinNew(ciphertext1, ciphertext1, nil)
+
+		verifyTestVectors(params.decryptor, values1, ciphertext2, t)
+	})
+
+	t.Run(testString("Relinearize(ct0*ct1->ct0)/"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
+		values2, _, ciphertext2 := newTestVectors(params.encryptorSk, 1, t)
+
+		for i := range values1 {
+			values1[i] *= values2[i]
+		}
+
+		params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext1)
+
+		params.evaluator.Relinearize(ciphertext1, params.rlk, ciphertext1)
+
+		require.Equal(t, ciphertext1.Degree(), uint64(1))
+
+		verifyTestVectors(params.decryptor, values2, ciphertext1, t)
+	})
+
+	t.Run(testString("Relinearize(ct0*ct1->ct1)/"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(params.encryptorSk, 1, t)
+		values2, _, ciphertext2 := newTestVectors(params.encryptorSk, 1, t)
+
+		for i := range values1 {
+			values2[i] *= values1[i]
+		}
+
+		params.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext2)
+
+		params.evaluator.Relinearize(ciphertext2, params.rlk, ciphertext2)
 
 		require.Equal(t, ciphertext2.Degree(), uint64(1))
 

@@ -94,15 +94,15 @@ func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
 	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.MaxLevel(), 0)
 
 	eval := bootcontext.evaluator.(*evaluator)
-	contextQ := eval.ckksContext.contextQ
-	contextP := eval.ckksContext.contextP
+	ringQ := eval.ringQ
+	ringP := eval.ringP
 
 	for i := range bootcontext.poolQ {
-		bootcontext.poolQ[i] = contextQ.NewPoly()
+		bootcontext.poolQ[i] = ringQ.NewPoly()
 	}
 
 	for i := range bootcontext.poolP {
-		bootcontext.poolP[i] = contextP.NewPoly()
+		bootcontext.poolP[i] = ringP.NewPoly()
 	}
 
 	return bootcontext
@@ -511,8 +511,8 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 
 	plaintextVec.Level = level
 	plaintextVec.Scale = scale
-	contextQ := bootcontext.evaluator.(*evaluator).ckksContext.contextQ
-	contextP := bootcontext.evaluator.(*evaluator).ckksContext.contextP
+	ringQ := bootcontext.evaluator.(*evaluator).ringQ
+	ringP := bootcontext.evaluator.(*evaluator).ringP
 	encoder := bootcontext.encoder.(*encoderComplex128)
 
 	for j := range index {
@@ -525,14 +525,14 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 			encoder.embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
 
 			plaintextQ := ring.NewPoly(N, level+1)
-			encoder.scaleUp(plaintextQ, scale, contextQ.Modulus[:level+1])
-			contextQ.NTTLvl(level, plaintextQ, plaintextQ)
-			contextQ.MFormLvl(level, plaintextQ, plaintextQ)
+			encoder.scaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
+			ringQ.NTTLvl(level, plaintextQ, plaintextQ)
+			ringQ.MFormLvl(level, plaintextQ, plaintextQ)
 
 			plaintextP := ring.NewPoly(N, level+1)
-			encoder.scaleUp(plaintextP, scale, contextP.Modulus)
-			contextP.NTT(plaintextP, plaintextP)
-			contextP.MForm(plaintextP, plaintextP)
+			encoder.scaleUp(plaintextP, scale, ringP.Modulus)
+			ringP.NTT(plaintextP, plaintextP)
+			ringP.MForm(plaintextP, plaintextP)
 
 			plaintextVec.Vec[N1*j+uint64(i)] = [2]*ring.Poly{plaintextQ, plaintextP}
 

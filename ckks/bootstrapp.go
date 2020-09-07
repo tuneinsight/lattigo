@@ -66,9 +66,9 @@ func (bootcontext *BootContext) subSum(ct *Ciphertext) *Ciphertext {
 
 func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 
-	contextQ := bootcontext.evaluator.(*evaluator).ckksContext.contextQ
+	ringQ := bootcontext.evaluator.(*evaluator).ringQ
 
-	ct.InvNTT(contextQ, ct.Element())
+	ct.InvNTT(ringQ, ct.Element())
 
 	// Extend the ciphertext with zero polynomials.
 	for u := range ct.Value() {
@@ -79,8 +79,8 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 	}
 
 	//Centers the values around Q0 and extends the basis from Q0 to QL
-	Q := contextQ.Modulus[0]
-	bredparams := contextQ.GetBredParams()
+	Q := ringQ.Modulus[0]
+	bredparams := ringQ.GetBredParams()
 
 	var coeff, qi uint64
 	for u := range ct.Value() {
@@ -91,7 +91,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 
 			for i := uint64(1); i < bootcontext.MaxLevel()+1; i++ {
 
-				qi = contextQ.Modulus[i]
+				qi = ringQ.Modulus[i]
 
 				if coeff > (Q >> 1) {
 					ct.Value()[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
@@ -102,7 +102,7 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 		}
 	}
 
-	ct.NTT(contextQ, ct.Element())
+	ct.NTT(ringQ, ct.Element())
 
 	return ct
 }
@@ -163,7 +163,7 @@ func (bootcontext *BootContext) dft(vec *Ciphertext, plainVectors []*dftvectors,
 	// Sequencially multiplies w with the provided dft matrices.
 	for _, plainVector := range plainVectors {
 		vec = bootcontext.multiplyByDiagMatrice(vec, plainVector)
-		evaluator.Rescale(vec, evaluator.ckksContext.scale, vec)
+		evaluator.Rescale(vec, evaluator.scale, vec)
 	}
 
 	return vec
@@ -172,8 +172,8 @@ func (bootcontext *BootContext) dft(vec *Ciphertext, plainVectors []*dftvectors,
 func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
 
 	eval := bootcontext.evaluator.(*evaluator)
-	contextQ := eval.ckksContext.contextQ
-	contextP := eval.ckksContext.contextP
+	ringQ := eval.ringQ
+	ringP := eval.ringP
 
 	levelQ := vec.Level()
 	levelP := bootcontext.PiCount() - 1
@@ -230,12 +230,12 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 
 	c0 := vec.value[0].CopyNew()
 
-	contextQ.MulScalarBigintLvl(levelQ, c0, contextP.ModulusBigint, c0)
+	ringQ.MulScalarBigintLvl(levelQ, c0, ringP.ModulusBigint, c0)
 
 	for _, i := range rotations {
 		if i != 0 {
 			ring.PermuteNTTWithIndexLvl(levelQ, c0, bootcontext.rotkeys.permuteNTTLeftIndex[i], tmpQ0) // phi(P*c0)
-			contextQ.AddLvl(levelQ, vecRotQ[i].value[0], tmpQ0, vecRotQ[i].value[0])                   // phi(d0_Q) += phi(P*c0)
+			ringQ.AddLvl(levelQ, vecRotQ[i].value[0], tmpQ0, vecRotQ[i].value[0])                      // phi(d0_Q) += phi(P*c0)
 		}
 	}
 
@@ -260,15 +260,15 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 					plaintextP := plainVectors.Vec[N1*j+uint64(i)][1]
 
 					if cnt1 == 0 {
-						contextQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(P*c0 + d0_Q) * plaintext
-						contextQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
-						contextP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
-						contextP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
+						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(P*c0 + d0_Q) * plaintext
+						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
+						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
+						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
 					} else {
-						contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(d0_Q) * plaintext
-						contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
-						contextP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
-						contextP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
+						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(d0_Q) * plaintext
+						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
+						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
+						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
 					}
 
 					cnt1++
@@ -282,13 +282,13 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			// If i == 0
 			if state {
 				N1Rot++
-				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[0], tmpResQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
-				contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[1], tmpResQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
+				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[0], tmpResQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[1], tmpResQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
 			}
 
 			// Outer loop rotations
 			ring.PermuteNTTWithIndexLvl(levelQ, tmpResQ0, bootcontext.rotkeys.permuteNTTLeftIndex[N1*j], tmpQ2) // phi(tmpRes_0)
-			contextQ.AddLvl(levelQ, res.value[0], tmpQ2, res.value[0])                                          // res += phi(tmpRes)
+			ringQ.AddLvl(levelQ, res.value[0], tmpQ2, res.value[0])                                             // res += phi(tmpRes)
 
 			eval.switchKeysInPlaceNoModDown(levelQ, tmpResQ1, bootcontext.rotkeys.evakeyRotColLeft[N1*j], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
 
@@ -309,10 +309,10 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			}
 
 			if cnt0 == 7 {
-				contextQ.ReduceLvl(levelQ, tmpQ0, tmpQ0)
-				contextQ.ReduceLvl(levelQ, tmpQ1, tmpQ1)
-				contextP.Reduce(tmpP0, tmpP0)
-				contextP.Reduce(tmpP1, tmpP1)
+				ringQ.ReduceLvl(levelQ, tmpQ0, tmpQ0)
+				ringQ.ReduceLvl(levelQ, tmpQ1, tmpQ1)
+				ringP.Reduce(tmpP0, tmpP0)
+				ringP.Reduce(tmpP1, tmpP1)
 			}
 
 			cnt0++
@@ -320,10 +320,10 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	}
 
 	if cnt0 != 7 {
-		contextQ.ReduceLvl(levelQ, tmpQ0, tmpQ0)
-		contextQ.ReduceLvl(levelQ, tmpQ1, tmpQ1)
-		contextP.Reduce(tmpP0, tmpP0)
-		contextP.Reduce(tmpP1, tmpP1)
+		ringQ.ReduceLvl(levelQ, tmpQ0, tmpQ0)
+		ringQ.ReduceLvl(levelQ, tmpQ1, tmpQ1)
+		ringP.Reduce(tmpP0, tmpP0)
+		ringP.Reduce(tmpP1, tmpP1)
 	}
 
 	// if j == 0 (N2 rotation by zero)
@@ -338,23 +338,23 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			plaintextP := plainVectors.Vec[uint64(i)][1]
 			N1Rot++
 			// keyswitch(c1_Q) = (d0_QP, d1_QP)
-			contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ0) // phi(P*c0 + d0_Q) * plaintext
-			contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ1) // phi(d1_Q) * plaintext
-			contextP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], tmpP0)            // phi(d0_P) * plaintext
-			contextP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], tmpP1)            // phi(d1_P) * plaintext
+			ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ0) // phi(P*c0 + d0_Q) * plaintext
+			ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ1) // phi(d1_Q) * plaintext
+			ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], tmpP0)            // phi(d0_P) * plaintext
+			ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], tmpP1)            // phi(d1_P) * plaintext
 		}
 	}
 
 	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ0, tmpP0, tmpQ0) // sum(phi(c0 * P + d0_QP))/P
 	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ1, tmpP1, tmpQ1) // sum(phi(d1_QP))/P
 
-	contextQ.AddLvl(levelQ, res.value[0], tmpQ0, res.value[0]) // res += sum(phi(c0 * P + d0_QP))/P
-	contextQ.AddLvl(levelQ, res.value[1], tmpQ1, res.value[1]) // res += sum(phi(d1_QP))/P
+	ringQ.AddLvl(levelQ, res.value[0], tmpQ0, res.value[0]) // res += sum(phi(c0 * P + d0_QP))/P
+	ringQ.AddLvl(levelQ, res.value[1], tmpQ1, res.value[1]) // res += sum(phi(d1_QP))/P
 
 	if state { // Rotation by zero
 		N1Rot++
-		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[0], res.value[0]) // res += c0_Q * plaintext
-		contextQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[1], res.value[1]) // res += c1_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[0], res.value[0]) // res += c0_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[1], res.value[1]) // res += c1_Q * plaintext
 	}
 
 	res.SetScale(plainVectors.Scale * vec.Scale())
@@ -372,14 +372,14 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	evaluator := bootcontext.evaluator.(*evaluator)
 
 	ct0.MulScale(bootcontext.deviation)
-	evaluator.ckksContext.scale = ct0.Scale() // Reference scale is changed to the new ciphertext's scale.
+	evaluator.scale = ct0.Scale() // Reference scale is changed to the new ciphertext's scale.
 
 	// pre-computes the target scale for the output of the polynomial evaluation such that
 	// the output scale after the polynomial evaluation followed by the double angle formula
 	// does not change the scale of the ciphertext.
 	for i := uint64(0); i < bootcontext.SinRescal; i++ {
-		evaluator.ckksContext.scale *= float64(evaluator.params.qi[bootcontext.StCLevel[0]+i+1])
-		evaluator.ckksContext.scale = math.Sqrt(evaluator.ckksContext.scale)
+		evaluator.scale *= float64(evaluator.params.qi[bootcontext.StCLevel[0]+i+1])
+		evaluator.scale = math.Sqrt(evaluator.scale)
 	}
 
 	ct0 = bootcontext.evaluateCheby(ct0)
@@ -393,7 +393,7 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
-	evaluator.ckksContext.scale = ct0.Scale()
+	evaluator.scale = ct0.Scale()
 
 	return ct0, ct1
 }
@@ -421,7 +421,7 @@ func (bootcontext *BootContext) evaluateCheby(ct *Ciphertext) (res *Ciphertext) 
 		eval.MulRelin(res, res, bootcontext.relinkey, res)
 		eval.Add(res, res, res)
 		eval.AddConst(res, -sqrt2pi, res)
-		eval.Rescale(res, eval.ckksContext.scale, res)
+		eval.Rescale(res, eval.scale, res)
 	}
 
 	C = nil

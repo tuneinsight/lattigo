@@ -227,8 +227,8 @@ var BootstrappParams = []*BootParams{
 	// SET V
 	// 1553 Cos - 505
 	{Parameters: Parameters{
-		logN:     16,
-		logSlots: 15,
+		logN:     14,
+		logSlots: 13,
 		scale:    1 << 30,
 		sigma:    DefaultSigma,
 	},

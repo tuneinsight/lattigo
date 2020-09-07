@@ -75,7 +75,7 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *Evaluati
 		computePowerBasis(1<<i, C, eval, evakey)
 	}
 
-	return recurse(eval.ckksContext.scale, logSplit, logDegree, pol, C, eval, evakey)
+	return recurse(eval.scale, logSplit, logDegree, pol, C, eval, evakey)
 }
 
 // EvaluateChebyFast evaluates the input Chebyshev polynomial with the input ciphertext.
@@ -88,7 +88,7 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 
 	eval.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
 	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	eval.Rescale(C[1], eval.ckksContext.scale, C[1])
+	eval.Rescale(C[1], eval.scale, C[1])
 
 	return eval.evalCheby(cheby, C, evakey)
 }
@@ -103,7 +103,7 @@ func (eval *evaluator) EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby 
 
 	eval.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
 	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	eval.Rescale(C[1], eval.ckksContext.scale, C[1])
+	eval.Rescale(C[1], eval.scale, C[1])
 
 	return eval.evalCheby(cheby, C, evakey)
 }
@@ -121,7 +121,7 @@ func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ci
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	return recurseCheby(eval.ckksContext.scale, logSplit, logDegree, &cheby.Poly, C, eval, evakey)
+	return recurseCheby(eval.scale, logSplit, logDegree, &cheby.Poly, C, eval, evakey)
 }
 
 func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) {
@@ -139,7 +139,7 @@ func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator,
 		// Computes C[n] = C[a]*C[b]
 		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
 
-		evaluator.Rescale(C[n], evaluator.ckksContext.scale, C[n])
+		evaluator.Rescale(C[n], evaluator.scale, C[n])
 	}
 }
 
@@ -172,7 +172,7 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evalu
 		// Computes C[n] = C[a]*C[b]
 		//fmt.Println("Mul", C[a].Level(), C[b].Level())
 		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
-		evaluator.Rescale(C[n], evaluator.ckksContext.scale, C[n])
+		evaluator.Rescale(C[n], evaluator.scale, C[n])
 
 		// Computes C[n] = 2*C[a]*C[b]
 		evaluator.Add(C[n], C[n], C[n])
@@ -300,13 +300,13 @@ func recurse(target_scale float64, logSplit, logDegree uint64, coeffs *Poly, C m
 	evaluator.MulRelin(res, C[nextPower], evakey, res)
 
 	if res.Level() > tmp.Level() {
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		evaluator.Rescale(res, evaluator.scale, res)
 		//fmt.Printf("%f = %d) + (%d %f) = ", res.Scale(), res.Level(), tmp.Level(), tmp.Scale())
 		evaluator.Add(res, tmp, res)
 		//fmt.Printf("(%d %f) %f\n", res.Level(), res.Scale(), res.Scale()-tmp.Scale())
 	} else {
 		evaluator.Add(res, tmp, res)
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		evaluator.Rescale(res, evaluator.scale, res)
 	}
 
 	tmp = nil
@@ -364,13 +364,13 @@ func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *Poly
 	evaluator.MulRelin(res, C[nextPower], evakey, res)
 
 	if res.Level() > tmp.Level() {
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		evaluator.Rescale(res, evaluator.scale, res)
 		//fmt.Printf("%f = %d) + (%d %f) = ", res.Scale(), res.Level(), tmp.Level(), tmp.Scale())
 		evaluator.Add(res, tmp, res)
 		//fmt.Printf("(%d %f) %f\n", res.Level(), res.Scale(), res.Scale()-tmp.Scale())
 	} else {
 		evaluator.Add(res, tmp, res)
-		evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+		evaluator.Rescale(res, evaluator.scale, res)
 	}
 
 	tmp = nil
@@ -420,7 +420,7 @@ func evaluatePolyFromPowerBasis(target_scale float64, coeffs *Poly, C map[uint64
 		}
 	}
 
-	evaluator.Rescale(res, evaluator.ckksContext.scale, res)
+	evaluator.Rescale(res, evaluator.scale, res)
 
 	return
 }

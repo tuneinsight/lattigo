@@ -19,13 +19,13 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 uint64, evakey *Evaluati
 
 		eval.MulRelin(op.Element(), op.Element(), evakey, opOut)
 
-		eval.Rescale(opOut, eval.ckksContext.scale, opOut)
+		eval.Rescale(opOut, eval.scale, opOut)
 
 		for i := uint64(1); i < logPow2; i++ {
 
 			eval.MulRelin(opOut.Element(), opOut.Element(), evakey, opOut)
 
-			eval.Rescale(opOut, eval.ckksContext.scale, opOut)
+			eval.Rescale(opOut, eval.scale, opOut)
 		}
 	}
 }
@@ -64,7 +64,7 @@ func (eval *evaluator) Power(op *Ciphertext, degree uint64, evakey *EvaluationKe
 
 		eval.MulRelin(opOut.Element(), tmp.Element(), evakey, opOut)
 
-		eval.Rescale(opOut, eval.ckksContext.scale, opOut)
+		eval.Rescale(opOut, eval.scale, opOut)
 
 		degree -= po2Degree
 	}
@@ -85,13 +85,13 @@ func (eval *evaluator) InverseNew(op *Ciphertext, steps uint64, evakey *Evaluati
 
 		eval.MulRelin(cbar.Element(), cbar.Element(), evakey, cbar.Ciphertext())
 
-		eval.Rescale(cbar, eval.ckksContext.scale, cbar)
+		eval.Rescale(cbar, eval.scale, cbar)
 
 		tmp = eval.AddConstNew(cbar, 1)
 
 		eval.MulRelin(tmp.Element(), opOut.Element(), evakey, tmp.Ciphertext())
 
-		eval.Rescale(tmp, eval.ckksContext.scale, tmp)
+		eval.Rescale(tmp, eval.scale, tmp)
 
 		opOut = tmp.CopyNew().Ciphertext()
 	}

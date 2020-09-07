@@ -45,7 +45,7 @@ func TestBootstrapp(t *testing.T) {
 		DefaultScale := params.params.scale
 
 		params.params.scale = SineScale
-		eval.(*evaluator).ckksContext.scale = SineScale
+		eval.(*evaluator).scale = SineScale
 
 		deg := 127
 		K := float64(15)
@@ -68,7 +68,7 @@ func TestBootstrapp(t *testing.T) {
 		verifyTestVectors(params.decryptor, values, ciphertext, t)
 
 		params.params.scale = DefaultScale
-		eval.(*evaluator).params.scale = DefaultScale
+		eval.(*evaluator).scale = DefaultScale
 	})
 
 	t.Run(testString("ChebyCos/"), func(t *testing.T) {
@@ -78,7 +78,7 @@ func TestBootstrapp(t *testing.T) {
 		DefaultScale := params.params.scale
 
 		params.params.scale = SineScale
-		eval.(*evaluator).ckksContext.scale = SineScale
+		eval.(*evaluator).scale = SineScale
 
 		K := 26
 		deg := 63
@@ -126,7 +126,7 @@ func TestBootstrapp(t *testing.T) {
 			params.evaluator.MulRelin(ciphertext, ciphertext, params.rlk, ciphertext)
 			params.evaluator.Add(ciphertext, ciphertext, ciphertext)
 			params.evaluator.AddConst(ciphertext, -sqrt2pi, ciphertext)
-			params.evaluator.Rescale(ciphertext, params.params.scale, ciphertext)
+			params.evaluator.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 		}
 
 		fmt.Printf("Elapsed : %s \n", time.Since(start))
@@ -134,7 +134,7 @@ func TestBootstrapp(t *testing.T) {
 		verifyTestVectors(params.decryptor, values, ciphertext, t)
 
 		params.params.scale = DefaultScale
-		eval.(*evaluator).params.scale = DefaultScale
+		eval.(*evaluator).scale = DefaultScale
 
 	})
 

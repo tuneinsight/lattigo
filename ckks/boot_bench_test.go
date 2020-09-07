@@ -17,9 +17,12 @@ func BenchmarkBootstrapp(b *testing.B) {
 	LTScale = 1 << 45
 	//SineScale = 1 << 55
 
-	bootparams := BootstrappParams[0]
-
+	bootparams := BootstrappParams[4]
 	bootparams.Gen()
+
+	if err := genTestParams(bootparams); err != nil {
+		panic(err)
+	}
 
 	prng, err := utils.NewPRNG()
 	if err != nil {

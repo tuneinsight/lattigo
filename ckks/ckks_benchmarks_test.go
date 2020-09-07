@@ -85,15 +85,21 @@ func benchEncrypt(b *testing.B) {
 	plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale())
 	ciphertext := NewCiphertext(params.params, 1, params.params.MaxLevel(), params.params.Scale())
 
-	b.Run(testString("Pk/"), func(b *testing.B) {
+	b.Run(testString("Pk/Slow"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintext, ciphertext)
 		}
 	})
 
+	b.Run(testString("Pk/Fast"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encryptorPk.EncryptFast(plaintext, ciphertext)
+		}
+	})
+
 	b.Run(testString("Sk/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encryptorSk.EncryptFast(plaintext, ciphertext)
+			encryptorSk.Encrypt(plaintext, ciphertext)
 		}
 	})
 }
@@ -164,11 +170,11 @@ func benchEvaluator(b *testing.B) {
 
 	b.Run(testString("Rescale/"), func(b *testing.B) {
 
-		contextQ := params.ckkscontext.contextQ
+		ringQ := params.ringQ
 
 		for i := 0; i < b.N; i++ {
-			contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
-			contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
+			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
+			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
 
 			b.StopTimer()
 			ciphertext1 = NewCiphertextRandom(params.prng, params.params, 1, params.params.MaxLevel(), params.params.Scale())
@@ -217,19 +223,19 @@ func benchHoistedRotations(b *testing.B) {
 
 	ciphertext := NewCiphertextRandom(params.prng, params.params, 1, params.params.MaxLevel(), params.params.Scale())
 
-	contextQ := params.ckkscontext.contextQ
-	contextP := params.ckkscontext.contextP
+	ringQ := params.ringQ
+	ringP := params.ringP
 
 	c2NTT := ciphertext.value[1]
-	c2InvNTT := contextQ.NewPoly()
-	contextQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
+	c2InvNTT := ringQ.NewPoly()
+	ringQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
 
 	c2QiQDecomp := make([]*ring.Poly, params.params.Beta())
 	c2QiPDecomp := make([]*ring.Poly, params.params.Beta())
 
 	for i := uint64(0); i < params.params.Beta(); i++ {
-		c2QiQDecomp[i] = contextQ.NewPoly()
-		c2QiPDecomp[i] = contextP.NewPoly()
+		c2QiQDecomp[i] = ringQ.NewPoly()
+		c2QiPDecomp[i] = ringP.NewPoly()
 	}
 
 	b.Run(testString("DecomposeNTT/"), func(b *testing.B) {

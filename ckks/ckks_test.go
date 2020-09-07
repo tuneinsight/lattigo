@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ldsec/lattigo/ring"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -33,8 +34,10 @@ func testString(opname string) string {
 
 type testParams struct {
 	params      *Parameters
+	ringQ       *ring.Context
+	ringP       *ring.Context
+	ringQP      *ring.Context
 	medianprec  float64
-	ckkscontext *Context
 	prng        utils.PRNG
 	encoder     Encoder
 	kgen        KeyGenerator
@@ -117,7 +120,19 @@ func genTestParams(defaultParams interface{}) (err error) {
 
 	}
 
-	params.ckkscontext = newContext(params.params)
+	if params.ringQ, err = ring.NewContextWithParams(params.params.N(), params.params.qi); err != nil {
+		panic(err)
+	}
+
+	if params.params.PiCount() != 0 {
+		if params.ringP, err = ring.NewContextWithParams(params.params.N(), params.params.pi); err != nil {
+			panic(err)
+		}
+
+		if params.ringQP, err = ring.NewContextWithParams(params.params.N(), append(params.params.qi, params.params.pi...)); err != nil {
+			panic(err)
+		}
+	}
 
 	if params.prng, err = utils.NewPRNG(); err != nil {
 		return err
@@ -544,7 +559,7 @@ func testEvaluatorRescale(t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(params.encryptorSk, 1, t)
 
-		constant := params.ckkscontext.contextQ.Modulus[ciphertext.Level()]
+		constant := params.ringQ.Modulus[ciphertext.Level()]
 
 		params.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
@@ -562,7 +577,7 @@ func testEvaluatorRescale(t *testing.T) {
 		nbRescales := params.params.MaxLevel()
 
 		for i := uint64(0); i < nbRescales; i++ {
-			constant := params.ckkscontext.contextQ.Modulus[ciphertext.Level()]
+			constant := params.ringQ.Modulus[ciphertext.Level()]
 			params.evaluator.MultByConst(ciphertext, constant, ciphertext)
 			ciphertext.MulScale(float64(constant))
 		}
@@ -1050,7 +1065,7 @@ func testRotateColumns(t *testing.T) {
 
 func testMarshaller(t *testing.T) {
 
-	contextQP := params.ckkscontext.contextQP
+	ringQP := params.ringQP
 
 	t.Run(testString("Ciphertext/"), func(t *testing.T) {
 		t.Run(testString("Ciphertext/EndToEnd"), func(t *testing.T) {
@@ -1069,7 +1084,7 @@ func testMarshaller(t *testing.T) {
 			require.Equal(t, ciphertextWant.Scale(), ciphertextTest.Scale())
 
 			for i := range ciphertextWant.value {
-				require.True(t, params.ckkscontext.contextQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]))
+				require.True(t, params.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]))
 			}
 		})
 
@@ -1101,7 +1116,7 @@ func testMarshaller(t *testing.T) {
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
-		require.True(t, contextQP.Equal(sk.sk, params.sk.sk))
+		require.True(t, ringQP.Equal(sk.sk, params.sk.sk))
 
 	})
 
@@ -1115,7 +1130,7 @@ func testMarshaller(t *testing.T) {
 		require.NoError(t, err)
 
 		for k := range params.pk.pk {
-			require.Truef(t, contextQP.Equal(pk.pk[k], params.pk.pk[k]), "Marshal PublicKey element [%d]", k)
+			require.Truef(t, ringQP.Equal(pk.pk[k], params.pk.pk[k]), "Marshal PublicKey element [%d]", k)
 		}
 	})
 
@@ -1134,7 +1149,7 @@ func testMarshaller(t *testing.T) {
 
 		for j := range evakeyWant {
 			for k := range evakeyWant[j] {
-				require.Truef(t, contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal EvaluationKey element [%d][%d]", j, k)
+				require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal EvaluationKey element [%d][%d]", j, k)
 			}
 		}
 	})
@@ -1156,7 +1171,7 @@ func testMarshaller(t *testing.T) {
 
 		for j := range evakeyWant {
 			for k := range evakeyWant[j] {
-				require.True(t, contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]))
+				require.True(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]))
 			}
 		}
 	})
@@ -1178,7 +1193,7 @@ func testMarshaller(t *testing.T) {
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		for i := uint64(1); i < params.ckkscontext.n>>1; i++ {
+		for i := uint64(1); i < params.ringQ.N>>1; i++ {
 
 			if rotationKey.evakeyRotColLeft[i] != nil {
 
@@ -1192,7 +1207,7 @@ func testMarshaller(t *testing.T) {
 
 				for j := range evakeyWant {
 					for k := range evakeyWant[j] {
-						require.Truef(t, contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
+						require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
 					}
 				}
 			}
@@ -1209,7 +1224,7 @@ func testMarshaller(t *testing.T) {
 
 				for j := range evakeyWant {
 					for k := range evakeyWant[j] {
-						require.Truef(t, contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
+						require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
 					}
 				}
 			}
@@ -1227,7 +1242,7 @@ func testMarshaller(t *testing.T) {
 
 			for j := range evakeyWant {
 				for k := range evakeyWant[j] {
-					require.Truef(t, contextQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateRow element [%d][%d]", j, k)
+					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateRow element [%d][%d]", j, k)
 				}
 			}
 		}

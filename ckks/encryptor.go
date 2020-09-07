@@ -57,9 +57,12 @@ type Encryptor interface {
 
 // encryptor is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
 type encryptor struct {
-	params      *Parameters
-	ckksContext *Context
-	polypool    [3]*ring.Poly
+	params *Parameters
+
+	ringQ  *ring.Context
+	ringQP *ring.Context
+
+	polypool [3]*ring.Poly
 
 	baseconverter              *ring.FastBasisExtender
 	gaussianSamplerQ           *ring.GaussianSampler
@@ -106,12 +109,21 @@ func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
 
 func newEncryptor(params *Parameters) encryptor {
 
-	ctx := newContext(params)
-	qp := ctx.contextQP
+	var q, qp *ring.Context
+	if q, err = ring.NewContextWithParams(params.N(), params.qi); err != nil {
+		panic(err)
+	}
 
 	var baseconverter *ring.FastBasisExtender
 	if params.PiCount() != 0 {
-		baseconverter = ring.NewFastBasisExtender(ctx.contextQ, ctx.contextP)
+
+		if qp, err = ring.NewContextWithParams(params.N(), append(params.qi, params.pi...)); err != nil {
+			panic(err)
+		}
+
+		p := new(ring.Context)
+		p.SetParameters(params.N(), params.pi)
+		baseconverter = ring.NewFastBasisExtender(q, p)
 	}
 
 	prng, err := utils.NewPRNG()
@@ -121,15 +133,16 @@ func newEncryptor(params *Parameters) encryptor {
 
 	return encryptor{
 		params:                     params.Copy(),
-		ckksContext:                ctx,
+		ringQ:                      q,
+		ringQP:                     qp,
 		polypool:                   [3]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly()},
 		baseconverter:              baseconverter,
-		gaussianSamplerQ:           ring.NewGaussianSampler(prng, ctx.contextQ, params.sigma, uint64(6*params.sigma)),
-		uniformSamplerQ:            ring.NewUniformSampler(prng, ctx.contextQ),
-		ternarySamplerMontgomeryQ:  ring.NewTernarySampler(prng, ctx.contextQ, 0.5, true),
-		gaussianSamplerQP:          ring.NewGaussianSampler(prng, ctx.contextQP, params.sigma, uint64(6*params.sigma)),
-		uniformSamplerQP:           ring.NewUniformSampler(prng, ctx.contextQP),
-		ternarySamplerMontgomeryQP: ring.NewTernarySampler(prng, ctx.contextQP, 0.5, true),
+		gaussianSamplerQ:           ring.NewGaussianSampler(prng, q, params.sigma, uint64(6*params.sigma)),
+		uniformSamplerQ:            ring.NewUniformSampler(prng, q),
+		ternarySamplerMontgomeryQ:  ring.NewTernarySampler(prng, q, 0.5, true),
+		gaussianSamplerQP:          ring.NewGaussianSampler(prng, qp, params.sigma, uint64(6*params.sigma)),
+		uniformSamplerQP:           ring.NewUniformSampler(prng, qp),
+		ternarySamplerMontgomeryQP: ring.NewTernarySampler(prng, qp, 0.5, true),
 	}
 }
 
@@ -195,59 +208,59 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 	// We sample a R-WLE instance (encryption of zero) over the keys context (ciphertext context + special prime)
 
-	contextQ := encryptor.ckksContext.contextQ
+	ringQ := encryptor.ringQ
 
 	if fast {
 
 		level := encryptor.params.QiCount() - 1
 
 		encryptor.ternarySamplerMontgomeryQ.Read(encryptor.polypool[2])
-		contextQ.NTT(encryptor.polypool[2], encryptor.polypool[2])
+		ringQ.NTT(encryptor.polypool[2], encryptor.polypool[2])
 
 		// ct0 = u*pk0
-		contextQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], ciphertext.value[0])
+		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], ciphertext.value[0])
 		// ct1 = u*pk1
-		contextQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], ciphertext.value[1])
+		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], ciphertext.value[1])
 
 		// ct1 = u*pk1 + e1
 		encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
-		contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
-		contextQ.Add(ciphertext.value[1], encryptor.polypool[0], ciphertext.value[1])
+		ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+		ringQ.Add(ciphertext.value[1], encryptor.polypool[0], ciphertext.value[1])
 
 		if !plaintext.isNTT {
 
 			// ct0 = u*pk0 + e0
 			encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
 			// ct0 = (u*pk0 + e0)/P + m
-			contextQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
-			contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
-			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+			ringQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
+			ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+			ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 
 		} else {
 			// ct0 = u*pk0 + e0
 			encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
-			contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
-			contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
-			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+			ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+			ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+			ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 		}
 
 	} else {
 
-		contextQP := encryptor.ckksContext.contextQP
+		ringQP := encryptor.ringQP
 
-		level := uint64(len(contextQP.Modulus) - 1)
+		level := uint64(len(ringQP.Modulus) - 1)
 
 		encryptor.ternarySamplerMontgomeryQP.Read(encryptor.polypool[2])
-		contextQP.NTT(encryptor.polypool[2], encryptor.polypool[2])
+		ringQP.NTT(encryptor.polypool[2], encryptor.polypool[2])
 
 		// ct0 = u*pk0
-		contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
+		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 		// ct1 = u*pk1
-		contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
+		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
 		// 2*(#Q + #P) NTT
-		contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
-		contextQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+		ringQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+		ringQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct0 = u*pk0 + e0
 		encryptor.gaussianSamplerQP.ReadAndAddLvl(level, encryptor.polypool[0])
@@ -261,16 +274,16 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[1], ciphertext.value[1])
 
 		if !plaintext.isNTT {
-			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+			ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 		}
 
 		// 2*#Q NTT
-		contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
-		contextQ.NTT(ciphertext.value[1], ciphertext.value[1])
+		ringQ.NTT(ciphertext.value[0], ciphertext.value[0])
+		ringQ.NTT(ciphertext.value[1], ciphertext.value[1])
 
 		if plaintext.isNTT {
 			// ct0 = (u*pk0 + e0)/P + m
-			contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+			ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 		}
 	}
 
@@ -327,29 +340,29 @@ func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ci
 }
 
 func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	encryptor.ckksContext.contextQ.Copy(crp, ciphertext.value[1])
+	encryptor.ringQ.Copy(crp, ciphertext.value[1])
 	encryptor.encrypt(plaintext, ciphertext, ciphertext.value[1])
 }
 
 func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
 
-	contextQ := encryptor.ckksContext.contextQ
+	ringQ := encryptor.ringQ
 
 	level := encryptor.params.QiCount() - 1
 
-	contextQ.MulCoeffsMontgomery(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
-	contextQ.Neg(ciphertext.value[0], ciphertext.value[0])
+	ringQ.MulCoeffsMontgomery(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
+	ringQ.Neg(ciphertext.value[0], ciphertext.value[0])
 
 	if plaintext.isNTT {
 		encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
-		contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
-		contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
-		contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+		ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+		ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 	} else {
 		encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
-		contextQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
-		contextQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
-		contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+		ringQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
+		ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+		ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 	}
 
 	ciphertext.isNTT = true

@@ -152,15 +152,15 @@ func PermuteNTTWithIndexAndAddNoModLvl(level uint64, polIn *Poly, index []uint64
 // Permute applies the galois transform on a polynonial outside of the NTT domain.
 // It maps the coefficients x^i to x^(gen*i)
 // Careful, not inplace!
-func (context *Ring) Permute(polIn *Poly, gen uint64, polOut *Poly) {
+func (r *Ring) Permute(polIn *Poly, gen uint64, polOut *Poly) {
 
 	var mask, index, indexRaw, logN, tmp uint64
 
-	mask = context.N - 1
+	mask = r.N - 1
 
 	logN = uint64(bits.Len64(mask))
 
-	for i := uint64(0); i < context.N; i++ {
+	for i := uint64(0); i < r.N; i++ {
 
 		indexRaw = i * gen
 
@@ -168,7 +168,7 @@ func (context *Ring) Permute(polIn *Poly, gen uint64, polOut *Poly) {
 
 		tmp = (indexRaw >> logN) & 1
 
-		for j, qi := range context.Modulus {
+		for j, qi := range r.Modulus {
 
 			polOut.Coeffs[j][index] = polIn.Coeffs[j][i]*(tmp^1) | (qi-polIn.Coeffs[j][i])*tmp
 		}

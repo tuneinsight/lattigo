@@ -59,22 +59,22 @@ func NewEncoder(params *Parameters) Encoder {
 		params:      params.Copy(),
 		bfvContext:  bfvContext,
 		indexMatrix: indexMatrix,
-		deltaMont:   GenLiftParams(bfvContext.contextQ, params.t),
-		scaler:      ring.NewRNSScaler(params.t, bfvContext.contextQ),
-		polypool:    bfvContext.contextT.NewPoly(),
+		deltaMont:   GenLiftParams(bfvContext.ringQ, params.t),
+		scaler:      ring.NewRNSScaler(params.t, bfvContext.ringQ),
+		polypool:    bfvContext.ringT.NewPoly(),
 	}
 }
 
 // GenLiftParams generates the lifting parameters.
-func GenLiftParams(context *ring.Ring, t uint64) (deltaMont []uint64) {
+func GenLiftParams(ringQ *ring.Ring, t uint64) (deltaMont []uint64) {
 
-	delta := new(big.Int).Quo(context.ModulusBigint, ring.NewUint(t))
+	delta := new(big.Int).Quo(ringQ.ModulusBigint, ring.NewUint(t))
 
-	deltaMont = make([]uint64, len(context.Modulus))
+	deltaMont = make([]uint64, len(ringQ.Modulus))
 
 	tmp := new(big.Int)
-	bredParams := context.GetBredParams()
-	for i, Qi := range context.Modulus {
+	bredParams := ringQ.BredParams
+	for i, Qi := range ringQ.Modulus {
 		deltaMont[i] = tmp.Mod(delta, ring.NewUint(Qi)).Uint64()
 		deltaMont[i] = ring.MForm(deltaMont[i], Qi, bredParams[i])
 	}
@@ -86,11 +86,11 @@ func GenLiftParams(context *ring.Ring, t uint64) (deltaMont []uint64) {
 func (encoder *encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
-		panic("cannot EncodeUint: invalid input to encode (number of coefficients must be smaller or equal to the context)")
+		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
 	}
 
 	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
-		panic("cannot EncodeUint: invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder)")
+		panic("invalid plaintext to receive encoding: number of coefficients does not match the parameters")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
@@ -110,11 +110,11 @@ func (encoder *encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
-		panic("cannot EncodeInt: invalid input to encode (number of coefficients must be smaller or equal to the context)")
+		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
 	}
 
 	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
-		panic("cannot EncodeInt: invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder)")
+		panic("invalid plaintext to receive encoding: number of coefficients does not match the parameters")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
@@ -135,16 +135,16 @@ func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 
 func (encoder *encoder) encodePlaintext(p *Plaintext) {
 
-	encoder.bfvContext.contextT.InvNTT(p.value, p.value)
+	encoder.bfvContext.ringT.InvNTT(p.value, p.value)
 
-	ringContext := encoder.bfvContext.contextQ
+	ringContext := encoder.bfvContext.ringQ
 
 	for i := len(ringContext.Modulus) - 1; i >= 0; i-- {
 		tmp1 := p.value.Coeffs[i]
 		tmp2 := p.value.Coeffs[0]
 		deltaMont := encoder.deltaMont[i]
 		qi := ringContext.Modulus[i]
-		bredParams := ringContext.GetMredParams()[i]
+		bredParams := ringContext.MredParams[i]
 		for j := uint64(0); j < ringContext.N; j++ {
 			tmp1[j] = ring.MRed(tmp2[j], deltaMont, qi, bredParams)
 		}
@@ -156,7 +156,7 @@ func (encoder *encoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64) {
 
 	encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
 
-	encoder.bfvContext.contextT.NTT(encoder.polypool, encoder.polypool)
+	encoder.bfvContext.ringT.NTT(encoder.polypool, encoder.polypool)
 
 	coeffs = make([]uint64, encoder.bfvContext.n)
 
@@ -176,7 +176,7 @@ func (encoder *encoder) DecodeInt(plaintext *Plaintext) (coeffs []int64) {
 
 	encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
 
-	encoder.bfvContext.contextT.NTT(encoder.polypool, encoder.polypool)
+	encoder.bfvContext.ringT.NTT(encoder.polypool, encoder.polypool)
 
 	coeffs = make([]int64, encoder.bfvContext.n)
 

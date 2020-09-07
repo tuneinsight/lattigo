@@ -85,7 +85,7 @@ func (r *Ring) setParameters(N uint64, Modulus []uint64) {
 
 	for i, qi := range r.Modulus {
 
-		//Computes the fast modular reduction parameters for the Context
+		//Computes the fast modular reduction parameters for the ring
 		r.BredParams[i] = BRedParams(qi)
 
 		// If qi is not a power of 2, we can compute the MRedParams (else it should not
@@ -107,7 +107,7 @@ func (r *Ring) genNTTParams() error {
 	}
 
 	if r.N == 0 || r.Modulus == nil {
-		panic("error : invalid context parameters (missing)")
+		panic("error : invalid ring parameters (missing)")
 	}
 
 	// Checks if each qi is Prime and if qi = 1 mod 2n
@@ -181,13 +181,13 @@ func (r *Ring) genNTTParams() error {
 	return nil
 }
 
-// Used to export the context. Minimal information to recover the full context.
+// Used to export the ring. Minimal information to recover the full ring.
 type smallContext struct {
 	N       uint64
 	Modulus []uint64
 }
 
-// MarshalBinary encodes the target ring context on a slice of bytes.
+// MarshalBinary encodes the target ring ring on a slice of bytes.
 func (r *Ring) MarshalBinary() ([]byte, error) {
 
 	parameters := smallContext{r.N, r.Modulus}
@@ -200,7 +200,7 @@ func (r *Ring) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// UnmarshalBinary decodes slice of bytes on the target ring context.
+// UnmarshalBinary decodes slice of bytes on the target ring ring.
 func (r *Ring) UnmarshalBinary(data []byte) error {
 
 	parameters := smallContext{}
@@ -392,7 +392,7 @@ func (r *Ring) PolyToBigintNoAlloc(p1 *Poly, coeffsBigint []*big.Int) {
 	}
 }
 
-// Equal checks if p1 = p2 in the given context.
+// Equal checks if p1 = p2 in the given ring.
 func (r *Ring) Equal(p1, p2 *Poly) bool {
 
 	for i := 0; i < len(r.Modulus); i++ {
@@ -415,7 +415,7 @@ func (r *Ring) Equal(p1, p2 *Poly) bool {
 	return true
 }
 
-// EqualLvl checks if p1 = p2 in the given context.
+// EqualLvl checks if p1 = p2 in the given ring.
 func (r *Ring) EqualLvl(level uint64, p1, p2 *Poly) bool {
 
 	for i := uint64(0); i < level+1; i++ {

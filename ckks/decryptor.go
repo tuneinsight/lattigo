@@ -24,7 +24,7 @@ type decryptor struct {
 func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 
 	if sk.sk.GetDegree() != int(params.n) {
-		panic("cannot newDecryptor: secret_key degree must match context degree")
+		panic("cannot newDecryptor: secret_key degree must match polynomial degree")
 	}
 
 	return &decryptor{
@@ -49,27 +49,27 @@ func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 // Horner method is used for evaluating the decryption.
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
-	context := decryptor.ckksContext.contextQ
+	ringQ := decryptor.ckksContext.ringQ
 
 	level := ciphertext.Level()
 
 	plaintext.SetScale(ciphertext.Scale())
 
-	context.CopyLvl(level, ciphertext.value[ciphertext.Degree()], plaintext.value)
+	ringQ.CopyLvl(level, ciphertext.value[ciphertext.Degree()], plaintext.value)
 
 	plaintext.value.Coeffs = plaintext.value.Coeffs[:ciphertext.Level()+1]
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
 
-		context.MulCoeffsMontgomeryLvl(level, plaintext.value, decryptor.sk.sk, plaintext.value)
-		context.AddLvl(level, plaintext.value, ciphertext.value[i-1], plaintext.value)
+		ringQ.MulCoeffsMontgomeryLvl(level, plaintext.value, decryptor.sk.sk, plaintext.value)
+		ringQ.AddLvl(level, plaintext.value, ciphertext.value[i-1], plaintext.value)
 
 		if i&7 == 7 {
-			context.ReduceLvl(level, plaintext.value, plaintext.value)
+			ringQ.ReduceLvl(level, plaintext.value, plaintext.value)
 		}
 	}
 
 	if (ciphertext.Degree())&7 != 7 {
-		context.ReduceLvl(level, plaintext.value, plaintext.value)
+		ringQ.ReduceLvl(level, plaintext.value, plaintext.value)
 	}
 }

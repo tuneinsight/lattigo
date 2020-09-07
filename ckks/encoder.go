@@ -1,9 +1,10 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
 	"math"
 	"math/big"
+
+	"github.com/ldsec/lattigo/ring"
 )
 
 // Encoder is an interface implenting the encoding algorithms.
@@ -61,7 +62,7 @@ func NewEncoder(params *Parameters) Encoder {
 		valuesfloat:  make([]float64, m>>1),
 		bigintCoeffs: make([]*big.Int, m>>1),
 		qHalf:        ring.NewUint(0),
-		polypool:     ckksContext.contextQ.NewPoly(),
+		polypool:     ckksContext.ringQ.NewPoly(),
 		m:            m,
 		rotGroup:     rotGroup,
 		roots:        roots,
@@ -98,7 +99,7 @@ func (encoder *encoder) Encode(plaintext *Plaintext, values []complex128, slots 
 		encoder.valuesfloat[jdx] = imag(encoder.values[i])
 	}
 
-	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
+	scaleUpVecExact(encoder.valuesfloat, plaintext.scale, encoder.ckksContext.ringQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
 	for i := range encoder.values {
 		encoder.values[i] = 0
@@ -121,7 +122,7 @@ func (encoder *encoder) EncodeNTT(plaintext *Plaintext, values []complex128, slo
 
 	encoder.Encode(plaintext, values, slots)
 
-	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+	encoder.ckksContext.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 
 	plaintext.isNTT = true
 }
@@ -134,7 +135,7 @@ func (encoder *encoder) EncodeCoeffs(values []float64, plaintext *Plaintext) {
 		panic("cannot EncodeCoeffs : too many values (maximum is N)")
 	}
 
-	scaleUpVecExact(values, plaintext.scale, encoder.ckksContext.contextQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
+	scaleUpVecExact(values, plaintext.scale, encoder.ckksContext.ringQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
 	plaintext.isNTT = false
 }
@@ -143,7 +144,7 @@ func (encoder *encoder) EncodeCoeffs(values []float64, plaintext *Plaintext) {
 // and returns a scaled integer plaintext polynomial in NTT.
 func (encoder *encoder) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
 	encoder.EncodeCoeffs(values, plaintext)
-	encoder.ckksContext.contextQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+	encoder.ckksContext.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 	plaintext.isNTT = true
 }
 
@@ -151,9 +152,9 @@ func (encoder *encoder) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) 
 func (encoder *encoder) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
 
 	if plaintext.isNTT {
-		encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+		encoder.ckksContext.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	} else {
-		encoder.ckksContext.contextQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+		encoder.ckksContext.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
 
 	res = make([]float64, encoder.params.n)
@@ -161,7 +162,7 @@ func (encoder *encoder) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
 	// We have more than one moduli and need the CRT reconstruction
 	if plaintext.Level() > 0 {
 
-		encoder.ckksContext.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
+		encoder.ckksContext.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
 		Q := encoder.ckksContext.bigintChain[plaintext.Level()]
 
@@ -185,7 +186,7 @@ func (encoder *encoder) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
 		// We can directly get the coefficients
 	} else {
 
-		Q := encoder.ckksContext.contextQ.Modulus[0]
+		Q := encoder.ckksContext.ringQ.Modulus[0]
 		coeffs := encoder.polypool.Coeffs[0]
 
 		for i := range res {
@@ -207,9 +208,9 @@ func (encoder *encoder) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
 func (encoder *encoder) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 
 	if plaintext.isNTT {
-		encoder.ckksContext.contextQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+		encoder.ckksContext.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	} else {
-		encoder.ckksContext.contextQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+		encoder.ckksContext.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
 
 	maxSlots := encoder.ckksContext.maxSlots
@@ -218,7 +219,7 @@ func (encoder *encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 	// We have more than one moduli and need the CRT reconstruction
 	if plaintext.Level() > 0 {
 
-		encoder.ckksContext.contextQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
+		encoder.ckksContext.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
 		Q := encoder.ckksContext.bigintChain[plaintext.Level()]
 
@@ -248,7 +249,7 @@ func (encoder *encoder) Decode(plaintext *Plaintext, slots uint64) (res []comple
 		// We can directly get the coefficients
 	} else {
 
-		Q := encoder.ckksContext.contextQ.Modulus[0]
+		Q := encoder.ckksContext.ringQ.Modulus[0]
 		coeffs := encoder.polypool.Coeffs[0]
 
 		var real, imag float64

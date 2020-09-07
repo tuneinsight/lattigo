@@ -71,7 +71,7 @@ func genTestParams(contextParameters *Parameters) (err error) {
 		return err
 	}
 
-	params.uSampler = ring.NewUniformSampler(params.prng, params.bfvContext.contextT)
+	params.uSampler = ring.NewUniformSampler(params.prng, params.bfvContext.ringT)
 	params.kgen = NewKeyGenerator(params.params)
 	params.sk, params.pk = params.kgen.GenKeyPair()
 	params.rlk = params.kgen.GenRelinKey(params.sk, 1)
@@ -173,7 +173,7 @@ func testEvaluatorAdd(t *testing.T) {
 		values2, _, ciphertext2 := newTestVectors(params.encryptorPk, t)
 
 		params.evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
-		params.bfvContext.contextT.Add(values1, values2, values1)
+		params.bfvContext.ringT.Add(values1, values2, values1)
 
 		verifyTestVectors(params.decryptor, values1, ciphertext1, t)
 	})
@@ -184,7 +184,7 @@ func testEvaluatorAdd(t *testing.T) {
 		values2, _, ciphertext2 := newTestVectors(params.encryptorPk, t)
 
 		ciphertext1 = params.evaluator.AddNew(ciphertext1, ciphertext2)
-		params.bfvContext.contextT.Add(values1, values2, values1)
+		params.bfvContext.ringT.Add(values1, values2, values1)
 
 		verifyTestVectors(params.decryptor, values1, ciphertext1, t)
 	})
@@ -195,7 +195,7 @@ func testEvaluatorAdd(t *testing.T) {
 		values2, plaintext2, ciphertext2 := newTestVectors(params.encryptorPk, t)
 
 		params.evaluator.Add(ciphertext1, plaintext2, ciphertext2)
-		params.bfvContext.contextT.Add(values1, values2, values2)
+		params.bfvContext.ringT.Add(values1, values2, values2)
 
 		verifyTestVectors(params.decryptor, values2, ciphertext2, t)
 
@@ -213,7 +213,7 @@ func testEvaluatorSub(t *testing.T) {
 		values2, _, ciphertext2 := newTestVectors(params.encryptorPk, t)
 
 		params.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1)
-		params.bfvContext.contextT.Sub(values1, values2, values1)
+		params.bfvContext.ringT.Sub(values1, values2, values1)
 
 		verifyTestVectors(params.decryptor, values1, ciphertext1, t)
 	})
@@ -224,7 +224,7 @@ func testEvaluatorSub(t *testing.T) {
 		values2, _, ciphertext2 := newTestVectors(params.encryptorPk, t)
 
 		ciphertext1 = params.evaluator.SubNew(ciphertext1, ciphertext2)
-		params.bfvContext.contextT.Sub(values1, values2, values1)
+		params.bfvContext.ringT.Sub(values1, values2, values1)
 
 		verifyTestVectors(params.decryptor, values1, ciphertext1, t)
 	})
@@ -234,14 +234,14 @@ func testEvaluatorSub(t *testing.T) {
 		values1, _, ciphertext1 := newTestVectors(params.encryptorPk, t)
 		values2, plaintext2, ciphertext2 := newTestVectors(params.encryptorPk, t)
 
-		valuesWant := params.bfvContext.contextT.NewPoly()
+		valuesWant := params.bfvContext.ringT.NewPoly()
 
 		params.evaluator.Sub(ciphertext1, plaintext2, ciphertext2)
-		params.bfvContext.contextT.Sub(values1, values2, valuesWant)
+		params.bfvContext.ringT.Sub(values1, values2, valuesWant)
 		verifyTestVectors(params.decryptor, valuesWant, ciphertext2, t)
 
 		params.evaluator.Sub(plaintext2, ciphertext1, ciphertext2)
-		params.bfvContext.contextT.Sub(values2, values1, valuesWant)
+		params.bfvContext.ringT.Sub(values2, values1, valuesWant)
 		verifyTestVectors(params.decryptor, valuesWant, ciphertext2, t)
 	})
 }
@@ -255,7 +255,7 @@ func testEvaluatorMul(t *testing.T) {
 
 		receiver := NewCiphertext(params.params, ciphertext1.Degree()+ciphertext2.Degree())
 		params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
-		params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
+		params.bfvContext.ringT.MulCoeffs(values1, values2, values1)
 
 		verifyTestVectors(params.decryptor, values1, receiver, t)
 	})
@@ -266,7 +266,7 @@ func testEvaluatorMul(t *testing.T) {
 		values2, plaintext2, _ := newTestVectors(params.encryptorPk, t)
 
 		params.evaluator.Mul(ciphertext1, plaintext2, ciphertext1)
-		params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
+		params.bfvContext.ringT.MulCoeffs(values1, values2, values1)
 
 		verifyTestVectors(params.decryptor, values1, ciphertext1, t)
 	})
@@ -278,7 +278,7 @@ func testEvaluatorMul(t *testing.T) {
 
 		receiver := NewCiphertext(params.params, ciphertext1.Degree()+ciphertext2.Degree())
 		params.evaluator.Mul(ciphertext1, ciphertext2, receiver)
-		params.bfvContext.contextT.MulCoeffs(values1, values2, values1)
+		params.bfvContext.ringT.MulCoeffs(values1, values2, values1)
 
 		receiver2 := params.evaluator.RelinearizeNew(receiver, params.rlk)
 		verifyTestVectors(params.decryptor, values1, receiver2, t)
@@ -331,7 +331,7 @@ func testRotateCols(t *testing.T) {
 
 	rotkey := params.kgen.GenRotationKeysPow2(params.sk)
 
-	valuesWant := params.bfvContext.contextT.NewPoly()
+	valuesWant := params.bfvContext.ringT.NewPoly()
 	mask := (params.bfvContext.n >> 1) - 1
 	slots := params.bfvContext.n >> 1
 
@@ -418,7 +418,7 @@ func testMarshaller(t *testing.T) {
 		}
 	})
 
-	contextQP := params.bfvContext.contextQP
+	contextQP := params.bfvContext.ringQP
 
 	t.Run(testString("Ciphertext/", params.params), func(t *testing.T) {
 
@@ -432,7 +432,7 @@ func testMarshaller(t *testing.T) {
 		require.NoError(t, err)
 
 		for i := range ciphertextWant.value {
-			require.True(t, params.bfvContext.contextQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]))
+			require.True(t, params.bfvContext.ringQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]))
 		}
 	})
 

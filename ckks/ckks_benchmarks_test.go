@@ -146,11 +146,11 @@ func benchEvaluator(b *testing.B) {
 
 	b.Run(testString("Rescale/", params.params), func(b *testing.B) {
 
-		contextQ := params.ckkscontext.contextQ
+		ringQ := params.ckkscontext.ringQ
 
 		for i := 0; i < b.N; i++ {
-			contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
-			contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
+			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
+			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
 
 			b.StopTimer()
 			ciphertext1 = NewCiphertextRandom(params.prng, params.params, 1, params.params.MaxLevel(), params.params.Scale())
@@ -198,19 +198,19 @@ func benchHoistedRotations(b *testing.B) {
 
 	ciphertext := NewCiphertextRandom(params.prng, params.params, 1, params.params.MaxLevel(), params.params.Scale())
 
-	contextQ := params.ckkscontext.contextQ
-	contextP := params.ckkscontext.contextP
+	ringQ := params.ckkscontext.ringQ
+	ringP := params.ckkscontext.ringP
 
 	c2NTT := ciphertext.value[1]
-	c2InvNTT := contextQ.NewPoly()
-	contextQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
+	c2InvNTT := ringQ.NewPoly()
+	ringQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
 
 	c2QiQDecomp := make([]*ring.Poly, params.params.Beta())
 	c2QiPDecomp := make([]*ring.Poly, params.params.Beta())
 
 	for i := uint64(0); i < params.params.Beta(); i++ {
-		c2QiQDecomp[i] = contextQ.NewPoly()
-		c2QiPDecomp[i] = contextP.NewPoly()
+		c2QiQDecomp[i] = ringQ.NewPoly()
+		c2QiPDecomp[i] = ringP.NewPoly()
 	}
 
 	b.Run(testString("DecomposeNTT/", params.params), func(b *testing.B) {

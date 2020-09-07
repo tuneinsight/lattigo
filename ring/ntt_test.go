@@ -104,17 +104,17 @@ func TestNTT(t *testing.T) {
 
 	for _, tv := range testVector {
 
-		context, _ := NewRing(tv.N, tv.Qis)
+		ringQ, _ := NewRing(tv.N, tv.Qis)
 
-		t.Run(fmt.Sprintf("N=%d/limbs=%d", context.N, len(context.Modulus)), func(t *testing.T) {
-			x := context.NewPoly()
-			context.NTT(tv.poly, x)
+		t.Run(fmt.Sprintf("N=%d/limbs=%d", ringQ.N, len(ringQ.Modulus)), func(t *testing.T) {
+			x := ringQ.NewPoly()
+			ringQ.NTT(tv.poly, x)
 
-			assert.True(t, context.Equal(x, tv.polyNTT), "transformed poly and polyNTT should match")
+			assert.True(t, ringQ.Equal(x, tv.polyNTT), "transformed poly and polyNTT should match")
 
-			context.InvNTT(x, x)
+			ringQ.InvNTT(x, x)
 
-			assert.True(t, context.Equal(tv.poly, x), "invNTT should reverse NTT")
+			assert.True(t, ringQ.Equal(tv.poly, x), "invNTT should reverse NTT")
 		})
 	}
 }

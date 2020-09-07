@@ -91,13 +91,13 @@ func (el *CkksElement) SetIsNTT(value bool) {
 }
 
 // NTT puts the target element in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, it does nothing.
-func (el *CkksElement) NTT(context *ring.Ring, c *CkksElement) error {
+func (el *CkksElement) NTT(ringQ *ring.Ring, c *CkksElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error: receiver element has invalid degree (it does not match)")
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
-			context.NTTLvl(el.Level(), el.Value()[i], c.Value()[i])
+			ringQ.NTTLvl(el.Level(), el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(true)
 	}
@@ -105,13 +105,13 @@ func (el *CkksElement) NTT(context *ring.Ring, c *CkksElement) error {
 }
 
 // InvNTT puts the target element outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, it does nothing.
-func (el *CkksElement) InvNTT(context *ring.Ring, c *CkksElement) error {
+func (el *CkksElement) InvNTT(ringQ *ring.Ring, c *CkksElement) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error: receiver element invalid degree (it does not match)")
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {
-			context.InvNTTLvl(el.Level(), el.Value()[i], c.Value()[i])
+			ringQ.InvNTTLvl(el.Level(), el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(false)
 	}

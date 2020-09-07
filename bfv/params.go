@@ -557,7 +557,7 @@ func genModuli(lm LogModuli, logN uint64) (m Moduli) {
 		primes[qi] = primes[qi][1:]
 	}
 
-	// Assigns the primes to the special primes list for the the keys context
+	// Assigns the primes to the special primes list for the the extended basis ring
 	m.pi = make([]uint64, len(lm.LogPi))
 	for i, pj := range lm.LogPi {
 		m.pi[i] = primes[pj][0]

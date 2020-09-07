@@ -15,7 +15,7 @@ type Scaler interface {
 // This implementation of the Scaler interface should be favored instead of the SimpleScaler
 // implementation.
 type RNSScaler struct {
-	contextQ        *Ring
+	ringQ           *Ring
 	paramsQT        *modupParams
 	modDownParamsQT uint64
 	polypoolT       *Poly
@@ -33,31 +33,31 @@ type RNSScaler struct {
 }
 
 // NewRNSScaler creates a new SimpleScaler from t, the modulus under which the reconstruction is returned, and
-// context, the context in which the polynomial to reconstruct is represented.
-func NewRNSScaler(t uint64, contextQ *Ring) (rnss *RNSScaler) {
+// the ring in which the polynomial to reconstruct is represented.
+func NewRNSScaler(t uint64, ringQ *Ring) (rnss *RNSScaler) {
 
 	rnss = new(RNSScaler)
 
-	rnss.contextQ = contextQ
+	rnss.ringQ = ringQ
 
 	rnss.mredParamsT = MRedParams(t)
 
-	rnss.polypoolT = NewPoly(contextQ.N, 1)
+	rnss.polypoolT = NewPoly(ringQ.N, 1)
 
 	rnss.t = t
 	rnss.qHalf = new(big.Int)
-	rnss.qInv = rnss.qHalf.Mod(contextQ.ModulusBigint, NewUint(t)).Uint64()
+	rnss.qInv = rnss.qHalf.Mod(ringQ.ModulusBigint, NewUint(t)).Uint64()
 	rnss.qInv = ModExp(rnss.qInv, t-2, t)
 	rnss.qInv = MForm(rnss.qInv, t, BRedParams(t))
 
-	rnss.qHalf.Set(contextQ.ModulusBigint)
+	rnss.qHalf.Set(ringQ.ModulusBigint)
 	rnss.qHalf.Rsh(rnss.qHalf, 1)
 	rnss.qHalfModT = rnss.qHalf.Mod(rnss.qHalf, NewUint(t)).Uint64()
 
-	rnss.qHalf.Set(contextQ.ModulusBigint)
+	rnss.qHalf.Set(ringQ.ModulusBigint)
 	rnss.qHalf.Rsh(rnss.qHalf, 1)
 
-	rnss.paramsQP = basisextenderparameters(contextQ.Modulus, []uint64{t})
+	rnss.paramsQP = basisextenderparameters(ringQ.Modulus, []uint64{t})
 
 	return
 }
@@ -65,7 +65,7 @@ func NewRNSScaler(t uint64, contextQ *Ring) (rnss *RNSScaler) {
 // DivByQOverTRounded returns p1 scaled by a factor t/Q and mod t on the reciever p2.
 func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 
-	contextQ := rnss.contextQ
+	ringQ := rnss.ringQ
 
 	T := rnss.t
 	p2tmp := p2T.Coeffs[0]
@@ -77,16 +77,16 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 	// Multiplies P_{Q} by t and extends the basis from P_{Q} to t*(P_{Q}||P_{t})
 	// Since the coefficients of P_{t} are multiplied by t, they are all zero,
 	// hence the basis extension can be omited
-	contextQ.MulScalar(p1Q, T, p1Q)
+	ringQ.MulScalar(p1Q, T, p1Q)
 
 	// Centers  t*P_{Q} around (Q-1)/2 to round instead of floor during the division
-	contextQ.AddScalarBigint(p1Q, rnss.qHalf, p1Q)
+	ringQ.AddScalarBigint(p1Q, rnss.qHalf, p1Q)
 
 	// Extends the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
 	modUpExact(p1Q.Coeffs, rnss.polypoolT.Coeffs, rnss.paramsQP)
 
 	// Computes [Q^{-1} * (t*P_{t} -   (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
-	for j := uint64(0); j < contextQ.N; j++ {
+	for j := uint64(0); j < ringQ.N; j++ {
 		p2tmp[j] = MRed(qHalfModT+T-p3tmp[j], qInv, T, mredParams)
 	}
 }
@@ -95,7 +95,7 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 // This implementation of the Scaler interface is less efficient than the RNSScaler, but uses simple
 // multiprecision arithmetic of the math/big package. The BFV implementation should use the RNSScaler.
 type SimpleScaler struct {
-	context *Ring
+	ring *Ring
 
 	r, one *big.Int
 
@@ -117,8 +117,8 @@ type SimpleScaler struct {
 const SimpleScalerFloatPrecision = 80
 
 // NewSimpleScaler creates a new SimpleScaler from t, the modulus under which the reconstruction is returned, and
-// context, the context in which the polynomial to reconstruct is represented.
-func NewSimpleScaler(t uint64, context *Ring) (ss *SimpleScaler) {
+// the ring in which the polynomial to reconstruct is represented.
+func NewSimpleScaler(t uint64, r *Ring) (ss *SimpleScaler) {
 
 	ss = new(SimpleScaler)
 
@@ -135,7 +135,7 @@ func NewSimpleScaler(t uint64, context *Ring) (ss *SimpleScaler) {
 
 	ss.t = t
 	ss.tBI = new(big.Int).SetUint64(t)
-	ss.context = context
+	ss.ring = r
 
 	// Assigns the correct reduction algorithm depending on the provided t
 	// If t is a power of 2
@@ -185,20 +185,20 @@ func NewSimpleScaler(t uint64, context *Ring) (ss *SimpleScaler) {
 	}
 
 	// Integer and rational part of QiBarre * t/Qi
-	ss.wi = make([]uint64, len(context.Modulus))
-	ss.ti = make([]*big.Float, len(context.Modulus))
+	ss.wi = make([]uint64, len(r.Modulus))
+	ss.ti = make([]*big.Float, len(r.Modulus))
 
-	ss.p1BI = make([]*big.Int, context.N)
+	ss.p1BI = make([]*big.Int, r.N)
 	for i := range ss.p1BI {
 		ss.p1BI[i] = new(big.Int)
-		ss.p1BI[i].Mul(ss.context.ModulusBigint, ss.context.ModulusBigint) // Extends to Q^2
+		ss.p1BI[i].Mul(ss.ring.ModulusBigint, ss.ring.ModulusBigint) // Extends to Q^2
 	}
 
-	for i, qi := range context.Modulus {
+	for i, qi := range r.Modulus {
 
 		QiB.SetUint64(qi)
 		QiBF.SetUint64(qi)
-		QiStar.Quo(context.ModulusBigint, QiB)
+		QiStar.Quo(r.ModulusBigint, QiB)
 		QiBarre.ModInverse(QiStar, QiB)
 		QiBarre.Mod(QiBarre, QiB)
 		QiBarreBF.SetInt(QiBarre)
@@ -233,13 +233,13 @@ func (ss *SimpleScaler) DivByQOverTRounded(p1, p2 *Poly) {
 func (ss *SimpleScaler) reconstructThenScale(p1, p2 *Poly) {
 
 	// reconstruction
-	ss.context.PolyToBigintNoAlloc(p1, ss.p1BI)
+	ss.ring.PolyToBigintNoAlloc(p1, ss.p1BI)
 
 	// scaling
 	for i, coeff := range ss.p1BI {
 		coeff.Mul(coeff, ss.tBI)
-		coeff.QuoRem(coeff, ss.context.ModulusBigint, ss.r)
-		if ss.r.Lsh(ss.r, 1).CmpAbs(ss.context.ModulusBigint) != -1 {
+		coeff.QuoRem(coeff, ss.ring.ModulusBigint, ss.r)
+		if ss.r.Lsh(ss.r, 1).CmpAbs(ss.ring.ModulusBigint) != -1 {
 			coeff.Add(coeff, ss.one)
 		}
 
@@ -253,12 +253,12 @@ func (ss *SimpleScaler) reconstructThenScale(p1, p2 *Poly) {
 // Algorithm from https://eprint.iacr.org/2018/117.pdf.
 func (ss *SimpleScaler) reconstructAndScale(p1, p2 *Poly) {
 
-	for i := uint64(0); i < ss.context.N; i++ {
+	for i := uint64(0); i < ss.ring.N; i++ {
 
 		var a uint64
 		var bBF big.Float
 		var p1j big.Float
-		for j := range ss.context.Modulus {
+		for j := range ss.ring.Modulus {
 			// round(xi*wi + xi*ti)%t
 			a += ss.reducealgoMul(ss.wi[j], p1.Coeffs[j][i])
 
@@ -279,29 +279,29 @@ func (ss *SimpleScaler) reconstructAndScale(p1, p2 *Poly) {
 	}
 }
 
-// ============== Scaling-related Context methods ==============
+// ============== Scaling-related methods ==============
 
 // DivFloorByLastModulusNTT divides floor the polynomial by its last modulus. Input must be in the NTT domain.
-func (context *Ring) DivFloorByLastModulusNTT(p0 *Poly) {
+func (r *Ring) DivFloorByLastModulusNTT(p0 *Poly) {
 
 	level := len(p0.Coeffs) - 1
 
-	pTmp := make([]uint64, context.N)
+	pTmp := make([]uint64, r.N)
 
-	InvNTT(p0.Coeffs[level], p0.Coeffs[level], context.N, context.nttPsiInv[level], context.nttNInv[level], context.Modulus[level], context.mredParams[level])
+	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 
 	for i := 0; i < level; i++ {
 
-		NTT(p0.Coeffs[level], pTmp, context.N, context.nttPsi[i], context.Modulus[i], context.mredParams[i], context.bredParams[i])
+		NTT(p0.Coeffs[level], pTmp, r.N, r.NttPsi[i], r.Modulus[i], r.MredParams[i], r.BredParams[i])
 
 		p0tmp := p0.Coeffs[i]
 
-		qi := context.Modulus[i]
-		mredParams := context.mredParams[i]
-		rescalParams := context.rescaleParams[level-1][i]
+		qi := r.Modulus[i]
+		mredParams := r.MredParams[i]
+		rescalParams := r.RescaleParams[level-1][i]
 
 		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < context.N; j++ {
+		for j := uint64(0); j < r.N; j++ {
 			p0tmp[j] = MRed(p0tmp[j]+(qi-pTmp[j]), rescalParams, qi, mredParams)
 		}
 	}
@@ -310,19 +310,19 @@ func (context *Ring) DivFloorByLastModulusNTT(p0 *Poly) {
 }
 
 // DivFloorByLastModulus divides floor the polynomial by its last modulus.
-func (context *Ring) DivFloorByLastModulus(p0 *Poly) {
+func (r *Ring) DivFloorByLastModulus(p0 *Poly) {
 
 	level := len(p0.Coeffs) - 1
 
 	for i := 0; i < level; i++ {
 		p0tmp := p0.Coeffs[level]
 		p1tmp := p0.Coeffs[i]
-		qi := context.Modulus[i]
-		bredParams := context.bredParams[i]
-		mredParams := context.mredParams[i]
-		rescaleParams := context.rescaleParams[level-1][i]
+		qi := r.Modulus[i]
+		bredParams := r.BredParams[i]
+		mredParams := r.MredParams[i]
+		rescaleParams := r.RescaleParams[level-1][i]
 		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < context.N; j++ {
+		for j := uint64(0); j < r.N; j++ {
 			p1tmp[j] = MRed(p1tmp[j]+(qi-BRedAdd(p0tmp[j], qi, bredParams)), rescaleParams, qi, mredParams)
 		}
 	}
@@ -331,36 +331,36 @@ func (context *Ring) DivFloorByLastModulus(p0 *Poly) {
 }
 
 // DivFloorByLastModulusManyNTT divides floor sequentially nbRescales times the polynmial by its last modulus. Input must be in the NTT domain.
-func (context *Ring) DivFloorByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
-	context.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
-	context.DivFloorByLastModulusMany(p0, nbRescales)
-	context.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+func (r *Ring) DivFloorByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
+	r.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+	r.DivFloorByLastModulusMany(p0, nbRescales)
+	r.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 }
 
 // DivFloorByLastModulusMany divides floor sequentially nbRescales times the polynmial by its last modulus.
-func (context *Ring) DivFloorByLastModulusMany(p0 *Poly, nbRescales uint64) {
+func (r *Ring) DivFloorByLastModulusMany(p0 *Poly, nbRescales uint64) {
 	for k := uint64(0); k < nbRescales; k++ {
-		context.DivFloorByLastModulus(p0)
+		r.DivFloorByLastModulus(p0)
 	}
 }
 
 // DivRoundByLastModulusNTT divides round the polynomial by its last modulus. Input must be in the NTT domain.
-func (context *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
+func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
 
 	level := len(p0.Coeffs) - 1
 
-	pTmp := make([]uint64, context.N)
+	pTmp := make([]uint64, r.N)
 
-	InvNTT(p0.Coeffs[level], p0.Coeffs[level], context.N, context.nttPsiInv[level], context.nttNInv[level], context.Modulus[level], context.mredParams[level])
+	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 
 	// Centers by (p-1)/2
-	pHalf = (context.Modulus[level] - 1) >> 1
+	pHalf = (r.Modulus[level] - 1) >> 1
 	p0tmp := p0.Coeffs[level]
-	pj := context.Modulus[level]
+	pj := r.Modulus[level]
 
-	for i := uint64(0); i < context.N; i++ {
+	for i := uint64(0); i < r.N; i++ {
 		p0tmp[i] = CRed(p0tmp[i]+pHalf, pj)
 	}
 
@@ -368,21 +368,21 @@ func (context *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 
 		p1tmp := p0.Coeffs[i]
 
-		qi := context.Modulus[i]
-		bredParams := context.bredParams[i]
-		mredParams := context.mredParams[i]
-		rescaleParams := context.rescaleParams[level-1][i]
+		qi := r.Modulus[i]
+		bredParams := r.BredParams[i]
+		mredParams := r.MredParams[i]
+		rescaleParams := r.RescaleParams[level-1][i]
 
-		pHalfNegQi = context.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
+		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
 
-		for j := uint64(0); j < context.N; j++ {
+		for j := uint64(0); j < r.N; j++ {
 			pTmp[j] = p0tmp[j] + pHalfNegQi
 		}
 
-		NTT(pTmp, pTmp, context.N, context.nttPsi[i], qi, mredParams, bredParams)
+		NTT(pTmp, pTmp, r.N, r.NttPsi[i], qi, mredParams, bredParams)
 
 		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < context.N; j++ {
+		for j := uint64(0); j < r.N; j++ {
 			p1tmp[j] = MRed(p1tmp[j]+(qi-pTmp[j]), rescaleParams, qi, mredParams)
 		}
 	}
@@ -391,19 +391,19 @@ func (context *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 }
 
 // DivRoundByLastModulus divides round the polynomial by its last modulus. Input must be in the NTT domain.
-func (context *Ring) DivRoundByLastModulus(p0 *Poly) {
+func (r *Ring) DivRoundByLastModulus(p0 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
 
 	level := len(p0.Coeffs) - 1
 
 	// Centers by (p-1)/2
-	pHalf = (context.Modulus[level] - 1) >> 1
+	pHalf = (r.Modulus[level] - 1) >> 1
 	p0tmp := p0.Coeffs[level]
-	pj := context.Modulus[level]
-	pHalf = (context.Modulus[level] - 1) >> 1
+	pj := r.Modulus[level]
+	pHalf = (r.Modulus[level] - 1) >> 1
 
-	for i := uint64(0); i < context.N; i++ {
+	for i := uint64(0); i < r.N; i++ {
 		p0tmp[i] = CRed(p0tmp[i]+pHalf, pj)
 	}
 
@@ -411,15 +411,15 @@ func (context *Ring) DivRoundByLastModulus(p0 *Poly) {
 
 		p1tmp := p0.Coeffs[i]
 
-		qi := context.Modulus[i]
-		bredParams := context.bredParams[i]
-		mredParams := context.mredParams[i]
-		rescaleParams := context.rescaleParams[level-1][i]
+		qi := r.Modulus[i]
+		bredParams := r.BredParams[i]
+		mredParams := r.MredParams[i]
+		rescaleParams := r.RescaleParams[level-1][i]
 
-		pHalfNegQi = context.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
+		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
 
 		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < context.N; j++ {
+		for j := uint64(0); j < r.N; j++ {
 			p1tmp[j] = MRed(p1tmp[j]+(qi-BRedAdd(p0tmp[j]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
 		}
 	}
@@ -428,15 +428,15 @@ func (context *Ring) DivRoundByLastModulus(p0 *Poly) {
 }
 
 // DivRoundByLastModulusManyNTT divides round sequentially nbRescales times the polynmial by its last modulus. Input must be in the NTT domain.
-func (context *Ring) DivRoundByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
-	context.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
-	context.DivRoundByLastModulusMany(p0, nbRescales)
-	context.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+func (r *Ring) DivRoundByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
+	r.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+	r.DivRoundByLastModulusMany(p0, nbRescales)
+	r.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 }
 
 // DivRoundByLastModulusMany divides round sequentially nbRescales times the polynmial by its last modulus.
-func (context *Ring) DivRoundByLastModulusMany(p0 *Poly, nbRescales uint64) {
+func (r *Ring) DivRoundByLastModulusMany(p0 *Poly, nbRescales uint64) {
 	for k := uint64(0); k < nbRescales; k++ {
-		context.DivRoundByLastModulus(p0)
+		r.DivRoundByLastModulus(p0)
 	}
 }

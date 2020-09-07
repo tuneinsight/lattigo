@@ -54,7 +54,7 @@ func MaxFloat64(a, b float64) (r float64) {
 	return b
 }
 
-// BitReverse64 returns the bit-reverse value of the input value, within a context of 2^bitLen.
+// BitReverse64 returns the bit-reverse value of the input value, within a ring of 2^bitLen.
 func BitReverse64(index, bitLen uint64) uint64 {
 	return bits.Reverse64(index) >> (64 - bitLen)
 }

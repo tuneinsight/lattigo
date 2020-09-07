@@ -33,7 +33,7 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 		params:     params.Copy(),
 		bfvContext: ctx,
 		sk:         sk,
-		polypool:   ctx.contextQ.NewPoly(),
+		polypool:   ctx.ringQ.NewPoly(),
 	}
 }
 
@@ -46,7 +46,7 @@ func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) *Plaintext {
 }
 
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
-	ringContext := decryptor.bfvContext.contextQ
+	ringContext := decryptor.bfvContext.ringQ
 
 	ringContext.NTT(ciphertext.value[ciphertext.Degree()], plaintext.value)
 

@@ -29,7 +29,7 @@ type RTGShare struct {
 func (rtg *RTGProtocol) AllocateShare() (rtgShare RTGShare) {
 	rtgShare.Value = make([]*ring.Poly, rtg.dckksContext.beta)
 	for i := uint64(0); i < rtg.dckksContext.beta; i++ {
-		rtgShare.Value[i] = rtg.dckksContext.contextQP.NewPoly()
+		rtgShare.Value[i] = rtg.dckksContext.ringQP.NewPoly()
 	}
 	return
 }
@@ -45,11 +45,11 @@ func NewRotKGProtocol(params *ckks.Parameters) (rtg *RTGProtocol) {
 
 	rtg.tmpSwitchKey = make([][2]*ring.Poly, rtg.dckksContext.beta)
 	for i := range rtg.tmpSwitchKey {
-		rtg.tmpSwitchKey[i][0] = dckksContext.contextQP.NewPoly()
-		rtg.tmpSwitchKey[i][1] = dckksContext.contextQP.NewPoly()
+		rtg.tmpSwitchKey[i][0] = dckksContext.ringQP.NewPoly()
+		rtg.tmpSwitchKey[i][1] = dckksContext.ringQP.NewPoly()
 	}
 
-	rtg.tmpPoly = [2]*ring.Poly{dckksContext.contextQP.NewPoly(), dckksContext.contextQP.NewPoly()}
+	rtg.tmpPoly = [2]*ring.Poly{dckksContext.ringQP.NewPoly(), dckksContext.ringQP.NewPoly()}
 
 	N := dckksContext.n
 
@@ -69,7 +69,7 @@ func NewRotKGProtocol(params *ckks.Parameters) (rtg *RTGProtocol) {
 	if err != nil {
 		panic(err)
 	}
-	rtg.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQP, params.Sigma(), uint64(6*params.Sigma()))
+	rtg.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.ringQP, params.Sigma(), uint64(6*params.Sigma()))
 
 	rtg.galElRotRow = (N << 1) - 1
 
@@ -101,11 +101,11 @@ func (rtg *RTGProtocol) GenShare(rotType ckks.Rotation, k uint64, sk *ring.Poly,
 // genswitchkey is a generic method to generate the public-share of the collective rotation-key.
 func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, evakey []*ring.Poly) {
 
-	contextQP := rtg.dckksContext.contextQP
+	contextQP := rtg.dckksContext.ringQP
 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly[1])
 
-	contextQP.MulScalarBigint(sk, rtg.dckksContext.contextP.ModulusBigint, rtg.tmpPoly[0])
+	contextQP.MulScalarBigint(sk, rtg.dckksContext.ringP.ModulusBigint, rtg.tmpPoly[0])
 
 	var index uint64
 
@@ -153,7 +153,7 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 //
 // [sum(a*a_j + pi(s_j) + e_j), a]
 func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
-	contextQP := rtg.dckksContext.contextQP
+	contextQP := rtg.dckksContext.ringQP
 
 	if share1.Type != share2.Type || share1.K != share2.K {
 		panic("cannot aggregate shares of different types")
@@ -169,7 +169,7 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
 // Finalize finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
 func (rtg *RTGProtocol) Finalize(params *ckks.Parameters, share RTGShare, crp []*ring.Poly, rotKey *ckks.RotationKeys) {
 
-	contextQP := rtg.dckksContext.contextQP
+	contextQP := rtg.dckksContext.ringQP
 
 	k := share.K & ((rtg.dckksContext.n >> 1) - 1)
 

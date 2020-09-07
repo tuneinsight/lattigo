@@ -566,7 +566,7 @@ func testEvaluatorRescale(t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(params.encryptorSk, 1, t)
 
-		constant := params.ckkscontext.contextQ.Modulus[ciphertext.Level()]
+		constant := params.ckkscontext.ringQ.Modulus[ciphertext.Level()]
 
 		params.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
@@ -584,7 +584,7 @@ func testEvaluatorRescale(t *testing.T) {
 		nbRescales := params.params.MaxLevel()
 
 		for i := uint64(0); i < nbRescales; i++ {
-			constant := params.ckkscontext.contextQ.Modulus[ciphertext.Level()]
+			constant := params.ckkscontext.ringQ.Modulus[ciphertext.Level()]
 			params.evaluator.MultByConst(ciphertext, constant, ciphertext)
 			ciphertext.MulScale(float64(constant))
 		}
@@ -1020,7 +1020,7 @@ func testRotateColumns(t *testing.T) {
 
 func testMarshaller(t *testing.T) {
 
-	contextQP := params.ckkscontext.contextQP
+	contextQP := params.ckkscontext.ringQP
 
 	t.Run(testString("Ciphertext/", params.params), func(t *testing.T) {
 		t.Run(testString("Ciphertext/EndToEnd", params.params), func(t *testing.T) {
@@ -1039,7 +1039,7 @@ func testMarshaller(t *testing.T) {
 			require.Equal(t, ciphertextWant.Scale(), ciphertextTest.Scale())
 
 			for i := range ciphertextWant.value {
-				require.True(t, params.ckkscontext.contextQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]))
+				require.True(t, params.ckkscontext.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]))
 			}
 		})
 

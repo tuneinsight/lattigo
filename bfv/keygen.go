@@ -79,7 +79,7 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 func NewKeyGenerator(params *Parameters) KeyGenerator {
 
 	bfvContext := newBFVContext(params)
-	ringContext := bfvContext.contextQP
+	ringContext := bfvContext.ringQP
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -90,8 +90,8 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 		bfvContext:      bfvContext,
 		ringContext:     ringContext,
 		polypool:        [2]*ring.Poly{ringContext.NewPoly(), ringContext.NewPoly()},
-		gaussianSampler: ring.NewGaussianSampler(prng, bfvContext.contextQP, params.Sigma(), uint64(6*params.Sigma())),
-		uniformSampler:  ring.NewUniformSampler(prng, bfvContext.contextQP),
+		gaussianSampler: ring.NewGaussianSampler(prng, bfvContext.ringQP, params.Sigma(), uint64(6*params.Sigma())),
+		uniformSampler:  ring.NewUniformSampler(prng, bfvContext.ringQP),
 	}
 }
 
@@ -106,11 +106,11 @@ func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 	if err != nil {
 		panic(err)
 	}
-	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.bfvContext.contextQP, p, true)
+	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.bfvContext.ringQP, p, true)
 
 	sk = new(SecretKey)
 	sk.sk = ternarySamplerMontgomery.ReadNew()
-	keygen.bfvContext.contextQP.NTT(sk.sk, sk.sk)
+	keygen.bfvContext.ringQP.NTT(sk.sk, sk.sk)
 	return sk
 }
 
@@ -137,7 +137,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = new(PublicKey)
 
-	ringContext := keygen.bfvContext.contextQP
+	ringContext := keygen.bfvContext.ringQP
 
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
@@ -184,7 +184,7 @@ func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 // of degree > 1 to a ciphertext of degree 1. Max degree is the maximum degree of the ciphertext allowed to relinearize.
 func (keygen *keyGenerator) GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *EvaluationKey) {
 
-	if keygen.bfvContext.contextP == nil {
+	if keygen.bfvContext.ringP == nil {
 		panic("Cannot GenRelinKey: modulus P is empty")
 	}
 
@@ -256,7 +256,7 @@ func (evk *EvaluationKey) SetRelinKeys(rlk [][][2]*ring.Poly) {
 
 // GenSwitchingKey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key.
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
-	if keygen.bfvContext.contextP == nil {
+	if keygen.bfvContext.ringP == nil {
 		panic("Cannot GenRelinKey: modulus P is empty")
 	}
 
@@ -290,7 +290,7 @@ func (keygen *keyGenerator) newswitchingkey(skIn, skOut *ring.Poly) (switchkey *
 	switchkey = new(SwitchingKey)
 
 	bfvContext := keygen.bfvContext
-	ringContext := bfvContext.contextQP
+	ringContext := bfvContext.ringQP
 
 	var index uint64
 
@@ -344,7 +344,7 @@ func NewRotationKeys() (rotKey *RotationKeys) {
 // GenRot populates the target RotationKeys with a SwitchingKey for the desired rotation type and amount.
 func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
 
-	if keygen.bfvContext.contextP == nil {
+	if keygen.bfvContext.ringP == nil {
 		panic("Cannot GenRot: modulus P is empty")
 	}
 
@@ -377,7 +377,7 @@ func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 // GenRotationKeysPow2 generates a new rotation key with all the power-of-two rotations to the left and right, as well as the conjugation.
 func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys) {
 
-	if keygen.bfvContext.contextP == nil {
+	if keygen.bfvContext.ringP == nil {
 		panic("Cannot GenRotationKeysPow2: modulus P is empty")
 	}
 
@@ -471,7 +471,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 	// delta_sk = skIn - skOut = GaloisEnd(skOut, rotation) - skOut
 
-	ringContext.MulScalarBigint(skIn, keygen.bfvContext.contextP.ModulusBigint, keygen.polypool[0])
+	ringContext.MulScalarBigint(skIn, keygen.bfvContext.ringP.ModulusBigint, keygen.polypool[0])
 
 	switchingkey.evakey = make([][2]*ring.Poly, beta)
 
@@ -500,7 +500,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 			}
 
 			// Handles the case where nb pj does not divide nb qi
-			if index >= uint64(len(keygen.bfvContext.contextQ.Modulus)-1) {
+			if index >= uint64(len(keygen.bfvContext.ringQ.Modulus)-1) {
 				break
 			}
 

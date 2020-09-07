@@ -16,10 +16,10 @@ type dbfvContext struct {
 	deltaMont []uint64
 
 	// Polynomial contexts
-	contextT  *ring.Ring
-	contextQ  *ring.Ring
-	contextP  *ring.Ring
-	contextQP *ring.Ring
+	ringT  *ring.Ring
+	ringQ  *ring.Ring
+	ringP  *ring.Ring
+	ringQP *ring.Ring
 }
 
 func newDbfvContext(params *bfv.Parameters) *dbfvContext {
@@ -32,12 +32,12 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 		panic(err)
 	}
 
-	contextQ, err := ring.NewRing(n, params.Qi())
+	ringQ, err := ring.NewRing(n, params.Qi())
 	if err != nil {
 		panic(err)
 	}
 
-	contextP, err := ring.NewRing(n, params.Pi())
+	ringP, err := ring.NewRing(n, params.Pi())
 	if err != nil {
 		panic(err)
 	}
@@ -47,16 +47,16 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 		panic(err)
 	}
 
-	deltaMont := bfv.GenLiftParams(contextQ, params.T())
+	deltaMont := bfv.GenLiftParams(ringQ, params.T())
 
 	return &dbfvContext{
 		params:    params.Copy(),
 		n:         n,
 		deltaMont: deltaMont,
-		contextT:  contextT,
-		contextQ:  contextQ,
-		contextP:  contextP,
-		contextQP: contextQP,
+		ringT:     contextT,
+		ringQ:     ringQ,
+		ringP:     ringP,
+		ringQP:    contextQP,
 	}
 }
 
@@ -67,5 +67,5 @@ func NewCRPGenerator(params *bfv.Parameters, key []byte) *ring.UniformSampler {
 	if err != nil {
 		panic(err)
 	}
-	return ring.NewUniformSampler(prng, ctx.contextQP)
+	return ring.NewUniformSampler(prng, ctx.ringQP)
 }

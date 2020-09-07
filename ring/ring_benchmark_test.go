@@ -34,11 +34,11 @@ func benchGenRingContext(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		b.Run(testString("", context), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				genPolyContext(parameters[0])
+				getRing(parameters[0])
 			}
 
 		})
@@ -49,7 +49,7 @@ func benchMarshalling(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -83,7 +83,7 @@ func benchSampling(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		pol := context.NewPoly()
 
@@ -154,7 +154,7 @@ func benchMontgomeryForm(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -181,7 +181,7 @@ func benchNTT(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -220,7 +220,7 @@ func benchMulCoeffs(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -259,7 +259,7 @@ func benchMulCoeffs(b *testing.B) {
 func benchAddCoeffs(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -286,7 +286,7 @@ func benchAddCoeffs(b *testing.B) {
 func benchSubCoeffs(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -313,7 +313,7 @@ func benchSubCoeffs(b *testing.B) {
 func benchNegCoeffs(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -334,7 +334,7 @@ func benchMulScalar(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -366,8 +366,8 @@ func benchMulScalar(b *testing.B) {
 func benchExtendBasis(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
-		contextQ := genPolyContext(parameters[0])
-		contextP := genPolyContext(parameters[1])
+		contextQ := getRing(parameters[0])
+		contextP := getRing(parameters[1])
 
 		rescaleParams := make([]uint64, len(contextP.Modulus))
 
@@ -412,7 +412,7 @@ func benchExtendBasis(b *testing.B) {
 func benchDivByLastModulus(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		var p0 *Poly
 
@@ -490,7 +490,7 @@ func benchDivByRNSBasis(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		b.Run(testString("SimpleScaler/DivByQOverTRounded/reconstructAndScale/", context), func(b *testing.B) {
 

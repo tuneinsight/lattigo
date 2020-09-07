@@ -1,7 +1,7 @@
 package ring
 
 // NTT computes the NTT transformation of p1 and returns the result on p2.
-func (context *Context) NTT(p1, p2 *Poly) {
+func (context *Ring) NTT(p1, p2 *Poly) {
 	for x := range context.Modulus {
 		NTT(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsi[x], context.Modulus[x], context.mredParams[x], context.bredParams[x])
 	}
@@ -9,14 +9,14 @@ func (context *Context) NTT(p1, p2 *Poly) {
 
 // NTTLvl computes the NTT transformation of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
-func (context *Context) NTTLvl(level uint64, p1, p2 *Poly) {
+func (context *Ring) NTTLvl(level uint64, p1, p2 *Poly) {
 	for x := uint64(0); x < level+1; x++ {
 		NTT(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsi[x], context.Modulus[x], context.mredParams[x], context.bredParams[x])
 	}
 }
 
 // InvNTT computes the inverse NTT transformation of p1 and returns the result on p2.
-func (context *Context) InvNTT(p1, p2 *Poly) {
+func (context *Ring) InvNTT(p1, p2 *Poly) {
 	for x := range context.Modulus {
 		InvNTT(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsiInv[x], context.nttNInv[x], context.Modulus[x], context.mredParams[x])
 	}
@@ -24,7 +24,7 @@ func (context *Context) InvNTT(p1, p2 *Poly) {
 
 // InvNTTLvl computes the inverse NTT transformation of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
-func (context *Context) InvNTTLvl(level uint64, p1, p2 *Poly) {
+func (context *Ring) InvNTTLvl(level uint64, p1, p2 *Poly) {
 	for x := uint64(0); x < level+1; x++ {
 		InvNTT(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsiInv[x], context.nttNInv[x], context.Modulus[x], context.mredParams[x])
 	}
@@ -146,7 +146,7 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 
 // NTTBarrett performs the NTT operation using Barrett reduction.
 // For benchmark purposes only.
-func (context *Context) NTTBarrett(p1, p2 *Poly) {
+func (context *Ring) NTTBarrett(p1, p2 *Poly) {
 	for x := range context.Modulus {
 		NTTBarrett(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsi[x], context.Modulus[x], context.bredParams[x])
 	}
@@ -154,7 +154,7 @@ func (context *Context) NTTBarrett(p1, p2 *Poly) {
 
 // InvNTTBarrett performs the inverse NTT operation using Barrett reduction.
 // For benchmark purposes only.
-func (context *Context) InvNTTBarrett(p1, p2 *Poly) {
+func (context *Ring) InvNTTBarrett(p1, p2 *Poly) {
 	for x := range context.Modulus {
 		InvNTTBarrett(p1.Coeffs[x], p2.Coeffs[x], context.N, context.nttPsiInv[x], context.nttNInv[x], context.Modulus[x], context.bredParams[x])
 	}

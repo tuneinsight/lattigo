@@ -3,8 +3,9 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
 	"math/big"
+
+	"github.com/ldsec/lattigo/ring"
 )
 
 // GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1. The j-th ring automorphism takes the root zeta to zeta^(5j).
@@ -27,9 +28,9 @@ type Context struct {
 	bigintChain []*big.Int
 
 	// Contexts
-	contextQ  *ring.Context
-	contextP  *ring.Context
-	contextQP *ring.Context
+	contextQ  *ring.Ring
+	contextP  *ring.Ring
+	contextQP *ring.Ring
 
 	// Rotation params
 	galElConjugate   uint64
@@ -56,17 +57,17 @@ func newContext(params *Parameters) (ckkscontext *Context) {
 
 	ckkscontext.bigintChain = genBigIntChain(params.qi)
 
-	if ckkscontext.contextQ, err = ring.NewContextWithParams(n, params.qi); err != nil {
+	if ckkscontext.contextQ, err = ring.NewRing(n, params.qi); err != nil {
 		panic(err)
 	}
 
 	if len(params.pi) != 0 {
-		if ckkscontext.contextP, err = ring.NewContextWithParams(n, params.pi); err != nil {
+		if ckkscontext.contextP, err = ring.NewRing(n, params.pi); err != nil {
 			panic(err)
 		}
 	}
 
-	if ckkscontext.contextQP, err = ring.NewContextWithParams(n, append(params.qi, params.pi...)); err != nil {
+	if ckkscontext.contextQP, err = ring.NewRing(n, append(params.qi, params.pi...)); err != nil {
 		panic(err)
 	}
 

@@ -57,7 +57,7 @@ func (pol *Poly) CopyNew() (p1 *Poly) {
 }
 
 // Copy copies the coefficients of p0 on p1 within the given context. Requires p1 to be at least as big p0.
-func (context *Context) Copy(p0, p1 *Poly) {
+func (context *Ring) Copy(p0, p1 *Poly) {
 
 	if p0 != p1 {
 		for i := range context.Modulus {
@@ -71,7 +71,7 @@ func (context *Context) Copy(p0, p1 *Poly) {
 
 // CopyLvl copies the coefficients of p0 on p1 within the given context for the moduli from 0 to level.
 // Requires p1 to be as big as the target context.
-func (context *Context) CopyLvl(level uint64, p0, p1 *Poly) {
+func (context *Ring) CopyLvl(level uint64, p0, p1 *Poly) {
 
 	if p0 != p1 {
 		for i := uint64(0); i < level+1; i++ {

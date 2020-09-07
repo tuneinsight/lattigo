@@ -2,6 +2,7 @@ package ring
 
 import (
 	"encoding/binary"
+
 	"github.com/ldsec/lattigo/utils"
 )
 
@@ -12,7 +13,7 @@ type UniformSampler struct {
 }
 
 // NewUniformSampler creates a new instance of UniformSampler from a PRNG and ring definition.
-func NewUniformSampler(prng utils.PRNG, context *Context) *UniformSampler {
+func NewUniformSampler(prng utils.PRNG, context *Ring) *UniformSampler {
 	uniformSampler := new(UniformSampler)
 	uniformSampler.context = context
 	uniformSampler.prng = prng

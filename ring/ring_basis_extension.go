@@ -8,8 +8,8 @@ import (
 // FastBasisExtender stores the necessary parameters for RNS basis extension.
 // The algorithm is from https://eprint.iacr.org/2018/117.pdf.
 type FastBasisExtender struct {
-	contextQ        *Context
-	contextP        *Context
+	contextQ        *Ring
+	contextP        *Ring
 	paramsQP        *modupParams
 	paramsPQ        *modupParams
 	modDownParamsPQ []uint64
@@ -37,7 +37,7 @@ type modupParams struct {
 	mredParamsP []uint64
 }
 
-func genModDownParams(contextP, contextQ *Context) (params []uint64) {
+func genModDownParams(contextP, contextQ *Ring) (params []uint64) {
 
 	params = make([]uint64, len(contextP.Modulus))
 
@@ -54,7 +54,7 @@ func genModDownParams(contextP, contextQ *Context) (params []uint64) {
 }
 
 // NewFastBasisExtender creates a new FastBasisExtender, enabling RNS basis extension from Q to P and P to Q.
-func NewFastBasisExtender(contextQ, contextP *Context) *FastBasisExtender {
+func NewFastBasisExtender(contextQ, contextP *Ring) *FastBasisExtender {
 
 	newParams := new(FastBasisExtender)
 

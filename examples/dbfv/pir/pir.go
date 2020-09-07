@@ -106,7 +106,7 @@ func main() {
 
 	kgen := bfv.NewKeyGenerator(params)
 
-	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN(), append(params.Qi(), params.Pi()...))
+	contextKeys, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)

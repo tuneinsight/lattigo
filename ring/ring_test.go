@@ -20,7 +20,7 @@ type PolynomialTestParams struct {
 	sigma      float64
 }
 
-func testString(opname string, context *Context) string {
+func testString(opname string, context *Ring) string {
 	return fmt.Sprintf("%sN=%d/limbs=%d", opname, context.N, len(context.Modulus))
 }
 
@@ -62,18 +62,19 @@ func TestRing(t *testing.T) {
 	t.Run("MultByMonomial", testMultByMonomial)
 }
 
-func genPolyContext(params *Parameters) (context *Context) {
-	context = NewContext()
-	context.SetParameters(params.N, params.Moduli)
-	context.GenNTTParams()
-	return context
+func getRing(params *Parameters) (r *Ring) {
+	var err error
+	if r, err = NewRing(params.N, params.Moduli); err != nil {
+		panic(err)
+	}
+	return r
 }
 
 func testPRNG(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		sum := make([]byte, context.N)
 
 		t.Run(testString("", context), func(t *testing.T) {
@@ -104,7 +105,7 @@ func testGenerateNTTPrimes(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 
@@ -122,7 +123,7 @@ func testImportExportPolyString(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -145,7 +146,7 @@ func testDivFloorByLastModulusMany(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 
@@ -185,7 +186,7 @@ func testDivRoundByLastModulusMany(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 
@@ -225,13 +226,13 @@ func testMarshalBinary(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("Context/", context), func(t *testing.T) {
 
 			data, _ := context.MarshalBinary()
 
-			contextTest := NewContext()
+			contextTest := new(Ring)
 			contextTest.UnmarshalBinary(data)
 
 			require.Equal(t, contextTest.N, context.N)
@@ -263,7 +264,7 @@ func testUniformSampler(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		prng, err := utils.NewPRNG()
 		if err != nil {
@@ -300,7 +301,7 @@ func testGaussianSampler(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 			prng, err := utils.NewPRNG()
@@ -323,7 +324,7 @@ func testTernarySampler(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 
@@ -374,7 +375,7 @@ func testBRed(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 
@@ -401,7 +402,7 @@ func testMRed(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 
@@ -431,7 +432,7 @@ func testGaloisShift(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 			prng, err := utils.NewPRNG()
@@ -463,7 +464,7 @@ func testMForm(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 
@@ -488,7 +489,7 @@ func testMulScalarBigint(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 			prng, err := utils.NewPRNG()
@@ -519,7 +520,7 @@ func testMulPoly(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
@@ -561,8 +562,8 @@ func testExtendBasis(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		contextQ := genPolyContext(parameters[0])
-		contextP := genPolyContext(parameters[0])
+		contextQ := getRing(parameters[0])
+		contextP := getRing(parameters[0])
 
 		t.Run(testString("", contextQ), func(t *testing.T) {
 
@@ -593,7 +594,7 @@ func testScaling(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("SimpleScaling", context), func(t *testing.T) {
 
@@ -657,7 +658,7 @@ func testMultByMonomial(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		context := getRing(parameters[0])
 
 		t.Run(testString("", context), func(t *testing.T) {
 

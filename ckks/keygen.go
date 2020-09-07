@@ -25,7 +25,7 @@ type KeyGenerator interface {
 type keyGenerator struct {
 	params          *Parameters
 	ckksContext     *Context
-	ringContext     *ring.Context
+	ringContext     *ring.Ring
 	polypool        [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
 	uniformSampler  *ring.UniformSampler

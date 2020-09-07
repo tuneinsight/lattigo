@@ -17,11 +17,11 @@ type bfvContext struct {
 	n uint64
 
 	// Polynomial contexts
-	contextT    *ring.Context // Plaintext modulus
-	contextQ    *ring.Context // Ciphertext modulus
-	contextQMul *ring.Context // Ciphertext extended modulus (for multiplication)
-	contextP    *ring.Context // Keys additional modulus
-	contextQP   *ring.Context // Keys modulus
+	contextT    *ring.Ring // Plaintext modulus
+	contextQ    *ring.Ring // Ciphertext modulus
+	contextQMul *ring.Ring // Ciphertext extended modulus (for multiplication)
+	contextP    *ring.Ring // Keys additional modulus
+	contextQP   *ring.Ring // Keys modulus
 
 	galElRotRow      uint64   // Rows rotation generator
 	galElRotColLeft  []uint64 // Columns right rotations generators
@@ -37,25 +37,25 @@ func newBFVContext(params *Parameters) (context *bfvContext) {
 
 	context.n = N
 
-	if context.contextT, err = ring.NewContextWithParams(N, []uint64{params.t}); err != nil {
+	if context.contextT, err = ring.NewRing(N, []uint64{params.t}); err != nil {
 		panic(err)
 	}
 
-	if context.contextQ, err = ring.NewContextWithParams(N, params.qi); err != nil {
+	if context.contextQ, err = ring.NewRing(N, params.qi); err != nil {
 		panic(err)
 	}
 
-	if context.contextQMul, err = ring.NewContextWithParams(N, params.qiMul); err != nil {
+	if context.contextQMul, err = ring.NewRing(N, params.qiMul); err != nil {
 		panic(err)
 	}
 
 	if len(params.pi) != 0 {
-		if context.contextP, err = ring.NewContextWithParams(N, params.pi); err != nil {
+		if context.contextP, err = ring.NewRing(N, params.pi); err != nil {
 			panic(err)
 		}
 	}
 
-	if context.contextQP, err = ring.NewContextWithParams(N, append(params.qi, params.pi...)); err != nil {
+	if context.contextQP, err = ring.NewRing(N, append(params.qi, params.pi...)); err != nil {
 		panic(err)
 	}
 

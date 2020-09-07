@@ -15,7 +15,7 @@ type Scaler interface {
 // This implementation of the Scaler interface should be favored instead of the SimpleScaler
 // implementation.
 type RNSScaler struct {
-	contextQ        *Context
+	contextQ        *Ring
 	paramsQT        *modupParams
 	modDownParamsQT uint64
 	polypoolT       *Poly
@@ -34,7 +34,7 @@ type RNSScaler struct {
 
 // NewRNSScaler creates a new SimpleScaler from t, the modulus under which the reconstruction is returned, and
 // context, the context in which the polynomial to reconstruct is represented.
-func NewRNSScaler(t uint64, contextQ *Context) (rnss *RNSScaler) {
+func NewRNSScaler(t uint64, contextQ *Ring) (rnss *RNSScaler) {
 
 	rnss = new(RNSScaler)
 
@@ -95,7 +95,7 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 // This implementation of the Scaler interface is less efficient than the RNSScaler, but uses simple
 // multiprecision arithmetic of the math/big package. The BFV implementation should use the RNSScaler.
 type SimpleScaler struct {
-	context *Context
+	context *Ring
 
 	r, one *big.Int
 
@@ -118,7 +118,7 @@ const SimpleScalerFloatPrecision = 80
 
 // NewSimpleScaler creates a new SimpleScaler from t, the modulus under which the reconstruction is returned, and
 // context, the context in which the polynomial to reconstruct is represented.
-func NewSimpleScaler(t uint64, context *Context) (ss *SimpleScaler) {
+func NewSimpleScaler(t uint64, context *Ring) (ss *SimpleScaler) {
 
 	ss = new(SimpleScaler)
 
@@ -282,7 +282,7 @@ func (ss *SimpleScaler) reconstructAndScale(p1, p2 *Poly) {
 // ============== Scaling-related Context methods ==============
 
 // DivFloorByLastModulusNTT divides floor the polynomial by its last modulus. Input must be in the NTT domain.
-func (context *Context) DivFloorByLastModulusNTT(p0 *Poly) {
+func (context *Ring) DivFloorByLastModulusNTT(p0 *Poly) {
 
 	level := len(p0.Coeffs) - 1
 
@@ -310,7 +310,7 @@ func (context *Context) DivFloorByLastModulusNTT(p0 *Poly) {
 }
 
 // DivFloorByLastModulus divides floor the polynomial by its last modulus.
-func (context *Context) DivFloorByLastModulus(p0 *Poly) {
+func (context *Ring) DivFloorByLastModulus(p0 *Poly) {
 
 	level := len(p0.Coeffs) - 1
 
@@ -331,21 +331,21 @@ func (context *Context) DivFloorByLastModulus(p0 *Poly) {
 }
 
 // DivFloorByLastModulusManyNTT divides floor sequentially nbRescales times the polynmial by its last modulus. Input must be in the NTT domain.
-func (context *Context) DivFloorByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
+func (context *Ring) DivFloorByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
 	context.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 	context.DivFloorByLastModulusMany(p0, nbRescales)
 	context.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 }
 
 // DivFloorByLastModulusMany divides floor sequentially nbRescales times the polynmial by its last modulus.
-func (context *Context) DivFloorByLastModulusMany(p0 *Poly, nbRescales uint64) {
+func (context *Ring) DivFloorByLastModulusMany(p0 *Poly, nbRescales uint64) {
 	for k := uint64(0); k < nbRescales; k++ {
 		context.DivFloorByLastModulus(p0)
 	}
 }
 
 // DivRoundByLastModulusNTT divides round the polynomial by its last modulus. Input must be in the NTT domain.
-func (context *Context) DivRoundByLastModulusNTT(p0 *Poly) {
+func (context *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
 
@@ -391,7 +391,7 @@ func (context *Context) DivRoundByLastModulusNTT(p0 *Poly) {
 }
 
 // DivRoundByLastModulus divides round the polynomial by its last modulus. Input must be in the NTT domain.
-func (context *Context) DivRoundByLastModulus(p0 *Poly) {
+func (context *Ring) DivRoundByLastModulus(p0 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
 
@@ -428,14 +428,14 @@ func (context *Context) DivRoundByLastModulus(p0 *Poly) {
 }
 
 // DivRoundByLastModulusManyNTT divides round sequentially nbRescales times the polynmial by its last modulus. Input must be in the NTT domain.
-func (context *Context) DivRoundByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
+func (context *Ring) DivRoundByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
 	context.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 	context.DivRoundByLastModulusMany(p0, nbRescales)
 	context.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 }
 
 // DivRoundByLastModulusMany divides round sequentially nbRescales times the polynmial by its last modulus.
-func (context *Context) DivRoundByLastModulusMany(p0 *Poly, nbRescales uint64) {
+func (context *Ring) DivRoundByLastModulusMany(p0 *Poly, nbRescales uint64) {
 	for k := uint64(0); k < nbRescales; k++ {
 		context.DivRoundByLastModulus(p0)
 	}

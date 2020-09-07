@@ -1,8 +1,9 @@
 package ring
 
 import (
-	"github.com/ldsec/lattigo/utils"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/utils"
 )
 
 // GenGaloisParams generates the generators for the galois endomorphisms.
@@ -151,7 +152,7 @@ func PermuteNTTWithIndexAndAddNoModLvl(level uint64, polIn *Poly, index []uint64
 // Permute applies the galois transform on a polynonial outside of the NTT domain.
 // It maps the coefficients x^i to x^(gen*i)
 // Careful, not inplace!
-func (context *Context) Permute(polIn *Poly, gen uint64, polOut *Poly) {
+func (context *Ring) Permute(polIn *Poly, gen uint64, polOut *Poly) {
 
 	var mask, index, indexRaw, logN, tmp uint64
 

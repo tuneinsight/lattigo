@@ -30,11 +30,6 @@ type Context struct {
 	contextQ  *ring.Context
 	contextP  *ring.Context
 	contextQP *ring.Context
-
-	// Rotation params
-	galElConjugate   uint64
-	galElRotColLeft  []uint64
-	galElRotColRight []uint64
 }
 
 // NewContext creates a new Context with the given parameters. It returns an error if one of the parameters would not ensure the
@@ -69,10 +64,6 @@ func newContext(params *Parameters) (ckkscontext *Context) {
 	if ckkscontext.contextQP, err = ring.NewContextWithParams(n, append(params.qi, params.pi...)); err != nil {
 		panic(err)
 	}
-
-	ckkscontext.galElRotColLeft = ring.GenGaloisParams(n, GaloisGen)
-	ckkscontext.galElRotColRight = ring.GenGaloisParams(n, ring.ModExp(GaloisGen, 2*n-1, 2*n))
-	ckkscontext.galElConjugate = 2*n - 1
 
 	return ckkscontext
 

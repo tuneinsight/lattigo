@@ -68,12 +68,13 @@ type evaluator struct {
 
 	ringQ    *ring.Context
 	ringP    *ring.Context
-	poolQMul [3]*ring.Poly
+	poolQMul [3]*ring.Poly // Memory pool for MForm(c0), MForm(c1), c2
 
-	poolQ [4]*ring.Poly
-	poolP [3]*ring.Poly
+	poolQ [4]*ring.Poly // Memory pool for NTT^-1(c2), Decomp(c2), res(c0', c1')
+	poolP [3]*ring.Poly // Memory pool for Decomp(c2), res(c0', c1')
 
-	ctxpool *Ciphertext
+	// TODO use the other pools
+	ctxpool *Ciphertext // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
 
 	baseconverter *ring.FastBasisExtender
 	decomposer    *ring.Decomposer
@@ -1438,7 +1439,6 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 		}
 
 		c00 := eval.poolQMul[0]
-		c00.Zero()
 
 		ringQ.MFormLvl(level, tmp0.value[0], c00)
 		ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.value[0], elOut.value[0])

@@ -1,5 +1,9 @@
 package ckks
 
+import (
+	"github.com/ldsec/lattigo/ring"
+)
+
 // Decryptor is an interface for decrypting Ciphertexts. A Decryptor stores the secret-key.
 type Decryptor interface {
 	// DecryptNew decrypts the ciphertext and returns a newly created
@@ -14,9 +18,9 @@ type Decryptor interface {
 
 // decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type decryptor struct {
-	params      *Parameters
-	ckksContext *Context
-	sk          *SecretKey
+	params *Parameters
+	ringQ  *ring.Context
+	sk     *SecretKey
 }
 
 // NewDecryptor instantiates a new Decryptor that will be able to decrypt ciphertexts
@@ -27,10 +31,15 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 		panic("cannot newDecryptor: secret_key degree must match context degree")
 	}
 
+	var q *ring.Context
+	if q, err = ring.NewContextWithParams(params.N(), params.qi); err != nil {
+		panic(err)
+	}
+
 	return &decryptor{
-		params:      params.Copy(),
-		ckksContext: newContext(params),
-		sk:          sk,
+		params: params.Copy(),
+		ringQ:  q,
+		sk:     sk,
 	}
 }
 
@@ -49,7 +58,7 @@ func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 // Horner method is used for evaluating the decryption.
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
-	context := decryptor.ckksContext.contextQ
+	context := decryptor.ringQ
 
 	level := ciphertext.Level()
 

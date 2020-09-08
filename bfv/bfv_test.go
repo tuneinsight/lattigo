@@ -35,7 +35,7 @@ type testParams struct {
 
 var err error
 var params = new(testParams)
-var defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
+var defaultParams = DefaultParams[PN12QP109+3 : PN12QP109+4]
 
 func TestBFV(t *testing.T) {
 

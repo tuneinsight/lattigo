@@ -69,6 +69,8 @@ type evaluator struct {
 // and ciphertexts that will be used for intermediate values.
 func NewEvaluator(params *Parameters) Evaluator {
 
+	var err error
+
 	var q, qm, p *ring.Ring
 	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
 		panic(err)

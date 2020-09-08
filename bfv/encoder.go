@@ -33,6 +33,7 @@ type encoder struct {
 func NewEncoder(params *Parameters) Encoder {
 
 	var ringQ, ringT *ring.Ring
+	var err error
 
 	if ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
 		panic(err)

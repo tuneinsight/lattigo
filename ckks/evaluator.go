@@ -2,10 +2,11 @@ package ckks
 
 import (
 	"errors"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"math"
 	"unsafe"
+
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // Evaluator is an interface implementing the methodes to conduct homomorphic operations between ciphertext and/or plaintexts.
@@ -66,8 +67,8 @@ type evaluator struct {
 	params *Parameters
 	scale  float64
 
-	ringQ    *ring.Context
-	ringP    *ring.Context
+	ringQ    *ring.Ring
+	ringP    *ring.Ring
 	poolQMul [3]*ring.Poly // Memory pool for MForm(c0), MForm(c1), c2
 
 	poolQ [4]*ring.Poly // Memory pool for NTT^-1(c2), Decomp(c2), res(c0', c1')
@@ -85,13 +86,14 @@ type evaluator struct {
 // and Ciphertexts that will be used for intermediate values.
 func NewEvaluator(params *Parameters) Evaluator {
 
-	var q, p *ring.Context
-	if q, err = ring.NewContextWithParams(params.N(), params.qi); err != nil {
+	var q, p *ring.Ring
+	var err error
+	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
 		panic(err)
 	}
 
 	if params.PiCount() != 0 {
-		if p, err = ring.NewContextWithParams(params.N(), params.pi); err != nil {
+		if p, err = ring.NewRing(params.N(), params.pi); err != nil {
 			panic(err)
 		}
 	}

@@ -34,9 +34,9 @@ func testString(opname string) string {
 
 type testParams struct {
 	params      *Parameters
-	ringQ       *ring.Context
-	ringP       *ring.Context
-	ringQP      *ring.Context
+	ringQ       *ring.Ring
+	ringP       *ring.Ring
+	ringQP      *ring.Ring
 	medianprec  float64
 	prng        utils.PRNG
 	encoder     Encoder
@@ -120,16 +120,16 @@ func genTestParams(defaultParams interface{}) (err error) {
 
 	}
 
-	if params.ringQ, err = ring.NewContextWithParams(params.params.N(), params.params.qi); err != nil {
+	if params.ringQ, err = ring.NewRing(params.params.N(), params.params.qi); err != nil {
 		panic(err)
 	}
 
 	if params.params.PiCount() != 0 {
-		if params.ringP, err = ring.NewContextWithParams(params.params.N(), params.params.pi); err != nil {
+		if params.ringP, err = ring.NewRing(params.params.N(), params.params.pi); err != nil {
 			panic(err)
 		}
 
-		if params.ringQP, err = ring.NewContextWithParams(params.params.N(), append(params.params.qi, params.params.pi...)); err != nil {
+		if params.ringQP, err = ring.NewRing(params.params.N(), append(params.params.qi, params.params.pi...)); err != nil {
 			panic(err)
 		}
 	}

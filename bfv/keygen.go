@@ -22,7 +22,7 @@ type KeyGenerator interface {
 type keyGenerator struct {
 	params          *Parameters
 	bfvContext      *bfvContext
-	ringContext     *ring.Context
+	ringContext     *ring.Ring
 	polypool        [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
 	uniformSampler  *ring.UniformSampler

@@ -64,7 +64,7 @@ func main() {
 
 	params := bfv.DefaultParams[bfv.PN14QP438].WithT(65537)
 
-	contextKeys, _ := ring.NewContextWithParams(1<<params.LogN(), append(params.Qi(), params.Pi()...))
+	contextKeys, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
 
 	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 	if err != nil {

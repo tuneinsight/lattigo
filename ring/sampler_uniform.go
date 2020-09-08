@@ -2,6 +2,7 @@ package ring
 
 import (
 	"encoding/binary"
+
 	"github.com/ldsec/lattigo/utils"
 )
 
@@ -12,7 +13,7 @@ type UniformSampler struct {
 }
 
 // NewUniformSampler creates a new instance of UniformSampler from a PRNG and ring definition.
-func NewUniformSampler(prng utils.PRNG, context *Context) *UniformSampler {
+func NewUniformSampler(prng utils.PRNG, context *Ring) *UniformSampler {
 	uniformSampler := new(UniformSampler)
 	uniformSampler.context = context
 	uniformSampler.prng = prng
@@ -33,7 +34,7 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 		qi = uniformSampler.context.Modulus[j]
 
 		// Starts by computing the mask
-		mask = uniformSampler.context.mask[j]
+		mask = uniformSampler.context.Mask[j]
 
 		ptmp := Pol.Coeffs[j]
 
@@ -79,7 +80,7 @@ func (uniformSampler *UniformSampler) Readlvl(level uint64, Pol *Poly) {
 		qi = uniformSampler.context.Modulus[j]
 
 		// Starts by computing the mask
-		mask = uniformSampler.context.mask[j]
+		mask = uniformSampler.context.Mask[j]
 
 		ptmp := Pol.Coeffs[j]
 

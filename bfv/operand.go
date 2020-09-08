@@ -32,7 +32,7 @@ func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 
 func newBfvElementRandom(prng utils.PRNG, params *Parameters, degree uint64) *bfvElement {
 
-	context, err := ring.NewContextWithParams(params.n, params.qi)
+	context, err := ring.NewRing(params.n, params.qi)
 	if err != nil {
 		panic(err)
 	}
@@ -113,7 +113,7 @@ func (el *bfvElement) Copy(ctxCopy *bfvElement) {
 }
 
 // NTT puts the target bfvElement in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
-func (el *bfvElement) NTT(context *ring.Context, c *bfvElement) {
+func (el *bfvElement) NTT(context *ring.Ring, c *bfvElement) {
 	if el.Degree() != c.Degree() {
 		panic("cannot NTT: receiver element invalid degree (degrees do not match)")
 	}
@@ -126,7 +126,7 @@ func (el *bfvElement) NTT(context *ring.Context, c *bfvElement) {
 }
 
 // InvNTT puts the target bfvElement outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, it does nothing.
-func (el *bfvElement) InvNTT(context *ring.Context, c *bfvElement) {
+func (el *bfvElement) InvNTT(context *ring.Ring, c *bfvElement) {
 	if el.Degree() != c.Degree() {
 		panic("cannot InvNTT: receiver element invalid degree (degrees do not match)")
 	}

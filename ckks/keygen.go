@@ -1,9 +1,10 @@
 package ckks
 
 import (
+	"math/big"
+
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
-	"math/big"
 )
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
@@ -25,7 +26,7 @@ type KeyGenerator interface {
 // as well as a small memory pool for intermediate values.
 type keyGenerator struct {
 	params          *Parameters
-	ringQP          *ring.Context
+	ringQP          *ring.Ring
 	pBigInt         *big.Int
 	polypool        [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
@@ -82,8 +83,9 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params *Parameters) KeyGenerator {
 
-	var qp *ring.Context
-	if qp, err = ring.NewContextWithParams(params.N(), append(params.qi, params.pi...)); err != nil {
+	var qp *ring.Ring
+	var err error
+	if qp, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
 		panic(err)
 	}
 

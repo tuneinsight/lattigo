@@ -20,7 +20,7 @@ type PolynomialTestParams struct {
 	sigma      float64
 }
 
-func testString(opname string, context *Context) string {
+func testString(opname string, context *Ring) string {
 	return fmt.Sprintf("%sN=%d/limbs=%d", opname, context.N, len(context.Modulus))
 }
 
@@ -62,10 +62,10 @@ func TestRing(t *testing.T) {
 	t.Run("MultByMonomial", testMultByMonomial)
 }
 
-func genPolyContext(params *Parameters) (context *Context) {
-	context = NewContext()
-	context.SetParameters(params.N, params.Moduli)
-	context.GenNTTParams()
+func genPolyContext(params *Parameters) (context *Ring) {
+	context = new(Ring)
+	context.setParameters(params.N, params.Moduli)
+	context.genNTTParams()
 	return context
 }
 
@@ -231,7 +231,7 @@ func testMarshalBinary(t *testing.T) {
 
 			data, _ := context.MarshalBinary()
 
-			contextTest := NewContext()
+			contextTest := new(Ring)
 			contextTest.UnmarshalBinary(data)
 
 			require.Equal(t, contextTest.N, context.N)
@@ -390,7 +390,7 @@ func testBRed(t *testing.T) {
 					result.Mul(result, NewUint(y))
 					result.Mod(result, bigQ)
 
-					require.Equalf(t, BRed(x, y, q, context.bredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
+					require.Equalf(t, BRed(x, y, q, context.BredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
 				}
 			}
 		})
@@ -420,7 +420,7 @@ func testMRed(t *testing.T) {
 					result.Mul(result, NewUint(y))
 					result.Mod(result, bigQ)
 
-					require.Equalf(t, MRed(x, MForm(y, q, context.bredParams[j]), q, context.mredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
+					require.Equalf(t, MRed(x, MForm(y, q, context.BredParams[j]), q, context.MredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
 				}
 			}
 		})

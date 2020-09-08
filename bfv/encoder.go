@@ -67,7 +67,7 @@ func NewEncoder(params *Parameters) Encoder {
 }
 
 // GenLiftParams generates the lifting parameters.
-func GenLiftParams(context *ring.Context, t uint64) (deltaMont []uint64) {
+func GenLiftParams(context *ring.Ring, t uint64) (deltaMont []uint64) {
 
 	delta := new(big.Int).Quo(context.ModulusBigint, ring.NewUint(t))
 

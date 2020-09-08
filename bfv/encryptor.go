@@ -175,7 +175,7 @@ func (encryptor *pkEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *r
 
 func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
 
-	var ringContext *ring.Context
+	var ringContext *ring.Ring
 
 	if fast {
 		ringContext = encryptor.bfvContext.contextQ
@@ -311,7 +311,7 @@ func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *C
 
 func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly, fast bool) {
 
-	var ringContext *ring.Context
+	var ringContext *ring.Ring
 
 	if fast {
 

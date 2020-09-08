@@ -6,126 +6,126 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
-## [1.4.0] - 2020-08-31
+## [1.4.0] - 2020-09-30
 
-### Some changes aren't public yet and will be on release.
+### Some changes are not public yet and will be on release.
 
-### Performances
+### Performance
 - Global 1.5x speed-up across all arithmetic (this does not include sampling).
 
 ### Added
-- BFV/CKKS : added encrypt fast (directly in Q without the rescaling by P).
-- CKKS : added full RNS scale invariant bootstrapping.
-- CKKS : added parameterized tests for a range of experiments.
-- CKKS : added arbitrary precision encoding/decoding.
-- CKKS : added scale invariant polynomial evaluation.
-- CKKS : added encoding/decoding for coefficient packing.
-- CKKS : the user can now choose to encode plaintext in or out of the NTT domain (the second option leads to slightly faster encryptions).
-- CKKS : added secret-key gen with error distribution.
-- DBFV : added collective refresh with arbitrary permutation/linear transformation.
-- DCKKS : added collective refresh with arbitrary permutation/linear transformation.
-- RING : added arbitrary precision complex arithmetic, including cos and sin functions.
-- RING : added polynomial interpolation.
-- RING : added polynomial inversion.
-- RING : extracted interface type Scaler for polynomial coefficient scaling
-- RING : added type RNSScaler as an efficient, cross-platform implementation of the Scaler interface
+- BFV/CKKS: Added fast encryption (directly in Q without the rescaling by P).
+- CKKS: Added full-RNS scale invariant bootstrapping.
+- CKKS: Added parameterized tests for a range of experiments.
+- CKKS: Added arbitrary precision encoding/decoding.
+- CKKS: Added scale invariant polynomial evaluation.
+- CKKS: Added encoding/decoding for coefficient packing.
+- CKKS The user can now choose to encode a plaintext in or out of the NTT domain (the latter option leads to slightly faster encryptions).
+- CKKS: Added secret-key gen with error distribution.
+- DBFV: Added collective refresh with arbitrary permutation/linear transformation.
+- DCKKS: Added collective refresh with arbitrary permutation/linear transformation.
+- RING: Added arbitrary precision complex arithmetic, including cos and sin functions.
+- RING: Added polynomial interpolation.
+- RING: Added polynomial inversion.
+- RING: Extracted interface type Scaler for polynomial coefficient scaling.
+- RING: Added type RNSScaler as an efficient, cross-platform implementation of the Scaler interface.
 
 ### Changed 
-- ALL : all tests now use "require"
-- BFV/CKKS : parameters without P can be used, but the key-switching is disabled.
-- BFV/CKKS : parameters do not use anymore methods to access internal values.
-- BFV/CKKS : now uses new rotations keys optimized for hoisting rotations of the form (-phi^{-1}(s1)a + phi(s0) + e, a).
-- BFV : Decoder uses the RNSScaler implementation of the Scaler interface to perform the t/Q rescaling.
-- CKKS : simplified the code of the hybrid key-switching (does not affect user experience).
-- CKKS : encoding/decoding at level 0 is now 500% faster.
-- CKKS : the encoder now accepts slices of complex of length equal or smaller than the specified number of slots.
-- RING : improved primes finding.
-- RING : all Gaussian sampling now uses Ziggurat sampling.
-- RING : revamp of the polynomial samplers to make them more memory efficient, consistent user friendly and enable parallel sampling.
-- RING : the SimpleScaler type now use slightly slower but cross-platform big.Int/Float.
-- UTILS : complete revamp of the PRNG (Blake2b XOF), to make it more user friendly and consistent.
+- ALL: all tests now use "require".
+- BFV/CKKS: Now parameters without P can be used, but the key-switching is disabled.
+- BFV/CKKS: Now parameters do not use methods to access internal values.
+- BFV/CKKS: New rotations keys optimized for hoisting rotations of the form (-phi^{-1}(s1)a + phi(s0) + e, a).
+- BFV: The Decoder uses the RNSScaler implementation of the Scaler interface to perform the t/Q rescaling.
+- CKKS: Simplified the code of the hybrid key-switching (does not affect user experience).
+- CKKS: The encoding/decoding operations at level 0 are now 500% faster.
+- CKKS: The encoder now accepts slices of complex values with length equal to or smaller than the specified number of slots.
+- RING: Improved primes finding.
+- RING: All Gaussian sampling now uses Ziggurat sampling.
+- RING: Revamped polynomial samplers to make them more memory efficient, consistent user friendly, and to enable parallel sampling.
+- RING: The SimpleScaler type now use slightly slower but cross-platform big.Int/Float.
+- UTILS: Complete revamp of the PRNG (Blake2b XOF), to make it more user friendly and consistent.
 
 ### Removed
-- BFV/CKKS : Parameters API generation GenFromLogModuli() and GenFromModuli() have been removed and replaced by Gen().
-- CKKS : EvaluatePolyFast(.) and EvaluatePolyEco(.) are replaced by EvaluatePoly(.).
-- CKKS : EvaluateChebyFast(.) and EvaluateChebyEco(.) are replaced by EvaluatePolyCheby(.).
-- CKKS : EvaluateChebyEcoSpecial(.) and EvaluateChebyFastSpecial(.) are replaced by EvaluatePolyChebySpecial(.).
-- RING : the Float128 type had cross-platform incompatilities and was removed.
+- BFV/CKKS: Parameters API generation GenFromLogModuli() and GenFromModuli() have been removed and replaced by Gen().
+- CKKS: EvaluatePolyFast(.) and EvaluatePolyEco(.) are replaced by EvaluatePoly(.).
+- CKKS: EvaluateChebyFast(.) and EvaluateChebyEco(.) are replaced by EvaluatePolyCheby(.).
+- CKKS: EvaluateChebyEcoSpecial(.) and EvaluateChebyFastSpecial(.) are replaced by EvaluatePolyChebySpecial(.).
+- RING: The Float128 type was removed due to cross-platform incompatility.
 
 ### Fixes
-- BFV : fixed multiplication that was failing is #Qi != #QMul.
-- BFV : fixed a mempool corruption when encrypting from SK.
-- CKKS : mulrelin now always returns a fully reduced polynomial.
-- CKKS : the encoder now correctly checks that the number of slots is a power of two
-- RING : prevented a rare case of uint64 overflow during prime sampling.
-- RING : prevented a rare case where two identical primes could be returned when sampling primes.
+- BFV: Fixed multiplication that was failing is #Qi != #QMul.
+- BFV: Fixed a mempool corruption when encrypting from SK.
+- CKKS: The function mulrelin now always returns a fully reduced polynomial.
+- CKKS: The encoder now correctly checks that the number of slots is a power of two.
+- RING: Prevented a rare case of uint64 overflow during prime sampling.
+- RING: Prevented a rare case where two identical primes could be returned when sampling primes.
 
 ## [1.3.1] - 2020-02-26
 ### Added
-- BFV/CKKS : added API for encrypting using a CRP (common reference polynomial).
-- BFV/CKKS : added API for encrypting faster (encrypts zero directly in Q instead of QP and does not need to divide by P).
-- BFV/CKKS : Parameters can now be created without the modulus P, but this disables all key-switching operations.
-- CKKS : added tests for hoisted rotations.
-- Ring : added benchmarks for a NTT using purely Barrett reduction for comparison purposes.
+- BFV/CKKS: Added API for encrypting using a CRP (common reference polynomial).
+- BFV/CKKS: Added API for encrypting faster (encrypts zero directly in Q instead of QP and does not need to divide by P).
+- BFV/CKKS: Parameters can now be created without the modulus P. Doing so disables all key-switching operations.
+- CKKS: Added tests for hoisted rotations.
+- RING: Added benchmarks for a NTT using purely Barrett reduction for comparison purposes.
 ### Changed 
-- BFV/CKKS : changed the switching keys from (-as1 + (s0-s1) + e, a) to (-as1 + s0 + e, a). This does not affect the user expercience as it only changes what is happening in the background, however older Rotations and KeySwitching keys will induce wrong results and will need to be re-generated.
+- BFV/CKKS: Changed the switching keys from (-as1 + (s0-s1) + e, a) to (-as1 + s0 + e, a). This does not affect the user experience as it only changes the internal behavior, which is kept consistent. However, Rotation and KeySwitching keys generated with older releases will induce wrong results and will need to be re-generated.
 ### Fixes
-- BFV : Fixed EncryptFromSK that was not correctly wiping the memory pool before using it, which lead to back encryptions.
-- BFV : Fixed an index out of bound error that would happen during the multiplication if #QMul > #Qi.
-- CKKS : removed some redundant operations in the hoisted rotations.
-- CKKS : MulRelin now always returns a fully reduced ciphertext.
-- DCKKS : PCKS and CKS now correctly set the scale of the output ciphertext to the scale of the input ciphertext.
-- Ring : fixed GenerateNTTPrimes that could return twice the same prime if the initial value was prime.
-- Ring : context.UniformPoly now samples based on the number of moduli of the context rather than based on the input polynomial.
+- BFV: Fixed EncryptFromSK that was not correctly wiping the memory pool before using it, which lead to back encryptions.
+- BFV: Fixed an index out of bound error that would happen during the multiplication if #QMul > #Qi.
+- CKKS: Removed some redundant operations in the hoisted rotations.
+- CKKS: MulRelin now always returns a fully reduced ciphertext.
+- DCKKS: PCKS and CKS now correctly set the scale of the output ciphertext to the scale of the input ciphertext.
+- RING: Fixed GenerateNTTPrimes that could return twice the same prime if the initial value was prime.
+- RING: The function context.UniformPoly now samples based on the number of moduli of the context rather than based on the input polynomial.
 
 ## [1.3.0] - 2019-12-20
 ### Added
-- All schemes : new switching-keys and key-switching algorithm based on the concept presented in https://eprint.iacr.org/2019/688.pdf.
-- All schemes : new marshaling interface for all structures.
-- BFV/CKKS : new Parameters structs and API enabling a better customization and fine tuning for specific applications.
-- CKKS : new API for hoisted rotations, which is faster than sequential rotations.
-- DBFV/DCKKS : added collective refresh of a ciphertext (decentralized bootstrapping).
-- RING : added Ziggurat sampling, available from the context.
-- RING : enabled dense and sparse ternary polynomials sampling directly from the context.
-- RING : new API enabling "level" wise polynomial arithmetic.
-- RING : new API for modulus switching with flooring and rounding.
-- UTILS : utils now regroups all the utility methods which were previously duplicated among packages.
+- All schemes: New switching-keys and key-switching algorithm based on the concept presented in https://eprint.iacr.org/2019/688.pdf.
+- All schemes: New marshaling interface for all structures.
+- BFV/CKKS: New Parameters structs and API that enable a better customization and fine tuning for specific applications.
+- CKKS: New API for hoisted rotations, faster than sequential rotations.
+- DBFV/DCKKS: Added collective refresh of a ciphertext (decentralized bootstrapping).
+- RING: Added Ziggurat sampling, available from the context.
+- RING: Enabled dense and sparse ternary polynomials sampling directly from the context.
+- RING: New API enabling "level"-wise polynomial arithmetic.
+- RING: New API for modulus switching with flooring and rounding.
+- UTILS: The pacakge utils now regroups all the utility methods which were previously duplicated among packages.
 ### Removed
-- BFV/CKKS/DBFV/DCKKS : removed their respective context. Ring context remains public.
-- All schemes : removed key-switching with bit decomposition. This option will however be re-introduced at a later stage since applications using small parameters can suffer from this change.
-- BFV/CKKS/RING : removed redudant/irrelevant tests and benchmarks.
-- BFV : removed context QP as it is not any more used in the multiplication.
-- BFV : removed int encoder, now only batch encoding is supported.
-- CKKS : modulus switching is now located in Ring.
-- RING : removed the algorithms that needed Float128 during the BFV multiplication.
-- RING : removed most wrapping methods for bigInt, which are now replaced by the native math/big package.
-- RING : removed ternary sampler, which is now part of the context.
+- BFV/CKKS/DBFV/DCKKS: Removed their respective context. Ring context remains public.
+- All schemes: Removed key-switching with bit decomposition. This option will however be re-introduced at a later stage since applications using small parameters can be impacted by this change.
+- BFV/CKKS/RING: Removed redundant/irrelevant tests and benchmarks.
+- BFV: Removed context QP as it is now not used in the multiplication.
+- BFV: Removed int encoder, now only batch encoding is supported.
+- CKKS: Modulus switching is moved to the Ring package.
+- RING: Removed the algorithms that needed Float128 during the BFV multiplication.
+- RING: Removed most wrapping methods for bigInt, which are now replaced by the native math/big package.
+- RING: Removed ternary sampler, which is now part of the context.
 ### Changed
-- All schemes : Encryptor, Decryptor, Encoder, Evaluator, KeyGenerator are now interface types.
-- All schemes : Improved Godoc and error strings.
-- ALl schemes : greatly reduced the number of methods that could return an error.
-- All schemes : new tests and benchmarks with fully supported regex.
-- All schemes : coefficient wise arithmetic using double slices is now substentially faster.
-- BFV/CKKS : changed the name of the underlying ring contexts. Q now represents the ciphertext modulus (with QMul being the extended ciphertext modulus for BFV) and QP represents modulus of the keys (P being the special primes used during the new key-switching).
-- BFV/CKKS/DBFV/DCKKS : structures are now created using the parameters instead of the context.
-- BFV : quantization during multiplication doesn't use Float128 any more, resulting in a substential speed improvement.
-- BFV : BatchEncoder has been renamed Encoder.
-- CKKS : the scale is now stored as a float64 instead of a power of 2.
-- CKKS : rounding is applied instead of flooring when a real value is converted to an integer value. This change affects the rescaling and the encoding.
-- CKKS : previously needed one ring context per level, now only uses one context for all levels.
-- CKKS : new baby-step giant-step algorithm for evaluating polynomials in standard and Chebyshev basis.
-- CKKS : reduced the number of NTT needed during the encryption.
-- CKKS : API for MultConst is now MultByConst.
-- BFV/CKKS : new API for the rotation-keys generation.
-- DBFV/DCKKS : complete revamp of the API and interfaces enabling a much easier integration into larger systems.
-- DBFV/DCKKS : improved PCKS and CKS using the concept of the new key-switching technique which enables to reduces the added noise.
-- DCKKS : all protocols work for ciphertexts at any levels.
-- RING : faster MulScalarBigint (now similar to MulScalar).
-- UTILS : PRNG must be keyed to be forward secure.
+- All schemes: Encryptor, Decryptor, Encoder, Evaluator, KeyGenerator are now interface types.
+- All schemes: Improved Godoc and error strings.
+- ALl schemes: Greatly reduced the number of methods that could return an error.
+- All schemes: New tests and benchmarks with fully supported regex.
+- All schemes: Coefficient-wise arithmetic using double slices is now substantially faster.
+- BFV/CKKS: Changed the name of the underlying ring contexts. Q now represents the ciphertext modulus (with QMul being the extended ciphertext modulus for BFV) and QP represents modulus of the keys (where P is the special primes used during the new key-switching).
+- BFV/CKKS/DBFV/DCKKS: The structures are now created using the parameters instead of the context.
+- BFV: Quantization during multiplication does not use Float128 any more, resulting in a substantial speed improvement.
+- BFV: BatchEncoder has been renamed Encoder.
+- CKKS: The scale is now stored as a float64 instead of a power of 2.
+- CKKS: Rounding is applied instead of flooring when a real value is converted to an integer value. This change affects the rescaling and the encoding.
+- CKKS: Use of one context for all levels, instead of requiring one ring context per level.
+- CKKS: New baby-step giant-step algorithm for evaluating polynomials in standard and Chebyshev basis.
+- CKKS: Reduced the number of NTT needed during the encryption.
+- CKKS: API for MultConst is now MultByConst.
+- BFV/CKKS: New API for the rotation-keys generation.
+- DBFV/DCKKS: Complete revamp of the API and interfaces enabling a much easier integration into larger systems.
+- DBFV/DCKKS: Improved PCKS and CKS using the concept of the new key-switching technique which enables to reduces the added noise.
+- DCKKS: All protocols work for ciphertexts at any levels.
+- RING: Faster MulScalarBigint (now similar to MulScalar).
+- UTILS: PRNG must be keyed to be forward secure.
 ### Fixes
-- All packages : typos, godoc and golint.
-- CKKS : ciphertext rotation now correctly sets the scale of the output ciphertext.
-- DBFV/DCKKS : correctness is now ensured when the same protocol instance is used to generate multiples shares.
+- All packages: Corrected typos, godoc and golint.
+- CKKS: ciphertext rotation now correctly sets the scale of the output ciphertext.
+- DBFV/DCKKS: Correctness is now ensured when the same protocol instance is used to generate multiples shares.
 
 ## [1.2.0] - 2019-12-01
 Internal version, merged with 1.3.0.
@@ -140,9 +140,9 @@ Internal version, merged with 1.3.0.
 - CKKS: Added default parameters and parameters marshalling.
 - CKKS (API change): encryption can now also be done with the secret-key.
 - CKKS (API change): new separate struct for the encoder, that will store a small memory pool for temporary elements.
-- BFV and CKKS: Operand interface.
-- Ring: New method MultByVector.
-- Ring (API change): new Ternary Sampler, which allows to specify the key distribution {-1, 0, 1} -> [(1-p)/2, p, (1-p)/2]; faster than the previous implementation.
+- BFV/CKKS: Operand interface.
+- RING: New method MultByVector.
+- RING (API change): New Ternary Sampler, which enables to specify the key distribution {-1, 0, 1} -> [(1-p)/2, p, (1-p)/2]; it is faster than the previous implementation.
 - GoDoc for BFV, CKKS, Ring, DBFV, and DCKKS.
 - README for BFV and CKKS.
 - Code cleaning for all packages.
@@ -151,8 +151,8 @@ Internal version, merged with 1.3.0.
 ### Changed
 - Updated README.md.
 - BFV (API change): bfvcontext now only accepts as input a struct of the type Parameters, similar to the one used for DefaultParams.
-- BFV (API change): removed bfvcontext from ciphertexts and plaintexts.
-- BFV (API change): encryption can now also be done with the secret-key.
+- BFV (API change): Removed bfvcontext from ciphertexts and plaintexts.
+- BFV (API change): Encryption can now also be done with the secret-key.
 - BFV: The value logQ in the bfvcontext now stores the bit size of the product of the ciphertext's moduli.
 - BFV: The information printed by the tests now better conveys the parameters.
 - BFV: Updated and optimized default parameters.
@@ -162,15 +162,15 @@ Internal version, merged with 1.3.0.
 - CKKS (API change): removed ckkscontext from ciphertexts and plaintexts.
 - CKKS: Updated the value logQ in the ckkscontext, which now stores the bit size of the product of the ciphertext's moduli.
 - CKKS: Updated the information printed by the tests to more reflect the parameters.
-- BFV and CKKS: greatly simplified the code related to the rotations.
-- BFV and CKKS: reduced the number of instances where an error could be returned and updated informations of the returning errors.
-- Ring (API change): changed the API of the validation methode of the context to better reflect its purpose.
-- BFV/CKKS/Ring : the copy function will now copy the input poly on the target poly (previously the target was copied on the input).
+- BFV/CKKS: Greatly simplified the code related to the rotations.
+- BFV/CKKS: Reduced the number of instances where an error could be returned and updated information of the returning errors.
+- RING (API change): Changed the API of the validation method of the context to better reflect its purpose.
+- BFV/CKKS/RING: The copy function will now copy the input poly on the target poly (previously the target was copied on the input).
 - Updates on all packages and tests to comply with the API changes in BFV and CKKS.
 
 ### Removed
-- The evaluator of both BFV and CKKS cannot anymore operate on two plaintexts. They now always returns an element of type Ciphertext.
-- The contexts of BFV and CKKS will not anymore store their checksum, nor will the evaluator check for context consistency of the input and output elements.
+- The evaluator of both BFV and CKKS cannot operate on two plaintexts anymore. They now always return an element of type Ciphertext.
+- The contexts of BFV and CKKS will not store their checksum anymore, nor will the evaluator check for context consistency of the input and output elements.
 
 ### Fixed
 - Fixed overflow occurring in the basis extension when small and large moduli are used together.

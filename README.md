@@ -10,8 +10,8 @@ _The Lattigo library unleashes the potential of lattice-based cryptography in se
 
 Lattigo is a Go package implementing lattice-based cryptographic primitives.
 The library features:
-- A pure Go implementation bringing code-simplicity and easy builds.
-- A public interface for an efficient multiprecision polynomial arithmetic layer.
+- A pure Go implementation enabling code-simplicity and easy builds.
+- A public interface for an efficient multi-precision polynomial arithmetic layer.
 - Comparable performance to state-of-the-art C++ libraries.
 
 Lattigo aims at enabling fast prototyping of secure-multiparty computation solutions based on distributed homomorphic cryptosystems, by harnessing Go's natural concurrency model.
@@ -20,16 +20,16 @@ Lattigo aims at enabling fast prototyping of secure-multiparty computation solut
 
 The library comprises the following sub-packages:
 
-- `lattigo/ring`: RNS-accelerated modular arithmetic operations for polynomials, including: RNS basis extension; RNS rescaling;  number theoretic transform (NTT); uniform, Gaussian and ternary sampling.
+- `lattigo/ring`: RNS-accelerated modular arithmetic operations for polynomials, including: RNS basis extension; RNS rescaling; number theoretic transform (NTT); uniform, Gaussian and ternary sampling.
 
 - `lattigo/bfv`: RNS-accelerated Fan-Vercauteren version of Brakerski's scale invariant homomorphic encryption scheme. It provides modular arithmetic over the integers.
 	
 - `lattigo/ckks`: RNS-accelerated version of the Homomorphic Encryption for Arithmetic for Approximate Numbers (HEAAN, a.k.a. CKKS) scheme. It provides approximate arithmetic over the complex numbers.
 
-- `lattigo/dbfv` and `lattigo/dckks`: Distributed (or threshold) versions of the BFV and CKKS schemes that enable secure multiparty computation solutions with secret-shared secret keys.
+- `lattigo/dbfv` and `lattigo/dckks`: Multiparty (a.k.a. distributed or threshold) versions of the BFV and CKKS schemes that enable secure multiparty computation solutions with secret-shared secret keys.
 
-- `lattigo/examples`: Executable Go programs demonstrating the usage of the Lattigo library.
-                      Note that each subpackage includes test files that further demonstrate the usage of Lattigo primitives.
+- `lattigo/examples`: Executable Go programs that demonstrate the usage of the Lattigo library.
+                      Each subpackage includes test files that further demonstrate the usage of Lattigo primitives.
 
 - `lattigo/utils`: Supporting structures and functions.
 
@@ -42,7 +42,6 @@ See CHANGELOG.md for the current and past versions.
 
 ### Upcoming features
 
-- Bootstrapping for CKKS.
 - README for distributed schemes
 - Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
 
@@ -64,9 +63,9 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo 1.3.1},
+	    title = {Lattigo 1.4.0},
 	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
-	    month = feb,
+	    month = sep,
 	    year = 2020,
 	    note = {EPFL-LDS}
     }

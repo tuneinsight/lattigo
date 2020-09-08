@@ -9,8 +9,8 @@ import (
 // FastBasisExtender stores the necessary parameters for RNS basis extension.
 // The algorithm is from https://eprint.iacr.org/2018/117.pdf.
 type FastBasisExtender struct {
-	contextQ        *Context
-	contextP        *Context
+	contextQ        *Ring
+	contextP        *Ring
 	paramsQP        *modupParams
 	paramsPQ        *modupParams
 	modDownParamsPQ []uint64
@@ -38,7 +38,7 @@ type modupParams struct {
 	mredParamsP []uint64
 }
 
-func genModDownParams(contextP, contextQ *Context) (params []uint64) {
+func genModDownParams(contextP, contextQ *Ring) (params []uint64) {
 
 	params = make([]uint64, len(contextP.Modulus))
 
@@ -55,7 +55,7 @@ func genModDownParams(contextP, contextQ *Context) (params []uint64) {
 }
 
 // NewFastBasisExtender creates a new FastBasisExtender, enabling RNS basis extension from Q to P and P to Q.
-func NewFastBasisExtender(contextQ, contextP *Context) *FastBasisExtender {
+func NewFastBasisExtender(contextQ, contextP *Ring) *FastBasisExtender {
 
 	newParams := new(FastBasisExtender)
 
@@ -189,8 +189,8 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 		p2tmp := p2.Coeffs[i]
 		p3tmp := polypool.Coeffs[i]
 		params := modDownParams[i]
-		mredParams := contextQ.mredParams[i]
-		bredParams := contextQ.bredParams[i]
+		mredParams := contextQ.MredParams[i]
+		bredParams := contextQ.BredParams[i]
 
 		// First we switch back the relevant polypool CRT array back to the NTT domain
 		NTT(p3tmp, p3tmp, contextQ.N, contextQ.GetNttPsi()[i], qi, mredParams, bredParams)
@@ -243,8 +243,8 @@ func (basisextender *FastBasisExtender) ModDownSplitedNTTPQ(level uint64, p1Q, p
 		p2tmp := p2.Coeffs[i]
 		p3tmp := polypool.Coeffs[i]
 		params := modDownParams[i]
-		mredParams := contextQ.mredParams[i]
-		bredParams := contextQ.bredParams[i]
+		mredParams := contextQ.MredParams[i]
+		bredParams := contextQ.BredParams[i]
 
 		// First we switch back the relevant polypool CRT array back to the NTT domain
 		NTT(p3tmp, p3tmp, contextQ.N, contextQ.GetNttPsi()[i], contextQ.Modulus[i], mredParams, bredParams)
@@ -293,7 +293,7 @@ func (basisextender *FastBasisExtender) ModDownPQ(level uint64, p1, p2 *Poly) {
 		p2tmp := p2.Coeffs[i]
 		p3tmp := polypool.Coeffs[i]
 		params := modDownParams[i]
-		mredParams := context.mredParams[i]
+		mredParams := context.MredParams[i]
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < context.N; j = j + 8 {
@@ -338,7 +338,7 @@ func (basisextender *FastBasisExtender) ModDownSplitedPQ(level uint64, p1Q, p1P,
 		p2tmp := p2.Coeffs[i]
 		p3tmp := polypool.Coeffs[i]
 		params := modDownParams[i]
-		mredParams := contextQ.mredParams[i]
+		mredParams := contextQ.MredParams[i]
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < contextQ.N; j = j + 8 {
@@ -384,7 +384,7 @@ func (basisextender *FastBasisExtender) ModDownSplitedQP(levelQ, levelP uint64, 
 		p2tmp := p2.Coeffs[i]
 		p3tmp := polypool.Coeffs[i]
 		params := modDownParams[i]
-		mredParams := contextP.mredParams[i]
+		mredParams := contextP.MredParams[i]
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < contextP.N; j++ {

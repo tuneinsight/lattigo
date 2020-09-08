@@ -16,10 +16,10 @@ type dbfvContext struct {
 	deltaMont []uint64
 
 	// Polynomial contexts
-	contextT  *ring.Context
-	contextQ  *ring.Context
-	contextP  *ring.Context
-	contextQP *ring.Context
+	contextT  *ring.Ring
+	contextQ  *ring.Ring
+	contextP  *ring.Ring
+	contextQP *ring.Ring
 }
 
 func newDbfvContext(params *bfv.Parameters) *dbfvContext {
@@ -27,22 +27,22 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 	LogN := params.LogN()
 	n := uint64(1 << LogN)
 
-	contextT, err := ring.NewContextWithParams(n, []uint64{params.T()})
+	contextT, err := ring.NewRing(n, []uint64{params.T()})
 	if err != nil {
 		panic(err)
 	}
 
-	contextQ, err := ring.NewContextWithParams(n, params.Qi())
+	contextQ, err := ring.NewRing(n, params.Qi())
 	if err != nil {
 		panic(err)
 	}
 
-	contextP, err := ring.NewContextWithParams(n, params.Pi())
+	contextP, err := ring.NewRing(n, params.Pi())
 	if err != nil {
 		panic(err)
 	}
 
-	contextQP, err := ring.NewContextWithParams(n, append(params.Qi(), params.Pi()...))
+	contextQP, err := ring.NewRing(n, append(params.Qi(), params.Pi()...))
 	if err != nil {
 		panic(err)
 	}

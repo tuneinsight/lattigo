@@ -17,23 +17,27 @@ type Decryptor interface {
 
 // decryptor is a structure used to decrypt ciphertexts. It stores the secret-key.
 type decryptor struct {
-	params     *Parameters
-	bfvContext *bfvContext
-	sk         *SecretKey
-	polypool   *ring.Poly
+	params   *Parameters
+	ringQ    *ring.Ring
+	sk       *SecretKey
+	polypool *ring.Poly
 }
 
 // NewDecryptor creates a new Decryptor from the parameters with the secret-key
 // given as input.
 func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 
-	ctx := newBFVContext(params)
+	var ringQ *ring.Ring
+	var err error
+	if ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
+		panic(err)
+	}
 
 	return &decryptor{
-		params:     params.Copy(),
-		bfvContext: ctx,
-		sk:         sk,
-		polypool:   ctx.contextQ.NewPoly(),
+		params:   params.Copy(),
+		ringQ:    ringQ,
+		sk:       sk,
+		polypool: ringQ.NewPoly(),
 	}
 }
 
@@ -46,23 +50,23 @@ func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) *Plaintext {
 }
 
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
-	ringContext := decryptor.bfvContext.contextQ
+	ringQ := decryptor.ringQ
 
-	ringContext.NTT(ciphertext.value[ciphertext.Degree()], plaintext.value)
+	ringQ.NTT(ciphertext.value[ciphertext.Degree()], plaintext.value)
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
-		ringContext.MulCoeffsMontgomery(plaintext.value, decryptor.sk.sk, plaintext.value)
-		ringContext.NTT(ciphertext.value[i-1], decryptor.polypool)
-		ringContext.Add(plaintext.value, decryptor.polypool, plaintext.value)
+		ringQ.MulCoeffsMontgomery(plaintext.value, decryptor.sk.sk, plaintext.value)
+		ringQ.NTT(ciphertext.value[i-1], decryptor.polypool)
+		ringQ.Add(plaintext.value, decryptor.polypool, plaintext.value)
 
 		if i&7 == 7 {
-			ringContext.Reduce(plaintext.value, plaintext.value)
+			ringQ.Reduce(plaintext.value, plaintext.value)
 		}
 	}
 
 	if (ciphertext.Degree())&7 != 7 {
-		ringContext.Reduce(plaintext.value, plaintext.value)
+		ringQ.Reduce(plaintext.value, plaintext.value)
 	}
 
-	ringContext.InvNTT(plaintext.value, plaintext.value)
+	ringQ.InvNTT(plaintext.value, plaintext.value)
 }

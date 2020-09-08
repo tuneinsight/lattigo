@@ -19,7 +19,7 @@ type Decryptor interface {
 // decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type decryptor struct {
 	params *Parameters
-	ringQ  *ring.Context
+	ringQ  *ring.Ring
 	sk     *SecretKey
 }
 
@@ -31,8 +31,9 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 		panic("cannot newDecryptor: secret_key degree must match context degree")
 	}
 
-	var q *ring.Context
-	if q, err = ring.NewContextWithParams(params.N(), params.qi); err != nil {
+	var q *ring.Ring
+	var err error
+	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
 		panic(err)
 	}
 

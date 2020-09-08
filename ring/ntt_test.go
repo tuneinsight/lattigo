@@ -104,7 +104,7 @@ func TestNTT(t *testing.T) {
 
 	for _, tv := range testVector[1:] {
 
-		context, _ := NewContextWithParams(tv.N, tv.Qis)
+		context, _ := NewRing(tv.N, tv.Qis)
 
 		t.Run(fmt.Sprintf("N=%d/limbs=%d", context.N, len(context.Modulus)), func(t *testing.T) {
 			x := context.NewPoly()

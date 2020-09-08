@@ -1,16 +1,17 @@
 package ring
 
 import (
-	"github.com/ldsec/lattigo/utils"
 	"math"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/utils"
 )
 
 const precision = uint64(56)
 
 type baseSampler struct {
 	prng    utils.PRNG
-	context *Context
+	context *Ring
 }
 
 // TernarySampler is the state of a polynomial sampler in the ternary distribution.
@@ -26,7 +27,7 @@ type TernarySampler struct {
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
 // parameters: p is the probability of a coefficient being 0, (1-p)/2 is the probability of 1 and -1. If montgomery
 // is set to true, polynomials read from this sampler are in Montgomery form.
-func NewTernarySampler(prng utils.PRNG, context *Context, p float64, montgomery bool) *TernarySampler {
+func NewTernarySampler(prng utils.PRNG, context *Ring, p float64, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
 	ternarySampler.context = context
 	ternarySampler.prng = prng
@@ -45,7 +46,7 @@ func NewTernarySampler(prng utils.PRNG, context *Context, p float64, montgomery 
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the desired
 // hamming weight for the output polynomials. If montgomery is set to true, polynomials read from this sampler
 // are in Montgomery form.
-func NewTernarySamplerSparse(prng utils.PRNG, context *Context, hw uint64, montgomery bool) *TernarySampler {
+func NewTernarySamplerSparse(prng utils.PRNG, context *Ring, hw uint64, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
 	ternarySampler.context = context
 	ternarySampler.prng = prng
@@ -77,8 +78,8 @@ func (ternarySampler *TernarySampler) initialiseMatrix(montgomery bool) {
 		ternarySampler.matrixValues[i][0] = 0
 
 		if montgomery {
-			ternarySampler.matrixValues[i][1] = MForm(1, Qi, ternarySampler.context.bredParams[i])
-			ternarySampler.matrixValues[i][2] = MForm(Qi-1, Qi, ternarySampler.context.bredParams[i])
+			ternarySampler.matrixValues[i][1] = MForm(1, Qi, ternarySampler.context.BredParams[i])
+			ternarySampler.matrixValues[i][2] = MForm(Qi-1, Qi, ternarySampler.context.BredParams[i])
 		} else {
 			ternarySampler.matrixValues[i][1] = 1
 			ternarySampler.matrixValues[i][2] = Qi - 1

@@ -59,8 +59,8 @@ type Encryptor interface {
 type encryptor struct {
 	params *Parameters
 
-	ringQ  *ring.Context
-	ringQP *ring.Context
+	ringQ  *ring.Ring
+	ringQP *ring.Ring
 
 	polypool [3]*ring.Poly
 
@@ -109,20 +109,24 @@ func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
 
 func newEncryptor(params *Parameters) encryptor {
 
-	var q, qp *ring.Context
-	if q, err = ring.NewContextWithParams(params.N(), params.qi); err != nil {
+	var q, qp *ring.Ring
+	var err error
+	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
 		panic(err)
 	}
 
 	var baseconverter *ring.FastBasisExtender
 	if params.PiCount() != 0 {
 
-		if qp, err = ring.NewContextWithParams(params.N(), append(params.qi, params.pi...)); err != nil {
+		if qp, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
 			panic(err)
 		}
 
-		p := new(ring.Context)
-		p.SetParameters(params.N(), params.pi)
+		p, err := ring.NewRing(params.N(), params.pi)
+		if err != nil {
+			panic(err)
+		}
+
 		baseconverter = ring.NewFastBasisExtender(q, p)
 	}
 
@@ -307,7 +311,6 @@ func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 func (encryptor *skEncryptor) EncryptFastNew(plaintext *Plaintext) *Ciphertext {
 	panic("Cannot Encrypt : SkEncryptor doesn't support EncryptFastNew() -> use instead EncryptNew()")
-	return nil
 }
 
 func (encryptor *skEncryptor) EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext) {
@@ -326,7 +329,6 @@ func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *C
 
 func (encryptor *skEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
 	panic("Cannot Encrypt : SkEncryptor doesn't support EncryptFromCRPFastNew() -> use instead EncryptFromCRPNew()")
-	return nil
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {

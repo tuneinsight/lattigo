@@ -55,7 +55,7 @@ func NewCiphertextQP(params *Parameters, degree uint64, level uint64, scale floa
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 
-	context, err := ring.NewContextWithParams(params.N(), params.qi[:level+1])
+	context, err := ring.NewRing(params.N(), params.qi[:level+1])
 	if err != nil {
 		panic(err)
 	}

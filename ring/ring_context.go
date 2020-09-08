@@ -11,12 +11,8 @@ import (
 	"github.com/ldsec/lattigo/utils"
 )
 
-//==============================
-//===== POLYNOMIAL CONTEXT =====
-//==============================
-
-// Context is a structure keeping all the variables required to operate on a polynomial represented in this context.
-type Context struct {
+// Ring is a structure keeping all the variables required to operate on a polynomial represented in this context.
+type Ring struct {
 
 	// Polynomial nb.Coefficients
 	N uint64
@@ -25,7 +21,7 @@ type Context struct {
 	Modulus []uint64
 
 	// 2^bit_length(Qi) - 1
-	mask []uint64
+	Mask []uint64
 
 	// Determines if NTT can be used with the current context.
 	allowsNTT bool
@@ -34,159 +30,152 @@ type Context struct {
 	ModulusBigint *big.Int
 
 	// Fast reduction parameters
-	bredParams [][]uint64
-	mredParams []uint64
+	BredParams [][]uint64
+	MredParams []uint64
 
-	rescaleParams [][]uint64
+	RescaleParams [][]uint64
 
 	//NTT Parameters
-	psiMont    []uint64 //2nth primitive root in Montgomery form
-	psiInvMont []uint64 //2nth inverse primitive root in Montgomery form
+	PsiMont    []uint64 //2nth primitive root in Montgomery form
+	PsiInvMont []uint64 //2nth inverse primitive root in Montgomery form
 
-	nttPsi    [][]uint64 //powers of the inverse of the 2nth primitive root in Montgomery form (in bitreversed order)
-	nttPsiInv [][]uint64 //powers of the inverse of the 2nth primitive root in Montgomery form (in bitreversed order)
-	nttNInv   []uint64   //[N^-1] mod Qi in Montgomery form
+	NttPsi    [][]uint64 //powers of the inverse of the 2nth primitive root in Montgomery form (in bitreversed order)
+	NttPsiInv [][]uint64 //powers of the inverse of the 2nth primitive root in Montgomery form (in bitreversed order)
+	NttNInv   []uint64   //[N^-1] mod Qi in Montgomery form
 }
 
-// NewContext generates a new empty context.
-func NewContext() *Context {
-	return new(Context)
+// NewRing creates a new ringContex with the given parameters. Checks that N is a power of 2 and that the moduli are NTT compliant.
+func NewRing(N uint64, Moduli []uint64) (r *Ring, err error) {
+	r = new(Ring)
+	r.setParameters(N, Moduli)
+	return r, r.genNTTParams()
 }
 
-// NewContextWithParams creates a new ringContex with the given parameters. Returns an error if
-// the moduli are not NTT compliants.
-func NewContextWithParams(N uint64, Moduli []uint64) (context *Context, err error) {
-	context = NewContext()
-	context.SetParameters(N, Moduli)
-	return context, context.GenNTTParams()
-}
-
-// SetParameters initializes the parameters of an empty context with N and the provided moduli.
-// Only checks that N is a power of 2 and computes all the variables that aren't used for the NTT.
-func (context *Context) SetParameters(N uint64, Modulus []uint64) {
+// setParameters initialises a *Ring by setting the required pre-computed values (except for the NTT-related values which are set by the
+// genNTTParams function).
+func (r *Ring) setParameters(N uint64, Modulus []uint64) {
 
 	// Checks if N is a power of 2
 	if (N < 8) || (N&(N-1)) != 0 && N != 0 {
 		panic("invalid ring degree (must be a power of 2 >= 8)")
 	}
 
-	context.allowsNTT = false
+	r.allowsNTT = false
 
-	context.N = N
+	r.N = N
 
-	context.Modulus = make([]uint64, len(Modulus))
-	context.mask = make([]uint64, len(Modulus))
+	r.Modulus = make([]uint64, len(Modulus))
+	r.Mask = make([]uint64, len(Modulus))
 
 	for i, qi := range Modulus {
-		context.Modulus[i] = qi
-		context.mask[i] = (1 << uint64(bits.Len64(qi))) - 1
+		r.Modulus[i] = qi
+		r.Mask[i] = (1 << uint64(bits.Len64(qi))) - 1
 	}
 
 	//Computes the bigQ
-	context.ModulusBigint = NewInt(1)
-	for _, qi := range context.Modulus {
-		context.ModulusBigint.Mul(context.ModulusBigint, NewUint(qi))
+	r.ModulusBigint = NewInt(1)
+	for _, qi := range r.Modulus {
+		r.ModulusBigint.Mul(r.ModulusBigint, NewUint(qi))
 	}
 
 	// Computes the fast reduction parameters
-	context.bredParams = make([][]uint64, len(context.Modulus))
-	context.mredParams = make([]uint64, len(context.Modulus))
+	r.BredParams = make([][]uint64, len(r.Modulus))
+	r.MredParams = make([]uint64, len(r.Modulus))
 
-	for i, qi := range context.Modulus {
+	for i, qi := range r.Modulus {
 
 		//Computes the fast modular reduction parameters for the Context
-		context.bredParams[i] = BRedParams(qi)
+		r.BredParams[i] = BRedParams(qi)
 
 		// If qi is not a power of 2, we can compute the MRedParams (else it should not
 		// because it will return an error and there is no valid Montgomery form mod a power of 2)
 		if (qi&(qi-1)) != 0 && qi != 0 {
-			context.mredParams[i] = MRedParams(qi)
+			r.MredParams[i] = MRedParams(qi)
 		}
 	}
 
 }
 
-// GenNTTParams checks that N has been correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).
+// genNTTParams checks that N has been correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).
 // Then it computes the variables required for the NTT. ValidateParameters purpose is to validate that the moduli allow the NTT and compute the
 // NTT parameters.
-func (context *Context) GenNTTParams() error {
+func (r *Ring) genNTTParams() error {
 
-	if context.allowsNTT {
+	if r.allowsNTT {
 		return nil
 	}
 
-	if context.N == 0 || context.Modulus == nil {
-		panic("error : invalid context parameters (missing)")
+	if r.N == 0 || r.Modulus == nil {
+		panic("error : invalid r parameters (missing)")
 	}
 
-	// CHECKS IF VALIDE NTT
 	// Checks if each qi is Prime and if qi = 1 mod 2n
-	for _, qi := range context.Modulus {
-		if IsPrime(qi) == false || qi&((context.N<<1)-1) != 1 {
-			context.allowsNTT = false
+	for _, qi := range r.Modulus {
+		if IsPrime(qi) == false || qi&((r.N<<1)-1) != 1 {
+			r.allowsNTT = false
 			return errors.New("warning : provided modulus does not allow NTT")
 		}
 	}
 
-	context.rescaleParams = make([][]uint64, len(context.Modulus)-1, len(context.Modulus)-1)
+	r.RescaleParams = make([][]uint64, len(r.Modulus)-1, len(r.Modulus)-1)
 
-	for j := len(context.Modulus) - 1; j > 0; j-- {
+	for j := len(r.Modulus) - 1; j > 0; j-- {
 
-		context.rescaleParams[j-1] = make([]uint64, j)
+		r.RescaleParams[j-1] = make([]uint64, j)
 
 		for i := 0; i < j; i++ {
 
-			context.rescaleParams[j-1][i] = MForm(ModExp(context.Modulus[j], context.Modulus[i]-2, context.Modulus[i]), context.Modulus[i], context.bredParams[i])
+			r.RescaleParams[j-1][i] = MForm(ModExp(r.Modulus[j], r.Modulus[i]-2, r.Modulus[i]), r.Modulus[i], r.BredParams[i])
 		}
 	}
 
-	context.psiMont = make([]uint64, len(context.Modulus))
-	context.psiInvMont = make([]uint64, len(context.Modulus))
-	context.nttPsi = make([][]uint64, len(context.Modulus))
-	context.nttPsiInv = make([][]uint64, len(context.Modulus))
-	context.nttNInv = make([]uint64, len(context.Modulus))
+	r.PsiMont = make([]uint64, len(r.Modulus))
+	r.PsiInvMont = make([]uint64, len(r.Modulus))
+	r.NttPsi = make([][]uint64, len(r.Modulus))
+	r.NttPsiInv = make([][]uint64, len(r.Modulus))
+	r.NttNInv = make([]uint64, len(r.Modulus))
 
-	bitLenofN := uint64(bits.Len64(context.N) - 1)
+	bitLenofN := uint64(bits.Len64(r.N) - 1)
 
-	for i, qi := range context.Modulus {
+	for i, qi := range r.Modulus {
 
 		//2.1 Computes N^(-1) mod Q in Montgomery form
-		context.nttNInv[i] = MForm(ModExp(context.N, qi-2, qi), qi, context.bredParams[i])
+		r.NttNInv[i] = MForm(ModExp(r.N, qi-2, qi), qi, r.BredParams[i])
 
 		//2.2 Computes Psi and PsiInv in Montgomery form
-		context.nttPsi[i] = make([]uint64, context.N)
-		context.nttPsiInv[i] = make([]uint64, context.N)
+		r.NttPsi[i] = make([]uint64, r.N)
+		r.NttPsiInv[i] = make([]uint64, r.N)
 
 		//Finds a 2nth primitive Root
 		g := primitiveRoot(qi)
 
-		_2n := uint64(context.N << 1)
+		_2n := uint64(r.N << 1)
 
 		power := (qi - 1) / _2n
 		powerInv := (qi - 1) - power
 
 		//Computes Psi and PsiInv in Montgomery Form
-		PsiMont := MForm(ModExp(g, power, qi), qi, context.bredParams[i])
-		PsiInvMont := MForm(ModExp(g, powerInv, qi), qi, context.bredParams[i])
+		PsiMont := MForm(ModExp(g, power, qi), qi, r.BredParams[i])
+		PsiInvMont := MForm(ModExp(g, powerInv, qi), qi, r.BredParams[i])
 
-		context.psiMont[i] = PsiMont
-		context.psiInvMont[i] = PsiInvMont
+		r.PsiMont[i] = PsiMont
+		r.PsiInvMont[i] = PsiInvMont
 
-		context.nttPsi[i][0] = MForm(1, qi, context.bredParams[i])
-		context.nttPsiInv[i][0] = MForm(1, qi, context.bredParams[i])
+		r.NttPsi[i][0] = MForm(1, qi, r.BredParams[i])
+		r.NttPsiInv[i][0] = MForm(1, qi, r.BredParams[i])
 
 		// Computes nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
-		for j := uint64(1); j < context.N; j++ {
+		for j := uint64(1); j < r.N; j++ {
 
 			indexReversePrev := utils.BitReverse64(j-1, bitLenofN)
 			indexReverseNext := utils.BitReverse64(j, bitLenofN)
 
-			context.nttPsi[i][indexReverseNext] = MRed(context.nttPsi[i][indexReversePrev], PsiMont, qi, context.mredParams[i])
-			context.nttPsiInv[i][indexReverseNext] = MRed(context.nttPsiInv[i][indexReversePrev], PsiInvMont, qi, context.mredParams[i])
+			r.NttPsi[i][indexReverseNext] = MRed(r.NttPsi[i][indexReversePrev], PsiMont, qi, r.MredParams[i])
+			r.NttPsiInv[i][indexReverseNext] = MRed(r.NttPsiInv[i][indexReversePrev], PsiInvMont, qi, r.MredParams[i])
 		}
 	}
 
-	context.allowsNTT = true
+	r.allowsNTT = true
 
 	return nil
 }
@@ -198,9 +187,9 @@ type smallContext struct {
 }
 
 // MarshalBinary encodes the target ring context on a slice of bytes.
-func (context *Context) MarshalBinary() ([]byte, error) {
+func (r *Ring) MarshalBinary() ([]byte, error) {
 
-	parameters := smallContext{context.N, context.Modulus}
+	parameters := smallContext{r.N, r.Modulus}
 
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -211,7 +200,7 @@ func (context *Context) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes slice of bytes on the target ring context.
-func (context *Context) UnmarshalBinary(data []byte) error {
+func (r *Ring) UnmarshalBinary(data []byte) error {
 
 	parameters := smallContext{}
 
@@ -221,89 +210,89 @@ func (context *Context) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	context.SetParameters(parameters.N, parameters.Modulus)
-	context.GenNTTParams()
+	r.setParameters(parameters.N, parameters.Modulus)
+	r.genNTTParams()
 
 	return nil
 }
 
 // AllowsNTT returns true if the context allows NTT, else false.
-func (context *Context) AllowsNTT() bool {
-	return context.allowsNTT
+func (r *Ring) AllowsNTT() bool {
+	return r.allowsNTT
 }
 
 // GetBredParams returns the Barret reduction parameters of the context.
-func (context *Context) GetBredParams() [][]uint64 {
-	return context.bredParams
+func (r *Ring) GetBredParams() [][]uint64 {
+	return r.BredParams
 }
 
 // GetMredParams returns the Montgomery reduction parameters of the context.
-func (context *Context) GetMredParams() []uint64 {
-	return context.mredParams
+func (r *Ring) GetMredParams() []uint64 {
+	return r.MredParams
 }
 
 // GetPsi returns the primitive root used to compute the NTT parameters of the context.
-func (context *Context) GetPsi() []uint64 {
-	return context.psiMont
+func (r *Ring) GetPsi() []uint64 {
+	return r.PsiMont
 }
 
 // GetPsiInv returns the primitive root used to compute the InvNTT parameters of the context.
-func (context *Context) GetPsiInv() []uint64 {
-	return context.psiInvMont
+func (r *Ring) GetPsiInv() []uint64 {
+	return r.PsiInvMont
 }
 
 // GetNttPsi returns the NTT parameters of the context.
-func (context *Context) GetNttPsi() [][]uint64 {
-	return context.nttPsi
+func (r *Ring) GetNttPsi() [][]uint64 {
+	return r.NttPsi
 }
 
 // GetNttPsiInv returns the InvNTT parameters of the context.
-func (context *Context) GetNttPsiInv() [][]uint64 {
-	return context.nttPsiInv
+func (r *Ring) GetNttPsiInv() [][]uint64 {
+	return r.NttPsiInv
 }
 
 // GetNttNInv returns 1/N mod each moduli.
-func (context *Context) GetNttNInv() []uint64 {
-	return context.nttNInv
+func (r *Ring) GetNttNInv() []uint64 {
+	return r.NttNInv
 }
 
 // NewPoly create a new polynomial with all coefficients set to 0.
-func (context *Context) NewPoly() *Poly {
+func (r *Ring) NewPoly() *Poly {
 	p := new(Poly)
 
-	p.Coeffs = make([][]uint64, len(context.Modulus))
-	for i := 0; i < len(context.Modulus); i++ {
-		p.Coeffs[i] = make([]uint64, context.N)
+	p.Coeffs = make([][]uint64, len(r.Modulus))
+	for i := 0; i < len(r.Modulus); i++ {
+		p.Coeffs[i] = make([]uint64, r.N)
 	}
 
 	return p
 }
 
 // NewPolyLvl create a new polynomial with all coefficients set to 0.
-func (context *Context) NewPolyLvl(level uint64) *Poly {
+func (r *Ring) NewPolyLvl(level uint64) *Poly {
 	p := new(Poly)
 
 	p.Coeffs = make([][]uint64, level+1)
 	for i := uint64(0); i < level+1; i++ {
-		p.Coeffs[i] = make([]uint64, context.N)
+		p.Coeffs[i] = make([]uint64, r.N)
 	}
 
 	return p
 }
 
 // SetCoefficientsInt64 sets the coefficients of p1 from an int64 array.
-func (context *Context) SetCoefficientsInt64(coeffs []int64, p1 *Poly) {
+func (r *Ring) SetCoefficientsInt64(coeffs []int64, p1 *Poly) {
 	for i, coeff := range coeffs {
-		for j, Qi := range context.Modulus {
+		for j, Qi := range r.Modulus {
 			p1.Coeffs[j][i] = CRed(uint64((coeff%int64(Qi) + int64(Qi))), Qi)
 		}
 	}
 }
 
 // SetCoefficientsUint64 sets the coefficients of p1 from an uint64 array.
-func (context *Context) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) {
+func (r *Ring) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) {
 	for i, coeff := range coeffs {
-		for j, Qi := range context.Modulus {
+		for j, Qi := range r.Modulus {
 			p1.Coeffs[j][i] = coeff % Qi
 		}
 	}
@@ -311,10 +300,10 @@ func (context *Context) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) {
 
 // SetCoefficientsString parses an array of string as Int variables, and sets the
 // coefficients of p1 with this Int variables.
-func (context *Context) SetCoefficientsString(coeffs []string, p1 *Poly) {
+func (r *Ring) SetCoefficientsString(coeffs []string, p1 *Poly) {
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
-	for i, Qi := range context.Modulus {
+	for i, Qi := range r.Modulus {
 		QiBigint.SetUint64(Qi)
 		for j, coeff := range coeffs {
 			p1.Coeffs[i][j] = coeffTmp.Mod(NewIntFromString(coeff), QiBigint).Uint64()
@@ -323,10 +312,10 @@ func (context *Context) SetCoefficientsString(coeffs []string, p1 *Poly) {
 }
 
 // SetCoefficientsBigint sets the coefficients of p1 from an array of Int variables.
-func (context *Context) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
+func (r *Ring) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
-	for i, Qi := range context.Modulus {
+	for i, Qi := range r.Modulus {
 		QiBigint.SetUint64(Qi)
 		for j, coeff := range coeffs {
 			p1.Coeffs[i][j] = coeffTmp.Mod(coeff, QiBigint).Uint64()
@@ -336,12 +325,12 @@ func (context *Context) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
 }
 
 // SetCoefficientsBigintLvl sets the coefficients of p1 from an array of Int variables.
-func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*big.Int, p1 *Poly) {
+func (r *Ring) SetCoefficientsBigintLvl(level uint64, coeffs []*big.Int, p1 *Poly) {
 
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
 	for i := uint64(0); i < level+1; i++ {
-		QiBigint.SetUint64(context.Modulus[i])
+		QiBigint.SetUint64(r.Modulus[i])
 		for j, coeff := range coeffs {
 			p1.Coeffs[i][j] = coeffTmp.Mod(coeff, QiBigint).Uint64()
 
@@ -350,10 +339,10 @@ func (context *Context) SetCoefficientsBigintLvl(level uint64, coeffs []*big.Int
 }
 
 // PolyToString reconstructs p1 and returns the result in an array of string.
-func (context *Context) PolyToString(p1 *Poly) []string {
+func (r *Ring) PolyToString(p1 *Poly) []string {
 
-	coeffsBigint := make([]*big.Int, context.N)
-	context.PolyToBigint(p1, coeffsBigint)
+	coeffsBigint := make([]*big.Int, r.N)
+	r.PolyToBigint(p1, coeffsBigint)
 	coeffsString := make([]string, len(coeffsBigint))
 
 	for i := range coeffsBigint {
@@ -364,7 +353,7 @@ func (context *Context) PolyToString(p1 *Poly) []string {
 }
 
 // PolyToBigint reconstructs p1 and returns the result in an array of Int.
-func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
+func (r *Ring) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
 
 	var qi, level uint64
 
@@ -378,19 +367,19 @@ func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
 
 	for i := uint64(0); i < level+1; i++ {
 
-		qi = context.Modulus[i]
+		qi = r.Modulus[i]
 		QiB.SetUint64(qi)
 
 		modulusBigint.Mul(modulusBigint, QiB)
 
 		crtReconstruction[i] = new(big.Int)
-		crtReconstruction[i].Quo(context.ModulusBigint, QiB)
+		crtReconstruction[i].Quo(r.ModulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
 	}
 
-	for x := uint64(0); x < context.N; x++ {
+	for x := uint64(0); x < r.N; x++ {
 
 		tmp.SetUint64(0)
 		coeffsBigint[x] = new(big.Int)
@@ -404,7 +393,7 @@ func (context *Context) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
 }
 
 // PolyToBigint reconstructs p1 and returns the result in an pre-allocated array of Int.
-func (context *Context) PolyToBigintNoAlloc(p1 *Poly, coeffsBigint []*big.Int) {
+func (r *Ring) PolyToBigintNoAlloc(p1 *Poly, coeffsBigint []*big.Int) {
 
 	var qi, level uint64
 
@@ -418,19 +407,19 @@ func (context *Context) PolyToBigintNoAlloc(p1 *Poly, coeffsBigint []*big.Int) {
 
 	for i := uint64(0); i < level+1; i++ {
 
-		qi = context.Modulus[i]
+		qi = r.Modulus[i]
 		QiB.SetUint64(qi)
 
 		modulusBigint.Mul(modulusBigint, QiB)
 
 		crtReconstruction[i] = new(big.Int)
-		crtReconstruction[i].Quo(context.ModulusBigint, QiB)
+		crtReconstruction[i].Quo(r.ModulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
 	}
 
-	for x := uint64(0); x < context.N; x++ {
+	for x := uint64(0); x < r.N; x++ {
 
 		tmp.SetUint64(0)
 
@@ -443,19 +432,19 @@ func (context *Context) PolyToBigintNoAlloc(p1 *Poly, coeffsBigint []*big.Int) {
 }
 
 // Equal checks if p1 = p2 in the given context.
-func (context *Context) Equal(p1, p2 *Poly) bool {
+func (r *Ring) Equal(p1, p2 *Poly) bool {
 
-	for i := 0; i < len(context.Modulus); i++ {
+	for i := 0; i < len(r.Modulus); i++ {
 		if len(p1.Coeffs[i]) != len(p2.Coeffs[i]) {
 			return false
 		}
 	}
 
-	context.Reduce(p1, p1)
-	context.Reduce(p2, p2)
+	r.Reduce(p1, p1)
+	r.Reduce(p2, p2)
 
-	for i := 0; i < len(context.Modulus); i++ {
-		for j := uint64(0); j < context.N; j++ {
+	for i := 0; i < len(r.Modulus); i++ {
+		for j := uint64(0); j < r.N; j++ {
 			if p1.Coeffs[i][j] != p2.Coeffs[i][j] {
 				return false
 			}
@@ -466,7 +455,7 @@ func (context *Context) Equal(p1, p2 *Poly) bool {
 }
 
 // EqualLvl checks if p1 = p2 in the given context.
-func (context *Context) EqualLvl(level uint64, p1, p2 *Poly) bool {
+func (r *Ring) EqualLvl(level uint64, p1, p2 *Poly) bool {
 
 	for i := uint64(0); i < level+1; i++ {
 		if len(p1.Coeffs[i]) != len(p2.Coeffs[i]) {
@@ -474,11 +463,11 @@ func (context *Context) EqualLvl(level uint64, p1, p2 *Poly) bool {
 		}
 	}
 
-	context.ReduceLvl(level, p1, p1)
-	context.ReduceLvl(level, p2, p2)
+	r.ReduceLvl(level, p1, p1)
+	r.ReduceLvl(level, p2, p2)
 
 	for i := uint64(0); i < level+1; i++ {
-		for j := uint64(0); j < context.N; j++ {
+		for j := uint64(0); j < r.N; j++ {
 			if p1.Coeffs[i][j] != p2.Coeffs[i][j] {
 				return false
 			}

@@ -11,9 +11,9 @@ type dckksContext struct {
 
 	n uint64
 
-	contextQ  *ring.Context
-	contextP  *ring.Context
-	contextQP *ring.Context
+	contextQ  *ring.Ring
+	contextP  *ring.Ring
+	contextQP *ring.Ring
 
 	alpha uint64
 	beta  uint64
@@ -31,15 +31,15 @@ func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 	context.beta = params.Beta()
 
 	var err error
-	if context.contextQ, err = ring.NewContextWithParams(params.N(), params.Qi()); err != nil {
+	if context.contextQ, err = ring.NewRing(params.N(), params.Qi()); err != nil {
 		panic(err)
 	}
 
-	if context.contextP, err = ring.NewContextWithParams(params.N(), params.Pi()); err != nil {
+	if context.contextP, err = ring.NewRing(params.N(), params.Pi()); err != nil {
 		panic(err)
 	}
 
-	if context.contextQP, err = ring.NewContextWithParams(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
+	if context.contextQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
 		panic(err)
 	}
 

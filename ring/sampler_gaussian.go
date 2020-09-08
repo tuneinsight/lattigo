@@ -2,8 +2,9 @@ package ring
 
 import (
 	"encoding/binary"
-	"github.com/ldsec/lattigo/utils"
 	"math"
+
+	"github.com/ldsec/lattigo/utils"
 )
 
 // GaussianSampler is the state of a truncated Gaussian polynomial sampler.
@@ -18,7 +19,7 @@ type GaussianSampler struct {
 // NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
 // Gaussian distribution parameters. Sigma is the desired variance and bound is the maximum coefficient norm in absolute
 // value.
-func NewGaussianSampler(prng utils.PRNG, context *Context, sigma float64, bound uint64) *GaussianSampler {
+func NewGaussianSampler(prng utils.PRNG, context *Ring, sigma float64, bound uint64) *GaussianSampler {
 	gaussianSampler := new(GaussianSampler)
 	gaussianSampler.context = context
 	gaussianSampler.prng = prng

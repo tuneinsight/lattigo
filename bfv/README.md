@@ -46,10 +46,10 @@ The BFV scheme supports the standard recommended parameters chosen to offer a se
 
 Each set of parameters is defined by the tuple ![equation](https://latex.codecogs.com/gif.latex?%5C%7Blog_2%28N%29%2C%20log_2%28Q%29%2C%20%5Csigma%5C%7D):
 
-- {12, 109, 3.2}
-- {13, 218, 3.2}
-- {14, 438, 3.2}
-- {15, 881, 3.2}
+- **{12, 109, 3.2}**
+- **{13, 218, 3.2}**
+- **{14, 438, 3.2}**
+- **{15, 881, 3.2}**
 
 These parameter sets are hard-coded in the file [params.go](https://github.com/ldsec/lattigo/blob/master/bfv/params.go). By default the variance should always be set to 3.2 unless the user is perfectly aware of the security implications of changing this parameter.
 

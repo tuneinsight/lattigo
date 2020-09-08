@@ -73,7 +73,6 @@ The CKKS scheme supports the standard recommended parameters chosen to offer a s
 
 Each set of security parameters is defined by the tuple ![equation](https://latex.codecogs.com/gif.latex?%5C%7Blog_2%28N%29%2C%20log_2%28Q%29%2C%20%5Csigma%5C%7D) :
 
-- **{11, 54, 3.2}**
 - **{12, 109, 3.2}**
 - **{13, 218, 3.2}**
 - **{14, 438, 3.2}**

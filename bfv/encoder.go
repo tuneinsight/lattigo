@@ -2,7 +2,6 @@ package bfv
 
 import (
 	"math/big"
-	"math/bits"
 	"unsafe"
 
 	"github.com/ldsec/lattigo/ring"
@@ -19,8 +18,11 @@ type Encoder interface {
 
 // Encoder is a structure that stores the parameters to encode values on a plaintext in a SIMD (Single-Instruction Multiple-Data) fashion.
 type encoder struct {
-	params      *Parameters
-	bfvContext  *bfvContext
+	params *Parameters
+
+	ringQ *ring.Ring
+	ringT *ring.Ring
+
 	indexMatrix []uint64
 	scaler      ring.Scaler
 	polypool    *ring.Poly
@@ -30,18 +32,26 @@ type encoder struct {
 // NewEncoder creates a new encoder from the provided parameters.
 func NewEncoder(params *Parameters) Encoder {
 
-	bfvContext := newBFVContext(params)
+	var ringQ, ringT *ring.Ring
+
+	if ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
+		panic(err)
+	}
+
+	if ringT, err = ring.NewRing(params.N(), []uint64{params.t}); err != nil {
+		panic(err)
+	}
 
 	var m, pos, index1, index2 uint64
 
-	slots := bfvContext.n
+	slots := params.N()
 
 	indexMatrix := make([]uint64, slots)
 
-	logN := uint64(bits.Len64(bfvContext.n) - 1)
+	logN := params.LogN()
 
-	rowSize := bfvContext.n >> 1
-	m = (bfvContext.n << 1)
+	rowSize := params.N() >> 1
+	m = (params.N() << 1)
 	pos = 1
 
 	for i := uint64(0); i < rowSize; i++ {
@@ -58,11 +68,12 @@ func NewEncoder(params *Parameters) Encoder {
 
 	return &encoder{
 		params:      params.Copy(),
-		bfvContext:  bfvContext,
+		ringQ:       ringQ,
+		ringT:       ringT,
 		indexMatrix: indexMatrix,
-		deltaMont:   GenLiftParams(bfvContext.contextQ, params.t),
-		scaler:      ring.NewRNSScaler(params.t, bfvContext.contextQ),
-		polypool:    bfvContext.contextT.NewPoly(),
+		deltaMont:   GenLiftParams(ringQ, params.t),
+		scaler:      ring.NewRNSScaler(params.t, ringQ),
+		polypool:    ringT.NewPoly(),
 	}
 }
 
@@ -136,18 +147,18 @@ func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 
 func (encoder *encoder) encodePlaintext(p *Plaintext) {
 
-	encoder.bfvContext.contextT.InvNTT(p.value, p.value)
+	encoder.ringT.InvNTT(p.value, p.value)
 
-	ringContext := encoder.bfvContext.contextQ
+	ringQ := encoder.ringQ
 
-	for i := len(ringContext.Modulus) - 1; i >= 0; i-- {
+	for i := len(ringQ.Modulus) - 1; i >= 0; i-- {
 		tmp1 := p.value.Coeffs[i]
 		tmp2 := p.value.Coeffs[0]
 		deltaMont := encoder.deltaMont[i]
-		qi := ringContext.Modulus[i]
-		bredParams := ringContext.GetMredParams()[i]
+		qi := ringQ.Modulus[i]
+		bredParams := ringQ.GetMredParams()[i]
 
-		for j := uint64(0); j < ringContext.N; j = j + 8 {
+		for j := uint64(0); j < ringQ.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&tmp2[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&tmp1[j]))
@@ -169,11 +180,11 @@ func (encoder *encoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64) {
 
 	encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
 
-	encoder.bfvContext.contextT.NTT(encoder.polypool, encoder.polypool)
+	encoder.ringT.NTT(encoder.polypool, encoder.polypool)
 
-	coeffs = make([]uint64, encoder.bfvContext.n)
+	coeffs = make([]uint64, encoder.ringQ.N)
 
-	for i := uint64(0); i < encoder.bfvContext.n; i++ {
+	for i := uint64(0); i < encoder.ringQ.N; i++ {
 		coeffs[i] = encoder.polypool.Coeffs[0][encoder.indexMatrix[i]]
 	}
 
@@ -189,13 +200,13 @@ func (encoder *encoder) DecodeInt(plaintext *Plaintext) (coeffs []int64) {
 
 	encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
 
-	encoder.bfvContext.contextT.NTT(encoder.polypool, encoder.polypool)
+	encoder.ringT.NTT(encoder.polypool, encoder.polypool)
 
-	coeffs = make([]int64, encoder.bfvContext.n)
+	coeffs = make([]int64, encoder.ringQ.N)
 
 	modulus := int64(encoder.params.t)
 
-	for i := uint64(0); i < encoder.bfvContext.n; i++ {
+	for i := uint64(0); i < encoder.ringQ.N; i++ {
 
 		value = int64(encoder.polypool.Coeffs[0][encoder.indexMatrix[i]])
 

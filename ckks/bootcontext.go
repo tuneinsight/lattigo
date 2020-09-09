@@ -60,9 +60,9 @@ func (btp *Bootstrapper) printDebug(message string, ciphertext *Ciphertext) {
 	coeffs := btp.encoder.Decode(btp.decryptor.DecryptNew(ciphertext), btp.dslots)
 
 	if btp.dslots == 2 {
-		fmt.Printf(message+"%.10f %.10f...\n", coeffs[0], coeffs[1])
+		log.Printf(message+"%.10f %.10f...\n", coeffs[0], coeffs[1])
 	} else {
-		fmt.Printf(message+"%.10f %.10f %.10f %.10f...\n", coeffs[0], coeffs[1], coeffs[2], coeffs[3])
+		log.Printf(message+"%.10f %.10f %.10f %.10f...\n", coeffs[0], coeffs[1], coeffs[2], coeffs[3])
 	}
 }
 
@@ -104,14 +104,14 @@ func NewBootstrapper(bootparams *BootParams) (btp *Bootstrapper) {
 
 func (btp *Bootstrapper) GenBootKeys(sk *SecretKey) {
 
-	log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
+	//log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
 
-	nbKeys := uint64(len(btp.rotKeyIndex)) + 2 //rot keys + conj key + relin key
-	nbPoly := btp.beta
-	nbCoefficients := 2 * btp.N() * btp.QPiCount()
-	bytesPerCoeff := uint64(8)
+	//nbKeys := uint64(len(btp.rotKeyIndex)) + 2 //rot keys + conj key + relin key
+	//nbPoly := btp.beta
+	//nbCoefficients := 2 * btp.N() * btp.QPiCount()
+	//bytesPerCoeff := uint64(8)
 
-	log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
+	//log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
 
 	kgen := NewKeyGenerator(&btp.Parameters)
 

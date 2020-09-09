@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"fmt"
+	//"fmt"
 	"math"
 	"math/cmplx"
 	"math/rand"
@@ -59,11 +59,11 @@ func TestBootstrapp(t *testing.T) {
 			values[i] = sin2pi2pi(values[i])
 		}
 
-		fmt.Println(ciphertext.Level() - 1)
-		start := time.Now()
+		//fmt.Println(ciphertext.Level() - 1)
+		//start := time.Now()
 		ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, params.rlk)
-		fmt.Printf("Elapsed : %s \n", time.Since(start))
-		fmt.Println(ciphertext.Level())
+		//fmt.Printf("Elapsed : %s \n", time.Since(start))
+		//fmt.Println(ciphertext.Level())
 
 		verifyTestVectors(params.decryptor, values, ciphertext, t)
 
@@ -116,10 +116,10 @@ func TestBootstrapp(t *testing.T) {
 
 		params.evaluator.AddConst(ciphertext, -0.25, ciphertext)
 
-		fmt.Println(ciphertext.Level(), ciphertext.Scale())
-		start := time.Now()
+		//fmt.Println(ciphertext.Level(), ciphertext.Scale())
+		//start := time.Now()
 		ciphertext = params.evaluator.EvaluateChebySpecial(ciphertext, sc_fac, cheby, params.rlk)
-		fmt.Println(ciphertext.Level(), ciphertext.Scale())
+		//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 		for i := 0; i < sc_num; i++ {
 			sqrt2pi *= sqrt2pi
@@ -129,8 +129,8 @@ func TestBootstrapp(t *testing.T) {
 			params.evaluator.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 		}
 
-		fmt.Printf("Elapsed : %s \n", time.Since(start))
-		fmt.Println(ciphertext.Level(), ciphertext.Scale())
+		//fmt.Printf("Elapsed : %s \n", time.Since(start))
+		//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		verifyTestVectors(params.decryptor, values, ciphertext, t)
 
 		params.params.scale = DefaultScale

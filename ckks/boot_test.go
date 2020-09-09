@@ -140,13 +140,13 @@ func TestBootstrapp(t *testing.T) {
 
 	t.Run(testString("Bootstrapp/"), func(t *testing.T) {
 
-		bootcontext := NewBootContext(bootparams)
-		bootcontext.GenBootKeys(params.sk)
+		btp := NewBootstrapper(bootparams)
+		btp.GenBootKeys(params.sk)
 
-		rlk, rotkey := bootcontext.ExportKeys()
+		rlk, rotkey := btp.ExportKeys()
 
-		bootcontext.ImportKeys(rlk, rotkey)
-		if err := bootcontext.CheckKeys(); err != nil {
+		btp.ImportKeys(rlk, rotkey)
+		if err := btp.CheckKeys(); err != nil {
 			panic(err)
 		}
 
@@ -169,7 +169,7 @@ func TestBootstrapp(t *testing.T) {
 
 		for i := 0; i < 1; i++ {
 
-			ciphertext = bootcontext.Bootstrapp(ciphertext)
+			ciphertext = btp.Bootstrapp(ciphertext)
 
 			//params.evaluator.SetScale(ciphertext, params.params.scale)
 

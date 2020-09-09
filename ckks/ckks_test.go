@@ -124,12 +124,12 @@ func genTestParams(defaultParams interface{}) (err error) {
 		panic(err)
 	}
 
+	if params.ringQP, err = ring.NewRing(params.params.N(), append(params.params.qi, params.params.pi...)); err != nil {
+		panic(err)
+	}
+
 	if params.params.PiCount() != 0 {
 		if params.ringP, err = ring.NewRing(params.params.N(), params.params.pi); err != nil {
-			panic(err)
-		}
-
-		if params.ringQP, err = ring.NewRing(params.params.N(), append(params.params.qi, params.params.pi...)); err != nil {
 			panic(err)
 		}
 	}

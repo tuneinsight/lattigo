@@ -11,7 +11,7 @@ import (
 )
 
 // BootContext stores the parameters for the bootstrapping.
-type BootContext struct { // TODO: change to "Bootstrapper" ?
+type Bootstrapper struct { // TODO: change to "Bootstrapper" ?
 	BootParams
 
 	dslots uint64 // Number of plaintext slots after the re-encoding
@@ -36,12 +36,12 @@ type BootContext struct { // TODO: change to "Bootstrapper" ?
 	relinkey    *EvaluationKey // Relinearization key
 	rotkeys     *RotationKeys  // Rotation and conjugation keys
 
-	ctxpool [3]*Ciphertext // Memory pool
+	ctxpool *Ciphertext // Memory pool
 
 	decryptor Decryptor
 
-	poolQ [6]*ring.Poly
-	poolP [4]*ring.Poly
+	poolQ [4]*ring.Poly // Memory pool for the matrix evaluation
+	poolP [4]*ring.Poly // Memory pool for the matrix evaluation
 }
 
 type dftvectors struct {
@@ -55,112 +55,106 @@ func sin2pi2pi(x complex128) complex128 {
 	return cmplx.Sin(6.283185307179586*x) / 6.283185307179586
 }
 
-func (b *BootContext) printDebug(message string, ciphertext *Ciphertext) {
+func (btp *Bootstrapper) printDebug(message string, ciphertext *Ciphertext) {
 
-	coeffs := b.encoder.Decode(b.decryptor.DecryptNew(ciphertext), b.dslots)
+	coeffs := btp.encoder.Decode(btp.decryptor.DecryptNew(ciphertext), btp.dslots)
 
-	if b.dslots == 2 {
+	if btp.dslots == 2 {
 		fmt.Printf(message+"%.10f %.10f...\n", coeffs[0], coeffs[1])
 	} else {
 		fmt.Printf(message+"%.10f %.10f %.10f %.10f...\n", coeffs[0], coeffs[1], coeffs[2], coeffs[3])
 	}
 }
 
-// NewBootContext creates a new bootcontext.
-func NewBootContext(bootparams *BootParams) (bootcontext *BootContext) {
+// NewBootstrapper creates a new Bootstrapper.
+func NewBootstrapper(bootparams *BootParams) (btp *Bootstrapper) {
 
-	bootcontext = new(BootContext)
+	btp = new(Bootstrapper)
 
-	bootcontext.BootParams = *bootparams
+	btp.BootParams = *bootparams
 
-	bootcontext.dslots = bootcontext.Slots()
+	btp.dslots = btp.Slots()
 	if bootparams.logSlots < bootparams.MaxLogSlots() {
-		bootcontext.repack = true
-		bootcontext.dslots <<= 1
+		btp.repack = true
+		btp.dslots <<= 1
 	}
 
-	bootcontext.deviation = 1024.0
-	bootcontext.prescale = math.Round(float64(bootparams.qi[0]) / bootcontext.deviation)
-	bootcontext.postscale = math.Exp2(math.Round(math.Log2(float64(bootparams.qi[len(bootparams.qi)-1-len(bootparams.CtSLevel)])))) / bootcontext.deviation
+	btp.deviation = 1024.0
+	btp.prescale = math.Round(float64(bootparams.qi[0]) / btp.deviation)
+	btp.postscale = math.Exp2(math.Round(math.Log2(float64(bootparams.qi[len(bootparams.qi)-1-len(bootparams.CtSLevel)])))) / btp.deviation
 
-	bootcontext.encoder = NewEncoder(&bootparams.Parameters)
-	bootcontext.evaluator = NewEvaluator(&bootparams.Parameters)
+	btp.encoder = NewEncoder(&bootparams.Parameters)
+	btp.evaluator = NewEvaluator(&bootparams.Parameters)
 
-	bootcontext.newBootSine()
-	bootcontext.newBootDFT()
+	btp.newBootSine()
+	btp.newBootDFT()
 
-	bootcontext.ctxpool[0] = NewCiphertext(&bootparams.Parameters, 1, bootparams.MaxLevel(), 0)
-	bootcontext.ctxpool[1] = NewCiphertext(&bootparams.Parameters, 1, bootparams.MaxLevel(), 0)
-	bootcontext.ctxpool[2] = NewCiphertext(&bootparams.Parameters, 1, bootparams.MaxLevel(), 0)
+	btp.ctxpool = NewCiphertext(&bootparams.Parameters, 1, bootparams.MaxLevel(), 0)
 
-	eval := bootcontext.evaluator.(*evaluator)
-	ringQ := eval.ringQ
-	ringP := eval.ringP
-
-	for i := range bootcontext.poolQ {
-		bootcontext.poolQ[i] = ringQ.NewPoly()
+	for i := range btp.poolQ {
+		btp.poolQ[i] = bootparams.NewPolyQ()
 	}
 
-	for i := range bootcontext.poolP {
-		bootcontext.poolP[i] = ringP.NewPoly()
+	for i := range btp.poolP {
+		btp.poolP[i] = bootparams.NewPolyP()
 	}
-
-	return bootcontext
-}
-
-func (bootcontext *BootContext) GenBootKeys(sk *SecretKey) {
-
-	log.Println("DFT vector size (GB) :", float64(bootcontext.plaintextSize)/float64(1000000000))
-
-	nbKeys := uint64(len(bootcontext.rotKeyIndex)) + 2 //rot keys + conj key + relin key
-	nbPoly := bootcontext.beta
-	nbCoefficients := 2 * bootcontext.N() * bootcontext.QPiCount()
-	bytesPerCoeff := uint64(8)
-
-	log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
-
-	kgen := NewKeyGenerator(&bootcontext.Parameters)
-
-	bootcontext.rotkeys = NewRotationKeys()
-
-	kgen.GenRot(Conjugate, sk, 0, bootcontext.rotkeys)
-
-	for _, i := range bootcontext.rotKeyIndex {
-		kgen.GenRot(RotationLeft, sk, uint64(i), bootcontext.rotkeys)
-	}
-
-	bootcontext.relinkey = kgen.GenRelinKey(sk)
 
 	return
 }
 
-func (bootcontext *BootContext) ExportKeys() (rlk *EvaluationKey, rotkeys *RotationKeys) {
-	return bootcontext.relinkey, bootcontext.rotkeys
+func (btp *Bootstrapper) GenBootKeys(sk *SecretKey) {
+
+	log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
+
+	nbKeys := uint64(len(btp.rotKeyIndex)) + 2 //rot keys + conj key + relin key
+	nbPoly := btp.beta
+	nbCoefficients := 2 * btp.N() * btp.QPiCount()
+	bytesPerCoeff := uint64(8)
+
+	log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
+
+	kgen := NewKeyGenerator(&btp.Parameters)
+
+	btp.rotkeys = NewRotationKeys()
+
+	kgen.GenRot(Conjugate, sk, 0, btp.rotkeys)
+
+	for _, i := range btp.rotKeyIndex {
+		kgen.GenRot(RotationLeft, sk, uint64(i), btp.rotkeys)
+	}
+
+	btp.relinkey = kgen.GenRelinKey(sk)
+
+	return
 }
 
-func (bootcontext *BootContext) ImportKeys(rlk *EvaluationKey, rotkeys *RotationKeys) {
+func (btp *Bootstrapper) ExportKeys() (rlk *EvaluationKey, rotkeys *RotationKeys) {
+	return btp.relinkey, btp.rotkeys
+}
+
+func (btp *Bootstrapper) ImportKeys(rlk *EvaluationKey, rotkeys *RotationKeys) {
 	if rlk != nil {
-		bootcontext.relinkey = rlk
+		btp.relinkey = rlk
 	}
 
 	if rotkeys != nil {
-		bootcontext.rotkeys = rotkeys
+		btp.rotkeys = rotkeys
 	}
 }
 
-func (bootcontext *BootContext) CheckKeys() (err error) {
+func (btp *Bootstrapper) CheckKeys() (err error) {
 
-	if bootcontext.relinkey == nil || bootcontext.rotkeys == nil {
+	if btp.relinkey == nil || btp.rotkeys == nil {
 		return fmt.Errorf("empty relinkkey and/or rotkeys")
 	}
 
-	if bootcontext.rotkeys.evakeyConjugate == nil {
+	if btp.rotkeys.evakeyConjugate == nil {
 		return fmt.Errorf("missing conjugate key")
 	}
 
 	rotMissing := []uint64{}
-	for _, i := range bootcontext.rotKeyIndex {
-		if bootcontext.rotkeys.evakeyRotColLeft[i] == nil || bootcontext.rotkeys.permuteNTTLeftIndex[i] == nil {
+	for _, i := range btp.rotKeyIndex {
+		if btp.rotkeys.evakeyRotColLeft[i] == nil || btp.rotkeys.permuteNTTLeftIndex[i] == nil {
 			rotMissing = append(rotMissing, i)
 		}
 	}
@@ -172,72 +166,72 @@ func (bootcontext *BootContext) CheckKeys() (err error) {
 	return nil
 }
 
-func (bootcontext *BootContext) newBootDFT() {
+func (btp *Bootstrapper) newBootDFT() {
 
-	a := real(bootcontext.chebycoeffs.a)
-	b := real(bootcontext.chebycoeffs.b)
-	n := float64(bootcontext.N())
-	sc_fac := float64(int(1 << bootcontext.SinRescal))
-	qDiff := float64(bootcontext.qi[0]) / math.Exp2(math.Round(math.Log2(float64(bootcontext.qi[0]))))
+	a := real(btp.chebycoeffs.a)
+	b := real(btp.chebycoeffs.b)
+	n := float64(btp.N())
+	sc_fac := float64(int(1 << btp.SinRescal))
+	qDiff := float64(btp.qi[0]) / math.Exp2(math.Round(math.Log2(float64(btp.qi[0]))))
 
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
-	bootcontext.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(len(bootcontext.CtSLevel))), 0)
+	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(len(btp.CtSLevel))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
-	bootcontext.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*bootcontext.scale)/bootcontext.postscale, 1.0/float64(len(bootcontext.StCLevel))), 0)
+	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.scale)/btp.postscale, 1.0/float64(len(btp.StCLevel))), 0)
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
-	bootcontext.computePlaintextVectors()
+	btp.computePlaintextVectors()
 
 	// List of the rotation key values to needed for the bootstrapp
-	bootcontext.rotKeyIndex = []uint64{}
+	btp.rotKeyIndex = []uint64{}
 
 	//SubSum rotation needed X -> Y^slots rotations
-	for i := bootcontext.logSlots; i < bootcontext.LogMaxSlots(); i++ {
-		if !utils.IsInSliceUint64(1<<i, bootcontext.rotKeyIndex) {
-			bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, 1<<i)
+	for i := btp.logSlots; i < btp.LogMaxSlots(); i++ {
+		if !utils.IsInSliceUint64(1<<i, btp.rotKeyIndex) {
+			btp.rotKeyIndex = append(btp.rotKeyIndex, 1<<i)
 		}
 	}
 
 	var index uint64
 	// Coeffs to Slots rotations
-	for i := range bootcontext.pDFTInv {
-		for j := range bootcontext.pDFTInv[i].Vec {
+	for i := range btp.pDFTInv {
+		for j := range btp.pDFTInv[i].Vec {
 
-			index = ((j / bootcontext.pDFTInv[i].N1) * bootcontext.pDFTInv[i].N1) & (bootcontext.Slots() - 1)
+			index = ((j / btp.pDFTInv[i].N1) * btp.pDFTInv[i].N1) & (btp.Slots() - 1)
 
-			if index != 0 && !utils.IsInSliceUint64(index, bootcontext.rotKeyIndex) {
-				bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, index)
+			if index != 0 && !utils.IsInSliceUint64(index, btp.rotKeyIndex) {
+				btp.rotKeyIndex = append(btp.rotKeyIndex, index)
 			}
 
-			index = j & (bootcontext.pDFTInv[i].N1 - 1)
+			index = j & (btp.pDFTInv[i].N1 - 1)
 
-			if index != 0 && !utils.IsInSliceUint64(index, bootcontext.rotKeyIndex) {
-				bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, index)
+			if index != 0 && !utils.IsInSliceUint64(index, btp.rotKeyIndex) {
+				btp.rotKeyIndex = append(btp.rotKeyIndex, index)
 			}
 		}
 	}
 
 	// Slots to Coeffs rotations
-	for i := range bootcontext.pDFT {
-		for j := range bootcontext.pDFT[i].Vec {
+	for i := range btp.pDFT {
+		for j := range btp.pDFT[i].Vec {
 
-			if bootcontext.repack && i == 0 {
+			if btp.repack && i == 0 {
 				// Sparse repacking, occuring during the first DFT matrix of the CoeffsToSlots.
-				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (2*bootcontext.Slots() - 1)
+				index = ((j / btp.pDFT[i].N1) * btp.pDFT[i].N1) & (2*btp.Slots() - 1)
 			} else {
 				// Other cases
-				index = ((j / bootcontext.pDFT[i].N1) * bootcontext.pDFT[i].N1) & (bootcontext.Slots() - 1)
+				index = ((j / btp.pDFT[i].N1) * btp.pDFT[i].N1) & (btp.Slots() - 1)
 			}
 
-			if index != 0 && !utils.IsInSliceUint64(index, bootcontext.rotKeyIndex) {
-				bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, index)
+			if index != 0 && !utils.IsInSliceUint64(index, btp.rotKeyIndex) {
+				btp.rotKeyIndex = append(btp.rotKeyIndex, index)
 			}
 
-			index = j & (bootcontext.pDFT[i].N1 - 1)
+			index = j & (btp.pDFT[i].N1 - 1)
 
-			if index != 0 && !utils.IsInSliceUint64(index, bootcontext.rotKeyIndex) {
-				bootcontext.rotKeyIndex = append(bootcontext.rotKeyIndex, index)
+			if index != 0 && !utils.IsInSliceUint64(index, btp.rotKeyIndex) {
+				btp.rotKeyIndex = append(btp.rotKeyIndex, index)
 			}
 		}
 	}
@@ -245,23 +239,23 @@ func (bootcontext *BootContext) newBootDFT() {
 	return
 }
 
-func (bootcontext *BootContext) newBootSine() {
+func (btp *Bootstrapper) newBootSine() {
 
-	if bootcontext.SinType == Sin {
+	if btp.SinType == Sin {
 
-		K := complex(float64(bootcontext.SinRange), 0)
+		K := complex(float64(btp.SinRange), 0)
 
-		bootcontext.chebycoeffs = Approximate(sin2pi2pi, -K, K, int(bootcontext.SinDeg))
+		btp.chebycoeffs = Approximate(sin2pi2pi, -K, K, int(btp.SinDeg))
 
-	} else if bootcontext.SinType == Cos {
+	} else if btp.SinType == Cos {
 
-		K := int(bootcontext.SinRange)
-		deg := int(bootcontext.SinDeg)
-		sc_fac := complex(float64(int(1<<bootcontext.SinRescal)), 0)
+		K := int(btp.SinRange)
+		deg := int(btp.SinDeg)
+		sc_fac := complex(float64(int(1<<btp.SinRescal)), 0)
 
 		cheby := new(ChebyshevInterpolation)
 
-		cheby.coeffs = bettersine.Approximate(K, deg, bootcontext.deviation, int(bootcontext.SinRescal))
+		cheby.coeffs = bettersine.Approximate(K, deg, btp.deviation, int(btp.SinRescal))
 
 		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(sc_fac))
 
@@ -274,7 +268,7 @@ func (bootcontext *BootContext) newBootSine() {
 		cheby.b = complex(float64(K), 0) / sc_fac
 		cheby.lead = true
 
-		bootcontext.chebycoeffs = cheby
+		btp.chebycoeffs = cheby
 
 	} else {
 		panic("bootcontext -> invalid sineType")
@@ -392,13 +386,13 @@ func fftInvPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][
 	return
 }
 
-func (bootcontext *BootContext) computePlaintextVectors() {
+func (btp *Bootstrapper) computePlaintextVectors() {
 
-	slots := bootcontext.Slots()
-	dslots := bootcontext.dslots
+	slots := btp.Slots()
+	dslots := btp.dslots
 
-	CtSLevel := bootcontext.CtSLevel
-	StCLevel := bootcontext.StCLevel
+	CtSLevel := btp.CtSLevel
+	StCLevel := btp.StCLevel
 
 	roots := computeRoots(slots << 1)
 	pow5 := make([]uint64, (slots<<1)+1)
@@ -409,21 +403,21 @@ func (bootcontext *BootContext) computePlaintextVectors() {
 	}
 
 	// CoeffsToSlots vectors
-	bootcontext.pDFTInv = make([]*dftvectors, len(CtSLevel))
-	pVecDFTInv := bootcontext.computeDFTPlaintextVectors(roots, pow5, bootcontext.coeffsToSlotsDiffScale, true)
+	btp.pDFTInv = make([]*dftvectors, len(CtSLevel))
+	pVecDFTInv := btp.computeDFTPlaintextVectors(roots, pow5, btp.coeffsToSlotsDiffScale, true)
 	for i, lvl := range CtSLevel {
-		bootcontext.pDFTInv[i] = new(dftvectors)
-		bootcontext.pDFTInv[i].N1 = findbestbabygiantstepsplit(pVecDFTInv[i], dslots, bootcontext.MaxN1N2Ratio)
-		bootcontext.encodePVec(pVecDFTInv[i], bootcontext.pDFTInv[i], lvl, true)
+		btp.pDFTInv[i] = new(dftvectors)
+		btp.pDFTInv[i].N1 = findbestbabygiantstepsplit(pVecDFTInv[i], dslots, btp.MaxN1N2Ratio)
+		btp.encodePVec(pVecDFTInv[i], btp.pDFTInv[i], lvl, true)
 	}
 
 	// SlotsToCoeffs vectors
-	bootcontext.pDFT = make([]*dftvectors, len(StCLevel))
-	pVecDFT := bootcontext.computeDFTPlaintextVectors(roots, pow5, bootcontext.slotsToCoeffsDiffScale, false)
+	btp.pDFT = make([]*dftvectors, len(StCLevel))
+	pVecDFT := btp.computeDFTPlaintextVectors(roots, pow5, btp.slotsToCoeffsDiffScale, false)
 	for i, lvl := range StCLevel {
-		bootcontext.pDFT[i] = new(dftvectors)
-		bootcontext.pDFT[i].N1 = findbestbabygiantstepsplit(pVecDFT[i], dslots, bootcontext.MaxN1N2Ratio)
-		bootcontext.encodePVec(pVecDFT[i], bootcontext.pDFT[i], lvl, false)
+		btp.pDFT[i] = new(dftvectors)
+		btp.pDFT[i].N1 = findbestbabygiantstepsplit(pVecDFT[i], dslots, btp.MaxN1N2Ratio)
+		btp.encodePVec(pVecDFT[i], btp.pDFT[i], lvl, false)
 	}
 }
 
@@ -475,12 +469,12 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, max
 	return 1
 }
 
-func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plaintextVec *dftvectors, level uint64, forward bool) {
+func (btp *Bootstrapper) encodePVec(pVec map[uint64][]complex128, plaintextVec *dftvectors, level uint64, forward bool) {
 	var N, N1 uint64
 	var scale float64
 
 	// N1*N2 = N
-	N = bootcontext.N()
+	N = btp.N()
 	N1 = plaintextVec.N1
 
 	index := make(map[uint64][]uint64)
@@ -498,31 +492,31 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	plaintextVec.Vec = make(map[uint64][2]*ring.Poly)
 
 	if forward {
-		scale = float64(bootcontext.qi[level])
+		scale = float64(btp.qi[level])
 	} else {
 		// If the first moduli
-		logQi := math.Round(math.Log2(float64(bootcontext.qi[level])))
+		logQi := math.Round(math.Log2(float64(btp.qi[level])))
 		if logQi >= 56.0 {
 			scale = math.Exp2(logQi / 2)
 		} else {
-			scale = float64(bootcontext.qi[level])
+			scale = float64(btp.qi[level])
 		}
 	}
 
 	plaintextVec.Level = level
 	plaintextVec.Scale = scale
-	ringQ := bootcontext.evaluator.(*evaluator).ringQ
-	ringP := bootcontext.evaluator.(*evaluator).ringP
-	encoder := bootcontext.encoder.(*encoderComplex128)
+	ringQ := btp.evaluator.(*evaluator).ringQ
+	ringP := btp.evaluator.(*evaluator).ringP
+	encoder := btp.encoder.(*encoderComplex128)
 
 	for j := range index {
 
 		for _, i := range index[j] {
 
 			//  levels * n coefficients of 8 bytes each
-			bootcontext.plaintextSize += 8 * N * (level + 1 + bootcontext.PiCount())
+			btp.plaintextSize += 8 * N * (level + 1 + btp.PiCount())
 
-			encoder.embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:bootcontext.dslots], bootcontext.dslots)
+			encoder.embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:btp.dslots], btp.dslots)
 
 			plaintextQ := ring.NewPoly(N, level+1)
 			encoder.scaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
@@ -542,22 +536,22 @@ func (bootcontext *BootContext) encodePVec(pVec map[uint64][]complex128, plainte
 	}
 }
 
-func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, pow5 []uint64, diffscale complex128, forward bool) (plainVector []map[uint64][]complex128) {
+func (btp *Bootstrapper) computeDFTPlaintextVectors(roots []complex128, pow5 []uint64, diffscale complex128, forward bool) (plainVector []map[uint64][]complex128) {
 
 	var level, depth, nextLevel, logSlots uint64
 
-	logSlots = bootcontext.logSlots
+	logSlots = btp.logSlots
 	level = logSlots
 
 	var a, b, c [][]complex128
 	var maxDepth uint64
 
 	if forward {
-		maxDepth = uint64(len(bootcontext.CtSLevel))
-		a, b, c = fftInvPlainVec(bootcontext.logSlots, roots, pow5)
+		maxDepth = uint64(len(btp.CtSLevel))
+		a, b, c = fftInvPlainVec(btp.logSlots, roots, pow5)
 	} else {
-		maxDepth = uint64(len(bootcontext.StCLevel))
-		a, b, c = fftPlainVec(bootcontext.logSlots, roots, pow5)
+		maxDepth = uint64(len(btp.StCLevel))
+		a, b, c = fftPlainVec(btp.logSlots, roots, pow5)
 	}
 
 	plainVector = make([]map[uint64][]complex128, maxDepth)
@@ -584,7 +578,7 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, p
 	level = logSlots
 	for i := uint64(0); i < maxDepth; i++ {
 
-		if bootcontext.repack && !forward && i == 0 {
+		if btp.repack && !forward && i == 0 {
 
 			// Special initial matrix for the repacking before SlotsToCoeffs
 			plainVector[i] = genWfftRepack(logSlots, level)
@@ -615,10 +609,10 @@ func (bootcontext *BootContext) computeDFTPlaintextVectors(roots []complex128, p
 	}
 
 	// Repacking after the CoeffsToSlots (we multiply the last DFT matrix with the vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0]).
-	if bootcontext.repack && forward {
+	if btp.repack && forward {
 		for j := range plainVector[maxDepth-1] {
-			for x := uint64(0); x < bootcontext.Slots(); x++ {
-				plainVector[maxDepth-1][j][x+bootcontext.Slots()] = complex(0, 0)
+			for x := uint64(0); x < btp.Slots(); x++ {
+				plainVector[maxDepth-1][j][x+btp.Slots()] = complex(0, 0)
 			}
 		}
 	}

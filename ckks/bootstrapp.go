@@ -9,72 +9,72 @@ import (
 )
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
-func (bootcontext *BootContext) Bootstrapp(ct *Ciphertext) *Ciphertext {
+func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	var t time.Time
 	var ct0, ct1 *Ciphertext
 
 	for ct.Level() != 0 {
-		bootcontext.evaluator.DropLevel(ct, 1)
+		btp.evaluator.DropLevel(ct, 1)
 	}
 
 	// TODO : better management of the initial scale
 	// Brings the ciphertext scale to Q0/2^{10}
-	bootcontext.evaluator.ScaleUp(ct, math.Round(bootcontext.prescale/ct.Scale()), ct)
+	btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale()), ct)
 
 	// ModUp ct_{Q_0} -> ct_{Q_L}
 	t = time.Now()
-	ct = bootcontext.modUp(ct)
+	ct = btp.modUp(ct)
 	log.Println("After ModUp  :", time.Now().Sub(t), ct.Level(), ct.Scale())
 
 	// Brings the ciphertext scale to sineQi/(Q0/scale) if its under
-	bootcontext.evaluator.ScaleUp(ct, math.Round(bootcontext.postscale/ct.Scale()), ct)
+	btp.evaluator.ScaleUp(ct, math.Round(btp.postscale/ct.Scale()), ct)
 
 	//SubSum X -> (N/dslots) * Y^dslots
 	t = time.Now()
-	ct = bootcontext.subSum(ct)
+	ct = btp.subSum(ct)
 	log.Println("After SubSum :", time.Now().Sub(t), ct.Level(), ct.Scale())
 	// Part 1 : Coeffs to slots
 
 	t = time.Now()
-	ct0, ct1 = bootcontext.coeffsToSlots(ct)
+	ct0, ct1 = btp.coeffsToSlots(ct)
 	log.Println("After CtS    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 
 	// Part 2 : SineEval
 	t = time.Now()
-	ct0, ct1 = bootcontext.evaluateSine(ct0, ct1)
+	ct0, ct1 = btp.evaluateSine(ct0, ct1)
 	log.Println("After Sine   :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 
 	// Part 3 : Slots to coeffs
 	t = time.Now()
-	ct0 = bootcontext.slotsToCoeffs(ct0, ct1)
+	ct0 = btp.slotsToCoeffs(ct0, ct1)
 	ct0.SetScale(math.Exp2(math.Round(math.Log2(ct0.Scale())))) // rounds to the nearest power of two
 	log.Println("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 	return ct0
 }
 
-func (bootcontext *BootContext) subSum(ct *Ciphertext) *Ciphertext {
+func (btp *Bootstrapper) subSum(ct *Ciphertext) *Ciphertext {
 
-	for i := bootcontext.logSlots; i < bootcontext.LogMaxSlots(); i++ {
+	for i := btp.logSlots; i < btp.LogMaxSlots(); i++ {
 
-		bootcontext.evaluator.RotateColumns(ct, 1<<i, bootcontext.rotkeys, bootcontext.ctxpool[0])
+		btp.evaluator.RotateColumns(ct, 1<<i, btp.rotkeys, btp.ctxpool)
 
-		bootcontext.evaluator.Add(ct, bootcontext.ctxpool[0], ct)
+		btp.evaluator.Add(ct, btp.ctxpool, ct)
 	}
 
 	return ct
 }
 
-func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
+func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 
-	ringQ := bootcontext.evaluator.(*evaluator).ringQ
+	ringQ := btp.evaluator.(*evaluator).ringQ
 
 	ct.InvNTT(ringQ, ct.Element())
 
 	// Extend the ciphertext with zero polynomials.
 	for u := range ct.Value() {
-		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, bootcontext.MaxLevel())...)
-		for i := uint64(1); i < bootcontext.MaxLevel()+1; i++ {
-			ct.Value()[u].Coeffs[i] = make([]uint64, bootcontext.N())
+		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, btp.MaxLevel())...)
+		for i := uint64(1); i < btp.MaxLevel()+1; i++ {
+			ct.Value()[u].Coeffs[i] = make([]uint64, btp.N())
 		}
 	}
 
@@ -85,11 +85,11 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 	var coeff, qi uint64
 	for u := range ct.Value() {
 
-		for j := uint64(0); j < bootcontext.N(); j++ {
+		for j := uint64(0); j < btp.N(); j++ {
 
 			coeff = ct.Value()[u].Coeffs[0][j]
 
-			for i := uint64(1); i < bootcontext.MaxLevel()+1; i++ {
+			for i := uint64(1); i < btp.MaxLevel()+1; i++ {
 
 				qi = ringQ.Modulus[i]
 
@@ -107,16 +107,16 @@ func (bootcontext *BootContext) modUp(ct *Ciphertext) *Ciphertext {
 	return ct
 }
 
-func (bootcontext *BootContext) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Ciphertext) {
+func (btp *Bootstrapper) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Ciphertext) {
 
-	evaluator := bootcontext.evaluator
+	evaluator := btp.evaluator
 
 	var zV, zVconj *Ciphertext
 
-	zV = bootcontext.dft(vec, bootcontext.pDFTInv, true)
+	zV = btp.dft(vec, btp.pDFTInv, true)
 
 	// Extraction of real and imaginary parts.
-	zVconj = evaluator.ConjugateNew(zV, bootcontext.rotkeys)
+	zVconj = evaluator.ConjugateNew(zV, btp.rotkeys)
 
 	// The real part is stored in ct0
 	ct0 = evaluator.AddNew(zV, zVconj)
@@ -127,10 +127,10 @@ func (bootcontext *BootContext) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Cipher
 	evaluator.DivByi(ct1, ct1)
 
 	// If repacking, then ct0 and ct1 right n/2 slots are zero.
-	if bootcontext.repack {
+	if btp.repack {
 
 		// The imaginary part is put in the right n/2 slots of ct0.
-		evaluator.RotateColumns(ct1, bootcontext.Slots(), bootcontext.rotkeys, ct1)
+		evaluator.RotateColumns(ct1, btp.Slots(), btp.rotkeys, ct1)
 
 		evaluator.Add(ct0, ct1, ct0)
 
@@ -143,44 +143,44 @@ func (bootcontext *BootContext) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Cipher
 	return ct0, ct1
 }
 
-func (bootcontext *BootContext) slotsToCoeffs(ct0, ct1 *Ciphertext) (ct *Ciphertext) {
+func (btp *Bootstrapper) slotsToCoeffs(ct0, ct1 *Ciphertext) (ct *Ciphertext) {
 
 	// If full packing, the repacking can be done directly using ct0 and ct1.
-	if !bootcontext.repack {
+	if !btp.repack {
 
-		bootcontext.evaluator.MultByi(ct1, ct1)
+		btp.evaluator.MultByi(ct1, ct1)
 
-		bootcontext.evaluator.Add(ct0, ct1, ct0)
+		btp.evaluator.Add(ct0, ct1, ct0)
 	}
 
-	return bootcontext.dft(ct0, bootcontext.pDFT, false)
+	return btp.dft(ct0, btp.pDFT, false)
 }
 
-func (bootcontext *BootContext) dft(vec *Ciphertext, plainVectors []*dftvectors, forward bool) *Ciphertext {
+func (btp *Bootstrapper) dft(vec *Ciphertext, plainVectors []*dftvectors, forward bool) *Ciphertext {
 
-	evaluator := bootcontext.evaluator.(*evaluator)
+	evaluator := btp.evaluator.(*evaluator)
 
 	// Sequencially multiplies w with the provided dft matrices.
 	for _, plainVector := range plainVectors {
-		vec = bootcontext.multiplyByDiagMatrice(vec, plainVector)
+		vec = btp.multiplyByDiagMatrice(vec, plainVector)
 		evaluator.Rescale(vec, evaluator.scale, vec)
 	}
 
 	return vec
 }
 
-func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
+func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *dftvectors) (res *Ciphertext) {
 
-	eval := bootcontext.evaluator.(*evaluator)
+	eval := btp.evaluator.(*evaluator)
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
 	levelQ := vec.Level()
-	levelP := bootcontext.PiCount() - 1
+	levelP := btp.PiCount() - 1
 
 	var N1 uint64
 
-	res = NewCiphertext(&bootcontext.Parameters, 1, vec.Level(), vec.Scale())
+	res = NewCiphertext(&btp.Parameters, 1, vec.Level(), vec.Scale())
 
 	// N1*N2 = N
 	N1 = plainVectors.N1
@@ -205,25 +205,17 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 	}
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	vecRotQ, vecRotP := eval.RotateHoistedNoModDown(vec, rotations, bootcontext.rotkeys)
+	vecRotQ, vecRotP := eval.RotateHoistedNoModDown(vec, rotations, btp.rotkeys)
 
-	tmpQ0 := bootcontext.poolQ[0]
-	tmpQ1 := bootcontext.poolQ[1]
-	tmpQ2 := bootcontext.poolQ[2]
-	tmpQ3 := bootcontext.poolQ[3]
+	tmpQ0 := btp.poolQ[0]
+	tmpQ1 := btp.poolQ[1]
+	tmpP0 := btp.poolP[0]
+	tmpP1 := btp.poolP[1]
 
-	tmpP0 := bootcontext.poolP[0]
-	tmpP1 := bootcontext.poolP[1]
-	tmpP2 := bootcontext.poolP[2]
-	tmpP3 := bootcontext.poolP[3]
-
-	tmpResQ0 := bootcontext.poolQ[4]
-	tmpResQ1 := bootcontext.poolQ[5]
-
-	pool2Q := eval.poolQ[1]
-	pool3Q := eval.poolQ[2]
-	pool2P := eval.poolP[1]
-	pool3P := eval.poolP[2]
+	pool2Q := btp.poolQ[2]
+	pool3Q := btp.poolQ[3]
+	pool2P := btp.poolP[2]
+	pool3P := btp.poolP[3]
 
 	N1Rot := 0
 	N2Rot := 0
@@ -234,8 +226,8 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 
 	for _, i := range rotations {
 		if i != 0 {
-			ring.PermuteNTTWithIndexLvl(levelQ, c0, bootcontext.rotkeys.permuteNTTLeftIndex[i], tmpQ0) // phi(P*c0)
-			ringQ.AddLvl(levelQ, vecRotQ[i].value[0], tmpQ0, vecRotQ[i].value[0])                      // phi(d0_Q) += phi(P*c0)
+			ring.PermuteNTTWithIndexLvl(levelQ, c0, btp.rotkeys.permuteNTTLeftIndex[i], tmpQ0) // phi(P*c0)
+			ringQ.AddLvl(levelQ, vecRotQ[i].value[0], tmpQ0, vecRotQ[i].value[0])              // phi(d0_Q) += phi(P*c0)
 		}
 	}
 
@@ -260,15 +252,15 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 					plaintextP := plainVectors.Vec[N1*j+uint64(i)][1]
 
 					if cnt1 == 0 {
-						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(P*c0 + d0_Q) * plaintext
-						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
-						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
-						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
+						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ0) // phi(P*c0 + d0_Q) * plaintext
+						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ1) // phi(d1_Q) * plaintext
+						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[0], tmpP0)            // phi(d0_P) * plaintext
+						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[1], tmpP1)            // phi(d1_P) * plaintext
 					} else {
-						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(d0_Q) * plaintext
-						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
-						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
-						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
+						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ0) // phi(d0_Q) * plaintext
+						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ1) // phi(d1_Q) * plaintext
+						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], tmpP0)            // phi(d0_P) * plaintext
+						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], tmpP1)            // phi(d1_P) * plaintext
 					}
 
 					cnt1++
@@ -276,23 +268,23 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			}
 
 			// Hoisting of the ModDown of sum(sum(phi(d0 + P*c0) * plaintext)) and sum(sum(phi(d1) * plaintext))
-			eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ2, tmpP2, tmpResQ0) // sum(phi(d0) * plaintext)/P
-			eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ3, tmpP3, tmpResQ1) // sum(phi(d1) * plaintext)/P
+			eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ0, tmpP0, tmpQ0) // sum(phi(d0) * plaintext)/P
+			eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ1, tmpP1, tmpQ1) // sum(phi(d1) * plaintext)/P
 
 			// If i == 0
 			if state {
 				N1Rot++
-				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[0], tmpResQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
-				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[1], tmpResQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
+				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[0], tmpQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[1], tmpQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
 			}
 
+			eval.switchKeysInPlaceNoModDown(levelQ, tmpQ1, btp.rotkeys.evakeyRotColLeft[N1*j], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
+
 			// Outer loop rotations
-			ring.PermuteNTTWithIndexLvl(levelQ, tmpResQ0, bootcontext.rotkeys.permuteNTTLeftIndex[N1*j], tmpQ2) // phi(tmpRes_0)
-			ringQ.AddLvl(levelQ, res.value[0], tmpQ2, res.value[0])                                             // res += phi(tmpRes)
+			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, btp.rotkeys.permuteNTTLeftIndex[N1*j], tmpQ1) // phi(tmpRes_0)
+			ringQ.AddLvl(levelQ, res.value[0], tmpQ1, res.value[0])                                  // res += phi(tmpRes)
 
-			eval.switchKeysInPlaceNoModDown(levelQ, tmpResQ1, bootcontext.rotkeys.evakeyRotColLeft[N1*j], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
-
-			rot := bootcontext.rotkeys.permuteNTTLeftIndex[N1*j]
+			rot := btp.rotkeys.permuteNTTLeftIndex[N1*j]
 
 			N2Rot++
 
@@ -367,29 +359,29 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 }
 
 // Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
-func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphertext) {
+func (btp *Bootstrapper) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphertext) {
 
-	evaluator := bootcontext.evaluator.(*evaluator)
+	evaluator := btp.evaluator.(*evaluator)
 
-	ct0.MulScale(bootcontext.deviation)
+	ct0.MulScale(btp.deviation)
 	evaluator.scale = ct0.Scale() // Reference scale is changed to the new ciphertext's scale.
 
 	// pre-computes the target scale for the output of the polynomial evaluation such that
 	// the output scale after the polynomial evaluation followed by the double angle formula
 	// does not change the scale of the ciphertext.
-	for i := uint64(0); i < bootcontext.SinRescal; i++ {
-		evaluator.scale *= float64(evaluator.params.qi[bootcontext.StCLevel[0]+i+1])
+	for i := uint64(0); i < btp.SinRescal; i++ {
+		evaluator.scale *= float64(evaluator.params.qi[btp.StCLevel[0]+i+1])
 		evaluator.scale = math.Sqrt(evaluator.scale)
 	}
 
-	ct0 = bootcontext.evaluateCheby(ct0)
+	ct0 = btp.evaluateCheby(ct0)
 
-	ct0.DivScale(bootcontext.deviation * bootcontext.postscale / bootcontext.scale)
+	ct0.DivScale(btp.deviation * btp.postscale / btp.scale)
 
 	if ct1 != nil {
-		ct1.MulScale(bootcontext.deviation)
-		ct1 = bootcontext.evaluateCheby(ct1)
-		ct1.DivScale(bootcontext.deviation * bootcontext.postscale / bootcontext.scale)
+		ct1.MulScale(btp.deviation)
+		ct1 = btp.evaluateCheby(ct1)
+		ct1.DivScale(btp.deviation * btp.postscale / btp.scale)
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
@@ -398,27 +390,27 @@ func (bootcontext *BootContext) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext,
 	return ct0, ct1
 }
 
-func (bootcontext *BootContext) evaluateCheby(ct *Ciphertext) (res *Ciphertext) {
+func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) (res *Ciphertext) {
 
-	eval := bootcontext.evaluator.(*evaluator)
+	eval := btp.evaluator.(*evaluator)
 
 	C := make(map[uint64]*Ciphertext)
 	C[1] = ct.CopyNew().Ciphertext()
 
-	cheby := bootcontext.chebycoeffs
+	cheby := btp.chebycoeffs
 
-	if bootcontext.SinType == Cos {
-		sc_fac := complex(float64(int(1<<bootcontext.SinRescal)), 0)
+	if btp.SinType == Cos {
+		sc_fac := complex(float64(int(1<<btp.SinRescal)), 0)
 		eval.AddConst(C[1], -0.5/(sc_fac*(cheby.b-cheby.a)), C[1])
 	}
 
-	res = eval.evalCheby(cheby, C, bootcontext.relinkey)
+	res = eval.evalCheby(cheby, C, btp.relinkey)
 
-	sqrt2pi := math.Pow(0.15915494309189535, 1.0/float64(int(1<<bootcontext.SinRescal)))
+	sqrt2pi := math.Pow(0.15915494309189535, 1.0/float64(int(1<<btp.SinRescal)))
 
-	for i := uint64(0); i < bootcontext.SinRescal; i++ {
+	for i := uint64(0); i < btp.SinRescal; i++ {
 		sqrt2pi *= sqrt2pi
-		eval.MulRelin(res, res, bootcontext.relinkey, res)
+		eval.MulRelin(res, res, btp.relinkey, res)
 		eval.Add(res, res, res)
 		eval.AddConst(res, -sqrt2pi, res)
 		eval.Rescale(res, eval.scale, res)

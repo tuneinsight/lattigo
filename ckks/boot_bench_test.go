@@ -7,7 +7,7 @@ import (
 
 func BenchmarkBootstrapp(b *testing.B) {
 
-	var bootcontext *BootContext
+	var btp *Bootstrapper
 	var kgen KeyGenerator
 	var sk *SecretKey
 	var ciphertext *Ciphertext
@@ -38,8 +38,8 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	sk = kgen.GenSecretKey()
 
-	bootcontext = NewBootContext(bootparams)
-	bootcontext.GenBootKeys(sk)
+	btp = NewBootstrapper(bootparams)
+	btp.GenBootKeys(sk)
 
 	b.Run(testString("ModUp/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -47,13 +47,13 @@ func BenchmarkBootstrapp(b *testing.B) {
 			ciphertext = NewCiphertextRandom(prng, params.params, 1, 0, LTScale)
 			b.StartTimer()
 
-			ciphertext = bootcontext.modUp(ciphertext)
+			ciphertext = btp.modUp(ciphertext)
 		}
 	})
 
 	b.Run(testString("SubSum/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ciphertext = bootcontext.subSum(ciphertext)
+			ciphertext = btp.subSum(ciphertext)
 		}
 	})
 
@@ -67,7 +67,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 			ciphertext = NewCiphertextRandom(prng, params.params, 1, params.params.MaxLevel(), LTScale)
 			b.StartTimer()
 
-			ct0, ct1 = bootcontext.coeffsToSlots(ciphertext)
+			ct0, ct1 = btp.coeffsToSlots(ciphertext)
 		}
 	})
 
@@ -86,7 +86,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 			}
 			b.StartTimer()
 
-			ct2, ct3 = bootcontext.evaluateSine(ct0, ct1)
+			ct2, ct3 = btp.evaluateSine(ct0, ct1)
 
 			if ct2.Level() != params.params.MaxLevel()-ctsDepth-sinDepth {
 				panic("scaling error during eval sinebetter bench")
@@ -114,7 +114,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 			}
 			b.StartTimer()
 
-			bootcontext.slotsToCoeffs(ct2, ct3)
+			btp.slotsToCoeffs(ct2, ct3)
 
 		}
 	})
@@ -125,7 +125,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 			ct := NewCiphertext(params.params, 1, 0, params.params.scale)
 			b.StartTimer()
 
-			bootcontext.Bootstrapp(ct)
+			btp.Bootstrapp(ct)
 		}
 	})
 }

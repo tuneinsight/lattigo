@@ -1709,8 +1709,8 @@ func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *Sw
 
 	eval.switchKeysInPlaceNoModDown(level, cx, evakey, p0, eval.poolP[1], p1, eval.poolP[2])
 
-	eval.baseconverter.ModDownSplitedNTTPQ(level, p0, eval.poolP[1], p0)
-	eval.baseconverter.ModDownSplitedNTTPQ(level, p1, eval.poolP[2], p1)
+	eval.baseconverter.ModDownSplitNTTPQ(level, p0, eval.poolP[1], p0)
+	eval.baseconverter.ModDownSplitNTTPQ(level, p1, eval.poolP[2], p1)
 }
 
 // decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.
@@ -1822,8 +1822,8 @@ func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp [
 	eval.keyswitchHoistedNoModDown(level, c2QiQDecomp, c2QiPDecomp, evakey, pool2Q, pool3Q, pool2P, pool3P)
 
 	// Computes pool2Q = pool2Q/pool2P and pool3Q = pool3Q/pool3P
-	eval.baseconverter.ModDownSplitedNTTPQ(level, pool2Q, pool2P, pool2Q)
-	eval.baseconverter.ModDownSplitedNTTPQ(level, pool3Q, pool3P, pool3Q)
+	eval.baseconverter.ModDownSplitNTTPQ(level, pool2Q, pool2P, pool2Q)
+	eval.baseconverter.ModDownSplitNTTPQ(level, pool3Q, pool3P, pool3Q)
 }
 
 // RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext

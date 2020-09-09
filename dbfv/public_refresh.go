@@ -140,7 +140,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	}
 
 	// h0 = (s*ct[1]*P + e)/P
-	rfp.baseconverter.ModDownSplitedPQ(level, share.RefreshShareDecrypt, rfp.hP, share.RefreshShareDecrypt)
+	rfp.baseconverter.ModDownSplitPQ(level, share.RefreshShareDecrypt, rfp.hP, share.RefreshShareDecrypt)
 
 	// h1 = -s*a
 	contextKeys.NTT(crs, rfp.tmp1)

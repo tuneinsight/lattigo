@@ -105,7 +105,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 		}
 	}
 
-	cks.baseconverter.ModDownSplitedPQ(level, shareOut.Poly, cks.hP, shareOut.Poly)
+	cks.baseconverter.ModDownSplitPQ(level, shareOut.Poly, cks.hP, shareOut.Poly)
 
 	cks.tmpNtt.Zero()
 	cks.hP.Zero()

@@ -7,7 +7,7 @@ import (
 	"github.com/ldsec/lattigo/utils"
 )
 
-// GenGaloisParams generates the generators for the galois endomorphisms.
+// GenGaloisParams generates the generators for the Galois endomorphisms.
 func GenGaloisParams(n, gen uint64) (galElRotCol []uint64) {
 
 	var m, mask uint64
@@ -51,9 +51,9 @@ func PermuteNTTIndex(gen, power, N uint64) (index []uint64) {
 	return
 }
 
-// PermuteNTT applies the galois transform on a polynomial in the NTT domain.
+// PermuteNTT applies the Galois transform on a polynomial in the NTT domain.
 // It maps the coefficients x^i to x^(gen*i)
-// Careful, not inplace!
+// It must be noted that the result cannot be in-place.
 func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
 
 	var N, tmp, mask, logN, tmp1, tmp2 uint64
@@ -85,9 +85,9 @@ func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
 	}
 }
 
-// PermuteNTT applies the galois transform on a polynomial in the NTT domain.
+// PermuteNTTLvl applies the Galois transform on a polynomial in the NTT domain, up to a given level.
 // It maps the coefficients x^i to x^(gen*i)
-// Careful, not inplace!
+// It must be noted that the result cannot be in-place.
 func PermuteNTTLvl(level uint64, polIn *Poly, gen uint64, polOut *Poly) {
 
 	var N, tmp, mask, logN, tmp1, tmp2 uint64
@@ -119,9 +119,9 @@ func PermuteNTTLvl(level uint64, polIn *Poly, gen uint64, polOut *Poly) {
 	}
 }
 
-// PermuteNTTWithIndex applies the galois transform on a polynomial in the NTT domain.
+// PermuteNTTWithIndexLvl applies the Galois transform on a polynomial in the NTT domain, up to a given level.
 // It maps the coefficients x^i to x^(gen*i) using the PermuteNTTIndex table.
-// Careful, not inplace!
+// It must be noted that the result cannot be in-place.
 func PermuteNTTWithIndexLvl(level uint64, polIn *Poly, index []uint64, polOut *Poly) {
 
 	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j = j + 8 {
@@ -145,6 +145,10 @@ func PermuteNTTWithIndexLvl(level uint64, polIn *Poly, index []uint64, polOut *P
 	}
 }
 
+// PermuteNTTWithIndexAndAddNoModLvl applies the Galois transform on a polynomial in the NTT domain, up to a given level,
+// and adds the result to the output polynomial without modular reduction.
+// It maps the coefficients x^i to x^(gen*i) using the PermuteNTTIndex table.
+// It must be noted that the result cannot be in-place.
 func PermuteNTTWithIndexAndAddNoModLvl(level uint64, polIn *Poly, index []uint64, polOut *Poly) {
 
 	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j = j + 8 {
@@ -168,9 +172,9 @@ func PermuteNTTWithIndexAndAddNoModLvl(level uint64, polIn *Poly, index []uint64
 	}
 }
 
-// Permute applies the galois transform on a polynonial outside of the NTT domain.
+// Permute applies the Galois transform on a polynomial outside of the NTT domain.
 // It maps the coefficients x^i to x^(gen*i)
-// Careful, not inplace!
+// It must be noted that the result cannot be in-place.
 func (r *Ring) Permute(polIn *Poly, gen uint64, polOut *Poly) {
 
 	var mask, index, indexRaw, logN, tmp uint64

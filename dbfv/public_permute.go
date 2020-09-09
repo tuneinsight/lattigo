@@ -103,7 +103,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	}
 
 	// h0 = (s*ct[1]*P + e)/P
-	pp.baseconverter.ModDownSplitedPQ(level, share.RefreshShareDecrypt, pp.hP, share.RefreshShareDecrypt)
+	pp.baseconverter.ModDownSplitPQ(level, share.RefreshShareDecrypt, pp.hP, share.RefreshShareDecrypt)
 
 	// h1 = -s*a
 	contextKeys.NTT(crs, pp.tmp1)

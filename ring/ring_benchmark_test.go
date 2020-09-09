@@ -405,13 +405,13 @@ func benchExtendBasis(b *testing.B) {
 
 		b.Run(fmt.Sprintf("ModDown/N=%d/limbsQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				basisExtender.ModDownSplitedPQ(level, p0, p1, p0)
+				basisExtender.ModDownSplitPQ(level, p0, p1, p0)
 			}
 		})
 
 		b.Run(fmt.Sprintf("ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				basisExtender.ModDownSplitedNTTPQ(level, p0, p1, p0)
+				basisExtender.ModDownSplitNTTPQ(level, p0, p1, p0)
 			}
 		})
 	}

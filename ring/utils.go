@@ -1,8 +1,9 @@
 package ring
 
 import (
-	"github.com/ldsec/lattigo/utils"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/utils"
 )
 
 func Min(x, y int) int {
@@ -25,8 +26,8 @@ func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 	return
 }
 
-// ModExp performes the modular exponentiation x^e mod p,
-// x and p are required to be a most 64 bits to avoid an overflow.
+// ModExp performs the modular exponentiation x^e mod p,
+// x and p are required to be at most 64 bits to avoid an overflow.
 func ModExp(x, e, p uint64) (result uint64) {
 	params := BRedParams(p)
 	result = 1
@@ -39,8 +40,8 @@ func ModExp(x, e, p uint64) (result uint64) {
 	return result
 }
 
-// modexpMontgomery performes the modular exponentiation x^e mod p,
-// where x is in Montgomery form, and returns x^2 in Montgomery form.
+// modexpMontgomery performs the modular exponentiation x^e mod p,
+// where x is in Montgomery form, and returns x^e in Montgomery form.
 func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64) {
 
 	result = MForm(1, q, bredParams)
@@ -54,7 +55,7 @@ func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64)
 	return result
 }
 
-// gcd compues gcd(a,b) for a,b uint64 variables
+// gcd computes the greatest common divisor gcd(a,b) for a,b uint64 variables
 func gcd(a, b uint64) uint64 {
 	if a == 0 || b == 0 {
 		return 0
@@ -65,7 +66,7 @@ func gcd(a, b uint64) uint64 {
 	return a
 }
 
-// IsPrime applies a Miller-Rabin test on the given uint64 variable, returning true if num is probably prime, else false.
+// IsPrime applies a Miller-Rabin test on the given uint64 variable, returning true if the input is probably prime, and false otherwise.
 func IsPrime(num uint64) bool {
 
 	if num < 2 {
@@ -127,12 +128,12 @@ func IsPrime(num uint64) bool {
 }
 
 // GenerateNTTPrimes generates primes given logQ = size of the primes, logN = size of N and level, the number
-// of levels required. Will return all the appropriate primes, up to the number of level, with the
-// best avaliable deviation from the base power of 2 for the given level.
+// of levels required. It will return all the appropriate primes, up to the number of levels, with the
+// best available deviation from the base power of 2 for the given level.
 func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 
 	if logQ > 61 {
-		panic("logQ  must be between 1 and 61")
+		panic("logQ must be between 1 and 61")
 	}
 
 	if logQ == 61 {
@@ -142,7 +143,7 @@ func GenerateNTTPrimes(logQ, logN, levels uint64) (primes []uint64) {
 	return GenerateNTTPrimesQ(logQ, logN, levels)
 }
 
-// GenerateNTTPrimesQ generates "levels" different "2**LogN" NTT compliant
+// GenerateNTTPrimesQ generates "levels" different "2**LogN" NTT-friendly
 // primes starting from 2**LogQ and alternating between upward and downward.
 func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 
@@ -164,7 +165,7 @@ func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 	for true {
 
 		if !(checkfornextprime || checkforpreviousprime) {
-			panic("GenerateNTTPrimesQ error -> cannot generate enough primes for the given parameters")
+			panic("GenerateNTTPrimesQ error: cannot generate enough primes for the given parameters")
 		}
 
 		if checkfornextprime {
@@ -214,9 +215,9 @@ func GenerateNTTPrimesQ(logQ, logN, levels uint64) (primes []uint64) {
 	return
 }
 
-// GenerateNTTPrimesP generates "levels" different "2**logN" NTT compliant
+// GenerateNTTPrimesP generates "levels" different "2**logN" NTT-friendly
 // primes starting from 2**LogP and downward.
-// Special case were we want primes close to 2^{LogP} but with a smaller bitsize than LogP.
+// Special case were primes close to 2^{LogP} but with a smaller bit-size than LogP are sought.
 func GenerateNTTPrimesP(logP, logN, n uint64) (primes []uint64) {
 
 	var x, Ppow2, _2N uint64
@@ -231,7 +232,7 @@ func GenerateNTTPrimesP(logP, logN, n uint64) (primes []uint64) {
 
 	for true {
 
-		// We start by subtracting 2N to ensure that the prime bitlength is smaller than LogP
+		// We start by subtracting 2N to ensure that the prime bit-length is smaller than LogP
 
 		if x > _2N {
 
@@ -247,7 +248,7 @@ func GenerateNTTPrimesP(logP, logN, n uint64) (primes []uint64) {
 			}
 
 		} else {
-			panic("GenerateNTTPrimesP error -> cannot generate enough primes for the given parameters")
+			panic("GenerateNTTPrimesP error: cannot generate enough primes for the given parameters")
 		}
 	}
 
@@ -260,7 +261,7 @@ func primitiveRoot(q uint64) (g uint64) {
 
 	notFoundPrimitiveRoot := true
 
-	factors := getFactors(q - 1) //Factors q-1, might be slow
+	factors := getFactors(q - 1) //Factor q-1, might be slow
 
 	g = 2
 
@@ -288,12 +289,12 @@ func polynomialPollardsRho(x1, x2, c uint64) (z uint64) {
 }
 
 // factorizationPollardsRho realizes Pollard's Rho algorithm for fast prime factorization,
-// but this function only returns one factor a time
+// but this function only returns one factor per call
 func factorizationPollardsRho(m uint64) (d uint64) {
 	var x, y, c uint64
 
-	// c is to change the ring used in Pollard's Rho algorithm,
-	// Every time the algorithm fails to get a factor, increasing c to retry,
+	// c is used to change the ring in Pollard's Rho algorithm,
+	// Every time the algorithm fails to get a factor, c is increased and a retry starts,
 	// because Pollard's Rho algorithm sometimes will miss some small prime factors.
 	for c = 1; c < 10; c++ {
 
@@ -301,11 +302,11 @@ func factorizationPollardsRho(m uint64) (d uint64) {
 
 		for d != 0 {
 
-			//Walk, walk and eventualy meet \o/
+			//Walk, walk and eventually meet \o/
 			x = polynomialPollardsRho(x, m, c)
 			y = polynomialPollardsRho(polynomialPollardsRho(y, m, c), m, c)
 
-			if y > x { // swaps to avoid overflow
+			if y > x { // swap to avoid overflow
 				x, y = y, x
 			}
 

@@ -469,7 +469,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		//fmt.Println(coeffs_bigint[0])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		eval.baseconverterQ1Q2.ModDownSplitedQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
+		eval.baseconverterQ1Q2.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
 
 		//ringQMul.PolyToBigint(c2Q2[i], coeffs_bigint)
 		//fmt.Println(coeffs_bigint[0])
@@ -806,8 +806,8 @@ func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, po
 	ringP.InvNTT(pool2P, pool2P)
 	ringP.InvNTT(pool3P, pool3P)
 
-	eval.baseconverterQ1P.ModDownSplitedPQ(level, pool2Q, pool2P, pool2Q)
-	eval.baseconverterQ1P.ModDownSplitedPQ(level, pool3Q, pool3P, pool3Q)
+	eval.baseconverterQ1P.ModDownSplitPQ(level, pool2Q, pool2P, pool2Q)
+	eval.baseconverterQ1P.ModDownSplitPQ(level, pool3Q, pool3P, pool3Q)
 }
 
 // decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.

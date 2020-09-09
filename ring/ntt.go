@@ -4,14 +4,14 @@ import (
 	"unsafe"
 )
 
-// NTT computes the NTT transformation of p1 and returns the result on p2.
+// NTT computes the NTT of p1 and returns the result on p2.
 func (r *Ring) NTT(p1, p2 *Poly) {
 	for x := range r.Modulus {
 		NTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
 	}
 }
 
-// NTTLvl computes the NTT transformation of p1 and returns the result on p2.
+// NTTLvl computes the NTT of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 func (r *Ring) NTTLvl(level uint64, p1, p2 *Poly) {
 	for x := uint64(0); x < level+1; x++ {
@@ -19,14 +19,14 @@ func (r *Ring) NTTLvl(level uint64, p1, p2 *Poly) {
 	}
 }
 
-// InvNTT computes the inverse NTT transformation of p1 and returns the result on p2.
+// InvNTT computes the inverse-NTT of p1 and returns the result on p2.
 func (r *Ring) InvNTT(p1, p2 *Poly) {
 	for x := range r.Modulus {
 		InvNTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x], r.MredParams[x])
 	}
 }
 
-// InvNTTLvl computes the inverse NTT transformation of p1 and returns the result on p2.
+// InvNTTLvl computes the inverse-NTT of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 func (r *Ring) InvNTTLvl(level uint64, p1, p2 *Poly) {
 	for x := uint64(0); x < level+1; x++ {
@@ -55,33 +55,33 @@ func invbutterfly(U, V, Psi, Q, Qinv uint64) (X, Y uint64) {
 	return
 }
 
-// NTT computes the NTT transformation on the input coefficients using the input parameters.
+// NTT computes the NTT on the input coefficients using the input parameters.
 func NTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
 	var j1, j2, t uint64
 	var F uint64
 
-	// Copies the result of the first round of butterflies on p2 with approximate reduction
+	// Copy the result of the first round of butterflies on p2 with approximate reduction
 	t = N >> 1
 	F = nttPsi[1]
 	for j := uint64(0); j <= t-1; j = j + 8 {
 
-		x_in := (*[8]uint64)(unsafe.Pointer(&coeffsIn[j]))
-		y_in := (*[8]uint64)(unsafe.Pointer(&coeffsIn[j+t]))
+		xin := (*[8]uint64)(unsafe.Pointer(&coeffsIn[j]))
+		yin := (*[8]uint64)(unsafe.Pointer(&coeffsIn[j+t]))
 
-		x_out := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j]))
-		y_out := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j+t]))
+		xout := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j]))
+		yout := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j+t]))
 
-		x_out[0], y_out[0] = butterfly(x_in[0], y_in[0], F, Q, mredParams)
-		x_out[1], y_out[1] = butterfly(x_in[1], y_in[1], F, Q, mredParams)
-		x_out[2], y_out[2] = butterfly(x_in[2], y_in[2], F, Q, mredParams)
-		x_out[3], y_out[3] = butterfly(x_in[3], y_in[3], F, Q, mredParams)
-		x_out[4], y_out[4] = butterfly(x_in[4], y_in[4], F, Q, mredParams)
-		x_out[5], y_out[5] = butterfly(x_in[5], y_in[5], F, Q, mredParams)
-		x_out[6], y_out[6] = butterfly(x_in[6], y_in[6], F, Q, mredParams)
-		x_out[7], y_out[7] = butterfly(x_in[7], y_in[7], F, Q, mredParams)
+		xout[0], yout[0] = butterfly(xin[0], yin[0], F, Q, mredParams)
+		xout[1], yout[1] = butterfly(xin[1], yin[1], F, Q, mredParams)
+		xout[2], yout[2] = butterfly(xin[2], yin[2], F, Q, mredParams)
+		xout[3], yout[3] = butterfly(xin[3], yin[3], F, Q, mredParams)
+		xout[4], yout[4] = butterfly(xin[4], yin[4], F, Q, mredParams)
+		xout[5], yout[5] = butterfly(xin[5], yin[5], F, Q, mredParams)
+		xout[6], yout[6] = butterfly(xin[6], yin[6], F, Q, mredParams)
+		xout[7], yout[7] = butterfly(xin[7], yin[7], F, Q, mredParams)
 	}
 
-	// Continues the rest of the second to the n-1 butterflies on p2 with approximate reduction
+	// Continue the rest of the second to the n-1 butterflies on p2 with approximate reduction
 	for m := uint64(2); m < N; m <<= 1 {
 
 		t >>= 1
@@ -170,7 +170,7 @@ func NTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, mredParams 
 		}
 	}
 
-	// Finishes with an exact reduction
+	// Finish with an exact reduction
 	for i := uint64(0); i < N; i = i + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
@@ -193,27 +193,27 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 	var j1, j2, h, t uint64
 	var F uint64
 
-	// Copies the result of the first round of butterflies on p2 with approximate reduction
+	// Copy the result of the first round of butterflies on p2 with approximate reduction
 	t = 1
 	h = N >> 1
 
 	for i := uint64(0); i < h; i = i + 8 {
 
 		psi := (*[8]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
-		x_in := (*[16]uint64)(unsafe.Pointer(&coeffsIn[2*i]))
-		x_out := (*[16]uint64)(unsafe.Pointer(&coeffsOut[2*i]))
+		xin := (*[16]uint64)(unsafe.Pointer(&coeffsIn[2*i]))
+		xout := (*[16]uint64)(unsafe.Pointer(&coeffsOut[2*i]))
 
-		x_out[0], x_out[1] = invbutterfly(x_in[0], x_in[1], psi[0], Q, mredParams)
-		x_out[2], x_out[3] = invbutterfly(x_in[2], x_in[3], psi[1], Q, mredParams)
-		x_out[4], x_out[5] = invbutterfly(x_in[4], x_in[5], psi[2], Q, mredParams)
-		x_out[6], x_out[7] = invbutterfly(x_in[6], x_in[7], psi[3], Q, mredParams)
-		x_out[8], x_out[9] = invbutterfly(x_in[8], x_in[9], psi[4], Q, mredParams)
-		x_out[10], x_out[11] = invbutterfly(x_in[10], x_in[11], psi[5], Q, mredParams)
-		x_out[12], x_out[13] = invbutterfly(x_in[12], x_in[13], psi[6], Q, mredParams)
-		x_out[14], x_out[15] = invbutterfly(x_in[14], x_in[15], psi[7], Q, mredParams)
+		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], Q, mredParams)
+		xout[2], xout[3] = invbutterfly(xin[2], xin[3], psi[1], Q, mredParams)
+		xout[4], xout[5] = invbutterfly(xin[4], xin[5], psi[2], Q, mredParams)
+		xout[6], xout[7] = invbutterfly(xin[6], xin[7], psi[3], Q, mredParams)
+		xout[8], xout[9] = invbutterfly(xin[8], xin[9], psi[4], Q, mredParams)
+		xout[10], xout[11] = invbutterfly(xin[10], xin[11], psi[5], Q, mredParams)
+		xout[12], xout[13] = invbutterfly(xin[12], xin[13], psi[6], Q, mredParams)
+		xout[14], xout[15] = invbutterfly(xin[14], xin[15], psi[7], Q, mredParams)
 	}
 
-	// Continues the rest of the second to the n-1 butterflies on p2 with approximate reduction
+	// Continue the rest of the second to the n-1 butterflies on p2 with approximate reduction
 	t <<= 1
 	for m := N >> 1; m > 1; m >>= 1 {
 
@@ -288,7 +288,7 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 		t <<= 1
 	}
 
-	// Finishes with an exact reduction
+	// Finish with an exact reduction
 	for i := uint64(0); i < N; i = i + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
@@ -347,7 +347,7 @@ func invbutterflyBarrett(U, V, Psi, Q uint64, bredParams []uint64) (X, Y uint64)
 	return
 }
 
-// NTTBarrett computes the NTT transformation using Barrett reduction.
+// NTTBarrett computes the NTT using Barrett reduction.
 // For benchmark purposes only.
 func NTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q uint64, bredParams []uint64) {
 	var j1, j2, t uint64
@@ -381,7 +381,7 @@ func NTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q uint6
 	}
 }
 
-// InvNTTBarrett computes the InvNTT transformation using Barrett reduction.
+// InvNTTBarrett computes the Inverse NTT using Barrett reduction.
 // For benchmark purposes only.
 func InvNTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv, Q uint64, bredParams []uint64) {
 

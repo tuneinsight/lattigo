@@ -1,4 +1,5 @@
-// Package ring implelents a RNS-accelerated modular arithmetic operations for polynomials, including: RNS basis extension; RNS rescaling;  number theoretic transform (NTT); uniform, Gaussian and ternary sampling.
+// Package ring implements RNS-accelerated modular arithmetic operations for polynomials, including:
+// RNS basis extension; RNS rescaling; number theoretic transform (NTT); uniform, Gaussian and ternary sampling.
 package ring
 
 import (
@@ -11,7 +12,7 @@ import (
 	"github.com/ldsec/lattigo/utils"
 )
 
-// Ring is a structure keeping all the variables required to operate on a polynomial represented in this context.
+// Ring is a structure that keeps all the variables required to operate on a polynomial represented in this context.
 type Ring struct {
 
 	// Polynomial nb.Coefficients
@@ -23,7 +24,7 @@ type Ring struct {
 	// 2^bit_length(Qi) - 1
 	Mask []uint64
 
-	// Determines if NTT can be used with the current context.
+	// Indicates whether NTT can be used with the current context.
 	allowsNTT bool
 
 	// Product of the Moduli
@@ -36,22 +37,22 @@ type Ring struct {
 	RescaleParams [][]uint64
 
 	//NTT Parameters
-	PsiMont    []uint64 //2nth primitive root in Montgomery form
-	PsiInvMont []uint64 //2nth inverse primitive root in Montgomery form
+	PsiMont    []uint64 //2N-th primitive root in Montgomery form
+	PsiInvMont []uint64 //2N-th inverse primitive root in Montgomery form
 
-	NttPsi    [][]uint64 //powers of the inverse of the 2nth primitive root in Montgomery form (in bitreversed order)
-	NttPsiInv [][]uint64 //powers of the inverse of the 2nth primitive root in Montgomery form (in bitreversed order)
+	NttPsi    [][]uint64 //powers of the inverse of the 2N-th primitive root in Montgomery form (in bit-reversed order)
+	NttPsiInv [][]uint64 //powers of the inverse of the 2N-th primitive root in Montgomery form (in bit-reversed order)
 	NttNInv   []uint64   //[N^-1] mod Qi in Montgomery form
 }
 
-// NewRing creates a new ringContex with the given parameters. Checks that N is a power of 2 and that the moduli are NTT compliant.
+// NewRing creates a new Ring with the given parameters. It checks that N is a power of 2 and that the moduli are NTT friendly.
 func NewRing(N uint64, Moduli []uint64) (r *Ring, err error) {
 	r = new(Ring)
 	r.setParameters(N, Moduli)
 	return r, r.genNTTParams()
 }
 
-// setParameters initialises a *Ring by setting the required pre-computed values (except for the NTT-related values which are set by the
+// setParameters initializes a *Ring by setting the required precomputed values (except for the NTT-related values, which are set by the
 // genNTTParams function).
 func (r *Ring) setParameters(N uint64, Modulus []uint64) {
 
@@ -72,23 +73,23 @@ func (r *Ring) setParameters(N uint64, Modulus []uint64) {
 		r.Mask[i] = (1 << uint64(bits.Len64(qi))) - 1
 	}
 
-	//Computes the bigQ
+	// Compute the bigQ
 	r.ModulusBigint = NewInt(1)
 	for _, qi := range r.Modulus {
 		r.ModulusBigint.Mul(r.ModulusBigint, NewUint(qi))
 	}
 
-	// Computes the fast reduction parameters
+	// Compute the fast reduction parameters
 	r.BredParams = make([][]uint64, len(r.Modulus))
 	r.MredParams = make([]uint64, len(r.Modulus))
 
 	for i, qi := range r.Modulus {
 
-		//Computes the fast modular reduction parameters for the Context
+		// Compute the fast modular reduction parameters for the Ring
 		r.BredParams[i] = BRedParams(qi)
 
-		// If qi is not a power of 2, we can compute the MRedParams (else it should not
-		// because it will return an error and there is no valid Montgomery form mod a power of 2)
+		// If qi is not a power of 2, we can compute the MRedParams (otherwise, it
+		// would return an error as there is no valid Montgomery form mod a power of 2)
 		if (qi&(qi-1)) != 0 && qi != 0 {
 			r.MredParams[i] = MRedParams(qi)
 		}
@@ -96,8 +97,8 @@ func (r *Ring) setParameters(N uint64, Modulus []uint64) {
 
 }
 
-// genNTTParams checks that N has been correctly initialized, and checks that each moduli is a prime congruent to 1 mod 2N (i.e. allowing NTT).
-// Then it computes the variables required for the NTT. ValidateParameters purpose is to validate that the moduli allow the NTT and compute the
+// genNTTParams checks that N has been correctly initialized, and checks that each modulus is a prime congruent to 1 mod 2N (i.e. NTT-friendly).
+// Then, it computes the variables required for the NTT. The purpose of ValidateParameters is to validate that the moduli allow the NTT, and to compute the
 // NTT parameters.
 func (r *Ring) genNTTParams() error {
 
@@ -109,7 +110,7 @@ func (r *Ring) genNTTParams() error {
 		panic("error : invalid r parameters (missing)")
 	}
 
-	// Checks if each qi is Prime and if qi = 1 mod 2n
+	// Check if each qi is prime and if qi = 1 mod 2n
 	for _, qi := range r.Modulus {
 		if IsPrime(qi) == false || qi&((r.N<<1)-1) != 1 {
 			r.allowsNTT = false
@@ -139,14 +140,14 @@ func (r *Ring) genNTTParams() error {
 
 	for i, qi := range r.Modulus {
 
-		//2.1 Computes N^(-1) mod Q in Montgomery form
+		// 2.1 Compute N^(-1) mod Q in Montgomery form
 		r.NttNInv[i] = MForm(ModExp(r.N, qi-2, qi), qi, r.BredParams[i])
 
-		//2.2 Computes Psi and PsiInv in Montgomery form
+		// 2.2 Compute Psi and PsiInv in Montgomery form
 		r.NttPsi[i] = make([]uint64, r.N)
 		r.NttPsiInv[i] = make([]uint64, r.N)
 
-		//Finds a 2nth primitive Root
+		// Finds a 2N-th primitive Root
 		g := primitiveRoot(qi)
 
 		_2n := uint64(r.N << 1)
@@ -154,7 +155,7 @@ func (r *Ring) genNTTParams() error {
 		power := (qi - 1) / _2n
 		powerInv := (qi - 1) - power
 
-		//Computes Psi and PsiInv in Montgomery Form
+		// Computes Psi and PsiInv in Montgomery form
 		PsiMont := MForm(ModExp(g, power, qi), qi, r.BredParams[i])
 		PsiInvMont := MForm(ModExp(g, powerInv, qi), qi, r.BredParams[i])
 
@@ -164,7 +165,7 @@ func (r *Ring) genNTTParams() error {
 		r.NttPsi[i][0] = MForm(1, qi, r.BredParams[i])
 		r.NttPsiInv[i][0] = MForm(1, qi, r.BredParams[i])
 
-		// Computes nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
+		// Compute nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
 		for j := uint64(1); j < r.N; j++ {
 
 			indexReversePrev := utils.BitReverse64(j-1, bitLenofN)
@@ -180,7 +181,7 @@ func (r *Ring) genNTTParams() error {
 	return nil
 }
 
-// Used to export the context. Minimal information to recover the full context.
+// Used to export the context. Minimal required information to recover the full context.
 type smallContext struct {
 	N       uint64
 	Modulus []uint64
@@ -199,7 +200,7 @@ func (r *Ring) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// UnmarshalBinary decodes slice of bytes on the target ring context.
+// UnmarshalBinary decodes a slice of bytes on the target Ring.
 func (r *Ring) UnmarshalBinary(data []byte) error {
 
 	parameters := smallContext{}
@@ -216,47 +217,47 @@ func (r *Ring) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// AllowsNTT returns true if the context allows NTT, else false.
+// AllowsNTT returns true if the context allows NTT, and false otherwise.
 func (r *Ring) AllowsNTT() bool {
 	return r.allowsNTT
 }
 
-// GetBredParams returns the Barret reduction parameters of the context.
+// GetBredParams returns the Barret reduction parameters of the Ring.
 func (r *Ring) GetBredParams() [][]uint64 {
 	return r.BredParams
 }
 
-// GetMredParams returns the Montgomery reduction parameters of the context.
+// GetMredParams returns the Montgomery reduction parameters of the Ring.
 func (r *Ring) GetMredParams() []uint64 {
 	return r.MredParams
 }
 
-// GetPsi returns the primitive root used to compute the NTT parameters of the context.
+// GetPsi returns the primitive root used to compute the NTT parameters of the Ring.
 func (r *Ring) GetPsi() []uint64 {
 	return r.PsiMont
 }
 
-// GetPsiInv returns the primitive root used to compute the InvNTT parameters of the context.
+// GetPsiInv returns the primitive root used to compute the InvNTT parameters of the Ring.
 func (r *Ring) GetPsiInv() []uint64 {
 	return r.PsiInvMont
 }
 
-// GetNttPsi returns the NTT parameters of the context.
+// GetNttPsi returns the NTT parameters of the Ring.
 func (r *Ring) GetNttPsi() [][]uint64 {
 	return r.NttPsi
 }
 
-// GetNttPsiInv returns the InvNTT parameters of the context.
+// GetNttPsiInv returns the InvNTT parameters of the Ring.
 func (r *Ring) GetNttPsiInv() [][]uint64 {
 	return r.NttPsiInv
 }
 
-// GetNttNInv returns 1/N mod each moduli.
+// GetNttNInv returns 1/N mod each modulus.
 func (r *Ring) GetNttNInv() []uint64 {
 	return r.NttNInv
 }
 
-// NewPoly create a new polynomial with all coefficients set to 0.
+// NewPoly creates a new polynomial with all coefficients set to 0.
 func (r *Ring) NewPoly() *Poly {
 	p := new(Poly)
 
@@ -268,7 +269,7 @@ func (r *Ring) NewPoly() *Poly {
 	return p
 }
 
-// NewPolyLvl create a new polynomial with all coefficients set to 0.
+// NewPolyLvl creates a new polynomial with all coefficients set to 0.
 func (r *Ring) NewPolyLvl(level uint64) *Poly {
 	p := new(Poly)
 
@@ -299,7 +300,7 @@ func (r *Ring) SetCoefficientsUint64(coeffs []uint64, p1 *Poly) {
 }
 
 // SetCoefficientsString parses an array of string as Int variables, and sets the
-// coefficients of p1 with this Int variables.
+// coefficients of p1 with these Int variables.
 func (r *Ring) SetCoefficientsString(coeffs []string, p1 *Poly) {
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
@@ -392,7 +393,7 @@ func (r *Ring) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
 	}
 }
 
-// PolyToBigint reconstructs p1 and returns the result in an pre-allocated array of Int.
+// PolyToBigintNoAlloc reconstructs p1 and returns the result in an pre-allocated array of Int.
 func (r *Ring) PolyToBigintNoAlloc(p1 *Poly, coeffsBigint []*big.Int) {
 
 	var qi, level uint64
@@ -431,7 +432,7 @@ func (r *Ring) PolyToBigintNoAlloc(p1 *Poly, coeffsBigint []*big.Int) {
 	}
 }
 
-// Equal checks if p1 = p2 in the given context.
+// Equal checks if p1 = p2 in the given Ring.
 func (r *Ring) Equal(p1, p2 *Poly) bool {
 
 	for i := 0; i < len(r.Modulus); i++ {
@@ -454,7 +455,7 @@ func (r *Ring) Equal(p1, p2 *Poly) bool {
 	return true
 }
 
-// EqualLvl checks if p1 = p2 in the given context.
+// EqualLvl checks if p1 = p2 in the given Ring, up to a given level.
 func (r *Ring) EqualLvl(level uint64, p1, p2 *Poly) bool {
 
 	for i := uint64(0); i < level+1; i++ {

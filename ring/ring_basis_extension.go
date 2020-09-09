@@ -7,7 +7,7 @@ import (
 )
 
 // FastBasisExtender stores the necessary parameters for RNS basis extension.
-// The algorithm is from https://eprint.iacr.org/2018/117.pdf.
+// The used algorithm is from https://eprint.iacr.org/2018/117.pdf.
 type FastBasisExtender struct {
 	contextQ        *Ring
 	contextP        *Ring
@@ -144,24 +144,24 @@ func basisextenderparameters(Q, P []uint64) (params *modupParams) {
 }
 
 // ModUpSplitQP extends the RNS basis of a polynomial from Q to QP.
-// Given a polynomial with coefficients in basis {Q0,Q1....Qlevel}
-// Extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}
+// Given a polynomial with coefficients in basis {Q0,Q1....Qlevel},
+// it extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}
 func (basisextender *FastBasisExtender) ModUpSplitQP(level uint64, p1, p2 *Poly) {
 	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[:uint64(len(basisextender.paramsQP.P))], basisextender.paramsQP)
 }
 
 // ModUpSplitPQ extends the RNS basis of a polynomial from P to PQ.
-// Given a polynomial with coefficients in basis {P0,P1....Plevel}
-// Extends its basis from {P0,P1....Plevel} to {Q0,Q1...Qj}
+// Given a polynomial with coefficients in basis {P0,P1....Plevel},
+// it extends its basis from {P0,P1....Plevel} to {Q0,Q1...Qj}
 func (basisextender *FastBasisExtender) ModUpSplitPQ(level uint64, p1, p2 *Poly) {
 	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[:uint64(len(basisextender.paramsPQ.P))], basisextender.paramsPQ)
 }
 
 // ModDownNTTPQ reduces the basis RNS of a polynomial in the NTT domain
-//  from QP to Q and divides its coefficients by P.
-// Given a polynomial with coefficients in basis {Q0,Q1....Qlevel,P0,P1...Pj}
-// Reduces its basis from {Q0,Q1....Qlevel,P0,P1...Pj} to {Q0,Q1....Qlevel}
-// and does a runded integer division of the result by P.
+// from QP to Q and divides its coefficients by P.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qlevel,P0,P1...Pj},
+// it reduces its basis from {Q0,Q1....Qlevel,P0,P1...Pj} to {Q0,Q1....Qlevel}
+// and performs a rounded integer division of the result by P.
 // Inputs must be in the NTT domain.
 func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly) {
 
@@ -181,7 +181,7 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	modUpExact(p1.Coeffs[nQi:nQi+nPj], polypool.Coeffs[:level+1], basisextender.paramsPQ)
 
-	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
 
 		qi := contextQ.Modulus[i]
@@ -216,12 +216,12 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
-// ModDownSplitedNTTPQ reduces the basis of a polynomial.
-// Given a polynomial with coefficients in basis {Q0,Q1....Qi} and {P0,P1...Pj}
-// Reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
-// and does a runded integer division of the result by P.
+// ModDownSplitNTTPQ reduces the basis of a polynomial.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qi} and {P0,P1...Pj},
+// it reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
+// and does a rounded integer division of the result by P.
 // Inputs must be in the NTT domain.
-func (basisextender *FastBasisExtender) ModDownSplitedNTTPQ(level uint64, p1Q, p1P, p2 *Poly) {
+func (basisextender *FastBasisExtender) ModDownSplitNTTPQ(level uint64, p1Q, p1P, p2 *Poly) {
 
 	contextQ := basisextender.contextQ
 	contextP := basisextender.contextP
@@ -235,7 +235,7 @@ func (basisextender *FastBasisExtender) ModDownSplitedNTTPQ(level uint64, p1Q, p
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	modUpExact(p1P.Coeffs, polypool.Coeffs[:level+1], basisextender.paramsPQ)
 
-	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
 
 		qi := contextQ.Modulus[i]
@@ -271,9 +271,9 @@ func (basisextender *FastBasisExtender) ModDownSplitedNTTPQ(level uint64, p1Q, p
 }
 
 // ModDownPQ reduces the basis of a polynomial.
-// Given a polynomial with coefficients in basis {Q0,Q1....Qlevel,P0,P1...Pj}
-// Reduces its basis from {Q0,Q1....Qlevel,P0,P1...Pj} to {Q0,Q1....Qlevel}
-// and does a runded integer division of the result by P.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qlevel,P0,P1...Pj},
+// it reduces its basis from {Q0,Q1....Qlevel,P0,P1...Pj} to {Q0,Q1....Qlevel}
+// and does a rounded integer division of the result by P.
 func (basisextender *FastBasisExtender) ModDownPQ(level uint64, p1, p2 *Poly) {
 
 	context := basisextender.contextQ
@@ -281,11 +281,11 @@ func (basisextender *FastBasisExtender) ModDownPQ(level uint64, p1, p2 *Poly) {
 	polypool := basisextender.polypoolQ
 	nPi := uint64(len(basisextender.paramsQP.P))
 
-	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
+	// We target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	modUpExact(p1.Coeffs[level+1:level+1+nPi], polypool.Coeffs[:level+1], basisextender.paramsPQ)
 
-	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
 
 		qi := context.Modulus[i]
@@ -316,11 +316,11 @@ func (basisextender *FastBasisExtender) ModDownPQ(level uint64, p1, p2 *Poly) {
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
-// ModDownSplitedPQ reduces the basis of a polynomial.
-// Given a polynomial with coefficients in basis {Q0,Q1....Qlevel} and {P0,P1...Pj}
-// Reduces its basis from {Q0,Q1....Qlevel} and {P0,P1...Pj} to {Q0,Q1....Qlevel}
-// and does a runded integer division of the result by P.
-func (basisextender *FastBasisExtender) ModDownSplitedPQ(level uint64, p1Q, p1P, p2 *Poly) {
+// ModDownSplitPQ reduces the basis of a polynomial.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qlevel} and {P0,P1...Pj},
+// it reduces its basis from {Q0,Q1....Qlevel} and {P0,P1...Pj} to {Q0,Q1....Qlevel}
+// and does a rounded integer division of the result by P.
+func (basisextender *FastBasisExtender) ModDownSplitPQ(level uint64, p1Q, p1P, p2 *Poly) {
 
 	contextQ := basisextender.contextQ
 	modDownParams := basisextender.modDownParamsPQ
@@ -330,7 +330,7 @@ func (basisextender *FastBasisExtender) ModDownSplitedPQ(level uint64, p1Q, p1P,
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	modUpExact(p1P.Coeffs, polypool.Coeffs[:level+1], basisextender.paramsPQ)
 
-	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
 
 		qi := contextQ.Modulus[i]
@@ -361,11 +361,11 @@ func (basisextender *FastBasisExtender) ModDownSplitedPQ(level uint64, p1Q, p1P,
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
-// ModDownSplitedQP reduces the basis of a polynomial.
-// Given a polynomial with coefficients in basis {Q0,Q1....QlevelQ} and {P0,P1...PlevelP}
-// Reduces its basis from {Q0,Q1....QlevelQ} and {P0,P1...PlevelP} to {P0,P1...PlevelP}
+// ModDownSplitQP reduces the basis of a polynomial.
+// Given a polynomial with coefficients in basis {Q0,Q1....QlevelQ} and {P0,P1...PlevelP},
+// it reduces its basis from {Q0,Q1....QlevelQ} and {P0,P1...PlevelP} to {P0,P1...PlevelP}
 // and does a floored integer division of the result by Q.
-func (basisextender *FastBasisExtender) ModDownSplitedQP(levelQ, levelP uint64, p1Q, p1P, p2 *Poly) {
+func (basisextender *FastBasisExtender) ModDownSplitQP(levelQ, levelP uint64, p1Q, p1P, p2 *Poly) {
 
 	contextP := basisextender.contextP
 	//contextQ := basisextender.contextQ
@@ -376,7 +376,7 @@ func (basisextender *FastBasisExtender) ModDownSplitedQP(levelQ, levelP uint64, 
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	basisextender.ModUpSplitQP(levelQ, p1Q, polypool)
 
-	// Finaly, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < levelP+1; i++ {
 
 		qi := contextP.Modulus[i]
@@ -413,7 +413,7 @@ func modUpExact(p1, p2 [][]uint64, params *modupParams) {
 	var qibMont, qi, pj, mredParams uint64
 	var qif float64
 
-	//We loop over each coefficient and apply the basis extension
+	// We loop over each coefficient and apply the basis extension
 	for x := uint64(0); x < uint64(len(p1[0])); x = x + 8 {
 
 		vi0, vi1, vi2, vi3, vi4, vi5, vi6, vi7 = 0, 0, 0, 0, 0, 0, 0, 0
@@ -470,7 +470,7 @@ func modUpExact(p1, p2 [][]uint64, params *modupParams) {
 				xpj6 += MRed(y6[i], qispjMont[i], pj, mredParams)
 				xpj7 += MRed(y7[i], qispjMont[i], pj, mredParams)
 
-				if i&7 == 6 { //Only every 7 addition, since we add one more 60 bit integer after the loop
+				if i&7 == 6 { //Only every 7 additions, since we add one more 60 bit integer after the loop
 					xpj0 = BRedAdd(xpj0, pj, bredParams)
 					xpj1 = BRedAdd(xpj1, pj, bredParams)
 					xpj2 = BRedAdd(xpj2, pj, bredParams)
@@ -495,9 +495,9 @@ func modUpExact(p1, p2 [][]uint64, params *modupParams) {
 	}
 }
 
-// Decomposer is a structure storing the parameters of the arbitrary decomposer.
-// This decomposer takes a p(x)_Q (in basis Q) and returns p(x) mod qi in basis QP. Where
-// qi = prod(Q_i) for 0<=i<=L where L is the number of factors in P.
+// Decomposer is a structure that stores the parameters of the arbitrary decomposer.
+// This decomposer takes a p(x)_Q (in basis Q) and returns p(x) mod qi in basis QP, where
+// qi = prod(Q_i) for 0<=i<=L, where L is the number of factors in P.
 type Decomposer struct {
 	nQprimes    uint64
 	nPprimes    uint64
@@ -509,7 +509,7 @@ type Decomposer struct {
 	PInt        *big.Int
 }
 
-// Xalpha returns a slice containing all the values of #Qi/#Pi.
+// Xalpha returns a slice that contains all the values of #Qi/#Pi.
 func (decomposer *Decomposer) Xalpha() (xalpha []uint64) {
 	return decomposer.xalpha
 }
@@ -545,7 +545,7 @@ func NewDecomposer(Q, P []uint64) (decomposer *Decomposer) {
 
 	decomposer.modUpParams = make([][]*modupParams, decomposer.beta)
 
-	// Creates a basis extension for each possible combination of [Qi,Pj] according to xalpha
+	// Create a basis extension for each possible combination of [Qi,Pj] according to xalpha
 	for i := uint64(0); i < decomposer.beta; i++ {
 
 		decomposer.modUpParams[i] = make([]*modupParams, decomposer.xalpha[i]-1)
@@ -574,7 +574,7 @@ func NewDecomposer(Q, P []uint64) (decomposer *Decomposer) {
 	return
 }
 
-// Decompose decomposes takes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
+// Decompose decomposes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
 // the result in basis QP.
 func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Poly) {
 
@@ -583,7 +583,7 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 	p0idxst := crtDecompLevel * decomposer.alpha
 	p0idxed := p0idxst + alphai
 
-	// First we check if the vector can simply by coping and rearanging elements (the case where no reconstruction is needed)
+	// First we check if the vector can simply by coping and rearranging elements (the case where no reconstruction is needed)
 	if (p0idxed > level+1 && (level+1)%decomposer.nPprimes == 1) || alphai == 1 {
 
 		for x := uint64(0); x < uint64(len(p0.Coeffs[0])); x = x + 8 {
@@ -603,15 +603,13 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 			}
 		}
 
-		// Else we apply a fast exact base conversion for the reconstruction
+		// Otherwise, we apply a fast exact base conversion for the reconstruction
 	} else {
 
 		var index uint64
 		if level >= alphai+crtDecompLevel*decomposer.alpha {
-			//fmt.Println("A")
 			index = decomposer.xalpha[crtDecompLevel] - 2
 		} else {
-			//fmt.Println("B")
 			index = (level - 1) % decomposer.alpha
 		}
 
@@ -633,7 +631,7 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 		var qibMont, qi, pj, mredParams uint64
 		var qif float64
 
-		//We loop over each coefficient and apply the basis extension
+		// We loop over each coefficient and apply the basis extension
 		for x := uint64(0); x < uint64(len(p0.Coeffs[0])); x = x + 8 {
 
 			vi[0], vi[1], vi[2], vi[3], vi[4], vi[5], vi[6], vi[7] = 0, 0, 0, 0, 0, 0, 0, 0
@@ -649,7 +647,7 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 				px := p0.Coeffs[j]
 				py := p1.Coeffs[j]
 
-				// For the coefficients to be decomposed, we can simplly copy them
+				// For the coefficients to be decomposed, we can simply copy them
 				py[x+0] = px[x+0]
 				py[x+1] = px[x+1]
 				py[x+2] = px[x+2]
@@ -689,7 +687,7 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 			v[6] = uint64(vi[6])
 			v[7] = uint64(vi[7])
 
-			// Coefficients of index smaller than the ones to be decomposer
+			// Coefficients of index smaller than the ones to be decomposed
 			for j := uint64(0); j < p0idxst; j++ {
 
 				xpj[0], xpj[1], xpj[2], xpj[3], xpj[4], xpj[5], xpj[6], xpj[7] = 0, 0, 0, 0, 0, 0, 0, 0
@@ -712,7 +710,7 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 					xpj[6] += MRed(y6[i], qispjMont[i], pj, mredParams)
 					xpj[7] += MRed(y7[i], qispjMont[i], pj, mredParams)
 
-					if i&7 == 6 { //Only every 7 addition, since we add one more 60 bit integer after the loop
+					if i&7 == 6 { // Only every 7 additions, since we add one more 60 bit integer after the loop
 						xpj[0] = BRedAdd(xpj[0], pj, bredParams)
 						xpj[1] = BRedAdd(xpj[1], pj, bredParams)
 						xpj[2] = BRedAdd(xpj[2], pj, bredParams)
@@ -735,7 +733,7 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 
 			}
 
-			// Coefficients of index greater than the ones to be decomposer
+			// Coefficients of index greater than the ones to be decomposed
 			for j := decomposer.alpha * crtDecompLevel; j < level+1; j = j + 1 {
 
 				xpj[0], xpj[1], xpj[2], xpj[3], xpj[4], xpj[5], xpj[6], xpj[7] = 0, 0, 0, 0, 0, 0, 0, 0
@@ -758,7 +756,7 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 					xpj[6] += MRed(y6[i], qispjMont[i], pj, mredParams)
 					xpj[7] += MRed(y7[i], qispjMont[i], pj, mredParams)
 
-					if i&7 == 6 { //Only every 7 addition, since we add one more 60 bit integer after the loop
+					if i&7 == 6 { // Only every 7 additions, since we add one more 60 bit integer after the loop
 						xpj[0] = BRedAdd(xpj[0], pj, bredParams)
 						xpj[1] = BRedAdd(xpj[1], pj, bredParams)
 						xpj[2] = BRedAdd(xpj[2], pj, bredParams)
@@ -804,7 +802,7 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 					xpj[6] += MRed(y6[i], qispjMont[i], pj, mredParams)
 					xpj[7] += MRed(y7[i], qispjMont[i], pj, mredParams)
 
-					if i&7 == 6 { //Only every 7 addition, since we add one more 60 bit integer after the loop
+					if i&7 == 6 { // Only every 7 additions, since we add one more 60 bit integer after the loop
 						xpj[0] = BRedAdd(xpj[0], pj, bredParams)
 						xpj[1] = BRedAdd(xpj[1], pj, bredParams)
 						xpj[2] = BRedAdd(xpj[2], pj, bredParams)
@@ -829,7 +827,7 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 	}
 }
 
-// DecomposeAndSplit decomposes takes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
+// DecomposeAndSplit decomposes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
 // the result in basis QP separately.
 func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0, p1Q, p1P *Poly) {
 
@@ -838,7 +836,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0
 	p0idxst := crtDecompLevel * decomposer.alpha
 	p0idxed := p0idxst + alphai
 
-	// First we check if the vector can simply by coping and rearanging elements (the case where no reconstruction is needed)
+	// First we check if the vector can simply by coping and rearranging elements (the case where no reconstruction is needed)
 	if (p0idxed > level+1 && (level+1)%decomposer.nPprimes == 1) || alphai == 1 {
 
 		for x := uint64(0); x < uint64(len(p0.Coeffs[0])); x = x + 8 {
@@ -870,15 +868,13 @@ func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0
 			}
 		}
 
-		// Else we apply a fast exact base conversion for the reconstruction
+		// Otherwise, we apply a fast exact base conversion for the reconstruction
 	} else {
 
 		var index uint64
 		if level >= alphai+crtDecompLevel*decomposer.alpha {
-			//fmt.Println("A")
 			index = decomposer.xalpha[crtDecompLevel] - 2
 		} else {
-			//fmt.Println("B")
 			index = (level - 1) % decomposer.alpha
 		}
 
@@ -900,7 +896,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0
 		var qibMont, qi, pj, mredParams uint64
 		var qif float64
 
-		//We loop over each coefficient and apply the basis extension
+		// We loop over each coefficient and apply the basis extension
 		for x := uint64(0); x < uint64(len(p0.Coeffs[0])); x = x + 8 {
 
 			vi[0], vi[1], vi[2], vi[3], vi[4], vi[5], vi[6], vi[7] = 0, 0, 0, 0, 0, 0, 0, 0
@@ -916,7 +912,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0
 				px := p0.Coeffs[j]
 				py := p1Q.Coeffs[j]
 
-				// For the coefficients to be decomposed, we can simplly copy them
+				// For the coefficients to be decomposed, we can simply copy them
 				py[x+0] = px[x+0]
 				py[x+1] = px[x+1]
 				py[x+2] = px[x+2]
@@ -956,7 +952,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0
 			v[6] = uint64(vi[6])
 			v[7] = uint64(vi[7])
 
-			// Coefficients of index smaller than the ones to be decomposer
+			// Coefficients of index smaller than the ones to be decomposed
 			for j := uint64(0); j < p0idxst; j++ {
 
 				xpj[0], xpj[1], xpj[2], xpj[3], xpj[4], xpj[5], xpj[6], xpj[7] = 0, 0, 0, 0, 0, 0, 0, 0
@@ -979,7 +975,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0
 					xpj[6] += MRed(y6[i], qispjMont[i], pj, mredParams)
 					xpj[7] += MRed(y7[i], qispjMont[i], pj, mredParams)
 
-					if i&7 == 6 { //Only every 7 addition, since we add one more 60 bit integer after the loop
+					if i&7 == 6 { // Only every 7 additions, since we add one more 60 bit integer after the loop
 						xpj[0] = BRedAdd(xpj[0], pj, bredParams)
 						xpj[1] = BRedAdd(xpj[1], pj, bredParams)
 						xpj[2] = BRedAdd(xpj[2], pj, bredParams)
@@ -1002,7 +998,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0
 
 			}
 
-			// Coefficients of index greater than the ones to be decomposer
+			// Coefficients of index greater than the ones to be decomposed
 			for j := decomposer.alpha * crtDecompLevel; j < level+1; j = j + 1 {
 
 				xpj[0], xpj[1], xpj[2], xpj[3], xpj[4], xpj[5], xpj[6], xpj[7] = 0, 0, 0, 0, 0, 0, 0, 0
@@ -1025,7 +1021,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0
 					xpj[6] += MRed(y6[i], qispjMont[i], pj, mredParams)
 					xpj[7] += MRed(y7[i], qispjMont[i], pj, mredParams)
 
-					if i&7 == 6 { //Only every 7 addition, since we add one more 60 bit integer after the loop
+					if i&7 == 6 { // Only every 7 additions, since we add one more 60 bit integer after the loop
 						xpj[0] = BRedAdd(xpj[0], pj, bredParams)
 						xpj[1] = BRedAdd(xpj[1], pj, bredParams)
 						xpj[2] = BRedAdd(xpj[2], pj, bredParams)
@@ -1071,7 +1067,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0
 					xpj[6] += MRed(y6[i], qispjMont[i], pj, mredParams)
 					xpj[7] += MRed(y7[i], qispjMont[i], pj, mredParams)
 
-					if i&7 == 6 { //Only every 7 addition, since we add one more 60 bit integer after the loop
+					if i&7 == 6 { // Only every 7 additions, since we add one more 60 bit integer after the loop
 						xpj[0] = BRedAdd(xpj[0], pj, bredParams)
 						xpj[1] = BRedAdd(xpj[1], pj, bredParams)
 						xpj[2] = BRedAdd(xpj[2], pj, bredParams)

@@ -7,7 +7,7 @@ import (
 	"github.com/ldsec/lattigo/utils"
 )
 
-// GaussianSampler is the state of a truncated Gaussian polynomial sampler.
+// GaussianSampler keeps the state of a truncated Gaussian polynomial sampler.
 type GaussianSampler struct {
 	baseSampler
 	randomBufferN []byte
@@ -17,7 +17,7 @@ type GaussianSampler struct {
 }
 
 // NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
-// Gaussian distribution parameters. Sigma is the desired variance and bound is the maximum coefficient norm in absolute
+// Gaussian distribution parameters. Sigma is the desired standard deviation and bound is the maximum coefficient norm in absolute
 // value.
 func NewGaussianSampler(prng utils.PRNG, context *Ring, sigma float64, bound uint64) *GaussianSampler {
 	gaussianSampler := new(GaussianSampler)
@@ -35,8 +35,8 @@ func (gaussianSampler *GaussianSampler) Read(pol *Poly) {
 	gaussianSampler.ReadLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
 }
 
-// ReadNew samples a new truncated gaussian polynomial with
-// variance sigma within the given bound using the Ziggurat algorithm.
+// ReadNew samples a new truncated Gaussian polynomial with
+// standard deviation sigma within the given bound using the Ziggurat algorithm.
 func (gaussianSampler *GaussianSampler) ReadNew() (pol *Poly) {
 	pol = gaussianSampler.context.NewPoly()
 	gaussianSampler.Read(pol)
@@ -68,8 +68,8 @@ func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly) {
 	}
 }
 
-// ReadAndAdd adds on the input polynomial a truncated gaussian polynomial of at the maximum level
-// with variance sigma within the given bound using the Ziggurat algorithm.
+// ReadAndAdd adds on the input polynomial a truncated Gaussian polynomial of at the maximum level
+// with standard deviation sigma within the given bound using the Ziggurat algorithm.
 func (gaussianSampler *GaussianSampler) ReadAndAdd(pol *Poly) {
 	gaussianSampler.ReadAndAddLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
 }
@@ -99,13 +99,13 @@ func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level uint64, pol *Poly) {
 	}
 }
 
-// randFloat64 returns a uniform float64 value between 0 and 1
+// randFloat64 returns a uniform float64 value between 0 and 1.
 func randFloat64(randomBytes []byte) float64 {
 	return float64(binary.BigEndian.Uint64(randomBytes)&0x1fffffffffffff) / float64(0x1fffffffffffff)
 }
 
 // NormFloat64 returns a normally distributed float64 in
-// the range -math.MaxFloat64 through +math.MaxFloat64 inclusive,
+// the range [-math.MaxFloat64, +math.MaxFloat64], bounds included,
 // with standard normal distribution (mean = 0, stddev = 1).
 // To produce a different normal distribution, callers can
 // adjust the output using:
@@ -134,7 +134,7 @@ func (gaussianSampler *GaussianSampler) normFloat64() (float64, uint64) {
 		// 1
 		if uint32(j) < kn[i] {
 
-			// This case should be hit better than 99% of the time.
+			// This case should be hit more than 99% of the time.
 			return x, sign
 		}
 

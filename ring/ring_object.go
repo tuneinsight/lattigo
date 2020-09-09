@@ -6,9 +6,9 @@ import (
 	"math/bits"
 )
 
-// Poly is the structure containing the coefficients of a polynomial.
+// Poly is the structure that contains the coefficients of a polynomial.
 type Poly struct {
-	Coeffs [][]uint64 //Coefficients in CRT representation
+	Coeffs [][]uint64 // Coefficients in CRT representation
 }
 
 // NewPoly creates a new polynomial with N coefficients set to zero and nbModuli moduli.
@@ -21,12 +21,12 @@ func NewPoly(N, nbModuli uint64) (pol *Poly) {
 	return
 }
 
-// GetDegree returns the number of coefficients (degree) of the polynomial.
+// GetDegree returns the number of coefficients of the polynomial, which equals the degree of the Ring cyclotomic polynomial.
 func (pol *Poly) GetDegree() int {
 	return len(pol.Coeffs[0])
 }
 
-// GetLenModuli returns the number of modulie.
+// GetLenModuli returns the number of moduli.
 func (pol *Poly) GetLenModuli() int {
 	return len(pol.Coeffs)
 }
@@ -56,7 +56,7 @@ func (pol *Poly) CopyNew() (p1 *Poly) {
 	return p1
 }
 
-// Copy copies the coefficients of p0 on p1 within the given context. Requires p1 to be at least as big p0.
+// Copy copies the coefficients of p0 on p1 within the given Ring. It requires p1 to be at least as big p0.
 func (r *Ring) Copy(p0, p1 *Poly) {
 
 	if p0 != p1 {
@@ -69,8 +69,8 @@ func (r *Ring) Copy(p0, p1 *Poly) {
 	}
 }
 
-// CopyLvl copies the coefficients of p0 on p1 within the given context for the moduli from 0 to level.
-// Requires p1 to be as big as the target context.
+// CopyLvl copies the coefficients of p0 on p1 within the given Ring for the moduli from 0 to level.
+// Requires p1 to be as big as the target Ring.
 func (r *Ring) CopyLvl(level uint64, p0, p1 *Poly) {
 
 	if p0 != p1 {
@@ -96,7 +96,7 @@ func (pol *Poly) Copy(p1 *Poly) {
 	}
 }
 
-// SetCoefficients sets the coefficients of polynomial directly from a CRT format (double slice).
+// SetCoefficients sets the coefficients of the polynomial directly from a CRT format (double slice).
 func (pol *Poly) SetCoefficients(coeffs [][]uint64) {
 	for i := range coeffs {
 		for j := range coeffs[i] {
@@ -105,7 +105,7 @@ func (pol *Poly) SetCoefficients(coeffs [][]uint64) {
 	}
 }
 
-// GetCoefficients returns new a double slice containing the coefficients of the polynomial.
+// GetCoefficients returns a new double slice that contains the coefficients of the polynomial.
 func (pol *Poly) GetCoefficients() (coeffs [][]uint64) {
 	coeffs = make([][]uint64, len(pol.Coeffs))
 
@@ -132,45 +132,45 @@ func WriteCoeffsTo(pointer, N, numberModuli uint64, coeffs [][]uint64, data []by
 	return pointer, nil
 }
 
-// WriteTo writes the given poly to the data array and
-// returns the number of bytes written and error if it occured.
+// WriteTo writes the given poly to the data array.
+// It returns the number of written bytes, and the corresponding error, if it occurred.
 func (pol *Poly) WriteTo(data []byte) (uint64, error) {
 
 	N := uint64(pol.GetDegree())
-	numberModulies := uint64(pol.GetLenModuli())
+	numberModuli := uint64(pol.GetLenModuli())
 
 	if uint64(len(data)) < pol.GetDataLen(true) {
-		//the data is not big enough to write all the information
+		// The data is not big enough to write all the information
 		return 0, errors.New("Data array is too small to write ring.Poly")
 	}
 	data[0] = uint8(bits.Len64(uint64(N)) - 1)
-	data[1] = uint8(numberModulies)
+	data[1] = uint8(numberModuli)
 
-	cnt, err := WriteCoeffsTo(2, N, numberModulies, pol.Coeffs, data)
+	cnt, err := WriteCoeffsTo(2, N, numberModuli, pol.Coeffs, data)
 
 	return cnt, err
 }
 
-// WriteTo writes the given poly to the data array and
-// returns the number of bytes written and error if it occured.
+// WriteTo32 writes the given poly to the data array.
+// It returns the number of written bytes, and the corresponding error, if it occurred.
 func (pol *Poly) WriteTo32(data []byte) (uint64, error) {
 
 	N := uint64(pol.GetDegree())
-	numberModulies := uint64(pol.GetLenModuli())
+	numberModuli := uint64(pol.GetLenModuli())
 
 	if uint64(len(data)) < pol.GetDataLen32(true) {
 		//the data is not big enough to write all the information
 		return 0, errors.New("Data array is too small to write ring.Poly")
 	}
 	data[0] = uint8(bits.Len64(uint64(N)) - 1)
-	data[1] = uint8(numberModulies)
+	data[1] = uint8(numberModuli)
 
-	cnt, err := WriteCoeffsTo32(2, N, numberModulies, pol.Coeffs, data)
+	cnt, err := WriteCoeffsTo32(2, N, numberModuli, pol.Coeffs, data)
 
 	return cnt, err
 }
 
-// WriteCoeffsTo converts a matrix of coefficients to a byte array.
+// WriteCoeffsTo32 converts a matrix of coefficients to a byte array.
 func WriteCoeffsTo32(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
 	tmp := N << 2
 	for i := uint64(0); i < numberModuli; i++ {
@@ -183,8 +183,8 @@ func WriteCoeffsTo32(pointer, N, numberModuli uint64, coeffs [][]uint64, data []
 	return pointer, nil
 }
 
-// GetDataLen returns the number of bytes the polynomial will take when written to data.
-// Can take into account meta data if necessary.
+// GetDataLen32 returns the number of bytes the polynomial will take when written to data.
+// It can take into account meta data if necessary.
 func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt uint64) {
 	cnt = uint64((pol.GetLenModuli() * pol.GetDegree()) << 2)
 
@@ -194,8 +194,8 @@ func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt uint64) {
 	return
 }
 
-// WriteCoeffs write the coefficient to the given data array.
-// Fails if the data array is not big enough to contain the ring.Poly
+// WriteCoeffs writes the coefficients to the given data array.
+// It fails if the data array is not big enough to contain the ring.Poly
 func (pol *Poly) WriteCoeffs(data []byte) (uint64, error) {
 
 	cnt, err := WriteCoeffsTo(0, uint64(pol.GetDegree()), uint64(pol.GetLenModuli()), pol.Coeffs, data)
@@ -204,7 +204,7 @@ func (pol *Poly) WriteCoeffs(data []byte) (uint64, error) {
 }
 
 // GetDataLen returns the number of bytes the polynomial will take when written to data.
-// Can take into account meta data if necessary.
+// It can take into account meta data if necessary.
 func (pol *Poly) GetDataLen(WithMetadata bool) (cnt uint64) {
 	cnt = uint64((pol.GetLenModuli() * pol.GetDegree()) << 3)
 
@@ -256,7 +256,7 @@ func (pol *Poly) UnmarshalBinary(data []byte) (err error) {
 	pointer := uint64(2)
 
 	if ((uint64(len(data)) - pointer) >> 3) != N*numberModulies {
-		return errors.New("error : invalid polynomial encoding")
+		return errors.New("error: invalid polynomial encoding")
 	}
 
 	if _, err = pol.DecodePolyNew(data); err != nil {
@@ -285,7 +285,7 @@ func (pol *Poly) DecodePolyNew(data []byte) (pointer uint64, err error) {
 	return pointer, nil
 }
 
-// DecodePolyNew decodes a slice of bytes in the target polynomial returns the number of bytes
+// DecodePolyNew32 decodes a slice of bytes in the target polynomial returns the number of bytes
 // decoded.
 func (pol *Poly) DecodePolyNew32(data []byte) (pointer uint64, err error) {
 
@@ -304,7 +304,7 @@ func (pol *Poly) DecodePolyNew32(data []byte) (pointer uint64, err error) {
 	return pointer, nil
 }
 
-// DecodeCoeffsNew converts a byte array to a matrix of coefficients.
+// DecodeCoeffsNew32 converts a byte array to a matrix of coefficients.
 func DecodeCoeffsNew32(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
 	tmp := N << 2
 	for i := uint64(0); i < numberModuli; i++ {

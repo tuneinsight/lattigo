@@ -12,9 +12,9 @@ func NewFloat(x float64, logPrecision uint64) (y *big.Float) {
 	return
 }
 
-// Arbitrary precision computation of Cos(x)
+// Cos implements the arbitrary precision computation of Cos(x)
 // Iterative process with an error of ~10^{−0.60206*k} after k iterations.
-// ref : Johansson, B. Tomas, An elementary algorithm to evaluate trigonometric functions to high precision, 2018
+// ref: Johansson, B. Tomas, An elementary algorithm to evaluate trigonometric functions to high precision, 2018
 func Cos(x *big.Float) (cosx *big.Float) {
 	tmp := new(big.Float)
 

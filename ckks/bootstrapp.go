@@ -276,8 +276,8 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 			}
 
 			// Hoisting of the ModDown of sum(sum(phi(d0 + P*c0) * plaintext)) and sum(sum(phi(d1) * plaintext))
-			eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ2, tmpP2, tmpResQ0) // sum(phi(d0) * plaintext)/P
-			eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ3, tmpP3, tmpResQ1) // sum(phi(d1) * plaintext)/P
+			eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ2, tmpP2, tmpResQ0) // sum(phi(d0) * plaintext)/P
+			eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ3, tmpP3, tmpResQ1) // sum(phi(d1) * plaintext)/P
 
 			// If i == 0
 			if state {
@@ -345,8 +345,8 @@ func (bootcontext *BootContext) multiplyByDiagMatrice(vec *Ciphertext, plainVect
 		}
 	}
 
-	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ0, tmpP0, tmpQ0) // sum(phi(c0 * P + d0_QP))/P
-	eval.baseconverter.ModDownSplitedNTTPQ(levelQ, tmpQ1, tmpP1, tmpQ1) // sum(phi(d1_QP))/P
+	eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ0, tmpP0, tmpQ0) // sum(phi(c0 * P + d0_QP))/P
+	eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ1, tmpP1, tmpQ1) // sum(phi(d1_QP))/P
 
 	ringQ.AddLvl(levelQ, res.value[0], tmpQ0, res.value[0]) // res += sum(phi(c0 * P + d0_QP))/P
 	ringQ.AddLvl(levelQ, res.value[1], tmpQ1, res.value[1]) // res += sum(phi(d1_QP))/P

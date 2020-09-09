@@ -6,7 +6,7 @@ import (
 	"github.com/ldsec/lattigo/utils"
 )
 
-// UniformSampler wraps around a util.PRNG and represents the state of a uniform-polynomial sampler.
+// UniformSampler wraps a util.PRNG and represents the state of a sampler of uniform polynomials.
 type UniformSampler struct {
 	baseSampler
 	randomBufferN []byte
@@ -33,28 +33,28 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 
 		qi = uniformSampler.context.Modulus[j]
 
-		// Starts by computing the mask
+		// Start by computing the mask
 		mask = uniformSampler.context.Mask[j]
 
 		ptmp := Pol.Coeffs[j]
 
-		// Iterates for each modulus over each coefficient
+		// Iterate for each modulus over each coefficient
 		for i := uint64(0); i < uniformSampler.context.N; i++ {
 
-			// Samples an integer between [0, qi-1]
+			// Sample an integer between [0, qi-1]
 			for {
 
-				// Replenishes the pool if it runs empty
+				// Refill the pool if it runs empty
 				if ptr == uniformSampler.context.N {
 					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 					ptr = 0
 				}
 
-				// Reads bytes from the pool
+				// Read bytes from the pool
 				randomUint = binary.BigEndian.Uint64(uniformSampler.randomBufferN[ptr:ptr+8]) & mask
 				ptr += 8
 
-				// If the integer is between [0, qi-1], breaks the loop
+				// If the integer is between [0, qi-1], break the loop
 				if randomUint < qi {
 					break
 				}
@@ -67,7 +67,7 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 	return
 }
 
-// Read generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
+// Readlvl generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
 func (uniformSampler *UniformSampler) Readlvl(level uint64, Pol *Poly) {
 
 	var randomUint, mask, qi uint64
@@ -79,28 +79,28 @@ func (uniformSampler *UniformSampler) Readlvl(level uint64, Pol *Poly) {
 
 		qi = uniformSampler.context.Modulus[j]
 
-		// Starts by computing the mask
+		// Start by computing the mask
 		mask = uniformSampler.context.Mask[j]
 
 		ptmp := Pol.Coeffs[j]
 
-		// Iterates for each modulus over each coefficient
+		// Iterate for each modulus over each coefficient
 		for i := uint64(0); i < uniformSampler.context.N; i++ {
 
-			// Samples an integer between [0, qi-1]
+			// Sample an integer between [0, qi-1]
 			for {
 
-				// Replenishes the pool if it runs empty
+				// Refill the pool if it runs empty
 				if ptr == uniformSampler.context.N {
 					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 					ptr = 0
 				}
 
-				// Reads bytes from the pool
+				// Read bytes from the pool
 				randomUint = binary.BigEndian.Uint64(uniformSampler.randomBufferN[ptr:ptr+8]) & mask
 				ptr += 8
 
-				// If the integer is between [0, qi-1], breaks the loop
+				// If the integer is between [0, qi-1], break the loop
 				if randomUint < qi {
 					break
 				}

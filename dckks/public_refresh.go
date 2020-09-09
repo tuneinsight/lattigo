@@ -147,6 +147,6 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
 func (refreshProtocol *RefreshProtocol) Recrypt(ciphertext *ckks.Ciphertext, crs *ring.Poly, shareRecrypt RefreshShareRecrypt) {
 
 	refreshProtocol.dckksContext.contextQ.Add(ciphertext.Value()[0], shareRecrypt, ciphertext.Value()[0])
-
+	crs.Coeffs = crs.Coeffs[:ciphertext.Level()+1]
 	ciphertext.Value()[1] = crs.CopyNew()
 }

@@ -212,10 +212,10 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	tmpP0 := btp.poolP[0]
 	tmpP1 := btp.poolP[1]
 
-	pool2Q := btp.poolQ[2]
-	pool3Q := btp.poolQ[3]
-	pool2P := btp.poolP[2]
-	pool3P := btp.poolP[3]
+	pool2Q := eval.poolQ[1]
+	pool3Q := eval.poolQ[2]
+	pool2P := eval.poolP[1]
+	pool3P := eval.poolP[2]
 
 	N1Rot := 0
 	N2Rot := 0

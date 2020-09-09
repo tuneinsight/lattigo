@@ -40,8 +40,8 @@ type Bootstrapper struct { // TODO: change to "Bootstrapper" ?
 
 	decryptor Decryptor
 
-	poolQ [4]*ring.Poly // Memory pool for the matrix evaluation
-	poolP [4]*ring.Poly // Memory pool for the matrix evaluation
+	poolQ [2]*ring.Poly // Memory pool for the matrix evaluation
+	poolP [2]*ring.Poly // Memory pool for the matrix evaluation
 }
 
 type dftvectors struct {

@@ -27,7 +27,7 @@ func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
 	pp.encoder = ckks.NewEncoderBigComplex(params, prec)
 	dckksContext := newDckksContext(params)
 	pp.dckksContext = dckksContext
-	pp.tmp = dckksContext.contextQ.NewPoly()
+	pp.tmp = dckksContext.ringQ.NewPoly()
 	pp.maskBigint = make([]*big.Int, dckksContext.n)
 	pp.maskFloat = make([]*big.Float, dckksContext.n)
 	pp.maskComplex = make([]*ring.Complex, dckksContext.n>>1)
@@ -46,14 +46,14 @@ func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
 	if err != nil {
 		panic(err)
 	}
-	pp.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.contextQ, params.Sigma(), uint64(6*params.Sigma()))
+	pp.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.ringQ, params.Sigma(), uint64(6*params.Sigma()))
 
 	return
 }
 
 // AllocateShares allocates the shares of the Refresh protocol.
 func (pp *PermuteProtocol) AllocateShares(levelStart uint64) (RefreshShareDecrypt, RefreshShareRecrypt) {
-	return pp.dckksContext.contextQ.NewPolyLvl(levelStart), pp.dckksContext.contextQ.NewPoly()
+	return pp.dckksContext.ringQ.NewPolyLvl(levelStart), pp.dckksContext.ringQ.NewPoly()
 }
 
 func (pp *PermuteProtocol) permuteWithIndex(permutation []uint64, values []*ring.Complex) {
@@ -71,7 +71,7 @@ func (pp *PermuteProtocol) permuteWithIndex(permutation []uint64, values []*ring
 // GenShares generates the decryption and recryption shares of the Refresh protocol.
 func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64, ciphertext *ckks.Ciphertext, crs *ring.Poly, slots uint64, permutation []uint64, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
 
-	context := pp.dckksContext.contextQ
+	context := pp.dckksContext.ringQ
 
 	bound := ring.NewUint(context.Modulus[0])
 	for i := uint64(1); i < levelStart+1; i++ {
@@ -144,18 +144,18 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 
 // Aggregate adds share1 with share2 on shareOut.
 func (pp *PermuteProtocol) Aggregate(share1, share2, shareOut *ring.Poly) {
-	pp.dckksContext.contextQ.AddLvl(uint64(len(share1.Coeffs)-1), share1, share2, shareOut)
+	pp.dckksContext.ringQ.AddLvl(uint64(len(share1.Coeffs)-1), share1, share2, shareOut)
 }
 
 // Decrypt operates a masked decryption on the ciphertext with the given decryption share.
 func (pp *PermuteProtocol) Decrypt(ciphertext *ckks.Ciphertext, shareDecrypt RefreshShareDecrypt) {
-	pp.dckksContext.contextQ.AddLvl(ciphertext.Level(), ciphertext.Value()[0], shareDecrypt, ciphertext.Value()[0])
+	pp.dckksContext.ringQ.AddLvl(ciphertext.Level(), ciphertext.Value()[0], shareDecrypt, ciphertext.Value()[0])
 }
 
 // Recode takes a masked decrypted ciphertext at modulus Q_0 and returns the same masked decrypted ciphertext at modulus Q_L, with Q_0 << Q_L.
 func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []uint64, slots uint64) {
 	dckksContext := pp.dckksContext
-	context := pp.dckksContext.contextQ
+	context := pp.dckksContext.ringQ
 
 	context.InvNTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
 
@@ -213,7 +213,7 @@ func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []ui
 // Recrypt operates a masked recryption on the masked decrypted ciphertext.
 func (pp *PermuteProtocol) Recrypt(ciphertext *ckks.Ciphertext, crs *ring.Poly, shareRecrypt RefreshShareRecrypt) {
 
-	pp.dckksContext.contextQ.Add(ciphertext.Value()[0], shareRecrypt, ciphertext.Value()[0])
+	pp.dckksContext.ringQ.Add(ciphertext.Value()[0], shareRecrypt, ciphertext.Value()[0])
 
 	ciphertext.Value()[1] = crs.CopyNew()
 }

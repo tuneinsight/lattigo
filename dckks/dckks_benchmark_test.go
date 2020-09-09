@@ -38,7 +38,7 @@ func benchPublicKeyGen(b *testing.B) {
 		panic(err)
 	}
 
-	crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
+	crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.ringQP)
 	crp := crpGenerator.ReadNew()
 
 	type Party struct {
@@ -91,7 +91,7 @@ func benchRelinKeyGen(b *testing.B) {
 	if err != nil {
 		panic(err)
 	}
-	crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
+	crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.ringQP)
 	crp := make([]*ring.Poly, params.params.Beta())
 
 	for i := uint64(0); i < params.params.Beta(); i++ {
@@ -263,7 +263,7 @@ func benchPublicKeySwitching(b *testing.B) {
 func benchRotKeyGen(b *testing.B) {
 
 	parties := params.parties
-	contextKeys := params.dckksContext.contextQP
+	contextKeys := params.dckksContext.ringQP
 	sk0Shards := params.sk0Shards
 
 	type Party struct {
@@ -317,7 +317,7 @@ func benchRefresh(b *testing.B) {
 
 	parties := params.parties
 	sk0Shards := params.sk0Shards
-	contextQ := params.dckksContext.contextQ
+	ringQ := params.dckksContext.ringQ
 
 	levelStart := uint64(3)
 
@@ -337,7 +337,7 @@ func benchRefresh(b *testing.B) {
 		panic(err)
 	}
 
-	crpGenerator := ring.NewUniformSampler(keyedPRNG, contextQ)
+	crpGenerator := ring.NewUniformSampler(keyedPRNG, ringQ)
 	crp := crpGenerator.ReadNew()
 
 	ciphertext := ckks.NewCiphertextRandom(params.prng, params.params, 1, levelStart, params.params.Scale())
@@ -402,7 +402,7 @@ func benchRefreshAndPermute(b *testing.B) {
 		panic(err)
 	}
 
-	crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
+	crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.ringQP)
 	crp := crpGenerator.ReadNew()
 
 	ciphertext := ckks.NewCiphertextRandom(prng, params.params, 1, levelStart, params.params.Scale())

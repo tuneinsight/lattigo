@@ -106,14 +106,14 @@ func genTestParams(defaultParams *ckks.DefaultParam) (err error) {
 	// SecretKeys
 	params.sk0Shards = make([]*ckks.SecretKey, params.parties)
 	params.sk1Shards = make([]*ckks.SecretKey, params.parties)
-	tmp0 := params.dckksContext.contextQP.NewPoly()
-	tmp1 := params.dckksContext.contextQP.NewPoly()
+	tmp0 := params.dckksContext.ringQP.NewPoly()
+	tmp1 := params.dckksContext.ringQP.NewPoly()
 
 	for j := uint64(0); j < params.parties; j++ {
 		params.sk0Shards[j] = kgen.GenSecretKey()
 		params.sk1Shards[j] = kgen.GenSecretKey()
-		params.dckksContext.contextQP.Add(tmp0, params.sk0Shards[j].Get(), tmp0)
-		params.dckksContext.contextQP.Add(tmp1, params.sk1Shards[j].Get(), tmp1)
+		params.dckksContext.ringQP.Add(tmp0, params.sk0Shards[j].Get(), tmp0)
+		params.dckksContext.ringQP.Add(tmp1, params.sk1Shards[j].Get(), tmp1)
 	}
 
 	params.sk0 = new(ckks.SecretKey)
@@ -145,7 +145,7 @@ func testPublicKeyGen(t *testing.T) {
 		panic(err)
 	}
 
-	crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
+	crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.ringQP)
 
 	t.Run(testString("", parties, params.params), func(t *testing.T) {
 
@@ -223,7 +223,7 @@ func testRelinKeyGen(t *testing.T) {
 			panic(err)
 		}
 
-		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
+		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.ringQP)
 		crp := make([]*ring.Poly, params.params.Beta())
 
 		for i := uint64(0); i < params.params.Beta(); i++ {
@@ -432,7 +432,7 @@ func testPublicKeySwitching(t *testing.T) {
 func testRotKeyGenConjugate(t *testing.T) {
 
 	parties := params.parties
-	contextKeys := params.dckksContext.contextQP
+	contextKeys := params.dckksContext.ringQP
 	evaluator := params.evaluator
 	encryptorPk0 := params.encryptorPk0
 	decryptorSk0 := params.decryptorSk0
@@ -460,7 +460,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 			panic(err)
 		}
 
-		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQP)
+		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.ringQP)
 		crp := make([]*ring.Poly, params.params.Beta())
 
 		for i := uint64(0); i < params.params.Beta(); i++ {
@@ -495,7 +495,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 func testRotKeyGenCols(t *testing.T) {
 
 	parties := params.parties
-	contextKeys := params.dckksContext.contextQP
+	contextKeys := params.dckksContext.ringQP
 	evaluator := params.evaluator
 	encryptorPk0 := params.encryptorPk0
 	decryptorSk0 := params.decryptorSk0
@@ -596,7 +596,7 @@ func testRefresh(t *testing.T) {
 			panic(err)
 		}
 
-		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQ)
+		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.ringQ)
 		crp := crpGenerator.ReadNew()
 
 		coeffs, _, ciphertext := newTestVectors(encryptorPk0, 1.0, t)
@@ -660,7 +660,7 @@ func testRefreshAndPermute(t *testing.T) {
 			panic(err)
 		}
 
-		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.contextQ)
+		crpGenerator := ring.NewUniformSampler(prng, params.dckksContext.ringQ)
 		crp := crpGenerator.ReadNew()
 
 		coeffs, _, ciphertext := newTestVectors(encryptorPk0, 1.0, t)

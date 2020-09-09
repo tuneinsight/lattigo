@@ -25,11 +25,11 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 
 	refreshProtocol = new(PermuteProtocol)
 	refreshProtocol.context = context
-	refreshProtocol.tmp1 = context.contextQP.NewPoly()
-	refreshProtocol.tmp2 = context.contextQP.NewPoly()
-	refreshProtocol.hP = context.contextP.NewPoly()
+	refreshProtocol.tmp1 = context.ringQP.NewPoly()
+	refreshProtocol.tmp2 = context.ringQP.NewPoly()
+	refreshProtocol.hP = context.ringP.NewPoly()
 
-	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.contextQ, context.contextP)
+	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.ringQ, context.ringP)
 
 	var m, pos, index1, index2 uint64
 
@@ -54,50 +54,49 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 	}
 
 	refreshProtocol.indexMatrix = indexMatrix
-	refreshProtocol.scaler = ring.NewRNSScaler(params.T(), context.contextQ)
+	refreshProtocol.scaler = ring.NewRNSScaler(params.T(), context.ringQ)
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, params.Sigma(), uint64(6*params.Sigma()))
-	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.contextT)
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQP, params.Sigma(), uint64(6*params.Sigma()))
+	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.ringT)
 
 	return
 }
 
 func (pp *PermuteProtocol) AllocateShares() RefreshShare {
-	return RefreshShare{pp.context.contextQ.NewPoly(),
-		pp.context.contextQ.NewPoly()}
+	return RefreshShare{pp.context.ringQ.NewPoly(),
+		pp.context.ringQ.NewPoly()}
 }
 
 func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, permutation []uint64, share RefreshShare) {
 
 	level := uint64(len(ciphertext.Value()[1].Coeffs) - 1)
 
-	contextQ := pp.context.contextQ
-	contextT := pp.context.contextT
-	contextKeys := pp.context.contextQP
-	contextP := pp.context.contextP
+	ringQ := pp.context.ringQ
+	ringT := pp.context.ringT
+	ringQP := pp.context.ringQP
 
 	// h0 = s*ct[1]
-	contextQ.NTT(ciphertext.Value()[1], pp.tmp1)
-	contextQ.MulCoeffsMontgomery(sk, pp.tmp1, share.RefreshShareDecrypt)
+	ringQ.NTT(ciphertext.Value()[1], pp.tmp1)
+	ringQ.MulCoeffsMontgomery(sk, pp.tmp1, share.RefreshShareDecrypt)
 
-	contextQ.InvNTT(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
+	ringQ.InvNTT(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P
-	contextQ.MulScalarBigint(share.RefreshShareDecrypt, contextP.ModulusBigint, share.RefreshShareDecrypt)
+	ringQ.MulScalarBigint(share.RefreshShareDecrypt, pp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
-	pp.gaussianSampler.ReadLvl(uint64(len(contextKeys.Modulus)-1), pp.tmp1)
-	contextQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
+	pp.gaussianSampler.ReadLvl(uint64(len(ringQP.Modulus)-1), pp.tmp1)
+	ringQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
 
-	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(pp.context.contextQP.Modulus)); x, i = x+1, i+1 {
+	for x, i := 0, uint64(len(ringQ.Modulus)); i < uint64(len(pp.context.ringQP.Modulus)); x, i = x+1, i+1 {
 		tmphP := pp.hP.Coeffs[x]
 		tmp1 := pp.tmp1.Coeffs[i]
-		for j := uint64(0); j < contextQ.N; j++ {
+		for j := uint64(0); j < ringQ.N; j++ {
 			tmphP[j] += tmp1[j]
 		}
 	}
@@ -106,10 +105,10 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	pp.baseconverter.ModDownSplitPQ(level, share.RefreshShareDecrypt, pp.hP, share.RefreshShareDecrypt)
 
 	// h1 = -s*a
-	contextKeys.NTT(crs, pp.tmp1)
-	contextKeys.MulCoeffsMontgomery(sk, pp.tmp1, pp.tmp2)
-	contextKeys.Neg(pp.tmp2, pp.tmp2)
-	contextKeys.InvNTT(pp.tmp2, pp.tmp2)
+	ringQP.NTT(crs, pp.tmp1)
+	ringQP.MulCoeffsMontgomery(sk, pp.tmp1, pp.tmp2)
+	ringQP.Neg(pp.tmp2, pp.tmp2)
+	ringQP.InvNTT(pp.tmp2, pp.tmp2)
 
 	// h1 = s*a + e'
 	pp.gaussianSampler.ReadAndAdd(pp.tmp2)
@@ -126,47 +125,47 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	lift(coeffs, pp.tmp1, pp.context)
 
 	// h0 = (s*ct[1]*P + e)/P + mask
-	contextQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
+	ringQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
 
 	// Mask in the spectral domain
-	contextT.NTT(coeffs, coeffs)
+	ringT.NTT(coeffs, coeffs)
 
 	// Permutation over the mask
 	pp.permuteWithIndex(coeffs, permutation, pp.tmp1)
 
 	// Switch back the mask in the time domain
-	contextT.InvNTT(pp.tmp1, coeffs)
+	ringT.InvNTT(pp.tmp1, coeffs)
 
 	// Multiply by Q/t
 	lift(coeffs, pp.tmp1, pp.context)
 
 	// h1 = (-s*a + e')/P - permute(mask)
-	contextQ.Sub(share.RefreshShareRecrypt, pp.tmp1, share.RefreshShareRecrypt)
+	ringQ.Sub(share.RefreshShareRecrypt, pp.tmp1, share.RefreshShareRecrypt)
 }
 
 // Aggregate sums share1 and share2 on shareOut.
 func (pp *PermuteProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
-	pp.context.contextQ.Add(share1.RefreshShareDecrypt, share2.RefreshShareDecrypt, shareOut.RefreshShareDecrypt)
-	pp.context.contextQ.Add(share1.RefreshShareRecrypt, share2.RefreshShareRecrypt, shareOut.RefreshShareRecrypt)
+	pp.context.ringQ.Add(share1.RefreshShareDecrypt, share2.RefreshShareDecrypt, shareOut.RefreshShareDecrypt)
+	pp.context.ringQ.Add(share1.RefreshShareRecrypt, share2.RefreshShareRecrypt, shareOut.RefreshShareRecrypt)
 }
 
 // Decrypt operates a masked decryption on the input ciphertext using the provided decryption shares.
 func (pp *PermuteProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt RefreshShareDecrypt, sharePlaintext *ring.Poly) {
-	pp.context.contextQ.Add(ciphertext.Value()[0], shareDecrypt, sharePlaintext)
+	pp.context.ringQ.Add(ciphertext.Value()[0], shareDecrypt, sharePlaintext)
 }
 
 // Recode decodes and re-encode (removing the error) the masked decrypted ciphertext.
 func (pp *PermuteProtocol) Permute(sharePlaintext *ring.Poly, permutation []uint64, sharePlaintextOut *ring.Poly) {
 
-	contextT := pp.context.contextT
+	ringT := pp.context.ringT
 
 	pp.scaler.DivByQOverTRounded(sharePlaintext, sharePlaintextOut)
 
-	contextT.NTT(sharePlaintextOut, sharePlaintextOut)
+	ringT.NTT(sharePlaintextOut, sharePlaintextOut)
 
 	pp.permuteWithIndex(sharePlaintextOut, permutation, pp.tmp1)
 
-	contextT.InvNTT(pp.tmp1, sharePlaintextOut)
+	ringT.InvNTT(pp.tmp1, sharePlaintextOut)
 
 	lift(sharePlaintextOut, sharePlaintextOut, pp.context)
 }
@@ -175,7 +174,7 @@ func (pp *PermuteProtocol) Permute(sharePlaintext *ring.Poly, permutation []uint
 func (pp *PermuteProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, shareRecrypt RefreshShareRecrypt, ciphertextOut *bfv.Ciphertext) {
 
 	// ciphertext[0] = (-crs*s + e')/P + permute(m)
-	pp.context.contextQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value()[0])
+	pp.context.ringQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value()[0])
 
 	// ciphertext[1] = crs/P
 	pp.baseconverter.ModDownPQ(uint64(len(ciphertextOut.Value()[1].Coeffs)-1), crs, ciphertextOut.Value()[1])

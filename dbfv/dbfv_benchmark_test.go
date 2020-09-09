@@ -31,7 +31,7 @@ func benchPublicKeyGen(b *testing.B) {
 		if err != nil {
 			panic(err)
 		}
-		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.ringQP)
 
 		crp := crpGenerator.ReadNew()
 
@@ -101,7 +101,7 @@ func benchRelinKeyGen(b *testing.B) {
 			panic(err)
 		}
 
-		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.ringQP)
 
 		crp := make([]*ring.Poly, parameters.Beta())
 
@@ -326,7 +326,7 @@ func benchRotKeyGen(b *testing.B) {
 			panic(err)
 		}
 
-		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.ringQP)
 		crp := make([]*ring.Poly, parameters.Beta())
 
 		for i := uint64(0); i < parameters.Beta(); i++ {
@@ -386,7 +386,7 @@ func benchRefresh(b *testing.B) {
 			panic(err)
 		}
 
-		crpGenerator := ring.NewUniformSampler(prng, testCtx.contextQP)
+		crpGenerator := ring.NewUniformSampler(prng, testCtx.ringQP)
 		crp := crpGenerator.ReadNew()
 
 		ciphertext := bfv.NewCiphertextRandom(testCtx.prng, parameters, 1)

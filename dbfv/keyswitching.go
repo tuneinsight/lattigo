@@ -46,16 +46,16 @@ func NewCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *CKSProtocol 
 
 	cks.sigmaSmudging = sigmaSmudging
 
-	cks.tmpNtt = cks.context.contextQP.NewPoly()
-	cks.tmpDelta = cks.context.contextQ.NewPoly()
-	cks.hP = cks.context.contextP.NewPoly()
+	cks.tmpNtt = cks.context.ringQP.NewPoly()
+	cks.tmpDelta = cks.context.ringQ.NewPoly()
+	cks.hP = cks.context.ringP.NewPoly()
 
-	cks.baseconverter = ring.NewFastBasisExtender(cks.context.contextQ, cks.context.contextP)
+	cks.baseconverter = ring.NewFastBasisExtender(cks.context.ringQ, cks.context.ringP)
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	cks.gaussianSampler = ring.NewGaussianSampler(prng, context.contextQP, sigmaSmudging, uint64(6*sigmaSmudging))
+	cks.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQP, sigmaSmudging, uint64(6*sigmaSmudging))
 
 	return cks
 }
@@ -63,7 +63,7 @@ func NewCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *CKSProtocol 
 // AllocateShare allocates the shares of the CKSProtocol
 func (cks *CKSProtocol) AllocateShare() CKSShare {
 
-	return CKSShare{cks.context.contextQ.NewPoly()}
+	return CKSShare{cks.context.ringQ.NewPoly()}
 
 }
 
@@ -75,7 +75,7 @@ func (cks *CKSProtocol) AllocateShare() CKSShare {
 // Each party then broadcast the result of this computation to the other j-1 parties.
 func (cks *CKSProtocol) GenShare(skInput, skOutput *ring.Poly, ct *bfv.Ciphertext, shareOut CKSShare) {
 
-	cks.context.contextQ.Sub(skInput, skOutput, cks.tmpDelta)
+	cks.context.ringQ.Sub(skInput, skOutput, cks.tmpDelta)
 
 	cks.genShareDelta(cks.tmpDelta, ct, shareOut)
 }
@@ -84,23 +84,22 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 
 	level := uint64(len(ct.Value()[1].Coeffs) - 1)
 
-	contextQ := cks.context.contextQ
-	contextP := cks.context.contextP
-	contextQP := cks.context.contextQP
+	ringQ := cks.context.ringQ
+	ringQP := cks.context.ringQP
 
-	contextQ.NTT(ct.Value()[1], cks.tmpNtt)
-	contextQ.MulCoeffsMontgomery(cks.tmpNtt, skDelta, shareOut.Poly)
-	contextQ.MulScalarBigint(shareOut.Poly, contextP.ModulusBigint, shareOut.Poly)
+	ringQ.NTT(ct.Value()[1], cks.tmpNtt)
+	ringQ.MulCoeffsMontgomery(cks.tmpNtt, skDelta, shareOut.Poly)
+	ringQ.MulScalarBigint(shareOut.Poly, cks.context.ringP.ModulusBigint, shareOut.Poly)
 
-	contextQ.InvNTT(shareOut.Poly, shareOut.Poly)
+	ringQ.InvNTT(shareOut.Poly, shareOut.Poly)
 
-	cks.gaussianSampler.ReadLvl(uint64(len(contextQP.Modulus)-1), cks.tmpNtt)
-	contextQ.Add(shareOut.Poly, cks.tmpNtt, shareOut.Poly)
+	cks.gaussianSampler.ReadLvl(uint64(len(ringQP.Modulus)-1), cks.tmpNtt)
+	ringQ.Add(shareOut.Poly, cks.tmpNtt, shareOut.Poly)
 
-	for x, i := 0, uint64(len(contextQ.Modulus)); i < uint64(len(cks.context.contextQP.Modulus)); x, i = x+1, i+1 {
+	for x, i := 0, uint64(len(ringQ.Modulus)); i < uint64(len(cks.context.ringQP.Modulus)); x, i = x+1, i+1 {
 		tmphP := cks.hP.Coeffs[x]
 		tmpNTT := cks.tmpNtt.Coeffs[i]
-		for j := uint64(0); j < contextQ.N; j++ {
+		for j := uint64(0); j < ringQ.N; j++ {
 			tmphP[j] += tmpNTT[j]
 		}
 	}
@@ -115,11 +114,11 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
 func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut CKSShare) {
-	cks.context.contextQ.Add(share1.Poly, share2.Poly, shareOut.Poly)
+	cks.context.ringQ.Add(share1.Poly, share2.Poly, shareOut.Poly)
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (cks *CKSProtocol) KeySwitch(combined CKSShare, ct *bfv.Ciphertext, ctOut *bfv.Ciphertext) {
-	cks.context.contextQ.Add(ct.Value()[0], combined.Poly, ctOut.Value()[0])
-	cks.context.contextQ.Copy(ct.Value()[1], ctOut.Value()[1])
+	cks.context.ringQ.Add(ct.Value()[0], combined.Poly, ctOut.Value()[0])
+	cks.context.ringQ.Copy(ct.Value()[1], ctOut.Value()[1])
 }

@@ -11,9 +11,9 @@ type dckksContext struct {
 
 	n uint64
 
-	contextQ  *ring.Ring
-	contextP  *ring.Ring
-	contextQP *ring.Ring
+	ringQ  *ring.Ring
+	ringP  *ring.Ring
+	ringQP *ring.Ring
 
 	alpha uint64
 	beta  uint64
@@ -31,15 +31,15 @@ func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 	context.beta = params.Beta()
 
 	var err error
-	if context.contextQ, err = ring.NewRing(params.N(), params.Qi()); err != nil {
+	if context.ringQ, err = ring.NewRing(params.N(), params.Qi()); err != nil {
 		panic(err)
 	}
 
-	if context.contextP, err = ring.NewRing(params.N(), params.Pi()); err != nil {
+	if context.ringP, err = ring.NewRing(params.N(), params.Pi()); err != nil {
 		panic(err)
 	}
 
-	if context.contextQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
+	if context.ringQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
 		panic(err)
 	}
 
@@ -53,5 +53,5 @@ func NewCRPGenerator(params *ckks.Parameters, key []byte) *ring.UniformSampler {
 	if err != nil {
 		panic(err)
 	}
-	return ring.NewUniformSampler(prng, ctx.contextQP)
+	return ring.NewUniformSampler(prng, ctx.ringQP)
 }

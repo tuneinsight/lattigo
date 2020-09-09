@@ -12,7 +12,8 @@ import (
 
 // BootContext stores the parameters for the bootstrapping.
 type Bootstrapper struct { // TODO: change to "Bootstrapper" ?
-	BootParams
+	BootstrappParams
+	params *Parameters
 
 	dslots uint64 // Number of plaintext slots after the re-encoding
 
@@ -40,8 +41,8 @@ type Bootstrapper struct { // TODO: change to "Bootstrapper" ?
 
 	decryptor Decryptor
 
-	poolQ [2]*ring.Poly // Memory pool for the matrix evaluation
-	poolP [2]*ring.Poly // Memory pool for the matrix evaluation
+	poolQ [4]*ring.Poly // Memory pool for the matrix evaluation
+	poolP [4]*ring.Poly // Memory pool for the matrix evaluation
 }
 
 type dftvectors struct {
@@ -67,42 +68,47 @@ func (btp *Bootstrapper) printDebug(message string, ciphertext *Ciphertext) {
 }
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(bootparams *BootParams) (btp *Bootstrapper) {
+func NewBootstrapper(params *Parameters, btpParams *BootstrappParams) (btp *Bootstrapper, err error) {
+
+	if btpParams.SinType == SinType(Sin) && btpParams.SinRescal != 0 {
+		return nil, fmt.Errorf("BootstrappParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
+	}
 
 	btp = new(Bootstrapper)
 
-	btp.BootParams = *bootparams
+	btp.params = params.Copy()
+	btp.BootstrappParams = *btpParams.Copy()
 
-	btp.dslots = btp.Slots()
-	if bootparams.logSlots < bootparams.MaxLogSlots() {
+	btp.dslots = params.Slots()
+	if params.logSlots < params.MaxLogSlots() {
 		btp.repack = true
 		btp.dslots <<= 1
 	}
 
 	btp.deviation = 1024.0
-	btp.prescale = math.Round(float64(bootparams.qi[0]) / btp.deviation)
-	btp.postscale = math.Exp2(math.Round(math.Log2(float64(bootparams.qi[len(bootparams.qi)-1-len(bootparams.CtSLevel)])))) / btp.deviation
+	btp.prescale = math.Round(float64(params.qi[0]) / btp.deviation)
+	btp.postscale = math.Exp2(math.Round(math.Log2(float64(params.qi[len(params.qi)-1-len(btpParams.CtSLevel)])))) / btp.deviation
 
-	btp.encoder = NewEncoder(&bootparams.Parameters)
-	btp.evaluator = NewEvaluator(&bootparams.Parameters)
+	btp.encoder = NewEncoder(params)
+	btp.evaluator = NewEvaluator(params)
 
 	btp.newBootSine()
 	btp.newBootDFT()
 
-	btp.ctxpool = NewCiphertext(&bootparams.Parameters, 1, bootparams.MaxLevel(), 0)
+	btp.ctxpool = NewCiphertext(params, 1, params.MaxLevel(), 0)
 
 	for i := range btp.poolQ {
-		btp.poolQ[i] = bootparams.NewPolyQ()
+		btp.poolQ[i] = params.NewPolyQ()
 	}
 
 	for i := range btp.poolP {
-		btp.poolP[i] = bootparams.NewPolyP()
+		btp.poolP[i] = params.NewPolyP()
 	}
 
 	return
 }
 
-func (btp *Bootstrapper) GenBootKeys(sk *SecretKey) {
+func (btp *Bootstrapper) GenKeys(sk *SecretKey) {
 
 	//log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
 
@@ -113,7 +119,7 @@ func (btp *Bootstrapper) GenBootKeys(sk *SecretKey) {
 
 	//log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
 
-	kgen := NewKeyGenerator(&btp.Parameters)
+	kgen := NewKeyGenerator(btp.params)
 
 	btp.rotkeys = NewRotationKeys()
 
@@ -132,7 +138,8 @@ func (btp *Bootstrapper) ExportKeys() (rlk *EvaluationKey, rotkeys *RotationKeys
 	return btp.relinkey, btp.rotkeys
 }
 
-func (btp *Bootstrapper) ImportKeys(rlk *EvaluationKey, rotkeys *RotationKeys) {
+func (btp *Bootstrapper) ImportKeys(rlk *EvaluationKey, rotkeys *RotationKeys) error {
+
 	if rlk != nil {
 		btp.relinkey = rlk
 	}
@@ -140,6 +147,8 @@ func (btp *Bootstrapper) ImportKeys(rlk *EvaluationKey, rotkeys *RotationKeys) {
 	if rotkeys != nil {
 		btp.rotkeys = rotkeys
 	}
+
+	return btp.CheckKeys()
 }
 
 func (btp *Bootstrapper) CheckKeys() (err error) {
@@ -170,15 +179,15 @@ func (btp *Bootstrapper) newBootDFT() {
 
 	a := real(btp.chebycoeffs.a)
 	b := real(btp.chebycoeffs.b)
-	n := float64(btp.N())
+	n := float64(btp.params.N())
 	sc_fac := float64(int(1 << btp.SinRescal))
-	qDiff := float64(btp.qi[0]) / math.Exp2(math.Round(math.Log2(float64(btp.qi[0]))))
+	qDiff := float64(btp.params.qi[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.qi[0]))))
 
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
 	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(len(btp.CtSLevel))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
-	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.scale)/btp.postscale, 1.0/float64(len(btp.StCLevel))), 0)
+	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.scale)/btp.postscale, 1.0/float64(len(btp.StCLevel))), 0)
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	btp.computePlaintextVectors()
@@ -187,7 +196,7 @@ func (btp *Bootstrapper) newBootDFT() {
 	btp.rotKeyIndex = []uint64{}
 
 	//SubSum rotation needed X -> Y^slots rotations
-	for i := btp.logSlots; i < btp.LogMaxSlots(); i++ {
+	for i := btp.params.logSlots; i < btp.params.LogMaxSlots(); i++ {
 		if !utils.IsInSliceUint64(1<<i, btp.rotKeyIndex) {
 			btp.rotKeyIndex = append(btp.rotKeyIndex, 1<<i)
 		}
@@ -198,7 +207,7 @@ func (btp *Bootstrapper) newBootDFT() {
 	for i := range btp.pDFTInv {
 		for j := range btp.pDFTInv[i].Vec {
 
-			index = ((j / btp.pDFTInv[i].N1) * btp.pDFTInv[i].N1) & (btp.Slots() - 1)
+			index = ((j / btp.pDFTInv[i].N1) * btp.pDFTInv[i].N1) & (btp.params.Slots() - 1)
 
 			if index != 0 && !utils.IsInSliceUint64(index, btp.rotKeyIndex) {
 				btp.rotKeyIndex = append(btp.rotKeyIndex, index)
@@ -218,10 +227,10 @@ func (btp *Bootstrapper) newBootDFT() {
 
 			if btp.repack && i == 0 {
 				// Sparse repacking, occuring during the first DFT matrix of the CoeffsToSlots.
-				index = ((j / btp.pDFT[i].N1) * btp.pDFT[i].N1) & (2*btp.Slots() - 1)
+				index = ((j / btp.pDFT[i].N1) * btp.pDFT[i].N1) & (2*btp.params.Slots() - 1)
 			} else {
 				// Other cases
-				index = ((j / btp.pDFT[i].N1) * btp.pDFT[i].N1) & (btp.Slots() - 1)
+				index = ((j / btp.pDFT[i].N1) * btp.pDFT[i].N1) & (btp.params.Slots() - 1)
 			}
 
 			if index != 0 && !utils.IsInSliceUint64(index, btp.rotKeyIndex) {
@@ -388,7 +397,7 @@ func fftInvPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][
 
 func (btp *Bootstrapper) computePlaintextVectors() {
 
-	slots := btp.Slots()
+	slots := btp.params.Slots()
 	dslots := btp.dslots
 
 	CtSLevel := btp.CtSLevel
@@ -474,7 +483,7 @@ func (btp *Bootstrapper) encodePVec(pVec map[uint64][]complex128, plaintextVec *
 	var scale float64
 
 	// N1*N2 = N
-	N = btp.N()
+	N = btp.params.N()
 	N1 = plaintextVec.N1
 
 	index := make(map[uint64][]uint64)
@@ -492,14 +501,14 @@ func (btp *Bootstrapper) encodePVec(pVec map[uint64][]complex128, plaintextVec *
 	plaintextVec.Vec = make(map[uint64][2]*ring.Poly)
 
 	if forward {
-		scale = float64(btp.qi[level])
+		scale = float64(btp.params.qi[level])
 	} else {
 		// If the first moduli
-		logQi := math.Round(math.Log2(float64(btp.qi[level])))
+		logQi := math.Round(math.Log2(float64(btp.params.qi[level])))
 		if logQi >= 56.0 {
 			scale = math.Exp2(logQi / 2)
 		} else {
-			scale = float64(btp.qi[level])
+			scale = float64(btp.params.qi[level])
 		}
 	}
 
@@ -514,7 +523,7 @@ func (btp *Bootstrapper) encodePVec(pVec map[uint64][]complex128, plaintextVec *
 		for _, i := range index[j] {
 
 			//  levels * n coefficients of 8 bytes each
-			btp.plaintextSize += 8 * N * (level + 1 + btp.PiCount())
+			btp.plaintextSize += 8 * N * (level + 1 + btp.params.PiCount())
 
 			encoder.embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:btp.dslots], btp.dslots)
 
@@ -540,7 +549,7 @@ func (btp *Bootstrapper) computeDFTPlaintextVectors(roots []complex128, pow5 []u
 
 	var level, depth, nextLevel, logSlots uint64
 
-	logSlots = btp.logSlots
+	logSlots = btp.params.logSlots
 	level = logSlots
 
 	var a, b, c [][]complex128
@@ -548,10 +557,10 @@ func (btp *Bootstrapper) computeDFTPlaintextVectors(roots []complex128, pow5 []u
 
 	if forward {
 		maxDepth = uint64(len(btp.CtSLevel))
-		a, b, c = fftInvPlainVec(btp.logSlots, roots, pow5)
+		a, b, c = fftInvPlainVec(btp.params.logSlots, roots, pow5)
 	} else {
 		maxDepth = uint64(len(btp.StCLevel))
-		a, b, c = fftPlainVec(btp.logSlots, roots, pow5)
+		a, b, c = fftPlainVec(btp.params.logSlots, roots, pow5)
 	}
 
 	plainVector = make([]map[uint64][]complex128, maxDepth)
@@ -611,8 +620,8 @@ func (btp *Bootstrapper) computeDFTPlaintextVectors(roots []complex128, pow5 []u
 	// Repacking after the CoeffsToSlots (we multiply the last DFT matrix with the vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0]).
 	if btp.repack && forward {
 		for j := range plainVector[maxDepth-1] {
-			for x := uint64(0); x < btp.Slots(); x++ {
-				plainVector[maxDepth-1][j][x+btp.Slots()] = complex(0, 0)
+			for x := uint64(0); x < btp.params.Slots(); x++ {
+				plainVector[maxDepth-1][j][x+btp.params.Slots()] = complex(0, 0)
 			}
 		}
 	}

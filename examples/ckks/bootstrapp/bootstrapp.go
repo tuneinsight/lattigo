@@ -18,7 +18,9 @@ func randomComplex(min, max float64) complex128 {
 
 func main() {
 
-	var bootcontext *ckks.BootContext
+	var err error
+
+	var btp *ckks.Bootstrapper
 	var kgen ckks.KeyGenerator
 	var encoder ckks.Encoder
 	var sk *ckks.SecretKey
@@ -32,9 +34,8 @@ func main() {
 	// Five sets of parameters (index 0 to 4) ensuring 128 bit of security
 	// are avaliable in github.com/ldsec/lattigo/ckks/bootparams
 	// LogSlots is hardcoded to 10 in the parameters, but can be changed from 1 to 15.
-	bootparams := ckks.BootstrappParams[4]
-	bootparams.Gen()
-	params := &bootparams.Parameters
+	params := ckks.DefaultBootstrappSchemeParams[4]
+	btpParams := ckks.DefaultBootstrappParams[4]
 
 	fmt.Println()
 	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.Levels(), params.Scale(), params.Sigma())
@@ -53,8 +54,11 @@ func main() {
 	// Make it so they can be given as input to the bootstrapp.
 	fmt.Println()
 	fmt.Println("Generating bootstrappign keys...")
-	bootcontext = ckks.NewBootContext(bootparams)
-	bootcontext.GenBootKeys(sk)
+	btp, err = ckks.NewBootstrapper(params, btpParams)
+	if err != nil {
+		panic(err)
+	}
+	btp.GenKeys(sk)
 	fmt.Println("Done")
 
 	// Generates a random plaintext
@@ -79,7 +83,7 @@ func main() {
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.Scale) can be used at the expanse of one level.
 	fmt.Println()
 	fmt.Println("Bootstrapping...")
-	ciphertext = bootcontext.Bootstrapp(ciphertext)
+	ciphertext = btp.Bootstrapp(ciphertext)
 	fmt.Println("Done")
 
 	// Decrypts, prints and compares with the plaintext values

@@ -12,6 +12,8 @@ import (
 	"text/template"
 )
 
+var err error
+
 func randomFloat(min, max float64) float64 {
 	return min + rand.Float64()*(max-min)
 }
@@ -40,7 +42,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	params := ckks.BootstrappParams[*paramSet].Copy()
+	params := ckks.DefaultBootstrappSchemeParams[*paramSet].Copy()
+	btpParams := ckks.DefaultBootstrappParams[*paramSet].Copy()
 	bReal, bImag := new(bytes.Buffer), new(bytes.Buffer)
 	var stats []ckks.PrecisionStats
 
@@ -48,21 +51,21 @@ func main() {
 	case "successive":
 		params.SetLogSlots(*logslot)
 		log.Printf("%% program args: paramSet=%d, nboot=%d, hw=%d, logslot=%d\n", *paramSet, *nboot, *hw, *logslot)
-		encoder, encryptor, evaluator, decryptor, bootstrapper := instanciateExperiment(params)
+		encoder, encryptor, evaluator, decryptor, bootstrapper := instanciateExperiment(params, btpParams)
 		log.Println("Generating a plaintext of", params.Slots(), "random values...")
 		values := make([]complex128, params.Slots())
 		for i := range values {
 			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 		}
 
-		plaintext := ckks.NewPlaintext(&params.Parameters, params.MaxLevel(), params.Scale())
+		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
 		encoder.Encode(plaintext, values, params.Slots())
 		ciphertext := encryptor.EncryptNew(plaintext)
 
 		stats = make([]ckks.PrecisionStats, *nboot, *nboot)
 		for i := range stats {
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
-			stats[i] = ckks.GetPrecisionStats(&params.Parameters, encoder, decryptor, values, ciphertext)
+			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext)
 			fmt.Println(stats[i])
 			if ciphertext.Scale() != params.Scale() {
 				evaluator.SetScale(ciphertext, params.Scale())
@@ -76,7 +79,7 @@ func main() {
 	case "slotdist":
 		params.SetLogSlots(*logslot)
 		log.Printf("%% program args: paramSet=%d, hw=%d, logslot=%d\n", *paramSet, *hw, *logslot)
-		encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params)
+		encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params, btpParams)
 		stats = make([]ckks.PrecisionStats, 1, 1) // Experiment seems stable enough
 		for i := range stats {
 			values := make([]complex128, params.Slots())
@@ -84,12 +87,12 @@ func main() {
 				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
-			plaintext := ckks.NewPlaintext(&params.Parameters, params.MaxLevel(), params.Scale())
+			plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
 			encoder.Encode(plaintext, values, params.Slots())
 			ciphertext := encryptor.EncryptNew(plaintext)
 
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
-			stats[i] = ckks.GetPrecisionStats(&params.Parameters, encoder, decryptor, values, ciphertext)
+			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext)
 		}
 		formatSlotDist(stats, *logslot, bReal, bImag)
 		break
@@ -99,22 +102,21 @@ func main() {
 		log.Printf("%% program args: paramSet=%d, hw=%d\n", *paramSet, *hw)
 		for i, logSloti := 0, uint64(minLogSlots); logSloti <= params.LogN()-1; i, logSloti = i+1, logSloti+1 {
 			log.Println("running experiment for logslot =", logSloti)
-			params := ckks.BootstrappParams[*paramSet].Copy()
 			params.SetLogSlots(logSloti)
 
-			encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params)
+			encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params, btpParams)
 
 			values := make([]complex128, params.Slots())
 			for j := range values {
 				values[j] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
-			plaintext := ckks.NewPlaintext(&params.Parameters, params.MaxLevel(), params.Scale())
+			plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
 			encoder.Encode(plaintext, values, params.Slots())
 			ciphertext := encryptor.EncryptNew(plaintext)
 
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
-			stats[i] = ckks.GetPrecisionStats(&params.Parameters, encoder, decryptor, values, ciphertext)
+			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext)
 
 			plaintext = nil
 			ciphertext = nil
@@ -132,24 +134,24 @@ func main() {
 	output(os.Stdout, exp, stats, *makePlot, bReal, bImag)
 }
 
-func instanciateExperiment(params *ckks.BootParams) (encoder ckks.Encoder, encryptor ckks.Encryptor, evaluator ckks.Evaluator, decryptor ckks.Decryptor, bootstrapper *ckks.BootContext) {
+func instanciateExperiment(params *ckks.Parameters, btpParams *ckks.BootstrappParams) (encoder ckks.Encoder, encryptor ckks.Encryptor, evaluator ckks.Evaluator, decryptor ckks.Decryptor, bootstrapper *ckks.Bootstrapper) {
 
-	if err := params.Gen(); err != nil {
-		log.Fatal(err)
-	}
-	keyGen := ckks.NewKeyGenerator(&params.Parameters)
+	keyGen := ckks.NewKeyGenerator(params)
 	sk, pk := keyGen.GenKeyPairSparse(*hw)
 
-	encoder = ckks.NewEncoder(&params.Parameters)
-	encryptor = ckks.NewEncryptorFromPk(&params.Parameters, pk)
-	decryptor = ckks.NewDecryptor(&params.Parameters, sk)
+	encoder = ckks.NewEncoder(params)
+	encryptor = ckks.NewEncryptorFromPk(params, pk)
+	decryptor = ckks.NewDecryptor(params, sk)
 
-	evaluator = ckks.NewEvaluator(&params.Parameters)
+	evaluator = ckks.NewEvaluator(params)
 
-	bootstrapper = ckks.NewBootContext(params)
+	bootstrapper, err = ckks.NewBootstrapper(params, btpParams)
+	if err != nil {
+		panic(err)
+	}
 	log.Println("Generating the keys...")
-
-	bootstrapper.GenBootKeys(sk)
+	bootstrapper.GenKeys(sk)
+	log.Println("Done")
 
 	return
 }

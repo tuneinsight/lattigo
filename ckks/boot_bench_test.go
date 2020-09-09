@@ -2,14 +2,13 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/utils"
+	"math"
 	"testing"
 )
 
 func BenchmarkBootstrapp(b *testing.B) {
 
 	var btp *Bootstrapper
-	var kgen KeyGenerator
-	var sk *SecretKey
 	var ciphertext *Ciphertext
 
 	var LTScale float64
@@ -17,10 +16,10 @@ func BenchmarkBootstrapp(b *testing.B) {
 	LTScale = 1 << 45
 	//SineScale = 1 << 55
 
-	bootparams := BootstrappParams[4]
-	bootparams.Gen()
+	paramSet := uint64(4)
 
-	if err := genTestParams(bootparams); err != nil {
+	btpParams := DefaultBootstrappParams[paramSet]
+	if err := genTestParams(DefaultBootstrappSchemeParams[paramSet], btpParams.H); err != nil {
 		panic(err)
 	}
 
@@ -29,17 +28,16 @@ func BenchmarkBootstrapp(b *testing.B) {
 		panic(err)
 	}
 
-	ctsDepth := uint64(len(bootparams.CtSLevel))
-	sinDepth := bootparams.SinDepth
+	ctsDepth := uint64(len(btpParams.CtSLevel))
+	sinDepth := uint64(math.Ceil(math.Log2(float64(btpParams.SinDeg))) + float64(btpParams.SinRescal))
 
 	testString("Params/")
 
-	kgen = NewKeyGenerator(params.params)
-
-	sk = kgen.GenSecretKey()
-
-	btp = NewBootstrapper(bootparams)
-	btp.GenBootKeys(sk)
+	btp, err = NewBootstrapper(params.params, btpParams)
+	if err != nil {
+		panic(err)
+	}
+	btp.GenKeys(params.sk)
 
 	b.Run(testString("ModUp/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

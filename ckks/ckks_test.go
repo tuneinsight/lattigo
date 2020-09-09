@@ -58,7 +58,7 @@ func TestCKKS(t *testing.T) {
 
 	for _, defaultParam := range defaultParams {
 
-		if err = genTestParams(defaultParam); err != nil {
+		if err = genTestParams(defaultParam, 0); err != nil {
 			panic(err)
 		}
 
@@ -82,7 +82,7 @@ func TestCKKS(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParams interface{}) (err error) {
+func genTestParams(defaultParams interface{}, hw uint64) (err error) {
 
 	params = new(testParams)
 
@@ -101,9 +101,9 @@ func genTestParams(defaultParams interface{}) (err error) {
 		params.kgen = NewKeyGenerator(params.params)
 		params.sk, params.pk = params.kgen.GenKeyPair()
 
-	case *BootParams:
+	default:
 
-		p := defaultParams.(*BootParams)
+		p := defaultParams.(*Parameters)
 
 		if params.params, err = NewParametersFromModuli(p.logN, p.Moduli); err != nil {
 			return err
@@ -113,11 +113,7 @@ func genTestParams(defaultParams interface{}) (err error) {
 		params.params.SetScale(p.scale)
 
 		params.kgen = NewKeyGenerator(params.params)
-		params.sk, params.pk = params.kgen.GenKeyPairSparse(p.H)
-
-	default:
-		return fmt.Errorf("Invalid input type for 'genTestParams'")
-
+		params.sk, params.pk = params.kgen.GenKeyPairSparse(hw)
 	}
 
 	if params.ringQ, err = ring.NewRing(params.params.N(), params.params.qi); err != nil {

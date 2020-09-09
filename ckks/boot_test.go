@@ -19,24 +19,24 @@ func TestBootstrapp(t *testing.T) {
 
 	SineScale = 1 << 55
 
-	bootparams := BootstrappParams[4]
-	bootparams.Gen()
-
-	/*
-		for i, qi := range bootparams.Qi {
-			fmt.Printf("%d : 0x%x\n", i, qi)
-		}
-
-		for i, pj := range bootparams.Pi {
-			fmt.Printf("%d : 0x%x\n", i, pj)
-		}
-	*/
-
-	if err := genTestParams(bootparams); err != nil {
+	paramSet := uint64(4)
+	btpParams := DefaultBootstrappParams[paramSet]
+	if err := genTestParams(DefaultBootstrappSchemeParams[paramSet], btpParams.H); err != nil {
 		panic(err)
 	}
 
-	slots := bootparams.Slots()
+	/*
+		for _, qi := range params.params.qi {
+			fmt.Printf("0x%x,\n", qi)
+		}
+		fmt.Println()
+
+		for _, pj := range params.params.pi {
+			fmt.Printf("0x%x,\n", pj)
+		}
+	*/
+
+	slots := params.params.Slots()
 
 	t.Run(testString("ChebySin/"), func(t *testing.T) {
 
@@ -51,7 +51,7 @@ func TestBootstrapp(t *testing.T) {
 		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params.encryptorSk, -K+1, K-1, t)
-		eval.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
+		eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
 
@@ -82,13 +82,13 @@ func TestBootstrapp(t *testing.T) {
 
 		K := 26
 		deg := 63
-		dev := float64(bootparams.qi[0]) / DefaultScale
+		dev := float64(params.params.qi[0]) / DefaultScale
 		sc_num := 2
 
 		sc_fac := complex(float64(int(1<<sc_num)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBoot(params.encryptorSk, float64(-K+1), float64(K-1), t)
-		eval.DropLevel(ciphertext, uint64(len(bootparams.CtSLevel))-1)
+		eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
@@ -140,8 +140,11 @@ func TestBootstrapp(t *testing.T) {
 
 	t.Run(testString("Bootstrapp/"), func(t *testing.T) {
 
-		btp := NewBootstrapper(bootparams)
-		btp.GenBootKeys(params.sk)
+		btp, err := NewBootstrapper(params.params, btpParams)
+		if err != nil {
+			panic(err)
+		}
+		btp.GenKeys(params.sk)
 
 		rlk, rotkey := btp.ExportKeys()
 

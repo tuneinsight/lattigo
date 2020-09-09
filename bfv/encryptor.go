@@ -246,7 +246,6 @@ func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 func (encryptor *skEncryptor) EncryptFastNew(plaintext *Plaintext) *Ciphertext {
 	panic("Cannot EncryptFastNew : not supported by sk encyrptor -> use EncryptFastNew instead")
-	return nil
 }
 
 func (encryptor *skEncryptor) EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext) {
@@ -265,7 +264,6 @@ func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *C
 
 func (encryptor *skEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
 	panic("Cannot EncryptFromCRPFastNew : not supported by sk encyrptor -> use EncryptFromCRPNew instead")
-	return nil
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {

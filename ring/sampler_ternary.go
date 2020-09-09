@@ -10,8 +10,8 @@ import (
 const precision = uint64(56)
 
 type baseSampler struct {
-	prng    utils.PRNG
-	context *Ring
+	prng     utils.PRNG
+	baseRing *Ring
 }
 
 // TernarySampler keeps the state of a polynomial sampler in the ternary distribution.
@@ -27,9 +27,9 @@ type TernarySampler struct {
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
 // parameters: p is the probability of a coefficient being 0, (1-p)/2 is the probability of 1 and -1. If "montgomery"
 // is set to true, polynomials read from this sampler are in Montgomery form.
-func NewTernarySampler(prng utils.PRNG, context *Ring, p float64, montgomery bool) *TernarySampler {
+func NewTernarySampler(prng utils.PRNG, baseRing *Ring, p float64, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
-	ternarySampler.context = context
+	ternarySampler.baseRing = baseRing
 	ternarySampler.prng = prng
 	ternarySampler.p = p
 	ternarySampler.sample = ternarySampler.sampleProba
@@ -46,9 +46,9 @@ func NewTernarySampler(prng utils.PRNG, context *Ring, p float64, montgomery boo
 // NewTernarySamplerSparse creates a new instance of a fixed-hamming-weight TernarySampler from a PRNG, the ring definition and the desired
 // hamming weight for the output polynomials. If "montgomery" is set to true, polynomials read from this sampler
 // are in Montgomery form.
-func NewTernarySamplerSparse(prng utils.PRNG, context *Ring, hw uint64, montgomery bool) *TernarySampler {
+func NewTernarySamplerSparse(prng utils.PRNG, baseRing *Ring, hw uint64, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
-	ternarySampler.context = context
+	ternarySampler.baseRing = baseRing
 	ternarySampler.prng = prng
 	ternarySampler.hw = hw
 	ternarySampler.sample = ternarySampler.sampleSparse
@@ -65,21 +65,21 @@ func (ts *TernarySampler) Read(pol *Poly) {
 
 // ReadNew allocates and samples a polynomial.
 func (ts *TernarySampler) ReadNew() (pol *Poly) {
-	pol = ts.context.NewPoly()
+	pol = ts.baseRing.NewPoly()
 	ts.sample(pol)
 	return pol
 }
 
 func (ts *TernarySampler) initializeMatrix(montgomery bool) {
-	ts.matrixValues = make([][3]uint64, len(ts.context.Modulus))
+	ts.matrixValues = make([][3]uint64, len(ts.baseRing.Modulus))
 
-	for i, Qi := range ts.context.Modulus {
+	for i, Qi := range ts.baseRing.Modulus {
 
 		ts.matrixValues[i][0] = 0
 
 		if montgomery {
-			ts.matrixValues[i][1] = MForm(1, Qi, ts.context.BredParams[i])
-			ts.matrixValues[i][2] = MForm(Qi-1, Qi, ts.context.BredParams[i])
+			ts.matrixValues[i][1] = MForm(1, Qi, ts.baseRing.BredParams[i])
+			ts.matrixValues[i][2] = MForm(Qi-1, Qi, ts.baseRing.BredParams[i])
 		} else {
 			ts.matrixValues[i][1] = 1
 			ts.matrixValues[i][2] = Qi - 1
@@ -121,40 +121,40 @@ func (ts *TernarySampler) sampleProba(pol *Poly) {
 
 	if ts.p == 0.5 {
 
-		randomBytesCoeffs := make([]byte, ts.context.N>>3)
-		randomBytesSign := make([]byte, ts.context.N>>3)
+		randomBytesCoeffs := make([]byte, ts.baseRing.N>>3)
+		randomBytesSign := make([]byte, ts.baseRing.N>>3)
 
 		ts.prng.Clock(randomBytesCoeffs)
 
 		ts.prng.Clock(randomBytesSign)
 
-		for i := uint64(0); i < ts.context.N; i++ {
+		for i := uint64(0); i < ts.baseRing.N; i++ {
 			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
 			sign = uint64(uint8(randomBytesSign[i>>3])>>(i&7)) & 1
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
-			for j := range ts.context.Modulus {
+			for j := range ts.baseRing.Modulus {
 				pol.Coeffs[j][i] = ts.matrixValues[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
 			}
 		}
 
 	} else {
 
-		randomBytes := make([]byte, ts.context.N)
+		randomBytes := make([]byte, ts.baseRing.N)
 
 		pointer := uint8(0)
 		bytePointer := uint64(0)
 
 		ts.prng.Clock(randomBytes)
 
-		for i := uint64(0); i < ts.context.N; i++ {
+		for i := uint64(0); i < ts.baseRing.N; i++ {
 
-			coeff, sign, randomBytes, pointer, bytePointer = ts.kysampling(ts.prng, randomBytes, pointer, bytePointer, ts.context.N)
+			coeff, sign, randomBytes, pointer, bytePointer = ts.kysampling(ts.prng, randomBytes, pointer, bytePointer, ts.baseRing.N)
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
-			for j := range ts.context.Modulus {
+			for j := range ts.baseRing.Modulus {
 				pol.Coeffs[j][i] = ts.matrixValues[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
 			}
 		}
@@ -163,15 +163,15 @@ func (ts *TernarySampler) sampleProba(pol *Poly) {
 
 func (ts *TernarySampler) sampleSparse(pol *Poly) {
 
-	if ts.hw > ts.context.N {
-		ts.hw = ts.context.N
+	if ts.hw > ts.baseRing.N {
+		ts.hw = ts.baseRing.N
 	}
 
 	var mask, j uint64
 	var coeff uint8
 
-	index := make([]uint64, ts.context.N)
-	for i := uint64(0); i < ts.context.N; i++ {
+	index := make([]uint64, ts.baseRing.N)
+	for i := uint64(0); i < ts.baseRing.N; i++ {
 		index[i] = i
 	}
 
@@ -181,15 +181,15 @@ func (ts *TernarySampler) sampleSparse(pol *Poly) {
 	ts.prng.Clock(randomBytes)
 
 	for i := uint64(0); i < ts.hw; i++ {
-		mask = (1 << uint64(bits.Len64(ts.context.N-i))) - 1 // rejection sampling of a random variable between [0, len(index)]
+		mask = (1 << uint64(bits.Len64(ts.baseRing.N-i))) - 1 // rejection sampling of a random variable between [0, len(index)]
 
 		j = randInt32(ts.prng, mask)
-		for j >= ts.context.N-i {
+		for j >= ts.baseRing.N-i {
 			j = randInt32(ts.prng, mask)
 		}
 
 		coeff = (uint8(randomBytes[0]) >> (i & 7)) & 1 // random binary digit [0, 1] from the random bytes
-		for i := range ts.context.Modulus {
+		for i := range ts.baseRing.Modulus {
 			pol.Coeffs[i][index[j]] = ts.matrixValues[i][coeff]
 		}
 

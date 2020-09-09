@@ -10,7 +10,7 @@ type Plaintext struct {
 	value *ring.Poly
 }
 
-// NewPlaintext creates a new plaintext from the target context.
+// NewPlaintext creates and allocates a new plaintext.
 func NewPlaintext(params *Parameters) *Plaintext {
 
 	plaintext := &Plaintext{newBfvElement(params, 0), nil}

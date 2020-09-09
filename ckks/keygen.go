@@ -279,7 +279,6 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newev
 		panic("Cannot GenSwitchingKey: modulus P is empty")
 	}
 
-	//keygen.ringContext.Sub(skInput.Get(), skOutput.Get(), keygen.polypool)
 	keygen.ringQP.Copy(skInput.Get(), keygen.polypool[0])
 	newevakey = keygen.newSwitchingKey(keygen.polypool[0], skOutput.Get())
 	keygen.polypool[0].Zero()

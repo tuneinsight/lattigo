@@ -210,7 +210,7 @@ func (encryptor *pkEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *r
 // encrypt with sk: ciphertext = [-a*sk + m + e, a]
 func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
 
-	// We sample a R-WLE instance (encryption of zero) over the keys context (ciphertext context + special prime)
+	// We sample a R-WLE instance (encryption of zero) over the extended ring (ciphertext ring + special prime)
 
 	ringQ := encryptor.ringQ
 

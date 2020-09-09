@@ -299,11 +299,8 @@ func (eval *evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertex
 // tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
 func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 
-	contextQ := eval.ringQ
-	ringQMul := eval.ringQMul
-
-	levelQ := uint64(len(contextQ.Modulus) - 1)
-	levelQMul := uint64(len(ringQMul.Modulus) - 1)
+	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
+	levelQMul := uint64(len(eval.ringQMul.Modulus) - 1)
 
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them to NTT form
@@ -320,8 +317,8 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	for i := range ct0.value {
 		eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct0.value[i], c0Q2[i])
 
-		contextQ.NTT(ct0.value[i], c0Q1[i])
-		ringQMul.NTT(c0Q2[i], c0Q2[i])
+		eval.ringQ.NTT(ct0.value[i], c0Q1[i])
+		eval.ringQMul.NTT(c0Q2[i], c0Q2[i])
 	}
 
 	if ct0 != ct1 {
@@ -329,8 +326,8 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		for i := range ct1.value {
 			eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct1.value[i], c1Q2[i])
 
-			contextQ.NTT(ct1.value[i], c1Q1[i])
-			ringQMul.NTT(c1Q2[i], c1Q2[i])
+			eval.ringQ.NTT(ct1.value[i], c1Q1[i])
+			eval.ringQMul.NTT(c1Q2[i], c1Q2[i])
 		}
 	}
 
@@ -346,47 +343,47 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 		c01Q := eval.poolQ[3][1]
 		c01P := eval.poolQmul[3][1]
 
-		contextQ.MForm(c0Q1[0], c00Q)
-		ringQMul.MForm(c0Q2[0], c00Q2)
+		eval.ringQ.MForm(c0Q1[0], c00Q)
+		eval.ringQMul.MForm(c0Q2[0], c00Q2)
 
-		contextQ.MForm(c0Q1[1], c01Q)
-		ringQMul.MForm(c0Q2[1], c01P)
+		eval.ringQ.MForm(c0Q1[1], c01Q)
+		eval.ringQMul.MForm(c0Q2[1], c01P)
 
 		// Squaring case
 		if ct0 == ct1 {
 
 			// c0 = c0[0]*c0[0]
-			contextQ.MulCoeffsMontgomery(c00Q, c0Q1[0], c2Q1[0])
-			ringQMul.MulCoeffsMontgomery(c00Q2, c0Q2[0], c2Q2[0])
+			eval.ringQ.MulCoeffsMontgomery(c00Q, c0Q1[0], c2Q1[0])
+			eval.ringQMul.MulCoeffsMontgomery(c00Q2, c0Q2[0], c2Q2[0])
 
 			// c1 = 2*c0[0]*c0[1]
-			contextQ.MulCoeffsMontgomery(c00Q, c0Q1[1], c2Q1[1])
-			ringQMul.MulCoeffsMontgomery(c00Q2, c0Q2[1], c2Q2[1])
+			eval.ringQ.MulCoeffsMontgomery(c00Q, c0Q1[1], c2Q1[1])
+			eval.ringQMul.MulCoeffsMontgomery(c00Q2, c0Q2[1], c2Q2[1])
 
-			contextQ.AddNoMod(c2Q1[1], c2Q1[1], c2Q1[1])
-			ringQMul.AddNoMod(c2Q2[1], c2Q2[1], c2Q2[1])
+			eval.ringQ.AddNoMod(c2Q1[1], c2Q1[1], c2Q1[1])
+			eval.ringQMul.AddNoMod(c2Q2[1], c2Q2[1], c2Q2[1])
 
 			// c2 = c0[1]*c0[1]
-			contextQ.MulCoeffsMontgomery(c01Q, c0Q1[1], c2Q1[2])
-			ringQMul.MulCoeffsMontgomery(c01P, c0Q2[1], c2Q2[2])
+			eval.ringQ.MulCoeffsMontgomery(c01Q, c0Q1[1], c2Q1[2])
+			eval.ringQMul.MulCoeffsMontgomery(c01P, c0Q2[1], c2Q2[2])
 
 			// Normal case
 		} else {
 
 			// c0 = c0[0]*c1[0]
-			contextQ.MulCoeffsMontgomery(c00Q, c1Q1[0], c2Q1[0])
-			ringQMul.MulCoeffsMontgomery(c00Q2, c1Q2[0], c2Q2[0])
+			eval.ringQ.MulCoeffsMontgomery(c00Q, c1Q1[0], c2Q1[0])
+			eval.ringQMul.MulCoeffsMontgomery(c00Q2, c1Q2[0], c2Q2[0])
 
 			// c1 = c0[0]*c1[1] + c0[1]*c1[0]
-			contextQ.MulCoeffsMontgomery(c00Q, c1Q1[1], c2Q1[1])
-			ringQMul.MulCoeffsMontgomery(c00Q2, c1Q2[1], c2Q2[1])
+			eval.ringQ.MulCoeffsMontgomery(c00Q, c1Q1[1], c2Q1[1])
+			eval.ringQMul.MulCoeffsMontgomery(c00Q2, c1Q2[1], c2Q2[1])
 
-			contextQ.MulCoeffsMontgomeryAndAddNoMod(c01Q, c1Q1[0], c2Q1[1])
-			ringQMul.MulCoeffsMontgomeryAndAddNoMod(c01P, c1Q2[0], c2Q2[1])
+			eval.ringQ.MulCoeffsMontgomeryAndAddNoMod(c01Q, c1Q1[0], c2Q1[1])
+			eval.ringQMul.MulCoeffsMontgomeryAndAddNoMod(c01P, c1Q2[0], c2Q2[1])
 
 			// c2 = c0[1]*c1[1]
-			contextQ.MulCoeffsMontgomery(c01Q, c1Q1[1], c2Q1[2])
-			ringQMul.MulCoeffsMontgomery(c01P, c1Q2[1], c2Q2[2])
+			eval.ringQ.MulCoeffsMontgomery(c01Q, c1Q1[1], c2Q1[2])
+			eval.ringQMul.MulCoeffsMontgomery(c01P, c1Q2[1], c2Q2[2])
 		}
 
 		// Case where both BfvElements are not of degree 1
@@ -404,84 +401,54 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 			c00Q2 := eval.poolQmul[3]
 
 			for i := range ct0.value {
-				contextQ.MForm(c0Q1[i], c00Q1[i])
-				ringQMul.MForm(c0Q2[i], c00Q2[i])
+				eval.ringQ.MForm(c0Q1[i], c00Q1[i])
+				eval.ringQMul.MForm(c0Q2[i], c00Q2[i])
 			}
 
 			for i := uint64(0); i < ct0.Degree()+1; i++ {
 				for j := i + 1; j < ct0.Degree()+1; j++ {
-					contextQ.MulCoeffsMontgomery(c00Q1[i], c0Q1[j], c2Q1[i+j])
-					ringQMul.MulCoeffsMontgomery(c00Q2[i], c0Q2[j], c2Q2[i+j])
+					eval.ringQ.MulCoeffsMontgomery(c00Q1[i], c0Q1[j], c2Q1[i+j])
+					eval.ringQMul.MulCoeffsMontgomery(c00Q2[i], c0Q2[j], c2Q2[i+j])
 
-					contextQ.Add(c2Q1[i+j], c2Q1[i+j], c2Q1[i+j])
-					ringQMul.Add(c2Q2[i+j], c2Q2[i+j], c2Q2[i+j])
+					eval.ringQ.Add(c2Q1[i+j], c2Q1[i+j], c2Q1[i+j])
+					eval.ringQMul.Add(c2Q2[i+j], c2Q2[i+j], c2Q2[i+j])
 				}
 			}
 
 			for i := uint64(0); i < ct0.Degree()+1; i++ {
-				contextQ.MulCoeffsMontgomeryAndAdd(c00Q1[i], c0Q1[i], c2Q1[i<<1])
-				ringQMul.MulCoeffsMontgomeryAndAdd(c00Q2[i], c0Q2[i], c2Q2[i<<1])
+				eval.ringQ.MulCoeffsMontgomeryAndAdd(c00Q1[i], c0Q1[i], c2Q1[i<<1])
+				eval.ringQMul.MulCoeffsMontgomeryAndAdd(c00Q2[i], c0Q2[i], c2Q2[i<<1])
 			}
 
 			// Normal case
 		} else {
 			for i := range ct0.value {
-				contextQ.MForm(c0Q1[i], c0Q1[i])
-				ringQMul.MForm(c0Q2[i], c0Q2[i])
+				eval.ringQ.MForm(c0Q1[i], c0Q1[i])
+				eval.ringQMul.MForm(c0Q2[i], c0Q2[i])
 				for j := range ct1.value {
-					contextQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[i+j])
-					ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[i+j])
+					eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[i+j])
+					eval.ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[i+j])
 				}
 			}
 		}
 	}
 
-	//fmt.Println(contextQ.Modulus)
-	//contextBig, _ := ring.NewContextWithParams(contextQ.N, append(eval.params.Qi, eval.params.QiMul...))
-	//polyBig := contextBig.NewPoly()
-
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q
 	for i := range ctOut.value {
-		contextQ.InvNTT(c2Q1[i], c2Q1[i])
-		ringQMul.InvNTT(c2Q2[i], c2Q2[i])
-
-		/*
-			for j := range contextQ.Modulus {
-				for k := uint64(0) ; k < contextQ.N; k++ {
-					polyBig.Coeffs[j][k] = c2Q1[i].Coeffs[j][k]
-				}
-			}
-
-			for j := range ringQMul.Modulus {
-				for k := uint64(0) ; k < contextQ.N; k++ {
-					polyBig.Coeffs[j+len(contextQ.Modulus)][k] = c2Q2[i].Coeffs[j][k]
-				}
-			}
-		*/
-
-		// Option (1) (ct(x) * T)/Q; doing so requires that Q*P > Q*Q*T; it is slower but has smaller error.
-		//contextQ.MulScalar(c2Q1[i], eval.ringT.Modulus[0], c2Q1[i])
-		//ringQMul.MulScalar(c2Q2[i], eval.ringT.Modulus[0], c2Q2[i])
-
-		//coeffs_bigint := make([]*big.Int, contextQ.N)
-		//contextBig.PolyToBigint(polyBig, coeffs_bigint)
-		//fmt.Println(coeffs_bigint[0])
+		eval.ringQ.InvNTT(c2Q1[i], c2Q1[i])
+		eval.ringQMul.InvNTT(c2Q2[i], c2Q2[i])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
 		eval.baseconverterQ1Q2.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
 
-		//ringQMul.PolyToBigint(c2Q2[i], coeffs_bigint)
-		//fmt.Println(coeffs_bigint[0])
-		//fmt.Println()
-
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
-		ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
+		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
 		eval.baseconverterQ1Q2.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.value[i])
-		contextQ.SubScalarBigint(ctOut.value[i], eval.pHalf, ctOut.value[i])
+		eval.ringQ.SubScalarBigint(ctOut.value[i], eval.pHalf, ctOut.value[i])
 
 		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
-		contextQ.MulScalar(ctOut.value[i], eval.t, ctOut.value[i])
+		eval.ringQ.MulScalar(ctOut.value[i], eval.t, ctOut.value[i])
 	}
 }
 
@@ -501,8 +468,6 @@ func (eval *evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext) 
 // relinearize is a method common to Relinearize and RelinearizeNew. It switches ct0 to the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
 func (eval *evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
 
-	context := eval.ringQ
-
 	if ctOut != ct0 {
 		eval.ringQ.Copy(ct0.value[0], ctOut.value[0])
 		eval.ringQ.Copy(ct0.value[1], ctOut.value[1])
@@ -510,8 +475,8 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
 		eval.switchKeysInPlace(ct0.value[deg], evakey.evakey[deg-2], eval.poolQKS[1], eval.poolQKS[2])
-		context.Add(ctOut.value[0], eval.poolQKS[1], ctOut.value[0])
-		context.Add(ctOut.value[1], eval.poolQKS[2], ctOut.value[1])
+		eval.ringQ.Add(ctOut.value[0], eval.poolQKS[1], ctOut.value[0])
+		eval.ringQ.Add(ctOut.value[1], eval.poolQKS[2], ctOut.value[1])
 	}
 
 	ctOut.SetValue(ctOut.value[:2])
@@ -651,16 +616,13 @@ func (eval *evaluator) rotateColumnsRPow2(ct0 *Ciphertext, k uint64, evakey *Rot
 func (eval *evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint64, evakeyRotCol map[uint64]*SwitchingKey, ctOut *Ciphertext) {
 
 	var mask, evakeyIndex uint64
-
-	context := eval.ringQ
-
 	mask = (eval.ringQ.N << 1) - 1
 
 	evakeyIndex = 1
 
 	if ct0 != ctOut {
-		context.Copy(ct0.value[0], ctOut.value[0])
-		context.Copy(ct0.value[1], ctOut.value[1])
+		eval.ringQ.Copy(ct0.value[0], ctOut.value[0])
+		eval.ringQ.Copy(ct0.value[1], ctOut.value[1])
 	}
 
 	// Applies the Galois automorphism and the key-switching process
@@ -724,14 +686,12 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ci
 // permute performs a column rotation on ct0 and returns the result in ctOut
 func (eval *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *SwitchingKey, ctOut *Ciphertext) {
 
-	context := eval.ringQ
-
 	eval.switchKeysInPlace(ct0.value[1], switchKey, eval.poolQKS[1], eval.poolQKS[2])
 
-	context.Add(eval.poolQKS[1], ct0.value[0], eval.poolQKS[1])
+	eval.ringQ.Add(eval.poolQKS[1], ct0.value[0], eval.poolQKS[1])
 
-	context.Permute(eval.poolQKS[1], generator, ctOut.value[0])
-	context.Permute(eval.poolQKS[2], generator, ctOut.value[1])
+	eval.ringQ.Permute(eval.poolQKS[1], generator, ctOut.value[0])
+	eval.ringQ.Permute(eval.poolQKS[2], generator, ctOut.value[1])
 }
 
 // switchKeys applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
@@ -793,7 +753,6 @@ func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, po
 		reduce++
 	}
 
-	//Independent of context (parameter: level)
 	if (reduce-1)&7 != 1 {
 		ringQ.ReduceLvl(level, pool2Q, pool2Q)
 		ringQ.ReduceLvl(level, pool3Q, pool3Q)

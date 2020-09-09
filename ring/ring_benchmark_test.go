@@ -11,7 +11,7 @@ import (
 )
 
 func BenchmarkRing(b *testing.B) {
-	b.Run("GenRingContext", benchGenRingContext)
+	b.Run("GenRing", benchGenRing)
 	b.Run("Marshalling", benchMarshalling)
 	b.Run("Sampling", benchSampling)
 	b.Run("Montgomery", benchMontgomeryForm)
@@ -30,15 +30,15 @@ func BenchmarkRing(b *testing.B) {
 
 }
 
-func benchGenRingContext(b *testing.B) {
+func benchGenRing(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		b.Run(testString("", context), func(b *testing.B) {
+		b.Run(testString("", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				genPolyContext(parameters[0])
+				getRing(parameters[0])
 			}
 
 		})
@@ -49,16 +49,16 @@ func benchMarshalling(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
 		p := uniformSampler.ReadNew()
 
-		b.Run(testString("Marshal/Poly/", context), func(b *testing.B) {
+		b.Run(testString("Marshal/Poly/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				p.MarshalBinary()
 			}
@@ -67,7 +67,7 @@ func benchMarshalling(b *testing.B) {
 
 		data, _ := p.MarshalBinary()
 
-		b.Run(testString("Unmarshal/Poly/", context), func(b *testing.B) {
+		b.Run(testString("Unmarshal/Poly/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				p.UnmarshalBinary(data)
 			}
@@ -83,64 +83,64 @@ func benchSampling(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		pol := context.NewPoly()
+		pol := ringQ.NewPoly()
 
-		b.Run(testString("Gaussian/PRNG/", context), func(b *testing.B) {
+		b.Run(testString("Gaussian/PRNG/", ringQ), func(b *testing.B) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			gaussianSampler := NewGaussianSampler(prng, context, sigma, bound)
+			gaussianSampler := NewGaussianSampler(prng, ringQ, sigma, bound)
 
 			for i := 0; i < b.N; i++ {
-				gaussianSampler.ReadLvl(uint64(len(context.Modulus)-1), pol)
+				gaussianSampler.ReadLvl(uint64(len(ringQ.Modulus)-1), pol)
 			}
 		})
 
-		b.Run(testString("Ternary/0.3/", context), func(b *testing.B) {
+		b.Run(testString("Ternary/0.3/", ringQ), func(b *testing.B) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			ternarySampler := NewTernarySampler(prng, context, 1.0/3, true)
-
-			for i := 0; i < b.N; i++ {
-				ternarySampler.Read(pol)
-			}
-		})
-
-		b.Run(testString("Ternary/0.5/", context), func(b *testing.B) {
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			ternarySampler := NewTernarySampler(prng, context, 0.5, true)
+			ternarySampler := NewTernarySampler(prng, ringQ, 1.0/3, true)
 
 			for i := 0; i < b.N; i++ {
 				ternarySampler.Read(pol)
 			}
 		})
 
-		b.Run(testString("Ternary/sparse128/", context), func(b *testing.B) {
+		b.Run(testString("Ternary/0.5/", ringQ), func(b *testing.B) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			ternarySampler := NewTernarySamplerSparse(prng, context, 128, true)
+			ternarySampler := NewTernarySampler(prng, ringQ, 0.5, true)
 
 			for i := 0; i < b.N; i++ {
 				ternarySampler.Read(pol)
 			}
 		})
 
-		b.Run(testString("Uniform/PRNG/", context), func(b *testing.B) {
+		b.Run(testString("Ternary/sparse128/", ringQ), func(b *testing.B) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			uniformSampler := NewUniformSampler(prng, context)
+			ternarySampler := NewTernarySamplerSparse(prng, ringQ, 128, true)
+
+			for i := 0; i < b.N; i++ {
+				ternarySampler.Read(pol)
+			}
+		})
+
+		b.Run(testString("Uniform/PRNG/", ringQ), func(b *testing.B) {
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			uniformSampler := NewUniformSampler(prng, ringQ)
 
 			for i := 0; i < b.N; i++ {
 				uniformSampler.Read(pol)
@@ -154,24 +154,24 @@ func benchMontgomeryForm(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
 		p := uniformSampler.ReadNew()
 
-		b.Run(testString("MForm/", context), func(b *testing.B) {
+		b.Run(testString("MForm/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.MForm(p, p)
+				ringQ.MForm(p, p)
 			}
 		})
 
-		b.Run(testString("InvMForm/", context), func(b *testing.B) {
+		b.Run(testString("InvMForm/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.InvMForm(p, p)
+				ringQ.InvMForm(p, p)
 			}
 		})
 	}
@@ -181,44 +181,44 @@ func benchNTT(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
 		var NTT func(*Poly, *Poly)
-		if context.N == 16384 {
-			NTT = context.NTT
+		if ringQ.N == 16384 {
+			NTT = ringQ.NTT
 		} else {
-			NTT = context.NTT
+			NTT = ringQ.NTT
 		}
 
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
 		p := uniformSampler.ReadNew()
 
-		b.Run(testString("NTT/", context), func(b *testing.B) {
+		b.Run(testString("NTT/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				NTT(p, p)
 			}
 		})
 
-		b.Run(testString("InvNTT/", context), func(b *testing.B) {
+		b.Run(testString("InvNTT/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.InvNTT(p, p)
+				ringQ.InvNTT(p, p)
 			}
 		})
 
-		b.Run(testString("NTTBarrett/", context), func(b *testing.B) {
+		b.Run(testString("NTTBarrett/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.NTTBarrett(p, p)
+				ringQ.NTTBarrett(p, p)
 			}
 		})
 
-		b.Run(testString("InvNTTBarrett/", context), func(b *testing.B) {
+		b.Run(testString("InvNTTBarrett/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.InvNTTBarrett(p, p)
+				ringQ.InvNTTBarrett(p, p)
 			}
 		})
 	}
@@ -228,37 +228,37 @@ func benchMulCoeffs(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
 		p0 := uniformSampler.ReadNew()
 		p1 := uniformSampler.ReadNew()
 
-		b.Run(testString("Barrett/", context), func(b *testing.B) {
+		b.Run(testString("Barrett/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.MulCoeffs(p0, p1, p0)
+				ringQ.MulCoeffs(p0, p1, p0)
 			}
 		})
 
-		b.Run(testString("BarrettConstant/", context), func(b *testing.B) {
+		b.Run(testString("BarrettConstant/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.MulCoeffsConstant(p0, p1, p0)
+				ringQ.MulCoeffsConstant(p0, p1, p0)
 			}
 		})
 
-		b.Run(testString("Montgomery/", context), func(b *testing.B) {
+		b.Run(testString("Montgomery/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.MulCoeffsMontgomery(p0, p1, p0)
+				ringQ.MulCoeffsMontgomery(p0, p1, p0)
 			}
 		})
 
-		b.Run(testString("MontgomeryConstant/", context), func(b *testing.B) {
+		b.Run(testString("MontgomeryConstant/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.MulCoeffsMontgomeryConstant(p0, p1, p0)
+				ringQ.MulCoeffsMontgomeryConstant(p0, p1, p0)
 			}
 		})
 	}
@@ -267,25 +267,25 @@ func benchMulCoeffs(b *testing.B) {
 func benchAddCoeffs(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
 		p0 := uniformSampler.ReadNew()
 		p1 := uniformSampler.ReadNew()
 
-		b.Run(testString("Add/", context), func(b *testing.B) {
+		b.Run(testString("Add/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.Add(p0, p1, p0)
+				ringQ.Add(p0, p1, p0)
 			}
 		})
 
-		b.Run(testString("AddConstant/", context), func(b *testing.B) {
+		b.Run(testString("AddConstant/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.AddNoMod(p0, p1, p0)
+				ringQ.AddNoMod(p0, p1, p0)
 			}
 		})
 	}
@@ -294,25 +294,25 @@ func benchAddCoeffs(b *testing.B) {
 func benchSubCoeffs(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
 		p0 := uniformSampler.ReadNew()
 		p1 := uniformSampler.ReadNew()
 
-		b.Run(testString("Sub/", context), func(b *testing.B) {
+		b.Run(testString("Sub/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.Sub(p0, p1, p0)
+				ringQ.Sub(p0, p1, p0)
 			}
 		})
 
-		b.Run(testString("SubConstant/", context), func(b *testing.B) {
+		b.Run(testString("SubConstant/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.SubNoMod(p0, p1, p0)
+				ringQ.SubNoMod(p0, p1, p0)
 			}
 		})
 	}
@@ -321,18 +321,18 @@ func benchSubCoeffs(b *testing.B) {
 func benchNegCoeffs(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
 		p0 := uniformSampler.ReadNew()
 
-		b.Run(testString("Neg", context), func(b *testing.B) {
+		b.Run(testString("Neg", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.Neg(p0, p0)
+				ringQ.Neg(p0, p0)
 			}
 		})
 	}
@@ -342,12 +342,12 @@ func benchMulScalar(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
 		p := uniformSampler.ReadNew()
 
@@ -357,15 +357,15 @@ func benchMulScalar(b *testing.B) {
 		scalarBigint := NewUint(rand1)
 		scalarBigint.Mul(scalarBigint, NewUint(rand2))
 
-		b.Run(testString("uint64/", context), func(b *testing.B) {
+		b.Run(testString("uint64/", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.MulScalar(p, rand1, p)
+				ringQ.MulScalar(p, rand1, p)
 			}
 		})
 
-		b.Run(testString("big.Int", context), func(b *testing.B) {
+		b.Run(testString("big.Int", ringQ), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				context.MulScalarBigint(p, scalarBigint, p)
+				ringQ.MulScalarBigint(p, scalarBigint, p)
 			}
 		})
 	}
@@ -374,42 +374,42 @@ func benchMulScalar(b *testing.B) {
 func benchExtendBasis(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
-		contextQ := genPolyContext(parameters[0])
-		contextP := genPolyContext(parameters[1])
+		ringQ := getRing(parameters[0])
+		ringP := getRing(parameters[1])
 
-		rescaleParams := make([]uint64, len(contextP.Modulus))
+		rescaleParams := make([]uint64, len(ringP.Modulus))
 
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSamplerQ := NewUniformSampler(prng, contextQ)
-		uniformSamplerP := NewUniformSampler(prng, contextP)
+		uniformSamplerQ := NewUniformSampler(prng, ringQ)
+		uniformSamplerP := NewUniformSampler(prng, ringP)
 
-		for i, pi := range contextP.Modulus {
+		for i, pi := range ringP.Modulus {
 			rescaleParams[i] = RandUniform(prng, pi, (1<<uint64(bits.Len64(pi)-1) - 1))
 		}
 
-		basisExtender := NewFastBasisExtender(contextQ, contextP)
+		basisExtender := NewFastBasisExtender(ringQ, ringP)
 
 		p0 := uniformSamplerQ.ReadNew()
 		p1 := uniformSamplerP.ReadNew()
 
-		level := uint64(len(contextQ.Modulus) - 1)
+		level := uint64(len(ringQ.Modulus) - 1)
 
-		b.Run(fmt.Sprintf("ModUp/N=%d/limbsQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
+		b.Run(fmt.Sprintf("ModUp/N=%d/limbsQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				basisExtender.ModUpSplitQP(level, p0, p1)
 			}
 		})
 
-		b.Run(fmt.Sprintf("ModDown/N=%d/limbsQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
+		b.Run(fmt.Sprintf("ModDown/N=%d/limbsQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				basisExtender.ModDownSplitPQ(level, p0, p1, p0)
 			}
 		})
 
-		b.Run(fmt.Sprintf("ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", contextQ.N, len(contextQ.Modulus), len(contextP.Modulus)), func(b *testing.B) {
+		b.Run(fmt.Sprintf("ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				basisExtender.ModDownSplitNTTPQ(level, p0, p1, p0)
 			}
@@ -420,16 +420,16 @@ func benchExtendBasis(b *testing.B) {
 func benchDivByLastModulus(b *testing.B) {
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
 		var p0 *Poly
 
-		b.Run(testString("Floor/", context), func(b *testing.B) {
+		b.Run(testString("Floor/", ringQ), func(b *testing.B) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			uniformSampler := NewUniformSampler(prng, context)
+			uniformSampler := NewUniformSampler(prng, ringQ)
 
 			for i := 0; i < b.N; i++ {
 
@@ -437,16 +437,16 @@ func benchDivByLastModulus(b *testing.B) {
 				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
-				context.DivFloorByLastModulus(p0)
+				ringQ.DivFloorByLastModulus(p0)
 			}
 		})
 
-		b.Run(testString("FloorNTT/", context), func(b *testing.B) {
+		b.Run(testString("FloorNTT/", ringQ), func(b *testing.B) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			uniformSampler := NewUniformSampler(prng, context)
+			uniformSampler := NewUniformSampler(prng, ringQ)
 
 			for i := 0; i < b.N; i++ {
 
@@ -454,16 +454,16 @@ func benchDivByLastModulus(b *testing.B) {
 				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
-				context.DivFloorByLastModulusNTT(p0)
+				ringQ.DivFloorByLastModulusNTT(p0)
 			}
 		})
 
-		b.Run(testString("Round/", context), func(b *testing.B) {
+		b.Run(testString("Round/", ringQ), func(b *testing.B) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			uniformSampler := NewUniformSampler(prng, context)
+			uniformSampler := NewUniformSampler(prng, ringQ)
 
 			for i := 0; i < b.N; i++ {
 
@@ -471,16 +471,16 @@ func benchDivByLastModulus(b *testing.B) {
 				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
-				context.DivRoundByLastModulus(p0)
+				ringQ.DivRoundByLastModulus(p0)
 			}
 		})
 
-		b.Run(testString("RoundNTT/", context), func(b *testing.B) {
+		b.Run(testString("RoundNTT/", ringQ), func(b *testing.B) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			uniformSampler := NewUniformSampler(prng, context)
+			uniformSampler := NewUniformSampler(prng, ringQ)
 
 			for i := 0; i < b.N; i++ {
 
@@ -488,7 +488,7 @@ func benchDivByLastModulus(b *testing.B) {
 				p0 = uniformSampler.ReadNew()
 				b.StartTimer()
 
-				context.DivRoundByLastModulusNTT(p0)
+				ringQ.DivRoundByLastModulusNTT(p0)
 			}
 		})
 	}
@@ -498,57 +498,57 @@ func benchDivByRNSBasis(b *testing.B) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		b.Run(testString("SimpleScaler/DivByQOverTRounded/reconstructAndScale/", context), func(b *testing.B) {
+		b.Run(testString("SimpleScaler/DivByQOverTRounded/reconstructAndScale/", ringQ), func(b *testing.B) {
 
-			rescaler := NewSimpleScaler(testParams.T, context)
+			rescaler := NewSimpleScaler(testParams.T, ringQ)
 
-			coeffs := make([]*big.Int, context.N)
-			for i := uint64(0); i < context.N; i++ {
-				coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs := make([]*big.Int, ringQ.N)
+			for i := uint64(0); i < ringQ.N; i++ {
+				coeffs[i] = RandInt(ringQ.ModulusBigint)
 			}
 
-			tmp0 := context.NewPoly()
-			tmp1 := context.NewPoly()
+			tmp0 := ringQ.NewPoly()
+			tmp1 := ringQ.NewPoly()
 
-			context.SetCoefficientsBigint(coeffs, tmp0)
+			ringQ.SetCoefficientsBigint(coeffs, tmp0)
 
 			for i := 0; i < b.N; i++ {
 				rescaler.reconstructAndScale(tmp0, tmp1)
 			}
 		})
 
-		b.Run(testString("SimpleScaler/DivByQOverTRounded/reconstructThenScale/", context), func(b *testing.B) {
+		b.Run(testString("SimpleScaler/DivByQOverTRounded/reconstructThenScale/", ringQ), func(b *testing.B) {
 
-			rescaler := NewSimpleScaler(testParams.T, context)
+			rescaler := NewSimpleScaler(testParams.T, ringQ)
 
-			coeffs := make([]*big.Int, context.N)
-			for i := uint64(0); i < context.N; i++ {
-				coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs := make([]*big.Int, ringQ.N)
+			for i := uint64(0); i < ringQ.N; i++ {
+				coeffs[i] = RandInt(ringQ.ModulusBigint)
 			}
 
-			tmp0 := context.NewPoly()
-			tmp1 := context.NewPoly()
+			tmp0 := ringQ.NewPoly()
+			tmp1 := ringQ.NewPoly()
 
-			context.SetCoefficientsBigint(coeffs, tmp0)
+			ringQ.SetCoefficientsBigint(coeffs, tmp0)
 
 			for i := 0; i < b.N; i++ {
 				rescaler.reconstructThenScale(tmp0, tmp1)
 			}
 		})
 
-		b.Run(testString("RNSScaler/DivByQOverTRounded/", context), func(b *testing.B) {
+		b.Run(testString("RNSScaler/DivByQOverTRounded/", ringQ), func(b *testing.B) {
 
-			coeffs := make([]*big.Int, context.N)
-			for i := uint64(0); i < context.N; i++ {
-				coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs := make([]*big.Int, ringQ.N)
+			for i := uint64(0); i < ringQ.N; i++ {
+				coeffs[i] = RandInt(ringQ.ModulusBigint)
 			}
 
-			scaler := NewRNSScaler(testParams.T, context)
-			polyQ := context.NewPoly()
-			polyT := NewPoly(context.N, 1)
-			context.SetCoefficientsBigint(coeffs, polyQ)
+			scaler := NewRNSScaler(testParams.T, ringQ)
+			polyQ := ringQ.NewPoly()
+			polyT := NewPoly(ringQ.N, 1)
+			ringQ.SetCoefficientsBigint(coeffs, polyQ)
 
 			for i := 0; i < b.N; i++ {
 				scaler.DivByQOverTRounded(polyQ, polyT)

@@ -65,24 +65,24 @@ func (pcks *PCKSProtocol) AllocateShares(level uint64) (s PCKSShare) {
 func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.Ciphertext, shareOut PCKSShare) {
 
 	ringQ := pcks.dckksContext.ringQ
-	contextKeys := pcks.dckksContext.ringQP
+	ringQP := pcks.dckksContext.ringQP
 
 	pcks.ternarySamplerMontgomery.Read(pcks.tmp)
-	contextKeys.NTT(pcks.tmp, pcks.tmp)
+	ringQP.NTT(pcks.tmp, pcks.tmp)
 
 	// h_0 = u_i * pk_0
-	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
+	ringQP.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
 	// h_1 = u_i * pk_1
-	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], pcks.share1tmp)
+	ringQP.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
 	pcks.gaussianSampler.Read(pcks.tmp)
-	contextKeys.NTT(pcks.tmp, pcks.tmp)
-	contextKeys.Add(pcks.share0tmp, pcks.tmp, pcks.share0tmp)
+	ringQP.NTT(pcks.tmp, pcks.tmp)
+	ringQP.Add(pcks.share0tmp, pcks.tmp, pcks.share0tmp)
 	// h_1 = u_i * pk_1 + e1
 	pcks.gaussianSampler.Read(pcks.tmp)
-	contextKeys.NTT(pcks.tmp, pcks.tmp)
-	contextKeys.Add(pcks.share1tmp, pcks.tmp, pcks.share1tmp)
+	ringQP.NTT(pcks.tmp, pcks.tmp)
+	ringQP.Add(pcks.share1tmp, pcks.tmp, pcks.share1tmp)
 
 	// h_0 = (u_i * pk_0 + e0)/P
 	pcks.baseconverter.ModDownNTTPQ(ct.Level(), pcks.share0tmp, shareOut[0])

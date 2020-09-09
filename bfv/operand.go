@@ -32,11 +32,11 @@ func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 
 func newBfvElementRandom(prng utils.PRNG, params *Parameters, degree uint64) *bfvElement {
 
-	context, err := ring.NewRing(params.n, params.qi)
+	ringQ, err := ring.NewRing(params.n, params.qi)
 	if err != nil {
 		panic(err)
 	}
-	sampler := ring.NewUniformSampler(prng, context)
+	sampler := ring.NewUniformSampler(prng, ringQ)
 	el := newBfvElement(params, degree)
 	for i := uint64(0); i < degree+1; i++ {
 		sampler.Read(el.value[i])
@@ -113,26 +113,26 @@ func (el *bfvElement) Copy(ctxCopy *bfvElement) {
 }
 
 // NTT puts the target bfvElement in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, does nothing.
-func (el *bfvElement) NTT(context *ring.Ring, c *bfvElement) {
+func (el *bfvElement) NTT(ringQ *ring.Ring, c *bfvElement) {
 	if el.Degree() != c.Degree() {
 		panic("cannot NTT: receiver element invalid degree (degrees do not match)")
 	}
 	if el.IsNTT() != true {
 		for i := range el.value {
-			context.NTT(el.Value()[i], c.Value()[i])
+			ringQ.NTT(el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(true)
 	}
 }
 
 // InvNTT puts the target bfvElement outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, it does nothing.
-func (el *bfvElement) InvNTT(context *ring.Ring, c *bfvElement) {
+func (el *bfvElement) InvNTT(ringQ *ring.Ring, c *bfvElement) {
 	if el.Degree() != c.Degree() {
 		panic("cannot InvNTT: receiver element invalid degree (degrees do not match)")
 	}
 	if el.IsNTT() != false {
 		for i := range el.value {
-			context.InvNTT(el.Value()[i], c.Value()[i])
+			ringQ.InvNTT(el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(false)
 	}

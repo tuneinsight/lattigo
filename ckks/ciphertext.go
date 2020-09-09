@@ -55,12 +55,12 @@ func NewCiphertextQP(params *Parameters, degree uint64, level uint64, scale floa
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 
-	context, err := ring.NewRing(params.N(), params.qi[:level+1])
+	ringQ, err := ring.NewRing(params.N(), params.qi[:level+1])
 	if err != nil {
 		panic(err)
 	}
 
-	sampler := ring.NewUniformSampler(prng, context)
+	sampler := ring.NewUniformSampler(prng, ringQ)
 	ciphertext = NewCiphertext(params, degree, level, scale)
 	for i := uint64(0); i < degree+1; i++ {
 		sampler.Read(ciphertext.value[i])

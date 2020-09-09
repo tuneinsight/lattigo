@@ -13,11 +13,11 @@ type UniformSampler struct {
 }
 
 // NewUniformSampler creates a new instance of UniformSampler from a PRNG and ring definition.
-func NewUniformSampler(prng utils.PRNG, context *Ring) *UniformSampler {
+func NewUniformSampler(prng utils.PRNG, baseRing *Ring) *UniformSampler {
 	uniformSampler := new(UniformSampler)
-	uniformSampler.context = context
+	uniformSampler.baseRing = baseRing
 	uniformSampler.prng = prng
-	uniformSampler.randomBufferN = make([]byte, context.N)
+	uniformSampler.randomBufferN = make([]byte, baseRing.N)
 	return uniformSampler
 }
 
@@ -29,23 +29,23 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 
 	uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 
-	for j := range uniformSampler.context.Modulus {
+	for j := range uniformSampler.baseRing.Modulus {
 
-		qi = uniformSampler.context.Modulus[j]
+		qi = uniformSampler.baseRing.Modulus[j]
 
 		// Start by computing the mask
-		mask = uniformSampler.context.Mask[j]
+		mask = uniformSampler.baseRing.Mask[j]
 
 		ptmp := Pol.Coeffs[j]
 
 		// Iterate for each modulus over each coefficient
-		for i := uint64(0); i < uniformSampler.context.N; i++ {
+		for i := uint64(0); i < uniformSampler.baseRing.N; i++ {
 
 			// Sample an integer between [0, qi-1]
 			for {
 
 				// Refill the pool if it runs empty
-				if ptr == uniformSampler.context.N {
+				if ptr == uniformSampler.baseRing.N {
 					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 					ptr = 0
 				}
@@ -77,21 +77,21 @@ func (uniformSampler *UniformSampler) Readlvl(level uint64, Pol *Poly) {
 
 	for j := uint64(0); j < level+1; j++ {
 
-		qi = uniformSampler.context.Modulus[j]
+		qi = uniformSampler.baseRing.Modulus[j]
 
 		// Start by computing the mask
-		mask = uniformSampler.context.Mask[j]
+		mask = uniformSampler.baseRing.Mask[j]
 
 		ptmp := Pol.Coeffs[j]
 
 		// Iterate for each modulus over each coefficient
-		for i := uint64(0); i < uniformSampler.context.N; i++ {
+		for i := uint64(0); i < uniformSampler.baseRing.N; i++ {
 
 			// Sample an integer between [0, qi-1]
 			for {
 
 				// Refill the pool if it runs empty
-				if ptr == uniformSampler.context.N {
+				if ptr == uniformSampler.baseRing.N {
 					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 					ptr = 0
 				}
@@ -116,7 +116,7 @@ func (uniformSampler *UniformSampler) Readlvl(level uint64, Pol *Poly) {
 // ReadNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
 func (uniformSampler *UniformSampler) ReadNew() (Pol *Poly) {
 
-	Pol = uniformSampler.context.NewPoly()
+	Pol = uniformSampler.baseRing.NewPoly()
 
 	uniformSampler.Read(Pol)
 

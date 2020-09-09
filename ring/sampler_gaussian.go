@@ -19,11 +19,11 @@ type GaussianSampler struct {
 // NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
 // Gaussian distribution parameters. Sigma is the desired standard deviation and bound is the maximum coefficient norm in absolute
 // value.
-func NewGaussianSampler(prng utils.PRNG, context *Ring, sigma float64, bound uint64) *GaussianSampler {
+func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, sigma float64, bound uint64) *GaussianSampler {
 	gaussianSampler := new(GaussianSampler)
-	gaussianSampler.context = context
+	gaussianSampler.baseRing = baseRing
 	gaussianSampler.prng = prng
-	gaussianSampler.randomBufferN = make([]byte, context.N)
+	gaussianSampler.randomBufferN = make([]byte, baseRing.N)
 	gaussianSampler.ptr = 0
 	gaussianSampler.sigma = sigma
 	gaussianSampler.bound = bound
@@ -32,13 +32,13 @@ func NewGaussianSampler(prng utils.PRNG, context *Ring, sigma float64, bound uin
 
 // Read samples a polynomial at the maximum level into pol
 func (gaussianSampler *GaussianSampler) Read(pol *Poly) {
-	gaussianSampler.ReadLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
+	gaussianSampler.ReadLvl(uint64(len(gaussianSampler.baseRing.Modulus)-1), pol)
 }
 
 // ReadNew samples a new truncated Gaussian polynomial with
 // standard deviation sigma within the given bound using the Ziggurat algorithm.
 func (gaussianSampler *GaussianSampler) ReadNew() (pol *Poly) {
-	pol = gaussianSampler.context.NewPoly()
+	pol = gaussianSampler.baseRing.NewPoly()
 	gaussianSampler.Read(pol)
 	return pol
 }
@@ -52,7 +52,7 @@ func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly) {
 
 	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
 
-	for i := uint64(0); i < gaussianSampler.context.N; i++ {
+	for i := uint64(0); i < gaussianSampler.baseRing.N; i++ {
 
 		for {
 			coeffFlo, sign = gaussianSampler.normFloat64()
@@ -62,7 +62,7 @@ func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly) {
 			}
 		}
 
-		for j, qi := range gaussianSampler.context.Modulus[:level+1] {
+		for j, qi := range gaussianSampler.baseRing.Modulus[:level+1] {
 			pol.Coeffs[j][i] = (coeffInt * sign) | (qi-coeffInt)*(sign^1)
 		}
 	}
@@ -71,7 +71,7 @@ func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly) {
 // ReadAndAdd adds on the input polynomial a truncated Gaussian polynomial of at the maximum level
 // with standard deviation sigma within the given bound using the Ziggurat algorithm.
 func (gaussianSampler *GaussianSampler) ReadAndAdd(pol *Poly) {
-	gaussianSampler.ReadAndAddLvl(uint64(len(gaussianSampler.context.Modulus)-1), pol)
+	gaussianSampler.ReadAndAddLvl(uint64(len(gaussianSampler.baseRing.Modulus)-1), pol)
 }
 
 // ReadAndAddLvl samples and adds a polynomial at the given level directly into pol. pol must be at the given level.
@@ -83,7 +83,7 @@ func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level uint64, pol *Poly) {
 
 	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
 
-	for i := uint64(0); i < gaussianSampler.context.N; i++ {
+	for i := uint64(0); i < gaussianSampler.baseRing.N; i++ {
 
 		for {
 			coeffFlo, sign = gaussianSampler.normFloat64()
@@ -93,7 +93,7 @@ func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level uint64, pol *Poly) {
 			}
 		}
 
-		for j, qi := range gaussianSampler.context.Modulus[:level+1] {
+		for j, qi := range gaussianSampler.baseRing.Modulus[:level+1] {
 			pol.Coeffs[j][i] = CRed(pol.Coeffs[j][i]+((coeffInt*sign)|(qi-coeffInt)*(sign^1)), qi)
 		}
 	}

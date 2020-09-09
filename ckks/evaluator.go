@@ -1578,10 +1578,9 @@ func (eval *evaluator) rotateColumnsPow2(ct0 *Ciphertext, k uint64, permuteNTTIn
 	evakeyIndex = 1
 
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
-	context := eval.ringQ
 
-	context.CopyLvl(level, ct0.value[0], ctOut.value[0])
-	context.CopyLvl(level, ct0.value[1], ctOut.value[1])
+	eval.ringQ.CopyLvl(level, ct0.value[0], ctOut.value[0])
+	eval.ringQ.CopyLvl(level, ct0.value[1], ctOut.value[1])
 
 	for k > 0 {
 
@@ -1655,7 +1654,6 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 
 	// We switch the element on which the switching key operation will be conducted out of the NTT domain
 
-	//Independent of context (parameter: level)
 	ringQ.InvNTTLvl(level, cx, c2)
 
 	reduce = 0
@@ -1695,7 +1693,6 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 		reduce++
 	}
 
-	//Independent of context (parameter: level)
 	if (reduce-1)&7 != 1 {
 		ringQ.ReduceLvl(level, pool2Q, pool2Q)
 		ringQ.ReduceLvl(level, pool3Q, pool3Q)

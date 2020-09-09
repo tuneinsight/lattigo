@@ -263,7 +263,7 @@ func benchPublicKeySwitching(b *testing.B) {
 func benchRotKeyGen(b *testing.B) {
 
 	parties := params.parties
-	contextKeys := params.dckksContext.ringQP
+	ringQP := params.dckksContext.ringQP
 	sk0Shards := params.sk0Shards
 
 	type Party struct {
@@ -281,14 +281,14 @@ func benchRotKeyGen(b *testing.B) {
 		panic(err)
 	}
 
-	crpGenerator := ring.NewUniformSampler(prng, contextKeys)
+	crpGenerator := ring.NewUniformSampler(prng, ringQP)
 	crp := make([]*ring.Poly, params.params.Beta())
 
 	for i := uint64(0); i < params.params.Beta(); i++ {
 		crp[i] = crpGenerator.ReadNew()
 	}
 
-	mask := uint64((contextKeys.N >> 1) - 1)
+	mask := uint64((ringQP.N >> 1) - 1)
 
 	b.Run(testString("Round1/Gen", parties, params.params), func(b *testing.B) {
 

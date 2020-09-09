@@ -432,7 +432,7 @@ func testPublicKeySwitching(t *testing.T) {
 func testRotKeyGenConjugate(t *testing.T) {
 
 	parties := params.parties
-	contextKeys := params.dckksContext.ringQP
+	ringQP := params.dckksContext.ringQP
 	evaluator := params.evaluator
 	encryptorPk0 := params.encryptorPk0
 	decryptorSk0 := params.decryptorSk0
@@ -481,9 +481,9 @@ func testRotKeyGenConjugate(t *testing.T) {
 
 		evaluator.Conjugate(ciphertext, rotkey, ciphertext)
 
-		coeffsWant := make([]complex128, contextKeys.N>>1)
+		coeffsWant := make([]complex128, ringQP.N>>1)
 
-		for i := uint64(0); i < contextKeys.N>>1; i++ {
+		for i := uint64(0); i < ringQP.N>>1; i++ {
 			coeffsWant[i] = complex(real(coeffs[i]), -imag(coeffs[i]))
 		}
 
@@ -495,7 +495,7 @@ func testRotKeyGenConjugate(t *testing.T) {
 func testRotKeyGenCols(t *testing.T) {
 
 	parties := params.parties
-	contextKeys := params.dckksContext.ringQP
+	ringQP := params.dckksContext.ringQP
 	evaluator := params.evaluator
 	encryptorPk0 := params.encryptorPk0
 	decryptorSk0 := params.decryptorSk0
@@ -524,20 +524,20 @@ func testRotKeyGenCols(t *testing.T) {
 			panic(err)
 		}
 
-		crpGenerator := ring.NewUniformSampler(prng, contextKeys)
+		crpGenerator := ring.NewUniformSampler(prng, ringQP)
 		crp := make([]*ring.Poly, params.params.Beta())
 
 		for i := uint64(0); i < params.params.Beta(); i++ {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
-		mask := (contextKeys.N >> 1) - 1
+		mask := (ringQP.N >> 1) - 1
 
 		coeffs, _, ciphertext := newTestVectors(encryptorPk0, 1, t)
 
 		receiver := ckks.NewCiphertext(params.params, ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale())
 
-		for k := uint64(1); k < contextKeys.N>>1; k <<= 1 {
+		for k := uint64(1); k < ringQP.N>>1; k <<= 1 {
 
 			for i, p := range pcksParties {
 				p.GenShare(ckks.RotationLeft, k, p.s, crp, &p.share)
@@ -551,9 +551,9 @@ func testRotKeyGenCols(t *testing.T) {
 
 			evaluator.RotateColumns(ciphertext, k, rotkey, receiver)
 
-			coeffsWant := make([]complex128, contextKeys.N>>1)
+			coeffsWant := make([]complex128, ringQP.N>>1)
 
-			for i := uint64(0); i < contextKeys.N>>1; i++ {
+			for i := uint64(0); i < ringQP.N>>1; i++ {
 				coeffsWant[i] = coeffs[(i+k)&mask]
 			}
 

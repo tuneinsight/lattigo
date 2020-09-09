@@ -64,14 +64,14 @@ func main() {
 
 	params := bfv.DefaultParams[bfv.PN14QP438].WithT(65537)
 
-	contextKeys, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
+	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
 
 	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 	if err != nil {
 		panic(err)
 	}
 
-	crsGen := ring.NewUniformSampler(lattigoPRNG, contextKeys)
+	crsGen := ring.NewUniformSampler(lattigoPRNG, ringQP)
 	crs := crsGen.ReadNew()
 	crp := make([]*ring.Poly, params.Beta())
 	for i := uint64(0); i < params.Beta(); i++ {
@@ -93,14 +93,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ternarySamplerMontgomery := ring.NewTernarySampler(prng, contextKeys, 0.5, true)
+	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
 
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
 		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
-		contextKeys.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
+		ringQP.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
 		pi.input = make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 		for i := range pi.input {
 			if rand.Float32() > 0.3 || i == 4 {
@@ -108,7 +108,7 @@ func main() {
 			}
 			expRes[i] *= pi.input[i]
 		}
-		contextKeys.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
+		ringQP.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
 
 		pi.ckgShare = ckg.AllocateShares()
 		pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()

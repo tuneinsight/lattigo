@@ -12,7 +12,7 @@ import (
 	"github.com/ldsec/lattigo/utils"
 )
 
-// Ring is a structure that keeps all the variables required to operate on a polynomial represented in this context.
+// Ring is a structure that keeps all the variables required to operate on a polynomial represented in this ring.
 type Ring struct {
 
 	// Polynomial nb.Coefficients
@@ -24,7 +24,7 @@ type Ring struct {
 	// 2^bit_length(Qi) - 1
 	Mask []uint64
 
-	// Indicates whether NTT can be used with the current context.
+	// Indicates whether NTT can be used with the current ring.
 	allowsNTT bool
 
 	// Product of the Moduli
@@ -181,16 +181,16 @@ func (r *Ring) genNTTParams() error {
 	return nil
 }
 
-// Used to export the context. Minimal required information to recover the full context.
-type smallContext struct {
+// Minimal required information to recover the full ring. Used to import and export the ring.
+type ringParams struct {
 	N       uint64
 	Modulus []uint64
 }
 
-// MarshalBinary encodes the target ring context on a slice of bytes.
+// MarshalBinary encodes the target ring on a slice of bytes.
 func (r *Ring) MarshalBinary() ([]byte, error) {
 
-	parameters := smallContext{r.N, r.Modulus}
+	parameters := ringParams{r.N, r.Modulus}
 
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -203,7 +203,7 @@ func (r *Ring) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes a slice of bytes on the target Ring.
 func (r *Ring) UnmarshalBinary(data []byte) error {
 
-	parameters := smallContext{}
+	parameters := ringParams{}
 
 	reader := bytes.NewReader(data)
 	dec := gob.NewDecoder(reader)
@@ -217,7 +217,7 @@ func (r *Ring) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// AllowsNTT returns true if the context allows NTT, and false otherwise.
+// AllowsNTT returns true if the ring allows NTT, and false otherwise.
 func (r *Ring) AllowsNTT() bool {
 	return r.allowsNTT
 }

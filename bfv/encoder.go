@@ -79,15 +79,15 @@ func NewEncoder(params *Parameters) Encoder {
 }
 
 // GenLiftParams generates the lifting parameters.
-func GenLiftParams(context *ring.Ring, t uint64) (deltaMont []uint64) {
+func GenLiftParams(ringQ *ring.Ring, t uint64) (deltaMont []uint64) {
 
-	delta := new(big.Int).Quo(context.ModulusBigint, ring.NewUint(t))
+	delta := new(big.Int).Quo(ringQ.ModulusBigint, ring.NewUint(t))
 
-	deltaMont = make([]uint64, len(context.Modulus))
+	deltaMont = make([]uint64, len(ringQ.Modulus))
 
 	tmp := new(big.Int)
-	bredParams := context.GetBredParams()
-	for i, Qi := range context.Modulus {
+	bredParams := ringQ.GetBredParams()
+	for i, Qi := range ringQ.Modulus {
 		deltaMont[i] = tmp.Mod(delta, ring.NewUint(Qi)).Uint64()
 		deltaMont[i] = ring.MForm(deltaMont[i], Qi, bredParams[i])
 	}
@@ -99,11 +99,11 @@ func GenLiftParams(context *ring.Ring, t uint64) (deltaMont []uint64) {
 func (encoder *encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
-		panic("cannot EncodeUint: invalid input to encode (number of coefficients must be smaller or equal to the context)")
+		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
 	}
 
 	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
-		panic("cannot EncodeUint: invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder)")
+		panic("invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
@@ -123,11 +123,11 @@ func (encoder *encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
-		panic("cannot EncodeInt: invalid input to encode (number of coefficients must be smaller or equal to the context)")
+		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
 	}
 
 	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
-		panic("cannot EncodeInt: invalid plaintext to receive encoding (number of coefficients does not match the context of the encoder)")
+		panic("invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
 	}
 
 	for i := 0; i < len(coeffs); i++ {

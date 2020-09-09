@@ -106,12 +106,12 @@ func main() {
 
 	kgen := bfv.NewKeyGenerator(params)
 
-	contextKeys, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
+	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	ternarySamplerMontgomery := ring.NewTernarySampler(prng, contextKeys, 0.5, true)
+	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
 
 	// Creates each party, and allocates the memory for all the shares that the protocols will need
 	P := make([]*party, N, N)
@@ -119,12 +119,12 @@ func main() {
 		pi := &party{}
 		pi.sk = kgen.GenSecretKey()
 		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
-		contextKeys.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
+		ringQP.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
 		pi.input = make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 		for j := range pi.input {
 			pi.input[j] = uint64(i)
 		}
-		contextKeys.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
+		ringQP.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
 
 		pi.ckgShare = ckg.AllocateShares()
 		pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()

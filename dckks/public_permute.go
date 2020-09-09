@@ -1,10 +1,11 @@
 package dckks
 
 import (
+	"math/big"
+
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
-	"math/big"
 )
 
 // RefreshProtocol is a struct storing the parameters for the Refresh protocol.
@@ -71,11 +72,11 @@ func (pp *PermuteProtocol) permuteWithIndex(permutation []uint64, values []*ring
 // GenShares generates the decryption and recryption shares of the Refresh protocol.
 func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64, ciphertext *ckks.Ciphertext, crs *ring.Poly, slots uint64, permutation []uint64, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
 
-	context := pp.dckksContext.ringQ
+	ringQ := pp.dckksContext.ringQ
 
-	bound := ring.NewUint(context.Modulus[0])
+	bound := ring.NewUint(ringQ.Modulus[0])
 	for i := uint64(1); i < levelStart+1; i++ {
-		bound.Mul(bound, ring.NewUint(context.Modulus[i]))
+		bound.Mul(bound, ring.NewUint(ringQ.Modulus[i]))
 	}
 
 	bound.Quo(bound, ring.NewUint(2*nParties))
@@ -97,14 +98,14 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 	}
 
 	// h0 = mask (at level min)
-	context.SetCoefficientsBigintLvl(levelStart, pp.maskBigint, shareDecrypt)
-	context.NTTLvl(levelStart, shareDecrypt, shareDecrypt)
+	ringQ.SetCoefficientsBigintLvl(levelStart, pp.maskBigint, shareDecrypt)
+	ringQ.NTTLvl(levelStart, shareDecrypt, shareDecrypt)
 	// h0 = sk*c1 + mask
-	context.MulCoeffsMontgomeryAndAddLvl(levelStart, sk, ciphertext.Value()[1], shareDecrypt)
+	ringQ.MulCoeffsMontgomeryAndAddLvl(levelStart, sk, ciphertext.Value()[1], shareDecrypt)
 	// h0 = sk*c1 + mask + e0
 	pp.gaussianSampler.Read(pp.tmp)
-	context.NTT(pp.tmp, pp.tmp)
-	context.AddLvl(levelStart, shareDecrypt, pp.tmp, shareDecrypt)
+	ringQ.NTT(pp.tmp, pp.tmp)
+	ringQ.AddLvl(levelStart, shareDecrypt, pp.tmp, shareDecrypt)
 
 	// Permutes only the (sparse) plaintext coefficients of h1
 	for i, jdx, idx := uint64(0), maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
@@ -124,20 +125,20 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 		pp.maskComplex[i].Imag().Int(pp.maskBigint[jdx])
 	}
 
-	context.SetCoefficientsBigint(pp.maskBigint, shareRecrypt)
+	ringQ.SetCoefficientsBigint(pp.maskBigint, shareRecrypt)
 
-	context.NTT(shareRecrypt, shareRecrypt)
+	ringQ.NTT(shareRecrypt, shareRecrypt)
 
 	// h1 = sk*a + mask
-	context.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
+	ringQ.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
 
 	// h1 = sk*a + mask + e1
 	pp.gaussianSampler.Read(pp.tmp)
-	context.NTT(pp.tmp, pp.tmp)
-	context.Add(shareRecrypt, pp.tmp, shareRecrypt)
+	ringQ.NTT(pp.tmp, pp.tmp)
+	ringQ.Add(shareRecrypt, pp.tmp, shareRecrypt)
 
 	// h1 = -sk*c1 - mask - e1
-	context.Neg(shareRecrypt, shareRecrypt)
+	ringQ.Neg(shareRecrypt, shareRecrypt)
 
 	pp.tmp.Zero()
 }
@@ -155,15 +156,15 @@ func (pp *PermuteProtocol) Decrypt(ciphertext *ckks.Ciphertext, shareDecrypt Ref
 // Recode takes a masked decrypted ciphertext at modulus Q_0 and returns the same masked decrypted ciphertext at modulus Q_L, with Q_0 << Q_L.
 func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []uint64, slots uint64) {
 	dckksContext := pp.dckksContext
-	context := pp.dckksContext.ringQ
+	ringQ := pp.dckksContext.ringQ
 
-	context.InvNTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+	ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
 
-	context.PolyToBigint(ciphertext.Value()[0], pp.maskBigint)
+	ringQ.PolyToBigint(ciphertext.Value()[0], pp.maskBigint)
 
-	QStart := ring.NewUint(context.Modulus[0])
+	QStart := ring.NewUint(ringQ.Modulus[0])
 	for i := uint64(1); i < ciphertext.Level()+1; i++ {
-		QStart.Mul(QStart, ring.NewUint(context.Modulus[i]))
+		QStart.Mul(QStart, ring.NewUint(ringQ.Modulus[i]))
 	}
 	QHalf := new(big.Int).Rsh(QStart, 1)
 
@@ -205,9 +206,9 @@ func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []ui
 		ciphertext.Value()[0].Coeffs[ciphertext.Level()] = make([]uint64, dckksContext.n)
 	}
 
-	context.SetCoefficientsBigintLvl(ciphertext.Level(), pp.maskBigint, ciphertext.Value()[0])
+	ringQ.SetCoefficientsBigintLvl(ciphertext.Level(), pp.maskBigint, ciphertext.Value()[0])
 
-	context.NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+	ringQ.NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
 }
 
 // Recrypt operates a masked recryption on the masked decrypted ciphertext.

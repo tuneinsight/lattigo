@@ -20,8 +20,8 @@ type PolynomialTestParams struct {
 	sigma      float64
 }
 
-func testString(opname string, context *Ring) string {
-	return fmt.Sprintf("%sN=%d/limbs=%d", opname, context.N, len(context.Modulus))
+func testString(opname string, ringQ *Ring) string {
+	return fmt.Sprintf("%sN=%d/limbs=%d", opname, ringQ.N, len(ringQ.Modulus))
 }
 
 var testParams = new(PolynomialTestParams)
@@ -62,21 +62,22 @@ func TestRing(t *testing.T) {
 	t.Run("MultByMonomial", testMultByMonomial)
 }
 
-func genPolyContext(params *Parameters) (context *Ring) {
-	context = new(Ring)
-	context.setParameters(params.N, params.Moduli)
-	context.genNTTParams()
-	return context
+func getRing(params *Parameters) *Ring {
+	r, err := NewRing(params.N, params.Moduli)
+	if err != nil {
+		panic(err)
+	}
+	return r
 }
 
 func testPRNG(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
-		sum := make([]byte, context.N)
+		ringQ := getRing(parameters[0])
+		sum := make([]byte, ringQ.N)
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 			prng1, err := utils.NewKeyedPRNG(nil)
 			if err != nil {
 				panic(err)
@@ -89,13 +90,13 @@ func testPRNG(t *testing.T) {
 			prng1.SetClock(sum, 256)
 			prng2.SetClock(sum, 256)
 
-			crsGenerator1 := NewUniformSampler(prng1, context)
-			crsGenerator2 := NewUniformSampler(prng2, context)
+			crsGenerator1 := NewUniformSampler(prng1, ringQ)
+			crsGenerator2 := NewUniformSampler(prng2, ringQ)
 
 			p0 := crsGenerator1.ReadNew()
 			p1 := crsGenerator2.ReadNew()
 
-			require.True(t, context.Equal(p0, p1))
+			require.True(t, ringQ.Equal(p0, p1))
 		})
 	}
 }
@@ -104,14 +105,14 @@ func testGenerateNTTPrimes(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 
-			primes := GenerateNTTPrimes(55, uint64(bits.Len64(context.N)-1), uint64(len(context.Modulus)))
+			primes := GenerateNTTPrimes(55, uint64(bits.Len64(ringQ.N)-1), uint64(len(ringQ.Modulus)))
 
 			for _, q := range primes {
-				require.Equal(t, q&((context.N<<1)-1), uint64(1))
+				require.Equal(t, q&((ringQ.N<<1)-1), uint64(1))
 				require.True(t, IsPrime(q), q)
 			}
 		})
@@ -122,21 +123,21 @@ func testImportExportPolyString(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 
 			p0 := uniformSampler.ReadNew()
-			p1 := context.NewPoly()
+			p1 := ringQ.NewPoly()
 
-			context.SetCoefficientsString(context.PolyToString(p0), p1)
+			ringQ.SetCoefficientsString(ringQ.PolyToString(p0), p1)
 
-			require.True(t, context.Equal(p0, p1))
+			require.True(t, ringQ.Equal(p0, p1))
 		})
 	}
 }
@@ -145,35 +146,35 @@ func testDivFloorByLastModulusMany(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 
-			coeffs := make([]*big.Int, context.N)
-			for i := uint64(0); i < context.N; i++ {
-				coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs := make([]*big.Int, ringQ.N)
+			for i := uint64(0); i < ringQ.N; i++ {
+				coeffs[i] = RandInt(ringQ.ModulusBigint)
 				coeffs[i].Quo(coeffs[i], NewUint(10))
 			}
 
-			nbRescals := len(context.Modulus) - 1
+			nbRescals := len(ringQ.Modulus) - 1
 
-			coeffsWant := make([]*big.Int, context.N)
+			coeffsWant := make([]*big.Int, ringQ.N)
 			for i := range coeffs {
 				coeffsWant[i] = new(big.Int).Set(coeffs[i])
 				for j := 0; j < nbRescals; j++ {
-					coeffsWant[i].Quo(coeffsWant[i], NewUint(context.Modulus[len(context.Modulus)-1-j]))
+					coeffsWant[i].Quo(coeffsWant[i], NewUint(ringQ.Modulus[len(ringQ.Modulus)-1-j]))
 				}
 			}
 
-			polTest := context.NewPoly()
-			polWant := context.NewPoly()
+			polTest := ringQ.NewPoly()
+			polWant := ringQ.NewPoly()
 
-			context.SetCoefficientsBigint(coeffs, polTest)
-			context.SetCoefficientsBigint(coeffsWant, polWant)
+			ringQ.SetCoefficientsBigint(coeffs, polTest)
+			ringQ.SetCoefficientsBigint(coeffsWant, polWant)
 
-			context.DivFloorByLastModulusMany(polTest, uint64(nbRescals))
-			for i := uint64(0); i < context.N; i++ {
-				for j := 0; j < len(context.Modulus)-nbRescals; j++ {
+			ringQ.DivFloorByLastModulusMany(polTest, uint64(nbRescals))
+			for i := uint64(0); i < ringQ.N; i++ {
+				for j := 0; j < len(ringQ.Modulus)-nbRescals; j++ {
 					require.Equalf(t, polWant.Coeffs[j][i], polTest.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
 				}
 			}
@@ -185,35 +186,35 @@ func testDivRoundByLastModulusMany(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 
-			coeffs := make([]*big.Int, context.N)
-			for i := uint64(0); i < context.N; i++ {
-				coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs := make([]*big.Int, ringQ.N)
+			for i := uint64(0); i < ringQ.N; i++ {
+				coeffs[i] = RandInt(ringQ.ModulusBigint)
 				coeffs[i].Quo(coeffs[i], NewUint(10))
 			}
 
-			nbRescals := len(context.Modulus) - 1
+			nbRescals := len(ringQ.Modulus) - 1
 
-			coeffsWant := make([]*big.Int, context.N)
+			coeffsWant := make([]*big.Int, ringQ.N)
 			for i := range coeffs {
 				coeffsWant[i] = new(big.Int).Set(coeffs[i])
 				for j := 0; j < nbRescals; j++ {
-					DivRound(coeffsWant[i], NewUint(context.Modulus[len(context.Modulus)-1-j]), coeffsWant[i])
+					DivRound(coeffsWant[i], NewUint(ringQ.Modulus[len(ringQ.Modulus)-1-j]), coeffsWant[i])
 				}
 			}
 
-			polTest := context.NewPoly()
-			polWant := context.NewPoly()
+			polTest := ringQ.NewPoly()
+			polWant := ringQ.NewPoly()
 
-			context.SetCoefficientsBigint(coeffs, polTest)
-			context.SetCoefficientsBigint(coeffsWant, polWant)
+			ringQ.SetCoefficientsBigint(coeffs, polTest)
+			ringQ.SetCoefficientsBigint(coeffsWant, polWant)
 
-			context.DivRoundByLastModulusMany(polTest, uint64(nbRescals))
-			for i := uint64(0); i < context.N; i++ {
-				for j := 0; j < len(context.Modulus)-nbRescals; j++ {
+			ringQ.DivRoundByLastModulusMany(polTest, uint64(nbRescals))
+			for i := uint64(0); i < ringQ.N; i++ {
+				for j := 0; j < len(ringQ.Modulus)-nbRescals; j++ {
 					require.Equalf(t, polWant.Coeffs[j][i], polTest.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
 				}
 			}
@@ -225,35 +226,35 @@ func testMarshalBinary(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("Context/", context), func(t *testing.T) {
+		t.Run(testString("Ring/", ringQ), func(t *testing.T) {
 
-			data, _ := context.MarshalBinary()
+			data, _ := ringQ.MarshalBinary()
 
-			contextTest := new(Ring)
-			contextTest.UnmarshalBinary(data)
+			ringQTest := new(Ring)
+			ringQTest.UnmarshalBinary(data)
 
-			require.Equal(t, contextTest.N, context.N)
-			require.Equal(t, contextTest.Modulus, context.Modulus)
+			require.Equal(t, ringQTest.N, ringQ.N)
+			require.Equal(t, ringQTest.Modulus, ringQ.Modulus)
 		})
 
-		t.Run(testString("Poly/", context), func(t *testing.T) {
+		t.Run(testString("Poly/", ringQ), func(t *testing.T) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			uniformSampler := NewUniformSampler(prng, context)
+			uniformSampler := NewUniformSampler(prng, ringQ)
 
 			p := uniformSampler.ReadNew()
-			pTest := context.NewPoly()
+			pTest := ringQ.NewPoly()
 
 			data, _ := p.MarshalBinary()
 
 			_ = pTest.UnmarshalBinary(data)
 
-			for i := range context.Modulus {
-				require.Equal(t, p.Coeffs[i][:context.N], pTest.Coeffs[i][:context.N])
+			for i := range ringQ.Modulus {
+				require.Equal(t, p.Coeffs[i][:ringQ.N], pTest.Coeffs[i][:ringQ.N])
 			}
 		})
 	}
@@ -263,28 +264,28 @@ func testUniformSampler(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
-		t.Run(testString("Read", context), func(t *testing.T) {
-			pol := context.NewPoly()
+		t.Run(testString("Read", ringQ), func(t *testing.T) {
+			pol := ringQ.NewPoly()
 			uniformSampler.Read(pol)
-			for i := uint64(0); i < context.N; i++ {
-				for j, qi := range context.Modulus {
+			for i := uint64(0); i < ringQ.N; i++ {
+				for j, qi := range ringQ.Modulus {
 					require.False(t, pol.Coeffs[j][i] > qi)
 				}
 			}
 		})
 
-		t.Run(testString("ReadNew", context), func(t *testing.T) {
+		t.Run(testString("ReadNew", ringQ), func(t *testing.T) {
 			pol := uniformSampler.ReadNew()
-			for i := uint64(0); i < context.N; i++ {
-				for j, qi := range context.Modulus {
+			for i := uint64(0); i < ringQ.N; i++ {
+				for j, qi := range ringQ.Modulus {
 					require.False(t, pol.Coeffs[j][i] > qi)
 				}
 			}
@@ -300,18 +301,18 @@ func testGaussianSampler(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			gaussianSampler := NewGaussianSampler(prng, context, sigma, bound)
+			gaussianSampler := NewGaussianSampler(prng, ringQ, sigma, bound)
 			pol := gaussianSampler.ReadNew()
 
-			for i := uint64(0); i < context.N; i++ {
-				for j, qi := range context.Modulus {
+			for i := uint64(0); i < ringQ.N; i++ {
+				for j, qi := range ringQ.Modulus {
 					require.False(t, uint64(bound) < pol.Coeffs[j][i] && pol.Coeffs[j][i] < (qi-uint64(bound)))
 				}
 			}
@@ -323,15 +324,15 @@ func testTernarySampler(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 
 			countOne := uint64(0)
 			countZer := uint64(0)
 			countMOn := uint64(0)
 
-			pol := context.NewPoly()
+			pol := ringQ.NewPoly()
 
 			rho := 1.0 / 3
 
@@ -339,12 +340,12 @@ func testTernarySampler(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			ternarySampler := NewTernarySampler(prng, context, rho, false)
+			ternarySampler := NewTernarySampler(prng, ringQ, rho, false)
 
 			ternarySampler.Read(pol)
 
 			for i := range pol.Coeffs[0] {
-				if pol.Coeffs[0][i] == context.Modulus[0]-1 {
+				if pol.Coeffs[0][i] == ringQ.Modulus[0]-1 {
 					countMOn++
 				}
 
@@ -374,11 +375,11 @@ func testBRed(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 
-			for j, q := range context.Modulus {
+			for j, q := range ringQ.Modulus {
 
 				bigQ := NewUint(q)
 
@@ -390,7 +391,7 @@ func testBRed(t *testing.T) {
 					result.Mul(result, NewUint(y))
 					result.Mod(result, bigQ)
 
-					require.Equalf(t, BRed(x, y, q, context.BredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
+					require.Equalf(t, BRed(x, y, q, ringQ.BredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
 				}
 			}
 		})
@@ -401,13 +402,13 @@ func testMRed(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 
-			for j := range context.Modulus {
+			for j := range ringQ.Modulus {
 
-				q := context.Modulus[j]
+				q := ringQ.Modulus[j]
 
 				bigQ := NewUint(q)
 
@@ -420,7 +421,7 @@ func testMRed(t *testing.T) {
 					result.Mul(result, NewUint(y))
 					result.Mod(result, bigQ)
 
-					require.Equalf(t, MRed(x, MForm(y, q, context.BredParams[j]), q, context.MredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
+					require.Equalf(t, MRed(x, MForm(y, q, ringQ.BredParams[j]), q, ringQ.MredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
 				}
 			}
 		})
@@ -431,29 +432,29 @@ func testGaloisShift(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			uniformSampler := NewUniformSampler(prng, context)
+			uniformSampler := NewUniformSampler(prng, ringQ)
 
 			pWant := uniformSampler.ReadNew()
 			pTest := pWant.CopyNew()
 
-			context.BitReverse(pTest, pTest)
-			context.InvNTT(pTest, pTest)
-			context.Rotate(pTest, 1, pTest)
-			context.NTT(pTest, pTest)
-			context.BitReverse(pTest, pTest)
-			context.Reduce(pTest, pTest)
+			ringQ.BitReverse(pTest, pTest)
+			ringQ.InvNTT(pTest, pTest)
+			ringQ.Rotate(pTest, 1, pTest)
+			ringQ.NTT(pTest, pTest)
+			ringQ.BitReverse(pTest, pTest)
+			ringQ.Reduce(pTest, pTest)
 
-			context.Shift(pWant, 1, pWant)
+			ringQ.Shift(pWant, 1, pWant)
 
-			for i := range context.Modulus {
-				require.Equal(t, pTest.Coeffs[i][:context.N], pWant.Coeffs[i][:context.N])
+			for i := range ringQ.Modulus {
+				require.Equal(t, pTest.Coeffs[i][:ringQ.N], pWant.Coeffs[i][:ringQ.N])
 			}
 		})
 	}
@@ -463,23 +464,23 @@ func testMForm(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			uniformSampler := NewUniformSampler(prng, context)
+			uniformSampler := NewUniformSampler(prng, ringQ)
 
 			polWant := uniformSampler.ReadNew()
-			polTest := context.NewPoly()
+			polTest := ringQ.NewPoly()
 
-			context.MForm(polWant, polTest)
-			context.InvMForm(polTest, polTest)
+			ringQ.MForm(polWant, polTest)
+			ringQ.InvMForm(polTest, polTest)
 
-			require.True(t, context.Equal(polWant, polTest))
+			require.True(t, ringQ.Equal(polWant, polTest))
 		})
 	}
 }
@@ -488,14 +489,14 @@ func testMulScalarBigint(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			uniformSampler := NewUniformSampler(prng, context)
+			uniformSampler := NewUniformSampler(prng, ringQ)
 
 			polWant := uniformSampler.ReadNew()
 			polTest := polWant.CopyNew()
@@ -506,11 +507,11 @@ func testMulScalarBigint(t *testing.T) {
 			scalarBigint := NewUint(rand1)
 			scalarBigint.Mul(scalarBigint, NewUint(rand2))
 
-			context.MulScalar(polWant, rand1, polWant)
-			context.MulScalar(polWant, rand2, polWant)
-			context.MulScalarBigint(polTest, scalarBigint, polTest)
+			ringQ.MulScalar(polWant, rand1, polWant)
+			ringQ.MulScalar(polWant, rand2, polWant)
+			ringQ.MulScalarBigint(polTest, scalarBigint, polTest)
 
-			require.True(t, context.Equal(polWant, polTest))
+			require.True(t, ringQ.Equal(polWant, polTest))
 		})
 	}
 }
@@ -519,40 +520,40 @@ func testMulPoly(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 		prng, err := utils.NewPRNG()
 		if err != nil {
 			panic(err)
 		}
-		uniformSampler := NewUniformSampler(prng, context)
+		uniformSampler := NewUniformSampler(prng, ringQ)
 
 		p1 := uniformSampler.ReadNew()
 		p2 := uniformSampler.ReadNew()
-		p3Test := context.NewPoly()
-		p3Want := context.NewPoly()
+		p3Test := ringQ.NewPoly()
+		p3Want := ringQ.NewPoly()
 
-		context.Reduce(p1, p1)
-		context.Reduce(p2, p2)
+		ringQ.Reduce(p1, p1)
+		ringQ.Reduce(p2, p2)
 
-		context.MulPolyNaive(p1, p2, p3Want)
+		ringQ.MulPolyNaive(p1, p2, p3Want)
 
-		t.Run(testString("MulPolyBarrett/", context), func(t *testing.T) {
+		t.Run(testString("MulPolyBarrett/", ringQ), func(t *testing.T) {
 
-			context.MulPoly(p1, p2, p3Test)
+			ringQ.MulPoly(p1, p2, p3Test)
 
-			require.Equal(t, p3Want.Coeffs[0][:context.N], p3Test.Coeffs[0][:context.N])
+			require.Equal(t, p3Want.Coeffs[0][:ringQ.N], p3Test.Coeffs[0][:ringQ.N])
 		})
 
-		t.Run(testString("MulPolyMontgomery/", context), func(t *testing.T) {
+		t.Run(testString("MulPolyMontgomery/", ringQ), func(t *testing.T) {
 
-			context.MForm(p1, p1)
-			context.MForm(p2, p2)
+			ringQ.MForm(p1, p1)
+			ringQ.MForm(p2, p2)
 
-			context.MulPolyMontgomery(p1, p2, p3Test)
+			ringQ.MulPolyMontgomery(p1, p2, p3Test)
 
-			context.InvMForm(p3Test, p3Test)
+			ringQ.InvMForm(p3Test, p3Test)
 
-			require.Equal(t, p3Want.Coeffs[0][:context.N], p3Test.Coeffs[0][:context.N])
+			require.Equal(t, p3Want.Coeffs[0][:ringQ.N], p3Test.Coeffs[0][:ringQ.N])
 		})
 	}
 }
@@ -561,29 +562,29 @@ func testExtendBasis(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		contextQ := genPolyContext(parameters[0])
-		contextP := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
+		ringP := getRing(parameters[0])
 
-		t.Run(testString("", contextQ), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 
-			basisextender := NewFastBasisExtender(contextQ, contextP)
+			basisextender := NewFastBasisExtender(ringQ, ringP)
 
-			coeffs := make([]*big.Int, contextQ.N)
-			for i := uint64(0); i < contextQ.N; i++ {
-				coeffs[i] = RandInt(contextQ.ModulusBigint)
+			coeffs := make([]*big.Int, ringQ.N)
+			for i := uint64(0); i < ringQ.N; i++ {
+				coeffs[i] = RandInt(ringQ.ModulusBigint)
 			}
 
-			Pol := contextQ.NewPoly()
-			PolTest := contextP.NewPoly()
-			PolWant := contextP.NewPoly()
+			Pol := ringQ.NewPoly()
+			PolTest := ringP.NewPoly()
+			PolWant := ringP.NewPoly()
 
-			contextQ.SetCoefficientsBigint(coeffs, Pol)
-			contextP.SetCoefficientsBigint(coeffs, PolWant)
+			ringQ.SetCoefficientsBigint(coeffs, Pol)
+			ringP.SetCoefficientsBigint(coeffs, PolWant)
 
-			basisextender.ModUpSplitQP(uint64(len(contextQ.Modulus)-1), Pol, PolTest)
+			basisextender.ModUpSplitQP(uint64(len(ringQ.Modulus)-1), Pol, PolTest)
 
-			for i := range contextP.Modulus {
-				require.Equal(t, PolTest.Coeffs[i][:contextQ.N], PolWant.Coeffs[i][:contextQ.N])
+			for i := range ringP.Modulus {
+				require.Equal(t, PolTest.Coeffs[i][:ringQ.N], PolWant.Coeffs[i][:ringQ.N])
 			}
 		})
 	}
@@ -593,60 +594,60 @@ func testScaling(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("SimpleScaling", context), func(t *testing.T) {
+		t.Run(testString("SimpleScaling", ringQ), func(t *testing.T) {
 
-			rescaler := NewSimpleScaler(testParams.T, context)
+			rescaler := NewSimpleScaler(testParams.T, ringQ)
 
-			coeffs := make([]*big.Int, context.N)
-			for i := uint64(0); i < context.N; i++ {
-				coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs := make([]*big.Int, ringQ.N)
+			for i := uint64(0); i < ringQ.N; i++ {
+				coeffs[i] = RandInt(ringQ.ModulusBigint)
 			}
 
-			coeffsWant := make([]*big.Int, context.N)
+			coeffsWant := make([]*big.Int, ringQ.N)
 			for i := range coeffs {
 				coeffsWant[i] = new(big.Int).Set(coeffs[i])
 				coeffsWant[i].Mul(coeffsWant[i], NewUint(testParams.T))
-				DivRound(coeffsWant[i], context.ModulusBigint, coeffsWant[i])
+				DivRound(coeffsWant[i], ringQ.ModulusBigint, coeffsWant[i])
 				coeffsWant[i].Mod(coeffsWant[i], NewUint(testParams.T))
 			}
 
-			PolTest := context.NewPoly()
+			PolTest := ringQ.NewPoly()
 
-			context.SetCoefficientsBigint(coeffs, PolTest)
+			ringQ.SetCoefficientsBigint(coeffs, PolTest)
 
 			rescaler.DivByQOverTRounded(PolTest, PolTest)
 
-			for i := uint64(0); i < context.N; i++ {
+			for i := uint64(0); i < ringQ.N; i++ {
 				require.Equal(t, PolTest.Coeffs[0][i], coeffsWant[i].Uint64())
 			}
 		})
 
-		t.Run(testString("RNSScaling", context), func(t *testing.T) {
+		t.Run(testString("RNSScaling", ringQ), func(t *testing.T) {
 
-			scaler := NewRNSScaler(testParams.T, context)
+			scaler := NewRNSScaler(testParams.T, ringQ)
 
-			coeffs := make([]*big.Int, context.N)
-			for i := uint64(0); i < context.N; i++ {
-				coeffs[i] = RandInt(context.ModulusBigint)
+			coeffs := make([]*big.Int, ringQ.N)
+			for i := uint64(0); i < ringQ.N; i++ {
+				coeffs[i] = RandInt(ringQ.ModulusBigint)
 			}
 
-			coeffsWant := make([]*big.Int, context.N)
+			coeffsWant := make([]*big.Int, ringQ.N)
 			for i := range coeffs {
 				coeffsWant[i] = new(big.Int).Set(coeffs[i])
 				coeffsWant[i].Mul(coeffsWant[i], NewUint(testParams.T))
-				DivRound(coeffsWant[i], context.ModulusBigint, coeffsWant[i])
+				DivRound(coeffsWant[i], ringQ.ModulusBigint, coeffsWant[i])
 				coeffsWant[i].Mod(coeffsWant[i], NewUint(testParams.T))
 			}
 
-			polyQ := context.NewPoly()
-			polyT := NewPoly(context.N, 1)
-			context.SetCoefficientsBigint(coeffs, polyQ)
+			polyQ := ringQ.NewPoly()
+			polyT := NewPoly(ringQ.N, 1)
+			ringQ.SetCoefficientsBigint(coeffs, polyQ)
 
 			scaler.DivByQOverTRounded(polyQ, polyT)
 
-			for i := uint64(0); i < context.N; i++ {
+			for i := uint64(0); i < ringQ.N; i++ {
 				require.Equal(t, polyT.Coeffs[0][i], coeffsWant[i].Uint64())
 			}
 		})
@@ -657,27 +658,27 @@ func testMultByMonomial(t *testing.T) {
 
 	for _, parameters := range testParams.polyParams {
 
-		context := genPolyContext(parameters[0])
+		ringQ := getRing(parameters[0])
 
-		t.Run(testString("", context), func(t *testing.T) {
+		t.Run(testString("", ringQ), func(t *testing.T) {
 
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
-			uniformSampler := NewUniformSampler(prng, context)
+			uniformSampler := NewUniformSampler(prng, ringQ)
 
 			p1 := uniformSampler.ReadNew()
 
-			p3Test := context.NewPoly()
-			p3Want := context.NewPoly()
+			p3Test := ringQ.NewPoly()
+			p3Want := ringQ.NewPoly()
 
-			context.MultByMonomial(p1, 1, p3Test)
-			context.MultByMonomial(p3Test, 8, p3Test)
+			ringQ.MultByMonomial(p1, 1, p3Test)
+			ringQ.MultByMonomial(p3Test, 8, p3Test)
 
-			context.MultByMonomial(p1, 9, p3Want)
+			ringQ.MultByMonomial(p1, 9, p3Want)
 
-			require.Equal(t, p3Want.Coeffs[0][:context.N], p3Test.Coeffs[0][:context.N])
+			require.Equal(t, p3Want.Coeffs[0][:ringQ.N], p3Test.Coeffs[0][:ringQ.N])
 		})
 	}
 }

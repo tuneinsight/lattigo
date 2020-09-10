@@ -337,8 +337,8 @@ func (encryptor *skEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertex
 }
 
 func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ciphertext) {
-	encryptor.uniformSamplerQP.Read(encryptor.polypool[1])
-	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1])
+	encryptor.uniformSamplerQ.Read(ciphertext.value[1])
+	encryptor.encrypt(plaintext, ciphertext, ciphertext.value[1])
 }
 
 func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {

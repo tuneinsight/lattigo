@@ -18,8 +18,8 @@ import (
 
 var err error
 var params = new(testParams)
-var defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
+var minPrec float64 = 15.0
 
 func testString(opname string) string {
 	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%d/levels=%d/a=%d/b=%d",
@@ -37,7 +37,6 @@ type testParams struct {
 	ringQ       *ring.Ring
 	ringP       *ring.Ring
 	ringQP      *ring.Ring
-	medianprec  float64
 	prng        utils.PRNG
 	encoder     Encoder
 	kgen        KeyGenerator
@@ -54,7 +53,13 @@ func TestCKKS(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 
-	params.medianprec = 15
+	var defaultParams []*Parameters
+
+	if testing.Short() {
+		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
+	} else {
+		defaultParams = DefaultParams
+	}
 
 	for _, defaultParam := range defaultParams {
 
@@ -82,37 +87,17 @@ func TestCKKS(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParams interface{}, hw uint64) (err error) {
+func genTestParams(defaultParam *Parameters, hw uint64) (err error) {
 
 	params = new(testParams)
 
-	switch defaultParams.(type) {
-	case *DefaultParam:
+	params.params = defaultParam.Copy()
 
-		p := defaultParams.(*DefaultParam)
+	params.kgen = NewKeyGenerator(params.params)
 
-		if params.params, err = NewParametersFromLogModuli(p.LogN, p.LogModuli); err != nil {
-			return err
-		}
-
-		params.params.SetLogSlots(params.params.LogMaxSlots())
-		params.params.SetScale(p.Scale)
-
-		params.kgen = NewKeyGenerator(params.params)
+	if hw == 0 {
 		params.sk, params.pk = params.kgen.GenKeyPair()
-
-	default:
-
-		p := defaultParams.(*Parameters)
-
-		if params.params, err = NewParametersFromModuli(p.logN, p.Moduli); err != nil {
-			return err
-		}
-
-		params.params.SetLogSlots(p.logSlots)
-		params.params.SetScale(p.scale)
-
-		params.kgen = NewKeyGenerator(params.params)
+	} else {
 		params.sk, params.pk = params.kgen.GenKeyPairSparse(hw)
 	}
 
@@ -182,27 +167,6 @@ func newTestVectorsReals(encryptor Encryptor, a, b float64, t *testing.T) (value
 	}
 
 	values[0] = complex(0.607538, 0)
-
-	plaintext = NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale())
-
-	params.encoder.EncodeNTT(plaintext, values, slots)
-
-	if encryptor != nil {
-		ciphertext = encryptor.EncryptNew(plaintext)
-	}
-
-	return values, plaintext, ciphertext
-}
-
-func newTestVectorsSineBoot(encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
-
-	slots := params.params.Slots()
-
-	values = make([]complex128, slots)
-
-	for i := uint64(0); i < slots; i++ {
-		values[i] = complex(math.Round(randomFloat(a, b))+randomFloat(-1, 1)/1000, 0)
-	}
 
 	plaintext = NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale())
 
@@ -288,8 +252,8 @@ func verifyTestVectors(decryptor Decryptor, valuesWant []complex128, element int
 		t.Log()
 	}
 
-	require.GreaterOrEqual(t, math.Log2(1/real(medianprec)), params.medianprec)
-	require.GreaterOrEqual(t, math.Log2(1/imag(medianprec)), params.medianprec)
+	require.GreaterOrEqual(t, math.Log2(1/real(meanprec)), minPrec)
+	require.GreaterOrEqual(t, math.Log2(1/imag(meanprec)), minPrec)
 }
 
 func testParameters(t *testing.T) {
@@ -345,7 +309,7 @@ func testEncoder(t *testing.T) {
 
 		meanprec /= float64(slots)
 
-		require.GreaterOrEqual(t, math.Log2(1/meanprec), params.medianprec)
+		require.GreaterOrEqual(t, math.Log2(1/meanprec), minPrec)
 	})
 
 }
@@ -746,7 +710,7 @@ func testEvaluatorMul(t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		ciphertext2 := params.evaluator.MulRelinNew(ciphertext1, ciphertext1, nil)
+		ciphertext2 := params.evaluator.MulRelinNew(ciphertext1, ciphertext1, params.rlk)
 
 		verifyTestVectors(params.decryptor, values1, ciphertext2, t)
 	})
@@ -766,7 +730,7 @@ func testEvaluatorMul(t *testing.T) {
 
 		require.Equal(t, ciphertext1.Degree(), uint64(1))
 
-		verifyTestVectors(params.decryptor, values2, ciphertext1, t)
+		verifyTestVectors(params.decryptor, values1, ciphertext1, t)
 	})
 
 	t.Run(testString("Relinearize(ct0*ct1->ct1)/"), func(t *testing.T) {
@@ -782,7 +746,7 @@ func testEvaluatorMul(t *testing.T) {
 
 		params.evaluator.Relinearize(ciphertext2, params.rlk, ciphertext2)
 
-		require.Equal(t, ciphertext2.Degree(), uint64(1))
+		require.Equal(t, ciphertext1.Degree(), uint64(1))
 
 		verifyTestVectors(params.decryptor, values2, ciphertext2, t)
 	})
@@ -791,120 +755,124 @@ func testEvaluatorMul(t *testing.T) {
 
 func testFunctions(t *testing.T) {
 
-	if params.params.MaxLevel() > 2 {
+	t.Run(testString("PowerOf2/"), func(t *testing.T) {
 
-		t.Run(testString("PowerOf2/"), func(t *testing.T) {
+		if params.params.MaxLevel() < 3 {
+			t.Skip()
+		}
 
-			values, _, ciphertext := newTestVectors(params.encryptorSk, 1, t)
+		values, _, ciphertext := newTestVectors(params.encryptorSk, 1, t)
 
-			n := uint64(2)
+		n := uint64(2)
 
-			valuesWant := make([]complex128, len(values))
-			for i := 0; i < len(valuesWant); i++ {
-				valuesWant[i] = values[i]
+		valuesWant := make([]complex128, len(values))
+		for i := 0; i < len(valuesWant); i++ {
+			valuesWant[i] = values[i]
+		}
+
+		for i := uint64(0); i < n; i++ {
+			for j := 0; j < len(valuesWant); j++ {
+				valuesWant[j] *= valuesWant[j]
 			}
+		}
 
-			for i := uint64(0); i < n; i++ {
-				for j := 0; j < len(valuesWant); j++ {
-					valuesWant[j] *= valuesWant[j]
-				}
-			}
+		params.evaluator.PowerOf2(ciphertext, n, params.rlk, ciphertext)
 
-			params.evaluator.PowerOf2(ciphertext, n, params.rlk, ciphertext)
+		verifyTestVectors(params.decryptor, valuesWant, ciphertext, t)
+	})
 
-			verifyTestVectors(params.decryptor, valuesWant, ciphertext, t)
-		})
-	}
+	t.Run(testString("Power/"), func(t *testing.T) {
 
-	if params.params.MaxLevel() > 3 {
+		if params.params.MaxLevel() < 4 {
+			t.Skip()
+		}
 
-		t.Run(testString("Power/"), func(t *testing.T) {
+		values, _, ciphertext := newTestVectors(params.encryptorSk, 1, t)
 
-			values, _, ciphertext := newTestVectors(params.encryptorSk, 1, t)
+		n := uint64(3)
 
-			n := uint64(3)
+		for i := range values {
+			values[i] = cmplx.Pow(values[i], complex(float64(n), 0))
+		}
 
-			for i := range values {
-				values[i] = cmplx.Pow(values[i], complex(float64(n), 0))
-			}
+		params.evaluator.Power(ciphertext, n, params.rlk, ciphertext)
 
-			params.evaluator.Power(ciphertext, n, params.rlk, ciphertext)
+		verifyTestVectors(params.decryptor, values, ciphertext, t)
+	})
 
-			verifyTestVectors(params.decryptor, values, ciphertext, t)
-		})
-	}
+	t.Run(testString("Inverse/"), func(t *testing.T) {
 
-	if params.params.MaxLevel() > 6 {
-		t.Run(testString("Inverse/"), func(t *testing.T) {
+		if params.params.MaxLevel() < 7 {
+			t.Skip()
+		}
 
-			values, _, ciphertext := newTestVectorsReals(params.encryptorSk, 0.1, 1, t)
+		values, _, ciphertext := newTestVectorsReals(params.encryptorSk, 0.1, 1, t)
 
-			n := uint64(7)
+		n := uint64(7)
 
-			for i := range values {
-				values[i] = 1.0 / values[i]
-			}
+		for i := range values {
+			values[i] = 1.0 / values[i]
+		}
 
-			ciphertext = params.evaluator.InverseNew(ciphertext, n, params.rlk)
+		ciphertext = params.evaluator.InverseNew(ciphertext, n, params.rlk)
 
-			verifyTestVectors(params.decryptor, values, ciphertext, t)
-		})
-	}
+		verifyTestVectors(params.decryptor, values, ciphertext, t)
+	})
 }
 
 func testEvaluatePoly(t *testing.T) {
 
-	if params.params.MaxLevel() > 3 {
+	t.Run(testString("Exp/"), func(t *testing.T) {
 
-		t.Run(testString("Exp/"), func(t *testing.T) {
+		if params.params.MaxLevel() < 3 {
+			t.Skip()
+		}
 
-			values, _, ciphertext := newTestVectorsReals(params.encryptorSk, -1, 1, t)
+		values, _, ciphertext := newTestVectorsReals(params.encryptorSk, -1, 1, t)
 
-			coeffs := []complex128{
-				complex(1.0, 0),
-				complex(1.0, 0),
-				complex(1.0/2, 0),
-				complex(1.0/6, 0),
-				complex(1.0/24, 0),
-				complex(1.0/120, 0),
-				complex(1.0/720, 0),
-				complex(1.0/5040, 0),
-			}
+		coeffs := []complex128{
+			complex(1.0, 0),
+			complex(1.0, 0),
+			complex(1.0/2, 0),
+			complex(1.0/6, 0),
+			complex(1.0/24, 0),
+			complex(1.0/120, 0),
+			complex(1.0/720, 0),
+			complex(1.0/5040, 0),
+		}
 
-			poly := NewPoly(coeffs)
+		poly := NewPoly(coeffs)
 
-			for i := range values {
-				values[i] = cmplx.Exp(values[i])
-			}
+		for i := range values {
+			values[i] = cmplx.Exp(values[i])
+		}
 
-			ciphertext = params.evaluator.EvaluatePoly(ciphertext, poly, params.rlk)
+		ciphertext = params.evaluator.EvaluatePoly(ciphertext, poly, params.rlk)
 
-			verifyTestVectors(params.decryptor, values, ciphertext, t)
-		})
-	}
+		verifyTestVectors(params.decryptor, values, ciphertext, t)
+	})
 }
 
 func testChebyshevInterpolator(t *testing.T) {
 
-	if params.params.MaxLevel() > 5 {
+	t.Run(testString("Sin/"), func(t *testing.T) {
 
-		rlk := params.kgen.GenRelinKey(params.sk)
+		if params.params.MaxLevel() < 5 {
+			t.Skip()
+		}
 
-		t.Run(testString("Sin/"), func(t *testing.T) {
+		values, _, ciphertext := newTestVectorsReals(params.encryptorSk, -1, 1, t)
 
-			values, _, ciphertext := newTestVectorsReals(params.encryptorSk, -1, 1, t)
+		cheby := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
 
-			cheby := Approximate(cmplx.Sin, complex(-3, 0), complex(3, 0), 15)
+		for i := range values {
+			values[i] = cmplx.Sin(values[i])
+		}
 
-			for i := range values {
-				values[i] = cmplx.Sin(values[i])
-			}
+		ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, params.rlk)
 
-			ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, rlk)
-
-			verifyTestVectors(params.decryptor, values, ciphertext, t)
-		})
-	}
+		verifyTestVectors(params.decryptor, values, ciphertext, t)
+	})
 }
 
 func testSwitchKeys(t *testing.T) {

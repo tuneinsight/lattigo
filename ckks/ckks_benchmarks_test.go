@@ -8,6 +8,14 @@ import (
 
 func BenchmarkCKKSScheme(b *testing.B) {
 
+	var defaultParams []*Parameters
+
+	if testing.Short() {
+		defaultParams = DefaultParams[PN12QP109+3 : PN12QP109+4]
+	} else {
+		defaultParams = DefaultParams
+	}
+
 	for _, defaultParams := range defaultParams {
 
 		if err = genTestParams(defaultParams, 0); err != nil {
@@ -56,7 +64,6 @@ func benchEncoder(b *testing.B) {
 			encoder.Decode(plaintext, slots)
 		}
 	})
-
 }
 
 func benchKeyGen(b *testing.B) {

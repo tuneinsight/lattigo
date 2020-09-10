@@ -246,8 +246,8 @@ func NewRelinKey(params *Parameters) (evakey *EvaluationKey) {
 	evakey.evakey = new(SwitchingKey)
 
 	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
-	evakey.evakey.evakey = make([][2]*ring.Poly, params.beta)
-	for i := uint64(0); i < params.beta; i++ {
+	evakey.evakey.evakey = make([][2]*ring.Poly, params.Beta())
+	for i := uint64(0); i < params.Beta(); i++ {
 
 		evakey.evakey.evakey[i][0] = params.NewPolyQP()
 		evakey.evakey.evakey[i][1] = params.NewPolyQP()
@@ -292,9 +292,9 @@ func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
 
 	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
 
-	evakey.evakey = make([][2]*ring.Poly, params.beta)
+	evakey.evakey = make([][2]*ring.Poly, params.Beta())
 
-	for i := uint64(0); i < params.beta; i++ {
+	for i := uint64(0); i < params.Beta(); i++ {
 		evakey.evakey[i][0] = params.NewPolyQP()
 		evakey.evakey[i][1] = params.NewPolyQP()
 	}
@@ -470,8 +470,8 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 	// Computes P * skIn
 	ringQP.MulScalarBigint(skIn, keygen.pBigInt, keygen.polypool[0])
 
-	alpha := keygen.params.alpha
-	beta := keygen.params.beta
+	alpha := keygen.params.Alpha()
+	beta := keygen.params.Beta()
 
 	var index uint64
 

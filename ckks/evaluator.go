@@ -1359,32 +1359,13 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 		c00 = eval.poolQMul[0]
 		c01 = eval.poolQMul[1]
 
-		// If the receiver Ciphertext is neither of the inputs,
-		// we can write directly on it.
-		if elOut != el0 && elOut != el1 {
+		c0 = elOut.value[0]
+		c1 = elOut.value[1]
 
-			c0 = elOut.value[0]
-			c1 = elOut.value[1]
-
-			// If the evaluation key is nil and we can write directly on the receiver, then
-			// it resizes the Ciphertext to a degree 2 Ciphertext
-			if evakey == nil {
-
-				elOut.Resize(eval.params, 2)
-				c2 = elOut.value[2]
-
-				// If there is however an evaluation key, then
-				// we still use the mempool for the third element
-			} else {
-
-				c2 = eval.poolQMul[2]
-			}
-
-			// If the receiver Ciphertext is the first or second input
+		if evakey == nil {
+			elOut.Resize(eval.params, 2)
+			c2 = elOut.value[2]
 		} else {
-
-			c0 = elOut.value[0]
-			c1 = elOut.value[1]
 			c2 = eval.poolQMul[2]
 		}
 
@@ -1400,14 +1381,12 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 		ringQ.MFormLvl(level, tmp0.value[1], c01)
 
 		if el0 == el1 { // squaring case
-
 			ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.value[0], c0) // c0 = c[0]*c[0]
 			ringQ.MulCoeffsMontgomeryLvl(level, c01, tmp1.value[1], c2) // c2 = c[1]*c[1]
 			ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.value[1], c1) // c1 = 2*c[0]*c[1]
 			ringQ.AddLvl(level, c1, c1, c1)
 
 		} else { // regular case
-
 			ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.value[0], c0) // c0 = c0[0]*c0[0]
 			ringQ.MulCoeffsMontgomeryLvl(level, c01, tmp1.value[1], c2) // c2 = c0[1]*c1[1]
 			ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.value[1], c1)
@@ -1416,17 +1395,9 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 
 		// Relinearize if a key was provided
 		if evakey != nil {
-
 			eval.switchKeysInPlace(level, c2, evakey.evakey, eval.poolQ[1], eval.poolQ[2])
-
 			ringQ.AddLvl(level, c0, eval.poolQ[1], elOut.value[0])
 			ringQ.AddLvl(level, c1, eval.poolQ[2], elOut.value[1])
-
-		} else { // Or copy the result on the output Ciphertext if it was one of the inputs
-			if elOut == el0 || elOut == el1 {
-				elOut.Resize(eval.params, 2)
-				ringQ.CopyLvl(level, c2, elOut.value[2])
-			}
 		}
 
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
@@ -1658,7 +1629,7 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 
 	reduce = 0
 
-	alpha := eval.params.alpha
+	alpha := eval.params.Alpha()
 	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
 
 	// Key switching with CRT decomposition for the Qi
@@ -1718,7 +1689,7 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 
 	eval.decomposer.DecomposeAndSplit(level, beta, c2InvNTT, c2QiQ, c2QiP)
 
-	p0idxst := beta * eval.params.alpha
+	p0idxst := beta * eval.params.Alpha()
 	p0idxed := p0idxst + eval.decomposer.Xalpha()[beta]
 
 	// c2_qi = cx mod qi mod qi
@@ -1755,7 +1726,7 @@ func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []uint64, rotkey
 	c2InvNTT := ringQ.NewPoly()
 	ringQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
 
-	alpha := eval.params.alpha
+	alpha := eval.params.Alpha()
 	beta := uint64(math.Ceil(float64(ct0.Level()+1) / float64(alpha)))
 
 	c2QiQDecomp := make([]*ring.Poly, beta)
@@ -1835,7 +1806,7 @@ func (eval *evaluator) RotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint6
 	c2InvNTT := ringQ.NewPoly()
 	ringQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
 
-	alpha := eval.params.alpha
+	alpha := eval.params.Alpha()
 	beta := uint64(math.Ceil(float64(ct0.Level()+1) / float64(alpha)))
 
 	c2QiQDecomp := make([]*ring.Poly, beta)
@@ -1907,7 +1878,7 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
-	alpha := eval.params.alpha
+	alpha := eval.params.Alpha()
 	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
 
 	evakey0Q := new(ring.Poly)

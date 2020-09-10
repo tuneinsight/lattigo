@@ -28,77 +28,88 @@ const (
 	PN14QP438
 	PN15QP880
 	PN16QP1761
-	PN16BootCheby
 )
 
-type DefaultParam struct {
-	LogModuli
-	LogN     uint64
-	LogSlots uint64
-	Scale    float64
-}
-
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
-var DefaultParams = []*DefaultParam{
+var DefaultParams = []*Parameters{
 
 	//LogQi = 109
-	{LogN: 12,
-		LogSlots: 11,
-		LogModuli: LogModuli{
-			LogQi: []uint64{37, 32},
-			LogPi: []uint64{38},
+	{logN: 12,
+		logSlots: 11,
+		Moduli: Moduli{ // 37 + 32
+			qi: []uint64{0x200000e001,
+				0x100006001},
+			pi: []uint64{0x3ffffea001}, // 38
 		},
-		Scale: 1 << 32,
+		scale: 1 << 32,
+		sigma: DefaultSigma,
 	},
 
 	//LogQi = 218
-	{LogN: 13,
-		LogSlots: 12,
-		LogModuli: LogModuli{
-			LogQi: []uint64{33, 30, 30, 30, 30, 30},
-			LogPi: []uint64{35},
+	{logN: 13,
+		logSlots: 12,
+		Moduli: Moduli{ // 33 + 5 x 30
+			qi: []uint64{0x1fffec001,
+				0x3fff4001,
+				0x3ffe8001,
+				0x40020001,
+				0x40038001,
+				0x3ffc0001},
+			pi: []uint64{0x800004001}, // 35
 		},
-		Scale: 1 << 30,
+		scale: 1 << 30,
+		sigma: DefaultSigma,
 	},
 
 	//LogQiP = 438
-	{LogN: 14,
-		LogSlots: 13,
-		LogModuli: LogModuli{
-			LogQi: []uint64{45, 34, 34, 34, 34, 34, 34, 34, 34, 34},
-			LogPi: []uint64{43, 43},
+	{logN: 14,
+		logSlots: 13,
+		Moduli: Moduli{ // 45 + 9 x 34
+			qi: []uint64{0x200000008001, 0x400018001,
+				0x3fffd0001, 0x400060001,
+				0x400068001, 0x3fff90001,
+				0x400080001, 0x4000a8001,
+				0x400108001, 0x3ffeb8001},
+			pi: []uint64{0x7fffffd8001, 0x7fffffc8001}, // 43, 43
 		},
-		Scale: 1 << 34,
+		scale: 1 << 34,
+		sigma: DefaultSigma,
 	},
 
 	//LogQi = 880
-	{LogN: 15,
-		LogSlots: 14,
-		LogModuli: LogModuli{
-			LogQi: []uint64{50, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
-			LogPi: []uint64{50, 50, 50},
+	{logN: 15,
+		logSlots: 14,
+		Moduli: Moduli{ // 50 + 17 x 40
+			qi: []uint64{0x4000000120001, 0x10000140001, 0xffffe80001,
+				0x10000290001, 0xffffc40001, 0x100003e0001,
+				0x10000470001, 0x100004b0001, 0xffffb20001,
+				0x10000500001, 0x10000650001, 0xffff940001,
+				0xffff8a0001, 0xffff820001, 0xffff780001,
+				0x10000890001, 0xffff750001, 0x10000960001},
+			pi: []uint64{0x40000001b0001, 0x3ffffffdf0001, 0x4000000270001}, // 50, 50, 50
 		},
-		Scale: 1 << 40,
+
+		scale: 1 << 40,
+		sigma: DefaultSigma,
 	},
 
 	//LogQi = 1761
-	{LogN: 16,
-		LogSlots: 15,
-		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},
-			LogPi: []uint64{55, 55, 55, 55},
+	{logN: 16,
+		logSlots: 15,
+		Moduli: Moduli{ // 55 + 33 x 45
+			qi: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001,
+				0x200000440001, 0x200000500001, 0x200000620001, 0x1fffff980001,
+				0x2000006a0001, 0x1fffff7e0001, 0x200000860001, 0x200000a60001,
+				0x200000aa0001, 0x200000b20001, 0x200000c80001, 0x1fffff360001,
+				0x200000e20001, 0x1fffff060001, 0x200000fe0001, 0x1ffffede0001,
+				0x1ffffeca0001, 0x1ffffeb40001, 0x200001520001, 0x1ffffe760001,
+				0x2000019a0001, 0x1ffffe640001, 0x200001a00001, 0x1ffffe520001,
+				0x200001e80001, 0x1ffffe0c0001, 0x1ffffdee0001, 0x200002480001,
+				0x1ffffdb60001, 0x200002560001},
+			pi: []uint64{0x80000000440001, 0x7fffffffba0001, 0x80000000500001, 0x7fffffffaa0001}, // 4 x 55
 		},
-		Scale: 1 << 45,
-	},
-
-	//LogQi = 1761
-	{LogN: 16,
-		LogSlots: 15,
-		LogModuli: LogModuli{
-			LogQi: []uint64{55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},
-			LogPi: []uint64{61},
-		},
-		Scale: 1 << 55,
+		scale: 1 << 45,
+		sigma: DefaultSigma,
 	},
 }
 
@@ -147,6 +158,76 @@ func (m *Moduli) LogQP() uint64 {
 		tmp.Mul(tmp, ring.NewUint(pi))
 	}
 	return uint64(tmp.BitLen())
+}
+
+func (m *Moduli) LogQ() uint64 {
+	tmp := ring.NewUint(1)
+	for _, qi := range m.qi {
+		tmp.Mul(tmp, ring.NewUint(qi))
+	}
+	return uint64(tmp.BitLen())
+}
+
+func (m *Moduli) LogP() uint64 {
+	tmp := ring.NewUint(1)
+	for _, pi := range m.pi {
+		tmp.Mul(tmp, ring.NewUint(pi))
+	}
+	return uint64(tmp.BitLen())
+}
+
+func (m *Moduli) LogQAlpha() uint64 {
+
+	alpha := m.PiCount()
+
+	if alpha == 0 {
+		return 0
+	}
+
+	res := ring.NewUint(0)
+	var j uint64
+	for i := uint64(0); i < m.QiCount(); i = i + alpha {
+
+		j = i + alpha
+		if j > m.QiCount() {
+			j = m.QiCount()
+		}
+
+		tmp := ring.NewUint(1)
+		for _, qi := range m.qi[i:j] {
+			tmp.Mul(tmp, ring.NewUint(qi))
+		}
+
+		res.Add(res, tmp)
+	}
+
+	return uint64(res.BitLen())
+}
+
+// Alpha returns the number of moduli in in P
+func (m *Moduli) Alpha() uint64 {
+	return m.PiCount()
+}
+
+// Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
+func (m *Moduli) Beta() uint64 {
+	if m.Alpha() != 0 {
+		return uint64(math.Ceil(float64(m.QiCount()) / float64(m.Alpha())))
+	} else {
+		return 0
+	}
+}
+
+func (m *Moduli) Print() {
+	for _, qi := range m.qi {
+		fmt.Printf("0x%x,\n", qi)
+	}
+	fmt.Println()
+
+	for _, pj := range m.pi {
+		fmt.Printf("0x%x,\n", pj)
+	}
+	fmt.Println()
 }
 
 // Copy creates a copy of the target Moduli.
@@ -202,10 +283,6 @@ type Parameters struct {
 	logSlots uint64
 	scale    float64
 	sigma    float64 // Gaussian sampling variance
-
-	logQP uint64
-	alpha uint64
-	beta  uint64
 }
 
 // NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
@@ -223,13 +300,6 @@ func NewParametersFromModuli(logN uint64, m Moduli) (p *Parameters, err error) {
 	}
 
 	p.Moduli = m.Copy()
-	p.logQP = p.Moduli.LogQP()
-
-	if p.PiCount() != 0 {
-		p.alpha = p.PiCount()
-		p.beta = uint64(math.Ceil(float64(p.QiCount()) / float64(p.PiCount())))
-	}
-
 	p.sigma = DefaultSigma
 
 	return p, nil
@@ -311,21 +381,6 @@ func (p *Parameters) Sigma() float64 {
 	return p.sigma
 }
 
-// Alpha returns the number of moduli in in P
-func (p *Parameters) Alpha() uint64 {
-	return p.alpha
-}
-
-// Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
-func (p *Parameters) Beta() uint64 {
-	return p.beta
-}
-
-// LogQP returns the size of the extanded modulus QP in bits
-func (p *Parameters) LogQP() uint64 {
-	return p.logQP
-}
-
 // WithT returns a copy of this parameter struct with the plaintext modulus set to t
 func (p *Parameters) Scale() float64 {
 	return p.scale
@@ -361,10 +416,6 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 	paramsCopy.scale = p.scale
 	paramsCopy.sigma = p.sigma
 	paramsCopy.Moduli = p.Moduli.Copy()
-	paramsCopy.logQP = p.logQP
-	paramsCopy.alpha = p.alpha
-	paramsCopy.beta = p.beta
-
 	return
 }
 
@@ -379,14 +430,8 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 	res = res && (p.logSlots == other.logSlots)
 	res = res && (p.scale == other.scale)
 	res = res && (p.sigma == other.sigma)
-
 	res = res && utils.EqualSliceUint64(p.qi, other.qi)
 	res = res && utils.EqualSliceUint64(p.pi, other.pi)
-
-	res = res && (p.alpha == other.alpha)
-	res = res && (p.beta == other.beta)
-	res = res && (p.logQP == other.logQP)
-
 	return
 }
 
@@ -443,16 +488,9 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	b.ReadUint64Slice(p.qi)
 	b.ReadUint64Slice(p.pi)
 
-	if lenPi != 0 {
-		p.alpha = uint64(lenPi)
-		p.beta = uint64(math.Ceil(float64(lenQi) / float64(lenPi)))
-	}
-
 	if err = checkModuli(p.Moduli, p.logN); err != nil {
 		return err
 	}
-
-	p.logQP = p.Moduli.LogQP()
 
 	return nil
 }

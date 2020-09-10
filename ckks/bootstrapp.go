@@ -3,6 +3,7 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
+
 	//"log"
 	"math"
 	//"time"
@@ -54,7 +55,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 func (btp *Bootstrapper) subSum(ct *Ciphertext) *Ciphertext {
 
-	for i := btp.params.logSlots; i < btp.params.LogMaxSlots(); i++ {
+	for i := btp.params.logSlots; i < btp.params.MaxLogSlots(); i++ {
 
 		btp.evaluator.RotateColumns(ct, 1<<i, btp.rotkeys, btp.ctxpool)
 

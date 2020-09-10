@@ -2,12 +2,13 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/ckks/bettersine"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"log"
 	"math"
 	"math/cmplx"
+
+	"github.com/ldsec/lattigo/ckks/bettersine"
+	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // Bootstrapper is a struct to stores a memory pool the plaintext matrices
@@ -201,7 +202,7 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	btp.rotKeyIndex = []uint64{}
 
 	//SubSum rotation needed X -> Y^slots rotations
-	for i := btp.params.logSlots; i < btp.params.LogMaxSlots(); i++ {
+	for i := btp.params.logSlots; i < btp.params.MaxLogSlots(); i++ {
 		if !utils.IsInSliceUint64(1<<i, btp.rotKeyIndex) {
 			btp.rotKeyIndex = append(btp.rotKeyIndex, 1<<i)
 		}

@@ -1,9 +1,10 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/utils"
 	"math"
 	"testing"
+
+	"github.com/ldsec/lattigo/utils"
 )
 
 func BenchmarkBootstrapp(b *testing.B) {
@@ -77,7 +78,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 			b.StopTimer()
 			ct0 = NewCiphertextRandom(prng, params.params, 1, params.params.MaxLevel()-ctsDepth, LTScale)
-			if params.params.logSlots == params.params.LogMaxSlots() {
+			if params.params.logSlots == params.params.MaxLogSlots() {
 				ct1 = NewCiphertextRandom(prng, params.params, 1, params.params.MaxLevel()-ctsDepth, LTScale)
 			} else {
 				ct1 = nil
@@ -105,7 +106,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 			b.StopTimer()
 			ct2 = NewCiphertextRandom(prng, params.params, 1, params.params.MaxLevel()-ctsDepth-sinDepth, LTScale)
-			if params.params.logSlots == params.params.LogMaxSlots() {
+			if params.params.logSlots == params.params.MaxLogSlots() {
 				ct3 = NewCiphertextRandom(prng, params.params, 1, params.params.MaxLevel()-ctsDepth-sinDepth, LTScale)
 			} else {
 				ct3 = nil

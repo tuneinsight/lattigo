@@ -92,8 +92,8 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappParams) (btp *Boot
 	btp.encoder = NewEncoder(params)
 	btp.evaluator = NewEvaluator(params)
 
-	btp.newBootSine()
-	btp.newBootDFT()
+	btp.genSinePoly()
+	btp.genDFTMatrices()
 
 	btp.ctxpool = NewCiphertext(params, 1, params.MaxLevel(), 0)
 
@@ -175,7 +175,7 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 	return nil
 }
 
-func (btp *Bootstrapper) newBootDFT() {
+func (btp *Bootstrapper) genDFTMatrices() {
 
 	a := real(btp.chebycoeffs.a)
 	b := real(btp.chebycoeffs.b)
@@ -248,7 +248,7 @@ func (btp *Bootstrapper) newBootDFT() {
 	return
 }
 
-func (btp *Bootstrapper) newBootSine() {
+func (btp *Bootstrapper) genSinePoly() {
 
 	if btp.SinType == Sin {
 

@@ -1,10 +1,10 @@
 package ring
 
 import (
-	"fmt"
+	//"fmt"
 	"math/big"
 	"testing"
-	"time"
+	//"time"
 )
 
 var pi = "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989"
@@ -37,7 +37,7 @@ func Test_Complex128_Mul(t *testing.T) {
 		fivePows &= (m - 1)
 	}
 
-	time0 := time.Now()
+	//time0 := time.Now()
 	var angle *big.Float
 	roots := make([]*Complex, m+1)
 	for i := uint64(0); i < m; i++ {
@@ -54,11 +54,11 @@ func Test_Complex128_Mul(t *testing.T) {
 
 		roots[i] = NewComplex(real, imag)
 	}
-	time1 := time.Now()
+	//time1 := time.Now()
 
-	fmt.Printf("Computed roots in %s sec \n", time1.Sub(time0))
+	//fmt.Printf("Computed roots in %s sec \n", time1.Sub(time0))
 
-	fmt.Println(roots[1][0])
+	//fmt.Println(roots[1][0])
 
 	values := make([]*Complex, N)
 
@@ -66,7 +66,7 @@ func Test_Complex128_Mul(t *testing.T) {
 		values[i] = NewComplex(NewFloat(1.0, prec), NewFloat(0.0, prec))
 	}
 
-	time0 = time.Now()
+	//time0 = time.Now()
 	var lenh, lenq, gap, idx uint64
 	u := NewComplex(nil, nil)
 	v := NewComplex(nil, nil)
@@ -102,10 +102,10 @@ func Test_Complex128_Mul(t *testing.T) {
 		values[i][1].Quo(values[i][1], NBig)
 	}
 
-	time1 = time.Now()
+	//time1 = time.Now()
 
-	fmt.Printf("Computed FFT for LogSlots = %d in %s sec \n", N, time1.Sub(time0))
+	//fmt.Printf("Computed FFT for LogSlots = %d in %s sec \n", N, time1.Sub(time0))
 
-	fmt.Println(values[0][0])
-	fmt.Println(values[0][1])
+	//fmt.Println(values[0][0])
+	//fmt.Println(values[0][1])
 }

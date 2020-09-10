@@ -17,9 +17,9 @@ import (
 
 var err error
 var params = new(testParams)
-var defaultParams = ckks.DefaultParams[ckks.PN13QP218 : ckks.PN14QP438+1]
-
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
+var minPrec float64 = 15.0
+var parties uint64 = 3
 
 func testString(opname string, parties uint64, params *ckks.Parameters) string {
 	return fmt.Sprintf("%sparties=%d/logN=%d/logQ=%d/levels=%d/a=%d/b=%d",
@@ -33,9 +33,7 @@ func testString(opname string, parties uint64, params *ckks.Parameters) string {
 }
 
 type testParams struct {
-	params     *ckks.Parameters
-	parties    uint64
-	medianprec float64
+	params *ckks.Parameters
 
 	dckksContext *dckksContext
 
@@ -60,8 +58,13 @@ type testParams struct {
 
 func TestDCKKS(t *testing.T) {
 
-	params.medianprec = 15
-	params.parties = 3
+	var defaultParams []*ckks.Parameters
+
+	if testing.Short() {
+		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+3]
+	} else {
+		defaultParams = ckks.DefaultParams
+	}
 
 	for _, p := range defaultParams {
 
@@ -80,18 +83,15 @@ func TestDCKKS(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParams *ckks.DefaultParam) (err error) {
+func genTestParams(defaultParams *ckks.Parameters) (err error) {
 
-	if params.params, err = ckks.NewParametersFromLogModuli(defaultParams.LogN, defaultParams.LogModuli); err != nil {
+	if params.params, err = ckks.NewParametersFromModuli(defaultParams.LogN(), defaultParams.Moduli); err != nil {
 		return err
 	}
 
-	params.params.SetLogSlots(defaultParams.LogN - 1)
-	params.params.SetScale(defaultParams.Scale)
+	params.params = defaultParams.Copy()
 
-	dckksContext := newDckksContext(params.params)
-
-	params.dckksContext = dckksContext
+	params.dckksContext = newDckksContext(params.params)
 
 	params.prng, err = utils.NewPRNG()
 	if err != nil {
@@ -104,12 +104,12 @@ func genTestParams(defaultParams *ckks.DefaultParam) (err error) {
 	kgen := ckks.NewKeyGenerator(params.params)
 
 	// SecretKeys
-	params.sk0Shards = make([]*ckks.SecretKey, params.parties)
-	params.sk1Shards = make([]*ckks.SecretKey, params.parties)
+	params.sk0Shards = make([]*ckks.SecretKey, parties)
+	params.sk1Shards = make([]*ckks.SecretKey, parties)
 	tmp0 := params.dckksContext.ringQP.NewPoly()
 	tmp1 := params.dckksContext.ringQP.NewPoly()
 
-	for j := uint64(0); j < params.parties; j++ {
+	for j := uint64(0); j < parties; j++ {
 		params.sk0Shards[j] = kgen.GenSecretKey()
 		params.sk1Shards[j] = kgen.GenSecretKey()
 		params.dckksContext.ringQP.Add(tmp0, params.sk0Shards[j].Get(), tmp0)
@@ -137,7 +137,6 @@ func genTestParams(defaultParams *ckks.DefaultParam) (err error) {
 
 func testPublicKeyGen(t *testing.T) {
 
-	parties := params.parties
 	decryptorSk0 := params.decryptorSk0
 	sk0Shards := params.sk0Shards
 	prng, err := utils.NewKeyedPRNG(nil)
@@ -190,7 +189,6 @@ func testPublicKeyGen(t *testing.T) {
 
 func testRelinKeyGen(t *testing.T) {
 
-	parties := params.parties
 	evaluator := params.evaluator
 	encryptorPk0 := params.encryptorPk0
 	decryptorSk0 := params.decryptorSk0
@@ -269,7 +267,6 @@ func testRelinKeyGen(t *testing.T) {
 
 func testRelinKeyGenNaive(t *testing.T) {
 
-	parties := params.parties
 	evaluator := params.evaluator
 	pk0 := params.pk0
 	encryptorPk0 := params.encryptorPk0
@@ -335,7 +332,6 @@ func testRelinKeyGenNaive(t *testing.T) {
 
 func testKeyswitching(t *testing.T) {
 
-	parties := params.parties
 	encryptorPk0 := params.encryptorPk0
 	decryptorSk1 := params.decryptorSk1
 	sk0Shards := params.sk0Shards
@@ -386,7 +382,6 @@ func testKeyswitching(t *testing.T) {
 
 func testPublicKeySwitching(t *testing.T) {
 
-	parties := params.parties
 	encryptorPk0 := params.encryptorPk0
 	decryptorSk1 := params.decryptorSk1
 	sk0Shards := params.sk0Shards
@@ -431,7 +426,6 @@ func testPublicKeySwitching(t *testing.T) {
 
 func testRotKeyGenConjugate(t *testing.T) {
 
-	parties := params.parties
 	ringQP := params.dckksContext.ringQP
 	evaluator := params.evaluator
 	encryptorPk0 := params.encryptorPk0
@@ -494,7 +488,6 @@ func testRotKeyGenConjugate(t *testing.T) {
 
 func testRotKeyGenCols(t *testing.T) {
 
-	parties := params.parties
 	ringQP := params.dckksContext.ringQP
 	evaluator := params.evaluator
 	encryptorPk0 := params.encryptorPk0
@@ -564,7 +557,6 @@ func testRotKeyGenCols(t *testing.T) {
 
 func testRefresh(t *testing.T) {
 
-	parties := params.parties
 	evaluator := params.evaluator
 	encryptorPk0 := params.encryptorPk0
 	decryptorSk0 := params.decryptorSk0
@@ -573,6 +565,10 @@ func testRefresh(t *testing.T) {
 	levelStart := uint64(3)
 
 	t.Run(testString("", parties, params.params), func(t *testing.T) {
+
+		if params.params.MaxLevel() < 3 {
+			t.Skip()
+		}
 
 		type Party struct {
 			*RefreshProtocol
@@ -627,7 +623,6 @@ func testRefresh(t *testing.T) {
 
 func testRefreshAndPermute(t *testing.T) {
 
-	parties := params.parties
 	evaluator := params.evaluator
 	encryptorPk0 := params.encryptorPk0
 	decryptorSk0 := params.decryptorSk0
@@ -798,8 +793,8 @@ func verifyTestVectors(decryptor ckks.Decryptor, valuesWant []complex128, elemen
 		t.Log()
 	}
 
-	require.GreaterOrEqual(t, math.Log2(1/real(medianprec)), params.medianprec)
-	require.GreaterOrEqual(t, math.Log2(1/imag(medianprec)), params.medianprec)
+	require.GreaterOrEqual(t, math.Log2(1/real(medianprec)), minPrec)
+	require.GreaterOrEqual(t, math.Log2(1/imag(medianprec)), minPrec)
 }
 
 func calcmedian(values []complex128) (median complex128) {

@@ -10,8 +10,13 @@ import (
 
 func BenchmarkDCKKS(b *testing.B) {
 
-	params.medianprec = 15
-	params.parties = 3
+	var defaultParams []*ckks.Parameters
+
+	if testing.Short() {
+		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+3]
+	} else {
+		defaultParams = ckks.DefaultParams
+	}
 
 	for _, p := range defaultParams {
 
@@ -31,7 +36,6 @@ func BenchmarkDCKKS(b *testing.B) {
 
 func benchPublicKeyGen(b *testing.B) {
 
-	parties := params.parties
 	sk0Shards := params.sk0Shards
 	prng, err := utils.NewKeyedPRNG(nil)
 	if err != nil {
@@ -71,7 +75,6 @@ func benchPublicKeyGen(b *testing.B) {
 
 func benchRelinKeyGen(b *testing.B) {
 
-	parties := params.parties
 	sk0Shards := params.sk0Shards
 
 	type Party struct {
@@ -130,7 +133,6 @@ func benchRelinKeyGen(b *testing.B) {
 
 func benchRelinKeyGenNaive(b *testing.B) {
 
-	parties := params.parties
 	pk0 := params.pk0
 	sk0Shards := params.sk0Shards
 
@@ -178,7 +180,6 @@ func benchRelinKeyGenNaive(b *testing.B) {
 
 func benchKeySwitching(b *testing.B) {
 
-	parties := params.parties
 	sk0Shards := params.sk0Shards
 	sk1Shards := params.sk1Shards
 
@@ -221,7 +222,6 @@ func benchKeySwitching(b *testing.B) {
 
 func benchPublicKeySwitching(b *testing.B) {
 
-	parties := params.parties
 	sk0Shards := params.sk0Shards
 	pk1 := params.pk1
 
@@ -262,7 +262,6 @@ func benchPublicKeySwitching(b *testing.B) {
 
 func benchRotKeyGen(b *testing.B) {
 
-	parties := params.parties
 	ringQP := params.dckksContext.ringQP
 	sk0Shards := params.sk0Shards
 
@@ -315,7 +314,6 @@ func benchRotKeyGen(b *testing.B) {
 
 func benchRefresh(b *testing.B) {
 
-	parties := params.parties
 	sk0Shards := params.sk0Shards
 	ringQ := params.dckksContext.ringQ
 
@@ -381,7 +379,6 @@ func benchRefresh(b *testing.B) {
 func benchRefreshAndPermute(b *testing.B) {
 
 	sk0Shards := params.sk0Shards
-	parties := params.parties
 
 	levelStart := uint64(2)
 

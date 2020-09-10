@@ -52,7 +52,7 @@ func TestBootstrapp(t *testing.T) {
 			deg := 127
 			K := float64(15)
 
-			values, _, ciphertext := newTestVectorsSineBoot(params.encryptorSk, -K+1, K-1, t)
+			values, _, ciphertext := newTestVectorsSineBootstrapp(params.encryptorSk, -K+1, K-1, t)
 			eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
 
 			cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
@@ -89,7 +89,7 @@ func TestBootstrapp(t *testing.T) {
 
 			sc_fac := complex(float64(int(1<<sc_num)), 0)
 
-			values, _, ciphertext := newTestVectorsSineBoot(params.encryptorSk, float64(-K+1), float64(K-1), t)
+			values, _, ciphertext := newTestVectorsSineBootstrapp(params.encryptorSk, float64(-K+1), float64(K-1), t)
 			eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
 
 			cheby := new(ChebyshevInterpolation)
@@ -185,7 +185,7 @@ func TestBootstrapp(t *testing.T) {
 	}
 }
 
-func newTestVectorsSineBoot(encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectorsSineBootstrapp(encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	slots := params.params.Slots()
 

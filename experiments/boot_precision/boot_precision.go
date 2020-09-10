@@ -23,7 +23,6 @@ var minLogSlots = int(4)
 var paramSet = flag.Int("paramSet", 1, "index in BootStrappParams")
 var nboot = flag.Int("nboot", 1, "number of bootstrapping (on the same ct for successive and on different ct for slotdist)")
 var logslot = flag.Uint64("logslot", 15, "number of slots per ciphertext (max number for slotcount)")
-var hw = flag.Uint64("hw", 192, "secret key hamming weight")
 var makePlot = flag.Bool("makeplot", false, "output a .tex plot")
 
 func main() {
@@ -50,7 +49,7 @@ func main() {
 	switch exp {
 	case "successive":
 		params.SetLogSlots(*logslot)
-		log.Printf("%% program args: paramSet=%d, nboot=%d, hw=%d, logslot=%d\n", *paramSet, *nboot, *hw, *logslot)
+		log.Printf("%% program args: paramSet=%d, nboot=%d, hw=%d, logslot=%d\n", *paramSet, *nboot, btpParams.H, *logslot)
 		encoder, encryptor, evaluator, decryptor, bootstrapper := instanciateExperiment(params, btpParams)
 		log.Println("Generating a plaintext of", params.Slots(), "random values...")
 		values := make([]complex128, params.Slots())
@@ -66,11 +65,9 @@ func main() {
 		for i := range stats {
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
 			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext)
-			fmt.Println(stats[i])
 			if ciphertext.Scale() != params.Scale() {
 				evaluator.SetScale(ciphertext, params.Scale())
 			}
-			fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		}
 
 		formatSuccessive(stats, bReal, bImag)
@@ -78,7 +75,7 @@ func main() {
 
 	case "slotdist":
 		params.SetLogSlots(*logslot)
-		log.Printf("%% program args: paramSet=%d, hw=%d, logslot=%d\n", *paramSet, *hw, *logslot)
+		log.Printf("%% program args: paramSet=%d, hw=%d, logslot=%d\n", *paramSet, btpParams.H, *logslot)
 		encoder, encryptor, _, decryptor, bootstrapper := instanciateExperiment(params, btpParams)
 		stats = make([]ckks.PrecisionStats, 1, 1) // Experiment seems stable enough
 		for i := range stats {
@@ -99,7 +96,7 @@ func main() {
 
 	case "slotcount":
 		stats = make([]ckks.PrecisionStats, int(params.LogN())+1-minLogSlots, int(params.LogN())+1-minLogSlots)
-		log.Printf("%% program args: paramSet=%d, hw=%d\n", *paramSet, *hw)
+		log.Printf("%% program args: paramSet=%d, hw=%d\n", *paramSet, btpParams.H)
 		for i, logSloti := 0, uint64(minLogSlots); logSloti <= params.LogN()-1; i, logSloti = i+1, logSloti+1 {
 			log.Println("running experiment for logslot =", logSloti)
 			params.SetLogSlots(logSloti)
@@ -137,7 +134,7 @@ func main() {
 func instanciateExperiment(params *ckks.Parameters, btpParams *ckks.BootstrappParams) (encoder ckks.Encoder, encryptor ckks.Encryptor, evaluator ckks.Evaluator, decryptor ckks.Decryptor, bootstrapper *ckks.Bootstrapper) {
 
 	keyGen := ckks.NewKeyGenerator(params)
-	sk, pk := keyGen.GenKeyPairSparse(*hw)
+	sk, pk := keyGen.GenKeyPairSparse(btpParams.H)
 
 	encoder = ckks.NewEncoder(params)
 	encryptor = ckks.NewEncryptorFromPk(params, pk)

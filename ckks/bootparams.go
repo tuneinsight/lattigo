@@ -9,7 +9,6 @@ type BootstrappParams struct {
 	CtSLevel     []uint64 // Level of the Coeffs To Slots
 	StCLevel     []uint64 // Level of the Slots To Coeffs
 	MaxN1N2Ratio float64  // n1/n2 ratio for the bsgs algo for matrix x vector eval
-	SinDepth     uint64   // Depth of the SineEval (automatically set)
 }
 
 type SinType uint64
@@ -21,6 +20,7 @@ const (
 
 func (b *BootstrappParams) Copy() *BootstrappParams {
 	paramsCopy := &BootstrappParams{
+		H:            b.H,
 		SinType:      b.SinType,
 		SinRange:     b.SinRange,
 		SinDeg:       b.SinDeg,
@@ -28,7 +28,6 @@ func (b *BootstrappParams) Copy() *BootstrappParams {
 		CtSLevel:     make([]uint64, len(b.CtSLevel)),
 		StCLevel:     make([]uint64, len(b.StCLevel)),
 		MaxN1N2Ratio: b.MaxN1N2Ratio,
-		SinDepth:     b.SinDepth,
 	}
 	copy(paramsCopy.CtSLevel, b.CtSLevel)
 	copy(paramsCopy.StCLevel, b.StCLevel)

@@ -33,7 +33,9 @@ func main() {
 	// Bootstrapping parameters
 	// Five sets of parameters (index 0 to 4) ensuring 128 bit of security
 	// are avaliable in github.com/ldsec/lattigo/ckks/bootparams
-	// LogSlots is hardcoded to 10 in the parameters, but can be changed from 1 to 15.
+	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
+	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
+	// smaller or equal to logSlots.
 	params := ckks.DefaultBootstrappSchemeParams[4]
 	btpParams := ckks.DefaultBootstrappParams[4]
 
@@ -43,7 +45,7 @@ func main() {
 	// Scheme context and keys
 	kgen = ckks.NewKeyGenerator(params)
 
-	sk, pk = kgen.GenKeyPairSparse(128)
+	sk, pk = kgen.GenKeyPairSparse(btpParams.H)
 
 	encoder = ckks.NewEncoder(params)
 	decryptor = ckks.NewDecryptor(params, sk)

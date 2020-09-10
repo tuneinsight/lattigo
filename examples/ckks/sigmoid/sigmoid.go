@@ -28,14 +28,7 @@ func chebyshevinterpolation() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Scheme params
-	xx := ckks.DefaultParams[ckks.PN14QP438]
-
-	params, err := ckks.NewParametersFromLogModuli(xx.LogN, xx.LogModuli)
-	if err != nil {
-		panic(err)
-	}
-	params.SetScale(xx.Scale)
-	params.SetLogSlots(xx.LogSlots)
+	params := ckks.DefaultParams[ckks.PN14QP438]
 
 	encoder := ckks.NewEncoder(params)
 

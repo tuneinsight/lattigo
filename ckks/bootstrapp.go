@@ -208,29 +208,27 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	vecRotQ, vecRotP := eval.RotateHoistedNoModDown(vec, rotations, btp.rotkeys)
 
 	// Accumulator inner loop
-	tmpQ0 := btp.poolQ[0]
-	tmpQ1 := btp.poolQ[1]
-	tmpP0 := btp.poolP[0]
-	tmpP1 := btp.poolP[1]
+	tmpQ0 := eval.poolQMul[0] // unused memory pool from evaluator
+	tmpQ1 := eval.poolQMul[1] // unused memory pool from evaluator
 
 	// Accumulator outer loop
-	tmpQ2 := btp.poolQ[2]
-	tmpQ3 := btp.poolQ[3]
-	tmpP2 := btp.poolP[2]
-	tmpP3 := btp.poolP[3]
+	tmpQ2 := eval.poolQMul[2] // unused memory pool from evaluator
+	tmpQ3 := btp.poolQ[0]
+	tmpP2 := btp.poolP[0]
+	tmpP3 := btp.poolP[1]
 
 	// Keyswitch accumulator
-	pool2Q := eval.poolQ[1]
-	pool3Q := eval.poolQ[2]
-	pool2P := eval.poolP[1]
-	pool3P := eval.poolP[2]
+	pool2Q := eval.poolQ[1] // res(c0', c1') from evaluator keyswitch memory pool
+	pool3Q := eval.poolQ[2] // res(c0', c1') from evaluator keyswitch memory pool
+	pool2P := eval.poolP[1] // res(c0', c1') from evaluator keyswitch memory pool
+	pool3P := eval.poolP[2] // res(c0', c1') from evaluator keyswitch memory pool
 
 	N1Rot := 0
 	N2Rot := 0
 
 	c0 := vec.value[0].CopyNew()
 
-	ringQ.MulScalarBigintLvl(levelQ, c0, ringP.ModulusBigint, c0)
+	ringQ.MulScalarBigintLvl(levelQ, c0, ringP.ModulusBigint, c0) // P*c0
 
 	for _, i := range rotations {
 		if i != 0 {
@@ -262,13 +260,13 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 					if cnt1 == 0 {
 						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ0) // phi(P*c0 + d0_Q) * plaintext
 						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ1) // phi(d1_Q) * plaintext
-						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[0], tmpP0)            // phi(d0_P) * plaintext
-						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[1], tmpP1)            // phi(d1_P) * plaintext
+						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[0], pool2P)           // phi(d0_P) * plaintext
+						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[1], pool3P)           // phi(d1_P) * plaintext
 					} else {
 						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ0) // phi(d0_Q) * plaintext
 						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ1) // phi(d1_Q) * plaintext
-						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], tmpP0)            // phi(d0_P) * plaintext
-						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], tmpP1)            // phi(d1_P) * plaintext
+						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], pool2P)           // phi(d0_P) * plaintext
+						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], pool3P)           // phi(d1_P) * plaintext
 					}
 
 					cnt1++
@@ -276,8 +274,8 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 			}
 
 			// Hoisting of the ModDown of sum(sum(phi(d0 + P*c0) * plaintext)) and sum(sum(phi(d1) * plaintext))
-			eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ0, tmpP0, tmpQ0) // sum(phi(d0) * plaintext)/P
-			eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ1, tmpP1, tmpQ1) // sum(phi(d1) * plaintext)/P
+			eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ0, pool2P, tmpQ0) // sum(phi(d0) * plaintext)/P
+			eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ1, pool3P, tmpQ1) // sum(phi(d1) * plaintext)/P
 
 			// If i == 0
 			if state {

@@ -69,10 +69,10 @@ type evaluator struct {
 
 	ringQ    *ring.Ring
 	ringP    *ring.Ring
-	poolQMul [3]*ring.Poly // Memory pool for MForm(c0), MForm(c1), c2
+	poolQMul [3]*ring.Poly // Memory pool in order : for MForm(c0), MForm(c1), c2
 
-	poolQ [4]*ring.Poly // Memory pool for NTT^-1(c2), Decomp(c2), res(c0', c1')
-	poolP [3]*ring.Poly // Memory pool for Decomp(c2), res(c0', c1')
+	poolQ [4]*ring.Poly // Memory pool in order : Decomp(c2), for NTT^-1(c2), res(c0', c1')
+	poolP [3]*ring.Poly // Memory pool in order : Decomp(c2), res(c0', c1')
 
 	// TODO use the other pools
 	ctxpool *Ciphertext // Memory pool for ciphertext that need to be scaled up (to be removed eventually)

@@ -6,7 +6,7 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-// PRNG is an interface for secure deterministic generation of random bytes
+// PRNG is an interface for secure (keyed) deterministic generation of random bytes
 type PRNG interface {
 	Clock(sum []byte)
 	GetClock() uint64

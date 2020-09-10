@@ -32,7 +32,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	ctsDepth := uint64(len(btpParams.CtSLevel))
 	sinDepth := uint64(math.Ceil(math.Log2(float64(btpParams.SinDeg))) + float64(btpParams.SinRescal))
 
-	btpKey := params.kgen.GenBootstrappingKey(btpParams, params.sk)
+	btpKey := params.kgen.GenBootstrappingKey(params.params.logSlots, btpParams, params.sk)
 	btp, err = NewBootstrapper(params.params, btpParams, btpKey)
 	if err != nil {
 		panic(err)

@@ -144,7 +144,7 @@ func instanciateExperiment(params *ckks.Parameters, btpParams *ckks.BootstrappPa
 	evaluator = ckks.NewEvaluator(params)
 
 	log.Println("Generating the keys...")
-	btpKey := keyGen.GenBootstrappingKey(btpParams, sk)
+	btpKey := keyGen.GenBootstrappingKey(params.LogSlots(), btpParams, sk)
 	log.Println("Done")
 	bootstrapper, err = ckks.NewBootstrapper(params, btpParams, btpKey)
 	if err != nil {

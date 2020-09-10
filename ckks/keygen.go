@@ -1,10 +1,10 @@
 package ckks
 
 import (
-	"math/big"
-
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
+	"math"
+	"math/big"
 )
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
@@ -20,7 +20,7 @@ type KeyGenerator interface {
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
 	GenRotationKey(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
 	GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys)
-	GenBootstrappingKey(btpParams *BootstrappParams, sk *SecretKey) (btpKey *BootstrappingKey)
+	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappParams, sk *SecretKey) (btpKey *BootstrappingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -526,17 +526,247 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 }
 
 // GenKeys generates the bootstrapping keys
-func (keygen *keyGenerator) GenBootstrappingKey(btpParams *BootstrappParams, sk *SecretKey) (btpKey *BootstrappingKey) {
+func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrappParams, sk *SecretKey) (btpKey *BootstrappingKey) {
 
 	btpKey = &BootstrappingKey{
 		relinkey: keygen.GenRelinKey(sk),
 		rotkeys:  NewRotationKeys(),
 	}
 
-	btp := newBootstrapper(keygen.params, btpParams)
+	rotKeyIndex := computeBootstrappingDFTRotationList(keygen.params.logN, logSlots, btpParams)
 	keygen.GenRotationKey(Conjugate, sk, 0, btpKey.rotkeys)
-	for _, i := range btp.rotKeyIndex {
+	for _, i := range rotKeyIndex {
 		keygen.GenRotationKey(RotationLeft, sk, uint64(i), btpKey.rotkeys)
+	}
+
+	return
+}
+
+func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth uint64, forward bool) (rotationMap []map[uint64]bool) {
+
+	var level, depth, nextLevel uint64
+
+	level = logSlots
+
+	rotationMap = make([]map[uint64]bool, maxDepth)
+
+	// We compute the chain of merge in order or reverse order depending if its DFT or InvDFT because
+	// the way the levels are collapsed has an inpact on the total number of rotations and keys to be
+	// stored. Ex. instead of using 255 + 64 plaintext vectors, we can use 127 + 128 plaintext vectors
+	// by reversing the order of the merging.
+	merge := make([]uint64, maxDepth)
+	for i := uint64(0); i < maxDepth; i++ {
+
+		depth = uint64(math.Ceil(float64(level) / float64(maxDepth-i)))
+
+		if forward {
+			merge[i] = depth
+		} else {
+			merge[uint64(len(merge))-i-1] = depth
+
+		}
+
+		level -= depth
+	}
+
+	level = logSlots
+	for i := uint64(0); i < maxDepth; i++ {
+
+		if logSlots < logN-1 && !forward && i == 0 {
+
+			// Special initial matrix for the repacking before SlotsToCoeffs
+			rotationMap[i] = genWfftRepackIndexMap(logSlots, level)
+
+			// Merges this special initial matrix with the first layer of SlotsToCoeffs DFT
+			rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, level, forward)
+
+			// Continues the merging with the next layers if the total depth requires it.
+			nextLevel = level - 1
+			for j := uint64(0); j < merge[i]-1; j++ {
+				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, nextLevel, forward)
+				nextLevel--
+			}
+
+		} else {
+			// First layer of the i-th level of the DFT
+			rotationMap[i] = genWfftIndexMap(logSlots, level, forward)
+
+			// Merges the layer with the next levels of the DFT if the total depth requires it.
+			nextLevel = level - 1
+			for j := uint64(0); j < merge[i]-1; j++ {
+				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 1<<logSlots, nextLevel, forward)
+				nextLevel--
+			}
+		}
+
+		level -= merge[i]
+	}
+
+	return
+}
+
+func computeBootstrappingDFTRotationList(logN, logSlots uint64, bootParams *BootstrappParams) (rotKeyIndex []uint64) {
+
+	// List of the rotation key values to needed for the bootstrapp
+	rotKeyIndex = []uint64{}
+
+	var slots uint64 = 1 << logSlots
+	var dslots uint64 = slots
+	if logSlots < logN-1 {
+		dslots <<= 1
+	}
+
+	//SubSum rotation needed X -> Y^slots rotations
+	for i := logSlots; i < logN-1; i++ {
+		if !utils.IsInSliceUint64(1<<i, rotKeyIndex) {
+			rotKeyIndex = append(rotKeyIndex, 1<<i)
+		}
+	}
+
+	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, bootParams.CtSDepth(), true)
+
+	var index uint64
+	// Coeffs to Slots rotations
+	for i := range indexCtS {
+
+		N1 := findbestbabygiantstepsplitIndexMap(indexCtS[i], dslots, bootParams.MaxN1N2Ratio)
+
+		for j := range indexCtS[i] {
+
+			index = ((j / N1) * N1) & (slots - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+		}
+	}
+
+	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, bootParams.StCDepth(), false)
+
+	// Slots to Coeffs rotations
+	for i := range indexStC {
+
+		N1 := findbestbabygiantstepsplitIndexMap(indexStC[i], dslots, bootParams.MaxN1N2Ratio)
+
+		for j := range indexStC[i] {
+
+			if logSlots < logN-1 && i == 0 {
+				// Sparse repacking, occuring during the first DFT matrix of the CoeffsToSlots.
+				index = ((j / N1) * N1) & (2*slots - 1)
+			} else {
+				// Other cases
+				index = ((j / N1) * N1) & (slots - 1)
+			}
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+		}
+	}
+
+	return rotKeyIndex
+}
+
+// Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
+func findbestbabygiantstepsplitIndexMap(vector map[uint64]bool, maxN uint64, maxRatio float64) (minN uint64) {
+
+	for N1 := uint64(1); N1 < maxN; N1 <<= 1 {
+
+		index := make(map[uint64][]uint64)
+
+		for key := range vector {
+
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+
+			if index[idx1] == nil {
+				index[idx1] = []uint64{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
+		}
+
+		if len(index[0]) > 0 {
+
+			hoisted := len(index[0]) - 1
+			normal := len(index) - 1
+
+			// The matrice is very sparse already
+			if normal == 0 {
+				return N1 / 2
+			}
+
+			if hoisted > normal {
+				// Finds the next split that has a ratio hoisted/normal greater or equal to maxRatio
+				for float64(hoisted)/float64(normal) < maxRatio {
+
+					if normal/2 == 0 {
+						break
+					}
+					N1 *= 2
+					hoisted = hoisted*2 + 1
+					normal = normal / 2
+				}
+				return N1
+			}
+		}
+	}
+
+	return 1
+}
+
+func genWfftIndexMap(logL, level uint64, forward bool) (vectors map[uint64]bool) {
+
+	var rot uint64
+
+	if forward {
+		rot = 1 << (level - 1)
+	} else {
+		rot = 1 << (logL - level)
+	}
+
+	vectors = make(map[uint64]bool)
+	vectors[0] = true
+	vectors[rot] = true
+	vectors[(1<<logL)-rot] = true
+	return
+}
+
+func genWfftRepackIndexMap(logL, level uint64) (vectors map[uint64]bool) {
+	vectors = make(map[uint64]bool)
+	vectors[0] = true
+	vectors[(1 << logL)] = true
+	return
+}
+
+func nextLevelfftIndexMap(vec map[uint64]bool, logL, N, nextLevel uint64, forward bool) (newVec map[uint64]bool) {
+
+	var rot uint64
+
+	newVec = make(map[uint64]bool)
+
+	if forward {
+		rot = (1 << (nextLevel - 1)) & (N - 1)
+	} else {
+		rot = (1 << (logL - nextLevel)) & (N - 1)
+	}
+
+	for i := range vec {
+		newVec[i] = true
+		newVec[(i+rot)&(N-1)] = true
+		newVec[(i+N-rot)&(N-1)] = true
 	}
 
 	return

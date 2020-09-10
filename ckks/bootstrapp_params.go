@@ -12,6 +12,16 @@ type BootstrappParams struct {
 	MaxN1N2Ratio float64  // n1/n2 ratio for the bsgs algo for matrix x vector eval
 }
 
+// CtSDepth returns the number of levels allocated to CoeffsToSlots
+func (b *BootstrappParams) CtSDepth() uint64 {
+	return uint64(len(b.CtSLevel))
+}
+
+// StCDepth returns the number of levels allocated to SlotToCoeffs
+func (b *BootstrappParams) StCDepth() uint64 {
+	return uint64(len(b.StCLevel))
+}
+
 // SinType is the type of function used during the bootstrapping
 // for the homomorphic modular reduction
 type SinType uint64

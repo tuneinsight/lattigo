@@ -57,7 +57,7 @@ func main() {
 	// Make it so they can be given as input to the bootstrapp.
 	fmt.Println()
 	fmt.Println("Generating bootstrappign keys...")
-	btpKey := kgen.GenBootstrappingKey(btpParams, sk)
+	btpKey := kgen.GenBootstrappingKey(params.LogSlots(), btpParams, sk)
 	btp, err = ckks.NewBootstrapper(params, btpParams, btpKey)
 	if err != nil {
 		panic(err)

@@ -24,7 +24,7 @@ func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 	el := new(bfvElement)
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = ring.NewPoly(1<<params.logN, uint64(len(params.qi)))
+		el.value[i] = ring.NewPoly(params.N(), params.QiCount())
 	}
 	el.isNTT = true
 	return el
@@ -32,7 +32,7 @@ func newBfvElement(params *Parameters, degree uint64) *bfvElement {
 
 func newBfvElementRandom(prng utils.PRNG, params *Parameters, degree uint64) *bfvElement {
 
-	ringQ, err := ring.NewRing(params.n, params.qi)
+	ringQ, err := ring.NewRing(params.N(), params.qi)
 	if err != nil {
 		panic(err)
 	}

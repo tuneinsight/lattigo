@@ -5,6 +5,15 @@ import (
 )
 
 func BenchmarkBFV(b *testing.B) {
+
+	var defaultParams []*Parameters
+
+	if testing.Short() {
+		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
+	} else {
+		defaultParams = DefaultParams
+	}
+
 	for _, p := range defaultParams {
 
 		if err = genTestParams(p); err != nil {

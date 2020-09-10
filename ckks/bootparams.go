@@ -305,6 +305,7 @@ var DefaultBootstrappParams = []*BootstrappParams{
 	},
 }
 
+// Insecure params for quick correctness testing
 var DefaultBootstrappSchemeParamsShort = []*Parameters{
 
 	{

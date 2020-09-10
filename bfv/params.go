@@ -49,38 +49,28 @@ const DefaultSigma = 3.2
 var DefaultParams = []*Parameters{
 
 	{
-		logN:  12,
-		n:     4096,
-		t:     65537,
-		logQP: 109,
+		logN: 12,
+		t:    65537,
 		Moduli: Moduli{
 			qi:    []uint64{0x7ffffec001, 0x8000016001},             // 39 + 39 bits
 			pi:    []uint64{0x40002001},                             // 30 bits
 			qiMul: []uint64{0xfffffffffffc001, 0x100000000000e001}}, // 60 + 60 bits
 		sigma: DefaultSigma,
-		alpha: 1,
-		beta:  2,
 	},
 
 	{
-		logN:  13,
-		n:     8192,
-		t:     65537,
-		logQP: 218,
+		logN: 13,
+		t:    65537,
 		Moduli: Moduli{
 			qi:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001},      // 54 + 54 + 54 bits
 			pi:    []uint64{0x7ffffffffb4001},                                          // 55 bits
 			qiMul: []uint64{0xfffffffffffc001, 0xffffffffffe8001, 0x1000000000024001}}, // 60 + 60 + 60 bits
 		sigma: DefaultSigma,
-		alpha: 1,
-		beta:  3,
 	},
 
 	{
-		logN:  14,
-		n:     16384,
-		t:     65537,
-		logQP: 438,
+		logN: 14,
+		t:    65537,
 		Moduli: Moduli{
 			qi: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
 				0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
@@ -88,15 +78,11 @@ var DefaultParams = []*Parameters{
 			qiMul: []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001,
 				0x1000000000078001, 0xffffffffff28001, 0xfffffffffe38001}}, // 60 + 60 + 60 + 60 + 60 + 60 bits
 		sigma: DefaultSigma,
-		alpha: 2,
-		beta:  3,
 	},
 
 	{
-		logN:  15,
-		n:     32768,
-		t:     65537,
-		logQP: 880,
+		logN: 15,
+		t:    65537,
 		Moduli: Moduli{
 			qi: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
 				0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
@@ -108,8 +94,6 @@ var DefaultParams = []*Parameters{
 				0xfffffffff5a0001, 0xfffffffff550001, 0x1000000000b00001, // 60 + 60 + 60 bits
 				0xfffffffff330001, 0x1000000000ce0001, 0xfffffffff2a0001}}, // 60 + 60 + 60 bits
 		sigma: DefaultSigma,
-		alpha: 3,
-		beta:  4,
 	},
 }
 
@@ -144,6 +128,11 @@ func (m *Moduli) PiCount() uint64 {
 	return uint64(len(m.pi))
 }
 
+// PiCount returns the number of factors of the ciphertext modulus extention p
+func (m *Moduli) QPiCount() uint64 {
+	return m.QiCount() + m.PiCount()
+}
+
 // LogQP returns the size of the extended modulus QP in bits
 func (m *Moduli) LogQP() uint64 {
 	tmp := ring.NewUint(1)
@@ -154,6 +143,64 @@ func (m *Moduli) LogQP() uint64 {
 		tmp.Mul(tmp, ring.NewUint(pi))
 	}
 	return uint64(tmp.BitLen())
+}
+
+func (m *Moduli) LogQ() uint64 {
+	tmp := ring.NewUint(1)
+	for _, qi := range m.qi {
+		tmp.Mul(tmp, ring.NewUint(qi))
+	}
+	return uint64(tmp.BitLen())
+}
+
+func (m *Moduli) LogP() uint64 {
+	tmp := ring.NewUint(1)
+	for _, pi := range m.pi {
+		tmp.Mul(tmp, ring.NewUint(pi))
+	}
+	return uint64(tmp.BitLen())
+}
+
+func (m *Moduli) LogQAlpha() uint64 {
+
+	alpha := m.PiCount()
+
+	if alpha == 0 {
+		return 0
+	}
+
+	res := ring.NewUint(0)
+	var j uint64
+	for i := uint64(0); i < m.QiCount(); i = i + alpha {
+
+		j = i + alpha
+		if j > m.QiCount() {
+			j = m.QiCount()
+		}
+
+		tmp := ring.NewUint(1)
+		for _, qi := range m.qi[i:j] {
+			tmp.Mul(tmp, ring.NewUint(qi))
+		}
+
+		res.Add(res, tmp)
+	}
+
+	return uint64(res.BitLen())
+}
+
+// Alpha returns the number of moduli in in P
+func (m *Moduli) Alpha() uint64 {
+	return m.PiCount()
+}
+
+// Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
+func (m *Moduli) Beta() uint64 {
+	if m.Alpha() != 0 {
+		return uint64(math.Ceil(float64(m.QiCount()) / float64(m.Alpha())))
+	} else {
+		return 0
+	}
 }
 
 // Copy creates a copy of the target Moduli.
@@ -197,13 +244,8 @@ func (m *LogModuli) Copy() LogModuli {
 type Parameters struct {
 	Moduli
 	logN  uint64  // Log Ring degree (power of 2)
-	n     uint64  // Ring degree
 	t     uint64  // Plaintext modulus
 	sigma float64 // Gaussian sampling standard deviation
-
-	logQP uint64
-	alpha uint64
-	beta  uint64
 }
 
 // NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
@@ -223,15 +265,6 @@ func NewParametersFromModuli(logN uint64, m Moduli, t uint64) (p *Parameters, er
 	}
 
 	p.Moduli = m.Copy()
-
-	p.logQP = p.Moduli.LogQP()
-
-	p.n = 1 << p.logN
-
-	if len(p.pi) != 0 {
-		p.alpha = uint64(len(p.pi))
-		p.beta = uint64(math.Ceil(float64(len(p.qi)) / float64(len(p.pi))))
-	}
 
 	p.sigma = DefaultSigma
 
@@ -270,21 +303,6 @@ func (p *Parameters) Sigma() float64 {
 	return p.sigma
 }
 
-// Alpha returns the number of moduli in in P
-func (p *Parameters) Alpha() uint64 {
-	return p.alpha
-}
-
-// Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
-func (p *Parameters) Beta() uint64 {
-	return p.beta
-}
-
-// LogQP returns the size of the extanded modulus QP in bits
-func (p *Parameters) LogQP() uint64 {
-	return p.logQP
-}
-
 // LogQP returns the size of the extanded modulus QP in bits
 func (p *Parameters) SetT(T uint64) {
 	p.t = T
@@ -319,17 +337,17 @@ func (p *Parameters) LogModuli() LogModuli {
 
 // NewPolyQ returns a new empty polynomial of degree 2^logN in basis qi.
 func (p *Parameters) NewPolyQ() *ring.Poly {
-	return ring.NewPoly(p.n, uint64(len(p.qi)))
+	return ring.NewPoly(p.N(), p.QiCount())
 }
 
 // NewPolyP returns a new empty polynomial of degree 2^logN in basis Pi.
 func (p *Parameters) NewPolyP() *ring.Poly {
-	return ring.NewPoly(p.n, uint64(len(p.pi)))
+	return ring.NewPoly(p.N(), p.PiCount())
 }
 
 // NewPolyQP returns a new empty polynomial of degree 2^logN in basis qi + Pi.
 func (p *Parameters) NewPolyQP() *ring.Poly {
-	return ring.NewPoly(p.n, uint64(len(p.qi)+len(p.pi)))
+	return ring.NewPoly(p.N(), p.QPiCount())
 }
 
 // Copy creates a copy of the target Parameters.
@@ -337,13 +355,9 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 
 	paramsCopy = new(Parameters)
 	paramsCopy.logN = p.logN
-	paramsCopy.n = p.n
 	paramsCopy.t = p.t
 	paramsCopy.sigma = p.sigma
 	paramsCopy.Moduli = p.Moduli.Copy()
-	paramsCopy.logQP = p.logQP
-	paramsCopy.alpha = p.alpha
-	paramsCopy.beta = p.beta
 
 	return
 }
@@ -356,17 +370,12 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 	}
 
 	res = p.logN == other.logN
-	res = res && (p.n == other.n)
 	res = res && (p.t == other.t)
 	res = res && (p.sigma == other.sigma)
 
 	res = res && utils.EqualSliceUint64(p.qi, other.qi)
 	res = res && utils.EqualSliceUint64(p.pi, other.pi)
 	res = res && utils.EqualSliceUint64(p.qiMul, other.qiMul)
-
-	res = res && (p.alpha == other.alpha)
-	res = res && (p.beta == other.beta)
-	res = res && (p.logQP == other.logQP)
 
 	return
 }
@@ -400,7 +409,6 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b := utils.NewBuffer(data)
 
 	p.logN = uint64(b.ReadUint8())
-	p.n = 1 << p.logN
 
 	if p.logN > MaxLogN {
 		return fmt.Errorf("logN larger than %d", MaxLogN)
@@ -409,11 +417,6 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	lenQi := b.ReadUint8()
 	lenPi := b.ReadUint8()
 	lenQiMul := b.ReadUint8()
-
-	if lenPi != 0 {
-		p.alpha = uint64(lenPi)
-		p.beta = uint64(math.Ceil(float64(lenQi) / float64(lenPi)))
-	}
 
 	p.t = b.ReadUint64()
 	p.sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
@@ -429,9 +432,6 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-
-	p.logQP = p.Moduli.LogQP()
-
 	return nil
 }
 

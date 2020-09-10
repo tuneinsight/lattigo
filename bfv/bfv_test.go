@@ -13,8 +13,8 @@ import (
 	"github.com/ldsec/lattigo/utils"
 )
 
-func testString(opname string, params *Parameters) string {
-	return fmt.Sprintf("%sLogN=%d/logQ=%d", opname, params.logN, params.logQP)
+func testString(opname string, p *Parameters) string {
+	return fmt.Sprintf("%sLogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.logN, p.LogQP(), p.Alpha(), p.Beta())
 }
 
 type testContext struct {
@@ -37,11 +37,18 @@ type testContext struct {
 
 var err error
 var testctx = new(testContext)
-var defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
 
 func TestBFV(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
+
+	var defaultParams []*Parameters
+
+	if testing.Short() {
+		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
+	} else {
+		defaultParams = DefaultParams
+	}
 
 	for _, p := range defaultParams {
 

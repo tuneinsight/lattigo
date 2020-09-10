@@ -8,7 +8,7 @@ import (
 	"github.com/ldsec/lattigo/utils"
 )
 
-// RefreshProtocol is a struct storing the parameters for the Refresh protocol.
+// PermuteProtocol is a struct storing the parameters for the PermuteProtocol protocol.
 type PermuteProtocol struct {
 	dckksContext    *dckksContext
 	encoder         ckks.EncoderBigComplex
@@ -19,7 +19,7 @@ type PermuteProtocol struct {
 	gaussianSampler *ring.GaussianSampler
 }
 
-// NewRefreshProtocol creates a new instance of the Refresh protocol.
+// NewPermuteProtocol creates a new instance of the PermuteProtocol.
 func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
 
 	prec := uint64(256)
@@ -153,7 +153,8 @@ func (pp *PermuteProtocol) Decrypt(ciphertext *ckks.Ciphertext, shareDecrypt Ref
 	pp.dckksContext.ringQ.AddLvl(ciphertext.Level(), ciphertext.Value()[0], shareDecrypt, ciphertext.Value()[0])
 }
 
-// Recode takes a masked decrypted ciphertext at modulus Q_0 and returns the same masked decrypted ciphertext at modulus Q_L, with Q_0 << Q_L.
+// Permute takes a masked decrypted ciphertext at modulus Q_0 and returns the same masked decrypted ciphertext at modulus Q_L, with Q_0 << Q_L.
+// Operates a permutation of the plaintext slots.
 func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []uint64, slots uint64) {
 	dckksContext := pp.dckksContext
 	ringQ := pp.dckksContext.ringQ

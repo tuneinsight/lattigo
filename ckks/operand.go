@@ -14,13 +14,14 @@ type Operand interface {
 	Scale() float64
 }
 
+// CkksElement is a generic type for ciphertext and plaintexts
 type CkksElement struct {
 	value []*ring.Poly
 	scale float64
 	isNTT bool
 }
 
-// newCkksElement returns a new CkksElement with zero values.
+// NewCkksElement returns a new CkksElement with zero values.
 func NewCkksElement() *CkksElement {
 	return &CkksElement{}
 }

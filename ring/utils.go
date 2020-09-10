@@ -6,6 +6,7 @@ import (
 	"github.com/ldsec/lattigo/utils"
 )
 
+// Min returns the minimum between to int
 func Min(x, y int) int {
 	if x > y {
 		return y

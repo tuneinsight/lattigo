@@ -7,6 +7,7 @@ import (
 	"math/bits"
 )
 
+// PermuteProtocol is a struct storing the parameters for the PermuteProtocol protocol.
 type PermuteProtocol struct {
 	context         *dbfvContext
 	indexMatrix     []uint64
@@ -19,6 +20,7 @@ type PermuteProtocol struct {
 	uniformSampler  *ring.UniformSampler
 }
 
+// NewPermuteProtocol creates a new instance of the PermuteProtocol.
 func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtocol) {
 
 	context := newDbfvContext(params)
@@ -67,11 +69,13 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 	return
 }
 
+// AllocateShares allocates the shares of the PermuteProtocol
 func (pp *PermuteProtocol) AllocateShares() RefreshShare {
 	return RefreshShare{pp.context.ringQ.NewPoly(),
 		pp.context.ringQ.NewPoly()}
 }
 
+// GenShares generates the shares of the PermuteProtocol
 func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, permutation []uint64, share RefreshShare) {
 
 	level := uint64(len(ciphertext.Value()[1].Coeffs) - 1)
@@ -154,7 +158,7 @@ func (pp *PermuteProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt Refr
 	pp.context.ringQ.Add(ciphertext.Value()[0], shareDecrypt, sharePlaintext)
 }
 
-// Recode decodes and re-encode (removing the error) the masked decrypted ciphertext.
+// Permute decodes and re-encode (removing the error) the masked decrypted ciphertext with a permutation of the plaintext slots.
 func (pp *PermuteProtocol) Permute(sharePlaintext *ring.Poly, permutation []uint64, sharePlaintextOut *ring.Poly) {
 
 	ringT := pp.context.ringT

@@ -24,6 +24,9 @@ func maxIndex(array []float64) (maxind int) {
 	return
 }
 
+// Approximate computes a polynomial approximation of degree "degree" in Chevyshev basis of the function
+// cos(2*pi*x/2^"scnum") in the range -"K" to "K"
+// The nodes of the Chevyshev approximation are are located from -dev to +dev at each integer value between -K and -K
 func Approximate(K, degree int, dev float64, scnum int) []complex128 {
 
 	var PI = new(big.Float)

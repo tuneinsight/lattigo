@@ -5,6 +5,7 @@ import (
 	"math/big"
 )
 
+// NewFloat creates a new big.Float element with "logPrecision" bits of precision
 func NewFloat(x float64, logPrecision uint64) (y *big.Float) {
 	y = new(big.Float)
 	y.SetPrec(uint(logPrecision)) // decimal precision
@@ -46,8 +47,10 @@ func Cos(x *big.Float) (cosx *big.Float) {
 
 }
 
+// Complex is a type for arbitrary precision complex number
 type Complex [2]*big.Float
 
+// NewComplex creates a new arbitrary precision complex number
 func NewComplex(a, b *big.Float) (c *Complex) {
 	c = new(Complex)
 	for i := 0; i < 2; i++ {
@@ -65,23 +68,28 @@ func NewComplex(a, b *big.Float) (c *Complex) {
 	return
 }
 
+// Set sets a arbitrary precision complex number
 func (c *Complex) Set(a *Complex) {
 	c[0].Set(a[0])
 	c[1].Set(a[1])
 }
 
+// Copy returns a new copy of the target arbitrary precision complex number
 func (c *Complex) Copy() *Complex {
 	return NewComplex(c[0], c[1])
 }
 
+// Real returns the real part as a big.Float
 func (c *Complex) Real() *big.Float {
 	return c[0]
 }
 
+// Imag returns the imaginary part as a big.Float
 func (c *Complex) Imag() *big.Float {
 	return c[1]
 }
 
+// Float64 returns the arbitrary precision complex number as a complex128
 func (c *Complex) Float64() complex128 {
 	a, _ := c[0].Float64()
 	b, _ := c[1].Float64()
@@ -89,16 +97,19 @@ func (c *Complex) Float64() complex128 {
 	return complex(a, b)
 }
 
+// Add adds two arbitrary precision complex numbers together
 func (c *Complex) Add(a, b *Complex) {
 	c[0].Add(a[0], b[0])
 	c[1].Add(a[1], b[1])
 }
 
+// Sub subtracts two arbitrary precision complex numbers together
 func (c *Complex) Sub(a, b *Complex) {
 	c[0].Sub(a[0], b[0])
 	c[1].Sub(a[1], b[1])
 }
 
+// ComplexMultiplier is a struct for the multiplication or division of two arbitrary precision complex numbers
 type ComplexMultiplier struct {
 	tmp0 *big.Float
 	tmp1 *big.Float
@@ -106,6 +117,7 @@ type ComplexMultiplier struct {
 	tmp3 *big.Float
 }
 
+// NewComplexMultiplier creates a new ComplexMultiplier
 func NewComplexMultiplier() (cEval *ComplexMultiplier) {
 	cEval = new(ComplexMultiplier)
 	cEval.tmp0 = new(big.Float)
@@ -115,6 +127,7 @@ func NewComplexMultiplier() (cEval *ComplexMultiplier) {
 	return
 }
 
+// Mul multiplies two arbitrary precision complex numbers together
 func (cEval *ComplexMultiplier) Mul(a, b, c *Complex) {
 
 	cEval.tmp0.Mul(a[0], b[0])
@@ -126,6 +139,7 @@ func (cEval *ComplexMultiplier) Mul(a, b, c *Complex) {
 	c[1].Add(cEval.tmp2, cEval.tmp3)
 }
 
+// Div divides two arbitrary precision complex numbers together
 func (cEval *ComplexMultiplier) Div(a, b, c *Complex) {
 
 	//a = a[0]

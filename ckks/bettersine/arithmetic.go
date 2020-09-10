@@ -6,14 +6,15 @@ import (
 	"math/big"
 )
 
+// NewFloat creates a new big.Float element with 1000 bits of precision
 func NewFloat(x float64) (y *big.Float) {
 	y = new(big.Float)
-	y.SetPrec(1000) // decimal precision
+	y.SetPrec(1000) // log2 precision
 	y.SetFloat64(x)
 	return
 }
 
-// Arbitrary precision computation of Cos(x)
+// Cos is an iterative arbitrary precision computation of Cos(x)
 // Iterative process with an error of ~10^{−0.60206*k} after k iterations.
 // ref : Johansson, B. Tomas, An elementary algorithm to evaluate trigonometric functions to high precision, 2018
 func Cos(x *big.Float) (cosx *big.Float) {
@@ -44,6 +45,7 @@ func Cos(x *big.Float) (cosx *big.Float) {
 
 }
 
+// Sin is an iterative arbitrary precision computation of Sin(x)
 func Sin(x *big.Float) (sinx *big.Float) {
 
 	sinx = NewFloat(1)

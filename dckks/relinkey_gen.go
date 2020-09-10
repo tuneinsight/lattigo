@@ -19,6 +19,7 @@ type RKGProtocol struct {
 	ternarySamplerMontgomery *ring.TernarySampler
 }
 
+// RKGShare is type for the RKGProtocol shares
 type RKGShare [][2]*ring.Poly
 
 // MarshalBinary encodes the target element on a slice of bytes.

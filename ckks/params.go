@@ -22,6 +22,7 @@ const MaxModuliSize = 60
 // DefaultSigma is the default error distribution standard deviation
 const DefaultSigma = 3.2
 
+// Name of the different default parameter sets
 const (
 	PN12QP109 = iota
 	PN13QP218
@@ -126,24 +127,24 @@ func (m *Moduli) Qi() []uint64 {
 	return qi
 }
 
-// QiCount returns the number of factors of the ciphertext modulus q
+// QiCount returns the number of factors of the ciphertext modulus Q
 func (m *Moduli) QiCount() uint64 {
 	return uint64(len(m.qi))
 }
 
-// Pi returns a new slice with the factors of the ciphertext modulus extention p
+// Pi returns a new slice with the factors of the ciphertext modulus extention P
 func (m *Moduli) Pi() []uint64 {
 	pi := make([]uint64, len(m.pi))
 	copy(pi, m.pi)
 	return pi
 }
 
-// PiCount returns the number of factors of the ciphertext modulus extention p
+// PiCount returns the number of factors of the ciphertext modulus extention P
 func (m *Moduli) PiCount() uint64 {
 	return uint64(len(m.pi))
 }
 
-// PiCount returns the number of factors of the ciphertext modulus extention p
+// QPiCount returns the number of factors of the ciphertext modulus + the extention modulus P
 func (m *Moduli) QPiCount() uint64 {
 	return uint64(len(m.qi) + len(m.pi))
 }
@@ -160,6 +161,7 @@ func (m *Moduli) LogQP() uint64 {
 	return uint64(tmp.BitLen())
 }
 
+// LogQ returns the size of the modulus Q in bits
 func (m *Moduli) LogQ() uint64 {
 	tmp := ring.NewUint(1)
 	for _, qi := range m.qi {
@@ -168,6 +170,7 @@ func (m *Moduli) LogQ() uint64 {
 	return uint64(tmp.BitLen())
 }
 
+// LogP returns the size of the modulus P in bits
 func (m *Moduli) LogP() uint64 {
 	tmp := ring.NewUint(1)
 	for _, pi := range m.pi {
@@ -176,6 +179,13 @@ func (m *Moduli) LogP() uint64 {
 	return uint64(tmp.BitLen())
 }
 
+// LogQAlpha returns the size in bits of the sum of the norm of
+// each element of the special RNS decomposition basis for the
+// key-switching.
+// LogQAlpha is the size of the element that is multipled by the
+// error during the keyswitching and then divided by P.
+// LogQAlpha should be smaller than P or the error added during
+// the key-switching wont be negligible.
 func (m *Moduli) LogQAlpha() uint64 {
 
 	alpha := m.PiCount()
@@ -213,11 +223,12 @@ func (m *Moduli) Alpha() uint64 {
 func (m *Moduli) Beta() uint64 {
 	if m.Alpha() != 0 {
 		return uint64(math.Ceil(float64(m.QiCount()) / float64(m.Alpha())))
-	} else {
-		return 0
 	}
+
+	return 0
 }
 
+// Print prints the moduli in hexadimal
 func (m *Moduli) Print() {
 	for _, qi := range m.qi {
 		fmt.Printf("0x%x,\n", qi)
@@ -357,18 +368,14 @@ func (p *Parameters) Levels() uint64 {
 	return p.QiCount()
 }
 
-// LogN returns the log of the degree of the polynomial ring
+// Slots returns number of avaliable plaintext slots
 func (p *Parameters) Slots() uint64 {
 	return 1 << p.logSlots
 }
 
-// LogN returns the log of the degree of the polynomial ring
+// MaxSlots returns the theoretical maximum of plaintext slots allowed by the ring degree
 func (p *Parameters) MaxSlots() uint64 {
 	return p.N() >> 1
-}
-
-func (p *Parameters) LogMaxSlots() uint64 {
-	return p.logN - 1
 }
 
 // MaxLogSlots returns the log of the maximum number of slots enabled by the parameters
@@ -381,12 +388,12 @@ func (p *Parameters) Sigma() float64 {
 	return p.sigma
 }
 
-// WithT returns a copy of this parameter struct with the plaintext modulus set to t
+// Scale returns the default plaintext/ciphertext scale
 func (p *Parameters) Scale() float64 {
 	return p.scale
 }
 
-// WithT returns a copy of this parameter struct with the plaintext modulus set to t
+// SetScale sets the default plaintext/ciphertext scale
 func (p *Parameters) SetScale(scale float64) {
 	p.scale = scale
 }

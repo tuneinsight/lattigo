@@ -20,7 +20,7 @@ type Encoder interface {
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 }
 
-// Encoder is an interface implenting the encoding algorithms.
+// EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
 type EncoderBigComplex interface {
 	Encode(plaintext *Plaintext, values []*ring.Complex, slots uint64)
 	EncodeNew(values []*ring.Complex, slots uint64) (plaintext *Plaintext)
@@ -391,6 +391,7 @@ type encoderBigComplex struct {
 	roots        []*ring.Complex
 }
 
+// NewEncoderBigComplex creates a new encoder using arbitrary precision complex arithmetic
 func NewEncoderBigComplex(params *Parameters, logPrecision uint64) EncoderBigComplex {
 	encoder := newEncoder(params)
 

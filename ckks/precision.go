@@ -6,6 +6,7 @@ import (
 	"sort"
 )
 
+// PrecisionStats is a struct storing statistic about the precision of a CKKS plaintext
 type PrecisionStats struct {
 	MaxDelta, MinDelta, MaxPrecision, MinPrecision, MeanDelta, MeanPrecision, MedianDelta, MedianPrecision complex128
 	RealDist, ImagDist                                                                                     []struct {
@@ -23,6 +24,7 @@ func (prec PrecisionStats) String() string {
 		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MedianDelta)), math.Log2(1/imag(prec.MedianDelta)))
 }
 
+// GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
 func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}) (prec PrecisionStats) {
 	var plaintextTest *Plaintext
 	var valuesTest []complex128
@@ -120,7 +122,7 @@ func (prec *PrecisionStats) calcCDF(precs []float64, res []struct {
 	sort.Float64s(sortedPrecs)
 	minPrec := sortedPrecs[0]                  //math.Log2(1/real(prec.MaxDelta))
 	maxPrec := sortedPrecs[len(sortedPrecs)-1] //math.Log2(1/real(prec.MinDelta))
-	for i := 0; i < prec.cdfResol; i += 1 {
+	for i := 0; i < prec.cdfResol; i++ {
 		curPrec := minPrec + float64(i)*(maxPrec-minPrec)/float64(prec.cdfResol)
 		for countSmaller, p := range sortedPrecs {
 			if p >= curPrec {

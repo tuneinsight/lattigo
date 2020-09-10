@@ -5,12 +5,15 @@ import (
 	"math/bits"
 )
 
+// Poly is a struct storing the coeffients of a polynomial
+// that then can be evaluated on the ciphertext
 type Poly struct {
 	maxDeg uint64
 	coeffs []complex128
 	lead   bool
 }
 
+// NewPoly creates a new Poly from the input coefficients
 func NewPoly(coeffs []complex128) (p *Poly) {
 
 	p = new(Poly)
@@ -22,6 +25,7 @@ func NewPoly(coeffs []complex128) (p *Poly) {
 	return
 }
 
+// Degree returns the degree of the polynomial
 func (p *Poly) Degree() uint64 {
 	return uint64(len(p.coeffs) - 1)
 }
@@ -56,8 +60,7 @@ func computeSmallPoly(split uint64, coeffs *Poly) (polyList []*Poly) {
 	return append(a, b...)
 }
 
-// EvaluatePolyFast evaluates the polynomial a + bx + cx^2... on the input Ciphertext.
-// It is faster than EvaluatePolyEco, but consumes ceil(log2(deg)) + 1 levels.
+// EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
 func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *EvaluationKey) (res *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
@@ -82,8 +85,7 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *Evaluati
 	return
 }
 
-// EvaluateChebyFast evaluates the input Chebyshev polynomial with the input ciphertext.
-// Faster than EvaluateChebyEco but consumes ceil(log(deg)) + 2 levels.
+// EvaluateCheby evaluates a polynomial in Chebyshev basis on the input Ciphertext in ceil(log2(deg+1))+1 levels.
 func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
@@ -259,7 +261,7 @@ func splitCoeffsCheby(coeffs *Poly, split uint64) (coeffsq, coeffsr *Poly) {
 	return coeffsq, coeffsr
 }
 
-func recurse(target_scale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.Degree() < (1 << logSplit) {
 
@@ -268,10 +270,10 @@ func recurse(target_scale float64, logSplit, logDegree uint64, coeffs *Poly, C m
 			logDegree = uint64(bits.Len64(coeffs.Degree()))
 			logSplit = logDegree >> 1
 
-			return recurse(target_scale, logSplit, logDegree, coeffs, C, evaluator, evakey)
+			return recurse(targetScale, logSplit, logDegree, coeffs, C, evaluator, evakey)
 		}
 
-		return evaluatePolyFromPowerBasis(target_scale, coeffs, C, evaluator)
+		return evaluatePolyFromPowerBasis(targetScale, coeffs, C, evaluator)
 	}
 
 	var nextPower = uint64(1 << logSplit)
@@ -287,16 +289,16 @@ func recurse(target_scale float64, logSplit, logDegree uint64, coeffs *Poly, C m
 		level++
 	}
 
-	current_qi := float64(evaluator.params.qi[level])
+	currentQi := float64(evaluator.params.qi[level])
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
-	//fmt.Printf("X^%2d: %f %f\n", nextPower, target_scale, target_scale* current_qi / C[nextPower].Scale())
+	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
 	//fmt.Printf("X^%2d : qi %d %t %d %d\n", nextPower, level, coeffsq.lead, coeffsq.maxDeg, 1<<(logDegree-1))
 	//fmt.Println()
 
-	res = recurse(target_scale*current_qi/C[nextPower].Scale(), logSplit, logDegree, coeffsq, C, evaluator, evakey)
+	res = recurse(targetScale*currentQi/C[nextPower].Scale(), logSplit, logDegree, coeffsq, C, evaluator, evakey)
 
-	tmp := recurse(target_scale, logSplit, logDegree, coeffsr, C, evaluator, evakey)
+	tmp := recurse(targetScale, logSplit, logDegree, coeffsr, C, evaluator, evakey)
 
 	if res.Level() > tmp.Level() {
 		for res.Level() != tmp.Level()+1 {
@@ -322,7 +324,7 @@ func recurse(target_scale float64, logSplit, logDegree uint64, coeffs *Poly, C m
 	return
 }
 
-func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
+func recurseCheby(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext) {
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.Degree() < (1 << logSplit) {
 
@@ -331,10 +333,10 @@ func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *Poly
 			logDegree = uint64(bits.Len64(coeffs.Degree()))
 			logSplit = logDegree >> 1
 
-			return recurseCheby(target_scale, logSplit, logDegree, coeffs, C, evaluator, evakey)
+			return recurseCheby(targetScale, logSplit, logDegree, coeffs, C, evaluator, evakey)
 		}
 
-		return evaluatePolyFromPowerBasis(target_scale, coeffs, C, evaluator)
+		return evaluatePolyFromPowerBasis(targetScale, coeffs, C, evaluator)
 	}
 
 	var nextPower = uint64(1 << logSplit)
@@ -350,17 +352,17 @@ func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *Poly
 		level++
 	}
 
-	current_qi := float64(evaluator.params.qi[level])
+	currentQi := float64(evaluator.params.qi[level])
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
-	//fmt.Printf("X^%2d: %f %f\n", nextPower, target_scale, target_scale* current_qi / C[nextPower].Scale())
+	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
 	//fmt.Printf("X^%2d : qi %d %t %d %d\n", nextPower, level, coeffsq.lead, coeffsq.maxDeg, 1<<(logDegree-1))
 	//fmt.Println()
 
-	res = recurseCheby(target_scale*current_qi/C[nextPower].Scale(), logSplit, logDegree, coeffsq, C, evaluator, evakey)
+	res = recurseCheby(targetScale*currentQi/C[nextPower].Scale(), logSplit, logDegree, coeffsq, C, evaluator, evakey)
 
 	var tmp *Ciphertext
-	tmp = recurseCheby(target_scale, logSplit, logDegree, coeffsr, C, evaluator, evakey)
+	tmp = recurseCheby(targetScale, logSplit, logDegree, coeffsr, C, evaluator, evakey)
 
 	if res.Level() > tmp.Level() {
 		for res.Level() != tmp.Level()+1 {
@@ -387,11 +389,11 @@ func recurseCheby(target_scale float64, logSplit, logDegree uint64, coeffs *Poly
 
 }
 
-func evaluatePolyFromPowerBasis(target_scale float64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator) (res *Ciphertext) {
+func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator) (res *Ciphertext) {
 
 	if coeffs.Degree() == 0 {
 
-		res = NewCiphertext(evaluator.params, 1, C[1].Level(), target_scale)
+		res = NewCiphertext(evaluator.params, 1, C[1].Level(), targetScale)
 
 		if math.Abs(real(coeffs.coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.coeffs[0])) > 1e-14 {
 			evaluator.AddConst(res, coeffs.coeffs[0], res)
@@ -400,15 +402,15 @@ func evaluatePolyFromPowerBasis(target_scale float64, coeffs *Poly, C map[uint64
 		return
 	}
 
-	current_qi := float64(evaluator.params.qi[C[coeffs.Degree()].Level()])
+	currentQi := float64(evaluator.params.qi[C[coeffs.Degree()].Level()])
 
-	ct_scale := target_scale * current_qi
+	ctScale := targetScale * currentQi
 
-	//fmt.Printf("%d %f\n", coeffs.maxDeg, target_scale)
+	//fmt.Printf("%d %f\n", coeffs.maxDeg, targetScale)
 	//fmt.Println("current Qi", evaluator.params.Qi[C[coeffs.Degree()].Level()])
 	//fmt.Println(coeffs.Degree(), C[coeffs.Degree()].Level())
 
-	res = NewCiphertext(evaluator.params, 1, C[coeffs.Degree()].Level(), ct_scale)
+	res = NewCiphertext(evaluator.params, 1, C[coeffs.Degree()].Level(), ctScale)
 
 	if math.Abs(real(coeffs.coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.coeffs[0])) > 1e-14 {
 		evaluator.AddConst(res, coeffs.coeffs[0], res)
@@ -419,10 +421,10 @@ func evaluatePolyFromPowerBasis(target_scale float64, coeffs *Poly, C map[uint64
 		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-14 || math.Abs(imag(coeffs.coeffs[key])) > 1e-14) {
 
 			// Target scale * rescale-scale / power basis scale
-			const_scale := target_scale * current_qi / C[key].Scale()
+			constScale := targetScale * currentQi / C[key].Scale()
 
-			cReal := int64(real(coeffs.coeffs[key]) * const_scale)
-			cImag := int64(imag(coeffs.coeffs[key]) * const_scale)
+			cReal := int64(real(coeffs.coeffs[key]) * constScale)
+			cImag := int64(imag(coeffs.coeffs[key]) * constScale)
 
 			evaluator.multByGaussianIntegerAndAdd(C[key], cReal, cImag, res)
 		}

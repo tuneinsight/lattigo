@@ -1,5 +1,6 @@
 package ckks
 
+// BootstrappParams is a struct for the default bootstrapping parameters
 type BootstrappParams struct {
 	H            uint64   // Hamming weight of the secret key
 	SinType      SinType  // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
@@ -11,13 +12,17 @@ type BootstrappParams struct {
 	MaxN1N2Ratio float64  // n1/n2 ratio for the bsgs algo for matrix x vector eval
 }
 
+// SinType is the type of function used during the bootstrapping
+// for the homomorphic modular reduction
 type SinType uint64
 
+// Sin and Cos are the two proposed functions for SinType
 const (
 	Sin = SinType(0)
 	Cos = SinType(1)
 )
 
+// Copy return a new BootstrappParams which is a copy of the target
 func (b *BootstrappParams) Copy() *BootstrappParams {
 	paramsCopy := &BootstrappParams{
 		H:            b.H,
@@ -34,6 +39,7 @@ func (b *BootstrappParams) Copy() *BootstrappParams {
 	return paramsCopy
 }
 
+// DefaultBootstrappSchemeParams are default scheme params for the bootstrapping
 var DefaultBootstrappSchemeParams = []*Parameters{
 	{
 		logN:     16,
@@ -235,6 +241,7 @@ var DefaultBootstrappSchemeParams = []*Parameters{
 	},
 }
 
+// DefaultBootstrappParams are default bootstrapping params for the bootstrapping
 var DefaultBootstrappParams = []*BootstrappParams{
 
 	// SET I
@@ -304,7 +311,8 @@ var DefaultBootstrappParams = []*BootstrappParams{
 	},
 }
 
-// Insecure params for quick correctness testing
+// DefaultBootstrappSchemeParamsShort are insecure params
+// for quick correctness testing of the bootstrapping
 var DefaultBootstrappSchemeParamsShort = []*Parameters{
 
 	{
@@ -394,6 +402,8 @@ var DefaultBootstrappSchemeParamsShort = []*Parameters{
 	},
 }
 
+// DefaultBootstrappParamsShort are default bootstrapping params for the
+// DefaultBootstrappSchemeParamsShort scheme params
 var DefaultBootstrappParamsShort = []*BootstrappParams{
 
 	// SET II

@@ -85,21 +85,21 @@ func TestBootstrapp(t *testing.T) {
 			K := 26
 			deg := 63
 			dev := float64(params.params.qi[0]) / DefaultScale
-			sc_num := 2
+			scNum := 2
 
-			sc_fac := complex(float64(int(1<<sc_num)), 0)
+			scFac := complex(float64(int(1<<scNum)), 0)
 
 			values, _, ciphertext := newTestVectorsSineBootstrapp(params.encryptorSk, float64(-K+1), float64(K-1), t)
 			eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
 
 			cheby := new(ChebyshevInterpolation)
-			cheby.coeffs = bettersine.Approximate(K, deg, dev, sc_num)
+			cheby.coeffs = bettersine.Approximate(K, deg, dev, scNum)
 			cheby.maxDeg = cheby.Degree()
-			cheby.a = complex(float64(-K), 0) / sc_fac
-			cheby.b = complex(float64(K), 0) / sc_fac
+			cheby.a = complex(float64(-K), 0) / scFac
+			cheby.b = complex(float64(K), 0) / scFac
 			cheby.lead = true
 
-			sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(sc_fac))
+			sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(scFac))
 
 			for i := range cheby.coeffs {
 				cheby.coeffs[i] *= complex(sqrt2pi, 0)
@@ -107,9 +107,9 @@ func TestBootstrapp(t *testing.T) {
 
 			for i := range values {
 
-				values[i] = cmplx.Cos(6.283185307179586 * (1 / sc_fac) * (values[i] - 0.25))
+				values[i] = cmplx.Cos(6.283185307179586 * (1 / scFac) * (values[i] - 0.25))
 
-				for j := 0; j < sc_num; j++ {
+				for j := 0; j < scNum; j++ {
 					values[i] = 2*values[i]*values[i] - 1
 				}
 
@@ -120,10 +120,10 @@ func TestBootstrapp(t *testing.T) {
 
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 			//start := time.Now()
-			ciphertext = params.evaluator.EvaluateChebySpecial(ciphertext, sc_fac, cheby, params.rlk)
+			ciphertext = params.evaluator.EvaluateChebySpecial(ciphertext, scFac, cheby, params.rlk)
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
-			for i := 0; i < sc_num; i++ {
+			for i := 0; i < scNum; i++ {
 				sqrt2pi *= sqrt2pi
 				params.evaluator.MulRelin(ciphertext, ciphertext, params.rlk, ciphertext)
 				params.evaluator.Add(ciphertext, ciphertext, ciphertext)

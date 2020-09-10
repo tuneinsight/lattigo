@@ -116,19 +116,19 @@ func (m *Moduli) QiCount() uint64 {
 	return uint64(len(m.qi))
 }
 
-// Pi returns a new slice with the factors of the ciphertext modulus extention p
+// Pi returns a new slice with the factors of the ciphertext modulus extention P
 func (m *Moduli) Pi() []uint64 {
 	pi := make([]uint64, len(m.pi))
 	copy(pi, m.pi)
 	return pi
 }
 
-// PiCount returns the number of factors of the ciphertext modulus extention p
+// PiCount returns the number of factors of the ciphertext modulus extention P
 func (m *Moduli) PiCount() uint64 {
 	return uint64(len(m.pi))
 }
 
-// PiCount returns the number of factors of the ciphertext modulus extention p
+// QPiCount returns the number of factors of the ciphertext modulus Q + the modulus extension P
 func (m *Moduli) QPiCount() uint64 {
 	return m.QiCount() + m.PiCount()
 }
@@ -145,6 +145,7 @@ func (m *Moduli) LogQP() uint64 {
 	return uint64(tmp.BitLen())
 }
 
+// LogQ returns the size of the modulus Q in bits
 func (m *Moduli) LogQ() uint64 {
 	tmp := ring.NewUint(1)
 	for _, qi := range m.qi {
@@ -153,6 +154,7 @@ func (m *Moduli) LogQ() uint64 {
 	return uint64(tmp.BitLen())
 }
 
+// LogP returns the size of the modulus P in bits
 func (m *Moduli) LogP() uint64 {
 	tmp := ring.NewUint(1)
 	for _, pi := range m.pi {
@@ -161,6 +163,13 @@ func (m *Moduli) LogP() uint64 {
 	return uint64(tmp.BitLen())
 }
 
+// LogQAlpha returns the size in bits of the sum of the norm of
+// each element of the special RNS decomposition basis for the
+// key-switching.
+// LogQAlpha is the size of the element that is multipled by the
+// error during the keyswitching and then divided by P.
+// LogQAlpha should be smaller than P or the error added during
+// the key-switching wont be negligible.
 func (m *Moduli) LogQAlpha() uint64 {
 
 	alpha := m.PiCount()
@@ -198,9 +207,9 @@ func (m *Moduli) Alpha() uint64 {
 func (m *Moduli) Beta() uint64 {
 	if m.Alpha() != 0 {
 		return uint64(math.Ceil(float64(m.QiCount()) / float64(m.Alpha())))
-	} else {
-		return 0
 	}
+
+	return 0
 }
 
 // Copy creates a copy of the target Moduli.
@@ -289,6 +298,7 @@ func (p *Parameters) LogN() uint64 {
 	return p.logN
 }
 
+// N returns power of two degree of the ring
 func (p *Parameters) N() uint64 {
 	return 1 << p.logN
 }
@@ -303,7 +313,7 @@ func (p *Parameters) Sigma() float64 {
 	return p.sigma
 }
 
-// LogQP returns the size of the extanded modulus QP in bits
+// SetT sets the plaintext coefficient modulus t
 func (p *Parameters) SetT(T uint64) {
 	p.t = T
 }

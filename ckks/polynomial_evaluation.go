@@ -58,7 +58,7 @@ func computeSmallPoly(split uint64, coeffs *Poly) (polyList []*Poly) {
 
 // EvaluatePolyFast evaluates the polynomial a + bx + cx^2... on the input Ciphertext.
 // It is faster than EvaluatePolyEco, but consumes ceil(log2(deg)) + 1 levels.
-func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *EvaluationKey) (ctOut *Ciphertext) {
+func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *EvaluationKey) (res *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
 
@@ -75,7 +75,11 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *Evaluati
 		computePowerBasis(1<<i, C, eval, evakey)
 	}
 
-	return recurse(eval.scale, logSplit, logDegree, pol, C, eval, evakey)
+	res = recurse(eval.scale, logSplit, logDegree, pol, C, eval, evakey)
+
+	C = nil
+
+	return
 }
 
 // EvaluateChebyFast evaluates the input Chebyshev polynomial with the input ciphertext.
@@ -121,7 +125,11 @@ func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ci
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	return recurseCheby(eval.scale, logSplit, logDegree, &cheby.Poly, C, eval, evakey)
+	res = recurseCheby(eval.scale, logSplit, logDegree, &cheby.Poly, C, eval, evakey)
+
+	C = nil
+
+	return
 }
 
 func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) {

@@ -205,7 +205,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	}
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	vecRotQ, vecRotP := eval.RotateHoistedNoModDown(vec, rotations, btp.rotkeys)
+	vecRotQ, vecRotP := eval.rotateHoistedNoModDown(vec, rotations, btp.rotkeys)
 
 	// Accumulator inner loop
 	tmpQ0 := eval.poolQMul[0] // unused memory pool from evaluator
@@ -233,7 +233,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	for _, i := range rotations {
 		if i != 0 {
 			ring.PermuteNTTWithIndexLvl(levelQ, c0, btp.rotkeys.permuteNTTLeftIndex[i], tmpQ0) // phi(P*c0)
-			ringQ.AddLvl(levelQ, vecRotQ[i].value[0], tmpQ0, vecRotQ[i].value[0])              // phi(d0_Q) += phi(P*c0)
+			ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ0, vecRotQ[i][0])                          // phi(d0_Q) += phi(P*c0)
 		}
 	}
 
@@ -258,15 +258,15 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 					plaintextP := plainVectors.Vec[N1*j+uint64(i)][1]
 
 					if cnt1 == 0 {
-						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ0) // phi(P*c0 + d0_Q) * plaintext
-						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ1) // phi(d1_Q) * plaintext
-						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[0], pool2P)           // phi(d0_P) * plaintext
-						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i].value[1], pool3P)           // phi(d1_P) * plaintext
+						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ0) // phi(P*c0 + d0_Q) * plaintext
+						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i][1], tmpQ1) // phi(d1_Q) * plaintext
+						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i][0], pool2P)           // phi(d0_P) * plaintext
+						ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i][1], pool3P)           // phi(d1_P) * plaintext
 					} else {
-						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ0) // phi(d0_Q) * plaintext
-						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ1) // phi(d1_Q) * plaintext
-						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], pool2P)           // phi(d0_P) * plaintext
-						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], pool3P)           // phi(d1_P) * plaintext
+						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ0) // phi(d0_Q) * plaintext
+						ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i][1], tmpQ1) // phi(d1_Q) * plaintext
+						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i][0], pool2P)           // phi(d0_P) * plaintext
+						ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i][1], pool3P)           // phi(d1_P) * plaintext
 					}
 
 					cnt1++
@@ -336,10 +336,10 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 			plaintextP := plainVectors.Vec[uint64(i)][1]
 			N1Rot++
 			// keyswitch(c1_Q) = (d0_QP, d1_QP)
-			ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[0], tmpQ2) // phi(P*c0 + d0_Q) * plaintext
-			ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i].value[1], tmpQ3) // phi(d1_Q) * plaintext
-			ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[0], tmpP2)            // phi(d0_P) * plaintext
-			ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i].value[1], tmpP3)            // phi(d1_P) * plaintext
+			ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ2) // phi(P*c0 + d0_Q) * plaintext
+			ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i][1], tmpQ3) // phi(d1_Q) * plaintext
+			ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i][0], tmpP2)            // phi(d0_P) * plaintext
+			ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i][1], tmpP3)            // phi(d1_P) * plaintext
 		}
 	}
 
@@ -362,6 +362,70 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	//log.Println(N1Rot, N2Rot)
 
 	return
+}
+
+// RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
+// rotation by one element of the list. It is much faster than sequential calls to RotateColumns.
+func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOutQ, cOutP map[uint64][2]*ring.Poly) {
+
+	// Pre-computation for rotations using hoisting
+	ringQ := eval.ringQ
+	ringP := eval.ringP
+
+	c2NTT := ct0.value[1]
+	c2InvNTT := ringQ.NewPoly()
+	ringQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
+
+	alpha := eval.params.Alpha()
+	beta := uint64(math.Ceil(float64(ct0.Level()+1) / float64(alpha)))
+
+	c2QiQDecomp := make([]*ring.Poly, beta)
+	c2QiPDecomp := make([]*ring.Poly, beta)
+
+	for i := uint64(0); i < beta; i++ {
+		c2QiQDecomp[i] = ringQ.NewPoly()
+		c2QiPDecomp[i] = ringP.NewPoly()
+		eval.decomposeAndSplitNTT(ct0.Level(), i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
+	}
+
+	cOutQ = make(map[uint64][2]*ring.Poly)
+	cOutP = make(map[uint64][2]*ring.Poly)
+
+	for _, i := range rotations {
+
+		i &= ((ringQ.N >> 1) - 1)
+
+		if i != 0 {
+			cOutQ[i] = [2]*ring.Poly{eval.ringQ.NewPolyLvl(ct0.Level()), eval.ringQ.NewPolyLvl(ct0.Level())}
+			cOutP[i] = [2]*ring.Poly{eval.params.NewPolyP(), eval.params.NewPolyP()}
+			eval.permuteNTTHoistedNoModDown(ct0, c2QiQDecomp, c2QiPDecomp, i, rotkeys, cOutQ[i], cOutP[i])
+		}
+	}
+
+	c2QiQDecomp = nil
+	c2QiPDecomp = nil
+
+	return
+}
+
+func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k uint64, rotKeys *RotationKeys, ctOutQ, ctOutP [2]*ring.Poly) {
+
+	pool2Q := eval.poolQ[0]
+	pool3Q := eval.poolQ[1]
+
+	pool2P := eval.poolP[0]
+	pool3P := eval.poolP[1]
+
+	levelQ := ct0.Level()
+	levelP := eval.params.PiCount() - 1
+
+	eval.keyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rotKeys.evakeyRotColLeft[k], pool2Q, pool3Q, pool2P, pool3P)
+
+	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, rotKeys.permuteNTTLeftIndex[k], ctOutQ[0])
+	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, rotKeys.permuteNTTLeftIndex[k], ctOutQ[1])
+
+	ring.PermuteNTTWithIndexLvl(levelP, pool2P, rotKeys.permuteNTTLeftIndex[k], ctOutP[0])
+	ring.PermuteNTTWithIndexLvl(levelP, pool3P, rotKeys.permuteNTTLeftIndex[k], ctOutP[1])
 }
 
 // Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
@@ -406,8 +470,8 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) (res *Ciphertext) {
 	cheby := btp.chebycoeffs
 
 	if btp.SinType == Cos {
-		sc_fac := complex(float64(int(1<<btp.SinRescal)), 0)
-		eval.AddConst(C[1], -0.5/(sc_fac*(cheby.b-cheby.a)), C[1])
+		scfac := complex(float64(int(1<<btp.SinRescal)), 0)
+		eval.AddConst(C[1], -0.5/(scfac*(cheby.b-cheby.a)), C[1])
 	}
 
 	res = eval.evalCheby(cheby, C, btp.relinkey)

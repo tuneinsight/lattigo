@@ -10,8 +10,9 @@ import (
 	"math/cmplx"
 )
 
-// BootContext stores the parameters for the bootstrapping.
-type Bootstrapper struct { // TODO: change to "Bootstrapper" ?
+// Bootstrapper is a struct to stores a memory pool the plaintext matrices
+// the polynomial approximation and the keys for the bootstrapping.
+type Bootstrapper struct {
 	BootstrappParams
 	params *Parameters
 
@@ -108,6 +109,7 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappParams) (btp *Boot
 	return
 }
 
+// GenKeys generates the bootstrapping keys
 func (btp *Bootstrapper) GenKeys(sk *SecretKey) {
 
 	//log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
@@ -134,10 +136,12 @@ func (btp *Bootstrapper) GenKeys(sk *SecretKey) {
 	return
 }
 
+// ExportKeys returns a pointer to the bootstrapping keys
 func (btp *Bootstrapper) ExportKeys() (rlk *EvaluationKey, rotkeys *RotationKeys) {
 	return btp.relinkey, btp.rotkeys
 }
 
+// ImportKeys imports bootstrapping keys and checks them
 func (btp *Bootstrapper) ImportKeys(rlk *EvaluationKey, rotkeys *RotationKeys) error {
 
 	if rlk != nil {
@@ -151,6 +155,7 @@ func (btp *Bootstrapper) ImportKeys(rlk *EvaluationKey, rotkeys *RotationKeys) e
 	return btp.CheckKeys()
 }
 
+// CheckKeys checks if all the necessary keys are present
 func (btp *Bootstrapper) CheckKeys() (err error) {
 
 	if btp.relinkey == nil || btp.rotkeys == nil {
@@ -180,11 +185,11 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	a := real(btp.chebycoeffs.a)
 	b := real(btp.chebycoeffs.b)
 	n := float64(btp.params.N())
-	sc_fac := float64(int(1 << btp.SinRescal))
+	scFac := float64(int(1 << btp.SinRescal))
 	qDiff := float64(btp.params.qi[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.qi[0]))))
 
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
-	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*sc_fac*qDiff), 1.0/float64(len(btp.CtSLevel))), 0)
+	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*scFac*qDiff), 1.0/float64(len(btp.CtSLevel))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
 	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.scale)/btp.postscale, 1.0/float64(len(btp.StCLevel))), 0)
@@ -260,21 +265,21 @@ func (btp *Bootstrapper) genSinePoly() {
 
 		K := int(btp.SinRange)
 		deg := int(btp.SinDeg)
-		sc_fac := complex(float64(int(1<<btp.SinRescal)), 0)
+		scFac := complex(float64(int(1<<btp.SinRescal)), 0)
 
 		cheby := new(ChebyshevInterpolation)
 
 		cheby.coeffs = bettersine.Approximate(K, deg, btp.deviation, int(btp.SinRescal))
 
-		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(sc_fac))
+		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(scFac))
 
 		for i := range cheby.coeffs {
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
 
 		cheby.maxDeg = cheby.Degree()
-		cheby.a = complex(float64(-K), 0) / sc_fac
-		cheby.b = complex(float64(K), 0) / sc_fac
+		cheby.a = complex(float64(-K), 0) / scFac
+		cheby.b = complex(float64(K), 0) / scFac
 		cheby.lead = true
 
 		btp.chebycoeffs = cheby

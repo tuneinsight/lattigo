@@ -26,32 +26,6 @@ func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float6
 	return ciphertext
 }
 
-// NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
-func NewCiphertextQP(params *Parameters, degree uint64, level uint64, scale float64) (ciphertextQ, ciphertextP *Ciphertext) {
-
-	ciphertextQ = &Ciphertext{&CkksElement{}}
-
-	ciphertextQ.value = make([]*ring.Poly, degree+1)
-	for i := uint64(0); i < degree+1; i++ {
-		ciphertextQ.value[i] = ring.NewPoly(params.N(), level+1)
-	}
-
-	ciphertextQ.scale = scale
-	ciphertextQ.isNTT = true
-
-	ciphertextP = &Ciphertext{&CkksElement{}}
-
-	ciphertextP.value = make([]*ring.Poly, degree+1)
-	for i := uint64(0); i < degree+1; i++ {
-		ciphertextP.value[i] = ring.NewPoly(params.N(), params.PiCount())
-	}
-
-	ciphertextP.scale = scale
-	ciphertextP.isNTT = true
-
-	return ciphertextQ, ciphertextP
-}
-
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 

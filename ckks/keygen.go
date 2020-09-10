@@ -18,8 +18,9 @@ type KeyGenerator interface {
 	GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey)
 	GenRelinKey(sk *SecretKey) (evakey *EvaluationKey)
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
+	GenRotationKey(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
 	GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys)
-	GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
+	GenBootstrappingKey(btpParams *BootstrappParams, sk *SecretKey) (btpKey *BootstrappingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -77,6 +78,11 @@ type SwitchingKey struct {
 // Get returns the switching key backing slice
 func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 	return swk.evakey
+}
+
+type BootstrappingKey struct {
+	relinkey *EvaluationKey // Relinearization key
+	rotkeys  *RotationKeys  // Rotation and conjugation keys
 }
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
@@ -309,7 +315,7 @@ func NewRotationKeys() (rotKey *RotationKeys) {
 }
 
 // GenRot populates the input RotationKeys with a SwitchingKey for the given rotation type and amount.
-func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
+func (keygen *keyGenerator) GenRotationKey(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
 
 	if len(keygen.params.pi) == 0 {
 		panic("Cannot GenRot: modulus P is empty")
@@ -373,8 +379,8 @@ func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 	rotKey = NewRotationKeys()
 
 	for n := uint64(1); n < keygen.params.N()/2; n <<= 1 {
-		keygen.GenRot(RotationLeft, skOutput, n, rotKey)
-		keygen.GenRot(RotationRight, skOutput, n, rotKey)
+		keygen.GenRotationKey(RotationLeft, skOutput, n, rotKey)
+		keygen.GenRotationKey(RotationRight, skOutput, n, rotKey)
 	}
 
 	//keygen.GenRot(Conjugate, skOutput, 0, rotKey)
@@ -514,6 +520,23 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 		// (skIn * P) * (q_star * q_tild) - a * skOut + e mod QP
 		ringQP.MulCoeffsMontgomeryAndSub(switchingkey.evakey[i][1], skOut, switchingkey.evakey[i][0])
+	}
+
+	return
+}
+
+// GenKeys generates the bootstrapping keys
+func (keygen *keyGenerator) GenBootstrappingKey(btpParams *BootstrappParams, sk *SecretKey) (btpKey *BootstrappingKey) {
+
+	btpKey = &BootstrappingKey{
+		relinkey: keygen.GenRelinKey(sk),
+		rotkeys:  NewRotationKeys(),
+	}
+
+	btp := newBootstrapper(keygen.params, btpParams)
+	keygen.GenRotationKey(Conjugate, sk, 0, btpKey.rotkeys)
+	for _, i := range btp.rotKeyIndex {
+		keygen.GenRotationKey(RotationLeft, sk, uint64(i), btpKey.rotkeys)
 	}
 
 	return

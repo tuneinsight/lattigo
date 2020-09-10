@@ -142,16 +142,9 @@ func TestBootstrapp(t *testing.T) {
 
 		t.Run(testString("Bootstrapp/"), func(t *testing.T) {
 
-			btp, err := NewBootstrapper(params.params, btpParams)
+			btpKey := params.kgen.GenBootstrappingKey(btpParams, params.sk)
+			btp, err := NewBootstrapper(params.params, btpParams, btpKey)
 			if err != nil {
-				panic(err)
-			}
-			btp.GenKeys(params.sk)
-
-			rlk, rotkey := btp.ExportKeys()
-
-			btp.ImportKeys(rlk, rotkey)
-			if err := btp.CheckKeys(); err != nil {
 				panic(err)
 			}
 

@@ -904,7 +904,7 @@ func testSwitchKeys(t *testing.T) {
 func testConjugate(t *testing.T) {
 
 	rotKey := NewRotationKeys()
-	params.kgen.GenRot(Conjugate, params.sk, 0, rotKey)
+	params.kgen.GenRotationKey(Conjugate, params.sk, 0, rotKey)
 
 	t.Run(testString("InPlace/"), func(t *testing.T) {
 
@@ -1010,7 +1010,7 @@ func testRotateColumns(t *testing.T) {
 		values2 := make([]complex128, len(values1))
 		rotations := []uint64{0, 1, 2, 3, 4, 5}
 		for _, n := range rotations {
-			params.kgen.GenRot(RotationLeft, params.sk, n, rotKey)
+			params.kgen.GenRotationKey(RotationLeft, params.sk, n, rotKey)
 		}
 
 		ciphertexts := params.evaluator.RotateHoisted(ciphertext1, rotations, rotKey)
@@ -1144,11 +1144,11 @@ func testMarshaller(t *testing.T) {
 
 		rotationKey := NewRotationKeys()
 
-		params.kgen.GenRot(Conjugate, params.sk, 0, rotationKey)
-		params.kgen.GenRot(RotationLeft, params.sk, 1, rotationKey)
-		params.kgen.GenRot(RotationLeft, params.sk, 2, rotationKey)
-		params.kgen.GenRot(RotationRight, params.sk, 3, rotationKey)
-		params.kgen.GenRot(RotationRight, params.sk, 5, rotationKey)
+		params.kgen.GenRotationKey(Conjugate, params.sk, 0, rotationKey)
+		params.kgen.GenRotationKey(RotationLeft, params.sk, 1, rotationKey)
+		params.kgen.GenRotationKey(RotationLeft, params.sk, 2, rotationKey)
+		params.kgen.GenRotationKey(RotationRight, params.sk, 3, rotationKey)
+		params.kgen.GenRotationKey(RotationRight, params.sk, 5, rotationKey)
 
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)

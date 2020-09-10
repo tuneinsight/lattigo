@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"github.com/ldsec/lattigo/ckks"
 	"io"
 	"log"
 	"math/rand"
 	"os"
 	"text/template"
+
+	"github.com/ldsec/lattigo/ckks"
 )
 
 var err error
@@ -142,13 +143,13 @@ func instanciateExperiment(params *ckks.Parameters, btpParams *ckks.BootstrappPa
 
 	evaluator = ckks.NewEvaluator(params)
 
-	bootstrapper, err = ckks.NewBootstrapper(params, btpParams)
+	log.Println("Generating the keys...")
+	btpKey := keyGen.GenBootstrappingKey(btpParams, sk)
+	log.Println("Done")
+	bootstrapper, err = ckks.NewBootstrapper(params, btpParams, btpKey)
 	if err != nil {
 		panic(err)
 	}
-	log.Println("Generating the keys...")
-	bootstrapper.GenKeys(sk)
-	log.Println("Done")
 
 	return
 }

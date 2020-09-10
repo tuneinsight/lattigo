@@ -32,13 +32,11 @@ func BenchmarkBootstrapp(b *testing.B) {
 	ctsDepth := uint64(len(btpParams.CtSLevel))
 	sinDepth := uint64(math.Ceil(math.Log2(float64(btpParams.SinDeg))) + float64(btpParams.SinRescal))
 
-	testString("Params/")
-
-	btp, err = NewBootstrapper(params.params, btpParams)
+	btpKey := params.kgen.GenBootstrappingKey(btpParams, params.sk)
+	btp, err = NewBootstrapper(params.params, btpParams, btpKey)
 	if err != nil {
 		panic(err)
 	}
-	btp.GenKeys(params.sk)
 
 	b.Run(testString("ModUp/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

@@ -15,6 +15,7 @@ import (
 // the polynomial approximation and the keys for the bootstrapping.
 type Bootstrapper struct {
 	BootstrappParams
+	*BootstrappingKey
 	params *Parameters
 
 	dslots uint64 // Number of plaintext slots after the re-encoding
@@ -35,9 +36,7 @@ type Bootstrapper struct {
 	pDFT                   []*dftvectors // Matrice vectors
 	pDFTInv                []*dftvectors // Matrice vectors
 
-	rotKeyIndex []uint64       // a list of the required rotation keys
-	relinkey    *EvaluationKey // Relinearization key
-	rotkeys     *RotationKeys  // Rotation and conjugation keys
+	rotKeyIndex []uint64 // a list of the required rotation keys
 
 	ctxpool *Ciphertext // Memory pool
 
@@ -70,12 +69,25 @@ func (btp *Bootstrapper) printDebug(message string, ciphertext *Ciphertext) {
 }
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params *Parameters, btpParams *BootstrappParams) (btp *Bootstrapper, err error) {
+func NewBootstrapper(params *Parameters, btpParams *BootstrappParams, btpKey *BootstrappingKey) (btp *Bootstrapper, err error) {
 
 	if btpParams.SinType == SinType(Sin) && btpParams.SinRescal != 0 {
 		return nil, fmt.Errorf("BootstrappParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
 	}
 
+	btp = newBootstrapper(params, btpParams)
+
+	btp.BootstrappingKey = btpKey
+	if err = btp.CheckKeys(); err != nil {
+		return nil, err
+	}
+
+	return btp, nil
+}
+
+// newBootstrapper is a constructor of "dummy" bootstrapper to enable the generation of bootstrapping-related constants
+// without providing a bootstrapping key. To be replaced by a propper factorization of the bootstrapping pre-computations.
+func newBootstrapper(params *Parameters, btpParams *BootstrappParams) (btp *Bootstrapper) {
 	btp = new(Bootstrapper)
 
 	btp.params = params.Copy()
@@ -106,55 +118,35 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappParams) (btp *Boot
 	for i := range btp.poolP {
 		btp.poolP[i] = params.NewPolyP()
 	}
-
-	return
+	return btp
 }
 
-// GenKeys generates the bootstrapping keys
-func (btp *Bootstrapper) GenKeys(sk *SecretKey) {
+// // GenKeys generates the bootstrapping keys
+// func (btp *Bootstrapper) GenKeys(sk *SecretKey) {
 
-	//log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
+// 	//log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
 
-	//nbKeys := uint64(len(btp.rotKeyIndex)) + 2 //rot keys + conj key + relin key
-	//nbPoly := btp.beta
-	//nbCoefficients := 2 * btp.N() * btp.QPiCount()
-	//bytesPerCoeff := uint64(8)
+// 	//nbKeys := uint64(len(btp.rotKeyIndex)) + 2 //rot keys + conj key + relin key
+// 	//nbPoly := btp.beta
+// 	//nbCoefficients := 2 * btp.N() * btp.QPiCount()
+// 	//bytesPerCoeff := uint64(8)
 
-	//log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
+// 	//log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
 
-	kgen := NewKeyGenerator(btp.params)
+// 	kgen := NewKeyGenerator(btp.params)
 
-	btp.rotkeys = NewRotationKeys()
+// 	btp.rotkeys = NewRotationKeys()
 
-	kgen.GenRot(Conjugate, sk, 0, btp.rotkeys)
+// 	kgen.GenRotationKey(Conjugate, sk, 0, btp.rotkeys)
 
-	for _, i := range btp.rotKeyIndex {
-		kgen.GenRot(RotationLeft, sk, uint64(i), btp.rotkeys)
-	}
+// 	for _, i := range btp.rotKeyIndex {
+// 		kgen.GenRotationKey(RotationLeft, sk, uint64(i), btp.rotkeys)
+// 	}
 
-	btp.relinkey = kgen.GenRelinKey(sk)
+// 	btp.relinkey = kgen.GenRelinKey(sk)
 
-	return
-}
-
-// ExportKeys returns a pointer to the bootstrapping keys
-func (btp *Bootstrapper) ExportKeys() (rlk *EvaluationKey, rotkeys *RotationKeys) {
-	return btp.relinkey, btp.rotkeys
-}
-
-// ImportKeys imports bootstrapping keys and checks them
-func (btp *Bootstrapper) ImportKeys(rlk *EvaluationKey, rotkeys *RotationKeys) error {
-
-	if rlk != nil {
-		btp.relinkey = rlk
-	}
-
-	if rotkeys != nil {
-		btp.rotkeys = rotkeys
-	}
-
-	return btp.CheckKeys()
-}
+// 	return
+// }
 
 // CheckKeys checks if all the necessary keys are present
 func (btp *Bootstrapper) CheckKeys() (err error) {

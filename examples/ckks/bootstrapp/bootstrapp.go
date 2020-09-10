@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/ckks"
 	"math"
 	"math/rand"
 	"sort"
+
+	"github.com/ldsec/lattigo/ckks"
 )
 
 func randomFloat(min, max float64) float64 {
@@ -56,11 +57,11 @@ func main() {
 	// Make it so they can be given as input to the bootstrapp.
 	fmt.Println()
 	fmt.Println("Generating bootstrappign keys...")
-	btp, err = ckks.NewBootstrapper(params, btpParams)
+	btpKey := kgen.GenBootstrappingKey(btpParams, sk)
+	btp, err = ckks.NewBootstrapper(params, btpParams, btpKey)
 	if err != nil {
 		panic(err)
 	}
-	btp.GenKeys(sk)
 	fmt.Println("Done")
 
 	// Generates a random plaintext

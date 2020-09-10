@@ -136,8 +136,8 @@ func benchEvaluator(b *testing.B) {
 
 	rlk := params.kgen.GenRelinKey(params.sk)
 	rotkey := NewRotationKeys()
-	params.kgen.GenRot(RotationLeft, params.sk, 1, rotkey)
-	params.kgen.GenRot(Conjugate, params.sk, 0, rotkey)
+	params.kgen.GenRotationKey(RotationLeft, params.sk, 1, rotkey)
+	params.kgen.GenRotationKey(Conjugate, params.sk, 0, rotkey)
 
 	b.Run(testString("Add/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -226,7 +226,7 @@ func benchHoistedRotations(b *testing.B) {
 	evaluator := params.evaluator.(*evaluator)
 
 	rotkey := NewRotationKeys()
-	params.kgen.GenRot(RotationLeft, params.sk, 5, rotkey)
+	params.kgen.GenRotationKey(RotationLeft, params.sk, 5, rotkey)
 
 	ciphertext := NewCiphertextRandom(params.prng, params.params, 1, params.params.MaxLevel(), params.params.Scale())
 

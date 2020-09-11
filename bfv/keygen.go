@@ -355,7 +355,7 @@ func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 		keygen.GenRot(RotationRight, skOutput, n, rotKey)
 	}
 
-	//keygen.GenRot(Conjugate, skOutput, 0, rotKey)
+	keygen.GenRot(RotationRow, skOutput, 0, rotKey)
 
 	return
 }

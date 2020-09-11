@@ -6,12 +6,12 @@ import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 	"github.com/ldsec/lattigo/utils"
-	//"fmt"
 )
 
 // RefreshProtocol is a struct storing the relevant parameters for the Refresh protocol.
 type RefreshProtocol struct {
 	context         *dbfvContext
+	tmp0            *ring.Poly
 	tmp1            *ring.Poly
 	tmp2            *ring.Poly
 	hP              *ring.Poly
@@ -87,6 +87,7 @@ func NewRefreshProtocol(params *bfv.Parameters) (refreshProtocol *RefreshProtoco
 
 	refreshProtocol = new(RefreshProtocol)
 	refreshProtocol.context = context
+	refreshProtocol.tmp0 = context.ringQ.NewPoly()
 	refreshProtocol.tmp1 = context.ringQP.NewPoly()
 	refreshProtocol.tmp2 = context.ringQP.NewPoly()
 	refreshProtocol.hP = context.ringP.NewPoly()
@@ -194,9 +195,9 @@ func (rfp *RefreshProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, s
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
 func (rfp *RefreshProtocol) Finalize(ciphertext *bfv.Ciphertext, crs *ring.Poly, share RefreshShare, ciphertextOut *bfv.Ciphertext) {
-	rfp.Decrypt(ciphertext, share.RefreshShareDecrypt, rfp.tmp1)
-	rfp.Recode(rfp.tmp1, rfp.tmp1)
-	rfp.Recrypt(rfp.tmp1, crs, share.RefreshShareRecrypt, ciphertextOut)
+	rfp.Decrypt(ciphertext, share.RefreshShareDecrypt, rfp.tmp0)
+	rfp.Recode(rfp.tmp0, rfp.tmp0)
+	rfp.Recrypt(rfp.tmp0, crs, share.RefreshShareRecrypt, ciphertextOut)
 }
 
 func lift(p0, p1 *ring.Poly, context *dbfvContext) {

@@ -5,7 +5,8 @@ import (
 )
 
 func BenchmarkBFV(b *testing.B) {
-
+	var err error
+	var testctx = new(testContext)
 	var defaultParams []*Parameters
 
 	if testing.Short() {
@@ -16,19 +17,19 @@ func BenchmarkBFV(b *testing.B) {
 
 	for _, p := range defaultParams {
 
-		if err = genTestParams(p); err != nil {
+		if testctx, err = genTestParams(p); err != nil {
 			panic(err)
 		}
 
-		b.Run("Encoder", benchEncoder)
-		b.Run("KeyGen", benchKeyGen)
-		b.Run("Encrypt", benchEncrypt)
-		b.Run("Decrypt", benchDecrypt)
-		b.Run("Evaluator", benchEvaluator)
+		benchEncoder(testctx, b)
+		benchKeyGen(testctx, b)
+		benchEncrypt(testctx, b)
+		benchDecrypt(testctx, b)
+		benchEvaluator(testctx, b)
 	}
 }
 
-func benchEncoder(b *testing.B) {
+func benchEncoder(testctx *testContext, b *testing.B) {
 
 	encoder := testctx.encoder
 	coeffs := testctx.uSampler.ReadNew()
@@ -47,7 +48,7 @@ func benchEncoder(b *testing.B) {
 	})
 }
 
-func benchKeyGen(b *testing.B) {
+func benchKeyGen(testctx *testContext, b *testing.B) {
 
 	kgen := testctx.kgen
 	sk := testctx.sk
@@ -65,7 +66,7 @@ func benchKeyGen(b *testing.B) {
 	})
 }
 
-func benchEncrypt(b *testing.B) {
+func benchEncrypt(testctx *testContext, b *testing.B) {
 
 	encryptorPk := testctx.encryptorPk
 	encryptorSk := testctx.encryptorSk
@@ -86,7 +87,7 @@ func benchEncrypt(b *testing.B) {
 	})
 }
 
-func benchDecrypt(b *testing.B) {
+func benchDecrypt(testctx *testContext, b *testing.B) {
 
 	decryptor := testctx.decryptor
 	plaintext := NewPlaintext(testctx.params)
@@ -99,7 +100,7 @@ func benchDecrypt(b *testing.B) {
 	})
 }
 
-func benchEvaluator(b *testing.B) {
+func benchEvaluator(testctx *testContext, b *testing.B) {
 
 	evaluator := testctx.evaluator
 

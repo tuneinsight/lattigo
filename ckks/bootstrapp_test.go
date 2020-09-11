@@ -15,6 +15,8 @@ func TestBootstrapp(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 
+	var err error
+	var testContext = new(testParams)
 	var SineScale float64
 
 	SineScale = 1 << 55
@@ -34,25 +36,25 @@ func TestBootstrapp(t *testing.T) {
 
 		btpParams := bootstrappParams[paramSet]
 
-		if err := genTestParams(shemeParams[paramSet], btpParams.H); err != nil {
+		if testContext, err = genTestParams(shemeParams[paramSet], btpParams.H); err != nil {
 			panic(err)
 		}
 
-		slots := params.params.Slots()
+		slots := testContext.params.Slots()
 
-		t.Run(testString("ChebySin/"), func(t *testing.T) {
+		t.Run(testString(testContext, "ChebySin/"), func(t *testing.T) {
 
-			eval := params.evaluator
+			eval := testContext.evaluator
 
-			DefaultScale := params.params.scale
+			DefaultScale := testContext.params.scale
 
-			params.params.scale = SineScale
+			testContext.params.scale = SineScale
 			eval.(*evaluator).scale = SineScale
 
 			deg := 127
 			K := float64(15)
 
-			values, _, ciphertext := newTestVectorsSineBootstrapp(params.encryptorSk, -K+1, K-1, t)
+			values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, -K+1, K-1, t)
 			eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
 
 			cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
@@ -63,33 +65,33 @@ func TestBootstrapp(t *testing.T) {
 
 			//fmt.Println(ciphertext.Level() - 1)
 			//start := time.Now()
-			ciphertext = params.evaluator.EvaluateCheby(ciphertext, cheby, params.rlk)
+			ciphertext = testContext.evaluator.EvaluateCheby(ciphertext, cheby, testContext.rlk)
 			//fmt.Printf("Elapsed : %s \n", time.Since(start))
 			//fmt.Println(ciphertext.Level())
 
-			verifyTestVectors(params.decryptor, values, ciphertext, t)
+			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
-			params.params.scale = DefaultScale
+			testContext.params.scale = DefaultScale
 			eval.(*evaluator).scale = DefaultScale
 		})
 
-		t.Run(testString("ChebyCos/"), func(t *testing.T) {
+		t.Run(testString(testContext, "ChebyCos/"), func(t *testing.T) {
 
-			eval := params.evaluator
+			eval := testContext.evaluator
 
-			DefaultScale := params.params.scale
+			DefaultScale := testContext.params.scale
 
-			params.params.scale = SineScale
+			testContext.params.scale = SineScale
 			eval.(*evaluator).scale = SineScale
 
 			K := 26
 			deg := 63
-			dev := float64(params.params.qi[0]) / DefaultScale
+			dev := float64(testContext.params.qi[0]) / DefaultScale
 			scNum := 2
 
 			scFac := complex(float64(int(1<<scNum)), 0)
 
-			values, _, ciphertext := newTestVectorsSineBootstrapp(params.encryptorSk, float64(-K+1), float64(K-1), t)
+			values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
 			eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
 
 			cheby := new(ChebyshevInterpolation)
@@ -116,34 +118,34 @@ func TestBootstrapp(t *testing.T) {
 				values[i] /= 6.283185307179586
 			}
 
-			params.evaluator.AddConst(ciphertext, -0.25, ciphertext)
+			testContext.evaluator.AddConst(ciphertext, -0.25, ciphertext)
 
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 			//start := time.Now()
-			ciphertext = params.evaluator.EvaluateChebySpecial(ciphertext, scFac, cheby, params.rlk)
+			ciphertext = testContext.evaluator.EvaluateChebySpecial(ciphertext, scFac, cheby, testContext.rlk)
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 			for i := 0; i < scNum; i++ {
 				sqrt2pi *= sqrt2pi
-				params.evaluator.MulRelin(ciphertext, ciphertext, params.rlk, ciphertext)
-				params.evaluator.Add(ciphertext, ciphertext, ciphertext)
-				params.evaluator.AddConst(ciphertext, -sqrt2pi, ciphertext)
-				params.evaluator.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
+				testContext.evaluator.MulRelin(ciphertext, ciphertext, testContext.rlk, ciphertext)
+				testContext.evaluator.Add(ciphertext, ciphertext, ciphertext)
+				testContext.evaluator.AddConst(ciphertext, -sqrt2pi, ciphertext)
+				testContext.evaluator.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 			}
 
 			//fmt.Printf("Elapsed : %s \n", time.Since(start))
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
-			verifyTestVectors(params.decryptor, values, ciphertext, t)
+			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
-			params.params.scale = DefaultScale
+			testContext.params.scale = DefaultScale
 			eval.(*evaluator).scale = DefaultScale
 
 		})
 
-		t.Run(testString("Bootstrapp/"), func(t *testing.T) {
+		t.Run(testString(testContext, "Bootstrapp/"), func(t *testing.T) {
 
-			btpKey := params.kgen.GenBootstrappingKey(params.params.logSlots, btpParams, params.sk)
-			btp, err := NewBootstrapper(params.params, btpParams, btpKey)
+			btpKey := testContext.kgen.GenBootstrappingKey(testContext.params.logSlots, btpParams, testContext.sk)
+			btp, err := NewBootstrapper(testContext.params, btpParams, btpKey)
 			if err != nil {
 				panic(err)
 			}
@@ -160,27 +162,27 @@ func TestBootstrapp(t *testing.T) {
 				values[3] = complex(0.9238795325112867, 0.3826834323650898)
 			}
 
-			plaintext := NewPlaintext(params.params, params.params.MaxLevel(), params.params.scale)
-			params.encoder.Encode(plaintext, values, slots)
+			plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.scale)
+			testContext.encoder.Encode(plaintext, values, slots)
 
-			ciphertext := params.encryptorPk.EncryptNew(plaintext)
+			ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
 
 			for i := 0; i < 1; i++ {
 
 				ciphertext = btp.Bootstrapp(ciphertext)
 
-				//params.evaluator.SetScale(ciphertext, params.params.scale)
+				//testContext.evaluator.SetScale(ciphertext, testContext.params.scale)
 
-				verifyTestVectors(params.decryptor, values, ciphertext, t)
+				verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 			}
 
 		})
 	}
 }
 
-func newTestVectorsSineBootstrapp(encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectorsSineBootstrapp(testContext *testParams, encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	slots := params.params.Slots()
+	slots := testContext.params.Slots()
 
 	values = make([]complex128, slots)
 
@@ -188,9 +190,9 @@ func newTestVectorsSineBootstrapp(encryptor Encryptor, a, b float64, t *testing.
 		values[i] = complex(math.Round(randomFloat(a, b))+randomFloat(-1, 1)/1000, 0)
 	}
 
-	plaintext = NewPlaintext(params.params, params.params.MaxLevel(), params.params.Scale())
+	plaintext = NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 
-	params.encoder.EncodeNTT(plaintext, values, slots)
+	testContext.encoder.EncodeNTT(plaintext, values, slots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)

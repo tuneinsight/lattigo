@@ -2,26 +2,18 @@ package ring
 
 // Parameters is a struct storing test parameters for the package Ring.
 type Parameters struct {
-	N      uint64
-	Moduli []uint64
+	logN uint64
+	qi   []uint64
+	pi   []uint64
 }
 
 // DefaultParamsQi is a struct storing default test parameters of the Qi moduli for the package Ring.
-var DefaultParamsQi = map[uint64]*Parameters{
-	12: {1 << 12, Qi60[len(Qi60)-2:]},
-	13: {1 << 13, Qi60[len(Qi60)-4:]},
-	14: {1 << 14, Qi60[len(Qi60)-8:]},
-	15: {1 << 15, Qi60[len(Qi60)-16:]},
-	16: {1 << 16, Qi60[len(Qi60)-32:]},
-}
-
-// DefaultParamsPi is a struct storing default test parameters of the Pi moduli for the package Ring.
-var DefaultParamsPi = map[uint64]*Parameters{
-	12: {1 << 12, Pi60[len(Pi60)-2:]},
-	13: {1 << 13, Pi60[len(Pi60)-4:]},
-	14: {1 << 14, Pi60[len(Pi60)-8:]},
-	15: {1 << 15, Pi60[len(Pi60)-16:]},
-	16: {1 << 16, Pi60[len(Pi60)-32:]},
+var DefaultParams = []*Parameters{
+	{12, Qi60[len(Qi60)-2:], Pi60[len(Pi60)-2:]},
+	{13, Qi60[len(Qi60)-4:], Pi60[len(Pi60)-4:]},
+	{14, Qi60[len(Qi60)-8:], Pi60[len(Pi60)-8:]},
+	{15, Qi60[len(Qi60)-16:], Pi60[len(Pi60)-16:]},
+	{16, Qi60[len(Qi60)-32:], Pi60[len(Pi60)-32:]},
 }
 
 // Pi60 are the first one hundred (from 0x800000000000000 and upward) 60-bit NTT-friendly primes for N up to 65536

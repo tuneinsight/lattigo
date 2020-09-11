@@ -6,555 +6,407 @@ import (
 	"math/bits"
 	"math/rand"
 	"testing"
-
-	"github.com/ldsec/lattigo/utils"
 )
 
 func BenchmarkRing(b *testing.B) {
-	b.Run("GenRing", benchGenRing)
-	b.Run("Marshalling", benchMarshalling)
-	b.Run("Sampling", benchSampling)
-	b.Run("Montgomery", benchMontgomeryForm)
-	b.Run("NTT", benchNTT)
-	b.Run("MulCoeffs", benchMulCoeffs)
-	b.Run("AddCoeffs", benchAddCoeffs)
-	b.Run("SubCoeffs", benchSubCoeffs)
-	b.Run("NegCoeffs", benchNegCoeffs)
-	b.Run("MulScalar", benchMulScalar)
-	b.Run("ExtendBasis", benchExtendBasis)
-	b.Run("DivByLastModulus", benchDivByLastModulus)
-	b.Run("DivByRNSBasis", benchDivByRNSBasis)
-	b.Run("MRed", benchMRed)
-	b.Run("BRed", benchBRed)
-	b.Run("BRedAdd", benchBRedAdd)
 
+	var defaultParams []*Parameters
+
+	if testing.Short() {
+		defaultParams = DefaultParams[:3]
+	} else {
+		defaultParams = DefaultParams
+	}
+
+	for _, defaultParam := range defaultParams {
+
+		if err := GenTestParams(defaultParam); err != nil {
+			panic(err)
+		}
+
+		benchGenRing(b)
+		benchMarshalling(b)
+		benchSampling(b)
+		benchMontgomery(b)
+		benchNTT(b)
+		benchMulCoeffs(b)
+		benchAddCoeffs(b)
+		benchSubCoeffs(b)
+		benchNegCoeffs(b)
+		benchMulScalar(b)
+		benchExtendBasis(b)
+		benchDivByLastModulus(b)
+		benchDivByRNSBasis(b)
+		benchMRed(b)
+		benchBRed(b)
+		benchBRedAdd(b)
+	}
 }
 
 func benchGenRing(b *testing.B) {
 
-	for _, parameters := range testParams.polyParams {
-
-		ringQ := getRing(parameters[0])
-
-		b.Run(testString("", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				getRing(parameters[0])
-			}
-
-		})
-	}
+	b.Run(testString("GenRing/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			NewRing(params.ringQ.N, params.ringQ.Modulus)
+		}
+	})
 }
 
 func benchMarshalling(b *testing.B) {
 
-	for _, parameters := range testParams.polyParams {
+	p := params.uniformSamplerQ.ReadNew()
 
-		ringQ := getRing(parameters[0])
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
+	b.Run(testString("Marshalling/MarshalPoly/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			p.MarshalBinary()
 		}
-		uniformSampler := NewUniformSampler(prng, ringQ)
+	})
 
-		p := uniformSampler.ReadNew()
+	data, _ := p.MarshalBinary()
 
-		b.Run(testString("Marshal/Poly/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				p.MarshalBinary()
-			}
-
-		})
-
-		data, _ := p.MarshalBinary()
-
-		b.Run(testString("Unmarshal/Poly/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				p.UnmarshalBinary(data)
-			}
-		})
-	}
+	b.Run(testString("Marshalling/UnmarshalPoly/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			p.UnmarshalBinary(data)
+		}
+	})
 }
 
 func benchSampling(b *testing.B) {
 
-	sigma := 3.19
+	pol := params.ringQ.NewPoly()
 
-	bound := uint64(sigma * 6)
+	b.Run(testString("Sampling/Gaussian/", params.ringQ), func(b *testing.B) {
 
-	for _, parameters := range testParams.polyParams {
+		gaussianSampler := NewGaussianSampler(params.prng, params.ringQ, DefaultSigma, DefaultBound)
 
-		ringQ := getRing(parameters[0])
+		for i := 0; i < b.N; i++ {
+			gaussianSampler.ReadLvl(uint64(len(params.ringQ.Modulus)-1), pol)
+		}
+	})
 
-		pol := ringQ.NewPoly()
+	b.Run(testString("Sampling/Ternary/0.3/", params.ringQ), func(b *testing.B) {
 
-		b.Run(testString("Gaussian/PRNG/", ringQ), func(b *testing.B) {
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			gaussianSampler := NewGaussianSampler(prng, ringQ, sigma, bound)
+		ternarySampler := NewTernarySampler(params.prng, params.ringQ, 1.0/3, true)
 
-			for i := 0; i < b.N; i++ {
-				gaussianSampler.ReadLvl(uint64(len(ringQ.Modulus)-1), pol)
-			}
-		})
+		for i := 0; i < b.N; i++ {
+			ternarySampler.Read(pol)
+		}
+	})
 
-		b.Run(testString("Ternary/0.3/", ringQ), func(b *testing.B) {
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			ternarySampler := NewTernarySampler(prng, ringQ, 1.0/3, true)
+	b.Run(testString("Sampling/Ternary/0.5/", params.ringQ), func(b *testing.B) {
 
-			for i := 0; i < b.N; i++ {
-				ternarySampler.Read(pol)
-			}
-		})
+		ternarySampler := NewTernarySampler(params.prng, params.ringQ, 0.5, true)
 
-		b.Run(testString("Ternary/0.5/", ringQ), func(b *testing.B) {
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			ternarySampler := NewTernarySampler(prng, ringQ, 0.5, true)
+		for i := 0; i < b.N; i++ {
+			ternarySampler.Read(pol)
+		}
+	})
 
-			for i := 0; i < b.N; i++ {
-				ternarySampler.Read(pol)
-			}
-		})
+	b.Run(testString("Sampling/Ternary/sparse128/", params.ringQ), func(b *testing.B) {
 
-		b.Run(testString("Ternary/sparse128/", ringQ), func(b *testing.B) {
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			ternarySampler := NewTernarySamplerSparse(prng, ringQ, 128, true)
+		ternarySampler := NewTernarySamplerSparse(params.prng, params.ringQ, 128, true)
 
-			for i := 0; i < b.N; i++ {
-				ternarySampler.Read(pol)
-			}
-		})
+		for i := 0; i < b.N; i++ {
+			ternarySampler.Read(pol)
+		}
+	})
 
-		b.Run(testString("Uniform/PRNG/", ringQ), func(b *testing.B) {
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			uniformSampler := NewUniformSampler(prng, ringQ)
-
-			for i := 0; i < b.N; i++ {
-				uniformSampler.Read(pol)
-			}
-		})
-
-	}
+	b.Run(testString("Sampling/Uniform/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.uniformSamplerQ.Read(pol)
+		}
+	})
 }
 
-func benchMontgomeryForm(b *testing.B) {
+func benchMontgomery(b *testing.B) {
 
-	for _, parameters := range testParams.polyParams {
+	p := params.uniformSamplerQ.ReadNew()
 
-		ringQ := getRing(parameters[0])
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
+	b.Run(testString("Montgomery/MForm/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.MForm(p, p)
 		}
-		uniformSampler := NewUniformSampler(prng, ringQ)
+	})
 
-		p := uniformSampler.ReadNew()
-
-		b.Run(testString("MForm/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.MForm(p, p)
-			}
-		})
-
-		b.Run(testString("InvMForm/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.InvMForm(p, p)
-			}
-		})
-	}
+	b.Run(testString("Montgomery/InvMForm/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.InvMForm(p, p)
+		}
+	})
 }
 
 func benchNTT(b *testing.B) {
 
-	for _, parameters := range testParams.polyParams {
+	p := params.uniformSamplerQ.ReadNew()
 
-		ringQ := getRing(parameters[0])
-
-		var NTT func(*Poly, *Poly)
-		if ringQ.N == 16384 {
-			NTT = ringQ.NTT
-		} else {
-			NTT = ringQ.NTT
+	b.Run(testString("NTT/NTT/Montgomery/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.NTT(p, p)
 		}
+	})
 
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
+	b.Run(testString("NTT/InvNTT/Montgomery/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.InvNTT(p, p)
 		}
-		uniformSampler := NewUniformSampler(prng, ringQ)
+	})
 
-		p := uniformSampler.ReadNew()
+	b.Run(testString("NTT/NTT/Barrett/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.NTTBarrett(p, p)
+		}
+	})
 
-		b.Run(testString("NTT/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				NTT(p, p)
-			}
-		})
-
-		b.Run(testString("InvNTT/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.InvNTT(p, p)
-			}
-		})
-
-		b.Run(testString("NTTBarrett/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.NTTBarrett(p, p)
-			}
-		})
-
-		b.Run(testString("InvNTTBarrett/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.InvNTTBarrett(p, p)
-			}
-		})
-	}
+	b.Run(testString("NTT/InvNTT/Barrett/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.InvNTTBarrett(p, p)
+		}
+	})
 }
 
 func benchMulCoeffs(b *testing.B) {
 
-	for _, parameters := range testParams.polyParams {
+	p0 := params.uniformSamplerQ.ReadNew()
+	p1 := params.uniformSamplerQ.ReadNew()
 
-		ringQ := getRing(parameters[0])
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
+	b.Run(testString("MulCoeffs/Montgomery/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.MulCoeffsMontgomery(p0, p1, p0)
 		}
-		uniformSampler := NewUniformSampler(prng, ringQ)
+	})
 
-		p0 := uniformSampler.ReadNew()
-		p1 := uniformSampler.ReadNew()
+	b.Run(testString("MulCoeffs/MontgomeryConstant/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.MulCoeffsMontgomeryConstant(p0, p1, p0)
+		}
+	})
 
-		b.Run(testString("Barrett/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.MulCoeffs(p0, p1, p0)
-			}
-		})
+	b.Run(testString("MulCoeffs/Barrett/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.MulCoeffs(p0, p1, p0)
+		}
+	})
 
-		b.Run(testString("BarrettConstant/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.MulCoeffsConstant(p0, p1, p0)
-			}
-		})
-
-		b.Run(testString("Montgomery/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.MulCoeffsMontgomery(p0, p1, p0)
-			}
-		})
-
-		b.Run(testString("MontgomeryConstant/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.MulCoeffsMontgomeryConstant(p0, p1, p0)
-			}
-		})
-	}
+	b.Run(testString("MulCoeffs/BarrettConstant/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.MulCoeffsConstant(p0, p1, p0)
+		}
+	})
 }
 
 func benchAddCoeffs(b *testing.B) {
-	for _, parameters := range testParams.polyParams {
 
-		ringQ := getRing(parameters[0])
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
+	p0 := params.uniformSamplerQ.ReadNew()
+	p1 := params.uniformSamplerQ.ReadNew()
+
+	b.Run(testString("AddCoeffs/Add/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.Add(p0, p1, p0)
 		}
-		uniformSampler := NewUniformSampler(prng, ringQ)
+	})
 
-		p0 := uniformSampler.ReadNew()
-		p1 := uniformSampler.ReadNew()
-
-		b.Run(testString("Add/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.Add(p0, p1, p0)
-			}
-		})
-
-		b.Run(testString("AddConstant/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.AddNoMod(p0, p1, p0)
-			}
-		})
-	}
+	b.Run(testString("AddCoeffs/AddConstant/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.AddNoMod(p0, p1, p0)
+		}
+	})
 }
 
 func benchSubCoeffs(b *testing.B) {
-	for _, parameters := range testParams.polyParams {
 
-		ringQ := getRing(parameters[0])
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
+	p0 := params.uniformSamplerQ.ReadNew()
+	p1 := params.uniformSamplerQ.ReadNew()
+
+	b.Run(testString("SubCoeffs/Sub/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.Sub(p0, p1, p0)
 		}
-		uniformSampler := NewUniformSampler(prng, ringQ)
+	})
 
-		p0 := uniformSampler.ReadNew()
-		p1 := uniformSampler.ReadNew()
-
-		b.Run(testString("Sub/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.Sub(p0, p1, p0)
-			}
-		})
-
-		b.Run(testString("SubConstant/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.SubNoMod(p0, p1, p0)
-			}
-		})
-	}
+	b.Run(testString("SubCoeffs/SubConstant/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.SubNoMod(p0, p1, p0)
+		}
+	})
 }
 
 func benchNegCoeffs(b *testing.B) {
-	for _, parameters := range testParams.polyParams {
 
-		ringQ := getRing(parameters[0])
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
+	p0 := params.uniformSamplerQ.ReadNew()
+
+	b.Run(testString("NegCoeffs", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.Neg(p0, p0)
 		}
-		uniformSampler := NewUniformSampler(prng, ringQ)
-
-		p0 := uniformSampler.ReadNew()
-
-		b.Run(testString("Neg", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.Neg(p0, p0)
-			}
-		})
-	}
+	})
 }
 
 func benchMulScalar(b *testing.B) {
 
-	for _, parameters := range testParams.polyParams {
+	p := params.uniformSamplerQ.ReadNew()
 
-		ringQ := getRing(parameters[0])
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
+	rand1 := RandUniform(params.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+	rand2 := RandUniform(params.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+
+	scalarBigint := NewUint(rand1)
+	scalarBigint.Mul(scalarBigint, NewUint(rand2))
+
+	b.Run(testString("MulScalar/uint64/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.MulScalar(p, rand1, p)
 		}
-		uniformSampler := NewUniformSampler(prng, ringQ)
+	})
 
-		p := uniformSampler.ReadNew()
-
-		rand1 := RandUniform(prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
-		rand2 := RandUniform(prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
-
-		scalarBigint := NewUint(rand1)
-		scalarBigint.Mul(scalarBigint, NewUint(rand2))
-
-		b.Run(testString("uint64/", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.MulScalar(p, rand1, p)
-			}
-		})
-
-		b.Run(testString("big.Int", ringQ), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ringQ.MulScalarBigint(p, scalarBigint, p)
-			}
-		})
-	}
+	b.Run(testString("MulScalar/big.Int/", params.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			params.ringQ.MulScalarBigint(p, scalarBigint, p)
+		}
+	})
 }
 
 func benchExtendBasis(b *testing.B) {
-	for _, parameters := range testParams.polyParams {
 
-		ringQ := getRing(parameters[0])
-		ringP := getRing(parameters[1])
+	rescaleParams := make([]uint64, len(params.ringP.Modulus))
 
-		rescaleParams := make([]uint64, len(ringP.Modulus))
-
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
-		}
-		uniformSamplerQ := NewUniformSampler(prng, ringQ)
-		uniformSamplerP := NewUniformSampler(prng, ringP)
-
-		for i, pi := range ringP.Modulus {
-			rescaleParams[i] = RandUniform(prng, pi, (1<<uint64(bits.Len64(pi)-1) - 1))
-		}
-
-		basisExtender := NewFastBasisExtender(ringQ, ringP)
-
-		p0 := uniformSamplerQ.ReadNew()
-		p1 := uniformSamplerP.ReadNew()
-
-		level := uint64(len(ringQ.Modulus) - 1)
-
-		b.Run(fmt.Sprintf("ModUp/N=%d/limbsQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				basisExtender.ModUpSplitQP(level, p0, p1)
-			}
-		})
-
-		b.Run(fmt.Sprintf("ModDown/N=%d/limbsQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				basisExtender.ModDownSplitPQ(level, p0, p1, p0)
-			}
-		})
-
-		b.Run(fmt.Sprintf("ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				basisExtender.ModDownSplitNTTPQ(level, p0, p1, p0)
-			}
-		})
+	for i, pi := range params.ringP.Modulus {
+		rescaleParams[i] = RandUniform(params.prng, pi, (1<<uint64(bits.Len64(pi)-1) - 1))
 	}
+
+	basisExtender := NewFastBasisExtender(params.ringQ, params.ringP)
+
+	p0 := params.uniformSamplerQ.ReadNew()
+	p1 := params.uniformSamplerP.ReadNew()
+
+	level := uint64(len(params.ringQ.Modulus) - 1)
+
+	b.Run(fmt.Sprintf("ExtendBasis/ModUp/N=%d/limbsQ=%d/limbsP=%d", params.ringQ.N, len(params.ringQ.Modulus), len(params.ringP.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			basisExtender.ModUpSplitQP(level, p0, p1)
+		}
+	})
+
+	b.Run(fmt.Sprintf("ExtendBasis/ModDown/N=%d/limbsQ=%d/limbsP=%d", params.ringQ.N, len(params.ringQ.Modulus), len(params.ringP.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			basisExtender.ModDownSplitPQ(level, p0, p1, p0)
+		}
+	})
+
+	b.Run(fmt.Sprintf("ExtendBasis/ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", params.ringQ.N, len(params.ringQ.Modulus), len(params.ringP.Modulus)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			basisExtender.ModDownSplitNTTPQ(level, p0, p1, p0)
+		}
+	})
 }
 
 func benchDivByLastModulus(b *testing.B) {
-	for _, parameters := range testParams.polyParams {
 
-		ringQ := getRing(parameters[0])
+	var p0 *Poly
 
-		var p0 *Poly
+	b.Run(testString("DivByLastModulus/Floor/", params.ringQ), func(b *testing.B) {
 
-		b.Run(testString("Floor/", ringQ), func(b *testing.B) {
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			uniformSampler := NewUniformSampler(prng, ringQ)
+		for i := 0; i < b.N; i++ {
 
-			for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			p0 = params.uniformSamplerQ.ReadNew()
+			b.StartTimer()
 
-				b.StopTimer()
-				p0 = uniformSampler.ReadNew()
-				b.StartTimer()
+			params.ringQ.DivFloorByLastModulus(p0)
+		}
+	})
 
-				ringQ.DivFloorByLastModulus(p0)
-			}
-		})
+	b.Run(testString("DivByLastModulus/FloorNTT/", params.ringQ), func(b *testing.B) {
 
-		b.Run(testString("FloorNTT/", ringQ), func(b *testing.B) {
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			uniformSampler := NewUniformSampler(prng, ringQ)
+		for i := 0; i < b.N; i++ {
 
-			for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			p0 = params.uniformSamplerQ.ReadNew()
+			b.StartTimer()
 
-				b.StopTimer()
-				p0 = uniformSampler.ReadNew()
-				b.StartTimer()
+			params.ringQ.DivFloorByLastModulusNTT(p0)
+		}
+	})
 
-				ringQ.DivFloorByLastModulusNTT(p0)
-			}
-		})
+	b.Run(testString("DivByLastModulus/Round/", params.ringQ), func(b *testing.B) {
 
-		b.Run(testString("Round/", ringQ), func(b *testing.B) {
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			uniformSampler := NewUniformSampler(prng, ringQ)
+		for i := 0; i < b.N; i++ {
 
-			for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			p0 = params.uniformSamplerQ.ReadNew()
+			b.StartTimer()
 
-				b.StopTimer()
-				p0 = uniformSampler.ReadNew()
-				b.StartTimer()
+			params.ringQ.DivRoundByLastModulus(p0)
+		}
+	})
 
-				ringQ.DivRoundByLastModulus(p0)
-			}
-		})
+	b.Run(testString("DivByLastModulus/RoundNTT/", params.ringQ), func(b *testing.B) {
 
-		b.Run(testString("RoundNTT/", ringQ), func(b *testing.B) {
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			uniformSampler := NewUniformSampler(prng, ringQ)
+		for i := 0; i < b.N; i++ {
 
-			for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			p0 = params.uniformSamplerQ.ReadNew()
+			b.StartTimer()
 
-				b.StopTimer()
-				p0 = uniformSampler.ReadNew()
-				b.StartTimer()
-
-				ringQ.DivRoundByLastModulusNTT(p0)
-			}
-		})
-	}
+			params.ringQ.DivRoundByLastModulusNTT(p0)
+		}
+	})
 }
 
 func benchDivByRNSBasis(b *testing.B) {
 
-	for _, parameters := range testParams.polyParams {
+	b.Run(testString("DivByRNSBasis/Simple/DivByQOverTRounded/reconstructAndScale/", params.ringQ), func(b *testing.B) {
 
-		ringQ := getRing(parameters[0])
+		rescaler := NewSimpleScaler(T, params.ringQ)
 
-		b.Run(testString("SimpleScaler/DivByQOverTRounded/reconstructAndScale/", ringQ), func(b *testing.B) {
+		coeffs := make([]*big.Int, params.ringQ.N)
+		for i := uint64(0); i < params.ringQ.N; i++ {
+			coeffs[i] = RandInt(params.ringQ.ModulusBigint)
+		}
 
-			rescaler := NewSimpleScaler(testParams.T, ringQ)
+		tmp0 := params.ringQ.NewPoly()
+		tmp1 := params.ringQ.NewPoly()
 
-			coeffs := make([]*big.Int, ringQ.N)
-			for i := uint64(0); i < ringQ.N; i++ {
-				coeffs[i] = RandInt(ringQ.ModulusBigint)
-			}
+		params.ringQ.SetCoefficientsBigint(coeffs, tmp0)
 
-			tmp0 := ringQ.NewPoly()
-			tmp1 := ringQ.NewPoly()
+		for i := 0; i < b.N; i++ {
+			rescaler.reconstructAndScale(tmp0, tmp1)
+		}
+	})
 
-			ringQ.SetCoefficientsBigint(coeffs, tmp0)
+	b.Run(testString("DivByRNSBasis/Simple/DivByQOverTRounded/reconstructThenScale/", params.ringQ), func(b *testing.B) {
 
-			for i := 0; i < b.N; i++ {
-				rescaler.reconstructAndScale(tmp0, tmp1)
-			}
-		})
+		rescaler := NewSimpleScaler(T, params.ringQ)
 
-		b.Run(testString("SimpleScaler/DivByQOverTRounded/reconstructThenScale/", ringQ), func(b *testing.B) {
+		coeffs := make([]*big.Int, params.ringQ.N)
+		for i := uint64(0); i < params.ringQ.N; i++ {
+			coeffs[i] = RandInt(params.ringQ.ModulusBigint)
+		}
 
-			rescaler := NewSimpleScaler(testParams.T, ringQ)
+		tmp0 := params.ringQ.NewPoly()
+		tmp1 := params.ringQ.NewPoly()
 
-			coeffs := make([]*big.Int, ringQ.N)
-			for i := uint64(0); i < ringQ.N; i++ {
-				coeffs[i] = RandInt(ringQ.ModulusBigint)
-			}
+		params.ringQ.SetCoefficientsBigint(coeffs, tmp0)
 
-			tmp0 := ringQ.NewPoly()
-			tmp1 := ringQ.NewPoly()
+		for i := 0; i < b.N; i++ {
+			rescaler.reconstructThenScale(tmp0, tmp1)
+		}
+	})
 
-			ringQ.SetCoefficientsBigint(coeffs, tmp0)
+	b.Run(testString("DivByRNSBasis/RNS/DivByQOverTRounded/", params.ringQ), func(b *testing.B) {
 
-			for i := 0; i < b.N; i++ {
-				rescaler.reconstructThenScale(tmp0, tmp1)
-			}
-		})
+		coeffs := make([]*big.Int, params.ringQ.N)
+		for i := uint64(0); i < params.ringQ.N; i++ {
+			coeffs[i] = RandInt(params.ringQ.ModulusBigint)
+		}
 
-		b.Run(testString("RNSScaler/DivByQOverTRounded/", ringQ), func(b *testing.B) {
+		scaler := NewRNSScaler(T, params.ringQ)
+		polyQ := params.ringQ.NewPoly()
+		polyT := NewPoly(params.ringQ.N, 1)
+		params.ringQ.SetCoefficientsBigint(coeffs, polyQ)
 
-			coeffs := make([]*big.Int, ringQ.N)
-			for i := uint64(0); i < ringQ.N; i++ {
-				coeffs[i] = RandInt(ringQ.ModulusBigint)
-			}
-
-			scaler := NewRNSScaler(testParams.T, ringQ)
-			polyQ := ringQ.NewPoly()
-			polyT := NewPoly(ringQ.N, 1)
-			ringQ.SetCoefficientsBigint(coeffs, polyQ)
-
-			for i := 0; i < b.N; i++ {
-				scaler.DivByQOverTRounded(polyQ, polyT)
-			}
-		})
-	}
+		for i := 0; i < b.N; i++ {
+			scaler.DivByQOverTRounded(polyQ, polyT)
+		}
+	})
 }
 
 func benchBRed(b *testing.B) {

@@ -134,7 +134,7 @@ func verifyTestVectors(testctx *testContext, decryptor Decryptor, coeffs *ring.P
 
 	var coeffsTest []uint64
 
-	el := element.Element()
+	el := element.El()
 
 	if el.Degree() == 0 {
 

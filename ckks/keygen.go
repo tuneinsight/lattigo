@@ -80,6 +80,7 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 	return swk.evakey
 }
 
+// BootstrappingKey is a structure that stores the switching-keys required during the bootstrapping.
 type BootstrappingKey struct {
 	relinkey *EvaluationKey // Relinearization key
 	rotkeys  *RotationKeys  // Rotation and conjugation keys
@@ -542,6 +543,80 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 	return
 }
 
+func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *BootstrappParams) (rotKeyIndex []uint64) {
+
+	// List of the rotation key values to needed for the bootstrapp
+	rotKeyIndex = []uint64{}
+
+	var slots uint64 = 1 << logSlots
+	var dslots uint64 = slots
+	if logSlots < logN-1 {
+		dslots <<= 1
+	}
+
+	//SubSum rotation needed X -> Y^slots rotations
+	for i := logSlots; i < logN-1; i++ {
+		if !utils.IsInSliceUint64(1<<i, rotKeyIndex) {
+			rotKeyIndex = append(rotKeyIndex, 1<<i)
+		}
+	}
+
+	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(), true)
+
+	var index uint64
+	// Coeffs to Slots rotations
+	for i := range indexCtS {
+
+		N1 := findbestbabygiantstepsplitIndexMap(indexCtS[i], dslots, btpParams.MaxN1N2Ratio)
+
+		for j := range indexCtS[i] {
+
+			index = ((j / N1) * N1) & (slots - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+		}
+	}
+
+	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(), false)
+
+	// Slots to Coeffs rotations
+	for i := range indexStC {
+
+		N1 := findbestbabygiantstepsplitIndexMap(indexStC[i], dslots, btpParams.MaxN1N2Ratio)
+
+		for j := range indexStC[i] {
+
+			if logSlots < logN-1 && i == 0 {
+				// Sparse repacking, occuring during the first DFT matrix of the CoeffsToSlots.
+				index = ((j / N1) * N1) & (2*slots - 1)
+			} else {
+				// Other cases
+				index = ((j / N1) * N1) & (slots - 1)
+			}
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+		}
+	}
+
+	return rotKeyIndex
+}
+
 func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth uint64, forward bool) (rotationMap []map[uint64]bool) {
 
 	var level, depth, nextLevel uint64
@@ -603,80 +678,6 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth uint64, forward bo
 	}
 
 	return
-}
-
-func computeBootstrappingDFTRotationList(logN, logSlots uint64, bootParams *BootstrappParams) (rotKeyIndex []uint64) {
-
-	// List of the rotation key values to needed for the bootstrapp
-	rotKeyIndex = []uint64{}
-
-	var slots uint64 = 1 << logSlots
-	var dslots uint64 = slots
-	if logSlots < logN-1 {
-		dslots <<= 1
-	}
-
-	//SubSum rotation needed X -> Y^slots rotations
-	for i := logSlots; i < logN-1; i++ {
-		if !utils.IsInSliceUint64(1<<i, rotKeyIndex) {
-			rotKeyIndex = append(rotKeyIndex, 1<<i)
-		}
-	}
-
-	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, bootParams.CtSDepth(), true)
-
-	var index uint64
-	// Coeffs to Slots rotations
-	for i := range indexCtS {
-
-		N1 := findbestbabygiantstepsplitIndexMap(indexCtS[i], dslots, bootParams.MaxN1N2Ratio)
-
-		for j := range indexCtS[i] {
-
-			index = ((j / N1) * N1) & (slots - 1)
-
-			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
-
-			index = j & (N1 - 1)
-
-			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
-		}
-	}
-
-	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, bootParams.StCDepth(), false)
-
-	// Slots to Coeffs rotations
-	for i := range indexStC {
-
-		N1 := findbestbabygiantstepsplitIndexMap(indexStC[i], dslots, bootParams.MaxN1N2Ratio)
-
-		for j := range indexStC[i] {
-
-			if logSlots < logN-1 && i == 0 {
-				// Sparse repacking, occuring during the first DFT matrix of the CoeffsToSlots.
-				index = ((j / N1) * N1) & (2*slots - 1)
-			} else {
-				// Other cases
-				index = ((j / N1) * N1) & (slots - 1)
-			}
-
-			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
-
-			index = j & (N1 - 1)
-
-			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
-		}
-	}
-
-	return rotKeyIndex
 }
 
 // Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.

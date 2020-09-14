@@ -278,7 +278,7 @@ func (btp *Bootstrapper) genSinePoly() {
 		btp.chebycoeffs = cheby
 
 	} else {
-		panic("bootcontext -> invalid sineType")
+		panic("Bootstrapper -> invalid sineType")
 	}
 }
 

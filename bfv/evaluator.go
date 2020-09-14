@@ -127,7 +127,7 @@ func NewEvaluator(params *Parameters) Evaluator {
 	}
 }
 
-func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *bfvElement) {
+func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *Element) {
 	if op0 == nil || op1 == nil || opOut == nil {
 		panic("cannot getElemAndCheckBinary: operands cannot be nil")
 	}
@@ -140,11 +140,11 @@ func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDe
 		panic("cannot getElemAndCheckBinary: receiver operand degree is too small")
 	}
 
-	el0, el1, elOut = op0.Element(), op1.Element(), opOut.Element()
+	el0, el1, elOut = op0.El(), op1.El(), opOut.El()
 	return // TODO: more checks on elements
 }
 
-func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *bfvElement) {
+func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *Element) {
 	if op0 == nil || opOut == nil {
 		panic("cannot getElemAndCheckUnary: operand cannot be nil")
 	}
@@ -156,12 +156,12 @@ func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree u
 	if opOut.Degree() < opOutMinDegree {
 		panic("cannot getElemAndCheckUnary: receiver operand degree is too small")
 	}
-	el0, elOut = op0.Element(), opOut.Element()
+	el0, elOut = op0.El(), opOut.El()
 	return // TODO: more checks on elements
 }
 
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
-func evaluateInPlaceBinary(el0, el1, elOut *bfvElement, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	maxDegree := utils.MaxUint64(el0.Degree(), el1.Degree())
 	minDegree := utils.MinUint64(el0.Degree(), el1.Degree())
@@ -171,7 +171,7 @@ func evaluateInPlaceBinary(el0, el1, elOut *bfvElement, evaluate func(*ring.Poly
 	}
 
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
-	var largest *bfvElement
+	var largest *Element
 	if el0.Degree() > el1.Degree() {
 		largest = el0
 	} else if el1.Degree() > el0.Degree() {
@@ -185,7 +185,7 @@ func evaluateInPlaceBinary(el0, el1, elOut *bfvElement, evaluate func(*ring.Poly
 }
 
 // evaluateInPlaceUnary applies the provided function in place on el0 and returns the result in elOut.
-func evaluateInPlaceUnary(el0, elOut *bfvElement, evaluate func(*ring.Poly, *ring.Poly)) {
+func evaluateInPlaceUnary(el0, elOut *Element, evaluate func(*ring.Poly, *ring.Poly)) {
 	for i := range el0.value {
 		evaluate(el0.value[i], elOut.value[i])
 	}
@@ -297,7 +297,7 @@ func (eval *evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertex
 }
 
 // tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
-func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
+func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 
 	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
 	levelQMul := uint64(len(eval.ringQMul.Modulus) - 1)
@@ -335,7 +335,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 	// and adds them to their corresponding position in the new ciphertext
 	// based on their respective degree
 
-	// Case where both BfvElements are of degree 1
+	// Case where both Elements are of degree 1
 	if ct0.Degree() == 1 && ct1.Degree() == 1 {
 
 		c00Q := eval.poolQ[3][0]
@@ -386,7 +386,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *bfvElement) {
 			eval.ringQMul.MulCoeffsMontgomery(c01P, c1Q2[1], c2Q2[2])
 		}
 
-		// Case where both BfvElements are not of degree 1
+		// Case where both Elements are not of degree 1
 	} else {
 
 		for i := uint64(0); i < ctOut.Degree()+1; i++ {
@@ -498,7 +498,7 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut
 
 	if ct0.Degree() < 2 {
 		if ct0 != ctOut {
-			ctOut.Copy(ct0.Element())
+			ctOut.Copy(ct0.El())
 		}
 	} else {
 		eval.relinearize(ct0, evakey, ctOut)
@@ -564,7 +564,7 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rotation
 
 	if k == 0 {
 
-		ctOut.Copy(ct0.Element())
+		ctOut.Copy(ct0.El())
 
 	} else {
 
@@ -672,15 +672,15 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ci
 
 	cTmp := NewCiphertext(eval.params, 1)
 
-	ctOut.Copy(ct0.Element())
+	ctOut.Copy(ct0.El())
 
 	for i := uint64(1); i < eval.ringQ.N>>1; i <<= 1 {
 		eval.RotateColumns(ctOut, i, evakey, cTmp)
-		eval.Add(cTmp.bfvElement, ctOut, ctOut.Ciphertext())
+		eval.Add(cTmp.Element, ctOut, ctOut.Ciphertext())
 	}
 
 	eval.RotateRows(ctOut, evakey, cTmp)
-	eval.Add(ctOut, cTmp.bfvElement, ctOut)
+	eval.Add(ctOut, cTmp.Element, ctOut)
 }
 
 // permute performs a column rotation on ct0 and returns the result in ctOut

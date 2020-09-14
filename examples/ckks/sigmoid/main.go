@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/cmplx"
 	"math/rand"
-	"sort"
 	"time"
 
 	"github.com/ldsec/lattigo/ckks"
@@ -84,21 +83,13 @@ func chebyshevinterpolation() {
 
 	fmt.Println("Done... Consumed levels :", params.MaxLevel()-ciphertext.Level())
 
-	// Decryption process + Decoding process
-	valuesTest := encoder.Decode(decryptor.DecryptNew(ciphertext), params.Slots())
-
 	// Computation of the reference values
 	for i := range values {
 		values[i] = f(values[i])
 	}
 
 	// Printing results and comparison
-	fmt.Println()
-	fmt.Printf("ValuesTest : %6f %6f %6f %6f...\n",
-		round(valuesTest[0]), round(valuesTest[1]), round(valuesTest[2]), round(valuesTest[3]))
-	fmt.Printf("ValuesWant : %6f %6f %6f %6f...\n",
-		round(values[0]), round(values[1]), round(values[2]), round(values[3]))
-	verifyVector(values, valuesTest)
+	printDebug(params, ciphertext, values, decryptor, encoder)
 
 }
 
@@ -114,103 +105,28 @@ func round(x complex128) complex128 {
 	return complex(a, b)
 }
 
-func verifyVector(valuesWant, valuesTest []complex128) (err error) {
+func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
 
-	var deltaReal, deltaImag float64
+	slots := uint64(len(valuesWant))
 
-	var minprec, maxprec, meanprec, medianprec complex128
-
-	diff := make([]complex128, len(valuesWant))
-
-	minprec = complex(0, 0)
-	maxprec = complex(1, 1)
-
-	meanprec = complex(0, 0)
-
-	distribReal := make(map[uint64]uint64)
-	distribImag := make(map[uint64]uint64)
-
-	for i := range valuesWant {
-
-		// Test the ratio for big values (> 1) and difference for small values (< 1)
-
-		deltaReal = math.Abs(real(valuesTest[i]) - real(valuesWant[i]))
-		deltaImag = math.Abs(imag(valuesTest[i]) - imag(valuesWant[i]))
-
-		diff[i] += complex(deltaReal, 0)
-		diff[i] += complex(0, deltaImag)
-
-		meanprec += diff[i]
-
-		if real(diff[i]) > real(minprec) {
-			minprec = complex(real(diff[i]), 0)
-		}
-
-		if imag(diff[i]) > imag(minprec) {
-			minprec = complex(real(minprec), imag(diff[i]))
-		}
-
-		if real(diff[i]) < real(maxprec) {
-			maxprec = complex(real(diff[i]), 0)
-		}
-
-		if imag(diff[i]) < imag(maxprec) {
-			maxprec = complex(real(maxprec), imag(diff[i]))
-		}
-
-		distribReal[uint64(math.Floor(math.Log2(1/real(diff[i]))))]++
-		distribImag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))]++
-	}
-
-	meanprec /= complex(float64(len(valuesWant)), 0)
-	medianprec = calcmedian(diff)
+	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), slots)
 
 	fmt.Println()
-	fmt.Printf("Minimum precision : (%.2f, %.2f) bits \n",
-		math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
-	fmt.Printf("Maximum precision : (%.2f, %.2f) bits \n",
-		math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
-	fmt.Printf("Mean    precision : (%.2f, %.2f) bits \n",
-		math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
-	fmt.Printf("Median  precision : (%.2f, %.2f) bits \n",
-		math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
+	fmt.Printf("Level : %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
+	fmt.Printf("Scale : 2^%f\n", math.Log2(ciphertext.Scale()))
+	fmt.Printf("ValuesTest : %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
+	fmt.Printf("ValuesWant : %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
-	return nil
-}
+	minprec, maxprec, meanprec, medianprec := ckks.VerifyTestVectors(params, nil, nil, valuesWant, valuesTest)
 
-func calcmedian(values []complex128) (median complex128) {
+	fmt.Printf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
+	fmt.Printf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
+	fmt.Printf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
+	fmt.Printf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
+	fmt.Println()
 
-	tmp := make([]float64, len(values))
-
-	for i := range values {
-		tmp[i] = real(values[i])
-	}
-
-	sort.Float64s(tmp)
-
-	for i := range values {
-		values[i] = complex(tmp[i], imag(values[i]))
-	}
-
-	for i := range values {
-		tmp[i] = imag(values[i])
-	}
-
-	sort.Float64s(tmp)
-
-	for i := range values {
-		values[i] = complex(real(values[i]), tmp[i])
-	}
-
-	index := len(values) / 2
-
-	if len(values)&1 == 1 {
-		return values[index]
-	}
-
-	return (values[index] + values[index+1]) / 2
-
+	return
 }
 
 func main() {

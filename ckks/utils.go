@@ -2,10 +2,78 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/ring"
+	"math"
 	"math/big"
 	"math/cmplx"
 	"math/rand"
 )
+
+func VerifyTestVectors(params *Parameters, decryptor Decryptor, encoder Encoder, valuesWant []complex128, element interface{}) (complex128, complex128, complex128, complex128) {
+
+	var valuesTest []complex128
+
+	slots := params.Slots()
+
+	switch element.(type) {
+	case *Ciphertext:
+		valuesTest = encoder.Decode(decryptor.DecryptNew(element.(*Ciphertext)), slots)
+	case *Plaintext:
+		valuesTest = encoder.Decode(element.(*Plaintext), slots)
+	case []complex128:
+		valuesTest = element.([]complex128)
+	}
+
+	var deltaReal, deltaImag float64
+
+	var delta, minprec, maxprec, meanprec, medianprec complex128
+
+	diff := make([]complex128, slots)
+
+	minprec = complex(0, 0)
+	maxprec = complex(1, 1)
+
+	meanprec = complex(0, 0)
+
+	distribReal := make(map[uint64]uint64)
+	distribImag := make(map[uint64]uint64)
+
+	distribPrec := float64(25)
+
+	for i := range valuesWant {
+
+		delta = valuesTest[i] - valuesWant[i]
+		deltaReal = math.Abs(real(delta))
+		deltaImag = math.Abs(imag(delta))
+
+		diff[i] += complex(deltaReal, deltaImag)
+
+		meanprec += diff[i]
+
+		if deltaReal > real(minprec) {
+			minprec = complex(deltaReal, imag(minprec))
+		}
+
+		if deltaImag > imag(minprec) {
+			minprec = complex(real(minprec), deltaImag)
+		}
+
+		if deltaReal < real(maxprec) {
+			maxprec = complex(deltaReal, imag(maxprec))
+		}
+
+		if deltaImag < imag(maxprec) {
+			maxprec = complex(real(maxprec), deltaImag)
+		}
+
+		distribReal[uint64(math.Floor(distribPrec*math.Log2(1/deltaReal)))]++
+		distribImag[uint64(math.Floor(distribPrec*math.Log2(1/deltaImag)))]++
+	}
+
+	meanprec /= complex(float64(slots), 0)
+	medianprec = calcmedian(diff)
+
+	return minprec, maxprec, meanprec, medianprec
+}
 
 func exp2pi(x complex128) complex128 {
 	return cmplx.Exp(2 * 3.141592653589793 * complex(0, 1) * x)

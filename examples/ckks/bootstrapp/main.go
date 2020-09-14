@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"sort"
 
 	"github.com/ldsec/lattigo/ckks"
 )
@@ -28,7 +27,6 @@ func main() {
 	var pk *ckks.PublicKey
 	var encryptor ckks.Encryptor
 	var decryptor ckks.Decryptor
-	var ciphertext *ckks.Ciphertext
 	var plaintext *ckks.Plaintext
 
 	// Bootstrapping parameters
@@ -41,7 +39,7 @@ func main() {
 	btpParams := ckks.DefaultBootstrappParams[4]
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.Levels(), params.Scale(), params.Sigma())
+	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), btpParams.H, params.LogQP(), params.Levels(), math.Log2(params.Scale()), params.Sigma())
 
 	// Scheme context and keys
 	kgen = ckks.NewKeyGenerator(params)
@@ -58,8 +56,7 @@ func main() {
 	fmt.Println()
 	fmt.Println("Generating bootstrappign keys...")
 	btpKey := kgen.GenBootstrappingKey(params.LogSlots(), btpParams, sk)
-	btp, err = ckks.NewBootstrapper(params, btpParams, btpKey)
-	if err != nil {
+	if btp, err = ckks.NewBootstrapper(params, btpParams, btpKey); err != nil {
 		panic(err)
 	}
 	fmt.Println("Done")
@@ -74,10 +71,12 @@ func main() {
 	encoder.Encode(plaintext, valuesWant, params.Slots())
 
 	// Encrypts
-	ciphertext = encryptor.EncryptNew(plaintext)
+	ciphertext1 := encryptor.EncryptNew(plaintext)
 
 	// Decrypts, prints and compares with the plaintext values
-	printDebug(ciphertext, valuesWant, decryptor, encoder)
+	fmt.Println()
+	fmt.Println("Precision of values vs. ciphertext")
+	valuesTest1 := printDebug(params, ciphertext1, valuesWant, decryptor, encoder)
 
 	// Bootstrapps the ciphertext (homomorphic re-encryption)
 	// Takes a ciphertext at level 0 (if not at level 0, then it will reduce it to level 0)
@@ -86,107 +85,35 @@ func main() {
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.Scale) can be used at the expanse of one level.
 	fmt.Println()
 	fmt.Println("Bootstrapping...")
-	ciphertext = btp.Bootstrapp(ciphertext)
+	ciphertext2 := btp.Bootstrapp(ciphertext1)
 	fmt.Println("Done")
 
 	// Decrypts, prints and compares with the plaintext values
-	printDebug(ciphertext, valuesWant, decryptor, encoder)
+	fmt.Println()
+	fmt.Println("Precision of ciphertext vs. Bootstrapp(ciphertext)")
+	printDebug(params, ciphertext2, valuesTest1, decryptor, encoder)
 }
 
-func printDebug(ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) {
+func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
 
 	slots := uint64(len(valuesWant))
 
-	valuesTest := encoder.Decode(decryptor.DecryptNew(ciphertext), slots)
+	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), slots)
 
 	fmt.Println()
+	fmt.Printf("Level : %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
+	fmt.Printf("Scale : 2^%f\n", math.Log2(ciphertext.Scale()))
 	fmt.Printf("ValuesTest : %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant : %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
-	verifyVector(valuesWant, valuesTest)
-}
-
-func verifyVector(valuesWant, valuesTest []complex128) (err error) {
-
-	var deltaReal, deltaImag float64
-	var delta, minprec, maxprec, meanprec, medianprec complex128
-
-	diff := make([]complex128, len(valuesWant))
-
-	minprec = complex(0, 0)
-	maxprec = complex(1, 1)
-
-	meanprec = complex(0, 0)
-
-	for i := range valuesWant {
-
-		delta = valuesTest[i] - valuesWant[i]
-		deltaReal = math.Abs(real(delta))
-		deltaImag = math.Abs(imag(delta))
-
-		diff[i] += complex(deltaReal, deltaImag)
-
-		meanprec += diff[i]
-
-		if deltaReal > real(minprec) {
-			minprec = complex(deltaReal, imag(minprec))
-		}
-
-		if deltaImag > imag(minprec) {
-			minprec = complex(real(minprec), deltaImag)
-		}
-
-		if deltaReal < real(maxprec) {
-			maxprec = complex(deltaReal, imag(maxprec))
-		}
-
-		if deltaImag < imag(maxprec) {
-			maxprec = complex(real(maxprec), deltaImag)
-		}
-	}
-
-	meanprec /= complex(float64(len(valuesWant)), 0)
-	medianprec = calcmedian(diff)
-
 	fmt.Println()
+
+	minprec, maxprec, meanprec, medianprec := ckks.VerifyTestVectors(params, nil, nil, valuesWant, valuesTest)
+
 	fmt.Printf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
 	fmt.Printf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
 	fmt.Printf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
 	fmt.Printf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
 	fmt.Println()
 
-	return nil
-}
-
-func calcmedian(values []complex128) (median complex128) {
-
-	tmp := make([]float64, len(values))
-
-	for i := range values {
-		tmp[i] = real(values[i])
-	}
-
-	sort.Float64s(tmp)
-
-	for i := range values {
-		values[i] = complex(tmp[i], imag(values[i]))
-	}
-
-	for i := range values {
-		tmp[i] = imag(values[i])
-	}
-
-	sort.Float64s(tmp)
-
-	for i := range values {
-		values[i] = complex(real(values[i]), tmp[i])
-	}
-
-	index := len(values) / 2
-
-	if len(values)&1 == 1 {
-		return values[index]
-	}
-
-	return (values[index] + values[index+1]) / 2
-
+	return
 }

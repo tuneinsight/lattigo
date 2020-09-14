@@ -30,7 +30,7 @@ type testParams struct {
 	uniformSamplerP *UniformSampler
 }
 
-func GenTestParams(defaultParams *Parameters) (testContext *testParams, err error) {
+func genTestParams(defaultParams *Parameters) (testContext *testParams, err error) {
 
 	testContext = new(testParams)
 
@@ -64,7 +64,7 @@ func TestRing(t *testing.T) {
 
 	for _, defaultParam := range defaultParams {
 
-		if testContext, err = GenTestParams(defaultParam); err != nil {
+		if testContext, err = genTestParams(defaultParam); err != nil {
 			panic(err)
 		}
 

@@ -182,68 +182,7 @@ func newTestVectorsReals(testContext *testParams, encryptor Encryptor, a, b floa
 
 func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
-	var plaintextTest *Plaintext
-	var valuesTest []complex128
-
-	switch element.(type) {
-	case *Ciphertext:
-		plaintextTest = decryptor.DecryptNew(element.(*Ciphertext))
-	case *Plaintext:
-		plaintextTest = element.(*Plaintext)
-	}
-
-	slots := testContext.params.Slots()
-
-	valuesTest = testContext.encoder.Decode(plaintextTest, slots)
-
-	var deltaReal, deltaImag float64
-
-	var delta, minprec, maxprec, meanprec, medianprec complex128
-
-	diff := make([]complex128, slots)
-
-	minprec = complex(0, 0)
-	maxprec = complex(1, 1)
-
-	meanprec = complex(0, 0)
-
-	distribReal := make(map[uint64]uint64)
-	distribImag := make(map[uint64]uint64)
-
-	distribPrec := float64(25)
-
-	for i := range valuesWant {
-
-		delta = valuesTest[i] - valuesWant[i]
-		deltaReal = math.Abs(real(delta))
-		deltaImag = math.Abs(imag(delta))
-
-		diff[i] += complex(deltaReal, deltaImag)
-
-		meanprec += diff[i]
-
-		if deltaReal > real(minprec) {
-			minprec = complex(deltaReal, imag(minprec))
-		}
-
-		if deltaImag > imag(minprec) {
-			minprec = complex(real(minprec), deltaImag)
-		}
-
-		if deltaReal < real(maxprec) {
-			maxprec = complex(deltaReal, imag(maxprec))
-		}
-
-		if deltaImag < imag(maxprec) {
-			maxprec = complex(real(maxprec), deltaImag)
-		}
-
-		distribReal[uint64(math.Floor(distribPrec*math.Log2(1/deltaReal)))]++
-		distribImag[uint64(math.Floor(distribPrec*math.Log2(1/deltaImag)))]++
-	}
-
-	meanprec /= complex(float64(slots), 0)
-	medianprec = calcmedian(diff)
+	minprec, maxprec, meanprec, medianprec := VerifyTestVectors(testContext.params, decryptor, testContext.encoder, valuesWant, element)
 
 	if *printPrecisionStats {
 		t.Logf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))

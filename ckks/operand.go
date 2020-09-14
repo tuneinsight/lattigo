@@ -8,66 +8,66 @@ import (
 
 // Operand is a common interface for Ciphertext and Plaintext types.
 type Operand interface {
-	Element() *CkksElement
+	El() *Element
 	Degree() uint64
 	Level() uint64
 	Scale() float64
 }
 
-// CkksElement is a generic type for ciphertext and plaintexts
-type CkksElement struct {
+// Element is a generic type for ciphertext and plaintexts
+type Element struct {
 	value []*ring.Poly
 	scale float64
 	isNTT bool
 }
 
-// NewCkksElement returns a new CkksElement with zero values.
-func NewCkksElement() *CkksElement {
-	return &CkksElement{}
+// NewElement returns a new Element with zero values.
+func NewElement() *Element {
+	return &Element{}
 }
 
 // Value returns the slice of polynomials of the target element.
-func (el *CkksElement) Value() []*ring.Poly {
+func (el *Element) Value() []*ring.Poly {
 	return el.value
 }
 
 // SetValue sets the input slice of polynomials as the value of the target element.
-func (el *CkksElement) SetValue(value []*ring.Poly) {
+func (el *Element) SetValue(value []*ring.Poly) {
 	el.value = value
 }
 
 // Degree returns the degree of the target element.
-func (el *CkksElement) Degree() uint64 {
+func (el *Element) Degree() uint64 {
 	return uint64(len(el.value) - 1)
 }
 
 // Level returns the level of the target element.
-func (el *CkksElement) Level() uint64 {
+func (el *Element) Level() uint64 {
 	return uint64(len(el.value[0].Coeffs) - 1)
 }
 
 // Scale returns the scale of the target element.
-func (el *CkksElement) Scale() float64 {
+func (el *Element) Scale() float64 {
 	return el.scale
 }
 
 // SetScale sets the scale of the the target element to the input scale.
-func (el *CkksElement) SetScale(scale float64) {
+func (el *Element) SetScale(scale float64) {
 	el.scale = scale
 }
 
 // MulScale multiplies the scale of the target element with the input scale.
-func (el *CkksElement) MulScale(scale float64) {
+func (el *Element) MulScale(scale float64) {
 	el.scale *= scale
 }
 
 // DivScale divides the scale of the target element by the input scale.
-func (el *CkksElement) DivScale(scale float64) {
+func (el *Element) DivScale(scale float64) {
 	el.scale /= scale
 }
 
 // Resize resizes the degree of the target element.
-func (el *CkksElement) Resize(params *Parameters, degree uint64) {
+func (el *Element) Resize(params *Parameters, degree uint64) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree+1]
 	} else if el.Degree() < degree {
@@ -82,17 +82,17 @@ func (el *CkksElement) Resize(params *Parameters, degree uint64) {
 }
 
 // IsNTT returns the value of the NTT flag of the target element.
-func (el *CkksElement) IsNTT() bool {
+func (el *Element) IsNTT() bool {
 	return el.isNTT
 }
 
 // SetIsNTT sets the value of the NTT flag of the target element with the input value.
-func (el *CkksElement) SetIsNTT(value bool) {
+func (el *Element) SetIsNTT(value bool) {
 	el.isNTT = value
 }
 
 // NTT puts the target element in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, it does nothing.
-func (el *CkksElement) NTT(ringQ *ring.Ring, c *CkksElement) error {
+func (el *Element) NTT(ringQ *ring.Ring, c *Element) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error: receiver element has invalid degree (it does not match)")
 	}
@@ -106,7 +106,7 @@ func (el *CkksElement) NTT(ringQ *ring.Ring, c *CkksElement) error {
 }
 
 // InvNTT puts the target element outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, it does nothing.
-func (el *CkksElement) InvNTT(ringQ *ring.Ring, c *CkksElement) error {
+func (el *Element) InvNTT(ringQ *ring.Ring, c *Element) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error: receiver element invalid degree (it does not match)")
 	}
@@ -120,9 +120,9 @@ func (el *CkksElement) InvNTT(ringQ *ring.Ring, c *CkksElement) error {
 }
 
 // CopyNew creates a new element as a copy of the target element.
-func (el *CkksElement) CopyNew() *CkksElement {
+func (el *Element) CopyNew() *Element {
 
-	ctxCopy := new(CkksElement)
+	ctxCopy := new(Element)
 
 	ctxCopy.value = make([]*ring.Poly, el.Degree()+1)
 	for i := range el.value {
@@ -135,7 +135,7 @@ func (el *CkksElement) CopyNew() *CkksElement {
 }
 
 // Copy copies the input element and its parameters on the target element.
-func (el *CkksElement) Copy(ctxCopy *CkksElement) (err error) {
+func (el *Element) Copy(ctxCopy *Element) (err error) {
 
 	if el != ctxCopy {
 		for i := range ctxCopy.Value() {
@@ -148,22 +148,22 @@ func (el *CkksElement) Copy(ctxCopy *CkksElement) (err error) {
 }
 
 // CopyParams copies the input element parameters on the target element
-func (el *CkksElement) CopyParams(CkksElement *CkksElement) {
-	el.SetScale(CkksElement.Scale())
-	el.SetIsNTT(CkksElement.IsNTT())
+func (el *Element) CopyParams(Element *Element) {
+	el.SetScale(Element.Scale())
+	el.SetIsNTT(Element.IsNTT())
 }
 
-// Element sets the target element type to Element.
-func (el *CkksElement) Element() *CkksElement {
+// El sets the target element type to Element.
+func (el *Element) El() *Element {
 	return el
 }
 
 // Ciphertext sets the target element type to Ciphertext.
-func (el *CkksElement) Ciphertext() *Ciphertext {
+func (el *Element) Ciphertext() *Ciphertext {
 	return &Ciphertext{el}
 }
 
 // Plaintext sets the target element type to Plaintext.
-func (el *CkksElement) Plaintext() *Plaintext {
+func (el *Element) Plaintext() *Plaintext {
 	return &Plaintext{el, el.value[0]}
 }

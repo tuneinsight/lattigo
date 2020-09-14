@@ -71,8 +71,8 @@ func Test_DBFV(t *testing.T) {
 		testRotKeyGenRotCols(testCtx, t)
 		testRefresh(testCtx, t)
 		testRefreshAndPermutation(testCtx, t)
-		test_Marshalling(testCtx, t)
-		test_Relin_Marshalling(testCtx, t)
+		testMarshalling(testCtx, t)
+		testMarshallingRelin(testCtx, t)
 	}
 }
 
@@ -708,7 +708,7 @@ func verifyTestVectors(testCtx *testContext, decryptor bfv.Decryptor, coeffs []u
 	require.True(t, utils.EqualSliceUint64(coeffs, testCtx.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))))
 }
 
-func test_Marshalling(testCtx *testContext, t *testing.T) {
+func testMarshalling(testCtx *testContext, t *testing.T) {
 
 	//verify if the un.marshalling works properly
 
@@ -872,7 +872,7 @@ func test_Marshalling(testCtx *testContext, t *testing.T) {
 
 }
 
-func test_Relin_Marshalling(testCtx *testContext, t *testing.T) {
+func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 
 	ringQ := testCtx.dbfvContext.ringQ
 	ringP := testCtx.dbfvContext.ringP

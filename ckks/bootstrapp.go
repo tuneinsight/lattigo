@@ -69,7 +69,7 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 
 	ringQ := btp.evaluator.(*evaluator).ringQ
 
-	ct.InvNTT(ringQ, ct.Element())
+	ct.InvNTT(ringQ, ct.El())
 
 	// Extend the ciphertext with zero polynomials.
 	for u := range ct.Value() {
@@ -103,7 +103,7 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 		}
 	}
 
-	ct.NTT(ringQ, ct.Element())
+	ct.NTT(ringQ, ct.El())
 
 	return ct
 }

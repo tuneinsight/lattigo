@@ -34,7 +34,7 @@ type Evaluator interface {
 	ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext)
 	SetScale(ct *Ciphertext, scale float64)
 	MulByPow2New(ct0 *Ciphertext, pow2 uint64) (ctOut *Ciphertext)
-	MulByPow2(ct0 *CkksElement, pow2 uint64, ctOut *CkksElement)
+	MulByPow2(ct0 *Element, pow2 uint64, ctOut *Element)
 	ReduceNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	Reduce(ct0 *Ciphertext, ctOut *Ciphertext) error
 	DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciphertext)
@@ -121,7 +121,7 @@ func NewEvaluator(params *Parameters) Evaluator {
 	}
 }
 
-func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *CkksElement) {
+func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *Element) {
 	if op0 == nil || op1 == nil || opOut == nil {
 		panic("operands cannot be nil")
 	}
@@ -133,11 +133,11 @@ func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDe
 	if opOut.Degree() < opOutMinDegree {
 		panic("receiver operand degree is too small")
 	}
-	el0, el1, elOut = op0.Element(), op1.Element(), opOut.Element()
+	el0, el1, elOut = op0.El(), op1.El(), opOut.El()
 	return // TODO: more checks on elements
 }
 
-func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *CkksElement) {
+func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *Element) {
 	if op0 == nil || opOut == nil {
 		panic("operand cannot be nil")
 	}
@@ -149,7 +149,7 @@ func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree u
 	if opOut.Degree() < opOutMinDegree {
 		panic("receiver operand degree is too small")
 	}
-	el0, elOut = op0.Element(), opOut.Element()
+	el0, elOut = op0.El(), opOut.El()
 	return // TODO: more checks on elements
 }
 
@@ -236,9 +236,9 @@ func (eval *evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	return
 }
 
-func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *CkksElement, evaluate func(uint64, *ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(uint64, *ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	var tmp0, tmp1 *CkksElement // TODO : use eval mem pool
+	var tmp0, tmp1 *Element // TODO : use eval mem pool
 
 	level := utils.MinUint64(utils.MinUint64(c0.Level(), c1.Level()), ctOut.Level())
 
@@ -256,7 +256,7 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *CkksElement, evaluate func
 
 		if c0.Scale() > c1.Scale() {
 
-			tmp1 = eval.ctxpool.Element()
+			tmp1 = eval.ctxpool.El()
 
 			if uint64(c0.Scale()/c1.Scale()) != 0 {
 				eval.MultByConst(c1.Ciphertext(), uint64(c0.Scale()/c1.Scale()), tmp1.Ciphertext())
@@ -283,7 +283,7 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *CkksElement, evaluate func
 
 		if c1.Scale() > c0.Scale() {
 
-			tmp0 = eval.ctxpool.Element()
+			tmp0 = eval.ctxpool.El()
 			if uint64(c1.Scale()/c0.Scale()) != 0 {
 				eval.MultByConst(c0.Ciphertext(), uint64(c1.Scale()/c0.Scale()), tmp0.Ciphertext())
 			}
@@ -309,7 +309,7 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *CkksElement, evaluate func
 
 		if c1.Scale() > c0.Scale() {
 
-			tmp0 = eval.ctxpool.Element()
+			tmp0 = eval.ctxpool.El()
 
 			if uint64(c1.Scale()/c0.Scale()) != 0 {
 				eval.MultByConst(c0.Ciphertext(), uint64(c1.Scale()/c0.Scale()), tmp0.Ciphertext())
@@ -319,7 +319,7 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *CkksElement, evaluate func
 
 		} else if c0.Scale() > c1.Scale() {
 
-			tmp1 = eval.ctxpool.Element()
+			tmp1 = eval.ctxpool.El()
 
 			if uint64(c0.Scale()/c1.Scale()) != 0 {
 				eval.MultByConst(c1.Ciphertext(), uint64(c0.Scale()/c1.Scale()), tmp1.Ciphertext())
@@ -1162,12 +1162,12 @@ func (eval *evaluator) SetScale(ct *Ciphertext, scale float64) {
 // MulByPow2New multiplies ct0 by 2^pow2 and returns the result in a newly created element.
 func (eval *evaluator) MulByPow2New(ct0 *Ciphertext, pow2 uint64) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
-	eval.MulByPow2(ct0.Element(), pow2, ctOut.Element())
+	eval.MulByPow2(ct0.El(), pow2, ctOut.El())
 	return
 }
 
 // MulByPow2 multiplies ct0 by 2^pow2 and returns the result in ctOut.
-func (eval *evaluator) MulByPow2(ct0 *CkksElement, pow2 uint64, ctOut *CkksElement) {
+func (eval *evaluator) MulByPow2(ct0 *Element, pow2 uint64, ctOut *Element) {
 	var level uint64
 	level = utils.MinUint64(ct0.Level(), ctOut.Level())
 	for i := range ctOut.Value() {
@@ -1261,7 +1261,7 @@ func (eval *evaluator) Rescale(ct0 *Ciphertext, threshold float64, ctOut *Cipher
 			panic("cannot Rescale: input Ciphertext not in NTT")
 		}
 
-		ctOut.Copy(ct0.Element())
+		ctOut.Copy(ct0.El())
 
 		for ctOut.Scale() >= (threshold*float64(ringQ.Modulus[ctOut.Level()]))/2 && ctOut.Level() != 0 {
 
@@ -1274,7 +1274,7 @@ func (eval *evaluator) Rescale(ct0 *Ciphertext, threshold float64, ctOut *Cipher
 		}
 
 	} else {
-		ctOut.Copy(ct0.Element())
+		ctOut.Copy(ct0.El())
 	}
 
 	return nil
@@ -1295,7 +1295,7 @@ func (eval *evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, ctOut *Ci
 		panic("cannot RescaleMany: input Ciphertext not in NTT")
 	}
 
-	ctOut.Copy(ct0.Element())
+	ctOut.Copy(ct0.El())
 
 	for i := uint64(0); i < nbRescales; i++ {
 		ctOut.DivScale(float64(eval.ringQ.Modulus[ctOut.Level()-i]))
@@ -1370,7 +1370,7 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 		}
 
 		// Avoid overwritting if the second input is the output
-		var tmp0, tmp1 *CkksElement
+		var tmp0, tmp1 *Element
 		if el1 == elOut {
 			tmp0, tmp1 = el1, el0
 		} else {
@@ -1403,7 +1403,7 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
 	} else {
 
-		var tmp0, tmp1 *CkksElement
+		var tmp0, tmp1 *Element
 
 		if el0.Degree() == 1 {
 			tmp0, tmp1 = el1, el0
@@ -1495,7 +1495,7 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rotation
 
 	if k == 0 {
 
-		ctOut.Copy(ct0.Element())
+		ctOut.Copy(ct0.El())
 
 	} else {
 

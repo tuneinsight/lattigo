@@ -8,8 +8,16 @@ import (
 
 // PrecisionStats is a struct storing statistic about the precision of a CKKS plaintext
 type PrecisionStats struct {
-	MaxDelta, MinDelta, MaxPrecision, MinPrecision, MeanDelta, MeanPrecision, MedianDelta, MedianPrecision complex128
-	RealDist, ImagDist                                                                                     []struct {
+	MaxDelta        complex128
+	MinDelta        complex128
+	MaxPrecision    complex128
+	MinPrecision    complex128
+	MeanDelta       complex128
+	MeanPrecision   complex128
+	MedianDelta     complex128
+	MedianPrecision complex128
+
+	RealDist, ImagDist []struct {
 		Prec  float64
 		Count int
 	}
@@ -18,28 +26,27 @@ type PrecisionStats struct {
 }
 
 func (prec PrecisionStats) String() string {
-	return fmt.Sprintf("\nMinimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MaxDelta)), math.Log2(1/imag(prec.MaxDelta))) +
-		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MinDelta)), math.Log2(1/imag(prec.MinDelta))) +
-		fmt.Sprintf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MeanDelta)), math.Log2(1/imag(prec.MeanDelta))) +
-		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(prec.MedianDelta)), math.Log2(1/imag(prec.MedianDelta)))
+	return fmt.Sprintf("\nMinimum precision : (%.2f, %.2f) bits \n", real(prec.MinPrecision), imag(prec.MinPrecision)) +
+		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", real(prec.MaxPrecision), imag(prec.MaxPrecision)) +
+		fmt.Sprintf("Mean    precision : (%.2f, %.2f) bits \n", real(prec.MeanPrecision), imag(prec.MeanPrecision)) +
+		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", real(prec.MedianPrecision), imag(prec.MedianPrecision))
 }
 
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
 func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}) (prec PrecisionStats) {
-	var plaintextTest *Plaintext
+
 	var valuesTest []complex128
+
+	slots := params.Slots()
 
 	switch element.(type) {
 	case *Ciphertext:
-		plaintextTest = decryptor.DecryptNew(element.(*Ciphertext))
+		valuesTest = encoder.Decode(decryptor.DecryptNew(element.(*Ciphertext)), slots)
 	case *Plaintext:
-		plaintextTest = element.(*Plaintext)
+		valuesTest = encoder.Decode(element.(*Plaintext), slots)
+	case []complex128:
+		valuesTest = element.([]complex128)
 	}
-
-	valuesTest = encoder.Decode(plaintextTest, params.Slots())
-
-	//fmt.Println(valuesTest[:4])
-	//fmt.Println(valuesWant[:4])
 
 	var deltaReal, deltaImag float64
 
@@ -65,8 +72,6 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	precReal := make([]float64, len(valuesWant))
 	precImag := make([]float64, len(valuesWant))
-
-	//distribPrec := float64(25)
 
 	for i := range valuesWant {
 

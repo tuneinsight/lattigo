@@ -105,14 +105,10 @@ func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant
 	fmt.Printf("Scale : 2^%f\n", math.Log2(ciphertext.Scale()))
 	fmt.Printf("ValuesTest : %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant : %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
-	fmt.Println()
 
-	minprec, maxprec, meanprec, medianprec := ckks.VerifyTestVectors(params, nil, nil, valuesWant, valuesTest)
+	precStats := ckks.GetPrecisionStats(params, nil, nil, valuesWant, valuesTest)
 
-	fmt.Printf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
-	fmt.Printf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
-	fmt.Printf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
-	fmt.Printf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
+	fmt.Println(precStats.String())
 	fmt.Println()
 
 	return

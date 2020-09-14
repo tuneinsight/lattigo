@@ -161,7 +161,7 @@ func (m *Moduli) LogQP() uint64 {
 	return uint64(tmp.BitLen())
 }
 
-// LogQ returns the size of the modulus Q in bits
+// LogQLvl returns the size of the modulus Q in bits at a specific level
 func (m *Moduli) LogQLvl(level uint64) uint64 {
 	tmp := ring.NewUint(1)
 	for _, qi := range m.qi[:level+1] {
@@ -172,11 +172,7 @@ func (m *Moduli) LogQLvl(level uint64) uint64 {
 
 // LogQ returns the size of the modulus Q in bits
 func (m *Moduli) LogQ() uint64 {
-	tmp := ring.NewUint(1)
-	for _, qi := range m.qi {
-		tmp.Mul(tmp, ring.NewUint(qi))
-	}
-	return uint64(tmp.BitLen())
+	return m.LogQLvl(m.QiCount()-1)
 }
 
 // LogP returns the size of the modulus P in bits

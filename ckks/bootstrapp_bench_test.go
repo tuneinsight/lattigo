@@ -3,8 +3,7 @@ package ckks
 import (
 	"math"
 	"testing"
-
-	"github.com/ldsec/lattigo/utils"
+	"time"
 )
 
 func BenchmarkBootstrapp(b *testing.B) {
@@ -25,11 +24,6 @@ func BenchmarkBootstrapp(b *testing.B) {
 		panic(err)
 	}
 
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-
 	ctsDepth := uint64(len(btpParams.CtSLevel))
 	sinDepth := uint64(math.Ceil(math.Log2(float64(btpParams.SinDeg))) + float64(btpParams.SinRescal))
 
@@ -42,7 +36,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	b.Run(testString(testContext, "ModUp/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
-			ciphertext = NewCiphertextRandom(prng, testContext.params, 1, 0, LTScale)
+			ciphertext = NewCiphertextRandom(testContext.prng, testContext.params, 1, 0, LTScale)
 			b.StartTimer()
 
 			ciphertext = btp.modUp(ciphertext)
@@ -62,7 +56,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ciphertext = NewCiphertextRandom(prng, testContext.params, 1, testContext.params.MaxLevel(), LTScale)
+			ciphertext = NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), LTScale)
 			b.StartTimer()
 
 			ct0, ct1 = btp.coeffsToSlots(ciphertext)
@@ -76,9 +70,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct0 = NewCiphertextRandom(prng, testContext.params, 1, testContext.params.MaxLevel()-ctsDepth, LTScale)
+			ct0 = NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel()-ctsDepth, LTScale)
 			if testContext.params.logSlots == testContext.params.MaxLogSlots() {
-				ct1 = NewCiphertextRandom(prng, testContext.params, 1, testContext.params.MaxLevel()-ctsDepth, LTScale)
+				ct1 = NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel()-ctsDepth, LTScale)
 			} else {
 				ct1 = nil
 			}
@@ -104,9 +98,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct2 = NewCiphertextRandom(prng, testContext.params, 1, testContext.params.MaxLevel()-ctsDepth-sinDepth, LTScale)
+			ct2 = NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel()-ctsDepth-sinDepth, LTScale)
 			if testContext.params.logSlots == testContext.params.MaxLogSlots() {
-				ct3 = NewCiphertextRandom(prng, testContext.params, 1, testContext.params.MaxLevel()-ctsDepth-sinDepth, LTScale)
+				ct3 = NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel()-ctsDepth-sinDepth, LTScale)
 			} else {
 				ct3 = nil
 			}
@@ -119,11 +113,45 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	b.Run(testString(testContext, "Bootstrapp/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
+
 			b.StopTimer()
-			ct := NewCiphertext(testContext.params, 1, 0, testContext.params.scale)
+			ct := NewCiphertextRandom(testContext.prng, testContext.params, 1, 0, LTScale)
 			b.StartTimer()
 
-			btp.Bootstrapp(ct)
+			var t time.Time
+			var ct0, ct1 *Ciphertext
+
+			// Brings the ciphertext scale to Q0/2^{10}
+			btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale()), ct)
+
+			// ModUp ct_{Q_0} -> ct_{Q_L}
+			t = time.Now()
+			ct = btp.modUp(ct)
+			b.Log("After ModUp  :", time.Now().Sub(t), ct.Level(), ct.Scale())
+
+			// Brings the ciphertext scale to sineQi/(Q0/scale) if its under
+			btp.evaluator.ScaleUp(ct, math.Round(btp.postscale/ct.Scale()), ct)
+
+			//SubSum X -> (N/dslots) * Y^dslots
+			t = time.Now()
+			ct = btp.subSum(ct)
+			b.Log("After SubSum :", time.Now().Sub(t), ct.Level(), ct.Scale())
+			// Part 1 : Coeffs to slots
+
+			t = time.Now()
+			ct0, ct1 = btp.coeffsToSlots(ct)
+			b.Log("After CtS    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
+
+			// Part 2 : SineEval
+			t = time.Now()
+			ct0, ct1 = btp.evaluateSine(ct0, ct1)
+			b.Log("After Sine   :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
+
+			// Part 3 : Slots to coeffs
+			t = time.Now()
+			ct0 = btp.slotsToCoeffs(ct0, ct1)
+			ct0.SetScale(math.Exp2(math.Round(math.Log2(ct0.Scale())))) // rounds to the nearest power of two
+			b.Log("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 		}
 	})
 }

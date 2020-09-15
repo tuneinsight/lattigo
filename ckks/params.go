@@ -172,7 +172,7 @@ func (m *Moduli) LogQLvl(level uint64) uint64 {
 
 // LogQ returns the size of the modulus Q in bits
 func (m *Moduli) LogQ() uint64 {
-	return m.LogQLvl(m.QiCount()-1)
+	return m.LogQLvl(m.QiCount() - 1)
 }
 
 // LogP returns the size of the modulus P in bits

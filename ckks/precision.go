@@ -110,7 +110,7 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 	prec.MeanDelta /= complex(float64(params.Slots()), 0)
 	prec.MeanPrecision = deltaToPrecision(prec.MeanDelta)
 	prec.MedianDelta = calcmedian(diff)
-	prec.MedianPrecision = deltaToPrecision(prec.MeanDelta)
+	prec.MedianPrecision = deltaToPrecision(prec.MedianDelta)
 	return prec
 }
 

@@ -75,6 +75,10 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappParams, btpKey *Bo
 		return nil, fmt.Errorf("BootstrappParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
 	}
 
+	if btpParams.CtSLevel[0] != params.MaxLevel() {
+		return nil, fmt.Errorf("BootstrappParams: CtSLevel start not consistent with MaxLevel")
+	}
+
 	btp = newBootstrapper(params, btpParams)
 
 	btp.BootstrappingKey = btpKey
@@ -120,33 +124,6 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappParams) (btp *Boot
 	}
 	return btp
 }
-
-// // GenKeys generates the bootstrapping keys
-// func (btp *Bootstrapper) GenKeys(sk *SecretKey) {
-
-// 	//log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
-
-// 	//nbKeys := uint64(len(btp.rotKeyIndex)) + 2 //rot keys + conj key + relin key
-// 	//nbPoly := btp.beta
-// 	//nbCoefficients := 2 * btp.N() * btp.QPiCount()
-// 	//bytesPerCoeff := uint64(8)
-
-// 	//log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
-
-// 	kgen := NewKeyGenerator(btp.params)
-
-// 	btp.rotkeys = NewRotationKeys()
-
-// 	kgen.GenRotationKey(Conjugate, sk, 0, btp.rotkeys)
-
-// 	for _, i := range btp.rotKeyIndex {
-// 		kgen.GenRotationKey(RotationLeft, sk, uint64(i), btp.rotkeys)
-// 	}
-
-// 	btp.relinkey = kgen.GenRelinKey(sk)
-
-// 	return
-// }
 
 // CheckKeys checks if all the necessary keys are present
 func (btp *Bootstrapper) CheckKeys() (err error) {
@@ -242,6 +219,17 @@ func (btp *Bootstrapper) genDFTMatrices() {
 			}
 		}
 	}
+
+	/*
+	log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
+
+	nbKeys := uint64(len(btp.rotKeyIndex)) + 2 //rot keys + conj key + relin key
+	nbPoly := btp.params.Beta()
+	nbCoefficients := 2 * btp.params.N() * btp.params.QPiCount()
+	bytesPerCoeff := uint64(8)
+
+	log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
+	*/
 
 	return
 }

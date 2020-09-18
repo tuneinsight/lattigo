@@ -18,7 +18,6 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 		btp.evaluator.DropLevel(ct, 1)
 	}
 
-	// TODO : better management of the initial scale
 	// Brings the ciphertext scale to Q0/2^{10}
 	btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale()), ct)
 

@@ -249,6 +249,35 @@ var DefaultBootstrappSchemeParams = []*Parameters{
 		scale: 1 << 30,
 		sigma: DefaultSigma,
 	},
+
+	{
+		logN:     15,
+		logSlots: 14,
+		Moduli: Moduli{
+			qi: []uint64{
+				0x7fffb0001,       // 35 Q0
+				0x4000000420001,   // 50
+				0x1fc0001,         // 25
+				0xffffffffffc0001, // 60 StC (30+30)
+				0x4000000120001,   // 50 Sine
+				0x40000001b0001,   // 50 Sine
+				0x3ffffffdf0001,   // 50 Sine
+				0x4000000270001,   // 50 Sine
+				0x3ffffffd20001,   // 50 Sine
+				0x3ffffffcd0001,   // 50 Sine
+				0x4000000350001,   // 50 Sine
+				0x3ffffffc70001,   // 50 Sine
+				0x1fffffff50001,   // 49 CtS
+				0x1ffffffea0001,   // 49 CtS
+			},
+			pi: []uint64{
+				0x7fffffffe0001, // 51
+				0x8000000110001, // 51
+			},
+		},
+		scale: 1 << 25,
+		sigma: DefaultSigma,
+	},
 }
 
 // DefaultBootstrappParams are default bootstrapping params for the bootstrapping
@@ -317,6 +346,17 @@ var DefaultBootstrappParams = []*BootstrappParams{
 		SinRescal:    2,
 		CtSLevel:     []uint64{21, 20, 19, 18},
 		StCLevel:     []uint64{9, 9, 8},
+		MaxN1N2Ratio: 16.0,
+	},
+
+	{
+		H:            192,
+		SinType:      Cos,
+		SinRange:     21,
+		SinDeg:       52,
+		SinRescal:    2,
+		CtSLevel:     []uint64{13, 12},
+		StCLevel:     []uint64{3, 3},
 		MaxN1N2Ratio: 16.0,
 	},
 }

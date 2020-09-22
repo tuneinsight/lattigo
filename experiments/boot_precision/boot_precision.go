@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime"
 	"text/template"
 
 	"github.com/ldsec/lattigo/ckks"
@@ -64,11 +65,13 @@ func main() {
 
 		stats = make([]ckks.PrecisionStats, *nboot, *nboot)
 		for i := range stats {
+			log.Printf("Boot %d", i)
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
 			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext)
 			if ciphertext.Scale() != params.Scale() {
 				evaluator.SetScale(ciphertext, params.Scale())
 			}
+			runtime.GC()
 		}
 
 		formatSuccessive(stats, bReal, bImag)
@@ -91,6 +94,8 @@ func main() {
 
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
 			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext)
+
+			runtime.GC()
 		}
 		formatSlotDist(stats, *logslot, bReal, bImag)
 		break
@@ -122,6 +127,8 @@ func main() {
 			encoder = nil
 			encryptor = nil
 			decryptor = nil
+
+			runtime.GC()
 		}
 		formatSlotCount(stats, bReal, bImag)
 		break

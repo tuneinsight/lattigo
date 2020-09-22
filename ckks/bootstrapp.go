@@ -47,6 +47,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	// Part 3 : Slots to coeffs
 	//t = time.Now()
 	ct0 = btp.slotsToCoeffs(ct0, ct1)
+
 	ct0.SetScale(math.Exp2(math.Round(math.Log2(ct0.Scale())))) // rounds to the nearest power of two
 	//log.Println("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 	return ct0
@@ -152,6 +153,8 @@ func (btp *Bootstrapper) slotsToCoeffs(ct0, ct1 *Ciphertext) (ct *Ciphertext) {
 
 		btp.evaluator.Add(ct0, ct1, ct0)
 	}
+
+	ct1 = nil
 
 	return btp.dft(ct0, btp.pDFT, false)
 }
@@ -489,6 +492,7 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) (res *Ciphertext) {
 		eval.Rescale(res, eval.scale, res)
 	}
 
+	ct = nil
 	C = nil
 
 	return

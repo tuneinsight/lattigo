@@ -252,7 +252,7 @@ var DefaultBootstrappSchemeParams = []*Parameters{
 
 	{
 		logN:     15,
-		logSlots: 14,
+		logSlots: 10,
 		Moduli: Moduli{
 			qi: []uint64{
 				0x7fffb0001,       // 35 Q0
@@ -271,8 +271,8 @@ var DefaultBootstrappSchemeParams = []*Parameters{
 				0x1ffffffea0001,   // 49 CtS
 			},
 			pi: []uint64{
-				0x7fffffffe0001, // 51
-				0x8000000110001, // 51
+				0x7e40000000001, // 50
+				0x7c80000000001, // 50
 			},
 		},
 		scale: 1 << 25,

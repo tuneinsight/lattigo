@@ -221,14 +221,14 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	}
 
 	/*
-	log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
+		log.Println("DFT vector size (GB) :", float64(btp.plaintextSize)/float64(1000000000))
 
-	nbKeys := uint64(len(btp.rotKeyIndex)) + 2 //rot keys + conj key + relin key
-	nbPoly := btp.params.Beta()
-	nbCoefficients := 2 * btp.params.N() * btp.params.QPiCount()
-	bytesPerCoeff := uint64(8)
+		nbKeys := uint64(len(btp.rotKeyIndex)) + 2 //rot keys + conj key + relin key
+		nbPoly := btp.params.Beta()
+		nbCoefficients := 2 * btp.params.N() * btp.params.QPiCount()
+		bytesPerCoeff := uint64(8)
 
-	log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
+		log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
 	*/
 
 	return

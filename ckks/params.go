@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"math/bits"
 
 	"github.com/ldsec/lattigo/ring"
@@ -163,16 +164,27 @@ func (m *Moduli) LogQP() uint64 {
 
 // LogQLvl returns the size of the modulus Q in bits at a specific level
 func (m *Moduli) LogQLvl(level uint64) uint64 {
+	tmp := m.QLvl(level)
+	return uint64(tmp.BitLen())
+}
+
+// QLvl returns the product of the moduli at the given level as a big.Int
+func (m *Moduli) QLvl(level uint64) *big.Int {
 	tmp := ring.NewUint(1)
 	for _, qi := range m.qi[:level+1] {
 		tmp.Mul(tmp, ring.NewUint(qi))
 	}
-	return uint64(tmp.BitLen())
+	return tmp
 }
 
 // LogQ returns the size of the modulus Q in bits
 func (m *Moduli) LogQ() uint64 {
 	return m.LogQLvl(m.QiCount() - 1)
+}
+
+// Q returns the product of all the moduli as a big.Int
+func (m *Moduli) Q() *big.Int {
+	return m.QLvl(m.QiCount() - 1)
 }
 
 // LogP returns the size of the modulus P in bits

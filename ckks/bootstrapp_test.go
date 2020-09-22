@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"fmt"
 	"math"
 	"math/cmplx"
 	"math/rand"
@@ -170,8 +169,6 @@ func TestBootstrapp(t *testing.T) {
 			for i := 0; i < 1; i++ {
 
 				ciphertext = btp.Bootstrapp(ciphertext)
-
-				fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 				//testContext.evaluator.SetScale(ciphertext, testContext.params.scale)
 

@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/cmplx"
 	"math/rand"
+	"runtime"
 	"testing"
 	"time"
 
@@ -68,23 +69,28 @@ func TestCKKS(t *testing.T) {
 			panic(err)
 		}
 
-		testParameters(testContext, t)
-		testEncoder(testContext, t)
-		testEncryptor(testContext, t)
-		testEvaluatorAdd(testContext, t)
-		testEvaluatorSub(testContext, t)
-		testEvaluatorRescale(testContext, t)
-		testEvaluatorAddConst(testContext, t)
-		testEvaluatorMultByConst(testContext, t)
-		testEvaluatorMultByConstAndAdd(testContext, t)
-		testEvaluatorMul(testContext, t)
-		testFunctions(testContext, t)
-		testEvaluatePoly(testContext, t)
-		testChebyshevInterpolator(testContext, t)
-		testSwitchKeys(testContext, t)
-		testConjugate(testContext, t)
-		testRotateColumns(testContext, t)
-		testMarshaller(testContext, t)
+		for _, testSet := range []func(testContext *testParams, t *testing.T){
+			testParameters,
+			testEncoder,
+			testEncryptor,
+			testEvaluatorAdd,
+			testEvaluatorSub,
+			testEvaluatorRescale,
+			testEvaluatorAddConst,
+			testEvaluatorMultByConst,
+			testEvaluatorMultByConstAndAdd,
+			testEvaluatorMul,
+			testFunctions,
+			testEvaluatePoly,
+			testChebyshevInterpolator,
+			testSwitchKeys,
+			testConjugate,
+			testRotateColumns,
+			testMarshaller,
+		} {
+			testSet(testContext, t)
+			runtime.GC()
+		}
 	}
 }
 

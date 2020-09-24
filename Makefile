@@ -26,16 +26,21 @@ test_lint:
 		fi \
 	}
 
-test_local:
-	go test -v -short -p=1 ./... -timeout=0
-	@echo Running the exemples
-	go run ./examples/bfv/examples_bfv.go > /dev/null
-	go run ./examples/ckks/euler/euler.go > /dev/null
-	go run ./examples/ckks/sigmoid/sigmoid.go > /dev/null
-	go run ./examples/dbfv/pir/pir.go &> /dev/null
-	go run ./examples/dbfv/psi/psi.go &> /dev/null
+test_examples:
+	@echo Running the examples
+	go run ./examples/bfv > /dev/null
+	go run ./examples/ckks/euler > /dev/null
+	go run ./examples/ckks/sigmoid > /dev/null
+	go run ./examples/dbfv/pir &> /dev/null
+	go run ./examples/dbfv/psi &> /dev/null
+	@echo ok
+	@echo Building resources-heavy examples
+	go build -o /dev/null ./examples/ckks/bootstrapping
 	@echo ok
 
-test: test_fmt test_local
+test_gotest:
+	go test -v -short -p=1 ./... -timeout=0
 
-local: test_fmt test_lint test_local
+test: test_fmt test_gotest test_examples
+
+local: test_fmt test_lint test_gotest test_examples

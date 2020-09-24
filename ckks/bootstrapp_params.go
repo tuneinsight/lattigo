@@ -349,6 +349,7 @@ var DefaultBootstrappParams = []*BootstrappParams{
 		MaxN1N2Ratio: 16.0,
 	},
 
+	// Set VI
 	{
 		H:            192,
 		SinType:      Cos,

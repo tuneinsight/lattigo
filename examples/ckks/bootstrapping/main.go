@@ -35,8 +35,8 @@ func main() {
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.
-	params := ckks.DefaultBootstrappSchemeParams[4]
-	btpParams := ckks.DefaultBootstrappParams[4]
+	params := ckks.DefaultBootstrappSchemeParams[5]
+	btpParams := ckks.DefaultBootstrappParams[5]
 
 	fmt.Println()
 	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), btpParams.H, params.LogQP(), params.Levels(), math.Log2(params.Scale()), params.Sigma())
@@ -50,9 +50,6 @@ func main() {
 	decryptor = ckks.NewDecryptor(params, sk)
 	encryptor = ckks.NewEncryptorFromPk(params, pk)
 
-	// Bootstrapp context (generates public evaluation keys and relevant parameters)
-	// TODO : seperate the key-generation from the rest, since those evaluation keys only need to be generated once.
-	// Make it so they can be given as input to the bootstrapp.
 	fmt.Println()
 	fmt.Println("Generating bootstrappign keys...")
 	btpKey := kgen.GenBootstrappingKey(params.LogSlots(), btpParams, sk)

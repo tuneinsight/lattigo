@@ -278,6 +278,49 @@ var DefaultBootstrappSchemeParams = []*Parameters{
 		scale: 1 << 25,
 		sigma: DefaultSigma,
 	},
+
+	{
+		logN:     16,
+		logSlots: 15,
+		Moduli: Moduli{
+			qi: []uint64{
+				0x80000000080001,   // 55 Q0
+				0x1000000000f00001, // 60
+				0xffffffffefe0001,  // 60
+				0x10000000011a0001, // 60
+				0xffffffffeca0001,  // 60
+				0xffffffffe9e0001,  // 60
+				0xffffffffe7c0001,  // 60
+				0xffffffffe740001,  // 60
+				0x10000000019a0001, // 60 Cts (30)
+				0x1000000001a00001, // 60 CtS (30 + 30)
+				0xffffffffffc0001,  // 60 Sine (double angle)
+				0x10000000006e0001, // 60 Sine (double angle)
+				0xfffffffff840001,  // 60 Sine
+				0x1000000000860001, // 60 Sine
+				0xfffffffff6a0001,  // 60 Sine
+				0x1000000000980001, // 60 Sine
+				0xfffffffff5a0001,  // 60 Sine
+				0x1000000000b00001, // 60 Sine
+				0x1000000000ce0001, // 60 Sine
+				0xfffffffff2a0001,  // 60 Sine
+				0xfffffffff240001,  // 60 Sine
+				0x200000000e0001,   // 53 CtS
+				0x20000000140001,   // 53 CtS
+				0x20000000280001,   // 53 CtS
+				0x1fffffffd80001,   // 53 CtS
+			},
+			pi: []uint64{
+				0x1fffffffffe00001, // Pi 61
+				0x1fffffffffc80001, // Pi 61
+				0x1fffffffffb40001, // Pi 61
+				0x1fffffffff500001, // Pi 61
+				0x1fffffffff420001, // Pi 61
+			},
+		},
+		scale: 1 << 30,
+		sigma: DefaultSigma,
+	},
 }
 
 // DefaultBootstrappParams are default bootstrapping params for the bootstrapping
@@ -358,6 +401,19 @@ var DefaultBootstrappParams = []*BootstrappParams{
 		SinRescal:    2,
 		CtSLevel:     []uint64{13, 12},
 		StCLevel:     []uint64{3, 3},
+		MaxN1N2Ratio: 16.0,
+	},
+
+	// Set VII
+	// 1773 Cos - 505
+	{
+		H:            16384,
+		SinType:      Cos,
+		SinRange:     193,
+		SinDeg:       455,
+		SinRescal:    2,
+		CtSLevel:     []uint64{24, 23, 22, 21},
+		StCLevel:     []uint64{9, 9, 8},
 		MaxN1N2Ratio: 16.0,
 	},
 }

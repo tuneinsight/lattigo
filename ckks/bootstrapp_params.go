@@ -28,8 +28,9 @@ type SinType uint64
 
 // Sin and Cos are the two proposed functions for SinType
 const (
-	Sin = SinType(0)
-	Cos = SinType(1)
+	Sin  = SinType(0) // Standard Chebyshev approximation of (1/2pi) * sin(2pix)
+	Cos1 = SinType(1) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
+	Cos2 = SinType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
 )
 
 // Copy return a new BootstrappParams which is a copy of the target
@@ -51,46 +52,6 @@ func (b *BootstrappParams) Copy() *BootstrappParams {
 
 // DefaultBootstrappSchemeParams are default scheme params for the bootstrapping
 var DefaultBootstrappSchemeParams = []*Parameters{
-	{
-		logN:     16,
-		logSlots: 15,
-		Moduli: Moduli{
-			qi: []uint64{
-				0x80000000080001,  // 55 Q0
-				0x2000000a0001,    // 45
-				0x2000000e0001,    // 45
-				0x1fffffc20001,    // 45
-				0x200000440001,    // 45
-				0x200000500001,    // 45
-				0x200000620001,    // 45
-				0x1fffff980001,    // 45
-				0x2000006a0001,    // 45
-				0x1fffff7e0001,    // 45
-				0x200000860001,    // 45
-				0x200000a60001,    // 45
-				0x100000000060001, // 56 StC (28 + 28)
-				0xffa0001,         // 28 StC
-				0x7fffffffba0001,  // 55 Sine
-				0x80000000500001,  // 55 Sine
-				0x7fffffffaa0001,  // 55 Sine
-				0x800000005e0001,  // 55 Sine
-				0x7fffffff7e0001,  // 55 Sine
-				0x7fffffff380001,  // 55 Sine
-				0x80000000ca0001,  // 55 Sine
-				0x200000000e0001,  // 53 CtS
-				0x20000000140001,  // 53 CtS
-				0x20000000280001,  // 53 CtS
-			},
-			pi: []uint64{
-				0x80000000e00001, // 55
-				0x7ffffffef00001, // 55
-				0x800000011c0001, // 55
-				0x7ffffffeba0001, // 55
-			},
-		},
-		scale: 1 << 45,
-		sigma: DefaultSigma,
-	},
 
 	{
 		logN:     16,
@@ -148,81 +109,6 @@ var DefaultBootstrappSchemeParams = []*Parameters{
 				0xfffffffff6a0001,  // 60
 				0x1000000000980001, // 60
 				0xfffffffff5a0001,  // 60
-				0x1000000000b00001, // 60 StC (30)
-				0x1000000000ce0001, // 60 StC (30 + 30)
-				0x7fffffffaa0001,   // 55 Sine
-				0x800000005e0001,   // 55 Sine
-				0x7fffffff7e0001,   // 55 Sine
-				0x7fffffff380001,   // 55 Sine
-				0x80000000ca0001,   // 55 Sine
-				0x80000000e00001,   // 55 Sine
-				0x7ffffffef00001,   // 55 Sine
-				0x200000000e0001,   // 53 CtS
-				0x20000000140001,   // 53 CtS
-				0x20000000280001,   // 53 CtS
-			},
-			pi: []uint64{
-				0x1fffffffffe00001, // 61
-				0x1fffffffffc80001, // 61
-				0x1fffffffffb40001, // 61
-				0x1fffffffff500001, // 61
-			},
-		},
-		scale: 1 << 30,
-		sigma: DefaultSigma,
-	},
-
-	{
-		logN:     16,
-		logSlots: 15,
-		Moduli: Moduli{
-			qi: []uint64{
-				0x80000000080001,   // 55 Q0
-				0xffffffffffc0001,  // 60
-				0x10000000006e0001, // 60
-				0xfffffffff840001,  // 60
-				0x1000000000860001, // 60
-				0xfffffffff6a0001,  // 60
-				0x1000000000980001, // 60
-				0xfffffffff5a0001,  // 60
-				0x1000000000b00001, // 60 StC  (30)
-				0x1000000000ce0001, // 60 StC  (30+30)
-				0x80000000440001,   // 55 Sine (double angle)
-				0x7fffffffba0001,   // 55 Sine (double angle)
-				0x80000000500001,   // 55 Sine
-				0x7fffffffaa0001,   // 55 Sine
-				0x800000005e0001,   // 55 Sine
-				0x7fffffff7e0001,   // 55 Sine
-				0x7fffffff380001,   // 55 Sine
-				0x80000000ca0001,   // 55 Sine
-				0x200000000e0001,   // 53 CtS
-				0x20000000140001,   // 53 CtS
-				0x20000000280001,   // 53 CtS
-			},
-			pi: []uint64{
-				0x1fffffffffe00001, // Pi 61
-				0x1fffffffffc80001, // Pi 61
-				0x1fffffffffb40001, // Pi 61
-				0x1fffffffff500001, // Pi 61
-			},
-		},
-		scale: 1 << 30,
-		sigma: DefaultSigma,
-	},
-
-	{
-		logN:     16,
-		logSlots: 15,
-		Moduli: Moduli{
-			qi: []uint64{
-				0x80000000080001,   // 55 Q0
-				0xffffffffffc0001,  // 60
-				0x10000000006e0001, // 60
-				0xfffffffff840001,  // 60
-				0x1000000000860001, // 60
-				0xfffffffff6a0001,  // 60
-				0x1000000000980001, // 60
-				0xfffffffff5a0001,  // 60
 				0x1000000000b00001, // 60 StC  (30)
 				0x1000000000ce0001, // 60 StC  (30+30)
 				0x80000000440001,   // 55 Sine (double angle)
@@ -247,6 +133,52 @@ var DefaultBootstrappSchemeParams = []*Parameters{
 			},
 		},
 		scale: 1 << 30,
+		sigma: DefaultSigma,
+	},
+
+	{
+		logN:     16,
+		logSlots: 10,
+		Moduli: Moduli{
+			qi: []uint64{
+				0x80000000080001,   // 55 Q0
+				0x2000000a0001,     // 45
+				0x2000000e0001,     // 45
+				0x1fffffc20001,     // 45
+				0x200000440001,     // 45
+				0x200000500001,     // 45
+				0x200000620001,     // 45
+				0x1fffff980001,     // 45
+				0x2000006a0001,     // 45
+				0x1fffff7e0001,     // 45
+				0x100000000060001,  // 56 StC (28 + 28)
+				0xffa0001,          // 28 StC
+				0xffffffffffc0001,  // 60 Sine (double angle)
+				0x10000000006e0001, // 60 Sine (double angle)
+				0xfffffffff840001,  // 60 Sine (double angle)
+				0x1000000000860001, // 60 Sine
+				0xfffffffff6a0001,  // 60 Sine
+				0x1000000000980001, // 60 Sine
+				0xfffffffff5a0001,  // 60 Sine
+				0x1000000000b00001, // 60 Sine
+				0x1000000000ce0001, // 60 Sine
+				0xfffffffff2a0001,  // 60 Sine
+				0xfffffffff240001,  // 60 Sine
+				0x200000000e0001,   // 53 CtS
+				0x20000000140001,   // 53 CtS
+				0x20000000280001,   // 53 CtS
+				0x1fffffffd80001,   // 53 CtS
+			},
+			pi: []uint64{
+				0x1fffffffffe00001, // Pi 61
+				0x1fffffffffc80001, // Pi 61
+				0x1fffffffffb40001, // Pi 61
+				0x1fffffffff500001, // Pi 61
+				0x1fffffffff420001, // Pi 61
+				0x1fffffffff380001, // Pi 61
+			},
+		},
+		scale: 1 << 45,
 		sigma: DefaultSigma,
 	},
 
@@ -278,73 +210,16 @@ var DefaultBootstrappSchemeParams = []*Parameters{
 		scale: 1 << 25,
 		sigma: DefaultSigma,
 	},
-
-	{
-		logN:     16,
-		logSlots: 15,
-		Moduli: Moduli{
-			qi: []uint64{
-				0x80000000080001,   // 55 Q0
-				0x1000000000f00001, // 60
-				0xffffffffefe0001,  // 60
-				0x10000000011a0001, // 60
-				0xffffffffeca0001,  // 60
-				0xffffffffe9e0001,  // 60
-				0xffffffffe7c0001,  // 60
-				0xffffffffe740001,  // 60
-				0x10000000019a0001, // 60 Cts (30)
-				0x1000000001a00001, // 60 CtS (30 + 30)
-				0xffffffffffc0001,  // 60 Sine (double angle)
-				0x10000000006e0001, // 60 Sine (double angle)
-				0xfffffffff840001,  // 60 Sine
-				0x1000000000860001, // 60 Sine
-				0xfffffffff6a0001,  // 60 Sine
-				0x1000000000980001, // 60 Sine
-				0xfffffffff5a0001,  // 60 Sine
-				0x1000000000b00001, // 60 Sine
-				0x1000000000ce0001, // 60 Sine
-				0xfffffffff2a0001,  // 60 Sine
-				0xfffffffff240001,  // 60 Sine
-				0x200000000e0001,   // 53 CtS
-				0x20000000140001,   // 53 CtS
-				0x20000000280001,   // 53 CtS
-				0x1fffffffd80001,   // 53 CtS
-			},
-			pi: []uint64{
-				0x1fffffffffe00001, // Pi 61
-				0x1fffffffffc80001, // Pi 61
-				0x1fffffffffb40001, // Pi 61
-				0x1fffffffff500001, // Pi 61
-				0x1fffffffff420001, // Pi 61
-			},
-		},
-		scale: 1 << 30,
-		sigma: DefaultSigma,
-	},
 }
 
 // DefaultBootstrappParams are default bootstrapping params for the bootstrapping
 var DefaultBootstrappParams = []*BootstrappParams{
 
-	// SET I
-	// h = 128
-	// 1398 Sin - 550
-	{
-		H:            128,
-		SinType:      Sin,
-		SinRange:     15,
-		SinDeg:       127,
-		SinRescal:    0,
-		CtSLevel:     []uint64{23, 22, 21},
-		StCLevel:     []uint64{13, 12, 12},
-		MaxN1N2Ratio: 16.0,
-	},
-
 	// SET II
-	// 1525 Cos - 550
+	// 1525 - 550
 	{
 		H:            196,
-		SinType:      Cos,
+		SinType:      Cos1,
 		SinRange:     21,
 		SinDeg:       52,
 		SinRescal:    2,
@@ -353,37 +228,11 @@ var DefaultBootstrappParams = []*BootstrappParams{
 		MaxN1N2Ratio: 16.0,
 	},
 
-	// SET III
-	// 1384 Sin - 505
-	{
-		H:            128,
-		SinType:      Sin,
-		SinRange:     15,
-		SinDeg:       127,
-		SinRescal:    0,
-		CtSLevel:     []uint64{19, 18, 17},
-		StCLevel:     []uint64{9, 9, 8},
-		MaxN1N2Ratio: 16.0,
-	},
-
-	// SET IV
-	// 1439 Cos - 505
-	{
-		H:            128,
-		SinType:      Cos,
-		SinRange:     17,
-		SinDeg:       42,
-		SinRescal:    2,
-		CtSLevel:     []uint64{20, 19, 18},
-		StCLevel:     []uint64{9, 9, 8},
-		MaxN1N2Ratio: 16.0,
-	},
-
 	// SET V
-	// 1553 Cos - 505
+	// 1553 - 505
 	{
 		H:            192,
-		SinType:      Cos,
+		SinType:      Cos1,
 		SinRange:     21,
 		SinDeg:       52,
 		SinRescal:    2,
@@ -392,28 +241,29 @@ var DefaultBootstrappParams = []*BootstrappParams{
 		MaxN1N2Ratio: 16.0,
 	},
 
-	// Set VI
+	// Set VII
+	// 1773 - 460
+	{
+		H:            32768,
+		SinType:      Cos2,
+		SinRange:     257,
+		SinDeg:       250,
+		SinRescal:    3,
+		CtSLevel:     []uint64{26, 25, 24, 23},
+		StCLevel:     []uint64{11, 10, 10},
+		MaxN1N2Ratio: 16.0,
+	},
+
+	// Set IV
+	// 768 - 110
 	{
 		H:            192,
-		SinType:      Cos,
+		SinType:      Cos1,
 		SinRange:     21,
 		SinDeg:       52,
 		SinRescal:    2,
 		CtSLevel:     []uint64{13, 12},
 		StCLevel:     []uint64{3, 3},
-		MaxN1N2Ratio: 16.0,
-	},
-
-	// Set VII
-	// 1773 Cos - 505
-	{
-		H:            16384,
-		SinType:      Cos,
-		SinRange:     193,
-		SinDeg:       455,
-		SinRescal:    2,
-		CtSLevel:     []uint64{24, 23, 22, 21},
-		StCLevel:     []uint64{9, 9, 8},
 		MaxN1N2Ratio: 16.0,
 	},
 }

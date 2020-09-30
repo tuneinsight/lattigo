@@ -475,7 +475,7 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) (res *Ciphertext) {
 
 	cheby := btp.chebycoeffs
 
-	if btp.SinType == Cos {
+	if btp.SinType == Cos1 || btp.SinType == Cos2 {
 		scfac := complex(float64(int(1<<btp.SinRescal)), 0)
 		eval.AddConst(C[1], -0.5/(scfac*(cheby.b-cheby.a)), C[1])
 	}

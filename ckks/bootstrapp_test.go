@@ -17,8 +17,10 @@ func TestBootstrapp(t *testing.T) {
 	var err error
 	var testContext = new(testParams)
 
-	shemeParams := DefaultBootstrappSchemeParams[5:6]
-	bootstrappParams := DefaultBootstrappParams[5:6]
+	paramSet := uint64(0)
+
+	shemeParams := DefaultBootstrappSchemeParams[paramSet : paramSet+1]
+	bootstrappParams := DefaultBootstrappParams[paramSet : paramSet+1]
 
 	for paramSet := range shemeParams {
 
@@ -83,8 +85,8 @@ func TestBootstrapp(t *testing.T) {
 			testContext.params.scale = SineScale
 			eval.(*evaluator).scale = SineScale
 
-			K := 26
-			deg := 63
+			K := 21
+			deg := 52
 			dev := float64(testContext.params.qi[0]) / DefaultScale
 			scNum := 2
 
@@ -99,6 +101,67 @@ func TestBootstrapp(t *testing.T) {
 			cheby.a = complex(float64(-K), 0) / scFac
 			cheby.b = complex(float64(K), 0) / scFac
 			cheby.lead = true
+
+			sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(scFac))
+
+			for i := range cheby.coeffs {
+				cheby.coeffs[i] *= complex(sqrt2pi, 0)
+			}
+
+			for i := range values {
+
+				values[i] = cmplx.Cos(6.283185307179586 * (1 / scFac) * (values[i] - 0.25))
+
+				for j := 0; j < scNum; j++ {
+					values[i] = 2*values[i]*values[i] - 1
+				}
+
+				values[i] /= 6.283185307179586
+			}
+
+			testContext.evaluator.AddConst(ciphertext, -0.25, ciphertext)
+
+			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
+			//start := time.Now()
+			ciphertext = testContext.evaluator.EvaluateChebySpecial(ciphertext, scFac, cheby, testContext.rlk)
+			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
+
+			for i := 0; i < scNum; i++ {
+				sqrt2pi *= sqrt2pi
+				testContext.evaluator.MulRelin(ciphertext, ciphertext, testContext.rlk, ciphertext)
+				testContext.evaluator.Add(ciphertext, ciphertext, ciphertext)
+				testContext.evaluator.AddConst(ciphertext, -sqrt2pi, ciphertext)
+				testContext.evaluator.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
+			}
+
+			//fmt.Printf("Elapsed : %s \n", time.Since(start))
+			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
+			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+
+			testContext.params.scale = DefaultScale
+			eval.(*evaluator).scale = DefaultScale
+
+		})
+
+		t.Run(testString(testContext, "ChebyCosNaive/"), func(t *testing.T) {
+
+			eval := testContext.evaluator
+
+			DefaultScale := testContext.params.scale
+
+			testContext.params.scale = SineScale
+			eval.(*evaluator).scale = SineScale
+
+			K := 257
+			deg := 250
+			scNum := 3
+
+			scFac := complex(float64(int(1<<scNum)), 0)
+
+			values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
+			eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
+
+			cheby := Approximate(cos2pi, -complex(float64(K), 0)/scFac, complex(float64(K), 0)/scFac, deg)
 
 			sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(scFac))
 

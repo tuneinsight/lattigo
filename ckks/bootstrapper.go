@@ -57,6 +57,10 @@ func sin2pi2pi(x complex128) complex128 {
 	return cmplx.Sin(6.283185307179586*x) / 6.283185307179586
 }
 
+func cos2pi(x complex128) complex128 {
+	return cmplx.Cos(6.283185307179586 * x)
+}
+
 func (btp *Bootstrapper) printDebug(message string, ciphertext *Ciphertext) {
 
 	coeffs := btp.encoder.Decode(btp.decryptor.DecryptNew(ciphertext), btp.dslots)
@@ -239,10 +243,9 @@ func (btp *Bootstrapper) genSinePoly() {
 	if btp.SinType == Sin {
 
 		K := complex(float64(btp.SinRange), 0)
-
 		btp.chebycoeffs = Approximate(sin2pi2pi, -K, K, int(btp.SinDeg))
 
-	} else if btp.SinType == Cos {
+	} else if btp.SinType == Cos1 {
 
 		K := int(btp.SinRange)
 		deg := int(btp.SinDeg)
@@ -262,6 +265,21 @@ func (btp *Bootstrapper) genSinePoly() {
 		cheby.a = complex(float64(-K), 0) / scFac
 		cheby.b = complex(float64(K), 0) / scFac
 		cheby.lead = true
+
+		btp.chebycoeffs = cheby
+
+	} else if btp.SinType == Cos2 {
+
+		K := int(btp.SinRange)
+		deg := int(btp.SinDeg)
+		scFac := complex(float64(int(1<<btp.SinRescal)), 0)
+
+		cheby := Approximate(cos2pi, -complex(float64(K), 0)/scFac, complex(float64(K), 0)/scFac, deg)
+		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(scFac))
+
+		for i := range cheby.coeffs {
+			cheby.coeffs[i] *= complex(sqrt2pi, 0)
+		}
 
 		btp.chebycoeffs = cheby
 

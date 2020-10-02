@@ -103,7 +103,7 @@ func genTestParams(params *Parameters) (testctx *testContext, err error) {
 
 func testParameters(testctx *testContext, t *testing.T) {
 	t.Run("Parameters/NewParametersFromModuli", func(t *testing.T) {
-		p, err := NewParametersFromModuli(testctx.params.logN, testctx.params.Moduli, testctx.params.t)
+		p, err := NewParametersFromModuli(testctx.params.logN, testctx.params.Moduli(), testctx.params.t)
 		assert.NoError(t, err)
 		assert.True(t, p.Equals(testctx.params))
 	})

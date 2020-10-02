@@ -24,7 +24,7 @@ func example() {
 
 	Scale := float64(1 << 40)
 
-	params, err := ckks.NewParametersFromLogModuli(LogN, LogModuli)
+	params, err := ckks.NewParametersFromLogModuli(LogN, &LogModuli)
 	if err != nil {
 		panic(err)
 	}

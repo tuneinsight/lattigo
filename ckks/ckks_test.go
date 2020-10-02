@@ -178,7 +178,7 @@ func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant 
 func testParameters(testContext *testParams, t *testing.T) {
 
 	t.Run("Parameters/NewParametersFromModuli/", func(t *testing.T) {
-		p, err := NewParametersFromModuli(testContext.params.LogN(), testContext.params.Moduli)
+		p, err := NewParametersFromModuli(testContext.params.LogN(), testContext.params.Moduli())
 		p.SetLogSlots(testContext.params.LogSlots())
 		p.SetScale(testContext.params.Scale())
 		assert.NoError(t, err)
@@ -443,6 +443,9 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		nbRescales := testContext.params.MaxLevel()
+		if nbRescales > 5 {
+			nbRescales = 5
+		}
 
 		for i := uint64(0); i < nbRescales; i++ {
 			constant := testContext.ringQ.Modulus[ciphertext.Level()]

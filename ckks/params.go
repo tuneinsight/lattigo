@@ -135,24 +135,6 @@ func (m *Moduli) Copy() Moduli {
 	return Moduli{qi, pi}
 }
 
-// LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
-func (p *Parameters) LogModuli() (lm *LogModuli) {
-
-	lm = new(LogModuli)
-
-	lm.LogQi = make([]uint64, len(p.qi), len(p.qi))
-	for i := range p.qi {
-		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.qi[i]))))
-	}
-
-	lm.LogPi = make([]uint64, len(p.pi), len(p.pi))
-	for i := range p.pi {
-		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
-	}
-
-	return
-}
-
 // LogModuli stores the bit-length of the NTT primes of the RNS representation.
 type LogModuli struct {
 	LogQi []uint64 // Ciphertext prime moduli bit-size
@@ -301,6 +283,24 @@ func (p *Parameters) SetLogSlots(logSlots uint64) (err error) {
 // SetSigma sets the value sigma of the parameters
 func (p *Parameters) SetSigma(sigma float64) {
 	p.sigma = sigma
+}
+
+// LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
+func (p *Parameters) LogModuli() (lm *LogModuli) {
+
+	lm = new(LogModuli)
+
+	lm.LogQi = make([]uint64, len(p.qi), len(p.qi))
+	for i := range p.qi {
+		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.qi[i]))))
+	}
+
+	lm.LogPi = make([]uint64, len(p.pi), len(p.pi))
+	for i := range p.pi {
+		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
+	}
+
+	return
 }
 
 // Moduli returns a struct Moduli with the moduli of the parameters

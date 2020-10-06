@@ -13,7 +13,7 @@ import (
 
 func obliviousRiding() {
 
-	// This example will simulate a situation where an anonymous rider
+	// This example simulates a situation where an anonymous rider
 	// wants to find the closest available rider within a given area.
 	// The application is inspired by the paper https://oride.epfl.ch/
 	//
@@ -26,19 +26,19 @@ func obliviousRiding() {
 	// anyonymously signs in (i.e. the server only knows the driver is located
 	// in the area).
 	//
-	// First, the rider generates an ephemeral key pair (riderSk, riderPk), which he
-	// uses to encrypt his coordinates. He then sends the tuple (riderPk, enc(coordinates))
-	// to the server handling the area he is in.
+	// First, the rider generates an ephemeral key pair (riderSk, riderPk), which she
+	// uses to encrypt her coordinates. She then sends the tuple (riderPk, enc(coordinates))
+	// to the server handling the area she is in.
 	//
 	// Once the public key and the encrypted rider coordinates of the rider
 	// have been received by the server, the rider's public key is transferred
 	// to all the drivers within the area, with a randomized different index
 	// for each of them, that indicates in which coefficient each driver must
-	// encode his coordinates.
+	// encode her coordinates.
 	//
-	// Each driver encodes his coordinates in the designated coefficient and
-	// uses the received public key to encrypt his encoded coordinates.
-	// He then sends back the encrypted coordinates to the server.
+	// Each driver encodes her coordinates in the designated coefficient and
+	// uses the received public key to encrypt her encoded coordinates.
+	// She then sends back the encrypted coordinates to the server.
 	//
 	// Once the encrypted coordinates of the drivers have been received, the server
 	// homomorphically computes the squared distance: (x0 - x1)^2 + (y0 - y1)^2 between
@@ -76,7 +76,7 @@ func obliviousRiding() {
 	fmt.Println()
 
 	maxvalue := uint64(math.Sqrt(float64(params.T())))  // max values = floor(sqrt(plaintext modulus))
-	mask := uint64(1<<uint64(bits.Len64(maxvalue))) - 1 // binary mask uperbound for the uniform sampling
+	mask := uint64(1<<uint64(bits.Len64(maxvalue))) - 1 // binary mask upper-bound for the uniform sampling
 
 	fmt.Printf("Generating %d driversData and 1 Rider randomly positioned on a grid of %d x %d units \n",
 		nbDrivers, maxvalue, maxvalue)

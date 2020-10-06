@@ -33,30 +33,31 @@ func runTimedParty(f func(), N int) time.Duration {
 
 func main() {
 
-	// This examples simulates a SMC instance of a private information retrieval.
-	// The situation is as follow : a cloud stores data of several parties
+	// This example simulates a SMC instance of a private information retrieval (PIR) problem.
+	// The problem statement is as follows: a cloud stores data of several parties
 	// encrypted under a shared public-key. An external party wants to retrieve
 	// the plaintext content of one of the ciphertexts while ensuring the following
-	// security property : no information other than that a request was made must
-	// leak to the cloud, to the owners of the shared public-key or to anyone else.
+	// security property: no information other than the fact that a request was made must
+	// be disclosed to the cloud, to the owners of the shared public-key or to anyone else.
 	//
-	// For more details cf : paper
+	// For more details see
+	//    Multiparty Homomorphic Encryption: From Theory to Practice (<https://eprint.iacr.org/2020/304>)
 
 	l := log.New(os.Stderr, "", 0)
 
 	// $go run pir.go arg1 arg2
-	// arg1 : number of parties
-	// arg2 : number of Go routines
-	// MinDelta number of parties for n=8192 : 512 parties (!memory intensive!)
+	// arg1: number of parties
+	// arg2: number of Go routines
+	// MinDelta number of parties for n=8192: 512 parties (this is a memory intensive process)
 
-	N := 3 // default number of parties
+	N := 3 // Default number of parties
 	var err error
 	if len(os.Args[1:]) >= 1 {
 		N, err = strconv.Atoi(os.Args[1])
 		check(err)
 	}
 
-	NGoRoutine := 1 // default number of Go routines
+	NGoRoutine := 1 // Default number of Go routines
 	if len(os.Args[1:]) >= 2 {
 		NGoRoutine, err = strconv.Atoi(os.Args[2])
 		check(err)
@@ -78,7 +79,7 @@ func main() {
 		input []uint64
 	}
 
-	params := bfv.DefaultParams[bfv.PN13QP218].WithT(65537) // default params with N=8192
+	params := bfv.DefaultParams[bfv.PN13QP218].WithT(65537) // Default params with N=8192
 
 	// Common reference polynomial generator keyed with
 	// "lattigo"
@@ -98,11 +99,11 @@ func main() {
 	// Collective secret key = sum(individual secret keys)
 	colSk := bfv.NewSecretKey(params)
 
-	// Instantiation of each of the protocols needed for the pir example
-	ckg := dbfv.NewCKGProtocol(params)       // public key generation
-	rkg := dbfv.NewEkgProtocol(params)       // relineariation key generation
-	rtg := dbfv.NewRotKGProtocol(params)     // rotation keys generation
-	cks := dbfv.NewCKSProtocol(params, 3.19) // collective public-key re-encryption
+	// Instantiation of each of the protocols needed for the PIR example
+	ckg := dbfv.NewCKGProtocol(params)       // Public key generation
+	rkg := dbfv.NewEkgProtocol(params)       // Relineariation key generation
+	rtg := dbfv.NewRotKGProtocol(params)     // Rotation keys generation
+	cks := dbfv.NewCKSProtocol(params, 3.19) // Collective public-key re-encryption
 
 	kgen := bfv.NewKeyGenerator(params)
 
@@ -113,7 +114,7 @@ func main() {
 	}
 	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
 
-	// Creates each party, and allocates the memory for all the shares that the protocols will need
+	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
@@ -227,13 +228,13 @@ func main() {
 	plainMask := make([]*bfv.Plaintext, N, N)
 	encPartial := make([]*bfv.Ciphertext, N, N)
 
-	// Ciphertexts to be retrieved.
+	// Ciphertexts to be retrieved
 	for i := range encInputs {
 		encInputs[i] = bfv.NewCiphertext(params, 1)
 	}
 
-	// Plaintext masks : plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
-	// (zero with a 1 at the ith position).
+	// Plaintext masks: plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
+	// (zero with a 1 at the i-th position).
 	for i := range plainMask {
 		maskCoeffs := make([]uint64, 1<<params.LogN())
 		maskCoeffs[i] = 1
@@ -241,12 +242,12 @@ func main() {
 		encoder.EncodeUint(maskCoeffs, plainMask[i])
 	}
 
-	// Buffer for the intermediate compuation done by the cloud.
+	// Buffer for the intermediate computation done by the cloud
 	for i := range encPartial {
 		encPartial[i] = bfv.NewCiphertext(params, 2)
 	}
 
-	// Ciphertexts encrypted under CPK and stored in the cloud.
+	// Ciphertexts encrypted under CPK and stored in the cloud
 	l.Println("> Encrypt Phase")
 	encryptor := bfv.NewEncryptorFromPk(params, pk)
 	pt := bfv.NewPlaintext(params)
@@ -283,7 +284,7 @@ func main() {
 		elapsedMaskTask time.Duration
 	}
 
-	// Splits the task among the Go routines
+	// Split the task among the Go routines
 	tasks := make(chan *MaskTask)
 	workers := &sync.WaitGroup{}
 	workers.Add(NGoRoutine)
@@ -293,11 +294,11 @@ func main() {
 			tmp := bfv.NewCiphertext(params, 1)
 			for task := range tasks {
 				task.elapsedMaskTask = runTimed(func() {
-					// 1) Multiplication of the query with the plaintext mask.
+					// 1) Multiplication of the query with the plaintext mask
 					evaluator.Mul(task.query, task.mask, tmp)
-					// 2) Inner sum (populates all the slots with the sum of all the slots).
+					// 2) Inner sum (populate all the slots with the sum of all the slots)
 					evaluator.InnerSum(tmp, rtk, tmp)
-					// 3) Multiplication of 2) with the ith ciphertext stored in the cloud.
+					// 3) Multiplication of 2) with the i-th ciphertext stored in the cloud
 					evaluator.Mul(tmp, task.row, task.res)
 				})
 			}
@@ -346,7 +347,7 @@ func main() {
 	l.Printf("\tdone (cloud: %s/%s, party: %s)\n",
 		elapsedRequestCloud, elapsedRequestCloudCPU, elapsedRequestParty)
 
-	// Collective (partial) decryption.
+	// Collective (partial) decryption (key switch)
 	l.Println("> CKS Phase")
 	zero := params.NewPolyQ()
 	cksCombined := cks.AllocateShare()

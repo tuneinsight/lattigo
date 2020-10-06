@@ -56,7 +56,7 @@ func example() {
 	fmt.Printf("Done in %s \n", time.Since(start))
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters : logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.MaxLevel()+1, params.Scale(), params.Sigma())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.MaxLevel()+1, params.Scale(), params.Sigma())
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -204,10 +204,10 @@ func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant
 	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), slots)
 
 	fmt.Println()
-	fmt.Printf("Level : %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
-	fmt.Printf("Scale : 2^%f\n", math.Log2(ciphertext.Scale()))
-	fmt.Printf("ValuesTest : %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
-	fmt.Printf("ValuesWant : %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
+	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
+	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale()))
+	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
+	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
 	precStats := ckks.GetPrecisionStats(params, nil, nil, valuesWant, valuesTest)

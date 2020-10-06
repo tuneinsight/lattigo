@@ -33,10 +33,12 @@ func runTimedParty(f func(), N int) time.Duration {
 }
 
 func main() {
+	// For more details about the PSI example see
+	//    Multiparty Homomorphic Encryption: From Theory to Practice (<https://eprint.iacr.org/2020/304>)
 
 	l := log.New(os.Stderr, "", 0)
 
-	// Largest for n=8192 : 512 parties
+	// Largest for n=8192: 512 parties
 	N := 8
 	var err error
 	if len(os.Args[1:]) >= 1 {

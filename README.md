@@ -35,7 +35,7 @@ The library comprises the following sub-packages:
 
 ## Versions and Roadmap
 
-The first version of Lattigo, (v1.x.x) is meant to be a working prototype.
+This version of Lattigo, (v2.x.x) is meant to be a working prototype.
 Hence, there will be backward-incompatible changes within this version. 
 
 See CHANGELOG.md for the current and past versions.

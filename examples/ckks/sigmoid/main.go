@@ -20,8 +20,8 @@ func randomComplex(min, max float64) complex128 {
 
 func chebyshevinterpolation() {
 
-	// This example will pack random 8192 float64 values in the range [-8, 8]
-	// and approximate the function 1/(exp(-x) + 1) over the range [-8, 8].
+	// This example packs random 8192 float64 values in the range [-8, 8]
+	// and approximates the function 1/(exp(-x) + 1) over the range [-8, 8].
 	// The result is then parsed and compared to the expected result.
 
 	rand.Seed(time.Now().UnixNano())
@@ -56,7 +56,7 @@ func chebyshevinterpolation() {
 		values[i] = complex(randomFloat(-8, 8), 0)
 	}
 
-	fmt.Printf("HEAAN parameters : logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n",
+	fmt.Printf("CKKS parameters: logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n",
 		params.LogN(), params.LogQP(), params.MaxLevel()+1, params.Scale(), params.Sigma())
 
 	fmt.Println()
@@ -72,23 +72,23 @@ func chebyshevinterpolation() {
 	var ciphertext *ckks.Ciphertext
 	ciphertext = encryptor.EncryptNew(plaintext)
 
-	fmt.Println("Evaluation of the function 1/(exp(-x)+1) in the range [-8, 8] (degree of approximation : 32)")
+	fmt.Println("Evaluation of the function 1/(exp(-x)+1) in the range [-8, 8] (degree of approximation: 32)")
 
 	// Evaluation process
-	// We ask to approximate f(x) in the range [-8, 8] with a chebyshev polynomial of 33 coefficients (degree 32).
+	// We approximate f(x) in the range [-8, 8] with a Chebyshev interpolant of 33 coefficients (degree 32).
 	chebyapproximation := ckks.Approximate(f, -8, 8, 33)
 
-	// We evaluate the interpolated chebyshev polynomial on the ciphertext
+	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
 	ciphertext = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk)
 
-	fmt.Println("Done... Consumed levels :", params.MaxLevel()-ciphertext.Level())
+	fmt.Println("Done... Consumed levels:", params.MaxLevel()-ciphertext.Level())
 
 	// Computation of the reference values
 	for i := range values {
 		values[i] = f(values[i])
 	}
 
-	// Printing results and comparison
+	// Print results and comparison
 	printDebug(params, ciphertext, values, decryptor, encoder)
 
 }
@@ -112,10 +112,10 @@ func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant
 	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), slots)
 
 	fmt.Println()
-	fmt.Printf("Level : %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
-	fmt.Printf("Scale : 2^%f\n", math.Log2(ciphertext.Scale()))
-	fmt.Printf("ValuesTest : %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
-	fmt.Printf("ValuesWant : %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
+	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
+	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale()))
+	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
+	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
 	precStats := ckks.GetPrecisionStats(params, nil, nil, valuesWant, valuesTest)

@@ -63,9 +63,9 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo 1.4.0},
+	    title = {Lattigo 2.0.0},
 	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
-	    month = sep,
+	    month = oct,
 	    year = 2020,
 	    note = {EPFL-LDS}
     }
@@ -81,6 +81,7 @@ Please use the following BibTex entry for citing Lattigo:
 1. A Full RNS Variant of Approximate Homomorphic Encryption (<https://eprint.iacr.org/2018/931>)
 1. Improved Bootstrapping for Approximate Homomorphic Encryption (<https://eprint.iacr.org/2018/1043>)
 1. Better Bootstrapping for Approximate Homomorphic Encryption (<https://epring.iacr.org/2019/688>)
+1. Secure and Efficient Bootstrapping for Approximate Homomorphic Encryption (<https://eprint.iacr.org/2020/1203>)
 1. Post-quantum key exchange - a new hope (<https://eprint.iacr.org/2015/1092>)
 1. Faster arithmetic for number-theoretic transforms (<https://arxiv.org/abs/1205.2926>)
 1. Speeding up the Number Theoretic Transform for Faster Ideal Lattice-Based Cryptography (<https://eprint.iacr.org/2016/504>)

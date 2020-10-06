@@ -34,19 +34,23 @@ func runTimedParty(f func(), N int) time.Duration {
 
 func main() {
 	// For more details about the PSI example see
-	//    Multiparty Homomorphic Encryption: From Theory to Practice (<https://eprint.iacr.org/2020/304>)
+	//     Multiparty Homomorphic Encryption: From Theory to Practice (<https://eprint.iacr.org/2020/304>)
 
 	l := log.New(os.Stderr, "", 0)
 
+	// $go run main.go arg1 arg2
+	// arg1: number of parties
+	// arg2: number of Go routines
+
 	// Largest for n=8192: 512 parties
-	N := 8
+	N := 8 // Default number of parties
 	var err error
 	if len(os.Args[1:]) >= 1 {
 		N, err = strconv.Atoi(os.Args[1])
 		check(err)
 	}
 
-	NGoRoutine := 1
+	NGoRoutine := 1 // Default number of Go routines
 	if len(os.Args[1:]) >= 2 {
 		NGoRoutine, err = strconv.Atoi(os.Args[2])
 		check(err)
@@ -64,24 +68,28 @@ func main() {
 		input []uint64
 	}
 
+	// Uses the defaultparams logN=14, logQP=438 with a plaintext modulus T=65537
 	params := bfv.DefaultParams[bfv.PN14QP438].WithT(65537)
 
-	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
-
+	// PRNG keyed with "lattigo"
 	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 	if err != nil {
 		panic(err)
 	}
 
+	// Ring for the common reference polynomials sampling
+	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
+
+	// Common reference polynomial generator that uses the PRNG
 	crsGen := ring.NewUniformSampler(lattigoPRNG, ringQP)
-	crs := crsGen.ReadNew()
-	crp := make([]*ring.Poly, params.Beta())
+	crs := crsGen.ReadNew()                  // for the public-key
+	crp := make([]*ring.Poly, params.Beta()) // for the relinearization keys
 	for i := uint64(0); i < params.Beta(); i++ {
 		crp[i] = crsGen.ReadNew()
 	}
 
+	// Target private and public keys
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
-	colSk := bfv.NewSecretKey(params)
 
 	expRes := make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 	for i := range expRes {
@@ -97,12 +105,15 @@ func main() {
 	}
 	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
 
+	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
+
 		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
 		ringQP.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
+
 		pi.input = make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 		for i := range pi.input {
 			if rand.Float32() > 0.3 || i == 4 {
@@ -110,7 +121,6 @@ func main() {
 			}
 			expRes[i] *= pi.input[i]
 		}
-		ringQP.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
 
 		pi.ckgShare = ckg.AllocateShares()
 		pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
@@ -124,6 +134,7 @@ func main() {
 	var elapsedRKGCloud time.Duration
 	var elapsedRKGParty time.Duration
 
+	// 1) Collective public key generation
 	l.Println("> CKG Phase")
 	pk := bfv.NewPublicKey(params)
 	elapsedCKGParty = runTimedParty(func() {
@@ -140,6 +151,7 @@ func main() {
 	})
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKGCloud, elapsedCKGParty)
 
+	// 2) Collective relinearization key generation
 	l.Println("> RKG Phase")
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
@@ -192,6 +204,7 @@ func main() {
 	}
 	encRes := encLvls[len(encLvls)-1][0]
 
+	// Each party encrypts its input vector
 	l.Println("> Encrypt Phase")
 	encryptor := bfv.NewEncryptorFromPk(params, pk)
 	encoder := bfv.NewEncoder(params)
@@ -214,6 +227,7 @@ func main() {
 		elapsedMultTask time.Duration
 	}
 
+	// Split the task among the Go routines
 	tasks := make(chan *MultTask)
 	workers := &sync.WaitGroup{}
 	workers.Add(NGoRoutine)
@@ -223,7 +237,9 @@ func main() {
 			evaluator := bfv.NewEvaluator(params)
 			for task := range tasks {
 				task.elapsedMultTask = runTimed(func() {
+					// 1) Multiplication of two input vectors
 					evaluator.Mul(task.op1, task.op2, task.res)
+					// 2) Relinearization
 					evaluator.Relinearize(task.res, rlk, task.res)
 				})
 				task.wg.Done()
@@ -234,6 +250,7 @@ func main() {
 		//l.Println("\t evaluator", i, "started")
 	}
 
+	// Starts the tasks
 	taskList := make([]*MultTask, 0)
 	l.Println("> Eval Phase")
 	elapsedEvalCloud := runTimed(func() {
@@ -262,6 +279,8 @@ func main() {
 	close(tasks)
 	workers.Wait()
 
+	// Collective key switching from the collective secret key to
+	// the target public key
 	l.Println("> PCKS Phase")
 	elapsedPCKSParty := runTimedParty(func() {
 		for _, pi := range P {
@@ -280,14 +299,15 @@ func main() {
 	})
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)
 
+	// Decrypts the result with the target secret key
 	l.Println("> Result:")
 	decryptor := bfv.NewDecryptor(params, tsk)
 	ptres := bfv.NewPlaintext(params)
 	elapsedDecParty := runTimed(func() {
-		decryptor.Decrypt(encOut, ptres) // TODO : manage error
+		decryptor.Decrypt(encOut, ptres)
 	})
 
-	//check(err)
+	// Checks the result
 	res := encoder.DecodeUint(ptres)
 	l.Printf("\t%v\n", res[:16])
 	for i := range expRes {

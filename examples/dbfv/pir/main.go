@@ -45,7 +45,7 @@ func main() {
 
 	l := log.New(os.Stderr, "", 0)
 
-	// $go run pir.go arg1 arg2
+	// $go run main.go arg1 arg2
 	// arg1: number of parties
 	// arg2: number of Go routines
 	// MinDelta number of parties for n=8192: 512 parties (this is a memory intensive process)
@@ -81,11 +81,17 @@ func main() {
 
 	params := bfv.DefaultParams[bfv.PN13QP218].WithT(65537) // Default params with N=8192
 
-	// Common reference polynomial generator keyed with
-	// "lattigo"
-	crsGen := dbfv.NewCRPGenerator(params, []byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+	// PRNG keyed with "lattigo"
+	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+	if err != nil {
+		panic(err)
+	}
 
-	// Generation of the common reference polynomials
+	// Ring for the common reference polynomials sampling
+	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
+
+	// Common reference polynomial generator that uses the PRNG
+	crsGen := ring.NewUniformSampler(lattigoPRNG, ringQP)
 	crs := crsGen.ReadNew()                     // for the public-key
 	crp := make([]*ring.Poly, params.Beta())    // for the relinearization keys
 	crpRot := make([]*ring.Poly, params.Beta()) // for the rotation keys
@@ -96,9 +102,6 @@ func main() {
 		crpRot[i] = crsGen.ReadNew()
 	}
 
-	// Collective secret key = sum(individual secret keys)
-	colSk := bfv.NewSecretKey(params)
-
 	// Instantiation of each of the protocols needed for the PIR example
 	ckg := dbfv.NewCKGProtocol(params)       // Public key generation
 	rkg := dbfv.NewEkgProtocol(params)       // Relineariation key generation
@@ -107,25 +110,21 @@ func main() {
 
 	kgen := bfv.NewKeyGenerator(params)
 
-	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
+	ternarySamplerMontgomery := ring.NewTernarySampler(lattigoPRNG, ringQP, 0.5, true)
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := make([]*party, N, N)
 	for i := range P {
 		pi := &party{}
 		pi.sk = kgen.GenSecretKey()
+
 		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
 		ringQP.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
+
 		pi.input = make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 		for j := range pi.input {
 			pi.input[j] = uint64(i)
 		}
-		ringQP.Add(colSk.Get(), pi.sk.Get(), colSk.Get()) //TODO: doc says "return"
 
 		pi.ckgShare = ckg.AllocateShares()
 		pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()

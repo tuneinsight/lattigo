@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - BFV/CKKS: Added fast encryption (directly in Q without the rescaling by P).
-- CKKS: Added full-RNS scale invariant bootstrapping.
+- CKKS: Added full-RNS scale invariant bootstrapping (<https://eprint.iacr.org/2012/144>).
 - CKKS: Added parameterized tests for a range of experiments.
 - CKKS: Added arbitrary precision encoding/decoding.
 - CKKS: Added scale invariant polynomial evaluation.
@@ -49,7 +49,7 @@ All notable changes to this project will be documented in this file.
 - RING: The Float128 type was removed due to cross-platform incompatility.
 
 ### Fixes
-- BFV: Fixed multiplication that was failing is #Qi != #QMul.
+- BFV: Fixed multiplication that was failing when #Qi != #QMul.
 - BFV: Fixed a mempool corruption when encrypting from SK.
 - CKKS: The function mulrelin now always returns a fully reduced polynomial.
 - CKKS: The encoder now correctly checks that the number of slots is a power of two.

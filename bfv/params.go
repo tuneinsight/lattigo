@@ -49,180 +49,68 @@ const DefaultSigma = 3.2
 var DefaultParams = []*Parameters{
 
 	{
-		logN: 12,
-		t:    65537,
-		Moduli: Moduli{
-			qi:    []uint64{0x7ffffec001, 0x8000016001},             // 39 + 39 bits
-			pi:    []uint64{0x40002001},                             // 30 bits
-			qiMul: []uint64{0xfffffffffffc001, 0x100000000000e001}}, // 60 + 60 bits
+		logN:  12,
+		t:     65537,
+		qi:    []uint64{0x7ffffec001, 0x8000016001},            // 39 + 39 bits
+		pi:    []uint64{0x40002001},                            // 30 bits
+		qiMul: []uint64{0xfffffffffffc001, 0x100000000000e001}, // 60 + 60 bits
 		sigma: DefaultSigma,
 	},
 
 	{
-		logN: 13,
-		t:    65537,
-		Moduli: Moduli{
-			qi:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001},      // 54 + 54 + 54 bits
-			pi:    []uint64{0x7ffffffffb4001},                                          // 55 bits
-			qiMul: []uint64{0xfffffffffffc001, 0xffffffffffe8001, 0x1000000000024001}}, // 60 + 60 + 60 bits
+		logN:  13,
+		t:     65537,
+		qi:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001},     // 54 + 54 + 54 bits
+		pi:    []uint64{0x7ffffffffb4001},                                         // 55 bits
+		qiMul: []uint64{0xfffffffffffc001, 0xffffffffffe8001, 0x1000000000024001}, // 60 + 60 + 60 bits
 		sigma: DefaultSigma,
 	},
 
 	{
 		logN: 14,
 		t:    65537,
-		Moduli: Moduli{
-			qi: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
-				0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
-			pi: []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
-			qiMul: []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001,
-				0x1000000000078001, 0xffffffffff28001, 0xfffffffffe38001}}, // 60 + 60 + 60 + 60 + 60 + 60 bits
+		qi: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
+			0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
+		pi: []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
+		qiMul: []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001,
+			0x1000000000078001, 0xffffffffff28001, 0xfffffffffe38001}, // 60 + 60 + 60 + 60 + 60 + 60 bits
 		sigma: DefaultSigma,
 	},
 
 	{
 		logN: 15,
 		t:    65537,
-		Moduli: Moduli{
-			qi: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
-				0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
-				0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
-				0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
-			pi: []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
-			qiMul: []uint64{0xfffffffff840001, 0x1000000000860001, 0x1000000000870001, // 60 + 60 + 60 bits
-				0x1000000000930001, 0xfffffffff6a0001, 0x1000000000980001, // 60 + 60 + 60 bits
-				0xfffffffff5a0001, 0xfffffffff550001, 0x1000000000b00001, // 60 + 60 + 60 bits
-				0xfffffffff330001, 0x1000000000ce0001, 0xfffffffff2a0001}}, // 60 + 60 + 60 bits
+		qi: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
+			0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
+			0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
+			0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
+		pi: []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
+		qiMul: []uint64{0xfffffffff840001, 0x1000000000860001, 0x1000000000870001, // 60 + 60 + 60 bits
+			0x1000000000930001, 0xfffffffff6a0001, 0x1000000000980001, // 60 + 60 + 60 bits
+			0xfffffffff5a0001, 0xfffffffff550001, 0x1000000000b00001, // 60 + 60 + 60 bits
+			0xfffffffff330001, 0x1000000000ce0001, 0xfffffffff2a0001}, // 60 + 60 + 60 bits
 		sigma: DefaultSigma,
 	},
 }
 
 // Moduli stores the NTT primes of the RNS representation.
 type Moduli struct {
-	qi    []uint64 // Ciphertext prime moduli
-	pi    []uint64 // Keys additional prime moduli
-	qiMul []uint64 // Ciphertext secondary prime moduli
-}
-
-// Qi returns a new slice with the factors of the ciphertext modulus q
-func (m *Moduli) Qi() []uint64 {
-	qi := make([]uint64, len(m.qi))
-	copy(qi, m.qi)
-	return qi
-}
-
-// QiCount returns the number of factors of the ciphertext modulus q
-func (m *Moduli) QiCount() uint64 {
-	return uint64(len(m.qi))
-}
-
-// Pi returns a new slice with the factors of the ciphertext modulus extention P
-func (m *Moduli) Pi() []uint64 {
-	pi := make([]uint64, len(m.pi))
-	copy(pi, m.pi)
-	return pi
-}
-
-// PiCount returns the number of factors of the ciphertext modulus extention P
-func (m *Moduli) PiCount() uint64 {
-	return uint64(len(m.pi))
-}
-
-// QPiCount returns the number of factors of the ciphertext modulus Q + the modulus extension P
-func (m *Moduli) QPiCount() uint64 {
-	return m.QiCount() + m.PiCount()
-}
-
-// LogQP returns the size of the extended modulus QP in bits
-func (m *Moduli) LogQP() uint64 {
-	tmp := ring.NewUint(1)
-	for _, qi := range m.qi {
-		tmp.Mul(tmp, ring.NewUint(qi))
-	}
-	for _, pi := range m.pi {
-		tmp.Mul(tmp, ring.NewUint(pi))
-	}
-	return uint64(tmp.BitLen())
-}
-
-// LogQ returns the size of the modulus Q in bits
-func (m *Moduli) LogQ() uint64 {
-	tmp := ring.NewUint(1)
-	for _, qi := range m.qi {
-		tmp.Mul(tmp, ring.NewUint(qi))
-	}
-	return uint64(tmp.BitLen())
-}
-
-// LogP returns the size of the modulus P in bits
-func (m *Moduli) LogP() uint64 {
-	tmp := ring.NewUint(1)
-	for _, pi := range m.pi {
-		tmp.Mul(tmp, ring.NewUint(pi))
-	}
-	return uint64(tmp.BitLen())
-}
-
-// LogQAlpha returns the size in bits of the sum of the norm of
-// each element of the special RNS decomposition basis for the
-// key-switching.
-// LogQAlpha is the size of the element that is multipled by the
-// error during the keyswitching and then divided by P.
-// LogQAlpha should be smaller than P or the error added during
-// the key-switching wont be negligible.
-func (m *Moduli) LogQAlpha() uint64 {
-
-	alpha := m.PiCount()
-
-	if alpha == 0 {
-		return 0
-	}
-
-	res := ring.NewUint(0)
-	var j uint64
-	for i := uint64(0); i < m.QiCount(); i = i + alpha {
-
-		j = i + alpha
-		if j > m.QiCount() {
-			j = m.QiCount()
-		}
-
-		tmp := ring.NewUint(1)
-		for _, qi := range m.qi[i:j] {
-			tmp.Mul(tmp, ring.NewUint(qi))
-		}
-
-		res.Add(res, tmp)
-	}
-
-	return uint64(res.BitLen())
-}
-
-// Alpha returns the number of moduli in in P
-func (m *Moduli) Alpha() uint64 {
-	return m.PiCount()
-}
-
-// Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
-func (m *Moduli) Beta() uint64 {
-	if m.Alpha() != 0 {
-		return uint64(math.Ceil(float64(m.QiCount()) / float64(m.Alpha())))
-	}
-
-	return 0
+	Qi    []uint64 // Ciphertext prime moduli
+	Pi    []uint64 // Keys additional prime moduli
+	QiMul []uint64 // Ciphertext secondary prime moduli
 }
 
 // Copy creates a copy of the target Moduli.
 func (m *Moduli) Copy() Moduli {
 
-	qi := make([]uint64, len(m.qi))
-	copy(qi, m.qi)
+	qi := make([]uint64, len(m.Qi))
+	copy(qi, m.Qi)
 
-	pi := make([]uint64, len(m.pi))
-	copy(pi, m.pi)
+	pi := make([]uint64, len(m.Pi))
+	copy(pi, m.Pi)
 
-	qiMul := make([]uint64, len(m.qiMul))
-	copy(qiMul, m.qiMul)
+	qiMul := make([]uint64, len(m.QiMul))
+	copy(qiMul, m.QiMul)
 
 	return Moduli{qi, pi, qiMul}
 }
@@ -251,14 +139,16 @@ func (m *LogModuli) Copy() LogModuli {
 
 // Parameters represents a given parameter set for the BFV cryptosystem.
 type Parameters struct {
-	Moduli
-	logN  uint64  // Log Ring degree (power of 2)
+	logN  uint64 // Log Ring degree (power of 2)
+	qi    []uint64
+	pi    []uint64
+	qiMul []uint64
 	t     uint64  // Plaintext modulus
 	sigma float64 // Gaussian sampling standard deviation
 }
 
 // NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromModuli(logN uint64, m Moduli, t uint64) (p *Parameters, err error) {
+func NewParametersFromModuli(logN uint64, m *Moduli, t uint64) (p *Parameters, err error) {
 
 	p = new(Parameters)
 
@@ -273,7 +163,14 @@ func NewParametersFromModuli(logN uint64, m Moduli, t uint64) (p *Parameters, er
 		return nil, err
 	}
 
-	p.Moduli = m.Copy()
+	p.qi = make([]uint64, len(m.Qi))
+	copy(p.qi, m.Qi)
+
+	p.pi = make([]uint64, len(m.Pi))
+	copy(p.pi, m.Pi)
+
+	p.qiMul = make([]uint64, len(m.QiMul))
+	copy(p.qiMul, m.QiMul)
 
 	p.sigma = DefaultSigma
 
@@ -283,7 +180,7 @@ func NewParametersFromModuli(logN uint64, m Moduli, t uint64) (p *Parameters, er
 }
 
 // NewParametersFromLogModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromLogModuli(logN uint64, lm LogModuli, t uint64) (p *Parameters, err error) {
+func NewParametersFromLogModuli(logN uint64, lm *LogModuli, t uint64) (p *Parameters, err error) {
 
 	if err = checkLogModuli(lm); err != nil {
 		return nil, err
@@ -326,23 +223,141 @@ func (p *Parameters) WithT(T uint64) (pCopy *Parameters) {
 }
 
 // LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
-func (p *Parameters) LogModuli() LogModuli {
-	var lm LogModuli
+func (p *Parameters) LogModuli() (lm *LogModuli) {
+	lm = new(LogModuli)
 	lm.LogQi = make([]uint64, len(p.qi), len(p.qi))
 	for i := range p.qi {
 		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.qi[i]))))
 	}
-
 	lm.LogPi = make([]uint64, len(p.pi), len(p.pi))
 	for i := range p.pi {
 		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
 	}
-
 	lm.LogQiMul = make([]uint64, len(p.qiMul), len(p.qiMul))
 	for i := range p.qiMul {
 		lm.LogQiMul[i] = uint64(math.Round(math.Log2(float64(p.qiMul[i]))))
 	}
-	return lm
+	return
+}
+
+// Moduli returns a struct Moduli with the moduli of the parameters
+func (p *Parameters) Moduli() (m *Moduli) {
+	m = new(Moduli)
+	m.Qi = make([]uint64, len(p.qi))
+	copy(m.Qi, p.qi)
+	m.Pi = make([]uint64, len(p.pi))
+	copy(m.Pi, p.pi)
+	m.QiMul = make([]uint64, len(p.qiMul))
+	copy(m.QiMul, p.qiMul)
+	return
+}
+
+// Qi returns a new slice with the factors of the ciphertext modulus q
+func (p *Parameters) Qi() []uint64 {
+	qi := make([]uint64, len(p.qi))
+	copy(qi, p.qi)
+	return qi
+}
+
+// QiCount returns the number of factors of the ciphertext modulus q
+func (p *Parameters) QiCount() uint64 {
+	return uint64(len(p.qi))
+}
+
+// Pi returns a new slice with the factors of the ciphertext modulus extention P
+func (p *Parameters) Pi() []uint64 {
+	pi := make([]uint64, len(p.pi))
+	copy(pi, p.pi)
+	return pi
+}
+
+// PiCount returns the number of factors of the ciphertext modulus extention P
+func (p *Parameters) PiCount() uint64 {
+	return uint64(len(p.pi))
+}
+
+// QPiCount returns the number of factors of the ciphertext modulus Q + the modulus extension P
+func (p *Parameters) QPiCount() uint64 {
+	return p.QiCount() + p.PiCount()
+}
+
+// LogQP returns the size of the extended modulus QP in bits
+func (p *Parameters) LogQP() uint64 {
+	tmp := ring.NewUint(1)
+	for _, qi := range p.qi {
+		tmp.Mul(tmp, ring.NewUint(qi))
+	}
+	for _, pi := range p.pi {
+		tmp.Mul(tmp, ring.NewUint(pi))
+	}
+	return uint64(tmp.BitLen())
+}
+
+// LogQ returns the size of the modulus Q in bits
+func (p *Parameters) LogQ() uint64 {
+	tmp := ring.NewUint(1)
+	for _, qi := range p.qi {
+		tmp.Mul(tmp, ring.NewUint(qi))
+	}
+	return uint64(tmp.BitLen())
+}
+
+// LogP returns the size of the modulus P in bits
+func (p *Parameters) LogP() uint64 {
+	tmp := ring.NewUint(1)
+	for _, pi := range p.pi {
+		tmp.Mul(tmp, ring.NewUint(pi))
+	}
+	return uint64(tmp.BitLen())
+}
+
+// LogQAlpha returns the size in bits of the sum of the norm of
+// each element of the special RNS decomposition basis for the
+// key-switching.
+// LogQAlpha is the size of the element that is multipled by the
+// error during the keyswitching and then divided by P.
+// LogQAlpha should be smaller than P or the error added during
+// the key-switching wont be negligible.
+func (p *Parameters) LogQAlpha() uint64 {
+
+	alpha := p.PiCount()
+
+	if alpha == 0 {
+		return 0
+	}
+
+	res := ring.NewUint(0)
+	var j uint64
+	for i := uint64(0); i < p.QiCount(); i = i + alpha {
+
+		j = i + alpha
+		if j > p.QiCount() {
+			j = p.QiCount()
+		}
+
+		tmp := ring.NewUint(1)
+		for _, qi := range p.qi[i:j] {
+			tmp.Mul(tmp, ring.NewUint(qi))
+		}
+
+		res.Add(res, tmp)
+	}
+
+	return uint64(res.BitLen())
+}
+
+// Alpha returns the number of moduli in in P
+func (p *Parameters) Alpha() uint64 {
+	return p.PiCount()
+}
+
+// Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
+func (p *Parameters) Beta() uint64 {
+	if p.Alpha() != 0 {
+		return uint64(math.Ceil(float64(p.QiCount()) / float64(p.Alpha())))
+	}
+
+	return 0
 }
 
 // NewPolyQ returns a new empty polynomial of degree 2^logN in basis qi.
@@ -367,8 +382,12 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 	paramsCopy.logN = p.logN
 	paramsCopy.t = p.t
 	paramsCopy.sigma = p.sigma
-	paramsCopy.Moduli = p.Moduli.Copy()
-
+	paramsCopy.qi = make([]uint64, len(p.qi))
+	copy(paramsCopy.qi, p.qi)
+	paramsCopy.pi = make([]uint64, len(p.pi))
+	copy(paramsCopy.pi, p.pi)
+	paramsCopy.qiMul = make([]uint64, len(p.qiMul))
+	copy(paramsCopy.qiMul, p.qiMul)
 	return
 }
 
@@ -438,40 +457,40 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(p.pi)
 	b.ReadUint64Slice(p.qiMul)
 
-	err := checkModuli(p.Moduli, p.logN) // TODO: check more than moduli.
+	err := checkModuli(p.Moduli(), p.logN) // TODO: check more than moduli.
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func checkModuli(m Moduli, logN uint64) (err error) {
+func checkModuli(m *Moduli, logN uint64) (err error) {
 
-	if len(m.qi) > MaxModuliCount {
+	if len(m.Qi) > MaxModuliCount {
 		return fmt.Errorf("#qi is larger than %d", MaxModuliCount)
 	}
 
-	if len(m.pi) > MaxModuliCount {
+	if len(m.Pi) > MaxModuliCount {
 		return fmt.Errorf("#Pi is larger than %d", MaxModuliCount)
 	}
 
-	if len(m.qiMul) > MaxModuliCount {
+	if len(m.QiMul) > MaxModuliCount {
 		return fmt.Errorf("#qiMul is larger than %d", MaxModuliCount)
 	}
 
-	for i, qi := range m.qi {
+	for i, qi := range m.Qi {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("qi bit-size for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
-	for i, pi := range m.pi {
+	for i, pi := range m.Pi {
 		if uint64(bits.Len64(pi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("Pi bit-size for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
-	for i, qi := range m.qiMul {
+	for i, qi := range m.QiMul {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("qiMul bitsize n°%d is larger than %d", i, MaxModuliSize)
 		}
@@ -479,19 +498,19 @@ func checkModuli(m Moduli, logN uint64) (err error) {
 
 	N := uint64(1 << logN)
 
-	for i, qi := range m.qi {
+	for i, qi := range m.Qi {
 		if !ring.IsPrime(qi) || qi&((N<<1)-1) != 1 {
 			return fmt.Errorf("qi n°%d is not an NTT prime", i)
 		}
 	}
 
-	for i, pi := range m.pi {
+	for i, pi := range m.Pi {
 		if !ring.IsPrime(pi) || pi&((N<<1)-1) != 1 {
 			return fmt.Errorf("Pi n°%d is not an NTT prime", i)
 		}
 	}
 
-	for i, qi := range m.qiMul {
+	for i, qi := range m.QiMul {
 		if !ring.IsPrime(qi) || qi&((N<<1)-1) != 1 {
 			return fmt.Errorf("qiMul n°%d is not an NTT prime", i)
 		}
@@ -500,7 +519,7 @@ func checkModuli(m Moduli, logN uint64) (err error) {
 	return nil
 }
 
-func checkLogModuli(lm LogModuli) (err error) {
+func checkLogModuli(lm *LogModuli) (err error) {
 
 	// Checks if the parameters are empty
 	if lm.LogQi == nil || len(lm.LogQi) == 0 {
@@ -541,7 +560,9 @@ func checkLogModuli(lm LogModuli) (err error) {
 }
 
 // GenModuli generates the appropriate primes from the parameters using generateNTTPrimes such that all primes are different.
-func genModuli(lm LogModuli, logN uint64) (m Moduli) {
+func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
+
+	m = new(Moduli)
 
 	// Extracts all the different primes bit-size and maps their number
 	primesbitlen := make(map[uint64]uint64)
@@ -565,24 +586,24 @@ func genModuli(lm LogModuli, logN uint64) (m Moduli) {
 	}
 
 	// Assigns the primes to the CKKS moduli chain
-	m.qi = make([]uint64, len(lm.LogQi))
+	m.Qi = make([]uint64, len(lm.LogQi))
 	for i, qi := range lm.LogQi {
-		m.qi[i] = primes[qi][0]
+		m.Qi[i] = primes[qi][0]
 		primes[qi] = primes[qi][1:]
 	}
 
 	// Assigns the primes to the special primes list for the extended ring
-	m.pi = make([]uint64, len(lm.LogPi))
+	m.Pi = make([]uint64, len(lm.LogPi))
 	for i, pj := range lm.LogPi {
-		m.pi[i] = primes[pj][0]
+		m.Pi[i] = primes[pj][0]
 		primes[pj] = primes[pj][1:]
 	}
 
-	m.qiMul = make([]uint64, len(lm.LogQiMul))
+	m.QiMul = make([]uint64, len(lm.LogQiMul))
 	for i, qi := range lm.LogQiMul {
-		m.qiMul[i] = primes[qi][0]
+		m.QiMul[i] = primes[qi][0]
 		primes[qi] = primes[qi][1:]
 	}
 
-	return m
+	return
 }

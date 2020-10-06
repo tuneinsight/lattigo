@@ -63,9 +63,9 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo 1.4.0},
+	    title = {Lattigo 2.0.0},
 	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
-	    month = sep,
+	    month = oct,
 	    year = 2020,
 	    note = {EPFL-LDS}
     }
@@ -73,8 +73,9 @@ Please use the following BibTex entry for citing Lattigo:
 
 ## References
 
+1. Secure and Efficient Bootstrapping for Approximate Homomorphic Encryption (<https://eprint.iacr.org/2020/1203>)
 1. Somewhat Practical Fully Homomorphic Encryption (<https://eprint.iacr.org/2012/144>)
-1. Multiparty Homomorphic Encryption: From Theory to Practice (https://eprint.iacr.org/2020/304.pdf)
+1. Multiparty Homomorphic Encryption: From Theory to Practice (<https://eprint.iacr.org/2020/304>)
 1. A Full RNS Variant of FV Like Somewhat Homomorphic Encryption Schemes (<https://eprint.iacr.org/2016/510>)
 1. An Improved RNS Variant of the BFV Homomorphic Encryption Scheme (<https://eprint.iacr.org/2018/117>)
 1. Homomorphic Encryption for Arithmetic of Approximate Numbers (<https://eprint.iacr.org/2016/421>)

@@ -2,11 +2,7 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-## [Unreleased]
-### Added
-- Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
-
-## [1.4.0] - 2020-09-30
+## [2.0.0] - 2020-10-07
 
 ### Some changes are not public yet and will be on release.
 

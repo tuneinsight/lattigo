@@ -25,10 +25,15 @@ const DefaultSigma = 3.2
 
 // Name of the different default parameter sets
 const (
+	// PN12QP109 is the index in DefaultParams for logQ1 = 109
 	PN12QP109 = iota
+	// PN13QP218 is the index in DefaultParams for logQ1 = 218
 	PN13QP218
+	// PN14QP438 is the index in DefaultParams for logQ1 = 438
 	PN14QP438
+	// PN15QP880 is the index in DefaultParams for logQ1 = 880
 	PN15QP880
+	// PN16QP1761 is the index in DefaultParams for logQ1 = 1761
 	PN16QP1761
 )
 

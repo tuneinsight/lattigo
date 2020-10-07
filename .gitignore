@@ -48,3 +48,8 @@ _testmain.go
 
 .idea/
 .vscode/
+
+
+# generated
+/Coding
+

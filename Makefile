@@ -26,6 +26,6 @@ test: test_fmt test_gotest test_examples
 .PHONY: local
 local: test_fmt test_lint test_gotest test_examples
 
-%: force
+%: force Coding/bin/Makefile.base
 	@$(MAKE) -f Coding/bin/Makefile.base $@
 force: ;

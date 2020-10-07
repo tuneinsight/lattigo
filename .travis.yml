@@ -5,7 +5,6 @@ go:
   - 1.14.x
   - 1.13.x
 
-before_script: make test_fmt test_lint
 script:
   - go build ./...
-  - make test_local test_examples
+  - make local

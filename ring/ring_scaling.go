@@ -3,174 +3,118 @@ package ring
 import (
 	"math/big"
 	"math/bits"
+	"unsafe"
 )
 
-// DivFloorByLastModulusNTT divides floor the polynomial by its last modulus. Input must be in the NTT domain.
-func (context *Context) DivFloorByLastModulusNTT(p0 *Poly) {
-
-	level := len(p0.Coeffs) - 1
-
-	pTmp := make([]uint64, context.N)
-
-	InvNTT(p0.Coeffs[level], p0.Coeffs[level], context.N, context.nttPsiInv[level], context.nttNInv[level], context.Modulus[level], context.mredParams[level])
-
-	for i := 0; i < level; i++ {
-
-		NTT(p0.Coeffs[level], pTmp, context.N, context.nttPsi[i], context.Modulus[i], context.mredParams[i], context.bredParams[i])
-
-		p0tmp := p0.Coeffs[i]
-
-		qi := context.Modulus[i]
-		mredParams := context.mredParams[i]
-		rescalParams := context.rescaleParams[level-1][i]
-
-		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < context.N; j++ {
-			p0tmp[j] = MRed(p0tmp[j]+(qi-pTmp[j]), rescalParams, qi, mredParams)
-		}
-	}
-
-	p0.Coeffs = p0.Coeffs[:level]
+// Scaler is an interface that rescales polynomial coefficients by a fraction t/Q.
+type Scaler interface {
+	// DivByQOverTRounded returns p1 scaled by a factor t/Q and mod t on the receiver p2.
+	DivByQOverTRounded(p1, p2 *Poly)
 }
 
-// DivFloorByLastModulus divides floor the polynomial by its last modulus.
-func (context *Context) DivFloorByLastModulus(p0 *Poly) {
+// RNSScaler implements the Scaler interface by performing a scaling by t/Q in the RNS domain.
+// This implementation of the Scaler interface is preferred over the SimpleScaler implementation.
+type RNSScaler struct {
+	ringQ           *Ring
+	paramsQT        *modupParams
+	modDownParamsQT uint64
+	polypoolT       *Poly
 
-	level := len(p0.Coeffs) - 1
+	qHalf     *big.Int // (q-1)/2
+	qHalfModT uint64   // (q-1)/2 mod t
 
-	for i := 0; i < level; i++ {
-		p0tmp := p0.Coeffs[level]
-		p1tmp := p0.Coeffs[i]
-		qi := context.Modulus[i]
-		bredParams := context.bredParams[i]
-		mredParams := context.mredParams[i]
-		rescaleParams := context.rescaleParams[level-1][i]
-		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < context.N; j++ {
-			p1tmp[j] = MRed(p1tmp[j]+(qi-BRedAdd(p0tmp[j], qi, bredParams)), rescaleParams, qi, mredParams)
-		}
-	}
+	t    uint64
+	qInv uint64 //(q mod t)^-1 mod t
 
-	p0.Coeffs = p0.Coeffs[:level]
+	bredParamsT []uint64
+	mredParamsT uint64
+
+	paramsQP *modupParams
 }
 
-// DivFloorByLastModulusManyNTT divides floor sequentially nbRescales times the polynmial by its last modulus. Input must be in the NTT domain.
-func (context *Context) DivFloorByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
-	context.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
-	context.DivFloorByLastModulusMany(p0, nbRescales)
-	context.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+// NewRNSScaler creates a new SimpleScaler from t, the modulus under which the reconstruction is returned, the Ring in which the polynomial to reconstruct is represented.
+func NewRNSScaler(t uint64, ringQ *Ring) (rnss *RNSScaler) {
+
+	rnss = new(RNSScaler)
+
+	rnss.ringQ = ringQ
+
+	rnss.mredParamsT = MRedParams(t)
+
+	rnss.polypoolT = NewPoly(ringQ.N, 1)
+
+	rnss.t = t
+	rnss.qHalf = new(big.Int)
+	rnss.qInv = rnss.qHalf.Mod(ringQ.ModulusBigint, NewUint(t)).Uint64()
+	rnss.qInv = ModExp(rnss.qInv, t-2, t)
+	rnss.qInv = MForm(rnss.qInv, t, BRedParams(t))
+
+	rnss.qHalf.Set(ringQ.ModulusBigint)
+	rnss.qHalf.Rsh(rnss.qHalf, 1)
+	rnss.qHalfModT = rnss.qHalf.Mod(rnss.qHalf, NewUint(t)).Uint64()
+
+	rnss.qHalf.Set(ringQ.ModulusBigint)
+	rnss.qHalf.Rsh(rnss.qHalf, 1)
+
+	rnss.paramsQP = basisextenderparameters(ringQ.Modulus, []uint64{t})
+
+	return
 }
 
-// DivFloorByLastModulusMany divides floor sequentially nbRescales times the polynmial by its last modulus.
-func (context *Context) DivFloorByLastModulusMany(p0 *Poly, nbRescales uint64) {
-	for k := uint64(0); k < nbRescales; k++ {
-		context.DivFloorByLastModulus(p0)
-	}
-}
+// DivByQOverTRounded returns p1 scaled by a factor t/Q and mod t on the receiver p2.
+func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 
-// DivRoundByLastModulusNTT divides round the polynomial by its last modulus. Input must be in the NTT domain.
-func (context *Context) DivRoundByLastModulusNTT(p0 *Poly) {
+	ringQ := rnss.ringQ
 
-	var pHalf, pHalfNegQi uint64
+	T := rnss.t
+	p2tmp := p2T.Coeffs[0]
+	p3tmp := rnss.polypoolT.Coeffs[0]
+	mredParams := rnss.mredParamsT
+	qInv := rnss.qInv
+	qHalfModT := rnss.qHalfModT
 
-	level := len(p0.Coeffs) - 1
+	// Multiply P_{Q} by t and extend the basis from P_{Q} to t*(P_{Q}||P_{t})
+	// Since the coefficients of P_{t} are multiplied by t, they are all zero,
+	// hence the basis extension can be omitted
+	ringQ.MulScalar(p1Q, T, p1Q)
 
-	pTmp := make([]uint64, context.N)
+	// Center t*P_{Q} around (Q-1)/2 to round instead of floor during the division
+	ringQ.AddScalarBigint(p1Q, rnss.qHalf, p1Q)
 
-	InvNTT(p0.Coeffs[level], p0.Coeffs[level], context.N, context.nttPsiInv[level], context.nttNInv[level], context.Modulus[level], context.mredParams[level])
+	// Extend the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
+	modUpExact(p1Q.Coeffs, rnss.polypoolT.Coeffs, rnss.paramsQP)
 
-	// Centers by (p-1)/2
-	pHalf = (context.Modulus[level] - 1) >> 1
-	p0tmp := p0.Coeffs[level]
-	pj := context.Modulus[level]
-	for i := uint64(0); i < context.N; i++ {
-		p0tmp[i] = CRed(p0tmp[i]+pHalf, pj)
-	}
+	// Compute [Q^{-1} * (t*P_{t} -   (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
+	for j := uint64(0); j < ringQ.N; j = j + 8 {
 
-	for i := 0; i < level; i++ {
+		x := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
 
-		p1tmp := p0.Coeffs[i]
-
-		qi := context.Modulus[i]
-		bredParams := context.bredParams[i]
-		mredParams := context.mredParams[i]
-		rescaleParams := context.rescaleParams[level-1][i]
-
-		pHalfNegQi = context.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
-
-		for j := uint64(0); j < context.N; j++ {
-			pTmp[j] = p0tmp[j] + pHalfNegQi
-		}
-
-		NTT(pTmp, pTmp, context.N, context.nttPsi[i], qi, mredParams, bredParams)
-
-		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < context.N; j++ {
-			p1tmp[j] = MRed(p1tmp[j]+(qi-pTmp[j]), rescaleParams, qi, mredParams)
-		}
-	}
-
-	p0.Coeffs = p0.Coeffs[:level]
-}
-
-// DivRoundByLastModulus divides round the polynomial by its last modulus. Input must be in the NTT domain.
-func (context *Context) DivRoundByLastModulus(p0 *Poly) {
-
-	var pHalf, pHalfNegQi uint64
-
-	level := len(p0.Coeffs) - 1
-
-	// Centers by (p-1)/2
-	pHalf = (context.Modulus[level] - 1) >> 1
-	p0tmp := p0.Coeffs[level]
-	pj := context.Modulus[level]
-	pHalf = (context.Modulus[level] - 1) >> 1
-	for i := uint64(0); i < context.N; i++ {
-		p0tmp[i] = CRed(p0tmp[i]+pHalf, pj)
-	}
-
-	for i := 0; i < level; i++ {
-
-		p1tmp := p0.Coeffs[i]
-
-		qi := context.Modulus[i]
-		bredParams := context.bredParams[i]
-		mredParams := context.mredParams[i]
-		rescaleParams := context.rescaleParams[level-1][i]
-
-		pHalfNegQi = context.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
-
-		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < context.N; j++ {
-			p1tmp[j] = MRed(p1tmp[j]+(qi-BRedAdd(p0tmp[j]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
-		}
-	}
-
-	p0.Coeffs = p0.Coeffs[:level]
-}
-
-// DivRoundByLastModulusManyNTT divides round sequentially nbRescales times the polynmial by its last modulus. Input must be in the NTT domain.
-func (context *Context) DivRoundByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
-	context.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
-	context.DivRoundByLastModulusMany(p0, nbRescales)
-	context.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
-}
-
-// DivRoundByLastModulusMany divides round sequentially nbRescales times the polynmial by its last modulus.
-func (context *Context) DivRoundByLastModulusMany(p0 *Poly, nbRescales uint64) {
-	for k := uint64(0); k < nbRescales; k++ {
-		context.DivRoundByLastModulus(p0)
+		z[0] = MRed(qHalfModT+T-x[0], qInv, T, mredParams)
+		z[1] = MRed(qHalfModT+T-x[1], qInv, T, mredParams)
+		z[2] = MRed(qHalfModT+T-x[2], qInv, T, mredParams)
+		z[3] = MRed(qHalfModT+T-x[3], qInv, T, mredParams)
+		z[4] = MRed(qHalfModT+T-x[4], qInv, T, mredParams)
+		z[5] = MRed(qHalfModT+T-x[5], qInv, T, mredParams)
+		z[6] = MRed(qHalfModT+T-x[6], qInv, T, mredParams)
+		z[7] = MRed(qHalfModT+T-x[7], qInv, T, mredParams)
 	}
 }
 
-// SimpleScaler is the structure storing the parameters to reconstruct a polynomial, scale it by t/Q and return the results modulo t.
-// Algorithm from https://eprint.iacr.org/2018/117.pdf
+// SimpleScaler implements the Scaler interface by performing an RNS reconstruction and scaling by t/Q.
+// This implementation of the Scaler interface is less efficient than the RNSScaler, but uses simple
+// multi-precision arithmetic of the math/big package.
 type SimpleScaler struct {
-	context *Context
+	ringQ *Ring
 
-	t  uint64     //Plaintext modulus
-	wi []uint64   //Integer parts of   ([Q/Qi]^(-1))_{Qi} * t/Qi
-	ti []Float128 //Fractional part of ([Q/Qi]^(-1))_{Qi} * t/Qi
+	r, one *big.Int
+
+	t   uint64 // Plaintext modulus
+	tBI *big.Int
+	wi  []uint64 // Integer parts of   ([Q/Qi]^(-1))_{Qi} * t/Qi
+	ti  []*big.Float
+
+	p1BI []*big.Int
 
 	reducealgoMul func(x, y uint64) uint64
 	reducealgoAdd func(x uint64) uint64
@@ -179,122 +123,406 @@ type SimpleScaler struct {
 	reducealgoMulParam uint64
 }
 
-// NewSimpleScaler creates a new SimpleScaler from t (the modulus under which the reconstruction is returned) and context (the context in which the polynomial
-// to reconstruct will be represented).
-func NewSimpleScaler(t uint64, context *Context) (newParams *SimpleScaler) {
+// SimpleScalerFloatPrecision is the precision in bits for the big.Float in the scaling by t/Q.
+const SimpleScalerFloatPrecision = 80
 
-	newParams = new(SimpleScaler)
+// NewSimpleScaler creates a new SimpleScaler from t, the modulus under which the reconstruction is returned, and
+// ringQ, the Ring in which the polynomial to reconstruct is represented.
+func NewSimpleScaler(t uint64, ringQ *Ring) (ss *SimpleScaler) {
 
-	var tmp Float128
-	QiB := new(big.Int)     // Qi
-	QiStar := new(big.Int)  // Q/Qi
-	QiBarre := new(big.Int) // (Q/Qi)^(-1) mod Qi
+	ss = new(SimpleScaler)
 
-	newParams.t = t
-	newParams.context = context
+	ss.r = new(big.Int)
+	ss.one = NewInt(1)
 
-	// Assigns the correct reduction algorithm depending on the provided t
+	var tmp *big.Float
+	QiB := new(big.Int)         // Qi
+	QiBF := new(big.Float)      // Qi
+	QiStar := new(big.Int)      // Q/Qi
+	QiBarre := new(big.Int)     // (Q/Qi)^(-1) mod Qi
+	QiBarreBF := new(big.Float) // (Q/Qi)^(-1) mod Qi
+	tBF := new(big.Float).SetUint64(t)
+
+	ss.t = t
+	ss.tBI = new(big.Int).SetUint64(t)
+	ss.ringQ = ringQ
+
+	// Assign the correct reduction algorithm depending on the provided t
 	// If t is a power of 2
 	if (t&(t-1)) == 0 && t != 0 {
 
-		newParams.reducealgoAddParam = t - 1
-		newParams.reducealgoMulParam = t - 1
+		ss.reducealgoAddParam = t - 1
+		ss.reducealgoMulParam = t - 1
 
-		newParams.reducealgoMul = func(x, y uint64) uint64 {
-			return (x * y) & newParams.reducealgoAddParam
+		ss.reducealgoMul = func(x, y uint64) uint64 {
+			return (x * y) & ss.reducealgoAddParam
 		}
 
-		newParams.reducealgoAdd = func(x uint64) uint64 {
-			return x & newParams.reducealgoMulParam
+		ss.reducealgoAdd = func(x uint64) uint64 {
+			return x & ss.reducealgoMulParam
 		}
 
-		// Else (we can use Montgomery reduction)
+		// Otherwise, we can use Montgomery reduction
 	} else {
-		newParams.reducealgoAddParam = BRedParams(t)[0]
-		newParams.reducealgoMulParam = MRedParams(t)
+		ss.reducealgoAddParam = BRedParams(t)[0]
+		ss.reducealgoMulParam = MRedParams(t)
 
-		newParams.reducealgoMul = func(x, y uint64) uint64 {
+		ss.reducealgoMul = func(x, y uint64) uint64 {
 			ahi, alo := bits.Mul64(x, y)
-			R := alo * newParams.reducealgoMulParam
-			H, _ := bits.Mul64(R, newParams.t)
-			r := ahi - H + newParams.t
+			R := alo * ss.reducealgoMulParam
+			H, _ := bits.Mul64(R, ss.t)
+			r := ahi - H + ss.t
 
-			if r >= newParams.t {
-				r -= newParams.t
+			if r >= ss.t {
+				r -= ss.t
 			}
 
 			return r
 		}
 
-		newParams.reducealgoAdd = func(x uint64) uint64 {
+		ss.reducealgoAdd = func(x uint64) uint64 {
 
-			s0, _ := bits.Mul64(x, newParams.reducealgoAddParam)
+			s0, _ := bits.Mul64(x, ss.reducealgoAddParam)
 
-			r := x - s0*newParams.t
+			r := x - s0*ss.t
 
-			if r >= newParams.t {
-				r -= newParams.t
+			if r >= ss.t {
+				r -= ss.t
 			}
 
 			return r
 		}
 	}
 
-	// Integer and rational part of QiBarre * t/Qi
-	newParams.wi = make([]uint64, len(context.Modulus))
-	newParams.ti = make([]Float128, len(context.Modulus))
+	// Integer and rational parts of QiBarre * t/Qi
+	ss.wi = make([]uint64, len(ringQ.Modulus))
+	ss.ti = make([]*big.Float, len(ringQ.Modulus))
 
-	for i, qi := range context.Modulus {
+	ss.p1BI = make([]*big.Int, ringQ.N)
+	for i := range ss.p1BI {
+		ss.p1BI[i] = new(big.Int)
+		ss.p1BI[i].Mul(ss.ringQ.ModulusBigint, ss.ringQ.ModulusBigint) // Extend to Q^2
+	}
+
+	for i, qi := range ringQ.Modulus {
 
 		QiB.SetUint64(qi)
-		QiStar.Quo(context.ModulusBigint, QiB)
+		QiBF.SetUint64(qi)
+		QiStar.Quo(ringQ.ModulusBigint, QiB)
 		QiBarre.ModInverse(QiStar, QiB)
 		QiBarre.Mod(QiBarre, QiB)
+		QiBarreBF.SetInt(QiBarre)
 
-		tmp = Float128Div(Float128SetUint53(t), Float128SetUint64(qi))
+		tmp = new(big.Float).Quo(tBF, QiBF)
+		tmp.Mul(tmp, QiBarreBF)
 
-		tmp = Float128Mul(tmp, Float128SetUint64(QiBarre.Uint64()))
+		// floor( ([Q/Qi]^(-1))_{Qi} * t/Qi )
+		ss.wi[i], _ = tmp.Uint64()
 
-		//floor( ([Q/Qi]^(-1))_{Qi} * t/Qi )
-		newParams.wi[i] = Float128ToUint53(tmp)
-
-		// If t is not a power of 2 converts in Montgomery form
+		// If t is not a power of 2, convert to Montgomery form
 		if (t&(t-1)) != 0 && t != 0 {
-			newParams.wi[i] = MForm(newParams.wi[i], t, BRedParams(t))
+			ss.wi[i] = MForm(ss.wi[i], t, BRedParams(t))
 		}
 
 		QiBarre.Mul(QiBarre, NewUint(t))
 		QiBarre.Mod(QiBarre, QiB)
+		QiBarreBF.SetInt(QiBarre)
 
-		newParams.ti[i] = Float128Div(Float128SetUint64(QiBarre.Uint64()), Float128SetUint64(qi)) //floor( ([Q/Qi]^(-1))_{Qi} * t/Qi ) - ( ([Q/Qi]^(-1))_{Qi} * t/Qi )
+		ss.ti[i] = new(big.Float).SetPrec(SimpleScalerFloatPrecision).Quo(QiBarreBF, QiBF)
 	}
 
 	return
 }
 
-// Scale returns the reconstruction of p1 scaled by a factor t/Q and mod t on the reciever p2.
-func (parameters *SimpleScaler) Scale(p1, p2 *Poly) {
+// DivByQOverTRounded returns p1 scaled by a factor t/Q and mod t on the receiver p2.
+func (ss *SimpleScaler) DivByQOverTRounded(p1, p2 *Poly) {
+	ss.reconstructThenScale(p1, p2)
+}
 
-	var a uint64
-	var b Float128
+// reconstructThenScale performs the RNS reconstruction and scaling sequentially.
+func (ss *SimpleScaler) reconstructThenScale(p1, p2 *Poly) {
 
-	for i := uint64(0); i < parameters.context.N; i++ {
+	// reconstruction
+	ss.ringQ.PolyToBigintNoAlloc(p1, ss.p1BI)
 
-		a = 0
-		b[0], b[1] = 0, 0
-
-		for j := range parameters.context.Modulus {
-			// round(xi*wi + xi*ti)%t
-			a += parameters.reducealgoMul(parameters.wi[j], p1.Coeffs[j][i])
-
-			b = Float128Add(b, Float128Mul(parameters.ti[j], Float128SetUint64(p1.Coeffs[j][i])))
+	// scaling
+	for i, coeff := range ss.p1BI {
+		coeff.Mul(coeff, ss.tBI)
+		coeff.QuoRem(coeff, ss.ringQ.ModulusBigint, ss.r)
+		if ss.r.Lsh(ss.r, 1).CmpAbs(ss.ringQ.ModulusBigint) != -1 {
+			coeff.Add(coeff, ss.one)
 		}
 
-		a += Float128ToUint64(b)
-		a = parameters.reducealgoAdd(a)
+		for j := range p2.Coeffs {
+			p2.Coeffs[j][i] = coeff.Uint64()
+		}
+	}
+}
+
+// reconstructAndScale performs the RNS reconstruction and scaling operations in one single pass over the coefficients.
+// Algorithm from https://eprint.iacr.org/2018/117.pdf.
+func (ss *SimpleScaler) reconstructAndScale(p1, p2 *Poly) {
+
+	for i := uint64(0); i < ss.ringQ.N; i++ {
+
+		var a uint64
+		var bBF big.Float
+		var p1j big.Float
+		for j := range ss.ringQ.Modulus {
+			// round(xi*wi + xi*ti)%t
+			a += ss.reducealgoMul(ss.wi[j], p1.Coeffs[j][i])
+
+			p1j.SetPrec(SimpleScalerFloatPrecision).SetUint64(p1.Coeffs[j][i])
+			bBF.SetPrec(SimpleScalerFloatPrecision).Add(&bBF, p1j.Mul(&p1j, ss.ti[j]))
+		}
+
+		bBF.Add(&bBF, new(big.Float).SetFloat64(0.5))
+		buint64, _ := bBF.Uint64()
+
+		abf := a + buint64
+
+		a = ss.reducealgoAdd(abf)
 
 		for j := 0; j < len(p2.Coeffs); j++ {
 			p2.Coeffs[j][i] = a
 		}
+	}
+}
+
+// ============== Scaling-related methods ==============
+
+// DivFloorByLastModulusNTT divides (floored) the polynomial by its last modulus. The input must be in the NTT domain.
+func (r *Ring) DivFloorByLastModulusNTT(p0 *Poly) {
+
+	level := len(p0.Coeffs) - 1
+
+	pTmp := make([]uint64, r.N)
+
+	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+
+	for i := 0; i < level; i++ {
+
+		NTT(p0.Coeffs[level], pTmp, r.N, r.NttPsi[i], r.Modulus[i], r.MredParams[i], r.BredParams[i])
+
+		p0tmp := p0.Coeffs[i]
+
+		qi := r.Modulus[i]
+		mredParams := r.MredParams[i]
+		rescalParams := r.RescaleParams[level-1][i]
+
+		// (x[i] - x[-1]) * InvQ
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&pTmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+
+			z[0] = MRed(z[0]+(qi-x[0]), rescalParams, qi, mredParams)
+			z[1] = MRed(z[1]+(qi-x[1]), rescalParams, qi, mredParams)
+			z[2] = MRed(z[2]+(qi-x[2]), rescalParams, qi, mredParams)
+			z[3] = MRed(z[3]+(qi-x[3]), rescalParams, qi, mredParams)
+			z[4] = MRed(z[4]+(qi-x[4]), rescalParams, qi, mredParams)
+			z[5] = MRed(z[5]+(qi-x[5]), rescalParams, qi, mredParams)
+			z[6] = MRed(z[6]+(qi-x[6]), rescalParams, qi, mredParams)
+			z[7] = MRed(z[7]+(qi-x[7]), rescalParams, qi, mredParams)
+
+		}
+	}
+
+	p0.Coeffs = p0.Coeffs[:level]
+}
+
+// DivFloorByLastModulus divides (floored) the polynomial by its last modulus.
+func (r *Ring) DivFloorByLastModulus(p0 *Poly) {
+
+	level := len(p0.Coeffs) - 1
+
+	for i := 0; i < level; i++ {
+		p0tmp := p0.Coeffs[level]
+		p1tmp := p0.Coeffs[i]
+		qi := r.Modulus[i]
+		bredParams := r.BredParams[i]
+		mredParams := r.MredParams[i]
+		rescaleParams := r.RescaleParams[level-1][i]
+		// (x[i] - x[-1]) * InvQ
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+			z[0] = MRed(z[0]+(qi-BRedAdd(x[0], qi, bredParams)), rescaleParams, qi, mredParams)
+			z[1] = MRed(z[1]+(qi-BRedAdd(x[1], qi, bredParams)), rescaleParams, qi, mredParams)
+			z[2] = MRed(z[2]+(qi-BRedAdd(x[2], qi, bredParams)), rescaleParams, qi, mredParams)
+			z[3] = MRed(z[3]+(qi-BRedAdd(x[3], qi, bredParams)), rescaleParams, qi, mredParams)
+			z[4] = MRed(z[4]+(qi-BRedAdd(x[4], qi, bredParams)), rescaleParams, qi, mredParams)
+			z[5] = MRed(z[5]+(qi-BRedAdd(x[5], qi, bredParams)), rescaleParams, qi, mredParams)
+			z[6] = MRed(z[6]+(qi-BRedAdd(x[6], qi, bredParams)), rescaleParams, qi, mredParams)
+			z[7] = MRed(z[7]+(qi-BRedAdd(x[7], qi, bredParams)), rescaleParams, qi, mredParams)
+		}
+	}
+
+	p0.Coeffs = p0.Coeffs[:level]
+}
+
+// DivFloorByLastModulusManyNTT divides (floored) sequentially nbRescales times the polynomial by its last modulus. Input must be in the NTT domain.
+func (r *Ring) DivFloorByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
+	r.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+	r.DivFloorByLastModulusMany(p0, nbRescales)
+	r.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+}
+
+// DivFloorByLastModulusMany divides (floored) sequentially nbRescales times the polynomial by its last modulus.
+func (r *Ring) DivFloorByLastModulusMany(p0 *Poly, nbRescales uint64) {
+	for k := uint64(0); k < nbRescales; k++ {
+		r.DivFloorByLastModulus(p0)
+	}
+}
+
+// DivRoundByLastModulusNTT divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
+func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
+
+	var pHalf, pHalfNegQi uint64
+
+	level := len(p0.Coeffs) - 1
+
+	pTmp := make([]uint64, r.N)
+
+	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+
+	// Center by (p-1)/2
+	pHalf = (r.Modulus[level] - 1) >> 1
+	p0tmp := p0.Coeffs[level]
+	pj := r.Modulus[level]
+
+	for i := uint64(0); i < r.N; i = i + 8 {
+
+		z := (*[8]uint64)(unsafe.Pointer(&p0tmp[i]))
+
+		z[0] = CRed(z[0]+pHalf, pj)
+		z[1] = CRed(z[1]+pHalf, pj)
+		z[2] = CRed(z[2]+pHalf, pj)
+		z[3] = CRed(z[3]+pHalf, pj)
+		z[4] = CRed(z[4]+pHalf, pj)
+		z[5] = CRed(z[5]+pHalf, pj)
+		z[6] = CRed(z[6]+pHalf, pj)
+		z[7] = CRed(z[7]+pHalf, pj)
+	}
+
+	for i := 0; i < level; i++ {
+
+		p1tmp := p0.Coeffs[i]
+
+		qi := r.Modulus[i]
+		bredParams := r.BredParams[i]
+		mredParams := r.MredParams[i]
+		rescaleParams := r.RescaleParams[level-1][i]
+
+		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
+
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&pTmp[j]))
+
+			z[0] = x[0] + pHalfNegQi
+			z[1] = x[1] + pHalfNegQi
+			z[2] = x[2] + pHalfNegQi
+			z[3] = x[3] + pHalfNegQi
+			z[4] = x[4] + pHalfNegQi
+			z[5] = x[5] + pHalfNegQi
+			z[6] = x[6] + pHalfNegQi
+			z[7] = x[7] + pHalfNegQi
+		}
+
+		NTT(pTmp, pTmp, r.N, r.NttPsi[i], qi, mredParams, bredParams)
+
+		// (x[i] - x[-1]) * InvQ
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&pTmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+			z[0] = MRed(z[0]+(qi-x[0]), rescaleParams, qi, mredParams)
+			z[1] = MRed(z[1]+(qi-x[1]), rescaleParams, qi, mredParams)
+			z[2] = MRed(z[2]+(qi-x[2]), rescaleParams, qi, mredParams)
+			z[3] = MRed(z[3]+(qi-x[3]), rescaleParams, qi, mredParams)
+			z[4] = MRed(z[4]+(qi-x[4]), rescaleParams, qi, mredParams)
+			z[5] = MRed(z[5]+(qi-x[5]), rescaleParams, qi, mredParams)
+			z[6] = MRed(z[6]+(qi-x[6]), rescaleParams, qi, mredParams)
+			z[7] = MRed(z[7]+(qi-x[7]), rescaleParams, qi, mredParams)
+		}
+	}
+
+	p0.Coeffs = p0.Coeffs[:level]
+}
+
+// DivRoundByLastModulus divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
+func (r *Ring) DivRoundByLastModulus(p0 *Poly) {
+
+	var pHalf, pHalfNegQi uint64
+
+	level := len(p0.Coeffs) - 1
+
+	// Center by (p-1)/2
+	pHalf = (r.Modulus[level] - 1) >> 1
+	p0tmp := p0.Coeffs[level]
+	pj := r.Modulus[level]
+	pHalf = (r.Modulus[level] - 1) >> 1
+
+	for i := uint64(0); i < r.N; i = i + 8 {
+
+		z := (*[8]uint64)(unsafe.Pointer(&p0tmp[i]))
+
+		z[0] = CRed(z[0]+pHalf, pj)
+		z[1] = CRed(z[1]+pHalf, pj)
+		z[2] = CRed(z[2]+pHalf, pj)
+		z[3] = CRed(z[3]+pHalf, pj)
+		z[4] = CRed(z[4]+pHalf, pj)
+		z[5] = CRed(z[5]+pHalf, pj)
+		z[6] = CRed(z[6]+pHalf, pj)
+		z[7] = CRed(z[7]+pHalf, pj)
+	}
+
+	for i := 0; i < level; i++ {
+
+		p1tmp := p0.Coeffs[i]
+
+		qi := r.Modulus[i]
+		bredParams := r.BredParams[i]
+		mredParams := r.MredParams[i]
+		rescaleParams := r.RescaleParams[level-1][i]
+
+		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
+
+		// (x[i] - x[-1]) * InvQ
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+			z[0] = MRed(z[0]+(qi-BRedAdd(x[0]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
+			z[1] = MRed(z[1]+(qi-BRedAdd(x[1]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
+			z[2] = MRed(z[2]+(qi-BRedAdd(x[2]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
+			z[3] = MRed(z[3]+(qi-BRedAdd(x[3]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
+			z[4] = MRed(z[4]+(qi-BRedAdd(x[4]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
+			z[5] = MRed(z[5]+(qi-BRedAdd(x[5]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
+			z[6] = MRed(z[6]+(qi-BRedAdd(x[6]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
+			z[7] = MRed(z[7]+(qi-BRedAdd(x[7]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
+		}
+	}
+
+	p0.Coeffs = p0.Coeffs[:level]
+}
+
+// DivRoundByLastModulusManyNTT divides (rounded) sequentially nbRescales times the polynomial by its last modulus. The input must be in the NTT domain.
+func (r *Ring) DivRoundByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
+	r.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+	r.DivRoundByLastModulusMany(p0, nbRescales)
+	r.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+}
+
+// DivRoundByLastModulusMany divides (rounded) sequentially nbRescales times the polynomial by its last modulus.
+func (r *Ring) DivRoundByLastModulusMany(p0 *Poly, nbRescales uint64) {
+	for k := uint64(0); k < nbRescales; k++ {
+		r.DivRoundByLastModulus(p0)
 	}
 }

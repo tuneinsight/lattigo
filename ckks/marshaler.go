@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"encoding/binary"
+	"errors"
 	"github.com/ldsec/lattigo/ring"
 	"math"
 )
@@ -53,8 +54,11 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 // The target Ciphertext must be of the appropriate format and size, it can be created with the
 // method NewCiphertext(uint64).
 func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
+	if len(data) < 11 {
+		return errors.New("too small bytearray")
+	}
 
-	ciphertext.ckksElement = new(ckksElement)
+	ciphertext.Element = new(Element)
 
 	ciphertext.value = make([]*ring.Poly, uint8(data[0]))
 
@@ -76,6 +80,10 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		}
 
 		pointer += inc
+	}
+
+	if pointer != uint64(len(data)) {
+		return errors.New("remaining unparsed data")
 	}
 
 	return nil

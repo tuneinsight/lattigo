@@ -4,24 +4,20 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Plaintext is is a ckksElement with only one Poly.
+// Plaintext is is a Element with only one Poly.
 type Plaintext struct {
-	*ckksElement
+	*Element
 	value *ring.Poly
 }
 
 // NewPlaintext creates a new Plaintext of level level and scale scale.
 func NewPlaintext(params *Parameters, level uint64, scale float64) *Plaintext {
 
-	if !params.isValid {
-		panic("cannot NewPlaintext: parameters are invalid (check if the generation was done properly)")
-	}
+	plaintext := &Plaintext{&Element{}, nil}
 
-	plaintext := &Plaintext{&ckksElement{}, nil}
+	plaintext.Element.value = []*ring.Poly{ring.NewPoly(params.N(), level+1)}
 
-	plaintext.ckksElement.value = []*ring.Poly{ring.NewPoly(1<<params.LogN, level+1)}
-
-	plaintext.value = plaintext.ckksElement.value[0]
+	plaintext.value = plaintext.Element.value[0]
 
 	plaintext.scale = scale
 	plaintext.isNTT = true

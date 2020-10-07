@@ -3,26 +3,32 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // RKGProtocolNaive is a structure storing the parameters for the naive EKG protocol.
 type RKGProtocolNaive struct {
-	dckksContext *dckksContext
-	polypool     *ring.Poly
+	dckksContext             *dckksContext
+	polypool                 *ring.Poly
+	gaussianSampler          *ring.GaussianSampler
+	ternarySamplerMontgomery *ring.TernarySampler
 }
 
 // NewRKGProtocolNaive creates a new RKGProtocolNaive object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
 func NewRKGProtocolNaive(params *ckks.Parameters) (rkg *RKGProtocolNaive) {
 
-	if !params.IsValid() {
-		panic("cannot NewRKGProtocolNaive : params not valid (check if they where generated properly)")
-	}
-
 	rkg = new(RKGProtocolNaive)
 	dckksContext := newDckksContext(params)
 	rkg.dckksContext = dckksContext
-	rkg.polypool = dckksContext.contextQP.NewPoly()
+	rkg.polypool = dckksContext.ringQP.NewPoly()
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	rkg.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.ringQP, params.Sigma(), uint64(6*params.Sigma()))
+	rkg.ternarySamplerMontgomery = ring.NewTernarySampler(prng, dckksContext.ringQP, 0.5, true)
+
 	return
 }
 
@@ -34,17 +40,17 @@ type RKGNaiveShareRoundTwo [][2]*ring.Poly
 
 // AllocateShares allocates the share of the RKG naive protocol.
 func (rkg *RKGProtocolNaive) AllocateShares() (r1 RKGNaiveShareRoundOne, r2 RKGNaiveShareRoundTwo) {
-	contextQP := rkg.dckksContext.contextQP
+	ringQP := rkg.dckksContext.ringQP
 
 	r1 = make([][2]*ring.Poly, rkg.dckksContext.beta)
 	r2 = make([][2]*ring.Poly, rkg.dckksContext.beta)
 
 	for i := uint64(0); i < rkg.dckksContext.beta; i++ {
-		r1[i][0] = contextQP.NewPoly()
-		r1[i][1] = contextQP.NewPoly()
+		r1[i][0] = ringQP.NewPoly()
+		r1[i][1] = ringQP.NewPoly()
 
-		r2[i][0] = contextQP.NewPoly()
-		r2[i][1] = contextQP.NewPoly()
+		r2[i][0] = ringQP.NewPoly()
+		r2[i][1] = ringQP.NewPoly()
 	}
 
 	return
@@ -58,21 +64,25 @@ func (rkg *RKGProtocolNaive) AllocateShares() (r1 RKGNaiveShareRoundOne, r2 RKGN
 // and broadcasts it to all other j-1 parties.
 func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, shareOut RKGNaiveShareRoundOne) {
 
-	contextQP := rkg.dckksContext.contextQP
+	ringQP := rkg.dckksContext.ringQP
 
 	rkg.polypool.Copy(sk)
 
-	contextQP.MulScalarBigint(rkg.polypool, rkg.dckksContext.contextP.ModulusBigint, rkg.polypool)
+	ringQP.MulScalarBigint(rkg.polypool, rkg.dckksContext.ringP.ModulusBigint, rkg.polypool)
 
-	contextQP.InvMForm(rkg.polypool, rkg.polypool)
+	ringQP.InvMForm(rkg.polypool, rkg.polypool)
 
 	var index uint64
 
 	for i := uint64(0); i < rkg.dckksContext.beta; i++ {
+
 		// h_0 = e0
-		rkg.dckksContext.gaussianSampler.SampleNTT(shareOut[i][0])
+		rkg.gaussianSampler.Read(shareOut[i][0])
+		ringQP.NTT(shareOut[i][0], shareOut[i][0])
+
 		// h_1 = e1
-		rkg.dckksContext.gaussianSampler.SampleNTT(shareOut[i][0])
+		rkg.gaussianSampler.Read(shareOut[i][1])
+		ringQP.NTT(shareOut[i][1], shareOut[i][1])
 
 		// h_0 = e0 + [sk*P*(qiBarre*qiStar)%qi = sk*P, else 0]
 
@@ -80,16 +90,16 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 			index = i*rkg.dckksContext.alpha + j
 
-			qi := contextQP.Modulus[index]
+			qi := ringQP.Modulus[index]
 			tmp0 := rkg.polypool.Coeffs[index]
 			tmp1 := shareOut[i][0].Coeffs[index]
 
-			for w := uint64(0); w < contextQP.N; w++ {
+			for w := uint64(0); w < ringQP.N; w++ {
 				tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= uint64(len(rkg.dckksContext.params.Qi)-1) {
+			if index >= rkg.dckksContext.params.QiCount() {
 				break
 			}
 		}
@@ -97,11 +107,12 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 
 	for i := uint64(0); i < rkg.dckksContext.beta; i++ {
 		// u
-		contextQP.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
+		rkg.ternarySamplerMontgomery.Read(rkg.polypool)
+		ringQP.NTT(rkg.polypool, rkg.polypool)
 		// h_0 = pk_0 * u + e0 + P * sk * (qiBarre*qiStar)%qi
-		contextQP.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
+		ringQP.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
 		// h_1 = pk_1 * u + e1 + P * sk * (qiBarre*qiStar)%qi
-		contextQP.MulCoeffsMontgomeryAndAdd(pk[1], rkg.polypool, shareOut[i][1])
+		ringQP.MulCoeffsMontgomeryAndAdd(pk[1], rkg.polypool, shareOut[i][1])
 	}
 
 	rkg.polypool.Zero()
@@ -114,11 +125,11 @@ func (rkg *RKGProtocolNaive) GenShareRoundOne(sk *ring.Poly, pk [2]*ring.Poly, s
 // = [cpk[0] * u + P * s + e_0, cpk[1]*u + e_1]
 func (rkg *RKGProtocolNaive) AggregateShareRoundOne(share1, share2, shareOut RKGNaiveShareRoundOne) {
 
-	contextQP := rkg.dckksContext.contextQP
+	ringQP := rkg.dckksContext.ringQP
 
 	for i := uint64(0); i < rkg.dckksContext.beta; i++ {
-		contextQP.Add(share1[i][0], share2[i][0], shareOut[i][0])
-		contextQP.Add(share1[i][1], share2[i][1], shareOut[i][1])
+		ringQP.Add(share1[i][0], share2[i][0], shareOut[i][0])
+		ringQP.Add(share1[i][1], share2[i][1], shareOut[i][1])
 	}
 
 }
@@ -132,31 +143,34 @@ func (rkg *RKGProtocolNaive) AggregateShareRoundOne(share1, share2, shareOut RKG
 // And each party broadcasts this last result to the other j-1 parties.
 func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *ring.Poly, pk [2]*ring.Poly, shareOut RKGNaiveShareRoundTwo) {
 
-	contextQP := rkg.dckksContext.contextQP
+	ringQP := rkg.dckksContext.ringQP
 
 	for i := uint64(0); i < rkg.dckksContext.beta; i++ {
 
 		// h_0 = sum(samples[0]) * sk
 		// h_1 = sum(samples[1]) * sk
-		contextQP.MulCoeffsMontgomery(round1[i][0], sk, shareOut[i][0])
-		contextQP.MulCoeffsMontgomery(round1[i][1], sk, shareOut[i][1])
+		ringQP.MulCoeffsMontgomery(round1[i][0], sk, shareOut[i][0])
+		ringQP.MulCoeffsMontgomery(round1[i][1], sk, shareOut[i][1])
 
 		// v
-		contextQP.SampleTernaryMontgomeryNTT(rkg.polypool, 0.5)
+		rkg.ternarySamplerMontgomery.Read(rkg.polypool)
+		ringQP.NTT(rkg.polypool, rkg.polypool)
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v
-		contextQP.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
+		ringQP.MulCoeffsMontgomeryAndAdd(pk[0], rkg.polypool, shareOut[i][0])
 
 		// h_1 = sum(samples[1]) * sk + pk1 * v
-		contextQP.MulCoeffsMontgomeryAndAdd(pk[1], rkg.polypool, shareOut[i][1])
+		ringQP.MulCoeffsMontgomeryAndAdd(pk[1], rkg.polypool, shareOut[i][1])
 
 		// h_0 = sum(samples[0]) * sk + pk0 * v + e2
-		rkg.dckksContext.gaussianSampler.SampleNTT(rkg.polypool)
-		contextQP.Add(shareOut[i][0], rkg.polypool, shareOut[i][0])
+		rkg.gaussianSampler.Read(rkg.polypool)
+		ringQP.NTT(rkg.polypool, rkg.polypool)
+		ringQP.Add(shareOut[i][0], rkg.polypool, shareOut[i][0])
 
 		// h_1 = sum(samples[1]) * sk + pk1 * v + e3
-		rkg.dckksContext.gaussianSampler.SampleNTT(rkg.polypool)
-		contextQP.Add(shareOut[i][1], rkg.polypool, shareOut[i][1])
+		rkg.gaussianSampler.Read(rkg.polypool)
+		ringQP.NTT(rkg.polypool, rkg.polypool)
+		ringQP.Add(shareOut[i][1], rkg.polypool, shareOut[i][1])
 
 	}
 
@@ -173,18 +187,18 @@ func (rkg *RKGProtocolNaive) GenShareRoundTwo(round1 RKGNaiveShareRoundOne, sk *
 // = [-s*b + P * s^2 - (s*u + b) * e_cpk + s*e_0 + e_2, b + s*e_1 + e_3]
 func (rkg *RKGProtocolNaive) AggregateShareRoundTwo(share1, share2, shareOut RKGNaiveShareRoundTwo) {
 
-	contextQP := rkg.dckksContext.contextQP
+	ringQP := rkg.dckksContext.ringQP
 
 	for i := uint64(0); i < rkg.dckksContext.beta; i++ {
-		contextQP.Add(share1[i][0], share2[i][0], shareOut[i][0])
-		contextQP.Add(share1[i][1], share2[i][1], shareOut[i][1])
+		ringQP.Add(share1[i][0], share2[i][0], shareOut[i][0])
+		ringQP.Add(share1[i][1], share2[i][1], shareOut[i][1])
 	}
 }
 
 // GenRelinearizationKey finalizes the protocol and returns the collective EvalutionKey.
 func (rkg *RKGProtocolNaive) GenRelinearizationKey(round2 RKGNaiveShareRoundTwo, evalKeyOut *ckks.EvaluationKey) {
 
-	contextQP := rkg.dckksContext.contextQP
+	ringQP := rkg.dckksContext.ringQP
 
 	key := evalKeyOut.Get().Get()
 	for i := uint64(0); i < rkg.dckksContext.beta; i++ {
@@ -192,8 +206,8 @@ func (rkg *RKGProtocolNaive) GenRelinearizationKey(round2 RKGNaiveShareRoundTwo,
 		key[i][0].Copy(round2[i][0])
 		key[i][1].Copy(round2[i][1])
 
-		contextQP.MForm(key[i][0], key[i][0])
-		contextQP.MForm(key[i][1], key[i][1])
+		ringQP.MForm(key[i][0], key[i][0])
+		ringQP.MForm(key[i][1], key[i][1])
 
 	}
 }

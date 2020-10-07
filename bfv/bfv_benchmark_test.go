@@ -4,161 +4,159 @@ import (
 	"testing"
 )
 
-type benchParams struct {
-	params Parameters
-}
-
 func BenchmarkBFV(b *testing.B) {
-	b.Run("Encoder", benchEncoder)
-	b.Run("KeyGen", benchKeyGen)
-	b.Run("Encrypt", benchEncrypt)
-	b.Run("Decrypt", benchDecrypt)
-	b.Run("Evaluator", benchEvaluator)
-}
+	var err error
+	var testctx = new(testContext)
+	var defaultParams []*Parameters
 
-func benchEncoder(b *testing.B) {
+	if testing.Short() {
+		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
+	} else {
+		defaultParams = DefaultParams
+	}
 
-	for _, parameters := range testParams.bfvParameters {
+	for _, p := range defaultParams {
 
-		params := genBfvParams(parameters)
+		if testctx, err = genTestParams(p); err != nil {
+			panic(err)
+		}
 
-		encoder := params.encoder
-
-		coeffs := params.bfvContext.contextT.NewUniformPoly()
-		plaintext := NewPlaintext(params.params)
-
-		b.Run(testString("Encode/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
-			}
-		})
-
-		b.Run(testString("Decode/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				params.encoder.DecodeUint(plaintext)
-			}
-		})
+		benchEncoder(testctx, b)
+		benchKeyGen(testctx, b)
+		benchEncrypt(testctx, b)
+		benchDecrypt(testctx, b)
+		benchEvaluator(testctx, b)
 	}
 }
 
-func benchKeyGen(b *testing.B) {
+func benchEncoder(testctx *testContext, b *testing.B) {
 
-	for _, parameters := range testParams.bfvParameters {
+	encoder := testctx.encoder
+	coeffs := testctx.uSampler.ReadNew()
+	plaintext := NewPlaintext(testctx.params)
 
-		params := genBfvParams(parameters)
-		kgen := params.kgen
-		sk := params.sk
+	b.Run(testString("Encoder/Encode/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
+		}
+	})
 
-		b.Run(testString("KeyPairGen/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				kgen.GenKeyPair()
-			}
-		})
-
-		b.Run(testString("SwitchKeyGen/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				kgen.GenRelinKey(sk, 1)
-			}
-		})
-	}
+	b.Run(testString("Encoder/Decode/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			testctx.encoder.DecodeUint(plaintext)
+		}
+	})
 }
 
-func benchEncrypt(b *testing.B) {
-	for _, parameters := range testParams.bfvParameters {
+func benchKeyGen(testctx *testContext, b *testing.B) {
 
-		params := genBfvParams(parameters)
-		encryptorPk := params.encryptorPk
-		encryptorSk := params.encryptorSk
+	kgen := testctx.kgen
+	sk := testctx.sk
 
-		plaintext := NewPlaintext(parameters)
-		ciphertext := NewCiphertextRandom(parameters, 1)
+	b.Run(testString("KeyGen/KeyPairGen/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			kgen.GenKeyPair()
+		}
+	})
 
-		b.Run(testString("Sk/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encryptorPk.Encrypt(plaintext, ciphertext)
-			}
-		})
-
-		b.Run(testString("Pk/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encryptorSk.Encrypt(plaintext, ciphertext)
-			}
-		})
-	}
+	b.Run(testString("KeyGen/SwitchKeyGen/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			kgen.GenRelinKey(sk, 1)
+		}
+	})
 }
 
-func benchDecrypt(b *testing.B) {
-	for _, parameters := range testParams.bfvParameters {
+func benchEncrypt(testctx *testContext, b *testing.B) {
 
-		params := genBfvParams(parameters)
-		decryptor := params.decryptor
+	encryptorPk := testctx.encryptorPk
+	encryptorSk := testctx.encryptorSk
 
-		plaintext := NewPlaintext(parameters)
-		ciphertext := NewCiphertextRandom(parameters, 1)
+	plaintext := NewPlaintext(testctx.params)
+	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
-		b.Run(testString("", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				decryptor.Decrypt(ciphertext, plaintext)
-			}
-		})
-	}
+	b.Run(testString("Encrypt/Pk/Slow", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encryptorPk.Encrypt(plaintext, ciphertext)
+		}
+	})
+
+	b.Run(testString("Encrypt/Pk/Fast", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encryptorPk.EncryptFast(plaintext, ciphertext)
+		}
+	})
+
+	b.Run(testString("Encrypt/Pk/Fast", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encryptorSk.Encrypt(plaintext, ciphertext)
+		}
+	})
 }
 
-func benchEvaluator(b *testing.B) {
-	for _, parameters := range testParams.bfvParameters {
-		params := genBfvParams(parameters)
-		evaluator := params.evaluator
+func benchDecrypt(testctx *testContext, b *testing.B) {
 
-		ciphertext1 := NewCiphertextRandom(parameters, 1)
-		ciphertext2 := NewCiphertextRandom(parameters, 1)
-		receiver := NewCiphertextRandom(parameters, 2)
+	decryptor := testctx.decryptor
+	plaintext := NewPlaintext(testctx.params)
+	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
-		rlk := params.kgen.GenRelinKey(params.sk, 1)
-		rotkey := NewRotationKeys()
-		params.kgen.GenRot(RotationLeft, params.sk, 1, rotkey)
-		params.kgen.GenRot(RotationRow, params.sk, 0, rotkey)
+	b.Run(testString("Decrypt/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			decryptor.Decrypt(ciphertext, plaintext)
+		}
+	})
+}
 
-		b.Run(testString("Add/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
-			}
-		})
+func benchEvaluator(testctx *testContext, b *testing.B) {
 
-		b.Run(testString("MulScalar/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.MulScalar(ciphertext1, 5, ciphertext1)
-			}
-		})
+	evaluator := testctx.evaluator
 
-		b.Run(testString("Mul/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.Mul(ciphertext1, ciphertext2, receiver)
-			}
-		})
+	ciphertext1 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
+	ciphertext2 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
+	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
 
-		b.Run(testString("Square/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.Mul(ciphertext1, ciphertext1, receiver)
-			}
-		})
+	rotkey := NewRotationKeys()
+	testctx.kgen.GenRot(RotationLeft, testctx.sk, 1, rotkey)
+	testctx.kgen.GenRot(RotationRow, testctx.sk, 0, rotkey)
 
-		b.Run(testString("Relin/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.Relinearize(receiver, rlk, ciphertext1)
-			}
-		})
+	b.Run(testString("Evaluator/Add/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
+		}
+	})
 
-		b.Run(testString("RotateRows/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.RotateRows(ciphertext1, rotkey, ciphertext1)
-			}
-		})
+	b.Run(testString("Evaluator/MulScalar/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.MulScalar(ciphertext1, 5, ciphertext1)
+		}
+	})
 
-		b.Run(testString("RotateCols/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
-			}
-		})
+	b.Run(testString("Evaluator/Mul/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Mul(ciphertext1, ciphertext2, receiver)
+		}
+	})
 
-	}
+	b.Run(testString("Evaluator/Square/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Mul(ciphertext1, ciphertext1, receiver)
+		}
+	})
+
+	b.Run(testString("Evaluator/Relin/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Relinearize(receiver, testctx.rlk, ciphertext1)
+		}
+	})
+
+	b.Run(testString("Evaluator/RotateRows/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.RotateRows(ciphertext1, rotkey, ciphertext1)
+		}
+	})
+
+	b.Run(testString("Evaluator/RotateCols/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
+		}
+	})
 }

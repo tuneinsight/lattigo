@@ -3,6 +3,7 @@ package dbfv
 import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 type dbfvContext struct {
@@ -14,63 +15,56 @@ type dbfvContext struct {
 	// floor(Q/T) mod each Qi in Montgomery form
 	deltaMont []uint64
 
-	// Ternary and Gaussian samplers
-	gaussianSampler *ring.KYSampler
-
 	// Polynomial contexts
-	contextT  *ring.Context
-	contextQ  *ring.Context
-	contextP  *ring.Context
-	contextQP *ring.Context
+	ringT  *ring.Ring
+	ringQ  *ring.Ring
+	ringP  *ring.Ring
+	ringQP *ring.Ring
 }
 
 func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 
-	if !params.IsValid() {
-		panic("cannot newDbfvContext : params not valid (check if they where generated properly)")
-	}
+	n := params.N()
 
-	LogN := params.LogN
-	n := uint64(1 << LogN)
-
-	contextT, err := ring.NewContextWithParams(n, []uint64{params.T})
+	ringT, err := ring.NewRing(n, []uint64{params.T()})
 	if err != nil {
 		panic(err)
 	}
 
-	contextQ, err := ring.NewContextWithParams(n, params.Qi)
+	ringQ, err := ring.NewRing(n, params.Qi())
 	if err != nil {
 		panic(err)
 	}
 
-	contextP, err := ring.NewContextWithParams(n, params.Pi)
+	ringP, err := ring.NewRing(n, params.Pi())
 	if err != nil {
 		panic(err)
 	}
 
-	contextQP, err := ring.NewContextWithParams(n, append(params.Qi, params.Pi...))
+	ringQP, err := ring.NewRing(n, append(params.Qi(), params.Pi()...))
 	if err != nil {
 		panic(err)
 	}
 
-	deltaMont := bfv.GenLiftParams(contextQ, params.T)
-
-	gaussianSampler := contextQP.NewKYSampler(params.Sigma, int(6*params.Sigma))
+	deltaMont := bfv.GenLiftParams(ringQ, params.T())
 
 	return &dbfvContext{
-		params:          params.Copy(),
-		n:               n,
-		deltaMont:       deltaMont,
-		gaussianSampler: gaussianSampler,
-		contextT:        contextT,
-		contextQ:        contextQ,
-		contextP:        contextP,
-		contextQP:       contextQP,
+		params:    params.Copy(),
+		n:         n,
+		deltaMont: deltaMont,
+		ringT:     ringT,
+		ringQ:     ringQ,
+		ringP:     ringP,
+		ringQP:    ringQP,
 	}
 }
 
-// NewCRPGenerator creates a CRPGenerator
-func NewCRPGenerator(params *bfv.Parameters, key []byte) *ring.CRPGenerator {
+// NewCRPGenerator creates a new deterministic random polynomial generator.
+func NewCRPGenerator(params *bfv.Parameters, key []byte) *ring.UniformSampler {
 	ctx := newDbfvContext(params)
-	return ring.NewCRPGenerator(key, ctx.contextQP)
+	prng, err := utils.NewKeyedPRNG(key)
+	if err != nil {
+		panic(err)
+	}
+	return ring.NewUniformSampler(prng, ctx.ringQP)
 }

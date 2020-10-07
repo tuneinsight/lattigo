@@ -47,6 +47,9 @@ _testmain.go
 # vendor/
 
 .idea/
+.vscode/
+
 
 # generated
 /Coding
+

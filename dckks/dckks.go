@@ -3,7 +3,7 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/ckks"
 	"github.com/ldsec/lattigo/ring"
-	"math"
+	"github.com/ldsec/lattigo/utils"
 )
 
 type dckksContext struct {
@@ -11,11 +11,9 @@ type dckksContext struct {
 
 	n uint64
 
-	gaussianSampler *ring.KYSampler
-
-	contextQ  *ring.Context
-	contextP  *ring.Context
-	contextQP *ring.Context
+	ringQ  *ring.Ring
+	ringP  *ring.Ring
+	ringQP *ring.Ring
 
 	alpha uint64
 	beta  uint64
@@ -23,41 +21,37 @@ type dckksContext struct {
 
 func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 
-	if !params.IsValid() {
-		panic("cannot newDckksContext : params not valid (check if they where generated properly)")
-	}
-
 	context = new(dckksContext)
 
 	context.params = params.Copy()
 
-	n := uint64(1 << params.LogN)
+	context.n = params.N()
 
-	context.n = n
-
-	context.alpha = uint64(len(params.Pi))
-	context.beta = uint64(math.Ceil(float64(len(params.Qi)) / float64(context.alpha)))
+	context.alpha = params.Alpha()
+	context.beta = params.Beta()
 
 	var err error
-	if context.contextQ, err = ring.NewContextWithParams(n, params.Qi); err != nil {
+	if context.ringQ, err = ring.NewRing(params.N(), params.Qi()); err != nil {
 		panic(err)
 	}
 
-	if context.contextP, err = ring.NewContextWithParams(n, params.Pi); err != nil {
+	if context.ringP, err = ring.NewRing(params.N(), params.Pi()); err != nil {
 		panic(err)
 	}
 
-	if context.contextQP, err = ring.NewContextWithParams(n, append(params.Qi, params.Pi...)); err != nil {
+	if context.ringQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
 		panic(err)
 	}
-
-	context.gaussianSampler = context.contextQP.NewKYSampler(params.Sigma, int(params.Sigma*6))
 
 	return
 }
 
-// NewCRPGenerator creates a CRPGenerator
-func NewCRPGenerator(params *ckks.Parameters, key []byte) *ring.CRPGenerator {
+// NewCRPGenerator creates a new deterministic random polynomial generator.
+func NewCRPGenerator(params *ckks.Parameters, key []byte) *ring.UniformSampler {
 	ctx := newDckksContext(params)
-	return ring.NewCRPGenerator(key, ctx.contextQP)
+	prng, err := utils.NewKeyedPRNG(key)
+	if err != nil {
+		panic(err)
+	}
+	return ring.NewUniformSampler(prng, ctx.ringQP)
 }

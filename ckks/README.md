@@ -28,13 +28,13 @@ where <img src="https://latex.codecogs.com/gif.latex?%5Cotimes"> represents a co
 
 ![equation](https://latex.codecogs.com/gif.latex?N%20%3D%202%5E%7BlogN%7D): the ring dimension, which defines the degree of the cyclotomic polynomial, and the number of coefficients of the plaintext/ciphertext polynomials; it should always be a power of two. This parameter has an impact on both security and performance (security increases with N and performance decreases with N). It should be chosen carefully to suit the intended use of the scheme.
 
-![equation](https://latex.codecogs.com/gif.latex?Q): the ciphertext modulus. In Lattigo, it is chosen to be the product of a chain of small coprime moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) verifying ![equation](https://latex.codecogs.com/gif.latex?q_i%20%5Cequiv%201%20%5Cmod%202N) in order to enable both the RNS and NTT representation. The used moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) are chosen to be of size 30 to 60 bits for the best performance. This parameter has an impact on both security and performance (for a fixed ![equation](https://latex.codecogs.com/gif.latex?N), a higher ![equation](https://latex.codecogs.com/gif.latex?Q) implies both lower security and lower performance). It is closely related to ![equation](https://latex.codecogs.com/gif.latex?N) and should be chosen carefully to suit the intended use of the scheme.
+![equation](https://latex.codecogs.com/gif.latex?Q): the ciphertext modulus. In Lattigo, it is chosen to be the product of a chain of small coprime moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) that verify ![equation](https://latex.codecogs.com/gif.latex?q_i%20%5Cequiv%201%20%5Cmod%202N) in order to enable both the RNS and NTT representation. The used moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) are chosen to be of size 30 to 60 bits for the best performance. This parameter has an impact on both security and performance (for a fixed ![equation](https://latex.codecogs.com/gif.latex?N), a larger ![equation](https://latex.codecogs.com/gif.latex?Q) implies both lower security and lower performance). It is closely related to ![equation](https://latex.codecogs.com/gif.latex?N) and should be carefully chosen to suit the intended use of the scheme.
 
-![equation](https://latex.codecogs.com/gif.latex?%5Csigma): the variance used for the error polynomials. This parameter is closely tied to the security of the scheme (a higher ![equation](https://latex.codecogs.com/gif.latex?%5Csigma) implies higher security).
+![equation](https://latex.codecogs.com/gif.latex?%5Csigma): the variance used for the error polynomials. This parameter is closely tied to the security of the scheme (a larger ![equation](https://latex.codecogs.com/gif.latex?%5Csigma) implies higher security).
 
 ## Other parameters
 
-![equation](https://latex.codecogs.com/gif.latex?scale): the plaintext scale. Since complex numbers are encoded on polynomials with integer coefficients, the original values must be scaled during the encoding, before being rounded to the nearest integer. The ![equation](https://latex.codecogs.com/gif.latex?scale) parameter is the power of two by which the values are multiplied during the encoding. It has an impact on the precision of the output and on the amount of operations a fresh encyrption can undergo before overflowing.
+![equation](https://latex.codecogs.com/gif.latex?scale): the plaintext scale. Since complex numbers are encoded on polynomials with integer coefficients, the original values must be scaled during the encoding, before being rounded to the nearest integer. The ![equation](https://latex.codecogs.com/gif.latex?scale) parameter is the power of two by which the values are multiplied during the encoding. It has an impact on the precision of the output and on the amount of operations a fresh encryption can undergo before overflowing.
 
 ## Choosing the right parameters for a given application
 
@@ -57,7 +57,7 @@ The following parameters will work for the posed example:
 - **Modulichain** = [45, 40, 40, 40, 40], for a logQ <= 205
 - **LogScale** = 40
 
-But it is also possible to use less levels to have ciphertexts of smaller size and, therefore, a faster evaluation, at the expense of less precision. This can be achieved by using a scale of 30 bits and squeezing two multiplications in a single level, while pre-computing the last scalar multiplication already in the plaintext. Instead of evaluating *a + bx + cx^3 + dx^5*, we pre-multply the plaintext by d^(1/5) and evaluate *a + b/(d^(1/5))x + c/(d^(3/5)) + x^5*.
+But it is also possible to use less levels to have ciphertexts of smaller size and, therefore, a faster evaluation, at the expense of less precision. This can be achieved by using a scale of 30 bits and squeezing two multiplications in a single level, while pre-computing the last scalar multiplication already in the plaintext. Instead of evaluating *a + bx + cx^3 + dx^5*, we pre-multiply the plaintext by d^(1/5) and evaluate *a + b/(d^(1/5))x + c/(d^(3/5)) + x^5*.
 
 The following parameters are enough to evaluate this modified function:
 
@@ -73,7 +73,6 @@ The CKKS scheme supports the standard recommended parameters chosen to offer a s
 
 Each set of security parameters is defined by the tuple ![equation](https://latex.codecogs.com/gif.latex?%5C%7Blog_2%28N%29%2C%20log_2%28Q%29%2C%20%5Csigma%5C%7D) :
 
-- **{11, 54, 3.2}**
 - **{12, 109, 3.2}**
 - **{13, 218, 3.2}**
 - **{14, 438, 3.2}**

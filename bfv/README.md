@@ -1,6 +1,6 @@
 # BFV
 
-The package BFV is an RNS-accelerated implementation of the Fan-Vercauteren version of Brakerski's scale invariant homomorphic encryption scheme. It provides modular arithmetic over the integers.
+The BFV package is an RNS-accelerated implementation of the Fan-Vercauteren version of Brakerski's scale-invariant homomorphic encryption scheme. It provides modular arithmetic over the integers.
 
 ## Brief description
 
@@ -28,11 +28,11 @@ where  represents &nbsp; ![equation](https://latex.codecogs.com/gif.latex?%24%5C
 
 ## Security parameters
 
-![equation](https://latex.codecogs.com/gif.latex?N%20%3D%202%5E%7BlogN%7D): the ring dimension, which defines the degree of the cyclotomic polynomial, and the number of coefficients of the plaintext/ciphertext polynomials; it should always be a power of two. This parameter has an impact on both security and performance (security increases with N and performance decreases with N). It should be chosen carefully to suit the intended use of the scheme.
+![equation](https://latex.codecogs.com/gif.latex?N%20%3D%202%5E%7BlogN%7D): the ring dimension, which defines the degree of the cyclotomic polynomial, and the number of coefficients of the plaintext/ciphertext polynomials; it should always be a power of two. This parameter has an impact on both security and performance (security increases with N and performance decreases with N). It should be carefully chosen to suit the intended use of the scheme.
 
-![equation](https://latex.codecogs.com/gif.latex?Q): the ciphertext modulus. In Lattigo, it is chosen to be the product of small coprime moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) verifying ![equation](https://latex.codecogs.com/gif.latex?q_i%20%5Cequiv%201%20%5Cmod%202N) in order to enable both the RNS and NTT representation. The used moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) are chosen to be of size 50 to 60 bits for the best performance. This parameter has an impact on both security and performance (for a fixed ![equation](https://latex.codecogs.com/gif.latex?N), a higher ![equation](https://latex.codecogs.com/gif.latex?Q) implies both lower security and lower performance). It is closely related to ![equation](https://latex.codecogs.com/gif.latex?N) and should be chosen carefully to suit the intended use of the scheme.
+![equation](https://latex.codecogs.com/gif.latex?Q): the ciphertext modulus. In Lattigo, it is chosen to be the product of small coprime moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) that verify ![equation](https://latex.codecogs.com/gif.latex?q_i%20%5Cequiv%201%20%5Cmod%202N) in order to enable both the RNS and NTT representation. The used moduli ![equation](https://latex.codecogs.com/gif.latex?q_i) are chosen to be of size 50 to 60 bits for the best performance. This parameter has an impact on both security and performance (for a fixed ![equation](https://latex.codecogs.com/gif.latex?N), a larger ![equation](https://latex.codecogs.com/gif.latex?Q) implies both lower security and lower performance). It is closely related to ![equation](https://latex.codecogs.com/gif.latex?N) and should be chosen carefully to suit the intended use of the scheme.
 
-![equation](https://latex.codecogs.com/gif.latex?%5Csigma): the variance used for the error polynomials. This parameter is closely tied to the security of the scheme (a higher ![equation](https://latex.codecogs.com/gif.latex?%5Csigma) implies higher security).
+![equation](https://latex.codecogs.com/gif.latex?%5Csigma): the variance used for the error polynomials. This parameter is closely tied to the security of the scheme (a larger ![equation](https://latex.codecogs.com/gif.latex?%5Csigma) implies higher security).
 
 ## Other parameters
 
@@ -46,11 +46,10 @@ The BFV scheme supports the standard recommended parameters chosen to offer a se
 
 Each set of parameters is defined by the tuple ![equation](https://latex.codecogs.com/gif.latex?%5C%7Blog_2%28N%29%2C%20log_2%28Q%29%2C%20%5Csigma%5C%7D):
 
-- {11, 54, 3.2}
-- {12, 109, 3.2}
-- {13, 218, 3.2}
-- {14, 438, 3.2}
-- {15, 881, 3.2}
+- **{12, 109, 3.2}**
+- **{13, 218, 3.2}**
+- **{14, 438, 3.2}**
+- **{15, 881, 3.2}**
 
 These parameter sets are hard-coded in the file [params.go](https://github.com/ldsec/lattigo/blob/master/bfv/params.go). By default the variance should always be set to 3.2 unless the user is perfectly aware of the security implications of changing this parameter.
 

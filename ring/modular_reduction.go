@@ -5,13 +5,8 @@ import (
 	"math/bits"
 )
 
-//============================
-//=== Montgomery REDUCTION ===
-//============================
-
-// MForm returns a*2^64 mod q. It takes the input a in
-// conventional form and returns r which is the
-// the Montgomery form of a of a mod q with a radix of 2^64.
+// MForm switches a to the Montgomery domain by computing
+// a*2^64 mod q.
 func MForm(a, q uint64, u []uint64) (r uint64) {
 	mhi, _ := bits.Mul64(a, u[1])
 	r = -(a*u[0] + mhi) * q
@@ -21,16 +16,17 @@ func MForm(a, q uint64, u []uint64) (r uint64) {
 	return
 }
 
-// MFormConstant is identical to MForm, except that it runs in constant time
-// and returns a value in [0, 2q-1] (it omits the conditional reduction).
+// MFormConstant switches a to the Montgomery domain by computing
+// a*2^64 mod q in constant time.
+// The result is between 0 and 2*q-1.
 func MFormConstant(a, q uint64, u []uint64) (r uint64) {
 	mhi, _ := bits.Mul64(a, u[1])
 	r = -(a*u[0] + mhi) * q
 	return
 }
 
-// InvMForm returns a*(1/2^64) mod q. It takes the input a in
-// Montgomery form mod q with a radix of 2^64 and returns r which is the normal form of a mod q.
+// InvMForm switches a from the Montgomery domain back to the
+// standard domain by computing a*(1/2^64) mod q.
 func InvMForm(a, q, qInv uint64) (r uint64) {
 	r, _ = bits.Mul64(a*qInv, q)
 	r = q - r
@@ -40,8 +36,9 @@ func InvMForm(a, q, qInv uint64) (r uint64) {
 	return
 }
 
-// InvMFormConstant is indentical to InvMForm, except that it runs in constant time
-// and returns a value in [0, 2q-1].
+// InvMFormConstant switches a from the Montgomery domain back to the
+// standard domain by computing a*(1/2^64) mod q in constant time.
+// The result is between 0 and 2*q-1.
 func InvMFormConstant(a, q, qInv uint64) (r uint64) {
 	r, _ = bits.Mul64(a*qInv, q)
 	r = q - r
@@ -51,49 +48,36 @@ func InvMFormConstant(a, q, qInv uint64) (r uint64) {
 // MRedParams computes the parameter qInv = (q^-1) mod 2^64,
 // required for MRed.
 func MRedParams(q uint64) (qInv uint64) {
-	var x uint64
 	qInv = 1
-	x = q
 	for i := 0; i < 63; i++ {
-		qInv *= x
-		qInv &= 0xFFFFFFFFFFFFFFFF
-		x *= x
-		x &= 0xFFFFFFFFFFFFFFFF
+		qInv *= q
+		q *= q
 	}
 	return
 }
 
-// MRed computes x * y * (1/2^64) mod q. Requires that at least one of the inputs is in
-// Montgomery form. If only one of the inputs is in Montgomery form (ex : a pre-computed constant),
-// the result will be in normal form. If both inputs are in Montgomery form, then the result
-// will be in Montgomery form.
+// MRed computes x * y * (1/2^64) mod q.
 func MRed(x, y, q, qInv uint64) (r uint64) {
-	ahi, alo := bits.Mul64(x, y)
-	R := alo * qInv
-	H, _ := bits.Mul64(R, q)
-	r = ahi - H + q
+	mhi, mlo := bits.Mul64(x, y)
+	hhi, _ := bits.Mul64(mlo*qInv, q)
+	r = mhi - hhi + q
 	if r >= q {
 		r -= q
 	}
 	return
 }
 
-// MRedConstant is identical to MRed except it runs in
-// constant time and returns a value in [0, 2q-1].
+// MRedConstant computes x * y * (1/2^64) mod q in constant time.
+// The result is between 0 and 2*q-1.
 func MRedConstant(x, y, q, qInv uint64) (r uint64) {
 	ahi, alo := bits.Mul64(x, y)
-	R := alo * qInv
-	H, _ := bits.Mul64(R, q)
+	H, _ := bits.Mul64(alo*qInv, q)
 	r = ahi - H + q
 	return
 }
 
-//==========================
-//=== BARRETT REDUCTION  ===
-//==========================
-
-// BRedParams computes the parameters required for the BRed with
-// a radix of 2^128.
+// BRedParams computes the parameters for the BRed algorithm.
+// Returns ((2^128)/q)/(2^64) and (2^128)/q mod 2^64.
 func BRedParams(q uint64) (params []uint64) {
 	bigR := new(big.Int).Lsh(NewUint(1), 128)
 	bigR.Quo(bigR, NewUint(q))
@@ -105,60 +89,53 @@ func BRedParams(q uint64) (params []uint64) {
 	return []uint64{mhi, mlo}
 }
 
-// BRedAdd reduces a 64 bit integer by q.
-// Assumes that x <= 64bits. Useful when several additions
-// are performed before a modular reduction, as it is faster than
-// applying a conditional reduction after each addition.
-func BRedAdd(x, q uint64, u []uint64) (r uint64) {
-	s0, _ := bits.Mul64(x, u[0])
-	r = x - s0*q
+// BRedAdd computes a mod q.
+func BRedAdd(a, q uint64, u []uint64) (r uint64) {
+	mhi, _ := bits.Mul64(a, u[0])
+	r = a - mhi*q
 	if r >= q {
 		r -= q
 	}
 	return
 }
 
-// BRedAddConstant is indentical to BReAdd, except it runs
-// in constant time and returns a value in [0, 2q-1].
+// BRedAddConstant computes a mod q in constant time.
+// The result is between 0 and 2*q-1.
 func BRedAddConstant(x, q uint64, u []uint64) uint64 {
 	s0, _ := bits.Mul64(x, u[0])
 	return x - s0*q
 }
 
-// BRed compute x*y mod q for arbitrary x,y uint64. To be used
-// when both x,y can not be pre-computed. However applying a Montgomery
-// transform on either a or b might be faster depending on the computation
-// to do, especially if either x or y needs to be multiplied with several other
-// values.
+// BRed computes x*y mod q.
 func BRed(x, y, q uint64, u []uint64) (r uint64) {
 
-	var lhi, mhi, mlo, s0, s1, carry uint64
+	var mhi, mlo, lhi, hhi, hlo, s0, carry uint64
 
-	ahi, alo := bits.Mul64(x, y)
+	mhi, mlo = bits.Mul64(x, y)
 
-	// (alo*ulo)>>64
+	// computes r = mhi * uhi + (mlo * uhi + mhi * ulo)<<64 + (mlo * ulo)) >> 128
 
-	lhi, _ = bits.Mul64(alo, u[1])
+	r = mhi * u[0] // r = mhi * uhi
 
-	// ((ahi*ulo + alo*uhi) + (alo*ulo))>>64
+	hhi, hlo = bits.Mul64(mlo, u[0]) // mlo * uhi
 
-	mhi, mlo = bits.Mul64(alo, u[0])
+	r += hhi
 
-	s0, carry = bits.Add64(mlo, lhi, 0)
+	lhi, _ = bits.Mul64(mlo, u[1]) // mlo * ulo
 
-	s1 = mhi + carry
+	s0, carry = bits.Add64(hlo, lhi, 0)
 
-	mhi, mlo = bits.Mul64(ahi, u[1])
+	r += carry
 
-	_, carry = bits.Add64(mlo, s0, 0)
+	hhi, hlo = bits.Mul64(mhi, u[1]) // mhi * ulo
 
-	lhi = mhi + carry
+	r += hhi
 
-	// (ahi*uhi) + (((ahi*ulo + alo*uhi) + (alo*ulo))>>64)
+	_, carry = bits.Add64(hlo, s0, 0)
 
-	s0 = ahi*u[0] + s1 + lhi
+	r += carry
 
-	r = alo - s0*q
+	r = mlo - r*q
 
 	if r >= q {
 		r -= q
@@ -167,47 +144,42 @@ func BRed(x, y, q uint64, u []uint64) (r uint64) {
 	return
 }
 
-// BRedConstant is indentical to BRed, except it runs
-// in constant time and returns a value in [0, 2q-1].
+// BRedConstant computes x*y mod q in constant time.
+// The result is between 0 and 2*q-1.
 func BRedConstant(x, y, q uint64, u []uint64) (r uint64) {
 
-	var lhi, mhi, mlo, s0, s1, carry uint64
+	var mhi, mlo, lhi, hhi, hlo, s0, carry uint64
 
-	ahi, alo := bits.Mul64(x, y)
+	mhi, mlo = bits.Mul64(x, y)
 
-	// alo*ulo
+	// computes r = mhi * uhi + (mlo * uhi + mhi * ulo)<<64 + (mlo * ulo)) >> 128
 
-	lhi, _ = bits.Mul64(alo, u[1])
+	r = mhi * u[0] // r = mhi * uhi
 
-	// ahi*ulo + alo*uhi
+	hhi, hlo = bits.Mul64(mlo, u[0]) // mlo * uhi
 
-	mhi, mlo = bits.Mul64(alo, u[0])
+	r += hhi
 
-	s0, carry = bits.Add64(mlo, lhi, 0)
+	lhi, _ = bits.Mul64(mlo, u[1]) // mlo * ulo
 
-	s1 = mhi + carry
+	s0, carry = bits.Add64(hlo, lhi, 0)
 
-	mhi, mlo = bits.Mul64(ahi, u[1])
+	r += carry
 
-	_, carry = bits.Add64(mlo, s0, 0)
+	hhi, hlo = bits.Mul64(mhi, u[1]) // mhi * ulo
 
-	lhi = mhi + carry
+	r += hhi
 
-	// ahi*uhi
+	_, carry = bits.Add64(hlo, s0, 0)
 
-	s0 = ahi*u[0] + s1 + lhi
+	r += carry
 
-	r = alo - s0*q
+	r = mlo - r*q
 
 	return
 }
 
-//===============================
-//==== CONDITIONAL REDUCTION ====
-//===============================
-
-// CRed reduce returns a mod q, where
-// a is required to be in the range [0, 2q-1].
+// CRed reduce returns a mod q where a is between 0 and 2*q-1.
 func CRed(a, q uint64) uint64 {
 	if a >= q {
 		return a - q

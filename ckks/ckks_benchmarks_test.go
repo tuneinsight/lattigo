@@ -1,240 +1,263 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
 	"testing"
+
+	"github.com/ldsec/lattigo/ring"
 )
 
 func BenchmarkCKKSScheme(b *testing.B) {
-	b.Run("Encoder", benchEncoder)
-	b.Run("KeyGen", benchKeyGen)
-	b.Run("Encrypt", benchEncrypt)
-	b.Run("Decrypt", benchDecrypt)
-	b.Run("Evaluator", benchEvaluator)
-	b.Run("HoistedRotations", benchHoistedRotations)
-}
 
-func benchEncoder(b *testing.B) {
+	var err error
+	var testContext = new(testParams)
+	var defaultParams []*Parameters
 
-	for _, parameters := range testParams.ckksParameters {
-
-		params := genCkksParams(parameters)
-
-		encoder := params.encoder
-		slots := uint64(1 << parameters.LogSlots)
-
-		b.Run(testString("Encode/", parameters), func(b *testing.B) {
-
-			values := make([]complex128, slots)
-			for i := uint64(0); i < slots; i++ {
-				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
-			}
-
-			plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
-
-			for i := 0; i < b.N; i++ {
-				encoder.Encode(plaintext, values, slots)
-			}
-		})
-
-		b.Run(testString("Decode/", parameters), func(b *testing.B) {
-
-			values := make([]complex128, slots)
-			for i := uint64(0); i < slots; i++ {
-				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
-			}
-
-			plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
-			encoder.Encode(plaintext, values, slots)
-
-			for i := 0; i < b.N; i++ {
-				encoder.Decode(plaintext, slots)
-			}
-		})
+	if testing.Short() {
+		defaultParams = DefaultParams[PN12QP109+3 : PN12QP109+4]
+	} else {
+		defaultParams = DefaultParams
 	}
-}
 
-func benchKeyGen(b *testing.B) {
+	for _, defaultParams := range defaultParams {
 
-	for _, parameters := range testParams.ckksParameters {
-
-		params := genCkksParams(parameters)
-		kgen := params.kgen
-		sk := params.sk
-
-		b.Run(testString("KeyPairGen/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				kgen.GenKeyPair()
-			}
-		})
-
-		b.Run(testString("SwitchKeyGen/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				kgen.GenRelinKey(sk)
-			}
-		})
-	}
-}
-
-func benchEncrypt(b *testing.B) {
-	for _, parameters := range testParams.ckksParameters {
-
-		params := genCkksParams(parameters)
-		encryptorPk := params.encryptorPk
-		encryptorSk := params.encryptorSk
-
-		plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
-		ciphertext := NewCiphertext(parameters, 1, parameters.MaxLevel(), parameters.Scale)
-
-		b.Run(testString("Sk/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encryptorPk.Encrypt(plaintext, ciphertext)
-			}
-		})
-
-		b.Run(testString("Pk/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encryptorSk.Encrypt(plaintext, ciphertext)
-			}
-		})
-	}
-}
-
-func benchDecrypt(b *testing.B) {
-	for _, parameters := range testParams.ckksParameters {
-
-		params := genCkksParams(parameters)
-		decryptor := params.decryptor
-
-		plaintext := NewPlaintext(parameters, parameters.MaxLevel(), parameters.Scale)
-		ciphertext := NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
-
-		b.Run(testString("", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				decryptor.Decrypt(ciphertext, plaintext)
-			}
-		})
-	}
-}
-
-func benchEvaluator(b *testing.B) {
-	for _, parameters := range testParams.ckksParameters {
-		params := genCkksParams(parameters)
-		evaluator := params.evaluator
-
-		ciphertext1 := NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
-		ciphertext2 := NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
-		receiver := NewCiphertextRandom(parameters, 2, parameters.MaxLevel(), parameters.Scale)
-
-		rlk := params.kgen.GenRelinKey(params.sk)
-		rotkey := NewRotationKeys()
-		params.kgen.GenRot(RotationLeft, params.sk, 1, rotkey)
-		params.kgen.GenRot(Conjugate, params.sk, 0, rotkey)
-
-		b.Run(testString("Add/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
-			}
-		})
-
-		b.Run(testString("AddScalar/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.AddConst(ciphertext1, ciphertext2, ciphertext1)
-			}
-		})
-
-		b.Run(testString("MulScalar/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.MultByConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
-			}
-		})
-
-		b.Run(testString("Rescale/", parameters), func(b *testing.B) {
-
-			contextQ := params.ckkscontext.contextQ
-
-			for i := 0; i < b.N; i++ {
-				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
-				contextQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
-
-				b.StopTimer()
-				ciphertext1 = NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
-				b.StartTimer()
-			}
-		})
-
-		b.Run(testString("Mul/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.MulRelin(ciphertext1, ciphertext2, nil, receiver)
-			}
-		})
-
-		b.Run(testString("Square/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.MulRelin(ciphertext1, ciphertext1, nil, receiver)
-			}
-		})
-
-		b.Run(testString("Relin/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.Relinearize(receiver, rlk, ciphertext1)
-			}
-		})
-
-		b.Run(testString("Conjugate/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)
-			}
-		})
-
-		b.Run(testString("Rotate/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
-			}
-		})
-
-	}
-}
-
-func benchHoistedRotations(b *testing.B) {
-
-	for _, parameters := range testParams.ckksParameters {
-
-		params := genCkksParams(parameters)
-		evaluator := params.evaluator.(*evaluator)
-
-		rotkey := NewRotationKeys()
-		params.kgen.GenRot(RotationLeft, params.sk, 5, rotkey)
-
-		ciphertext := NewCiphertextRandom(parameters, 1, parameters.MaxLevel(), parameters.Scale)
-
-		contextQ := params.ckkscontext.contextQ
-		contextP := params.ckkscontext.contextP
-
-		c2NTT := ciphertext.value[1]
-		c2InvNTT := contextQ.NewPoly()
-		contextQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
-
-		c2QiQDecomp := make([]*ring.Poly, parameters.Beta())
-		c2QiPDecomp := make([]*ring.Poly, parameters.Beta())
-
-		for i := uint64(0); i < parameters.Beta(); i++ {
-			c2QiQDecomp[i] = contextQ.NewPoly()
-			c2QiPDecomp[i] = contextP.NewPoly()
+		if testContext, err = genTestParams(defaultParams, 0); err != nil {
+			panic(err)
 		}
 
-		b.Run(testString("DecomposeNTT/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				for j := uint64(0); j < parameters.Beta(); j++ {
-					evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
-				}
-			}
-		})
-
-		b.Run(testString("RotateHoisted/", parameters), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				evaluator.switchKeyHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, rotkey, ciphertext)
-			}
-		})
+		benchEncoder(testContext, b)
+		benchKeyGen(testContext, b)
+		benchEncrypt(testContext, b)
+		benchDecrypt(testContext, b)
+		benchEvaluator(testContext, b)
+		benchHoistedRotations(testContext, b)
 	}
+}
+
+func benchEncoder(testContext *testParams, b *testing.B) {
+
+	encoder := testContext.encoder
+	slots := testContext.params.Slots()
+
+	b.Run(testString(testContext, "Encoder/Encode/"), func(b *testing.B) {
+
+		values := make([]complex128, slots)
+		for i := uint64(0); i < slots; i++ {
+			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
+		}
+
+		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
+
+		for i := 0; i < b.N; i++ {
+			encoder.Encode(plaintext, values, slots)
+		}
+	})
+
+	b.Run(testString(testContext, "Encoder/Decode/"), func(b *testing.B) {
+
+		values := make([]complex128, slots)
+		for i := uint64(0); i < slots; i++ {
+			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
+		}
+
+		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
+		encoder.Encode(plaintext, values, slots)
+
+		for i := 0; i < b.N; i++ {
+			encoder.Decode(plaintext, slots)
+		}
+	})
+}
+
+func benchKeyGen(testContext *testParams, b *testing.B) {
+
+	kgen := testContext.kgen
+	sk := testContext.sk
+
+	b.Run(testString(testContext, "KeyGen/KeyPairGen/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			kgen.GenKeyPair()
+		}
+	})
+
+	b.Run(testString(testContext, "KeyGen/SwitchKeyGen/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			kgen.GenRelinKey(sk)
+		}
+	})
+}
+
+func benchEncrypt(testContext *testParams, b *testing.B) {
+
+	encryptorPk := testContext.encryptorPk
+	encryptorSk := testContext.encryptorSk
+
+	plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
+	ciphertext := NewCiphertext(testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
+
+	b.Run(testString(testContext, "Encrypt/Pk/Slow"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encryptorPk.Encrypt(plaintext, ciphertext)
+		}
+	})
+
+	b.Run(testString(testContext, "Encrypt/Pk/Fast"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encryptorPk.EncryptFast(plaintext, ciphertext)
+		}
+	})
+
+	b.Run(testString(testContext, "Encrypt/Sk/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encryptorSk.Encrypt(plaintext, ciphertext)
+		}
+	})
+}
+
+func benchDecrypt(testContext *testParams, b *testing.B) {
+
+	decryptor := testContext.decryptor
+
+	plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
+	ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
+
+	b.Run(testString(testContext, "Decrypt/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			decryptor.Decrypt(ciphertext, plaintext)
+		}
+	})
+}
+
+func benchEvaluator(testContext *testParams, b *testing.B) {
+
+	evaluator := testContext.evaluator
+
+	plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.scale)
+	ciphertext1 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
+	ciphertext2 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
+	receiver := NewCiphertextRandom(testContext.prng, testContext.params, 2, testContext.params.MaxLevel(), testContext.params.Scale())
+
+	rlk := testContext.kgen.GenRelinKey(testContext.sk)
+	rotkey := NewRotationKeys()
+	testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 1, rotkey)
+	testContext.kgen.GenRotationKey(Conjugate, testContext.sk, 0, rotkey)
+
+	b.Run(testString(testContext, "Evaluator/Add/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/AddScalar/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.AddConst(ciphertext1, ciphertext2, ciphertext1)
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/MulScalar/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.MultByConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/MulPlain/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.MulRelin(ciphertext1, plaintext, nil, receiver)
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/Mul/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.MulRelin(ciphertext1, ciphertext2, nil, receiver)
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/Square/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.MulRelin(ciphertext1, ciphertext1, nil, receiver)
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/Rescale/"), func(b *testing.B) {
+
+		ringQ := testContext.ringQ
+
+		for i := 0; i < b.N; i++ {
+			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
+			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
+
+			b.StopTimer()
+			ciphertext1 = NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
+			b.StartTimer()
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/PermuteNTT/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[0], rotkey.permuteNTTLeftIndex[1], ciphertext1.value[0])
+			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[1], rotkey.permuteNTTLeftIndex[1], ciphertext1.value[1])
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/Conjugate/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/Relin/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Relinearize(receiver, rlk, ciphertext1)
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/Conjugate/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)
+		}
+	})
+
+	b.Run(testString(testContext, "Evaluator/Rotate/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
+		}
+	})
+}
+
+func benchHoistedRotations(testContext *testParams, b *testing.B) {
+
+	evaluator := testContext.evaluator.(*evaluator)
+
+	rotkey := NewRotationKeys()
+	testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 5, rotkey)
+
+	ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
+
+	ringQ := testContext.ringQ
+	ringP := testContext.ringP
+
+	c2NTT := ciphertext.value[1]
+	c2InvNTT := ringQ.NewPoly()
+	ringQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
+
+	c2QiQDecomp := make([]*ring.Poly, testContext.params.Beta())
+	c2QiPDecomp := make([]*ring.Poly, testContext.params.Beta())
+
+	for i := uint64(0); i < testContext.params.Beta(); i++ {
+		c2QiQDecomp[i] = ringQ.NewPoly()
+		c2QiPDecomp[i] = ringP.NewPoly()
+	}
+
+	b.Run(testString(testContext, "HoistedRotations/DecomposeNTT/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for j := uint64(0); j < testContext.params.Beta(); j++ {
+				evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
+			}
+		}
+	})
+
+	b.Run(testString(testContext, "HoistedRotations/RotateHoisted/"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.permuteNTTHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, rotkey, ciphertext)
+		}
+	})
 }

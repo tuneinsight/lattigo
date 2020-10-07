@@ -3,20 +3,22 @@ package dbfv
 import (
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
 type PCKSProtocol struct {
 	context *dbfvContext
 
-	sigmaSmudging         float64
-	gaussianSamplerSmudge *ring.KYSampler
+	sigmaSmudging float64
 
 	tmp       *ring.Poly
 	share0tmp *ring.Poly
 	share1tmp *ring.Poly
 
-	baseconverter *ring.FastBasisExtender
+	baseconverter            *ring.FastBasisExtender
+	gaussianSampler          *ring.GaussianSampler
+	ternarySamplerMontgomery *ring.TernarySampler
 }
 
 // PCKSShare is a type for the PCKS protocol shares.
@@ -75,31 +77,33 @@ func (share *PCKSShare) UnmarshalBinary(data []byte) error {
 // collective public-key.
 func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtocol {
 
-	if !params.IsValid() {
-		panic("cannot NewPCKSProtocol : params not valid (check if they where generated properly)")
-	}
-
 	context := newDbfvContext(params)
 
 	pcks := new(PCKSProtocol)
 
 	pcks.context = context
 
-	pcks.gaussianSamplerSmudge = context.contextQP.NewKYSampler(sigmaSmudging, int(6*sigmaSmudging))
+	pcks.sigmaSmudging = sigmaSmudging
 
-	pcks.tmp = context.contextQP.NewPoly()
-	pcks.share0tmp = context.contextQP.NewPoly()
-	pcks.share1tmp = context.contextQP.NewPoly()
+	pcks.tmp = context.ringQP.NewPoly()
+	pcks.share0tmp = context.ringQP.NewPoly()
+	pcks.share1tmp = context.ringQP.NewPoly()
 
-	pcks.baseconverter = ring.NewFastBasisExtender(context.contextQ, context.contextP)
+	pcks.baseconverter = ring.NewFastBasisExtender(context.ringQ, context.ringP)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	pcks.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQP, sigmaSmudging, uint64(6*sigmaSmudging))
+	pcks.ternarySamplerMontgomery = ring.NewTernarySampler(prng, context.ringQP, 0.5, true)
 
 	return pcks
 }
 
 // AllocateShares allocates the shares of the PCKS protocol
 func (pcks *PCKSProtocol) AllocateShares() (s PCKSShare) {
-	s[0] = pcks.context.contextQ.NewPoly()
-	s[1] = pcks.context.contextQ.NewPoly()
+	s[0] = pcks.context.ringQ.NewPoly()
+	s[1] = pcks.context.ringQ.NewPoly()
 	return
 }
 
@@ -110,10 +114,11 @@ func (pcks *PCKSProtocol) AllocateShares() (s PCKSShare) {
 // and broadcasts the result to the other j-1 parties.
 func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Ciphertext, shareOut PCKSShare) {
 
-	contextQ := pcks.context.contextQ
-	contextKeys := pcks.context.contextQP
+	ringQ := pcks.context.ringQ
+	contextKeys := pcks.context.ringQP
 
-	contextKeys.SampleTernaryMontgomeryNTT(pcks.tmp, 0.5)
+	pcks.ternarySamplerMontgomery.Read(pcks.tmp)
+	contextKeys.NTT(pcks.tmp, pcks.tmp)
 
 	// h_0 = u_i * pk_0
 	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
@@ -124,24 +129,25 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	contextKeys.InvNTT(pcks.share1tmp, pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSamplerSmudge.SampleAndAdd(pcks.share0tmp)
+	pcks.gaussianSampler.ReadAndAdd(pcks.share0tmp)
+
 	// h_1 = u_i * pk_1 + e1
-	pcks.context.gaussianSampler.SampleAndAdd(pcks.share1tmp)
+	pcks.gaussianSampler.ReadAndAdd(pcks.share1tmp)
 
 	// h_0 = (u_i * pk_0 + e0)/P
-	pcks.baseconverter.ModDownPQ(uint64(len(contextQ.Modulus))-1, pcks.share0tmp, shareOut[0])
+	pcks.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, pcks.share0tmp, shareOut[0])
 
 	// h_0 = (u_i * pk_0 + e0)/P
 	// Could be moved to the keyswitch phase, but the second element of the shares will be larger
-	pcks.baseconverter.ModDownPQ(uint64(len(contextQ.Modulus))-1, pcks.share1tmp, shareOut[1])
+	pcks.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, pcks.share1tmp, shareOut[1])
 
 	// tmp = s_i*c_1
-	contextQ.NTT(ct.Value()[1], pcks.tmp)
-	contextQ.MulCoeffsMontgomery(pcks.tmp, sk, pcks.tmp)
-	contextQ.InvNTT(pcks.tmp, pcks.tmp)
+	ringQ.NTT(ct.Value()[1], pcks.tmp)
+	ringQ.MulCoeffsMontgomery(pcks.tmp, sk, pcks.tmp)
+	ringQ.InvNTT(pcks.tmp, pcks.tmp)
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-	contextQ.Add(shareOut[0], pcks.tmp, shareOut[0])
+	ringQ.Add(shareOut[0], pcks.tmp, shareOut[0])
 
 	pcks.tmp.Zero()
 
@@ -153,13 +159,13 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
 func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
 
-	pcks.context.contextQ.Add(share1[0], share2[0], shareOut[0])
-	pcks.context.contextQ.Add(share1[1], share2[1], shareOut[1])
+	pcks.context.ringQ.Add(share1[0], share2[0], shareOut[0])
+	pcks.context.ringQ.Add(share1[1], share2[1], shareOut[1])
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *bfv.Ciphertext) {
 
-	pcks.context.contextQ.Add(ct.Value()[0], combined[0], ctOut.Value()[0])
-	pcks.context.contextQ.Copy(combined[1], ctOut.Value()[1])
+	pcks.context.ringQ.Add(ct.Value()[0], combined[0], ctOut.Value()[0])
+	pcks.context.ringQ.Copy(combined[1], ctOut.Value()[1])
 }

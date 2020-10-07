@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/utils"
 )
 
 // Encryptor in an interface for encryptors
@@ -56,11 +57,20 @@ type Encryptor interface {
 
 // encryptor is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
 type encryptor struct {
-	params      *Parameters
-	ckksContext *Context
-	polypool    [3]*ring.Poly
+	params *Parameters
 
-	baseconverter *ring.FastBasisExtender
+	ringQ  *ring.Ring
+	ringQP *ring.Ring
+
+	polypool [3]*ring.Poly
+
+	baseconverter              *ring.FastBasisExtender
+	gaussianSamplerQ           *ring.GaussianSampler
+	uniformSamplerQ            *ring.UniformSampler
+	ternarySamplerMontgomeryQ  *ring.TernarySampler
+	gaussianSamplerQP          *ring.GaussianSampler
+	uniformSamplerQP           *ring.UniformSampler
+	ternarySamplerMontgomeryQP *ring.TernarySampler
 }
 
 type pkEncryptor struct {
@@ -78,7 +88,7 @@ type skEncryptor struct {
 func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 	enc := newEncryptor(params)
 
-	if uint64(pk.pk[0].GetDegree()) != uint64(1<<params.LogN) || uint64(pk.pk[1].GetDegree()) != uint64(1<<params.LogN) {
+	if uint64(pk.pk[0].GetDegree()) != params.N() || uint64(pk.pk[1].GetDegree()) != params.N() {
 		panic("cannot newEncrpytor: pk ring degree does not match params ring degree")
 	}
 
@@ -90,7 +100,7 @@ func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
 	enc := newEncryptor(params)
 
-	if uint64(sk.sk.GetDegree()) != uint64(1<<params.LogN) {
+	if uint64(sk.sk.GetDegree()) != params.N() {
 		panic("cannot newEncryptor: sk ring degree does not match params ring degree")
 	}
 
@@ -98,23 +108,45 @@ func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
 }
 
 func newEncryptor(params *Parameters) encryptor {
-	if !params.isValid {
-		panic("cannot newEncryptor: parameters are invalid (check if the generation was done properly)")
+
+	var q, qp *ring.Ring
+	var err error
+	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
+		panic(err)
 	}
 
-	ctx := newContext(params)
-	qp := ctx.contextQP
-
 	var baseconverter *ring.FastBasisExtender
-	if len(params.Pi) != 0 {
-		baseconverter = ring.NewFastBasisExtender(ctx.contextQ, ctx.contextP)
+	if params.PiCount() != 0 {
+
+		if qp, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
+			panic(err)
+		}
+
+		p, err := ring.NewRing(params.N(), params.pi)
+		if err != nil {
+			panic(err)
+		}
+
+		baseconverter = ring.NewFastBasisExtender(q, p)
+	}
+
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
 	}
 
 	return encryptor{
-		params:        params.Copy(),
-		ckksContext:   ctx,
-		polypool:      [3]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly()},
-		baseconverter: baseconverter,
+		params:                     params.Copy(),
+		ringQ:                      q,
+		ringQP:                     qp,
+		polypool:                   [3]*ring.Poly{qp.NewPoly(), qp.NewPoly(), qp.NewPoly()},
+		baseconverter:              baseconverter,
+		gaussianSamplerQ:           ring.NewGaussianSampler(prng, q, params.sigma, uint64(6*params.sigma)),
+		uniformSamplerQ:            ring.NewUniformSampler(prng, q),
+		ternarySamplerMontgomeryQ:  ring.NewTernarySampler(prng, q, 0.5, true),
+		gaussianSamplerQP:          ring.NewGaussianSampler(prng, qp, params.sigma, uint64(6*params.sigma)),
+		uniformSamplerQP:           ring.NewUniformSampler(prng, qp),
+		ternarySamplerMontgomeryQP: ring.NewTernarySampler(prng, qp, 0.5, true),
 	}
 }
 
@@ -178,46 +210,66 @@ func (encryptor *pkEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *r
 // encrypt with sk: ciphertext = [-a*sk + m + e, a]
 func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
 
-	// We sample a R-WLE instance (encryption of zero) over the keys context (ciphertext context + special prime)
+	// We sample a R-WLE instance (encryption of zero) over the extended ring (ciphertext ring + special prime)
 
-	contextQ := encryptor.ckksContext.contextQ
+	ringQ := encryptor.ringQ
 
 	if fast {
 
-		encryptor.ckksContext.contextQ.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
+		level := encryptor.params.QiCount() - 1
+
+		encryptor.ternarySamplerMontgomeryQ.Read(encryptor.polypool[2])
+		ringQ.NTT(encryptor.polypool[2], encryptor.polypool[2])
 
 		// ct0 = u*pk0
-		contextQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], ciphertext.value[0])
+		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], ciphertext.value[0])
 		// ct1 = u*pk1
-		contextQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], ciphertext.value[1])
+		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], ciphertext.value[1])
 
-		// ct0 = u*pk0 + e0
-		encryptor.ckksContext.gaussianSampler.SampleNTT(encryptor.polypool[0])
-		contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+		// ct1 = u*pk1 + e1
+		encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
+		ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+		ringQ.Add(ciphertext.value[1], encryptor.polypool[0], ciphertext.value[1])
 
-		// ct0 = u*pk1 + e1
-		encryptor.ckksContext.gaussianSampler.SampleNTT(encryptor.polypool[0])
-		contextQ.Add(ciphertext.value[1], encryptor.polypool[0], ciphertext.value[1])
+		if !plaintext.isNTT {
+
+			// ct0 = u*pk0 + e0
+			encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
+			// ct0 = (u*pk0 + e0)/P + m
+			ringQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
+			ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+			ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+
+		} else {
+			// ct0 = u*pk0 + e0
+			encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
+			ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+			ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+			ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		}
 
 	} else {
 
-		contextQP := encryptor.ckksContext.contextQP
+		ringQP := encryptor.ringQP
 
-		encryptor.ckksContext.contextQP.SampleTernaryMontgomeryNTT(encryptor.polypool[2], 0.5)
+		level := uint64(len(ringQP.Modulus) - 1)
+
+		encryptor.ternarySamplerMontgomeryQP.Read(encryptor.polypool[2])
+		ringQP.NTT(encryptor.polypool[2], encryptor.polypool[2])
 
 		// ct0 = u*pk0
-		contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
+		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 		// ct1 = u*pk1
-		contextQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
+		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
 		// 2*(#Q + #P) NTT
-		contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
-		contextQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+		ringQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
+		ringQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct0 = u*pk0 + e0
-		encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
+		encryptor.gaussianSamplerQP.ReadAndAddLvl(level, encryptor.polypool[0])
 		// ct1 = u*pk1 + e1
-		encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[1])
+		encryptor.gaussianSamplerQP.ReadAndAddLvl(level, encryptor.polypool[1])
 
 		// ct0 = (u*pk0 + e0)/P
 		encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
@@ -225,13 +277,19 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		// ct1 = (u*pk1 + e1)/P
 		encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[1], ciphertext.value[1])
 
-		// 2*#Q NTT
-		contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
-		contextQ.NTT(ciphertext.value[1], ciphertext.value[1])
-	}
+		if !plaintext.isNTT {
+			ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		}
 
-	// ct0 = (u*pk0 + e0)/P + m
-	contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		// 2*#Q NTT
+		ringQ.NTT(ciphertext.value[0], ciphertext.value[0])
+		ringQ.NTT(ciphertext.value[1], ciphertext.value[1])
+
+		if plaintext.isNTT {
+			// ct0 = (u*pk0 + e0)/P + m
+			ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		}
+	}
 
 	ciphertext.isNTT = true
 }
@@ -248,115 +306,66 @@ func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 }
 
 func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
-
-	if encryptor.baseconverter == nil {
-		panic("Cannot Encrypt : modulus P is empty -> use instead EncryptFast")
-	}
-
-	encryptor.encryptSample(plaintext, ciphertext, false)
+	encryptor.encryptSample(plaintext, ciphertext)
 }
 
 func (encryptor *skEncryptor) EncryptFastNew(plaintext *Plaintext) *Ciphertext {
-	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
-	encryptor.EncryptFast(plaintext, ciphertext)
-	return ciphertext
+	panic("Cannot Encrypt : SkEncryptor doesn't support EncryptFastNew() -> use instead EncryptNew()")
 }
 
 func (encryptor *skEncryptor) EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext) {
-	encryptor.encryptSample(plaintext, ciphertext, true)
+	panic("Cannot Encrypt : SkEncryptor doesn't support EncryptFast() -> use instead Encrypt()")
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
-
-	if encryptor.baseconverter == nil {
-		panic("Cannot EncryptFromCRPNew : modulus P is empty -> use instead EncryptFromCRPFastNew")
-	}
-
 	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
 	encryptor.EncryptFromCRP(plaintext, ciphertext, crp)
 	return ciphertext
 }
 
 func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-
-	if encryptor.baseconverter == nil {
-		panic("Cannot EncryptFromCRP : modulus P is empty -> use instead EncryptFromCRPFast")
-	}
-
-	encryptor.encryptFromCRP(plaintext, ciphertext, crp, false)
+	encryptor.encryptFromCRP(plaintext, ciphertext, crp)
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
-	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
-	encryptor.EncryptFromCRPFast(plaintext, ciphertext, crp)
-	return ciphertext
+	panic("Cannot Encrypt : SkEncryptor doesn't support EncryptFromCRPFastNew() -> use instead EncryptFromCRPNew()")
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	encryptor.encryptFromCRP(plaintext, ciphertext, crp, true)
+	panic("Cannot Encrypt : SkEncryptor doesn't support EncryptFromCRPFast() -> use instead EncryptFromCRP()")
 
 }
 
-func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
-	if fast {
-		encryptor.ckksContext.contextQ.UniformPoly(encryptor.polypool[1])
-	} else {
-		encryptor.ckksContext.contextQP.UniformPoly(encryptor.polypool[1])
-	}
-	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1], fast)
+func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ciphertext) {
+	encryptor.uniformSamplerQ.Read(ciphertext.value[1])
+	encryptor.encrypt(plaintext, ciphertext, ciphertext.value[1])
 }
 
-func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly, fast bool) {
-	if fast {
-		encryptor.ckksContext.contextQ.Copy(crp, encryptor.polypool[1])
-	} else {
-		encryptor.ckksContext.contextQP.Copy(crp, encryptor.polypool[1])
-	}
-	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1], fast)
+func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
+	encryptor.ringQ.Copy(crp, ciphertext.value[1])
+	encryptor.encrypt(plaintext, ciphertext, ciphertext.value[1])
 }
 
-func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly, fast bool) {
+func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
 
-	contextQ := encryptor.ckksContext.contextQ
+	ringQ := encryptor.ringQ
 
-	if fast {
+	level := encryptor.params.QiCount() - 1
 
-		contextQ.MulCoeffsMontgomery(crp, encryptor.sk.sk, ciphertext.value[0])
-		contextQ.Neg(ciphertext.value[0], ciphertext.value[0])
+	ringQ.MulCoeffsMontgomery(ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
+	ringQ.Neg(ciphertext.value[0], ciphertext.value[0])
 
-		encryptor.ckksContext.gaussianSampler.SampleNTT(encryptor.polypool[0])
-		contextQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
-
-		contextQ.Copy(crp, ciphertext.value[1])
-
+	if plaintext.isNTT {
+		encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
+		ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+		ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+		ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 	} else {
-
-		contextQP := encryptor.ckksContext.contextQP
-
-		// ct0 = -s*a
-		contextQP.MulCoeffsMontgomery(crp, encryptor.sk.sk, encryptor.polypool[0])
-		contextQP.Neg(encryptor.polypool[0], encryptor.polypool[0])
-
-		// #Q + #P NTT
-		contextQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
-
-		// ct0 = -s*a + e
-		encryptor.ckksContext.gaussianSampler.SampleAndAdd(encryptor.polypool[0])
-
-		// We rescale by the special prime, dividing the error by this prime
-		// ct0 = (-s*a + e)/P
-		encryptor.baseconverter.ModDownPQ(plaintext.Level(), encryptor.polypool[0], ciphertext.value[0])
-
-		// #Q + #P NTT
-		// ct1 = a/P
-		encryptor.baseconverter.ModDownNTTPQ(plaintext.Level(), crp, ciphertext.value[1])
-
-		// #Q NTT
-		contextQ.NTT(ciphertext.value[0], ciphertext.value[0])
+		encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
+		ringQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
+		ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+		ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 	}
-
-	// ct0 = -s*a + m + e
-	contextQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 
 	ciphertext.isNTT = true
 }

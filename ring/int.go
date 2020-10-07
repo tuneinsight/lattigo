@@ -19,7 +19,7 @@ func NewUint(v uint64) *big.Int {
 // A prefix of ``0x'' or ``0X'' selects base 16;
 // the ``0'' prefix selects base 8, and
 // a ``0b'' or ``0B'' prefix selects base 2.
-// Otherwise the selected base is 10.
+// Otherwise, the selected base is 10.
 func NewIntFromString(s string) *big.Int {
 	i, _ := new(big.Int).SetString(s, 0)
 	return i
@@ -34,7 +34,7 @@ func RandInt(max *big.Int) (n *big.Int) {
 	return
 }
 
-// DivRound sets the target i round(a/b).
+// DivRound sets the target i to round(a/b).
 func DivRound(a, b, i *big.Int) {
 	_a := new(big.Int).Set(a)
 	i.Quo(_a, b)

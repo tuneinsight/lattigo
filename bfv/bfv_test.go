@@ -408,14 +408,12 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 	})
 
 	t.Run("Marshaller/Parameters/SupportedParams", func(t *testing.T) {
-		for _, params := range DefaultParams {
-			bytes, err := params.MarshalBinary()
-			assert.Nil(t, err)
-			p := new(Parameters)
-			err = p.UnmarshalBinary(bytes)
-			assert.Nil(t, err)
-			assert.Equal(t, params, p)
-		}
+		bytes, err := testctx.params.MarshalBinary()
+		assert.Nil(t, err)
+		p := new(Parameters)
+		err = p.UnmarshalBinary(bytes)
+		assert.Nil(t, err)
+		assert.Equal(t, testctx.params, p)
 	})
 
 	ringQP := testctx.ringQP

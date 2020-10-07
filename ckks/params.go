@@ -25,20 +25,26 @@ const DefaultSigma = 3.2
 
 // Name of the different default parameter sets
 const (
-	// PN12QP109 is the index in DefaultParams for logQ1 = 109
+	// PN12QP109 is the index in DefaultParams for logQP = 109
 	PN12QP109 = iota
-	// PN13QP218 is the index in DefaultParams for logQ1 = 218
+	// PN13QP218 is the index in DefaultParams for logQP = 218
 	PN13QP218
-	// PN14QP438 is the index in DefaultParams for logQ1 = 438
+	// PN14QP438 is the index in DefaultParams for logQP = 438
 	PN14QP438
-	// PN15QP880 is the index in DefaultParams for logQ1 = 880
+	// PN15QP880 is the index in DefaultParams for logQP = 880
 	PN15QP880
-	// PN16QP1761 is the index in DefaultParams for logQ1 = 1761
+	// PN16QP1761 is the index in DefaultParams for logQP = 1761
 	PN16QP1761
+
+	// PN12QP101pq is the index in DefaultParams for logQP = 101 (post quantum)
 	PN12QP101pq
+	// PN13QP202pq is the index in DefaultParams for logQP = 202 (post quantum)
 	PN13QP202pq
+	// PN14QP411pq is the index in DefaultParams for logQP = 411 (post quantum)
 	PN14QP411pq
+	// PN15QP827pq is the index in DefaultParams for logQP = 827 (post quantum)
 	PN15QP827pq
+	// PN16QP1654pq is the index in DefaultParams for logQP = 1654 (post quantum)
 	PN16QP1654pq
 )
 
@@ -142,7 +148,7 @@ var DefaultParams = []*Parameters{
 		sigma: DefaultSigma,
 	},
 
-	//LogQi = 827
+	//LogQi = 827.0000771955918
 	{logN: 15,
 		logSlots: 14,
 		qi: []uint64{0x400000060001, 0x4000170001, 0x3fffe80001, 0x40002f0001, 0x4000300001,
@@ -163,7 +169,7 @@ var DefaultParams = []*Parameters{
 			0x1fffff360001, 0x200000e20001, 0x1fffff060001, 0x200000fe0001, 0x1ffffede0001,
 			0x1ffffeca0001, 0x1ffffeb40001, 0x200001520001, 0x1ffffe760001, 0x2000019a0001,
 			0x1ffffe640001, 0x200001a00001, 0x1ffffe520001, 0x200001e80001, 0x1ffffe0c0001,
-			0x1ffffdee0001, 0x200002480001}, // 5 + 31 x 45
+			0x1ffffdee0001, 0x200002480001}, // 55 + 31 x 45
 		pi:    []uint64{0x7fffffffe0001, 0x80000001c0001, 0x80000002c0001, 0x7ffffffd20001}, // 4 x 51
 		scale: 1 << 45,
 		sigma: DefaultSigma,

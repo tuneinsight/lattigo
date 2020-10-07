@@ -40,6 +40,15 @@ const (
 	PN14QP438
 	// PN15QP880 is a set of parameters with N = 2^15 and log(QP) = 880
 	PN15QP880
+
+	// PN12QP101pq is the index in DefaultParams for logQP = 101 (post quantum)
+	PN12QP101pq
+	// PN13QP202pq is the index in DefaultParams for logQP = 202 (post quantum)
+	PN13QP202pq
+	// PN14QP411pq is the index in DefaultParams for logQP = 411 (post quantum)
+	PN14QP411pq
+	// PN15QP827pq is the index in DefaultParams for logQP = 827 (post quantum)
+	PN15QP827pq
 )
 
 // DefaultSigma is the default error distribution standard deviation
@@ -89,6 +98,47 @@ var DefaultParams = []*Parameters{
 			0x1000000000930001, 0xfffffffff6a0001, 0x1000000000980001, // 60 + 60 + 60 bits
 			0xfffffffff5a0001, 0xfffffffff550001, 0x1000000000b00001, // 60 + 60 + 60 bits
 			0xfffffffff330001, 0x1000000000ce0001, 0xfffffffff2a0001}, // 60 + 60 + 60 bits
+		sigma: DefaultSigma,
+	},
+
+	{ // LogQP = 101.00005709794536
+		logN:  12,
+		t:     65537,
+		qi:    []uint64{0x800004001, 0x800008001},              // 2*35
+		pi:    []uint64{0x80014001},                            // 1*31
+		qiMul: []uint64{0xfffffffffffc001, 0x100000000000e001}, // 2*60
+		sigma: DefaultSigma,
+	},
+
+	{ // LogQP = 201.99999999994753
+		logN:  13,
+		t:     65537,
+		qi:    []uint64{0x7fffffffe0001, 0x7fffffffcc001, 0x3ffffffffc001},        // 2*51 + 50
+		pi:    []uint64{0x4000000024001},                                          // 50
+		qiMul: []uint64{0xfffffffffffc001, 0xffffffffffe8001, 0x1000000000024001}, // 3*60
+		sigma: DefaultSigma,
+	},
+
+	{ // LogQP = 410.9999999999886
+		logN: 14,
+		t:    65537,
+		qi:   []uint64{0x7fffffffff18001, 0x8000000000f8001, 0x7ffffffffeb8001, 0x800000000158001, 0x7ffffffffe70001}, // 5*59
+		pi:   []uint64{0x7ffffffffe10001, 0x400000000068001},                                                          // 59+58
+		qiMul: []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001,
+			0x1000000000078001, 0xffffffffff28001, 0xfffffffffe38001}, // 6*60 bits
+		sigma: DefaultSigma,
+	},
+
+	{ // LogQP = 826.9999999999509
+		logN: 15,
+		t:    65537,
+		qi: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, 0x7ffffffffba0001, 0x8000000004a0001,
+			0x7ffffffffb00001, 0x800000000890001, 0x8000000009d0001, 0x7ffffffff630001, 0x800000000a70001,
+			0x7ffffffff510001}, // 11*59
+		pi: []uint64{0x800000000b80001, 0x800000000bb0001, 0xffffffffffc0001}, // 2*59+60
+		qiMul: []uint64{0x10000000001d0001, 0x10000000006e0001, 0xfffffffff840001, 0x1000000000860001, 0x1000000000870001,
+			0x1000000000930001, 0xfffffffff6a0001, 0x1000000000980001, 0xfffffffff5a0001, 0xfffffffff550001,
+			0x1000000000b00001, 0xfffffffff330001},
 		sigma: DefaultSigma,
 	},
 }

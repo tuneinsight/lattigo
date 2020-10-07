@@ -60,7 +60,7 @@ func TestCKKS(t *testing.T) {
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
 	} else {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+4]
+		defaultParams = DefaultParams
 	}
 
 	for _, defaultParam := range defaultParams {

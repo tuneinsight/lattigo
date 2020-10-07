@@ -30,6 +30,11 @@ const (
 	PN14QP438
 	PN15QP880
 	PN16QP1761
+	PN12QP101pq
+	PN13QP202pq
+	PN14QP411pq
+	PN15QP827pq
+	PN16QP1654pq
 )
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
@@ -99,6 +104,62 @@ var DefaultParams = []*Parameters{
 			0x200001e80001, 0x1ffffe0c0001, 0x1ffffdee0001, 0x200002480001,
 			0x1ffffdb60001, 0x200002560001},
 		pi:    []uint64{0x80000000440001, 0x7fffffffba0001, 0x80000000500001, 0x7fffffffaa0001}, // 4 x 55
+		scale: 1 << 45,
+		sigma: DefaultSigma,
+	},
+
+	//LogQi = 101.00001186816735
+	{logN: 12,
+		logSlots: 11,
+		qi:       []uint64{0x800004001, 0x40002001}, // 35 + 30
+		pi:       []uint64{0x1000002001},            // 36
+		scale:    1 << 30,
+		sigma:    DefaultSigma,
+	},
+
+	//LogQi = 201.9936341352857
+	{logN: 13,
+		logSlots: 12,
+		qi:       []uint64{0x1fffec001, 0x8008001, 0x8020001, 0x802c001, 0x7fa8001, 0x7f74001}, // 33 + 5 x 27
+		pi:       []uint64{0x400018001},                                                        // 34
+		scale:    1 << 27,
+		sigma:    DefaultSigma,
+	},
+
+	//LogQiP = 411.0000787495673
+	{logN: 14,
+		logSlots: 13,
+		qi: []uint64{0x10000048001, 0x200038001, 0x1fff90001, 0x200080001, 0x1fff60001,
+			0x2000b8001, 0x200100001, 0x1fff00001, 0x1ffef0001, 0x200128001}, // 40 + 9 x 33
+
+		pi:    []uint64{0x1ffffe0001, 0x1ffffc0001}, // 37, 37
+		scale: 1 << 33,
+		sigma: DefaultSigma,
+	},
+
+	//LogQi = 827
+	{logN: 15,
+		logSlots: 14,
+		qi: []uint64{0x400000060001, 0x4000170001, 0x3fffe80001, 0x40002f0001, 0x4000300001,
+			0x3fffcf0001, 0x40003f0001, 0x3fffc10001, 0x4000450001, 0x3fffb80001,
+			0x3fffb70001, 0x40004a0001, 0x3fffb20001, 0x4000510001, 0x3fffaf0001,
+			0x4000540001, 0x4000560001, 0x4000590001}, // 46 + 17 x 38
+		pi:    []uint64{0x2000000a0001, 0x2000000e0001, 0x2000001d0001}, // 3 x 45
+		scale: 1 << 38,
+		sigma: DefaultSigma,
+	},
+
+	//LogQi = 1653.999999
+	{logN: 16,
+		logSlots: 15,
+		qi: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001, 0x200000440001,
+			0x200000500001, 0x200000620001, 0x1fffff980001, 0x2000006a0001, 0x1fffff7e0001,
+			0x200000860001, 0x200000a60001, 0x200000aa0001, 0x200000b20001, 0x200000c80001,
+			0x1fffff360001, 0x200000e20001, 0x1fffff060001, 0x200000fe0001, 0x1ffffede0001,
+			0x1ffffeca0001, 0x1ffffeb40001, 0x200001520001, 0x1ffffe760001, 0x2000019a0001,
+			0x1ffffe640001, 0x200001a00001, 0x1ffffe520001, 0x200001e80001, 0x1ffffe0c0001,
+			0x1ffffdee0001, 0x200002480001}, // 5 + 31 x 45
+		pi:    []uint64{0x7fffffffe0001, 0x80000001c0001, 0x80000002c0001, 0x7ffffffd20001}, // 4 x 51
 		scale: 1 << 45,
 		sigma: DefaultSigma,
 	},

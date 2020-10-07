@@ -1,17 +1,10 @@
 language: go
 
 go:
+  - 1.x
+  - 1.14.x
   - 1.13.x
 
-env:
-  - GO111MODULE=on
-
 script:
-  - env GO111MODULE=on make test
-
-branches:
-  only:
-    - /.*/
-
-notifications:
-  email: false
+  - go build ./...
+  - make local

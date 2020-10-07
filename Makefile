@@ -2,7 +2,6 @@
 
 Coding/bin/Makefile.base:
 	git clone https://github.com/dedis/Coding
-include Coding/bin/Makefile.base
 
 .PHONY: test_examples
 test_examples:
@@ -18,6 +17,7 @@ test_examples:
 	@echo ok
 
 .PHONY: test_gotest
+test_gotest:
 	go test -v -short -p=1 ./... -timeout=0
 
 .PHONY: test
@@ -25,3 +25,7 @@ test: test_fmt test_gotest test_examples
 
 .PHONY: local
 local: test_fmt test_lint test_gotest test_examples
+
+%: force
+	@$(MAKE) -f Coding/bin/Makefile.base $@
+force: ;

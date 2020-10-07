@@ -68,7 +68,7 @@ func main() {
 		input []uint64
 	}
 
-	// Uses the defaultparams logN=14, logQP=438 with a plaintext modulus T=65537
+	// Use the defaultparams logN=14, logQP=438 with a plaintext modulus T=65537
 	params := bfv.DefaultParams[bfv.PN14QP438].WithT(65537)
 
 	// PRNG keyed with "lattigo"
@@ -250,7 +250,7 @@ func main() {
 		//l.Println("\t evaluator", i, "started")
 	}
 
-	// Starts the tasks
+	// Start the tasks
 	taskList := make([]*MultTask, 0)
 	l.Println("> Eval Phase")
 	elapsedEvalCloud := runTimed(func() {
@@ -299,7 +299,7 @@ func main() {
 	})
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)
 
-	// Decrypts the result with the target secret key
+	// Decrypt the result with the target secret key
 	l.Println("> Result:")
 	decryptor := bfv.NewDecryptor(params, tsk)
 	ptres := bfv.NewPlaintext(params)
@@ -307,7 +307,7 @@ func main() {
 		decryptor.Decrypt(encOut, ptres)
 	})
 
-	// Checks the result
+	// Check the result
 	res := encoder.DecodeUint(ptres)
 	l.Printf("\t%v\n", res[:16])
 	for i := range expRes {

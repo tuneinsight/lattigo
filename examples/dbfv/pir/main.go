@@ -190,7 +190,7 @@ func main() {
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedRKGCloud, elapsedRKGParty)
 
-	// 3) Collective rotation keys geneneration
+	// 3) Collective rotation keys generation
 	l.Println("> RTG Phase")
 	rtk := bfv.NewRotationKeys()
 	for _, rot := range []bfv.Rotation{bfv.RotationRight, bfv.RotationLeft, bfv.RotationRow} {

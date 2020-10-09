@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 const precision = uint64(56)

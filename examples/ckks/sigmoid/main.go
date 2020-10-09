@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/ldsec/lattigo/ckks"
+	"github.com/ldsec/lattigo/v2/ckks"
 )
 
 func randomFloat(min, max float64) float64 {

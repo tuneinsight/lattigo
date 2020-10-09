@@ -1,6 +1,6 @@
 package bfv
 
-import "github.com/ldsec/lattigo/utils"
+import "github.com/ldsec/lattigo/v2/utils"
 
 // Ciphertext is a *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
 type Ciphertext struct {

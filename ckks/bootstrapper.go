@@ -6,9 +6,9 @@ import (
 	"math"
 	"math/cmplx"
 
-	"github.com/ldsec/lattigo/ckks/bettersine"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/ckks/bettersine"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // Bootstrapper is a struct to stores a memory pool the plaintext matrices

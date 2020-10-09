@@ -6,8 +6,8 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.

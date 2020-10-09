@@ -1,8 +1,8 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // Encryptor in an interface for encryptors

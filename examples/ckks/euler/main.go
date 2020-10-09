@@ -6,7 +6,7 @@ import (
 	"math/cmplx"
 	"time"
 
-	"github.com/ldsec/lattigo/ckks"
+	"github.com/ldsec/lattigo/v2/ckks"
 )
 
 func example() {

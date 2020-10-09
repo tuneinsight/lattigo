@@ -3,7 +3,7 @@ package ring
 import (
 	"math/bits"
 
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // Min returns the minimum between to int

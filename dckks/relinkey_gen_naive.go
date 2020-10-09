@@ -1,9 +1,9 @@
 package dckks
 
 import (
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // RKGProtocolNaive is a structure storing the parameters for the naive EKG protocol.

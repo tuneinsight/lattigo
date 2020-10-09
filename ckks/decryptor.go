@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // Decryptor is an interface for decrypting Ciphertexts. A Decryptor stores the secret-key.

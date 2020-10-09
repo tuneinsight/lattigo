@@ -5,10 +5,10 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/utils"
 
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 func obliviousRiding() {

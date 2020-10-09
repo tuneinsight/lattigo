@@ -10,11 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ldsec/lattigo/utils"
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")

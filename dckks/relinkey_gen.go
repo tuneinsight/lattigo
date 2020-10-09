@@ -3,9 +3,9 @@ package dckks
 import (
 	"errors"
 
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // RKGProtocol is the structure storing the parameters and state for a party in the collective relinearization key

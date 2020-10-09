@@ -1,8 +1,8 @@
 package dckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 func randomFloat(prng utils.PRNG, max float64) float64 {

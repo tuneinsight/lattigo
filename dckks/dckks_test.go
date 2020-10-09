@@ -7,12 +7,11 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/ldsec/lattigo/utils"
-
 	"github.com/stretchr/testify/require"
 
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")

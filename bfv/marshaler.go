@@ -2,7 +2,8 @@ package bfv
 
 import (
 	"encoding/binary"
-	"github.com/ldsec/lattigo/ring"
+
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // MarshalBinary encodes a Ciphertext in a byte slice.

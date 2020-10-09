@@ -3,7 +3,7 @@ package ckks
 import (
 	"testing"
 
-	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 func BenchmarkCKKSScheme(b *testing.B) {

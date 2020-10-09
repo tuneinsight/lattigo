@@ -3,8 +3,9 @@ package ckks
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/ldsec/lattigo/ring"
 	"math"
+
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // GetDataLen returns the length in bytes of the target Ciphertext.

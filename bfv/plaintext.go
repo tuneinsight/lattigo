@@ -1,7 +1,7 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // Plaintext is a Element with only one Poly.

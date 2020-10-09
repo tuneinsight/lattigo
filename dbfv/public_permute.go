@@ -1,10 +1,11 @@
 package dbfv
 
 import (
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // PermuteProtocol is a struct storing the parameters for the PermuteProtocol protocol.

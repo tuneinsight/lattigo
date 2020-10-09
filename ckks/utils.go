@@ -1,10 +1,11 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
 	"math/big"
 	"math/cmplx"
 	"math/rand"
+
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 func exp2pi(x complex128) complex128 {

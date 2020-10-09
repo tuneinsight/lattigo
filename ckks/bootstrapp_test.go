@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ldsec/lattigo/ckks/bettersine"
+	"github.com/ldsec/lattigo/v2/ckks/bettersine"
 )
 
 func TestBootstrapp(t *testing.T) {

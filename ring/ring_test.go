@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/utils"
 
 	"github.com/stretchr/testify/require"
 )

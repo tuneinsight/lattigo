@@ -1,9 +1,10 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"math/big"
+
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // KeyGenerator is an interface implementing the methods of the keyGenerator.

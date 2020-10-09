@@ -3,7 +3,7 @@ package ckks
 import (
 	"errors"
 
-	"github.com/ldsec/lattigo/ring"
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // Operand is a common interface for Ciphertext and Plaintext types.

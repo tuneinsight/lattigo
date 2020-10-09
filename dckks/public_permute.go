@@ -3,9 +3,9 @@ package dckks
 import (
 	"math/big"
 
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
+	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // PermuteProtocol is a struct storing the parameters for the PermuteProtocol protocol.

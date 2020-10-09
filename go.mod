@@ -1,4 +1,4 @@
-module github.com/ldsec/lattigo
+module github.com/ldsec/lattigo/v2
 
 go 1.13
 

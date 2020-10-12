@@ -43,6 +43,12 @@ type Ring struct {
 	NttPsi    [][]uint64 //powers of the inverse of the 2N-th primitive root in Montgomery form (in bit-reversed order)
 	NttPsiInv [][]uint64 //powers of the inverse of the 2N-th primitive root in Montgomery form (in bit-reversed order)
 	NttNInv   []uint64   //[N^-1] mod Qi in Montgomery form
+
+	Murakami     [][]uint64
+	MurakamiInv0 [][]uint64
+	MurakamiInv1 [][]uint64
+	MurakamiInv2 []uint64
+	TwoInv       []uint64
 }
 
 // NewRing creates a new Ring with the given parameters. It checks that N is a power of 2 and that the moduli are NTT friendly.

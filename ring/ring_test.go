@@ -55,7 +55,7 @@ func TestRing(t *testing.T) {
 	var defaultParams []*Parameters
 
 	if testing.Short() {
-		defaultParams = DefaultParams[:3]
+		defaultParams = DefaultParams[:1]
 	} else {
 		defaultParams = DefaultParams
 	}
@@ -84,6 +84,7 @@ func TestRing(t *testing.T) {
 		testExtendBasis(testContext, t)
 		testScaling(testContext, t)
 		testMultByMonomial(testContext, t)
+		testMurakami(testContext, t)
 	}
 }
 
@@ -553,5 +554,24 @@ func testMultByMonomial(testContext *testParams, t *testing.T) {
 		testContext.ringQ.MultByMonomial(p1, 9, p3Want)
 
 		require.Equal(t, p3Want.Coeffs[0][:testContext.ringQ.N], p3Test.Coeffs[0][:testContext.ringQ.N])
+	})
+}
+
+func testMurakami(testContext *testParams, t *testing.T) {
+
+	t.Run(testString("Murakami/", testContext.ringQ), func(t *testing.T) {
+
+		ringQ := testContext.ringQ
+		if err := ringQ.GenMurakamiParams(); err != nil {
+			panic(err)
+		}
+
+		p1 := testContext.uniformSamplerQ.ReadNew()
+		p2 := p1.CopyNew()
+
+		ringQ.MapXX2NToXNAndMurakami(p1)
+		ringQ.MapXNToXX2NAndMurakami(p1)
+
+		require.Equal(t, p2.Coeffs[0][:testContext.ringQ.N], p1.Coeffs[0][:testContext.ringQ.N])
 	})
 }

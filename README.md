@@ -13,7 +13,7 @@ The library features:
 - A bootstrapping procedure for CKKS
 - Pure Go implementation enabling cross-plateform builds, including WASM compilation for browser clients
 
-Lattigo is meant to support HE in distributed systems and microsevrices architectures, for which Go is a common choice thanks to its natural concurrency model and portability.
+Lattigo is meant to support HE in distributed systems and microservices architectures, for which Go is a common choice thanks to its natural concurrency model and portability.
 
 ## Library overview
 

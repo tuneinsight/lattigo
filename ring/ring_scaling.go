@@ -455,6 +455,86 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 	p0.Coeffs = p0.Coeffs[:level]
 }
 
+// DivRoundByLastModulusNTT divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
+func (r *Ring) DivRoundByLastModulusNTTMurakami(p0 *Poly) {
+
+	var pHalf, pHalfNegQi uint64
+
+	level := len(p0.Coeffs) - 1
+
+	pTmp := make([]uint64, r.N)
+
+	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+	MapXNToXX2NAndMurakami(p0.Coeffs[level], r.MurakamiInv0[level], r.MurakamiInv1[level], r.N, r.MurakamiInv2[level], r.Modulus[level], r.MredParams[level])
+
+	// Center by (p-1)/2
+	pHalf = (r.Modulus[level] - 1) >> 1
+	p0tmp := p0.Coeffs[level]
+	pj := r.Modulus[level]
+
+	for i := uint64(0); i < r.N; i = i + 8 {
+
+		z := (*[8]uint64)(unsafe.Pointer(&p0tmp[i]))
+
+		z[0] = CRed(z[0]+pHalf, pj)
+		z[1] = CRed(z[1]+pHalf, pj)
+		z[2] = CRed(z[2]+pHalf, pj)
+		z[3] = CRed(z[3]+pHalf, pj)
+		z[4] = CRed(z[4]+pHalf, pj)
+		z[5] = CRed(z[5]+pHalf, pj)
+		z[6] = CRed(z[6]+pHalf, pj)
+		z[7] = CRed(z[7]+pHalf, pj)
+	}
+
+	for i := 0; i < level; i++ {
+
+		p1tmp := p0.Coeffs[i]
+
+		qi := r.Modulus[i]
+		bredParams := r.BredParams[i]
+		mredParams := r.MredParams[i]
+		rescaleParams := r.RescaleParams[level-1][i]
+
+		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
+
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&pTmp[j]))
+
+			z[0] = x[0] + pHalfNegQi
+			z[1] = x[1] + pHalfNegQi
+			z[2] = x[2] + pHalfNegQi
+			z[3] = x[3] + pHalfNegQi
+			z[4] = x[4] + pHalfNegQi
+			z[5] = x[5] + pHalfNegQi
+			z[6] = x[6] + pHalfNegQi
+			z[7] = x[7] + pHalfNegQi
+		}
+
+		MapXX2NToXNAndMurakami(pTmp, r.Murakami[i], r.N, r.NttPsiInv[i][1], r.NttPsi[i][3]+r.NttPsi[i][2], qi, mredParams)
+		NTT(pTmp, pTmp, r.N, r.NttPsi[i], qi, mredParams, bredParams)
+
+		// (x[i] - x[-1]) * InvQ
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&pTmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+
+			z[0] = MRed(z[0]+(qi-x[0]), rescaleParams, qi, mredParams)
+			z[1] = MRed(z[1]+(qi-x[1]), rescaleParams, qi, mredParams)
+			z[2] = MRed(z[2]+(qi-x[2]), rescaleParams, qi, mredParams)
+			z[3] = MRed(z[3]+(qi-x[3]), rescaleParams, qi, mredParams)
+			z[4] = MRed(z[4]+(qi-x[4]), rescaleParams, qi, mredParams)
+			z[5] = MRed(z[5]+(qi-x[5]), rescaleParams, qi, mredParams)
+			z[6] = MRed(z[6]+(qi-x[6]), rescaleParams, qi, mredParams)
+			z[7] = MRed(z[7]+(qi-x[7]), rescaleParams, qi, mredParams)
+		}
+	}
+
+	p0.Coeffs = p0.Coeffs[:level]
+}
+
 // DivRoundByLastModulus divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
 func (r *Ring) DivRoundByLastModulus(p0 *Poly) {
 
@@ -518,6 +598,15 @@ func (r *Ring) DivRoundByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
 	r.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
 	r.DivRoundByLastModulusMany(p0, nbRescales)
 	r.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+}
+
+func (r *Ring) DivRoundByLastModulusManyNTTMurakami(p0 *Poly, nbRescales uint64) {
+	level := uint64(len(p0.Coeffs) - 1)
+	r.InvNTTLvl(level, p0, p0)
+	r.MapXNToXX2NAndMurakami(level, p0)
+	r.DivRoundByLastModulusMany(p0, nbRescales)
+	r.MapXX2NToXNAndMurakami(level-nbRescales, p0)
+	r.NTTLvl(level-nbRescales, p0, p0)
 }
 
 // DivRoundByLastModulusMany divides (rounded) sequentially nbRescales times the polynomial by its last modulus.

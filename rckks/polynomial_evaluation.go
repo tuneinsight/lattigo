@@ -9,15 +9,15 @@ import (
 // that then can be evaluated on the ciphertext
 type Poly struct {
 	maxDeg uint64
-	coeffs []complex128
+	coeffs []float64
 	lead   bool
 }
 
 // NewPoly creates a new Poly from the input coefficients
-func NewPoly(coeffs []complex128) (p *Poly) {
+func NewPoly(coeffs []float64) (p *Poly) {
 
 	p = new(Poly)
-	p.coeffs = make([]complex128, len(coeffs), len(coeffs))
+	p.coeffs = make([]float64, len(coeffs), len(coeffs))
 	copy(p.coeffs, coeffs)
 	p.maxDeg = uint64(len(coeffs) - 1)
 	p.lead = true
@@ -101,7 +101,7 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 
 // EvaluateChebyFastSpecial evaluates the input Chebyshev polynomial with the input ciphertext.
 // Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
-func (eval *evaluator) EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
+func (eval *evaluator) EvaluateChebySpecial(ct *Ciphertext, n float64, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
 
 	C := make(map[uint64]*Ciphertext)
 
@@ -202,7 +202,7 @@ func splitCoeffs(coeffs *Poly, split uint64) (coeffsq, coeffsr *Poly) {
 	// Splits a polynomial p such that p = q*C^degree + r.
 
 	coeffsr = new(Poly)
-	coeffsr.coeffs = make([]complex128, split)
+	coeffsr.coeffs = make([]float64, split)
 	if coeffs.maxDeg == coeffs.Degree() {
 		coeffsr.maxDeg = split - 1
 	} else {
@@ -214,7 +214,7 @@ func splitCoeffs(coeffs *Poly, split uint64) (coeffsq, coeffsr *Poly) {
 	}
 
 	coeffsq = new(Poly)
-	coeffsq.coeffs = make([]complex128, coeffs.Degree()-split+1)
+	coeffsq.coeffs = make([]float64, coeffs.Degree()-split+1)
 	coeffsq.maxDeg = coeffs.maxDeg
 
 	coeffsq.coeffs[0] = coeffs.coeffs[split]
@@ -233,7 +233,7 @@ func splitCoeffsCheby(coeffs *Poly, split uint64) (coeffsq, coeffsr *Poly) {
 
 	// Splits a Chebyshev polynomial p such that p = q*C^degree + r, where q and r are a linear combination of a Chebyshev basis.
 	coeffsr = new(Poly)
-	coeffsr.coeffs = make([]complex128, split)
+	coeffsr.coeffs = make([]float64, split)
 	if coeffs.maxDeg == coeffs.Degree() {
 		coeffsr.maxDeg = split - 1
 	} else {
@@ -245,7 +245,7 @@ func splitCoeffsCheby(coeffs *Poly, split uint64) (coeffsq, coeffsr *Poly) {
 	}
 
 	coeffsq = new(Poly)
-	coeffsq.coeffs = make([]complex128, coeffs.Degree()-split+1)
+	coeffsq.coeffs = make([]float64, coeffs.Degree()-split+1)
 	coeffsq.maxDeg = coeffs.maxDeg
 
 	coeffsq.coeffs[0] = coeffs.coeffs[split]
@@ -395,7 +395,7 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[uint64]
 
 		res = NewCiphertext(evaluator.params, 1, C[1].Level(), targetScale)
 
-		if math.Abs(real(coeffs.coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.coeffs[0])) > 1e-14 {
+		if math.Abs(coeffs.coeffs[0]) > 1e-14 {
 			evaluator.AddConst(res, coeffs.coeffs[0], res)
 		}
 
@@ -412,21 +412,18 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[uint64]
 
 	res = NewCiphertext(evaluator.params, 1, C[coeffs.Degree()].Level(), ctScale)
 
-	if math.Abs(real(coeffs.coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.coeffs[0])) > 1e-14 {
+	if math.Abs(coeffs.coeffs[0]) > 1e-14 {
 		evaluator.AddConst(res, coeffs.coeffs[0], res)
 	}
 
 	for key := coeffs.Degree(); key > 0; key-- {
 
-		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-14 || math.Abs(imag(coeffs.coeffs[key])) > 1e-14) {
+		if key != 0 && (math.Abs(coeffs.coeffs[key]) > 1e-14) {
 
 			// Target scale * rescale-scale / power basis scale
 			constScale := targetScale * currentQi / C[key].Scale()
 
-			cReal := int64(real(coeffs.coeffs[key]) * constScale)
-			cImag := int64(imag(coeffs.coeffs[key]) * constScale)
-
-			evaluator.multByGaussianIntegerAndAdd(C[key], cReal, cImag, res)
+			evaluator.multByGaussianIntegerAndAdd(C[key], int64(coeffs.coeffs[key]*constScale), 0, res)
 		}
 	}
 

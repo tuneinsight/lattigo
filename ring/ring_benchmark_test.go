@@ -180,13 +180,13 @@ func benchMurakami(testContext *testParams, b *testing.B) {
 
 	b.Run(testString("Murakami/Forward/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ringQ.MapXX2NToXNAndMurakami(p)
+			ringQ.MapXX2NToXNAndMurakami(uint64(len(ringQ.Modulus)-1), p)
 		}
 	})
 
 	b.Run(testString("Murakami/Backward/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ringQ.MapXNToXX2NAndMurakami(p)
+			ringQ.MapXNToXX2NAndMurakami(uint64(len(ringQ.Modulus)-1), p)
 		}
 	})
 }

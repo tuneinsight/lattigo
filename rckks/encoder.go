@@ -1,10 +1,11 @@
-//Package ckks implements a RNS-accelerated version of the Homomorphic Encryption for Arithmetic for Approximate Numbers
-//(HEAAN, a.k.a. CKKS) scheme. It provides approximate arithmetic over the complex numbers.package ckks
+//Package rckks implements a RNS-accelerated version of the Approximate Homomorphic Encryption over the Conjugate-invariant Ring
+//(Real-HEAAN) scheme. It provides approximate arithmetic over the real numbers.
 package rckks
 
 import (
 	"math"
 	"math/big"
+	//"fmt"
 
 	"github.com/ldsec/lattigo/v2/ring"
 )
@@ -17,11 +18,11 @@ var pi = "3.14159265358979323846264338327950288419716939937510582097494459230781
 
 // Encoder is an interface implenting the encoding algorithms.
 type Encoder interface {
-	Encode(plaintext *Plaintext, values []complex128, slots uint64)
-	EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext)
-	EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64)
-	EncodeNTTNew(values []complex128, slots uint64) (plaintext *Plaintext)
-	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
+	Encode(plaintext *Plaintext, values []float64, slots uint64)
+	EncodeNew(values []float64, slots uint64) (plaintext *Plaintext)
+	EncodeNTT(plaintext *Plaintext, values []float64, slots uint64)
+	EncodeNTTNew(values []float64, slots uint64) (plaintext *Plaintext)
+	Decode(plaintext *Plaintext, slots uint64) (res []float64)
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 }
@@ -69,6 +70,10 @@ func newEncoder(params *Parameters) encoder {
 		panic(err)
 	}
 
+	if err = q.GenMurakamiParams(); err != nil {
+		panic(err)
+	}
+
 	rotGroup := make([]uint64, m>>1)
 	fivePows := uint64(1)
 	for i := uint64(0); i < m>>2; i++ {
@@ -111,13 +116,13 @@ func NewEncoder(params *Parameters) Encoder {
 	}
 }
 
-func (encoder *encoderComplex128) EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext) {
+func (encoder *encoderComplex128) EncodeNew(values []float64, slots uint64) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
 	encoder.Encode(plaintext, values, slots)
 	return
 }
 
-func (encoder *encoderComplex128) embed(values []complex128, slots uint64) {
+func (encoder *encoderComplex128) embed(values []float64, slots uint64) {
 
 	if uint64(len(values)) > encoder.params.N() || uint64(len(values)) > slots {
 		panic("cannot Encode: too many values for the given number of slots")
@@ -128,7 +133,7 @@ func (encoder *encoderComplex128) embed(values []complex128, slots uint64) {
 	}
 
 	for i := range values {
-		encoder.values[i] = values[i]
+		encoder.values[i] = complex(values[i], 0)
 	}
 
 	encoder.invfft(encoder.values, slots)
@@ -155,21 +160,22 @@ func (encoder *encoderComplex128) wipeInternalMemory() {
 }
 
 // Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it in the receiver Plaintext.
-func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
+func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []float64, slots uint64) {
 	encoder.embed(values, slots)
 	encoder.scaleUp(plaintext.value, plaintext.scale, encoder.ringQ.Modulus[:plaintext.Level()+1])
 	encoder.wipeInternalMemory()
 	plaintext.isNTT = false
 }
 
-func (encoder *encoderComplex128) EncodeNTTNew(values []complex128, slots uint64) (plaintext *Plaintext) {
+func (encoder *encoderComplex128) EncodeNTTNew(values []float64, slots uint64) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
 	encoder.EncodeNTT(plaintext, values, slots)
 	return
 }
 
-func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64) {
+func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []float64, slots uint64) {
 	encoder.Encode(plaintext, values, slots)
+	encoder.ringQ.MapXX2NToXNAndMurakami(plaintext.Level(), plaintext.value)
 	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 	plaintext.isNTT = true
 }
@@ -191,6 +197,7 @@ func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plai
 // and returns a scaled integer plaintext polynomial in NTT.
 func (encoder *encoderComplex128) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
 	encoder.EncodeCoeffs(values, plaintext)
+	encoder.ringQ.MapXX2NToXNAndMurakami(plaintext.Level(), plaintext.value)
 	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 	plaintext.isNTT = true
 }
@@ -200,6 +207,7 @@ func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []floa
 
 	if plaintext.isNTT {
 		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+		encoder.ringQ.MapXNToXX2NAndMurakami(plaintext.Level(), encoder.polypool)
 	} else {
 		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
@@ -252,16 +260,29 @@ func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []floa
 }
 
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
-func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
+func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (res []float64) {
+
+	//fmt.Println("m (map +NTT)", plaintext.value.Coeffs[0])
+	//fmt.Println("m (map +NTT)", plaintext.value.Coeffs[1])
+	//fmt.Println()
 
 	if plaintext.isNTT {
 		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+		//fmt.Println("m      (map)", encoder.polypool.Coeffs[0])
+		//fmt.Println("m      (map)", encoder.polypool.Coeffs[1])
+		//fmt.Println()
+		encoder.ringQ.MapXNToXX2NAndMurakami(plaintext.Level(), encoder.polypool)
+		//fmt.Println("m           ", encoder.polypool.Coeffs[0])
+		//fmt.Println("m           ", encoder.polypool.Coeffs[1])
+		//fmt.Println()
 	} else {
 		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
 
 	maxSlots := encoder.ringQ.N
 	gap := maxSlots / slots
+
+	//fmt.Println(plaintext.Level())
 
 	// We have more than one moduli and need the CRT reconstruction
 	if plaintext.Level() > 0 {
@@ -311,10 +332,10 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (re
 
 	encoder.fft(encoder.values, slots)
 
-	res = make([]complex128, slots)
+	res = make([]float64, slots)
 
 	for i := range res {
-		res[i] = encoder.values[i]
+		res[i] = real(encoder.values[i])
 	}
 
 	for i := uint64(0); i < encoder.ringQ.N>>1; i++ {

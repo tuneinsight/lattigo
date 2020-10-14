@@ -143,6 +143,15 @@ func basisextenderparameters(Q, P []uint64) (params *modupParams) {
 	return
 }
 
+func (basisextender *FastBasisExtender) GenMurakamiParams() {
+	if err := basisextender.ringQ.GenMurakamiParams(); err != nil {
+		panic(err)
+	}
+	if err := basisextender.ringP.GenMurakamiParams(); err != nil {
+		panic(err)
+	}
+}
+
 // ModUpSplitQP extends the RNS basis of a polynomial from Q to QP.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel},
 // it extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}
@@ -247,6 +256,62 @@ func (basisextender *FastBasisExtender) ModDownSplitNTTPQ(level uint64, p1Q, p1P
 		bredParams := ringQ.BredParams[i]
 
 		// First we switch back the relevant polypool CRT array back to the NTT domain
+		NTT(p3tmp, p3tmp, ringQ.N, ringQ.GetNttPsi()[i], ringQ.Modulus[i], mredParams, bredParams)
+
+		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
+		for j := uint64(0); j < ringQ.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+
+			z[0] = MRed(x[0]+(qi-y[0]), params, qi, mredParams)
+			z[1] = MRed(x[1]+(qi-y[1]), params, qi, mredParams)
+			z[2] = MRed(x[2]+(qi-y[2]), params, qi, mredParams)
+			z[3] = MRed(x[3]+(qi-y[3]), params, qi, mredParams)
+			z[4] = MRed(x[4]+(qi-y[4]), params, qi, mredParams)
+			z[5] = MRed(x[5]+(qi-y[5]), params, qi, mredParams)
+			z[6] = MRed(x[6]+(qi-y[6]), params, qi, mredParams)
+			z[7] = MRed(x[7]+(qi-y[7]), params, qi, mredParams)
+		}
+	}
+
+	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
+}
+
+// ModDownSplitNTTPQ reduces the basis of a polynomial.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qi} and {P0,P1...Pj},
+// it reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
+// and does a rounded integer division of the result by P.
+// Inputs must be in the NTT domain.
+func (basisextender *FastBasisExtender) ModDownSplitNTTPQMurakami(level uint64, p1Q, p1P, p2 *Poly) {
+
+	ringQ := basisextender.ringQ
+	ringP := basisextender.ringP
+	modDownParams := basisextender.modDownParamsPQ
+	polypool := basisextender.polypoolQ
+
+	// First we get the P basis part of p1 out of the NTT domain
+	ringP.InvNTT(p1P, p1P)
+	ringP.MapXNToXX2NAndMurakami(uint64(len(ringP.Modulus)-1), p1P)
+
+	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
+	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
+	modUpExact(p1P.Coeffs, polypool.Coeffs[:level+1], basisextender.paramsPQ)
+
+	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	for i := uint64(0); i < level+1; i++ {
+
+		qi := ringQ.Modulus[i]
+		p1tmp := p1Q.Coeffs[i]
+		p2tmp := p2.Coeffs[i]
+		p3tmp := polypool.Coeffs[i]
+		params := modDownParams[i]
+		mredParams := ringQ.MredParams[i]
+		bredParams := ringQ.BredParams[i]
+
+		// First we switch back the relevant polypool CRT array back to the NTT domain
+		MapXX2NToXNAndMurakami(p3tmp, ringQ.Murakami[i], ringQ.N, ringQ.NttPsiInv[i][1], ringQ.NttPsi[i][3]+ringQ.NttPsi[i][2], qi, mredParams)
 		NTT(p3tmp, p3tmp, ringQ.N, ringQ.GetNttPsi()[i], ringQ.Modulus[i], mredParams, bredParams)
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi

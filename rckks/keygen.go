@@ -1,10 +1,9 @@
 package rckks
 
 import (
-	"math/big"
-
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
+	"math/big"
 )
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
@@ -50,18 +49,15 @@ type Rotation int
 const (
 	RotationRight = iota + 1
 	RotationLeft
-	Conjugate
 )
 
 // RotationKeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
-	permuteNTTLeftIndex      map[uint64][]uint64
-	permuteNTTRightIndex     map[uint64][]uint64
-	permuteNTTConjugateIndex []uint64
+	permuteNTTLeftIndex  map[uint64][]uint64
+	permuteNTTRightIndex map[uint64][]uint64
 
 	evakeyRotColLeft  map[uint64]*SwitchingKey
 	evakeyRotColRight map[uint64]*SwitchingKey
-	evakeyConjugate   *SwitchingKey
 }
 
 // EvaluationKey is a structure that stores the switching-keys required during the relinearization.
@@ -89,6 +85,10 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 		panic(err)
 	}
 
+	if err = qp.GenMurakamiParams(); err != nil {
+		panic(err)
+	}
+
 	var pBigInt *big.Int
 	if len(params.pi) != 0 {
 		pBigInt = ring.NewUint(1)
@@ -97,7 +97,7 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 		}
 	}
 
-	prng, err := utils.NewPRNG()
+	prng, err := utils.NewKeyedPRNG(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -121,13 +121,14 @@ func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	sk = new(SecretKey)
 
 	sk.sk = keygen.gaussianSampler.ReadNew()
+	keygen.ringQP.MapXX2NToXNAndMurakami(uint64(len(sk.sk.Coeffs))-1, sk.sk)
 	keygen.ringQP.NTT(sk.sk, sk.sk)
 	return sk
 }
 
 // GenSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].
 func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
-	prng, err := utils.NewPRNG()
+	prng, err := utils.NewKeyedPRNG(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -135,13 +136,17 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 
 	sk = new(SecretKey)
 	sk.sk = ternarySamplerMontgomery.ReadNew()
+	//fmt.Println("sk", sk.sk.Coeffs[0])
+	keygen.ringQP.MapXX2NToXNAndMurakami(uint64(len(sk.sk.Coeffs))-1, sk.sk)
+	//fmt.Println("sk (map)", sk.sk.Coeffs[0])
 	keygen.ringQP.NTT(sk.sk, sk.sk)
+	//fmt.Println("sk (map + NTT)", sk.sk.Coeffs[0])
 	return sk
 }
 
 // GenSecretKeySparse generates a new SecretKey with exactly hw non-zero coefficients.
 func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
-	prng, err := utils.NewPRNG()
+	prng, err := utils.NewKeyedPRNG(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -149,6 +154,7 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
 
 	sk = new(SecretKey)
 	sk.sk = ternarySamplerMontgomery.ReadNew()
+	keygen.ringQP.MapXX2NToXNAndMurakami(uint64(len(sk.sk.Coeffs))-1, sk.sk)
 	keygen.ringQP.NTT(sk.sk, sk.sk)
 	return sk
 }
@@ -178,14 +184,30 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	ringQP := keygen.ringQP
 
+	//fmt.Println()
+	//fmt.Println("Sk", sk.sk.Coeffs[0])
+
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
 	pk.pk[0] = keygen.gaussianSampler.ReadNew()
+	//fmt.Println("e", pk.pk[0].Coeffs[0])
+	keygen.ringQP.MapXX2NToXNAndMurakami(uint64(len(pk.pk[0].Coeffs))-1, pk.pk[0])
+	//fmt.Println("e (map)", pk.pk[0].Coeffs[0])
 	ringQP.NTT(pk.pk[0], pk.pk[0])
+	//fmt.Println("e (map+NTT)", pk.pk[0].Coeffs[0])
 	pk.pk[1] = keygen.uniformSampler.ReadNew()
+	//fmt.Println("a (map+NTT)", pk.pk[1].Coeffs[0])
 
+	//fmt.Println()
+	//fmt.Println("sk*pk[1]+e", sk.sk.Coeffs[0])
+	//fmt.Println("sk*pk[1]+e", pk.pk[1].Coeffs[0])
+	//fmt.Println("sk*pk[1]+e", pk.pk[0].Coeffs[0])
 	ringQP.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
+	//fmt.Println()
+	//fmt.Println("sa+e (map+NTT)", pk.pk[0].Coeffs[0])
 	ringQP.Neg(pk.pk[0], pk.pk[0])
+	//fmt.Println("-sa+e (map+NTT)", pk.pk[0].Coeffs[0])
+	//fmt.Println()
 
 	return pk
 }
@@ -317,23 +339,20 @@ func (keygen *keyGenerator) GenRotationKey(rotType Rotation, sk *SecretKey, k ui
 
 	ringQP := keygen.ringQP
 
-	if rotType != Conjugate {
+	if rotKey.permuteNTTLeftIndex == nil {
+		rotKey.permuteNTTLeftIndex = make(map[uint64][]uint64)
+	}
 
-		if rotKey.permuteNTTLeftIndex == nil {
-			rotKey.permuteNTTLeftIndex = make(map[uint64][]uint64)
-		}
+	if rotKey.permuteNTTRightIndex == nil {
+		rotKey.permuteNTTRightIndex = make(map[uint64][]uint64)
+	}
 
-		if rotKey.permuteNTTRightIndex == nil {
-			rotKey.permuteNTTRightIndex = make(map[uint64][]uint64)
-		}
+	if _, inMap := rotKey.permuteNTTLeftIndex[k]; !inMap {
+		rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndexMurakami(GaloisGen, k, ringQP.N)
+	}
 
-		if _, inMap := rotKey.permuteNTTLeftIndex[k]; !inMap {
-			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, ringQP.N)
-		}
-
-		if _, inMap := rotKey.permuteNTTRightIndex[k]; !inMap {
-			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, 2*ringQP.N-k, ringQP.N)
-		}
+	if _, inMap := rotKey.permuteNTTRightIndex[k]; !inMap {
+		rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndexMurakami(GaloisGen, 2*ringQP.N-k, ringQP.N)
 	}
 
 	switch rotType {
@@ -356,10 +375,6 @@ func (keygen *keyGenerator) GenRotationKey(rotType Rotation, sk *SecretKey, k ui
 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
 			rotKey.evakeyRotColRight[k] = keygen.genrotKey(sk.Get(), rotKey.permuteNTTLeftIndex[k])
 		}
-
-	case Conjugate:
-		rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(2*ringQP.N-1, 1, ringQP.N)
-		rotKey.evakeyConjugate = keygen.genrotKey(sk.Get(), rotKey.permuteNTTConjugateIndex)
 	}
 }
 
@@ -372,12 +387,10 @@ func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 
 	rotKey = NewRotationKeys()
 
-	for n := uint64(1); n < keygen.params.N()/2; n <<= 1 {
+	for n := uint64(1); n < keygen.params.N(); n <<= 1 {
 		keygen.GenRotationKey(RotationLeft, skOutput, n, rotKey)
 		keygen.GenRotationKey(RotationRight, skOutput, n, rotKey)
 	}
-
-	//keygen.GenRot(Conjugate, skOutput, 0, rotKey)
 
 	return
 }
@@ -398,7 +411,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyRotColLeft[k] == nil && k != 0 {
 
-			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, params.N())
+			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndexMurakami(GaloisGen, k, params.N())
 
 			rotKey.evakeyRotColLeft[k] = new(SwitchingKey)
 			rotKey.evakeyRotColLeft[k].evakey = make([][2]*ring.Poly, len(evakey))
@@ -420,27 +433,13 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
 
-			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, 2*params.N()-1-k, params.N())
+			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndexMurakami(GaloisGen, 2*params.N()-1-k, params.N())
 
 			rotKey.evakeyRotColRight[k] = new(SwitchingKey)
 			rotKey.evakeyRotColRight[k].evakey = make([][2]*ring.Poly, len(evakey))
 			for j := range evakey {
 				rotKey.evakeyRotColRight[k].evakey[j][0] = evakey[j][0].CopyNew()
 				rotKey.evakeyRotColRight[k].evakey[j][1] = evakey[j][1].CopyNew()
-			}
-		}
-
-	case Conjugate:
-
-		if rotKey.evakeyConjugate == nil {
-
-			rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(2*params.N()-1, 1, params.N())
-
-			rotKey.evakeyConjugate = new(SwitchingKey)
-			rotKey.evakeyConjugate.evakey = make([][2]*ring.Poly, len(evakey))
-			for j := range evakey {
-				rotKey.evakeyConjugate.evakey[j][0] = evakey[j][0].CopyNew()
-				rotKey.evakeyConjugate.evakey[j][1] = evakey[j][1].CopyNew()
 			}
 		}
 	}
@@ -481,6 +480,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 		// e
 		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNew()
+		ringQP.MapXX2NToXNAndMurakami(uint64(len(switchingkey.evakey[i][0].Coeffs))-1, switchingkey.evakey[i][0])
 		ringQP.NTT(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 		ringQP.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 

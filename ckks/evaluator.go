@@ -1712,6 +1712,7 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 	}
 	// c2QiP = c2 mod qi mod pj
 	ringP.NTT(c2QiP, c2QiP)
+
 }
 
 // RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext

@@ -55,7 +55,7 @@ func TestRing(t *testing.T) {
 	var defaultParams []*Parameters
 
 	if testing.Short() {
-		defaultParams = DefaultParams[:1]
+		defaultParams = DefaultParams[:3]
 	} else {
 		defaultParams = DefaultParams
 	}
@@ -569,8 +569,8 @@ func testMurakami(testContext *testParams, t *testing.T) {
 		p1 := testContext.uniformSamplerQ.ReadNew()
 		p2 := p1.CopyNew()
 
-		ringQ.MapXX2NToXNAndMurakami(p1)
-		ringQ.MapXNToXX2NAndMurakami(p1)
+		ringQ.MapXX2NToXNAndMurakami(uint64(len(ringQ.Modulus)-1), p1)
+		ringQ.MapXNToXX2NAndMurakami(uint64(len(ringQ.Modulus)-1), p1)
 
 		require.Equal(t, p2.Coeffs[0][:testContext.ringQ.N], p1.Coeffs[0][:testContext.ringQ.N])
 	})

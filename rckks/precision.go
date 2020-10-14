@@ -8,16 +8,16 @@ import (
 
 // PrecisionStats is a struct storing statistic about the precision of a CKKS plaintext
 type PrecisionStats struct {
-	MaxDelta        complex128
-	MinDelta        complex128
-	MaxPrecision    complex128
-	MinPrecision    complex128
-	MeanDelta       complex128
-	MeanPrecision   complex128
-	MedianDelta     complex128
-	MedianPrecision complex128
+	MaxDelta        float64
+	MinDelta        float64
+	MaxPrecision    float64
+	MinPrecision    float64
+	MeanDelta       float64
+	MeanPrecision   float64
+	MedianDelta     float64
+	MedianPrecision float64
 
-	RealDist, ImagDist []struct {
+	Dist []struct {
 		Prec  float64
 		Count int
 	}
@@ -26,16 +26,16 @@ type PrecisionStats struct {
 }
 
 func (prec PrecisionStats) String() string {
-	return fmt.Sprintf("\nMinimum precision : (%.2f, %.2f) bits \n", real(prec.MinPrecision), imag(prec.MinPrecision)) +
-		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", real(prec.MaxPrecision), imag(prec.MaxPrecision)) +
-		fmt.Sprintf("Mean    precision : (%.2f, %.2f) bits \n", real(prec.MeanPrecision), imag(prec.MeanPrecision)) +
-		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", real(prec.MedianPrecision), imag(prec.MedianPrecision))
+	return fmt.Sprintf("\nMinimum precision : (%.2f) bits \n", prec.MinPrecision) +
+		fmt.Sprintf("Maximum precision : (%.2f) bits \n", prec.MaxPrecision) +
+		fmt.Sprintf("Mean    precision : (%.2f) bits \n", prec.MeanPrecision) +
+		fmt.Sprintf("Median  precision : (%.2f) bits \n", prec.MedianPrecision)
 }
 
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
-func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}) (prec PrecisionStats) {
+func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []float64, element interface{}) (prec PrecisionStats) {
 
-	var valuesTest []complex128
+	var valuesTest []float64
 
 	slots := params.Slots()
 
@@ -44,78 +44,60 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 		valuesTest = encoder.Decode(decryptor.DecryptNew(element.(*Ciphertext)), slots)
 	case *Plaintext:
 		valuesTest = encoder.Decode(element.(*Plaintext), slots)
-	case []complex128:
-		valuesTest = element.([]complex128)
+	case []float64:
+		valuesTest = element.([]float64)
 	}
 
-	var deltaReal, deltaImag float64
+	var delta float64
 
-	var delta complex128
+	diff := make([]float64, params.Slots())
 
-	diff := make([]complex128, params.Slots())
+	prec.MaxDelta = 0
+	prec.MinDelta = 1
 
-	prec.MaxDelta = complex(0, 0)
-	prec.MinDelta = complex(1, 1)
-
-	prec.MeanDelta = complex(0, 0)
+	prec.MeanDelta = 0
 
 	prec.cdfResol = 500
 
-	prec.RealDist = make([]struct {
-		Prec  float64
-		Count int
-	}, prec.cdfResol)
-	prec.ImagDist = make([]struct {
+	prec.Dist = make([]struct {
 		Prec  float64
 		Count int
 	}, prec.cdfResol)
 
-	precReal := make([]float64, len(valuesWant))
-	precImag := make([]float64, len(valuesWant))
+	precision := make([]float64, len(valuesWant))
 
 	for i := range valuesWant {
 
-		delta = valuesTest[i] - valuesWant[i]
-		deltaReal = math.Abs(real(delta))
-		deltaImag = math.Abs(imag(delta))
-		precReal[i] = math.Log2(1 / deltaReal)
-		precImag[i] = math.Log2(1 / deltaImag)
+		delta = math.Abs(valuesTest[i] - valuesWant[i])
+		precision[i] = math.Log2(1 / delta)
 
-		diff[i] += complex(deltaReal, deltaImag)
+		diff[i] += delta
 
 		prec.MeanDelta += diff[i]
 
-		if deltaReal > real(prec.MaxDelta) {
-			prec.MaxDelta = complex(deltaReal, imag(prec.MaxDelta))
+		if delta > prec.MaxDelta {
+			prec.MaxDelta = delta
 		}
 
-		if deltaImag > imag(prec.MaxDelta) {
-			prec.MaxDelta = complex(real(prec.MaxDelta), deltaImag)
-		}
-
-		if deltaReal < real(prec.MinDelta) {
-			prec.MinDelta = complex(deltaReal, imag(prec.MinDelta))
-		}
-
-		if deltaImag < imag(prec.MinDelta) {
-			prec.MinDelta = complex(real(prec.MinDelta), deltaImag)
+		if delta < prec.MinDelta {
+			prec.MinDelta = delta
 		}
 	}
 
-	prec.calcCDF(precReal, prec.RealDist)
-	prec.calcCDF(precImag, prec.ImagDist)
+	prec.calcCDF(precision, prec.Dist)
 
 	prec.MinPrecision = deltaToPrecision(prec.MaxDelta)
 	prec.MaxPrecision = deltaToPrecision(prec.MinDelta)
-	prec.MeanDelta /= complex(float64(params.Slots()), 0)
+	prec.MeanDelta /= float64(params.Slots())
 	prec.MeanPrecision = deltaToPrecision(prec.MeanDelta)
 	prec.MedianDelta = calcmedian(diff)
 	prec.MedianPrecision = deltaToPrecision(prec.MedianDelta)
+
 	return prec
 }
 
-func deltaToPrecision(c complex128) complex128 {
-	return complex(math.Log2(1/real(c)), math.Log2(1/imag(c)))
+func deltaToPrecision(c float64) float64 {
+	return math.Log2(1 / c)
 }
 
 func (prec *PrecisionStats) calcCDF(precs []float64, res []struct {
@@ -139,29 +121,9 @@ func (prec *PrecisionStats) calcCDF(precs []float64, res []struct {
 	}
 }
 
-func calcmedian(values []complex128) (median complex128) {
+func calcmedian(values []float64) (median float64) {
 
-	tmp := make([]float64, len(values))
-
-	for i := range values {
-		tmp[i] = real(values[i])
-	}
-
-	sort.Float64s(tmp)
-
-	for i := range values {
-		values[i] = complex(tmp[i], imag(values[i]))
-	}
-
-	for i := range values {
-		tmp[i] = imag(values[i])
-	}
-
-	sort.Float64s(tmp)
-
-	for i := range values {
-		values[i] = complex(real(values[i]), tmp[i])
-	}
+	sort.Float64s(values)
 
 	index := len(values) / 2
 

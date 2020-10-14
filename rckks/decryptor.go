@@ -2,6 +2,7 @@ package rckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	//"fmt"
 )
 
 // Decryptor is an interface for decrypting Ciphertexts. A Decryptor stores the secret-key.
@@ -59,6 +60,10 @@ func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 // Horner method is used for evaluating the decryption.
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
+	//fmt.Println()
+	//fmt.Println("ct0 (map+NTT)", ciphertext.value[0].Coeffs[0])
+	//fmt.Println("ct1 (map+NTT)", ciphertext.value[1].Coeffs[0])
+
 	level := ciphertext.Level()
 
 	plaintext.SetScale(ciphertext.Scale())
@@ -80,4 +85,5 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 	if (ciphertext.Degree())&7 != 7 {
 		decryptor.ringQ.ReduceLvl(level, plaintext.value, plaintext.value)
 	}
+	//fmt.Println("ct0 + ct1*sk (map+NTT)", plaintext.value.Coeffs[0])
 }

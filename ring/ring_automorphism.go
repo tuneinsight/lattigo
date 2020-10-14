@@ -51,6 +51,48 @@ func PermuteNTTIndex(gen, power, N uint64) (index []uint64) {
 	return
 }
 
+func PermuteNTTIndexMurakami(gen, power, N uint64) (index2 []uint64) {
+
+	genPow := ModExp(gen, power, N<<2)
+
+	var mask, logN, tmp1, tmp2 uint64
+
+	logN = uint64(bits.Len64(N) - 1)
+
+	mask = (N << 2) - 1
+
+	index1 := make([]uint64, N)
+	for i := uint64(0); i < N; i++ {
+		index1[i] = i
+	}
+
+	for i := uint64(1); i < logN+1; i++ {
+		gap := (N >> i)
+		for j := uint64(0); j < gap; j++ {
+			index1[j], index1[j+gap] = index1[j+gap], index1[j]
+		}
+	}
+
+	index2 = make([]uint64, N)
+
+	for i := uint64(0); i < N; i++ {
+		tmp1 = 2*utils.BitReverse64(i, logN+1) + 1
+
+		tmp2 = ((genPow * tmp1 & mask) - 1) >> 1
+
+		index2[i] = index1[utils.BitReverse64(tmp2, logN+1)]
+	}
+
+	for i := logN; i > 0; i-- {
+		gap := (N >> i)
+		for j := uint64(0); j < gap; j++ {
+			index2[j], index2[j+gap] = index2[j+gap], index2[j]
+		}
+	}
+
+	return
+}
+
 // PermuteNTT applies the Galois transform on a polynomial in the NTT domain.
 // It maps the coefficients x^i to x^(gen*i)
 // It must be noted that the result cannot be in-place.

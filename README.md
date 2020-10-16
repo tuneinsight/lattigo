@@ -1,4 +1,4 @@
-# Lattigo: lattice-based homomorphic encryption library in Go
+# Lattigo: lattice-based multiparty homomorphic encryption library in Go
 
 <p align="center">
 	<img src="https://i.ibb.co/5vXt5mj/logo.png" />
@@ -6,12 +6,12 @@
 
 [![Build Status](https://travis-ci.com/ldsec/lattigo.svg?token=kz1BaknyyJcURGZurf6m&branch=master)](https://travis-ci.com/ldsec/lattigo)
 
-Lattigo is a Go module implementing Ring-Learning-With-Errors-based homomorphic-encryption primitives.
+Lattigo is a Go module that implements Ring-Learning-With-Errors-based homomorphic-encryption primitives and Multiparty-Homomorphic-Encryption-based secure protocols.
 The library features:
-- An implementation of the full-RNS BFV and CKKS schemes and their respetive multiparty versions
+- An implementation of the full-RNS BFV and CKKS schemes and their respective multiparty versions.
 - Comparable performance to state-of-the-art C++ libraries.
-- A bootstrapping procedure for CKKS
-- Pure Go implementation enabling cross-plateform builds, including WASM compilation for browser clients
+- Dense-key and sparse-key efficient and high-precision bootstrapping procedures for full-RNS CKKS.
+- A pure Go implementation that enables cross-platform builds, including WASM compilation for browser clients.
 
 Lattigo is meant to support HE in distributed systems and microservices architectures, for which Go is a common choice thanks to its natural concurrency model and portability.
 
@@ -19,16 +19,16 @@ Lattigo is meant to support HE in distributed systems and microservices architec
 
 The library exposes the following packages:
 
-- `lattigo/ring`: modular arithmetic operations for polynomials in the RNS basis, including: RNS basis extension; RNS rescaling; number theoretic transform (NTT); uniform, Gaussian and ternary sampling.
+- `lattigo/ring`: Modular arithmetic operations for polynomials in the RNS basis, including: RNS basis extension; RNS rescaling; number theoretic transform (NTT); uniform, Gaussian and ternary sampling.
 
-- `lattigo/bfv`: The Full-RNS variant of the  Brakerski-Fan-Vercauteren scale invariant homomorphic encryption scheme. It provides modular arithmetic over the integers.
+- `lattigo/bfv`: The Full-RNS variant of the Brakerski-Fan-Vercauteren scale-invariant homomorphic encryption scheme. It provides modular arithmetic over the integers.
 	
 - `lattigo/ckks`: The Full-RNS variant of the Homomorphic Encryption for Arithmetic for Approximate Numbers (HEAAN, a.k.a. CKKS) scheme. It provides approximate arithmetic over the complex numbers.
 
 - `lattigo/dbfv` and `lattigo/dckks`: Multiparty (a.k.a. distributed or threshold) versions of the BFV and CKKS schemes that enable secure multiparty computation solutions with secret-shared secret keys.
 
-- `lattigo/examples`: Executable Go programs that demonstrate the usage of the Lattigo library.
-                      Each subpackage includes test files that further demonstrate the usage of Lattigo primitives.
+- `lattigo/examples`: Executable Go programs that demonstrate the use of the Lattigo library.
+                      Each subpackage includes test files that further demonstrate the use of Lattigo primitives.
 
 - `lattigo/utils`: Supporting structures and functions.
 

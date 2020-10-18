@@ -68,6 +68,7 @@ func TestRCKKS(t *testing.T) {
 		}
 
 		for _, testSet := range []func(testContext *testParams, t *testing.T){
+			testNTTRCKKS,
 			testParameters,
 			testEncoder,
 			testEncryptor,
@@ -167,6 +168,46 @@ func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant 
 	}
 
 	require.GreaterOrEqual(t, precStats.MeanPrecision, minPrec)
+}
+
+func testNTTRCKKS(testContext *testParams, t *testing.T) {
+
+	t.Run(testString(testContext, "NTTRCKKS/"), func(t *testing.T) {
+
+		ringQ := testContext.ringQ
+		ringQ2N, _ := ring.NewRing(ringQ.N<<1, ringQ.Modulus)
+		ringQN_4NthRoot, _ := ring.NewRingWithNthRoot(ringQ.N, ringQ.N<<2, ringQ.Modulus)
+
+		sampler := ring.NewUniformSampler(testContext.prng, ringQ)
+		p1 := sampler.ReadNew()
+		p2 := p1.CopyNew()
+
+		for i, qi := range ringQ.Modulus {
+			p2.Coeffs[i] = append(p2.Coeffs[i], make([]uint64, ringQ.N)...)
+			p2.Coeffs[i][ringQ.N] = 0
+			for j := uint64(1); j < ringQ.N; j++ {
+				p2.Coeffs[i][ringQ.N*2-j] = qi - p2.Coeffs[i][j]
+			}
+		}
+
+		ringQ2N.NTT(p2, p2)
+		ringQ2N.MForm(p2, p2)
+		ringQ2N.MulCoeffsMontgomery(p2, p2, p2)
+		ringQ2N.InvMForm(p2, p2)
+		ringQ2N.InvNTT(p2, p2)
+
+		NTTRCKKS(ringQN_4NthRoot, p1, p1)
+		ringQN_4NthRoot.MForm(p1, p1)
+		ringQN_4NthRoot.MulCoeffsMontgomery(p1, p1, p1)
+		ringQN_4NthRoot.InvMForm(p1, p1)
+		InvNTTRCKKS(ringQN_4NthRoot, p1, p1)
+
+		for j := range ringQ.Modulus {
+			for i := uint64(0); i < ringQ.N; i++ {
+				require.Equal(t, p1.Coeffs[j][i], p2.Coeffs[j][i])
+			}
+		}
+	})
 }
 
 func testParameters(testContext *testParams, t *testing.T) {

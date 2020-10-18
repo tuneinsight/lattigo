@@ -55,7 +55,7 @@ func TestRing(t *testing.T) {
 	var defaultParams []*Parameters
 
 	if testing.Short() {
-		defaultParams = DefaultParams[:3]
+		defaultParams = DefaultParams[:1]
 	} else {
 		defaultParams = DefaultParams
 	}

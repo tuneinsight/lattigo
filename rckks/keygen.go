@@ -81,11 +81,7 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 
 	var qp *ring.Ring
 	var err error
-	if qp, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
-		panic(err)
-	}
-
-	if err = qp.GenMurakamiParams(); err != nil {
+	if qp, err = ring.NewRingWithNthRoot(params.N(), params.N()<<2, append(params.qi, params.pi...)); err != nil {
 		panic(err)
 	}
 
@@ -119,10 +115,8 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 
 func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	sk = new(SecretKey)
-
 	sk.sk = keygen.gaussianSampler.ReadNew()
-	keygen.ringQP.MapXX2NToXNAndMurakami(uint64(len(sk.sk.Coeffs))-1, sk.sk)
-	keygen.ringQP.NTT(sk.sk, sk.sk)
+	NTTRCKKS(keygen.ringQP, sk.sk, sk.sk)
 	return sk
 }
 
@@ -136,11 +130,7 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 
 	sk = new(SecretKey)
 	sk.sk = ternarySamplerMontgomery.ReadNew()
-	//fmt.Println("sk", sk.sk.Coeffs[0])
-	keygen.ringQP.MapXX2NToXNAndMurakami(uint64(len(sk.sk.Coeffs))-1, sk.sk)
-	//fmt.Println("sk (map)", sk.sk.Coeffs[0])
-	keygen.ringQP.NTT(sk.sk, sk.sk)
-	//fmt.Println("sk (map + NTT)", sk.sk.Coeffs[0])
+	NTTRCKKS(keygen.ringQP, sk.sk, sk.sk)
 	return sk
 }
 
@@ -154,8 +144,7 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
 
 	sk = new(SecretKey)
 	sk.sk = ternarySamplerMontgomery.ReadNew()
-	keygen.ringQP.MapXX2NToXNAndMurakami(uint64(len(sk.sk.Coeffs))-1, sk.sk)
-	keygen.ringQP.NTT(sk.sk, sk.sk)
+	NTTRCKKS(keygen.ringQP, sk.sk, sk.sk)
 	return sk
 }
 
@@ -184,30 +173,13 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	ringQP := keygen.ringQP
 
-	//fmt.Println()
-	//fmt.Println("Sk", sk.sk.Coeffs[0])
-
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
 	pk.pk[0] = keygen.gaussianSampler.ReadNew()
-	//fmt.Println("e", pk.pk[0].Coeffs[0])
-	keygen.ringQP.MapXX2NToXNAndMurakami(uint64(len(pk.pk[0].Coeffs))-1, pk.pk[0])
-	//fmt.Println("e (map)", pk.pk[0].Coeffs[0])
-	ringQP.NTT(pk.pk[0], pk.pk[0])
-	//fmt.Println("e (map+NTT)", pk.pk[0].Coeffs[0])
+	NTTRCKKS(ringQP, pk.pk[0], pk.pk[0])
 	pk.pk[1] = keygen.uniformSampler.ReadNew()
-	//fmt.Println("a (map+NTT)", pk.pk[1].Coeffs[0])
-
-	//fmt.Println()
-	//fmt.Println("sk*pk[1]+e", sk.sk.Coeffs[0])
-	//fmt.Println("sk*pk[1]+e", pk.pk[1].Coeffs[0])
-	//fmt.Println("sk*pk[1]+e", pk.pk[0].Coeffs[0])
 	ringQP.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
-	//fmt.Println()
-	//fmt.Println("sa+e (map+NTT)", pk.pk[0].Coeffs[0])
 	ringQP.Neg(pk.pk[0], pk.pk[0])
-	//fmt.Println("-sa+e (map+NTT)", pk.pk[0].Coeffs[0])
-	//fmt.Println()
 
 	return pk
 }
@@ -348,11 +320,11 @@ func (keygen *keyGenerator) GenRotationKey(rotType Rotation, sk *SecretKey, k ui
 	}
 
 	if _, inMap := rotKey.permuteNTTLeftIndex[k]; !inMap {
-		rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndexMurakami(GaloisGen, k, ringQP.N)
+		rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, 2*ringQP.N)[:ringQP.N]
 	}
 
 	if _, inMap := rotKey.permuteNTTRightIndex[k]; !inMap {
-		rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndexMurakami(GaloisGen, 2*ringQP.N-k, ringQP.N)
+		rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, 4*ringQP.N-k, 2*ringQP.N)[:ringQP.N]
 	}
 
 	switch rotType {
@@ -411,7 +383,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyRotColLeft[k] == nil && k != 0 {
 
-			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndexMurakami(GaloisGen, k, params.N())
+			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, 2*params.N())[:params.N()]
 
 			rotKey.evakeyRotColLeft[k] = new(SwitchingKey)
 			rotKey.evakeyRotColLeft[k].evakey = make([][2]*ring.Poly, len(evakey))
@@ -433,7 +405,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
 
-			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndexMurakami(GaloisGen, 2*params.N()-1-k, params.N())
+			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, 4*params.N()-k, 2*params.N())[:params.N()]
 
 			rotKey.evakeyRotColRight[k] = new(SwitchingKey)
 			rotKey.evakeyRotColRight[k].evakey = make([][2]*ring.Poly, len(evakey))
@@ -480,8 +452,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 		// e
 		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNew()
-		ringQP.MapXX2NToXNAndMurakami(uint64(len(switchingkey.evakey[i][0].Coeffs))-1, switchingkey.evakey[i][0])
-		ringQP.NTT(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
+		NTTRCKKS(ringQP, switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 		ringQP.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)

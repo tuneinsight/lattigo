@@ -423,7 +423,7 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[uint64]
 			// Target scale * rescale-scale / power basis scale
 			constScale := targetScale * currentQi / C[key].Scale()
 
-			evaluator.multByGaussianIntegerAndAdd(C[key], int64(coeffs.coeffs[key]*constScale), 0, res)
+			evaluator.multByIntegerAndAdd(C[key], int64(coeffs.coeffs[key]*constScale), res)
 		}
 	}
 

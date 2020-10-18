@@ -34,7 +34,7 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 
 	var q *ring.Ring
 	var err error
-	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
+	if q, err = ring.NewRingWithNthRoot(params.N(), params.N()<<2, params.qi); err != nil {
 		panic(err)
 	}
 

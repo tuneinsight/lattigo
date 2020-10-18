@@ -6,7 +6,6 @@ import (
 
 // NTT computes the NTT of p1 and returns the result on p2.
 func (r *Ring) NTT(p1, p2 *Poly) {
-
 	for x := range r.Modulus {
 		NTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
 	}

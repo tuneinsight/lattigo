@@ -9,17 +9,17 @@ import (
 // FastBasisExtender stores the necessary parameters for RNS basis extension.
 // The used algorithm is from https://eprint.iacr.org/2018/117.pdf.
 type FastBasisExtender struct {
-	ringQ           *Ring
-	ringP           *Ring
-	paramsQP        *modupParams
-	paramsPQ        *modupParams
-	modDownParamsPQ []uint64
-	modDownParamsQP []uint64
-	polypoolQ       *Poly
-	polypoolP       *Poly
+	RingQ           *Ring
+	RingP           *Ring
+	ParamsQP        *ModUpParams
+	ParamsPQ        *ModUpParams
+	ModDownParamsPQ []uint64
+	ModDownParamsQP []uint64
+	PolyPoolQ       *Poly
+	PolyPoolP       *Poly
 }
 
-type modupParams struct {
+type ModUpParams struct {
 	Q []uint64
 	P []uint64
 
@@ -59,24 +59,24 @@ func NewFastBasisExtender(ringQ, ringP *Ring) *FastBasisExtender {
 
 	newParams := new(FastBasisExtender)
 
-	newParams.ringQ = ringQ
-	newParams.ringP = ringP
+	newParams.RingQ = ringQ
+	newParams.RingP = ringP
 
-	newParams.paramsQP = basisextenderparameters(ringQ.Modulus, ringP.Modulus)
-	newParams.paramsPQ = basisextenderparameters(ringP.Modulus, ringQ.Modulus)
+	newParams.ParamsQP = basisextenderparameters(ringQ.Modulus, ringP.Modulus)
+	newParams.ParamsPQ = basisextenderparameters(ringP.Modulus, ringQ.Modulus)
 
-	newParams.modDownParamsPQ = genModDownParams(ringQ, ringP)
-	newParams.modDownParamsQP = genModDownParams(ringP, ringQ)
+	newParams.ModDownParamsPQ = genModDownParams(ringQ, ringP)
+	newParams.ModDownParamsQP = genModDownParams(ringP, ringQ)
 
-	newParams.polypoolQ = ringQ.NewPoly()
-	newParams.polypoolP = ringP.NewPoly()
+	newParams.PolyPoolQ = ringQ.NewPoly()
+	newParams.PolyPoolP = ringP.NewPoly()
 
 	return newParams
 }
 
-func basisextenderparameters(Q, P []uint64) (params *modupParams) {
+func basisextenderparameters(Q, P []uint64) (params *ModUpParams) {
 
-	params = new(modupParams)
+	params = new(ModUpParams)
 
 	params.Q = make([]uint64, len(Q))
 	params.bredParamsQ = make([][]uint64, len(Q))
@@ -143,27 +143,18 @@ func basisextenderparameters(Q, P []uint64) (params *modupParams) {
 	return
 }
 
-func (basisextender *FastBasisExtender) GenMurakamiParams() {
-	if err := basisextender.ringQ.GenMurakamiParams(); err != nil {
-		panic(err)
-	}
-	if err := basisextender.ringP.GenMurakamiParams(); err != nil {
-		panic(err)
-	}
-}
-
 // ModUpSplitQP extends the RNS basis of a polynomial from Q to QP.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel},
 // it extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}
 func (basisextender *FastBasisExtender) ModUpSplitQP(level uint64, p1, p2 *Poly) {
-	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[:uint64(len(basisextender.paramsQP.P))], basisextender.paramsQP)
+	ModUpExact(p1.Coeffs[:level+1], p2.Coeffs[:uint64(len(basisextender.ParamsQP.P))], basisextender.ParamsQP)
 }
 
 // ModUpSplitPQ extends the RNS basis of a polynomial from P to PQ.
 // Given a polynomial with coefficients in basis {P0,P1....Plevel},
 // it extends its basis from {P0,P1....Plevel} to {Q0,Q1...Qj}
 func (basisextender *FastBasisExtender) ModUpSplitPQ(level uint64, p1, p2 *Poly) {
-	modUpExact(p1.Coeffs[:level+1], p2.Coeffs[:uint64(len(basisextender.paramsPQ.P))], basisextender.paramsPQ)
+	ModUpExact(p1.Coeffs[:level+1], p2.Coeffs[:uint64(len(basisextender.ParamsPQ.P))], basisextender.ParamsPQ)
 }
 
 // ModDownNTTPQ reduces the basis RNS of a polynomial in the NTT domain
@@ -174,10 +165,10 @@ func (basisextender *FastBasisExtender) ModUpSplitPQ(level uint64, p1, p2 *Poly)
 // Inputs must be in the NTT domain.
 func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly) {
 
-	ringQ := basisextender.ringQ
-	ringP := basisextender.ringP
-	modDownParams := basisextender.modDownParamsPQ
-	polypool := basisextender.polypoolQ
+	ringQ := basisextender.RingQ
+	ringP := basisextender.RingP
+	modDownParams := basisextender.ModDownParamsPQ
+	polypool := basisextender.PolyPoolQ
 	nQi := len(ringQ.Modulus)
 	nPj := len(ringP.Modulus)
 
@@ -188,7 +179,7 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	modUpExact(p1.Coeffs[nQi:nQi+nPj], polypool.Coeffs[:level+1], basisextender.paramsPQ)
+	ModUpExact(p1.Coeffs[nQi:nQi+nPj], polypool.Coeffs[:level+1], basisextender.ParamsPQ)
 
 	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
@@ -232,17 +223,17 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 // Inputs must be in the NTT domain.
 func (basisextender *FastBasisExtender) ModDownSplitNTTPQ(level uint64, p1Q, p1P, p2 *Poly) {
 
-	ringQ := basisextender.ringQ
-	ringP := basisextender.ringP
-	modDownParams := basisextender.modDownParamsPQ
-	polypool := basisextender.polypoolQ
+	ringQ := basisextender.RingQ
+	ringP := basisextender.RingP
+	modDownParams := basisextender.ModDownParamsPQ
+	polypool := basisextender.PolyPoolQ
 
 	// First we get the P basis part of p1 out of the NTT domain
 	ringP.InvNTT(p1P, p1P)
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	modUpExact(p1P.Coeffs, polypool.Coeffs[:level+1], basisextender.paramsPQ)
+	ModUpExact(p1P.Coeffs, polypool.Coeffs[:level+1], basisextender.ParamsPQ)
 
 	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
@@ -256,62 +247,6 @@ func (basisextender *FastBasisExtender) ModDownSplitNTTPQ(level uint64, p1Q, p1P
 		bredParams := ringQ.BredParams[i]
 
 		// First we switch back the relevant polypool CRT array back to the NTT domain
-		NTT(p3tmp, p3tmp, ringQ.N, ringQ.GetNttPsi()[i], ringQ.Modulus[i], mredParams, bredParams)
-
-		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		for j := uint64(0); j < ringQ.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-			y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-			z[0] = MRed(x[0]+(qi-y[0]), params, qi, mredParams)
-			z[1] = MRed(x[1]+(qi-y[1]), params, qi, mredParams)
-			z[2] = MRed(x[2]+(qi-y[2]), params, qi, mredParams)
-			z[3] = MRed(x[3]+(qi-y[3]), params, qi, mredParams)
-			z[4] = MRed(x[4]+(qi-y[4]), params, qi, mredParams)
-			z[5] = MRed(x[5]+(qi-y[5]), params, qi, mredParams)
-			z[6] = MRed(x[6]+(qi-y[6]), params, qi, mredParams)
-			z[7] = MRed(x[7]+(qi-y[7]), params, qi, mredParams)
-		}
-	}
-
-	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
-}
-
-// ModDownSplitNTTPQ reduces the basis of a polynomial.
-// Given a polynomial with coefficients in basis {Q0,Q1....Qi} and {P0,P1...Pj},
-// it reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
-// and does a rounded integer division of the result by P.
-// Inputs must be in the NTT domain.
-func (basisextender *FastBasisExtender) ModDownSplitNTTPQMurakami(level uint64, p1Q, p1P, p2 *Poly) {
-
-	ringQ := basisextender.ringQ
-	ringP := basisextender.ringP
-	modDownParams := basisextender.modDownParamsPQ
-	polypool := basisextender.polypoolQ
-
-	// First we get the P basis part of p1 out of the NTT domain
-	ringP.InvNTT(p1P, p1P)
-	ringP.MapXNToXX2NAndMurakami(uint64(len(ringP.Modulus)-1), p1P)
-
-	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
-	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	modUpExact(p1P.Coeffs, polypool.Coeffs[:level+1], basisextender.paramsPQ)
-
-	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
-	for i := uint64(0); i < level+1; i++ {
-
-		qi := ringQ.Modulus[i]
-		p1tmp := p1Q.Coeffs[i]
-		p2tmp := p2.Coeffs[i]
-		p3tmp := polypool.Coeffs[i]
-		params := modDownParams[i]
-		mredParams := ringQ.MredParams[i]
-		bredParams := ringQ.BredParams[i]
-
-		// First we switch back the relevant polypool CRT array back to the NTT domain
-		MapXX2NToXNAndMurakami(p3tmp, ringQ.Murakami[i], ringQ.N, ringQ.NttPsiInv[i][1], ringQ.NttPsi[i][3]+ringQ.NttPsi[i][2], qi, mredParams)
 		NTT(p3tmp, p3tmp, ringQ.N, ringQ.GetNttPsi()[i], ringQ.Modulus[i], mredParams, bredParams)
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
@@ -341,14 +276,14 @@ func (basisextender *FastBasisExtender) ModDownSplitNTTPQMurakami(level uint64, 
 // and does a rounded integer division of the result by P.
 func (basisextender *FastBasisExtender) ModDownPQ(level uint64, p1, p2 *Poly) {
 
-	ringQ := basisextender.ringQ
-	modDownParams := basisextender.modDownParamsPQ
-	polypool := basisextender.polypoolQ
-	nPi := uint64(len(basisextender.paramsQP.P))
+	ringQ := basisextender.RingQ
+	modDownParams := basisextender.ModDownParamsPQ
+	polypool := basisextender.PolyPoolQ
+	nPi := uint64(len(basisextender.ParamsQP.P))
 
 	// We target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	modUpExact(p1.Coeffs[level+1:level+1+nPi], polypool.Coeffs[:level+1], basisextender.paramsPQ)
+	ModUpExact(p1.Coeffs[level+1:level+1+nPi], polypool.Coeffs[:level+1], basisextender.ParamsPQ)
 
 	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
@@ -387,13 +322,13 @@ func (basisextender *FastBasisExtender) ModDownPQ(level uint64, p1, p2 *Poly) {
 // and does a rounded integer division of the result by P.
 func (basisextender *FastBasisExtender) ModDownSplitPQ(level uint64, p1Q, p1P, p2 *Poly) {
 
-	ringQ := basisextender.ringQ
-	modDownParams := basisextender.modDownParamsPQ
-	polypool := basisextender.polypoolQ
+	ringQ := basisextender.RingQ
+	modDownParams := basisextender.ModDownParamsPQ
+	polypool := basisextender.PolyPoolQ
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	modUpExact(p1P.Coeffs, polypool.Coeffs[:level+1], basisextender.paramsPQ)
+	ModUpExact(p1P.Coeffs, polypool.Coeffs[:level+1], basisextender.ParamsPQ)
 
 	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := uint64(0); i < level+1; i++ {
@@ -432,9 +367,9 @@ func (basisextender *FastBasisExtender) ModDownSplitPQ(level uint64, p1Q, p1P, p
 // and does a floored integer division of the result by Q.
 func (basisextender *FastBasisExtender) ModDownSplitQP(levelQ, levelP uint64, p1Q, p1P, p2 *Poly) {
 
-	ringP := basisextender.ringP
-	modDownParams := basisextender.modDownParamsQP
-	polypool := basisextender.polypoolP
+	ringP := basisextender.RingP
+	modDownParams := basisextender.ModDownParamsQP
+	polypool := basisextender.PolyPoolP
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
@@ -459,7 +394,7 @@ func (basisextender *FastBasisExtender) ModDownSplitQP(levelQ, levelP uint64, p1
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
-func modUpExact(p1, p2 [][]uint64, params *modupParams) {
+func ModUpExact(p1, p2 [][]uint64, params *ModUpParams) {
 
 	var v0, v1, v2, v3, v4, v5, v6, v7 uint64
 	var vi0, vi1, vi2, vi3, vi4, vi5, vi6, vi7 float64
@@ -568,7 +503,7 @@ type Decomposer struct {
 	alpha       uint64
 	beta        uint64
 	xalpha      []uint64
-	modUpParams [][]*modupParams
+	ModUpParams [][]*ModUpParams
 	QInt        *big.Int
 	PInt        *big.Int
 }
@@ -607,12 +542,12 @@ func NewDecomposer(Q, P []uint64) (decomposer *Decomposer) {
 		decomposer.xalpha[decomposer.beta-1] = uint64(len(Q)) % decomposer.alpha
 	}
 
-	decomposer.modUpParams = make([][]*modupParams, decomposer.beta)
+	decomposer.ModUpParams = make([][]*ModUpParams, decomposer.beta)
 
 	// Create a basis extension for each possible combination of [Qi,Pj] according to xalpha
 	for i := uint64(0); i < decomposer.beta; i++ {
 
-		decomposer.modUpParams[i] = make([]*modupParams, decomposer.xalpha[i]-1)
+		decomposer.ModUpParams[i] = make([]*ModUpParams, decomposer.xalpha[i]-1)
 
 		for j := uint64(0); j < decomposer.xalpha[i]-1; j++ {
 
@@ -631,7 +566,7 @@ func NewDecomposer(Q, P []uint64) (decomposer *Decomposer) {
 				Pi[k] = P[k-len(Q)]
 			}
 
-			decomposer.modUpParams[i][j] = basisextenderparameters(Qi, Pi)
+			decomposer.ModUpParams[i][j] = basisextenderparameters(Qi, Pi)
 		}
 	}
 
@@ -677,7 +612,7 @@ func (decomposer *Decomposer) Decompose(level, crtDecompLevel uint64, p0, p1 *Po
 			index = (level - 1) % decomposer.alpha
 		}
 
-		params := decomposer.modUpParams[crtDecompLevel][index]
+		params := decomposer.ModUpParams[crtDecompLevel][index]
 
 		v := make([]uint64, 8, 8)
 		vi := make([]float64, 8, 8)
@@ -942,7 +877,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(level, crtDecompLevel uint64, p0
 			index = (level - 1) % decomposer.alpha
 		}
 
-		params := decomposer.modUpParams[crtDecompLevel][index]
+		params := decomposer.ModUpParams[crtDecompLevel][index]
 
 		v := make([]uint64, 8, 8)
 		vi := make([]float64, 8, 8)

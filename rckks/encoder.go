@@ -66,11 +66,7 @@ func newEncoder(params *Parameters) encoder {
 
 	var q *ring.Ring
 	var err error
-	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
-
-	if err = q.GenMurakamiParams(); err != nil {
+	if q, err = ring.NewRingWithNthRoot(params.N(), params.N()<<2, params.qi); err != nil {
 		panic(err)
 	}
 
@@ -175,8 +171,7 @@ func (encoder *encoderComplex128) EncodeNTTNew(values []float64, slots uint64) (
 
 func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []float64, slots uint64) {
 	encoder.Encode(plaintext, values, slots)
-	encoder.ringQ.MapXX2NToXNAndMurakami(plaintext.Level(), plaintext.value)
-	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+	NTTRCKKSLvl(encoder.ringQ, plaintext.Level(), plaintext.value, plaintext.value)
 	plaintext.isNTT = true
 }
 
@@ -197,8 +192,7 @@ func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plai
 // and returns a scaled integer plaintext polynomial in NTT.
 func (encoder *encoderComplex128) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
 	encoder.EncodeCoeffs(values, plaintext)
-	encoder.ringQ.MapXX2NToXNAndMurakami(plaintext.Level(), plaintext.value)
-	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+	NTTRCKKSLvl(encoder.ringQ, plaintext.Level(), plaintext.value, plaintext.value)
 	plaintext.isNTT = true
 }
 
@@ -206,8 +200,7 @@ func (encoder *encoderComplex128) EncodeCoeffsNTT(values []float64, plaintext *P
 func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
 
 	if plaintext.isNTT {
-		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
-		encoder.ringQ.MapXNToXX2NAndMurakami(plaintext.Level(), encoder.polypool)
+		InvNTTRCKKSLvl(encoder.ringQ, plaintext.Level(), plaintext.value, encoder.polypool)
 	} else {
 		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
@@ -267,13 +260,9 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (re
 	//fmt.Println()
 
 	if plaintext.isNTT {
-		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+		InvNTTRCKKSLvl(encoder.ringQ, plaintext.Level(), plaintext.value, encoder.polypool)
 		//fmt.Println("m      (map)", encoder.polypool.Coeffs[0])
 		//fmt.Println("m      (map)", encoder.polypool.Coeffs[1])
-		//fmt.Println()
-		encoder.ringQ.MapXNToXX2NAndMurakami(plaintext.Level(), encoder.polypool)
-		//fmt.Println("m           ", encoder.polypool.Coeffs[0])
-		//fmt.Println("m           ", encoder.polypool.Coeffs[1])
 		//fmt.Println()
 	} else {
 		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)

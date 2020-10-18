@@ -116,22 +116,18 @@ func newEncryptor(params *Parameters) encryptor {
 		panic(err)
 	}
 
-	if err = q.GenMurakamiParams(); err != nil {
+	if q, err = ring.NewRingWithNthRoot(params.N(), params.N()<<2, params.qi); err != nil {
 		panic(err)
 	}
 
 	var baseconverter *ring.FastBasisExtender
 	if params.PiCount() != 0 {
 
-		if qp, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
+		if qp, err = ring.NewRingWithNthRoot(params.N(), params.N()<<2, append(params.qi, params.pi...)); err != nil {
 			panic(err)
 		}
 
-		if err = qp.GenMurakamiParams(); err != nil {
-			panic(err)
-		}
-
-		p, err := ring.NewRing(params.N(), params.pi)
+		p, err := ring.NewRingWithNthRoot(params.N(), params.N()<<2, params.pi)
 		if err != nil {
 			panic(err)
 		}
@@ -231,8 +227,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		//fmt.Println("u", encryptor.polypool[2].Coeffs[0])
 
-		ringQ.MapXX2NToXNAndMurakami(level, encryptor.polypool[2])
-		ringQ.NTT(encryptor.polypool[2], encryptor.polypool[2])
+		NTTRCKKS(ringQ, encryptor.polypool[2], encryptor.polypool[2])
 
 		//fmt.Println("u (map+NTT)", encryptor.polypool[2].Coeffs[0])
 
@@ -249,8 +244,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		//fmt.Println("ect ", encryptor.polypool[0].Coeffs[0])
 
-		ringQ.MapXX2NToXNAndMurakami(level, encryptor.polypool[0])
-		ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+		NTTRCKKS(ringQ, encryptor.polypool[0], encryptor.polypool[0])
 
 		//fmt.Println("ect (map+NTT)", encryptor.polypool[0].Coeffs[0])
 
@@ -266,8 +260,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 			// ct0 = (u*pk0 + e0)/P + m
 			ringQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
 
-			ringQ.MapXX2NToXNAndMurakami(level, encryptor.polypool[0])
-			ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+			NTTRCKKS(ringQ, encryptor.polypool[0], encryptor.polypool[0])
 
 			//fmt.Println("ect1 (map+NTT)", encryptor.polypool[0].Coeffs[0])
 
@@ -277,8 +270,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 			// ct0 = u*pk0 + e0
 			encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
 
-			ringQ.MapXX2NToXNAndMurakami(level, encryptor.polypool[0])
-			ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+			NTTRCKKS(ringQ, encryptor.polypool[0], encryptor.polypool[0])
 
 			ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 			ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
@@ -292,8 +284,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		encryptor.ternarySamplerMontgomeryQP.Read(encryptor.polypool[2])
 
-		ringQP.MapXX2NToXNAndMurakami(level, encryptor.polypool[2])
-		ringQP.NTT(encryptor.polypool[2], encryptor.polypool[2])
+		NTTRCKKS(ringQP, encryptor.polypool[2], encryptor.polypool[2])
 
 		// ct0 = u*pk0
 		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
@@ -301,11 +292,9 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
 		// 2*(#Q + #P) NTT
-		ringQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
-		ringQP.MapXNToXX2NAndMurakami(level, encryptor.polypool[0])
+		InvNTTRCKKS(ringQP, encryptor.polypool[0], encryptor.polypool[0])
 
-		ringQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
-		ringQP.MapXNToXX2NAndMurakami(level, encryptor.polypool[1])
+		InvNTTRCKKS(ringQP, encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct0 = u*pk0 + e0
 		encryptor.gaussianSamplerQP.ReadAndAddLvl(level, encryptor.polypool[0])
@@ -325,11 +314,8 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		level = uint64(len(ringQ.Modulus) - 1)
 
 		// 2*#Q NTT
-		ringQ.MapXX2NToXNAndMurakami(level, ciphertext.value[0])
-		ringQ.NTT(ciphertext.value[0], ciphertext.value[0])
-
-		ringQ.MapXX2NToXNAndMurakami(level, ciphertext.value[1])
-		ringQ.NTT(ciphertext.value[1], ciphertext.value[1])
+		NTTRCKKS(ringQ, ciphertext.value[0], ciphertext.value[0])
+		NTTRCKKS(ringQ, ciphertext.value[1], ciphertext.value[1])
 
 		if plaintext.isNTT {
 			// ct0 = (u*pk0 + e0)/P + m
@@ -408,8 +394,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	if plaintext.isNTT {
 		encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
 
-		ringQ.MapXX2NToXNAndMurakami(level, encryptor.polypool[0])
-		ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+		NTTRCKKS(ringQ, encryptor.polypool[0], encryptor.polypool[0])
 
 		ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 		ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
@@ -417,8 +402,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
 		ringQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
 
-		ringQ.MapXX2NToXNAndMurakami(level, encryptor.polypool[0])
-		ringQ.NTT(encryptor.polypool[0], encryptor.polypool[0])
+		NTTRCKKS(ringQ, encryptor.polypool[0], encryptor.polypool[0])
 
 		ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 	}

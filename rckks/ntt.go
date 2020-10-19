@@ -26,14 +26,14 @@ func invbutterfly(U, V, Psi, Q, Qinv uint64) (X, Y uint64) {
 	return
 }
 
-// NTT computes the NTT of p1 and returns the result on p2.
+// NTTRCKKS computes the left N half of the NTT in the ring X^{2*N} + 1  of p1 and returns the result on p2.
 func NTTRCKKS(r *ring.Ring, p1, p2 *ring.Poly) {
 	for x := range r.Modulus {
 		nttrckks(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
 	}
 }
 
-// NTTLvl computes the NTT of p1 and returns the result on p2.
+// NTTRCKKSLvl computes the left N half of the NTT in the ring X^{2*N} + 1  of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 func NTTRCKKSLvl(r *ring.Ring, level uint64, p1, p2 *ring.Poly) {
 	for x := uint64(0); x < level+1; x++ {
@@ -41,14 +41,14 @@ func NTTRCKKSLvl(r *ring.Ring, level uint64, p1, p2 *ring.Poly) {
 	}
 }
 
-// InvNTT computes the inverse-NTT of p1 and returns the result on p2.
+// InvNTTRCKKS computes the left N half inverse-NTT in the ring X^{2*N} + 1 of p1 and returns the result on p2.
 func InvNTTRCKKS(r *ring.Ring, p1, p2 *ring.Poly) {
 	for x := range r.Modulus {
 		invnttrckks(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x], r.MredParams[x])
 	}
 }
 
-// InvNTTLvl computes the inverse-NTT of p1 and returns the result on p2.
+// InvNTTRCKKSLvl computes the left N half inverse-NTT in the ring X^{2*N} + 1 of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 func InvNTTRCKKSLvl(r *ring.Ring, level uint64, p1, p2 *ring.Poly) {
 	for x := uint64(0); x < level+1; x++ {
@@ -56,7 +56,7 @@ func InvNTTRCKKSLvl(r *ring.Ring, level uint64, p1, p2 *ring.Poly) {
 	}
 }
 
-// NTTHalf computes the NTT on the input coefficients using the input parameters.
+
 func nttrckks(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
 	var j1, j2, t uint64
 	var F uint64
@@ -204,7 +204,7 @@ func nttrckks(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, mredPa
 	}
 }
 
-// InvNTT computes the InvNTT transformation on the input coefficients using the input parameters.
+
 func invnttrckks(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv, Q, mredParams uint64) {
 
 	var j1, j2, h, t uint64

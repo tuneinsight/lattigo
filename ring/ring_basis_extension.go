@@ -19,6 +19,7 @@ type FastBasisExtender struct {
 	PolyPoolP       *Poly
 }
 
+// ModUpParams stores the necessary parameters to apply ModUp Q->P or P->Q on a polynomial
 type ModUpParams struct {
 	Q []uint64
 	P []uint64
@@ -394,6 +395,8 @@ func (basisextender *FastBasisExtender) ModDownSplitQP(levelQ, levelP uint64, p1
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
+// ModUpExact applies a basis extension from Q to P to the polynomial 
+// and approximates the number of overflow of Q using floating point arithmetic.
 func ModUpExact(p1, p2 [][]uint64, params *ModUpParams) {
 
 	var v0, v1, v2, v3, v4, v5, v6, v7 uint64

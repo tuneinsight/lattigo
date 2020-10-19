@@ -176,7 +176,7 @@ func testNTTRCKKS(testContext *testParams, t *testing.T) {
 
 		ringQ := testContext.ringQ
 		ringQ2N, _ := ring.NewRing(ringQ.N<<1, ringQ.Modulus)
-		ringQN_4NthRoot, _ := ring.NewRingWithNthRoot(ringQ.N, ringQ.N<<2, ringQ.Modulus)
+		ringQ4NthRoot, _ := ring.NewRingWithNthRoot(ringQ.N, ringQ.N<<2, ringQ.Modulus)
 
 		sampler := ring.NewUniformSampler(testContext.prng, ringQ)
 		p1 := sampler.ReadNew()
@@ -196,11 +196,11 @@ func testNTTRCKKS(testContext *testParams, t *testing.T) {
 		ringQ2N.InvMForm(p2, p2)
 		ringQ2N.InvNTT(p2, p2)
 
-		NTTRCKKS(ringQN_4NthRoot, p1, p1)
-		ringQN_4NthRoot.MForm(p1, p1)
-		ringQN_4NthRoot.MulCoeffsMontgomery(p1, p1, p1)
-		ringQN_4NthRoot.InvMForm(p1, p1)
-		InvNTTRCKKS(ringQN_4NthRoot, p1, p1)
+		NTTRCKKS(ringQ4NthRoot, p1, p1)
+		ringQ4NthRoot.MForm(p1, p1)
+		ringQ4NthRoot.MulCoeffsMontgomery(p1, p1, p1)
+		ringQ4NthRoot.InvMForm(p1, p1)
+		InvNTTRCKKS(ringQ4NthRoot, p1, p1)
 
 		for j := range ringQ.Modulus {
 			for i := uint64(0); i < ringQ.N; i++ {

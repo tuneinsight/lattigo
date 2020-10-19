@@ -51,6 +51,9 @@ func PermuteNTTIndex(gen, power, N uint64) (index []uint64) {
 	return
 }
 
+// PermuteNTTIndexMurakami computes the slot rotation for
+// a polynomial that has been put through the map 
+// R[X + X^{-1}]/(X^{2N} + 1) -> (embed) R[X]/(X^{N}-1) -> (Murakami) R[X]/(X^{N} + 1)
 func PermuteNTTIndexMurakami(gen, power, N uint64) (index2 []uint64) {
 
 	genPow := ModExp(gen, power, N<<2)
@@ -92,6 +95,7 @@ func PermuteNTTIndexMurakami(gen, power, N uint64) (index2 []uint64) {
 
 	return
 }
+
 
 // PermuteNTT applies the Galois transform on a polynomial in the NTT domain.
 // It maps the coefficients x^i to x^(gen*i)

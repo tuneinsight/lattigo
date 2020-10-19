@@ -3,7 +3,6 @@ package rckks
 import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
-	//"fmt"
 )
 
 // Encryptor in an interface for encryptors
@@ -225,44 +224,29 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		encryptor.ternarySamplerMontgomeryQ.Read(encryptor.polypool[2])
 
-		//fmt.Println("u", encryptor.polypool[2].Coeffs[0])
-
 		NTTRCKKS(ringQ, encryptor.polypool[2], encryptor.polypool[2])
-
-		//fmt.Println("u (map+NTT)", encryptor.polypool[2].Coeffs[0])
 
 		// ct0 = u*pk0
 		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], ciphertext.value[0])
 		// ct1 = u*pk1
 		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], ciphertext.value[1])
 
-		//fmt.Println("pk[0]*u (map+NTT)", ciphertext.value[0].Coeffs[0])
-		//fmt.Println("pk[1]*u (map+NTT)", ciphertext.value[1].Coeffs[0])
-
 		// ct1 = u*pk1 + e1
 		encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
 
-		//fmt.Println("ect ", encryptor.polypool[0].Coeffs[0])
-
 		NTTRCKKS(ringQ, encryptor.polypool[0], encryptor.polypool[0])
 
-		//fmt.Println("ect (map+NTT)", encryptor.polypool[0].Coeffs[0])
-
 		ringQ.Add(ciphertext.value[1], encryptor.polypool[0], ciphertext.value[1])
-
-		//fmt.Println("ct1 + ect (map+NTT)", ciphertext.value[1].Coeffs[0])
 
 		if !plaintext.isNTT {
 
 			// ct0 = u*pk0 + e0
 			encryptor.gaussianSamplerQ.ReadLvl(level, encryptor.polypool[0])
-			//fmt.Println("ect1", encryptor.polypool[0].Coeffs[0])
+
 			// ct0 = (u*pk0 + e0)/P + m
 			ringQ.Add(encryptor.polypool[0], plaintext.value, encryptor.polypool[0])
 
 			NTTRCKKS(ringQ, encryptor.polypool[0], encryptor.polypool[0])
-
-			//fmt.Println("ect1 (map+NTT)", encryptor.polypool[0].Coeffs[0])
 
 			ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 
@@ -322,10 +306,6 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 			ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
 		}
 	}
-
-	//fmt.Println()
-	//fmt.Println("ct0 (map+NTT)", ciphertext.value[0].Coeffs[0])
-	//fmt.Println("ct1 (map+NTT)", ciphertext.value[1].Coeffs[0])
 
 	ciphertext.isNTT = true
 }

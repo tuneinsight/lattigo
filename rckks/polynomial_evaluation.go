@@ -180,7 +180,6 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evalu
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		//fmt.Println("Mul", C[a].Level(), C[b].Level())
 		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
 		evaluator.Rescale(C[n], evaluator.scale, C[n])
 
@@ -291,11 +290,6 @@ func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C ma
 
 	currentQi := float64(evaluator.params.qi[level])
 
-	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
-	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
-	//fmt.Printf("X^%2d : qi %d %t %d %d\n", nextPower, level, coeffsq.lead, coeffsq.maxDeg, 1<<(logDegree-1))
-	//fmt.Println()
-
 	res = recurse(targetScale*currentQi/C[nextPower].Scale(), logSplit, logDegree, coeffsq, C, evaluator, evakey)
 
 	tmp := recurse(targetScale, logSplit, logDegree, coeffsr, C, evaluator, evakey)
@@ -306,14 +300,11 @@ func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C ma
 		}
 	}
 
-	//fmt.Printf("X^%2d: (%d %f -> \n", nextPower, res.Level(), res.Scale())
 	evaluator.MulRelin(res, C[nextPower], evakey, res)
 
 	if res.Level() > tmp.Level() {
 		evaluator.Rescale(res, evaluator.scale, res)
-		//fmt.Printf("%f = %d) + (%d %f) = ", res.Scale(), res.Level(), tmp.Level(), tmp.Scale())
 		evaluator.Add(res, tmp, res)
-		//fmt.Printf("(%d %f) %f\n", res.Level(), res.Scale(), res.Scale()-tmp.Scale())
 	} else {
 		evaluator.Add(res, tmp, res)
 		evaluator.Rescale(res, evaluator.scale, res)
@@ -354,11 +345,6 @@ func recurseCheby(targetScale float64, logSplit, logDegree uint64, coeffs *Poly,
 
 	currentQi := float64(evaluator.params.qi[level])
 
-	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
-	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
-	//fmt.Printf("X^%2d : qi %d %t %d %d\n", nextPower, level, coeffsq.lead, coeffsq.maxDeg, 1<<(logDegree-1))
-	//fmt.Println()
-
 	res = recurseCheby(targetScale*currentQi/C[nextPower].Scale(), logSplit, logDegree, coeffsq, C, evaluator, evakey)
 
 	var tmp *Ciphertext
@@ -370,14 +356,11 @@ func recurseCheby(targetScale float64, logSplit, logDegree uint64, coeffs *Poly,
 		}
 	}
 
-	//fmt.Printf("X^%2d: (%d %f -> \n", nextPower, res.Level(), res.Scale())
 	evaluator.MulRelin(res, C[nextPower], evakey, res)
 
 	if res.Level() > tmp.Level() {
 		evaluator.Rescale(res, evaluator.scale, res)
-		//fmt.Printf("%f = %d) + (%d %f) = ", res.Scale(), res.Level(), tmp.Level(), tmp.Scale())
 		evaluator.Add(res, tmp, res)
-		//fmt.Printf("(%d %f) %f\n", res.Level(), res.Scale(), res.Scale()-tmp.Scale())
 	} else {
 		evaluator.Add(res, tmp, res)
 		evaluator.Rescale(res, evaluator.scale, res)
@@ -405,10 +388,6 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[uint64]
 	currentQi := float64(evaluator.params.qi[C[coeffs.Degree()].Level()])
 
 	ctScale := targetScale * currentQi
-
-	//fmt.Printf("%d %f\n", coeffs.maxDeg, targetScale)
-	//fmt.Println("current Qi", evaluator.params.Qi[C[coeffs.Degree()].Level()])
-	//fmt.Println(coeffs.Degree(), C[coeffs.Degree()].Level())
 
 	res = NewCiphertext(evaluator.params, 1, C[coeffs.Degree()].Level(), ctScale)
 

@@ -5,7 +5,7 @@ import (
 	"unsafe"
 )
 
-// DivRoundByLastModulusNTTRCKKS divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
+// DivRoundByLastModulusNTTRCKKS divides (rounded) the polynomial by its last modulus. The input must be in the NTTRCKKS domain.
 func DivRoundByLastModulusNTTRCKKS(r *ring.Ring, p0 *ring.Poly) {
 
 	var pHalf, pHalfNegQi uint64
@@ -83,6 +83,7 @@ func DivRoundByLastModulusNTTRCKKS(r *ring.Ring, p0 *ring.Poly) {
 	p0.Coeffs = p0.Coeffs[:level]
 }
 
+// DivRoundByLastModulusManyNTTRCKKS applies DivRoundByLastModulusNTTRCKKS "nbRescales" times.
 func DivRoundByLastModulusManyNTTRCKKS(r *ring.Ring, p0 *ring.Poly, nbRescales uint64) {
 	level := uint64(len(p0.Coeffs) - 1)
 	InvNTTRCKKSLvl(r, level, p0, p0)
@@ -90,11 +91,11 @@ func DivRoundByLastModulusManyNTTRCKKS(r *ring.Ring, p0 *ring.Poly, nbRescales u
 	NTTRCKKSLvl(r, level-nbRescales, p0, p0)
 }
 
-// ModDownSplitNTTPQ reduces the basis of a polynomial.
+// ModDownSplitNTTPQRCKKS reduces the basis of a polynomial.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qi} and {P0,P1...Pj},
 // it reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
 // and does a rounded integer division of the result by P.
-// Inputs must be in the NTT domain.
+// Inputs must be in the NTTRCKKS domain.
 func ModDownSplitNTTPQRCKKS(basisextender *ring.FastBasisExtender, level uint64, p1Q, p1P, p2 *ring.Poly) {
 
 	ringQ := basisextender.RingQ

@@ -5,7 +5,6 @@ package rckks
 import (
 	"math"
 	"math/big"
-	//"fmt"
 
 	"github.com/ldsec/lattigo/v2/ring"
 )
@@ -255,23 +254,14 @@ func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []floa
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (res []float64) {
 
-	//fmt.Println("m (map +NTT)", plaintext.value.Coeffs[0])
-	//fmt.Println("m (map +NTT)", plaintext.value.Coeffs[1])
-	//fmt.Println()
-
 	if plaintext.isNTT {
 		InvNTTRCKKSLvl(encoder.ringQ, plaintext.Level(), plaintext.value, encoder.polypool)
-		//fmt.Println("m      (map)", encoder.polypool.Coeffs[0])
-		//fmt.Println("m      (map)", encoder.polypool.Coeffs[1])
-		//fmt.Println()
 	} else {
 		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
 
 	maxSlots := encoder.ringQ.N
 	gap := maxSlots / slots
-
-	//fmt.Println(plaintext.Level())
 
 	// We have more than one moduli and need the CRT reconstruction
 	if plaintext.Level() > 0 {

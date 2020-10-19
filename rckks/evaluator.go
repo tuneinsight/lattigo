@@ -232,7 +232,7 @@ func (eval *evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 
 func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(uint64, *ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	var tmp0, tmp1 *Element // TODO : use eval mem pool
+	var tmp0, tmp1 *Element
 
 	level := utils.MinUint64(utils.MinUint64(c0.Level(), c1.Level()), ctOut.Level())
 
@@ -455,7 +455,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 	var cReal float64
 	var scale float64
 
-	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
+	// Converts to float64 and determines if a scaling is required.
 	scale = 1
 	switch constant.(type) {
 
@@ -526,9 +526,8 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 	}
 
 	// Component-wise multiplication of the following vector to the ciphertext:
-	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
-	// [{                  N/2                }{                N/2               }]
-	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
+	// [a , ...., a, ...., a] mod Qi
+	// [          N         ].
 	for i := uint64(0); i < level+1; i++ {
 
 		qi = ringQ.Modulus[i]
@@ -586,7 +585,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 	var cReal float64
 	var scale float64
 
-	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
+	// Converts to float64 and determines if a scaling is required.
 	scale = 1
 	switch constant.(type) {
 
@@ -613,9 +612,8 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 	}
 
 	// Component wise multiplication of the following vector with the ciphertext:
-	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
-	// [{                  N/2                }{                N/2               }]
-	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
+	// [a , ...., a, ...., a] mod Qi
+	// [          N         ]
 	ringQ := eval.ringQ
 	var qi, scaledConst uint64
 	for i := uint64(0); i < level+1; i++ {

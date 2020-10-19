@@ -36,7 +36,7 @@ func BenchmarkRCKKSScheme(b *testing.B) {
 func benchNTT(testContext *testParams, b *testing.B) {
 
 	ringQ := testContext.ringQ
-	ringQN_4NthRoot, _ := ring.NewRingWithNthRoot(ringQ.N, ringQ.N<<2, ringQ.Modulus)
+	ringQ4NthRoot, _ := ring.NewRingWithNthRoot(ringQ.N, ringQ.N<<2, ringQ.Modulus)
 
 	sampler := ring.NewUniformSampler(testContext.prng, ringQ)
 	p1 := sampler.ReadNew()
@@ -44,7 +44,7 @@ func benchNTT(testContext *testParams, b *testing.B) {
 	b.Run(testString(testContext, "NTTRCKKS/NTT"), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			NTTRCKKS(ringQN_4NthRoot, p1, p1)
+			NTTRCKKS(ringQ4NthRoot, p1, p1)
 		}
 
 	})
@@ -52,7 +52,7 @@ func benchNTT(testContext *testParams, b *testing.B) {
 	b.Run(testString(testContext, "NTTRCKKS/InvNTT"), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			InvNTTRCKKS(ringQN_4NthRoot, p1, p1)
+			InvNTTRCKKS(ringQ4NthRoot, p1, p1)
 		}
 	})
 }

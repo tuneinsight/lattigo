@@ -55,7 +55,7 @@ func TestRing(t *testing.T) {
 	var defaultParams []*Parameters
 
 	if testing.Short() {
-		defaultParams = DefaultParams[:3]
+		defaultParams = DefaultParams[0:3]
 	} else {
 		defaultParams = DefaultParams
 	}
@@ -472,6 +472,8 @@ func testExtendBasis(testContext *testParams, t *testing.T) {
 		testContext.ringP.SetCoefficientsBigint(coeffs, PolWant)
 
 		basisextender.ModUpSplitQP(uint64(len(testContext.ringQ.Modulus)-1), Pol, PolTest)
+
+		testContext.ringP.Reduce(PolTest, PolTest)
 
 		for i := range testContext.ringP.Modulus {
 			require.Equal(t, PolTest.Coeffs[i][:testContext.ringQ.N], PolWant.Coeffs[i][:testContext.ringQ.N])

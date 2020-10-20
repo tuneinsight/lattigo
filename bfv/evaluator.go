@@ -316,7 +316,6 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 
 	for i := range ct0.value {
 		eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct0.value[i], c0Q2[i])
-
 		eval.ringQ.NTT(ct0.value[i], c0Q1[i])
 		eval.ringQMul.NTT(c0Q2[i], c0Q2[i])
 	}
@@ -325,7 +324,6 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 
 		for i := range ct1.value {
 			eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct1.value[i], c1Q2[i])
-
 			eval.ringQ.NTT(ct1.value[i], c1Q1[i])
 			eval.ringQMul.NTT(c1Q2[i], c1Q2[i])
 		}

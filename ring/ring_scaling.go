@@ -70,8 +70,8 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 	p2tmp := p2T.Coeffs[0]
 	p3tmp := rnss.polypoolT.Coeffs[0]
 	mredParams := rnss.mredParamsT
-	qInv := rnss.qInv
-	qHalfModT := rnss.qHalfModT
+	qInv := T - rnss.qInv
+	qHalfModT := T - rnss.qHalfModT
 
 	// Multiply P_{Q} by t and extend the basis from P_{Q} to t*(P_{Q}||P_{t})
 	// Since the coefficients of P_{t} are multiplied by t, they are all zero,
@@ -90,14 +90,14 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 		x := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
 		z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
 
-		z[0] = MRed(qHalfModT+T-x[0], qInv, T, mredParams)
-		z[1] = MRed(qHalfModT+T-x[1], qInv, T, mredParams)
-		z[2] = MRed(qHalfModT+T-x[2], qInv, T, mredParams)
-		z[3] = MRed(qHalfModT+T-x[3], qInv, T, mredParams)
-		z[4] = MRed(qHalfModT+T-x[4], qInv, T, mredParams)
-		z[5] = MRed(qHalfModT+T-x[5], qInv, T, mredParams)
-		z[6] = MRed(qHalfModT+T-x[6], qInv, T, mredParams)
-		z[7] = MRed(qHalfModT+T-x[7], qInv, T, mredParams)
+		z[0] = MRed(qHalfModT+x[0], qInv, T, mredParams)
+		z[1] = MRed(qHalfModT+x[1], qInv, T, mredParams)
+		z[2] = MRed(qHalfModT+x[2], qInv, T, mredParams)
+		z[3] = MRed(qHalfModT+x[3], qInv, T, mredParams)
+		z[4] = MRed(qHalfModT+x[4], qInv, T, mredParams)
+		z[5] = MRed(qHalfModT+x[5], qInv, T, mredParams)
+		z[6] = MRed(qHalfModT+x[6], qInv, T, mredParams)
+		z[7] = MRed(qHalfModT+x[7], qInv, T, mredParams)
 	}
 }
 
@@ -298,17 +298,18 @@ func (r *Ring) DivFloorByLastModulusNTT(p0 *Poly) {
 
 	pTmp := make([]uint64, r.N)
 
-	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+	InvNTTLazy(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 
 	for i := 0; i < level; i++ {
 
-		NTT(p0.Coeffs[level], pTmp, r.N, r.NttPsi[i], r.Modulus[i], r.MredParams[i], r.BredParams[i])
+		NTTLazy(p0.Coeffs[level], pTmp, r.N, r.NttPsi[i], r.Modulus[i], r.MredParams[i], r.BredParams[i])
 
 		p0tmp := p0.Coeffs[i]
 
 		qi := r.Modulus[i]
+		twoqi := qi << 1
 		mredParams := r.MredParams[i]
-		rescalParams := r.RescaleParams[level-1][i]
+		rescalParams := qi - r.RescaleParams[level-1][i]
 
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < r.N; j = j + 8 {
@@ -316,14 +317,14 @@ func (r *Ring) DivFloorByLastModulusNTT(p0 *Poly) {
 			x := (*[8]uint64)(unsafe.Pointer(&pTmp[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 
-			z[0] = MRed(z[0]+(qi-x[0]), rescalParams, qi, mredParams)
-			z[1] = MRed(z[1]+(qi-x[1]), rescalParams, qi, mredParams)
-			z[2] = MRed(z[2]+(qi-x[2]), rescalParams, qi, mredParams)
-			z[3] = MRed(z[3]+(qi-x[3]), rescalParams, qi, mredParams)
-			z[4] = MRed(z[4]+(qi-x[4]), rescalParams, qi, mredParams)
-			z[5] = MRed(z[5]+(qi-x[5]), rescalParams, qi, mredParams)
-			z[6] = MRed(z[6]+(qi-x[6]), rescalParams, qi, mredParams)
-			z[7] = MRed(z[7]+(qi-x[7]), rescalParams, qi, mredParams)
+			z[0] = MRed(twoqi-z[0]+x[0], rescalParams, qi, mredParams)
+			z[1] = MRed(twoqi-z[1]+x[1], rescalParams, qi, mredParams)
+			z[2] = MRed(twoqi-z[2]+x[2], rescalParams, qi, mredParams)
+			z[3] = MRed(twoqi-z[3]+x[3], rescalParams, qi, mredParams)
+			z[4] = MRed(twoqi-z[4]+x[4], rescalParams, qi, mredParams)
+			z[5] = MRed(twoqi-z[5]+x[5], rescalParams, qi, mredParams)
+			z[6] = MRed(twoqi-z[6]+x[6], rescalParams, qi, mredParams)
+			z[7] = MRed(twoqi-z[7]+x[7], rescalParams, qi, mredParams)
 
 		}
 	}
@@ -340,23 +341,24 @@ func (r *Ring) DivFloorByLastModulus(p0 *Poly) {
 		p0tmp := p0.Coeffs[level]
 		p1tmp := p0.Coeffs[i]
 		qi := r.Modulus[i]
+		twoqi := qi << 1
 		bredParams := r.BredParams[i]
 		mredParams := r.MredParams[i]
-		rescaleParams := r.RescaleParams[level-1][i]
+		rescaleParams := qi - r.RescaleParams[level-1][i]
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < r.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
 
-			z[0] = MRed(z[0]+(qi-BRedAdd(x[0], qi, bredParams)), rescaleParams, qi, mredParams)
-			z[1] = MRed(z[1]+(qi-BRedAdd(x[1], qi, bredParams)), rescaleParams, qi, mredParams)
-			z[2] = MRed(z[2]+(qi-BRedAdd(x[2], qi, bredParams)), rescaleParams, qi, mredParams)
-			z[3] = MRed(z[3]+(qi-BRedAdd(x[3], qi, bredParams)), rescaleParams, qi, mredParams)
-			z[4] = MRed(z[4]+(qi-BRedAdd(x[4], qi, bredParams)), rescaleParams, qi, mredParams)
-			z[5] = MRed(z[5]+(qi-BRedAdd(x[5], qi, bredParams)), rescaleParams, qi, mredParams)
-			z[6] = MRed(z[6]+(qi-BRedAdd(x[6], qi, bredParams)), rescaleParams, qi, mredParams)
-			z[7] = MRed(z[7]+(qi-BRedAdd(x[7], qi, bredParams)), rescaleParams, qi, mredParams)
+			z[0] = MRed(twoqi-z[0]+BRedAdd(x[0], qi, bredParams), rescaleParams, qi, mredParams)
+			z[1] = MRed(twoqi-z[1]+BRedAdd(x[1], qi, bredParams), rescaleParams, qi, mredParams)
+			z[2] = MRed(twoqi-z[2]+BRedAdd(x[2], qi, bredParams), rescaleParams, qi, mredParams)
+			z[3] = MRed(twoqi-z[3]+BRedAdd(x[3], qi, bredParams), rescaleParams, qi, mredParams)
+			z[4] = MRed(twoqi-z[4]+BRedAdd(x[4], qi, bredParams), rescaleParams, qi, mredParams)
+			z[5] = MRed(twoqi-z[5]+BRedAdd(x[5], qi, bredParams), rescaleParams, qi, mredParams)
+			z[6] = MRed(twoqi-z[6]+BRedAdd(x[6], qi, bredParams), rescaleParams, qi, mredParams)
+			z[7] = MRed(twoqi-z[7]+BRedAdd(x[7], qi, bredParams), rescaleParams, qi, mredParams)
 		}
 	}
 
@@ -386,37 +388,22 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 
 	pTmp := make([]uint64, r.N)
 
-	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+	InvNTTLazy(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 
 	// Center by (p-1)/2
 	pHalf = (r.Modulus[level] - 1) >> 1
 	p0tmp := p0.Coeffs[level]
-	pj := r.Modulus[level]
-
-	for i := uint64(0); i < r.N; i = i + 8 {
-
-		z := (*[8]uint64)(unsafe.Pointer(&p0tmp[i]))
-
-		z[0] = CRed(z[0]+pHalf, pj)
-		z[1] = CRed(z[1]+pHalf, pj)
-		z[2] = CRed(z[2]+pHalf, pj)
-		z[3] = CRed(z[3]+pHalf, pj)
-		z[4] = CRed(z[4]+pHalf, pj)
-		z[5] = CRed(z[5]+pHalf, pj)
-		z[6] = CRed(z[6]+pHalf, pj)
-		z[7] = CRed(z[7]+pHalf, pj)
-	}
 
 	for i := 0; i < level; i++ {
 
 		p1tmp := p0.Coeffs[i]
-
 		qi := r.Modulus[i]
+		twoqi := qi << 1
 		bredParams := r.BredParams[i]
 		mredParams := r.MredParams[i]
-		rescaleParams := r.RescaleParams[level-1][i]
+		rescaleParams := qi - r.RescaleParams[level-1][i]
 
-		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
+		pHalfNegQi = pHalf + r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
 
 		for j := uint64(0); j < r.N; j = j + 8 {
 
@@ -433,7 +420,7 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 			z[7] = x[7] + pHalfNegQi
 		}
 
-		NTT(pTmp, pTmp, r.N, r.NttPsi[i], qi, mredParams, bredParams)
+		NTTLazy(pTmp, pTmp, r.N, r.NttPsi[i], qi, mredParams, bredParams)
 
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < r.N; j = j + 8 {
@@ -441,14 +428,14 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 			x := (*[8]uint64)(unsafe.Pointer(&pTmp[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
 
-			z[0] = MRed(z[0]+(qi-x[0]), rescaleParams, qi, mredParams)
-			z[1] = MRed(z[1]+(qi-x[1]), rescaleParams, qi, mredParams)
-			z[2] = MRed(z[2]+(qi-x[2]), rescaleParams, qi, mredParams)
-			z[3] = MRed(z[3]+(qi-x[3]), rescaleParams, qi, mredParams)
-			z[4] = MRed(z[4]+(qi-x[4]), rescaleParams, qi, mredParams)
-			z[5] = MRed(z[5]+(qi-x[5]), rescaleParams, qi, mredParams)
-			z[6] = MRed(z[6]+(qi-x[6]), rescaleParams, qi, mredParams)
-			z[7] = MRed(z[7]+(qi-x[7]), rescaleParams, qi, mredParams)
+			z[0] = MRed(twoqi+x[0]-z[0], rescaleParams, qi, mredParams)
+			z[1] = MRed(twoqi+x[1]-z[1], rescaleParams, qi, mredParams)
+			z[2] = MRed(twoqi+x[2]-z[2], rescaleParams, qi, mredParams)
+			z[3] = MRed(twoqi+x[3]-z[3], rescaleParams, qi, mredParams)
+			z[4] = MRed(twoqi+x[4]-z[4], rescaleParams, qi, mredParams)
+			z[5] = MRed(twoqi+x[5]-z[5], rescaleParams, qi, mredParams)
+			z[6] = MRed(twoqi+x[6]-z[6], rescaleParams, qi, mredParams)
+			z[7] = MRed(twoqi+x[7]-z[7], rescaleParams, qi, mredParams)
 		}
 	}
 
@@ -470,16 +457,16 @@ func (r *Ring) DivRoundByLastModulus(p0 *Poly) {
 
 	for i := uint64(0); i < r.N; i = i + 8 {
 
-		z := (*[8]uint64)(unsafe.Pointer(&p0tmp[i]))
+		x := (*[8]uint64)(unsafe.Pointer(&p0tmp[i]))
 
-		z[0] = CRed(z[0]+pHalf, pj)
-		z[1] = CRed(z[1]+pHalf, pj)
-		z[2] = CRed(z[2]+pHalf, pj)
-		z[3] = CRed(z[3]+pHalf, pj)
-		z[4] = CRed(z[4]+pHalf, pj)
-		z[5] = CRed(z[5]+pHalf, pj)
-		z[6] = CRed(z[6]+pHalf, pj)
-		z[7] = CRed(z[7]+pHalf, pj)
+		x[0] = CRed(x[0]+pHalf, pj)
+		x[1] = CRed(x[1]+pHalf, pj)
+		x[2] = CRed(x[2]+pHalf, pj)
+		x[3] = CRed(x[3]+pHalf, pj)
+		x[4] = CRed(x[4]+pHalf, pj)
+		x[5] = CRed(x[5]+pHalf, pj)
+		x[6] = CRed(x[6]+pHalf, pj)
+		x[7] = CRed(x[7]+pHalf, pj)
 	}
 
 	for i := 0; i < level; i++ {
@@ -487,9 +474,10 @@ func (r *Ring) DivRoundByLastModulus(p0 *Poly) {
 		p1tmp := p0.Coeffs[i]
 
 		qi := r.Modulus[i]
+		twoqi := qi << 1
 		bredParams := r.BredParams[i]
 		mredParams := r.MredParams[i]
-		rescaleParams := r.RescaleParams[level-1][i]
+		rescaleParams := qi - r.RescaleParams[level-1][i]
 
 		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
 
@@ -499,14 +487,14 @@ func (r *Ring) DivRoundByLastModulus(p0 *Poly) {
 			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
 
-			z[0] = MRed(z[0]+(qi-BRedAdd(x[0]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
-			z[1] = MRed(z[1]+(qi-BRedAdd(x[1]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
-			z[2] = MRed(z[2]+(qi-BRedAdd(x[2]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
-			z[3] = MRed(z[3]+(qi-BRedAdd(x[3]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
-			z[4] = MRed(z[4]+(qi-BRedAdd(x[4]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
-			z[5] = MRed(z[5]+(qi-BRedAdd(x[5]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
-			z[6] = MRed(z[6]+(qi-BRedAdd(x[6]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
-			z[7] = MRed(z[7]+(qi-BRedAdd(x[7]+pHalfNegQi, qi, bredParams)), rescaleParams, qi, mredParams)
+			z[0] = MRed(x[0]+pHalfNegQi+twoqi-z[0], rescaleParams, qi, mredParams)
+			z[1] = MRed(x[1]+pHalfNegQi+twoqi-z[1], rescaleParams, qi, mredParams)
+			z[2] = MRed(x[2]+pHalfNegQi+twoqi-z[2], rescaleParams, qi, mredParams)
+			z[3] = MRed(x[3]+pHalfNegQi+twoqi-z[3], rescaleParams, qi, mredParams)
+			z[4] = MRed(x[4]+pHalfNegQi+twoqi-z[4], rescaleParams, qi, mredParams)
+			z[5] = MRed(x[5]+pHalfNegQi+twoqi-z[5], rescaleParams, qi, mredParams)
+			z[6] = MRed(x[6]+pHalfNegQi+twoqi-z[6], rescaleParams, qi, mredParams)
+			z[7] = MRed(x[7]+pHalfNegQi+twoqi-z[7], rescaleParams, qi, mredParams)
 		}
 	}
 

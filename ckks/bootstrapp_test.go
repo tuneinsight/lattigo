@@ -17,7 +17,7 @@ func TestBootstrapp(t *testing.T) {
 	var err error
 	var testContext = new(testParams)
 
-	paramSet := uint64(0)
+	paramSet := uint64(1)
 
 	shemeParams := DefaultBootstrappSchemeParams[paramSet : paramSet+1]
 	bootstrappParams := DefaultBootstrappParams[paramSet : paramSet+1]

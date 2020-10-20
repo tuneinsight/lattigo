@@ -1655,7 +1655,7 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 		}
 
 		//
-		if reduce&1 == 1 {
+		if reduce&3 == 3 {
 			ringQ.ReduceConstantLvl(level, pool2Q, pool2Q)
 			ringQ.ReduceConstantLvl(level, pool3Q, pool3Q)
 			ringP.ReduceConstant(pool2P, pool2P)

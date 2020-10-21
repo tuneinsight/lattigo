@@ -388,22 +388,37 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 
 	pTmp := make([]uint64, r.N)
 
-	InvNTTLazy(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 
 	// Center by (p-1)/2
-	pHalf = (r.Modulus[level] - 1) >> 1
+	pj := r.Modulus[level]
+	pHalf = (pj - 1) >> 1
 	p0tmp := p0.Coeffs[level]
+
+	for i := uint64(0); i < r.N; i = i + 8 {
+
+		z := (*[8]uint64)(unsafe.Pointer(&p0tmp[i]))
+
+		z[0] = CRed(z[0]+pHalf, pj)
+		z[1] = CRed(z[1]+pHalf, pj)
+		z[2] = CRed(z[2]+pHalf, pj)
+		z[3] = CRed(z[3]+pHalf, pj)
+		z[4] = CRed(z[4]+pHalf, pj)
+		z[5] = CRed(z[5]+pHalf, pj)
+		z[6] = CRed(z[6]+pHalf, pj)
+		z[7] = CRed(z[7]+pHalf, pj)
+	}
 
 	for i := 0; i < level; i++ {
 
 		p1tmp := p0.Coeffs[i]
 		qi := r.Modulus[i]
-		twoqi := qi << 1
+		twoqi := qi << 3
 		bredParams := r.BredParams[i]
 		mredParams := r.MredParams[i]
 		rescaleParams := qi - r.RescaleParams[level-1][i]
 
-		pHalfNegQi = pHalf + r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
+		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
 
 		for j := uint64(0); j < r.N; j = j + 8 {
 

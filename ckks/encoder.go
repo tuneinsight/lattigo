@@ -265,7 +265,7 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (re
 	gap := maxSlots / slots
 
 	// We have more than one moduli and need the CRT reconstruction
-	
+
 	if plaintext.Scale() < float64(encoder.ringQ.Modulus[0]) || plaintext.Level() == 0 {
 
 		Q := encoder.ringQ.Modulus[0]
@@ -288,7 +288,7 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (re
 
 			encoder.values[i] = complex(real, imag) / complex(plaintext.scale, 0)
 		}
-	}else{
+	} else {
 
 		encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
@@ -318,7 +318,7 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (re
 			encoder.values[i] = complex(scaleDown(encoder.bigintCoeffs[idx], plaintext.scale), scaleDown(encoder.bigintCoeffs[idx+maxSlots], plaintext.scale))
 		}
 		// We can directly get the coefficients
-	} 
+	}
 
 	encoder.fft(encoder.values, slots)
 

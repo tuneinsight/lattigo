@@ -70,8 +70,10 @@ func (r *Ring) InvNTTLazyLvl(level uint64, p1, p2 *Poly) {
 }
 
 // butterfly computes X, Y = U + V*Psi, U - V*Psi mod Q.
-func butterfly(U, V, Psi, twoQ, QBitLen, Q, Qinv uint64) (uint64, uint64) {
-	U -= (U >> QBitLen) * Q
+func butterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (uint64, uint64) {
+	if U >= fourQ {
+		U -= fourQ
+	}
 	V = MRedConstant(V, Psi, Q, Qinv)
 	return U + V, U + twoQ - V
 }
@@ -101,7 +103,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 	var j1, j2, t uint64
 	var F uint64
 
-	QBitLen := uint64(bits.Len64(Q))
+	fourQ := 4 * Q
 	twoQ := 2 * Q
 
 	// Copy the result of the first round of butterflies on p2 with approximate reduction
@@ -168,16 +170,14 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 						x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j]))
 						y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j+t]))
 
-						//  input := (x[i] < 8q, y[i] < 8q)
-						// output := (x[i] < 2q, y[i] < 2q)
-						x[0], y[0] = butterfly(x[0], y[0], F, twoQ, QBitLen, Q, QInv)
-						x[1], y[1] = butterfly(x[1], y[1], F, twoQ, QBitLen, Q, QInv)
-						x[2], y[2] = butterfly(x[2], y[2], F, twoQ, QBitLen, Q, QInv)
-						x[3], y[3] = butterfly(x[3], y[3], F, twoQ, QBitLen, Q, QInv)
-						x[4], y[4] = butterfly(x[4], y[4], F, twoQ, QBitLen, Q, QInv)
-						x[5], y[5] = butterfly(x[5], y[5], F, twoQ, QBitLen, Q, QInv)
-						x[6], y[6] = butterfly(x[6], y[6], F, twoQ, QBitLen, Q, QInv)
-						x[7], y[7] = butterfly(x[7], y[7], F, twoQ, QBitLen, Q, QInv)
+						x[0], y[0] = butterfly(x[0], y[0], F, twoQ, fourQ, Q, QInv)
+						x[1], y[1] = butterfly(x[1], y[1], F, twoQ, fourQ, Q, QInv)
+						x[2], y[2] = butterfly(x[2], y[2], F, twoQ, fourQ, Q, QInv)
+						x[3], y[3] = butterfly(x[3], y[3], F, twoQ, fourQ, Q, QInv)
+						x[4], y[4] = butterfly(x[4], y[4], F, twoQ, fourQ, Q, QInv)
+						x[5], y[5] = butterfly(x[5], y[5], F, twoQ, fourQ, Q, QInv)
+						x[6], y[6] = butterfly(x[6], y[6], F, twoQ, fourQ, Q, QInv)
+						x[7], y[7] = butterfly(x[7], y[7], F, twoQ, fourQ, Q, QInv)
 					}
 
 				} else {
@@ -187,8 +187,6 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 						x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j]))
 						y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j+t]))
 
-						//  input := (x[i] < 2q, y[i] < 2q)
-						// output := (x[i] < 4q, y[i] < 4q)
 						V = MRedConstant(y[0], F, Q, QInv)
 						x[0], y[0] = x[0]+V, x[0]+twoQ-V
 
@@ -227,16 +225,14 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[m+i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
 
-					//  input := (x[i] < 4q, y[i] < 4q)
-					// output := (x[i] < 2q, y[i] < 2q)
-					x[0], x[4] = butterfly(x[0], x[4], psi[0], twoQ, QBitLen, Q, QInv)
-					x[1], x[5] = butterfly(x[1], x[5], psi[0], twoQ, QBitLen, Q, QInv)
-					x[2], x[6] = butterfly(x[2], x[6], psi[0], twoQ, QBitLen, Q, QInv)
-					x[3], x[7] = butterfly(x[3], x[7], psi[0], twoQ, QBitLen, Q, QInv)
-					x[8], x[12] = butterfly(x[8], x[12], psi[1], twoQ, QBitLen, Q, QInv)
-					x[9], x[13] = butterfly(x[9], x[13], psi[1], twoQ, QBitLen, Q, QInv)
-					x[10], x[14] = butterfly(x[10], x[14], psi[1], twoQ, QBitLen, Q, QInv)
-					x[11], x[15] = butterfly(x[11], x[15], psi[1], twoQ, QBitLen, Q, QInv)
+					x[0], x[4] = butterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, QInv)
+					x[1], x[5] = butterfly(x[1], x[5], psi[0], twoQ, fourQ, Q, QInv)
+					x[2], x[6] = butterfly(x[2], x[6], psi[0], twoQ, fourQ, Q, QInv)
+					x[3], x[7] = butterfly(x[3], x[7], psi[0], twoQ, fourQ, Q, QInv)
+					x[8], x[12] = butterfly(x[8], x[12], psi[1], twoQ, fourQ, Q, QInv)
+					x[9], x[13] = butterfly(x[9], x[13], psi[1], twoQ, fourQ, Q, QInv)
+					x[10], x[14] = butterfly(x[10], x[14], psi[1], twoQ, fourQ, Q, QInv)
+					x[11], x[15] = butterfly(x[11], x[15], psi[1], twoQ, fourQ, Q, QInv)
 
 				}
 			} else {
@@ -248,8 +244,6 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[m+i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
 
-					//  input := (x[i] < 2q, y[i] < 2q)
-					// output := (x[i] < 8q, y[i] < 8q)
 					V = MRedConstant(x[4], psi[0], Q, QInv)
 					x[0], x[4] = x[0]+V, x[0]+twoQ-V
 
@@ -289,16 +283,14 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[m+i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
 
-					//  input := (x[i] < 8q, y[i] < 8q)
-					// output := (x[i] < 2q, y[i] < 2q)
-					x[0], x[2] = butterfly(x[0], x[2], psi[0], twoQ, QBitLen, Q, QInv)
-					x[1], x[3] = butterfly(x[1], x[3], psi[0], twoQ, QBitLen, Q, QInv)
-					x[4], x[6] = butterfly(x[4], x[6], psi[1], twoQ, QBitLen, Q, QInv)
-					x[5], x[7] = butterfly(x[5], x[7], psi[1], twoQ, QBitLen, Q, QInv)
-					x[8], x[10] = butterfly(x[8], x[10], psi[2], twoQ, QBitLen, Q, QInv)
-					x[9], x[11] = butterfly(x[9], x[11], psi[2], twoQ, QBitLen, Q, QInv)
-					x[12], x[14] = butterfly(x[12], x[14], psi[3], twoQ, QBitLen, Q, QInv)
-					x[13], x[15] = butterfly(x[13], x[15], psi[3], twoQ, QBitLen, Q, QInv)
+					x[0], x[2] = butterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, QInv)
+					x[1], x[3] = butterfly(x[1], x[3], psi[0], twoQ, fourQ, Q, QInv)
+					x[4], x[6] = butterfly(x[4], x[6], psi[1], twoQ, fourQ, Q, QInv)
+					x[5], x[7] = butterfly(x[5], x[7], psi[1], twoQ, fourQ, Q, QInv)
+					x[8], x[10] = butterfly(x[8], x[10], psi[2], twoQ, fourQ, Q, QInv)
+					x[9], x[11] = butterfly(x[9], x[11], psi[2], twoQ, fourQ, Q, QInv)
+					x[12], x[14] = butterfly(x[12], x[14], psi[3], twoQ, fourQ, Q, QInv)
+					x[13], x[15] = butterfly(x[13], x[15], psi[3], twoQ, fourQ, Q, QInv)
 				}
 			} else {
 
@@ -309,8 +301,6 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[m+i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
 
-					//  input := (x[i] < 2q, y[i] < 2q)
-					// output := (x[i] < 8q, y[i] < 8q)
 					V = MRedConstant(x[2], psi[0], Q, QInv)
 					x[0], x[2] = x[0]+V, x[0]+twoQ-V
 
@@ -346,16 +336,14 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[m+i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[2*i]))
 
-					//  input := (x[i] < 8q, y[i] < 8q)
-					// output := (x[i] < 2q, y[i] < 2q)
-					x[0], x[1] = butterfly(x[0], x[1], psi[0], twoQ, QBitLen, Q, QInv)
-					x[2], x[3] = butterfly(x[2], x[3], psi[1], twoQ, QBitLen, Q, QInv)
-					x[4], x[5] = butterfly(x[4], x[5], psi[2], twoQ, QBitLen, Q, QInv)
-					x[6], x[7] = butterfly(x[6], x[7], psi[3], twoQ, QBitLen, Q, QInv)
-					x[8], x[9] = butterfly(x[8], x[9], psi[4], twoQ, QBitLen, Q, QInv)
-					x[10], x[11] = butterfly(x[10], x[11], psi[5], twoQ, QBitLen, Q, QInv)
-					x[12], x[13] = butterfly(x[12], x[13], psi[6], twoQ, QBitLen, Q, QInv)
-					x[14], x[15] = butterfly(x[14], x[15], psi[7], twoQ, QBitLen, Q, QInv)
+					x[0], x[1] = butterfly(x[0], x[1], psi[0], twoQ, fourQ, Q, QInv)
+					x[2], x[3] = butterfly(x[2], x[3], psi[1], twoQ, fourQ, Q, QInv)
+					x[4], x[5] = butterfly(x[4], x[5], psi[2], twoQ, fourQ, Q, QInv)
+					x[6], x[7] = butterfly(x[6], x[7], psi[3], twoQ, fourQ, Q, QInv)
+					x[8], x[9] = butterfly(x[8], x[9], psi[4], twoQ, fourQ, Q, QInv)
+					x[10], x[11] = butterfly(x[10], x[11], psi[5], twoQ, fourQ, Q, QInv)
+					x[12], x[13] = butterfly(x[12], x[13], psi[6], twoQ, fourQ, Q, QInv)
+					x[14], x[15] = butterfly(x[14], x[15], psi[7], twoQ, fourQ, Q, QInv)
 				}
 			} else {
 
@@ -364,8 +352,6 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[m+i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[2*i]))
 
-					//  input := (x[i] < 2q, y[i] < 2q)
-					// output := (x[i] < 4q, y[i] < 4q)
 					V = MRedConstant(x[1], psi[0], Q, QInv)
 					x[0], x[1] = x[0]+V, x[0]+twoQ-V
 

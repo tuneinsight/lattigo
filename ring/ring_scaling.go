@@ -413,7 +413,7 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 
 		p1tmp := p0.Coeffs[i]
 		qi := r.Modulus[i]
-		twoqi := qi << 3
+		twoqi := qi << 1
 		bredParams := r.BredParams[i]
 		mredParams := r.MredParams[i]
 		rescaleParams := qi - r.RescaleParams[level-1][i]

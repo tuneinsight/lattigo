@@ -4,8 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## [2.0.0] - 2020-10-07
 
-### Some changes are not public yet and will be on release.
-
 ### Performance
 - Global 1.5x speed-up across all arithmetic (this does not include sampling).
 

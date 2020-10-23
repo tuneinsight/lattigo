@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - BFV/CKKS: Added fast encryption (directly in Q without the rescaling by P).
-- CKKS: Added full-RNS scale-invariant bootstrapping (<https://eprint.iacr.org/2012/144>).
+- CKKS: Added full-RNS scale-invariant bootstrapping (<https://eprint.iacr.org/2020/1203>).
 - CKKS: Added parameterized tests for a range of experiments.
 - CKKS: Added arbitrary precision encoding/decoding.
 - CKKS: Added scale invariant polynomial evaluation.

@@ -3,8 +3,6 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
-
-	"fmt"
 	//"log"
 	"math"
 	//"time"

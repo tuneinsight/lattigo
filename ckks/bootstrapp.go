@@ -4,6 +4,7 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 
+	"fmt"
 	//"log"
 	"math"
 	//"time"
@@ -14,12 +15,27 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	//var t time.Time
 	var ct0, ct1 *Ciphertext
 
-	for ct.Level() != 0 {
+	for ct.Level() != 1 {
 		btp.evaluator.DropLevel(ct, 1)
 	}
 
 	// Brings the ciphertext scale to Q0/2^{10}
-	btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale()), ct)
+	if ct.Level() == 1 {
+
+		btp.evaluator.SetScale(ct, btp.prescale)
+
+		for ct.Level() != 0 {
+			btp.evaluator.DropLevel(ct, 1)
+		}
+
+	} else {
+
+		for ct.Level() != 0 {
+			btp.evaluator.DropLevel(ct, 1)
+		}
+
+		btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale()), ct)
+	}
 
 	// ModUp ct_{Q_0} -> ct_{Q_L}
 	//t = time.Now()

@@ -324,6 +324,8 @@ func (keygen *keyGenerator) GenRotationKey(rotType Rotation, sk *SecretKey, k ui
 	}
 
 	ringQP := keygen.ringQP
+	N := ringQP.N
+	NthRoot := ringQP.NthRoot
 
 	if rotType != Conjugate {
 
@@ -336,11 +338,11 @@ func (keygen *keyGenerator) GenRotationKey(rotType Rotation, sk *SecretKey, k ui
 		}
 
 		if _, inMap := rotKey.permuteNTTLeftIndex[k]; !inMap {
-			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, ringQP.N)
+			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, N, NthRoot)
 		}
 
 		if _, inMap := rotKey.permuteNTTRightIndex[k]; !inMap {
-			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, 2*ringQP.N-k, ringQP.N)
+			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, NthRoot-k, N, NthRoot)
 		}
 	}
 
@@ -366,7 +368,7 @@ func (keygen *keyGenerator) GenRotationKey(rotType Rotation, sk *SecretKey, k ui
 		}
 
 	case Conjugate:
-		rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(2*ringQP.N-1, 1, ringQP.N)
+		rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(NthRoot-1, 1, N, NthRoot)
 		rotKey.evakeyConjugate = keygen.genrotKey(sk.Get(), rotKey.permuteNTTConjugateIndex)
 	}
 }
@@ -393,6 +395,9 @@ func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *Ro
 // SetRotKey sets the target RotationKeys' SwitchingKey for the specified rotation type and amount with the input polynomials.
 func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly, rotType Rotation, k uint64) {
 
+	N := params.N()
+	NthRoot := 2 * N
+
 	switch rotType {
 	case RotationLeft:
 
@@ -406,7 +411,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyRotColLeft[k] == nil && k != 0 {
 
-			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, params.N())
+			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, N, NthRoot)
 
 			rotKey.evakeyRotColLeft[k] = new(SwitchingKey)
 			rotKey.evakeyRotColLeft[k].evakey = make([][2]*ring.Poly, len(evakey))
@@ -428,7 +433,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
 
-			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, 2*params.N()-1-k, params.N())
+			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, NthRoot-1-k, N, NthRoot)
 
 			rotKey.evakeyRotColRight[k] = new(SwitchingKey)
 			rotKey.evakeyRotColRight[k].evakey = make([][2]*ring.Poly, len(evakey))
@@ -442,7 +447,7 @@ func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly
 
 		if rotKey.evakeyConjugate == nil {
 
-			rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(2*params.N()-1, 1, params.N())
+			rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(NthRoot-1, 1, N, NthRoot)
 
 			rotKey.evakeyConjugate = new(SwitchingKey)
 			rotKey.evakeyConjugate.evakey = make([][2]*ring.Poly, len(evakey))

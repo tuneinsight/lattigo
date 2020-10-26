@@ -386,7 +386,7 @@ func (rotationkey *RotationKeys) UnmarshalBinary(data []byte) (err error) {
 
 			N := uint64(len(rotationkey.evakeyRotColLeft[rotationNumber].evakey[0][0].Coeffs[0]))
 
-			rotationkey.permuteNTTLeftIndex[rotationNumber] = ring.PermuteNTTIndex(GaloisGen, rotationNumber, 2*N)[:N]
+			rotationkey.permuteNTTLeftIndex[rotationNumber] = ring.PermuteNTTIndex(GaloisGen, rotationNumber, N, 4*N)
 
 		} else if rotationType == RotationRight {
 
@@ -405,7 +405,7 @@ func (rotationkey *RotationKeys) UnmarshalBinary(data []byte) (err error) {
 
 			N := uint64(len(rotationkey.evakeyRotColRight[rotationNumber].evakey[0][0].Coeffs[0]))
 
-			rotationkey.permuteNTTRightIndex[rotationNumber] = ring.PermuteNTTIndex(GaloisGen, (4*N)-rotationNumber, 2*N)[:N]
+			rotationkey.permuteNTTRightIndex[rotationNumber] = ring.PermuteNTTIndex(GaloisGen, (4*N)-rotationNumber, N, 4*N)
 
 		} else {
 

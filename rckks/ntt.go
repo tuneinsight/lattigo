@@ -56,7 +56,6 @@ func InvNTTRCKKSLvl(r *ring.Ring, level uint64, p1, p2 *ring.Poly) {
 	}
 }
 
-
 func nttrckks(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
 	var j1, j2, t uint64
 	var F uint64
@@ -203,7 +202,6 @@ func nttrckks(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, mredPa
 		x[7] = ring.BRedAdd(x[7], Q, bredParams)
 	}
 }
-
 
 func invnttrckks(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv, Q, mredParams uint64) {
 

@@ -395,7 +395,7 @@ func (basisextender *FastBasisExtender) ModDownSplitQP(levelQ, levelP uint64, p1
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
-// ModUpExact applies a basis extension from Q to P to the polynomial 
+// ModUpExact applies a basis extension from Q to P to the polynomial
 // and approximates the number of overflow of Q using floating point arithmetic.
 func ModUpExact(p1, p2 [][]uint64, params *ModUpParams) {
 

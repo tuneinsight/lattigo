@@ -12,6 +12,10 @@ import (
 
 func TestBootstrapp(t *testing.T) {
 
+	if !*includeBootstrapp {
+		t.Skip()
+	}
+
 	rand.Seed(time.Now().UnixNano())
 
 	var err error

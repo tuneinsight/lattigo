@@ -17,6 +17,7 @@ import (
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
+var includeBootstrapp = flag.Bool("include-bootstrapp", false, "include bootstrapp")
 var minPrec float64 = 15.0
 
 func testString(testContext *testParams, opname string) string {

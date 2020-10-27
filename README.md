@@ -72,7 +72,7 @@ Please use the following BibTex entry for citing Lattigo:
 
 ## References
 
-1. Secure and Efficient Bootstrapping for Approximate Homomorphic Encryption (<https://eprint.iacr.org/2020/1203>)
+1. Efficient Bootstrapping for ApproximateHomomorphic Encryption with Non-Sparse Keys (<https://eprint.iacr.org/2020/1203>)
 1. Somewhat Practical Fully Homomorphic Encryption (<https://eprint.iacr.org/2012/144>)
 1. Multiparty Homomorphic Encryption: From Theory to Practice (<https://eprint.iacr.org/2020/304>)
 1. A Full RNS Variant of FV Like Somewhat Homomorphic Encryption Schemes (<https://eprint.iacr.org/2016/510>)

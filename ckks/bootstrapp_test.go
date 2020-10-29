@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/cmplx"
 	"math/rand"
+	"runtime"
 	"testing"
 	"time"
 
@@ -12,8 +13,12 @@ import (
 
 func TestBootstrapp(t *testing.T) {
 
-	if !*includeBootstrapp {
-		t.Skip()
+	if !*testBootstrapping {
+		t.Skip("skipping bootstrapping test")
+	}
+
+	if runtime.GOARCH == "wasm" {
+		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
 	}
 
 	rand.Seed(time.Now().UnixNano())

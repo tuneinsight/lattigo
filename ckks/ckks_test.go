@@ -17,7 +17,7 @@ import (
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
-var includeBootstrapp = flag.Bool("include-bootstrapp", false, "include bootstrapp")
+var testBootstrapping = flag.Bool("test-bootstrapp", false, "run the bootstrapping tests (memory intensive)")
 var minPrec float64 = 15.0
 
 func testString(testContext *testParams, opname string) string {
@@ -669,7 +669,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 	t.Run(testString(testContext, "Functions/PowerOf2/"), func(t *testing.T) {
 
 		if testContext.params.MaxLevel() < 3 {
-			t.Skip()
+			t.Skip("skipping test for params max level < 3")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -695,7 +695,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 	t.Run(testString(testContext, "Functions/Power/"), func(t *testing.T) {
 
 		if testContext.params.MaxLevel() < 4 {
-			t.Skip()
+			t.Skip("skipping test for params max level < 4")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -714,7 +714,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 	t.Run(testString(testContext, "Functions/Inverse/"), func(t *testing.T) {
 
 		if testContext.params.MaxLevel() < 7 {
-			t.Skip()
+			t.Skip("skipping test for params max level < 7")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(0.1, 0), complex(1, 0), t)
@@ -736,7 +736,7 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 	t.Run(testString(testContext, "EvaluatePoly/Exp/"), func(t *testing.T) {
 
 		if testContext.params.MaxLevel() < 3 {
-			t.Skip()
+			t.Skip("skipping test for params max level < 3")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, 0), complex(1, 0), t)
@@ -769,7 +769,7 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 	t.Run(testString(testContext, "ChebyshevInterpolator/Sin/"), func(t *testing.T) {
 
 		if testContext.params.MaxLevel() < 5 {
-			t.Skip()
+			t.Skip("skipping test for params max level < 5")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, 0), complex(1, 0), t)

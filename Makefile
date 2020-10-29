@@ -18,7 +18,7 @@ test_examples:
 
 .PHONY: test_gotest
 test_gotest:
-	go test -v -short -test-bootstrapp -p=1 ./... -timeout=0
+	go test -v -short -test-bootstrapping -p=1 ./... -timeout=0
 
 .PHONY: test
 test: test_fmt test_gotest test_examples

@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"fmt"
 	"math"
 	"math/bits"
 )
@@ -23,6 +24,43 @@ func NewPoly(coeffs []complex128) (p *Poly) {
 	p.lead = true
 
 	return
+}
+
+func checkEnoughLevels(levels uint64, pol *Poly, c complex128) (err error) {
+
+	cReal := real(c)
+	cImag := imag(c)
+
+	var needScale bool
+
+	if cReal != 0 {
+		valueInt := int64(cReal)
+		valueFloat := cReal - float64(valueInt)
+
+		if valueFloat != 0 {
+			needScale = true
+		}
+	}
+
+	if cImag != 0 {
+		valueInt := int64(cImag)
+		valueFloat := cImag - float64(valueInt)
+
+		if valueFloat != 0 {
+			needScale = true
+		}
+	}
+
+	logDegree := uint64(math.Log2(float64(len(pol.coeffs))) + 0.5)
+	if needScale {
+		logDegree++
+	}
+
+	if levels < logDegree {
+		return fmt.Errorf("%d levels < %d log(d) -> cannot evaluate", levels, logDegree)
+	}
+
+	return nil
 }
 
 // Degree returns the degree of the polynomial
@@ -61,7 +99,11 @@ func computeSmallPoly(split uint64, coeffs *Poly) (polyList []*Poly) {
 }
 
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
-func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *EvaluationKey) (res *Ciphertext) {
+func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
+
+	if err := checkEnoughLevels(ct0.Level(), pol, 1); err != nil {
+		return ct0, err
+	}
 
 	C := make(map[uint64]*Ciphertext)
 
@@ -78,15 +120,17 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *Evaluati
 		computePowerBasis(1<<i, C, eval, evakey)
 	}
 
-	res = recurse(eval.scale, logSplit, logDegree, pol, C, eval, evakey)
-
+	opOut = recurse(eval.scale, logSplit, logDegree, pol, C, eval, evakey)
 	C = nil
-
-	return
+	return opOut, nil
 }
 
 // EvaluateCheby evaluates a polynomial in Chebyshev basis on the input Ciphertext in ceil(log2(deg+1))+1 levels.
-func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext) {
+func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
+
+	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 2/(cheby.b-cheby.a)); err != nil {
+		return op, err
+	}
 
 	C := make(map[uint64]*Ciphertext)
 
@@ -96,25 +140,29 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	eval.Rescale(C[1], eval.scale, C[1])
 
-	return eval.evalCheby(cheby, C, evakey)
+	return eval.evalCheby(cheby, C, evakey), nil
 }
 
 // EvaluateChebyFastSpecial evaluates the input Chebyshev polynomial with the input ciphertext.
 // Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
-func (eval *evaluator) EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext) {
+func (eval *evaluator) EvaluateChebySpecial(op *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
+
+	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 2/((cheby.b-cheby.a)*n)); err != nil {
+		return op, err
+	}
 
 	C := make(map[uint64]*Ciphertext)
 
-	C[1] = ct.CopyNew().Ciphertext()
+	C[1] = op.CopyNew().Ciphertext()
 
 	eval.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
 	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
 	eval.Rescale(C[1], eval.scale, C[1])
 
-	return eval.evalCheby(cheby, C, evakey)
+	return eval.evalCheby(cheby, C, evakey), nil
 }
 
-func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ciphertext, evakey *EvaluationKey) (res *Ciphertext) {
+func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ciphertext, evakey *EvaluationKey) (opOut *Ciphertext) {
 
 	logDegree := uint64(bits.Len64(cheby.Degree()))
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
@@ -127,7 +175,7 @@ func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ci
 		computePowerBasisCheby(1<<i, C, eval, evakey)
 	}
 
-	res = recurseCheby(eval.scale, logSplit, logDegree, &cheby.Poly, C, eval, evakey)
+	opOut = recurseCheby(eval.scale, logSplit, logDegree, &cheby.Poly, C, eval, evakey)
 
 	C = nil
 

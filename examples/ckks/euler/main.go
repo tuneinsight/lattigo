@@ -153,7 +153,9 @@ func example() {
 
 	poly := ckks.NewPoly(coeffs)
 
-	ciphertext = evaluator.EvaluatePoly(ciphertext, poly, rlk)
+	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, rlk); err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

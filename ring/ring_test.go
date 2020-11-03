@@ -2,7 +2,6 @@ package ring
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 	"math/bits"
 	"math/rand"
@@ -279,46 +278,19 @@ func testTernarySampler(testContext *testParams, t *testing.T) {
 	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
 		t.Run(testString(fmt.Sprintf("TernarySampler/p=%1.2f/", p), testContext.ringQ), func(t *testing.T) {
 
-			countOne := uint64(0)
-			countZer := uint64(0)
-			countMOne := uint64(0)
-
-			pol := testContext.ringQ.NewPoly()
 			prng, err := utils.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
 			ternarySampler := NewTernarySampler(prng, testContext.ringQ, p, false)
 
-			ternarySampler.Read(pol)
-
-			for i := range pol.Coeffs[0] {
-				if pol.Coeffs[0][i] == testContext.ringQ.Modulus[0]-1 {
-					countMOne++
-				}
-
-				if pol.Coeffs[0][i] == 0 {
-					countZer++
-				}
-
-				if pol.Coeffs[0][i] == 1 {
-					countOne++
+			pol := ternarySampler.ReadNew()
+			for i, mod := range testContext.ringQ.Modulus {
+				minOne := mod - 1
+				for _, c := range pol.Coeffs[i] {
+					require.True(t, c == 0 || c == minOne || c == 1)
 				}
 			}
-
-			N := float64(testContext.ringQ.N)
-			pFail := math.Pow(2, -40)
-			pNonZero := 1 - p
-			POneMinOne := pNonZero / 2
-
-			// Checks that the Hoeffding's inequality holds for non-zero elements count
-			boundNonZero := (pNonZero - math.Sqrt(math.Log(pFail)/(-2*N))) * N
-			require.GreaterOrEqual(t, float64(countOne+countMOne), boundNonZero)
-
-			// Checks that the Hoeffding's inequality holds for one and minus one elements count
-			boundOneMinOne := (POneMinOne - math.Sqrt(math.Log(pFail)/(-2*N))) * N
-			require.GreaterOrEqual(t, float64(countOne), boundOneMinOne)
-			require.GreaterOrEqual(t, float64(countMOne), boundOneMinOne)
 		})
 	}
 }

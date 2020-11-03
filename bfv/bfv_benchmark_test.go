@@ -33,7 +33,7 @@ func benchEncoder(testctx *testContext, b *testing.B) {
 
 	encoder := testctx.encoder
 	coeffs := testctx.uSampler.ReadNew()
-	plaintext := NewPlaintext(testctx.params)
+	plaintext := NewPlaintext(testctx.params, true)
 
 	b.Run(testString("Encoder/Encode/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -71,7 +71,7 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 	encryptorPk := testctx.encryptorPk
 	encryptorSk := testctx.encryptorSk
 
-	plaintext := NewPlaintext(testctx.params)
+	plaintext := NewPlaintext(testctx.params, true)
 	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
 	b.Run(testString("Encrypt/Pk/Slow/", testctx.params), func(b *testing.B) {
@@ -96,7 +96,7 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 func benchDecrypt(testctx *testContext, b *testing.B) {
 
 	decryptor := testctx.decryptor
-	plaintext := NewPlaintext(testctx.params)
+	plaintext := NewPlaintext(testctx.params, true)
 	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
 	b.Run(testString("Decrypt/", testctx.params), func(b *testing.B) {

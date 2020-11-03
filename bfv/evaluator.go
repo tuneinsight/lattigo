@@ -5,6 +5,8 @@ import (
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
+
+	"unsafe"
 )
 
 // Evaluator is an interface implementing the public methodes of the eval.
@@ -44,6 +46,8 @@ type evaluator struct {
 	ringQ    *ring.Ring
 	ringP    *ring.Ring
 	ringQMul *ring.Ring
+
+	deltaMont []uint64
 
 	baseconverterQ1Q2 *ring.FastBasisExtender
 
@@ -112,6 +116,7 @@ func NewEvaluator(params *Parameters) Evaluator {
 		ringQ:             q,
 		ringQMul:          qm,
 		ringP:             p,
+		deltaMont:         GenLiftParams(q, params.t),
 		baseconverterQ1Q2: ring.NewFastBasisExtender(q, qm),
 		baseconverterQ1P:  baseconverter,
 		decomposer:        decomposer,
@@ -160,14 +165,63 @@ func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree u
 	return // TODO: more checks on elements
 }
 
+func (eval *evaluator) TtoQ(p *Plaintext, pol *ring.Poly) {
+
+	ringQ := eval.ringQ
+
+	for i := len(ringQ.Modulus) - 1; i >= 0; i-- {
+		tmp1 := pol.Coeffs[i]
+		tmp2 := p.value.Coeffs[0]
+		deltaMont := eval.deltaMont[i]
+		qi := ringQ.Modulus[i]
+		mredParams := ringQ.GetMredParams()[i]
+
+		for j := uint64(0); j < ringQ.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&tmp2[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&tmp1[j]))
+
+			z[0] = ring.MRed(x[0], deltaMont, qi, mredParams)
+			z[1] = ring.MRed(x[1], deltaMont, qi, mredParams)
+			z[2] = ring.MRed(x[2], deltaMont, qi, mredParams)
+			z[3] = ring.MRed(x[3], deltaMont, qi, mredParams)
+			z[4] = ring.MRed(x[4], deltaMont, qi, mredParams)
+			z[5] = ring.MRed(x[5], deltaMont, qi, mredParams)
+			z[6] = ring.MRed(x[6], deltaMont, qi, mredParams)
+			z[7] = ring.MRed(x[7], deltaMont, qi, mredParams)
+		}
+	}
+}
+
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
-func evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	maxDegree := utils.MaxUint64(el0.Degree(), el1.Degree())
 	minDegree := utils.MinUint64(el0.Degree(), el1.Degree())
 
-	for i := uint64(0); i < minDegree+1; i++ {
-		evaluate(el0.value[i], el1.value[i], elOut.value[i])
+	if el0.Degree() == 0 || el1.Degree() == 0 {
+
+		if el0.Degree() == 0 && !el0.inZQ {
+
+			eval.TtoQ(el0.Plaintext(), eval.poolQKS[0])
+
+			evaluate(eval.poolQKS[0], el1.value[0], elOut.value[0])
+
+		} else if el1.Degree() == 0 && !el1.inZQ {
+
+			eval.TtoQ(el1.Plaintext(), eval.poolQKS[0])
+
+			evaluate(el0.value[0], eval.poolQKS[0], elOut.value[0])
+
+		} else {
+			evaluate(el0.value[0], el1.value[0], elOut.value[0])
+		}
+
+	} else {
+
+		for i := uint64(0); i < minDegree+1; i++ {
+			evaluate(el0.value[i], el1.value[i], elOut.value[i])
+		}
 	}
 
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
@@ -194,7 +248,7 @@ func evaluateInPlaceUnary(el0, elOut *Element, evaluate func(*ring.Poly, *ring.P
 // Add adds op0 to op1 and returns the result in ctOut.
 func (eval *evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
-	evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Add)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Add)
 }
 
 // AddNew adds op0 to op1 and creates a new element ctOut to store the result.
@@ -207,7 +261,7 @@ func (eval *evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext) {
 // AddNoMod adds op0 to op1 without modular reduction, and returns the result in cOut.
 func (eval *evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
-	evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.AddNoMod)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.AddNoMod)
 }
 
 // AddNoModNew adds op0 to op1 without modular reduction and creates a new element ctOut to store the result.
@@ -220,7 +274,7 @@ func (eval *evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 // Sub subtracts op1 from op0 and returns the result in cOut.
 func (eval *evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
-	evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Sub)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Sub)
 
 	if el0.Degree() < el1.Degree() {
 		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
@@ -240,7 +294,7 @@ func (eval *evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext) {
 func (eval *evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 
-	evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.SubNoMod)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.SubNoMod)
 
 	if el0.Degree() < el1.Degree() {
 		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
@@ -305,148 +359,200 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them to NTT form
 
-	c0Q1 := eval.poolQ[0]
-	c0Q2 := eval.poolQmul[0]
+	// Ct x Pt in Zt case
+	if ct1.Degree() == 0 && !ct1.inZQ {
 
-	c1Q1 := eval.poolQ[1]
-	c1Q2 := eval.poolQmul[1]
+		ringQ := eval.ringQ
 
-	c2Q1 := eval.poolQ[2]
-	c2Q2 := eval.poolQmul[2]
+		coeffs := ct1.value[0].Coeffs[0]
+		coeffsNTT := eval.poolQ[0][0].Coeffs[0]
 
-	for i := range ct0.value {
-		eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct0.value[i], c0Q2[i])
-		eval.ringQ.NTTLazy(ct0.value[i], c0Q1[i])
-		eval.ringQMul.NTTLazy(c0Q2[i], c0Q2[i])
-	}
+		for i := range ct0.value {
 
-	if ct0 != ct1 {
+			// Copies the inputCT on the outputCT and switches to the NTT domain
+			eval.ringQ.NTTLazy(ct0.value[i], ctOut.value[i])
 
-		for i := range ct1.value {
-			eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct1.value[i], c1Q2[i])
-			eval.ringQ.NTTLazy(ct1.value[i], c1Q1[i])
-			eval.ringQMul.NTTLazy(c1Q2[i], c1Q2[i])
+			// Switches the outputCT in the Montgomery domain
+			eval.ringQ.MForm(ctOut.value[i], ctOut.value[i])
+
+			// For each qi in Q
+			for j := range ringQ.Modulus {
+
+				tmp := ctOut.value[i].Coeffs[j]
+				qi := ringQ.Modulus[j]
+				nttPsi := ringQ.GetNttPsi()[j]
+				bredParams := ringQ.GetBredParams()[j]
+				mredParams := ringQ.GetMredParams()[j]
+
+				// Transforms the plaintext in the NTT domain of that qi
+				ring.NTTLazy(coeffs, coeffsNTT, ringQ.N, nttPsi, qi, mredParams, bredParams)
+
+				// Multiplies NTT_qi(pt) * NTT_qi(ct)
+				for k := uint64(0); k < eval.ringQ.N; k = k + 8 {
+
+					x := (*[8]uint64)(unsafe.Pointer(&coeffsNTT[k]))
+					z := (*[8]uint64)(unsafe.Pointer(&tmp[k]))
+
+					z[0] = ring.MRed(z[0], x[0], qi, mredParams)
+					z[1] = ring.MRed(z[1], x[1], qi, mredParams)
+					z[2] = ring.MRed(z[2], x[2], qi, mredParams)
+					z[3] = ring.MRed(z[3], x[3], qi, mredParams)
+					z[4] = ring.MRed(z[4], x[4], qi, mredParams)
+					z[5] = ring.MRed(z[5], x[5], qi, mredParams)
+					z[6] = ring.MRed(z[6], x[6], qi, mredParams)
+					z[7] = ring.MRed(z[7], x[7], qi, mredParams)
+				}
+			}
+
+			// Switches the ciphertext out of the NTT domain
+			eval.ringQ.InvNTT(ctOut.value[i], ctOut.value[i])
 		}
-	}
-
-	// Tensoring: multiplies each elements of the ciphertexts together
-	// and adds them to their corresponding position in the new ciphertext
-	// based on their respective degree
-
-	// Case where both Elements are of degree 1
-	if ct0.Degree() == 1 && ct1.Degree() == 1 {
-
-		c00Q := eval.poolQ[3][0]
-		c00Q2 := eval.poolQmul[3][0]
-		c01Q := eval.poolQ[3][1]
-		c01P := eval.poolQmul[3][1]
-
-		eval.ringQ.MForm(c0Q1[0], c00Q)
-		eval.ringQMul.MForm(c0Q2[0], c00Q2)
-
-		eval.ringQ.MForm(c0Q1[1], c01Q)
-		eval.ringQMul.MForm(c0Q2[1], c01P)
-
-		// Squaring case
-		if ct0 == ct1 {
-
-			// c0 = c0[0]*c0[0]
-			eval.ringQ.MulCoeffsMontgomery(c00Q, c0Q1[0], c2Q1[0])
-			eval.ringQMul.MulCoeffsMontgomery(c00Q2, c0Q2[0], c2Q2[0])
-
-			// c1 = 2*c0[0]*c0[1]
-			eval.ringQ.MulCoeffsMontgomery(c00Q, c0Q1[1], c2Q1[1])
-			eval.ringQMul.MulCoeffsMontgomery(c00Q2, c0Q2[1], c2Q2[1])
-
-			eval.ringQ.AddNoMod(c2Q1[1], c2Q1[1], c2Q1[1])
-			eval.ringQMul.AddNoMod(c2Q2[1], c2Q2[1], c2Q2[1])
-
-			// c2 = c0[1]*c0[1]
-			eval.ringQ.MulCoeffsMontgomery(c01Q, c0Q1[1], c2Q1[2])
-			eval.ringQMul.MulCoeffsMontgomery(c01P, c0Q2[1], c2Q2[2])
-
-			// Normal case
-		} else {
-
-			// c0 = c0[0]*c1[0]
-			eval.ringQ.MulCoeffsMontgomery(c00Q, c1Q1[0], c2Q1[0])
-			eval.ringQMul.MulCoeffsMontgomery(c00Q2, c1Q2[0], c2Q2[0])
-
-			// c1 = c0[0]*c1[1] + c0[1]*c1[0]
-			eval.ringQ.MulCoeffsMontgomery(c00Q, c1Q1[1], c2Q1[1])
-			eval.ringQMul.MulCoeffsMontgomery(c00Q2, c1Q2[1], c2Q2[1])
-
-			eval.ringQ.MulCoeffsMontgomeryAndAddNoMod(c01Q, c1Q1[0], c2Q1[1])
-			eval.ringQMul.MulCoeffsMontgomeryAndAddNoMod(c01P, c1Q2[0], c2Q2[1])
-
-			// c2 = c0[1]*c1[1]
-			eval.ringQ.MulCoeffsMontgomery(c01Q, c1Q1[1], c2Q1[2])
-			eval.ringQMul.MulCoeffsMontgomery(c01P, c1Q2[1], c2Q2[2])
-		}
-
-		// Case where both Elements are not of degree 1
+		// All the other cases
 	} else {
 
-		for i := uint64(0); i < ctOut.Degree()+1; i++ {
-			c2Q1[i].Zero()
-			c2Q2[i].Zero()
+		c0Q1 := eval.poolQ[0]
+		c0Q2 := eval.poolQmul[0]
+
+		c1Q1 := eval.poolQ[1]
+		c1Q2 := eval.poolQmul[1]
+
+		c2Q1 := eval.poolQ[2]
+		c2Q2 := eval.poolQmul[2]
+
+		for i := range ct0.value {
+			eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct0.value[i], c0Q2[i])
+			eval.ringQ.NTTLazy(ct0.value[i], c0Q1[i])
+			eval.ringQMul.NTTLazy(c0Q2[i], c0Q2[i])
 		}
 
-		// Squaring case
-		if ct0 == ct1 {
+		if ct0 != ct1 {
 
-			c00Q1 := eval.poolQ[3]
-			c00Q2 := eval.poolQmul[3]
+			for i := range ct1.value {
+				eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct1.value[i], c1Q2[i])
+				eval.ringQ.NTTLazy(ct1.value[i], c1Q1[i])
+				eval.ringQMul.NTTLazy(c1Q2[i], c1Q2[i])
+			}
+		}
 
-			for i := range ct0.value {
-				eval.ringQ.MForm(c0Q1[i], c00Q1[i])
-				eval.ringQMul.MForm(c0Q2[i], c00Q2[i])
+		// Tensoring: multiplies each elements of the ciphertexts together
+		// and adds them to their corresponding position in the new ciphertext
+		// based on their respective degree
+
+		// Case where both Elements are of degree 1
+		if ct0.Degree() == 1 && ct1.Degree() == 1 {
+
+			c00Q := eval.poolQ[3][0]
+			c00Q2 := eval.poolQmul[3][0]
+			c01Q := eval.poolQ[3][1]
+			c01P := eval.poolQmul[3][1]
+
+			eval.ringQ.MForm(c0Q1[0], c00Q)
+			eval.ringQMul.MForm(c0Q2[0], c00Q2)
+
+			eval.ringQ.MForm(c0Q1[1], c01Q)
+			eval.ringQMul.MForm(c0Q2[1], c01P)
+
+			// Squaring case
+			if ct0 == ct1 {
+
+				// c0 = c0[0]*c0[0]
+				eval.ringQ.MulCoeffsMontgomery(c00Q, c0Q1[0], c2Q1[0])
+				eval.ringQMul.MulCoeffsMontgomery(c00Q2, c0Q2[0], c2Q2[0])
+
+				// c1 = 2*c0[0]*c0[1]
+				eval.ringQ.MulCoeffsMontgomery(c00Q, c0Q1[1], c2Q1[1])
+				eval.ringQMul.MulCoeffsMontgomery(c00Q2, c0Q2[1], c2Q2[1])
+
+				eval.ringQ.AddNoMod(c2Q1[1], c2Q1[1], c2Q1[1])
+				eval.ringQMul.AddNoMod(c2Q2[1], c2Q2[1], c2Q2[1])
+
+				// c2 = c0[1]*c0[1]
+				eval.ringQ.MulCoeffsMontgomery(c01Q, c0Q1[1], c2Q1[2])
+				eval.ringQMul.MulCoeffsMontgomery(c01P, c0Q2[1], c2Q2[2])
+
+				// Normal case
+			} else {
+
+				// c0 = c0[0]*c1[0]
+				eval.ringQ.MulCoeffsMontgomery(c00Q, c1Q1[0], c2Q1[0])
+				eval.ringQMul.MulCoeffsMontgomery(c00Q2, c1Q2[0], c2Q2[0])
+
+				// c1 = c0[0]*c1[1] + c0[1]*c1[0]
+				eval.ringQ.MulCoeffsMontgomery(c00Q, c1Q1[1], c2Q1[1])
+				eval.ringQMul.MulCoeffsMontgomery(c00Q2, c1Q2[1], c2Q2[1])
+
+				eval.ringQ.MulCoeffsMontgomeryAndAddNoMod(c01Q, c1Q1[0], c2Q1[1])
+				eval.ringQMul.MulCoeffsMontgomeryAndAddNoMod(c01P, c1Q2[0], c2Q2[1])
+
+				// c2 = c0[1]*c1[1]
+				eval.ringQ.MulCoeffsMontgomery(c01Q, c1Q1[1], c2Q1[2])
+				eval.ringQMul.MulCoeffsMontgomery(c01P, c1Q2[1], c2Q2[2])
 			}
 
-			for i := uint64(0); i < ct0.Degree()+1; i++ {
-				for j := i + 1; j < ct0.Degree()+1; j++ {
-					eval.ringQ.MulCoeffsMontgomery(c00Q1[i], c0Q1[j], c2Q1[i+j])
-					eval.ringQMul.MulCoeffsMontgomery(c00Q2[i], c0Q2[j], c2Q2[i+j])
-
-					eval.ringQ.Add(c2Q1[i+j], c2Q1[i+j], c2Q1[i+j])
-					eval.ringQMul.Add(c2Q2[i+j], c2Q2[i+j], c2Q2[i+j])
-				}
-			}
-
-			for i := uint64(0); i < ct0.Degree()+1; i++ {
-				eval.ringQ.MulCoeffsMontgomeryAndAdd(c00Q1[i], c0Q1[i], c2Q1[i<<1])
-				eval.ringQMul.MulCoeffsMontgomeryAndAdd(c00Q2[i], c0Q2[i], c2Q2[i<<1])
-			}
-
-			// Normal case
+			// Case where both Elements are not of degree 1
 		} else {
-			for i := range ct0.value {
-				eval.ringQ.MForm(c0Q1[i], c0Q1[i])
-				eval.ringQMul.MForm(c0Q2[i], c0Q2[i])
-				for j := range ct1.value {
-					eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[i+j])
-					eval.ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[i+j])
+
+			for i := uint64(0); i < ctOut.Degree()+1; i++ {
+				c2Q1[i].Zero()
+				c2Q2[i].Zero()
+			}
+
+			// Squaring case
+			if ct0 == ct1 {
+
+				c00Q1 := eval.poolQ[3]
+				c00Q2 := eval.poolQmul[3]
+
+				for i := range ct0.value {
+					eval.ringQ.MForm(c0Q1[i], c00Q1[i])
+					eval.ringQMul.MForm(c0Q2[i], c00Q2[i])
+				}
+
+				for i := uint64(0); i < ct0.Degree()+1; i++ {
+					for j := i + 1; j < ct0.Degree()+1; j++ {
+						eval.ringQ.MulCoeffsMontgomery(c00Q1[i], c0Q1[j], c2Q1[i+j])
+						eval.ringQMul.MulCoeffsMontgomery(c00Q2[i], c0Q2[j], c2Q2[i+j])
+
+						eval.ringQ.Add(c2Q1[i+j], c2Q1[i+j], c2Q1[i+j])
+						eval.ringQMul.Add(c2Q2[i+j], c2Q2[i+j], c2Q2[i+j])
+					}
+				}
+
+				for i := uint64(0); i < ct0.Degree()+1; i++ {
+					eval.ringQ.MulCoeffsMontgomeryAndAdd(c00Q1[i], c0Q1[i], c2Q1[i<<1])
+					eval.ringQMul.MulCoeffsMontgomeryAndAdd(c00Q2[i], c0Q2[i], c2Q2[i<<1])
+				}
+
+				// Normal case
+			} else {
+				for i := range ct0.value {
+					eval.ringQ.MForm(c0Q1[i], c0Q1[i])
+					eval.ringQMul.MForm(c0Q2[i], c0Q2[i])
+					for j := range ct1.value {
+						eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[i+j])
+						eval.ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[i+j])
+					}
 				}
 			}
 		}
-	}
 
-	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
-	// by t/q and reduces its basis from QP to Q
-	for i := range ctOut.value {
-		eval.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
-		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
+		// Applies the inverse NTT to the ciphertext, scales down the ciphertext
+		// by t/q and reduces its basis from QP to Q
+		for i := range ctOut.value {
+			eval.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
+			eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
 
-		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		eval.baseconverterQ1Q2.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
+			// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
+			eval.baseconverterQ1Q2.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
 
-		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
-		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
-		eval.baseconverterQ1Q2.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.value[i])
-		eval.ringQ.SubScalarBigint(ctOut.value[i], eval.pHalf, ctOut.value[i])
+			// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
+			eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
+			eval.baseconverterQ1Q2.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.value[i])
+			eval.ringQ.SubScalarBigint(ctOut.value[i], eval.pHalf, ctOut.value[i])
 
-		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
-		eval.ringQ.MulScalar(ctOut.value[i], eval.t, ctOut.value[i])
+			// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
+			eval.ringQ.MulScalar(ctOut.value[i], eval.t, ctOut.value[i])
+		}
 	}
 }
 

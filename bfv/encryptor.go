@@ -3,6 +3,7 @@ package bfv
 import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
+	"unsafe"
 )
 
 // Encryptor in an interface for encryptors
@@ -57,10 +58,11 @@ type Encryptor interface {
 
 // encryptor is a structure that holds the parameters needed to encrypt plaintexts.
 type encryptor struct {
-	params   *Parameters
-	ringQ    *ring.Ring
-	ringQP   *ring.Ring
-	polypool [3]*ring.Poly
+	params    *Parameters
+	ringQ     *ring.Ring
+	ringQP    *ring.Ring
+	deltaMont []uint64
+	polypool  [3]*ring.Poly
 
 	baseconverter              *ring.FastBasisExtender
 	gaussianSamplerQ           *ring.GaussianSampler
@@ -124,6 +126,7 @@ func newEncryptor(params *Parameters) encryptor {
 		params:                     params.Copy(),
 		ringQ:                      ringQ,
 		ringQP:                     ringQP,
+		deltaMont:                  GenLiftParams(ringQ, params.t),
 		polypool:                   [3]*ring.Poly{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()},
 		baseconverter:              baseconverter,
 		gaussianSamplerQ:           ring.NewGaussianSampler(prng, ringQ, params.Sigma(), uint64(6*params.Sigma())),
@@ -185,8 +188,9 @@ func (encryptor *pkEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *r
 
 func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
 
+	ringQ := encryptor.ringQ
+
 	if fast {
-		ringQ := encryptor.ringQ
 
 		encryptor.ternarySamplerMontgomeryQ.Read(encryptor.polypool[2])
 		ringQ.NTTLazy(encryptor.polypool[2], encryptor.polypool[2])
@@ -194,14 +198,14 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
-		ringQ.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
-		ringQ.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+		ringQ.InvNTT(encryptor.polypool[0], ciphertext.value[0])
+		ringQ.InvNTT(encryptor.polypool[1], ciphertext.value[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSamplerQ.ReadAndAdd(encryptor.polypool[0])
+		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0])
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSamplerQ.ReadAndAdd(encryptor.polypool[1])
+		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[1])
 
 	} else {
 
@@ -226,12 +230,19 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		encryptor.gaussianSamplerQP.ReadAndAdd(encryptor.polypool[1])
 
 		// We rescale the encryption of zero by the special prime, dividing the error by this prime
-		encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
-		encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])
+		encryptor.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, encryptor.polypool[0], ciphertext.value[0])
+		encryptor.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, encryptor.polypool[1], ciphertext.value[1])
 	}
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
-	encryptor.ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+
+	if !plaintext.inZQ {
+		encryptor.TtoQ(plaintext)
+		encryptor.ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+	} else {
+		encryptor.ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+	}
+
 }
 
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
@@ -293,5 +304,38 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0])
 
 	// ct = [-a*s + m + e , a]
-	ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+	if !plaintext.inZQ {
+		encryptor.TtoQ(plaintext)
+		encryptor.ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
+	} else {
+		encryptor.ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+	}
+}
+
+func (encryptor *encryptor) TtoQ(p *Plaintext) {
+
+	ringQ := encryptor.ringQ
+	encryptor.polypool[0].Zero()
+	for i := len(ringQ.Modulus) - 1; i >= 0; i-- {
+		tmp1 := encryptor.polypool[0].Coeffs[i]
+		tmp2 := p.value.Coeffs[0]
+		deltaMont := encryptor.deltaMont[i]
+		qi := ringQ.Modulus[i]
+		mredParams := ringQ.GetMredParams()[i]
+
+		for j := uint64(0); j < ringQ.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&tmp2[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&tmp1[j]))
+
+			z[0] = ring.MRed(x[0], deltaMont, qi, mredParams)
+			z[1] = ring.MRed(x[1], deltaMont, qi, mredParams)
+			z[2] = ring.MRed(x[2], deltaMont, qi, mredParams)
+			z[3] = ring.MRed(x[3], deltaMont, qi, mredParams)
+			z[4] = ring.MRed(x[4], deltaMont, qi, mredParams)
+			z[5] = ring.MRed(x[5], deltaMont, qi, mredParams)
+			z[6] = ring.MRed(x[6], deltaMont, qi, mredParams)
+			z[7] = ring.MRed(x[7], deltaMont, qi, mredParams)
+		}
+	}
 }

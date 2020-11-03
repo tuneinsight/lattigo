@@ -20,7 +20,8 @@ type decryptor struct {
 	params   *Parameters
 	ringQ    *ring.Ring
 	sk       *SecretKey
-	polypool *ring.Poly
+	scaler   ring.Scaler
+	polypool [2]*ring.Poly
 }
 
 // NewDecryptor creates a new Decryptor from the parameters with the secret-key
@@ -37,36 +38,44 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 		params:   params.Copy(),
 		ringQ:    ringQ,
 		sk:       sk,
-		polypool: ringQ.NewPoly(),
+		scaler:   ring.NewRNSScaler(params.t, ringQ),
+		polypool: [2]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()},
 	}
 }
 
 func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) *Plaintext {
-	plaintext := NewPlaintext(decryptor.params)
-
+	plaintext := NewPlaintext(decryptor.params, true)
 	decryptor.Decrypt(ciphertext, plaintext)
-
 	return plaintext
 }
 
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
-	ringQ := decryptor.ringQ
 
-	ringQ.NTTLazy(ciphertext.value[ciphertext.Degree()], plaintext.value)
+	// TODO : check that the input plaintext is in ZQ
+	ringQ := decryptor.ringQ
+	tmp := decryptor.polypool[0]
+	accumulator := decryptor.polypool[1]
+
+	ringQ.NTTLazy(ciphertext.value[ciphertext.Degree()], accumulator)
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
-		ringQ.MulCoeffsMontgomery(plaintext.value, decryptor.sk.sk, plaintext.value)
-		ringQ.NTTLazy(ciphertext.value[i-1], decryptor.polypool)
-		ringQ.Add(plaintext.value, decryptor.polypool, plaintext.value)
+		ringQ.MulCoeffsMontgomery(accumulator, decryptor.sk.sk, accumulator)
+		ringQ.NTTLazy(ciphertext.value[i-1], tmp)
+		ringQ.Add(accumulator, tmp, accumulator)
 
 		if i&3 == 3 {
-			ringQ.Reduce(plaintext.value, plaintext.value)
+			ringQ.Reduce(accumulator, accumulator)
 		}
 	}
 
 	if (ciphertext.Degree())&3 != 3 {
-		ringQ.Reduce(plaintext.value, plaintext.value)
+		ringQ.Reduce(accumulator, accumulator)
 	}
 
-	ringQ.InvNTT(plaintext.value, plaintext.value)
+	if plaintext.inZQ{
+		ringQ.InvNTT(accumulator, plaintext.value)
+	}else{
+		ringQ.InvNTT(accumulator, accumulator)
+		decryptor.scaler.DivByQOverTRounded(accumulator, plaintext.value)
+	}
 }

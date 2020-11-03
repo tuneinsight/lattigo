@@ -15,34 +15,39 @@ type Operand interface {
 // as a slice of polynomials, and an isNTT flag that indicates if the element is in the NTT domain.
 type Element struct {
 	value []*ring.Poly
-	isNTT bool
+	isNTT bool // If true, then in the NTT domain, else not
+	inZQ  bool // If true, then in Z_{Q}, else in Z_{t}
 }
 
 // NewElement creates a new Element of the target degree with zero values.
-func NewElement(params *Parameters, degree uint64) *Element {
+func NewElement(params *Parameters, degree uint64, inZQ bool) *Element {
 
 	el := new(Element)
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
-		el.value[i] = ring.NewPoly(params.N(), params.QiCount())
+		if inZQ {
+			el.value[i] = ring.NewPoly(params.N(), params.QiCount())
+		} else {
+			el.value[i] = ring.NewPoly(params.N(), 1)
+		}
 	}
 	el.isNTT = true
+	el.inZQ = inZQ
 	return el
 }
 
 // NewElementRandom creates a new Element with random coefficients
-func NewElementRandom(prng utils.PRNG, params *Parameters, degree uint64) *Element {
+func NewElementRandom(prng utils.PRNG, params *Parameters, degree uint64, inZQ bool) *Element {
 
 	ringQ, err := ring.NewRing(params.N(), params.qi)
 	if err != nil {
 		panic(err)
 	}
 	sampler := ring.NewUniformSampler(prng, ringQ)
-	el := NewElement(params, degree)
+	el := NewElement(params, degree, inZQ)
 	for i := uint64(0); i < degree+1; i++ {
 		sampler.Read(el.value[i])
 	}
-	el.isNTT = true
 	return el
 }
 
@@ -59,6 +64,10 @@ func (el *Element) SetValue(value []*ring.Poly) {
 // Degree returns the degree of the target Element.
 func (el *Element) Degree() uint64 {
 	return uint64(len(el.value) - 1)
+}
+
+func (el *Element) IsInZQ() bool {
+	return el.inZQ
 }
 
 // Resize resizes the target Element degree to the degree given as input. If the input degree is bigger, then

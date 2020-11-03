@@ -16,7 +16,9 @@ const GaloisGen uint64 = 5
 // Encoder is an interface implementing the encoder.
 type Encoder interface {
 	EncodeUint(coeffs []uint64, plaintext *Plaintext)
+	EncodeAndLiftUint(coeffs []uint64, plaintext *Plaintext)
 	EncodeInt(coeffs []int64, plaintext *Plaintext)
+	EncodeAndLiftInt(coeffs []int64, plaintext *Plaintext)
 	DecodeUint(plaintext *Plaintext) (coeffs []uint64)
 	DecodeInt(plaintext *Plaintext) (coeffs []int64)
 }
@@ -119,8 +121,13 @@ func (encoder *encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	encoder.encodePlaintext(plaintext)
+	encoder.ringT.InvNTT(plaintext.value, plaintext.value)
+}
 
+// EncodeUint encodes an uint64 slice of size at most N on a plaintext.
+func (encoder *encoder) EncodeAndLiftUint(coeffs []uint64, plaintext *Plaintext) {
+	encoder.EncodeUint(coeffs, plaintext)
+	encoder.TtoQ(plaintext)
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. It also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
@@ -148,14 +155,25 @@ func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	encoder.encodePlaintext(plaintext)
+	encoder.ringT.InvNTTLazy(plaintext.value, plaintext.value)
 }
 
-func (encoder *encoder) encodePlaintext(p *Plaintext) {
+func (encoder *encoder) EncodeAndLiftInt(coeffs []int64, plaintext *Plaintext) {
+	encoder.EncodeInt(coeffs, plaintext)
+	encoder.TtoQ(plaintext)
+}
 
-	encoder.ringT.InvNTTLazy(p.value, p.value)
+func (encoder *encoder) TtoQ(p *Plaintext) {
 
 	ringQ := encoder.ringQ
+
+	if !p.inZQ {
+		additionalCoeffs := make([][]uint64, len(ringQ.Modulus)-1)
+		for i := 0; i < len(ringQ.Modulus)-1; i++ {
+			additionalCoeffs[i] = make([]uint64, ringQ.N)
+		}
+		p.value.Coeffs = append(p.value.Coeffs, additionalCoeffs...)
+	}
 
 	for i := len(ringQ.Modulus) - 1; i >= 0; i-- {
 		tmp1 := p.value.Coeffs[i]
@@ -179,14 +197,19 @@ func (encoder *encoder) encodePlaintext(p *Plaintext) {
 			z[7] = ring.MRed(x[7], deltaMont, qi, bredParams)
 		}
 	}
+
+	p.inZQ = true
 }
 
 // DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.
 func (encoder *encoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64) {
 
-	encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
-
-	encoder.ringT.NTT(encoder.polypool, encoder.polypool)
+	if plaintext.inZQ {
+		encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
+		encoder.ringT.NTT(encoder.polypool, encoder.polypool)
+	} else {
+		encoder.ringT.NTT(plaintext.value, encoder.polypool)
+	}
 
 	coeffs = make([]uint64, encoder.ringQ.N)
 
@@ -204,9 +227,12 @@ func (encoder *encoder) DecodeInt(plaintext *Plaintext) (coeffs []int64) {
 
 	var value int64
 
-	encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
-
-	encoder.ringT.NTT(encoder.polypool, encoder.polypool)
+	if plaintext.inZQ {
+		encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
+		encoder.ringT.NTT(encoder.polypool, encoder.polypool)
+	} else {
+		encoder.ringT.NTT(plaintext.value, encoder.polypool)
+	}
 
 	coeffs = make([]int64, encoder.ringQ.N)
 

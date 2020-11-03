@@ -119,7 +119,7 @@ func newTestVectors(testctx *testContext, encryptor Encryptor, t *testing.T) (co
 
 	coeffs = testctx.uSampler.ReadNew()
 
-	plaintext = NewPlaintext(testctx.params)
+	plaintext = NewPlaintext(testctx.params, false)
 
 	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
@@ -157,24 +157,23 @@ func testEncoder(testctx *testContext, t *testing.T) {
 
 func testEncryptor(testctx *testContext, t *testing.T) {
 
+	coeffs := testctx.uSampler.ReadNew()
+
+	plaintext := NewPlaintext(testctx.params, false)
+	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
+
 	t.Run(testString("Encryptor/EncryptFromPk/", testctx.params), func(t *testing.T) {
-		values, _, ciphertext := newTestVectors(testctx, testctx.encryptorPk, t)
-		verifyTestVectors(testctx, testctx.decryptor, values, ciphertext, t)
+		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptNew(plaintext), t)
 	})
 
 	t.Run(testString("Encryptor/EncryptFromPkFast/", testctx.params), func(t *testing.T) {
-		coeffs := testctx.uSampler.ReadNew()
-		plaintext := NewPlaintext(testctx.params)
-		testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptFastNew(plaintext), t)
 	})
 
 	t.Run(testString("Encryptor/EncryptFromSk/", testctx.params), func(t *testing.T) {
-		coeffs := testctx.uSampler.ReadNew()
-		plaintext := NewPlaintext(testctx.params)
-		testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorSk.EncryptNew(plaintext), t)
 	})
+
 }
 
 func testEvaluator(testctx *testContext, t *testing.T) {

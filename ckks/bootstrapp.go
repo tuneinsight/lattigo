@@ -3,23 +3,45 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
-
 	//"log"
 	"math"
 	//"time"
 )
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
+// If the input ciphertext level is zero, the input scale must be an exact power of two smaller or equal to round(Q0/2^{10}).
+// If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
+// can be used to do a scale matching.
 func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	//var t time.Time
 	var ct0, ct1 *Ciphertext
 
-	for ct.Level() != 0 {
+	// Drops the level to 1
+	for ct.Level() != 1 {
 		btp.evaluator.DropLevel(ct, 1)
 	}
 
 	// Brings the ciphertext scale to Q0/2^{10}
-	btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale()), ct)
+	if ct.Level() == 1 {
+
+		// if one level is available, then uses it to match the scale
+		btp.evaluator.SetScale(ct, btp.prescale)
+
+		// then drops to level 0
+		for ct.Level() != 0 {
+			btp.evaluator.DropLevel(ct, 1)
+		}
+
+	} else {
+
+		// else drop to level 0
+		for ct.Level() != 0 {
+			btp.evaluator.DropLevel(ct, 1)
+		}
+
+		// and does an integer constant mult by round((Q0/2^{10})/ctscle)
+		btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale()), ct)
+	}
 
 	// ModUp ct_{Q_0} -> ct_{Q_L}
 	//t = time.Now()

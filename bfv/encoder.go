@@ -153,7 +153,7 @@ func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 
 func (encoder *encoder) encodePlaintext(p *Plaintext) {
 
-	encoder.ringT.InvNTT(p.value, p.value)
+	encoder.ringT.InvNTTLazy(p.value, p.value)
 
 	ringQ := encoder.ringQ
 

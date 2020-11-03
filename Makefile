@@ -18,7 +18,8 @@ test_examples:
 
 .PHONY: test_gotest
 test_gotest:
-	go test -v -short -p=1 ./... -timeout=0
+	go test -v -short -p=1 -timeout=0 ./utils ./ring ./bfv ./dbfv ./dckks
+	go test -v -short -p=1 -timeout=0 ./ckks -test-bootstrapping
 
 .PHONY: test
 test: test_fmt test_gotest test_examples

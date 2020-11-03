@@ -276,48 +276,51 @@ func testGaussianSampler(testContext *testParams, t *testing.T) {
 
 func testTernarySampler(testContext *testParams, t *testing.T) {
 
-	t.Run(testString("TernarySampler/", testContext.ringQ), func(t *testing.T) {
+	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
+		t.Run(testString(fmt.Sprintf("TernarySampler/p=%1.2f/", p), testContext.ringQ), func(t *testing.T) {
 
-		countOne := uint64(0)
-		countZer := uint64(0)
-		countMOn := uint64(0)
+			countOne := uint64(0)
+			countZer := uint64(0)
+			countMOne := uint64(0)
 
-		pol := testContext.ringQ.NewPoly()
+			pol := testContext.ringQ.NewPoly()
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+			ternarySampler := NewTernarySampler(prng, testContext.ringQ, p, false)
 
-		rho := 1.0 / 3
+			ternarySampler.Read(pol)
 
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
-		}
-		ternarySampler := NewTernarySampler(prng, testContext.ringQ, rho, false)
+			for i := range pol.Coeffs[0] {
+				if pol.Coeffs[0][i] == testContext.ringQ.Modulus[0]-1 {
+					countMOne++
+				}
 
-		ternarySampler.Read(pol)
+				if pol.Coeffs[0][i] == 0 {
+					countZer++
+				}
 
-		for i := range pol.Coeffs[0] {
-			if pol.Coeffs[0][i] == testContext.ringQ.Modulus[0]-1 {
-				countMOn++
+				if pol.Coeffs[0][i] == 1 {
+					countOne++
+				}
 			}
 
-			if pol.Coeffs[0][i] == 0 {
-				countZer++
-			}
+			N := float64(testContext.ringQ.N)
+			pFail := math.Pow(2, -40)
+			pNonZero := 1 - p
+			POneMinOne := pNonZero / 2
 
-			if pol.Coeffs[0][i] == 1 {
-				countOne++
-			}
-		}
+			// Checks that the Hoeffding's inequality holds for non-zero elements count
+			boundNonZero := (pNonZero - math.Sqrt(math.Log(pFail)/(-2*N))) * N
+			require.GreaterOrEqual(t, float64(countOne+countMOne), boundNonZero)
 
-		threshold := 0.066
-
-		ratio := math.Round(float64(countOne+countMOn)/float64(countZer)*100.0) / 100.0
-
-		min := ((1 - rho) / rho) * (1.0 - threshold)
-		max := ((1 - rho) / rho) * (1.0 + threshold)
-
-		require.Greater(t, ratio, min)
-		require.Less(t, ratio, max)
-	})
+			// Checks that the Hoeffding's inequality holds for one and minus one elements count
+			boundOneMinOne := (POneMinOne - math.Sqrt(math.Log(pFail)/(-2*N))) * N
+			require.GreaterOrEqual(t, float64(countOne), boundOneMinOne)
+			require.GreaterOrEqual(t, float64(countMOne), boundOneMinOne)
+		})
+	}
 }
 
 func testModularReduction(testContext *testParams, t *testing.T) {

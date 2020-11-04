@@ -15,10 +15,8 @@ const GaloisGen uint64 = 5
 
 // Encoder is an interface implementing the encoder.
 type Encoder interface {
-	EncodeUintZT(coeffs []uint64, plaintext *Plaintext)
-	EncodeUintZQ(coeffs []uint64, plaintext *Plaintext)
-	EncodeIntZT(coeffs []int64, plaintext *Plaintext)
-	EncodeIntZQ(coeffs []int64, plaintext *Plaintext)
+	EncodeUint(coeffs []uint64, plaintext *Plaintext)
+	EncodeInt(coeffs []int64, plaintext *Plaintext)
 	DecodeUint(plaintext *Plaintext) (coeffs []uint64)
 	DecodeInt(plaintext *Plaintext) (coeffs []int64)
 }
@@ -103,7 +101,7 @@ func GenLiftParams(ringQ *ring.Ring, t uint64) (deltaMont []uint64) {
 }
 
 // EncodeUint encodes an uint64 slice of size at most N on a plaintext.
-func (encoder *encoder) EncodeUintZT(coeffs []uint64, plaintext *Plaintext) {
+func (encoder *encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
 		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
@@ -122,17 +120,15 @@ func (encoder *encoder) EncodeUintZT(coeffs []uint64, plaintext *Plaintext) {
 	}
 
 	encoder.ringT.InvNTT(plaintext.value, plaintext.value)
-}
 
-// EncodeUint encodes an uint64 slice of size at most N on a plaintext.
-func (encoder *encoder) EncodeUintZQ(coeffs []uint64, plaintext *Plaintext) {
-	encoder.EncodeUintZT(coeffs, plaintext)
-	encoder.TtoQ(plaintext)
+	if plaintext.inZQ {
+		encoder.TtoQ(plaintext)
+	}
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. It also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
 // The sign will correctly decode as long as the absolute value of the coefficient does not exceed half of the plaintext modulus.
-func (encoder *encoder) EncodeIntZT(coeffs []int64, plaintext *Plaintext) {
+func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
 		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
@@ -156,11 +152,10 @@ func (encoder *encoder) EncodeIntZT(coeffs []int64, plaintext *Plaintext) {
 	}
 
 	encoder.ringT.InvNTTLazy(plaintext.value, plaintext.value)
-}
 
-func (encoder *encoder) EncodeIntZQ(coeffs []int64, plaintext *Plaintext) {
-	encoder.EncodeIntZT(coeffs, plaintext)
-	encoder.TtoQ(plaintext)
+	if plaintext.inZQ {
+		encoder.TtoQ(plaintext)
+	}
 }
 
 func (encoder *encoder) TtoQ(p *Plaintext) {

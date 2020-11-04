@@ -544,7 +544,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 			p.RefreshProtocol = NewRefreshProtocol(testCtx.params)
 			p.s = sk0Shards[i].Get()
 			p.share = p.AllocateShares()
-			p.ptShare = bfv.NewPlaintext(testCtx.params)
+			p.ptShare = bfv.NewPlaintextZQ(testCtx.params)
 			RefreshParties[i] = p
 		}
 
@@ -649,7 +649,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 			p.PermuteProtocol = NewPermuteProtocol(testCtx.params)
 			p.s = sk0Shards[i].Get()
 			p.share = p.AllocateShares()
-			p.ptShare = bfv.NewPlaintext(testCtx.params)
+			p.ptShare = bfv.NewPlaintextZQ(testCtx.params)
 			RefreshParties[i] = p
 		}
 
@@ -698,7 +698,7 @@ func newTestVectors(testCtx *testContext, encryptor bfv.Encryptor, t *testing.T)
 	uniformSampler := ring.NewUniformSampler(testCtx.prng, testCtx.dbfvContext.ringT)
 
 	coeffsPol := uniformSampler.ReadNew()
-	plaintext = bfv.NewPlaintext(testCtx.params)
+	plaintext = bfv.NewPlaintextZQ(testCtx.params)
 	testCtx.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext

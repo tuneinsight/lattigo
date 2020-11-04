@@ -121,7 +121,7 @@ func newTestVectorsZQ(testctx *testContext, encryptor Encryptor, t *testing.T) (
 
 	plaintext = NewPlaintextZQ(testctx.params)
 
-	testctx.encoder.EncodeUintZQ(coeffs.Coeffs[0], plaintext)
+	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
 	if encryptor != nil {
 		ciphertext = testctx.encryptorPk.EncryptNew(plaintext)
@@ -136,7 +136,7 @@ func newTestVectorsZT(testctx *testContext, encryptor Encryptor, t *testing.T) (
 
 	plaintext = NewPlaintextZT(testctx.params)
 
-	testctx.encoder.EncodeUintZT(coeffs.Coeffs[0], plaintext)
+	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
 	if encryptor != nil {
 		ciphertext = testctx.encryptorPk.EncryptNew(plaintext)
@@ -179,36 +179,35 @@ func testEncryptor(testctx *testContext, t *testing.T) {
 
 	coeffs := testctx.uSampler.ReadNew()
 
-	plaintext := NewPlaintextZT(testctx.params)
-	testctx.encoder.EncodeUintZT(coeffs.Coeffs[0], plaintext)
+	plaintextZT := NewPlaintextZT(testctx.params)
+	plaintextZQ := NewPlaintextZQ(testctx.params)
+
+	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintextZT)
+	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintextZQ)
 
 	t.Run(testString("Encryptor/EncryptFromPk/ZT/", testctx.params), func(t *testing.T) {
-		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptNew(plaintext), t)
+		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptNew(plaintextZT), t)
 	})
 
 	t.Run(testString("Encryptor/EncryptFromPkFast/ZT/", testctx.params), func(t *testing.T) {
-		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptFastNew(plaintext), t)
+		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptFastNew(plaintextZT), t)
 	})
 
 	t.Run(testString("Encryptor/EncryptFromSk/ZT/", testctx.params), func(t *testing.T) {
-		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorSk.EncryptNew(plaintext), t)
+		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorSk.EncryptNew(plaintextZT), t)
 	})
 
-	plaintext = NewPlaintextZQ(testctx.params)
-	testctx.encoder.EncodeUintZQ(coeffs.Coeffs[0], plaintext)
-
 	t.Run(testString("Encryptor/EncryptFromPk/ZQ/", testctx.params), func(t *testing.T) {
-		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptNew(plaintext), t)
+		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptNew(plaintextZQ), t)
 	})
 
 	t.Run(testString("Encryptor/EncryptFromPkFast/ZQ/", testctx.params), func(t *testing.T) {
-		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptFastNew(plaintext), t)
+		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptFastNew(plaintextZQ), t)
 	})
 
 	t.Run(testString("Encryptor/EncryptFromSk/ZQ/", testctx.params), func(t *testing.T) {
-		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorSk.EncryptNew(plaintext), t)
+		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorSk.EncryptNew(plaintextZQ), t)
 	})
-
 }
 
 func testEvaluator(testctx *testContext, t *testing.T) {

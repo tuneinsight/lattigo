@@ -52,19 +52,19 @@ func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) *Plaintext {
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 	ringQ := decryptor.ringQ
 
-	ringQ.NTT(ciphertext.value[ciphertext.Degree()], plaintext.value)
+	ringQ.NTTLazy(ciphertext.value[ciphertext.Degree()], plaintext.value)
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
 		ringQ.MulCoeffsMontgomery(plaintext.value, decryptor.sk.sk, plaintext.value)
-		ringQ.NTT(ciphertext.value[i-1], decryptor.polypool)
+		ringQ.NTTLazy(ciphertext.value[i-1], decryptor.polypool)
 		ringQ.Add(plaintext.value, decryptor.polypool, plaintext.value)
 
-		if i&7 == 7 {
+		if i&3 == 3 {
 			ringQ.Reduce(plaintext.value, plaintext.value)
 		}
 	}
 
-	if (ciphertext.Degree())&7 != 7 {
+	if (ciphertext.Degree())&3 != 3 {
 		ringQ.Reduce(plaintext.value, plaintext.value)
 	}
 

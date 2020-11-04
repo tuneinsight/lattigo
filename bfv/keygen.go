@@ -447,7 +447,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 
 		// e
 		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNew()
-		ringQP.NTT(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
+		ringQP.NTTLazy(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 		ringQP.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 		// a
 		switchingkey.evakey[i][1] = keygen.uniformSampler.ReadNew()

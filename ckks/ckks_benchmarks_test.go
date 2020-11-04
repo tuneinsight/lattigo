@@ -94,19 +94,19 @@ func benchEncrypt(testContext *testParams, b *testing.B) {
 	plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 	ciphertext := NewCiphertext(testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 
-	b.Run(testString(testContext, "Encrypt/Pk/Slow"), func(b *testing.B) {
+	b.Run(testString(testContext, "Encrypt/key=Pk/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintext, ciphertext)
 		}
 	})
 
-	b.Run(testString(testContext, "Encrypt/Pk/Fast"), func(b *testing.B) {
+	b.Run(testString(testContext, "Encrypt/key=Pk/Fast/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.EncryptFast(plaintext, ciphertext)
 		}
 	})
 
-	b.Run(testString(testContext, "Encrypt/Sk/"), func(b *testing.B) {
+	b.Run(testString(testContext, "Encrypt/key=Sk/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorSk.Encrypt(plaintext, ciphertext)
 		}

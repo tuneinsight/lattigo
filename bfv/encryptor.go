@@ -189,7 +189,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringQ := encryptor.ringQ
 
 		encryptor.ternarySamplerMontgomeryQ.Read(encryptor.polypool[2])
-		ringQ.NTT(encryptor.polypool[2], encryptor.polypool[2])
+		ringQ.NTTLazy(encryptor.polypool[2], encryptor.polypool[2])
 
 		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
@@ -209,15 +209,15 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		// u
 		encryptor.ternarySamplerMontgomeryQP.Read(encryptor.polypool[2])
-		ringQP.NTT(encryptor.polypool[2], encryptor.polypool[2])
+		ringQP.NTTLazy(encryptor.polypool[2], encryptor.polypool[2])
 
 		// ct[0] = pk[0]*u
 		// ct[1] = pk[1]*u
 		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
-		ringQP.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
-		ringQP.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+		ringQP.InvNTTLazy(encryptor.polypool[0], encryptor.polypool[0])
+		ringQP.InvNTTLazy(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct[0] = pk[0]*u + e0
 		encryptor.gaussianSamplerQP.ReadAndAdd(encryptor.polypool[0])

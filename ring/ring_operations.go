@@ -258,6 +258,29 @@ func (r *Ring) Reduce(p1, p2 *Poly) {
 	}
 }
 
+// ReduceConstant applies a modular reduction on the coefficients of p1 and writes the result on p2.
+// Return values in [0, 2q-1]
+func (r *Ring) ReduceConstant(p1, p2 *Poly) {
+	for i, qi := range r.Modulus {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		bredParams := r.BredParams[i]
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+
+			z[0] = BRedAddConstant(x[0], qi, bredParams)
+			z[1] = BRedAddConstant(x[1], qi, bredParams)
+			z[2] = BRedAddConstant(x[2], qi, bredParams)
+			z[3] = BRedAddConstant(x[3], qi, bredParams)
+			z[4] = BRedAddConstant(x[4], qi, bredParams)
+			z[5] = BRedAddConstant(x[5], qi, bredParams)
+			z[6] = BRedAddConstant(x[6], qi, bredParams)
+			z[7] = BRedAddConstant(x[7], qi, bredParams)
+		}
+	}
+}
+
 // ReduceLvl applies a modular reduction on the coefficients of p1
 // for the moduli from q_0 up to q_level and writes the result on p2.
 func (r *Ring) ReduceLvl(level uint64, p1, p2 *Poly) {
@@ -278,6 +301,31 @@ func (r *Ring) ReduceLvl(level uint64, p1, p2 *Poly) {
 			z[5] = BRedAdd(x[5], qi, bredParams)
 			z[6] = BRedAdd(x[6], qi, bredParams)
 			z[7] = BRedAdd(x[7], qi, bredParams)
+		}
+	}
+}
+
+// ReduceConstantLvl applies a modular reduction on the coefficients of p1
+// for the moduli from q_0 up to q_level and writes the result on p2.
+// Return values in [0, 2q-1]
+func (r *Ring) ReduceConstantLvl(level uint64, p1, p2 *Poly) {
+	for i := uint64(0); i < level+1; i++ {
+		qi := r.Modulus[i]
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		bredParams := r.BredParams[i]
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+
+			z[0] = BRedAddConstant(x[0], qi, bredParams)
+			z[1] = BRedAddConstant(x[1], qi, bredParams)
+			z[2] = BRedAddConstant(x[2], qi, bredParams)
+			z[3] = BRedAddConstant(x[3], qi, bredParams)
+			z[4] = BRedAddConstant(x[4], qi, bredParams)
+			z[5] = BRedAddConstant(x[5], qi, bredParams)
+			z[6] = BRedAddConstant(x[6], qi, bredParams)
+			z[7] = BRedAddConstant(x[7], qi, bredParams)
 		}
 	}
 }
@@ -456,6 +504,31 @@ func (r *Ring) MulCoeffsMontgomeryLvl(level uint64, p1, p2, p3 *Poly) {
 	}
 }
 
+// MulCoeffsMontgomeryConstantLvl multiplies p1 by p2 coefficient-wise with a Montgomery
+// modular reduction for the moduli from q_0 up to q_level and returns the result on p3.
+func (r *Ring) MulCoeffsMontgomeryConstantLvl(level uint64, p1, p2, p3 *Poly) {
+	for i := uint64(0); i < level+1; i++ {
+		qi := r.Modulus[i]
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := r.MredParams[i]
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
+
+			z[0] = MRedConstant(x[0], y[0], qi, mredParams)
+			z[1] = MRedConstant(x[1], y[1], qi, mredParams)
+			z[2] = MRedConstant(x[2], y[2], qi, mredParams)
+			z[3] = MRedConstant(x[3], y[3], qi, mredParams)
+			z[4] = MRedConstant(x[4], y[4], qi, mredParams)
+			z[5] = MRedConstant(x[5], y[5], qi, mredParams)
+			z[6] = MRedConstant(x[6], y[6], qi, mredParams)
+			z[7] = MRedConstant(x[7], y[7], qi, mredParams)
+		}
+	}
+}
+
 // MulCoeffsMontgomeryAndAdd multiplies p1 by p2 coefficient-wise with a
 // Montgomery modular reduction and adds the result to p3.
 func (r *Ring) MulCoeffsMontgomeryAndAdd(p1, p2, p3 *Poly) {
@@ -529,6 +602,31 @@ func (r *Ring) MulCoeffsMontgomeryAndAddNoMod(p1, p2, p3 *Poly) {
 	}
 }
 
+// MulCoeffsMontgomeryConstantAndAddNoMod multiplies p1 by p2 coefficient-wise with a
+// Montgomery modular reduction and adds the result to p3 without modular reduction.
+// Return values in [0, 3q-1]
+func (r *Ring) MulCoeffsMontgomeryConstantAndAddNoMod(p1, p2, p3 *Poly) {
+	for i, qi := range r.Modulus {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := r.MredParams[i]
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
+
+			z[0] += MRedConstant(x[0], y[0], qi, mredParams)
+			z[1] += MRedConstant(x[1], y[1], qi, mredParams)
+			z[2] += MRedConstant(x[2], y[2], qi, mredParams)
+			z[3] += MRedConstant(x[3], y[3], qi, mredParams)
+			z[4] += MRedConstant(x[4], y[4], qi, mredParams)
+			z[5] += MRedConstant(x[5], y[5], qi, mredParams)
+			z[6] += MRedConstant(x[6], y[6], qi, mredParams)
+			z[7] += MRedConstant(x[7], y[7], qi, mredParams)
+		}
+	}
+}
+
 // MulCoeffsMontgomeryAndAddNoModLvl multiplies p1 by p2 coefficient-wise with a Montgomery modular
 // reduction for the moduli from q_0 up to q_level and adds the result to p3 without modular reduction.
 func (r *Ring) MulCoeffsMontgomeryAndAddNoModLvl(level uint64, p1, p2, p3 *Poly) {
@@ -556,6 +654,7 @@ func (r *Ring) MulCoeffsMontgomeryAndAddNoModLvl(level uint64, p1, p2, p3 *Poly)
 
 // MulCoeffsMontgomeryConstantAndAddNoModLvl multiplies p1 by p2 coefficient-wise with a constant-time Montgomery
 // modular reduction for the moduli from q_0 up to q_level and adds the result to p3 without modular reduction.
+// Return values in [0, 3q-1]
 func (r *Ring) MulCoeffsMontgomeryConstantAndAddNoModLvl(level uint64, p1, p2, p3 *Poly) {
 	for i := uint64(0); i < level+1; i++ {
 		qi := r.Modulus[i]

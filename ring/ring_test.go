@@ -55,19 +55,17 @@ func TestRing(t *testing.T) {
 	var defaultParams []*Parameters
 
 	if testing.Short() {
-		defaultParams = DefaultParams[:3]
+		defaultParams = DefaultParams[0:3]
 	} else {
 		defaultParams = DefaultParams
 	}
 
-	var testContext = new(testParams)
-
+	testNewRing(t)
 	for _, defaultParam := range defaultParams {
-
+		var testContext = new(testParams)
 		if testContext, err = genTestParams(defaultParam); err != nil {
-			panic(err)
+			t.Error(err)
 		}
-
 		testPRNG(testContext, t)
 		testGenerateNTTPrimes(testContext, t)
 		testImportExportPolyString(testContext, t)
@@ -85,6 +83,47 @@ func TestRing(t *testing.T) {
 		testScaling(testContext, t)
 		testMultByMonomial(testContext, t)
 	}
+}
+
+func testNewRing(t *testing.T) {
+	t.Run("NewRing/", func(t *testing.T) {
+		r, err := NewRing(0, nil)
+		require.Nil(t, r)
+		require.Error(t, err)
+
+		r, err = NewRing(0, []uint64{})
+		require.Nil(t, r)
+		require.Error(t, err)
+
+		r, err = NewRing(4, []uint64{})
+		require.Nil(t, r)
+		require.Error(t, err)
+
+		r, err = NewRing(8, []uint64{})
+		require.Nil(t, r)
+		require.Error(t, err)
+
+		r, err = NewRing(8, []uint64{7}) // Passing non NTT-enabling coeff modulus
+		require.NotNil(t, r)             // Should still return a Ring instance
+		require.Error(t, err)            // Should also return an error due to non NTT
+
+		r, err = NewRing(8, []uint64{4}) // Passing non prime moduli
+		require.Nil(t, r)                // Should still return a Ring instance
+		require.Error(t, err)            // Should also return an error due to non NTT
+
+		r, err = NewRing(8, []uint64{17, 7}) // Passing a NTT-enabling and a non NTT-enabling coeff modulus
+		require.NotNil(t, r)                 // Should still return a Ring instance
+		require.Error(t, err)                // Should also return an error due to non NTT
+
+		r, err = NewRing(8, []uint64{17, 17}) // Passing non CRT-enabling coeff modulus
+		require.Nil(t, r)                     // Should not return a Ring instance
+		require.Error(t, err)
+
+		r, err = NewRing(8, []uint64{17}) // Passing NTT-enabling coeff modulus
+		require.NotNil(t, r)
+		require.NoError(t, err)
+
+	})
 }
 
 func testPRNG(testContext *testParams, t *testing.T) {
@@ -472,6 +511,8 @@ func testExtendBasis(testContext *testParams, t *testing.T) {
 		testContext.ringP.SetCoefficientsBigint(coeffs, PolWant)
 
 		basisextender.ModUpSplitQP(uint64(len(testContext.ringQ.Modulus)-1), Pol, PolTest)
+
+		testContext.ringP.Reduce(PolTest, PolTest)
 
 		for i := range testContext.ringP.Modulus {
 			require.Equal(t, PolTest.Coeffs[i][:testContext.ringQ.N], PolWant.Coeffs[i][:testContext.ringQ.N])

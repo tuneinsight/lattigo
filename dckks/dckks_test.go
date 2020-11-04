@@ -547,7 +547,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 	t.Run(testString("Refresh/", parties, testCtx.params), func(t *testing.T) {
 
 		if testCtx.params.MaxLevel() < 3 {
-			t.Skip()
+			t.Skip("skipping test for params max level < 3")
 		}
 
 		type Party struct {
@@ -609,7 +609,7 @@ func testRefreshAndPermute(testCtx *testContext, t *testing.T) {
 	t.Run(testString("RefreshAndPermute/", parties, testCtx.params), func(t *testing.T) {
 
 		if testCtx.params.MaxLevel() < 3 {
-			t.Skip()
+			t.Skip("skipping test for params max level < 3")
 		}
 
 		type Party struct {

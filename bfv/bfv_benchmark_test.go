@@ -74,19 +74,19 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 	plaintext := NewPlaintext(testctx.params)
 	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
-	b.Run(testString("Encrypt/Pk/Slow", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Pk/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintext, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/Pk/Fast", testctx.params), func(b *testing.B) {
+	b.Run(testString("EncryptFast/key=Pk/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.EncryptFast(plaintext, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/Pk/Fast", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Sk/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorSk.Encrypt(plaintext, ciphertext)
 		}
@@ -110,6 +110,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 
 	evaluator := testctx.evaluator
 
+	plaintext := NewCiphertextRandom(testctx.prng, testctx.params, 0).Plaintext()
 	ciphertext1 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 	ciphertext2 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
@@ -130,9 +131,15 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Evaluator/Mul/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Mul/Ct/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, ciphertext2, receiver)
+		}
+	})
+
+	b.Run(testString("Evaluator/Mul/Pt/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Mul(ciphertext1, plaintext, ciphertext1)
 		}
 	})
 

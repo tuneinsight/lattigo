@@ -210,7 +210,7 @@ var DefaultBootstrappParams = []*BootstrappParams{
 	// SET II
 	// 1525 - 550
 	{
-		H:            196,
+		H:            192,
 		SinType:      Cos1,
 		SinRange:     21,
 		SinDeg:       52,

@@ -108,7 +108,7 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappParams) (btp *Boot
 	}
 
 	btp.deviation = 1024.0
-	btp.prescale = math.Round(float64(params.qi[0]) / btp.deviation)
+	btp.prescale = math.Exp2(math.Round(math.Log2(float64(params.qi[0]) / btp.deviation)))
 	btp.postscale = math.Exp2(math.Round(math.Log2(float64(params.qi[len(params.qi)-1-len(btpParams.CtSLevel)])))) / btp.deviation
 
 	btp.encoder = NewEncoder(params)

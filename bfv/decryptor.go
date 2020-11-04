@@ -44,7 +44,7 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 }
 
 func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) *Plaintext {
-	plaintext := NewPlaintext(decryptor.params, true)
+	plaintext := NewPlaintextZQ(decryptor.params)
 	decryptor.Decrypt(ciphertext, plaintext)
 	return plaintext
 }
@@ -72,9 +72,9 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 		ringQ.Reduce(accumulator, accumulator)
 	}
 
-	if plaintext.inZQ{
+	if plaintext.inZQ {
 		ringQ.InvNTT(accumulator, plaintext.value)
-	}else{
+	} else {
 		ringQ.InvNTT(accumulator, accumulator)
 		decryptor.scaler.DivByQOverTRounded(accumulator, plaintext.value)
 	}

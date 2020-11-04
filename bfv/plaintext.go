@@ -11,9 +11,18 @@ type Plaintext struct {
 }
 
 // NewPlaintext creates and allocates a new plaintext.
-func NewPlaintext(params *Parameters, inZQ bool) *Plaintext {
+func NewPlaintextZQ(params *Parameters) *Plaintext {
 
-	plaintext := &Plaintext{NewElement(params, 0, inZQ), nil}
+	plaintext := &Plaintext{NewElement(params, 0, true), nil}
+	plaintext.value = plaintext.Element.value[0]
+	plaintext.isNTT = false
+	return plaintext
+}
+
+// NewPlaintext creates and allocates a new plaintext.
+func NewPlaintextZT(params *Parameters) *Plaintext {
+
+	plaintext := &Plaintext{NewElement(params, 0, false), nil}
 	plaintext.value = plaintext.Element.value[0]
 	plaintext.isNTT = false
 	return plaintext

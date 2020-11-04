@@ -33,17 +33,32 @@ func benchEncoder(testctx *testContext, b *testing.B) {
 
 	encoder := testctx.encoder
 	coeffs := testctx.uSampler.ReadNew()
-	plaintext := NewPlaintext(testctx.params, true)
 
-	b.Run(testString("Encoder/Encode/", testctx.params), func(b *testing.B) {
+	plaintextZT := NewPlaintextZT(testctx.params)
+	plaintextZQ := NewPlaintextZQ(testctx.params)
+
+	b.Run(testString("Encoder/Encode/ZT/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
+			encoder.EncodeUintZT(coeffs.Coeffs[0], plaintextZT)
 		}
 	})
 
-	b.Run(testString("Encoder/Decode/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/Decode/ZT/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testctx.encoder.DecodeUint(plaintext)
+			testctx.encoder.DecodeUint(plaintextZT)
+		}
+	})
+
+	b.Run(testString("Encoder/Encode/ZQ/", testctx.params), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+			encoder.EncodeUintZQ(coeffs.Coeffs[0], plaintextZQ)
+		}
+	})
+
+	b.Run(testString("Encoder/Decode/ZQ/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			testctx.encoder.DecodeUint(plaintextZQ)
 		}
 	})
 }
@@ -71,24 +86,43 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 	encryptorPk := testctx.encryptorPk
 	encryptorSk := testctx.encryptorSk
 
-	plaintext := NewPlaintext(testctx.params, true)
+	plaintextZQ := NewPlaintextZQ(testctx.params)
+	plaintextZT := NewPlaintextZT(testctx.params)
 	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
-	b.Run(testString("Encrypt/Pk/Slow/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/Pk/Slow/ZT/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encryptorPk.Encrypt(plaintext, ciphertext)
+			encryptorPk.Encrypt(plaintextZT, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/Pk/Fast/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/Pk/Fast/ZT/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encryptorPk.EncryptFast(plaintext, ciphertext)
+			encryptorPk.EncryptFast(plaintextZT, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/Sk/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/Sk/ZT/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encryptorSk.Encrypt(plaintext, ciphertext)
+			encryptorSk.Encrypt(plaintextZT, ciphertext)
+		}
+	})
+
+	b.Run(testString("Encrypt/Pk/Slow/ZQ/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encryptorPk.Encrypt(plaintextZQ, ciphertext)
+		}
+	})
+
+	b.Run(testString("Encrypt/Pk/Fast/ZQ/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encryptorPk.EncryptFast(plaintextZQ, ciphertext)
+		}
+	})
+
+	b.Run(testString("Encrypt/Sk/ZQ/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encryptorSk.Encrypt(plaintextZQ, ciphertext)
 		}
 	})
 }
@@ -96,12 +130,19 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 func benchDecrypt(testctx *testContext, b *testing.B) {
 
 	decryptor := testctx.decryptor
-	plaintext := NewPlaintext(testctx.params, true)
+	plaintextZQ := NewPlaintextZQ(testctx.params)
+	plaintextZT := NewPlaintextZQ(testctx.params)
 	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
-	b.Run(testString("Decrypt/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Decrypt/ZT", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			decryptor.Decrypt(ciphertext, plaintext)
+			decryptor.Decrypt(ciphertext, plaintextZT)
+		}
+	})
+
+	b.Run(testString("Decrypt/ZQ", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			decryptor.Decrypt(ciphertext, plaintextZQ)
 		}
 	})
 }
@@ -109,8 +150,15 @@ func benchDecrypt(testctx *testContext, b *testing.B) {
 func benchEvaluator(testctx *testContext, b *testing.B) {
 
 	evaluator := testctx.evaluator
+	encoder := testctx.encoder
 
-	plaintext := NewCiphertextRandom(testctx.prng, testctx.params, 0).Plaintext()
+	plaintextZQ := NewPlaintextZQ(testctx.params)
+	plaintextZT := NewPlaintextZT(testctx.params)
+
+	coeffs := testctx.uSampler.ReadNew()
+	encoder.EncodeUintZT(coeffs.Coeffs[0], plaintextZT)
+	encoder.EncodeUintZQ(coeffs.Coeffs[0], plaintextZQ)
+
 	ciphertext1 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 	ciphertext2 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
@@ -119,9 +167,21 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	testctx.kgen.GenRot(RotationLeft, testctx.sk, 1, rotkey)
 	testctx.kgen.GenRot(RotationRow, testctx.sk, 0, rotkey)
 
-	b.Run(testString("Evaluator/Add/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Add/Ct/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
+		}
+	})
+
+	b.Run(testString("Evaluator/Add/Pt/ZT/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Add(ciphertext1, plaintextZT, ciphertext1)
+		}
+	})
+
+	b.Run(testString("Evaluator/Add/Pt/ZQ/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Add(ciphertext1, plaintextZQ, ciphertext1)
 		}
 	})
 
@@ -137,9 +197,15 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Evaluator/Mul/Pt/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Mul/Pt/ZT/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.Mul(ciphertext1, plaintext, ciphertext1)
+			evaluator.Mul(ciphertext1, plaintextZT, ciphertext1)
+		}
+	})
+
+	b.Run(testString("Evaluator/Mul/Pt/ZQ/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Mul(ciphertext1, plaintextZQ, ciphertext1)
 		}
 	})
 

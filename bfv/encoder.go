@@ -15,10 +15,10 @@ const GaloisGen uint64 = 5
 
 // Encoder is an interface implementing the encoder.
 type Encoder interface {
-	EncodeUint(coeffs []uint64, plaintext *Plaintext)
-	EncodeAndLiftUint(coeffs []uint64, plaintext *Plaintext)
-	EncodeInt(coeffs []int64, plaintext *Plaintext)
-	EncodeAndLiftInt(coeffs []int64, plaintext *Plaintext)
+	EncodeUintZT(coeffs []uint64, plaintext *Plaintext)
+	EncodeUintZQ(coeffs []uint64, plaintext *Plaintext)
+	EncodeIntZT(coeffs []int64, plaintext *Plaintext)
+	EncodeIntZQ(coeffs []int64, plaintext *Plaintext)
 	DecodeUint(plaintext *Plaintext) (coeffs []uint64)
 	DecodeInt(plaintext *Plaintext) (coeffs []int64)
 }
@@ -103,7 +103,7 @@ func GenLiftParams(ringQ *ring.Ring, t uint64) (deltaMont []uint64) {
 }
 
 // EncodeUint encodes an uint64 slice of size at most N on a plaintext.
-func (encoder *encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
+func (encoder *encoder) EncodeUintZT(coeffs []uint64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
 		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
@@ -125,14 +125,14 @@ func (encoder *encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 }
 
 // EncodeUint encodes an uint64 slice of size at most N on a plaintext.
-func (encoder *encoder) EncodeAndLiftUint(coeffs []uint64, plaintext *Plaintext) {
-	encoder.EncodeUint(coeffs, plaintext)
+func (encoder *encoder) EncodeUintZQ(coeffs []uint64, plaintext *Plaintext) {
+	encoder.EncodeUintZT(coeffs, plaintext)
 	encoder.TtoQ(plaintext)
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. It also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
 // The sign will correctly decode as long as the absolute value of the coefficient does not exceed half of the plaintext modulus.
-func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
+func (encoder *encoder) EncodeIntZT(coeffs []int64, plaintext *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
 		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
@@ -158,8 +158,8 @@ func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 	encoder.ringT.InvNTTLazy(plaintext.value, plaintext.value)
 }
 
-func (encoder *encoder) EncodeAndLiftInt(coeffs []int64, plaintext *Plaintext) {
-	encoder.EncodeInt(coeffs, plaintext)
+func (encoder *encoder) EncodeIntZQ(coeffs []int64, plaintext *Plaintext) {
+	encoder.EncodeIntZT(coeffs, plaintext)
 	encoder.TtoQ(plaintext)
 }
 

@@ -80,7 +80,7 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Encrypt/key=Pk/fast/", testctx.params), func(b *testing.B) {
+	b.Run(testString("EncryptFast/key=Pk/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.EncryptFast(plaintext, ciphertext)
 		}

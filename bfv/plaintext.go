@@ -10,7 +10,7 @@ type Plaintext struct {
 	value *ring.Poly
 }
 
-// NewPlaintext creates and allocates a new plaintext.
+// NewPlaintextZQ creates and allocates a new plaintext in ZQ (multiple moduli of Q).
 func NewPlaintextZQ(params *Parameters) *Plaintext {
 
 	plaintext := &Plaintext{NewElement(params, 0, true), nil}
@@ -19,7 +19,7 @@ func NewPlaintextZQ(params *Parameters) *Plaintext {
 	return plaintext
 }
 
-// NewPlaintext creates and allocates a new plaintext.
+// NewPlaintextZT creates and allocates a new plaintext in ZT (single modulus T).
 func NewPlaintextZT(params *Parameters) *Plaintext {
 
 	plaintext := &Plaintext{NewElement(params, 0, false), nil}

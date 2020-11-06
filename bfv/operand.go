@@ -66,10 +66,6 @@ func (el *Element) Degree() uint64 {
 	return uint64(len(el.value) - 1)
 }
 
-func (el *Element) IsInZQ() bool {
-	return el.inZQ
-}
-
 // Resize resizes the target Element degree to the degree given as input. If the input degree is bigger, then
 // it will append new empty polynomials; if the degree is smaller, it will delete polynomials until the degree matches
 // the input degree.

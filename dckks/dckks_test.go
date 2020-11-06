@@ -61,7 +61,7 @@ func TestDCKKS(t *testing.T) {
 
 	var defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+2] // the short test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+2] // the short test runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
 		defaultParams = ckks.DefaultParams // the long test suite runs for all default parameters

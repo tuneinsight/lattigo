@@ -733,6 +733,8 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 func testEvaluatePoly(testContext *testParams, t *testing.T) {
 
+	var err error
+
 	t.Run(testString(testContext, "EvaluatePoly/Exp/"), func(t *testing.T) {
 
 		if testContext.params.MaxLevel() < 3 {
@@ -758,13 +760,17 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-		ciphertext = testContext.evaluator.EvaluatePoly(ciphertext, poly, testContext.rlk)
+		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly, testContext.rlk); err != nil {
+			t.Error(err)
+		}
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})
 }
 
 func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
+
+	var err error
 
 	t.Run(testString(testContext, "ChebyshevInterpolator/Sin/"), func(t *testing.T) {
 
@@ -780,7 +786,9 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Sin(values[i])
 		}
 
-		ciphertext = testContext.evaluator.EvaluateCheby(ciphertext, cheby, testContext.rlk)
+		if ciphertext, err = testContext.evaluator.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+			t.Error(err)
+		}
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})

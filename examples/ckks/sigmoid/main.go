@@ -20,6 +20,8 @@ func randomComplex(min, max float64) complex128 {
 
 func chebyshevinterpolation() {
 
+	var err error
+
 	// This example packs random 8192 float64 values in the range [-8, 8]
 	// and approximates the function 1/(exp(-x) + 1) over the range [-8, 8].
 	// The result is then parsed and compared to the expected result.
@@ -79,7 +81,9 @@ func chebyshevinterpolation() {
 	chebyapproximation := ckks.Approximate(f, -8, 8, 33)
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	ciphertext = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk)
+	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("Done... Consumed levels:", params.MaxLevel()-ciphertext.Level())
 

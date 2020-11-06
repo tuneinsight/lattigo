@@ -75,7 +75,9 @@ func TestBootstrapp(t *testing.T) {
 
 			//fmt.Println(ciphertext.Level() - 1)
 			//start := time.Now()
-			ciphertext = testContext.evaluator.EvaluateCheby(ciphertext, cheby, testContext.rlk)
+			if ciphertext, err = testContext.evaluator.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+				t.Error(err)
+			}
 			//fmt.Printf("Elapsed : %s \n", time.Since(start))
 			//fmt.Println(ciphertext.Level())
 
@@ -132,7 +134,9 @@ func TestBootstrapp(t *testing.T) {
 
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 			//start := time.Now()
-			ciphertext = testContext.evaluator.EvaluateChebySpecial(ciphertext, scFac, cheby, testContext.rlk)
+			if ciphertext, err = testContext.evaluator.EvaluateChebySpecial(ciphertext, scFac, cheby, testContext.rlk); err != nil {
+				t.Error(err)
+			}
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 			for i := 0; i < scNum; i++ {
@@ -193,7 +197,9 @@ func TestBootstrapp(t *testing.T) {
 
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 			//start := time.Now()
-			ciphertext = testContext.evaluator.EvaluateChebySpecial(ciphertext, scFac, cheby, testContext.rlk)
+			if ciphertext, err = testContext.evaluator.EvaluateChebySpecial(ciphertext, scFac, cheby, testContext.rlk); err != nil {
+				t.Error(err)
+			}
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 			for i := 0; i < scNum; i++ {

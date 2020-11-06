@@ -2,7 +2,6 @@ package ring
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 	"math/bits"
 	"math/rand"
@@ -315,48 +314,24 @@ func testGaussianSampler(testContext *testParams, t *testing.T) {
 
 func testTernarySampler(testContext *testParams, t *testing.T) {
 
-	t.Run(testString("TernarySampler/", testContext.ringQ), func(t *testing.T) {
+	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
+		t.Run(testString(fmt.Sprintf("TernarySampler/p=%1.2f/", p), testContext.ringQ), func(t *testing.T) {
 
-		countOne := uint64(0)
-		countZer := uint64(0)
-		countMOn := uint64(0)
-
-		pol := testContext.ringQ.NewPoly()
-
-		rho := 1.0 / 3
-
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
-		}
-		ternarySampler := NewTernarySampler(prng, testContext.ringQ, rho, false)
-
-		ternarySampler.Read(pol)
-
-		for i := range pol.Coeffs[0] {
-			if pol.Coeffs[0][i] == testContext.ringQ.Modulus[0]-1 {
-				countMOn++
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
 			}
+			ternarySampler := NewTernarySampler(prng, testContext.ringQ, p, false)
 
-			if pol.Coeffs[0][i] == 0 {
-				countZer++
+			pol := ternarySampler.ReadNew()
+			for i, mod := range testContext.ringQ.Modulus {
+				minOne := mod - 1
+				for _, c := range pol.Coeffs[i] {
+					require.True(t, c == 0 || c == minOne || c == 1)
+				}
 			}
-
-			if pol.Coeffs[0][i] == 1 {
-				countOne++
-			}
-		}
-
-		threshold := 0.066
-
-		ratio := math.Round(float64(countOne+countMOn)/float64(countZer)*100.0) / 100.0
-
-		min := ((1 - rho) / rho) * (1.0 - threshold)
-		max := ((1 - rho) / rho) * (1.0 + threshold)
-
-		require.Greater(t, ratio, min)
-		require.Less(t, ratio, max)
-	})
+		})
+	}
 }
 
 func testModularReduction(testContext *testParams, t *testing.T) {

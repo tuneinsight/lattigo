@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/cmplx"
 	"math/rand"
+	"runtime"
 	"testing"
 	"time"
 
@@ -12,12 +13,20 @@ import (
 
 func TestBootstrapp(t *testing.T) {
 
+	if !*testBootstrapping {
+		t.Skip("skipping bootstrapping test")
+	}
+
+	if runtime.GOARCH == "wasm" {
+		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
+	}
+
 	rand.Seed(time.Now().UnixNano())
 
 	var err error
 	var testContext = new(testParams)
 
-	paramSet := uint64(0)
+	paramSet := uint64(1)
 
 	shemeParams := DefaultBootstrappSchemeParams[paramSet : paramSet+1]
 	bootstrappParams := DefaultBootstrappParams[paramSet : paramSet+1]

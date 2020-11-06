@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"math/big"
 	"math/bits"
 
@@ -45,20 +46,39 @@ type Ring struct {
 	NttNInv   []uint64   //[N^-1] mod Qi in Montgomery form
 }
 
-// NewRing creates a new Ring with the given parameters. It checks that N is a power of 2 and that the moduli are NTT friendly.
+// NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli. N must be a power of two larger than 8. Moduli should be
+// a non-empty []uint64 with distinct prime elements. For the Ring instance to support NTT operation, these elements must also be equal
+// to 1 modulo 2*N. Non-nil r and error are returned in the case of non NTT-enabling parameters.
 func NewRing(N uint64, Moduli []uint64) (r *Ring, err error) {
 	r = new(Ring)
-	r.setParameters(N, Moduli)
+	err = r.setParameters(N, Moduli)
+	if err != nil {
+		return nil, err
+	}
 	return r, r.genNTTParams()
 }
 
 // setParameters initializes a *Ring by setting the required precomputed values (except for the NTT-related values, which are set by the
 // genNTTParams function).
-func (r *Ring) setParameters(N uint64, Modulus []uint64) {
+func (r *Ring) setParameters(N uint64, Modulus []uint64) error {
 
 	// Checks if N is a power of 2
 	if (N < 8) || (N&(N-1)) != 0 && N != 0 {
-		panic("invalid ring degree (must be a power of 2 >= 8)")
+		return errors.New("invalid ring degree (must be a power of 2 >= 8)")
+	}
+
+	if len(Modulus) == 0 {
+		return errors.New("invalid modulus (must be a non-empty []uint64)")
+	}
+
+	for i, qi := range Modulus {
+		if !IsPrime(qi) {
+			return fmt.Errorf("invalid modulus (Modulus[%d] is not prime)", i)
+		}
+	}
+
+	if !utils.AllDistinct(Modulus) {
+		return errors.New("invalid modulus (moduli are not distinct)")
 	}
 
 	r.allowsNTT = false
@@ -94,7 +114,7 @@ func (r *Ring) setParameters(N uint64, Modulus []uint64) {
 			r.MredParams[i] = MRedParams(qi)
 		}
 	}
-
+	return nil
 }
 
 // genNTTParams checks that N has been correctly initialized, and checks that each modulus is a prime congruent to 1 mod 2N (i.e. NTT-friendly).
@@ -107,14 +127,14 @@ func (r *Ring) genNTTParams() error {
 	}
 
 	if r.N == 0 || r.Modulus == nil {
-		panic("error : invalid r parameters (missing)")
+		return errors.New("invalid r parameters (missing)")
 	}
 
-	// Check if each qi is prime and if qi = 1 mod 2n
+	// Check if each qi is 1 mod 2n
 	for _, qi := range r.Modulus {
-		if IsPrime(qi) == false || qi&((r.N<<1)-1) != 1 {
+		if qi&((r.N<<1)-1) != 1 {
 			r.allowsNTT = false
-			return errors.New("warning : provided modulus does not allow NTT")
+			return errors.New("provided modulus does not allow NTT")
 		}
 	}
 

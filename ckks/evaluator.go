@@ -1655,33 +1655,32 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 		evakey1P.Coeffs = evakey.evakey[i][1].Coeffs[len(ringQ.Modulus):]
 
 		if i == 0 {
-			ringQ.MulCoeffsMontgomeryLvl(level, evakey0Q, c2QiQ, pool2Q)
-			ringQ.MulCoeffsMontgomeryLvl(level, evakey1Q, c2QiQ, pool3Q)
-			ringP.MulCoeffsMontgomery(evakey0P, c2QiP, pool2P)
-			ringP.MulCoeffsMontgomery(evakey1P, c2QiP, pool3P)
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey0Q, c2QiQ, pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey1Q, c2QiQ, pool3Q)
+			ringP.MulCoeffsMontgomeryConstant(evakey0P, c2QiP, pool2P)
+			ringP.MulCoeffsMontgomeryConstant(evakey1P, c2QiP, pool3P)
 		} else {
-			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey0Q, c2QiQ, pool2Q)
-			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey1Q, c2QiQ, pool3Q)
-			ringP.MulCoeffsMontgomeryAndAddNoMod(evakey0P, c2QiP, pool2P)
-			ringP.MulCoeffsMontgomeryAndAddNoMod(evakey1P, c2QiP, pool3P)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey0Q, c2QiQ, pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey1Q, c2QiQ, pool3Q)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey0P, c2QiP, pool2P)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey1P, c2QiP, pool3P)
 		}
 
-		if reduce&7 == 1 {
-			ringQ.ReduceLvl(level, pool2Q, pool2Q)
-			ringQ.ReduceLvl(level, pool3Q, pool3Q)
-			ringP.Reduce(pool2P, pool2P)
-			ringP.Reduce(pool3P, pool3P)
+		//
+		if reduce&3 == 3 {
+			ringQ.ReduceConstantLvl(level, pool2Q, pool2Q)
+			ringQ.ReduceConstantLvl(level, pool3Q, pool3Q)
+			ringP.ReduceConstant(pool2P, pool2P)
+			ringP.ReduceConstant(pool3P, pool3P)
 		}
 
 		reduce++
 	}
 
-	if (reduce-1)&7 != 1 {
-		ringQ.ReduceLvl(level, pool2Q, pool2Q)
-		ringQ.ReduceLvl(level, pool3Q, pool3Q)
-		ringP.Reduce(pool2P, pool2P)
-		ringP.Reduce(pool3P, pool3P)
-	}
+	ringQ.ReduceLvl(level, pool2Q, pool2Q)
+	ringQ.ReduceLvl(level, pool3Q, pool3Q)
+	ringP.Reduce(pool2P, pool2P)
+	ringP.Reduce(pool3P, pool3P)
 }
 
 // switchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
@@ -1719,11 +1718,11 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 				p1tmp[j] = p0tmp[j]
 			}
 		} else {
-			ring.NTT(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x], ringQ.N, nttPsi, qi, mredParams, bredParams)
+			ring.NTTLazy(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x], ringQ.N, nttPsi, qi, mredParams, bredParams)
 		}
 	}
 	// c2QiP = c2 mod qi mod pj
-	ringP.NTT(c2QiP, c2QiP)
+	ringP.NTTLazy(c2QiP, c2QiP)
 }
 
 // RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext

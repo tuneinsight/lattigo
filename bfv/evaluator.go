@@ -316,18 +316,16 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 
 	for i := range ct0.value {
 		eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct0.value[i], c0Q2[i])
-
-		eval.ringQ.NTT(ct0.value[i], c0Q1[i])
-		eval.ringQMul.NTT(c0Q2[i], c0Q2[i])
+		eval.ringQ.NTTLazy(ct0.value[i], c0Q1[i])
+		eval.ringQMul.NTTLazy(c0Q2[i], c0Q2[i])
 	}
 
 	if ct0 != ct1 {
 
 		for i := range ct1.value {
 			eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct1.value[i], c1Q2[i])
-
-			eval.ringQ.NTT(ct1.value[i], c1Q1[i])
-			eval.ringQMul.NTT(c1Q2[i], c1Q2[i])
+			eval.ringQ.NTTLazy(ct1.value[i], c1Q1[i])
+			eval.ringQMul.NTTLazy(c1Q2[i], c1Q2[i])
 		}
 	}
 
@@ -436,8 +434,8 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q
 	for i := range ctOut.value {
-		eval.ringQ.InvNTT(c2Q1[i], c2Q1[i])
-		eval.ringQMul.InvNTT(c2Q2[i], c2Q2[i])
+		eval.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
+		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
 		eval.baseconverterQ1Q2.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
@@ -717,7 +715,7 @@ func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, po
 	evakey1P := new(ring.Poly)
 
 	// We switch the element on which the key-switching operation will be conducted out of the NTT domain
-	ringQ.NTT(cx, c2)
+	ringQ.NTTLazy(cx, c2)
 
 	reduce = 0
 
@@ -743,7 +741,7 @@ func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, po
 			ringP.MulCoeffsMontgomeryAndAddNoMod(evakey1P, c2QiP, pool3P)
 		}
 
-		if reduce&7 == 1 {
+		if reduce&3 == 3 {
 			ringQ.ReduceLvl(level, pool2Q, pool2Q)
 			ringQ.ReduceLvl(level, pool3Q, pool3Q)
 			ringP.Reduce(pool2P, pool2P)
@@ -753,17 +751,17 @@ func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, po
 		reduce++
 	}
 
-	if (reduce-1)&7 != 1 {
+	if (reduce-1)&3 != 3 {
 		ringQ.ReduceLvl(level, pool2Q, pool2Q)
 		ringQ.ReduceLvl(level, pool3Q, pool3Q)
 		ringP.Reduce(pool2P, pool2P)
 		ringP.Reduce(pool3P, pool3P)
 	}
 
-	ringQ.InvNTT(pool2Q, pool2Q)
-	ringQ.InvNTT(pool3Q, pool3Q)
-	ringP.InvNTT(pool2P, pool2P)
-	ringP.InvNTT(pool3P, pool3P)
+	ringQ.InvNTTLazy(pool2Q, pool2Q)
+	ringQ.InvNTTLazy(pool3Q, pool3Q)
+	ringP.InvNTTLazy(pool2P, pool2P)
+	ringP.InvNTTLazy(pool3P, pool3P)
 
 	eval.baseconverterQ1P.ModDownSplitPQ(level, pool2Q, pool2P, pool2Q)
 	eval.baseconverterQ1P.ModDownSplitPQ(level, pool3Q, pool3P, pool3Q)
@@ -795,9 +793,9 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 				p1tmp[j] = p0tmp[j]
 			}
 		} else {
-			ring.NTT(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x], ringQ.N, nttPsi, qi, mredParams, bredParams)
+			ring.NTTLazy(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x], ringQ.N, nttPsi, qi, mredParams, bredParams)
 		}
 	}
 	// c2QiP = c2 mod qi mod pj
-	ringP.NTT(c2QiP, c2QiP)
+	ringP.NTTLazy(c2QiP, c2QiP)
 }

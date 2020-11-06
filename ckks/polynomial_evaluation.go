@@ -28,31 +28,9 @@ func NewPoly(coeffs []complex128) (p *Poly) {
 
 func checkEnoughLevels(levels uint64, pol *Poly, c complex128) (err error) {
 
-	cReal := real(c)
-	cImag := imag(c)
-
-	var needScale bool
-
-	if cReal != 0 {
-		valueInt := int64(cReal)
-		valueFloat := cReal - float64(valueInt)
-
-		if valueFloat != 0 {
-			needScale = true
-		}
-	}
-
-	if cImag != 0 {
-		valueInt := int64(cImag)
-		valueFloat := cImag - float64(valueInt)
-
-		if valueFloat != 0 {
-			needScale = true
-		}
-	}
-
 	logDegree := uint64(math.Log2(float64(len(pol.coeffs))) + 0.5)
-	if needScale {
+
+	if real(c) != float64(int64(real(c))) || imag(c) != float64(int64(imag(c))) {
 		logDegree++
 	}
 

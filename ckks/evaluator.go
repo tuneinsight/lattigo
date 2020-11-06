@@ -1243,11 +1243,12 @@ func (eval *evaluator) RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ci
 // in ctOut. Since all the moduli in the moduli chain are generated to be close to the
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
+// Returns an errir if "threshold <= 0", ct.Scale() = 0, eval.scale = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Leve() != ctOut.Level()
 func (eval *evaluator) Rescale(ct0 *Ciphertext, threshold float64, ctOut *Ciphertext) (err error) {
 
 	ringQ := eval.ringQ
 
-	if threshold == 0 {
+	if threshold <= 0 {
 		return errors.New("cannot Rescale: threshold is 0")
 	}
 

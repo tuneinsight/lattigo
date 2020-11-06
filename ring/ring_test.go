@@ -2,7 +2,6 @@ package ring
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 	"math/bits"
 	"math/rand"
@@ -55,19 +54,17 @@ func TestRing(t *testing.T) {
 	var defaultParams []*Parameters
 
 	if testing.Short() {
-		defaultParams = DefaultParams[:1]
+		defaultParams = DefaultParams[0:3]
 	} else {
 		defaultParams = DefaultParams
 	}
 
-	var testContext = new(testParams)
-
+	testNewRing(t)
 	for _, defaultParam := range defaultParams {
-
+		var testContext = new(testParams)
 		if testContext, err = genTestParams(defaultParam); err != nil {
-			panic(err)
+			t.Error(err)
 		}
-
 		testPRNG(testContext, t)
 		testGenerateNTTPrimes(testContext, t)
 		testImportExportPolyString(testContext, t)
@@ -86,6 +83,47 @@ func TestRing(t *testing.T) {
 		testMultByMonomial(testContext, t)
 		testMurakami(testContext, t)
 	}
+}
+
+func testNewRing(t *testing.T) {
+	t.Run("NewRing/", func(t *testing.T) {
+		r, err := NewRing(0, nil)
+		require.Nil(t, r)
+		require.Error(t, err)
+
+		r, err = NewRing(0, []uint64{})
+		require.Nil(t, r)
+		require.Error(t, err)
+
+		r, err = NewRing(4, []uint64{})
+		require.Nil(t, r)
+		require.Error(t, err)
+
+		r, err = NewRing(8, []uint64{})
+		require.Nil(t, r)
+		require.Error(t, err)
+
+		r, err = NewRing(8, []uint64{7}) // Passing non NTT-enabling coeff modulus
+		require.NotNil(t, r)             // Should still return a Ring instance
+		require.Error(t, err)            // Should also return an error due to non NTT
+
+		r, err = NewRing(8, []uint64{4}) // Passing non prime moduli
+		require.Nil(t, r)                // Should still return a Ring instance
+		require.Error(t, err)            // Should also return an error due to non NTT
+
+		r, err = NewRing(8, []uint64{17, 7}) // Passing a NTT-enabling and a non NTT-enabling coeff modulus
+		require.NotNil(t, r)                 // Should still return a Ring instance
+		require.Error(t, err)                // Should also return an error due to non NTT
+
+		r, err = NewRing(8, []uint64{17, 17}) // Passing non CRT-enabling coeff modulus
+		require.Nil(t, r)                     // Should not return a Ring instance
+		require.Error(t, err)
+
+		r, err = NewRing(8, []uint64{17}) // Passing NTT-enabling coeff modulus
+		require.NotNil(t, r)
+		require.NoError(t, err)
+
+	})
 }
 
 func testPRNG(testContext *testParams, t *testing.T) {
@@ -277,48 +315,24 @@ func testGaussianSampler(testContext *testParams, t *testing.T) {
 
 func testTernarySampler(testContext *testParams, t *testing.T) {
 
-	t.Run(testString("TernarySampler/", testContext.ringQ), func(t *testing.T) {
+	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
+		t.Run(testString(fmt.Sprintf("TernarySampler/p=%1.2f/", p), testContext.ringQ), func(t *testing.T) {
 
-		countOne := uint64(0)
-		countZer := uint64(0)
-		countMOn := uint64(0)
-
-		pol := testContext.ringQ.NewPoly()
-
-		rho := 1.0 / 3
-
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
-		}
-		ternarySampler := NewTernarySampler(prng, testContext.ringQ, rho, false)
-
-		ternarySampler.Read(pol)
-
-		for i := range pol.Coeffs[0] {
-			if pol.Coeffs[0][i] == testContext.ringQ.Modulus[0]-1 {
-				countMOn++
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
 			}
+			ternarySampler := NewTernarySampler(prng, testContext.ringQ, p, false)
 
-			if pol.Coeffs[0][i] == 0 {
-				countZer++
+			pol := ternarySampler.ReadNew()
+			for i, mod := range testContext.ringQ.Modulus {
+				minOne := mod - 1
+				for _, c := range pol.Coeffs[i] {
+					require.True(t, c == 0 || c == minOne || c == 1)
+				}
 			}
-
-			if pol.Coeffs[0][i] == 1 {
-				countOne++
-			}
-		}
-
-		threshold := 0.066
-
-		ratio := math.Round(float64(countOne+countMOn)/float64(countZer)*100.0) / 100.0
-
-		min := ((1 - rho) / rho) * (1.0 - threshold)
-		max := ((1 - rho) / rho) * (1.0 + threshold)
-
-		require.Greater(t, ratio, min)
-		require.Less(t, ratio, max)
-	})
+		})
+	}
 }
 
 func testModularReduction(testContext *testParams, t *testing.T) {
@@ -473,6 +487,8 @@ func testExtendBasis(testContext *testParams, t *testing.T) {
 		testContext.ringP.SetCoefficientsBigint(coeffs, PolWant)
 
 		basisextender.ModUpSplitQP(uint64(len(testContext.ringQ.Modulus)-1), Pol, PolTest)
+
+		testContext.ringP.Reduce(PolTest, PolTest)
 
 		for i := range testContext.ringP.Modulus {
 			require.Equal(t, PolTest.Coeffs[i][:testContext.ringQ.N], PolWant.Coeffs[i][:testContext.ringQ.N])

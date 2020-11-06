@@ -90,37 +90,37 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 	plaintextZT := NewPlaintextZT(testctx.params)
 	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
-	b.Run(testString("Encrypt/Pk/Slow/ZT/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Pk/ZT/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintextZT, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/Pk/Fast/ZT/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Pk/Fast/ZT/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.EncryptFast(plaintextZT, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/Sk/ZT/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Sk/ZT/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorSk.Encrypt(plaintextZT, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/Pk/Slow/ZQ/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Pk/ZQ/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintextZQ, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/Pk/Fast/ZQ/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Pk/Fast/ZQ/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.EncryptFast(plaintextZQ, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/Sk/ZQ/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Sk/ZQ/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorSk.Encrypt(plaintextZQ, ciphertext)
 		}

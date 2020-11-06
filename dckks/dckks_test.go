@@ -59,7 +59,7 @@ func TestDCKKS(t *testing.T) {
 	var err error
 	var testCtx = new(testContext)
 
-	var defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+3] // the default test runs for ring degree N=2^12, 2^13, 2^14
+	var defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+2] // the short test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	}

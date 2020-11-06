@@ -14,6 +14,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
+var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 var minPrec float64 = 15.0
 var parties uint64 = 3
@@ -58,12 +59,12 @@ func TestDCKKS(t *testing.T) {
 	var err error
 	var testCtx = new(testContext)
 
-	var defaultParams []*ckks.Parameters
-
+	var defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+3] // the default test runs for ring degree N=2^12, 2^13, 2^14
 	if testing.Short() {
-		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+3]
-	} else {
-		defaultParams = ckks.DefaultParams
+		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+2] // the short test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	}
+	if *flagLongTest {
+		defaultParams = ckks.DefaultParams // the long test suite runs for all default parameters
 	}
 
 	for _, p := range defaultParams {

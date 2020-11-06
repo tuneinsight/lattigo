@@ -41,7 +41,7 @@ func TestBootstrapp(t *testing.T) {
 		SineScale := math.Exp2(math.Round(math.Log2(float64(q))))
 
 		// Insecure params for fast testing only
-		if testing.Short() {
+		if !*flagLongTest {
 			params.logN = 14
 			params.logSlots = 13
 		}

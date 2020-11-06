@@ -7,4 +7,4 @@ go:
 
 script:
   - go build ./...
-  - make local
+  - make ci_test

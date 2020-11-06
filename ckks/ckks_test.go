@@ -16,8 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
+
 var minPrec float64 = 15.0
 
 func testString(testContext *testParams, opname string) string {
@@ -55,12 +57,12 @@ func TestCKKS(t *testing.T) {
 	var err error
 	var testContext = new(testParams)
 
-	var defaultParams []*Parameters
-
+	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
-	} else {
-		defaultParams = DefaultParams
+		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
+	}
+	if *flagLongTest {
+		defaultParams = DefaultParams // the long test suite runs for all default parameters
 	}
 
 	for _, defaultParam := range defaultParams {

@@ -1,6 +1,7 @@
 package bfv
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -12,6 +13,8 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 )
+
+var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 
 func testString(opname string, p *Parameters) string {
 	return fmt.Sprintf("%sLogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.logN, p.LogQP(), p.Alpha(), p.Beta())
@@ -42,12 +45,13 @@ func TestBFV(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 
-	var defaultParams []*Parameters
-
+	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
-	} else {
-		defaultParams = DefaultParams
+		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
+	}
+	if *flagLongTest {
+		defaultParams = DefaultParams // the long test suite runs for all default parameters
+		fmt.Println("bfv runing in long mode")
 	}
 
 	for _, p := range defaultParams {

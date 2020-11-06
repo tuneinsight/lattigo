@@ -944,7 +944,6 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 
 	t.Run("Marshaller/Ciphertext/", func(t *testing.T) {
 		t.Run(testString(testContext, "EndToEnd/"), func(t *testing.T) {
-			t.Parallel()
 
 			ciphertextWant := NewCiphertextRandom(testContext.prng, testContext.params, 2, testContext.params.MaxLevel(), testContext.params.Scale())
 
@@ -964,7 +963,6 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		})
 
 		t.Run(testString(testContext, "Minimal/"), func(t *testing.T) {
-			t.Parallel()
 
 			ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 0, testContext.params.MaxLevel(), testContext.params.Scale())
 

@@ -220,6 +220,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		encryptor.ternarySamplerQ.ReadLvl(lvl, poolQ2)
 		ringQ.NTTLvl(lvl, poolQ2, poolQ2)
+		ringQ.MFormLvl(lvl, poolQ2, poolQ2)
 
 		// ct0 = u*pk0
 		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.pk[0], ciphertext.value[0])
@@ -254,11 +255,14 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		encryptor.ternarySamplerQ.ReadLvl(lvl, poolQ2)
 
-		extendBasisSmallNormNoCentering(ringQ, ringP, poolQ2, poolP2)
+		extendBasisSmallNormAndCenter(ringQ, ringP, poolQ2, poolP2)
 
 		// (#Q + #P) NTT
 		ringQ.NTTLvl(lvl, poolQ2, poolQ2)
 		ringP.NTT(poolP2, poolP2)
+
+		ringQ.MFormLvl(lvl, poolQ2, poolQ2)
+		ringP.MForm(poolP2, poolP2)
 
 		pk0P := new(ring.Poly)
 		pk1P := new(ring.Poly)
@@ -280,13 +284,13 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		// ct0 = u*pk0 + e0
 		encryptor.gaussianSamplerQ.ReadLvl(lvl, poolQ2)
-		extendBasisSmallNormNoCentering(ringQ, ringP, poolQ2, poolP2)
+		extendBasisSmallNormAndCenter(ringQ, ringP, poolQ2, poolP2)
 		ringQ.AddLvl(lvl, poolQ0, poolQ2, poolQ0)
 		ringP.Add(poolP0, poolP2, poolP0)
 
 		// ct1 = u*pk1 + e1
 		encryptor.gaussianSamplerQ.ReadLvl(lvl, poolQ2)
-		extendBasisSmallNormNoCentering(ringQ, ringP, poolQ2, poolP2)
+		extendBasisSmallNormAndCenter(ringQ, ringP, poolQ2, poolP2)
 		ringQ.AddLvl(lvl, poolQ1, poolQ2, poolQ1)
 		ringP.Add(poolP1, poolP2, poolP1)
 
@@ -390,12 +394,24 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	ciphertext.isNTT = true
 }
 
-func extendBasisSmallNormNoCentering(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {
-	var coeffQ uint64
+func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {
+	var coeff, Q, QHalf, sign uint64
+	Q = ringQ.Modulus[0]
+	QHalf = Q >> 1
+
 	for j := uint64(0); j < ringQ.N; j++ {
-		coeffQ = polQ.Coeffs[0][j]
-		for i := range polP.Coeffs {
-			polP.Coeffs[i][j] = coeffQ
+
+		coeff = polQ.Coeffs[0][j]
+
+		sign = 1
+		if coeff > QHalf {
+			coeff = Q - coeff
+			sign = 0
 		}
+
+		for i, pi := range ringP.Modulus {
+			polP.Coeffs[i][j] = (coeff * sign) | (pi-coeff)*(sign^1)
+		}
+
 	}
 }

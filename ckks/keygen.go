@@ -194,10 +194,6 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	ringQP.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
 	ringQP.Neg(pk.pk[0], pk.pk[0])
-
-	ringQP.MForm(pk.pk[0], pk.pk[0])
-	ringQP.MForm(pk.pk[1], pk.pk[1])
-
 	return pk
 }
 

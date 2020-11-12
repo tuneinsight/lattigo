@@ -144,11 +144,11 @@ func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams
 
 func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	slots := testContext.params.Slots()
+	logSlots := testContext.params.LogSlots()
 
-	values = make([]complex128, slots)
+	values = make([]complex128, 1<<logSlots)
 
-	for i := uint64(0); i < slots; i++ {
+	for i := uint64(0); i < 1<<logSlots; i++ {
 		values[i] = complex(randomFloat(real(a), real(b)), randomFloat(imag(a), imag(b)))
 	}
 
@@ -156,7 +156,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 
 	plaintext = NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 
-	testContext.encoder.EncodeNTT(plaintext, values, slots)
+	testContext.encoder.EncodeNTT(plaintext, values, logSlots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)
@@ -247,11 +247,11 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Encryptor/EncryptFromPkFast/"), func(t *testing.T) {
 
-		slots := testContext.params.Slots()
+		logSlots := testContext.params.LogSlots()
 
-		values := make([]complex128, slots)
+		values := make([]complex128, 1<<logSlots)
 
-		for i := uint64(0); i < slots; i++ {
+		for i := uint64(0); i < 1<<logSlots; i++ {
 			values[i] = randomComplex(-1, 1)
 		}
 
@@ -259,7 +259,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 
-		testContext.encoder.Encode(plaintext, values, slots)
+		testContext.encoder.Encode(plaintext, values, logSlots)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorPk.EncryptFastNew(plaintext), t)
 	})

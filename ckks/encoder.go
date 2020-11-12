@@ -111,20 +111,18 @@ func NewEncoder(params *Parameters) Encoder {
 	}
 }
 
-func (encoder *encoderComplex128) EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext) {
+func (encoder *encoderComplex128) EncodeNew(values []complex128, logSlots uint64) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
-	encoder.Encode(plaintext, values, slots)
+	encoder.Encode(plaintext, values, logSlots)
 	return
 }
 
-func (encoder *encoderComplex128) embed(values []complex128, slots uint64) {
+func (encoder *encoderComplex128) embed(values []complex128, logSlots uint64) {
 
-	if uint64(len(values)) > encoder.params.N()/2 || uint64(len(values)) > slots {
-		panic("cannot Encode: too many values for the given number of slots")
-	}
+	slots := uint64(1 << logSlots)
 
-	if slots == 0 && slots&(slots-1) != 0 {
-		panic("cannot Encode: slots must be a power of two between 1 and N/2")
+	if uint64(len(values)) > encoder.params.N()/2 || uint64(len(values)) > slots || slots > encoder.params.N()/2 {
+		panic("cannot Encode: too many values/slots for the given ring degree")
 	}
 
 	for i := range values {
@@ -156,21 +154,21 @@ func (encoder *encoderComplex128) wipeInternalMemory() {
 }
 
 // Encode takes a slice of complex128 values of size at most N/2 (the number of slots) and encodes it in the receiver Plaintext.
-func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
-	encoder.embed(values, slots)
+func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex128, logSlots uint64) {
+	encoder.embed(values, logSlots)
 	encoder.scaleUp(plaintext.value, plaintext.scale, encoder.ringQ.Modulus[:plaintext.Level()+1])
 	encoder.wipeInternalMemory()
 	plaintext.isNTT = false
 }
 
-func (encoder *encoderComplex128) EncodeNTTNew(values []complex128, slots uint64) (plaintext *Plaintext) {
+func (encoder *encoderComplex128) EncodeNTTNew(values []complex128, logSlots uint64) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
-	encoder.EncodeNTT(plaintext, values, slots)
+	encoder.EncodeNTT(plaintext, values, logSlots)
 	return
 }
 
-func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64) {
-	encoder.Encode(plaintext, values, slots)
+func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []complex128, logSlots uint64) {
+	encoder.Encode(plaintext, values, logSlots)
 	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 	plaintext.isNTT = true
 }
@@ -253,7 +251,13 @@ func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []floa
 }
 
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
-func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
+func (encoder *encoderComplex128) Decode(plaintext *Plaintext, logSlots uint64) (res []complex128) {
+
+	slots := uint64(1 << logSlots)
+
+	if slots > encoder.params.N()/2 {
+		panic("cannot Decode: too many slots for the given ring degree")
+	}
 
 	if plaintext.isNTT {
 		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
@@ -449,20 +453,18 @@ func NewEncoderBigComplex(params *Parameters, logPrecision uint64) EncoderBigCom
 	}
 }
 
-func (encoder *encoderBigComplex) EncodeNew(values []*ring.Complex, slots uint64) (plaintext *Plaintext) {
+func (encoder *encoderBigComplex) EncodeNew(values []*ring.Complex, logSlots uint64) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
-	encoder.Encode(plaintext, values, slots)
+	encoder.Encode(plaintext, values, logSlots)
 	return
 }
 
-func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Complex, slots uint64) {
+func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Complex, logSlots uint64) {
 
-	if uint64(len(values)) > encoder.ringQ.N>>1 || uint64(len(values)) > slots {
-		panic("cannot Encode: too many values for the given number of slots")
-	}
+	slots := uint64(1 << logSlots)
 
-	if slots == 0 && slots&(slots-1) == 0 {
-		panic("cannot Encode: slots must be a power of two between 1 and N/2")
+	if uint64(len(values)) > encoder.params.N()/2 || uint64(len(values)) > slots || slots > encoder.params.N()/2 {
+		panic("cannot Encode: too many values/slots for the given ring degree")
 	}
 
 	if uint64(len(values)) != slots {
@@ -498,22 +500,25 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 	}
 }
 
-func (encoder *encoderBigComplex) EncodeNTTNew(values []*ring.Complex, slots uint64) (plaintext *Plaintext) {
+func (encoder *encoderBigComplex) EncodeNTTNew(values []*ring.Complex, logSlots uint64) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
-	encoder.EncodeNTT(plaintext, values, slots)
+	encoder.EncodeNTT(plaintext, values, logSlots)
 	return
 }
 
-func (encoder *encoderBigComplex) EncodeNTT(plaintext *Plaintext, values []*ring.Complex, slots uint64) {
-
-	encoder.Encode(plaintext, values, slots)
-
+func (encoder *encoderBigComplex) EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots uint64) {
+	encoder.Encode(plaintext, values, logSlots)
 	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
-
 	plaintext.isNTT = true
 }
 
-func (encoder *encoderBigComplex) Decode(plaintext *Plaintext, slots uint64) (res []*ring.Complex) {
+func (encoder *encoderBigComplex) Decode(plaintext *Plaintext, logSlots uint64) (res []*ring.Complex) {
+
+	slots := uint64(1 << logSlots)
+
+	if slots > encoder.params.N()/2 {
+		panic("cannot Decode: too many slots for the given ring degree")
+	}
 
 	encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)

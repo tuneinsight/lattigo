@@ -50,7 +50,7 @@ func TestBootstrapp(t *testing.T) {
 			panic(err)
 		}
 
-		slots := testContext.params.Slots()
+		logSlots := testContext.params.LogSlots()
 
 		t.Run(testString(testContext, "ChebySin/"), func(t *testing.T) {
 
@@ -239,20 +239,20 @@ func TestBootstrapp(t *testing.T) {
 				panic(err)
 			}
 
-			values := make([]complex128, slots)
+			values := make([]complex128, 1<<logSlots)
 			for i := range values {
 				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 			}
 
 			values[0] = complex(0.9238795325112867, 0.3826834323650898)
 			values[1] = complex(0.9238795325112867, 0.3826834323650898)
-			if slots > 2 {
+			if 1<<logSlots > 2 {
 				values[2] = complex(0.9238795325112867, 0.3826834323650898)
 				values[3] = complex(0.9238795325112867, 0.3826834323650898)
 			}
 
 			plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.scale)
-			testContext.encoder.Encode(plaintext, values, slots)
+			testContext.encoder.Encode(plaintext, values, logSlots)
 
 			ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
 
@@ -271,17 +271,17 @@ func TestBootstrapp(t *testing.T) {
 
 func newTestVectorsSineBootstrapp(testContext *testParams, encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	slots := testContext.params.Slots()
+	logSlots := testContext.params.LogSlots()
 
-	values = make([]complex128, slots)
+	values = make([]complex128, 1<<logSlots)
 
-	for i := uint64(0); i < slots; i++ {
+	for i := uint64(0); i < 1<<logSlots; i++ {
 		values[i] = complex(math.Round(randomFloat(a, b))+randomFloat(-1, 1)/1000, 0)
 	}
 
 	plaintext = NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 
-	testContext.encoder.EncodeNTT(plaintext, values, slots)
+	testContext.encoder.EncodeNTT(plaintext, values, logSlots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)

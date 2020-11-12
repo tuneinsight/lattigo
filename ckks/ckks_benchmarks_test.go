@@ -36,34 +36,34 @@ func BenchmarkCKKSScheme(b *testing.B) {
 func benchEncoder(testContext *testParams, b *testing.B) {
 
 	encoder := testContext.encoder
-	slots := testContext.params.Slots()
+	logSlots := testContext.params.LogSlots()
 
 	b.Run(testString(testContext, "Encoder/Encode/"), func(b *testing.B) {
 
-		values := make([]complex128, slots)
-		for i := uint64(0); i < slots; i++ {
+		values := make([]complex128, 1<<logSlots)
+		for i := uint64(0); i < 1<<logSlots; i++ {
 			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 		}
 
 		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 
 		for i := 0; i < b.N; i++ {
-			encoder.Encode(plaintext, values, slots)
+			encoder.Encode(plaintext, values, logSlots)
 		}
 	})
 
 	b.Run(testString(testContext, "Encoder/Decode/"), func(b *testing.B) {
 
-		values := make([]complex128, slots)
-		for i := uint64(0); i < slots; i++ {
+		values := make([]complex128, 1<<logSlots)
+		for i := uint64(0); i < 1<<logSlots; i++ {
 			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
 		}
 
 		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
-		encoder.Encode(plaintext, values, slots)
+		encoder.Encode(plaintext, values, logSlots)
 
 		for i := 0; i < b.N; i++ {
-			encoder.Decode(plaintext, slots)
+			encoder.Decode(plaintext, logSlots)
 		}
 	})
 }

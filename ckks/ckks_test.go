@@ -780,6 +780,8 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 			t.Skip("skipping test for params max level < 5")
 		}
 
+		eval := testContext.evaluator
+
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, 0), complex(1, 0), t)
 
 		cheby := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
@@ -788,7 +790,11 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Sin(values[i])
 		}
 
-		if ciphertext, err = testContext.evaluator.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+		eval.MultByConst(ciphertext, 2/(cheby.b-cheby.a), ciphertext)
+		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
+		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
+
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
 			t.Error(err)
 		}
 
@@ -873,7 +879,7 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 				values2[i] = values1[(i+n)%len(values1)]
 			}
 
-			testContext.evaluator.RotateColumns(ciphertext1, uint64(n), rotKey, ciphertext2)
+			testContext.evaluator.Rotate(ciphertext1, uint64(n), rotKey, ciphertext2)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 		}
@@ -894,7 +900,7 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 				values2[i] = values1[(i+n)%len(values1)]
 			}
 
-			ciphertext2 = testContext.evaluator.RotateColumnsNew(ciphertext1, uint64(n), rotKey)
+			ciphertext2 = testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 		}
@@ -917,7 +923,7 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 				values2[i] = values1[(i+int(rand))%len(values1)]
 			}
 
-			testContext.evaluator.RotateColumns(ciphertext1, rand, rotKey, ciphertext2)
+			testContext.evaluator.Rotate(ciphertext1, rand, rotKey, ciphertext2)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 		}

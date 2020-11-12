@@ -26,6 +26,8 @@ type Evaluator interface {
 	MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext)
 	MultByConstNew(ct0 *Ciphertext, constant interface{}) (ctOut *Ciphertext)
 	MultByConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext)
+	MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext)
+	MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext)
 	MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	MultByi(ct0 *Ciphertext, ct1 *Ciphertext)
 	DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext)
@@ -47,8 +49,8 @@ type Evaluator interface {
 	Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext)
 	SwitchKeysNew(ct0 *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
 	SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
-	RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext)
-	RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext)
+	RotateNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext)
+	Rotate(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext)
 	RotateHoisted(ctIn *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOut map[uint64]*Ciphertext)
 	ConjugateNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext)
 	Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext)
@@ -58,7 +60,6 @@ type Evaluator interface {
 	InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext)
 	EvaluatePoly(ct *Ciphertext, coeffs *Poly, evakey *EvaluationKey) (res *Ciphertext, err error)
 	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error)
-	EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error)
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
@@ -813,7 +814,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 	ctOut.SetScale(ct0.Scale() * scale)
 }
 
-func (eval *evaluator) multByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext) {
+func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext) {
 
 	ringQ := eval.ringQ
 
@@ -898,7 +899,7 @@ func (eval *evaluator) multByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 	}
 }
 
-func (eval *evaluator) multByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext) {
+func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext) {
 
 	ringQ := eval.ringQ
 
@@ -1484,20 +1485,20 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, c
 	ringQ.CopyLvl(level, eval.poolQ[2], ctOut.value[1])
 }
 
-// RotateColumnsNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
+// RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
-func (eval *evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext) {
+func (eval *evaluator) RotateNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
-	eval.RotateColumns(ct0, k, evakey, ctOut)
+	eval.Rotate(ct0, k, evakey, ctOut)
 	return
 }
 
-// RotateColumns rotates the columns of ct0 by k positions to the left and returns the result in ctOut.
+// Rotate rotates the columns of ct0 by k positions to the left and returns the result in ctOut.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
-func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) Rotate(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("cannot RotateColumns: input and output Ciphertext must be of degree 1")
+		panic("cannot Rotate: input and output Ciphertext must be of degree 1")
 	}
 
 	k &= ((eval.ringQ.N >> 1) - 1)
@@ -1530,28 +1531,28 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rotation
 			if hasPow2Rotations {
 
 				if utils.HammingWeight64(k) <= utils.HammingWeight64((eval.ringQ.N>>1)-k) {
-					eval.rotateColumnsLPow2(ct0, k, evakey, ctOut)
+					eval.rotateLPow2(ct0, k, evakey, ctOut)
 				} else {
-					eval.rotateColumnsRPow2(ct0, (eval.ringQ.N>>1)-k, evakey, ctOut)
+					eval.rotateRPow2(ct0, (eval.ringQ.N>>1)-k, evakey, ctOut)
 				}
 
 				// Otherwise, it returns an error indicating that the keys have not been generated
 			} else {
-				panic("cannot RotateColumns: specific rotation and pow2 rotations have not been generated")
+				panic("cannot Rotate: specific rotation and pow2 rotations have not been generated")
 			}
 		}
 	}
 }
 
-func (eval *evaluator) rotateColumnsLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	eval.rotateColumnsPow2(ct0, k, evakey.permuteNTTLeftIndex, evakey.evakeyRotColLeft, ctOut)
+func (eval *evaluator) rotateLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
+	eval.rotatePow2(ct0, k, evakey.permuteNTTLeftIndex, evakey.evakeyRotColLeft, ctOut)
 }
 
-func (eval *evaluator) rotateColumnsRPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	eval.rotateColumnsPow2(ct0, k, evakey.permuteNTTRightIndex, evakey.evakeyRotColRight, ctOut)
+func (eval *evaluator) rotateRPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
+	eval.rotatePow2(ct0, k, evakey.permuteNTTRightIndex, evakey.evakeyRotColRight, ctOut)
 }
 
-func (eval *evaluator) rotateColumnsPow2(ct0 *Ciphertext, k uint64, permuteNTTIndex map[uint64][]uint64, evakeyRotCol map[uint64]*SwitchingKey, ctOut *Ciphertext) {
+func (eval *evaluator) rotatePow2(ct0 *Ciphertext, k uint64, permuteNTTIndex map[uint64][]uint64, evakeyRotCol map[uint64]*SwitchingKey, ctOut *Ciphertext) {
 
 	var evakeyIndex uint64
 
@@ -1723,7 +1724,7 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 }
 
 // RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
-// rotation by one element of the list. It is much faster than sequential calls to RotateColumns.
+// rotation by one element of the list. It is much faster than sequential calls to Rotate.
 func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOut map[uint64]*Ciphertext) {
 
 	// Pre-computation for rotations using hoisting

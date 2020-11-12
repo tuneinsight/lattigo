@@ -110,43 +110,13 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *Evaluati
 // Returns an error if something is wrong with the scale.
 func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
 
-	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 2/(cheby.b-cheby.a)); err != nil {
+	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 1); err != nil {
 		return op, err
 	}
 
 	C := make(map[uint64]*Ciphertext)
 
 	C[1] = op.CopyNew().Ciphertext()
-
-	eval.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
-	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	eval.Rescale(C[1], eval.scale, C[1])
-
-	return eval.evalCheby(cheby, C, evakey)
-}
-
-// EvaluateChebyFastSpecial evaluates the input Chebyshev polynomial with the input ciphertext.
-// Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
-// Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
-// Returns an error if something is wrong with the scale.
-func (eval *evaluator) EvaluateChebySpecial(op *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
-
-	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 2/((cheby.b-cheby.a)*n)); err != nil {
-		return op, err
-	}
-
-	C := make(map[uint64]*Ciphertext)
-
-	C[1] = op.CopyNew().Ciphertext()
-
-	eval.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
-	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	eval.Rescale(C[1], eval.scale, C[1])
-
-	return eval.evalCheby(cheby, C, evakey)
-}
-
-func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ciphertext, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
 
 	logDegree := uint64(bits.Len64(cheby.Degree()))
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
@@ -497,7 +467,7 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[uint64]
 			cReal := int64(real(coeffs.coeffs[key]) * constScale)
 			cImag := int64(imag(coeffs.coeffs[key]) * constScale)
 
-			evaluator.multByGaussianIntegerAndAdd(C[key], cReal, cImag, res)
+			evaluator.MultByGaussianIntegerAndAdd(C[key], cReal, cImag, res)
 		}
 	}
 

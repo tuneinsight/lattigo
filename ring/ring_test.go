@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"flag"
 	"fmt"
 	"math/big"
 	"math/bits"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 
 var T = uint64(0x3ee0001)
 var DefaultSigma = float64(3.2)
@@ -51,12 +54,13 @@ func TestRing(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 	var err error
-	var defaultParams []*Parameters
 
+	var defaultParams = DefaultParams[0:4] // the default test
 	if testing.Short() {
-		defaultParams = DefaultParams[0:3]
-	} else {
-		defaultParams = DefaultParams
+		defaultParams = DefaultParams[0:2] // the short test suite
+	}
+	if *flagLongTest {
+		defaultParams = DefaultParams // the long test suite
 	}
 
 	testNewRing(t)

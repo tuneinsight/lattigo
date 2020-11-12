@@ -502,7 +502,7 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) (res *Ciphertext) {
 		eval.AddConst(C[1], -0.5/(scfac*(cheby.b-cheby.a)), C[1])
 	}
 
-	res = eval.evalCheby(cheby, C, btp.relinkey)
+	res, _ = eval.evalCheby(cheby, C, btp.relinkey)
 
 	sqrt2pi := math.Pow(0.15915494309189535, 1.0/float64(int(1<<btp.SinRescal)))
 

@@ -20,9 +20,9 @@ type PCKSProtocol struct {
 	share0tmpP *ring.Poly
 	share1tmpP *ring.Poly
 
-	baseconverter            *ring.FastBasisExtender
-	gaussianSampler          *ring.GaussianSampler
-	ternarySampler *ring.TernarySampler
+	baseconverter   *ring.FastBasisExtender
+	gaussianSampler *ring.GaussianSampler
+	ternarySampler  *ring.TernarySampler
 }
 
 // PCKSShare is a struct storing the share of the PCKS protocol.
@@ -70,7 +70,6 @@ func (pcks *PCKSProtocol) AllocateShares(level uint64) (s PCKSShare) {
 // and broadcasts the result to the other j-1 parties.
 func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *rckks.PublicKey, ct *rckks.Ciphertext, shareOut PCKSShare) {
 
-
 	lvl := ct.Level()
 
 	ringQ := pcks.drckksContext.ringQ
@@ -79,7 +78,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *rckks.PublicKey, ct *rckks
 	pcks.ternarySampler.ReadLvl(lvl, pcks.tmpQ)
 	extendBasisSmallNormAndCenter(ringQ, ringP, pcks.tmpQ, pcks.tmpP)
 
-	rckks.NTTRCKKSLvl(lvl, ringQ, pcks.tmpQ, pcks.tmpQ)
+	rckks.NTTRCKKSLvl(ringQ, lvl, pcks.tmpQ, pcks.tmpQ)
 	rckks.NTTRCKKS(ringP, pcks.tmpP, pcks.tmpP)
 
 	ringQ.MFormLvl(lvl, pcks.tmpQ, pcks.tmpQ)
@@ -91,24 +90,24 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *rckks.PublicKey, ct *rckks
 	pk1P.Coeffs = pk.Get()[1].Coeffs[len(ringQ.Modulus):]
 
 	// h_0 = u_i * pk_0
-	ringQ.MulCoeffsMontgomeryLvl(lvl, pcks.tmp, pk.Get()[0], pcks.share0tmpQ)
-	ringQ.MulCoeffsMontgomeryLvl(lvl, pcks.tmp, pk.Get()[1], pcks.share0tmpQ)
+	ringQ.MulCoeffsMontgomeryLvl(lvl, pcks.tmpQ, pk.Get()[0], pcks.share0tmpQ)
+	ringQ.MulCoeffsMontgomeryLvl(lvl, pcks.tmpQ, pk.Get()[1], pcks.share1tmpQ)
 	// h_1 = u_i * pk_1
-	ringP.MulCoeffsMontgomery(pcks.tmp, pk0P, pcks.share1tmpP)
-	ringP.MulCoeffsMontgomery(pcks.tmp, pk1P, pcks.share1tmpP)
+	ringP.MulCoeffsMontgomery(pcks.tmpP, pk0P, pcks.share0tmpP)
+	ringP.MulCoeffsMontgomery(pcks.tmpP, pk1P, pcks.share1tmpP)
 
 	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSampler.Readlvl(Lvl, pcks.tmpQ)
+	pcks.gaussianSampler.ReadLvl(lvl, pcks.tmpQ)
 	extendBasisSmallNormAndCenter(ringQ, ringP, pcks.tmpQ, pcks.tmpP)
-	rckks.NTTRCKKSLvl(ringQ, pcks.tmpQ, pcks.tmpQ)
+	rckks.NTTRCKKSLvl(ringQ, lvl, pcks.tmpQ, pcks.tmpQ)
 	rckks.NTTRCKKS(ringP, pcks.tmpP, pcks.tmpP)
 	ringQ.AddLvl(lvl, pcks.share0tmpQ, pcks.tmpQ, pcks.share0tmpQ)
 	ringP.Add(pcks.share0tmpP, pcks.tmpP, pcks.share0tmpP)
 
 	// h_1 = u_i * pk_1 + e1
-	pcks.gaussianSampler.ReadLvl(lvl, pcks.tmp)
+	pcks.gaussianSampler.ReadLvl(lvl, pcks.tmpQ)
 	extendBasisSmallNormAndCenter(ringQ, ringP, pcks.tmpQ, pcks.tmpP)
-	rckks.NTTRCKKSLvl(lvl, ringQ, pcks.tmpQ, pcks.tmpQ)
+	rckks.NTTRCKKSLvl(ringQ, lvl, pcks.tmpQ, pcks.tmpQ)
 	rckks.NTTRCKKS(ringP, pcks.tmpP, pcks.tmpP)
 	ringQ.AddLvl(lvl, pcks.share1tmpQ, pcks.tmpQ, pcks.share1tmpQ)
 	ringP.Add(pcks.share1tmpP, pcks.tmpP, pcks.share1tmpP)

@@ -1,4 +1,4 @@
-//Package dckks implements a distributed (or threshold) version of the CKKS scheme that enables secure multiparty computation solutions with secret-shared secret keys.
+//Package drckks implements a distributed (or threshold) version of the CKKS scheme that enables secure multiparty computation solutions with secret-shared secret keys.
 package drckks
 
 import (
@@ -9,7 +9,7 @@ import (
 
 // CKGProtocol is the structure storing the parameters and state for a party in the collective key generation protocol.
 type CKGProtocol struct {
-	drckksContext    *drckksContext
+	drckksContext   *drckksContext
 	gaussianSampler *ring.GaussianSampler
 }
 

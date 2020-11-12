@@ -376,3 +376,237 @@ func (encoder *encoderComplex128) fft(values []complex128, N uint64) {
 		}
 	}
 }
+
+type encoderBigComplex struct {
+	encoder
+	zero         *big.Float
+	cMul         *ring.ComplexMultiplier
+	logPrecision uint64
+	values       []*ring.Complex
+	valuesfloat  []*big.Float
+	roots        []*ring.Complex
+}
+
+// NewEncoderBigComplex creates a new encoder using arbitrary precision complex arithmetic
+func NewEncoderBigComplex(params *Parameters, logPrecision uint64) EncoderBigComplex {
+	encoder := newEncoder(params)
+
+	var PI = new(big.Float)
+	PI.SetPrec(uint(logPrecision))
+	PI.SetString(pi)
+
+	var PIHalf = new(big.Float)
+	PIHalf.SetPrec(uint(logPrecision))
+	PIHalf.SetString(pi)
+	PIHalf.Quo(PIHalf, ring.NewFloat(2, logPrecision))
+
+	var angle *big.Float
+	roots := make([]*ring.Complex, encoder.m+1)
+	for i := uint64(0); i < encoder.m; i++ {
+		angle = ring.NewFloat(2, logPrecision)
+		angle.Mul(angle, PI)
+		angle.Mul(angle, ring.NewFloat(float64(i), logPrecision))
+		angle.Quo(angle, ring.NewFloat(float64(encoder.m), logPrecision))
+
+		real := ring.Cos(angle)
+		angle.Sub(PIHalf, angle)
+		imag := ring.Cos(angle)
+
+		roots[i] = ring.NewComplex(real, imag)
+	}
+
+	roots[encoder.m] = roots[0].Copy()
+
+	values := make([]*ring.Complex, encoder.m>>2)
+	valuesfloat := make([]*big.Float, encoder.m>>2)
+
+	for i := uint64(0); i < encoder.m>>2; i++ {
+
+		values[i] = ring.NewComplex(ring.NewFloat(0, logPrecision), ring.NewFloat(0, logPrecision))
+		valuesfloat[i] = ring.NewFloat(0, logPrecision)
+	}
+
+	return &encoderBigComplex{
+		encoder:      encoder,
+		zero:         ring.NewFloat(0, logPrecision),
+		cMul:         ring.NewComplexMultiplier(),
+		logPrecision: logPrecision,
+		roots:        roots,
+		values:       values,
+		valuesfloat:  valuesfloat,
+	}
+}
+
+func (encoder *encoderBigComplex) EncodeNew(values []*ring.Complex, slots uint64) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
+	encoder.Encode(plaintext, values, slots)
+	return
+}
+
+func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Complex, slots uint64) {
+
+	if uint64(len(values)) > encoder.ringQ.N>>1 || uint64(len(values)) > slots {
+		panic("cannot Encode: too many values for the given number of slots")
+	}
+
+	if slots == 0 && slots&(slots-1) == 0 {
+		panic("cannot Encode: slots must be a power of two between 1 and N/2")
+	}
+
+	if uint64(len(values)) != slots {
+		panic("cannot Encode: number of values must be equal to slots")
+	}
+
+	for i := uint64(0); i < slots; i++ {
+		encoder.values[i].Set(values[i])
+	}
+
+	encoder.InvFFT(encoder.values, slots)
+
+	gap := encoder.ringQ.N / slots
+
+	for i, jdx, idx := uint64(0), encoder.ringQ.N, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+		encoder.valuesfloat[idx].Set(encoder.values[i].Real())
+	}
+
+	scaleUpVecExactBigFloat(encoder.valuesfloat, plaintext.scale, encoder.ringQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
+
+	coeffsBigInt := make([]*big.Int, encoder.params.N())
+
+	encoder.ringQ.PolyToBigint(plaintext.value, coeffsBigInt)
+
+	for i := range encoder.values {
+		encoder.values[i].Real().Set(encoder.zero)
+		encoder.values[i].Imag().Set(encoder.zero)
+	}
+
+	for i := range encoder.valuesfloat {
+		encoder.valuesfloat[i].Set(encoder.zero)
+	}
+}
+
+func (encoder *encoderBigComplex) EncodeNTTNew(values []*ring.Complex, slots uint64) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
+	encoder.EncodeNTT(plaintext, values, slots)
+	return
+}
+
+func (encoder *encoderBigComplex) EncodeNTT(plaintext *Plaintext, values []*ring.Complex, slots uint64) {
+
+	encoder.Encode(plaintext, values, slots)
+
+	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+
+	plaintext.isNTT = true
+}
+
+func (encoder *encoderBigComplex) Decode(plaintext *Plaintext, slots uint64) (res []*ring.Complex) {
+
+	encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
+
+	Q := encoder.bigintChain[plaintext.Level()]
+
+	maxSlots := encoder.ringQ.N
+
+	scaleFlo := ring.NewFloat(plaintext.Scale(), encoder.logPrecision)
+
+	encoder.qHalf.Set(Q)
+	encoder.qHalf.Rsh(encoder.qHalf, 1)
+
+	gap := maxSlots / slots
+
+	var sign int
+
+	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
+
+		// Centers the value around the current modulus
+		encoder.bigintCoeffs[idx].Mod(encoder.bigintCoeffs[idx], Q)
+		sign = encoder.bigintCoeffs[idx].Cmp(encoder.qHalf)
+		if sign == 1 || sign == 0 {
+			encoder.bigintCoeffs[idx].Sub(encoder.bigintCoeffs[idx], Q)
+		}
+
+		// Centers the value around the current modulus
+		encoder.bigintCoeffs[idx+maxSlots].Mod(encoder.bigintCoeffs[idx+maxSlots], Q)
+		sign = encoder.bigintCoeffs[idx+maxSlots].Cmp(encoder.qHalf)
+		if sign == 1 || sign == 0 {
+			encoder.bigintCoeffs[idx+maxSlots].Sub(encoder.bigintCoeffs[idx+maxSlots], Q)
+		}
+
+		encoder.values[i].Real().SetInt(encoder.bigintCoeffs[idx])
+		encoder.values[i].Real().Quo(encoder.values[i].Real(), scaleFlo)
+	}
+
+	encoder.FFT(encoder.values, slots)
+
+	res = make([]*ring.Complex, slots)
+
+	for i := range res {
+		res[i] = encoder.values[i].Copy()
+	}
+
+	for i := range encoder.values {
+		encoder.values[i].Real().Set(encoder.zero)
+		encoder.values[i].Imag().Set(encoder.zero)
+	}
+
+	return
+}
+
+func (encoder *encoderBigComplex) InvFFT(values []*ring.Complex, N uint64) {
+
+	var lenh, lenq, gap, idx uint64
+	u := ring.NewComplex(nil, nil)
+	v := ring.NewComplex(nil, nil)
+
+	for len := N; len >= 1; len >>= 1 {
+		for i := uint64(0); i < N; i += len {
+			lenh = len >> 1
+			lenq = len << 2
+			gap = encoder.m / lenq
+			for j := uint64(0); j < lenh; j++ {
+				idx = (lenq - (encoder.rotGroup[j] % lenq)) * gap
+				u.Add(values[i+j], values[i+j+lenh])
+				v.Sub(values[i+j], values[i+j+lenh])
+				encoder.cMul.Mul(v, encoder.roots[idx], v)
+				values[i+j].Set(u)
+				values[i+j+lenh].Set(v)
+			}
+		}
+	}
+
+	NBig := ring.NewFloat(float64(N), encoder.logPrecision)
+	for i := range values {
+		values[i][0].Quo(values[i][0], NBig)
+		values[i][1].Quo(values[i][1], NBig)
+	}
+
+	sliceBitReverseInPlaceRingComplex(values, N)
+}
+
+func (encoder *encoderBigComplex) FFT(values []*ring.Complex, N uint64) {
+
+	var lenh, lenq, gap, idx uint64
+
+	u := ring.NewComplex(nil, nil)
+	v := ring.NewComplex(nil, nil)
+
+	sliceBitReverseInPlaceRingComplex(values, N)
+
+	for len := uint64(2); len <= N; len <<= 1 {
+		for i := uint64(0); i < N; i += len {
+			lenh = len >> 1
+			lenq = len << 2
+			gap = encoder.m / lenq
+			for j := uint64(0); j < lenh; j++ {
+				idx = (encoder.rotGroup[j] % lenq) * gap
+				u.Set(values[i+j])
+				v.Set(values[i+j+lenh])
+				encoder.cMul.Mul(v, encoder.roots[idx], v)
+				values[i+j].Add(u, v)
+				values[i+j+lenh].Sub(u, v)
+			}
+		}
+	}
+}

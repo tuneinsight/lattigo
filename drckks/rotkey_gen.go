@@ -53,8 +53,6 @@ func NewRotKGProtocol(params *rckks.Parameters) (rtg *RTGProtocol) {
 
 	N := drckksContext.n
 
-
-
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)

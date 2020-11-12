@@ -74,7 +74,7 @@ func (rtg *RTGProtocol) GenShare(rotType ckks.Rotation, k uint64, sk *ring.Poly,
 		rtg.genShare(sk, ckks.GaloisGen, k&(ringQP.N/2-1), crp, shareOut.Value)
 		return
 	case ckks.RotationLeft:
-		rtg.genShare(sk, ckks.GaloisGen, (ringQP.N/2-k) & (ringQP.N/2-1), crp, shareOut.Value)
+		rtg.genShare(sk, ckks.GaloisGen, (ringQP.N/2-k)&(ringQP.N/2-1), crp, shareOut.Value)
 		return
 	case ckks.Conjugate:
 		rtg.genShare(sk, ringQP.NthRoot-1, 1, crp, shareOut.Value)

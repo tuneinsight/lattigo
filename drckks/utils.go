@@ -1,6 +1,7 @@
 package drckks
 
-import(
+import (
+	"github.com/ldsec/lattigo/v2/ring"
 	"math/rand"
 )
 

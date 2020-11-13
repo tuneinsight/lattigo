@@ -154,9 +154,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
-
-	testContext.encoder.EncodeNTT(plaintext, values, slots)
+	plaintext = testContext.encoder.EncodeNTTAtLvlNew(testContext.params.MaxLevel(), values, slots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)
@@ -257,9 +255,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 		values[0] = complex(0.607538, 0.555668)
 
-		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
-
-		testContext.encoder.Encode(plaintext, values, slots)
+		plaintext := testContext.encoder.EncodeNew(values, slots)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorPk.EncryptFastNew(plaintext), t)
 	})
@@ -287,9 +283,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 		values[0] = complex(0.607538, 0.555668)
 
-		plaintext := NewPlaintext(testContext.params, 1, testContext.params.Scale())
-
-		testContext.encoder.Encode(plaintext, values, slots)
+		plaintext := testContext.encoder.EncodeAtLvlNew(1, values, slots)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorPk.EncryptNew(plaintext), t)
 	})
@@ -310,9 +304,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 		values[0] = complex(0.607538, 0.555668)
 
-		plaintext := NewPlaintext(testContext.params, 1, testContext.params.Scale())
-
-		testContext.encoder.Encode(plaintext, values, slots)
+		plaintext := testContext.encoder.EncodeAtLvlNew(1, values, slots)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorPk.EncryptFastNew(plaintext), t)
 	})
@@ -333,9 +325,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 		values[0] = complex(0.607538, 0.555668)
 
-		plaintext := NewPlaintext(testContext.params, 1, testContext.params.Scale())
-
-		testContext.encoder.Encode(plaintext, values, slots)
+		plaintext := testContext.encoder.EncodeAtLvlNew(1, values, slots)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorSk.EncryptNew(plaintext), t)
 	})

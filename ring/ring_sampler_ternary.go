@@ -56,15 +56,22 @@ func (ts *TernarySampler) Read(pol *Poly) {
 	ts.sample(uint64(len(ts.baseRing.Modulus)-1), pol)
 }
 
-// ReadLvl samples a polynomial into pol at the given level.
+// ReadLvl samples a polynomial into pol at the speciefied level.
 func (ts *TernarySampler) ReadLvl(lvl uint64, pol *Poly) {
 	ts.sample(lvl, pol)
 }
 
-// ReadNew allocates and samples a polynomial.
+// ReadNew allocates and samples a polynomial at the max level.
 func (ts *TernarySampler) ReadNew() (pol *Poly) {
 	pol = ts.baseRing.NewPoly()
 	ts.sample(uint64(len(ts.baseRing.Modulus)-1), pol)
+	return pol
+}
+
+// ReadLvlNew allocates and samples a polynomial at the speficied level.
+func (ts *TernarySampler) ReadLvlNew(lvl uint64) (pol *Poly) {
+	pol = ts.baseRing.NewPolyLvl(lvl)
+	ts.sample(lvl, pol)
 	return pol
 }
 

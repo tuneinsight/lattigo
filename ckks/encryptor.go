@@ -9,6 +9,8 @@ import (
 //
 // encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
+//
+// The level of the output ciphetext is min(lvl(plaintext), lvl(ciphertext)).
 type Encryptor interface {
 	// EncryptNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first
@@ -314,6 +316,9 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		}
 	}
 
+	ciphertext.value[0].Coeffs = ciphertext.value[0].Coeffs[:lvl+1]
+	ciphertext.value[1].Coeffs = ciphertext.value[1].Coeffs[:lvl+1]
+
 	ciphertext.isNTT = true
 }
 
@@ -390,6 +395,9 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringQ.NTTLvl(lvl, poolQ0, poolQ0)
 		ringQ.AddLvl(lvl, ciphertext.value[0], poolQ0, ciphertext.value[0])
 	}
+
+	ciphertext.value[0].Coeffs = ciphertext.value[0].Coeffs[:lvl+1]
+	ciphertext.value[1].Coeffs = ciphertext.value[1].Coeffs[:lvl+1]
 
 	ciphertext.isNTT = true
 }

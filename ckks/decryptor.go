@@ -2,17 +2,20 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // Decryptor is an interface for decrypting Ciphertexts. A Decryptor stores the secret-key.
 type Decryptor interface {
 	// DecryptNew decrypts the ciphertext and returns a newly created
 	// plaintext. A Horner method is used for evaluating the decryption.
+	// The level of the output plaintext is ciphertext.Level().
 	DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext)
 
 	// Decrypt decrypts the ciphertext and returns the result on the provided
 	// receiver plaintext. A Horner method is used for evaluating the
 	// decryption.
+	// The level of the output plaintext is min(ciphertext.Level(), plaintext.Level())
 	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
 }
 
@@ -44,8 +47,6 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 	}
 }
 
-// DecryptNew decrypts the Ciphertext and returns a newly created Plaintext.
-// Horner method is used for evaluating the decryption.
 func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
 
 	plaintext = NewPlaintext(decryptor.params, ciphertext.Level(), ciphertext.Scale())
@@ -55,11 +56,9 @@ func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 	return plaintext
 }
 
-// Decrypt decrypts the Ciphertext and returns the result on the provided receiver Plaintext.
-// Horner method is used for evaluating the decryption.
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
-	level := ciphertext.Level()
+	level := utils.MinUint64(ciphertext.Level(), plaintext.Level())
 
 	plaintext.SetScale(ciphertext.Scale())
 
@@ -80,4 +79,6 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 	if (ciphertext.Degree())&7 != 7 {
 		decryptor.ringQ.ReduceLvl(level, plaintext.value, plaintext.value)
 	}
+
+	plaintext.value.Coeffs = plaintext.value.Coeffs[:level+1]
 }

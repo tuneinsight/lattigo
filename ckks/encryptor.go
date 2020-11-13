@@ -9,52 +9,44 @@ import (
 //
 // encrypt with pk : ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
 // encrypt with sk : ciphertext = [-a*sk + m + e, a]
-//
-// The level of the output ciphetext is min(lvl(plaintext), lvl(ciphertext)).
 type Encryptor interface {
 	// EncryptNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
+	// The level of the output ciphertext is plaintext.Level().
 	EncryptNew(plaintext *Plaintext) *Ciphertext
 
 	// Encrypt encrypts the input plaintext using the stored key, and returns
 	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
+	// The level of the output ciphetext is min(plaintext.Level(), ciphertext.Level()).
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFastNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first
 	// encrypting zero in Q and then adding the plaintext.
+	// The level of the output ciphertext is plaintext.Level().
 	EncryptFastNew(plaintext *Plaintext) *Ciphertext
 
 	// EncryptFsat encrypts the input plaintext using the stored-key, and returns
 	// the result onthe receiver ciphertext. The encryption is done by first
 	// encrypting zero in Q and then adding the plaintext.
+	// The level of the output ciphetext is min(plaintext.Level(), ciphertext.Level()).
 	EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
+	// The level of the output ciphetext is min(plaintext.Level(), len(CRP.Coeffs)-1).
 	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
 
 	// EncryptFromCRP encrypts the input plaintext using the stored key and returns
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
+	// The level of the output ciphetext is min(plaintext.Level(), ciphertext.Level(), len(CRP.Coeffs)-1).
 	EncryptFromCRP(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
-
-	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
-	// the result on a newly created ciphertext. The encryption is done by first encrypting
-	// zero in Q, using the provided polynomial as the uniform polynomial, and
-	// then adding the plaintext.
-	EncryptFromCRPFastNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
-
-	// EncryptFromCRP encrypts the input plaintext using the stored key and returns
-	// the result tge receiver ciphertext. The encryption is done by first encrypting
-	// zero in Q, using the provided polynomial as the uniform polynomial, and
-	// then adding the plaintext.
-	EncryptFromCRPFast(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
 }
 
 // encryptor is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
@@ -190,14 +182,6 @@ func (encryptor *pkEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.
 	panic("Cannot encrypt with CRP using an encryptor created with the public-key")
 }
 
-func (encryptor *pkEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	panic("Cannot encrypt with CRP using an encryptor created with the public-key")
-}
-
-func (encryptor *pkEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
-	panic("Cannot encrypt with CRP using an encryptor created with the public-key")
-}
-
 // Encrypt encrypts the input Plaintext using the stored key, and returns the result
 // on the receiver Ciphertext.
 //
@@ -205,7 +189,7 @@ func (encryptor *pkEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *r
 // encrypt with sk: ciphertext = [-a*sk + m + e, a]
 func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
 
-	lvl := plaintext.Level()
+	lvl := utils.MinUint64(plaintext.Level(), ciphertext.Level())
 
 	poolQ0 := encryptor.poolQ[0]
 	poolQ1 := encryptor.poolQ[1]
@@ -352,25 +336,14 @@ func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.
 }
 
 func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	encryptor.encryptFromCRP(plaintext, ciphertext, crp)
-}
-
-func (encryptor *skEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
-	panic("Cannot Encrypt : SkEncryptor doesn't support EncryptFromCRPFastNew() -> use instead EncryptFromCRPNew()")
-}
-
-func (encryptor *skEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	panic("Cannot Encrypt : SkEncryptor doesn't support EncryptFromCRPFast() -> use instead EncryptFromCRP()")
-
-}
-
-func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ciphertext) {
-	encryptor.uniformSamplerQ.Readlvl(plaintext.Level(), ciphertext.value[1])
+	encryptor.ringQ.Copy(crp, ciphertext.value[1])
+	ciphertext.value[0].Coeffs = ciphertext.value[0].Coeffs[:len(crp.Coeffs)]
+	ciphertext.value[1].Coeffs = ciphertext.value[1].Coeffs[:len(crp.Coeffs)]
 	encryptor.encrypt(plaintext, ciphertext, ciphertext.value[1])
 }
 
-func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	encryptor.ringQ.Copy(crp, ciphertext.value[1])
+func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ciphertext) {
+	encryptor.uniformSamplerQ.Readlvl(utils.MinUint64(plaintext.Level(), ciphertext.Level()), ciphertext.value[1])
 	encryptor.encrypt(plaintext, ciphertext, ciphertext.value[1])
 }
 
@@ -378,7 +351,8 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 	ringQ := encryptor.ringQ
 
-	lvl := plaintext.Level()
+	lvl := utils.MinUint64(plaintext.Level(), ciphertext.Level())
+
 	poolQ0 := encryptor.poolQ[0]
 
 	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])

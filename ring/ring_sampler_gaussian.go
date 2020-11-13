@@ -43,6 +43,14 @@ func (gaussianSampler *GaussianSampler) ReadNew() (pol *Poly) {
 	return pol
 }
 
+// ReadLvlNew samples a new truncated Gaussian polynomial with
+// standard deviation sigma within the given bound using the Ziggurat algorithm.
+func (gaussianSampler *GaussianSampler) ReadLvlNew(level uint64) (pol *Poly) {
+	pol = gaussianSampler.baseRing.NewPolyLvl(level)
+	gaussianSampler.ReadLvl(level, pol)
+	return pol
+}
+
 // ReadLvl samples a polynomial at the given level into pol.
 func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly) {
 

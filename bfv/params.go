@@ -247,7 +247,6 @@ func (p *Parameters) LogModuli() (lm *LogModuli) {
 	for i := range p.pi {
 		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
 	}
-
 	return
 }
 
@@ -258,7 +257,6 @@ func (p *Parameters) Moduli() (m *Moduli) {
 	copy(m.Qi, p.qi)
 	m.Pi = make([]uint64, len(p.pi))
 	copy(m.Pi, p.pi)
-
 	return
 }
 

@@ -382,12 +382,12 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 }
 
 // invbutterfly computes X, Y = U + V, (U - V) * Psi mod Q.
-func invbutterfly(U, V, Psi, twoQ, Q, Qinv uint64) (X, Y uint64) {
+func invbutterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (X, Y uint64) {
 	X = U + V
 	if X >= twoQ {
 		X -= twoQ
 	}
-	Y = MRedConstant(U+twoQ-V, Psi, Q, Qinv) // At the moment it is not possible to use MRedConstant if Q > 61 bits
+	Y = MRedConstant(U+fourQ-V, Psi, Q, Qinv) // At the moment it is not possible to use MRedConstant if Q > 61 bits
 	return
 }
 
@@ -400,7 +400,8 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 	// Copy the result of the first round of butterflies on p2 with approximate reduction
 	t = 1
 	h = N >> 1
-	twoQ := Q << 1
+	twoQ := Q<<1
+	fourQ := Q << 2
 
 	for i := uint64(0); i < h; i = i + 8 {
 
@@ -408,14 +409,14 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 		xin := (*[16]uint64)(unsafe.Pointer(&coeffsIn[2*i]))
 		xout := (*[16]uint64)(unsafe.Pointer(&coeffsOut[2*i]))
 
-		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], twoQ, Q, QInv)
-		xout[2], xout[3] = invbutterfly(xin[2], xin[3], psi[1], twoQ, Q, QInv)
-		xout[4], xout[5] = invbutterfly(xin[4], xin[5], psi[2], twoQ, Q, QInv)
-		xout[6], xout[7] = invbutterfly(xin[6], xin[7], psi[3], twoQ, Q, QInv)
-		xout[8], xout[9] = invbutterfly(xin[8], xin[9], psi[4], twoQ, Q, QInv)
-		xout[10], xout[11] = invbutterfly(xin[10], xin[11], psi[5], twoQ, Q, QInv)
-		xout[12], xout[13] = invbutterfly(xin[12], xin[13], psi[6], twoQ, Q, QInv)
-		xout[14], xout[15] = invbutterfly(xin[14], xin[15], psi[7], twoQ, Q, QInv)
+		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], twoQ, fourQ, Q, QInv)
+		xout[2], xout[3] = invbutterfly(xin[2], xin[3], psi[1], twoQ, fourQ, Q, QInv)
+		xout[4], xout[5] = invbutterfly(xin[4], xin[5], psi[2], twoQ, fourQ, Q, QInv)
+		xout[6], xout[7] = invbutterfly(xin[6], xin[7], psi[3], twoQ, fourQ, Q, QInv)
+		xout[8], xout[9] = invbutterfly(xin[8], xin[9], psi[4], twoQ, fourQ, Q, QInv)
+		xout[10], xout[11] = invbutterfly(xin[10], xin[11], psi[5], twoQ, fourQ, Q, QInv)
+		xout[12], xout[13] = invbutterfly(xin[12], xin[13], psi[6], twoQ, fourQ, Q, QInv)
+		xout[14], xout[15] = invbutterfly(xin[14], xin[15], psi[7], twoQ, fourQ, Q, QInv)
 	}
 
 	// Continue the rest of the second to the n-1 butterflies on p2 with approximate reduction
@@ -438,14 +439,14 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 					x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j]))
 					y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j+t]))
 
-					x[0], y[0] = invbutterfly(x[0], y[0], F, twoQ, Q, QInv)
-					x[1], y[1] = invbutterfly(x[1], y[1], F, twoQ, Q, QInv)
-					x[2], y[2] = invbutterfly(x[2], y[2], F, twoQ, Q, QInv)
-					x[3], y[3] = invbutterfly(x[3], y[3], F, twoQ, Q, QInv)
-					x[4], y[4] = invbutterfly(x[4], y[4], F, twoQ, Q, QInv)
-					x[5], y[5] = invbutterfly(x[5], y[5], F, twoQ, Q, QInv)
-					x[6], y[6] = invbutterfly(x[6], y[6], F, twoQ, Q, QInv)
-					x[7], y[7] = invbutterfly(x[7], y[7], F, twoQ, Q, QInv)
+					x[0], y[0] = invbutterfly(x[0], y[0], F, twoQ, fourQ, Q, QInv)
+					x[1], y[1] = invbutterfly(x[1], y[1], F, twoQ, fourQ, Q, QInv)
+					x[2], y[2] = invbutterfly(x[2], y[2], F, twoQ, fourQ, Q, QInv)
+					x[3], y[3] = invbutterfly(x[3], y[3], F, twoQ, fourQ, Q, QInv)
+					x[4], y[4] = invbutterfly(x[4], y[4], F, twoQ, fourQ, Q, QInv)
+					x[5], y[5] = invbutterfly(x[5], y[5], F, twoQ, fourQ, Q, QInv)
+					x[6], y[6] = invbutterfly(x[6], y[6], F, twoQ, fourQ, Q, QInv)
+					x[7], y[7] = invbutterfly(x[7], y[7], F, twoQ, fourQ, Q, QInv)
 				}
 
 				j1 = j1 + (t << 1)
@@ -458,14 +459,14 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 				psi := (*[2]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
 				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
 
-				x[0], x[4] = invbutterfly(x[0], x[4], psi[0], twoQ, Q, QInv)
-				x[1], x[5] = invbutterfly(x[1], x[5], psi[0], twoQ, Q, QInv)
-				x[2], x[6] = invbutterfly(x[2], x[6], psi[0], twoQ, Q, QInv)
-				x[3], x[7] = invbutterfly(x[3], x[7], psi[0], twoQ, Q, QInv)
-				x[8], x[12] = invbutterfly(x[8], x[12], psi[1], twoQ, Q, QInv)
-				x[9], x[13] = invbutterfly(x[9], x[13], psi[1], twoQ, Q, QInv)
-				x[10], x[14] = invbutterfly(x[10], x[14], psi[1], twoQ, Q, QInv)
-				x[11], x[15] = invbutterfly(x[11], x[15], psi[1], twoQ, Q, QInv)
+				x[0], x[4] = invbutterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, QInv)
+				x[1], x[5] = invbutterfly(x[1], x[5], psi[0], twoQ, fourQ, Q, QInv)
+				x[2], x[6] = invbutterfly(x[2], x[6], psi[0], twoQ, fourQ, Q, QInv)
+				x[3], x[7] = invbutterfly(x[3], x[7], psi[0], twoQ, fourQ, Q, QInv)
+				x[8], x[12] = invbutterfly(x[8], x[12], psi[1], twoQ, fourQ, Q, QInv)
+				x[9], x[13] = invbutterfly(x[9], x[13], psi[1], twoQ, fourQ, Q, QInv)
+				x[10], x[14] = invbutterfly(x[10], x[14], psi[1], twoQ, fourQ, Q, QInv)
+				x[11], x[15] = invbutterfly(x[11], x[15], psi[1], twoQ, fourQ, Q, QInv)
 
 				j1 = j1 + (t << 2)
 			}
@@ -477,14 +478,14 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 				psi := (*[4]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
 				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
 
-				x[0], x[2] = invbutterfly(x[0], x[2], psi[0], twoQ, Q, QInv)
-				x[1], x[3] = invbutterfly(x[1], x[3], psi[0], twoQ, Q, QInv)
-				x[4], x[6] = invbutterfly(x[4], x[6], psi[1], twoQ, Q, QInv)
-				x[5], x[7] = invbutterfly(x[5], x[7], psi[1], twoQ, Q, QInv)
-				x[8], x[10] = invbutterfly(x[8], x[10], psi[2], twoQ, Q, QInv)
-				x[9], x[11] = invbutterfly(x[9], x[11], psi[2], twoQ, Q, QInv)
-				x[12], x[14] = invbutterfly(x[12], x[14], psi[3], twoQ, Q, QInv)
-				x[13], x[15] = invbutterfly(x[13], x[15], psi[3], twoQ, Q, QInv)
+				x[0], x[2] = invbutterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, QInv)
+				x[1], x[3] = invbutterfly(x[1], x[3], psi[0], twoQ, fourQ, Q, QInv)
+				x[4], x[6] = invbutterfly(x[4], x[6], psi[1], twoQ, fourQ, Q, QInv)
+				x[5], x[7] = invbutterfly(x[5], x[7], psi[1], twoQ, fourQ, Q, QInv)
+				x[8], x[10] = invbutterfly(x[8], x[10], psi[2], twoQ, fourQ, Q, QInv)
+				x[9], x[11] = invbutterfly(x[9], x[11], psi[2], twoQ, fourQ, Q, QInv)
+				x[12], x[14] = invbutterfly(x[12], x[14], psi[3], twoQ, fourQ, Q, QInv)
+				x[13], x[15] = invbutterfly(x[13], x[15], psi[3], twoQ, fourQ, Q, QInv)
 
 				j1 = j1 + (t << 3)
 			}
@@ -520,6 +521,7 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 	h = N >> 1
 
 	twoQ := Q << 1
+	fourQ := Q<<2
 
 	for i := uint64(0); i < h; i = i + 8 {
 
@@ -527,14 +529,14 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 		xin := (*[16]uint64)(unsafe.Pointer(&coeffsIn[2*i]))
 		xout := (*[16]uint64)(unsafe.Pointer(&coeffsOut[2*i]))
 
-		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], twoQ, Q, mredParams)
-		xout[2], xout[3] = invbutterfly(xin[2], xin[3], psi[1], twoQ, Q, mredParams)
-		xout[4], xout[5] = invbutterfly(xin[4], xin[5], psi[2], twoQ, Q, mredParams)
-		xout[6], xout[7] = invbutterfly(xin[6], xin[7], psi[3], twoQ, Q, mredParams)
-		xout[8], xout[9] = invbutterfly(xin[8], xin[9], psi[4], twoQ, Q, mredParams)
-		xout[10], xout[11] = invbutterfly(xin[10], xin[11], psi[5], twoQ, Q, mredParams)
-		xout[12], xout[13] = invbutterfly(xin[12], xin[13], psi[6], twoQ, Q, mredParams)
-		xout[14], xout[15] = invbutterfly(xin[14], xin[15], psi[7], twoQ, Q, mredParams)
+		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], twoQ, fourQ, Q, mredParams)
+		xout[2], xout[3] = invbutterfly(xin[2], xin[3], psi[1], twoQ, fourQ, Q, mredParams)
+		xout[4], xout[5] = invbutterfly(xin[4], xin[5], psi[2], twoQ, fourQ, Q, mredParams)
+		xout[6], xout[7] = invbutterfly(xin[6], xin[7], psi[3], twoQ, fourQ, Q, mredParams)
+		xout[8], xout[9] = invbutterfly(xin[8], xin[9], psi[4], twoQ, fourQ, Q, mredParams)
+		xout[10], xout[11] = invbutterfly(xin[10], xin[11], psi[5], twoQ, fourQ, Q, mredParams)
+		xout[12], xout[13] = invbutterfly(xin[12], xin[13], psi[6], twoQ, fourQ, Q, mredParams)
+		xout[14], xout[15] = invbutterfly(xin[14], xin[15], psi[7], twoQ, fourQ, Q, mredParams)
 	}
 
 	// Continue the rest of the second to the n-1 butterflies on p2 with approximate reduction
@@ -557,14 +559,14 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 					x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j]))
 					y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[j+t]))
 
-					x[0], y[0] = invbutterfly(x[0], y[0], F, twoQ, Q, mredParams)
-					x[1], y[1] = invbutterfly(x[1], y[1], F, twoQ, Q, mredParams)
-					x[2], y[2] = invbutterfly(x[2], y[2], F, twoQ, Q, mredParams)
-					x[3], y[3] = invbutterfly(x[3], y[3], F, twoQ, Q, mredParams)
-					x[4], y[4] = invbutterfly(x[4], y[4], F, twoQ, Q, mredParams)
-					x[5], y[5] = invbutterfly(x[5], y[5], F, twoQ, Q, mredParams)
-					x[6], y[6] = invbutterfly(x[6], y[6], F, twoQ, Q, mredParams)
-					x[7], y[7] = invbutterfly(x[7], y[7], F, twoQ, Q, mredParams)
+					x[0], y[0] = invbutterfly(x[0], y[0], F, twoQ, fourQ, Q, mredParams)
+					x[1], y[1] = invbutterfly(x[1], y[1], F, twoQ, fourQ, Q, mredParams)
+					x[2], y[2] = invbutterfly(x[2], y[2], F, twoQ, fourQ, Q, mredParams)
+					x[3], y[3] = invbutterfly(x[3], y[3], F, twoQ, fourQ, Q, mredParams)
+					x[4], y[4] = invbutterfly(x[4], y[4], F, twoQ, fourQ, Q, mredParams)
+					x[5], y[5] = invbutterfly(x[5], y[5], F, twoQ, fourQ, Q, mredParams)
+					x[6], y[6] = invbutterfly(x[6], y[6], F, twoQ, fourQ, Q, mredParams)
+					x[7], y[7] = invbutterfly(x[7], y[7], F, twoQ, fourQ, Q, mredParams)
 				}
 
 				j1 = j1 + (t << 1)
@@ -577,14 +579,14 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 				psi := (*[2]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
 				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
 
-				x[0], x[4] = invbutterfly(x[0], x[4], psi[0], twoQ, Q, mredParams)
-				x[1], x[5] = invbutterfly(x[1], x[5], psi[0], twoQ, Q, mredParams)
-				x[2], x[6] = invbutterfly(x[2], x[6], psi[0], twoQ, Q, mredParams)
-				x[3], x[7] = invbutterfly(x[3], x[7], psi[0], twoQ, Q, mredParams)
-				x[8], x[12] = invbutterfly(x[8], x[12], psi[1], twoQ, Q, mredParams)
-				x[9], x[13] = invbutterfly(x[9], x[13], psi[1], twoQ, Q, mredParams)
-				x[10], x[14] = invbutterfly(x[10], x[14], psi[1], twoQ, Q, mredParams)
-				x[11], x[15] = invbutterfly(x[11], x[15], psi[1], twoQ, Q, mredParams)
+				x[0], x[4] = invbutterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, mredParams)
+				x[1], x[5] = invbutterfly(x[1], x[5], psi[0], twoQ, fourQ, Q, mredParams)
+				x[2], x[6] = invbutterfly(x[2], x[6], psi[0], twoQ, fourQ, Q, mredParams)
+				x[3], x[7] = invbutterfly(x[3], x[7], psi[0], twoQ, fourQ, Q, mredParams)
+				x[8], x[12] = invbutterfly(x[8], x[12], psi[1], twoQ, fourQ, Q, mredParams)
+				x[9], x[13] = invbutterfly(x[9], x[13], psi[1], twoQ, fourQ, Q, mredParams)
+				x[10], x[14] = invbutterfly(x[10], x[14], psi[1], twoQ, fourQ, Q, mredParams)
+				x[11], x[15] = invbutterfly(x[11], x[15], psi[1], twoQ, fourQ, Q, mredParams)
 
 				j1 = j1 + (t << 2)
 			}
@@ -596,14 +598,14 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 				psi := (*[4]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
 				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
 
-				x[0], x[2] = invbutterfly(x[0], x[2], psi[0], twoQ, Q, mredParams)
-				x[1], x[3] = invbutterfly(x[1], x[3], psi[0], twoQ, Q, mredParams)
-				x[4], x[6] = invbutterfly(x[4], x[6], psi[1], twoQ, Q, mredParams)
-				x[5], x[7] = invbutterfly(x[5], x[7], psi[1], twoQ, Q, mredParams)
-				x[8], x[10] = invbutterfly(x[8], x[10], psi[2], twoQ, Q, mredParams)
-				x[9], x[11] = invbutterfly(x[9], x[11], psi[2], twoQ, Q, mredParams)
-				x[12], x[14] = invbutterfly(x[12], x[14], psi[3], twoQ, Q, mredParams)
-				x[13], x[15] = invbutterfly(x[13], x[15], psi[3], twoQ, Q, mredParams)
+				x[0], x[2] = invbutterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, mredParams)
+				x[1], x[3] = invbutterfly(x[1], x[3], psi[0], twoQ, fourQ, Q, mredParams)
+				x[4], x[6] = invbutterfly(x[4], x[6], psi[1], twoQ, fourQ, Q, mredParams)
+				x[5], x[7] = invbutterfly(x[5], x[7], psi[1], twoQ, fourQ, Q, mredParams)
+				x[8], x[10] = invbutterfly(x[8], x[10], psi[2], twoQ, fourQ, Q, mredParams)
+				x[9], x[11] = invbutterfly(x[9], x[11], psi[2], twoQ, fourQ, Q, mredParams)
+				x[12], x[14] = invbutterfly(x[12], x[14], psi[3], twoQ, fourQ, Q, mredParams)
+				x[13], x[15] = invbutterfly(x[13], x[15], psi[3], twoQ, fourQ, Q, mredParams)
 
 				j1 = j1 + (t << 3)
 			}

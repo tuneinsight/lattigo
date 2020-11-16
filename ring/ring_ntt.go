@@ -329,24 +329,22 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 
 		} else {
 
-			if reduce {
+			for i := uint64(0); i < m; i = i + 8 {
 
-				for i := uint64(0); i < m; i = i + 8 {
+				psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[m+i]))
+				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[2*i]))
 
-					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[m+i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[2*i]))
+				x[0], x[1] = butterfly(x[0], x[1], psi[0], twoQ, fourQ, Q, QInv)
+				x[2], x[3] = butterfly(x[2], x[3], psi[1], twoQ, fourQ, Q, QInv)
+				x[4], x[5] = butterfly(x[4], x[5], psi[2], twoQ, fourQ, Q, QInv)
+				x[6], x[7] = butterfly(x[6], x[7], psi[3], twoQ, fourQ, Q, QInv)
+				x[8], x[9] = butterfly(x[8], x[9], psi[4], twoQ, fourQ, Q, QInv)
+				x[10], x[11] = butterfly(x[10], x[11], psi[5], twoQ, fourQ, Q, QInv)
+				x[12], x[13] = butterfly(x[12], x[13], psi[6], twoQ, fourQ, Q, QInv)
+				x[14], x[15] = butterfly(x[14], x[15], psi[7], twoQ, fourQ, Q, QInv)
+			}
 
-					x[0], x[1] = butterfly(x[0], x[1], psi[0], twoQ, fourQ, Q, QInv)
-					x[2], x[3] = butterfly(x[2], x[3], psi[1], twoQ, fourQ, Q, QInv)
-					x[4], x[5] = butterfly(x[4], x[5], psi[2], twoQ, fourQ, Q, QInv)
-					x[6], x[7] = butterfly(x[6], x[7], psi[3], twoQ, fourQ, Q, QInv)
-					x[8], x[9] = butterfly(x[8], x[9], psi[4], twoQ, fourQ, Q, QInv)
-					x[10], x[11] = butterfly(x[10], x[11], psi[5], twoQ, fourQ, Q, QInv)
-					x[12], x[13] = butterfly(x[12], x[13], psi[6], twoQ, fourQ, Q, QInv)
-					x[14], x[15] = butterfly(x[14], x[15], psi[7], twoQ, fourQ, Q, QInv)
-				}
-			} else {
-
+			/*
 				for i := uint64(0); i < m; i = i + 8 {
 
 					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[m+i]))
@@ -376,7 +374,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 					V = MRedConstant(x[15], psi[7], Q, QInv)
 					x[14], x[15] = x[14]+V, x[14]+twoQ-V
 				}
-			}
+			*/
 		}
 	}
 }
@@ -400,7 +398,7 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 	// Copy the result of the first round of butterflies on p2 with approximate reduction
 	t = 1
 	h = N >> 1
-	twoQ := Q<<1
+	twoQ := Q << 1
 	fourQ := Q << 2
 
 	for i := uint64(0); i < h; i = i + 8 {
@@ -521,7 +519,7 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 	h = N >> 1
 
 	twoQ := Q << 1
-	fourQ := Q<<2
+	fourQ := Q << 2
 
 	for i := uint64(0); i < h; i = i + 8 {
 

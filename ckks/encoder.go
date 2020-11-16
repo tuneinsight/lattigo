@@ -24,6 +24,8 @@ type Encoder interface {
 	EncodeNTTAtLvlNew(level uint64, values []complex128, slots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
 	Embed(values []complex128, slots uint64)
+	ScaleUp(pol *ring.Poly, scale float64, moduli []uint64)
+	WipeInternalMemory()
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 }

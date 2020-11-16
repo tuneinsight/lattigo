@@ -23,6 +23,7 @@ type Encoder interface {
 	EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64)
 	EncodeNTTAtLvlNew(level uint64, values []complex128, slots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
+	Embed(values []complex128, slots uint64)
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 }
@@ -141,9 +142,9 @@ func (encoder *encoderComplex128) EncodeNTTAtLvlNew(level uint64, values []compl
 
 // Encode encodes a slice of complex128 of length slots = 2^{n} on the input plaintext.
 func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex128, slots uint64) {
-	encoder.embed(values, slots)
-	encoder.scaleUp(plaintext.value, plaintext.scale, encoder.ringQ.Modulus[:plaintext.Level()+1])
-	encoder.wipeInternalMemory()
+	encoder.Embed(values, slots)
+	encoder.ScaleUp(plaintext.value, plaintext.scale, encoder.ringQ.Modulus[:plaintext.Level()+1])
+	encoder.WipeInternalMemory()
 	plaintext.isNTT = false
 }
 
@@ -155,7 +156,9 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 	plaintext.isNTT = true
 }
 
-func (encoder *encoderComplex128) embed(values []complex128, slots uint64) {
+// Embed encodes a vector and stores internaly the encoded values
+// To be used in conjonction with ScaleUp.
+func (encoder *encoderComplex128) Embed(values []complex128, slots uint64) {
 
 	if uint64(len(values)) > encoder.params.N()/2 || uint64(len(values)) > slots {
 		panic("cannot Encode: too many values for the given number of slots")
@@ -179,11 +182,12 @@ func (encoder *encoderComplex128) embed(values []complex128, slots uint64) {
 	}
 }
 
-func (encoder *encoderComplex128) scaleUp(pol *ring.Poly, scale float64, moduli []uint64) {
+// ScaleUp writes the internaly stored encoded values on a polynomial
+func (encoder *encoderComplex128) ScaleUp(pol *ring.Poly, scale float64, moduli []uint64) {
 	scaleUpVecExact(encoder.valuesfloat, scale, moduli, pol.Coeffs)
 }
 
-func (encoder *encoderComplex128) wipeInternalMemory() {
+func (encoder *encoderComplex128) WipeInternalMemory() {
 	for i := range encoder.values {
 		encoder.values[i] = 0
 	}

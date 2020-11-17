@@ -11,6 +11,16 @@ type ChebyshevInterpolation struct {
 	b complex128
 }
 
+// A returns the start of the approximation interval.
+func (c *ChebyshevInterpolation) A() complex128 {
+	return c.a
+}
+
+// B returns the end of the approximation interval.
+func (c *ChebyshevInterpolation) B() complex128 {
+	return c.b
+}
+
 // Approximate computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
 // To be used in conjunction with the function EvaluateCheby.
 func Approximate(function func(complex128) complex128, a, b complex128, degree int) (cheby *ChebyshevInterpolation) {

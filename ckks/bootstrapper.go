@@ -532,21 +532,21 @@ func (btp *Bootstrapper) encodePVec(pVec map[uint64][]complex128, plaintextVec *
 			//  levels * n coefficients of 8 bytes each
 			btp.plaintextSize += 8 * N * (level + 1 + btp.params.PiCount())
 
-			encoder.embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:btp.dslots], btp.logdslots)
+			encoder.Embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:btp.dslots], btp.logdslots)
 
 			plaintextQ := ring.NewPoly(N, level+1)
-			encoder.scaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
+			encoder.ScaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
 			ringQ.NTTLvl(level, plaintextQ, plaintextQ)
 			ringQ.MFormLvl(level, plaintextQ, plaintextQ)
 
 			plaintextP := ring.NewPoly(N, level+1)
-			encoder.scaleUp(plaintextP, scale, ringP.Modulus)
+			encoder.ScaleUp(plaintextP, scale, ringP.Modulus)
 			ringP.NTT(plaintextP, plaintextP)
 			ringP.MForm(plaintextP, plaintextP)
 
 			plaintextVec.Vec[N1*j+uint64(i)] = [2]*ring.Poly{plaintextQ, plaintextP}
 
-			encoder.wipeInternalMemory()
+			encoder.WipeInternalMemory()
 
 		}
 	}

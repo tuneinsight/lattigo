@@ -7,13 +7,6 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-const precision = uint64(56)
-
-type baseSampler struct {
-	prng     utils.PRNG
-	baseRing *Ring
-}
-
 // TernarySampler keeps the state of a polynomial sampler in the ternary distribution.
 type TernarySampler struct {
 	baseSampler
@@ -21,7 +14,7 @@ type TernarySampler struct {
 	matrixValues [][3]uint64
 	p            float64
 	hw           uint64
-	sample       func(poly *Poly)
+	sample       func(lvl uint64, poly *Poly)
 }
 
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
@@ -60,13 +53,25 @@ func NewTernarySamplerSparse(prng utils.PRNG, baseRing *Ring, hw uint64, montgom
 
 // Read samples a polynomial into pol.
 func (ts *TernarySampler) Read(pol *Poly) {
-	ts.sample(pol)
+	ts.sample(uint64(len(ts.baseRing.Modulus)-1), pol)
 }
 
-// ReadNew allocates and samples a polynomial.
+// ReadLvl samples a polynomial into pol at the speciefied level.
+func (ts *TernarySampler) ReadLvl(lvl uint64, pol *Poly) {
+	ts.sample(lvl, pol)
+}
+
+// ReadNew allocates and samples a polynomial at the max level.
 func (ts *TernarySampler) ReadNew() (pol *Poly) {
 	pol = ts.baseRing.NewPoly()
-	ts.sample(pol)
+	ts.sample(uint64(len(ts.baseRing.Modulus)-1), pol)
+	return pol
+}
+
+// ReadLvlNew allocates and samples a polynomial at the speficied level.
+func (ts *TernarySampler) ReadLvlNew(lvl uint64) (pol *Poly) {
+	pol = ts.baseRing.NewPolyLvl(lvl)
+	ts.sample(lvl, pol)
 	return pol
 }
 
@@ -109,7 +114,7 @@ func (ts *TernarySampler) computeMatrixTernary(p float64) {
 
 }
 
-func (ts *TernarySampler) sampleProba(pol *Poly) {
+func (ts *TernarySampler) sampleProba(lvl uint64, pol *Poly) {
 
 	if ts.p == 0 {
 		panic("cannot sample -> p = 0")
@@ -134,7 +139,7 @@ func (ts *TernarySampler) sampleProba(pol *Poly) {
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
-			for j := range ts.baseRing.Modulus {
+			for j := uint64(0); j < lvl+1; j++ {
 				pol.Coeffs[j][i] = ts.matrixValues[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
 			}
 		}
@@ -154,14 +159,14 @@ func (ts *TernarySampler) sampleProba(pol *Poly) {
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
-			for j := range ts.baseRing.Modulus {
+			for j := uint64(0); j < lvl+1; j++ {
 				pol.Coeffs[j][i] = ts.matrixValues[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
 			}
 		}
 	}
 }
 
-func (ts *TernarySampler) sampleSparse(pol *Poly) {
+func (ts *TernarySampler) sampleSparse(lvl uint64, pol *Poly) {
 
 	if ts.hw > ts.baseRing.N {
 		ts.hw = ts.baseRing.N
@@ -189,8 +194,8 @@ func (ts *TernarySampler) sampleSparse(pol *Poly) {
 		}
 
 		coeff = (uint8(randomBytes[0]) >> (i & 7)) & 1 // random binary digit [0, 1] from the random bytes
-		for i := range ts.baseRing.Modulus {
-			pol.Coeffs[i][index[j]] = ts.matrixValues[i][coeff]
+		for k := uint64(0); k < lvl+1; k++ {
+			pol.Coeffs[k][index[j]] = ts.matrixValues[k][coeff]
 		}
 
 		// Remove the element in position j of the slice (order not preserved)

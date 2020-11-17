@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/require"
@@ -136,7 +137,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		type Party struct {
 			*CKGProtocol
 			s  *ring.Poly
-			s1 CKGShare
+			s1 *drlwe.CKGShare
 		}
 
 		ckgParties := make([]*Party, parties)
@@ -719,7 +720,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		}
 
-		KeyGenShareAfter := new(CKGShare)
+		KeyGenShareAfter := new(drlwe.CKGShare)
 		err = KeyGenShareAfter.UnmarshalBinary(data)
 		if err != nil {
 			log.Fatal("Could not unmarshal the CKGShare : ", err)

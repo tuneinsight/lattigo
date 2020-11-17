@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -146,7 +147,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		type Party struct {
 			*CKGProtocol
 			s  *ring.Poly
-			s1 CKGShare
+			s1 *drlwe.CKGShare
 		}
 
 		ckgParties := make([]*Party, parties)

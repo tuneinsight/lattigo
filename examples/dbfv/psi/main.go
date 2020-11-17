@@ -9,6 +9,7 @@ import (
 
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/dbfv"
+	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -35,14 +36,13 @@ type party struct {
 	sk         *bfv.SecretKey
 	rlkEphemSk *ring.Poly
 
-	ckgShare    dbfv.CKGShare
+	ckgShare    *drlwe.CKGShare
 	rkgShareOne dbfv.RKGShare
 	rkgShareTwo dbfv.RKGShare
 	pcksShare   dbfv.PCKSShare
 
 	input []uint64
 }
-
 type multTask struct {
 	wg              *sync.WaitGroup
 	op1             *bfv.Ciphertext

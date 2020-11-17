@@ -171,10 +171,11 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 // PtDiagMatrix is a struct storing a plaintext diagonalized matrix
 // ready to be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 type PtDiagMatrix struct {
-	N1    uint64                   // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
-	Level uint64                   // Level is the level at which the matrix is encoded (can be circuit dependant)
-	Scale float64                  // Scale is the scale at which the matrix is encoded (can be circuit dependant)
-	Vec   map[uint64][2]*ring.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
+	LogSlots uint64                   // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
+	N1       uint64                   // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
+	Level    uint64                   // Level is the level at which the matrix is encoded (can be circuit dependant)
+	Scale    float64                  // Scale is the scale at which the matrix is encoded (can be circuit dependant)
+	Vec      map[uint64][2]*ring.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
 }
 
 // EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.

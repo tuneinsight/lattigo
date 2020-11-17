@@ -307,7 +307,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 			rotkey := rckks.NewRotationKeys()
 			P0.Finalize(testCtx.params, P0.share, crp, rotkey)
 
-			evaluator.RotateColumns(ciphertext, k, rotkey, receiver)
+			evaluator.Rotate(ciphertext, k, rotkey, receiver)
 
 			coeffsWant := make([]float64, ringQP.N)
 

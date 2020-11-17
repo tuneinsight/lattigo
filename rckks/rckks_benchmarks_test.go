@@ -229,7 +229,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Evaluator/Rotate/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
+			evaluator.Rotate(ciphertext1, 1, rotkey, ciphertext1)
 		}
 	})
 }

@@ -72,6 +72,7 @@ func TestCKKS(t *testing.T) {
 		}
 
 		for _, testSet := range []func(testContext *testParams, t *testing.T){
+
 			testParameters,
 			testEncoder,
 			testEncryptor,

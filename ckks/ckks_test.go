@@ -145,19 +145,17 @@ func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams
 
 func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
-	slots := testContext.params.Slots()
+	logSlots := testContext.params.LogSlots()
 
-	values = make([]complex128, slots)
+	values = make([]complex128, 1<<logSlots)
 
-	for i := uint64(0); i < slots; i++ {
+	for i := uint64(0); i < 1<<logSlots; i++ {
 		values[i] = complex(randomFloat(real(a), real(b)), randomFloat(imag(a), imag(b)))
 	}
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
-
-	testContext.encoder.EncodeNTT(plaintext, values, slots)
+	plaintext = testContext.encoder.EncodeNTTAtLvlNew(testContext.params.MaxLevel(), values, logSlots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)
@@ -248,19 +246,17 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Encryptor/EncryptFromPkFast/Lvl=Max/"), func(t *testing.T) {
 
-		slots := testContext.params.Slots()
+		logSlots := testContext.params.LogSlots()
 
-		values := make([]complex128, slots)
+		values := make([]complex128, 1<<logSlots)
 
-		for i := uint64(0); i < slots; i++ {
+		for i := uint64(0); i < 1<<logSlots; i++ {
 			values[i] = randomComplex(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
 
-		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
-
-		testContext.encoder.Encode(plaintext, values, slots)
+		plaintext := testContext.encoder.EncodeNew(values, logSlots)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorPk.EncryptFastNew(plaintext), t)
 	})
@@ -278,19 +274,17 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 			t.Skip("skipping test for params max level < 1")
 		}
 
-		slots := testContext.params.Slots()
+		logSlots := testContext.params.LogSlots()
 
-		values := make([]complex128, slots)
+		values := make([]complex128, 1<<logSlots)
 
-		for i := uint64(0); i < slots; i++ {
+		for i := uint64(0); i < 1<<logSlots; i++ {
 			values[i] = randomComplex(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
 
-		plaintext := NewPlaintext(testContext.params, 1, testContext.params.Scale())
-
-		testContext.encoder.Encode(plaintext, values, slots)
+		plaintext := testContext.encoder.EncodeAtLvlNew(1, values, logSlots)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorPk.EncryptNew(plaintext), t)
 	})
@@ -301,19 +295,17 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 			t.Skip("skipping test for params max level < 1")
 		}
 
-		slots := testContext.params.Slots()
+		logSlots := testContext.params.LogSlots()
 
-		values := make([]complex128, slots)
+		values := make([]complex128, 1<<logSlots)
 
-		for i := uint64(0); i < slots; i++ {
+		for i := uint64(0); i < 1<<logSlots; i++ {
 			values[i] = randomComplex(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
 
-		plaintext := NewPlaintext(testContext.params, 1, testContext.params.Scale())
-
-		testContext.encoder.Encode(plaintext, values, slots)
+		plaintext := testContext.encoder.EncodeAtLvlNew(1, values, logSlots)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorPk.EncryptFastNew(plaintext), t)
 	})
@@ -324,19 +316,17 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 			t.Skip("skipping test for params max level < 1")
 		}
 
-		slots := testContext.params.Slots()
+		logSlots := testContext.params.LogSlots()
 
-		values := make([]complex128, slots)
+		values := make([]complex128, 1<<logSlots)
 
-		for i := uint64(0); i < slots; i++ {
+		for i := uint64(0); i < 1<<logSlots; i++ {
 			values[i] = randomComplex(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
 
-		plaintext := NewPlaintext(testContext.params, 1, testContext.params.Scale())
-
-		testContext.encoder.Encode(plaintext, values, slots)
+		plaintext := testContext.encoder.EncodeAtLvlNew(1, values, logSlots)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorSk.EncryptNew(plaintext), t)
 	})
@@ -850,6 +840,8 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 			t.Skip("skipping test for params max level < 5")
 		}
 
+		eval := testContext.evaluator
+
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, 0), complex(1, 0), t)
 
 		cheby := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
@@ -858,7 +850,11 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Sin(values[i])
 		}
 
-		if ciphertext, err = testContext.evaluator.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+		eval.MultByConst(ciphertext, 2/(cheby.b-cheby.a), ciphertext)
+		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
+		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
+
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
 			t.Error(err)
 		}
 
@@ -943,7 +939,7 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 				values2[i] = values1[(i+n)%len(values1)]
 			}
 
-			testContext.evaluator.RotateColumns(ciphertext1, uint64(n), rotKey, ciphertext2)
+			testContext.evaluator.Rotate(ciphertext1, uint64(n), rotKey, ciphertext2)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 		}
@@ -964,7 +960,7 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 				values2[i] = values1[(i+n)%len(values1)]
 			}
 
-			ciphertext2 = testContext.evaluator.RotateColumnsNew(ciphertext1, uint64(n), rotKey)
+			ciphertext2 = testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 		}
@@ -987,7 +983,7 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 				values2[i] = values1[(i+int(rand))%len(values1)]
 			}
 
-			testContext.evaluator.RotateColumns(ciphertext1, rand, rotKey, ciphertext2)
+			testContext.evaluator.Rotate(ciphertext1, rand, rotKey, ciphertext2)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 		}

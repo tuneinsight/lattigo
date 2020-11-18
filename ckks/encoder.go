@@ -185,6 +185,7 @@ type PtDiagMatrix struct {
 func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map[uint64][]complex128, scale, maxM1N2Ratio float64, logSlots uint64) (matrix *PtDiagMatrix) {
 
 	matrix = new(PtDiagMatrix)
+	matrix.LogSlots = logSlots
 	matrix.N1 = findbestbabygiantstepsplit(vector, 1<<logSlots, maxM1N2Ratio)
 
 	var N, N1 uint64

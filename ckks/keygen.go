@@ -562,7 +562,7 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 // the evaluation of the plaintext matrix on a ciphertext using evaluator.MultiplyByDiagMatrice.
 func (keygen *keyGenerator) GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *SecretKey, rotKeys *RotationKeys) {
 
-	slots := matrix.LogSlots
+	slots := uint64(1 << matrix.LogSlots)
 
 	rotKeyIndex := []uint64{}
 

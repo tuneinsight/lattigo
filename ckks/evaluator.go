@@ -1857,11 +1857,9 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 	}
 }
 
-func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*PtDiagMatrix, rotkeys *RotationKeys) (res []*Ciphertext){
-
+func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*PtDiagMatrix, rotkeys *RotationKeys) (res []*Ciphertext) {
 
 	res = make([]*Ciphertext, len(matrices))
-
 
 	// Pre-computation for rotations using hoisting
 	ringQ := eval.ringQ
@@ -1871,7 +1869,7 @@ func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*
 	levelP := eval.params.PiCount() - 1
 
 	c2NTT := vec.value[1]
-	c2InvNTT := ringQ.NewPoly() // TODO : maybe have a pre-allocated memory pool ?
+	c2InvNTT := eval.poolQMul[0] // TODO : maybe have a pre-allocated memory pool ?
 	ringQ.InvNTTLvl(vec.Level(), c2NTT, c2InvNTT)
 
 	alpha := eval.params.Alpha()
@@ -1887,9 +1885,7 @@ func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*
 		eval.decomposeAndSplitNTT(vec.Level(), i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
 	}
 
-	c2InvNTT = nil
-
-	for i, matrix := range matrices{
+	for i, matrix := range matrices {
 
 		var N1 uint64
 
@@ -1944,14 +1940,12 @@ func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*
 		N1Rot := 0
 		N2Rot := 0
 
-		c0 := vec.value[0].CopyNew()
-
-		ringQ.MulScalarBigintLvl(levelQ, c0, ringP.ModulusBigint, c0) // P*c0
+		ringQ.MulScalarBigintLvl(levelQ, vec.value[0], ringP.ModulusBigint, tmpQ0) // P*c0
 
 		for _, i := range rotations {
 			if i != 0 {
-				ring.PermuteNTTWithIndexLvl(levelQ, c0, rotkeys.permuteNTTLeftIndex[i], tmpQ0) // phi(P*c0)
-				ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ0, vecRotQ[i][0])                      // phi(d0_Q) += phi(P*c0)
+				ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, rotkeys.permuteNTTLeftIndex[i], tmpQ1) // phi(P*c0)
+				ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ1, vecRotQ[i][0])                         // phi(d0_Q) += phi(P*c0)
 			}
 		}
 
@@ -2014,7 +2008,7 @@ func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*
 
 				// Outer loop rotations
 				ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, rotkeys.permuteNTTLeftIndex[N1*j], tmpQ1) // phi(tmpRes_0)
-				ringQ.AddLvl(levelQ, res[i].value[0], tmpQ1, res[i].value[0])                              // res += phi(tmpRes)
+				ringQ.AddLvl(levelQ, res[i].value[0], tmpQ1, res[i].value[0])                        // res += phi(tmpRes)
 
 				rot := rotkeys.permuteNTTLeftIndex[N1*j]
 
@@ -2083,9 +2077,11 @@ func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*
 
 		res[i].SetScale(matrix.Scale * vec.Scale())
 
-		vecRotQ, vecRotP, c0 = nil, nil, nil
-
+		vecRotQ, vecRotP = nil, nil
 	}
+
+	c2QiQDecomp = nil
+	c2QiPDecomp = nil
 
 	return
 }
@@ -2094,10 +2090,8 @@ func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*
 // Use encoder.EncodeDiagMatrixAtLvl to encode such plaintext matrices.
 // Does not rescale the ciphertext automatically.
 func (eval *evaluator) MultiplyByDiagMatrice(vec *Ciphertext, matrix *PtDiagMatrix, rotkeys *RotationKeys) (res *Ciphertext) {
-	return  eval.MultiplyByDiabMatrixHoisted(vec, []*PtDiagMatrix{matrix}, rotkeys)[0]
+	return eval.MultiplyByDiabMatrixHoisted(vec, []*PtDiagMatrix{matrix}, rotkeys)[0]
 }
-
-
 
 func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, rotkeys *RotationKeys) (cOutQ, cOutP map[uint64][2]*ring.Poly) {
 
@@ -2116,9 +2110,6 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint6
 			eval.permuteNTTHoistedNoModDown(ct0, c2QiQDecomp, c2QiPDecomp, i, rotkeys, cOutQ[i], cOutP[i])
 		}
 	}
-
-	c2QiQDecomp = nil
-	c2QiPDecomp = nil
 
 	return
 }

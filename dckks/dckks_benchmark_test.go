@@ -78,17 +78,16 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*RKGProtocol
-		u      *ring.Poly
-		s      *ring.Poly
-		share1 RKGShare
-		share2 RKGShare
+		ephSk  *ring.Poly
+		sk     *ring.Poly
+		share1 *drlwe.RKGShare
+		share2 *drlwe.RKGShare
 	}
 
 	p := new(Party)
 	p.RKGProtocol = NewEkgProtocol(testCtx.params)
-	p.u = p.RKGProtocol.NewEphemeralKey()
-	p.s = sk0Shards[0].Get()
-	p.share1, p.share2 = p.RKGProtocol.AllocateShares()
+	p.sk = sk0Shards[0].Get()
+	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
 	crp := make([]*ring.Poly, testCtx.params.Beta())
@@ -100,28 +99,28 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RelinKeyGen/Round1Gen/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundOne(p.u, p.s, crp, p.share1)
+			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
 		}
 	})
 
 	b.Run(testString("RelinKeyGen/Round1Agg/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShareRoundOne(p.share1, p.share1, p.share1)
+			p.AggregateShares(p.share1, p.share1, p.share1)
 		}
 	})
 
 	b.Run(testString("RelinKeyGen/Round2Gen/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundTwo(p.share1, p.u, p.s, crp, p.share2)
+			p.GenShareRoundTwo(p.share1, p.ephSk, p.sk, crp, p.share2)
 		}
 	})
 
 	b.Run(testString("RelinKeyGen/Round2Agg/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShareRoundTwo(p.share2, p.share2, p.share2)
+			p.AggregateShares(p.share2, p.share2, p.share2)
 		}
 	})
 

@@ -192,10 +192,10 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*RKGProtocol
-			u      *ring.Poly
-			s      *ring.Poly
-			share1 RKGShare
-			share2 RKGShare
+			ephSk  *ring.Poly
+			sk     *ring.Poly
+			share1 *drlwe.RKGShare
+			share2 *drlwe.RKGShare
 		}
 
 		rkgParties := make([]*Party, parties)
@@ -203,9 +203,8 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		for i := range rkgParties {
 			p := new(Party)
 			p.RKGProtocol = NewEkgProtocol(testCtx.params)
-			p.u = p.NewEphemeralKey()
-			p.s = sk0Shards[i].Get()
-			p.share1, p.share2 = p.AllocateShares()
+			p.sk = sk0Shards[i].Get()
+			p.ephSk, p.share1, p.share2 = p.AllocateShares()
 			rkgParties[i] = p
 		}
 
@@ -220,22 +219,22 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 		// ROUND 1
 		for i, p := range rkgParties {
-			p.GenShareRoundOne(p.u, p.s, crp, p.share1)
+			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
 			if i > 0 {
-				P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
+				P0.AggregateShares(p.share1, P0.share1, P0.share1)
 			}
 		}
 
 		//ROUND 2
 		for i, p := range rkgParties {
-			p.GenShareRoundTwo(P0.share1, p.u, p.s, crp, p.share2)
+			p.GenShareRoundTwo(P0.share1, p.ephSk, p.sk, crp, p.share2)
 			if i > 0 {
-				P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
+				P0.AggregateShares(p.share2, P0.share2, P0.share2)
 			}
 		}
 
 		evk := ckks.NewRelinKey(testCtx.params)
-		P0.GenRelinearizationKey(P0.share1, P0.share2, evk)
+		P0.GenCKKSRelinearizationKey(P0.share1, P0.share2, evk)
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 

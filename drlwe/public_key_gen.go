@@ -39,12 +39,12 @@ func (share *CKGShare) UnmarshalBinary(data []byte) error {
 }
 
 // NewCKGProtocol creates a new CKGProtocol instance
-func NewCKGProtocol(n uint64, q, p []uint64, sigma float64) *CKGProtocol {
+func NewCKGProtocol(n uint64, q, p []uint64, sigma float64) *CKGProtocol { // TODO drlwe.Params
 
 	ckg := new(CKGProtocol)
 	var err error
 	if ckg.ringQ, err = ring.NewRing(n, q); err != nil {
-		panic(err)
+		panic(err) // TODO error
 	}
 
 	if ckg.ringP, err = ring.NewRing(n, p); err != nil {

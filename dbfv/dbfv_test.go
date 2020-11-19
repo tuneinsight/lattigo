@@ -191,7 +191,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 		for i := range rkgParties {
 			p := new(Party)
-			p.RKGProtocol = NewEkgProtocol(testCtx.params)
+			p.RKGProtocol = NewRKGProtocol(testCtx.params)
 			p.sk = sk0Shards[i].Get()
 			p.ephSk, p.share1, p.share2 = p.AllocateShares()
 			rkgParties[i] = p
@@ -238,7 +238,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		res := bfv.NewCiphertext(testCtx.params, 1)
 		evaluator.Relinearize(ciphertextMul, evk, res)
 
-		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertextMul, t)
+		verifyTestVectors(testCtx, decryptorSk0, coeffs, res, t)
 	})
 
 }
@@ -304,7 +304,7 @@ func testRelinKeyGenNaive(testCtx *testContext, t *testing.T) {
 		res := bfv.NewCiphertext(testCtx.params, 1)
 		evaluator.Relinearize(ciphertextMul, evk, res)
 
-		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertextMul, t)
+		verifyTestVectors(testCtx, decryptorSk0, coeffs, res, t)
 	})
 }
 
@@ -875,7 +875,7 @@ func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 
 	t.Run(fmt.Sprintf("Marshalling/RLKG/N=%d/limbQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(t *testing.T) {
 
-		rlk := NewEkgProtocol(testCtx.params)
+		rlk := NewRKGProtocol(testCtx.params)
 
 		u, r1, r2 := rlk.AllocateShares()
 		rlk.GenShareRoundOne(testCtx.sk0.Get(), crp, u, r1)

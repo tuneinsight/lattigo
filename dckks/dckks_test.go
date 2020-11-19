@@ -21,7 +21,7 @@ var minPrec float64 = 15.0
 var parties uint64 = 3
 
 func testString(opname string, parties uint64, params *ckks.Parameters) string {
-	return fmt.Sprintf("%sparties=%d/logN=%d/logQ=%d/levels=%d/a=%d/b=%d",
+	return fmt.Sprintf("%sparties=%d/logN=%d/logQ=%d/levels=%d/alpha=%d/beta=%d",
 		opname,
 		parties,
 		params.LogN(),

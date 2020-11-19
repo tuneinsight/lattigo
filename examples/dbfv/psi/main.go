@@ -37,8 +37,8 @@ type party struct {
 	rlkEphemSk *ring.Poly
 
 	ckgShare    *drlwe.CKGShare
-	rkgShareOne dbfv.RKGShare
-	rkgShareTwo dbfv.RKGShare
+	rkgShareOne *drlwe.RKGShare
+	rkgShareTwo *drlwe.RKGShare
 	pcksShare   dbfv.PCKSShare
 
 	input []uint64
@@ -267,9 +267,6 @@ func genparties(params *bfv.Parameters, N int, sampler *ring.TernarySampler, rin
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
 
-		pi.rlkEphemSk = sampler.ReadNew()
-		ringQP.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
-
 		P[i] = pi
 	}
 
@@ -338,10 +335,10 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 
 	l.Println("> RKG Phase")
 
-	rkg := dbfv.NewEkgProtocol(params) // Relineariation key generation
+	rkg := dbfv.NewRKGProtocol(params) // Relineariation key generation
 
 	for _, pi := range P {
-		pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
+		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
 	}
 
 	crp := make([]*ring.Poly, params.Beta()) // for the relinearization keys
@@ -351,15 +348,15 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundOne(pi.rlkEphemSk, pi.sk.Get(), crp, pi.rkgShareOne)
+			rkg.GenShareRoundOne(pi.sk.Get(), crp, pi.rlkEphemSk, pi.rkgShareOne)
 		}
 	}, len(P))
 
-	rkgCombined1, rkgCombined2 := rkg.AllocateShares()
+	_, rkgCombined1, rkgCombined2 := rkg.AllocateShares()
 
 	elapsedRKGCloud = runTimed(func() {
 		for _, pi := range P {
-			rkg.AggregateShareRoundOne(pi.rkgShareOne, rkgCombined1, rkgCombined1)
+			rkg.AggregateShares(pi.rkgShareOne, rkgCombined1, rkgCombined1)
 		}
 	})
 
@@ -372,9 +369,9 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	rlk := bfv.NewRelinKey(params, 1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
-			rkg.AggregateShareRoundTwo(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
+			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
 		}
-		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
+		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk.Get()[0].Get())
 	})
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedRKGCloud, elapsedRKGParty)

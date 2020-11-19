@@ -121,6 +121,8 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephSkO
 		// s*a + e_2i
 		ekg.ringQP.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut.value[i][1])
 	}
+
+	//ekg.tmpPoly1.Zero()
 }
 
 // GenShareRoundTwo is the second of three rounds of the RKGProtocol protocol. Upon receiving the j-1 shares, each party computes :

@@ -12,9 +12,9 @@ import (
 type RelinearizationKeyGenerator interface {
 	AllocateShares() (ephKey *ring.Poly, r1 *RKGShare, r2 *RKGShare)
 	GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephKeyOut *ring.Poly, shareOut *RKGShare)
-	GenShareRoundTwo(u, sk *ring.Poly, round1Share *RKGShare, crp []*ring.Poly, shareOut *RKGShare)
+	GenShareRoundTwo(ephSk, sk *ring.Poly, round1 *RKGShare, crp []*ring.Poly, shareOut *RKGShare)
 	AggregateShares(share1, share2, shareOut *RKGShare)
-	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut [][2]*ring.Poly)
+	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut [][2]*ring.Poly) // TODO type for generic eval key
 }
 
 // RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
@@ -136,7 +136,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephSkO
 // = [s_i * (-u*a + s*w + e) + e_i1, s_i*a + e_i2]
 //
 // and broadcasts both values to the other j-1 parties.
-func (ekg *RKGProtocol) GenShareRoundTwo(round1 *RKGShare, ephSk, sk *ring.Poly, crp []*ring.Poly, shareOut *RKGShare) {
+func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *ring.Poly, round1 *RKGShare, crp []*ring.Poly, shareOut *RKGShare) {
 	// (u_i - s_i)
 	ekg.ringQP.Sub(ephSk, sk, ekg.tmpPoly1)
 

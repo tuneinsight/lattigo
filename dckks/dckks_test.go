@@ -227,7 +227,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 		//ROUND 2
 		for i, p := range rkgParties {
-			p.GenShareRoundTwo(P0.share1, p.ephSk, p.sk, crp, p.share2)
+			p.GenShareRoundTwo(p.ephSk, p.sk, P0.share1, crp, p.share2)
 			if i > 0 {
 				P0.AggregateShares(p.share2, P0.share2, P0.share2)
 			}

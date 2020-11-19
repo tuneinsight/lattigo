@@ -119,7 +119,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	b.Run(testString("RelinKeyGen/Round2/Gen", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundTwo(p.share1, p.ephSk, p.sk, crp, p.share2)
+			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, crp, p.share2)
 		}
 	})
 

@@ -172,6 +172,7 @@ func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
 	}
 }
 
+// GenRelinearizationKey computes the generated RLK from the public shares and write the result in evalKeyOut
 func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut [][2]*ring.Poly) {
 	for i := uint64(0); i < ekg.beta; i++ {
 		ekg.ringQP.Add(round2.value[i][0], round2.value[i][1], evalKeyOut[i][0])

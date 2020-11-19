@@ -10,11 +10,11 @@ import (
 
 // RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol
 type RelinearizationKeyGenerator interface {
-	AllocateShares() (ephKey ring.Poly, r1 RKGShare, r2 RKGShare)
-	GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephKeyOut *ring.Poly, shareOut RKGShare)
-	GenShareRoundTwo(u, sk *ring.Poly, round1Share RKGShare, crp []*ring.Poly, shareOut RKGShare)
-	AggregateShares(share1, share2, shareOut RKGShare)
-	GenRelinearizationKey(round1 RKGShare, round2 RKGShare, evalKeyOut [][2]*ring.Poly)
+	AllocateShares() (ephKey ring.Poly, r1 *RKGShare, r2 *RKGShare)
+	GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephKeyOut *ring.Poly, shareOut *RKGShare)
+	GenShareRoundTwo(u, sk *ring.Poly, round1Share *RKGShare, crp []*ring.Poly, shareOut *RKGShare)
+	AggregateShares(share1, share2, shareOut *RKGShare)
+	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut [][2]*ring.Poly)
 }
 
 // RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.

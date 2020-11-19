@@ -60,8 +60,10 @@ type Evaluator interface {
 	InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext)
 	EvaluatePoly(ct *Ciphertext, coeffs *Poly, evakey *EvaluationKey) (res *Ciphertext, err error)
 	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error)
-	MultiplyByDiagMatrice(vec *Ciphertext, plainVectors *PtDiagMatrix, rotkeys *RotationKeys) (res *Ciphertext)
+	MultiplyByDiagMatrix(vec *Ciphertext, plainVectors *PtDiagMatrix, rotkeys *RotationKeys) (res *Ciphertext)
 	MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*PtDiagMatrix, rotkeys *RotationKeys) (res []*Ciphertext)
+	MultiplyByDiagMatrixNaive(vec *Ciphertext, matrix *PtDiagMatrix, rotkeys *RotationKeys) (res *Ciphertext)
+	MultiplyByDiabMatrixNaiveHoisted(vec *Ciphertext, matrices []*PtDiagMatrix, rotkeys *RotationKeys) (res []*Ciphertext)
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
@@ -1857,6 +1859,125 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 	}
 }
 
+func (eval *evaluator) MultiplyByDiabMatrixNaiveHoisted(vec *Ciphertext, matrices []*PtDiagMatrix, rotkeys *RotationKeys) (res []*Ciphertext) {
+	res = make([]*Ciphertext, len(matrices))
+
+	// Pre-computation for rotations using hoisting
+	ringQ := eval.ringQ
+	ringP := eval.ringP
+
+	levelQ := vec.Level()
+	//levelP := eval.params.PiCount() - 1
+
+	c2NTT := vec.value[1]
+	c2InvNTT := eval.poolQMul[0] // TODO : maybe have a pre-allocated memory pool ?
+	ringQ.InvNTTLvl(vec.Level(), c2NTT, c2InvNTT)
+
+	alpha := eval.params.Alpha()
+	beta := uint64(math.Ceil(float64(vec.Level()+1) / float64(alpha)))
+
+	// TODO : maybe have a pre-allocated memory pool ?
+	c2QiQDecomp := make([]*ring.Poly, beta)
+	c2QiPDecomp := make([]*ring.Poly, beta)
+
+	for i := uint64(0); i < beta; i++ {
+		c2QiQDecomp[i] = ringQ.NewPoly()
+		c2QiPDecomp[i] = ringP.NewPoly()
+		eval.decomposeAndSplitNTT(vec.Level(), i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
+	}
+
+	for i, matrix := range matrices {
+
+		res[i] = NewCiphertext(eval.params, 1, vec.Level(), vec.Scale())
+
+		// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
+		rotations := []uint64{}
+		for key := range matrix.Vec {
+			if !utils.IsInSliceUint64(key, rotations) {
+				rotations = append(rotations, key)
+			}
+		}
+
+		//fmt.Println(rotations, matrix.Vec)
+
+		// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
+		vecRotQ, vecRotP := eval.rotateHoistedNoModDown(vec, rotations, c2QiQDecomp, c2QiPDecomp, rotkeys)
+
+		// Accumulator inner loop
+		tmpQ0 := eval.poolQMul[0] // unused memory pool from evaluator
+		tmpQ1 := eval.poolQMul[1] // unused memory pool from evaluator
+
+		// Accumulator outer loop
+		tmpQ2 := eval.poolQMul[2] // unused memory pool from evaluator
+		tmpQ3 := eval.poolQ[4]
+		tmpP2 := eval.poolP[3]
+		tmpP3 := eval.poolP[4]
+
+		// Do not use (used by switchKeysInPlaceNoModDown)
+		// eval.PoolP[0]
+		// eval.PoolQ[0]
+		// eval.PoolQ[2]
+
+		ringQ.MulScalarBigintLvl(levelQ, vec.value[0], ringP.ModulusBigint, tmpQ0) // P*c0
+
+		for _, i := range rotations {
+			if i != 0 {
+				ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, rotkeys.permuteNTTLeftIndex[i], tmpQ1) // phi(P*c0)
+				ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ1, vecRotQ[i][0])                         // phi(d0_Q) += phi(P*c0)
+			}
+		}
+
+		// if j == 0 (N2 rotation by zero)
+		state := false
+		cnt := 0
+		for i, vec := range matrix.Vec {
+
+			if i == 0 {
+				state = true
+			} else {
+
+				plaintextQ := vec[0]
+				plaintextP := vec[1]
+
+				if cnt == 0 {
+					// keyswitch(c1_Q) = (d0_QP, d1_QP)
+					ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ2) // phi(P*c0 + d0_Q) * plaintext
+					ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i][1], tmpQ3) // phi(d1_Q) * plaintext
+					ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i][0], tmpP2)            // phi(d0_P) * plaintext
+					ringP.MulCoeffsMontgomery(plaintextP, vecRotP[i][1], tmpP3)            // phi(d1_P) * plaintext
+				} else {
+					// keyswitch(c1_Q) = (d0_QP, d1_QP)
+					ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ2) // phi(P*c0 + d0_Q) * plaintext
+					ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i][1], tmpQ3) // phi(d1_Q) * plaintext
+					ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i][0], tmpP2)            // phi(d0_P) * plaintext
+					ringP.MulCoeffsMontgomeryAndAdd(plaintextP, vecRotP[i][1], tmpP3)            // phi(d1_P) * plaintext
+				}
+				cnt++
+			}
+		}
+
+		eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ2, tmpP2, tmpQ2) // sum(phi(c0 * P + d0_QP))/P
+		eval.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ3, tmpP3, tmpQ3) // sum(phi(d1_QP))/P
+
+		ringQ.AddLvl(levelQ, res[i].value[0], tmpQ2, res[i].value[0]) // res += sum(phi(c0 * P + d0_QP))/P
+		ringQ.AddLvl(levelQ, res[i].value[1], tmpQ3, res[i].value[1]) // res += sum(phi(d1_QP))/P
+
+		if state { // Rotation by zero
+			ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0][0], vec.value[0], res[i].value[0]) // res += c0_Q * plaintext
+			ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0][0], vec.value[1], res[i].value[1]) // res += c1_Q * plaintext
+		}
+
+		res[i].SetScale(matrix.Scale * vec.Scale())
+
+		vecRotQ, vecRotP = nil, nil
+	}
+
+	c2QiQDecomp = nil
+	c2QiPDecomp = nil
+
+	return
+}
+
 func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*PtDiagMatrix, rotkeys *RotationKeys) (res []*Ciphertext) {
 
 	res = make([]*Ciphertext, len(matrices))
@@ -1897,6 +2018,7 @@ func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*
 		// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 		index := make(map[uint64][]uint64)
 		rotations := []uint64{}
+
 		for key := range matrix.Vec {
 
 			idx1 := key / N1
@@ -2078,6 +2200,7 @@ func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*
 		res[i].SetScale(matrix.Scale * vec.Scale())
 
 		vecRotQ, vecRotP = nil, nil
+
 	}
 
 	c2QiQDecomp = nil
@@ -2086,11 +2209,14 @@ func (eval *evaluator) MultiplyByDiabMatrixHoisted(vec *Ciphertext, matrices []*
 	return
 }
 
-// MultiplyByDiagMatrice multiplies a ciphertext (column vector) by a slots x slots plaintext matrix.
+// MultiplyByDiagMatrix multiplies a ciphertext (column vector) by a slots x slots plaintext matrix.
 // Use encoder.EncodeDiagMatrixAtLvl to encode such plaintext matrices.
 // Does not rescale the ciphertext automatically.
-func (eval *evaluator) MultiplyByDiagMatrice(vec *Ciphertext, matrix *PtDiagMatrix, rotkeys *RotationKeys) (res *Ciphertext) {
+func (eval *evaluator) MultiplyByDiagMatrix(vec *Ciphertext, matrix *PtDiagMatrix, rotkeys *RotationKeys) (res *Ciphertext) {
 	return eval.MultiplyByDiabMatrixHoisted(vec, []*PtDiagMatrix{matrix}, rotkeys)[0]
+}
+func (eval *evaluator) MultiplyByDiagMatrixNaive(vec *Ciphertext, matrix *PtDiagMatrix, rotkeys *RotationKeys) (res *Ciphertext) {
+	return eval.MultiplyByDiabMatrixNaiveHoisted(vec, []*PtDiagMatrix{matrix}, rotkeys)[0]
 }
 
 func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, rotkeys *RotationKeys) (cOutQ, cOutP map[uint64][2]*ring.Poly) {

@@ -197,27 +197,55 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map
 	N = ringQ.N
 	N1 = matrix.N1
 
-	index := make(map[uint64][]uint64)
-	for key := range vector {
-		idx1 := key / N1
-		idx2 := key & (N1 - 1)
-		if index[idx1] == nil {
-			index[idx1] = []uint64{idx2}
-		} else {
-			index[idx1] = append(index[idx1], idx2)
+	if len(vector) > 2 {
+
+		index := make(map[uint64][]uint64)
+		for key := range vector {
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+			if index[idx1] == nil {
+				index[idx1] = []uint64{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
 		}
-	}
 
-	matrix.Vec = make(map[uint64][2]*ring.Poly)
+		matrix.Vec = make(map[uint64][2]*ring.Poly)
 
-	matrix.Level = level
-	matrix.Scale = scale
+		matrix.Level = level
+		matrix.Scale = scale
 
-	for j := range index {
+		for j := range index {
 
-		for _, i := range index[j] {
+			for _, i := range index[j] {
 
-			encoder.Embed(rotate(vector[N1*j+uint64(i)], (N>>1)-(N1*j)), logSlots)
+				encoder.Embed(rotate(vector[N1*j+uint64(i)], (N>>1)-(N1*j)), logSlots)
+
+				plaintextQ := ring.NewPoly(N, level+1)
+				encoder.ScaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
+				ringQ.NTTLvl(level, plaintextQ, plaintextQ)
+				ringQ.MFormLvl(level, plaintextQ, plaintextQ)
+
+				plaintextP := ring.NewPoly(N, level+1)
+				encoder.ScaleUp(plaintextP, scale, ringP.Modulus)
+				ringP.NTT(plaintextP, plaintextP)
+				ringP.MForm(plaintextP, plaintextP)
+
+				matrix.Vec[N1*j+uint64(i)] = [2]*ring.Poly{plaintextQ, plaintextP}
+
+				encoder.WipeInternalMemory()
+			}
+		}
+	} else {
+
+		matrix.Vec = make(map[uint64][2]*ring.Poly)
+
+		matrix.Level = level
+		matrix.Scale = scale
+
+		for i := range vector {
+
+			encoder.Embed(rotate(vector[i], i), logSlots)
 
 			plaintextQ := ring.NewPoly(N, level+1)
 			encoder.ScaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
@@ -229,7 +257,7 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map
 			ringP.NTT(plaintextP, plaintextP)
 			ringP.MForm(plaintextP, plaintextP)
 
-			matrix.Vec[N1*j+uint64(i)] = [2]*ring.Poly{plaintextQ, plaintextP}
+			matrix.Vec[i] = [2]*ring.Poly{plaintextQ, plaintextP}
 
 			encoder.WipeInternalMemory()
 		}

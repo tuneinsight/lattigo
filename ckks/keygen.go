@@ -570,18 +570,30 @@ func (keygen *keyGenerator) GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *Se
 
 	N1 := matrix.N1
 
-	for j := range matrix.Vec {
+	if len(matrix.Vec) < 3 {
 
-		index = ((j / N1) * N1) & (slots - 1)
+		for key := range matrix.Vec {
 
-		if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
-			rotKeyIndex = append(rotKeyIndex, index)
+			if !utils.IsInSliceUint64(key, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, key)
+			}
 		}
 
-		index = j & (N1 - 1)
+	} else {
 
-		if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
-			rotKeyIndex = append(rotKeyIndex, index)
+		for j := range matrix.Vec {
+
+			index = ((j / N1) * N1) & (slots - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
 		}
 	}
 

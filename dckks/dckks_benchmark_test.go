@@ -85,7 +85,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	}
 
 	p := new(Party)
-	p.RKGProtocol = NewEkgProtocol(testCtx.params)
+	p.RKGProtocol = NewRKGProtocol(testCtx.params)
 	p.sk = sk0Shards[0].Get()
 	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 

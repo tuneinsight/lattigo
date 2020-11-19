@@ -202,7 +202,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 		for i := range rkgParties {
 			p := new(Party)
-			p.RKGProtocol = NewEkgProtocol(testCtx.params)
+			p.RKGProtocol = NewRKGProtocol(testCtx.params)
 			p.sk = sk0Shards[i].Get()
 			p.ephSk, p.share1, p.share2 = p.AllocateShares()
 			rkgParties[i] = p

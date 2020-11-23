@@ -23,11 +23,13 @@ type Encoder interface {
 	EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64)
 	EncodeNTTAtLvlNew(level uint64, values []complex128, slots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
+	DecodeAndRound(plaintext *Plaintext, slots, logPrecision uint64) (res []complex128)
 	Embed(values []complex128, slots uint64)
 	ScaleUp(pol *ring.Poly, scale float64, moduli []uint64)
 	WipeInternalMemory()
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
+	DecodeCoeffsAndRound(plaintext *Plaintext, logPrecision uint64) (res []float64)
 }
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
@@ -38,6 +40,7 @@ type EncoderBigComplex interface {
 	EncodeNTT(plaintext *Plaintext, values []*ring.Complex, slots uint64)
 	EncodeNTTAtLvlNew(level uint64, values []*ring.Complex, slots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, slots uint64) (res []*ring.Complex)
+	DecodeAndRound(plaintext *Plaintext, slots, logPrecision uint64) (res []*ring.Complex)
 	FFT(values []*ring.Complex, N uint64)
 	InvFFT(values []*ring.Complex, N uint64)
 
@@ -200,6 +203,21 @@ func (encoder *encoderComplex128) WipeInternalMemory() {
 }
 
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
+// Rounds the decimal part of the output (the bits under the scale) to "logPrecision" bits of precision.
+func (encoder *encoderComplex128) DecodeAndRound(plaintext *Plaintext, slots, logPrecision uint64) (res []complex128) {
+	res = encoder.Decode(plaintext, slots)
+
+	precision := math.Exp2(float64(logPrecision))
+
+	for i := range res {
+		a := math.Round(real(res[i])*precision) / precision
+		b := math.Round(imag(res[i])*precision) / precision
+		res[i] = complex(a, b)
+	}
+	return
+}
+
+// Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 
 	if plaintext.isNTT {
@@ -354,6 +372,19 @@ func (encoder *encoderComplex128) EncodeCoeffsNTT(values []float64, plaintext *P
 	encoder.EncodeCoeffs(values, plaintext)
 	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 	plaintext.isNTT = true
+}
+
+// DecodeCoeffsAndRound takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
+// Rounds the decimal part of the output (the bits under the scale) to "logPrecision" bits of precision.
+func (encoder *encoderComplex128) DecodeCoeffsAndRound(plaintext *Plaintext, logPrecision uint64) (res []float64) {
+	res = encoder.DecodeCoeffs(plaintext)
+
+	precision := math.Exp2(float64(logPrecision))
+
+	for i := range res {
+		res[i] = math.Round(res[i]*precision) / precision
+	}
+	return
 }
 
 // DecodeCoeffs takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
@@ -552,6 +583,62 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 	for i := uint64(0); i < encoder.ringQ.N; i++ {
 		encoder.valuesfloat[i].Set(encoder.zero)
 	}
+}
+
+// Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
+// Rounds the decimal part of the output (the bits under the scale) to "logPrecision" bits of precision.
+func (encoder *encoderBigComplex) DecodeAndRound(plaintext *Plaintext, slots, logPrecision uint64) (res []*ring.Complex) {
+
+	res = encoder.Decode(plaintext, slots)
+
+	precision := ring.NewFloat(math.Exp2(float64(logPrecision)), encoder.logPrecision)
+	delta := ring.NewFloat(0.5, encoder.logPrecision)
+
+	var x *big.Float
+	for i := range res {
+
+		x = res[i].Real()
+
+		// Multiples by the precision
+		x.Mul(x, precision)
+
+		if x.Sign() < 0 {
+			x.Sub(x, delta)
+		} else {
+			x.Add(x, delta)
+		}
+
+		// Rounds to the nearest big.Int
+		x.Int(encoder.bigintCoeffs[0])
+
+		// Switches back to big.Float
+		x.SetInt(encoder.bigintCoeffs[0])
+
+		// Divides by the precision
+		x.Quo(x, precision)
+
+		x = res[i].Imag()
+
+		// Multiples by the precision
+		x.Mul(x, precision)
+
+		if x.Sign() < 0 {
+			x.Sub(x, delta)
+		} else {
+			x.Add(x, delta)
+		}
+
+		// Rounds to the nearest big.Int
+		x.Int(encoder.bigintCoeffs[0])
+
+		// Switches back to big.Float
+		x.SetInt(encoder.bigintCoeffs[0])
+
+		// Divides by the precision
+		x.Quo(x, precision)
+	}
+
+	return
 }
 
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.

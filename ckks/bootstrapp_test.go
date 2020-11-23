@@ -81,7 +81,7 @@ func TestBootstrapp(t *testing.T) {
 			//fmt.Printf("Elapsed : %s \n", time.Since(start))
 			//fmt.Println(ciphertext.Level())
 
-			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 53)
 
 			testContext.params.scale = DefaultScale
 			eval.(*evaluator).scale = DefaultScale
@@ -149,7 +149,7 @@ func TestBootstrapp(t *testing.T) {
 
 			//fmt.Printf("Elapsed : %s \n", time.Since(start))
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
-			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 53)
 
 			testContext.params.scale = DefaultScale
 			eval.(*evaluator).scale = DefaultScale
@@ -212,7 +212,7 @@ func TestBootstrapp(t *testing.T) {
 
 			//fmt.Printf("Elapsed : %s \n", time.Since(start))
 			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
-			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 53)
 
 			testContext.params.scale = DefaultScale
 			eval.(*evaluator).scale = DefaultScale
@@ -250,7 +250,7 @@ func TestBootstrapp(t *testing.T) {
 
 				//testContext.evaluator.SetScale(ciphertext, testContext.params.scale)
 
-				verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+				verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 53)
 			}
 
 		})

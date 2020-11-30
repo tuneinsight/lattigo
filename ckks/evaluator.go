@@ -56,9 +56,9 @@ type Evaluator interface {
 	PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext)
 	Power(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey, res *Ciphertext)
 	InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluatePoly(ct *Ciphertext, coeffs *Poly, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext)
+	EvaluatePoly(ct *Ciphertext, coeffs *Poly, evakey *EvaluationKey) (res *Ciphertext, err error)
+	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error)
+	EvaluateChebySpecial(ct *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error)
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
@@ -1243,9 +1243,18 @@ func (eval *evaluator) RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ci
 // in ctOut. Since all the moduli in the moduli chain are generated to be close to the
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
+// Returns an error if "threshold <= 0", ct.Scale() = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Leve() != ctOut.Level()
 func (eval *evaluator) Rescale(ct0 *Ciphertext, threshold float64, ctOut *Ciphertext) (err error) {
 
 	ringQ := eval.ringQ
+
+	if threshold <= 0 {
+		return errors.New("cannot Rescale: threshold is 0")
+	}
+
+	if ct0.Scale() == 0 {
+		return errors.New("cannot Rescale: ciphertext scale is 0")
+	}
 
 	if ct0.Level() == 0 {
 		return errors.New("cannot Rescale: input Ciphertext already at level 0")
@@ -1390,7 +1399,7 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 			ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.value[0], c0) // c0 = c0[0]*c0[0]
 			ringQ.MulCoeffsMontgomeryLvl(level, c01, tmp1.value[1], c2) // c2 = c0[1]*c1[1]
 			ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.value[1], c1)
-			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, tmp1.value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
+			ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
 		}
 
 		// Relinearize if a key was provided

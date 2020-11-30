@@ -7,6 +7,11 @@ import (
 )
 
 func BenchmarkBootstrapp(b *testing.B) {
+
+	if !*testBootstrapping {
+		b.Skip("skipping bootstrapping test")
+	}
+
 	var err error
 	var testContext = new(testParams)
 	var btp *Bootstrapper

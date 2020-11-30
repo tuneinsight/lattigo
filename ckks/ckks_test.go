@@ -16,8 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
+
 var minPrec float64 = 15.0
 
 func testString(testContext *testParams, opname string) string {
@@ -55,12 +57,12 @@ func TestCKKS(t *testing.T) {
 	var err error
 	var testContext = new(testParams)
 
-	var defaultParams []*Parameters
-
+	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
-	} else {
-		defaultParams = DefaultParams
+		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
+	}
+	if *flagLongTest {
+		defaultParams = DefaultParams // the long test suite runs for all default parameters
 	}
 
 	for _, defaultParam := range defaultParams {
@@ -152,9 +154,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
-
-	testContext.encoder.EncodeNTT(plaintext, values, slots)
+	plaintext = testContext.encoder.EncodeNTTAtLvlNew(testContext.params.MaxLevel(), values, slots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)
@@ -236,14 +236,14 @@ func testEncoder(testContext *testParams, t *testing.T) {
 
 func testEncryptor(testContext *testParams, t *testing.T) {
 
-	t.Run(testString(testContext, "Encryptor/EncryptFromPk/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Encryptor/EncryptFromPk/Lvl=Max/"), func(t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorPk, complex(-1, -1), complex(1, 1), t)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})
 
-	t.Run(testString(testContext, "Encryptor/EncryptFromPkFast/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Encryptor/EncryptFromPkFast/Lvl=Max/"), func(t *testing.T) {
 
 		slots := testContext.params.Slots()
 
@@ -255,18 +255,79 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 		values[0] = complex(0.607538, 0.555668)
 
-		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
-
-		testContext.encoder.Encode(plaintext, values, slots)
+		plaintext := testContext.encoder.EncodeNew(values, slots)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorPk.EncryptFastNew(plaintext), t)
 	})
 
-	t.Run(testString(testContext, "Encryptor/EncryptFromSk/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Encryptor/EncryptFromSk/Lvl=Max/"), func(t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+	})
+
+	t.Run(testString(testContext, "Encryptor/EncryptFromPk/Lvl=1/"), func(t *testing.T) {
+
+		if testContext.params.MaxLevel() < 1 {
+			t.Skip("skipping test for params max level < 1")
+		}
+
+		slots := testContext.params.Slots()
+
+		values := make([]complex128, slots)
+
+		for i := uint64(0); i < slots; i++ {
+			values[i] = randomComplex(-1, 1)
+		}
+
+		values[0] = complex(0.607538, 0.555668)
+
+		plaintext := testContext.encoder.EncodeAtLvlNew(1, values, slots)
+
+		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorPk.EncryptNew(plaintext), t)
+	})
+
+	t.Run(testString(testContext, "Encryptor/EncryptFromPkFast/Lvl=1/"), func(t *testing.T) {
+
+		if testContext.params.MaxLevel() < 1 {
+			t.Skip("skipping test for params max level < 1")
+		}
+
+		slots := testContext.params.Slots()
+
+		values := make([]complex128, slots)
+
+		for i := uint64(0); i < slots; i++ {
+			values[i] = randomComplex(-1, 1)
+		}
+
+		values[0] = complex(0.607538, 0.555668)
+
+		plaintext := testContext.encoder.EncodeAtLvlNew(1, values, slots)
+
+		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorPk.EncryptFastNew(plaintext), t)
+	})
+
+	t.Run(testString(testContext, "Encryptor/EncryptFromSk/Lvl=1/"), func(t *testing.T) {
+
+		if testContext.params.MaxLevel() < 1 {
+			t.Skip("skipping test for params max level < 1")
+		}
+
+		slots := testContext.params.Slots()
+
+		values := make([]complex128, slots)
+
+		for i := uint64(0); i < slots; i++ {
+			values[i] = randomComplex(-1, 1)
+		}
+
+		values[0] = complex(0.607538, 0.555668)
+
+		plaintext := testContext.encoder.EncodeAtLvlNew(1, values, slots)
+
+		verifyTestVectors(testContext, testContext.decryptor, values, testContext.encryptorSk.EncryptNew(plaintext), t)
 	})
 
 }
@@ -733,6 +794,8 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 func testEvaluatePoly(testContext *testParams, t *testing.T) {
 
+	var err error
+
 	t.Run(testString(testContext, "EvaluatePoly/Exp/"), func(t *testing.T) {
 
 		if testContext.params.MaxLevel() < 3 {
@@ -758,13 +821,17 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-		ciphertext = testContext.evaluator.EvaluatePoly(ciphertext, poly, testContext.rlk)
+		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly, testContext.rlk); err != nil {
+			t.Error(err)
+		}
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})
 }
 
 func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
+
+	var err error
 
 	t.Run(testString(testContext, "ChebyshevInterpolator/Sin/"), func(t *testing.T) {
 
@@ -780,7 +847,9 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Sin(values[i])
 		}
 
-		ciphertext = testContext.evaluator.EvaluateCheby(ciphertext, cheby, testContext.rlk)
+		if ciphertext, err = testContext.evaluator.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+			t.Error(err)
+		}
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})
@@ -944,7 +1013,6 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 
 	t.Run("Marshaller/Ciphertext/", func(t *testing.T) {
 		t.Run(testString(testContext, "EndToEnd/"), func(t *testing.T) {
-			t.Parallel()
 
 			ciphertextWant := NewCiphertextRandom(testContext.prng, testContext.params, 2, testContext.params.MaxLevel(), testContext.params.Scale())
 
@@ -964,7 +1032,6 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		})
 
 		t.Run(testString(testContext, "Minimal/"), func(t *testing.T) {
-			t.Parallel()
 
 			ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 0, testContext.params.MaxLevel(), testContext.params.Scale())
 

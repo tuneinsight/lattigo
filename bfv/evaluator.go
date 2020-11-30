@@ -80,7 +80,9 @@ func NewEvaluator(params *Parameters) Evaluator {
 		panic(err)
 	}
 
-	if qm, err = ring.NewRing(params.N(), params.qiMul); err != nil {
+	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), uint64(len(params.qi)))
+
+	if qm, err = ring.NewRing(params.N(), qiMul); err != nil {
 		panic(err)
 	}
 

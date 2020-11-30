@@ -237,7 +237,7 @@ func main() {
 	for i := range plainMask {
 		maskCoeffs := make([]uint64, 1<<params.LogN())
 		maskCoeffs[i] = 1
-		plainMask[i] = bfv.NewPlaintextZT(params)
+		plainMask[i] = bfv.NewPlaintextMul(params)
 		encoder.EncodeUint(maskCoeffs, plainMask[i])
 	}
 

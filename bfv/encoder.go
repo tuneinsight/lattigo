@@ -122,7 +122,14 @@ func (encoder *encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
 	encoder.ringT.InvNTT(plaintext.value, plaintext.value)
 
 	if plaintext.inZQ {
-		encoder.TtoQ(plaintext)
+
+		if plaintext.scaled {
+			encoder.TtoQ(plaintext)
+		}
+
+		if plaintext.isNTT {
+			encoder.nttMontZQ(plaintext)
+		}
 	}
 }
 
@@ -154,7 +161,14 @@ func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
 	encoder.ringT.InvNTTLazy(plaintext.value, plaintext.value)
 
 	if plaintext.inZQ {
-		encoder.TtoQ(plaintext)
+
+		if plaintext.scaled {
+			encoder.TtoQ(plaintext)
+		}
+
+		if plaintext.isNTT {
+			encoder.nttMontZQ(plaintext)
+		}
 	}
 }
 
@@ -192,6 +206,29 @@ func (encoder *encoder) TtoQ(p *Plaintext) {
 			z[7] = ring.MRed(x[7], deltaMont, qi, bredParams)
 		}
 	}
+
+	p.inZQ = true
+	p.scaled = true
+}
+
+func (encoder *encoder) nttMontZQ(p *Plaintext) {
+
+	ringQ := encoder.ringQ
+
+	if !p.inZQ {
+		additionalCoeffs := make([][]uint64, len(ringQ.Modulus)-1)
+		for i := 0; i < len(ringQ.Modulus)-1; i++ {
+			additionalCoeffs[i] = make([]uint64, ringQ.N)
+		}
+		p.value.Coeffs = append(p.value.Coeffs, additionalCoeffs...)
+	}
+
+	for i := 1; i < len(ringQ.Modulus); i++ {
+		copy(p.value.Coeffs[i], p.value.Coeffs[0])
+	}
+
+	ringQ.NTTLazy(p.value, p.value)
+	ringQ.MForm(p.value, p.value)
 
 	p.inZQ = true
 }

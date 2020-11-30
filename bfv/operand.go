@@ -14,9 +14,10 @@ type Operand interface {
 // Element is a common struct for Plaintexts and Ciphertexts. It stores a value
 // as a slice of polynomials, and an isNTT flag that indicates if the element is in the NTT domain.
 type Element struct {
-	value []*ring.Poly
-	isNTT bool // If true, then in the NTT domain, else not
-	inZQ  bool // If true, then in Z_{Q}, else in Z_{t}
+	value  []*ring.Poly
+	isNTT  bool // If true, then in the NTT domain, else not
+	inZQ   bool // If true, then in Z_{Q}, else in Z_{t}
+	scaled bool
 }
 
 // NewElement creates a new Element of the target degree with zero values.

@@ -149,6 +149,17 @@ func newTestVectorsZT(testctx *testContext, encryptor Encryptor, t *testing.T) (
 	return coeffs, plaintext, ciphertext
 }
 
+func newTestVectorsMul(testctx *testContext, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext) {
+
+	coeffs = testctx.uSampler.ReadNew()
+
+	plaintext = NewPlaintextMul(testctx.params)
+
+	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
+
+	return coeffs, plaintext
+}
+
 func verifyTestVectors(testctx *testContext, decryptor Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
 
 	var coeffsTest []uint64
@@ -334,21 +345,10 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 		verifyTestVectors(testctx, testctx.decryptor, values1, receiver, t)
 	})
 
-	t.Run(testString("Evaluator/Mul/CtPlain/ZT/", testctx.params), func(t *testing.T) {
+	t.Run(testString("Evaluator/Mul/CtPlain/", testctx.params), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectorsZT(testctx, testctx.encryptorPk, t)
-		values2, plaintext2, _ := newTestVectorsZT(testctx, testctx.encryptorPk, t)
-
-		testctx.evaluator.Mul(ciphertext1, plaintext2, ciphertext1)
-		testctx.ringT.MulCoeffs(values1, values2, values1)
-
-		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
-	})
-
-	t.Run(testString("Evaluator/Mul/CtPlain/ZQ/", testctx.params), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectorsZQ(testctx, testctx.encryptorPk, t)
-		values2, plaintext2, _ := newTestVectorsZQ(testctx, testctx.encryptorPk, t)
+		values2, plaintext2 := newTestVectorsMul(testctx, t)
 
 		testctx.evaluator.Mul(ciphertext1, plaintext2, ciphertext1)
 		testctx.ringT.MulCoeffs(values1, values2, values1)

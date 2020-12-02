@@ -2,7 +2,7 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-## [2.0.x] - 2020-11-20
+## Unreleased changes
 
 ### Changed
 - CKKS : API of evaluator.RotateColumns becomes Evaluator.Rotate

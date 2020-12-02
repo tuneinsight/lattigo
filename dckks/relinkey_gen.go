@@ -139,16 +139,14 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 
 	ringQP := ekg.context.ringQP
 
-	ekg.polypool.Copy(sk)
-
-	ringQP.MulScalarBigint(ekg.polypool, ekg.context.ringP.ModulusBigint, ekg.polypool)
+	ringQP.MulScalarBigint(sk, ekg.context.ringP.ModulusBigint, ekg.polypool)
 
 	ringQP.InvMForm(ekg.polypool, ekg.polypool)
 
 	for i := uint64(0); i < ekg.context.params.Beta(); i++ {
 		// h = e
 		ekg.gaussianSampler.Read(shareOut[i][0])
-		ringQP.NTT(shareOut[i][0], shareOut[i][0])
+		ringQP.NTTLazy(shareOut[i][0], shareOut[i][0])
 
 		// h = sk*CrtBaseDecompQi + e
 		for j := uint64(0); j < ekg.context.params.Alpha(); j++ {
@@ -173,7 +171,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 		// Second Element
 		// e_2i
 		ekg.gaussianSampler.Read(shareOut[i][1])
-		ringQP.NTT(shareOut[i][1], shareOut[i][1])
+		ringQP.NTTLazy(shareOut[i][1], shareOut[i][1])
 		// s*a + e_2i
 		ringQP.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut[i][1])
 	}
@@ -214,17 +212,17 @@ func (ekg *RKGProtocol) GenShareRoundTwo(round1 RKGShare, u, sk *ring.Poly, crp 
 		// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
 		// (AggregateShareRoundTwo samples) * sk
-		ringQP.MulCoeffsMontgomery(round1[i][0], sk, shareOut[i][0])
+		ringQP.MulCoeffsMontgomeryConstant(round1[i][0], sk, shareOut[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
 		ekg.gaussianSampler.Read(ekg.tmpPoly2)
-		ringQP.NTT(ekg.tmpPoly2, ekg.tmpPoly2)
+		ringQP.NTTLazy(ekg.tmpPoly2, ekg.tmpPoly2)
 		ringQP.Add(shareOut[i][0], ekg.tmpPoly2, shareOut[i][0])
 
 		// second part
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
 		ekg.gaussianSampler.Read(shareOut[i][1])
-		ringQP.NTT(shareOut[i][1], shareOut[i][1])
+		ringQP.NTTLazy(shareOut[i][1], shareOut[i][1])
 		ringQP.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round1[i][1], shareOut[i][1])
 	}
 

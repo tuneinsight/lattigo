@@ -203,13 +203,17 @@ func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate 
 
 	if el0.Degree() == 0 || el1.Degree() == 0 {
 
-		if el0.Degree() == 0 && !el0.inZQ {
+		if el0.eleType == opPTMul || el1.eleType == opPTMul {
+			panic("cannot add with a plaintext created using NewPlaintextMul")
+		}
+
+		if el0.Degree() == 0 && el0.eleType == opPTZT {
 
 			eval.TtoQ(el0.Plaintext(), eval.poolQKS[0])
 
 			evaluate(eval.poolQKS[0], el1.value[0], elOut.value[0])
 
-		} else if el1.Degree() == 0 && !el1.inZQ {
+		} else if el1.Degree() == 0 && el1.eleType == opPTZT {
 
 			eval.TtoQ(el1.Plaintext(), eval.poolQKS[0])
 
@@ -362,16 +366,61 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 	// basis from Q to QP and transforming them to NTT form
 
 	// Ct x Pt and (Pt must be encoded for multiplication)
-	if ct1.Degree() == 0 {
+	if ct1.eleType == opPTMul || ct1.eleType == opPTZT {
 
-		if !ct1.inZQ || !ct1.isNTT || ct1.scaled {
-			panic("cannot multiply ct x pt, bad encoding for pt (check that pt was created with NewPlaintextMul)")
-		}
+		if ct1.eleType == opPTMul {
+			for i := range ct0.value {
+				eval.ringQ.NTTLazy(ct0.value[i], ctOut.value[i])
+				eval.ringQ.MulCoeffsMontgomeryConstant(ctOut.value[i], ct1.value[0], ctOut.value[i])
+				eval.ringQ.InvNTT(ctOut.value[i], ctOut.value[i])
+			}
+		} else {
 
-		for i := range ct0.value {
-			eval.ringQ.NTTLazy(ct0.value[i], ctOut.value[i])
-			eval.ringQ.MulCoeffsMontgomeryConstant(ctOut.value[i], ct1.value[0], ctOut.value[i])
-			eval.ringQ.InvNTT(ctOut.value[i], ctOut.value[i])
+			ringQ := eval.ringQ
+
+			coeffs := ct1.value[0].Coeffs[0]
+			coeffsNTT := eval.poolQ[0][0].Coeffs[0]
+
+			for i := range ct0.value {
+
+				// Copies the inputCT on the outputCT and switches to the NTT domain
+				eval.ringQ.NTTLazy(ct0.value[i], ctOut.value[i])
+
+				// Switches the outputCT in the Montgomery domain
+				eval.ringQ.MForm(ctOut.value[i], ctOut.value[i])
+
+				// For each qi in Q
+				for j := range ringQ.Modulus {
+
+					tmp := ctOut.value[i].Coeffs[j]
+					qi := ringQ.Modulus[j]
+					nttPsi := ringQ.GetNttPsi()[j]
+					bredParams := ringQ.GetBredParams()[j]
+					mredParams := ringQ.GetMredParams()[j]
+
+					// Transforms the plaintext in the NTT domain of that qi
+					ring.NTTLazy(coeffs, coeffsNTT, ringQ.N, nttPsi, qi, mredParams, bredParams)
+
+					// Multiplies NTT_qi(pt) * NTT_qi(ct)
+					for k := uint64(0); k < eval.ringQ.N; k = k + 8 {
+
+						x := (*[8]uint64)(unsafe.Pointer(&coeffsNTT[k]))
+						z := (*[8]uint64)(unsafe.Pointer(&tmp[k]))
+
+						z[0] = ring.MRed(z[0], x[0], qi, mredParams)
+						z[1] = ring.MRed(z[1], x[1], qi, mredParams)
+						z[2] = ring.MRed(z[2], x[2], qi, mredParams)
+						z[3] = ring.MRed(z[3], x[3], qi, mredParams)
+						z[4] = ring.MRed(z[4], x[4], qi, mredParams)
+						z[5] = ring.MRed(z[5], x[5], qi, mredParams)
+						z[6] = ring.MRed(z[6], x[6], qi, mredParams)
+						z[7] = ring.MRed(z[7], x[7], qi, mredParams)
+					}
+				}
+
+				// Switches the ciphertext out of the NTT domain
+				eval.ringQ.InvNTT(ctOut.value[i], ctOut.value[i])
+			}
 		}
 
 		// All the other cases

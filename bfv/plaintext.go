@@ -10,17 +10,30 @@ type Plaintext struct {
 	value *ring.Poly
 }
 
+// NewPlaintext creates and allocates a new plaintext in ZQ (multiple moduli of Q).
+// This is a generic all-purpose type of plaintext. It will work with all operations,
+// but will likely not result in an optimized circuit.
+// See NewPlaintextZQ, NewPlaintextZT and NewPlaintextMul for additional informations.
+// The plaintext will be in ZQ and scaled by Q/t.
+// Faster encryption
+// Slower encoding and larger plaintext size
+// Fast ct + pt
+// Very slow ct * pt
+func NewPlaintext(params *Parameters) *Plaintext {
+	plaintext := &Plaintext{newElePTZQ(params), nil}
+	plaintext.value = plaintext.Element.value[0]
+	return plaintext
+}
+
 // NewPlaintextZQ creates and allocates a new plaintext in ZQ (multiple moduli of Q).
 // The plaintext will be in ZQ and scaled by Q/t.
 // Faster encryption
 // Slower encoding and larger plaintext size
-// Faster ct + pt
-// Cannot do ct * pt
+// Fast ct + pt
+// Very slow ct * pt
 func NewPlaintextZQ(params *Parameters) *Plaintext {
-	plaintext := &Plaintext{NewElement(params, 0, true), nil}
+	plaintext := &Plaintext{newElePTZQ(params), nil}
 	plaintext.value = plaintext.Element.value[0]
-	plaintext.isNTT = false
-	plaintext.scaled = true
 	return plaintext
 }
 
@@ -28,14 +41,12 @@ func NewPlaintextZQ(params *Parameters) *Plaintext {
 // The plaintext will be in Zt.
 // Faster encoding + smaller plaintext size
 // Slower encryption
-// Slower ct + pt
-// Cannot do ct * pt
+// Slow ct + pt
+// Slow ct * pt
 func NewPlaintextZT(params *Parameters) *Plaintext {
 
-	plaintext := &Plaintext{NewElement(params, 0, false), nil}
+	plaintext := &Plaintext{newElePTZT(params), nil}
 	plaintext.value = plaintext.Element.value[0]
-	plaintext.isNTT = false
-	plaintext.scaled = false
 	return plaintext
 }
 
@@ -44,9 +55,7 @@ func NewPlaintextZT(params *Parameters) *Plaintext {
 // Cannot do ct + pt
 // Fast ct * pt
 func NewPlaintextMul(params *Parameters) *Plaintext {
-	plaintext := &Plaintext{NewElement(params, 0, true), nil}
+	plaintext := &Plaintext{newElePTMul(params), nil}
 	plaintext.value = plaintext.Element.value[0]
-	plaintext.isNTT = true
-	plaintext.scaled = false
 	return plaintext
 }

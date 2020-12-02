@@ -138,19 +138,26 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 func benchDecrypt(testctx *testContext, b *testing.B) {
 
 	decryptor := testctx.decryptor
-	plaintextZQ := NewPlaintextZQ(testctx.params)
-	plaintextZT := NewPlaintextZQ(testctx.params)
 	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
-	b.Run(testString("Decrypt/ZT", testctx.params), func(b *testing.B) {
+	b.Run(testString("Decrypt/ZT/", testctx.params), func(b *testing.B) {
+		plaintextZT := NewPlaintextZT(testctx.params)
 		for i := 0; i < b.N; i++ {
 			decryptor.Decrypt(ciphertext, plaintextZT)
 		}
 	})
 
-	b.Run(testString("Decrypt/ZQ", testctx.params), func(b *testing.B) {
+	b.Run(testString("Decrypt/ZQ/", testctx.params), func(b *testing.B) {
+		plaintextZQ := NewPlaintextZQ(testctx.params)
 		for i := 0; i < b.N; i++ {
 			decryptor.Decrypt(ciphertext, plaintextZQ)
+		}
+	})
+
+	b.Run(testString("Decrypt/Mul/", testctx.params), func(b *testing.B) {
+		plaintextMul := NewPlaintextMul(testctx.params)
+		for i := 0; i < b.N; i++ {
+			decryptor.Decrypt(ciphertext, plaintextMul)
 		}
 	})
 }
@@ -207,7 +214,19 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Evaluator/Mul/Pt/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Mul/PtZQ/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Mul(ciphertext1, plaintextZQ, ciphertext1)
+		}
+	})
+
+	b.Run(testString("Evaluator/Mul/PtZT/", testctx.params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.Mul(ciphertext1, plaintextZT, ciphertext1)
+		}
+	})
+
+	b.Run(testString("Evaluator/Mul/PtMul/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, plaintextMul, ciphertext1)
 		}

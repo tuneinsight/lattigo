@@ -101,88 +101,70 @@ func GenLiftParams(ringQ *ring.Ring, t uint64) (deltaMont []uint64) {
 }
 
 // EncodeUint encodes an uint64 slice of size at most N on a plaintext.
-func (encoder *encoder) EncodeUint(coeffs []uint64, plaintext *Plaintext) {
+func (encoder *encoder) EncodeUint(coeffs []uint64, p *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
 		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
 	}
 
-	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
+	if len(p.value.Coeffs[0]) != len(encoder.indexMatrix) {
 		panic("invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
-		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = coeffs[i]
+		p.value.Coeffs[0][encoder.indexMatrix[i]] = coeffs[i]
 	}
 
 	for i := len(coeffs); i < len(encoder.indexMatrix); i++ {
-		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
+		p.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	encoder.ringT.InvNTT(plaintext.value, plaintext.value)
+	encoder.ringT.InvNTT(p.value, p.value)
 
-	if plaintext.inZQ {
-
-		if plaintext.scaled {
-			encoder.TtoQ(plaintext)
-		}
-
-		if plaintext.isNTT {
-			encoder.nttMontZQ(plaintext)
-		}
+	if p.eleType == opPTZQ {
+		encoder.tToQ(p)
+	} else if p.eleType == opPTMul {
+		encoder.nttMontZQ(p)
 	}
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. It also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
 // The sign will correctly decode as long as the absolute value of the coefficient does not exceed half of the plaintext modulus.
-func (encoder *encoder) EncodeInt(coeffs []int64, plaintext *Plaintext) {
+func (encoder *encoder) EncodeInt(coeffs []int64, p *Plaintext) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
 		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
 	}
 
-	if len(plaintext.value.Coeffs[0]) != len(encoder.indexMatrix) {
+	if len(p.value.Coeffs[0]) != len(encoder.indexMatrix) {
 		panic("invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
 
 		if coeffs[i] < 0 {
-			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.params.t) + coeffs[i])
+			p.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.params.t) + coeffs[i])
 		} else {
-			plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(coeffs[i])
+			p.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(coeffs[i])
 		}
 	}
 
 	for i := len(coeffs); i < len(encoder.indexMatrix); i++ {
-		plaintext.value.Coeffs[0][encoder.indexMatrix[i]] = 0
+		p.value.Coeffs[0][encoder.indexMatrix[i]] = 0
 	}
 
-	encoder.ringT.InvNTTLazy(plaintext.value, plaintext.value)
+	encoder.ringT.InvNTTLazy(p.value, p.value)
 
-	if plaintext.inZQ {
-
-		if plaintext.scaled {
-			encoder.TtoQ(plaintext)
-		}
-
-		if plaintext.isNTT {
-			encoder.nttMontZQ(plaintext)
-		}
+	if p.eleType == opPTZQ {
+		encoder.tToQ(p)
+	} else if p.eleType == opPTMul {
+		encoder.nttMontZQ(p)
 	}
 }
 
-func (encoder *encoder) TtoQ(p *Plaintext) {
+func (encoder *encoder) tToQ(p *Plaintext) {
 
 	ringQ := encoder.ringQ
-
-	if !p.inZQ {
-		additionalCoeffs := make([][]uint64, len(ringQ.Modulus)-1)
-		for i := 0; i < len(ringQ.Modulus)-1; i++ {
-			additionalCoeffs[i] = make([]uint64, ringQ.N)
-		}
-		p.value.Coeffs = append(p.value.Coeffs, additionalCoeffs...)
-	}
 
 	for i := len(ringQ.Modulus) - 1; i >= 0; i-- {
 		tmp1 := p.value.Coeffs[i]
@@ -206,41 +188,30 @@ func (encoder *encoder) TtoQ(p *Plaintext) {
 			z[7] = ring.MRed(x[7], deltaMont, qi, bredParams)
 		}
 	}
-
-	p.inZQ = true
-	p.scaled = true
 }
 
 func (encoder *encoder) nttMontZQ(p *Plaintext) {
-
 	ringQ := encoder.ringQ
-
-	if !p.inZQ {
-		additionalCoeffs := make([][]uint64, len(ringQ.Modulus)-1)
-		for i := 0; i < len(ringQ.Modulus)-1; i++ {
-			additionalCoeffs[i] = make([]uint64, ringQ.N)
-		}
-		p.value.Coeffs = append(p.value.Coeffs, additionalCoeffs...)
-	}
-
 	for i := 1; i < len(ringQ.Modulus); i++ {
 		copy(p.value.Coeffs[i], p.value.Coeffs[0])
 	}
 
 	ringQ.NTTLazy(p.value, p.value)
 	ringQ.MForm(p.value, p.value)
-
-	p.inZQ = true
 }
 
 // DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.
-func (encoder *encoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64) {
+func (encoder *encoder) DecodeUint(p *Plaintext) (coeffs []uint64) {
 
-	if plaintext.inZQ {
-		encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
+	if p.eleType == opPTZQ {
+		encoder.scaler.DivByQOverTRounded(p.value, encoder.polypool)
 		encoder.ringT.NTT(encoder.polypool, encoder.polypool)
+	} else if p.eleType == opPTZT {
+		encoder.ringT.NTT(p.value, encoder.polypool)
 	} else {
-		encoder.ringT.NTT(plaintext.value, encoder.polypool)
+		encoder.ringQ.InvNTTLvl(0, p.value, encoder.polypool)
+		encoder.ringQ.InvMFormLvl(0, encoder.polypool, encoder.polypool)
+		encoder.ringT.NTT(encoder.polypool, encoder.polypool)
 	}
 
 	coeffs = make([]uint64, encoder.ringQ.N)
@@ -255,15 +226,19 @@ func (encoder *encoder) DecodeUint(plaintext *Plaintext) (coeffs []uint64) {
 
 // DecodeInt decodes a batched plaintext and returns the coefficients in an int64 slice. It also decodes the sign (by centering the values around the plaintext
 // modulus).
-func (encoder *encoder) DecodeInt(plaintext *Plaintext) (coeffs []int64) {
+func (encoder *encoder) DecodeInt(p *Plaintext) (coeffs []int64) {
 
 	var value int64
 
-	if plaintext.inZQ {
-		encoder.scaler.DivByQOverTRounded(plaintext.value, encoder.polypool)
+	if p.eleType == opPTZQ {
+		encoder.scaler.DivByQOverTRounded(p.value, encoder.polypool)
 		encoder.ringT.NTT(encoder.polypool, encoder.polypool)
+	} else if p.eleType == opPTZT {
+		encoder.ringT.NTT(p.value, encoder.polypool)
 	} else {
-		encoder.ringT.NTT(plaintext.value, encoder.polypool)
+		encoder.ringQ.InvNTTLvl(0, p.value, encoder.polypool)
+		encoder.ringQ.InvMFormLvl(0, encoder.polypool, encoder.polypool)
+		encoder.ringT.NTT(encoder.polypool, encoder.polypool)
 	}
 
 	coeffs = make([]int64, encoder.ringQ.N)

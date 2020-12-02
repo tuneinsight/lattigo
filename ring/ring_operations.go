@@ -1143,6 +1143,28 @@ func (r *Ring) InvMForm(p1, p2 *Poly) {
 	}
 }
 
+// InvMFormLvl switches back p1 from the Montgomery domain to the conventional domain and writes the result on p2.
+func (r *Ring) InvMFormLvl(level uint64, p1, p2 *Poly) {
+	for i, qi := range r.Modulus[:level+1] {
+		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		mredParams := r.MredParams[i]
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+
+			z[0] = InvMForm(x[0], qi, mredParams)
+			z[1] = InvMForm(x[1], qi, mredParams)
+			z[2] = InvMForm(x[2], qi, mredParams)
+			z[3] = InvMForm(x[3], qi, mredParams)
+			z[4] = InvMForm(x[4], qi, mredParams)
+			z[5] = InvMForm(x[5], qi, mredParams)
+			z[6] = InvMForm(x[6], qi, mredParams)
+			z[7] = InvMForm(x[7], qi, mredParams)
+		}
+	}
+}
+
 // MulByPow2New multiplies p1 by 2^pow2 and returns the result in a new polynomial p2.
 func (r *Ring) MulByPow2New(p1 *Poly, pow2 uint64) (p2 *Poly) {
 	p2 = r.NewPoly()

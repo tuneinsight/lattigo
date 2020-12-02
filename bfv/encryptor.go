@@ -14,11 +14,13 @@ type Encryptor interface {
 	// EncryptNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
+	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptNew(plaintext *Plaintext) *Ciphertext
 
 	// Encrypt encrypts the input plaintext using the stored key, and returns
 	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
+	// Will panic if the plaintext was created using NewPlaintextMul.
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFastNew encrypts the input plaintext using the stored key and returns
@@ -29,30 +31,35 @@ type Encryptor interface {
 	// EncryptFsat encrypts the input plaintext using the stored-key, and returns
 	// the result onthe receiver ciphertext. The encryption is done by first
 	// encrypting zero in Q and then adding the plaintext.
+	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
+	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
 
 	// EncryptFromCRP encrypts the input plaintext using the stored key and returns
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
+	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptFromCRP(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
 
 	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first encrypting
 	// zero in Q, using the provided polynomial as the uniform polynomial, and
 	// then adding the plaintext.
+	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptFromCRPFastNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
 
 	// EncryptFromCRP encrypts the input plaintext using the stored key and returns
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in Q, using the provided polynomial as the uniform polynomial, and
 	// then adding the plaintext.
+	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptFromCRPFast(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
 }
 
@@ -186,7 +193,7 @@ func (encryptor *pkEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *r
 	panic("Cannot encrypt with CRP using an encryptor created with the public-key")
 }
 
-func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
+func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast bool) {
 
 	ringQ := encryptor.ringQ
 
@@ -236,11 +243,13 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
 
-	if !plaintext.inZQ {
-		encryptor.TtoQ(plaintext)
+	if p.eleType == opPTZQ {
+		encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
+	} else if p.eleType == opPTZT {
+		encryptor.tToQ(p)
 		encryptor.ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 	} else {
-		encryptor.ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		panic("cannot encrypt a plaintext created with NewPlaintextMul")
 	}
 
 }
@@ -291,7 +300,7 @@ func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *C
 	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1])
 }
 
-func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
+func (encryptor *skEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
 
 	ringQ := encryptor.ringQ
 
@@ -304,15 +313,17 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0])
 
 	// ct = [-a*s + m + e , a]
-	if !plaintext.inZQ {
-		encryptor.TtoQ(plaintext)
+	if p.eleType == opPTZQ {
+		encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
+	} else if p.eleType == opPTZT {
+		encryptor.tToQ(p)
 		encryptor.ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 	} else {
-		encryptor.ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+		panic("cannot encrypt a plaintext created with NewPlaintextMul")
 	}
 }
 
-func (encryptor *encryptor) TtoQ(p *Plaintext) {
+func (encryptor *encryptor) tToQ(p *Plaintext) {
 
 	ringQ := encryptor.ringQ
 	encryptor.polypool[0].Zero()

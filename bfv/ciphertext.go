@@ -9,10 +9,12 @@ type Ciphertext struct {
 
 // NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
 func NewCiphertext(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
-	return &Ciphertext{NewElement(params, degree, true)}
+	return &Ciphertext{newEleCT(params, degree)}
 }
 
 // NewCiphertextRandom generates a new uniformly distributed ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree uint64) (ciphertext *Ciphertext) {
-	return &Ciphertext{NewElementRandom(prng, params, degree, true)}
+	ciphertext = &Ciphertext{newEleCT(params, degree)}
+	populateElementRandom(prng, params, ciphertext.Element)
+	return
 }

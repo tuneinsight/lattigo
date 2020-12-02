@@ -167,34 +167,6 @@ func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree u
 	return // TODO: more checks on elements
 }
 
-func (eval *evaluator) TtoQ(p *Plaintext, pol *ring.Poly) {
-
-	ringQ := eval.ringQ
-
-	for i := len(ringQ.Modulus) - 1; i >= 0; i-- {
-		tmp1 := pol.Coeffs[i]
-		tmp2 := p.value.Coeffs[0]
-		deltaMont := eval.deltaMont[i]
-		qi := ringQ.Modulus[i]
-		mredParams := ringQ.GetMredParams()[i]
-
-		for j := uint64(0); j < ringQ.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&tmp2[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&tmp1[j]))
-
-			z[0] = ring.MRed(x[0], deltaMont, qi, mredParams)
-			z[1] = ring.MRed(x[1], deltaMont, qi, mredParams)
-			z[2] = ring.MRed(x[2], deltaMont, qi, mredParams)
-			z[3] = ring.MRed(x[3], deltaMont, qi, mredParams)
-			z[4] = ring.MRed(x[4], deltaMont, qi, mredParams)
-			z[5] = ring.MRed(x[5], deltaMont, qi, mredParams)
-			z[6] = ring.MRed(x[6], deltaMont, qi, mredParams)
-			z[7] = ring.MRed(x[7], deltaMont, qi, mredParams)
-		}
-	}
-}
-
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
 func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
@@ -209,13 +181,13 @@ func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate 
 
 		if el0.Degree() == 0 && el0.eleType == opPTZT {
 
-			eval.TtoQ(el0.Plaintext(), eval.poolQKS[0])
+			tToQ(eval.ringQ, eval.deltaMont, el0.value[0], eval.poolQKS[0])
 
 			evaluate(eval.poolQKS[0], el1.value[0], elOut.value[0])
 
 		} else if el1.Degree() == 0 && el1.eleType == opPTZT {
 
-			eval.TtoQ(el1.Plaintext(), eval.poolQKS[0])
+			tToQ(eval.ringQ, eval.deltaMont, el1.value[0], eval.poolQKS[0])
 
 			evaluate(el0.value[0], eval.poolQKS[0], elOut.value[0])
 

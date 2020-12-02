@@ -104,7 +104,7 @@ func (el *Element) Resize(params *Parameters, degree uint64) {
 }
 
 // Type returns the type of the element :
-// 0 =  Ciphertext 
+// 0 =  Ciphertext
 // 1 =	Plaintext ZQ (standard)
 // 2 =	Plaintext ZT
 // 3 =	Plaintetx Mul

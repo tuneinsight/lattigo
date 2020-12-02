@@ -122,7 +122,7 @@ func (encoder *encoder) EncodeUint(coeffs []uint64, p *Plaintext) {
 	encoder.ringT.InvNTT(p.value, p.value)
 
 	if p.eleType == opPTZQ {
-		encoder.tToQ(p)
+		tToQ(encoder.ringQ, encoder.deltaMont, p.value, p.value)
 	} else if p.eleType == opPTMul {
 		encoder.nttMontZQ(p)
 	}
@@ -156,36 +156,34 @@ func (encoder *encoder) EncodeInt(coeffs []int64, p *Plaintext) {
 	encoder.ringT.InvNTTLazy(p.value, p.value)
 
 	if p.eleType == opPTZQ {
-		encoder.tToQ(p)
+		tToQ(encoder.ringQ, encoder.deltaMont, p.value, p.value)
 	} else if p.eleType == opPTMul {
 		encoder.nttMontZQ(p)
 	}
 }
 
-func (encoder *encoder) tToQ(p *Plaintext) {
-
-	ringQ := encoder.ringQ
+func tToQ(ringQ *ring.Ring, deltaMont []uint64, pt, pol *ring.Poly) {
 
 	for i := len(ringQ.Modulus) - 1; i >= 0; i-- {
-		tmp1 := p.value.Coeffs[i]
-		tmp2 := p.value.Coeffs[0]
-		deltaMont := encoder.deltaMont[i]
+		tmp1 := pol.Coeffs[i]
+		tmp2 := pt.Coeffs[0]
+		d := deltaMont[i]
 		qi := ringQ.Modulus[i]
-		bredParams := ringQ.GetMredParams()[i]
+		mredParams := ringQ.GetMredParams()[i]
 
 		for j := uint64(0); j < ringQ.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&tmp2[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&tmp1[j]))
 
-			z[0] = ring.MRed(x[0], deltaMont, qi, bredParams)
-			z[1] = ring.MRed(x[1], deltaMont, qi, bredParams)
-			z[2] = ring.MRed(x[2], deltaMont, qi, bredParams)
-			z[3] = ring.MRed(x[3], deltaMont, qi, bredParams)
-			z[4] = ring.MRed(x[4], deltaMont, qi, bredParams)
-			z[5] = ring.MRed(x[5], deltaMont, qi, bredParams)
-			z[6] = ring.MRed(x[6], deltaMont, qi, bredParams)
-			z[7] = ring.MRed(x[7], deltaMont, qi, bredParams)
+			z[0] = ring.MRed(x[0], d, qi, mredParams)
+			z[1] = ring.MRed(x[1], d, qi, mredParams)
+			z[2] = ring.MRed(x[2], d, qi, mredParams)
+			z[3] = ring.MRed(x[3], d, qi, mredParams)
+			z[4] = ring.MRed(x[4], d, qi, mredParams)
+			z[5] = ring.MRed(x[5], d, qi, mredParams)
+			z[6] = ring.MRed(x[6], d, qi, mredParams)
+			z[7] = ring.MRed(x[7], d, qi, mredParams)
 		}
 	}
 }

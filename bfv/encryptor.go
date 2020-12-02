@@ -3,7 +3,6 @@ package bfv
 import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
-	"unsafe"
 )
 
 // Encryptor in an interface for encryptors
@@ -246,7 +245,7 @@ func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast
 	if p.eleType == opPTZQ {
 		encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
 	} else if p.eleType == opPTZT {
-		encryptor.tToQ(p)
+		tToQ(ringQ, encryptor.deltaMont, p.value, encryptor.polypool[0])
 		encryptor.ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 	} else {
 		panic("cannot encrypt a plaintext created with NewPlaintextMul")
@@ -316,37 +315,9 @@ func (encryptor *skEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, crp 
 	if p.eleType == opPTZQ {
 		encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
 	} else if p.eleType == opPTZT {
-		encryptor.tToQ(p)
+		tToQ(ringQ, encryptor.deltaMont, p.value, encryptor.polypool[0])
 		encryptor.ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
 	} else {
 		panic("cannot encrypt a plaintext created with NewPlaintextMul")
-	}
-}
-
-func (encryptor *encryptor) tToQ(p *Plaintext) {
-
-	ringQ := encryptor.ringQ
-	encryptor.polypool[0].Zero()
-	for i := len(ringQ.Modulus) - 1; i >= 0; i-- {
-		tmp1 := encryptor.polypool[0].Coeffs[i]
-		tmp2 := p.value.Coeffs[0]
-		deltaMont := encryptor.deltaMont[i]
-		qi := ringQ.Modulus[i]
-		mredParams := ringQ.GetMredParams()[i]
-
-		for j := uint64(0); j < ringQ.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&tmp2[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&tmp1[j]))
-
-			z[0] = ring.MRed(x[0], deltaMont, qi, mredParams)
-			z[1] = ring.MRed(x[1], deltaMont, qi, mredParams)
-			z[2] = ring.MRed(x[2], deltaMont, qi, mredParams)
-			z[3] = ring.MRed(x[3], deltaMont, qi, mredParams)
-			z[4] = ring.MRed(x[4], deltaMont, qi, mredParams)
-			z[5] = ring.MRed(x[5], deltaMont, qi, mredParams)
-			z[6] = ring.MRed(x[6], deltaMont, qi, mredParams)
-			z[7] = ring.MRed(x[7], deltaMont, qi, mredParams)
-		}
 	}
 }

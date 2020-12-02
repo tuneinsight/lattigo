@@ -86,10 +86,9 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	ringQP := pp.context.ringQP
 
 	// h0 = s*ct[1]
-	ringQ.NTT(ciphertext.Value()[1], pp.tmp1)
-	ringQ.MulCoeffsMontgomery(sk, pp.tmp1, share.RefreshShareDecrypt)
-
-	ringQ.InvNTT(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
+	ringQ.NTTLazy(ciphertext.Value()[1], pp.tmp1)
+	ringQ.MulCoeffsMontgomeryConstant(sk, pp.tmp1, share.RefreshShareDecrypt)
+	ringQ.InvNTTLazy(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P
 	ringQ.MulScalarBigint(share.RefreshShareDecrypt, pp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
@@ -110,10 +109,10 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	pp.baseconverter.ModDownSplitPQ(level, share.RefreshShareDecrypt, pp.hP, share.RefreshShareDecrypt)
 
 	// h1 = -s*a
-	ringQP.NTT(crs, pp.tmp1)
-	ringQP.MulCoeffsMontgomery(sk, pp.tmp1, pp.tmp2)
-	ringQP.Neg(pp.tmp2, pp.tmp2)
-	ringQP.InvNTT(pp.tmp2, pp.tmp2)
+	ringQP.Neg(crs, pp.tmp1)
+	ringQP.NTTLazy(pp.tmp1, pp.tmp1)
+	ringQP.MulCoeffsMontgomeryConstant(sk, pp.tmp1, pp.tmp2)
+	ringQP.InvNTTLazy(pp.tmp2, pp.tmp2)
 
 	// h1 = s*a + e'
 	pp.gaussianSampler.ReadAndAdd(pp.tmp2)
@@ -139,7 +138,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	pp.permuteWithIndex(coeffs, permutation, pp.tmp1)
 
 	// Switch back the mask in the time domain
-	ringT.InvNTT(pp.tmp1, coeffs)
+	ringT.InvNTTLazy(pp.tmp1, coeffs)
 
 	// Multiply by Q/t
 	lift(coeffs, pp.tmp1, pp.context)
@@ -170,7 +169,7 @@ func (pp *PermuteProtocol) Permute(sharePlaintext *ring.Poly, permutation []uint
 
 	pp.permuteWithIndex(sharePlaintextOut, permutation, pp.tmp1)
 
-	ringT.InvNTT(pp.tmp1, sharePlaintextOut)
+	ringT.InvNTTLazy(pp.tmp1, sharePlaintextOut)
 
 	lift(sharePlaintextOut, sharePlaintextOut, pp.context)
 }

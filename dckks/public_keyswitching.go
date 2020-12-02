@@ -68,12 +68,12 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	ringQP := pcks.dckksContext.ringQP
 
 	pcks.ternarySamplerMontgomery.Read(pcks.tmp)
-	ringQP.NTT(pcks.tmp, pcks.tmp)
+	ringQP.NTTLazy(pcks.tmp, pcks.tmp)
 
 	// h_0 = u_i * pk_0
-	ringQP.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
+	ringQP.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Get()[0], pcks.share0tmp)
 	// h_1 = u_i * pk_1
-	ringQP.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], pcks.share1tmp)
+	ringQP.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Get()[1], pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
 	pcks.gaussianSampler.Read(pcks.tmp)

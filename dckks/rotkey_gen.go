@@ -113,8 +113,8 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 
 		// e
 		rtg.gaussianSampler.Read(evakey[i])
+		ringQP.NTTLazy(evakey[i], evakey[i])
 		ringQP.MForm(evakey[i], evakey[i])
-		ringQP.NTT(evakey[i], evakey[i])
 
 		// a is the CRP
 

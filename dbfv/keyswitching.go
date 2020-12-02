@@ -87,14 +87,14 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 	ringQ := cks.context.ringQ
 	ringQP := cks.context.ringQP
 
-	ringQ.NTT(ct.Value()[1], cks.tmpNtt)
-	ringQ.MulCoeffsMontgomery(cks.tmpNtt, skDelta, shareOut.Poly)
+	ringQ.NTTLazy(ct.Value()[1], cks.tmpNtt)
+	ringQ.MulCoeffsMontgomeryConstant(cks.tmpNtt, skDelta, shareOut.Poly)
 	ringQ.MulScalarBigint(shareOut.Poly, cks.context.ringP.ModulusBigint, shareOut.Poly)
 
-	ringQ.InvNTT(shareOut.Poly, shareOut.Poly)
+	ringQ.InvNTTLazy(shareOut.Poly, shareOut.Poly)
 
 	cks.gaussianSampler.ReadLvl(uint64(len(ringQP.Modulus)-1), cks.tmpNtt)
-	ringQ.Add(shareOut.Poly, cks.tmpNtt, shareOut.Poly)
+	ringQ.AddNoMod(shareOut.Poly, cks.tmpNtt, shareOut.Poly)
 
 	for x, i := 0, uint64(len(ringQ.Modulus)); i < uint64(len(cks.context.ringQP.Modulus)); x, i = x+1, i+1 {
 		tmphP := cks.hP.Coeffs[x]

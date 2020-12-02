@@ -26,6 +26,9 @@ func NewPoly(coeffs []complex128) (p *Poly) {
 	return
 }
 
+// checkEnoughLevels checks that enough levels are available to evaluate the polynomial.
+// Also checks if c is a gaussian integer or not. If not, then one more level is needed
+// to evaluate the polynomial.
 func checkEnoughLevels(levels uint64, pol *Poly, c complex128) (err error) {
 
 	logDegree := uint64(math.Log2(float64(len(pol.coeffs))) + 0.5)
@@ -108,6 +111,7 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *Evaluati
 // EvaluateCheby evaluates a polynomial in Chebyshev basis on the input Ciphertext in ceil(log2(deg+1))+1 levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
+// A change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a)) is necessary before the polynomial evaluation to ensure correctness.
 func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
 
 	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 1); err != nil {

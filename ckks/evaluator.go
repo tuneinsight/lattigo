@@ -42,6 +42,7 @@ type Evaluator interface {
 	DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciphertext)
 	DropLevel(ct0 *Ciphertext, levels uint64) (err error)
 	Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciphertext) (err error)
+	RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ciphertext, err error)
 	RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *Ciphertext) (err error)
 	MulRelinNew(op0, op1 Operand, evakey *EvaluationKey) (ctOut *Ciphertext)
 	MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *Ciphertext)
@@ -1232,6 +1233,7 @@ func (eval *evaluator) DropLevel(ct0 *Ciphertext, levels uint64) (err error) {
 // in a newly created element. Since all the moduli in the moduli chain are generated to be close to the
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
+// Returns an error if "threshold <= 0", ct.Scale() = 0, ct.Level() = 0, ct.IsNTT() != true
 func (eval *evaluator) RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ciphertext, err error) {
 
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())

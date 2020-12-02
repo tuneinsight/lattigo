@@ -119,10 +119,9 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	ringQP := rfp.context.ringQP
 
 	// h0 = s*ct[1]
-	ringQ.NTT(ciphertext.Value()[1], rfp.tmp1)
-	ringQ.MulCoeffsMontgomery(sk, rfp.tmp1, share.RefreshShareDecrypt)
-
-	ringQ.InvNTT(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
+	ringQ.NTTLazy(ciphertext.Value()[1], rfp.tmp1)
+	ringQ.MulCoeffsMontgomeryConstant(sk, rfp.tmp1, share.RefreshShareDecrypt)
+	ringQ.InvNTTLazy(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P
 	ringQ.MulScalarBigint(share.RefreshShareDecrypt, rfp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
@@ -143,10 +142,10 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	rfp.baseconverter.ModDownSplitPQ(level, share.RefreshShareDecrypt, rfp.hP, share.RefreshShareDecrypt)
 
 	// h1 = -s*a
-	ringQP.NTT(crs, rfp.tmp1)
-	ringQP.MulCoeffsMontgomery(sk, rfp.tmp1, rfp.tmp2)
-	ringQP.Neg(rfp.tmp2, rfp.tmp2)
-	ringQP.InvNTT(rfp.tmp2, rfp.tmp2)
+	ringQP.Neg(crs, rfp.tmp1)
+	ringQP.NTTLazy(rfp.tmp1, rfp.tmp1)
+	ringQP.MulCoeffsMontgomeryConstant(sk, rfp.tmp1, rfp.tmp2)
+	ringQP.InvNTTLazy(rfp.tmp2, rfp.tmp2)
 
 	// h1 = s*a + e'
 	rfp.gaussianSampler.ReadAndAdd(rfp.tmp2)
@@ -201,9 +200,13 @@ func (rfp *RefreshProtocol) Finalize(ciphertext *bfv.Ciphertext, crs *ring.Poly,
 }
 
 func lift(p0, p1 *ring.Poly, context *dbfvContext) {
+
+	coeffs := p0.Coeffs[0]
+	var coeff uint64
 	for j := uint64(0); j < context.n; j++ {
+		coeff = coeffs[j]
 		for i := len(context.ringQ.Modulus) - 1; i >= 0; i-- {
-			p1.Coeffs[i][j] = ring.MRed(p0.Coeffs[0][j], context.deltaMont[i], context.ringQ.Modulus[i], context.ringQ.GetMredParams()[i])
+			p1.Coeffs[i][j] = ring.MRed(coeff, context.deltaMont[i], context.ringQ.Modulus[i], context.ringQ.MredParams[i])
 		}
 	}
 }

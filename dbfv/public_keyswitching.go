@@ -118,15 +118,15 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	contextKeys := pcks.context.ringQP
 
 	pcks.ternarySamplerMontgomery.Read(pcks.tmp)
-	contextKeys.NTT(pcks.tmp, pcks.tmp)
+	contextKeys.NTTLazy(pcks.tmp, pcks.tmp)
 
 	// h_0 = u_i * pk_0
-	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[0], pcks.share0tmp)
+	contextKeys.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Get()[0], pcks.share0tmp)
 	// h_1 = u_i * pk_1
-	contextKeys.MulCoeffsMontgomery(pcks.tmp, pk.Get()[1], pcks.share1tmp)
+	contextKeys.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Get()[1], pcks.share1tmp)
 
-	contextKeys.InvNTT(pcks.share0tmp, pcks.share0tmp)
-	contextKeys.InvNTT(pcks.share1tmp, pcks.share1tmp)
+	contextKeys.InvNTTLazy(pcks.share0tmp, pcks.share0tmp)
+	contextKeys.InvNTTLazy(pcks.share1tmp, pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
 	pcks.gaussianSampler.ReadAndAdd(pcks.share0tmp)
@@ -142,8 +142,8 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	pcks.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, pcks.share1tmp, shareOut[1])
 
 	// tmp = s_i*c_1
-	ringQ.NTT(ct.Value()[1], pcks.tmp)
-	ringQ.MulCoeffsMontgomery(pcks.tmp, sk, pcks.tmp)
+	ringQ.NTTLazy(ct.Value()[1], pcks.tmp)
+	ringQ.MulCoeffsMontgomeryConstant(pcks.tmp, sk, pcks.tmp)
 	ringQ.InvNTT(pcks.tmp, pcks.tmp)
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P

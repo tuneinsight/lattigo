@@ -11,20 +11,10 @@ type Operand interface {
 	Degree() uint64
 }
 
-type eleType int
-
-const (
-	opCT = iota + 1
-	opPTZQ
-	opPTZT
-	opPTMul
-)
-
 // Element is a common struct for Plaintexts and Ciphertexts. It stores a value
 // as a slice of polynomials, and an isNTT flag that indicates if the element is in the NTT domain.
 type Element struct {
-	value   []*ring.Poly
-	eleType int
+	value []*ring.Poly
 }
 
 func newEleCT(params *Parameters, degree uint64) *Element {
@@ -40,21 +30,21 @@ func newEleCT(params *Parameters, degree uint64) *Element {
 func newElePTZQ(params *Parameters) *Element {
 	el := new(Element)
 	el.value = []*ring.Poly{ring.NewPoly(params.N(), params.QiCount())}
-	el.eleType = opPTZQ
+	el.eleType = PlaintextTypeZQ
 	return el
 }
 
 func newElePTZT(params *Parameters) *Element {
 	el := new(Element)
 	el.value = []*ring.Poly{ring.NewPoly(params.N(), 1)}
-	el.eleType = opPTZT
+	el.eleType = PlaintextTypeZT
 	return el
 }
 
 func newElePTMul(params *Parameters) *Element {
 	el := new(Element)
 	el.value = []*ring.Poly{ring.NewPoly(params.N(), params.QiCount())}
-	el.eleType = opPTMul
+	el.eleType = PlaintextTypeMul
 	return el
 }
 

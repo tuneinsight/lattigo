@@ -95,7 +95,7 @@ func obliviousRiding() {
 		Rider[(i<<1)+1] = riderPosY
 	}
 
-	riderPlaintext := bfv.NewPlaintextZQ(params)
+	riderPlaintext := bfv.NewPlaintext(params)
 	encoder.EncodeUint(Rider, riderPlaintext)
 
 	// driversData coordinates [0, 0, ..., x, y, ..., 0, 0]
@@ -106,7 +106,7 @@ func obliviousRiding() {
 		driversData[i] = make([]uint64, 1<<params.LogN())
 		driversData[i][(i << 1)] = ring.RandUniform(prng, maxvalue, mask)
 		driversData[i][(i<<1)+1] = ring.RandUniform(prng, maxvalue, mask)
-		driversPlaintexts[i] = bfv.NewPlaintextZQ(params)
+		driversPlaintexts[i] = bfv.NewPlaintext(params)
 		encoder.EncodeUint(driversData[i], driversPlaintexts[i])
 	}
 
@@ -129,7 +129,7 @@ func obliviousRiding() {
 		evaluator.Add(RiderCiphertext, DriversCiphertexts[i], RiderCiphertext)
 	}
 
-	result := encoder.DecodeUint(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)))
+	result := encoder.DecodeUintNew(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)))
 
 	minIndex, minPosX, minPosY, minDist := uint64(0), params.T(), params.T(), params.T()
 

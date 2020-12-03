@@ -224,7 +224,7 @@ func main() {
 	encoder := bfv.NewEncoder(params)
 	l.Println("> Memory alloc Phase")
 	encInputs := make([]*bfv.Ciphertext, N, N)
-	plainMask := make([]*bfv.Plaintext, N, N)
+	plainMask := make([]*bfv.PlaintextMul, N, N)
 	encPartial := make([]*bfv.Ciphertext, N, N)
 
 	// Ciphertexts to be retrieved
@@ -238,7 +238,7 @@ func main() {
 		maskCoeffs := make([]uint64, 1<<params.LogN())
 		maskCoeffs[i] = 1
 		plainMask[i] = bfv.NewPlaintextMul(params)
-		encoder.EncodeUint(maskCoeffs, plainMask[i])
+		encoder.EncodeUintMul(maskCoeffs, plainMask[i])
 	}
 
 	// Buffer for the intermediate computation done by the cloud
@@ -249,7 +249,7 @@ func main() {
 	// Ciphertexts encrypted under CPK and stored in the cloud
 	l.Println("> Encrypt Phase")
 	encryptor := bfv.NewEncryptorFromPk(params, pk)
-	pt := bfv.NewPlaintextZQ(params)
+	pt := bfv.NewPlaintext(params)
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
 			encoder.EncodeUint(pi.input, pt)
@@ -268,7 +268,7 @@ func main() {
 	// Query ciphertext
 	queryCoeffs := make([]uint64, 1<<params.LogN())
 	queryCoeffs[queryIndex] = 1
-	query := bfv.NewPlaintextZQ(params)
+	query := bfv.NewPlaintext(params)
 	var encQuery *bfv.Ciphertext
 	elapsedRequestParty += runTimed(func() {
 		encoder.EncodeUint(queryCoeffs, query)
@@ -277,7 +277,7 @@ func main() {
 
 	type MaskTask struct {
 		query           *bfv.Ciphertext
-		mask            *bfv.Plaintext
+		mask            *bfv.PlaintextMul
 		row             *bfv.Ciphertext
 		res             *bfv.Ciphertext
 		elapsedMaskTask time.Duration
@@ -369,12 +369,12 @@ func main() {
 
 	// Decryption by the external party
 	decryptor := bfv.NewDecryptor(params, P[0].sk)
-	ptres := bfv.NewPlaintextZQ(params)
+	ptres := bfv.NewPlaintext(params)
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
 	})
 
-	res := encoder.DecodeUint(ptres)
+	res := encoder.DecodeUintNew(ptres)
 
 	l.Printf("\t%v\n", res[:16])
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",

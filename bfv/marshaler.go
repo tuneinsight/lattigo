@@ -50,8 +50,6 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		pointer += inc
 	}
 
-	ciphertext.eleType = opCT
-
 	return nil
 }
 

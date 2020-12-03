@@ -23,28 +23,24 @@ func newEleCT(params *Parameters, degree uint64) *Element {
 	for i := uint64(0); i < degree+1; i++ {
 		el.value[i] = ring.NewPoly(params.N(), params.QiCount())
 	}
-	el.eleType = opCT
 	return el
 }
 
 func newElePTZQ(params *Parameters) *Element {
 	el := new(Element)
 	el.value = []*ring.Poly{ring.NewPoly(params.N(), params.QiCount())}
-	el.eleType = PlaintextTypeZQ
 	return el
 }
 
 func newElePTZT(params *Parameters) *Element {
 	el := new(Element)
 	el.value = []*ring.Poly{ring.NewPoly(params.N(), 1)}
-	el.eleType = PlaintextTypeZT
 	return el
 }
 
 func newElePTMul(params *Parameters) *Element {
 	el := new(Element)
 	el.value = []*ring.Poly{ring.NewPoly(params.N(), params.QiCount())}
-	el.eleType = PlaintextTypeMul
 	return el
 }
 
@@ -91,15 +87,6 @@ func (el *Element) Resize(params *Parameters, degree uint64) {
 			}
 		}
 	}
-}
-
-// Type returns the type of the element :
-// 0 =  Ciphertext
-// 1 =	Plaintext ZQ (standard)
-// 2 =	Plaintext ZT
-// 3 =	Plaintetx Mul
-func (el *Element) Type() int {
-	return el.eleType
 }
 
 // CopyNew creates a new Element which is a copy of the target Element, and returns the value as

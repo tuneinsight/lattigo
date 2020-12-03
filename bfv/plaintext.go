@@ -11,8 +11,10 @@ type Plaintext struct {
 	//plaintextType PlaintextType
 }
 
+// PlaintextZT represents a plaintext element in R_t
 type PlaintextZT Plaintext
 
+// PlaintextMul represents a plaintext element in R_q without scale up by Q/t
 type PlaintextMul Plaintext
 
 //type PlaintextType int

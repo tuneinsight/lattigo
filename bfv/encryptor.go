@@ -241,16 +241,7 @@ func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast
 	}
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
-
-	if p.eleType == opPTZQ {
-		encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
-	} else if p.eleType == opPTZT {
-		tToQ(ringQ, encryptor.deltaMont, p.value, encryptor.polypool[0])
-		encryptor.ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
-	} else {
-		panic("cannot encrypt a plaintext created with NewPlaintextMul")
-	}
-
+	encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
 }
 
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
@@ -312,12 +303,5 @@ func (encryptor *skEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, crp 
 	encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0])
 
 	// ct = [-a*s + m + e , a]
-	if p.eleType == opPTZQ {
-		encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
-	} else if p.eleType == opPTZT {
-		tToQ(ringQ, encryptor.deltaMont, p.value, encryptor.polypool[0])
-		encryptor.ringQ.Add(ciphertext.value[0], encryptor.polypool[0], ciphertext.value[0])
-	} else {
-		panic("cannot encrypt a plaintext created with NewPlaintextMul")
-	}
+	encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
 }

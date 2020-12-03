@@ -545,7 +545,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 			p.RefreshProtocol = NewRefreshProtocol(testCtx.params)
 			p.s = sk0Shards[i].Get()
 			p.share = p.AllocateShares()
-			p.ptShare = bfv.NewPlaintextZQ(testCtx.params)
+			p.ptShare = bfv.NewPlaintext(testCtx.params)
 			RefreshParties[i] = p
 		}
 
@@ -574,7 +574,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], testCtx.dbfvContext.ringT.Modulus[0], testCtx.dbfvContext.ringT.GetBredParams()[0])
 			}
 
-			if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertextTmp))) {
+			if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertextTmp))) {
 				maxDepth++
 			} else {
 				break
@@ -624,7 +624,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		}
 
 		//Decrypts and compare
-		require.True(t, utils.EqualSliceUint64(coeffs, encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertext))))
+		require.True(t, utils.EqualSliceUint64(coeffs, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertext))))
 	})
 }
 
@@ -650,7 +650,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 			p.PermuteProtocol = NewPermuteProtocol(testCtx.params)
 			p.s = sk0Shards[i].Get()
 			p.share = p.AllocateShares()
-			p.ptShare = bfv.NewPlaintextZQ(testCtx.params)
+			p.ptShare = bfv.NewPlaintext(testCtx.params)
 			RefreshParties[i] = p
 		}
 
@@ -687,7 +687,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 			coeffsPermute[i] = coeffs[permutation[i]]
 		}
 
-		coeffsHave := encoder.DecodeUint(decryptorSk0.DecryptNew(ciphertext))
+		coeffsHave := encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertext))
 
 		//Decrypts and compare
 		require.True(t, utils.EqualSliceUint64(coeffsPermute, coeffsHave))
@@ -699,14 +699,14 @@ func newTestVectors(testCtx *testContext, encryptor bfv.Encryptor, t *testing.T)
 	uniformSampler := ring.NewUniformSampler(testCtx.prng, testCtx.dbfvContext.ringT)
 
 	coeffsPol := uniformSampler.ReadNew()
-	plaintext = bfv.NewPlaintextZQ(testCtx.params)
+	plaintext = bfv.NewPlaintext(testCtx.params)
 	testCtx.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 
 func verifyTestVectors(testCtx *testContext, decryptor bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
-	require.True(t, utils.EqualSliceUint64(coeffs, testCtx.encoder.DecodeUint(decryptor.DecryptNew(ciphertext))))
+	require.True(t, utils.EqualSliceUint64(coeffs, testCtx.encoder.DecodeUintNew(decryptor.DecryptNew(ciphertext))))
 }
 
 func testMarshalling(testCtx *testContext, t *testing.T) {

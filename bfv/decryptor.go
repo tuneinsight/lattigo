@@ -44,7 +44,7 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 }
 
 func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) *Plaintext {
-	p := NewPlaintextZQ(decryptor.params)
+	p := NewPlaintext(decryptor.params)
 	decryptor.Decrypt(ciphertext, p)
 	return p
 }
@@ -71,25 +71,5 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, p *Plaintext) {
 		ringQ.Reduce(accumulator, accumulator)
 	}
 
-	if p.eleType == opPTZQ {
-
-		// Plaintext is in ZQ and scaled by Q/t
-		ringQ.InvNTT(accumulator, p.value)
-
-	} else if p.eleType == opPTZT {
-		// Plaintext is in ZT and divided (rounded) by Q/t
-		ringQ.InvNTT(accumulator, accumulator)
-		decryptor.scaler.DivByQOverTRounded(accumulator, p.value)
-	} else {
-		// Plaintext put in ZT, divided by Q/t, then put back in the NTT and Montgomery domain of ZQ
-		ringQ.InvNTT(accumulator, accumulator)
-		decryptor.scaler.DivByQOverTRounded(accumulator, p.value)
-
-		for i := 1; i < len(ringQ.Modulus); i++ {
-			copy(p.value.Coeffs[i], p.value.Coeffs[0])
-		}
-
-		ringQ.NTTLazy(p.value, p.value)
-		ringQ.MForm(p.value, p.value)
-	}
+	ringQ.InvNTT(accumulator, p.value)
 }

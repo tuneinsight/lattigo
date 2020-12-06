@@ -190,13 +190,7 @@ func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree u
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
 func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	var smallest, largest *Element
-	switch {
-	case el0.Degree() >= el1.Degree():
-		smallest, largest = el1, el0
-	case el0.Degree() < el1.Degree():
-		smallest, largest = el0, el1
-	}
+	smallest, largest, _ := getSmallestLargest(el0, el1)
 
 	for i := uint64(0); i < smallest.Degree()+1; i++ {
 		evaluate(el0.value[i], el1.value[i], elOut.value[i])
@@ -248,8 +242,9 @@ func (eval *evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()), true)
 	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Sub)
 
-	if el0.Degree() < el1.Degree() {
-		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
+	smallest, largest, sameDegree := getSmallestLargest(el0, el1)
+	if !sameDegree {
+		for i := smallest.Degree() + 1; i < largest.Degree()+1; i++ {
 			eval.ringQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
 		}
 	}

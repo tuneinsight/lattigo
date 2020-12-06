@@ -17,6 +17,16 @@ type Element struct {
 	value []*ring.Poly
 }
 
+func getSmallestLargest(el0, el1 *Element) (smallest, largest *Element, sameDegree bool) {
+	switch {
+	case el0.Degree() > el1.Degree():
+		return el1, el0, false
+	case el0.Degree() < el1.Degree():
+		return el0, el1, false
+	}
+	return el0, el1, true
+}
+
 func newEleCT(params *Parameters, degree uint64) *Element {
 	el := new(Element)
 	el.value = make([]*ring.Poly, degree+1)

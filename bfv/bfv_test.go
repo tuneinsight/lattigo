@@ -294,14 +294,15 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 		values1, plaintextZt := newTestVectorsZT(testctx, t)
 		values2, _, ciphertext := newTestVectorsZQ(testctx, testctx.encryptorPk, t)
 		ciphertextOut := NewCiphertext(testctx.params, 1)
+		plaintextWant := NewPlaintextZT(testctx.params)
 
 		testctx.evaluator.Sub(ciphertext, plaintextZt, ciphertextOut)
-		testctx.ringT.Sub(values1, values2, values2)
-		verifyTestVectors(testctx, testctx.decryptor, values2, ciphertextOut, t)
+		testctx.ringT.Sub(values2, values1, plaintextWant.value)
+		verifyTestVectors(testctx, testctx.decryptor, plaintextWant.value, ciphertextOut, t)
 
 		testctx.evaluator.Sub(plaintextZt, ciphertext, ciphertextOut)
-		testctx.ringT.Sub(values2, values1, values2)
-		verifyTestVectors(testctx, testctx.decryptor, values2, ciphertextOut, t)
+		testctx.ringT.Sub(values1, values2, plaintextWant.value)
+		verifyTestVectors(testctx, testctx.decryptor, plaintextWant.value, ciphertextOut, t)
 	})
 
 	t.Run(testString("Evaluator/Sub/CtPlainZQ/", testctx.params), func(t *testing.T) {

@@ -242,9 +242,8 @@ func (eval *evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()), true)
 	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Sub)
 
-	smallest, largest, sameDegree := getSmallestLargest(el0, el1)
-	if !sameDegree {
-		for i := smallest.Degree() + 1; i < largest.Degree()+1; i++ {
+	if el0.Degree() < el1.Degree() {
+		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
 			eval.ringQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
 		}
 	}

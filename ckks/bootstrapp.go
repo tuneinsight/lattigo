@@ -79,7 +79,7 @@ func (btp *Bootstrapper) subSum(ct *Ciphertext) *Ciphertext {
 
 	for i := btp.params.logSlots; i < btp.params.MaxLogSlots(); i++ {
 
-		btp.evaluator.RotateColumns(ct, 1<<i, btp.rotkeys, btp.ctxpool)
+		btp.evaluator.Rotate(ct, 1<<i, btp.rotkeys, btp.ctxpool)
 
 		btp.evaluator.Add(ct, btp.ctxpool, ct)
 	}
@@ -153,7 +153,7 @@ func (btp *Bootstrapper) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Ciphertext) {
 	if btp.repack {
 
 		// The imaginary part is put in the right n/2 slots of ct0.
-		evaluator.RotateColumns(ct1, btp.params.Slots(), btp.rotkeys, ct1)
+		evaluator.Rotate(ct1, btp.params.Slots(), btp.rotkeys, ct1)
 
 		evaluator.Add(ct0, ct1, ct0)
 
@@ -488,34 +488,28 @@ func (btp *Bootstrapper) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphe
 	return ct0, ct1
 }
 
-func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) (res *Ciphertext) {
+func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 
 	eval := btp.evaluator.(*evaluator)
 
-	C := make(map[uint64]*Ciphertext)
-	C[1] = ct.CopyNew().Ciphertext()
-
 	cheby := btp.chebycoeffs
-
-	if btp.SinType == Cos1 || btp.SinType == Cos2 {
-		scfac := complex(float64(int(1<<btp.SinRescal)), 0)
-		eval.AddConst(C[1], -0.5/(scfac*(cheby.b-cheby.a)), C[1])
-	}
-
-	res, _ = eval.evalCheby(cheby, C, btp.relinkey)
 
 	sqrt2pi := math.Pow(0.15915494309189535, 1.0/float64(int(1<<btp.SinRescal)))
 
-	for i := uint64(0); i < btp.SinRescal; i++ {
-		sqrt2pi *= sqrt2pi
-		eval.MulRelin(res, res, btp.relinkey, res)
-		eval.Add(res, res, res)
-		eval.AddConst(res, -sqrt2pi, res)
-		eval.Rescale(res, eval.scale, res)
+	if btp.SinType == Cos1 || btp.SinType == Cos2 {
+		scfac := complex(float64(int(1<<btp.SinRescal)), 0)
+		eval.AddConst(ct, -0.5/(scfac*(cheby.b-cheby.a)), ct)
 	}
 
-	ct = nil
-	C = nil
+	ct, _ = eval.EvaluateCheby(ct, cheby, btp.relinkey)
 
-	return
+	for i := uint64(0); i < btp.SinRescal; i++ {
+		sqrt2pi *= sqrt2pi
+		eval.MulRelin(ct, ct, btp.relinkey, ct)
+		eval.Add(ct, ct, ct)
+		eval.AddConst(ct, -sqrt2pi, ct)
+		eval.Rescale(ct, eval.scale, ct)
+	}
+
+	return ct
 }

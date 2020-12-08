@@ -2,6 +2,17 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
+## Unreleased changes
+
+### Changed
+- CKKS : API of evaluator.RotateColumns becomes Evaluator.Rotate
+- CKKS : the change of variable in evaluator.EvaluateCheby isn't done automatically anymore and the user must do it before calling the function to ensure correctness.
+- CKKS : when encoding, the number of slots must now be given in log2 basis. This is to prevent errors that would induced by zero values or non power of two values.
+- CKKS : new encoder API : EncodeAtLvlNew and EncodeNTTAtLvlNew, which allow a user to encode a plaintext at a specific level.
+
+### Removed
+- CKKS : evaluator.EvaluateChebySpecial
+
 ## [2.0.0] - 2020-10-07
 
 ### Performance

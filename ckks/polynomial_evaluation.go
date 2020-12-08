@@ -26,6 +26,9 @@ func NewPoly(coeffs []complex128) (p *Poly) {
 	return
 }
 
+// checkEnoughLevels checks that enough levels are available to evaluate the polynomial.
+// Also checks if c is a gaussian integer or not. If not, then one more level is needed
+// to evaluate the polynomial.
 func checkEnoughLevels(levels uint64, pol *Poly, c complex128) (err error) {
 
 	logDegree := uint64(math.Log2(float64(len(pol.coeffs))) + 0.5)
@@ -108,45 +111,16 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *Evaluati
 // EvaluateCheby evaluates a polynomial in Chebyshev basis on the input Ciphertext in ceil(log2(deg+1))+1 levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
+// A change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a)) is necessary before the polynomial evaluation to ensure correctness.
 func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
 
-	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 2/(cheby.b-cheby.a)); err != nil {
+	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 1); err != nil {
 		return op, err
 	}
 
 	C := make(map[uint64]*Ciphertext)
 
 	C[1] = op.CopyNew().Ciphertext()
-
-	eval.MultByConst(C[1], 2/(cheby.b-cheby.a), C[1])
-	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	eval.Rescale(C[1], eval.scale, C[1])
-
-	return eval.evalCheby(cheby, C, evakey)
-}
-
-// EvaluateChebyFastSpecial evaluates the input Chebyshev polynomial with the input ciphertext.
-// Slower than EvaluateChebyFast but consumes ceil(log(deg)) + 1 levels.
-// Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
-// Returns an error if something is wrong with the scale.
-func (eval *evaluator) EvaluateChebySpecial(op *Ciphertext, n complex128, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
-
-	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 2/((cheby.b-cheby.a)*n)); err != nil {
-		return op, err
-	}
-
-	C := make(map[uint64]*Ciphertext)
-
-	C[1] = op.CopyNew().Ciphertext()
-
-	eval.MultByConst(C[1], 2/((cheby.b-cheby.a)*n), C[1])
-	eval.AddConst(C[1], (-cheby.a-cheby.b)/(cheby.b-cheby.a), C[1])
-	eval.Rescale(C[1], eval.scale, C[1])
-
-	return eval.evalCheby(cheby, C, evakey)
-}
-
-func (eval *evaluator) evalCheby(cheby *ChebyshevInterpolation, C map[uint64]*Ciphertext, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
 
 	logDegree := uint64(bits.Len64(cheby.Degree()))
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
@@ -497,7 +471,7 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[uint64]
 			cReal := int64(real(coeffs.coeffs[key]) * constScale)
 			cImag := int64(imag(coeffs.coeffs[key]) * constScale)
 
-			evaluator.multByGaussianIntegerAndAdd(C[key], cReal, cImag, res)
+			evaluator.MultByGaussianIntegerAndAdd(C[key], cReal, cImag, res)
 		}
 	}
 

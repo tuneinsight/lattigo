@@ -61,7 +61,7 @@ func (cks *CKSProtocol) AllocateShare() CKSShare {
 // Each party then broadcasts the result of this computation to the other j-1 parties.
 func (cks *CKSProtocol) GenShare(skInput, skOutput *ring.Poly, ct *ckks.Ciphertext, shareOut CKSShare) {
 
-	cks.dckksContext.ringQ.Sub(skInput, skOutput, cks.tmpDelta)
+	cks.dckksContext.ringQ.SubNoMod(skInput, skOutput, cks.tmpDelta)
 
 	cks.genShareDelta(cks.tmpDelta, ct, shareOut)
 }
@@ -71,7 +71,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 	ringQ := cks.dckksContext.ringQ
 	ringP := cks.dckksContext.ringP
 
-	ringQ.MulCoeffsMontgomeryLvl(ct.Level(), ct.Value()[1], skDelta, shareOut)
+	ringQ.MulCoeffsMontgomeryConstantLvl(ct.Level(), ct.Value()[1], skDelta, shareOut)
 
 	ringQ.MulScalarBigintLvl(ct.Level(), shareOut, ringP.ModulusBigint, shareOut)
 

@@ -33,7 +33,7 @@ func (prec PrecisionStats) String() string {
 }
 
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
-func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}, logPrecision uint64) (prec PrecisionStats) {
+func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}, bound float64) (prec PrecisionStats) {
 
 	var valuesTest []complex128
 
@@ -41,9 +41,9 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	switch element.(type) {
 	case *Ciphertext:
-		valuesTest = encoder.DecodeAndRound(decryptor.DecryptNew(element.(*Ciphertext)), slots, logPrecision)
+		valuesTest = encoder.DecodeAndRound(decryptor.DecryptNew(element.(*Ciphertext)), slots, bound)
 	case *Plaintext:
-		valuesTest = encoder.DecodeAndRound(element.(*Plaintext), slots, logPrecision)
+		valuesTest = encoder.DecodeAndRound(element.(*Plaintext), slots, bound)
 	case []complex128:
 		valuesTest = element.([]complex128)
 	}

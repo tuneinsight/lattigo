@@ -11,7 +11,7 @@ type Decryptor interface {
 	DecryptNew(ciphertext *Ciphertext) *Plaintext
 
 	// Decrypt decrypts the input ciphertext and returns the result on the
-	// provided receiver plaintext. Acts accordingly depending on the plaintext type.
+	// provided receiver plaintext.
 	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
 }
 

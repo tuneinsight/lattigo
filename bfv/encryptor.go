@@ -13,13 +13,11 @@ type Encryptor interface {
 	// EncryptNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
-	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptNew(plaintext *Plaintext) *Ciphertext
 
 	// Encrypt encrypts the input plaintext using the stored key, and returns
 	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
-	// Will panic if the plaintext was created using NewPlaintextMul.
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFastNew encrypts the input plaintext using the stored key and returns
@@ -30,35 +28,30 @@ type Encryptor interface {
 	// EncryptFsat encrypts the input plaintext using the stored-key, and returns
 	// the result onthe receiver ciphertext. The encryption is done by first
 	// encrypting zero in Q and then adding the plaintext.
-	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
-	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
 
 	// EncryptFromCRP encrypts the input plaintext using the stored key and returns
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
-	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptFromCRP(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
 
 	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first encrypting
 	// zero in Q, using the provided polynomial as the uniform polynomial, and
 	// then adding the plaintext.
-	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptFromCRPFastNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
 
 	// EncryptFromCRP encrypts the input plaintext using the stored key and returns
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in Q, using the provided polynomial as the uniform polynomial, and
 	// then adding the plaintext.
-	// Will panic if the plaintext was created using NewPlaintextMul.
 	EncryptFromCRPFast(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
 }
 

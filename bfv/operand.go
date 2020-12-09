@@ -27,7 +27,7 @@ func getSmallestLargest(el0, el1 *Element) (smallest, largest *Element, sameDegr
 	return el0, el1, true
 }
 
-func newEleCT(params *Parameters, degree uint64) *Element {
+func newCiphertextElement(params *Parameters, degree uint64) *Element {
 	el := new(Element)
 	el.value = make([]*ring.Poly, degree+1)
 	for i := uint64(0); i < degree+1; i++ {
@@ -36,19 +36,19 @@ func newEleCT(params *Parameters, degree uint64) *Element {
 	return el
 }
 
-func newElePTZQ(params *Parameters) *Element {
+func newPlaintextElement(params *Parameters) *Element {
 	el := new(Element)
 	el.value = []*ring.Poly{ring.NewPoly(params.N(), params.QiCount())}
 	return el
 }
 
-func newElePTZT(params *Parameters) *Element {
+func newPlaintextRingTElement(params *Parameters) *Element {
 	el := new(Element)
 	el.value = []*ring.Poly{ring.NewPoly(params.N(), 1)}
 	return el
 }
 
-func newElePTMul(params *Parameters) *Element {
+func newPlaintextMulElement(params *Parameters) *Element {
 	el := new(Element)
 	el.value = []*ring.Poly{ring.NewPoly(params.N(), params.QiCount())}
 	return el

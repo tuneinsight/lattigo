@@ -14,22 +14,46 @@ import (
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = 5
 
-// Encoder is an interface implementing the encoder.
+// Encoder is an interface for plaintext encoding and decoding operations. It provides methods to embed []uint64 and []int64 types into
+// the various plaintext types and the inverse operations. It also provides methodes to convert between the different plaintext types.
+// The different plaintext types represent different embedings of the message in the polynomial space. This relation is illustrated in
+// The figure below:
+//
+// []uint64 --- Encoder.EncodeUintRingT(.) -┬-> PlaintextRingT -┬-> Encoder.ScaleUp(.) -----> Plaintext
+// []uint64 --- Encoder.EncodeIntRingT(.) --┘                   └-> Encoder.RingTToMul(.) ---> PlaintextMul
+//
+//
+// The different plaintext types have different efficiency-related caracteristics that we summarize in the Table below. For more information
+// about the different plaintext types, see plaintext.go.
+//
+// Relative efficiency of operation
+//  -----------------------------------------------------------------------
+// |                      |  PlaintextRingT  |  Plaintext  | PlaintextMul  |
+//  -----------------------------------------------------------------------
+// | Encoding/Decoding    |    Faster      |    Slower   |    Slower       |
+// | Memory size          |    Smaller     |    Larger   |    Larger       |
+// | Ct-Pt Add / Sub      |    Slower      |    Faster   |    N/A          |
+// | Ct-Pt Mul            |    Faster      |    Slower   |    Much Faster  |
+//  -----------------------------------------------------------------------
+//
 type Encoder interface {
-	EncodeUint(coeffs []uint64, plaintext *Plaintext)
-	EncodeUintZt(coeffs []uint64, plaintext *PlaintextZT)
-	EncodeUintMul(coeffs []uint64, plaintext *PlaintextMul)
-	EncodeInt(coeffs []int64, plaintext *Plaintext)
-	EncodeIntZt(coeffs []int64, plaintext *PlaintextZT)
-	EncodeIntMul(coeffs []int64, plaintext *PlaintextMul)
-	ZtToZq(*PlaintextZT, *Plaintext)
-	ZqToZt(pt *Plaintext, ptZt *PlaintextZT)
-	MulToZt(pt *PlaintextMul, ptZt *PlaintextZT)
-	DecodeZt(p interface{}, ptZt *PlaintextZT)
-	DecodeUint(plaintext interface{}, coeffs []uint64)
-	DecodeInt(plaintext interface{}, coeffs []int64)
-	DecodeUintNew(plaintext interface{}) (coeffs []uint64)
-	DecodeIntNew(plaintext interface{}) (coeffs []int64)
+	EncodeUint(coeffs []uint64, pt *Plaintext)
+	EncodeUintRingT(coeffs []uint64, pt *PlaintextRingT)
+	EncodeUintMul(coeffs []uint64, pt *PlaintextMul)
+	EncodeInt(coeffs []int64, pt *Plaintext)
+	EncodeIntRingT(coeffs []int64, pt *PlaintextRingT)
+	EncodeIntMul(coeffs []int64, pt *PlaintextMul)
+
+	ScaleUp(*PlaintextRingT, *Plaintext)
+	ScaleDown(pt *Plaintext, ptRt *PlaintextRingT)
+	RingTToMul(ptRt *PlaintextRingT, ptmul *PlaintextMul)
+	MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT)
+
+	DecodeRingT(pt interface{}, ptRt *PlaintextRingT)
+	DecodeUint(pt interface{}, coeffs []uint64)
+	DecodeInt(pt interface{}, coeffs []int64)
+	DecodeUintNew(pt interface{}) (coeffs []uint64)
+	DecodeIntNew(pt interface{}) (coeffs []int64)
 }
 
 // Encoder is a structure that stores the parameters to encode values on a plaintext in a SIMD (Single-Instruction Multiple-Data) fashion.
@@ -44,7 +68,7 @@ type encoder struct {
 	deltaMont   []uint64
 
 	tmpPoly *ring.Poly
-	tmpPtZt *PlaintextZT
+	tmpPtRt *PlaintextRingT
 }
 
 // NewEncoder creates a new encoder from the provided parameters.
@@ -93,7 +117,7 @@ func NewEncoder(params *Parameters) Encoder {
 		deltaMont:   GenLiftParams(ringQ, params.t),
 		scaler:      ring.NewRNSScaler(params.t, ringQ),
 		tmpPoly:     ringT.NewPoly(),
-		tmpPtZt:     NewPlaintextZT(params),
+		tmpPtRt:     NewPlaintextRingT(params),
 	}
 }
 
@@ -114,7 +138,8 @@ func GenLiftParams(ringQ *ring.Ring, t uint64) (deltaMont []uint64) {
 	return
 }
 
-func (encoder *encoder) EncodeUintZt(coeffs []uint64, p *PlaintextZT) {
+// EncodeUintRingT encodes a slice of uint64 into a Plaintext in R_t
+func (encoder *encoder) EncodeUintRingT(coeffs []uint64, p *PlaintextRingT) {
 	if len(coeffs) > len(encoder.indexMatrix) {
 		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
 	}
@@ -136,27 +161,29 @@ func (encoder *encoder) EncodeUintZt(coeffs []uint64, p *PlaintextZT) {
 
 // EncodeUint encodes an uint64 slice of size at most N on a plaintext.
 func (encoder *encoder) EncodeUint(coeffs []uint64, p *Plaintext) {
-	ptZt := &PlaintextZT{p.Element, p.Element.value[0]}
+	ptRt := &PlaintextRingT{p.Element, p.Element.value[0]}
 
-	// Encodes the values in Zt
-	encoder.EncodeUintZt(coeffs, ptZt)
+	// Encodes the values in RingT
+	encoder.EncodeUintRingT(coeffs, ptRt)
 
 	// Scales by Q/t
-	encoder.ZtToZq(ptZt, p)
+	encoder.ScaleUp(ptRt, p)
 }
 
 func (encoder *encoder) EncodeUintMul(coeffs []uint64, p *PlaintextMul) {
 
-	// Encodes the values in Zt
-	encoder.EncodeUintZt(coeffs, &PlaintextZT{p.Element, p.Element.value[0]})
+	ptRt := &PlaintextRingT{p.Element, p.Element.value[0]}
+
+	// Encodes the values in RingT
+	encoder.EncodeUintRingT(coeffs, ptRt)
 
 	// Puts in NTT+Montgomerry domains of ringQ
-	encoder.nttMontZQ(p)
+	encoder.RingTToMul(ptRt, p)
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. It also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
 // The sign will correctly decode as long as the absolute value of the coefficient does not exceed half of the plaintext modulus.
-func (encoder *encoder) EncodeIntZt(coeffs []int64, p *PlaintextZT) {
+func (encoder *encoder) EncodeIntRingT(coeffs []int64, p *PlaintextRingT) {
 
 	if len(coeffs) > len(encoder.indexMatrix) {
 		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
@@ -183,30 +210,30 @@ func (encoder *encoder) EncodeIntZt(coeffs []int64, p *PlaintextZT) {
 }
 
 func (encoder *encoder) EncodeInt(coeffs []int64, p *Plaintext) {
-	ptZt := &PlaintextZT{p.Element, p.value}
+	ptRt := &PlaintextRingT{p.Element, p.value}
 
-	// Encodes the values in Zt
-	encoder.EncodeIntZt(coeffs, ptZt)
+	// Encodes the values in RingT
+	encoder.EncodeIntRingT(coeffs, ptRt)
 
 	// Scales by Q/t
-	encoder.ZtToZq(ptZt, p)
+	encoder.ScaleUp(ptRt, p)
 }
 
 func (encoder *encoder) EncodeIntMul(coeffs []int64, p *PlaintextMul) {
-	ptZt := &PlaintextZT{p.Element, p.value}
+	ptRt := &PlaintextRingT{p.Element, p.value}
 
-	// Encodes the values in Zt
-	encoder.EncodeIntZt(coeffs, ptZt)
+	// Encodes the values in RingT
+	encoder.EncodeIntRingT(coeffs, ptRt)
 
 	// Puts in NTT+Montgomerry domains of ringQ
-	encoder.nttMontZQ(p)
+	encoder.RingTToMul(ptRt, p)
 }
 
-func (encoder *encoder) ZtToZq(ptzt *PlaintextZT, pol *Plaintext) {
+func (encoder *encoder) ScaleUp(ptRt *PlaintextRingT, pol *Plaintext) {
 
 	for i := len(encoder.ringQ.Modulus) - 1; i >= 0; i-- {
 		tmp1 := pol.value.Coeffs[i]
-		tmp2 := ptzt.value.Coeffs[0]
+		tmp2 := ptRt.value.Coeffs[0]
 		d := encoder.deltaMont[i]
 		qi := encoder.ringQ.Modulus[i]
 		mredParams := encoder.ringQ.GetMredParams()[i]
@@ -228,33 +255,35 @@ func (encoder *encoder) ZtToZq(ptzt *PlaintextZT, pol *Plaintext) {
 	}
 }
 
-func (encoder *encoder) nttMontZQ(p *PlaintextMul) {
-	ringQ := encoder.ringQ
-	for i := 1; i < len(ringQ.Modulus); i++ {
-		copy(p.value.Coeffs[i], p.value.Coeffs[0])
+func (encoder *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
+	if ptRt.value != ptMul.value {
+		copy(ptMul.value.Coeffs[0], ptRt.value.Coeffs[0])
+	}
+	for i := 1; i < len(encoder.ringQ.Modulus); i++ {
+		copy(ptMul.value.Coeffs[i], ptRt.value.Coeffs[0])
 	}
 
-	ringQ.NTTLazy(p.value, p.value)
-	ringQ.MForm(p.value, p.value)
+	encoder.ringQ.NTTLazy(ptMul.value, ptMul.value)
+	encoder.ringQ.MForm(ptMul.value, ptMul.value)
 }
 
-func (encoder *encoder) ZqToZt(pt *Plaintext, ptZt *PlaintextZT) {
-	encoder.scaler.DivByQOverTRounded(pt.value, ptZt.value)
+func (encoder *encoder) ScaleDown(pt *Plaintext, ptRt *PlaintextRingT) {
+	encoder.scaler.DivByQOverTRounded(pt.value, ptRt.value)
 }
 
-func (encoder *encoder) MulToZt(pt *PlaintextMul, ptZt *PlaintextZT) {
-	encoder.ringQ.InvNTTLvl(0, pt.value, ptZt.value)
-	encoder.ringQ.InvMFormLvl(0, ptZt.value, ptZt.value)
+func (encoder *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
+	encoder.ringQ.InvNTTLvl(0, pt.value, ptRt.value)
+	encoder.ringQ.InvMFormLvl(0, ptRt.value, ptRt.value)
 }
 
-func (encoder *encoder) DecodeZt(p interface{}, ptZt *PlaintextZT) {
+func (encoder *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
 	switch pt := p.(type) {
 	case *Plaintext:
-		encoder.ZqToZt(pt, ptZt)
+		encoder.ScaleDown(pt, ptRt)
 	case *PlaintextMul:
-		encoder.MulToZt(pt, ptZt)
-	case *PlaintextZT:
-		ptZt.Copy(pt.Element)
+		encoder.MulToRingT(pt, ptRt)
+	case *PlaintextRingT:
+		ptRt.Copy(pt.Element)
 	default:
 		panic(fmt.Errorf("unsuported plaintext type (%T)", pt))
 	}
@@ -263,9 +292,9 @@ func (encoder *encoder) DecodeZt(p interface{}, ptZt *PlaintextZT) {
 // DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.
 func (encoder *encoder) DecodeUint(p interface{}, coeffs []uint64) {
 
-	encoder.DecodeZt(p, encoder.tmpPtZt)
+	encoder.DecodeRingT(p, encoder.tmpPtRt)
 
-	encoder.ringT.NTT(encoder.tmpPtZt.value, encoder.tmpPoly)
+	encoder.ringT.NTT(encoder.tmpPtRt.value, encoder.tmpPoly)
 
 	for i := uint64(0); i < encoder.ringQ.N; i++ {
 		coeffs[i] = encoder.tmpPoly.Coeffs[0][encoder.indexMatrix[i]]
@@ -282,9 +311,9 @@ func (encoder *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
 // modulus).
 func (encoder *encoder) DecodeInt(p interface{}, coeffs []int64) {
 
-	encoder.DecodeZt(p, encoder.tmpPtZt)
+	encoder.DecodeRingT(p, encoder.tmpPtRt)
 
-	encoder.ringT.NTT(encoder.tmpPtZt.value, encoder.tmpPoly)
+	encoder.ringT.NTT(encoder.tmpPtRt.value, encoder.tmpPoly)
 
 	modulus := int64(encoder.params.t)
 	var value int64

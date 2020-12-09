@@ -138,12 +138,12 @@ func NewEvaluator(params *Parameters) Evaluator {
 	}
 }
 
-func (eval *evaluator) getZqElem(op Operand) *Element {
+func (eval *evaluator) getRingQElem(op Operand) *Element {
 	switch o := op.(type) {
 	case *Ciphertext, *Plaintext:
 		return o.El()
-	case *PlaintextZT:
-		eval.ZtToZq(o, eval.tmpPt)
+	case *PlaintextRingT:
+		eval.ScaleUp(o, eval.tmpPt)
 		return eval.tmpPt.Element
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))
@@ -151,7 +151,7 @@ func (eval *evaluator) getZqElem(op Operand) *Element {
 }
 
 // getElemAndCheckBinary unwraps the elements from the operands and checks that the receiver has sufficiently large degree.
-func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64, ensureZq bool) (el0, el1, elOut *Element) {
+func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64, ensureRingQ bool) (el0, el1, elOut *Element) {
 	if op0 == nil || op1 == nil || opOut == nil {
 		panic("operands cannot be nil")
 	}
@@ -164,8 +164,8 @@ func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDe
 		panic("receiver operand degree is too small")
 	}
 
-	if ensureZq {
-		return eval.getZqElem(op0), eval.getZqElem(op1), opOut.El() // lifts from Rt to Rq if necessary
+	if ensureRingQ {
+		return eval.getRingQElem(op0), eval.getRingQElem(op1), opOut.El() // lifts from Rt to Rq if necessary
 	}
 
 	return op0.El(), op1.El(), opOut.El()
@@ -477,8 +477,8 @@ func (eval *evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
 	switch op1 := op1.(type) {
 	case *PlaintextMul:
 		eval.mulPlaintextMul(op0, op1, ctOut)
-	case *PlaintextZT:
-		eval.mulPlaintextZt(op0, op1, ctOut)
+	case *PlaintextRingT:
+		eval.mulPlaintextRingT(op0, op1, ctOut)
 	case *Plaintext, *Ciphertext:
 		eval.tensorAndRescale(el0, el1, elOut)
 	default:
@@ -487,18 +487,18 @@ func (eval *evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
 
 }
 
-func (eval *evaluator) mulPlaintextMul(ct0 *Ciphertext, ptZt *PlaintextMul, ctOut *Ciphertext) {
+func (eval *evaluator) mulPlaintextMul(ct0 *Ciphertext, ptRt *PlaintextMul, ctOut *Ciphertext) {
 	for i := range ct0.value {
 		eval.ringQ.NTTLazy(ct0.value[i], ctOut.value[i])
-		eval.ringQ.MulCoeffsMontgomeryConstant(ctOut.value[i], ptZt.value, ctOut.value[i])
+		eval.ringQ.MulCoeffsMontgomeryConstant(ctOut.value[i], ptRt.value, ctOut.value[i])
 		eval.ringQ.InvNTT(ctOut.value[i], ctOut.value[i])
 	}
 }
 
-func (eval *evaluator) mulPlaintextZt(ct0 *Ciphertext, ptZt *PlaintextZT, ctOut *Ciphertext) {
+func (eval *evaluator) mulPlaintextRingT(ct0 *Ciphertext, ptRt *PlaintextRingT, ctOut *Ciphertext) {
 	ringQ := eval.ringQ
 
-	coeffs := ptZt.value.Coeffs[0]
+	coeffs := ptRt.value.Coeffs[0]
 	coeffsNTT := eval.poolQ[0][0].Coeffs[0]
 
 	for i := range ct0.value {

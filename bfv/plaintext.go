@@ -4,61 +4,47 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-// Plaintext is a Element with only one Poly.
+// Plaintext is a Element with only one Poly. It represents a Plaintext element in R_q that is the
+// result of scaling the corresponding element of R_t up by Q/t. This is a generic all-purpose type
+// of plaintext: it will work with for all operations. It is however less compact than PlaintextRingT
+// and will result in less efficient Ciphert-Plaintext multiplication than PlaintextMul.
 type Plaintext struct {
 	*Element
 	value *ring.Poly
-	//plaintextType PlaintextType
 }
 
-// PlaintextZT represents a plaintext element in R_t
-type PlaintextZT Plaintext
+// PlaintextRingT represents a plaintext element in R_t.
+// This is the most compact representation of a plaintext, but performing operations have the extra-cost of performing
+// the scaling up by Q/t.
+type PlaintextRingT Plaintext
 
-// PlaintextMul represents a plaintext element in R_q without scale up by Q/t
+// PlaintextMul represents a plaintext element in R_q, in NTT and Montgomerry form, but without scale up by Q/t.
+// A PlaintextMul is a special-purpose plaintext for efficient Ciphertext-Plaintext multiplication. However,
+// other operations on plaintexts are not supported.
 type PlaintextMul Plaintext
 
-//type PlaintextType int
-
-// const (
-// 	PlaintextTypeZQ PlaintextType = iota
-// 	PlaintextTypeZT
-// 	PlaintextTypeMul
-// )
-
-// NewPlaintext creates and allocates a new plaintext in ZQ (multiple moduli of Q).
-// This is a generic all-purpose type of plaintext. It will work with all operations,
-// but will likely not result in an optimized circuit.
-// See NewPlaintextZQ, NewPlaintextZT and NewPlaintextMul for additional informations.
-// The plaintext will be in ZQ and scaled by Q/t.
-// Faster encryption
+// NewPlaintext creates and allocates a new plaintext in RingQ (multiple moduli of Q).
+// The plaintext will be in RingQ and scaled by Q/t.
 // Slower encoding and larger plaintext size
-// Fast ct + pt
-// Very slow ct * pt
 func NewPlaintext(params *Parameters) *Plaintext {
-	plaintext := &Plaintext{newElePTZQ(params), nil}
+	plaintext := &Plaintext{newPlaintextElement(params), nil}
 	plaintext.value = plaintext.Element.value[0]
 	return plaintext
 }
 
-// NewPlaintextZT creates and allocates a new plaintext in ZT (single modulus T).
-// The plaintext will be in Zt.
-// Faster encoding + smaller plaintext size
-// Slower encryption
-// Slow ct + pt
-// Slow ct * pt
-func NewPlaintextZT(params *Parameters) *PlaintextZT {
+// NewPlaintextRingT creates and allocates a new plaintext in RingT (single modulus T).
+// The plaintext will be in RingT.
+func NewPlaintextRingT(params *Parameters) *PlaintextRingT {
 
-	plaintext := &PlaintextZT{newElePTZT(params), nil}
+	plaintext := &PlaintextRingT{newPlaintextRingTElement(params), nil}
 	plaintext.value = plaintext.Element.value[0]
 	return plaintext
 }
 
 // NewPlaintextMul creates and allocates a new plaintext optimized for ciphertext x plaintext multiplication.
-// The plaintext will be in the NTT and Montgomery domain of ZQ and not scaled by Q/t.
-// Cannot do ct + pt
-// Fast ct * pt
+// The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
 func NewPlaintextMul(params *Parameters) *PlaintextMul {
-	plaintext := &PlaintextMul{newElePTMul(params), nil}
+	plaintext := &PlaintextMul{newPlaintextMulElement(params), nil}
 	plaintext.value = plaintext.Element.value[0]
 	return plaintext
 }

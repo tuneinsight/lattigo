@@ -761,11 +761,11 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ci
 
 	for i := uint64(1); i < eval.ringQ.N>>1; i <<= 1 {
 		eval.RotateColumns(ctOut, i, evakey, cTmp)
-		eval.Add(cTmp.Element, ctOut, ctOut.Ciphertext())
+		eval.Add(cTmp, ctOut, ctOut.Ciphertext())
 	}
 
 	eval.RotateRows(ctOut, evakey, cTmp)
-	eval.Add(ctOut, cTmp.Element, ctOut)
+	eval.Add(ctOut, cTmp, ctOut)
 }
 
 // permute performs a column rotation on ct0 and returns the result in ctOut

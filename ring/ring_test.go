@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
-	"math/bits"
 	"math/rand"
 	"testing"
 	"time"
@@ -160,7 +159,7 @@ func testGenerateNTTPrimes(testContext *testParams, t *testing.T) {
 
 	t.Run(testString("GenerateNTTPrimes/", testContext.ringQ), func(t *testing.T) {
 
-		primes := GenerateNTTPrimes(55, uint64(bits.Len64(testContext.ringQ.N)-1), uint64(len(testContext.ringQ.Modulus)))
+		primes := GenerateNTTPrimes(55, testContext.ringQ.N<<1, uint64(len(testContext.ringQ.Modulus)))
 
 		for _, q := range primes {
 			require.Equal(t, q&((testContext.ringQ.N<<1)-1), uint64(1))

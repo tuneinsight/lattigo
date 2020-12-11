@@ -12,13 +12,10 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, ciphertext.GetDataLen(true))
 
 	data[0] = uint8(len(ciphertext.value))
-	if ciphertext.isNTT {
-		data[1] = 1
-	}
 
 	var pointer, inc uint64
 
-	pointer = 2
+	pointer = 1
 
 	for _, el := range ciphertext.value {
 
@@ -39,12 +36,8 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 
 	ciphertext.value = make([]*ring.Poly, uint8(data[0]))
 
-	if uint8(data[1]) == 1 {
-		ciphertext.isNTT = true
-	}
-
 	var pointer, inc uint64
-	pointer = 2
+	pointer = 1
 
 	for i := range ciphertext.value {
 
@@ -63,7 +56,7 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 // GetDataLen returns the length in bytes of the target Ciphertext.
 func (ciphertext *Ciphertext) GetDataLen(WithMetaData bool) (dataLen uint64) {
 	if WithMetaData {
-		dataLen += 2
+		dataLen++
 	}
 
 	for _, el := range ciphertext.value {

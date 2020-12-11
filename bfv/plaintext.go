@@ -4,17 +4,48 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-// Plaintext is a Element with only one Poly.
+// Plaintext is a Element with only one Poly. It represents a Plaintext element in R_q that is the
+// result of scaling the corresponding element of R_t up by Q/t. This is a generic all-purpose type
+// of plaintext: it will work with for all operations. It is however less compact than PlaintextRingT
+// and will result in less efficient Ciphert-Plaintext multiplication than PlaintextMul. See bfv/encoder.go
+// for more information on plaintext types.
 type Plaintext struct {
 	*Element
 	value *ring.Poly
 }
 
-// NewPlaintext creates and allocates a new plaintext.
-func NewPlaintext(params *Parameters) *Plaintext {
+// PlaintextRingT represents a plaintext element in R_t.
+// This is the most compact representation of a plaintext, but performing operations have the extra-cost of performing
+// the scaling up by Q/t. See bfv/encoder.go for more information on plaintext types.
+type PlaintextRingT Plaintext
 
-	plaintext := &Plaintext{NewElement(params, 0), nil}
+// PlaintextMul represents a plaintext element in R_q, in NTT and Montgomerry form, but without scale up by Q/t.
+// A PlaintextMul is a special-purpose plaintext for efficient Ciphertext-Plaintext multiplication. However,
+// other operations on plaintexts are not supported. See bfv/encoder.go for more information on plaintext types.
+type PlaintextMul Plaintext
+
+// NewPlaintext creates and allocates a new plaintext in RingQ (multiple moduli of Q).
+// The plaintext will be in RingQ and scaled by Q/t.
+// Slower encoding and larger plaintext size
+func NewPlaintext(params *Parameters) *Plaintext {
+	plaintext := &Plaintext{newPlaintextElement(params), nil}
 	plaintext.value = plaintext.Element.value[0]
-	plaintext.isNTT = false
+	return plaintext
+}
+
+// NewPlaintextRingT creates and allocates a new plaintext in RingT (single modulus T).
+// The plaintext will be in RingT.
+func NewPlaintextRingT(params *Parameters) *PlaintextRingT {
+
+	plaintext := &PlaintextRingT{newPlaintextRingTElement(params), nil}
+	plaintext.value = plaintext.Element.value[0]
+	return plaintext
+}
+
+// NewPlaintextMul creates and allocates a new plaintext optimized for ciphertext x plaintext multiplication.
+// The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
+func NewPlaintextMul(params *Parameters) *PlaintextMul {
+	plaintext := &PlaintextMul{newPlaintextMulElement(params), nil}
+	plaintext.value = plaintext.Element.value[0]
 	return plaintext
 }

@@ -183,10 +183,11 @@ func (encryptor *pkEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *r
 	panic("Cannot encrypt with CRP using an encryptor created with the public-key")
 }
 
-func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, fast bool) {
+func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast bool) {
+
+	ringQ := encryptor.ringQ
 
 	if fast {
-		ringQ := encryptor.ringQ
 
 		encryptor.ternarySamplerMontgomeryQ.Read(encryptor.polypool[2])
 		ringQ.NTTLazy(encryptor.polypool[2], encryptor.polypool[2])
@@ -194,14 +195,14 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
 		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
 
-		ringQ.InvNTT(encryptor.polypool[0], encryptor.polypool[0])
-		ringQ.InvNTT(encryptor.polypool[1], encryptor.polypool[1])
+		ringQ.InvNTT(encryptor.polypool[0], ciphertext.value[0])
+		ringQ.InvNTT(encryptor.polypool[1], ciphertext.value[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSamplerQ.ReadAndAdd(encryptor.polypool[0])
+		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0])
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSamplerQ.ReadAndAdd(encryptor.polypool[1])
+		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[1])
 
 	} else {
 
@@ -226,12 +227,12 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		encryptor.gaussianSamplerQP.ReadAndAdd(encryptor.polypool[1])
 
 		// We rescale the encryption of zero by the special prime, dividing the error by this prime
-		encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[0], ciphertext.value[0])
-		encryptor.baseconverter.ModDownPQ(uint64(len(plaintext.Value()[0].Coeffs))-1, encryptor.polypool[1], ciphertext.value[1])
+		encryptor.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, encryptor.polypool[0], ciphertext.value[0])
+		encryptor.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, encryptor.polypool[1], ciphertext.value[1])
 	}
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
-	encryptor.ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+	encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
 }
 
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
@@ -280,7 +281,7 @@ func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *C
 	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1])
 }
 
-func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
+func (encryptor *skEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
 
 	ringQ := encryptor.ringQ
 
@@ -293,5 +294,5 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0])
 
 	// ct = [-a*s + m + e , a]
-	ringQ.Add(ciphertext.value[0], plaintext.value, ciphertext.value[0])
+	encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
 }

@@ -1,10 +1,13 @@
 package bfv
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
+
+	"unsafe"
 )
 
 // Evaluator is an interface implementing the public methodes of the eval.
@@ -53,11 +56,15 @@ type evaluator struct {
 	t     uint64
 	pHalf *big.Int
 
+	deltaMont []uint64
+
 	poolQ    [][]*ring.Poly
 	poolQmul [][]*ring.Poly
 
 	poolQKS [4]*ring.Poly
 	poolPKS [3]*ring.Poly
+
+	tmpPt *Plaintext
 
 	galElRotRow      uint64   // Rows rotation generator
 	galElRotColLeft  []uint64 // Columns right rotations generators
@@ -76,7 +83,9 @@ func NewEvaluator(params *Parameters) Evaluator {
 		panic(err)
 	}
 
-	if qm, err = ring.NewRing(params.N(), params.qiMul); err != nil {
+	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), uint64(len(params.qi)))
+
+	if qm, err = ring.NewRing(params.N(), qiMul); err != nil {
 		panic(err)
 	}
 
@@ -117,68 +126,79 @@ func NewEvaluator(params *Parameters) Evaluator {
 		decomposer:        decomposer,
 		t:                 params.t,
 		pHalf:             new(big.Int).Rsh(qm.ModulusBigint, 1),
+		deltaMont:         GenLiftParams(q, params.t),
 		poolQ:             poolQ,
 		poolQmul:          poolQmul,
 		poolQKS:           poolQKS,
 		poolPKS:           poolPKS,
+		tmpPt:             NewPlaintext(params),
 		galElRotColLeft:   ring.GenGaloisParams(params.N(), GaloisGen),
 		galElRotColRight:  ring.GenGaloisParams(params.N(), ring.ModExp(GaloisGen, 2*params.N()-1, 2*params.N())),
 		galElRotRow:       2*params.N() - 1,
 	}
 }
 
-func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *Element) {
+func (eval *evaluator) getRingQElem(op Operand) *Element {
+	switch o := op.(type) {
+	case *Ciphertext, *Plaintext:
+		return o.El()
+	case *PlaintextRingT:
+		scaleUp(eval.ringQ, eval.deltaMont, o.value, eval.tmpPt.value)
+		return eval.tmpPt.Element
+	default:
+		panic(fmt.Errorf("invalid operand type for operation: %T", o))
+	}
+}
+
+// getElemAndCheckBinary unwraps the elements from the operands and checks that the receiver has sufficiently large degree.
+func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64, ensureRingQ bool) (el0, el1, elOut *Element) {
 	if op0 == nil || op1 == nil || opOut == nil {
-		panic("cannot getElemAndCheckBinary: operands cannot be nil")
+		panic("operands cannot be nil")
 	}
 
 	if op0.Degree()+op1.Degree() == 0 {
-		panic("cannot getElemAndCheckBinary: operands cannot be both plaintexts")
+		panic("operands cannot be both plaintexts")
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		panic("cannot getElemAndCheckBinary: receiver operand degree is too small")
+		panic("receiver operand degree is too small")
 	}
 
-	el0, el1, elOut = op0.El(), op1.El(), opOut.El()
-	return // TODO: more checks on elements
+	if ensureRingQ {
+		return eval.getRingQElem(op0), eval.getRingQElem(op1), opOut.El() // lifts from Rt to Rq if necessary
+	}
+
+	return op0.El(), op1.El(), opOut.El()
 }
 
 func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *Element) {
 	if op0 == nil || opOut == nil {
-		panic("cannot getElemAndCheckUnary: operand cannot be nil")
+		panic("operand cannot be nil")
 	}
 
 	if op0.Degree() == 0 {
-		panic("cannot getElemAndCheckUnary: operand cannot be plaintext")
+		panic("operand cannot be plaintext")
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		panic("cannot getElemAndCheckUnary: receiver operand degree is too small")
+		panic("receiver operand degree is too small")
 	}
 	el0, elOut = op0.El(), opOut.El()
 	return // TODO: more checks on elements
 }
 
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
-func evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	maxDegree := utils.MaxUint64(el0.Degree(), el1.Degree())
-	minDegree := utils.MinUint64(el0.Degree(), el1.Degree())
+	smallest, largest, _ := getSmallestLargest(el0, el1)
 
-	for i := uint64(0); i < minDegree+1; i++ {
+	for i := uint64(0); i < smallest.Degree()+1; i++ {
 		evaluate(el0.value[i], el1.value[i], elOut.value[i])
 	}
 
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
-	var largest *Element
-	if el0.Degree() > el1.Degree() {
-		largest = el0
-	} else if el1.Degree() > el0.Degree() {
-		largest = el1
-	}
 	if largest != nil && largest != elOut { // checks to avoid unnecessary work.
-		for i := minDegree + 1; i < maxDegree+1; i++ {
+		for i := smallest.Degree() + 1; i < largest.Degree()+1; i++ {
 			elOut.value[i].Copy(largest.value[i])
 		}
 	}
@@ -193,8 +213,8 @@ func evaluateInPlaceUnary(el0, elOut *Element, evaluate func(*ring.Poly, *ring.P
 
 // Add adds op0 to op1 and returns the result in ctOut.
 func (eval *evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
-	evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Add)
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()), true)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Add)
 }
 
 // AddNew adds op0 to op1 and creates a new element ctOut to store the result.
@@ -206,8 +226,8 @@ func (eval *evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext) {
 
 // AddNoMod adds op0 to op1 without modular reduction, and returns the result in cOut.
 func (eval *evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
-	evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.AddNoMod)
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()), true)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.AddNoMod)
 }
 
 // AddNoModNew adds op0 to op1 without modular reduction and creates a new element ctOut to store the result.
@@ -219,8 +239,8 @@ func (eval *evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 
 // Sub subtracts op1 from op0 and returns the result in cOut.
 func (eval *evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
-	evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Sub)
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()), true)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Sub)
 
 	if el0.Degree() < el1.Degree() {
 		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
@@ -238,9 +258,9 @@ func (eval *evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext) {
 
 // SubNoMod subtracts op1 from op0 without modular reduction and returns the result on ctOut.
 func (eval *evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()), true)
 
-	evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.SubNoMod)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.SubNoMod)
 
 	if el0.Degree() < el1.Degree() {
 		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
@@ -384,7 +404,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 			eval.ringQMul.MulCoeffsMontgomery(c01P, c1Q2[1], c2Q2[2])
 		}
 
-		// Case where both Elements are not of degree 1
+		// Case where at least one element is not of degree 1
 	} else {
 
 		for i := uint64(0); i < ctOut.Degree()+1; i++ {
@@ -448,12 +468,79 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
 		eval.ringQ.MulScalar(ctOut.value[i], eval.t, ctOut.value[i])
 	}
+
 }
 
 // Mul multiplies op0 by op1 and returns the result in ctOut.
 func (eval *evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, op0.Degree()+op1.Degree())
-	eval.tensorAndRescale(el0, el1, elOut)
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, op0.Degree()+op1.Degree(), false)
+	switch op1 := op1.(type) {
+	case *PlaintextMul:
+		eval.mulPlaintextMul(op0, op1, ctOut)
+	case *PlaintextRingT:
+		eval.mulPlaintextRingT(op0, op1, ctOut)
+	case *Plaintext, *Ciphertext:
+		eval.tensorAndRescale(el0, el1, elOut)
+	default:
+		panic(fmt.Errorf("invalid operand type for Mul: %T", op1))
+	}
+
+}
+
+func (eval *evaluator) mulPlaintextMul(ct0 *Ciphertext, ptRt *PlaintextMul, ctOut *Ciphertext) {
+	for i := range ct0.value {
+		eval.ringQ.NTTLazy(ct0.value[i], ctOut.value[i])
+		eval.ringQ.MulCoeffsMontgomeryConstant(ctOut.value[i], ptRt.value, ctOut.value[i])
+		eval.ringQ.InvNTT(ctOut.value[i], ctOut.value[i])
+	}
+}
+
+func (eval *evaluator) mulPlaintextRingT(ct0 *Ciphertext, ptRt *PlaintextRingT, ctOut *Ciphertext) {
+	ringQ := eval.ringQ
+
+	coeffs := ptRt.value.Coeffs[0]
+	coeffsNTT := eval.poolQ[0][0].Coeffs[0]
+
+	for i := range ct0.value {
+
+		// Copies the inputCT on the outputCT and switches to the NTT domain
+		eval.ringQ.NTTLazy(ct0.value[i], ctOut.value[i])
+
+		// Switches the outputCT in the Montgomery domain
+		eval.ringQ.MForm(ctOut.value[i], ctOut.value[i])
+
+		// For each qi in Q
+		for j := range ringQ.Modulus {
+
+			tmp := ctOut.value[i].Coeffs[j]
+			qi := ringQ.Modulus[j]
+			nttPsi := ringQ.GetNttPsi()[j]
+			bredParams := ringQ.GetBredParams()[j]
+			mredParams := ringQ.GetMredParams()[j]
+
+			// Transforms the plaintext in the NTT domain of that qi
+			ring.NTTLazy(coeffs, coeffsNTT, ringQ.N, nttPsi, qi, mredParams, bredParams)
+
+			// Multiplies NTT_qi(pt) * NTT_qi(ct)
+			for k := uint64(0); k < eval.ringQ.N; k = k + 8 {
+
+				x := (*[8]uint64)(unsafe.Pointer(&coeffsNTT[k]))
+				z := (*[8]uint64)(unsafe.Pointer(&tmp[k]))
+
+				z[0] = ring.MRed(z[0], x[0], qi, mredParams)
+				z[1] = ring.MRed(z[1], x[1], qi, mredParams)
+				z[2] = ring.MRed(z[2], x[2], qi, mredParams)
+				z[3] = ring.MRed(z[3], x[3], qi, mredParams)
+				z[4] = ring.MRed(z[4], x[4], qi, mredParams)
+				z[5] = ring.MRed(z[5], x[5], qi, mredParams)
+				z[6] = ring.MRed(z[6], x[6], qi, mredParams)
+				z[7] = ring.MRed(z[7], x[7], qi, mredParams)
+			}
+		}
+
+		// Switches the ciphertext out of the NTT domain
+		eval.ringQ.InvNTT(ctOut.value[i], ctOut.value[i])
+	}
 }
 
 // MulNew multiplies op0 by op1 and creates a new element ctOut to store the result.
@@ -674,11 +761,11 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ci
 
 	for i := uint64(1); i < eval.ringQ.N>>1; i <<= 1 {
 		eval.RotateColumns(ctOut, i, evakey, cTmp)
-		eval.Add(cTmp.Element, ctOut, ctOut.Ciphertext())
+		eval.Add(cTmp, ctOut, ctOut.Ciphertext())
 	}
 
 	eval.RotateRows(ctOut, evakey, cTmp)
-	eval.Add(ctOut, cTmp.Element, ctOut)
+	eval.Add(ctOut, cTmp, ctOut)
 }
 
 // permute performs a column rotation on ct0 and returns the result in ctOut

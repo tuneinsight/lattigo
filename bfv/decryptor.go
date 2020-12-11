@@ -20,8 +20,7 @@ type decryptor struct {
 	params   *Parameters
 	ringQ    *ring.Ring
 	sk       *SecretKey
-	scaler   ring.Scaler
-	polypool [2]*ring.Poly
+	polypool *ring.Poly
 }
 
 // NewDecryptor creates a new Decryptor from the parameters with the secret-key
@@ -38,8 +37,7 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 		params:   params.Copy(),
 		ringQ:    ringQ,
 		sk:       sk,
-		scaler:   ring.NewRNSScaler(params.t, ringQ),
-		polypool: [2]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()},
+		polypool: ringQ.NewPoly(),
 	}
 }
 
@@ -52,24 +50,23 @@ func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) *Plaintext {
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, p *Plaintext) {
 
 	ringQ := decryptor.ringQ
-	tmp := decryptor.polypool[0]
-	accumulator := decryptor.polypool[1]
+	tmp := decryptor.polypool
 
-	ringQ.NTTLazy(ciphertext.value[ciphertext.Degree()], accumulator)
+	ringQ.NTTLazy(ciphertext.value[ciphertext.Degree()], p.value)
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
-		ringQ.MulCoeffsMontgomery(accumulator, decryptor.sk.sk, accumulator)
+		ringQ.MulCoeffsMontgomery(p.value, decryptor.sk.sk, p.value)
 		ringQ.NTTLazy(ciphertext.value[i-1], tmp)
-		ringQ.Add(accumulator, tmp, accumulator)
+		ringQ.Add(p.value, tmp, p.value)
 
 		if i&3 == 3 {
-			ringQ.Reduce(accumulator, accumulator)
+			ringQ.Reduce(p.value, p.value)
 		}
 	}
 
 	if (ciphertext.Degree())&3 != 3 {
-		ringQ.Reduce(accumulator, accumulator)
+		ringQ.Reduce(p.value, p.value)
 	}
 
-	ringQ.InvNTT(accumulator, p.value)
+	ringQ.InvNTT(p.value, p.value)
 }

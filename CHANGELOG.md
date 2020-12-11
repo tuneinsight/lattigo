@@ -2,7 +2,7 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-## Unreleased changes
+## [2.1.0] - 2020-12-11
 
 ### Added
 - BFV : special-purpose plaintext types (`PlaintextRingT` or `PlaintextMul`) for optimized ct-pt operations. See bfv/encoder.go and bfv/plaintext.go.

@@ -57,11 +57,10 @@ type Encryptor interface {
 
 // encryptor is a structure that holds the parameters needed to encrypt plaintexts.
 type encryptor struct {
-	params    *Parameters
-	ringQ     *ring.Ring
-	ringQP    *ring.Ring
-	deltaMont []uint64
-	polypool  [3]*ring.Poly
+	params   *Parameters
+	ringQ    *ring.Ring
+	ringQP   *ring.Ring
+	polypool [3]*ring.Poly
 
 	baseconverter              *ring.FastBasisExtender
 	gaussianSamplerQ           *ring.GaussianSampler
@@ -125,7 +124,6 @@ func newEncryptor(params *Parameters) encryptor {
 		params:                     params.Copy(),
 		ringQ:                      ringQ,
 		ringQP:                     ringQP,
-		deltaMont:                  GenLiftParams(ringQ, params.t),
 		polypool:                   [3]*ring.Poly{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()},
 		baseconverter:              baseconverter,
 		gaussianSamplerQ:           ring.NewGaussianSampler(prng, ringQ, params.Sigma(), uint64(6*params.Sigma())),

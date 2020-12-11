@@ -231,18 +231,22 @@ func (encoder *encoder) EncodeIntMul(coeffs []int64, p *PlaintextMul) {
 
 // ScaleUp transforms a PlaintextRingT (R_t) into a Plaintext (R_q) by scaling up the coefficient by Q/t.
 func (encoder *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
+	scaleUp(encoder.ringQ, encoder.deltaMont, ptRt.value, pt.value)
+}
 
-	for i := len(encoder.ringQ.Modulus) - 1; i >= 0; i-- {
-		tmp1 := pt.value.Coeffs[i]
-		tmp2 := ptRt.value.Coeffs[0]
-		d := encoder.deltaMont[i]
-		qi := encoder.ringQ.Modulus[i]
-		mredParams := encoder.ringQ.GetMredParams()[i]
+func scaleUp(ringQ *ring.Ring, deltaMont []uint64, pIn, pOut *ring.Poly) {
 
-		for j := uint64(0); j < encoder.ringQ.N; j = j + 8 {
+	for i := len(ringQ.Modulus) - 1; i >= 0; i-- {
+		out := pOut.Coeffs[i]
+		in := pIn.Coeffs[0]
+		d := deltaMont[i]
+		qi := ringQ.Modulus[i]
+		mredParams := ringQ.GetMredParams()[i]
 
-			x := (*[8]uint64)(unsafe.Pointer(&tmp2[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&tmp1[j]))
+		for j := uint64(0); j < ringQ.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&in[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&out[j]))
 
 			z[0] = ring.MRed(x[0], d, qi, mredParams)
 			z[1] = ring.MRed(x[1], d, qi, mredParams)

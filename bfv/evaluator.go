@@ -42,8 +42,6 @@ type Evaluator interface {
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
 type evaluator struct {
-	*encoder
-
 	params *Parameters
 
 	ringQ    *ring.Ring
@@ -57,6 +55,8 @@ type evaluator struct {
 
 	t     uint64
 	pHalf *big.Int
+
+	deltaMont []uint64
 
 	poolQ    [][]*ring.Poly
 	poolQmul [][]*ring.Poly
@@ -117,7 +117,6 @@ func NewEvaluator(params *Parameters) Evaluator {
 	}
 
 	return &evaluator{
-		encoder:           NewEncoder(params).(*encoder),
 		params:            params.Copy(),
 		ringQ:             q,
 		ringQMul:          qm,
@@ -127,6 +126,7 @@ func NewEvaluator(params *Parameters) Evaluator {
 		decomposer:        decomposer,
 		t:                 params.t,
 		pHalf:             new(big.Int).Rsh(qm.ModulusBigint, 1),
+		deltaMont:         GenLiftParams(q, params.t),
 		poolQ:             poolQ,
 		poolQmul:          poolQmul,
 		poolQKS:           poolQKS,
@@ -143,7 +143,7 @@ func (eval *evaluator) getRingQElem(op Operand) *Element {
 	case *Ciphertext, *Plaintext:
 		return o.El()
 	case *PlaintextRingT:
-		eval.ScaleUp(o, eval.tmpPt)
+		scaleUp(eval.ringQ, eval.deltaMont, o.value, eval.tmpPt.value)
 		return eval.tmpPt.Element
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))

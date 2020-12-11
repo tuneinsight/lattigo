@@ -229,10 +229,11 @@ func (encoder *encoder) EncodeIntMul(coeffs []int64, p *PlaintextMul) {
 	encoder.RingTToMul(ptRt, p)
 }
 
-func (encoder *encoder) ScaleUp(ptRt *PlaintextRingT, pol *Plaintext) {
+// ScaleUp transforms a PlaintextRingT (R_t) into a Plaintext (R_q) by scaling up the coefficient by Q/t.
+func (encoder *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
 
 	for i := len(encoder.ringQ.Modulus) - 1; i >= 0; i-- {
-		tmp1 := pol.value.Coeffs[i]
+		tmp1 := pt.value.Coeffs[i]
 		tmp2 := ptRt.value.Coeffs[0]
 		d := encoder.deltaMont[i]
 		qi := encoder.ringQ.Modulus[i]
@@ -255,6 +256,13 @@ func (encoder *encoder) ScaleUp(ptRt *PlaintextRingT, pol *Plaintext) {
 	}
 }
 
+// ScaleDown transforms a Plaintext (R_q) into a PlaintextRingT (R_t) by scaling down the coefficient by t/Q and rounding.
+func (encoder *encoder) ScaleDown(pt *Plaintext, ptRt *PlaintextRingT) {
+	encoder.scaler.DivByQOverTRounded(pt.value, ptRt.value)
+}
+
+// RingTToMul transforms a PlaintextRingT into a PlaintextMul by operating the NTT transform
+// of R_q and putting the coefficients in Montgommery form.
 func (encoder *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 	if ptRt.value != ptMul.value {
 		copy(ptMul.value.Coeffs[0], ptRt.value.Coeffs[0])
@@ -267,15 +275,14 @@ func (encoder *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 	encoder.ringQ.MForm(ptMul.value, ptMul.value)
 }
 
-func (encoder *encoder) ScaleDown(pt *Plaintext, ptRt *PlaintextRingT) {
-	encoder.scaler.DivByQOverTRounded(pt.value, ptRt.value)
-}
-
+// MulToRingT transforms a PlaintextMul into PlaintextRingT by operating the inverse NTT transform of R_q and
+// putting the coefficients out of the Montgommery form.
 func (encoder *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
 	encoder.ringQ.InvNTTLvl(0, pt.value, ptRt.value)
 	encoder.ringQ.InvMFormLvl(0, ptRt.value, ptRt.value)
 }
 
+// DecodeRingT decodes any plaintext type into a PlaintextRingT. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (encoder *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
 	switch pt := p.(type) {
 	case *Plaintext:
@@ -289,26 +296,33 @@ func (encoder *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
 	}
 }
 
-// DecodeUint decodes a batched plaintext and returns the coefficients in a uint64 slice.
+// DecodeUint decodes a any plaintext type and write the coefficients in coeffs. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (encoder *encoder) DecodeUint(p interface{}, coeffs []uint64) {
 
-	encoder.DecodeRingT(p, encoder.tmpPtRt)
+	var ptRt *PlaintextRingT
+	var isInRingT bool
+	if ptRt, isInRingT = p.(*PlaintextRingT); !isInRingT {
+		encoder.DecodeRingT(p, encoder.tmpPtRt)
+		ptRt = encoder.tmpPtRt
+	}
 
-	encoder.ringT.NTT(encoder.tmpPtRt.value, encoder.tmpPoly)
+	encoder.ringT.NTT(ptRt.value, encoder.tmpPoly)
 
 	for i := uint64(0); i < encoder.ringQ.N; i++ {
 		coeffs[i] = encoder.tmpPoly.Coeffs[0][encoder.indexMatrix[i]]
 	}
 }
 
+// DecodeUintNew decodes any plaintext type and returns the coefficients in a new []uint64.
+// It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (encoder *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
 	coeffs = make([]uint64, encoder.ringQ.N)
 	encoder.DecodeUint(p, coeffs)
 	return
 }
 
-// DecodeInt decodes a batched plaintext and returns the coefficients in an int64 slice. It also decodes the sign (by centering the values around the plaintext
-// modulus).
+// DecodeInt decodes a any plaintext type and write the coefficients in coeffs. It also decodes the sign
+// modulus (by centering the values around the plaintext). It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (encoder *encoder) DecodeInt(p interface{}, coeffs []int64) {
 
 	encoder.DecodeRingT(p, encoder.tmpPtRt)
@@ -327,6 +341,8 @@ func (encoder *encoder) DecodeInt(p interface{}, coeffs []int64) {
 	}
 }
 
+// DecodeIntNew decodes any plaintext type and returns the coefficients in a new []int64. It also decodes the sign
+// modulus (by centering the values around the plaintext). It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (encoder *encoder) DecodeIntNew(p interface{}) (coeffs []int64) {
 	coeffs = make([]int64, encoder.ringQ.N)
 	encoder.DecodeInt(p, coeffs)

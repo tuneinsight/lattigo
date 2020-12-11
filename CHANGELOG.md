@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Unreleased changes
 
 ### Added
-- BFV : special-purpose plaintext types (`PlaintextRingT` or `PlaintextMul`) optimized ct-pt operations. See bfv/plaintext.go.
+- BFV : special-purpose plaintext types (`PlaintextRingT` or `PlaintextMul`) optimized ct-pt operations. See bfv/encoder.go and bfv/plaintext.go.
 - BFV : allocation-free `Encoder` methods
 - RING : `GenNTTPrimes` now takes the Nth primitive root as input rather than logN.
 

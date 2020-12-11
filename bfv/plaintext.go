@@ -7,7 +7,8 @@ import (
 // Plaintext is a Element with only one Poly. It represents a Plaintext element in R_q that is the
 // result of scaling the corresponding element of R_t up by Q/t. This is a generic all-purpose type
 // of plaintext: it will work with for all operations. It is however less compact than PlaintextRingT
-// and will result in less efficient Ciphert-Plaintext multiplication than PlaintextMul.
+// and will result in less efficient Ciphert-Plaintext multiplication than PlaintextMul. See bfv/encoder.go
+// for more information on plaintext types.
 type Plaintext struct {
 	*Element
 	value *ring.Poly
@@ -15,12 +16,12 @@ type Plaintext struct {
 
 // PlaintextRingT represents a plaintext element in R_t.
 // This is the most compact representation of a plaintext, but performing operations have the extra-cost of performing
-// the scaling up by Q/t.
+// the scaling up by Q/t. See bfv/encoder.go for more information on plaintext types.
 type PlaintextRingT Plaintext
 
 // PlaintextMul represents a plaintext element in R_q, in NTT and Montgomerry form, but without scale up by Q/t.
 // A PlaintextMul is a special-purpose plaintext for efficient Ciphertext-Plaintext multiplication. However,
-// other operations on plaintexts are not supported.
+// other operations on plaintexts are not supported. See bfv/encoder.go for more information on plaintext types.
 type PlaintextMul Plaintext
 
 // NewPlaintext creates and allocates a new plaintext in RingQ (multiple moduli of Q).

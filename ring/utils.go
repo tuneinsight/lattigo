@@ -56,9 +56,6 @@ func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64)
 
 // gcd computes the greatest common divisor gcd(a,b) for a,b uint64 variables
 func gcd(a, b uint64) uint64 {
-	if a == 0 || b == 0 {
-		return 0
-	}
 	for b != 0 {
 		a, b = b, a%b
 	}

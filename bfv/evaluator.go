@@ -184,7 +184,7 @@ func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree u
 		panic("receiver operand degree is too small")
 	}
 	el0, elOut = op0.El(), opOut.El()
-	return // TODO: more checks on elements
+	return
 }
 
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.

@@ -14,6 +14,9 @@ import (
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
 const MaxLogN = 16
 
+// MinLogN is the log2 of the smallest supported polynomial modulus degree
+const MinLogN = 4
+
 // MaxModuliCount is the largest supported number of moduli in the RNS representation.
 const MaxModuliCount = 34
 
@@ -239,7 +242,7 @@ type Parameters struct {
 func NewParametersFromModuli(logN uint64, m *Moduli) (p *Parameters, err error) {
 	p = new(Parameters)
 
-	if (logN < 3) || (logN > MaxLogN) {
+	if (logN < MinLogN) || (logN > MaxLogN) {
 		return nil, fmt.Errorf("invalid polynomial ring log degree: %d", logN)
 	}
 
@@ -546,7 +549,14 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	b := utils.NewBuffer(make([]byte, 0, 21+(p.QPiCount())<<3))
+	// Data 21 byte + QPiCount * 8 byte:
+	// 1 byte : logN
+	// 1 byte : logSlots
+	// 8 byte : scale
+	// 8 byte : sigma
+	// 1 byte : #qi
+	// 1 byte : #pi
+	b := utils.NewBuffer(make([]byte, 0, 20+(p.QPiCount())<<3))
 
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(p.logSlots))
@@ -563,7 +573,7 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes a []byte into a parameter set struct
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 
-	if len(data) < 3 {
+	if len(data) < 20 {
 		return errors.New("invalid parameters encoding")
 	}
 

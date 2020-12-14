@@ -10,6 +10,10 @@ import (
 
 // GetDataLen returns the length in bytes of the target Ciphertext.
 func (ciphertext *Ciphertext) GetDataLen(WithMetaData bool) (dataLen uint64) {
+	// MetaData is :
+	// 1 byte : Degree
+	// 9 byte : Scale
+	// 1 byte : isNTT
 	if WithMetaData {
 		dataLen += 11
 	}
@@ -55,7 +59,7 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 // The target Ciphertext must be of the appropriate format and size, it can be created with the
 // method NewCiphertext(uint64).
 func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
-	if len(data) < 11 {
+	if len(data) < 11 { // cf. ciphertext.GetDataLen()
 		return errors.New("too small bytearray")
 	}
 

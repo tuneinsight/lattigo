@@ -76,7 +76,6 @@ type evaluator struct {
 	poolQ [4]*ring.Poly // Memory pool in order : Decomp(c2), for NTT^-1(c2), res(c0', c1')
 	poolP [3]*ring.Poly // Memory pool in order : Decomp(c2), res(c0', c1')
 
-	// TODO use the other pools
 	ctxpool *Ciphertext // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
 
 	baseconverter *ring.FastBasisExtender
@@ -136,7 +135,7 @@ func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDe
 		panic("receiver operand degree is too small")
 	}
 	el0, el1, elOut = op0.El(), op1.El(), opOut.El()
-	return // TODO: more checks on elements
+	return
 }
 
 func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *Element) {
@@ -152,7 +151,7 @@ func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree u
 		panic("receiver operand degree is too small")
 	}
 	el0, elOut = op0.El(), opOut.El()
-	return // TODO: more checks on elements
+	return
 }
 
 func (eval *evaluator) newCiphertextBinary(op0, op1 Operand) (ctOut *Ciphertext) {
@@ -240,7 +239,7 @@ func (eval *evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 
 func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(uint64, *ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	var tmp0, tmp1 *Element // TODO : use eval mem pool
+	var tmp0, tmp1 *Element
 
 	level := utils.MinUint64(utils.MinUint64(c0.Level(), c1.Level()), ctOut.Level())
 

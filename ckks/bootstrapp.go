@@ -398,13 +398,13 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint6
 	ringP := eval.ringP
 
 	c2NTT := ct0.value[1]
-	c2InvNTT := ringQ.NewPoly() // TODO : maybe have a pre-allocated memory pool ?
+	c2InvNTT := ringQ.NewPoly() // IMPROVEMENT: maybe have a pre-allocated memory pool ?
 	ringQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
 
 	alpha := eval.params.Alpha()
 	beta := uint64(math.Ceil(float64(ct0.Level()+1) / float64(alpha)))
 
-	// TODO : maybe have a pre-allocated memory pool ?
+	// IMPROVEMENT: maybe have a pre-allocated memory pool ?
 	c2QiQDecomp := make([]*ring.Poly, beta)
 	c2QiPDecomp := make([]*ring.Poly, beta)
 

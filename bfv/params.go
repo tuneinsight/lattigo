@@ -13,6 +13,9 @@ import (
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
 const MaxLogN = 16
 
+// MinLogN is the log2 of the smallest supported polynomial modulus degree.
+const MinLogN = 4
+
 // MaxModuliCount is the largest supported number of moduli in the RNS representation.
 const MaxModuliCount = 34
 
@@ -178,7 +181,7 @@ func NewParametersFromModuli(logN uint64, m *Moduli, t uint64) (p *Parameters, e
 
 	p = new(Parameters)
 
-	if logN < 0 || logN > MaxLogN {
+	if logN < MinLogN || logN > MaxLogN {
 		return nil, fmt.Errorf("invalid polynomial ring log degree: %d", logN)
 	}
 
@@ -431,13 +434,19 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 		return []byte{}, nil
 	}
 
+	// data : 19 byte + len(QPi) * 8 byte
+	// 1 byte : logN
+	// 1 byte : #pi
+	// 1 byte : #pi
+	// 8 byte : t
+	// 8 byte : sigma
 	b := utils.NewBuffer(make([]byte, 0, 19+(len(p.qi)+len(p.pi))<<3))
 
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(len(p.qi)))
 	b.WriteUint8(uint8(len(p.pi)))
 	b.WriteUint64(p.t)
-	b.WriteUint64(uint64(p.sigma * (1 << 32)))
+	b.WriteUint64(math.Float64bits(p.sigma))
 	b.WriteUint64Slice(p.qi)
 	b.WriteUint64Slice(p.pi)
 
@@ -446,7 +455,7 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
 func (p *Parameters) UnmarshalBinary(data []byte) error {
-	if len(data) < 3 {
+	if len(data) < 19 {
 		return errors.New("invalid parameters encoding")
 	}
 	b := utils.NewBuffer(data)
@@ -461,14 +470,14 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	lenPi := b.ReadUint8()
 
 	p.t = b.ReadUint64()
-	p.sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
+	p.sigma = math.Float64frombits(b.ReadUint64())
 	p.qi = make([]uint64, lenQi, lenQi)
 	p.pi = make([]uint64, lenPi, lenPi)
 
 	b.ReadUint64Slice(p.qi)
 	b.ReadUint64Slice(p.pi)
 
-	err := checkModuli(p.Moduli(), p.logN) // TODO: check more than moduli.
+	err := checkModuli(p.Moduli(), p.logN)
 	if err != nil {
 		return err
 	}
@@ -518,7 +527,7 @@ func checkLogModuli(lm *LogModuli) (err error) {
 
 	// Checks if the parameters are empty
 	if lm.LogQi == nil || len(lm.LogQi) == 0 {
-		return fmt.Errorf("nil or empty slice provided as LogModuli.LogQi") // TODO: are our algorithm working with empty mult basis ?
+		return fmt.Errorf("nil or empty slice provided as LogModuli.LogQi")
 	}
 
 	if len(lm.LogQi) > MaxModuliCount {

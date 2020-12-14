@@ -21,7 +21,11 @@ func Test_PRNG(t *testing.T) {
 		sum1 := make([]byte, 512)
 
 		Ha.SetClock(sum0, 256)
-		Hb.SetClock(sum1, 256)
+		Hb.SetClock(sum1, 128)
+
+		for i := 0; i < 128; i++ {
+			Hb.Clock(sum1)
+		}
 
 		Ha.Clock(sum0)
 		Hb.Clock(sum1)

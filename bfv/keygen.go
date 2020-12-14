@@ -166,8 +166,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	ringQP.NTT(pk.pk[0], pk.pk[0])
 	pk.pk[1] = keygen.uniformSampler.ReadNew()
 
-	ringQP.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
-	ringQP.Neg(pk.pk[0], pk.pk[0])
+	ringQP.MulCoeffsMontgomeryAndSub(sk.sk, pk.pk[1], pk.pk[0])
 
 	return pk
 }

@@ -64,6 +64,8 @@ func (pcks *PCKSProtocol) AllocateShares(level uint64) (s PCKSShare) {
 // and broadcasts the result to the other j-1 parties.
 func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.Ciphertext, shareOut PCKSShare) {
 
+	// Planned improvement : adapt share size to ct.Level() to improve efficiency.
+
 	ringQ := pcks.dckksContext.ringQ
 	ringQP := pcks.dckksContext.ringQP
 

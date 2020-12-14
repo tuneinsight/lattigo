@@ -337,6 +337,8 @@ func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
 
 	var pointer uint64
 
+	// [RotType] [RotAmount]
+	// [  0xFF ] [ 0xFFFFFF]
 	for _, i := range mappingColL {
 
 		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(i))
@@ -346,6 +348,8 @@ func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
 		pointer, _ = rotationkey.evakeyRotColLeft[i].encode(pointer, data)
 	}
 
+	// [RotType] [RotAmount]
+	// [  0xFF ] [ 0xFFFFFF]
 	for _, i := range mappingColR {
 
 		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(i))
@@ -355,6 +359,8 @@ func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
 		pointer, _ = rotationkey.evakeyRotColRight[i].encode(pointer, data)
 	}
 
+	// [RotType] [RotAmount]
+	// [  0xFF ] [ 0xFFFFFF]
 	if rotationkey.evakeyConjugate != nil {
 
 		data[pointer] = uint8(Conjugate)

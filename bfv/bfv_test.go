@@ -3,9 +3,7 @@ package bfv
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,8 +40,6 @@ func TestBFV(t *testing.T) {
 
 	var err error
 	var testctx = new(testContext)
-
-	rand.Seed(time.Now().UnixNano())
 
 	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {

@@ -3,12 +3,11 @@ package ckks
 import (
 	"math"
 	"math/cmplx"
-	"math/rand"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/ldsec/lattigo/v2/ckks/bettersine"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 func TestBootstrapp(t *testing.T) {
@@ -20,8 +19,6 @@ func TestBootstrapp(t *testing.T) {
 	if runtime.GOARCH == "wasm" {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
 	}
-
-	rand.Seed(time.Now().UnixNano())
 
 	var err error
 	var testContext = new(testParams)
@@ -241,7 +238,7 @@ func TestBootstrapp(t *testing.T) {
 
 			values := make([]complex128, 1<<logSlots)
 			for i := range values {
-				values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
+				values[i] = utils.RandComplex128(-1, 1)
 			}
 
 			values[0] = complex(0.9238795325112867, 0.3826834323650898)
@@ -276,7 +273,7 @@ func newTestVectorsSineBootstrapp(testContext *testParams, encryptor Encryptor, 
 	values = make([]complex128, 1<<logSlots)
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
-		values[i] = complex(math.Round(randomFloat(a, b))+randomFloat(-1, 1)/1000, 0)
+		values[i] = complex(math.Round(utils.RandFloat64(a, b))+utils.RandFloat64(-1, 1)/1000, 0)
 	}
 
 	plaintext = NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())

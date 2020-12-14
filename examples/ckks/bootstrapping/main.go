@@ -3,18 +3,10 @@ package main
 import (
 	"fmt"
 	"math"
-	"math/rand"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/utils"
 )
-
-func randomFloat(min, max float64) float64 {
-	return min + rand.Float64()*(max-min)
-}
-
-func randomComplex(min, max float64) complex128 {
-	return complex(randomFloat(min, max), randomFloat(min, max))
-}
 
 func main() {
 
@@ -61,7 +53,7 @@ func main() {
 	// Generate a random plaintext
 	valuesWant := make([]complex128, params.Slots())
 	for i := range valuesWant {
-		valuesWant[i] = randomComplex(-1, 1)
+		valuesWant[i] = utils.RandComplex128(-1, 1)
 	}
 
 	plaintext = encoder.EncodeNew(valuesWant, params.LogSlots())

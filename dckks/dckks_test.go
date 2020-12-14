@@ -679,7 +679,7 @@ func newTestVectors(testCtx *testContext, encryptor ckks.Encryptor, a float64, t
 	values = make([]complex128, slots)
 
 	for i := uint64(0); i < slots; i++ {
-		values[i] = randomComplex(testCtx.prng, a)
+		values[i] = utils.RandComplex128(-a, a)
 	}
 
 	values[0] = complex(0.607538, 0.555668)

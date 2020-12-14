@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"math"
 	"math/cmplx"
-	"math/rand"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -51,8 +49,6 @@ type testParams struct {
 }
 
 func TestCKKS(t *testing.T) {
-
-	rand.Seed(time.Now().UnixNano())
 
 	var err error
 	var testContext = new(testParams)
@@ -149,7 +145,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 	values = make([]complex128, 1<<logSlots)
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
-		values[i] = complex(randomFloat(real(a), real(b)), randomFloat(imag(a), imag(b)))
+		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
 	}
 
 	values[0] = complex(0.607538, 0)
@@ -210,7 +206,7 @@ func testEncoder(testContext *testParams, t *testing.T) {
 		valuesWant := make([]float64, slots)
 
 		for i := uint64(0); i < slots; i++ {
-			valuesWant[i] = randomFloat(-1, 1)
+			valuesWant[i] = utils.RandFloat64(-1, 1)
 		}
 
 		valuesWant[0] = 0.607538
@@ -250,7 +246,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 		values := make([]complex128, 1<<logSlots)
 
 		for i := uint64(0); i < 1<<logSlots; i++ {
-			values[i] = randomComplex(-1, 1)
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
@@ -278,7 +274,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 		values := make([]complex128, 1<<logSlots)
 
 		for i := uint64(0); i < 1<<logSlots; i++ {
-			values[i] = randomComplex(-1, 1)
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
@@ -299,7 +295,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 		values := make([]complex128, 1<<logSlots)
 
 		for i := uint64(0); i < 1<<logSlots; i++ {
-			values[i] = randomComplex(-1, 1)
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
@@ -320,7 +316,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 		values := make([]complex128, 1<<logSlots)
 
 		for i := uint64(0); i < 1<<logSlots; i++ {
-			values[i] = randomComplex(-1, 1)
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
@@ -975,7 +971,7 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 
 		for n := 1; n < 4; n++ {
 
-			rand := rand.Uint64() % uint64(len(values1))
+			rand := utils.RandUint64() % uint64(len(values1))
 
 			// Applies the column rotation to the values
 			for i := range values1 {

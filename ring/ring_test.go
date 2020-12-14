@@ -4,9 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/ldsec/lattigo/v2/utils"
 
@@ -51,7 +49,6 @@ func genTestParams(defaultParams *Parameters) (testContext *testParams, err erro
 
 func TestRing(t *testing.T) {
 
-	rand.Seed(time.Now().UnixNano())
 	var err error
 
 	var defaultParams = DefaultParams[0:4] // the default test
@@ -341,42 +338,136 @@ func testModularReduction(testContext *testParams, t *testing.T) {
 
 	t.Run(testString("ModularReduction/BRed/", testContext.ringQ), func(t *testing.T) {
 
+		var x, y uint64
+		var bigQ, result *big.Int
+
 		for j, q := range testContext.ringQ.Modulus {
 
-			bigQ := NewUint(q)
+			bigQ = NewUint(q)
 
-			for i := 0; i < 65536; i++ {
-				x := rand.Uint64() % q
-				y := rand.Uint64() % q
+			bredParams := testContext.ringQ.BredParams[j]
 
-				result := NewUint(x)
-				result.Mul(result, NewUint(y))
-				result.Mod(result, bigQ)
+			x = 1
+			y = 1
 
-				require.Equalf(t, BRed(x, y, q, testContext.ringQ.BredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
-			}
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 1
+			y = q - 1
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 1
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = q - 1
+			y = q - 1
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = q - 1
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 0xFFFFFFFFFFFFFFFF
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
 		}
 	})
 
 	t.Run(testString("ModularReduction/MRed/", testContext.ringQ), func(t *testing.T) {
 
-		for j := range testContext.ringQ.Modulus {
+		var x, y uint64
+		var bigQ, result *big.Int
 
-			q := testContext.ringQ.Modulus[j]
+		for j, q := range testContext.ringQ.Modulus {
 
-			bigQ := NewUint(q)
+			bigQ = NewUint(q)
 
-			for i := 0; i < 65536; i++ {
+			bredParams := testContext.ringQ.BredParams[j]
+			mredparams := testContext.ringQ.MredParams[j]
 
-				x := rand.Uint64() % q
-				y := rand.Uint64() % q
+			x = 1
+			y = 1
 
-				result := NewUint(x)
-				result.Mul(result, NewUint(y))
-				result.Mod(result, bigQ)
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
 
-				require.Equalf(t, MRed(x, MForm(y, q, testContext.ringQ.BredParams[j]), q, testContext.ringQ.MredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
-			}
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 1
+			y = q - 1
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 1
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = q - 1
+			y = q - 1
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = q - 1
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 0xFFFFFFFFFFFFFFFF
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
 		}
 	})
 }

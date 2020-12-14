@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/bits"
-	"math/rand"
 	"testing"
 )
 
@@ -415,11 +414,9 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 
 func benchBRed(testContext *testParams, b *testing.B) {
 
-	q := uint64(1033576114481528833)
-	u := BRedParams(q)
+	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 
-	x := rand.Uint64() % q
-	y := rand.Uint64() % q
+	u := BRedParams(q)
 
 	b.ResetTimer()
 
@@ -432,10 +429,7 @@ func benchBRed(testContext *testParams, b *testing.B) {
 
 func benchMRed(testContext *testParams, b *testing.B) {
 
-	q := uint64(1033576114481528833)
-
-	x := rand.Uint64() % q
-	y := rand.Uint64() % q
+	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 
 	u := BRedParams(q)
 
@@ -454,10 +448,9 @@ func benchMRed(testContext *testParams, b *testing.B) {
 
 func benchBRedAdd(testContext *testParams, b *testing.B) {
 
-	q := uint64(1033576114481528833)
-	u := BRedParams(q)
+	var q, x uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF
 
-	x := rand.Uint64()
+	u := BRedParams(q)
 
 	b.ResetTimer()
 

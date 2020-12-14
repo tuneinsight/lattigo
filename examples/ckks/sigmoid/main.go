@@ -4,19 +4,10 @@ import (
 	"fmt"
 	"math"
 	"math/cmplx"
-	"math/rand"
-	"time"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/utils"
 )
-
-func randomFloat(min, max float64) float64 {
-	return min + rand.Float64()*(max-min)
-}
-
-func randomComplex(min, max float64) complex128 {
-	return complex(randomFloat(min, max), randomFloat(min, max))
-}
 
 func chebyshevinterpolation() {
 
@@ -25,8 +16,6 @@ func chebyshevinterpolation() {
 	// This example packs random 8192 float64 values in the range [-8, 8]
 	// and approximates the function 1/(exp(-x) + 1) over the range [-8, 8].
 	// The result is then parsed and compared to the expected result.
-
-	rand.Seed(time.Now().UnixNano())
 
 	// Scheme params
 	params := ckks.DefaultParams[ckks.PN14QP438]
@@ -55,7 +44,7 @@ func chebyshevinterpolation() {
 	// Values to encrypt
 	values := make([]complex128, params.Slots())
 	for i := range values {
-		values[i] = complex(randomFloat(-8, 8), 0)
+		values[i] = complex(utils.RandFloat64(-8, 8), 0)
 	}
 
 	fmt.Printf("CKKS parameters: logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n",

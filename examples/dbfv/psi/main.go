@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
 	"sync"
@@ -116,7 +115,7 @@ func main() {
 
 		pi.input = make([]uint64, 1<<params.LogN(), 1<<params.LogN())
 		for i := range pi.input {
-			if rand.Float32() > 0.3 || i == 4 {
+			if utils.RandFloat64(0, 1) > 0.3 || i == 4 {
 				pi.input[i] = 1
 			}
 			expRes[i] *= pi.input[i]

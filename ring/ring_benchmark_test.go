@@ -19,10 +19,11 @@ func BenchmarkRing(b *testing.B) {
 		defaultParams = DefaultParams
 	}
 
-	var testContext = new(testParams)
+	
 
 	for _, defaultParam := range defaultParams {
 
+		var testContext *testParams
 		if testContext, err = genTestParams(defaultParam); err != nil {
 			panic(err)
 		}

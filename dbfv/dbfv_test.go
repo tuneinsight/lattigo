@@ -47,7 +47,7 @@ type testContext struct {
 func Test_DBFV(t *testing.T) {
 
 	var err error
-	var testCtx = new(testContext)
+	
 
 	var defaultParams = bfv.DefaultParams[bfv.PN12QP109 : bfv.PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
@@ -58,6 +58,7 @@ func Test_DBFV(t *testing.T) {
 	}
 	for _, p := range defaultParams {
 
+		var testCtx *testContext
 		if testCtx, err = gentestContext(p); err != nil {
 			panic(err)
 		}

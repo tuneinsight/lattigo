@@ -57,7 +57,6 @@ type testContext struct {
 func TestDCKKS(t *testing.T) {
 
 	var err error
-	var testCtx = new(testContext)
 
 	var defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
@@ -69,6 +68,7 @@ func TestDCKKS(t *testing.T) {
 
 	for _, p := range defaultParams {
 
+		var testCtx *testContext
 		if testCtx, err = genTestParams(p); err != nil {
 			panic(err)
 		}

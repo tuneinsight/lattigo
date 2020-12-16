@@ -10,7 +10,7 @@ import (
 func BenchmarkDCKKS(b *testing.B) {
 
 	var err error
-	var testCtx = new(testContext)
+	
 	var defaultParams []*ckks.Parameters
 
 	if testing.Short() {
@@ -20,7 +20,7 @@ func BenchmarkDCKKS(b *testing.B) {
 	}
 
 	for _, p := range defaultParams {
-
+		var testCtx *testContext
 		if testCtx, err = genTestParams(p); err != nil {
 			panic(err)
 		}

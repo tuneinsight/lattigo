@@ -6,7 +6,7 @@ import (
 
 func BenchmarkBFV(b *testing.B) {
 	var err error
-	var testctx = new(testContext)
+	
 	var defaultParams []*Parameters
 
 	if testing.Short() {
@@ -16,7 +16,7 @@ func BenchmarkBFV(b *testing.B) {
 	}
 
 	for _, p := range defaultParams {
-
+		var testctx *testContext
 		if testctx, err = genTestParams(p); err != nil {
 			panic(err)
 		}

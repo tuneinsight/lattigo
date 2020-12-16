@@ -61,7 +61,8 @@ func TestRing(t *testing.T) {
 
 	testNewRing(t)
 	for _, defaultParam := range defaultParams {
-		var testContext = new(testParams)
+		
+		var testContext  *testParams
 		if testContext, err = genTestParams(defaultParam); err != nil {
 			t.Error(err)
 		}

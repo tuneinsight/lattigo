@@ -9,14 +9,18 @@ import (
 // RandUint64 return a random value between 0 and 0xFFFFFFFFFFFFFFFF
 func RandUint64() uint64 {
 	b := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
 	return binary.BigEndian.Uint64(b)
 }
 
 // RandFloat64 returns a random float between min and max
 func RandFloat64(min, max float64) float64 {
 	b := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	rand.Read(b)
+	if _,err := rand.Read(b); err != nil {
+		panic(err)
+	}
 	f := float64(binary.BigEndian.Uint64(b)) / 1.8446744073709552e+19
 	return min + f*(max-min)
 }

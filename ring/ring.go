@@ -231,8 +231,12 @@ func (r *Ring) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	r.setParameters(parameters.N, parameters.Modulus)
-	r.genNTTParams()
+	if err := r.setParameters(parameters.N, parameters.Modulus); err != nil {
+		return err
+	}
+	if err := r.genNTTParams(); err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -40,7 +40,7 @@ type Evaluator interface {
 	ReduceNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	Reduce(ct0 *Ciphertext, ctOut *Ciphertext) error
 	DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciphertext)
-	DropLevel(ct0 *Ciphertext, levels uint64) (err error)
+	DropLevel(ct0 *Ciphertext, levels uint64)
 	Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciphertext) (err error)
 	RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ciphertext, err error)
 	RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *Ciphertext) (err error)
@@ -1182,19 +1182,11 @@ func (eval *evaluator) DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciph
 
 // DropLevel reduces the level of ct0 by levels and returns the result in ct0.
 // No rescaling is applied during this procedure.
-func (eval *evaluator) DropLevel(ct0 *Ciphertext, levels uint64) (err error) {
-
-	if ct0.Level() == 0 {
-		return errors.New("cannot DropLevel: Ciphertext already at level 0")
-	}
-
+func (eval *evaluator) DropLevel(ct0 *Ciphertext, levels uint64) {
 	level := ct0.Level()
-
 	for i := range ct0.value {
 		ct0.value[i].Coeffs = ct0.value[i].Coeffs[:level+1-levels]
 	}
-
-	return nil
 }
 
 // RescaleNew divides ct0 by the last modulus in the moduli chain, and repeats this
@@ -1475,7 +1467,6 @@ func (eval *evaluator) Rotate(ct0 *Ciphertext, k uint64, evakey *RotationKeys, c
 	k &= ((eval.ringQ.N >> 1) - 1)
 
 	if k == 0 {
-
 		ctOut.Copy(ct0.El())
 
 	} else {

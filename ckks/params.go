@@ -345,14 +345,12 @@ func (p *Parameters) SetScale(scale float64) {
 }
 
 // SetLogSlots sets the value logSlots of the parameters.
-func (p *Parameters) SetLogSlots(logSlots uint64) (err error) {
+func (p *Parameters) SetLogSlots(logSlots uint64) {
 	if (logSlots == 0) || (logSlots > p.MaxLogSlots()) {
-		return fmt.Errorf("slots cannot be greater than LogN-1")
+		panic(fmt.Errorf("slots cannot be greater than LogN-1"))
 	}
 
 	p.logSlots = logSlots
-
-	return nil
 }
 
 // SetSigma sets the value sigma of the parameters

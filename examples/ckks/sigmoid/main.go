@@ -71,7 +71,9 @@ func chebyshevinterpolation() {
 	// Change of variable
 	evaluator.MultByConst(ciphertext, 2/(b-a), ciphertext)
 	evaluator.AddConst(ciphertext, (-a-b)/(b-a), ciphertext)
-	evaluator.Rescale(ciphertext, params.Scale(), ciphertext)
+	if err := evaluator.Rescale(ciphertext, params.Scale(), ciphertext); err != nil{
+		panic(err)
+	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
 	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk); err != nil {

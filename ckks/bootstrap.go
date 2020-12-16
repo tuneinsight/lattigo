@@ -188,7 +188,9 @@ func (btp *Bootstrapper) dft(vec *Ciphertext, plainVectors []*dftvectors, forwar
 	// Sequencially multiplies w with the provided dft matrices.
 	for _, plainVector := range plainVectors {
 		vec = btp.multiplyByDiagMatrice(vec, plainVector)
-		evaluator.Rescale(vec, evaluator.scale, vec)
+		if err := evaluator.Rescale(vec, evaluator.scale, vec); err != nil {
+			panic(err)
+		}
 	}
 
 	return vec
@@ -508,7 +510,9 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 		eval.MulRelin(ct, ct, btp.relinkey, ct)
 		eval.Add(ct, ct, ct)
 		eval.AddConst(ct, -sqrt2pi, ct)
-		eval.Rescale(ct, eval.scale, ct)
+		if err := eval.Rescale(ct, eval.scale, ct); err != nil {
+			panic(err)
+		}
 	}
 
 	return ct

@@ -159,7 +159,7 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 }
 
 // Embed encodes a vector and stores internaly the encoded values.
-// To be used in conjonction with ScaleUp.
+// To be used in conjunction with ScaleUp.
 func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 
 	slots := uint64(1 << logSlots)

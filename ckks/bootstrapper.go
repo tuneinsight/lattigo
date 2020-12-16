@@ -81,7 +81,7 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappParams, btpKey *Bo
 }
 
 // newBootstrapper is a constructor of "dummy" bootstrapper to enable the generation of bootstrapping-related constants
-// without providing a bootstrapping key. To be replaced by a propper factorization of the bootstrapping pre-computations.
+// without providing a bootstrapping key. To be replaced by a proper factorization of the bootstrapping pre-computations.
 func newBootstrapper(params *Parameters, btpParams *BootstrappParams) (btp *Bootstrapper) {
 	btp = new(Bootstrapper)
 
@@ -194,7 +194,7 @@ func (btp *Bootstrapper) genDFTMatrices() {
 		for j := range btp.pDFT[i].Vec {
 
 			if btp.repack && i == 0 {
-				// Sparse repacking, occuring during the first DFT matrix of the CoeffsToSlots.
+				// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
 				index = ((j / btp.pDFT[i].N1) * btp.pDFT[i].N1) & (2*btp.params.Slots() - 1)
 			} else {
 				// Other cases

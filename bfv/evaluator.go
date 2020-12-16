@@ -68,7 +68,7 @@ type evaluator struct {
 
 	galElRotRow      uint64   // Rows rotation generator
 	galElRotColLeft  []uint64 // Columns right rotations generators
-	galElRotColRight []uint64 // Columsn left rotations generators
+	galElRotColRight []uint64 // Columns left rotations generators
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic

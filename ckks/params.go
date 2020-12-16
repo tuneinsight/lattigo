@@ -314,7 +314,7 @@ func (p *Parameters) Levels() uint64 {
 	return p.QiCount()
 }
 
-// Slots returns number of avaliable plaintext slots
+// Slots returns number of availible plaintext slots
 func (p *Parameters) Slots() uint64 {
 	return 1 << p.logSlots
 }
@@ -398,19 +398,19 @@ func (p *Parameters) QiCount() uint64 {
 	return uint64(len(p.qi))
 }
 
-// Pi returns a new slice with the factors of the ciphertext modulus extention P
+// Pi returns a new slice with the factors of the ciphertext modulus extension P
 func (p *Parameters) Pi() []uint64 {
 	pi := make([]uint64, len(p.pi))
 	copy(pi, p.pi)
 	return pi
 }
 
-// PiCount returns the number of factors of the ciphertext modulus extention P
+// PiCount returns the number of factors of the ciphertext modulus extension P
 func (p *Parameters) PiCount() uint64 {
 	return uint64(len(p.pi))
 }
 
-// QPiCount returns the number of factors of the ciphertext modulus + the extention modulus P
+// QPiCount returns the number of factors of the ciphertext modulus + the modulus extension P
 func (p *Parameters) QPiCount() uint64 {
 	return uint64(len(p.qi) + len(p.pi))
 }
@@ -464,7 +464,7 @@ func (p *Parameters) LogP() uint64 {
 // LogQAlpha returns the size in bits of the sum of the norm of
 // each element of the special RNS decomposition basis for the
 // key-switching.
-// LogQAlpha is the size of the element that is multipled by the
+// LogQAlpha is the size of the element that is multiplied by the
 // error during the keyswitching and then divided by P.
 // LogQAlpha should be smaller than P or the error added during
 // the key-switching wont be negligible.

@@ -10,7 +10,6 @@ import (
 func Benchmark_DBFV(b *testing.B) {
 
 	var err error
-	
 
 	var defaultParams []*bfv.Parameters
 

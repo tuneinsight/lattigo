@@ -23,7 +23,7 @@ func main() {
 
 	// Bootstrapping parameters
 	// Five sets of parameters (index 0 to 4) ensuring 128 bit of security
-	// are avaliable in github.com/ldsec/lattigo/v2/ckks/bootparams
+	// are available in github.com/ldsec/lattigo/v2/ckks/bootparams
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.

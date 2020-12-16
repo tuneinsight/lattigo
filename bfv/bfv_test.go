@@ -46,7 +46,7 @@ func TestBFV(t *testing.T) {
 	}
 	if *flagLongTest {
 		defaultParams = DefaultParams // the long test suite runs for all default parameters
-		fmt.Println("bfv runing in long mode")
+		fmt.Println("bfv running in long mode")
 	}
 
 	for _, p := range defaultParams {

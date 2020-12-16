@@ -19,8 +19,6 @@ func BenchmarkRing(b *testing.B) {
 		defaultParams = DefaultParams
 	}
 
-	
-
 	for _, defaultParam := range defaultParams {
 
 		var testContext *testParams

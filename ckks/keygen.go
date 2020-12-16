@@ -604,7 +604,7 @@ func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *Boots
 		for j := range indexStC[i] {
 
 			if logSlots < logN-1 && i == 0 {
-				// Sparse repacking, occuring during the first DFT matrix of the CoeffsToSlots.
+				// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
 				index = ((j / N1) * N1) & (2*slots - 1)
 			} else {
 				// Other cases

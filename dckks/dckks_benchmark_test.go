@@ -10,7 +10,7 @@ import (
 func BenchmarkDCKKS(b *testing.B) {
 
 	var err error
-	
+
 	var defaultParams []*ckks.Parameters
 
 	if testing.Short() {

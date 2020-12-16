@@ -40,13 +40,13 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 	logSlots := params.LogSlots()
 	slots := uint64(1 << logSlots)
 
-	switch element.(type) {
+	switch element := element.(type) {
 	case *Ciphertext:
-		valuesTest = encoder.Decode(decryptor.DecryptNew(element.(*Ciphertext)), logSlots)
+		valuesTest = encoder.Decode(decryptor.DecryptNew(element), logSlots)
 	case *Plaintext:
-		valuesTest = encoder.Decode(element.(*Plaintext), logSlots)
+		valuesTest = encoder.Decode(element, logSlots)
 	case []complex128:
-		valuesTest = element.([]complex128)
+		valuesTest = element
 	}
 
 	var deltaReal, deltaImag float64

@@ -138,22 +138,6 @@ func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDe
 	return
 }
 
-func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *Element) {
-	if op0 == nil || opOut == nil {
-		panic("operand cannot be nil")
-	}
-
-	if op0.Degree() == 0 {
-		panic("operand cannot be plaintext")
-	}
-
-	if opOut.Degree() < opOutMinDegree {
-		panic("receiver operand degree is too small")
-	}
-	el0, elOut = op0.El(), opOut.El()
-	return
-}
-
 func (eval *evaluator) newCiphertextBinary(op0, op1 Operand) (ctOut *Ciphertext) {
 
 	maxDegree := utils.MaxUint64(op0.Degree(), op1.Degree())
@@ -385,31 +369,28 @@ func (eval *evaluator) AddConstNew(ct0 *Ciphertext, constant interface{}) (ctOut
 // AddConst adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in ctOut.
 func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
-	var level uint64
-
-	level = utils.MinUint64(ct0.Level(), ctOut.Level())
-
+	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
 	var cReal, cImag float64
 
-	switch constant.(type) {
+	switch constant := constant.(type) {
 	case complex128:
-		cReal = real(constant.(complex128))
-		cImag = imag(constant.(complex128))
+		cReal = real(constant)
+		cImag = imag(constant)
 
 	case float64:
-		cReal = constant.(float64)
+		cReal = constant
 		cImag = float64(0)
 
 	case uint64:
-		cReal = float64(constant.(uint64))
+		cReal = float64(constant)
 		cImag = float64(0)
 
 	case int64:
-		cReal = float64(constant.(int64))
+		cReal = float64(constant)
 		cImag = float64(0)
 
 	case int:
-		cReal = float64(constant.(int))
+		cReal = float64(constant)
 		cImag = float64(0)
 	}
 
@@ -485,9 +466,7 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 // The scale of the receiver element will be set to the scale that the input element would have after the multiplication by the constant.
 func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
-	var level uint64
-
-	level = utils.MinUint64(ct0.Level(), ctOut.Level())
+	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
 
 	// Forces a drop of ctOut level to ct0 level
 	if ctOut.Level() > level {
@@ -499,10 +478,10 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 
 	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
 	scale = 1
-	switch constant.(type) {
+	switch constant := constant.(type) {
 	case complex128:
-		cReal = real(constant.(complex128))
-		cImag = imag(constant.(complex128))
+		cReal = real(constant)
+		cImag = imag(constant)
 
 		if cReal != 0 {
 			valueInt := int64(cReal)
@@ -523,7 +502,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 		}
 
 	case float64:
-		cReal = constant.(float64)
+		cReal = constant
 		cImag = float64(0)
 
 		if cReal != 0 {
@@ -536,15 +515,15 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 		}
 
 	case uint64:
-		cReal = float64(constant.(uint64))
+		cReal = float64(constant)
 		cImag = float64(0)
 
 	case int64:
-		cReal = float64(constant.(int64))
+		cReal = float64(constant)
 		cImag = float64(0)
 
 	case int:
-		cReal = float64(constant.(int))
+		cReal = float64(constant)
 		cImag = float64(0)
 	}
 
@@ -679,19 +658,16 @@ func (eval *evaluator) MultByConstNew(ct0 *Ciphertext, constant interface{}) (ct
 // needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
 func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
-	var level uint64
+	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
 
-	level = utils.MinUint64(ct0.Level(), ctOut.Level())
-
-	var cReal, cImag float64
-	var scale float64
+	var scale, cReal, cImag float64
 
 	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
 	scale = 1
-	switch constant.(type) {
+	switch constant := constant.(type) {
 	case complex128:
-		cReal = real(constant.(complex128))
-		cImag = imag(constant.(complex128))
+		cReal = real(constant)
+		cImag = imag(constant)
 
 		if cReal != 0 {
 			valueInt := int64(cReal)
@@ -712,7 +688,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 		}
 
 	case float64:
-		cReal = constant.(float64)
+		cReal = constant
 		cImag = float64(0)
 
 		if cReal != 0 {
@@ -725,15 +701,15 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 		}
 
 	case uint64:
-		cReal = float64(constant.(uint64))
+		cReal = float64(constant)
 		cImag = float64(0)
 
 	case int64:
-		cReal = float64(constant.(int64))
+		cReal = float64(constant)
 		cImag = float64(0)
 
 	case int:
-		cReal = float64(constant.(int))
+		cReal = float64(constant)
 		cImag = float64(0)
 	}
 
@@ -996,9 +972,7 @@ func (eval *evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // It does not change the scale.
 func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 
-	var level uint64
-
-	level = utils.MinUint64(ct0.Level(), ctOut.Level())
+	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
 
 	ringQ := eval.ringQ
 
@@ -1068,9 +1042,7 @@ func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // It does not change the scale.
 func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 
-	var level uint64
-
-	level = utils.MinUint64(ct0.Level(), ctOut.Level())
+	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
 
 	ringQ := eval.ringQ
 
@@ -1139,7 +1111,6 @@ func (eval *evaluator) ScaleUpNew(ct0 *Ciphertext, scale float64) (ctOut *Cipher
 func (eval *evaluator) ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext) {
 	eval.MultByConst(ct0, uint64(scale), ctOut)
 	ctOut.SetScale(ct0.Scale() * scale)
-	return
 }
 
 // SetScale sets the scale of the ciphertext to the input scale (consumes a level)
@@ -1169,8 +1140,7 @@ func (eval *evaluator) MulByPow2New(ct0 *Ciphertext, pow2 uint64) (ctOut *Cipher
 
 // MulByPow2 multiplies ct0 by 2^pow2 and returns the result in ctOut.
 func (eval *evaluator) MulByPow2(ct0 *Element, pow2 uint64, ctOut *Element) {
-	var level uint64
-	level = utils.MinUint64(ct0.Level(), ctOut.Level())
+	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
 	for i := range ctOut.Value() {
 		eval.ringQ.MulByPow2Lvl(level, ct0.value[i], pow2, ctOut.Value()[i])
 	}

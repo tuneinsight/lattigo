@@ -178,8 +178,6 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 	}
 
 	ekg.polypool.Zero()
-
-	return
 }
 
 // AggregateShareRoundOne adds share1 and share2 on shareOut.

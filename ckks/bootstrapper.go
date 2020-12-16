@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"math/cmplx"
 
@@ -41,8 +40,6 @@ type Bootstrapper struct {
 
 	ctxpool *Ciphertext // Memory pool
 
-	decryptor Decryptor
-
 	poolQ [1]*ring.Poly // Memory pool for the matrix evaluation
 	poolP [2]*ring.Poly // Memory pool for the matrix evaluation
 }
@@ -60,17 +57,6 @@ func sin2pi2pi(x complex128) complex128 {
 
 func cos2pi(x complex128) complex128 {
 	return cmplx.Cos(6.283185307179586 * x)
-}
-
-func (btp *Bootstrapper) printDebug(message string, ciphertext *Ciphertext) {
-
-	coeffs := btp.encoder.Decode(btp.decryptor.DecryptNew(ciphertext), btp.dslots)
-
-	if btp.dslots == 2 {
-		log.Printf(message+"%.10f %.10f...\n", coeffs[0], coeffs[1])
-	} else {
-		log.Printf(message+"%.10f %.10f %.10f %.10f...\n", coeffs[0], coeffs[1], coeffs[2], coeffs[3])
-	}
 }
 
 // NewBootstrapper creates a new Bootstrapper.
@@ -237,8 +223,6 @@ func (btp *Bootstrapper) genDFTMatrices() {
 
 		log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
 	*/
-
-	return
 }
 
 func (btp *Bootstrapper) genSinePoly() {

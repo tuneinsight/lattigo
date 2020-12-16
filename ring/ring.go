@@ -138,7 +138,7 @@ func (r *Ring) genNTTParams() error {
 		}
 	}
 
-	r.RescaleParams = make([][]uint64, len(r.Modulus)-1, len(r.Modulus)-1)
+	r.RescaleParams = make([][]uint64, len(r.Modulus)-1)
 
 	for j := len(r.Modulus) - 1; j > 0; j-- {
 

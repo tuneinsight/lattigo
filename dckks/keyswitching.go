@@ -40,6 +40,8 @@ func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSPro
 	cks.tmpDelta = dckksContext.ringQ.NewPoly()
 	cks.hP = dckksContext.ringP.NewPoly()
 
+	cks.sigmaSmudging = sigmaSmudging
+
 	cks.baseconverter = ring.NewFastBasisExtender(dckksContext.ringQ, dckksContext.ringP)
 	prng, err := utils.NewPRNG()
 	if err != nil {

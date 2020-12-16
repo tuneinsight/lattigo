@@ -76,6 +76,7 @@ func TestRing(t *testing.T) {
 		testTernarySampler(testContext, t)
 		testGaloisShift(testContext, t)
 		testModularReduction(testContext, t)
+		testMForm(testContext, t)
 		testMulScalarBigint(testContext, t)
 		testMulPoly(testContext, t)
 		testExtendBasis(testContext, t)

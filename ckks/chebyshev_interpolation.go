@@ -54,21 +54,6 @@ func chebyshevNodes(n int, a, b complex128) (u []complex128) {
 	return
 }
 
-func evaluateChebyshevPolynomial(coeffs []complex128, x complex128, a, b complex128) (y complex128) {
-	var u, Tprev, Tnext, T complex128
-	u = (2*x - a - b) / (b - a)
-	Tprev = 1
-	T = u
-	y = coeffs[0]
-	for i := 1; i < len(coeffs); i++ {
-		y = y + T*coeffs[i]
-		Tnext = 2*u*T - Tprev
-		Tprev = T
-		T = Tnext
-	}
-	return
-}
-
 func chebyCoeffs(nodes, fi []complex128, a, b complex128) (coeffs []complex128) {
 
 	var u, Tprev, T, Tnext complex128

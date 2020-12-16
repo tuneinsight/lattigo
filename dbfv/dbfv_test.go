@@ -28,7 +28,6 @@ type testContext struct {
 	prng utils.PRNG
 
 	encoder bfv.Encoder
-	kgen    *bfv.KeyGenerator
 
 	sk0Shards []*bfv.SecretKey
 	sk0       *bfv.SecretKey
@@ -256,7 +255,6 @@ func testRelinKeyGenNaive(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*RKGProtocolNaive
-			u      *ring.Poly
 			s      *ring.Poly
 			share1 RKGNaiveShareRoundOne
 			share2 RKGNaiveShareRoundTwo
@@ -561,12 +559,10 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		ciphertextTmp := ciphertext.CopyNew().Ciphertext()
 		coeffsTmp := make([]uint64, len(coeffs))
 
-		for i := range coeffs {
-			coeffsTmp[i] = coeffs[i]
-		}
+		copy(coeffsTmp, coeffs)
 
 		// Finds the maximum multiplicative depth
-		for true {
+		for {
 
 			testCtx.evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertextTmp, ciphertextTmp), rlk, ciphertextTmp)
 

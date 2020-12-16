@@ -141,7 +141,7 @@ func (pol *Poly) WriteTo(data []byte) (uint64, error) {
 
 	if uint64(len(data)) < pol.GetDataLen(true) {
 		// The data is not big enough to write all the information
-		return 0, errors.New("Data array is too small to write ring.Poly")
+		return 0, errors.New("data array is too small to write ring.Poly")
 	}
 	data[0] = uint8(bits.Len64(uint64(N)) - 1)
 	data[1] = uint8(numberModuli)
@@ -160,7 +160,7 @@ func (pol *Poly) WriteTo32(data []byte) (uint64, error) {
 
 	if uint64(len(data)) < pol.GetDataLen32(true) {
 		//the data is not big enough to write all the information
-		return 0, errors.New("Data array is too small to write ring.Poly")
+		return 0, errors.New("data array is too small to write ring.Poly")
 	}
 	data[0] = uint8(bits.Len64(uint64(N)) - 1)
 	data[1] = uint8(numberModuli)
@@ -256,7 +256,7 @@ func (pol *Poly) UnmarshalBinary(data []byte) (err error) {
 	pointer := uint64(2)
 
 	if ((uint64(len(data)) - pointer) >> 3) != N*numberModulies {
-		return errors.New("error: invalid polynomial encoding")
+		return errors.New("invalid polynomial encoding")
 	}
 
 	if _, err = pol.DecodePolyNew(data); err != nil {

@@ -420,7 +420,7 @@ func benchBRed(testContext *testParams, b *testing.B) {
 
 	b.ResetTimer()
 
-	b.Run(fmt.Sprintf("BRed"), func(b *testing.B) {
+	b.Run("BRed", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			x = BRed(x, y, q, u)
 		}
@@ -439,7 +439,7 @@ func benchMRed(testContext *testParams, b *testing.B) {
 
 	b.ResetTimer()
 
-	b.Run(fmt.Sprintf("MRed"), func(b *testing.B) {
+	b.Run("MRed", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			x = MRed(x, y, q, m)
 		}
@@ -454,7 +454,7 @@ func benchBRedAdd(testContext *testParams, b *testing.B) {
 
 	b.ResetTimer()
 
-	b.Run(fmt.Sprintf("BRedAdd"), func(b *testing.B) {
+	b.Run("BRedAdd", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			BRedAdd(x, q, u)
 		}

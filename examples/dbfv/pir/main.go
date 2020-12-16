@@ -113,7 +113,7 @@ func main() {
 	ternarySamplerMontgomery := ring.NewTernarySampler(lattigoPRNG, ringQP, 0.5, true)
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
-	P := make([]*party, N, N)
+	P := make([]*party, N)
 	for i := range P {
 		pi := &party{}
 		pi.sk = kgen.GenSecretKey()
@@ -121,7 +121,7 @@ func main() {
 		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
 		ringQP.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
 
-		pi.input = make([]uint64, 1<<params.LogN(), 1<<params.LogN())
+		pi.input = make([]uint64, 1<<params.LogN())
 		for j := range pi.input {
 			pi.input[j] = uint64(i)
 		}
@@ -223,9 +223,9 @@ func main() {
 	// Pre-loading memory
 	encoder := bfv.NewEncoder(params)
 	l.Println("> Memory alloc Phase")
-	encInputs := make([]*bfv.Ciphertext, N, N)
-	plainMask := make([]*bfv.PlaintextMul, N, N)
-	encPartial := make([]*bfv.Ciphertext, N, N)
+	encInputs := make([]*bfv.Ciphertext, N)
+	plainMask := make([]*bfv.PlaintextMul, N)
+	encPartial := make([]*bfv.Ciphertext, N)
 
 	// Ciphertexts to be retrieved
 	for i := range encInputs {

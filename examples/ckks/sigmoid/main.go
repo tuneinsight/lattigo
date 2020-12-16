@@ -24,13 +24,10 @@ func chebyshevinterpolation() {
 
 	// Keys
 	kgen := ckks.NewKeyGenerator(params)
-	var sk *ckks.SecretKey
-	var pk *ckks.PublicKey
-	sk, pk = kgen.GenKeyPair()
+	sk, pk := kgen.GenKeyPair()
 
 	// Relinearization key
-	var rlk *ckks.EvaluationKey
-	rlk = kgen.GenRelinKey(sk)
+	rlk := kgen.GenRelinKey(sk)
 
 	// Encryptor
 	encryptor := ckks.NewEncryptorFromPk(params, pk)
@@ -98,8 +95,7 @@ func f(x complex128) complex128 {
 }
 
 func round(x complex128) complex128 {
-	var factor float64
-	factor = 100000000
+	var factor float64 = 100000000
 	a := math.Round(real(x)*factor) / factor
 	b := math.Round(imag(x)*factor) / factor
 	return complex(a, b)

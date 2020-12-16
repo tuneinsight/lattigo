@@ -266,7 +266,6 @@ func testRelinKeyGenNaive(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*RKGProtocolNaive
-			u      *ring.Poly
 			s      *ring.Poly
 			share1 RKGNaiveShareRoundOne
 			share2 RKGNaiveShareRoundTwo
@@ -696,11 +695,11 @@ func verifyTestVectors(testCtx *testContext, decryptor ckks.Decryptor, valuesWan
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128
 
-	switch element.(type) {
+	switch element := element.(type) {
 	case *ckks.Ciphertext:
-		plaintextTest = decryptor.DecryptNew(element.(*ckks.Ciphertext))
+		plaintextTest = decryptor.DecryptNew(element)
 	case *ckks.Plaintext:
-		plaintextTest = element.(*ckks.Plaintext)
+		plaintextTest = element
 	}
 
 	slots := testCtx.params.Slots()

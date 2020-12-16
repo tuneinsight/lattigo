@@ -32,7 +32,7 @@ func TestBuffer_WriteReadUint64Slice(t *testing.T) {
 	b := NewBuffer(make([]byte, 0, 8))
 	b.WriteUint64Slice([]uint64{0x1122334455667788})
 	assert.Equal(t, []byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88}, b.Bytes())
-	s := make([]uint64, 1, 1)
+	s := make([]uint64, 1)
 	b.ReadUint64Slice(s)
 	assert.Equal(t, []uint64{0x1122334455667788}, s)
 	assert.Equal(t, []byte{}, b.Bytes())

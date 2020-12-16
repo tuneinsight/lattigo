@@ -90,7 +90,7 @@ func main() {
 	// Target private and public keys
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
 
-	expRes := make([]uint64, 1<<params.LogN(), 1<<params.LogN())
+	expRes := make([]uint64, 1<<params.LogN())
 	for i := range expRes {
 		expRes[i] = 1
 	}
@@ -105,7 +105,7 @@ func main() {
 	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
-	P := make([]*party, N, N)
+	P := make([]*party, N)
 	for i := range P {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
@@ -113,7 +113,7 @@ func main() {
 		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
 		ringQP.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
 
-		pi.input = make([]uint64, 1<<params.LogN(), 1<<params.LogN())
+		pi.input = make([]uint64, 1<<params.LogN())
 		for i := range pi.input {
 			if utils.RandFloat64(0, 1) > 0.3 || i == 4 {
 				pi.input[i] = 1
@@ -187,7 +187,7 @@ func main() {
 
 	// Pre-loading memory
 	l.Println("> Memory alloc Phase")
-	encInputs := make([]*bfv.Ciphertext, N, N)
+	encInputs := make([]*bfv.Ciphertext, N)
 	for i := range encInputs {
 		encInputs[i] = bfv.NewCiphertext(params, 1)
 	}
@@ -195,7 +195,7 @@ func main() {
 	encLvls := make([][]*bfv.Ciphertext, 0)
 	encLvls = append(encLvls, encInputs)
 	for nLvl := N / 2; nLvl > 0; nLvl = nLvl >> 1 {
-		encLvl := make([]*bfv.Ciphertext, nLvl, nLvl)
+		encLvl := make([]*bfv.Ciphertext, nLvl)
 		for i := range encLvl {
 			encLvl[i] = bfv.NewCiphertext(params, 2)
 		}

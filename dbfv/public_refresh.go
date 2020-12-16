@@ -49,8 +49,7 @@ func (share *RefreshShare) MarshalBinary() ([]byte, error) {
 	}
 
 	ptr += tmp
-	tmp, err = (*share.RefreshShareRecrypt).WriteTo(data[ptr : ptr+lenRecrypt])
-	if err != nil {
+	if _, err = (*share.RefreshShareRecrypt).WriteTo(data[ptr : ptr+lenRecrypt]); err != nil {
 		return []byte{}, err
 	}
 

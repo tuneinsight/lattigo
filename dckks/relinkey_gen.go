@@ -175,8 +175,6 @@ func (ekg *RKGProtocol) GenShareRoundOne(u, sk *ring.Poly, crp []*ring.Poly, sha
 		// s*a + e_2i
 		ringQP.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut[i][1])
 	}
-
-	return
 }
 
 // AggregateShareRoundOne adds share1 and share2 on shareOut.

@@ -946,7 +946,6 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		values2 := make([]complex128, len(values1))
-		ciphertext2 := NewCiphertext(testContext.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 		for n := 1; n < len(values1); n <<= 1 {
 
@@ -955,9 +954,7 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 				values2[i] = values1[(i+n)%len(values1)]
 			}
 
-			ciphertext2 = testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey)
-
-			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
+			verifyTestVectors(testContext, testContext.decryptor, values2, testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey), t)
 		}
 
 	})

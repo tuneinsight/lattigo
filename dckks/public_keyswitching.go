@@ -39,6 +39,8 @@ func NewPCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) *PCKSProtoc
 	pcks.share0tmp = dckksContext.ringQP.NewPoly()
 	pcks.share1tmp = dckksContext.ringQP.NewPoly()
 
+	pcks.sigmaSmudging = sigmaSmudging
+
 	pcks.baseconverter = ring.NewFastBasisExtender(dckksContext.ringQ, dckksContext.ringP)
 	prng, err := utils.NewPRNG()
 	if err != nil {

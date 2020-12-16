@@ -32,6 +32,7 @@ func BenchmarkDCKKS(b *testing.B) {
 		benchPublicKeySwitching(testCtx, b)
 		benchRotKeyGen(testCtx, b)
 		benchRefresh(testCtx, b)
+		benchRefreshAndPermute(testCtx, b)
 	}
 }
 
@@ -132,7 +133,6 @@ func benchRelinKeyGenNaive(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*RKGProtocolNaive
-		u      *ring.Poly
 		s      *ring.Poly
 		share1 RKGNaiveShareRoundOne
 		share2 RKGNaiveShareRoundTwo

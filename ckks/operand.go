@@ -96,7 +96,7 @@ func (el *Element) NTT(ringQ *ring.Ring, c *Element) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error: receiver element has invalid degree (it does not match)")
 	}
-	if el.IsNTT() != true {
+	if !el.IsNTT() {
 		for i := range el.value {
 			ringQ.NTTLvl(el.Level(), el.Value()[i], c.Value()[i])
 		}
@@ -110,7 +110,7 @@ func (el *Element) InvNTT(ringQ *ring.Ring, c *Element) error {
 	if el.Degree() != c.Degree() {
 		return errors.New("error: receiver element invalid degree (it does not match)")
 	}
-	if el.IsNTT() != false {
+	if el.IsNTT() {
 		for i := range el.value {
 			ringQ.InvNTTLvl(el.Level(), el.Value()[i], c.Value()[i])
 		}

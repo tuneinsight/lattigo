@@ -63,8 +63,6 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 			ptmp[i] = randomUint
 		}
 	}
-
-	return
 }
 
 // Readlvl generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
@@ -109,8 +107,6 @@ func (uniformSampler *UniformSampler) Readlvl(level uint64, Pol *Poly) {
 			ptmp[i] = randomUint
 		}
 	}
-
-	return
 }
 
 // ReadNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].

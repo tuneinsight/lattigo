@@ -37,7 +37,7 @@ func NextNTTPrime(q, NthRoot uint64) (qNext uint64, err error) {
 		qNext += NthRoot
 
 		if bits.Len64(qNext) > 61 {
-			return 0, fmt.Errorf("Next NTT prime exceeds the maximum bit-size of 61 bits")
+			return 0, fmt.Errorf("next NTT prime exceeds the maximum bit-size of 61 bits")
 		}
 	}
 
@@ -49,7 +49,7 @@ func NextNTTPrime(q, NthRoot uint64) (qNext uint64, err error) {
 func PreviousNTTPrime(q, NthRoot uint64) (qPrev uint64, err error) {
 
 	if q < NthRoot {
-		return 0, fmt.Errorf("Previous NTT prime is smaller than NthRoot")
+		return 0, fmt.Errorf("previous NTT prime is smaller than NthRoot")
 	}
 
 	qPrev = q - NthRoot
@@ -57,7 +57,7 @@ func PreviousNTTPrime(q, NthRoot uint64) (qPrev uint64, err error) {
 	for !IsPrime(qPrev) {
 
 		if q < NthRoot {
-			return 0, fmt.Errorf("Previous NTT prime is smaller than NthRoot")
+			return 0, fmt.Errorf("previous NTT prime is smaller than NthRoot")
 		}
 
 		qPrev -= NthRoot
@@ -83,10 +83,10 @@ func GenerateNTTPrimesQ(logQ, NthRoot, levels uint64) (primes []uint64) {
 	checkfornextprime = true
 	checkforpreviousprime = true
 
-	for true {
+	for {
 
 		if !(checkfornextprime || checkforpreviousprime) {
-			panic("GenerateNTTPrimesQ error: cannot generate enough primes for the given parameters")
+			panic("generateNTTPrimesQ error: cannot generate enough primes for the given parameters")
 		}
 
 		if checkfornextprime {
@@ -149,7 +149,7 @@ func GenerateNTTPrimesP(logP, NthRoot, n uint64) (primes []uint64) {
 
 	x = Ppow2 + 1
 
-	for true {
+	for {
 
 		// We start by subtracting 2N to ensure that the prime bit-length is smaller than LogP
 
@@ -167,7 +167,7 @@ func GenerateNTTPrimesP(logP, NthRoot, n uint64) (primes []uint64) {
 			}
 
 		} else {
-			panic("GenerateNTTPrimesP error: cannot generate enough primes for the given parameters")
+			panic("generateNTTPrimesP error: cannot generate enough primes for the given parameters")
 		}
 	}
 

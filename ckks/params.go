@@ -252,9 +252,9 @@ func NewParametersFromModuli(logN uint64, m *Moduli) (p *Parameters, err error) 
 		return nil, err
 	}
 
-	p.qi = make([]uint64, len(m.Qi), len(m.Qi))
+	p.qi = make([]uint64, len(m.Qi))
 	copy(p.qi, m.Qi)
-	p.pi = make([]uint64, len(m.Pi), len(m.Pi))
+	p.pi = make([]uint64, len(m.Pi))
 	copy(p.pi, m.Pi)
 
 	p.sigma = DefaultSigma
@@ -365,12 +365,12 @@ func (p *Parameters) LogModuli() (lm *LogModuli) {
 
 	lm = new(LogModuli)
 
-	lm.LogQi = make([]uint64, len(p.qi), len(p.qi))
+	lm.LogQi = make([]uint64, len(p.qi))
 	for i := range p.qi {
 		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.qi[i]))))
 	}
 
-	lm.LogPi = make([]uint64, len(p.pi), len(p.pi))
+	lm.LogPi = make([]uint64, len(p.pi))
 	for i := range p.pi {
 		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
 	}
@@ -381,8 +381,8 @@ func (p *Parameters) LogModuli() (lm *LogModuli) {
 // Moduli returns a struct Moduli with the moduli of the parameters
 func (p *Parameters) Moduli() (m *Moduli) {
 	m = new(Moduli)
-	m.Qi = make([]uint64, p.QiCount(), p.QiCount())
-	m.Pi = make([]uint64, p.PiCount(), p.PiCount())
+	m.Qi = make([]uint64, p.QiCount())
+	m.Pi = make([]uint64, p.PiCount())
 	copy(m.Qi, p.qi)
 	copy(m.Pi, p.pi)
 	return
@@ -520,9 +520,9 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 	paramsCopy.logSlots = p.logSlots
 	paramsCopy.scale = p.scale
 	paramsCopy.sigma = p.sigma
-	paramsCopy.qi = make([]uint64, len(p.qi), len(p.qi))
+	paramsCopy.qi = make([]uint64, len(p.qi))
 	copy(paramsCopy.qi, p.qi)
-	paramsCopy.pi = make([]uint64, len(p.pi), len(p.pi))
+	paramsCopy.pi = make([]uint64, len(p.pi))
 	copy(paramsCopy.pi, p.pi)
 	return
 }
@@ -597,8 +597,8 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	lenQi := b.ReadUint8()
 	lenPi := b.ReadUint8()
 
-	p.qi = make([]uint64, lenQi, lenQi)
-	p.pi = make([]uint64, lenPi, lenPi)
+	p.qi = make([]uint64, lenQi)
+	p.pi = make([]uint64, lenPi)
 
 	b.ReadUint64Slice(p.qi)
 	b.ReadUint64Slice(p.pi)

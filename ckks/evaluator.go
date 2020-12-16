@@ -366,20 +366,45 @@ func (eval *evaluator) AddConstNew(ct0 *Ciphertext, constant interface{}) (ctOut
 	return ctOut
 }
 
-// AddConst adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in ctOut.
-func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
+func (eval *evaluator) getConstAndScale(level uint64, constant interface{}) (cReal, cImag, scale float64){
 
-	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
-	var cReal, cImag float64
-
+	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
+	scale = 1
 	switch constant := constant.(type) {
 	case complex128:
 		cReal = real(constant)
 		cImag = imag(constant)
 
+		if cReal != 0 {
+			valueInt := int64(cReal)
+			valueFloat := cReal - float64(valueInt)
+
+			if valueFloat != 0 {
+				scale = float64(eval.ringQ.Modulus[level])
+			}
+		}
+
+		if cImag != 0 {
+			valueInt := int64(cImag)
+			valueFloat := cImag - float64(valueInt)
+
+			if valueFloat != 0 {
+				scale = float64(eval.ringQ.Modulus[level])
+			}
+		}
+
 	case float64:
 		cReal = constant
 		cImag = float64(0)
+
+		if cReal != 0 {
+			valueInt := int64(cReal)
+			valueFloat := cReal - float64(valueInt)
+
+			if valueFloat != 0 {
+				scale = float64(eval.ringQ.Modulus[level])
+			}
+		}
 
 	case uint64:
 		cReal = float64(constant)
@@ -394,7 +419,16 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 		cImag = float64(0)
 	}
 
+	return 
+}
+
+// AddConst adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in ctOut.
+func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
+
+	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag uint64
+
+	cReal, cImag, _ := eval.getConstAndScale(level, constant)
 
 	ringQ := eval.ringQ
 
@@ -473,59 +507,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 		eval.DropLevel(ctOut, ctOut.Level()-level)
 	}
 
-	var cReal, cImag float64
-	var scale float64
-
-	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
-	scale = 1
-	switch constant := constant.(type) {
-	case complex128:
-		cReal = real(constant)
-		cImag = imag(constant)
-
-		if cReal != 0 {
-			valueInt := int64(cReal)
-			valueFloat := cReal - float64(valueInt)
-
-			if valueFloat != 0 {
-				scale = float64(eval.ringQ.Modulus[level])
-			}
-		}
-
-		if cImag != 0 {
-			valueInt := int64(cImag)
-			valueFloat := cImag - float64(valueInt)
-
-			if valueFloat != 0 {
-				scale = float64(eval.ringQ.Modulus[level])
-			}
-		}
-
-	case float64:
-		cReal = constant
-		cImag = float64(0)
-
-		if cReal != 0 {
-			valueInt := int64(cReal)
-			valueFloat := cReal - float64(valueInt)
-
-			if valueFloat != 0 {
-				scale = float64(eval.ringQ.Modulus[level])
-			}
-		}
-
-	case uint64:
-		cReal = float64(constant)
-		cImag = float64(0)
-
-	case int64:
-		cReal = float64(constant)
-		cImag = float64(0)
-
-	case int:
-		cReal = float64(constant)
-		cImag = float64(0)
-	}
+	cReal, cImag, scale := eval.getConstAndScale(level, constant)
 
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 
@@ -660,58 +642,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 
 	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
 
-	var scale, cReal, cImag float64
-
-	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
-	scale = 1
-	switch constant := constant.(type) {
-	case complex128:
-		cReal = real(constant)
-		cImag = imag(constant)
-
-		if cReal != 0 {
-			valueInt := int64(cReal)
-			valueFloat := cReal - float64(valueInt)
-
-			if valueFloat != 0 {
-				scale = float64(eval.ringQ.Modulus[level])
-			}
-		}
-
-		if cImag != 0 {
-			valueInt := int64(cImag)
-			valueFloat := cImag - float64(valueInt)
-
-			if valueFloat != 0 {
-				scale = float64(eval.ringQ.Modulus[level])
-			}
-		}
-
-	case float64:
-		cReal = constant
-		cImag = float64(0)
-
-		if cReal != 0 {
-			valueInt := int64(cReal)
-			valueFloat := cReal - float64(valueInt)
-
-			if valueFloat != 0 {
-				scale = float64(eval.ringQ.Modulus[level])
-			}
-		}
-
-	case uint64:
-		cReal = float64(constant)
-		cImag = float64(0)
-
-	case int64:
-		cReal = float64(constant)
-		cImag = float64(0)
-
-	case int:
-		cReal = float64(constant)
-		cImag = float64(0)
-	}
+	cReal, cImag, scale := eval.getConstAndScale(level, constant)
 
 	// Component wise multiplication of the following vector with the ciphertext:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi

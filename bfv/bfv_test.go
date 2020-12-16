@@ -687,7 +687,17 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 }
 
 func testMarshaller(testctx *testContext, t *testing.T) {
+	testMarshalParameters(testctx, t)
+	testMarshalCiphertext(testctx, t)
+	testMarshalSK(testctx, t)
+	testMarshalPK(testctx, t)
+	testMarshalEvaluationKey(testctx, t)
+	testMarshalSwitchingKey(testctx, t)
+	testMarshalRotKey(testctx, t)
+}
 
+
+func testMarshalParameters(testctx *testContext, t *testing.T){
 	t.Run("Marshaller/Parameters/ZeroValue", func(t *testing.T) {
 		bytes, err := (&Parameters{}).MarshalBinary()
 		assert.Nil(t, err)
@@ -705,8 +715,9 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, testctx.params, p)
 	})
+}
 
-	ringQP := testctx.ringQP
+func testMarshalCiphertext(testctx *testContext, t *testing.T){
 
 	t.Run(testString("Marshaller/Ciphertext/", testctx.params), func(t *testing.T) {
 
@@ -723,7 +734,10 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 			require.True(t, testctx.ringQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]))
 		}
 	})
+}
 
+
+func testMarshalSK(testctx *testContext, t *testing.T){
 	t.Run(testString("Marshaller/Sk/", testctx.params), func(t *testing.T) {
 
 		marshalledSk, err := testctx.sk.MarshalBinary()
@@ -735,8 +749,11 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 
 		sk.Set(sk.Get())
 
-		require.True(t, ringQP.Equal(sk.sk, testctx.sk.sk))
+		require.True(t, testctx.ringQP.Equal(sk.sk, testctx.sk.sk))
 	})
+}
+
+func testMarshalPK(testctx *testContext, t *testing.T){
 
 	t.Run(testString("Marshaller/Pk/", testctx.params), func(t *testing.T) {
 
@@ -750,10 +767,13 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		pk.Set(pk.Get())
 
 		for k := range testctx.pk.pk {
-			require.True(t, ringQP.Equal(pk.pk[k], testctx.pk.pk[k]), k)
+			require.True(t, testctx.ringQP.Equal(pk.pk[k], testctx.pk.pk[k]), k)
 		}
 	})
 
+}
+
+func testMarshalEvaluationKey(testctx *testContext, t *testing.T){
 	t.Run(testString("Marshaller/EvaluationKey/", testctx.params), func(t *testing.T) {
 
 		evalkey := testctx.kgen.GenRelinKey(testctx.sk, 2)
@@ -772,12 +792,14 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 			for j := range evakeyWant {
 
 				for k := range evakeyWant[j] {
-					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "deg %d element [%d][%d]", deg, j, k)
+					require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "deg %d element [%d][%d]", deg, j, k)
 				}
 			}
 		}
 	})
+}
 
+func testMarshalSwitchingKey(testctx *testContext, t *testing.T){
 	t.Run(testString("Marshaller/SwitchingKey/", testctx.params), func(t *testing.T) {
 
 		skOut := testctx.kgen.GenSecretKey()
@@ -796,11 +818,14 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		for j := range evakeyWant {
 
 			for k := range evakeyWant[j] {
-				require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal SwitchingKey element [%d][%d]", j, k)
+				require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal SwitchingKey element [%d][%d]", j, k)
 			}
 		}
 	})
+}
 
+
+func testMarshalRotKey(testctx *testContext, t *testing.T){
 	t.Run(testString("Marshaller/RotationKey/", testctx.params), func(t *testing.T) {
 
 		rotationKey := NewRotationKeys()
@@ -832,7 +857,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
-						require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
+						require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
 					}
 				}
 			}
@@ -845,7 +870,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
-						require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
+						require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
 					}
 				}
 			}
@@ -859,7 +884,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 			for j := range evakeyWant {
 
 				for k := range evakeyWant[j] {
-					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRow element [%d][%d]", j, k)
+					require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRow element [%d][%d]", j, k)
 				}
 			}
 		}

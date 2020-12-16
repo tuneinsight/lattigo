@@ -82,23 +82,6 @@ func (el *Element) Degree() uint64 {
 	return uint64(len(el.value) - 1)
 }
 
-// Resize resizes the target Element degree to the degree given as input. If the input degree is bigger, then
-// it will append new empty polynomials; if the degree is smaller, it will delete polynomials until the degree matches
-// the input degree.
-func (el *Element) Resize(params *Parameters, degree uint64) {
-	if el.Degree() > degree {
-		el.value = el.value[:degree+1]
-	} else if el.Degree() < degree {
-		for el.Degree() < degree {
-			el.value = append(el.value, []*ring.Poly{new(ring.Poly)}...)
-			el.value[el.Degree()].Coeffs = make([][]uint64, len(params.qi))
-			for i := 0; i < len(params.qi); i++ {
-				el.value[el.Degree()].Coeffs[i] = make([]uint64, uint64(1<<params.logN))
-			}
-		}
-	}
-}
-
 // CopyNew creates a new Element which is a copy of the target Element, and returns the value as
 // a Element.
 func (el *Element) CopyNew() *Element {

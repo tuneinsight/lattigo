@@ -136,14 +136,8 @@ func newEncryptor(params *Parameters) encryptor {
 }
 
 func (encryptor *pkEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
-
-	if encryptor.baseconverter == nil {
-		panic("Cannot EncryptNew : modulus P is empty -> use instead EncryptFastNew")
-	}
-
 	ciphertext := NewCiphertext(encryptor.params, 1)
 	encryptor.encrypt(plaintext, ciphertext, false)
-
 	return ciphertext
 }
 

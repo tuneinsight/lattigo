@@ -249,8 +249,8 @@ func (evk *EvaluationKey) Get() []*SwitchingKey {
 	return evk.evakey
 }
 
-// SetRelinKeys sets the polynomial of the target EvaluationKey as the input polynomials.
-func (evk *EvaluationKey) SetRelinKeys(rlk [][][2]*ring.Poly) {
+// Set sets the polynomial of the target EvaluationKey as the input polynomials.
+func (evk *EvaluationKey) Set(rlk [][][2]*ring.Poly) {
 
 	evk.evakey = make([]*SwitchingKey, len(rlk))
 	for i := range rlk {

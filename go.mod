@@ -7,4 +7,5 @@ require (
 	github.com/securego/gosec/v2 v2.5.0 // indirect
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
+	golang.org/x/tools v0.0.0-20201215192005-fa10ef0b8743 // indirect
 )

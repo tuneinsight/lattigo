@@ -66,13 +66,13 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *Evaluati
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
 
 	for i := uint64(2); i < (1 << logSplit); i++ {
-		if err = computePowerBasis(i, C, eval, evakey); err != nil{
+		if err = computePowerBasis(i, C, eval, evakey); err != nil {
 			return nil, err
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-		if err = computePowerBasis(1<<i, C, eval, evakey); err != nil{
+		if err = computePowerBasis(1<<i, C, eval, evakey); err != nil {
 			return nil, err
 		}
 	}

@@ -108,7 +108,14 @@ func newEncryptor(params *Parameters) encryptor {
 		panic(err)
 	}
 
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
 	var baseconverter *ring.FastBasisExtender
+	var poolP [3]*ring.Poly
+	var uniformSamplerP *ring.UniformSampler
 	if params.PiCount() != 0 {
 
 		if p, err = ring.NewRing(params.N(), params.pi); err != nil {
@@ -116,11 +123,10 @@ func newEncryptor(params *Parameters) encryptor {
 		}
 
 		baseconverter = ring.NewFastBasisExtender(q, p)
-	}
 
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
+		poolP = [3]*ring.Poly{p.NewPoly(), p.NewPoly(), p.NewPoly()}
+
+		uniformSamplerP = ring.NewUniformSampler(prng, p)
 	}
 
 	return encryptor{
@@ -128,12 +134,12 @@ func newEncryptor(params *Parameters) encryptor {
 		ringQ:            q,
 		ringP:            p,
 		poolQ:            [3]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly()},
-		poolP:            [3]*ring.Poly{p.NewPoly(), p.NewPoly(), p.NewPoly()},
+		poolP:            poolP,
 		baseconverter:    baseconverter,
 		gaussianSamplerQ: ring.NewGaussianSampler(prng, q, params.sigma, uint64(6*params.sigma)),
 		ternarySamplerQ:  ring.NewTernarySampler(prng, q, 0.5, false),
 		uniformSamplerQ:  ring.NewUniformSampler(prng, q),
-		uniformSamplerP:  ring.NewUniformSampler(prng, p),
+		uniformSamplerP:  uniformSamplerP,
 	}
 }
 
@@ -307,11 +313,6 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 }
 
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
-
-	if encryptor.baseconverter == nil {
-		panic("Cannot EncryptNew : modulus P is empty -> use instead EncryptFastNew")
-	}
-
 	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
 	encryptor.Encrypt(plaintext, ciphertext)
 	return ciphertext

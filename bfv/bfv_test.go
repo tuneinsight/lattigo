@@ -95,7 +95,10 @@ func genTestParams(params *Parameters) (testctx *testContext, err error) {
 	testctx.uSampler = ring.NewUniformSampler(testctx.prng, testctx.ringT)
 	testctx.kgen = NewKeyGenerator(testctx.params)
 	testctx.sk, testctx.pk = testctx.kgen.GenKeyPair()
-	testctx.rlk = testctx.kgen.GenRelinKey(testctx.sk, 1)
+	if params.PiCount() != 0 {
+		testctx.rlk = testctx.kgen.GenRelinKey(testctx.sk, 1)
+	}
+
 	testctx.encoder = NewEncoder(testctx.params)
 	testctx.encryptorPk = NewEncryptorFromPk(testctx.params, testctx.pk)
 	testctx.encryptorSk = NewEncryptorFromSk(testctx.params, testctx.sk)
@@ -128,7 +131,12 @@ func newTestVectorsRingQ(testctx *testContext, encryptor Encryptor, t *testing.T
 	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
 	if encryptor != nil {
-		ciphertext = testctx.encryptorPk.EncryptNew(plaintext)
+		if testctx.params.PiCount() != 0 {
+			ciphertext = testctx.encryptorPk.EncryptNew(plaintext)
+		} else {
+			ciphertext = testctx.encryptorPk.EncryptFastNew(plaintext)
+		}
+
 	}
 
 	return coeffs, plaintext, ciphertext
@@ -200,6 +208,11 @@ func testEncryptor(testctx *testContext, t *testing.T) {
 	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
 	t.Run(testString("Encryptor/EncryptFromPk/", testctx.params), func(t *testing.T) {
+
+		if testctx.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptNew(plaintext), t)
 	})
 
@@ -369,6 +382,10 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Evaluator/Mul/Relinearize/", testctx.params), func(t *testing.T) {
 
+		if testctx.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 		values2, _, ciphertext2 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
@@ -385,6 +402,10 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 }
 
 func testEvaluatorKeySwitch(testctx *testContext, t *testing.T) {
+
+	if testctx.params.PiCount() == 0 {
+		t.Skip("#Pi is empty")
+	}
 
 	sk2 := testctx.kgen.GenSecretKey()
 	decryptorSk2 := NewDecryptor(testctx.params, sk2)
@@ -404,6 +425,10 @@ func testEvaluatorKeySwitch(testctx *testContext, t *testing.T) {
 }
 
 func testEvaluatorRotate(testctx *testContext, t *testing.T) {
+
+	if testctx.params.PiCount() == 0 {
+		t.Skip("#Pi is empty")
+	}
 
 	rotkey := testctx.kgen.GenRotationKeysPow2(testctx.sk)
 
@@ -552,6 +577,10 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Marshaller/EvaluationKey/", testctx.params), func(t *testing.T) {
 
+		if testctx.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		evalkey := testctx.kgen.GenRelinKey(testctx.sk, 2)
 		data, err := evalkey.MarshalBinary()
 		require.NoError(t, err)
@@ -576,6 +605,10 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Marshaller/SwitchingKey/", testctx.params), func(t *testing.T) {
 
+		if testctx.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		skOut := testctx.kgen.GenSecretKey()
 
 		switchingKey := testctx.kgen.GenSwitchingKey(testctx.sk, skOut)
@@ -598,6 +631,10 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 	})
 
 	t.Run(testString("Marshaller/RotationKey/", testctx.params), func(t *testing.T) {
+
+		if testctx.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		rotationKey := NewRotationKeys()
 

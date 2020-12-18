@@ -61,6 +61,7 @@ func TestCKKS(t *testing.T) {
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
+
 	if *flagLongTest {
 		defaultParams = DefaultParams // the long test suite runs for all default parameters
 	}
@@ -122,6 +123,8 @@ func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams
 		if testContext.ringP, err = ring.NewRing(testContext.params.N(), testContext.params.pi); err != nil {
 			return nil, err
 		}
+
+		testContext.rlk = testContext.kgen.GenRelinKey(testContext.sk)
 	}
 
 	if testContext.prng, err = utils.NewPRNG(); err != nil {
@@ -129,8 +132,6 @@ func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams
 	}
 
 	testContext.encoder = NewEncoder(testContext.params)
-
-	testContext.rlk = testContext.kgen.GenRelinKey(testContext.sk)
 
 	testContext.encryptorPk = NewEncryptorFromPk(testContext.params, testContext.pk)
 	testContext.encryptorSk = NewEncryptorFromSk(testContext.params, testContext.sk)
@@ -157,7 +158,17 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 	plaintext = testContext.encoder.EncodeNTTAtLvlNew(testContext.params.MaxLevel(), values, logSlots)
 
 	if encryptor != nil {
-		ciphertext = encryptor.EncryptNew(plaintext)
+
+		switch encryptor := encryptor.(type) {
+		case *pkEncryptor:
+			if testContext.params.PiCount() != 0 {
+				ciphertext = encryptor.EncryptNew(plaintext)
+			} else {
+				ciphertext = encryptor.EncryptFastNew(plaintext)
+			}
+		case *skEncryptor:
+			ciphertext = encryptor.EncryptNew(plaintext)
+		}
 	}
 
 	return values, plaintext, ciphertext
@@ -238,6 +249,10 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Encryptor/EncryptFromPk/Lvl=Max/"), func(t *testing.T) {
 
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorPk, complex(-1, -1), complex(1, 1), t)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
@@ -268,6 +283,10 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 	})
 
 	t.Run(testString(testContext, "Encryptor/EncryptFromPk/Lvl=1/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		if testContext.params.MaxLevel() < 1 {
 			t.Skip("skipping test for params max level < 1")
@@ -486,6 +505,10 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "EvaluatorRescale/Single/"), func(t *testing.T) {
 
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		constant := testContext.ringQ.Modulus[ciphertext.Level()]
@@ -500,6 +523,10 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 	})
 
 	t.Run(testString(testContext, "EvaluatorRescale/Many/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -689,6 +716,10 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "EvaluatorMul/Relinearize(ct0*ct1->ct0)/"), func(t *testing.T) {
 
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -706,6 +737,10 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 	})
 
 	t.Run(testString(testContext, "EvaluatorMul/Relinearize(ct0*ct1->ct1)/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -728,6 +763,10 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 func testFunctions(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Functions/PowerOf2/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		if testContext.params.MaxLevel() < 3 {
 			t.Skip("skipping test for params max level < 3")
@@ -755,6 +794,10 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Functions/Power/"), func(t *testing.T) {
 
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		if testContext.params.MaxLevel() < 4 {
 			t.Skip("skipping test for params max level < 4")
 		}
@@ -773,6 +816,10 @@ func testFunctions(testContext *testParams, t *testing.T) {
 	})
 
 	t.Run(testString(testContext, "Functions/Inverse/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		if testContext.params.MaxLevel() < 7 {
 			t.Skip("skipping test for params max level < 7")
@@ -797,6 +844,10 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 	var err error
 
 	t.Run(testString(testContext, "EvaluatePoly/Exp/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		if testContext.params.MaxLevel() < 3 {
 			t.Skip("skipping test for params max level < 3")
@@ -835,6 +886,10 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "ChebyshevInterpolator/Sin/"), func(t *testing.T) {
 
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		if testContext.params.MaxLevel() < 5 {
 			t.Skip("skipping test for params max level < 5")
 		}
@@ -863,11 +918,21 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 
 func testSwitchKeys(testContext *testParams, t *testing.T) {
 
-	sk2 := testContext.kgen.GenSecretKey()
-	decryptorSk2 := NewDecryptor(testContext.params, sk2)
-	switchingKey := testContext.kgen.GenSwitchingKey(testContext.sk, sk2)
+	var sk2 *SecretKey
+	var decryptorSk2 Decryptor
+	var switchingKey *SwitchingKey
+
+	if testContext.params.PiCount() != 0 {
+		sk2 = testContext.kgen.GenSecretKey()
+		decryptorSk2 = NewDecryptor(testContext.params, sk2)
+		switchingKey = testContext.kgen.GenSwitchingKey(testContext.sk, sk2)
+	}
 
 	t.Run(testString(testContext, "SwitchKeys/InPlace/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -877,6 +942,10 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 	})
 
 	t.Run(testString(testContext, "SwitchKeys/New/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -889,10 +958,17 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 func testConjugate(testContext *testParams, t *testing.T) {
 
-	rotKey := NewRotationKeys()
-	testContext.kgen.GenRotationKey(Conjugate, testContext.sk, 0, rotKey)
+	var rotKey *RotationKeys
+	if testContext.params.PiCount() != 0 {
+		rotKey = NewRotationKeys()
+		testContext.kgen.GenRotationKey(Conjugate, testContext.sk, 0, rotKey)
+	}
 
 	t.Run(testString(testContext, "Conjugate/InPlace/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -906,6 +982,10 @@ func testConjugate(testContext *testParams, t *testing.T) {
 	})
 
 	t.Run(testString(testContext, "Conjugate/New/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -922,9 +1002,16 @@ func testConjugate(testContext *testParams, t *testing.T) {
 
 func testRotateColumns(testContext *testParams, t *testing.T) {
 
-	rotKey := testContext.kgen.GenRotationKeysPow2(testContext.sk)
+	var rotKey *RotationKeys
+	if testContext.params.PiCount() != 0 {
+		rotKey = testContext.kgen.GenRotationKeysPow2(testContext.sk)
+	}
 
 	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -942,10 +1029,13 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 		}
-
 	})
 
 	t.Run(testString(testContext, "RotateColumns/New/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -967,6 +1057,10 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 	})
 
 	t.Run(testString(testContext, "RotateColumns/Random/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -991,6 +1085,10 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "RotateColumns/Hoisted/"), func(t *testing.T) {
 
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		values2 := make([]complex128, len(values1))
@@ -1009,7 +1107,6 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertexts[n], t)
 		}
-
 	})
 }
 
@@ -1084,6 +1181,10 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Marshaller/EvaluationKey/"), func(t *testing.T) {
 
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		evalKey := testContext.kgen.GenRelinKey(testContext.sk)
 		data, err := evalKey.MarshalBinary()
 		require.NoError(t, err)
@@ -1103,6 +1204,10 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 	})
 
 	t.Run(testString(testContext, "Marshaller/SwitchingKey/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		skOut := testContext.kgen.GenSecretKey()
 
@@ -1125,6 +1230,10 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 	})
 
 	t.Run(testString(testContext, "Marshaller/RotationKey/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		rotationKey := NewRotationKeys()
 

@@ -80,6 +80,11 @@ func benchKeyGen(testContext *testParams, b *testing.B) {
 	})
 
 	b.Run(testString(testContext, "KeyGen/SwitchKeyGen/"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			kgen.GenRelinKey(sk)
 		}
@@ -95,6 +100,11 @@ func benchEncrypt(testContext *testParams, b *testing.B) {
 	ciphertext := NewCiphertext(testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 
 	b.Run(testString(testContext, "Encrypt/key=Pk/"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintext, ciphertext)
 		}
@@ -136,10 +146,14 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 	receiver := NewCiphertextRandom(testContext.prng, testContext.params, 2, testContext.params.MaxLevel(), testContext.params.Scale())
 
-	rlk := testContext.kgen.GenRelinKey(testContext.sk)
-	rotkey := NewRotationKeys()
-	testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 1, rotkey)
-	testContext.kgen.GenRotationKey(Conjugate, testContext.sk, 0, rotkey)
+	var rlk *EvaluationKey
+	var rotkey *RotationKeys
+	if testContext.params.PiCount() != 0 {
+		rlk = testContext.kgen.GenRelinKey(testContext.sk)
+		rotkey = NewRotationKeys()
+		testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 1, rotkey)
+		testContext.kgen.GenRotationKey(Conjugate, testContext.sk, 0, rotkey)
+	}
 
 	b.Run(testString(testContext, "Evaluator/Add/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -179,6 +193,10 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Evaluator/Rescale/"), func(b *testing.B) {
 
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		ringQ := testContext.ringQ
 
 		for i := 0; i < b.N; i++ {
@@ -192,6 +210,11 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 	})
 
 	b.Run(testString(testContext, "Evaluator/PermuteNTT/"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[0], rotkey.permuteNTTLeftIndex[1], ciphertext1.value[0])
 			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[1], rotkey.permuteNTTLeftIndex[1], ciphertext1.value[1])
@@ -199,24 +222,44 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 	})
 
 	b.Run(testString(testContext, "Evaluator/Conjugate/"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Relin/"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			evaluator.Relinearize(receiver, rlk, ciphertext1)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Conjugate/"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Rotate/"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			evaluator.Rotate(ciphertext1, 1, rotkey, ciphertext1)
 		}
@@ -225,39 +268,46 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 func benchHoistedRotations(testContext *testParams, b *testing.B) {
 
-	evaluator := testContext.evaluator.(*evaluator)
+	b.Run(testString(testContext, "HoistedRotations/"), func(b *testing.B) {
 
-	rotkey := NewRotationKeys()
-	testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 5, rotkey)
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
 
-	ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
+		evaluator := testContext.evaluator.(*evaluator)
 
-	ringQ := testContext.ringQ
-	ringP := testContext.ringP
+		rotkey := NewRotationKeys()
+		testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 5, rotkey)
 
-	c2NTT := ciphertext.value[1]
-	c2InvNTT := ringQ.NewPoly()
-	ringQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
+		ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 
-	c2QiQDecomp := make([]*ring.Poly, testContext.params.Beta())
-	c2QiPDecomp := make([]*ring.Poly, testContext.params.Beta())
+		ringQ := testContext.ringQ
+		ringP := testContext.ringP
 
-	for i := uint64(0); i < testContext.params.Beta(); i++ {
-		c2QiQDecomp[i] = ringQ.NewPoly()
-		c2QiPDecomp[i] = ringP.NewPoly()
-	}
+		c2NTT := ciphertext.value[1]
+		c2InvNTT := ringQ.NewPoly()
+		ringQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
 
-	b.Run(testString(testContext, "HoistedRotations/DecomposeNTT/"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for j := uint64(0); j < testContext.params.Beta(); j++ {
-				evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
+		c2QiQDecomp := make([]*ring.Poly, testContext.params.Beta())
+		c2QiPDecomp := make([]*ring.Poly, testContext.params.Beta())
+
+		for i := uint64(0); i < testContext.params.Beta(); i++ {
+			c2QiQDecomp[i] = ringQ.NewPoly()
+			c2QiPDecomp[i] = ringP.NewPoly()
+		}
+
+		b.Run(testString(testContext, "/DecomposeNTT/"), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				for j := uint64(0); j < testContext.params.Beta(); j++ {
+					evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
+				}
 			}
-		}
-	})
+		})
 
-	b.Run(testString(testContext, "HoistedRotations/RotateHoisted/"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			evaluator.permuteNTTHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, rotkey, ciphertext)
-		}
+		b.Run(testString(testContext, "RotateHoisted/"), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				evaluator.permuteNTTHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, rotkey, ciphertext)
+			}
+		})
 	})
 }

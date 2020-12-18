@@ -21,7 +21,7 @@ type KeyGenerator interface {
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
 	GenRotationKey(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
 	GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys)
-	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappParams, sk *SecretKey) (btpKey *BootstrappingKey)
+	GenBootstrappingKey(logSlots uint64, btpParams *BootstrapParams, sk *SecretKey) (btpKey *BootstrappingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -527,7 +527,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 }
 
 // GenKeys generates the bootstrapping keys
-func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrappParams, sk *SecretKey) (btpKey *BootstrappingKey) {
+func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrapParams, sk *SecretKey) (btpKey *BootstrappingKey) {
 
 	btpKey = &BootstrappingKey{
 		relinkey: keygen.GenRelinKey(sk),
@@ -552,7 +552,36 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 	return
 }
 
-func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *BootstrappParams) (rotKeyIndex []uint64) {
+func addMatrixRotToList(pVec map[uint64]bool, rotations []uint64, N1, slots uint64, repack bool) []uint64 {
+
+	var index uint64
+	for j := range pVec {
+
+		index = (j / N1) * N1
+
+		if repack {
+			// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
+			index &= (2*slots - 1)
+		} else {
+			// Other cases
+			index &= (slots - 1)
+		}
+
+		if index != 0 && !utils.IsInSliceUint64(index, rotations) {
+			rotations = append(rotations, index)
+		}
+
+		index = j & (N1 - 1)
+
+		if index != 0 && !utils.IsInSliceUint64(index, rotations) {
+			rotations = append(rotations, index)
+		}
+	}
+
+	return rotations
+}
+
+func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *BootstrapParams) (rotKeyIndex []uint64) {
 
 	// List of the rotation key values to needed for the bootstrapp
 	rotKeyIndex = []uint64{}
@@ -572,54 +601,25 @@ func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *Boots
 
 	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(), true)
 
-	var index uint64
 	// Coeffs to Slots rotations
-	for i := range indexCtS {
+	for _, pVec := range indexCtS {
 
-		N1 := findbestbabygiantstepsplitIndexMap(indexCtS[i], dslots, btpParams.MaxN1N2Ratio)
+		N1 := findbestbabygiantstepsplitIndexMap(pVec, dslots, btpParams.MaxN1N2Ratio)
 
-		for j := range indexCtS[i] {
-
-			index = ((j / N1) * N1) & (slots - 1)
-
-			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
-
-			index = j & (N1 - 1)
-
-			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
-		}
+		rotKeyIndex = addMatrixRotToList(pVec, rotKeyIndex, N1, slots, false)
 	}
 
 	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(), false)
 
 	// Slots to Coeffs rotations
-	for i := range indexStC {
+	for i, pVec := range indexStC {
 
-		N1 := findbestbabygiantstepsplitIndexMap(indexStC[i], dslots, btpParams.MaxN1N2Ratio)
+		N1 := findbestbabygiantstepsplitIndexMap(pVec, dslots, btpParams.MaxN1N2Ratio)
 
-		for j := range indexStC[i] {
-
-			if logSlots < logN-1 && i == 0 {
-				// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
-				index = ((j / N1) * N1) & (2*slots - 1)
-			} else {
-				// Other cases
-				index = ((j / N1) * N1) & (slots - 1)
-			}
-
-			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
-
-			index = j & (N1 - 1)
-
-			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
+		if logSlots < logN-1 && i == 0 {
+			rotKeyIndex = addMatrixRotToList(pVec, rotKeyIndex, N1, slots, true)
+		} else {
+			rotKeyIndex = addMatrixRotToList(pVec, rotKeyIndex, N1, slots, false)
 		}
 	}
 

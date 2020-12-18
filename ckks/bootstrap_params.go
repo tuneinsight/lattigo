@@ -1,7 +1,7 @@
 package ckks
 
-// BootstrappParams is a struct for the default bootstrapping parameters
-type BootstrappParams struct {
+// BootstrapParams is a struct for the default bootstrapping parameters
+type BootstrapParams struct {
 	H            uint64   // Hamming weight of the secret key
 	SinType      SinType  // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	SinRange     uint64   // K parameter (interpolation in the range -K to K)
@@ -13,12 +13,12 @@ type BootstrappParams struct {
 }
 
 // CtSDepth returns the number of levels allocated to CoeffsToSlots
-func (b *BootstrappParams) CtSDepth() uint64 {
+func (b *BootstrapParams) CtSDepth() uint64 {
 	return uint64(len(b.CtSLevel))
 }
 
 // StCDepth returns the number of levels allocated to SlotToCoeffs
-func (b *BootstrappParams) StCDepth() uint64 {
+func (b *BootstrapParams) StCDepth() uint64 {
 	return uint64(len(b.StCLevel))
 }
 
@@ -33,9 +33,9 @@ const (
 	Cos2 = SinType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
 )
 
-// Copy return a new BootstrappParams which is a copy of the target
-func (b *BootstrappParams) Copy() *BootstrappParams {
-	paramsCopy := &BootstrappParams{
+// Copy return a new BootstrapParams which is a copy of the target
+func (b *BootstrapParams) Copy() *BootstrapParams {
+	paramsCopy := &BootstrapParams{
 		H:            b.H,
 		SinType:      b.SinType,
 		SinRange:     b.SinRange,
@@ -50,8 +50,8 @@ func (b *BootstrappParams) Copy() *BootstrappParams {
 	return paramsCopy
 }
 
-// DefaultBootstrappSchemeParams are default scheme params for the bootstrapping
-var DefaultBootstrappSchemeParams = []*Parameters{
+// DefaultBootstrapSchemeParams are default scheme params for the bootstrapping
+var DefaultBootstrapSchemeParams = []*Parameters{
 
 	{
 		logN:     16,
@@ -204,8 +204,8 @@ var DefaultBootstrappSchemeParams = []*Parameters{
 	},
 }
 
-// DefaultBootstrappParams are default bootstrapping params for the bootstrapping
-var DefaultBootstrappParams = []*BootstrappParams{
+// DefaultBootstrapParams are default bootstrapping params for the bootstrapping
+var DefaultBootstrapParams = []*BootstrapParams{
 
 	// SET II
 	// 1525 - 550

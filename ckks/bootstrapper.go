@@ -13,7 +13,7 @@ import (
 // Bootstrapper is a struct to stores a memory pool the plaintext matrices
 // the polynomial approximation and the keys for the bootstrapping.
 type Bootstrapper struct {
-	BootstrappParams
+	BootstrapParams
 	*BootstrappingKey
 	params *Parameters
 
@@ -60,14 +60,14 @@ func cos2pi(x complex128) complex128 {
 }
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params *Parameters, btpParams *BootstrappParams, btpKey *BootstrappingKey) (btp *Bootstrapper, err error) {
+func NewBootstrapper(params *Parameters, btpParams *BootstrapParams, btpKey *BootstrappingKey) (btp *Bootstrapper, err error) {
 
 	if btpParams.SinType == SinType(Sin) && btpParams.SinRescal != 0 {
-		return nil, fmt.Errorf("BootstrappParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
+		return nil, fmt.Errorf("BootstrapParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
 	}
 
 	if btpParams.CtSLevel[0] != params.MaxLevel() {
-		return nil, fmt.Errorf("BootstrappParams: CtSLevel start not consistent with MaxLevel")
+		return nil, fmt.Errorf("BootstrapParams: CtSLevel start not consistent with MaxLevel")
 	}
 
 	btp = newBootstrapper(params, btpParams)
@@ -82,11 +82,11 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappParams, btpKey *Bo
 
 // newBootstrapper is a constructor of "dummy" bootstrapper to enable the generation of bootstrapping-related constants
 // without providing a bootstrapping key. To be replaced by a proper factorization of the bootstrapping pre-computations.
-func newBootstrapper(params *Parameters, btpParams *BootstrappParams) (btp *Bootstrapper) {
+func newBootstrapper(params *Parameters, btpParams *BootstrapParams) (btp *Bootstrapper) {
 	btp = new(Bootstrapper)
 
 	btp.params = params.Copy()
-	btp.BootstrappParams = *btpParams.Copy()
+	btp.BootstrapParams = *btpParams.Copy()
 
 	btp.dslots = params.Slots()
 	btp.logdslots = params.LogSlots()
@@ -143,6 +143,35 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 	return nil
 }
 
+func (btp *Bootstrapper) addMatrixRotToList(pVec *dftvectors, rotations []uint64, slots uint64, repack bool) {
+
+	var index uint64
+	for j := range pVec.Vec {
+
+		N1 := pVec.N1
+
+		index = ((j / N1) * N1)
+
+		if repack {
+			// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
+			index &= (2*slots - 1)
+		} else {
+			// Other cases
+			index &= (slots - 1)
+		}
+
+		if index != 0 && !utils.IsInSliceUint64(index, rotations) {
+			rotations = append(rotations, index)
+		}
+
+		index = j & (N1 - 1)
+
+		if index != 0 && !utils.IsInSliceUint64(index, rotations) {
+			rotations = append(rotations, index)
+		}
+	}
+}
+
 func (btp *Bootstrapper) genDFTMatrices() {
 
 	a := real(btp.chebycoeffs.a)
@@ -170,47 +199,19 @@ func (btp *Bootstrapper) genDFTMatrices() {
 		}
 	}
 
-	var index uint64
 	// Coeffs to Slots rotations
-	for i := range btp.pDFTInv {
-		for j := range btp.pDFTInv[i].Vec {
-
-			index = ((j / btp.pDFTInv[i].N1) * btp.pDFTInv[i].N1) & (btp.params.Slots() - 1)
-
-			if index != 0 && !utils.IsInSliceUint64(index, btp.rotKeyIndex) {
-				btp.rotKeyIndex = append(btp.rotKeyIndex, index)
-			}
-
-			index = j & (btp.pDFTInv[i].N1 - 1)
-
-			if index != 0 && !utils.IsInSliceUint64(index, btp.rotKeyIndex) {
-				btp.rotKeyIndex = append(btp.rotKeyIndex, index)
-			}
-		}
+	for _, pVec := range btp.pDFTInv {
+		btp.addMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
 	}
 
 	// Slots to Coeffs rotations
-	for i := range btp.pDFT {
-		for j := range btp.pDFT[i].Vec {
-
-			if btp.repack && i == 0 {
-				// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
-				index = ((j / btp.pDFT[i].N1) * btp.pDFT[i].N1) & (2*btp.params.Slots() - 1)
-			} else {
-				// Other cases
-				index = ((j / btp.pDFT[i].N1) * btp.pDFT[i].N1) & (btp.params.Slots() - 1)
-			}
-
-			if index != 0 && !utils.IsInSliceUint64(index, btp.rotKeyIndex) {
-				btp.rotKeyIndex = append(btp.rotKeyIndex, index)
-			}
-
-			index = j & (btp.pDFT[i].N1 - 1)
-
-			if index != 0 && !utils.IsInSliceUint64(index, btp.rotKeyIndex) {
-				btp.rotKeyIndex = append(btp.rotKeyIndex, index)
-			}
+	for i, pVec := range btp.pDFT {
+		if i == 0 {
+			btp.addMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), btp.repack)
+		} else {
+			btp.addMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
 		}
+
 	}
 
 	/*

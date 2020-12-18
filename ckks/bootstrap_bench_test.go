@@ -18,8 +18,8 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	paramSet := uint64(3)
 
-	btpParams := DefaultBootstrappParams[paramSet]
-	if testContext, err = genTestParams(DefaultBootstrappSchemeParams[paramSet], btpParams.H); err != nil {
+	btpParams := DefaultBootstrapParams[paramSet]
+	if testContext, err = genTestParams(DefaultBootstrapSchemeParams[paramSet], btpParams.H); err != nil {
 		panic(err)
 	}
 

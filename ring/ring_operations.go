@@ -855,7 +855,7 @@ func (r *Ring) MulPolyNaiveMontgomery(p1, p2, p3 *Poly) {
 }
 
 // Exp raises p1 to p1^e and writes the result on p2.
-// IMPROVEMENT : implement Montgomery ladder
+// IMPROVEMENT : implement Montgomery ladder.
 func (r *Ring) Exp(p1 *Poly, e uint64, p2 *Poly) {
 
 	r.NTT(p1, p1)

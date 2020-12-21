@@ -71,12 +71,6 @@ func (r *Ring) setParameters(N uint64, Modulus []uint64) error {
 		return errors.New("invalid modulus (must be a non-empty []uint64)")
 	}
 
-	for i, qi := range Modulus {
-		if !IsPrime(qi) {
-			return fmt.Errorf("invalid modulus (Modulus[%d] is not prime)", i)
-		}
-	}
-
 	if !utils.AllDistinct(Modulus) {
 		return errors.New("invalid modulus (moduli are not distinct)")
 	}
@@ -130,11 +124,15 @@ func (r *Ring) genNTTParams() error {
 		return errors.New("invalid r parameters (missing)")
 	}
 
-	// Check if each qi is 1 mod 2n
-	for _, qi := range r.Modulus {
+	// Check if each qi is prime and equal to 1 mod NthRoot
+	for i, qi := range r.Modulus {
+		if !IsPrime(qi) {
+			return fmt.Errorf("invalid modulus (Modulus[%d] is not prime)", i)
+		}
+
 		if qi&((r.N<<1)-1) != 1 {
 			r.allowsNTT = false
-			return errors.New("provided modulus does not allow NTT")
+			return fmt.Errorf("invalid modulus (Modulus[%d] != 1 mod 2N)", i)
 		}
 	}
 
@@ -160,10 +158,10 @@ func (r *Ring) genNTTParams() error {
 
 	for i, qi := range r.Modulus {
 
-		// 2.1 Compute N^(-1) mod Q in Montgomery form
+		// 1.1 Compute N^(-1) mod Q in Montgomery form
 		r.NttNInv[i] = MForm(ModExp(r.N, qi-2, qi), qi, r.BredParams[i])
 
-		// 2.2 Compute Psi and PsiInv in Montgomery form
+		// 1.2 Compute Psi and PsiInv in Montgomery form
 		r.NttPsi[i] = make([]uint64, r.N)
 		r.NttPsiInv[i] = make([]uint64, r.N)
 

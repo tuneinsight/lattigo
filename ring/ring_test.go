@@ -66,23 +66,23 @@ func TestRing(t *testing.T) {
 		if testContext, err = genTestParams(defaultParam); err != nil {
 			t.Error(err)
 		}
-		testPRNG(testContext, t)
-		testGenerateNTTPrimes(testContext, t)
-		testImportExportPolyString(testContext, t)
-		testDivFloorByLastModulusMany(testContext, t)
-		testDivRoundByLastModulusMany(testContext, t)
-		testMarshalBinary(testContext, t)
-		testUniformSampler(testContext, t)
-		testGaussianSampler(testContext, t)
+		//testPRNG(testContext, t)
+		//testGenerateNTTPrimes(testContext, t)
+		//testImportExportPolyString(testContext, t)
+		//testDivFloorByLastModulusMany(testContext, t)
+		//testDivRoundByLastModulusMany(testContext, t)
+		//testMarshalBinary(testContext, t)
+		//testUniformSampler(testContext, t)
+		//testGaussianSampler(testContext, t)
 		testTernarySampler(testContext, t)
-		testGaloisShift(testContext, t)
-		testModularReduction(testContext, t)
-		testMForm(testContext, t)
-		testMulScalarBigint(testContext, t)
-		testMulPoly(testContext, t)
-		testExtendBasis(testContext, t)
-		testScaling(testContext, t)
-		testMultByMonomial(testContext, t)
+		//testGaloisShift(testContext, t)
+		//testModularReduction(testContext, t)
+		//testMForm(testContext, t)
+		//testMulScalarBigint(testContext, t)
+		//testMulPoly(testContext, t)
+		//testExtendBasis(testContext, t)
+		//testScaling(testContext, t)
+		//testMultByMonomial(testContext, t)
 	}
 }
 
@@ -331,6 +331,30 @@ func testTernarySampler(testContext *testParams, t *testing.T) {
 				for _, c := range pol.Coeffs[i] {
 					require.True(t, c == 0 || c == minOne || c == 1)
 				}
+			}
+		})
+	}
+
+	for _, p := range []uint64{0, 64, 96, 128, 256, 512, 1024} {
+		t.Run(testString(fmt.Sprintf("TernarySampler/hw=%d/", p), testContext.ringQ), func(t *testing.T) {
+
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+
+			ternarySampler := NewTernarySamplerSparse(prng, testContext.ringQ, p, false)
+
+			pol := ternarySampler.ReadNew()
+
+			for i := range testContext.ringQ.Modulus {
+				hw := uint64(0)
+				for _, c := range pol.Coeffs[i] {
+					if c != 0{
+						hw++
+					}
+				}
+				require.True(t, hw==p)
 			}
 		})
 	}

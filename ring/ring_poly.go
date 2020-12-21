@@ -159,7 +159,7 @@ func (pol *Poly) WriteTo32(data []byte) (uint64, error) {
 	numberModuli := uint64(pol.GetLenModuli())
 
 	if uint64(len(data)) < pol.GetDataLen32(true) {
-		//the data is not big enough to write all the information
+		//The data is not big enough to write all the information
 		return 0, errors.New("data array is too small to write ring.Poly")
 	}
 	data[0] = uint8(bits.Len64(uint64(N)) - 1)

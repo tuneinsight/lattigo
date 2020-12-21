@@ -5,7 +5,7 @@ import (
 	"math/bits"
 )
 
-// IsPrime applies the Baillie-PSW, which is 100% accurate for numbers bellow 2^64
+// IsPrime applies the Baillie-PSW, which is 100% accurate for numbers bellow 2^64.
 func IsPrime(x uint64) bool {
 	return NewUint(x).ProbablyPrime(0)
 }

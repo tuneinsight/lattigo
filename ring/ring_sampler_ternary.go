@@ -78,6 +78,10 @@ func (ts *TernarySampler) ReadLvlNew(lvl uint64) (pol *Poly) {
 func (ts *TernarySampler) initializeMatrix(montgomery bool) {
 	ts.matrixValues = make([][3]uint64, len(ts.baseRing.Modulus))
 
+	// [0] = 0
+	// [1] = 1 * 2^64 mod qi
+	// [2] = (qi - 1) * 2^64 mod qi
+
 	for i, Qi := range ts.baseRing.Modulus {
 
 		ts.matrixValues[i][0] = 0
@@ -140,7 +144,7 @@ func (ts *TernarySampler) sampleProba(lvl uint64, pol *Poly) {
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
 			for j := uint64(0); j < lvl+1; j++ {
-				pol.Coeffs[j][i] = ts.matrixValues[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+				pol.Coeffs[j][i] = ts.matrixValues[j][index] 
 			}
 		}
 
@@ -160,7 +164,7 @@ func (ts *TernarySampler) sampleProba(lvl uint64, pol *Poly) {
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
 			for j := uint64(0); j < lvl+1; j++ {
-				pol.Coeffs[j][i] = ts.matrixValues[j][index] //(coeff & (sign^1)) | (qi - 1) * (sign & coeff)
+				pol.Coeffs[j][i] = ts.matrixValues[j][index]
 			}
 		}
 	}
@@ -193,9 +197,9 @@ func (ts *TernarySampler) sampleSparse(lvl uint64, pol *Poly) {
 			j = randInt32(ts.prng, mask)
 		}
 
-		coeff = (uint8(randomBytes[0]) >> (i & 7)) & 1 // random binary digit [0, 1] from the random bytes
+		coeff = (uint8(randomBytes[0]) >> (i & 7)) & 1 // random binary digit [0, 1] from the random bytes (0 = -1, 1 = 1)
 		for k := uint64(0); k < lvl+1; k++ {
-			pol.Coeffs[k][index[j]] = ts.matrixValues[k][coeff]
+			pol.Coeffs[k][index[j]] = ts.matrixValues[k][coeff+1]
 		}
 
 		// Remove the element in position j of the slice (order not preserved)

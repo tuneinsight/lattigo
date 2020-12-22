@@ -5,6 +5,7 @@ package ckks
 import (
 	"math"
 	"math/big"
+	"fmt"
 
 	"github.com/ldsec/lattigo/v2/ring"
 )
@@ -17,30 +18,31 @@ var pi = "3.14159265358979323846264338327950288419716939937510582097494459230781
 
 // Encoder is an interface implenting the encoding algorithms.
 type Encoder interface {
-	Encode(plaintext *Plaintext, values []complex128, slots uint64)
-	EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext)
-	EncodeAtLvlNew(level uint64, values []complex128, slots uint64) (plaintext *Plaintext)
-	EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64)
-	EncodeNTTAtLvlNew(level uint64, values []complex128, slots uint64) (plaintext *Plaintext)
-	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
-	DecodeAndRound(plaintext *Plaintext, slots uint64, bound float64) (res []complex128)
-	Embed(values []complex128, slots uint64)
+	Encode(plaintext *Plaintext, values []complex128, logSlots uint64)
+	EncodeNew(values []complex128, logSlots uint64) (plaintext *Plaintext)
+	EncodeAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
+	EncodeNTT(plaintext *Plaintext, values []complex128, logSlots uint64)
+	EncodeNTTAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
+	Decode(plaintext *Plaintext, logSlots uint64) (res []complex128)
+	DecodeAndRound(plaintext *Plaintext, logSlots uint64, bound float64) (res []complex128)
+	Embed(values []complex128, logSlots uint64)
 	ScaleUp(pol *ring.Poly, scale float64, moduli []uint64)
 	WipeInternalMemory()
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 	DecodeCoeffsAndRound(plaintext *Plaintext, bound float64) (res []float64)
+	EstimateError(plaintext *Plaintext, logSlots uint64) float64
 }
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
 type EncoderBigComplex interface {
-	Encode(plaintext *Plaintext, values []*ring.Complex, slots uint64)
-	EncodeNew(values []*ring.Complex, slots uint64) (plaintext *Plaintext)
-	EncodeAtLvlNew(level uint64, values []*ring.Complex, slots uint64) (plaintext *Plaintext)
-	EncodeNTT(plaintext *Plaintext, values []*ring.Complex, slots uint64)
-	EncodeNTTAtLvlNew(level uint64, values []*ring.Complex, slots uint64) (plaintext *Plaintext)
-	Decode(plaintext *Plaintext, slots uint64) (res []*ring.Complex)
-	DecodeAndRound(plaintext *Plaintext, slots uint64, bound float64) (res []*ring.Complex)
+	Encode(plaintext *Plaintext, values []*ring.Complex, logSlots uint64)
+	EncodeNew(values []*ring.Complex, logSlots uint64) (plaintext *Plaintext)
+	EncodeAtLvlNew(level uint64, values []*ring.Complex, logSlots uint64) (plaintext *Plaintext)
+	EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots uint64)
+	EncodeNTTAtLvlNew(level uint64, values []*ring.Complex, logSlots uint64) (plaintext *Plaintext)
+	Decode(plaintext *Plaintext, logSlots uint64) (res []*ring.Complex)
+	DecodeAndRound(plaintext *Plaintext, logSlots uint64, bound float64) (res []*ring.Complex)
 	FFT(values []*ring.Complex, N uint64)
 	InvFFT(values []*ring.Complex, N uint64)
 
@@ -210,6 +212,32 @@ func (encoder *encoderComplex128) DecodeAndRound(plaintext *Plaintext, slots uin
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
 	return encoder.decodeAndRound(plaintext, slots, plaintext.scale)
+}
+
+func (encoder *encoderComplex128) EstimateError(plaintext *Plaintext, logSlots uint64) float64{
+
+	ringQ := encoder.ringQ
+	level := plaintext.Level()
+
+	z := plaintext.CopyNew().Plaintext()
+	zConj := ringQ.NewPolyLvl(level)
+
+	ring.PermuteNTT(z.value, 2*ringQ.N-1, zConj)
+
+	ringQ.AddLvl(level, z.value, zConj, z.value)
+
+	z.SetScale(z.Scale()*2)
+
+	var sum float64
+	for _, c := range encoder.decodeAndRound(z, logSlots, float64(uint64(1<<53))){
+		fmt.Println(c)
+		sum += imag(c)
+	}
+
+	sum /= float64(uint64(1<<logSlots))
+
+	return sum
+
 }
 
 func (encoder *encoderComplex128) decodeAndRound(plaintext *Plaintext, logSlots uint64, bound float64) (res []complex128) {

@@ -42,7 +42,10 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	switch element.(type) {
 	case *Ciphertext:
-		valuesTest = encoder.DecodeAndRound(decryptor.DecryptNew(element.(*Ciphertext)), logSlots, bound)
+		p := decryptor.DecryptNew(element.(*Ciphertext))
+		error := encoder.EstimateError(p, logSlots)
+		fmt.Println(error)
+		valuesTest = encoder.DecodeAndRound(p, logSlots, bound)
 	case *Plaintext:
 		valuesTest = encoder.DecodeAndRound(element.(*Plaintext), logSlots, bound)
 	case []complex128:

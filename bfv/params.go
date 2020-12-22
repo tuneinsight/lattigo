@@ -60,18 +60,16 @@ var DefaultParams = []*Parameters{
 	{
 		logN:  12,
 		t:     65537,
-		qi:    []uint64{0x7ffffec001, 0x8000016001},            // 39 + 39 bits
-		pi:    []uint64{0x40002001},                            // 30 bits
-		qiMul: []uint64{0xfffffffffffc001, 0x100000000000e001}, // 60 + 60 bits
+		qi:    []uint64{0x7ffffec001, 0x8000016001}, // 39 + 39 bits
+		pi:    []uint64{0x40002001},                 // 30 bits
 		sigma: DefaultSigma,
 	},
 
 	{
 		logN:  13,
 		t:     65537,
-		qi:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001},     // 54 + 54 + 54 bits
-		pi:    []uint64{0x7ffffffffb4001},                                         // 55 bits
-		qiMul: []uint64{0xfffffffffffc001, 0xffffffffffe8001, 0x1000000000024001}, // 60 + 60 + 60 bits
+		qi:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
+		pi:    []uint64{0x7ffffffffb4001},                                     // 55 bits
 		sigma: DefaultSigma,
 	},
 
@@ -80,9 +78,7 @@ var DefaultParams = []*Parameters{
 		t:    65537,
 		qi: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
 			0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
-		pi: []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
-		qiMul: []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001,
-			0x1000000000078001, 0xffffffffff28001, 0xfffffffffe38001}, // 60 + 60 + 60 + 60 + 60 + 60 bits
+		pi:    []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
 		sigma: DefaultSigma,
 	},
 
@@ -93,39 +89,31 @@ var DefaultParams = []*Parameters{
 			0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
 			0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
 			0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
-		pi: []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
-		qiMul: []uint64{0xfffffffff840001, 0x1000000000860001, 0x1000000000870001, // 60 + 60 + 60 bits
-			0x1000000000930001, 0xfffffffff6a0001, 0x1000000000980001, // 60 + 60 + 60 bits
-			0xfffffffff5a0001, 0xfffffffff550001, 0x1000000000b00001, // 60 + 60 + 60 bits
-			0xfffffffff330001, 0x1000000000ce0001, 0xfffffffff2a0001}, // 60 + 60 + 60 bits
+		pi:    []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
 		sigma: DefaultSigma,
 	},
 
 	{ // LogQP = 101.00005709794536
 		logN:  12,
 		t:     65537,
-		qi:    []uint64{0x800004001, 0x800008001},              // 2*35
-		pi:    []uint64{0x80014001},                            // 1*31
-		qiMul: []uint64{0xfffffffffffc001, 0x100000000000e001}, // 2*60
+		qi:    []uint64{0x800004001, 0x800008001}, // 2*35
+		pi:    []uint64{0x80014001},               // 1*31
 		sigma: DefaultSigma,
 	},
 
 	{ // LogQP = 201.99999999994753
 		logN:  13,
 		t:     65537,
-		qi:    []uint64{0x7fffffffe0001, 0x7fffffffcc001, 0x3ffffffffc001},        // 2*51 + 50
-		pi:    []uint64{0x4000000024001},                                          // 50
-		qiMul: []uint64{0xfffffffffffc001, 0xffffffffffe8001, 0x1000000000024001}, // 3*60
+		qi:    []uint64{0x7fffffffe0001, 0x7fffffffcc001, 0x3ffffffffc001}, // 2*51 + 50
+		pi:    []uint64{0x4000000024001},                                   // 50
 		sigma: DefaultSigma,
 	},
 
 	{ // LogQP = 410.9999999999886
-		logN: 14,
-		t:    65537,
-		qi:   []uint64{0x7fffffffff18001, 0x8000000000f8001, 0x7ffffffffeb8001, 0x800000000158001, 0x7ffffffffe70001}, // 5*59
-		pi:   []uint64{0x7ffffffffe10001, 0x400000000068001},                                                          // 59+58
-		qiMul: []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001,
-			0x1000000000078001, 0xffffffffff28001, 0xfffffffffe38001}, // 6*60 bits
+		logN:  14,
+		t:     65537,
+		qi:    []uint64{0x7fffffffff18001, 0x8000000000f8001, 0x7ffffffffeb8001, 0x800000000158001, 0x7ffffffffe70001}, // 5*59
+		pi:    []uint64{0x7ffffffffe10001, 0x400000000068001},                                                          // 59+58
 		sigma: DefaultSigma,
 	},
 
@@ -135,19 +123,15 @@ var DefaultParams = []*Parameters{
 		qi: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, 0x7ffffffffba0001, 0x8000000004a0001,
 			0x7ffffffffb00001, 0x800000000890001, 0x8000000009d0001, 0x7ffffffff630001, 0x800000000a70001,
 			0x7ffffffff510001}, // 11*59
-		pi: []uint64{0x800000000b80001, 0x800000000bb0001, 0xffffffffffc0001}, // 2*59+60
-		qiMul: []uint64{0x10000000001d0001, 0x10000000006e0001, 0xfffffffff840001, 0x1000000000860001, 0x1000000000870001,
-			0x1000000000930001, 0xfffffffff6a0001, 0x1000000000980001, 0xfffffffff5a0001, 0xfffffffff550001,
-			0x1000000000b00001, 0xfffffffff330001},
+		pi:    []uint64{0x800000000b80001, 0x800000000bb0001, 0xffffffffffc0001}, // 2*59+60
 		sigma: DefaultSigma,
 	},
 }
 
 // Moduli stores the NTT primes of the RNS representation.
 type Moduli struct {
-	Qi    []uint64 // Ciphertext prime moduli
-	Pi    []uint64 // Keys additional prime moduli
-	QiMul []uint64 // Ciphertext secondary prime moduli
+	Qi []uint64 // Ciphertext prime moduli
+	Pi []uint64 // Keys additional prime moduli
 }
 
 // Copy creates a copy of the target Moduli.
@@ -159,17 +143,13 @@ func (m *Moduli) Copy() Moduli {
 	pi := make([]uint64, len(m.Pi))
 	copy(pi, m.Pi)
 
-	qiMul := make([]uint64, len(m.QiMul))
-	copy(qiMul, m.QiMul)
-
-	return Moduli{qi, pi, qiMul}
+	return Moduli{qi, pi}
 }
 
 // LogModuli stores the bit-length of the NTT primes of the RNS representation.
 type LogModuli struct {
-	LogQi    []uint64 // Ciphertext prime moduli bit-size
-	LogPi    []uint64 // Keys additional prime moduli bit-size
-	LogQiMul []uint64 // Ciphertext secondary prime moduli bit-size
+	LogQi []uint64 // Ciphertext prime moduli bit-size
+	LogPi []uint64 // Keys additional prime moduli bit-size
 }
 
 // Copy creates a copy of the target LogModuli.
@@ -181,10 +161,7 @@ func (m *LogModuli) Copy() LogModuli {
 	LogPi := make([]uint64, len(m.LogPi))
 	copy(LogPi, m.LogPi)
 
-	LogQiMul := make([]uint64, len(m.LogQiMul))
-	copy(LogQiMul, m.LogQiMul)
-
-	return LogModuli{LogQi, LogPi, LogQiMul}
+	return LogModuli{LogQi, LogPi}
 }
 
 // Parameters represents a given parameter set for the BFV cryptosystem.
@@ -192,7 +169,6 @@ type Parameters struct {
 	logN  uint64 // Log Ring degree (power of 2)
 	qi    []uint64
 	pi    []uint64
-	qiMul []uint64
 	t     uint64  // Plaintext modulus
 	sigma float64 // Gaussian sampling standard deviation
 }
@@ -218,9 +194,6 @@ func NewParametersFromModuli(logN uint64, m *Moduli, t uint64) (p *Parameters, e
 
 	p.pi = make([]uint64, len(m.Pi))
 	copy(p.pi, m.Pi)
-
-	p.qiMul = make([]uint64, len(m.QiMul))
-	copy(p.qiMul, m.QiMul)
 
 	p.sigma = DefaultSigma
 
@@ -283,10 +256,7 @@ func (p *Parameters) LogModuli() (lm *LogModuli) {
 	for i := range p.pi {
 		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
 	}
-	lm.LogQiMul = make([]uint64, len(p.qiMul), len(p.qiMul))
-	for i := range p.qiMul {
-		lm.LogQiMul[i] = uint64(math.Round(math.Log2(float64(p.qiMul[i]))))
-	}
+
 	return
 }
 
@@ -297,8 +267,7 @@ func (p *Parameters) Moduli() (m *Moduli) {
 	copy(m.Qi, p.qi)
 	m.Pi = make([]uint64, len(p.pi))
 	copy(m.Pi, p.pi)
-	m.QiMul = make([]uint64, len(p.qiMul))
-	copy(m.QiMul, p.qiMul)
+
 	return
 }
 
@@ -436,8 +405,6 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 	copy(paramsCopy.qi, p.qi)
 	paramsCopy.pi = make([]uint64, len(p.pi))
 	copy(paramsCopy.pi, p.pi)
-	paramsCopy.qiMul = make([]uint64, len(p.qiMul))
-	copy(paramsCopy.qiMul, p.qiMul)
 	return
 }
 
@@ -454,7 +421,6 @@ func (p *Parameters) Equals(other *Parameters) (res bool) {
 
 	res = res && utils.EqualSliceUint64(p.qi, other.qi)
 	res = res && utils.EqualSliceUint64(p.pi, other.pi)
-	res = res && utils.EqualSliceUint64(p.qiMul, other.qiMul)
 
 	return
 }
@@ -465,17 +431,15 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	b := utils.NewBuffer(make([]byte, 0, 20+(len(p.qi)+len(p.pi)+len(p.qiMul))<<3))
+	b := utils.NewBuffer(make([]byte, 0, 19+(len(p.qi)+len(p.pi))<<3))
 
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(len(p.qi)))
 	b.WriteUint8(uint8(len(p.pi)))
-	b.WriteUint8(uint8(len(p.qiMul)))
 	b.WriteUint64(p.t)
 	b.WriteUint64(uint64(p.sigma * (1 << 32)))
 	b.WriteUint64Slice(p.qi)
 	b.WriteUint64Slice(p.pi)
-	b.WriteUint64Slice(p.qiMul)
 
 	return b.Bytes(), nil
 }
@@ -495,17 +459,14 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 
 	lenQi := b.ReadUint8()
 	lenPi := b.ReadUint8()
-	lenQiMul := b.ReadUint8()
 
 	p.t = b.ReadUint64()
 	p.sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
 	p.qi = make([]uint64, lenQi, lenQi)
 	p.pi = make([]uint64, lenPi, lenPi)
-	p.qiMul = make([]uint64, lenQiMul, lenQiMul)
 
 	b.ReadUint64Slice(p.qi)
 	b.ReadUint64Slice(p.pi)
-	b.ReadUint64Slice(p.qiMul)
 
 	err := checkModuli(p.Moduli(), p.logN) // TODO: check more than moduli.
 	if err != nil {
@@ -524,10 +485,6 @@ func checkModuli(m *Moduli, logN uint64) (err error) {
 		return fmt.Errorf("#Pi is larger than %d", MaxModuliCount)
 	}
 
-	if len(m.QiMul) > MaxModuliCount {
-		return fmt.Errorf("#qiMul is larger than %d", MaxModuliCount)
-	}
-
 	for i, qi := range m.Qi {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("qi bit-size for i=%d is larger than %d", i, MaxModuliSize)
@@ -537,12 +494,6 @@ func checkModuli(m *Moduli, logN uint64) (err error) {
 	for i, pi := range m.Pi {
 		if uint64(bits.Len64(pi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("Pi bit-size for i=%d is larger than %d", i, MaxModuliSize)
-		}
-	}
-
-	for i, qi := range m.QiMul {
-		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
-			return fmt.Errorf("qiMul bitsize n°%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
@@ -557,12 +508,6 @@ func checkModuli(m *Moduli, logN uint64) (err error) {
 	for i, pi := range m.Pi {
 		if !ring.IsPrime(pi) || pi&((N<<1)-1) != 1 {
 			return fmt.Errorf("Pi n°%d is not an NTT prime", i)
-		}
-	}
-
-	for i, qi := range m.QiMul {
-		if !ring.IsPrime(qi) || qi&((N<<1)-1) != 1 {
-			return fmt.Errorf("qiMul n°%d is not an NTT prime", i)
 		}
 	}
 
@@ -584,10 +529,6 @@ func checkLogModuli(lm *LogModuli) (err error) {
 		return fmt.Errorf("#LogPi is larger than %d", MaxModuliCount)
 	}
 
-	if len(lm.LogQiMul) > MaxModuliCount {
-		return fmt.Errorf("#LogQiMul is larger than %d", MaxModuliCount)
-	}
-
 	for i, qi := range lm.LogQi {
 		if qi > MaxModuliSize {
 			return fmt.Errorf("LogQi for i=%d is larger than %d", i, MaxModuliSize)
@@ -597,12 +538,6 @@ func checkLogModuli(lm *LogModuli) (err error) {
 	for i, pi := range lm.LogPi {
 		if pi > MaxModuliSize {
 			return fmt.Errorf("LogPi for i=%d is larger than %d", i, MaxModuliSize)
-		}
-	}
-
-	for i, qi := range lm.LogQiMul {
-		if qi > MaxModuliSize {
-			return fmt.Errorf("LogQiMul for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
@@ -625,14 +560,10 @@ func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
 		primesbitlen[pj]++
 	}
 
-	for _, qi := range lm.LogQiMul {
-		primesbitlen[qi]++
-	}
-
 	// For each bit-size, it finds that many primes
 	primes := make(map[uint64][]uint64)
 	for key, value := range primesbitlen {
-		primes[key] = ring.GenerateNTTPrimes(key, logN, value)
+		primes[key] = ring.GenerateNTTPrimes(key, 2<<logN, value)
 	}
 
 	// Assigns the primes to the CKKS moduli chain
@@ -647,12 +578,6 @@ func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
 	for i, pj := range lm.LogPi {
 		m.Pi[i] = primes[pj][0]
 		primes[pj] = primes[pj][1:]
-	}
-
-	m.QiMul = make([]uint64, len(lm.LogQiMul))
-	for i, qi := range lm.LogQiMul {
-		m.QiMul[i] = primes[qi][0]
-		primes[qi] = primes[qi][1:]
 	}
 
 	return

@@ -2,16 +2,23 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-## Unreleased changes
+## [2.1.0] - 2020-12-11
+
+### Added
+- BFV : special-purpose plaintext types (`PlaintextRingT` or `PlaintextMul`) for optimized ct-pt operations. See bfv/encoder.go and bfv/plaintext.go.
+- BFV : allocation-free `Encoder` methods
+- RING : `GenNTTPrimes` now takes the value `Nth` (for Nth primitive root) as input rather than `logN`.
 
 ### Changed
-- CKKS : API of evaluator.RotateColumns becomes Evaluator.Rotate
-- CKKS : the change of variable in evaluator.EvaluateCheby isn't done automatically anymore and the user must do it before calling the function to ensure correctness.
+- BFV : the `Encoder.DecodeUint64` and `Encoder.DecodeInt64` methods now take the output slice as argument.
+- CKKS : API of `Evaluator.RotateColumns` becomes `Evaluator.Rotate`
+- CKKS : the change of variable in `Evaluator.EvaluateCheby` isn't done automatically anymore and the user must do it before calling the function to ensure correctness.
 - CKKS : when encoding, the number of slots must now be given in log2 basis. This is to prevent errors that would induced by zero values or non power of two values.
-- CKKS : new encoder API : EncodeAtLvlNew and EncodeNTTAtLvlNew, which allow a user to encode a plaintext at a specific level.
+- CKKS : new encoder API : `EncodeAtLvlNew` and `EncodeNTTAtLvlNew`, which allow a user to encode a plaintext at a specific level.
 
 ### Removed
-- CKKS : evaluator.EvaluateChebySpecial
+- CKKS : removed method `Evaluator.EvaluateChebySpecial`
+- BFV : removed `QiMul` field from `bfv.Parameters`. It is now automatically generated.
 
 ## [2.0.0] - 2020-10-07
 

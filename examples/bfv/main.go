@@ -129,7 +129,7 @@ func obliviousRiding() {
 		evaluator.Add(RiderCiphertext, DriversCiphertexts[i], RiderCiphertext)
 	}
 
-	result := encoder.DecodeUint(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)))
+	result := encoder.DecodeUintNew(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)))
 
 	minIndex, minPosX, minPosY, minDist := uint64(0), params.T(), params.T(), params.T()
 

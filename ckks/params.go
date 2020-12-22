@@ -681,7 +681,7 @@ func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
 	// For each bit-size, finds that many primes
 	primes := make(map[uint64][]uint64)
 	for key, value := range primesbitlen {
-		primes[key] = ring.GenerateNTTPrimes(key, logN, value)
+		primes[key] = ring.GenerateNTTPrimes(key, 2<<logN, value)
 	}
 
 	// Assigns the primes to the ckks moduli chain

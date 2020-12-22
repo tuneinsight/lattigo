@@ -42,31 +42,31 @@ func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 }
 
 func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) *Plaintext {
-	plaintext := NewPlaintext(decryptor.params)
-
-	decryptor.Decrypt(ciphertext, plaintext)
-
-	return plaintext
+	p := NewPlaintext(decryptor.params)
+	decryptor.Decrypt(ciphertext, p)
+	return p
 }
 
-func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
-	ringQ := decryptor.ringQ
+func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, p *Plaintext) {
 
-	ringQ.NTTLazy(ciphertext.value[ciphertext.Degree()], plaintext.value)
+	ringQ := decryptor.ringQ
+	tmp := decryptor.polypool
+
+	ringQ.NTTLazy(ciphertext.value[ciphertext.Degree()], p.value)
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
-		ringQ.MulCoeffsMontgomery(plaintext.value, decryptor.sk.sk, plaintext.value)
-		ringQ.NTTLazy(ciphertext.value[i-1], decryptor.polypool)
-		ringQ.Add(plaintext.value, decryptor.polypool, plaintext.value)
+		ringQ.MulCoeffsMontgomery(p.value, decryptor.sk.sk, p.value)
+		ringQ.NTTLazy(ciphertext.value[i-1], tmp)
+		ringQ.Add(p.value, tmp, p.value)
 
 		if i&3 == 3 {
-			ringQ.Reduce(plaintext.value, plaintext.value)
+			ringQ.Reduce(p.value, p.value)
 		}
 	}
 
 	if (ciphertext.Degree())&3 != 3 {
-		ringQ.Reduce(plaintext.value, plaintext.value)
+		ringQ.Reduce(p.value, p.value)
 	}
 
-	ringQ.InvNTT(plaintext.value, plaintext.value)
+	ringQ.InvNTT(p.value, p.value)
 }

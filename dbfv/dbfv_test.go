@@ -600,15 +600,6 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		P0.Finalize(ciphertext, crp, P0.share, ciphertext)
 
-		/*
-			// We refresh the ciphertext with the simulated error
-			P0.Decrypt(ciphertext, P0.share.RefreshShareDecrypt, P0.ptShare.Value()[0])      // Masked decryption
-			P0.Recode(P0.ptShare.Value()[0], P0.ptShare.Value()[0])                          // Masked re-encoding
-			P0.Recrypt(P0.ptShare.Value()[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption
-		*/
-
-		// The refresh also be called all at once with P0.Finalize(ciphertext, crp, P0.share, ctOut)
-
 		// Square the refreshed ciphertext up to the maximum depth-1
 		for i := 0; i < maxDepth-1; i++ {
 
@@ -827,7 +818,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		modulus := (testCtx.dbfvContext.ringQ.Modulus)
 		crp := make([]*ring.Poly, len(modulus))
 		for j := 0; j < len(modulus); j++ {
-			crp[j] = crpGenerator.ReadNew() //make([]*ring.Poly, bitLog)
+			crp[j] = crpGenerator.ReadNew()
 
 		}
 
@@ -879,10 +870,7 @@ func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 
 	crp := make([]*ring.Poly, len(modulus))
 	for j := 0; j < len(modulus); j++ {
-		crp[j] = crpGenerator.ReadNew() //make([]*ring.Poly, bitLog)
-		//for u := uint64(0); u < bitLog; u++ {
-		//	crp[j][u] = crpGenerator.ClockUniformNew()
-		//}
+		crp[j] = crpGenerator.ReadNew()
 	}
 
 	t.Run(fmt.Sprintf("Marshalling/RLKG/N=%d/limbQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(t *testing.T) {

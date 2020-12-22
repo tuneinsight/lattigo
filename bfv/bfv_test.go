@@ -696,8 +696,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 	testMarshalRotKey(testctx, t)
 }
 
-
-func testMarshalParameters(testctx *testContext, t *testing.T){
+func testMarshalParameters(testctx *testContext, t *testing.T) {
 	t.Run("Marshaller/Parameters/ZeroValue", func(t *testing.T) {
 		bytes, err := (&Parameters{}).MarshalBinary()
 		assert.Nil(t, err)
@@ -717,7 +716,7 @@ func testMarshalParameters(testctx *testContext, t *testing.T){
 	})
 }
 
-func testMarshalCiphertext(testctx *testContext, t *testing.T){
+func testMarshalCiphertext(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Marshaller/Ciphertext/", testctx.params), func(t *testing.T) {
 
@@ -736,8 +735,7 @@ func testMarshalCiphertext(testctx *testContext, t *testing.T){
 	})
 }
 
-
-func testMarshalSK(testctx *testContext, t *testing.T){
+func testMarshalSK(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/Sk/", testctx.params), func(t *testing.T) {
 
 		marshalledSk, err := testctx.sk.MarshalBinary()
@@ -753,7 +751,7 @@ func testMarshalSK(testctx *testContext, t *testing.T){
 	})
 }
 
-func testMarshalPK(testctx *testContext, t *testing.T){
+func testMarshalPK(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Marshaller/Pk/", testctx.params), func(t *testing.T) {
 
@@ -773,7 +771,7 @@ func testMarshalPK(testctx *testContext, t *testing.T){
 
 }
 
-func testMarshalEvaluationKey(testctx *testContext, t *testing.T){
+func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/EvaluationKey/", testctx.params), func(t *testing.T) {
 
 		evalkey := testctx.kgen.GenRelinKey(testctx.sk, 2)
@@ -799,7 +797,7 @@ func testMarshalEvaluationKey(testctx *testContext, t *testing.T){
 	})
 }
 
-func testMarshalSwitchingKey(testctx *testContext, t *testing.T){
+func testMarshalSwitchingKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/SwitchingKey/", testctx.params), func(t *testing.T) {
 
 		skOut := testctx.kgen.GenSecretKey()
@@ -824,8 +822,7 @@ func testMarshalSwitchingKey(testctx *testContext, t *testing.T){
 	})
 }
 
-
-func testMarshalRotKey(testctx *testContext, t *testing.T){
+func testMarshalRotKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/RotationKey/", testctx.params), func(t *testing.T) {
 
 		rotationKey := NewRotationKeys()

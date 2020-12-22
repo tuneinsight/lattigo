@@ -66,23 +66,23 @@ func TestRing(t *testing.T) {
 		if testContext, err = genTestParams(defaultParam); err != nil {
 			t.Error(err)
 		}
-		//testPRNG(testContext, t)
-		//testGenerateNTTPrimes(testContext, t)
-		//testImportExportPolyString(testContext, t)
-		//testDivFloorByLastModulusMany(testContext, t)
-		//testDivRoundByLastModulusMany(testContext, t)
-		//testMarshalBinary(testContext, t)
-		//testUniformSampler(testContext, t)
-		//testGaussianSampler(testContext, t)
+		testPRNG(testContext, t)
+		testGenerateNTTPrimes(testContext, t)
+		testImportExportPolyString(testContext, t)
+		testDivFloorByLastModulusMany(testContext, t)
+		testDivRoundByLastModulusMany(testContext, t)
+		testMarshalBinary(testContext, t)
+		testUniformSampler(testContext, t)
+		testGaussianSampler(testContext, t)
 		testTernarySampler(testContext, t)
-		//testGaloisShift(testContext, t)
-		//testModularReduction(testContext, t)
-		//testMForm(testContext, t)
-		//testMulScalarBigint(testContext, t)
-		//testMulPoly(testContext, t)
-		//testExtendBasis(testContext, t)
-		//testScaling(testContext, t)
-		//testMultByMonomial(testContext, t)
+		testGaloisShift(testContext, t)
+		testModularReduction(testContext, t)
+		testMForm(testContext, t)
+		testMulScalarBigint(testContext, t)
+		testMulPoly(testContext, t)
+		testExtendBasis(testContext, t)
+		testScaling(testContext, t)
+		testMultByMonomial(testContext, t)
 	}
 }
 
@@ -104,23 +104,23 @@ func testNewRing(t *testing.T) {
 		require.Nil(t, r)
 		require.Error(t, err)
 
-		r, err = NewRing(8, []uint64{7}) // Passing non NTT-enabling coeff modulus
-		require.NotNil(t, r)             // Should still return a Ring instance
-		require.Error(t, err)            // Should also return an error due to non NTT
+		r, err = NewRing(16, []uint64{7}) // Passing non NTT-enabling coeff modulus
+		require.NotNil(t, r)              // Should still return a Ring instance
+		require.Error(t, err)             // Should also return an error due to non NTT
 
-		r, err = NewRing(8, []uint64{4}) // Passing non prime moduli
-		require.Nil(t, r)                // Should still return a Ring instance
-		require.Error(t, err)            // Should also return an error due to non NTT
+		r, err = NewRing(16, []uint64{4}) // Passing non prime moduli
+		require.NotNil(t, r)              // Should still return a Ring instance
+		require.Error(t, err)             // Should also return an error due to non NTT
 
-		r, err = NewRing(8, []uint64{17, 7}) // Passing a NTT-enabling and a non NTT-enabling coeff modulus
-		require.NotNil(t, r)                 // Should still return a Ring instance
-		require.Error(t, err)                // Should also return an error due to non NTT
+		r, err = NewRing(16, []uint64{97, 7}) // Passing a NTT-enabling and a non NTT-enabling coeff modulus
+		require.NotNil(t, r)                  // Should still return a Ring instance
+		require.Error(t, err)                 // Should also return an error due to non NTT
 
-		r, err = NewRing(8, []uint64{17, 17}) // Passing non CRT-enabling coeff modulus
-		require.Nil(t, r)                     // Should not return a Ring instance
+		r, err = NewRing(16, []uint64{97, 97}) // Passing non CRT-enabling coeff modulus
+		require.Nil(t, r)                      // Should not return a Ring instance
 		require.Error(t, err)
 
-		r, err = NewRing(8, []uint64{17}) // Passing NTT-enabling coeff modulus
+		r, err = NewRing(16, []uint64{97}) // Passing NTT-enabling coeff modulus
 		require.NotNil(t, r)
 		require.NoError(t, err)
 
@@ -335,7 +335,7 @@ func testTernarySampler(testContext *testParams, t *testing.T) {
 		})
 	}
 
-	for _, p := range []uint64{0, 64, 96, 128, 256, 512, 1024} {
+	for _, p := range []uint64{0, 64, 96, 128, 256} {
 		t.Run(testString(fmt.Sprintf("TernarySampler/hw=%d/", p), testContext.ringQ), func(t *testing.T) {
 
 			prng, err := utils.NewPRNG()
@@ -350,11 +350,11 @@ func testTernarySampler(testContext *testParams, t *testing.T) {
 			for i := range testContext.ringQ.Modulus {
 				hw := uint64(0)
 				for _, c := range pol.Coeffs[i] {
-					if c != 0{
+					if c != 0 {
 						hw++
 					}
 				}
-				require.True(t, hw==p)
+				require.True(t, hw == p)
 			}
 		})
 	}

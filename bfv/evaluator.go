@@ -340,7 +340,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 	// Case where both Elements are of degree 1
 	if ct0.Degree() == 1 && ct1.Degree() == 1 {
 		eval.tensoreLowDeg(ct0, ct1)
-	// Case where at least one element is not of degree 1
+		// Case where at least one element is not of degree 1
 	} else {
 		eval.tensortLargeDeg(ct0, ct1)
 	}
@@ -348,7 +348,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 	eval.quantize(ctOut)
 }
 
-func (eval *evaluator) modUpAndNTT(ct *Element, cQ, cQMul []*ring.Poly){
+func (eval *evaluator) modUpAndNTT(ct *Element, cQ, cQMul []*ring.Poly) {
 	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
 	for i := range ct.value {
 		eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct.value[i], cQMul[i])
@@ -357,7 +357,7 @@ func (eval *evaluator) modUpAndNTT(ct *Element, cQ, cQMul []*ring.Poly){
 	}
 }
 
-func (eval *evaluator) tensoreLowDeg(ct0, ct1 *Element){
+func (eval *evaluator) tensoreLowDeg(ct0, ct1 *Element) {
 
 	c0Q1 := eval.poolQ[0]
 	c0Q2 := eval.poolQmul[0]
@@ -428,7 +428,7 @@ func (eval *evaluator) tensortLargeDeg(ct0, ct1 *Element) {
 	c2Q1 := eval.poolQ[2]
 	c2Q2 := eval.poolQmul[2]
 
-	for i := uint64(0); i < ct0.Degree() + ct1.Degree()+1; i++ {
+	for i := uint64(0); i < ct0.Degree()+ct1.Degree()+1; i++ {
 		c2Q1[i].Zero()
 		c2Q2[i].Zero()
 	}
@@ -472,7 +472,7 @@ func (eval *evaluator) tensortLargeDeg(ct0, ct1 *Element) {
 	}
 }
 
-func (eval *evaluator) quantize(ctOut *Element){
+func (eval *evaluator) quantize(ctOut *Element) {
 
 	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
 	levelQMul := uint64(len(eval.ringQMul.Modulus) - 1)

@@ -54,8 +54,8 @@ func BenchmarkBootstrapp(b *testing.B) {
 			t = time.Now()
 			ct = btp.subSum(ct)
 			b.Log("After SubSum :", time.Since(t), ct.Level(), ct.Scale())
-			// Part 1 : Coeffs to slots
 
+			// Part 1 : Coeffs to slots
 			t = time.Now()
 			ct0, ct1 = btp.coeffsToSlots(ct)
 			b.Log("After CtS    :", time.Since(t), ct0.Level(), ct0.Scale())

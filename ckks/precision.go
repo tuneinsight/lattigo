@@ -126,8 +126,8 @@ func (prec *PrecisionStats) calcCDF(precs []float64, res []struct {
 	sortedPrecs := make([]float64, len(precs))
 	copy(sortedPrecs, precs)
 	sort.Float64s(sortedPrecs)
-	minPrec := sortedPrecs[0]                  //math.Log2(1/real(prec.MaxDelta))
-	maxPrec := sortedPrecs[len(sortedPrecs)-1] //math.Log2(1/real(prec.MinDelta))
+	minPrec := sortedPrecs[0]
+	maxPrec := sortedPrecs[len(sortedPrecs)-1]
 	for i := 0; i < prec.cdfResol; i++ {
 		curPrec := minPrec + float64(i)*(maxPrec-minPrec)/float64(prec.cdfResol)
 		for countSmaller, p := range sortedPrecs {

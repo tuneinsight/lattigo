@@ -132,8 +132,6 @@ func GenerateNTTPrimesQ(logQ, NthRoot, levels uint64) (primes []uint64) {
 
 		}
 	}
-
-	return
 }
 
 // GenerateNTTPrimesP generates "levels" different NthRoot NTT-friendly
@@ -170,6 +168,4 @@ func GenerateNTTPrimesP(logP, NthRoot, n uint64) (primes []uint64) {
 			panic("generateNTTPrimesP error: cannot generate enough primes for the given parameters")
 		}
 	}
-
-	return
 }

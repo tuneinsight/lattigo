@@ -63,7 +63,7 @@ func NewRing(N uint64, Moduli []uint64) (r *Ring, err error) {
 func (r *Ring) setParameters(N uint64, Modulus []uint64) error {
 
 	// Checks if N is a power of 2
-	if (N < 8) || (N&(N-1)) != 0 && N != 0 {
+	if (N < 16) || (N&(N-1)) != 0 && N != 0 {
 		return errors.New("invalid ring degree (must be a power of 2 >= 8)")
 	}
 

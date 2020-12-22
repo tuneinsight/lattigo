@@ -366,7 +366,7 @@ func (eval *evaluator) AddConstNew(ct0 *Ciphertext, constant interface{}) (ctOut
 	return ctOut
 }
 
-func (eval *evaluator) getConstAndScale(level uint64, constant interface{}) (cReal, cImag, scale float64){
+func (eval *evaluator) getConstAndScale(level uint64, constant interface{}) (cReal, cImag, scale float64) {
 
 	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
 	scale = 1
@@ -419,7 +419,7 @@ func (eval *evaluator) getConstAndScale(level uint64, constant interface{}) (cRe
 		cImag = float64(0)
 	}
 
-	return 
+	return
 }
 
 // AddConst adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in ctOut.

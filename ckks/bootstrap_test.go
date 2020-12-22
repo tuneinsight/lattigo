@@ -89,13 +89,9 @@ func testChebySin(testContext *testParams, btpParams *BootstrapParams, t *testin
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		//fmt.Println(ciphertext.Level() - 1)
-		//start := time.Now()
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
 			t.Error(err)
 		}
-		//fmt.Printf("Elapsed : %s \n", time.Since(start))
-		//fmt.Println(ciphertext.Level())
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
@@ -162,12 +158,9 @@ func testChebyCos(testContext *testParams, btpParams *BootstrapParams, t *testin
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		//fmt.Println(ciphertext.Level(), ciphertext.Scale())
-		//start := time.Now()
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
 			t.Error(err)
 		}
-		//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 		for i := 0; i < scNum; i++ {
 			sqrt2pi *= sqrt2pi
@@ -177,8 +170,6 @@ func testChebyCos(testContext *testParams, btpParams *BootstrapParams, t *testin
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 		}
 
-		//fmt.Printf("Elapsed : %s \n", time.Since(start))
-		//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
 		testContext.params.scale = DefaultScale
@@ -239,12 +230,9 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrapParams, t *t
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		//fmt.Println(ciphertext.Level(), ciphertext.Scale())
-		//start := time.Now()
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
 			t.Error(err)
 		}
-		//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 
 		for i := 0; i < scNum; i++ {
 			sqrt2pi *= sqrt2pi
@@ -254,8 +242,6 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrapParams, t *t
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 		}
 
-		//fmt.Printf("Elapsed : %s \n", time.Since(start))
-		//fmt.Println(ciphertext.Level(), ciphertext.Scale())
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
 		testContext.params.scale = DefaultScale
@@ -295,9 +281,7 @@ func testbootstrap(testContext *testParams, btpParams *BootstrapParams, t *testi
 		for i := 0; i < 1; i++ {
 
 			ciphertext = btp.Bootstrapp(ciphertext)
-
 			//testContext.evaluator.SetScale(ciphertext, testContext.params.scale)
-
 			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 		}
 

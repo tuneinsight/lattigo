@@ -17,13 +17,13 @@ var pi = "3.14159265358979323846264338327950288419716939937510582097494459230781
 
 // Encoder is an interface implenting the encoding algorithms.
 type Encoder interface {
-	Encode(plaintext *Plaintext, values []complex128, slots uint64)
-	EncodeNew(values []complex128, slots uint64) (plaintext *Plaintext)
-	EncodeAtLvlNew(level uint64, values []complex128, slots uint64) (plaintext *Plaintext)
-	EncodeNTT(plaintext *Plaintext, values []complex128, slots uint64)
-	EncodeNTTAtLvlNew(level uint64, values []complex128, slots uint64) (plaintext *Plaintext)
-	Decode(plaintext *Plaintext, slots uint64) (res []complex128)
-	Embed(values []complex128, slots uint64)
+	Encode(plaintext *Plaintext, values []complex128, logSlots uint64)
+	EncodeNew(values []complex128, logSlots uint64) (plaintext *Plaintext)
+	EncodeAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
+	EncodeNTT(plaintext *Plaintext, values []complex128, logSlots uint64)
+	EncodeNTTAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
+	Decode(plaintext *Plaintext, logSlots uint64) (res []complex128)
+	Embed(values []complex128, logSlots uint64)
 	ScaleUp(pol *ring.Poly, scale float64, moduli []uint64)
 	WipeInternalMemory()
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
@@ -32,12 +32,12 @@ type Encoder interface {
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
 type EncoderBigComplex interface {
-	Encode(plaintext *Plaintext, values []*ring.Complex, slots uint64)
-	EncodeNew(values []*ring.Complex, slots uint64) (plaintext *Plaintext)
-	EncodeAtLvlNew(level uint64, values []*ring.Complex, slots uint64) (plaintext *Plaintext)
-	EncodeNTT(plaintext *Plaintext, values []*ring.Complex, slots uint64)
-	EncodeNTTAtLvlNew(level uint64, values []*ring.Complex, slots uint64) (plaintext *Plaintext)
-	Decode(plaintext *Plaintext, slots uint64) (res []*ring.Complex)
+	Encode(plaintext *Plaintext, values []*ring.Complex, logSlots uint64)
+	EncodeNew(values []*ring.Complex, logSlots uint64) (plaintext *Plaintext)
+	EncodeAtLvlNew(level uint64, values []*ring.Complex, logSlots uint64) (plaintext *Plaintext)
+	EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots uint64)
+	EncodeNTTAtLvlNew(level uint64, values []*ring.Complex, logSlots uint64) (plaintext *Plaintext)
+	Decode(plaintext *Plaintext, logSlots uint64) (res []*ring.Complex)
 	FFT(values []*ring.Complex, N uint64)
 	InvFFT(values []*ring.Complex, N uint64)
 

@@ -39,6 +39,8 @@ func NewPCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) *PCKSProtoc
 	pcks.share0tmp = dckksContext.ringQP.NewPoly()
 	pcks.share1tmp = dckksContext.ringQP.NewPoly()
 
+	pcks.sigmaSmudging = sigmaSmudging
+
 	pcks.baseconverter = ring.NewFastBasisExtender(dckksContext.ringQ, dckksContext.ringP)
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -63,6 +65,8 @@ func (pcks *PCKSProtocol) AllocateShares(level uint64) (s PCKSShare) {
 //
 // and broadcasts the result to the other j-1 parties.
 func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.Ciphertext, shareOut PCKSShare) {
+
+	// Planned improvement : adapt share size to ct.Level() to improve efficiency.
 
 	ringQ := pcks.dckksContext.ringQ
 	ringQP := pcks.dckksContext.ringQP

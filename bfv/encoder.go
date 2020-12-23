@@ -10,7 +10,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1.
+// GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = 5
 
@@ -334,12 +334,13 @@ func (encoder *encoder) DecodeInt(p interface{}, coeffs []int64) {
 	encoder.ringT.NTT(encoder.tmpPtRt.value, encoder.tmpPoly)
 
 	modulus := int64(encoder.params.t)
+	modulusHalf := modulus >> 1
 	var value int64
 	for i := uint64(0); i < encoder.ringQ.N; i++ {
 
 		value = int64(encoder.tmpPoly.Coeffs[0][encoder.indexMatrix[i]])
 		coeffs[i] = value
-		if value > modulus>>1 {
+		if value >= modulusHalf {
 			coeffs[i] -= modulus
 		}
 	}

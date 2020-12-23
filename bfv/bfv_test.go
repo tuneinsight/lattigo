@@ -3,9 +3,7 @@ package bfv
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,9 +39,6 @@ type testContext struct {
 func TestBFV(t *testing.T) {
 
 	var err error
-	var testctx = new(testContext)
-
-	rand.Seed(time.Now().UnixNano())
 
 	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
@@ -51,11 +46,12 @@ func TestBFV(t *testing.T) {
 	}
 	if *flagLongTest {
 		defaultParams = DefaultParams // the long test suite runs for all default parameters
-		fmt.Println("bfv runing in long mode")
+		fmt.Println("bfv running in long mode")
 	}
 
 	for _, p := range defaultParams {
 
+		var testctx *testContext
 		if testctx, err = genTestParams(p); err != nil {
 			panic(err)
 		}
@@ -181,14 +177,56 @@ func verifyTestVectors(testctx *testContext, decryptor Decryptor, coeffs *ring.P
 }
 
 func testEncoder(testctx *testContext, t *testing.T) {
-	t.Run(testString("Encoder/Encode&Decode/RingT/", testctx.params), func(t *testing.T) {
+	t.Run(testString("Encoder/Encode&Decode/RingT/Uint/", testctx.params), func(t *testing.T) {
 		values, plaintext := newTestVectorsRingT(testctx, t)
 		verifyTestVectors(testctx, nil, values, plaintext, t)
 	})
 
-	t.Run(testString("Encoder/Encode&Decode/RingQ/", testctx.params), func(t *testing.T) {
+	t.Run(testString("Encoder/Encode&Decode/RingT/Int/", testctx.params), func(t *testing.T) {
+
+		T := testctx.params.t
+		THalf := T >> 1
+		coeffs := testctx.uSampler.ReadNew()
+		coeffsInt := make([]int64, len(coeffs.Coeffs[0]))
+		for i, c := range coeffs.Coeffs[0] {
+			c %= T
+			if c >= THalf {
+				coeffsInt[i] = -int64(T - c)
+			} else {
+				coeffsInt[i] = int64(c)
+			}
+		}
+		plaintext := NewPlaintextRingT(testctx.params)
+		testctx.encoder.EncodeIntRingT(coeffsInt, plaintext)
+		coeffsTest := testctx.encoder.DecodeIntNew(plaintext)
+
+		require.True(t, utils.EqualSliceInt64(coeffsInt, coeffsTest))
+	})
+
+	t.Run(testString("Encoder/Encode&Decode/RingQ/Uint/", testctx.params), func(t *testing.T) {
 		values, plaintext, _ := newTestVectorsRingQ(testctx, nil, t)
 		verifyTestVectors(testctx, nil, values, plaintext, t)
+	})
+
+	t.Run(testString("Encoder/Encode&Decode/RingQ/Int/", testctx.params), func(t *testing.T) {
+
+		T := testctx.params.t
+		THalf := T >> 1
+		coeffs := testctx.uSampler.ReadNew()
+		coeffsInt := make([]int64, len(coeffs.Coeffs[0]))
+		for i, c := range coeffs.Coeffs[0] {
+			c %= T
+			if c >= THalf {
+				coeffsInt[i] = -int64(T - c)
+			} else {
+				coeffsInt[i] = int64(c)
+			}
+		}
+		plaintext := NewPlaintext(testctx.params)
+		testctx.encoder.EncodeInt(coeffsInt, plaintext)
+		coeffsTest := testctx.encoder.DecodeIntNew(plaintext)
+
+		require.True(t, utils.EqualSliceInt64(coeffsInt, coeffsTest))
 	})
 
 	t.Run(testString("Encoder/Encode&Decode/PlaintextMul/", testctx.params), func(t *testing.T) {
@@ -223,6 +261,11 @@ func testEncryptor(testctx *testContext, t *testing.T) {
 	t.Run(testString("Encryptor/EncryptFromSk/", testctx.params), func(t *testing.T) {
 		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorSk.EncryptNew(plaintext), t)
 	})
+
+	t.Run(testString("Encryptor/EncryptFromCRP/", testctx.params), func(t *testing.T) {
+		samplerQP := ring.NewUniformSampler(testctx.prng, testctx.ringQP)
+		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorSk.EncryptFromCRPNew(plaintext, samplerQP.ReadNew()), t)
+	})
 }
 
 func testEvaluator(testctx *testContext, t *testing.T) {
@@ -238,12 +281,36 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
 	})
 
+	t.Run(testString("Evaluator/AddNoMod/op1=Ciphertext/op2=Ciphertext/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+		values2, _, ciphertext2 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		testctx.evaluator.AddNoMod(ciphertext1, ciphertext2, ciphertext1)
+		testctx.evaluator.Reduce(ciphertext1, ciphertext1)
+		testctx.ringT.Add(values1, values2, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
+	})
+
 	t.Run(testString("Evaluator/AddNew/op1=Ciphertext/op2=Ciphertext/", testctx.params), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 		values2, _, ciphertext2 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
 		ciphertext1 = testctx.evaluator.AddNew(ciphertext1, ciphertext2)
+		testctx.ringT.Add(values1, values2, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
+	})
+
+	t.Run(testString("Evaluator/AddNoModNew/op1=Ciphertext/op2=Ciphertext/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+		values2, _, ciphertext2 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		ciphertext1 = testctx.evaluator.AddNoModNew(ciphertext1, ciphertext2)
+		ciphertext1 = testctx.evaluator.ReduceNew(ciphertext1)
 		testctx.ringT.Add(values1, values2, values1)
 
 		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
@@ -286,6 +353,18 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 		values2, _, ciphertext2 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
 		testctx.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1)
+		testctx.ringT.Sub(values1, values2, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
+	})
+
+	t.Run(testString("Evaluator/SubNoMod/op1=Ciphertext/op2=Ciphertext/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+		values2, _, ciphertext2 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		testctx.evaluator.SubNoMod(ciphertext1, ciphertext2, ciphertext1)
+		testctx.evaluator.Reduce(ciphertext1, ciphertext1)
 		testctx.ringT.Sub(values1, values2, values1)
 
 		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
@@ -334,6 +413,78 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 		verifyTestVectors(testctx, testctx.decryptor, valuesWant, ciphertext2, t)
 	})
 
+	t.Run(testString("Evaluator/SubNoModNew/op1=Ciphertext/op2=Ciphertext/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+		values2, _, ciphertext2 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		ciphertext1 = testctx.evaluator.SubNoModNew(ciphertext1, ciphertext2)
+		ciphertext1 = testctx.evaluator.ReduceNew(ciphertext1)
+		testctx.ringT.Sub(values1, values2, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
+	})
+
+	t.Run(testString("Evaluator/SubNoMod/op1=Ciphertext/op2=Plaintext/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+		values2, plaintext2, ciphertext2 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		valuesWant := testctx.ringT.NewPoly()
+
+		testctx.evaluator.SubNoMod(ciphertext1, plaintext2, ciphertext2)
+		testctx.evaluator.Reduce(ciphertext2, ciphertext2)
+		testctx.ringT.Sub(values1, values2, valuesWant)
+		verifyTestVectors(testctx, testctx.decryptor, valuesWant, ciphertext2, t)
+
+		testctx.evaluator.SubNoMod(plaintext2, ciphertext1, ciphertext2)
+		testctx.evaluator.Reduce(ciphertext2, ciphertext2)
+		testctx.ringT.Sub(values2, values1, valuesWant)
+		verifyTestVectors(testctx, testctx.decryptor, valuesWant, ciphertext2, t)
+	})
+
+	t.Run(testString("Evaluator/Neg/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		testctx.evaluator.Neg(ciphertext1, ciphertext1)
+		testctx.ringT.Neg(values1, values1)
+		testctx.ringT.Reduce(values1, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
+	})
+
+	t.Run(testString("Evaluator/NegNew/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		ciphertext1 = testctx.evaluator.NegNew(ciphertext1)
+		testctx.ringT.Neg(values1, values1)
+		testctx.ringT.Reduce(values1, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
+	})
+
+	t.Run(testString("Evaluator/MulScalar/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		testctx.evaluator.MulScalar(ciphertext1, 37, ciphertext1)
+		testctx.ringT.MulScalar(values1, 37, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
+	})
+
+	t.Run(testString("Evaluator/MulScalarNew/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		ciphertext1 = testctx.evaluator.MulScalarNew(ciphertext1, 37)
+		testctx.ringT.MulScalar(values1, 37, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
+	})
+
 	t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Ciphertext/", testctx.params), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
@@ -344,6 +495,37 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 		testctx.ringT.MulCoeffs(values1, values2, values1)
 
 		verifyTestVectors(testctx, testctx.decryptor, values1, receiver, t)
+	})
+
+	t.Run(testString("Evaluator/MulNew/op1=Ciphertext/op2=Ciphertext/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+		values2, _, ciphertext2 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		receiver := testctx.evaluator.MulNew(ciphertext1, ciphertext2)
+		testctx.ringT.MulCoeffs(values1, values2, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, receiver, t)
+	})
+
+	t.Run(testString("Evaluator/MulSquare/op1=Ciphertext/op2=Ciphertext/", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		receiver := NewCiphertext(testctx.params, ciphertext1.Degree()+ciphertext1.Degree())
+		testctx.evaluator.Mul(ciphertext1, ciphertext1, receiver)
+		testctx.ringT.MulCoeffs(values1, values1, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, receiver, t)
+
+		if testctx.params.logN < 13 {
+			t.Skip()
+		}
+		receiver2 := NewCiphertext(testctx.params, receiver.Degree()+receiver.Degree())
+		testctx.evaluator.Mul(receiver, receiver, receiver2)
+		testctx.ringT.MulCoeffs(values1, values1, values1)
+
+		verifyTestVectors(testctx, testctx.decryptor, values1, receiver2, t)
 	})
 
 	t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Plaintext/", testctx.params), func(t *testing.T) {
@@ -509,10 +691,37 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 			verifyTestVectors(testctx, testctx.decryptor, valuesWant, receiver, t)
 		}
 	})
+
+	t.Run(testString("Evaluator/Rotate/InnerSum/", testctx.params), func(t *testing.T) {
+		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		testctx.evaluator.InnerSum(ciphertext, rotkey, ciphertext)
+
+		var sum uint64
+		for _, c := range values.Coeffs[0] {
+			sum += c
+		}
+
+		sum %= testctx.params.t
+
+		for i := range values.Coeffs[0] {
+			values.Coeffs[0][i] = sum
+		}
+		verifyTestVectors(testctx, testctx.decryptor, values, ciphertext, t)
+	})
 }
 
 func testMarshaller(testctx *testContext, t *testing.T) {
+	testMarshalParameters(testctx, t)
+	testMarshalCiphertext(testctx, t)
+	testMarshalSK(testctx, t)
+	testMarshalPK(testctx, t)
+	testMarshalEvaluationKey(testctx, t)
+	testMarshalSwitchingKey(testctx, t)
+	testMarshalRotKey(testctx, t)
+}
 
+func testMarshalParameters(testctx *testContext, t *testing.T) {
 	t.Run("Marshaller/Parameters/ZeroValue", func(t *testing.T) {
 		bytes, err := (&Parameters{}).MarshalBinary()
 		assert.Nil(t, err)
@@ -530,8 +739,9 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, testctx.params, p)
 	})
+}
 
-	ringQP := testctx.ringQP
+func testMarshalCiphertext(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Marshaller/Ciphertext/", testctx.params), func(t *testing.T) {
 
@@ -548,33 +758,45 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 			require.True(t, testctx.ringQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]))
 		}
 	})
+}
 
+func testMarshalSK(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/Sk/", testctx.params), func(t *testing.T) {
 
 		marshalledSk, err := testctx.sk.MarshalBinary()
 		require.NoError(t, err)
 
-		sk := new(SecretKey)
+		sk := NewSecretKey(testctx.params)
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
-		require.True(t, ringQP.Equal(sk.sk, testctx.sk.sk))
+		sk.Set(sk.Get())
+
+		require.True(t, testctx.ringQP.Equal(sk.sk, testctx.sk.sk))
 	})
+}
+
+func testMarshalPK(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Marshaller/Pk/", testctx.params), func(t *testing.T) {
 
 		marshalledPk, err := testctx.pk.MarshalBinary()
 		require.NoError(t, err)
 
-		pk := new(PublicKey)
+		pk := NewPublicKey(testctx.params)
 		err = pk.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
 
+		pk.Set(pk.Get())
+
 		for k := range testctx.pk.pk {
-			require.True(t, ringQP.Equal(pk.pk[k], testctx.pk.pk[k]), k)
+			require.True(t, testctx.ringQP.Equal(pk.pk[k], testctx.pk.pk[k]), k)
 		}
 	})
 
+}
+
+func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/EvaluationKey/", testctx.params), func(t *testing.T) {
 
 		if testctx.params.PiCount() == 0 {
@@ -585,7 +807,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		data, err := evalkey.MarshalBinary()
 		require.NoError(t, err)
 
-		resEvalKey := new(EvaluationKey)
+		resEvalKey := NewRelinKey(testctx.params, 2)
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
@@ -597,12 +819,14 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 			for j := range evakeyWant {
 
 				for k := range evakeyWant[j] {
-					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "deg %d element [%d][%d]", deg, j, k)
+					require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "deg %d element [%d][%d]", deg, j, k)
 				}
 			}
 		}
 	})
+}
 
+func testMarshalSwitchingKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/SwitchingKey/", testctx.params), func(t *testing.T) {
 
 		if testctx.params.PiCount() == 0 {
@@ -615,7 +839,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		data, err := switchingKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resSwitchingKey := new(SwitchingKey)
+		resSwitchingKey := NewSwitchingKey(testctx.params)
 		err = resSwitchingKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
@@ -625,11 +849,13 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		for j := range evakeyWant {
 
 			for k := range evakeyWant[j] {
-				require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal SwitchingKey element [%d][%d]", j, k)
+				require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal SwitchingKey element [%d][%d]", j, k)
 			}
 		}
 	})
+}
 
+func testMarshalRotKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/RotationKey/", testctx.params), func(t *testing.T) {
 
 		if testctx.params.PiCount() == 0 {
@@ -647,9 +873,13 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resRotationKey := new(RotationKeys)
+		resRotationKey := NewRotationKeys()
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
+
+		resRotationKey.SetRotKey(RotationRow, 0, resRotationKey.evakeyRotRow.evakey)
+		resRotationKey.SetRotKey(RotationLeft, 1, resRotationKey.evakeyRotColLeft[1].evakey)
+		resRotationKey.SetRotKey(RotationRight, 3, resRotationKey.evakeyRotColRight[3].evakey)
 
 		for i := uint64(1); i < testctx.params.N()>>1; i++ {
 
@@ -661,7 +891,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
-						require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
+						require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
 					}
 				}
 			}
@@ -674,7 +904,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 				for j := range evakeyWant {
 
 					for k := range evakeyWant[j] {
-						require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
+						require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
 					}
 				}
 			}
@@ -688,7 +918,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 			for j := range evakeyWant {
 
 				for k := range evakeyWant[j] {
-					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRow element [%d][%d]", j, k)
+					require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRow element [%d][%d]", j, k)
 				}
 			}
 		}

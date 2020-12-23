@@ -2,6 +2,30 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
+## [2.1.1] - 2020-12-23
+
+### Added
+- BFV/CKKS : added a check for minimum polynomial degree when creating parameters.
+- BFV : added the `bfv.Element.Level` method.
+- RING : test for sparse ternary sampler.
+
+### Changed
+- BFV/CKKS : pk is now (-as + e, a) instead of (-(as + e), a).
+- BFV : harmonized the EvaluationKey setter from `SetRelinKeys` to `Set`
+- CKKS : renamed `BootstrappParams` into `BootstrappingParameters`
+- CKKS : the `Evaluator.DropLevel`, `Parameters.SetLogSlots` and `Element.Copy` methods no longer return errors
+- RING : minimum poly degree modulus is 16 to ensure the NTT correctness.
+- RING : isPrime has been replaced by big.ProbablyPrime, which is deterministic for integers < 2^64.
+
+### Fixed
+- ALL : reduced cyclomatic complexity of several functions.
+- ALL : fixed all instances reporeted by staticcheck and gosec excluding G103 (audit the use of unsafe).
+- ALL : test vectors are now generated using the crypto/rand instead of math/rand package.
+- ALL : fixed some unhandled errors.
+- BFV/CKKS :  improved the documentation: documentated several hardcoded values and fixed typos.
+- RING : fixed bias in sparse ternary sampling for some parameters.
+- RING : tests for the modular reduction algorithms are now deterministic.
+
 ## [2.1.0] - 2020-12-11
 
 ### Added

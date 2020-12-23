@@ -142,14 +142,9 @@ func (cEval *ComplexMultiplier) Mul(a, b, c *Complex) {
 // Div divides two arbitrary precision complex numbers together
 func (cEval *ComplexMultiplier) Div(a, b, c *Complex) {
 
-	//a = a[0]
-	//b = a[1]
-	//c = b[0]
-	//d = b[1]
-
-	// (a[0] * b[0]) + (a[1] * b[1])
-	// (a[1] * b[0]) - (a[0] * b[0])
-	// (b[0] * b[0]) + (b[1] * b[1])
+	// tmp0 = (a[0] * b[0]) + (a[1] * b[1]) real part
+	// tmp1 = (a[1] * b[0]) - (a[0] * b[0]) imag part
+	// tmp2 = (b[0] * b[0]) + (b[1] * b[1]) denominator
 
 	cEval.tmp0.Mul(a[0], b[0])
 	cEval.tmp1.Mul(a[1], b[1])
@@ -165,5 +160,4 @@ func (cEval *ComplexMultiplier) Div(a, b, c *Complex) {
 
 	c[0].Quo(cEval.tmp0, cEval.tmp2)
 	c[1].Quo(cEval.tmp1, cEval.tmp2)
-
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/bits"
-	"math/rand"
 	"testing"
 )
 
@@ -20,10 +19,9 @@ func BenchmarkRing(b *testing.B) {
 		defaultParams = DefaultParams
 	}
 
-	var testContext = new(testParams)
-
 	for _, defaultParam := range defaultParams {
 
+		var testContext *testParams
 		if testContext, err = genTestParams(defaultParam); err != nil {
 			panic(err)
 		}
@@ -415,15 +413,13 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 
 func benchBRed(testContext *testParams, b *testing.B) {
 
-	q := uint64(1033576114481528833)
-	u := BRedParams(q)
+	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 
-	x := rand.Uint64() % q
-	y := rand.Uint64() % q
+	u := BRedParams(q)
 
 	b.ResetTimer()
 
-	b.Run(fmt.Sprintf("BRed"), func(b *testing.B) {
+	b.Run("BRed", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			x = BRed(x, y, q, u)
 		}
@@ -432,10 +428,7 @@ func benchBRed(testContext *testParams, b *testing.B) {
 
 func benchMRed(testContext *testParams, b *testing.B) {
 
-	q := uint64(1033576114481528833)
-
-	x := rand.Uint64() % q
-	y := rand.Uint64() % q
+	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 
 	u := BRedParams(q)
 
@@ -445,7 +438,7 @@ func benchMRed(testContext *testParams, b *testing.B) {
 
 	b.ResetTimer()
 
-	b.Run(fmt.Sprintf("MRed"), func(b *testing.B) {
+	b.Run("MRed", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			x = MRed(x, y, q, m)
 		}
@@ -454,14 +447,13 @@ func benchMRed(testContext *testParams, b *testing.B) {
 
 func benchBRedAdd(testContext *testParams, b *testing.B) {
 
-	q := uint64(1033576114481528833)
-	u := BRedParams(q)
+	var q, x uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF
 
-	x := rand.Uint64()
+	u := BRedParams(q)
 
 	b.ResetTimer()
 
-	b.Run(fmt.Sprintf("BRedAdd"), func(b *testing.B) {
+	b.Run("BRedAdd", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			BRedAdd(x, q, u)
 		}

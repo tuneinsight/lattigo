@@ -341,6 +341,8 @@ func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
 
 	pointer := uint64(0)
 
+	// [RotType] [RotAmount]
+	// [  0xFF ] [ 0xFFFFFF]
 	for _, i := range mappingColL {
 
 		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(i))
@@ -352,6 +354,8 @@ func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
 		}
 	}
 
+	// [RotType] [RotAmount]
+	// [  0xFF ] [ 0xFFFFFF]
 	for _, i := range mappingColR {
 
 		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(i))
@@ -363,6 +367,8 @@ func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
 		}
 	}
 
+	// [RotType] [RotAmount]
+	// [  0xFF ] [ 0xFFFFFF]
 	if rotationkey.evakeyRotRow != nil {
 
 		data[pointer] = uint8(RotationRow)

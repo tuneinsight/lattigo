@@ -18,7 +18,7 @@ type Poly struct {
 func NewPoly(coeffs []complex128) (p *Poly) {
 
 	p = new(Poly)
-	p.coeffs = make([]complex128, len(coeffs), len(coeffs))
+	p.coeffs = make([]complex128, len(coeffs))
 	copy(p.coeffs, coeffs)
 	p.maxDeg = uint64(len(coeffs) - 1)
 	p.lead = true
@@ -49,36 +49,6 @@ func (p *Poly) Degree() uint64 {
 	return uint64(len(p.coeffs) - 1)
 }
 
-func optimalSplit(logDegree uint64) (logSplit uint64) {
-	logSplit = logDegree >> 1
-	a := (1 << logSplit) + (1 << (logDegree - logSplit)) + logDegree - logSplit - 3
-	b := (1 << (logSplit + 1)) + (1 << (logDegree - logSplit - 1)) + logDegree - logSplit - 4
-	if a > b {
-		logSplit++
-	}
-
-	return
-}
-
-func computeSmallPoly(split uint64, coeffs *Poly) (polyList []*Poly) {
-
-	if coeffs.Degree() < (1 << split) {
-		return []*Poly{coeffs}
-	}
-
-	var nextPower = uint64(1 << split)
-	for nextPower < (coeffs.Degree()>>1)+1 {
-		nextPower <<= 1
-	}
-
-	coeffsq, coeffsr := splitCoeffsCheby(coeffs, nextPower)
-
-	a := computeSmallPoly(split, coeffsq)
-	b := computeSmallPoly(split, coeffsr)
-
-	return append(a, b...)
-}
-
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
@@ -96,16 +66,20 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, evakey *Evaluati
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
 
 	for i := uint64(2); i < (1 << logSplit); i++ {
-		computePowerBasis(i, C, eval, evakey)
+		if err = computePowerBasis(i, C, eval, evakey); err != nil {
+			return nil, err
+		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-		computePowerBasis(1<<i, C, eval, evakey)
+		if err = computePowerBasis(1<<i, C, eval, evakey); err != nil {
+			return nil, err
+		}
 	}
 
 	opOut, err = recurse(eval.scale, logSplit, logDegree, pol, C, eval, evakey)
 	C = nil
-	return opOut, nil
+	return opOut, err
 }
 
 // EvaluateCheby evaluates a polynomial in Chebyshev basis on the input Ciphertext in ceil(log2(deg+1))+1 levels.

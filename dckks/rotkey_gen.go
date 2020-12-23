@@ -144,8 +144,6 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 
 	rtg.tmpPoly[0].Zero()
 	rtg.tmpPoly[1].Zero()
-
-	return
 }
 
 // Aggregate is the second part of the unique round of the rotkg protocol. Uppon receiving the j-1 public shares,

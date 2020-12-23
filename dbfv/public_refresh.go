@@ -49,8 +49,7 @@ func (share *RefreshShare) MarshalBinary() ([]byte, error) {
 	}
 
 	ptr += tmp
-	tmp, err = (*share.RefreshShareRecrypt).WriteTo(data[ptr : ptr+lenRecrypt])
-	if err != nil {
+	if _, err = (*share.RefreshShareRecrypt).WriteTo(data[ptr : ptr+lenRecrypt]); err != nil {
 		return []byte{}, err
 	}
 
@@ -127,7 +126,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	ringQ.MulScalarBigint(share.RefreshShareDecrypt, rfp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
-	rfp.gaussianSampler.ReadLvl(uint64(len(ringQP.Modulus)-1), rfp.tmp1) // TODO : add smudging noise
+	rfp.gaussianSampler.ReadLvl(uint64(len(ringQP.Modulus)-1), rfp.tmp1)
 	ringQ.Add(share.RefreshShareDecrypt, rfp.tmp1, share.RefreshShareDecrypt)
 
 	for x, i := 0, uint64(len(ringQ.Modulus)); i < uint64(len(rfp.context.ringQP.Modulus)); x, i = x+1, i+1 {

@@ -12,7 +12,8 @@ type CKSProtocol struct {
 
 	sigmaSmudging float64
 
-	tmp      *ring.Poly
+	tmpQ     *ring.Poly
+	tmpP     *ring.Poly
 	tmpDelta *ring.Poly
 	hP       *ring.Poly
 
@@ -34,9 +35,12 @@ func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSPro
 
 	cks.dckksContext = dckksContext
 
-	cks.tmp = dckksContext.ringQP.NewPoly()
+	cks.tmpQ = dckksContext.ringQ.NewPoly()
+	cks.tmpP = dckksContext.ringP.NewPoly()
 	cks.tmpDelta = dckksContext.ringQ.NewPoly()
 	cks.hP = dckksContext.ringP.NewPoly()
+
+	cks.sigmaSmudging = sigmaSmudging
 
 	cks.baseconverter = ring.NewFastBasisExtender(dckksContext.ringQ, dckksContext.ringP)
 	prng, err := utils.NewPRNG()
@@ -75,24 +79,18 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 
 	ringQ.MulScalarBigintLvl(ct.Level(), shareOut, ringP.ModulusBigint, shareOut)
 
-	// TODO : improve by only computing the NTT for the required primes
-	cks.gaussianSampler.Read(cks.tmp)
-	cks.dckksContext.ringQP.NTT(cks.tmp, cks.tmp)
+	cks.gaussianSampler.ReadLvl(ct.Level(), cks.tmpQ)
+	extendBasisSmallNormAndCenter(ringQ, ringP, cks.tmpQ, cks.tmpP)
 
-	ringQ.AddLvl(ct.Level(), shareOut, cks.tmp, shareOut)
+	ringQ.NTTLvl(ct.Level(), cks.tmpQ, cks.tmpQ)
+	ringP.NTT(cks.tmpP, cks.tmpP)
 
-	for x, i := 0, uint64(len(ringQ.Modulus)); i < uint64(len(cks.dckksContext.ringQP.Modulus)); x, i = x+1, i+1 {
-		tmp0 := cks.tmp.Coeffs[i]
-		tmp1 := cks.hP.Coeffs[x]
-		for j := uint64(0); j < ringQ.N; j++ {
-			tmp1[j] += tmp0[j]
-		}
-	}
+	ringQ.AddLvl(ct.Level(), shareOut, cks.tmpQ, shareOut)
 
-	cks.baseconverter.ModDownSplitNTTPQ(ct.Level(), shareOut, cks.hP, shareOut)
+	cks.baseconverter.ModDownSplitNTTPQ(ct.Level(), shareOut, cks.tmpP, shareOut)
 
-	cks.hP.Zero()
-	cks.tmp.Zero()
+	cks.tmpQ.Zero()
+	cks.tmpP.Zero()
 }
 
 // AggregateShares is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :

@@ -13,23 +13,14 @@ import (
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
 const MaxLogN = 16
 
+// MinLogN is the log2 of the smallest supported polynomial modulus degree (needed to ensure the NTT correctness).
+const MinLogN = 4
+
 // MaxModuliCount is the largest supported number of moduli in the RNS representation.
 const MaxModuliCount = 34
 
 // MaxModuliSize is the largest bit-length supported for the moduli in the RNS representation.
 const MaxModuliSize = 60
-
-// Plaintext moduli allowing batching for the corresponding N in ascending bit-size.
-var tBatching = map[uint64][]uint64{
-	4096: {40961, 114689, 188417, 417793, 1032193, 2056193, 4169729, 8380417, 16760833, 33538049, 67084289, 134176769,
-		268369921, 536813569, 1073692673, 2147377153, 4294828033},
-	8192: {65537, 114689, 163841, 1032193, 1785857, 4079617, 8273921, 16760833, 33538049, 67043329, 133857281,
-		268369921, 536690689, 1073692673, 2147352577, 4294475777},
-	16384: {65537, 163841, 786433, 1769473, 3735553, 8257537, 16580609, 33292289, 67043329, 133857281, 268369921,
-		536641537, 1073643521, 2147352577, 4294475777},
-	32768: {65537, 786433, 1769473, 3735553, 8257537, 16580609, 33292289, 67043329, 132710401, 268369921, 536608769,
-		1073479681, 2147352577, 4293918721},
-}
 
 const (
 	// PN12QP109 is a set of parameters with N = 2^12 and log(QP) = 109
@@ -178,7 +169,7 @@ func NewParametersFromModuli(logN uint64, m *Moduli, t uint64) (p *Parameters, e
 
 	p = new(Parameters)
 
-	if logN < 0 || logN > MaxLogN {
+	if logN < MinLogN || logN > MaxLogN {
 		return nil, fmt.Errorf("invalid polynomial ring log degree: %d", logN)
 	}
 
@@ -248,11 +239,11 @@ func (p *Parameters) WithT(T uint64) (pCopy *Parameters) {
 // LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
 func (p *Parameters) LogModuli() (lm *LogModuli) {
 	lm = new(LogModuli)
-	lm.LogQi = make([]uint64, len(p.qi), len(p.qi))
+	lm.LogQi = make([]uint64, len(p.qi))
 	for i := range p.qi {
 		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.qi[i]))))
 	}
-	lm.LogPi = make([]uint64, len(p.pi), len(p.pi))
+	lm.LogPi = make([]uint64, len(p.pi))
 	for i := range p.pi {
 		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
 	}
@@ -283,14 +274,14 @@ func (p *Parameters) QiCount() uint64 {
 	return uint64(len(p.qi))
 }
 
-// Pi returns a new slice with the factors of the ciphertext modulus extention P
+// Pi returns a new slice with the factors of the ciphertext modulus extension P
 func (p *Parameters) Pi() []uint64 {
 	pi := make([]uint64, len(p.pi))
 	copy(pi, p.pi)
 	return pi
 }
 
-// PiCount returns the number of factors of the ciphertext modulus extention P
+// PiCount returns the number of factors of the ciphertext modulus extension P
 func (p *Parameters) PiCount() uint64 {
 	return uint64(len(p.pi))
 }
@@ -333,7 +324,7 @@ func (p *Parameters) LogP() uint64 {
 // LogQAlpha returns the size in bits of the sum of the norm of
 // each element of the special RNS decomposition basis for the
 // key-switching.
-// LogQAlpha is the size of the element that is multipled by the
+// LogQAlpha is the size of the element that is multiplied by the
 // error during the keyswitching and then divided by P.
 // LogQAlpha should be smaller than P or the error added during
 // the key-switching wont be negligible.
@@ -431,13 +422,19 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 		return []byte{}, nil
 	}
 
+	// data : 19 byte + len(QPi) * 8 byte
+	// 1 byte : logN
+	// 1 byte : #pi
+	// 1 byte : #pi
+	// 8 byte : t
+	// 8 byte : sigma
 	b := utils.NewBuffer(make([]byte, 0, 19+(len(p.qi)+len(p.pi))<<3))
 
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(len(p.qi)))
 	b.WriteUint8(uint8(len(p.pi)))
 	b.WriteUint64(p.t)
-	b.WriteUint64(uint64(p.sigma * (1 << 32)))
+	b.WriteUint64(math.Float64bits(p.sigma))
 	b.WriteUint64Slice(p.qi)
 	b.WriteUint64Slice(p.pi)
 
@@ -446,7 +443,7 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
 func (p *Parameters) UnmarshalBinary(data []byte) error {
-	if len(data) < 3 {
+	if len(data) < 19 {
 		return errors.New("invalid parameters encoding")
 	}
 	b := utils.NewBuffer(data)
@@ -461,14 +458,14 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	lenPi := b.ReadUint8()
 
 	p.t = b.ReadUint64()
-	p.sigma = math.Round((float64(b.ReadUint64())/float64(1<<32))*100) / 100
-	p.qi = make([]uint64, lenQi, lenQi)
-	p.pi = make([]uint64, lenPi, lenPi)
+	p.sigma = math.Float64frombits(b.ReadUint64())
+	p.qi = make([]uint64, lenQi)
+	p.pi = make([]uint64, lenPi)
 
 	b.ReadUint64Slice(p.qi)
 	b.ReadUint64Slice(p.pi)
 
-	err := checkModuli(p.Moduli(), p.logN) // TODO: check more than moduli.
+	err := checkModuli(p.Moduli(), p.logN)
 	if err != nil {
 		return err
 	}
@@ -518,7 +515,7 @@ func checkLogModuli(lm *LogModuli) (err error) {
 
 	// Checks if the parameters are empty
 	if lm.LogQi == nil || len(lm.LogQi) == 0 {
-		return fmt.Errorf("nil or empty slice provided as LogModuli.LogQi") // TODO: are our algorithm working with empty mult basis ?
+		return fmt.Errorf("nil or empty slice provided as LogModuli.LogQi")
 	}
 
 	if len(lm.LogQi) > MaxModuliCount {

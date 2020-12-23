@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/ldsec/lattigo/v2/ring"
 )
@@ -92,31 +92,29 @@ func (el *Element) SetIsNTT(value bool) {
 }
 
 // NTT puts the target element in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, it does nothing.
-func (el *Element) NTT(ringQ *ring.Ring, c *Element) error {
+func (el *Element) NTT(ringQ *ring.Ring, c *Element) {
 	if el.Degree() != c.Degree() {
-		return errors.New("error: receiver element has invalid degree (it does not match)")
+		panic(fmt.Errorf("error: receiver element has invalid degree (it does not match)"))
 	}
-	if el.IsNTT() != true {
+	if !el.IsNTT() {
 		for i := range el.value {
 			ringQ.NTTLvl(el.Level(), el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(true)
 	}
-	return nil
 }
 
 // InvNTT puts the target element outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, it does nothing.
-func (el *Element) InvNTT(ringQ *ring.Ring, c *Element) error {
+func (el *Element) InvNTT(ringQ *ring.Ring, c *Element) {
 	if el.Degree() != c.Degree() {
-		return errors.New("error: receiver element invalid degree (it does not match)")
+		panic(fmt.Errorf("error: receiver element invalid degree (it does not match)"))
 	}
-	if el.IsNTT() != false {
+	if el.IsNTT() {
 		for i := range el.value {
 			ringQ.InvNTTLvl(el.Level(), el.Value()[i], c.Value()[i])
 		}
 		c.SetIsNTT(false)
 	}
-	return nil
 }
 
 // CopyNew creates a new element as a copy of the target element.
@@ -135,7 +133,7 @@ func (el *Element) CopyNew() *Element {
 }
 
 // Copy copies the input element and its parameters on the target element.
-func (el *Element) Copy(ctxCopy *Element) (err error) {
+func (el *Element) Copy(ctxCopy *Element) {
 
 	if el != ctxCopy {
 		for i := range ctxCopy.Value() {
@@ -144,7 +142,6 @@ func (el *Element) Copy(ctxCopy *Element) (err error) {
 
 		el.CopyParams(ctxCopy)
 	}
-	return nil
 }
 
 // CopyParams copies the input element parameters on the target element

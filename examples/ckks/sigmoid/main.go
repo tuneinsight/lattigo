@@ -4,19 +4,10 @@ import (
 	"fmt"
 	"math"
 	"math/cmplx"
-	"math/rand"
-	"time"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/utils"
 )
-
-func randomFloat(min, max float64) float64 {
-	return min + rand.Float64()*(max-min)
-}
-
-func randomComplex(min, max float64) complex128 {
-	return complex(randomFloat(min, max), randomFloat(min, max))
-}
 
 func chebyshevinterpolation() {
 
@@ -26,8 +17,6 @@ func chebyshevinterpolation() {
 	// and approximates the function 1/(exp(-x) + 1) over the range [-8, 8].
 	// The result is then parsed and compared to the expected result.
 
-	rand.Seed(time.Now().UnixNano())
-
 	// Scheme params
 	params := ckks.DefaultParams[ckks.PN14QP438]
 
@@ -35,13 +24,10 @@ func chebyshevinterpolation() {
 
 	// Keys
 	kgen := ckks.NewKeyGenerator(params)
-	var sk *ckks.SecretKey
-	var pk *ckks.PublicKey
-	sk, pk = kgen.GenKeyPair()
+	sk, pk := kgen.GenKeyPair()
 
 	// Relinearization key
-	var rlk *ckks.EvaluationKey
-	rlk = kgen.GenRelinKey(sk)
+	rlk := kgen.GenRelinKey(sk)
 
 	// Encryptor
 	encryptor := ckks.NewEncryptorFromPk(params, pk)
@@ -55,7 +41,7 @@ func chebyshevinterpolation() {
 	// Values to encrypt
 	values := make([]complex128, params.Slots())
 	for i := range values {
-		values[i] = complex(randomFloat(-8, 8), 0)
+		values[i] = complex(utils.RandFloat64(-8, 8), 0)
 	}
 
 	fmt.Printf("CKKS parameters: logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n",
@@ -85,7 +71,9 @@ func chebyshevinterpolation() {
 	// Change of variable
 	evaluator.MultByConst(ciphertext, 2/(b-a), ciphertext)
 	evaluator.AddConst(ciphertext, (-a-b)/(b-a), ciphertext)
-	evaluator.Rescale(ciphertext, params.Scale(), ciphertext)
+	if err := evaluator.Rescale(ciphertext, params.Scale(), ciphertext); err != nil {
+		panic(err)
+	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
 	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk); err != nil {
@@ -109,8 +97,7 @@ func f(x complex128) complex128 {
 }
 
 func round(x complex128) complex128 {
-	var factor float64
-	factor = 100000000
+	var factor float64 = 100000000
 	a := math.Round(real(x)*factor) / factor
 	b := math.Round(imag(x)*factor) / factor
 	return complex(a, b)

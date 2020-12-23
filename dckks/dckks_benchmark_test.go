@@ -10,7 +10,7 @@ import (
 func BenchmarkDCKKS(b *testing.B) {
 
 	var err error
-	var testCtx = new(testContext)
+
 	var defaultParams []*ckks.Parameters
 
 	if testing.Short() {
@@ -20,7 +20,7 @@ func BenchmarkDCKKS(b *testing.B) {
 	}
 
 	for _, p := range defaultParams {
-
+		var testCtx *testContext
 		if testCtx, err = genTestParams(p); err != nil {
 			panic(err)
 		}
@@ -32,6 +32,7 @@ func BenchmarkDCKKS(b *testing.B) {
 		benchPublicKeySwitching(testCtx, b)
 		benchRotKeyGen(testCtx, b)
 		benchRefresh(testCtx, b)
+		benchRefreshAndPermute(testCtx, b)
 	}
 }
 
@@ -132,7 +133,6 @@ func benchRelinKeyGenNaive(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*RKGProtocolNaive
-		u      *ring.Poly
 		s      *ring.Poly
 		share1 RKGNaiveShareRoundOne
 		share2 RKGNaiveShareRoundTwo

@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 func BenchmarkCKKSScheme(b *testing.B) {
 
 	var err error
-	var testContext = new(testParams)
+
 	var defaultParams []*Parameters
 
 	if testing.Short() {
@@ -19,7 +20,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	}
 
 	for _, defaultParams := range defaultParams {
-
+		var testContext *testParams
 		if testContext, err = genTestParams(defaultParams, 0); err != nil {
 			panic(err)
 		}
@@ -42,7 +43,7 @@ func benchEncoder(testContext *testParams, b *testing.B) {
 
 		values := make([]complex128, 1<<logSlots)
 		for i := uint64(0); i < 1<<logSlots; i++ {
-			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
@@ -56,7 +57,7 @@ func benchEncoder(testContext *testParams, b *testing.B) {
 
 		values := make([]complex128, 1<<logSlots)
 		for i := uint64(0); i < 1<<logSlots; i++ {
-			values[i] = complex(randomFloat(-1, 1), randomFloat(-1, 1))
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())

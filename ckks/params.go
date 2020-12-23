@@ -14,6 +14,9 @@ import (
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
 const MaxLogN = 16
 
+// MinLogN is the log2 of the smallest supported polynomial modulus degree (needed to ensure the NTT correctness).
+const MinLogN = 4
+
 // MaxModuliCount is the largest supported number of moduli in the RNS representation.
 const MaxModuliCount = 34
 
@@ -239,7 +242,7 @@ type Parameters struct {
 func NewParametersFromModuli(logN uint64, m *Moduli) (p *Parameters, err error) {
 	p = new(Parameters)
 
-	if (logN < 3) || (logN > MaxLogN) {
+	if (logN < MinLogN) || (logN > MaxLogN) {
 		return nil, fmt.Errorf("invalid polynomial ring log degree: %d", logN)
 	}
 
@@ -249,9 +252,9 @@ func NewParametersFromModuli(logN uint64, m *Moduli) (p *Parameters, err error) 
 		return nil, err
 	}
 
-	p.qi = make([]uint64, len(m.Qi), len(m.Qi))
+	p.qi = make([]uint64, len(m.Qi))
 	copy(p.qi, m.Qi)
-	p.pi = make([]uint64, len(m.Pi), len(m.Pi))
+	p.pi = make([]uint64, len(m.Pi))
 	copy(p.pi, m.Pi)
 
 	p.sigma = DefaultSigma
@@ -311,7 +314,7 @@ func (p *Parameters) Levels() uint64 {
 	return p.QiCount()
 }
 
-// Slots returns number of avaliable plaintext slots
+// Slots returns number of availible plaintext slots
 func (p *Parameters) Slots() uint64 {
 	return 1 << p.logSlots
 }
@@ -342,14 +345,12 @@ func (p *Parameters) SetScale(scale float64) {
 }
 
 // SetLogSlots sets the value logSlots of the parameters.
-func (p *Parameters) SetLogSlots(logSlots uint64) (err error) {
+func (p *Parameters) SetLogSlots(logSlots uint64) {
 	if (logSlots == 0) || (logSlots > p.MaxLogSlots()) {
-		return fmt.Errorf("slots cannot be greater than LogN-1")
+		panic(fmt.Errorf("slots cannot be greater than LogN-1"))
 	}
 
 	p.logSlots = logSlots
-
-	return nil
 }
 
 // SetSigma sets the value sigma of the parameters
@@ -362,12 +363,12 @@ func (p *Parameters) LogModuli() (lm *LogModuli) {
 
 	lm = new(LogModuli)
 
-	lm.LogQi = make([]uint64, len(p.qi), len(p.qi))
+	lm.LogQi = make([]uint64, len(p.qi))
 	for i := range p.qi {
 		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.qi[i]))))
 	}
 
-	lm.LogPi = make([]uint64, len(p.pi), len(p.pi))
+	lm.LogPi = make([]uint64, len(p.pi))
 	for i := range p.pi {
 		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
 	}
@@ -378,8 +379,8 @@ func (p *Parameters) LogModuli() (lm *LogModuli) {
 // Moduli returns a struct Moduli with the moduli of the parameters
 func (p *Parameters) Moduli() (m *Moduli) {
 	m = new(Moduli)
-	m.Qi = make([]uint64, p.QiCount(), p.QiCount())
-	m.Pi = make([]uint64, p.PiCount(), p.PiCount())
+	m.Qi = make([]uint64, p.QiCount())
+	m.Pi = make([]uint64, p.PiCount())
 	copy(m.Qi, p.qi)
 	copy(m.Pi, p.pi)
 	return
@@ -397,19 +398,19 @@ func (p *Parameters) QiCount() uint64 {
 	return uint64(len(p.qi))
 }
 
-// Pi returns a new slice with the factors of the ciphertext modulus extention P
+// Pi returns a new slice with the factors of the ciphertext modulus extension P
 func (p *Parameters) Pi() []uint64 {
 	pi := make([]uint64, len(p.pi))
 	copy(pi, p.pi)
 	return pi
 }
 
-// PiCount returns the number of factors of the ciphertext modulus extention P
+// PiCount returns the number of factors of the ciphertext modulus extension P
 func (p *Parameters) PiCount() uint64 {
 	return uint64(len(p.pi))
 }
 
-// QPiCount returns the number of factors of the ciphertext modulus + the extention modulus P
+// QPiCount returns the number of factors of the ciphertext modulus + the modulus extension P
 func (p *Parameters) QPiCount() uint64 {
 	return uint64(len(p.qi) + len(p.pi))
 }
@@ -463,7 +464,7 @@ func (p *Parameters) LogP() uint64 {
 // LogQAlpha returns the size in bits of the sum of the norm of
 // each element of the special RNS decomposition basis for the
 // key-switching.
-// LogQAlpha is the size of the element that is multipled by the
+// LogQAlpha is the size of the element that is multiplied by the
 // error during the keyswitching and then divided by P.
 // LogQAlpha should be smaller than P or the error added during
 // the key-switching wont be negligible.
@@ -517,9 +518,9 @@ func (p *Parameters) Copy() (paramsCopy *Parameters) {
 	paramsCopy.logSlots = p.logSlots
 	paramsCopy.scale = p.scale
 	paramsCopy.sigma = p.sigma
-	paramsCopy.qi = make([]uint64, len(p.qi), len(p.qi))
+	paramsCopy.qi = make([]uint64, len(p.qi))
 	copy(paramsCopy.qi, p.qi)
-	paramsCopy.pi = make([]uint64, len(p.pi), len(p.pi))
+	paramsCopy.pi = make([]uint64, len(p.pi))
 	copy(paramsCopy.pi, p.pi)
 	return
 }
@@ -546,7 +547,14 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	b := utils.NewBuffer(make([]byte, 0, 21+(p.QPiCount())<<3))
+	// Data 21 byte + QPiCount * 8 byte:
+	// 1 byte : logN
+	// 1 byte : logSlots
+	// 8 byte : scale
+	// 8 byte : sigma
+	// 1 byte : #qi
+	// 1 byte : #pi
+	b := utils.NewBuffer(make([]byte, 0, 20+(p.QPiCount())<<3))
 
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(p.logSlots))
@@ -563,7 +571,7 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes a []byte into a parameter set struct
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 
-	if len(data) < 3 {
+	if len(data) < 20 {
 		return errors.New("invalid parameters encoding")
 	}
 
@@ -587,8 +595,8 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	lenQi := b.ReadUint8()
 	lenPi := b.ReadUint8()
 
-	p.qi = make([]uint64, lenQi, lenQi)
-	p.pi = make([]uint64, lenPi, lenPi)
+	p.qi = make([]uint64, lenQi)
+	p.pi = make([]uint64, lenPi)
 
 	b.ReadUint64Slice(p.qi)
 	b.ReadUint64Slice(p.pi)

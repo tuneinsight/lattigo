@@ -40,7 +40,6 @@ func benchEncoder(testctx *testContext, b *testing.B) {
 	plaintextMul := NewPlaintextMul(testctx.params)
 
 	b.Run(testString("Encoder/EncodeUint/", testctx.params), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
 			encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 		}
@@ -84,6 +83,11 @@ func benchKeyGen(testctx *testContext, b *testing.B) {
 	})
 
 	b.Run(testString("KeyGen/SwitchKeyGen/", testctx.params), func(b *testing.B) {
+
+		if testctx.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			kgen.GenRelinKey(sk, 1)
 		}
@@ -99,6 +103,11 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
 	b.Run(testString("Encrypt/key=Pk/", testctx.params), func(b *testing.B) {
+
+		if testctx.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintext, ciphertext)
 		}
@@ -148,9 +157,12 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
 
-	rotkey := NewRotationKeys()
-	testctx.kgen.GenRot(RotationLeft, testctx.sk, 1, rotkey)
-	testctx.kgen.GenRot(RotationRow, testctx.sk, 0, rotkey)
+	var rotkey *RotationKeys
+	if testctx.params.PiCount() != 0 {
+		rotkey = NewRotationKeys()
+		testctx.kgen.GenRot(RotationLeft, testctx.sk, 1, rotkey)
+		testctx.kgen.GenRot(RotationRow, testctx.sk, 0, rotkey)
+	}
 
 	b.Run(testString("Evaluator/Add/Ct/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -207,18 +219,33 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	})
 
 	b.Run(testString("Evaluator/Relin/", testctx.params), func(b *testing.B) {
+
+		if testctx.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			evaluator.Relinearize(receiver, testctx.rlk, ciphertext1)
 		}
 	})
 
 	b.Run(testString("Evaluator/RotateRows/", testctx.params), func(b *testing.B) {
+
+		if testctx.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			evaluator.RotateRows(ciphertext1, rotkey, ciphertext1)
 		}
 	})
 
 	b.Run(testString("Evaluator/RotateCols/", testctx.params), func(b *testing.B) {
+
+		if testctx.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
 		}

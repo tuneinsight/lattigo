@@ -5,7 +5,6 @@ package ckks
 import (
 	"math"
 	"math/big"
-	"fmt"
 
 	"github.com/ldsec/lattigo/v2/ring"
 )
@@ -31,7 +30,6 @@ type Encoder interface {
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 	DecodeCoeffsAndRound(plaintext *Plaintext, bound float64) (res []float64)
-	EstimateError(plaintext *Plaintext, logSlots uint64) float64
 }
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
@@ -214,30 +212,42 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (re
 	return encoder.decodeAndRound(plaintext, slots, plaintext.scale)
 }
 
-func (encoder *encoderComplex128) EstimateError(plaintext *Plaintext, logSlots uint64) float64{
+func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, logSlots, Q uint64) {
 
-	ringQ := encoder.ringQ
-	level := plaintext.Level()
+	slots := uint64(1 << logSlots)
+	maxSlots := uint64(len(coeffs))>>1
+	gap := maxSlots / slots 
 
-	z := plaintext.CopyNew().Plaintext()
-	zConj := ringQ.NewPolyLvl(level)
+	var real, imag float64
+	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
 
-	ring.PermuteNTT(z.value, 2*ringQ.N-1, zConj)
+		if coeffs[idx] >= Q>>1 {
+			real = -float64(Q - coeffs[idx])
+		} else {
+			real = float64(coeffs[idx])
+		}
 
-	ringQ.AddLvl(level, z.value, zConj, z.value)
+		if coeffs[idx+maxSlots] >= Q>>1 {
+			imag = -float64(Q - coeffs[idx+maxSlots])
+		} else {
+			imag = float64(coeffs[idx+maxSlots])
+		}
 
-	z.SetScale(z.Scale()*2)
-
-	var sum float64
-	for _, c := range encoder.decodeAndRound(z, logSlots, float64(uint64(1<<53))){
-		fmt.Println(c)
-		sum += imag(c)
+		values[i] = complex(real, imag) / complex(scale, 0)
 	}
+}
 
-	sum /= float64(uint64(1<<logSlots))
 
-	return sum
+func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64){
 
+	for i, c := range coeffs {
+
+		if c >= Q>>1 {
+			values[i] = -float64(Q - c)/scale
+		} else {
+			values[i] = float64(c)/scale
+		}
+	}
 }
 
 func (encoder *encoderComplex128) decodeAndRound(plaintext *Plaintext, logSlots uint64, bound float64) (res []complex128) {
@@ -261,26 +271,8 @@ func (encoder *encoderComplex128) decodeAndRound(plaintext *Plaintext, logSlots 
 
 	if plaintext.Scale() < float64(encoder.ringQ.Modulus[0]) || plaintext.Level() == 0 {
 
-		Q := encoder.ringQ.Modulus[0]
-		coeffs := encoder.polypool.Coeffs[0]
+		polyToComplexNoCRT(encoder.polypool.Coeffs[0], encoder.values, plaintext.scale, logSlots, encoder.ringQ.Modulus[0])
 
-		var real, imag float64
-		for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
-
-			if coeffs[idx] >= Q>>1 {
-				real = -float64(Q - coeffs[idx])
-			} else {
-				real = float64(coeffs[idx])
-			}
-
-			if coeffs[idx+maxSlots] >= Q>>1 {
-				imag = -float64(Q - coeffs[idx+maxSlots])
-			} else {
-				imag = float64(coeffs[idx+maxSlots])
-			}
-
-			encoder.values[i] = complex(real, imag) / complex(plaintext.scale, 0)
-		}
 	} else {
 
 		encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)

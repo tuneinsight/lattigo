@@ -31,6 +31,38 @@ func runTimedParty(f func(), N int) time.Duration {
 	return time.Duration(time.Since(start).Nanoseconds() / int64(N))
 }
 
+type party struct {
+	sk         *bfv.SecretKey
+	rlkEphemSk *ring.Poly
+
+	ckgShare    dbfv.CKGShare
+	rkgShareOne dbfv.RKGShare
+	rkgShareTwo dbfv.RKGShare
+	pcksShare   dbfv.PCKSShare
+
+	input []uint64
+}
+
+type multTask struct {
+	wg              *sync.WaitGroup
+	op1             *bfv.Ciphertext
+	op2             *bfv.Ciphertext
+	res             *bfv.Ciphertext
+	elapsedmultTask time.Duration
+}
+
+var elapsedEncryptParty time.Duration
+var elapsedEncryptCloud time.Duration
+var elapsedCKGCloud time.Duration
+var elapsedCKGParty time.Duration
+var elapsedRKGCloud time.Duration
+var elapsedRKGParty time.Duration
+var elapsedPCKSCloud time.Duration
+var elapsedPCKSParty time.Duration
+var elapsedEvalCloudCPU time.Duration
+var elapsedEvalCloud time.Duration
+var elapsedEvalParty time.Duration
+
 func main() {
 	// For more details about the PSI example see
 	//     Multiparty Homomorphic Encryption: From Theory to Practice (<https://eprint.iacr.org/2020/304>)
@@ -55,18 +87,6 @@ func main() {
 		check(err)
 	}
 
-	type party struct {
-		sk         *bfv.SecretKey
-		rlkEphemSk *ring.Poly
-
-		ckgShare    dbfv.CKGShare
-		rkgShareOne dbfv.RKGShare
-		rkgShareTwo dbfv.RKGShare
-		pcksShare   dbfv.PCKSShare
-
-		input []uint64
-	}
-
 	// Use the defaultparams logN=14, logQP=438 with a plaintext modulus T=65537
 	params := bfv.DefaultParams[bfv.PN14QP438].WithT(65537)
 
@@ -81,222 +101,41 @@ func main() {
 
 	// Common reference polynomial generator that uses the PRNG
 	crsGen := ring.NewUniformSampler(lattigoPRNG, ringQP)
-	crs := crsGen.ReadNew()                  // for the public-key
-	crp := make([]*ring.Poly, params.Beta()) // for the relinearization keys
-	for i := uint64(0); i < params.Beta(); i++ {
-		crp[i] = crsGen.ReadNew()
-	}
+
+	encoder := bfv.NewEncoder(params)
 
 	// Target private and public keys
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
 
-	expRes := make([]uint64, 1<<params.LogN())
-	for i := range expRes {
-		expRes[i] = 1
-	}
-
-	ckg := dbfv.NewCKGProtocol(params)
-	rkg := dbfv.NewEkgProtocol(params)
-	pcks := dbfv.NewPCKSProtocol(params, 3.19)
-	prng, err := utils.NewPRNG()
-	if err != nil {
+	var prng utils.PRNG
+	if prng, err = utils.NewPRNG(); err != nil {
 		panic(err)
 	}
+
 	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
-	P := make([]*party, N)
-	for i := range P {
-		pi := &party{}
-		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
+	P := genparties(params, N, ternarySamplerMontgomery, ringQP)
 
-		pi.rlkEphemSk = ternarySamplerMontgomery.ReadNew()
-		ringQP.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
-
-		pi.input = make([]uint64, 1<<params.LogN())
-		for i := range pi.input {
-			if utils.RandFloat64(0, 1) > 0.3 || i == 4 {
-				pi.input[i] = 1
-			}
-			expRes[i] *= pi.input[i]
-		}
-
-		pi.ckgShare = ckg.AllocateShares()
-		pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
-		pi.pcksShare = pcks.AllocateShares()
-
-		P[i] = pi
-	}
-
-	var elapsedCKGCloud time.Duration
-	var elapsedCKGParty time.Duration
-	var elapsedRKGCloud time.Duration
-	var elapsedRKGParty time.Duration
+	// Inputs & expected result
+	expRes := genInputs(params, P)
 
 	// 1) Collective public key generation
-	l.Println("> CKG Phase")
-	pk := bfv.NewPublicKey(params)
-	elapsedCKGParty = runTimedParty(func() {
-		for _, pi := range P {
-			ckg.GenShare(pi.sk.Get(), crs, pi.ckgShare)
-		}
-	}, N)
-	ckgCombined := ckg.AllocateShares()
-	elapsedCKGCloud = runTimed(func() {
-		for _, pi := range P {
-			ckg.AggregateShares(pi.ckgShare, ckgCombined, ckgCombined)
-		}
-		ckg.GenPublicKey(ckgCombined, crs, pk)
-	})
-	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKGCloud, elapsedCKGParty)
+	pk := ckgphase(params, crsGen, P)
 
 	// 2) Collective relinearization key generation
-	l.Println("> RKG Phase")
-	elapsedRKGParty = runTimedParty(func() {
-		for _, pi := range P {
-			rkg.GenShareRoundOne(pi.rlkEphemSk, pi.sk.Get(), crp, pi.rkgShareOne)
-		}
-	}, N)
-
-	rkgCombined1, rkgCombined2 := rkg.AllocateShares()
-
-	elapsedRKGCloud = runTimed(func() {
-		for _, pi := range P {
-			rkg.AggregateShareRoundOne(pi.rkgShareOne, rkgCombined1, rkgCombined1)
-		}
-	})
-
-	elapsedRKGParty += runTimedParty(func() {
-		for _, pi := range P {
-			rkg.GenShareRoundTwo(rkgCombined1, pi.rlkEphemSk, pi.sk.Get(), crp, pi.rkgShareTwo)
-		}
-	}, N)
-
-	rlk := bfv.NewRelinKey(params, 1)
-	elapsedRKGCloud += runTimed(func() {
-		for _, pi := range P {
-			rkg.AggregateShareRoundTwo(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
-		}
-		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
-	})
+	rlk := rkgphase(params, crsGen, P)
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n",
 		elapsedRKGCloud, elapsedRKGParty)
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
 		elapsedRKGCloud+elapsedCKGCloud, elapsedRKGParty+elapsedCKGParty)
 
-	// Pre-loading memory
-	l.Println("> Memory alloc Phase")
-	encInputs := make([]*bfv.Ciphertext, N)
-	for i := range encInputs {
-		encInputs[i] = bfv.NewCiphertext(params, 1)
-	}
+	encInputs := encPhase(params, P, pk, encoder)
 
-	encLvls := make([][]*bfv.Ciphertext, 0)
-	encLvls = append(encLvls, encInputs)
-	for nLvl := N / 2; nLvl > 0; nLvl = nLvl >> 1 {
-		encLvl := make([]*bfv.Ciphertext, nLvl)
-		for i := range encLvl {
-			encLvl[i] = bfv.NewCiphertext(params, 2)
-		}
-		encLvls = append(encLvls, encLvl)
-	}
-	encRes := encLvls[len(encLvls)-1][0]
+	encRes := evalPhase(params, NGoRoutine, encInputs, rlk)
 
-	// Each party encrypts its input vector
-	l.Println("> Encrypt Phase")
-	encryptor := bfv.NewEncryptorFromPk(params, pk)
-	encoder := bfv.NewEncoder(params)
-	pt := bfv.NewPlaintext(params)
-	elapsedEncryptParty := runTimedParty(func() {
-		for i, pi := range P {
-			encoder.EncodeUint(pi.input, pt)
-			encryptor.Encrypt(pt, encInputs[i])
-		}
-	}, N)
-
-	elapsedEncryptCloud := time.Duration(0)
-	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedEncryptCloud, elapsedEncryptParty)
-
-	type MultTask struct {
-		wg              *sync.WaitGroup
-		op1             *bfv.Ciphertext
-		op2             *bfv.Ciphertext
-		res             *bfv.Ciphertext
-		elapsedMultTask time.Duration
-	}
-
-	// Split the task among the Go routines
-	tasks := make(chan *MultTask)
-	workers := &sync.WaitGroup{}
-	workers.Add(NGoRoutine)
-	//l.Println("> Spawning", NGoRoutine, "evaluator goroutine")
-	for i := 1; i <= NGoRoutine; i++ {
-		go func(i int) {
-			evaluator := bfv.NewEvaluator(params)
-			for task := range tasks {
-				task.elapsedMultTask = runTimed(func() {
-					// 1) Multiplication of two input vectors
-					evaluator.Mul(task.op1, task.op2, task.res)
-					// 2) Relinearization
-					evaluator.Relinearize(task.res, rlk, task.res)
-				})
-				task.wg.Done()
-			}
-			//l.Println("\t evaluator", i, "down")
-			workers.Done()
-		}(i)
-		//l.Println("\t evaluator", i, "started")
-	}
-
-	// Start the tasks
-	taskList := make([]*MultTask, 0)
-	l.Println("> Eval Phase")
-	elapsedEvalCloud := runTimed(func() {
-		for i, lvl := range encLvls[:len(encLvls)-1] {
-			nextLvl := encLvls[i+1]
-			l.Println("\tlevel", i, len(lvl), "->", len(nextLvl))
-			wg := &sync.WaitGroup{}
-			wg.Add(len(nextLvl))
-			for j, nextLvlCt := range nextLvl {
-				task := MultTask{wg, lvl[2*j], lvl[2*j+1], nextLvlCt, 0}
-				taskList = append(taskList, &task)
-				tasks <- &task
-			}
-			wg.Wait()
-		}
-	})
-	elapsedEvalCloudCPU := time.Duration(0)
-	for _, t := range taskList {
-		elapsedEvalCloudCPU += t.elapsedMultTask
-	}
-	elapsedEvalParty := time.Duration(0)
-	l.Printf("\tdone (cloud: %s (wall: %s), party: %s)\n",
-		elapsedEvalCloudCPU, elapsedEvalCloud, elapsedEvalParty)
-
-	//l.Println("> Shutting down workers")
-	close(tasks)
-	workers.Wait()
-
-	// Collective key switching from the collective secret key to
-	// the target public key
-	l.Println("> PCKS Phase")
-	elapsedPCKSParty := runTimedParty(func() {
-		for _, pi := range P {
-			pcks.GenShare(pi.sk.Get(), tpk, encRes, pi.pcksShare)
-		}
-	}, N)
-
-	pcksCombined := pcks.AllocateShares()
-	encOut := bfv.NewCiphertext(params, 1)
-	elapsedPCKSCloud := runTimed(func() {
-		for _, pi := range P {
-			pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)
-		}
-		pcks.KeySwitch(pcksCombined, encRes, encOut)
-
-	})
-	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)
+	encOut := pcksPhase(params, tpk, encRes, P)
 
 	// Decrypt the result with the target secret key
 	l.Println("> Result:")
@@ -321,4 +160,259 @@ func main() {
 		elapsedCKGCloud+elapsedRKGCloud+elapsedEncryptCloud+elapsedEvalCloud+elapsedPCKSCloud,
 		elapsedCKGParty+elapsedRKGParty+elapsedEncryptParty+elapsedEvalParty+elapsedPCKSParty+elapsedDecParty)
 
+}
+
+func encPhase(params *bfv.Parameters, P []*party, pk *bfv.PublicKey, encoder bfv.Encoder) (encInputs []*bfv.Ciphertext) {
+
+	l := log.New(os.Stderr, "", 0)
+
+	encInputs = make([]*bfv.Ciphertext, len(P))
+	for i := range encInputs {
+		encInputs[i] = bfv.NewCiphertext(params, 1)
+	}
+
+	// Each party encrypts its input vector
+	l.Println("> Encrypt Phase")
+	encryptor := bfv.NewEncryptorFromPk(params, pk)
+
+	pt := bfv.NewPlaintext(params)
+	elapsedEncryptParty = runTimedParty(func() {
+		for i, pi := range P {
+			encoder.EncodeUint(pi.input, pt)
+			encryptor.Encrypt(pt, encInputs[i])
+		}
+	}, len(P))
+
+	elapsedEncryptCloud = time.Duration(0)
+	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedEncryptCloud, elapsedEncryptParty)
+
+	return
+}
+
+func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Ciphertext, rlk *bfv.EvaluationKey) (encRes *bfv.Ciphertext) {
+
+	l := log.New(os.Stderr, "", 0)
+
+	encLvls := make([][]*bfv.Ciphertext, 0)
+	encLvls = append(encLvls, encInputs)
+	for nLvl := len(encInputs) / 2; nLvl > 0; nLvl = nLvl >> 1 {
+		encLvl := make([]*bfv.Ciphertext, nLvl)
+		for i := range encLvl {
+			encLvl[i] = bfv.NewCiphertext(params, 2)
+		}
+		encLvls = append(encLvls, encLvl)
+	}
+	encRes = encLvls[len(encLvls)-1][0]
+
+	// Split the task among the Go routines
+	tasks := make(chan *multTask)
+	workers := &sync.WaitGroup{}
+	workers.Add(NGoRoutine)
+	//l.Println("> Spawning", NGoRoutine, "evaluator goroutine")
+	for i := 1; i <= NGoRoutine; i++ {
+		go func(i int) {
+			evaluator := bfv.NewEvaluator(params)
+			for task := range tasks {
+				task.elapsedmultTask = runTimed(func() {
+					// 1) Multiplication of two input vectors
+					evaluator.Mul(task.op1, task.op2, task.res)
+					// 2) Relinearization
+					evaluator.Relinearize(task.res, rlk, task.res)
+				})
+				task.wg.Done()
+			}
+			//l.Println("\t evaluator", i, "down")
+			workers.Done()
+		}(i)
+		//l.Println("\t evaluator", i, "started")
+	}
+
+	// Start the tasks
+	taskList := make([]*multTask, 0)
+	l.Println("> Eval Phase")
+	elapsedEvalCloud = runTimed(func() {
+		for i, lvl := range encLvls[:len(encLvls)-1] {
+			nextLvl := encLvls[i+1]
+			l.Println("\tlevel", i, len(lvl), "->", len(nextLvl))
+			wg := &sync.WaitGroup{}
+			wg.Add(len(nextLvl))
+			for j, nextLvlCt := range nextLvl {
+				task := multTask{wg, lvl[2*j], lvl[2*j+1], nextLvlCt, 0}
+				taskList = append(taskList, &task)
+				tasks <- &task
+			}
+			wg.Wait()
+		}
+	})
+	elapsedEvalCloudCPU = time.Duration(0)
+	for _, t := range taskList {
+		elapsedEvalCloudCPU += t.elapsedmultTask
+	}
+	elapsedEvalParty = time.Duration(0)
+	l.Printf("\tdone (cloud: %s (wall: %s), party: %s)\n",
+		elapsedEvalCloudCPU, elapsedEvalCloud, elapsedEvalParty)
+
+	//l.Println("> Shutting down workers")
+	close(tasks)
+	workers.Wait()
+
+	return
+}
+
+func genparties(params *bfv.Parameters, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
+
+	// Create each party, and allocate the memory for all the shares that the protocols will need
+	P := make([]*party, N)
+	for i := range P {
+		pi := &party{}
+		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
+
+		pi.rlkEphemSk = sampler.ReadNew()
+		ringQP.NTT(pi.rlkEphemSk, pi.rlkEphemSk)
+
+		P[i] = pi
+	}
+
+	return P
+}
+
+func genInputs(params *bfv.Parameters, P []*party) (expRes []uint64) {
+
+	expRes = make([]uint64, params.N())
+	for i := range expRes {
+		expRes[i] = 1
+	}
+
+	for _, pi := range P {
+
+		pi.input = make([]uint64, params.N())
+		for i := range pi.input {
+			if utils.RandFloat64(0, 1) > 0.3 || i == 4 {
+				pi.input[i] = 1
+			}
+			expRes[i] *= pi.input[i]
+		}
+
+	}
+
+	return
+}
+
+func pcksPhase(params *bfv.Parameters, tpk *bfv.PublicKey, encRes *bfv.Ciphertext, P []*party) (encOut *bfv.Ciphertext) {
+
+	l := log.New(os.Stderr, "", 0)
+
+	// Collective key switching from the collective secret key to
+	// the target public key
+
+	pcks := dbfv.NewPCKSProtocol(params, 3.19)
+
+	for _, pi := range P {
+		pi.pcksShare = pcks.AllocateShares()
+	}
+
+	l.Println("> PCKS Phase")
+	elapsedPCKSParty = runTimedParty(func() {
+		for _, pi := range P {
+			pcks.GenShare(pi.sk.Get(), tpk, encRes, pi.pcksShare)
+		}
+	}, len(P))
+
+	pcksCombined := pcks.AllocateShares()
+	encOut = bfv.NewCiphertext(params, 1)
+	elapsedPCKSCloud = runTimed(func() {
+		for _, pi := range P {
+			pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)
+		}
+		pcks.KeySwitch(pcksCombined, encRes, encOut)
+
+	})
+	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)
+
+	return
+
+}
+
+func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.EvaluationKey {
+	l := log.New(os.Stderr, "", 0)
+
+	l.Println("> RKG Phase")
+
+	rkg := dbfv.NewEkgProtocol(params) // Relineariation key generation
+
+	for _, pi := range P {
+		pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
+	}
+
+	crp := make([]*ring.Poly, params.Beta()) // for the relinearization keys
+	for i := uint64(0); i < params.Beta(); i++ {
+		crp[i] = crsGen.ReadNew()
+	}
+
+	elapsedRKGParty = runTimedParty(func() {
+		for _, pi := range P {
+			rkg.GenShareRoundOne(pi.rlkEphemSk, pi.sk.Get(), crp, pi.rkgShareOne)
+		}
+	}, len(P))
+
+	rkgCombined1, rkgCombined2 := rkg.AllocateShares()
+
+	elapsedRKGCloud = runTimed(func() {
+		for _, pi := range P {
+			rkg.AggregateShareRoundOne(pi.rkgShareOne, rkgCombined1, rkgCombined1)
+		}
+	})
+
+	elapsedRKGParty += runTimedParty(func() {
+		for _, pi := range P {
+			rkg.GenShareRoundTwo(rkgCombined1, pi.rlkEphemSk, pi.sk.Get(), crp, pi.rkgShareTwo)
+		}
+	}, len(P))
+
+	rlk := bfv.NewRelinKey(params, 1)
+	elapsedRKGCloud += runTimed(func() {
+		for _, pi := range P {
+			rkg.AggregateShareRoundTwo(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
+		}
+		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
+	})
+
+	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedRKGCloud, elapsedRKGParty)
+
+	return rlk
+}
+
+func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.PublicKey {
+
+	l := log.New(os.Stderr, "", 0)
+
+	l.Println("> CKG Phase")
+
+	ckg := dbfv.NewCKGProtocol(params) // Public key generation
+	crs := crsGen.ReadNew()            // for the public-key
+
+	for _, pi := range P {
+		pi.ckgShare = ckg.AllocateShares()
+	}
+
+	elapsedCKGParty = runTimedParty(func() {
+		for _, pi := range P {
+			ckg.GenShare(pi.sk.Get(), crs, pi.ckgShare)
+		}
+	}, len(P))
+
+	ckgCombined := ckg.AllocateShares()
+
+	pk := bfv.NewPublicKey(params)
+
+	elapsedCKGCloud = runTimed(func() {
+		for _, pi := range P {
+			ckg.AggregateShares(pi.ckgShare, ckgCombined, ckgCombined)
+		}
+		ckg.GenPublicKey(ckgCombined, crs, pk)
+	})
+
+	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKGCloud, elapsedCKGParty)
+
+	return pk
 }

@@ -2,7 +2,7 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-## [2.1.1] - 2020-12.23
+## [2.1.1] - 2020-12-23
 
 ### Added
 - BFV/CKKS : added MinLogN >= 4 check when creating parameters.

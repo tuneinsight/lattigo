@@ -21,7 +21,7 @@ type KeyGenerator interface {
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
 	GenRotationKey(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
 	GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys)
-	GenBootstrappingKey(logSlots uint64, btpParams *BootstrapParams, sk *SecretKey) (btpKey *BootstrappingKey)
+	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -527,7 +527,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 }
 
 // GenKeys generates the bootstrapping keys
-func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrapParams, sk *SecretKey) (btpKey *BootstrappingKey) {
+func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey) {
 
 	btpKey = &BootstrappingKey{
 		relinkey: keygen.GenRelinKey(sk),
@@ -581,7 +581,7 @@ func addMatrixRotToList(pVec map[uint64]bool, rotations []uint64, N1, slots uint
 	return rotations
 }
 
-func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *BootstrapParams) (rotKeyIndex []uint64) {
+func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *BootstrappingParameters) (rotKeyIndex []uint64) {
 
 	// List of the rotation key values to needed for the bootstrapp
 	rotKeyIndex = []uint64{}

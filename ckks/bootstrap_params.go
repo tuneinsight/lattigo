@@ -1,7 +1,7 @@
 package ckks
 
-// BootstrapParams is a struct for the default bootstrapping parameters
-type BootstrapParams struct {
+// BootstrappingParameters is a struct for the default bootstrapping parameters
+type BootstrappingParameters struct {
 	H            uint64   // Hamming weight of the secret key
 	SinType      SinType  // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	SinRange     uint64   // K parameter (interpolation in the range -K to K)
@@ -13,12 +13,12 @@ type BootstrapParams struct {
 }
 
 // CtSDepth returns the number of levels allocated to CoeffsToSlots
-func (b *BootstrapParams) CtSDepth() uint64 {
+func (b *BootstrappingParameters) CtSDepth() uint64 {
 	return uint64(len(b.CtSLevel))
 }
 
 // StCDepth returns the number of levels allocated to SlotToCoeffs
-func (b *BootstrapParams) StCDepth() uint64 {
+func (b *BootstrappingParameters) StCDepth() uint64 {
 	return uint64(len(b.StCLevel))
 }
 
@@ -34,8 +34,8 @@ const (
 )
 
 // Copy return a new BootstrapParams which is a copy of the target
-func (b *BootstrapParams) Copy() *BootstrapParams {
-	paramsCopy := &BootstrapParams{
+func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
+	paramsCopy := &BootstrappingParameters{
 		H:            b.H,
 		SinType:      b.SinType,
 		SinRange:     b.SinRange,
@@ -205,7 +205,7 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 }
 
 // DefaultBootstrapParams are default bootstrapping params for the bootstrapping
-var DefaultBootstrapParams = []*BootstrapParams{
+var DefaultBootstrapParams = []*BootstrappingParameters{
 
 	// SET II
 	// 1525 - 550

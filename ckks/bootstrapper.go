@@ -13,7 +13,7 @@ import (
 // Bootstrapper is a struct to stores a memory pool the plaintext matrices
 // the polynomial approximation and the keys for the bootstrapping.
 type Bootstrapper struct {
-	BootstrapParams
+	BootstrappingParameters
 	*BootstrappingKey
 	params *Parameters
 
@@ -60,7 +60,7 @@ func cos2pi(x complex128) complex128 {
 }
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params *Parameters, btpParams *BootstrapParams, btpKey *BootstrappingKey) (btp *Bootstrapper, err error) {
+func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btpKey *BootstrappingKey) (btp *Bootstrapper, err error) {
 
 	if btpParams.SinType == SinType(Sin) && btpParams.SinRescal != 0 {
 		return nil, fmt.Errorf("BootstrapParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
@@ -82,11 +82,11 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrapParams, btpKey *Boo
 
 // newBootstrapper is a constructor of "dummy" bootstrapper to enable the generation of bootstrapping-related constants
 // without providing a bootstrapping key. To be replaced by a proper factorization of the bootstrapping pre-computations.
-func newBootstrapper(params *Parameters, btpParams *BootstrapParams) (btp *Bootstrapper) {
+func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (btp *Bootstrapper) {
 	btp = new(Bootstrapper)
 
 	btp.params = params.Copy()
-	btp.BootstrapParams = *btpParams.Copy()
+	btp.BootstrappingParameters = *btpParams.Copy()
 
 	btp.dslots = params.Slots()
 	btp.logdslots = params.LogSlots()

@@ -43,7 +43,7 @@ func TestBootstrap(t *testing.T) {
 			panic(err)
 		}
 
-		for _, testSet := range []func(testContext *testParams, btpParams *BootstrapParams, t *testing.T){
+		for _, testSet := range []func(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T){
 			testChebySin,
 			testChebyCos,
 			testChebyCosNaive,
@@ -55,7 +55,7 @@ func TestBootstrap(t *testing.T) {
 	}
 }
 
-func testChebySin(testContext *testParams, btpParams *BootstrapParams, t *testing.T) {
+func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
 	t.Run(testString(testContext, "ChebySin/"), func(t *testing.T) {
 
 		var err error
@@ -100,7 +100,7 @@ func testChebySin(testContext *testParams, btpParams *BootstrapParams, t *testin
 	})
 }
 
-func testChebyCos(testContext *testParams, btpParams *BootstrapParams, t *testing.T) {
+func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
 	t.Run(testString(testContext, "ChebyCos/"), func(t *testing.T) {
 
 		var err error
@@ -178,7 +178,7 @@ func testChebyCos(testContext *testParams, btpParams *BootstrapParams, t *testin
 	})
 }
 
-func testChebyCosNaive(testContext *testParams, btpParams *BootstrapParams, t *testing.T) {
+func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
 	t.Run(testString(testContext, "ChebyCosNaive/"), func(t *testing.T) {
 
 		var err error
@@ -250,7 +250,7 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrapParams, t *t
 	})
 }
 
-func testbootstrap(testContext *testParams, btpParams *BootstrapParams, t *testing.T) {
+func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
 	t.Run(testString(testContext, "Bootstrap/"), func(t *testing.T) {
 
 		params := testContext.params

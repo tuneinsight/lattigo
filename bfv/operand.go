@@ -82,6 +82,26 @@ func (el *Element) Degree() uint64 {
 	return uint64(len(el.value) - 1)
 }
 
+// Level returns the level of the target element.
+func (el *Element) Level() uint64 {
+	return uint64(len(el.value[0].Coeffs) - 1)
+}
+
+// Resize resizes the degree of the target element.
+func (el *Element) Resize(params *Parameters, degree uint64) {
+	if el.Degree() > degree {
+		el.value = el.value[:degree+1]
+	} else if el.Degree() < degree {
+		for el.Degree() < degree {
+			el.value = append(el.value, []*ring.Poly{new(ring.Poly)}...)
+			el.value[el.Degree()].Coeffs = make([][]uint64, el.Level()+1)
+			for i := uint64(0); i < el.Level()+1; i++ {
+				el.value[el.Degree()].Coeffs[i] = make([]uint64, params.N())
+			}
+		}
+	}
+}
+
 // CopyNew creates a new Element which is a copy of the target Element, and returns the value as
 // a Element.
 func (el *Element) CopyNew() *Element {

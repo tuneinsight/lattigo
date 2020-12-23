@@ -5,8 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [2.1.1] - 2020-12.23
 
 ### Added
+- BFV/CKKS : added MinLogN >= 4 check when creating parameters.
 - BFV : (operand) el.Level().
 - RING : test for sparse ternary sampler.
+
+### Changed
+- RING : minimum poly degree modulus is 16 to ensure the NTT correctness.
 
 ### Fixed
 - ALL : reduced cyclomatic complexity of outliers.

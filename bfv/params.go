@@ -13,7 +13,7 @@ import (
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
 const MaxLogN = 16
 
-// MinLogN is the log2 of the smallest supported polynomial modulus degree.
+// MinLogN is the log2 of the smallest supported polynomial modulus degree (needed to ensure the NTT correctness).
 const MinLogN = 4
 
 // MaxModuliCount is the largest supported number of moduli in the RNS representation.

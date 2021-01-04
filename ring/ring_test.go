@@ -303,8 +303,8 @@ func testUniformSampler(testContext *testParams, t *testing.T) {
 func testGaussianSampler(testContext *testParams, t *testing.T) {
 
 	t.Run(testString("GaussianSampler/", testContext.ringQ), func(t *testing.T) {
-		gaussianSampler := NewGaussianSampler(testContext.prng, testContext.ringQ, DefaultSigma, DefaultBound)
-		pol := gaussianSampler.ReadNew()
+		gaussianSampler := NewGaussianSampler(testContext.prng)
+		pol := gaussianSampler.ReadNew(testContext.ringQ, DefaultSigma, DefaultBound)
 
 		for i := uint64(0); i < testContext.ringQ.N; i++ {
 			for j, qi := range testContext.ringQ.Modulus {

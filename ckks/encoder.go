@@ -215,8 +215,8 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (re
 func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, logSlots, Q uint64) {
 
 	slots := uint64(1 << logSlots)
-	maxSlots := uint64(len(coeffs))>>1
-	gap := maxSlots / slots 
+	maxSlots := uint64(len(coeffs)) >> 1
+	gap := maxSlots / slots
 
 	var real, imag float64
 	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
@@ -237,15 +237,14 @@ func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, log
 	}
 }
 
-
-func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64){
+func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64) {
 
 	for i, c := range coeffs {
 
 		if c >= Q>>1 {
-			values[i] = -float64(Q - c)/scale
+			values[i] = -float64(Q-c) / scale
 		} else {
-			values[i] = float64(c)/scale
+			values[i] = float64(c) / scale
 		}
 	}
 }

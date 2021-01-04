@@ -30,6 +30,9 @@ type Encoder interface {
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 	DecodeCoeffsAndRound(plaintext *Plaintext, bound float64) (res []float64)
+
+	GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std complex128)
+	GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std complex128)
 }
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
@@ -175,7 +178,7 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 		encoder.values[i] = values[i]
 	}
 
-	encoder.invfft(encoder.values, slots)
+	invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
 
 	gap := (encoder.ringQ.N >> 1) / slots
 
@@ -183,6 +186,50 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 		encoder.valuesfloat[idx] = real(encoder.values[i])
 		encoder.valuesfloat[jdx] = imag(encoder.values[i])
 	}
+}
+
+// GetErrSTDFreqDom returns the scaled standard deviation of the difference between two complex vectors in the slot domains
+func (encoder *encoderComplex128) GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std complex128) {
+
+	// We assume that the error is centered around zero
+	var err, tmp, mean complex128
+
+	for i := range valuesWant {
+		mean = (valuesWant[i] - valuesHave[i])
+	}
+
+	mean /= complex(float64(len(valuesWant)), 0)
+
+	for i := range valuesWant {
+		tmp = (valuesWant[i] - valuesHave[i] - mean)
+		err += complex(real(tmp)*real(tmp), imag(tmp)*imag(tmp))
+	}
+
+	err /= complex(float64(len(valuesWant)), 0)
+	err *= complex(scale, 0)
+	err *= complex(scale, 0)
+
+	std = complex(math.Sqrt(real(err)), math.Sqrt(imag(err)))
+
+	return
+}
+
+// GetErrSTDTimeDom returns the scaled standard deviation of the coefficient domain of the difference between two complex vectors in the slot domains
+func (encoder *encoderComplex128) GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std complex128) {
+
+	slots := uint64(len(valuesWant))
+
+	want := make([]complex128, len(valuesWant))
+	have := make([]complex128, len(valuesHave))
+
+	copy(want, valuesWant)
+	copy(have, valuesHave)
+
+	invfft(want, slots, encoder.m, encoder.rotGroup, encoder.roots)
+	invfft(have, slots, encoder.m, encoder.rotGroup, encoder.roots)
+
+	return encoder.GetErrSTDFreqDom(want, have, scale)
+
 }
 
 // ScaleUp writes the internaly stored encoded values on a polynomial.
@@ -237,6 +284,56 @@ func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, log
 	}
 }
 
+func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex128, scale float64, logSlots uint64, ringQ *ring.Ring, Q *big.Int) {
+
+	ringQ.PolyToBigint(poly, bigintCoeffs)
+
+	maxSlots := ringQ.N >> 1
+	slots := uint64(1 << logSlots)
+	gap := maxSlots / slots
+
+	qHalf := new(big.Int)
+	qHalf.Set(Q)
+	qHalf.Rsh(qHalf, 1)
+
+	var sign int
+
+	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
+
+		// Centers the value around the current modulus
+		bigintCoeffs[idx].Mod(bigintCoeffs[idx], Q)
+		sign = bigintCoeffs[idx].Cmp(qHalf)
+		if sign == 1 || sign == 0 {
+			bigintCoeffs[idx].Sub(bigintCoeffs[idx], Q)
+		}
+
+		// Centers the value around the current modulus
+		bigintCoeffs[idx+maxSlots].Mod(bigintCoeffs[idx+maxSlots], Q)
+		sign = bigintCoeffs[idx+maxSlots].Cmp(qHalf)
+		if sign == 1 || sign == 0 {
+			bigintCoeffs[idx+maxSlots].Sub(bigintCoeffs[idx+maxSlots], Q)
+		}
+
+		values[i] = complex(scaleDown(bigintCoeffs[idx], scale), scaleDown(bigintCoeffs[idx+maxSlots], scale))
+	}
+}
+
+func (encoder *encoderComplex128) plaintextToComplex(level uint64, scale float64, logSlots uint64, p *ring.Poly, values []complex128) {
+	if scale < float64(encoder.ringQ.Modulus[0]) || level == 0 {
+		polyToComplexNoCRT(p.Coeffs[0], encoder.values, scale, logSlots, encoder.ringQ.Modulus[0])
+	} else {
+		polyToComplexCRT(p, encoder.bigintCoeffs, values, scale, logSlots, encoder.ringQ, encoder.bigintChain[level])
+	}
+}
+
+func roundComplexVector(values []complex128, bound float64) {
+	for i := range values {
+		a := math.Round(real(values[i])*bound) / bound
+		b := math.Round(imag(values[i])*bound) / bound
+		values[i] = complex(a, b)
+	}
+}
+
 func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64) {
 
 	for i, c := range coeffs {
@@ -263,56 +360,13 @@ func (encoder *encoderComplex128) decodeAndRound(plaintext *Plaintext, logSlots 
 		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
 
-	maxSlots := encoder.ringQ.N >> 1
-	gap := maxSlots / slots
-
-	// We have more than one moduli and need the CRT reconstruction
-
-	if plaintext.Scale() < float64(encoder.ringQ.Modulus[0]) || plaintext.Level() == 0 {
-
-		polyToComplexNoCRT(encoder.polypool.Coeffs[0], encoder.values, plaintext.scale, logSlots, encoder.ringQ.Modulus[0])
-
-	} else {
-
-		encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
-
-		Q := encoder.bigintChain[plaintext.Level()]
-
-		encoder.qHalf.Set(Q)
-		encoder.qHalf.Rsh(encoder.qHalf, 1)
-
-		var sign int
-
-		for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
-
-			// Centers the value around the current modulus
-			encoder.bigintCoeffs[idx].Mod(encoder.bigintCoeffs[idx], Q)
-			sign = encoder.bigintCoeffs[idx].Cmp(encoder.qHalf)
-			if sign == 1 || sign == 0 {
-				encoder.bigintCoeffs[idx].Sub(encoder.bigintCoeffs[idx], Q)
-			}
-
-			// Centers the value around the current modulus
-			encoder.bigintCoeffs[idx+maxSlots].Mod(encoder.bigintCoeffs[idx+maxSlots], Q)
-			sign = encoder.bigintCoeffs[idx+maxSlots].Cmp(encoder.qHalf)
-			if sign == 1 || sign == 0 {
-				encoder.bigintCoeffs[idx+maxSlots].Sub(encoder.bigintCoeffs[idx+maxSlots], Q)
-			}
-
-			encoder.values[i] = complex(scaleDown(encoder.bigintCoeffs[idx], plaintext.scale), scaleDown(encoder.bigintCoeffs[idx+maxSlots], plaintext.scale))
-		}
-		// We can directly get the coefficients
-	}
+	encoder.plaintextToComplex(plaintext.Level(), plaintext.Scale(), logSlots, encoder.polypool, encoder.values)
 
 	if plaintext.scale != bound {
-		for i := range encoder.values {
-			a := math.Round(real(encoder.values[i])*bound) / bound
-			b := math.Round(imag(encoder.values[i])*bound) / bound
-			encoder.values[i] = complex(a, b)
-		}
+		roundComplexVector(encoder.values, bound)
 	}
 
-	encoder.fft(encoder.values, slots)
+	fft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
 
 	res = make([]complex128, slots)
 
@@ -320,15 +374,14 @@ func (encoder *encoderComplex128) decodeAndRound(plaintext *Plaintext, logSlots 
 		res[i] = encoder.values[i]
 	}
 
-	for i := uint64(0); i < encoder.ringQ.N>>1; i++ {
+	for i := range encoder.values {
 		encoder.values[i] = 0
 	}
 
 	return
-
 }
 
-func (encoder *encoderComplex128) invfft(values []complex128, N uint64) {
+func invfft(values []complex128, N, M uint64, rotGroup []uint64, roots []complex128) {
 
 	var lenh, lenq, gap, idx uint64
 	var u, v complex128
@@ -337,12 +390,12 @@ func (encoder *encoderComplex128) invfft(values []complex128, N uint64) {
 		for i := uint64(0); i < N; i += len {
 			lenh = len >> 1
 			lenq = len << 2
-			gap = encoder.m / lenq
+			gap = M / lenq
 			for j := uint64(0); j < lenh; j++ {
-				idx = (lenq - (encoder.rotGroup[j] % lenq)) * gap
+				idx = (lenq - (rotGroup[j] % lenq)) * gap
 				u = values[i+j] + values[i+j+lenh]
 				v = values[i+j] - values[i+j+lenh]
-				v *= encoder.roots[idx]
+				v *= roots[idx]
 				values[i+j] = u
 				values[i+j+lenh] = v
 
@@ -357,7 +410,7 @@ func (encoder *encoderComplex128) invfft(values []complex128, N uint64) {
 	sliceBitReverseInPlaceComplex128(values, N)
 }
 
-func (encoder *encoderComplex128) fft(values []complex128, N uint64) {
+func fft(values []complex128, N, M uint64, rotGroup []uint64, roots []complex128) {
 
 	var lenh, lenq, gap, idx uint64
 	var u, v complex128
@@ -368,12 +421,12 @@ func (encoder *encoderComplex128) fft(values []complex128, N uint64) {
 		for i := uint64(0); i < N; i += len {
 			lenh = len >> 1
 			lenq = len << 2
-			gap = encoder.m / lenq
+			gap = M / lenq
 			for j := uint64(0); j < lenh; j++ {
-				idx = (encoder.rotGroup[j] % lenq) * gap
+				idx = (rotGroup[j] % lenq) * gap
 				u = values[i+j]
 				v = values[i+j+lenh]
-				v *= encoder.roots[idx]
+				v *= roots[idx]
 				values[i+j] = u + v
 				values[i+j+lenh] = u - v
 			}

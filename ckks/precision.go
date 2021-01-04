@@ -16,7 +16,8 @@ type PrecisionStats struct {
 	MeanPrecision   complex128
 	MedianDelta     complex128
 	MedianPrecision complex128
-	STD             complex128
+	STDFreq         complex128
+	STDTime         complex128
 
 	RealDist, ImagDist []struct {
 		Prec  float64
@@ -27,38 +28,13 @@ type PrecisionStats struct {
 }
 
 func (prec PrecisionStats) String() string {
-	return fmt.Sprintf("\nMIN Prec : (%.2f, %.2f) bits \n", real(prec.MinPrecision), imag(prec.MinPrecision)) +
-		fmt.Sprintf("MAX Prec : (%.2f, %.2f) bits \n", real(prec.MaxPrecision), imag(prec.MaxPrecision)) +
-		fmt.Sprintf("AVG Prec : (%.2f, %.2f) bits \n", real(prec.MeanPrecision), imag(prec.MeanPrecision)) +
-		fmt.Sprintf("MED Prec : (%.2f, %.2f) bits \n", real(prec.MedianPrecision), imag(prec.MedianPrecision)) +
-		fmt.Sprintf("STD Err  : (%5.2f, %5.2f) bits \n", math.Log2(real(prec.STD)), math.Log2(imag(prec.STD)))
+	return fmt.Sprintf("\nMIN Prec : (%.2f, %.2f) Log2 \n", real(prec.MinPrecision), imag(prec.MinPrecision)) +
+		fmt.Sprintf("MAX Prec : (%.2f, %.2f) Log2 \n", real(prec.MaxPrecision), imag(prec.MaxPrecision)) +
+		fmt.Sprintf("AVG Prec : (%.2f, %.2f) Log2 \n", real(prec.MeanPrecision), imag(prec.MeanPrecision)) +
+		fmt.Sprintf("MED Prec : (%.2f, %.2f) Log2 \n", real(prec.MedianPrecision), imag(prec.MedianPrecision)) +
+		fmt.Sprintf("Err stdF : (%5.2f, %5.2f) Log2 \n", math.Log2(real(prec.STDFreq)), math.Log2(imag(prec.STDFreq))) +
+		fmt.Sprintf("Err stdT : (%5.2f, %5.2f) Log2 \n", math.Log2(real(prec.STDTime)), math.Log2(imag(prec.STDTime)))
 
-}
-
-// GetErrSTDFromSpectral returns the scaled standard deviation of the error between two complex vectors
-func GetErrSTDFromSpectral(valuesWant, valuesHave []complex128, scale float64) (std complex128) {
-
-	// We assume that the error is centered around zero
-	var err, tmp, mean complex128
-
-	for i := range valuesWant {
-		mean = (valuesWant[i] - valuesHave[i])
-	}
-
-	mean /= complex(float64(len(valuesWant)), 0)
-
-	for i := range valuesWant {
-		tmp = (valuesWant[i] - valuesHave[i] - mean)
-		err += complex(real(tmp)*real(tmp), imag(tmp)*imag(tmp))
-	}
-
-	err /= complex(float64(len(valuesWant)), 0)
-	err *= complex(scale, 0)
-	err *= complex(scale, 0)
-
-	std = complex(math.Sqrt(real(err)), math.Sqrt(imag(err)))
-
-	return
 }
 
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
@@ -69,17 +45,13 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 	logSlots := params.LogSlots()
 	slots := uint64(1 << logSlots)
 
-	var scale float64
 	switch element := element.(type) {
 	case *Ciphertext:
 		valuesTest = encoder.DecodeAndRound(decryptor.DecryptNew(element), logSlots, bound)
-		scale = element.Scale()
 	case *Plaintext:
 		valuesTest = encoder.DecodeAndRound(element, logSlots, bound)
-		scale = element.Scale()
 	case []complex128:
 		valuesTest = element
-		scale = params.Scale()
 	}
 
 	var deltaReal, deltaImag float64
@@ -145,7 +117,8 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 	prec.MeanPrecision = deltaToPrecision(prec.MeanDelta)
 	prec.MedianDelta = calcmedian(diff)
 	prec.MedianPrecision = deltaToPrecision(prec.MedianDelta)
-	prec.STD = GetErrSTDFromSpectral(valuesWant, valuesTest, scale)
+	prec.STDFreq = encoder.GetErrSTDFreqDom(valuesWant, valuesTest, params.Scale())
+	prec.STDTime = encoder.GetErrSTDTimeDom(valuesWant, valuesTest, params.Scale())
 	return prec
 }
 

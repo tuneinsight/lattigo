@@ -30,7 +30,7 @@ type PCKSShare [2]*ring.Poly
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.
 func (share *PCKSShare) MarshalBinary() ([]byte, error) {
-	//TODO discuss choice here.
+	//Discuss choice here.
 	//Maybe not worth it to have the metadata separated. we "lose" two bytes but complexity of the code would be higher in Unmarshalling.
 	lenR1 := share[0].GetDataLen(true)
 	lenR2 := share[1].GetDataLen(true)

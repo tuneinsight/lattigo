@@ -82,7 +82,6 @@ func BRedParams(q uint64) (params []uint64) {
 	bigR := new(big.Int).Lsh(NewUint(1), 128)
 	bigR.Quo(bigR, NewUint(q))
 
-	// 2^radix // q
 	mhi := new(big.Int).Rsh(bigR, 64).Uint64()
 	mlo := bigR.Uint64()
 

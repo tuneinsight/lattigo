@@ -1,11 +1,46 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"math/bits"
 )
 
+// RandUint64 return a random value between 0 and 0xFFFFFFFFFFFFFFFF
+func RandUint64() uint64 {
+	b := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return binary.BigEndian.Uint64(b)
+}
+
+// RandFloat64 returns a random float between min and max
+func RandFloat64(min, max float64) float64 {
+	b := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	f := float64(binary.BigEndian.Uint64(b)) / 1.8446744073709552e+19
+	return min + f*(max-min)
+}
+
+// RandComplex128 returns a random complex with the real and imaginary part between min and max
+func RandComplex128(min, max float64) complex128 {
+	return complex(RandFloat64(min, max), RandFloat64(min, max))
+}
+
 // EqualSliceUint64 checks the equality between two uint64 slices.
 func EqualSliceUint64(a, b []uint64) (v bool) {
+	v = true
+	for i := range a {
+		v = v && (a[i] == b[i])
+	}
+	return
+}
+
+// EqualSliceInt64 checks the equality between two iint64 slices.
+func EqualSliceInt64(a, b []int64) (v bool) {
 	v = true
 	for i := range a {
 		v = v && (a[i] == b[i])

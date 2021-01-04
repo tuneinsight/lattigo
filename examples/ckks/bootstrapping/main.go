@@ -3,18 +3,10 @@ package main
 import (
 	"fmt"
 	"math"
-	"math/rand"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/utils"
 )
-
-func randomFloat(min, max float64) float64 {
-	return min + rand.Float64()*(max-min)
-}
-
-func randomComplex(min, max float64) complex128 {
-	return complex(randomFloat(min, max), randomFloat(min, max))
-}
 
 func main() {
 
@@ -31,12 +23,12 @@ func main() {
 
 	// Bootstrapping parameters
 	// Five sets of parameters (index 0 to 4) ensuring 128 bit of security
-	// are avaliable in github.com/ldsec/lattigo/v2/ckks/bootparams
+	// are available in github.com/ldsec/lattigo/v2/ckks/bootparams
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.
-	params := ckks.DefaultBootstrappSchemeParams[0]
-	btpParams := ckks.DefaultBootstrappParams[0]
+	params := ckks.DefaultBootstrapSchemeParams[0]
+	btpParams := ckks.DefaultBootstrapParams[0]
 
 	fmt.Println()
 	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), btpParams.H, params.LogQP(), params.Levels(), math.Log2(params.Scale()), params.Sigma())
@@ -61,7 +53,7 @@ func main() {
 	// Generate a random plaintext
 	valuesWant := make([]complex128, params.Slots())
 	for i := range valuesWant {
-		valuesWant[i] = randomComplex(-1, 1)
+		valuesWant[i] = utils.RandComplex128(-1, 1)
 	}
 
 	plaintext = encoder.EncodeNew(valuesWant, params.LogSlots())

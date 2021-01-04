@@ -24,26 +24,18 @@ func maxIndex(array []float64) (maxind int) {
 	return
 }
 
-// Approximate computes a polynomial approximation of degree "degree" in Chevyshev basis of the function
-// cos(2*pi*x/2^"scnum") in the range -"K" to "K"
-// The nodes of the Chevyshev approximation are are located from -dev to +dev at each integer value between -K and -K
-func Approximate(K, degree int, dev float64, scnum int) []complex128 {
-
-	var PI = new(big.Float)
-	PI.SetPrec(1000)
-	PI.SetString(pi)
+func genDegrees(degree, K int, dev float64) ([]int, int) {
 
 	var degbdd = degree + 1
+
+	var totdeg = 2*K - 1
+
+	var err = 1.0 / dev
 
 	var deg = make([]int, K)
 	for i := 0; i < K; i++ {
 		deg[i] = 1
 	}
-	var totdeg = 2*K - 1
-
-	var err = 1.0 / dev
-
-	var scfac = NewFloat(float64(int(1 << scnum)))
 
 	var bdd = make([]float64, K)
 	var temp = float64(0)
@@ -120,6 +112,17 @@ func Approximate(K, degree int, dev float64, scnum int) []complex128 {
 		}
 		fmt.Println("==============================================")
 	*/
+
+	return deg, totdeg
+}
+
+func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*big.Float, []*big.Float, int) {
+
+	var PI = new(big.Float)
+	PI.SetPrec(1000)
+	PI.SetString(pi)
+
+	var scfac = NewFloat(float64(int(1 << scnum)))
 
 	var intersize = NewFloat(1.0 / dev)
 
@@ -215,6 +218,22 @@ func Approximate(K, degree int, dev float64, scnum int) []complex128 {
 		}
 	}
 
+	return x, p, c, totdeg
+}
+
+// Approximate computes a polynomial approximation of degree "degree" in Chevyshev basis of the function
+// cos(2*pi*x/2^"scnum") in the range -"K" to "K"
+// The nodes of the Chevyshev approximation are are located from -dev to +dev at each integer value between -K and -K
+func Approximate(K, degree int, dev float64, scnum int) []complex128 {
+
+	var scfac = NewFloat(float64(int(1 << scnum)))
+
+	deg, totdeg := genDegrees(degree, K, dev)
+
+	x, p, c, totdeg := genNodes(deg, dev, totdeg, K, scnum)
+
+	tmp := new(big.Float)
+
 	var T = make([][]*big.Float, totdeg)
 	for i := 0; i < totdeg; i++ {
 		T[i] = make([]*big.Float, totdeg)
@@ -240,7 +259,6 @@ func Approximate(K, degree int, dev float64, scnum int) []complex128 {
 			T[i][j].Mul(T[i][j], T[i][j-1])
 			T[i][j].Sub(T[i][j], T[i][j-2])
 		}
-
 	}
 
 	var maxabs = new(big.Float)

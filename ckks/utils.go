@@ -2,23 +2,9 @@ package ckks
 
 import (
 	"math/big"
-	"math/cmplx"
-	"math/rand"
 
 	"github.com/ldsec/lattigo/v2/ring"
 )
-
-func exp2pi(x complex128) complex128 {
-	return cmplx.Exp(2 * 3.141592653589793 * complex(0, 1) * x)
-}
-
-func randomFloat(min, max float64) float64 {
-	return min + rand.Float64()*(max-min)
-}
-
-func randomComplex(min, max float64) complex128 {
-	return complex(randomFloat(min, max), randomFloat(min, max))
-}
 
 func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
@@ -94,8 +80,6 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 			}
 		}
 	}
-
-	return
 }
 
 func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64, coeffs [][]uint64) {
@@ -135,15 +119,6 @@ func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64
 
 			coeffs[j][i] = tmp.Uint64()
 		}
-	}
-
-	return
-}
-
-func modVec(values []*big.Int, q uint64, coeffs []uint64) {
-	tmp := new(big.Int)
-	for i := range values {
-		coeffs[i] = tmp.Mod(values[i], ring.NewUint(q)).Uint64()
 	}
 }
 
@@ -229,24 +204,4 @@ func sliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N uint64) {
 			slice[i], slice[j] = slice[j], slice[i]
 		}
 	}
-}
-
-func max(array []complex128) (m float64) {
-	m = real(array[0])
-	for _, i := range array[1:] {
-		if real(i) > m {
-			m = real(i)
-		}
-	}
-	return
-}
-
-func min(array []complex128) (m float64) {
-	m = real(array[0])
-	for _, i := range array[1:] {
-		if real(i) < m {
-			m = real(i)
-		}
-	}
-	return
 }

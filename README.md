@@ -62,7 +62,7 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo v2.1.0},
+	    title = {Lattigo v2.1.1},
 	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
 	    month = dec,
 	    year = 2020,

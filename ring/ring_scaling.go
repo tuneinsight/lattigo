@@ -15,10 +15,8 @@ type Scaler interface {
 // RNSScaler implements the Scaler interface by performing a scaling by t/Q in the RNS domain.
 // This implementation of the Scaler interface is preferred over the SimpleScaler implementation.
 type RNSScaler struct {
-	ringQ           *Ring
-	paramsQT        *modupParams
-	modDownParamsQT uint64
-	polypoolT       *Poly
+	ringQ     *Ring
+	polypoolT *Poly
 
 	qHalf     *big.Int // (q-1)/2
 	qHalfModT uint64   // (q-1)/2 mod t
@@ -26,7 +24,6 @@ type RNSScaler struct {
 	t    uint64
 	qInv uint64 //(q mod t)^-1 mod t
 
-	bredParamsT []uint64
 	mredParamsT uint64
 
 	paramsQP *modupParams
@@ -468,7 +465,6 @@ func (r *Ring) DivRoundByLastModulus(p0 *Poly) {
 	pHalf = (r.Modulus[level] - 1) >> 1
 	p0tmp := p0.Coeffs[level]
 	pj := r.Modulus[level]
-	pHalf = (r.Modulus[level] - 1) >> 1
 
 	for i := uint64(0); i < r.N; i = i + 8 {
 

@@ -10,7 +10,6 @@ import (
 func Benchmark_DBFV(b *testing.B) {
 
 	var err error
-	var testCtx = new(testContext)
 
 	var defaultParams []*bfv.Parameters
 
@@ -21,7 +20,7 @@ func Benchmark_DBFV(b *testing.B) {
 	}
 
 	for _, p := range defaultParams {
-
+		var testCtx *testContext
 		if testCtx, err = gentestContext(p); err != nil {
 			panic(err)
 		}
@@ -144,7 +143,6 @@ func benchRelinKeyGenNaive(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*RKGProtocolNaive
-		u      *ring.Poly
 		s      *ring.Poly
 		share1 RKGNaiveShareRoundOne
 		share2 RKGNaiveShareRoundTwo

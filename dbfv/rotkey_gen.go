@@ -50,7 +50,7 @@ func (share *RTGShare) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *RTGShare) UnmarshalBinary(data []byte) error {
 	if len(data) <= 24 {
-		return errors.New("Unsufficient data length")
+		return errors.New("unsufficient data length")
 	}
 	share.K = binary.BigEndian.Uint64(data[0:8])
 	share.Type = bfv.Rotation(binary.BigEndian.Uint64(data[8:16]))
@@ -189,8 +189,6 @@ func (rtg *RTGProtocol) genShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, 
 
 	rtg.tmpPoly[0].Zero()
 	rtg.tmpPoly[1].Zero()
-
-	return
 }
 
 // Aggregate is the second part of the unique round of the rotkg protocol. Uppon receiving the j-1 public shares,

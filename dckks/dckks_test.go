@@ -57,7 +57,6 @@ type testContext struct {
 func TestDCKKS(t *testing.T) {
 
 	var err error
-	var testCtx = new(testContext)
 
 	var defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
@@ -69,6 +68,7 @@ func TestDCKKS(t *testing.T) {
 
 	for _, p := range defaultParams {
 
+		var testCtx *testContext
 		if testCtx, err = genTestParams(p); err != nil {
 			panic(err)
 		}
@@ -266,7 +266,6 @@ func testRelinKeyGenNaive(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*RKGProtocolNaive
-			u      *ring.Poly
 			s      *ring.Poly
 			share1 RKGNaiveShareRoundOne
 			share2 RKGNaiveShareRoundTwo
@@ -679,7 +678,7 @@ func newTestVectors(testCtx *testContext, encryptor ckks.Encryptor, a float64, t
 	values = make([]complex128, slots)
 
 	for i := uint64(0); i < slots; i++ {
-		values[i] = randomComplex(testCtx.prng, a)
+		values[i] = utils.RandComplex128(-a, a)
 	}
 
 	values[0] = complex(0.607538, 0.555668)
@@ -696,11 +695,11 @@ func verifyTestVectors(testCtx *testContext, decryptor ckks.Decryptor, valuesWan
 	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128
 
-	switch element.(type) {
+	switch element := element.(type) {
 	case *ckks.Ciphertext:
-		plaintextTest = decryptor.DecryptNew(element.(*ckks.Ciphertext))
+		plaintextTest = decryptor.DecryptNew(element)
 	case *ckks.Plaintext:
-		plaintextTest = element.(*ckks.Plaintext)
+		plaintextTest = element
 	}
 
 	slots := testCtx.params.Slots()

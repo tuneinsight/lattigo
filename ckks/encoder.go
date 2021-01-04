@@ -24,7 +24,6 @@ type Encoder interface {
 	EncodeNTT(plaintext *Plaintext, values []complex128, logSlots uint64)
 	EncodeNTTAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, logSlots uint64) (res []complex128)
-	DecodeAndRound(plaintext *Plaintext, logSlots uint64, bound float64) (res []complex128)
 	Embed(values []complex128, logSlots uint64)
 	ScaleUp(pol *ring.Poly, scale float64, moduli []uint64)
 	WipeInternalMemory()
@@ -44,7 +43,6 @@ type EncoderBigComplex interface {
 	EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots uint64)
 	EncodeNTTAtLvlNew(level uint64, values []*ring.Complex, logSlots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, logSlots uint64) (res []*ring.Complex)
-	DecodeAndRound(plaintext *Plaintext, logSlots uint64, bound float64) (res []*ring.Complex)
 	FFT(values []*ring.Complex, N uint64)
 	InvFFT(values []*ring.Complex, N uint64)
 
@@ -166,7 +164,7 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 }
 
 // Embed encodes a vector and stores internaly the encoded values.
-// To be used in conjonction with ScaleUp.
+// To be used in conjunction with ScaleUp.
 func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 
 	slots := uint64(1 << logSlots)

@@ -48,8 +48,8 @@ func BenchmarkDivRound(b *testing.B) {
 
 func BenchmarkDivRoundDebug(b *testing.B) {
 	y := int64(123456789)
+	x := int64(987654321)
 	for i := 0; i < b.N; i++ {
-		x := int64(987654321)
 		x = int64(math.Round(float64(x / y)))
 	}
 }

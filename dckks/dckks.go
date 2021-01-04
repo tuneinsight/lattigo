@@ -3,7 +3,6 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
 )
 
 type dckksContext struct {
@@ -44,14 +43,4 @@ func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 	}
 
 	return
-}
-
-// NewCRPGenerator creates a new deterministic random polynomial generator.
-func NewCRPGenerator(params *ckks.Parameters, key []byte) *ring.UniformSampler {
-	ctx := newDckksContext(params)
-	prng, err := utils.NewKeyedPRNG(key)
-	if err != nil {
-		panic(err)
-	}
-	return ring.NewUniformSampler(prng, ctx.ringQP)
 }

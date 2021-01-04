@@ -2,13 +2,25 @@ package dckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
 )
 
-func randomFloat(prng utils.PRNG, max float64) float64 {
-	return float64(ring.RandUniform(prng, 0x20000000000000, 0x3fffffffffffff))*(2*max/float64(0x20000000000000)) - max
-}
+func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {
+	var coeff, Q, QHalf, sign uint64
+	Q = ringQ.Modulus[0]
+	QHalf = Q >> 1
 
-func randomComplex(prng utils.PRNG, max float64) complex128 {
-	return complex(randomFloat(prng, max), randomFloat(prng, max))
+	for j := uint64(0); j < ringQ.N; j++ {
+
+		coeff = polQ.Coeffs[0][j]
+
+		sign = 1
+		if coeff > QHalf {
+			coeff = Q - coeff
+			sign = 0
+		}
+
+		for i, pi := range ringP.Modulus {
+			polP.Coeffs[i][j] = (coeff * sign) | (pi-coeff)*(sign^1)
+		}
+	}
 }

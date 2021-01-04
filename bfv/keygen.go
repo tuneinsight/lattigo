@@ -22,15 +22,12 @@ type KeyGenerator interface {
 // keyGenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
 type keyGenerator struct {
-	params           *Parameters
-	ringQP           *ring.Ring
-	pBigInt          *big.Int
-	polypool         [2]*ring.Poly
-	gaussianSampler  *ring.GaussianSampler
-	uniformSampler   *ring.UniformSampler
-	galElRotRow      uint64   // Rows rotation generator
-	galElRotColLeft  []uint64 // Columns right rotations generators
-	galElRotColRight []uint64 // Columsn left rotations generators
+	params          *Parameters
+	ringQP          *ring.Ring
+	pBigInt         *big.Int
+	polypool        [2]*ring.Poly
+	gaussianSampler *ring.GaussianSampler
+	uniformSampler  *ring.UniformSampler
 }
 
 // SecretKey is a structure that stores the SecretKey.
@@ -55,10 +52,6 @@ const (
 
 // RotationKeys is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeys struct {
-	permuteNTTLeftIndex  map[uint64][]uint64
-	permuteNTTRightIndex map[uint64][]uint64
-	permuteNTTRowIndex   []uint64
-
 	evakeyRotColLeft  map[uint64]*SwitchingKey
 	evakeyRotColRight map[uint64]*SwitchingKey
 	evakeyRotRow      *SwitchingKey
@@ -103,15 +96,12 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	}
 
 	return &keyGenerator{
-		params:           params.Copy(),
-		ringQP:           ringQP,
-		pBigInt:          pBigInt,
-		polypool:         [2]*ring.Poly{ringQP.NewPoly(), ringQP.NewPoly()},
-		gaussianSampler:  ring.NewGaussianSampler(prng, ringQP, params.Sigma(), uint64(6*params.Sigma())),
-		uniformSampler:   ring.NewUniformSampler(prng, ringQP),
-		galElRotColLeft:  ring.GenGaloisParams(params.N(), GaloisGen),
-		galElRotColRight: ring.GenGaloisParams(params.N(), ring.ModExp(GaloisGen, 2*params.N()-1, 2*params.N())),
-		galElRotRow:      2*params.N() - 1,
+		params:          params.Copy(),
+		ringQP:          ringQP,
+		pBigInt:         pBigInt,
+		polypool:        [2]*ring.Poly{ringQP.NewPoly(), ringQP.NewPoly()},
+		gaussianSampler: ring.NewGaussianSampler(prng, ringQP, params.Sigma(), uint64(6*params.Sigma())),
+		uniformSampler:  ring.NewUniformSampler(prng, ringQP),
 	}
 }
 
@@ -166,8 +156,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	ringQP.NTT(pk.pk[0], pk.pk[0])
 	pk.pk[1] = keygen.uniformSampler.ReadNew()
 
-	ringQP.MulCoeffsMontgomeryAndAdd(sk.sk, pk.pk[1], pk.pk[0])
-	ringQP.Neg(pk.pk[0], pk.pk[0])
+	ringQP.MulCoeffsMontgomeryAndSub(sk.sk, pk.pk[1], pk.pk[0])
 
 	return pk
 }
@@ -260,8 +249,8 @@ func (evk *EvaluationKey) Get() []*SwitchingKey {
 	return evk.evakey
 }
 
-// SetRelinKeys sets the polynomial of the target EvaluationKey as the input polynomials.
-func (evk *EvaluationKey) SetRelinKeys(rlk [][][2]*ring.Poly) {
+// Set sets the polynomial of the target EvaluationKey as the input polynomials.
+func (evk *EvaluationKey) Set(rlk [][][2]*ring.Poly) {
 
 	evk.evakey = make([]*SwitchingKey, len(rlk))
 	for i := range rlk {
@@ -312,7 +301,9 @@ func NewRotationKeys() (rotKey *RotationKeys) {
 // GenRot populates the target RotationKeys with a SwitchingKey for the desired rotation type and amount.
 func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
 
-	if keygen.ringQP == nil {
+	ringQP := keygen.ringQP
+
+	if ringQP == nil {
 		panic("Cannot GenRot: modulus P is empty")
 	}
 
@@ -324,7 +315,7 @@ func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 		}
 
 		if rotKey.evakeyRotColLeft[k] == nil && k != 0 {
-			rotKey.evakeyRotColLeft[k] = keygen.genrotKey(sk.Get(), keygen.galElRotColRight[k])
+			rotKey.evakeyRotColLeft[k] = keygen.genrotKey(sk.Get(), ring.ModExp(GaloisGen, 2*ringQP.N-k, 2*ringQP.N))
 		}
 
 	case RotationRight:
@@ -334,11 +325,11 @@ func (keygen *keyGenerator) GenRot(rotType Rotation, sk *SecretKey, k uint64, ro
 		}
 
 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
-			rotKey.evakeyRotColRight[k] = keygen.genrotKey(sk.Get(), keygen.galElRotColLeft[k])
+			rotKey.evakeyRotColRight[k] = keygen.genrotKey(sk.Get(), ring.ModExp(GaloisGen, k, 2*ringQP.N))
 		}
 
 	case RotationRow:
-		rotKey.evakeyRotRow = keygen.genrotKey(sk.Get(), keygen.galElRotRow)
+		rotKey.evakeyRotRow = keygen.genrotKey(sk.Get(), 2*ringQP.N-1)
 	}
 }
 

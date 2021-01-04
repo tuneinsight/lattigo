@@ -4,9 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/ldsec/lattigo/v2/utils"
 
@@ -51,7 +49,6 @@ func genTestParams(defaultParams *Parameters) (testContext *testParams, err erro
 
 func TestRing(t *testing.T) {
 
-	rand.Seed(time.Now().UnixNano())
 	var err error
 
 	var defaultParams = DefaultParams[0:4] // the default test
@@ -64,7 +61,8 @@ func TestRing(t *testing.T) {
 
 	testNewRing(t)
 	for _, defaultParam := range defaultParams {
-		var testContext = new(testParams)
+
+		var testContext *testParams
 		if testContext, err = genTestParams(defaultParam); err != nil {
 			t.Error(err)
 		}
@@ -79,6 +77,7 @@ func TestRing(t *testing.T) {
 		testTernarySampler(testContext, t)
 		testGaloisShift(testContext, t)
 		testModularReduction(testContext, t)
+		testMForm(testContext, t)
 		testMulScalarBigint(testContext, t)
 		testMulPoly(testContext, t)
 		testExtendBasis(testContext, t)
@@ -105,23 +104,23 @@ func testNewRing(t *testing.T) {
 		require.Nil(t, r)
 		require.Error(t, err)
 
-		r, err = NewRing(8, []uint64{7}) // Passing non NTT-enabling coeff modulus
-		require.NotNil(t, r)             // Should still return a Ring instance
-		require.Error(t, err)            // Should also return an error due to non NTT
+		r, err = NewRing(16, []uint64{7}) // Passing non NTT-enabling coeff modulus
+		require.NotNil(t, r)              // Should still return a Ring instance
+		require.Error(t, err)             // Should also return an error due to non NTT
 
-		r, err = NewRing(8, []uint64{4}) // Passing non prime moduli
-		require.Nil(t, r)                // Should still return a Ring instance
-		require.Error(t, err)            // Should also return an error due to non NTT
+		r, err = NewRing(16, []uint64{4}) // Passing non prime moduli
+		require.NotNil(t, r)              // Should still return a Ring instance
+		require.Error(t, err)             // Should also return an error due to non NTT
 
-		r, err = NewRing(8, []uint64{17, 7}) // Passing a NTT-enabling and a non NTT-enabling coeff modulus
-		require.NotNil(t, r)                 // Should still return a Ring instance
-		require.Error(t, err)                // Should also return an error due to non NTT
+		r, err = NewRing(16, []uint64{97, 7}) // Passing a NTT-enabling and a non NTT-enabling coeff modulus
+		require.NotNil(t, r)                  // Should still return a Ring instance
+		require.Error(t, err)                 // Should also return an error due to non NTT
 
-		r, err = NewRing(8, []uint64{17, 17}) // Passing non CRT-enabling coeff modulus
-		require.Nil(t, r)                     // Should not return a Ring instance
+		r, err = NewRing(16, []uint64{97, 97}) // Passing non CRT-enabling coeff modulus
+		require.Nil(t, r)                      // Should not return a Ring instance
 		require.Error(t, err)
 
-		r, err = NewRing(8, []uint64{17}) // Passing NTT-enabling coeff modulus
+		r, err = NewRing(16, []uint64{97}) // Passing NTT-enabling coeff modulus
 		require.NotNil(t, r)
 		require.NoError(t, err)
 
@@ -335,48 +334,166 @@ func testTernarySampler(testContext *testParams, t *testing.T) {
 			}
 		})
 	}
+
+	for _, p := range []uint64{0, 64, 96, 128, 256} {
+		t.Run(testString(fmt.Sprintf("TernarySampler/hw=%d/", p), testContext.ringQ), func(t *testing.T) {
+
+			prng, err := utils.NewPRNG()
+			if err != nil {
+				panic(err)
+			}
+
+			ternarySampler := NewTernarySamplerSparse(prng, testContext.ringQ, p, false)
+
+			pol := ternarySampler.ReadNew()
+
+			for i := range testContext.ringQ.Modulus {
+				hw := uint64(0)
+				for _, c := range pol.Coeffs[i] {
+					if c != 0 {
+						hw++
+					}
+				}
+				require.True(t, hw == p)
+			}
+		})
+	}
 }
 
 func testModularReduction(testContext *testParams, t *testing.T) {
 
 	t.Run(testString("ModularReduction/BRed/", testContext.ringQ), func(t *testing.T) {
 
+		var x, y uint64
+		var bigQ, result *big.Int
+
 		for j, q := range testContext.ringQ.Modulus {
 
-			bigQ := NewUint(q)
+			bigQ = NewUint(q)
 
-			for i := 0; i < 65536; i++ {
-				x := rand.Uint64() % q
-				y := rand.Uint64() % q
+			bredParams := testContext.ringQ.BredParams[j]
 
-				result := NewUint(x)
-				result.Mul(result, NewUint(y))
-				result.Mod(result, bigQ)
+			x = 1
+			y = 1
 
-				require.Equalf(t, BRed(x, y, q, testContext.ringQ.BredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
-			}
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 1
+			y = q - 1
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 1
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = q - 1
+			y = q - 1
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = q - 1
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 0xFFFFFFFFFFFFFFFF
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, BRed(x, y, q, bredParams), result.Uint64(), "x = %v, y=%v", x, y)
 		}
 	})
 
 	t.Run(testString("ModularReduction/MRed/", testContext.ringQ), func(t *testing.T) {
 
-		for j := range testContext.ringQ.Modulus {
+		var x, y uint64
+		var bigQ, result *big.Int
 
-			q := testContext.ringQ.Modulus[j]
+		for j, q := range testContext.ringQ.Modulus {
 
-			bigQ := NewUint(q)
+			bigQ = NewUint(q)
 
-			for i := 0; i < 65536; i++ {
+			bredParams := testContext.ringQ.BredParams[j]
+			mredparams := testContext.ringQ.MredParams[j]
 
-				x := rand.Uint64() % q
-				y := rand.Uint64() % q
+			x = 1
+			y = 1
 
-				result := NewUint(x)
-				result.Mul(result, NewUint(y))
-				result.Mod(result, bigQ)
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
 
-				require.Equalf(t, MRed(x, MForm(y, q, testContext.ringQ.BredParams[j]), q, testContext.ringQ.MredParams[j]), result.Uint64(), "x = %v, y=%v", x, y)
-			}
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 1
+			y = q - 1
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 1
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = q - 1
+			y = q - 1
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = q - 1
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
+
+			x = 0xFFFFFFFFFFFFFFFF
+			y = 0xFFFFFFFFFFFFFFFF
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
 		}
 	})
 }

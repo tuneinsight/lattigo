@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"math"
 	"math/cmplx"
-	"math/rand"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -52,12 +50,11 @@ type testParams struct {
 
 func TestCKKS(t *testing.T) {
 
-	rand.Seed(time.Now().UnixNano())
-
 	var err error
 	var testContext = new(testParams)
 
 	var defaultParams = DefaultParams[PN12QP109+4 : PN12QP109+5] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	defaultParams := DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
@@ -67,7 +64,7 @@ func TestCKKS(t *testing.T) {
 	}
 
 	for _, defaultParam := range defaultParams {
-
+		var testContext *testParams
 		if testContext, err = genTestParams(defaultParam, 0); err != nil {
 			panic(err)
 		}
@@ -150,7 +147,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 	values = make([]complex128, 1<<logSlots)
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
-		values[i] = complex(randomFloat(real(a), real(b)), randomFloat(imag(a), imag(b)))
+		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
 	}
 
 	values[0] = complex(0.607538, 0)
@@ -233,7 +230,7 @@ func testEncoder(testContext *testParams, t *testing.T) {
 		valuesWant := make([]float64, slots)
 
 		for i := uint64(0); i < slots; i++ {
-			valuesWant[i] = randomFloat(-1, 1)
+			valuesWant[i] = utils.RandFloat64(-1, 1)
 		}
 
 		valuesWant[0] = 0.607538
@@ -314,7 +311,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 		values := make([]complex128, 1<<logSlots)
 
 		for i := uint64(0); i < 1<<logSlots; i++ {
-			values[i] = randomComplex(-1, 1)
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
@@ -346,7 +343,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 		values := make([]complex128, 1<<logSlots)
 
 		for i := uint64(0); i < 1<<logSlots; i++ {
-			values[i] = randomComplex(-1, 1)
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
@@ -367,7 +364,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 		values := make([]complex128, 1<<logSlots)
 
 		for i := uint64(0); i < 1<<logSlots; i++ {
-			values[i] = randomComplex(-1, 1)
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
@@ -388,7 +385,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 		values := make([]complex128, 1<<logSlots)
 
 		for i := uint64(0); i < 1<<logSlots; i++ {
-			values[i] = randomComplex(-1, 1)
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.607538, 0.555668)
@@ -1089,7 +1086,6 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		values2 := make([]complex128, len(values1))
-		ciphertext2 := NewCiphertext(testContext.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 		for n := 1; n < len(values1); n <<= 1 {
 
@@ -1101,6 +1097,7 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 			ciphertext2 = testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t, 0)
+			verifyTestVectors(testContext, testContext.decryptor, values2, testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey), t)
 		}
 
 	})
@@ -1118,7 +1115,7 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 
 		for n := 1; n < 4; n++ {
 
-			rand := rand.Uint64() % uint64(len(values1))
+			rand := utils.RandUint64() % uint64(len(values1))
 
 			// Applies the column rotation to the values
 			for i := range values1 {

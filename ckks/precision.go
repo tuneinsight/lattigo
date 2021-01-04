@@ -16,8 +16,8 @@ type PrecisionStats struct {
 	MeanPrecision   complex128
 	MedianDelta     complex128
 	MedianPrecision complex128
-	STDFreq         complex128
-	STDTime         complex128
+	STDFreq         float64
+	STDTime         float64
 
 	RealDist, ImagDist []struct {
 		Prec  float64
@@ -32,13 +32,13 @@ func (prec PrecisionStats) String() string {
 		fmt.Sprintf("MAX Prec : (%.2f, %.2f) Log2 \n", real(prec.MaxPrecision), imag(prec.MaxPrecision)) +
 		fmt.Sprintf("AVG Prec : (%.2f, %.2f) Log2 \n", real(prec.MeanPrecision), imag(prec.MeanPrecision)) +
 		fmt.Sprintf("MED Prec : (%.2f, %.2f) Log2 \n", real(prec.MedianPrecision), imag(prec.MedianPrecision)) +
-		fmt.Sprintf("Err stdF : (%5.2f, %5.2f) Log2 \n", math.Log2(real(prec.STDFreq)), math.Log2(imag(prec.STDFreq))) +
-		fmt.Sprintf("Err stdT : (%5.2f, %5.2f) Log2 \n", math.Log2(real(prec.STDTime)), math.Log2(imag(prec.STDTime)))
+		fmt.Sprintf("Err stdF : %5.2f Log2 \n", math.Log2(prec.STDFreq)) +
+		fmt.Sprintf("Err stdT : %5.2f Log2 \n", math.Log2(prec.STDTime))
 
 }
 
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
-func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}, bound float64) (prec PrecisionStats) {
+func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}, sigma float64) (prec PrecisionStats) {
 
 	var valuesTest []complex128
 
@@ -47,9 +47,9 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	switch element := element.(type) {
 	case *Ciphertext:
-		valuesTest = encoder.DecodeAndRound(decryptor.DecryptNew(element), logSlots, bound)
+		valuesTest = encoder.DecodePublic(decryptor.DecryptNew(element), logSlots, sigma)
 	case *Plaintext:
-		valuesTest = encoder.DecodeAndRound(element, logSlots, bound)
+		valuesTest = encoder.DecodePublic(element, logSlots, sigma)
 	case []complex128:
 		valuesTest = element
 	}

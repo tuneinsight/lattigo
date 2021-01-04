@@ -51,10 +51,9 @@ type testParams struct {
 func TestCKKS(t *testing.T) {
 
 	var err error
-	var testContext = new(testParams)
 
 	var defaultParams = DefaultParams[PN12QP109+4 : PN12QP109+5] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
-	defaultParams := DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
@@ -81,6 +80,7 @@ func TestCKKS(t *testing.T) {
 			testEvaluatorMultByConstAndAdd,
 			testEvaluatorMul,
 			testFunctions,
+			testDecryptPublic,
 			testEvaluatePoly,
 			testChebyshevInterpolator,
 			testSwitchKeys,
@@ -211,18 +211,6 @@ func testEncoder(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values, plaintext, t, 0)
 	})
 
-	t.Run(testString(testContext, "Encoder/Slots/Round/"), func(t *testing.T) {
-
-		values, plaintext, _ := newTestVectors(testContext, nil, complex(-1, -1), complex(1, 1), t)
-
-
-		valuesTest := testContext.encoder.DecodeAndRound(plaintext, testContext.params.LogSlots(), 0)
-
-		sigma := testContext.encoder.GetErrSTDTimeDom(values, valuesTest, plaintext.Scale())*2
-
-		verifyTestVectors(testContext, testContext.decryptor, values, plaintext, t, (real(sigma)+imag(sigma))/2)
-	})
-
 	t.Run(testString(testContext, "Encoder/Coeffs/"), func(t *testing.T) {
 
 		slots := testContext.params.N()
@@ -240,39 +228,6 @@ func testEncoder(testContext *testParams, t *testing.T) {
 		testContext.encoder.EncodeCoeffs(valuesWant, plaintext)
 
 		valuesTest := testContext.encoder.DecodeCoeffs(plaintext)
-
-		var meanprec float64
-
-		for i := range valuesWant {
-			meanprec += math.Abs(valuesTest[i] - valuesWant[i])
-		}
-
-		meanprec /= float64(slots)
-
-		if *printPrecisionStats {
-			t.Log(fmt.Sprintf("\nMean    precision : %.2f \n", math.Log2(1/meanprec)))
-		}
-
-		require.GreaterOrEqual(t, math.Log2(1/meanprec), minPrec)
-	})
-
-	t.Run(testString(testContext, "Encoder/Coeffs/Round/"), func(t *testing.T) {
-
-		slots := testContext.params.N()
-
-		valuesWant := make([]float64, slots)
-
-		for i := uint64(0); i < slots; i++ {
-			valuesWant[i] = randomFloat(-1, 1)
-		}
-
-		valuesWant[0] = 0.607538
-
-		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
-
-		testContext.encoder.EncodeCoeffs(valuesWant, plaintext)
-
-		valuesTest := testContext.encoder.DecodeCoeffsAndRound(plaintext, 0)
 
 		var meanprec float64
 
@@ -962,6 +917,52 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 	})
 }
 
+func testDecryptPublic(testContext *testParams, t *testing.T) {
+
+	var err error
+
+	t.Run(testString(testContext, "DecryptPublic/Sin/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
+		if testContext.params.MaxLevel() < 5 {
+			t.Skip("skipping test for params max level < 5")
+		}
+
+		eval := testContext.evaluator
+
+		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, 0), complex(1, 0), t)
+
+		cheby := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
+
+		for i := range values {
+			values[i] = cmplx.Sin(values[i])
+		}
+
+		eval.MultByConst(ciphertext, 2/(cheby.b-cheby.a), ciphertext)
+		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
+		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
+
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+			t.Error(err)
+		}
+
+		plaintext := testContext.decryptor.DecryptNew(ciphertext)
+
+		valuesHave := testContext.encoder.Decode(plaintext, testContext.params.LogSlots())
+
+		verifyTestVectors(testContext, nil, values, valuesHave, t, 0)
+
+		sigma := testContext.encoder.GetErrSTDTimeDom(values, valuesHave, plaintext.Scale())
+
+		valuesHave = testContext.encoder.DecodePublic(plaintext, testContext.params.LogSlots(), sigma)
+
+		verifyTestVectors(testContext, nil, values, valuesHave, t, 0)
+	})
+}
+
 func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 	var sk2 *SecretKey
@@ -1094,10 +1095,8 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 				values2[i] = values1[(i+n)%len(values1)]
 			}
 
-			ciphertext2 = testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey)
+			verifyTestVectors(testContext, testContext.decryptor, values2, testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey), t, 0)
 
-			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t, 0)
-			verifyTestVectors(testContext, testContext.decryptor, values2, testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey), t)
 		}
 
 	})

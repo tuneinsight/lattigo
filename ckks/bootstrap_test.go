@@ -79,11 +79,7 @@ func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t
 		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, -K+1, K-1, t)
 		eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
 
-<<<<<<< HEAD:ckks/bootstrapp_test.go
-			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, math.Exp2(53))
-=======
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
->>>>>>> master:ckks/bootstrap_test.go
 
 		for i := range values {
 			values[i] = sin2pi2pi(values[i])
@@ -97,7 +93,7 @@ func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t
 			t.Error(err)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, math.Exp2(53))
 
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
@@ -174,16 +170,10 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, math.Exp2(53))
 
-<<<<<<< HEAD:ckks/bootstrapp_test.go
-			//fmt.Printf("Elapsed : %s \n", time.Since(start))
-			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
-			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, math.Exp2(53))
-=======
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
->>>>>>> master:ckks/bootstrap_test.go
 
 	})
 }
@@ -240,15 +230,9 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParamete
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-<<<<<<< HEAD:ckks/bootstrapp_test.go
-			//fmt.Printf("Elapsed : %s \n", time.Since(start))
-			//fmt.Println(ciphertext.Level(), ciphertext.Scale())
-			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, math.Exp2(53))
-=======
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
 			t.Error(err)
 		}
->>>>>>> master:ckks/bootstrap_test.go
 
 		for i := 0; i < scNum; i++ {
 			sqrt2pi *= sqrt2pi
@@ -258,7 +242,7 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParamete
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, math.Exp2(53))
 
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
@@ -296,15 +280,10 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 
 		for i := 0; i < 1; i++ {
 
-<<<<<<< HEAD:ckks/bootstrapp_test.go
-				verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, math.Exp2(53))
-			}
-=======
 			ciphertext = btp.Bootstrapp(ciphertext)
 			//testContext.evaluator.SetScale(ciphertext, testContext.params.scale)
-			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, math.Exp2(53))
 		}
->>>>>>> master:ckks/bootstrap_test.go
 
 	})
 }

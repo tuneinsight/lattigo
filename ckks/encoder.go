@@ -24,15 +24,16 @@ type Encoder interface {
 	EncodeNTT(plaintext *Plaintext, values []complex128, logSlots uint64)
 	EncodeNTTAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, logSlots uint64) (res []complex128)
+	DecodePublic(plaintext *Plaintext, logSlots uint64, sigma float64) []complex128
 	Embed(values []complex128, logSlots uint64)
 	ScaleUp(pol *ring.Poly, scale float64, moduli []uint64)
 	WipeInternalMemory()
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
-	DecodeCoeffsAndRound(plaintext *Plaintext, bound float64) (res []float64)
+	DecodeCoeffsPublic(plaintext *Plaintext, bound float64) (res []float64)
 
-	GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std complex128)
-	GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std complex128)
+	GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std float64)
+	GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std float64)
 }
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
@@ -187,48 +188,34 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 	}
 }
 
-func (encoder *encoderComplex128) getstd(vec []complex128, scale float64) (std complex128){
-	// We assume that the error is centered around zero
-	var err, tmp, mean complex128
-
-	n := float64(len(vec))
-
-	for _, c := range vec {
-		mean += c
-	}
-
-	mean /= complex(n, 0)
-
-	for _, c := range vec {
-		tmp = c - mean
-		err += complex(real(tmp)*real(tmp), imag(tmp)*imag(tmp))
-	}
-
-	err /= complex(n, 0)
-
-	return complex(math.Sqrt(real(err)), math.Sqrt(imag(err)))*complex(scale, 0)
-}
-
 // GetErrSTDFreqDom returns the scaled standard deviation of the difference between two complex vectors in the slot domains
-func (encoder *encoderComplex128) GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std complex128) {
+func (encoder *encoderComplex128) GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 
-	for i := range valuesHave{
-		encoder.values[i] = valuesWant[i]-valuesHave[i]
+	var err complex128
+	for i := range valuesWant {
+		err = valuesWant[i] - valuesHave[i]
+		encoder.valuesfloat[2*i] = real(err)
+		encoder.valuesfloat[2*i+1] = imag(err)
 	}
 
-	return encoder.getstd(encoder.values, scale)
+	return StandardDeviation(encoder.valuesfloat[:len(valuesWant)*2], scale)
 }
 
 // GetErrSTDTimeDom returns the scaled standard deviation of the coefficient domain of the difference between two complex vectors in the slot domains
-func (encoder *encoderComplex128) GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std complex128) {
+func (encoder *encoderComplex128) GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 
-	for i := range valuesHave{
+	for i := range valuesHave {
 		encoder.values[i] = (valuesWant[i] - valuesHave[i])
 	}
 
 	invfft(encoder.values, uint64(len(valuesWant)), encoder.m, encoder.rotGroup, encoder.roots)
 
-	return encoder.getstd(encoder.values, scale)
+	for i := range valuesWant {
+		encoder.valuesfloat[2*i] = real(encoder.values[i])
+		encoder.valuesfloat[2*i+1] = imag(encoder.values[i])
+	}
+
+	return StandardDeviation(encoder.valuesfloat[:len(valuesWant)*2], scale)
 
 }
 
@@ -250,13 +237,13 @@ func (encoder *encoderComplex128) WipeInternalMemory() {
 
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 // Rounds the decimal part of the output (the bits under the scale) to "logPrecision" bits of precision.
-func (encoder *encoderComplex128) DecodeAndRound(plaintext *Plaintext, slots uint64, bound float64) (res []complex128) {
-	return encoder.decodeAndRound(plaintext, slots, bound)
+func (encoder *encoderComplex128) DecodePublic(plaintext *Plaintext, logSlots uint64, bound float64) (res []complex128) {
+	return encoder.decodePublic(plaintext, logSlots, bound)
 }
 
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *encoderComplex128) Decode(plaintext *Plaintext, slots uint64) (res []complex128) {
-	return encoder.decodeAndRound(plaintext, slots, plaintext.scale)
+	return encoder.decodePublic(plaintext, slots, 0)
 }
 
 func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, logSlots, Q uint64) {
@@ -346,7 +333,7 @@ func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64
 	}
 }
 
-func (encoder *encoderComplex128) decodeAndRound(plaintext *Plaintext, logSlots uint64, sigma float64) (res []complex128) {
+func (encoder *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots uint64, sigma float64) (res []complex128) {
 
 	if logSlots > encoder.params.LogN()-1 {
 		panic("cannot Decode: too many slots for the given ring degree")
@@ -366,7 +353,7 @@ func (encoder *encoderComplex128) decodeAndRound(plaintext *Plaintext, logSlots 
 	}
 
 	// B = ceil(sigma * sqrt(2*pi))
-	sampler := ring.NewGaussianSampler(prng, encoder.ringQ, sigma, uint64(2.5066282746310002*sigma + 0.5))
+	sampler := ring.NewGaussianSampler(prng, encoder.ringQ, sigma, uint64(2.5066282746310002*sigma+0.5))
 
 	sampler.ReadAndAddLvl(plaintext.Level(), encoder.polypool)
 
@@ -461,24 +448,34 @@ func (encoder *encoderComplex128) EncodeCoeffsNTT(values []float64, plaintext *P
 	plaintext.isNTT = true
 }
 
-// DecodeCoeffsAndRound takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
+// DecodeCoeffsPublic takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
 // Rounds the decimal part of the output (the bits under the scale) to "logPrecision" bits of precision.
-func (encoder *encoderComplex128) DecodeCoeffsAndRound(plaintext *Plaintext, bound float64) (res []float64) {
-	res = encoder.DecodeCoeffs(plaintext)
+func (encoder *encoderComplex128) DecodeCoeffsPublic(plaintext *Plaintext, sigma float64) (res []float64) {
+	return encoder.decodeCoeffsPublic(plaintext, sigma)
+}
 
-	for i := range res {
-		res[i] = math.Round(res[i]*bound) / bound
-	}
-	return
+func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
+	return encoder.decodeCoeffsPublic(plaintext, 0)
 }
 
 // DecodeCoeffs takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
-func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
+func (encoder *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma float64) (res []float64) {
 
 	if plaintext.isNTT {
 		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	} else {
 		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	}
+
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	if sigma != 0 {
+		// B = ceil(sigma * sqrt(2*pi))
+		sampler := ring.NewGaussianSampler(prng, encoder.ringQ, sigma, uint64(2.5066282746310002*sigma+0.5))
+		sampler.ReadAndAddLvl(plaintext.Level(), encoder.polypool)
 	}
 
 	res = make([]float64, encoder.params.N())
@@ -667,16 +664,16 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 // Rounds the decimal part of the output (the bits under the scale) to "logPrecision" bits of precision.
-func (encoder *encoderBigComplex) DecodeAndRound(plaintext *Plaintext, logSlots uint64, bound float64) (res []*ring.Complex) {
-	return encoder.decodeAndRound(plaintext, logSlots, bound)
+func (encoder *encoderBigComplex) DecodePublic(plaintext *Plaintext, logSlots uint64, bound float64) (res []*ring.Complex) {
+	return encoder.decodePublic(plaintext, logSlots, bound)
 }
 
 func (encoder *encoderBigComplex) Decode(plaintext *Plaintext, logSlots uint64) (res []*ring.Complex) {
-	return encoder.decodeAndRound(plaintext, logSlots, plaintext.scale)
+	return encoder.decodePublic(plaintext, logSlots, plaintext.scale)
 }
 
 // Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
-func (encoder *encoderBigComplex) decodeAndRound(plaintext *Plaintext, logSlots uint64, bound float64) (res []*ring.Complex) {
+func (encoder *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots uint64, bound float64) (res []*ring.Complex) {
 
 	slots := uint64(1 << logSlots)
 

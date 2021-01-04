@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1.
@@ -188,47 +189,48 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 	}
 }
 
-// GetErrSTDFreqDom returns the scaled standard deviation of the difference between two complex vectors in the slot domains
-func (encoder *encoderComplex128) GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std complex128) {
-
+func (encoder *encoderComplex128) getstd(vec []complex128, scale float64) (std complex128){
 	// We assume that the error is centered around zero
 	var err, tmp, mean complex128
 
-	for i := range valuesWant {
-		mean = (valuesWant[i] - valuesHave[i])
+	n := float64(len(vec))
+
+	for _, c := range vec {
+		mean += c
 	}
 
-	mean /= complex(float64(len(valuesWant)), 0)
+	mean /= complex(n, 0)
 
-	for i := range valuesWant {
-		tmp = (valuesWant[i] - valuesHave[i] - mean)
+	for _, c := range vec {
+		tmp = c - mean
 		err += complex(real(tmp)*real(tmp), imag(tmp)*imag(tmp))
 	}
 
-	err /= complex(float64(len(valuesWant)), 0)
-	err *= complex(scale, 0)
-	err *= complex(scale, 0)
+	err /= complex(n, 0)
 
-	std = complex(math.Sqrt(real(err)), math.Sqrt(imag(err)))
+	return complex(math.Sqrt(real(err)), math.Sqrt(imag(err)))*complex(scale, 0)
+}
 
-	return
+// GetErrSTDFreqDom returns the scaled standard deviation of the difference between two complex vectors in the slot domains
+func (encoder *encoderComplex128) GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std complex128) {
+
+	for i := range valuesHave{
+		encoder.values[i] = valuesWant[i]-valuesHave[i]
+	}
+
+	return encoder.getstd(encoder.values, scale)
 }
 
 // GetErrSTDTimeDom returns the scaled standard deviation of the coefficient domain of the difference between two complex vectors in the slot domains
 func (encoder *encoderComplex128) GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std complex128) {
 
-	slots := uint64(len(valuesWant))
+	for i := range valuesHave{
+		encoder.values[i] = (valuesWant[i] - valuesHave[i])
+	}
 
-	want := make([]complex128, len(valuesWant))
-	have := make([]complex128, len(valuesHave))
+	invfft(encoder.values, uint64(len(valuesWant)), encoder.m, encoder.rotGroup, encoder.roots)
 
-	copy(want, valuesWant)
-	copy(have, valuesHave)
-
-	invfft(want, slots, encoder.m, encoder.rotGroup, encoder.roots)
-	invfft(have, slots, encoder.m, encoder.rotGroup, encoder.roots)
-
-	return encoder.GetErrSTDFreqDom(want, have, scale)
+	return encoder.getstd(encoder.values, scale)
 
 }
 
@@ -346,7 +348,7 @@ func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64
 	}
 }
 
-func (encoder *encoderComplex128) decodeAndRound(plaintext *Plaintext, logSlots uint64, bound float64) (res []complex128) {
+func (encoder *encoderComplex128) decodeAndRound(plaintext *Plaintext, logSlots uint64, sigma float64) (res []complex128) {
 
 	if logSlots > encoder.params.LogN()-1 {
 		panic("cannot Decode: too many slots for the given ring degree")
@@ -360,11 +362,17 @@ func (encoder *encoderComplex128) decodeAndRound(plaintext *Plaintext, logSlots 
 		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	}
 
-	encoder.plaintextToComplex(plaintext.Level(), plaintext.Scale(), logSlots, encoder.polypool, encoder.values)
-
-	if plaintext.scale != bound {
-		roundComplexVector(encoder.values, bound)
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
 	}
+
+	// B = ceil(sigma * sqrt(2*pi))
+	sampler := ring.NewGaussianSampler(prng, encoder.ringQ, sigma, uint64(2.5066282746310002*sigma + 0.5))
+
+	sampler.ReadAndAddLvl(plaintext.Level(), encoder.polypool)
+
+	encoder.plaintextToComplex(plaintext.Level(), plaintext.Scale(), logSlots, encoder.polypool, encoder.values)
 
 	fft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
 

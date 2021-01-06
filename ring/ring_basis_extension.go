@@ -43,7 +43,7 @@ func genModDownParams(ringP, ringQ *Ring) (params []uint64) {
 
 	params = make([]uint64, len(ringP.Modulus))
 
-	bredParams := ringP.GetBredParams()
+	bredParams := ringP.BredParams
 	tmp := new(big.Int)
 	for i, Qi := range ringP.Modulus {
 
@@ -175,7 +175,7 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 
 	// First we get the P basis part of p1 out of the NTT domain
 	for j := 0; j < nPj; j++ {
-		InvNTTLazy(p1.Coeffs[nQi+j], p1.Coeffs[nQi+j], ringP.N, ringP.GetNttPsiInv()[j], ringP.GetNttNInv()[j], ringP.Modulus[j], ringP.GetMredParams()[j])
+		InvNTTLazy(p1.Coeffs[nQi+j], p1.Coeffs[nQi+j], ringP.N, ringP.NttPsiInv[j], ringP.NttNInv[j], ringP.Modulus[j])
 	}
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
@@ -192,10 +192,10 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 		p3tmp := polypool.Coeffs[i]
 		params := qi - modDownParams[i]
 		mredParams := ringQ.MredParams[i]
-		bredParams := ringQ.BredParams[i]
+		nttpsi := ringQ.NttPsi[i]
 
 		// First we switch back the relevant polypool CRT array back to the NTT domain
-		NTTLazy(p3tmp, p3tmp, ringQ.N, ringQ.GetNttPsi()[i], qi, mredParams, bredParams)
+		NTTLazy(p3tmp, p3tmp, ringQ.N, nttpsi, qi)
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < ringQ.N; j = j + 8 {
@@ -247,10 +247,10 @@ func (basisextender *FastBasisExtender) ModDownSplitNTTPQ(level uint64, p1Q, p1P
 		p3tmp := polypool.Coeffs[i]
 		params := qi - modDownParams[i]
 		mredParams := ringQ.MredParams[i]
-		bredParams := ringQ.BredParams[i]
+		nttpsi := ringQ.NttPsi[i]
 
 		// First we switch back the relevant polypool CRT array back to the NTT domain
-		NTTLazy(p3tmp, p3tmp, ringQ.N, ringQ.GetNttPsi()[i], ringQ.Modulus[i], mredParams, bredParams)
+		NTTLazy(p3tmp, p3tmp, ringQ.N, nttpsi, qi)
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
 		for j := uint64(0); j < ringQ.N; j = j + 8 {

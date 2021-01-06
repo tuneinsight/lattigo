@@ -295,11 +295,11 @@ func (r *Ring) DivFloorByLastModulusNTT(p0 *Poly) {
 
 	pTmp := make([]uint64, r.N)
 
-	InvNTTLazy(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+	InvNTTLazy(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level])
 
 	for i := 0; i < level; i++ {
 
-		NTTLazy(p0.Coeffs[level], pTmp, r.N, r.NttPsi[i], r.Modulus[i], r.MredParams[i], r.BredParams[i])
+		NTTLazy(p0.Coeffs[level], pTmp, r.N, r.NttPsi[i], r.Modulus[i])
 
 		p0tmp := p0.Coeffs[i]
 
@@ -385,7 +385,7 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 
 	pTmp := make([]uint64, r.N)
 
-	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level])
 
 	// Center by (p-1)/2
 	pj := r.Modulus[level]
@@ -413,6 +413,7 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 		twoqi := qi << 1
 		bredParams := r.BredParams[i]
 		mredParams := r.MredParams[i]
+		nttPsi := r.NttPsi[i]
 		rescaleParams := qi - r.RescaleParams[level-1][i]
 
 		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
@@ -432,7 +433,7 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 			z[7] = x[7] + pHalfNegQi
 		}
 
-		NTTLazy(pTmp, pTmp, r.N, r.NttPsi[i], qi, mredParams, bredParams)
+		NTTLazy(pTmp, pTmp, r.N, nttPsi, qi)
 
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < r.N; j = j + 8 {

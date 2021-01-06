@@ -117,7 +117,7 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 	prec.MeanPrecision = deltaToPrecision(prec.MeanDelta)
 	prec.MedianDelta = calcmedian(diff)
 	prec.MedianPrecision = deltaToPrecision(prec.MedianDelta)
-	prec.STDFreq = encoder.GetErrSTDFreqDom(valuesWant, valuesTest, params.Scale())
+	prec.STDFreq = encoder.GetErrSTDFreqDom(valuesWant[:], valuesTest[:], params.Scale())
 	prec.STDTime = encoder.GetErrSTDTimeDom(valuesWant, valuesTest, params.Scale())
 	return prec
 }

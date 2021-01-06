@@ -1352,34 +1352,3 @@ func (r *Ring) BitReverse(p1, p2 *Poly) {
 		}
 	}
 }
-
-// Rotate applies a Galois automorphism on p1 in NTT form,
-// rotating the coefficients to the right by n positions, and writes the result on p2.
-// It requires the data to be permuted in bit-reversal order before applying the NTT.
-func (r *Ring) Rotate(p1 *Poly, n uint64, p2 *Poly) {
-
-	var root, gal uint64
-
-	n &= (1 << r.N) - 1
-
-	for i, qi := range r.Modulus {
-
-		mredParams := r.MredParams[i]
-
-		root = MRed(r.PsiMont[i], r.PsiMont[i], qi, mredParams)
-
-		root = modexpMontgomery(root, n, qi, mredParams, r.BredParams[i])
-
-		gal = MForm(1, qi, r.BredParams[i])
-
-		p1tmp, p2tmp := p1.Coeffs[i], p1.Coeffs[i]
-
-		for j := uint64(1); j < r.N; j++ {
-
-			gal = MRed(gal, root, qi, mredParams)
-
-			p2tmp[j] = MRed(p1tmp[j], gal, qi, mredParams)
-
-		}
-	}
-}

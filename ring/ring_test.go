@@ -53,7 +53,7 @@ func TestRing(t *testing.T) {
 
 	var defaultParams = DefaultParams[0:4] // the default test
 	if testing.Short() {
-		defaultParams = DefaultParams[0:2] // the short test suite
+		defaultParams = DefaultParams[0:1] // the short test suite
 	}
 	if *flagLongTest {
 		defaultParams = DefaultParams // the long test suite
@@ -75,7 +75,6 @@ func TestRing(t *testing.T) {
 		testUniformSampler(testContext, t)
 		testGaussianSampler(testContext, t)
 		testTernarySampler(testContext, t)
-		testGaloisShift(testContext, t)
 		testModularReduction(testContext, t)
 		testMForm(testContext, t)
 		testMulScalarBigint(testContext, t)
@@ -496,26 +495,52 @@ func testModularReduction(testContext *testParams, t *testing.T) {
 			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
 		}
 	})
-}
 
-func testGaloisShift(testContext *testParams, t *testing.T) {
+	t.Run(testString("ModularReduction/FastBRed/", testContext.ringQ), func(t *testing.T) {
 
-	t.Run(testString("GaloisShift/", testContext.ringQ), func(t *testing.T) {
+		var x uint64
+		var y FastBRedOperand
+		var bigQ, result *big.Int
 
-		pWant := testContext.uniformSamplerQ.ReadNew()
-		pTest := pWant.CopyNew()
+		for _, q := range testContext.ringQ.Modulus {
 
-		testContext.ringQ.BitReverse(pTest, pTest)
-		testContext.ringQ.InvNTT(pTest, pTest)
-		testContext.ringQ.Rotate(pTest, 1, pTest)
-		testContext.ringQ.NTT(pTest, pTest)
-		testContext.ringQ.BitReverse(pTest, pTest)
-		testContext.ringQ.Reduce(pTest, pTest)
+			bigQ = NewUint(q)
 
-		testContext.ringQ.Shift(pWant, 1, pWant)
+			x = 1
+			y = NewFastBRedOperand(1, q)
 
-		for i := range testContext.ringQ.Modulus {
-			require.Equal(t, pTest.Coeffs[i][:testContext.ringQ.N], pWant.Coeffs[i][:testContext.ringQ.N])
+			result = NewUint(x)
+			result.Mul(result, NewUint(y.operand))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.operand)
+
+			x = 1
+			y = NewFastBRedOperand(q-1, q)
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y.operand))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.operand)
+
+			x = q - 1
+			y = NewFastBRedOperand(q-1, q)
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y.operand))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.operand)
+
+			x = 0xFFFFFFFFFFFFFFFF
+			y = NewFastBRedOperand(q-1, q)
+
+			result = NewUint(x)
+			result.Mul(result, NewUint(y.operand))
+			result.Mod(result, bigQ)
+
+			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.operand)
 		}
 	})
 }
@@ -557,33 +582,35 @@ func testMulScalarBigint(testContext *testParams, t *testing.T) {
 
 func testMulPoly(testContext *testParams, t *testing.T) {
 
+	ringQ := testContext.ringQ
+
 	p1 := testContext.uniformSamplerQ.ReadNew()
 	p2 := testContext.uniformSamplerQ.ReadNew()
 	p3Test := testContext.ringQ.NewPoly()
 	p3Want := testContext.ringQ.NewPoly()
 
-	testContext.ringQ.Reduce(p1, p1)
-	testContext.ringQ.Reduce(p2, p2)
+	ringQ.Reduce(p1, p1)
+	ringQ.Reduce(p2, p2)
 
 	testContext.ringQ.MulPolyNaive(p1, p2, p3Want)
 
 	t.Run(testString("MulPoly/Barrett/", testContext.ringQ), func(t *testing.T) {
 
-		testContext.ringQ.MulPoly(p1, p2, p3Test)
+		ringQ.MulPoly(p1, p2, p3Test)
 
-		require.Equal(t, p3Want.Coeffs[0][:testContext.ringQ.N], p3Test.Coeffs[0][:testContext.ringQ.N])
+		require.True(t, testContext.ringQ.Equal(p3Want, p3Test))
 	})
 
 	t.Run(testString("MulPoly/Montgomery/", testContext.ringQ), func(t *testing.T) {
 
-		testContext.ringQ.MForm(p1, p1)
-		testContext.ringQ.MForm(p2, p2)
+		ringQ.MForm(p1, p1)
+		ringQ.MForm(p2, p2)
 
-		testContext.ringQ.MulPolyMontgomery(p1, p2, p3Test)
+		ringQ.MulPolyMontgomery(p1, p2, p3Test)
 
-		testContext.ringQ.InvMForm(p3Test, p3Test)
+		ringQ.InvMForm(p3Test, p3Test)
 
-		require.Equal(t, p3Want.Coeffs[0][:testContext.ringQ.N], p3Test.Coeffs[0][:testContext.ringQ.N])
+		require.True(t, testContext.ringQ.Equal(p3Want, p3Test))
 	})
 }
 

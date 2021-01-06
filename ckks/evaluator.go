@@ -428,9 +428,22 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 
-	cReal, cImag, _ := eval.getConstAndScale(level, constant)
-
 	ringQ := eval.ringQ
+
+	if ct0 != ctOut {
+		if ct0.Degree() > ctOut.Degree() {
+			panic("receiver operand degree is too small")
+		} else if ctOut.Degree() > ct0.Degree() {
+			tmp := ctOut.value
+			tmp = tmp[:ct0.Degree()+1]
+		}
+	}
+
+	for i := range ct0.Value()[1:] {
+		ringQ.CopyLvl(level, ct0.Value()[i+1], ctOut.Value()[i+1])
+	}
+
+	cReal, cImag, _ := eval.getConstAndScale(level, constant)
 
 	// Component wise addition of the following vector to the ciphertext:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
@@ -454,8 +467,8 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
-		p1tmp := ctOut.Value()[0].Coeffs[i]
 		p0tmp := ct0.value[0].Coeffs[i]
+		p1tmp := ctOut.Value()[0].Coeffs[i]
 
 		for j := uint64(0); j < ringQ.N>>1; j = j + 8 {
 
@@ -490,6 +503,10 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 			z[6] = ring.CRed(x[6]+scaledConst, qi)
 			z[7] = ring.CRed(x[7]+scaledConst, qi)
 		}
+	}
+
+	for i := range ctOut.Value() {
+		ctOut.Value()[i].Coeffs = ctOut.Value()[i].Coeffs[:level+1]
 	}
 }
 

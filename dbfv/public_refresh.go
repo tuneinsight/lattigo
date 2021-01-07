@@ -201,13 +201,15 @@ func (rfp *RefreshProtocol) Finalize(ciphertext *bfv.Ciphertext, crs *ring.Poly,
 }
 
 func lift(p0, p1 *ring.Poly, context *dbfvContext) {
-
+	modulus := context.ringQ.Modulus
+	deltaMont := context.deltaMont
 	coeffs := p0.Coeffs[0]
+	level := len(modulus) - 1
 	var coeff uint64
 	for j := uint64(0); j < context.n; j++ {
 		coeff = coeffs[j]
-		for i := len(context.ringQ.Modulus) - 1; i >= 0; i-- {
-			p1.Coeffs[i][j] = ring.MRed(coeff, context.deltaMont[i], context.ringQ.Modulus[i], context.ringQ.MredParams[i])
+		for i := level; i >= 0; i-- {
+			p1.Coeffs[i][j] = ring.FastBRed(coeff, deltaMont[i], modulus[i])
 		}
 	}
 }

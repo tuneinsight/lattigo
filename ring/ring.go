@@ -35,7 +35,7 @@ type Ring struct {
 	BredParams [][]uint64
 	MredParams []uint64
 
-	RescaleParams [][]uint64
+	RescaleParams [][]FastBRedOperand
 
 	//NTT Parameters
 	PsiMont    []uint64 //2N-th primitive root in Montgomery form
@@ -136,15 +136,15 @@ func (r *Ring) genNTTParams() error {
 		}
 	}
 
-	r.RescaleParams = make([][]uint64, len(r.Modulus)-1)
+	r.RescaleParams = make([][]FastBRedOperand, len(r.Modulus)-1)
 
 	for j := len(r.Modulus) - 1; j > 0; j-- {
 
-		r.RescaleParams[j-1] = make([]uint64, j)
+		r.RescaleParams[j-1] = make([]FastBRedOperand, j)
 
 		for i := 0; i < j; i++ {
 
-			r.RescaleParams[j-1][i] = MForm(ModExp(r.Modulus[j], r.Modulus[i]-2, r.Modulus[i]), r.Modulus[i], r.BredParams[i])
+			r.RescaleParams[j-1][i] = NewFastBRedOperand(r.Modulus[i]-ModExp(r.Modulus[j], r.Modulus[i]-2, r.Modulus[i]), r.Modulus[i])
 		}
 	}
 
@@ -190,8 +190,8 @@ func (r *Ring) genNTTParams() error {
 			indexReversePrev := utils.BitReverse64(j-1, bitLenofN)
 			indexReverseNext := utils.BitReverse64(j, bitLenofN)
 
-			r.NttPsi[i][indexReverseNext] = NewFastBRedOperand(MRed(r.NttPsi[i][indexReversePrev].operand, PsiMont, qi, r.MredParams[i]), qi)
-			r.NttPsiInv[i][indexReverseNext] = NewFastBRedOperand(MRed(r.NttPsiInv[i][indexReversePrev].operand, PsiInvMont, qi, r.MredParams[i]), qi)
+			r.NttPsi[i][indexReverseNext] = NewFastBRedOperand(MRed(r.NttPsi[i][indexReversePrev].Operand, PsiMont, qi, r.MredParams[i]), qi)
+			r.NttPsiInv[i][indexReverseNext] = NewFastBRedOperand(MRed(r.NttPsiInv[i][indexReversePrev].Operand, PsiInvMont, qi, r.MredParams[i]), qi)
 
 		}
 	}

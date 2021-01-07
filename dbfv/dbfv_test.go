@@ -496,12 +496,14 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		copy(coeffsTmp, coeffs)
 
 		// Finds the maximum multiplicative depth
+		bredParams := testCtx.dbfvContext.ringT.BredParams[0]
+		modulus := testCtx.dbfvContext.ringT.Modulus[0]
 		for {
 
 			testCtx.evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertextTmp, ciphertextTmp), rlk, ciphertextTmp)
 
 			for j := range coeffsTmp {
-				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], testCtx.dbfvContext.ringT.Modulus[0], testCtx.dbfvContext.ringT.GetBredParams()[0])
+				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], modulus, bredParams)
 			}
 
 			if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertextTmp))) {
@@ -540,7 +542,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 			testCtx.evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertext, ciphertext), rlk, ciphertext)
 
 			for j := range coeffs {
-				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], testCtx.dbfvContext.ringT.Modulus[0], testCtx.dbfvContext.ringT.GetBredParams()[0])
+				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], modulus, bredParams)
 			}
 		}
 

@@ -51,7 +51,7 @@ func TestRing(t *testing.T) {
 
 	var err error
 
-	var defaultParams = DefaultParams[0:4] // the default test
+	var defaultParams = DefaultParams[0:3] // the default test
 	if testing.Short() {
 		defaultParams = DefaultParams[0:1] // the short test suite
 	}
@@ -510,37 +510,37 @@ func testModularReduction(testContext *testParams, t *testing.T) {
 			y = NewFastBRedOperand(1, q)
 
 			result = NewUint(x)
-			result.Mul(result, NewUint(y.operand))
+			result.Mul(result, NewUint(y.Operand))
 			result.Mod(result, bigQ)
 
-			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.operand)
+			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.Operand)
 
 			x = 1
 			y = NewFastBRedOperand(q-1, q)
 
 			result = NewUint(x)
-			result.Mul(result, NewUint(y.operand))
+			result.Mul(result, NewUint(y.Operand))
 			result.Mod(result, bigQ)
 
-			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.operand)
+			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.Operand)
 
 			x = q - 1
 			y = NewFastBRedOperand(q-1, q)
 
 			result = NewUint(x)
-			result.Mul(result, NewUint(y.operand))
+			result.Mul(result, NewUint(y.Operand))
 			result.Mod(result, bigQ)
 
-			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.operand)
+			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.Operand)
 
 			x = 0xFFFFFFFFFFFFFFFF
 			y = NewFastBRedOperand(q-1, q)
 
 			result = NewUint(x)
-			result.Mul(result, NewUint(y.operand))
+			result.Mul(result, NewUint(y.Operand))
 			result.Mod(result, bigQ)
 
-			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.operand)
+			require.Equalf(t, FastBRed(x, y, q), result.Uint64(), "x = %v, y=%v", x, y.Operand)
 		}
 	})
 }

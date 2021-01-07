@@ -5,18 +5,33 @@ import (
 	"unsafe"
 )
 
-// NTTFast computes the NTT of p1 and returns the result on p2.
+// NTT computes the NTT of p1 and returns the result on p2.
 func (r *Ring) NTT(p1, p2 *Poly) {
 	for x := range r.Modulus {
 		NTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.BredParams[x])
 	}
 }
 
-// NTTFastBRedLvl computes the NTT of p1 and returns the result on p2.
+// NTTLvl computes the NTT of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 func (r *Ring) NTTLvl(level uint64, p1, p2 *Poly) {
 	for x := uint64(0); x < level+1; x++ {
 		NTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.BredParams[x])
+	}
+}
+
+// NTTLazy computes the NTT of p1 and returns the result on p2.
+func (r *Ring) NTTLazy(p1, p2 *Poly) {
+	for x := range r.Modulus {
+		NTTLazy(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x])
+	}
+}
+
+// NTTLazyLvl computes the NTT of p1 and returns the result on p2.
+// The value level defines the number of moduli of the input polynomials.
+func (r *Ring) NTTLazyLvl(level uint64, p1, p2 *Poly) {
+	for x := uint64(0); x < level+1; x++ {
+		NTTLazy(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x])
 	}
 }
 
@@ -336,14 +351,14 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []FastBRedOperand, Q
 	}
 }
 
-// InvNTTFastBRed computes the inverse-NTT of p1 and returns the result on p2.
+// InvNTT computes the inverse-NTT of p1 and returns the result on p2.
 func (r *Ring) InvNTT(p1, p2 *Poly) {
 	for x := range r.Modulus {
 		InvNTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x])
 	}
 }
 
-// InvNTTFastBRedLvl computes the inverse-NTT of p1 and returns the result on p2.
+// InvNTTLvl computes the inverse-NTT of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 func (r *Ring) InvNTTLvl(level uint64, p1, p2 *Poly) {
 	for x := uint64(0); x < level+1; x++ {
@@ -361,7 +376,7 @@ func invbutterfly(U, V uint64, Psi FastBRedOperand, twoQ, fourQ, Q uint64) (X, Y
 	return
 }
 
-// InvNTTFastBRed computes the InvNTT transformation on the input coefficients using the input parameters.
+// InvNTT computes the InvNTT transformation on the input coefficients using the input parameters.
 func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []FastBRedOperand, nttNInv FastBRedOperand, Q uint64) {
 
 	var j1, j2, h, t uint64

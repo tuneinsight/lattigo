@@ -21,13 +21,20 @@ type Encoder interface {
 	Encode(plaintext *Plaintext, values []complex128, logSlots uint64)
 	EncodeNew(values []complex128, logSlots uint64) (plaintext *Plaintext)
 	EncodeAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
+
 	EncodeNTT(plaintext *Plaintext, values []complex128, logSlots uint64)
 	EncodeNTTAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
+
+	EncodeDiagMatrixAtLvl(level uint64, vector map[uint64][]complex128, scale, maxM1N2Ratio float64, logSlots uint64) (matrix *PtDiagMatrix)
+
 	Decode(plaintext *Plaintext, logSlots uint64) (res []complex128)
 	DecodePublic(plaintext *Plaintext, logSlots uint64, sigma float64) []complex128
+
 	Embed(values []complex128, logSlots uint64)
 	ScaleUp(pol *ring.Poly, scale float64, moduli []uint64)
+
 	WipeInternalMemory()
+
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 	DecodeCoeffsPublic(plaintext *Plaintext, bound float64) (res []float64)
@@ -55,6 +62,7 @@ type EncoderBigComplex interface {
 type encoder struct {
 	params       *Parameters
 	ringQ        *ring.Ring
+	ringP        *ring.Ring
 	bigintChain  []*big.Int
 	bigintCoeffs []*big.Int
 	qHalf        *big.Int
@@ -82,6 +90,13 @@ func newEncoder(params *Parameters) encoder {
 		panic(err)
 	}
 
+	var p *ring.Ring
+	if params.PiCount() != 0 {
+		if p, err = ring.NewRing(params.N(), params.pi); err != nil {
+			panic(err)
+		}
+	}
+
 	rotGroup := make([]uint64, m>>1)
 	fivePows := uint64(1)
 	for i := uint64(0); i < m>>2; i++ {
@@ -100,6 +115,7 @@ func newEncoder(params *Parameters) encoder {
 	return encoder{
 		params:          params.Copy(),
 		ringQ:           q,
+		ringP:           p,
 		bigintChain:     genBigIntChain(params.qi),
 		bigintCoeffs:    make([]*big.Int, m>>1),
 		qHalf:           ring.NewUint(0),
@@ -341,6 +357,152 @@ func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64
 			values[i] = float64(c) / scale
 		}
 	}
+}
+
+// PtDiagMatrix is a struct storing a plaintext diagonalized matrix
+// ready to be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
+type PtDiagMatrix struct {
+	LogSlots uint64                   // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
+	N1       uint64                   // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
+	Level    uint64                   // Level is the level at which the matrix is encoded (can be circuit dependant)
+	Scale    float64                  // Scale is the scale at which the matrix is encoded (can be circuit dependant)
+	Vec      map[uint64][2]*ring.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
+}
+
+// EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
+// It can then be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
+// maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.MultiplyByDiagMatrice.
+// Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
+func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map[uint64][]complex128, scale, maxM1N2Ratio float64, logSlots uint64) (matrix *PtDiagMatrix) {
+
+	matrix = new(PtDiagMatrix)
+	matrix.LogSlots = logSlots
+	matrix.N1 = findbestbabygiantstepsplit(vector, 1<<logSlots, maxM1N2Ratio)
+
+	var N, N1 uint64
+
+	ringQ := encoder.ringQ
+	ringP := encoder.ringP
+
+	// N1*N2 = N
+	N = ringQ.N
+	N1 = matrix.N1
+
+	if len(vector) > 2 {
+
+		index := make(map[uint64][]uint64)
+		for key := range vector {
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+			if index[idx1] == nil {
+				index[idx1] = []uint64{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
+		}
+
+		matrix.Vec = make(map[uint64][2]*ring.Poly)
+
+		matrix.Level = level
+		matrix.Scale = scale
+
+		for j := range index {
+
+			for _, i := range index[j] {
+
+				encoder.Embed(rotate(vector[N1*j+uint64(i)], (N>>1)-(N1*j)), logSlots)
+
+				plaintextQ := ring.NewPoly(N, level+1)
+				encoder.ScaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
+				ringQ.NTTLvl(level, plaintextQ, plaintextQ)
+				ringQ.MFormLvl(level, plaintextQ, plaintextQ)
+
+				plaintextP := ring.NewPoly(N, level+1)
+				encoder.ScaleUp(plaintextP, scale, ringP.Modulus)
+				ringP.NTT(plaintextP, plaintextP)
+				ringP.MForm(plaintextP, plaintextP)
+
+				matrix.Vec[N1*j+uint64(i)] = [2]*ring.Poly{plaintextQ, plaintextP}
+
+				encoder.WipeInternalMemory()
+			}
+		}
+	} else {
+
+		matrix.Vec = make(map[uint64][2]*ring.Poly)
+
+		matrix.Level = level
+		matrix.Scale = scale
+
+		for i := range vector {
+
+			encoder.Embed(rotate(vector[i], i), logSlots)
+
+			plaintextQ := ring.NewPoly(N, level+1)
+			encoder.ScaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
+			ringQ.NTTLvl(level, plaintextQ, plaintextQ)
+			ringQ.MFormLvl(level, plaintextQ, plaintextQ)
+
+			plaintextP := ring.NewPoly(N, level+1)
+			encoder.ScaleUp(plaintextP, scale, ringP.Modulus)
+			ringP.NTT(plaintextP, plaintextP)
+			ringP.MForm(plaintextP, plaintextP)
+
+			matrix.Vec[i] = [2]*ring.Poly{plaintextQ, plaintextP}
+
+			encoder.WipeInternalMemory()
+		}
+	}
+
+	return
+}
+
+// Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
+func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, maxRatio float64) (minN uint64) {
+
+	for N1 := uint64(1); N1 < maxN; N1 <<= 1 {
+
+		index := make(map[uint64][]uint64)
+
+		for key := range vector {
+
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+
+			if index[idx1] == nil {
+				index[idx1] = []uint64{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
+		}
+
+		if len(index[0]) > 0 {
+
+			hoisted := len(index[0]) - 1
+			normal := len(index) - 1
+
+			// The matrice is very sparse already
+			if normal == 0 {
+				return N1 / 2
+			}
+
+			if hoisted > normal {
+				// Finds the next split that has a ratio hoisted/normal greater or equal to maxRatio
+				for float64(hoisted)/float64(normal) < maxRatio {
+
+					if normal/2 == 0 {
+						break
+					}
+					N1 *= 2
+					hoisted = hoisted*2 + 1
+					normal = normal / 2
+				}
+				return N1
+			}
+		}
+	}
+
+	return 1
 }
 
 func (encoder *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots uint64, sigma float64) (res []complex128) {

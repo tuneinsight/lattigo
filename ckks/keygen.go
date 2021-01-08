@@ -22,6 +22,7 @@ type KeyGenerator interface {
 	GenRotationKey(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
 	GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys)
 	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey)
+	GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *SecretKey, rotKeys *RotationKeys)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -550,6 +551,50 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 	}
 
 	return
+}
+
+// GenRotKeysForDiagMatrix populates a RotationKeys struct with the necessary rotation keys for
+// the evaluation of the plaintext matrix on a ciphertext using evaluator.MultiplyByDiagMatrice.
+func (keygen *keyGenerator) GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *SecretKey, rotKeys *RotationKeys) {
+
+	slots := uint64(1 << matrix.LogSlots)
+
+	rotKeyIndex := []uint64{}
+
+	var index uint64
+
+	N1 := matrix.N1
+
+	if len(matrix.Vec) < 3 {
+
+		for key := range matrix.Vec {
+
+			if !utils.IsInSliceUint64(key, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, key)
+			}
+		}
+
+	} else {
+
+		for j := range matrix.Vec {
+
+			index = ((j / N1) * N1) & (slots - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+		}
+	}
+
+	for _, i := range rotKeyIndex {
+		keygen.GenRotationKey(RotationLeft, sk, uint64(i), rotKeys)
+	}
 }
 
 func addMatrixRotToList(pVec map[uint64]bool, rotations []uint64, N1, slots uint64, repack bool) []uint64 {

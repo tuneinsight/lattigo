@@ -367,6 +367,9 @@ type PtDiagMatrix struct {
 	Level    uint64                   // Level is the level at which the matrix is encoded (can be circuit dependant)
 	Scale    float64                  // Scale is the scale at which the matrix is encoded (can be circuit dependant)
 	Vec      map[uint64][2]*ring.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
+	naive    bool
+	rotOnly  bool   // Only one diagonal of the form [1, ..., 1]
+	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
 }
 
 // EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.

@@ -161,7 +161,7 @@ func TestMatrices(t *testing.T) {
 			m[i].Transpose()
 		}
 
-		VerifyTestVectors(d, params, encoder, decryptor, m, eval.MultiplyByDiagMatrix(ct, mTranspose, rotKeys), t)
+		VerifyTestVectors(d, params, encoder, decryptor, m, eval.LinearTransform(ct, mTranspose, rotKeys)[0], t)
 
 	})
 
@@ -190,21 +190,15 @@ func TestMatrices(t *testing.T) {
 
 				level := params.MaxLevel()
 
-				diagMatrix := MM.GenColumnRotationMatrix(d, k, params.LogSlots())
+				diagMatrix, _ := MM.GenSubVectorRotationMatrix(level, float64(params.Qi()[level]), d, k, params.LogSlots(), encoder)
 
-				scale := float64(params.Qi()[level])
-
-				mRotateCols := encoder.EncodeDiagMatrixAtLvl(level, diagMatrix, scale, 16.0, params.LogSlots())
-
-				kgen.GenRotKeysForDiagMatrix(mRotateCols, sk, rotKeys)
+				kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
 
 				for j := range m {
 					m[j].RotateCols(1)
 				}
 
-				//PrintDebug(ct, d, params, encoder, decryptor)
-
-				eval.(*evaluator).multiplyByDiabMatrixNaive(ct, res, mRotateCols, rotKeys, c2QiQDecompA, c2QiPDecompA)
+				eval.(*evaluator).multiplyByDiabMatrix(ct, res, diagMatrix, rotKeys, c2QiQDecompA, c2QiPDecompA)
 
 				VerifyTestVectors(d, params, encoder, decryptor, m, res, t)
 			})
@@ -235,19 +229,15 @@ func TestMatrices(t *testing.T) {
 
 				level := params.MaxLevel()
 
-				diagMatrix := MM.GenRowRotationMatrix(d, k, params.LogSlots())
+				diagMatrix, _ := MM.GenSubVectorRotationMatrix(level, float64(params.Qi()[level]), d*d, k*d, params.LogSlots(), encoder)
 
-				scale := float64(params.Qi()[level])
-
-				mRotateRows := encoder.EncodeDiagMatrixAtLvl(level, diagMatrix, scale, 16.0, params.LogSlots())
-
-				kgen.GenRotKeysForDiagMatrix(mRotateRows, sk, rotKeys)
+				kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
 
 				for j := range m {
 					m[j].RotateRows(1)
 				}
 
-				eval.(*evaluator).multiplyByDiabMatrixNaive(ct, res, mRotateRows, rotKeys, c2QiQDecompA, c2QiPDecompA)
+				eval.(*evaluator).multiplyByDiabMatrix(ct, res, diagMatrix, rotKeys, c2QiQDecompA, c2QiPDecompA)
 
 				VerifyTestVectors(d, params, encoder, decryptor, m, res, t)
 			})
@@ -271,7 +261,7 @@ func TestMatrices(t *testing.T) {
 			m[j].PermuteA()
 		}
 
-		ct = eval.MultiplyByDiagMatrix(ct, mPermuteA, rotKeys)
+		ct = eval.LinearTransform(ct, mPermuteA, rotKeys)[0]
 
 		//PrintDebug(ctAB, d, params, encoder, decryptor)
 
@@ -298,7 +288,7 @@ func TestMatrices(t *testing.T) {
 
 		//PrintDebug(ct, d, params, encoder, decryptor)
 
-		ct = eval.MultiplyByDiagMatrix(ct, mPermuteB, rotKeys)
+		ct = eval.LinearTransform(ct, mPermuteB, rotKeys)[0]
 
 		//PrintDebug(ct, d, params, encoder, decryptor)
 

@@ -180,7 +180,7 @@ func (btp *Bootstrapper) dft(vec *Ciphertext, plainVectors []*PtDiagMatrix, forw
 	eval := btp.evaluator.(*evaluator)
 	// Sequencially multiplies w with the provided dft matrices.
 	for _, plainVector := range plainVectors {
-		vec = eval.MultiplyByDiagMatrix(vec, plainVector, btp.rotkeys)
+		vec = eval.LinearTransform(vec, plainVector, btp.rotkeys)[0]
 		eval.Rescale(vec, eval.scale, vec)
 	}
 

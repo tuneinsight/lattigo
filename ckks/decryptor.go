@@ -30,7 +30,7 @@ type decryptor struct {
 // encrypted under the provided secret-key.
 func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 
-	if sk.sk.GetDegree() != int(params.N()) {
+	if sk.sk.N() != params.N() {
 		panic("secret_key is invalid for the provided parameters")
 	}
 

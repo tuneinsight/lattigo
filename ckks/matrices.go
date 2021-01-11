@@ -234,7 +234,6 @@ func (mm *matrixMultiplier) GenSubVectorRotationMatrix(level uint64, scale float
 
 	matrix := new(PtDiagMatrix)
 	matrix.Vec = make(map[uint64][2]*ring.Poly)
-	
 
 	if vectorSize < slots {
 		m0 := make([]complex128, slots)
@@ -271,7 +270,7 @@ func (mm *matrixMultiplier) GenSubVectorRotationMatrix(level uint64, scale float
 		diagMatrix[k] = m1
 
 		// Encoding
-		ringQ := encoder.(*encoderComplex128).ringQ	
+		ringQ := encoder.(*encoderComplex128).ringQ
 		ringP := encoder.(*encoderComplex128).ringP
 		N := ringQ.N
 

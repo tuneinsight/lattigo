@@ -289,19 +289,21 @@ func (ss *SimpleScaler) reconstructAndScale(p1, p2 *Poly) {
 // ============== Scaling-related methods ==============
 
 // DivFloorByLastModulusNTT divides (floored) the polynomial by its last modulus. The input must be in the NTT domain.
-func (r *Ring) DivFloorByLastModulusNTT(p0 *Poly) {
+func (r *Ring) DivFloorByLastModulusNTT(p0, p1 *Poly) {
 
 	level := len(p0.Coeffs) - 1
 
-	pTmp := make([]uint64, r.N)
+	pool0 := r.coeffsPool[0]
+	pool1 := r.coeffsPool[1]
 
-	InvNTTLazy(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level])
+	InvNTTLazy(p0.Coeffs[level], pool0, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level])
 
 	for i := 0; i < level; i++ {
 
-		NTTLazy(p0.Coeffs[level], pTmp, r.N, r.NttPsi[i], r.Modulus[i])
+		NTTLazy(pool0, pool1, r.N, r.NttPsi[i], r.Modulus[i])
 
 		p0tmp := p0.Coeffs[i]
+		p1tmp := p1.Coeffs[i]
 
 		qi := r.Modulus[i]
 		twoqi := qi << 1
@@ -310,32 +312,34 @@ func (r *Ring) DivFloorByLastModulusNTT(p0 *Poly) {
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < r.N; j = j + 8 {
 
-			x := (*[8]uint64)(unsafe.Pointer(&pTmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+			x := (*[8]uint64)(unsafe.Pointer(&pool1[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
 
-			z[0] = FastBRed(twoqi-z[0]+x[0], rescaleParams, qi)
-			z[1] = FastBRed(twoqi-z[1]+x[1], rescaleParams, qi)
-			z[2] = FastBRed(twoqi-z[2]+x[2], rescaleParams, qi)
-			z[3] = FastBRed(twoqi-z[3]+x[3], rescaleParams, qi)
-			z[4] = FastBRed(twoqi-z[4]+x[4], rescaleParams, qi)
-			z[5] = FastBRed(twoqi-z[5]+x[5], rescaleParams, qi)
-			z[6] = FastBRed(twoqi-z[6]+x[6], rescaleParams, qi)
-			z[7] = FastBRed(twoqi-z[7]+x[7], rescaleParams, qi)
+			z[0] = FastBRed(twoqi-y[0]+x[0], rescaleParams, qi)
+			z[1] = FastBRed(twoqi-y[1]+x[1], rescaleParams, qi)
+			z[2] = FastBRed(twoqi-y[2]+x[2], rescaleParams, qi)
+			z[3] = FastBRed(twoqi-y[3]+x[3], rescaleParams, qi)
+			z[4] = FastBRed(twoqi-y[4]+x[4], rescaleParams, qi)
+			z[5] = FastBRed(twoqi-y[5]+x[5], rescaleParams, qi)
+			z[6] = FastBRed(twoqi-y[6]+x[6], rescaleParams, qi)
+			z[7] = FastBRed(twoqi-y[7]+x[7], rescaleParams, qi)
 
 		}
 	}
 
-	p0.Coeffs = p0.Coeffs[:level]
+	p1.Coeffs = p1.Coeffs[:level]
 }
 
 // DivFloorByLastModulus divides (floored) the polynomial by its last modulus.
-func (r *Ring) DivFloorByLastModulus(p0 *Poly) {
+func (r *Ring) DivFloorByLastModulus(p0, p1 *Poly) {
 
 	level := len(p0.Coeffs) - 1
 
 	for i := 0; i < level; i++ {
 		p0tmp := p0.Coeffs[level]
 		p1tmp := p0.Coeffs[i]
+		p2tmp := p1.Coeffs[i]
 		qi := r.Modulus[i]
 		twoqi := qi << 1
 		bredParams := r.BredParams[i]
@@ -345,55 +349,67 @@ func (r *Ring) DivFloorByLastModulus(p0 *Poly) {
 		for j := uint64(0); j < r.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
 
-			z[0] = FastBRed(twoqi-z[0]+BRedAdd(x[0], qi, bredParams), rescaleParams, qi)
-			z[1] = FastBRed(twoqi-z[1]+BRedAdd(x[1], qi, bredParams), rescaleParams, qi)
-			z[2] = FastBRed(twoqi-z[2]+BRedAdd(x[2], qi, bredParams), rescaleParams, qi)
-			z[3] = FastBRed(twoqi-z[3]+BRedAdd(x[3], qi, bredParams), rescaleParams, qi)
-			z[4] = FastBRed(twoqi-z[4]+BRedAdd(x[4], qi, bredParams), rescaleParams, qi)
-			z[5] = FastBRed(twoqi-z[5]+BRedAdd(x[5], qi, bredParams), rescaleParams, qi)
-			z[6] = FastBRed(twoqi-z[6]+BRedAdd(x[6], qi, bredParams), rescaleParams, qi)
-			z[7] = FastBRed(twoqi-z[7]+BRedAdd(x[7], qi, bredParams), rescaleParams, qi)
+			z[0] = FastBRed(twoqi-y[0]+BRedAdd(x[0], qi, bredParams), rescaleParams, qi)
+			z[1] = FastBRed(twoqi-y[1]+BRedAdd(x[1], qi, bredParams), rescaleParams, qi)
+			z[2] = FastBRed(twoqi-y[2]+BRedAdd(x[2], qi, bredParams), rescaleParams, qi)
+			z[3] = FastBRed(twoqi-y[3]+BRedAdd(x[3], qi, bredParams), rescaleParams, qi)
+			z[4] = FastBRed(twoqi-y[4]+BRedAdd(x[4], qi, bredParams), rescaleParams, qi)
+			z[5] = FastBRed(twoqi-y[5]+BRedAdd(x[5], qi, bredParams), rescaleParams, qi)
+			z[6] = FastBRed(twoqi-y[6]+BRedAdd(x[6], qi, bredParams), rescaleParams, qi)
+			z[7] = FastBRed(twoqi-y[7]+BRedAdd(x[7], qi, bredParams), rescaleParams, qi)
 		}
 	}
 
-	p0.Coeffs = p0.Coeffs[:level]
+	p1.Coeffs = p1.Coeffs[:level]
 }
 
 // DivFloorByLastModulusManyNTT divides (floored) sequentially nbRescales times the polynomial by its last modulus. Input must be in the NTT domain.
-func (r *Ring) DivFloorByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
-	r.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
-	r.DivFloorByLastModulusMany(p0, nbRescales)
-	r.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+func (r *Ring) DivFloorByLastModulusManyNTT(p0, p1 *Poly, nbRescales uint64) {
+
+	if nbRescales == 0 {
+		r.CopyLvl(uint64(len(p0.Coeffs)-1), p0, p1)
+	} else {
+		r.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p1)
+		r.DivFloorByLastModulusMany(p1, p1, nbRescales)
+		r.NTTLvl(uint64(len(p1.Coeffs)-1), p1, p1)
+	}
 }
 
 // DivFloorByLastModulusMany divides (floored) sequentially nbRescales times the polynomial by its last modulus.
-func (r *Ring) DivFloorByLastModulusMany(p0 *Poly, nbRescales uint64) {
-	for k := uint64(0); k < nbRescales; k++ {
-		r.DivFloorByLastModulus(p0)
+func (r *Ring) DivFloorByLastModulusMany(p0, p1 *Poly, nbRescales uint64) {
+
+	if nbRescales == 0 {
+		r.CopyLvl(uint64(len(p0.Coeffs)-1), p0, p1)
+	} else {
+		r.DivFloorByLastModulus(p0, p1)
+		for k := uint64(1); k < nbRescales; k++ {
+			r.DivFloorByLastModulus(p1, p1)
+		}
 	}
 }
 
 // DivRoundByLastModulusNTT divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
-func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
+func (r *Ring) DivRoundByLastModulusNTT(p0, p1 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
 
 	level := len(p0.Coeffs) - 1
 
-	pTmp := make([]uint64, r.N)
+	pool0 := r.coeffsPool[0]
+	pool1 := r.coeffsPool[1]
 
-	InvNTT(p0.Coeffs[level], p0.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level])
+	InvNTT(p0.Coeffs[level], pool0, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level])
 
 	// Center by (p-1)/2
 	pj := r.Modulus[level]
 	pHalf = (pj - 1) >> 1
-	p0tmp := p0.Coeffs[level]
 
 	for i := uint64(0); i < r.N; i = i + 8 {
 
-		z := (*[8]uint64)(unsafe.Pointer(&p0tmp[i]))
+		z := (*[8]uint64)(unsafe.Pointer(&pool0[i]))
 
 		z[0] = CRed(z[0]+pHalf, pj)
 		z[1] = CRed(z[1]+pHalf, pj)
@@ -407,7 +423,8 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 
 	for i := 0; i < level; i++ {
 
-		p1tmp := p0.Coeffs[i]
+		p0tmp := p0.Coeffs[i]
+		p1tmp := p1.Coeffs[i]
 		qi := r.Modulus[i]
 		twoqi := qi << 1
 		bredParams := r.BredParams[i]
@@ -418,8 +435,8 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 
 		for j := uint64(0); j < r.N; j = j + 8 {
 
-			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&pTmp[j]))
+			x := (*[8]uint64)(unsafe.Pointer(&pool0[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&pool1[j]))
 
 			z[0] = x[0] + pHalfNegQi
 			z[1] = x[1] + pHalfNegQi
@@ -431,30 +448,31 @@ func (r *Ring) DivRoundByLastModulusNTT(p0 *Poly) {
 			z[7] = x[7] + pHalfNegQi
 		}
 
-		NTTLazy(pTmp, pTmp, r.N, nttPsi, qi)
+		NTTLazy(pool1, pool1, r.N, nttPsi, qi)
 
 		// (x[i] - x[-1]) * InvQ
 		for j := uint64(0); j < r.N; j = j + 8 {
 
-			x := (*[8]uint64)(unsafe.Pointer(&pTmp[j]))
+			x := (*[8]uint64)(unsafe.Pointer(&pool1[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
 
-			z[0] = FastBRed(twoqi+x[0]-z[0], rescaleParams, qi)
-			z[1] = FastBRed(twoqi+x[1]-z[1], rescaleParams, qi)
-			z[2] = FastBRed(twoqi+x[2]-z[2], rescaleParams, qi)
-			z[3] = FastBRed(twoqi+x[3]-z[3], rescaleParams, qi)
-			z[4] = FastBRed(twoqi+x[4]-z[4], rescaleParams, qi)
-			z[5] = FastBRed(twoqi+x[5]-z[5], rescaleParams, qi)
-			z[6] = FastBRed(twoqi+x[6]-z[6], rescaleParams, qi)
-			z[7] = FastBRed(twoqi+x[7]-z[7], rescaleParams, qi)
+			z[0] = FastBRed(twoqi+x[0]-y[0], rescaleParams, qi)
+			z[1] = FastBRed(twoqi+x[1]-y[1], rescaleParams, qi)
+			z[2] = FastBRed(twoqi+x[2]-y[2], rescaleParams, qi)
+			z[3] = FastBRed(twoqi+x[3]-y[3], rescaleParams, qi)
+			z[4] = FastBRed(twoqi+x[4]-y[4], rescaleParams, qi)
+			z[5] = FastBRed(twoqi+x[5]-y[5], rescaleParams, qi)
+			z[6] = FastBRed(twoqi+x[6]-y[6], rescaleParams, qi)
+			z[7] = FastBRed(twoqi+x[7]-y[7], rescaleParams, qi)
 		}
 	}
 
-	p0.Coeffs = p0.Coeffs[:level]
+	p1.Coeffs = p1.Coeffs[:level]
 }
 
 // DivRoundByLastModulus divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
-func (r *Ring) DivRoundByLastModulus(p0 *Poly) {
+func (r *Ring) DivRoundByLastModulus(p0, p1 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
 
@@ -482,6 +500,7 @@ func (r *Ring) DivRoundByLastModulus(p0 *Poly) {
 	for i := 0; i < level; i++ {
 
 		p1tmp := p0.Coeffs[i]
+		p2tmp := p1.Coeffs[i]
 
 		qi := r.Modulus[i]
 		twoqi := qi << 1
@@ -494,32 +513,43 @@ func (r *Ring) DivRoundByLastModulus(p0 *Poly) {
 		for j := uint64(0); j < r.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
 
-			z[0] = FastBRed(x[0]+pHalfNegQi+twoqi-z[0], rescaleParams, qi)
-			z[1] = FastBRed(x[1]+pHalfNegQi+twoqi-z[1], rescaleParams, qi)
-			z[2] = FastBRed(x[2]+pHalfNegQi+twoqi-z[2], rescaleParams, qi)
-			z[3] = FastBRed(x[3]+pHalfNegQi+twoqi-z[3], rescaleParams, qi)
-			z[4] = FastBRed(x[4]+pHalfNegQi+twoqi-z[4], rescaleParams, qi)
-			z[5] = FastBRed(x[5]+pHalfNegQi+twoqi-z[5], rescaleParams, qi)
-			z[6] = FastBRed(x[6]+pHalfNegQi+twoqi-z[6], rescaleParams, qi)
-			z[7] = FastBRed(x[7]+pHalfNegQi+twoqi-z[7], rescaleParams, qi)
+			z[0] = FastBRed(x[0]+pHalfNegQi+twoqi-y[0], rescaleParams, qi)
+			z[1] = FastBRed(x[1]+pHalfNegQi+twoqi-y[1], rescaleParams, qi)
+			z[2] = FastBRed(x[2]+pHalfNegQi+twoqi-y[2], rescaleParams, qi)
+			z[3] = FastBRed(x[3]+pHalfNegQi+twoqi-y[3], rescaleParams, qi)
+			z[4] = FastBRed(x[4]+pHalfNegQi+twoqi-y[4], rescaleParams, qi)
+			z[5] = FastBRed(x[5]+pHalfNegQi+twoqi-y[5], rescaleParams, qi)
+			z[6] = FastBRed(x[6]+pHalfNegQi+twoqi-y[6], rescaleParams, qi)
+			z[7] = FastBRed(x[7]+pHalfNegQi+twoqi-y[7], rescaleParams, qi)
 		}
 	}
 
-	p0.Coeffs = p0.Coeffs[:level]
+	p1.Coeffs = p1.Coeffs[:level]
 }
 
 // DivRoundByLastModulusManyNTT divides (rounded) sequentially nbRescales times the polynomial by its last modulus. The input must be in the NTT domain.
-func (r *Ring) DivRoundByLastModulusManyNTT(p0 *Poly, nbRescales uint64) {
-	r.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
-	r.DivRoundByLastModulusMany(p0, nbRescales)
-	r.NTTLvl(uint64(len(p0.Coeffs)-1), p0, p0)
+func (r *Ring) DivRoundByLastModulusManyNTT(p0, p1 *Poly, nbRescales uint64) {
+
+	if nbRescales == 0 {
+		r.CopyLvl(uint64(len(p0.Coeffs)-1), p0, p1)
+	} else {
+		r.InvNTTLvl(uint64(len(p0.Coeffs)-1), p0, p1)
+		r.DivRoundByLastModulusMany(p1, p1, nbRescales)
+		r.NTTLvl(uint64(len(p1.Coeffs)-1), p1, p1)
+	}
 }
 
 // DivRoundByLastModulusMany divides (rounded) sequentially nbRescales times the polynomial by its last modulus.
-func (r *Ring) DivRoundByLastModulusMany(p0 *Poly, nbRescales uint64) {
-	for k := uint64(0); k < nbRescales; k++ {
-		r.DivRoundByLastModulus(p0)
+func (r *Ring) DivRoundByLastModulusMany(p0, p1 *Poly, nbRescales uint64) {
+	if nbRescales == 0 {
+		r.CopyLvl(uint64(len(p0.Coeffs)-1), p0, p1)
+	} else {
+		r.DivRoundByLastModulus(p0, p1)
+		for k := uint64(1); k < nbRescales; k++ {
+			r.DivRoundByLastModulus(p1, p1)
+		}
 	}
 }

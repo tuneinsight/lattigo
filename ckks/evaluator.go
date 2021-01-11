@@ -101,8 +101,7 @@ type Evaluator interface {
 	ScaleUpNew(ct0 *Ciphertext, scale float64) (ctOut *Ciphertext)
 	ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext)
 	SetScale(ct *Ciphertext, scale float64)
-	Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciphertext) (err error)
-	RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *Ciphertext) (err error)
+	Rescale(ct0 *Ciphertext, minScale float64, c1 *Ciphertext) (err error)
 
 	// Level Management
 	DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciphertext)
@@ -1212,12 +1211,12 @@ func (eval *evaluator) DropLevel(ct0 *Ciphertext, levels uint64) {
 // in a newly created element. Since all the moduli in the moduli chain are generated to be close to the
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
-// Returns an error if "threshold <= 0", ct.Scale() = 0, ct.Level() = 0, ct.IsNTT() != true
-func (eval *evaluator) RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ciphertext, err error) {
+// Returns an error if "minScale <= 0", ct.Scale() = 0, ct.Level() = 0, ct.IsNTT() != true
+func (eval *evaluator) RescaleNew(ct0 *Ciphertext, minScale float64) (ctOut *Ciphertext, err error) {
 
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 
-	return ctOut, eval.Rescale(ct0, threshold, ctOut)
+	return ctOut, eval.Rescale(ct0, minScale, ctOut)
 }
 
 // Rescale divides ct0 by the last modulus in the moduli chain, and repeats this
@@ -1225,79 +1224,60 @@ func (eval *evaluator) RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ci
 // in ctOut. Since all the moduli in the moduli chain are generated to be close to the
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
-// Returns an error if "threshold <= 0", ct.Scale() = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Leve() != ctOut.Level()
-func (eval *evaluator) Rescale(ct0 *Ciphertext, threshold float64, ctOut *Ciphertext) (err error) {
+// Returns an error if "minScale <= 0", ct.Scale() = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Leve() != ctOut.Level()
+func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Ciphertext) (err error) {
 
 	ringQ := eval.ringQ
 
-	if threshold <= 0 {
-		return errors.New("cannot Rescale: threshold is 0")
+	if minScale <= 0 {
+		return errors.New("cannot Rescale: minScale is 0")
 	}
 
-	if ct0.Scale() == 0 {
+	if ctIn.Scale() == 0 {
 		return errors.New("cannot Rescale: ciphertext scale is 0")
 	}
 
-	if ct0.Level() == 0 {
+	if ctIn.Level() == 0 {
 		return errors.New("cannot Rescale: input Ciphertext already at level 0")
 	}
 
-	if ct0.Level() != ctOut.Level() {
-		panic("cannot Rescale: degrees of receiver Ciphertext and input Ciphertext do not match")
+	if ctIn.Level() < ctOut.Level()-1 {
+		return errors.New("cannot Rescale: ctOut.Level() must be greater than ctIn.Level()-2")
 	}
 
-	if ct0.Scale() >= (threshold*float64(ringQ.Modulus[ctOut.Level()]))/2 {
+	if ctOut.Degree() != ctIn.Degree() {
+		return errors.New("cannot Rescale : ctIn.Degree() != ctOut.Degree()")
+	}
 
-		if !ct0.IsNTT() {
-			panic("cannot Rescale: input Ciphertext not in NTT")
+	if ctIn.Scale() >= (minScale*float64(ringQ.Modulus[ctOut.Level()]))/2 {
+
+		ctOut.scale = ctIn.scale
+		ctOut.isNTT = true
+
+		var startLevel uint64
+		for ctOut.Scale() >= (minScale*float64(ringQ.Modulus[ctOut.Level()]))/2 && ctOut.Level() != 0 {
+
+			ctOut.DivScale(float64(ringQ.Modulus[ctIn.Level()-startLevel]))
+			startLevel++
 		}
 
-		ctOut.Copy(ct0.El())
-
-		for ctOut.Scale() >= (threshold*float64(ringQ.Modulus[ctOut.Level()]))/2 && ctOut.Level() != 0 {
-
-			ctOut.DivScale(float64(ringQ.Modulus[ctOut.Level()]))
-
+		if ctIn.IsNTT() {
 			for i := range ctOut.Value() {
-				eval.ringQ.DivRoundByLastModulusNTT(ctOut.Value()[i])
+				ringQ.DivRoundByLastModulusManyNTT(ctIn.Value()[i], ctOut.Value()[i], startLevel)
 			}
-
+		}else{
+			for i := range ctOut.Value() {
+				ringQ.DivRoundByLastModulusMany(ctIn.Value()[i], ctOut.Value()[i], startLevel)
+			}
 		}
 
 	} else {
-		ctOut.Copy(ct0.El())
+		ctOut.Copy(ctIn.El())
 	}
 
 	return nil
 }
 
-// RescaleMany applies Rescale several times in a row on the input Ciphertext.
-func (eval *evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, ctOut *Ciphertext) (err error) {
-
-	if ct0.Level() < nbRescales {
-		return errors.New("cannot RescaleMany: input Ciphertext level too low")
-	}
-
-	if ct0.Level() != ctOut.Level() {
-		panic("cannot RescaleMany: degrees of receiver Ciphertext and input Ciphertext do not match")
-	}
-
-	if !ct0.IsNTT() {
-		panic("cannot RescaleMany: input Ciphertext not in NTT")
-	}
-
-	ctOut.Copy(ct0.El())
-
-	for i := uint64(0); i < nbRescales; i++ {
-		ctOut.DivScale(float64(eval.ringQ.Modulus[ctOut.Level()-i]))
-	}
-
-	for i := range ctOut.Value() {
-		eval.ringQ.DivRoundByLastModulusManyNTT(ctOut.Value()[i], nbRescales)
-	}
-
-	return nil
-}
 
 // MulRelinNew multiplies ct0 by ct1 and returns the result in a newly created element. The new scale is
 // the multiplication between the scales of the input elements (addition when the scale is represented in log2). An evaluation

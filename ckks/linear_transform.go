@@ -27,11 +27,11 @@ func (eval *evaluator) LinearTransform(vec *Ciphertext, linearTransform interfac
 
 func (eval *evaluator) multiplyByDiabMatrix(vec, res *Ciphertext, matrix *PtDiagMatrix, rotKeys *RotationKeys, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
 
-	if matrix.rotOnly{
-		for i := range matrix.Vec{
+	if matrix.rotOnly {
+		for i := range matrix.Vec {
 			eval.permuteNTTHoisted(vec, c2QiQDecomp, c2QiPDecomp, i, rotKeys, res)
 		}
-	}else{
+	} else {
 		if matrix.naive {
 			eval.multiplyByDiabMatrixNaive(vec, res, matrix, rotKeys, c2QiQDecomp, c2QiPDecomp)
 		} else {

@@ -198,15 +198,10 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 			b.Skip("#Pi is empty")
 		}
 
-		ringQ := testContext.ringQ
+		ciphertext1.SetScale(testContext.params.Scale()*testContext.params.Scale())
 
 		for i := 0; i < b.N; i++ {
-			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
-			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
-
-			b.StopTimer()
-			ciphertext1 = NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
-			b.StartTimer()
+			evaluator.Rescale(ciphertext1, testContext.params.Scale(), ciphertext2)
 		}
 	})
 
@@ -297,6 +292,8 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 			c2QiPDecomp[i] = ringP.NewPoly()
 		}
 
+		b.ResetTimer()
+
 		b.Run(testString(testContext, "/DecomposeNTT/"), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				for j := uint64(0); j < testContext.params.Beta(); j++ {
@@ -304,6 +301,8 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 				}
 			}
 		})
+
+		b.ResetTimer()
 
 		b.Run(testString(testContext, "RotateHoisted/"), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {

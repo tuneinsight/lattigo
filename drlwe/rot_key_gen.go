@@ -11,6 +11,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
+// RotationKeyGenerator is an interface for the local operation in the generation of rotation keys
 type RotationKeyGenerator interface {
 	AllocateShares()
 	GenShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, shareOut *RTGShare)
@@ -18,6 +19,7 @@ type RotationKeyGenerator interface {
 	GenRotationKey(galEl uint64, share RTGShare, crp []*ring.Poly, rotKey *rlwe.SwitchingKey)
 }
 
+// RTGShare is represent a Party's share in the RTG protocol
 type RTGShare struct {
 	Value []*ring.Poly
 }

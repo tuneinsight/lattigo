@@ -44,7 +44,7 @@ func (rtg *RTGProtocol) GenShare(rotType ckks.Rotation, k uint64, sk *ring.Poly,
 	}
 }
 
-// GenBFVRotationKey populates the input RotationKeys struture with the Switching key computed from the protocol.
+// GenCKKSRotationKey populates the input RotationKeys struture with the Switching key computed from the protocol.
 func (rtg *RTGProtocol) GenCKKSRotationKey(params *ckks.Parameters, rotType ckks.Rotation, k uint64, share *drlwe.RTGShare, crp []*ring.Poly, rotKey *ckks.RotationKeys) {
 
 	swk := make([][2]*ring.Poly, len(share.Value))

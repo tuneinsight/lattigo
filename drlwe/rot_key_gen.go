@@ -34,6 +34,7 @@ type RTGProtocol struct { // TODO rename GaloisKeyGen ?
 	gaussianSampler *ring.GaussianSampler
 }
 
+// NewRTGProtocol creates a RTGProtocol instance
 func NewRTGProtocol(n uint64, q, p []uint64, sigma float64) *RTGProtocol {
 	rtg := new(RTGProtocol)
 	rtg.ringQModCount = uint64(len(q))
@@ -64,6 +65,7 @@ func NewRTGProtocol(n uint64, q, p []uint64, sigma float64) *RTGProtocol {
 	return rtg
 }
 
+// AllocateShare allocates a party's share in the RTG protocol
 func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 	rtgShare = new(RTGShare)
 	rtgShare.Value = make([]*ring.Poly, rtg.beta)
@@ -73,6 +75,7 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 	return
 }
 
+// GenShare generates a party's share in the RTG protocol
 func (rtg *RTGProtocol) GenShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, shareOut *RTGShare) {
 
 	ring.PermuteNTT(sk, galEl, rtg.tmpPoly[1])
@@ -127,7 +130,7 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut *RTGShare) {
 	}
 }
 
-// Finalize finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
+// GenRotationKey finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
 func (rtg *RTGProtocol) GenRotationKey(share RTGShare, crp []*ring.Poly, rotKey *rlwe.SwitchingKey) {
 	for i := uint64(0); i < rtg.beta; i++ {
 		rtg.ringQP.Copy(share.Value[i], rotKey.Value[i][0])

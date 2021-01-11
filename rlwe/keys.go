@@ -18,9 +18,7 @@ func (pk *PublicKey) Set(p [2]*ring.Poly) {
 	pk.pk[1] = p[1].CopyNew()
 }
 
+// SwitchingKey is a generic type for storing switching keys
 type SwitchingKey struct {
 	Value [][2]*ring.Poly
-}
-
-type RotationKey struct {
 }

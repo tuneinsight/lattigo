@@ -666,7 +666,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		require.Equal(t, KeyGenShareBefore.N(), KeyGenShareAfter.N())
 		require.Equal(t, KeyGenShareBefore.Level()+1, KeyGenShareAfter.Level()+1)
 
-		moduli := KeyGenShareBefore.Level()+1
+		moduli := KeyGenShareBefore.Level() + 1
 		require.Equal(t, KeyGenShareAfter.Coeffs[:moduli], KeyGenShareBefore.Coeffs[:moduli])
 	})
 
@@ -689,7 +689,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 			ringBefore := SwitchShare[i]
 			ringAfter := SwitchShareReceiver[i]
 			require.Equal(t, ringBefore.N(), ringAfter.N())
-			moduli := ringAfter.Level()+1
+			moduli := ringAfter.Level() + 1
 			require.Equal(t, ringAfter.Coeffs[:moduli], ringBefore.Coeffs[:moduli])
 		}
 	})
@@ -712,7 +712,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		require.Equal(t, cksshare.N(), cksshareAfter.N())
 		require.Equal(t, cksshare.Level()+1, cksshareAfter.Level()+1)
 
-		moduli := cksshare.Level()+1
+		moduli := cksshare.Level() + 1
 		require.Equal(t, cksshare.Coeffs[:moduli], cksshareAfter.Coeffs[:moduli])
 	})
 
@@ -826,7 +826,7 @@ func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 		for i := 0; i < (len(r1)); i++ {
 			a := r1[i][0]
 			b := (*r1After)[i][0]
-			moduli := a.Level()+1
+			moduli := a.Level() + 1
 			require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 		}
 
@@ -843,7 +843,7 @@ func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 			for idx := 0; idx < 2; idx++ {
 				a := r2[i][idx]
 				b := (*r2After)[i][idx]
-				moduli := a.Level()+1
+				moduli := a.Level() + 1
 				require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 			}
 

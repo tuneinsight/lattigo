@@ -120,7 +120,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []FastBRedOperand, Q
 	for m := uint64(2); m < N; m <<= 1 {
 
 		reduce = (bits.Len64(m)&1 == 1)
-		
+
 		t >>= 1
 
 		if t >= 8 {

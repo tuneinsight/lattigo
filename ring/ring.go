@@ -45,7 +45,7 @@ type Ring struct {
 	NttPsiInv [][]FastBRedOperand
 	NttNInv   []FastBRedOperand
 
-	coeffsPool [2][]uint64
+	polypool *Poly
 }
 
 // NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli. N must be a power of two larger than 8. Moduli should be
@@ -110,6 +110,9 @@ func (r *Ring) setParameters(N uint64, Modulus []uint64) error {
 			r.MredParams[i] = MRedParams(qi)
 		}
 	}
+
+	r.polypool = r.NewPoly()
+
 	return nil
 }
 
@@ -149,8 +152,6 @@ func (r *Ring) genNTTParams() error {
 			r.RescaleParams[j-1][i] = NewFastBRedOperand(r.Modulus[i]-ModExp(r.Modulus[j], r.Modulus[i]-2, r.Modulus[i]), r.Modulus[i])
 		}
 	}
-
-	r.coeffsPool = [2][]uint64{make([]uint64, r.N), make([]uint64, r.N)}
 
 	r.PsiMont = make([]uint64, len(r.Modulus))
 	r.PsiInvMont = make([]uint64, len(r.Modulus))

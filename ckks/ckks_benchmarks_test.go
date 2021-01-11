@@ -198,10 +198,12 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 			b.Skip("#Pi is empty")
 		}
 
-		ciphertext1.SetScale(testContext.params.Scale()*testContext.params.Scale())
+		ciphertext1.SetScale(testContext.params.Scale() * testContext.params.Scale())
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Rescale(ciphertext1, testContext.params.Scale(), ciphertext2)
+			if err := evaluator.Rescale(ciphertext1, testContext.params.Scale(), ciphertext2); err != nil {
+				panic(err)
+			}
 		}
 	})
 

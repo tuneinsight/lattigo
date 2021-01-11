@@ -1241,43 +1241,33 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 		return errors.New("cannot Rescale: input Ciphertext already at level 0")
 	}
 
-	if ctIn.Level() < ctOut.Level()-1 {
-		return errors.New("cannot Rescale: ctOut.Level() must be greater than ctIn.Level()-2")
-	}
-
 	if ctOut.Degree() != ctIn.Degree() {
 		return errors.New("cannot Rescale : ctIn.Degree() != ctOut.Degree()")
 	}
 
-	if ctIn.Scale() >= (minScale*float64(ringQ.Modulus[ctOut.Level()]))/2 {
+	ctOut.scale = ctIn.scale
+	ctOut.isNTT = true
 
-		ctOut.scale = ctIn.scale
-		ctOut.isNTT = true
+	var nbRescale uint64
+	// Divides the scale by each moduli of the modulus chain as long as the scale isn't smaller than minScale/2
+	// or until the output Level() would be zero
+	for ctOut.Scale()/float64(ringQ.Modulus[ctIn.Level()-nbRescale]) >= minScale/2 && int(ctIn.Level())-int(nbRescale) >= 0 {
+		ctOut.DivScale(float64(ringQ.Modulus[ctIn.Level()-nbRescale]))
+		nbRescale++
+	}
 
-		var startLevel uint64
-		for ctOut.Scale() >= (minScale*float64(ringQ.Modulus[ctOut.Level()]))/2 && ctOut.Level() != 0 {
-
-			ctOut.DivScale(float64(ringQ.Modulus[ctIn.Level()-startLevel]))
-			startLevel++
+	if ctIn.IsNTT() {
+		for i := range ctOut.Value() {
+			ringQ.DivRoundByLastModulusManyNTT(ctIn.Value()[i], ctOut.Value()[i], nbRescale)
 		}
-
-		if ctIn.IsNTT() {
-			for i := range ctOut.Value() {
-				ringQ.DivRoundByLastModulusManyNTT(ctIn.Value()[i], ctOut.Value()[i], startLevel)
-			}
-		}else{
-			for i := range ctOut.Value() {
-				ringQ.DivRoundByLastModulusMany(ctIn.Value()[i], ctOut.Value()[i], startLevel)
-			}
-		}
-
 	} else {
-		ctOut.Copy(ctIn.El())
+		for i := range ctOut.Value() {
+			ringQ.DivRoundByLastModulusMany(ctIn.Value()[i], ctOut.Value()[i], nbRescale)
+		}
 	}
 
 	return nil
 }
-
 
 // MulRelinNew multiplies ct0 by ct1 and returns the result in a newly created element. The new scale is
 // the multiplication between the scales of the input elements (addition when the scale is represented in log2). An evaluation

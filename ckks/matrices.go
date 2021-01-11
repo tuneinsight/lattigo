@@ -3,7 +3,6 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"math"
-	//"fmt"
 )
 
 type MatrixMultiplier interface {
@@ -92,18 +91,27 @@ func (eval *evaluator) MulMatrixAB(A, B *Ciphertext, mmpt *MMPt, rlk *Evaluation
 	eval.DecompInternal(ciphertextB.Level(), ciphertextB.value[1], c2QiQDecompB, c2QiPDecompB)
 
 	tmpC := NewCiphertext(eval.params, 2, ciphertextA.Level()-1, ciphertextA.Scale())
-	for i := uint64(0); i < mmpt.dimension-1; i++ {
 
-		tmpA := NewCiphertext(eval.params, 1, ciphertextA.Level(), ciphertextA.Scale())
-		tmpB := NewCiphertext(eval.params, 1, ciphertextB.Level(), ciphertextB.Scale())
+	tmpA := NewCiphertext(eval.params, 1, ciphertextA.Level(), ciphertextA.Scale())
+	tmpB := NewCiphertext(eval.params, 1, ciphertextB.Level(), ciphertextB.Scale())
+
+	tmpARescale := NewCiphertext(eval.params, 1, ciphertextA.Level()-1, ciphertextA.Scale())
+	tmpBRescale := NewCiphertext(eval.params, 1, ciphertextB.Level()-1, ciphertextB.Scale())
+
+	for i := uint64(0); i < mmpt.dimension-1; i++ {
 
 		eval.multiplyByDiabMatrix(ciphertextA, tmpA, mmpt.mRotCols[i], rotKeys, eval.c2QiQDecomp, eval.c2QiPDecomp)
 		eval.multiplyByDiabMatrix(ciphertextB, tmpB, mmpt.mRotRows[i], rotKeys, c2QiQDecompB, c2QiPDecompB)
 
-		eval.Rescale(tmpA, eval.params.Scale(), tmpA)
-		eval.Rescale(tmpB, eval.params.Scale(), tmpB)
+		if err := eval.Rescale(tmpA, eval.params.Scale(), tmpARescale); err != nil {
+			panic(err)
+		}
 
-		eval.MulRelin(tmpA, tmpB, nil, tmpC)
+		if err := eval.Rescale(tmpB, eval.params.Scale(), tmpBRescale); err != nil {
+			panic(err)
+		}
+
+		eval.MulRelin(tmpARescale, tmpBRescale, nil, tmpC)
 
 		eval.Add(ciphertextAB, tmpC, ciphertextAB)
 	}

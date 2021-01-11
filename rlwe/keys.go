@@ -17,3 +17,10 @@ func (pk *PublicKey) Set(p [2]*ring.Poly) {
 	pk.pk[0] = p[0].CopyNew()
 	pk.pk[1] = p[1].CopyNew()
 }
+
+type SwitchingKey struct {
+	Value [][2]*ring.Poly
+}
+
+type RotationKey struct {
+}

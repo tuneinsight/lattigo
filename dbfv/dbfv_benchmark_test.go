@@ -281,7 +281,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	type Party struct {
 		*RTGProtocol
 		s     *ring.Poly
-		share RTGShare
+		share *drlwe.RTGShare
 	}
 
 	p := new(Party)
@@ -296,12 +296,10 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 		crp[i] = crpGenerator.ReadNew()
 	}
 
-	mask := (testCtx.params.N() >> 1) - 1
-
 	b.Run(testString("RotKeyGen/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(bfv.RotationRight, uint64(i)&mask, sk0Shards[0].Get(), crp, &p.share)
+			p.GenShare(bfv.RotationRight, 1, sk0Shards[0].Get(), crp, p.share)
 		}
 	})
 
@@ -316,7 +314,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RotKeyGen/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.Finalize(p.share, crp, rotKey)
+			p.GenBFVRotationKey(bfv.RotationRight, 1, p.share, crp, rotKey)
 		}
 	})
 }

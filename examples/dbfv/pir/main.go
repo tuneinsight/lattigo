@@ -39,7 +39,7 @@ type party struct {
 	ckgShare    *drlwe.CKGShare
 	rkgShareOne *drlwe.RKGShare
 	rkgShareTwo *drlwe.RKGShare
-	rtgShare    dbfv.RTGShare
+	rtgShare    *drlwe.RTGShare
 	cksShare    dbfv.CKSShare
 
 	input []uint64
@@ -352,12 +352,10 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < 1<<(params.LogN()-1)); k <<= 1 {
 
 			rtgShareCombined := rtg.AllocateShare()
-			rtgShareCombined.Type = rot
-			rtgShareCombined.K = k
 
 			elapsedRTGParty += runTimedParty(func() {
 				for _, pi := range P {
-					rtg.GenShare(rot, k, pi.sk.Get(), crpRot, &pi.rtgShare)
+					rtg.GenShare(rot, k, pi.sk.Get(), crpRot, pi.rtgShare)
 				}
 			}, len(P))
 
@@ -365,7 +363,7 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 				for _, pi := range P {
 					rtg.Aggregate(pi.rtgShare, rtgShareCombined, rtgShareCombined)
 				}
-				rtg.Finalize(rtgShareCombined, crpRot, rtk)
+				rtg.GenBFVRotationKey(rot, k, rtgShareCombined, crpRot, rtk)
 			})
 		}
 	}

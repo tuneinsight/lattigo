@@ -372,6 +372,27 @@ type PtDiagMatrix struct {
 	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
 }
 
+// EncodePermutation generates the diagonalized matrix acting as the permutation on the vector.
+// The permutation does not need to be invertible.
+func (encoder *encoderComplex128) EncodePermutation(level uint64, permutation []uint64, scale, maxM1N2Ratio float64, logSlots uint64) *PtDiagMatrix {
+	matrix := make(map[uint64][]complex128)
+
+	N := uint64(1 << logSlots)
+
+	var rot uint64
+	for i := uint64(0); i < N; i++ {
+		rot = (N - i + permutation[i]) & (N - 1)
+
+		if matrix[rot] == nil {
+			matrix[rot] = make([]complex128, N)
+		}
+
+		matrix[rot][(i+rot)&(N-1)] = complex(1, 0)
+	}
+
+	return encoder.EncodeDiagMatrixAtLvl(level, matrix, scale, maxM1N2Ratio, logSlots)
+}
+
 // EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
 // It can then be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 // maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.MultiplyByDiagMatrice.
@@ -385,7 +406,6 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map
 	var N, N1 uint64
 
 	ringQ := encoder.ringQ
-	ringP := encoder.ringP
 
 	// N1*N2 = N
 	N = ringQ.N
@@ -412,22 +432,7 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map
 		for j := range index {
 
 			for _, i := range index[j] {
-
-				encoder.Embed(rotate(vector[N1*j+uint64(i)], (N>>1)-(N1*j)), logSlots)
-
-				plaintextQ := ring.NewPoly(N, level+1)
-				encoder.ScaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
-				ringQ.NTTLvl(level, plaintextQ, plaintextQ)
-				ringQ.MFormLvl(level, plaintextQ, plaintextQ)
-
-				plaintextP := ring.NewPoly(N, level+1)
-				encoder.ScaleUp(plaintextP, scale, ringP.Modulus)
-				ringP.NTT(plaintextP, plaintextP)
-				ringP.MForm(plaintextP, plaintextP)
-
-				matrix.Vec[N1*j+uint64(i)] = [2]*ring.Poly{plaintextQ, plaintextP}
-
-				encoder.WipeInternalMemory()
+				matrix.Vec[N1*j+uint64(i)] = encoder.encodeDiagonal(logSlots, level, scale, vector[N1*j+uint64(i)], (N>>1)-(N1*j))
 			}
 		}
 	} else {
@@ -438,26 +443,34 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map
 		matrix.Scale = scale
 
 		for i := range vector {
-
-			encoder.Embed(rotate(vector[i], i), logSlots)
-
-			plaintextQ := ring.NewPoly(N, level+1)
-			encoder.ScaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
-			ringQ.NTTLvl(level, plaintextQ, plaintextQ)
-			ringQ.MFormLvl(level, plaintextQ, plaintextQ)
-
-			plaintextP := ring.NewPoly(N, level+1)
-			encoder.ScaleUp(plaintextP, scale, ringP.Modulus)
-			ringP.NTT(plaintextP, plaintextP)
-			ringP.MForm(plaintextP, plaintextP)
-
-			matrix.Vec[i] = [2]*ring.Poly{plaintextQ, plaintextP}
-
-			encoder.WipeInternalMemory()
+			matrix.Vec[i] = encoder.encodeDiagonal(logSlots, level, scale, vector[i], i)
 		}
 	}
 
 	return
+}
+
+func (encoder *encoderComplex128) encodeDiagonal(logSlots, level uint64, scale float64, m []complex128, k uint64) [2]*ring.Poly {
+
+	ringQ := encoder.ringQ
+	ringP := encoder.ringP
+	N := ringQ.N
+
+	encoder.Embed(rotate(m, k), logSlots)
+
+	mQ := ring.NewPoly(N, level+1)
+	encoder.ScaleUp(mQ, scale, ringQ.Modulus[:level+1])
+	ringQ.NTTLvl(level, mQ, mQ)
+	ringQ.MFormLvl(level, mQ, mQ)
+
+	mP := ring.NewPoly(N, level+1)
+	encoder.ScaleUp(mP, scale, ringP.Modulus)
+	ringP.NTT(mP, mP)
+	ringP.MForm(mP, mP)
+
+	encoder.WipeInternalMemory()
+
+	return [2]*ring.Poly{mQ, mP}
 }
 
 // Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.

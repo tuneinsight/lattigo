@@ -117,8 +117,8 @@ func TestMatrices(t *testing.T) {
 	LogSlots := uint64(12)
 
 	LogModuli := LogModuli{
-		LogQi: []uint64{60, 35, 35, 35},
-		LogPi: []uint64{55, 55},
+		LogQi: []uint64{50, 35, 35, 35},
+		LogPi: []uint64{55},
 	}
 
 	Scale := float64(1 << 35)
@@ -147,21 +147,15 @@ func TestMatrices(t *testing.T) {
 
 		m, _, ct := GenTestVectors(d, params, encoder, encryptor)
 
-		level := params.MaxLevel()
+		diagMatrix, _ := MM.GenTransposeDiagMatrix(params.MaxLevel(), float64(params.Qi()[params.MaxLevel()]), 16.0, d, params.LogSlots(), encoder)
 
-		diagMatrix := MM.GenTransposeDiagMatrix(d, params.LogSlots())
-
-		scale := float64(params.Qi()[level])
-
-		mTranspose := encoder.EncodeDiagMatrixAtLvl(level, diagMatrix, scale, 16.0, params.LogSlots())
-
-		kgen.GenRotKeysForDiagMatrix(mTranspose, sk, rotKeys)
+		kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
 
 		for i := range m {
 			m[i].Transpose()
 		}
 
-		VerifyTestVectors(d, params, encoder, decryptor, m, eval.LinearTransform(ct, mTranspose, rotKeys)[0], t)
+		VerifyTestVectors(d, params, encoder, decryptor, m, eval.LinearTransform(ct, diagMatrix, rotKeys)[0], t)
 
 	})
 
@@ -296,7 +290,7 @@ func TestMatrices(t *testing.T) {
 
 	})
 
-	t.Run("Multiply/", func(t *testing.T) {
+	t.Run("Multiply/Square", func(t *testing.T) {
 		mA, _, ctA := GenTestVectors(d, params, encoder, encryptor)
 		mB, _, ctB := GenTestVectors(d, params, encoder, encryptor)
 

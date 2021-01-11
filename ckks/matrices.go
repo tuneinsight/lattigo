@@ -8,7 +8,7 @@ import (
 type MatrixMultiplier interface {
 	GenPlaintextMatrices(params *Parameters, level, d uint64, encoder Encoder) (mmpt *MMPt)
 	GenRotationKeys(mmpt *MMPt, kgen KeyGenerator, sk *SecretKey, rotKeys *RotationKeys)
-	GenTransposeDiagMatrix(d, logSlots uint64) (diagMatrix map[uint64][]complex128)
+	GenTransposeDiagMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128)
 	GenPermuteAMatrix(d, logSlots uint64) (diagMatrix map[uint64][]complex128)
 	GenPermuteBMatrix(d, logSlots uint64) (diagMatrix map[uint64][]complex128)
 	GenSubVectorRotationMatrix(lvl uint64, scale float64, vectorSize, k, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128)
@@ -69,10 +69,14 @@ func (mm *matrixMultiplier) GenRotationKeys(mmpt *MMPt, kgen KeyGenerator, sk *S
 func (eval *evaluator) MulMatrixAB(A, B *Ciphertext, mmpt *MMPt, rlk *EvaluationKey, rotKeys *RotationKeys) (ciphertextAB *Ciphertext) {
 
 	ciphertextA := eval.LinearTransform(A, mmpt.mPermuteA, rotKeys)[0]
-	eval.Rescale(ciphertextA, eval.params.Scale(), ciphertextA)
+	if err := eval.Rescale(ciphertextA, eval.params.Scale(), ciphertextA); err != nil {
+		panic(err)
+	}
 
 	ciphertextB := eval.LinearTransform(B, mmpt.mPermuteB, rotKeys)[0]
-	eval.Rescale(ciphertextB, eval.params.Scale(), ciphertextB)
+	if err := eval.Rescale(ciphertextB, eval.params.Scale(), ciphertextB); err != nil {
+		panic(err)
+	}
 
 	ciphertextAB = eval.MulRelinNew(ciphertextA, ciphertextB, nil)
 
@@ -189,6 +193,7 @@ func (mm *matrixMultiplier) GenPermuteBMatrix(dimension, logSlots uint64) (diagM
 			populateVector(m, d2, logSlots)
 
 			diagMatrix[uint64((i+int(slots)))%slots] = m
+
 		}
 	} else {
 		for i := 0; i < int(dimension); i++ {
@@ -200,14 +205,6 @@ func (mm *matrixMultiplier) GenPermuteBMatrix(dimension, logSlots uint64) (diagM
 			}
 
 			populateVector(m, d2, logSlots)
-
-			/*
-				fmt.Printf("%3d %2d", i, uint64(i)*d)
-				for i := range m[:d2]{
-					fmt.Printf("%2.f ", real(m[i]))
-				}
-				fmt.Println()
-			*/
 
 			diagMatrix[uint64(i)*dimension] = m
 		}
@@ -278,48 +275,15 @@ func (mm *matrixMultiplier) GenSubVectorRotationMatrix(level uint64, scale float
 		diagMatrix[k] = m1
 
 		// Encoding
-		ringQ := encoder.(*encoderComplex128).ringQ
-		ringP := encoder.(*encoderComplex128).ringP
-		N := ringQ.N
-
 		matrix.LogSlots = logSlots
 		matrix.Level = level
 		matrix.Scale = scale
 		matrix.naive = true
 
 		// Encode m0
-		encoder.Embed(rotate(m0, slots-vectorSize+k), logSlots)
-
-		m0Q := ring.NewPoly(N, level+1)
-		encoder.ScaleUp(m0Q, scale, ringQ.Modulus[:level+1])
-		ringQ.NTTLvl(level, m0Q, m0Q)
-		ringQ.MFormLvl(level, m0Q, m0Q)
-
-		m0P := ring.NewPoly(N, level+1)
-		encoder.ScaleUp(m0P, scale, ringP.Modulus)
-		ringP.NTT(m0P, m0P)
-		ringP.MForm(m0P, m0P)
-
-		matrix.Vec[slots-vectorSize+k] = [2]*ring.Poly{m0Q, m0P}
-
-		encoder.WipeInternalMemory()
-
+		matrix.Vec[slots-vectorSize+k] = encoder.(*encoderComplex128).encodeDiagonal(logSlots, level, scale, m0, slots-vectorSize+k)
 		// Encode m1
-		encoder.Embed(rotate(m1, k), logSlots)
-
-		m1Q := ring.NewPoly(N, level+1)
-		encoder.ScaleUp(m1Q, scale, ringQ.Modulus[:level+1])
-		ringQ.NTTLvl(level, m1Q, m1Q)
-		ringQ.MFormLvl(level, m1Q, m1Q)
-
-		m1P := ring.NewPoly(N, level+1)
-		encoder.ScaleUp(m1P, scale, ringP.Modulus)
-		ringP.NTT(m1P, m1P)
-		ringP.MForm(m1P, m1P)
-
-		matrix.Vec[k] = [2]*ring.Poly{m1Q, m1P}
-
-		encoder.WipeInternalMemory()
+		matrix.Vec[k] = encoder.(*encoderComplex128).encodeDiagonal(logSlots, level, scale, m1, k)
 
 	} else {
 
@@ -333,11 +297,11 @@ func (mm *matrixMultiplier) GenSubVectorRotationMatrix(level uint64, scale float
 	return matrix, diagMatrix
 }
 
-func (mm *matrixMultiplier) GenTransposeDiagMatrix(dimension, logSlots uint64) (diagMatrix map[uint64][]complex128) {
+func (mm *matrixMultiplier) GenTransposeDiagMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
 
 	slots := uint64(1 << logSlots)
 
-	diagMatrix = make(map[uint64][]complex128)
+	diagMatrix := make(map[uint64][]complex128)
 
 	d2 := int(dimension * dimension)
 
@@ -360,7 +324,7 @@ func (mm *matrixMultiplier) GenTransposeDiagMatrix(dimension, logSlots uint64) (
 		diagMatrix[uint64(i*int(dimension-1)+int(slots))%slots] = m
 	}
 
-	return
+	return encoder.EncodeDiagMatrixAtLvl(level, diagMatrix, scale, maxM1N2Ratio, logSlots), diagMatrix
 }
 
 func populateVector(m []complex128, d2 int, logSlots uint64) {

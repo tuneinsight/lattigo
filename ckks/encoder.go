@@ -31,9 +31,6 @@ type Encoder interface {
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 	DecodeCoeffsPublic(plaintext *Plaintext, bound float64) (res []float64)
-
-	GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std float64)
-	GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std float64)
 }
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
@@ -196,37 +193,6 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 		encoder.valuesfloat[idx] = real(encoder.values[i])
 		encoder.valuesfloat[jdx] = imag(encoder.values[i])
 	}
-}
-
-// GetErrSTDFreqDom returns the scaled standard deviation of the difference between two complex vectors in the slot domains
-func (encoder *encoderComplex128) GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std float64) {
-
-	var err complex128
-	for i := range valuesWant {
-		err = valuesWant[i] - valuesHave[i]
-		encoder.valuesfloat[2*i] = real(err)
-		encoder.valuesfloat[2*i+1] = imag(err)
-	}
-
-	return StandardDeviation(encoder.valuesfloat[:len(valuesWant)*2], scale)
-}
-
-// GetErrSTDTimeDom returns the scaled standard deviation of the coefficient domain of the difference between two complex vectors in the slot domains
-func (encoder *encoderComplex128) GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std float64) {
-
-	for i := range valuesHave {
-		encoder.values[i] = (valuesWant[i] - valuesHave[i])
-	}
-
-	invfft(encoder.values, uint64(len(valuesWant)), encoder.m, encoder.rotGroup, encoder.roots)
-
-	for i := range valuesWant {
-		encoder.valuesfloat[2*i] = real(encoder.values[i])
-		encoder.valuesfloat[2*i+1] = imag(encoder.values[i])
-	}
-
-	return StandardDeviation(encoder.valuesfloat[:len(valuesWant)*2], scale)
-
 }
 
 // ScaleUp writes the internaly stored encoded values on a polynomial.

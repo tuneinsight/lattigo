@@ -46,6 +46,7 @@ type testParams struct {
 	encryptorSk Encryptor
 	decryptor   Decryptor
 	evaluator   Evaluator
+	metrics     *NoiseEstimator
 }
 
 func TestCKKS(t *testing.T) {
@@ -136,8 +137,9 @@ func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams
 
 	testContext.evaluator = NewEvaluator(testContext.params)
 
-	return testContext, nil
+	testContext.metrics = NewNoiseEstimator(testContext.params)
 
+	return testContext, nil
 }
 
 func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
@@ -171,9 +173,23 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant []complex128, element interface{}, t *testing.T, bound float64) {
+func decryptAndDecode(params *Parameters, encoder Encoder, decryptor Decryptor, element interface{}, sigma float64) (valuesHave []complex128) {
+	switch element := element.(type) {
+	case *Ciphertext:
+		valuesHave = encoder.DecodePublic(decryptor.DecryptNew(element), params.LogSlots(), sigma)
+	case *Plaintext:
+		valuesHave = encoder.DecodePublic(element, params.LogSlots(), sigma)
+	case []complex128:
+		valuesHave = element
+	}
+	return
+}
 
-	precStats := GetPrecisionStats(testContext.params, testContext.encoder, decryptor, valuesWant, element, bound)
+func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant []complex128, element interface{}, t *testing.T, sigma float64) {
+
+	valuesHave := decryptAndDecode(testContext.params, testContext.encoder, decryptor, element, sigma)
+
+	precStats := testContext.metrics.PrecisionStats(valuesWant, valuesHave)
 
 	if *printPrecisionStats {
 		t.Log(precStats.String())
@@ -955,7 +971,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 
 		verifyTestVectors(testContext, nil, values, valuesHave, t, 0)
 
-		sigma := testContext.encoder.GetErrSTDTimeDom(values, valuesHave, plaintext.Scale())
+		sigma := testContext.metrics.StandardDeviationCoefDomain(values, valuesHave, plaintext.Scale())
 
 		valuesHave = testContext.encoder.DecodePublic(plaintext, testContext.params.LogSlots(), sigma)
 

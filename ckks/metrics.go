@@ -6,6 +6,84 @@ import (
 	"sort"
 )
 
+// NoiseEstimator is a struct storing the necessary pre-computed
+// to compute metrics on the plaintexts precision and error.
+type NoiseEstimator struct {
+	params *Parameters
+
+	values      []complex128
+	valuesfloat []float64
+
+	m        uint64
+	roots    []complex128
+	rotGroup []uint64
+}
+
+// NewNoiseEstimator creates a new NoiseEstimator.
+func NewNoiseEstimator(params *Parameters) (estimator *NoiseEstimator) {
+
+	estimator = new(NoiseEstimator)
+
+	m := 2 * params.N()
+
+	rotGroup := make([]uint64, m>>1)
+	fivePows := uint64(1)
+	for i := uint64(0); i < m>>2; i++ {
+		rotGroup[i] = fivePows
+		fivePows *= GaloisGen
+		fivePows &= (m - 1)
+	}
+
+	var angle float64
+	roots := make([]complex128, m+1)
+	for i := uint64(0); i < m; i++ {
+		angle = 2 * 3.141592653589793 * float64(i) / float64(m)
+
+		roots[i] = complex(math.Cos(angle), math.Sin(angle))
+	}
+
+	roots[m] = roots[0]
+
+	return &NoiseEstimator{
+		params:      params.Copy(),
+		values:      make([]complex128, m>>2),
+		valuesfloat: make([]float64, m>>1),
+		m:           m,
+		roots:       roots,
+		rotGroup:    rotGroup,
+	}
+}
+
+// StandardDeviationSlotDomain returns the scaled standard deviation of the difference between two complex vectors in the slot domains.
+func (ne *NoiseEstimator) StandardDeviationSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
+
+	var err complex128
+	for i := range valuesWant {
+		err = valuesWant[i] - valuesHave[i]
+		ne.valuesfloat[2*i] = real(err)
+		ne.valuesfloat[2*i+1] = imag(err)
+	}
+
+	return StandardDeviation(ne.valuesfloat[:len(valuesWant)*2], scale)
+}
+
+// StandardDeviationCoefDomain returns the scaled standard deviation of the [coefficient domain] of the difference between two complex vectors in the [slot domains].
+func (ne *NoiseEstimator) StandardDeviationCoefDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
+
+	for i := range valuesHave {
+		ne.values[i] = (valuesWant[i] - valuesHave[i])
+	}
+
+	invfft(ne.values, uint64(len(valuesWant)), ne.m, ne.rotGroup, ne.roots)
+
+	for i := range valuesWant {
+		ne.valuesfloat[2*i] = real(ne.values[i])
+		ne.valuesfloat[2*i+1] = imag(ne.values[i])
+	}
+
+	return StandardDeviation(ne.valuesfloat[:len(valuesWant)*2], scale)
+}
+
 // PrecisionStats is a struct storing statistic about the precision of a CKKS plaintext
 type PrecisionStats struct {
 	MaxDelta        complex128
@@ -37,28 +115,17 @@ func (prec PrecisionStats) String() string {
 
 }
 
-// GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
-func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}, sigma float64) (prec PrecisionStats) {
+// PrecisionStats generates a PrecisionStats struct for a given vector based on a reference vector.
+func (ne *NoiseEstimator) PrecisionStats(valuesWant, valuesHave []complex128) (prec PrecisionStats) {
 
-	var valuesTest []complex128
-
-	logSlots := params.LogSlots()
-	slots := uint64(1 << logSlots)
-
-	switch element := element.(type) {
-	case *Ciphertext:
-		valuesTest = encoder.DecodePublic(decryptor.DecryptNew(element), logSlots, sigma)
-	case *Plaintext:
-		valuesTest = encoder.DecodePublic(element, logSlots, sigma)
-	case []complex128:
-		valuesTest = element
+	if len(valuesWant) != len(valuesHave) {
+		panic("len(valuesWant) != len(valuesHave)")
 	}
 
 	var deltaReal, deltaImag float64
-
 	var delta complex128
 
-	diff := make([]complex128, slots)
+	diff := make([]complex128, len(valuesWant))
 
 	prec.MaxDelta = complex(0, 0)
 	prec.MinDelta = complex(1, 1)
@@ -81,7 +148,7 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	for i := range valuesWant {
 
-		delta = valuesTest[i] - valuesWant[i]
+		delta = valuesHave[i] - valuesWant[i]
 		deltaReal = math.Abs(real(delta))
 		deltaImag = math.Abs(imag(delta))
 		precReal[i] = math.Log2(1 / deltaReal)
@@ -113,13 +180,14 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 
 	prec.MinPrecision = deltaToPrecision(prec.MaxDelta)
 	prec.MaxPrecision = deltaToPrecision(prec.MinDelta)
-	prec.MeanDelta /= complex(float64(slots), 0)
+	prec.MeanDelta /= complex(float64(len(valuesWant)), 0)
 	prec.MeanPrecision = deltaToPrecision(prec.MeanDelta)
 	prec.MedianDelta = calcmedian(diff)
 	prec.MedianPrecision = deltaToPrecision(prec.MedianDelta)
-	prec.STDFreq = encoder.GetErrSTDFreqDom(valuesWant, valuesTest, params.Scale())
-	prec.STDTime = encoder.GetErrSTDTimeDom(valuesWant, valuesTest, params.Scale())
-	return prec
+	prec.STDFreq = ne.StandardDeviationSlotDomain(valuesWant, valuesHave, ne.params.Scale())
+	prec.STDTime = ne.StandardDeviationCoefDomain(valuesWant, valuesHave, ne.params.Scale())
+
+	return
 }
 
 func deltaToPrecision(c complex128) complex128 {

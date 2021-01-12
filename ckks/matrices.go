@@ -5,18 +5,6 @@ import (
 	"math"
 )
 
-type MatrixMultiplier interface {
-	GenPlaintextMatrices(params *Parameters, level, d uint64, encoder Encoder) (mmpt *MMPt)
-	GenRotationKeys(mmpt *MMPt, kgen KeyGenerator, sk *SecretKey, rotKeys *RotationKeys)
-	GenTransposeDiagMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128)
-	GenPermuteAMatrix(d, logSlots uint64) (diagMatrix map[uint64][]complex128)
-	GenPermuteBMatrix(d, logSlots uint64) (diagMatrix map[uint64][]complex128)
-	GenSubVectorRotationMatrix(lvl uint64, scale float64, vectorSize, k, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128)
-}
-
-type matrixMultiplier struct {
-}
-
 type MMPt struct {
 	dimension uint64
 	mPermuteA *PtDiagMatrix
@@ -25,12 +13,7 @@ type MMPt struct {
 	mRotCols  []*PtDiagMatrix
 }
 
-func NewMatrixMultiplier(params *Parameters) MatrixMultiplier {
-
-	return &matrixMultiplier{}
-}
-
-func (mm *matrixMultiplier) GenPlaintextMatrices(params *Parameters, level uint64, dimension uint64, encoder Encoder) (mmpt *MMPt) {
+func GenPlaintextMatrices(params *Parameters, level uint64, dimension uint64, encoder Encoder) (mmpt *MMPt) {
 
 	mmpt = new(MMPt)
 
@@ -39,8 +22,8 @@ func (mm *matrixMultiplier) GenPlaintextMatrices(params *Parameters, level uint6
 	var scale float64
 	scale = float64(params.Qi()[level]) * math.Sqrt(float64(params.Qi()[level-2])/params.Scale())
 
-	mmpt.mPermuteA = encoder.EncodeDiagMatrixAtLvl(level, mm.GenPermuteAMatrix(dimension, params.LogSlots()), scale, 16.0, params.LogSlots())
-	mmpt.mPermuteB = encoder.EncodeDiagMatrixAtLvl(level, mm.GenPermuteBMatrix(dimension, params.LogSlots()), scale, 16.0, params.LogSlots())
+	mmpt.mPermuteA, _ = GenPermuteAMatrix(level, scale, 16.0, dimension, params.LogSlots(), encoder)
+	mmpt.mPermuteB, _ = GenPermuteBMatrix(level, scale, 16.0, dimension, params.LogSlots(), encoder)
 
 	mmpt.mRotCols = make([]*PtDiagMatrix, dimension-1)
 	mmpt.mRotRows = make([]*PtDiagMatrix, dimension-1)
@@ -48,14 +31,14 @@ func (mm *matrixMultiplier) GenPlaintextMatrices(params *Parameters, level uint6
 	scale = float64(params.Qi()[level-1])
 
 	for i := uint64(0); i < dimension-1; i++ {
-		mmpt.mRotCols[i], _ = mm.GenSubVectorRotationMatrix(level-1, scale, dimension, i+1, params.LogSlots(), encoder)
-		mmpt.mRotRows[i], _ = mm.GenSubVectorRotationMatrix(level-1, scale, dimension*dimension, (i+1)*dimension, params.LogSlots(), encoder)
+		mmpt.mRotCols[i], _ = GenSubVectorRotationMatrix(level-1, scale, dimension, i+1, params.LogSlots(), encoder)
+		mmpt.mRotRows[i], _ = GenSubVectorRotationMatrix(level-1, scale, dimension*dimension, (i+1)*dimension, params.LogSlots(), encoder)
 
 	}
 	return
 }
 
-func (mm *matrixMultiplier) GenRotationKeys(mmpt *MMPt, kgen KeyGenerator, sk *SecretKey, rotKeys *RotationKeys) {
+func GenRotationKeys(mmpt *MMPt, kgen KeyGenerator, sk *SecretKey, rotKeys *RotationKeys) {
 
 	kgen.GenRotKeysForDiagMatrix(mmpt.mPermuteA, sk, rotKeys)
 	kgen.GenRotKeysForDiagMatrix(mmpt.mPermuteB, sk, rotKeys)
@@ -126,11 +109,11 @@ func (eval *evaluator) MulMatrixAB(A, B *Ciphertext, mmpt *MMPt, rlk *Evaluation
 	return
 }
 
-func (mm *matrixMultiplier) GenPermuteAMatrix(dimension, logSlots uint64) (diagMatrix map[uint64][]complex128) {
+func GenPermuteAMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
 
 	slots := uint64(1 << logSlots)
 
-	diagMatrix = make(map[uint64][]complex128)
+	diagMatrix := make(map[uint64][]complex128)
 
 	d2 := int(dimension * dimension)
 
@@ -162,15 +145,15 @@ func (mm *matrixMultiplier) GenPermuteAMatrix(dimension, logSlots uint64) (diagM
 		diagMatrix[uint64((i+int(slots)))%slots] = m
 	}
 
-	return
+	return encoder.EncodeDiagMatrixAtLvl(level, diagMatrix, scale, maxM1N2Ratio, logSlots), diagMatrix
 
 }
 
-func (mm *matrixMultiplier) GenPermuteBMatrix(dimension, logSlots uint64) (diagMatrix map[uint64][]complex128) {
+func GenPermuteBMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
 
 	slots := uint64(1 << logSlots)
 
-	diagMatrix = make(map[uint64][]complex128)
+	diagMatrix := make(map[uint64][]complex128)
 
 	d2 := int(dimension * dimension)
 
@@ -210,7 +193,7 @@ func (mm *matrixMultiplier) GenPermuteBMatrix(dimension, logSlots uint64) (diagM
 		}
 	}
 
-	return
+	return encoder.EncodeDiagMatrixAtLvl(level, diagMatrix, scale, maxM1N2Ratio, logSlots), diagMatrix
 }
 
 // GenSubVectorRotationMatrix allows to generate a permutation matrix that roates subvectors independently.
@@ -229,7 +212,7 @@ func (mm *matrixMultiplier) GenPermuteBMatrix(dimension, logSlots uint64) (diagM
 // mask_0 = [{1, ..., 1, 0, ..., 0}, ..., {1, ..., 1, 0, ..., 0}]
 // mask_1 = [{0, ..., 0, 1, ..., 1}, ..., {0, ..., 0, 1, ..., 1}]
 //            0 ----- k                    0 ----- k
-func (mm *matrixMultiplier) GenSubVectorRotationMatrix(level uint64, scale float64, vectorSize, k, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
+func GenSubVectorRotationMatrix(level uint64, scale float64, vectorSize, k, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
 
 	k %= vectorSize
 
@@ -297,7 +280,7 @@ func (mm *matrixMultiplier) GenSubVectorRotationMatrix(level uint64, scale float
 	return matrix, diagMatrix
 }
 
-func (mm *matrixMultiplier) GenTransposeDiagMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
+func GenTransposeDiagMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
 
 	slots := uint64(1 << logSlots)
 

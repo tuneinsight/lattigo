@@ -372,27 +372,6 @@ type PtDiagMatrix struct {
 	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
 }
 
-// EncodePermutation generates the diagonalized matrix acting as the permutation on the vector.
-// The permutation does not need to be invertible.
-func (encoder *encoderComplex128) EncodePermutation(level uint64, permutation []uint64, scale, maxM1N2Ratio float64, logSlots uint64) *PtDiagMatrix {
-	matrix := make(map[uint64][]complex128)
-
-	N := uint64(1 << logSlots)
-
-	var rot uint64
-	for i := uint64(0); i < N; i++ {
-		rot = (N - i + permutation[i]) & (N - 1)
-
-		if matrix[rot] == nil {
-			matrix[rot] = make([]complex128, N)
-		}
-
-		matrix[rot][(i+rot)&(N-1)] = complex(1, 0)
-	}
-
-	return encoder.EncodeDiagMatrixAtLvl(level, matrix, scale, maxM1N2Ratio, logSlots)
-}
-
 // EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
 // It can then be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 // maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.MultiplyByDiagMatrice.

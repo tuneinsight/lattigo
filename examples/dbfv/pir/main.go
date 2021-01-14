@@ -342,7 +342,7 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		pi.rtgShare = rtg.AllocateShare()
 	}
 
-	rtk := bfv.NewRotationKeys()
+	rtk := bfv.NewRotationKeys(params)
 
 	crpRot := make([]*ring.Poly, params.Beta()) // for the rotation keys
 
@@ -350,7 +350,7 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		crpRot[i] = crsGen.ReadNew()
 	}
 
-	for _, rot := range []bfv.Rotation{bfv.RotationRight, bfv.RotationLeft, bfv.RotationRow} {
+	for _, rot := range []bfv.RotationType{bfv.RotationRight, bfv.RotationLeft, bfv.RotationRow} {
 		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < 1<<(params.LogN()-1)); k <<= 1 {
 
 			rtgShareCombined := rtg.AllocateShare()

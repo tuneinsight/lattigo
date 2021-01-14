@@ -862,65 +862,41 @@ func testMarshalRotKey(testctx *testContext, t *testing.T) {
 			t.Skip("#Pi is empty")
 		}
 
-		rotationKey := NewRotationKeys()
+		tv := []struct {
+			rt RotationType
+			k  uint64
+		}{
+			{RotationRow, 0},
+			{RotationLeft, 1},
+			{RotationLeft, 2},
+			{RotationRight, 3},
+			{RotationRight, 5},
+		}
 
-		testctx.kgen.GenRot(RotationRow, testctx.sk, 0, rotationKey)
-		testctx.kgen.GenRot(RotationLeft, testctx.sk, 1, rotationKey)
-		testctx.kgen.GenRot(RotationLeft, testctx.sk, 2, rotationKey)
-		testctx.kgen.GenRot(RotationRight, testctx.sk, 3, rotationKey)
-		testctx.kgen.GenRot(RotationRight, testctx.sk, 5, rotationKey)
+		rotationKey := NewRotationKeys(testctx.params)
+
+		for _, r := range tv {
+			testctx.kgen.GenRot(r.rt, testctx.sk, r.k, rotationKey)
+		}
 
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resRotationKey := NewRotationKeys()
+		resRotationKey := NewRotationKeys(testctx.params)
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		resRotationKey.SetRotKey(RotationRow, 0, resRotationKey.evakeyRotRow.evakey)
-		resRotationKey.SetRotKey(RotationLeft, 1, resRotationKey.evakeyRotColLeft[1].evakey)
-		resRotationKey.SetRotKey(RotationRight, 3, resRotationKey.evakeyRotColRight[3].evakey)
-
-		for i := uint64(1); i < testctx.params.N()>>1; i++ {
-
-			if rotationKey.evakeyRotColLeft[i] != nil {
-
-				evakeyWant := rotationKey.evakeyRotColLeft[i].evakey
-				evakeyTest := resRotationKey.evakeyRotColLeft[i].evakey
-
-				for j := range evakeyWant {
-
-					for k := range evakeyWant[j] {
-						require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
-					}
-				}
-			}
-
-			if rotationKey.evakeyRotColRight[i] != nil {
-
-				evakeyWant := rotationKey.evakeyRotColRight[i].evakey
-				evakeyTest := resRotationKey.evakeyRotColRight[i].evakey
-
-				for j := range evakeyWant {
-
-					for k := range evakeyWant[j] {
-						require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
-					}
-				}
-			}
-		}
-
-		if rotationKey.evakeyRotRow != nil {
-
-			evakeyWant := rotationKey.evakeyRotRow.evakey
-			evakeyTest := resRotationKey.evakeyRotRow.evakey
+		for _, r := range tv {
+			galEl := getGaloisElementForRotation(r.rt, r.k, testctx.params.N())
+			evakeyWant := rotationKey.keys[galEl].Get()
+			evakeyTest := resRotationKey.keys[galEl].Get()
 
 			for j := range evakeyWant {
-
 				for k := range evakeyWant[j] {
-					require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRow element [%d][%d]", j, k)
+					require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshalled rotation key element [%d][%d] does not match", j, k)
 				}
 			}
 		}
+
 	})
 }

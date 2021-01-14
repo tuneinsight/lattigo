@@ -681,18 +681,33 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rotation
 
 	} else {
 
-		// Looks in the rotation key if the corresponding rotation has been generated or if the input is a plaintext
-		if evakey.evakeyRotColLeft[k] != nil {
+		galElL, galElR := getGaloisElementForRotation(RotationLeft, k, eval.params.N()), getGaloisElementForRotation(RotationRight, k, eval.params.N())
+		if eval.galElRotColLeft[k] != galElL || eval.galElRotColRight[k] != galElR {
+			panic(fmt.Sprintln(eval.galElRotColLeft[k], eval.galElRotColRight[k], galElR))
+		}
 
-			eval.permute(ct0, eval.galElRotColLeft[k], evakey.evakeyRotColLeft[k], ctOut)
+		// Looks in the rotation key if the corresponding rotation has been generated or if the input is a plaintext
+		if swk, inSet := evakey.GetRotKey(galElL); inSet {
+
+			eval.permute(ct0, galElL, swk, ctOut)
 
 		} else {
 
 			// If the needed rotation key has not been generated, it looks if the left and right pow2 rotations have been generated
 			hasPow2Rotations := true
 			for i := uint64(1); i < eval.ringQ.N>>1; i <<= 1 {
-				if evakey.evakeyRotColLeft[i] == nil || evakey.evakeyRotColRight[i] == nil {
-					hasPow2Rotations = false
+				galElL, galElR := getGaloisElementForRotation(RotationLeft, i, eval.params.N()), getGaloisElementForRotation(RotationRight, i, eval.params.N())
+				if eval.galElRotColLeft[i] != galElL {
+					panic("not good pow 2 L")
+				}
+				if eval.galElRotColRight[i] != galElR {
+					panic("not good pow 2 R")
+				}
+
+				_, inSetL := evakey.GetRotKey(galElL)
+				_, inSetR := evakey.GetRotKey(galElR)
+				hasPow2Rotations = hasPow2Rotations && inSetL && inSetR
+				if !hasPow2Rotations {
 					break
 				}
 			}
@@ -716,13 +731,13 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rotation
 
 // rotateColumnsLPow2 applies the Galois Automorphism on an element, rotating the element by k positions to the left, and returns the result in ctOut.
 func (eval *evaluator) rotateColumnsLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	eval.rotateColumnsPow2(ct0, GaloisGen, k, evakey.evakeyRotColLeft, ctOut)
+	eval.rotateColumnsPow2(ct0, GaloisGen, k, evakey.keys, ctOut)
 }
 
 // rotateColumnsRPow2 applies the Galois Endomorphism on an element, rotating the element by k positions to the right, returns the result in ctOut.
 func (eval *evaluator) rotateColumnsRPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
 	genInv := ring.ModExp(GaloisGen, 2*eval.ringQ.N-1, 2*eval.ringQ.N)
-	eval.rotateColumnsPow2(ct0, genInv, k, evakey.evakeyRotColRight, ctOut)
+	eval.rotateColumnsPow2(ct0, genInv, k, evakey.keys, ctOut)
 }
 
 // rotateColumnsPow2 rotates ct0 by k positions (left or right depending on the input), decomposing k as a sum of power-of-2 rotations, and returns the result in ctOut.
@@ -743,7 +758,7 @@ func (eval *evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint64, e
 
 		if k&1 == 1 {
 
-			eval.permute(ctOut, generator, evakeyRotCol[evakeyIndex], ctOut)
+			eval.permute(ctOut, generator, evakeyRotCol[generator], ctOut)
 		}
 
 		generator *= generator
@@ -761,11 +776,13 @@ func (eval *evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ctOut *
 		panic("cannot RotateRows: input and/or output must be of degree 1")
 	}
 
-	if evakey.evakeyRotRow == nil {
+	galEl := getGaloisElementForRotation(RotationRow, 0, eval.params.N())
+
+	if key, inSet := evakey.GetRotKey(galEl); inSet {
+		eval.permute(ct0, eval.galElRotRow, key, ctOut)
+	} else {
 		panic("cannot RotateRows: rotation key not generated")
 	}
-
-	eval.permute(ct0, eval.galElRotRow, evakey.evakeyRotRow, ctOut)
 }
 
 // RotateRowsNew rotates the rows of ct0 and returns the result a new Ciphertext.

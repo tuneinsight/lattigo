@@ -14,16 +14,16 @@ type RTGProtocol struct {
 	context *dbfvContext
 
 	galElRotRow uint64
-	galElRotCol map[bfv.Rotation][]uint64
+	galElRotCol map[bfv.RotationType][]uint64
 
-	tmpSwitchKey    [][2]*ring.Poly
+	tmpSwitchKey    *bfv.SwitchingKey
 	tmpPoly         [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
 }
 
 // RTGShare is the structure storing the shares of the RTG protocol
 type RTGShare struct {
-	Type  bfv.Rotation
+	Type  bfv.RotationType
 	K     uint64
 	Value []*ring.Poly
 }
@@ -53,7 +53,7 @@ func (share *RTGShare) UnmarshalBinary(data []byte) error {
 		return errors.New("unsufficient data length")
 	}
 	share.K = binary.BigEndian.Uint64(data[0:8])
-	share.Type = bfv.Rotation(binary.BigEndian.Uint64(data[8:16]))
+	share.Type = bfv.RotationType(binary.BigEndian.Uint64(data[8:16]))
 	lenRing := binary.BigEndian.Uint64(data[16:24])
 	valLength := uint64(len(data)-3*8) / lenRing
 
@@ -89,18 +89,14 @@ func NewRotKGProtocol(params *bfv.Parameters) (rtg *RTGProtocol) {
 	rtg = new(RTGProtocol)
 	rtg.context = context
 
-	rtg.tmpSwitchKey = make([][2]*ring.Poly, rtg.context.params.Beta())
-	for i := range rtg.tmpSwitchKey {
-		rtg.tmpSwitchKey[i][0] = context.ringQP.NewPoly()
-		rtg.tmpSwitchKey[i][1] = context.ringQP.NewPoly()
-	}
+	rtg.tmpSwitchKey = bfv.NewSwitchingKey(params)
 
 	rtg.tmpPoly = [2]*ring.Poly{context.ringQP.NewPoly(), context.ringQP.NewPoly()}
 
 	N := context.n
 
-	rtg.galElRotCol = make(map[bfv.Rotation][]uint64)
-	for _, rotType := range []bfv.Rotation{bfv.RotationLeft, bfv.RotationRight} {
+	rtg.galElRotCol = make(map[bfv.RotationType][]uint64)
+	for _, rotType := range []bfv.RotationType{bfv.RotationLeft, bfv.RotationRight} {
 
 		gen := bfv.GaloisGen
 		if rotType == bfv.RotationRight {
@@ -127,7 +123,7 @@ func NewRotKGProtocol(params *bfv.Parameters) (rtg *RTGProtocol) {
 // [a*s_i + (pi(s_i) - s_i) + e]
 //
 // and broadcasts it to the other j-1 parties. The protocol must be repeated for each desired rotation.
-func (rtg *RTGProtocol) GenShare(rotType bfv.Rotation, k uint64, sk *ring.Poly, crp []*ring.Poly, shareOut *RTGShare) {
+func (rtg *RTGProtocol) GenShare(rotType bfv.RotationType, k uint64, sk *ring.Poly, crp []*ring.Poly, shareOut *RTGShare) {
 	shareOut.Type = rotType
 	shareOut.K = k
 	switch rotType {
@@ -217,8 +213,8 @@ func (rtg *RTGProtocol) Finalize(share RTGShare, crp []*ring.Poly, rotKey *bfv.R
 	k := share.K & ((rtg.context.n >> 1) - 1)
 
 	for i := uint64(0); i < rtg.context.params.Beta(); i++ {
-		ringQP.Copy(share.Value[i], rtg.tmpSwitchKey[i][0])
-		ringQP.Copy(crp[i], rtg.tmpSwitchKey[i][1])
+		ringQP.Copy(share.Value[i], rtg.tmpSwitchKey.Get()[i][0])
+		ringQP.Copy(crp[i], rtg.tmpSwitchKey.Get()[i][1])
 	}
 
 	rotKey.SetRotKey(share.Type, k, rtg.tmpSwitchKey)

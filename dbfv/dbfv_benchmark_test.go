@@ -312,7 +312,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 		}
 	})
 
-	rotKey := bfv.NewRotationKeys()
+	rotKey := bfv.NewRotationKeys(testCtx.params)
 	b.Run(testString("RotKeyGen/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {

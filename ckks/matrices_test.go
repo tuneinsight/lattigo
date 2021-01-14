@@ -12,43 +12,52 @@ import (
 )
 
 type Matrix struct {
-	M [][]complex128
+	rows, cols uint64
+	M          []complex128
 }
 
-func (m *Matrix) N() uint64 {
-	return uint64(len(m.M))
+func NewMatrix(rows, cols uint64) (m *Matrix) {
+	m = new(Matrix)
+	m.M = make([]complex128, rows*cols)
+	m.rows = rows
+	m.cols = cols
+	return
+}
+
+func (m *Matrix) Rows() uint64 {
+	return m.rows
+}
+
+func (m *Matrix) Cols() uint64 {
+	return m.cols
 }
 
 func MulMat(A, B *Matrix) (AB *Matrix) {
-	n := A.N()
-	AB = new(Matrix)
-	m := make([][]complex128, n)
+	rowsA := A.Rows()
+	colsA := A.Cols()
+	colsB := B.Cols()
 
-	for i := uint64(0); i < n; i++ {
-		m[i] = make([]complex128, n)
-		for j := uint64(0); j < n; j++ {
-			for k := uint64(0); k < n; k++ {
-				m[i][j] += A.M[i][k] * B.M[k][j]
+	AB = NewMatrix(rowsA, colsB)
+
+	for i := uint64(0); i < rowsA; i++ {
+		for j := uint64(0); j < colsB; j++ {
+			for k := uint64(0); k < colsA; k++ {
+				AB.M[i*colsA+j] += A.M[i*colsA+k] * B.M[j+k*colsB]
 			}
 		}
 	}
 
-	AB.M = m
 	return
 }
 
-func GenMatrices(d, n uint64) (Matrices []*Matrix) {
+func GenMatrices(rows, cols, n uint64) (Matrices []*Matrix) {
 
 	Matrices = make([]*Matrix, n)
 
 	for k := range Matrices {
-		m := new(Matrix)
-		m.M = make([][]complex128, d)
-		for i := range m.M {
-			m.M[i] = make([]complex128, d)
-			for j := range m.M[i] {
-				m.M[i][j] = complex(utils.RandFloat64(-1, 1), 0) //float64(i*int(d) + j+1  + k*int(d*d)), 0) //randomComplex(-1, 1)float64(i*int(d) + j+1), 0)) // //
-			}
+		m := NewMatrix(rows, cols)
+		for i := uint64(0); i < rows*cols; i++ {
+			m.M[i] = complex(utils.RandFloat64(-1, 1), 0) //float64(i*int(d) + j+1  + k*int(d*d)), 0) //randomComplex(-1, 1)float64(i*int(d) + j+1), 0))
 		}
 		Matrices[k] = m
 	}
@@ -56,57 +65,89 @@ func GenMatrices(d, n uint64) (Matrices []*Matrix) {
 	return
 }
 
+// Rotates each row by k where k is the row index.
+// Equivalent to Transpoe(PermuteB(Transpose(M)))
 func (m *Matrix) PermuteA() {
-	for i := range m.M {
-		m.M[i] = append(m.M[i][i:], m.M[i][:i]...)
+	var index uint64
+	tmp := make([]complex128, m.Cols())
+	for i := uint64(0); i < m.Rows(); i++ {
+		index = i * m.Cols()
+		for j := range tmp {
+			tmp[j] = m.M[index+uint64(j)]
+		}
+
+		tmp = append(tmp[i:], tmp[:i]...)
+
+		for j, c := range tmp {
+			m.M[index+uint64(j)] = c
+		}
 	}
 }
 
+// Rotates each column by k, where k is the column index.
+// Equivalent to Transpoe(PermuteA(Transpose(M)))
 func (m *Matrix) PermuteB() {
-	m.Transpose()
-	m.PermuteA()
-	m.Transpose()
-}
+	tmp := make([]complex128, m.Rows())
+	for i := uint64(0); i < m.Cols(); i++ {
+		for j := range tmp {
+			tmp[j] = m.M[i+uint64(j)*m.Cols()]
+		}
 
-func (m *Matrix) RotateCols(k uint64) {
-	k %= m.N()
-	for i := range m.M {
-		m.M[i] = append(m.M[i][k:], m.M[i][:k]...)
+		tmp = append(tmp[i:], tmp[:i]...)
+
+		for j, c := range tmp {
+			m.M[i+uint64(j)*m.Cols()] = c
+		}
 	}
 }
 
-func (m *Matrix) Transpose() {
-	for i := uint64(0); i < m.N(); i++ {
-		for j := 1 + i; j < m.N(); j++ {
-			m.M[i][j], m.M[j][i] = m.M[j][i], m.M[i][j]
+// RotateCols rotates each column by k position to the left.
+func (m *Matrix) RotateCols(k uint64) {
+
+	k %= m.Cols()
+	var index uint64
+	tmp := make([]complex128, m.Cols())
+	for i := uint64(0); i < m.Rows(); i++ {
+		index = i * m.Cols()
+		for j := range tmp {
+			tmp[j] = m.M[index+uint64(j)]
+		}
+
+		tmp = append(tmp[k:], tmp[:k]...)
+
+		for j, c := range tmp {
+			m.M[index+uint64(j)] = c
 		}
 	}
 }
 
 func (m *Matrix) RotateRows(k uint64) {
-	k %= m.N()
-	m.M = append(m.M[k:], m.M[:k]...)
+	k %= m.Rows()
+	m.M = append(m.M[k*m.Cols():], m.M[:k*m.Cols()]...)
+}
+
+func (m *Matrix) Transpose() (mT *Matrix) {
+	rows := m.Rows()
+	cols := m.Cols()
+	mT = NewMatrix(cols, rows)
+
+	for i := uint64(0); i < rows; i++ {
+		for j := uint64(0); j < cols; j++ {
+			mT.M[cols*i+j] = m.M[j*cols+i]
+		}
+	}
+	return
 }
 
 func (m *Matrix) Print() {
-	for i := range m.M {
-		for j := range m.M[i] {
-			fmt.Printf("%7.4f ", m.M[i][j])
+
+	for i := uint64(0); i < m.Cols(); i++ {
+		for j := uint64(0); j < m.Rows(); j++ {
+			fmt.Printf("%7.4f ", m.M[i*m.Cols()+j])
 		}
 		fmt.Printf("\n")
 	}
 	fmt.Printf("\n")
-}
-
-func (m *Matrix) Flatten() (vec []complex128) {
-	n := int(m.N())
-	vec = make([]complex128, n*n)
-	for i := range m.M {
-		for j := range m.M[i] {
-			vec[i*n+j] = m.M[i][j]
-		}
-	}
-	return
 }
 
 func TestMatrices(t *testing.T) {
@@ -140,27 +181,32 @@ func TestMatrices(t *testing.T) {
 	eval := NewEvaluator(params)
 
 	// Size of the matrices (dxd)
-	d := uint64(64)
+	rows := uint64(64)
+	cols := uint64(64)
 
 	t.Run("Transpose/", func(t *testing.T) {
 
-		m, _, ct := GenTestVectors(d, params, encoder, encryptor)
+		m, _, ct := GenTestVectors(rows, cols, params, encoder, encryptor)
 
-		diagMatrix, _ := GenTransposeDiagMatrix(params.MaxLevel(), float64(params.Qi()[params.MaxLevel()]), 16.0, d, params.LogSlots(), encoder)
+		diagMatrix, _ := GenTransposeDiagMatrix(params.MaxLevel(), float64(params.Qi()[params.MaxLevel()]), 16.0, rows, params.LogSlots(), encoder)
 
 		kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
 
 		for i := range m {
-			m[i].Transpose()
+			m[i] = m[i].Transpose()
 		}
 
-		VerifyTestVectors(d, params, encoder, decryptor, m, eval.LinearTransform(ct, diagMatrix, rotKeys)[0], t)
+		//PrintDebug(ct, rows, cols, params, encoder, decryptor)
+
+		ct = eval.LinearTransform(ct, diagMatrix, rotKeys)[0]
+
+		VerifyTestVectors(params, encoder, decryptor, m, ct, t)
 
 	})
 
 	t.Run("RotateCols", func(t *testing.T) {
 
-		m, _, ct := GenTestVectors(d, params, encoder, encryptor)
+		m, _, ct := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		alpha := params.Alpha()
 		beta := uint64(math.Ceil(float64(ct.Level()+1) / float64(alpha)))
@@ -177,13 +223,13 @@ func TestMatrices(t *testing.T) {
 
 		res := NewCiphertext(params, 1, ct.Level(), ct.Scale())
 
-		for k := uint64(1); k < d; k++ {
+		for k := uint64(1); k < rows; k++ {
 
 			t.Run(fmt.Sprintf("k=%d/", k), func(t *testing.T) {
 
 				level := params.MaxLevel()
 
-				diagMatrix, _ := GenSubVectorRotationMatrix(level, float64(params.Qi()[level]), d, k, params.LogSlots(), encoder)
+				diagMatrix, _ := GenSubVectorRotationMatrix(level, float64(params.Qi()[level]), rows, k, params.LogSlots(), encoder)
 
 				kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
 
@@ -193,13 +239,13 @@ func TestMatrices(t *testing.T) {
 
 				eval.(*evaluator).multiplyByDiabMatrix(ct, res, diagMatrix, rotKeys, c2QiQDecompA, c2QiPDecompA)
 
-				VerifyTestVectors(d, params, encoder, decryptor, m, res, t)
+				VerifyTestVectors(params, encoder, decryptor, m, res, t)
 			})
 		}
 	})
 
 	t.Run("RotateRows", func(t *testing.T) {
-		m, _, ct := GenTestVectors(d, params, encoder, encryptor)
+		m, _, ct := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		alpha := params.Alpha()
 		beta := uint64(math.Ceil(float64(ct.Level()+1) / float64(alpha)))
@@ -216,13 +262,13 @@ func TestMatrices(t *testing.T) {
 
 		res := NewCiphertext(params, 1, ct.Level(), ct.Scale())
 
-		for k := uint64(1); k < d; k++ {
+		for k := uint64(1); k < rows; k++ {
 
 			t.Run(fmt.Sprintf("k=%d/", k), func(t *testing.T) {
 
 				level := params.MaxLevel()
 
-				diagMatrix, _ := GenSubVectorRotationMatrix(level, float64(params.Qi()[level]), d*d, k*d, params.LogSlots(), encoder)
+				diagMatrix, _ := GenSubVectorRotationMatrix(level, float64(params.Qi()[level]), rows*rows, k*rows, params.LogSlots(), encoder)
 
 				kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
 
@@ -232,17 +278,17 @@ func TestMatrices(t *testing.T) {
 
 				eval.(*evaluator).multiplyByDiabMatrix(ct, res, diagMatrix, rotKeys, c2QiQDecompA, c2QiPDecompA)
 
-				VerifyTestVectors(d, params, encoder, decryptor, m, res, t)
+				VerifyTestVectors(params, encoder, decryptor, m, res, t)
 			})
 		}
 	})
 
 	t.Run("PermuteA/", func(t *testing.T) {
-		m, _, ct := GenTestVectors(d, params, encoder, encryptor)
+		m, _, ct := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		level := params.MaxLevel()
 
-		diagMatrix, _ := GenPermuteAMatrix(level, float64(params.Qi()[level]), 16.0, d, params.LogSlots(), encoder)
+		diagMatrix, _ := GenPermuteAMatrix(level, float64(params.Qi()[level]), 16.0, rows, params.LogSlots(), encoder)
 
 		kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
 
@@ -252,18 +298,18 @@ func TestMatrices(t *testing.T) {
 
 		ct = eval.LinearTransform(ct, diagMatrix, rotKeys)[0]
 
-		//PrintDebug(ctAB, d, params, encoder, decryptor)
+		//PrintDebug(ct, rows, cols, params, encoder, decryptor)
 
-		VerifyTestVectors(d, params, encoder, decryptor, m, ct, t)
+		VerifyTestVectors(params, encoder, decryptor, m, ct, t)
 
 	})
 
 	t.Run("PermuteB/", func(t *testing.T) {
-		m, _, ct := GenTestVectors(d, params, encoder, encryptor)
+		m, _, ct := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		level := params.MaxLevel()
 
-		diagMatrix, _ := GenPermuteBMatrix(level, float64(params.Qi()[level]), 16.0, d, params.LogSlots(), encoder)
+		diagMatrix, _ := GenPermuteBMatrix(level, float64(params.Qi()[level]), 16.0, rows, params.LogSlots(), encoder)
 
 		kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
 
@@ -277,15 +323,15 @@ func TestMatrices(t *testing.T) {
 
 		//PrintDebug(ct, d, params, encoder, decryptor)
 
-		VerifyTestVectors(d, params, encoder, decryptor, m, ct, t)
+		VerifyTestVectors(params, encoder, decryptor, m, ct, t)
 
 	})
 
 	t.Run("Multiply/Square", func(t *testing.T) {
-		mA, _, ctA := GenTestVectors(d, params, encoder, encryptor)
-		mB, _, ctB := GenTestVectors(d, params, encoder, encryptor)
+		mA, _, ctA := GenTestVectors(rows, cols, params, encoder, encryptor)
+		mB, _, ctB := GenTestVectors(rows, cols, params, encoder, encryptor)
 
-		mmpt := GenPlaintextMatrices(params, params.MaxLevel(), d, encoder)
+		mmpt := GenPlaintextMatrices(params, params.MaxLevel(), rows, encoder)
 		GenRotationKeys(mmpt, kgen, sk, rotKeys)
 
 		for j := range mA {
@@ -298,30 +344,31 @@ func TestMatrices(t *testing.T) {
 
 		//PrintDebug(ctAB, d, params, encoder, decryptor)
 
-		VerifyTestVectors(d, params, encoder, decryptor, mA, ctAB, t)
+		VerifyTestVectors(params, encoder, decryptor, mA, ctAB, t)
 
 	})
+
 }
 
-func MatricesToVector(m []*Matrix, d uint64, params *Parameters) (values []complex128) {
+func MatricesToVector(m []*Matrix, params *Parameters) (values []complex128) {
 	values = make([]complex128, params.Slots())
 
-	for i := uint64(0); i < params.Slots()/(d*d); i++ {
+	d := m[0].Rows() * m[0].Cols()
 
-		vec := m[i].Flatten()
+	for i := uint64(0); i < params.Slots()/d; i++ {
 
-		for j := uint64(0); j < d*d; j++ {
-			values[i*d*d+j] = vec[j]
+		for j, c := range m[i].M {
+			values[i*d+uint64(j)] = c
 		}
 	}
 	return
 }
 
-func GenTestVectors(d uint64, params *Parameters, encoder Encoder, encryptor Encryptor) (m []*Matrix, pt *Plaintext, ct *Ciphertext) {
+func GenTestVectors(rows, cols uint64, params *Parameters, encoder Encoder, encryptor Encryptor) (m []*Matrix, pt *Plaintext, ct *Ciphertext) {
 
-	m = GenMatrices(d, params.Slots()/(d*d))
+	m = GenMatrices(rows, cols, params.Slots()/(rows*cols))
 
-	values := MatricesToVector(m, d, params)
+	values := MatricesToVector(m, params)
 
 	pt = encoder.EncodeNew(values, params.LogSlots())
 
@@ -330,9 +377,9 @@ func GenTestVectors(d uint64, params *Parameters, encoder Encoder, encryptor Enc
 	return m, pt, ct
 }
 
-func VerifyTestVectors(d uint64, params *Parameters, encoder Encoder, decryptor Decryptor, m []*Matrix, element interface{}, t *testing.T) {
+func VerifyTestVectors(params *Parameters, encoder Encoder, decryptor Decryptor, m []*Matrix, element interface{}, t *testing.T) {
 
-	precStats := GetPrecisionStats(params, encoder, decryptor, MatricesToVector(m, d, params), element, 0)
+	precStats := GetPrecisionStats(params, encoder, decryptor, MatricesToVector(m, params), element, 0)
 
 	if *printPrecisionStats {
 		t.Log(precStats.String())
@@ -342,20 +389,22 @@ func VerifyTestVectors(d uint64, params *Parameters, encoder Encoder, decryptor 
 	require.GreaterOrEqual(t, imag(precStats.MeanPrecision), minPrec)
 }
 
-func PrintDebug(ct *Ciphertext, d uint64, params *Parameters, encoder Encoder, decryptor Decryptor) {
+func PrintDebug(ct *Ciphertext, rows, cols uint64, params *Parameters, encoder Encoder, decryptor Decryptor) {
 
 	valuesHave := encoder.Decode(decryptor.DecryptNew(ct), params.LogSlots())
 
-	maxPrint := params.Slots() / (d * d)
+	maxPrint := params.Slots() / (rows * cols)
 
 	if maxPrint > 4 {
 		maxPrint = 4
 	}
 	for k := uint64(0); k < maxPrint; k++ {
 
-		for i := uint64(0); i < d; i++ {
-			for j := uint64(0); j < d; j++ {
-				fmt.Printf("%4.0f ", real(valuesHave[k*d*d+i*d+j]))
+		index := k * rows * cols
+
+		for i := uint64(0); i < rows; i++ {
+			for j := uint64(0); j < cols; j++ {
+				fmt.Printf("%7.4f ", real(valuesHave[index+i*rows+j]))
 			}
 			fmt.Printf("\n")
 		}

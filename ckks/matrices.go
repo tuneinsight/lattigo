@@ -109,6 +109,7 @@ func (eval *evaluator) MulMatrixAB(A, B *Ciphertext, mmpt *MMPt, rlk *Evaluation
 	return
 }
 
+// GenPermuteAMatrix rotates each row of the matrix by k position, where k is the row index.
 func GenPermuteAMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
 
 	slots := uint64(1 << logSlots)
@@ -149,6 +150,7 @@ func GenPermuteAMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, log
 
 }
 
+// GenPermuteAMatrix rotates each column of the matrix by k position, where k is the column index.
 func GenPermuteBMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
 
 	slots := uint64(1 << logSlots)

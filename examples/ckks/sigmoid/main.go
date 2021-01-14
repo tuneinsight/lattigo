@@ -105,9 +105,13 @@ func round(x complex128) complex128 {
 
 func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
 
-	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
+	plaintext := decryptor.DecryptNew(ciphertext)
 
-	fmt.Println()
+	// Decoding for private usage only.
+	fmt.Println("DECODE PRIVATE")
+
+	valuesTest = encoder.Decode(plaintext, params.LogSlots())
+
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
 	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale()))
 	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
@@ -115,6 +119,32 @@ func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant
 
 	metrics := ckks.NewNoiseEstimator(params)
 	precStats := metrics.PrecisionStats(valuesWant, valuesTest)
+
+	fmt.Println(precStats.String())
+	fmt.Println()
+
+	// Decoding for public discolsure. Adds key-independant error with standard deviation equal to the 
+	// error alredy present in the plaintext.
+	fmt.Println("DECODE PUBLIC")
+
+	// Computes the standard deviation of the underlying error between the desired output and the actual output
+	// in the coefficient domain.
+	// In practice the expected "valuesWant" should also be computed with the approximated polynomials, 
+	// so that only the scheme inherent error and not the error between the approximation and the actual function
+	// is accounted for.
+	// If the approximation error is much larger than the scheme inherent error, then no precision should be
+	// lost by the addition of the error.
+	sigma := metrics.StandardDeviationCoefDomain(valuesTest, valuesWant, plaintext.Scale())
+
+	// Adds an error with "sigma" as standard deviation and decodes.
+	valuesTest = encoder.DecodePublic(plaintext, params.LogSlots(), sigma)
+
+	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
+	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale()))
+	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
+	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
+
+	precStats = metrics.PrecisionStats(valuesWant, valuesTest)
 
 	fmt.Println(precStats.String())
 	fmt.Println()

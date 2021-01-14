@@ -3,6 +3,7 @@ package ring
 import (
 	"flag"
 	"fmt"
+	"math"
 	"math/big"
 	"testing"
 
@@ -303,35 +304,101 @@ func testUniformSampler(testContext *testParams, t *testing.T) {
 func testGaussianSampler(testContext *testParams, t *testing.T) {
 
 	t.Run(testString("GaussianSampler/", testContext.ringQ), func(t *testing.T) {
+
 		gaussianSampler := NewGaussianSampler(testContext.prng)
+
+		// Samples a poly
 		pol := gaussianSampler.ReadNew(testContext.ringQ, DefaultSigma, DefaultBound)
 
-		for i := uint64(0); i < testContext.ringQ.N; i++ {
-			for j, qi := range testContext.ringQ.Modulus {
-				require.False(t, uint64(DefaultBound) < pol.Coeffs[j][i] && pol.Coeffs[j][i] < (qi-uint64(DefaultBound)))
+		// RNS reconstruction mod Q
+		coeffsBigint := make([]*big.Int, testContext.ringQ.N)
+		testContext.ringQ.PolyToBigint(pol, coeffsBigint)
+
+		// Extract the coefficient to float64 (they should be low norm)
+		coeffs := make([]float64, len(coeffsBigint))
+
+		QBigint := testContext.ringQ.ModulusBigint
+		bigQHalf := new(big.Int)
+		bigQHalf.Set(QBigint)
+		bigQHalf.Rsh(bigQHalf, 1)
+
+		var sign int
+		for i, c := range coeffsBigint {
+
+			sign = c.Cmp(bigQHalf)
+			if sign == 1 || sign == 0 {
+				c.Sub(c, QBigint)
 			}
+
+			coeffs[i] = float64(c.Int64())
+		}
+
+		// Checks that the coefficient are within the bounds
+		for _, c := range coeffs {
+			require.True(t, math.Abs(c) <= float64(DefaultBound))
+		}
+
+		// Computes the standard deviation
+		sigma := StandardDeviation(coeffs, 1.0)
+
+		// Print a warning the distance is too large
+		if math.Abs(sigma-DefaultSigma) > DefaultSigma*0.05 {
+			t.Log("warning : |(sigma - DefaultSigma)| > DefaultSigma * 0.05")
 		}
 	})
 }
 
 func testTernarySampler(testContext *testParams, t *testing.T) {
 
+	// p is the probability that a coefficient will be zero
+	// Hence the standard deviation should be (1-p)^0.5
 	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
 		t.Run(testString(fmt.Sprintf("TernarySampler/p=%1.2f/", p), testContext.ringQ), func(t *testing.T) {
 
-			prng, err := utils.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			ternarySampler := NewTernarySampler(prng, testContext.ringQ, p, false)
+			ternarySampler := NewTernarySampler(testContext.prng, testContext.ringQ, p, false)
 
+			// Samples a poly
 			pol := ternarySampler.ReadNew()
-			for i, mod := range testContext.ringQ.Modulus {
-				minOne := mod - 1
-				for _, c := range pol.Coeffs[i] {
-					require.True(t, c == 0 || c == minOne || c == 1)
+
+			// RNS reconstruction mod Q
+			coeffsBigint := make([]*big.Int, testContext.ringQ.N)
+			testContext.ringQ.PolyToBigint(pol, coeffsBigint)
+
+			// Extract the coefficient to float64 (they should be low norm)
+			coeffs := make([]float64, len(coeffsBigint))
+
+			QBigint := testContext.ringQ.ModulusBigint
+			bigQHalf := new(big.Int)
+			bigQHalf.Set(QBigint)
+			bigQHalf.Rsh(bigQHalf, 1)
+
+			var sign int
+			for i, c := range coeffsBigint {
+
+				sign = c.Cmp(bigQHalf)
+				if sign == 1 || sign == 0 {
+					c.Sub(c, QBigint)
 				}
+
+				coeffs[i] = float64(c.Int64())
 			}
+
+			// Checks that the coefficient are within the bounds
+			for _, c := range coeffs {
+				require.True(t, math.Abs(c) <= 1)
+			}
+
+			// Computes the standard deviation
+			sigma := StandardDeviation(coeffs, 1.0)
+
+			// sqrt(1/N * (N * 1 * (1-p))
+			stdWant := math.Sqrt(1 - p)
+
+			// Print a warning the distance is too large
+			if math.Abs(sigma-stdWant) > stdWant*0.05 {
+				t.Log("warning : |(sigma - sqrt(1-p))| > sqrt(1-p) * 0.05")
+			}
+
 		})
 	}
 

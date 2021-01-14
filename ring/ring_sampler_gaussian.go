@@ -60,7 +60,7 @@ func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly, baseRin
 		for {
 			coeffFlo, sign = gaussianSampler.normFloat64()
 
-			if coeffInt = uint64(coeffFlo * sigma + 0.5); coeffInt <= bound {
+			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= bound {
 				break
 			}
 		}
@@ -91,7 +91,7 @@ func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level uint64, pol *Poly, b
 		for {
 			coeffFlo, sign = gaussianSampler.normFloat64()
 
-			if coeffInt = uint64(coeffFlo * sigma + 0.5); coeffInt <= bound {
+			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= bound {
 				break
 			}
 		}

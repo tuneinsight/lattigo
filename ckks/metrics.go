@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"sort"
+
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // NoiseEstimator is a struct storing the necessary pre-computed
@@ -64,7 +66,7 @@ func (ne *NoiseEstimator) StandardDeviationSlotDomain(valuesWant, valuesHave []c
 		ne.valuesfloat[2*i+1] = imag(err)
 	}
 
-	return StandardDeviation(ne.valuesfloat[:len(valuesWant)*2], scale)
+	return ring.StandardDeviation(ne.valuesfloat[:len(valuesWant)*2], scale)
 }
 
 // StandardDeviationCoefDomain returns the scaled standard deviation of the [coefficient domain] of the difference between two complex vectors in the [slot domains].
@@ -81,7 +83,7 @@ func (ne *NoiseEstimator) StandardDeviationCoefDomain(valuesWant, valuesHave []c
 		ne.valuesfloat[2*i+1] = imag(ne.values[i])
 	}
 
-	return StandardDeviation(ne.valuesfloat[:len(valuesWant)*2], scale)
+	return ring.StandardDeviation(ne.valuesfloat[:len(valuesWant)*2], scale)
 }
 
 // PrecisionStats is a struct storing statistic about the precision of a CKKS plaintext

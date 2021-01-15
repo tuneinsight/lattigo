@@ -86,8 +86,14 @@ type Evaluator interface {
 	// Linear Transformations
 	LinearTransform(vec *Ciphertext, linearTransform interface{}, rotkeys *RotationKeys) (res []*Ciphertext)
 
-	// Matrix Multiplication
-	MulMatrixAB(A, B *Ciphertext, mmpt *MMPt, rlk *EvaluationKey, rotKeys *RotationKeys) (ciphertextAB *Ciphertext)
+	// Matrix Multiplication of batched matrices
+	// For ciphertext A and B, each encrypting the matrices mA[i] and mB[i] for 0 < i < nbMatrices,
+	// returns a ciphertext storing mAB[i] = mA[i] x mB[i].
+	// Only supports square matrices. Rectangular matrix multiplication must be carried through
+	// square matrix multiplication (for example by splitting the rectangular matrix into square matrices).
+	// mmpt is a struct storing the plaintext vector of the linear transformation necessary for the matrix multiplication.
+	// cf. examples/ckks/matrix/main.go for an example of a 32x128 x 128x32 matrix multiplication.
+	MulMatrix(A, B *Ciphertext, mmpt *MMPt, rlk *EvaluationKey, rotKeys *RotationKeys) (ciphertextAB *Ciphertext)
 
 	// =============================
 	// === Ciphertext Management ===

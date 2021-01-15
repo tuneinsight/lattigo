@@ -9,7 +9,7 @@ import (
 	//"github.com/ldsec/lattigo/v2/utils"
 )
 
-func MatMul() {
+func main() {
 
 	var err error
 
@@ -19,7 +19,7 @@ func MatMul() {
 
 	LogModuli := ckks.LogModuli{
 		LogQi: []uint64{55, 40, 40, 40},
-		LogPi: []uint64{45, 45},
+		LogPi: []uint64{50, 50},
 	}
 
 	Scale := float64(1 << 40)
@@ -110,9 +110,9 @@ func MatMul() {
 	dxd := int(rows * cols)
 
 	// Rotation-keys generation
-	mmpt := ckks.GenPlaintextMatrices(params, params.MaxLevel(), rows, encoder)
+	mmpt := ckks.GenMatMulLinTrans(params, params.MaxLevel(), rows, encoder)
 	rotKeys := ckks.NewRotationKeys()
-	ckks.GenRotationKeys(mmpt, kgen, sk, rotKeys)
+	kgen.GenMatMulRotKeys(mmpt, sk, rotKeys)
 
 	for i := uint64(1); i < nb; i <<= 1 {
 		kgen.GenRotationKey(ckks.RotationLeft, sk, uint64(dxd)*i, rotKeys)
@@ -122,8 +122,8 @@ func MatMul() {
 	//
 	// 32x128 and 128x32 matrix generation (each split into 4 32x32 square matrices)
 
-	m32x128 := ckks.GenMatrices(rows, cols, nb)
-	m128x32 := ckks.GenMatrices(rows, cols, nb)
+	m32x128 := ckks.GenRandomComplexMatrices(rows, cols, nb)
+	m128x32 := ckks.GenRandomComplexMatrices(rows, cols, nb)
 
 	values := make([]complex128, params.Slots())
 
@@ -149,8 +149,9 @@ func MatMul() {
 	ciphertextm128x32 := encryptor.EncryptNew(plaintextm128x32)
 
 	start := time.Now()
-	ct32x32 := eval.MulMatrixAB(ciphertextm32x128, ciphertextm128x32, mmpt, rlk, rotKeys)
+	ct32x32 := eval.MulMatrix(ciphertextm32x128, ciphertextm128x32, mmpt, rlk, rotKeys)
 
+	// Inner-sum using a baby-step giant-step approach.
 	tmp := ckks.NewCiphertext(params, ct32x32.Degree(), ct32x32.Level(), ct32x32.Scale())
 	for i := uint64(1); i < nb; i <<= 1 {
 		eval.Rotate(ct32x32, uint64(dxd)*i, rotKeys, tmp)
@@ -159,8 +160,9 @@ func MatMul() {
 
 	fmt.Println("Done :", time.Since(start))
 
+	// Computes the reference plaintext by doing the computation in the plaintext domain.
 	for j := range m32x128 {
-		m32x128[j] = ckks.MulMat(m32x128[j], m128x32[j])
+		m32x128[j].MulMat(m32x128[j], m128x32[j])
 
 		if j > 0 {
 			m32x128[0].Add(m32x128[0], m32x128[j])
@@ -170,6 +172,7 @@ func MatMul() {
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ct32x32.Level(), params.LogQLvl(ct32x32.Level()))
 	fmt.Printf("Scale: 2^%f\n", math.Log2(ct32x32.Scale()))
+
 	// We only care about the first 32x32 matrix, which is the result of the computation
 	valuesWant := m32x128[0].M
 	valuesHave := encoder.Decode(decryptor.DecryptNew(ct32x32), params.LogSlots())[:dxd]
@@ -188,7 +191,7 @@ func printDebug(rows, cols uint64, valuesWant, valuesHave []complex128, params *
 	fmt.Println("Have")
 	for i := uint64(0); i < rows; i++ {
 		for j := uint64(0); j < cols; j++ {
-			fmt.Printf("%7.4f ", real(valuesHave[i*rows+j]))
+			fmt.Printf("%8.4f ", real(valuesHave[i*rows+j]))
 		}
 		fmt.Printf("\n")
 	}
@@ -196,7 +199,7 @@ func printDebug(rows, cols uint64, valuesWant, valuesHave []complex128, params *
 	fmt.Println("Want")
 	for i := uint64(0); i < rows; i++ {
 		for j := uint64(0); j < cols; j++ {
-			fmt.Printf("%7.4f ", real(valuesWant[i*rows+j]))
+			fmt.Printf("%8.4f ", real(valuesWant[i*rows+j]))
 		}
 		fmt.Printf("\n")
 	}
@@ -205,8 +208,4 @@ func printDebug(rows, cols uint64, valuesWant, valuesHave []complex128, params *
 	fmt.Println()
 
 	return
-}
-
-func main() {
-	MatMul()
 }

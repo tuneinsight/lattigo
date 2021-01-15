@@ -23,6 +23,7 @@ type KeyGenerator interface {
 	GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys)
 	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey)
 	GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *SecretKey, rotKeys *RotationKeys)
+	GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey, rotKeys *RotationKeys)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -551,6 +552,17 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 	}
 
 	return
+}
+
+func (keygen *keyGenerator) GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey, rotKeys *RotationKeys) {
+
+	keygen.GenRotKeysForDiagMatrix(mmpt.mPermuteRows, sk, rotKeys)
+	keygen.GenRotKeysForDiagMatrix(mmpt.mPermuteCols, sk, rotKeys)
+
+	for i := range mmpt.mRotCols {
+		keygen.GenRotKeysForDiagMatrix(mmpt.mRotCols[i], sk, rotKeys)
+		keygen.GenRotKeysForDiagMatrix(mmpt.mRotRows[i], sk, rotKeys)
+	}
 }
 
 // GenRotKeysForDiagMatrix populates a RotationKeys struct with the necessary rotation keys for

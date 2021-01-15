@@ -3,7 +3,6 @@ package ckks
 import (
 	"fmt"
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/require"
 	"math"
 	"math/rand"
@@ -59,7 +58,9 @@ func TestMatrices(t *testing.T) {
 
 		//PrintDebug(ct, rows, cols, params, encoder, decryptor)
 
+		start := time.Now()
 		ct = eval.LinearTransform(ct, diagMatrix, rotKeys)[0]
+		fmt.Println("Done :", time.Since(start))
 
 		VerifyTestVectors(params, encoder, decryptor, m, ct, t)
 
@@ -144,17 +145,17 @@ func TestMatrices(t *testing.T) {
 		}
 	})
 
-	t.Run("PermuteA/", func(t *testing.T) {
+	t.Run("PermuteRows/", func(t *testing.T) {
 		m, _, ct := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		level := params.MaxLevel()
 
-		diagMatrix, _ := GenPermuteAMatrix(level, float64(params.Qi()[level]), 16.0, rows, params.LogSlots(), encoder)
+		diagMatrix, _ := genPermuteRowsMatrix(level, float64(params.Qi()[level]), 16.0, rows, params.LogSlots(), encoder)
 
 		kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
 
 		for j := range m {
-			m[j].PermuteA()
+			m[j].PermuteRows()
 		}
 
 		ct = eval.LinearTransform(ct, diagMatrix, rotKeys)[0]
@@ -165,17 +166,17 @@ func TestMatrices(t *testing.T) {
 
 	})
 
-	t.Run("PermuteB/", func(t *testing.T) {
+	t.Run("PermuteCols/", func(t *testing.T) {
 		m, _, ct := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		level := params.MaxLevel()
 
-		diagMatrix, _ := GenPermuteBMatrix(level, float64(params.Qi()[level]), 16.0, rows, params.LogSlots(), encoder)
+		diagMatrix, _ := genPermuteColsMatrix(level, float64(params.Qi()[level]), 16.0, rows, params.LogSlots(), encoder)
 
 		kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
 
 		for j := range m {
-			m[j].PermuteB()
+			m[j].PermuteCols()
 		}
 
 		//PrintDebug(ct, d, params, encoder, decryptor)
@@ -188,19 +189,19 @@ func TestMatrices(t *testing.T) {
 
 	})
 
-	t.Run("Multiply/Square", func(t *testing.T) {
+	t.Run("Multiply/", func(t *testing.T) {
 		mA, _, ctA := GenTestVectors(rows, cols, params, encoder, encryptor)
 		mB, _, ctB := GenTestVectors(rows, cols, params, encoder, encryptor)
 
-		mmpt := GenPlaintextMatrices(params, params.MaxLevel(), rows, encoder)
-		GenRotationKeys(mmpt, kgen, sk, rotKeys)
+		mmpt := GenMatMulLinTrans(params, params.MaxLevel(), rows, encoder)
+		kgen.GenMatMulRotKeys(mmpt, sk, rotKeys)
 
 		for j := range mA {
-			mA[j] = MulMat(mA[j], mB[j])
+			mA[j].MulMat(mA[j], mB[j])
 		}
 
 		start := time.Now()
-		ctAB := eval.MulMatrixAB(ctA, ctB, mmpt, rlk, rotKeys)
+		ctAB := eval.MulMatrix(ctA, ctB, mmpt, rlk, rotKeys)
 		fmt.Println("Done :", time.Since(start))
 
 		//PrintDebug(ctAB, d, params, encoder, decryptor)
@@ -227,7 +228,7 @@ func MatricesToVector(m []*Matrix, params *Parameters) (values []complex128) {
 
 func GenTestVectors(rows, cols uint64, params *Parameters, encoder Encoder, encryptor Encryptor) (m []*Matrix, pt *Plaintext, ct *Ciphertext) {
 
-	m = GenMatrices(rows, cols, params.Slots()/(rows*cols))
+	m = GenRandomComplexMatrices(rows, cols, params.Slots()/(rows*cols))
 
 	values := MatricesToVector(m, params)
 

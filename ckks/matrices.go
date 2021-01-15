@@ -7,15 +7,19 @@ import (
 	"math"
 )
 
+// MMPt is a struct holding all the linear transformation necessary for the homomorphic
+// multiplication of square matrices.
 type MMPt struct {
-	dimension uint64
-	mPermuteA *PtDiagMatrix
-	mPermuteB *PtDiagMatrix
-	mRotRows  []*PtDiagMatrix
-	mRotCols  []*PtDiagMatrix
+	dimension    uint64
+	mPermuteRows *PtDiagMatrix
+	mPermuteCols *PtDiagMatrix
+	mRotRows     []*PtDiagMatrix
+	mRotCols     []*PtDiagMatrix
 }
 
-func GenPlaintextMatrices(params *Parameters, level uint64, dimension uint64, encoder Encoder) (mmpt *MMPt) {
+// GenMatMulLinTrans generates the plaintext linear transformation necessary for the homomorphic
+// multiplication of square matrices.
+func GenMatMulLinTrans(params *Parameters, level uint64, dimension uint64, encoder Encoder) (mmpt *MMPt) {
 
 	mmpt = new(MMPt)
 
@@ -24,8 +28,8 @@ func GenPlaintextMatrices(params *Parameters, level uint64, dimension uint64, en
 	var scale float64
 	scale = float64(params.Qi()[level]) * math.Sqrt(float64(params.Qi()[level-2])/params.Scale())
 
-	mmpt.mPermuteA, _ = GenPermuteAMatrix(level, scale, 16.0, dimension, params.LogSlots(), encoder)
-	mmpt.mPermuteB, _ = GenPermuteBMatrix(level, scale, 16.0, dimension, params.LogSlots(), encoder)
+	mmpt.mPermuteRows, _ = genPermuteRowsMatrix(level, scale, 16.0, dimension, params.LogSlots(), encoder)
+	mmpt.mPermuteCols, _ = genPermuteColsMatrix(level, scale, 16.0, dimension, params.LogSlots(), encoder)
 
 	mmpt.mRotCols = make([]*PtDiagMatrix, dimension-1)
 	mmpt.mRotRows = make([]*PtDiagMatrix, dimension-1)
@@ -40,25 +44,14 @@ func GenPlaintextMatrices(params *Parameters, level uint64, dimension uint64, en
 	return
 }
 
-func GenRotationKeys(mmpt *MMPt, kgen KeyGenerator, sk *SecretKey, rotKeys *RotationKeys) {
+func (eval *evaluator) MulMatrix(A, B *Ciphertext, mmpt *MMPt, rlk *EvaluationKey, rotKeys *RotationKeys) (ciphertextAB *Ciphertext) {
 
-	kgen.GenRotKeysForDiagMatrix(mmpt.mPermuteA, sk, rotKeys)
-	kgen.GenRotKeysForDiagMatrix(mmpt.mPermuteB, sk, rotKeys)
-
-	for i := range mmpt.mRotCols {
-		kgen.GenRotKeysForDiagMatrix(mmpt.mRotCols[i], sk, rotKeys)
-		kgen.GenRotKeysForDiagMatrix(mmpt.mRotRows[i], sk, rotKeys)
-	}
-}
-
-func (eval *evaluator) MulMatrixAB(A, B *Ciphertext, mmpt *MMPt, rlk *EvaluationKey, rotKeys *RotationKeys) (ciphertextAB *Ciphertext) {
-
-	ciphertextA := eval.LinearTransform(A, mmpt.mPermuteA, rotKeys)[0]
+	ciphertextA := eval.LinearTransform(A, mmpt.mPermuteRows, rotKeys)[0]
 	if err := eval.Rescale(ciphertextA, eval.params.Scale(), ciphertextA); err != nil {
 		panic(err)
 	}
 
-	ciphertextB := eval.LinearTransform(B, mmpt.mPermuteB, rotKeys)[0]
+	ciphertextB := eval.LinearTransform(B, mmpt.mPermuteCols, rotKeys)[0]
 	if err := eval.Rescale(ciphertextB, eval.params.Scale(), ciphertextB); err != nil {
 		panic(err)
 	}
@@ -111,8 +104,8 @@ func (eval *evaluator) MulMatrixAB(A, B *Ciphertext, mmpt *MMPt, rlk *Evaluation
 	return
 }
 
-// GenPermuteAMatrix rotates each row of the matrix by k position, where k is the row index.
-func GenPermuteAMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
+// genPermuteRowsMatrix rotates each row of the matrix by k position, where k is the row index.
+func genPermuteRowsMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
 
 	slots := uint64(1 << logSlots)
 
@@ -152,8 +145,8 @@ func GenPermuteAMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, log
 
 }
 
-// GenPermuteAMatrix rotates each column of the matrix by k position, where k is the column index.
-func GenPermuteBMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
+// genPermuteColsMatrix rotates each column of the matrix by k position, where k is the column index.
+func genPermuteColsMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
 
 	slots := uint64(1 << logSlots)
 
@@ -284,6 +277,7 @@ func GenSubVectorRotationMatrix(level uint64, scale float64, vectorSize, k, logS
 	return matrix, diagMatrix
 }
 
+// GenTransposeDiagMatrix generates the linear transform plaintext vectors for the transpose of a square matrix.
 func GenTransposeDiagMatrix(level uint64, scale, maxM1N2Ratio float64, dimension, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[uint64][]complex128) {
 
 	slots := uint64(1 << logSlots)
@@ -330,11 +324,13 @@ func populateVector(m []complex128, d2 int, logSlots uint64) {
 	}
 }
 
+// Matrix is a struct holding a row flatened complex matrix.
 type Matrix struct {
 	rows, cols uint64
 	M          []complex128
 }
 
+// NewMatrix creates a new matrix.
 func NewMatrix(rows, cols uint64) (m *Matrix) {
 	m = new(Matrix)
 	m.M = make([]complex128, rows*cols)
@@ -343,46 +339,77 @@ func NewMatrix(rows, cols uint64) (m *Matrix) {
 	return
 }
 
+// Rows returns the number of rows of the matrix.
 func (m *Matrix) Rows() uint64 {
 	return m.rows
 }
 
+// Cols returns the number of columns of the matrix.
 func (m *Matrix) Cols() uint64 {
 	return m.cols
 }
 
+// Add adds matrix A and B and stores the result on the target.
 func (m *Matrix) Add(A, B *Matrix) {
+
+	if len(A.M) != len(B.M) {
+		panic("input matrices are incompatible for addition")
+	}
+
+	if m.M == nil {
+		m.M = make([]complex128, A.Rows()*B.Rows())
+	} else if len(m.M) > len(A.M) {
+		m.M = m.M[:len(A.M)]
+	} else if len(m.M) < len(A.M) {
+		m.M = append(m.M, make([]complex128, len(A.M)-len(m.M))...)
+	}
+
 	for i := range A.M {
 		m.M[i] = A.M[i] + B.M[i]
 	}
 }
 
-func MulMat(A, B *Matrix) (AB *Matrix) {
+// MulMat multiplies A with B and returns the result on the target.
+func (m *Matrix) MulMat(A, B *Matrix) {
+
+	if A.Cols() != B.Rows() {
+		panic("matrices are incompatible for multiplication")
+	}
+
 	rowsA := A.Rows()
 	colsA := A.Cols()
 	colsB := B.Cols()
 
-	AB = NewMatrix(rowsA, colsB)
+	acc := make([]complex128, rowsA*colsB)
 
 	for i := uint64(0); i < rowsA; i++ {
 		for j := uint64(0); j < colsB; j++ {
 			for k := uint64(0); k < colsA; k++ {
-				AB.M[i*colsA+j] += A.M[i*colsA+k] * B.M[j+k*colsB]
+				acc[i*colsA+j] += A.M[i*colsA+k] * B.M[j+k*colsB]
 			}
 		}
 	}
 
-	return
+	if uint64(len(m.M)) < rowsA*colsB {
+		m.M = append(m.M, make([]complex128, m.Rows()*m.Cols()-rowsA*colsB)...)
+	} else {
+		m.M = m.M[:rowsA*colsB]
+	}
+
+	for i := range m.M {
+		m.M[i] = acc[i]
+	}
 }
 
-func GenMatrices(rows, cols, n uint64) (Matrices []*Matrix) {
+// GenRandomComplexMatrices generates a list of complex matrices.
+func GenRandomComplexMatrices(rows, cols, n uint64) (Matrices []*Matrix) {
 
 	Matrices = make([]*Matrix, n)
 
 	for k := range Matrices {
 		m := NewMatrix(rows, cols)
 		for i := uint64(0); i < rows*cols; i++ {
-			m.M[i] = complex(utils.RandFloat64(-1, 1), 0) //float64(i*int(d) + j+1  + k*int(d*d)), 0) //randomComplex(-1, 1)float64(i*int(d) + j+1), 0))
+			m.M[i] = complex(utils.RandFloat64(-1, 1), utils.RandFloat64(-1, 1))
 		}
 		Matrices[k] = m
 	}
@@ -390,9 +417,9 @@ func GenMatrices(rows, cols, n uint64) (Matrices []*Matrix) {
 	return
 }
 
-// Rotates each row by k where k is the row index.
-// Equivalent to Transpoe(PermuteB(Transpose(M)))
-func (m *Matrix) PermuteA() {
+// PermuteRows rotates each row by k where k is the row index.
+// Equivalent to Transpoe(PermuteCols(Transpose(M)))
+func (m *Matrix) PermuteRows() {
 	var index uint64
 	tmp := make([]complex128, m.Cols())
 	for i := uint64(0); i < m.Rows(); i++ {
@@ -409,9 +436,9 @@ func (m *Matrix) PermuteA() {
 	}
 }
 
-// Rotates each column by k, where k is the column index.
-// Equivalent to Transpoe(PermuteA(Transpose(M)))
-func (m *Matrix) PermuteB() {
+// PermuteCols rotates each column by k, where k is the column index.
+// Equivalent to Transpoe(PermuteRows(Transpose(M)))
+func (m *Matrix) PermuteCols() {
 	tmp := make([]complex128, m.Rows())
 	for i := uint64(0); i < m.Cols(); i++ {
 		for j := range tmp {
@@ -446,11 +473,13 @@ func (m *Matrix) RotateCols(k uint64) {
 	}
 }
 
+// RotateRows rotates each row by k positions to the left.
 func (m *Matrix) RotateRows(k uint64) {
 	k %= m.Rows()
 	m.M = append(m.M[k*m.Cols():], m.M[:k*m.Cols()]...)
 }
 
+// Transpose transposes the matrix.
 func (m *Matrix) Transpose() (mT *Matrix) {
 	rows := m.Rows()
 	cols := m.Cols()
@@ -464,6 +493,7 @@ func (m *Matrix) Transpose() (mT *Matrix) {
 	return
 }
 
+// Print prints the target matrix.
 func (m *Matrix) Print() {
 
 	for i := uint64(0); i < m.Cols(); i++ {

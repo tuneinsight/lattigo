@@ -1,7 +1,9 @@
 package ckks
 
 import (
+	"fmt"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 	"math"
 )
 
@@ -326,4 +328,149 @@ func populateVector(m []complex128, d2 int, logSlots uint64) {
 			m[k+j] = m[j]
 		}
 	}
+}
+
+type Matrix struct {
+	rows, cols uint64
+	M          []complex128
+}
+
+func NewMatrix(rows, cols uint64) (m *Matrix) {
+	m = new(Matrix)
+	m.M = make([]complex128, rows*cols)
+	m.rows = rows
+	m.cols = cols
+	return
+}
+
+func (m *Matrix) Rows() uint64 {
+	return m.rows
+}
+
+func (m *Matrix) Cols() uint64 {
+	return m.cols
+}
+
+func (m *Matrix) Add(A, B *Matrix) {
+	for i := range A.M {
+		m.M[i] = A.M[i] + B.M[i]
+	}
+}
+
+func MulMat(A, B *Matrix) (AB *Matrix) {
+	rowsA := A.Rows()
+	colsA := A.Cols()
+	colsB := B.Cols()
+
+	AB = NewMatrix(rowsA, colsB)
+
+	for i := uint64(0); i < rowsA; i++ {
+		for j := uint64(0); j < colsB; j++ {
+			for k := uint64(0); k < colsA; k++ {
+				AB.M[i*colsA+j] += A.M[i*colsA+k] * B.M[j+k*colsB]
+			}
+		}
+	}
+
+	return
+}
+
+func GenMatrices(rows, cols, n uint64) (Matrices []*Matrix) {
+
+	Matrices = make([]*Matrix, n)
+
+	for k := range Matrices {
+		m := NewMatrix(rows, cols)
+		for i := uint64(0); i < rows*cols; i++ {
+			m.M[i] = complex(utils.RandFloat64(-1, 1), 0) //float64(i*int(d) + j+1  + k*int(d*d)), 0) //randomComplex(-1, 1)float64(i*int(d) + j+1), 0))
+		}
+		Matrices[k] = m
+	}
+
+	return
+}
+
+// Rotates each row by k where k is the row index.
+// Equivalent to Transpoe(PermuteB(Transpose(M)))
+func (m *Matrix) PermuteA() {
+	var index uint64
+	tmp := make([]complex128, m.Cols())
+	for i := uint64(0); i < m.Rows(); i++ {
+		index = i * m.Cols()
+		for j := range tmp {
+			tmp[j] = m.M[index+uint64(j)]
+		}
+
+		tmp = append(tmp[i:], tmp[:i]...)
+
+		for j, c := range tmp {
+			m.M[index+uint64(j)] = c
+		}
+	}
+}
+
+// Rotates each column by k, where k is the column index.
+// Equivalent to Transpoe(PermuteA(Transpose(M)))
+func (m *Matrix) PermuteB() {
+	tmp := make([]complex128, m.Rows())
+	for i := uint64(0); i < m.Cols(); i++ {
+		for j := range tmp {
+			tmp[j] = m.M[i+uint64(j)*m.Cols()]
+		}
+
+		tmp = append(tmp[i:], tmp[:i]...)
+
+		for j, c := range tmp {
+			m.M[i+uint64(j)*m.Cols()] = c
+		}
+	}
+}
+
+// RotateCols rotates each column by k position to the left.
+func (m *Matrix) RotateCols(k uint64) {
+
+	k %= m.Cols()
+	var index uint64
+	tmp := make([]complex128, m.Cols())
+	for i := uint64(0); i < m.Rows(); i++ {
+		index = i * m.Cols()
+		for j := range tmp {
+			tmp[j] = m.M[index+uint64(j)]
+		}
+
+		tmp = append(tmp[k:], tmp[:k]...)
+
+		for j, c := range tmp {
+			m.M[index+uint64(j)] = c
+		}
+	}
+}
+
+func (m *Matrix) RotateRows(k uint64) {
+	k %= m.Rows()
+	m.M = append(m.M[k*m.Cols():], m.M[:k*m.Cols()]...)
+}
+
+func (m *Matrix) Transpose() (mT *Matrix) {
+	rows := m.Rows()
+	cols := m.Cols()
+	mT = NewMatrix(cols, rows)
+
+	for i := uint64(0); i < rows; i++ {
+		for j := uint64(0); j < cols; j++ {
+			mT.M[cols*i+j] = m.M[j*cols+i]
+		}
+	}
+	return
+}
+
+func (m *Matrix) Print() {
+
+	for i := uint64(0); i < m.Cols(); i++ {
+		for j := uint64(0); j < m.Rows(); j++ {
+			fmt.Printf("%7.4f ", m.M[i*m.Cols()+j])
+		}
+		fmt.Printf("\n")
+	}
+	fmt.Printf("\n")
 }

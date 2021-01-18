@@ -21,6 +21,7 @@ type Encoder interface {
 	EncodeNew(values []complex128, logSlots uint64) (plaintext *Plaintext)
 	EncodeAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
 	EncodeNTT(plaintext *Plaintext, values []complex128, logSlots uint64)
+	EncodeNTTNew(values []complex128, logSlots uint64) (plaintext *Plaintext)
 	EncodeNTTAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
 	Decode(plaintext *Plaintext, logSlots uint64) (res []complex128)
 	Embed(values []complex128, logSlots uint64)

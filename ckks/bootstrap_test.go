@@ -278,6 +278,11 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 
 		ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
 
+		eval := testContext.evaluator
+		for ciphertext.Level() != 0 {
+			eval.DropLevel(ciphertext, 1)
+		}
+
 		for i := 0; i < 1; i++ {
 
 			ciphertext = btp.Bootstrapp(ciphertext)

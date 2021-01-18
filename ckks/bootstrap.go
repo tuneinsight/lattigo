@@ -17,7 +17,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	var ct0, ct1 *Ciphertext
 
 	// Drops the level to 1
-	for ct.Level() != 1 {
+	for ct.Level() > 1 {
 		btp.evaluator.DropLevel(ct, 1)
 	}
 

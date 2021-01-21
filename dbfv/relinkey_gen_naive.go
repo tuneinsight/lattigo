@@ -196,7 +196,7 @@ func (rkg *RKGProtocolNaive) AggregateShareRoundTwo(share1, share2, shareOut RKG
 }
 
 // GenRelinearizationKey finalizes the protocol and returns the common EvaluationKey.
-func (rkg *RKGProtocolNaive) GenRelinearizationKey(round2 RKGNaiveShareRoundTwo, evalKeyOut *bfv.EvaluationKey) {
+func (rkg *RKGProtocolNaive) GenRelinearizationKey(round2 RKGNaiveShareRoundTwo, evalKeyOut *bfv.RelinearizationKey) {
 
 	ringQP := rkg.context.ringQP
 

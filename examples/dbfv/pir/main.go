@@ -281,7 +281,7 @@ func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	return pk
 }
 
-func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.EvaluationKey {
+func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -330,7 +330,7 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	return rlk
 }
 
-func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.RotationKeys {
+func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.RotationKeySet {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -342,7 +342,7 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		pi.rtgShare = rtg.AllocateShare()
 	}
 
-	rtk := bfv.NewRotationKeys(params)
+	rtk := bfv.NewRotationKeySet(params)
 
 	crpRot := make([]*ring.Poly, params.Beta()) // for the rotation keys
 
@@ -390,7 +390,7 @@ func genquery(params *bfv.Parameters, queryIndex int, encoder bfv.Encoder, encry
 	return encQuery
 }
 
-func requestphase(params *bfv.Parameters, queryIndex, NGoRoutine int, encQuery *bfv.Ciphertext, encInputs []*bfv.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *bfv.EvaluationKey, rtk *bfv.RotationKeys) *bfv.Ciphertext {
+func requestphase(params *bfv.Parameters, queryIndex, NGoRoutine int, encQuery *bfv.Ciphertext, encInputs []*bfv.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *bfv.RelinearizationKey, rtk *bfv.RotationKeySet) *bfv.Ciphertext {
 
 	l := log.New(os.Stderr, "", 0)
 

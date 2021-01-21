@@ -28,15 +28,15 @@ type Evaluator interface {
 	MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext)
 	Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext)
 	MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext)
-	Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext)
-	RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext)
+	Relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, ctOut *Ciphertext)
+	RelinearizeNew(ct0 *Ciphertext, evakey *RelinearizationKey) (ctOut *Ciphertext)
 	SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext)
 	SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext)
-	RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext)
-	RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext)
-	RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext)
-	RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext)
-	InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext)
+	RotateColumnsNew(ct0 *Ciphertext, k int, evakey *RotationKeySet) (ctOut *Ciphertext)
+	RotateColumns(ct0 *Ciphertext, k int, evakey *RotationKeySet, ctOut *Ciphertext)
+	RotateRows(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext)
+	RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeySet) (ctOut *Ciphertext)
+	InnerSum(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext)
 }
 
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
@@ -65,10 +65,6 @@ type evaluator struct {
 	poolPKS [3]*ring.Poly
 
 	tmpPt *Plaintext
-
-	galElRotRow      uint64   // Rows rotation generator
-	galElRotColLeft  []uint64 // Columns right rotations generators
-	galElRotColRight []uint64 // Columns left rotations generators
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
@@ -132,9 +128,6 @@ func NewEvaluator(params *Parameters) Evaluator {
 		poolQKS:           poolQKS,
 		poolPKS:           poolPKS,
 		tmpPt:             NewPlaintext(params),
-		galElRotColLeft:   ring.GenGaloisParams(params.N(), GaloisGen),
-		galElRotColRight:  ring.GenGaloisParams(params.N(), ring.ModExp(GaloisGen, 2*params.N()-1, 2*params.N())),
-		galElRotRow:       2*params.N() - 1,
 	}
 }
 
@@ -579,7 +572,7 @@ func (eval *evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext) 
 }
 
 // relinearize is a method common to Relinearize and RelinearizeNew. It switches ct0 to the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
-func (eval *evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
+func (eval *evaluator) relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, ctOut *Ciphertext) {
 
 	if ctOut != ct0 {
 		eval.ringQ.Copy(ct0.value[0], ctOut.value[0])
@@ -587,7 +580,7 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut
 	}
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
-		eval.switchKeysInPlace(ct0.value[deg], evakey.evakey[deg-2], eval.poolQKS[1], eval.poolQKS[2])
+		eval.switchKeysInPlace(ct0.value[deg], evakey.keys[deg-2], eval.poolQKS[1], eval.poolQKS[2])
 		eval.ringQ.Add(ctOut.value[0], eval.poolQKS[1], ctOut.value[0])
 		eval.ringQ.Add(ctOut.value[1], eval.poolQKS[2], ctOut.value[1])
 	}
@@ -603,9 +596,9 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (e.g., a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and degree 2 ciphertexts).
-func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
+func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, ctOut *Ciphertext) {
 
-	if int(ct0.Degree()-1) > len(evakey.evakey) {
+	if int(ct0.Degree()-1) > len(evakey.keys) {
 		panic("cannot Relinearize: input ciphertext degree too large to allow relinearization")
 	}
 
@@ -626,7 +619,7 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (e.g., a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and degree 2 ciphertexts).
-func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext) {
+func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *RelinearizationKey) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1)
 	eval.Relinearize(ct0, evakey, ctOut)
 	return
@@ -655,7 +648,7 @@ func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (
 }
 
 // RotateColumnsNew applies RotateColumns and returns the result in a new Ciphertext.
-func (eval *evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext) {
+func (eval *evaluator) RotateColumnsNew(ct0 *Ciphertext, k int, evakey *RotationKeySet) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1)
 	eval.RotateColumns(ct0, k, evakey, ctOut)
 	return
@@ -667,13 +660,11 @@ func (eval *evaluator) RotateColumnsNew(ct0 *Ciphertext, k uint64, evakey *Rotat
 //
 // If only the power-of-two rotations are stored, the numbers k and n/2-k will be decomposed in base-2 and the rotation with the lowest
 // hamming weight will be chosen; then the specific rotation will be computed as a sum of powers of two rotations.
-func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, evakey *RotationKeySet, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot RotateColumns: input and or output must be of degree 1")
 	}
-
-	k &= ((eval.ringQ.N >> 1) - 1)
 
 	if k == 0 {
 
@@ -681,112 +672,36 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k uint64, evakey *Rotation
 
 	} else {
 
-		galElL, galElR := getGaloisElementForRotation(RotationLeft, k, eval.params.N()), getGaloisElementForRotation(RotationRight, k, eval.params.N())
-		if eval.galElRotColLeft[k] != galElL || eval.galElRotColRight[k] != galElR {
-			panic(fmt.Sprintln(eval.galElRotColLeft[k], eval.galElRotColRight[k], galElR))
-		}
-
+		galElL := eval.params.GaloisElementForColumnRotationBy(k)
 		// Looks in the rotation key if the corresponding rotation has been generated or if the input is a plaintext
 		if swk, inSet := evakey.GetRotKey(galElL); inSet {
 
 			eval.permute(ct0, galElL, swk, ctOut)
 
 		} else {
-
-			// If the needed rotation key has not been generated, it looks if the left and right pow2 rotations have been generated
-			hasPow2Rotations := true
-			for i := uint64(1); i < eval.ringQ.N>>1; i <<= 1 {
-				galElL, galElR := getGaloisElementForRotation(RotationLeft, i, eval.params.N()), getGaloisElementForRotation(RotationRight, i, eval.params.N())
-				if eval.galElRotColLeft[i] != galElL {
-					panic("not good pow 2 L")
-				}
-				if eval.galElRotColRight[i] != galElR {
-					panic("not good pow 2 R")
-				}
-
-				_, inSetL := evakey.GetRotKey(galElL)
-				_, inSetR := evakey.GetRotKey(galElR)
-				hasPow2Rotations = hasPow2Rotations && inSetL && inSetR
-				if !hasPow2Rotations {
-					break
-				}
-			}
-
-			// If they have been generated, it computes the least amount of rotation between k to the left and n/2-k to the right required to apply the requested rotation
-			if hasPow2Rotations {
-
-				if utils.HammingWeight64(k) <= utils.HammingWeight64((eval.ringQ.N>>1)-k) {
-					eval.rotateColumnsLPow2(ct0, k, evakey, ctOut)
-				} else {
-					eval.rotateColumnsRPow2(ct0, (eval.ringQ.N>>1)-k, evakey, ctOut)
-				}
-
-				// Otherwise, it returns an error indicating that the keys have not been generated
-			} else {
-				panic("cannot RotateColumns: specific rotation and pow2 rotations have not been generated")
-			}
+			panic(fmt.Errorf("no switching key for rotation by %d", k))
 		}
-	}
-}
-
-// rotateColumnsLPow2 applies the Galois Automorphism on an element, rotating the element by k positions to the left, and returns the result in ctOut.
-func (eval *evaluator) rotateColumnsLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	eval.rotateColumnsPow2(ct0, GaloisGen, k, evakey.keys, ctOut)
-}
-
-// rotateColumnsRPow2 applies the Galois Endomorphism on an element, rotating the element by k positions to the right, returns the result in ctOut.
-func (eval *evaluator) rotateColumnsRPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	genInv := ring.ModExp(GaloisGen, 2*eval.ringQ.N-1, 2*eval.ringQ.N)
-	eval.rotateColumnsPow2(ct0, genInv, k, evakey.keys, ctOut)
-}
-
-// rotateColumnsPow2 rotates ct0 by k positions (left or right depending on the input), decomposing k as a sum of power-of-2 rotations, and returns the result in ctOut.
-func (eval *evaluator) rotateColumnsPow2(ct0 *Ciphertext, generator, k uint64, evakeyRotCol map[uint64]*SwitchingKey, ctOut *Ciphertext) {
-
-	var mask, evakeyIndex uint64
-	mask = (eval.ringQ.N << 1) - 1
-
-	evakeyIndex = 1
-
-	if ct0 != ctOut {
-		eval.ringQ.Copy(ct0.value[0], ctOut.value[0])
-		eval.ringQ.Copy(ct0.value[1], ctOut.value[1])
-	}
-
-	// Applies the Galois automorphism and the key-switching process
-	for k > 0 {
-
-		if k&1 == 1 {
-
-			eval.permute(ctOut, generator, evakeyRotCol[generator], ctOut)
-		}
-
-		generator *= generator
-		generator &= mask
-
-		evakeyIndex <<= 1
-		k >>= 1
 	}
 }
 
 // RotateRows rotates the rows of ct0 and returns the result in ctOut.
-func (eval *evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot RotateRows: input and/or output must be of degree 1")
 	}
 
-	galEl := getGaloisElementForRotation(RotationRow, 0, eval.params.N())
+	galEl := eval.params.GaloisElementForRowRotation()
 
 	if key, inSet := evakey.GetRotKey(galEl); inSet {
-		eval.permute(ct0, eval.galElRotRow, key, ctOut)
+		eval.permute(ct0, galEl, key, ctOut)
 	} else {
 		panic("cannot RotateRows: rotation key not generated")
 	}
 }
 
 // RotateRowsNew rotates the rows of ct0 and returns the result a new Ciphertext.
-func (eval *evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext) {
+func (eval *evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeySet) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1)
 	eval.RotateRows(ct0, evakey, ctOut)
 	return
@@ -794,7 +709,7 @@ func (eval *evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeys) (ctO
 
 // InnerSum computes the inner sum of ct0 and returns the result in ctOut. It requires a rotation key storing all the left powers of two rotations.
 // The resulting vector will be of the form [sum, sum, .., sum, sum].
-func (eval *evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot InnerSum: input and output must be of degree 1")
@@ -804,7 +719,7 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ci
 
 	ctOut.Copy(ct0.El())
 
-	for i := uint64(1); i < eval.ringQ.N>>1; i <<= 1 {
+	for i := 1; i < int(eval.ringQ.N>>1); i <<= 1 {
 		eval.RotateColumns(ctOut, i, evakey, cTmp)
 		eval.Add(cTmp, ctOut, ctOut.Ciphertext())
 	}
@@ -856,10 +771,10 @@ func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, po
 
 		eval.decomposeAndSplitNTT(level, i, c2, cx, c2QiQ, c2QiP)
 
-		evakey0Q.Coeffs = evakey.evakey[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = evakey.evakey[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = evakey.evakey[i][0].Coeffs[level+1:]
-		evakey1P.Coeffs = evakey.evakey[i][1].Coeffs[level+1:]
+		evakey0Q.Coeffs = evakey.key[i][0].Coeffs[:level+1]
+		evakey1Q.Coeffs = evakey.key[i][1].Coeffs[:level+1]
+		evakey0P.Coeffs = evakey.key[i][0].Coeffs[level+1:]
+		evakey1P.Coeffs = evakey.key[i][1].Coeffs[level+1:]
 
 		if i == 0 {
 			ringQ.MulCoeffsMontgomeryLvl(level, evakey0Q, c2QiQ, pool2Q)

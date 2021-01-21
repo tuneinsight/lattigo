@@ -157,11 +157,11 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
 
-	var rotkey *RotationKeys
+	var rotkey *RotationKeySet
 	if testctx.params.PiCount() != 0 {
-		rotkey = NewRotationKeys(testctx.params)
-		testctx.kgen.GenRot(RotationLeft, testctx.sk, 1, rotkey)
-		testctx.kgen.GenRot(RotationRow, testctx.sk, 0, rotkey)
+		rotkey = NewRotationKeySet(testctx.params)
+		testctx.kgen.GenSwitchingKeyForRotationBy(1, testctx.sk)
+		testctx.kgen.GenSwitchingKeyForRowSwap(testctx.sk)
 	}
 
 	b.Run(testString("Evaluator/Add/Ct/", testctx.params), func(b *testing.B) {

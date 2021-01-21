@@ -206,7 +206,7 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut RTGShare) {
 }
 
 // Finalize populates the input RotationKeys struture with the Switching key computed from the protocol.
-func (rtg *RTGProtocol) Finalize(share RTGShare, crp []*ring.Poly, rotKey *bfv.RotationKeys) {
+func (rtg *RTGProtocol) Finalize(share RTGShare, crp []*ring.Poly, rotKey *bfv.RotationKeySet) {
 
 	ringQP := rtg.context.ringQP
 

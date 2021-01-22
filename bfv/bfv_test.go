@@ -639,11 +639,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 		verifyTestVectors(testctx, testctx.decryptor, values, ciphertext, t)
 	})
 
-	valuesWant := testctx.ringT.NewPoly()
-	mask := (testctx.params.N() >> 1) - 1
-	slots := testctx.params.N() >> 1
-
-	rots := []int{1, 2, 5}
+	rots := []int{1, -1, 4, -4, 63, -63}
 	GenSwitchingKeysForRotations(rots, testctx.kgen, testctx.sk, rotkey)
 
 	t.Run(testString("Evaluator/RotateColumns", testctx.params), func(t *testing.T) {
@@ -654,13 +650,9 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 		for _, n := range rots {
 
 			testctx.evaluator.RotateColumns(ciphertext, n, rotkey, receiver)
+			valuesWant := utils.RotateUint64Slots(values.Coeffs[0], n)
 
-			for i := uint64(0); i < slots; i++ {
-				valuesWant.Coeffs[0][i] = values.Coeffs[0][(i+uint64(n))&mask]
-				valuesWant.Coeffs[0][i+slots] = values.Coeffs[0][((i+uint64(n))&mask)+slots]
-			}
-
-			verifyTestVectors(testctx, testctx.decryptor, valuesWant, receiver, t)
+			verifyTestVectors(testctx, testctx.decryptor, &ring.Poly{Coeffs: [][]uint64{valuesWant}}, receiver, t)
 		}
 	})
 
@@ -671,13 +663,9 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 		for _, n := range rots {
 
 			receiver := testctx.evaluator.RotateColumnsNew(ciphertext, n, rotkey)
+			valuesWant := utils.RotateUint64Slots(values.Coeffs[0], n)
 
-			for i := uint64(0); i < slots; i++ {
-				valuesWant.Coeffs[0][i] = values.Coeffs[0][(i+uint64(n))&mask]
-				valuesWant.Coeffs[0][i+slots] = values.Coeffs[0][((i+uint64(n))&mask)+slots]
-			}
-
-			verifyTestVectors(testctx, testctx.decryptor, valuesWant, receiver, t)
+			verifyTestVectors(testctx, testctx.decryptor, &ring.Poly{Coeffs: [][]uint64{valuesWant}}, receiver, t)
 		}
 	})
 

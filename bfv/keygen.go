@@ -228,25 +228,6 @@ func (keygen *keyGenerator) GenSwitchingKeyForRowSwap(sk *SecretKey) (swk *Switc
 	return
 }
 
-// GenRotationKeysPow2 generates a new rotation key with all the power-of-two rotations to the left and right, as well as the conjugation.
-// func (keygen *keyGenerator) GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeySet) {
-
-// 	if keygen.ringQP == nil {
-// 		panic("Cannot GenRotationKeysPow2: modulus P is empty")
-// 	}
-
-// 	rotKey = NewRotationKeySet(keygen.params)
-
-// 	for n := uint64(1); n < 1<<(keygen.params.LogN()-1); n <<= 1 {
-// 		keygen.GenRot(RotationLeft, skOutput, n, rotKey)
-// 		keygen.GenRot(RotationRight, skOutput, n, rotKey)
-// 	}
-
-// 	keygen.GenRot(RotationRow, skOutput, 0, rotKey)
-
-// 	return
-// }
-
 func (keygen *keyGenerator) genrotKey(sk *ring.Poly, gen uint64, swkOut *SwitchingKey) {
 
 	skIn := sk
@@ -311,4 +292,32 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *Swit
 	}
 
 	return
+}
+
+func GenSwitchingKeysForGaloisElements(galEls []uint64, kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
+	for _, galEl := range galEls {
+		rks.keys[galEl] = kg.GenSwitchingKeyForGalois(galEl, sk)
+	}
+}
+
+func GenSwitchingKeysForRotations(ks []int, kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
+	galEls := make([]uint64, len(ks), len(ks))
+	for i, k := range ks {
+		galEls[i] = rks.params.GaloisElementForColumnRotationBy(k)
+	}
+	GenSwitchingKeysForGaloisElements(galEls, kg, sk, rks)
+}
+
+func GenSwitchingKeysForInnerSum(kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
+	galEls := make([]uint64, rks.params.logN, rks.params.logN)
+	galEls[0] = rks.params.GaloisElementForRowRotation()
+	for i := 1; i < int(rks.params.logN)-1; i++ {
+		galEls[i] = rks.params.GaloisElementForColumnRotationBy(1 << i)
+	}
+	GenSwitchingKeysForGaloisElements(galEls, kg, sk, rks)
+}
+
+func GenSwitchingKeyForRowSwap(kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
+	galEl := rks.params.GaloisElementForRowRotation()
+	rks.keys[galEl] = kg.GenSwitchingKeyForGalois(galEl, sk)
 }

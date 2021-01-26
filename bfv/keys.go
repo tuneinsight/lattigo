@@ -12,14 +12,14 @@ type PublicKey struct {
 	pk [2]*ring.Poly
 }
 
-// RelinearizationKey is a structure that stores the switching-keys required during the relinearization.
-type RelinearizationKey struct {
-	keys []*SwitchingKey
-}
-
 // SwitchingKey is a structure that stores the switching-keys required during the key-switching.
 type SwitchingKey struct {
 	key [][2]*ring.Poly
+}
+
+// RelinearizationKey is a structure that stores the switching-keys required during the relinearization.
+type RelinearizationKey struct {
+	keys []*SwitchingKey
 }
 
 // RotationKeySet is a structure that stores the switching-keys required during the homomorphic rotations.
@@ -124,32 +124,4 @@ func (evk *RelinearizationKey) Set(rlk [][][2]*ring.Poly) {
 			evk.keys[i].key[j][1] = rlk[i][j][1].CopyNew()
 		}
 	}
-}
-
-func GenSwitchingKeysForGaloisElements(galEls []uint64, kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
-	for _, galEl := range galEls {
-		rks.keys[galEl] = kg.GenSwitchingKeyForGalois(galEl, sk)
-	}
-}
-
-func GenSwitchingKeysForRotations(ks []int, kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
-	galEls := make([]uint64, len(ks), len(ks))
-	for i, k := range ks {
-		galEls[i] = rks.params.GaloisElementForColumnRotationBy(k)
-	}
-	GenSwitchingKeysForGaloisElements(galEls, kg, sk, rks)
-}
-
-func GenSwitchingKeysForInnerSum(kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
-	galEls := make([]uint64, rks.params.logN, rks.params.logN)
-	galEls[0] = rks.params.GaloisElementForRowRotation()
-	for i := 1; i < int(rks.params.logN)-1; i++ {
-		galEls[i] = rks.params.GaloisElementForColumnRotationBy(1 << i)
-	}
-	GenSwitchingKeysForGaloisElements(galEls, kg, sk, rks)
-}
-
-func GenSwitchingKeyForRowSwap(kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
-	galEl := rks.params.GaloisElementForRowRotation()
-	rks.keys[galEl] = kg.GenSwitchingKeyForGalois(galEl, sk)
 }

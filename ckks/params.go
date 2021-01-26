@@ -510,6 +510,25 @@ func (p *Parameters) Beta() uint64 {
 	return 0
 }
 
+// GaloisElementForColumnRotationBy returns the galois element for plaintext
+// column rotations by k position to the left. Providing a negative k is
+// equivalent to a right rotation.
+func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
+	twoN := 1 << (p.logN + 1)
+	mask := twoN - 1
+	kRed := uint64(k & mask)
+	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
+}
+
+func (p *Parameters) GaloisElementForRowRotation() uint64 {
+	return (1 << (p.logN + 1)) - 1
+}
+
+func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
+	twoN := uint64(1 << (p.logN + 1))
+	return ring.ModExp(galEl, twoN-1, twoN)
+}
+
 // Copy creates a copy of the target parameters.
 func (p *Parameters) Copy() (paramsCopy *Parameters) {
 

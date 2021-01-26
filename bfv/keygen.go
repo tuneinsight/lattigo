@@ -308,6 +308,11 @@ func GenSwitchingKeysForRotations(ks []int, kg KeyGenerator, sk *SecretKey, rks 
 	GenSwitchingKeysForGaloisElements(galEls, kg, sk, rks)
 }
 
+func GenSwitchingKeyForRowSwap(kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
+	galEl := rks.params.GaloisElementForRowRotation()
+	rks.keys[galEl] = kg.GenSwitchingKeyForGalois(galEl, sk)
+}
+
 func GenSwitchingKeysForInnerSum(kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
 	galEls := make([]uint64, rks.params.logN, rks.params.logN)
 	galEls[0] = rks.params.GaloisElementForRowRotation()
@@ -315,9 +320,4 @@ func GenSwitchingKeysForInnerSum(kg KeyGenerator, sk *SecretKey, rks *RotationKe
 		galEls[i] = rks.params.GaloisElementForColumnRotationBy(1 << i)
 	}
 	GenSwitchingKeysForGaloisElements(galEls, kg, sk, rks)
-}
-
-func GenSwitchingKeyForRowSwap(kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
-	galEl := rks.params.GaloisElementForRowRotation()
-	rks.keys[galEl] = kg.GenSwitchingKeyForGalois(galEl, sk)
 }

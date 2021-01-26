@@ -952,17 +952,15 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 func testConjugate(testContext *testParams, t *testing.T) {
 
-	var rotKey *RotationKeys
-	if testContext.params.PiCount() != 0 {
-		rotKey = NewRotationKeys()
-		testContext.kgen.GenRotationKey(Conjugate, testContext.sk, 0, rotKey)
+	if testContext.params.PiCount() == 0 {
+		t.Skip("#Pi is empty")
 	}
+
+	rotKey := NewRotationKeys(testContext.params)
 
 	t.Run(testString(testContext, "Conjugate/InPlace/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
+		GenSwitchingKeyForConjugate(testContext.kgen, testContext.sk, rotKey)
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -976,10 +974,6 @@ func testConjugate(testContext *testParams, t *testing.T) {
 	})
 
 	t.Run(testString(testContext, "Conjugate/New/"), func(t *testing.T) {
-
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -996,30 +990,24 @@ func testConjugate(testContext *testParams, t *testing.T) {
 
 func testRotateColumns(testContext *testParams, t *testing.T) {
 
-	var rotKey *RotationKeys
-	if testContext.params.PiCount() != 0 {
-		rotKey = testContext.kgen.GenRotationKeysPow2(testContext.sk)
+	if testContext.params.PiCount() == 0 {
+		t.Skip("#Pi is empty")
 	}
+	rots := []int{1, -1, 4, -4, 63, -63}
+	rotKey := NewRotationKeys(testContext.params)
+	GenSwitchingKeysForRotations(rots, testContext.kgen, testContext.sk, rotKey)
 
 	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		values2 := make([]complex128, len(values1))
 		ciphertext2 := NewCiphertext(testContext.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
-		for n := 1; n < len(values1); n <<= 1 {
+		for _, n := range rots {
 
-			// Applies the column rotation to the values
-			for i := range values1 {
-				values2[i] = values1[(i+n)%len(values1)]
-			}
+			values2 := utils.RotateComplex128Slice(values1, n)
 
-			testContext.evaluator.Rotate(ciphertext1, uint64(n), rotKey, ciphertext2)
+			testContext.evaluator.Rotate(ciphertext1, n, rotKey, ciphertext2)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 		}
@@ -1027,49 +1015,13 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "RotateColumns/New/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		values2 := make([]complex128, len(values1))
+		for _, n := range rots {
 
-		for n := 1; n < len(values1); n <<= 1 {
+			values2 := utils.RotateComplex128Slice(values1, n)
 
-			// Applies the column rotation to the values
-			for i := range values1 {
-				values2[i] = values1[(i+n)%len(values1)]
-			}
-
-			verifyTestVectors(testContext, testContext.decryptor, values2, testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey), t)
-		}
-
-	})
-
-	t.Run(testString(testContext, "RotateColumns/Random/"), func(t *testing.T) {
-
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		values2 := make([]complex128, len(values1))
-		ciphertext2 := NewCiphertext(testContext.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
-
-		for n := 1; n < 4; n++ {
-
-			rand := utils.RandUint64() % uint64(len(values1))
-
-			// Applies the column rotation to the values
-			for i := range values1 {
-				values2[i] = values1[(i+int(rand))%len(values1)]
-			}
-
-			testContext.evaluator.Rotate(ciphertext1, rand, rotKey, ciphertext2)
-
-			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
+			verifyTestVectors(testContext, testContext.decryptor, values2, testContext.evaluator.RotateNew(ciphertext1, n, rotKey), t)
 		}
 
 	})
@@ -1083,10 +1035,8 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		values2 := make([]complex128, len(values1))
-		rotations := []uint64{0, 1, 2, 3, 4, 5}
-		for _, n := range rotations {
-			testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, n, rotKey)
-		}
+		rotations := []int{0, 1, 2, 3, 4, 5}
+		GenSwitchingKeysForRotations(rotations, testContext.kgen, testContext.sk, rotKey)
 
 		ciphertexts := testContext.evaluator.RotateHoisted(ciphertext1, rotations, rotKey)
 
@@ -1184,8 +1134,8 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		evakeyWant := evalKey.evakey.evakey
-		evakeyTest := resEvalKey.evakey.evakey
+		evakeyWant := evalKey.evakey.key
+		evakeyTest := resEvalKey.evakey.key
 
 		for j := range evakeyWant {
 			for k := range evakeyWant[j] {
@@ -1210,8 +1160,8 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		err = resSwitchingKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		evakeyWant := switchingKey.evakey
-		evakeyTest := resSwitchingKey.evakey
+		evakeyWant := switchingKey.key
+		evakeyTest := resSwitchingKey.key
 
 		for j := range evakeyWant {
 			for k := range evakeyWant[j] {
@@ -1226,13 +1176,14 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			t.Skip("#Pi is empty")
 		}
 
-		rotationKey := NewRotationKeys()
+		rotationKey := NewRotationKeys(testContext.params)
+		rots := []int{1, -1, 63, -63}
+		galEls := []uint64{testContext.params.GaloisElementForRowRotation()}
+		for _, n := range rots {
+			galEls = append(galEls, testContext.params.GaloisElementForColumnRotationBy(n))
+		}
 
-		testContext.kgen.GenRotationKey(Conjugate, testContext.sk, 0, rotationKey)
-		testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 1, rotationKey)
-		testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 2, rotationKey)
-		testContext.kgen.GenRotationKey(RotationRight, testContext.sk, 3, rotationKey)
-		testContext.kgen.GenRotationKey(RotationRight, testContext.sk, 5, rotationKey)
+		GenSwitchingKeysForGaloisElements(galEls, testContext.kgen, testContext.sk, rotationKey)
 
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
@@ -1241,56 +1192,19 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		for i := uint64(1); i < testContext.ringQ.N>>1; i++ {
+		for _, galEl := range galEls {
 
-			if rotationKey.evakeyRotColLeft[i] != nil {
+			evakeyWant := rotationKey.keys[galEl].key
+			evakeyTest := resRotationKey.keys[galEl].key
 
-				evakeyWant := rotationKey.evakeyRotColLeft[i].evakey
-				evakeyTest := resRotationKey.evakeyRotColLeft[i].evakey
-
-				evakeyNTTIndexWant := rotationKey.permuteNTTLeftIndex[i]
-				evakeyNTTIndexTest := resRotationKey.permuteNTTLeftIndex[i]
-
-				require.True(t, utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest))
-
-				for j := range evakeyWant {
-					for k := range evakeyWant[j] {
-						require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
-					}
-				}
-			}
-
-			if rotationKey.evakeyRotColRight[i] != nil {
-
-				evakeyWant := rotationKey.evakeyRotColRight[i].evakey
-				evakeyTest := resRotationKey.evakeyRotColRight[i].evakey
-
-				evakeyNTTIndexWant := rotationKey.permuteNTTRightIndex[i]
-				evakeyNTTIndexTest := resRotationKey.permuteNTTRightIndex[i]
-
-				require.True(t, utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest))
-
-				for j := range evakeyWant {
-					for k := range evakeyWant[j] {
-						require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
-					}
-				}
-			}
-		}
-
-		if rotationKey.evakeyConjugate != nil {
-
-			evakeyWant := rotationKey.evakeyConjugate.evakey
-			evakeyTest := resRotationKey.evakeyConjugate.evakey
-
-			evakeyNTTIndexWant := rotationKey.permuteNTTConjugateIndex
-			evakeyNTTIndexTest := resRotationKey.permuteNTTConjugateIndex
+			evakeyNTTIndexWant := rotationKey.permuteNTTIndex[galEl]
+			evakeyNTTIndexTest := resRotationKey.permuteNTTIndex[galEl]
 
 			require.True(t, utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest))
 
 			for j := range evakeyWant {
 				for k := range evakeyWant[j] {
-					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateRow element [%d][%d]", j, k)
+					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateLeft %d element [%d][%d]", galEl, j, k)
 				}
 			}
 		}

@@ -3,6 +3,7 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
+
 	//"log"
 	"math"
 	//"time"
@@ -153,7 +154,7 @@ func (btp *Bootstrapper) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Ciphertext) {
 	if btp.repack {
 
 		// The imaginary part is put in the right n/2 slots of ct0.
-		evaluator.Rotate(ct1, btp.params.Slots(), btp.rotkeys, ct1)
+		evaluator.Rotate(ct1, int(btp.params.Slots()), btp.rotkeys, ct1)
 
 		evaluator.Add(ct0, ct1, ct0)
 
@@ -259,7 +260,8 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 
 	for _, i := range rotations {
 		if i != 0 {
-			ring.PermuteNTTWithIndexLvl(levelQ, c0, btp.rotkeys.permuteNTTLeftIndex[i], tmpQ0) // phi(P*c0)
+			galEl := btp.params.GaloisElementForColumnRotationBy(int(i))
+			ring.PermuteNTTWithIndexLvl(levelQ, c0, btp.rotkeys.permuteNTTIndex[galEl], tmpQ0) // phi(P*c0)
 			ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ0, vecRotQ[i][0])                          // phi(d0_Q) += phi(P*c0)
 		}
 	}
@@ -311,13 +313,15 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[1], tmpQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
 			}
 
-			eval.switchKeysInPlaceNoModDown(levelQ, tmpQ1, btp.rotkeys.evakeyRotColLeft[N1*j], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
+			galEl := btp.params.GaloisElementForColumnRotationBy(int(N1 * j))
+
+			eval.switchKeysInPlaceNoModDown(levelQ, tmpQ1, btp.rotkeys.keys[galEl], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
 
 			// Outer loop rotations
-			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, btp.rotkeys.permuteNTTLeftIndex[N1*j], tmpQ1) // phi(tmpRes_0)
-			ringQ.AddLvl(levelQ, res.value[0], tmpQ1, res.value[0])                                  // res += phi(tmpRes)
+			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, btp.rotkeys.permuteNTTIndex[galEl], tmpQ1) // phi(tmpRes_0)
+			ringQ.AddLvl(levelQ, res.value[0], tmpQ1, res.value[0])                               // res += phi(tmpRes)
 
-			rot := btp.rotkeys.permuteNTTLeftIndex[N1*j]
+			rot := btp.rotkeys.permuteNTTIndex[galEl]
 
 			N2Rot++
 
@@ -449,13 +453,17 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, 
 	levelQ := ct0.Level()
 	levelP := eval.params.PiCount() - 1
 
-	eval.keyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rotKeys.evakeyRotColLeft[k], pool2Q, pool3Q, pool2P, pool3P)
+	galEl := eval.params.GaloisElementForColumnRotationBy(int(k))
+	rtk := rotKeys.keys[galEl]
+	indexes := rotKeys.permuteNTTIndex[galEl]
 
-	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, rotKeys.permuteNTTLeftIndex[k], ctOutQ[0])
-	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, rotKeys.permuteNTTLeftIndex[k], ctOutQ[1])
+	eval.keyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
-	ring.PermuteNTTWithIndexLvl(levelP, pool2P, rotKeys.permuteNTTLeftIndex[k], ctOutP[0])
-	ring.PermuteNTTWithIndexLvl(levelP, pool3P, rotKeys.permuteNTTLeftIndex[k], ctOutP[1])
+	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, indexes, ctOutQ[0])
+	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, indexes, ctOutQ[1])
+
+	ring.PermuteNTTWithIndexLvl(levelP, pool2P, indexes, ctOutP[0])
+	ring.PermuteNTTWithIndexLvl(levelP, pool3P, indexes, ctOutP[1])
 }
 
 // Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)

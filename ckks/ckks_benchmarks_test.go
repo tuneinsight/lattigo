@@ -151,9 +151,9 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 	var rotkey *RotationKeys
 	if testContext.params.PiCount() != 0 {
 		rlk = testContext.kgen.GenRelinKey(testContext.sk)
-		rotkey = NewRotationKeys()
-		testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 1, rotkey)
-		testContext.kgen.GenRotationKey(Conjugate, testContext.sk, 0, rotkey)
+		rotkey = NewRotationKeys(testContext.params)
+		GenSwitchingKeyForConjugate(testContext.kgen, testContext.sk, rotkey)
+		GenSwitchingKeysForRotations([]int{1}, testContext.kgen, testContext.sk, rotkey)
 	}
 
 	b.Run(testString(testContext, "Evaluator/Add/"), func(b *testing.B) {
@@ -216,9 +216,10 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 			b.Skip("#Pi is empty")
 		}
 
+		galEL := testContext.params.GaloisElementForColumnRotationBy(1)
 		for i := 0; i < b.N; i++ {
-			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[0], rotkey.permuteNTTLeftIndex[1], ciphertext1.value[0])
-			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[1], rotkey.permuteNTTLeftIndex[1], ciphertext1.value[1])
+			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[0], rotkey.permuteNTTIndex[galEL], ciphertext1.value[0])
+			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[1], rotkey.permuteNTTIndex[galEL], ciphertext1.value[1])
 		}
 	})
 
@@ -277,8 +278,8 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 
 		evaluator := testContext.evaluator.(*evaluator)
 
-		rotkey := NewRotationKeys()
-		testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 5, rotkey)
+		rotkey := NewRotationKeys(testContext.params)
+		GenSwitchingKeysForRotations([]int{5}, testContext.kgen, testContext.sk, rotkey)
 
 		ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 

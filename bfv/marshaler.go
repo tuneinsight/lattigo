@@ -314,8 +314,6 @@ func (rotationkey *RotationKeySet) MarshalBinary() (data []byte, err error) {
 
 	pointer := uint64(0)
 
-	// [RotType] [RotAmount]
-	// [  0xFF ] [ 0xFFFFFF]
 	for galEL, key := range rotationkey.keys {
 
 		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(galEL))

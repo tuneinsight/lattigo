@@ -873,7 +873,7 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly, testContext.rlk); err != nil {
+		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale(), testContext.rlk); err != nil {
 			t.Error(err)
 		}
 
@@ -909,7 +909,7 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
 			t.Error(err)
 		}
 

@@ -20,18 +20,20 @@ func TestBootstrap(t *testing.T) {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
 	}
 
-	var err error
 	var testContext = new(testParams)
 
-	paramSet := uint64(1)
+	paramSet := uint64(0)
 
-	shemeParams := DefaultBootstrapSchemeParams[paramSet : paramSet+1]
 	bootstrapParams := DefaultBootstrapParams[paramSet : paramSet+1]
 
-	for paramSet := range shemeParams {
+	for paramSet := range bootstrapParams {
 
-		params := shemeParams[paramSet]
 		btpParams := bootstrapParams[paramSet]
+
+		params, err := btpParams.Params()
+		if err != nil{
+			panic(err)
+		}
 
 		// Insecure params for fast testing only
 		if !*flagLongTest {
@@ -44,9 +46,9 @@ func TestBootstrap(t *testing.T) {
 		}
 
 		for _, testSet := range []func(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T){
-			testChebySin,
-			testChebyCos,
-			testChebyCosNaive,
+			testSin,
+			testCos1,
+			testCos2,
 			testbootstrap,
 		} {
 			testSet(testContext, btpParams, t)
@@ -55,20 +57,16 @@ func TestBootstrap(t *testing.T) {
 	}
 }
 
-func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
-	t.Run(testString(testContext, "ChebySin/"), func(t *testing.T) {
+func testSin(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
+	t.Run(testString(testContext, "Sin/"), func(t *testing.T) {
 
 		var err error
 
 		eval := testContext.evaluator
 
-		params := testContext.params
-
 		DefaultScale := testContext.params.scale
 
-		q := params.qi[params.MaxLevel()-uint64(len(btpParams.CtSLevel))]
-
-		SineScale := math.Exp2(math.Round(math.Log2(float64(q))))
+		SineScale := btpParams.SineEvalModuli.ScalingFactor
 
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
@@ -77,7 +75,7 @@ func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t
 		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, -K+1, K-1, t)
-		eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
+		eval.DropLevel(ciphertext, btpParams.CtSDepth()-1)
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
 
@@ -89,7 +87,7 @@ func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
 			t.Error(err)
 		}
 
@@ -100,33 +98,29 @@ func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t
 	})
 }
 
-func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
-	t.Run(testString(testContext, "ChebyCos/"), func(t *testing.T) {
+func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
+	t.Run(testString(testContext, "Cos1/"), func(t *testing.T) {
 
 		var err error
 
 		eval := testContext.evaluator
 
-		params := testContext.params
-
 		DefaultScale := testContext.params.scale
 
-		q := params.qi[params.MaxLevel()-uint64(len(btpParams.CtSLevel))]
-
-		SineScale := math.Exp2(math.Round(math.Log2(float64(q))))
+		SineScale := btpParams.SineEvalModuli.ScalingFactor
 
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
-		K := 21
-		deg := 52
+		K := 25
+		deg := 62
 		dev := float64(testContext.params.qi[0]) / DefaultScale
 		scNum := 2
 
 		scFac := complex(float64(int(1<<scNum)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
-		eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
+		eval.DropLevel(ciphertext, btpParams.CtSDepth()-1)
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, scNum)
@@ -135,11 +129,20 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 		cheby.b = complex(float64(K), 0) / scFac
 		cheby.lead = true
 
-		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(scFac))
+
+		var sqrt2pi float64
+		if btpParams.ArcSineDeg > 0{
+			sqrt2pi = math.Pow(1, 1.0/real(scFac))
+		}else{
+			sqrt2pi = math.Pow(0.15915494309189535, 1.0/real(scFac))
+		}
 
 		for i := range cheby.coeffs {
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
+
+
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
 		for i := range values {
 
@@ -149,7 +152,9 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 				values[i] = 2*values[i]*values[i] - 1
 			}
 
-			values[i] /= 6.283185307179586
+			if btpParams.ArcSineDeg == 0{
+				values[i] /= 6.283185307179586	
+			}
 		}
 
 		eval.AddConst(ciphertext, -0.25, ciphertext)
@@ -158,7 +163,7 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
 			t.Error(err)
 		}
 
@@ -172,38 +177,81 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
 
+		for i := range values {
+
+			if btpParams.ArcSineDeg > 0{
+
+				c1 := complex(1.0, 0)
+			    c3 := complex(1.0/6.0, 0)
+			    c5 := complex(3.0/40.0, 0)
+			    c7 := complex(5.0/112.0, 0)
+
+				x1 := values[i]
+				x2 := x1*x1
+				x3 := x2*x1
+				x5 := x3*x2
+				x7 := x5*x2
+
+				if btpParams.ArcSineDeg == 1{
+					values[i] = c1 * x1
+				}else if btpParams.ArcSineDeg == 3{
+					values[i] = c1 * x1 + c3*x3
+				}else if btpParams.ArcSineDeg == 5{
+					values[i] = c1 * x1 + c3*x3 + c5*x5
+				}else{
+					values[i] = c1 * x1 + c3*x3 + c5*x5 + c7*x7
+				}
+
+				values[i] *= 0.15915494309189535
+			}
+
+			values[i] *= 1024
+		}
+
+
+
+		if btpParams.ArcSineDeg > 0{
+			t.Log(ciphertext.Level(), ciphertext.Scale())
+			poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1/6*0.15915494309189535, 0, 3/40*0.15915494309189535, 0, 5/112*0.15915494309189535}[:btpParams.ArcSineDeg+1])
+			t.Log(poly)
+			ciphertext, _ = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale(), testContext.rlk)
+			t.Log(ciphertext.Level(), ciphertext.Scale())
+		}
+
+		ratio := float64(testContext.params.Qi()[0])/float64(35184372088832)
+
+		ciphertext.SetScale(ciphertext.Scale() / ratio)
+
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 
 	})
 }
 
-func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
-	t.Run(testString(testContext, "ChebyCosNaive/"), func(t *testing.T) {
+func testCos2(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
+	t.Run(testString(testContext, "Cos2/"), func(t *testing.T) {
 
 		var err error
 
 		eval := testContext.evaluator
 
-		params := testContext.params
-
 		DefaultScale := testContext.params.scale
 
-		q := params.qi[params.MaxLevel()-uint64(len(btpParams.CtSLevel))]
-
-		SineScale := math.Exp2(math.Round(math.Log2(float64(q))))
+		SineScale := btpParams.SineEvalModuli.ScalingFactor
 
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
-		K := 257
-		deg := 250
-		scNum := 3
+		K := 325
+		deg := 255
+		scNum := 4
 
 		scFac := complex(float64(int(1<<scNum)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
-		eval.DropLevel(ciphertext, uint64(len(btpParams.CtSLevel))-1)
+		eval.DropLevel(ciphertext, btpParams.CtSDepth()-1)
 
 		cheby := Approximate(cos2pi, -complex(float64(K), 0)/scFac, complex(float64(K), 0)/scFac, deg)
 
@@ -230,7 +278,7 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParamete
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
 			t.Error(err)
 		}
 
@@ -266,17 +314,24 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
+		
 		values[0] = complex(0.9238795325112867, 0.3826834323650898)
 		values[1] = complex(0.9238795325112867, 0.3826834323650898)
 		if 1<<params.logSlots > 2 {
 			values[2] = complex(0.9238795325112867, 0.3826834323650898)
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
+		
 
 		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.scale)
 		testContext.encoder.Encode(plaintext, values, params.logSlots)
 
 		ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
+
+		eval := testContext.evaluator
+		for ciphertext.Level() != 0 {
+			eval.DropLevel(ciphertext, 1)
+		}
 
 		for i := 0; i < 1; i++ {
 
@@ -294,9 +349,13 @@ func newTestVectorsSineBootstrapp(testContext *testParams, encryptor Encryptor, 
 
 	values = make([]complex128, 1<<logSlots)
 
+	ratio := float64(testContext.params.Qi()[0])/float64(35184372088832)
+
 	for i := uint64(0); i < 1<<logSlots; i++ {
-		values[i] = complex(math.Round(utils.RandFloat64(a, b))+utils.RandFloat64(-1, 1)/1000, 0)
+		values[i] = complex(math.Round(utils.RandFloat64(a, b))+utils.RandFloat64(-1, 1)/ratio, 0)
 	}
+
+	values[0] = complex(3 + 27/ratio, 0)
 
 	plaintext = NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 

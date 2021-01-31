@@ -23,6 +23,7 @@ type Encoder interface {
 	EncodeAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
 
 	EncodeNTT(plaintext *Plaintext, values []complex128, logSlots uint64)
+	EncodeNTTNew(values []complex128, logSlots uint64) (plaintext *Plaintext)
 	EncodeNTTAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
 
 	EncodeDiagMatrixAtLvl(level uint64, vector map[uint64][]complex128, scale, maxM1N2Ratio float64, logSlots uint64) (matrix *PtDiagMatrix)

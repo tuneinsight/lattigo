@@ -41,6 +41,7 @@ func main() {
 	encoder = ckks.NewEncoder(params)
 	decryptor = ckks.NewDecryptor(params, sk)
 	encryptor = ckks.NewEncryptorFromPk(params, pk)
+	evaluator := ckks.NewEvaluator(params)
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
@@ -53,8 +54,11 @@ func main() {
 	// Generate a random plaintext
 	valuesWant := make([]complex128, params.Slots())
 	for i := range valuesWant {
-		valuesWant[i] = utils.RandComplex128(-1, 1)
+		valuesWant[i] = utils.RandComplex128(27, 0)
 	}
+
+	valuesWant[0] = complex(1, 0)
+
 
 	plaintext = encoder.EncodeNew(valuesWant, params.LogSlots())
 
@@ -65,6 +69,11 @@ func main() {
 	fmt.Println()
 	fmt.Println("Precision of values vs. ciphertext")
 	valuesTest1 := printDebug(params, ciphertext1, valuesWant, decryptor, encoder)
+
+
+	for ciphertext1.Level() != 0{
+		evaluator.DropLevel(ciphertext1, 1)
+	}
 
 	// Bootstrap the ciphertext (homomorphic re-encryption)
 	// It takes a ciphertext at level 0 (if not at level 0, then it will reduce it to level 0)

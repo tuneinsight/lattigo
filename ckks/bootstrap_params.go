@@ -210,7 +210,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// SET II
 	// 1525 - 550
 	{
-		H:            192,
+		H:            96,
 		SinType:      Cos1,
 		SinRange:     21,
 		SinDeg:       52,

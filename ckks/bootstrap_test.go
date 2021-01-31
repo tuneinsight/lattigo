@@ -23,7 +23,7 @@ func TestBootstrap(t *testing.T) {
 	var err error
 	var testContext = new(testParams)
 
-	paramSet := uint64(1)
+	paramSet := uint64(0)
 
 	shemeParams := DefaultBootstrapSchemeParams[paramSet : paramSet+1]
 	bootstrapParams := DefaultBootstrapParams[paramSet : paramSet+1]
@@ -118,8 +118,8 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
-		K := 21
-		deg := 52
+		K := 25
+		deg := 62
 		dev := float64(testContext.params.qi[0]) / DefaultScale
 		scNum := 2
 
@@ -196,9 +196,9 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParamete
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
-		K := 257
-		deg := 250
-		scNum := 3
+		K := 325
+		deg := 255
+		scNum := 4
 
 		scFac := complex(float64(int(1<<scNum)), 0)
 

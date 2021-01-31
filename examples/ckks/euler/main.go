@@ -153,7 +153,7 @@ func example() {
 
 	poly := ckks.NewPoly(coeffs)
 
-	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, rlk); err != nil {
+	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale(), rlk); err != nil {
 		panic(err)
 	}
 

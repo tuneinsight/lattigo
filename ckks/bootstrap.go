@@ -132,28 +132,28 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 
 func (btp *Bootstrapper) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Ciphertext) {
 
-	evaluator := btp.evaluator
+	eval := btp.evaluator
 
 	var zV, zVconj *Ciphertext
 
 	zV = btp.dft(vec, btp.pDFTInv, true)
 
 	// Extraction of real and imaginary parts.
-	zVconj = evaluator.ConjugateNew(zV, btp.rotkeys)
+	zVconj = eval.ConjugateNew(zV, btp.rotkeys)
 
 	// The real part is stored in ct0
-	ct0 = evaluator.AddNew(zV, zVconj)
+	ct0 = eval.AddNew(zV, zVconj)
 
 	// The imaginary part is stored in ct1
-	ct1 = evaluator.SubNew(zV, zVconj)
+	ct1 = eval.SubNew(zV, zVconj)
 
-	evaluator.DivByi(ct1, ct1)
+	eval.DivByi(ct1, ct1)
 
 	// If repacking, then ct0 and ct1 right n/2 slots are zero.
 	if btp.repack {
 		// The imaginary part is put in the right n/2 slots of ct0.
-		evaluator.Rotate(ct1, btp.params.Slots(), btp.rotkeys, ct1)
-		evaluator.Add(ct0, ct1, ct0)
+		eval.Rotate(ct1, btp.params.Slots(), btp.rotkeys, ct1)
+		eval.Add(ct0, ct1, ct0)
 		return ct0, nil
 	}
 
@@ -229,12 +229,12 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 	}
 
 	var sqrt2pi float64
-	if btp.ArcSineDeg > 0{
+	if btp.ArcSineDeg > 0 {
 		sqrt2pi = math.Pow(1, 1.0/float64(int(1<<btp.SinRescal)))
-	}else{
+	} else {
 		sqrt2pi = math.Pow(0.15915494309189535, 1.0/float64(int(1<<btp.SinRescal)))
 	}
-	
+
 	if btp.SinType == Cos1 || btp.SinType == Cos2 {
 		scfac := complex(float64(int(1<<btp.SinRescal)), 0)
 		eval.AddConst(ct, -0.5/(scfac*(cheby.b-cheby.a)), ct)
@@ -252,10 +252,10 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 		}
 	}
 
-	if btp.ArcSineDeg > 0{
-		poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1.0/6.0*0.15915494309189535, 0, 3.0/40.0*0.15915494309189535, 0, 5.0/112.0*0.15915494309189535}[:btp.ArcSineDeg+1])
+	if btp.ArcSineDeg > 0 {
+		poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1.0 / 6.0 * 0.15915494309189535, 0, 3.0 / 40.0 * 0.15915494309189535, 0, 5.0 / 112.0 * 0.15915494309189535}[:btp.ArcSineDeg+1])
 		ct, _ = eval.EvaluatePoly(ct, poly, ct.Scale(), btp.relinkey)
-	}else{
+	} else {
 		eval.DropLevel(ct, 3)
 	}
 

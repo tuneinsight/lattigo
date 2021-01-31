@@ -59,7 +59,6 @@ func main() {
 
 	valuesWant[0] = complex(1, 0)
 
-
 	plaintext = encoder.EncodeNew(valuesWant, params.LogSlots())
 
 	// Encrypt
@@ -70,8 +69,7 @@ func main() {
 	fmt.Println("Precision of values vs. ciphertext")
 	valuesTest1 := printDebug(params, ciphertext1, valuesWant, decryptor, encoder)
 
-
-	for ciphertext1.Level() != 0{
+	for ciphertext1.Level() != 0 {
 		evaluator.DropLevel(ciphertext1, 1)
 	}
 

@@ -34,12 +34,8 @@ type Bootstrapper struct {
 	slotsToCoeffsDiffScale complex128      // Matrice rescaling
 	pDFT                   []*PtDiagMatrix // Matrice vectors
 	pDFTInv                []*PtDiagMatrix // Matrice vectors
-	coeffsToSlotsDiffScale complex128    // Matrice rescaling
-	slotsToCoeffsDiffScale complex128    // Matrice rescaling
-	ctsLevel []uint64 // index of the Qi used by CoeffsToSlots
-	stcLevel []uint64 // index of the Qi used by SlotsToCoeffs
-	pDFT                   []*dftvectors // Matrice vectors
-	pDFTInv                []*dftvectors // Matrice vectors
+	ctsLevel               []uint64        // index of the Qi used by CoeffsToSlots
+	stcLevel               []uint64        // index of the Qi used by SlotsToCoeffs
 
 	rotKeyIndex []uint64 // a list of the required rotation keys
 
@@ -59,10 +55,6 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 
 	if btpParams.SinType == SinType(Sin) && btpParams.SinRescal != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
-	}
-
-	if btpParams.CtSLevel[0] != params.MaxLevel() {
-		return nil, fmt.Errorf("CtSLevel start not consistent with MaxLevel")
 	}
 
 	btp = newBootstrapper(params, btpParams)
@@ -93,24 +85,24 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 
 	btp.prescale = math.Exp2(math.Round(math.Log2(float64(params.qi[0]) / btp.MessageRatio)))
 	btp.sinescale = math.Exp2(math.Round(math.Log2(btp.SineEvalModuli.ScalingFactor)))
-	btp.postscale = btp.sinescale  / btp.MessageRatio
+	btp.postscale = btp.sinescale / btp.MessageRatio
 
 	fmt.Println(btp.CtSDepth())
 	fmt.Println(btp.StCDepth())
 
 	btp.ctsLevel = make([]uint64, btp.CtSDepth())
-	for i := range btp.ctsLevel{
+	for i := range btp.ctsLevel {
 		btp.ctsLevel[i] = btp.params.MaxLevel() - uint64(i)
 	}
-	
+
 	btp.stcLevel = make([]uint64, btp.StCDepth())
-	for i := range btp.stcLevel{
+	for i := range btp.stcLevel {
 		btp.stcLevel[i] = btp.params.MaxLevel() - btp.CtSDepth() - btp.SineEvalDepth(true) - btp.ArcSineDepth() - uint64(i)
 	}
 
 	fmt.Println(btp.ctsLevel)
 	fmt.Println(btp.stcLevel)
-	
+
 	fmt.Println(math.Log2(btp.prescale))
 	fmt.Println(math.Log2(btp.sinescale))
 	fmt.Println(math.Log2(btp.postscale))
@@ -243,10 +235,10 @@ func (btp *Bootstrapper) genSinePoly() {
 		var sqrt2pi float64
 		if btp.ArcSineDeg > 0 {
 			sqrt2pi = math.Pow(1, 1.0/real(scFac))
-		}else{
+		} else {
 			sqrt2pi = math.Pow(0.15915494309189535, 1.0/real(scFac))
 		}
-		
+
 		for i := range cheby.coeffs {
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
@@ -269,7 +261,7 @@ func (btp *Bootstrapper) genSinePoly() {
 		var sqrt2pi float64
 		if btp.ArcSineDeg > 0 {
 			sqrt2pi = math.Pow(1, 1.0/real(scFac))
-		}else{
+		} else {
 			sqrt2pi = math.Pow(0.15915494309189535, 1.0/real(scFac))
 		}
 
@@ -425,140 +417,17 @@ func (btp *Bootstrapper) computePlaintextVectors() {
 	}
 
 	// CoeffsToSlots vectors
-	btp.pDFTInv = make([]*PtDiagMatrix, len(CtSLevel))
+	btp.pDFTInv = make([]*PtDiagMatrix, len(ctsLevel))
 	pVecDFTInv := btp.computeDFTMatrices(roots, pow5, btp.coeffsToSlotsDiffScale, true)
-	for i, lvl := range CtSLevel {
-		btp.pDFTInv[i] = btp.encoder.EncodeDiagMatrixAtLvl(lvl, pVecDFTInv[i], float64(btp.params.qi[lvl]), btp.MaxN1N2Ratio, btp.logdslots)
-	btp.pDFTInv = make([]*dftvectors, len(ctsLevel))
-	pVecDFTInv := btp.computeDFTPlaintextVectors(roots, pow5, btp.coeffsToSlotsDiffScale, true)
 	for i, lvl := range ctsLevel {
-		btp.pDFTInv[i] = new(dftvectors)
-		btp.pDFTInv[i].N1 = findbestbabygiantstepsplit(pVecDFTInv[i], dslots, btp.MaxN1N2Ratio)
-		btp.encodePVec(pVecDFTInv[i], btp.pDFTInv[i], lvl, btp.CoeffsToSlotsModuli.ScalingFactor[i], true)
+		btp.pDFTInv[i] = btp.encoder.EncodeDiagMatrixAtLvl(lvl, pVecDFTInv[i], btp.CoeffsToSlotsModuli.ScalingFactor[i], btp.MaxN1N2Ratio, btp.logdslots)
 	}
 
 	// SlotsToCoeffs vectors
-	btp.pDFT = make([]*PtDiagMatrix, len(StCLevel))
+	btp.pDFT = make([]*PtDiagMatrix, len(stcLevel))
 	pVecDFT := btp.computeDFTMatrices(roots, pow5, btp.slotsToCoeffsDiffScale, false)
-	for i, lvl := range StCLevel {
-	btp.pDFT = make([]*dftvectors, len(stcLevel))
-	pVecDFT := btp.computeDFTPlaintextVectors(roots, pow5, btp.slotsToCoeffsDiffScale, false)
 	for i, lvl := range stcLevel {
-		btp.pDFT[i] = new(dftvectors)
-		btp.pDFT[i].N1 = findbestbabygiantstepsplit(pVecDFT[i], dslots, btp.MaxN1N2Ratio)
-		btp.encodePVec(pVecDFT[i], btp.pDFT[i], lvl, btp.SlotToCoeffsModuli.ScalingFactor[i], false)
-	}
-}
-
-		// If the first moduli
-		var scale float64
-		logQi := math.Round(math.Log2(float64(btp.params.qi[lvl])))
-		if logQi >= 56.0 {
-			scale = math.Exp2(logQi / 2)
-		} else {
-			scale = float64(btp.params.qi[lvl])
-		}
-
-		btp.pDFT[i] = btp.encoder.EncodeDiagMatrixAtLvl(lvl, pVecDFT[i], scale, btp.MaxN1N2Ratio, btp.logdslots)
-// Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, maxRatio float64) (minN uint64) {
-
-	for N1 := uint64(1); N1 < maxN; N1 <<= 1 {
-
-		index := make(map[uint64][]uint64)
-
-		for key := range vector {
-
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-
-			if index[idx1] == nil {
-				index[idx1] = []uint64{idx2}
-			} else {
-				index[idx1] = append(index[idx1], idx2)
-			}
-		}
-
-		if len(index[0]) > 0 {
-
-			hoisted := len(index[0]) - 1
-			normal := len(index) - 1
-
-			// The matrice is very sparse already
-			if normal == 0 {
-				return N1 / 2
-			}
-
-			if hoisted > normal {
-				// Finds the next split that has a ratio hoisted/normal greater or equal to maxRatio
-				for float64(hoisted)/float64(normal) < maxRatio {
-
-					if normal/2 == 0 {
-						break
-					}
-					N1 *= 2
-					hoisted = hoisted*2 + 1
-					normal = normal / 2
-				}
-				return N1
-			}
-		}
-	}
-
-	return 1
-}
-
-func (btp *Bootstrapper) encodePVec(pVec map[uint64][]complex128, plaintextVec *dftvectors, level uint64, scale float64, forward bool) {
-	var N, N1 uint64
-
-	// N1*N2 = N
-	N = btp.params.N()
-	N1 = plaintextVec.N1
-
-	index := make(map[uint64][]uint64)
-
-	for key := range pVec {
-		idx1 := key / N1
-		idx2 := key & (N1 - 1)
-		if index[idx1] == nil {
-			index[idx1] = []uint64{idx2}
-		} else {
-			index[idx1] = append(index[idx1], idx2)
-		}
-	}
-
-	plaintextVec.Vec = make(map[uint64][2]*ring.Poly)
-
-	plaintextVec.Level = level
-	plaintextVec.Scale = scale
-	ringQ := btp.evaluator.(*evaluator).ringQ
-	ringP := btp.evaluator.(*evaluator).ringP
-	encoder := btp.encoder.(*encoderComplex128)
-
-	for j := range index {
-
-		for _, i := range index[j] {
-
-			//  levels * n coefficients of 8 bytes each
-			btp.plaintextSize += 8 * N * (level + 1 + btp.params.PiCount())
-
-			encoder.Embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:btp.dslots], btp.logdslots)
-
-			plaintextQ := ring.NewPoly(N, level+1)
-			encoder.ScaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
-			ringQ.NTTLvl(level, plaintextQ, plaintextQ)
-			ringQ.MFormLvl(level, plaintextQ, plaintextQ)
-
-			plaintextP := ring.NewPoly(N, level+1)
-			encoder.ScaleUp(plaintextP, scale, ringP.Modulus)
-			ringP.NTT(plaintextP, plaintextP)
-			ringP.MForm(plaintextP, plaintextP)
-
-			plaintextVec.Vec[N1*j+uint64(i)] = [2]*ring.Poly{plaintextQ, plaintextP}
-
-			encoder.WipeInternalMemory()
-
-		}
+		btp.pDFT[i] = btp.encoder.EncodeDiagMatrixAtLvl(lvl, pVecDFT[i], btp.SlotsToCoeffsModuli.ScalingFactor[i], btp.MaxN1N2Ratio, btp.logdslots)
 	}
 }
 
@@ -573,15 +442,11 @@ func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, d
 	var maxDepth uint64
 
 	if forward {
-		maxDepth = uint64(len(btp.CtSLevel))
+		maxDepth = btp.CtSDepth()
 		a, b, c = fftInvPlainVec(btp.params.logSlots, btp.dslots, roots, pow5)
-		maxDepth = btp.CtSDepth() 
-		a, b, c = fftInvPlainVec(btp.params.logSlots, roots, pow5)
 	} else {
-		maxDepth = uint64(len(btp.StCLevel))
+		maxDepth = btp.StCDepth()
 		a, b, c = fftPlainVec(btp.params.logSlots, btp.dslots, roots, pow5)
-		maxDepth = btp.StCDepth() 
-		a, b, c = fftPlainVec(btp.params.logSlots, roots, pow5)
 	}
 
 	plainVector = make([]map[uint64][]complex128, maxDepth)

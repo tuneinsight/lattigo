@@ -67,7 +67,7 @@ func main() {
 		for i := range stats {
 			log.Printf("Boot %d", i)
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
-			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext)
+			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext, 0)
 			if ciphertext.Scale() != params.Scale() {
 				evaluator.SetScale(ciphertext, params.Scale())
 			}
@@ -93,7 +93,7 @@ func main() {
 			ciphertext := encryptor.EncryptNew(plaintext)
 
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
-			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext)
+			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext, 0)
 
 			runtime.GC()
 		}
@@ -119,7 +119,7 @@ func main() {
 			ciphertext := encryptor.EncryptNew(plaintext)
 
 			ciphertext = bootstrapper.Bootstrapp(ciphertext)
-			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext)
+			stats[i] = ckks.GetPrecisionStats(params, encoder, decryptor, values, ciphertext, 0)
 
 			plaintext = nil
 			ciphertext = nil

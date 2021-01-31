@@ -77,8 +77,8 @@ type Evaluator interface {
 	PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext)
 
 	// Polynomial evaluation
-	EvaluatePoly(ct *Ciphertext, coeffs *Poly, evakey *EvaluationKey) (res *Ciphertext, err error)
-	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error)
+	EvaluatePoly(ct *Ciphertext, coeffs *Poly, targetScale float64, evakey *EvaluationKey) (res *Ciphertext, err error)
+	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, targetScale float64, evakey *EvaluationKey) (res *Ciphertext, err error)
 
 	// Inversion
 	InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext)

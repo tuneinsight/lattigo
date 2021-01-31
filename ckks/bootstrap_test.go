@@ -31,7 +31,7 @@ func TestBootstrap(t *testing.T) {
 		btpParams := bootstrapParams[paramSet]
 
 		params, err := btpParams.Params()
-		if err != nil{
+		if err != nil {
 			panic(err)
 		}
 
@@ -129,11 +129,10 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		cheby.b = complex(float64(K), 0) / scFac
 		cheby.lead = true
 
-
 		var sqrt2pi float64
-		if btpParams.ArcSineDeg > 0{
+		if btpParams.ArcSineDeg > 0 {
 			sqrt2pi = math.Pow(1, 1.0/real(scFac))
-		}else{
+		} else {
 			sqrt2pi = math.Pow(0.15915494309189535, 1.0/real(scFac))
 		}
 
@@ -141,8 +140,7 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
 
-
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
 
 		for i := range values {
 
@@ -152,8 +150,8 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 				values[i] = 2*values[i]*values[i] - 1
 			}
 
-			if btpParams.ArcSineDeg == 0{
-				values[i] /= 6.283185307179586	
+			if btpParams.ArcSineDeg == 0 {
+				values[i] /= 6.283185307179586
 			}
 		}
 
@@ -179,27 +177,27 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 
 		for i := range values {
 
-			if btpParams.ArcSineDeg > 0{
+			if btpParams.ArcSineDeg > 0 {
 
 				c1 := complex(1.0, 0)
-			    c3 := complex(1.0/6.0, 0)
-			    c5 := complex(3.0/40.0, 0)
-			    c7 := complex(5.0/112.0, 0)
+				c3 := complex(1.0/6.0, 0)
+				c5 := complex(3.0/40.0, 0)
+				c7 := complex(5.0/112.0, 0)
 
 				x1 := values[i]
-				x2 := x1*x1
-				x3 := x2*x1
-				x5 := x3*x2
-				x7 := x5*x2
+				x2 := x1 * x1
+				x3 := x2 * x1
+				x5 := x3 * x2
+				x7 := x5 * x2
 
-				if btpParams.ArcSineDeg == 1{
+				if btpParams.ArcSineDeg == 1 {
 					values[i] = c1 * x1
-				}else if btpParams.ArcSineDeg == 3{
-					values[i] = c1 * x1 + c3*x3
-				}else if btpParams.ArcSineDeg == 5{
-					values[i] = c1 * x1 + c3*x3 + c5*x5
-				}else{
-					values[i] = c1 * x1 + c3*x3 + c5*x5 + c7*x7
+				} else if btpParams.ArcSineDeg == 3 {
+					values[i] = c1*x1 + c3*x3
+				} else if btpParams.ArcSineDeg == 5 {
+					values[i] = c1*x1 + c3*x3 + c5*x5
+				} else {
+					values[i] = c1*x1 + c3*x3 + c5*x5 + c7*x7
 				}
 
 				values[i] *= 0.15915494309189535
@@ -208,21 +206,19 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 			values[i] *= 1024
 		}
 
-
-
-		if btpParams.ArcSineDeg > 0{
+		if btpParams.ArcSineDeg > 0 {
 			t.Log(ciphertext.Level(), ciphertext.Scale())
-			poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1/6*0.15915494309189535, 0, 3/40*0.15915494309189535, 0, 5/112*0.15915494309189535}[:btpParams.ArcSineDeg+1])
+			poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1 / 6 * 0.15915494309189535, 0, 3 / 40 * 0.15915494309189535, 0, 5 / 112 * 0.15915494309189535}[:btpParams.ArcSineDeg+1])
 			t.Log(poly)
 			ciphertext, _ = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale(), testContext.rlk)
 			t.Log(ciphertext.Level(), ciphertext.Scale())
 		}
 
-		ratio := float64(testContext.params.Qi()[0])/float64(35184372088832)
+		ratio := float64(testContext.params.Qi()[0]) / float64(35184372088832)
 
 		ciphertext.SetScale(ciphertext.Scale() / ratio)
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
 
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
@@ -314,14 +310,12 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
-		
 		values[0] = complex(0.9238795325112867, 0.3826834323650898)
 		values[1] = complex(0.9238795325112867, 0.3826834323650898)
 		if 1<<params.logSlots > 2 {
 			values[2] = complex(0.9238795325112867, 0.3826834323650898)
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
-		
 
 		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.scale)
 		testContext.encoder.Encode(plaintext, values, params.logSlots)
@@ -349,13 +343,13 @@ func newTestVectorsSineBootstrapp(testContext *testParams, encryptor Encryptor, 
 
 	values = make([]complex128, 1<<logSlots)
 
-	ratio := float64(testContext.params.Qi()[0])/float64(35184372088832)
+	ratio := float64(testContext.params.Qi()[0]) / float64(35184372088832)
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
 		values[i] = complex(math.Round(utils.RandFloat64(a, b))+utils.RandFloat64(-1, 1)/ratio, 0)
 	}
 
-	values[0] = complex(3 + 27/ratio, 0)
+	values[0] = complex(3+27/ratio, 0)
 
 	plaintext = NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 

@@ -54,13 +54,10 @@ func main() {
 	// Generate a random plaintext
 	valuesWant := make([]complex128, params.Slots())
 	for i := range valuesWant {
-		valuesWant[i] = utils.RandComplex128(-1, 1)
+		valuesWant[i] = utils.RandComplex128(27, 0)
 	}
 
-	valuesWant[0] = complex(27, 27)
-	valuesWant[1] = complex(27, 27)
-	valuesWant[2] = complex(27, 27)
-	valuesWant[3] = complex(27, 27)
+	valuesWant[0] = complex(1, 0)
 
 
 	plaintext = encoder.EncodeNew(valuesWant, params.LogSlots())

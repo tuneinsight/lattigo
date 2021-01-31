@@ -496,7 +496,7 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 
 	cheby := btp.chebycoeffs
 
-	sqrt2pi := math.Pow(0.15915494309189535, 1.0/float64(int(1<<btp.SinRescal)))
+	sqrt2pi := math.Pow(1, 1.0/float64(int(1<<btp.SinRescal)))
 
 	if btp.SinType == Cos1 || btp.SinType == Cos2 {
 		scfac := complex(float64(int(1<<btp.SinRescal)), 0)
@@ -514,6 +514,12 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 			panic(err)
 		}
 	}
+
+	
+	poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1/6*0.15915494309189535, 0, 3/40*0.15915494309189535, 0, 5/112*0.15915494309189535})
+
+	ct, _ = eval.EvaluatePoly(ct, poly, btp.relinkey)
+
 
 	return ct
 }

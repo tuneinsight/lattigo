@@ -232,7 +232,7 @@ func (btp *Bootstrapper) genSinePoly() {
 
 		cheby.coeffs = bettersine.Approximate(K, deg, btp.deviation, int(btp.SinRescal))
 
-		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(scFac))
+		sqrt2pi := math.Pow(1, 1.0/real(scFac))
 
 		for i := range cheby.coeffs {
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)
@@ -252,7 +252,7 @@ func (btp *Bootstrapper) genSinePoly() {
 		scFac := complex(float64(int(1<<btp.SinRescal)), 0)
 
 		cheby := Approximate(cos2pi, -complex(float64(K), 0)/scFac, complex(float64(K), 0)/scFac, deg)
-		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(scFac))
+		sqrt2pi := math.Pow(1, 1.0/real(scFac))
 
 		for i := range cheby.coeffs {
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)

@@ -54,8 +54,8 @@ func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
 var DefaultBootstrapSchemeParams = []*Parameters{
 
 	{
-		logN:     16,
-		logSlots: 15,
+		logN:     14,
+		logSlots: 13,
 		qi: []uint64{
 			0x80000000080001,  // 55 Q0
 			0x2000000a0001,    // 45
@@ -70,6 +70,9 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x200000860001,    // 45
 			0x100000000060001, // 56 StC (28 + 28)
 			0xffa0001,         // 28 StC
+			0x80000000e00001, 
+			0x7ffffffef00001, 
+			0x800000011c0001,
 			0x80000000440001,  // 55 Sine (double angle)
 			0x7fffffffba0001,  // 55 Sine (double angle)
 			0x80000000500001,  // 55 Sine
@@ -215,7 +218,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		SinRange:     21,
 		SinDeg:       52,
 		SinRescal:    2,
-		CtSLevel:     []uint64{24, 23, 22, 21},
+		CtSLevel:     []uint64{27, 26, 25, 24},
 		StCLevel:     []uint64{12, 11, 11},
 		MaxN1N2Ratio: 16.0,
 	},

@@ -6,6 +6,7 @@ import (
 	//"log"
 	"math"
 	//"time"
+	"fmt"
 )
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
@@ -461,27 +462,21 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, 
 // Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
 func (btp *Bootstrapper) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphertext) {
 
+	fmt.Println(ct0.Level(), ct0.Scale())
+
 	evaluator := btp.evaluator.(*evaluator)
 
-	ct0.MulScale(btp.deviation)
-	evaluator.scale = ct0.Scale() // Reference scale is changed to the new ciphertext's scale.
-
-	// pre-computes the target scale for the output of the polynomial evaluation such that
-	// the output scale after the polynomial evaluation followed by the double angle formula
-	// does not change the scale of the ciphertext.
-	for i := uint64(0); i < btp.SinRescal; i++ {
-		evaluator.scale *= float64(evaluator.params.qi[btp.StCLevel[0]+i+1])
-		evaluator.scale = math.Sqrt(evaluator.scale)
-	}
+	ct0.MulScale(btp.MessageRatio)
+	evaluator.scale = btp.sinescale // Reference scale is changed to the Qi used for the SineEval (which is also close to the new ciphetext scale)
 
 	ct0 = btp.evaluateCheby(ct0)
 
-	ct0.DivScale(btp.deviation * btp.postscale / btp.params.scale)
+	ct0.DivScale(btp.MessageRatio * btp.postscale / btp.params.scale)
 
 	if ct1 != nil {
-		ct1.MulScale(btp.deviation)
+		ct1.MulScale(btp.MessageRatio)
 		ct1 = btp.evaluateCheby(ct1)
-		ct1.DivScale(btp.deviation * btp.postscale / btp.params.scale)
+		ct1.DivScale(btp.MessageRatio * btp.postscale / btp.params.scale)
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
@@ -492,18 +487,31 @@ func (btp *Bootstrapper) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphe
 
 func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 
+	fmt.Println(ct.Level(), ct.Scale())
+
 	eval := btp.evaluator.(*evaluator)
 
 	cheby := btp.chebycoeffs
 
-	sqrt2pi := math.Pow(1, 1.0/float64(int(1<<btp.SinRescal)))
+	targetScale := btp.sinescale
 
+	for i := uint64(0); i < btp.SinRescal; i++ {
+		targetScale = math.Sqrt(targetScale * float64(btp.SineEvalModuli.Qi[i]))
+	}
+
+	var sqrt2pi float64
+	if btp.ArcSineDeg > 0{
+		sqrt2pi = math.Pow(1, 1.0/float64(int(1<<btp.SinRescal)))
+	}else{
+		sqrt2pi = math.Pow(0.15915494309189535, 1.0/float64(int(1<<btp.SinRescal)))
+	}
+	
 	if btp.SinType == Cos1 || btp.SinType == Cos2 {
 		scfac := complex(float64(int(1<<btp.SinRescal)), 0)
 		eval.AddConst(ct, -0.5/(scfac*(cheby.b-cheby.a)), ct)
 	}
 
-	ct, _ = eval.EvaluateCheby(ct, cheby, btp.relinkey)
+	ct, _ = eval.EvaluateCheby(ct, cheby, targetScale, btp.relinkey)
 
 	for i := uint64(0); i < btp.SinRescal; i++ {
 		sqrt2pi *= sqrt2pi
@@ -515,11 +523,12 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 		}
 	}
 
-	
-	poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1/6*0.15915494309189535, 0, 3/40*0.15915494309189535, 0, 5/112*0.15915494309189535})
-
-	ct, _ = eval.EvaluatePoly(ct, poly, btp.relinkey)
-
+	if btp.ArcSineDeg > 0{
+		poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1.0/6.0*0.15915494309189535, 0, 3.0/40.0*0.15915494309189535, 0, 5.0/112.0*0.15915494309189535}[:btp.ArcSineDeg+1])
+		ct, _ = eval.EvaluatePoly(ct, poly, ct.Scale(), btp.relinkey)
+	}else{
+		eval.DropLevel(ct, 3)
+	}
 
 	return ct
 }

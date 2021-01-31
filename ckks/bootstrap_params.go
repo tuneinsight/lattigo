@@ -1,26 +1,12 @@
 package ckks
 
-// BootstrappingParameters is a struct for the default bootstrapping parameters
-type BootstrappingParameters struct {
-	H            uint64   // Hamming weight of the secret key
-	SinType      SinType  // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
-	SinRange     uint64   // K parameter (interpolation in the range -K to K)
-	SinDeg       uint64   // Degree of the interpolation
-	SinRescal    uint64   // Number of rescale and double angle formula (only applies for cos)
-	CtSLevel     []uint64 // Level of the Coeffs To Slots
-	StCLevel     []uint64 // Level of the Slots To Coeffs
-	MaxN1N2Ratio float64  // n1/n2 ratio for the bsgs algo for matrix x vector eval
-}
+import(
+	"math"
+)
 
-// CtSDepth returns the number of levels allocated to CoeffsToSlots
-func (b *BootstrappingParameters) CtSDepth() uint64 {
-	return uint64(len(b.CtSLevel))
-}
 
-// StCDepth returns the number of levels allocated to SlotToCoeffs
-func (b *BootstrappingParameters) StCDepth() uint64 {
-	return uint64(len(b.StCLevel))
-}
+
+
 
 // SinType is the type of function used during the bootstrapping
 // for the homomorphic modular reduction
@@ -33,31 +19,17 @@ const (
 	Cos2 = SinType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
 )
 
-// Copy return a new BootstrapParams which is a copy of the target
-func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
-	paramsCopy := &BootstrappingParameters{
-		H:            b.H,
-		SinType:      b.SinType,
-		SinRange:     b.SinRange,
-		SinDeg:       b.SinDeg,
-		SinRescal:    b.SinRescal,
-		CtSLevel:     make([]uint64, len(b.CtSLevel)),
-		StCLevel:     make([]uint64, len(b.StCLevel)),
-		MaxN1N2Ratio: b.MaxN1N2Ratio,
-	}
-	copy(paramsCopy.CtSLevel, b.CtSLevel)
-	copy(paramsCopy.StCLevel, b.StCLevel)
-	return paramsCopy
-}
+
+
 
 // DefaultBootstrapSchemeParams are default scheme params for the bootstrapping
 var DefaultBootstrapSchemeParams = []*Parameters{
-
+	/*
 	{
 		logN:     14,
 		logSlots: 13,
 		qi: []uint64{
-			0x80000000080001,  // 55 Q0
+			0x4000000120001,  // 55 Q0
 			0x2000000a0001,    // 45
 			0x2000000e0001,    // 45
 			0x1fffffc20001,    // 45
@@ -65,22 +37,20 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x200000500001,    // 45
 			0x200000620001,    // 45
 			0x1fffff980001,    // 45
-			0x2000006a0001,    // 45
-			0x1fffff7e0001,    // 45
-			0x200000860001,    // 45
-			0x100000000060001, // 56 StC (28 + 28)
-			0xffa0001,         // 28 StC
-			0x80000000e00001, 
-			0x7ffffffef00001, 
-			0x800000011c0001,
-			0x80000000440001,  // 55 Sine (double angle)
-			0x7fffffffba0001,  // 55 Sine (double angle)
-			0x80000000500001,  // 55 Sine
-			0x7fffffffaa0001,  // 55 Sine
-			0x800000005e0001,  // 55 Sine
-			0x7fffffff7e0001,  // 55 Sine
-			0x7fffffff380001,  // 55 Sine
-			0x80000000ca0001,  // 55 Sine
+			0x10004a0001, 
+			0x1000500001,
+			0x1000960001,
+			0x4000000f20001, 
+			0x40000010a0001, 
+			0x4000001260001,
+			0x3ffffffd20001,  // 55 Sine (double angle)
+			0x4000000420001,  // 55 Sine (double angle)
+			0x3ffffffb80001,  // 55 Sine
+			0x4000000660001,  // 55 Sine
+			0x40000007e0001,  // 55 Sine
+			0x4000000800001,  // 55 Sine
+			0x40000008a0001,  // 55 Sine
+			0x4000000de0001,  // 55 Sine
 			0x200000000e0001,  // 53 CtS
 			0x20000000140001,  // 53 CtS
 			0x20000000280001,  // 53 CtS
@@ -148,13 +118,12 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x200000620001,     // 45
 			0x1fffff980001,     // 45
 			0x2000006a0001,     // 45
-			0x1fffff7e0001,     // 45
 			0x100000000060001,  // 56 StC (28 + 28)
 			0xffa0001,          // 28 StC
 			0xffffffffffc0001,  // 60 Sine (double angle)
 			0x10000000006e0001, // 60 Sine (double angle)
 			0xfffffffff840001,  // 60 Sine (double angle)
-			0x1000000000860001, // 60 Sine
+			0x1000000000860001, // 60 Sine (double angle)
 			0xfffffffff6a0001,  // 60 Sine
 			0x1000000000980001, // 60 Sine
 			0xfffffffff5a0001,  // 60 Sine
@@ -162,6 +131,7 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x1000000000ce0001, // 60 Sine
 			0xfffffffff2a0001,  // 60 Sine
 			0xfffffffff240001,  // 60 Sine
+			0x1000000000f00001, // 60 Sine
 			0x200000000e0001,   // 53 CtS
 			0x20000000140001,   // 53 CtS
 			0x20000000280001,   // 53 CtS
@@ -205,32 +175,218 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 		scale: 1 << 25,
 		sigma: DefaultSigma,
 	},
+	*/
 }
 
-// DefaultBootstrapParams are default bootstrapping params for the bootstrapping
+
+// BootstrappingParameters is a struct for the default bootstrapping parameters
+type BootstrappingParameters struct {
+	ResidualModuli
+	KeySwitchModuli
+	SlotToCoeffsModuli
+	SineEvalModuli
+	CoeffsToSlotsModuli
+	LogN uint64
+	LogSlots uint64
+	Scale float64
+	Sigma float64
+	H            uint64   // Hamming weight of the secret key
+	SinType      SinType  // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
+	MessageRatio float64  // Ratio between Q0 and m, i.e. Q[0]/|m|
+	SinRange     uint64   // K parameter (interpolation in the range -K to K)
+	SinDeg       uint64   // Degree of the interpolation
+	SinRescal    uint64   // Number of rescale and double angle formula (only applies for cos)
+	ArcSineDeg   uint64   // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
+	MaxN1N2Ratio float64  // n1/n2 ratio for the bsgs algo for matrix x vector eval
+}
+
+func (b *BootstrappingParameters) Params() (p *Parameters, err error){
+	Qi := append(b.ResidualModuli, b.SlotToCoeffsModuli.Qi...)
+	Qi = append(Qi, b.SineEvalModuli.Qi...)
+	Qi = append(Qi, b.CoeffsToSlotsModuli.Qi...)
+	
+	if p, err = NewParametersFromModuli(b.LogN, &Moduli{Qi, b.KeySwitchModuli}); err != nil{
+		return nil, err
+	}
+
+	p.SetScale(b.Scale)
+	p.SetLogSlots(b.LogSlots)
+	p.SetSigma(b.Sigma)
+	return 
+}
+
+// Copy return a new BootstrapParams which is a copy of the target
+func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
+	paramsCopy := &BootstrappingParameters{
+		H:            b.H,
+		SinType:      b.SinType,
+		MessageRatio: b.MessageRatio,
+		SinRange:     b.SinRange,
+		SinDeg:       b.SinDeg,
+		SinRescal:    b.SinRescal,
+		ArcSineDeg:   b.ArcSineDeg,
+		MaxN1N2Ratio: b.MaxN1N2Ratio,
+	}
+
+	paramsCopy.ResidualModuli = make([]uint64, len(b.ResidualModuli))
+	copy(paramsCopy.ResidualModuli, b.ResidualModuli)
+
+	paramsCopy.CoeffsToSlotsModuli.Qi = make([]uint64, b.CtSDepth())
+	copy(paramsCopy.CoeffsToSlotsModuli.Qi, b.CoeffsToSlotsModuli.Qi)
+
+	paramsCopy.CoeffsToSlotsModuli.ScalingFactor = make([]float64, b.CtSDepth())
+	copy(paramsCopy.CoeffsToSlotsModuli.ScalingFactor, b.CoeffsToSlotsModuli.ScalingFactor)
+
+	paramsCopy.SineEvalModuli.Qi = make([]uint64, b.CtSDepth())
+	copy(paramsCopy.SineEvalModuli.Qi, b.SineEvalModuli.Qi)
+
+	paramsCopy.SineEvalModuli.ScalingFactor = b.SineEvalModuli.ScalingFactor
+
+	paramsCopy.SlotToCoeffsModuli.Qi = make([]uint64, b.StCDepth())
+	copy(paramsCopy.SlotToCoeffsModuli.Qi, b.SlotToCoeffsModuli.Qi)
+
+	paramsCopy.SlotToCoeffsModuli.ScalingFactor = make([]float64, b.StCDepth())
+	copy(paramsCopy.SlotToCoeffsModuli.ScalingFactor, b.SlotToCoeffsModuli.ScalingFactor)
+
+	return paramsCopy
+}
+
+type ResidualModuli []uint64
+type KeySwitchModuli []uint64
+
+type CoeffsToSlotsModuli struct{
+	Qi []uint64
+	ScalingFactor []float64
+}
+
+type SineEvalModuli struct{
+	Qi []uint64
+	ScalingFactor float64
+}
+
+type SlotToCoeffsModuli struct{
+	Qi []uint64
+	ScalingFactor []float64
+}
+
+// SineDepth returns the depth of the SineEval. If true, then also 
+// counts the double angle formula.
+func (b *BootstrappingParameters) SineEvalDepth(withRescale bool) uint64{
+	depth := uint64(math.Ceil(math.Log2(float64(b.SinDeg+1))))
+
+	if withRescale{
+		depth += b.SinRescal
+	}
+
+	return depth
+}
+
+// ArcSineDepth returns the depth of the arcsine polynomial.
+func (b *BootstrappingParameters) ArcSineDepth() uint64{
+	return uint64(math.Ceil(math.Log2(float64(b.ArcSineDeg+1))))
+} 
+
+
+// CtSDepth returns the number of levels allocated to CoeffsToSlots.
+func (b *BootstrappingParameters) CtSDepth() uint64 {
+	return uint64(len(b.CoeffsToSlotsModuli.Qi))
+}
+
+// StCDepth returns the number of levels allocated to SlotToCoeffs.
+func (b *BootstrappingParameters) StCDepth() uint64 {
+	return uint64(len(b.SlotToCoeffsModuli.Qi))
+}
+
+// DefaultBootstrapParams are default bootstrapping params for the bootstrapping.
 var DefaultBootstrapParams = []*BootstrappingParameters{
 
 	// SET II
 	// 1525 - 550
-	{
-		H:            96,
+	{	
+		LogN:     14,
+		LogSlots: 13,
+		Scale: 1 << 45,
+		Sigma: DefaultSigma,
+		ResidualModuli: []uint64{
+			0x4000000120001,  // 55 Q0
+			0x2000000a0001,    // 45
+			0x2000000e0001,    // 45
+			0x1fffffc20001,    // 45
+			0x200000440001,    // 45
+			0x200000500001,    // 45
+			0x200000620001,    // 45
+			0x1fffff980001,    // 45
+		},
+		KeySwitchModuli: []uint64{
+			0xfffffffff00001,  // 56
+			0xffffffffd80001,  // 56
+			0x1000000002a0001, // 56
+			0xffffffffd20001,  // 56
+			0x100000000480001, // 56
+		},
+		SlotToCoeffsModuli:SlotToCoeffsModuli{
+			Qi :[]uint64{
+				0x10004a0001, 
+				0x1000500001,
+				0x1000960001,
+			},
+			ScalingFactor: []float64{
+				0x10004a0001,
+				0x1000500001,
+				0x1000960001,
+			},
+		},
+		SineEvalModuli:SineEvalModuli{
+			Qi :[]uint64{
+				0x4000000f20001,  // 50 Arcsine 
+				0x40000010a0001,  // 50 Arcsine 
+				0x4000001260001,  // 50 Arcsine
+				0x3ffffffd20001,  // 50 Sine (double angle)
+				0x4000000420001,  // 50 Sine (double angle)
+				0x3ffffffb80001,  // 50 Sine
+				0x4000000660001,  // 50 Sine
+				0x40000007e0001,  // 50 Sine
+				0x4000000800001,  // 50 Sine
+				0x40000008a0001,  // 50 Sine
+				0x4000000de0001,  // 50 Sine
+			},
+			ScalingFactor: 1<<50,
+		},
+		CoeffsToSlotsModuli:CoeffsToSlotsModuli{
+			Qi :[]uint64{
+				0x200000000e0001,  // 53 CtS
+				0x20000000140001,  // 53 CtS
+				0x20000000280001,  // 53 CtS
+				0x1fffffffd80001,  // 53 CtS
+			},
+			ScalingFactor: []float64{
+				0x200000000e0001,
+				0x20000000140001, 
+				0x20000000280001, 
+				0x1fffffffd80001,
+			},
+		},
+		H:            192,
 		SinType:      Cos1,
-		SinRange:     21,
-		SinDeg:       52,
+		MessageRatio: 4.0,
+		SinRange:     25,
+		SinDeg:       63,
 		SinRescal:    2,
-		CtSLevel:     []uint64{27, 26, 25, 24},
-		StCLevel:     []uint64{12, 11, 11},
+		ArcSineDeg:   7,
 		MaxN1N2Ratio: 16.0,
 	},
 
+	/*
 	// SET V
 	// 1553 - 505
 	{
 		H:            192,
 		SinType:      Cos1,
-		SinRange:     21,
-		SinDeg:       52,
+		MessageRatio:        1024.0,
+		SinRange:     25,
+		SinDeg:       63,
 		SinRescal:    2,
+		ArcSineDeg:   0,
 		CtSLevel:     []uint64{21, 20, 19, 18},
 		StCLevel:     []uint64{9, 9, 8},
 		MaxN1N2Ratio: 16.0,
@@ -241,9 +397,11 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	{
 		H:            32768,
 		SinType:      Cos2,
-		SinRange:     257,
-		SinDeg:       250,
-		SinRescal:    3,
+		MessageRatio:        1024.0,
+		SinRange:     325,
+		SinDeg:       255,
+		SinRescal:    4,
+		ArcSineDeg:   0,
 		CtSLevel:     []uint64{26, 25, 24, 23},
 		StCLevel:     []uint64{11, 10, 10},
 		MaxN1N2Ratio: 16.0,
@@ -254,11 +412,14 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	{
 		H:            192,
 		SinType:      Cos1,
-		SinRange:     21,
-		SinDeg:       52,
+		MessageRatio:        1024.0,
+		SinRange:     25,
+		SinDeg:       63,
 		SinRescal:    2,
+		ArcSineDeg:   0,
 		CtSLevel:     []uint64{13, 12},
 		StCLevel:     []uint64{3, 3},
 		MaxN1N2Ratio: 16.0,
 	},
+	*/
 }

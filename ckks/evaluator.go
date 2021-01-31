@@ -59,8 +59,8 @@ type Evaluator interface {
 	PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext)
 	Power(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey, res *Ciphertext)
 	InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluatePoly(ct *Ciphertext, coeffs *Poly, evakey *EvaluationKey) (res *Ciphertext, err error)
-	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error)
+	EvaluatePoly(ct *Ciphertext, coeffs *Poly, targetScale float64, evakey *EvaluationKey) (res *Ciphertext, err error)
+	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, targetScale float64, evakey *EvaluationKey) (res *Ciphertext, err error)
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.

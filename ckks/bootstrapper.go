@@ -90,14 +90,18 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 	fmt.Println(btp.CtSDepth())
 	fmt.Println(btp.StCDepth())
 
-	btp.ctsLevel = make([]uint64, btp.CtSDepth())
-	for i := range btp.ctsLevel {
-		btp.ctsLevel[i] = btp.params.MaxLevel() - uint64(i)
+	btp.ctsLevel = []uint64{}
+	for i := range btp.CoeffsToSlotsModuli.Qi {
+		for _ = range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth()-1-uint64(i)]{
+			btp.ctsLevel = append(btp.ctsLevel, btp.params.MaxLevel() - uint64(i))
+		}
 	}
 
-	btp.stcLevel = make([]uint64, btp.StCDepth())
-	for i := range btp.stcLevel {
-		btp.stcLevel[i] = btp.params.MaxLevel() - btp.CtSDepth() - btp.SineEvalDepth(true) - btp.ArcSineDepth() - uint64(i)
+	btp.stcLevel = []uint64{}
+	for i := range btp.SlotsToCoeffsModuli.Qi {
+		for _ = range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth()-1-uint64(i)]{
+			btp.stcLevel = append(btp.stcLevel, btp.params.MaxLevel() - btp.CtSDepth() - btp.SineEvalDepth(true) - btp.ArcSineDepth() - uint64(i))
+		}
 	}
 
 	fmt.Println(btp.ctsLevel)
@@ -419,15 +423,23 @@ func (btp *Bootstrapper) computePlaintextVectors() {
 	// CoeffsToSlots vectors
 	btp.pDFTInv = make([]*PtDiagMatrix, len(ctsLevel))
 	pVecDFTInv := btp.computeDFTMatrices(roots, pow5, btp.coeffsToSlotsDiffScale, true)
-	for i, lvl := range ctsLevel {
-		btp.pDFTInv[i] = btp.encoder.EncodeDiagMatrixAtLvl(lvl, pVecDFTInv[i], btp.CoeffsToSlotsModuli.ScalingFactor[i], btp.MaxN1N2Ratio, btp.logdslots)
+	cnt := 0
+	for i := range btp.CoeffsToSlotsModuli.ScalingFactor{
+		for j := range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth() - uint64(i) - 1] {
+			btp.pDFTInv[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(ctsLevel[cnt], pVecDFTInv[cnt], btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth() - uint64(i) - 1][j], btp.MaxN1N2Ratio, btp.logdslots)
+			cnt++
+		}
 	}
 
 	// SlotsToCoeffs vectors
 	btp.pDFT = make([]*PtDiagMatrix, len(stcLevel))
 	pVecDFT := btp.computeDFTMatrices(roots, pow5, btp.slotsToCoeffsDiffScale, false)
-	for i, lvl := range stcLevel {
-		btp.pDFT[i] = btp.encoder.EncodeDiagMatrixAtLvl(lvl, pVecDFT[i], btp.SlotsToCoeffsModuli.ScalingFactor[i], btp.MaxN1N2Ratio, btp.logdslots)
+	cnt = 0
+	for i := range btp.SlotsToCoeffsModuli.ScalingFactor{
+		for j := range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth() - uint64(i) - 1] {
+			btp.pDFT[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(stcLevel[cnt], pVecDFT[cnt], btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth() - uint64(i) - 1][j], btp.MaxN1N2Ratio, btp.logdslots)
+			cnt++
+		}
 	}
 }
 
@@ -442,10 +454,10 @@ func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, d
 	var maxDepth uint64
 
 	if forward {
-		maxDepth = btp.CtSDepth()
+		maxDepth = uint64(len(btp.ctsLevel))
 		a, b, c = fftInvPlainVec(btp.params.logSlots, btp.dslots, roots, pow5)
 	} else {
-		maxDepth = btp.StCDepth()
+		maxDepth = uint64(len(btp.stcLevel))
 		a, b, c = fftPlainVec(btp.params.logSlots, btp.dslots, roots, pow5)
 	}
 

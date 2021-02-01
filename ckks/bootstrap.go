@@ -147,6 +147,7 @@ func (btp *Bootstrapper) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Ciphertext) {
 	// The imaginary part is stored in ct1
 	ct1 = eval.SubNew(zV, zVconj)
 
+	// Switches imaginary and real and negates
 	eval.DivByi(ct1, ct1)
 
 	// If repacking, then ct0 and ct1 right n/2 slots are zero.
@@ -179,7 +180,7 @@ func (btp *Bootstrapper) slotsToCoeffs(ct0, ct1 *Ciphertext) (ct *Ciphertext) {
 func (btp *Bootstrapper) dft(vec *Ciphertext, plainVectors []*PtDiagMatrix, forward bool) *Ciphertext {
 
 	eval := btp.evaluator.(*evaluator)
-	// Sequencially multiplies w with the provided dft matrices.
+	// Sequencially multiplies vec with the provided dft matrices.
 	for _, plainVector := range plainVectors {
 		vec = eval.LinearTransform(vec, plainVector, btp.rotkeys)[0]
 		eval.Rescale(vec, eval.scale, vec)
@@ -224,10 +225,14 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 
 	targetScale := btp.sinescale
 
+	// Compute the scales that the ciphertext should have before the double angle
+	// formula such that after it it has the scale it had before the polynomial 
+	// evaluation
 	for i := uint64(0); i < btp.SinRescal; i++ {
 		targetScale = math.Sqrt(targetScale * float64(btp.SineEvalModuli.Qi[i]))
 	}
 
+	// If arcsine is evaluated, then the multiplication by 1/2pi is merged with it
 	var sqrt2pi float64
 	if btp.ArcSineDeg > 0 {
 		sqrt2pi = math.Pow(1, 1.0/float64(int(1<<btp.SinRescal)))
@@ -235,13 +240,16 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 		sqrt2pi = math.Pow(0.15915494309189535, 1.0/float64(int(1<<btp.SinRescal)))
 	}
 
+	// Division by 1/2^r and change of variable for the Chebysehev evaluation
 	if btp.SinType == Cos1 || btp.SinType == Cos2 {
 		scfac := complex(float64(int(1<<btp.SinRescal)), 0)
 		eval.AddConst(ct, -0.5/(scfac*(cheby.b-cheby.a)), ct)
 	}
 
+	// Chebyshev evaluation
 	ct, _ = eval.EvaluateCheby(ct, cheby, targetScale, btp.relinkey)
 
+	// Double angle
 	for i := uint64(0); i < btp.SinRescal; i++ {
 		sqrt2pi *= sqrt2pi
 		eval.MulRelin(ct, ct, btp.relinkey, ct)
@@ -252,11 +260,10 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 		}
 	}
 
+	// ArcSine
 	if btp.ArcSineDeg > 0 {
 		poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1.0 / 6.0 * 0.15915494309189535, 0, 3.0 / 40.0 * 0.15915494309189535, 0, 5.0 / 112.0 * 0.15915494309189535}[:btp.ArcSineDeg+1])
 		ct, _ = eval.EvaluatePoly(ct, poly, ct.Scale(), btp.relinkey)
-	} else {
-		eval.DropLevel(ct, 3)
 	}
 
 	return ct

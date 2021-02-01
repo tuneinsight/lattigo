@@ -215,8 +215,9 @@ func (btp *Bootstrapper) genDFTMatrices() {
 		} else {
 			btp.addMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
 		}
-
 	}
+
+	fmt.Println(btp.rotKeyIndex)
 }
 
 func (btp *Bootstrapper) genSinePoly() {

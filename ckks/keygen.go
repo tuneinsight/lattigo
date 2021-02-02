@@ -374,8 +374,11 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 		rotkeys:  NewRotationKeySet(keygen.params),
 	}
 
-	rotKeyIndex := computeBootstrappingDFTRotationList(keygen.params.logN, logSlots, btpParams)
-
+	rotUint := computeBootstrappingDFTRotationList(keygen.params.logN, logSlots, btpParams)
+	rotInt := make([]int, len(rotUint), len(rotUint))
+	for r, i := range rotUint {
+		rotInt[i] = r
+	}
 	/*
 		nbKeys := uint64(len(rotKeyIndex)) + 2 //rot keys + conj key + relin key
 		nbPoly := keygen.params.Beta()
@@ -384,11 +387,7 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 		log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
 	*/
 
-	galEls := []uint64{keygen.params.GaloisElementForRowRotation()}
-	for _, i := range rotKeyIndex {
-		galEls = append(galEls, keygen.params.GaloisElementForColumnRotationBy(int(i)))
-	}
-	btpKey.rotkeys = keygen.GenRotationKeys(galEls, sk)
+	btpKey.rotkeys = keygen.GenRotationKeysForRotations(rotInt, true, sk)
 	return
 }
 

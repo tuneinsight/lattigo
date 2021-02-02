@@ -18,7 +18,7 @@ type KeyGenerator interface {
 	GenKeyPair() (sk *SecretKey, pk *PublicKey)
 	GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey)
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
-	GenRelinKey(sk *SecretKey) (evakey *EvaluationKey)
+	GenRelinearizationKey(sk *SecretKey) (evakey *EvaluationKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
 	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet)
@@ -142,7 +142,7 @@ func (keygen *keyGenerator) GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *Publ
 }
 
 // GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
-func (keygen *keyGenerator) GenRelinKey(sk *SecretKey) (evakey *EvaluationKey) {
+func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey) (evakey *EvaluationKey) {
 
 	if len(keygen.params.pi) == 0 {
 		panic("Cannot GenRelinKey: modulus P is empty")
@@ -369,16 +369,17 @@ func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey) (rks *Rota
 // GenKeys generates the bootstrapping keys
 func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey) {
 
-	btpKey = &BootstrappingKey{
-		relinkey: keygen.GenRelinKey(sk),
-		rotkeys:  NewRotationKeySet(keygen.params),
-	}
-
 	rotUint := computeBootstrappingDFTRotationList(keygen.params.logN, logSlots, btpParams)
 	rotInt := make([]int, len(rotUint), len(rotUint))
 	for r, i := range rotUint {
 		rotInt[i] = r
 	}
+
+	btpKey = &BootstrappingKey{
+		relinkey: keygen.GenRelinearizationKey(sk),
+		rotkeys:  keygen.GenRotationKeysForRotations(rotInt, true, sk),
+	}
+
 	/*
 		nbKeys := uint64(len(rotKeyIndex)) + 2 //rot keys + conj key + relin key
 		nbPoly := keygen.params.Beta()
@@ -387,7 +388,6 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 		log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
 	*/
 
-	btpKey.rotkeys = keygen.GenRotationKeysForRotations(rotInt, true, sk)
 	return
 }
 

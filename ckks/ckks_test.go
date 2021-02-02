@@ -117,7 +117,7 @@ func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams
 			return nil, err
 		}
 
-		testContext.rlk = testContext.kgen.GenRelinKey(testContext.sk)
+		testContext.rlk = testContext.kgen.GenRelinearizationKey(testContext.sk)
 	}
 
 	if testContext.prng, err = utils.NewPRNG(); err != nil {
@@ -1104,7 +1104,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			t.Skip("#Pi is empty")
 		}
 
-		evalKey := testContext.kgen.GenRelinKey(testContext.sk)
+		evalKey := testContext.kgen.GenRelinearizationKey(testContext.sk)
 		data, err := evalKey.MarshalBinary()
 		require.NoError(t, err)
 

@@ -14,7 +14,7 @@ type KeyGenerator interface {
 	GenPublicKey(sk *SecretKey) (pk *PublicKey)
 	GenKeyPair() (sk *SecretKey, pk *PublicKey)
 	GenSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey)
-	GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *RelinearizationKey)
+	GenRelinearizationKey(sk *SecretKey, maxDegree uint64) (evk *RelinearizationKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
 	GenRotationKeysForRotations(ks []int, includeSwapRow bool, sk *SecretKey) (rks *RotationKeySet)
@@ -151,10 +151,10 @@ func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 
 // NewRelinKey generates a new evaluation key from the provided SecretKey. It will be used to relinearize a ciphertext (encrypted under a PublicKey generated from the provided SecretKey)
 // of degree > 1 to a ciphertext of degree 1. Max degree is the maximum degree of the ciphertext allowed to relinearize.
-func (keygen *keyGenerator) GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *RelinearizationKey) {
+func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree uint64) (evk *RelinearizationKey) {
 
 	if keygen.ringQP == nil {
-		panic("Cannot GenRelinKey: modulus P is empty")
+		panic("modulus P is empty")
 	}
 
 	evk = new(RelinearizationKey)
@@ -183,7 +183,7 @@ func (keygen *keyGenerator) GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *R
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swkOut *SwitchingKey) {
 
 	if keygen.ringQP == nil {
-		panic("Cannot GenRelinKey: modulus P is empty")
+		panic("modulus P is empty")
 	}
 
 	swkOut = NewSwitchingKey(keygen.params)

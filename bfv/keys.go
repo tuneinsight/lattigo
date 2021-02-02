@@ -43,19 +43,9 @@ func (rtk RotationKeySet) Delete() {
 	}
 }
 
-// SetRotKeyGalEl copies the given switching key in the set
-func (rotKeys *RotationKeySet) SetRotKeyGalEl(galoisEl uint64, swk *SwitchingKey) {
-	rotKey, inSet := rotKeys.keys[galoisEl]
-	if !inSet {
-		rotKey = new(SwitchingKey)
-		rotKeys.keys[galoisEl] = rotKey
-	}
-	if rotKey != swk {
-		rotKey.Copy(swk)
-	}
-}
-
-func (rotKeys *RotationKeySet) GetRotKey(galoisEl uint64) (*SwitchingKey, bool) {
+// GetRotationKey return the rotation key for the given galois element or nil if such key is not in the set. The
+// second argument is true  iff the first one is non-nil.
+func (rotKeys *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool) {
 	rotKey, inSet := rotKeys.keys[galoisEl]
 	return rotKey, inSet
 }

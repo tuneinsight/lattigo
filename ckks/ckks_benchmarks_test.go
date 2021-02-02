@@ -148,12 +148,10 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 	receiver := NewCiphertextRandom(testContext.prng, testContext.params, 2, testContext.params.MaxLevel(), testContext.params.Scale())
 
 	var rlk *EvaluationKey
-	var rotkey *RotationKeys
+	var rotkey *RotationKeySet
 	if testContext.params.PiCount() != 0 {
 		rlk = testContext.kgen.GenRelinKey(testContext.sk)
-		rotkey = NewRotationKeys(testContext.params)
-		GenSwitchingKeyForConjugate(testContext.kgen, testContext.sk, rotkey)
-		GenSwitchingKeysForRotations([]int{1}, testContext.kgen, testContext.sk, rotkey)
+		rotkey = testContext.kgen.GenRotationKeysForRotations([]int{1}, true, testContext.sk)
 	}
 
 	b.Run(testString(testContext, "Evaluator/Add/"), func(b *testing.B) {
@@ -278,8 +276,7 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 
 		evaluator := testContext.evaluator.(*evaluator)
 
-		rotkey := NewRotationKeys(testContext.params)
-		GenSwitchingKeysForRotations([]int{5}, testContext.kgen, testContext.sk, rotkey)
+		rotkey := testContext.kgen.GenRotationKeysForRotations([]int{5}, false, testContext.sk)
 
 		ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 

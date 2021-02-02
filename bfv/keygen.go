@@ -16,8 +16,9 @@ type KeyGenerator interface {
 	GenSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey)
 	GenRelinKey(sk *SecretKey, maxDegree uint64) (evk *RelinearizationKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
-	GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey)
-	GenSwitchingKeyForRowSwap(sk *SecretKey) (swk *SwitchingKey)
+	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
+	GenRotationKeysForRotations(ks []int, includeSwapRow bool, sk *SecretKey) (rks *RotationKeySet)
+	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
 }
 
 // keyGenerator is a structure that stores the elements required to create new keys,
@@ -215,17 +216,38 @@ func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *Secret
 	return
 }
 
-func (keygen *keyGenerator) GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey) {
-	swk = NewSwitchingKey(keygen.params)
-	galElInv := keygen.params.GaloisElementForColumnRotationBy(-int(k))
-	keygen.genrotKey(sk.sk, galElInv, swk)
-	return
+// GenRotationKeys generates a RotationKeySet from a list of galois element corresponding to the desired rotations
+// See also GenRotationKeysForRotations.
+func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet) {
+	rks = NewRotationKeySet(keygen.params)
+	for _, galEl := range galEls {
+		rks.keys[galEl] = keygen.GenSwitchingKeyForGalois(galEl, sk)
+	}
+	return rks
 }
 
-func (keygen *keyGenerator) GenSwitchingKeyForRowSwap(sk *SecretKey) (swk *SwitchingKey) {
-	swk = NewSwitchingKey(keygen.params)
-	keygen.genrotKey(sk.sk, keygen.params.GaloisElementForRowRotation(), swk)
-	return
+// GenRotationKeysForRotations generates a RotationKeySet supporting left rotations by k positions for all k in ks.
+// Negative k is equivalent to a right rotation by k positions
+// If includeConjugate is true, the resulting set contains the conjugation key.
+func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet) {
+	galEls := make([]uint64, len(ks), len(ks)+1)
+	for i, k := range ks {
+		galEls[i] = keygen.params.GaloisElementForColumnRotationBy(k)
+	}
+	if includeConjugate {
+		galEls = append(galEls, keygen.params.GaloisElementForRowRotation())
+	}
+	return keygen.GenRotationKeys(galEls, sk)
+}
+
+// GenRotationKeysForInnerSum generates a RotationKeySet supporting the InnerSum operation of the Evaluator
+func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet) {
+	galEls := make([]uint64, keygen.params.logN+1, keygen.params.logN+1)
+	galEls[0] = keygen.params.GaloisElementForRowRotation()
+	for i := 0; i < int(keygen.params.logN)-1; i++ {
+		galEls[i+1] = keygen.params.GaloisElementForColumnRotationBy(1 << i)
+	}
+	return keygen.GenRotationKeys(galEls, sk)
 }
 
 func (keygen *keyGenerator) genrotKey(sk *ring.Poly, gen uint64, swkOut *SwitchingKey) {
@@ -292,32 +314,4 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *Swit
 	}
 
 	return
-}
-
-func GenSwitchingKeysForGaloisElements(galEls []uint64, kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
-	for _, galEl := range galEls {
-		rks.keys[galEl] = kg.GenSwitchingKeyForGalois(galEl, sk)
-	}
-}
-
-func GenSwitchingKeysForRotations(ks []int, kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
-	galEls := make([]uint64, len(ks), len(ks))
-	for i, k := range ks {
-		galEls[i] = rks.params.GaloisElementForColumnRotationBy(k)
-	}
-	GenSwitchingKeysForGaloisElements(galEls, kg, sk, rks)
-}
-
-func GenSwitchingKeyForRowSwap(kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
-	galEl := rks.params.GaloisElementForRowRotation()
-	rks.keys[galEl] = kg.GenSwitchingKeyForGalois(galEl, sk)
-}
-
-func GenSwitchingKeysForInnerSum(kg KeyGenerator, sk *SecretKey, rks *RotationKeySet) {
-	galEls := make([]uint64, rks.params.logN, rks.params.logN)
-	galEls[0] = rks.params.GaloisElementForRowRotation()
-	for i := 1; i < int(rks.params.logN)-1; i++ {
-		galEls[i] = rks.params.GaloisElementForColumnRotationBy(1 << i)
-	}
-	GenSwitchingKeysForGaloisElements(galEls, kg, sk, rks)
 }

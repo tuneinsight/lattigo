@@ -298,7 +298,7 @@ func (switchkey *SwitchingKey) decode(data []byte) (pointer uint64, err error) {
 }
 
 // GetDataLen returns the length in bytes of the target RotationKeys.
-func (rotationkey *RotationKeys) GetDataLen(WithMetaData bool) (dataLen uint64) {
+func (rotationkey *RotationKeySet) GetDataLen(WithMetaData bool) (dataLen uint64) {
 	for _, key := range rotationkey.keys {
 		if WithMetaData {
 			dataLen += 4
@@ -309,7 +309,7 @@ func (rotationkey *RotationKeys) GetDataLen(WithMetaData bool) (dataLen uint64) 
 }
 
 // MarshalBinary encodes a RotationKeys struct in a byte slice.
-func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
+func (rotationkey *RotationKeySet) MarshalBinary() (data []byte, err error) {
 
 	data = make([]byte, rotationkey.GetDataLen(true))
 
@@ -329,13 +329,13 @@ func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decodes a previously marshaled RotationKeys in the target RotationKeys.
-func (rotationkey *RotationKeys) UnmarshalBinary(data []byte) (err error) {
+func (rotationkey *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
 
 	if rotationkey.keys == nil {
 		rotationkey.keys = make(map[uint64]*SwitchingKey)
 		rotationkey.permuteNTTIndex = make(map[uint64][]uint64)
 	} else {
-		rotationkey.Delete()
+		rotationkey.delete()
 	}
 
 	for len(data) > 0 {

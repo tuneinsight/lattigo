@@ -20,8 +20,9 @@ type KeyGenerator interface {
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
 	GenRelinKey(sk *SecretKey) (evakey *EvaluationKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
-	GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey)
-	GenSwitchingKeyForConjugate(sk *SecretKey) (swk *SwitchingKey)
+	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
+	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet)
+	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
 	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey)
 }
 
@@ -330,12 +331,47 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *Switchi
 	return
 }
 
+// GenRotationKeys generates a RotationKeySet from a list of galois element corresponding to the desired rotations
+// See also GenRotationKeysForRotations.
+func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet) {
+	rks = NewRotationKeySet(keygen.params)
+	for _, galEl := range galEls {
+		rks.keys[galEl] = keygen.GenSwitchingKeyForGalois(galEl, sk)
+		rks.permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, keygen.params.N())
+	}
+	return rks
+}
+
+// GenRotationKeysForRotations generates a RotationKeySet supporting left rotations by k positions for all k in ks.
+// Negative k is equivalent to a right rotation by k positions
+// If includeConjugate is true, the resulting set contains the conjugation key.
+func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet) {
+	galEls := make([]uint64, len(ks), len(ks)+1)
+	for i, k := range ks {
+		galEls[i] = keygen.params.GaloisElementForColumnRotationBy(k)
+	}
+	if includeConjugate {
+		galEls = append(galEls, keygen.params.GaloisElementForRowRotation())
+	}
+	return keygen.GenRotationKeys(galEls, sk)
+}
+
+// GenRotationKeysForInnerSum generates a RotationKeySet supporting the InnerSum operation of the Evaluator
+func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet) {
+	galEls := make([]uint64, keygen.params.logN+1, keygen.params.logN+1)
+	galEls[0] = keygen.params.GaloisElementForRowRotation()
+	for i := 0; i < int(keygen.params.logN)-1; i++ {
+		galEls[i+1] = keygen.params.GaloisElementForColumnRotationBy(1 << i)
+	}
+	return keygen.GenRotationKeys(galEls, sk)
+}
+
 // GenKeys generates the bootstrapping keys
 func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey) {
 
 	btpKey = &BootstrappingKey{
 		relinkey: keygen.GenRelinKey(sk),
-		rotkeys:  NewRotationKeys(keygen.params),
+		rotkeys:  NewRotationKeySet(keygen.params),
 	}
 
 	rotKeyIndex := computeBootstrappingDFTRotationList(keygen.params.logN, logSlots, btpParams)
@@ -352,7 +388,7 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 	for _, i := range rotKeyIndex {
 		galEls = append(galEls, keygen.params.GaloisElementForColumnRotationBy(int(i)))
 	}
-	GenSwitchingKeysForGaloisElements(galEls, keygen, sk, btpKey.rotkeys)
+	btpKey.rotkeys = keygen.GenRotationKeys(galEls, sk)
 	return
 }
 
@@ -584,34 +620,4 @@ func nextLevelfftIndexMap(vec map[uint64]bool, logL, N, nextLevel uint64, forwar
 	}
 
 	return
-}
-
-func GenSwitchingKeysForGaloisElements(galEls []uint64, kg KeyGenerator, sk *SecretKey, rks *RotationKeys) {
-	for _, galEl := range galEls {
-		rks.keys[galEl] = kg.GenSwitchingKeyForGalois(galEl, sk)
-		rks.permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, rks.params.N())
-	}
-}
-
-func GenSwitchingKeysForRotations(ks []int, kg KeyGenerator, sk *SecretKey, rks *RotationKeys) {
-	galEls := make([]uint64, len(ks), len(ks))
-	for i, k := range ks {
-		galEls[i] = rks.params.GaloisElementForColumnRotationBy(k)
-	}
-	GenSwitchingKeysForGaloisElements(galEls, kg, sk, rks)
-}
-
-func GenSwitchingKeyForConjugate(kg KeyGenerator, sk *SecretKey, rks *RotationKeys) {
-	galEl := rks.params.GaloisElementForRowRotation()
-	rks.keys[galEl] = kg.GenSwitchingKeyForGalois(galEl, sk)
-	rks.permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, rks.params.N())
-}
-
-func GenSwitchingKeysForInnerSum(kg KeyGenerator, sk *SecretKey, rks *RotationKeys) {
-	galEls := make([]uint64, rks.params.logN, rks.params.logN)
-	galEls[0] = rks.params.GaloisElementForRowRotation()
-	for i := 1; i < int(rks.params.logN)-1; i++ {
-		galEls[i] = rks.params.GaloisElementForColumnRotationBy(1 << i)
-	}
-	GenSwitchingKeysForGaloisElements(galEls, kg, sk, rks)
 }

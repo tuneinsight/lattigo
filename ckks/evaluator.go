@@ -51,11 +51,11 @@ type Evaluator interface {
 	Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext)
 	SwitchKeysNew(ct0 *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
 	SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
-	RotateNew(ct0 *Ciphertext, k int, evakey *RotationKeys) (ctOut *Ciphertext)
-	Rotate(ct0 *Ciphertext, k int, evakey *RotationKeys, ctOut *Ciphertext)
-	RotateHoisted(ctIn *Ciphertext, rotations []int, rotkeys *RotationKeys) (cOut map[int]*Ciphertext)
-	ConjugateNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext)
-	Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext)
+	RotateNew(ct0 *Ciphertext, k int, evakey *RotationKeySet) (ctOut *Ciphertext)
+	Rotate(ct0 *Ciphertext, k int, evakey *RotationKeySet, ctOut *Ciphertext)
+	RotateHoisted(ctIn *Ciphertext, rotations []int, rotkeys *RotationKeySet) (cOut map[int]*Ciphertext)
+	ConjugateNew(ct0 *Ciphertext, evakey *RotationKeySet) (ctOut *Ciphertext)
+	Conjugate(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext)
 	PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *EvaluationKey, elOut *Ciphertext)
 	PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext)
 	Power(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey, res *Ciphertext)
@@ -1382,7 +1382,7 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, c
 
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
-func (eval *evaluator) RotateNew(ct0 *Ciphertext, k int, evakey *RotationKeys) (ctOut *Ciphertext) {
+func (eval *evaluator) RotateNew(ct0 *Ciphertext, k int, evakey *RotationKeySet) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	eval.Rotate(ct0, k, evakey, ctOut)
 	return
@@ -1390,7 +1390,7 @@ func (eval *evaluator) RotateNew(ct0 *Ciphertext, k int, evakey *RotationKeys) (
 
 // Rotate rotates the columns of ct0 by k positions to the left and returns the result in ctOut.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
-func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, rtks *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, rtks *RotationKeySet, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot Rotate: input and output Ciphertext must be of degree 1")
@@ -1411,7 +1411,7 @@ func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, rtks *RotationKeys, ctOut 
 // ConjugateNew conjugates ct0 (which is equivalent to a row rotation) and returns the result in a newly
 // created element. If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key
 // for the row rotation needs to be provided.
-func (eval *evaluator) ConjugateNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext) {
+func (eval *evaluator) ConjugateNew(ct0 *Ciphertext, evakey *RotationKeySet) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	eval.Conjugate(ct0, evakey, ctOut)
 	return
@@ -1419,14 +1419,14 @@ func (eval *evaluator) ConjugateNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOu
 
 // Conjugate conjugates ct0 (which is equivalent to a row rotation) and returns the result in ctOut.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the row rotation needs to be provided.
-func (eval *evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext) {
 
 	galEl := eval.params.GaloisElementForRowRotation()
 	ctOut.SetScale(ct0.Scale())
 	eval.permuteNTT(ct0, galEl, evakey, ctOut)
 }
 
-func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, rotKeys *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, rotKeys *RotationKeySet, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("input and output Ciphertext must be of degree 1")
@@ -1559,7 +1559,7 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 
 // RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
 // rotation by one element of the list. It is much faster than sequential calls to Rotate.
-func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []int, rotkeys *RotationKeys) (cOut map[int]*Ciphertext) {
+func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []int, rotkeys *RotationKeySet) (cOut map[int]*Ciphertext) {
 
 	// Pre-computation for rotations using hoisting
 	ringQ := eval.ringQ
@@ -1595,7 +1595,7 @@ func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []int, rotkeys *
 	return
 }
 
-func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, rotKeys *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, rotKeys *RotationKeySet, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("input and output Ciphertext must be of degree 1")

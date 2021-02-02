@@ -81,8 +81,7 @@ func TestCKKS(t *testing.T) {
 			testEvaluatePoly,
 			testChebyshevInterpolator,
 			testSwitchKeys,
-			testConjugate,
-			testRotateColumns,
+			testAutomorphisms,
 			testMarshaller,
 		} {
 			testSet(testContext, t)
@@ -950,52 +949,13 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 }
 
-func testConjugate(testContext *testParams, t *testing.T) {
-
-	if testContext.params.PiCount() == 0 {
-		t.Skip("#Pi is empty")
-	}
-
-	rotKey := NewRotationKeys(testContext.params)
-
-	t.Run(testString(testContext, "Conjugate/InPlace/"), func(t *testing.T) {
-
-		GenSwitchingKeyForConjugate(testContext.kgen, testContext.sk, rotKey)
-
-		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		for i := range values {
-			values[i] = complex(real(values[i]), -imag(values[i]))
-		}
-
-		testContext.evaluator.Conjugate(ciphertext, rotKey, ciphertext)
-
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
-	})
-
-	t.Run(testString(testContext, "Conjugate/New/"), func(t *testing.T) {
-
-		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		for i := range values {
-			values[i] = complex(real(values[i]), -imag(values[i]))
-		}
-
-		ciphertext = testContext.evaluator.ConjugateNew(ciphertext, rotKey)
-
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
-	})
-
-}
-
-func testRotateColumns(testContext *testParams, t *testing.T) {
+func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 	if testContext.params.PiCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 	rots := []int{1, -1, 4, -4, 63, -63}
-	rotKey := NewRotationKeys(testContext.params)
-	GenSwitchingKeysForRotations(rots, testContext.kgen, testContext.sk, rotKey)
+	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
 
 	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
 
@@ -1026,25 +986,43 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 
 	})
 
-	t.Run(testString(testContext, "RotateColumns/Hoisted/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Conjugate/InPlace/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
+		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		for i := range values {
+			values[i] = complex(real(values[i]), -imag(values[i]))
 		}
+
+		testContext.evaluator.Conjugate(ciphertext, rotKey, ciphertext)
+
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+	})
+
+	t.Run(testString(testContext, "Conjugate/New/"), func(t *testing.T) {
+
+		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		for i := range values {
+			values[i] = complex(real(values[i]), -imag(values[i]))
+		}
+
+		ciphertext = testContext.evaluator.ConjugateNew(ciphertext, rotKey)
+
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+	})
+
+	t.Run(testString(testContext, "RotateHoisted/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		values2 := make([]complex128, len(values1))
-		rotations := []int{0, 1, 2, 3, 4, 5}
-		GenSwitchingKeysForRotations(rotations, testContext.kgen, testContext.sk, rotKey)
 
-		ciphertexts := testContext.evaluator.RotateHoisted(ciphertext1, rotations, rotKey)
+		ciphertexts := testContext.evaluator.RotateHoisted(ciphertext1, rots, rotKey)
 
-		for _, n := range rotations {
+		for _, n := range rots {
 
-			for i := range values1 {
-				values2[i] = values1[(i+int(n))%len(values1)]
-			}
+			values2 = utils.RotateComplex128Slice(values1, n)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertexts[n], t)
 		}
@@ -1176,19 +1154,18 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			t.Skip("#Pi is empty")
 		}
 
-		rotationKey := NewRotationKeys(testContext.params)
 		rots := []int{1, -1, 63, -63}
 		galEls := []uint64{testContext.params.GaloisElementForRowRotation()}
 		for _, n := range rots {
 			galEls = append(galEls, testContext.params.GaloisElementForColumnRotationBy(n))
 		}
 
-		GenSwitchingKeysForGaloisElements(galEls, testContext.kgen, testContext.sk, rotationKey)
+		rotationKey := testContext.kgen.GenRotationKeys(galEls, testContext.sk)
 
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resRotationKey := new(RotationKeys)
+		resRotationKey := new(RotationKeySet)
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 

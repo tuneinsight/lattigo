@@ -674,7 +674,7 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, evakey *RotationKey
 
 		galElL := eval.params.GaloisElementForColumnRotationBy(k)
 		// Looks in the rotation key if the corresponding rotation has been generated or if the input is a plaintext
-		if swk, inSet := evakey.GetRotKey(galElL); inSet {
+		if swk, inSet := evakey.GetRotationKey(galElL); inSet {
 
 			eval.permute(ct0, galElL, swk, ctOut)
 
@@ -693,7 +693,7 @@ func (eval *evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeySet, ctOut
 
 	galEl := eval.params.GaloisElementForRowRotation()
 
-	if key, inSet := evakey.GetRotKey(galEl); inSet {
+	if key, inSet := evakey.GetRotationKey(galEl); inSet {
 		eval.permute(ct0, galEl, key, ctOut)
 	} else {
 		panic("cannot RotateRows: rotation key not generated")

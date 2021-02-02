@@ -520,10 +520,12 @@ func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
 	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
 }
 
+// GaloisElementForRowRotation returns the galois element corresponding to a row rotation (conjugate) automorphism
 func (p *Parameters) GaloisElementForRowRotation() uint64 {
 	return (1 << (p.logN + 1)) - 1
 }
 
+// InverseGaloisElement returns the galois element for the inverse automorphism of galEl
 func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
 	twoN := uint64(1 << (p.logN + 1))
 	return ring.ModExp(galEl, twoN-1, twoN)

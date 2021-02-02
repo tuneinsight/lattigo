@@ -22,17 +22,16 @@ type EvaluationKey struct {
 	evakey *SwitchingKey
 }
 
-// RotationKeys is a structure that stores the switching-keys required during the homomorphic rotations.
-type RotationKeys struct {
+// RotationKeySet is a structure that stores the switching-keys required during the homomorphic rotations.
+type RotationKeySet struct {
 	permuteNTTIndex map[uint64][]uint64
 	keys            map[uint64]*SwitchingKey
-	params          *Parameters
 }
 
 // BootstrappingKey is a structure that stores the switching-keys required during the bootstrapping.
 type BootstrappingKey struct {
-	relinkey *EvaluationKey // Relinearization key
-	rotkeys  *RotationKeys  // Rotation and conjugation keys
+	relinkey *EvaluationKey  // Relinearization key
+	rotkeys  *RotationKeySet // Rotation and conjugation keys
 }
 
 // NewSecretKey generates a new SecretKey with zero values.
@@ -113,6 +112,7 @@ func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
 	}
 }
 
+// Copy copies other into the receiver.
 func (swk *SwitchingKey) Copy(other *SwitchingKey) {
 	if other == nil {
 		return
@@ -130,99 +130,25 @@ func (swk *SwitchingKey) Copy(other *SwitchingKey) {
 	}
 }
 
-// NewRotationKeys returns a new empty RotationKeys struct.
-func NewRotationKeys(params *Parameters) (rotKey *RotationKeys) {
-	rotKey = new(RotationKeys)
+// NewRotationKeySet returns a new empty RotationKeys struct.
+func NewRotationKeySet(params *Parameters) (rotKey *RotationKeySet) {
+	rotKey = new(RotationKeySet)
 	rotKey.keys = make(map[uint64]*SwitchingKey, 0)
 	rotKey.permuteNTTIndex = make(map[uint64][]uint64)
-	rotKey.params = params.Copy()
 	return
 }
 
-// Delete empties the set of rotation keys
-func (rtk RotationKeys) Delete() {
-	for k := range rtk.keys {
-		delete(rtk.keys, k)
-	}
-}
-
-// SetRotKeyGalEl copies the given switching key in the set
-func (rotKeys *RotationKeys) SetRotKeyGalEl(galoisEl uint64, swk *SwitchingKey) {
-	rotKey, inSet := rotKeys.keys[galoisEl]
-	if !inSet {
-		rotKey = new(SwitchingKey)
-		rotKeys.keys[galoisEl] = rotKey
-	}
-	if rotKey != swk {
-		rotKey.Copy(swk)
-	}
-}
-
-func (rotKeys *RotationKeys) GetRotKey(galoisEl uint64) (*SwitchingKey, bool) {
-	rotKey, inSet := rotKeys.keys[galoisEl]
+// GetRotationKey return the rotation key for the given galois element or nil if such key is not in the set. The
+// second argument is true  iff the first one is non-nil.
+func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool) {
+	rotKey, inSet := rtks.keys[galoisEl]
 	return rotKey, inSet
 }
 
-// // SetRotKey sets the target RotationKeys' SwitchingKey for the specified rotation type and amount with the input polynomials.
-// func (rotKey *RotationKeys) SetRotKey(params *Parameters, evakey [][2]*ring.Poly, rotType Rotation, k uint64) {
-
-// 	switch rotType {
-// 	case RotationLeft:
-
-// 		if rotKey.evakeyRotColLeft == nil {
-// 			rotKey.evakeyRotColLeft = make(map[uint64]*SwitchingKey)
-// 		}
-
-// 		if rotKey.permuteNTTLeftIndex == nil {
-// 			rotKey.permuteNTTLeftIndex = make(map[uint64][]uint64)
-// 		}
-
-// 		if rotKey.evakeyRotColLeft[k] == nil && k != 0 {
-
-// 			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, params.N())
-
-// 			rotKey.evakeyRotColLeft[k] = new(SwitchingKey)
-// 			rotKey.evakeyRotColLeft[k].evakey = make([][2]*ring.Poly, len(evakey))
-// 			for j := range evakey {
-// 				rotKey.evakeyRotColLeft[k].evakey[j][0] = evakey[j][0].CopyNew()
-// 				rotKey.evakeyRotColLeft[k].evakey[j][1] = evakey[j][1].CopyNew()
-// 			}
-// 		}
-
-// 	case RotationRight:
-
-// 		if rotKey.evakeyRotColRight == nil {
-// 			rotKey.evakeyRotColRight = make(map[uint64]*SwitchingKey)
-// 		}
-
-// 		if rotKey.permuteNTTRightIndex == nil {
-// 			rotKey.permuteNTTRightIndex = make(map[uint64][]uint64)
-// 		}
-
-// 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
-
-// 			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, 2*params.N()-1-k, params.N())
-
-// 			rotKey.evakeyRotColRight[k] = new(SwitchingKey)
-// 			rotKey.evakeyRotColRight[k].evakey = make([][2]*ring.Poly, len(evakey))
-// 			for j := range evakey {
-// 				rotKey.evakeyRotColRight[k].evakey[j][0] = evakey[j][0].CopyNew()
-// 				rotKey.evakeyRotColRight[k].evakey[j][1] = evakey[j][1].CopyNew()
-// 			}
-// 		}
-
-// 	case Conjugate:
-
-// 		if rotKey.evakeyConjugate == nil {
-
-// 			rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(2*params.N()-1, 1, params.N())
-
-// 			rotKey.evakeyConjugate = new(SwitchingKey)
-// 			rotKey.evakeyConjugate.evakey = make([][2]*ring.Poly, len(evakey))
-// 			for j := range evakey {
-// 				rotKey.evakeyConjugate.evakey[j][0] = evakey[j][0].CopyNew()
-// 				rotKey.evakeyConjugate.evakey[j][1] = evakey[j][1].CopyNew()
-// 			}
-// 		}
-// 	}
-// }
+// delete empties the set of rotation keys
+func (rtks RotationKeySet) delete() {
+	for k := range rtks.keys {
+		delete(rtks.keys, k)
+		delete(rtks.permuteNTTIndex, k)
+	}
+}

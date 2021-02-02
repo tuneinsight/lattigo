@@ -397,7 +397,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 
 // RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
 // rotation by one element of the list. It is much faster than sequential calls to RotateColumns.
-func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOutQ, cOutP map[uint64][2]*ring.Poly) {
+func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint64, rotkeys *RotationKeySet) (cOutQ, cOutP map[uint64][2]*ring.Poly) {
 
 	// Pre-computation for rotations using hoisting
 	ringQ := eval.ringQ
@@ -442,7 +442,7 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint6
 	return
 }
 
-func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k uint64, rotKeys *RotationKeys, ctOutQ, ctOutP [2]*ring.Poly) {
+func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k uint64, rotKeys *RotationKeySet, ctOutQ, ctOutP [2]*ring.Poly) {
 
 	pool2Q := eval.poolQ[0]
 	pool3Q := eval.poolQ[1]

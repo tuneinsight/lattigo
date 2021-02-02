@@ -622,25 +622,22 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 		t.Skip("#Pi is empty")
 	}
 
-	rotkey := NewRotationKeySet(testctx.params)
-	GenSwitchingKeyForRowSwap(testctx.kgen, testctx.sk, rotkey)
+	rots := []int{1, -1, 4, -4, 63, -63}
+	rotkey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
 
-	t.Run(testString("Evaluator/Rotate/Rows/InPlace/", testctx.params), func(t *testing.T) {
+	t.Run(testString("Evaluator/RotateRows/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 		testctx.evaluator.RotateRows(ciphertext, rotkey, ciphertext)
 		values.Coeffs[0] = append(values.Coeffs[0][testctx.params.N()>>1:], values.Coeffs[0][:testctx.params.N()>>1]...)
 		verifyTestVectors(testctx, testctx.decryptor, values, ciphertext, t)
 	})
 
-	t.Run(testString("Evaluator/Rotate/Rows/New/", testctx.params), func(t *testing.T) {
+	t.Run(testString("Evaluator/RotateRowsNew/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 		ciphertext = testctx.evaluator.RotateRowsNew(ciphertext, rotkey)
 		values.Coeffs[0] = append(values.Coeffs[0][testctx.params.N()>>1:], values.Coeffs[0][:testctx.params.N()>>1]...)
 		verifyTestVectors(testctx, testctx.decryptor, values, ciphertext, t)
 	})
-
-	rots := []int{1, -1, 4, -4, 63, -63}
-	GenSwitchingKeysForRotations(rots, testctx.kgen, testctx.sk, rotkey)
 
 	t.Run(testString("Evaluator/RotateColumns", testctx.params), func(t *testing.T) {
 
@@ -669,7 +666,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 		}
 	})
 
-	GenSwitchingKeysForInnerSum(testctx.kgen, testctx.sk, rotkey)
+	rotkey = testctx.kgen.GenRotationKeysForInnerSum(testctx.sk)
 
 	t.Run(testString("Evaluator/Rotate/InnerSum/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
@@ -841,10 +838,9 @@ func testMarshalRotKey(testctx *testContext, t *testing.T) {
 			t.Skip("#Pi is empty")
 		}
 
-		tv := []int{1, 2, -3, -5}
+		rots := []int{1, 2, -3, -5}
 
-		rotationKey := NewRotationKeySet(testctx.params)
-		GenSwitchingKeysForRotations(tv, testctx.kgen, testctx.sk, rotationKey)
+		rotationKey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
 
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
@@ -853,7 +849,7 @@ func testMarshalRotKey(testctx *testContext, t *testing.T) {
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		for _, r := range tv {
+		for _, r := range rots {
 			galEl := testctx.params.GaloisElementForColumnRotationBy(r)
 			evakeyWant := rotationKey.keys[galEl].Get()
 			evakeyTest := resRotationKey.keys[galEl].Get()

@@ -19,7 +19,7 @@ type Encryptor interface {
 	// Encrypt encrypts the input plaintext using the stored key, and returns
 	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
-	// The level of the output ciphetext is min(plaintext.Level(), ciphertext.Level()).
+	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFastNew encrypts the input plaintext using the stored key and returns
@@ -28,25 +28,25 @@ type Encryptor interface {
 	// The level of the output ciphertext is plaintext.Level().
 	EncryptFastNew(plaintext *Plaintext) *Ciphertext
 
-	// EncryptFsat encrypts the input plaintext using the stored-key, and returns
-	// the result onthe receiver ciphertext. The encryption is done by first
+	// EncryptFast encrypts the input plaintext using the stored-key, and returns
+	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in Q and then adding the plaintext.
-	// The level of the output ciphetext is min(plaintext.Level(), ciphertext.Level()).
+	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 	EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
-	// The level of the output ciphetext is min(plaintext.Level(), len(CRP.Coeffs)-1).
+	// The level of the output ciphertext is min(plaintext.Level(), len(CRP.Coeffs)-1).
 	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
 
 	// EncryptFromCRP encrypts the input plaintext using the stored key and returns
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
-	// The level of the output ciphetext is min(plaintext.Level(), ciphertext.Level(), len(CRP.Coeffs)-1).
-	EncryptFromCRP(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
+	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level(), len(CRP.Coeffs)-1).
+	EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly)
 }
 
 // encryptor is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
@@ -82,7 +82,7 @@ func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 	enc := newEncryptor(params)
 
 	if uint64(pk.pk[0].GetDegree()) != params.N() || uint64(pk.pk[1].GetDegree()) != params.N() {
-		panic("cannot newEncrpytor: pk ring degree does not match params ring degree")
+		panic("cannot newEncryptor: pk ring degree does not match params ring degree")
 	}
 
 	return &pkEncryptor{enc, pk}

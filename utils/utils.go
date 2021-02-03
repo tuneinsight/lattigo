@@ -39,7 +39,7 @@ func EqualSliceUint64(a, b []uint64) (v bool) {
 	return
 }
 
-// EqualSliceInt64 checks the equality between two iint64 slices.
+// EqualSliceInt64 checks the equality between two int64 slices.
 func EqualSliceInt64(a, b []int64) (v bool) {
 	v = true
 	for i := range a {

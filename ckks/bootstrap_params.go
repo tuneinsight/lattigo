@@ -3,7 +3,7 @@ package ckks
 // BootstrappingParameters is a struct for the default bootstrapping parameters
 type BootstrappingParameters struct {
 	H            uint64   // Hamming weight of the secret key
-	SinType      SinType  // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
+	SinType      SinType  // Choose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	SinRange     uint64   // K parameter (interpolation in the range -K to K)
 	SinDeg       uint64   // Degree of the interpolation
 	SinRescal    uint64   // Number of rescale and double angle formula (only applies for cos)

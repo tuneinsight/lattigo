@@ -180,7 +180,7 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	scFac := float64(int(1 << btp.SinRescal))
 	qDiff := float64(btp.params.qi[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.qi[0]))))
 
-	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
+	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + eventual scaling factor for the double angle formula
 	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*scFac*qDiff), 1.0/float64(len(btp.CtSLevel))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale

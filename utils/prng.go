@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/rand"
 	"errors"
+
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -64,7 +65,7 @@ func (prng *KeyedPRNG) Clock(sum []byte) {
 // cycle is smaller than the current clock cycle.
 func (prng *KeyedPRNG) SetClock(sum []byte, n uint64) error {
 	if prng.clock > n {
-		return errors.New("error : cannot set KeyedPRNG clock to a previous state")
+		return errors.New("error: cannot set KeyedPRNG clock to a previous state")
 	}
 	for prng.clock != n {
 		if _, err := prng.xof.Read(sum); err != nil {

@@ -3,6 +3,7 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
+
 	//"log"
 	"math"
 	//"time"
@@ -185,7 +186,7 @@ func (btp *Bootstrapper) dft(vec *Ciphertext, plainVectors []*dftvectors, forwar
 
 	evaluator := btp.evaluator.(*evaluator)
 
-	// Sequencially multiplies w with the provided dft matrices.
+	// Sequentially multiplies w with the provided dft matrices.
 	for _, plainVector := range plainVectors {
 		vec = btp.multiplyByDiagMatrice(vec, plainVector)
 		if err := evaluator.Rescale(vec, evaluator.scale, vec); err != nil {
@@ -212,7 +213,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	// N1*N2 = N
 	N1 = plainVectors.N1
 
-	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
+	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
 	index := make(map[uint64][]uint64)
 	rotations := []uint64{}
 	for key := range plainVectors.Vec {

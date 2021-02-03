@@ -1,6 +1,6 @@
 package bettersine
 
-// This is the Go implementation of the aproximation polynomial algorithm in
+// This is the Go implementation of the approximation polynomial algorithm in
 //    "Better Bootstrapping for Approximate Homomorphic Encryption", <https://epring.iacr.org/2019/688O>.
 // The algorithm was originally implemented in C++, available at
 //    https://github.com/DohyeongKi/better-homomorphic-sine-evaluation

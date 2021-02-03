@@ -75,7 +75,7 @@ func testSin(testContext *testParams, btpParams *BootstrappingParameters, t *tes
 		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, -K+1, K-1, t)
-		eval.DropLevel(ciphertext, btpParams.CtSDepth()-1)
+		eval.DropLevel(ciphertext, btpParams.CtSDepth(true)-1)
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
 
@@ -120,7 +120,7 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		scFac := complex(float64(int(1<<scNum)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
-		eval.DropLevel(ciphertext, btpParams.CtSDepth()-1)
+		eval.DropLevel(ciphertext, btpParams.CtSDepth(true)-1)
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, scNum)
@@ -247,7 +247,7 @@ func testCos2(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		scFac := complex(float64(int(1<<scNum)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
-		eval.DropLevel(ciphertext, btpParams.CtSDepth()-1)
+		eval.DropLevel(ciphertext, btpParams.CtSDepth(true)-1)
 
 		cheby := Approximate(cos2pi, -complex(float64(K), 0)/scFac, complex(float64(K), 0)/scFac, deg)
 

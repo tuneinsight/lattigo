@@ -28,7 +28,10 @@ type Bootstrapper struct {
 	prescale    float64                 // Q[0]/(Q[0]/|m|)
 	postscale   float64                 // Qi sineeval/(Q[0]/|m|)
 	sinescale   float64                 // Qi sineeval
-	chebycoeffs *ChebyshevInterpolation // Coefficients of the Chebyshev Interpolation of sin(2*pi*x) or cos(2*pi*x/r)
+	sqrt2pi     float64                 // (1/2pi)^{-2^r} 
+	scFac       float64                   // 2^{r}
+	sineEvalPoly *ChebyshevInterpolation // Coefficients of the Chebyshev Interpolation of sin(2*pi*x) or cos(2*pi*x/r)
+	arcSinePoly *Poly 				   // Coefficients of the Taylor series of arcsine(x)
 
 	coeffsToSlotsDiffScale complex128      // Matrice rescaling
 	slotsToCoeffsDiffScale complex128      // Matrice rescaling
@@ -87,29 +90,20 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 	btp.sinescale = math.Exp2(math.Round(math.Log2(btp.SineEvalModuli.ScalingFactor)))
 	btp.postscale = btp.sinescale / btp.MessageRatio
 
-	fmt.Println(btp.CtSDepth())
-	fmt.Println(btp.StCDepth())
 
 	btp.ctsLevel = []uint64{}
 	for i := range btp.CoeffsToSlotsModuli.Qi {
-		for _ = range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth()-1-uint64(i)]{
+		for _ = range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true)-1-uint64(i)]{
 			btp.ctsLevel = append(btp.ctsLevel, btp.params.MaxLevel() - uint64(i))
 		}
 	}
 
 	btp.stcLevel = []uint64{}
 	for i := range btp.SlotsToCoeffsModuli.Qi {
-		for _ = range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth()-1-uint64(i)]{
-			btp.stcLevel = append(btp.stcLevel, btp.params.MaxLevel() - btp.CtSDepth() - btp.SineEvalDepth(true) - btp.ArcSineDepth() - uint64(i))
+		for _ = range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-1-uint64(i)]{
+			btp.stcLevel = append(btp.stcLevel, btp.params.MaxLevel() - btp.CtSDepth(true) - btp.SineEvalDepth(true) - btp.ArcSineDepth() - uint64(i))
 		}
 	}
-
-	fmt.Println(btp.ctsLevel)
-	fmt.Println(btp.stcLevel)
-
-	fmt.Println(math.Log2(btp.prescale))
-	fmt.Println(math.Log2(btp.sinescale))
-	fmt.Println(math.Log2(btp.postscale))
 
 	btp.encoder = NewEncoder(params)
 	btp.evaluator = NewEvaluator(params)
@@ -178,17 +172,16 @@ func (btp *Bootstrapper) addMatrixRotToList(pVec *PtDiagMatrix, rotations []uint
 
 func (btp *Bootstrapper) genDFTMatrices() {
 
-	a := real(btp.chebycoeffs.a)
-	b := real(btp.chebycoeffs.b)
+	a := real(btp.sineEvalPoly.a)
+	b := real(btp.sineEvalPoly.b)
 	n := float64(btp.params.N())
-	scFac := float64(int(1 << btp.SinRescal))
 	qDiff := float64(btp.params.qi[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.qi[0]))))
 
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
-	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*scFac*qDiff), 1.0/float64(btp.CtSDepth())), 0)
+	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*btp.scFac*qDiff), 1.0/float64(btp.CtSDepth(false))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
-	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.scale)/btp.postscale, 1.0/float64(btp.StCDepth())), 0)
+	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.scale)/btp.postscale, 1.0/float64(btp.StCDepth(false))), 0)
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	btp.computePlaintextVectors()
@@ -216,68 +209,58 @@ func (btp *Bootstrapper) genDFTMatrices() {
 			btp.addMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
 		}
 	}
-
-	fmt.Println(btp.rotKeyIndex)
 }
 
 func (btp *Bootstrapper) genSinePoly() {
 
+	K := int(btp.SinRange)
+	deg := int(btp.SinDeg)
+	btp.scFac = float64(int(1<<btp.SinRescal))
+
+	if btp.ArcSineDeg > 0 {
+		btp.sqrt2pi = 1.0
+
+		coeffs := make([]complex128, btp.ArcSineDeg+1)
+
+		coeffs[1] = 0.15915494309189535
+
+		for i := uint64(3); i < btp.ArcSineDeg+1; i += 2 {
+
+			coeffs[i] = coeffs[i-2] * complex(float64(i*i - 4*i + 4)/float64(i*i - i), 0)
+
+		}
+
+		btp.arcSinePoly = NewPoly(coeffs)
+
+	} else {
+		btp.sqrt2pi = math.Pow(0.15915494309189535, 1.0/btp.scFac)
+	}
+
 	if btp.SinType == Sin {
 
-		K := complex(float64(btp.SinRange), 0)
-		btp.chebycoeffs = Approximate(sin2pi2pi, -K, K, int(btp.SinDeg))
+		btp.sineEvalPoly = Approximate(sin2pi2pi, -complex(float64(K)/btp.scFac, 0), complex(float64(K)/btp.scFac, 0), deg)
 
 	} else if btp.SinType == Cos1 {
 
-		K := int(btp.SinRange)
-		deg := int(btp.SinDeg)
-		scFac := complex(float64(int(1<<btp.SinRescal)), 0)
+		btp.sineEvalPoly = new(ChebyshevInterpolation)
 
-		cheby := new(ChebyshevInterpolation)
+		btp.sineEvalPoly.coeffs = bettersine.Approximate(K, deg, btp.MessageRatio, int(btp.SinRescal))
 
-		cheby.coeffs = bettersine.Approximate(K, deg, btp.MessageRatio, int(btp.SinRescal))
-
-		var sqrt2pi float64
-		if btp.ArcSineDeg > 0 {
-			sqrt2pi = math.Pow(1, 1.0/real(scFac))
-		} else {
-			sqrt2pi = math.Pow(0.15915494309189535, 1.0/real(scFac))
-		}
-
-		for i := range cheby.coeffs {
-			cheby.coeffs[i] *= complex(sqrt2pi, 0)
-		}
-
-		cheby.maxDeg = cheby.Degree()
-		cheby.a = complex(float64(-K), 0) / scFac
-		cheby.b = complex(float64(K), 0) / scFac
-		cheby.lead = true
-
-		btp.chebycoeffs = cheby
+		btp.sineEvalPoly.maxDeg = btp.sineEvalPoly.Degree()
+		btp.sineEvalPoly.a = complex(float64(-K) / btp.scFac, 0) 
+		btp.sineEvalPoly.b = complex(float64(K) / btp.scFac, 0) 
+		btp.sineEvalPoly.lead = true
 
 	} else if btp.SinType == Cos2 {
-
-		K := int(btp.SinRange)
-		deg := int(btp.SinDeg)
-		scFac := complex(float64(int(1<<btp.SinRescal)), 0)
-
-		cheby := Approximate(cos2pi, -complex(float64(K), 0)/scFac, complex(float64(K), 0)/scFac, deg)
-
-		var sqrt2pi float64
-		if btp.ArcSineDeg > 0 {
-			sqrt2pi = math.Pow(1, 1.0/real(scFac))
-		} else {
-			sqrt2pi = math.Pow(0.15915494309189535, 1.0/real(scFac))
-		}
-
-		for i := range cheby.coeffs {
-			cheby.coeffs[i] *= complex(sqrt2pi, 0)
-		}
-
-		btp.chebycoeffs = cheby
+		
+		btp.sineEvalPoly = Approximate(cos2pi, -complex(float64(K)/btp.scFac, 0), complex(float64(K)/btp.scFac, 0), deg)
 
 	} else {
 		panic("Bootstrapper -> invalid sineType")
+	}
+
+	for i := range btp.sineEvalPoly.coeffs {
+		btp.sineEvalPoly.coeffs[i] *= complex(btp.sqrt2pi, 0)
 	}
 }
 
@@ -426,8 +409,8 @@ func (btp *Bootstrapper) computePlaintextVectors() {
 	pVecDFTInv := btp.computeDFTMatrices(roots, pow5, btp.coeffsToSlotsDiffScale, true)
 	cnt := 0
 	for i := range btp.CoeffsToSlotsModuli.ScalingFactor{
-		for j := range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth() - uint64(i) - 1] {
-			btp.pDFTInv[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(ctsLevel[cnt], pVecDFTInv[cnt], btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth() - uint64(i) - 1][j], btp.MaxN1N2Ratio, btp.logdslots)
+		for j := range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true) - uint64(i) - 1] {
+			btp.pDFTInv[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(ctsLevel[cnt], pVecDFTInv[cnt], btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true) - uint64(i) - 1][j], btp.MaxN1N2Ratio, btp.logdslots)
 			cnt++
 		}
 	}
@@ -437,8 +420,8 @@ func (btp *Bootstrapper) computePlaintextVectors() {
 	pVecDFT := btp.computeDFTMatrices(roots, pow5, btp.slotsToCoeffsDiffScale, false)
 	cnt = 0
 	for i := range btp.SlotsToCoeffsModuli.ScalingFactor{
-		for j := range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth() - uint64(i) - 1] {
-			btp.pDFT[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(stcLevel[cnt], pVecDFT[cnt], btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth() - uint64(i) - 1][j], btp.MaxN1N2Ratio, btp.logdslots)
+		for j := range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true) - uint64(i) - 1] {
+			btp.pDFT[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(stcLevel[cnt], pVecDFT[cnt], btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true) - uint64(i) - 1][j], btp.MaxN1N2Ratio, btp.logdslots)
 			cnt++
 		}
 	}
@@ -455,10 +438,10 @@ func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, d
 	var maxDepth uint64
 
 	if forward {
-		maxDepth = uint64(len(btp.ctsLevel))
+		maxDepth = btp.CtSDepth(false)
 		a, b, c = fftInvPlainVec(btp.params.logSlots, btp.dslots, roots, pow5)
 	} else {
-		maxDepth = uint64(len(btp.stcLevel))
+		maxDepth = btp.StCDepth(false)
 		a, b, c = fftPlainVec(btp.params.logSlots, btp.dslots, roots, pow5)
 	}
 

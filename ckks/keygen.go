@@ -656,7 +656,7 @@ func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *Boots
 		}
 	}
 
-	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(), true)
+	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(false), true)
 
 	// Coeffs to Slots rotations
 	for _, pVec := range indexCtS {
@@ -666,7 +666,7 @@ func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *Boots
 		rotKeyIndex = addMatrixRotToList(pVec, rotKeyIndex, N1, slots, false)
 	}
 
-	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(), false)
+	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(false), false)
 
 	// Slots to Coeffs rotations
 	for i, pVec := range indexStC {

@@ -68,24 +68,24 @@ func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
 	paramsCopy.ResidualModuli = make([]uint64, len(b.ResidualModuli))
 	copy(paramsCopy.ResidualModuli, b.ResidualModuli)
 
-	paramsCopy.CoeffsToSlotsModuli.Qi = make([]uint64, b.CtSDepth())
+	paramsCopy.CoeffsToSlotsModuli.Qi = make([]uint64, b.CtSDepth(true))
 	copy(paramsCopy.CoeffsToSlotsModuli.Qi, b.CoeffsToSlotsModuli.Qi)
 
-	paramsCopy.CoeffsToSlotsModuli.ScalingFactor = make([][]float64, b.CtSDepth())
+	paramsCopy.CoeffsToSlotsModuli.ScalingFactor = make([][]float64, b.CtSDepth(true))
 	for i := range paramsCopy.CoeffsToSlotsModuli.ScalingFactor{
 		paramsCopy.CoeffsToSlotsModuli.ScalingFactor[i] = make([]float64, len(b.CoeffsToSlotsModuli.ScalingFactor[i]))
 		copy(paramsCopy.CoeffsToSlotsModuli.ScalingFactor[i], b.CoeffsToSlotsModuli.ScalingFactor[i])
 	}
 	
-	paramsCopy.SineEvalModuli.Qi = make([]uint64, b.CtSDepth())
+	paramsCopy.SineEvalModuli.Qi = make([]uint64, b.CtSDepth(true))
 	copy(paramsCopy.SineEvalModuli.Qi, b.SineEvalModuli.Qi)
 
 	paramsCopy.SineEvalModuli.ScalingFactor = b.SineEvalModuli.ScalingFactor
 
-	paramsCopy.SlotsToCoeffsModuli.Qi = make([]uint64, b.StCDepth())
+	paramsCopy.SlotsToCoeffsModuli.Qi = make([]uint64, b.StCDepth(true))
 	copy(paramsCopy.SlotsToCoeffsModuli.Qi, b.SlotsToCoeffsModuli.Qi)
 
-	paramsCopy.SlotsToCoeffsModuli.ScalingFactor = make([][]float64, b.StCDepth())
+	paramsCopy.SlotsToCoeffsModuli.ScalingFactor = make([][]float64, b.StCDepth(true))
 	for i := range paramsCopy.SlotsToCoeffsModuli.ScalingFactor{
 		paramsCopy.SlotsToCoeffsModuli.ScalingFactor[i] = make([]float64, len(b.SlotsToCoeffsModuli.ScalingFactor[i]))
 		copy(paramsCopy.SlotsToCoeffsModuli.ScalingFactor[i], b.SlotsToCoeffsModuli.ScalingFactor[i])
@@ -136,34 +136,61 @@ func (b *BootstrappingParameters) ArcSineDepth() uint64 {
 }
 
 // CtSDepth returns the number of levels allocated to CoeffsToSlots.
-func (b *BootstrappingParameters) CtSDepth() uint64 {
-	return uint64(len(b.CoeffsToSlotsModuli.Qi))
+// If actual == true then returns the number of moduli consumed, else
+// returns the factorization depth.
+func (b *BootstrappingParameters) CtSDepth(actual bool) (depth uint64) {
+	if actual {
+		depth = uint64(len(b.CoeffsToSlotsModuli.ScalingFactor))
+	}else{
+		for i := range b.CoeffsToSlotsModuli.ScalingFactor{
+			for _ = range b.CoeffsToSlotsModuli.ScalingFactor[i]{
+				depth++
+			}
+		}
+	}
+	
+	return 
 }
 
 // StCDepth returns the number of levels allocated to SlotToCoeffs.
-func (b *BootstrappingParameters) StCDepth() uint64 {
-	return uint64(len(b.SlotsToCoeffsModuli.Qi))
+// If actual == true then returns the number of moduli consumed, else
+// returns the factorization depth.
+func (b *BootstrappingParameters) StCDepth(actual bool) (depth uint64)  {
+	if actual{
+		depth = uint64(len(b.SlotsToCoeffsModuli.ScalingFactor))
+	}else{
+		for i := range b.SlotsToCoeffsModuli.ScalingFactor{
+			for _ = range b.SlotsToCoeffsModuli.ScalingFactor[i]{
+				depth++
+			}
+		}
+	}
+	
+	return
 }
 
 // DefaultBootstrapParams are default bootstrapping params for the bootstrapping.
 var DefaultBootstrapParams = []*BootstrappingParameters{
 
 	// SET II
-	// 1525 - 550
+	// 1521 - 550
 	{
-		LogN:     14,
-		LogSlots: 13,
+		LogN:     16,
+		LogSlots: 15,
 		Scale:    1 << 45,
 		Sigma:    DefaultSigma,
 		ResidualModuli: []uint64{
-			0x4000000120001, // 55 Q0
-			0x2000000a0001,  // 45
-			0x2000000e0001,  // 45
-			0x1fffffc20001,  // 45
-			0x200000440001,  // 45
-			0x200000500001,  // 45
-			0x200000620001,  // 45
-			0x1fffff980001,  // 45
+			0x80000000080001,  // 55 Q0
+			0x2000000a0001,    // 45
+			0x2000000e0001,    // 45
+			0x1fffffc20001,    // 45
+			0x200000440001,    // 45
+			0x200000500001,    // 45
+			0x200000620001,    // 45
+			0x1fffff980001,    // 45
+			0x2000006a0001,    // 45
+			0x1fffff7e0001,    // 45
+			0x200000860001,    // 45
 		},
 		KeySwitchModuli: []uint64{
 			0xfffffffff00001,  // 56
@@ -174,9 +201,79 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		},
 		SlotsToCoeffsModuli: SlotsToCoeffsModuli{
 			Qi: []uint64{
-				0x10004a0001,
-				0x1000500001,
-				0x1000960001,
+				0x100000000060001, // 56 StC (28 + 28)
+				0xffa0001,         // 28 StC
+			},
+			ScalingFactor: [][]float64{
+				[]float64{268435456.0007324, 268435456.0007324},
+				[]float64{0xffa0001},
+			},
+		},
+		SineEvalModuli: SineEvalModuli{
+			Qi: []uint64{
+				0x80000000440001,  // 55 Sine (double angle)
+				0x7fffffffba0001,  // 55 Sine (double angle)
+				0x80000000500001,  // 55 Sine
+				0x7fffffffaa0001,  // 55 Sine
+				0x800000005e0001,  // 55 Sine
+				0x7fffffff7e0001,  // 55 Sine
+				0x7fffffff380001,  // 55 Sine
+				0x80000000ca0001,  // 55 Sine
+			},
+			ScalingFactor: 1 << 55,
+		},
+		CoeffsToSlotsModuli: CoeffsToSlotsModuli{
+			Qi: []uint64{
+				0x200000000e0001,  // 53 CtS
+				0x20000000140001,  // 53 CtS
+				0x20000000280001,  // 53 CtS
+				0x1fffffffd80001,  // 53 CtS
+			},
+			ScalingFactor: [][]float64{
+				[]float64{0x200000000e0001},
+				[]float64{0x20000000140001},
+				[]float64{0x20000000280001},
+				[]float64{0x1fffffffd80001},
+			},
+		},
+		H:            192,
+		SinType:      Cos1,
+		MessageRatio: 1024.0,
+		SinRange:     25,
+		SinDeg:       63,
+		SinRescal:    2,
+		ArcSineDeg:   0,
+		MaxN1N2Ratio: 16.0,
+	},
+
+	// SET II
+	// 1525 - 550
+	{
+		LogN:     16,
+		LogSlots: 10,
+		Scale:    1 << 45,
+		Sigma:    DefaultSigma,
+		ResidualModuli: []uint64{
+			0x80000000080001, // 55 Q0
+			0x2000000a0001,   // 45
+			0x2000000e0001,   // 45
+			0x1fffffc20001,   // 45
+			0x200000440001,   // 45
+			0x200000500001,   // 45
+			0x200000620001,   // 45
+		},
+		KeySwitchModuli: []uint64{
+			0xfffffffff00001,  // 56
+			0xffffffffd80001,  // 56
+			0x1000000002a0001, // 56
+			0xffffffffd20001,  // 56
+			0x100000000480001, // 56
+		},
+		SlotsToCoeffsModuli: SlotsToCoeffsModuli{
+			Qi: []uint64{
+				0x10004a0001, // 36
+				0x1000500001, // 36
+				0x1000960001, // 36
 			},
 			ScalingFactor: [][]float64{
 				[]float64{0x10004a0001},
@@ -186,19 +283,19 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		},
 		SineEvalModuli: SineEvalModuli{
 			Qi: []uint64{
-				0x4000000f20001, // 50 Arcsine
-				0x40000010a0001, // 50 Arcsine
-				0x4000001260001, // 50 Arcsine
-				0x3ffffffd20001, // 50 Sine (double angle)
-				0x4000000420001, // 50 Sine (double angle)
-				0x3ffffffb80001, // 50 Sine
-				0x4000000660001, // 50 Sine
-				0x40000007e0001, // 50 Sine
-				0x4000000800001, // 50 Sine
-				0x40000008a0001, // 50 Sine
-				0x4000000de0001, // 50 Sine
+				0x80000000e00001, // Sine 
+				0x7ffffffef00001, // Sine
+				0x800000011c0001, // Sine
+				0x80000000440001, // ArcSine 
+				0x7fffffffba0001, // ArcSine 
+				0x80000000500001, // ArcSine
+				0x7fffffffaa0001, // Double Angle
+				0x800000005e0001, // Double Angle
+				0x7fffffff7e0001, // Sine 
+				0x7fffffff380001, // Sine 
+				0x80000000ca0001, // Sine 
 			},
-			ScalingFactor: 1 << 50,
+			ScalingFactor: 1 << 55,
 		},
 		CoeffsToSlotsModuli: CoeffsToSlotsModuli{
 			Qi: []uint64{
@@ -227,8 +324,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// SET V
 	// 1553 - 505
 	{
-		LogN:     14,
-		LogSlots: 13,
+		LogN:     16,
+		LogSlots: 15,
 		Scale:    1 << 30,
 		Sigma:    DefaultSigma,
 		ResidualModuli: []uint64{

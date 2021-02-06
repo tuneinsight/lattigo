@@ -21,14 +21,14 @@ func NewPoly(N, nbModuli uint64) (pol *Poly) {
 	return
 }
 
-// GetDegree returns the number of coefficients of the polynomial, which equals the degree of the Ring cyclotomic polynomial.
-func (pol *Poly) GetDegree() int {
-	return len(pol.Coeffs[0])
+// N returns the number of coefficients of the polynomial, which equals the degree of the Ring cyclotomic polynomial.
+func (pol *Poly) N() uint64 {
+	return uint64(len(pol.Coeffs[0]))
 }
 
-// GetLenModuli returns the number of moduli.
-func (pol *Poly) GetLenModuli() int {
-	return len(pol.Coeffs)
+// Level returns the number of moduli of the polynomial, starting with 0 (level 0 = 1 modulus).
+func (pol *Poly) Level() uint64 {
+	return uint64(len(pol.Coeffs) - 1)
 }
 
 // Zero sets all coefficients of the target polynomial to 0.
@@ -136,8 +136,8 @@ func WriteCoeffsTo(pointer, N, numberModuli uint64, coeffs [][]uint64, data []by
 // It returns the number of written bytes, and the corresponding error, if it occurred.
 func (pol *Poly) WriteTo(data []byte) (uint64, error) {
 
-	N := uint64(pol.GetDegree())
-	numberModuli := uint64(pol.GetLenModuli())
+	N := pol.N()
+	numberModuli := pol.Level() + 1
 
 	if uint64(len(data)) < pol.GetDataLen(true) {
 		// The data is not big enough to write all the information
@@ -155,8 +155,8 @@ func (pol *Poly) WriteTo(data []byte) (uint64, error) {
 // It returns the number of written bytes, and the corresponding error, if it occurred.
 func (pol *Poly) WriteTo32(data []byte) (uint64, error) {
 
-	N := uint64(pol.GetDegree())
-	numberModuli := uint64(pol.GetLenModuli())
+	N := pol.N()
+	numberModuli := pol.Level() + 1
 
 	if uint64(len(data)) < pol.GetDataLen32(true) {
 		//The data is not big enough to write all the information
@@ -186,7 +186,7 @@ func WriteCoeffsTo32(pointer, N, numberModuli uint64, coeffs [][]uint64, data []
 // GetDataLen32 returns the number of bytes the polynomial will take when written to data.
 // It can take into account meta data if necessary.
 func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt uint64) {
-	cnt = uint64((pol.GetLenModuli() * pol.GetDegree()) << 2)
+	cnt = uint64(((pol.Level() + 1) * pol.N()) << 2)
 
 	if WithMetadata {
 		cnt += 2
@@ -198,7 +198,7 @@ func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt uint64) {
 // It fails if the data array is not big enough to contain the ring.Poly
 func (pol *Poly) WriteCoeffs(data []byte) (uint64, error) {
 
-	cnt, err := WriteCoeffsTo(0, uint64(pol.GetDegree()), uint64(pol.GetLenModuli()), pol.Coeffs, data)
+	cnt, err := WriteCoeffsTo(0, uint64(pol.N()), uint64(pol.Level()+1), pol.Coeffs, data)
 	return cnt, err
 
 }
@@ -206,7 +206,7 @@ func (pol *Poly) WriteCoeffs(data []byte) (uint64, error) {
 // GetDataLen returns the number of bytes the polynomial will take when written to data.
 // It can take into account meta data if necessary.
 func (pol *Poly) GetDataLen(WithMetadata bool) (cnt uint64) {
-	cnt = uint64((pol.GetLenModuli() * pol.GetDegree()) << 3)
+	cnt = uint64(((pol.Level() + 1) * pol.N()) << 3)
 
 	if WithMetadata {
 		cnt += 2

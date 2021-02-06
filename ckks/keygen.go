@@ -22,6 +22,8 @@ type KeyGenerator interface {
 	GenRotationKey(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys)
 	GenRotationKeysPow2(skOutput *SecretKey) (rotKey *RotationKeys)
 	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey)
+	GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *SecretKey, rotKeys *RotationKeys)
+	GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey, rotKeys *RotationKeys)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -115,7 +117,7 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 		ringQP:          qp,
 		pBigInt:         pBigInt,
 		polypool:        [2]*ring.Poly{qp.NewPoly(), qp.NewPoly()},
-		gaussianSampler: ring.NewGaussianSampler(prng, qp, params.sigma, uint64(6*params.sigma)),
+		gaussianSampler: ring.NewGaussianSampler(prng),
 		uniformSampler:  ring.NewUniformSampler(prng, qp),
 	}
 }
@@ -128,7 +130,7 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	sk = new(SecretKey)
 
-	sk.sk = keygen.gaussianSampler.ReadNew()
+	sk.sk = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
 	keygen.ringQP.NTT(sk.sk, sk.sk)
 	return sk
 }
@@ -188,7 +190,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
-	pk.pk[0] = keygen.gaussianSampler.ReadNew()
+	pk.pk[0] = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
 	ringQP.NTT(pk.pk[0], pk.pk[0])
 	pk.pk[1] = keygen.uniformSampler.ReadNew()
 
@@ -487,7 +489,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly) (switchingke
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNew()
+		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
 		ringQP.NTTLazy(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 		ringQP.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
 
@@ -552,6 +554,61 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 	return
 }
 
+func (keygen *keyGenerator) GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey, rotKeys *RotationKeys) {
+
+	keygen.GenRotKeysForDiagMatrix(mmpt.mPermuteRows, sk, rotKeys)
+	keygen.GenRotKeysForDiagMatrix(mmpt.mPermuteCols, sk, rotKeys)
+
+	for i := range mmpt.mRotCols {
+		keygen.GenRotKeysForDiagMatrix(mmpt.mRotCols[i], sk, rotKeys)
+		keygen.GenRotKeysForDiagMatrix(mmpt.mRotRows[i], sk, rotKeys)
+	}
+}
+
+// GenRotKeysForDiagMatrix populates a RotationKeys struct with the necessary rotation keys for
+// the evaluation of the plaintext matrix on a ciphertext using evaluator.MultiplyByDiagMatrice.
+func (keygen *keyGenerator) GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *SecretKey, rotKeys *RotationKeys) {
+
+	slots := uint64(1 << matrix.LogSlots)
+
+	rotKeyIndex := []uint64{}
+
+	var index uint64
+
+	N1 := matrix.N1
+
+	if len(matrix.Vec) < 3 {
+
+		for key := range matrix.Vec {
+
+			if !utils.IsInSliceUint64(key, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, key)
+			}
+		}
+
+	} else {
+
+		for j := range matrix.Vec {
+
+			index = ((j / N1) * N1) & (slots - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+		}
+	}
+
+	for _, i := range rotKeyIndex {
+		keygen.GenRotationKey(RotationLeft, sk, uint64(i), rotKeys)
+	}
+}
+
 func addMatrixRotToList(pVec map[uint64]bool, rotations []uint64, N1, slots uint64, repack bool) []uint64 {
 
 	var index uint64
@@ -599,7 +656,7 @@ func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *Boots
 		}
 	}
 
-	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(), true)
+	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(false), true)
 
 	// Coeffs to Slots rotations
 	for _, pVec := range indexCtS {
@@ -609,7 +666,7 @@ func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *Boots
 		rotKeyIndex = addMatrixRotToList(pVec, rotKeyIndex, N1, slots, false)
 	}
 
-	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(), false)
+	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(false), false)
 
 	// Slots to Coeffs rotations
 	for i, pVec := range indexStC {

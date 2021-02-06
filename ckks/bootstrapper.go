@@ -6,7 +6,6 @@ import (
 	"math/cmplx"
 
 	"github.com/ldsec/lattigo/v2/ckks/bettersine"
-	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -26,29 +25,24 @@ type Bootstrapper struct {
 	plaintextSize uint64 // Byte size of the plaintext DFT matrices
 
 	repack      bool                    // If true then can repack the CoeffsToSlots into on ciphertext
-	deviation   float64                 // Q[0]/Scale
-	prescale    float64                 // Q[0]/1024
-	postscale   float64                 // Qi sineeval/2^{10}
-	chebycoeffs *ChebyshevInterpolation // Coefficients of the Chebyshev Interpolation of sin(2*pi*x) or cos(2*pi*x/r)
+	prescale    float64                 // Q[0]/(Q[0]/|m|)
+	postscale   float64                 // Qi sineeval/(Q[0]/|m|)
+	sinescale   float64                 // Qi sineeval
+	sqrt2pi     float64                 // (1/2pi)^{-2^r} 
+	scFac       float64                   // 2^{r}
+	sineEvalPoly *ChebyshevInterpolation // Coefficients of the Chebyshev Interpolation of sin(2*pi*x) or cos(2*pi*x/r)
+	arcSinePoly *Poly 				   // Coefficients of the Taylor series of arcsine(x)
 
-	coeffsToSlotsDiffScale complex128    // Matrice rescaling
-	slotsToCoeffsDiffScale complex128    // Matrice rescaling
-	pDFT                   []*dftvectors // Matrice vectors
-	pDFTInv                []*dftvectors // Matrice vectors
+	coeffsToSlotsDiffScale complex128      // Matrice rescaling
+	slotsToCoeffsDiffScale complex128      // Matrice rescaling
+	pDFT                   []*PtDiagMatrix // Matrice vectors
+	pDFTInv                []*PtDiagMatrix // Matrice vectors
+	ctsLevel               []uint64        // index of the Qi used by CoeffsToSlots
+	stcLevel               []uint64        // index of the Qi used by SlotsToCoeffs
 
 	rotKeyIndex []uint64 // a list of the required rotation keys
 
 	ctxpool *Ciphertext // Memory pool
-
-	poolQ [1]*ring.Poly // Memory pool for the matrix evaluation
-	poolP [2]*ring.Poly // Memory pool for the matrix evaluation
-}
-
-type dftvectors struct {
-	N1    uint64
-	Level uint64
-	Scale float64
-	Vec   map[uint64][2]*ring.Poly
 }
 
 func sin2pi2pi(x complex128) complex128 {
@@ -63,11 +57,7 @@ func cos2pi(x complex128) complex128 {
 func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btpKey *BootstrappingKey) (btp *Bootstrapper, err error) {
 
 	if btpParams.SinType == SinType(Sin) && btpParams.SinRescal != 0 {
-		return nil, fmt.Errorf("BootstrapParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
-	}
-
-	if btpParams.CtSLevel[0] != params.MaxLevel() {
-		return nil, fmt.Errorf("BootstrapParams: CtSLevel start not consistent with MaxLevel")
+		return nil, fmt.Errorf("cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
 	}
 
 	btp = newBootstrapper(params, btpParams)
@@ -81,7 +71,7 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 }
 
 // newBootstrapper is a constructor of "dummy" bootstrapper to enable the generation of bootstrapping-related constants
-// without providing a bootstrapping key. To be replaced by a proper factorization of the bootstrapping pre-computations.
+// without providing a bootstrapping key. To be replaced by a propper factorization of the bootstrapping pre-computations.
 func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (btp *Bootstrapper) {
 	btp = new(Bootstrapper)
 
@@ -96,9 +86,24 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 		btp.logdslots++
 	}
 
-	btp.deviation = 1024.0
-	btp.prescale = math.Exp2(math.Round(math.Log2(float64(params.qi[0]) / btp.deviation)))
-	btp.postscale = math.Exp2(math.Round(math.Log2(float64(params.qi[len(params.qi)-1-len(btpParams.CtSLevel)])))) / btp.deviation
+	btp.prescale = math.Exp2(math.Round(math.Log2(float64(params.qi[0]) / btp.MessageRatio)))
+	btp.sinescale = math.Exp2(math.Round(math.Log2(btp.SineEvalModuli.ScalingFactor)))
+	btp.postscale = btp.sinescale / btp.MessageRatio
+
+
+	btp.ctsLevel = []uint64{}
+	for i := range btp.CoeffsToSlotsModuli.Qi {
+		for _ = range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true)-1-uint64(i)]{
+			btp.ctsLevel = append(btp.ctsLevel, btp.params.MaxLevel() - uint64(i))
+		}
+	}
+
+	btp.stcLevel = []uint64{}
+	for i := range btp.SlotsToCoeffsModuli.Qi {
+		for _ = range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-1-uint64(i)]{
+			btp.stcLevel = append(btp.stcLevel, btp.params.MaxLevel() - btp.CtSDepth(true) - btp.SineEvalDepth(true) - btp.ArcSineDepth() - uint64(i))
+		}
+	}
 
 	btp.encoder = NewEncoder(params)
 	btp.evaluator = NewEvaluator(params)
@@ -108,13 +113,6 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 
 	btp.ctxpool = NewCiphertext(params, 1, params.MaxLevel(), 0)
 
-	for i := range btp.poolQ {
-		btp.poolQ[i] = params.NewPolyQ()
-	}
-
-	for i := range btp.poolP {
-		btp.poolP[i] = params.NewPolyP()
-	}
 	return btp
 }
 
@@ -143,7 +141,7 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 	return nil
 }
 
-func (btp *Bootstrapper) addMatrixRotToList(pVec *dftvectors, rotations []uint64, slots uint64, repack bool) {
+func (btp *Bootstrapper) addMatrixRotToList(pVec *PtDiagMatrix, rotations []uint64, slots uint64, repack bool) {
 
 	var index uint64
 	for j := range pVec.Vec {
@@ -174,17 +172,16 @@ func (btp *Bootstrapper) addMatrixRotToList(pVec *dftvectors, rotations []uint64
 
 func (btp *Bootstrapper) genDFTMatrices() {
 
-	a := real(btp.chebycoeffs.a)
-	b := real(btp.chebycoeffs.b)
+	a := real(btp.sineEvalPoly.a)
+	b := real(btp.sineEvalPoly.b)
 	n := float64(btp.params.N())
-	scFac := float64(int(1 << btp.SinRescal))
 	qDiff := float64(btp.params.qi[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.qi[0]))))
 
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
-	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*scFac*qDiff), 1.0/float64(len(btp.CtSLevel))), 0)
+	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*btp.scFac*qDiff), 1.0/float64(btp.CtSDepth(false))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
-	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.scale)/btp.postscale, 1.0/float64(len(btp.StCLevel))), 0)
+	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.scale)/btp.postscale, 1.0/float64(btp.StCDepth(false))), 0)
 
 	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
 	btp.computePlaintextVectors()
@@ -211,57 +208,59 @@ func (btp *Bootstrapper) genDFTMatrices() {
 		} else {
 			btp.addMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
 		}
-
 	}
 }
 
 func (btp *Bootstrapper) genSinePoly() {
 
+	K := int(btp.SinRange)
+	deg := int(btp.SinDeg)
+	btp.scFac = float64(int(1<<btp.SinRescal))
+
+	if btp.ArcSineDeg > 0 {
+		btp.sqrt2pi = 1.0
+
+		coeffs := make([]complex128, btp.ArcSineDeg+1)
+
+		coeffs[1] = 0.15915494309189535
+
+		for i := uint64(3); i < btp.ArcSineDeg+1; i += 2 {
+
+			coeffs[i] = coeffs[i-2] * complex(float64(i*i - 4*i + 4)/float64(i*i - i), 0)
+
+		}
+
+		btp.arcSinePoly = NewPoly(coeffs)
+
+	} else {
+		btp.sqrt2pi = math.Pow(0.15915494309189535, 1.0/btp.scFac)
+	}
+
 	if btp.SinType == Sin {
 
-		K := complex(float64(btp.SinRange), 0)
-		btp.chebycoeffs = Approximate(sin2pi2pi, -K, K, int(btp.SinDeg))
+		btp.sineEvalPoly = Approximate(sin2pi2pi, -complex(float64(K)/btp.scFac, 0), complex(float64(K)/btp.scFac, 0), deg)
 
 	} else if btp.SinType == Cos1 {
 
-		K := int(btp.SinRange)
-		deg := int(btp.SinDeg)
-		scFac := complex(float64(int(1<<btp.SinRescal)), 0)
+		btp.sineEvalPoly = new(ChebyshevInterpolation)
 
-		cheby := new(ChebyshevInterpolation)
+		btp.sineEvalPoly.coeffs = bettersine.Approximate(K, deg, btp.MessageRatio, int(btp.SinRescal))
 
-		cheby.coeffs = bettersine.Approximate(K, deg, btp.deviation, int(btp.SinRescal))
-
-		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(scFac))
-
-		for i := range cheby.coeffs {
-			cheby.coeffs[i] *= complex(sqrt2pi, 0)
-		}
-
-		cheby.maxDeg = cheby.Degree()
-		cheby.a = complex(float64(-K), 0) / scFac
-		cheby.b = complex(float64(K), 0) / scFac
-		cheby.lead = true
-
-		btp.chebycoeffs = cheby
+		btp.sineEvalPoly.maxDeg = btp.sineEvalPoly.Degree()
+		btp.sineEvalPoly.a = complex(float64(-K) / btp.scFac, 0) 
+		btp.sineEvalPoly.b = complex(float64(K) / btp.scFac, 0) 
+		btp.sineEvalPoly.lead = true
 
 	} else if btp.SinType == Cos2 {
-
-		K := int(btp.SinRange)
-		deg := int(btp.SinDeg)
-		scFac := complex(float64(int(1<<btp.SinRescal)), 0)
-
-		cheby := Approximate(cos2pi, -complex(float64(K), 0)/scFac, complex(float64(K), 0)/scFac, deg)
-		sqrt2pi := math.Pow(0.15915494309189535, 1.0/real(scFac))
-
-		for i := range cheby.coeffs {
-			cheby.coeffs[i] *= complex(sqrt2pi, 0)
-		}
-
-		btp.chebycoeffs = cheby
+		
+		btp.sineEvalPoly = Approximate(cos2pi, -complex(float64(K)/btp.scFac, 0), complex(float64(K)/btp.scFac, 0), deg)
 
 	} else {
 		panic("Bootstrapper -> invalid sineType")
+	}
+
+	for i := range btp.sineEvalPoly.coeffs {
+		btp.sineEvalPoly.coeffs[i] *= complex(btp.sqrt2pi, 0)
 	}
 }
 
@@ -283,7 +282,7 @@ func computeRoots(N uint64) (roots []complex128) {
 	return
 }
 
-func fftPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
+func fftPlainVec(logN, dslots uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
 
 	var N, m, index, tt, gap, k, mask, idx1, idx2 uint64
 
@@ -293,12 +292,19 @@ func fftPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][]co
 	b = make([][]complex128, logN)
 	c = make([][]complex128, logN)
 
+	var size uint64
+	if 2*N == dslots {
+		size = 2
+	} else {
+		size = 1
+	}
+
 	index = 0
 	for m = 2; m <= N; m <<= 1 {
 
-		a[index] = make([]complex128, 2*N)
-		b[index] = make([]complex128, 2*N)
-		c[index] = make([]complex128, 2*N)
+		a[index] = make([]complex128, dslots)
+		b[index] = make([]complex128, dslots)
+		c[index] = make([]complex128, dslots)
 
 		tt = m >> 1
 
@@ -314,7 +320,7 @@ func fftPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][]co
 				idx1 = i + j
 				idx2 = i + j + tt
 
-				for u := uint64(0); u < 2; u++ {
+				for u := uint64(0); u < size; u++ {
 					a[index][idx1+u*N] = 1
 					a[index][idx2+u*N] = -roots[k]
 					b[index][idx1+u*N] = roots[k]
@@ -329,7 +335,7 @@ func fftPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][]co
 	return
 }
 
-func fftInvPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
+func fftInvPlainVec(logN, dslots uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
 
 	var N, m, index, tt, gap, k, mask, idx1, idx2 uint64
 
@@ -339,12 +345,19 @@ func fftInvPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][
 	b = make([][]complex128, logN)
 	c = make([][]complex128, logN)
 
+	var size uint64
+	if 2*N == dslots {
+		size = 2
+	} else {
+		size = 1
+	}
+
 	index = 0
 	for m = N; m >= 2; m >>= 1 {
 
-		a[index] = make([]complex128, 2*N)
-		b[index] = make([]complex128, 2*N)
-		c[index] = make([]complex128, 2*N)
+		a[index] = make([]complex128, dslots)
+		b[index] = make([]complex128, dslots)
+		c[index] = make([]complex128, dslots)
 
 		tt = m >> 1
 
@@ -360,7 +373,7 @@ func fftInvPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][
 				idx1 = i + j
 				idx2 = i + j + tt
 
-				for u := uint64(0); u < 2; u++ {
+				for u := uint64(0); u < size; u++ {
 
 					a[index][idx1+u*N] = 1
 					a[index][idx2+u*N] = -roots[k]
@@ -379,10 +392,9 @@ func fftInvPlainVec(logN uint64, roots []complex128, pow5 []uint64) (a, b, c [][
 func (btp *Bootstrapper) computePlaintextVectors() {
 
 	slots := btp.params.Slots()
-	dslots := btp.dslots
 
-	CtSLevel := btp.CtSLevel
-	StCLevel := btp.StCLevel
+	ctsLevel := btp.ctsLevel
+	stcLevel := btp.stcLevel
 
 	roots := computeRoots(slots << 1)
 	pow5 := make([]uint64, (slots<<1)+1)
@@ -393,140 +405,29 @@ func (btp *Bootstrapper) computePlaintextVectors() {
 	}
 
 	// CoeffsToSlots vectors
-	btp.pDFTInv = make([]*dftvectors, len(CtSLevel))
-	pVecDFTInv := btp.computeDFTPlaintextVectors(roots, pow5, btp.coeffsToSlotsDiffScale, true)
-	for i, lvl := range CtSLevel {
-		btp.pDFTInv[i] = new(dftvectors)
-		btp.pDFTInv[i].N1 = findbestbabygiantstepsplit(pVecDFTInv[i], dslots, btp.MaxN1N2Ratio)
-		btp.encodePVec(pVecDFTInv[i], btp.pDFTInv[i], lvl, true)
+	btp.pDFTInv = make([]*PtDiagMatrix, len(ctsLevel))
+	pVecDFTInv := btp.computeDFTMatrices(roots, pow5, btp.coeffsToSlotsDiffScale, true)
+	cnt := 0
+	for i := range btp.CoeffsToSlotsModuli.ScalingFactor{
+		for j := range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true) - uint64(i) - 1] {
+			btp.pDFTInv[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(ctsLevel[cnt], pVecDFTInv[cnt], btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true) - uint64(i) - 1][j], btp.MaxN1N2Ratio, btp.logdslots)
+			cnt++
+		}
 	}
 
 	// SlotsToCoeffs vectors
-	btp.pDFT = make([]*dftvectors, len(StCLevel))
-	pVecDFT := btp.computeDFTPlaintextVectors(roots, pow5, btp.slotsToCoeffsDiffScale, false)
-	for i, lvl := range StCLevel {
-		btp.pDFT[i] = new(dftvectors)
-		btp.pDFT[i].N1 = findbestbabygiantstepsplit(pVecDFT[i], dslots, btp.MaxN1N2Ratio)
-		btp.encodePVec(pVecDFT[i], btp.pDFT[i], lvl, false)
-	}
-}
-
-// Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, maxRatio float64) (minN uint64) {
-
-	for N1 := uint64(1); N1 < maxN; N1 <<= 1 {
-
-		index := make(map[uint64][]uint64)
-
-		for key := range vector {
-
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-
-			if index[idx1] == nil {
-				index[idx1] = []uint64{idx2}
-			} else {
-				index[idx1] = append(index[idx1], idx2)
-			}
-		}
-
-		if len(index[0]) > 0 {
-
-			hoisted := len(index[0]) - 1
-			normal := len(index) - 1
-
-			// The matrice is very sparse already
-			if normal == 0 {
-				return N1 / 2
-			}
-
-			if hoisted > normal {
-				// Finds the next split that has a ratio hoisted/normal greater or equal to maxRatio
-				for float64(hoisted)/float64(normal) < maxRatio {
-
-					if normal/2 == 0 {
-						break
-					}
-					N1 *= 2
-					hoisted = hoisted*2 + 1
-					normal = normal / 2
-				}
-				return N1
-			}
-		}
-	}
-
-	return 1
-}
-
-func (btp *Bootstrapper) encodePVec(pVec map[uint64][]complex128, plaintextVec *dftvectors, level uint64, forward bool) {
-	var N, N1 uint64
-	var scale float64
-
-	// N1*N2 = N
-	N = btp.params.N()
-	N1 = plaintextVec.N1
-
-	index := make(map[uint64][]uint64)
-
-	for key := range pVec {
-		idx1 := key / N1
-		idx2 := key & (N1 - 1)
-		if index[idx1] == nil {
-			index[idx1] = []uint64{idx2}
-		} else {
-			index[idx1] = append(index[idx1], idx2)
-		}
-	}
-
-	plaintextVec.Vec = make(map[uint64][2]*ring.Poly)
-
-	if forward {
-		scale = float64(btp.params.qi[level])
-	} else {
-		// If the first moduli
-		logQi := math.Round(math.Log2(float64(btp.params.qi[level])))
-		if logQi >= 56.0 {
-			scale = math.Exp2(logQi / 2)
-		} else {
-			scale = float64(btp.params.qi[level])
-		}
-	}
-
-	plaintextVec.Level = level
-	plaintextVec.Scale = scale
-	ringQ := btp.evaluator.(*evaluator).ringQ
-	ringP := btp.evaluator.(*evaluator).ringP
-	encoder := btp.encoder.(*encoderComplex128)
-
-	for j := range index {
-
-		for _, i := range index[j] {
-
-			//  levels * n coefficients of 8 bytes each
-			btp.plaintextSize += 8 * N * (level + 1 + btp.params.PiCount())
-
-			encoder.Embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:btp.dslots], btp.logdslots)
-
-			plaintextQ := ring.NewPoly(N, level+1)
-			encoder.ScaleUp(plaintextQ, scale, ringQ.Modulus[:level+1])
-			ringQ.NTTLvl(level, plaintextQ, plaintextQ)
-			ringQ.MFormLvl(level, plaintextQ, plaintextQ)
-
-			plaintextP := ring.NewPoly(N, level+1)
-			encoder.ScaleUp(plaintextP, scale, ringP.Modulus)
-			ringP.NTT(plaintextP, plaintextP)
-			ringP.MForm(plaintextP, plaintextP)
-
-			plaintextVec.Vec[N1*j+uint64(i)] = [2]*ring.Poly{plaintextQ, plaintextP}
-
-			encoder.WipeInternalMemory()
-
+	btp.pDFT = make([]*PtDiagMatrix, len(stcLevel))
+	pVecDFT := btp.computeDFTMatrices(roots, pow5, btp.slotsToCoeffsDiffScale, false)
+	cnt = 0
+	for i := range btp.SlotsToCoeffsModuli.ScalingFactor{
+		for j := range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true) - uint64(i) - 1] {
+			btp.pDFT[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(stcLevel[cnt], pVecDFT[cnt], btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true) - uint64(i) - 1][j], btp.MaxN1N2Ratio, btp.logdslots)
+			cnt++
 		}
 	}
 }
 
-func (btp *Bootstrapper) computeDFTPlaintextVectors(roots []complex128, pow5 []uint64, diffscale complex128, forward bool) (plainVector []map[uint64][]complex128) {
+func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, diffscale complex128, forward bool) (plainVector []map[uint64][]complex128) {
 
 	var level, depth, nextLevel, logSlots uint64
 
@@ -537,11 +438,11 @@ func (btp *Bootstrapper) computeDFTPlaintextVectors(roots []complex128, pow5 []u
 	var maxDepth uint64
 
 	if forward {
-		maxDepth = uint64(len(btp.CtSLevel))
-		a, b, c = fftInvPlainVec(btp.params.logSlots, roots, pow5)
+		maxDepth = btp.CtSDepth(false)
+		a, b, c = fftInvPlainVec(btp.params.logSlots, btp.dslots, roots, pow5)
 	} else {
-		maxDepth = uint64(len(btp.StCLevel))
-		a, b, c = fftPlainVec(btp.params.logSlots, roots, pow5)
+		maxDepth = btp.StCDepth(false)
+		a, b, c = fftPlainVec(btp.params.logSlots, btp.dslots, roots, pow5)
 	}
 
 	plainVector = make([]map[uint64][]complex128, maxDepth)

@@ -11,57 +11,127 @@ import (
 
 // Evaluator is an interface implementing the methodes to conduct homomorphic operations between ciphertext and/or plaintexts.
 type Evaluator interface {
+	// ========================
+	// === Basic Arithmetic ===
+	// ========================
+
+	// Addition
 	Add(op0, op1 Operand, ctOut *Ciphertext)
 	AddNoMod(op0, op1 Operand, ctOut *Ciphertext)
 	AddNew(op0, op1 Operand) (ctOut *Ciphertext)
 	AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext)
+
+	// Subtraction
 	Sub(op0, op1 Operand, ctOut *Ciphertext)
 	SubNoMod(op0, op1 Operand, ctOut *Ciphertext)
 	SubNew(op0, op1 Operand) (ctOut *Ciphertext)
 	SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext)
+
+	// Negation
 	Neg(ct0 *Ciphertext, ctOut *Ciphertext)
 	NegNew(ct0 *Ciphertext) (ctOut *Ciphertext)
+
+	// Constant Addition
 	AddConstNew(ct0 *Ciphertext, constant interface{}) (ctOut *Ciphertext)
 	AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext)
-	MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext)
+
+	// Constant Multiplication
 	MultByConstNew(ct0 *Ciphertext, constant interface{}) (ctOut *Ciphertext)
 	MultByConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext)
 	MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext)
+
+	// Constant Multiplication with Addition
+	MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext)
 	MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext)
+
+	// Multiplication by the imaginary unit
 	MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	MultByi(ct0 *Ciphertext, ct1 *Ciphertext)
 	DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	DivByi(ct0 *Ciphertext, ct1 *Ciphertext)
-	ScaleUpNew(ct0 *Ciphertext, scale float64) (ctOut *Ciphertext)
-	ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext)
-	SetScale(ct *Ciphertext, scale float64)
-	MulByPow2New(ct0 *Ciphertext, pow2 uint64) (ctOut *Ciphertext)
-	MulByPow2(ct0 *Element, pow2 uint64, ctOut *Element)
-	ReduceNew(ct0 *Ciphertext) (ctOut *Ciphertext)
-	Reduce(ct0 *Ciphertext, ctOut *Ciphertext) error
-	DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciphertext)
-	DropLevel(ct0 *Ciphertext, levels uint64)
-	Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciphertext) (err error)
-	RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ciphertext, err error)
-	RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *Ciphertext) (err error)
+
+	// Conjugation
+	ConjugateNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext)
+	Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext)
+
+	// Multiplication
 	MulRelinNew(op0, op1 Operand, evakey *EvaluationKey) (ctOut *Ciphertext)
 	MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *Ciphertext)
-	RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext)
-	Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext)
-	SwitchKeysNew(ct0 *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
-	SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
+
+	// Slot Rotations
 	RotateNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext)
 	Rotate(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext)
 	RotateHoisted(ctIn *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOut map[uint64]*Ciphertext)
-	ConjugateNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext)
-	Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext)
+
+	// ===========================
+	// === Advanced Arithmetic ===
+	// ===========================
+
+	// Multiplication by 2^{s}
+	MulByPow2New(ct0 *Ciphertext, pow2 uint64) (ctOut *Ciphertext)
+	MulByPow2(ct0 *Element, pow2 uint64, ctOut *Element)
+
+	// Exponentiation
 	PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *EvaluationKey, elOut *Ciphertext)
-	PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext)
 	Power(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey, res *Ciphertext)
+	PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext)
+
+	// Polynomial evaluation
+	EvaluatePoly(ct *Ciphertext, coeffs *Poly, targetScale float64, evakey *EvaluationKey) (res *Ciphertext, err error)
+	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, targetScale float64, evakey *EvaluationKey) (res *Ciphertext, err error)
+
+	// Inversion
 	InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluatePoly(ct *Ciphertext, coeffs *Poly, evakey *EvaluationKey) (res *Ciphertext, err error)
-	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error)
+
+	// Linear Transformations
+	LinearTransform(vec *Ciphertext, linearTransform interface{}, rotkeys *RotationKeys) (res []*Ciphertext)
+
+	// Matrix Multiplication of batched matrices
+	// For ciphertext A and B, each encrypting the matrices mA[i] and mB[i] for 0 < i < nbMatrices,
+	// returns a ciphertext storing mAB[i] = mA[i] x mB[i].
+	// Only supports square matrices. Rectangular matrix multiplication must be carried through
+	// square matrix multiplication (for example by splitting the rectangular matrix into square matrices).
+	// mmpt is a struct storing the plaintext vector of the linear transformation necessary for the matrix multiplication.
+	// cf. examples/ckks/matrix/main.go for an example of a 32x128 x 128x32 matrix multiplication.
+	MulMatrix(A, B *Ciphertext, mmpt *MMPt, rlk *EvaluationKey, rotKeys *RotationKeys) (ciphertextAB *Ciphertext)
+
+	// =============================
+	// === Ciphertext Management ===
+	// =============================
+
+	// Degree Management
+	RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext)
+	Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext)
+
+	// Scale Management
+	ScaleUpNew(ct0 *Ciphertext, scale float64) (ctOut *Ciphertext)
+	ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext)
+	SetScale(ct *Ciphertext, scale float64)
+	Rescale(ct0 *Ciphertext, minScale float64, c1 *Ciphertext) (err error)
+
+	// Level Management
+	DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciphertext)
+	DropLevel(ct0 *Ciphertext, levels uint64)
+
+	// Modular Overflow Management
+	ReduceNew(ct0 *Ciphertext) (ctOut *Ciphertext)
+	Reduce(ct0 *Ciphertext, ctOut *Ciphertext) error
+
+	// ===================================
+	// === Access Structure Management ===
+	// ===================================
+
+	// Key-Switching
+	SwitchKeysNew(ct0 *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
+	SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
+
+	// ==============
+	// === Others ===
+	// ==============
+
+	DecompInternal(level uint64, c2NTT *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly)
 }
+
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
@@ -73,8 +143,11 @@ type evaluator struct {
 	ringP    *ring.Ring
 	poolQMul [3]*ring.Poly // Memory pool in order : for MForm(c0), MForm(c1), c2
 
-	poolQ [4]*ring.Poly // Memory pool in order : Decomp(c2), for NTT^-1(c2), res(c0', c1')
-	poolP [3]*ring.Poly // Memory pool in order : Decomp(c2), res(c0', c1')
+	poolQ [5]*ring.Poly // Memory pool in order : Decomp(c2), for NTT^-1(c2), res(c0', c1')
+	poolP [5]*ring.Poly // Memory pool in order : Decomp(c2), res(c0', c1')
+
+	c2QiQDecomp []*ring.Poly // Memory pool for the basis extension in hoisting
+	c2QiPDecomp []*ring.Poly // Memory pool for the basis extension in hoisting
 
 	ctxpool *Ciphertext // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
 
@@ -101,11 +174,20 @@ func NewEvaluator(params *Parameters) Evaluator {
 
 	var baseconverter *ring.FastBasisExtender
 	var decomposer *ring.Decomposer
-	var poolP [3]*ring.Poly
+	var poolP [5]*ring.Poly
+	var c2QiQDecomp, c2QiPDecomp []*ring.Poly
 	if params.PiCount() != 0 {
 		baseconverter = ring.NewFastBasisExtender(q, p)
 		decomposer = ring.NewDecomposer(q.Modulus, p.Modulus)
-		poolP = [3]*ring.Poly{p.NewPoly(), p.NewPoly(), p.NewPoly()}
+		poolP = [5]*ring.Poly{p.NewPoly(), p.NewPoly(), p.NewPoly(), p.NewPoly(), p.NewPoly()}
+
+		c2QiQDecomp = make([]*ring.Poly, params.Beta())
+		c2QiPDecomp = make([]*ring.Poly, params.Beta())
+
+		for i := uint64(0); i < params.Beta(); i++ {
+			c2QiQDecomp[i] = q.NewPoly()
+			c2QiPDecomp[i] = p.NewPoly()
+		}
 	}
 
 	return &evaluator{
@@ -114,8 +196,10 @@ func NewEvaluator(params *Parameters) Evaluator {
 		ringQ:         q,
 		ringP:         p,
 		poolQMul:      [3]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly()},
-		poolQ:         [4]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly()},
+		poolQ:         [5]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly()},
 		poolP:         poolP,
+		c2QiQDecomp:   c2QiQDecomp,
+		c2QiPDecomp:   c2QiPDecomp,
 		ctxpool:       NewCiphertext(params, 1, params.MaxLevel(), params.scale),
 		baseconverter: baseconverter,
 		decomposer:    decomposer,
@@ -1509,6 +1593,47 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, index []uint64, rotKeys *Swit
 	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.value[1])
 }
 
+func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, rotkeys *RotationKeys) (cOutQ, cOutP map[uint64][2]*ring.Poly) {
+
+	ringQ := eval.ringQ
+
+	cOutQ = make(map[uint64][2]*ring.Poly)
+	cOutP = make(map[uint64][2]*ring.Poly)
+
+	for _, i := range rotations {
+
+		i &= ((ringQ.N >> 1) - 1)
+
+		if i != 0 {
+			cOutQ[i] = [2]*ring.Poly{ringQ.NewPolyLvl(ct0.Level()), ringQ.NewPolyLvl(ct0.Level())}
+			cOutP[i] = [2]*ring.Poly{eval.params.NewPolyP(), eval.params.NewPolyP()}
+			eval.permuteNTTHoistedNoModDown(ct0, c2QiQDecomp, c2QiPDecomp, i, rotkeys, cOutQ[i], cOutP[i])
+		}
+	}
+
+	return
+}
+
+func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k uint64, rotKeys *RotationKeys, ctOutQ, ctOutP [2]*ring.Poly) {
+
+	pool2Q := eval.poolQ[0]
+	pool3Q := eval.poolQ[1]
+
+	pool2P := eval.poolP[0]
+	pool3P := eval.poolP[1]
+
+	levelQ := ct0.Level()
+	levelP := eval.params.PiCount() - 1
+
+	eval.keyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rotKeys.evakeyRotColLeft[k], pool2Q, pool3Q, pool2P, pool3P)
+
+	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, rotKeys.permuteNTTLeftIndex[k], ctOutQ[0])
+	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, rotKeys.permuteNTTLeftIndex[k], ctOutQ[1])
+
+	ring.PermuteNTTWithIndexLvl(levelP, pool2P, rotKeys.permuteNTTLeftIndex[k], ctOutP[0])
+	ring.PermuteNTTWithIndexLvl(levelP, pool3P, rotKeys.permuteNTTLeftIndex[k], ctOutP[1])
+}
+
 func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, evakey *SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
 	var reduce uint64
 
@@ -1581,6 +1706,21 @@ func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *Sw
 
 	eval.baseconverter.ModDownSplitNTTPQ(level, p0, eval.poolP[1], p0)
 	eval.baseconverter.ModDownSplitNTTPQ(level, p1, eval.poolP[2], p1)
+}
+
+func (eval *evaluator) DecompInternal(levelQ uint64, c2NTT *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
+
+	ringQ := eval.ringQ
+
+	c2InvNTT := eval.poolQMul[0] // TODO : maybe have a pre-allocated memory pool ?
+	ringQ.InvNTTLvl(levelQ, c2NTT, c2InvNTT)
+
+	alpha := eval.params.Alpha()
+	beta := uint64(math.Ceil(float64(levelQ+1) / float64(alpha)))
+
+	for i := uint64(0); i < beta; i++ {
+		eval.decomposeAndSplitNTT(levelQ, i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
+	}
 }
 
 // decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.

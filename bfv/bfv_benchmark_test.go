@@ -89,7 +89,7 @@ func benchKeyGen(testctx *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			kgen.GenRelinKey(sk, 1)
+			kgen.GenRelinearizationKey(sk, 1)
 		}
 	})
 }
@@ -157,11 +157,9 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
 
-	var rotkey *RotationKeys
+	var rotkey *RotationKeySet
 	if testctx.params.PiCount() != 0 {
-		rotkey = NewRotationKeys()
-		testctx.kgen.GenRot(RotationLeft, testctx.sk, 1, rotkey)
-		testctx.kgen.GenRot(RotationRow, testctx.sk, 0, rotkey)
+		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk)
 	}
 
 	b.Run(testString("Evaluator/Add/Ct/", testctx.params), func(b *testing.B) {

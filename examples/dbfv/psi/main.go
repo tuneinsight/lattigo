@@ -189,7 +189,7 @@ func encPhase(params *bfv.Parameters, P []*party, pk *bfv.PublicKey, encoder bfv
 	return
 }
 
-func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Ciphertext, rlk *bfv.EvaluationKey) (encRes *bfv.Ciphertext) {
+func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Ciphertext, rlk *bfv.RelinearizationKey) (encRes *bfv.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -330,7 +330,7 @@ func pcksPhase(params *bfv.Parameters, tpk *bfv.PublicKey, encRes *bfv.Ciphertex
 
 }
 
-func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.EvaluationKey {
+func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")

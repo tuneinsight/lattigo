@@ -125,13 +125,10 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 		return fmt.Errorf("empty relinkkey and/or rotkeys")
 	}
 
-	if btp.rotkeys.evakeyConjugate == nil {
-		return fmt.Errorf("missing conjugate key")
-	}
-
 	rotMissing := []uint64{}
 	for _, i := range btp.rotKeyIndex {
-		if btp.rotkeys.evakeyRotColLeft[i] == nil || btp.rotkeys.permuteNTTLeftIndex[i] == nil {
+		galEl := btp.params.GaloisElementForColumnRotationBy(int(i))
+		if _, generated := btp.rotkeys.keys[galEl]; !generated {
 			rotMissing = append(rotMissing, i)
 		}
 	}

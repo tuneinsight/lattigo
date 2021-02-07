@@ -65,6 +65,14 @@ func IsInSliceUint64(x uint64, slice []uint64) (v bool) {
 	return
 }
 
+// IsInSliceInt checks if x is in slice.
+func IsInSliceInt(x int, slice []int) (v bool) {
+	for i := range slice {
+		v = v || (slice[i] == x)
+	}
+	return
+}
+
 // MinUint64 returns the minimum value of the input slice of uint64 values.
 func MinUint64(a, b uint64) (r uint64) {
 	if a <= b {
@@ -112,4 +120,40 @@ func AllDistinct(s []uint64) bool {
 		m[si] = struct{}{}
 	}
 	return true
+}
+
+func RotateUint64Slice(s []uint64, k int) []uint64 {
+	if k == 0 || len(s) == 0 {
+		return s
+	}
+	r := k % len(s)
+	if r < 0 {
+		r = r + len(s)
+	}
+	ret := make([]uint64, len(s), len(s))
+	copy(ret[:len(s)-r], s[r:])
+	copy(ret[len(s)-r:], s[:r])
+	return ret
+}
+
+func RotateUint64Slots(s []uint64, k int) []uint64 {
+	ret := make([]uint64, len(s), len(s))
+	slots := len(s) >> 1
+	copy(ret[:slots], RotateUint64Slice(s[:slots], k))
+	copy(ret[slots:], RotateUint64Slice(s[slots:], k))
+	return ret
+}
+
+func RotateComplex128Slice(s []complex128, k int) []complex128 {
+	if k == 0 || len(s) == 0 {
+		return s
+	}
+	r := k % len(s)
+	if r < 0 {
+		r = r + len(s)
+	}
+	ret := make([]complex128, len(s), len(s))
+	copy(ret[:len(s)-r], s[r:])
+	copy(ret[len(s)-r:], s[:r])
+	return ret
 }

@@ -279,7 +279,7 @@ func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	return pk
 }
 
-func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.EvaluationKey {
+func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -328,7 +328,7 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	return rlk
 }
 
-func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.RotationKeys {
+func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.RotationKeySet {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -340,7 +340,7 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		pi.rtgShare = rtg.AllocateShare()
 	}
 
-	rtk := bfv.NewRotationKeys()
+	rtk := bfv.NewRotationKeySet(params)
 
 	crpRot := make([]*ring.Poly, params.Beta()) // for the rotation keys
 
@@ -348,7 +348,7 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		crpRot[i] = crsGen.ReadNew()
 	}
 
-	for _, rot := range []bfv.Rotation{bfv.RotationRight, bfv.RotationLeft, bfv.RotationRow} {
+	for _, rot := range []bfv.RotationType{bfv.RotationRight, bfv.RotationLeft, bfv.RotationRow} {
 		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < 1<<(params.LogN()-1)); k <<= 1 {
 
 			rtgShareCombined := rtg.AllocateShare()
@@ -386,7 +386,7 @@ func genquery(params *bfv.Parameters, queryIndex int, encoder bfv.Encoder, encry
 	return encQuery
 }
 
-func requestphase(params *bfv.Parameters, queryIndex, NGoRoutine int, encQuery *bfv.Ciphertext, encInputs []*bfv.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *bfv.EvaluationKey, rtk *bfv.RotationKeys) *bfv.Ciphertext {
+func requestphase(params *bfv.Parameters, queryIndex, NGoRoutine int, encQuery *bfv.Ciphertext, encInputs []*bfv.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *bfv.RelinearizationKey, rtk *bfv.RotationKeySet) *bfv.Ciphertext {
 
 	l := log.New(os.Stderr, "", 0)
 

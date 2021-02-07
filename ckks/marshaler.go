@@ -210,9 +210,9 @@ func (switchkey *SwitchingKey) GetDataLen(WithMetaData bool) (dataLen uint64) {
 		dataLen++
 	}
 
-	for j := uint64(0); j < uint64(len(switchkey.evakey)); j++ {
-		dataLen += switchkey.evakey[j][0].GetDataLen(WithMetaData)
-		dataLen += switchkey.evakey[j][1].GetDataLen(WithMetaData)
+	for j := uint64(0); j < uint64(len(switchkey.key)); j++ {
+		dataLen += switchkey.key[j][0].GetDataLen(WithMetaData)
+		dataLen += switchkey.key[j][1].GetDataLen(WithMetaData)
 	}
 
 	return
@@ -246,19 +246,19 @@ func (switchkey *SwitchingKey) encode(pointer uint64, data []byte) (uint64, erro
 
 	var inc uint64
 
-	data[pointer] = uint8(len(switchkey.evakey))
+	data[pointer] = uint8(len(switchkey.key))
 
 	pointer++
 
-	for j := uint64(0); j < uint64(len(switchkey.evakey)); j++ {
+	for j := uint64(0); j < uint64(len(switchkey.key)); j++ {
 
-		if inc, err = switchkey.evakey[j][0].WriteTo(data[pointer:]); err != nil {
+		if inc, err = switchkey.key[j][0].WriteTo(data[pointer:]); err != nil {
 			return pointer, err
 		}
 
 		pointer += inc
 
-		if inc, err = switchkey.evakey[j][1].WriteTo(data[pointer:]); err != nil {
+		if inc, err = switchkey.key[j][1].WriteTo(data[pointer:]); err != nil {
 			return pointer, err
 		}
 
@@ -274,20 +274,20 @@ func (switchkey *SwitchingKey) decode(data []byte) (pointer uint64, err error) {
 
 	pointer = uint64(1)
 
-	switchkey.evakey = make([][2]*ring.Poly, decomposition)
+	switchkey.key = make([][2]*ring.Poly, decomposition)
 
 	var inc uint64
 
 	for j := uint64(0); j < decomposition; j++ {
 
-		switchkey.evakey[j][0] = new(ring.Poly)
-		if inc, err = switchkey.evakey[j][0].DecodePolyNew(data[pointer:]); err != nil {
+		switchkey.key[j][0] = new(ring.Poly)
+		if inc, err = switchkey.key[j][0].DecodePolyNew(data[pointer:]); err != nil {
 			return pointer, err
 		}
 		pointer += inc
 
-		switchkey.evakey[j][1] = new(ring.Poly)
-		if inc, err = switchkey.evakey[j][1].DecodePolyNew(data[pointer:]); err != nil {
+		switchkey.key[j][1] = new(ring.Poly)
+		if inc, err = switchkey.key[j][1].DecodePolyNew(data[pointer:]); err != nil {
 			return pointer, err
 		}
 		pointer += inc
@@ -298,159 +298,60 @@ func (switchkey *SwitchingKey) decode(data []byte) (pointer uint64, err error) {
 }
 
 // GetDataLen returns the length in bytes of the target RotationKeys.
-func (rotationkey *RotationKeys) GetDataLen(WithMetaData bool) (dataLen uint64) {
-	for i := range rotationkey.evakeyRotColLeft {
+func (rotationkey *RotationKeySet) GetDataLen(WithMetaData bool) (dataLen uint64) {
+	for _, key := range rotationkey.keys {
 		if WithMetaData {
 			dataLen += 4
 		}
-		dataLen += rotationkey.evakeyRotColLeft[i].GetDataLen(WithMetaData)
+		dataLen += key.GetDataLen(WithMetaData)
 	}
-
-	for i := range rotationkey.evakeyRotColRight {
-		if WithMetaData {
-			dataLen += 4
-		}
-		dataLen += rotationkey.evakeyRotColRight[i].GetDataLen(WithMetaData)
-	}
-
-	if rotationkey.evakeyConjugate != nil {
-		if WithMetaData {
-			dataLen += 4
-		}
-		dataLen += rotationkey.evakeyConjugate.GetDataLen(WithMetaData)
-	}
-
 	return
 }
 
-// MarshalBinary encodes a RotationKeys structure in a byte slice.
-func (rotationkey *RotationKeys) MarshalBinary() (data []byte, err error) {
+// MarshalBinary encodes a RotationKeys struct in a byte slice.
+func (rotationkey *RotationKeySet) MarshalBinary() (data []byte, err error) {
 
 	data = make([]byte, rotationkey.GetDataLen(true))
 
-	mappingColL := []uint64{}
-	mappingColR := []uint64{}
+	pointer := uint64(0)
 
-	for i := range rotationkey.evakeyRotColLeft {
-		mappingColL = append(mappingColL, i)
-	}
+	for galEL, key := range rotationkey.keys {
 
-	for i := range rotationkey.evakeyRotColRight {
-		mappingColR = append(mappingColR, i)
-	}
-
-	var pointer uint64
-
-	// [RotType] [RotAmount]
-	// [  0xFF ] [ 0xFFFFFF]
-	for _, i := range mappingColL {
-
-		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(i))
-		data[pointer] = uint8(RotationLeft)
+		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(galEL))
 		pointer += 4
 
-		pointer, _ = rotationkey.evakeyRotColLeft[i].encode(pointer, data)
-	}
-
-	// [RotType] [RotAmount]
-	// [  0xFF ] [ 0xFFFFFF]
-	for _, i := range mappingColR {
-
-		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(i))
-		data[pointer] = uint8(RotationRight)
-		pointer += 4
-
-		pointer, _ = rotationkey.evakeyRotColRight[i].encode(pointer, data)
-	}
-
-	// [RotType] [RotAmount]
-	// [  0xFF ] [ 0xFFFFFF]
-	if rotationkey.evakeyConjugate != nil {
-
-		data[pointer] = uint8(Conjugate)
-		pointer += 4
-
-		_, _ = rotationkey.evakeyConjugate.encode(pointer, data)
+		if pointer, err = key.encode(pointer, data); err != nil {
+			return nil, err
+		}
 	}
 
 	return data, nil
 }
 
 // UnmarshalBinary decodes a previously marshaled RotationKeys in the target RotationKeys.
-func (rotationkey *RotationKeys) UnmarshalBinary(data []byte) (err error) {
+func (rotationkey *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
 
-	var rotationType int
-	var rotationNumber uint64
+	if rotationkey.keys == nil {
+		rotationkey.keys = make(map[uint64]*SwitchingKey)
+		rotationkey.permuteNTTIndex = make(map[uint64][]uint64)
+	} else {
+		rotationkey.delete()
+	}
 
-	pointer := uint64(0)
-	var inc uint64
+	for len(data) > 0 {
 
-	dataLen := len(data)
+		galEl := uint64(binary.BigEndian.Uint32(data))
+		data = data[4:]
 
-	for dataLen > 0 {
-
-		rotationType = int(data[pointer])
-		rotationNumber = (uint64(data[pointer+1]) << 16) | (uint64(data[pointer+2]) << 8) | (uint64(data[pointer+3]))
-
-		pointer += 4
-
-		if rotationType == RotationLeft {
-
-			if rotationkey.evakeyRotColLeft == nil {
-				rotationkey.evakeyRotColLeft = make(map[uint64]*SwitchingKey)
-			}
-
-			if rotationkey.permuteNTTLeftIndex == nil {
-				rotationkey.permuteNTTLeftIndex = make(map[uint64][]uint64)
-			}
-
-			rotationkey.evakeyRotColLeft[rotationNumber] = new(SwitchingKey)
-			if inc, err = rotationkey.evakeyRotColLeft[rotationNumber].decode(data[pointer:]); err != nil {
-				return err
-			}
-
-			N := uint64(len(rotationkey.evakeyRotColLeft[rotationNumber].evakey[0][0].Coeffs[0]))
-
-			rotationkey.permuteNTTLeftIndex[rotationNumber] = ring.PermuteNTTIndex(GaloisGen, rotationNumber, N)
-
-		} else if rotationType == RotationRight {
-
-			if rotationkey.evakeyRotColRight == nil {
-				rotationkey.evakeyRotColRight = make(map[uint64]*SwitchingKey)
-			}
-
-			rotationkey.evakeyRotColRight[rotationNumber] = new(SwitchingKey)
-			if inc, err = rotationkey.evakeyRotColRight[rotationNumber].decode(data[pointer:]); err != nil {
-				return err
-			}
-
-			if rotationkey.permuteNTTRightIndex == nil {
-				rotationkey.permuteNTTRightIndex = make(map[uint64][]uint64)
-			}
-
-			N := uint64(len(rotationkey.evakeyRotColRight[rotationNumber].evakey[0][0].Coeffs[0]))
-
-			rotationkey.permuteNTTRightIndex[rotationNumber] = ring.PermuteNTTIndex(GaloisGen, (2*N)-rotationNumber, N)
-
-		} else if rotationType == Conjugate {
-
-			rotationkey.evakeyConjugate = new(SwitchingKey)
-			if inc, err = rotationkey.evakeyConjugate.decode(data[pointer:]); err != nil {
-				return err
-			}
-
-			N := uint64(len(rotationkey.evakeyConjugate.evakey[0][0].Coeffs[0]))
-
-			rotationkey.permuteNTTConjugateIndex = ring.PermuteNTTIndex((2*N)-1, 1, N)
-
-		} else {
-
+		swk := new(SwitchingKey)
+		var inc uint64
+		if inc, err = swk.decode(data); err != nil {
 			return err
 		}
+		rotationkey.keys[galEl] = swk
+		rotationkey.permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, uint64(swk.key[0][0].GetDegree()))
 
-		pointer += inc
-
-		dataLen -= int(4 + inc)
+		data = data[inc:]
 	}
 
 	return nil

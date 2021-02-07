@@ -96,7 +96,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephSkO
 	for i := uint64(0); i < ekg.beta; i++ {
 		// h = e
 		ekg.gaussianSampler.Read(shareOut.value[i][0])
-		ekg.ringQP.NTTLazy(shareOut.value[i][0], shareOut.value[i][0])
+		ekg.ringQP.NTT(shareOut.value[i][0], shareOut.value[i][0])
 
 		// h = sk*CrtBaseDecompQi + e
 		for j := uint64(0); j < ekg.alpha; j++ {
@@ -110,7 +110,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephSkO
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index == uint64(ekg.ringQModCount)-1 {
+			if index >= ekg.ringQModCount {
 				break
 			}
 		}
@@ -121,7 +121,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephSkO
 		// Second Element
 		// e_2i
 		ekg.gaussianSampler.Read(shareOut.value[i][1])
-		ekg.ringQP.NTTLazy(shareOut.value[i][1], shareOut.value[i][1])
+		ekg.ringQP.NTT(shareOut.value[i][1], shareOut.value[i][1])
 		// s*a + e_2i
 		ekg.ringQP.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut.value[i][1])
 	}
@@ -151,13 +151,13 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *ring.Poly, round1 *RKGShare,
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
 		ekg.gaussianSampler.Read(ekg.tmpPoly2)
-		ekg.ringQP.NTTLazy(ekg.tmpPoly2, ekg.tmpPoly2)
+		ekg.ringQP.NTT(ekg.tmpPoly2, ekg.tmpPoly2)
 		ekg.ringQP.Add(shareOut.value[i][0], ekg.tmpPoly2, shareOut.value[i][0])
 
 		// second part
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
 		ekg.gaussianSampler.Read(shareOut.value[i][1])
-		ekg.ringQP.NTTLazy(shareOut.value[i][1], shareOut.value[i][1])
+		ekg.ringQP.NTT(shareOut.value[i][1], shareOut.value[i][1])
 		ekg.ringQP.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round1.value[i][1], shareOut.value[i][1])
 	}
 

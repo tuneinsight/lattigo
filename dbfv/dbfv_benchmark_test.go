@@ -87,7 +87,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 		share1 RKGShare
 		share2 RKGShare
 
-		rlk *bfv.RelinearizationKey
+		rlk *bfv.EvaluationKey
 	}
 
 	p := new(Party)
@@ -147,7 +147,7 @@ func benchRelinKeyGenNaive(testCtx *testContext, b *testing.B) {
 		share1 RKGNaiveShareRoundOne
 		share2 RKGNaiveShareRoundTwo
 
-		rlk *bfv.RelinearizationKey
+		rlk *bfv.EvaluationKey
 	}
 
 	p := new(Party)
@@ -312,7 +312,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 		}
 	})
 
-	rotKey := bfv.NewRotationKeySet(testCtx.params)
+	rotKey := bfv.NewRotationKeys()
 	b.Run(testString("RotKeyGen/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {

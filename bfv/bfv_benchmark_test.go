@@ -89,7 +89,7 @@ func benchKeyGen(testctx *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			kgen.GenRelinKey(sk, 1)
+			kgen.GenRelinearizationKey(sk, 1)
 		}
 	})
 }

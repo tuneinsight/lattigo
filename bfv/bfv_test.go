@@ -92,7 +92,7 @@ func genTestParams(params *Parameters) (testctx *testContext, err error) {
 	testctx.kgen = NewKeyGenerator(testctx.params)
 	testctx.sk, testctx.pk = testctx.kgen.GenKeyPair()
 	if params.PiCount() != 0 {
-		testctx.rlk = testctx.kgen.GenRelinKey(testctx.sk, 1)
+		testctx.rlk = testctx.kgen.GenRelinearizationKey(testctx.sk, 1)
 	}
 
 	testctx.encoder = NewEncoder(testctx.params)
@@ -779,7 +779,7 @@ func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
 			t.Skip("#Pi is empty")
 		}
 
-		evalkey := testctx.kgen.GenRelinKey(testctx.sk, 2)
+		evalkey := testctx.kgen.GenRelinearizationKey(testctx.sk, 2)
 		data, err := evalkey.MarshalBinary()
 		require.NoError(t, err)
 

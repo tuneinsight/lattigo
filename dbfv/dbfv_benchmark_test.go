@@ -28,7 +28,6 @@ func Benchmark_DBFV(b *testing.B) {
 
 		benchPublicKeyGen(testCtx, b)
 		benchRelinKeyGen(testCtx, b)
-		benchRelinKeyGenNaive(testCtx, b)
 		benchKeyswitching(testCtx, b)
 		benchPublicKeySwitching(testCtx, b)
 		benchRotKeyGen(testCtx, b)
@@ -88,7 +87,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 		share1 *drlwe.RKGShare
 		share2 *drlwe.RKGShare
 
-		rlk *bfv.EvaluationKey
+		rlk *bfv.RelinearizationKey
 	}
 
 	p := new(Party)
@@ -132,61 +131,6 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RelinKeyGen/Finalize", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			p.GenBFVRelinearizationKey(p.share1, p.share2, p.rlk)
-		}
-	})
-}
-
-func benchRelinKeyGenNaive(testCtx *testContext, b *testing.B) {
-
-	pk0 := testCtx.pk0
-	sk0Shards := testCtx.sk0Shards
-
-	type Party struct {
-		*RKGProtocolNaive
-		s      *ring.Poly
-		share1 RKGNaiveShareRoundOne
-		share2 RKGNaiveShareRoundTwo
-
-		rlk *bfv.EvaluationKey
-	}
-
-	p := new(Party)
-	p.RKGProtocolNaive = NewRKGProtocolNaive(testCtx.params)
-	p.s = sk0Shards[0].Get()
-	p.share1, p.share2 = p.AllocateShares()
-	p.rlk = bfv.NewRelinKey(testCtx.params, 2)
-
-	b.Run(testString("RelinKeyGenNaive/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShareRoundOne(p.s, pk0.Get(), p.share1)
-		}
-	})
-
-	b.Run(testString("RelinKeyGenNaive/Round1/Agg", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.AggregateShareRoundOne(p.share1, p.share1, p.share1)
-		}
-	})
-
-	b.Run(testString("RelinKeyGenNaive/Round2/Gen", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShareRoundTwo(p.share1, p.s, pk0.Get(), p.share2)
-		}
-	})
-
-	b.Run(testString("RelinKeyGenNaive/Round2/Agg", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.AggregateShareRoundTwo(p.share2, p.share2, p.share2)
-		}
-	})
-
-	b.Run(testString("RelinKeyGenNaive/Finalize", parties, testCtx.params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.GenRelinearizationKey(p.share2, p.rlk)
 		}
 	})
 }
@@ -299,7 +243,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RotKeyGen/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(bfv.RotationRight, 1, sk0Shards[0].Get(), crp, p.share)
+			p.GenShare(sk0Shards[0].Get(), testCtx.params.GaloisElementForRowRotation(), crp, p.share)
 		}
 	})
 
@@ -310,11 +254,11 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 		}
 	})
 
-	rotKey := bfv.NewRotationKeys()
+	rotKey := bfv.NewSwitchingKey(testCtx.params)
 	b.Run(testString("RotKeyGen/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenBFVRotationKey(bfv.RotationRight, 1, p.share, crp, rotKey)
+			p.GenBFVRotationKey(p.share, crp, rotKey)
 		}
 	})
 }

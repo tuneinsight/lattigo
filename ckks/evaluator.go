@@ -45,10 +45,10 @@ type Evaluator interface {
 	Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciphertext) (err error)
 	RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ciphertext, err error)
 	RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *Ciphertext) (err error)
-	MulRelinNew(op0, op1 Operand, evakey *EvaluationKey) (ctOut *Ciphertext)
-	MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *Ciphertext)
-	RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext)
-	Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext)
+	MulRelinNew(op0, op1 Operand, evakey *RelinearizationKey) (ctOut *Ciphertext)
+	MulRelin(op0, op1 Operand, evakey *RelinearizationKey, ctOut *Ciphertext)
+	RelinearizeNew(ct0 *Ciphertext, evakey *RelinearizationKey) (ctOut *Ciphertext)
+	Relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, ctOut *Ciphertext)
 	SwitchKeysNew(ct0 *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
 	SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
 	RotateNew(ct0 *Ciphertext, k int, evakey *RotationKeySet) (ctOut *Ciphertext)
@@ -56,12 +56,12 @@ type Evaluator interface {
 	RotateHoisted(ctIn *Ciphertext, rotations []int, rotkeys *RotationKeySet) (cOut map[int]*Ciphertext)
 	ConjugateNew(ct0 *Ciphertext, evakey *RotationKeySet) (ctOut *Ciphertext)
 	Conjugate(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext)
-	PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *EvaluationKey, elOut *Ciphertext)
-	PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext)
-	Power(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey, res *Ciphertext)
-	InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluatePoly(ct *Ciphertext, coeffs *Poly, evakey *EvaluationKey) (res *Ciphertext, err error)
-	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error)
+	PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *RelinearizationKey, elOut *Ciphertext)
+	PowerNew(op *Ciphertext, degree uint64, evakey *RelinearizationKey) (opOut *Ciphertext)
+	Power(ct0 *Ciphertext, degree uint64, evakey *RelinearizationKey, res *Ciphertext)
+	InverseNew(ct0 *Ciphertext, steps uint64, evakey *RelinearizationKey) (res *Ciphertext)
+	EvaluatePoly(ct *Ciphertext, coeffs *Poly, evakey *RelinearizationKey) (res *Ciphertext, err error)
+	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *RelinearizationKey) (res *Ciphertext, err error)
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
@@ -1218,7 +1218,7 @@ func (eval *evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, ctOut *Ci
 // key can be provided to apply a relinearization step to reduce the degree of the output element. This evaluation key is only
 // required when the two input elements are Ciphertexts. If no evaluation key is provided and the input elements are two Ciphertexts,
 // the resulting Ciphertext will be of degree two. This function only accepts Plaintexts (degree zero) and/or Ciphertexts of degree one.
-func (eval *evaluator) MulRelinNew(op0, op1 Operand, evakey *EvaluationKey) (ctOut *Ciphertext) {
+func (eval *evaluator) MulRelinNew(op0, op1 Operand, evakey *RelinearizationKey) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1, utils.MinUint64(op0.Level(), op1.Level()), op0.Scale()+op1.Scale())
 	eval.MulRelin(op0, op1, evakey, ctOut)
 
@@ -1230,7 +1230,7 @@ func (eval *evaluator) MulRelinNew(op0, op1 Operand, evakey *EvaluationKey) (ctO
 // key can be provided to apply a relinearization step to reduce the degree of the output element. This evaluation key is only
 // required when the two input elements are Ciphertexts. If no evaluation key is provided and the input elements are two Ciphertexts,
 // the resulting Ciphertext will be of degree two. This function only accepts Plaintexts (degree zero) and/or Ciphertexts of degree one.
-func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *Ciphertext) {
+func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *RelinearizationKey, ctOut *Ciphertext) {
 
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 
@@ -1326,14 +1326,14 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 
 // RelinearizeNew applies the relinearization procedure on ct0 and returns the result in a newly
 // created Ciphertext. The input Ciphertext must be of degree two.
-func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext) {
+func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *RelinearizationKey) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale())
 	eval.Relinearize(ct0, evakey, ctOut)
 	return
 }
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut. The input Ciphertext must be of degree two.
-func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
+func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, ctOut *Ciphertext) {
 	if ct0.Degree() != 2 {
 		panic("cannot Relinearize: input Ciphertext is not of degree 2")
 	}

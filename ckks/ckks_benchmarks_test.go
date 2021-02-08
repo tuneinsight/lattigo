@@ -147,7 +147,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 	receiver := NewCiphertextRandom(testContext.prng, testContext.params, 2, testContext.params.MaxLevel(), testContext.params.Scale())
 
-	var rlk *EvaluationKey
+	var rlk *RelinearizationKey
 	var rotkey *RotationKeySet
 	if testContext.params.PiCount() != 0 {
 		rlk = testContext.kgen.GenRelinearizationKey(testContext.sk)

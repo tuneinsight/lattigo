@@ -65,7 +65,6 @@ func Test_DBFV(t *testing.T) {
 
 		testPublicKeyGen(testCtx, t)
 		testRelinKeyGen(testCtx, t)
-		testRelinKeyGenNaive(testCtx, t)
 		testKeyswitching(testCtx, t)
 		testPublicKeySwitching(testCtx, t)
 		testRotKeyGenRotRows(testCtx, t)
@@ -243,71 +242,6 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 }
 
-func testRelinKeyGenNaive(testCtx *testContext, t *testing.T) {
-
-	evaluator := testCtx.evaluator
-	pk0 := testCtx.pk0
-	encryptorPk0 := testCtx.encryptorPk0
-	decryptorSk0 := testCtx.decryptorSk0
-	sk0Shards := testCtx.sk0Shards
-
-	t.Run(testString("RelinKeyGenNaive/", parties, testCtx.params), func(t *testing.T) {
-
-		type Party struct {
-			*RKGProtocolNaive
-			s      *ring.Poly
-			share1 RKGNaiveShareRoundOne
-			share2 RKGNaiveShareRoundTwo
-		}
-
-		rkgParties := make([]*Party, parties)
-
-		for i := range rkgParties {
-			p := new(Party)
-			p.RKGProtocolNaive = NewRKGProtocolNaive(testCtx.params)
-			p.s = sk0Shards[i].Get()
-			p.share1, p.share2 = p.AllocateShares()
-			rkgParties[i] = p
-		}
-
-		P0 := rkgParties[0]
-
-		// ROUND 1
-		for i, p := range rkgParties {
-			rkgParties[i].GenShareRoundOne(p.s, pk0.Get(), p.share1)
-			if i > 0 {
-				P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
-			}
-		}
-
-		// ROUND 2
-		for i, p := range rkgParties {
-			rkgParties[i].GenShareRoundTwo(P0.share1, p.s, pk0.Get(), p.share2)
-			if i > 0 {
-				P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
-			}
-		}
-
-		evk := bfv.NewRelinKey(testCtx.params, 1)
-		P0.GenRelinearizationKey(P0.share2, evk)
-
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
-
-		for i := range coeffs {
-			coeffs[i] *= coeffs[i]
-			coeffs[i] %= testCtx.dbfvContext.ringT.Modulus[0]
-		}
-
-		ciphertextMul := bfv.NewCiphertext(testCtx.params, ciphertext.Degree()*2)
-		evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
-
-		res := bfv.NewCiphertext(testCtx.params, 1)
-		evaluator.Relinearize(ciphertextMul, evk, res)
-
-		verifyTestVectors(testCtx, decryptorSk0, coeffs, res, t)
-	})
-}
-
 func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 	sk0Shards := testCtx.sk0Shards
@@ -431,23 +365,25 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
+		galEl := testCtx.params.GaloisElementForRowRotation()
 		for i, p := range pcksParties {
-			p.GenShare(bfv.RotationRow, 0, p.s, crp, p.share)
+			p.GenShare(p.s, galEl, crp, p.share)
 			if i > 0 {
 				P0.Aggregate(p.share, P0.share, P0.share)
 			}
 		}
 
-		rotkey := bfv.NewRotationKeys()
-		P0.GenBFVRotationKey(bfv.RotationRow, 0, P0.share, crp, rotkey)
+		rotkey := bfv.NewSwitchingKey(testCtx.params)
+		rotKeySet := bfv.NewRotationKeySet(testCtx.params)
+		P0.GenBFVRotationKey(P0.share, crp, rotkey)
+		rotKeySet.Set(galEl, rotkey)
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
-		evaluator.RotateRows(ciphertext, rotkey, ciphertext)
+		result := evaluator.RotateRowsNew(ciphertext, rotKeySet)
+		coeffsWant := append(coeffs[testCtx.params.N()>>1:], coeffs[:testCtx.params.N()>>1]...)
 
-		coeffs = append(coeffs[testCtx.params.N()>>1:], coeffs[:testCtx.params.N()>>1]...)
-
-		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
+		verifyTestVectors(testCtx, decryptorSk0, coeffsWant, result, t)
 
 	})
 }
@@ -485,34 +421,27 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
-		mask := (testCtx.params.N() >> 1) - 1
-
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
-
-		receiver := bfv.NewCiphertext(testCtx.params, ciphertext.Degree())
 
 		for k := uint64(1); k < testCtx.params.N()>>1; k <<= 1 {
 
+			galEl := testCtx.params.GaloisElementForColumnRotationBy(int(k))
 			for i, p := range pcksParties {
-				p.GenShare(bfv.RotationLeft, k, p.s, crp, p.share)
+				p.GenShare(p.s, galEl, crp, p.share)
 				if i > 0 {
 					P0.Aggregate(p.share, P0.share, P0.share)
 				}
 			}
 
-			rotkey := bfv.NewRotationKeys()
-			P0.GenBFVRotationKey(bfv.RotationLeft, k, P0.share, crp, rotkey)
+			rotKey := bfv.NewSwitchingKey(testCtx.params)
+			rotKeySet := bfv.NewRotationKeySet(testCtx.params)
+			P0.GenBFVRotationKey(P0.share, crp, rotKey)
+			rotKeySet.Set(galEl, rotKey)
 
-			evaluator.RotateColumns(ciphertext, k, rotkey, receiver)
+			result := evaluator.RotateColumnsNew(ciphertext, int(k), rotKeySet)
+			coeffsWant := utils.RotateUint64Slots(coeffs, int(k))
 
-			coeffsWant := make([]uint64, testCtx.params.N())
-
-			for i := uint64(0); i < testCtx.params.N()>>1; i++ {
-				coeffsWant[i] = coeffs[(i+k)&mask]
-				coeffsWant[i+(testCtx.params.N()>>1)] = coeffs[((i+k)&mask)+(testCtx.params.N()>>1)]
-			}
-
-			verifyTestVectors(testCtx, decryptorSk0, coeffsWant, receiver, t)
+			verifyTestVectors(testCtx, decryptorSk0, coeffsWant, result, t)
 		}
 	})
 }
@@ -526,7 +455,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 	kgen := bfv.NewKeyGenerator(testCtx.params)
 
-	rlk := kgen.GenRelinKey(testCtx.sk0, 2)
+	rlk := kgen.GenRelinearizationKey(testCtx.sk0, 2)
 
 	t.Run(testString("Refresh/", parties, testCtx.params), func(t *testing.T) {
 
@@ -822,9 +751,11 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		}
 
+		galEl := testCtx.params.GaloisElementForColumnRotationBy(64)
+
 		rotProto := NewRotKGProtocol(testCtx.params)
 		rtgShare := rotProto.AllocateShare()
-		rotProto.GenShare(1, 64, testCtx.sk1.Get(), crp, rtgShare)
+		rotProto.GenShare(testCtx.sk1.Get(), galEl, crp, rtgShare)
 
 		data, err := rtgShare.MarshalBinary()
 		if err != nil {

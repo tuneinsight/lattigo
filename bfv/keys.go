@@ -24,20 +24,22 @@ type RelinearizationKey struct {
 
 // RotationKeySet is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeySet struct {
-	keys   map[uint64]*SwitchingKey
-	params *Parameters
+	keys map[uint64]*SwitchingKey
 }
 
 // NewRotationKeySet returns a new empty RotationKeys struct.
 func NewRotationKeySet(params *Parameters) (rotKey *RotationKeySet) {
 	rotKey = new(RotationKeySet)
 	rotKey.keys = make(map[uint64]*SwitchingKey, 0)
-	rotKey.params = params.Copy()
 	return
 }
 
+func (rtk *RotationKeySet) Set(galEl uint64, swk *SwitchingKey) {
+	rtk.keys[galEl] = swk
+}
+
 // Delete empties the set of rotation keys
-func (rtk RotationKeySet) Delete() {
+func (rtk *RotationKeySet) Delete() {
 	for k := range rtk.keys {
 		delete(rtk.keys, k)
 	}

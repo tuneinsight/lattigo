@@ -174,12 +174,12 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 }
 
 // GetDataLen returns the length in bytes of the target EvaluationKey.
-func (evaluationkey *EvaluationKey) GetDataLen(WithMetaData bool) (dataLen uint64) {
+func (evaluationkey *RelinearizationKey) GetDataLen(WithMetaData bool) (dataLen uint64) {
 	return evaluationkey.evakey.GetDataLen(WithMetaData)
 }
 
 // MarshalBinary encodes an evaluation key in a byte slice.
-func (evaluationkey *EvaluationKey) MarshalBinary() (data []byte, err error) {
+func (evaluationkey *RelinearizationKey) MarshalBinary() (data []byte, err error) {
 
 	var pointer uint64
 
@@ -195,7 +195,7 @@ func (evaluationkey *EvaluationKey) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decodes a previously marshaled evaluation-key in the target evaluation-key.
-func (evaluationkey *EvaluationKey) UnmarshalBinary(data []byte) (err error) {
+func (evaluationkey *RelinearizationKey) UnmarshalBinary(data []byte) (err error) {
 	evaluationkey.evakey = new(SwitchingKey)
 	if _, err = evaluationkey.evakey.decode(data); err != nil {
 		return err

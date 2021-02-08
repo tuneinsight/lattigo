@@ -17,8 +17,8 @@ type SwitchingKey struct {
 	key [][2]*ring.Poly
 }
 
-// EvaluationKey is a structure that stores the switching-keys required during the relinearization.
-type EvaluationKey struct {
+// RelinearizationKey is a structure that stores the switching-keys required during the relinearization.
+type RelinearizationKey struct {
 	evakey *SwitchingKey
 }
 
@@ -30,8 +30,8 @@ type RotationKeySet struct {
 
 // BootstrappingKey is a structure that stores the switching-keys required during the bootstrapping.
 type BootstrappingKey struct {
-	relinkey *EvaluationKey  // Relinearization key
-	rotkeys  *RotationKeySet // Rotation and conjugation keys
+	relinkey *RelinearizationKey // Relinearization key
+	rotkeys  *RotationKeySet     // Rotation and conjugation keys
 }
 
 // NewSecretKey generates a new SecretKey with zero values.
@@ -80,9 +80,9 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 }
 
 // NewRelinKey returns a new EvaluationKey with zero values.
-func NewRelinKey(params *Parameters) (evakey *EvaluationKey) {
+func NewRelinKey(params *Parameters) (evakey *RelinearizationKey) {
 
-	evakey = new(EvaluationKey)
+	evakey = new(RelinearizationKey)
 	evakey.evakey = new(SwitchingKey)
 
 	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
@@ -97,12 +97,12 @@ func NewRelinKey(params *Parameters) (evakey *EvaluationKey) {
 }
 
 // Get returns the slice of switching keys of the evaluation-key.
-func (evk *EvaluationKey) Get() *SwitchingKey {
+func (evk *RelinearizationKey) Get() *SwitchingKey {
 	return evk.evakey
 }
 
 // Set sets the target Evaluation key with the input polynomials.
-func (evk *EvaluationKey) Set(rlk [][2]*ring.Poly) {
+func (evk *RelinearizationKey) Set(rlk [][2]*ring.Poly) {
 
 	evk.evakey = new(SwitchingKey)
 	evk.evakey.key = make([][2]*ring.Poly, len(rlk))
@@ -143,6 +143,12 @@ func NewRotationKeySet(params *Parameters) (rotKey *RotationKeySet) {
 func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool) {
 	rotKey, inSet := rtks.keys[galoisEl]
 	return rotKey, inSet
+}
+
+func (rtks *RotationKeySet) Set(galoisEl uint64, swk *SwitchingKey) {
+	rtks.keys[galoisEl] = swk
+	N := uint64(len(swk.key[0][0].Coeffs[0]))
+	rtks.permuteNTTIndex[galoisEl] = ring.PermuteNTTIndex(galoisEl, N)
 }
 
 // delete empties the set of rotation keys

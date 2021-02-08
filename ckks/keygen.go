@@ -18,7 +18,7 @@ type KeyGenerator interface {
 	GenKeyPair() (sk *SecretKey, pk *PublicKey)
 	GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey)
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
-	GenRelinearizationKey(sk *SecretKey) (evakey *EvaluationKey)
+	GenRelinearizationKey(sk *SecretKey) (evakey *RelinearizationKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
 	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet)
@@ -142,13 +142,13 @@ func (keygen *keyGenerator) GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *Publ
 }
 
 // GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
-func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey) (evakey *EvaluationKey) {
+func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey) (evakey *RelinearizationKey) {
 
 	if len(keygen.params.pi) == 0 {
 		panic("Cannot GenRelinKey: modulus P is empty")
 	}
 
-	evakey = new(EvaluationKey)
+	evakey = new(RelinearizationKey)
 	keygen.ringQP.MulCoeffsMontgomery(sk.Get(), sk.Get(), keygen.polypool[0])
 	evakey.evakey = NewSwitchingKey(keygen.params)
 	keygen.newSwitchingKey(keygen.polypool[0], sk.Get(), evakey.evakey)

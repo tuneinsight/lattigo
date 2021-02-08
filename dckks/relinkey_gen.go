@@ -18,6 +18,6 @@ func NewRKGProtocol(params *ckks.Parameters) *RKGProtocol {
 }
 
 // GenCKKSRelinearizationKey finalizes the protocol and returns the common EvaluationKey.
-func (ekg *RKGProtocol) GenCKKSRelinearizationKey(round1 *drlwe.RKGShare, round2 *drlwe.RKGShare, evalKeyOut *ckks.EvaluationKey) {
+func (ekg *RKGProtocol) GenCKKSRelinearizationKey(round1 *drlwe.RKGShare, round2 *drlwe.RKGShare, evalKeyOut *ckks.RelinearizationKey) {
 	ekg.GenRelinearizationKey(round1, round2, evalKeyOut.Get().Get())
 }

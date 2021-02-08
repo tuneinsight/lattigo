@@ -6,7 +6,7 @@ import (
 
 // PowerOf2 computes op^(2^logPow2), consuming logPow2 levels, and returns the result on opOut. Providing an evaluation
 // key is necessary when logPow2 > 1.
-func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 uint64, evakey *EvaluationKey, opOut *Ciphertext) {
+func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 uint64, evakey *RelinearizationKey, opOut *Ciphertext) {
 
 	if logPow2 == 0 {
 
@@ -35,7 +35,7 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 uint64, evakey *Evaluati
 
 // PowerNew computes op^degree, consuming log(degree) levels, and returns the result on a new element. Providing an evaluation
 // key is necessary when degree > 2.
-func (eval *evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext) {
+func (eval *evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *RelinearizationKey) (opOut *Ciphertext) {
 	opOut = NewCiphertext(eval.params, 1, op.Level(), op.Scale())
 	eval.Power(op, degree, evakey, opOut)
 	return
@@ -43,7 +43,7 @@ func (eval *evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *Evaluatio
 
 // Power computes op^degree, consuming log(degree) levels, and returns the result on opOut. Providing an evaluation
 // key is necessary when degree > 2.
-func (eval *evaluator) Power(op *Ciphertext, degree uint64, evakey *EvaluationKey, opOut *Ciphertext) {
+func (eval *evaluator) Power(op *Ciphertext, degree uint64, evakey *RelinearizationKey, opOut *Ciphertext) {
 
 	tmpct0 := op.CopyNew()
 
@@ -77,7 +77,7 @@ func (eval *evaluator) Power(op *Ciphertext, degree uint64, evakey *EvaluationKe
 
 // InverseNew computes 1/op and returns the result on a new element, iterating for n steps and consuming n levels. The algorithm requires the encrypted values to be in the range
 // [-1.5 - 1.5i, 1.5 + 1.5i] or the result will be wrong. Each iteration increases the precision.
-func (eval *evaluator) InverseNew(op *Ciphertext, steps uint64, evakey *EvaluationKey) (opOut *Ciphertext) {
+func (eval *evaluator) InverseNew(op *Ciphertext, steps uint64, evakey *RelinearizationKey) (opOut *Ciphertext) {
 
 	cbar := eval.NegNew(op)
 

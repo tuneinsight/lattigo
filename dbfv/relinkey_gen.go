@@ -18,6 +18,6 @@ func NewRKGProtocol(params *bfv.Parameters) *RKGProtocol {
 }
 
 // GenBFVRelinearizationKey finalizes the protocol and returns the common EvaluationKey.
-func (ekg *RKGProtocol) GenBFVRelinearizationKey(round1 *drlwe.RKGShare, round2 *drlwe.RKGShare, evalKeyOut *bfv.EvaluationKey) {
+func (ekg *RKGProtocol) GenBFVRelinearizationKey(round1 *drlwe.RKGShare, round2 *drlwe.RKGShare, evalKeyOut *bfv.RelinearizationKey) {
 	ekg.GenRelinearizationKey(round1, round2, evalKeyOut.Get()[0].Get())
 }

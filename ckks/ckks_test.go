@@ -41,7 +41,7 @@ type testParams struct {
 	kgen        KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
-	rlk         *EvaluationKey
+	rlk         *RelinearizationKey
 	encryptorPk Encryptor
 	encryptorSk Encryptor
 	decryptor   Decryptor
@@ -1108,7 +1108,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		data, err := evalKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resEvalKey := new(EvaluationKey)
+		resEvalKey := new(RelinearizationKey)
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 

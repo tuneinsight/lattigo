@@ -80,7 +80,10 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 // GenShare generates a party's share in the RTG protocol
 func (rtg *RTGProtocol) GenShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, shareOut *RTGShare) {
 
-	ring.PermuteNTT(sk, galEl, rtg.tmpPoly[1])
+	twoN := rtg.ringQP.N << 2
+	galElInv := ring.ModExp(galEl, twoN-1, twoN)
+
+	ring.PermuteNTT(sk, galElInv, rtg.tmpPoly[1])
 
 	rtg.ringQP.MulScalarBigint(sk, rtg.ringPModulusBigint, rtg.tmpPoly[0])
 
@@ -133,7 +136,7 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut *RTGShare) {
 }
 
 // GenRotationKey finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
-func (rtg *RTGProtocol) GenRotationKey(share RTGShare, crp []*ring.Poly, rotKey *rlwe.SwitchingKey) {
+func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp []*ring.Poly, rotKey *rlwe.SwitchingKey) {
 	for i := uint64(0); i < rtg.beta; i++ {
 		rtg.ringQP.Copy(share.Value[i], rotKey.Value[i][0])
 		rtg.ringQP.Copy(crp[i], rotKey.Value[i][1])

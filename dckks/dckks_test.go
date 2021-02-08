@@ -76,7 +76,6 @@ func TestDCKKS(t *testing.T) {
 
 		testPublicKeyGen(testCtx, t)
 		testRelinKeyGen(testCtx, t)
-		testRelinKeyGenNaive(testCtx, t)
 		testKeyswitching(testCtx, t)
 		testPublicKeySwitching(testCtx, t)
 		testRotKeyGenConjugate(testCtx, t)
@@ -254,70 +253,6 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 }
 
-func testRelinKeyGenNaive(testCtx *testContext, t *testing.T) {
-
-	evaluator := testCtx.evaluator
-	pk0 := testCtx.pk0
-	encryptorPk0 := testCtx.encryptorPk0
-	decryptorSk0 := testCtx.decryptorSk0
-	sk0Shards := testCtx.sk0Shards
-
-	t.Run(testString("RelinKeyGenNaive/", parties, testCtx.params), func(t *testing.T) {
-
-		type Party struct {
-			*RKGProtocolNaive
-			s      *ring.Poly
-			share1 RKGNaiveShareRoundOne
-			share2 RKGNaiveShareRoundTwo
-		}
-
-		rkgParties := make([]*Party, parties)
-
-		for i := range rkgParties {
-			p := new(Party)
-			p.RKGProtocolNaive = NewRKGProtocolNaive(testCtx.params)
-			p.s = sk0Shards[i].Get()
-			p.share1, p.share2 = p.AllocateShares()
-			rkgParties[i] = p
-		}
-
-		P0 := rkgParties[0]
-
-		// ROUND 1
-		for i, p := range rkgParties {
-			rkgParties[i].GenShareRoundOne(p.s, pk0.Get(), p.share1)
-			if i > 0 {
-				P0.AggregateShareRoundOne(p.share1, P0.share1, P0.share1)
-			}
-		}
-
-		// ROUND 2
-		for i, p := range rkgParties {
-			rkgParties[i].GenShareRoundTwo(P0.share1, p.s, pk0.Get(), p.share2)
-			if i > 0 {
-				P0.AggregateShareRoundTwo(p.share2, P0.share2, P0.share2)
-			}
-		}
-
-		evk := ckks.NewRelinKey(testCtx.params)
-		P0.GenRelinearizationKey(P0.share2, evk)
-
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
-
-		for i := range coeffs {
-			coeffs[i] *= coeffs[i]
-		}
-
-		evaluator.MulRelin(ciphertext, ciphertext, evk, ciphertext)
-
-		require.Equal(t, ciphertext.Degree(), uint64(1))
-
-		evaluator.Rescale(ciphertext, testCtx.params.Scale(), ciphertext)
-
-		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
-	})
-}
-
 func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 	encryptorPk0 := testCtx.encryptorPk0
@@ -445,19 +380,23 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
+		galEl := testCtx.params.GaloisElementForRowRotation()
+
 		for i, p := range pcksParties {
-			p.GenShare(ckks.Conjugate, 0, p.s, crp, p.share)
+			p.GenShare(p.s, galEl, crp, p.share)
 			if i > 0 {
 				P0.Aggregate(p.share, P0.share, P0.share)
 			}
 		}
 
-		rotkey := ckks.NewRotationKeys()
-		P0.GenCKKSRotationKey(testCtx.params, ckks.Conjugate, 0, P0.share, crp, rotkey)
+		rotKey := ckks.NewSwitchingKey(testCtx.params)
+		rotKeySet := ckks.NewRotationKeySet(testCtx.params)
+		P0.GenCKKSRotationKey(P0.share, crp, rotKey)
+		rotKeySet.Set(galEl, rotKey)
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 
-		evaluator.Conjugate(ciphertext, rotkey, ciphertext)
+		evaluator.Conjugate(ciphertext, rotKeySet, ciphertext)
 
 		coeffsWant := make([]complex128, ringQP.N>>1)
 
@@ -504,31 +443,29 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
-		mask := (ringQP.N >> 1) - 1
-
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 
 		receiver := ckks.NewCiphertext(testCtx.params, ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale())
 
 		for k := uint64(1); k < ringQP.N>>1; k <<= 1 {
 
+			galEl := testCtx.params.GaloisElementForColumnRotationBy(int(k))
+
 			for i, p := range pcksParties {
-				p.GenShare(ckks.RotationLeft, k, p.s, crp, p.share)
+				p.GenShare(p.s, galEl, crp, p.share)
 				if i > 0 {
 					P0.Aggregate(p.share, P0.share, P0.share)
 				}
 			}
 
-			rotkey := ckks.NewRotationKeys()
-			P0.GenCKKSRotationKey(testCtx.params, ckks.RotationLeft, k, P0.share, crp, rotkey)
+			rotKey := ckks.NewSwitchingKey(testCtx.params)
+			rotKeySet := ckks.NewRotationKeySet(testCtx.params)
+			P0.GenCKKSRotationKey(P0.share, crp, rotKey)
+			rotKeySet.Set(galEl, rotKey)
 
-			evaluator.Rotate(ciphertext, k, rotkey, receiver)
+			evaluator.Rotate(ciphertext, int(k), rotKeySet, receiver)
 
-			coeffsWant := make([]complex128, ringQP.N>>1)
-
-			for i := uint64(0); i < ringQP.N>>1; i++ {
-				coeffsWant[i] = coeffs[(i+k)&mask]
-			}
+			coeffsWant := utils.RotateComplex128Slice(coeffs, int(k))
 
 			verifyTestVectors(testCtx, decryptorSk0, coeffsWant, receiver, t)
 		}

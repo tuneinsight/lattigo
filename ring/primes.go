@@ -168,6 +168,4 @@ func GenerateNTTPrimesP(logP, NthRoot, n uint64) (primes []uint64) {
 			panic("generateNTTPrimesP error: cannot generate enough primes for the given parameters")
 		}
 	}
-
-	return
 }

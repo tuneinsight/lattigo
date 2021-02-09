@@ -18,7 +18,7 @@ func NewRotKGProtocol(params *bfv.Parameters) (rtg *RTGProtocol) {
 	return &RTGProtocol{*drlwe.NewRTGProtocol(params.N(), params.Qi(), params.Pi(), params.Sigma())}
 }
 
-// GenCKKSRotationKey populates the input RotationKeys struture with the Switching key computed from the protocol.
+// GenBFVRotationKey populates the input RotationKeys struture with the Switching key computed from the protocol.
 func (rtg *RTGProtocol) GenBFVRotationKey(share *drlwe.RTGShare, crp []*ring.Poly, rotKey *bfv.SwitchingKey) {
 	rtg.GenRotationKey(share, crp, &rlwe.SwitchingKey{Value: rotKey.Get()})
 }

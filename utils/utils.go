@@ -122,6 +122,7 @@ func AllDistinct(s []uint64) bool {
 	return true
 }
 
+// RotateUint64Slice returns a new slice corresponding to s rotated by k positions to the left.
 func RotateUint64Slice(s []uint64, k int) []uint64 {
 	if k == 0 || len(s) == 0 {
 		return s
@@ -136,6 +137,8 @@ func RotateUint64Slice(s []uint64, k int) []uint64 {
 	return ret
 }
 
+// RotateUint64Slots returns a new slice corresponding to s where each half of the slice
+// have been rotated by k positions to the left.
 func RotateUint64Slots(s []uint64, k int) []uint64 {
 	ret := make([]uint64, len(s), len(s))
 	slots := len(s) >> 1
@@ -144,6 +147,7 @@ func RotateUint64Slots(s []uint64, k int) []uint64 {
 	return ret
 }
 
+// RotateComplex128Slice returns a new slice corresponding to s rotated by k positions to the left.
 func RotateComplex128Slice(s []complex128, k int) []complex128 {
 	if k == 0 || len(s) == 0 {
 		return s

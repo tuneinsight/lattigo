@@ -34,21 +34,24 @@ func NewRotationKeySet(params *Parameters) (rotKey *RotationKeySet) {
 	return
 }
 
-func (rtk *RotationKeySet) Set(galEl uint64, swk *SwitchingKey) {
-	rtk.keys[galEl] = swk
+// Set stores a copy of the rotKey SwitchingKey inside the receiver RotationKeySet
+func (rtks *RotationKeySet) Set(galEl uint64, rotKey *SwitchingKey) {
+	s := new(SwitchingKey)
+	s.Copy(rotKey)
+	rtks.keys[galEl] = s
 }
 
 // Delete empties the set of rotation keys
-func (rtk *RotationKeySet) Delete() {
-	for k := range rtk.keys {
-		delete(rtk.keys, k)
+func (rtks *RotationKeySet) Delete() {
+	for k := range rtks.keys {
+		delete(rtks.keys, k)
 	}
 }
 
 // GetRotationKey return the rotation key for the given galois element or nil if such key is not in the set. The
 // second argument is true  iff the first one is non-nil.
-func (rotKeys *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool) {
-	rotKey, inSet := rotKeys.keys[galoisEl]
+func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool) {
+	rotKey, inSet := rtks.keys[galoisEl]
 	return rotKey, inSet
 }
 
@@ -57,6 +60,7 @@ func (swk *SwitchingKey) Get() [][2]*ring.Poly {
 	return swk.key
 }
 
+// Copy copies the other SwitchingKey inside the receiver.
 func (swk *SwitchingKey) Copy(other *SwitchingKey) {
 	if other == nil {
 		return

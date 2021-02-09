@@ -145,8 +145,11 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 	return rotKey, inSet
 }
 
+// Set stores a copy of the rotKey SwitchingKey inside the receiver RotationKeySet
 func (rtks *RotationKeySet) Set(galoisEl uint64, swk *SwitchingKey) {
-	rtks.keys[galoisEl] = swk
+	s := new(SwitchingKey)
+	s.Copy(swk)
+	rtks.keys[galoisEl] = s
 	N := uint64(len(swk.key[0][0].Coeffs[0]))
 	rtks.permuteNTTIndex[galoisEl] = ring.PermuteNTTIndex(galoisEl, N)
 }

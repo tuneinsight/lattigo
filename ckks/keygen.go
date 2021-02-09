@@ -371,8 +371,8 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 
 	rotUint := computeBootstrappingDFTRotationList(keygen.params.logN, logSlots, btpParams)
 	rotInt := make([]int, len(rotUint), len(rotUint))
-	for r, i := range rotUint {
-		rotInt[i] = r
+	for i, r := range rotUint {
+		rotInt[i] = int(r)
 	}
 
 	btpKey = &BootstrappingKey{

@@ -242,12 +242,7 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 
 // GenRotationKeysForInnerSum generates a RotationKeySet supporting the InnerSum operation of the Evaluator
 func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet) {
-	galEls := make([]uint64, keygen.params.logN+1, keygen.params.logN+1)
-	galEls[0] = keygen.params.GaloisElementForRowRotation()
-	for i := 0; i < int(keygen.params.logN)-1; i++ {
-		galEls[i+1] = keygen.params.GaloisElementForColumnRotationBy(1 << i)
-	}
-	return keygen.GenRotationKeys(galEls, sk)
+	return keygen.GenRotationKeys(keygen.params.GaloisElementsForRowInnerSum(), sk)
 }
 
 func (keygen *keyGenerator) genrotKey(sk *ring.Poly, gen uint64, swkOut *SwitchingKey) {

@@ -20,25 +20,6 @@ func NewCKGProtocol(params *ckks.Parameters) *CKGProtocol {
 	return ckg
 }
 
-// // AllocateShares allocates the CKG shares.
-// func (ckg *CKGProtocol) AllocateShares() *drlwe.CKGShare {
-// 	return ckg.CKGProtocol.AllocateShares()
-// }
-
-// // GenShare generates the party's public key share from its secret key as:
-// //
-// // crs*s_i + e_i
-// //
-// // for the receiver protocol. Has no effect is the share was already generated.
-// func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut *drlwe.CKGShare) {
-// 	ckg.CKGProtocol.GenShare(sk, crs, shareOut)
-// }
-
-// // AggregateShares aggregates a new share to the aggregate key
-// func (ckg *CKGProtocol) AggregateShares(share1, share2, shareOut *drlwe.CKGShare) {
-// 	ckg.CKGProtocol.AggregateShares(share1, share2, shareOut)
-// }
-
 // GenPublicKey return the current aggregation of the received shares as a ckks.PublicKey.
 func (ckg *CKGProtocol) GenPublicKey(roundShare *drlwe.CKGShare, crs *ring.Poly, pubkey *ckks.PublicKey) {
 	pubkey.Set([2]*ring.Poly{roundShare.Poly, crs})

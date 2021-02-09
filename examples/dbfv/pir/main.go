@@ -340,36 +340,34 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		pi.rtgShare = rtg.AllocateShare()
 	}
 
-	rtk := bfv.NewRotationKeySet(params)
-
 	crpRot := make([]*ring.Poly, params.Beta()) // for the rotation keys
 
 	for i := uint64(0); i < params.Beta(); i++ {
 		crpRot[i] = crsGen.ReadNew()
 	}
 
-	for _, rot := range []bfv.RotationType{bfv.RotationRight, bfv.RotationLeft, bfv.RotationRow} {
-		for k := uint64(1); (rot == bfv.RotationRow && k == 1) || (rot != bfv.RotationRow && k < 1<<(params.LogN()-1)); k <<= 1 {
+	rotKeySet := bfv.NewRotationKeySet(params)
+	for _, galEl := range params.GaloisElementsForRowInnerSum() {
 
-			rtgShareCombined := rtg.AllocateShare()
+		elapsedRTGParty += runTimedParty(func() {
+			for _, pi := range P {
+				rtg.GenShare(pi.sk.Get(), galEl, crpRot, pi.rtgShare)
+			}
+		}, len(P))
 
-			elapsedRTGParty += runTimedParty(func() {
-				for _, pi := range P {
-					rtg.GenShare(rot, k, pi.sk.Get(), crpRot, pi.rtgShare)
-				}
-			}, len(P))
-
-			elapsedRTGCloud += runTimed(func() {
-				for _, pi := range P {
-					rtg.Aggregate(pi.rtgShare, rtgShareCombined, rtgShareCombined)
-				}
-				rtg.GenBFVRotationKey(rot, k, rtgShareCombined, crpRot, rtk)
-			})
-		}
+		rtgShareCombined := rtg.AllocateShare()
+		rotKey := bfv.NewSwitchingKey(params)
+		elapsedRTGCloud += runTimed(func() {
+			for _, pi := range P {
+				rtg.Aggregate(pi.rtgShare, rtgShareCombined, rtgShareCombined)
+			}
+			rtg.GenBFVRotationKey(rtgShareCombined, crpRot, rotKey)
+		})
+		rotKeySet.Set(galEl, rotKey)
 	}
 	l.Printf("\tdone (cloud: %s, party %s)\n", elapsedRTGCloud, elapsedRTGParty)
 
-	return rtk
+	return rotKeySet
 }
 
 func genquery(params *bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryptor bfv.Encryptor) *bfv.Ciphertext {

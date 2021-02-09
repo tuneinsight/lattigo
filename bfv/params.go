@@ -397,6 +397,15 @@ func (p *Parameters) GaloisElementForRowRotation() uint64 {
 	return (1 << (p.logN + 1)) - 1
 }
 
+func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
+	galEls = make([]uint64, p.logN+1, p.logN+1)
+	galEls[0] = p.GaloisElementForRowRotation()
+	for i := 0; i < int(p.logN)-1; i++ {
+		galEls[i+1] = p.GaloisElementForColumnRotationBy(1 << i)
+	}
+	return galEls
+}
+
 func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
 	twoN := uint64(1 << (p.logN + 1))
 	return ring.ModExp(galEl, twoN-1, twoN)

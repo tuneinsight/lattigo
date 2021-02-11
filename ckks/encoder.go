@@ -296,7 +296,7 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, logSlots uint64) 
 
 	// We have more than one moduli and need the CRT reconstruction
 
-	if plaintext.Scale() < float64(encoder.ringQ.Modulus[0]) || plaintext.Level() == 0 {
+	if plaintext.Level() == 0 {
 
 		Q := encoder.ringQ.Modulus[0]
 		coeffs := encoder.polypool.Coeffs[0]

@@ -27,6 +27,11 @@ type RotationKeySet struct {
 	keys map[uint64]*SwitchingKey
 }
 
+type EvaluationKey struct {
+	Rlk  *RelinearizationKey
+	Rtks *RotationKeySet
+}
+
 // NewRotationKeySet returns a new empty RotationKeys struct.
 func NewRotationKeySet(params *Parameters) (rotKey *RotationKeySet) {
 	rotKey = new(RotationKeySet)

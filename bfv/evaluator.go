@@ -28,22 +28,29 @@ type Evaluator interface {
 	MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext)
 	Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext)
 	MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext)
-	Relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, ctOut *Ciphertext)
-	RelinearizeNew(ct0 *Ciphertext, evakey *RelinearizationKey) (ctOut *Ciphertext)
+	Relinearize(ct0 *Ciphertext, ctOut *Ciphertext)
+	RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext)
 	SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext)
-	RotateColumnsNew(ct0 *Ciphertext, k int, evakey *RotationKeySet) (ctOut *Ciphertext)
-	RotateColumns(ct0 *Ciphertext, k int, evakey *RotationKeySet, ctOut *Ciphertext)
-	RotateRows(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext)
-	RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeySet) (ctOut *Ciphertext)
-	InnerSum(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext)
+	RotateColumnsNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext)
+	RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext)
+	RotateRows(ct0 *Ciphertext, ctOut *Ciphertext)
+	RotateRowsNew(ct0 *Ciphertext) (ctOut *Ciphertext)
+	InnerSum(ct0 *Ciphertext, ctOut *Ciphertext)
 }
 
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
 type evaluator struct {
-	params *Parameters
+	*evaluatorPrecomp
+	*evaluatorBuffers
 
+	rlk  *RelinearizationKey
+	rtks *RotationKeySet
+}
+
+type evaluatorPrecomp struct {
+	params   *Parameters
 	ringQ    *ring.Ring
 	ringP    *ring.Ring
 	ringQMul *ring.Ring
@@ -57,7 +64,42 @@ type evaluator struct {
 	pHalf *big.Int
 
 	deltaMont []uint64
+}
 
+func newEvaluatorPrecomp(params *Parameters) *evaluatorPrecomp {
+	var err error
+	ev := new(evaluatorPrecomp)
+
+	ev.params = params.Copy()
+
+	ev.t = params.t
+
+	if ev.ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
+		panic(err)
+	}
+
+	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), uint64(len(params.qi)))
+
+	if ev.ringQMul, err = ring.NewRing(params.N(), qiMul); err != nil {
+		panic(err)
+	}
+	ev.baseconverterQ1Q2 = ring.NewFastBasisExtender(ev.ringQ, ev.ringQMul)
+	ev.pHalf = new(big.Int).Rsh(ev.ringQMul.ModulusBigint, 1)
+	ev.deltaMont = GenLiftParams(ev.ringQ, params.t)
+
+	if len(params.pi) != 0 {
+
+		if ev.ringP, err = ring.NewRing(params.N(), params.pi); err != nil {
+			panic(err)
+		}
+
+		ev.baseconverterQ1P = ring.NewFastBasisExtender(ev.ringQ, ev.ringP)
+		ev.decomposer = ring.NewDecomposer(ev.ringQ.Modulus, ev.ringP.Modulus)
+	}
+	return ev
+}
+
+type evaluatorBuffers struct {
 	poolQ    [][]*ring.Poly
 	poolQmul [][]*ring.Poly
 
@@ -67,141 +109,69 @@ type evaluator struct {
 	tmpPt *Plaintext
 }
 
+func newEvaluatorBuffer(eval *evaluatorPrecomp) *evaluatorBuffers {
+	evb := new(evaluatorBuffers)
+	evb.poolQ = make([][]*ring.Poly, 4)
+	evb.poolQmul = make([][]*ring.Poly, 4)
+	for i := 0; i < 4; i++ {
+		evb.poolQ[i] = make([]*ring.Poly, 6)
+		evb.poolQmul[i] = make([]*ring.Poly, 6)
+		for j := 0; j < 6; j++ {
+			evb.poolQ[i][j] = eval.ringQ.NewPoly()
+			evb.poolQmul[i][j] = eval.ringQMul.NewPoly()
+		}
+	}
+	if eval.ringP != nil {
+		evb.poolQKS = [4]*ring.Poly{eval.ringQ.NewPoly(), eval.ringQ.NewPoly(), eval.ringQ.NewPoly(), eval.ringQ.NewPoly()}
+		evb.poolPKS = [3]*ring.Poly{eval.ringP.NewPoly(), eval.ringP.NewPoly(), eval.ringP.NewPoly()}
+	}
+
+	evb.tmpPt = NewPlaintext(eval.params)
+
+	return evb
+}
+
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a small pool of polynomials
 // and ciphertexts that will be used for intermediate values.
-func NewEvaluator(params *Parameters) Evaluator {
-
-	var err error
-
-	var q, qm, p *ring.Ring
-	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
-
-	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), uint64(len(params.qi)))
-
-	if qm, err = ring.NewRing(params.N(), qiMul); err != nil {
-		panic(err)
-	}
-
-	poolQ := make([][]*ring.Poly, 4)
-	poolQmul := make([][]*ring.Poly, 4)
-	for i := 0; i < 4; i++ {
-		poolQ[i] = make([]*ring.Poly, 6)
-		poolQmul[i] = make([]*ring.Poly, 6)
-		for j := 0; j < 6; j++ {
-			poolQ[i][j] = q.NewPoly()
-			poolQmul[i][j] = qm.NewPoly()
-		}
-	}
-
-	var baseconverter *ring.FastBasisExtender
-	var decomposer *ring.Decomposer
-	var poolQKS [4]*ring.Poly
-	var poolPKS [3]*ring.Poly
-	if len(params.pi) != 0 {
-
-		if p, err = ring.NewRing(params.N(), params.pi); err != nil {
-			panic(err)
-		}
-
-		baseconverter = ring.NewFastBasisExtender(q, p)
-		decomposer = ring.NewDecomposer(q.Modulus, p.Modulus)
-		poolQKS = [4]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly()}
-		poolPKS = [3]*ring.Poly{p.NewPoly(), p.NewPoly(), p.NewPoly()}
-	}
-
+func NewEvaluator(params *Parameters, evaluationKey *EvaluationKey) Evaluator {
+	precomp := newEvaluatorPrecomp(params)
 	return &evaluator{
-		params:            params.Copy(),
-		ringQ:             q,
-		ringQMul:          qm,
-		ringP:             p,
-		baseconverterQ1Q2: ring.NewFastBasisExtender(q, qm),
-		baseconverterQ1P:  baseconverter,
-		decomposer:        decomposer,
-		t:                 params.t,
-		pHalf:             new(big.Int).Rsh(qm.ModulusBigint, 1),
-		deltaMont:         GenLiftParams(q, params.t),
-		poolQ:             poolQ,
-		poolQmul:          poolQmul,
-		poolQKS:           poolQKS,
-		poolPKS:           poolPKS,
-		tmpPt:             NewPlaintext(params),
+		evaluatorPrecomp: precomp,
+		evaluatorBuffers: newEvaluatorBuffer(precomp),
+		rlk:              evaluationKey.Rlk,
+		rtks:             evaluationKey.Rtks,
 	}
 }
 
-func (eval *evaluator) getRingQElem(op Operand) *Element {
-	switch o := op.(type) {
-	case *Ciphertext, *Plaintext:
-		return o.El()
-	case *PlaintextRingT:
-		scaleUp(eval.ringQ, eval.deltaMont, o.value, eval.tmpPt.value)
-		return eval.tmpPt.Element
-	default:
-		panic(fmt.Errorf("invalid operand type for operation: %T", o))
+func NewEvaluatorWithKey(baseEvaluator Evaluator, evaluationKey *EvaluationKey) Evaluator {
+	eval, ok := baseEvaluator.(*evaluator)
+	if !ok {
+		panic("cannot create a new Evaluator from this Evaluator implementation")
+	}
+	return &evaluator{
+		evaluatorPrecomp: eval.evaluatorPrecomp,
+		evaluatorBuffers: newEvaluatorBuffer(eval.evaluatorPrecomp),
+		rlk:              evaluationKey.Rlk,
+		rtks:             evaluationKey.Rtks,
 	}
 }
 
-// getElemAndCheckBinary unwraps the elements from the operands and checks that the receiver has sufficiently large degree.
-func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64, ensureRingQ bool) (el0, el1, elOut *Element) {
-	if op0 == nil || op1 == nil || opOut == nil {
-		panic("operands cannot be nil")
+func NewEvaluators(params *Parameters, evaluationKey *EvaluationKey, n int) []Evaluator {
+	if n <= 0 {
+		return []Evaluator{}
 	}
-
-	if op0.Degree()+op1.Degree() == 0 {
-		panic("operands cannot be both plaintexts")
-	}
-
-	if opOut.Degree() < opOutMinDegree {
-		panic("receiver operand degree is too small")
-	}
-
-	if ensureRingQ {
-		return eval.getRingQElem(op0), eval.getRingQElem(op1), opOut.El() // lifts from Rt to Rq if necessary
-	}
-
-	return op0.El(), op1.El(), opOut.El()
-}
-
-func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *Element) {
-	if op0 == nil || opOut == nil {
-		panic("operand cannot be nil")
-	}
-
-	if op0.Degree() == 0 {
-		panic("operand cannot be plaintext")
-	}
-
-	if opOut.Degree() < opOutMinDegree {
-		panic("receiver operand degree is too small")
-	}
-	el0, elOut = op0.El(), opOut.El()
-	return
-}
-
-// evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
-func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
-
-	smallest, largest, _ := getSmallestLargest(el0, el1)
-
-	for i := uint64(0); i < smallest.Degree()+1; i++ {
-		evaluate(el0.value[i], el1.value[i], elOut.value[i])
-	}
-
-	// If the inputs degrees differ, it copies the remaining degree on the receiver.
-	if largest != nil && largest != elOut { // checks to avoid unnecessary work.
-		for i := smallest.Degree() + 1; i < largest.Degree()+1; i++ {
-			elOut.value[i].Copy(largest.value[i])
+	evas := make([]Evaluator, n, n)
+	precomp := newEvaluatorPrecomp(params)
+	for i := range evas {
+		evas[i] = &evaluator{
+			evaluatorPrecomp: precomp,
+			evaluatorBuffers: newEvaluatorBuffer(precomp),
+			rlk:              evaluationKey.Rlk,
+			rtks:             evaluationKey.Rtks,
 		}
 	}
-}
-
-// evaluateInPlaceUnary applies the provided function in place on el0 and returns the result in elOut.
-func evaluateInPlaceUnary(el0, elOut *Element, evaluate func(*ring.Poly, *ring.Poly)) {
-	for i := range el0.value {
-		evaluate(el0.value[i], elOut.value[i])
-	}
+	return evas
 }
 
 // Add adds op0 to op1 and returns the result in ctOut.
@@ -572,7 +542,7 @@ func (eval *evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext) 
 }
 
 // relinearize is a method common to Relinearize and RelinearizeNew. It switches ct0 to the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
-func (eval *evaluator) relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, ctOut *Ciphertext) {
+func (eval *evaluator) relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	if ctOut != ct0 {
 		eval.ringQ.Copy(ct0.value[0], ctOut.value[0])
@@ -580,7 +550,7 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, 
 	}
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
-		eval.switchKeysInPlace(ct0.value[deg], evakey.keys[deg-2], eval.poolQKS[1], eval.poolQKS[2])
+		eval.switchKeysInPlace(ct0.value[deg], eval.rlk.keys[deg-2], eval.poolQKS[1], eval.poolQKS[2])
 		eval.ringQ.Add(ctOut.value[0], eval.poolQKS[1], ctOut.value[0])
 		eval.ringQ.Add(ctOut.value[1], eval.poolQKS[2], ctOut.value[1])
 	}
@@ -596,9 +566,9 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, 
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (e.g., a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and degree 2 ciphertexts).
-func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, ctOut *Ciphertext) {
+func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 
-	if int(ct0.Degree()-1) > len(evakey.keys) {
+	if int(ct0.Degree()-1) > len(eval.rlk.keys) {
 		panic("cannot Relinearize: input ciphertext degree too large to allow relinearization")
 	}
 
@@ -607,7 +577,7 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, 
 			ctOut.Copy(ct0.El())
 		}
 	} else {
-		eval.relinearize(ct0, evakey, ctOut)
+		eval.relinearize(ct0, ctOut)
 	}
 }
 
@@ -619,9 +589,9 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *RelinearizationKey, 
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (e.g., a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and degree 2 ciphertexts).
-func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *RelinearizationKey) (ctOut *Ciphertext) {
+func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1)
-	eval.Relinearize(ct0, evakey, ctOut)
+	eval.Relinearize(ct0, ctOut)
 	return
 }
 
@@ -647,20 +617,13 @@ func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (
 	return
 }
 
-// RotateColumnsNew applies RotateColumns and returns the result in a new Ciphertext.
-func (eval *evaluator) RotateColumnsNew(ct0 *Ciphertext, k int, evakey *RotationKeySet) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1)
-	eval.RotateColumns(ct0, k, evakey, ctOut)
-	return
-}
-
 // RotateColumns rotates the columns of ct0 by k positions to the left and returns the result in ctOut. As an additional input it requires a RotationKeys struct:
 //
 // - it must either store all the left and right power-of-2 rotations or the specific rotation that is requested.
 //
 // If only the power-of-two rotations are stored, the numbers k and n/2-k will be decomposed in base-2 and the rotation with the lowest
 // hamming weight will be chosen; then the specific rotation will be computed as a sum of powers of two rotations.
-func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, evakey *RotationKeySet, ctOut *Ciphertext) {
+func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot RotateColumns: input and or output must be of degree 1")
@@ -674,7 +637,7 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, evakey *RotationKey
 
 		galElL := eval.params.GaloisElementForColumnRotationBy(k)
 		// Looks in the rotation key if the corresponding rotation has been generated or if the input is a plaintext
-		if swk, inSet := evakey.GetRotationKey(galElL); inSet {
+		if swk, inSet := eval.rtks.GetRotationKey(galElL); inSet {
 
 			eval.permute(ct0, galElL, swk, ctOut)
 
@@ -684,8 +647,15 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, evakey *RotationKey
 	}
 }
 
+// RotateColumnsNew applies RotateColumns and returns the result in a new Ciphertext.
+func (eval *evaluator) RotateColumnsNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext) {
+	ctOut = NewCiphertext(eval.params, 1)
+	eval.RotateColumns(ct0, k, ctOut)
+	return
+}
+
 // RotateRows rotates the rows of ct0 and returns the result in ctOut.
-func (eval *evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext) {
+func (eval *evaluator) RotateRows(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot RotateRows: input and/or output must be of degree 1")
@@ -693,7 +663,7 @@ func (eval *evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeySet, ctOut
 
 	galEl := eval.params.GaloisElementForRowRotation()
 
-	if key, inSet := evakey.GetRotationKey(galEl); inSet {
+	if key, inSet := eval.rtks.GetRotationKey(galEl); inSet {
 		eval.permute(ct0, galEl, key, ctOut)
 	} else {
 		panic("cannot RotateRows: rotation key not generated")
@@ -701,15 +671,15 @@ func (eval *evaluator) RotateRows(ct0 *Ciphertext, evakey *RotationKeySet, ctOut
 }
 
 // RotateRowsNew rotates the rows of ct0 and returns the result a new Ciphertext.
-func (eval *evaluator) RotateRowsNew(ct0 *Ciphertext, evakey *RotationKeySet) (ctOut *Ciphertext) {
+func (eval *evaluator) RotateRowsNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1)
-	eval.RotateRows(ct0, evakey, ctOut)
+	eval.RotateRows(ct0, ctOut)
 	return
 }
 
 // InnerSum computes the inner sum of ct0 and returns the result in ctOut. It requires a rotation key storing all the left powers of two rotations.
 // The resulting vector will be of the form [sum, sum, .., sum, sum].
-func (eval *evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *Ciphertext) {
+func (eval *evaluator) InnerSum(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot InnerSum: input and output must be of degree 1")
@@ -720,11 +690,11 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, evakey *RotationKeySet, ctOut *
 	ctOut.Copy(ct0.El())
 
 	for i := 1; i < int(eval.ringQ.N>>1); i <<= 1 {
-		eval.RotateColumns(ctOut, i, evakey, cTmp)
+		eval.RotateColumns(ctOut, i, cTmp)
 		eval.Add(cTmp, ctOut, ctOut.Ciphertext())
 	}
 
-	eval.RotateRows(ctOut, evakey, cTmp)
+	eval.RotateRows(ctOut, cTmp)
 	eval.Add(ctOut, cTmp, ctOut)
 }
 
@@ -812,6 +782,78 @@ func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, po
 
 	eval.baseconverterQ1P.ModDownSplitPQ(level, pool2Q, pool2P, pool2Q)
 	eval.baseconverterQ1P.ModDownSplitPQ(level, pool3Q, pool3P, pool3Q)
+}
+func (eval *evaluator) getRingQElem(op Operand) *Element {
+	switch o := op.(type) {
+	case *Ciphertext, *Plaintext:
+		return o.El()
+	case *PlaintextRingT:
+		scaleUp(eval.ringQ, eval.deltaMont, o.value, eval.tmpPt.value)
+		return eval.tmpPt.Element
+	default:
+		panic(fmt.Errorf("invalid operand type for operation: %T", o))
+	}
+}
+
+// getElemAndCheckBinary unwraps the elements from the operands and checks that the receiver has sufficiently large degree.
+func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64, ensureRingQ bool) (el0, el1, elOut *Element) {
+	if op0 == nil || op1 == nil || opOut == nil {
+		panic("operands cannot be nil")
+	}
+
+	if op0.Degree()+op1.Degree() == 0 {
+		panic("operands cannot be both plaintexts")
+	}
+
+	if opOut.Degree() < opOutMinDegree {
+		panic("receiver operand degree is too small")
+	}
+
+	if ensureRingQ {
+		return eval.getRingQElem(op0), eval.getRingQElem(op1), opOut.El() // lifts from Rt to Rq if necessary
+	}
+
+	return op0.El(), op1.El(), opOut.El()
+}
+
+func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *Element) {
+	if op0 == nil || opOut == nil {
+		panic("operand cannot be nil")
+	}
+
+	if op0.Degree() == 0 {
+		panic("operand cannot be plaintext")
+	}
+
+	if opOut.Degree() < opOutMinDegree {
+		panic("receiver operand degree is too small")
+	}
+	el0, elOut = op0.El(), opOut.El()
+	return
+}
+
+// evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
+func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+
+	smallest, largest, _ := getSmallestLargest(el0, el1)
+
+	for i := uint64(0); i < smallest.Degree()+1; i++ {
+		evaluate(el0.value[i], el1.value[i], elOut.value[i])
+	}
+
+	// If the inputs degrees differ, it copies the remaining degree on the receiver.
+	if largest != nil && largest != elOut { // checks to avoid unnecessary work.
+		for i := smallest.Degree() + 1; i < largest.Degree()+1; i++ {
+			elOut.value[i].Copy(largest.value[i])
+		}
+	}
+}
+
+// evaluateInPlaceUnary applies the provided function in place on el0 and returns the result in elOut.
+func evaluateInPlaceUnary(el0, elOut *Element, evaluate func(*ring.Poly, *ring.Poly)) {
+	for i := range el0.value {
+		evaluate(el0.value[i], elOut.value[i])
+	}
 }
 
 // decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.

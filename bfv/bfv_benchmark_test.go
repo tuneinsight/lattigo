@@ -141,7 +141,6 @@ func benchDecrypt(testctx *testContext, b *testing.B) {
 
 func benchEvaluator(testctx *testContext, b *testing.B) {
 
-	evaluator := testctx.evaluator
 	encoder := testctx.encoder
 
 	plaintext := NewPlaintext(testctx.params)
@@ -161,6 +160,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	if testctx.params.PiCount() != 0 {
 		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk)
 	}
+	evaluator := NewEvaluatorWithKey(testctx.evaluator, &EvaluationKey{testctx.rlk, rotkey})
 
 	b.Run(testString("Evaluator/Add/Ct/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -223,7 +223,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Relinearize(receiver, testctx.rlk, ciphertext1)
+			evaluator.Relinearize(receiver, ciphertext1)
 		}
 	})
 
@@ -234,7 +234,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.RotateRows(ciphertext1, rotkey, ciphertext1)
+			evaluator.RotateRows(ciphertext1, ciphertext1)
 		}
 	})
 
@@ -245,7 +245,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
+			evaluator.RotateColumns(ciphertext1, 1, ciphertext1)
 		}
 	})
 }

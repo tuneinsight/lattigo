@@ -99,7 +99,7 @@ func genTestParams(params *Parameters) (testctx *testContext, err error) {
 	testctx.encryptorPk = NewEncryptorFromPk(testctx.params, testctx.pk)
 	testctx.encryptorSk = NewEncryptorFromSk(testctx.params, testctx.sk)
 	testctx.decryptor = NewDecryptor(testctx.params, testctx.sk)
-	testctx.evaluator = NewEvaluator(testctx.params)
+	testctx.evaluator = NewEvaluator(testctx.params, &EvaluationKey{testctx.rlk, nil})
 	return
 
 }
@@ -585,10 +585,10 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 		testctx.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 		testctx.ringT.MulCoeffs(values1, values2, values1)
 
-		receiver2 := testctx.evaluator.RelinearizeNew(receiver, testctx.rlk)
+		receiver2 := testctx.evaluator.RelinearizeNew(receiver)
 		verifyTestVectors(testctx, testctx.decryptor, values1, receiver2, t)
 
-		testctx.evaluator.Relinearize(receiver, testctx.rlk, receiver)
+		testctx.evaluator.Relinearize(receiver, receiver)
 		verifyTestVectors(testctx, testctx.decryptor, values1, receiver, t)
 	})
 }
@@ -624,17 +624,18 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 
 	rots := []int{1, -1, 4, -4, 63, -63}
 	rotkey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
+	evaluator := NewEvaluatorWithKey(testctx.evaluator, &EvaluationKey{testctx.rlk, rotkey})
 
 	t.Run(testString("Evaluator/RotateRows/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
-		testctx.evaluator.RotateRows(ciphertext, rotkey, ciphertext)
+		evaluator.RotateRows(ciphertext, ciphertext)
 		values.Coeffs[0] = append(values.Coeffs[0][testctx.params.N()>>1:], values.Coeffs[0][:testctx.params.N()>>1]...)
 		verifyTestVectors(testctx, testctx.decryptor, values, ciphertext, t)
 	})
 
 	t.Run(testString("Evaluator/RotateRowsNew/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
-		ciphertext = testctx.evaluator.RotateRowsNew(ciphertext, rotkey)
+		ciphertext = evaluator.RotateRowsNew(ciphertext)
 		values.Coeffs[0] = append(values.Coeffs[0][testctx.params.N()>>1:], values.Coeffs[0][:testctx.params.N()>>1]...)
 		verifyTestVectors(testctx, testctx.decryptor, values, ciphertext, t)
 	})
@@ -646,7 +647,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 		receiver := NewCiphertext(testctx.params, 1)
 		for _, n := range rots {
 
-			testctx.evaluator.RotateColumns(ciphertext, n, rotkey, receiver)
+			evaluator.RotateColumns(ciphertext, n, receiver)
 			valuesWant := utils.RotateUint64Slots(values.Coeffs[0], n)
 
 			verifyTestVectors(testctx, testctx.decryptor, &ring.Poly{Coeffs: [][]uint64{valuesWant}}, receiver, t)
@@ -659,7 +660,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 
 		for _, n := range rots {
 
-			receiver := testctx.evaluator.RotateColumnsNew(ciphertext, n, rotkey)
+			receiver := evaluator.RotateColumnsNew(ciphertext, n)
 			valuesWant := utils.RotateUint64Slots(values.Coeffs[0], n)
 
 			verifyTestVectors(testctx, testctx.decryptor, &ring.Poly{Coeffs: [][]uint64{valuesWant}}, receiver, t)
@@ -667,11 +668,12 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 	})
 
 	rotkey = testctx.kgen.GenRotationKeysForInnerSum(testctx.sk)
+	evaluator = NewEvaluatorWithKey(evaluator, &EvaluationKey{testctx.rlk, rotkey})
 
 	t.Run(testString("Evaluator/Rotate/InnerSum/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
-		testctx.evaluator.InnerSum(ciphertext, rotkey, ciphertext)
+		evaluator.InnerSum(ciphertext, ciphertext)
 
 		var sum uint64
 		for _, c := range values.Coeffs[0] {

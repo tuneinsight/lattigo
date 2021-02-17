@@ -635,7 +635,7 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth uint64, forward bo
 	rotationMap = make([]map[uint64]bool, maxDepth)
 
 	// We compute the chain of merge in order or reverse order depending if its DFT or InvDFT because
-	// the way the levels are collapsed has an inpact on the total number of rotations and keys to be
+	// the way the levels are collapsed has an impact on the total number of rotations and keys to be
 	// stored. Ex. instead of using 255 + 64 plaintext vectors, we can use 127 + 128 plaintext vectors
 	// by reversing the order of the merging.
 	merge := make([]uint64, maxDepth)

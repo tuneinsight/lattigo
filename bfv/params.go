@@ -563,7 +563,7 @@ func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
 		primes[key] = ring.GenerateNTTPrimes(key, 2<<logN, value)
 	}
 
-	// Assigns the primes to the CKKS moduli chain
+	// Assigns the primes to the BFV moduli chain
 	m.Qi = make([]uint64, len(lm.LogQi))
 	for i, qi := range lm.LogQi {
 		m.Qi[i] = primes[qi][0]

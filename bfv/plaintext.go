@@ -19,7 +19,7 @@ type Plaintext struct {
 // the scaling up by Q/t. See bfv/encoder.go for more information on plaintext types.
 type PlaintextRingT Plaintext
 
-// PlaintextMul represents a plaintext element in R_q, in NTT and Montgomerry form, but without scale up by Q/t.
+// PlaintextMul represents a plaintext element in R_q, in NTT and Montgomery form, but without scale up by Q/t.
 // A PlaintextMul is a special-purpose plaintext for efficient Ciphertext-Plaintext multiplication. However,
 // other operations on plaintexts are not supported. See bfv/encoder.go for more information on plaintext types.
 type PlaintextMul Plaintext

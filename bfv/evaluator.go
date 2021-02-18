@@ -147,6 +147,7 @@ func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
 	return ev
 }
 
+// NewEvaluators creates n evaluators sharing the same read-only data-structures.
 func NewEvaluators(params *Parameters, evaluationKey EvaluationKey, n int) []Evaluator {
 	if n <= 0 {
 		return []Evaluator{}
@@ -162,16 +163,20 @@ func NewEvaluators(params *Parameters, evaluationKey EvaluationKey, n int) []Eva
 	return evas
 }
 
-func (ev *evaluator) ShallowCopy() Evaluator {
-	return ev.ShallowCopyWithKey(EvaluationKey{ev.rlk, ev.rtks})
+// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver.
+func (eval *evaluator) ShallowCopy() Evaluator {
+	return eval.ShallowCopyWithKey(EvaluationKey{eval.rlk, eval.rtks})
 }
 
-func (ev *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator {
+// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver but the EvaluationKey is evaluationKey.
+func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator {
 	return &evaluator{
-		evaluatorBase:     ev.evaluatorBase,
-		evaluatorBuffers:  newEvaluatorBuffer(ev.evaluatorBase),
-		baseconverterQ1Q2: ev.baseconverterQ1Q2.ShallowCopy(),
-		baseconverterQ1P:  ev.baseconverterQ1P.ShallowCopy(),
+		evaluatorBase:     eval.evaluatorBase,
+		evaluatorBuffers:  newEvaluatorBuffer(eval.evaluatorBase),
+		baseconverterQ1Q2: eval.baseconverterQ1Q2.ShallowCopy(),
+		baseconverterQ1P:  eval.baseconverterQ1P.ShallowCopy(),
 		rlk:               evaluationKey.Rlk,
 		rtks:              evaluationKey.Rtks,
 	}

@@ -27,6 +27,7 @@ type RotationKeySet struct {
 	keys map[uint64]*SwitchingKey
 }
 
+// EvaluationKey is a structure representing the complete set of switching-keys required for evaluation
 type EvaluationKey struct {
 	Rlk  *RelinearizationKey
 	Rtks *RotationKeySet

@@ -204,6 +204,7 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Cipherte
 	}
 	encRes = encLvls[len(encLvls)-1][0]
 
+	evaluator := bfv.NewEvaluator(params, bfv.EvaluationKey{rlk, nil})
 	// Split the task among the Go routines
 	tasks := make(chan *multTask)
 	workers := &sync.WaitGroup{}
@@ -211,13 +212,13 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Cipherte
 	//l.Println("> Spawning", NGoRoutine, "evaluator goroutine")
 	for i := 1; i <= NGoRoutine; i++ {
 		go func(i int) {
-			evaluator := bfv.NewEvaluator(params)
+			evaluator := evaluator.ShallowCopy() // creates a shallow evaluator copy for this goroutine
 			for task := range tasks {
 				task.elapsedmultTask = runTimed(func() {
 					// 1) Multiplication of two input vectors
 					evaluator.Mul(task.op1, task.op2, task.res)
 					// 2) Relinearization
-					evaluator.Relinearize(task.res, rlk, task.res)
+					evaluator.Relinearize(task.res, task.res)
 				})
 				task.wg.Done()
 			}

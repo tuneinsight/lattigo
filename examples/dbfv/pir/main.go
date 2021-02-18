@@ -396,20 +396,22 @@ func requestphase(params *bfv.Parameters, queryIndex, NGoRoutine int, encQuery *
 		encPartial[i] = bfv.NewCiphertext(params, 2)
 	}
 
+	evaluator := bfv.NewEvaluator(params, bfv.EvaluationKey{Rlk: rlk, Rtks: rtk})
+
 	// Split the task among the Go routines
 	tasks := make(chan *maskTask)
 	workers := &sync.WaitGroup{}
 	workers.Add(NGoRoutine)
 	for i := 1; i <= NGoRoutine; i++ {
 		go func(i int) {
-			evaluator := bfv.NewEvaluator(params)
+			evaluator := evaluator.ShallowCopy() // creates a shallow evaluator copy for this goroutine
 			tmp := bfv.NewCiphertext(params, 1)
 			for task := range tasks {
 				task.elapsedmaskTask = runTimed(func() {
 					// 1) Multiplication of the query with the plaintext mask
 					evaluator.Mul(task.query, task.mask, tmp)
 					// 2) Inner sum (populate all the slots with the sum of all the slots)
-					evaluator.InnerSum(tmp, rtk, tmp)
+					evaluator.InnerSum(tmp, tmp)
 					// 3) Multiplication of 2) with the i-th ciphertext stored in the cloud
 					evaluator.Mul(tmp, task.row, task.res)
 				})
@@ -441,7 +443,6 @@ func requestphase(params *bfv.Parameters, queryIndex, NGoRoutine int, encQuery *
 		elapsedRequestCloudCPU += t.elapsedmaskTask
 	}
 
-	evaluator := bfv.NewEvaluator(params)
 	resultDeg2 := bfv.NewCiphertext(params, 2)
 	result := bfv.NewCiphertext(params, 1)
 
@@ -450,7 +451,7 @@ func requestphase(params *bfv.Parameters, queryIndex, NGoRoutine int, encQuery *
 		for i := 0; i < len(encInputs); i++ {
 			evaluator.Add(resultDeg2, encPartial[i], resultDeg2)
 		}
-		evaluator.Relinearize(resultDeg2, rlk, result)
+		evaluator.Relinearize(resultDeg2, result)
 	})
 
 	elapsedRequestCloud += finalAddDuration

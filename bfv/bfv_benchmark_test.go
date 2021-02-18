@@ -160,7 +160,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	if testctx.params.PiCount() != 0 {
 		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk)
 	}
-	evaluator := NewEvaluatorWithKey(testctx.evaluator, &EvaluationKey{testctx.rlk, rotkey})
+	evaluator := testctx.evaluator.ShallowCopyWithKey(EvaluationKey{testctx.rlk, rotkey})
 
 	b.Run(testString("Evaluator/Add/Ct/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

@@ -37,28 +37,30 @@ type Evaluator interface {
 	RotateRows(ct0 *Ciphertext, ctOut *Ciphertext)
 	RotateRowsNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	InnerSum(ct0 *Ciphertext, ctOut *Ciphertext)
+	ShallowCopy() Evaluator
+	ShallowCopyWithKey(EvaluationKey) Evaluator
 }
 
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
 type evaluator struct {
-	*evaluatorPrecomp
+	*evaluatorBase
 	*evaluatorBuffers
 
 	rlk  *RelinearizationKey
 	rtks *RotationKeySet
+
+	baseconverterQ1Q2 *ring.FastBasisExtender
+	baseconverterQ1P  *ring.FastBasisExtender
 }
 
-type evaluatorPrecomp struct {
+type evaluatorBase struct {
 	params   *Parameters
 	ringQ    *ring.Ring
 	ringP    *ring.Ring
 	ringQMul *ring.Ring
 
-	baseconverterQ1Q2 *ring.FastBasisExtender
-
-	baseconverterQ1P *ring.FastBasisExtender
-	decomposer       *ring.Decomposer
+	decomposer *ring.Decomposer
 
 	t     uint64
 	pHalf *big.Int
@@ -66,9 +68,9 @@ type evaluatorPrecomp struct {
 	deltaMont []uint64
 }
 
-func newEvaluatorPrecomp(params *Parameters) *evaluatorPrecomp {
+func newEvaluatorPrecomp(params *Parameters) *evaluatorBase {
 	var err error
-	ev := new(evaluatorPrecomp)
+	ev := new(evaluatorBase)
 
 	ev.params = params.Copy()
 
@@ -83,7 +85,7 @@ func newEvaluatorPrecomp(params *Parameters) *evaluatorPrecomp {
 	if ev.ringQMul, err = ring.NewRing(params.N(), qiMul); err != nil {
 		panic(err)
 	}
-	ev.baseconverterQ1Q2 = ring.NewFastBasisExtender(ev.ringQ, ev.ringQMul)
+
 	ev.pHalf = new(big.Int).Rsh(ev.ringQMul.ModulusBigint, 1)
 	ev.deltaMont = GenLiftParams(ev.ringQ, params.t)
 
@@ -92,8 +94,6 @@ func newEvaluatorPrecomp(params *Parameters) *evaluatorPrecomp {
 		if ev.ringP, err = ring.NewRing(params.N(), params.pi); err != nil {
 			panic(err)
 		}
-
-		ev.baseconverterQ1P = ring.NewFastBasisExtender(ev.ringQ, ev.ringP)
 		ev.decomposer = ring.NewDecomposer(ev.ringQ.Modulus, ev.ringP.Modulus)
 	}
 	return ev
@@ -109,7 +109,7 @@ type evaluatorBuffers struct {
 	tmpPt *Plaintext
 }
 
-func newEvaluatorBuffer(eval *evaluatorPrecomp) *evaluatorBuffers {
+func newEvaluatorBuffer(eval *evaluatorBase) *evaluatorBuffers {
 	evb := new(evaluatorBuffers)
 	evb.poolQ = make([][]*ring.Poly, 4)
 	evb.poolQmul = make([][]*ring.Poly, 4)
@@ -134,44 +134,47 @@ func newEvaluatorBuffer(eval *evaluatorPrecomp) *evaluatorBuffers {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a small pool of polynomials
 // and ciphertexts that will be used for intermediate values.
-func NewEvaluator(params *Parameters, evaluationKey *EvaluationKey) Evaluator {
-	precomp := newEvaluatorPrecomp(params)
-	return &evaluator{
-		evaluatorPrecomp: precomp,
-		evaluatorBuffers: newEvaluatorBuffer(precomp),
-		rlk:              evaluationKey.Rlk,
-		rtks:             evaluationKey.Rtks,
+func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
+	ev := new(evaluator)
+	ev.evaluatorBase = newEvaluatorPrecomp(params)
+	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
+	ev.baseconverterQ1Q2 = ring.NewFastBasisExtender(ev.ringQ, ev.ringQMul)
+	if len(params.pi) != 0 {
+		ev.baseconverterQ1P = ring.NewFastBasisExtender(ev.ringQ, ev.ringP)
 	}
+	ev.rlk = evaluationKey.Rlk
+	ev.rtks = evaluationKey.Rtks
+	return ev
 }
 
-func NewEvaluatorWithKey(baseEvaluator Evaluator, evaluationKey *EvaluationKey) Evaluator {
-	eval, ok := baseEvaluator.(*evaluator)
-	if !ok {
-		panic("cannot create a new Evaluator from this Evaluator implementation")
-	}
-	return &evaluator{
-		evaluatorPrecomp: eval.evaluatorPrecomp,
-		evaluatorBuffers: newEvaluatorBuffer(eval.evaluatorPrecomp),
-		rlk:              evaluationKey.Rlk,
-		rtks:             evaluationKey.Rtks,
-	}
-}
-
-func NewEvaluators(params *Parameters, evaluationKey *EvaluationKey, n int) []Evaluator {
+func NewEvaluators(params *Parameters, evaluationKey EvaluationKey, n int) []Evaluator {
 	if n <= 0 {
 		return []Evaluator{}
 	}
 	evas := make([]Evaluator, n, n)
-	precomp := newEvaluatorPrecomp(params)
 	for i := range evas {
-		evas[i] = &evaluator{
-			evaluatorPrecomp: precomp,
-			evaluatorBuffers: newEvaluatorBuffer(precomp),
-			rlk:              evaluationKey.Rlk,
-			rtks:             evaluationKey.Rtks,
+		if i == 0 {
+			evas[0] = NewEvaluator(params, evaluationKey)
+		} else {
+			evas[i] = evas[i-1].ShallowCopy()
 		}
 	}
 	return evas
+}
+
+func (ev *evaluator) ShallowCopy() Evaluator {
+	return ev.ShallowCopyWithKey(EvaluationKey{ev.rlk, ev.rtks})
+}
+
+func (ev *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator {
+	return &evaluator{
+		evaluatorBase:     ev.evaluatorBase,
+		evaluatorBuffers:  newEvaluatorBuffer(ev.evaluatorBase),
+		baseconverterQ1Q2: ev.baseconverterQ1Q2.ShallowCopy(),
+		baseconverterQ1P:  ev.baseconverterQ1P.ShallowCopy(),
+		rlk:               evaluationKey.Rlk,
+		rtks:              evaluationKey.Rtks,
+	}
 }
 
 // Add adds op0 to op1 and returns the result in ctOut.

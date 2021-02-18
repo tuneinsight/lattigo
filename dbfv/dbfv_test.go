@@ -89,7 +89,7 @@ func gentestContext(defaultParams *bfv.Parameters) (testCtx *testContext, err er
 	}
 
 	testCtx.encoder = bfv.NewEncoder(testCtx.params)
-	testCtx.evaluator = bfv.NewEvaluator(testCtx.params)
+	testCtx.evaluator = bfv.NewEvaluator(testCtx.params, bfv.EvaluationKey{})
 
 	kgen := bfv.NewKeyGenerator(testCtx.params)
 
@@ -174,7 +174,6 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 	sk0Shards := testCtx.sk0Shards
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
-	evaluator := testCtx.evaluator
 
 	t.Run(testString("RelinKeyGen/", parties, testCtx.params), func(t *testing.T) {
 
@@ -224,8 +223,9 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		evk := bfv.NewRelinKey(testCtx.params, 1)
 		P0.GenBFVRelinearizationKey(P0.share1, P0.share2, evk)
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
+		evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: evk, Rtks: nil})
 
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 		for i := range coeffs {
 			coeffs[i] *= coeffs[i]
 			coeffs[i] %= testCtx.dbfvContext.ringT.Modulus[0]
@@ -235,7 +235,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
 
 		res := bfv.NewCiphertext(testCtx.params, 1)
-		evaluator.Relinearize(ciphertextMul, evk, res)
+		evaluator.Relinearize(ciphertextMul, res)
 
 		verifyTestVectors(testCtx, decryptorSk0, coeffs, res, t)
 	})
@@ -335,7 +335,6 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 
-	evaluator := testCtx.evaluator
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
@@ -380,7 +379,8 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
-		result := evaluator.RotateRowsNew(ciphertext, rotKeySet)
+		evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		result := evaluator.RotateRowsNew(ciphertext)
 		coeffsWant := append(coeffs[testCtx.params.N()>>1:], coeffs[:testCtx.params.N()>>1]...)
 
 		verifyTestVectors(testCtx, decryptorSk0, coeffsWant, result, t)
@@ -390,7 +390,6 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 
 func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 
-	evaluator := testCtx.evaluator
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
@@ -438,7 +437,8 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 			P0.GenBFVRotationKey(P0.share, crp, rotKey)
 			rotKeySet.Set(galEl, rotKey)
 
-			result := evaluator.RotateColumnsNew(ciphertext, int(k), rotKeySet)
+			evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+			result := evaluator.RotateColumnsNew(ciphertext, int(k))
 			coeffsWant := utils.RotateUint64Slots(coeffs, int(k))
 
 			verifyTestVectors(testCtx, decryptorSk0, coeffsWant, result, t)
@@ -490,10 +490,11 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		copy(coeffsTmp, coeffs)
 
+		evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: rlk, Rtks: nil})
 		// Finds the maximum multiplicative depth
 		for {
 
-			testCtx.evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertextTmp, ciphertextTmp), rlk, ciphertextTmp)
+			evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertextTmp, ciphertextTmp), ciphertextTmp)
 
 			for j := range coeffsTmp {
 				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], testCtx.dbfvContext.ringT.Modulus[0], testCtx.dbfvContext.ringT.GetBredParams()[0])
@@ -532,7 +533,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		// Square the refreshed ciphertext up to the maximum depth-1
 		for i := 0; i < maxDepth-1; i++ {
 
-			testCtx.evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertext, ciphertext), rlk, ciphertext)
+			evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertext, ciphertext), ciphertext)
 
 			for j := range coeffs {
 				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], testCtx.dbfvContext.ringT.Modulus[0], testCtx.dbfvContext.ringT.GetBredParams()[0])

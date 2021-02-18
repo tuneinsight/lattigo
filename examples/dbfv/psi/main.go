@@ -204,7 +204,7 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Cipherte
 	}
 	encRes = encLvls[len(encLvls)-1][0]
 
-	evaluator := bfv.NewEvaluator(params, bfv.EvaluationKey{rlk, nil})
+	evaluator := bfv.NewEvaluator(params, bfv.EvaluationKey{Rlk: rlk, Rtks: nil})
 	// Split the task among the Go routines
 	tasks := make(chan *multTask)
 	workers := &sync.WaitGroup{}

@@ -376,8 +376,8 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 	}
 
 	btpKey = &BootstrappingKey{
-		relinkey: keygen.GenRelinearizationKey(sk),
-		rotkeys:  keygen.GenRotationKeysForRotations(rotInt, true, sk),
+		Rlk:  keygen.GenRelinearizationKey(sk),
+		Rtks: keygen.GenRotationKeysForRotations(rotInt, true, sk),
 	}
 
 	/*

@@ -140,8 +140,6 @@ func benchDecrypt(testContext *testParams, b *testing.B) {
 
 func benchEvaluator(testContext *testParams, b *testing.B) {
 
-	evaluator := testContext.evaluator
-
 	plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.scale)
 	ciphertext1 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 	ciphertext2 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
@@ -153,6 +151,8 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		rlk = testContext.kgen.GenRelinearizationKey(testContext.sk)
 		rotkey = testContext.kgen.GenRotationKeysForRotations([]int{1}, true, testContext.sk)
 	}
+
+	evaluator := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{rlk, rotkey})
 
 	b.Run(testString(testContext, "Evaluator/Add/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -174,19 +174,19 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Evaluator/MulPlain/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.MulRelin(ciphertext1, plaintext, nil, receiver)
+			evaluator.MulRelin(ciphertext1, plaintext, receiver)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Mul/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.MulRelin(ciphertext1, ciphertext2, nil, receiver)
+			evaluator.MulRelin(ciphertext1, ciphertext2, receiver)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Square/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.MulRelin(ciphertext1, ciphertext1, nil, receiver)
+			evaluator.MulRelin(ciphertext1, ciphertext1, receiver)
 		}
 	})
 
@@ -228,7 +228,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)
+			evaluator.Conjugate(ciphertext1, ciphertext1)
 		}
 	})
 
@@ -239,7 +239,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Relinearize(receiver, rlk, ciphertext1)
+			evaluator.Relinearize(receiver, ciphertext1)
 		}
 	})
 
@@ -250,7 +250,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Conjugate(ciphertext1, rotkey, ciphertext1)
+			evaluator.Conjugate(ciphertext1, ciphertext1)
 		}
 	})
 
@@ -261,7 +261,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Rotate(ciphertext1, 1, rotkey, ciphertext1)
+			evaluator.Rotate(ciphertext1, 1, ciphertext1)
 		}
 	})
 }
@@ -274,9 +274,8 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 			b.Skip("#Pi is empty")
 		}
 
-		evaluator := testContext.evaluator.(*evaluator)
-
 		rotkey := testContext.kgen.GenRotationKeysForRotations([]int{5}, false, testContext.sk)
+		evaluator := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotkey}).(*evaluator)
 
 		ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 
@@ -305,7 +304,7 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 
 		b.Run(testString(testContext, "RotateHoisted/"), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.permuteNTTHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, rotkey, ciphertext)
+				evaluator.permuteNTTHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, ciphertext)
 			}
 		})
 	})

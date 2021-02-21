@@ -80,7 +80,7 @@ func (btp *Bootstrapper) subSum(ct *Ciphertext) *Ciphertext {
 
 	for i := btp.params.logSlots; i < btp.params.MaxLogSlots(); i++ {
 
-		btp.evaluator.Rotate(ct, 1<<i, btp.rotkeys, btp.ctxpool)
+		btp.evaluator.Rotate(ct, 1<<i, btp.ctxpool)
 
 		btp.evaluator.Add(ct, btp.ctxpool, ct)
 	}
@@ -140,7 +140,7 @@ func (btp *Bootstrapper) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Ciphertext) {
 	zV = btp.dft(vec, btp.pDFTInv, true)
 
 	// Extraction of real and imaginary parts.
-	zVconj = evaluator.ConjugateNew(zV, btp.rotkeys)
+	zVconj = evaluator.ConjugateNew(zV)
 
 	// The real part is stored in ct0
 	ct0 = evaluator.AddNew(zV, zVconj)
@@ -154,7 +154,7 @@ func (btp *Bootstrapper) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Ciphertext) {
 	if btp.repack {
 
 		// The imaginary part is put in the right n/2 slots of ct0.
-		evaluator.Rotate(ct1, int(btp.params.Slots()), btp.rotkeys, ct1)
+		evaluator.Rotate(ct1, int(btp.params.Slots()), ct1)
 
 		evaluator.Add(ct0, ct1, ct0)
 
@@ -233,7 +233,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	}
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	vecRotQ, vecRotP := eval.rotateHoistedNoModDown(vec, rotations, btp.rotkeys)
+	vecRotQ, vecRotP := eval.rotateHoistedNoModDown(vec, rotations, btp.Rtks)
 
 	// Accumulator inner loop
 	tmpQ0 := eval.poolQMul[0] // unused memory pool from evaluator
@@ -261,8 +261,8 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	for _, i := range rotations {
 		if i != 0 {
 			galEl := btp.params.GaloisElementForColumnRotationBy(int(i))
-			ring.PermuteNTTWithIndexLvl(levelQ, c0, btp.rotkeys.permuteNTTIndex[galEl], tmpQ0) // phi(P*c0)
-			ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ0, vecRotQ[i][0])                          // phi(d0_Q) += phi(P*c0)
+			ring.PermuteNTTWithIndexLvl(levelQ, c0, btp.Rtks.permuteNTTIndex[galEl], tmpQ0) // phi(P*c0)
+			ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ0, vecRotQ[i][0])                       // phi(d0_Q) += phi(P*c0)
 		}
 	}
 
@@ -315,13 +315,13 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 
 			galEl := btp.params.GaloisElementForColumnRotationBy(int(N1 * j))
 
-			eval.switchKeysInPlaceNoModDown(levelQ, tmpQ1, btp.rotkeys.keys[galEl], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
+			eval.switchKeysInPlaceNoModDown(levelQ, tmpQ1, btp.Rtks.keys[galEl], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
 
 			// Outer loop rotations
-			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, btp.rotkeys.permuteNTTIndex[galEl], tmpQ1) // phi(tmpRes_0)
-			ringQ.AddLvl(levelQ, res.value[0], tmpQ1, res.value[0])                               // res += phi(tmpRes)
+			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, btp.Rtks.permuteNTTIndex[galEl], tmpQ1) // phi(tmpRes_0)
+			ringQ.AddLvl(levelQ, res.value[0], tmpQ1, res.value[0])                            // res += phi(tmpRes)
 
-			rot := btp.rotkeys.permuteNTTIndex[galEl]
+			rot := btp.Rtks.permuteNTTIndex[galEl]
 
 			N2Rot++
 
@@ -511,11 +511,11 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 		eval.AddConst(ct, -0.5/(scfac*(cheby.b-cheby.a)), ct)
 	}
 
-	ct, _ = eval.EvaluateCheby(ct, cheby, btp.relinkey)
+	ct, _ = eval.EvaluateCheby(ct, cheby)
 
 	for i := uint64(0); i < btp.SinRescal; i++ {
 		sqrt2pi *= sqrt2pi
-		eval.MulRelin(ct, ct, btp.relinkey, ct)
+		eval.MulRelin(ct, ct, ct)
 		eval.Add(ct, ct, ct)
 		eval.AddConst(ct, -sqrt2pi, ct)
 		if err := eval.Rescale(ct, eval.scale, ct); err != nil {

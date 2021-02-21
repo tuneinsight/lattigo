@@ -60,7 +60,7 @@ func cos2pi(x complex128) complex128 {
 }
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btpKey *BootstrappingKey) (btp *Bootstrapper, err error) {
+func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btpKey BootstrappingKey) (btp *Bootstrapper, err error) {
 
 	if btpParams.SinType == SinType(Sin) && btpParams.SinRescal != 0 {
 		return nil, fmt.Errorf("BootstrapParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
@@ -72,10 +72,11 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 
 	btp = newBootstrapper(params, btpParams)
 
-	btp.BootstrappingKey = btpKey
+	btp.BootstrappingKey = &BootstrappingKey{btpKey.Rlk, btpKey.Rtks}
 	if err = btp.CheckKeys(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
 	}
+	btp.evaluator = btp.evaluator.ShallowCopyWithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks})
 
 	return btp, nil
 }
@@ -101,7 +102,7 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 	btp.postscale = math.Exp2(math.Round(math.Log2(float64(params.qi[len(params.qi)-1-len(btpParams.CtSLevel)])))) / btp.deviation
 
 	btp.encoder = NewEncoder(params)
-	btp.evaluator = NewEvaluator(params)
+	btp.evaluator = NewEvaluator(params, EvaluationKey{}) // creates an evaluator without keys for genDFTMatrices
 
 	btp.genSinePoly()
 	btp.genDFTMatrices()
@@ -121,20 +122,24 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 // CheckKeys checks if all the necessary keys are present
 func (btp *Bootstrapper) CheckKeys() (err error) {
 
-	if btp.relinkey == nil || btp.rotkeys == nil {
-		return fmt.Errorf("empty relinkkey and/or rotkeys")
+	if btp.Rlk == nil {
+		return fmt.Errorf("relinearization key is nil")
+	}
+
+	if btp.Rtks == nil {
+		return fmt.Errorf("rotation key is nil")
 	}
 
 	rotMissing := []uint64{}
 	for _, i := range btp.rotKeyIndex {
 		galEl := btp.params.GaloisElementForColumnRotationBy(int(i))
-		if _, generated := btp.rotkeys.keys[galEl]; !generated {
+		if _, generated := btp.Rtks.keys[galEl]; !generated {
 			rotMissing = append(rotMissing, i)
 		}
 	}
 
 	if len(rotMissing) != 0 {
-		return fmt.Errorf("missing rotation keys : %d", rotMissing)
+		return fmt.Errorf("rotation key(s) missing: %d", rotMissing)
 	}
 
 	return nil

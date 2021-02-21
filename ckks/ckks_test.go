@@ -130,7 +130,7 @@ func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams
 	testContext.encryptorSk = NewEncryptorFromSk(testContext.params, testContext.sk)
 	testContext.decryptor = NewDecryptor(testContext.params, testContext.sk)
 
-	testContext.evaluator = NewEvaluator(testContext.params)
+	testContext.evaluator = NewEvaluator(testContext.params, EvaluationKey{testContext.rlk, nil})
 
 	return testContext, nil
 
@@ -608,7 +608,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, plaintext1, nil, ciphertext1)
+		testContext.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t)
 	})
@@ -621,7 +621,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, plaintext1, nil, ciphertext1)
+		testContext.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t)
 	})
@@ -634,7 +634,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		ciphertext2 := testContext.evaluator.MulRelinNew(ciphertext1, plaintext1, nil)
+		ciphertext2 := testContext.evaluator.MulRelinNew(ciphertext1, plaintext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext2, t)
 	})
@@ -648,7 +648,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values2[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext1)
+		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext1, t)
 	})
@@ -662,7 +662,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values2[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext2)
+		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext2)
 
 		verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 	})
@@ -676,7 +676,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values2[i] *= values1[i]
 		}
 
-		ciphertext3 := testContext.evaluator.MulRelinNew(ciphertext1, ciphertext2, nil)
+		ciphertext3 := testContext.evaluator.MulRelinNew(ciphertext1, ciphertext2)
 
 		verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext3, t)
 	})
@@ -689,7 +689,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, ciphertext1, nil, ciphertext1)
+		testContext.evaluator.MulRelin(ciphertext1, ciphertext1, ciphertext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t)
 	})
@@ -702,7 +702,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		ciphertext2 := testContext.evaluator.MulRelinNew(ciphertext1, ciphertext1, testContext.rlk)
+		ciphertext2 := testContext.evaluator.MulRelinNew(ciphertext1, ciphertext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext2, t)
 	})
@@ -720,9 +720,10 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values2[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext1)
+		evalNoRlk := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{})
+		evalNoRlk.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 
-		testContext.evaluator.Relinearize(ciphertext1, testContext.rlk, ciphertext1)
+		testContext.evaluator.Relinearize(ciphertext1, ciphertext1)
 
 		require.Equal(t, ciphertext1.Degree(), uint64(1))
 
@@ -742,9 +743,10 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values2[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext2)
+		evalNoRlk := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{})
+		evalNoRlk.MulRelin(ciphertext1, ciphertext2, ciphertext2)
 
-		testContext.evaluator.Relinearize(ciphertext2, testContext.rlk, ciphertext2)
+		testContext.evaluator.Relinearize(ciphertext2, ciphertext2)
 
 		require.Equal(t, ciphertext1.Degree(), uint64(1))
 
@@ -780,7 +782,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 			}
 		}
 
-		testContext.evaluator.PowerOf2(ciphertext, n, testContext.rlk, ciphertext)
+		testContext.evaluator.PowerOf2(ciphertext, n, ciphertext)
 
 		verifyTestVectors(testContext, testContext.decryptor, valuesWant, ciphertext, t)
 	})
@@ -803,7 +805,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Pow(values[i], complex(float64(n), 0))
 		}
 
-		testContext.evaluator.Power(ciphertext, n, testContext.rlk, ciphertext)
+		testContext.evaluator.Power(ciphertext, n, ciphertext)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})
@@ -826,7 +828,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 			values[i] = 1.0 / values[i]
 		}
 
-		ciphertext = testContext.evaluator.InverseNew(ciphertext, n, testContext.rlk)
+		ciphertext = testContext.evaluator.InverseNew(ciphertext, n)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})
@@ -865,7 +867,7 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly, testContext.rlk); err != nil {
+		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly); err != nil {
 			t.Error(err)
 		}
 
@@ -901,7 +903,7 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
 			t.Error(err)
 		}
 
@@ -956,6 +958,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 	}
 	rots := []int{1, -1, 4, -4, 63, -63}
 	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
+	evaluator := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
 
 	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
 
@@ -967,7 +970,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 			values2 := utils.RotateComplex128Slice(values1, n)
 
-			testContext.evaluator.Rotate(ciphertext1, n, rotKey, ciphertext2)
+			evaluator.Rotate(ciphertext1, n, ciphertext2)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 		}
@@ -981,7 +984,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 			values2 := utils.RotateComplex128Slice(values1, n)
 
-			verifyTestVectors(testContext, testContext.decryptor, values2, testContext.evaluator.RotateNew(ciphertext1, n, rotKey), t)
+			verifyTestVectors(testContext, testContext.decryptor, values2, evaluator.RotateNew(ciphertext1, n), t)
 		}
 
 	})
@@ -994,7 +997,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 			values[i] = complex(real(values[i]), -imag(values[i]))
 		}
 
-		testContext.evaluator.Conjugate(ciphertext, rotKey, ciphertext)
+		evaluator.Conjugate(ciphertext, ciphertext)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})
@@ -1007,7 +1010,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 			values[i] = complex(real(values[i]), -imag(values[i]))
 		}
 
-		ciphertext = testContext.evaluator.ConjugateNew(ciphertext, rotKey)
+		ciphertext = evaluator.ConjugateNew(ciphertext)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})
@@ -1018,7 +1021,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 		values2 := make([]complex128, len(values1))
 
-		ciphertexts := testContext.evaluator.RotateHoisted(ciphertext1, rots, rotKey)
+		ciphertexts := evaluator.RotateHoisted(ciphertext1, rots)
 
 		for _, n := range rots {
 

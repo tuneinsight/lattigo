@@ -28,11 +28,14 @@ type RotationKeySet struct {
 	keys            map[uint64]*SwitchingKey
 }
 
-// BootstrappingKey is a structure that stores the switching-keys required during the bootstrapping.
-type BootstrappingKey struct {
-	relinkey *RelinearizationKey // Relinearization key
-	rotkeys  *RotationKeySet     // Rotation and conjugation keys
+// EvaluationKey is a structure representing the complete set of switching-keys required for evaluation
+type EvaluationKey struct {
+	Rlk  *RelinearizationKey
+	Rtks *RotationKeySet
 }
+
+// BootstrappingKey is a structure that stores the switching-keys required during the bootstrapping.
+type BootstrappingKey EvaluationKey
 
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params *Parameters) *SecretKey {

@@ -148,6 +148,9 @@ func basisextenderparameters(Q, P []uint64) (params *modupParams) {
 // ShallowCopy creates a shallow copy of this basis extender in which the read-only data-structures are
 // shared with the receiver.
 func (basisextender *FastBasisExtender) ShallowCopy() *FastBasisExtender {
+	if basisextender == nil {
+		return nil
+	}
 	return &FastBasisExtender{
 		ringQ:           basisextender.ringQ,
 		ringP:           basisextender.ringP,

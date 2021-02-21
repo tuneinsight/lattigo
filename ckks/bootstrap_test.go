@@ -89,7 +89,7 @@ func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
 			t.Error(err)
 		}
 
@@ -158,13 +158,13 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
 			t.Error(err)
 		}
 
 		for i := 0; i < scNum; i++ {
 			sqrt2pi *= sqrt2pi
-			eval.MulRelin(ciphertext, ciphertext, testContext.rlk, ciphertext)
+			eval.MulRelin(ciphertext, ciphertext, ciphertext)
 			eval.Add(ciphertext, ciphertext, ciphertext)
 			eval.AddConst(ciphertext, -sqrt2pi, ciphertext)
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
@@ -230,13 +230,13 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParamete
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, testContext.rlk); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
 			t.Error(err)
 		}
 
 		for i := 0; i < scNum; i++ {
 			sqrt2pi *= sqrt2pi
-			eval.MulRelin(ciphertext, ciphertext, testContext.rlk, ciphertext)
+			eval.MulRelin(ciphertext, ciphertext, ciphertext)
 			eval.Add(ciphertext, ciphertext, ciphertext)
 			eval.AddConst(ciphertext, -sqrt2pi, ciphertext)
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
@@ -256,7 +256,7 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 		params := testContext.params
 
 		btpKey := testContext.kgen.GenBootstrappingKey(testContext.params.logSlots, btpParams, testContext.sk)
-		btp, err := NewBootstrapper(testContext.params, btpParams, btpKey)
+		btp, err := NewBootstrapper(testContext.params, btpParams, *btpKey)
 		if err != nil {
 			panic(err)
 		}

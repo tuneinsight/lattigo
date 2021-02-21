@@ -6,7 +6,7 @@ import (
 
 // PowerOf2 computes op^(2^logPow2), consuming logPow2 levels, and returns the result on opOut. Providing an evaluation
 // key is necessary when logPow2 > 1.
-func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 uint64, evakey *RelinearizationKey, opOut *Ciphertext) {
+func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 uint64, opOut *Ciphertext) {
 
 	if logPow2 == 0 {
 
@@ -16,7 +16,7 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 uint64, evakey *Relinear
 
 	} else {
 
-		eval.MulRelin(op.El(), op.El(), evakey, opOut)
+		eval.MulRelin(op.El(), op.El(), opOut)
 
 		if err := eval.Rescale(opOut, eval.scale, opOut); err != nil {
 			panic(err)
@@ -24,7 +24,7 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 uint64, evakey *Relinear
 
 		for i := uint64(1); i < logPow2; i++ {
 
-			eval.MulRelin(opOut.El(), opOut.El(), evakey, opOut)
+			eval.MulRelin(opOut.El(), opOut.El(), opOut)
 
 			if err := eval.Rescale(opOut, eval.scale, opOut); err != nil {
 				panic(err)
@@ -35,15 +35,15 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 uint64, evakey *Relinear
 
 // PowerNew computes op^degree, consuming log(degree) levels, and returns the result on a new element. Providing an evaluation
 // key is necessary when degree > 2.
-func (eval *evaluator) PowerNew(op *Ciphertext, degree uint64, evakey *RelinearizationKey) (opOut *Ciphertext) {
+func (eval *evaluator) PowerNew(op *Ciphertext, degree uint64) (opOut *Ciphertext) {
 	opOut = NewCiphertext(eval.params, 1, op.Level(), op.Scale())
-	eval.Power(op, degree, evakey, opOut)
+	eval.Power(op, degree, opOut)
 	return
 }
 
 // Power computes op^degree, consuming log(degree) levels, and returns the result on opOut. Providing an evaluation
 // key is necessary when degree > 2.
-func (eval *evaluator) Power(op *Ciphertext, degree uint64, evakey *RelinearizationKey, opOut *Ciphertext) {
+func (eval *evaluator) Power(op *Ciphertext, degree uint64, opOut *Ciphertext) {
 
 	tmpct0 := op.CopyNew()
 
@@ -52,7 +52,7 @@ func (eval *evaluator) Power(op *Ciphertext, degree uint64, evakey *Relinearizat
 	logDegree = uint64(bits.Len64(degree)) - 1
 	po2Degree = 1 << logDegree
 
-	eval.PowerOf2(tmpct0.Ciphertext(), logDegree, evakey, opOut)
+	eval.PowerOf2(tmpct0.Ciphertext(), logDegree, opOut)
 
 	degree -= po2Degree
 
@@ -63,9 +63,9 @@ func (eval *evaluator) Power(op *Ciphertext, degree uint64, evakey *Relinearizat
 
 		tmp := NewCiphertext(eval.params, 1, tmpct0.Level(), tmpct0.Scale())
 
-		eval.PowerOf2(tmpct0.Ciphertext(), logDegree, evakey, tmp)
+		eval.PowerOf2(tmpct0.Ciphertext(), logDegree, tmp)
 
-		eval.MulRelin(opOut.El(), tmp.El(), evakey, opOut)
+		eval.MulRelin(opOut.El(), tmp.El(), opOut)
 
 		if err := eval.Rescale(opOut, eval.scale, opOut); err != nil {
 			panic(err)
@@ -77,7 +77,7 @@ func (eval *evaluator) Power(op *Ciphertext, degree uint64, evakey *Relinearizat
 
 // InverseNew computes 1/op and returns the result on a new element, iterating for n steps and consuming n levels. The algorithm requires the encrypted values to be in the range
 // [-1.5 - 1.5i, 1.5 + 1.5i] or the result will be wrong. Each iteration increases the precision.
-func (eval *evaluator) InverseNew(op *Ciphertext, steps uint64, evakey *RelinearizationKey) (opOut *Ciphertext) {
+func (eval *evaluator) InverseNew(op *Ciphertext, steps uint64) (opOut *Ciphertext) {
 
 	cbar := eval.NegNew(op)
 
@@ -88,7 +88,7 @@ func (eval *evaluator) InverseNew(op *Ciphertext, steps uint64, evakey *Relinear
 
 	for i := uint64(1); i < steps; i++ {
 
-		eval.MulRelin(cbar.El(), cbar.El(), evakey, cbar.Ciphertext())
+		eval.MulRelin(cbar.El(), cbar.El(), cbar.Ciphertext())
 
 		if err := eval.Rescale(cbar, eval.scale, cbar); err != nil {
 			panic(err)
@@ -96,7 +96,7 @@ func (eval *evaluator) InverseNew(op *Ciphertext, steps uint64, evakey *Relinear
 
 		tmp = eval.AddConstNew(cbar, 1)
 
-		eval.MulRelin(tmp.El(), opOut.El(), evakey, tmp.Ciphertext())
+		eval.MulRelin(tmp.El(), opOut.El(), tmp.Ciphertext())
 
 		if err := eval.Rescale(tmp, eval.scale, tmp); err != nil {
 			panic(err)

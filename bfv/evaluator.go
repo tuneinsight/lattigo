@@ -169,7 +169,7 @@ func (eval *evaluator) ShallowCopy() Evaluator {
 	return eval.ShallowCopyWithKey(EvaluationKey{eval.rlk, eval.rtks})
 }
 
-// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
+// ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
 // shared with the receiver but the EvaluationKey is evaluationKey.
 func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator {
 	return &evaluator{

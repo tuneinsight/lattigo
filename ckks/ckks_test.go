@@ -1177,11 +1177,6 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			evakeyWant := rotationKey.keys[galEl].key
 			evakeyTest := resRotationKey.keys[galEl].key
 
-			evakeyNTTIndexWant := rotationKey.permuteNTTIndex[galEl]
-			evakeyNTTIndexTest := resRotationKey.permuteNTTIndex[galEl]
-
-			require.True(t, utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest))
-
 			for j := range evakeyWant {
 				for k := range evakeyWant[j] {
 					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateLeft %d element [%d][%d]", galEl, j, k)

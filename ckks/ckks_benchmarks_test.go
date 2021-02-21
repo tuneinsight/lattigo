@@ -152,41 +152,41 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		rotkey = testContext.kgen.GenRotationKeysForRotations([]int{1}, true, testContext.sk)
 	}
 
-	evaluator := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{rlk, rotkey})
+	eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{rlk, rotkey})
 
 	b.Run(testString(testContext, "Evaluator/Add/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
+			eval.Add(ciphertext1, ciphertext2, ciphertext1)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/AddScalar/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.AddConst(ciphertext1, ciphertext2, ciphertext1)
+			eval.AddConst(ciphertext1, ciphertext2, ciphertext1)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/MulScalar/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.MultByConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
+			eval.MultByConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/MulPlain/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.MulRelin(ciphertext1, plaintext, receiver)
+			eval.MulRelin(ciphertext1, plaintext, receiver)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Mul/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.MulRelin(ciphertext1, ciphertext2, receiver)
+			eval.MulRelin(ciphertext1, ciphertext2, receiver)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Square/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			evaluator.MulRelin(ciphertext1, ciphertext1, receiver)
+			eval.MulRelin(ciphertext1, ciphertext1, receiver)
 		}
 	})
 
@@ -216,8 +216,8 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 		galEL := testContext.params.GaloisElementForColumnRotationBy(1)
 		for i := 0; i < b.N; i++ {
-			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[0], rotkey.permuteNTTIndex[galEL], ciphertext1.value[0])
-			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[1], rotkey.permuteNTTIndex[galEL], ciphertext1.value[1])
+			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[0], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.value[0])
+			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[1], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.value[1])
 		}
 	})
 
@@ -228,7 +228,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Conjugate(ciphertext1, ciphertext1)
+			eval.Conjugate(ciphertext1, ciphertext1)
 		}
 	})
 
@@ -239,7 +239,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Relinearize(receiver, ciphertext1)
+			eval.Relinearize(receiver, ciphertext1)
 		}
 	})
 
@@ -250,7 +250,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Conjugate(ciphertext1, ciphertext1)
+			eval.Conjugate(ciphertext1, ciphertext1)
 		}
 	})
 
@@ -261,7 +261,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Rotate(ciphertext1, 1, ciphertext1)
+			eval.Rotate(ciphertext1, 1, ciphertext1)
 		}
 	})
 }

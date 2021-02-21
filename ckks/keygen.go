@@ -337,7 +337,6 @@ func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks
 	rks = NewRotationKeySet(keygen.params)
 	for _, galEl := range galEls {
 		rks.keys[galEl] = keygen.GenSwitchingKeyForGalois(galEl, sk)
-		rks.permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, keygen.params.N())
 	}
 	return rks
 }

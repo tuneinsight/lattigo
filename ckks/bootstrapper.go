@@ -13,6 +13,7 @@ import (
 // Bootstrapper is a struct to stores a memory pool the plaintext matrices
 // the polynomial approximation and the keys for the bootstrapping.
 type Bootstrapper struct {
+	*evaluator
 	BootstrappingParameters
 	*BootstrappingKey
 	params *Parameters
@@ -20,8 +21,7 @@ type Bootstrapper struct {
 	dslots    uint64 // Number of plaintext slots after the re-encoding
 	logdslots uint64
 
-	encoder   Encoder   // Encoder
-	evaluator Evaluator // Evaluator
+	encoder Encoder // Encoder
 
 	plaintextSize uint64 // Byte size of the plaintext DFT matrices
 
@@ -76,7 +76,7 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 	if err = btp.CheckKeys(); err != nil {
 		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
 	}
-	btp.evaluator = btp.evaluator.ShallowCopyWithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks})
+	btp.evaluator = btp.evaluator.ShallowCopyWithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks}).(*evaluator)
 
 	return btp, nil
 }
@@ -102,7 +102,7 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 	btp.postscale = math.Exp2(math.Round(math.Log2(float64(params.qi[len(params.qi)-1-len(btpParams.CtSLevel)])))) / btp.deviation
 
 	btp.encoder = NewEncoder(params)
-	btp.evaluator = NewEvaluator(params, EvaluationKey{}) // creates an evaluator without keys for genDFTMatrices
+	btp.evaluator = NewEvaluator(params, EvaluationKey{}).(*evaluator) // creates an evaluator without keys for genDFTMatrices
 
 	btp.genSinePoly()
 	btp.genDFTMatrices()
@@ -497,8 +497,8 @@ func (btp *Bootstrapper) encodePVec(pVec map[uint64][]complex128, plaintextVec *
 
 	plaintextVec.Level = level
 	plaintextVec.Scale = scale
-	ringQ := btp.evaluator.(*evaluator).ringQ
-	ringP := btp.evaluator.(*evaluator).ringP
+	ringQ := btp.evaluator.ringQ
+	ringP := btp.evaluator.ringP
 	encoder := btp.encoder.(*encoderComplex128)
 
 	for j := range index {

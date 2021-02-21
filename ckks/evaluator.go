@@ -72,8 +72,9 @@ type evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
 
-	rlk  *RelinearizationKey
-	rtks *RotationKeySet
+	rlk             *RelinearizationKey
+	rtks            *RotationKeySet
+	permuteNTTIndex map[uint64][]uint64
 
 	baseconverter *ring.FastBasisExtender
 }
@@ -132,14 +133,29 @@ func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
 	eval := new(evaluator)
 	eval.evaluatorBase = newEvaluatorBase(params)
 	eval.evaluatorBuffers = newEvaluatorBuffers(eval.evaluatorBase)
+
 	eval.rlk = evaluationKey.Rlk
 	eval.rtks = evaluationKey.Rtks
+	if eval.rtks != nil {
+		eval.permuteNTTIndex = *eval.permuteNTTIndexesForKey(eval.rtks)
+	}
 
 	if params.PiCount() != 0 {
 		eval.baseconverter = ring.NewFastBasisExtender(eval.ringQ, eval.ringP)
 	}
 
 	return eval
+}
+
+func (eval *evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64][]uint64 {
+	if rtks == nil {
+		return &map[uint64][]uint64{}
+	}
+	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.keys))
+	for galEl := range rtks.keys {
+		permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, eval.ringQ.N)
+	}
+	return &permuteNTTIndex
 }
 
 // ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
@@ -151,11 +167,18 @@ func (eval *evaluator) ShallowCopy() Evaluator {
 // ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
 // shared with the receiver but the EvaluationKey is evaluationKey.
 func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator {
+	var indexes map[uint64][]uint64
+	if evaluationKey.Rtks == eval.rtks {
+		indexes = eval.permuteNTTIndex
+	} else {
+		indexes = *eval.permuteNTTIndexesForKey(evaluationKey.Rtks)
+	}
 	return &evaluator{
 		evaluatorBase:    eval.evaluatorBase,
 		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
 		rlk:              evaluationKey.Rlk,
 		rtks:             evaluationKey.Rtks,
+		permuteNTTIndex:  indexes,
 		baseconverter:    eval.baseconverter.ShallowCopy(),
 	}
 }
@@ -1475,7 +1498,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 	}
 
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
-	index := eval.rtks.permuteNTTIndex[galEl]
+	index := eval.permuteNTTIndex[galEl]
 	pool2Q := eval.poolQ[1]
 	pool3Q := eval.poolQ[2]
 
@@ -1651,7 +1674,7 @@ func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDeco
 
 	ctOut.SetScale(ct0.Scale())
 
-	index := eval.rtks.permuteNTTIndex[galEl]
+	index := eval.permuteNTTIndex[galEl]
 
 	pool2Q := eval.poolQ[0]
 	pool3Q := eval.poolQ[1]

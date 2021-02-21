@@ -333,7 +333,6 @@ func (rotationkey *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
 
 	if rotationkey.keys == nil {
 		rotationkey.keys = make(map[uint64]*SwitchingKey)
-		rotationkey.permuteNTTIndex = make(map[uint64][]uint64)
 	} else {
 		rotationkey.delete()
 	}
@@ -349,7 +348,6 @@ func (rotationkey *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
 			return err
 		}
 		rotationkey.keys[galEl] = swk
-		rotationkey.permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, uint64(swk.key[0][0].GetDegree()))
 
 		data = data[inc:]
 	}

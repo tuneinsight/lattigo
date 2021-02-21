@@ -24,8 +24,7 @@ type RelinearizationKey struct {
 
 // RotationKeySet is a structure that stores the switching-keys required during the homomorphic rotations.
 type RotationKeySet struct {
-	permuteNTTIndex map[uint64][]uint64
-	keys            map[uint64]*SwitchingKey
+	keys map[uint64]*SwitchingKey
 }
 
 // EvaluationKey is a structure representing the complete set of switching-keys required for evaluation
@@ -137,7 +136,6 @@ func (swk *SwitchingKey) Copy(other *SwitchingKey) {
 func NewRotationKeySet(params *Parameters) (rotKey *RotationKeySet) {
 	rotKey = new(RotationKeySet)
 	rotKey.keys = make(map[uint64]*SwitchingKey, 0)
-	rotKey.permuteNTTIndex = make(map[uint64][]uint64)
 	return
 }
 
@@ -153,14 +151,11 @@ func (rtks *RotationKeySet) Set(galoisEl uint64, swk *SwitchingKey) {
 	s := new(SwitchingKey)
 	s.Copy(swk)
 	rtks.keys[galoisEl] = s
-	N := uint64(len(swk.key[0][0].Coeffs[0]))
-	rtks.permuteNTTIndex[galoisEl] = ring.PermuteNTTIndex(galoisEl, N)
 }
 
 // delete empties the set of rotation keys
 func (rtks RotationKeySet) delete() {
 	for k := range rtks.keys {
 		delete(rtks.keys, k)
-		delete(rtks.permuteNTTIndex, k)
 	}
 }

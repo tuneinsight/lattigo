@@ -36,7 +36,7 @@ func chebyshevinterpolation() {
 	decryptor := ckks.NewDecryptor(params, sk)
 
 	// Evaluator
-	evaluator := ckks.NewEvaluator(params)
+	evaluator := ckks.NewEvaluator(params, ckks.EvaluationKey{Rlk: rlk})
 
 	// Values to encrypt
 	values := make([]complex128, params.Slots())
@@ -76,7 +76,7 @@ func chebyshevinterpolation() {
 	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation, rlk); err != nil {
+	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation); err != nil {
 		panic(err)
 	}
 

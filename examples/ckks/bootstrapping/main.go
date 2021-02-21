@@ -45,7 +45,7 @@ func main() {
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
 	btpKey := kgen.GenBootstrappingKey(params.LogSlots(), btpParams, sk)
-	if btp, err = ckks.NewBootstrapper(params, btpParams, btpKey); err != nil {
+	if btp, err = ckks.NewBootstrapper(params, btpParams, *btpKey); err != nil {
 		panic(err)
 	}
 	fmt.Println("Done")

@@ -98,7 +98,7 @@ func genTestParams(defaultParams *ckks.Parameters) (testCtx *testContext, err er
 	}
 
 	testCtx.encoder = ckks.NewEncoder(testCtx.params)
-	testCtx.evaluator = ckks.NewEvaluator(testCtx.params)
+	testCtx.evaluator = ckks.NewEvaluator(testCtx.params, ckks.EvaluationKey{})
 
 	kgen := ckks.NewKeyGenerator(testCtx.params)
 
@@ -182,7 +182,6 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 
 func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
-	evaluator := testCtx.evaluator
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
@@ -232,8 +231,8 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		evk := ckks.NewRelinKey(testCtx.params)
-		P0.GenCKKSRelinearizationKey(P0.share1, P0.share2, evk)
+		rlk := ckks.NewRelinKey(testCtx.params)
+		P0.GenCKKSRelinearizationKey(P0.share1, P0.share2, rlk)
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 
@@ -241,7 +240,8 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 			coeffs[i] *= coeffs[i]
 		}
 
-		evaluator.MulRelin(ciphertext, ciphertext, evk, ciphertext)
+		evaluator := testCtx.evaluator.ShallowCopyWithKey(ckks.EvaluationKey{Rlk: rlk, Rtks: nil})
+		evaluator.MulRelin(ciphertext, ciphertext, ciphertext)
 
 		evaluator.Rescale(ciphertext, testCtx.params.Scale(), ciphertext)
 
@@ -350,7 +350,6 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 	ringQP := testCtx.dckksContext.ringQP
-	evaluator := testCtx.evaluator
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
@@ -396,7 +395,8 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 
-		evaluator.Conjugate(ciphertext, rotKeySet, ciphertext)
+		evaluator := testCtx.evaluator.ShallowCopyWithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		evaluator.Conjugate(ciphertext, ciphertext)
 
 		coeffsWant := make([]complex128, ringQP.N>>1)
 
@@ -412,7 +412,6 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
 	ringQP := testCtx.dckksContext.ringQP
-	evaluator := testCtx.evaluator
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
@@ -463,7 +462,8 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 			P0.GenCKKSRotationKey(P0.share, crp, rotKey)
 			rotKeySet.Set(galEl, rotKey)
 
-			evaluator.Rotate(ciphertext, int(k), rotKeySet, receiver)
+			evaluator := testCtx.evaluator.ShallowCopyWithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+			evaluator.Rotate(ciphertext, int(k), receiver)
 
 			coeffsWant := utils.RotateComplex128Slice(coeffs, int(k))
 

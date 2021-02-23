@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -79,8 +80,8 @@ func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.ringQP, p, true)
 
 	sk = new(SecretKey)
-	sk.sk = ternarySamplerMontgomery.ReadNew()
-	keygen.ringQP.NTT(sk.sk, sk.sk)
+	sk.Value = ternarySamplerMontgomery.ReadNew()
+	keygen.ringQP.NTT(sk.Value, sk.Value)
 	return sk
 }
 
@@ -88,18 +89,18 @@ func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 func NewSecretKey(params *Parameters) *SecretKey {
 
 	sk := new(SecretKey)
-	sk.sk = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
+	sk.Value = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
 	return sk
 }
 
 // Get returns the polynomial of the target SecretKey.
 func (sk *SecretKey) Get() *ring.Poly {
-	return sk.sk
+	return sk.Value
 }
 
 // Set sets the polynomial of the target secret key as the input polynomial.
 func (sk *SecretKey) Set(poly *ring.Poly) {
-	sk.sk = poly.CopyNew()
+	sk.Value = poly.CopyNew()
 }
 
 // GenPublicKey generates a new PublicKey from the provided SecretKey.
@@ -112,35 +113,13 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
 
-	pk.pk[0] = keygen.gaussianSampler.ReadNew()
-	ringQP.NTT(pk.pk[0], pk.pk[0])
-	pk.pk[1] = keygen.uniformSampler.ReadNew()
+	pk.Value[0] = keygen.gaussianSampler.ReadNew()
+	ringQP.NTT(pk.Value[0], pk.Value[0])
+	pk.Value[1] = keygen.uniformSampler.ReadNew()
 
-	ringQP.MulCoeffsMontgomeryAndSub(sk.sk, pk.pk[1], pk.pk[0])
+	ringQP.MulCoeffsMontgomeryAndSub(sk.Value, pk.Value[1], pk.Value[0])
 
 	return pk
-}
-
-// NewPublicKey returns a new PublicKey with zero values.
-func NewPublicKey(params *Parameters) (pk *PublicKey) {
-
-	pk = new(PublicKey)
-
-	pk.pk[0] = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
-	pk.pk[1] = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
-
-	return
-}
-
-// Get returns the polynomials of the PublicKey.
-func (pk *PublicKey) Get() [2]*ring.Poly {
-	return pk.pk
-}
-
-// Set sets the polynomial of the PublicKey as the input polynomials.
-func (pk *PublicKey) Set(p [2]*ring.Poly) {
-	pk.pk[0] = p[0].CopyNew()
-	pk.pk[1] = p[1].CopyNew()
 }
 
 // NewKeyPair generates a new SecretKey with distribution [1/3, 1/3, 1/3] and a corresponding PublicKey.
@@ -158,9 +137,9 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree uint6
 	}
 
 	evk = new(RelinearizationKey)
-	evk.keys = make([]*SwitchingKey, maxDegree)
-	for i := range evk.keys {
-		evk.keys[i] = NewSwitchingKey(keygen.params)
+	evk.Keys = make([]*rlwe.SwitchingKey, maxDegree)
+	for i := range evk.Keys {
+		evk.Keys[i] = &NewSwitchingKey(keygen.params).SwitchingKey
 	}
 
 	keygen.polypool[0].Copy(sk.Get()) // TODO Remove ?
@@ -170,7 +149,7 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree uint6
 	keygen.polypool[1].Copy(sk.Get())
 	for i := uint64(0); i < maxDegree; i++ {
 		ringQP.MulCoeffsMontgomery(keygen.polypool[1], sk.Get(), keygen.polypool[1])
-		keygen.newSwitchingKey(keygen.polypool[1], sk.Get(), evk.keys[i])
+		keygen.newSwitchingKey(keygen.polypool[1], sk.Get(), evk.Keys[i])
 	}
 
 	keygen.polypool[0].Zero()
@@ -189,41 +168,25 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swkOu
 	swkOut = NewSwitchingKey(keygen.params)
 
 	keygen.ringQP.Copy(skInput.Get(), keygen.polypool[0]) // TODO: remove and pass skInput directly ?
-	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Get(), swkOut)
+	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Get(), &swkOut.SwitchingKey)
 	keygen.polypool[0].Zero()
-	return
-}
-
-// NewSwitchingKey returns a new SwitchingKey with zero values.
-func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
-
-	evakey = new(SwitchingKey)
-
-	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
-	evakey.key = make([][2]*ring.Poly, params.Beta())
-
-	for i := uint64(0); i < params.Beta(); i++ {
-		evakey.key[i][0] = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
-		evakey.key[i][1] = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
-	}
-
 	return
 }
 
 func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params)
-	keygen.genrotKey(sk.sk, keygen.params.InverseGaloisElement(galoisEl), swk)
+	keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galoisEl), &swk.SwitchingKey)
 	return
 }
 
 // GenRotationKeys generates a RotationKeySet from a list of galois element corresponding to the desired rotations
 // See also GenRotationKeysForRotations.
 func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet) {
-	rks = NewRotationKeySet(keygen.params)
+	keys := make(map[uint64]*rlwe.SwitchingKey)
 	for _, galEl := range galEls {
-		rks.keys[galEl] = keygen.GenSwitchingKeyForGalois(galEl, sk)
+		keys[galEl] = &keygen.GenSwitchingKeyForGalois(galEl, sk).SwitchingKey
 	}
-	return rks
+	return &RotationKeySet{rlwe.RotationKeySet{Keys: keys}}
 }
 
 // GenRotationKeysForRotations generates a RotationKeySet supporting left rotations by k positions for all k in ks.
@@ -245,7 +208,7 @@ func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey) (rks *Rota
 	return keygen.GenRotationKeys(keygen.params.GaloisElementsForRowInnerSum(), sk)
 }
 
-func (keygen *keyGenerator) genrotKey(sk *ring.Poly, gen uint64, swkOut *SwitchingKey) {
+func (keygen *keyGenerator) genrotKey(sk *ring.Poly, gen uint64, swkOut *rlwe.SwitchingKey) {
 
 	skIn := sk
 	skOut := keygen.polypool[1]
@@ -260,7 +223,7 @@ func (keygen *keyGenerator) genrotKey(sk *ring.Poly, gen uint64, swkOut *Switchi
 	return
 }
 
-func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *SwitchingKey) {
+func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *rlwe.SwitchingKey) {
 
 	ringQP := keygen.ringQP
 
@@ -276,11 +239,11 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *Swit
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-		keygen.gaussianSampler.Read(swkOut.key[i][0])
-		ringQP.NTTLazy(swkOut.key[i][0], swkOut.key[i][0])
-		ringQP.MForm(swkOut.key[i][0], swkOut.key[i][0])
+		keygen.gaussianSampler.Read(swkOut.Value[i][0])
+		ringQP.NTTLazy(swkOut.Value[i][0], swkOut.Value[i][0])
+		ringQP.MForm(swkOut.Value[i][0], swkOut.Value[i][0])
 		// a
-		keygen.uniformSampler.Read(swkOut.key[i][1])
+		keygen.uniformSampler.Read(swkOut.Value[i][1])
 
 		// e + skIn * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
@@ -291,7 +254,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *Swit
 
 			qi := ringQP.Modulus[index]
 			p0tmp := keygen.polypool[0].Coeffs[index]
-			p1tmp := swkOut.key[i][0].Coeffs[index]
+			p1tmp := swkOut.Value[i][0].Coeffs[index]
 
 			for w := uint64(0); w < ringQP.N; w++ {
 				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
@@ -305,7 +268,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *Swit
 		}
 
 		// skIn * (qiBarre*qiStar) * 2^w - a*sk + e
-		ringQP.MulCoeffsMontgomeryAndSub(swkOut.key[i][1], skOut, swkOut.key[i][0])
+		ringQP.MulCoeffsMontgomeryAndSub(swkOut.Value[i][1], skOut, swkOut.Value[i][0])
 	}
 
 	return

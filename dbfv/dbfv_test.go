@@ -365,6 +365,8 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 		}
 
 		galEl := testCtx.params.GaloisElementForRowRotation()
+		rotKeySet := bfv.NewRotationKeySet(testCtx.params, []uint64{galEl})
+
 		for i, p := range pcksParties {
 			p.GenShare(p.s, galEl, crp, p.share)
 			if i > 0 {
@@ -372,10 +374,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		rotkey := bfv.NewSwitchingKey(testCtx.params)
-		rotKeySet := bfv.NewRotationKeySet(testCtx.params)
-		P0.GenBFVRotationKey(P0.share, crp, rotkey)
-		rotKeySet.Set(galEl, rotkey)
+		P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
@@ -422,9 +421,11 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
-		for k := uint64(1); k < testCtx.params.N()>>1; k <<= 1 {
+		galEls := testCtx.params.GaloisElementsForRowInnerSum()
+		rotKeySet := bfv.NewRotationKeySet(testCtx.params, galEls)
 
-			galEl := testCtx.params.GaloisElementForColumnRotationBy(int(k))
+		for _, galEl := range galEls {
+
 			for i, p := range pcksParties {
 				p.GenShare(p.s, galEl, crp, p.share)
 				if i > 0 {
@@ -432,15 +433,13 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 				}
 			}
 
-			rotKey := bfv.NewSwitchingKey(testCtx.params)
-			rotKeySet := bfv.NewRotationKeySet(testCtx.params)
-			P0.GenBFVRotationKey(P0.share, crp, rotKey)
-			rotKeySet.Set(galEl, rotKey)
+			P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
+		}
 
-			evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		for k := uint64(1); k < testCtx.params.N()>>1; k <<= 1 {
 			result := evaluator.RotateColumnsNew(ciphertext, int(k))
 			coeffsWant := utils.RotateUint64Slots(coeffs, int(k))
-
 			verifyTestVectors(testCtx, decryptorSk0, coeffsWant, result, t)
 		}
 	})

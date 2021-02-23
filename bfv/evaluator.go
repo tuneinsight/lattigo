@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 
 	"unsafe"
@@ -558,7 +559,7 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 	}
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
-		eval.switchKeysInPlace(ct0.value[deg], eval.rlk.keys[deg-2], eval.poolQKS[1], eval.poolQKS[2])
+		eval.switchKeysInPlace(ct0.value[deg], eval.rlk.Keys[deg-2], eval.poolQKS[1], eval.poolQKS[2])
 		eval.ringQ.Add(ctOut.value[0], eval.poolQKS[1], ctOut.value[0])
 		eval.ringQ.Add(ctOut.value[1], eval.poolQKS[2], ctOut.value[1])
 	}
@@ -576,7 +577,7 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and degree 2 ciphertexts).
 func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 
-	if int(ct0.Degree()-1) > len(eval.rlk.keys) {
+	if int(ct0.Degree()-1) > len(eval.rlk.Keys) {
 		panic("cannot Relinearize: input ciphertext degree too large to allow relinearization")
 	}
 
@@ -611,7 +612,7 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOu
 		panic("cannot SwitchKeys: input and output must be of degree 1 to allow key switching")
 	}
 
-	eval.switchKeysInPlace(ct0.value[1], switchKey, eval.poolQKS[1], eval.poolQKS[2])
+	eval.switchKeysInPlace(ct0.value[1], &switchKey.SwitchingKey, eval.poolQKS[1], eval.poolQKS[2])
 
 	eval.ringQ.Add(ct0.value[0], eval.poolQKS[1], ctOut.value[0])
 	eval.ringQ.Copy(eval.poolQKS[2], ctOut.value[1])
@@ -707,7 +708,7 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, ctOut *Ciphertext) {
 }
 
 // permute performs a column rotation on ct0 and returns the result in ctOut
-func (eval *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *SwitchingKey, ctOut *Ciphertext) {
+func (eval *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
 
 	eval.switchKeysInPlace(ct0.value[1], switchKey, eval.poolQKS[1], eval.poolQKS[2])
 
@@ -718,7 +719,7 @@ func (eval *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *Swi
 }
 
 // switchKeys applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
-func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, pool2Q, pool3Q *ring.Poly) {
+func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q *ring.Poly) {
 
 	var level, reduce uint64
 
@@ -749,10 +750,10 @@ func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *SwitchingKey, po
 
 		eval.decomposeAndSplitNTT(level, i, c2, cx, c2QiQ, c2QiP)
 
-		evakey0Q.Coeffs = evakey.key[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = evakey.key[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = evakey.key[i][0].Coeffs[level+1:]
-		evakey1P.Coeffs = evakey.key[i][1].Coeffs[level+1:]
+		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]
+		evakey1Q.Coeffs = evakey.Value[i][1].Coeffs[:level+1]
+		evakey0P.Coeffs = evakey.Value[i][0].Coeffs[level+1:]
+		evakey1P.Coeffs = evakey.Value[i][1].Coeffs[level+1:]
 
 		if i == 0 {
 			ringQ.MulCoeffsMontgomeryLvl(level, evakey0Q, c2QiQ, pool2Q)

@@ -750,7 +750,7 @@ func testMarshalSK(testctx *testContext, t *testing.T) {
 
 		sk.Set(sk.Get())
 
-		require.True(t, testctx.ringQP.Equal(sk.sk, testctx.sk.sk))
+		require.True(t, testctx.ringQP.Equal(sk.Value, testctx.sk.Value))
 	})
 }
 
@@ -767,8 +767,8 @@ func testMarshalPK(testctx *testContext, t *testing.T) {
 
 		pk.Set(pk.Get())
 
-		for k := range testctx.pk.pk {
-			require.True(t, testctx.ringQP.Equal(pk.pk[k], testctx.pk.pk[k]), k)
+		for k := range testctx.pk.Value {
+			require.True(t, testctx.ringQP.Equal(pk.Value[k], testctx.pk.Value[k]), k)
 		}
 	})
 
@@ -789,10 +789,10 @@ func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		for deg := range evalkey.keys {
+		for deg := range evalkey.Keys {
 
-			evakeyWant := evalkey.keys[deg].key
-			evakeyTest := resEvalKey.keys[deg].key
+			evakeyWant := evalkey.Keys[deg].Value
+			evakeyTest := resEvalKey.Keys[deg].Value
 
 			for j := range evakeyWant {
 
@@ -821,8 +821,8 @@ func testMarshalSwitchingKey(testctx *testContext, t *testing.T) {
 		err = resSwitchingKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		evakeyWant := switchingKey.key
-		evakeyTest := resSwitchingKey.key
+		evakeyWant := switchingKey.Value
+		evakeyTest := resSwitchingKey.Value
 
 		for j := range evakeyWant {
 
@@ -847,14 +847,14 @@ func testMarshalRotKey(testctx *testContext, t *testing.T) {
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resRotationKey := NewRotationKeySet(testctx.params)
+		var resRotationKey RotationKeySet
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
 		for _, r := range rots {
 			galEl := testctx.params.GaloisElementForColumnRotationBy(r)
-			evakeyWant := rotationKey.keys[galEl].Get()
-			evakeyTest := resRotationKey.keys[galEl].Get()
+			evakeyWant := rotationKey.Keys[galEl].Get()
+			evakeyTest := resRotationKey.Keys[galEl].Get()
 
 			for j := range evakeyWant {
 				for k := range evakeyWant[j] {

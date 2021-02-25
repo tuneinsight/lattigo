@@ -159,7 +159,7 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 	plaintext.isNTT = true
 }
 
-// Embed encodes a vector and stores internaly the encoded values.
+// Embed encodes a vector and stores internally the encoded values.
 // To be used in conjunction with ScaleUp.
 func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 
@@ -183,12 +183,12 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 	}
 }
 
-// ScaleUp writes the internaly stored encoded values on a polynomial.
+// ScaleUp writes the internally stored encoded values on a polynomial.
 func (encoder *encoderComplex128) ScaleUp(pol *ring.Poly, scale float64, moduli []uint64) {
 	scaleUpVecExact(encoder.valuesfloat, scale, moduli, pol.Coeffs)
 }
 
-// WipeInternalMemory sets the internaly stored encoded values of the encoder to zero.
+// WipeInternalMemory sets the internally stored encoded values of the encoder to zero.
 func (encoder *encoderComplex128) WipeInternalMemory() {
 	for i := range encoder.values {
 		encoder.values[i] = 0
@@ -296,7 +296,7 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, logSlots uint64) 
 
 	// We have more than one moduli and need the CRT reconstruction
 
-	if plaintext.Scale() < float64(encoder.ringQ.Modulus[0]) || plaintext.Level() == 0 {
+	if plaintext.Level() == 0 {
 
 		Q := encoder.ringQ.Modulus[0]
 		coeffs := encoder.polypool.Coeffs[0]

@@ -185,7 +185,7 @@ type Moduli struct {
 	Pi []uint64 // Keys additional prime moduli
 }
 
-// Print prints the moduli in hexadimal
+// Print prints the moduli in hexadecimal
 func (m *Moduli) Print() {
 	for _, qi := range m.Qi {
 		fmt.Printf("0x%x,\n", qi)
@@ -228,7 +228,7 @@ func (m *LogModuli) Copy() LogModuli {
 	return LogModuli{LogQi, LogPi}
 }
 
-// Parameters represents a given parameter set for the BFV cryptosystem.
+// Parameters represents a given parameter set for the CKKS cryptosystem.
 type Parameters struct {
 	qi       []uint64
 	pi       []uint64
@@ -314,7 +314,7 @@ func (p *Parameters) Levels() uint64 {
 	return p.QiCount()
 }
 
-// Slots returns number of availible plaintext slots
+// Slots returns number of available plaintext slots
 func (p *Parameters) Slots() uint64 {
 	return 1 << p.logSlots
 }
@@ -724,7 +724,7 @@ func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
 		primes[key] = ring.GenerateNTTPrimes(key, 2<<logN, value)
 	}
 
-	// Assigns the primes to the ckks moduli chain
+	// Assigns the primes to the CKKS moduli chain
 	m.Qi = make([]uint64, len(lm.LogQi))
 	for i, qi := range lm.LogQi {
 		m.Qi[i] = primes[qi][0]

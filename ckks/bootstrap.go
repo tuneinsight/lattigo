@@ -182,10 +182,10 @@ func (btp *Bootstrapper) slotsToCoeffs(ct0, ct1 *Ciphertext) (ct *Ciphertext) {
 
 func (btp *Bootstrapper) dft(vec *Ciphertext, plainVectors []*dftvectors, forward bool) *Ciphertext {
 
-	// Sequencially multiplies w with the provided dft matrices.
+	// Sequentially multiplies w with the provided dft matrices.
 	for _, plainVector := range plainVectors {
 		vec = btp.multiplyByDiagMatrice(vec, plainVector)
-		if err := btp.evaluator.Rescale(vec, btp.scale, vec); err != nil {
+		if err := btp.Rescale(vec, btp.scale, vec); err != nil {
 			panic(err)
 		}
 	}
@@ -207,7 +207,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	// N1*N2 = N
 	N1 = plainVectors.N1
 
-	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
+	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
 	index := make(map[uint64][]uint64)
 	rotations := []uint64{}
 	for key := range plainVectors.Vec {

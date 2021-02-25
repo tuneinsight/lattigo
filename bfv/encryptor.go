@@ -25,8 +25,8 @@ type Encryptor interface {
 	// encrypting zero in Q and then adding the plaintext.
 	EncryptFastNew(plaintext *Plaintext) *Ciphertext
 
-	// EncryptFsat encrypts the input plaintext using the stored-key, and returns
-	// the result onthe receiver ciphertext. The encryption is done by first
+	// EncryptFast encrypts the input plaintext using the stored-key, and returns
+	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in Q and then adding the plaintext.
 	EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext)
 
@@ -40,7 +40,7 @@ type Encryptor interface {
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
-	EncryptFromCRP(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
+	EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly)
 
 	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first encrypting
@@ -52,7 +52,7 @@ type Encryptor interface {
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in Q, using the provided polynomial as the uniform polynomial, and
 	// then adding the plaintext.
-	EncryptFromCRPFast(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
+	EncryptFromCRPFast(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly)
 }
 
 // encryptor is a structure that holds the parameters needed to encrypt plaintexts.
@@ -240,11 +240,11 @@ func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Cipherte
 }
 
 func (encryptor *skEncryptor) EncryptFastNew(plaintext *Plaintext) *Ciphertext {
-	panic("Cannot EncryptFastNew : not supported by sk encyrptor -> use EncryptFastNew instead")
+	panic("Cannot EncryptFastNew: not supported by sk encryptor -> use EncryptFastNew instead")
 }
 
 func (encryptor *skEncryptor) EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext) {
-	panic("Cannot EncryptFast : not supported by sk encyrptor -> use Encrypt instead")
+	panic("Cannot EncryptFast: not supported by sk encryptor -> use Encrypt instead")
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
@@ -258,11 +258,11 @@ func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *C
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
-	panic("Cannot EncryptFromCRPFastNew : not supported by sk encyrptor -> use EncryptFromCRPNew instead")
+	panic("Cannot EncryptFromCRPFastNew: not supported by sk encryptor -> use EncryptFromCRPNew instead")
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	panic("Cannot EncryptFromCRPFast : not supported by sk encyrptor -> use EncryptFromCRP instead")
+	panic("Cannot EncryptFromCRPFast: not supported by sk encryptor -> use EncryptFromCRP instead")
 }
 
 func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ciphertext) {

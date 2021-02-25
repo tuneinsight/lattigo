@@ -16,7 +16,7 @@ const GaloisGen uint64 = 5
 
 // Encoder is an interface for plaintext encoding and decoding operations. It provides methods to embed []uint64 and []int64 types into
 // the various plaintext types and the inverse operations. It also provides methodes to convert between the different plaintext types.
-// The different plaintext types represent different embedings of the message in the polynomial space. This relation is illustrated in
+// The different plaintext types represent different embeddings of the message in the polynomial space. This relation is illustrated in
 // The figure below:
 //
 // []uint64 --- Encoder.EncodeUintRingT(.) -┬-> PlaintextRingT -┬-> Encoder.ScaleUp(.) -----> Plaintext
@@ -177,7 +177,7 @@ func (encoder *encoder) EncodeUintMul(coeffs []uint64, p *PlaintextMul) {
 	// Encodes the values in RingT
 	encoder.EncodeUintRingT(coeffs, ptRt)
 
-	// Puts in NTT+Montgomerry domains of ringQ
+	// Puts in NTT+Montgomery domains of ringQ
 	encoder.RingTToMul(ptRt, p)
 }
 
@@ -225,7 +225,7 @@ func (encoder *encoder) EncodeIntMul(coeffs []int64, p *PlaintextMul) {
 	// Encodes the values in RingT
 	encoder.EncodeIntRingT(coeffs, ptRt)
 
-	// Puts in NTT+Montgomerry domains of ringQ
+	// Puts in NTT+Montgomery domains of ringQ
 	encoder.RingTToMul(ptRt, p)
 }
 
@@ -266,7 +266,7 @@ func (encoder *encoder) ScaleDown(pt *Plaintext, ptRt *PlaintextRingT) {
 }
 
 // RingTToMul transforms a PlaintextRingT into a PlaintextMul by operating the NTT transform
-// of R_q and putting the coefficients in Montgommery form.
+// of R_q and putting the coefficients in Montgomery form.
 func (encoder *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 	if ptRt.value != ptMul.value {
 		copy(ptMul.value.Coeffs[0], ptRt.value.Coeffs[0])
@@ -280,7 +280,7 @@ func (encoder *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 }
 
 // MulToRingT transforms a PlaintextMul into PlaintextRingT by operating the inverse NTT transform of R_q and
-// putting the coefficients out of the Montgommery form.
+// putting the coefficients out of the Montgomery form.
 func (encoder *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
 	encoder.ringQ.InvNTTLvl(0, pt.value, ptRt.value)
 	encoder.ringQ.InvMFormLvl(0, ptRt.value, ptRt.value)
@@ -296,7 +296,7 @@ func (encoder *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
 	case *PlaintextRingT:
 		ptRt.Copy(pt.Element)
 	default:
-		panic(fmt.Errorf("unsuported plaintext type (%T)", pt))
+		panic(fmt.Errorf("unsupported plaintext type (%T)", pt))
 	}
 }
 

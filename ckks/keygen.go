@@ -149,7 +149,7 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey) (rlk *Relineari
 		panic("Cannot GenRelinKey: modulus P is empty")
 	}
 
-	rlk = NewRelinKey(keygen.params)
+	rlk = NewRelinearizationKey(keygen.params)
 	keygen.ringQP.MulCoeffsMontgomery(sk.Value, sk.Value, keygen.polypool[0])
 	rlk.Keys[0] = &NewSwitchingKey(keygen.params).SwitchingKey
 	keygen.newSwitchingKey(keygen.polypool[0], sk.Value, rlk.Keys[0])

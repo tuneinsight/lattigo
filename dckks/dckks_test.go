@@ -12,6 +12,7 @@ import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -115,11 +116,10 @@ func genTestParams(defaultParams *ckks.Parameters) (testCtx *testContext, err er
 		testCtx.dckksContext.ringQP.Add(tmp1, testCtx.sk1Shards[j].Value, tmp1)
 	}
 
-	testCtx.sk0 = new(ckks.SecretKey)
-	testCtx.sk1 = new(ckks.SecretKey)
-
-	testCtx.sk0.Set(tmp0)
-	testCtx.sk1.Set(tmp1)
+	testCtx.sk0 = ckks.NewSecretKey(testCtx.params)
+	testCtx.sk1 = ckks.NewSecretKey(testCtx.params)
+	testCtx.sk0.Value.Copy(tmp0)
+	testCtx.sk1.Value.Copy(tmp1)
 
 	// Publickeys
 	testCtx.pk0 = kgen.GenPublicKey(testCtx.sk0)
@@ -145,7 +145,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*CKGProtocol
-			s  *ring.Poly
+			s  *rlwe.SecretKey
 			s1 *drlwe.CKGShare
 		}
 
@@ -153,11 +153,13 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.CKGProtocol = NewCKGProtocol(testCtx.params)
-			p.s = sk0Shards[i].Value
+			p.s = &sk0Shards[i].SecretKey
 			p.s1 = p.AllocateShares()
 			ckgParties[i] = p
 		}
 		P0 := ckgParties[0]
+
+		var _ drlwe.CollectivePublicKeyGenerator = P0.CKGProtocol
 
 		// Each party creates a new CKGProtocol instance
 		for i, p := range ckgParties {
@@ -167,8 +169,8 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		pk := &ckks.PublicKey{}
-		P0.GenPublicKey(P0.s1, crp, pk)
+		pk := ckks.NewPublicKey(testCtx.params)
+		P0.GenCKKSPublicKey(P0.s1, crp, pk)
 
 		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
 		encryptorTest := ckks.NewEncryptorFromPk(testCtx.params, pk)
@@ -190,8 +192,8 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*RKGProtocol
-			ephSk  *ring.Poly
-			sk     *ring.Poly
+			ephSk  *rlwe.SecretKey
+			sk     *rlwe.SecretKey
 			share1 *drlwe.RKGShare
 			share2 *drlwe.RKGShare
 		}
@@ -201,12 +203,15 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		for i := range rkgParties {
 			p := new(Party)
 			p.RKGProtocol = NewRKGProtocol(testCtx.params)
-			p.sk = sk0Shards[i].Value
+			p.sk = &sk0Shards[i].SecretKey
 			p.ephSk, p.share1, p.share2 = p.AllocateShares()
 			rkgParties[i] = p
 		}
 
 		P0 := rkgParties[0]
+
+		// Checks that ckks.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
+		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
 
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
 		crp := make([]*ring.Poly, testCtx.params.Beta())
@@ -231,7 +236,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		rlk := ckks.NewRelinKey(testCtx.params)
+		rlk := ckks.NewRelinearizationKey(testCtx.params)
 		P0.GenCKKSRelinearizationKey(P0.share1, P0.share2, rlk)
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
@@ -358,7 +363,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*RTGProtocol
-			s     *ring.Poly
+			s     *rlwe.SecretKey
 			share *drlwe.RTGShare
 		}
 
@@ -366,11 +371,14 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-			p.s = sk0Shards[i].Value
-			p.share = p.AllocateShare()
+			p.s = &sk0Shards[i].SecretKey
+			p.share = p.AllocateShares()
 			pcksParties[i] = p
 		}
 		P0 := pcksParties[0]
+
+		// checks that ckks.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
+		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
 		crp := make([]*ring.Poly, testCtx.params.Beta())
@@ -418,7 +426,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*RTGProtocol
-			s     *ring.Poly
+			s     *rlwe.SecretKey
 			share *drlwe.RTGShare
 		}
 
@@ -426,8 +434,8 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-			p.s = sk0Shards[i].Value
-			p.share = p.AllocateShare()
+			p.s = &sk0Shards[i].SecretKey
+			p.share = p.AllocateShares()
 			pcksParties[i] = p
 		}
 

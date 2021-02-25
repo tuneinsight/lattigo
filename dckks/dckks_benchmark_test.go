@@ -6,6 +6,7 @@ import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 func BenchmarkDCKKS(b *testing.B) {
@@ -45,13 +46,13 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*CKGProtocol
-		s  *ring.Poly
+		s  *rlwe.SecretKey
 		s1 *drlwe.CKGShare
 	}
 
 	p := new(Party)
 	p.CKGProtocol = NewCKGProtocol(testCtx.params)
-	p.s = sk0Shards[0].Value
+	p.s = &sk0Shards[0].SecretKey
 	p.s1 = p.AllocateShares()
 
 	b.Run(testString("PublicKeyGen/Gen/", parties, testCtx.params), func(b *testing.B) {
@@ -77,15 +78,15 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*RKGProtocol
-		ephSk  *ring.Poly
-		sk     *ring.Poly
+		ephSk  *rlwe.SecretKey
+		sk     *rlwe.SecretKey
 		share1 *drlwe.RKGShare
 		share2 *drlwe.RKGShare
 	}
 
 	p := new(Party)
 	p.RKGProtocol = NewRKGProtocol(testCtx.params)
-	p.sk = sk0Shards[0].Value
+	p.sk = &sk0Shards[0].SecretKey
 	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
@@ -214,14 +215,14 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*RTGProtocol
-		s     *ring.Poly
+		s     *rlwe.SecretKey
 		share *drlwe.RTGShare
 	}
 
 	p := new(Party)
 	p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-	p.s = sk0Shards[0].Value
-	p.share = p.AllocateShare()
+	p.s = &sk0Shards[0].SecretKey
+	p.share = p.AllocateShares()
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQP)
 	crp := make([]*ring.Poly, testCtx.params.Beta())
@@ -233,7 +234,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RotKeyGen/Round1/Gen/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(sk0Shards[0].Value, galEl, crp, p.share)
+			p.GenShare(p.s, galEl, crp, p.share)
 		}
 	})
 

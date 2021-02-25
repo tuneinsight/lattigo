@@ -121,9 +121,9 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	contextKeys.NTTLazy(pcks.tmp, pcks.tmp)
 
 	// h_0 = u_i * pk_0
-	contextKeys.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Get()[0], pcks.share0tmp)
+	contextKeys.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Value[0], pcks.share0tmp)
 	// h_1 = u_i * pk_1
-	contextKeys.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Get()[1], pcks.share1tmp)
+	contextKeys.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Value[1], pcks.share1tmp)
 
 	contextKeys.InvNTTLazy(pcks.share0tmp, pcks.share0tmp)
 	contextKeys.InvNTTLazy(pcks.share1tmp, pcks.share1tmp)

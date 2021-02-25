@@ -6,35 +6,32 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-// SecretKey is a structure that stores the SecretKey.
+// SecretKey is a type for generic RLWE secret keys.
 type SecretKey struct {
 	Value *ring.Poly
 }
 
-// PublicKey is a structure that stores the PublicKey.
+// PublicKey is a type for generic RLWE public keys.
 type PublicKey struct {
 	Value [2]*ring.Poly
 }
 
-// SwitchingKey is a structure that stores the switching-keys required during the key-switching.
+// SwitchingKey is a type for generic RLWE public switching keys.
 type SwitchingKey struct {
 	Value [][2]*ring.Poly
 }
 
-// RelinearizationKey is a structure that stores the switching-keys required during the relinearization.
+// RelinearizationKey is a type for generic RLWE public relinearization keys. It stores a slice with a
+// switching key per relinearizable degree. The switching key at index i is used to relinearize a degree
+// i+2 ciphertexts back to a degree i + 1 one.
 type RelinearizationKey struct {
 	Keys []*SwitchingKey
 }
 
-// RotationKeySet is a structure that stores the switching-keys required during the homomorphic rotations.
+// RotationKeySet is a type for storing generic RLWE public rotation keys. It stores a map indexed by the
+// galois element defining the automorphism.
 type RotationKeySet struct {
 	Keys map[uint64]*SwitchingKey
-}
-
-// EvaluationKey is a structure representing the complete set of switching-keys required for evaluation
-type EvaluationKey struct {
-	Rlk  *RelinearizationKey
-	Rtks *RotationKeySet
 }
 
 // NewSecretKey generates a new SecretKey with zero values.
@@ -45,30 +42,9 @@ func NewSecretKey(ringDegree, moduliCount uint64) *SecretKey {
 	return sk
 }
 
-// Get returns the polynomial of the target SecretKey.
-func (sk *SecretKey) Get() *ring.Poly {
-	return sk.Value
-}
-
-// Set sets the polynomial of the target secret key as the input polynomial.
-func (sk *SecretKey) Set(poly *ring.Poly) {
-	sk.Value = poly.CopyNew()
-}
-
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(ringDegree, moduliCount uint64) (pk *PublicKey) {
 	return &PublicKey{Value: [2]*ring.Poly{ring.NewPoly(ringDegree, moduliCount), ring.NewPoly(ringDegree, moduliCount)}}
-}
-
-// Get returns the polynomials of the PublicKey.
-func (pk *PublicKey) Get() [2]*ring.Poly {
-	return pk.Value
-}
-
-// Set sets the polynomial of the PublicKey as the input polynomials.
-func (pk *PublicKey) Set(p [2]*ring.Poly) {
-	pk.Value[0] = p[0].CopyNew()
-	pk.Value[1] = p[1].CopyNew()
 }
 
 // NewRotationKeySet returns a new RotationKeySet with pre-allocated switching keys for each distinct galoisElement value.
@@ -81,48 +57,11 @@ func NewRotationKeySet(galoisElement []uint64, ringDegree, moduliCount, decompSi
 	return
 }
 
-// Set stores a copy of the rotKey SwitchingKey inside the receiver RotationKeySet
-func (rtks *RotationKeySet) Set(galEl uint64, rotKey *SwitchingKey) {
-	s := new(SwitchingKey)
-	s.Copy(rotKey)
-	rtks.Keys[galEl] = s
-}
-
-// Delete empties the set of rotation keys
-func (rtks *RotationKeySet) Delete() {
-	for k := range rtks.Keys {
-		delete(rtks.Keys, k)
-	}
-}
-
 // GetRotationKey return the rotation key for the given galois element or nil if such key is not in the set. The
 // second argument is true  iff the first one is non-nil.
 func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool) {
 	rotKey, inSet := rtks.Keys[galoisEl]
 	return rotKey, inSet
-}
-
-// Get returns the switching key backing slice.
-func (swk *SwitchingKey) Get() [][2]*ring.Poly {
-	return swk.Value
-}
-
-// Copy copies the other SwitchingKey inside the receiver.
-func (swk *SwitchingKey) Copy(other *SwitchingKey) {
-	if other == nil {
-		return
-	}
-	if len(swk.Value) == 0 {
-		swk.Value = make([][2]*ring.Poly, len(other.Value), len(other.Value))
-		for i, o := range other.Value {
-			n, q := uint64(o[0].GetDegree()), uint64(o[0].GetLenModuli())
-			swk.Value[i] = [2]*ring.Poly{ring.NewPoly(n, q), ring.NewPoly(n, q)}
-		}
-	}
-	for i, o := range other.Value {
-		swk.Value[i][0].Copy(o[0])
-		swk.Value[i][1].Copy(o[1])
-	}
 }
 
 func NewSwitchingKey(ringDegree, moduliCount, decompSize uint64) *SwitchingKey {
@@ -151,25 +90,6 @@ func NewRelinKey(maxRelinDegree, ringDegree, moduliCount, decompSize uint64) (ev
 	}
 
 	return
-}
-
-// Get returns the slice of SwitchingKeys of the target EvaluationKey.
-func (evk *RelinearizationKey) Get() []*SwitchingKey {
-	return evk.Keys
-}
-
-// Set sets the polynomial of the target EvaluationKey as the input polynomials.
-func (evk *RelinearizationKey) Set(rlk [][][2]*ring.Poly) {
-
-	evk.Keys = make([]*SwitchingKey, len(rlk))
-	for i := range rlk {
-		evk.Keys[i] = new(SwitchingKey)
-		evk.Keys[i].Value = make([][2]*ring.Poly, len(rlk[i]))
-		for j := range rlk[i] {
-			evk.Keys[i].Value[j][0] = rlk[i][j][0].CopyNew()
-			evk.Keys[i].Value[j][1] = rlk[i][j][1].CopyNew()
-		}
-	}
 }
 
 // GetDataLen returns the length in bytes of the target SecretKey.
@@ -436,11 +356,7 @@ func (rotationkey *RotationKeySet) MarshalBinary() (data []byte, err error) {
 // UnmarshalBinary decodes a previously marshaled RotationKeys in the target RotationKeys.
 func (rotationkey *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
 
-	if rotationkey.Keys == nil {
-		rotationkey.Keys = make(map[uint64]*SwitchingKey)
-	} else {
-		rotationkey.Delete()
-	}
+	rotationkey.Keys = make(map[uint64]*SwitchingKey)
 
 	for len(data) > 0 {
 

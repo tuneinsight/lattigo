@@ -10,8 +10,9 @@ import (
 // CollectivePublicKeyGenerator is an interface describing the local steps of a generic RLWE CKG protocol
 type CollectivePublicKeyGenerator interface {
 	AllocateShares() *CKGShare
-	GenShare(sk *ring.Poly, crs *ring.Poly, shareOut *CKGShare)
+	GenShare(sk *rlwe.SecretKey, crs *ring.Poly, shareOut *CKGShare)
 	AggregateShares(share1, share2, shareOut *CKGShare)
+	GenPublicKey(aggregatedShare *CKGShare, crs *ring.Poly, pubkey *rlwe.PublicKey)
 }
 
 // CKGProtocol is the structure storing the parameters and and precomputations for the collective key generation protocol.
@@ -73,11 +74,11 @@ func (ckg *CKGProtocol) AllocateShares() *CKGShare {
 // crs*s_i + e_i
 //
 // for the receiver protocol. Has no effect is the share was already generated.
-func (ckg *CKGProtocol) GenShare(sk *ring.Poly, crs *ring.Poly, shareOut *CKGShare) {
+func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crs *ring.Poly, shareOut *CKGShare) {
 	ringQP := ckg.ringQP
 	ckg.gaussianSampler.Read(shareOut.Poly)
 	ringQP.NTT(shareOut.Poly, shareOut.Poly)
-	ringQP.MulCoeffsMontgomeryAndSub(sk, crs, shareOut.Poly)
+	ringQP.MulCoeffsMontgomeryAndSub(sk.Value, crs, shareOut.Poly)
 }
 
 // AggregateShares aggregates a new share to the aggregate key
@@ -87,5 +88,6 @@ func (ckg *CKGProtocol) AggregateShares(share1, share2, shareOut *CKGShare) {
 
 // GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
 func (ckg *CKGProtocol) GenPublicKey(roundShare *CKGShare, crs *ring.Poly, pubkey *rlwe.PublicKey) {
-	pubkey.Set([2]*ring.Poly{roundShare.Poly, crs})
+	pubkey.Value[0].Copy(roundShare.Poly)
+	pubkey.Value[1].Copy(crs)
 }

@@ -13,10 +13,10 @@ import (
 
 // RotationKeyGenerator is an interface for the local operation in the generation of rotation keys
 type RotationKeyGenerator interface {
-	AllocateShares()
-	GenShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, shareOut *RTGShare)
-	Aggregate(share1, share2, shareOut RTGShare)
-	GenRotationKey(galEl uint64, share RTGShare, crp []*ring.Poly, rotKey *rlwe.SwitchingKey)
+	AllocateShares() (rtgShare *RTGShare)
+	GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.Poly, shareOut *RTGShare)
+	Aggregate(share1, share2, shareOut *RTGShare)
+	GenRotationKey(share *RTGShare, crp []*ring.Poly, rotKey *rlwe.SwitchingKey)
 }
 
 // RTGShare is represent a Party's share in the RTG protocol
@@ -68,7 +68,7 @@ func NewRTGProtocol(n uint64, q, p []uint64, sigma float64) *RTGProtocol {
 }
 
 // AllocateShare allocates a party's share in the RTG protocol
-func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
+func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare) {
 	rtgShare = new(RTGShare)
 	rtgShare.Value = make([]*ring.Poly, rtg.beta)
 	for i := range rtgShare.Value {
@@ -78,14 +78,14 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 }
 
 // GenShare generates a party's share in the RTG protocol
-func (rtg *RTGProtocol) GenShare(sk *ring.Poly, galEl uint64, crp []*ring.Poly, shareOut *RTGShare) {
+func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.Poly, shareOut *RTGShare) {
 
 	twoN := rtg.ringQP.N << 2
 	galElInv := ring.ModExp(galEl, twoN-1, twoN)
 
-	ring.PermuteNTT(sk, galElInv, rtg.tmpPoly[1])
+	ring.PermuteNTT(sk.Value, galElInv, rtg.tmpPoly[1])
 
-	rtg.ringQP.MulScalarBigint(sk, rtg.ringPModulusBigint, rtg.tmpPoly[0])
+	rtg.ringQP.MulScalarBigint(sk.Value, rtg.ringPModulusBigint, rtg.tmpPoly[0])
 
 	var index uint64
 

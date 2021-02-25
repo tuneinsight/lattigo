@@ -744,11 +744,9 @@ func testMarshalSK(testctx *testContext, t *testing.T) {
 		marshalledSk, err := testctx.sk.MarshalBinary()
 		require.NoError(t, err)
 
-		sk := NewSecretKey(testctx.params)
+		var sk SecretKey
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
-
-		sk.Set(sk.Get())
 
 		require.True(t, testctx.ringQP.Equal(sk.Value, testctx.sk.Value))
 	})
@@ -761,11 +759,9 @@ func testMarshalPK(testctx *testContext, t *testing.T) {
 		marshalledPk, err := testctx.pk.MarshalBinary()
 		require.NoError(t, err)
 
-		pk := NewPublicKey(testctx.params)
+		var pk PublicKey
 		err = pk.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
-
-		pk.Set(pk.Get())
 
 		for k := range testctx.pk.Value {
 			require.True(t, testctx.ringQP.Equal(pk.Value[k], testctx.pk.Value[k]), k)
@@ -785,7 +781,7 @@ func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
 		data, err := evalkey.MarshalBinary()
 		require.NoError(t, err)
 
-		resEvalKey := NewRelinKey(testctx.params, 2)
+		resEvalKey := NewRelinearizationKey(testctx.params, 2)
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
@@ -853,8 +849,8 @@ func testMarshalRotKey(testctx *testContext, t *testing.T) {
 
 		for _, r := range rots {
 			galEl := testctx.params.GaloisElementForColumnRotationBy(r)
-			evakeyWant := rotationKey.Keys[galEl].Get()
-			evakeyTest := resRotationKey.Keys[galEl].Get()
+			evakeyWant := rotationKey.Keys[galEl].Value
+			evakeyTest := resRotationKey.Keys[galEl].Value
 
 			for j := range evakeyWant {
 				for k := range evakeyWant[j] {

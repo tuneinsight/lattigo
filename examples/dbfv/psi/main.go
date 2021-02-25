@@ -11,6 +11,7 @@ import (
 	"github.com/ldsec/lattigo/v2/dbfv"
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -34,7 +35,7 @@ func runTimedParty(f func(), N int) time.Duration {
 
 type party struct {
 	sk         *bfv.SecretKey
-	rlkEphemSk *ring.Poly
+	rlkEphemSk *rlwe.SecretKey
 
 	ckgShare    *drlwe.CKGShare
 	rkgShareOne *drlwe.RKGShare
@@ -312,7 +313,7 @@ func pcksPhase(params *bfv.Parameters, tpk *bfv.PublicKey, encRes *bfv.Ciphertex
 	l.Println("> PCKS Phase")
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P {
-			pcks.GenShare(pi.sk.Get(), tpk, encRes, pi.pcksShare)
+			pcks.GenShare(pi.sk.Value, tpk, encRes, pi.pcksShare)
 		}
 	}, len(P))
 
@@ -349,7 +350,7 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundOne(pi.sk.Get(), crp, pi.rlkEphemSk, pi.rkgShareOne)
+			rkg.GenShareRoundOne(&pi.sk.SecretKey, crp, pi.rlkEphemSk, pi.rkgShareOne)
 		}
 	}, len(P))
 
@@ -363,11 +364,11 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 
 	elapsedRKGParty += runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundTwo(pi.rlkEphemSk, pi.sk.Get(), rkgCombined1, crp, pi.rkgShareTwo)
+			rkg.GenShareRoundTwo(pi.rlkEphemSk, &pi.sk.SecretKey, rkgCombined1, crp, pi.rkgShareTwo)
 		}
 	}, len(P))
 
-	rlk := bfv.NewRelinKey(params, 1)
+	rlk := bfv.NewRelinearizationKey(params, 1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
@@ -395,7 +396,7 @@ func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 
 	elapsedCKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			ckg.GenShare(pi.sk.Get(), crs, pi.ckgShare)
+			ckg.GenShare(&pi.sk.SecretKey, crs, pi.ckgShare)
 		}
 	}, len(P))
 
@@ -407,7 +408,7 @@ func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		for _, pi := range P {
 			ckg.AggregateShares(pi.ckgShare, ckgCombined, ckgCombined)
 		}
-		ckg.GenPublicKey(ckgCombined, crs, pk)
+		ckg.GenBFVPublicKey(ckgCombined, crs, pk)
 	})
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKGCloud, elapsedCKGParty)

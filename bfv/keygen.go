@@ -124,14 +124,14 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree uint6
 		evk.Keys[i] = &NewSwitchingKey(keygen.params).SwitchingKey
 	}
 
-	keygen.polypool[0].Copy(sk.Get()) // TODO Remove ?
+	keygen.polypool[0].Copy(sk.Value) // TODO Remove ?
 
 	ringQP := keygen.ringQP
 
-	keygen.polypool[1].Copy(sk.Get())
+	keygen.polypool[1].Copy(sk.Value)
 	for i := uint64(0); i < maxDegree; i++ {
-		ringQP.MulCoeffsMontgomery(keygen.polypool[1], sk.Get(), keygen.polypool[1])
-		keygen.newSwitchingKey(keygen.polypool[1], sk.Get(), evk.Keys[i])
+		ringQP.MulCoeffsMontgomery(keygen.polypool[1], sk.Value, keygen.polypool[1])
+		keygen.newSwitchingKey(keygen.polypool[1], sk.Value, evk.Keys[i])
 	}
 
 	keygen.polypool[0].Zero()
@@ -149,8 +149,8 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swkOu
 
 	swkOut = NewSwitchingKey(keygen.params)
 
-	keygen.ringQP.Copy(skInput.Get(), keygen.polypool[0]) // TODO: remove and pass skInput directly ?
-	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Get(), &swkOut.SwitchingKey)
+	keygen.ringQP.Copy(skInput.Value, keygen.polypool[0]) // TODO: remove and pass skInput directly ?
+	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Value, &swkOut.SwitchingKey)
 	keygen.polypool[0].Zero()
 	return
 }

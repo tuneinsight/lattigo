@@ -4,7 +4,6 @@ import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
@@ -20,5 +19,5 @@ func NewRotKGProtocol(params *ckks.Parameters) (rtg *RTGProtocol) {
 
 // GenCKKSRotationKey populates the input RotationKeys struture with the Switching key computed from the protocol.
 func (rtg *RTGProtocol) GenCKKSRotationKey(share *drlwe.RTGShare, crp []*ring.Poly, rotKey *ckks.SwitchingKey) {
-	rtg.GenRotationKey(share, crp, &rlwe.SwitchingKey{Value: rotKey.Get()})
+	rtg.GenRotationKey(share, crp, &rotKey.SwitchingKey)
 }

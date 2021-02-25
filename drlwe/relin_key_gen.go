@@ -11,16 +11,17 @@ import (
 
 // RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol
 type RelinearizationKeyGenerator interface {
-	AllocateShares() (ephKey *ring.Poly, r1 *RKGShare, r2 *RKGShare)
-	GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephKeyOut *ring.Poly, shareOut *RKGShare)
-	GenShareRoundTwo(ephSk, sk *ring.Poly, round1 *RKGShare, crp []*ring.Poly, shareOut *RKGShare)
+	AllocateShares() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
+	GenShareRoundOne(sk *rlwe.SecretKey, crp []*ring.Poly, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
+	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp []*ring.Poly, shareOut *RKGShare)
 	AggregateShares(share1, share2, shareOut *RKGShare)
-	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut [][2]*ring.Poly) // TODO type for generic eval key
+	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, relinKeyOut *rlwe.RelinearizationKey) // TODO type for generic eval key
 }
 
 // RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
 type RKGProtocol struct {
 	ringQModCount   uint64
+	ringQPModCount  uint64
 	alpha           uint64
 	beta            uint64
 	ringP           *ring.Ring
@@ -42,6 +43,7 @@ func NewRKGProtocol(n uint64, q, p []uint64, ephSkPr, sigma float64) *RKGProtoco
 	rkg := new(RKGProtocol)
 	rkg.ringQModCount = uint64(len(q))
 	rkg.alpha = uint64(len(p))
+	rkg.ringQPModCount = rkg.ringQModCount + rkg.alpha
 	if rkg.alpha != 0 {
 		rkg.beta = uint64(math.Ceil(float64(len(q)) / float64(len(p))))
 	} else {
@@ -67,8 +69,8 @@ func NewRKGProtocol(n uint64, q, p []uint64, ephSkPr, sigma float64) *RKGProtoco
 }
 
 // AllocateShares allocates the shares of the EKG protocol.
-func (ekg *RKGProtocol) AllocateShares() (ephSk *ring.Poly, r1 *RKGShare, r2 *RKGShare) {
-	ephSk = ekg.ringQP.NewPoly()
+func (ekg *RKGProtocol) AllocateShares() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
+	ephSk = rlwe.NewSecretKey(ekg.ringQP.N, ekg.ringQPModCount)
 	r1, r2 = new(RKGShare), new(RKGShare)
 	r1.value = make([][2]*ring.Poly, ekg.beta)
 	r2.value = make([][2]*ring.Poly, ekg.beta)
@@ -84,15 +86,15 @@ func (ekg *RKGProtocol) AllocateShares() (ephSk *ring.Poly, r1 *RKGShare, r2 *RK
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
 // its secret share of the key s_i under its ephemeral key u_i : [-u_i*a + s_i*w + e_i] and broadcasts it to the other
 // j-1 parties.
-func (ekg *RKGProtocol) GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephSkOut *ring.Poly, shareOut *RKGShare) {
+func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp []*ring.Poly, ephSkOut *rlwe.SecretKey, shareOut *RKGShare) {
 	// Given a base decomposition w_i (here the CRT decomposition)
 	// computes [-u*a_i + P*s_i + e_i]
 	// where a_i = crp_i
-	ekg.ringQP.MulScalarBigint(sk, ekg.ringP.ModulusBigint, ekg.tmpPoly1)
+	ekg.ringQP.MulScalarBigint(sk.Value, ekg.ringP.ModulusBigint, ekg.tmpPoly1)
 	ekg.ringQP.InvMForm(ekg.tmpPoly1, ekg.tmpPoly1)
 
-	ekg.ternarySampler.Read(ephSkOut)
-	ekg.ringQP.NTT(ephSkOut, ephSkOut)
+	ekg.ternarySampler.Read(ephSkOut.Value)
+	ekg.ringQP.NTT(ephSkOut.Value, ephSkOut.Value)
 
 	for i := uint64(0); i < ekg.beta; i++ {
 		// h = e
@@ -117,14 +119,14 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephSkO
 		}
 
 		// h = sk*CrtBaseDecompQi + -u*a + e
-		ekg.ringQP.MulCoeffsMontgomeryAndSub(ephSkOut, crp[i], shareOut.value[i][0])
+		ekg.ringQP.MulCoeffsMontgomeryAndSub(ephSkOut.Value, crp[i], shareOut.value[i][0])
 
 		// Second Element
 		// e_2i
 		ekg.gaussianSampler.Read(shareOut.value[i][1])
 		ekg.ringQP.NTT(shareOut.value[i][1], shareOut.value[i][1])
 		// s*a + e_2i
-		ekg.ringQP.MulCoeffsMontgomeryAndAdd(sk, crp[i], shareOut.value[i][1])
+		ekg.ringQP.MulCoeffsMontgomeryAndAdd(sk.Value, crp[i], shareOut.value[i][1])
 	}
 
 	//ekg.tmpPoly1.Zero()
@@ -137,9 +139,9 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *ring.Poly, crp []*ring.Poly, ephSkO
 // = [s_i * (-u*a + s*w + e) + e_i1, s_i*a + e_i2]
 //
 // and broadcasts both values to the other j-1 parties.
-func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *ring.Poly, round1 *RKGShare, crp []*ring.Poly, shareOut *RKGShare) {
+func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp []*ring.Poly, shareOut *RKGShare) {
 	// (u_i - s_i)
-	ekg.ringQP.Sub(ephSk, sk, ekg.tmpPoly1)
+	ekg.ringQP.Sub(ephSk.Value, sk.Value, ekg.tmpPoly1)
 
 	// Each sample is of the form [-u*a_i + s*w_i + e_i]
 	// So for each element of the base decomposition w_i :
@@ -148,7 +150,7 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *ring.Poly, round1 *RKGShare,
 		// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
 		// (AggregateShareRoundTwo samples) * sk
-		ekg.ringQP.MulCoeffsMontgomeryConstant(round1.value[i][0], sk, shareOut.value[i][0])
+		ekg.ringQP.MulCoeffsMontgomeryConstant(round1.value[i][0], sk.Value, shareOut.value[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
 		ekg.gaussianSampler.Read(ekg.tmpPoly2)

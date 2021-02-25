@@ -1083,7 +1083,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
-		require.True(t, ringQP.Equal(sk.sk, testContext.sk.sk))
+		require.True(t, ringQP.Equal(sk.Value, testContext.sk.Value))
 
 	})
 
@@ -1096,8 +1096,8 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		err = pk.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
 
-		for k := range testContext.pk.pk {
-			require.Truef(t, ringQP.Equal(pk.pk[k], testContext.pk.pk[k]), "Marshal PublicKey element [%d]", k)
+		for k := range testContext.pk.Value {
+			require.Truef(t, ringQP.Equal(pk.Value[k], testContext.pk.Value[k]), "Marshal PublicKey element [%d]", k)
 		}
 	})
 
@@ -1115,8 +1115,8 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		evakeyWant := evalKey.evakey.key
-		evakeyTest := resEvalKey.evakey.key
+		evakeyWant := evalKey.Keys[0].Value
+		evakeyTest := resEvalKey.Keys[0].Value
 
 		for j := range evakeyWant {
 			for k := range evakeyWant[j] {
@@ -1141,8 +1141,8 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		err = resSwitchingKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		evakeyWant := switchingKey.key
-		evakeyTest := resSwitchingKey.key
+		evakeyWant := switchingKey.Value
+		evakeyTest := resSwitchingKey.Value
 
 		for j := range evakeyWant {
 			for k := range evakeyWant[j] {
@@ -1174,8 +1174,8 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 
 		for _, galEl := range galEls {
 
-			evakeyWant := rotationKey.keys[galEl].key
-			evakeyTest := resRotationKey.keys[galEl].key
+			evakeyWant := rotationKey.Keys[galEl].Value
+			evakeyTest := resRotationKey.Keys[galEl].Value
 
 			for j := range evakeyWant {
 				for k := range evakeyWant[j] {

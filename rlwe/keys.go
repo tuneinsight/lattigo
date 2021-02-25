@@ -37,6 +37,24 @@ type EvaluationKey struct {
 	Rtks *RotationKeySet
 }
 
+// NewSecretKey generates a new SecretKey with zero values.
+func NewSecretKey(ringDegree, moduliCount uint64) *SecretKey {
+
+	sk := new(SecretKey)
+	sk.Value = ring.NewPoly(ringDegree, moduliCount)
+	return sk
+}
+
+// Get returns the polynomial of the target SecretKey.
+func (sk *SecretKey) Get() *ring.Poly {
+	return sk.Value
+}
+
+// Set sets the polynomial of the target secret key as the input polynomial.
+func (sk *SecretKey) Set(poly *ring.Poly) {
+	sk.Value = poly.CopyNew()
+}
+
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(ringDegree, moduliCount uint64) (pk *PublicKey) {
 	return &PublicKey{Value: [2]*ring.Poly{ring.NewPoly(ringDegree, moduliCount), ring.NewPoly(ringDegree, moduliCount)}}

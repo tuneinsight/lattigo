@@ -525,6 +525,17 @@ func (p *Parameters) GaloisElementForRowRotation() uint64 {
 	return (1 << (p.logN + 1)) - 1
 }
 
+// GaloisElementsForRowInnerSum returns a list of galois element corresponding to
+// all the left rotations by a k-position where k is a power of two.
+func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
+	galEls = make([]uint64, p.logN+1, p.logN+1)
+	galEls[0] = p.GaloisElementForRowRotation()
+	for i := 0; i < int(p.logN)-1; i++ {
+		galEls[i+1] = p.GaloisElementForColumnRotationBy(1 << i)
+	}
+	return galEls
+}
+
 // InverseGaloisElement returns the galois element for the inverse automorphism of galEl
 func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
 	twoN := uint64(1 << (p.logN + 1))

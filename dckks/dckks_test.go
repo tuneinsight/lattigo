@@ -111,8 +111,8 @@ func genTestParams(defaultParams *ckks.Parameters) (testCtx *testContext, err er
 	for j := uint64(0); j < parties; j++ {
 		testCtx.sk0Shards[j] = kgen.GenSecretKey()
 		testCtx.sk1Shards[j] = kgen.GenSecretKey()
-		testCtx.dckksContext.ringQP.Add(tmp0, testCtx.sk0Shards[j].Get(), tmp0)
-		testCtx.dckksContext.ringQP.Add(tmp1, testCtx.sk1Shards[j].Get(), tmp1)
+		testCtx.dckksContext.ringQP.Add(tmp0, testCtx.sk0Shards[j].Value, tmp0)
+		testCtx.dckksContext.ringQP.Add(tmp1, testCtx.sk1Shards[j].Value, tmp1)
 	}
 
 	testCtx.sk0 = new(ckks.SecretKey)
@@ -153,7 +153,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.CKGProtocol = NewCKGProtocol(testCtx.params)
-			p.s = sk0Shards[i].Get()
+			p.s = sk0Shards[i].Value
 			p.s1 = p.AllocateShares()
 			ckgParties[i] = p
 		}
@@ -201,7 +201,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		for i := range rkgParties {
 			p := new(Party)
 			p.RKGProtocol = NewRKGProtocol(testCtx.params)
-			p.sk = sk0Shards[i].Get()
+			p.sk = sk0Shards[i].Value
 			p.ephSk, p.share1, p.share2 = p.AllocateShares()
 			rkgParties[i] = p
 		}
@@ -273,8 +273,8 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
-			p.s0 = sk0Shards[i].Get()
-			p.s1 = sk1Shards[i].Get()
+			p.s0 = sk0Shards[i].Value
+			p.s1 = sk1Shards[i].Value
 			p.share = p.AllocateShare()
 			cksParties[i] = p
 		}
@@ -326,7 +326,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
-			p.s = sk0Shards[i].Get()
+			p.s = sk0Shards[i].Value
 			p.share = p.AllocateShares(ciphertext.Level())
 			pcksParties[i] = p
 		}
@@ -366,7 +366,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-			p.s = sk0Shards[i].Get()
+			p.s = sk0Shards[i].Value
 			p.share = p.AllocateShare()
 			pcksParties[i] = p
 		}
@@ -380,6 +380,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		}
 
 		galEl := testCtx.params.GaloisElementForRowRotation()
+		rotKeySet := ckks.NewRotationKeySet(testCtx.params, []uint64{galEl})
 
 		for i, p := range pcksParties {
 			p.GenShare(p.s, galEl, crp, p.share)
@@ -388,10 +389,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		rotKey := ckks.NewSwitchingKey(testCtx.params)
-		rotKeySet := ckks.NewRotationKeySet(testCtx.params)
-		P0.GenCKKSRotationKey(P0.share, crp, rotKey)
-		rotKeySet.Set(galEl, rotKey)
+		P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 
@@ -428,7 +426,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-			p.s = sk0Shards[i].Get()
+			p.s = sk0Shards[i].Value
 			p.share = p.AllocateShare()
 			pcksParties[i] = p
 		}
@@ -446,23 +444,22 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
 		receiver := ckks.NewCiphertext(testCtx.params, ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale())
 
-		for k := uint64(1); k < ringQP.N>>1; k <<= 1 {
+		galEls := testCtx.params.GaloisElementsForRowInnerSum()
+		rotKeySet := ckks.NewRotationKeySet(testCtx.params, galEls)
 
-			galEl := testCtx.params.GaloisElementForColumnRotationBy(int(k))
-
+		for _, galEl := range galEls {
 			for i, p := range pcksParties {
 				p.GenShare(p.s, galEl, crp, p.share)
 				if i > 0 {
 					P0.Aggregate(p.share, P0.share, P0.share)
 				}
 			}
+			P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
+		}
 
-			rotKey := ckks.NewSwitchingKey(testCtx.params)
-			rotKeySet := ckks.NewRotationKeySet(testCtx.params)
-			P0.GenCKKSRotationKey(P0.share, crp, rotKey)
-			rotKeySet.Set(galEl, rotKey)
+		evaluator := testCtx.evaluator.ShallowCopyWithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 
-			evaluator := testCtx.evaluator.ShallowCopyWithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		for k := uint64(1); k < ringQP.N>>1; k <<= 1 {
 			evaluator.Rotate(ciphertext, int(k), receiver)
 
 			coeffsWant := utils.RotateComplex128Slice(coeffs, int(k))
@@ -498,7 +495,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.RefreshProtocol = NewRefreshProtocol(testCtx.params)
-			p.s = sk0Shards[i].Get()
+			p.s = sk0Shards[i].Value
 			p.share1, p.share2 = p.AllocateShares(levelStart)
 			RefreshParties[i] = p
 		}
@@ -560,7 +557,7 @@ func testRefreshAndPermute(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.PermuteProtocol = NewPermuteProtocol(testCtx.params)
-			p.s = sk0Shards[i].Get()
+			p.s = sk0Shards[i].Value
 			p.share1, p.share2 = p.AllocateShares(levelStart)
 			RefreshParties[i] = p
 		}

@@ -346,8 +346,9 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		crpRot[i] = crsGen.ReadNew()
 	}
 
-	rotKeySet := bfv.NewRotationKeySet(params)
-	for _, galEl := range params.GaloisElementsForRowInnerSum() {
+	galEls := params.GaloisElementsForRowInnerSum()
+	rotKeySet := bfv.NewRotationKeySet(params, galEls)
+	for _, galEl := range galEls {
 
 		elapsedRTGParty += runTimedParty(func() {
 			for _, pi := range P {
@@ -356,14 +357,12 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		}, len(P))
 
 		rtgShareCombined := rtg.AllocateShare()
-		rotKey := bfv.NewSwitchingKey(params)
 		elapsedRTGCloud += runTimed(func() {
 			for _, pi := range P {
 				rtg.Aggregate(pi.rtgShare, rtgShareCombined, rtgShareCombined)
 			}
-			rtg.GenBFVRotationKey(rtgShareCombined, crpRot, rotKey)
+			rtg.GenRotationKey(rtgShareCombined, crpRot, rotKeySet.Keys[galEl])
 		})
-		rotKeySet.Set(galEl, rotKey)
 	}
 	l.Printf("\tdone (cloud: %s, party %s)\n", elapsedRTGCloud, elapsedRTGParty)
 

@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -78,8 +79,8 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	sk = new(SecretKey)
 
-	sk.sk = keygen.gaussianSampler.ReadNew()
-	keygen.ringQP.NTT(sk.sk, sk.sk)
+	sk.Value = keygen.gaussianSampler.ReadNew()
+	keygen.ringQP.NTT(sk.Value, sk.Value)
 	return sk
 }
 
@@ -92,8 +93,8 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.ringQP, p, true)
 
 	sk = new(SecretKey)
-	sk.sk = ternarySamplerMontgomery.ReadNew()
-	keygen.ringQP.NTT(sk.sk, sk.sk)
+	sk.Value = ternarySamplerMontgomery.ReadNew()
+	keygen.ringQP.NTT(sk.Value, sk.Value)
 	return sk
 }
 
@@ -106,8 +107,8 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
 	ternarySamplerMontgomery := ring.NewTernarySamplerSparse(prng, keygen.ringQP, hw, true)
 
 	sk = new(SecretKey)
-	sk.sk = ternarySamplerMontgomery.ReadNew()
-	keygen.ringQP.NTT(sk.sk, sk.sk)
+	sk.Value = ternarySamplerMontgomery.ReadNew()
+	keygen.ringQP.NTT(sk.Value, sk.Value)
 	return sk
 }
 
@@ -120,11 +121,11 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
-	pk.pk[0] = keygen.gaussianSampler.ReadNew()
-	ringQP.NTT(pk.pk[0], pk.pk[0])
-	pk.pk[1] = keygen.uniformSampler.ReadNew()
+	pk.Value[0] = keygen.gaussianSampler.ReadNew()
+	ringQP.NTT(pk.Value[0], pk.Value[0])
+	pk.Value[1] = keygen.uniformSampler.ReadNew()
 
-	ringQP.MulCoeffsMontgomeryAndSub(sk.sk, pk.pk[1], pk.pk[0])
+	ringQP.MulCoeffsMontgomeryAndSub(sk.Value, pk.Value[1], pk.Value[0])
 
 	return pk
 }
@@ -142,16 +143,16 @@ func (keygen *keyGenerator) GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *Publ
 }
 
 // GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
-func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey) (evakey *RelinearizationKey) {
+func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey) (rlk *RelinearizationKey) {
 
 	if len(keygen.params.pi) == 0 {
 		panic("Cannot GenRelinKey: modulus P is empty")
 	}
 
-	evakey = new(RelinearizationKey)
-	keygen.ringQP.MulCoeffsMontgomery(sk.Get(), sk.Get(), keygen.polypool[0])
-	evakey.evakey = NewSwitchingKey(keygen.params)
-	keygen.newSwitchingKey(keygen.polypool[0], sk.Get(), evakey.evakey)
+	rlk = NewRelinKey(keygen.params)
+	keygen.ringQP.MulCoeffsMontgomery(sk.Value, sk.Value, keygen.polypool[0])
+	rlk.Keys[0] = &NewSwitchingKey(keygen.params).SwitchingKey
+	keygen.newSwitchingKey(keygen.polypool[0], sk.Value, rlk.Keys[0])
 	keygen.polypool[0].Zero()
 
 	return
@@ -164,105 +165,33 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newev
 		panic("Cannot GenSwitchingKey: modulus P is empty")
 	}
 
-	keygen.ringQP.Copy(skInput.Get(), keygen.polypool[0])
+	keygen.ringQP.Copy(skInput.Value, keygen.polypool[0])
 	newevakey = NewSwitchingKey(keygen.params)
-	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Get(), newevakey)
+	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Value, &newevakey.SwitchingKey)
 	keygen.polypool[0].Zero()
-	return
-}
-
-// NewSwitchingKey returns a new SwitchingKey with zero values.
-func NewSwitchingKey(params *Parameters) (evakey *SwitchingKey) {
-
-	evakey = new(SwitchingKey)
-
-	// delta_sk = skInput - skOutput = GaloisEnd(skOutput, rotation) - skOutput
-
-	evakey.key = make([][2]*ring.Poly, params.Beta())
-
-	for i := uint64(0); i < params.Beta(); i++ {
-		evakey.key[i][0] = params.NewPolyQP()
-		evakey.key[i][1] = params.NewPolyQP()
-	}
-
 	return
 }
 
 func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params)
-	keygen.genrotKey(sk.sk, keygen.params.InverseGaloisElement(galoisEl), swk)
+	keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galoisEl), &swk.SwitchingKey)
 	return
 }
 
 func (keygen *keyGenerator) GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params)
 	galElInv := keygen.params.GaloisElementForColumnRotationBy(-int(k))
-	keygen.genrotKey(sk.sk, galElInv, swk)
+	keygen.genrotKey(sk.Value, galElInv, &swk.SwitchingKey)
 	return
 }
 
 func (keygen *keyGenerator) GenSwitchingKeyForConjugate(sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params)
-	keygen.genrotKey(sk.sk, keygen.params.GaloisElementForRowRotation(), swk)
+	keygen.genrotKey(sk.Value, keygen.params.GaloisElementForRowRotation(), &swk.SwitchingKey)
 	return
 }
 
-// GenRot populates the input RotationKeys with a SwitchingKey for the given rotation type and amount.
-// func (keygen *keyGenerator) GenRotationKey(rotType Rotation, sk *SecretKey, k uint64, rotKey *RotationKeys) {
-
-// 	if len(keygen.params.pi) == 0 {
-// 		panic("Cannot GenRot: modulus P is empty")
-// 	}
-
-// 	ringQP := keygen.ringQP
-
-// 	if rotType != Conjugate {
-
-// 		if rotKey.permuteNTTLeftIndex == nil {
-// 			rotKey.permuteNTTLeftIndex = make(map[uint64][]uint64)
-// 		}
-
-// 		if rotKey.permuteNTTRightIndex == nil {
-// 			rotKey.permuteNTTRightIndex = make(map[uint64][]uint64)
-// 		}
-
-// 		if _, inMap := rotKey.permuteNTTLeftIndex[k]; !inMap {
-// 			rotKey.permuteNTTLeftIndex[k] = ring.PermuteNTTIndex(GaloisGen, k, ringQP.N)
-// 		}
-
-// 		if _, inMap := rotKey.permuteNTTRightIndex[k]; !inMap {
-// 			rotKey.permuteNTTRightIndex[k] = ring.PermuteNTTIndex(GaloisGen, 2*ringQP.N-k, ringQP.N)
-// 		}
-// 	}
-
-// 	switch rotType {
-// 	case RotationLeft:
-
-// 		if rotKey.evakeyRotColLeft == nil {
-// 			rotKey.evakeyRotColLeft = make(map[uint64]*SwitchingKey)
-// 		}
-
-// 		if rotKey.evakeyRotColLeft[k] == nil && k != 0 {
-// 			rotKey.evakeyRotColLeft[k] = keygen.genrotKey(sk.Get(), rotKey.permuteNTTRightIndex[k])
-// 		}
-
-// 	case RotationRight:
-
-// 		if rotKey.evakeyRotColRight == nil {
-// 			rotKey.evakeyRotColRight = make(map[uint64]*SwitchingKey)
-// 		}
-
-// 		if rotKey.evakeyRotColRight[k] == nil && k != 0 {
-// 			rotKey.evakeyRotColRight[k] = keygen.genrotKey(sk.Get(), rotKey.permuteNTTLeftIndex[k])
-// 		}
-
-// 	case Conjugate:
-// 		rotKey.permuteNTTConjugateIndex = ring.PermuteNTTIndex(2*ringQP.N-1, 1, ringQP.N)
-// 		rotKey.evakeyConjugate = keygen.genrotKey(sk.Get(), rotKey.permuteNTTConjugateIndex)
-// 	}
-// }
-
-func (keygen *keyGenerator) genrotKey(sk *ring.Poly, galEl uint64, swk *SwitchingKey) {
+func (keygen *keyGenerator) genrotKey(sk *ring.Poly, galEl uint64, swk *rlwe.SwitchingKey) {
 
 	skIn := sk
 	skOut := keygen.polypool[1]
@@ -278,7 +207,7 @@ func (keygen *keyGenerator) genrotKey(sk *ring.Poly, galEl uint64, swk *Switchin
 	return
 }
 
-func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *SwitchingKey) {
+func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.SwitchingKey) {
 
 	ringQP := keygen.ringQP
 
@@ -292,12 +221,12 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *Switchi
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-		keygen.gaussianSampler.Read(swk.key[i][0])
-		ringQP.NTTLazy(swk.key[i][0], swk.key[i][0])
-		ringQP.MForm(swk.key[i][0], swk.key[i][0])
+		keygen.gaussianSampler.Read(swk.Value[i][0])
+		ringQP.NTTLazy(swk.Value[i][0], swk.Value[i][0])
+		ringQP.MForm(swk.Value[i][0], swk.Value[i][0])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
-		keygen.uniformSampler.Read(swk.key[i][1])
+		keygen.uniformSampler.Read(swk.Value[i][1])
 
 		// e + (skIn * P) * (q_star * q_tild) mod QP
 		//
@@ -312,7 +241,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *Switchi
 
 			qi := ringQP.Modulus[index]
 			p0tmp := keygen.polypool[0].Coeffs[index]
-			p1tmp := swk.key[i][0].Coeffs[index]
+			p1tmp := swk.Value[i][0].Coeffs[index]
 
 			for w := uint64(0); w < ringQP.N; w++ {
 				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
@@ -325,7 +254,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *Switchi
 		}
 
 		// (skIn * P) * (q_star * q_tild) - a * skOut + e mod QP
-		ringQP.MulCoeffsMontgomeryAndSub(swk.key[i][1], skOut, swk.key[i][0])
+		ringQP.MulCoeffsMontgomeryAndSub(swk.Value[i][1], skOut, swk.Value[i][0])
 	}
 
 	return
@@ -334,9 +263,9 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *Switchi
 // GenRotationKeys generates a RotationKeySet from a list of galois element corresponding to the desired rotations
 // See also GenRotationKeysForRotations.
 func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet) {
-	rks = NewRotationKeySet(keygen.params)
+	rks = NewRotationKeySet(keygen.params, galEls)
 	for _, galEl := range galEls {
-		rks.keys[galEl] = keygen.GenSwitchingKeyForGalois(galEl, sk)
+		keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galEl), rks.Keys[galEl])
 	}
 	return rks
 }

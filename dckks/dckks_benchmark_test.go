@@ -51,7 +51,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.CKGProtocol = NewCKGProtocol(testCtx.params)
-	p.s = sk0Shards[0].Get()
+	p.s = sk0Shards[0].Value
 	p.s1 = p.AllocateShares()
 
 	b.Run(testString("PublicKeyGen/Gen/", parties, testCtx.params), func(b *testing.B) {
@@ -85,7 +85,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.RKGProtocol = NewRKGProtocol(testCtx.params)
-	p.sk = sk0Shards[0].Get()
+	p.sk = sk0Shards[0].Value
 	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
@@ -139,8 +139,8 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
-	p.s0 = sk0Shards[0].Get()
-	p.s1 = sk1Shards[0].Get()
+	p.s0 = sk0Shards[0].Value
+	p.s1 = sk1Shards[0].Value
 	p.share = p.AllocateShare()
 
 	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, testCtx.params.MaxLevel(), testCtx.params.Scale())
@@ -182,7 +182,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
-	p.s = sk0Shards[0].Get()
+	p.s = sk0Shards[0].Value
 	p.share = p.AllocateShares(ciphertext.Level())
 
 	b.Run(testString("PublicKeySwitching/Gen/", parties, testCtx.params), func(b *testing.B) {
@@ -220,7 +220,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-	p.s = sk0Shards[0].Get()
+	p.s = sk0Shards[0].Value
 	p.share = p.AllocateShare()
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQP)
@@ -233,7 +233,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RotKeyGen/Round1/Gen/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(sk0Shards[0].Get(), galEl, crp, p.share)
+			p.GenShare(sk0Shards[0].Value, galEl, crp, p.share)
 		}
 	})
 
@@ -272,7 +272,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.RefreshProtocol = NewRefreshProtocol(testCtx.params)
-	p.s = sk0Shards[0].Get()
+	p.s = sk0Shards[0].Value
 	p.share1, p.share2 = p.AllocateShares(levelStart)
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQ)
@@ -335,7 +335,7 @@ func benchRefreshAndPermute(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.PermuteProtocol = NewPermuteProtocol(testCtx.params)
-	p.s = sk0Shards[0].Get()
+	p.s = sk0Shards[0].Value
 	p.share1, p.share2 = p.AllocateShares(levelStart)
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)

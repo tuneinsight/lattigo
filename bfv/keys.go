@@ -16,6 +16,10 @@ type EvaluationKey struct {
 	Rtks *RotationKeySet
 }
 
+func NewSecretKey(params *Parameters) (sk *SecretKey) {
+	return &SecretKey{*rlwe.NewSecretKey(params.N(), params.QPiCount())}
+}
+
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
 	return &PublicKey{*rlwe.NewPublicKey(params.N(), params.QPiCount())}

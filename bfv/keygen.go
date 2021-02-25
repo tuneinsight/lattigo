@@ -85,24 +85,6 @@ func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
 	return sk
 }
 
-// NewSecretKey generates a new SecretKey with zero values.
-func NewSecretKey(params *Parameters) *SecretKey {
-
-	sk := new(SecretKey)
-	sk.Value = ring.NewPoly(uint64(1<<params.logN), uint64(len(params.qi)+len(params.pi)))
-	return sk
-}
-
-// Get returns the polynomial of the target SecretKey.
-func (sk *SecretKey) Get() *ring.Poly {
-	return sk.Value
-}
-
-// Set sets the polynomial of the target secret key as the input polynomial.
-func (sk *SecretKey) Set(poly *ring.Poly) {
-	sk.Value = poly.CopyNew()
-}
-
 // GenPublicKey generates a new PublicKey from the provided SecretKey.
 func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 

@@ -133,7 +133,7 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 	rotMissing := []uint64{}
 	for _, i := range btp.rotKeyIndex {
 		galEl := btp.params.GaloisElementForColumnRotationBy(int(i))
-		if _, generated := btp.Rtks.keys[galEl]; !generated {
+		if _, generated := btp.Rtks.Keys[galEl]; !generated {
 			rotMissing = append(rotMissing, i)
 		}
 	}

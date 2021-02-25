@@ -309,7 +309,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 
 			galEl := btp.params.GaloisElementForColumnRotationBy(int(N1 * j))
 
-			btp.switchKeysInPlaceNoModDown(levelQ, tmpQ1, btp.Rtks.keys[galEl], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
+			btp.switchKeysInPlaceNoModDown(levelQ, tmpQ1, btp.Rtks.Keys[galEl], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
 
 			// Outer loop rotations
 			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, btp.permuteNTTIndex[galEl], tmpQ1) // phi(tmpRes_0)
@@ -448,7 +448,7 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, 
 	levelP := eval.params.PiCount() - 1
 
 	galEl := eval.params.GaloisElementForColumnRotationBy(int(k))
-	rtk := rotKeys.keys[galEl]
+	rtk := rotKeys.Keys[galEl]
 	indexes := eval.permuteNTTIndex[galEl]
 
 	eval.keyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)

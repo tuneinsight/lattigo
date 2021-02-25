@@ -7,6 +7,7 @@ import (
 	"unsafe"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -151,8 +152,8 @@ func (eval *evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64
 	if rtks == nil {
 		return &map[uint64][]uint64{}
 	}
-	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.keys))
-	for galEl := range rtks.keys {
+	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
+	for galEl := range rtks.Keys {
 		permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, eval.ringQ.N)
 	}
 	return &permuteNTTIndex
@@ -1360,7 +1361,7 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, ctOut *Ciphertext) {
 
 		// Relinearize if a key was provided
 		if eval.rlk != nil {
-			eval.switchKeysInPlace(level, c2, eval.rlk.evakey, eval.poolQ[1], eval.poolQ[2])
+			eval.switchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.poolQ[1], eval.poolQ[2])
 			ringQ.AddLvl(level, c0, eval.poolQ[1], elOut.value[0])
 			ringQ.AddLvl(level, c1, eval.poolQ[2], elOut.value[1])
 		}
@@ -1405,7 +1406,7 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
 	ringQ := eval.ringQ
 
-	eval.switchKeysInPlace(level, ct0.value[2], eval.rlk.evakey, eval.poolQ[1], eval.poolQ[2])
+	eval.switchKeysInPlace(level, ct0.value[2], eval.rlk.Keys[0], eval.poolQ[1], eval.poolQ[2])
 
 	ringQ.AddLvl(level, ct0.value[0], eval.poolQ[1], ctOut.value[0])
 	ringQ.AddLvl(level, ct0.value[1], eval.poolQ[2], ctOut.value[1])
@@ -1434,7 +1435,7 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, c
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
 	ringQ := eval.ringQ
 
-	eval.switchKeysInPlace(level, ct0.value[1], switchingKey, eval.poolQ[1], eval.poolQ[2])
+	eval.switchKeysInPlace(level, ct0.value[1], &switchingKey.SwitchingKey, eval.poolQ[1], eval.poolQ[2])
 
 	ringQ.AddLvl(level, ct0.value[0], eval.poolQ[1], ctOut.value[0])
 	ringQ.CopyLvl(level, eval.poolQ[2], ctOut.value[1])
@@ -1492,7 +1493,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 		panic("input and output Ciphertext must be of degree 1")
 	}
 
-	rtk, generated := eval.rtks.keys[galEl]
+	rtk, generated := eval.rtks.Keys[galEl]
 	if !generated {
 		panic("switching key not available")
 	}
@@ -1510,7 +1511,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.value[1])
 }
 
-func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, evakey *SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
+func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
 	var reduce uint64
 
 	ringQ := eval.ringQ
@@ -1541,10 +1542,10 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 
 		eval.decomposeAndSplitNTT(level, i, cx, c2, c2QiQ, c2QiP)
 
-		evakey0Q.Coeffs = evakey.key[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = evakey.key[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = evakey.key[i][0].Coeffs[len(ringQ.Modulus):]
-		evakey1P.Coeffs = evakey.key[i][1].Coeffs[len(ringQ.Modulus):]
+		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]
+		evakey1Q.Coeffs = evakey.Value[i][1].Coeffs[:level+1]
+		evakey0P.Coeffs = evakey.Value[i][0].Coeffs[len(ringQ.Modulus):]
+		evakey1P.Coeffs = evakey.Value[i][1].Coeffs[len(ringQ.Modulus):]
 
 		if i == 0 {
 			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey0Q, c2QiQ, pool2Q)
@@ -1576,7 +1577,7 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 }
 
 // switchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
-func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
+func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *rlwe.SwitchingKey, p0, p1 *ring.Poly) {
 
 	eval.switchKeysInPlaceNoModDown(level, cx, evakey, p0, eval.poolP[1], p1, eval.poolP[2])
 
@@ -1667,7 +1668,7 @@ func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDeco
 	}
 
 	galEl := eval.params.GaloisElementForColumnRotationBy(k)
-	rtk, generated := eval.rtks.keys[galEl]
+	rtk, generated := eval.rtks.Keys[galEl]
 	if !generated {
 		panic(fmt.Sprintf("specific rotation has not been generated: %d", k))
 	}
@@ -1692,7 +1693,7 @@ func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDeco
 	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.value[1])
 }
 
-func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
+func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
 
 	eval.keyswitchHoistedNoModDown(level, c2QiQDecomp, c2QiPDecomp, evakey, pool2Q, pool3Q, pool2P, pool3P)
 
@@ -1701,7 +1702,7 @@ func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp [
 	eval.baseconverter.ModDownSplitNTTPQ(level, pool3Q, pool3P, pool3Q)
 }
 
-func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
+func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
@@ -1718,10 +1719,10 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 	var reduce uint64
 	for i := uint64(0); i < beta; i++ {
 
-		evakey0Q.Coeffs = evakey.key[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = evakey.key[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = evakey.key[i][0].Coeffs[len(ringQ.Modulus):]
-		evakey1P.Coeffs = evakey.key[i][1].Coeffs[len(ringQ.Modulus):]
+		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]
+		evakey1Q.Coeffs = evakey.Value[i][1].Coeffs[:level+1]
+		evakey0P.Coeffs = evakey.Value[i][0].Coeffs[len(ringQ.Modulus):]
+		evakey1P.Coeffs = evakey.Value[i][1].Coeffs[len(ringQ.Modulus):]
 
 		if i == 0 {
 			ringQ.MulCoeffsMontgomeryLvl(level, evakey0Q, c2QiQDecomp[i], pool2Q)

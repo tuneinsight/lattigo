@@ -19,7 +19,7 @@ func NewCKGProtocol(params *bfv.Parameters) *CKGProtocol {
 	return ckg
 }
 
-// GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
+// GenBFVPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
 func (ckg *CKGProtocol) GenBFVPublicKey(roundShare *drlwe.CKGShare, crs *ring.Poly, pubkey *bfv.PublicKey) {
 	ckg.CKGProtocol.GenPublicKey(roundShare, crs, &pubkey.PublicKey)
 }

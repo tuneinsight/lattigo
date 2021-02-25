@@ -67,7 +67,7 @@ func NewRTGProtocol(n uint64, q, p []uint64, sigma float64) *RTGProtocol {
 	return rtg
 }
 
-// AllocateShare allocates a party's share in the RTG protocol
+// AllocateShares allocates a party's share in the RTG protocol
 func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare) {
 	rtgShare = new(RTGShare)
 	rtgShare.Value = make([]*ring.Poly, rtg.beta)

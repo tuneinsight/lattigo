@@ -64,6 +64,7 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 	return rotKey, inSet
 }
 
+// NewSwitchingKey returns a new public switching key with pre-allocated zero-value
 func NewSwitchingKey(ringDegree, moduliCount, decompSize uint64) *SwitchingKey {
 
 	swk := new(SwitchingKey)
@@ -323,8 +324,8 @@ func (switchkey *SwitchingKey) decode(data []byte) (pointer uint64, err error) {
 }
 
 // GetDataLen returns the length in bytes of the target RotationKeys.
-func (rotationkey *RotationKeySet) GetDataLen(WithMetaData bool) (dataLen uint64) {
-	for _, k := range rotationkey.Keys {
+func (rtks *RotationKeySet) GetDataLen(WithMetaData bool) (dataLen uint64) {
+	for _, k := range rtks.Keys {
 		if WithMetaData {
 			dataLen += 4
 		}
@@ -334,13 +335,13 @@ func (rotationkey *RotationKeySet) GetDataLen(WithMetaData bool) (dataLen uint64
 }
 
 // MarshalBinary encodes a RotationKeys struct in a byte slice.
-func (rotationkey *RotationKeySet) MarshalBinary() (data []byte, err error) {
+func (rtks *RotationKeySet) MarshalBinary() (data []byte, err error) {
 
-	data = make([]byte, rotationkey.GetDataLen(true))
+	data = make([]byte, rtks.GetDataLen(true))
 
 	pointer := uint64(0)
 
-	for galEL, key := range rotationkey.Keys {
+	for galEL, key := range rtks.Keys {
 
 		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(galEL))
 		pointer += 4
@@ -354,9 +355,9 @@ func (rotationkey *RotationKeySet) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decodes a previously marshaled RotationKeys in the target RotationKeys.
-func (rotationkey *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
+func (rtks *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
 
-	rotationkey.Keys = make(map[uint64]*SwitchingKey)
+	rtks.Keys = make(map[uint64]*SwitchingKey)
 
 	for len(data) > 0 {
 
@@ -369,7 +370,7 @@ func (rotationkey *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
 			return err
 		}
 		data = data[inc:]
-		rotationkey.Keys[galEl] = swk
+		rtks.Keys[galEl] = swk
 
 	}
 

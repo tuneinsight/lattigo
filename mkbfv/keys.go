@@ -17,15 +17,9 @@ type MKPublicKey struct {
 	peerID uint64
 }
 
-// MKRelinearizationKey is a type for BFV relinearization keys in a multy key context.
-type MKRelinearizationKey struct {
-	key    [][3]*ring.Poly
-	peerID uint64
-}
-
 // MKEvaluationKey is a type for BFV evaluation keys in a multy key context.
 type MKEvaluationKey struct {
-	//TODO: ask if same as in bfv or follow the paper's implementation (Hao Chen)
+	key    [3]*ring.Poly
 	peerID uint64
 }
 
@@ -39,7 +33,6 @@ type MKRotationKey struct {
 type MKKeys struct {
 	secretKey MKSecretKey
 	publicKey MKPublicKey
-	relinKey  MKRelinearizationKey
 	evalKey   MKEvaluationKey
 	rotKey    MKRotationKey
 }

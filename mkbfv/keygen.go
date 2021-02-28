@@ -36,7 +36,7 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 	// create an uniform sampler and a gaussian sampler in Rq
 	var ringQP *ring.Ring
 	var err error
-	if ringQP, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
+	if ringQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
 		panic(err)
 	}
 

@@ -48,9 +48,13 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 	uniformSampler := ring.NewUniformSampler(prng, ringQP)
 	gaussianSampler := ring.NewGaussianSampler(prng, ringQP, params.Sigma(), uint64(6*params.Sigma()))
 
-	// d0 = -sk * d1 + e1 + random * g
+	// a  <- setup(1^\lambda)
+	// e1 <- sample(\psi^d)
+	// e2 <- sample(\psi^d)
+	// r  <- sample(\chi)
+	// d0 = -sk * d1 + e1 + r * g
 	// d1 = U(Rq^d)
-	// d2 = random * a + e2 + mu * g
+	// d2 = r * a + e2 + mu * g
 
 	g := new(ring.Poly) // TODO: seems to be the base decomposition... ask how to initialize it
 

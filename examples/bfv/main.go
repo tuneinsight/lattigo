@@ -65,7 +65,7 @@ func obliviousRiding() {
 
 	encryptorRiderSk := bfv.NewEncryptorFromSk(params, riderSk)
 
-	evaluator := bfv.NewEvaluator(params)
+	evaluator := bfv.NewEvaluator(params, bfv.EvaluationKey{})
 
 	fmt.Println("============================================")
 	fmt.Println("Homomorphic computations on batched integers")

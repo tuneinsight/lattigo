@@ -247,7 +247,6 @@ func (p *Parameters) LogModuli() (lm *LogModuli) {
 	for i := range p.pi {
 		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
 	}
-
 	return
 }
 
@@ -258,7 +257,6 @@ func (p *Parameters) Moduli() (m *Moduli) {
 	copy(m.Qi, p.qi)
 	m.Pi = make([]uint64, len(p.pi))
 	copy(m.Pi, p.pi)
-
 	return
 }
 
@@ -383,6 +381,40 @@ func (p *Parameters) NewPolyP() *ring.Poly {
 // NewPolyQP returns a new empty polynomial of degree 2^logN in basis qi + Pi.
 func (p *Parameters) NewPolyQP() *ring.Poly {
 	return ring.NewPoly(p.N(), p.QPiCount())
+}
+
+// GaloisElementForColumnRotationBy returns the galois element for plaintext
+// column rotations by k position to the left. Providing a negative k is
+// equivalent to a right rotation.
+func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
+	twoN := 1 << (p.logN + 1)
+	mask := twoN - 1
+	kRed := uint64(k & mask)
+	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
+}
+
+// GaloisElementForRowRotation returns the galois element for generating the row
+// rotation automorphism
+func (p *Parameters) GaloisElementForRowRotation() uint64 {
+	return (1 << (p.logN + 1)) - 1
+}
+
+// GaloisElementsForRowInnerSum returns a list of galois element corresponding to
+// all the left rotations by a k-position where k is a power of two.
+func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
+	galEls = make([]uint64, p.logN+1, p.logN+1)
+	galEls[0] = p.GaloisElementForRowRotation()
+	for i := 0; i < int(p.logN)-1; i++ {
+		galEls[i+1] = p.GaloisElementForColumnRotationBy(1 << i)
+	}
+	return galEls
+}
+
+// InverseGaloisElement takes a galois element and returns the galois element
+//  corresponding to the inverse automorphism
+func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
+	twoN := uint64(1 << (p.logN + 1))
+	return ring.ModExp(galEl, twoN-1, twoN)
 }
 
 // Copy creates a copy of the target Parameters.
@@ -563,7 +595,7 @@ func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
 		primes[key] = ring.GenerateNTTPrimes(key, 2<<logN, value)
 	}
 
-	// Assigns the primes to the CKKS moduli chain
+	// Assigns the primes to the BFV moduli chain
 	m.Qi = make([]uint64, len(lm.LogQi))
 	for i, qi := range lm.LogQi {
 		m.Qi[i] = primes[qi][0]

@@ -25,8 +25,8 @@ type Encryptor interface {
 	// encrypting zero in Q and then adding the plaintext.
 	EncryptFastNew(plaintext *Plaintext) *Ciphertext
 
-	// EncryptFsat encrypts the input plaintext using the stored-key, and returns
-	// the result onthe receiver ciphertext. The encryption is done by first
+	// EncryptFast encrypts the input plaintext using the stored-key, and returns
+	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in Q and then adding the plaintext.
 	EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext)
 
@@ -40,7 +40,7 @@ type Encryptor interface {
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
-	EncryptFromCRP(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
+	EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly)
 
 	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first encrypting
@@ -52,7 +52,7 @@ type Encryptor interface {
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in Q, using the provided polynomial as the uniform polynomial, and
 	// then adding the plaintext.
-	EncryptFromCRPFast(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
+	EncryptFromCRPFast(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly)
 }
 
 // encryptor is a structure that holds the parameters needed to encrypt plaintexts.
@@ -126,10 +126,10 @@ func newEncryptor(params *Parameters) encryptor {
 		ringQP:                     ringQP,
 		polypool:                   [3]*ring.Poly{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()},
 		baseconverter:              baseconverter,
-		gaussianSamplerQ:           ring.NewGaussianSampler(prng, ringQ, params.Sigma(), uint64(6*params.Sigma())),
+		gaussianSamplerQ:           ring.NewGaussianSampler(prng),
 		uniformSamplerQ:            ring.NewUniformSampler(prng, ringQ),
 		ternarySamplerMontgomeryQ:  ring.NewTernarySampler(prng, ringQ, 0.5, true),
-		gaussianSamplerQP:          ring.NewGaussianSampler(prng, ringQP, params.Sigma(), uint64(6*params.Sigma())),
+		gaussianSamplerQP:          ring.NewGaussianSampler(prng),
 		uniformSamplerQP:           ring.NewUniformSampler(prng, ringQP),
 		ternarySamplerMontgomeryQP: ring.NewTernarySampler(prng, ringQP, 0.5, true),
 	}
@@ -186,17 +186,17 @@ func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast
 		encryptor.ternarySamplerMontgomeryQ.Read(encryptor.polypool[2])
 		ringQ.NTTLazy(encryptor.polypool[2], encryptor.polypool[2])
 
-		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
-		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
+		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.Value[0], encryptor.polypool[0])
+		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.Value[1], encryptor.polypool[1])
 
 		ringQ.InvNTT(encryptor.polypool[0], ciphertext.value[0])
 		ringQ.InvNTT(encryptor.polypool[1], ciphertext.value[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0])
+		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0], ringQ, encryptor.params.Sigma(), uint64(6*encryptor.params.Sigma()))
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[1])
+		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[1], ringQ, encryptor.params.Sigma(), uint64(6*encryptor.params.Sigma()))
 
 	} else {
 
@@ -208,17 +208,17 @@ func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast
 
 		// ct[0] = pk[0]*u
 		// ct[1] = pk[1]*u
-		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[0], encryptor.polypool[0])
-		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.pk[1], encryptor.polypool[1])
+		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.Value[0], encryptor.polypool[0])
+		ringQP.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.Value[1], encryptor.polypool[1])
 
 		ringQP.InvNTTLazy(encryptor.polypool[0], encryptor.polypool[0])
 		ringQP.InvNTTLazy(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSamplerQP.ReadAndAdd(encryptor.polypool[0])
+		encryptor.gaussianSamplerQP.ReadAndAdd(encryptor.polypool[0], ringQP, encryptor.params.Sigma(), uint64(6*encryptor.params.Sigma()))
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSamplerQP.ReadAndAdd(encryptor.polypool[1])
+		encryptor.gaussianSamplerQP.ReadAndAdd(encryptor.polypool[1], ringQP, encryptor.params.Sigma(), uint64(6*encryptor.params.Sigma()))
 
 		// We rescale the encryption of zero by the special prime, dividing the error by this prime
 		encryptor.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, encryptor.polypool[0], ciphertext.value[0])
@@ -240,11 +240,11 @@ func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Cipherte
 }
 
 func (encryptor *skEncryptor) EncryptFastNew(plaintext *Plaintext) *Ciphertext {
-	panic("Cannot EncryptFastNew : not supported by sk encyrptor -> use EncryptFastNew instead")
+	panic("Cannot EncryptFastNew: not supported by sk encryptor -> use EncryptFastNew instead")
 }
 
 func (encryptor *skEncryptor) EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext) {
-	panic("Cannot EncryptFast : not supported by sk encyrptor -> use Encrypt instead")
+	panic("Cannot EncryptFast: not supported by sk encryptor -> use Encrypt instead")
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
@@ -258,11 +258,11 @@ func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *C
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPFastNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
-	panic("Cannot EncryptFromCRPFastNew : not supported by sk encyrptor -> use EncryptFromCRPNew instead")
+	panic("Cannot EncryptFromCRPFastNew: not supported by sk encryptor -> use EncryptFromCRPNew instead")
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPFast(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	panic("Cannot EncryptFromCRPFast : not supported by sk encyrptor -> use EncryptFromCRP instead")
+	panic("Cannot EncryptFromCRPFast: not supported by sk encryptor -> use EncryptFromCRP instead")
 }
 
 func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ciphertext) {
@@ -279,13 +279,13 @@ func (encryptor *skEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, crp 
 
 	ringQ := encryptor.ringQ
 
-	ringQ.MulCoeffsMontgomery(crp, encryptor.sk.sk, ciphertext.value[0])
+	ringQ.MulCoeffsMontgomery(crp, encryptor.sk.Value, ciphertext.value[0])
 	ringQ.Neg(ciphertext.value[0], ciphertext.value[0])
 
 	ringQ.InvNTT(ciphertext.value[0], ciphertext.value[0])
 	ringQ.InvNTT(crp, ciphertext.value[1])
 
-	encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0])
+	encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0], ringQ, encryptor.params.Sigma(), uint64(6*encryptor.params.Sigma()))
 
 	// ct = [-a*s + m + e , a]
 	encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])

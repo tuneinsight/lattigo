@@ -22,8 +22,8 @@ func main() {
 	var plaintext *ckks.Plaintext
 
 	// Bootstrapping parameters
-	// Five sets of parameters (index 0 to 4) ensuring 128 bit of security
-	// are available in github.com/ldsec/lattigo/v2/ckks/bootparams
+	// Four sets of parameters (index 0 to 3) ensuring 128 bit of security
+	// are available in github.com/ldsec/lattigo/v2/ckks/bootstrap_params
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.
@@ -45,7 +45,7 @@ func main() {
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
 	btpKey := kgen.GenBootstrappingKey(params.LogSlots(), btpParams, sk)
-	if btp, err = ckks.NewBootstrapper(params, btpParams, btpKey); err != nil {
+	if btp, err = ckks.NewBootstrapper(params, btpParams, *btpKey); err != nil {
 		panic(err)
 	}
 	fmt.Println("Done")

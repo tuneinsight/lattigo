@@ -39,7 +39,7 @@ func EqualSliceUint64(a, b []uint64) (v bool) {
 	return
 }
 
-// EqualSliceInt64 checks the equality between two iint64 slices.
+// EqualSliceInt64 checks the equality between two int64 slices.
 func EqualSliceInt64(a, b []int64) (v bool) {
 	v = true
 	for i := range a {
@@ -59,6 +59,14 @@ func EqualSliceUint8(a, b []uint8) (v bool) {
 
 // IsInSliceUint64 checks if x is in slice.
 func IsInSliceUint64(x uint64, slice []uint64) (v bool) {
+	for i := range slice {
+		v = v || (slice[i] == x)
+	}
+	return
+}
+
+// IsInSliceInt checks if x is in slice.
+func IsInSliceInt(x int, slice []int) (v bool) {
 	for i := range slice {
 		v = v || (slice[i] == x)
 	}
@@ -112,4 +120,44 @@ func AllDistinct(s []uint64) bool {
 		m[si] = struct{}{}
 	}
 	return true
+}
+
+// RotateUint64Slice returns a new slice corresponding to s rotated by k positions to the left.
+func RotateUint64Slice(s []uint64, k int) []uint64 {
+	if k == 0 || len(s) == 0 {
+		return s
+	}
+	r := k % len(s)
+	if r < 0 {
+		r = r + len(s)
+	}
+	ret := make([]uint64, len(s), len(s))
+	copy(ret[:len(s)-r], s[r:])
+	copy(ret[len(s)-r:], s[:r])
+	return ret
+}
+
+// RotateUint64Slots returns a new slice corresponding to s where each half of the slice
+// have been rotated by k positions to the left.
+func RotateUint64Slots(s []uint64, k int) []uint64 {
+	ret := make([]uint64, len(s), len(s))
+	slots := len(s) >> 1
+	copy(ret[:slots], RotateUint64Slice(s[:slots], k))
+	copy(ret[slots:], RotateUint64Slice(s[slots:], k))
+	return ret
+}
+
+// RotateComplex128Slice returns a new slice corresponding to s rotated by k positions to the left.
+func RotateComplex128Slice(s []complex128, k int) []complex128 {
+	if k == 0 || len(s) == 0 {
+		return s
+	}
+	r := k % len(s)
+	if r < 0 {
+		r = r + len(s)
+	}
+	ret := make([]complex128, len(s), len(s))
+	copy(ret[:len(s)-r], s[r:])
+	copy(ret[len(s)-r:], s[:r])
+	return ret
 }

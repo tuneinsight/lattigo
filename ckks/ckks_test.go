@@ -41,7 +41,7 @@ type testParams struct {
 	kgen        KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
-	rlk         *EvaluationKey
+	rlk         *RelinearizationKey
 	encryptorPk Encryptor
 	encryptorSk Encryptor
 	decryptor   Decryptor
@@ -84,8 +84,7 @@ func TestCKKS(t *testing.T) {
 			testEvaluatePoly,
 			testChebyshevInterpolator,
 			testSwitchKeys,
-			testConjugate,
-			testRotateColumns,
+			testAutomorphisms,
 			testMarshaller,
 		} {
 			testSet(testContext, t)
@@ -121,7 +120,7 @@ func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams
 			return nil, err
 		}
 
-		testContext.rlk = testContext.kgen.GenRelinKey(testContext.sk)
+		testContext.rlk = testContext.kgen.GenRelinearizationKey(testContext.sk)
 	}
 
 	if testContext.prng, err = utils.NewPRNG(); err != nil {
@@ -134,7 +133,7 @@ func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams
 	testContext.encryptorSk = NewEncryptorFromSk(testContext.params, testContext.sk)
 	testContext.decryptor = NewDecryptor(testContext.params, testContext.sk)
 
-	testContext.evaluator = NewEvaluator(testContext.params)
+	testContext.evaluator = NewEvaluator(testContext.params, EvaluationKey{testContext.rlk, nil})
 
 	return testContext, nil
 
@@ -616,7 +615,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, plaintext1, nil, ciphertext1)
+		testContext.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t, 0)
 	})
@@ -629,7 +628,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, plaintext1, nil, ciphertext1)
+		testContext.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t, 0)
 	})
@@ -642,7 +641,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		ciphertext2 := testContext.evaluator.MulRelinNew(ciphertext1, plaintext1, nil)
+		ciphertext2 := testContext.evaluator.MulRelinNew(ciphertext1, plaintext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext2, t, 0)
 	})
@@ -656,7 +655,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values2[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext1)
+		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext1, t, 0)
 	})
@@ -670,7 +669,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values2[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext2)
+		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext2)
 
 		verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t, 0)
 	})
@@ -684,7 +683,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values2[i] *= values1[i]
 		}
 
-		ciphertext3 := testContext.evaluator.MulRelinNew(ciphertext1, ciphertext2, nil)
+		ciphertext3 := testContext.evaluator.MulRelinNew(ciphertext1, ciphertext2)
 
 		verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext3, t, 0)
 	})
@@ -697,7 +696,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, ciphertext1, nil, ciphertext1)
+		testContext.evaluator.MulRelin(ciphertext1, ciphertext1, ciphertext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t, 0)
 	})
@@ -710,7 +709,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values1[i]
 		}
 
-		ciphertext2 := testContext.evaluator.MulRelinNew(ciphertext1, ciphertext1, testContext.rlk)
+		ciphertext2 := testContext.evaluator.MulRelinNew(ciphertext1, ciphertext1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext2, t, 0)
 	})
@@ -728,9 +727,10 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values2[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext1)
+		evalNoRlk := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{})
+		evalNoRlk.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 
-		testContext.evaluator.Relinearize(ciphertext1, testContext.rlk, ciphertext1)
+		testContext.evaluator.Relinearize(ciphertext1, ciphertext1)
 
 		require.Equal(t, ciphertext1.Degree(), uint64(1))
 
@@ -750,9 +750,10 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values2[i] *= values1[i]
 		}
 
-		testContext.evaluator.MulRelin(ciphertext1, ciphertext2, nil, ciphertext2)
+		evalNoRlk := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{})
+		evalNoRlk.MulRelin(ciphertext1, ciphertext2, ciphertext2)
 
-		testContext.evaluator.Relinearize(ciphertext2, testContext.rlk, ciphertext2)
+		testContext.evaluator.Relinearize(ciphertext2, ciphertext2)
 
 		require.Equal(t, ciphertext1.Degree(), uint64(1))
 
@@ -788,7 +789,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 			}
 		}
 
-		testContext.evaluator.PowerOf2(ciphertext, n, testContext.rlk, ciphertext)
+		testContext.evaluator.PowerOf2(ciphertext, n, ciphertext)
 
 		verifyTestVectors(testContext, testContext.decryptor, valuesWant, ciphertext, t, 0)
 	})
@@ -811,7 +812,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Pow(values[i], complex(float64(n), 0))
 		}
 
-		testContext.evaluator.Power(ciphertext, n, testContext.rlk, ciphertext)
+		testContext.evaluator.Power(ciphertext, n, ciphertext)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
 	})
@@ -834,7 +835,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 			values[i] = 1.0 / values[i]
 		}
 
-		ciphertext = testContext.evaluator.InverseNew(ciphertext, n, testContext.rlk)
+		ciphertext = testContext.evaluator.InverseNew(ciphertext, n)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
 	})
@@ -873,7 +874,11 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
+<<<<<<< HEAD
 		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale(), testContext.rlk); err != nil {
+=======
+		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly); err != nil {
+>>>>>>> dev_rlwe_layer
 			t.Error(err)
 		}
 
@@ -909,7 +914,11 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
+<<<<<<< HEAD
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
+=======
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
+>>>>>>> dev_rlwe_layer
 			t.Error(err)
 		}
 
@@ -1003,8 +1012,9 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 }
 
-func testConjugate(testContext *testParams, t *testing.T) {
+func testAutomorphisms(testContext *testParams, t *testing.T) {
 
+<<<<<<< HEAD
 	var rotKey *RotationKeys
 	if testContext.params.PiCount() != 0 {
 		rotKey = NewRotationKeys()
@@ -1052,27 +1062,26 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 	var rotKey *RotationKeys
 	if testContext.params.PiCount() != 0 {
 		rotKey = testContext.kgen.GenRotationKeysPow2(testContext.sk)
+=======
+	if testContext.params.PiCount() == 0 {
+		t.Skip("#Pi is empty")
+>>>>>>> dev_rlwe_layer
 	}
+	rots := []int{1, -1, 4, -4, 63, -63}
+	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
+	evaluator := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
 
 	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		values2 := make([]complex128, len(values1))
 		ciphertext2 := NewCiphertext(testContext.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
-		for n := 1; n < len(values1); n <<= 1 {
+		for _, n := range rots {
 
-			// Applies the column rotation to the values
-			for i := range values1 {
-				values2[i] = values1[(i+n)%len(values1)]
-			}
+			values2 := utils.RotateComplex128Slice(values1, n)
 
-			testContext.evaluator.Rotate(ciphertext1, uint64(n), rotKey, ciphertext2)
+			evaluator.Rotate(ciphertext1, n, ciphertext2)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t, 0)
 		}
@@ -1080,16 +1089,13 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "RotateColumns/New/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		values2 := make([]complex128, len(values1))
+		for _, n := range rots {
 
-		for n := 1; n < len(values1); n <<= 1 {
+			values2 := utils.RotateComplex128Slice(values1, n)
 
+<<<<<<< HEAD
 			// Applies the column rotation to the values
 			for i := range values1 {
 				values2[i] = values1[(i+n)%len(values1)]
@@ -1097,58 +1103,54 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey), t, 0)
 
+=======
+			verifyTestVectors(testContext, testContext.decryptor, values2, evaluator.RotateNew(ciphertext1, n), t)
+>>>>>>> dev_rlwe_layer
 		}
 
 	})
 
-	t.Run(testString(testContext, "RotateColumns/Random/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Conjugate/InPlace/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
+		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		for i := range values {
+			values[i] = complex(real(values[i]), -imag(values[i]))
 		}
 
-		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		evaluator.Conjugate(ciphertext, ciphertext)
 
-		values2 := make([]complex128, len(values1))
-		ciphertext2 := NewCiphertext(testContext.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+	})
 
-		for n := 1; n < 4; n++ {
+	t.Run(testString(testContext, "Conjugate/New/"), func(t *testing.T) {
 
-			rand := utils.RandUint64() % uint64(len(values1))
+		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			// Applies the column rotation to the values
-			for i := range values1 {
-				values2[i] = values1[(i+int(rand))%len(values1)]
-			}
-
-			testContext.evaluator.Rotate(ciphertext1, rand, rotKey, ciphertext2)
-
+<<<<<<< HEAD
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t, 0)
+=======
+		for i := range values {
+			values[i] = complex(real(values[i]), -imag(values[i]))
+>>>>>>> dev_rlwe_layer
 		}
 
+		ciphertext = evaluator.ConjugateNew(ciphertext)
+
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})
 
-	t.Run(testString(testContext, "RotateColumns/Hoisted/"), func(t *testing.T) {
-
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
+	t.Run(testString(testContext, "RotateHoisted/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		values2 := make([]complex128, len(values1))
-		rotations := []uint64{0, 1, 2, 3, 4, 5}
-		for _, n := range rotations {
-			testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, n, rotKey)
-		}
 
-		ciphertexts := testContext.evaluator.RotateHoisted(ciphertext1, rotations, rotKey)
+		ciphertexts := evaluator.RotateHoisted(ciphertext1, rots)
 
-		for _, n := range rotations {
+		for _, n := range rots {
 
-			for i := range values1 {
-				values2[i] = values1[(i+int(n))%len(values1)]
-			}
+			values2 = utils.RotateComplex128Slice(values1, n)
 
 			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertexts[n], t, 0)
 		}
@@ -1206,7 +1208,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
-		require.True(t, ringQP.Equal(sk.sk, testContext.sk.sk))
+		require.True(t, ringQP.Equal(sk.Value, testContext.sk.Value))
 
 	})
 
@@ -1219,8 +1221,8 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		err = pk.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
 
-		for k := range testContext.pk.pk {
-			require.Truef(t, ringQP.Equal(pk.pk[k], testContext.pk.pk[k]), "Marshal PublicKey element [%d]", k)
+		for k := range testContext.pk.Value {
+			require.Truef(t, ringQP.Equal(pk.Value[k], testContext.pk.Value[k]), "Marshal PublicKey element [%d]", k)
 		}
 	})
 
@@ -1230,16 +1232,16 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			t.Skip("#Pi is empty")
 		}
 
-		evalKey := testContext.kgen.GenRelinKey(testContext.sk)
+		evalKey := testContext.kgen.GenRelinearizationKey(testContext.sk)
 		data, err := evalKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resEvalKey := new(EvaluationKey)
+		resEvalKey := new(RelinearizationKey)
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		evakeyWant := evalKey.evakey.evakey
-		evakeyTest := resEvalKey.evakey.evakey
+		evakeyWant := evalKey.Keys[0].Value
+		evakeyTest := resEvalKey.Keys[0].Value
 
 		for j := range evakeyWant {
 			for k := range evakeyWant[j] {
@@ -1264,8 +1266,8 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		err = resSwitchingKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		evakeyWant := switchingKey.evakey
-		evakeyTest := resSwitchingKey.evakey
+		evakeyWant := switchingKey.Value
+		evakeyTest := resSwitchingKey.Value
 
 		for j := range evakeyWant {
 			for k := range evakeyWant[j] {
@@ -1280,71 +1282,29 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			t.Skip("#Pi is empty")
 		}
 
-		rotationKey := NewRotationKeys()
+		rots := []int{1, -1, 63, -63}
+		galEls := []uint64{testContext.params.GaloisElementForRowRotation()}
+		for _, n := range rots {
+			galEls = append(galEls, testContext.params.GaloisElementForColumnRotationBy(n))
+		}
 
-		testContext.kgen.GenRotationKey(Conjugate, testContext.sk, 0, rotationKey)
-		testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 1, rotationKey)
-		testContext.kgen.GenRotationKey(RotationLeft, testContext.sk, 2, rotationKey)
-		testContext.kgen.GenRotationKey(RotationRight, testContext.sk, 3, rotationKey)
-		testContext.kgen.GenRotationKey(RotationRight, testContext.sk, 5, rotationKey)
+		rotationKey := testContext.kgen.GenRotationKeys(galEls, testContext.sk)
 
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resRotationKey := new(RotationKeys)
+		resRotationKey := new(RotationKeySet)
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		for i := uint64(1); i < testContext.ringQ.N>>1; i++ {
+		for _, galEl := range galEls {
 
-			if rotationKey.evakeyRotColLeft[i] != nil {
-
-				evakeyWant := rotationKey.evakeyRotColLeft[i].evakey
-				evakeyTest := resRotationKey.evakeyRotColLeft[i].evakey
-
-				evakeyNTTIndexWant := rotationKey.permuteNTTLeftIndex[i]
-				evakeyNTTIndexTest := resRotationKey.permuteNTTLeftIndex[i]
-
-				require.True(t, utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest))
-
-				for j := range evakeyWant {
-					for k := range evakeyWant[j] {
-						require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
-					}
-				}
-			}
-
-			if rotationKey.evakeyRotColRight[i] != nil {
-
-				evakeyWant := rotationKey.evakeyRotColRight[i].evakey
-				evakeyTest := resRotationKey.evakeyRotColRight[i].evakey
-
-				evakeyNTTIndexWant := rotationKey.permuteNTTRightIndex[i]
-				evakeyNTTIndexTest := resRotationKey.permuteNTTRightIndex[i]
-
-				require.True(t, utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest))
-
-				for j := range evakeyWant {
-					for k := range evakeyWant[j] {
-						require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
-					}
-				}
-			}
-		}
-
-		if rotationKey.evakeyConjugate != nil {
-
-			evakeyWant := rotationKey.evakeyConjugate.evakey
-			evakeyTest := resRotationKey.evakeyConjugate.evakey
-
-			evakeyNTTIndexWant := rotationKey.permuteNTTConjugateIndex
-			evakeyNTTIndexTest := resRotationKey.permuteNTTConjugateIndex
-
-			require.True(t, utils.EqualSliceUint64(evakeyNTTIndexWant, evakeyNTTIndexTest))
+			evakeyWant := rotationKey.Keys[galEl].Value
+			evakeyTest := resRotationKey.Keys[galEl].Value
 
 			for j := range evakeyWant {
 				for k := range evakeyWant[j] {
-					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateRow element [%d][%d]", j, k)
+					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateLeft %d element [%d][%d]", galEl, j, k)
 				}
 			}
 		}

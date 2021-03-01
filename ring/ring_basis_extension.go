@@ -16,8 +16,9 @@ type FastBasisExtender struct {
 	paramsPQ        *modupParams
 	modDownParamsPQ []uint64
 	modDownParamsQP []uint64
-	polypoolQ       *Poly
-	polypoolP       *Poly
+
+	polypoolQ *Poly
+	polypoolP *Poly
 }
 
 type modupParams struct {
@@ -142,6 +143,25 @@ func basisextenderparameters(Q, P []uint64) (params *modupParams) {
 	}
 
 	return
+}
+
+// ShallowCopy creates a shallow copy of this basis extender in which the read-only data-structures are
+// shared with the receiver.
+func (basisextender *FastBasisExtender) ShallowCopy() *FastBasisExtender {
+	if basisextender == nil {
+		return nil
+	}
+	return &FastBasisExtender{
+		ringQ:           basisextender.ringQ,
+		ringP:           basisextender.ringP,
+		paramsQP:        basisextender.paramsQP,
+		paramsPQ:        basisextender.paramsPQ,
+		modDownParamsQP: basisextender.modDownParamsQP,
+		modDownParamsPQ: basisextender.modDownParamsPQ,
+
+		polypoolQ: basisextender.ringQ.NewPoly(),
+		polypoolP: basisextender.ringP.NewPoly(),
+	}
 }
 
 // ModUpSplitQP extends the RNS basis of a polynomial from Q to QP.

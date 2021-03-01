@@ -30,7 +30,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	btpKey := testContext.kgen.GenBootstrappingKey(testContext.params.logSlots, btpParams, testContext.sk)
 
-	if btp, err = NewBootstrapper(testContext.params, btpParams, btpKey); err != nil {
+	if btp, err = NewBootstrapper(testContext.params, btpParams, *btpKey); err != nil {
 		panic(err)
 	}
 

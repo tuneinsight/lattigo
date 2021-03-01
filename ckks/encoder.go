@@ -191,7 +191,7 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 	plaintext.isNTT = true
 }
 
-// Embed encodes a vector and stores internaly the encoded values.
+// Embed encodes a vector and stores internally the encoded values.
 // To be used in conjunction with ScaleUp.
 func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 
@@ -215,6 +215,7 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 	}
 }
 
+<<<<<<< HEAD
 // GetErrSTDFreqDom returns the scaled standard deviation of the difference between two complex vectors in the slot domains
 func (encoder *encoderComplex128) GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 
@@ -247,11 +248,14 @@ func (encoder *encoderComplex128) GetErrSTDTimeDom(valuesWant, valuesHave []comp
 }
 
 // ScaleUp writes the internaly stored encoded values on a polynomial.
+=======
+// ScaleUp writes the internally stored encoded values on a polynomial.
+>>>>>>> dev_rlwe_layer
 func (encoder *encoderComplex128) ScaleUp(pol *ring.Poly, scale float64, moduli []uint64) {
 	scaleUpVecExact(encoder.valuesfloat, scale, moduli, pol.Coeffs)
 }
 
-// WipeInternalMemory sets the internaly stored encoded values of the encoder to zero.
+// WipeInternalMemory sets the internally stored encoded values of the encoder to zero.
 func (encoder *encoderComplex128) WipeInternalMemory() {
 	for i := range encoder.values {
 		encoder.values[i] = 0
@@ -450,8 +454,12 @@ func (encoder *encoderComplex128) encodeDiagonal(logSlots, level uint64, scale f
 
 	encoder.WipeInternalMemory()
 
+<<<<<<< HEAD
 	return [2]*ring.Poly{mQ, mP}
 }
+=======
+	if plaintext.Level() == 0 {
+>>>>>>> dev_rlwe_layer
 
 // Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
 func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, maxRatio float64) (minN uint64) {

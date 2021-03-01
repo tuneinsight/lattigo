@@ -89,7 +89,7 @@ func benchKeyGen(testctx *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			kgen.GenRelinKey(sk, 1)
+			kgen.GenRelinearizationKey(sk, 1)
 		}
 	})
 }
@@ -141,7 +141,6 @@ func benchDecrypt(testctx *testContext, b *testing.B) {
 
 func benchEvaluator(testctx *testContext, b *testing.B) {
 
-	evaluator := testctx.evaluator
 	encoder := testctx.encoder
 
 	plaintext := NewPlaintext(testctx.params)
@@ -157,12 +156,11 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
 
-	var rotkey *RotationKeys
+	var rotkey *RotationKeySet
 	if testctx.params.PiCount() != 0 {
-		rotkey = NewRotationKeys()
-		testctx.kgen.GenRot(RotationLeft, testctx.sk, 1, rotkey)
-		testctx.kgen.GenRot(RotationRow, testctx.sk, 0, rotkey)
+		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk)
 	}
+	evaluator := testctx.evaluator.ShallowCopyWithKey(EvaluationKey{testctx.rlk, rotkey})
 
 	b.Run(testString("Evaluator/Add/Ct/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -225,7 +223,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Relinearize(receiver, testctx.rlk, ciphertext1)
+			evaluator.Relinearize(receiver, ciphertext1)
 		}
 	})
 
@@ -236,7 +234,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.RotateRows(ciphertext1, rotkey, ciphertext1)
+			evaluator.RotateRows(ciphertext1, ciphertext1)
 		}
 	})
 
@@ -247,7 +245,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			evaluator.RotateColumns(ciphertext1, 1, rotkey, ciphertext1)
+			evaluator.RotateColumns(ciphertext1, 1, ciphertext1)
 		}
 	})
 }

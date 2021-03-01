@@ -185,7 +185,7 @@ type Moduli struct {
 	Pi []uint64 // Keys additional prime moduli
 }
 
-// Print prints the moduli in hexadimal
+// Print prints the moduli in hexadecimal
 func (m *Moduli) Print() {
 	for _, qi := range m.Qi {
 		fmt.Printf("0x%x,\n", qi)
@@ -228,7 +228,7 @@ func (m *LogModuli) Copy() LogModuli {
 	return LogModuli{LogQi, LogPi}
 }
 
-// Parameters represents a given parameter set for the BFV cryptosystem.
+// Parameters represents a given parameter set for the CKKS cryptosystem.
 type Parameters struct {
 	qi       []uint64
 	pi       []uint64
@@ -314,7 +314,7 @@ func (p *Parameters) Levels() uint64 {
 	return p.QiCount()
 }
 
-// Slots returns number of availible plaintext slots
+// Slots returns number of available plaintext slots
 func (p *Parameters) Slots() uint64 {
 	return 1 << p.logSlots
 }
@@ -510,6 +510,38 @@ func (p *Parameters) Beta() uint64 {
 	return 0
 }
 
+// GaloisElementForColumnRotationBy returns the galois element for plaintext
+// column rotations by k position to the left. Providing a negative k is
+// equivalent to a right rotation.
+func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
+	twoN := 1 << (p.logN + 1)
+	mask := twoN - 1
+	kRed := uint64(k & mask)
+	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
+}
+
+// GaloisElementForRowRotation returns the galois element corresponding to a row rotation (conjugate) automorphism
+func (p *Parameters) GaloisElementForRowRotation() uint64 {
+	return (1 << (p.logN + 1)) - 1
+}
+
+// GaloisElementsForRowInnerSum returns a list of galois element corresponding to
+// all the left rotations by a k-position where k is a power of two.
+func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
+	galEls = make([]uint64, p.logN+1, p.logN+1)
+	galEls[0] = p.GaloisElementForRowRotation()
+	for i := 0; i < int(p.logN)-1; i++ {
+		galEls[i+1] = p.GaloisElementForColumnRotationBy(1 << i)
+	}
+	return galEls
+}
+
+// InverseGaloisElement returns the galois element for the inverse automorphism of galEl
+func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
+	twoN := uint64(1 << (p.logN + 1))
+	return ring.ModExp(galEl, twoN-1, twoN)
+}
+
 // Copy creates a copy of the target parameters.
 func (p *Parameters) Copy() (paramsCopy *Parameters) {
 
@@ -692,7 +724,7 @@ func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
 		primes[key] = ring.GenerateNTTPrimes(key, 2<<logN, value)
 	}
 
-	// Assigns the primes to the ckks moduli chain
+	// Assigns the primes to the CKKS moduli chain
 	m.Qi = make([]uint64, len(lm.LogQi))
 	for i, qi := range lm.LogQi {
 		m.Qi[i] = primes[qi][0]

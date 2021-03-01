@@ -30,7 +30,11 @@ type decryptor struct {
 // encrypted under the provided secret-key.
 func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
 
+<<<<<<< HEAD
 	if sk.sk.N() != params.N() {
+=======
+	if sk.Value.GetDegree() != int(params.N()) {
+>>>>>>> dev_rlwe_layer
 		panic("secret_key is invalid for the provided parameters")
 	}
 
@@ -68,7 +72,7 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
 
-		decryptor.ringQ.MulCoeffsMontgomeryLvl(level, plaintext.value, decryptor.sk.sk, plaintext.value)
+		decryptor.ringQ.MulCoeffsMontgomeryLvl(level, plaintext.value, decryptor.sk.Value, plaintext.value)
 		decryptor.ringQ.AddLvl(level, plaintext.value, ciphertext.value[i-1], plaintext.value)
 
 		if i&7 == 7 {

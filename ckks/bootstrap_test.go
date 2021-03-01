@@ -87,7 +87,11 @@ func testSin(testContext *testParams, btpParams *BootstrappingParameters, t *tes
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
+<<<<<<< HEAD
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
+=======
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
+>>>>>>> dev_rlwe_layer
 			t.Error(err)
 		}
 
@@ -161,13 +165,17 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
+<<<<<<< HEAD
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
+=======
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
+>>>>>>> dev_rlwe_layer
 			t.Error(err)
 		}
 
 		for i := 0; i < scNum; i++ {
 			sqrt2pi *= sqrt2pi
-			eval.MulRelin(ciphertext, ciphertext, testContext.rlk, ciphertext)
+			eval.MulRelin(ciphertext, ciphertext, ciphertext)
 			eval.Add(ciphertext, ciphertext, ciphertext)
 			eval.AddConst(ciphertext, -sqrt2pi, ciphertext)
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
@@ -274,13 +282,17 @@ func testCos2(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
+<<<<<<< HEAD
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
+=======
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
+>>>>>>> dev_rlwe_layer
 			t.Error(err)
 		}
 
 		for i := 0; i < scNum; i++ {
 			sqrt2pi *= sqrt2pi
-			eval.MulRelin(ciphertext, ciphertext, testContext.rlk, ciphertext)
+			eval.MulRelin(ciphertext, ciphertext, ciphertext)
 			eval.Add(ciphertext, ciphertext, ciphertext)
 			eval.AddConst(ciphertext, -sqrt2pi, ciphertext)
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
@@ -300,7 +312,7 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 		params := testContext.params
 
 		btpKey := testContext.kgen.GenBootstrappingKey(testContext.params.logSlots, btpParams, testContext.sk)
-		btp, err := NewBootstrapper(testContext.params, btpParams, btpKey)
+		btp, err := NewBootstrapper(testContext.params, btpParams, *btpKey)
 		if err != nil {
 			panic(err)
 		}

@@ -52,7 +52,11 @@ func (p *Poly) Degree() uint64 {
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
+<<<<<<< HEAD
 func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, targetScale float64, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
+=======
+func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly) (opOut *Ciphertext, err error) {
+>>>>>>> dev_rlwe_layer
 
 	if err := checkEnoughLevels(ct0.Level(), pol, 1); err != nil {
 		return ct0, err
@@ -66,18 +70,22 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, targetScale floa
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
 
 	for i := uint64(2); i < (1 << logSplit); i++ {
-		if err = computePowerBasis(i, C, eval, evakey); err != nil {
+		if err = computePowerBasis(i, C, eval, eval.rlk); err != nil {
 			return nil, err
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-		if err = computePowerBasis(1<<i, C, eval, evakey); err != nil {
+		if err = computePowerBasis(1<<i, C, eval, eval.rlk); err != nil {
 			return nil, err
 		}
 	}
 
+<<<<<<< HEAD
 	opOut, err = recurse(targetScale, logSplit, logDegree, pol, C, eval, evakey)
+=======
+	opOut, err = recurse(eval.scale, logSplit, logDegree, pol, C, eval, eval.rlk)
+>>>>>>> dev_rlwe_layer
 	C = nil
 	return opOut, err
 }
@@ -86,7 +94,11 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, targetScale floa
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
 // A change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a)) is necessary before the polynomial evaluation to ensure correctness.
+<<<<<<< HEAD
 func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, tartetScale float64, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
+=======
+func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation) (opOut *Ciphertext, err error) {
+>>>>>>> dev_rlwe_layer
 
 	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 1); err != nil {
 		return op, err
@@ -100,25 +112,29 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
 
 	for i := uint64(2); i < (1 << logSplit); i++ {
-		if err = computePowerBasisCheby(i, C, eval, evakey); err != nil {
+		if err = computePowerBasisCheby(i, C, eval, eval.rlk); err != nil {
 			return nil, err
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-		if err = computePowerBasisCheby(1<<i, C, eval, evakey); err != nil {
+		if err = computePowerBasisCheby(1<<i, C, eval, eval.rlk); err != nil {
 			return nil, err
 		}
 	}
 
+<<<<<<< HEAD
 	opOut, err = recurseCheby(tartetScale, logSplit, logDegree, &cheby.Poly, C, eval, evakey)
+=======
+	opOut, err = recurseCheby(eval.scale, logSplit, logDegree, &cheby.Poly, C, eval, eval.rlk)
+>>>>>>> dev_rlwe_layer
 
 	C = nil
 
 	return opOut, err
 }
 
-func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (err error) {
+func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *RelinearizationKey) (err error) {
 
 	if C[n] == nil {
 
@@ -135,7 +151,7 @@ func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator,
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
+		C[n] = evaluator.MulRelinNew(C[a], C[b])
 
 		if err = evaluator.Rescale(C[n], evaluator.scale, C[n]); err != nil {
 			return err
@@ -145,7 +161,7 @@ func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator,
 	return nil
 }
 
-func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (err error) {
+func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *RelinearizationKey) (err error) {
 
 	// Given a hash table with the first three evaluations of the Chebyshev ring at x in the interval a, b:
 	// C0 = 1 (actually not stored in the hash table)
@@ -179,7 +195,7 @@ func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evalu
 
 		// Computes C[n] = C[a]*C[b]
 		//fmt.Println("Mul", C[a].Level(), C[b].Level())
-		C[n] = evaluator.MulRelinNew(C[a], C[b], evakey)
+		C[n] = evaluator.MulRelinNew(C[a], C[b])
 		if err = evaluator.Rescale(C[n], evaluator.scale, C[n]); err != nil {
 			return err
 		}
@@ -263,7 +279,7 @@ func splitCoeffsCheby(coeffs *Poly, split uint64) (coeffsq, coeffsr *Poly) {
 	return coeffsq, coeffsr
 }
 
-func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext, err error) {
+func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *RelinearizationKey) (res *Ciphertext, err error) {
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.Degree() < (1 << logSplit) {
 
@@ -313,7 +329,7 @@ func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C ma
 	}
 
 	//fmt.Printf("X^%2d: (%d %f -> \n", nextPower, res.Level(), res.Scale())
-	evaluator.MulRelin(res, C[nextPower], evakey, res)
+	evaluator.MulRelin(res, C[nextPower], res)
 
 	if res.Level() > tmp.Level() {
 		if err = evaluator.Rescale(res, evaluator.scale, res); err != nil {
@@ -335,7 +351,7 @@ func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C ma
 	return
 }
 
-func recurseCheby(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *EvaluationKey) (res *Ciphertext, err error) {
+func recurseCheby(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *RelinearizationKey) (res *Ciphertext, err error) {
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.Degree() < (1 << logSplit) {
 
@@ -386,7 +402,7 @@ func recurseCheby(targetScale float64, logSplit, logDegree uint64, coeffs *Poly,
 	}
 
 	//fmt.Printf("X^%2d: (%d %f -> \n", nextPower, res.Level(), res.Scale())
-	evaluator.MulRelin(res, C[nextPower], evakey, res)
+	evaluator.MulRelin(res, C[nextPower], res)
 
 	if res.Level() > tmp.Level() {
 		if err = evaluator.Rescale(res, evaluator.scale, res); err != nil {

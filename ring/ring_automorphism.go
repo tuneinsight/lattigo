@@ -28,9 +28,7 @@ func GenGaloisParams(n, gen uint64) (galElRotCol []uint64) {
 }
 
 // PermuteNTTIndex computes the index table for PermuteNTT.
-func PermuteNTTIndex(gen, power, N uint64) (index []uint64) {
-
-	genPow := ModExp(gen, power, 2*N)
+func PermuteNTTIndex(galEl, N uint64) (index []uint64) {
 
 	var mask, logN, tmp1, tmp2 uint64
 
@@ -43,7 +41,7 @@ func PermuteNTTIndex(gen, power, N uint64) (index []uint64) {
 	for i := uint64(0); i < N; i++ {
 		tmp1 = 2*utils.BitReverse64(i, logN) + 1
 
-		tmp2 = ((genPow * tmp1 & mask) - 1) >> 1
+		tmp2 = ((galEl * tmp1 & mask) - 1) >> 1
 
 		index[i] = utils.BitReverse64(tmp2, logN)
 	}

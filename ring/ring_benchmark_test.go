@@ -79,10 +79,10 @@ func benchSampling(testContext *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Gaussian/", testContext.ringQ), func(b *testing.B) {
 
-		gaussianSampler := NewGaussianSampler(testContext.prng, testContext.ringQ, DefaultSigma, DefaultBound)
+		gaussianSampler := NewGaussianSampler(testContext.prng)
 
 		for i := 0; i < b.N; i++ {
-			gaussianSampler.ReadLvl(uint64(len(testContext.ringQ.Modulus)-1), pol)
+			gaussianSampler.ReadLvl(uint64(len(testContext.ringQ.Modulus)-1), pol, testContext.ringQ, DefaultSigma, DefaultBound)
 		}
 	})
 

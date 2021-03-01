@@ -29,7 +29,7 @@ type testContext struct {
 	kgen        KeyGenerator
 	sk          *SecretKey
 	pk          *PublicKey
-	rlk         *EvaluationKey
+	rlk         *RelinearizationKey
 	encryptorPk Encryptor
 	encryptorSk Encryptor
 	decryptor   Decryptor
@@ -92,14 +92,14 @@ func genTestParams(params *Parameters) (testctx *testContext, err error) {
 	testctx.kgen = NewKeyGenerator(testctx.params)
 	testctx.sk, testctx.pk = testctx.kgen.GenKeyPair()
 	if params.PiCount() != 0 {
-		testctx.rlk = testctx.kgen.GenRelinKey(testctx.sk, 1)
+		testctx.rlk = testctx.kgen.GenRelinearizationKey(testctx.sk, 1)
 	}
 
 	testctx.encoder = NewEncoder(testctx.params)
 	testctx.encryptorPk = NewEncryptorFromPk(testctx.params, testctx.pk)
 	testctx.encryptorSk = NewEncryptorFromSk(testctx.params, testctx.sk)
 	testctx.decryptor = NewDecryptor(testctx.params, testctx.sk)
-	testctx.evaluator = NewEvaluator(testctx.params)
+	testctx.evaluator = NewEvaluator(testctx.params, EvaluationKey{testctx.rlk, nil})
 	return
 
 }
@@ -115,6 +115,16 @@ func testParameters(testctx *testContext, t *testing.T) {
 		p, err := NewParametersFromLogModuli(testctx.params.logN, testctx.params.LogModuli(), testctx.params.t)
 		assert.NoError(t, err)
 		assert.True(t, p.Equals(testctx.params))
+	})
+
+	t.Run("Parameters/InverseGaloisElement/", func(t *testing.T) {
+		for i := 1; i < int(testctx.params.N()/2); i++ {
+			galEl := testctx.params.GaloisElementForColumnRotationBy(i)
+			mod := 2 * testctx.params.N()
+			inv := testctx.params.InverseGaloisElement(galEl)
+			res := (inv * galEl) % mod
+			assert.Equal(t, uint64(1), res)
+		}
 	})
 }
 
@@ -575,10 +585,10 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 		testctx.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 		testctx.ringT.MulCoeffs(values1, values2, values1)
 
-		receiver2 := testctx.evaluator.RelinearizeNew(receiver, testctx.rlk)
+		receiver2 := testctx.evaluator.RelinearizeNew(receiver)
 		verifyTestVectors(testctx, testctx.decryptor, values1, receiver2, t)
 
-		testctx.evaluator.Relinearize(receiver, testctx.rlk, receiver)
+		testctx.evaluator.Relinearize(receiver, receiver)
 		verifyTestVectors(testctx, testctx.decryptor, values1, receiver, t)
 	})
 }
@@ -612,90 +622,58 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 		t.Skip("#Pi is empty")
 	}
 
-	rotkey := testctx.kgen.GenRotationKeysPow2(testctx.sk)
+	rots := []int{1, -1, 4, -4, 63, -63}
+	rotkey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
+	evaluator := testctx.evaluator.ShallowCopyWithKey(EvaluationKey{testctx.rlk, rotkey})
 
-	t.Run(testString("Evaluator/Rotate/Rows/InPlace/", testctx.params), func(t *testing.T) {
+	t.Run(testString("Evaluator/RotateRows/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
-		testctx.evaluator.RotateRows(ciphertext, rotkey, ciphertext)
+		evaluator.RotateRows(ciphertext, ciphertext)
 		values.Coeffs[0] = append(values.Coeffs[0][testctx.params.N()>>1:], values.Coeffs[0][:testctx.params.N()>>1]...)
 		verifyTestVectors(testctx, testctx.decryptor, values, ciphertext, t)
 	})
 
-	t.Run(testString("Evaluator/Rotate/Rows/New/", testctx.params), func(t *testing.T) {
+	t.Run(testString("Evaluator/RotateRowsNew/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
-		ciphertext = testctx.evaluator.RotateRowsNew(ciphertext, rotkey)
+		ciphertext = evaluator.RotateRowsNew(ciphertext)
 		values.Coeffs[0] = append(values.Coeffs[0][testctx.params.N()>>1:], values.Coeffs[0][:testctx.params.N()>>1]...)
 		verifyTestVectors(testctx, testctx.decryptor, values, ciphertext, t)
 	})
 
-	valuesWant := testctx.ringT.NewPoly()
-	mask := (testctx.params.N() >> 1) - 1
-	slots := testctx.params.N() >> 1
-
-	t.Run(testString("Evaluator/Rotate/Cols/InPlace/", testctx.params), func(t *testing.T) {
+	t.Run(testString("Evaluator/RotateColumns", testctx.params), func(t *testing.T) {
 
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
 		receiver := NewCiphertext(testctx.params, 1)
-		for n := uint64(1); n < slots; n <<= 1 {
+		for _, n := range rots {
 
-			testctx.evaluator.RotateColumns(ciphertext, n, rotkey, receiver)
+			evaluator.RotateColumns(ciphertext, n, receiver)
+			valuesWant := utils.RotateUint64Slots(values.Coeffs[0], n)
 
-			for i := uint64(0); i < slots; i++ {
-				valuesWant.Coeffs[0][i] = values.Coeffs[0][(i+n)&mask]
-				valuesWant.Coeffs[0][i+slots] = values.Coeffs[0][((i+n)&mask)+slots]
-			}
-
-			verifyTestVectors(testctx, testctx.decryptor, valuesWant, receiver, t)
+			verifyTestVectors(testctx, testctx.decryptor, &ring.Poly{Coeffs: [][]uint64{valuesWant}}, receiver, t)
 		}
 	})
 
-	t.Run(testString("Evaluator/Rotate/Cols/New/", testctx.params), func(t *testing.T) {
+	t.Run(testString("Evaluator/RotateColumnsNew", testctx.params), func(t *testing.T) {
 
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
-		for n := uint64(1); n < slots; n <<= 1 {
+		for _, n := range rots {
 
-			receiver := testctx.evaluator.RotateColumnsNew(ciphertext, n, rotkey)
+			receiver := evaluator.RotateColumnsNew(ciphertext, n)
+			valuesWant := utils.RotateUint64Slots(values.Coeffs[0], n)
 
-			for i := uint64(0); i < slots; i++ {
-				valuesWant.Coeffs[0][i] = values.Coeffs[0][(i+n)&mask]
-				valuesWant.Coeffs[0][i+slots] = values.Coeffs[0][((i+n)&mask)+slots]
-			}
-
-			verifyTestVectors(testctx, testctx.decryptor, valuesWant, receiver, t)
+			verifyTestVectors(testctx, testctx.decryptor, &ring.Poly{Coeffs: [][]uint64{valuesWant}}, receiver, t)
 		}
 	})
 
-	t.Run(testString("Evaluator/Rotate/Cols/Random/", testctx.params), func(t *testing.T) {
-
-		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
-
-		receiver := NewCiphertext(testctx.params, 1)
-		prng, err := utils.NewPRNG()
-		if err != nil {
-			panic(err)
-		}
-
-		for n := 0; n < 4; n++ {
-
-			rand := ring.RandUniform(prng, slots, mask)
-
-			testctx.evaluator.RotateColumns(ciphertext, rand, rotkey, receiver)
-
-			for i := uint64(0); i < slots; i++ {
-				valuesWant.Coeffs[0][i] = values.Coeffs[0][(i+rand)&mask]
-				valuesWant.Coeffs[0][i+slots] = values.Coeffs[0][((i+rand)&mask)+slots]
-			}
-
-			verifyTestVectors(testctx, testctx.decryptor, valuesWant, receiver, t)
-		}
-	})
+	rotkey = testctx.kgen.GenRotationKeysForInnerSum(testctx.sk)
+	evaluator = evaluator.ShallowCopyWithKey(EvaluationKey{testctx.rlk, rotkey})
 
 	t.Run(testString("Evaluator/Rotate/InnerSum/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
-		testctx.evaluator.InnerSum(ciphertext, rotkey, ciphertext)
+		evaluator.InnerSum(ciphertext, ciphertext)
 
 		var sum uint64
 		for _, c := range values.Coeffs[0] {
@@ -766,13 +744,11 @@ func testMarshalSK(testctx *testContext, t *testing.T) {
 		marshalledSk, err := testctx.sk.MarshalBinary()
 		require.NoError(t, err)
 
-		sk := NewSecretKey(testctx.params)
+		var sk SecretKey
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
-		sk.Set(sk.Get())
-
-		require.True(t, testctx.ringQP.Equal(sk.sk, testctx.sk.sk))
+		require.True(t, testctx.ringQP.Equal(sk.Value, testctx.sk.Value))
 	})
 }
 
@@ -783,14 +759,12 @@ func testMarshalPK(testctx *testContext, t *testing.T) {
 		marshalledPk, err := testctx.pk.MarshalBinary()
 		require.NoError(t, err)
 
-		pk := NewPublicKey(testctx.params)
+		var pk PublicKey
 		err = pk.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
 
-		pk.Set(pk.Get())
-
-		for k := range testctx.pk.pk {
-			require.True(t, testctx.ringQP.Equal(pk.pk[k], testctx.pk.pk[k]), k)
+		for k := range testctx.pk.Value {
+			require.True(t, testctx.ringQP.Equal(pk.Value[k], testctx.pk.Value[k]), k)
 		}
 	})
 
@@ -803,18 +777,18 @@ func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
 			t.Skip("#Pi is empty")
 		}
 
-		evalkey := testctx.kgen.GenRelinKey(testctx.sk, 2)
+		evalkey := testctx.kgen.GenRelinearizationKey(testctx.sk, 2)
 		data, err := evalkey.MarshalBinary()
 		require.NoError(t, err)
 
-		resEvalKey := NewRelinKey(testctx.params, 2)
+		resEvalKey := NewRelinearizationKey(testctx.params, 2)
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		for deg := range evalkey.evakey {
+		for deg := range evalkey.Keys {
 
-			evakeyWant := evalkey.evakey[deg].evakey
-			evakeyTest := resEvalKey.evakey[deg].evakey
+			evakeyWant := evalkey.Keys[deg].Value
+			evakeyTest := resEvalKey.Keys[deg].Value
 
 			for j := range evakeyWant {
 
@@ -843,8 +817,8 @@ func testMarshalSwitchingKey(testctx *testContext, t *testing.T) {
 		err = resSwitchingKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		evakeyWant := switchingKey.evakey
-		evakeyTest := resSwitchingKey.evakey
+		evakeyWant := switchingKey.Value
+		evakeyTest := resSwitchingKey.Value
 
 		for j := range evakeyWant {
 
@@ -862,65 +836,28 @@ func testMarshalRotKey(testctx *testContext, t *testing.T) {
 			t.Skip("#Pi is empty")
 		}
 
-		rotationKey := NewRotationKeys()
+		rots := []int{1, 2, -3, -5}
 
-		testctx.kgen.GenRot(RotationRow, testctx.sk, 0, rotationKey)
-		testctx.kgen.GenRot(RotationLeft, testctx.sk, 1, rotationKey)
-		testctx.kgen.GenRot(RotationLeft, testctx.sk, 2, rotationKey)
-		testctx.kgen.GenRot(RotationRight, testctx.sk, 3, rotationKey)
-		testctx.kgen.GenRot(RotationRight, testctx.sk, 5, rotationKey)
+		rotationKey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
 
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resRotationKey := NewRotationKeys()
+		var resRotationKey RotationKeySet
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		resRotationKey.SetRotKey(RotationRow, 0, resRotationKey.evakeyRotRow.evakey)
-		resRotationKey.SetRotKey(RotationLeft, 1, resRotationKey.evakeyRotColLeft[1].evakey)
-		resRotationKey.SetRotKey(RotationRight, 3, resRotationKey.evakeyRotColRight[3].evakey)
-
-		for i := uint64(1); i < testctx.params.N()>>1; i++ {
-
-			if rotationKey.evakeyRotColLeft[i] != nil {
-
-				evakeyWant := rotationKey.evakeyRotColLeft[i].evakey
-				evakeyTest := resRotationKey.evakeyRotColLeft[i].evakey
-
-				for j := range evakeyWant {
-
-					for k := range evakeyWant[j] {
-						require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateLeft %d element [%d][%d]", i, j, k)
-					}
-				}
-			}
-
-			if rotationKey.evakeyRotColRight[i] != nil {
-
-				evakeyWant := rotationKey.evakeyRotColRight[i].evakey
-				evakeyTest := resRotationKey.evakeyRotColRight[i].evakey
-
-				for j := range evakeyWant {
-
-					for k := range evakeyWant[j] {
-						require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRight %d element [%d][%d]", i, j, k)
-					}
-				}
-			}
-		}
-
-		if rotationKey.evakeyRotRow != nil {
-
-			evakeyWant := rotationKey.evakeyRotRow.evakey
-			evakeyTest := resRotationKey.evakeyRotRow.evakey
+		for _, r := range rots {
+			galEl := testctx.params.GaloisElementForColumnRotationBy(r)
+			evakeyWant := rotationKey.Keys[galEl].Value
+			evakeyTest := resRotationKey.Keys[galEl].Value
 
 			for j := range evakeyWant {
-
 				for k := range evakeyWant[j] {
-					require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal RotationKey RotateRow element [%d][%d]", j, k)
+					require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshalled rotation key element [%d][%d] does not match", j, k)
 				}
 			}
 		}
+
 	})
 }

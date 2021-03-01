@@ -19,7 +19,7 @@ type Encryptor interface {
 	// Encrypt encrypts the input plaintext using the stored key, and returns
 	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
-	// The level of the output ciphetext is min(plaintext.Level(), ciphertext.Level()).
+	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFastNew encrypts the input plaintext using the stored key and returns
@@ -28,25 +28,25 @@ type Encryptor interface {
 	// The level of the output ciphertext is plaintext.Level().
 	EncryptFastNew(plaintext *Plaintext) *Ciphertext
 
-	// EncryptFsat encrypts the input plaintext using the stored-key, and returns
-	// the result onthe receiver ciphertext. The encryption is done by first
+	// EncryptFast encrypts the input plaintext using the stored-key, and returns
+	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in Q and then adding the plaintext.
-	// The level of the output ciphetext is min(plaintext.Level(), ciphertext.Level()).
+	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 	EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
-	// The level of the output ciphetext is min(plaintext.Level(), len(CRP.Coeffs)-1).
+	// The level of the output ciphertext is min(plaintext.Level(), len(CRP.Coeffs)-1).
 	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
 
 	// EncryptFromCRP encrypts the input plaintext using the stored key and returns
 	// the result tge receiver ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
-	// The level of the output ciphetext is min(plaintext.Level(), ciphertext.Level(), len(CRP.Coeffs)-1).
-	EncryptFromCRP(plaintext *Plaintext, ciphertetx *Ciphertext, crp *ring.Poly)
+	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level(), len(CRP.Coeffs)-1).
+	EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly)
 }
 
 // encryptor is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
@@ -80,8 +80,13 @@ type skEncryptor struct {
 func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 	enc := newEncryptor(params)
 
+<<<<<<< HEAD
 	if uint64(pk.pk[0].N()) != params.N() || uint64(pk.pk[1].N()) != params.N() {
 		panic("cannot newEncrpytor: pk ring degree does not match params ring degree")
+=======
+	if uint64(pk.Value[0].GetDegree()) != params.N() || uint64(pk.Value[1].GetDegree()) != params.N() {
+		panic("cannot newEncryptor: pk ring degree does not match params ring degree")
+>>>>>>> dev_rlwe_layer
 	}
 
 	return &pkEncryptor{enc, pk}
@@ -92,7 +97,11 @@ func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
 	enc := newEncryptor(params)
 
+<<<<<<< HEAD
 	if uint64(sk.sk.N()) != params.N() {
+=======
+	if uint64(sk.Value.GetDegree()) != params.N() {
+>>>>>>> dev_rlwe_layer
 		panic("cannot newEncryptor: sk ring degree does not match params ring degree")
 	}
 
@@ -210,9 +219,9 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringQ.MFormLvl(lvl, poolQ2, poolQ2)
 
 		// ct0 = u*pk0
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.pk[0], ciphertext.value[0])
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.Value[0], ciphertext.value[0])
 		// ct1 = u*pk1
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.pk[1], ciphertext.value[1])
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.Value[1], ciphertext.value[1])
 
 		// ct1 = u*pk1 + e1
 		encryptor.gaussianSampler.ReadLvl(lvl, poolQ0, ringQ, encryptor.params.sigma, uint64(6*encryptor.params.sigma))
@@ -253,13 +262,13 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		pk0P := new(ring.Poly)
 		pk1P := new(ring.Poly)
-		pk0P.Coeffs = encryptor.pk.pk[0].Coeffs[len(ringQ.Modulus):]
-		pk1P.Coeffs = encryptor.pk.pk[1].Coeffs[len(ringQ.Modulus):]
+		pk0P.Coeffs = encryptor.pk.Value[0].Coeffs[len(ringQ.Modulus):]
+		pk1P.Coeffs = encryptor.pk.Value[1].Coeffs[len(ringQ.Modulus):]
 
 		// ct0 = u*pk0
 		// ct1 = u*pk1
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.pk[0], poolQ0)
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.pk[1], poolQ1)
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.Value[0], poolQ0)
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.Value[1], poolQ1)
 		ringP.MulCoeffsMontgomery(poolP2, pk0P, poolP0)
 		ringP.MulCoeffsMontgomery(poolP2, pk1P, poolP1)
 
@@ -351,7 +360,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 	poolQ0 := encryptor.poolQ[0]
 
-	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
+	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.value[1], encryptor.sk.Value, ciphertext.value[0])
 	ringQ.NegLvl(lvl, ciphertext.value[0], ciphertext.value[0])
 
 	if plaintext.isNTT {

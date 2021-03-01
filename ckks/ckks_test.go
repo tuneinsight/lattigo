@@ -721,7 +721,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 		}
 
 		evalNoRlk := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{})
-		evalNoRlk.MulRelin(ciphertext1, ciphertext2, ciphertext1)
+		evalNoRlk.Mul(ciphertext1, ciphertext2, ciphertext1)
 
 		testContext.evaluator.Relinearize(ciphertext1, ciphertext1)
 
@@ -744,7 +744,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 		}
 
 		evalNoRlk := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{})
-		evalNoRlk.MulRelin(ciphertext1, ciphertext2, ciphertext2)
+		evalNoRlk.Mul(ciphertext1, ciphertext2, ciphertext2)
 
 		testContext.evaluator.Relinearize(ciphertext2, ciphertext2)
 

@@ -146,6 +146,8 @@ type Evaluator interface {
 	Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciphertext) (err error)
 	RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ciphertext, err error)
 	RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *Ciphertext) (err error)
+	Mul(op0, op1 Operand, ctOut *Ciphertext)
+	MulNew(op0, op1 Operand) (ctOut *Ciphertext)
 	MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext)
 	MulRelin(op0, op1 Operand, ctOut *Ciphertext)
 	RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext)
@@ -1418,24 +1420,39 @@ func (eval *evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, ctOut *Ci
 	return nil
 }
 
-// MulRelinNew multiplies ct0 by ct1 and returns the result in a newly created element. The new scale is
-// the multiplication between the scales of the input elements (addition when the scale is represented in log2). An evaluation
-// key can be provided to apply a relinearization step to reduce the degree of the output element. This evaluation key is only
-// required when the two input elements are Ciphertexts. If no evaluation key is provided and the input elements are two Ciphertexts,
-// the resulting Ciphertext will be of degree two. This function only accepts Plaintexts (degree zero) and/or Ciphertexts of degree one.
-func (eval *evaluator) MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, utils.MinUint64(op0.Level(), op1.Level()), op0.Scale()+op1.Scale())
-	eval.MulRelin(op0, op1, ctOut)
-
-	return ctOut
+// MulNew multiplies op0 with op1 without relinearization and returns the result in a newly created element.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+func (eval *evaluator) MulNew(op0, op1 Operand) (ctOut *Ciphertext) {
+	ctOut = NewCiphertext(eval.params, 1, utils.MinUint64(op0.Level(), op1.Level()), 0)
+	eval.mulRelin(op0, op1, false, ctOut)
+	return
 }
 
-// MulRelin multiplies ct0 by ct1 and returns the result in ctOut. The new scale is
-// the multiplication between the scales of the input elements (addition when the scale is represented in log2). An evaluation
-// key can be provided to apply a relinearization step to reduce the degree of the output element. This evaluation key is only
-// required when the two input elements are Ciphertexts. If no evaluation key is provided and the input elements are two Ciphertexts,
-// the resulting Ciphertext will be of degree two. This function only accepts Plaintexts (degree zero) and/or Ciphertexts of degree one.
+// Mul multiplies op0 with op1 without relinearization and returns the result in ctOut.
+// The procedure will panic if either op0 or op1 are have a degree higher than 1.
+// The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+func (eval *evaluator) Mul(op0, op1 Operand, ctOut *Ciphertext) {
+	eval.mulRelin(op0, op1, false, ctOut)
+}
+
+// MulRelinNew multiplies ct0 by ct1 with relinearization and returns the result in a newly created element.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+// The procedure will panic if the evaluator was not created with an relinearization key.
+func (eval *evaluator) MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext) {
+	ctOut = NewCiphertext(eval.params, 1, utils.MinUint64(op0.Level(), op1.Level()), 0)
+	eval.mulRelin(op0, op1, true, ctOut)
+	return
+}
+
+// MulRelin multiplies op0 with op1 with relinearization and returns the result in ctOut.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+// The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+// The procedure will panic if the evaluator was not created with an relinearization key.
 func (eval *evaluator) MulRelin(op0, op1 Operand, ctOut *Ciphertext) {
+	eval.mulRelin(op0, op1, true, ctOut)
+}
+
+func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext) {
 
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 
@@ -1503,8 +1520,7 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, ctOut *Ciphertext) {
 			ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
 		}
 
-		// Relinearize if a key was provided
-		if eval.rlk != nil {
+		if relin {
 			eval.switchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.poolQ[1], eval.poolQ[2])
 			ringQ.AddLvl(level, c0, eval.poolQ[1], elOut.value[0])
 			ringQ.AddLvl(level, c1, eval.poolQ[2], elOut.value[1])

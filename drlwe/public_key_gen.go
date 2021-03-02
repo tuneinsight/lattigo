@@ -23,7 +23,7 @@ type CKGProtocol struct {
 	ringP           *ring.Ring
 	ringQP          *ring.Ring
 	gaussianSampler *ring.GaussianSampler
-	sigma float64
+	sigma           float64
 }
 
 // CKGShare is a struct storing the CKG protocol's share.

@@ -302,53 +302,30 @@ func benchExtendBasis(testContext *testParams, b *testing.B) {
 
 func benchDivByLastModulus(testContext *testParams, b *testing.B) {
 
-	var p0 *Poly
+	p0 := testContext.uniformSamplerQ.ReadNew()
+	p1 := testContext.ringQ.NewPolyLvl(p0.Level() - 1)
 
 	b.Run(testString("DivByLastModulus/Floor/", testContext.ringQ), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			p0 = testContext.uniformSamplerQ.ReadNew()
-			b.StartTimer()
-
-			testContext.ringQ.DivFloorByLastModulus(p0)
+			testContext.ringQ.DivFloorByLastModulus(p0, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/FloorNTT/", testContext.ringQ), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			p0 = testContext.uniformSamplerQ.ReadNew()
-			b.StartTimer()
-
-			testContext.ringQ.DivFloorByLastModulusNTT(p0)
+			testContext.ringQ.DivFloorByLastModulusNTT(p0, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/Round/", testContext.ringQ), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			p0 = testContext.uniformSamplerQ.ReadNew()
-			b.StartTimer()
-
-			testContext.ringQ.DivRoundByLastModulus(p0)
+			testContext.ringQ.DivRoundByLastModulus(p0, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/RoundNTT/", testContext.ringQ), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			p0 = testContext.uniformSamplerQ.ReadNew()
-			b.StartTimer()
-
-			testContext.ringQ.DivRoundByLastModulusNTT(p0)
+			testContext.ringQ.DivRoundByLastModulusNTT(p0, p1)
 		}
 	})
 }

@@ -200,16 +200,17 @@ func testDivFloorByLastModulusMany(testContext *testParams, t *testing.T) {
 			}
 		}
 
-		polTest := testContext.ringQ.NewPoly()
+		polTest0 := testContext.ringQ.NewPoly()
+		polTest1 := testContext.ringQ.NewPoly()
 		polWant := testContext.ringQ.NewPoly()
 
-		testContext.ringQ.SetCoefficientsBigint(coeffs, polTest)
+		testContext.ringQ.SetCoefficientsBigint(coeffs, polTest0)
 		testContext.ringQ.SetCoefficientsBigint(coeffsWant, polWant)
 
-		testContext.ringQ.DivFloorByLastModulusMany(polTest, uint64(nbRescals))
+		testContext.ringQ.DivFloorByLastModulusMany(polTest0, polTest1, uint64(nbRescals))
 		for i := uint64(0); i < testContext.ringQ.N; i++ {
 			for j := 0; j < len(testContext.ringQ.Modulus)-nbRescals; j++ {
-				require.Equalf(t, polWant.Coeffs[j][i], polTest.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
+				require.Equalf(t, polWant.Coeffs[j][i], polTest1.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
 			}
 		}
 	})
@@ -235,16 +236,17 @@ func testDivRoundByLastModulusMany(testContext *testParams, t *testing.T) {
 			}
 		}
 
-		polTest := testContext.ringQ.NewPoly()
+		polTest0 := testContext.ringQ.NewPoly()
+		polTest1 := testContext.ringQ.NewPoly()
 		polWant := testContext.ringQ.NewPoly()
 
-		testContext.ringQ.SetCoefficientsBigint(coeffs, polTest)
+		testContext.ringQ.SetCoefficientsBigint(coeffs, polTest0)
 		testContext.ringQ.SetCoefficientsBigint(coeffsWant, polWant)
 
-		testContext.ringQ.DivRoundByLastModulusMany(polTest, uint64(nbRescals))
+		testContext.ringQ.DivRoundByLastModulusMany(polTest0, polTest1, uint64(nbRescals))
 		for i := uint64(0); i < testContext.ringQ.N; i++ {
 			for j := 0; j < len(testContext.ringQ.Modulus)-nbRescals; j++ {
-				require.Equalf(t, polWant.Coeffs[j][i], polTest.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
+				require.Equalf(t, polWant.Coeffs[j][i], polTest1.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
 			}
 		}
 	})

@@ -34,7 +34,7 @@ type RTGProtocol struct { // TODO rename GaloisKeyGen ?
 
 	tmpPoly         [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
-	sigma float64
+	sigma           float64
 }
 
 // NewRTGProtocol creates a RTGProtocol instance

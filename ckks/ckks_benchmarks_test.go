@@ -196,15 +196,12 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 			b.Skip("#Pi is empty")
 		}
 
-		ringQ := testContext.ringQ
+		ciphertext1.SetScale(testContext.params.Scale() * testContext.params.Scale())
 
 		for i := 0; i < b.N; i++ {
-			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
-			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
-
-			b.StopTimer()
-			ciphertext1 = NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
-			b.StartTimer()
+			if err := eval.Rescale(ciphertext1, testContext.params.Scale(), ciphertext2); err != nil {
+				panic(err)
+			}
 		}
 	})
 

@@ -727,8 +727,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values2[i]
 		}
 
-		evalNoRlk := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{})
-		evalNoRlk.Mul(ciphertext1, ciphertext2, ciphertext1)
+		testContext.evaluator.Mul(ciphertext1, ciphertext2, ciphertext1)
 
 		testContext.evaluator.Relinearize(ciphertext1, ciphertext1)
 
@@ -750,8 +749,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values2[i] *= values1[i]
 		}
 
-		evalNoRlk := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{})
-		evalNoRlk.Mul(ciphertext1, ciphertext2, ciphertext2)
+		testContext.evaluator.Mul(ciphertext1, ciphertext2, ciphertext2)
 
 		testContext.evaluator.Relinearize(ciphertext2, ciphertext2)
 
@@ -874,11 +872,7 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-<<<<<<< HEAD
-		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale(), testContext.rlk); err != nil {
-=======
-		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly); err != nil {
->>>>>>> dev_rlwe_layer
+		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale()); err != nil {
 			t.Error(err)
 		}
 
@@ -914,11 +908,7 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-<<<<<<< HEAD
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
-=======
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
->>>>>>> dev_rlwe_layer
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
 			t.Error(err)
 		}
 
@@ -954,7 +944,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
 			t.Error(err)
 		}
 
@@ -1014,103 +1004,18 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 func testAutomorphisms(testContext *testParams, t *testing.T) {
 
-<<<<<<< HEAD
-	var rotKey *RotationKeys
-	if testContext.params.PiCount() != 0 {
-		rotKey = NewRotationKeys()
-		testContext.kgen.GenRotationKey(Conjugate, testContext.sk, 0, rotKey)
-	}
-
-	t.Run(testString(testContext, "Conjugate/InPlace/"), func(t *testing.T) {
-
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		for i := range values {
-			values[i] = complex(real(values[i]), -imag(values[i]))
-		}
-
-		testContext.evaluator.Conjugate(ciphertext, rotKey, ciphertext)
-
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
-	})
-
-	t.Run(testString(testContext, "Conjugate/New/"), func(t *testing.T) {
-
-		if testContext.params.PiCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		for i := range values {
-			values[i] = complex(real(values[i]), -imag(values[i]))
-		}
-
-		ciphertext = testContext.evaluator.ConjugateNew(ciphertext, rotKey)
-
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
-	})
-
-}
-
-func testRotateColumns(testContext *testParams, t *testing.T) {
-
-	var rotKey *RotationKeys
-	if testContext.params.PiCount() != 0 {
-		rotKey = testContext.kgen.GenRotationKeysPow2(testContext.sk)
-=======
 	if testContext.params.PiCount() == 0 {
 		t.Skip("#Pi is empty")
->>>>>>> dev_rlwe_layer
 	}
-	rots := []int{1, -1, 4, -4, 63, -63}
+	rots := []int{0, 1, -1, 4, -4, 63, -63}
 	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
 	evaluator := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
 
-	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		ciphertext2 := NewCiphertext(testContext.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
-
-		for _, n := range rots {
-
-			values2 := utils.RotateComplex128Slice(values1, n)
-
-			evaluator.Rotate(ciphertext1, n, ciphertext2)
-
-			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t, 0)
-		}
-	})
-
-	t.Run(testString(testContext, "RotateColumns/New/"), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		for _, n := range rots {
-
-			values2 := utils.RotateComplex128Slice(values1, n)
-
-<<<<<<< HEAD
-			// Applies the column rotation to the values
-			for i := range values1 {
-				values2[i] = values1[(i+n)%len(values1)]
-			}
-
-			verifyTestVectors(testContext, testContext.decryptor, values2, testContext.evaluator.RotateNew(ciphertext1, uint64(n), rotKey), t, 0)
-
-=======
-			verifyTestVectors(testContext, testContext.decryptor, values2, evaluator.RotateNew(ciphertext1, n), t)
->>>>>>> dev_rlwe_layer
-		}
-
-	})
-
 	t.Run(testString(testContext, "Conjugate/InPlace/"), func(t *testing.T) {
+
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1120,39 +1025,56 @@ func testRotateColumns(testContext *testParams, t *testing.T) {
 
 		evaluator.Conjugate(ciphertext, ciphertext)
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
 	})
 
 	t.Run(testString(testContext, "Conjugate/New/"), func(t *testing.T) {
 
+		if testContext.params.PiCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-<<<<<<< HEAD
-			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t, 0)
-=======
 		for i := range values {
 			values[i] = complex(real(values[i]), -imag(values[i]))
->>>>>>> dev_rlwe_layer
 		}
 
 		ciphertext = evaluator.ConjugateNew(ciphertext)
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
+	})
+
+	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		ciphertext2 := NewCiphertext(testContext.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+
+		for _, n := range rots {
+			evaluator.Rotate(ciphertext1, n, ciphertext2)
+			verifyTestVectors(testContext, testContext.decryptor, utils.RotateComplex128Slice(values1, n), ciphertext2, t, 0)
+		}
+	})
+
+	t.Run(testString(testContext, "RotateColumns/New/"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		for _, n := range rots {
+			verifyTestVectors(testContext, testContext.decryptor, utils.RotateComplex128Slice(values1, n), evaluator.RotateNew(ciphertext1, n), t, 0)
+		}
+
 	})
 
 	t.Run(testString(testContext, "RotateHoisted/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		values2 := make([]complex128, len(values1))
-
 		ciphertexts := evaluator.RotateHoisted(ciphertext1, rots)
 
 		for _, n := range rots {
-
-			values2 = utils.RotateComplex128Slice(values1, n)
-
-			verifyTestVectors(testContext, testContext.decryptor, values2, ciphertexts[n], t, 0)
+			verifyTestVectors(testContext, testContext.decryptor, utils.RotateComplex128Slice(values1, n), ciphertexts[n], t, 0)
 		}
 	})
 }

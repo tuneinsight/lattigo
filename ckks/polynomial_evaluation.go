@@ -52,11 +52,8 @@ func (p *Poly) Degree() uint64 {
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
-<<<<<<< HEAD
-func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, targetScale float64, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
-=======
-func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly) (opOut *Ciphertext, err error) {
->>>>>>> dev_rlwe_layer
+
+func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, targetScale float64) (opOut *Ciphertext, err error) {
 
 	if err := checkEnoughLevels(ct0.Level(), pol, 1); err != nil {
 		return ct0, err
@@ -81,11 +78,8 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly) (opOut *Cipherte
 		}
 	}
 
-<<<<<<< HEAD
-	opOut, err = recurse(targetScale, logSplit, logDegree, pol, C, eval, evakey)
-=======
-	opOut, err = recurse(eval.scale, logSplit, logDegree, pol, C, eval, eval.rlk)
->>>>>>> dev_rlwe_layer
+	opOut, err = recurse(targetScale, logSplit, logDegree, pol, C, eval, eval.rlk)
+
 	C = nil
 	return opOut, err
 }
@@ -94,11 +88,8 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly) (opOut *Cipherte
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
 // A change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a)) is necessary before the polynomial evaluation to ensure correctness.
-<<<<<<< HEAD
-func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, tartetScale float64, evakey *EvaluationKey) (opOut *Ciphertext, err error) {
-=======
-func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation) (opOut *Ciphertext, err error) {
->>>>>>> dev_rlwe_layer
+
+func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, tartetScale float64) (opOut *Ciphertext, err error) {
 
 	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 1); err != nil {
 		return op, err
@@ -123,11 +114,7 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 		}
 	}
 
-<<<<<<< HEAD
-	opOut, err = recurseCheby(tartetScale, logSplit, logDegree, &cheby.Poly, C, eval, evakey)
-=======
-	opOut, err = recurseCheby(eval.scale, logSplit, logDegree, &cheby.Poly, C, eval, eval.rlk)
->>>>>>> dev_rlwe_layer
+	opOut, err = recurseCheby(tartetScale, logSplit, logDegree, &cheby.Poly, C, eval, eval.rlk)
 
 	C = nil
 

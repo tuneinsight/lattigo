@@ -26,7 +26,7 @@ type Encoder interface {
 	EncodeNTTNew(values []complex128, logSlots uint64) (plaintext *Plaintext)
 	EncodeNTTAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
 
-	EncodeDiagMatrixAtLvl(level uint64, vector map[uint64][]complex128, scale, maxM1N2Ratio float64, logSlots uint64) (matrix *PtDiagMatrix)
+	EncodeDiagMatrixAtLvl(level uint64, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots uint64) (matrix *PtDiagMatrix)
 
 	Decode(plaintext *Plaintext, logSlots uint64) (res []complex128)
 	DecodePublic(plaintext *Plaintext, logSlots uint64, sigma float64) []complex128
@@ -215,7 +215,6 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots uint64) {
 	}
 }
 
-<<<<<<< HEAD
 // GetErrSTDFreqDom returns the scaled standard deviation of the difference between two complex vectors in the slot domains
 func (encoder *encoderComplex128) GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 
@@ -248,9 +247,6 @@ func (encoder *encoderComplex128) GetErrSTDTimeDom(valuesWant, valuesHave []comp
 }
 
 // ScaleUp writes the internaly stored encoded values on a polynomial.
-=======
-// ScaleUp writes the internally stored encoded values on a polynomial.
->>>>>>> dev_rlwe_layer
 func (encoder *encoderComplex128) ScaleUp(pol *ring.Poly, scale float64, moduli []uint64) {
 	scaleUpVecExact(encoder.valuesfloat, scale, moduli, pol.Coeffs)
 }
@@ -337,7 +333,7 @@ func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex
 }
 
 func (encoder *encoderComplex128) plaintextToComplex(level uint64, scale float64, logSlots uint64, p *ring.Poly, values []complex128) {
-	if scale < float64(encoder.ringQ.Modulus[0]) || level == 0 {
+	if level == 0 {
 		polyToComplexNoCRT(p.Coeffs[0], encoder.values, scale, logSlots, encoder.ringQ.Modulus[0])
 	} else {
 		polyToComplexCRT(p, encoder.bigintCoeffs, values, scale, logSlots, encoder.ringQ, encoder.bigintChain[level])
@@ -367,11 +363,11 @@ func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64
 // PtDiagMatrix is a struct storing a plaintext diagonalized matrix
 // ready to be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 type PtDiagMatrix struct {
-	LogSlots   uint64                   // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
-	N1         uint64                   // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
-	Level      uint64                   // Level is the level at which the matrix is encoded (can be circuit dependant)
-	Scale      float64                  // Scale is the scale at which the matrix is encoded (can be circuit dependant)
-	Vec        map[uint64][2]*ring.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
+	LogSlots   uint64                // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
+	N1         int                   // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
+	Level      uint64                // Level is the level at which the matrix is encoded (can be circuit dependant)
+	Scale      float64               // Scale is the scale at which the matrix is encoded (can be circuit dependant)
+	Vec        map[int][2]*ring.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
 	naive      bool
 	rotOnly    bool // Only one diagonal of the form [1, ..., 1]
 	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
@@ -381,34 +377,34 @@ type PtDiagMatrix struct {
 // It can then be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 // maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.MultiplyByDiagMatrice.
 // Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
-func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map[uint64][]complex128, scale, maxM1N2Ratio float64, logSlots uint64) (matrix *PtDiagMatrix) {
+func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots uint64) (matrix *PtDiagMatrix) {
 
 	matrix = new(PtDiagMatrix)
 	matrix.LogSlots = logSlots
 	matrix.N1 = findbestbabygiantstepsplit(vector, 1<<logSlots, maxM1N2Ratio)
 
-	var N, N1 uint64
+	var N, N1 int
 
 	ringQ := encoder.ringQ
 
 	// N1*N2 = N
-	N = ringQ.N
+	N = int(ringQ.N)
 	N1 = matrix.N1
 
 	if len(vector) > 2 {
 
-		index := make(map[uint64][]uint64)
+		index := make(map[int][]int)
 		for key := range vector {
 			idx1 := key / N1
 			idx2 := key & (N1 - 1)
 			if index[idx1] == nil {
-				index[idx1] = []uint64{idx2}
+				index[idx1] = []int{idx2}
 			} else {
 				index[idx1] = append(index[idx1], idx2)
 			}
 		}
 
-		matrix.Vec = make(map[uint64][2]*ring.Poly)
+		matrix.Vec = make(map[int][2]*ring.Poly)
 
 		matrix.Level = level
 		matrix.Scale = scale
@@ -416,12 +412,12 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map
 		for j := range index {
 
 			for _, i := range index[j] {
-				matrix.Vec[N1*j+uint64(i)] = encoder.encodeDiagonal(logSlots, level, scale, vector[N1*j+uint64(i)], (N>>1)-(N1*j))
+				matrix.Vec[N1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, vector[N1*j+i], (N>>1)-(N1*j))
 			}
 		}
 	} else {
 
-		matrix.Vec = make(map[uint64][2]*ring.Poly)
+		matrix.Vec = make(map[int][2]*ring.Poly)
 
 		matrix.Level = level
 		matrix.Scale = scale
@@ -434,39 +430,34 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level uint64, vector map
 	return
 }
 
-func (encoder *encoderComplex128) encodeDiagonal(logSlots, level uint64, scale float64, m []complex128, k uint64) [2]*ring.Poly {
+func (encoder *encoderComplex128) encodeDiagonal(logSlots, level uint64, scale float64, m []complex128, k int) [2]*ring.Poly {
 
 	ringQ := encoder.ringQ
 	ringP := encoder.ringP
-	N := ringQ.N
 
 	encoder.Embed(rotate(m, k), logSlots)
 
-	mQ := ring.NewPoly(N, level+1)
+	mQ := ringQ.NewPolyLvl(level + 1)
 	encoder.ScaleUp(mQ, scale, ringQ.Modulus[:level+1])
 	ringQ.NTTLvl(level, mQ, mQ)
 	ringQ.MFormLvl(level, mQ, mQ)
 
-	mP := ring.NewPoly(N, level+1)
+	mP := ringP.NewPoly()
 	encoder.ScaleUp(mP, scale, ringP.Modulus)
 	ringP.NTT(mP, mP)
 	ringP.MForm(mP, mP)
 
 	encoder.WipeInternalMemory()
 
-<<<<<<< HEAD
 	return [2]*ring.Poly{mQ, mP}
 }
-=======
-	if plaintext.Level() == 0 {
->>>>>>> dev_rlwe_layer
 
 // Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, maxRatio float64) (minN uint64) {
+func findbestbabygiantstepsplit(vector map[int][]complex128, maxN int, maxRatio float64) (minN int) {
 
-	for N1 := uint64(1); N1 < maxN; N1 <<= 1 {
+	for N1 := 1; N1 < maxN; N1 <<= 1 {
 
-		index := make(map[uint64][]uint64)
+		index := make(map[int][]int)
 
 		for key := range vector {
 
@@ -474,7 +465,7 @@ func findbestbabygiantstepsplit(vector map[uint64][]complex128, maxN uint64, max
 			idx2 := key & (N1 - 1)
 
 			if index[idx1] == nil {
-				index[idx1] = []uint64{idx2}
+				index[idx1] = []int{idx2}
 			} else {
 				index[idx1] = append(index[idx1], idx2)
 			}

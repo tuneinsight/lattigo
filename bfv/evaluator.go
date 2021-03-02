@@ -81,7 +81,15 @@ func newEvaluatorPrecomp(params *Parameters) *evaluatorBase {
 		panic(err)
 	}
 
-	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), uint64(len(params.qi)))
+	// Generates #QiMul primes such that Q * QMul > Q*Q*N
+	logQTimesN := uint64(ev.ringQ.ModulusBigint.BitLen()) + params.LogN()
+	var nbQiMul, logQMul uint64
+	for logQMul < logQTimesN {
+		nbQiMul++
+		logQMul += 61
+	}
+
+	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), nbQiMul)
 
 	if ev.ringQMul, err = ring.NewRing(params.N(), qiMul); err != nil {
 		panic(err)

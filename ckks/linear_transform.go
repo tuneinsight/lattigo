@@ -5,7 +5,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-func (eval *evaluator) LinearTransform(vec *Ciphertext, linearTransform interface{}, rotkeys *RotationKeys) (res []*Ciphertext) {
+func (eval *evaluator) LinearTransform(vec *Ciphertext, linearTransform interface{}) (res []*Ciphertext) {
 
 	levelQ := vec.Level()
 
@@ -15,34 +15,34 @@ func (eval *evaluator) LinearTransform(vec *Ciphertext, linearTransform interfac
 	case []*PtDiagMatrix:
 		res = make([]*Ciphertext, len(element))
 		for i, matrix := range element {
-			eval.multiplyByDiabMatrix(vec, res[i], matrix, rotkeys, eval.c2QiQDecomp, eval.c2QiPDecomp)
+			eval.multiplyByDiabMatrix(vec, res[i], matrix, eval.c2QiQDecomp, eval.c2QiPDecomp)
 		}
 	case *PtDiagMatrix:
 		res = []*Ciphertext{NewCiphertext(eval.params, 1, vec.Level(), vec.Scale())}
-		eval.multiplyByDiabMatrix(vec, res[0], element, rotkeys, eval.c2QiQDecomp, eval.c2QiPDecomp)
+		eval.multiplyByDiabMatrix(vec, res[0], element, eval.c2QiQDecomp, eval.c2QiPDecomp)
 	}
 
 	return
 }
 
-func (eval *evaluator) multiplyByDiabMatrix(vec, res *Ciphertext, matrix *PtDiagMatrix, rotKeys *RotationKeys, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
+func (eval *evaluator) multiplyByDiabMatrix(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
 
 	if matrix.rotOnly {
 		for i := range matrix.Vec {
-			eval.permuteNTTHoisted(vec, c2QiQDecomp, c2QiPDecomp, i, rotKeys, res)
+			eval.permuteNTTHoisted(vec, c2QiQDecomp, c2QiPDecomp, i, res)
 		}
 	} else {
 		if matrix.naive {
-			eval.multiplyByDiabMatrixNaive(vec, res, matrix, rotKeys, c2QiQDecomp, c2QiPDecomp)
+			eval.multiplyByDiabMatrixNaive(vec, res, matrix, c2QiQDecomp, c2QiPDecomp)
 		} else {
-			eval.multiplyByDiabMatrixBSGS(vec, res, matrix, rotKeys, c2QiQDecomp, c2QiPDecomp)
+			eval.multiplyByDiabMatrixBSGS(vec, res, matrix, c2QiQDecomp, c2QiPDecomp)
 		}
 	}
 
 	return
 }
 
-func (eval *evaluator) multiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *PtDiagMatrix, rotKeys *RotationKeys, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
+func (eval *evaluator) multiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
@@ -69,21 +69,30 @@ func (eval *evaluator) multiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *P
 	cnt := 0
 	for k := range matrix.Vec {
 
-		k &= ((ringQ.N >> 1) - 1)
+		k &= int((ringQ.N >> 1) - 1)
 
 		if k == 0 {
 			state = true
 		} else {
 
-			eval.keyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rotKeys.evakeyRotColLeft[k], ksResQ0, ksResQ1, ksResP0, ksResP1)
+			galEl := eval.params.GaloisElementForColumnRotationBy(k)
+
+			rtk, generated := eval.rtks.Keys[galEl]
+			if !generated {
+				panic("switching key not available")
+			}
+
+			index := eval.permuteNTTIndex[galEl]
+
+			eval.keyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rtk, ksResQ0, ksResQ1, ksResP0, ksResP1)
 
 			ringQ.AddLvl(levelQ, ksResQ0, ct0TimesP, ksResQ0) // phi(d0_Q) += phi(P*c0)
 
-			ring.PermuteNTTWithIndexLvl(levelQ, ksResQ0, rotKeys.permuteNTTLeftIndex[k], tmpQ0) // phi(P*c0 + d0_Q)
-			ring.PermuteNTTWithIndexLvl(levelQ, ksResQ1, rotKeys.permuteNTTLeftIndex[k], tmpQ1) // phi(       d1_Q)
+			ring.PermuteNTTWithIndexLvl(levelQ, ksResQ0, index, tmpQ0) // phi(P*c0 + d0_Q)
+			ring.PermuteNTTWithIndexLvl(levelQ, ksResQ1, index, tmpQ1) // phi(       d1_Q)
 
-			ring.PermuteNTTWithIndexLvl(levelP, ksResP0, rotKeys.permuteNTTLeftIndex[k], tmpP0) // phi(P*c0 + d0_P)
-			ring.PermuteNTTWithIndexLvl(levelP, ksResP1, rotKeys.permuteNTTLeftIndex[k], tmpP1) // phi(       d1_P)
+			ring.PermuteNTTWithIndexLvl(levelP, ksResP0, index, tmpP0) // phi(P*c0 + d0_P)
+			ring.PermuteNTTWithIndexLvl(levelP, ksResP1, index, tmpP1) // phi(       d1_P)
 
 			plaintextQ := matrix.Vec[k][0]
 			plaintextP := matrix.Vec[k][1]
@@ -117,7 +126,7 @@ func (eval *evaluator) multiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *P
 	res.SetScale(matrix.Scale * vec.Scale())
 }
 
-func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *PtDiagMatrix, rotKeys *RotationKeys, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
+func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
 
 	// N1*N2 = N
 	N1 := matrix.N1
@@ -129,8 +138,8 @@ func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 	levelP := eval.params.PiCount() - 1
 
 	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
-	index := make(map[uint64][]uint64)
-	rotations := []uint64{}
+	index := make(map[int][]int)
+	rotations := []int{}
 
 	for key := range matrix.Vec {
 
@@ -138,18 +147,18 @@ func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 		idx2 := key & (N1 - 1)
 
 		if index[idx1] == nil {
-			index[idx1] = []uint64{idx2}
+			index[idx1] = []int{idx2}
 		} else {
 			index[idx1] = append(index[idx1], idx2)
 		}
 
-		if !utils.IsInSliceUint64(idx2, rotations) {
+		if !utils.IsInSliceInt(idx2, rotations) {
 			rotations = append(rotations, idx2)
 		}
 	}
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	vecRotQ, vecRotP := eval.rotateHoistedNoModDown(vec, rotations, eval.c2QiQDecomp, eval.c2QiPDecomp, rotKeys)
+	vecRotQ, vecRotP := eval.rotateHoistedNoModDown(vec, rotations, eval.c2QiQDecomp, eval.c2QiPDecomp)
 
 	// Accumulator inner loop
 	tmpQ0 := eval.poolQMul[0] // unused memory pool from evaluator
@@ -179,8 +188,18 @@ func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 
 	for _, i := range rotations {
 		if i != 0 {
-			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, rotKeys.permuteNTTLeftIndex[i], tmpQ1) // phi(P*c0)
-			ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ1, vecRotQ[i][0])                         // phi(d0_Q) += phi(P*c0)
+
+			galEl := eval.params.GaloisElementForColumnRotationBy(i)
+
+			_, generated := eval.rtks.Keys[galEl]
+			if !generated {
+				panic("switching key not available")
+			}
+
+			index := eval.permuteNTTIndex[galEl]
+
+			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, index, tmpQ1)  // phi(P*c0)
+			ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ1, vecRotQ[i][0]) // phi(d0_Q) += phi(P*c0)
 		}
 	}
 
@@ -201,8 +220,8 @@ func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 
 					N1Rot++
 
-					plaintextQ := matrix.Vec[N1*j+uint64(i)][0]
-					plaintextP := matrix.Vec[N1*j+uint64(i)][1]
+					plaintextQ := matrix.Vec[N1*j+i][0]
+					plaintextP := matrix.Vec[N1*j+i][1]
 
 					if cnt1 == 0 {
 						ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ0) // phi(P*c0 + d0_Q) * plaintext
@@ -239,26 +258,33 @@ func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 				N1Rot++
 			}
 
-			eval.switchKeysInPlaceNoModDown(levelQ, tmpQ1, rotKeys.evakeyRotColLeft[N1*j], pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
+			galEl := eval.params.GaloisElementForColumnRotationBy(N1 * j)
+
+			rtk, generated := eval.rtks.Keys[galEl]
+			if !generated {
+				panic("switching key not available")
+			}
+
+			index := eval.permuteNTTIndex[galEl]
+
+			eval.switchKeysInPlaceNoModDown(levelQ, tmpQ1, rtk, pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
 
 			// Outer loop rotations
-			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, rotKeys.permuteNTTLeftIndex[N1*j], tmpQ1) // phi(tmpRes_0)
-			ringQ.AddLvl(levelQ, res.value[0], tmpQ1, res.value[0])                              // res += phi(tmpRes)
-
-			rot := rotKeys.permuteNTTLeftIndex[N1*j]
+			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, index, tmpQ1) // phi(tmpRes_0)
+			ringQ.AddLvl(levelQ, res.value[0], tmpQ1, res.value[0])  // res += phi(tmpRes)
 
 			N2Rot++
 
 			if cnt0 == 0 {
-				ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, rot, tmpQ2) // sum(phi(d0_Q))
-				ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, rot, tmpQ3) // sum(phi(d1_Q))
-				ring.PermuteNTTWithIndexLvl(levelP, pool2P, rot, tmpP2) // sum(phi(d0_P))
-				ring.PermuteNTTWithIndexLvl(levelP, pool3P, rot, tmpP3) // sum(phi(d1_P))
+				ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, tmpQ2) // sum(phi(d0_Q))
+				ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, tmpQ3) // sum(phi(d1_Q))
+				ring.PermuteNTTWithIndexLvl(levelP, pool2P, index, tmpP2) // sum(phi(d0_P))
+				ring.PermuteNTTWithIndexLvl(levelP, pool3P, index, tmpP3) // sum(phi(d1_P))
 			} else {
-				ring.PermuteNTTWithIndexAndAddNoModLvl(levelQ, pool2Q, rot, tmpQ2) // sum(phi(d0_Q))
-				ring.PermuteNTTWithIndexAndAddNoModLvl(levelQ, pool3Q, rot, tmpQ3) // sum(phi(d1_Q))
-				ring.PermuteNTTWithIndexAndAddNoModLvl(levelP, pool2P, rot, tmpP2) // sum(phi(d0_P))
-				ring.PermuteNTTWithIndexAndAddNoModLvl(levelP, pool3P, rot, tmpP3) // sum(phi(d1_P))
+				ring.PermuteNTTWithIndexAndAddNoModLvl(levelQ, pool2Q, index, tmpQ2) // sum(phi(d0_Q))
+				ring.PermuteNTTWithIndexAndAddNoModLvl(levelQ, pool3Q, index, tmpQ3) // sum(phi(d1_Q))
+				ring.PermuteNTTWithIndexAndAddNoModLvl(levelP, pool2P, index, tmpP2) // sum(phi(d0_P))
+				ring.PermuteNTTWithIndexAndAddNoModLvl(levelP, pool3P, index, tmpP3) // sum(phi(d1_P))
 			}
 
 			if cnt0 == 7 {
@@ -287,8 +313,8 @@ func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 			state = true
 		} else {
 
-			plaintextQ := matrix.Vec[uint64(i)][0]
-			plaintextP := matrix.Vec[uint64(i)][1]
+			plaintextQ := matrix.Vec[i][0]
+			plaintextP := matrix.Vec[i][1]
 			N1Rot++
 			// keyswitch(c1_Q) = (d0_QP, d1_QP)
 			ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ2) // phi(P*c0 + d0_Q) * plaintext

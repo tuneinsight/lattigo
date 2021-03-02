@@ -34,15 +34,14 @@ func TestMatrices(t *testing.T) {
 	encoder := NewEncoder(params)
 	kgen := NewKeyGenerator(params)
 	sk := kgen.GenSecretKey()
-	rlk := kgen.GenRelinKey(sk)
-	rotKeys := NewRotationKeys()
+	rlk := kgen.GenRelinearizationKey(sk)
 	encryptor := NewEncryptorFromSk(params, sk)
 	decryptor := NewDecryptor(params, sk)
-	eval := NewEvaluator(params)
+	eval := NewEvaluator(params, EvaluationKey{rlk, nil})
 
 	// Size of the matrices (dxd)
-	rows := uint64(64)
-	cols := uint64(64)
+	rows := 16
+	cols := 16
 
 	t.Run("Transpose/", func(t *testing.T) {
 
@@ -50,7 +49,9 @@ func TestMatrices(t *testing.T) {
 
 		diagMatrix, _ := GenTransposeDiagMatrix(params.MaxLevel(), float64(params.Qi()[params.MaxLevel()]), 16.0, rows, params.LogSlots(), encoder)
 
-		kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
+		rotKeys := kgen.GenRotKeysForDiagMatrix(diagMatrix, false, sk)
+
+		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
 		for i := range m {
 			m[i] = m[i].Transpose()
@@ -59,7 +60,7 @@ func TestMatrices(t *testing.T) {
 		//PrintDebug(ct, rows, cols, params, encoder, decryptor)
 
 		start := time.Now()
-		ct = eval.LinearTransform(ct, diagMatrix, rotKeys)[0]
+		ct = eval0.LinearTransform(ct, diagMatrix)[0]
 		fmt.Println("Done :", time.Since(start))
 
 		VerifyTestVectors(params, encoder, decryptor, m, ct, t)
@@ -85,7 +86,7 @@ func TestMatrices(t *testing.T) {
 
 		res := NewCiphertext(params, 1, ct.Level(), ct.Scale())
 
-		for k := uint64(1); k < rows; k++ {
+		for k := 1; k < rows; k++ {
 
 			t.Run(fmt.Sprintf("k=%d/", k), func(t *testing.T) {
 
@@ -93,13 +94,15 @@ func TestMatrices(t *testing.T) {
 
 				diagMatrix, _ := GenSubVectorRotationMatrix(level, float64(params.Qi()[level]), rows, k, params.LogSlots(), encoder)
 
-				kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
+				rotKeys := kgen.GenRotKeysForDiagMatrix(diagMatrix, false, sk)
+
+				eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
 				for j := range m {
 					m[j].RotateCols(1)
 				}
 
-				eval.(*evaluator).multiplyByDiabMatrix(ct, res, diagMatrix, rotKeys, c2QiQDecompA, c2QiPDecompA)
+				eval0.(*evaluator).multiplyByDiabMatrix(ct, res, diagMatrix, c2QiQDecompA, c2QiPDecompA)
 
 				VerifyTestVectors(params, encoder, decryptor, m, res, t)
 			})
@@ -124,7 +127,7 @@ func TestMatrices(t *testing.T) {
 
 		res := NewCiphertext(params, 1, ct.Level(), ct.Scale())
 
-		for k := uint64(1); k < rows; k++ {
+		for k := 1; k < rows; k++ {
 
 			t.Run(fmt.Sprintf("k=%d/", k), func(t *testing.T) {
 
@@ -132,13 +135,15 @@ func TestMatrices(t *testing.T) {
 
 				diagMatrix, _ := GenSubVectorRotationMatrix(level, float64(params.Qi()[level]), rows*rows, k*rows, params.LogSlots(), encoder)
 
-				kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
+				rotKeys := kgen.GenRotKeysForDiagMatrix(diagMatrix, false, sk)
+
+				eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
 				for j := range m {
 					m[j].RotateRows(1)
 				}
 
-				eval.(*evaluator).multiplyByDiabMatrix(ct, res, diagMatrix, rotKeys, c2QiQDecompA, c2QiPDecompA)
+				eval0.(*evaluator).multiplyByDiabMatrix(ct, res, diagMatrix, c2QiQDecompA, c2QiPDecompA)
 
 				VerifyTestVectors(params, encoder, decryptor, m, res, t)
 			})
@@ -152,13 +157,15 @@ func TestMatrices(t *testing.T) {
 
 		diagMatrix, _ := genPermuteRowsMatrix(level, float64(params.Qi()[level]), 16.0, rows, params.LogSlots(), encoder)
 
-		kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
+		rotKeys := kgen.GenRotKeysForDiagMatrix(diagMatrix, false, sk)
+
+		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
 		for j := range m {
 			m[j].PermuteRows()
 		}
 
-		ct = eval.LinearTransform(ct, diagMatrix, rotKeys)[0]
+		ct = eval0.LinearTransform(ct, diagMatrix)[0]
 
 		//PrintDebug(ct, rows, cols, params, encoder, decryptor)
 
@@ -173,7 +180,9 @@ func TestMatrices(t *testing.T) {
 
 		diagMatrix, _ := genPermuteColsMatrix(level, float64(params.Qi()[level]), 16.0, rows, params.LogSlots(), encoder)
 
-		kgen.GenRotKeysForDiagMatrix(diagMatrix, sk, rotKeys)
+		rotKeys := kgen.GenRotKeysForDiagMatrix(diagMatrix, false, sk)
+
+		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
 		for j := range m {
 			m[j].PermuteCols()
@@ -181,7 +190,7 @@ func TestMatrices(t *testing.T) {
 
 		//PrintDebug(ct, d, params, encoder, decryptor)
 
-		ct = eval.LinearTransform(ct, diagMatrix, rotKeys)[0]
+		ct = eval0.LinearTransform(ct, diagMatrix)[0]
 
 		//PrintDebug(ct, d, params, encoder, decryptor)
 
@@ -194,14 +203,16 @@ func TestMatrices(t *testing.T) {
 		mB, _, ctB := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		mmpt := GenMatMulLinTrans(params, params.MaxLevel(), rows, encoder)
-		kgen.GenMatMulRotKeys(mmpt, sk, rotKeys)
+		rotKeys := kgen.GenMatMulRotKeys(mmpt, sk)
+
+		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
 		for j := range mA {
 			mA[j].MulMat(mA[j], mB[j])
 		}
 
 		start := time.Now()
-		ctAB := eval.MulMatrix(ctA, ctB, mmpt, rlk, rotKeys)
+		ctAB := eval0.MulMatrix(ctA, ctB, mmpt)
 		fmt.Println("Done :", time.Since(start))
 
 		//PrintDebug(ctAB, d, params, encoder, decryptor)
@@ -217,18 +228,18 @@ func MatricesToVector(m []*Matrix, params *Parameters) (values []complex128) {
 
 	d := m[0].Rows() * m[0].Cols()
 
-	for i := uint64(0); i < params.Slots()/d; i++ {
+	for i := 0; i < int(params.Slots())/d; i++ {
 
 		for j, c := range m[i].M {
-			values[i*d+uint64(j)] = c
+			values[i*d+j] = c
 		}
 	}
 	return
 }
 
-func GenTestVectors(rows, cols uint64, params *Parameters, encoder Encoder, encryptor Encryptor) (m []*Matrix, pt *Plaintext, ct *Ciphertext) {
+func GenTestVectors(rows, cols int, params *Parameters, encoder Encoder, encryptor Encryptor) (m []*Matrix, pt *Plaintext, ct *Ciphertext) {
 
-	m = GenRandomComplexMatrices(rows, cols, params.Slots()/(rows*cols))
+	m = GenRandomComplexMatrices(rows, cols, int(params.Slots())/(rows*cols))
 
 	values := MatricesToVector(m, params)
 

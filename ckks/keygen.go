@@ -25,8 +25,8 @@ type KeyGenerator interface {
 	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet)
 	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
 	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey)
-	GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *SecretKey, rotKeys *RotationKeys)
-	GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey, rotKeys *RotationKeys)
+	GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, includeConjugate bool, sk *SecretKey) (rotKeys *RotationKeySet)
+	GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey) (rotKeys *RotationKeySet)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -81,13 +81,8 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	sk = new(SecretKey)
 
-<<<<<<< HEAD
-	sk.sk = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
-	keygen.ringQP.NTT(sk.sk, sk.sk)
-=======
-	sk.Value = keygen.gaussianSampler.ReadNew()
+	sk.Value = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
 	keygen.ringQP.NTT(sk.Value, sk.Value)
->>>>>>> dev_rlwe_layer
 	return sk
 }
 
@@ -128,15 +123,10 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
-<<<<<<< HEAD
-	pk.pk[0] = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
-	ringQP.NTT(pk.pk[0], pk.pk[0])
-	pk.pk[1] = keygen.uniformSampler.ReadNew()
-=======
-	pk.Value[0] = keygen.gaussianSampler.ReadNew()
+
+	pk.Value[0] = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
 	ringQP.NTT(pk.Value[0], pk.Value[0])
 	pk.Value[1] = keygen.uniformSampler.ReadNew()
->>>>>>> dev_rlwe_layer
 
 	ringQP.MulCoeffsMontgomeryAndSub(sk.Value, pk.Value[1], pk.Value[0])
 
@@ -234,15 +224,10 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.Sw
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-<<<<<<< HEAD
-		switchingkey.evakey[i][0] = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
-		ringQP.NTTLazy(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
-		ringQP.MForm(switchingkey.evakey[i][0], switchingkey.evakey[i][0])
-=======
-		keygen.gaussianSampler.Read(swk.Value[i][0])
+
+		keygen.gaussianSampler.Read(swk.Value[i][0], keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
 		ringQP.NTTLazy(swk.Value[i][0], swk.Value[i][0])
 		ringQP.MForm(swk.Value[i][0], swk.Value[i][0])
->>>>>>> dev_rlwe_layer
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
 		keygen.uniformSampler.Read(swk.Value[i][1])
@@ -323,7 +308,7 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 	}
 
 	btpKey = &BootstrappingKey{
-		Rlk:  keygen.GenRelinearizationKey(sk),
+		Rlk:  keygen.GenRelinearizationKey(sk), // TODO : this should not be part of the bootstrapping
 		Rtks: keygen.GenRotationKeysForRotations(rotInt, true, sk),
 	}
 
@@ -338,26 +323,32 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 	return
 }
 
-func (keygen *keyGenerator) GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey, rotKeys *RotationKeys) {
+func (keygen *keyGenerator) GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey) (rks *RotationKeySet) {
 
-	keygen.GenRotKeysForDiagMatrix(mmpt.mPermuteRows, sk, rotKeys)
-	keygen.GenRotKeysForDiagMatrix(mmpt.mPermuteCols, sk, rotKeys)
+	rotations := keygen.GetRotationIndexForDiagMatrix(mmpt.mPermuteRows)
+	rotations = append(rotations, keygen.GetRotationIndexForDiagMatrix(mmpt.mPermuteCols)...)
 
 	for i := range mmpt.mRotCols {
-		keygen.GenRotKeysForDiagMatrix(mmpt.mRotCols[i], sk, rotKeys)
-		keygen.GenRotKeysForDiagMatrix(mmpt.mRotRows[i], sk, rotKeys)
+
+		rotations = append(rotations, keygen.GetRotationIndexForDiagMatrix(mmpt.mRotCols[i])...)
+		rotations = append(rotations, keygen.GetRotationIndexForDiagMatrix(mmpt.mRotRows[i])...)
 	}
+
+	return keygen.GenRotationKeysForRotations(rotations, false, sk)
 }
 
 // GenRotKeysForDiagMatrix populates a RotationKeys struct with the necessary rotation keys for
 // the evaluation of the plaintext matrix on a ciphertext using evaluator.MultiplyByDiagMatrice.
-func (keygen *keyGenerator) GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *SecretKey, rotKeys *RotationKeys) {
+func (keygen *keyGenerator) GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet) {
+	return keygen.GenRotationKeysForRotations(keygen.GetRotationIndexForDiagMatrix(matrix), includeConjugate, sk)
+}
 
-	slots := uint64(1 << matrix.LogSlots)
+func (keygen *keyGenerator) GetRotationIndexForDiagMatrix(matrix *PtDiagMatrix) []int {
+	slots := 1 << matrix.LogSlots
 
-	rotKeyIndex := []uint64{}
+	rotKeyIndex := []int{}
 
-	var index uint64
+	var index int
 
 	N1 := matrix.N1
 
@@ -365,7 +356,7 @@ func (keygen *keyGenerator) GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *Se
 
 		for key := range matrix.Vec {
 
-			if !utils.IsInSliceUint64(key, rotKeyIndex) {
+			if !utils.IsInSliceInt(key, rotKeyIndex) {
 				rotKeyIndex = append(rotKeyIndex, key)
 			}
 		}
@@ -376,21 +367,19 @@ func (keygen *keyGenerator) GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, sk *Se
 
 			index = ((j / N1) * N1) & (slots - 1)
 
-			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+			if index != 0 && !utils.IsInSliceInt(index, rotKeyIndex) {
 				rotKeyIndex = append(rotKeyIndex, index)
 			}
 
 			index = j & (N1 - 1)
 
-			if index != 0 && !utils.IsInSliceUint64(index, rotKeyIndex) {
+			if index != 0 && !utils.IsInSliceInt(index, rotKeyIndex) {
 				rotKeyIndex = append(rotKeyIndex, index)
 			}
 		}
 	}
 
-	for _, i := range rotKeyIndex {
-		keygen.GenRotationKey(RotationLeft, sk, uint64(i), rotKeys)
-	}
+	return rotKeyIndex
 }
 
 func addMatrixRotToList(pVec map[uint64]bool, rotations []uint64, N1, slots uint64, repack bool) []uint64 {

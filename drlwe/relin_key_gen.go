@@ -27,7 +27,7 @@ type RKGProtocol struct {
 	ringP           *ring.Ring
 	ringQP          *ring.Ring
 	gaussianSampler *ring.GaussianSampler
-	sigma float64
+	sigma           float64
 	ternarySampler  *ring.TernarySampler // sampling in Montgomerry form
 
 	tmpPoly1 *ring.Poly

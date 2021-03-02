@@ -80,13 +80,8 @@ type skEncryptor struct {
 func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 	enc := newEncryptor(params)
 
-<<<<<<< HEAD
-	if uint64(pk.pk[0].N()) != params.N() || uint64(pk.pk[1].N()) != params.N() {
-		panic("cannot newEncrpytor: pk ring degree does not match params ring degree")
-=======
-	if uint64(pk.Value[0].GetDegree()) != params.N() || uint64(pk.Value[1].GetDegree()) != params.N() {
+	if uint64(pk.Value[0].Degree()) != params.N() || uint64(pk.Value[1].Degree()) != params.N() {
 		panic("cannot newEncryptor: pk ring degree does not match params ring degree")
->>>>>>> dev_rlwe_layer
 	}
 
 	return &pkEncryptor{enc, pk}
@@ -97,11 +92,7 @@ func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
 	enc := newEncryptor(params)
 
-<<<<<<< HEAD
-	if uint64(sk.sk.N()) != params.N() {
-=======
-	if uint64(sk.Value.GetDegree()) != params.N() {
->>>>>>> dev_rlwe_layer
+	if uint64(sk.Value.Degree()) != params.N() {
 		panic("cannot newEncryptor: sk ring degree does not match params ring degree")
 	}
 

@@ -18,7 +18,7 @@ type PermuteProtocol struct {
 	baseconverter   *ring.FastBasisExtender
 	scaler          ring.Scaler
 	gaussianSampler *ring.GaussianSampler
-	sigma float64
+	sigma           float64
 	uniformSampler  *ring.UniformSampler
 }
 

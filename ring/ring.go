@@ -44,6 +44,8 @@ type Ring struct {
 	NttPsi    [][]uint64 //powers of the inverse of the 2N-th primitive root in Montgomery form (in bit-reversed order)
 	NttPsiInv [][]uint64 //powers of the inverse of the 2N-th primitive root in Montgomery form (in bit-reversed order)
 	NttNInv   []uint64   //[N^-1] mod Qi in Montgomery form
+
+	polypool *Poly
 }
 
 // NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli. N must be a power of two larger than 8. Moduli should be
@@ -108,6 +110,9 @@ func (r *Ring) setParameters(N uint64, Modulus []uint64) error {
 			r.MredParams[i] = MRedParams(qi)
 		}
 	}
+
+	r.polypool = r.NewPoly()
+
 	return nil
 }
 
@@ -144,7 +149,7 @@ func (r *Ring) genNTTParams() error {
 
 		for i := 0; i < j; i++ {
 
-			r.RescaleParams[j-1][i] = MForm(ModExp(r.Modulus[j], r.Modulus[i]-2, r.Modulus[i]), r.Modulus[i], r.BredParams[i])
+			r.RescaleParams[j-1][i] = MForm(r.Modulus[i]-ModExp(r.Modulus[j], r.Modulus[i]-2, r.Modulus[i]), r.Modulus[i], r.BredParams[i])
 		}
 	}
 

@@ -21,7 +21,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	btpParams := DefaultBootstrapParams[paramSet]
 
 	params, err := btpParams.Params()
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	if testContext, err = genTestParams(params, btpParams.H); err != nil {

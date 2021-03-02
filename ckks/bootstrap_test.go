@@ -87,11 +87,7 @@ func testSin(testContext *testParams, btpParams *BootstrappingParameters, t *tes
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-<<<<<<< HEAD
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
-=======
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
->>>>>>> dev_rlwe_layer
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
 			t.Error(err)
 		}
 
@@ -165,11 +161,7 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-<<<<<<< HEAD
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
-=======
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
->>>>>>> dev_rlwe_layer
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
 			t.Error(err)
 		}
 
@@ -218,7 +210,7 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 			t.Log(ciphertext.Level(), ciphertext.Scale())
 			poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1 / 6 * 0.15915494309189535, 0, 3 / 40 * 0.15915494309189535, 0, 5 / 112 * 0.15915494309189535}[:btpParams.ArcSineDeg+1])
 			t.Log(poly)
-			ciphertext, _ = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale(), testContext.rlk)
+			ciphertext, _ = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale())
 			t.Log(ciphertext.Level(), ciphertext.Scale())
 		}
 
@@ -282,11 +274,7 @@ func testCos2(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-<<<<<<< HEAD
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale(), testContext.rlk); err != nil {
-=======
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby); err != nil {
->>>>>>> dev_rlwe_layer
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
 			t.Error(err)
 		}
 
@@ -329,7 +317,7 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.scale)
+		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
 		testContext.encoder.Encode(plaintext, values, params.logSlots)
 
 		ciphertext := testContext.encryptorPk.EncryptNew(plaintext)

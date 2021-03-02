@@ -1279,7 +1279,7 @@ func (eval *evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, ctOut *Ci
 // MulNew multiplies op0 with op1 without relinearization and returns the result in a newly created element.
 // The procedure will panic if either op0.Degree or op1.Degree > 1.
 func (eval *evaluator) MulNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, utils.MinUint64(op0.Level(), op1.Level()), 0)
+	ctOut = NewCiphertext(eval.params, op0.Degree()+op1.Degree(), utils.MinUint64(op0.Level(), op1.Level()), 0)
 	eval.mulRelin(op0, op1, false, ctOut)
 	return
 }
@@ -1345,8 +1345,10 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		c0 = elOut.value[0]
 		c1 = elOut.value[1]
 
-		if eval.rlk == nil {
-			elOut.Resize(eval.params, 2)
+		if relin == false {
+			if elOut.Degree() < 2 {
+				elOut.Resize(eval.params, 2)
+			}
 			c2 = elOut.value[2]
 		} else {
 			c2 = eval.poolQMul[2]

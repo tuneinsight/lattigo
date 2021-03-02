@@ -56,25 +56,47 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 	// d1 = U(Rq^d)
 	// d2 = r * a + e2 + mu * g
 
-	g := new(ring.Poly) // TODO: seems to be the base decomposition... ask how to initialize it
-
-	d1 := new(ring.Poly)
-	uniformSampler.Read(d1) // TODO: ask if format is correct for uniform sampling (Rq^d ?)
+	d1 := uniformSampler.ReadNew() // TODO: ask if format is correct for uniform sampling (Rq^d ?). No NTT on it ?
 
 	e1 := gaussianSampler.ReadNew()
 	e2 := gaussianSampler.ReadNew()
+	ringQP.NTT(e1, e1)
+	ringQP.NTT(e2, e2)
 
 	a := pk.key.Value[1]
 
 	d0 := e1
 	d2 := e2
 
-	ringQP.MulCoeffsMontgomeryAndAdd(random.Value, g, d0) //TODO: is it the correct way to perform these operations ?
+	multiplyByBase(random.Value, params, d0) //TODO: is it the correct way to perform these operations ?
 	ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1, d0)
 	ringQP.MulCoeffsMontgomeryAndAdd(random.Value, a, d2)
-	ringQP.MulCoeffsMontgomeryAndAdd(mu, g, d2)
+	multiplyByBase(mu, params, d2)
 
 	return [3]*ring.Poly{d0, d1, d2}
+}
+
+// Function that multiply a ring element p1 by the decomposition basis and stores it in p2
+func multiplyByBase(p1 *ring.Poly, params *bfv.Parameters, p2 *ring.Poly) {
+
+	alpha := params.Alpha() // TODO: ask if implementation is correct
+	beta := params.Beta()
+
+	for i := uint64(0); i < beta; i++ {
+
+		for j := uint64(0); j < alpha; j++ {
+
+			index := i*alpha + j
+			qi := params.Qi()[index]
+			tmp := p1.Coeffs[index]
+
+			for w := uint64(0); w < params.N(); w++ {
+				tmp[w] = ring.CRed(tmp[w], qi)
+			}
+		}
+	}
+
+	copy(p2.Coeffs, p1.Coeffs)
 }
 
 // Function used to generate the evaluation key. The evaluation key is the encryption of the secret key under itself using uniEnc

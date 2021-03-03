@@ -3,12 +3,18 @@ package mkbfv
 import (
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // KeyGen generated a secret key, a public key and a relinearization key
-// given BFV paramters and the peer id.
-func KeyGen(params *bfv.Parameters, peerID uint64) *MKKeys {
+// given BFV paramters, the peer id and the vector "a" common to all participants
+func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys {
+
+	// create ring
+	var ringQP *ring.Ring
+	var err error
+	if ringQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
+		panic(err)
+	}
 
 	generator := bfv.NewKeyGenerator(params)
 
@@ -19,34 +25,45 @@ func KeyGen(params *bfv.Parameters, peerID uint64) *MKKeys {
 	keyBag.secretKey.key = generator.GenSecretKey()
 	keyBag.secretKey.peerID = peerID
 
-	keyBag.publicKey.key = generator.GenPublicKey(keyBag.secretKey.key) //TODO: verify if format is in Rq or Rq^d
+	keyBag.publicKey.key[1] = genPublicKey(keyBag.secretKey.key, params, generator, ringQP, a)
+	keyBag.publicKey.key[0] = a
 	keyBag.publicKey.peerID = peerID
 
 	// generate evaluation key. The evaluation key is also used in the relinearization phase
-	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, generator, params)
+	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, generator, params, ringQP)
 
 	return keyBag
 }
 
+// Generate a public key in Rq^d
+func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGenerator, ringQP *ring.Ring, a *MKDecomposedPoly) *MKDecomposedPoly {
+
+	var res *MKDecomposedPoly
+
+	// a <- U(Rq^d)
+	// e <- Gauss(Rq^d)
+	// b <- -s * a + e mod(q) in Rq^d
+
+	beta := params.Beta()
+
+	res = GetGaussianDecomposed(generator.GetGaussianSampler(), beta) // e in Rq^d
+
+	for d := uint64(0); d < beta; d++ {
+		current := res.poly[d]
+		ringQP.NTT(current, current)                                   // Pass ei in NTT
+		ringQP.MulCoeffsMontgomeryAndSub(sk.Value, a.poly[d], current) // bi = -s * ai + ei (mod q)
+	}
+
+	return res
+}
+
 // Symmetric encryption of a single ring element (mu) under the secret key (sk).
-func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters) [3]*ring.Poly {
+func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) [3]*MKDecomposedPoly {
 
 	random := generator.GenSecretKey() // random element as same distribution as the secret key
 
-	// create an uniform sampler and a gaussian sampler in Rq
-	var ringQP *ring.Ring
-	var err error
-	if ringQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
-		panic(err)
-	}
-
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-
-	uniformSampler := ring.NewUniformSampler(prng, ringQP)
-	gaussianSampler := ring.NewGaussianSampler(prng, ringQP, params.Sigma(), uint64(6*params.Sigma()))
+	uniformSampler := generator.GetUniformSampler()
+	gaussianSampler := generator.GetGaussianSampler()
 
 	// a  <- setup(1^\lambda)
 	// e1 <- sample(\psi^d)
@@ -56,43 +73,87 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 	// d1 = U(Rq^d)
 	// d2 = r * a + e2 + mu * g
 
-	d1 := uniformSampler.ReadNew() // TODO: ask if format is correct for uniform sampling (Rq^d ?). No NTT on it ?
+	beta := params.Beta()
 
-	e1 := gaussianSampler.ReadNew()
-	e2 := gaussianSampler.ReadNew()
-	ringQP.NTT(e1, e1)
-	ringQP.NTT(e2, e2)
+	d1 := GetUniformDecomposed(uniformSampler, beta)
 
-	a := pk.key.Value[1]
+	d0 := GetGaussianDecomposed(gaussianSampler, beta) // e1 <- Gauss(Rq^d)
+	d2 := GetGaussianDecomposed(gaussianSampler, beta) //e2 <- Gauss(Rq^d)
 
-	d0 := e1
-	d2 := e2
+	a := pk.key[0] // a <- U(Rq^d) first component of the public key
 
-	multiplyByBaseAndAdd(random.Value, params, d0) //TODO: is it the correct way to perform these operations ?
-	ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1, d0)
-	ringQP.MulCoeffsMontgomeryAndAdd(random.Value, a, d2)
-	multiplyByBaseAndAdd(mu, params, d2)
+	for d := uint64(0); d < beta; d++ {
+		ringQP.NTT(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
+		ringQP.NTT(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
+		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
+		ringQP.MulCoeffsMontgomeryAndAdd(random.Value, a.poly[d], d2.poly[d])
+	}
 
-	return [3]*ring.Poly{d0, d1, d2}
+	MultiplyByBaseAndAdd(random.Value, params, d0)
+	MultiplyByBaseAndAdd(mu, params, d2)
+
+	return [3]*MKDecomposedPoly{d0, d1, d2}
 }
 
-// Function that multiply a ring element p1 by the decomposition basis and adds it to p2
-func multiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *ring.Poly) {
+// MultiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2
+func MultiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *MKDecomposedPoly) {
 
 	alpha := params.Alpha()
 	beta := params.Beta()
 
-	for j := alpha * beta; j < alpha*(beta+1)-1; j++ { //TODO: ask how to perform this operation
+	var index uint64
 
+	for i := uint64(0); i < beta; i++ {
+
+		for j := uint64(0); j < alpha; j++ {
+
+			index = i*alpha + j
+
+			qi := params.Qi()[index] //same as ringQP.Modulus[index] ?
+			p0tmp := p1.Coeffs[index]
+			p1tmp := p2.poly[i].Coeffs[index]
+
+			for w := uint64(0); w < params.N(); w++ {
+				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi) // TODO: confirm code in next meeting (code review)
+			}
+
+			// Handles the case where nb pj does not divide nb qi
+			if index >= params.QiCount() {
+				break
+			}
+		}
 	}
-
 }
 
 // Function used to generate the evaluation key. The evaluation key is the encryption of the secret key under itself using uniEnc
-func evaluationKeyGen(sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters) MKEvaluationKey {
+func evaluationKeyGen(sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) MKEvaluationKey {
 
 	return MKEvaluationKey{
-		key:    uniEnc(sk.key.Value, sk, pk, generator, params),
+		key:    uniEnc(sk.key.Value, sk, pk, generator, params, ringQP),
 		peerID: sk.peerID,
 	}
+}
+
+// GetGaussianDecomposed samples from a gaussian distribution and build an element of Rq^d
+func GetGaussianDecomposed(sampler *ring.GaussianSampler, dimension uint64) *MKDecomposedPoly {
+	res := new(MKDecomposedPoly)
+
+	for d := uint64(0); d < dimension; d++ {
+
+		res.poly = append(res.poly, sampler.ReadNew())
+	}
+
+	return res
+}
+
+// GetUniformDecomposed samples from a uniform distribution and build an element of Rq^d
+func GetUniformDecomposed(sampler *ring.UniformSampler, dimension uint64) *MKDecomposedPoly {
+	res := new(MKDecomposedPoly)
+
+	for d := uint64(0); d < dimension; d++ {
+
+		res.poly = append(res.poly, sampler.ReadNew())
+	}
+
+	return res
 }

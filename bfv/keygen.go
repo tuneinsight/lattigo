@@ -20,6 +20,8 @@ type KeyGenerator interface {
 	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
 	GenRotationKeysForRotations(ks []int, includeSwapRow bool, sk *SecretKey) (rks *RotationKeySet)
 	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
+	GetUniformSampler() *ring.UniformSampler
+	GetGaussianSampler() *ring.GaussianSampler
 }
 
 // keyGenerator is a structure that stores the elements required to create new keys,
@@ -64,6 +66,16 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 		gaussianSampler: ring.NewGaussianSampler(prng, ringQP, params.Sigma(), uint64(6*params.Sigma())),
 		uniformSampler:  ring.NewUniformSampler(prng, ringQP),
 	}
+}
+
+// GetUniformSampler is a getter for the uniform sampler used in the key generator
+func (keygen *keyGenerator) GetUniformSampler() *ring.UniformSampler {
+	return keygen.uniformSampler
+}
+
+// GetGaussianSampler is a getter for the gaussian sampler used in the key generator
+func (keygen *keyGenerator) GetGaussianSampler() *ring.GaussianSampler {
+	return keygen.gaussianSampler
 }
 
 // GenSecretKey creates a new SecretKey with the distribution [1/3, 1/3, 1/3].

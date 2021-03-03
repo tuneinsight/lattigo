@@ -11,15 +11,20 @@ type MKSecretKey struct {
 	peerID uint64
 }
 
-// MKPublicKey is a type for BFV public keys and ID in a multi key context.
+// MKPublicKey is a type for BFV public keys and ID in a multi key context. key[0] = a and key[1] = -s * a + e mod q
 type MKPublicKey struct {
-	key    *bfv.PublicKey
+	key    [2]*MKDecomposedPoly
 	peerID uint64
+}
+
+// MKDecomposedPoly is a type for vectors decomposed in a basis w (belong to Rq^d)(gadget decomposition)
+type MKDecomposedPoly struct {
+	poly []*ring.Poly
 }
 
 // MKEvaluationKey is a type for BFV evaluation keys in a multy key context.
 type MKEvaluationKey struct {
-	key    [3]*ring.Poly
+	key    [3]*MKDecomposedPoly
 	peerID uint64
 }
 

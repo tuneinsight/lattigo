@@ -68,35 +68,24 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 	d0 := e1
 	d2 := e2
 
-	multiplyByBase(random.Value, params, d0) //TODO: is it the correct way to perform these operations ?
+	multiplyByBaseAndAdd(random.Value, params, d0) //TODO: is it the correct way to perform these operations ?
 	ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1, d0)
 	ringQP.MulCoeffsMontgomeryAndAdd(random.Value, a, d2)
-	multiplyByBase(mu, params, d2)
+	multiplyByBaseAndAdd(mu, params, d2)
 
 	return [3]*ring.Poly{d0, d1, d2}
 }
 
-// Function that multiply a ring element p1 by the decomposition basis and stores it in p2
-func multiplyByBase(p1 *ring.Poly, params *bfv.Parameters, p2 *ring.Poly) {
+// Function that multiply a ring element p1 by the decomposition basis and adds it to p2
+func multiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *ring.Poly) {
 
-	alpha := params.Alpha() // TODO: ask if implementation is correct
+	alpha := params.Alpha()
 	beta := params.Beta()
 
-	for i := uint64(0); i < beta; i++ {
+	for j := alpha * beta; j < alpha*(beta+1)-1; j++ { //TODO: ask how to perform this operation
 
-		for j := uint64(0); j < alpha; j++ {
-
-			index := i*alpha + j
-			qi := params.Qi()[index]
-			tmp := p1.Coeffs[index]
-
-			for w := uint64(0); w < params.N(); w++ {
-				tmp[w] = ring.CRed(tmp[w], qi)
-			}
-		}
 	}
 
-	copy(p2.Coeffs, p1.Coeffs)
 }
 
 // Function used to generate the evaluation key. The evaluation key is the encryption of the secret key under itself using uniEnc

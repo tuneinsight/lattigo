@@ -28,9 +28,15 @@ type MKEvaluationKey struct {
 	peerID uint64
 }
 
-// MKRotationKey is a type for BFV evaluation keys in a multy key context.
-type MKRotationKey struct {
-	//TODO: ask if same as in bfv or follow the paper's implementation (Hao Chen)
+// MKSwitchingKey is a type for BFV switching keys in a multy key context.
+type MKSwitchingKey struct {
+	key    [3]*MKDecomposedPoly
+	peerID uint64
+}
+
+// MKRelinearizationKey is a type for BFV relinearization keys in a multy key context.
+type MKRelinearizationKey struct {
+	key    [][]*MKSwitchingKey
 	peerID uint64
 }
 
@@ -39,5 +45,5 @@ type MKKeys struct {
 	secretKey MKSecretKey
 	publicKey MKPublicKey
 	evalKey   MKEvaluationKey
-	rotKey    MKRotationKey
+	relinKey  MKRelinearizationKey
 }

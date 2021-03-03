@@ -29,7 +29,7 @@ func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys 
 	keyBag.publicKey.key[0] = a
 	keyBag.publicKey.peerID = peerID
 
-	// generate evaluation key. The evaluation key is also used in the relinearization phase
+	// generate evaluation key. The evaluation key is also used in the relinearization phase.
 	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, generator, params, ringQP)
 
 	return keyBag

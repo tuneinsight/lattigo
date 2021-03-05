@@ -1396,7 +1396,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		c1 = elOut.value[1]
 
 		if relin == false {
-			if elOut.Degree() < 2{
+			if elOut.Degree() < 2 {
 				elOut.Resize(eval.params, 2)
 			}
 			c2 = elOut.value[2]

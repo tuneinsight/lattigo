@@ -172,8 +172,8 @@ func (b *BootstrappingParameters) StCDepth(actual bool) (depth uint64) {
 // DefaultBootstrapParams are default bootstrapping params for the bootstrapping.
 var DefaultBootstrapParams = []*BootstrappingParameters{
 
-	// SET II
-	// 1521 - 550
+	// SET I
+	// 1538 - 550
 	{
 		LogN:     16,
 		LogSlots: 15,
@@ -181,60 +181,60 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		Sigma:    DefaultSigma,
 		ResidualModuli: []uint64{
 			0x10000000006e0001, // 60 Q0
-			0x10000140001, 
-			0xffffe80001, 
-			0xffffc40001, 
-			0x100003e0001, 
-			0xffffb20001, 
-			0x10000500001, 
-			0xffff940001, 
-			0xffff8a0001, 
-			0xffff820001, 
-			0xffff780001,
+			0x10000140001,      // 40
+			0xffffe80001,       // 40
+			0xffffc40001,       // 40
+			0x100003e0001,      // 40
+			0xffffb20001,       // 40
+			0x10000500001,      // 40
+			0xffff940001,       // 40
+			0xffff8a0001,       // 40
+			0xffff820001,       // 40
 		},
 		KeySwitchModuli: []uint64{
 			0x1fffffffffe00001, // Pi 61
 			0x1fffffffffc80001, // Pi 61
 			0x1fffffffffb40001, // Pi 61
 			0x1fffffffff500001, // Pi 61
+			0x1fffffffff420001, // Pi 61
 		},
 		SlotsToCoeffsModuli: SlotsToCoeffsModuli{
 			Qi: []uint64{
-				0x7fff80001, 
-				0x800260001, 
-				0x800280001,
+				0x7fffe60001, // 39 StC
+				0x7fffe40001, // 39 StC
+				0x7fffe00001, // 39 StC
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x7fff80001},
-				[]float64{0x800260001},
-				[]float64{0x800280001},
+				[]float64{0x7fffe60001},
+				[]float64{0x7fffe40001},
+				[]float64{0x7fffe00001},
 			},
 		},
 		SineEvalModuli: SineEvalModuli{
 			Qi: []uint64{
-				0xfffffffff840001, 
-				0x1000000000860001, 
-				0xfffffffff6a0001, 
-				0x1000000000980001, 
-				0xfffffffff5a0001, 
-				0x1000000000b00001, 
-				0x1000000000ce0001, 
-				0xfffffffff2a0001,
+				0xfffffffff840001,  // 60 Sine (double angle)
+				0x1000000000860001, // 60 Sine (double angle)
+				0xfffffffff6a0001,  // 60 Sine
+				0x1000000000980001, // 60 Sine
+				0xfffffffff5a0001,  // 60 Sine
+				0x1000000000b00001, // 60 Sine
+				0x1000000000ce0001, // 60 Sine
+				0xfffffffff2a0001,  // 60 Sine
 			},
 			ScalingFactor: 1 << 60,
 		},
 		CoeffsToSlotsModuli: CoeffsToSlotsModuli{
 			Qi: []uint64{
-				0x7ffffffffcc0001, 
-				0x7ffffffffba0001, 
-				0x8000000004a0001, 
-				0x7ffffffffb00001,
+				0x100000000060001, // 58 CtS
+				0xfffffffff00001,  // 58 CtS
+				0xffffffffd80001,  // 58 CtS
+				0x1000000002a0001, // 58 CtS
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x7ffffffffcc0001},
-				[]float64{0x7ffffffffba0001},
-				[]float64{0x8000000004a0001},
-				[]float64{0x7ffffffffb00001},
+				[]float64{0x100000000060001},
+				[]float64{0xfffffffff00001},
+				[]float64{0xffffffffd80001},
+				[]float64{0x1000000002a0001},
 			},
 		},
 		H:            192,
@@ -251,65 +251,59 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// 1525 - 550
 	{
 		LogN:     16,
-		LogSlots: 15,
-		Scale:    1 << 45,
+		LogSlots: 10,
+		Scale:    1 << 54,
 		Sigma:    DefaultSigma,
 		ResidualModuli: []uint64{
-			0x80000000080001, // 55 Q0
-			0x2000000a0001,   // 45
-			0x2000000e0001,   // 45
-			0x1fffffc20001,   // 45
-			0x200000440001,   // 45
-			0x200000500001,   // 45
-			0x200000620001,   // 45
+			0x10000000006e0001, // 60 Q0
 		},
 		KeySwitchModuli: []uint64{
-			0xfffffffff00001,  // 56
-			0xffffffffd80001,  // 56
-			0x1000000002a0001, // 56
-			0xffffffffd20001,  // 56
-			0x100000000480001, // 56
+			0x1fffffffffe00001, // Pi 61
+			0x1fffffffffc80001, // Pi 61
+			0x1fffffffffb40001, // Pi 61
+			0x1fffffffff500001, // Pi 61
 		},
 		SlotsToCoeffsModuli: SlotsToCoeffsModuli{
 			Qi: []uint64{
-				0x10004a0001, // 36
-				0x1000500001, // 36
-				0x1000960001, // 36
+				0xffffffffefe0001,
+				0x10000000011a0001,
+				0xffffffffeca0001,
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x10004a0001},
-				[]float64{0x1000500001},
-				[]float64{0x1000960001},
+				[]float64{0xffffffffefe0001},
+				[]float64{0x10000000011a0001},
+				[]float64{0xffffffffeca0001},
 			},
 		},
 		SineEvalModuli: SineEvalModuli{
 			Qi: []uint64{
-				0x80000000e00001, // ArcSine
-				0x7ffffffef00001, // ArcSine
-				0x800000011c0001, // ArcSine
-				0x80000000440001, // Double Angle
-				0x7fffffffba0001, // Double Angle
-				0x80000000500001, // Sine
-				0x7fffffffaa0001, // Sine
-				0x800000005e0001, // Sine
-				0x7fffffff7e0001, // Sine
-				0x7fffffff380001, // Sine
-				0x80000000ca0001, // Sine
+				0xffffffffffc0001,  // ArcSine
+				0xfffffffff240001,  // ArcSine
+				0x1000000000f00001, // ArcSine
+				0x1000000001fa0001,
+				0xfffffffff840001,  // Double angle
+				0x1000000000860001, // Double angle
+				0xfffffffff6a0001,  // Sine
+				0x1000000000980001, // Sine
+				0xfffffffff5a0001,  // Sine
+				0x1000000000b00001, // Sine
+				0x1000000000ce0001, // Sine
+				0xfffffffff2a0001,  // Sine
 			},
-			ScalingFactor: 1 << 55,
+			ScalingFactor: 1 << 60,
 		},
 		CoeffsToSlotsModuli: CoeffsToSlotsModuli{
 			Qi: []uint64{
-				0x200000000e0001, // 53 CtS
-				0x20000000140001, // 53 CtS
-				0x20000000280001, // 53 CtS
-				0x1fffffffd80001, // 53 CtS
+				0xffffffffdda0001,
+				0xffffffffdd20001,
+				0x1000000002340001,
+				0x10000000023a0001,
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x200000000e0001},
-				[]float64{0x20000000140001},
-				[]float64{0x20000000280001},
-				[]float64{0x1fffffffd80001},
+				[]float64{0xffffffffdda0001},
+				[]float64{0xffffffffdd20001},
+				[]float64{0x1000000002340001},
+				[]float64{0x10000000023a0001},
 			},
 		},
 		H:            192,
@@ -318,11 +312,11 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		SinRange:     25,
 		SinDeg:       63,
 		SinRescal:    2,
-		ArcSineDeg:   7,
+		ArcSineDeg:   15,
 		MaxN1N2Ratio: 16.0,
 	},
 
-	// SET V
+	// SET III
 	// 1553 - 505
 	{
 		LogN:     16,
@@ -385,7 +379,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		},
 		H:            192,
 		SinType:      Cos1,
-		MessageRatio: 1024.0,
+		MessageRatio: 256.0,
 		SinRange:     25,
 		SinDeg:       63,
 		SinRescal:    2,
@@ -393,23 +387,24 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		MaxN1N2Ratio: 16.0,
 	},
 
-	// Set VII
+	// Set IV
 	// 1773 - 460
 	{
 		LogN:     16,
-		LogSlots: 15,
-		Scale:    1 << 45,
+		LogSlots: 14,
+		Scale:    1 << 40,
 		Sigma:    DefaultSigma,
 		ResidualModuli: []uint64{
-			0x80000000080001, // 55 Q0
-			0x2000000a0001,   // 45
-			0x2000000e0001,   // 45
-			0x1fffffc20001,   // 45
-			0x200000440001,   // 45
-			0x200000500001,   // 45
-			0x200000620001,   // 45
-			0x1fffff980001,   // 45
-			0x2000006a0001,   // 45
+			0x4000000120001, // 60 Q0
+			0x10000140001,
+			0xffffe80001,
+			0xffffc40001,
+			0x100003e0001,
+			0xffffb20001,
+			0x10000500001,
+			0xffff940001,
+			0xffff8a0001,
+			0xffff820001,
 		},
 		KeySwitchModuli: []uint64{
 			0x1fffffffffe00001, // Pi 61
@@ -462,7 +457,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		},
 		H:            32768,
 		SinType:      Cos2,
-		MessageRatio: 1024.0,
+		MessageRatio: 256.0,
 		SinRange:     325,
 		SinDeg:       255,
 		SinRescal:    4,
@@ -470,21 +465,21 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		MaxN1N2Ratio: 16.0,
 	},
 
-	// Set IV
+	// Set V
 	// 768 - 110
 	{
 		LogN:     15,
-		LogSlots: 14,
+		LogSlots: 13,
 		Scale:    1 << 25,
 		Sigma:    DefaultSigma,
 		ResidualModuli: []uint64{
-			0x7fffb0001,     // 35 Q0
+			0x1fff90001,     // 32 Q0
 			0x4000000420001, // 50
 			0x1fc0001,       // 25
 		},
 		KeySwitchModuli: []uint64{
-			0x7e40000000001, // 50
-			0x7c80000000001, // 50
+			0x7fffffffe0001, // 51
+			0x8000000110001, // 51
 		},
 		SlotsToCoeffsModuli: SlotsToCoeffsModuli{
 			Qi: []uint64{
@@ -519,7 +514,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		},
 		H:            192,
 		SinType:      Cos1,
-		MessageRatio: 1024.0,
+		MessageRatio: 256.0,
 		SinRange:     25,
 		SinDeg:       63,
 		SinRescal:    2,

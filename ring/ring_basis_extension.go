@@ -677,15 +677,16 @@ func reconstructRNS(index, x uint64, p [][]uint64, v *[8]uint64, y0, y1, y2, y3,
 		qi = Q[i]
 		qiInv = QInv[i]
 		qif = float64(qi)
+		pTmp := (*[8]uint64)(unsafe.Pointer(&p[i][x]))
 
-		y0[i] = MRed(p[i][x+0], qibMont, qi, qiInv)
-		y1[i] = MRed(p[i][x+1], qibMont, qi, qiInv)
-		y2[i] = MRed(p[i][x+2], qibMont, qi, qiInv)
-		y3[i] = MRed(p[i][x+3], qibMont, qi, qiInv)
-		y4[i] = MRed(p[i][x+4], qibMont, qi, qiInv)
-		y5[i] = MRed(p[i][x+5], qibMont, qi, qiInv)
-		y6[i] = MRed(p[i][x+6], qibMont, qi, qiInv)
-		y7[i] = MRed(p[i][x+7], qibMont, qi, qiInv)
+		y0[i] = MRed(pTmp[0], qibMont, qi, qiInv)
+		y1[i] = MRed(pTmp[1], qibMont, qi, qiInv)
+		y2[i] = MRed(pTmp[2], qibMont, qi, qiInv)
+		y3[i] = MRed(pTmp[3], qibMont, qi, qiInv)
+		y4[i] = MRed(pTmp[4], qibMont, qi, qiInv)
+		y5[i] = MRed(pTmp[5], qibMont, qi, qiInv)
+		y6[i] = MRed(pTmp[6], qibMont, qi, qiInv)
+		y7[i] = MRed(pTmp[7], qibMont, qi, qiInv)
 
 		// Computation of the correction term v * Q%pi
 		vi[0] += float64(y0[i]) / qif

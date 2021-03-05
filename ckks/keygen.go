@@ -25,7 +25,9 @@ type KeyGenerator interface {
 	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet)
 	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
 	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey)
+	GetRotationIndexForDiagMatrix(matrix *PtDiagMatrix) []int
 	GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, includeConjugate bool, sk *SecretKey) (rotKeys *RotationKeySet)
+	GenMatMulIndexRotKeys(mmpt *MMPt) []int
 	GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey) (rotKeys *RotationKeySet)
 }
 
@@ -323,9 +325,10 @@ func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *Boot
 	return
 }
 
-func (keygen *keyGenerator) GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey) (rks *RotationKeySet) {
+// GenMatMulIndexRotKeys generates a list of all the rotations needed for mmpt
+func (keygen *keyGenerator) GenMatMulIndexRotKeys(mmpt *MMPt) (rotations []int) {
 
-	rotations := keygen.GetRotationIndexForDiagMatrix(mmpt.mPermuteRows)
+	rotations = keygen.GetRotationIndexForDiagMatrix(mmpt.mPermuteRows)
 	rotations = append(rotations, keygen.GetRotationIndexForDiagMatrix(mmpt.mPermuteCols)...)
 
 	for i := range mmpt.mRotCols {
@@ -334,7 +337,12 @@ func (keygen *keyGenerator) GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey) (rks *Ro
 		rotations = append(rotations, keygen.GetRotationIndexForDiagMatrix(mmpt.mRotRows[i])...)
 	}
 
-	return keygen.GenRotationKeysForRotations(rotations, false, sk)
+	return
+}
+
+// GenMatMulRotKeys generates the rotationkeyset for mmpt
+func (keygen *keyGenerator) GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey) (rks *RotationKeySet) {
+	return keygen.GenRotationKeysForRotations(keygen.GenMatMulIndexRotKeys(mmpt), false, sk)
 }
 
 // GenRotKeysForDiagMatrix populates a RotationKeys struct with the necessary rotation keys for

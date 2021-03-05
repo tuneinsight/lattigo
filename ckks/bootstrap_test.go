@@ -22,7 +22,7 @@ func TestBootstrap(t *testing.T) {
 
 	var testContext = new(testParams)
 
-	paramSet := uint64(0)
+	paramSet := uint64(1)
 
 	bootstrapParams := DefaultBootstrapParams[paramSet : paramSet+1]
 
@@ -38,7 +38,7 @@ func TestBootstrap(t *testing.T) {
 		// Insecure params for fast testing only
 		if !*flagLongTest {
 			params.logN = 14
-			params.logSlots = 13
+			params.logSlots = 10
 		}
 
 		if testContext, err = genTestParams(params, btpParams.H); err != nil {

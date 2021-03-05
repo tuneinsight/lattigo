@@ -25,6 +25,7 @@ func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys 
 	keyBag.secretKey.key = generator.GenSecretKey()
 	keyBag.secretKey.peerID = peerID
 
+	//Public key = (a,b)
 	keyBag.publicKey.key[1] = genPublicKey(keyBag.secretKey.key, params, generator, ringQP, a)
 	keyBag.publicKey.key[0] = a
 	keyBag.publicKey.peerID = peerID
@@ -38,6 +39,7 @@ func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys 
 // Generate a public key in Rq^d
 func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGenerator, ringQP *ring.Ring, a *MKDecomposedPoly) *MKDecomposedPoly {
 
+	//value in Rq^d
 	var res *MKDecomposedPoly
 
 	// a <- U(Rq^d)
@@ -73,6 +75,7 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 	// d1 = U(Rq^d)
 	// d2 = r * a + e2 + mu * g
 
+	// Size of decomposition (d)
 	beta := params.Beta()
 
 	d1 := GetUniformDecomposed(uniformSampler, beta)
@@ -83,12 +86,14 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 	a := pk.key[0] // a <- U(Rq^d) first component of the public key
 
 	for d := uint64(0); d < beta; d++ {
+		// Gaussian is not in NTT, so we convert it to NTT
 		ringQP.NTT(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
 		ringQP.NTT(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
 		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
 		ringQP.MulCoeffsMontgomeryAndAdd(random.Value, a.poly[d], d2.poly[d])
 	}
 
+	// the g_is mod q_i are either 0 or 1, so just need to compute sums of the correct random.Values
 	MultiplyByBaseAndAdd(random.Value, params, d0)
 	MultiplyByBaseAndAdd(mu, params, d2)
 

@@ -13,3 +13,7 @@ func CreateSharedRelinearizationKey() *MKRelinearizationKey {
 
 	return res
 }
+
+func RelinearizationWithSharedRelinKey() {
+	return
+}

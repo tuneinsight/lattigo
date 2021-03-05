@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"math/big"
+	"math"
 
 	"github.com/ldsec/lattigo/v2/ring"
 )
@@ -44,7 +45,7 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 
 	for i := range values {
 
-		if n*values[i] > 1.8446744073709552e+19 {
+		if n*math.Abs(values[i]) > 1.8446744073709552e+19 {
 
 			isNegative = false
 			if values[i] < 0 {

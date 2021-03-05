@@ -1,8 +1,8 @@
 package ckks
 
 import (
-	"math/big"
 	"math"
+	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
 )

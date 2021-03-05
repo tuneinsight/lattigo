@@ -5,16 +5,23 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
+// GetRing generates a RingQP from bfv parameters
+func GetRing(params *bfv.Parameters) *ring.Ring {
+	// create ring
+	ringQP := new(ring.Ring)
+	var err error
+	if ringQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
+		panic(err)
+	}
+	return ringQP
+}
+
 // KeyGen generated a secret key, a public key and a relinearization key
 // given BFV paramters, the peer id and the vector "a" common to all participants
 func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys {
 
 	// create ring
-	var ringQP *ring.Ring
-	var err error
-	if ringQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
-		panic(err)
-	}
+	ringQP := GetRing(params)
 
 	generator := bfv.NewKeyGenerator(params)
 
@@ -104,6 +111,7 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 func MultiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *MKDecomposedPoly) {
 
 	alpha := params.Alpha()
+	// dimension of the vectors (d)
 	beta := params.Beta()
 
 	var index uint64

@@ -30,8 +30,8 @@ type MKEvaluationKey struct {
 
 // MKSwitchingKey is a type for BFV switching keys in a multy key context.
 type MKSwitchingKey struct {
-	key    [3]*MKDecomposedPoly
-	peerID uint64
+	key [3]*MKDecomposedPoly
+	//peerID uint64 // Commented because in relinkey_gen.Convert we might not need a peerID, or might need multiple
 }
 
 // MKRelinearizationKey is a type for BFV relinearization keys in a multy key context.

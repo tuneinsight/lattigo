@@ -620,7 +620,11 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t, 0)
 	})
 
+<<<<<<< HEAD
 	t.Run(testString(testContext, "Evaluator/Mul/pt*ct0->ct0/"), func(t *testing.T) {
+=======
+	t.Run(testString(testContext, "Evaluato/rMul/pt*ct0->ct0/"), func(t *testing.T) {
+>>>>>>> dev_rlwe_layer
 
 		values1, plaintext1, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -728,9 +732,12 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 		}
 
 		testContext.evaluator.Mul(ciphertext1, ciphertext2, ciphertext1)
+<<<<<<< HEAD
 
+=======
+		require.Equal(t, ciphertext1.Degree(), uint64(2))
+>>>>>>> dev_rlwe_layer
 		testContext.evaluator.Relinearize(ciphertext1, ciphertext1)
-
 		require.Equal(t, ciphertext1.Degree(), uint64(1))
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t, 0)
@@ -750,10 +757,13 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 		}
 
 		testContext.evaluator.Mul(ciphertext1, ciphertext2, ciphertext2)
+<<<<<<< HEAD
 
+=======
+		require.Equal(t, ciphertext2.Degree(), uint64(2))
+>>>>>>> dev_rlwe_layer
 		testContext.evaluator.Relinearize(ciphertext2, ciphertext2)
-
-		require.Equal(t, ciphertext1.Degree(), uint64(1))
+		require.Equal(t, ciphertext2.Degree(), uint64(1))
 
 		verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t, 0)
 	})

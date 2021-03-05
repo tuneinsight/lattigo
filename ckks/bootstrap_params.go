@@ -55,6 +55,10 @@ func (b *BootstrappingParameters) Params() (p *Parameters, err error) {
 // Copy return a new BootstrappingParameters which is a copy of the target
 func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
 	paramsCopy := &BootstrappingParameters{
+		LogN:         b.LogN,
+		LogSlots:     b.LogSlots,
+		Scale:		  b.Scale,
+		Sigma:		  b.Sigma,
 		H:            b.H,
 		SinType:      b.SinType,
 		MessageRatio: b.MessageRatio,
@@ -65,9 +69,15 @@ func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
 		MaxN1N2Ratio: b.MaxN1N2Ratio,
 	}
 
+	// KeySwitchModuli
+	paramsCopy.KeySwitchModuli = make([]uint64, len(b.KeySwitchModuli))
+	copy(paramsCopy.KeySwitchModuli, b.KeySwitchModuli)
+
+	// ResidualModuli
 	paramsCopy.ResidualModuli = make([]uint64, len(b.ResidualModuli))
 	copy(paramsCopy.ResidualModuli, b.ResidualModuli)
 
+	// CoeffsToSlotsModuli
 	paramsCopy.CoeffsToSlotsModuli.Qi = make([]uint64, b.CtSDepth(true))
 	copy(paramsCopy.CoeffsToSlotsModuli.Qi, b.CoeffsToSlotsModuli.Qi)
 
@@ -77,11 +87,12 @@ func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
 		copy(paramsCopy.CoeffsToSlotsModuli.ScalingFactor[i], b.CoeffsToSlotsModuli.ScalingFactor[i])
 	}
 
-	paramsCopy.SineEvalModuli.Qi = make([]uint64, b.CtSDepth(true))
+	// SineEvalModuli
+	paramsCopy.SineEvalModuli.Qi = make([]uint64, len(b.SineEvalModuli.Qi))
 	copy(paramsCopy.SineEvalModuli.Qi, b.SineEvalModuli.Qi)
-
 	paramsCopy.SineEvalModuli.ScalingFactor = b.SineEvalModuli.ScalingFactor
 
+	// SlotsToCoeffsModuli
 	paramsCopy.SlotsToCoeffsModuli.Qi = make([]uint64, b.StCDepth(true))
 	copy(paramsCopy.SlotsToCoeffsModuli.Qi, b.SlotsToCoeffsModuli.Qi)
 

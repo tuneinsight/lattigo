@@ -29,13 +29,29 @@ func Convert(D *MKEvaluationKey, publicKey *MKPublicKey, params *bfv.Parameters)
 }
 
 // CreateSharedRelinearizationKey generates a shared relinearization key containing the switching key for all pair of participants.
-func CreateSharedRelinearizationKey(params *bfv.Parameters) *MKRelinearizationKey {
+func CreateSharedRelinearizationKey(params *bfv.Parameters, pubKeys []*MKPublicKey, evalKeys []*MKEvaluationKey) *MKRelinearizationKey {
+
 	res := new(MKRelinearizationKey)
+
+	nbrParticipants := uint64(len(pubKeys))
+
+	tmpArray := make([][]*MKSwitchingKey, nbrParticipants)
+
+	for i := uint64(0); i < nbrParticipants; i++ {
+
+		for j := uint64(0); j < nbrParticipants; j++ {
+
+			tmpArray[i][j] = Convert(evalKeys[i], pubKeys[j], params)
+		}
+	}
+
+	res.key = tmpArray
 
 	return res
 }
 
 // GInverse is a method that returns g^(-1). TODO : See what team says regarding if the algo already exists somewhere.
 func GInverse(ring *ring.Poly) *MKDecomposedPoly {
+
 	return new(MKDecomposedPoly)
 }

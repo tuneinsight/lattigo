@@ -36,8 +36,7 @@ type MKSwitchingKey struct {
 
 // MKRelinearizationKey is a type for BFV relinearization keys in a multy key context.
 type MKRelinearizationKey struct {
-	key    [][]*MKSwitchingKey
-	peerID uint64
+	key [][]*MKSwitchingKey
 }
 
 // MKKeys is a type that contains all keys necessary for the multy key protocol.

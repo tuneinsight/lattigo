@@ -262,11 +262,16 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// 1525 - 550
 	{
 		LogN:     16,
-		LogSlots: 10,
-		Scale:    1 << 54,
+		LogSlots: 15,
+		Scale:    1 << 45,
 		Sigma:    DefaultSigma,
 		ResidualModuli: []uint64{
 			0x10000000006e0001, // 60 Q0
+			0x2000000a0001, // 45
+			0x2000000e0001, // 45 
+			0x1fffffc20001, // 45 
+			0x200000440001, // 45 
+			0x200000500001, // 45 
 		},
 		KeySwitchModuli: []uint64{
 			0x1fffffffffe00001, // Pi 61
@@ -276,14 +281,14 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		},
 		SlotsToCoeffsModuli: SlotsToCoeffsModuli{
 			Qi: []uint64{
-				0xffffffffefe0001,
-				0x10000000011a0001,
-				0xffffffffeca0001,
+				0x3ffffe80001, //42 StC
+				0x3ffffd20001, //42 StC
+				0x3ffffca0001, //42 StC
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0xffffffffefe0001},
-				[]float64{0x10000000011a0001},
-				[]float64{0xffffffffeca0001},
+				[]float64{0x3ffffe80001},
+				[]float64{0x3ffffd20001},
+				[]float64{0x3ffffca0001},
 			},
 		},
 		SineEvalModuli: SineEvalModuli{
@@ -291,7 +296,6 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0xffffffffffc0001,  // ArcSine
 				0xfffffffff240001,  // ArcSine
 				0x1000000000f00001, // ArcSine
-				0x1000000001fa0001,
 				0xfffffffff840001,  // Double angle
 				0x1000000000860001, // Double angle
 				0xfffffffff6a0001,  // Sine
@@ -305,16 +309,16 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		},
 		CoeffsToSlotsModuli: CoeffsToSlotsModuli{
 			Qi: []uint64{
-				0xffffffffdda0001,
-				0xffffffffdd20001,
-				0x1000000002340001,
-				0x10000000023a0001,
+				0x100000000060001, // 58 CtS
+				0xfffffffff00001,  // 58 CtS
+				0xffffffffd80001,  // 58 CtS
+				0x1000000002a0001, // 58 CtS
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0xffffffffdda0001},
-				[]float64{0xffffffffdd20001},
-				[]float64{0x1000000002340001},
-				[]float64{0x10000000023a0001},
+				[]float64{0x100000000060001},
+				[]float64{0xfffffffff00001},
+				[]float64{0xffffffffd80001},
+				[]float64{0x1000000002a0001},
 			},
 		},
 		H:            192,
@@ -323,7 +327,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		SinRange:     25,
 		SinDeg:       63,
 		SinRescal:    2,
-		ArcSineDeg:   15,
+		ArcSineDeg:   7,
 		MaxN1N2Ratio: 16.0,
 	},
 

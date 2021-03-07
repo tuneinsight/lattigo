@@ -14,7 +14,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	var defaultParams []*Parameters
 
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109+3 : PN12QP109+4]
+		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
 	} else {
 		defaultParams = DefaultParams
 	}
@@ -174,19 +174,19 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Evaluator/MulPlain/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MulRelin(ciphertext1, plaintext, receiver)
+			eval.Mul(ciphertext1, plaintext, ciphertext1)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Mul/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MulRelin(ciphertext1, ciphertext2, receiver)
+			eval.Mul(ciphertext1, ciphertext2, receiver)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Square/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MulRelin(ciphertext1, ciphertext1, receiver)
+			eval.Mul(ciphertext1, ciphertext1, receiver)
 		}
 	})
 
@@ -237,17 +237,6 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			eval.Relinearize(receiver, ciphertext1)
-		}
-	})
-
-	b.Run(testString(testContext, "Evaluator/Conjugate/"), func(b *testing.B) {
-
-		if testContext.params.PiCount() == 0 {
-			b.Skip("#Pi is empty")
-		}
-
-		for i := 0; i < b.N; i++ {
-			eval.Conjugate(ciphertext1, ciphertext1)
 		}
 	})
 

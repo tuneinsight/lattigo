@@ -5,8 +5,8 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-// GetRing generates a RingQP from bfv parameters
-func GetRing(params *bfv.Parameters) *ring.Ring {
+// GetRingQP generates a RingQP from bfv parameters
+func GetRingQP(params *bfv.Parameters) *ring.Ring {
 	// create ring
 	ringQP := new(ring.Ring)
 	var err error
@@ -16,12 +16,34 @@ func GetRing(params *bfv.Parameters) *ring.Ring {
 	return ringQP
 }
 
+// GetRingQ generates a RingQ from bfv parameters
+func GetRingQ(params *bfv.Parameters) *ring.Ring {
+	// create ring
+	ringQ := new(ring.Ring)
+	var err error
+	if ringQ, err = ring.NewRing(params.N(), params.Qi()); err != nil {
+		panic(err)
+	}
+	return ringQ
+}
+
+// GetRingP generates a RingP from bfv parameters
+func GetRingP(params *bfv.Parameters) *ring.Ring {
+	// create ring
+	ringP := new(ring.Ring)
+	var err error
+	if ringP, err = ring.NewRing(params.N(), params.Pi()); err != nil {
+		panic(err)
+	}
+	return ringP
+}
+
 // KeyGen generated a secret key, a public key and a relinearization key
 // given BFV paramters, the peer id and the vector "a" common to all participants
 func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys {
 
 	// create ring
-	ringQP := GetRing(params)
+	ringQ := GetRingQ(params)
 
 	generator := bfv.NewKeyGenerator(params)
 
@@ -33,18 +55,18 @@ func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys 
 	keyBag.secretKey.peerID = peerID
 
 	//Public key = (a,b)
-	keyBag.publicKey.key[1] = genPublicKey(keyBag.secretKey.key, params, generator, ringQP, a)
+	keyBag.publicKey.key[1] = genPublicKey(keyBag.secretKey.key, params, generator, ringQ, a)
 	keyBag.publicKey.key[0] = a
 	keyBag.publicKey.peerID = peerID
 
 	// generate evaluation key. The evaluation key is also used in the relinearization phase.
-	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, generator, params, ringQP)
+	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, generator, params, ringQ)
 
 	return keyBag
 }
 
 // Generate a public key in Rq^d
-func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGenerator, ringQP *ring.Ring, a *MKDecomposedPoly) *MKDecomposedPoly {
+func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGenerator, ringQ *ring.Ring, a *MKDecomposedPoly) *MKDecomposedPoly {
 
 	//value in Rq^d
 	var res *MKDecomposedPoly
@@ -59,15 +81,15 @@ func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGe
 
 	for d := uint64(0); d < beta; d++ {
 		current := res.poly[d]
-		ringQP.NTT(current, current)                                   // Pass ei in NTT
-		ringQP.MulCoeffsMontgomeryAndSub(sk.Value, a.poly[d], current) // bi = -s * ai + ei (mod q)
+		ringQ.NTT(current, current)                                   // Pass ei in NTT
+		ringQ.MulCoeffsMontgomeryAndSub(sk.Value, a.poly[d], current) // bi = -s * ai + ei (mod q)
 	}
 
 	return res
 }
 
 // Symmetric encryption of a single ring element (mu) under the secret key (sk).
-func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) [3]*MKDecomposedPoly {
+func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQ *ring.Ring) [3]*MKDecomposedPoly {
 
 	random := generator.GenSecretKey() // random element as same distribution as the secret key
 
@@ -94,10 +116,10 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 
 	for d := uint64(0); d < beta; d++ {
 		// Gaussian is not in NTT, so we convert it to NTT
-		ringQP.NTT(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
-		ringQP.NTT(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
-		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
-		ringQP.MulCoeffsMontgomeryAndAdd(random.Value, a.poly[d], d2.poly[d])
+		ringQ.NTT(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
+		ringQ.NTT(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
+		ringQ.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
+		ringQ.MulCoeffsMontgomeryAndAdd(random.Value, a.poly[d], d2.poly[d])
 	}
 
 	// the g_is mod q_i are either 0 or 1, so just need to compute sums of the correct random.Values
@@ -139,10 +161,10 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *MKDecompose
 }
 
 // Function used to generate the evaluation key. The evaluation key is the encryption of the secret key under itself using uniEnc
-func evaluationKeyGen(sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) MKEvaluationKey {
+func evaluationKeyGen(sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQ *ring.Ring) MKEvaluationKey {
 
 	return MKEvaluationKey{
-		key:    uniEnc(sk.key.Value, sk, pk, generator, params, ringQP),
+		key:    uniEnc(sk.key.Value, sk, pk, generator, params, ringQ),
 		peerID: sk.peerID,
 	}
 }

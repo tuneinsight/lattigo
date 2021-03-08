@@ -43,7 +43,7 @@ func GetRingP(params *bfv.Parameters) *ring.Ring {
 func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys {
 
 	// create ring
-	ringQ := GetRingQ(params)
+	ringQP := GetRingQP(params)
 
 	generator := bfv.NewKeyGenerator(params)
 
@@ -54,25 +54,25 @@ func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys 
 	keyBag.secretKey.key = generator.GenSecretKey()
 	keyBag.secretKey.peerID = peerID
 
-	//Public key = (a,b)
-	keyBag.publicKey.key[1] = genPublicKey(keyBag.secretKey.key, params, generator, ringQ, a)
-	keyBag.publicKey.key[0] = a
+	//Public key = (b, a)
+	keyBag.publicKey.key[0] = genPublicKey(keyBag.secretKey.key, params, generator, ringQP, a)
+	keyBag.publicKey.key[1] = a
 	keyBag.publicKey.peerID = peerID
 
 	// generate evaluation key. The evaluation key is also used in the relinearization phase.
-	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, generator, params, ringQ)
+	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, generator, params, ringQP)
 
 	return keyBag
 }
 
-// Generate a public key in Rq^d
-func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGenerator, ringQ *ring.Ring, a *MKDecomposedPoly) *MKDecomposedPoly {
+// Generate a public key in Rqp^d given an element a <- U(R_qp^d)
+func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGenerator, ringQP *ring.Ring, a *MKDecomposedPoly) *MKDecomposedPoly {
 
-	//value in Rq^d
+	//value in Rqp^d
 	var res *MKDecomposedPoly
 
-	// a <- U(Rq^d)
-	// e <- Gauss(Rq^d)
+	// a <- U(Rqp^d)
+	// e <- Gauss(Rqp^d)
 	// b <- -s * a + e mod(q) in Rq^d
 
 	beta := params.Beta()
@@ -81,8 +81,8 @@ func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGe
 
 	for d := uint64(0); d < beta; d++ {
 		current := res.poly[d]
-		ringQ.NTT(current, current)                                   // Pass ei in NTT
-		ringQ.MulCoeffsMontgomeryAndSub(sk.Value, a.poly[d], current) // bi = -s * ai + ei (mod q)
+		ringQP.NTT(current, current)                                   // Pass ei in NTT
+		ringQP.MulCoeffsMontgomeryAndSub(sk.Value, a.poly[d], current) // bi = -s * ai + ei (mod q)
 	}
 
 	return res
@@ -112,7 +112,7 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 	d0 := GetGaussianDecomposed(gaussianSampler, beta) // e1 <- Gauss(Rq^d)
 	d2 := GetGaussianDecomposed(gaussianSampler, beta) //e2 <- Gauss(Rq^d)
 
-	a := pk.key[0] // a <- U(Rq^d) first component of the public key
+	a := pk.key[1] // a <- U(Rq^d) second component of the public key
 
 	for d := uint64(0); d < beta; d++ {
 		// Gaussian is not in NTT, so we convert it to NTT

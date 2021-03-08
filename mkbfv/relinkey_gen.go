@@ -17,7 +17,7 @@ func Convert(D *MKEvaluationKey, publicKey *MKPublicKey, params *bfv.Parameters)
 	ring := GetRingQP(params)
 
 	for l := uint64(0); l < beta; l++ {
-		gInv := GInverse(publicKey.key[1].poly[l], params)
+		gInv := GInverse(publicKey.key[0].poly[l], params)
 		Dot(gInv, d0, k0.poly[l], ring, beta) // g^-1 ( b_j[l]) dot d_i[0]
 		Dot(gInv, d1, k1.poly[l], ring, beta) // g^-1 ( b_j[l]) dot d_i[1]
 
@@ -50,12 +50,13 @@ func CreateSharedRelinearizationKey(params *bfv.Parameters, pubKeys []*MKPublicK
 	return res
 }
 
-// GInverse is a method that returns the decomposition of a polynomial from R_q to R_q^beta
+// GInverse is a method that returns the decomposition of a polynomial from R_qp to R_qp^beta
 func GInverse(p *ring.Poly, params *bfv.Parameters) *MKDecomposedPoly {
 
 	beta := params.Beta()
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
+	ringQP := GetRingQP(params)
 
 	level := uint64(len(ringQ.Modulus)) - 1
 	res := new(MKDecomposedPoly)
@@ -67,16 +68,16 @@ func GInverse(p *ring.Poly, params *bfv.Parameters) *MKDecomposedPoly {
 	c2QiQ := params.NewPolyQ()
 	c2QiP := params.NewPolyP()
 	invPoly := params.NewPolyQ()
-	ringQ.InvNTT(p, invPoly)
+	ringQP.InvNTT(p, invPoly)
 
 	// generate each poly decomposed in the base
 	for i := uint64(0); i < beta; i++ {
 
 		decomposeAndSplitNTT(level, i, p, invPoly, c2QiQ, c2QiP, params, ringQ, ringP) // TODO: ask if this indeed decompose from R_q to R_q^beta
 
-		currPoly := params.NewPolyQ()
+		currPoly := params.NewPolyQP()
 
-		convertor.ModDownSplitNTTPQ(level, c2QiQ, c2QiP, currPoly)
+		convertor.ModUpSplitQP(level, c2QiQ, currPoly)
 
 		polynomials[i] = currPoly
 	}

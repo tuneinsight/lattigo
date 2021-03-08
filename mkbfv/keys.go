@@ -11,7 +11,7 @@ type MKSecretKey struct {
 	peerID uint64
 }
 
-// MKPublicKey is a type for BFV public keys and ID in a multi key context. key[0] = a and key[1] = -s * a + e mod q
+// MKPublicKey is a type for BFV public keys and ID in a multi key context. key[1] = a and key[0] = -s * a + e mod q
 type MKPublicKey struct {
 	key    [2]*MKDecomposedPoly
 	peerID uint64

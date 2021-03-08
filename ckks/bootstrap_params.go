@@ -57,8 +57,8 @@ func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
 	paramsCopy := &BootstrappingParameters{
 		LogN:         b.LogN,
 		LogSlots:     b.LogSlots,
-		Scale:		  b.Scale,
-		Sigma:		  b.Sigma,
+		Scale:        b.Scale,
+		Sigma:        b.Sigma,
 		H:            b.H,
 		SinType:      b.SinType,
 		MessageRatio: b.MessageRatio,
@@ -184,7 +184,7 @@ func (b *BootstrappingParameters) StCDepth(actual bool) (depth uint64) {
 var DefaultBootstrapParams = []*BootstrappingParameters{
 
 	// SET I
-	// 1538 - 550
+	// 1546
 	{
 		LogN:     16,
 		LogSlots: 15,
@@ -259,7 +259,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	},
 
 	// SET II
-	// 1525 - 550
+	// 1547
 	{
 		LogN:     16,
 		LogSlots: 15,
@@ -267,11 +267,11 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		Sigma:    DefaultSigma,
 		ResidualModuli: []uint64{
 			0x10000000006e0001, // 60 Q0
-			0x2000000a0001, // 45
-			0x2000000e0001, // 45 
-			0x1fffffc20001, // 45 
-			0x200000440001, // 45 
-			0x200000500001, // 45 
+			0x2000000a0001,     // 45
+			0x2000000e0001,     // 45
+			0x1fffffc20001,     // 45
+			0x200000440001,     // 45
+			0x200000500001,     // 45
 		},
 		KeySwitchModuli: []uint64{
 			0x1fffffffffe00001, // Pi 61
@@ -309,16 +309,16 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		},
 		CoeffsToSlotsModuli: CoeffsToSlotsModuli{
 			Qi: []uint64{
-				0x100000000060001, // 58 CtS
-				0xfffffffff00001,  // 58 CtS
-				0xffffffffd80001,  // 58 CtS
-				0x1000000002a0001, // 58 CtS
+				0x400000000360001, // 58 CtS
+				0x3ffffffffbe0001, // 58 CtS
+				0x400000000660001, // 58 CtS
+				0x4000000008a0001, // 58 CtS
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x100000000060001},
-				[]float64{0xfffffffff00001},
-				[]float64{0xffffffffd80001},
-				[]float64{0x1000000002a0001},
+				[]float64{0x400000000360001},
+				[]float64{0x3ffffffffbe0001},
+				[]float64{0x400000000660001},
+				[]float64{0x4000000008a0001},
 			},
 		},
 		H:            192,
@@ -332,7 +332,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	},
 
 	// SET III
-	// 1553 - 505
+	// 1553
 	{
 		LogN:     16,
 		LogSlots: 15,
@@ -403,10 +403,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	},
 
 	// Set IV
-	// 1773 - 460
+	// 1792
 	{
 		LogN:     16,
-		LogSlots: 14,
+		LogSlots: 15,
 		Scale:    1 << 40,
 		Sigma:    DefaultSigma,
 		ResidualModuli: []uint64{
@@ -481,10 +481,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	},
 
 	// Set V
-	// 768 - 110
+	// 768
 	{
 		LogN:     15,
-		LogSlots: 13,
+		LogSlots: 14,
 		Scale:    1 << 25,
 		Sigma:    DefaultSigma,
 		ResidualModuli: []uint64{

@@ -99,6 +99,10 @@ type Evaluator interface {
 	// cf. examples/ckks/matrix/main.go for an example of a 32x128 x 128x32 matrix multiplication.
 	MulMatrix(A, B *Ciphertext, mmpt *MMPt) (ciphertextAB *Ciphertext)
 
+	// Inner sum
+	//InnerSum(ctIn, ctOut *Ciphertext, n int)
+	//InnerSumNew(ctIn *Ciphertext, n int)
+
 	// =============================
 	// === Ciphertext Management ===
 	// =============================
@@ -1654,6 +1658,9 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 	alpha := eval.params.Alpha()
 	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
 
+	QiOverF := eval.params.QiOverflowMargin(level) >> 1
+	PiOverF := eval.params.PiOverflowMargin() >> 1
+
 	// Key switching with CRT decomposition for the Qi
 	for i := uint64(0); i < beta; i++ {
 
@@ -1676,21 +1683,28 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey1P, c2QiP, pool3P)
 		}
 
-		//
-		if reduce&3 == 3 {
-			ringQ.ReduceConstantLvl(level, pool2Q, pool2Q)
-			ringQ.ReduceConstantLvl(level, pool3Q, pool3Q)
-			ringP.ReduceConstant(pool2P, pool2P)
-			ringP.ReduceConstant(pool3P, pool3P)
+		if reduce%QiOverF == QiOverF-1 {
+			ringQ.ReduceLvl(level, pool2Q, pool2Q)
+			ringQ.ReduceLvl(level, pool3Q, pool3Q)
+		}
+
+		if reduce%PiOverF == PiOverF-1 {
+			ringP.Reduce(pool2P, pool2P)
+			ringP.Reduce(pool3P, pool3P)
 		}
 
 		reduce++
 	}
 
-	ringQ.ReduceLvl(level, pool2Q, pool2Q)
-	ringQ.ReduceLvl(level, pool3Q, pool3Q)
-	ringP.Reduce(pool2P, pool2P)
-	ringP.Reduce(pool3P, pool3P)
+	if reduce%QiOverF != 0 {
+		ringQ.ReduceLvl(level, pool2Q, pool2Q)
+		ringQ.ReduceLvl(level, pool3Q, pool3Q)
+	}
+
+	if reduce%PiOverF != 0 {
+		ringP.Reduce(pool2P, pool2P)
+		ringP.Reduce(pool3P, pool3P)
+	}
 }
 
 // switchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
@@ -1847,6 +1861,9 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 	evakey0P := new(ring.Poly)
 	evakey1P := new(ring.Poly)
 
+	QiOverF := eval.params.QiOverflowMargin(level) >> 1
+	PiOverF := eval.params.PiOverflowMargin() >> 1
+
 	// Key switching with CRT decomposition for the Qi
 	var reduce uint64
 	for i := uint64(0); i < beta; i++ {
@@ -1857,20 +1874,23 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 		evakey1P.Coeffs = evakey.Value[i][1].Coeffs[len(ringQ.Modulus):]
 
 		if i == 0 {
-			ringQ.MulCoeffsMontgomeryLvl(level, evakey0Q, c2QiQDecomp[i], pool2Q)
-			ringQ.MulCoeffsMontgomeryLvl(level, evakey1Q, c2QiQDecomp[i], pool3Q)
-			ringP.MulCoeffsMontgomery(evakey0P, c2QiPDecomp[i], pool2P)
-			ringP.MulCoeffsMontgomery(evakey1P, c2QiPDecomp[i], pool3P)
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey0Q, c2QiQDecomp[i], pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey1Q, c2QiQDecomp[i], pool3Q)
+			ringP.MulCoeffsMontgomeryConstant(evakey0P, c2QiPDecomp[i], pool2P)
+			ringP.MulCoeffsMontgomeryConstant(evakey1P, c2QiPDecomp[i], pool3P)
 		} else {
-			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey0Q, c2QiQDecomp[i], pool2Q)
-			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, evakey1Q, c2QiQDecomp[i], pool3Q)
-			ringP.MulCoeffsMontgomeryAndAddNoMod(evakey0P, c2QiPDecomp[i], pool2P)
-			ringP.MulCoeffsMontgomeryAndAddNoMod(evakey1P, c2QiPDecomp[i], pool3P)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey0Q, c2QiQDecomp[i], pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey1Q, c2QiQDecomp[i], pool3Q)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey0P, c2QiPDecomp[i], pool2P)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey1P, c2QiPDecomp[i], pool3P)
 		}
 
-		if reduce&7 == 1 {
+		if reduce%QiOverF == QiOverF-1 {
 			ringQ.ReduceLvl(level, pool2Q, pool2Q)
 			ringQ.ReduceLvl(level, pool3Q, pool3Q)
+		}
+
+		if reduce%PiOverF == PiOverF-1 {
 			ringP.Reduce(pool2P, pool2P)
 			ringP.Reduce(pool3P, pool3P)
 		}
@@ -1878,9 +1898,12 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 		reduce++
 	}
 
-	if (reduce-1)&7 != 1 {
+	if reduce%QiOverF != 0 {
 		ringQ.ReduceLvl(level, pool2Q, pool2Q)
 		ringQ.ReduceLvl(level, pool3Q, pool3Q)
+	}
+
+	if reduce%PiOverF != 0 {
 		ringP.Reduce(pool2P, pool2P)
 		ringP.Reduce(pool3P, pool3P)
 	}

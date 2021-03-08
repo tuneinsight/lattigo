@@ -38,7 +38,7 @@ func TestBootstrap(t *testing.T) {
 		// Insecure params for fast testing only
 		if !*flagLongTest {
 			params.logN = 14
-			params.logSlots = 5
+			params.logSlots = 13
 		}
 
 		if testContext, err = genTestParams(params, btpParams.H); err != nil {

@@ -97,6 +97,13 @@ func MaxFloat64(a, b float64) (r float64) {
 	return b
 }
 
+func MaxSliceUint64(slice []uint64) (max uint64) {
+	for i := range slice {
+		max = MaxUint64(max, slice[i])
+	}
+	return
+}
+
 // BitReverse64 returns the bit-reverse value of the input value, within a context of 2^bitLen.
 func BitReverse64(index, bitLen uint64) uint64 {
 	return bits.Reverse64(index) >> (64 - bitLen)

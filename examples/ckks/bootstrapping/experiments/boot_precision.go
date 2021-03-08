@@ -45,7 +45,7 @@ func main() {
 
 	btpParams := ckks.DefaultBootstrapParams[*paramSet].Copy()
 	params, err := btpParams.Params()
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 

@@ -52,7 +52,7 @@ func TestCKKS(t *testing.T) {
 
 	var err error
 
-	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+3] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+1] // the short test suite runs for ring degree N=2^12, 2^13
@@ -85,6 +85,7 @@ func TestCKKS(t *testing.T) {
 			testChebyshevInterpolator,
 			testSwitchKeys,
 			testAutomorphisms,
+			testInnerSum,
 			testMarshaller,
 		} {
 			testSet(testContext, t)
@@ -622,7 +623,6 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Mul/pt*ct0->ct0/"), func(t *testing.T) {
 
-
 		values1, plaintext1, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		for i := range values1 {
@@ -1076,6 +1076,41 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 			verifyTestVectors(testContext, testContext.decryptor, utils.RotateComplex128Slice(values1, n), ciphertexts[n], t, 0)
 		}
 	})
+}
+
+func testInnerSum(testContext *testParams, t *testing.T) {
+	if testContext.params.PiCount() == 0 {
+		t.Skip("#Pi is empty")
+	}
+
+	batch := 2
+	n := 35
+
+	rots := []int{}
+	for i := 1; i < n; i++ {
+		rots = append(rots, i*batch)
+	}
+
+	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
+	eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
+
+	values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+	eval.(*evaluator).innerSumNaive(ciphertext1, batch, n, ciphertext1)
+
+	tmp0 := make([]complex128, len(values1))
+	copy(tmp0, values1)
+
+	for i := 1; i < n; i++ {
+
+		tmp1 := utils.RotateComplex128Slice(tmp0, i*batch)
+
+		for j := range values1 {
+			values1[j] += tmp1[j]
+		}
+	}
+
+	verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t, 0)
 }
 
 func testMarshaller(testContext *testParams, t *testing.T) {

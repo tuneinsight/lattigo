@@ -3,10 +3,11 @@ package main
 import (
 	"fmt"
 	"math"
+	"math/bits"
 	"time"
 
 	"github.com/ldsec/lattigo/v2/ckks"
-	//"github.com/ldsec/lattigo/v2/utils"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 func main() {
@@ -100,9 +101,9 @@ func main() {
 	//       |_____|   |_____|   |_____|   |_____|
 
 	// Matrices parameters
-	var rows int = 32
-	var cols int = 32
-	var nb int = 4
+	var rows int = 4
+	var cols int = 4
+	var nb int = 3
 
 	dxd := rows * cols
 
@@ -182,6 +183,40 @@ func main() {
 	// Print results and comparison
 	printDebug(rows, cols, valuesWant, valuesHave, params, encoder)
 
+	fmt.Println(GenInnerSumRotKeyIndex(9))
+
+}
+
+func GenReplicateRotKeyIndex(batches, slots int) (rotations []int) {
+	logBatches := int(math.Log2(float64(batches)) + 0.5)
+	rotations = []int{}
+	index := 1
+	for i := 0; i < logBatches; i++ {
+		rotations = append(rotations, slots-index)
+		index <<= 1
+		if (batches>>i)&1 == 1 {
+			rotations = append(rotations, slots-index)
+			index++
+		}
+	}
+
+	return
+}
+func Replicate(eval ckks.Evaluator, ciphertext *ckks.Ciphertext, batches, slots int) {
+
+	logBatches := int(math.Log2(float64(batches)) + 0.5)
+
+	// Replicates the values
+	ref := ciphertext.CopyNew().Ciphertext()
+	index := 1
+	for i := 0; i < logBatches-1; i++ {
+		eval.Add(ciphertext, eval.RotateNew(ciphertext, slots-index), ciphertext)
+		index <<= 1
+		if (batches>>i)&1 == 1 {
+			eval.Add(ciphertext, eval.RotateNew(ref, slots-index), ciphertext)
+			index++
+		}
+	}
 }
 
 func printDebug(rows, cols int, valuesWant, valuesHave []complex128, params *ckks.Parameters, encoder ckks.Encoder) {

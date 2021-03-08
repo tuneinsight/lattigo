@@ -376,6 +376,18 @@ func (p *Parameters) LogModuli() (lm *LogModuli) {
 	return
 }
 
+// QiOverflowMargin returns floor(2^64 / max(Qi)), i.e. the number of times elements of Z_max{Qi} can 
+// be added together before overflowing 2^64.
+func (p *Parameters) QiOverflowMargin(level uint64) uint64 {
+	return uint64(math.Exp2(64) / float64(utils.MaxSliceUint64(p.qi[:level+1])))
+}
+
+// QiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can 
+// be added together before overflowing 2^64.
+func (p *Parameters) PiOverflowMargin() uint64 {
+	return uint64(math.Exp2(64) / float64(utils.MaxSliceUint64(p.pi)))
+}
+
 // Moduli returns a struct Moduli with the moduli of the parameters
 func (p *Parameters) Moduli() (m *Moduli) {
 	m = new(Moduli)

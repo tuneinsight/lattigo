@@ -3,6 +3,7 @@ package mkbfv
 import (
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // GetRingQP generates a RingQP from bfv parameters
@@ -36,6 +37,20 @@ func GetRingP(params *bfv.Parameters) *ring.Ring {
 		panic(err)
 	}
 	return ringP
+}
+
+// GenRingQMul generates a ringQMul from bfv parameters
+func GenRingQMul(params *bfv.Parameters) *ring.Ring {
+
+	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), uint64(len(params.Qi())))
+
+	ringQMul := new(ring.Ring)
+	var err error
+	if ringQMul, err = ring.NewRing(params.N(), qiMul); err != nil {
+		panic(err)
+	}
+
+	return ringQMul
 }
 
 // KeyGen generated a secret key, a public key and a relinearization key
@@ -77,7 +92,12 @@ func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGe
 
 	beta := params.Beta()
 
-	res = GetGaussianDecomposed(generator.GetGaussianSampler(), beta) // e in Rq^d
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	res = GetGaussianDecomposed(getGaussianSampler(params, ringQP, prng), beta) // e in Rq^d
 
 	for d := uint64(0); d < beta; d++ {
 		current := res.poly[d]
@@ -89,12 +109,17 @@ func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGe
 }
 
 // Symmetric encryption of a single ring element (mu) under the secret key (sk).
-func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQ *ring.Ring) [3]*MKDecomposedPoly {
+func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) [3]*MKDecomposedPoly {
 
 	random := generator.GenSecretKey() // random element as same distribution as the secret key
 
-	uniformSampler := generator.GetUniformSampler()
-	gaussianSampler := generator.GetGaussianSampler()
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	uniformSampler := getUniformSampler(params, ringQP, prng)
+	gaussianSampler := getGaussianSampler(params, ringQP, prng)
 
 	// a  <- setup(1^\lambda)
 	// e1 <- sample(\psi^d)
@@ -116,10 +141,10 @@ func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGene
 
 	for d := uint64(0); d < beta; d++ {
 		// Gaussian is not in NTT, so we convert it to NTT
-		ringQ.NTT(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
-		ringQ.NTT(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
-		ringQ.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
-		ringQ.MulCoeffsMontgomeryAndAdd(random.Value, a.poly[d], d2.poly[d])
+		ringQP.NTT(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
+		ringQP.NTT(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
+		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
+		ringQP.MulCoeffsMontgomeryAndAdd(random.Value, a.poly[d], d2.poly[d])
 	}
 
 	// the g_is mod q_i are either 0 or 1, so just need to compute sums of the correct random.Values
@@ -191,4 +216,14 @@ func GetUniformDecomposed(sampler *ring.UniformSampler, dimension uint64) *MKDec
 	}
 
 	return res
+}
+
+func getUniformSampler(params *bfv.Parameters, r *ring.Ring, prng *utils.KeyedPRNG) *ring.UniformSampler {
+
+	return ring.NewUniformSampler(prng, r)
+}
+
+func getGaussianSampler(params *bfv.Parameters, r *ring.Ring, prng *utils.KeyedPRNG) *ring.GaussianSampler {
+
+	return ring.NewGaussianSampler(prng, r, params.Sigma(), uint64(6*params.Sigma()))
 }

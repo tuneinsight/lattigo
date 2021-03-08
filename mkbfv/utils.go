@@ -1,6 +1,10 @@
 package mkbfv
 
-import "github.com/ldsec/lattigo/v2/ring"
+import (
+	"sort"
+
+	"github.com/ldsec/lattigo/v2/ring"
+)
 
 // Dot computes the dot product of two decomposed polynomials in R_Q^d
 func Dot(decpoly1 *MKDecomposedPoly, decpoly2 *MKDecomposedPoly, accPoly *ring.Poly, ringQP *ring.Ring, beta uint64) {
@@ -10,6 +14,7 @@ func Dot(decpoly1 *MKDecomposedPoly, decpoly2 *MKDecomposedPoly, accPoly *ring.P
 }
 
 // MergeSlices merges two slices of uint64 and places the result in s3
+// the resulting slice is sorted in ascending order
 func MergeSlices(s1, s2, s3 []uint64) {
 
 	copy(s3, s1)
@@ -20,6 +25,8 @@ func MergeSlices(s1, s2, s3 []uint64) {
 			s3 = append(s3, el)
 		}
 	}
+
+	sort.Slice(s3, func(i, j int) bool { return s3[i] < s3[j] })
 }
 
 // Contains return true if the element is in the slice. False otherwise

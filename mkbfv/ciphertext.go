@@ -6,7 +6,7 @@ import (
 )
 
 // MKCiphertext is type for a bfv ciphertext in a multi key setting
-// it contains a bfv ciphertexts along with the list of participants
+// it contains a bfv ciphertexts along with the list of participants in the right order
 type MKCiphertext struct {
 	ciphertexts *bfv.Ciphertext
 	peerIDs     []uint64
@@ -14,10 +14,11 @@ type MKCiphertext struct {
 
 // PadCiphers pad two ciphertext corresponding to a different set of parties
 // to make their dimension match. ci = 0 if the participant i is not involved in the ciphertext
-// the peerIDs list is also updates to match the new dimension
+// the peerIDs list is also updated to match the new dimension
 func PadCiphers(c1, c2, c1Out, c2Out *MKCiphertext, ringQ ring.Ring) {
 
 	allPeers := make([]uint64, 0)
+
 	MergeSlices(c1.peerIDs, c2.peerIDs, allPeers)
 
 	k := len(allPeers)

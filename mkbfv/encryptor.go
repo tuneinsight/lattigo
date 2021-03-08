@@ -11,3 +11,17 @@ func NewEncryptor(pk *MKPublicKey, params *bfv.Parameters) bfv.Encryptor {
 
 	return bfv.NewEncryptorFromPk(params, bfvPublicKey)
 }
+
+// EncryptMK encrypt the plaintext and put id in teh ciphertext's peerIds
+func EncryptMK(encryptor bfv.Encryptor, plaintext *bfv.Plaintext, id uint64) *MKCiphertext {
+
+	ciphertext := new(bfv.Element)
+
+	encryptor.Encrypt(plaintext, ciphertext.Ciphertext())
+
+	mkCiphertext := new(MKCiphertext)
+	mkCiphertext.ciphertexts = ciphertext.Ciphertext()
+	mkCiphertext.peerIDs = []uint64{id}
+
+	return mkCiphertext
+}

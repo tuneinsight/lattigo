@@ -28,8 +28,8 @@ func Convert(D *MKEvaluationKey, publicKey *MKPublicKey, params *bfv.Parameters)
 	return res
 }
 
-// CreateSharedRelinearizationKey generates a shared relinearization key containing the switching key for all pair of participants.
-func CreateSharedRelinearizationKey(params *bfv.Parameters, pubKeys []*MKPublicKey, evalKeys []*MKEvaluationKey) *MKRelinearizationKey {
+// GenSharedRelinearizationKey generates a shared relinearization key containing the switching key for all pair of participants.
+func GenSharedRelinearizationKey(params *bfv.Parameters, pubKeys []*MKPublicKey, evalKeys []*MKEvaluationKey) *MKRelinearizationKey {
 
 	res := new(MKRelinearizationKey)
 

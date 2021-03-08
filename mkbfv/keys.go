@@ -41,8 +41,8 @@ type MKRelinearizationKey struct {
 
 // MKKeys is a type that contains all keys necessary for the multy key protocol.
 type MKKeys struct {
-	secretKey MKSecretKey
-	publicKey MKPublicKey
-	evalKey   MKEvaluationKey
-	relinKey  MKRelinearizationKey
+	secretKey *MKSecretKey
+	publicKey *MKPublicKey
+	evalKey   *MKEvaluationKey
+	relinKey  *MKRelinearizationKey
 }

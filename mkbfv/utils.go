@@ -15,7 +15,9 @@ func Dot(decpoly1 *MKDecomposedPoly, decpoly2 *MKDecomposedPoly, accPoly *ring.P
 
 // MergeSlices merges two slices of uint64 and places the result in s3
 // the resulting slice is sorted in ascending order
-func MergeSlices(s1, s2, s3 []uint64) {
+func MergeSlices(s1, s2 []uint64) []uint64 {
+
+	s3 := make([]uint64, len(s1))
 
 	copy(s3, s1)
 
@@ -27,6 +29,8 @@ func MergeSlices(s1, s2, s3 []uint64) {
 	}
 
 	sort.Slice(s3, func(i, j int) bool { return s3[i] < s3[j] })
+
+	return s3
 }
 
 // Contains return true if the element is in the slice. False otherwise

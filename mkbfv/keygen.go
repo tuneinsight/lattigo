@@ -109,7 +109,7 @@ func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGe
 }
 
 // Symmetric encryption of a single ring element (mu) under the secret key (sk).
-func uniEnc(mu *ring.Poly, sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) [3]*MKDecomposedPoly {
+func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) [3]*MKDecomposedPoly {
 
 	random := generator.GenSecretKey() // random element as same distribution as the secret key
 
@@ -186,9 +186,9 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *MKDecompose
 }
 
 // Function used to generate the evaluation key. The evaluation key is the encryption of the secret key under itself using uniEnc
-func evaluationKeyGen(sk MKSecretKey, pk MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQ *ring.Ring) MKEvaluationKey {
+func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQ *ring.Ring) *MKEvaluationKey {
 
-	return MKEvaluationKey{
+	return &MKEvaluationKey{
 		key:    uniEnc(sk.key.Value, sk, pk, generator, params, ringQ),
 		peerID: sk.peerID,
 	}
@@ -226,4 +226,18 @@ func getUniformSampler(params *bfv.Parameters, r *ring.Ring, prng *utils.KeyedPR
 func getGaussianSampler(params *bfv.Parameters, r *ring.Ring, prng *utils.KeyedPRNG) *ring.GaussianSampler {
 
 	return ring.NewGaussianSampler(prng, r, params.Sigma(), uint64(6*params.Sigma()))
+}
+
+// GenCommonPublicParam generates the public parameter a <- U(R_qp^d) shared by all peers
+func GenCommonPublicParam(params *bfv.Parameters) *MKDecomposedPoly {
+
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ringQP := GetRingQP(params)
+
+	uniformSampler := getUniformSampler(params, ringQP, prng)
+
+	return GetUniformDecomposed(uniformSampler, params.Beta())
 }

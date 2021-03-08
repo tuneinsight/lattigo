@@ -15,12 +15,11 @@ type MKCiphertext struct {
 // PadCiphers pad two ciphertext corresponding to a different set of parties
 // to make their dimension match. ci = 0 if the participant i is not involved in the ciphertext
 // the peerIDs list is also updated to match the new dimension
-func PadCiphers(c1, c2, c1Out, c2Out *MKCiphertext, ringQ ring.Ring) {
+func PadCiphers(c1, c2, c1Out, c2Out *MKCiphertext, params *bfv.Parameters) {
 
-	allPeers := make([]uint64, 0)
+	ringQ := GetRingQ(params)
 
-	MergeSlices(c1.peerIDs, c2.peerIDs, allPeers)
-
+	allPeers := MergeSlices(c1.peerIDs, c2.peerIDs)
 	k := len(allPeers)
 
 	res1 := make([]*ring.Poly, k+1) // + 1 for c0

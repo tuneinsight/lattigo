@@ -52,7 +52,7 @@ func TestCKKS(t *testing.T) {
 
 	var err error
 
-	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+3] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	var defaultParams = DefaultParams[PN12QP109+2 : PN12QP109+3] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+1] // the short test suite runs for ring degree N=2^12, 2^13
@@ -1079,38 +1079,89 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 }
 
 func testInnerSum(testContext *testParams, t *testing.T) {
+
 	if testContext.params.PiCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
-	batch := 2
-	n := 35
+	t.Run("InnerSum/Naive", func(t *testing.T) {
+		batch := 2
+		n := 35
 
-	rots := []int{}
-	for i := 1; i < n; i++ {
-		rots = append(rots, i*batch)
-	}
-
-	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
-	eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
-
-	values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-	eval.(*evaluator).innerSumNaive(ciphertext1, batch, n, ciphertext1)
-
-	tmp0 := make([]complex128, len(values1))
-	copy(tmp0, values1)
-
-	for i := 1; i < n; i++ {
-
-		tmp1 := utils.RotateComplex128Slice(tmp0, i*batch)
-
-		for j := range values1 {
-			values1[j] += tmp1[j]
+		rots := []int{}
+		for i := 1; i < n; i++ {
+			rots = append(rots, i*batch)
 		}
-	}
 
-	verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t, 0)
+		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
+		eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
+
+		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		eval.InnerSumNaive(ciphertext1, batch, n, ciphertext1)
+
+		tmp0 := make([]complex128, len(values1))
+		copy(tmp0, values1)
+
+		for i := 1; i < n; i++ {
+
+			tmp1 := utils.RotateComplex128Slice(tmp0, i*batch)
+
+			for j := range values1 {
+				values1[j] += tmp1[j]
+			}
+		}
+
+		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t, 0)
+	})
+
+	t.Run("InnerSum/Log", func(t *testing.T) {
+
+		batch := 3
+		n := 15
+
+		rots := []int{}
+		var rot int
+		for i := 1; i < n; i <<= 1 {
+
+			rot = i 
+			rot *= batch
+
+			if !utils.IsInSliceInt(rot, rots) && rot != 0 {
+				rots = append(rots, rot)
+			}
+
+			rot = n - (n  & ((i << 1) - 1))
+
+			rot *= batch
+
+			if !utils.IsInSliceInt(rot, rots) && rot != 0 {
+				rots = append(rots, rot)
+			}
+		}
+
+		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
+		eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
+
+		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		eval.InnerSum(ciphertext1, batch, n, ciphertext1)
+
+		tmp0 := make([]complex128, len(values1))
+		copy(tmp0, values1)
+
+		for i := 1; i < n; i++ {
+
+			tmp1 := utils.RotateComplex128Slice(tmp0, i*batch)
+
+			for j := range values1 {
+				values1[j] += tmp1[j]
+			}
+		}
+
+		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t, 0)
+
+	})
 }
 
 func testMarshaller(testContext *testParams, t *testing.T) {

@@ -30,6 +30,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		benchEncrypt(testContext, b)
 		benchDecrypt(testContext, b)
 		benchEvaluator(testContext, b)
+		benchInnerSum(testContext, b)
 		benchHoistedRotations(testContext, b)
 	}
 }
@@ -252,6 +253,68 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 	})
 }
 
+func benchInnerSum(testContext *testParams, b *testing.B){
+
+	ciphertext1 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
+
+	batch := 1
+	n := 7
+
+	b.Run(testString(testContext, "InnerSum/Naive"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
+		rots := []int{}
+		for i := 1; i < n; i++ {
+			rots = append(rots, i*batch)
+		}
+
+		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
+		eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
+
+		for i := 0; i < b.N; i++ {
+			eval.InnerSumNaive(ciphertext1, batch, n, ciphertext1)
+		}
+	})
+
+	b.Run(testString(testContext, "InnerSum/Log"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
+		rots := []int{}
+		var rot int
+		for i := 1; i < n; i <<= 1 {
+
+			rot = i 
+			rot *= batch
+
+			if !utils.IsInSliceInt(rot, rots) && rot != 0 {
+				rots = append(rots, rot)
+			}
+
+			rot = n - (n  & ((i << 1) - 1))
+
+			rot *= batch
+
+			if !utils.IsInSliceInt(rot, rots) && rot != 0 {
+				rots = append(rots, rot)
+			}
+		}
+
+		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
+		eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
+
+		for i := 0; i < b.N; i++ {
+			eval.InnerSum(ciphertext1, batch, n, ciphertext1)
+		}
+	})
+
+}
+
 func benchHoistedRotations(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "HoistedRotations/"), func(b *testing.B) {
@@ -290,7 +353,7 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 
 		b.Run(testString(testContext, "RotateHoisted/"), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.permuteNTTHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, ciphertext)
+				evaluator.permuteNTTHoisted(ciphertext.Level(), ciphertext.value[0], ciphertext.value[1], c2QiQDecomp, c2QiPDecomp, 5, ciphertext.value[0], ciphertext.value[1])
 			}
 		})
 	})

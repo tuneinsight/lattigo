@@ -100,8 +100,8 @@ type Evaluator interface {
 	MulMatrix(A, B *Ciphertext, mmpt *MMPt) (ciphertextAB *Ciphertext)
 
 	// Inner sum
-	//InnerSum(ctIn, ctOut *Ciphertext, n int)
-	//InnerSumNew(ctIn *Ciphertext, n int)
+	InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
+	InnerSumNaive(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
 	// =============================
 	// === Ciphertext Management ===
@@ -166,12 +166,13 @@ type evaluatorBase struct {
 }
 
 type evaluatorBuffers struct {
-	poolQ       [5]*ring.Poly // Memory pool in order : Decomp(c2), for NTT^-1(c2), res(c0', c1')
-	poolP       [5]*ring.Poly // Memory pool in order : Decomp(c2), res(c0', c1')
+	poolQ       [6]*ring.Poly // Memory pool in order : Decomp(c2), for NTT^-1(c2), res(c0', c1')
+	poolP       [6]*ring.Poly // Memory pool in order : Decomp(c2), res(c0', c1')
 	poolQMul    [3]*ring.Poly // Memory pool in order : for MForm(c0), MForm(c1), c2
-	c2QiQDecomp []*ring.Poly  // Memory pool for the basis extension in hoisting
-	c2QiPDecomp []*ring.Poly  // Memory pool for the basis extension in hoisting
-	ctxpool     *Ciphertext   // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
+	poolInvNTT  *ring.Poly
+	c2QiQDecomp []*ring.Poly // Memory pool for the basis extension in hoisting
+	c2QiPDecomp []*ring.Poly // Memory pool for the basis extension in hoisting
+	ctxpool     *Ciphertext  // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
 }
 
 func newEvaluatorBase(params *Parameters) *evaluatorBase {
@@ -195,10 +196,10 @@ func newEvaluatorBase(params *Parameters) *evaluatorBase {
 func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 	buff := new(evaluatorBuffers)
 	ringQ, ringP := evalBase.ringQ, evalBase.ringP
-	buff.poolQ = [5]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
+	buff.poolQ = [6]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
 	buff.poolQMul = [3]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
 	if evalBase.params.PiCount() > 0 {
-		buff.poolP = [5]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
+		buff.poolP = [6]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
 
 		buff.c2QiQDecomp = make([]*ring.Poly, evalBase.params.Beta())
 		buff.c2QiPDecomp = make([]*ring.Poly, evalBase.params.Beta())
@@ -208,6 +209,7 @@ func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 			buff.c2QiPDecomp[i] = ringP.NewPoly()
 		}
 	}
+	buff.poolInvNTT = ringQ.NewPoly()
 	buff.ctxpool = NewCiphertext(evalBase.params, 1, evalBase.params.MaxLevel(), evalBase.params.scale)
 	return buff
 }
@@ -1567,7 +1569,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 
 	rtk, generated := eval.rtks.Keys[galEl]
 	if !generated {
-		panic("switching key not available")
+		panic(fmt.Sprintf("rotation key k=%d not available", eval.params.InverseGaloisElement(galEl)))
 	}
 
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
@@ -1590,22 +1592,22 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []int, 
 	cOutQ = make(map[int][2]*ring.Poly)
 	cOutP = make(map[int][2]*ring.Poly)
 
+	level := ct0.Level()
+
 	for _, i := range rotations {
 
-		galEl := eval.params.GaloisElementForColumnRotationBy(i)
-
-		if galEl != 1 {
-			cOutQ[i] = [2]*ring.Poly{ringQ.NewPolyLvl(ct0.Level()), ringQ.NewPolyLvl(ct0.Level())}
+		if i != 0 {
+			cOutQ[i] = [2]*ring.Poly{ringQ.NewPolyLvl(level), ringQ.NewPolyLvl(level)}
 			cOutP[i] = [2]*ring.Poly{eval.params.NewPolyP(), eval.params.NewPolyP()}
 
-			eval.permuteNTTHoistedNoModDown(ct0, c2QiQDecomp, c2QiPDecomp, galEl, cOutQ[i], cOutP[i])
+			eval.permuteNTTHoistedNoModDown(level, c2QiQDecomp, c2QiPDecomp, i, cOutQ[i][0], cOutQ[i][1], cOutP[i][0], cOutP[i][1])
 		}
 	}
 
 	return
 }
 
-func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, galEl uint64, ctOutQ, ctOutP [2]*ring.Poly) {
+func (eval *evaluator) permuteNTTHoistedNoModDown(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
 
 	pool2Q := eval.poolQ[0]
 	pool3Q := eval.poolQ[1]
@@ -1613,8 +1615,10 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, 
 	pool2P := eval.poolP[0]
 	pool3P := eval.poolP[1]
 
-	levelQ := ct0.Level()
+	levelQ := level
 	levelP := eval.params.PiCount() - 1
+
+	galEl := eval.params.GaloisElementForColumnRotationBy(k)
 
 	rtk, generated := eval.rtks.Keys[galEl]
 	if !generated {
@@ -1624,11 +1628,11 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, 
 
 	eval.keyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
-	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ctOutQ[0])
-	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ctOutQ[1])
+	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ct0OutQ)
+	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ct1OutQ)
 
-	ring.PermuteNTTWithIndexLvl(levelP, pool2P, index, ctOutP[0])
-	ring.PermuteNTTWithIndexLvl(levelP, pool3P, index, ctOutP[1])
+	ring.PermuteNTTWithIndexLvl(levelP, pool2P, index, ct0OutP)
+	ring.PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
 }
 
 func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
@@ -1642,7 +1646,7 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 	c2QiQ := eval.poolQ[0]
 	c2QiP := eval.poolP[0]
 
-	c2 := eval.poolQ[3]
+	c2 := eval.poolInvNTT
 
 	evakey0Q := new(ring.Poly)
 	evakey1Q := new(ring.Poly)
@@ -1720,7 +1724,7 @@ func (eval *evaluator) DecompInternal(levelQ uint64, c2NTT *ring.Poly, c2QiQDeco
 
 	ringQ := eval.ringQ
 
-	c2InvNTT := eval.poolQMul[0] // TODO : maybe have a pre-allocated memory pool ?
+	c2InvNTT := eval.poolInvNTT
 	ringQ.InvNTTLvl(levelQ, c2NTT, c2InvNTT)
 
 	alpha := eval.params.Alpha()
@@ -1764,52 +1768,11 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 	ringP.NTTLazy(c2QiP, c2QiP)
 }
 
-// RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
-// rotation by one element of the list. It is much faster than sequential calls to Rotate.
-func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []int) (cOut map[int]*Ciphertext) {
-
-	// Pre-computation for rotations using hoisting
-	ringQ := eval.ringQ
-	ringP := eval.ringP
-
-	c2NTT := ct0.value[1]
-	c2InvNTT := ringQ.NewPoly()
-	ringQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
-
-	alpha := eval.params.Alpha()
-	beta := uint64(math.Ceil(float64(ct0.Level()+1) / float64(alpha)))
-
-	c2QiQDecomp := make([]*ring.Poly, beta)
-	c2QiPDecomp := make([]*ring.Poly, beta)
-
-	for i := uint64(0); i < beta; i++ {
-		c2QiQDecomp[i] = ringQ.NewPoly()
-		c2QiPDecomp[i] = ringP.NewPoly()
-		eval.decomposeAndSplitNTT(ct0.Level(), i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
-	}
-
-	cOut = make(map[int]*Ciphertext)
-	for _, i := range rotations {
-
-		if i == 0 {
-			cOut[i] = ct0.CopyNew().Ciphertext()
-		} else {
-			cOut[i] = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale())
-			eval.permuteNTTHoisted(ct0, c2QiQDecomp, c2QiPDecomp, i, cOut[i])
-		}
-	}
-
-	return
-}
-
-func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, ctOut *Ciphertext) {
-
-	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("input and output Ciphertext must be of degree 1")
-	}
+func (eval *evaluator) permuteNTTHoisted(level uint64, c0, c1 *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, cOut0, cOut1 *ring.Poly) {
 
 	if k == 0 {
-		ctOut.Copy(ct0.Element)
+		cOut0.Copy(c0)
+		cOut1.Copy(c1)
 		return
 	}
 
@@ -1819,8 +1782,6 @@ func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDeco
 		panic(fmt.Sprintf("specific rotation has not been generated: %d", k))
 	}
 
-	ctOut.SetScale(ct0.Scale())
-
 	index := eval.permuteNTTIndex[galEl]
 
 	pool2Q := eval.poolQ[0]
@@ -1829,14 +1790,12 @@ func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDeco
 	pool2P := eval.poolP[0]
 	pool3P := eval.poolP[1]
 
-	level := ctOut.Level()
-
 	eval.keyswitchHoisted(level, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
-	eval.ringQ.AddLvl(level, pool2Q, ct0.value[0], pool2Q)
+	eval.ringQ.AddLvl(level, pool2Q, c0, pool2Q)
 
-	ring.PermuteNTTWithIndexLvl(level, pool2Q, index, ctOut.value[0])
-	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.value[1])
+	ring.PermuteNTTWithIndexLvl(level, pool2Q, index, cOut0)
+	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, cOut1)
 }
 
 func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {

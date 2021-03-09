@@ -7,23 +7,32 @@ import (
 
 // Convert creates a switching key K_ij from the evaluation key of the i-th peer and the public key of the j-th peer.
 func Convert(D *MKEvaluationKey, publicKey *MKPublicKey, params *bfv.Parameters) *MKSwitchingKey {
-	res := new(MKSwitchingKey)
+
+	ringQP := GetRingQP(params)
+	res := NewMKSwitchingKey(ringQP, params)
+
 	d0 := D.key[0]
 	d1 := D.key[1]
 	beta := params.Beta() // size of the decomposition
-	k0 := new(MKDecomposedPoly)
-	k1 := new(MKDecomposedPoly)
-	k2 := new(MKDecomposedPoly)
-	ring := GetRingQP(params)
+
+	k0 := NewDecomposedPoly(ringQP, beta)
+	k1 := NewDecomposedPoly(ringQP, beta)
+	k2 := NewDecomposedPoly(ringQP, beta)
 
 	for l := uint64(0); l < beta; l++ {
+
 		gInv := GInverse(publicKey.key[0].poly[l], params)
-		Dot(gInv, d0, k0.poly[l], ring, beta) // g^-1 ( b_j[l]) dot d_i[0]
-		Dot(gInv, d1, k1.poly[l], ring, beta) // g^-1 ( b_j[l]) dot d_i[1]
+
+		Dot(gInv, d0, k0.poly[l], ringQP) // g^-1 ( b_j[l]) dot d_i[0]
+		Dot(gInv, d1, k1.poly[l], ringQP) // g^-1 ( b_j[l]) dot d_i[1]
 
 	}
+
 	copy(k2.poly, D.key[2].poly) // TODO : We could also use the ring_poly.Copy method, if this does not do a deep copy
-	res.key = [3]*MKDecomposedPoly{k0, k1, k2}
+
+	res.key[0] = k0
+	res.key[1] = k1
+	res.key[2] = k2
 
 	return res
 }
@@ -31,21 +40,24 @@ func Convert(D *MKEvaluationKey, publicKey *MKPublicKey, params *bfv.Parameters)
 // GenSharedRelinearizationKey generates a shared relinearization key containing the switching key for all pair of participants.
 func GenSharedRelinearizationKey(params *bfv.Parameters, pubKeys []*MKPublicKey, evalKeys []*MKEvaluationKey) *MKRelinearizationKey {
 
-	res := new(MKRelinearizationKey)
+	if len(evalKeys) != len(pubKeys) {
+		panic("Number of evaluation keys should be the same as the number of public keys")
+	}
 
+	res := new(MKRelinearizationKey)
 	nbrParticipants := uint64(len(pubKeys))
 
-	tmpArray := make([][]*MKSwitchingKey, nbrParticipants)
+	res.key = make([][]*MKSwitchingKey, nbrParticipants)
 
 	for i := uint64(0); i < nbrParticipants; i++ {
 
+		res.key[i] = make([]*MKSwitchingKey, nbrParticipants)
+
 		for j := uint64(0); j < nbrParticipants; j++ {
 
-			tmpArray[i][j] = Convert(evalKeys[i], pubKeys[j], params)
+			res.key[i][j] = Convert(evalKeys[i], pubKeys[j], params)
 		}
 	}
-
-	res.key = tmpArray
 
 	return res
 }
@@ -67,7 +79,7 @@ func GInverse(p *ring.Poly, params *bfv.Parameters) *MKDecomposedPoly {
 
 	c2QiQ := params.NewPolyQ()
 	c2QiP := params.NewPolyP()
-	invPoly := params.NewPolyQ()
+	invPoly := params.NewPolyQP()
 	ringQP.InvNTT(p, invPoly)
 
 	// generate each poly decomposed in the base

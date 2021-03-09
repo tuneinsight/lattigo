@@ -24,13 +24,13 @@ type MKDecomposedPoly struct {
 
 // MKEvaluationKey is a type for BFV evaluation keys in a multy key context.
 type MKEvaluationKey struct {
-	key    [3]*MKDecomposedPoly
+	key    []*MKDecomposedPoly
 	peerID uint64
 }
 
 // MKSwitchingKey is a type for BFV switching keys in a multy key context.
 type MKSwitchingKey struct {
-	key [3]*MKDecomposedPoly
+	key []*MKDecomposedPoly
 	//peerID uint64 // Commented because in relinkey_gen.Convert we might not need a peerID, or might need multiple
 }
 
@@ -45,4 +45,44 @@ type MKKeys struct {
 	publicKey *MKPublicKey
 	evalKey   *MKEvaluationKey
 	relinKey  *MKRelinearizationKey
+}
+
+// NewMKSwitchingKey allocate a MKSwitchingKey with zero polynomials in the ring r
+func NewMKSwitchingKey(r *ring.Ring, params *bfv.Parameters) *MKSwitchingKey {
+
+	key := new(MKSwitchingKey)
+	key.key = make([]*MKDecomposedPoly, 3)
+
+	key.key[0] = NewDecomposedPoly(r, params.Beta())
+	key.key[1] = NewDecomposedPoly(r, params.Beta())
+	key.key[2] = NewDecomposedPoly(r, params.Beta())
+
+	return key
+}
+
+// NewMKEvaluationKey allocate a MKSwitchingKey with zero polynomials in the ring r adn with id = peerID
+func NewMKEvaluationKey(r *ring.Ring, id uint64, params *bfv.Parameters) *MKEvaluationKey {
+
+	key := new(MKEvaluationKey)
+	key.key = make([]*MKDecomposedPoly, 3)
+
+	key.key[0] = NewDecomposedPoly(r, params.Beta())
+	key.key[1] = NewDecomposedPoly(r, params.Beta())
+	key.key[2] = NewDecomposedPoly(r, params.Beta())
+
+	key.peerID = id
+	return key
+}
+
+// NewDecomposedPoly allocate a MKDecomposedPoly with zero polynomials in the ring r
+func NewDecomposedPoly(r *ring.Ring, size uint64) *MKDecomposedPoly {
+
+	res := new(MKDecomposedPoly)
+	res.poly = make([]*ring.Poly, size)
+
+	for i := uint64(0); i < size; i++ {
+		res.poly[i] = r.NewPoly()
+	}
+
+	return res
 }

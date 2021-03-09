@@ -65,11 +65,12 @@ func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys 
 	keyBag := new(MKKeys)
 
 	// generate private and public BFV keys
-
+	keyBag.secretKey = new(MKSecretKey)
 	keyBag.secretKey.key = generator.GenSecretKey()
 	keyBag.secretKey.peerID = peerID
 
 	//Public key = (b, a)
+	keyBag.publicKey = new(MKPublicKey)
 	keyBag.publicKey.key[0] = genPublicKey(keyBag.secretKey.key, params, generator, ringQP, a)
 	keyBag.publicKey.key[1] = a
 	keyBag.publicKey.peerID = peerID
@@ -109,7 +110,7 @@ func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGe
 }
 
 // Symmetric encryption of a single ring element (mu) under the secret key (sk).
-func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) [3]*MKDecomposedPoly {
+func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) []*MKDecomposedPoly {
 
 	random := generator.GenSecretKey() // random element as same distribution as the secret key
 
@@ -151,7 +152,7 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGe
 	MultiplyByBaseAndAdd(random.Value, params, d0)
 	MultiplyByBaseAndAdd(mu, params, d2)
 
-	return [3]*MKDecomposedPoly{d0, d1, d2}
+	return []*MKDecomposedPoly{d0, d1, d2}
 }
 
 // MultiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2

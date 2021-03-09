@@ -18,7 +18,6 @@ type MKCiphertext struct {
 func PadCiphers(c1, c2, c1Out, c2Out *MKCiphertext, params *bfv.Parameters) {
 
 	ringQ := GetRingQ(params)
-
 	allPeers := MergeSlices(c1.peerIDs, c2.peerIDs)
 	k := len(allPeers)
 
@@ -34,22 +33,32 @@ func PadCiphers(c1, c2, c1Out, c2Out *MKCiphertext, params *bfv.Parameters) {
 	for i, peer := range allPeers {
 		index := i + 1
 
-		if Contains(c1.peerIDs, peer) {
-			res1[index] = c1.ciphertexts.Element.Value()[index]
-			break
-		}
-		if Contains(c2.peerIDs, peer) {
-			res2[index] = c2.ciphertexts.Element.Value()[index]
-			break
+		index1 := Contains(c1.peerIDs, peer)
+		index2 := Contains(c2.peerIDs, peer)
+
+		if index1 >= 0 {
+			res1[index] = c1.ciphertexts.Element.Value()[index1+1]
+		} else {
+			res1[index] = ringQ.NewPoly()
 		}
 
-		res1[index] = ringQ.NewPoly()
-		res2[index] = ringQ.NewPoly()
+		if index2 >= 0 {
+			res2[index] = c2.ciphertexts.Element.Value()[index2+1]
+		} else {
+			res2[index] = ringQ.NewPoly()
+		}
+
 	}
 
 	// set ciphertext values
-	c1Out.ciphertexts.Element.SetValue(res1)
-	c2Out.ciphertexts.Element.SetValue(res2)
+	c1Cipher := new(bfv.Element)
+	c2Cipher := new(bfv.Element)
+
+	c1Cipher.SetValue(res1)
+	c2Cipher.SetValue(res2)
+
+	c1Out.ciphertexts = c1Cipher.Ciphertext()
+	c2Out.ciphertexts = c2Cipher.Ciphertext()
 
 	// set peer Ids
 	c1Out.peerIDs = allPeers

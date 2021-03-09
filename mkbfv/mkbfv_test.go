@@ -13,25 +13,11 @@ func Test_MKBFV(t *testing.T) {
 
 func Test_Utils(t *testing.T) {
 
-	s1 := make([]uint64, 3)
-	s1[0] = 0
-	s1[1] = 2
-	s1[2] = 1
+	s1 := []uint64{0, 2, 1}
 
-	s2 := make([]uint64, 5)
-	s2[0] = 3
-	s2[1] = 7
-	s2[2] = 12
-	s2[3] = 1
-	s2[4] = 0
+	s2 := []uint64{3, 7, 12, 1, 0}
 
-	expected := make([]uint64, 6)
-	expected[0] = 0
-	expected[1] = 1
-	expected[2] = 2
-	expected[3] = 3
-	expected[4] = 7
-	expected[5] = 12
+	expected := []uint64{0, 1, 2, 3, 7, 12}
 
 	res := MergeSlices(s1, s2)
 
@@ -41,16 +27,23 @@ func Test_Utils(t *testing.T) {
 
 }
 
-func Test_PadCiphertext(t *testing.T) {
+func Test_KeyGenAndPadCiphertext(t *testing.T) {
 
 	// setup keys and public parameters
 	params := bfv.DefaultParams[0]
 	a := GenCommonPublicParam(params)
 
+	if a == nil || params == nil {
+		t.Errorf("Generation of common public parameter failed !")
+	}
+
 	id1 := uint64(12)
 	id2 := uint64(3)
 
 	keys := KeyGen(params, id1, a)
+	if keys == nil {
+		t.Errorf("Keys generation failed")
+	}
 
 	pubKeys := make([]*MKPublicKey, 1)
 	pubKeys[0] = keys.publicKey
@@ -59,6 +52,9 @@ func Test_PadCiphertext(t *testing.T) {
 	evalKeys[0] = keys.evalKey
 
 	keys.relinKey = GenSharedRelinearizationKey(params, pubKeys, evalKeys)
+	if keys.relinKey == nil {
+		t.Errorf("Shared relin key generation failed")
+	}
 
 	//create and encrypt 2 plaintext
 	encryptor := NewEncryptor(keys.publicKey, params)
@@ -90,15 +86,14 @@ func Test_PadCiphertext(t *testing.T) {
 		t.Errorf("PadCipher failed. IDs different")
 	}
 
-	// check length should be 3 since padded ciphertext should be (c0, c3, c12) since ids are 3 and 12
-	l1 := len(mkCiphertext1.ciphertexts.Element.Value())
-	l2 := len(mkCiphertext2.ciphertexts.Element.Value())
+	// length should be 3 since padded ciphertext should be (c0, c3, c12)
+	l1 := len(out1.ciphertexts.Element.Value())
+	l2 := len(out2.ciphertexts.Element.Value())
 	if l1 != 3 || l2 != 3 {
 		t.Errorf("PadCipher failed. Length not equal to 3. Length 1 = %d, length 2 = %d", l1, l2)
 	}
 
 	// check content
-
 	ec00 := mkCiphertext1.ciphertexts.Element.Value()[0]
 	ec01 := mkCiphertext1.ciphertexts.Element.Value()[1]
 	ec10 := mkCiphertext2.ciphertexts.Element.Value()[0]

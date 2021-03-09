@@ -722,6 +722,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 
 		testContext.evaluator.Mul(ciphertext1, ciphertext2, ciphertext1)
 		require.Equal(t, ciphertext1.Degree(), uint64(2))
+
 		testContext.evaluator.Relinearize(ciphertext1, ciphertext1)
 		require.Equal(t, ciphertext1.Degree(), uint64(1))
 
@@ -954,7 +955,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 	}
 	rots := []int{1, -1, 4, -4, 63, -63}
 	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
-	evaluator := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
+	evaluator := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
 

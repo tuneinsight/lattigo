@@ -66,7 +66,7 @@ type Evaluator interface {
 	EvaluatePoly(ct *Ciphertext, coeffs *Poly) (res *Ciphertext, err error)
 	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation) (res *Ciphertext, err error)
 	ShallowCopy() Evaluator
-	ShallowCopyWithKey(EvaluationKey) Evaluator
+	WithKey(EvaluationKey) Evaluator
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
@@ -161,15 +161,23 @@ func (eval *evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64
 	return &permuteNTTIndex
 }
 
-// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
-// shared with the receiver.
+// ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Evaluators can be used concurrently.
 func (eval *evaluator) ShallowCopy() Evaluator {
-	return eval.ShallowCopyWithKey(EvaluationKey{eval.rlk, eval.rtks})
+	return &evaluator{
+		evaluatorBase:    eval.evaluatorBase,
+		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
+		rlk:              eval.rlk,
+		rtks:             eval.rtks,
+		permuteNTTIndex:  eval.permuteNTTIndex,
+		baseconverter:    eval.baseconverter.ShallowCopy(),
+	}
 }
 
-// ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
-// shared with the receiver but the EvaluationKey is evaluationKey.
-func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator {
+// WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
+// and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
+func (eval *evaluator) WithKey(evaluationKey EvaluationKey) Evaluator {
 	var indexes map[uint64][]uint64
 	if evaluationKey.Rtks == eval.rtks {
 		indexes = eval.permuteNTTIndex
@@ -178,11 +186,11 @@ func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator
 	}
 	return &evaluator{
 		evaluatorBase:    eval.evaluatorBase,
-		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
+		evaluatorBuffers: eval.evaluatorBuffers,
 		rlk:              evaluationKey.Rlk,
 		rtks:             evaluationKey.Rtks,
 		permuteNTTIndex:  indexes,
-		baseconverter:    eval.baseconverter.ShallowCopy(),
+		baseconverter:    eval.baseconverter,
 	}
 }
 

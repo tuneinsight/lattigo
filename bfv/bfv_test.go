@@ -624,7 +624,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 
 	rots := []int{1, -1, 4, -4, 63, -63}
 	rotkey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
-	evaluator := testctx.evaluator.ShallowCopyWithKey(EvaluationKey{testctx.rlk, rotkey})
+	evaluator := testctx.evaluator.WithKey(EvaluationKey{testctx.rlk, rotkey})
 
 	t.Run(testString("Evaluator/RotateRows/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
@@ -668,7 +668,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 	})
 
 	rotkey = testctx.kgen.GenRotationKeysForInnerSum(testctx.sk)
-	evaluator = evaluator.ShallowCopyWithKey(EvaluationKey{testctx.rlk, rotkey})
+	evaluator = evaluator.WithKey(EvaluationKey{testctx.rlk, rotkey})
 
 	t.Run(testString("Evaluator/Rotate/InnerSum/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)

@@ -230,7 +230,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		evk := bfv.NewRelinearizationKey(testCtx.params, 1)
 		P0.GenBFVRelinearizationKey(P0.share1, P0.share2, evk)
 
-		evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: evk, Rtks: nil})
+		evaluator := testCtx.evaluator.WithKey(bfv.EvaluationKey{Rlk: evk, Rtks: nil})
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 		for i := range coeffs {
@@ -388,7 +388,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
-		evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		evaluator := testCtx.evaluator.WithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 		result := evaluator.RotateRowsNew(ciphertext)
 		coeffsWant := append(coeffs[testCtx.params.N()>>1:], coeffs[:testCtx.params.N()>>1]...)
 
@@ -449,7 +449,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 			P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
 		}
 
-		evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		evaluator := testCtx.evaluator.WithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 		for k := uint64(1); k < testCtx.params.N()>>1; k <<= 1 {
 			result := evaluator.RotateColumnsNew(ciphertext, int(k))
 			coeffsWant := utils.RotateUint64Slots(coeffs, int(k))
@@ -502,7 +502,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		copy(coeffsTmp, coeffs)
 
-		evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: rlk, Rtks: nil})
+		evaluator := testCtx.evaluator.WithKey(bfv.EvaluationKey{Rlk: rlk, Rtks: nil})
 		// Finds the maximum multiplicative depth
 		for {
 

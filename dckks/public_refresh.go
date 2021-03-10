@@ -34,27 +34,28 @@ func NewRefreshProtocol(params *ckks.Parameters) (refreshProtocol *RefreshProtoc
 	if err != nil {
 		panic(err)
 	}
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.ringQ, params.Sigma(), uint64(6*params.Sigma()))
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng)
 
 	return
 }
 
 // AllocateShares allocates the shares of the Refresh protocol.
-func (refreshProtocol *RefreshProtocol) AllocateShares(levelStart uint64) (RefreshShareDecrypt, RefreshShareRecrypt) {
+func (refreshProtocol *RefreshProtocol) AllocateShares(levelStart int) (RefreshShareDecrypt, RefreshShareRecrypt) {
 	return refreshProtocol.dckksContext.ringQ.NewPolyLvl(levelStart), refreshProtocol.dckksContext.ringQ.NewPoly()
 }
 
 // GenShares generates the decryption and recryption shares of the Refresh protocol.
-func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
+func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nParties int, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
 
 	ringQ := refreshProtocol.dckksContext.ringQ
+	sigma := refreshProtocol.dckksContext.params.Sigma()
 
 	bound := ring.NewUint(ringQ.Modulus[0])
-	for i := uint64(1); i < levelStart+1; i++ {
+	for i := 1; i < levelStart+1; i++ {
 		bound.Mul(bound, ring.NewUint(ringQ.Modulus[i]))
 	}
 
-	bound.Quo(bound, ring.NewUint(2*nParties))
+	bound.Quo(bound, ring.NewUint(uint64(2*nParties)))
 	boundHalf := new(big.Int).Rsh(bound, 1)
 
 	var sign int
@@ -85,12 +86,12 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 	ringQ.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
 
 	// h0 = sk*c1 + mask + e0
-	refreshProtocol.gaussianSampler.Read(refreshProtocol.tmp)
-	ringQ.NTT(refreshProtocol.tmp, refreshProtocol.tmp)
+	refreshProtocol.gaussianSampler.ReadLvl(levelStart, refreshProtocol.tmp, ringQ, sigma, int(6*sigma))
+	ringQ.NTTLvl(levelStart, refreshProtocol.tmp, refreshProtocol.tmp)
 	ringQ.AddLvl(levelStart, shareDecrypt, refreshProtocol.tmp, shareDecrypt)
 
 	// h1 = sk*a + mask + e1
-	refreshProtocol.gaussianSampler.Read(refreshProtocol.tmp)
+	refreshProtocol.gaussianSampler.Read(refreshProtocol.tmp, ringQ, sigma, int(6*sigma))
 	ringQ.NTT(refreshProtocol.tmp, refreshProtocol.tmp)
 	ringQ.Add(shareRecrypt, refreshProtocol.tmp, shareRecrypt)
 
@@ -102,7 +103,7 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 
 // Aggregate adds share1 with share2 on shareOut.
 func (refreshProtocol *RefreshProtocol) Aggregate(share1, share2, shareOut *ring.Poly) {
-	refreshProtocol.dckksContext.ringQ.AddLvl(uint64(len(share1.Coeffs)-1), share1, share2, shareOut)
+	refreshProtocol.dckksContext.ringQ.AddLvl(len(share1.Coeffs)-1, share1, share2, shareOut)
 }
 
 // Decrypt operates a masked decryption on the ciphertext with the given decryption share.
@@ -120,7 +121,7 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
 	ringQ.PolyToBigint(ciphertext.Value()[0], refreshProtocol.maskBigint)
 
 	QStart := ring.NewUint(ringQ.Modulus[0])
-	for i := uint64(1); i < ciphertext.Level()+1; i++ {
+	for i := 1; i < ciphertext.Level()+1; i++ {
 		QStart.Mul(QStart, ring.NewUint(ringQ.Modulus[i]))
 	}
 
@@ -132,7 +133,7 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
 	}
 
 	var sign int
-	for i := uint64(0); i < dckksContext.n; i++ {
+	for i := 0; i < dckksContext.n; i++ {
 		sign = refreshProtocol.maskBigint[i].Cmp(QHalf)
 		if sign == 1 || sign == 0 {
 			refreshProtocol.maskBigint[i].Sub(refreshProtocol.maskBigint[i], QStart)

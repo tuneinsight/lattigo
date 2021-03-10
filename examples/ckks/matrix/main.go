@@ -3,11 +3,9 @@ package main
 import (
 	"fmt"
 	"math"
-	"math/bits"
 	"time"
 
 	"github.com/ldsec/lattigo/v2/ckks"
-	"github.com/ldsec/lattigo/v2/utils"
 )
 
 func main() {
@@ -15,12 +13,12 @@ func main() {
 	var err error
 
 	// Scheme params
-	LogN := uint64(14)
-	LogSlots := uint64(13)
+	LogN := 14
+	LogSlots := 13
 
 	LogModuli := ckks.LogModuli{
-		LogQi: []uint64{55, 40, 40, 40},
-		LogPi: []uint64{50, 50},
+		LogQi: []int{55, 40, 40, 40},
+		LogPi: []int{50, 50},
 	}
 
 	Scale := float64(1 << 40)
@@ -110,7 +108,7 @@ func main() {
 	// Rotation-keys generation
 	mmpt := ckks.GenMatMulLinTrans(params, params.MaxLevel(), rows, encoder)
 
-	rotations := kgen.GenMatMulIndexRotKeys(mmpt)
+	rotations := kgen.GenRotationIndexesForMatMul(mmpt)
 
 	for i := 1; i < nb; i <<= 1 {
 		rotations = append(rotations, dxd*i)
@@ -182,11 +180,9 @@ func main() {
 
 	// Print results and comparison
 	printDebug(rows, cols, valuesWant, valuesHave, params, encoder)
-
-	fmt.Println(GenInnerSumRotKeyIndex(9))
-
 }
 
+// GenReplicateRotKeyIndex ...
 func GenReplicateRotKeyIndex(batches, slots int) (rotations []int) {
 	logBatches := int(math.Log2(float64(batches)) + 0.5)
 	rotations = []int{}
@@ -202,6 +198,7 @@ func GenReplicateRotKeyIndex(batches, slots int) (rotations []int) {
 
 	return
 }
+// Replicate ...
 func Replicate(eval ckks.Evaluator, ciphertext *ckks.Ciphertext, batches, slots int) {
 
 	logBatches := int(math.Log2(float64(batches)) + 0.5)

@@ -14,7 +14,7 @@ func Min(x, y int) int {
 }
 
 // PowerOf2 returns (x*2^n)%q where x is in Montgomery form
-func PowerOf2(x, n, q, qInv uint64) (r uint64) {
+func PowerOf2(x uint64, n int, q, qInv uint64) (r uint64) {
 	ahi, alo := x>>(64-n), x<<n
 	R := alo * qInv
 	H, _ := bits.Mul64(R, q)
@@ -27,7 +27,7 @@ func PowerOf2(x, n, q, qInv uint64) (r uint64) {
 
 // ModExp performs the modular exponentiation x^e mod p,
 // x and p are required to be at most 64 bits to avoid an overflow.
-func ModExp(x, e, p uint64) (result uint64) {
+func ModExp(x uint64, e int, p uint64) (result uint64) {
 	params := BRedParams(p)
 	result = 1
 	for i := e; i > 0; i >>= 1 {
@@ -41,7 +41,7 @@ func ModExp(x, e, p uint64) (result uint64) {
 
 // modexpMontgomery performs the modular exponentiation x^e mod p,
 // where x is in Montgomery form, and returns x^e in Montgomery form.
-func modexpMontgomery(x, e, q, qInv uint64, bredParams []uint64) (result uint64) {
+func modexpMontgomery(x uint64, e int, q, qInv uint64, bredParams []uint64) (result uint64) {
 
 	result = MForm(1, q, bredParams)
 
@@ -80,7 +80,7 @@ func primitiveRoot(q uint64) (g uint64) {
 		for _, factor := range factors {
 			tmp = (q - 1) / factor
 			// if for any factor of q-1, g^(q-1)/factor = 1 mod q, g is not a primitive root
-			if ModExp(g, tmp, q) == 1 {
+			if ModExp(g, int(tmp), q) == 1 {
 				notFoundPrimitiveRoot = true
 				break
 			}

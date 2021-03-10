@@ -43,7 +43,7 @@ func NewRNSScaler(t uint64, ringQ *Ring) (rnss *RNSScaler) {
 	rnss.t = t
 	rnss.qHalf = new(big.Int)
 	rnss.qInv = rnss.qHalf.Mod(ringQ.ModulusBigint, NewUint(t)).Uint64()
-	rnss.qInv = ModExp(rnss.qInv, t-2, t)
+	rnss.qInv = ModExp(rnss.qInv, int(t-2), t)
 	rnss.qInv = MForm(rnss.qInv, t, BRedParams(t))
 
 	rnss.qHalf.Set(ringQ.ModulusBigint)
@@ -82,7 +82,7 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 	modUpExact(p1Q.Coeffs, rnss.polypoolT.Coeffs, rnss.paramsQP)
 
 	// Compute [Q^{-1} * (t*P_{t} -   (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
-	for j := uint64(0); j < ringQ.N; j = j + 8 {
+	for j := 0; j < ringQ.N; j = j + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
 		z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
@@ -260,7 +260,7 @@ func (ss *SimpleScaler) reconstructThenScale(p1, p2 *Poly) {
 // Algorithm from https://eprint.iacr.org/2018/117.pdf.
 func (ss *SimpleScaler) reconstructAndScale(p1, p2 *Poly) {
 
-	for i := uint64(0); i < ss.ringQ.N; i++ {
+	for i := 0; i < ss.ringQ.N; i++ {
 
 		var a uint64
 		var bBF big.Float
@@ -295,14 +295,14 @@ func (r *Ring) DivFloorByLastModulusNTT(p0, p1 *Poly) {
 	p1.Coeffs = p1.Coeffs[:p0.Level()]
 }
 
-func (r *Ring) divFloorByLastModulusNTT(level uint64, p0, p1 *Poly) {
+func (r *Ring) divFloorByLastModulusNTT(level int, p0, p1 *Poly) {
 
 	pool0 := r.polypool.Coeffs[0]
 	pool1 := r.polypool.Coeffs[1]
 
 	InvNTTLazy(p0.Coeffs[level], pool0, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 
-	for i := uint64(0); i < level; i++ {
+	for i := 0; i < level; i++ {
 
 		NTTLazy(pool0, pool1, r.N, r.NttPsi[i], r.Modulus[i], r.MredParams[i], r.BredParams[i])
 
@@ -315,7 +315,7 @@ func (r *Ring) divFloorByLastModulusNTT(level uint64, p0, p1 *Poly) {
 		rescaleParams := r.RescaleParams[level-1][i]
 
 		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < r.N; j = j + 8 {
+		for j := 0; j < r.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&pool1[j]))
 			y := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
@@ -341,9 +341,9 @@ func (r *Ring) DivFloorByLastModulus(p0, p1 *Poly) {
 	p1.Coeffs = p1.Coeffs[:p0.Level()]
 }
 
-func (r *Ring) divFloorByLastModulus(level uint64, p0, p1 *Poly) {
+func (r *Ring) divFloorByLastModulus(level int, p0, p1 *Poly) {
 
-	for i := uint64(0); i < level; i++ {
+	for i := 0; i < level; i++ {
 		p0tmp := p0.Coeffs[level]
 		p1tmp := p0.Coeffs[i]
 		p2tmp := p1.Coeffs[i]
@@ -353,7 +353,7 @@ func (r *Ring) divFloorByLastModulus(level uint64, p0, p1 *Poly) {
 		rescaleParams := r.RescaleParams[level-1][i]
 
 		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < r.N; j = j + 8 {
+		for j := 0; j < r.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 			y := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
@@ -373,7 +373,7 @@ func (r *Ring) divFloorByLastModulus(level uint64, p0, p1 *Poly) {
 
 // DivFloorByLastModulusManyNTT divides (floored) sequentially nbRescales times the polynomial by its last modulus. Input must be in the NTT domain.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivFloorByLastModulusManyNTT(p0, p1 *Poly, nbRescales uint64) {
+func (r *Ring) DivFloorByLastModulusManyNTT(p0, p1 *Poly, nbRescales int) {
 
 	level := p0.Level()
 
@@ -387,7 +387,7 @@ func (r *Ring) DivFloorByLastModulusManyNTT(p0, p1 *Poly, nbRescales uint64) {
 
 		r.InvNTTLvl(level, p0, r.polypool)
 
-		for i := uint64(0); i < nbRescales; i++ {
+		for i := 0; i < nbRescales; i++ {
 			r.divFloorByLastModulus(level-i, r.polypool, r.polypool)
 		}
 
@@ -399,7 +399,7 @@ func (r *Ring) DivFloorByLastModulusManyNTT(p0, p1 *Poly, nbRescales uint64) {
 
 // DivFloorByLastModulusMany divides (floored) sequentially nbRescales times the polynomial by its last modulus.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivFloorByLastModulusMany(p0, p1 *Poly, nbRescales uint64) {
+func (r *Ring) DivFloorByLastModulusMany(p0, p1 *Poly, nbRescales int) {
 
 	level := p0.Level()
 
@@ -414,7 +414,7 @@ func (r *Ring) DivFloorByLastModulusMany(p0, p1 *Poly, nbRescales uint64) {
 		if nbRescales > 1 {
 			r.divFloorByLastModulus(level, p0, r.polypool)
 
-			for i := uint64(1); i < nbRescales; i++ {
+			for i := 1; i < nbRescales; i++ {
 
 				if i == nbRescales-1 {
 					r.divFloorByLastModulus(level-i, r.polypool, p1)
@@ -439,7 +439,7 @@ func (r *Ring) DivRoundByLastModulusNTT(p0, p1 *Poly) {
 	p1.Coeffs = p1.Coeffs[:p0.Level()]
 }
 
-func (r *Ring) divRoundByLastModulusNTT(level uint64, p0, p1 *Poly) {
+func (r *Ring) divRoundByLastModulusNTT(level int, p0, p1 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
 
@@ -452,7 +452,7 @@ func (r *Ring) divRoundByLastModulusNTT(level uint64, p0, p1 *Poly) {
 	pj := r.Modulus[level]
 	pHalf = (pj - 1) >> 1
 
-	for i := uint64(0); i < r.N; i = i + 8 {
+	for i := 0; i < r.N; i = i + 8 {
 
 		z := (*[8]uint64)(unsafe.Pointer(&pool0[i]))
 
@@ -466,7 +466,7 @@ func (r *Ring) divRoundByLastModulusNTT(level uint64, p0, p1 *Poly) {
 		z[7] = CRed(z[7]+pHalf, pj)
 	}
 
-	for i := uint64(0); i < level; i++ {
+	for i := 0; i < level; i++ {
 
 		p0tmp := p0.Coeffs[i]
 		p1tmp := p1.Coeffs[i]
@@ -479,7 +479,7 @@ func (r *Ring) divRoundByLastModulusNTT(level uint64, p0, p1 *Poly) {
 
 		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
 
-		for j := uint64(0); j < r.N; j = j + 8 {
+		for j := 0; j < r.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&pool0[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&pool1[j]))
@@ -497,7 +497,7 @@ func (r *Ring) divRoundByLastModulusNTT(level uint64, p0, p1 *Poly) {
 		NTTLazy(pool1, pool1, r.N, nttPsi, qi, qInv, bredParams)
 
 		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < r.N; j = j + 8 {
+		for j := 0; j < r.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&pool1[j]))
 			y := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
@@ -522,7 +522,7 @@ func (r *Ring) DivRoundByLastModulus(p0, p1 *Poly) {
 	p1.Coeffs = p1.Coeffs[:p0.Level()]
 }
 
-func (r *Ring) divRoundByLastModulus(level uint64, p0, p1 *Poly) {
+func (r *Ring) divRoundByLastModulus(level int, p0, p1 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
 
@@ -531,7 +531,7 @@ func (r *Ring) divRoundByLastModulus(level uint64, p0, p1 *Poly) {
 	p0tmp := p0.Coeffs[level]
 	pj := r.Modulus[level]
 
-	for i := uint64(0); i < r.N; i = i + 8 {
+	for i := 0; i < r.N; i = i + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&p0tmp[i]))
 
@@ -545,7 +545,7 @@ func (r *Ring) divRoundByLastModulus(level uint64, p0, p1 *Poly) {
 		x[7] = CRed(x[7]+pHalf, pj)
 	}
 
-	for i := uint64(0); i < level; i++ {
+	for i := 0; i < level; i++ {
 
 		p1tmp := p0.Coeffs[i]
 		p2tmp := p1.Coeffs[i]
@@ -559,7 +559,7 @@ func (r *Ring) divRoundByLastModulus(level uint64, p0, p1 *Poly) {
 		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
 
 		// (x[i] - x[-1]) * InvQ
-		for j := uint64(0); j < r.N; j = j + 8 {
+		for j := 0; j < r.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 			y := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
@@ -579,7 +579,7 @@ func (r *Ring) divRoundByLastModulus(level uint64, p0, p1 *Poly) {
 
 // DivRoundByLastModulusManyNTT divides (rounded) sequentially nbRescales times the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivRoundByLastModulusManyNTT(p0, p1 *Poly, nbRescales uint64) {
+func (r *Ring) DivRoundByLastModulusManyNTT(p0, p1 *Poly, nbRescales int) {
 
 	level := p0.Level()
 
@@ -595,7 +595,7 @@ func (r *Ring) DivRoundByLastModulusManyNTT(p0, p1 *Poly, nbRescales uint64) {
 
 			r.InvNTTLvl(level, p0, r.polypool)
 
-			for i := uint64(0); i < nbRescales; i++ {
+			for i := 0; i < nbRescales; i++ {
 				r.divRoundByLastModulus(level-i, r.polypool, r.polypool)
 			}
 
@@ -611,7 +611,7 @@ func (r *Ring) DivRoundByLastModulusManyNTT(p0, p1 *Poly, nbRescales uint64) {
 
 // DivRoundByLastModulusMany divides (rounded) sequentially nbRescales times the polynomial by its last modulus.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivRoundByLastModulusMany(p0, p1 *Poly, nbRescales uint64) {
+func (r *Ring) DivRoundByLastModulusMany(p0, p1 *Poly, nbRescales int) {
 
 	level := p0.Level()
 
@@ -627,7 +627,7 @@ func (r *Ring) DivRoundByLastModulusMany(p0, p1 *Poly, nbRescales uint64) {
 
 			r.divRoundByLastModulus(level, p0, r.polypool)
 
-			for i := uint64(1); i < nbRescales; i++ {
+			for i := 1; i < nbRescales; i++ {
 
 				if i == nbRescales-1 {
 					r.divRoundByLastModulus(level-i, r.polypool, p1)

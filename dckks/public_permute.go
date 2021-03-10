@@ -22,7 +22,7 @@ type PermuteProtocol struct {
 // NewPermuteProtocol creates a new instance of the PermuteProtocol.
 func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
 
-	prec := uint64(256)
+	prec := int(256)
 
 	pp = new(PermuteProtocol)
 	pp.encoder = ckks.NewEncoderBigComplex(params, prec)
@@ -33,7 +33,7 @@ func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
 	pp.maskFloat = make([]*big.Float, dckksContext.n)
 	pp.maskComplex = make([]*ring.Complex, dckksContext.n>>1)
 
-	for i := uint64(0); i < dckksContext.n>>1; i++ {
+	for i := 0; i < dckksContext.n>>1; i++ {
 		pp.maskFloat[i] = new(big.Float)
 		pp.maskFloat[i].SetPrec(uint(prec))
 
@@ -47,13 +47,13 @@ func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
 	if err != nil {
 		panic(err)
 	}
-	pp.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.ringQ, params.Sigma(), uint64(6*params.Sigma()))
+	pp.gaussianSampler = ring.NewGaussianSampler(prng)
 
 	return
 }
 
 // AllocateShares allocates the shares of the Refresh protocol.
-func (pp *PermuteProtocol) AllocateShares(levelStart uint64) (RefreshShareDecrypt, RefreshShareRecrypt) {
+func (pp *PermuteProtocol) AllocateShares(levelStart int) (RefreshShareDecrypt, RefreshShareRecrypt) {
 	return pp.dckksContext.ringQ.NewPolyLvl(levelStart), pp.dckksContext.ringQ.NewPoly()
 }
 
@@ -70,16 +70,17 @@ func (pp *PermuteProtocol) permuteWithIndex(permutation []uint64, values []*ring
 }
 
 // GenShares generates the decryption and recryption shares of the Refresh protocol.
-func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64, ciphertext *ckks.Ciphertext, crs *ring.Poly, slots uint64, permutation []uint64, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
+func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties int, ciphertext *ckks.Ciphertext, crs *ring.Poly, slots int, permutation []uint64, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
 
 	ringQ := pp.dckksContext.ringQ
+	sigma := pp.dckksContext.params.Sigma()
 
 	bound := ring.NewUint(ringQ.Modulus[0])
-	for i := uint64(1); i < levelStart+1; i++ {
+	for i := 1; i < levelStart+1; i++ {
 		bound.Mul(bound, ring.NewUint(ringQ.Modulus[i]))
 	}
 
-	bound.Quo(bound, ring.NewUint(2*nParties))
+	bound.Quo(bound, ring.NewUint(uint64(2*nParties)))
 	boundHalf := new(big.Int).Rsh(bound, 1)
 
 	maxSlots := pp.dckksContext.n >> 1
@@ -87,7 +88,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 
 	// Samples the whole N coefficients for h0
 	var sign int
-	for i := uint64(0); i < 2*maxSlots; i++ {
+	for i := 0; i < 2*maxSlots; i++ {
 
 		pp.maskBigint[i] = ring.RandInt(bound)
 
@@ -103,12 +104,12 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 	// h0 = sk*c1 + mask
 	ringQ.MulCoeffsMontgomeryAndAddLvl(levelStart, sk, ciphertext.Value()[1], shareDecrypt)
 	// h0 = sk*c1 + mask + e0
-	pp.gaussianSampler.Read(pp.tmp)
-	ringQ.NTT(pp.tmp, pp.tmp)
+	pp.gaussianSampler.ReadLvl(levelStart, pp.tmp, ringQ, sigma, int(6*sigma))
+	ringQ.NTTLvl(levelStart, pp.tmp, pp.tmp)
 	ringQ.AddLvl(levelStart, shareDecrypt, pp.tmp, shareDecrypt)
 
 	// Permutes only the (sparse) plaintext coefficients of h1
-	for i, jdx, idx := uint64(0), maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+	for i, jdx, idx := 0, maxSlots, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
 		pp.maskFloat[idx].SetInt(pp.maskBigint[idx])
 		pp.maskFloat[jdx].SetInt(pp.maskBigint[jdx])
 		pp.maskComplex[idx][0] = pp.maskFloat[idx]
@@ -120,7 +121,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 	pp.permuteWithIndex(permutation, pp.maskComplex)
 	pp.encoder.InvFFT(pp.maskComplex, slots)
 
-	for i, jdx, idx := uint64(0), maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+	for i, jdx, idx := 0, maxSlots, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
 		pp.maskComplex[i].Real().Int(pp.maskBigint[idx])
 		pp.maskComplex[i].Imag().Int(pp.maskBigint[jdx])
 	}
@@ -133,7 +134,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 	ringQ.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
 
 	// h1 = sk*a + mask + e1
-	pp.gaussianSampler.Read(pp.tmp)
+	pp.gaussianSampler.Read(pp.tmp, ringQ, sigma, int(6*sigma))
 	ringQ.NTT(pp.tmp, pp.tmp)
 	ringQ.Add(shareRecrypt, pp.tmp, shareRecrypt)
 
@@ -145,7 +146,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties uint64,
 
 // Aggregate adds share1 with share2 on shareOut.
 func (pp *PermuteProtocol) Aggregate(share1, share2, shareOut *ring.Poly) {
-	pp.dckksContext.ringQ.AddLvl(uint64(len(share1.Coeffs)-1), share1, share2, shareOut)
+	pp.dckksContext.ringQ.AddLvl(len(share1.Coeffs)-1, share1, share2, shareOut)
 }
 
 // Decrypt operates a masked decryption on the ciphertext with the given decryption share.
@@ -155,7 +156,7 @@ func (pp *PermuteProtocol) Decrypt(ciphertext *ckks.Ciphertext, shareDecrypt Ref
 
 // Permute takes a masked decrypted ciphertext at modulus Q_0 and returns the same masked decrypted ciphertext at modulus Q_L, with Q_0 << Q_L.
 // Operates a permutation of the plaintext slots.
-func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []uint64, slots uint64) {
+func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []uint64, slots int) {
 	dckksContext := pp.dckksContext
 	ringQ := pp.dckksContext.ringQ
 
@@ -164,7 +165,7 @@ func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []ui
 	ringQ.PolyToBigint(ciphertext.Value()[0], pp.maskBigint)
 
 	QStart := ring.NewUint(ringQ.Modulus[0])
-	for i := uint64(1); i < ciphertext.Level()+1; i++ {
+	for i := 1; i < ciphertext.Level()+1; i++ {
 		QStart.Mul(QStart, ring.NewUint(ringQ.Modulus[i]))
 	}
 	QHalf := new(big.Int).Rsh(QStart, 1)
@@ -173,7 +174,7 @@ func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []ui
 	gap := maxSlots / slots
 
 	var sign int
-	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
+	for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
 
 		// Centers the value around the current modulus
 		sign = pp.maskBigint[idx].Cmp(QHalf)
@@ -197,7 +198,7 @@ func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []ui
 
 	pp.encoder.InvFFT(pp.maskComplex, slots)
 
-	for i, jdx, idx := uint64(0), maxSlots, uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+	for i, jdx, idx := 0, maxSlots, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
 		pp.maskComplex[i].Real().Int(pp.maskBigint[idx])
 		pp.maskComplex[i].Imag().Int(pp.maskBigint[jdx])
 	}

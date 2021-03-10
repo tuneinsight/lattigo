@@ -8,12 +8,12 @@ type Ciphertext struct {
 }
 
 // NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
-func NewCiphertext(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
+func NewCiphertext(params *Parameters, degree int) (ciphertext *Ciphertext) {
 	return &Ciphertext{newCiphertextElement(params, degree)}
 }
 
 // NewCiphertextRandom generates a new uniformly distributed ciphertext of degree, level and scale.
-func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree uint64) (ciphertext *Ciphertext) {
+func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree int) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{newCiphertextElement(params, degree)}
 	populateElementRandom(prng, params, ciphertext.Element)
 	return

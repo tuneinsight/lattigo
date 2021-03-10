@@ -16,9 +16,9 @@ import (
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
-var parties uint64 = 3
+var parties int = 3
 
-func testString(opname string, parties uint64, params *bfv.Parameters) string {
+func testString(opname string, parties int, params *bfv.Parameters) string {
 	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN(), params.LogQP())
 }
 
@@ -100,7 +100,7 @@ func gentestContext(defaultParams *bfv.Parameters) (testCtx *testContext, err er
 	tmp0 := testCtx.dbfvContext.ringQP.NewPoly()
 	tmp1 := testCtx.dbfvContext.ringQP.NewPoly()
 
-	for j := uint64(0); j < parties; j++ {
+	for j := 0; j < parties; j++ {
 		testCtx.sk0Shards[j] = kgen.GenSecretKey()
 		testCtx.sk1Shards[j] = kgen.GenSecretKey()
 		testCtx.dbfvContext.ringQP.Add(tmp0, testCtx.sk0Shards[j].Value, tmp0)
@@ -141,7 +141,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		ckgParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.CKGProtocol = NewCKGProtocol(testCtx.params)
 			p.s = &sk0Shards[i].SecretKey
@@ -207,7 +207,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dbfvContext.ringQP)
 		crp := make([]*ring.Poly, testCtx.params.Beta())
 
-		for i := uint64(0); i < testCtx.params.Beta(); i++ {
+		for i := 0; i < testCtx.params.Beta(); i++ {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
@@ -266,7 +266,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 		}
 
 		cksParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
 			p.s0 = sk0Shards[i].Value
@@ -314,7 +314,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 		}
 
 		pcksParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
 			p.s = sk0Shards[i].Value
@@ -355,7 +355,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 		}
 
 		pcksParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
 			p.s = &sk0Shards[i].SecretKey
@@ -370,7 +370,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dbfvContext.ringQP)
 		crp := make([]*ring.Poly, testCtx.params.Beta())
 
-		for i := uint64(0); i < testCtx.params.Beta(); i++ {
+		for i := 0; i < testCtx.params.Beta(); i++ {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
@@ -412,7 +412,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 		}
 
 		pcksParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
 			p.s = &sk0Shards[i].SecretKey
@@ -428,7 +428,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dbfvContext.ringQP)
 		crp := make([]*ring.Poly, testCtx.params.Beta())
 
-		for i := uint64(0); i < testCtx.params.Beta(); i++ {
+		for i := 0; i < testCtx.params.Beta(); i++ {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
@@ -450,7 +450,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 		}
 
 		evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
-		for k := uint64(1); k < testCtx.params.N()>>1; k <<= 1 {
+		for k := 1; k < testCtx.params.N()>>1; k <<= 1 {
 			result := evaluator.RotateColumnsNew(ciphertext, int(k))
 			coeffsWant := utils.RotateUint64Slots(coeffs, int(k))
 			verifyTestVectors(testCtx, decryptorSk0, coeffsWant, result, t)
@@ -479,7 +479,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		}
 
 		RefreshParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.RefreshProtocol = NewRefreshProtocol(testCtx.params)
 			p.s = sk0Shards[i].Value
@@ -509,7 +509,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 			evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertextTmp, ciphertextTmp), ciphertextTmp)
 
 			for j := range coeffsTmp {
-				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], testCtx.dbfvContext.ringT.Modulus[0], testCtx.dbfvContext.ringT.GetBredParams()[0])
+				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], testCtx.dbfvContext.ringT.Modulus[0], testCtx.dbfvContext.ringT.BredParams[0])
 			}
 
 			if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertextTmp))) {
@@ -527,7 +527,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		errorRange.Quo(errorRange, testCtx.dbfvContext.ringT.ModulusBigint)
 		errorRange.Quo(errorRange, testCtx.dbfvContext.ringT.ModulusBigint)
 
-		for i := uint64(0); i < testCtx.params.N(); i++ {
+		for i := 0; i < testCtx.params.N(); i++ {
 			coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(errorRange))
 		}
 
@@ -548,7 +548,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 			evaluator.Relinearize(testCtx.evaluator.MulNew(ciphertext, ciphertext), ciphertext)
 
 			for j := range coeffs {
-				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], testCtx.dbfvContext.ringT.Modulus[0], testCtx.dbfvContext.ringT.GetBredParams()[0])
+				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], testCtx.dbfvContext.ringT.Modulus[0], testCtx.dbfvContext.ringT.BredParams[0])
 			}
 		}
 
@@ -574,7 +574,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 		}
 
 		RefreshParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.PermuteProtocol = NewPermuteProtocol(testCtx.params)
 			p.s = sk0Shards[i].Value
@@ -593,7 +593,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 		permutation := make([]uint64, len(coeffs))
 
 		for i := range permutation {
-			permutation[i] = ring.RandUniform(testCtx.prng, testCtx.params.N(), testCtx.params.N()-1)
+			permutation[i] = ring.RandUniform(testCtx.prng, uint64(testCtx.params.N()), uint64(testCtx.params.N()-1))
 		}
 
 		for i, p := range RefreshParties {
@@ -669,10 +669,10 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		}
 
 		//comparing the results
-		require.Equal(t, KeyGenShareBefore.GetDegree(), KeyGenShareAfter.GetDegree())
-		require.Equal(t, KeyGenShareBefore.GetLenModuli(), KeyGenShareAfter.GetLenModuli())
+		require.Equal(t, KeyGenShareBefore.Degree(), KeyGenShareAfter.Degree())
+		require.Equal(t, KeyGenShareBefore.LenModuli(), KeyGenShareAfter.LenModuli())
 
-		moduli := KeyGenShareBefore.GetLenModuli()
+		moduli := KeyGenShareBefore.LenModuli()
 		require.Equal(t, KeyGenShareAfter.Coeffs[:moduli], KeyGenShareBefore.Coeffs[:moduli])
 	})
 
@@ -694,8 +694,8 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 			//compare the shares.
 			ringBefore := SwitchShare[i]
 			ringAfter := SwitchShareReceiver[i]
-			require.Equal(t, ringBefore.GetDegree(), ringAfter.GetDegree())
-			moduli := ringAfter.GetLenModuli()
+			require.Equal(t, ringBefore.Degree(), ringAfter.Degree())
+			moduli := ringAfter.LenModuli()
 			require.Equal(t, ringAfter.Coeffs[:moduli], ringBefore.Coeffs[:moduli])
 		}
 	})
@@ -715,10 +715,10 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		//now compare both shares.
 
-		require.Equal(t, cksshare.GetDegree(), cksshareAfter.GetDegree())
-		require.Equal(t, cksshare.GetLenModuli(), cksshareAfter.GetLenModuli())
+		require.Equal(t, cksshare.Degree(), cksshareAfter.Degree())
+		require.Equal(t, cksshare.LenModuli(), cksshareAfter.LenModuli())
 
-		moduli := cksshare.GetLenModuli()
+		moduli := cksshare.LenModuli()
 		require.Equal(t, cksshare.Coeffs[:moduli], cksshareAfter.Coeffs[:moduli])
 	})
 
@@ -833,7 +833,7 @@ func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 		// for i := 0; i < (len(r1)); i++ { // TODO test in drlwe
 		// 	a := r1[i][0]
 		// 	b := (*r1After)[i][0]
-		// 	moduli := a.GetLenModuli()
+		// 	moduli := a.LenModuli()
 		// 	require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 		// }
 
@@ -850,7 +850,7 @@ func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 		// 	for idx := 0; idx < 2; idx++ {
 		// 		a := r2[i][idx]
 		// 		b := (*r2After)[i][idx]
-		// 		moduli := a.GetLenModuli()
+		// 		moduli := a.LenModuli()
 		// 		require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 		// 	}
 

@@ -47,7 +47,7 @@ func obliviousRiding() {
 	// The rider decrypts the result and chooses the closest driver.
 
 	// Number of drivers in the area
-	nbDrivers := uint64(2048) //max is N
+	nbDrivers := 2048 //max is N
 
 	// BFV parameters (128 bit security) with plaintext modulus 65929217
 	params := bfv.DefaultParams[bfv.PN13QP218].WithT(0x3ee0001)
@@ -75,8 +75,8 @@ func obliviousRiding() {
 		1<<params.LogN(), params.T(), params.LogQP(), params.Sigma())
 	fmt.Println()
 
-	maxvalue := uint64(math.Sqrt(float64(params.T())))  // max values = floor(sqrt(plaintext modulus))
-	mask := uint64(1<<uint64(bits.Len64(maxvalue))) - 1 // binary mask upper-bound for the uniform sampling
+	maxvalue := uint64(math.Sqrt(float64(params.T()))) // max values = floor(sqrt(plaintext modulus))
+	mask := uint64(1<<bits.Len64(maxvalue) - 1)        // binary mask upper-bound for the uniform sampling
 
 	fmt.Printf("Generating %d driversData and 1 Rider randomly positioned on a grid of %d x %d units \n",
 		nbDrivers, maxvalue, maxvalue)
@@ -90,7 +90,7 @@ func obliviousRiding() {
 	riderPosX, riderPosY := ring.RandUniform(prng, maxvalue, mask), ring.RandUniform(prng, maxvalue, mask)
 
 	Rider := make([]uint64, 1<<params.LogN())
-	for i := uint64(0); i < nbDrivers; i++ {
+	for i := 0; i < nbDrivers; i++ {
 		Rider[(i << 1)] = riderPosX
 		Rider[(i<<1)+1] = riderPosY
 	}
@@ -102,7 +102,7 @@ func obliviousRiding() {
 	driversData := make([][]uint64, nbDrivers)
 
 	driversPlaintexts := make([]*bfv.Plaintext, nbDrivers)
-	for i := uint64(0); i < nbDrivers; i++ {
+	for i := 0; i < nbDrivers; i++ {
 		driversData[i] = make([]uint64, 1<<params.LogN())
 		driversData[i][(i << 1)] = ring.RandUniform(prng, maxvalue, mask)
 		driversData[i][(i<<1)+1] = ring.RandUniform(prng, maxvalue, mask)
@@ -117,7 +117,7 @@ func obliviousRiding() {
 	RiderCiphertext := encryptorRiderSk.EncryptNew(riderPlaintext)
 
 	DriversCiphertexts := make([]*bfv.Ciphertext, nbDrivers)
-	for i := uint64(0); i < nbDrivers; i++ {
+	for i := 0; i < nbDrivers; i++ {
 		DriversCiphertexts[i] = encryptorRiderPk.EncryptNew(driversPlaintexts[i])
 	}
 
@@ -125,17 +125,17 @@ func obliviousRiding() {
 	fmt.Println()
 
 	evaluator.Neg(RiderCiphertext, RiderCiphertext)
-	for i := uint64(0); i < nbDrivers; i++ {
+	for i := 0; i < nbDrivers; i++ {
 		evaluator.Add(RiderCiphertext, DriversCiphertexts[i], RiderCiphertext)
 	}
 
 	result := encoder.DecodeUintNew(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)))
 
-	minIndex, minPosX, minPosY, minDist := uint64(0), params.T(), params.T(), params.T()
+	minIndex, minPosX, minPosY, minDist := 0, params.T(), params.T(), params.T()
 
 	errors := 0
 
-	for i := uint64(0); i < nbDrivers; i++ {
+	for i := 0; i < nbDrivers; i++ {
 
 		driverPosX, driverPosY := driversData[i][i<<1], driversData[i][(i<<1)+1]
 
@@ -164,7 +164,7 @@ func obliviousRiding() {
 
 	fmt.Printf("\nFinished with %.2f%% errors\n\n", 100*float64(errors)/float64(nbDrivers))
 	fmt.Printf("Closest Driver to Rider is n°%d (%d, %d) with a distance of %d units\n",
-		minIndex, minPosX, minPosY, uint64(math.Sqrt(float64(minDist))))
+		minIndex, minPosX, minPosY, int(math.Sqrt(float64(minDist))))
 }
 
 func distance(a, b, c, d uint64) uint64 {

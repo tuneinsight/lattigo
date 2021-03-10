@@ -58,7 +58,7 @@ func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plain
 
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
-	level := utils.MinUint64(ciphertext.Level(), plaintext.Level())
+	level := utils.MinInt(ciphertext.Level(), plaintext.Level())
 
 	plaintext.SetScale(ciphertext.Scale())
 
@@ -66,7 +66,7 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 
 	plaintext.value.Coeffs = plaintext.value.Coeffs[:ciphertext.Level()+1]
 
-	for i := uint64(ciphertext.Degree()); i > 0; i-- {
+	for i := ciphertext.Degree(); i > 0; i-- {
 
 		decryptor.ringQ.MulCoeffsMontgomeryLvl(level, plaintext.value, decryptor.sk.Value, plaintext.value)
 		decryptor.ringQ.AddLvl(level, plaintext.value, ciphertext.value[i-1], plaintext.value)

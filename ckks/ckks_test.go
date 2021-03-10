@@ -94,7 +94,7 @@ func TestCKKS(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams, err error) {
+func genTestParams(defaultParam *Parameters, hw int) (testContext *testParams, err error) {
 
 	testContext = new(testParams)
 
@@ -146,7 +146,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 
 	values = make([]complex128, 1<<logSlots)
 
-	for i := uint64(0); i < 1<<logSlots; i++ {
+	for i := 0; i < 1<<logSlots; i++ {
 		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
 	}
 
@@ -217,7 +217,7 @@ func testEncoder(testContext *testParams, t *testing.T) {
 
 		valuesWant := make([]float64, slots)
 
-		for i := uint64(0); i < slots; i++ {
+		for i := 0; i < slots; i++ {
 			valuesWant[i] = utils.RandFloat64(-1, 1)
 		}
 
@@ -265,7 +265,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 		values := make([]complex128, 1<<logSlots)
 
-		for i := uint64(0); i < 1<<logSlots; i++ {
+		for i := 0; i < 1<<logSlots; i++ {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
@@ -297,7 +297,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 		values := make([]complex128, 1<<logSlots)
 
-		for i := uint64(0); i < 1<<logSlots; i++ {
+		for i := 0; i < 1<<logSlots; i++ {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
@@ -318,7 +318,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 		values := make([]complex128, 1<<logSlots)
 
-		for i := uint64(0); i < 1<<logSlots; i++ {
+		for i := 0; i < 1<<logSlots; i++ {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
@@ -339,7 +339,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 		values := make([]complex128, 1<<logSlots)
 
-		for i := uint64(0); i < 1<<logSlots; i++ {
+		for i := 0; i < 1<<logSlots; i++ {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
@@ -536,7 +536,7 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 			nbRescales = 5
 		}
 
-		for i := uint64(0); i < nbRescales; i++ {
+		for i := 0; i < nbRescales; i++ {
 			constant := testContext.ringQ.Modulus[ciphertext.Level()-i]
 			testContext.evaluator.MultByConst(ciphertext, constant, ciphertext)
 			ciphertext.MulScale(float64(constant))
@@ -729,9 +729,9 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 		}
 
 		testContext.evaluator.Mul(ciphertext1, ciphertext2, ciphertext1)
-		require.Equal(t, ciphertext1.Degree(), uint64(2))
+		require.Equal(t, ciphertext1.Degree(), 2)
 		testContext.evaluator.Relinearize(ciphertext1, ciphertext1)
-		require.Equal(t, ciphertext1.Degree(), uint64(1))
+		require.Equal(t, ciphertext1.Degree(), 1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, t, 0)
 	})
@@ -750,9 +750,9 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 		}
 
 		testContext.evaluator.Mul(ciphertext1, ciphertext2, ciphertext2)
-		require.Equal(t, ciphertext2.Degree(), uint64(2))
+		require.Equal(t, ciphertext2.Degree(), 2)
 		testContext.evaluator.Relinearize(ciphertext2, ciphertext2)
-		require.Equal(t, ciphertext2.Degree(), uint64(1))
+		require.Equal(t, ciphertext2.Degree(), 1)
 
 		verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t, 0)
 	})
@@ -773,14 +773,14 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		n := uint64(2)
+		n := 2
 
 		valuesWant := make([]complex128, len(values))
 		for i := 0; i < len(valuesWant); i++ {
 			valuesWant[i] = values[i]
 		}
 
-		for i := uint64(0); i < n; i++ {
+		for i := 0; i < n; i++ {
 			for j := 0; j < len(valuesWant); j++ {
 				valuesWant[j] *= valuesWant[j]
 			}
@@ -803,7 +803,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		n := uint64(3)
+		n := 3
 
 		for i := range values {
 			values[i] = cmplx.Pow(values[i], complex(float64(n), 0))
@@ -826,7 +826,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(0.1, 0), complex(1, 0), t)
 
-		n := uint64(7)
+		n := 7
 
 		for i := range values {
 			values[i] = 1.0 / values[i]
@@ -1124,14 +1124,14 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		var rot int
 		for i := 1; i < n; i <<= 1 {
 
-			rot = i 
+			rot = i
 			rot *= batch
 
 			if !utils.IsInSliceInt(rot, rots) && rot != 0 {
 				rots = append(rots, rot)
 			}
 
-			rot = n - (n  & ((i << 1) - 1))
+			rot = n - (n & ((i << 1) - 1))
 
 			rot *= batch
 
@@ -1199,7 +1199,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			require.Error(t, ciphertextTest.UnmarshalBinary(nil))
 			require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
 
-			require.Equal(t, ciphertext.Degree(), uint64(0))
+			require.Equal(t, ciphertext.Degree(), 0)
 			require.Equal(t, ciphertext.Level(), testContext.params.MaxLevel())
 			require.Equal(t, ciphertext.Scale(), testContext.params.Scale())
 			require.Equal(t, len(ciphertext.Value()), 1)

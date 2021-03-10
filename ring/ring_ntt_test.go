@@ -8,7 +8,7 @@ import (
 )
 
 var testVector = []struct {
-	N   uint64
+	N   int
 	Qis []uint64
 
 	poly    *Poly

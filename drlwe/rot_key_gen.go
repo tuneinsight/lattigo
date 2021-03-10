@@ -28,9 +28,9 @@ type RTGShare struct {
 type RTGProtocol struct { // TODO rename GaloisKeyGen ?
 	ringQP             *ring.Ring
 	ringPModulusBigint *big.Int
-	ringQModCount      uint64
-	alpha              uint64
-	beta               uint64
+	ringQModCount      int
+	alpha              int
+	beta               int
 
 	tmpPoly         [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
@@ -38,16 +38,16 @@ type RTGProtocol struct { // TODO rename GaloisKeyGen ?
 }
 
 // NewRTGProtocol creates a RTGProtocol instance
-func NewRTGProtocol(n uint64, q, p []uint64, sigma float64) *RTGProtocol {
+func NewRTGProtocol(n int, q, p []uint64, sigma float64) *RTGProtocol {
 	rtg := new(RTGProtocol)
-	rtg.ringQModCount = uint64(len(q))
+	rtg.ringQModCount = len(q)
 	rtg.ringPModulusBigint = big.NewInt(1)
 	for _, pi := range p {
 		rtg.ringPModulusBigint.Mul(rtg.ringPModulusBigint, new(big.Int).SetUint64(pi))
 	}
-	rtg.alpha = uint64(len(p))
+	rtg.alpha = len(p)
 	if rtg.alpha != 0 {
-		rtg.beta = uint64(math.Ceil(float64(len(q)) / float64(len(p))))
+		rtg.beta = int(math.Ceil(float64(len(q)) / float64(len(p))))
 	} else {
 		rtg.beta = 1
 	}
@@ -83,18 +83,18 @@ func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare) {
 func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.Poly, shareOut *RTGShare) {
 
 	twoN := rtg.ringQP.N << 2
-	galElInv := ring.ModExp(galEl, twoN-1, twoN)
+	galElInv := ring.ModExp(galEl, int(twoN-1), uint64(twoN))
 
 	ring.PermuteNTT(sk.Value, galElInv, rtg.tmpPoly[1])
 
 	rtg.ringQP.MulScalarBigint(sk.Value, rtg.ringPModulusBigint, rtg.tmpPoly[0])
 
-	var index uint64
+	var index int
 
-	for i := uint64(0); i < rtg.beta; i++ {
+	for i := 0; i < rtg.beta; i++ {
 
 		// e
-		rtg.gaussianSampler.Read(shareOut.Value[i], rtg.ringQP, rtg.sigma, uint64(6*rtg.sigma))
+		rtg.gaussianSampler.Read(shareOut.Value[i], rtg.ringQP, rtg.sigma, int(6*rtg.sigma))
 		rtg.ringQP.NTTLazy(shareOut.Value[i], shareOut.Value[i])
 		rtg.ringQP.MForm(shareOut.Value[i], shareOut.Value[i])
 
@@ -102,7 +102,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 
 		// e + sk_in * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
-		for j := uint64(0); j < rtg.alpha; j++ {
+		for j := 0; j < rtg.alpha; j++ {
 
 			index = i*rtg.alpha + j
 
@@ -110,7 +110,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 			tmp0 := rtg.tmpPoly[0].Coeffs[index]
 			tmp1 := shareOut.Value[i].Coeffs[index]
 
-			for w := uint64(0); w < rtg.ringQP.N; w++ {
+			for w := 0; w < rtg.ringQP.N; w++ {
 				tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 			}
 
@@ -132,14 +132,14 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 
 // Aggregate aggregates two shares in the Rotation Key Generation protocol
 func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut *RTGShare) {
-	for i := uint64(0); i < rtg.beta; i++ {
+	for i := 0; i < rtg.beta; i++ {
 		rtg.ringQP.Add(share1.Value[i], share2.Value[i], shareOut.Value[i])
 	}
 }
 
 // GenRotationKey finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
 func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp []*ring.Poly, rotKey *rlwe.SwitchingKey) {
-	for i := uint64(0); i < rtg.beta; i++ {
+	for i := 0; i < rtg.beta; i++ {
 		rtg.ringQP.Copy(share.Value[i], rotKey.Value[i][0])
 		rtg.ringQP.Copy(crp[i], rotKey.Value[i][1])
 	}
@@ -148,9 +148,9 @@ func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp []*ring.Poly, rotKey
 // MarshalBinary encode the target element on a slice of byte.
 func (share *RTGShare) MarshalBinary() ([]byte, error) {
 	lenRing := share.Value[0].GetDataLen(true)
-	data := make([]byte, 8+lenRing*uint64(len(share.Value)))
-	binary.BigEndian.PutUint64(data[:8], lenRing)
-	ptr := uint64(8)
+	data := make([]byte, 8+lenRing*len(share.Value))
+	binary.BigEndian.PutUint64(data[:8], uint64(lenRing))
+	ptr := 8
 	for _, val := range share.Value {
 		cnt, err := val.WriteTo(data[ptr : ptr+lenRing])
 		if err != nil {

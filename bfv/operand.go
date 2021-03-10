@@ -8,7 +8,7 @@ import (
 // Operand is a common interface for Ciphertext and Plaintext.
 type Operand interface {
 	El() *Element
-	Degree() uint64
+	Degree() int
 }
 
 // Element is a common struct for Plaintexts and Ciphertexts. It stores a value
@@ -27,10 +27,10 @@ func getSmallestLargest(el0, el1 *Element) (smallest, largest *Element, sameDegr
 	return el0, el1, true
 }
 
-func newCiphertextElement(params *Parameters, degree uint64) *Element {
+func newCiphertextElement(params *Parameters, degree int) *Element {
 	el := new(Element)
 	el.value = make([]*ring.Poly, degree+1)
-	for i := uint64(0); i < degree+1; i++ {
+	for i := 0; i < degree+1; i++ {
 		el.value[i] = ring.NewPoly(params.N(), params.QiCount())
 	}
 	return el
@@ -78,24 +78,24 @@ func (el *Element) SetValue(value []*ring.Poly) {
 }
 
 // Degree returns the degree of the target Element.
-func (el *Element) Degree() uint64 {
-	return uint64(len(el.value) - 1)
+func (el *Element) Degree() int {
+	return len(el.value) - 1
 }
 
 // Level returns the level of the target element.
-func (el *Element) Level() uint64 {
-	return uint64(len(el.value[0].Coeffs) - 1)
+func (el *Element) Level() int {
+	return len(el.value[0].Coeffs) - 1
 }
 
 // Resize resizes the degree of the target element.
-func (el *Element) Resize(params *Parameters, degree uint64) {
+func (el *Element) Resize(params *Parameters, degree int) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree+1]
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
 			el.value = append(el.value, []*ring.Poly{new(ring.Poly)}...)
 			el.value[el.Degree()].Coeffs = make([][]uint64, el.Level()+1)
-			for i := uint64(0); i < el.Level()+1; i++ {
+			for i := 0; i < el.Level()+1; i++ {
 				el.value[el.Degree()].Coeffs[i] = make([]uint64, params.N())
 			}
 		}

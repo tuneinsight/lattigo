@@ -9,7 +9,7 @@ import (
 )
 
 // GetDataLen returns the length in bytes of the target Ciphertext.
-func (ciphertext *Ciphertext) GetDataLen(WithMetaData bool) (dataLen uint64) {
+func (ciphertext *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
 	// MetaData is :
 	// 1 byte : Degree
 	// 9 byte : Scale
@@ -39,7 +39,7 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 		data[10] = 1
 	}
 
-	var pointer, inc uint64
+	var pointer, inc int
 
 	pointer = 11
 
@@ -56,8 +56,6 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decodes a previously marshaled Ciphertext on the target Ciphertext.
-// The target Ciphertext must be of the appropriate format and size, it can be created with the
-// method NewCiphertext(uint64).
 func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 	if len(data) < 11 { // cf. ciphertext.GetDataLen()
 		return errors.New("too small bytearray")
@@ -73,7 +71,7 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		ciphertext.isNTT = true
 	}
 
-	var pointer, inc uint64
+	var pointer, inc int
 	pointer = 11
 
 	for i := range ciphertext.value {
@@ -87,7 +85,7 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		pointer += inc
 	}
 
-	if pointer != uint64(len(data)) {
+	if pointer != len(data) {
 		return errors.New("remaining unparsed data")
 	}
 

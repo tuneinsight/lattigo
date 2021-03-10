@@ -82,7 +82,7 @@ func benchSampling(testContext *testParams, b *testing.B) {
 		gaussianSampler := NewGaussianSampler(testContext.prng)
 
 		for i := 0; i < b.N; i++ {
-			gaussianSampler.ReadLvl(uint64(len(testContext.ringQ.Modulus)-1), pol, testContext.ringQ, DefaultSigma, DefaultBound)
+			gaussianSampler.ReadLvl(len(testContext.ringQ.Modulus)-1, pol, testContext.ringQ, DefaultSigma, DefaultBound)
 		}
 	})
 
@@ -279,7 +279,7 @@ func benchExtendBasis(testContext *testParams, b *testing.B) {
 	p0 := testContext.uniformSamplerQ.ReadNew()
 	p1 := testContext.uniformSamplerP.ReadNew()
 
-	level := uint64(len(testContext.ringQ.Modulus) - 1)
+	level := len(testContext.ringQ.Modulus) - 1
 
 	b.Run(fmt.Sprintf("ExtendBasis/ModUp/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -337,7 +337,7 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 		rescaler := NewSimpleScaler(T, testContext.ringQ)
 
 		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := uint64(0); i < testContext.ringQ.N; i++ {
+		for i := 0; i < testContext.ringQ.N; i++ {
 			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
 		}
 
@@ -356,7 +356,7 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 		rescaler := NewSimpleScaler(T, testContext.ringQ)
 
 		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := uint64(0); i < testContext.ringQ.N; i++ {
+		for i := 0; i < testContext.ringQ.N; i++ {
 			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
 		}
 
@@ -373,7 +373,7 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 	b.Run(testString("DivByRNSBasis/RNS/DivByQOverTRounded/", testContext.ringQ), func(b *testing.B) {
 
 		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := uint64(0); i < testContext.ringQ.N; i++ {
+		for i := 0; i < testContext.ringQ.N; i++ {
 			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
 		}
 

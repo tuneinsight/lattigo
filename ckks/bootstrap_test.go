@@ -299,8 +299,11 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 
 		params := testContext.params
 
-		btpKey := testContext.kgen.GenBootstrappingKey(testContext.params.logSlots, btpParams, testContext.sk)
-		btp, err := NewBootstrapper(testContext.params, btpParams, *btpKey)
+		rotations := testContext.kgen.GenRotationIndexesForBootstrapping(testContext.params.logSlots, btpParams)
+		rotkeys := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
+		btpKey := BootstrappingKey{testContext.rlk, rotkeys}
+
+		btp, err := NewBootstrapper(testContext.params, btpParams, btpKey)
 		if err != nil {
 			panic(err)
 		}

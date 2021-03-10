@@ -47,7 +47,7 @@ func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSPro
 	if err != nil {
 		panic(err)
 	}
-	cks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.ringQP, params.Sigma(), uint64(6*params.Sigma()))
+	cks.gaussianSampler = ring.NewGaussianSampler(prng)
 
 	return cks
 }
@@ -74,12 +74,13 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 
 	ringQ := cks.dckksContext.ringQ
 	ringP := cks.dckksContext.ringP
+	sigma := cks.dckksContext.params.Sigma()
 
 	ringQ.MulCoeffsMontgomeryConstantLvl(ct.Level(), ct.Value()[1], skDelta, shareOut)
 
 	ringQ.MulScalarBigintLvl(ct.Level(), shareOut, ringP.ModulusBigint, shareOut)
 
-	cks.gaussianSampler.ReadLvl(ct.Level(), cks.tmpQ)
+	cks.gaussianSampler.ReadLvl(ct.Level(), cks.tmpQ, ringQ, sigma, int(6*sigma))
 	extendBasisSmallNormAndCenter(ringQ, ringP, cks.tmpQ, cks.tmpP)
 
 	ringQ.NTTLvl(ct.Level(), cks.tmpQ, cks.tmpQ)
@@ -97,7 +98,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
 func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut CKSShare) {
-	cks.dckksContext.ringQ.AddLvl(uint64(len(share1.Coeffs)-1), share1, share2, shareOut)
+	cks.dckksContext.ringQ.AddLvl(len(share1.Coeffs)-1, share1, share2, shareOut)
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut

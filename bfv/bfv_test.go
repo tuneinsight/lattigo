@@ -120,7 +120,7 @@ func testParameters(testctx *testContext, t *testing.T) {
 	t.Run("Parameters/InverseGaloisElement/", func(t *testing.T) {
 		for i := 1; i < int(testctx.params.N()/2); i++ {
 			galEl := testctx.params.GaloisElementForColumnRotationBy(i)
-			mod := 2 * testctx.params.N()
+			mod := uint64(2 * testctx.params.N())
 			inv := testctx.params.InverseGaloisElement(galEl)
 			res := (inv * galEl) % mod
 			assert.Equal(t, uint64(1), res)

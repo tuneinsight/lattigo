@@ -9,7 +9,7 @@ type dbfvContext struct {
 	params *bfv.Parameters
 
 	// Polynomial degree
-	n uint64
+	n int
 
 	// floor(Q/T) mod each Qi in Montgomery form
 	deltaMont []uint64

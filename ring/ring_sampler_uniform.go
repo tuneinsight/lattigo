@@ -25,7 +25,7 @@ func NewUniformSampler(prng utils.PRNG, baseRing *Ring) *UniformSampler {
 func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 
 	var randomUint, mask, qi uint64
-	var ptr uint64
+	var ptr int
 
 	uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 
@@ -39,7 +39,7 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 		ptmp := Pol.Coeffs[j]
 
 		// Iterate for each modulus over each coefficient
-		for i := uint64(0); i < uniformSampler.baseRing.N; i++ {
+		for i := 0; i < uniformSampler.baseRing.N; i++ {
 
 			// Sample an integer between [0, qi-1]
 			for {
@@ -66,14 +66,14 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 }
 
 // Readlvl generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-func (uniformSampler *UniformSampler) Readlvl(level uint64, Pol *Poly) {
+func (uniformSampler *UniformSampler) Readlvl(level int, Pol *Poly) {
 
 	var randomUint, mask, qi uint64
-	var ptr uint64
+	var ptr int
 
 	uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 
-	for j := uint64(0); j < level+1; j++ {
+	for j := 0; j < level+1; j++ {
 
 		qi = uniformSampler.baseRing.Modulus[j]
 
@@ -83,7 +83,7 @@ func (uniformSampler *UniformSampler) Readlvl(level uint64, Pol *Poly) {
 		ptmp := Pol.Coeffs[j]
 
 		// Iterate for each modulus over each coefficient
-		for i := uint64(0); i < uniformSampler.baseRing.N; i++ {
+		for i := 0; i < uniformSampler.baseRing.N; i++ {
 
 			// Sample an integer between [0, qi-1]
 			for {
@@ -119,7 +119,7 @@ func (uniformSampler *UniformSampler) ReadNew() (Pol *Poly) {
 
 // ReadLvlNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
 // Polynomial is created at the specified level.
-func (uniformSampler *UniformSampler) ReadLvlNew(level uint64) (Pol *Poly) {
+func (uniformSampler *UniformSampler) ReadLvlNew(level int) (Pol *Poly) {
 	Pol = uniformSampler.baseRing.NewPolyLvl(level)
 	uniformSampler.Read(Pol)
 	return

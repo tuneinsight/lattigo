@@ -67,7 +67,7 @@ func (r *Ring) Copy(p0, p1 *Poly) {
 	if p0 != p1 {
 		for i := range r.Modulus {
 			p0tmp, p1tmp := p0.Coeffs[i], p1.Coeffs[i]
-			for j := uint64(0); j < r.N; j++ {
+			for j := 0; j < r.N; j++ {
 				p1tmp[j] = p0tmp[j]
 			}
 		}
@@ -76,12 +76,12 @@ func (r *Ring) Copy(p0, p1 *Poly) {
 
 // CopyLvl copies the coefficients of p0 on p1 within the given Ring for the moduli from 0 to level.
 // Requires p1 to be as big as the target Ring.
-func (r *Ring) CopyLvl(level uint64, p0, p1 *Poly) {
+func (r *Ring) CopyLvl(level int, p0, p1 *Poly) {
 
 	if p0 != p1 {
-		for i := uint64(0); i < level+1; i++ {
+		for i := 0; i < level+1; i++ {
 			p0tmp, p1tmp := p0.Coeffs[i], p1.Coeffs[i]
-			for j := uint64(0); j < r.N; j++ {
+			for j := 0; j < r.N; j++ {
 				p1tmp[j] = p0tmp[j]
 			}
 		}

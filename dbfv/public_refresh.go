@@ -40,10 +40,10 @@ func (share *RefreshShare) MarshalBinary() ([]byte, error) {
 	lenRecrypt := (*share.RefreshShareRecrypt).GetDataLen(true)
 
 	data := make([]byte, lenDecrypt+lenRecrypt+2*8) // 2 * 3 to write the len of lenDecrypt and lenRecrypt.
-	binary.BigEndian.PutUint64(data[0:8], lenDecrypt)
-	binary.BigEndian.PutUint64(data[8:16], lenRecrypt)
+	binary.BigEndian.PutUint64(data[0:8], uint64(lenDecrypt))
+	binary.BigEndian.PutUint64(data[8:16], uint64(lenRecrypt))
 
-	ptr := uint64(16)
+	ptr := 16
 	tmp, err := (*share.RefreshShareDecrypt).WriteTo(data[ptr : ptr+lenDecrypt])
 	if err != nil {
 		return []byte{}, err
@@ -114,7 +114,7 @@ func (rfp *RefreshProtocol) AllocateShares() RefreshShare {
 // GenShares generates a share for the Refresh protocol.
 func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, share RefreshShare) {
 
-	level := uint64(len(ciphertext.Value()[1].Coeffs) - 1)
+	level := len(ciphertext.Value()[1].Coeffs) - 1
 
 	ringQ := rfp.context.ringQ
 	ringQP := rfp.context.ringQP
@@ -128,13 +128,13 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	ringQ.MulScalarBigint(share.RefreshShareDecrypt, rfp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
-	rfp.gaussianSampler.ReadLvl(uint64(len(ringQP.Modulus)-1), rfp.tmp1, ringQP, rfp.sigma, uint64(6*rfp.sigma))
+	rfp.gaussianSampler.ReadLvl(len(ringQP.Modulus)-1, rfp.tmp1, ringQP, rfp.sigma, int(6*rfp.sigma))
 	ringQ.Add(share.RefreshShareDecrypt, rfp.tmp1, share.RefreshShareDecrypt)
 
-	for x, i := 0, uint64(len(ringQ.Modulus)); i < uint64(len(rfp.context.ringQP.Modulus)); x, i = x+1, i+1 {
+	for x, i := 0, len(ringQ.Modulus); i < len(rfp.context.ringQP.Modulus); x, i = x+1, i+1 {
 		tmphP := rfp.hP.Coeffs[x]
 		tmp1 := rfp.tmp1.Coeffs[i]
-		for j := uint64(0); j < ringQ.N; j++ {
+		for j := 0; j < ringQ.N; j++ {
 			tmphP[j] += tmp1[j]
 		}
 	}
@@ -149,7 +149,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	ringQP.InvNTTLazy(rfp.tmp2, rfp.tmp2)
 
 	// h1 = s*a + e'
-	rfp.gaussianSampler.ReadAndAdd(rfp.tmp2, ringQP, rfp.sigma, uint64(6*rfp.sigma))
+	rfp.gaussianSampler.ReadAndAdd(rfp.tmp2, ringQP, rfp.sigma, int(6*rfp.sigma))
 
 	// h1 = (-s*a + e')/P
 	rfp.baseconverter.ModDownPQ(level, rfp.tmp2, share.RefreshShareRecrypt)
@@ -189,7 +189,7 @@ func (rfp *RefreshProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, s
 	rfp.context.ringQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value()[0])
 
 	// ciphertext[1] = crs/P
-	rfp.baseconverter.ModDownPQ(uint64(len(ciphertextOut.Value()[1].Coeffs)-1), crs, ciphertextOut.Value()[1])
+	rfp.baseconverter.ModDownPQ(len(ciphertextOut.Value()[1].Coeffs)-1, crs, ciphertextOut.Value()[1])
 
 }
 
@@ -204,7 +204,7 @@ func lift(p0, p1 *ring.Poly, context *dbfvContext) {
 
 	coeffs := p0.Coeffs[0]
 	var coeff uint64
-	for j := uint64(0); j < context.n; j++ {
+	for j := 0; j < context.n; j++ {
 		coeff = coeffs[j]
 		for i := len(context.ringQ.Modulus) - 1; i >= 0; i-- {
 			p1.Coeffs[i][j] = ring.MRed(coeff, context.deltaMont[i], context.ringQ.Modulus[i], context.ringQ.MredParams[i])

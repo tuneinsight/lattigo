@@ -24,7 +24,7 @@ var minLogSlots = int(4)
 
 var paramSet = flag.Int("paramSet", 1, "index in BootStrappParams")
 var nboot = flag.Int("nboot", 1, "number of bootstrapping (on the same ct for successive and on different ct for slotdist)")
-var logslot = flag.Uint64("logslot", 15, "number of slots per ciphertext (max number for slotcount)")
+var logslot = flag.Int("logslot", 15, "number of slots per ciphertext (max number for slotcount)")
 var makePlot = flag.Bool("makeplot", false, "output a .tex plot")
 
 func main() {
@@ -107,7 +107,7 @@ func main() {
 	case "slotcount":
 		stats = make([]ckks.PrecisionStats, int(params.LogN())-minLogSlots, int(params.LogN())-minLogSlots)
 		log.Printf("%% program args: paramSet=%d, hw=%d\n", *paramSet, btpParams.H)
-		for i, logSloti := 0, uint64(minLogSlots); logSloti <= params.LogN()-1; i, logSloti = i+1, logSloti+1 {
+		for i, logSloti := 0, minLogSlots; logSloti <= params.LogN()-1; i, logSloti = i+1, logSloti+1 {
 			log.Println("running experiment for logslot =", logSloti)
 			params.SetLogSlots(logSloti)
 
@@ -155,9 +155,14 @@ func instanciateExperiment(params *ckks.Parameters, btpParams *ckks.Bootstrappin
 	evaluator = ckks.NewEvaluator(params, ckks.EvaluationKey{nil, nil})
 
 	log.Println("Generating the keys...")
-	btpKey := keyGen.GenBootstrappingKey(params.LogSlots(), btpParams, sk)
+
+	rotations := keyGen.GenRotationIndexesForBootstrapping(params.LogSlots(), btpParams)
+	rotkeys := keyGen.GenRotationKeysForRotations(rotations, true, sk)
+	rlk := keyGen.GenRelinearizationKey(sk)
+	btpKey := ckks.BootstrappingKey{rlk, rotkeys}
+
 	log.Println("Done")
-	bootstrapper, err = ckks.NewBootstrapper(params, btpParams, *btpKey)
+	bootstrapper, err = ckks.NewBootstrapper(params, btpParams, btpKey)
 	if err != nil {
 		panic(err)
 	}
@@ -165,7 +170,7 @@ func instanciateExperiment(params *ckks.Parameters, btpParams *ckks.Bootstrappin
 	return
 }
 
-func formatParams(params, succ int, hw, logSlot uint64) string {
+func formatParams(params, succ, hw, logSlot int) string {
 	return fmt.Sprintf("%% program args: paramSet=%d, nboot=%d, hw=%d, logslot=%d\n", params, succ, hw, logSlot)
 }
 
@@ -180,7 +185,7 @@ func formatSlotCount(stats []ckks.PrecisionStats, wReal, wImag io.Writer) {
 	}
 }
 
-func formatSlotDist(stats []ckks.PrecisionStats, logSlot uint64, wReal, wImag io.Writer) {
+func formatSlotDist(stats []ckks.PrecisionStats, logSlot int, wReal, wImag io.Writer) {
 	slotCount := 1 << logSlot
 
 	for _, point := range stats[0].RealDist {

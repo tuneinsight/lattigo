@@ -139,17 +139,17 @@ func (m *Moduli) Copy() Moduli {
 
 // LogModuli stores the bit-length of the NTT primes of the RNS representation.
 type LogModuli struct {
-	LogQi []uint64 // Ciphertext prime moduli bit-size
-	LogPi []uint64 // Keys additional prime moduli bit-size
+	LogQi []int // Ciphertext prime moduli bit-size
+	LogPi []int // Keys additional prime moduli bit-size
 }
 
 // Copy creates a copy of the target LogModuli.
 func (m *LogModuli) Copy() LogModuli {
 
-	LogQi := make([]uint64, len(m.LogQi))
+	LogQi := make([]int, len(m.LogQi))
 	copy(LogQi, m.LogQi)
 
-	LogPi := make([]uint64, len(m.LogPi))
+	LogPi := make([]int, len(m.LogPi))
 	copy(LogPi, m.LogPi)
 
 	return LogModuli{LogQi, LogPi}
@@ -157,7 +157,7 @@ func (m *LogModuli) Copy() LogModuli {
 
 // Parameters represents a given parameter set for the BFV cryptosystem.
 type Parameters struct {
-	logN  uint64 // Log Ring degree (power of 2)
+	logN  int // Log Ring degree (power of 2)
 	qi    []uint64
 	pi    []uint64
 	t     uint64  // Plaintext modulus
@@ -165,7 +165,7 @@ type Parameters struct {
 }
 
 // NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromModuli(logN uint64, m *Moduli, t uint64) (p *Parameters, err error) {
+func NewParametersFromModuli(logN int, m *Moduli, t uint64) (p *Parameters, err error) {
 
 	p = new(Parameters)
 
@@ -194,7 +194,7 @@ func NewParametersFromModuli(logN uint64, m *Moduli, t uint64) (p *Parameters, e
 }
 
 // NewParametersFromLogModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromLogModuli(logN uint64, lm *LogModuli, t uint64) (p *Parameters, err error) {
+func NewParametersFromLogModuli(logN int, lm *LogModuli, t uint64) (p *Parameters, err error) {
 
 	if err = checkLogModuli(lm); err != nil {
 		return nil, err
@@ -205,12 +205,12 @@ func NewParametersFromLogModuli(logN uint64, lm *LogModuli, t uint64) (p *Parame
 }
 
 // LogN returns the log of the degree of the polynomial ring
-func (p *Parameters) LogN() uint64 {
+func (p *Parameters) LogN() int {
 	return p.logN
 }
 
 // N returns power of two degree of the ring
-func (p *Parameters) N() uint64 {
+func (p *Parameters) N() int {
 	return 1 << p.logN
 }
 
@@ -239,13 +239,13 @@ func (p *Parameters) WithT(T uint64) (pCopy *Parameters) {
 // LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
 func (p *Parameters) LogModuli() (lm *LogModuli) {
 	lm = new(LogModuli)
-	lm.LogQi = make([]uint64, len(p.qi))
+	lm.LogQi = make([]int, len(p.qi))
 	for i := range p.qi {
-		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.qi[i]))))
+		lm.LogQi[i] = int(math.Round(math.Log2(float64(p.qi[i]))))
 	}
-	lm.LogPi = make([]uint64, len(p.pi))
+	lm.LogPi = make([]int, len(p.pi))
 	for i := range p.pi {
-		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
+		lm.LogPi[i] = int(math.Round(math.Log2(float64(p.pi[i]))))
 	}
 	return
 }
@@ -268,8 +268,8 @@ func (p *Parameters) Qi() []uint64 {
 }
 
 // QiCount returns the number of factors of the ciphertext modulus q
-func (p *Parameters) QiCount() uint64 {
-	return uint64(len(p.qi))
+func (p *Parameters) QiCount() int {
+	return len(p.qi)
 }
 
 // Pi returns a new slice with the factors of the ciphertext modulus extension P
@@ -280,17 +280,17 @@ func (p *Parameters) Pi() []uint64 {
 }
 
 // PiCount returns the number of factors of the ciphertext modulus extension P
-func (p *Parameters) PiCount() uint64 {
-	return uint64(len(p.pi))
+func (p *Parameters) PiCount() int {
+	return len(p.pi)
 }
 
 // QPiCount returns the number of factors of the ciphertext modulus Q + the modulus extension P
-func (p *Parameters) QPiCount() uint64 {
+func (p *Parameters) QPiCount() int {
 	return p.QiCount() + p.PiCount()
 }
 
 // LogQP returns the size of the extended modulus QP in bits
-func (p *Parameters) LogQP() uint64 {
+func (p *Parameters) LogQP() int {
 	tmp := ring.NewUint(1)
 	for _, qi := range p.qi {
 		tmp.Mul(tmp, ring.NewUint(qi))
@@ -298,25 +298,25 @@ func (p *Parameters) LogQP() uint64 {
 	for _, pi := range p.pi {
 		tmp.Mul(tmp, ring.NewUint(pi))
 	}
-	return uint64(tmp.BitLen())
+	return tmp.BitLen()
 }
 
 // LogQ returns the size of the modulus Q in bits
-func (p *Parameters) LogQ() uint64 {
+func (p *Parameters) LogQ() int {
 	tmp := ring.NewUint(1)
 	for _, qi := range p.qi {
 		tmp.Mul(tmp, ring.NewUint(qi))
 	}
-	return uint64(tmp.BitLen())
+	return tmp.BitLen()
 }
 
 // LogP returns the size of the modulus P in bits
-func (p *Parameters) LogP() uint64 {
+func (p *Parameters) LogP() int {
 	tmp := ring.NewUint(1)
 	for _, pi := range p.pi {
 		tmp.Mul(tmp, ring.NewUint(pi))
 	}
-	return uint64(tmp.BitLen())
+	return tmp.BitLen()
 }
 
 // LogQAlpha returns the size in bits of the sum of the norm of
@@ -326,7 +326,7 @@ func (p *Parameters) LogP() uint64 {
 // error during the keyswitching and then divided by P.
 // LogQAlpha should be smaller than P or the error added during
 // the key-switching wont be negligible.
-func (p *Parameters) LogQAlpha() uint64 {
+func (p *Parameters) LogQAlpha() int {
 
 	alpha := p.PiCount()
 
@@ -335,8 +335,8 @@ func (p *Parameters) LogQAlpha() uint64 {
 	}
 
 	res := ring.NewUint(0)
-	var j uint64
-	for i := uint64(0); i < p.QiCount(); i = i + alpha {
+	var j int
+	for i := 0; i < p.QiCount(); i = i + alpha {
 
 		j = i + alpha
 		if j > p.QiCount() {
@@ -351,18 +351,18 @@ func (p *Parameters) LogQAlpha() uint64 {
 		res.Add(res, tmp)
 	}
 
-	return uint64(res.BitLen())
+	return res.BitLen()
 }
 
 // Alpha returns the number of moduli in in P
-func (p *Parameters) Alpha() uint64 {
+func (p *Parameters) Alpha() int {
 	return p.PiCount()
 }
 
 // Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
-func (p *Parameters) Beta() uint64 {
+func (p *Parameters) Beta() int {
 	if p.Alpha() != 0 {
-		return uint64(math.Ceil(float64(p.QiCount()) / float64(p.Alpha())))
+		return int(math.Ceil(float64(p.QiCount()) / float64(p.Alpha())))
 	}
 
 	return 0
@@ -389,8 +389,8 @@ func (p *Parameters) NewPolyQP() *ring.Poly {
 func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
 	twoN := 1 << (p.logN + 1)
 	mask := twoN - 1
-	kRed := uint64(k & mask)
-	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
+	kRed := k & mask
+	return ring.ModExp(uint64(GaloisGen), kRed, uint64(twoN))
 }
 
 // GaloisElementForRowRotation returns the galois element for generating the row
@@ -413,8 +413,8 @@ func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 // InverseGaloisElement takes a galois element and returns the galois element
 //  corresponding to the inverse automorphism
 func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
-	twoN := uint64(1 << (p.logN + 1))
-	return ring.ModExp(galEl, twoN-1, twoN)
+	twoN := 1 << (p.logN + 1)
+	return ring.ModExp(galEl, twoN-1, uint64(twoN))
 }
 
 // Copy creates a copy of the target Parameters.
@@ -480,7 +480,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	}
 	b := utils.NewBuffer(data)
 
-	p.logN = uint64(b.ReadUint8())
+	p.logN = int(b.ReadUint8())
 
 	if p.logN > MaxLogN {
 		return fmt.Errorf("logN larger than %d", MaxLogN)
@@ -504,7 +504,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func checkModuli(m *Moduli, logN uint64) (err error) {
+func checkModuli(m *Moduli, logN int) (err error) {
 
 	if len(m.Qi) > MaxModuliCount {
 		return fmt.Errorf("#qi is larger than %d", MaxModuliCount)
@@ -515,27 +515,27 @@ func checkModuli(m *Moduli, logN uint64) (err error) {
 	}
 
 	for i, qi := range m.Qi {
-		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
+		if bits.Len64(qi)-1 > MaxModuliSize+1 {
 			return fmt.Errorf("qi bit-size for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, pi := range m.Pi {
-		if uint64(bits.Len64(pi)-1) > MaxModuliSize+1 {
+		if bits.Len64(pi)-1 > MaxModuliSize+1 {
 			return fmt.Errorf("Pi bit-size for i=%d is larger than %d", i, MaxModuliSize)
 		}
 	}
 
-	N := uint64(1 << logN)
+	N := 1 << logN
 
 	for i, qi := range m.Qi {
-		if !ring.IsPrime(qi) || qi&((N<<1)-1) != 1 {
+		if !ring.IsPrime(qi) || qi&uint64((N<<1)-1) != 1 {
 			return fmt.Errorf("qi n°%d is not an NTT prime", i)
 		}
 	}
 
 	for i, pi := range m.Pi {
-		if !ring.IsPrime(pi) || pi&((N<<1)-1) != 1 {
+		if !ring.IsPrime(pi) || pi&uint64((N<<1)-1) != 1 {
 			return fmt.Errorf("Pi n°%d is not an NTT prime", i)
 		}
 	}
@@ -574,12 +574,12 @@ func checkLogModuli(lm *LogModuli) (err error) {
 }
 
 // GenModuli generates the appropriate primes from the parameters using generateNTTPrimes such that all primes are different.
-func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
+func genModuli(lm *LogModuli, logN int) (m *Moduli) {
 
 	m = new(Moduli)
 
 	// Extracts all the different primes bit-size and maps their number
-	primesbitlen := make(map[uint64]uint64)
+	primesbitlen := make(map[int]int)
 
 	for _, qi := range lm.LogQi {
 		primesbitlen[qi]++
@@ -590,7 +590,7 @@ func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
 	}
 
 	// For each bit-size, it finds that many primes
-	primes := make(map[uint64][]uint64)
+	primes := make(map[int][]uint64)
 	for key, value := range primesbitlen {
 		primes[key] = ring.GenerateNTTPrimes(key, 2<<logN, value)
 	}

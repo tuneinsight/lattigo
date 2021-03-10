@@ -16,7 +16,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	var testContext = new(testParams)
 	var btp *Bootstrapper
 
-	paramSet := uint64(2)
+	paramSet := 2
 
 	btpParams := DefaultBootstrapParams[paramSet]
 
@@ -28,9 +28,13 @@ func BenchmarkBootstrapp(b *testing.B) {
 		panic(err)
 	}
 
-	btpKey := testContext.kgen.GenBootstrappingKey(testContext.params.logSlots, btpParams, testContext.sk)
+	rotations := testContext.kgen.GenRotationIndexesForBootstrapping(testContext.params.logSlots, btpParams)
 
-	if btp, err = NewBootstrapper(testContext.params, btpParams, *btpKey); err != nil {
+	rotkeys := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
+
+	btpKey := BootstrappingKey{testContext.rlk, rotkeys}
+
+	if btp, err = NewBootstrapper(testContext.params, btpParams, btpKey); err != nil {
 		panic(err)
 	}
 

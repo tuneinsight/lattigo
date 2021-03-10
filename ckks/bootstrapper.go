@@ -37,8 +37,8 @@ type Bootstrapper struct {
 	slotsToCoeffsDiffScale complex128      // Matrice rescaling
 	pDFT                   []*PtDiagMatrix // Matrice vectors
 	pDFTInv                []*PtDiagMatrix // Matrice vectors
-	ctsLevel               []int        // index of the Qi used by CoeffsToSlots
-	stcLevel               []int        // index of the Qi used by SlotsToCoeffs
+	ctsLevel               []int           // index of the Qi used by CoeffsToSlots
+	stcLevel               []int           // index of the Qi used by SlotsToCoeffs
 
 	rotKeyIndex []int // a list of the required rotation keys
 
@@ -527,9 +527,9 @@ func genWfft(logL, level int, a, b, c []complex128, forward bool) (vectors map[i
 	var rot int
 
 	if forward {
-		rot = 1 << level-1
+		rot = 1<<level - 1
 	} else {
-		rot = 1 << logL-level
+		rot = 1<<logL - level
 	}
 
 	vectors = make(map[int][]complex128)

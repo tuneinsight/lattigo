@@ -13,7 +13,7 @@ func IsPrime(x uint64) bool {
 // GenerateNTTPrimes generates n NthRoot NTT friendly primes given logQ = size of the primes.
 // It will return all the appropriate primes, up to the number of n, with the
 // best available deviation from the base power of 2 for the given n.
-func GenerateNTTPrimes(logQ, NthRoot, n uint64) (primes []uint64) {
+func GenerateNTTPrimes(logQ, NthRoot, n int) (primes []uint64) {
 
 	if logQ > 61 {
 		panic("logQ must be between 1 and 61")
@@ -28,13 +28,13 @@ func GenerateNTTPrimes(logQ, NthRoot, n uint64) (primes []uint64) {
 
 // NextNTTPrime returns the next NthRoot NTT prime after q.
 // The input q must be itself an NTT prime for the given NthRoot.
-func NextNTTPrime(q, NthRoot uint64) (qNext uint64, err error) {
+func NextNTTPrime(q uint64, NthRoot int) (qNext uint64, err error) {
 
-	qNext = q + NthRoot
+	qNext = q + uint64(NthRoot)
 
 	for !IsPrime(qNext) {
 
-		qNext += NthRoot
+		qNext += uint64(NthRoot)
 
 		if bits.Len64(qNext) > 61 {
 			return 0, fmt.Errorf("next NTT prime exceeds the maximum bit-size of 61 bits")
@@ -46,21 +46,21 @@ func NextNTTPrime(q, NthRoot uint64) (qNext uint64, err error) {
 
 // PreviousNTTPrime returns the previous NthRoot NTT prime after q.
 // The input q must be itself an NTT prime for the given NthRoot.
-func PreviousNTTPrime(q, NthRoot uint64) (qPrev uint64, err error) {
+func PreviousNTTPrime(q uint64, NthRoot int) (qPrev uint64, err error) {
 
-	if q < NthRoot {
+	if q < uint64(NthRoot) {
 		return 0, fmt.Errorf("previous NTT prime is smaller than NthRoot")
 	}
 
-	qPrev = q - NthRoot
+	qPrev = q - uint64(NthRoot)
 
 	for !IsPrime(qPrev) {
 
-		if q < NthRoot {
+		if q < uint64(NthRoot) {
 			return 0, fmt.Errorf("previous NTT prime is smaller than NthRoot")
 		}
 
-		qPrev -= NthRoot
+		qPrev -= uint64(NthRoot)
 	}
 
 	return qPrev, nil
@@ -68,14 +68,14 @@ func PreviousNTTPrime(q, NthRoot uint64) (qPrev uint64, err error) {
 
 // GenerateNTTPrimesQ generates "levels" different NthRoot NTT-friendly
 // primes starting from 2**LogQ and alternating between upward and downward.
-func GenerateNTTPrimesQ(logQ, NthRoot, levels uint64) (primes []uint64) {
+func GenerateNTTPrimesQ(logQ, NthRoot, levels int) (primes []uint64) {
 
 	var nextPrime, previousPrime, Qpow2 uint64
 	var checkfornextprime, checkforpreviousprime bool
 
 	primes = []uint64{}
 
-	Qpow2 = 1 << logQ
+	Qpow2 = uint64(1 << logQ)
 
 	nextPrime = Qpow2 + 1
 	previousPrime = Qpow2 + 1
@@ -91,19 +91,19 @@ func GenerateNTTPrimesQ(logQ, NthRoot, levels uint64) (primes []uint64) {
 
 		if checkfornextprime {
 
-			if nextPrime > 0xffffffffffffffff-NthRoot {
+			if nextPrime > 0xffffffffffffffff-uint64(NthRoot) {
 
 				checkfornextprime = false
 
 			} else {
 
-				nextPrime += NthRoot
+				nextPrime += uint64(NthRoot)
 
 				if IsPrime(nextPrime) {
 
 					primes = append(primes, nextPrime)
 
-					if uint64(len(primes)) == levels {
+					if len(primes) == levels {
 						return
 					}
 				}
@@ -112,19 +112,19 @@ func GenerateNTTPrimesQ(logQ, NthRoot, levels uint64) (primes []uint64) {
 
 		if checkforpreviousprime {
 
-			if previousPrime < NthRoot {
+			if previousPrime < uint64(NthRoot) {
 
 				checkforpreviousprime = false
 
 			} else {
 
-				previousPrime -= NthRoot
+				previousPrime -= uint64(NthRoot)
 
 				if IsPrime(previousPrime) {
 
 					primes = append(primes, previousPrime)
 
-					if uint64(len(primes)) == levels {
+					if len(primes) == levels {
 						return
 					}
 				}
@@ -137,13 +137,13 @@ func GenerateNTTPrimesQ(logQ, NthRoot, levels uint64) (primes []uint64) {
 // GenerateNTTPrimesP generates "levels" different NthRoot NTT-friendly
 // primes starting from 2**LogP and downward.
 // Special case were primes close to 2^{LogP} but with a smaller bit-size than LogP are sought.
-func GenerateNTTPrimesP(logP, NthRoot, n uint64) (primes []uint64) {
+func GenerateNTTPrimesP(logP, NthRoot, n int) (primes []uint64) {
 
 	var x, Ppow2 uint64
 
 	primes = []uint64{}
 
-	Ppow2 = 1 << logP
+	Ppow2 = uint64(1 << logP)
 
 	x = Ppow2 + 1
 
@@ -151,15 +151,15 @@ func GenerateNTTPrimesP(logP, NthRoot, n uint64) (primes []uint64) {
 
 		// We start by subtracting 2N to ensure that the prime bit-length is smaller than LogP
 
-		if x > NthRoot {
+		if x > uint64(NthRoot) {
 
-			x -= NthRoot
+			x -= uint64(NthRoot)
 
 			if IsPrime(x) {
 
 				primes = append(primes, x)
 
-				if uint64(len(primes)) == n {
+				if len(primes) == n {
 					return primes
 				}
 			}

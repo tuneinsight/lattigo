@@ -129,17 +129,17 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	ringQP.InvNTTLazy(pcks.share1tmp, pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSampler.ReadAndAdd(pcks.share0tmp, ringQP, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+	pcks.gaussianSampler.ReadAndAdd(pcks.share0tmp, ringQP, pcks.sigmaSmudging, int(6*pcks.sigmaSmudging))
 
 	// h_1 = u_i * pk_1 + e1
-	pcks.gaussianSampler.ReadAndAdd(pcks.share1tmp, ringQP, pcks.sigmaSmudging, uint64(6*pcks.sigmaSmudging))
+	pcks.gaussianSampler.ReadAndAdd(pcks.share1tmp, ringQP, pcks.sigmaSmudging, int(6*pcks.sigmaSmudging))
 
 	// h_0 = (u_i * pk_0 + e0)/P
-	pcks.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, pcks.share0tmp, shareOut[0])
+	pcks.baseconverter.ModDownPQ(len(ringQ.Modulus)-1, pcks.share0tmp, shareOut[0])
 
 	// h_0 = (u_i * pk_0 + e0)/P
 	// Could be moved to the keyswitch phase, but the second element of the shares will be larger
-	pcks.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, pcks.share1tmp, shareOut[1])
+	pcks.baseconverter.ModDownPQ(len(ringQ.Modulus)-1, pcks.share1tmp, shareOut[1])
 
 	// tmp = s_i*c_1
 	ringQ.NTTLazy(ct.Value()[1], pcks.tmp)

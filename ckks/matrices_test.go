@@ -14,12 +14,12 @@ func TestMatrices(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 
-	LogN := uint64(13)
-	LogSlots := uint64(12)
+	LogN := 13
+	LogSlots := 12
 
 	LogModuli := LogModuli{
-		LogQi: []uint64{50, 35, 35, 35},
-		LogPi: []uint64{55},
+		LogQi: []int{50, 35, 35, 35},
+		LogPi: []int{55},
 	}
 
 	Scale := float64(1 << 35)
@@ -72,12 +72,12 @@ func TestMatrices(t *testing.T) {
 		m, _, ct := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		alpha := params.Alpha()
-		beta := uint64(math.Ceil(float64(ct.Level()+1) / float64(alpha)))
+		beta := int(math.Ceil(float64(ct.Level()+1) / float64(alpha)))
 
 		c2QiQDecompA := make([]*ring.Poly, beta)
 		c2QiPDecompA := make([]*ring.Poly, beta)
 
-		for i := uint64(0); i < beta; i++ {
+		for i := 0; i < beta; i++ {
 			c2QiQDecompA[i] = eval.(*evaluator).ringQ.NewPolyLvl(ct.Level())
 			c2QiPDecompA[i] = eval.(*evaluator).ringP.NewPoly()
 		}
@@ -113,12 +113,12 @@ func TestMatrices(t *testing.T) {
 		m, _, ct := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		alpha := params.Alpha()
-		beta := uint64(math.Ceil(float64(ct.Level()+1) / float64(alpha)))
+		beta := int(math.Ceil(float64(ct.Level()+1) / float64(alpha)))
 
 		c2QiQDecompA := make([]*ring.Poly, beta)
 		c2QiPDecompA := make([]*ring.Poly, beta)
 
-		for i := uint64(0); i < beta; i++ {
+		for i := 0; i < beta; i++ {
 			c2QiQDecompA[i] = eval.(*evaluator).ringQ.NewPolyLvl(ct.Level())
 			c2QiPDecompA[i] = eval.(*evaluator).ringP.NewPoly()
 		}
@@ -263,7 +263,7 @@ func VerifyTestVectors(params *Parameters, encoder Encoder, decryptor Decryptor,
 	require.GreaterOrEqual(t, imag(precStats.MeanPrecision), minPrec)
 }
 
-func PrintDebug(ct *Ciphertext, rows, cols uint64, params *Parameters, encoder Encoder, decryptor Decryptor) {
+func PrintDebug(ct *Ciphertext, rows, cols int, params *Parameters, encoder Encoder, decryptor Decryptor) {
 
 	valuesHave := encoder.Decode(decryptor.DecryptNew(ct), params.LogSlots())
 
@@ -272,12 +272,12 @@ func PrintDebug(ct *Ciphertext, rows, cols uint64, params *Parameters, encoder E
 	if maxPrint > 4 {
 		maxPrint = 4
 	}
-	for k := uint64(0); k < maxPrint; k++ {
+	for k := 0; k < maxPrint; k++ {
 
 		index := k * rows * cols
 
-		for i := uint64(0); i < rows; i++ {
-			for j := uint64(0); j < cols; j++ {
+		for i := 0; i < rows; i++ {
+			for j := 0; j < cols; j++ {
 				fmt.Printf("%7.4f ", real(valuesHave[index+i*rows+j]))
 			}
 			fmt.Printf("\n")

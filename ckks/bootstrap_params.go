@@ -26,13 +26,13 @@ type BootstrappingParameters struct {
 	LogSlots     int
 	Scale        float64
 	Sigma        float64
-	H            int  // Hamming weight of the secret key
+	H            int     // Hamming weight of the secret key
 	SinType      SinType // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	MessageRatio float64 // Ratio between Q0 and m, i.e. Q[0]/|m|
-	SinRange     int  // K parameter (interpolation in the range -K to K)
-	SinDeg       int  // Degree of the interpolation
-	SinRescal    int  // Number of rescale and double angle formula (only applies for cos)
-	ArcSineDeg   int  // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
+	SinRange     int     // K parameter (interpolation in the range -K to K)
+	SinDeg       int     // Degree of the interpolation
+	SinRescal    int     // Number of rescale and double angle formula (only applies for cos)
+	ArcSineDeg   int     // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
 	MaxN1N2Ratio float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
 }
 

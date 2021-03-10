@@ -19,9 +19,9 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 var minPrec float64 = 15.0
-var parties uint64 = 3
+var parties int = 3
 
-func testString(opname string, parties uint64, params *ckks.Parameters) string {
+func testString(opname string, parties int, params *ckks.Parameters) string {
 	return fmt.Sprintf("%sparties=%d/logN=%d/logQ=%d/levels=%d/alpha=%d/beta=%d",
 		opname,
 		parties,
@@ -109,7 +109,7 @@ func genTestParams(defaultParams *ckks.Parameters) (testCtx *testContext, err er
 	tmp0 := testCtx.dckksContext.ringQP.NewPoly()
 	tmp1 := testCtx.dckksContext.ringQP.NewPoly()
 
-	for j := uint64(0); j < parties; j++ {
+	for j := 0; j < parties; j++ {
 		testCtx.sk0Shards[j] = kgen.GenSecretKey()
 		testCtx.sk1Shards[j] = kgen.GenSecretKey()
 		testCtx.dckksContext.ringQP.Add(tmp0, testCtx.sk0Shards[j].Value, tmp0)
@@ -150,7 +150,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		ckgParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.CKGProtocol = NewCKGProtocol(testCtx.params)
 			p.s = &sk0Shards[i].SecretKey
@@ -216,7 +216,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
 		crp := make([]*ring.Poly, testCtx.params.Beta())
 
-		for i := uint64(0); i < testCtx.params.Beta(); i++ {
+		for i := 0; i < testCtx.params.Beta(); i++ {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
@@ -250,7 +250,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 		evaluator.Rescale(ciphertext, testCtx.params.Scale(), ciphertext)
 
-		require.Equal(t, ciphertext.Degree(), uint64(1))
+		require.Equal(t, ciphertext.Degree(), 1)
 
 		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
 
@@ -275,7 +275,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 		}
 
 		cksParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
 			p.s0 = sk0Shards[i].Value
@@ -328,7 +328,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 		}
 
 		pcksParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
 			p.s = sk0Shards[i].Value
@@ -368,7 +368,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		}
 
 		pcksParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
 			p.s = &sk0Shards[i].SecretKey
@@ -383,7 +383,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
 		crp := make([]*ring.Poly, testCtx.params.Beta())
 
-		for i := uint64(0); i < testCtx.params.Beta(); i++ {
+		for i := 0; i < testCtx.params.Beta(); i++ {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
@@ -406,7 +406,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 		coeffsWant := make([]complex128, ringQP.N>>1)
 
-		for i := uint64(0); i < ringQP.N>>1; i++ {
+		for i := 0; i < ringQP.N>>1; i++ {
 			coeffsWant[i] = complex(real(coeffs[i]), -imag(coeffs[i]))
 		}
 
@@ -431,7 +431,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 		}
 
 		pcksParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
 			p.s = &sk0Shards[i].SecretKey
@@ -444,7 +444,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQP)
 		crp := make([]*ring.Poly, testCtx.params.Beta())
 
-		for i := uint64(0); i < testCtx.params.Beta(); i++ {
+		for i := 0; i < testCtx.params.Beta(); i++ {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
@@ -467,7 +467,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
 		evaluator := testCtx.evaluator.ShallowCopyWithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 
-		for k := uint64(1); k < ringQP.N>>1; k <<= 1 {
+		for k := 1; k < ringQP.N>>1; k <<= 1 {
 			evaluator.Rotate(ciphertext, int(k), receiver)
 
 			coeffsWant := utils.RotateComplex128Slice(coeffs, int(k))
@@ -484,7 +484,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
 
-	levelStart := uint64(3)
+	levelStart := 3
 
 	t.Run(testString("Refresh/", parties, testCtx.params), func(t *testing.T) {
 
@@ -500,7 +500,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		}
 
 		RefreshParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.RefreshProtocol = NewRefreshProtocol(testCtx.params)
 			p.s = sk0Shards[i].Value
@@ -546,7 +546,7 @@ func testRefreshAndPermute(testCtx *testContext, t *testing.T) {
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
 
-	levelStart := uint64(3)
+	levelStart := 3
 
 	t.Run(testString("RefreshAndPermute/", parties, testCtx.params), func(t *testing.T) {
 
@@ -562,7 +562,7 @@ func testRefreshAndPermute(testCtx *testContext, t *testing.T) {
 		}
 
 		RefreshParties := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.PermuteProtocol = NewPermuteProtocol(testCtx.params)
 			p.s = sk0Shards[i].Value
@@ -584,7 +584,7 @@ func testRefreshAndPermute(testCtx *testContext, t *testing.T) {
 		permutation := make([]uint64, testCtx.params.Slots())
 
 		for i := range permutation {
-			permutation[i] = ring.RandUniform(testCtx.prng, testCtx.params.Slots(), testCtx.params.Slots()-1)
+			permutation[i] = ring.RandUniform(testCtx.prng, uint64(testCtx.params.Slots()), uint64(testCtx.params.Slots()-1))
 		}
 
 		for i, p := range RefreshParties {
@@ -619,7 +619,7 @@ func newTestVectors(testCtx *testContext, encryptor ckks.Encryptor, a float64, t
 
 	values = make([]complex128, slots)
 
-	for i := uint64(0); i < slots; i++ {
+	for i := 0; i < slots; i++ {
 		values[i] = utils.RandComplex128(-a, a)
 	}
 

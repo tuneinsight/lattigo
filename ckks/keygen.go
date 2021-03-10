@@ -14,10 +14,10 @@ type KeyGenerator interface {
 	GenSecretKey() (sk *SecretKey)
 	GenSecretKeyGaussian() (sk *SecretKey)
 	GenSecretKeyWithDistrib(p float64) (sk *SecretKey)
-	GenSecretKeySparse(hw uint64) (sk *SecretKey)
+	GenSecretKeySparse(hw int) (sk *SecretKey)
 	GenPublicKey(sk *SecretKey) (pk *PublicKey)
 	GenKeyPair() (sk *SecretKey, pk *PublicKey)
-	GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey)
+	GenKeyPairSparse(hw int) (sk *SecretKey, pk *PublicKey)
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
 	GenRelinearizationKey(sk *SecretKey) (evakey *RelinearizationKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
@@ -25,8 +25,8 @@ type KeyGenerator interface {
 	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
 
 	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet)
-	
-	GenRotationsForBootstrapping(logSlots uint64, btpParams *BootstrappingParameters) []int
+
+	GenRotationIndexesForBootstrapping(logSlots int, btpParams *BootstrappingParameters) []int
 
 	GenRotationIndexesForInnerSum(batch, n int) []int
 
@@ -89,7 +89,7 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	sk = new(SecretKey)
 
-	sk.Value = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
+	sk.Value = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, int(6*keygen.params.sigma))
 	keygen.ringQP.NTT(sk.Value, sk.Value)
 	return sk
 }
@@ -109,7 +109,7 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 }
 
 // GenSecretKeySparse generates a new SecretKey with exactly hw non-zero coefficients.
-func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
+func (keygen *keyGenerator) GenSecretKeySparse(hw int) (sk *SecretKey) {
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -132,7 +132,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
 
-	pk.Value[0] = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
+	pk.Value[0] = keygen.gaussianSampler.ReadNew(keygen.ringQP, keygen.params.sigma, int(6*keygen.params.sigma))
 	ringQP.NTT(pk.Value[0], pk.Value[0])
 	pk.Value[1] = keygen.uniformSampler.ReadNew()
 
@@ -148,7 +148,7 @@ func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 }
 
 // GenKeyPairSparse generates a new SecretKey with exactly hw non zero coefficients [1/2, 0, 1/2].
-func (keygen *keyGenerator) GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey) {
+func (keygen *keyGenerator) GenKeyPairSparse(hw int) (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.GenSecretKeySparse(hw)
 	return sk, keygen.GenPublicKey(sk)
 }
@@ -207,7 +207,7 @@ func (keygen *keyGenerator) genrotKey(sk *ring.Poly, galEl uint64, swk *rlwe.Swi
 	skIn := sk
 	skOut := keygen.polypool[1]
 
-	index := ring.PermuteNTTIndex(galEl, keygen.ringQP.N)
+	index := ring.PermuteNTTIndex(galEl, uint64(keygen.ringQP.N))
 	ring.PermuteNTTWithIndexLvl(keygen.params.QPiCount()-1, skIn, index, skOut)
 
 	keygen.newSwitchingKey(skIn, skOut, swk)
@@ -228,12 +228,12 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.Sw
 	alpha := keygen.params.Alpha()
 	beta := keygen.params.Beta()
 
-	var index uint64
-	for i := uint64(0); i < beta; i++ {
+	var index int
+	for i := 0; i < beta; i++ {
 
 		// e
 
-		keygen.gaussianSampler.Read(swk.Value[i][0], keygen.ringQP, keygen.params.sigma, uint64(6*keygen.params.sigma))
+		keygen.gaussianSampler.Read(swk.Value[i][0], keygen.ringQP, keygen.params.sigma, int(6*keygen.params.sigma))
 		ringQP.NTTLazy(swk.Value[i][0], swk.Value[i][0])
 		ringQP.MForm(swk.Value[i][0], swk.Value[i][0])
 
@@ -247,7 +247,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.Sw
 		// q_tild = q_star^-1 mod q_prod
 		//
 		// Therefore : (skIn * P) * (q_star * q_tild) = sk*P mod q[i*alpha+j], else 0
-		for j := uint64(0); j < alpha; j++ {
+		for j := 0; j < alpha; j++ {
 
 			index = i*alpha + j
 
@@ -255,7 +255,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.Sw
 			p0tmp := keygen.polypool[0].Coeffs[index]
 			p1tmp := swk.Value[i][0].Coeffs[index]
 
-			for w := uint64(0); w < ringQP.N; w++ {
+			for w := 0; w < ringQP.N; w++ {
 				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 			}
 
@@ -296,11 +296,10 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 	return keygen.GenRotationKeys(galEls, sk)
 }
 
-
 // GenRotationIndexesForInnerSumNaive generates the rotation indexes for the
 // InnerSumNaive. To be then used with GenRotationKeysForRotations to generate
 // the RotationKeySet.
-func (keygen *keyGenerator) GenRotationIndexesForInnerSumNaive(batch, n int) (rotations []int){
+func (keygen *keyGenerator) GenRotationIndexesForInnerSumNaive(batch, n int) (rotations []int) {
 	rotations = []int{}
 	for i := 1; i < n; i++ {
 		rotations = append(rotations, i*batch)
@@ -311,20 +310,20 @@ func (keygen *keyGenerator) GenRotationIndexesForInnerSumNaive(batch, n int) (ro
 // GenRotationIndexesForInnerSum generates the rotation indexes for the
 // InnerSum. To be then used with GenRotationKeysForRotations to generate
 // the RotationKeySet.
-func (keygen *keyGenerator) GenRotationIndexesForInnerSum(batch, n int) (rotations []int){
+func (keygen *keyGenerator) GenRotationIndexesForInnerSum(batch, n int) (rotations []int) {
 
 	rotations = []int{}
 	var k int
 	for i := 1; i < n; i <<= 1 {
 
-		k = i 
+		k = i
 		k *= batch
 
 		if !utils.IsInSliceInt(k, rotations) && k != 0 {
 			rotations = append(rotations, k)
 		}
 
-		k = n - (n  & ((i << 1) - 1))
+		k = n - (n & ((i << 1) - 1))
 		k *= batch
 
 		if !utils.IsInSliceInt(k, rotations) && k != 0 {
@@ -349,7 +348,6 @@ func (keygen *keyGenerator) GenRotationIndexesForMatMul(mmpt *MMPt) (rotations [
 
 	return
 }
-
 
 // GetRotationIndexForDiagMatrix generates of all the rotations needed for a the multiplication
 // with the diagonal plaintext matrix.
@@ -392,13 +390,9 @@ func (keygen *keyGenerator) GenRotationIndexesForDiagMatrix(matrix *PtDiagMatrix
 	return rotKeyIndex
 }
 
+func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repack bool) []int {
 
-
-
-
-func addMatrixRotToList(pVec map[uint64]bool, rotations []uint64, N1, slots uint64, repack bool) []uint64 {
-
-	var index uint64
+	var index int
 	for j := range pVec {
 
 		index = (j / N1) * N1
@@ -411,13 +405,13 @@ func addMatrixRotToList(pVec map[uint64]bool, rotations []uint64, N1, slots uint
 			index &= (slots - 1)
 		}
 
-		if index != 0 && !utils.IsInSliceUint64(index, rotations) {
+		if index != 0 && !utils.IsInSliceInt(index, rotations) {
 			rotations = append(rotations, index)
 		}
 
 		index = j & (N1 - 1)
 
-		if index != 0 && !utils.IsInSliceUint64(index, rotations) {
+		if index != 0 && !utils.IsInSliceInt(index, rotations) {
 			rotations = append(rotations, index)
 		}
 	}
@@ -425,7 +419,7 @@ func addMatrixRotToList(pVec map[uint64]bool, rotations []uint64, N1, slots uint
 	return rotations
 }
 
-func (keygen *keyGenerator) GenRotationForBootstrapping(logSlots int, btpParams *BootstrappingParameters) (rotations []int) {
+func (keygen *keyGenerator) GenRotationIndexesForBootstrapping(logSlots int, btpParams *BootstrappingParameters) (rotations []int) {
 
 	// List of the rotation key values to needed for the bootstrapp
 	rotations = []int{}

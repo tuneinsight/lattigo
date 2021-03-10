@@ -43,7 +43,7 @@ func benchEncoder(testContext *testParams, b *testing.B) {
 	b.Run(testString(testContext, "Encoder/Encode/"), func(b *testing.B) {
 
 		values := make([]complex128, 1<<logSlots)
-		for i := uint64(0); i < 1<<logSlots; i++ {
+		for i := 0; i < 1<<logSlots; i++ {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
@@ -57,7 +57,7 @@ func benchEncoder(testContext *testParams, b *testing.B) {
 	b.Run(testString(testContext, "Encoder/Decode/"), func(b *testing.B) {
 
 		values := make([]complex128, 1<<logSlots)
-		for i := uint64(0); i < 1<<logSlots; i++ {
+		for i := 0; i < 1<<logSlots; i++ {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
@@ -253,7 +253,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 	})
 }
 
-func benchInnerSum(testContext *testParams, b *testing.B){
+func benchInnerSum(testContext *testParams, b *testing.B) {
 
 	ciphertext1 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 
@@ -289,14 +289,14 @@ func benchInnerSum(testContext *testParams, b *testing.B){
 		var rot int
 		for i := 1; i < n; i <<= 1 {
 
-			rot = i 
+			rot = i
 			rot *= batch
 
 			if !utils.IsInSliceInt(rot, rots) && rot != 0 {
 				rots = append(rots, rot)
 			}
 
-			rot = n - (n  & ((i << 1) - 1))
+			rot = n - (n & ((i << 1) - 1))
 
 			rot *= batch
 
@@ -338,14 +338,14 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 		c2QiQDecomp := make([]*ring.Poly, testContext.params.Beta())
 		c2QiPDecomp := make([]*ring.Poly, testContext.params.Beta())
 
-		for i := uint64(0); i < testContext.params.Beta(); i++ {
+		for i := 0; i < testContext.params.Beta(); i++ {
 			c2QiQDecomp[i] = ringQ.NewPoly()
 			c2QiPDecomp[i] = ringP.NewPoly()
 		}
 
 		b.Run(testString(testContext, "/DecomposeNTT/"), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				for j := uint64(0); j < testContext.params.Beta(); j++ {
+				for j := 0; j < testContext.params.Beta(); j++ {
 					evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
 				}
 			}

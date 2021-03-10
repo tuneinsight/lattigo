@@ -14,12 +14,12 @@ func example() {
 	var start time.Time
 	var err error
 
-	LogN := uint64(14)
-	LogSlots := uint64(13)
+	LogN := 14
+	LogSlots := 13
 
 	LogModuli := ckks.LogModuli{
-		LogQi: []uint64{55, 40, 40, 40, 40, 40, 40, 40},
-		LogPi: []uint64{45, 45},
+		LogQi: []int{55, 40, 40, 40, 40, 40, 40, 40},
+		LogPi: []int{45, 45},
 	}
 
 	Scale := float64(1 << 40)
@@ -153,7 +153,7 @@ func example() {
 
 	poly := ckks.NewPoly(coeffs)
 
-	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly); err != nil {
+	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale()); err != nil {
 		panic(err)
 	}
 
@@ -173,7 +173,7 @@ func example() {
 
 	start = time.Now()
 
-	evaluator.Power(ciphertext, uint64(r), ciphertext)
+	evaluator.Power(ciphertext, int(r), ciphertext)
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
@@ -210,7 +210,7 @@ func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
-	precStats := ckks.GetPrecisionStats(params, nil, nil, valuesWant, valuesTest)
+	precStats := ckks.GetPrecisionStats(params, nil, nil, valuesWant, valuesTest, 0)
 
 	fmt.Println(precStats.String())
 

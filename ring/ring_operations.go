@@ -1331,21 +1331,21 @@ func (r *Ring) MulByVectorMontgomeryAndAddNoMod(p1 *Poly, vector []uint64, p2 *P
 // BitReverse applies a bit reverse permutation on the coefficients of p1 and writes the result on p2.
 // In can safely be used for in-place permutation.
 func (r *Ring) BitReverse(p1, p2 *Poly) {
-	bitLenOfN := uint64(bits.Len64(r.N) - 1)
+	bitLenOfN := uint64(bits.Len64(uint64(r.N)) - 1)
 
 	if p1 != p2 {
 		for i := range r.Modulus {
 			p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
 			for j := 0; j < r.N; j++ {
-				p2tmp[utils.BitReverse64(j, bitLenOfN)] = p1tmp[j]
+				p2tmp[utils.BitReverse64(uint64(j), bitLenOfN)] = p1tmp[j]
 			}
 		}
 	} else { // In place in case p1 = p2
 		for x := range r.Modulus {
 			p2tmp := p2.Coeffs[x]
 			for i := 0; i < r.N; i++ {
-				j := utils.BitReverse64(i, bitLenOfN)
-				if i < j {
+				j := utils.BitReverse64(uint64(i), bitLenOfN)
+				if i < int(j) {
 					p2tmp[i], p2tmp[j] = p2tmp[j], p2tmp[i]
 				}
 			}
@@ -1368,13 +1368,13 @@ func (r *Ring) Rotate(p1 *Poly, n int, p2 *Poly) {
 
 		root = MRed(r.PsiMont[i], r.PsiMont[i], qi, mredParams)
 
-		root = modexpMontgomery(root, uint64(n), qi, mredParams, r.BredParams[i])
+		root = modexpMontgomery(root, n, qi, mredParams, r.BredParams[i])
 
 		gal = MForm(1, qi, r.BredParams[i])
 
 		p1tmp, p2tmp := p1.Coeffs[i], p1.Coeffs[i]
 
-		for j := uint64(1); j < r.N; j++ {
+		for j := 1; j < r.N; j++ {
 
 			gal = MRed(gal, root, qi, mredParams)
 

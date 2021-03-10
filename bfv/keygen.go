@@ -15,7 +15,7 @@ type KeyGenerator interface {
 	GenPublicKey(sk *SecretKey) (pk *PublicKey)
 	GenKeyPair() (sk *SecretKey, pk *PublicKey)
 	GenSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey)
-	GenRelinearizationKey(sk *SecretKey, maxDegree uint64) (evk *RelinearizationKey)
+	GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
 	GenRotationKeysForRotations(ks []int, includeSwapRow bool, sk *SecretKey) (rks *RotationKeySet)
@@ -95,7 +95,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	//pk[0] = [-(a*s + e)]
 	//pk[1] = [a]
 
-	pk.Value[0] = keygen.gaussianSampler.ReadNew(ringQP, keygen.params.Sigma(), uint64(6*keygen.params.Sigma()))
+	pk.Value[0] = keygen.gaussianSampler.ReadNew(ringQP, keygen.params.Sigma(), int(6*keygen.params.Sigma()))
 	ringQP.NTT(pk.Value[0], pk.Value[0])
 	pk.Value[1] = keygen.uniformSampler.ReadNew()
 
@@ -112,7 +112,7 @@ func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 
 // NewRelinKey generates a new evaluation key from the provided SecretKey. It will be used to relinearize a ciphertext (encrypted under a PublicKey generated from the provided SecretKey)
 // of degree > 1 to a ciphertext of degree 1. Max degree is the maximum degree of the ciphertext allowed to relinearize.
-func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree uint64) (evk *RelinearizationKey) {
+func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey) {
 
 	if keygen.ringQP == nil {
 		panic("modulus P is empty")
@@ -129,7 +129,7 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree uint6
 	ringQP := keygen.ringQP
 
 	keygen.polypool[1].Copy(sk.Value)
-	for i := uint64(0); i < maxDegree; i++ {
+	for i := 0; i < maxDegree; i++ {
 		ringQP.MulCoeffsMontgomery(keygen.polypool[1], sk.Value, keygen.polypool[1])
 		keygen.newSwitchingKey(keygen.polypool[1], sk.Value, evk.Keys[i])
 	}
@@ -212,16 +212,16 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *rlwe
 	alpha := keygen.params.Alpha()
 	beta := keygen.params.Beta()
 
-	var index uint64
+	var index int
 
 	// delta_sk = skIn - skOut = GaloisEnd(skOut, rotation) - skOut
 
 	ringQP.MulScalarBigint(skIn, keygen.pBigInt, keygen.polypool[0])
 
-	for i := uint64(0); i < beta; i++ {
+	for i := 0; i < beta; i++ {
 
 		// e
-		keygen.gaussianSampler.Read(swkOut.Value[i][0], ringQP, keygen.params.Sigma(), uint64(6*keygen.params.Sigma()))
+		keygen.gaussianSampler.Read(swkOut.Value[i][0], ringQP, keygen.params.Sigma(), int(6*keygen.params.Sigma()))
 		ringQP.NTTLazy(swkOut.Value[i][0], swkOut.Value[i][0])
 		ringQP.MForm(swkOut.Value[i][0], swkOut.Value[i][0])
 		// a
@@ -230,7 +230,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *rlwe
 		// e + skIn * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
 
-		for j := uint64(0); j < alpha; j++ {
+		for j := 0; j < alpha; j++ {
 
 			index = i*alpha + j
 
@@ -238,7 +238,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *rlwe
 			p0tmp := keygen.polypool[0].Coeffs[index]
 			p1tmp := swkOut.Value[i][0].Coeffs[index]
 
-			for w := uint64(0); w < ringQP.N; w++ {
+			for w := 0; w < ringQP.N; w++ {
 				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 			}
 

@@ -47,7 +47,6 @@ func (eval *evaluator) LinearTransform(vec *Ciphertext, linearTransform interfac
 	return
 }
 
-
 func (eval *evaluator) InnerSum(ct0 *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
 	levelQ := ct0.Level()
@@ -219,7 +218,7 @@ func (eval *evaluator) InnerSumNaive(ct0 *Ciphertext, batchSize, n int, ctOut *C
 			}
 		}
 
-		var reduce uint64
+		var reduce int
 		// Sums elements [2, ..., n-1]
 		for i := 1; i < n; i++ {
 
@@ -314,7 +313,7 @@ func (eval *evaluator) multiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *P
 	ringQ.MulScalarBigintLvl(levelQ, vec.value[0], ringP.ModulusBigint, ct0TimesP) // P*c0
 
 	var state bool
-	var cnt uint64
+	var cnt int
 	for k := range matrix.Vec {
 
 		k &= int((ringQ.N >> 1) - 1)
@@ -475,14 +474,14 @@ func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 	}
 
 	// OUTER LOOP
-	var cnt0 uint64
+	var cnt0 int
 	for j := range index {
 
 		if j != 0 {
 
 			// INNER LOOP
 			var state bool
-			var cnt1 uint64
+			var cnt1 int
 			for _, i := range index[j] {
 
 				if i == 0 {
@@ -604,7 +603,7 @@ func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 
 	// if j == 0 (N2 rotation by zero)
 	var state bool
-	var cnt1 uint64
+	var cnt1 int
 	for _, i := range index[0] {
 
 		if i == 0 {

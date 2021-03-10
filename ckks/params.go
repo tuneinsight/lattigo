@@ -212,17 +212,17 @@ func (m *Moduli) Copy() Moduli {
 
 // LogModuli stores the bit-length of the NTT primes of the RNS representation.
 type LogModuli struct {
-	LogQi []uint64 // Ciphertext prime moduli bit-size
-	LogPi []uint64 // Keys additional prime moduli bit-size
+	LogQi []int // Ciphertext prime moduli bit-size
+	LogPi []int // Keys additional prime moduli bit-size
 }
 
 // Copy creates a copy of the target Moduli.
 func (m *LogModuli) Copy() LogModuli {
 
-	LogQi := make([]uint64, len(m.LogQi))
+	LogQi := make([]int, len(m.LogQi))
 	copy(LogQi, m.LogQi)
 
-	LogPi := make([]uint64, len(m.LogPi))
+	LogPi := make([]int, len(m.LogPi))
 	copy(LogPi, m.LogPi)
 
 	return LogModuli{LogQi, LogPi}
@@ -330,12 +330,12 @@ func (p *Parameters) MaxLogSlots() int {
 }
 
 // Sigma returns standard deviation of the noise distribution
-func (p *Parameters) Sigma() int {
+func (p *Parameters) Sigma() float64 {
 	return p.sigma
 }
 
 // Scale returns the default plaintext/ciphertext scale
-func (p *Parameters) Scale() int {
+func (p *Parameters) Scale() float64 {
 	return p.scale
 }
 
@@ -382,7 +382,7 @@ func (p *Parameters) QiOverflowMargin(level int) int {
 	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.qi[:level+1])))
 }
 
-// QiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can
+// PiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can
 // be added together before overflowing 2^64.
 func (p *Parameters) PiOverflowMargin() int {
 	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.pi)))
@@ -406,8 +406,8 @@ func (p *Parameters) Qi() []uint64 {
 }
 
 // QiCount returns the number of factors of the ciphertext modulus Q
-func (p *Parameters) QiCount() uint64 {
-	return uint64(len(p.qi))
+func (p *Parameters) QiCount() int {
+	return len(p.qi)
 }
 
 // Pi returns a new slice with the factors of the ciphertext modulus extension P
@@ -528,8 +528,8 @@ func (p *Parameters) Beta() int {
 func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
 	twoN := 1 << (p.logN + 1)
 	mask := twoN - 1
-	kRed := uint64(k & mask)
-	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
+	kRed := k & mask
+	return ring.ModExp(uint64(GaloisGen), kRed, uint64(twoN))
 }
 
 // GaloisElementForRowRotation returns the galois element corresponding to a row rotation (conjugate) automorphism
@@ -550,8 +550,8 @@ func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 
 // InverseGaloisElement returns the galois element for the inverse automorphism of galEl
 func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
-	twoN := uint64(1 << (p.logN + 1))
-	return ring.ModExp(galEl, twoN-1, twoN)
+	twoN := 1 << (p.logN + 1)
+	return ring.ModExp(galEl, twoN-1, uint64(twoN))
 }
 
 // Copy creates a copy of the target parameters.
@@ -652,7 +652,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-func checkModuli(m *Moduli, logN uint64) error {
+func checkModuli(m *Moduli, logN int) error {
 
 	if len(m.Qi) > MaxModuliCount {
 		return fmt.Errorf("#Qi is larger than %d", MaxModuliCount)
@@ -674,16 +674,16 @@ func checkModuli(m *Moduli, logN uint64) error {
 		}
 	}
 
-	N := uint64(1 << logN)
+	N := 1 << logN
 
 	for i, qi := range m.Qi {
-		if !ring.IsPrime(qi) || qi&((N<<1)-1) != 1 {
+		if !ring.IsPrime(qi) || qi&uint64((N<<1)-1) != 1 {
 			return fmt.Errorf("Qi (i=%d) is not an NTT prime", i)
 		}
 	}
 
 	for i, pi := range m.Pi {
-		if !ring.IsPrime(pi) || pi&((N<<1)-1) != 1 {
+		if !ring.IsPrime(pi) || pi&uint64((N<<1)-1) != 1 {
 			return fmt.Errorf("Pi (i=%d) is not an NTT prime", i)
 		}
 	}
@@ -716,12 +716,12 @@ func checkLogModuli(m *LogModuli) error {
 	return nil
 }
 
-func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
+func genModuli(lm *LogModuli, logN int) (m *Moduli) {
 
 	m = new(Moduli)
 
 	// Extracts all the different primes bit size and maps their number
-	primesbitlen := make(map[uint64]uint64)
+	primesbitlen := make(map[int]int)
 	for _, qi := range lm.LogQi {
 		primesbitlen[qi]++
 	}
@@ -731,7 +731,7 @@ func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
 	}
 
 	// For each bit-size, finds that many primes
-	primes := make(map[uint64][]uint64)
+	primes := make(map[int][]uint64)
 	for key, value := range primesbitlen {
 		primes[key] = ring.GenerateNTTPrimes(key, 2<<logN, value)
 	}

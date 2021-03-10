@@ -149,7 +149,7 @@ func (r *Ring) genNTTParams() error {
 
 		for i := 0; i < j; i++ {
 
-			r.RescaleParams[j-1][i] = MForm(r.Modulus[i]-ModExp(r.Modulus[j], r.Modulus[i]-2, r.Modulus[i]), r.Modulus[i], r.BredParams[i])
+			r.RescaleParams[j-1][i] = MForm(r.Modulus[i]-ModExp(r.Modulus[j], int(r.Modulus[i]-2), r.Modulus[i]), r.Modulus[i], r.BredParams[i])
 		}
 	}
 
@@ -164,7 +164,7 @@ func (r *Ring) genNTTParams() error {
 	for i, qi := range r.Modulus {
 
 		// 1.1 Compute N^(-1) mod Q in Montgomery form
-		r.NttNInv[i] = MForm(ModExp(uint64(r.N), qi-2, qi), qi, r.BredParams[i])
+		r.NttNInv[i] = MForm(ModExp(uint64(r.N), int(qi-2), qi), qi, r.BredParams[i])
 
 		// 1.2 Compute Psi and PsiInv in Montgomery form
 		r.NttPsi[i] = make([]uint64, r.N)
@@ -173,10 +173,10 @@ func (r *Ring) genNTTParams() error {
 		// Finds a 2N-th primitive Root
 		g := primitiveRoot(qi)
 
-		_2n := uint64(r.N << 1)
+		_2n := r.N << 1
 
-		power := (qi - 1) / _2n
-		powerInv := (qi - 1) - power
+		power := (int(qi) - 1) / _2n
+		powerInv := (int(qi) - 1) - power
 
 		// Computes Psi and PsiInv in Montgomery form
 		PsiMont := MForm(ModExp(g, power, qi), qi, r.BredParams[i])
@@ -257,11 +257,11 @@ func (r *Ring) NewPoly() *Poly {
 }
 
 // NewPolyLvl creates a new polynomial with all coefficients set to 0.
-func (r *Ring) NewPolyLvl(level uint64) *Poly {
+func (r *Ring) NewPolyLvl(level int) *Poly {
 	p := new(Poly)
 
 	p.Coeffs = make([][]uint64, level+1)
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 		p.Coeffs[i] = make([]uint64, r.N)
 	}
 
@@ -313,11 +313,11 @@ func (r *Ring) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
 }
 
 // SetCoefficientsBigintLvl sets the coefficients of p1 from an array of Int variables.
-func (r *Ring) SetCoefficientsBigintLvl(level uint64, coeffs []*big.Int, p1 *Poly) {
+func (r *Ring) SetCoefficientsBigintLvl(level int, coeffs []*big.Int, p1 *Poly) {
 
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 		QiBigint.SetUint64(r.Modulus[i])
 		for j, coeff := range coeffs {
 			p1.Coeffs[i][j] = coeffTmp.Mod(coeff, QiBigint).Uint64()

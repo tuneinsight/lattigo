@@ -19,7 +19,7 @@ type MMPt struct {
 
 // GenMatMulLinTrans generates the plaintext linear transformation necessary for the homomorphic
 // multiplication of square matrices.
-func GenMatMulLinTrans(params *Parameters, level uint64, dimension int, encoder Encoder) (mmpt *MMPt) {
+func GenMatMulLinTrans(params *Parameters, level, dimension int, encoder Encoder) (mmpt *MMPt) {
 
 	mmpt = new(MMPt)
 
@@ -59,12 +59,12 @@ func (eval *evaluator) MulMatrix(A, B *Ciphertext, mmpt *MMPt) (ciphertextAB *Ci
 	ciphertextAB = eval.MulNew(ciphertextA, ciphertextB)
 
 	alpha := eval.params.Alpha()
-	beta := uint64(math.Ceil(float64(ciphertextA.Level()+1) / float64(alpha)))
+	beta := int(math.Ceil(float64(ciphertextA.Level()+1) / float64(alpha)))
 
 	c2QiQDecompB := make([]*ring.Poly, beta)
 	c2QiPDecompB := make([]*ring.Poly, beta)
 
-	for i := uint64(0); i < beta; i++ {
+	for i := 0; i < beta; i++ {
 		c2QiQDecompB[i] = eval.ringQ.NewPolyLvl(ciphertextA.Level())
 		c2QiPDecompB[i] = eval.ringP.NewPoly()
 	}
@@ -105,7 +105,7 @@ func (eval *evaluator) MulMatrix(A, B *Ciphertext, mmpt *MMPt) (ciphertextAB *Ci
 }
 
 // genPermuteRowsMatrix rotates each row of the matrix by k position, where k is the row index.
-func genPermuteRowsMatrix(level uint64, scale, maxM1N2Ratio float64, dimension int, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[int][]complex128) {
+func genPermuteRowsMatrix(level int, scale, maxM1N2Ratio float64, dimension int, logSlots int, encoder Encoder) (*PtDiagMatrix, map[int][]complex128) {
 
 	slots := 1 << logSlots
 
@@ -146,7 +146,7 @@ func genPermuteRowsMatrix(level uint64, scale, maxM1N2Ratio float64, dimension i
 }
 
 // genPermuteColsMatrix rotates each column of the matrix by k position, where k is the column index.
-func genPermuteColsMatrix(level uint64, scale, maxM1N2Ratio float64, dimension int, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[int][]complex128) {
+func genPermuteColsMatrix(level int, scale, maxM1N2Ratio float64, dimension int, logSlots int, encoder Encoder) (*PtDiagMatrix, map[int][]complex128) {
 
 	slots := 1 << logSlots
 
@@ -209,7 +209,7 @@ func genPermuteColsMatrix(level uint64, scale, maxM1N2Ratio float64, dimension i
 // mask_0 = [{1, ..., 1, 0, ..., 0}, ..., {1, ..., 1, 0, ..., 0}]
 // mask_1 = [{0, ..., 0, 1, ..., 1}, ..., {0, ..., 0, 1, ..., 1}]
 //            0 ----- k                    0 ----- k
-func GenSubVectorRotationMatrix(level uint64, scale float64, vectorSize, k int, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[int][]complex128) {
+func GenSubVectorRotationMatrix(level int, scale float64, vectorSize, k int, logSlots int, encoder Encoder) (*PtDiagMatrix, map[int][]complex128) {
 
 	k %= vectorSize
 
@@ -278,7 +278,7 @@ func GenSubVectorRotationMatrix(level uint64, scale float64, vectorSize, k int, 
 }
 
 // GenTransposeDiagMatrix generates the linear transform plaintext vectors for the transpose of a square matrix.
-func GenTransposeDiagMatrix(level uint64, scale, maxM1N2Ratio float64, dimension int, logSlots uint64, encoder Encoder) (*PtDiagMatrix, map[int][]complex128) {
+func GenTransposeDiagMatrix(level int, scale, maxM1N2Ratio float64, dimension int, logSlots int, encoder Encoder) (*PtDiagMatrix, map[int][]complex128) {
 
 	slots := 1 << logSlots
 
@@ -308,9 +308,9 @@ func GenTransposeDiagMatrix(level uint64, scale, maxM1N2Ratio float64, dimension
 	return encoder.EncodeDiagMatrixAtLvl(level, diagMatrix, scale, maxM1N2Ratio, logSlots), diagMatrix
 }
 
-func populateVector(m []complex128, d2 int, logSlots uint64) {
+func populateVector(m []complex128, d2, logSlots int) {
 
-	slots := uint64(1 << logSlots)
+	slots := 1 << logSlots
 
 	for k := d2; k < int(slots); k = k + d2 {
 

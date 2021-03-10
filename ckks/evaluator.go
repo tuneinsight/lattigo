@@ -118,8 +118,8 @@ type Evaluator interface {
 	Rescale(ct0 *Ciphertext, minScale float64, c1 *Ciphertext) (err error)
 
 	// Level Management
-	DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciphertext)
-	DropLevel(ct0 *Ciphertext, levels uint64)
+	DropLevelNew(ct0 *Ciphertext, levels int) (ctOut *Ciphertext)
+	DropLevel(ct0 *Ciphertext, levels int)
 
 	// Modular Overflow Management
 	ReduceNew(ct0 *Ciphertext) (ctOut *Ciphertext)
@@ -137,7 +137,7 @@ type Evaluator interface {
 	// === Others ===
 	// ==============
 
-	DecompInternal(level uint64, c2NTT *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly)
+	DecompInternal(level int, c2NTT *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly)
 	ShallowCopy() Evaluator
 	ShallowCopyWithKey(EvaluationKey) Evaluator
 }
@@ -204,7 +204,7 @@ func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 		buff.c2QiQDecomp = make([]*ring.Poly, evalBase.params.Beta())
 		buff.c2QiPDecomp = make([]*ring.Poly, evalBase.params.Beta())
 
-		for i := uint64(0); i < evalBase.params.Beta(); i++ {
+		for i := 0; i < evalBase.params.Beta(); i++ {
 			buff.c2QiQDecomp[i] = ringQ.NewPoly()
 			buff.c2QiPDecomp[i] = ringP.NewPoly()
 		}
@@ -241,7 +241,7 @@ func (eval *evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64
 	}
 	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
 	for galEl := range rtks.Keys {
-		permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, eval.ringQ.N)
+		permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, uint64(eval.ringQ.N))
 	}
 	return &permuteNTTIndex
 }
@@ -271,7 +271,7 @@ func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator
 	}
 }
 
-func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64) (el0, el1, elOut *Element) {
+func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree int) (el0, el1, elOut *Element) {
 	if op0 == nil || op1 == nil || opOut == nil {
 		panic("operands cannot be nil")
 	}
@@ -289,22 +289,22 @@ func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDe
 
 func (eval *evaluator) newCiphertextBinary(op0, op1 Operand) (ctOut *Ciphertext) {
 
-	maxDegree := utils.MaxUint64(op0.Degree(), op1.Degree())
+	maxDegree := utils.MaxInt(op0.Degree(), op1.Degree())
 	maxScale := utils.MaxFloat64(op0.Scale(), op1.Scale())
-	minLevel := utils.MinUint64(op0.Level(), op1.Level())
+	minLevel := utils.MinInt(op0.Level(), op1.Level())
 
 	return NewCiphertext(eval.params, maxDegree, minLevel, maxScale)
 }
 
 // Add adds op0 to op1 and returns the result in ctOut.
 func (eval *evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()))
 	eval.evaluateInPlace(el0, el1, elOut, eval.ringQ.AddLvl)
 }
 
 // AddNoMod adds op0 to op1 and returns the result in ctOut, without modular reduction.
 func (eval *evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) {
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()))
 	eval.evaluateInPlace(el0, el1, elOut, eval.ringQ.AddNoModLvl)
 }
 
@@ -325,11 +325,11 @@ func (eval *evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 // Sub subtracts op1 from op0 and returns the result in ctOut.
 func (eval *evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()))
 
 	eval.evaluateInPlace(el0, el1, elOut, eval.ringQ.SubLvl)
 
-	level := utils.MinUint64(utils.MinUint64(el0.Level(), el1.Level()), elOut.Level())
+	level := utils.MinInt(utils.MinInt(el0.Level(), el1.Level()), elOut.Level())
 
 	if el0.Degree() < el1.Degree() {
 		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
@@ -342,11 +342,11 @@ func (eval *evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 // SubNoMod subtracts op1 from op0 and returns the result in ctOut, without modular reduction.
 func (eval *evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()))
 
 	eval.evaluateInPlace(el0, el1, elOut, eval.ringQ.SubNoModLvl)
 
-	level := utils.MinUint64(utils.MinUint64(el0.Level(), el1.Level()), elOut.Level())
+	level := utils.MinInt(utils.MinInt(el0.Level(), el1.Level()), elOut.Level())
 
 	if el0.Degree() < el1.Degree() {
 		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
@@ -370,18 +370,18 @@ func (eval *evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	return
 }
 
-func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(uint64, *ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(int, *ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	var tmp0, tmp1 *Element
 
-	level := utils.MinUint64(utils.MinUint64(c0.Level(), c1.Level()), ctOut.Level())
+	level := utils.MinInt(utils.MinInt(c0.Level(), c1.Level()), ctOut.Level())
 
-	maxDegree := utils.MaxUint64(c0.Degree(), c1.Degree())
-	minDegree := utils.MinUint64(c0.Degree(), c1.Degree())
+	maxDegree := utils.MaxInt(c0.Degree(), c1.Degree())
+	minDegree := utils.MinInt(c0.Degree(), c1.Degree())
 
 	// Else resizes the receiver element
 	ctOut.Resize(eval.params, maxDegree)
-	eval.DropLevel(ctOut.Ciphertext(), ctOut.Level()-utils.MinUint64(c0.Level(), c1.Level()))
+	eval.DropLevel(ctOut.Ciphertext(), ctOut.Level()-utils.MinInt(c0.Level(), c1.Level()))
 
 	// Checks whether or not the receiver element is the same as one of the input elements
 	// and acts accordingly to avoid unnecessary element creation or element overwriting,
@@ -467,7 +467,7 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(uin
 		}
 	}
 
-	for i := uint64(0); i < minDegree+1; i++ {
+	for i := 0; i < minDegree+1; i++ {
 		evaluate(level, tmp0.Value()[i], tmp1.Value()[i], ctOut.Value()[i])
 	}
 
@@ -490,7 +490,7 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(uin
 // Neg negates the value of ct0 and returns the result in ctOut.
 func (eval *evaluator) Neg(ct0 *Ciphertext, ctOut *Ciphertext) {
 
-	level := utils.MinUint64(ct0.Level(), ctOut.Level())
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
 
 	if ct0.Degree() != ctOut.Degree() {
 		panic("cannot Negate: invalid receiver Ciphertext does not match input Ciphertext degree")
@@ -515,7 +515,7 @@ func (eval *evaluator) AddConstNew(ct0 *Ciphertext, constant interface{}) (ctOut
 	return ctOut
 }
 
-func (eval *evaluator) getConstAndScale(level uint64, constant interface{}) (cReal, cImag, scale float64) {
+func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal, cImag, scale float64) {
 
 	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
 	scale = 1
@@ -574,7 +574,7 @@ func (eval *evaluator) getConstAndScale(level uint64, constant interface{}) (cRe
 // AddConst adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in ctOut.
 func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
-	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
+	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 
 	cReal, cImag, _ := eval.getConstAndScale(level, constant)
@@ -586,7 +586,7 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 	// [{                  N/2                }{                N/2               }]
 	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
 	var qi uint64
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 		scaledConstReal = 0
 		scaledConstImag = 0
 		scaledConst = 0
@@ -599,14 +599,14 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 		}
 
 		if cImag != 0 {
-			scaledConstImag = ring.MRed(scaleUpExact(cImag, ctOut.Scale(), qi), ringQ.GetNttPsi()[i][1], qi, ringQ.GetMredParams()[i])
+			scaledConstImag = ring.MRed(scaleUpExact(cImag, ctOut.Scale(), qi), ringQ.NttPsi[i][1], qi, ringQ.MredParams[i])
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
 		p1tmp := ctOut.Value()[0].Coeffs[i]
 		p0tmp := ct0.value[0].Coeffs[i]
 
-		for j := uint64(0); j < ringQ.N>>1; j = j + 8 {
+		for j := 0; j < ringQ.N>>1; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
@@ -649,7 +649,7 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 // The scale of the receiver element will be set to the scale that the input element would have after the multiplication by the constant.
 func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
-	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
+	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 
 	// Forces a drop of ctOut level to ct0 level
 	if ctOut.Level() > level {
@@ -706,11 +706,11 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
 	// [{                  N/2                }{                N/2               }]
 	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 
 		qi := ringQ.Modulus[i]
-		mredParams := ringQ.GetMredParams()[i]
-		bredParams := ringQ.GetBredParams()[i]
+		mredParams := ringQ.MredParams[i]
+		bredParams := ringQ.BredParams[i]
 
 		scaledConstReal = 0
 		scaledConstImag = 0
@@ -723,7 +723,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 
 		if cImag != 0 {
 			scaledConstImag = scaleUpExact(cImag, scale, qi)
-			scaledConstImag = ring.MRed(scaledConstImag, ringQ.GetNttPsi()[i][1], qi, mredParams)
+			scaledConstImag = ring.MRed(scaledConstImag, ringQ.NttPsi[i][1], qi, mredParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
@@ -733,7 +733,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
 
-			for j := uint64(0); j < ringQ.N>>1; j = j + 8 {
+			for j := 0; j < ringQ.N>>1; j = j + 8 {
 
 				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
@@ -789,7 +789,7 @@ func (eval *evaluator) MultByConstNew(ct0 *Ciphertext, constant interface{}) (ct
 // needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
 func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
-	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
+	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 
 	cReal, cImag, scale := eval.getConstAndScale(level, constant)
 
@@ -799,11 +799,11 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
 	ringQ := eval.ringQ
 	var scaledConst, scaledConstReal, scaledConstImag uint64
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 
 		qi := ringQ.Modulus[i]
-		bredParams := ringQ.GetBredParams()[i]
-		mredParams := ringQ.GetMredParams()[i]
+		bredParams := ringQ.BredParams[i]
+		mredParams := ringQ.MredParams[i]
 
 		scaledConstReal = 0
 		scaledConstImag = 0
@@ -816,7 +816,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 
 		if cImag != 0 {
 			scaledConstImag = scaleUpExact(cImag, scale, qi)
-			scaledConstImag = ring.MRed(scaledConstImag, ringQ.GetNttPsi()[i][1], qi, mredParams)
+			scaledConstImag = ring.MRed(scaledConstImag, ringQ.NttPsi[i][1], qi, mredParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
@@ -826,7 +826,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
 
-			for j := uint64(0); j < ringQ.N>>1; j = j + 8 {
+			for j := 0; j < ringQ.N>>1; j = j + 8 {
 
 				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
@@ -874,14 +874,14 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 
 	ringQ := eval.ringQ
 
-	level := utils.MinUint64(ct0.Level(), ctOut.Level())
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 
 		qi := ringQ.Modulus[i]
-		bredParams := ringQ.GetBredParams()[i]
-		mredParams := ringQ.GetMredParams()[i]
+		bredParams := ringQ.BredParams[i]
+		mredParams := ringQ.MredParams[i]
 
 		scaledConstReal = 0
 		scaledConstImag = 0
@@ -902,7 +902,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 			} else {
 				scaledConstImag = uint64(cImag)
 			}
-			scaledConstImag = ring.MRed(scaledConstImag, ringQ.GetNttPsi()[i][1], qi, mredParams)
+			scaledConstImag = ring.MRed(scaledConstImag, ringQ.NttPsi[i][1], qi, mredParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
@@ -912,7 +912,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
 
-			for j := uint64(0); j < ringQ.N>>1; j = j + 8 {
+			for j := 0; j < ringQ.N>>1; j = j + 8 {
 
 				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
@@ -959,14 +959,14 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 
 	ringQ := eval.ringQ
 
-	level := utils.MinUint64(ct0.Level(), ctOut.Level())
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 
 		qi := ringQ.Modulus[i]
-		bredParams := ringQ.GetBredParams()[i]
-		mredParams := ringQ.GetMredParams()[i]
+		bredParams := ringQ.BredParams[i]
+		mredParams := ringQ.MredParams[i]
 
 		scaledConstReal = 0
 		scaledConstImag = 0
@@ -987,7 +987,7 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 			} else {
 				scaledConstImag = uint64(cImag)
 			}
-			scaledConstImag = ring.MRed(scaledConstImag, ringQ.GetNttPsi()[i][1], qi, mredParams)
+			scaledConstImag = ring.MRed(scaledConstImag, ringQ.NttPsi[i][1], qi, mredParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
@@ -997,7 +997,7 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 			p0tmp := ct0.Value()[u].Coeffs[i]
 			p1tmp := ctOut.Value()[u].Coeffs[i]
 
-			for j := uint64(0); j < ringQ.N>>1; j = j + 8 {
+			for j := 0; j < ringQ.N>>1; j = j + 8 {
 
 				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
@@ -1052,25 +1052,25 @@ func (eval *evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // It does not change the scale.
 func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 
-	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
+	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 
 	ringQ := eval.ringQ
 
 	var imag uint64
 
 	// Equivalent to a product by the monomial x^(n/2) outside of the NTT domain
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 
 		qi := ringQ.Modulus[i]
-		mredParams := ringQ.GetMredParams()[i]
+		mredParams := ringQ.MredParams[i]
 
-		imag = ringQ.GetNttPsi()[i][1] // Psi^2
+		imag = ringQ.NttPsi[i][1] // Psi^2
 
 		for u := range ctOut.value {
 			p0tmp := ct0.value[u].Coeffs[i]
 			p1tmp := ctOut.value[u].Coeffs[i]
 
-			for j := uint64(0); j < ringQ.N>>1; j = j + 8 {
+			for j := 0; j < ringQ.N>>1; j = j + 8 {
 
 				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
@@ -1122,24 +1122,24 @@ func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // It does not change the scale.
 func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 
-	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
+	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 
 	ringQ := eval.ringQ
 
 	var imag uint64
 
 	// Equivalent to a product by the monomial x^(3*n/2) outside of the NTT domain
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 
 		qi := ringQ.Modulus[i]
-		mredParams := ringQ.GetMredParams()[i]
+		mredParams := ringQ.MredParams[i]
 
-		imag = qi - ringQ.GetNttPsi()[i][1] // -Psi^2
+		imag = qi - ringQ.NttPsi[i][1] // -Psi^2
 
 		for u := range ctOut.value {
 			p0tmp := ct0.value[u].Coeffs[i]
 			p1tmp := ctOut.value[u].Coeffs[i]
-			for j := uint64(0); j < ringQ.N>>1; j = j + 8 {
+			for j := 0; j < ringQ.N>>1; j = j + 8 {
 
 				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
 				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
@@ -1155,7 +1155,7 @@ func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 			}
 		}
 
-		imag = ringQ.GetNttPsi()[i][1] // Psi^2
+		imag = ringQ.NttPsi[i][1] // Psi^2
 
 		for u := range ctOut.value {
 			p0tmp := ct0.value[u].Coeffs[i]
@@ -1220,7 +1220,7 @@ func (eval *evaluator) MulByPow2New(ct0 *Ciphertext, pow2 int) (ctOut *Ciphertex
 
 // MulByPow2 multiplies ct0 by 2^pow2 and returns the result in ctOut.
 func (eval *evaluator) MulByPow2(ct0 *Element, pow2 int, ctOut *Element) {
-	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
+	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 	for i := range ctOut.Value() {
 		eval.ringQ.MulByPow2Lvl(level, ct0.value[i], pow2, ctOut.Value()[i])
 	}
@@ -1246,7 +1246,7 @@ func (eval *evaluator) Reduce(ct0 *Ciphertext, ctOut *Ciphertext) error {
 	}
 
 	for i := range ct0.value {
-		eval.ringQ.ReduceLvl(utils.MinUint64(ct0.Level(), ctOut.Level()), ct0.value[i], ctOut.value[i])
+		eval.ringQ.ReduceLvl(utils.MinInt(ct0.Level(), ctOut.Level()), ct0.value[i], ctOut.value[i])
 	}
 
 	return nil
@@ -1254,7 +1254,7 @@ func (eval *evaluator) Reduce(ct0 *Ciphertext, ctOut *Ciphertext) error {
 
 // DropLevelNew reduces the level of ct0 by levels and returns the result in a newly created element.
 // No rescaling is applied during this procedure.
-func (eval *evaluator) DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciphertext) {
+func (eval *evaluator) DropLevelNew(ct0 *Ciphertext, levels int) (ctOut *Ciphertext) {
 	ctOut = ct0.CopyNew().Ciphertext()
 	eval.DropLevel(ctOut, levels)
 	return
@@ -1262,7 +1262,7 @@ func (eval *evaluator) DropLevelNew(ct0 *Ciphertext, levels uint64) (ctOut *Ciph
 
 // DropLevel reduces the level of ct0 by levels and returns the result in ct0.
 // No rescaling is applied during this procedure.
-func (eval *evaluator) DropLevel(ct0 *Ciphertext, levels uint64) {
+func (eval *evaluator) DropLevel(ct0 *Ciphertext, levels int) {
 	level := ct0.Level()
 	for i := range ct0.value {
 		ct0.value[i].Coeffs = ct0.value[i].Coeffs[:level+1-levels]
@@ -1311,10 +1311,10 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 	ctOut.scale = ctIn.scale
 	ctOut.isNTT = true
 
-	var nbRescale uint64
+	var nbRescale int
 	// Divides the scale by each moduli of the modulus chain as long as the scale isn't smaller than minScale/2
 	// or until the output Level() would be zero
-	for ctOut.Scale()/float64(ringQ.Modulus[ctIn.Level()-nbRescale]) >= minScale/2 && int(ctIn.Level())-int(nbRescale) >= 0 {
+	for ctOut.Scale()/float64(ringQ.Modulus[ctIn.Level()-nbRescale]) >= minScale/2 && ctIn.Level()-nbRescale >= 0 {
 		ctOut.DivScale(float64(ringQ.Modulus[ctIn.Level()-nbRescale]))
 		nbRescale++
 	}
@@ -1335,7 +1335,7 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 // MulNew multiplies op0 with op1 without relinearization and returns the result in a newly created element.
 // The procedure will panic if either op0.Degree or op1.Degree > 1.
 func (eval *evaluator) MulNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, op0.Degree()+op1.Degree(), utils.MinUint64(op0.Level(), op1.Level()), 0)
+	ctOut = NewCiphertext(eval.params, op0.Degree()+op1.Degree(), utils.MinInt(op0.Level(), op1.Level()), 0)
 	eval.mulRelin(op0, op1, false, ctOut)
 	return
 }
@@ -1351,7 +1351,7 @@ func (eval *evaluator) Mul(op0, op1 Operand, ctOut *Ciphertext) {
 // The procedure will panic if either op0.Degree or op1.Degree > 1.
 // The procedure will panic if the evaluator was not created with an relinearization key.
 func (eval *evaluator) MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, utils.MinUint64(op0.Level(), op1.Level()), 0)
+	ctOut = NewCiphertext(eval.params, 1, utils.MinInt(op0.Level(), op1.Level()), 0)
 	eval.mulRelin(op0, op1, true, ctOut)
 	return
 }
@@ -1366,9 +1366,9 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, ctOut *Ciphertext) {
 
 func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext) {
 
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()))
 
-	level := utils.MinUint64(utils.MinUint64(el0.Level(), el1.Level()), elOut.Level())
+	level := utils.MinInt(utils.MinInt(el0.Level(), el1.Level()), elOut.Level())
 
 	if ctOut.Level() > level {
 		eval.DropLevel(elOut.Ciphertext(), elOut.Level()-level)
@@ -1477,7 +1477,7 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 		ctOut.SetScale(ct0.Scale())
 	}
 
-	level := utils.MinUint64(ct0.Level(), ctOut.Level())
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	ringQ := eval.ringQ
 
 	eval.switchKeysInPlace(level, ct0.value[2], eval.rlk.Keys[0], eval.poolQ[1], eval.poolQ[2])
@@ -1506,7 +1506,7 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, c
 		panic("cannot SwitchKeys: input and output Ciphertext must be of degree 1")
 	}
 
-	level := utils.MinUint64(ct0.Level(), ctOut.Level())
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	ringQ := eval.ringQ
 
 	eval.switchKeysInPlace(level, ct0.value[1], &switchingKey.SwitchingKey, eval.poolQ[1], eval.poolQ[2])
@@ -1572,7 +1572,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 		panic(fmt.Sprintf("rotation key k=%d not available", eval.params.InverseGaloisElement(galEl)))
 	}
 
-	level := utils.MinUint64(ct0.Level(), ctOut.Level())
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	index := eval.permuteNTTIndex[galEl]
 	pool2Q := eval.poolQ[1]
 	pool3Q := eval.poolQ[2]
@@ -1607,7 +1607,7 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []int, 
 	return
 }
 
-func (eval *evaluator) permuteNTTHoistedNoModDown(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
+func (eval *evaluator) permuteNTTHoistedNoModDown(level int, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
 
 	pool2Q := eval.poolQ[0]
 	pool3Q := eval.poolQ[1]
@@ -1635,9 +1635,9 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(level uint64, c2QiQDecomp, c2Q
 	ring.PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
 }
 
-func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
+func (eval *evaluator) switchKeysInPlaceNoModDown(level int, cx *ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
 
-	var reduce uint64
+	var reduce int
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
@@ -1660,13 +1660,13 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 	reduce = 0
 
 	alpha := eval.params.Alpha()
-	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
+	beta := int(math.Ceil(float64(level+1) / float64(alpha)))
 
 	QiOverF := eval.params.QiOverflowMargin(level) >> 1
 	PiOverF := eval.params.PiOverflowMargin() >> 1
 
 	// Key switching with CRT decomposition for the Qi
-	for i := uint64(0); i < beta; i++ {
+	for i := 0; i < beta; i++ {
 
 		eval.decomposeAndSplitNTT(level, i, cx, c2, c2QiQ, c2QiP)
 
@@ -1712,7 +1712,7 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 }
 
 // switchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
-func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *rlwe.SwitchingKey, p0, p1 *ring.Poly) {
+func (eval *evaluator) switchKeysInPlace(level int, cx *ring.Poly, evakey *rlwe.SwitchingKey, p0, p1 *ring.Poly) {
 
 	eval.switchKeysInPlaceNoModDown(level, cx, evakey, p0, eval.poolP[1], p1, eval.poolP[2])
 
@@ -1720,7 +1720,7 @@ func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *rl
 	eval.baseconverter.ModDownSplitNTTPQ(level, p1, eval.poolP[2], p1)
 }
 
-func (eval *evaluator) DecompInternal(levelQ uint64, c2NTT *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
+func (eval *evaluator) DecompInternal(levelQ int, c2NTT *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
 
 	ringQ := eval.ringQ
 
@@ -1728,15 +1728,15 @@ func (eval *evaluator) DecompInternal(levelQ uint64, c2NTT *ring.Poly, c2QiQDeco
 	ringQ.InvNTTLvl(levelQ, c2NTT, c2InvNTT)
 
 	alpha := eval.params.Alpha()
-	beta := uint64(math.Ceil(float64(levelQ+1) / float64(alpha)))
+	beta := int(math.Ceil(float64(levelQ+1) / float64(alpha)))
 
-	for i := uint64(0); i < beta; i++ {
+	for i := 0; i < beta; i++ {
 		eval.decomposeAndSplitNTT(levelQ, i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
 	}
 }
 
 // decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.
-func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly) {
+func (eval *evaluator) decomposeAndSplitNTT(level, beta int, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly) {
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
@@ -1747,17 +1747,17 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 	p0idxed := p0idxst + eval.decomposer.Xalpha()[beta]
 
 	// c2_qi = cx mod qi mod qi
-	for x := uint64(0); x < level+1; x++ {
+	for x := 0; x < level+1; x++ {
 
 		qi := ringQ.Modulus[x]
-		nttPsi := ringQ.GetNttPsi()[x]
-		bredParams := ringQ.GetBredParams()[x]
-		mredParams := ringQ.GetMredParams()[x]
+		nttPsi := ringQ.NttPsi[x]
+		bredParams := ringQ.BredParams[x]
+		mredParams := ringQ.MredParams[x]
 
 		if p0idxst <= x && x < p0idxed {
 			p0tmp := c2NTT.Coeffs[x]
 			p1tmp := c2QiQ.Coeffs[x]
-			for j := uint64(0); j < ringQ.N; j++ {
+			for j := 0; j < ringQ.N; j++ {
 				p1tmp[j] = p0tmp[j]
 			}
 		} else {
@@ -1768,7 +1768,7 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 	ringP.NTTLazy(c2QiP, c2QiP)
 }
 
-func (eval *evaluator) permuteNTTHoisted(level uint64, c0, c1 *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, cOut0, cOut1 *ring.Poly) {
+func (eval *evaluator) permuteNTTHoisted(level int, c0, c1 *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, cOut0, cOut1 *ring.Poly) {
 
 	if k == 0 {
 		cOut0.Copy(c0)
@@ -1798,7 +1798,7 @@ func (eval *evaluator) permuteNTTHoisted(level uint64, c0, c1 *ring.Poly, c2QiQD
 	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, cOut1)
 }
 
-func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
+func (eval *evaluator) keyswitchHoisted(level int, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
 
 	eval.keyswitchHoistedNoModDown(level, c2QiQDecomp, c2QiPDecomp, evakey, pool2Q, pool3Q, pool2P, pool3P)
 
@@ -1807,13 +1807,13 @@ func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp [
 	eval.baseconverter.ModDownSplitNTTPQ(level, pool3Q, pool3P, pool3Q)
 }
 
-func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
+func (eval *evaluator) keyswitchHoistedNoModDown(level int, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
 	alpha := eval.params.Alpha()
-	beta := uint64(math.Ceil(float64(level+1) / float64(alpha)))
+	beta := int(math.Ceil(float64(level+1) / float64(alpha)))
 
 	evakey0Q := new(ring.Poly)
 	evakey1Q := new(ring.Poly)
@@ -1824,8 +1824,8 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 	PiOverF := eval.params.PiOverflowMargin() >> 1
 
 	// Key switching with CRT decomposition for the Qi
-	var reduce uint64
-	for i := uint64(0); i < beta; i++ {
+	var reduce int
+	for i := 0; i < beta; i++ {
 
 		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]
 		evakey1Q.Coeffs = evakey.Value[i][1].Coeffs[:level+1]

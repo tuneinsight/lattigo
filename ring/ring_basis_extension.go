@@ -44,7 +44,7 @@ func genModDownParams(ringP, ringQ *Ring) (params []uint64) {
 
 	params = make([]uint64, len(ringP.Modulus))
 
-	bredParams := ringP.GetBredParams()
+	bredParams := ringP.BredParams
 	tmp := new(big.Int)
 	for i, Qi := range ringP.Modulus {
 
@@ -184,7 +184,7 @@ func (basisextender *FastBasisExtender) ModUpSplitPQ(level uint64, p1, p2 *Poly)
 // it reduces its basis from {Q0,Q1....Qlevel,P0,P1...Pj} to {Q0,Q1....Qlevel}
 // and performs a rounded integer division of the result by P.
 // Inputs must be in the NTT domain.
-func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly) {
+func (basisextender *FastBasisExtender) ModDownNTTPQ(level int, p1, p2 *Poly) {
 
 	ringQ := basisextender.ringQ
 	ringP := basisextender.ringP
@@ -195,7 +195,7 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 
 	// First we get the P basis part of p1 out of the NTT domain
 	for j := 0; j < nPj; j++ {
-		InvNTTLazy(p1.Coeffs[nQi+j], p1.Coeffs[nQi+j], ringP.N, ringP.GetNttPsiInv()[j], ringP.GetNttNInv()[j], ringP.Modulus[j], ringP.GetMredParams()[j])
+		InvNTTLazy(p1.Coeffs[nQi+j], p1.Coeffs[nQi+j], ringP.N, ringP.NttPsiInv[j], ringP.NttNInv[j], ringP.Modulus[j], ringP.MredParams[j])
 	}
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
@@ -203,7 +203,7 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 	modUpExact(p1.Coeffs[nQi:nQi+nPj], polypool.Coeffs[:level+1], basisextender.paramsPQ)
 
 	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 
 		qi := ringQ.Modulus[i]
 		twoqi := qi << 1
@@ -213,12 +213,13 @@ func (basisextender *FastBasisExtender) ModDownNTTPQ(level uint64, p1, p2 *Poly)
 		params := qi - modDownParams[i]
 		mredParams := ringQ.MredParams[i]
 		bredParams := ringQ.BredParams[i]
+		nttPsi := ringQ.NttPsi[i]
 
 		// First we switch back the relevant polypool CRT array back to the NTT domain
-		NTTLazy(p3tmp, p3tmp, ringQ.N, ringQ.GetNttPsi()[i], qi, mredParams, bredParams)
+		NTTLazy(p3tmp, p3tmp, ringQ.N, nttPsi, qi, mredParams, bredParams)
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		for j := uint64(0); j < ringQ.N; j = j + 8 {
+		for j := 0; j < ringQ.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
 			y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
@@ -258,7 +259,7 @@ func (basisextender *FastBasisExtender) ModDownSplitNTTPQ(level uint64, p1Q, p1P
 	modUpExact(p1P.Coeffs, polypool.Coeffs[:level+1], basisextender.paramsPQ)
 
 	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
-	for i := uint64(0); i < level+1; i++ {
+	for i := 0; i < level+1; i++ {
 
 		qi := ringQ.Modulus[i]
 		twoqi := qi << 1
@@ -268,12 +269,13 @@ func (basisextender *FastBasisExtender) ModDownSplitNTTPQ(level uint64, p1Q, p1P
 		params := qi - modDownParams[i]
 		mredParams := ringQ.MredParams[i]
 		bredParams := ringQ.BredParams[i]
+		nttPsi := ringQ.NttPsi[i]
 
 		// First we switch back the relevant polypool CRT array back to the NTT domain
-		NTTLazy(p3tmp, p3tmp, ringQ.N, ringQ.GetNttPsi()[i], ringQ.Modulus[i], mredParams, bredParams)
+		NTTLazy(p3tmp, p3tmp, ringQ.N, nttPsi, qi, mredParams, bredParams)
 
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		for j := uint64(0); j < ringQ.N; j = j + 8 {
+		for j := 0; j < ringQ.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
 			y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))

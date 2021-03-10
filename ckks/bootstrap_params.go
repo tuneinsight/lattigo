@@ -22,17 +22,17 @@ type BootstrappingParameters struct {
 	SlotsToCoeffsModuli
 	SineEvalModuli
 	CoeffsToSlotsModuli
-	LogN         uint64
-	LogSlots     uint64
+	LogN         int
+	LogSlots     int
 	Scale        float64
 	Sigma        float64
-	H            uint64  // Hamming weight of the secret key
+	H            int  // Hamming weight of the secret key
 	SinType      SinType // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	MessageRatio float64 // Ratio between Q0 and m, i.e. Q[0]/|m|
-	SinRange     uint64  // K parameter (interpolation in the range -K to K)
-	SinDeg       uint64  // Degree of the interpolation
-	SinRescal    uint64  // Number of rescale and double angle formula (only applies for cos)
-	ArcSineDeg   uint64  // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
+	SinRange     int  // K parameter (interpolation in the range -K to K)
+	SinDeg       int  // Degree of the interpolation
+	SinRescal    int  // Number of rescale and double angle formula (only applies for cos)
+	ArcSineDeg   int  // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
 	MaxN1N2Ratio float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
 }
 
@@ -131,8 +131,8 @@ type SlotsToCoeffsModuli struct {
 
 // SineEvalDepth returns the depth of the SineEval. If true, then also
 // counts the double angle formula.
-func (b *BootstrappingParameters) SineEvalDepth(withRescale bool) uint64 {
-	depth := uint64(math.Ceil(math.Log2(float64(b.SinDeg + 1))))
+func (b *BootstrappingParameters) SineEvalDepth(withRescale bool) int {
+	depth := int(math.Ceil(math.Log2(float64(b.SinDeg + 1))))
 
 	if withRescale {
 		depth += b.SinRescal
@@ -142,16 +142,16 @@ func (b *BootstrappingParameters) SineEvalDepth(withRescale bool) uint64 {
 }
 
 // ArcSineDepth returns the depth of the arcsine polynomial.
-func (b *BootstrappingParameters) ArcSineDepth() uint64 {
-	return uint64(math.Ceil(math.Log2(float64(b.ArcSineDeg + 1))))
+func (b *BootstrappingParameters) ArcSineDepth() int {
+	return int(math.Ceil(math.Log2(float64(b.ArcSineDeg + 1))))
 }
 
 // CtSDepth returns the number of levels allocated to CoeffsToSlots.
 // If actual == true then returns the number of moduli consumed, else
 // returns the factorization depth.
-func (b *BootstrappingParameters) CtSDepth(actual bool) (depth uint64) {
+func (b *BootstrappingParameters) CtSDepth(actual bool) (depth int) {
 	if actual {
-		depth = uint64(len(b.CoeffsToSlotsModuli.ScalingFactor))
+		depth = len(b.CoeffsToSlotsModuli.ScalingFactor)
 	} else {
 		for i := range b.CoeffsToSlotsModuli.ScalingFactor {
 			for range b.CoeffsToSlotsModuli.ScalingFactor[i] {
@@ -166,9 +166,9 @@ func (b *BootstrappingParameters) CtSDepth(actual bool) (depth uint64) {
 // StCDepth returns the number of levels allocated to SlotToCoeffs.
 // If actual == true then returns the number of moduli consumed, else
 // returns the factorization depth.
-func (b *BootstrappingParameters) StCDepth(actual bool) (depth uint64) {
+func (b *BootstrappingParameters) StCDepth(actual bool) (depth int) {
 	if actual {
-		depth = uint64(len(b.SlotsToCoeffsModuli.ScalingFactor))
+		depth = len(b.SlotsToCoeffsModuli.ScalingFactor)
 	} else {
 		for i := range b.SlotsToCoeffsModuli.ScalingFactor {
 			for range b.SlotsToCoeffsModuli.ScalingFactor[i] {

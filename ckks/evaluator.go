@@ -72,20 +72,20 @@ type Evaluator interface {
 	// ===========================
 
 	// Multiplication by 2^{s}
-	MulByPow2New(ct0 *Ciphertext, pow2 uint64) (ctOut *Ciphertext)
-	MulByPow2(ct0 *Element, pow2 uint64, ctOut *Element)
+	MulByPow2New(ct0 *Ciphertext, pow2 int) (ctOut *Ciphertext)
+	MulByPow2(ct0 *Element, pow2 int, ctOut *Element)
 
 	// Exponentiation
-	PowerOf2(el0 *Ciphertext, logPow2 uint64, elOut *Ciphertext)
-	Power(ct0 *Ciphertext, degree uint64, res *Ciphertext)
-	PowerNew(op *Ciphertext, degree uint64) (opOut *Ciphertext)
+	PowerOf2(el0 *Ciphertext, logPow2 int, elOut *Ciphertext)
+	Power(ct0 *Ciphertext, degree int, res *Ciphertext)
+	PowerNew(op *Ciphertext, degree int) (opOut *Ciphertext)
 
 	// Polynomial evaluation
 	EvaluatePoly(ct *Ciphertext, coeffs *Poly, targetScale float64) (res *Ciphertext, err error)
 	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, targetScale float64) (res *Ciphertext, err error)
 
 	// Inversion
-	InverseNew(ct0 *Ciphertext, steps uint64) (res *Ciphertext)
+	InverseNew(ct0 *Ciphertext, steps int) (res *Ciphertext)
 
 	// Linear Transformations
 	LinearTransform(vec *Ciphertext, linearTransform interface{}) (res []*Ciphertext)
@@ -1212,14 +1212,14 @@ func (eval *evaluator) SetScale(ct *Ciphertext, scale float64) {
 }
 
 // MulByPow2New multiplies ct0 by 2^pow2 and returns the result in a newly created element.
-func (eval *evaluator) MulByPow2New(ct0 *Ciphertext, pow2 uint64) (ctOut *Ciphertext) {
+func (eval *evaluator) MulByPow2New(ct0 *Ciphertext, pow2 int) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	eval.MulByPow2(ct0.El(), pow2, ctOut.El())
 	return
 }
 
 // MulByPow2 multiplies ct0 by 2^pow2 and returns the result in ctOut.
-func (eval *evaluator) MulByPow2(ct0 *Element, pow2 uint64, ctOut *Element) {
+func (eval *evaluator) MulByPow2(ct0 *Element, pow2 int, ctOut *Element) {
 	var level = utils.MinUint64(ct0.Level(), ctOut.Level())
 	for i := range ctOut.Value() {
 		eval.ringQ.MulByPow2Lvl(level, ct0.value[i], pow2, ctOut.Value()[i])

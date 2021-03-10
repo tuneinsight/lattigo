@@ -48,8 +48,8 @@ func TestMatrices(t *testing.T) {
 		m, _, ct := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		diagMatrix, _ := GenTransposeDiagMatrix(params.MaxLevel(), float64(params.Qi()[params.MaxLevel()]), 16.0, rows, params.LogSlots(), encoder)
-
-		rotKeys := kgen.GenRotKeysForDiagMatrix(diagMatrix, false, sk)
+		rotations := kgen.GenRotationIndexesForDiagMatrix(diagMatrix)
+		rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
 		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
@@ -93,8 +93,8 @@ func TestMatrices(t *testing.T) {
 				level := params.MaxLevel()
 
 				diagMatrix, _ := GenSubVectorRotationMatrix(level, float64(params.Qi()[level]), rows, k, params.LogSlots(), encoder)
-
-				rotKeys := kgen.GenRotKeysForDiagMatrix(diagMatrix, false, sk)
+				rotations := kgen.GenRotationIndexesForDiagMatrix(diagMatrix)
+				rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
 				eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
@@ -134,8 +134,8 @@ func TestMatrices(t *testing.T) {
 				level := params.MaxLevel()
 
 				diagMatrix, _ := GenSubVectorRotationMatrix(level, float64(params.Qi()[level]), rows*rows, k*rows, params.LogSlots(), encoder)
-
-				rotKeys := kgen.GenRotKeysForDiagMatrix(diagMatrix, false, sk)
+				rotations := kgen.GenRotationIndexesForDiagMatrix(diagMatrix)
+				rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
 				eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
@@ -156,8 +156,8 @@ func TestMatrices(t *testing.T) {
 		level := params.MaxLevel()
 
 		diagMatrix, _ := genPermuteRowsMatrix(level, float64(params.Qi()[level]), 16.0, rows, params.LogSlots(), encoder)
-
-		rotKeys := kgen.GenRotKeysForDiagMatrix(diagMatrix, false, sk)
+		rotations := kgen.GenRotationIndexesForDiagMatrix(diagMatrix)
+		rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
 		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
@@ -179,8 +179,8 @@ func TestMatrices(t *testing.T) {
 		level := params.MaxLevel()
 
 		diagMatrix, _ := genPermuteColsMatrix(level, float64(params.Qi()[level]), 16.0, rows, params.LogSlots(), encoder)
-
-		rotKeys := kgen.GenRotKeysForDiagMatrix(diagMatrix, false, sk)
+		rotations := kgen.GenRotationIndexesForDiagMatrix(diagMatrix)
+		rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
 		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 
@@ -203,7 +203,8 @@ func TestMatrices(t *testing.T) {
 		mB, _, ctB := GenTestVectors(rows, cols, params, encoder, encryptor)
 
 		mmpt := GenMatMulLinTrans(params, params.MaxLevel(), rows, encoder)
-		rotKeys := kgen.GenMatMulRotKeys(mmpt, sk)
+		rotations := kgen.GenRotationIndexesForMatMul(mmpt)
+		rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
 		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
 

@@ -79,11 +79,11 @@ func butterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (uint64, uint64) {
 }
 
 // NTT computes the NTT on the input coefficients using the input parameters.
-func NTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
+func NTT(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
 
 	NTTLazy(coeffsIn, coeffsOut, N, nttPsi, Q, mredParams, bredParams)
 	// Finish with an exact reduction
-	for i := uint64(0); i < N; i = i + 8 {
+	for i := 0; i < N; i = i + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
 
@@ -99,7 +99,7 @@ func NTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, mredParams 
 }
 
 // NTTLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 2q-1].
-func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv uint64, bredParams []uint64) {
+func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64) {
 	var j1, j2, t uint64
 	var F uint64
 
@@ -111,7 +111,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 	F = nttPsi[1]
 	var V uint64
 
-	for j := uint64(0); j <= t-1; j = j + 8 {
+	for j := 0; j <= t-1; j = j + 8 {
 
 		xin := (*[8]uint64)(unsafe.Pointer(&coeffsIn[j]))
 		yin := (*[8]uint64)(unsafe.Pointer(&coeffsIn[j+t]))
@@ -147,7 +147,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 	// Continue the rest of the second to the n-1 butterflies on p2 with approximate reduction
 	var reduce bool
 
-	for m := uint64(2); m < N; m <<= 1 {
+	for m := 2; m < N; m <<= 1 {
 
 		reduce = (bits.Len64(m)&1 == 1)
 
@@ -155,7 +155,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 
 		if t >= 8 {
 
-			for i := uint64(0); i < m; i++ {
+			for i := 0; i < m; i++ {
 
 				j1 = (i * t) << 1
 
@@ -218,7 +218,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 
 			if reduce {
 
-				for i := uint64(0); i < m; i = i + 2 {
+				for i := 0; i < m; i = i + 2 {
 
 					j1 = (i * t) << 1
 
@@ -237,7 +237,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 				}
 			} else {
 
-				for i := uint64(0); i < m; i = i + 2 {
+				for i := 0; i < m; i = i + 2 {
 
 					j1 = (i * t) << 1
 
@@ -276,7 +276,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 
 			if reduce {
 
-				for i := uint64(0); i < m; i = i + 4 {
+				for i := 0; i < m; i = i + 4 {
 
 					j1 = (i * t) << 1
 
@@ -294,7 +294,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 				}
 			} else {
 
-				for i := uint64(0); i < m; i = i + 4 {
+				for i := 0; i < m; i = i + 4 {
 
 					j1 = (i * t) << 1
 
@@ -329,7 +329,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q, QInv ui
 
 		} else {
 
-			for i := uint64(0); i < m; i = i + 8 {
+			for i := 0; i < m; i = i + 8 {
 
 				psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[m+i]))
 				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[2*i]))
@@ -390,7 +390,7 @@ func invbutterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (X, Y uint64) {
 }
 
 // InvNTT computes the InvNTT transformation on the input coefficients using the input parameters.
-func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
+func InvNTT(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
 
 	var j1, j2, h, t uint64
 	var F uint64
@@ -401,7 +401,7 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 	twoQ := Q << 1
 	fourQ := Q << 2
 
-	for i := uint64(0); i < h; i = i + 8 {
+	for i := 0; i < h; i = i + 8 {
 
 		psi := (*[8]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
 		xin := (*[16]uint64)(unsafe.Pointer(&coeffsIn[2*i]))
@@ -426,7 +426,7 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 
 		if t >= 8 {
 
-			for i := uint64(0); i < h; i++ {
+			for i := 0; i < h; i++ {
 
 				j2 = j1 + t - 1
 
@@ -452,7 +452,7 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 
 		} else if t == 4 {
 
-			for i := uint64(0); i < h; i = i + 2 {
+			for i := 0; i < h; i = i + 2 {
 
 				psi := (*[2]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
 				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
@@ -471,7 +471,7 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 
 		} else {
 
-			for i := uint64(0); i < h; i = i + 4 {
+			for i := 0; i < h; i = i + 4 {
 
 				psi := (*[4]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
 				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
@@ -493,7 +493,7 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 	}
 
 	// Finish with an exact reduction
-	for i := uint64(0); i < N; i = i + 8 {
+	for i := 0; i < N; i = i + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
 
@@ -509,7 +509,7 @@ func InvNTT(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv,
 }
 
 // InvNTTLazy computes the InvNTT transformation on the input coefficients using the input parameters with output values in the range [0, 2q-1].
-func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttNInv, Q, mredParams uint64) {
+func InvNTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, mredParams uint64) {
 
 	var j1, j2, h, t uint64
 	var F uint64
@@ -521,7 +521,7 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 	twoQ := Q << 1
 	fourQ := Q << 2
 
-	for i := uint64(0); i < h; i = i + 8 {
+	for i := 0; i < h; i = i + 8 {
 
 		psi := (*[8]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
 		xin := (*[16]uint64)(unsafe.Pointer(&coeffsIn[2*i]))
@@ -546,7 +546,7 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 
 		if t >= 8 {
 
-			for i := uint64(0); i < h; i++ {
+			for i := 0; i < h; i++ {
 
 				j2 = j1 + t - 1
 
@@ -572,7 +572,7 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 
 		} else if t == 4 {
 
-			for i := uint64(0); i < h; i = i + 2 {
+			for i := 0; i < h; i = i + 2 {
 
 				psi := (*[2]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
 				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
@@ -591,7 +591,7 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 
 		} else {
 
-			for i := uint64(0); i < h; i = i + 4 {
+			for i := 0; i < h; i = i + 4 {
 
 				psi := (*[4]uint64)(unsafe.Pointer(&nttPsiInv[h+i]))
 				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
@@ -613,7 +613,7 @@ func InvNTTLazy(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, nttN
 	}
 
 	// Finish with an exact reduction
-	for i := uint64(0); i < N; i = i + 8 {
+	for i := 0; i < N; i = i + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
 
@@ -673,14 +673,14 @@ func invbutterflyBarrett(U, V, Psi, Q uint64, bredParams []uint64) (X, Y uint64)
 
 // NTTBarrett computes the NTT using Barrett reduction.
 // For benchmark purposes only.
-func NTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q uint64, bredParams []uint64) {
+func NTTBarrett(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q uint64, bredParams []uint64) {
 	var j1, j2, t uint64
 	var F uint64
 
 	t = N >> 1
 	j2 = t - 1
 	F = nttPsi[1]
-	for j := uint64(0); j <= j2; j++ {
+	for j := 0; j <= j2; j++ {
 		coeffsOut[j], coeffsOut[j+t] = butterflyBarrett(coeffsIn[j], coeffsIn[j+t], F, Q, bredParams)
 	}
 
@@ -700,7 +700,7 @@ func NTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsi []uint64, Q uint6
 		}
 	}
 
-	for i := uint64(0); i < N; i++ {
+	for i := 0; i < N; i++ {
 		coeffsOut[i] = BRedAdd(coeffsOut[i], Q, bredParams)
 	}
 }
@@ -716,7 +716,7 @@ func InvNTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, n
 	j1 = 0
 	h = N >> 1
 
-	for i := uint64(0); i < h; i++ {
+	for i := 0; i < h; i++ {
 
 		j2 = j1
 
@@ -735,7 +735,7 @@ func InvNTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, n
 		j1 = 0
 		h = m >> 1
 
-		for i := uint64(0); i < h; i++ {
+		for i := 0; i < h; i++ {
 
 			j2 = j1 + t - 1
 
@@ -751,7 +751,7 @@ func InvNTTBarrett(coeffsIn, coeffsOut []uint64, N uint64, nttPsiInv []uint64, n
 		t <<= 1
 	}
 
-	for j := uint64(0); j < N; j++ {
+	for j := 0; j < N; j++ {
 		coeffsOut[j] = BRed(coeffsOut[j], nttNInv, Q, bredParams)
 	}
 }

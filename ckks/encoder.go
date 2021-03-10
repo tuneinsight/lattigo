@@ -18,21 +18,21 @@ var pi = "3.14159265358979323846264338327950288419716939937510582097494459230781
 
 // Encoder is an interface implenting the encoding algorithms.
 type Encoder interface {
-	Encode(plaintext *Plaintext, values []complex128, logSlots uint64)
-	EncodeNew(values []complex128, logSlots uint64) (plaintext *Plaintext)
-	EncodeAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
+	Encode(plaintext *Plaintext, values []complex128, logSlots int)
+	EncodeNew(values []complex128, logSlots int) (plaintext *Plaintext)
+	EncodeAtLvlNew(level int, values []complex128, logSlots int) (plaintext *Plaintext)
 
-	EncodeNTT(plaintext *Plaintext, values []complex128, logSlots uint64)
-	EncodeNTTNew(values []complex128, logSlots uint64) (plaintext *Plaintext)
-	EncodeNTTAtLvlNew(level uint64, values []complex128, logSlots uint64) (plaintext *Plaintext)
+	EncodeNTT(plaintext *Plaintext, values []complex128, logSlots int)
+	EncodeNTTNew(values []complex128, logSlots int) (plaintext *Plaintext)
+	EncodeNTTAtLvlNew(level int, values []complex128, logSlots int) (plaintext *Plaintext)
 
-	EncodeDiagMatrixAtLvl(level uint64, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots uint64) (matrix *PtDiagMatrix)
+	EncodeDiagMatrixAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix *PtDiagMatrix)
 
-	Decode(plaintext *Plaintext, logSlots uint64) (res []complex128)
-	DecodePublic(plaintext *Plaintext, logSlots uint64, sigma float64) []complex128
+	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
+	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
 
-	Embed(values []complex128, logSlots uint64)
-	ScaleUp(pol *ring.Poly, scale float64, moduli []uint64)
+	Embed(values []complex128, logSlots int)
+	ScaleUp(pol *ring.Poly, scale float64, moduli []int)
 
 	WipeInternalMemory()
 
@@ -46,14 +46,14 @@ type Encoder interface {
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
 type EncoderBigComplex interface {
-	Encode(plaintext *Plaintext, values []*ring.Complex, logSlots uint64)
-	EncodeNew(values []*ring.Complex, logSlots uint64) (plaintext *Plaintext)
-	EncodeAtLvlNew(level uint64, values []*ring.Complex, logSlots uint64) (plaintext *Plaintext)
-	EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots uint64)
-	EncodeNTTAtLvlNew(level uint64, values []*ring.Complex, logSlots uint64) (plaintext *Plaintext)
-	Decode(plaintext *Plaintext, logSlots uint64) (res []*ring.Complex)
-	FFT(values []*ring.Complex, N uint64)
-	InvFFT(values []*ring.Complex, N uint64)
+	Encode(plaintext *Plaintext, values []*ring.Complex, logSlots int)
+	EncodeNew(values []*ring.Complex, logSlots int) (plaintext *Plaintext)
+	EncodeAtLvlNew(level int, values []*ring.Complex, logSlots int) (plaintext *Plaintext)
+	EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots int)
+	EncodeNTTAtLvlNew(level int, values []*ring.Complex, logSlots int) (plaintext *Plaintext)
+	Decode(plaintext *Plaintext, logSlots int) (res []*ring.Complex)
+	FFT(values []*ring.Complex, N int)
+	InvFFT(values []*ring.Complex, N int)
 
 	//EncodeCoeffs(values []*big.Float, plaintext *Plaintext)
 	//DecodeCoeffs(plaintext *Plaintext) (res []*big.Float)

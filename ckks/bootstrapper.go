@@ -17,12 +17,12 @@ type Bootstrapper struct {
 	*BootstrappingKey
 	params *Parameters
 
-	dslots    uint64 // Number of plaintext slots after the re-encoding
-	logdslots uint64
+	dslots    int // Number of plaintext slots after the re-encoding
+	logdslots int
 
 	encoder Encoder // Encoder
 
-	plaintextSize uint64 // Byte size of the plaintext DFT matrices
+	plaintextSize int // Byte size of the plaintext DFT matrices
 
 	repack       bool                    // If true then can repack the CoeffsToSlots into on ciphertext
 	prescale     float64                 // Q[0]/(Q[0]/|m|)
@@ -37,8 +37,8 @@ type Bootstrapper struct {
 	slotsToCoeffsDiffScale complex128      // Matrice rescaling
 	pDFT                   []*PtDiagMatrix // Matrice vectors
 	pDFTInv                []*PtDiagMatrix // Matrice vectors
-	ctsLevel               []uint64        // index of the Qi used by CoeffsToSlots
-	stcLevel               []uint64        // index of the Qi used by SlotsToCoeffs
+	ctsLevel               []int        // index of the Qi used by CoeffsToSlots
+	stcLevel               []int        // index of the Qi used by SlotsToCoeffs
 
 	rotKeyIndex []int // a list of the required rotation keys
 
@@ -92,17 +92,17 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 	btp.sinescale = math.Exp2(math.Round(math.Log2(btp.SineEvalModuli.ScalingFactor)))
 	btp.postscale = btp.sinescale / btp.MessageRatio
 
-	btp.ctsLevel = []uint64{}
+	btp.ctsLevel = []int{}
 	for i := range btp.CoeffsToSlotsModuli.Qi {
-		for range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true)-1-uint64(i)] {
-			btp.ctsLevel = append(btp.ctsLevel, btp.params.MaxLevel()-uint64(i))
+		for range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true)-1-i] {
+			btp.ctsLevel = append(btp.ctsLevel, btp.params.MaxLevel()-i)
 		}
 	}
 
-	btp.stcLevel = []uint64{}
+	btp.stcLevel = []int{}
 	for i := range btp.SlotsToCoeffsModuli.Qi {
-		for range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-1-uint64(i)] {
-			btp.stcLevel = append(btp.stcLevel, btp.params.MaxLevel()-btp.CtSDepth(true)-btp.SineEvalDepth(true)-btp.ArcSineDepth()-uint64(i))
+		for range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-1-i] {
+			btp.stcLevel = append(btp.stcLevel, btp.params.MaxLevel()-btp.CtSDepth(true)-btp.SineEvalDepth(true)-btp.ArcSineDepth()-i)
 		}
 	}
 
@@ -143,7 +143,7 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 	return nil
 }
 
-func (btp *Bootstrapper) addMatrixRotToList(pVec *PtDiagMatrix, rotations []int, slots uint64, repack bool) {
+func (btp *Bootstrapper) addMatrixRotToList(pVec *PtDiagMatrix, rotations []int, slots int, repack bool) {
 
 	var index int
 	for j := range pVec.Vec {
@@ -154,10 +154,10 @@ func (btp *Bootstrapper) addMatrixRotToList(pVec *PtDiagMatrix, rotations []int,
 
 		if repack {
 			// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
-			index &= (2*int(slots) - 1)
+			index &= 2*slots - 1
 		} else {
 			// Other cases
-			index &= (int(slots) - 1)
+			index &= slots - 1
 		}
 
 		if index != 0 && !utils.IsInSliceInt(index, rotations) {
@@ -226,7 +226,7 @@ func (btp *Bootstrapper) genSinePoly() {
 
 		coeffs[1] = 0.15915494309189535
 
-		for i := uint64(3); i < btp.ArcSineDeg+1; i += 2 {
+		for i := 3; i < btp.ArcSineDeg+1; i += 2 {
 
 			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)
 
@@ -266,7 +266,7 @@ func (btp *Bootstrapper) genSinePoly() {
 	}
 }
 
-func computeRoots(N uint64) (roots []complex128) {
+func computeRoots(N int) (roots []complex128) {
 
 	var angle float64
 
@@ -276,7 +276,7 @@ func computeRoots(N uint64) (roots []complex128) {
 
 	roots[0] = 1
 
-	for i := uint64(1); i < m; i++ {
+	for i := 1; i < m; i++ {
 		angle = 6.283185307179586 * float64(i) / float64(m)
 		roots[i] = complex(math.Cos(angle), math.Sin(angle))
 	}
@@ -284,9 +284,9 @@ func computeRoots(N uint64) (roots []complex128) {
 	return
 }
 
-func fftPlainVec(logN, dslots uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
+func fftPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [][]complex128) {
 
-	var N, m, index, tt, gap, k, mask, idx1, idx2 uint64
+	var N, m, index, tt, gap, k, mask, idx1, idx2 int
 
 	N = 1 << logN
 
@@ -294,7 +294,7 @@ func fftPlainVec(logN, dslots uint64, roots []complex128, pow5 []uint64) (a, b, 
 	b = make([][]complex128, logN)
 	c = make([][]complex128, logN)
 
-	var size uint64
+	var size int
 	if 2*N == dslots {
 		size = 2
 	} else {
@@ -310,19 +310,19 @@ func fftPlainVec(logN, dslots uint64, roots []complex128, pow5 []uint64) (a, b, 
 
 		tt = m >> 1
 
-		for i := uint64(0); i < N; i += m {
+		for i := 0; i < N; i += m {
 
 			gap = N / m
 			mask = (m << 2) - 1
 
-			for j := uint64(0); j < m>>1; j++ {
+			for j := 0; j < m>>1; j++ {
 
 				k = (pow5[j] & mask) * gap
 
 				idx1 = i + j
 				idx2 = i + j + tt
 
-				for u := uint64(0); u < size; u++ {
+				for u := 0; u < size; u++ {
 					a[index][idx1+u*N] = 1
 					a[index][idx2+u*N] = -roots[k]
 					b[index][idx1+u*N] = roots[k]
@@ -337,9 +337,9 @@ func fftPlainVec(logN, dslots uint64, roots []complex128, pow5 []uint64) (a, b, 
 	return
 }
 
-func fftInvPlainVec(logN, dslots uint64, roots []complex128, pow5 []uint64) (a, b, c [][]complex128) {
+func fftInvPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [][]complex128) {
 
-	var N, m, index, tt, gap, k, mask, idx1, idx2 uint64
+	var N, m, index, tt, gap, k, mask, idx1, idx2 int
 
 	N = 1 << logN
 
@@ -347,7 +347,7 @@ func fftInvPlainVec(logN, dslots uint64, roots []complex128, pow5 []uint64) (a, 
 	b = make([][]complex128, logN)
 	c = make([][]complex128, logN)
 
-	var size uint64
+	var size int
 	if 2*N == dslots {
 		size = 2
 	} else {
@@ -363,19 +363,19 @@ func fftInvPlainVec(logN, dslots uint64, roots []complex128, pow5 []uint64) (a, 
 
 		tt = m >> 1
 
-		for i := uint64(0); i < N; i += m {
+		for i := 0; i < N; i += m {
 
 			gap = N / m
 			mask = (m << 2) - 1
 
-			for j := uint64(0); j < m>>1; j++ {
+			for j := 0; j < m>>1; j++ {
 
 				k = ((m << 2) - (pow5[j] & mask)) * gap
 
 				idx1 = i + j
 				idx2 = i + j + tt
 
-				for u := uint64(0); u < size; u++ {
+				for u := 0; u < size; u++ {
 
 					a[index][idx1+u*N] = 1
 					a[index][idx2+u*N] = -roots[k]
@@ -399,9 +399,9 @@ func (btp *Bootstrapper) computePlaintextVectors() {
 	stcLevel := btp.stcLevel
 
 	roots := computeRoots(slots << 1)
-	pow5 := make([]uint64, (slots<<1)+1)
+	pow5 := make([]int, (slots<<1)+1)
 	pow5[0] = 1
-	for i := uint64(1); i < (slots<<1)+1; i++ {
+	for i := 1; i < (slots<<1)+1; i++ {
 		pow5[i] = pow5[i-1] * 5
 		pow5[i] &= (slots << 2) - 1
 	}
@@ -411,8 +411,8 @@ func (btp *Bootstrapper) computePlaintextVectors() {
 	pVecDFTInv := btp.computeDFTMatrices(roots, pow5, btp.coeffsToSlotsDiffScale, true)
 	cnt := 0
 	for i := range btp.CoeffsToSlotsModuli.ScalingFactor {
-		for j := range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true)-uint64(i)-1] {
-			btp.pDFTInv[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(ctsLevel[cnt], pVecDFTInv[cnt], btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true)-uint64(i)-1][j], btp.MaxN1N2Ratio, btp.logdslots)
+		for j := range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true)-i-1] {
+			btp.pDFTInv[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(ctsLevel[cnt], pVecDFTInv[cnt], btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true)-i-1][j], btp.MaxN1N2Ratio, btp.logdslots)
 			cnt++
 		}
 	}
@@ -422,22 +422,22 @@ func (btp *Bootstrapper) computePlaintextVectors() {
 	pVecDFT := btp.computeDFTMatrices(roots, pow5, btp.slotsToCoeffsDiffScale, false)
 	cnt = 0
 	for i := range btp.SlotsToCoeffsModuli.ScalingFactor {
-		for j := range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-uint64(i)-1] {
-			btp.pDFT[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(stcLevel[cnt], pVecDFT[cnt], btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-uint64(i)-1][j], btp.MaxN1N2Ratio, btp.logdslots)
+		for j := range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-i-1] {
+			btp.pDFT[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(stcLevel[cnt], pVecDFT[cnt], btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-i-1][j], btp.MaxN1N2Ratio, btp.logdslots)
 			cnt++
 		}
 	}
 }
 
-func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, diffscale complex128, forward bool) (plainVector []map[int][]complex128) {
+func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []int, diffscale complex128, forward bool) (plainVector []map[int][]complex128) {
 
-	var level, depth, nextLevel, logSlots uint64
+	var level, depth, nextLevel, logSlots int
 
 	logSlots = btp.params.logSlots
 	level = logSlots
 
 	var a, b, c [][]complex128
-	var maxDepth uint64
+	var maxDepth int
 
 	if forward {
 		maxDepth = btp.CtSDepth(false)
@@ -453,15 +453,15 @@ func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, d
 	// the way the levels are collapsed has an inpact on the total number of rotations and keys to be
 	// stored. Ex. instead of using 255 + 64 plaintext vectors, we can use 127 + 128 plaintext vectors
 	// by reversing the order of the merging.
-	merge := make([]uint64, maxDepth)
-	for i := uint64(0); i < maxDepth; i++ {
+	merge := make([]int, maxDepth)
+	for i := 0; i < maxDepth; i++ {
 
-		depth = uint64(math.Ceil(float64(level) / float64(maxDepth-i)))
+		depth = int(math.Ceil(float64(level) / float64(maxDepth-i)))
 
 		if forward {
 			merge[i] = depth
 		} else {
-			merge[uint64(len(merge))-i-1] = depth
+			merge[len(merge)-i-1] = depth
 
 		}
 
@@ -469,7 +469,7 @@ func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, d
 	}
 
 	level = logSlots
-	for i := uint64(0); i < maxDepth; i++ {
+	for i := 0; i < maxDepth; i++ {
 
 		if btp.repack && !forward && i == 0 {
 
@@ -481,7 +481,7 @@ func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, d
 
 			// Continues the merging with the next layers if the total depth requires it.
 			nextLevel = level - 1
-			for j := uint64(0); j < merge[i]-1; j++ {
+			for j := 0; j < merge[i]-1; j++ {
 				plainVector[i] = nextLevelfft(plainVector[i], logSlots, 2<<logSlots, nextLevel, a[logSlots-nextLevel], b[logSlots-nextLevel], c[logSlots-nextLevel], forward)
 				nextLevel--
 			}
@@ -492,7 +492,7 @@ func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, d
 
 			// Merges the layer with the next levels of the DFT if the total depth requires it.
 			nextLevel = level - 1
-			for j := uint64(0); j < merge[i]-1; j++ {
+			for j := 0; j < merge[i]-1; j++ {
 				plainVector[i] = nextLevelfft(plainVector[i], logSlots, 1<<logSlots, nextLevel, a[logSlots-nextLevel], b[logSlots-nextLevel], c[logSlots-nextLevel], forward)
 				nextLevel--
 			}
@@ -504,7 +504,7 @@ func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, d
 	// Repacking after the CoeffsToSlots (we multiply the last DFT matrix with the vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0]).
 	if btp.repack && forward {
 		for j := range plainVector[maxDepth-1] {
-			for x := uint64(0); x < btp.params.Slots(); x++ {
+			for x := 0; x < btp.params.Slots(); x++ {
 				plainVector[maxDepth-1][j][x+btp.params.Slots()] = complex(0, 0)
 			}
 		}
@@ -522,14 +522,14 @@ func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []uint64, d
 	return
 }
 
-func genWfft(logL, level uint64, a, b, c []complex128, forward bool) (vectors map[int][]complex128) {
+func genWfft(logL, level int, a, b, c []complex128, forward bool) (vectors map[int][]complex128) {
 
 	var rot int
 
 	if forward {
-		rot = 1 << int(level-1)
+		rot = 1 << level-1
 	} else {
-		rot = 1 << int(logL-level)
+		rot = 1 << logL-level
 	}
 
 	vectors = make(map[int][]complex128)
@@ -541,7 +541,7 @@ func genWfft(logL, level uint64, a, b, c []complex128, forward bool) (vectors ma
 	return
 }
 
-func genWfftRepack(logL, level uint64) (vectors map[int][]complex128) {
+func genWfftRepack(logL, level int) (vectors map[int][]complex128) {
 
 	vectors = make(map[int][]complex128)
 
@@ -562,9 +562,9 @@ func genWfftRepack(logL, level uint64) (vectors map[int][]complex128) {
 	return
 }
 
-func nextLevelfft(vec map[int][]complex128, logL, N, nextLevel uint64, a, b, c []complex128, forward bool) (newVec map[int][]complex128) {
+func nextLevelfft(vec map[int][]complex128, logL, N, nextLevel int, a, b, c []complex128, forward bool) (newVec map[int][]complex128) {
 
-	var rot uint64
+	var rot int
 
 	newVec = make(map[int][]complex128)
 
@@ -576,8 +576,8 @@ func nextLevelfft(vec map[int][]complex128, logL, N, nextLevel uint64, a, b, c [
 
 	for i := range vec {
 		addToDicVector(newVec, i, mul(vec[i], a))
-		addToDicVector(newVec, int((uint64(i)+rot)&(N-1)), mul(rotate(vec[i], int(rot)), b))
-		addToDicVector(newVec, int((uint64(i)+N-rot)&(N-1)), mul(rotate(vec[i], int(N-rot)), c))
+		addToDicVector(newVec, (i+rot)&(N-1), mul(rotate(vec[i], rot), b))
+		addToDicVector(newVec, (i+N-rot)&(N-1), mul(rotate(vec[i], N-rot), c))
 	}
 
 	return

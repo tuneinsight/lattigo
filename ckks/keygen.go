@@ -21,14 +21,20 @@ type KeyGenerator interface {
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
 	GenRelinearizationKey(sk *SecretKey) (evakey *RelinearizationKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
+
 	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
+
 	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet)
-	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
-	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey)
-	GetRotationIndexForDiagMatrix(matrix *PtDiagMatrix) []int
-	GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, includeConjugate bool, sk *SecretKey) (rotKeys *RotationKeySet)
-	GenMatMulIndexRotKeys(mmpt *MMPt) []int
-	GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey) (rotKeys *RotationKeySet)
+	
+	GenRotationsForBootstrapping(logSlots uint64, btpParams *BootstrappingParameters) []int
+
+	GenRotationIndexesForInnerSum(batch, n int) []int
+
+	GenRotationIndexesForInnerSumNaive(batch, n int) []int
+
+	GenRotationIndexesForDiagMatrix(matrix *PtDiagMatrix) []int
+
+	GenRotationIndexesForMatMul(mmpt *MMPt) []int
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -290,68 +296,64 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 	return keygen.GenRotationKeys(galEls, sk)
 }
 
-// GenRotationKeysForInnerSum generates a RotationKeySet supporting the InnerSum operation of the Evaluator
-func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet) {
-	galEls := make([]uint64, keygen.params.logN+1, keygen.params.logN+1)
-	galEls[0] = keygen.params.GaloisElementForRowRotation()
-	for i := 0; i < int(keygen.params.logN)-1; i++ {
-		galEls[i+1] = keygen.params.GaloisElementForColumnRotationBy(1 << i)
+
+// GenRotationIndexesForInnerSumNaive generates the rotation indexes for the
+// InnerSumNaive. To be then used with GenRotationKeysForRotations to generate
+// the RotationKeySet.
+func (keygen *keyGenerator) GenRotationIndexesForInnerSumNaive(batch, n int) (rotations []int){
+	rotations = []int{}
+	for i := 1; i < n; i++ {
+		rotations = append(rotations, i*batch)
 	}
-	return keygen.GenRotationKeys(galEls, sk)
+	return
 }
 
-// GenKeys generates the bootstrapping keys
-func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey) {
+// GenRotationIndexesForInnerSum generates the rotation indexes for the
+// InnerSum. To be then used with GenRotationKeysForRotations to generate
+// the RotationKeySet.
+func (keygen *keyGenerator) GenRotationIndexesForInnerSum(batch, n int) (rotations []int){
 
-	rotUint := computeBootstrappingDFTRotationList(keygen.params.logN, logSlots, btpParams)
-	rotInt := make([]int, len(rotUint), len(rotUint))
-	for i, r := range rotUint {
-		rotInt[i] = int(r)
+	rotations = []int{}
+	var k int
+	for i := 1; i < n; i <<= 1 {
+
+		k = i 
+		k *= batch
+
+		if !utils.IsInSliceInt(k, rotations) && k != 0 {
+			rotations = append(rotations, k)
+		}
+
+		k = n - (n  & ((i << 1) - 1))
+		k *= batch
+
+		if !utils.IsInSliceInt(k, rotations) && k != 0 {
+			rotations = append(rotations, k)
+		}
 	}
-
-	btpKey = &BootstrappingKey{
-		Rlk:  keygen.GenRelinearizationKey(sk), // TODO : this should not be part of the bootstrapping
-		Rtks: keygen.GenRotationKeysForRotations(rotInt, true, sk),
-	}
-
-	/*
-		nbKeys := uint64(len(rotKeyIndex)) + 2 //rot keys + conj key + relin key
-		nbPoly := keygen.params.Beta()
-		nbCoefficients := 2 * keygen.params.N() * keygen.params.QPiCount()
-		bytesPerCoeff := uint64(8)
-		log.Println("Switching-Keys size (GB) :", float64(nbKeys*nbPoly*nbCoefficients*bytesPerCoeff)/float64(1000000000), "(", nbKeys, "keys)")
-	*/
 
 	return
 }
 
-// GenMatMulIndexRotKeys generates a list of all the rotations needed for mmpt
-func (keygen *keyGenerator) GenMatMulIndexRotKeys(mmpt *MMPt) (rotations []int) {
+// GenMatMulIndexRotKeys generates a list of all the rotations needed for mmpt.
+func (keygen *keyGenerator) GenRotationIndexesForMatMul(mmpt *MMPt) (rotations []int) {
 
-	rotations = keygen.GetRotationIndexForDiagMatrix(mmpt.mPermuteRows)
-	rotations = append(rotations, keygen.GetRotationIndexForDiagMatrix(mmpt.mPermuteCols)...)
+	rotations = keygen.GenRotationIndexesForDiagMatrix(mmpt.mPermuteRows)
+	rotations = append(rotations, keygen.GenRotationIndexesForDiagMatrix(mmpt.mPermuteCols)...)
 
 	for i := range mmpt.mRotCols {
 
-		rotations = append(rotations, keygen.GetRotationIndexForDiagMatrix(mmpt.mRotCols[i])...)
-		rotations = append(rotations, keygen.GetRotationIndexForDiagMatrix(mmpt.mRotRows[i])...)
+		rotations = append(rotations, keygen.GenRotationIndexesForDiagMatrix(mmpt.mRotCols[i])...)
+		rotations = append(rotations, keygen.GenRotationIndexesForDiagMatrix(mmpt.mRotRows[i])...)
 	}
 
 	return
 }
 
-// GenMatMulRotKeys generates the rotationkeyset for mmpt
-func (keygen *keyGenerator) GenMatMulRotKeys(mmpt *MMPt, sk *SecretKey) (rks *RotationKeySet) {
-	return keygen.GenRotationKeysForRotations(keygen.GenMatMulIndexRotKeys(mmpt), false, sk)
-}
 
-// GenRotKeysForDiagMatrix populates a RotationKeys struct with the necessary rotation keys for
-// the evaluation of the plaintext matrix on a ciphertext using evaluator.MultiplyByDiagMatrice.
-func (keygen *keyGenerator) GenRotKeysForDiagMatrix(matrix *PtDiagMatrix, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet) {
-	return keygen.GenRotationKeysForRotations(keygen.GetRotationIndexForDiagMatrix(matrix), includeConjugate, sk)
-}
-
-func (keygen *keyGenerator) GetRotationIndexForDiagMatrix(matrix *PtDiagMatrix) []int {
+// GetRotationIndexForDiagMatrix generates of all the rotations needed for a the multiplication
+// with the diagonal plaintext matrix.
+func (keygen *keyGenerator) GenRotationIndexesForDiagMatrix(matrix *PtDiagMatrix) []int {
 	slots := 1 << matrix.LogSlots
 
 	rotKeyIndex := []int{}
@@ -390,6 +392,10 @@ func (keygen *keyGenerator) GetRotationIndexForDiagMatrix(matrix *PtDiagMatrix) 
 	return rotKeyIndex
 }
 
+
+
+
+
 func addMatrixRotToList(pVec map[uint64]bool, rotations []uint64, N1, slots uint64, repack bool) []uint64 {
 
 	var index uint64
@@ -419,21 +425,23 @@ func addMatrixRotToList(pVec map[uint64]bool, rotations []uint64, N1, slots uint
 	return rotations
 }
 
-func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *BootstrappingParameters) (rotKeyIndex []uint64) {
+func (keygen *keyGenerator) GenRotationForBootstrapping(logSlots int, btpParams *BootstrappingParameters) (rotations []int) {
 
 	// List of the rotation key values to needed for the bootstrapp
-	rotKeyIndex = []uint64{}
+	rotations = []int{}
 
-	var slots uint64 = 1 << logSlots
-	var dslots uint64 = slots
+	logN := int(keygen.params.logN)
+
+	slots := 1 << logSlots
+	dslots := slots
 	if logSlots < logN-1 {
 		dslots <<= 1
 	}
 
 	//SubSum rotation needed X -> Y^slots rotations
 	for i := logSlots; i < logN-1; i++ {
-		if !utils.IsInSliceUint64(1<<i, rotKeyIndex) {
-			rotKeyIndex = append(rotKeyIndex, 1<<i)
+		if !utils.IsInSliceInt(1<<i, rotations) {
+			rotations = append(rotations, 1<<i)
 		}
 	}
 
@@ -444,7 +452,7 @@ func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *Boots
 
 		N1 := findbestbabygiantstepsplitIndexMap(pVec, dslots, btpParams.MaxN1N2Ratio)
 
-		rotKeyIndex = addMatrixRotToList(pVec, rotKeyIndex, N1, slots, false)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
 	}
 
 	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(false), false)
@@ -455,36 +463,36 @@ func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *Boots
 		N1 := findbestbabygiantstepsplitIndexMap(pVec, dslots, btpParams.MaxN1N2Ratio)
 
 		if logSlots < logN-1 && i == 0 {
-			rotKeyIndex = addMatrixRotToList(pVec, rotKeyIndex, N1, slots, true)
+			rotations = addMatrixRotToList(pVec, rotations, N1, slots, true)
 		} else {
-			rotKeyIndex = addMatrixRotToList(pVec, rotKeyIndex, N1, slots, false)
+			rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
 		}
 	}
 
-	return rotKeyIndex
+	return
 }
 
-func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth uint64, forward bool) (rotationMap []map[uint64]bool) {
+func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward bool) (rotationMap []map[int]bool) {
 
-	var level, depth, nextLevel uint64
+	var level, depth, nextLevel int
 
 	level = logSlots
 
-	rotationMap = make([]map[uint64]bool, maxDepth)
+	rotationMap = make([]map[int]bool, maxDepth)
 
 	// We compute the chain of merge in order or reverse order depending if its DFT or InvDFT because
 	// the way the levels are collapsed has an impact on the total number of rotations and keys to be
 	// stored. Ex. instead of using 255 + 64 plaintext vectors, we can use 127 + 128 plaintext vectors
 	// by reversing the order of the merging.
-	merge := make([]uint64, maxDepth)
-	for i := uint64(0); i < maxDepth; i++ {
+	merge := make([]int, maxDepth)
+	for i := 0; i < maxDepth; i++ {
 
-		depth = uint64(math.Ceil(float64(level) / float64(maxDepth-i)))
+		depth = int(math.Ceil(float64(level) / float64(maxDepth-i)))
 
 		if forward {
 			merge[i] = depth
 		} else {
-			merge[uint64(len(merge))-i-1] = depth
+			merge[len(merge)-i-1] = depth
 
 		}
 
@@ -492,7 +500,7 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth uint64, forward bo
 	}
 
 	level = logSlots
-	for i := uint64(0); i < maxDepth; i++ {
+	for i := 0; i < maxDepth; i++ {
 
 		if logSlots < logN-1 && !forward && i == 0 {
 
@@ -504,7 +512,7 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth uint64, forward bo
 
 			// Continues the merging with the next layers if the total depth requires it.
 			nextLevel = level - 1
-			for j := uint64(0); j < merge[i]-1; j++ {
+			for j := 0; j < merge[i]-1; j++ {
 				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, nextLevel, forward)
 				nextLevel--
 			}
@@ -515,7 +523,7 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth uint64, forward bo
 
 			// Merges the layer with the next levels of the DFT if the total depth requires it.
 			nextLevel = level - 1
-			for j := uint64(0); j < merge[i]-1; j++ {
+			for j := 0; j < merge[i]-1; j++ {
 				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 1<<logSlots, nextLevel, forward)
 				nextLevel--
 			}
@@ -528,11 +536,11 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth uint64, forward bo
 }
 
 // Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func findbestbabygiantstepsplitIndexMap(vector map[uint64]bool, maxN uint64, maxRatio float64) (minN uint64) {
+func findbestbabygiantstepsplitIndexMap(vector map[int]bool, maxN int, maxRatio float64) (minN int) {
 
-	for N1 := uint64(1); N1 < maxN; N1 <<= 1 {
+	for N1 := 1; N1 < maxN; N1 <<= 1 {
 
-		index := make(map[uint64][]uint64)
+		index := make(map[int][]int)
 
 		for key := range vector {
 
@@ -540,7 +548,7 @@ func findbestbabygiantstepsplitIndexMap(vector map[uint64]bool, maxN uint64, max
 			idx2 := key & (N1 - 1)
 
 			if index[idx1] == nil {
-				index[idx1] = []uint64{idx2}
+				index[idx1] = []int{idx2}
 			} else {
 				index[idx1] = append(index[idx1], idx2)
 			}
@@ -575,9 +583,9 @@ func findbestbabygiantstepsplitIndexMap(vector map[uint64]bool, maxN uint64, max
 	return 1
 }
 
-func genWfftIndexMap(logL, level uint64, forward bool) (vectors map[uint64]bool) {
+func genWfftIndexMap(logL, level int, forward bool) (vectors map[int]bool) {
 
-	var rot uint64
+	var rot int
 
 	if forward {
 		rot = 1 << (level - 1)
@@ -585,25 +593,25 @@ func genWfftIndexMap(logL, level uint64, forward bool) (vectors map[uint64]bool)
 		rot = 1 << (logL - level)
 	}
 
-	vectors = make(map[uint64]bool)
+	vectors = make(map[int]bool)
 	vectors[0] = true
 	vectors[rot] = true
 	vectors[(1<<logL)-rot] = true
 	return
 }
 
-func genWfftRepackIndexMap(logL, level uint64) (vectors map[uint64]bool) {
-	vectors = make(map[uint64]bool)
+func genWfftRepackIndexMap(logL, level int) (vectors map[int]bool) {
+	vectors = make(map[int]bool)
 	vectors[0] = true
 	vectors[(1 << logL)] = true
 	return
 }
 
-func nextLevelfftIndexMap(vec map[uint64]bool, logL, N, nextLevel uint64, forward bool) (newVec map[uint64]bool) {
+func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, forward bool) (newVec map[int]bool) {
 
-	var rot uint64
+	var rot int
 
-	newVec = make(map[uint64]bool)
+	newVec = make(map[int]bool)
 
 	if forward {
 		rot = (1 << (nextLevel - 1)) & (N - 1)

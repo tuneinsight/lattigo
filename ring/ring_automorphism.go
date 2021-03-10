@@ -177,11 +177,11 @@ func (r *Ring) Permute(polIn *Poly, gen uint64, polOut *Poly) {
 
 	var mask, index, indexRaw, logN, tmp uint64
 
-	mask = r.N - 1
+	mask = uint64(r.N - 1)
 
 	logN = uint64(bits.Len64(mask))
 
-	for i := uint64(0); i < r.N; i++ {
+	for i := uint64(0); i < uint64(r.N); i++ {
 
 		indexRaw = i * gen
 

@@ -99,7 +99,7 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 	// Extend the ciphertext with zero polynomials.
 	for u := range ct.Value() {
 		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, btp.params.MaxLevel())...)
-		for i := uint64(1); i < btp.params.MaxLevel()+1; i++ {
+		for i := 1; i < btp.params.MaxLevel()+1; i++ {
 			ct.Value()[u].Coeffs[i] = make([]uint64, btp.params.N())
 		}
 	}
@@ -111,11 +111,11 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 	var coeff, qi uint64
 	for u := range ct.Value() {
 
-		for j := uint64(0); j < btp.params.N(); j++ {
+		for j := 0; j < btp.params.N(); j++ {
 
 			coeff = ct.Value()[u].Coeffs[0][j]
 
-			for i := uint64(1); i < btp.params.MaxLevel()+1; i++ {
+			for i := 1; i < btp.params.MaxLevel()+1; i++ {
 
 				qi = ringQ.Modulus[i]
 
@@ -221,7 +221,7 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 	// Compute the scales that the ciphertext should have before the double angle
 	// formula such that after it it has the scale it had before the polynomial
 	// evaluation
-	for i := uint64(0); i < btp.SinRescal; i++ {
+	for i := 0; i < btp.SinRescal; i++ {
 		targetScale = math.Sqrt(targetScale * float64(btp.SineEvalModuli.Qi[i]))
 	}
 
@@ -237,7 +237,7 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 
 	// Double angle
 	sqrt2pi := btp.sqrt2pi
-	for i := uint64(0); i < btp.SinRescal; i++ {
+	for i := 0; i < btp.SinRescal; i++ {
 		sqrt2pi *= sqrt2pi
 		btp.MulRelin(ct, ct, ct)
 		btp.Add(ct, ct, ct)

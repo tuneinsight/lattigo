@@ -82,7 +82,7 @@ func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly, out *b
 	dec.ringQ.Copy(c0, res)
 
 	for _, k := range partialKeys {
-		dec.ringQ.MulCoeffsAndAdd(res, k, res)
+		dec.ringQ.Add(res, k, res)
 	}
 
 	dec.quantize(out.El())

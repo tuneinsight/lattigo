@@ -449,13 +449,9 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 			P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
 		}
 
-<<<<<<< HEAD
-		evaluator := testCtx.evaluator.ShallowCopyWithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
-		for k := 1; k < testCtx.params.N()>>1; k <<= 1 {
-=======
 		evaluator := testCtx.evaluator.WithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
-		for k := uint64(1); k < testCtx.params.N()>>1; k <<= 1 {
->>>>>>> dev_rlwe_layer
+		for k := 1; k < testCtx.params.N()>>1; k <<= 1 {
+
 			result := evaluator.RotateColumnsNew(ciphertext, int(k))
 			coeffsWant := utils.RotateUint64Slots(coeffs, int(k))
 			verifyTestVectors(testCtx, decryptorSk0, coeffsWant, result, t)

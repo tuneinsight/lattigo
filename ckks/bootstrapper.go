@@ -67,8 +67,6 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 
 	btp.evaluator = btp.evaluator.WithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks}).(*evaluator)
 
-	fmt.Println(btp.evaluator.rtks)
-
 	return btp, nil
 }
 
@@ -527,9 +525,9 @@ func genWfft(logL, level int, a, b, c []complex128, forward bool) (vectors map[i
 	var rot int
 
 	if forward {
-		rot = 1<<level - 1
+		rot = 1<<(level - 1)
 	} else {
-		rot = 1<<logL - level
+		rot = 1<<(logL - level)
 	}
 
 	vectors = make(map[int][]complex128)

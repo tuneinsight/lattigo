@@ -41,8 +41,6 @@ type Bootstrapper struct {
 	stcLevel               []int           // index of the Qi used by SlotsToCoeffs
 
 	rotKeyIndex []int // a list of the required rotation keys
-
-	ctxpool *Ciphertext // Memory pool
 }
 
 func sin2pi2pi(x complex128) complex128 {
@@ -67,7 +65,9 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
 	}
 
-	btp.evaluator = btp.evaluator.ShallowCopyWithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks}).(*evaluator)
+	btp.evaluator = btp.evaluator.WithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks}).(*evaluator)
+
+	fmt.Println(btp.evaluator.rtks)
 
 	return btp, nil
 }

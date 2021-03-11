@@ -3,6 +3,7 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/v2/ring"
 	//"log"
+	"fmt"
 	"math"
 	//"time"
 )
@@ -12,6 +13,9 @@ import (
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
 func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
+
+	fmt.Println(ct.Scale())
+
 	//var t time.Time
 	var ct0, ct1 *Ciphertext
 
@@ -19,6 +23,8 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	for ct.Level() > 1 {
 		btp.evaluator.DropLevel(ct, 1)
 	}
+
+	fmt.Println(ct.Scale())
 
 	// Brings the ciphertext scale to Q0/2^{10}
 	if ct.Level() == 1 {
@@ -33,14 +39,19 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 	} else {
 
+		fmt.Println(ct.Scale())
+
 		// else drop to level 0
 		for ct.Level() != 0 {
 			btp.evaluator.DropLevel(ct, 1)
 		}
 
+		fmt.Println(ct.Scale())
+
 		// and does an integer constant mult by round((Q0/Delta_m)/ctscle)
 
 		if math.Round(btp.prescale/ct.Scale()) == 0 {
+			fmt.Println(btp.prescale, ct.Scale())
 			panic("ciphetext scale > Q[0]/(Q[0]/Delta_m)")
 		}
 		btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale()), ct)
@@ -82,9 +93,9 @@ func (btp *Bootstrapper) subSum(ct *Ciphertext) *Ciphertext {
 
 	for i := btp.params.logSlots; i < btp.params.MaxLogSlots(); i++ {
 
-		btp.evaluator.Rotate(ct, 1<<i, btp.ctxpool)
+		btp.evaluator.Rotate(ct, 1<<i, btp.evaluator.ctxpool)
 
-		btp.evaluator.Add(ct, btp.ctxpool, ct)
+		btp.evaluator.Add(ct, btp.evaluator.ctxpool, ct)
 	}
 
 	return ct

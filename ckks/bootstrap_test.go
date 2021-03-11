@@ -22,7 +22,7 @@ func TestBootstrap(t *testing.T) {
 
 	var testContext = new(testParams)
 
-	paramSet := uint64(1)
+	paramSet := uint64(0)
 
 	bootstrapParams := DefaultBootstrapParams[paramSet : paramSet+1]
 
@@ -140,8 +140,9 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
 
+		
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
-
+		
 		for i := range values {
 
 			values[i] = cmplx.Cos(6.283185307179586 * (1 / scFac) * (values[i] - 0.25))
@@ -164,6 +165,7 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
 			t.Error(err)
 		}
+		
 
 		for i := 0; i < scNum; i++ {
 			sqrt2pi *= sqrt2pi
@@ -174,54 +176,6 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		}
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
-
-		for i := range values {
-
-			if btpParams.ArcSineDeg > 0 {
-
-				c1 := complex(1.0, 0)
-				c3 := complex(1.0/6.0, 0)
-				c5 := complex(3.0/40.0, 0)
-				c7 := complex(5.0/112.0, 0)
-
-				x1 := values[i]
-				x2 := x1 * x1
-				x3 := x2 * x1
-				x5 := x3 * x2
-				x7 := x5 * x2
-
-				if btpParams.ArcSineDeg == 1 {
-					values[i] = c1 * x1
-				} else if btpParams.ArcSineDeg == 3 {
-					values[i] = c1*x1 + c3*x3
-				} else if btpParams.ArcSineDeg == 5 {
-					values[i] = c1*x1 + c3*x3 + c5*x5
-				} else {
-					values[i] = c1*x1 + c3*x3 + c5*x5 + c7*x7
-				}
-
-				values[i] *= 0.15915494309189535
-			}
-
-			values[i] *= 1024
-		}
-
-		if btpParams.ArcSineDeg > 0 {
-			t.Log(ciphertext.Level(), ciphertext.Scale())
-			poly := NewPoly([]complex128{0, 0.15915494309189535, 0, 1 / 6 * 0.15915494309189535, 0, 3 / 40 * 0.15915494309189535, 0, 5 / 112 * 0.15915494309189535}[:btpParams.ArcSineDeg+1])
-			t.Log(poly)
-			ciphertext, _ = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale())
-			t.Log(ciphertext.Level(), ciphertext.Scale())
-		}
-
-		ratio := float64(testContext.params.Qi()[0]) / float64(35184372088832)
-
-		ciphertext.SetScale(ciphertext.Scale() / ratio)
-
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
-
-		testContext.params.scale = DefaultScale
-		eval.(*evaluator).scale = DefaultScale
 
 	})
 }
@@ -302,6 +256,8 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 		rotations := testContext.kgen.GenRotationIndexesForBootstrapping(testContext.params.logSlots, btpParams)
 		rotkeys := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
 		btpKey := BootstrappingKey{testContext.rlk, rotkeys}
+
+		t.Log(rotations)
 
 		btp, err := NewBootstrapper(testContext.params, btpParams, btpKey)
 		if err != nil {

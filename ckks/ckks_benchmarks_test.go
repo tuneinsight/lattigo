@@ -153,7 +153,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		rotkey = testContext.kgen.GenRotationKeysForRotations([]int{1}, true, testContext.sk)
 	}
 
-	eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{rlk, rotkey})
+	eval := testContext.evaluator.WithKey(EvaluationKey{rlk, rotkey})
 
 	b.Run(testString(testContext, "Evaluator/Add/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -272,7 +272,7 @@ func benchInnerSum(testContext *testParams, b *testing.B) {
 		}
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
-		eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 		for i := 0; i < b.N; i++ {
 			eval.InnerSumNaive(ciphertext1, batch, n, ciphertext1)
@@ -306,7 +306,7 @@ func benchInnerSum(testContext *testParams, b *testing.B) {
 		}
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
-		eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 		for i := 0; i < b.N; i++ {
 			eval.InnerSum(ciphertext1, batch, n, ciphertext1)
@@ -324,7 +324,7 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 		}
 
 		rotkey := testContext.kgen.GenRotationKeysForRotations([]int{5}, false, testContext.sk)
-		evaluator := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotkey}).(*evaluator)
+		evaluator := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotkey}).(*evaluator)
 
 		ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 

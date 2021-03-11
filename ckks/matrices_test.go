@@ -51,7 +51,7 @@ func TestMatrices(t *testing.T) {
 		rotations := kgen.GenRotationIndexesForDiagMatrix(diagMatrix)
 		rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
-		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
+		eval0 := eval.WithKey(EvaluationKey{rlk, rotKeys})
 
 		for i := range m {
 			m[i] = m[i].Transpose()
@@ -96,7 +96,7 @@ func TestMatrices(t *testing.T) {
 				rotations := kgen.GenRotationIndexesForDiagMatrix(diagMatrix)
 				rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
-				eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
+				eval0 := eval.WithKey(EvaluationKey{rlk, rotKeys})
 
 				for j := range m {
 					m[j].RotateCols(1)
@@ -137,7 +137,7 @@ func TestMatrices(t *testing.T) {
 				rotations := kgen.GenRotationIndexesForDiagMatrix(diagMatrix)
 				rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
-				eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
+				eval0 := eval.WithKey(EvaluationKey{rlk, rotKeys})
 
 				for j := range m {
 					m[j].RotateRows(1)
@@ -159,7 +159,7 @@ func TestMatrices(t *testing.T) {
 		rotations := kgen.GenRotationIndexesForDiagMatrix(diagMatrix)
 		rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
-		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
+		eval0 := eval.WithKey(EvaluationKey{rlk, rotKeys})
 
 		for j := range m {
 			m[j].PermuteRows()
@@ -182,7 +182,7 @@ func TestMatrices(t *testing.T) {
 		rotations := kgen.GenRotationIndexesForDiagMatrix(diagMatrix)
 		rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
-		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
+		eval0 := eval.WithKey(EvaluationKey{rlk, rotKeys})
 
 		for j := range m {
 			m[j].PermuteCols()
@@ -206,7 +206,7 @@ func TestMatrices(t *testing.T) {
 		rotations := kgen.GenRotationIndexesForMatMul(mmpt)
 		rotKeys := kgen.GenRotationKeysForRotations(rotations, false, sk)
 
-		eval0 := eval.ShallowCopyWithKey(EvaluationKey{rlk, rotKeys})
+		eval0 := eval.WithKey(EvaluationKey{rlk, rotKeys})
 
 		for j := range mA {
 			mA[j].MulMat(mA[j], mB[j])

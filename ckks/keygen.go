@@ -296,6 +296,7 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 	return keygen.GenRotationKeys(galEls, sk)
 }
 
+
 // GenRotationIndexesForInnerSumNaive generates the rotation indexes for the
 // InnerSumNaive. To be then used with GenRotationKeysForRotations to generate
 // the RotationKeySet.

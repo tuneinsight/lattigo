@@ -7,7 +7,6 @@ import (
 )
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
-// TODO: extract galois parameters type and remove the rotation type from the interface
 type RTGProtocol struct {
 	drlwe.RTGProtocol
 }

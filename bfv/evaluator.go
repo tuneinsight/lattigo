@@ -39,7 +39,7 @@ type Evaluator interface {
 	RotateRowsNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	InnerSum(ct0 *Ciphertext, ctOut *Ciphertext)
 	ShallowCopy() Evaluator
-	ShallowCopyWithKey(EvaluationKey) Evaluator
+	WithKey(EvaluationKey) Evaluator
 }
 
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
@@ -175,17 +175,24 @@ func NewEvaluators(params *Parameters, evaluationKey EvaluationKey, n int) []Eva
 // ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
 // shared with the receiver.
 func (eval *evaluator) ShallowCopy() Evaluator {
-	return eval.ShallowCopyWithKey(EvaluationKey{eval.rlk, eval.rtks})
-}
-
-// ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
-// shared with the receiver but the EvaluationKey is evaluationKey.
-func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator {
 	return &evaluator{
 		evaluatorBase:     eval.evaluatorBase,
 		evaluatorBuffers:  newEvaluatorBuffer(eval.evaluatorBase),
 		baseconverterQ1Q2: eval.baseconverterQ1Q2.ShallowCopy(),
 		baseconverterQ1P:  eval.baseconverterQ1P.ShallowCopy(),
+		rlk:               eval.rlk,
+		rtks:              eval.rtks,
+	}
+}
+
+// ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver but the EvaluationKey is evaluationKey.
+func (eval *evaluator) WithKey(evaluationKey EvaluationKey) Evaluator {
+	return &evaluator{
+		evaluatorBase:     eval.evaluatorBase,
+		evaluatorBuffers:  eval.evaluatorBuffers,
+		baseconverterQ1Q2: eval.baseconverterQ1Q2,
+		baseconverterQ1P:  eval.baseconverterQ1P,
 		rlk:               evaluationKey.Rlk,
 		rtks:              evaluationKey.Rtks,
 	}

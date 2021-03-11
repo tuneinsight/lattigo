@@ -39,8 +39,8 @@ func GetRingP(params *bfv.Parameters) *ring.Ring {
 	return ringP
 }
 
-// GenRingQMul generates a ringQMul from bfv parameters
-func GenRingQMul(params *bfv.Parameters) *ring.Ring {
+// GetRingQMul generates a ringQMul from bfv parameters
+func GetRingQMul(params *bfv.Parameters) *ring.Ring {
 
 	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), uint64(len(params.Qi())))
 
@@ -98,7 +98,7 @@ func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGe
 		panic(err)
 	}
 
-	res = GetGaussianDecomposed(getGaussianSampler(params, ringQP, prng), beta) // e in Rq^d
+	res = GetGaussianDecomposed(GetGaussianSampler(params, ringQP, prng), beta) // e in Rq^d
 
 	for d := uint64(0); d < beta; d++ {
 		current := res.poly[d]
@@ -119,8 +119,8 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGe
 		panic(err)
 	}
 
-	uniformSampler := getUniformSampler(params, ringQP, prng)
-	gaussianSampler := getGaussianSampler(params, ringQP, prng)
+	uniformSampler := GetUniformSampler(params, ringQP, prng)
+	gaussianSampler := GetGaussianSampler(params, ringQP, prng)
 
 	// a  <- setup(1^\lambda)
 	// e1 <- sample(\psi^d)
@@ -219,12 +219,14 @@ func GetUniformDecomposed(sampler *ring.UniformSampler, dimension uint64) *MKDec
 	return res
 }
 
-func getUniformSampler(params *bfv.Parameters, r *ring.Ring, prng *utils.KeyedPRNG) *ring.UniformSampler {
+// GetUniformSampler returns the uniform sampler associated to the given ring and prng
+func GetUniformSampler(params *bfv.Parameters, r *ring.Ring, prng *utils.KeyedPRNG) *ring.UniformSampler {
 
 	return ring.NewUniformSampler(prng, r)
 }
 
-func getGaussianSampler(params *bfv.Parameters, r *ring.Ring, prng *utils.KeyedPRNG) *ring.GaussianSampler {
+// GetGaussianSampler returns the gaussian sampler associated to the given ring and prng
+func GetGaussianSampler(params *bfv.Parameters, r *ring.Ring, prng *utils.KeyedPRNG) *ring.GaussianSampler {
 
 	return ring.NewGaussianSampler(prng, r, params.Sigma(), uint64(6*params.Sigma()))
 }
@@ -238,7 +240,7 @@ func GenCommonPublicParam(params *bfv.Parameters) *MKDecomposedPoly {
 	}
 	ringQP := GetRingQP(params)
 
-	uniformSampler := getUniformSampler(params, ringQP, prng)
+	uniformSampler := GetUniformSampler(params, ringQP, prng)
 
 	return GetUniformDecomposed(uniformSampler, params.Beta())
 }

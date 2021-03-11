@@ -28,7 +28,9 @@ func Convert(D *MKEvaluationKey, publicKey *MKPublicKey, params *bfv.Parameters)
 
 	}
 
-	copy(k2.poly, D.key[2].poly) // TODO : We could also use the ring_poly.Copy method, if this does not do a deep copy
+	for i := uint64(0); i < uint64(len(k2.poly)); i++ {
+		ringQP.Copy(D.key[2].poly[i], k2.poly[i])
+	}
 
 	res.key[0] = k0
 	res.key[1] = k1

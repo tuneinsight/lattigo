@@ -11,7 +11,7 @@ import (
 // MKDecryptor is a type for bfv decryptor in a multi key context
 type MKDecryptor interface {
 	PartDec(ct *ring.Poly, sk *MKSecretKey, out *ring.Poly)
-	MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly, out *bfv.Plaintext)
+	MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly) *bfv.Plaintext
 }
 
 type mkDecryptor struct {
@@ -75,9 +75,11 @@ func (dec *mkDecryptor) PartDec(ct *ring.Poly, sk *MKSecretKey, out *ring.Poly) 
 }
 
 // MergeDec merges the partial decription parts and returns the plaintext. The first component of the ciphertext vector must be provided (c0)
-func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly, out *bfv.Plaintext) {
+func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly) *bfv.Plaintext {
 
-	res := out.Value()[0]
+	plaintext := new(bfv.Element)
+
+	res := dec.ringQ.NewPoly()
 
 	dec.ringQ.Copy(c0, res)
 
@@ -85,7 +87,11 @@ func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly, out *b
 		dec.ringQ.Add(res, k, res)
 	}
 
-	dec.quantize(out.El())
+	plaintext.SetValue([]*ring.Poly{res})
+
+	dec.quantize(plaintext)
+
+	return plaintext.Plaintext()
 }
 
 // function taken from bfv evaluator to scale by t/q

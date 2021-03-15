@@ -3,7 +3,9 @@ package mkbfv
 import (
 	"sort"
 
+	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // Dot computes the dot product of two decomposed polynomials in R_QP^d and store the result in res
@@ -46,4 +48,15 @@ func Contains(s []uint64, e uint64) int {
 		}
 	}
 	return -1
+}
+
+// GetRandomPoly samples a polynomial with a uniform distribution in the given ring
+func GetRandomPoly(params *bfv.Parameters, r *ring.Ring) *ring.Poly {
+
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	return GetUniformSampler(params, r, prng).ReadNew()
 }

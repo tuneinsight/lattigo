@@ -15,7 +15,7 @@ type MKCiphertext struct {
 // PadCiphers pad two ciphertext corresponding to a different set of parties
 // to make their dimension match. ci = 0 if the participant i is not involved in the ciphertext
 // the peerIDs list is also updated to match the new dimension
-func PadCiphers(c1, c2, c1Out, c2Out *MKCiphertext, params *bfv.Parameters) {
+func PadCiphers(c1, c2 *MKCiphertext, params *bfv.Parameters) (c1Out, c2Out *MKCiphertext) {
 
 	ringQ := GetRingQ(params)
 	allPeers := MergeSlices(c1.peerIDs, c2.peerIDs)
@@ -50,17 +50,31 @@ func PadCiphers(c1, c2, c1Out, c2Out *MKCiphertext, params *bfv.Parameters) {
 
 	}
 
-	// set ciphertext values
-	c1Cipher := new(bfv.Element)
-	c2Cipher := new(bfv.Element)
+	c1out := NewMKCiphertext(allPeers, ringQ)
+	c2out := NewMKCiphertext(allPeers, ringQ)
+	c1Out.ciphertexts.SetValue(res1)
+	c2Out.ciphertexts.SetValue(res2)
 
-	c1Cipher.SetValue(res1)
-	c2Cipher.SetValue(res2)
+	return c1out, c2out
+}
 
-	c1Out.ciphertexts = c1Cipher.Ciphertext()
-	c2Out.ciphertexts = c2Cipher.Ciphertext()
+// NewMKCiphertext returns a new MKciphertext corresponding to the given slice of peers
+func NewMKCiphertext(peerIDs []uint64, r *ring.Ring) *MKCiphertext {
 
-	// set peer Ids
-	c1Out.peerIDs = allPeers
-	c2Out.peerIDs = allPeers
+	res := new(MKCiphertext)
+	res.ciphertexts = new(bfv.Ciphertext)
+	res.ciphertexts.Element = new(bfv.Element)
+
+	res.peerIDs = peerIDs
+
+	k := len(peerIDs) + 1
+	values := make([]*ring.Poly, k)
+
+	for i := 0; i < k; i++ {
+		values[i] = r.NewPoly()
+	}
+
+	res.ciphertexts.SetValue(values)
+
+	return res
 }

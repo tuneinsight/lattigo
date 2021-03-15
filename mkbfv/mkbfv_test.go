@@ -7,7 +7,138 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-func Test_MKBFV(t *testing.T) {
+func Test_EncryptionEqualsDecryption(t *testing.T) {
+
+	ids := []uint64{1}
+
+	keys, params := setupPeers(ids, 0)
+
+	ringQ := GetRingQ(params)
+
+	encryptor := NewMKEncryptor(keys[0].publicKey, params)
+	decryptor := NewMKDecryptor(params)
+
+	plaintext := new(bfv.Element)
+
+	ptValues := make([]*ring.Poly, 1)
+	ptValues[0] = GetRandomPoly(params, ringQ)
+
+	plaintext.SetValue(ptValues)
+
+	// encrypt
+	cipher := encryptor.EncryptMK(plaintext.Plaintext(), ids[0])
+
+	partialDec := ringQ.NewPoly()
+
+	// decrypt
+	decryptor.PartDec(cipher.ciphertexts.Value()[1], keys[0].secretKey, partialDec)
+
+	decrypted := decryptor.MergeDec(cipher.ciphertexts.Value()[0], []*ring.Poly{partialDec})
+
+	if !equalsPoly(decrypted.Value()[0], plaintext.Value()[0]) {
+		t.Error("Decryption of encryption does not equals plaintext")
+	}
+}
+
+func Test_Add(t *testing.T) {
+
+	ids := []uint64{1, 2}
+
+	keys, params := setupPeers(ids, 0)
+
+	ringQ := GetRingQ(params)
+
+	encryptor1 := NewMKEncryptor(keys[0].publicKey, params)
+	encryptor2 := NewMKEncryptor(keys[1].publicKey, params)
+	decryptor := NewMKDecryptor(params)
+
+	plaintext1 := new(bfv.Element)
+	plaintext2 := new(bfv.Element)
+
+	ptValues1 := make([]*ring.Poly, 1)
+	ptValues2 := make([]*ring.Poly, 1)
+	ptValues1[0] = GetRandomPoly(params, ringQ)
+	ptValues2[0] = GetRandomPoly(params, ringQ)
+
+	plaintext1.SetValue(ptValues1)
+	plaintext2.SetValue(ptValues2)
+
+	// encrypt
+	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext(), ids[0])
+	cipher2 := encryptor2.EncryptMK(plaintext2.Plaintext(), ids[1])
+
+	// pad and add
+	evaluator := NewMKEvaluator(params)
+
+	out1, out2 := PadCiphers(cipher1, cipher2, params)
+
+	resCipher := evaluator.Add(out1, out2, params)
+
+	// decrypt
+	partialDec1 := ringQ.NewPoly()
+	partialDec2 := ringQ.NewPoly()
+	decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey, partialDec1)
+	decryptor.PartDec(resCipher.ciphertexts.Value()[2], keys[1].secretKey, partialDec2)
+
+	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2})
+
+	expected := ringQ.NewPoly()
+	ringQ.Add(plaintext1.Value()[0], plaintext2.Value()[0], expected)
+
+	if !equalsPoly(decrypted.Value()[0], expected) {
+		t.Error("Homomorphic addition error")
+	}
+}
+
+func Test_Mul(t *testing.T) {
+
+	ids := []uint64{1, 2}
+
+	keys, params := setupPeers(ids, 0)
+
+	ringQ := GetRingQ(params)
+
+	encryptor1 := NewMKEncryptor(keys[0].publicKey, params)
+	encryptor2 := NewMKEncryptor(keys[1].publicKey, params)
+	decryptor := NewMKDecryptor(params)
+
+	plaintext1 := new(bfv.Element)
+	plaintext2 := new(bfv.Element)
+
+	ptValues1 := make([]*ring.Poly, 1)
+	ptValues2 := make([]*ring.Poly, 1)
+	ptValues1[0] = GetRandomPoly(params, ringQ)
+	ptValues2[0] = GetRandomPoly(params, ringQ)
+
+	plaintext1.SetValue(ptValues1)
+	plaintext2.SetValue(ptValues2)
+
+	// encrypt
+	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext(), ids[0])
+	cipher2 := encryptor2.EncryptMK(plaintext2.Plaintext(), ids[1])
+
+	// pad and mul
+
+	evaluator := NewMKEvaluator(params)
+
+	out1, out2 := PadCiphers(cipher1, cipher2, params)
+
+	resCipher := evaluator.MultRelinDynamic(out1, out2, []*MKEvaluationKey{keys[0].evalKey, keys[1].evalKey}, []*MKPublicKey{keys[0].publicKey, keys[1].publicKey}, params)
+
+	// decrypt
+	partialDec1 := ringQ.NewPoly()
+	partialDec2 := ringQ.NewPoly()
+	decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey, partialDec1)
+	decryptor.PartDec(resCipher.ciphertexts.Value()[2], keys[1].secretKey, partialDec2)
+
+	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2})
+
+	expected := ringQ.NewPoly()
+	ringQ.MulCoeffsMontgomery(plaintext1.Value()[0], plaintext2.Value()[0], expected)
+
+	if !equalsPoly(decrypted.Value()[0], expected) {
+		t.Error("Homomorphic multiplication error")
+	}
 
 }
 
@@ -57,7 +188,7 @@ func Test_KeyGenAndPadCiphertext(t *testing.T) {
 	}
 
 	//create and encrypt 2 plaintext
-	encryptor := NewEncryptor(keys.publicKey, params)
+	encryptor := NewMKEncryptor(keys.publicKey, params)
 
 	plaintext := new(bfv.Element)
 
@@ -70,16 +201,13 @@ func Test_KeyGenAndPadCiphertext(t *testing.T) {
 	values2[0] = value2
 
 	plaintext.SetValue(values1)
-	mkCiphertext1 := EncryptMK(encryptor, plaintext.Plaintext(), id1)
+	mkCiphertext1 := encryptor.EncryptMK(plaintext.Plaintext(), id1)
 
 	plaintext.SetValue(values2)
-	mkCiphertext2 := EncryptMK(encryptor, plaintext.Plaintext(), id2)
+	mkCiphertext2 := encryptor.EncryptMK(plaintext.Plaintext(), id2)
 
 	// Pad both ciphertexts
-	out1 := new(MKCiphertext)
-	out2 := new(MKCiphertext)
-
-	PadCiphers(mkCiphertext1, mkCiphertext2, out1, out2, params)
+	out1, out2 := PadCiphers(mkCiphertext1, mkCiphertext2, params)
 
 	// check peerIDs
 	if !equalsSlice(out1.peerIDs, out2.peerIDs) {
@@ -146,4 +274,24 @@ func equalsPoly(p1 *ring.Poly, p2 *ring.Poly) bool {
 	}
 
 	return true
+}
+
+// Generates keys for a set of peers identified by their peerID using a certain bfv parameter index
+// returns the slice of keys with the bfv parameters
+func setupPeers(peerIDs []uint64, paramsNbr int) ([]*MKKeys, *bfv.Parameters) {
+
+	res := make([]*MKKeys, len(peerIDs))
+
+	params := bfv.DefaultParams[paramsNbr]
+
+	for i := 0; i < len(peerIDs); i++ {
+
+		// setup keys and public parameters
+		a := GenCommonPublicParam(params)
+
+		res[i] = KeyGen(params, peerIDs[i], a)
+
+	}
+
+	return res, params
 }

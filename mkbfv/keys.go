@@ -22,24 +22,24 @@ type MKDecomposedPoly struct {
 	poly []*ring.Poly
 }
 
-// MKEvaluationKey is a type for BFV evaluation keys in a multy key context.
+// MKEvaluationKey is a type for BFV evaluation keys in a multi key context.
 type MKEvaluationKey struct {
 	key    []*MKDecomposedPoly
 	peerID uint64
 }
 
-// MKSwitchingKey is a type for BFV switching keys in a multy key context.
+// MKSwitchingKey is a type for BFV switching keys in a multi key context.
 type MKSwitchingKey struct {
 	key []*MKDecomposedPoly
 	//peerID uint64 // Commented because in relinkey_gen.Convert we might not need a peerID, or might need multiple
 }
 
-// MKRelinearizationKey is a type for BFV relinearization keys in a multy key context.
+// MKRelinearizationKey is a type for BFV relinearization keys in a multi key context.
 type MKRelinearizationKey struct {
 	key [][]*MKSwitchingKey
 }
 
-// MKKeys is a type that contains all keys necessary for the multy key protocol.
+// MKKeys is a type that contains all keys necessary for the multi key protocol.
 type MKKeys struct {
 	secretKey *MKSecretKey
 	publicKey *MKPublicKey

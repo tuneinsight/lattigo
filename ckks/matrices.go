@@ -44,7 +44,7 @@ func GenMatMulLinTrans(params *Parameters, level, dimension int, encoder Encoder
 	return
 }
 
-func (eval *evaluator) MulMatrix(A, B *Ciphertext, mmpt *MMPt) (ciphertextAB *Ciphertext) {
+func (eval *evaluator) MulMatrix(A, B *Ciphertext, dim int, mmpt *MMPt) (ciphertextAB *Ciphertext) {
 
 	ciphertextA := eval.LinearTransform(A, mmpt.mPermuteRows)[0]
 	if err := eval.Rescale(ciphertextA, eval.params.Scale(), ciphertextA); err != nil {
@@ -72,15 +72,14 @@ func (eval *evaluator) MulMatrix(A, B *Ciphertext, mmpt *MMPt) (ciphertextAB *Ci
 	eval.DecompInternal(ciphertextA.Level(), ciphertextA.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
 	eval.DecompInternal(ciphertextB.Level(), ciphertextB.value[1], c2QiQDecompB, c2QiPDecompB)
 
-	tmpC := NewCiphertext(eval.params, 1, ciphertextA.Level()-1, ciphertextA.Scale())
-
 	tmpA := NewCiphertext(eval.params, 1, ciphertextA.Level(), ciphertextA.Scale())
 	tmpB := NewCiphertext(eval.params, 1, ciphertextB.Level(), ciphertextB.Scale())
+	tmpC := NewCiphertext(eval.params, 1, ciphertextA.Level()-1, ciphertextA.Scale())
 
 	tmpARescale := NewCiphertext(eval.params, 1, ciphertextA.Level()-1, ciphertextA.Scale())
 	tmpBRescale := NewCiphertext(eval.params, 1, ciphertextB.Level()-1, ciphertextB.Scale())
 
-	for i := 0; i < mmpt.dimension-1; i++ {
+	for i := 0; i < dim-1; i++ {
 
 		eval.multiplyByDiabMatrix(ciphertextA, tmpA, mmpt.mRotCols[i], eval.c2QiQDecomp, eval.c2QiPDecomp)
 		eval.multiplyByDiabMatrix(ciphertextB, tmpB, mmpt.mRotRows[i], c2QiQDecompB, c2QiPDecompB)
@@ -99,7 +98,10 @@ func (eval *evaluator) MulMatrix(A, B *Ciphertext, mmpt *MMPt) (ciphertextAB *Ci
 	}
 
 	eval.Relinearize(ciphertextAB, ciphertextAB)
-	eval.Rescale(ciphertextAB, eval.params.Scale(), ciphertextAB)
+	if err := eval.Rescale(ciphertextAB, eval.params.Scale(), ciphertextAB); err != nil{
+		panic(err)
+	}
+	
 
 	return
 }

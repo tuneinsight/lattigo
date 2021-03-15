@@ -97,7 +97,7 @@ type Evaluator interface {
 	// square matrix multiplication (for example by splitting the rectangular matrix into square matrices).
 	// mmpt is a struct storing the plaintext vector of the linear transformation necessary for the matrix multiplication.
 	// cf. examples/ckks/matrix/main.go for an example of a 32x128 x 128x32 matrix multiplication.
-	MulMatrix(A, B *Ciphertext, mmpt *MMPt) (ciphertextAB *Ciphertext)
+	MulMatrix(A, B *Ciphertext, dim int, mmpt *MMPt) (ciphertextAB *Ciphertext)
 
 	// Inner sum
 	InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)

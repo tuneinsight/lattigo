@@ -19,7 +19,7 @@ func TestMatrices(t *testing.T) {
 
 	LogModuli := LogModuli{
 		LogQi: []int{50, 35, 35, 35},
-		LogPi: []int{55},
+		LogPi: []int{60},
 	}
 
 	Scale := float64(1 << 35)
@@ -213,7 +213,7 @@ func TestMatrices(t *testing.T) {
 		}
 
 		start := time.Now()
-		ctAB := eval0.MulMatrix(ctA, ctB, mmpt)
+		ctAB := eval0.MulMatrix(ctA, ctB, mmpt.dimension, mmpt)
 		fmt.Println("Done :", time.Since(start))
 
 		//PrintDebug(ctAB, d, params, encoder, decryptor)

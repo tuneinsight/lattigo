@@ -49,108 +49,119 @@ func (eval *evaluator) LinearTransform(vec *Ciphertext, linearTransform interfac
 
 func (eval *evaluator) InnerSum(ct0 *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
-	levelQ := ct0.Level()
-
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
-	// Memory pool for vec = vec + rot(vec, 2^i) in Q
-	tmpc0 := eval.poolQMul[0] // unused memory pool from evaluator
-	tmpc1 := eval.poolQMul[1] // unused memory pool from evaluator
-	tmpc2 := eval.poolQMul[2]
+	levelQ := ct0.Level()
 
-	// Accumulator outer loop for res = res + rot(vec, k) in QP
-	ct0OutQ := eval.poolQ[4]
-	ct1OutQ := eval.poolQ[5]
-	ct0OutP := eval.poolP[4]
-	ct1OutP := eval.poolP[5]
+	//QiOverF := eval.params.QiOverflowMargin(levelQ)
+	//PiOverF := eval.params.PiOverflowMargin()
 
-	// Memory pool for rot(vec, k)
-	pool2Q := eval.poolQ[2] // res(c0', c1') from evaluator keyswitch memory pool
-	pool3Q := eval.poolQ[3] // res(c0', c1') from evaluator keyswitch memory pool
-	pool2P := eval.poolP[2] // res(c0', c1') from evaluator keyswitch memory pool
-	pool3P := eval.poolP[3] // res(c0', c1') from evaluator keyswitch memory pool
-
-	// Used by the key-switch
-	// eval.poolQ[0]
-	// eval.poolQ[1]
-	// eval.poolP[0]
-	// eval.poolP[1]
-
-	var state bool
-	for i, j := 0, n; j > 0; i, j = i+1, j>>1 {
-
-		if i == 0 {
-			eval.DecompInternal(levelQ, ct0.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
-		} else {
-			eval.DecompInternal(levelQ, tmpc1, eval.c2QiQDecomp, eval.c2QiPDecomp)
+	if n == 1{
+		if ct0 != ctOut {
+			ringQ.CopyLvl(levelQ, ct0.value[0], ctOut.value[0])
+			ringQ.CopyLvl(levelQ, ct0.value[1], ctOut.value[1])
 		}
+	}else{
 
-		if j&1 == 1 {
+		// Memory pool for vec = vec + rot(vec, 2^i) in Q
+		tmpc0 := eval.poolQMul[0] // unused memory pool from evaluator
+		tmpc1 := eval.poolQMul[1] // unused memory pool from evaluator
+		tmpc2 := eval.poolQMul[2]
 
-			k := n - (n & ((2 << i) - 1))
-			k *= batchSize
+		// Accumulator outer loop for res = res + rot(vec, k) in QP
+		ct0OutQ := eval.poolQ[4]
+		ct1OutQ := eval.poolQ[5]
+		ct0OutP := eval.poolP[4]
+		ct1OutP := eval.poolP[5]
 
-			if k != 0 {
+		// Memory pool for rot(vec, k)
+		pool2Q := eval.poolQ[2] // res(c0', c1') from evaluator keyswitch memory pool
+		pool3Q := eval.poolQ[3] // res(c0', c1') from evaluator keyswitch memory pool
+		pool2P := eval.poolP[2] // res(c0', c1') from evaluator keyswitch memory pool
+		pool3P := eval.poolP[3] // res(c0', c1') from evaluator keyswitch memory pool
 
-				// Rotate((tmpc0, tmpc1), k)
-				eval.permuteNTTHoistedNoModDown(levelQ, eval.c2QiQDecomp, eval.c2QiPDecomp, k, pool2Q, pool3Q, pool2P, pool3P)
+		// Used by the key-switch
+		// eval.poolQ[0]
+		// eval.poolQ[1]
+		// eval.poolP[0]
+		// eval.poolP[1]
 
-				// res += Rotate((tmpc0, tmpc1), k)
-				if i == 0 {
-					ringQ.CopyLvl(levelQ, pool2Q, ct0OutQ)
-					ringQ.CopyLvl(levelQ, pool3Q, ct1OutQ)
-					ringP.Copy(pool2P, ct0OutP)
-					ringP.Copy(pool3P, ct1OutP)
-				} else {
-					ringQ.AddLvl(levelQ, ct0OutQ, pool2Q, ct0OutQ)
-					ringQ.AddLvl(levelQ, ct1OutQ, pool3Q, ct1OutQ)
-					ringP.Add(ct0OutP, pool2P, ct0OutP)
-					ringP.Add(ct1OutP, pool3P, ct1OutP)
-				}
+		var state bool
+		for i, j := 0, n; j > 0; i, j = i+1, j>>1 {
 
-				if i == 0 {
-					ring.PermuteNTTWithIndexLvl(levelQ, ct0.value[0], eval.permuteNTTIndex[eval.params.GaloisElementForColumnRotationBy(k)], tmpc2)
-				} else {
-					ring.PermuteNTTWithIndexLvl(levelQ, tmpc0, eval.permuteNTTIndex[eval.params.GaloisElementForColumnRotationBy(k)], tmpc2)
-				}
-
-				ringQ.MulScalarBigintLvl(levelQ, tmpc2, ringP.ModulusBigint, tmpc2)
-				ringQ.AddLvl(levelQ, ct0OutQ, tmpc2, ct0OutQ)
-
-			} else {
-
-				state = true
-
-				// if n is not a power of two
-				if n&(n-1) != 0 {
-					eval.baseconverter.ModDownSplitNTTPQ(levelQ, ct0OutQ, ct0OutP, ct0OutQ) // Division by P
-					eval.baseconverter.ModDownSplitNTTPQ(levelQ, ct1OutQ, ct1OutP, ct1OutQ) // Division by P
-
-					// res += (tmpc0, tmpc1)
-					ringQ.AddLvl(levelQ, ct0OutQ, tmpc0, ctOut.value[0])
-					ringQ.AddLvl(levelQ, ct1OutQ, tmpc1, ctOut.value[1])
-
-				} else {
-					ringQ.CopyLvl(levelQ, tmpc0, ctOut.value[0])
-					ringQ.CopyLvl(levelQ, tmpc1, ctOut.value[1])
-				}
-			}
-		}
-
-		if !state {
 			if i == 0 {
-				eval.permuteNTTHoisted(levelQ, ct0.value[0], ct0.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp, (1<<i)*batchSize, tmpc0, tmpc1)
-
-				ringQ.AddLvl(levelQ, tmpc0, ct0.value[0], tmpc0)
-				ringQ.AddLvl(levelQ, tmpc1, ct0.value[1], tmpc1)
+				eval.DecompInternal(levelQ, ct0.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
 			} else {
-				// (tmpc0, tmpc1) = Rotate((tmpc0, tmpc1), 2^i)
-				eval.permuteNTTHoisted(levelQ, tmpc0, tmpc1, eval.c2QiQDecomp, eval.c2QiPDecomp, (1<<i)*batchSize, pool2Q, pool3Q)
-				ringQ.AddLvl(levelQ, tmpc0, pool2Q, tmpc0)
-				ringQ.AddLvl(levelQ, tmpc1, pool3Q, tmpc1)
+				eval.DecompInternal(levelQ, tmpc1, eval.c2QiQDecomp, eval.c2QiPDecomp)
 			}
 
+			if j&1 == 1 {
+
+				k := n - (n & ((2 << i) - 1))
+				k *= batchSize
+
+				if k != 0 {
+
+					// Rotate((tmpc0, tmpc1), k)
+					eval.permuteNTTHoistedNoModDown(levelQ, eval.c2QiQDecomp, eval.c2QiPDecomp, k, pool2Q, pool3Q, pool2P, pool3P)
+
+					// res += Rotate((tmpc0, tmpc1), k)
+					if i == 0 {
+						ringQ.CopyLvl(levelQ, pool2Q, ct0OutQ)
+						ringQ.CopyLvl(levelQ, pool3Q, ct1OutQ)
+						ringP.Copy(pool2P, ct0OutP)
+						ringP.Copy(pool3P, ct1OutP)
+					} else {
+						ringQ.AddLvl(levelQ, ct0OutQ, pool2Q, ct0OutQ)
+						ringQ.AddLvl(levelQ, ct1OutQ, pool3Q, ct1OutQ)
+						ringP.Add(ct0OutP, pool2P, ct0OutP)
+						ringP.Add(ct1OutP, pool3P, ct1OutP)
+					}
+
+					if i == 0 {
+						ring.PermuteNTTWithIndexLvl(levelQ, ct0.value[0], eval.permuteNTTIndex[eval.params.GaloisElementForColumnRotationBy(k)], tmpc2)
+					} else {
+						ring.PermuteNTTWithIndexLvl(levelQ, tmpc0, eval.permuteNTTIndex[eval.params.GaloisElementForColumnRotationBy(k)], tmpc2)
+					}
+
+					ringQ.MulScalarBigintLvl(levelQ, tmpc2, ringP.ModulusBigint, tmpc2)
+					ringQ.AddLvl(levelQ, ct0OutQ, tmpc2, ct0OutQ)
+
+				} else {
+
+					state = true
+
+					// if n is not a power of two
+					if n&(n-1) != 0 {
+						eval.baseconverter.ModDownSplitNTTPQ(levelQ, ct0OutQ, ct0OutP, ct0OutQ) // Division by P
+						eval.baseconverter.ModDownSplitNTTPQ(levelQ, ct1OutQ, ct1OutP, ct1OutQ) // Division by P
+
+						// res += (tmpc0, tmpc1)
+						ringQ.AddLvl(levelQ, ct0OutQ, tmpc0, ctOut.value[0])
+						ringQ.AddLvl(levelQ, ct1OutQ, tmpc1, ctOut.value[1])
+
+					} else {
+						ringQ.CopyLvl(levelQ, tmpc0, ctOut.value[0])
+						ringQ.CopyLvl(levelQ, tmpc1, ctOut.value[1])
+					}
+				}
+			}
+
+			if !state {
+				if i == 0 {
+					eval.permuteNTTHoisted(levelQ, ct0.value[0], ct0.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp, (1<<i)*batchSize, tmpc0, tmpc1)
+
+					ringQ.AddLvl(levelQ, tmpc0, ct0.value[0], tmpc0)
+					ringQ.AddLvl(levelQ, tmpc1, ct0.value[1], tmpc1)
+				} else {
+					// (tmpc0, tmpc1) = Rotate((tmpc0, tmpc1), 2^i)
+					eval.permuteNTTHoisted(levelQ, tmpc0, tmpc1, eval.c2QiQDecomp, eval.c2QiPDecomp, (1<<i)*batchSize, pool2Q, pool3Q)
+					ringQ.AddLvl(levelQ, tmpc0, pool2Q, tmpc0)
+					ringQ.AddLvl(levelQ, tmpc1, pool3Q, tmpc1)
+				}
+
+			}
 		}
 	}
 }

@@ -50,31 +50,21 @@ func PadCiphers(c1, c2 *MKCiphertext, params *bfv.Parameters) (c1Out, c2Out *MKC
 
 	}
 
-	c1out := NewMKCiphertext(allPeers, ringQ)
-	c2out := NewMKCiphertext(allPeers, ringQ)
-	c1Out.ciphertexts.SetValue(res1)
-	c2Out.ciphertexts.SetValue(res2)
+	c1out := NewMKCiphertext(allPeers, ringQ, params)
+	c2out := NewMKCiphertext(allPeers, ringQ, params)
+
+	c1out.ciphertexts.SetValue(res1)
+	c2out.ciphertexts.SetValue(res2)
 
 	return c1out, c2out
 }
 
 // NewMKCiphertext returns a new MKciphertext corresponding to the given slice of peers
-func NewMKCiphertext(peerIDs []uint64, r *ring.Ring) *MKCiphertext {
+func NewMKCiphertext(peerIDs []uint64, r *ring.Ring, params *bfv.Parameters) *MKCiphertext {
 
 	res := new(MKCiphertext)
-	res.ciphertexts = new(bfv.Ciphertext)
-	res.ciphertexts.Element = new(bfv.Element)
-
+	res.ciphertexts = bfv.NewCiphertext(params, uint64(len(peerIDs)))
 	res.peerIDs = peerIDs
-
-	k := len(peerIDs) + 1
-	values := make([]*ring.Poly, k)
-
-	for i := 0; i < k; i++ {
-		values[i] = r.NewPoly()
-	}
-
-	res.ciphertexts.SetValue(values)
 
 	return res
 }

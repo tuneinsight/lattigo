@@ -9,7 +9,7 @@ import (
 type MKEvaluator interface {
 	Add(c1 *MKCiphertext, c2 *MKCiphertext, out *MKCiphertext, ringQ *ring.Ring, params *bfv.Parameters)
 	MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, out *MKCiphertext, relinKey *MKRelinearizationKey, params *bfv.Parameters)
-	MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, out *MKCiphertext, keys []*MKSwitchingKey, params *bfv.Parameters)
+	MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, out *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, params *bfv.Parameters)
 }
 
 type mkEvaluator struct {
@@ -40,10 +40,10 @@ func (eval *mkEvaluator) MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, 
 }
 
 // MultRelinDynamic will compute the homomorphic multiplication and relinearize the resulting cyphertext using dynamic relin
-func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, out *MKCiphertext, keys []*MKSwitchingKey, params *bfv.Parameters) {
+func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, out *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, params *bfv.Parameters) {
 
 	eval.bfvEval.Mul(c1.ciphertexts.Element.Ciphertext(), c2.ciphertexts.Element, out.ciphertexts)
 
 	// Call Relin alg 2
-	RelinearizationOnTheFly(keys, out)
+	RelinearizationOnTheFly(evalKeys, publicKeys, out, params)
 }

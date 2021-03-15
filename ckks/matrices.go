@@ -327,6 +327,7 @@ func populateVector(m []complex128, d2, logSlots int) {
 // Matrix is a struct holding a row flatened complex matrix.
 type Matrix struct {
 	rows, cols int
+	Real bool
 	M          []complex128
 }
 
@@ -367,6 +368,8 @@ func (m *Matrix) Add(A, B *Matrix) {
 	for i := range A.M {
 		m.M[i] = A.M[i] + B.M[i]
 	}
+
+	m.Real = A.Real && B.Real
 }
 
 // MulMat multiplies A with B and returns the result on the target.
@@ -399,6 +402,8 @@ func (m *Matrix) MulMat(A, B *Matrix) {
 	for i := range m.M {
 		m.M[i] = acc[i]
 	}
+
+	m.Real = A.Real && B.Real
 }
 
 // GenRandomComplexMatrices generates a list of complex matrices.
@@ -410,6 +415,24 @@ func GenRandomComplexMatrices(rows, cols, n int) (Matrices []*Matrix) {
 		m := NewMatrix(rows, cols)
 		for i := 0; i < rows*cols; i++ {
 			m.M[i] = complex(utils.RandFloat64(-1, 1), utils.RandFloat64(-1, 1))
+			m.Real = false
+		}
+		Matrices[k] = m
+	}
+
+	return
+}
+
+// GenRandomReaMatrices generates a list of real matrices.
+func GenRandomRealMatrices(rows, cols, n int) (Matrices []*Matrix) {
+
+	Matrices = make([]*Matrix, n)
+
+	for k := range Matrices {
+		m := NewMatrix(rows, cols)
+		for i := 0; i < rows*cols; i++ {
+			m.M[i] = complex(utils.RandFloat64(-1, 1), 0)
+			m.Real = true
 		}
 		Matrices[k] = m
 	}
@@ -496,11 +519,26 @@ func (m *Matrix) Transpose() (mT *Matrix) {
 // Print prints the target matrix.
 func (m *Matrix) Print() {
 
-	for i := 0; i < m.Cols(); i++ {
-		for j := 0; j < m.Rows(); j++ {
-			fmt.Printf("%7.4f ", m.M[i*m.Cols()+j])
+	if m.Real{
+		fmt.Printf("[\n")
+		for i := 0; i < m.Cols(); i++ {
+			fmt.Printf("[ ")
+			for j := 0; j < m.Rows(); j++ {
+				fmt.Printf("%7.4f, ", real(m.M[i*m.Cols()+j]))
+			}
+			fmt.Printf("],\n")
 		}
-		fmt.Printf("\n")
+		fmt.Printf("]\n")
+	}else{
+		fmt.Printf("[")
+		for i := 0; i < m.Cols(); i++ {
+			fmt.Printf("[ ")
+			for j := 0; j < m.Rows(); j++ {
+				fmt.Printf("%7.4f, ", m.M[i*m.Cols()+j])
+			}
+			fmt.Printf("]\n")
+		}
+		fmt.Printf("]\n")
 	}
-	fmt.Printf("\n")
+	
 }

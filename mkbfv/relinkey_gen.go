@@ -77,8 +77,6 @@ func GInverse(p *ring.Poly, params *bfv.Parameters) *MKDecomposedPoly {
 
 	polynomials := make([]*ring.Poly, beta)
 
-	convertor := ring.NewFastBasisExtender(ringQ, ringP)
-
 	c2QiQ := params.NewPolyQ()
 	c2QiP := params.NewPolyP()
 	invPoly := params.NewPolyQP()
@@ -87,13 +85,9 @@ func GInverse(p *ring.Poly, params *bfv.Parameters) *MKDecomposedPoly {
 	// generate each poly decomposed in the base
 	for i := uint64(0); i < beta; i++ {
 
-		decomposeAndSplitNTT(level, i, p, invPoly, c2QiQ, c2QiP, params, ringQ, ringP) // TODO: ask if this indeed decompose from R_q to R_q^beta
+		decomposeAndSplitNTT(level, i, p, invPoly, c2QiQ, c2QiP, params, ringQ, ringP)
 
-		currPoly := params.NewPolyQP()
-
-		convertor.ModUpSplitQP(level, c2QiQ, currPoly)
-
-		polynomials[i] = currPoly
+		polynomials[i] = toRingQP(c2QiQ, c2QiP, ringQP)
 	}
 
 	res.poly = polynomials
@@ -132,4 +126,15 @@ func decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT, c2QiQ, c2QiP *rin
 	}
 	// c2QiP = c2 mod qi mod pj
 	ringP.NTTLazy(c2QiP, c2QiP)
+}
+
+// reassemble two elements of Rq and Rp in Rqp
+func toRingQP(p1, p2 *ring.Poly, ringQp *ring.Ring) *ring.Poly {
+
+	res := ringQp.NewPoly()
+
+	// copy coefficients
+	res.SetCoefficients(append(p1.Coeffs, p2.Coeffs...))
+
+	return res
 }

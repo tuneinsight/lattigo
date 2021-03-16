@@ -81,7 +81,7 @@ func (eval *mkEvaluator) quantize(ctOut *bfv.Element) { //TODO: adapt fromm eval
 	levelQMul := uint64(len(eval.ringQMul.Modulus) - 1)
 
 	c2Q1 := eval.poolQ[2]
-	c2Q2 := eval.poolQmul[2]
+	c2Q2 := eval.poolQmul[2] // what is the state of these variables after tensor ?
 
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q

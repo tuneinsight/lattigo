@@ -41,22 +41,12 @@ func NewMKDecryptor(params *bfv.Parameters) MKDecryptor {
 
 	pHalf := new(big.Int).Rsh(ringQMul.ModulusBigint, 1)
 
-	pool1 := make([]*ring.Poly, 4)
-	pool2 := make([]*ring.Poly, 4)
-
-	for i := 0; i < len(pool1); i++ {
-		pool1[i] = ringQ.NewPoly()
-		pool2[i] = ringQ.NewPoly()
-	}
-
 	return &mkDecryptor{
 		params:          params,
 		ringQ:           ringQ,
 		ringQMul:        ringQMul,
 		pHalf:           pHalf,
 		samplerGaussian: sampler,
-		polyPoolQ1:      pool1,
-		polyPoolQ2:      pool2,
 		convertor:       convertor,
 	}
 
@@ -100,8 +90,8 @@ func (dec *mkDecryptor) quantize(ctOut *bfv.Element) {
 	levelQ := uint64(len(dec.ringQ.Modulus) - 1)
 	levelQMul := uint64(len(dec.ringQMul.Modulus) - 1)
 
-	c2Q1 := dec.polyPoolQ1
-	c2Q2 := dec.polyPoolQ2
+	c2Q1 := nil // TODO : what values should be in ?
+	c2Q2 := nil
 
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q

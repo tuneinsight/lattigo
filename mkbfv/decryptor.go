@@ -79,35 +79,5 @@ func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly) *bfv.P
 
 	plaintext.SetValue([]*ring.Poly{res})
 
-	dec.quantize(plaintext)
-
 	return plaintext.Plaintext()
-}
-
-// function taken from bfv evaluator to scale by t/q
-func (dec *mkDecryptor) quantize(ctOut *bfv.Element) {
-
-	levelQ := uint64(len(dec.ringQ.Modulus) - 1)
-	levelQMul := uint64(len(dec.ringQMul.Modulus) - 1)
-
-	c2Q1 := nil // TODO : what values should be in ?
-	c2Q2 := nil
-
-	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
-	// by t/q and reduces its basis from QP to Q
-	for i := range ctOut.Value() {
-		dec.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
-		dec.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
-
-		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		dec.convertor.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
-
-		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
-		dec.ringQMul.AddScalarBigint(c2Q2[i], dec.pHalf, c2Q2[i])
-		dec.convertor.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.Value()[i])
-		dec.ringQ.SubScalarBigint(ctOut.Value()[i], dec.pHalf, ctOut.Value()[i])
-
-		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
-		dec.ringQ.MulScalar(ctOut.Value()[i], dec.params.T(), ctOut.Value()[i])
-	}
 }

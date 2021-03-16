@@ -23,14 +23,15 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 	return &mkEvaluator{bfvEval: bfv.NewEvaluator(params, bfv.EvaluationKey{}), ringQ: r}
 }
 
-// Add adds the cyphertexts component wise and expend their list of involved peers
+// Add adds the cyphertexts component wise. Padcipher must be called before
 func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext, params *bfv.Parameters) *MKCiphertext {
 
 	out := NewMKCiphertext(c1.peerIDs, eval.ringQ, params)
+	out.peerIDs = c1.peerIDs
 
-	val := make([]*ring.Poly, len(c1.peerIDs))
+	val := make([]*ring.Poly, len(c1.peerIDs)+1)
 
-	for i := uint64(0); i < uint64(len(c1.peerIDs)); i++ {
+	for i := uint64(0); i < uint64(len(c1.peerIDs)+1); i++ {
 		val[i] = eval.ringQ.NewPoly()
 		eval.ringQ.Add(c1.ciphertexts.Value()[i], c2.ciphertexts.Value()[i], val[i])
 	}
@@ -74,6 +75,7 @@ func (eval *mkEvaluator) tensor(c1 *MKCiphertext, c2 *MKCiphertext, out *MKCiphe
 	// TODO implement tensor product
 }
 
+/*
 // quantize multiplies the values of an element by t/q
 func (eval *mkEvaluator) quantize(ctOut *bfv.Element) { //TODO: adapt fromm evaluator.go
 
@@ -102,3 +104,4 @@ func (eval *mkEvaluator) quantize(ctOut *bfv.Element) { //TODO: adapt fromm eval
 	}
 
 }
+*/

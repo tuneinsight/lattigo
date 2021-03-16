@@ -18,12 +18,17 @@ func Test_EncryptionEqualsDecryption(t *testing.T) {
 	encryptor := NewMKEncryptor(keys[0].publicKey, params)
 	decryptor := NewMKDecryptor(params)
 
+	encoder := bfv.NewEncoder(params)
+
 	plaintext := new(bfv.Element)
 
 	ptValues := make([]*ring.Poly, 1)
-	ptValues[0] = GetRandomPoly(params, ringQ)
-
+	expected := GetRandomPoly(params, ringQ)
+	ptValues[0] = ringQ.NewPoly()
 	plaintext.SetValue(ptValues)
+
+	// Encode
+	encoder.EncodeUint(expected.Coeffs[0], plaintext.Plaintext())
 
 	// encrypt
 	cipher := encryptor.EncryptMK(plaintext.Plaintext(), ids[0])
@@ -35,7 +40,8 @@ func Test_EncryptionEqualsDecryption(t *testing.T) {
 
 	decrypted := decryptor.MergeDec(cipher.ciphertexts.Value()[0], []*ring.Poly{partialDec})
 
-	if !equalsPoly(decrypted.Value()[0], plaintext.Value()[0]) {
+	// decode and check
+	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected.Coeffs[0]) {
 		t.Error("Decryption of encryption does not equals plaintext")
 	}
 }
@@ -48,6 +54,8 @@ func Test_Add(t *testing.T) {
 
 	ringQ := GetRingQ(params)
 
+	encoder := bfv.NewEncoder(params)
+
 	encryptor1 := NewMKEncryptor(keys[0].publicKey, params)
 	encryptor2 := NewMKEncryptor(keys[1].publicKey, params)
 	decryptor := NewMKDecryptor(params)
@@ -57,11 +65,18 @@ func Test_Add(t *testing.T) {
 
 	ptValues1 := make([]*ring.Poly, 1)
 	ptValues2 := make([]*ring.Poly, 1)
-	ptValues1[0] = GetRandomPoly(params, ringQ)
-	ptValues2[0] = GetRandomPoly(params, ringQ)
+	ptValues1[0] = ringQ.NewPoly()
+	ptValues2[0] = ringQ.NewPoly()
 
 	plaintext1.SetValue(ptValues1)
 	plaintext2.SetValue(ptValues2)
+
+	expected1 := GetRandomPoly(params, ringQ)
+	expected2 := GetRandomPoly(params, ringQ)
+
+	// encode
+	encoder.EncodeUint(expected1.Coeffs[0], plaintext1.Plaintext())
+	encoder.EncodeUint(expected2.Coeffs[0], plaintext2.Plaintext())
 
 	// encrypt
 	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext(), ids[0])
@@ -83,9 +98,9 @@ func Test_Add(t *testing.T) {
 	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2})
 
 	expected := ringQ.NewPoly()
-	ringQ.Add(plaintext1.Value()[0], plaintext2.Value()[0], expected)
+	ringQ.AddNoMod(expected1, expected2, expected)
 
-	if !equalsPoly(decrypted.Value()[0], expected) {
+	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected.Coeffs[0]) {
 		t.Error("Homomorphic addition error")
 	}
 }
@@ -98,6 +113,8 @@ func Test_Mul(t *testing.T) {
 
 	ringQ := GetRingQ(params)
 
+	encoder := bfv.NewEncoder(params)
+
 	encryptor1 := NewMKEncryptor(keys[0].publicKey, params)
 	encryptor2 := NewMKEncryptor(keys[1].publicKey, params)
 	decryptor := NewMKDecryptor(params)
@@ -107,18 +124,30 @@ func Test_Mul(t *testing.T) {
 
 	ptValues1 := make([]*ring.Poly, 1)
 	ptValues2 := make([]*ring.Poly, 1)
-	ptValues1[0] = GetRandomPoly(params, ringQ)
-	ptValues2[0] = GetRandomPoly(params, ringQ)
+	ptValues1[0] = ringQ.NewPoly()
+	ptValues2[0] = ringQ.NewPoly()
 
 	plaintext1.SetValue(ptValues1)
 	plaintext2.SetValue(ptValues2)
+
+	expected1 := GetRandomPoly(params, ringQ)
+	expected2 := GetRandomPoly(params, ringQ)
+
+	expected := make([]uint64, len(expected1.Coeffs[0]))
+
+	for i := 0; i < len(expected1.Coeffs[0]); i++ {
+		expected[i] = expected1.Coeffs[0][i] * expected2.Coeffs[0][i]
+	}
+
+	// encode
+	encoder.EncodeUint(expected1.Coeffs[0], plaintext1.Plaintext())
+	encoder.EncodeUint(expected2.Coeffs[0], plaintext2.Plaintext())
 
 	// encrypt
 	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext(), ids[0])
 	cipher2 := encryptor2.EncryptMK(plaintext2.Plaintext(), ids[1])
 
 	// pad and mul
-
 	evaluator := NewMKEvaluator(params)
 
 	out1, out2 := PadCiphers(cipher1, cipher2, params)
@@ -133,10 +162,7 @@ func Test_Mul(t *testing.T) {
 
 	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2})
 
-	expected := ringQ.NewPoly()
-	ringQ.MulCoeffsMontgomery(plaintext1.Value()[0], plaintext2.Value()[0], expected)
-
-	if !equalsPoly(decrypted.Value()[0], expected) {
+	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected) {
 		t.Error("Homomorphic multiplication error")
 	}
 

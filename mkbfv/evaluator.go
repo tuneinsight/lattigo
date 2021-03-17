@@ -28,9 +28,9 @@ func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext, params *bfv.Par
 
 	out := NewMKCiphertext(c1.peerIDs, eval.ringQ, params)
 
-	val := make([]*ring.Poly, len(c1.peerIDs)) // shouldn't it be +1?
+	val := make([]*ring.Poly, len(c1.peerIDs)+1)
 
-	for i := uint64(0); i < uint64(len(c1.peerIDs)); i++ {
+	for i := uint64(0); i < uint64(len(c1.peerIDs)+1); i++ {
 		val[i] = eval.ringQ.NewPoly()
 		eval.ringQ.Add(c1.ciphertexts.Value()[i], c2.ciphertexts.Value()[i], val[i])
 	}
@@ -71,23 +71,23 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 
 // tensor computes the tensor product between 2 ciphertexts and returns the result in out
 // c1 and c2 must have be of dimension k+1, where k = #participants
-// out has dimensions (k+1)**2 : a slice of k+1 MKciphertexts
-func (eval *mkEvaluator) tensor(c1 *MKCiphertext, c2 *MKCiphertext, out []*MKCiphertext) {
+// out has dimensions (k+1)**2
+func (eval *mkEvaluator) tensor(c1 *MKCiphertext, c2 *MKCiphertext, out *MKCiphertext) {
 	if len(c1.peerIDs) != len(c2.peerIDs) {
-		panic("Mismatch in number of participants, according to the two MKciphertexts")
+		panic("Mismatch in number of participants, ciphertext must be padded before a call to Mult")
 	}
 
 	dim := uint64(len(c1.peerIDs) + 1)
-	val := make([][]*ring.Poly, dim)
+	val := make([]*ring.Poly, dim*dim)
+
 	for i := uint64(0); i < dim; i++ {
 		for j := uint64(0); j < dim; j++ {
-			val[i][j] = eval.ringQ.NewPoly()
-			eval.ringQ.MulCoeffs(c1.ciphertexts.Value()[i], c2.ciphertexts.Value()[j], val[i][j])
+			val[i*dim+j] = eval.ringQ.NewPoly()
+			eval.ringQ.MulCoeffs(c1.ciphertexts.Value()[i], c2.ciphertexts.Value()[j], val[i*dim+j])
 		}
 	}
-	for i := uint64(0); i < dim; i++ {
-		out[i].ciphertexts.SetValue(val[i])
-	}
+
+	out.ciphertexts.SetValue(val)
 
 }
 

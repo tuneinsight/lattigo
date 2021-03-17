@@ -645,10 +645,11 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
 		receiver := NewCiphertext(testctx.params, 1)
-		for _, n := range rots {
+		for _, k := range rots {
 
-			evaluator.RotateColumns(ciphertext, n, receiver)
-			valuesWant := utils.RotateUint64Slots(values.Coeffs[0], n)
+			evaluator.RotateColumns(ciphertext, k, receiver)
+			nColumns := testctx.params.N() >> 1
+			valuesWant := append(utils.RotateUint64Slice(values.Coeffs[0][:nColumns], k), utils.RotateUint64Slice(values.Coeffs[0][nColumns:], k)...)
 
 			verifyTestVectors(testctx, testctx.decryptor, &ring.Poly{Coeffs: [][]uint64{valuesWant}}, receiver, t)
 		}
@@ -658,10 +659,11 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
-		for _, n := range rots {
+		for _, k := range rots {
 
-			receiver := evaluator.RotateColumnsNew(ciphertext, n)
-			valuesWant := utils.RotateUint64Slots(values.Coeffs[0], n)
+			receiver := evaluator.RotateColumnsNew(ciphertext, k)
+			nColumns := testctx.params.N() >> 1
+			valuesWant := append(utils.RotateUint64Slice(values.Coeffs[0][:nColumns], k), utils.RotateUint64Slice(values.Coeffs[0][nColumns:], k)...)
 
 			verifyTestVectors(testctx, testctx.decryptor, &ring.Poly{Coeffs: [][]uint64{valuesWant}}, receiver, t)
 		}

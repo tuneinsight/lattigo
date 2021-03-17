@@ -584,8 +584,12 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and degree 2 ciphertexts).
 func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 
+	if eval.rlk == nil {
+		panic("evaluator has no relinearization key")
+	}
+
 	if int(ct0.Degree()-1) > len(eval.rlk.Keys) {
-		panic("cannot Relinearize: input ciphertext degree too large to allow relinearization")
+		panic("input ciphertext degree is too large to allow relinearization with the evluator's relinearization key")
 	}
 
 	if ct0.Degree() < 2 {
@@ -658,7 +662,7 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext) 
 			eval.permute(ct0, galElL, swk, ctOut)
 
 		} else {
-			panic(fmt.Errorf("no switching key for rotation by %d", k))
+			panic(fmt.Errorf("evaluator has no rotation key for rotation by %d", k))
 		}
 	}
 }
@@ -682,7 +686,7 @@ func (eval *evaluator) RotateRows(ct0 *Ciphertext, ctOut *Ciphertext) {
 	if key, inSet := eval.rtks.GetRotationKey(galEl); inSet {
 		eval.permute(ct0, galEl, key, ctOut)
 	} else {
-		panic("cannot RotateRows: rotation key not generated")
+		panic("evaluator has no rotation key for row rotation")
 	}
 }
 

@@ -1318,6 +1318,10 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, ctOut *Ciphertext) {
 
 func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext) {
 
+	if relin && eval.rlk == nil {
+		panic("evaluator has no relinearization key")
+	}
+
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 
 	level := utils.MinUint64(utils.MinUint64(el0.Level(), el1.Level()), elOut.Level())
@@ -1421,6 +1425,11 @@ func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut. The input Ciphertext must be of degree two.
 func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
+
+	if eval.rlk == nil {
+		panic("evaluator has no relinearization key")
+	}
+
 	if ct0.Degree() != 2 {
 		panic("cannot Relinearize: input Ciphertext is not of degree 2")
 	}
@@ -1490,8 +1499,12 @@ func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 		ctOut.SetScale(ct0.Scale())
 
 		galEl := eval.params.GaloisElementForColumnRotationBy(k)
+		rtk, generated := eval.rtks.Keys[galEl]
+		if !generated {
+			panic(fmt.Errorf("evaluator has no rotation key for rotation by %d", k))
+		}
 
-		eval.permuteNTT(ct0, galEl, ctOut)
+		eval.permuteNTT(ct0, galEl, rtk, ctOut)
 	}
 }
 
@@ -1509,19 +1522,20 @@ func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	galEl := eval.params.GaloisElementForRowRotation()
+	rtk, generated := eval.rtks.Keys[galEl]
+	if !generated {
+		panic("evaluator has no rotation key for row rotation")
+	}
+
 	ctOut.SetScale(ct0.Scale())
-	eval.permuteNTT(ct0, galEl, ctOut)
+
+	eval.permuteNTT(ct0, galEl, rtk, ctOut)
 }
 
-func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Ciphertext) {
+func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, rtk *rlwe.SwitchingKey, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("input and output Ciphertext must be of degree 1")
-	}
-
-	rtk, generated := eval.rtks.Keys[galEl]
-	if !generated {
-		panic("switching key not available")
 	}
 
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())

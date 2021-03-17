@@ -23,15 +23,14 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 	return &mkEvaluator{bfvEval: bfv.NewEvaluator(params, bfv.EvaluationKey{}), ringQ: r}
 }
 
-// Add adds the cyphertexts component wise. Padcipher must be called before
+// Add adds the ciphertexts component wise and expend their list of involved peers
 func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext, params *bfv.Parameters) *MKCiphertext {
 
 	out := NewMKCiphertext(c1.peerIDs, eval.ringQ, params)
-	out.peerIDs = c1.peerIDs
 
-	val := make([]*ring.Poly, len(c1.peerIDs)+1)
+	val := make([]*ring.Poly, len(c1.peerIDs)) // shouldn't it be +1?
 
-	for i := uint64(0); i < uint64(len(c1.peerIDs)+1); i++ {
+	for i := uint64(0); i < uint64(len(c1.peerIDs)); i++ {
 		val[i] = eval.ringQ.NewPoly()
 		eval.ringQ.Add(c1.ciphertexts.Value()[i], c2.ciphertexts.Value()[i], val[i])
 	}
@@ -70,12 +69,28 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 	return out
 }
 
-// tensor computes the tensor product between 2 ciphhertexts and returns the result in out
-func (eval *mkEvaluator) tensor(c1 *MKCiphertext, c2 *MKCiphertext, out *MKCiphertext) {
-	// TODO implement tensor product
+// tensor computes the tensor product between 2 ciphertexts and returns the result in out
+// c1 and c2 must have be of dimension k+1, where k = #participants
+// out has dimensions (k+1)**2 : a slice of k+1 MKciphertexts
+func (eval *mkEvaluator) tensor(c1 *MKCiphertext, c2 *MKCiphertext, out []*MKCiphertext) {
+	if len(c1.peerIDs) != len(c2.peerIDs) {
+		panic("Mismatch in number of participants, according to the two MKciphertexts")
+	}
+
+	dim := uint64(len(c1.peerIDs) + 1)
+	val := make([][]*ring.Poly, dim)
+	for i := uint64(0); i < dim; i++ {
+		for j := uint64(0); j < dim; j++ {
+			val[i][j] = eval.ringQ.NewPoly()
+			eval.ringQ.MulCoeffs(c1.ciphertexts.Value()[i], c2.ciphertexts.Value()[j], val[i][j])
+		}
+	}
+	for i := uint64(0); i < dim; i++ {
+		out[i].ciphertexts.SetValue(val[i])
+	}
+
 }
 
-/*
 // quantize multiplies the values of an element by t/q
 func (eval *mkEvaluator) quantize(ctOut *bfv.Element) { //TODO: adapt fromm evaluator.go
 
@@ -83,7 +98,7 @@ func (eval *mkEvaluator) quantize(ctOut *bfv.Element) { //TODO: adapt fromm eval
 	levelQMul := uint64(len(eval.ringQMul.Modulus) - 1)
 
 	c2Q1 := eval.poolQ[2]
-	c2Q2 := eval.poolQmul[2] // what is the state of these variables after tensor ?
+	c2Q2 := eval.poolQmul[2]
 
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q
@@ -104,4 +119,3 @@ func (eval *mkEvaluator) quantize(ctOut *bfv.Element) { //TODO: adapt fromm eval
 	}
 
 }
-*/

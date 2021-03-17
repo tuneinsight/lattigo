@@ -1,8 +1,6 @@
 package mkbfv
 
 import (
-	"math/big"
-
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -17,19 +15,13 @@ type MKDecryptor interface {
 type mkDecryptor struct {
 	params          *bfv.Parameters
 	ringQ           *ring.Ring
-	ringQMul        *ring.Ring
-	pHalf           *big.Int
 	samplerGaussian *ring.GaussianSampler
-	polyPoolQ1      []*ring.Poly
-	polyPoolQ2      []*ring.Poly
-	convertor       *ring.FastBasisExtender
 }
 
 // NewMKDecryptor returns a decryptor for bfv in a multi key context
 func NewMKDecryptor(params *bfv.Parameters) MKDecryptor {
 
 	ringQ := GetRingQ(params)
-	ringQMul := GetRingQMul(params)
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -37,17 +29,11 @@ func NewMKDecryptor(params *bfv.Parameters) MKDecryptor {
 	}
 
 	sampler := GetGaussianSampler(params, ringQ, prng)
-	convertor := ring.NewFastBasisExtender(ringQ, ringQMul)
-
-	pHalf := new(big.Int).Rsh(ringQMul.ModulusBigint, 1)
 
 	return &mkDecryptor{
 		params:          params,
 		ringQ:           ringQ,
-		ringQMul:        ringQMul,
-		pHalf:           pHalf,
 		samplerGaussian: sampler,
-		convertor:       convertor,
 	}
 
 }

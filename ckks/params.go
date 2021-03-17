@@ -525,8 +525,9 @@ func (p *Parameters) GaloisElementForRowRotation() uint64 {
 	return (1 << (p.logN + 1)) - 1
 }
 
-// GaloisElementsForRowInnerSum returns a list of galois element corresponding to
-// all the left rotations by a k-position where k is a power of two.
+// GaloisElementsForRowInnerSum returns a list of all galois elements required to
+// perform an InnerSum operation. This corresponds to all the left rotations by
+// k-positions where k is a power of two and the conjugate element.
 func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 	galEls = make([]uint64, p.logN+1, p.logN+1)
 	galEls[0] = p.GaloisElementForRowRotation()

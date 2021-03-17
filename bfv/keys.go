@@ -44,7 +44,7 @@ func NewRelinearizationKey(params *Parameters, maxRelinDegree uint64) *Relineari
 	return &RelinearizationKey{*rlwe.NewRelinKey(maxRelinDegree, params.N(), params.QPiCount(), params.Beta())}
 }
 
-// NewRotationKeySet return an allocated set of BFV public relineariation keys with zero values for each galois element
+// NewRotationKeySet return an allocated set of BFV public rotation keys with zero values for each galois element
 // (i.e., for each supported rotation).
 func NewRotationKeySet(params *Parameters, galoisElements []uint64) *RotationKeySet {
 	return &RotationKeySet{*rlwe.NewRotationKeySet(galoisElements, params.N(), params.QPiCount(), params.Beta())}

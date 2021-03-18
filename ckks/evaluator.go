@@ -2,10 +2,12 @@ package ckks
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"unsafe"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -44,81 +46,151 @@ type Evaluator interface {
 	Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciphertext) (err error)
 	RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ciphertext, err error)
 	RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *Ciphertext) (err error)
-	MulRelinNew(op0, op1 Operand, evakey *EvaluationKey) (ctOut *Ciphertext)
-	MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *Ciphertext)
-	RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext)
-	Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext)
+	Mul(op0, op1 Operand, ctOut *Ciphertext)
+	MulNew(op0, op1 Operand) (ctOut *Ciphertext)
+	MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext)
+	MulRelin(op0, op1 Operand, ctOut *Ciphertext)
+	RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext)
+	Relinearize(ct0 *Ciphertext, ctOut *Ciphertext)
 	SwitchKeysNew(ct0 *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
 	SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
-	RotateNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext)
-	Rotate(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext)
-	RotateHoisted(ctIn *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOut map[uint64]*Ciphertext)
-	ConjugateNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext)
-	Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext)
-	PowerOf2(el0 *Ciphertext, logPow2 uint64, evakey *EvaluationKey, elOut *Ciphertext)
-	PowerNew(op *Ciphertext, degree uint64, evakey *EvaluationKey) (opOut *Ciphertext)
-	Power(ct0 *Ciphertext, degree uint64, evakey *EvaluationKey, res *Ciphertext)
-	InverseNew(ct0 *Ciphertext, steps uint64, evakey *EvaluationKey) (res *Ciphertext)
-	EvaluatePoly(ct *Ciphertext, coeffs *Poly, evakey *EvaluationKey) (res *Ciphertext, err error)
-	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, evakey *EvaluationKey) (res *Ciphertext, err error)
+	RotateNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext)
+	Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext)
+	RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut map[int]*Ciphertext)
+	ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext)
+	Conjugate(ct0 *Ciphertext, ctOut *Ciphertext)
+	PowerOf2(el0 *Ciphertext, logPow2 uint64, elOut *Ciphertext)
+	PowerNew(op *Ciphertext, degree uint64) (opOut *Ciphertext)
+	Power(ct0 *Ciphertext, degree uint64, res *Ciphertext)
+	InverseNew(ct0 *Ciphertext, steps uint64) (res *Ciphertext)
+	EvaluatePoly(ct *Ciphertext, coeffs *Poly) (res *Ciphertext, err error)
+	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation) (res *Ciphertext, err error)
+	ShallowCopy() Evaluator
+	WithKey(EvaluationKey) Evaluator
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
 // It also holds a small memory pool used to store intermediate computations.
 type evaluator struct {
+	*evaluatorBase
+	*evaluatorBuffers
+
+	rlk             *RelinearizationKey
+	rtks            *RotationKeySet
+	permuteNTTIndex map[uint64][]uint64
+
+	baseconverter *ring.FastBasisExtender
+}
+
+type evaluatorBase struct {
 	params *Parameters
 	scale  float64
 
-	ringQ    *ring.Ring
-	ringP    *ring.Ring
+	ringQ *ring.Ring
+	ringP *ring.Ring
+
+	decomposer *ring.Decomposer
+}
+
+type evaluatorBuffers struct {
+	poolQ    [4]*ring.Poly // Memory pool in order : Decomp(c2), for NTT^-1(c2), res(c0', c1')
+	poolP    [3]*ring.Poly // Memory pool in order : Decomp(c2), res(c0', c1')
 	poolQMul [3]*ring.Poly // Memory pool in order : for MForm(c0), MForm(c1), c2
+	ctxpool  *Ciphertext   // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
+}
 
-	poolQ [4]*ring.Poly // Memory pool in order : Decomp(c2), for NTT^-1(c2), res(c0', c1')
-	poolP [3]*ring.Poly // Memory pool in order : Decomp(c2), res(c0', c1')
+func newEvaluatorBase(params *Parameters) *evaluatorBase {
+	var err error
+	ev := new(evaluatorBase)
+	ev.params = params.Copy()
+	ev.scale = params.scale
+	if ev.ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
+		panic(err)
+	}
 
-	ctxpool *Ciphertext // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
+	if params.PiCount() != 0 {
+		if ev.ringP, err = ring.NewRing(params.N(), params.pi); err != nil {
+			panic(err)
+		}
+		ev.decomposer = ring.NewDecomposer(ev.ringQ.Modulus, ev.ringP.Modulus)
+	}
+	return ev
+}
 
-	baseconverter *ring.FastBasisExtender
-	decomposer    *ring.Decomposer
+func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
+	buff := new(evaluatorBuffers)
+	ringQ, ringP := evalBase.ringQ, evalBase.ringP
+	buff.poolQ = [4]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
+	buff.poolQMul = [3]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
+	if evalBase.params.PiCount() > 0 {
+		buff.poolP = [3]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
+	}
+	buff.ctxpool = NewCiphertext(evalBase.params, 1, evalBase.params.MaxLevel(), evalBase.params.scale)
+	return buff
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on the Ciphertexts and/or Plaintexts. It stores a small pool of polynomials
 // and Ciphertexts that will be used for intermediate values.
-func NewEvaluator(params *Parameters) Evaluator {
+func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
+	eval := new(evaluator)
+	eval.evaluatorBase = newEvaluatorBase(params)
+	eval.evaluatorBuffers = newEvaluatorBuffers(eval.evaluatorBase)
 
-	var q, p *ring.Ring
-	var err error
-	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
+	eval.rlk = evaluationKey.Rlk
+	eval.rtks = evaluationKey.Rtks
+	if eval.rtks != nil {
+		eval.permuteNTTIndex = *eval.permuteNTTIndexesForKey(eval.rtks)
 	}
 
 	if params.PiCount() != 0 {
-		if p, err = ring.NewRing(params.N(), params.pi); err != nil {
-			panic(err)
-		}
+		eval.baseconverter = ring.NewFastBasisExtender(eval.ringQ, eval.ringP)
 	}
 
-	var baseconverter *ring.FastBasisExtender
-	var decomposer *ring.Decomposer
-	var poolP [3]*ring.Poly
-	if params.PiCount() != 0 {
-		baseconverter = ring.NewFastBasisExtender(q, p)
-		decomposer = ring.NewDecomposer(q.Modulus, p.Modulus)
-		poolP = [3]*ring.Poly{p.NewPoly(), p.NewPoly(), p.NewPoly()}
-	}
+	return eval
+}
 
+func (eval *evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64][]uint64 {
+	if rtks == nil {
+		return &map[uint64][]uint64{}
+	}
+	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
+	for galEl := range rtks.Keys {
+		permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, eval.ringQ.N)
+	}
+	return &permuteNTTIndex
+}
+
+// ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Evaluators can be used concurrently.
+func (eval *evaluator) ShallowCopy() Evaluator {
 	return &evaluator{
-		params:        params.Copy(),
-		scale:         params.scale,
-		ringQ:         q,
-		ringP:         p,
-		poolQMul:      [3]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly()},
-		poolQ:         [4]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly(), q.NewPoly()},
-		poolP:         poolP,
-		ctxpool:       NewCiphertext(params, 1, params.MaxLevel(), params.scale),
-		baseconverter: baseconverter,
-		decomposer:    decomposer,
+		evaluatorBase:    eval.evaluatorBase,
+		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
+		rlk:              eval.rlk,
+		rtks:             eval.rtks,
+		permuteNTTIndex:  eval.permuteNTTIndex,
+		baseconverter:    eval.baseconverter.ShallowCopy(),
+	}
+}
+
+// WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
+// and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
+func (eval *evaluator) WithKey(evaluationKey EvaluationKey) Evaluator {
+	var indexes map[uint64][]uint64
+	if evaluationKey.Rtks == eval.rtks {
+		indexes = eval.permuteNTTIndex
+	} else {
+		indexes = *eval.permuteNTTIndexesForKey(evaluationKey.Rtks)
+	}
+	return &evaluator{
+		evaluatorBase:    eval.evaluatorBase,
+		evaluatorBuffers: eval.evaluatorBuffers,
+		rlk:              evaluationKey.Rlk,
+		rtks:             evaluationKey.Rtks,
+		permuteNTTIndex:  indexes,
+		baseconverter:    eval.baseconverter,
 	}
 }
 
@@ -1212,24 +1284,43 @@ func (eval *evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, ctOut *Ci
 	return nil
 }
 
-// MulRelinNew multiplies ct0 by ct1 and returns the result in a newly created element. The new scale is
-// the multiplication between the scales of the input elements (addition when the scale is represented in log2). An evaluation
-// key can be provided to apply a relinearization step to reduce the degree of the output element. This evaluation key is only
-// required when the two input elements are Ciphertexts. If no evaluation key is provided and the input elements are two Ciphertexts,
-// the resulting Ciphertext will be of degree two. This function only accepts Plaintexts (degree zero) and/or Ciphertexts of degree one.
-func (eval *evaluator) MulRelinNew(op0, op1 Operand, evakey *EvaluationKey) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, utils.MinUint64(op0.Level(), op1.Level()), op0.Scale()+op1.Scale())
-	eval.MulRelin(op0, op1, evakey, ctOut)
-
-	return ctOut
+// MulNew multiplies op0 with op1 without relinearization and returns the result in a newly created element.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+func (eval *evaluator) MulNew(op0, op1 Operand) (ctOut *Ciphertext) {
+	ctOut = NewCiphertext(eval.params, op0.Degree()+op1.Degree(), utils.MinUint64(op0.Level(), op1.Level()), 0)
+	eval.mulRelin(op0, op1, false, ctOut)
+	return
 }
 
-// MulRelin multiplies ct0 by ct1 and returns the result in ctOut. The new scale is
-// the multiplication between the scales of the input elements (addition when the scale is represented in log2). An evaluation
-// key can be provided to apply a relinearization step to reduce the degree of the output element. This evaluation key is only
-// required when the two input elements are Ciphertexts. If no evaluation key is provided and the input elements are two Ciphertexts,
-// the resulting Ciphertext will be of degree two. This function only accepts Plaintexts (degree zero) and/or Ciphertexts of degree one.
-func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *Ciphertext) {
+// Mul multiplies op0 with op1 without relinearization and returns the result in ctOut.
+// The procedure will panic if either op0 or op1 are have a degree higher than 1.
+// The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+func (eval *evaluator) Mul(op0, op1 Operand, ctOut *Ciphertext) {
+	eval.mulRelin(op0, op1, false, ctOut)
+}
+
+// MulRelinNew multiplies ct0 by ct1 with relinearization and returns the result in a newly created element.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+// The procedure will panic if the evaluator was not created with an relinearization key.
+func (eval *evaluator) MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext) {
+	ctOut = NewCiphertext(eval.params, 1, utils.MinUint64(op0.Level(), op1.Level()), 0)
+	eval.mulRelin(op0, op1, true, ctOut)
+	return
+}
+
+// MulRelin multiplies op0 with op1 with relinearization and returns the result in ctOut.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+// The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+// The procedure will panic if the evaluator was not created with an relinearization key.
+func (eval *evaluator) MulRelin(op0, op1 Operand, ctOut *Ciphertext) {
+	eval.mulRelin(op0, op1, true, ctOut)
+}
+
+func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext) {
+
+	if relin && eval.rlk == nil {
+		panic("evaluator has no relinearization key")
+	}
 
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 
@@ -1266,8 +1357,10 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 		c0 = elOut.value[0]
 		c1 = elOut.value[1]
 
-		if evakey == nil {
-			elOut.Resize(eval.params, 2)
+		if relin == false {
+			if elOut.Degree() < 2 {
+				elOut.Resize(eval.params, 2)
+			}
 			c2 = elOut.value[2]
 		} else {
 			c2 = eval.poolQMul[2]
@@ -1297,9 +1390,8 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 			ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
 		}
 
-		// Relinearize if a key was provided
-		if evakey != nil {
-			eval.switchKeysInPlace(level, c2, evakey.evakey, eval.poolQ[1], eval.poolQ[2])
+		if relin {
+			eval.switchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.poolQ[1], eval.poolQ[2])
 			ringQ.AddLvl(level, c0, eval.poolQ[1], elOut.value[0])
 			ringQ.AddLvl(level, c1, eval.poolQ[2], elOut.value[1])
 		}
@@ -1325,14 +1417,19 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, evakey *EvaluationKey, ctOut *
 
 // RelinearizeNew applies the relinearization procedure on ct0 and returns the result in a newly
 // created Ciphertext. The input Ciphertext must be of degree two.
-func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext, evakey *EvaluationKey) (ctOut *Ciphertext) {
+func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale())
-	eval.Relinearize(ct0, evakey, ctOut)
+	eval.Relinearize(ct0, ctOut)
 	return
 }
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut. The input Ciphertext must be of degree two.
-func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut *Ciphertext) {
+func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
+
+	if eval.rlk == nil {
+		panic("evaluator has no relinearization key")
+	}
+
 	if ct0.Degree() != 2 {
 		panic("cannot Relinearize: input Ciphertext is not of degree 2")
 	}
@@ -1344,7 +1441,7 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, evakey *EvaluationKey, ctOut
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
 	ringQ := eval.ringQ
 
-	eval.switchKeysInPlace(level, ct0.value[2], evakey.evakey, eval.poolQ[1], eval.poolQ[2])
+	eval.switchKeysInPlace(level, ct0.value[2], eval.rlk.Keys[0], eval.poolQ[1], eval.poolQ[2])
 
 	ringQ.AddLvl(level, ct0.value[0], eval.poolQ[1], ctOut.value[0])
 	ringQ.AddLvl(level, ct0.value[1], eval.poolQ[2], ctOut.value[1])
@@ -1373,7 +1470,7 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, c
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
 	ringQ := eval.ringQ
 
-	eval.switchKeysInPlace(level, ct0.value[1], switchingKey, eval.poolQ[1], eval.poolQ[2])
+	eval.switchKeysInPlace(level, ct0.value[1], &switchingKey.SwitchingKey, eval.poolQ[1], eval.poolQ[2])
 
 	ringQ.AddLvl(level, ct0.value[0], eval.poolQ[1], ctOut.value[0])
 	ringQ.CopyLvl(level, eval.poolQ[2], ctOut.value[1])
@@ -1381,127 +1478,72 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, c
 
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
-func (eval *evaluator) RotateNew(ct0 *Ciphertext, k uint64, evakey *RotationKeys) (ctOut *Ciphertext) {
+func (eval *evaluator) RotateNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
-	eval.Rotate(ct0, k, evakey, ctOut)
+	eval.Rotate(ct0, k, ctOut)
 	return
 }
 
 // Rotate rotates the columns of ct0 by k positions to the left and returns the result in ctOut.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
-func (eval *evaluator) Rotate(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot Rotate: input and output Ciphertext must be of degree 1")
 	}
 
-	k &= ((eval.ringQ.N >> 1) - 1)
-
 	if k == 0 {
 		ctOut.Copy(ct0.El())
-
 	} else {
 
 		ctOut.SetScale(ct0.Scale())
 
-		// It checks in the RotationKeys if the corresponding rotation has been generated
-		if evakey.evakeyRotColLeft[k] != nil {
-
-			eval.permuteNTT(ct0, evakey.permuteNTTLeftIndex[k], evakey.evakeyRotColLeft[k], ctOut)
-
-		} else {
-
-			// If not, it checks if the left and right pow2 rotations have been generated
-			hasPow2Rotations := true
-			for i := uint64(1); i < eval.ringQ.N>>1; i <<= 1 {
-				if evakey.evakeyRotColLeft[i] == nil || evakey.evakeyRotColRight[i] == nil {
-					hasPow2Rotations = false
-					break
-				}
-			}
-
-			// If yes, it computes the least amount of rotation between left and right required to apply the demanded rotation
-			if hasPow2Rotations {
-
-				if utils.HammingWeight64(k) <= utils.HammingWeight64((eval.ringQ.N>>1)-k) {
-					eval.rotateLPow2(ct0, k, evakey, ctOut)
-				} else {
-					eval.rotateRPow2(ct0, (eval.ringQ.N>>1)-k, evakey, ctOut)
-				}
-
-				// Otherwise, it returns an error indicating that the keys have not been generated
-			} else {
-				panic("cannot Rotate: specific rotation and pow2 rotations have not been generated")
-			}
-		}
-	}
-}
-
-func (eval *evaluator) rotateLPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	eval.rotatePow2(ct0, k, evakey.permuteNTTLeftIndex, evakey.evakeyRotColLeft, ctOut)
-}
-
-func (eval *evaluator) rotateRPow2(ct0 *Ciphertext, k uint64, evakey *RotationKeys, ctOut *Ciphertext) {
-	eval.rotatePow2(ct0, k, evakey.permuteNTTRightIndex, evakey.evakeyRotColRight, ctOut)
-}
-
-func (eval *evaluator) rotatePow2(ct0 *Ciphertext, k uint64, permuteNTTIndex map[uint64][]uint64, evakeyRotCol map[uint64]*SwitchingKey, ctOut *Ciphertext) {
-
-	var evakeyIndex uint64
-
-	evakeyIndex = 1
-
-	level := utils.MinUint64(ct0.Level(), ctOut.Level())
-
-	eval.ringQ.CopyLvl(level, ct0.value[0], ctOut.value[0])
-	eval.ringQ.CopyLvl(level, ct0.value[1], ctOut.value[1])
-
-	for k > 0 {
-
-		if k&1 == 1 {
-
-			eval.permuteNTT(ctOut, permuteNTTIndex[evakeyIndex], evakeyRotCol[evakeyIndex], ctOut)
+		galEl := eval.params.GaloisElementForColumnRotationBy(k)
+		rtk, generated := eval.rtks.Keys[galEl]
+		if !generated {
+			panic(fmt.Errorf("evaluator has no rotation key for rotation by %d", k))
 		}
 
-		evakeyIndex <<= 1
-		k >>= 1
+		eval.permuteNTT(ct0, galEl, rtk, ctOut)
 	}
 }
 
 // ConjugateNew conjugates ct0 (which is equivalent to a row rotation) and returns the result in a newly
 // created element. If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key
 // for the row rotation needs to be provided.
-func (eval *evaluator) ConjugateNew(ct0 *Ciphertext, evakey *RotationKeys) (ctOut *Ciphertext) {
+func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
-	eval.Conjugate(ct0, evakey, ctOut)
+	eval.Conjugate(ct0, ctOut)
 	return
 }
 
 // Conjugate conjugates ct0 (which is equivalent to a row rotation) and returns the result in ctOut.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the row rotation needs to be provided.
-func (eval *evaluator) Conjugate(ct0 *Ciphertext, evakey *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
 
-	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("cannot Conjugate: input and output Ciphertext must be of degree 1")
-	}
-
-	if evakey.evakeyConjugate == nil {
-		panic("cannot Conjugate: rows rotation key not generated")
+	galEl := eval.params.GaloisElementForRowRotation()
+	rtk, generated := eval.rtks.Keys[galEl]
+	if !generated {
+		panic("evaluator has no rotation key for row rotation")
 	}
 
 	ctOut.SetScale(ct0.Scale())
 
-	eval.permuteNTT(ct0, evakey.permuteNTTConjugateIndex, evakey.evakeyConjugate, ctOut)
+	eval.permuteNTT(ct0, galEl, rtk, ctOut)
 }
 
-func (eval *evaluator) permuteNTT(ct0 *Ciphertext, index []uint64, rotKeys *SwitchingKey, ctOut *Ciphertext) {
+func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, rtk *rlwe.SwitchingKey, ctOut *Ciphertext) {
+
+	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("input and output Ciphertext must be of degree 1")
+	}
 
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
-
+	index := eval.permuteNTTIndex[galEl]
 	pool2Q := eval.poolQ[1]
 	pool3Q := eval.poolQ[2]
 
-	eval.switchKeysInPlace(level, ct0.Value()[1], rotKeys, pool2Q, pool3Q)
+	eval.switchKeysInPlace(level, ct0.Value()[1], rtk, pool2Q, pool3Q)
 
 	eval.ringQ.AddLvl(level, pool2Q, ct0.value[0], pool2Q)
 
@@ -1509,7 +1551,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, index []uint64, rotKeys *Swit
 	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.value[1])
 }
 
-func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, evakey *SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
+func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
 	var reduce uint64
 
 	ringQ := eval.ringQ
@@ -1540,10 +1582,10 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 
 		eval.decomposeAndSplitNTT(level, i, cx, c2, c2QiQ, c2QiP)
 
-		evakey0Q.Coeffs = evakey.evakey[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = evakey.evakey[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = evakey.evakey[i][0].Coeffs[len(ringQ.Modulus):]
-		evakey1P.Coeffs = evakey.evakey[i][1].Coeffs[len(ringQ.Modulus):]
+		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]
+		evakey1Q.Coeffs = evakey.Value[i][1].Coeffs[:level+1]
+		evakey0P.Coeffs = evakey.Value[i][0].Coeffs[len(ringQ.Modulus):]
+		evakey1P.Coeffs = evakey.Value[i][1].Coeffs[len(ringQ.Modulus):]
 
 		if i == 0 {
 			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey0Q, c2QiQ, pool2Q)
@@ -1575,7 +1617,7 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 }
 
 // switchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
-func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
+func (eval *evaluator) switchKeysInPlace(level uint64, cx *ring.Poly, evakey *rlwe.SwitchingKey, p0, p1 *ring.Poly) {
 
 	eval.switchKeysInPlaceNoModDown(level, cx, evakey, p0, eval.poolP[1], p1, eval.poolP[2])
 
@@ -1618,7 +1660,7 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT,
 
 // RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
 // rotation by one element of the list. It is much faster than sequential calls to Rotate.
-func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []uint64, rotkeys *RotationKeys) (cOut map[uint64]*Ciphertext) {
+func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []int) (cOut map[int]*Ciphertext) {
 
 	// Pre-computation for rotations using hoisting
 	ringQ := eval.ringQ
@@ -1640,36 +1682,40 @@ func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []uint64, rotkey
 		eval.decomposeAndSplitNTT(ct0.Level(), i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
 	}
 
-	cOut = make(map[uint64]*Ciphertext)
-
+	cOut = make(map[int]*Ciphertext)
 	for _, i := range rotations {
-
-		i &= ((ringQ.N >> 1) - 1)
 
 		if i == 0 {
 			cOut[i] = ct0.CopyNew().Ciphertext()
 		} else {
 			cOut[i] = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale())
-			eval.permuteNTTHoisted(ct0, c2QiQDecomp, c2QiPDecomp, i, rotkeys, cOut[i])
+			eval.permuteNTTHoisted(ct0, c2QiQDecomp, c2QiPDecomp, i, cOut[i])
 		}
 	}
 
 	return
 }
 
-func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k uint64, rotKeys *RotationKeys, ctOut *Ciphertext) {
+func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("cannot switchKeyHoisted: input and output Ciphertext must be of degree 1")
+		panic("input and output Ciphertext must be of degree 1")
 	}
 
-	k &= 2*eval.ringQ.N - 1
+	if k == 0 {
+		ctOut.Copy(ct0.Element)
+		return
+	}
 
-	if rotKeys.permuteNTTLeftIndex[k] == nil {
-		panic("cannot switchKeyHoisted: specific rotation has not been generated")
+	galEl := eval.params.GaloisElementForColumnRotationBy(k)
+	rtk, generated := eval.rtks.Keys[galEl]
+	if !generated {
+		panic(fmt.Sprintf("specific rotation has not been generated: %d", k))
 	}
 
 	ctOut.SetScale(ct0.Scale())
+
+	index := eval.permuteNTTIndex[galEl]
 
 	pool2Q := eval.poolQ[0]
 	pool3Q := eval.poolQ[1]
@@ -1679,15 +1725,15 @@ func (eval *evaluator) permuteNTTHoisted(ct0 *Ciphertext, c2QiQDecomp, c2QiPDeco
 
 	level := ctOut.Level()
 
-	eval.keyswitchHoisted(level, c2QiQDecomp, c2QiPDecomp, rotKeys.evakeyRotColLeft[k], pool2Q, pool3Q, pool2P, pool3P)
+	eval.keyswitchHoisted(level, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
 	eval.ringQ.AddLvl(level, pool2Q, ct0.value[0], pool2Q)
 
-	ring.PermuteNTTWithIndexLvl(level, pool2Q, rotKeys.permuteNTTLeftIndex[k], ctOut.value[0])
-	ring.PermuteNTTWithIndexLvl(level, pool3Q, rotKeys.permuteNTTLeftIndex[k], ctOut.value[1])
+	ring.PermuteNTTWithIndexLvl(level, pool2Q, index, ctOut.value[0])
+	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.value[1])
 }
 
-func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
+func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
 
 	eval.keyswitchHoistedNoModDown(level, c2QiQDecomp, c2QiPDecomp, evakey, pool2Q, pool3Q, pool2P, pool3P)
 
@@ -1696,7 +1742,7 @@ func (eval *evaluator) keyswitchHoisted(level uint64, c2QiQDecomp, c2QiPDecomp [
 	eval.baseconverter.ModDownSplitNTTPQ(level, pool3Q, pool3P, pool3Q)
 }
 
-func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
+func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
@@ -1713,10 +1759,10 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level uint64, c2QiQDecomp, c2Qi
 	var reduce uint64
 	for i := uint64(0); i < beta; i++ {
 
-		evakey0Q.Coeffs = evakey.evakey[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = evakey.evakey[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = evakey.evakey[i][0].Coeffs[len(ringQ.Modulus):]
-		evakey1P.Coeffs = evakey.evakey[i][1].Coeffs[len(ringQ.Modulus):]
+		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]
+		evakey1Q.Coeffs = evakey.Value[i][1].Coeffs[:level+1]
+		evakey0P.Coeffs = evakey.Value[i][0].Coeffs[len(ringQ.Modulus):]
+		evakey1P.Coeffs = evakey.Value[i][1].Coeffs[len(ringQ.Modulus):]
 
 		if i == 0 {
 			ringQ.MulCoeffsMontgomeryLvl(level, evakey0Q, c2QiQDecomp[i], pool2Q)

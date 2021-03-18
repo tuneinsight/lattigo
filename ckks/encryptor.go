@@ -81,7 +81,7 @@ type skEncryptor struct {
 func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 	enc := newEncryptor(params)
 
-	if uint64(pk.pk[0].GetDegree()) != params.N() || uint64(pk.pk[1].GetDegree()) != params.N() {
+	if uint64(pk.Value[0].GetDegree()) != params.N() || uint64(pk.Value[1].GetDegree()) != params.N() {
 		panic("cannot newEncryptor: pk ring degree does not match params ring degree")
 	}
 
@@ -93,7 +93,7 @@ func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
 	enc := newEncryptor(params)
 
-	if uint64(sk.sk.GetDegree()) != params.N() {
+	if uint64(sk.Value.GetDegree()) != params.N() {
 		panic("cannot newEncryptor: sk ring degree does not match params ring degree")
 	}
 
@@ -215,9 +215,9 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringQ.MFormLvl(lvl, poolQ2, poolQ2)
 
 		// ct0 = u*pk0
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.pk[0], ciphertext.value[0])
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.Value[0], ciphertext.value[0])
 		// ct1 = u*pk1
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.pk[1], ciphertext.value[1])
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.Value[1], ciphertext.value[1])
 
 		// ct1 = u*pk1 + e1
 		encryptor.gaussianSamplerQ.ReadLvl(lvl, poolQ0)
@@ -258,13 +258,13 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 		pk0P := new(ring.Poly)
 		pk1P := new(ring.Poly)
-		pk0P.Coeffs = encryptor.pk.pk[0].Coeffs[len(ringQ.Modulus):]
-		pk1P.Coeffs = encryptor.pk.pk[1].Coeffs[len(ringQ.Modulus):]
+		pk0P.Coeffs = encryptor.pk.Value[0].Coeffs[len(ringQ.Modulus):]
+		pk1P.Coeffs = encryptor.pk.Value[1].Coeffs[len(ringQ.Modulus):]
 
 		// ct0 = u*pk0
 		// ct1 = u*pk1
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.pk[0], poolQ0)
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.pk[1], poolQ1)
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.Value[0], poolQ0)
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ2, encryptor.pk.Value[1], poolQ1)
 		ringP.MulCoeffsMontgomery(poolP2, pk0P, poolP0)
 		ringP.MulCoeffsMontgomery(poolP2, pk1P, poolP1)
 
@@ -356,7 +356,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 	poolQ0 := encryptor.poolQ[0]
 
-	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.value[1], encryptor.sk.sk, ciphertext.value[0])
+	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.value[1], encryptor.sk.Value, ciphertext.value[0])
 	ringQ.NegLvl(lvl, ciphertext.value[0], ciphertext.value[0])
 
 	if plaintext.isNTT {

@@ -43,7 +43,7 @@ func example() {
 
 	sk := kgen.GenSecretKey()
 
-	rlk := kgen.GenRelinKey(sk)
+	rlk := kgen.GenRelinearizationKey(sk)
 
 	encryptor := ckks.NewEncryptorFromSk(params, sk)
 
@@ -51,7 +51,7 @@ func example() {
 
 	encoder := ckks.NewEncoder(params)
 
-	evaluator := ckks.NewEvaluator(params)
+	evaluator := ckks.NewEvaluator(params, ckks.EvaluationKey{Rlk: rlk})
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
@@ -153,7 +153,7 @@ func example() {
 
 	poly := ckks.NewPoly(coeffs)
 
-	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, rlk); err != nil {
+	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly); err != nil {
 		panic(err)
 	}
 
@@ -173,7 +173,7 @@ func example() {
 
 	start = time.Now()
 
-	evaluator.Power(ciphertext, uint64(r), rlk, ciphertext)
+	evaluator.Power(ciphertext, uint64(r), ciphertext)
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

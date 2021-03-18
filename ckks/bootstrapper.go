@@ -13,6 +13,7 @@ import (
 // Bootstrapper is a struct to stores a memory pool the plaintext matrices
 // the polynomial approximation and the keys for the bootstrapping.
 type Bootstrapper struct {
+	*evaluator
 	BootstrappingParameters
 	*BootstrappingKey
 	params *Parameters
@@ -20,8 +21,7 @@ type Bootstrapper struct {
 	dslots    uint64 // Number of plaintext slots after the re-encoding
 	logdslots uint64
 
-	encoder   Encoder   // Encoder
-	evaluator Evaluator // Evaluator
+	encoder Encoder // Encoder
 
 	plaintextSize uint64 // Byte size of the plaintext DFT matrices
 
@@ -60,7 +60,7 @@ func cos2pi(x complex128) complex128 {
 }
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btpKey *BootstrappingKey) (btp *Bootstrapper, err error) {
+func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btpKey BootstrappingKey) (btp *Bootstrapper, err error) {
 
 	if btpParams.SinType == SinType(Sin) && btpParams.SinRescal != 0 {
 		return nil, fmt.Errorf("BootstrapParams: cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
@@ -72,10 +72,11 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 
 	btp = newBootstrapper(params, btpParams)
 
-	btp.BootstrappingKey = btpKey
+	btp.BootstrappingKey = &BootstrappingKey{btpKey.Rlk, btpKey.Rtks}
 	if err = btp.CheckKeys(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
 	}
+	btp.evaluator = btp.evaluator.WithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks}).(*evaluator)
 
 	return btp, nil
 }
@@ -101,7 +102,7 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 	btp.postscale = math.Exp2(math.Round(math.Log2(float64(params.qi[len(params.qi)-1-len(btpParams.CtSLevel)])))) / btp.deviation
 
 	btp.encoder = NewEncoder(params)
-	btp.evaluator = NewEvaluator(params)
+	btp.evaluator = NewEvaluator(params, EvaluationKey{}).(*evaluator) // creates an evaluator without keys for genDFTMatrices
 
 	btp.genSinePoly()
 	btp.genDFTMatrices()
@@ -121,23 +122,24 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 // CheckKeys checks if all the necessary keys are present
 func (btp *Bootstrapper) CheckKeys() (err error) {
 
-	if btp.relinkey == nil || btp.rotkeys == nil {
-		return fmt.Errorf("empty relinkkey and/or rotkeys")
+	if btp.Rlk == nil {
+		return fmt.Errorf("relinearization key is nil")
 	}
 
-	if btp.rotkeys.evakeyConjugate == nil {
-		return fmt.Errorf("missing conjugate key")
+	if btp.Rtks == nil {
+		return fmt.Errorf("rotation key is nil")
 	}
 
 	rotMissing := []uint64{}
 	for _, i := range btp.rotKeyIndex {
-		if btp.rotkeys.evakeyRotColLeft[i] == nil || btp.rotkeys.permuteNTTLeftIndex[i] == nil {
+		galEl := btp.params.GaloisElementForColumnRotationBy(int(i))
+		if _, generated := btp.Rtks.Keys[galEl]; !generated {
 			rotMissing = append(rotMissing, i)
 		}
 	}
 
 	if len(rotMissing) != 0 {
-		return fmt.Errorf("missing rotation keys : %d", rotMissing)
+		return fmt.Errorf("rotation key(s) missing: %d", rotMissing)
 	}
 
 	return nil
@@ -495,8 +497,8 @@ func (btp *Bootstrapper) encodePVec(pVec map[uint64][]complex128, plaintextVec *
 
 	plaintextVec.Level = level
 	plaintextVec.Scale = scale
-	ringQ := btp.evaluator.(*evaluator).ringQ
-	ringP := btp.evaluator.(*evaluator).ringP
+	ringQ := btp.evaluator.ringQ
+	ringP := btp.evaluator.ringP
 	encoder := btp.encoder.(*encoderComplex128)
 
 	for j := range index {

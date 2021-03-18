@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 func BenchmarkDCKKS(b *testing.B) {
@@ -27,7 +29,6 @@ func BenchmarkDCKKS(b *testing.B) {
 
 		benchPublicKeyGen(testCtx, b)
 		benchRelinKeyGen(testCtx, b)
-		benchRelinKeyGenNaive(testCtx, b)
 		benchKeySwitching(testCtx, b)
 		benchPublicKeySwitching(testCtx, b)
 		benchRotKeyGen(testCtx, b)
@@ -45,13 +46,13 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*CKGProtocol
-		s  *ring.Poly
-		s1 CKGShare
+		s  *rlwe.SecretKey
+		s1 *drlwe.CKGShare
 	}
 
 	p := new(Party)
 	p.CKGProtocol = NewCKGProtocol(testCtx.params)
-	p.s = sk0Shards[0].Get()
+	p.s = &sk0Shards[0].SecretKey
 	p.s1 = p.AllocateShares()
 
 	b.Run(testString("PublicKeyGen/Gen/", parties, testCtx.params), func(b *testing.B) {
@@ -77,17 +78,16 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*RKGProtocol
-		u      *ring.Poly
-		s      *ring.Poly
-		share1 RKGShare
-		share2 RKGShare
+		ephSk  *rlwe.SecretKey
+		sk     *rlwe.SecretKey
+		share1 *drlwe.RKGShare
+		share2 *drlwe.RKGShare
 	}
 
 	p := new(Party)
-	p.RKGProtocol = NewEkgProtocol(testCtx.params)
-	p.u = p.RKGProtocol.NewEphemeralKey()
-	p.s = sk0Shards[0].Get()
-	p.share1, p.share2 = p.RKGProtocol.AllocateShares()
+	p.RKGProtocol = NewRKGProtocol(testCtx.params)
+	p.sk = &sk0Shards[0].SecretKey
+	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
 	crp := make([]*ring.Poly, testCtx.params.Beta())
@@ -99,77 +99,31 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RelinKeyGen/Round1Gen/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundOne(p.u, p.s, crp, p.share1)
+			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
 		}
 	})
 
 	b.Run(testString("RelinKeyGen/Round1Agg/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShareRoundOne(p.share1, p.share1, p.share1)
+			p.AggregateShares(p.share1, p.share1, p.share1)
 		}
 	})
 
 	b.Run(testString("RelinKeyGen/Round2Gen/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundTwo(p.share1, p.u, p.s, crp, p.share2)
+			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, crp, p.share2)
 		}
 	})
 
 	b.Run(testString("RelinKeyGen/Round2Agg/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShareRoundTwo(p.share2, p.share2, p.share2)
+			p.AggregateShares(p.share2, p.share2, p.share2)
 		}
 	})
 
-}
-
-func benchRelinKeyGenNaive(testCtx *testContext, b *testing.B) {
-
-	pk0 := testCtx.pk0
-	sk0Shards := testCtx.sk0Shards
-
-	type Party struct {
-		*RKGProtocolNaive
-		s      *ring.Poly
-		share1 RKGNaiveShareRoundOne
-		share2 RKGNaiveShareRoundTwo
-	}
-
-	p := new(Party)
-	p.RKGProtocolNaive = NewRKGProtocolNaive(testCtx.params)
-	p.s = sk0Shards[0].Get()
-	p.share1, p.share2 = p.AllocateShares()
-
-	b.Run(testString("RelinKeyGenNaive/Round1Gen/", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShareRoundOne(p.s, pk0.Get(), p.share1)
-		}
-	})
-
-	b.Run(testString("RelinKeyGenNaive/Round1Agg/", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.AggregateShareRoundOne(p.share1, p.share1, p.share1)
-		}
-	})
-
-	b.Run(testString("RelinKeyGenNaive/Round2Gen/", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShareRoundTwo(p.share1, p.s, pk0.Get(), p.share2)
-		}
-	})
-
-	b.Run(testString("RelinKeyGenNaive/Round2Agg/", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.AggregateShareRoundTwo(p.share2, p.share2, p.share2)
-		}
-	})
 }
 
 func benchKeySwitching(testCtx *testContext, b *testing.B) {
@@ -186,8 +140,8 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
-	p.s0 = sk0Shards[0].Get()
-	p.s1 = sk1Shards[0].Get()
+	p.s0 = sk0Shards[0].Value
+	p.s1 = sk1Shards[0].Value
 	p.share = p.AllocateShare()
 
 	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, testCtx.params.MaxLevel(), testCtx.params.Scale())
@@ -229,7 +183,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
-	p.s = sk0Shards[0].Get()
+	p.s = sk0Shards[0].Value
 	p.share = p.AllocateShares(ciphertext.Level())
 
 	b.Run(testString("PublicKeySwitching/Gen/", parties, testCtx.params), func(b *testing.B) {
@@ -261,14 +215,14 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*RTGProtocol
-		s     *ring.Poly
-		share RTGShare
+		s     *rlwe.SecretKey
+		share *drlwe.RTGShare
 	}
 
 	p := new(Party)
 	p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-	p.s = sk0Shards[0].Get()
-	p.share = p.AllocateShare()
+	p.s = &sk0Shards[0].SecretKey
+	p.share = p.AllocateShares()
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQP)
 	crp := make([]*ring.Poly, testCtx.params.Beta())
@@ -276,13 +230,11 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	for i := uint64(0); i < testCtx.params.Beta(); i++ {
 		crp[i] = crpGenerator.ReadNew()
 	}
-
-	mask := uint64((ringQP.N >> 1) - 1)
-
+	galEl := testCtx.params.GaloisElementForRowRotation()
 	b.Run(testString("RotKeyGen/Round1/Gen/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(ckks.RotationRight, uint64(i)&mask, sk0Shards[0].Get(), crp, &p.share)
+			p.GenShare(p.s, galEl, crp, p.share)
 		}
 	})
 
@@ -293,11 +245,10 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 		}
 	})
 
-	rotKey := ckks.NewRotationKeys()
+	rotKey := ckks.NewSwitchingKey(testCtx.params)
 	b.Run(testString("RotKeyGen/Finalize/", parties, testCtx.params), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
-			p.Finalize(testCtx.params, p.share, crp, rotKey)
+			p.GenCKKSRotationKey(p.share, crp, rotKey)
 		}
 	})
 }
@@ -322,7 +273,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.RefreshProtocol = NewRefreshProtocol(testCtx.params)
-	p.s = sk0Shards[0].Get()
+	p.s = sk0Shards[0].Value
 	p.share1, p.share2 = p.AllocateShares(levelStart)
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQ)
@@ -385,7 +336,7 @@ func benchRefreshAndPermute(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.PermuteProtocol = NewPermuteProtocol(testCtx.params)
-	p.s = sk0Shards[0].Get()
+	p.s = sk0Shards[0].Value
 	p.share1, p.share2 = p.AllocateShares(levelStart)
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)

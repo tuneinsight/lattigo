@@ -79,8 +79,8 @@ func GInverse(p *ring.Poly, params *bfv.Parameters) *MKDecomposedPoly {
 
 	c2QiQ := params.NewPolyQ()
 	c2QiP := params.NewPolyP()
-	invPoly := params.NewPolyQP()
-	ringQP.InvNTT(p, invPoly)
+	invPoly := params.NewPolyQ()
+	ringQ.InvNTT(p, invPoly)
 
 	// generate each poly decomposed in the base
 	for i := uint64(0); i < beta; i++ {

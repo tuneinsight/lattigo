@@ -67,7 +67,7 @@ func Test_Add(t *testing.T) {
 
 	out1, out2 := PadCiphers(cipher1, cipher2, params)
 
-	resCipher := evaluator.Add(out1, out2, params)
+	resCipher := evaluator.Add(out1, out2)
 
 	// decrypt
 	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey)
@@ -89,7 +89,79 @@ func Test_Add(t *testing.T) {
 	}
 }
 
-/*
+func Test_AddFourParticipants(t *testing.T) {
+
+	ids := []uint64{1, 2, 5, 7}
+
+	keys, params := setupPeers(ids, 0)
+
+	ringQ := GetRingQ(params)
+	ringT := getRingT(params)
+
+	encoder := bfv.NewEncoder(params)
+
+	encryptor1 := NewMKEncryptor(keys[0].publicKey, params, ids[0])
+	encryptor2 := NewMKEncryptor(keys[1].publicKey, params, ids[1])
+	encryptor3 := NewMKEncryptor(keys[2].publicKey, params, ids[2])
+	encryptor4 := NewMKEncryptor(keys[3].publicKey, params, ids[3])
+	decryptor := NewMKDecryptor(params)
+
+	expected1 := getRandomPlaintextValue(ringT, params)
+	expected2 := getRandomPlaintextValue(ringT, params)
+	expected3 := getRandomPlaintextValue(ringT, params)
+	expected4 := getRandomPlaintextValue(ringT, params)
+	plaintext1 := newPlaintext(expected1, ringQ, encoder)
+	plaintext2 := newPlaintext(expected2, ringQ, encoder)
+	plaintext3 := newPlaintext(expected3, ringQ, encoder)
+	plaintext4 := newPlaintext(expected4, ringQ, encoder)
+
+	// encrypt
+	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext())
+	cipher2 := encryptor2.EncryptMK(plaintext2.Plaintext())
+	cipher3 := encryptor3.EncryptMK(plaintext3.Plaintext())
+	cipher4 := encryptor4.EncryptMK(plaintext4.Plaintext())
+
+	// pad and add in 2 steps
+	evaluator := NewMKEvaluator(params)
+
+	out1, out2 := PadCiphers(cipher1, cipher2, params)
+	out3, out4 := PadCiphers(cipher3, cipher4, params)
+
+	resCipher1 := evaluator.Add(out1, out2)
+	resCipher2 := evaluator.Add(out3, out4)
+
+	finalOut1, finalOut2 := PadCiphers(resCipher1, resCipher2, params)
+
+	resCipher := evaluator.Add(finalOut1, finalOut2)
+
+	// decrypt
+	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey)
+	partialDec2 := decryptor.PartDec(resCipher.ciphertexts.Value()[2], keys[1].secretKey)
+	partialDec3 := decryptor.PartDec(resCipher.ciphertexts.Value()[3], keys[2].secretKey)
+	partialDec4 := decryptor.PartDec(resCipher.ciphertexts.Value()[4], keys[3].secretKey)
+
+	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2, partialDec3, partialDec4})
+
+	// perform the operation in the plaintext space
+	expected := ringT.NewPoly()
+	p1 := ringT.NewPoly()
+	p2 := ringT.NewPoly()
+	p3 := ringT.NewPoly()
+	p4 := ringT.NewPoly()
+	copy(p1.Coeffs[0], expected1)
+	copy(p2.Coeffs[0], expected2)
+	copy(p3.Coeffs[0], expected3)
+	copy(p4.Coeffs[0], expected4)
+
+	ringT.Add(p1, p2, expected)
+	ringT.Add(p3, expected, expected)
+	ringT.Add(p4, expected, expected)
+
+	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected.Coeffs[0]) {
+		t.Error("Homomorphic addition error")
+	}
+}
+
 func Test_Mul(t *testing.T) {
 
 	ids := []uint64{1, 2}
@@ -119,13 +191,11 @@ func Test_Mul(t *testing.T) {
 
 	out1, out2 := PadCiphers(cipher1, cipher2, params)
 
-	resCipher := evaluator.MultRelinDynamic(out1, out2, []*MKEvaluationKey{keys[0].evalKey, keys[1].evalKey}, []*MKPublicKey{keys[0].publicKey, keys[1].publicKey}, params)
+	resCipher := evaluator.MultRelinDynamic(out1, out2, []*MKEvaluationKey{keys[0].evalKey, keys[1].evalKey}, []*MKPublicKey{keys[0].publicKey, keys[1].publicKey})
 
 	// decrypt
-	partialDec1 := ringQ.NewPoly()
-	partialDec2 := ringQ.NewPoly()
-	decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey, partialDec1)
-	decryptor.PartDec(resCipher.ciphertexts.Value()[2], keys[1].secretKey, partialDec2)
+	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey)
+	partialDec2 := decryptor.PartDec(resCipher.ciphertexts.Value()[2], keys[1].secretKey)
 
 	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2})
 
@@ -143,7 +213,7 @@ func Test_Mul(t *testing.T) {
 	}
 
 }
-*/
+
 func Test_Utils(t *testing.T) {
 
 	s1 := []uint64{0, 2, 1}

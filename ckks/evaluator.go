@@ -231,6 +231,12 @@ func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
 	if params.PiCount() != 0 {
 		eval.baseconverter = ring.NewFastBasisExtender(eval.ringQ, eval.ringP)
 	}
+	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
+	for galEl := range rtks.Keys {
+		permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, eval.ringQ.N)
+	}
+	return &permuteNTTIndex
+}
 
 	return eval
 }

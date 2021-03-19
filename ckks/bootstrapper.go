@@ -64,6 +64,7 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 	if err = btp.CheckKeys(); err != nil {
 		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
 	}
+	btp.evaluator = btp.evaluator.WithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks}).(*evaluator)
 
 	btp.evaluator = btp.evaluator.WithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks}).(*evaluator)
 

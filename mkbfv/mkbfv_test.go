@@ -1,6 +1,7 @@
 package mkbfv
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
@@ -14,38 +15,31 @@ func Test_EncryptionEqualsDecryption(t *testing.T) {
 	keys, params := setupPeers(ids, 0)
 
 	ringQ := GetRingQ(params)
+	ringT := getRingT(params)
 
-	encryptor := NewMKEncryptor(keys[0].publicKey, params)
+	encryptor := NewMKEncryptor(keys[0].publicKey, params, ids[0])
 	decryptor := NewMKDecryptor(params)
 
 	encoder := bfv.NewEncoder(params)
 
-	plaintext := new(bfv.Element)
-
-	ptValues := make([]*ring.Poly, 1)
-	expected := GetRandomPoly(params, ringQ)
-	ptValues[0] = ringQ.NewPoly()
-	plaintext.SetValue(ptValues)
-
-	// Encode
-	encoder.EncodeUint(expected.Coeffs[0], plaintext.Plaintext())
+	expected := getRandomPlaintextValue(ringT, params)
+	plaintext := newPlaintext(expected, ringQ, encoder)
 
 	// encrypt
-	cipher := encryptor.EncryptMK(plaintext.Plaintext(), ids[0])
-
-	partialDec := ringQ.NewPoly()
+	cipher := encryptor.EncryptMK(plaintext)
 
 	// decrypt
+	partialDec := ringQ.NewPoly()
 	decryptor.PartDec(cipher.ciphertexts.Value()[1], keys[0].secretKey, partialDec)
-
 	decrypted := decryptor.MergeDec(cipher.ciphertexts.Value()[0], []*ring.Poly{partialDec})
 
 	// decode and check
-	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected.Coeffs[0]) {
+	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected) {
 		t.Error("Decryption of encryption does not equals plaintext")
 	}
 }
 
+/*
 func Test_Add(t *testing.T) {
 
 	ids := []uint64{1, 2}
@@ -53,34 +47,22 @@ func Test_Add(t *testing.T) {
 	keys, params := setupPeers(ids, 0)
 
 	ringQ := GetRingQ(params)
+	ringT := getRingT(params)
 
 	encoder := bfv.NewEncoder(params)
 
-	encryptor1 := NewMKEncryptor(keys[0].publicKey, params)
-	encryptor2 := NewMKEncryptor(keys[1].publicKey, params)
+	encryptor1 := NewMKEncryptor(keys[0].publicKey, params, ids[0])
+	encryptor2 := NewMKEncryptor(keys[1].publicKey, params, ids[1])
 	decryptor := NewMKDecryptor(params)
 
-	plaintext1 := new(bfv.Element)
-	plaintext2 := new(bfv.Element)
-
-	ptValues1 := make([]*ring.Poly, 1)
-	ptValues2 := make([]*ring.Poly, 1)
-	ptValues1[0] = ringQ.NewPoly()
-	ptValues2[0] = ringQ.NewPoly()
-
-	plaintext1.SetValue(ptValues1)
-	plaintext2.SetValue(ptValues2)
-
-	expected1 := GetRandomPoly(params, ringQ)
-	expected2 := GetRandomPoly(params, ringQ)
-
-	// encode
-	encoder.EncodeUint(expected1.Coeffs[0], plaintext1.Plaintext())
-	encoder.EncodeUint(expected2.Coeffs[0], plaintext2.Plaintext())
+	expected1 := getRandomPlaintextValue(ringT, params)
+	expected2 := getRandomPlaintextValue(ringT, params)
+	plaintext1 := newPlaintext(expected1, ringQ, encoder)
+	plaintext2 := newPlaintext(expected2, ringQ, encoder)
 
 	// encrypt
-	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext(), ids[0])
-	cipher2 := encryptor2.EncryptMK(plaintext2.Plaintext(), ids[1])
+	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext())
+	cipher2 := encryptor2.EncryptMK(plaintext2.Plaintext())
 
 	// pad and add
 	evaluator := NewMKEvaluator(params)
@@ -97,8 +79,14 @@ func Test_Add(t *testing.T) {
 
 	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2})
 
-	expected := ringQ.NewPoly()
-	ringQ.AddNoMod(expected1, expected2, expected)
+	// perform the operation in the plaintext space
+	expected := ringT.NewPoly()
+	p1 := ringT.NewPoly()
+	p2 := ringT.NewPoly()
+	copy(p1.Coeffs[0], expected1)
+	copy(p2.Coeffs[0], expected2)
+
+	ringT.Add(p1, p2, expected)
 
 	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected.Coeffs[0]) {
 		t.Error("Homomorphic addition error")
@@ -112,40 +100,22 @@ func Test_Mul(t *testing.T) {
 	keys, params := setupPeers(ids, 0)
 
 	ringQ := GetRingQ(params)
+	ringT := getRingT(params)
 
 	encoder := bfv.NewEncoder(params)
 
-	encryptor1 := NewMKEncryptor(keys[0].publicKey, params)
-	encryptor2 := NewMKEncryptor(keys[1].publicKey, params)
+	encryptor1 := NewMKEncryptor(keys[0].publicKey, params, ids[0])
+	encryptor2 := NewMKEncryptor(keys[1].publicKey, params, ids[1])
 	decryptor := NewMKDecryptor(params)
 
-	plaintext1 := new(bfv.Element)
-	plaintext2 := new(bfv.Element)
-
-	ptValues1 := make([]*ring.Poly, 1)
-	ptValues2 := make([]*ring.Poly, 1)
-	ptValues1[0] = ringQ.NewPoly()
-	ptValues2[0] = ringQ.NewPoly()
-
-	plaintext1.SetValue(ptValues1)
-	plaintext2.SetValue(ptValues2)
-
-	expected1 := GetRandomPoly(params, ringQ)
-	expected2 := GetRandomPoly(params, ringQ)
-
-	expected := make([]uint64, len(expected1.Coeffs[0]))
-
-	for i := 0; i < len(expected1.Coeffs[0]); i++ {
-		expected[i] = expected1.Coeffs[0][i] * expected2.Coeffs[0][i]
-	}
-
-	// encode
-	encoder.EncodeUint(expected1.Coeffs[0], plaintext1.Plaintext())
-	encoder.EncodeUint(expected2.Coeffs[0], plaintext2.Plaintext())
+	expected1 := getRandomPlaintextValue(ringT, params)
+	expected2 := getRandomPlaintextValue(ringT, params)
+	plaintext1 := newPlaintext(expected1, ringQ, encoder)
+	plaintext2 := newPlaintext(expected2, ringQ, encoder)
 
 	// encrypt
-	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext(), ids[0])
-	cipher2 := encryptor2.EncryptMK(plaintext2.Plaintext(), ids[1])
+	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext())
+	cipher2 := encryptor2.EncryptMK(plaintext2.Plaintext())
 
 	// pad and mul
 	evaluator := NewMKEvaluator(params)
@@ -162,12 +132,21 @@ func Test_Mul(t *testing.T) {
 
 	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2})
 
-	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected) {
+	// perform operation in plaintext space
+	expected := ringT.NewPoly()
+	p1 := ringT.NewPoly()
+	p2 := ringT.NewPoly()
+	copy(p1.Coeffs[0], expected1)
+	copy(p2.Coeffs[0], expected2)
+
+	ringT.MulCoeffs(p1, p2, expected)
+
+	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected.Coeffs[0]) {
 		t.Error("Homomorphic multiplication error")
 	}
 
 }
-
+*/
 func Test_Utils(t *testing.T) {
 
 	s1 := []uint64{0, 2, 1}
@@ -187,50 +166,26 @@ func Test_Utils(t *testing.T) {
 func Test_KeyGenAndPadCiphertext(t *testing.T) {
 
 	// setup keys and public parameters
-	params := bfv.DefaultParams[0]
-	a := GenCommonPublicParam(params)
+	ids := []uint64{12, 3}
 
-	if a == nil || params == nil {
+	keys, params := setupPeers(ids, 0)
+	if keys == nil || params == nil {
 		t.Errorf("Generation of common public parameter failed !")
 	}
 
-	id1 := uint64(12)
-	id2 := uint64(3)
-
-	keys := KeyGen(params, id1, a)
-	if keys == nil {
-		t.Errorf("Keys generation failed")
-	}
-
-	pubKeys := make([]*MKPublicKey, 1)
-	pubKeys[0] = keys.publicKey
-
-	evalKeys := make([]*MKEvaluationKey, 1)
-	evalKeys[0] = keys.evalKey
-
-	keys.relinKey = GenSharedRelinearizationKey(params, pubKeys, evalKeys)
-	if keys.relinKey == nil {
-		t.Errorf("Shared relin key generation failed")
-	}
+	encoder := bfv.NewEncoder(params)
 
 	//create and encrypt 2 plaintext
-	encryptor := NewMKEncryptor(keys.publicKey, params)
+	encryptor1 := NewMKEncryptor(keys[0].publicKey, params, ids[0])
+	encryptor2 := NewMKEncryptor(keys[1].publicKey, params, ids[1])
 
-	plaintext := new(bfv.Element)
+	val1 := getRandomPlaintextValue(getRingT(params), params)
+	plaintext1 := newPlaintext(val1, GetRingQ(params), encoder)
+	val2 := getRandomPlaintextValue(getRingT(params), params)
+	plaintext2 := newPlaintext(val2, GetRingQ(params), encoder)
 
-	values1 := make([]*ring.Poly, 1)
-	values2 := make([]*ring.Poly, 1)
-	value1 := a.poly[0]
-	value2 := a.poly[0]
-
-	values1[0] = value1
-	values2[0] = value2
-
-	plaintext.SetValue(values1)
-	mkCiphertext1 := encryptor.EncryptMK(plaintext.Plaintext(), id1)
-
-	plaintext.SetValue(values2)
-	mkCiphertext2 := encryptor.EncryptMK(plaintext.Plaintext(), id2)
+	mkCiphertext1 := encryptor1.EncryptMK(plaintext1)
+	mkCiphertext2 := encryptor2.EncryptMK(plaintext2)
 
 	// Pad both ciphertexts
 	out1, out2 := PadCiphers(mkCiphertext1, mkCiphertext2, params)
@@ -278,6 +233,7 @@ func equalsSlice(s1, s2 []uint64) bool {
 
 	for i, e := range s1 {
 		if e != s2[i] {
+			fmt.Printf("%d not equal to %d . Error at index %d", e, s2[i], i)
 			return false
 		}
 	}
@@ -320,4 +276,37 @@ func setupPeers(peerIDs []uint64, paramsNbr int) ([]*MKKeys, *bfv.Parameters) {
 	}
 
 	return res, params
+}
+
+// newPlaintext initializes a new bfv Plaintext with an encoded slice of uint64
+func newPlaintext(value []uint64, ringQ *ring.Ring, encoder bfv.Encoder) *bfv.Plaintext {
+
+	plaintext := new(bfv.Element)
+
+	ptValues := make([]*ring.Poly, 1)
+
+	ptValues[0] = ringQ.NewPoly()
+	plaintext.SetValue(ptValues)
+
+	// Encode
+	encoder.EncodeUint(value, plaintext.Plaintext())
+
+	return plaintext.Plaintext()
+}
+
+// returns a uniformly random slice of uint64 in RingT
+func getRandomPlaintextValue(ringT *ring.Ring, params *bfv.Parameters) []uint64 {
+
+	return GetRandomPoly(params, ringT).Coeffs[0]
+}
+
+// getRingT returns the ring from which the plaintexts will be sampled
+func getRingT(params *bfv.Parameters) *ring.Ring {
+
+	if ringT, err := ring.NewRing(params.N(), []uint64{params.T()}); err != nil {
+		panic("Couldn't create ringT with given parameters")
+
+	} else {
+		return ringT
+	}
 }

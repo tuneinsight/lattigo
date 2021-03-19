@@ -44,9 +44,11 @@ func (dec *mkDecryptor) PartDec(ct *ring.Poly, sk *MKSecretKey, out *ring.Poly) 
 
 	// mu_i = c_i * sk_i + e_i mod q
 
-	out = dec.samplerGaussian.ReadNew()
+	out = dec.samplerGaussian.ReadNew() // TODO: in paper they want sigma > 3.2 for this error... but they don't tell how much...
+	dec.ringQ.NTT(out, out)
+	dec.ringQ.NTTLazy(ct, ct)
 
-	dec.ringQ.MulCoeffsAndAdd(ct, sk.key.Value, out)
+	dec.ringQ.MulCoeffsMontgomeryAndAdd(ct, sk.key.Value, out)
 
 }
 
@@ -56,12 +58,13 @@ func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly) *bfv.P
 	plaintext := new(bfv.Element)
 
 	res := dec.ringQ.NewPoly()
-
-	dec.ringQ.Copy(c0, res)
+	dec.ringQ.NTTLazy(c0, res)
 
 	for _, k := range partialKeys {
 		dec.ringQ.Add(res, k, res)
 	}
+
+	dec.ringQ.InvNTT(res, res)
 
 	plaintext.SetValue([]*ring.Poly{res})
 

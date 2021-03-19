@@ -89,7 +89,7 @@ func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGe
 
 	// a <- U(Rqp^d)
 	// e <- Gauss(Rqp^d)
-	// b <- -s * a + e mod(q) in Rq^d
+	// b <- -s * a + e mod(qp) in Rqp^d
 
 	beta := params.Beta()
 
@@ -98,12 +98,12 @@ func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGe
 		panic(err)
 	}
 
-	res = GetGaussianDecomposed(GetGaussianSampler(params, ringQP, prng), beta) // e in Rq^d
+	res = GetGaussianDecomposed(GetGaussianSampler(params, ringQP, prng), beta) // e in Rqp^d
 
 	for d := uint64(0); d < beta; d++ {
 		current := res.poly[d]
 		ringQP.NTT(current, current)                                   // Pass ei in NTT
-		ringQP.MulCoeffsMontgomeryAndSub(sk.Value, a.poly[d], current) // bi = -s * ai + ei (mod q)
+		ringQP.MulCoeffsMontgomeryAndSub(sk.Value, a.poly[d], current) // bi = -s * ai + ei (mod qp)
 	}
 
 	return res

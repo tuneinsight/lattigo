@@ -1,9 +1,9 @@
 package ckks
 
 import (
+	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/big"
-	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // StandardDeviation computes the scaled standard deviation of the input vector.

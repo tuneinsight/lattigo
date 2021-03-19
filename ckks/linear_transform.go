@@ -57,12 +57,12 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, batchSize, n int, ctOut *Cipher
 	//QiOverF := eval.params.QiOverflowMargin(levelQ)
 	//PiOverF := eval.params.PiOverflowMargin()
 
-	if n == 1{
+	if n == 1 {
 		if ct0 != ctOut {
 			ringQ.CopyLvl(levelQ, ct0.value[0], ctOut.value[0])
 			ringQ.CopyLvl(levelQ, ct0.value[1], ctOut.value[1])
 		}
-	}else{
+	} else {
 
 		// Memory pool for vec = vec + rot(vec, 2^i) in Q
 		tmpc0 := eval.poolQMul[0] // unused memory pool from evaluator

@@ -594,11 +594,9 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	if eval.rlk == nil {
 		panic("evaluator has no relinearization key")
-	if int(ct0.Degree()-1) > len(eval.rlk.Keys) {
-		panic("cannot Relinearize: input ciphertext degree too large to allow relinearization")
 	}
 
-	if int(ct0.Degree()-1) > len(eval.rlk.Keys) {
+	if ct0.Degree()-1 > len(eval.rlk.Keys) {
 		panic("input ciphertext degree is too large to allow relinearization with the evluator's relinearization key")
 	}
 

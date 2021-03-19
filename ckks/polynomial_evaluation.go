@@ -121,7 +121,6 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 	return opOut, err
 }
 
-
 func computePowerBasis(n int, C map[int]*Ciphertext, evaluator *evaluator) (err error) {
 
 	if C[n] == nil {
@@ -148,7 +147,6 @@ func computePowerBasis(n int, C map[int]*Ciphertext, evaluator *evaluator) (err 
 
 	return nil
 }
-
 
 func computePowerBasisCheby(n int, C map[int]*Ciphertext, evaluator *evaluator) (err error) {
 
@@ -268,7 +266,6 @@ func splitCoeffsCheby(coeffs *Poly, split int) (coeffsq, coeffsr *Poly) {
 	return coeffsq, coeffsr
 }
 
-
 func recurse(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[int]*Ciphertext, evaluator *evaluator) (res *Ciphertext, err error) {
 
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
@@ -341,7 +338,6 @@ func recurse(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[i
 
 	return
 }
-
 
 func recurseCheby(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[int]*Ciphertext, evaluator *evaluator) (res *Ciphertext, err error) {
 

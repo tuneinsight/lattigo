@@ -140,9 +140,8 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
 
-		
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
-		
+
 		for i := range values {
 
 			values[i] = cmplx.Cos(6.283185307179586 * (1 / scFac) * (values[i] - 0.25))
@@ -165,7 +164,6 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
 			t.Error(err)
 		}
-		
 
 		for i := 0; i < scNum; i++ {
 			sqrt2pi *= sqrt2pi

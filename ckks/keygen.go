@@ -33,8 +33,6 @@ type KeyGenerator interface {
 	GenRotationIndexesForInnerSumNaive(batch, n int) []int
 
 	GenRotationIndexesForDiagMatrix(matrix *PtDiagMatrix) []int
-
-	GenRotationIndexesForMatMul(mmpt *MMPt) []int
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -296,7 +294,6 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 	return keygen.GenRotationKeys(galEls, sk)
 }
 
-
 // GenRotationIndexesForInnerSumNaive generates the rotation indexes for the
 // InnerSumNaive. To be then used with GenRotationKeysForRotations to generate
 // the RotationKeySet.
@@ -330,21 +327,6 @@ func (keygen *keyGenerator) GenRotationIndexesForInnerSum(batch, n int) (rotatio
 		if !utils.IsInSliceInt(k, rotations) && k != 0 {
 			rotations = append(rotations, k)
 		}
-	}
-
-	return
-}
-
-// GenMatMulIndexRotKeys generates a list of all the rotations needed for mmpt.
-func (keygen *keyGenerator) GenRotationIndexesForMatMul(mmpt *MMPt) (rotations []int) {
-
-	rotations = keygen.GenRotationIndexesForDiagMatrix(mmpt.mPermuteRows)
-	rotations = append(rotations, keygen.GenRotationIndexesForDiagMatrix(mmpt.mPermuteCols)...)
-
-	for i := range mmpt.mRotCols {
-
-		rotations = append(rotations, keygen.GenRotationIndexesForDiagMatrix(mmpt.mRotCols[i])...)
-		rotations = append(rotations, keygen.GenRotationIndexesForDiagMatrix(mmpt.mRotRows[i])...)
 	}
 
 	return

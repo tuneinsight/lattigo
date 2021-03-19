@@ -29,8 +29,7 @@ func Test_EncryptionEqualsDecryption(t *testing.T) {
 	cipher := encryptor.EncryptMK(plaintext)
 
 	// decrypt
-	partialDec := ringQ.NewPoly()
-	decryptor.PartDec(cipher.ciphertexts.Value()[1], keys[0].secretKey, partialDec)
+	partialDec := decryptor.PartDec(cipher.ciphertexts.Value()[1], keys[0].secretKey)
 	decrypted := decryptor.MergeDec(cipher.ciphertexts.Value()[0], []*ring.Poly{partialDec})
 
 	// decode and check
@@ -39,7 +38,6 @@ func Test_EncryptionEqualsDecryption(t *testing.T) {
 	}
 }
 
-/*
 func Test_Add(t *testing.T) {
 
 	ids := []uint64{1, 2}
@@ -72,10 +70,8 @@ func Test_Add(t *testing.T) {
 	resCipher := evaluator.Add(out1, out2, params)
 
 	// decrypt
-	partialDec1 := ringQ.NewPoly()
-	partialDec2 := ringQ.NewPoly()
-	decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey, partialDec1)
-	decryptor.PartDec(resCipher.ciphertexts.Value()[2], keys[1].secretKey, partialDec2)
+	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey)
+	partialDec2 := decryptor.PartDec(resCipher.ciphertexts.Value()[2], keys[1].secretKey)
 
 	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2})
 
@@ -93,6 +89,7 @@ func Test_Add(t *testing.T) {
 	}
 }
 
+/*
 func Test_Mul(t *testing.T) {
 
 	ids := []uint64{1, 2}

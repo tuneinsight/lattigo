@@ -8,7 +8,7 @@ import (
 
 // MKDecryptor is a type for bfv decryptor in a multi key context
 type MKDecryptor interface {
-	PartDec(ct *ring.Poly, sk *MKSecretKey, out *ring.Poly)
+	PartDec(ct *ring.Poly, sk *MKSecretKey) *ring.Poly
 	MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly) *bfv.Plaintext
 }
 
@@ -40,16 +40,19 @@ func NewMKDecryptor(params *bfv.Parameters) MKDecryptor {
 
 // PartDec computes a partial decription key for the ciphertext component of a given participant
 // for participant i, ski and cti must be used
-func (dec *mkDecryptor) PartDec(ct *ring.Poly, sk *MKSecretKey, out *ring.Poly) {
+func (dec *mkDecryptor) PartDec(ct *ring.Poly, sk *MKSecretKey) *ring.Poly {
 
 	// mu_i = c_i * sk_i + e_i mod q
 
-	out = dec.samplerGaussian.ReadNew() // TODO: in paper they want sigma > 3.2 for this error... but they don't tell how much...
+	out := dec.samplerGaussian.ReadNew() // TODO: in paper they want sigma > 3.2 for this error... but they don't tell how much...
 	dec.ringQ.NTT(out, out)
-	dec.ringQ.NTTLazy(ct, ct)
 
-	dec.ringQ.MulCoeffsMontgomeryAndAdd(ct, sk.key.Value, out)
+	tmp := dec.ringQ.NewPoly()
+	dec.ringQ.NTTLazy(ct, tmp)
 
+	dec.ringQ.MulCoeffsMontgomeryAndAdd(tmp, sk.key.Value, out)
+
+	return out
 }
 
 // MergeDec merges the partial decription parts and returns the plaintext. The first component of the ciphertext vector must be provided (c0)
@@ -64,6 +67,7 @@ func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly) *bfv.P
 		dec.ringQ.Add(res, k, res)
 	}
 
+	dec.ringQ.Reduce(res, res)
 	dec.ringQ.InvNTT(res, res)
 
 	plaintext.SetValue([]*ring.Poly{res})

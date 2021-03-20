@@ -74,7 +74,7 @@ func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 // MultSharedRelinKey will compute the homomorphic multiplication and relinearize the resulting cyphertext using pre computed Relin key
 func (eval *mkEvaluator) MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, relinKey *MKRelinearizationKey) *MKCiphertext {
 
-	out := eval.tensorAndRescale(c1.ciphertexts.Element, c2.ciphertexts.Element)
+	out := eval.tensor(c1.ciphertexts.Element, c2.ciphertexts.Element)
 
 	// Call Relin on the resulting ciphertext
 	RelinearizationWithSharedRelinKey(relinKey, out)
@@ -85,7 +85,7 @@ func (eval *mkEvaluator) MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, 
 // MultRelinDynamic will compute the homomorphic multiplication and relinearize the resulting cyphertext using dynamic relin
 func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
 
-	out := eval.tensorAndRescale(c1.ciphertexts.Element, c2.ciphertexts.Element)
+	out := eval.tensor(c1.ciphertexts.Element, c2.ciphertexts.Element)
 
 	// Call Relin alg 2
 	RelinearizationOnTheFly(evalKeys, publicKeys, out, eval.params)
@@ -105,7 +105,7 @@ func (eval *mkEvaluator) modUpAndNTT(ct *ckks.Element, cQ, cQMul []*ring.Poly) {
 // tensor computes the tensor product between 2 ciphertexts and returns the result in out
 // c1 and c2 must have be of dimension k+1, where k = #participants
 // out has dimensions (k+1)**2
-func (eval *mkEvaluator) tensorAndRescale(ct0, ct1 *ckks.Element) *MKCiphertext {
+func (eval *mkEvaluator) tensor(ct0, ct1 *ckks.Element) *MKCiphertext {
 
 	nbrElements := ct0.Degree() + 1 // k+1
 
@@ -186,36 +186,7 @@ func (eval *mkEvaluator) tensorAndRescale(ct0, ct1 *ckks.Element) *MKCiphertext 
 		}
 	}
 
-	eval.quantize(c2Q1, c2Q2, out.ciphertexts.Element)
-
 	return out
-}
-
-// quantize multiplies the values of an element by t/q
-func (eval *mkEvaluator) quantize(c2Q1, c2Q2 []*ring.Poly, ctOut *ckks.Element) {
-
-	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
-	levelQMul := uint64(len(eval.ringQMul.Modulus) - 1)
-
-	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
-	// by t/q and reduces its basis from QP to Q
-	for i := range ctOut.Value() { // will iterate on (k + 1)^2 values.. TODO: check corectness !!!!!
-
-		eval.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
-		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
-
-		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		eval.convertor.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
-
-		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
-		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
-		eval.convertor.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.Value()[i])
-		eval.ringQ.SubScalarBigint(ctOut.Value()[i], eval.pHalf, ctOut.Value()[i])
-
-		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
-		eval.ringQ.MulScalar(ctOut.Value()[i], eval.params.T(), ctOut.Value()[i])
-	}
-
 }
 
 // Rescale takes a ciphertext at level l reduces it until it reaches its original scale

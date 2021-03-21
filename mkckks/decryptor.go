@@ -6,7 +6,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// MKDecryptor is a type for bfv decryptor in a multi key context
+// MKDecryptor is a type for ckks decryptor in a multi key context
 type MKDecryptor interface {
 	PartDec(ct *ring.Poly, sk *MKSecretKey) *ring.Poly
 	MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly) *ckks.Plaintext
@@ -18,7 +18,7 @@ type mkDecryptor struct {
 	samplerGaussian *ring.GaussianSampler
 }
 
-// NewMKDecryptor returns a decryptor for bfv in a multi key context
+// NewMKDecryptor returns a decryptor for ckks in a multi key context
 func NewMKDecryptor(params *ckks.Parameters) MKDecryptor {
 
 	ringQ := GetRingQ(params)

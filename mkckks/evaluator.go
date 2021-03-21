@@ -55,18 +55,50 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 }
 
 // Add adds the ciphertexts component wise and expend their list of involved peers
-func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext { // TODO: take into account scale and levels before operation
+func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext { // TODO: take into account scale and levels before operation
 
 	out := NewMKCiphertext(c1.peerIDs, eval.ringQ, eval.params, c1.ciphertexts.Level())
 
-	val := make([]*ring.Poly, len(c1.peerIDs)+1)
+	var tmp0, tmp1 *ckks.Element
 
-	for i := uint64(0); i < uint64(len(c1.peerIDs)+1); i++ {
-		val[i] = eval.ringQ.NewPoly()
-		eval.ringQ.Add(c1.ciphertexts.Value()[i], c2.ciphertexts.Value()[i], val[i])
+	level := utils.MinUint64(utils.MinUint64(c0.ciphertexts.Level(), c1.ciphertexts.Level()), out.ciphertexts.Level())
+
+	val := make([]*ring.Poly, len(c1.peerIDs)+1)
+	scale0 := c0.ciphertexts.Scale()
+	scale1 := c1.ciphertexts.Scale()
+
+	if scale1 > scale0 {
+
+		tmp0 = ckks.NewElement()
+
+		if uint64(scale1/scale0) != 0 {
+			eval.ckksEval.MultByConst(c0.ciphertexts.Ciphertext(), uint64(scale1/scale0), tmp0.Ciphertext())
+		}
+
+		tmp1 = c1.ciphertexts.El()
+
+	} else if scale0 > scale1 {
+
+		tmp1 = ckks.NewElement()
+
+		if uint64(scale0/scale1) != 0 {
+			eval.ckksEval.MultByConst(c1.ciphertexts.Ciphertext(), uint64(scale0/scale1), tmp1.Ciphertext())
+		}
+
+		tmp0 = c0.ciphertexts.El()
+
+	} else {
+		tmp0 = c0.ciphertexts.El()
+		tmp1 = c1.ciphertexts.El()
 	}
 
+	for i := uint64(0); i < c0.ciphertexts.Degree()+1; i++ {
+		eval.ringQ.AddLvl(level, tmp0.Value()[i], tmp1.Value()[i], val[i])
+	}
+
+	out.ciphertexts.SetScale(utils.MaxFloat64(scale0, scale1))
 	out.ciphertexts.SetValue(val)
+	out.peerIDs = c0.peerIDs
 
 	return out
 }

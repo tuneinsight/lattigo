@@ -57,7 +57,7 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 // Add adds the ciphertexts component wise and expend their list of involved peers
 func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext { // TODO: take into account scale and levels before operation
 
-	out := NewMKCiphertext(c1.peerIDs, eval.ringQ, eval.params, c1.ciphertexts.Level())
+	out := NewMKCiphertext(c0.peerIDs, eval.ringQ, eval.params, c0.ciphertexts.Level())
 
 	var tmp0, tmp1 *ckks.Element
 
@@ -93,6 +93,7 @@ func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
 	}
 
 	for i := uint64(0); i < c0.ciphertexts.Degree()+1; i++ {
+		val[i] = eval.ringQ.NewPoly()
 		eval.ringQ.AddLvl(level, tmp0.Value()[i], tmp1.Value()[i], val[i])
 	}
 

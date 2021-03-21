@@ -31,22 +31,20 @@ func Test_EncryptionEqualsDecryption(t *testing.T) {
 	values, _, cipher := newTestVectors(params, encoder, encryptor, complex(-1, -1), complex(1, 1), t)
 
 	// decrypt
-	partialDec := decryptor.PartDec(cipher.ciphertexts.Value()[1], keys[0].secretKey)
-	decrypted := decryptor.MergeDec(cipher.ciphertexts.Value()[0], []*ring.Poly{partialDec})
+	scale := cipher.ciphertexts.Scale()
+	level := cipher.ciphertexts.Level()
+	partialDec := decryptor.PartDec(cipher.ciphertexts.Value()[1], level, keys[0].secretKey)
+	decrypted := decryptor.MergeDec(cipher.ciphertexts.Value()[0], scale, level, []*ring.Poly{partialDec})
 
 	// decode and check
 	verifyTestVectors(params, encoder, values, decrypted, t)
 }
 
-/*
 func Test_Add(t *testing.T) {
 
 	ids := []uint64{1, 2}
 
 	keys, params := setupPeers(ids, 0)
-
-	ringQ := GetRingQ(params)
-	ringT := getRingT(params)
 
 	encoder := ckks.NewEncoder(params)
 
@@ -54,14 +52,9 @@ func Test_Add(t *testing.T) {
 	encryptor2 := NewMKEncryptor(keys[1].publicKey, params, ids[1])
 	decryptor := NewMKDecryptor(params)
 
-	expected1 := getRandomPlaintextValue(ringT, params)
-	expected2 := getRandomPlaintextValue(ringT, params)
-	plaintext1 := newPlaintext(expected1, ringQ, encoder)
-	plaintext2 := newPlaintext(expected2, ringQ, encoder)
-
 	// encrypt
-	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext())
-	cipher2 := encryptor2.EncryptMK(plaintext2.Plaintext())
+	values1, _, cipher1 := newTestVectors(params, encoder, encryptor1, complex(-1, -1), complex(1, 1), t)
+	values2, _, cipher2 := newTestVectors(params, encoder, encryptor2, complex(-1, -1), complex(1, 1), t)
 
 	// pad and add
 	evaluator := NewMKEvaluator(params)
@@ -71,23 +64,18 @@ func Test_Add(t *testing.T) {
 	resCipher := evaluator.Add(out1, out2)
 
 	// decrypt
-	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey)
-	partialDec2 := decryptor.PartDec(resCipher.ciphertexts.Value()[2], keys[1].secretKey)
+	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], resCipher.ciphertexts.Level(), keys[0].secretKey)
+	partialDec2 := decryptor.PartDec(resCipher.ciphertexts.Value()[2], resCipher.ciphertexts.Level(), keys[1].secretKey)
 
-	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2})
+	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], resCipher.ciphertexts.Scale(), resCipher.ciphertexts.Level(), []*ring.Poly{partialDec1, partialDec2})
 
 	// perform the operation in the plaintext space
-	expected := ringT.NewPoly()
-	p1 := ringT.NewPoly()
-	p2 := ringT.NewPoly()
-	copy(p1.Coeffs[0], expected1)
-	copy(p2.Coeffs[0], expected2)
-
-	ringT.Add(p1, p2, expected)
-
-	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected.Coeffs[0]) {
-		t.Error("Homomorphic addition error")
+	for i := 0; i < len(values1); i++ {
+		values1[i] += values2[i]
 	}
+
+	// check results
+	verifyTestVectors(params, encoder, values1, decrypted, t)
 }
 
 func Test_AddFourParticipants(t *testing.T) {
@@ -95,9 +83,6 @@ func Test_AddFourParticipants(t *testing.T) {
 	ids := []uint64{1, 2, 5, 7}
 
 	keys, params := setupPeers(ids, 0)
-
-	ringQ := GetRingQ(params)
-	ringT := getRingT(params)
 
 	encoder := ckks.NewEncoder(params)
 
@@ -107,20 +92,11 @@ func Test_AddFourParticipants(t *testing.T) {
 	encryptor4 := NewMKEncryptor(keys[3].publicKey, params, ids[3])
 	decryptor := NewMKDecryptor(params)
 
-	expected1 := getRandomPlaintextValue(ringT, params)
-	expected2 := getRandomPlaintextValue(ringT, params)
-	expected3 := getRandomPlaintextValue(ringT, params)
-	expected4 := getRandomPlaintextValue(ringT, params)
-	plaintext1 := newPlaintext(expected1, ringQ, encoder)
-	plaintext2 := newPlaintext(expected2, ringQ, encoder)
-	plaintext3 := newPlaintext(expected3, ringQ, encoder)
-	plaintext4 := newPlaintext(expected4, ringQ, encoder)
-
 	// encrypt
-	cipher1 := encryptor1.EncryptMK(plaintext1.Plaintext())
-	cipher2 := encryptor2.EncryptMK(plaintext2.Plaintext())
-	cipher3 := encryptor3.EncryptMK(plaintext3.Plaintext())
-	cipher4 := encryptor4.EncryptMK(plaintext4.Plaintext())
+	values1, _, cipher1 := newTestVectors(params, encoder, encryptor1, complex(-1, -1), complex(1, 1), t)
+	values2, _, cipher2 := newTestVectors(params, encoder, encryptor2, complex(-1, -1), complex(1, 1), t)
+	values3, _, cipher3 := newTestVectors(params, encoder, encryptor3, complex(-1, -1), complex(1, 1), t)
+	values4, _, cipher4 := newTestVectors(params, encoder, encryptor4, complex(-1, -1), complex(1, 1), t)
 
 	// pad and add in 2 steps
 	evaluator := NewMKEvaluator(params)
@@ -136,33 +112,24 @@ func Test_AddFourParticipants(t *testing.T) {
 	resCipher := evaluator.Add(finalOut1, finalOut2)
 
 	// decrypt
-	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey)
-	partialDec2 := decryptor.PartDec(resCipher.ciphertexts.Value()[2], keys[1].secretKey)
-	partialDec3 := decryptor.PartDec(resCipher.ciphertexts.Value()[3], keys[2].secretKey)
-	partialDec4 := decryptor.PartDec(resCipher.ciphertexts.Value()[4], keys[3].secretKey)
+	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], resCipher.ciphertexts.Level(), keys[0].secretKey)
+	partialDec2 := decryptor.PartDec(resCipher.ciphertexts.Value()[2], resCipher.ciphertexts.Level(), keys[1].secretKey)
+	partialDec3 := decryptor.PartDec(resCipher.ciphertexts.Value()[3], resCipher.ciphertexts.Level(), keys[2].secretKey)
+	partialDec4 := decryptor.PartDec(resCipher.ciphertexts.Value()[4], resCipher.ciphertexts.Level(), keys[3].secretKey)
 
-	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2, partialDec3, partialDec4})
+	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], resCipher.ciphertexts.Scale(), resCipher.ciphertexts.Level(), []*ring.Poly{partialDec1, partialDec2, partialDec3, partialDec4})
 
 	// perform the operation in the plaintext space
-	expected := ringT.NewPoly()
-	p1 := ringT.NewPoly()
-	p2 := ringT.NewPoly()
-	p3 := ringT.NewPoly()
-	p4 := ringT.NewPoly()
-	copy(p1.Coeffs[0], expected1)
-	copy(p2.Coeffs[0], expected2)
-	copy(p3.Coeffs[0], expected3)
-	copy(p4.Coeffs[0], expected4)
-
-	ringT.Add(p1, p2, expected)
-	ringT.Add(p3, expected, expected)
-	ringT.Add(p4, expected, expected)
-
-	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected.Coeffs[0]) {
-		t.Error("Homomorphic addition error")
+	for i := 0; i < len(values1); i++ {
+		values1[i] += values2[i] + values3[i] + values4[i]
 	}
+
+	// check results
+	verifyTestVectors(params, encoder, values1, decrypted, t)
+
 }
 
+/*
 func Test_Mul(t *testing.T) {
 
 	ids := []uint64{1, 2}

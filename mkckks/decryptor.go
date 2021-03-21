@@ -8,8 +8,8 @@ import (
 
 // MKDecryptor is a type for ckks decryptor in a multi key context
 type MKDecryptor interface {
-	PartDec(ct *ring.Poly, sk *MKSecretKey) *ring.Poly
-	MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly) *ckks.Plaintext
+	PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *ring.Poly
+	MergeDec(c0 *ring.Poly, scale float64, level uint64, partialKeys []*ring.Poly) *ckks.Plaintext
 }
 
 type mkDecryptor struct {
@@ -40,35 +40,37 @@ func NewMKDecryptor(params *ckks.Parameters) MKDecryptor {
 
 // PartDec computes a partial decription key for the ciphertext component of a given participant
 // for participant i, ski and cti must be used
-func (dec *mkDecryptor) PartDec(ct *ring.Poly, sk *MKSecretKey) *ring.Poly {
+func (dec *mkDecryptor) PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *ring.Poly {
 
 	// mu_i = c_i * sk_i + e_i mod q
 
-	out := dec.samplerGaussian.ReadNew() // TODO: in paper they want sigma > 3.2 for this error... but they don't tell how much...
-	dec.ringQ.NTT(out, out)
+	out := dec.samplerGaussian.ReadLvlNew(level) // TODO: in paper they want sigma > 3.2 for this error... but they don't tell how much...
+	dec.ringQ.NTTLvl(level, out, out)
 
 	tmp := dec.ringQ.NewPoly()
-	dec.ringQ.NTTLazy(ct, tmp)
+	dec.ringQ.CopyLvl(level, ct, tmp)
 
-	dec.ringQ.MulCoeffsMontgomeryAndAdd(tmp, sk.key.Value, out)
+	dec.ringQ.MulCoeffsMontgomeryAndAddLvl(level, tmp, sk.key.Value, out)
+
+	out.Coeffs = out.Coeffs[:level+1]
 
 	return out
 }
 
 // MergeDec merges the partial decription parts and returns the plaintext. The first component of the ciphertext vector must be provided (c0)
-func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, partialKeys []*ring.Poly) *ckks.Plaintext {
+func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, scale float64, level uint64, partialKeys []*ring.Poly) *ckks.Plaintext {
 
-	plaintext := new(ckks.Element)
+	plaintext := ckks.NewPlaintext(dec.params, level, scale)
 
 	res := dec.ringQ.NewPoly()
-	dec.ringQ.NTTLazy(c0, res)
+	dec.ringQ.CopyLvl(level, c0, res)
 
 	for _, k := range partialKeys {
-		dec.ringQ.Add(res, k, res)
+		dec.ringQ.AddLvl(level, res, k, res)
 	}
 
-	dec.ringQ.Reduce(res, res)
-	dec.ringQ.InvNTT(res, res)
+	dec.ringQ.ReduceLvl(level, res, res)
+	res.Coeffs = res.Coeffs[:level+1]
 
 	plaintext.SetValue([]*ring.Poly{res})
 

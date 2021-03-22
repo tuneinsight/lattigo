@@ -85,7 +85,6 @@ func (eval *mkEvaluator) MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, 
 func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
 
 	out := eval.tensorAndRescale(c1.ciphertexts.Element, c2.ciphertexts.Element)
-
 	// Call Relin alg 2
 	RelinearizationOnTheFly(evalKeys, publicKeys, out, eval.params)
 
@@ -108,7 +107,7 @@ func (eval *mkEvaluator) tensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext {
 
 	nbrElements := ct0.Degree() + 1 // k+1
 
-	outputDegree := nbrElements * nbrElements
+	outputDegree := nbrElements * nbrElements // (k+1)**2
 
 	out := new(MKCiphertext)
 	out.ciphertexts = bfv.NewCiphertext(eval.params, outputDegree-1)
@@ -134,7 +133,6 @@ func (eval *mkEvaluator) tensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext {
 
 	// Squaring case
 	if ct0 == ct1 {
-
 		c00Q1 := make([]*ring.Poly, nbrElements)
 		c00Q2 := make([]*ring.Poly, nbrElements)
 
@@ -164,7 +162,6 @@ func (eval *mkEvaluator) tensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext {
 
 		// Normal case
 	} else {
-
 		c1Q1 := make([]*ring.Poly, nbrElements)
 		c1Q2 := make([]*ring.Poly, nbrElements)
 
@@ -179,14 +176,12 @@ func (eval *mkEvaluator) tensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext {
 			eval.ringQ.MForm(c0Q1[i], c0Q1[i])
 			eval.ringQMul.MForm(c0Q2[i], c0Q2[i])
 			for j := range ct1.Value() {
-				eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[int(nbrElements)+1*i+j])
+				eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[int(nbrElements)*i+j])
 				eval.ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[int(nbrElements)*i+j])
 			}
 		}
 	}
-
 	eval.quantize(c2Q1, c2Q2, out.ciphertexts.Element)
-
 	return out
 }
 

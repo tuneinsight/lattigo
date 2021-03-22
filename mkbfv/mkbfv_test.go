@@ -188,26 +188,20 @@ func Test_Mul(t *testing.T) {
 
 	// pad and mul
 	evaluator := NewMKEvaluator(params)
-
 	out1, out2 := PadCiphers(cipher1, cipher2, params)
-
 	resCipher := evaluator.MultRelinDynamic(out1, out2, []*MKEvaluationKey{keys[0].evalKey, keys[1].evalKey}, []*MKPublicKey{keys[0].publicKey, keys[1].publicKey})
-
 	// decrypt
 	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], keys[0].secretKey)
 	partialDec2 := decryptor.PartDec(resCipher.ciphertexts.Value()[2], keys[1].secretKey)
 
 	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], []*ring.Poly{partialDec1, partialDec2})
-
 	// perform operation in plaintext space
 	expected := ringT.NewPoly()
 	p1 := ringT.NewPoly()
 	p2 := ringT.NewPoly()
 	copy(p1.Coeffs[0], expected1)
 	copy(p2.Coeffs[0], expected2)
-
 	ringT.MulCoeffs(p1, p2, expected)
-
 	if !equalsSlice(encoder.DecodeUintNew(decrypted), expected.Coeffs[0]) {
 		t.Error("Homomorphic multiplication error")
 	}

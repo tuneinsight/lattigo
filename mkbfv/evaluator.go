@@ -76,7 +76,7 @@ func (eval *mkEvaluator) MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, 
 	out := eval.tensorAndRescale(c1.ciphertexts.Element, c2.ciphertexts.Element)
 
 	// Call Relin on the resulting ciphertext
-	RelinearizationWithSharedRelinKey(relinKey, out)
+	RelinearizationWithSharedRelinKey(relinKey, out, eval.params)
 
 	return out
 }

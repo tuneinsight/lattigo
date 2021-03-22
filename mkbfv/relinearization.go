@@ -7,8 +7,40 @@ import (
 
 // RelinearizationWithSharedRelinKey implements the algorithm 1 in section 3.3.1 of the Chen paper
 // It does relin using a precomputed shared key
-func RelinearizationWithSharedRelinKey(relinKey *MKRelinearizationKey, ciphertext *MKCiphertext) {
-	// TODO: implement Algorithm 1
+func RelinearizationWithSharedRelinKey(relinKey *MKRelinearizationKey, ciphertext *MKCiphertext, params *bfv.Parameters) {
+
+	ringQ := GetRingQ(params)
+	k := uint64(len(ciphertext.peerIDs))
+
+	res := make([]*ring.Poly, k+1)
+	for i := uint64(0); i < k+1; i++ {
+		res[i] = ringQ.NewPoly()
+	}
+
+	c0Prime := ciphertext.ciphertexts.Value()[0]
+	cipherParts := ciphertext.ciphertexts.Value()
+
+	for i := uint64(1); i <= k; i++ {
+		ringQ.Add(cipherParts[i], cipherParts[(k+1)*i], res[i])
+	}
+
+	for i := uint64(1); i <= k; i++ {
+
+		for j := uint64(1); j <= k; j++ {
+
+			decomposedIJ := GInverse(cipherParts[i*(k+1)+j], params)
+
+			c0, ci, cj := applySwitchingKey(decomposedIJ, relinKey.key[i][j], params)
+
+			ringQ.Add(c0Prime, c0, c0Prime)
+			ringQ.Add(res[i], ci, res[i])
+			ringQ.Add(res[j], cj, res[j])
+		}
+	}
+
+	res[0] = c0Prime
+	ciphertext.ciphertexts.SetValue(res)
+
 }
 
 // RelinearizationOnTheFly implements the algorithm 2 in section 3.3.1 of the Chen paper
@@ -32,9 +64,9 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 	tmpCIPrime := ringQ.NewPoly()
 
 	for i := uint64(1); i <= k; i++ {
-		ringQ.Add(cipherParts[i], cipherParts[(k+1)*i], res[i]) // first for loop in algo2
+		ringQ.Add(cipherParts[i], cipherParts[(k+1)*i], res[i])
 	}
-	for i := uint64(1); i <= k; i++ { // second loop in alg2
+	for i := uint64(1); i <= k; i++ {
 
 		di0 := evaluationKeys[i-1].key[0]
 		di1 := evaluationKeys[i-1].key[1]
@@ -54,4 +86,20 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 	}
 	res[0] = c0Prime
 	ciphertexts.ciphertexts.SetValue(res)
+}
+
+func applySwitchingKey(decomposedCipher *MKDecomposedPoly, key *MKSwitchingKey, params *bfv.Parameters) (*ring.Poly, *ring.Poly, *ring.Poly) {
+
+	ringQ := GetRingQ(params)
+	c0 := ringQ.NewPoly()
+	ci := ringQ.NewPoly()
+	cj := ringQ.NewPoly()
+
+	for i := 0; i < int(params.Beta()); i++ {
+		ringQ.MulCoeffsMontgomeryAndAdd(decomposedCipher.poly[i], key.key[0].poly[i], c0)
+		ringQ.MulCoeffsMontgomeryAndAdd(decomposedCipher.poly[i], key.key[1].poly[i], ci)
+		ringQ.MulCoeffsMontgomeryAndAdd(decomposedCipher.poly[i], key.key[2].poly[i], cj)
+	}
+
+	return c0, ci, cj
 }

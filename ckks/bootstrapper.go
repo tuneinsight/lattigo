@@ -111,6 +111,8 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 	btp.genSinePoly()
 	btp.genDFTMatrices()
 
+
+
 	btp.ctxpool = NewCiphertext(params, 1, params.MaxLevel(), 0)
 
 	return btp
@@ -184,8 +186,11 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	// Rescaling factor to set the final ciphertext to the desired scale
 	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.scale)/btp.postscale, 1.0/float64(btp.StCDepth(false))), 0)
 
-	// Computation and encoding of the matrices for CoeffsToSlots and SlotsToCoeffs.
-	btp.computePlaintextVectors()
+	// CoeffsToSlots vectors
+	btp.pDFTInv = btp.GenCoeffsToSlotsMatrix(btp.CtSDepth(false), btp.params.logSlots, btp.logdslots, btp.ctsLevel, btp.CoeffsToSlotsModuli.ScalingFactor, btp.coeffsToSlotsDiffScale, btp.repack, btp.encoder)
+
+	// SlotsToCoeffs vectors
+	btp.pDFT = btp.GenSlotsToCoeffsMatrix(btp.StCDepth(false), btp.params.logSlots, btp.logdslots, btp.stcLevel, btp.SlotsToCoeffsModuli.ScalingFactor, btp.slotsToCoeffsDiffScale, btp.repack, btp.encoder)
 
 	// List of the rotation key values to needed for the bootstrapp
 	btp.rotKeyIndex = []int{}
@@ -390,12 +395,10 @@ func fftInvPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [
 	return
 }
 
-func (btp *Bootstrapper) computePlaintextVectors() {
 
-	slots := btp.params.Slots()
+func (btp *Bootstrapper) GenCoeffsToSlotsMatrix(depth, logSlots, logdSlots int, ctsLevel []int, scaling [][]float64, diffScale complex128, repack bool, encoder Encoder) ([]*PtDiagMatrix){
 
-	ctsLevel := btp.ctsLevel
-	stcLevel := btp.stcLevel
+	slots := 1<<logSlots
 
 	roots := computeRoots(slots << 1)
 	pow5 := make([]int, (slots<<1)+1)
@@ -406,27 +409,45 @@ func (btp *Bootstrapper) computePlaintextVectors() {
 	}
 
 	// CoeffsToSlots vectors
-	btp.pDFTInv = make([]*PtDiagMatrix, len(ctsLevel))
-	pVecDFTInv := btp.computeDFTMatrices(roots, pow5, btp.coeffsToSlotsDiffScale, true)
+	pDFTInv := make([]*PtDiagMatrix, len(ctsLevel))
+	pVecDFTInv := btp.computeDFTMatrices(roots, pow5, diffScale, true)
 	cnt := 0
-	for i := range btp.CoeffsToSlotsModuli.ScalingFactor {
-		for j := range btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true)-i-1] {
-			btp.pDFTInv[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(ctsLevel[cnt], pVecDFTInv[cnt], btp.CoeffsToSlotsModuli.ScalingFactor[btp.CtSDepth(true)-i-1][j], btp.MaxN1N2Ratio, btp.logdslots)
+	for i := range scaling {
+		for j := range scaling[btp.CtSDepth(true)-i-1] {
+			pDFTInv[cnt] = encoder.EncodeDiagMatrixAtLvl(ctsLevel[cnt], pVecDFTInv[cnt], scaling[btp.CtSDepth(true)-i-1][j], btp.MaxN1N2Ratio, logdSlots)
 			cnt++
 		}
 	}
 
-	// SlotsToCoeffs vectors
-	btp.pDFT = make([]*PtDiagMatrix, len(stcLevel))
-	pVecDFT := btp.computeDFTMatrices(roots, pow5, btp.slotsToCoeffsDiffScale, false)
-	cnt = 0
+	return pDFTInv
+}
+
+func (btp *Bootstrapper) GenSlotsToCoeffsMatrix(depth, logSlots, logdSlots int, stcLevel []int, scaling [][]float64, diffScale complex128, repack bool, encoder Encoder) ([]*PtDiagMatrix){
+
+	slots := 1<<logSlots
+
+	roots := computeRoots(slots << 1)
+	pow5 := make([]int, (slots<<1)+1)
+	pow5[0] = 1
+	for i := 1; i < (slots<<1)+1; i++ {
+		pow5[i] = pow5[i-1] * 5
+		pow5[i] &= (slots << 2) - 1
+	}
+
+	// CoeffsToSlots vectors
+	pDFT := make([]*PtDiagMatrix, len(stcLevel))
+	pVecDFT := btp.computeDFTMatrices(roots, pow5, diffScale, false)
+	cnt := 0
 	for i := range btp.SlotsToCoeffsModuli.ScalingFactor {
 		for j := range btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-i-1] {
-			btp.pDFT[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(stcLevel[cnt], pVecDFT[cnt], btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-i-1][j], btp.MaxN1N2Ratio, btp.logdslots)
+			pDFT[cnt] = btp.encoder.EncodeDiagMatrixAtLvl(stcLevel[cnt], pVecDFT[cnt], btp.SlotsToCoeffsModuli.ScalingFactor[btp.StCDepth(true)-i-1][j], btp.MaxN1N2Ratio, btp.logdslots)
 			cnt++
 		}
 	}
+
+	return pDFT
 }
+
 
 func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []int, diffscale complex128, forward bool) (plainVector []map[int][]complex128) {
 

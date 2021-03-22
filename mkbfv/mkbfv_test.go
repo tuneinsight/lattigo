@@ -162,6 +162,49 @@ func Test_AddFourParticipants(t *testing.T) {
 	}
 }
 
+func Test_Dot(t *testing.T) {
+	ids := []uint64{1, 2}
+
+	_, params := setupPeers(ids, 0)
+
+	ringT := getRingT(params)
+
+	expected1 := getRandomPlaintextValue(ringT, params)
+	expected2 := getRandomPlaintextValue(ringT, params)
+	// perform the operation in the plaintext space
+	expected := ringT.NewPoly()
+	p1 := ringT.NewPoly()
+	p2 := ringT.NewPoly()
+	p3 := ringT.NewPoly()
+	copy(p1.Coeffs[0], expected1)
+	copy(p2.Coeffs[0], expected2)
+
+	ringT.Add(p1, p2, expected)
+
+	// perform dot product in the plaintext space : multiply (pt1,pt2) by (1,1) and compare with Add(pt1,pt2)
+
+	dotExpected := ringT.NewPoly()
+	decomposedPoly1 := NewDecomposedPoly(ringT, 2)
+	decomposedPoly1.poly[0] = p1
+	decomposedPoly1.poly[1] = p2
+	const1Int := make([]uint64, len(p1.Coeffs[0]))
+	for i := uint64(0); i < uint64(len(const1Int)); i++ {
+		const1Int[i] = 1
+	}
+	ringT.SetCoefficientsUint64(const1Int, p3)
+
+	decomposedPoly2 := NewDecomposedPoly(ringT, 2)
+	decomposedPoly2.poly[0] = p3 // set equal to 1
+	decomposedPoly2.poly[1] = p3 // set equal to 1
+
+	Dot(decomposedPoly1, decomposedPoly2, dotExpected, ringT)
+
+	if !equalsSlice(dotExpected.Coeffs[0], expected.Coeffs[0]) {
+		t.Error("Dot error")
+	}
+
+}
+
 func Test_Mul(t *testing.T) {
 
 	ids := []uint64{1, 2}

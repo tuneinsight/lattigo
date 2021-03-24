@@ -118,6 +118,7 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGe
 	if err != nil {
 		panic(err)
 	}
+	randomValue := random.Value
 
 	uniformSampler := GetUniformSampler(params, ringQP, prng)
 	gaussianSampler := GetGaussianSampler(params, ringQP, prng)
@@ -145,17 +146,18 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGe
 		ringQP.NTT(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
 		ringQP.NTT(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
 		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
-		ringQP.MulCoeffsMontgomeryAndAdd(random.Value, a.poly[d], d2.poly[d])
+		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[d], d2.poly[d])
 	}
 
 	// the g_is mod q_i are either 0 or 1, so just need to compute sums of the correct random.Values
-	MultiplyByBaseAndAdd(random.Value, params, d0)
+	MultiplyByBaseAndAdd(randomValue, params, d0)
 	MultiplyByBaseAndAdd(mu, params, d2)
 
 	return []*MKDecomposedPoly{d0, d1, d2}
 }
 
 // MultiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2
+// Takes into account Modulus variant by scaling up by factor P
 func MultiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *MKDecomposedPoly) {
 
 	alpha := params.Alpha()

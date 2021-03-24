@@ -46,6 +46,11 @@ type Evaluator interface {
 	Rescale(ct0 *Ciphertext, threshold float64, c1 *Ciphertext) (err error)
 	RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ciphertext, err error)
 	RescaleMany(ct0 *Ciphertext, nbRescales uint64, c1 *Ciphertext) (err error)
+<<<<<<< HEAD
+=======
+	Mul(op0, op1 Operand, ctOut *Ciphertext)
+	MulNew(op0, op1 Operand) (ctOut *Ciphertext)
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext)
 	MulRelin(op0, op1 Operand, ctOut *Ciphertext)
 	RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext)
@@ -64,7 +69,11 @@ type Evaluator interface {
 	EvaluatePoly(ct *Ciphertext, coeffs *Poly) (res *Ciphertext, err error)
 	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation) (res *Ciphertext, err error)
 	ShallowCopy() Evaluator
+<<<<<<< HEAD
 	ShallowCopyWithKey(EvaluationKey) Evaluator
+=======
+	WithKey(EvaluationKey) Evaluator
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
@@ -143,8 +152,36 @@ func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
 
 	if params.PiCount() != 0 {
 		eval.baseconverter = ring.NewFastBasisExtender(eval.ringQ, eval.ringP)
+<<<<<<< HEAD
 	}
 
+	return eval
+}
+
+func (eval *evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64][]uint64 {
+	if rtks == nil {
+		return &map[uint64][]uint64{}
+	}
+	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
+	for galEl := range rtks.Keys {
+		permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, eval.ringQ.N)
+=======
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
+	}
+	return &permuteNTTIndex
+}
+
+// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver.
+func (eval *evaluator) ShallowCopy() Evaluator {
+	return eval.ShallowCopyWithKey(EvaluationKey{eval.rlk, eval.rtks})
+}
+
+<<<<<<< HEAD
+// ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver but the EvaluationKey is evaluationKey.
+func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator {
+=======
 	return eval
 }
 
@@ -159,15 +196,24 @@ func (eval *evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64
 	return &permuteNTTIndex
 }
 
-// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
-// shared with the receiver.
+// ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Evaluators can be used concurrently.
 func (eval *evaluator) ShallowCopy() Evaluator {
-	return eval.ShallowCopyWithKey(EvaluationKey{eval.rlk, eval.rtks})
+	return &evaluator{
+		evaluatorBase:    eval.evaluatorBase,
+		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
+		rlk:              eval.rlk,
+		rtks:             eval.rtks,
+		permuteNTTIndex:  eval.permuteNTTIndex,
+		baseconverter:    eval.baseconverter.ShallowCopy(),
+	}
 }
 
-// ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
-// shared with the receiver but the EvaluationKey is evaluationKey.
-func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator {
+// WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
+// and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
+func (eval *evaluator) WithKey(evaluationKey EvaluationKey) Evaluator {
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	var indexes map[uint64][]uint64
 	if evaluationKey.Rtks == eval.rtks {
 		indexes = eval.permuteNTTIndex
@@ -176,11 +222,19 @@ func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator
 	}
 	return &evaluator{
 		evaluatorBase:    eval.evaluatorBase,
+<<<<<<< HEAD
 		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
 		rlk:              evaluationKey.Rlk,
 		rtks:             evaluationKey.Rtks,
 		permuteNTTIndex:  indexes,
 		baseconverter:    eval.baseconverter.ShallowCopy(),
+=======
+		evaluatorBuffers: eval.evaluatorBuffers,
+		rlk:              evaluationKey.Rlk,
+		rtks:             evaluationKey.Rtks,
+		permuteNTTIndex:  indexes,
+		baseconverter:    eval.baseconverter,
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	}
 }
 
@@ -1274,6 +1328,7 @@ func (eval *evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, ctOut *Ci
 	return nil
 }
 
+<<<<<<< HEAD
 // MulRelinNew multiplies ct0 by ct1 and returns the result in a newly created element. The new scale is
 // the multiplication between the scales of the input elements (addition when the scale is represented in log2). An evaluation
 // key can be provided to apply a relinearization step to reduce the degree of the output element. This evaluation key is only
@@ -1282,16 +1337,54 @@ func (eval *evaluator) RescaleMany(ct0 *Ciphertext, nbRescales uint64, ctOut *Ci
 func (eval *evaluator) MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1, utils.MinUint64(op0.Level(), op1.Level()), op0.Scale()+op1.Scale())
 	eval.MulRelin(op0, op1, ctOut)
+=======
+// MulNew multiplies op0 with op1 without relinearization and returns the result in a newly created element.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+func (eval *evaluator) MulNew(op0, op1 Operand) (ctOut *Ciphertext) {
+	ctOut = NewCiphertext(eval.params, op0.Degree()+op1.Degree(), utils.MinUint64(op0.Level(), op1.Level()), 0)
+	eval.mulRelin(op0, op1, false, ctOut)
+	return
+}
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
-	return ctOut
+// Mul multiplies op0 with op1 without relinearization and returns the result in ctOut.
+// The procedure will panic if either op0 or op1 are have a degree higher than 1.
+// The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+func (eval *evaluator) Mul(op0, op1 Operand, ctOut *Ciphertext) {
+	eval.mulRelin(op0, op1, false, ctOut)
 }
 
+<<<<<<< HEAD
 // MulRelin multiplies ct0 by ct1 and returns the result in ctOut. The new scale is
 // the multiplication between the scales of the input elements (addition when the scale is represented in log2). An evaluation
 // key can be provided to apply a relinearization step to reduce the degree of the output element. This evaluation key is only
 // required when the two input elements are Ciphertexts. If no evaluation key is provided and the input elements are two Ciphertexts,
 // the resulting Ciphertext will be of degree two. This function only accepts Plaintexts (degree zero) and/or Ciphertexts of degree one.
 func (eval *evaluator) MulRelin(op0, op1 Operand, ctOut *Ciphertext) {
+=======
+// MulRelinNew multiplies ct0 by ct1 with relinearization and returns the result in a newly created element.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+// The procedure will panic if the evaluator was not created with an relinearization key.
+func (eval *evaluator) MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext) {
+	ctOut = NewCiphertext(eval.params, 1, utils.MinUint64(op0.Level(), op1.Level()), 0)
+	eval.mulRelin(op0, op1, true, ctOut)
+	return
+}
+
+// MulRelin multiplies op0 with op1 with relinearization and returns the result in ctOut.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+// The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+// The procedure will panic if the evaluator was not created with an relinearization key.
+func (eval *evaluator) MulRelin(op0, op1 Operand, ctOut *Ciphertext) {
+	eval.mulRelin(op0, op1, true, ctOut)
+}
+
+func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext) {
+
+	if relin && eval.rlk == nil {
+		panic("evaluator has no relinearization key")
+	}
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 
@@ -1328,8 +1421,15 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, ctOut *Ciphertext) {
 		c0 = elOut.value[0]
 		c1 = elOut.value[1]
 
+<<<<<<< HEAD
 		if eval.rlk == nil {
 			elOut.Resize(eval.params, 2)
+=======
+		if relin == false {
+			if elOut.Degree() < 2 {
+				elOut.Resize(eval.params, 2)
+			}
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 			c2 = elOut.value[2]
 		} else {
 			c2 = eval.poolQMul[2]
@@ -1359,8 +1459,12 @@ func (eval *evaluator) MulRelin(op0, op1 Operand, ctOut *Ciphertext) {
 			ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
 		}
 
+<<<<<<< HEAD
 		// Relinearize if a key was provided
 		if eval.rlk != nil {
+=======
+		if relin {
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 			eval.switchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.poolQ[1], eval.poolQ[2])
 			ringQ.AddLvl(level, c0, eval.poolQ[1], elOut.value[0])
 			ringQ.AddLvl(level, c1, eval.poolQ[2], elOut.value[1])
@@ -1395,6 +1499,14 @@ func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut. The input Ciphertext must be of degree two.
 func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
+<<<<<<< HEAD
+=======
+
+	if eval.rlk == nil {
+		panic("evaluator has no relinearization key")
+	}
+
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	if ct0.Degree() != 2 {
 		panic("cannot Relinearize: input Ciphertext is not of degree 2")
 	}
@@ -1464,8 +1576,17 @@ func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 		ctOut.SetScale(ct0.Scale())
 
 		galEl := eval.params.GaloisElementForColumnRotationBy(k)
+<<<<<<< HEAD
 
 		eval.permuteNTT(ct0, galEl, ctOut)
+=======
+		rtk, generated := eval.rtks.Keys[galEl]
+		if !generated {
+			panic(fmt.Errorf("evaluator has no rotation key for rotation by %d", k))
+		}
+
+		eval.permuteNTT(ct0, galEl, rtk, ctOut)
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	}
 }
 
@@ -1481,6 +1602,7 @@ func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // Conjugate conjugates ct0 (which is equivalent to a row rotation) and returns the result in ctOut.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the row rotation needs to be provided.
 func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
+<<<<<<< HEAD
 
 	galEl := eval.params.GaloisElementForRowRotation()
 	ctOut.SetScale(ct0.Scale())
@@ -1498,6 +1620,26 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 		panic("switching key not available")
 	}
 
+=======
+
+	galEl := eval.params.GaloisElementForRowRotation()
+	rtk, generated := eval.rtks.Keys[galEl]
+	if !generated {
+		panic("evaluator has no rotation key for row rotation")
+	}
+
+	ctOut.SetScale(ct0.Scale())
+
+	eval.permuteNTT(ct0, galEl, rtk, ctOut)
+}
+
+func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, rtk *rlwe.SwitchingKey, ctOut *Ciphertext) {
+
+	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("input and output Ciphertext must be of degree 1")
+	}
+
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
 	index := eval.permuteNTTIndex[galEl]
 	pool2Q := eval.poolQ[1]

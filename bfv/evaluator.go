@@ -39,7 +39,11 @@ type Evaluator interface {
 	RotateRowsNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	InnerSum(ct0 *Ciphertext, ctOut *Ciphertext)
 	ShallowCopy() Evaluator
+<<<<<<< HEAD
 	ShallowCopyWithKey(EvaluationKey) Evaluator
+=======
+	WithKey(EvaluationKey) Evaluator
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 }
 
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
@@ -128,6 +132,40 @@ func newEvaluatorBuffer(eval *evaluatorBase) *evaluatorBuffers {
 	}
 
 	evb.tmpPt = NewPlaintext(eval.params)
+<<<<<<< HEAD
+
+	return evb
+}
+
+// NewEvaluator creates a new Evaluator, that can be used to do homomorphic
+// operations on ciphertexts and/or plaintexts. It stores a small pool of polynomials
+// and ciphertexts that will be used for intermediate values.
+func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
+	ev := new(evaluator)
+	ev.evaluatorBase = newEvaluatorPrecomp(params)
+	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
+	ev.baseconverterQ1Q2 = ring.NewFastBasisExtender(ev.ringQ, ev.ringQMul)
+	if len(params.pi) != 0 {
+		ev.baseconverterQ1P = ring.NewFastBasisExtender(ev.ringQ, ev.ringP)
+	}
+	ev.rlk = evaluationKey.Rlk
+	ev.rtks = evaluationKey.Rtks
+	return ev
+}
+
+// NewEvaluators creates n evaluators sharing the same read-only data-structures.
+func NewEvaluators(params *Parameters, evaluationKey EvaluationKey, n int) []Evaluator {
+	if n <= 0 {
+		return []Evaluator{}
+	}
+	evas := make([]Evaluator, n, n)
+	for i := range evas {
+		if i == 0 {
+			evas[0] = NewEvaluator(params, evaluationKey)
+		} else {
+			evas[i] = evas[i-1].ShallowCopy()
+		}
+=======
 
 	return evb
 }
@@ -167,6 +205,22 @@ func NewEvaluators(params *Parameters, evaluationKey EvaluationKey, n int) []Eva
 // ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
 // shared with the receiver.
 func (eval *evaluator) ShallowCopy() Evaluator {
+	return &evaluator{
+		evaluatorBase:     eval.evaluatorBase,
+		evaluatorBuffers:  newEvaluatorBuffer(eval.evaluatorBase),
+		baseconverterQ1Q2: eval.baseconverterQ1Q2.ShallowCopy(),
+		baseconverterQ1P:  eval.baseconverterQ1P.ShallowCopy(),
+		rlk:               eval.rlk,
+		rtks:              eval.rtks,
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
+	}
+	return evas
+}
+
+<<<<<<< HEAD
+// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver.
+func (eval *evaluator) ShallowCopy() Evaluator {
 	return eval.ShallowCopyWithKey(EvaluationKey{eval.rlk, eval.rtks})
 }
 
@@ -178,6 +232,16 @@ func (eval *evaluator) ShallowCopyWithKey(evaluationKey EvaluationKey) Evaluator
 		evaluatorBuffers:  newEvaluatorBuffer(eval.evaluatorBase),
 		baseconverterQ1Q2: eval.baseconverterQ1Q2.ShallowCopy(),
 		baseconverterQ1P:  eval.baseconverterQ1P.ShallowCopy(),
+=======
+// ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver but the EvaluationKey is evaluationKey.
+func (eval *evaluator) WithKey(evaluationKey EvaluationKey) Evaluator {
+	return &evaluator{
+		evaluatorBase:     eval.evaluatorBase,
+		evaluatorBuffers:  eval.evaluatorBuffers,
+		baseconverterQ1Q2: eval.baseconverterQ1Q2,
+		baseconverterQ1P:  eval.baseconverterQ1P,
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 		rlk:               evaluationKey.Rlk,
 		rtks:              evaluationKey.Rtks,
 	}
@@ -576,9 +640,19 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (e.g., a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and degree 2 ciphertexts).
 func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
+<<<<<<< HEAD
 
 	if int(ct0.Degree()-1) > len(eval.rlk.Keys) {
 		panic("cannot Relinearize: input ciphertext degree too large to allow relinearization")
+=======
+
+	if eval.rlk == nil {
+		panic("evaluator has no relinearization key")
+	}
+
+	if int(ct0.Degree()-1) > len(eval.rlk.Keys) {
+		panic("input ciphertext degree is too large to allow relinearization with the evluator's relinearization key")
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	}
 
 	if ct0.Degree() < 2 {
@@ -651,7 +725,11 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext) 
 			eval.permute(ct0, galElL, swk, ctOut)
 
 		} else {
+<<<<<<< HEAD
 			panic(fmt.Errorf("no switching key for rotation by %d", k))
+=======
+			panic(fmt.Errorf("evaluator has no rotation key for rotation by %d", k))
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 		}
 	}
 }
@@ -675,7 +753,11 @@ func (eval *evaluator) RotateRows(ct0 *Ciphertext, ctOut *Ciphertext) {
 	if key, inSet := eval.rtks.GetRotationKey(galEl); inSet {
 		eval.permute(ct0, galEl, key, ctOut)
 	} else {
+<<<<<<< HEAD
 		panic("cannot RotateRows: rotation key not generated")
+=======
+		panic("evaluator has no rotation key for row rotation")
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	}
 }
 

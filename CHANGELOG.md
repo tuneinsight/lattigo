@@ -2,6 +2,16 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
+## Unreleased
+
+- RLWE : added a new `rlwe` package as common implementation base for the lattigo RLWE schemes
+- DRLWE : added a new `drlwe` package as a common implementation base for the lattigo multiparty RLWE schemes
+- BFV/CKKS : the schemes are now using a common implementation for their keys
+- BFV/CKKS : the rotation-keys are now indexed by their corresponding galois automorphism
+- BFV/CKKS : the `Evaluator` interface now has a single method for all column rotations and one method for the row-rotation/conjugate. 
+- BFV/CKKS : the relinearization and rotation keys are now passed to the `Evaluator` constructor methods (and no longer to the operations methods)
+- DBFV/DCKKS : added a common interface and implementation for each multiparty key-generation protocols
+
 ## [2.1.1] - 2020-12-23
 
 ### Added

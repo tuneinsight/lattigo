@@ -245,7 +245,11 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 			coeffs[i] *= coeffs[i]
 		}
 
+<<<<<<< HEAD
 		evaluator := testCtx.evaluator.ShallowCopyWithKey(ckks.EvaluationKey{Rlk: rlk, Rtks: nil})
+=======
+		evaluator := testCtx.evaluator.WithKey(ckks.EvaluationKey{Rlk: rlk, Rtks: nil})
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 		evaluator.MulRelin(ciphertext, ciphertext, ciphertext)
 
 		evaluator.Rescale(ciphertext, testCtx.params.Scale(), ciphertext)
@@ -401,7 +405,11 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 
+<<<<<<< HEAD
 		evaluator := testCtx.evaluator.ShallowCopyWithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+=======
+		evaluator := testCtx.evaluator.WithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 		evaluator.Conjugate(ciphertext, ciphertext)
 
 		coeffsWant := make([]complex128, ringQP.N>>1)
@@ -465,7 +473,11 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 			P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
 		}
 
+<<<<<<< HEAD
 		evaluator := testCtx.evaluator.ShallowCopyWithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+=======
+		evaluator := testCtx.evaluator.WithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+>>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
 		for k := uint64(1); k < ringQP.N>>1; k <<= 1 {
 			evaluator.Rotate(ciphertext, int(k), receiver)

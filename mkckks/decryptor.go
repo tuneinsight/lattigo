@@ -19,6 +19,7 @@ type mkDecryptor struct {
 }
 
 // NewMKDecryptor returns a decryptor for ckks in a multi key context
+// the standard deviation for the partial decryption must be provided
 func NewMKDecryptor(params *ckks.Parameters, sigmaSmudging float64) MKDecryptor {
 
 	ringQ := GetRingQ(params)

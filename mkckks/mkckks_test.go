@@ -14,7 +14,7 @@ import (
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
-var minPrec float64 = 15.0
+var minPrec = 15.0
 
 func Test_EncryptionEqualsDecryption(t *testing.T) {
 

@@ -16,7 +16,7 @@ type mkEncryptor struct {
 	params       *ckks.Parameters
 }
 
-// NewEncryptor creates a new ckks encryptor fromm the given MKPublicKey and the ckks parameters
+// NewMKEncryptor creates a new ckks encryptor fromm the given MKPublicKey and the ckks parameters
 func NewMKEncryptor(pk *MKPublicKey, params *ckks.Parameters, id uint64) MKEncryptor {
 
 	ckksPublicKey := new(ckks.PublicKey)

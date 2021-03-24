@@ -19,7 +19,7 @@ type mkDecryptor struct {
 }
 
 // NewMKDecryptor returns a decryptor for ckks in a multi key context
-func NewMKDecryptor(params *ckks.Parameters) MKDecryptor {
+func NewMKDecryptor(params *ckks.Parameters, sigmaSmudging float64) MKDecryptor {
 
 	ringQ := GetRingQ(params)
 
@@ -28,7 +28,7 @@ func NewMKDecryptor(params *ckks.Parameters) MKDecryptor {
 		panic(err)
 	}
 
-	sampler := GetGaussianSampler(params, ringQ, prng)
+	sampler := ring.NewGaussianSampler(prng, ringQ, sigmaSmudging, uint64(6*sigmaSmudging))
 
 	return &mkDecryptor{
 		params:          params,

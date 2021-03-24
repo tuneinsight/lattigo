@@ -20,10 +20,12 @@ func Test_EncryptionEqualsDecryption(t *testing.T) {
 
 	ids := []uint64{1}
 
+	sigma := 6.0
+
 	keys, params := setupPeers(ids, 0)
 
 	encryptor := NewMKEncryptor(keys[0].publicKey, params, ids[0])
-	decryptor := NewMKDecryptor(params)
+	decryptor := NewMKDecryptor(params, sigma)
 
 	encoder := ckks.NewEncoder(params)
 
@@ -45,12 +47,13 @@ func Test_Add(t *testing.T) {
 	ids := []uint64{1, 2}
 
 	keys, params := setupPeers(ids, 0)
+	sigma := 6.0
 
 	encoder := ckks.NewEncoder(params)
 
 	encryptor1 := NewMKEncryptor(keys[0].publicKey, params, ids[0])
 	encryptor2 := NewMKEncryptor(keys[1].publicKey, params, ids[1])
-	decryptor := NewMKDecryptor(params)
+	decryptor := NewMKDecryptor(params, sigma)
 
 	// encrypt
 	values1, _, cipher1 := newTestVectors(params, encoder, encryptor1, complex(-1, -1), complex(1, 1), t)
@@ -81,6 +84,7 @@ func Test_Add(t *testing.T) {
 func Test_AddFourParticipants(t *testing.T) {
 
 	ids := []uint64{1, 2, 5, 7}
+	sigma := 6.0
 
 	keys, params := setupPeers(ids, 0)
 
@@ -90,7 +94,7 @@ func Test_AddFourParticipants(t *testing.T) {
 	encryptor2 := NewMKEncryptor(keys[1].publicKey, params, ids[1])
 	encryptor3 := NewMKEncryptor(keys[2].publicKey, params, ids[2])
 	encryptor4 := NewMKEncryptor(keys[3].publicKey, params, ids[3])
-	decryptor := NewMKDecryptor(params)
+	decryptor := NewMKDecryptor(params, sigma)
 
 	// encrypt
 	values1, _, cipher1 := newTestVectors(params, encoder, encryptor1, complex(-1, -1), complex(1, 1), t)

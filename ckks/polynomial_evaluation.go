@@ -66,30 +66,18 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly) (opOut *Cipherte
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
 
 	for i := uint64(2); i < (1 << logSplit); i++ {
-<<<<<<< HEAD
-		if err = computePowerBasis(i, C, eval, eval.rlk); err != nil {
-=======
 		if err = computePowerBasis(i, C, eval); err != nil {
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 			return nil, err
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-<<<<<<< HEAD
-		if err = computePowerBasis(1<<i, C, eval, eval.rlk); err != nil {
-=======
 		if err = computePowerBasis(1<<i, C, eval); err != nil {
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 			return nil, err
 		}
 	}
 
-<<<<<<< HEAD
-	opOut, err = recurse(eval.scale, logSplit, logDegree, pol, C, eval, eval.rlk)
-=======
 	opOut, err = recurse(eval.scale, logSplit, logDegree, pol, C, eval)
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	C = nil
 	return opOut, err
 }
@@ -112,41 +100,25 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
 
 	for i := uint64(2); i < (1 << logSplit); i++ {
-<<<<<<< HEAD
-		if err = computePowerBasisCheby(i, C, eval, eval.rlk); err != nil {
-=======
 		if err = computePowerBasisCheby(i, C, eval); err != nil {
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 			return nil, err
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-<<<<<<< HEAD
-		if err = computePowerBasisCheby(1<<i, C, eval, eval.rlk); err != nil {
-=======
 		if err = computePowerBasisCheby(1<<i, C, eval); err != nil {
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 			return nil, err
 		}
 	}
 
-<<<<<<< HEAD
-	opOut, err = recurseCheby(eval.scale, logSplit, logDegree, &cheby.Poly, C, eval, eval.rlk)
-=======
 	opOut, err = recurseCheby(eval.scale, logSplit, logDegree, &cheby.Poly, C, eval)
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
 	C = nil
 
 	return opOut, err
 }
 
-<<<<<<< HEAD
-func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *RelinearizationKey) (err error) {
-=======
 func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator) (err error) {
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
 	if C[n] == nil {
 
@@ -173,11 +145,7 @@ func computePowerBasis(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator)
 	return nil
 }
 
-<<<<<<< HEAD
-func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *RelinearizationKey) (err error) {
-=======
 func computePowerBasisCheby(n uint64, C map[uint64]*Ciphertext, evaluator *evaluator) (err error) {
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
 	// Given a hash table with the first three evaluations of the Chebyshev ring at x in the interval a, b:
 	// C0 = 1 (actually not stored in the hash table)
@@ -295,11 +263,7 @@ func splitCoeffsCheby(coeffs *Poly, split uint64) (coeffsq, coeffsr *Poly) {
 	return coeffsq, coeffsr
 }
 
-<<<<<<< HEAD
-func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *RelinearizationKey) (res *Ciphertext, err error) {
-=======
 func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator) (res *Ciphertext, err error) {
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.Degree() < (1 << logSplit) {
 
@@ -371,11 +335,7 @@ func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C ma
 	return
 }
 
-<<<<<<< HEAD
-func recurseCheby(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator, evakey *RelinearizationKey) (res *Ciphertext, err error) {
-=======
 func recurseCheby(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C map[uint64]*Ciphertext, evaluator *evaluator) (res *Ciphertext, err error) {
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.Degree() < (1 << logSplit) {
 

@@ -720,15 +720,8 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values1[i] *= values2[i]
 		}
 
-<<<<<<< HEAD
-		evalNoRlk := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{})
-		evalNoRlk.MulRelin(ciphertext1, ciphertext2, ciphertext1)
-
-		testContext.evaluator.Relinearize(ciphertext1, ciphertext1)
-=======
 		testContext.evaluator.Mul(ciphertext1, ciphertext2, ciphertext1)
 		require.Equal(t, ciphertext1.Degree(), uint64(2))
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
 		testContext.evaluator.Relinearize(ciphertext1, ciphertext1)
 		require.Equal(t, ciphertext1.Degree(), uint64(1))
@@ -749,19 +742,10 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 			values2[i] *= values1[i]
 		}
 
-<<<<<<< HEAD
-		evalNoRlk := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{})
-		evalNoRlk.MulRelin(ciphertext1, ciphertext2, ciphertext2)
-
-		testContext.evaluator.Relinearize(ciphertext2, ciphertext2)
-
-		require.Equal(t, ciphertext1.Degree(), uint64(1))
-=======
 		testContext.evaluator.Mul(ciphertext1, ciphertext2, ciphertext2)
 		require.Equal(t, ciphertext2.Degree(), uint64(2))
 		testContext.evaluator.Relinearize(ciphertext2, ciphertext2)
 		require.Equal(t, ciphertext2.Degree(), uint64(1))
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
 		verifyTestVectors(testContext, testContext.decryptor, values2, ciphertext2, t)
 	})
@@ -971,11 +955,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 	}
 	rots := []int{1, -1, 4, -4, 63, -63}
 	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
-<<<<<<< HEAD
-	evaluator := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotKey})
-=======
 	evaluator := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
 	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
 
@@ -998,15 +978,9 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		for _, n := range rots {
-<<<<<<< HEAD
 
 			values2 := utils.RotateComplex128Slice(values1, n)
 
-=======
-
-			values2 := utils.RotateComplex128Slice(values1, n)
-
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 			verifyTestVectors(testContext, testContext.decryptor, values2, evaluator.RotateNew(ciphertext1, n), t)
 		}
 
@@ -1034,17 +1008,10 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 		}
 
 		ciphertext = evaluator.ConjugateNew(ciphertext)
-<<<<<<< HEAD
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 	})
 
-=======
-
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
-	})
-
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 	t.Run(testString(testContext, "RotateHoisted/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)

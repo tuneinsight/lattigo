@@ -152,11 +152,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		rotkey = testContext.kgen.GenRotationKeysForRotations([]int{1}, true, testContext.sk)
 	}
 
-<<<<<<< HEAD
-	eval := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{rlk, rotkey})
-=======
 	eval := testContext.evaluator.WithKey(EvaluationKey{rlk, rotkey})
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
 	b.Run(testString(testContext, "Evaluator/Add/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -279,11 +275,7 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 		}
 
 		rotkey := testContext.kgen.GenRotationKeysForRotations([]int{5}, false, testContext.sk)
-<<<<<<< HEAD
-		evaluator := testContext.evaluator.ShallowCopyWithKey(EvaluationKey{testContext.rlk, rotkey}).(*evaluator)
-=======
 		evaluator := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotkey}).(*evaluator)
->>>>>>> 2bc7250a4bc59fc1e9050fcf299be56569f61a23
 
 		ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 

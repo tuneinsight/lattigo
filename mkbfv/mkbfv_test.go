@@ -8,11 +8,20 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-func Test_EncryptionEqualsDecryption(t *testing.T) {
+func Test_MKBFV(t *testing.T) {
+
+	for i := range bfv.DefaultParams {
+		test_EncryptionEqualsDecryption(t, i)
+		test_Add(t, i)
+		test_AddFourParticipants(t, i)
+	}
+}
+
+func test_EncryptionEqualsDecryption(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 
-	participants, params := setupPeers(1, 0, sigma)
+	participants, params := setupPeers(1, paramsIndex, sigma)
 
 	ringT := getRingT(params)
 
@@ -31,11 +40,11 @@ func Test_EncryptionEqualsDecryption(t *testing.T) {
 	}
 }
 
-func Test_Add(t *testing.T) {
+func test_Add(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 
-	participants, params := setupPeers(2, 0, sigma)
+	participants, params := setupPeers(2, paramsIndex, sigma)
 
 	ringT := getRingT(params)
 
@@ -73,11 +82,11 @@ func Test_Add(t *testing.T) {
 	}
 }
 
-func Test_AddFourParticipants(t *testing.T) {
+func test_AddFourParticipants(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 
-	participants, params := setupPeers(4, 0, sigma)
+	participants, params := setupPeers(4, paramsIndex, sigma)
 
 	ringT := getRingT(params)
 

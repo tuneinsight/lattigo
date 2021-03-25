@@ -163,6 +163,7 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *MKDecompose
 	beta := params.Beta()
 
 	var index uint64
+	ringQP := GetRingQP(params)
 
 	for i := uint64(0); i < beta; i++ {
 
@@ -170,7 +171,7 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *MKDecompose
 
 			index = i*alpha + j
 
-			qi := params.Qi()[index] //same as ringQP.Modulus[index] ?
+			qi := ringQP.Modulus[index]
 			p0tmp := p1.Coeffs[index]
 			p1tmp := p2.poly[i].Coeffs[index]
 

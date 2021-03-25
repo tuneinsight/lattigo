@@ -1,4 +1,4 @@
-package mkbfv
+package mkckks
 
 import (
 	"sort"

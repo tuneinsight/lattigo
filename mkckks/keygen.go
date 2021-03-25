@@ -1,4 +1,4 @@
-package mkbfv
+package mkckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
@@ -6,7 +6,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// GetRingQP generates a RingQP from bfv parameters
+// GetRingQP generates a RingQP from ckks parameters
 func GetRingQP(params *ckks.Parameters) *ring.Ring {
 	// create ring
 	ringQP := new(ring.Ring)
@@ -17,7 +17,7 @@ func GetRingQP(params *ckks.Parameters) *ring.Ring {
 	return ringQP
 }
 
-// GetRingQ generates a RingQ from bfv parameters
+// GetRingQ generates a RingQ from ckks parameters
 func GetRingQ(params *ckks.Parameters) *ring.Ring {
 	// create ring
 	ringQ := new(ring.Ring)
@@ -28,7 +28,7 @@ func GetRingQ(params *ckks.Parameters) *ring.Ring {
 	return ringQ
 }
 
-// GetRingP generates a RingP from bfv parameters
+// GetRingP generates a RingP from ckks parameters
 func GetRingP(params *ckks.Parameters) *ring.Ring {
 	// create ring
 	ringP := new(ring.Ring)
@@ -39,7 +39,7 @@ func GetRingP(params *ckks.Parameters) *ring.Ring {
 	return ringP
 }
 
-// GetRingQMul generates a ringQMul from bfv parameters
+// GetRingQMul generates a ringQMul from ckks parameters
 func GetRingQMul(params *ckks.Parameters) *ring.Ring {
 
 	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), uint64(len(params.Qi())))
@@ -54,8 +54,8 @@ func GetRingQMul(params *ckks.Parameters) *ring.Ring {
 }
 
 // KeyGen generated a secret key, a public key and a relinearization key
-// given BFV paramters, the peer id and the vector "a" common to all participants
-func KeyGen(params *ckks.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys {
+// given ckks paramters, the peer id and the vector "a" common to all participants
+func KeyGen(params *ckks.Parameters, a *MKDecomposedPoly) *MKKeys {
 
 	// create ring
 	ringQP := GetRingQP(params)
@@ -64,16 +64,14 @@ func KeyGen(params *ckks.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys
 
 	keyBag := new(MKKeys)
 
-	// generate private and public BFV keys
+	// generate private and public ckks keys
 	keyBag.secretKey = new(MKSecretKey)
 	keyBag.secretKey.key = generator.GenSecretKey()
-	keyBag.secretKey.peerID = peerID
 
 	//Public key = (b, a)
 	keyBag.publicKey = new(MKPublicKey)
 	keyBag.publicKey.key[0] = genPublicKey(keyBag.secretKey.key, params, generator, ringQP, a)
 	keyBag.publicKey.key[1] = a
-	keyBag.publicKey.peerID = peerID
 
 	// generate evaluation key. The evaluation key is also used in the relinearization phase.
 	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, generator, params, ringQP)

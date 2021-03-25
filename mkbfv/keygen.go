@@ -54,8 +54,8 @@ func GetRingQMul(params *bfv.Parameters) *ring.Ring {
 }
 
 // KeyGen generated a secret key, a public key and a relinearization key
-// given BFV paramters, the peer id and the vector "a" common to all participants
-func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys {
+// given BFV paramters and the vector "a" common to all participants
+func KeyGen(params *bfv.Parameters, a *MKDecomposedPoly) *MKKeys {
 
 	// create ring
 	ringQP := GetRingQP(params)
@@ -67,13 +67,11 @@ func KeyGen(params *bfv.Parameters, peerID uint64, a *MKDecomposedPoly) *MKKeys 
 	// generate private and public BFV keys
 	keyBag.secretKey = new(MKSecretKey)
 	keyBag.secretKey.key = generator.GenSecretKey()
-	keyBag.secretKey.peerID = peerID
 
 	//Public key = (b, a)
 	keyBag.publicKey = new(MKPublicKey)
 	keyBag.publicKey.key[0] = genPublicKey(keyBag.secretKey.key, params, generator, ringQP, a)
 	keyBag.publicKey.key[1] = a
-	keyBag.publicKey.peerID = peerID
 
 	// generate evaluation key. The evaluation key is also used in the relinearization phase.
 	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, generator, params, ringQP)

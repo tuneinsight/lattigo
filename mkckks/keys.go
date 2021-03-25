@@ -1,17 +1,17 @@
-package mkbfv
+package mkckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-// MKSecretKey is a type for BFV secret keys in a multi key context.
+// MKSecretKey is a type for ckks secret keys in a multi key context.
 type MKSecretKey struct {
 	key    *ckks.SecretKey
 	peerID uint64
 }
 
-// MKPublicKey is a type for BFV public keys and ID in a multi key context. key[1] = a and key[0] = -s * a + e mod q
+// MKPublicKey is a type for ckks public keys and ID in a multi key context. key[1] = a and key[0] = -s * a + e mod q
 type MKPublicKey struct {
 	key    [2]*MKDecomposedPoly
 	peerID uint64

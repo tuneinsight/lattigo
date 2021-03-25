@@ -1,4 +1,4 @@
-package mkbfv
+package mkckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks"

@@ -1,4 +1,4 @@
-package mkbfv
+package mkckks
 
 import (
 	"math/big"
@@ -8,7 +8,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// MKEvaluator is a wrapper for the bfv evaluator
+// MKEvaluator is a wrapper for the ckks evaluator
 type MKEvaluator interface {
 	Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
 	MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, relinKey *MKRelinearizationKey) *MKCiphertext
@@ -28,7 +28,7 @@ type mkEvaluator struct {
 	convertor       *ring.FastBasisExtender
 }
 
-// NewMKEvaluator returns an evaluator for the multi key bfv scheme.
+// NewMKEvaluator returns an evaluator for the multi key ckks scheme.
 func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 
 	ringQ := GetRingQ(params)

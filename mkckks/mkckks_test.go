@@ -1,4 +1,4 @@
-package mkbfv
+package mkckks
 
 import (
 	"flag"
@@ -18,46 +18,37 @@ var minPrec = 15.0
 
 func Test_EncryptionEqualsDecryption(t *testing.T) {
 
-	ids := []uint64{1}
-
 	sigma := 6.0
 
-	keys, params := setupPeers(ids, 0)
+	participants, params := setupPeers(1, 0, sigma)
 
-	encryptor := NewMKEncryptor(keys[0].publicKey, params, ids[0])
-	decryptor := NewMKDecryptor(params, sigma)
+	// get random value
+	value := newTestValue(params, complex(-1, -1), complex(1, 1), t)
 
-	encoder := ckks.NewEncoder(params)
-
-	// encrypt
-	values, _, cipher := newTestVectors(params, encoder, encryptor, complex(-1, -1), complex(1, 1), t)
+	//encrypt
+	cipher := participants[0].Encrypt(value)
 
 	// decrypt
-	scale := cipher.ciphertexts.Scale()
-	level := cipher.ciphertexts.Level()
-	partialDec := decryptor.PartDec(cipher.ciphertexts.Value()[1], level, keys[0].secretKey)
-	decrypted := decryptor.MergeDec(cipher.ciphertexts.Value()[0], scale, level, []*ring.Poly{partialDec})
+	partialDec := participants[0].GetPartialDecryption(cipher)
+	decrypted := participants[0].Decrypt(cipher, []*ring.Poly{partialDec})
 
 	// decode and check
-	verifyTestVectors(params, encoder, values, decrypted, t)
+	verifyTestVectors(params, value, decrypted, t)
 }
 
 func Test_Add(t *testing.T) {
 
-	ids := []uint64{1, 2}
-
-	keys, params := setupPeers(ids, 0)
 	sigma := 6.0
 
-	encoder := ckks.NewEncoder(params)
+	participants, params := setupPeers(2, 0, sigma)
 
-	encryptor1 := NewMKEncryptor(keys[0].publicKey, params, ids[0])
-	encryptor2 := NewMKEncryptor(keys[1].publicKey, params, ids[1])
-	decryptor := NewMKDecryptor(params, sigma)
+	// generate new values
+	values1 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
+	values2 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
 
-	// encrypt
-	values1, _, cipher1 := newTestVectors(params, encoder, encryptor1, complex(-1, -1), complex(1, 1), t)
-	values2, _, cipher2 := newTestVectors(params, encoder, encryptor2, complex(-1, -1), complex(1, 1), t)
+	// Encrypt
+	cipher1 := participants[0].Encrypt(values1)
+	cipher2 := participants[1].Encrypt(values2)
 
 	// pad and add
 	evaluator := NewMKEvaluator(params)
@@ -67,10 +58,10 @@ func Test_Add(t *testing.T) {
 	resCipher := evaluator.Add(out1, out2)
 
 	// decrypt
-	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], resCipher.ciphertexts.Level(), keys[0].secretKey)
-	partialDec2 := decryptor.PartDec(resCipher.ciphertexts.Value()[2], resCipher.ciphertexts.Level(), keys[1].secretKey)
+	partialDec1 := participants[0].GetPartialDecryption(resCipher)
+	partialDec2 := participants[1].GetPartialDecryption(resCipher)
 
-	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], resCipher.ciphertexts.Scale(), resCipher.ciphertexts.Level(), []*ring.Poly{partialDec1, partialDec2})
+	decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
 
 	// perform the operation in the plaintext space
 	for i := 0; i < len(values1); i++ {
@@ -78,29 +69,26 @@ func Test_Add(t *testing.T) {
 	}
 
 	// check results
-	verifyTestVectors(params, encoder, values1, decrypted, t)
+	verifyTestVectors(params, values1, decrypted, t)
 }
 
 func Test_AddFourParticipants(t *testing.T) {
 
-	ids := []uint64{1, 2, 5, 7}
 	sigma := 6.0
 
-	keys, params := setupPeers(ids, 0)
+	participants, params := setupPeers(4, 0, sigma)
 
-	encoder := ckks.NewEncoder(params)
+	// generate test values
+	values1 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
+	values2 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
+	values3 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
+	values4 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
 
-	encryptor1 := NewMKEncryptor(keys[0].publicKey, params, ids[0])
-	encryptor2 := NewMKEncryptor(keys[1].publicKey, params, ids[1])
-	encryptor3 := NewMKEncryptor(keys[2].publicKey, params, ids[2])
-	encryptor4 := NewMKEncryptor(keys[3].publicKey, params, ids[3])
-	decryptor := NewMKDecryptor(params, sigma)
-
-	// encrypt
-	values1, _, cipher1 := newTestVectors(params, encoder, encryptor1, complex(-1, -1), complex(1, 1), t)
-	values2, _, cipher2 := newTestVectors(params, encoder, encryptor2, complex(-1, -1), complex(1, 1), t)
-	values3, _, cipher3 := newTestVectors(params, encoder, encryptor3, complex(-1, -1), complex(1, 1), t)
-	values4, _, cipher4 := newTestVectors(params, encoder, encryptor4, complex(-1, -1), complex(1, 1), t)
+	// Encrypt
+	cipher1 := participants[0].Encrypt(values1)
+	cipher2 := participants[1].Encrypt(values2)
+	cipher3 := participants[2].Encrypt(values3)
+	cipher4 := participants[3].Encrypt(values4)
 
 	// pad and add in 2 steps
 	evaluator := NewMKEvaluator(params)
@@ -116,12 +104,12 @@ func Test_AddFourParticipants(t *testing.T) {
 	resCipher := evaluator.Add(finalOut1, finalOut2)
 
 	// decrypt
-	partialDec1 := decryptor.PartDec(resCipher.ciphertexts.Value()[1], resCipher.ciphertexts.Level(), keys[0].secretKey)
-	partialDec2 := decryptor.PartDec(resCipher.ciphertexts.Value()[2], resCipher.ciphertexts.Level(), keys[1].secretKey)
-	partialDec3 := decryptor.PartDec(resCipher.ciphertexts.Value()[3], resCipher.ciphertexts.Level(), keys[2].secretKey)
-	partialDec4 := decryptor.PartDec(resCipher.ciphertexts.Value()[4], resCipher.ciphertexts.Level(), keys[3].secretKey)
+	partialDec1 := participants[0].GetPartialDecryption(resCipher)
+	partialDec2 := participants[1].GetPartialDecryption(resCipher)
+	partialDec3 := participants[2].GetPartialDecryption(resCipher)
+	partialDec4 := participants[3].GetPartialDecryption(resCipher)
 
-	decrypted := decryptor.MergeDec(resCipher.ciphertexts.Value()[0], resCipher.ciphertexts.Scale(), resCipher.ciphertexts.Level(), []*ring.Poly{partialDec1, partialDec2, partialDec3, partialDec4})
+	decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2, partialDec3, partialDec4})
 
 	// perform the operation in the plaintext space
 	for i := 0; i < len(values1); i++ {
@@ -129,7 +117,7 @@ func Test_AddFourParticipants(t *testing.T) {
 	}
 
 	// check results
-	verifyTestVectors(params, encoder, values1, decrypted, t)
+	verifyTestVectors(params, values1, decrypted, t)
 
 }
 
@@ -202,62 +190,6 @@ func Test_Utils(t *testing.T) {
 
 }
 
-func Test_KeyGenAndPadCiphertext(t *testing.T) {
-
-	// setup keys and public parameters
-	ids := []uint64{12, 3}
-
-	keys, params := setupPeers(ids, 0)
-	if keys == nil || params == nil {
-		t.Errorf("Generation of common public parameter failed !")
-	}
-
-	encoder := ckks.NewEncoder(params)
-
-	//create and encrypt 2 plaintext
-	encryptor1 := NewMKEncryptor(keys[0].publicKey, params, ids[0])
-	encryptor2 := NewMKEncryptor(keys[1].publicKey, params, ids[1])
-
-	_, _, mkCiphertext1 := newTestVectors(params, encoder, encryptor1, complex(-1, -1), complex(1, 1), t)
-	_, _, mkCiphertext2 := newTestVectors(params, encoder, encryptor2, complex(-1, -1), complex(1, 1), t)
-
-	// Pad both ciphertexts
-	out1, out2 := PadCiphers(mkCiphertext1, mkCiphertext2, params)
-
-	// check peerIDs
-	if !equalsSlice(out1.peerIDs, out2.peerIDs) {
-		t.Errorf("PadCipher failed. IDs different")
-	}
-
-	// length should be 3 since padded ciphertext should be (c0, c3, c12)
-	l1 := len(out1.ciphertexts.Element.Value())
-	l2 := len(out2.ciphertexts.Element.Value())
-	if l1 != 3 || l2 != 3 {
-		t.Errorf("PadCipher failed. Length not equal to 3. Length 1 = %d, length 2 = %d", l1, l2)
-	}
-
-	// check content
-	ec00 := mkCiphertext1.ciphertexts.Element.Value()[0]
-	ec01 := mkCiphertext1.ciphertexts.Element.Value()[1]
-	ec10 := mkCiphertext2.ciphertexts.Element.Value()[0]
-	ec11 := mkCiphertext2.ciphertexts.Element.Value()[1]
-
-	c00 := out1.ciphertexts.Element.Value()[0]
-	c01 := out1.ciphertexts.Element.Value()[1]
-	c02 := out1.ciphertexts.Element.Value()[2]
-	c10 := out2.ciphertexts.Element.Value()[0]
-	c11 := out2.ciphertexts.Element.Value()[1]
-	c12 := out2.ciphertexts.Element.Value()[2]
-
-	ringQ := GetRingQ(params)
-	pass := equalsPoly(ec00, c00) && equalsPoly(ec10, c10) && equalsPoly(ec01, c02) && equalsPoly(ec11, c11) && equalsPoly(c01, ringQ.NewPoly()) && equalsPoly(c12, ringQ.NewPoly())
-
-	if !pass {
-		t.Errorf("PadCipher failed. Content of ciphertext not correct")
-	}
-
-}
-
 // equalsSlice returns true if both slices are equal
 func equalsSlice(s1, s2 []uint64) bool {
 
@@ -292,31 +224,27 @@ func equalsPoly(p1 *ring.Poly, p2 *ring.Poly) bool {
 	return true
 }
 
-// Generates keys for a set of peers identified by their peerID using a certain bfv parameter index
-// returns the slice of keys with the bfv parameters
-func setupPeers(peerIDs []uint64, paramsNbr int) ([]*MKKeys, *ckks.Parameters) {
+// Generates keys for a set of peers identified by their peerID using a certain ckks parameter index
+// returns the slice of keys with the ckks parameters
+func setupPeers(peerNbr uint64, paramsNbr int, sigmaSmudging float64) ([]MKParticipant, *ckks.Parameters) {
 
-	res := make([]*MKKeys, len(peerIDs))
+	res := make([]MKParticipant, peerNbr)
 
 	params := ckks.DefaultParams[paramsNbr]
 
-	for i := 0; i < len(peerIDs); i++ {
+	for i := 0; i < int(peerNbr); i++ {
 
-		// setup keys and public parameters
-		a := GenCommonPublicParam(params)
-
-		res[i] = KeyGen(params, peerIDs[i], a)
-
+		res[i] = NewParticipant(params, sigmaSmudging)
 	}
 
 	return res, params
 }
 
-func newTestVectors(params *ckks.Parameters, encoder ckks.Encoder, encryptor MKEncryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *MKCiphertext) {
+func newTestValue(params *ckks.Parameters, a, b complex128, t *testing.T) []complex128 {
 
 	logSlots := params.LogSlots()
 
-	values = make([]complex128, 1<<logSlots)
+	values := make([]complex128, 1<<logSlots)
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
 		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
@@ -324,18 +252,12 @@ func newTestVectors(params *ckks.Parameters, encoder ckks.Encoder, encryptor MKE
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = encoder.EncodeNTTAtLvlNew(params.MaxLevel(), values, logSlots)
-
-	if encryptor != nil {
-		ciphertext = encryptor.EncryptMK(plaintext)
-	}
-
-	return values, plaintext, ciphertext
+	return values
 }
 
-func verifyTestVectors(params *ckks.Parameters, encoder ckks.Encoder, valuesWant []complex128, plaintext *ckks.Plaintext, t *testing.T) {
+func verifyTestVectors(params *ckks.Parameters, valuesWant, valuesTest []complex128, t *testing.T) {
 
-	precStats := GetPrecisionStats(params, encoder, valuesWant, plaintext)
+	precStats := GetPrecisionStats(params, valuesWant, valuesTest)
 
 	if *printPrecisionStats {
 		t.Log(precStats.String())
@@ -346,12 +268,10 @@ func verifyTestVectors(params *ckks.Parameters, encoder ckks.Encoder, valuesWant
 }
 
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
-func GetPrecisionStats(params *ckks.Parameters, encoder ckks.Encoder, valuesWant []complex128, plaintext *ckks.Plaintext) (prec ckks.PrecisionStats) {
+func GetPrecisionStats(params *ckks.Parameters, valuesWant, valuesTest []complex128) (prec ckks.PrecisionStats) {
 
 	logSlots := params.LogSlots()
 	slots := uint64(1 << logSlots)
-
-	valuesTest := encoder.Decode(plaintext, logSlots)
 
 	var deltaReal, deltaImag float64
 

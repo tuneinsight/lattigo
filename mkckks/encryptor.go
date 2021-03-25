@@ -1,19 +1,19 @@
-package mkbfv
+package mkckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
 )
 
-// MKEncryptor is an interface wrapping the bfv.Encryptor with the ring used for encryption
+// MKEncryptor is an interface wrapping the ckks.Encryptor with the ring used for encryption
 type MKEncryptor interface {
 	EncryptMK(plaintext *ckks.Plaintext) *MKCiphertext
 }
 
-// mkEncryptor is a struct wrapping the bfv.Encryptor with the ring used for encryption
+// mkEncryptor is a struct wrapping the ckks.Encryptor with the ring used for encryption
 type mkEncryptor struct {
-	bfvEncryptor ckks.Encryptor
-	peerID       uint64
-	params       *ckks.Parameters
+	ckksEncryptor ckks.Encryptor
+	peerID        uint64
+	params        *ckks.Parameters
 }
 
 // NewMKEncryptor creates a new ckks encryptor fromm the given MKPublicKey and the ckks parameters
@@ -32,9 +32,9 @@ func (encryptor *mkEncryptor) EncryptMK(plaintext *ckks.Plaintext) *MKCiphertext
 	mkCiphertext := new(MKCiphertext)
 
 	if encryptor.params.PiCount() != 0 {
-		mkCiphertext.ciphertexts = encryptor.bfvEncryptor.EncryptNew(plaintext)
+		mkCiphertext.ciphertexts = encryptor.ckksEncryptor.EncryptNew(plaintext)
 	} else {
-		mkCiphertext.ciphertexts = encryptor.bfvEncryptor.EncryptFastNew(plaintext)
+		mkCiphertext.ciphertexts = encryptor.ckksEncryptor.EncryptFastNew(plaintext)
 	}
 
 	mkCiphertext.peerIDs = []uint64{encryptor.peerID}

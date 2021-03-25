@@ -1,4 +1,4 @@
-package mkbfv
+package mkckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
@@ -6,7 +6,7 @@ import (
 )
 
 // MKCiphertext is type for a ckks ciphertext in a multi key setting
-// it contains a bfv ciphertexts along with the list of participants in the right order
+// it contains a ckks ciphertexts along with the list of participants in the right order
 type MKCiphertext struct {
 	ciphertexts *ckks.Ciphertext
 	peerIDs     []uint64

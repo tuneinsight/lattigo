@@ -1,4 +1,4 @@
-package mkbfv
+package mkckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
@@ -96,7 +96,7 @@ func GInverse(p *ring.Poly, params *ckks.Parameters) *MKDecomposedPoly {
 }
 
 // decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.
-// this function was copied from bfv evaluator.go in order not to break the encypsulation
+// this function was copied from ckks evaluator.go in order not to break the encypsulation
 func decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly, params *ckks.Parameters, ringQ, ringP *ring.Ring) {
 
 	decomposer := ring.NewDecomposer(ringQ.Modulus, ringP.Modulus)

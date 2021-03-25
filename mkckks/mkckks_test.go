@@ -18,20 +18,14 @@ var minPrec = 15.0
 
 func Test_MKCKKS(t *testing.T) {
 
-	//commented out since it takes too much memory to run on a laptop
-	/*	for i := range ckks.DefaultParams {
-		test_EncryptionEqualsDecryption(t, i)
-		test_Add(t, i)
-		test_AddFourParticipants(t, i)
-	}*/
-
-	test_EncryptionEqualsDecryption(t, 0)
-	test_Add(t, 0)
-	test_AddFourParticipants(t, 0)
-
+	for i := range ckks.DefaultParams {
+		testEncryptionEqualsDecryption(t, i)
+		testAdd(t, i)
+		testAddFourParticipants(t, i)
+	}
 }
 
-func test_EncryptionEqualsDecryption(t *testing.T, paramsIndex int) {
+func testEncryptionEqualsDecryption(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 
@@ -51,7 +45,7 @@ func test_EncryptionEqualsDecryption(t *testing.T, paramsIndex int) {
 	verifyTestVectors(params, value, decrypted, t)
 }
 
-func test_Add(t *testing.T, paramsIndex int) {
+func testAdd(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 
@@ -87,7 +81,7 @@ func test_Add(t *testing.T, paramsIndex int) {
 	verifyTestVectors(params, values1, decrypted, t)
 }
 
-func test_AddFourParticipants(t *testing.T, paramsIndex int) {
+func testAddFourParticipants(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 

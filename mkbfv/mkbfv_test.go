@@ -11,13 +11,13 @@ import (
 func Test_MKBFV(t *testing.T) {
 
 	for i := range bfv.DefaultParams {
-		test_EncryptionEqualsDecryption(t, i)
-		test_Add(t, i)
-		test_AddFourParticipants(t, i)
+		testEncryptionEqualsDecryption(t, i)
+		testAdd(t, i)
+		testAddFourParticipants(t, i)
 	}
 }
 
-func test_EncryptionEqualsDecryption(t *testing.T, paramsIndex int) {
+func testEncryptionEqualsDecryption(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 
@@ -40,7 +40,7 @@ func test_EncryptionEqualsDecryption(t *testing.T, paramsIndex int) {
 	}
 }
 
-func test_Add(t *testing.T, paramsIndex int) {
+func testAdd(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 
@@ -82,7 +82,7 @@ func test_Add(t *testing.T, paramsIndex int) {
 	}
 }
 
-func test_AddFourParticipants(t *testing.T, paramsIndex int) {
+func testAddFourParticipants(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 

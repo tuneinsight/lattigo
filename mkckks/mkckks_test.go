@@ -18,11 +18,15 @@ var minPrec = 15.0
 
 func Test_MKCKKS(t *testing.T) {
 
+	//skip parameter 4 due to memory consumption
 	for i := range ckks.DefaultParams {
-		testEncryptionEqualsDecryption(t, i)
-		testAdd(t, i)
-		testAddFourParticipants(t, i)
+		if i != 4 && i != 9 {
+			testEncryptionEqualsDecryption(t, i)
+			testAdd(t, i)
+			testAddFourParticipants(t, i)
+		}
 	}
+
 }
 
 func testEncryptionEqualsDecryption(t *testing.T, paramsIndex int) {

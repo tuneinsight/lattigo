@@ -33,12 +33,22 @@ func (participant *mkParticipant) GetID() uint64 {
 
 // Encrypt constructs a ciphertext from the given values
 func (participant *mkParticipant) Encrypt(values []complex128) *MKCiphertext {
-
+	if values == nil || len(values) <= 0 {
+		panic("Cannot encrypt uninitialized or empty values")
+	}
 	return participant.encryptor.EncryptMK(participant.encoder.EncodeNTTAtLvlNew(participant.params.MaxLevel(), values, participant.params.LogSlots()))
 }
 
 // Decrypt returns the decryption of the ciphertext given the partial decryption
 func (participant *mkParticipant) Decrypt(cipher *MKCiphertext, partialDecryptions []*ring.Poly) []complex128 {
+
+	if cipher == nil || cipher.ciphertexts == nil || len(cipher.ciphertexts.Value()) < 2 {
+		panic("Cannot decrypt uninitialized ciphertext nor ciphertext containing only one value")
+	}
+
+	if partialDecryptions == nil || len(partialDecryptions) < 1 {
+		panic("Decryption necessitates at least one partialy decrypted ciphertext")
+	}
 
 	decrypted := participant.decryptor.MergeDec(cipher.ciphertexts.Value()[0], cipher.ciphertexts.Scale(), cipher.ciphertexts.Level(), partialDecryptions)
 
@@ -59,10 +69,21 @@ func (participant *mkParticipant) GetPartialDecryption(ciphertext *MKCiphertext)
 
 // NewParticipant creates a participant for the multi key ckks scheme
 // the ckks parameters as well as the standard deviation used for partial decryption must be provided
-func NewParticipant(params *ckks.Parameters, sigmaSmudging float64) MKParticipant {
+func NewParticipant(params *ckks.Parameters, sigmaSmudging float64, crs *MKDecomposedPoly) MKParticipant {
 
-	a := GenCommonPublicParam(params) // TODO: check if it should really be common or not in both ckks and bfv
-	keys := KeyGen(params, a)
+	if crs == nil || params == nil {
+		panic("Uninitialized parameters. Cannot create new participant")
+	}
+
+	if sigmaSmudging < params.Sigma() {
+		panic("Sigma must be at least greater than the standard deviation of the gaussian distribution")
+	}
+
+	if len(crs.poly) != int(params.Beta()) {
+		panic("CRS must be the same dimention as returned by the function ckks.Parameters.Beta()")
+	}
+
+	keys := KeyGen(params, crs)
 
 	uid := hashPublicKey(keys.publicKey.key)
 

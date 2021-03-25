@@ -284,11 +284,11 @@ func setupPeers(peersNbr uint64, paramsNbr int, sigmaSmudging float64) ([]MKPart
 	params := bfv.DefaultParams[paramsNbr]
 
 	// setup keys and public parameters
-	//a := GenCommonPublicParam(params)	// TODO: check if a is shared or not !!!!!!
+	a := GenCommonPublicParam(params)
 
 	for i := 0; i < int(peersNbr); i++ {
 
-		res[i] = NewParticipant(params, sigmaSmudging)
+		res[i] = NewParticipant(params, sigmaSmudging, a)
 
 	}
 

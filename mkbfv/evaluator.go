@@ -30,6 +30,10 @@ type mkEvaluator struct {
 // NewMKEvaluator returns an evaluator for the multi key bfv scheme.
 func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 
+	if params == nil {
+		panic("Cannot create evaluator with uninitilized parameters")
+	}
+
 	ringQ := GetRingQ(params)
 	ringQMul := GetRingQMul(params)
 
@@ -55,6 +59,13 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 
 // Add adds the ciphertexts component wise and expend their list of involved peers
 func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
+
+	if c1 == nil || c2 == nil || c1.ciphertexts == nil || c2.ciphertexts == nil {
+		panic("Uninitialized ciphertexts")
+	}
+	if c1.ciphertexts.Degree() != c2.ciphertexts.Degree() {
+		panic("Ciphertexts must be of same degree before addition")
+	}
 
 	out := NewMKCiphertext(c1.peerIDs, eval.ringQ, eval.params)
 

@@ -32,11 +32,22 @@ func (participant *mkParticipant) GetID() uint64 {
 
 // Encrypt constructs a ciphertext from the given values
 func (participant *mkParticipant) Encrypt(values []uint64) *MKCiphertext {
+	if values == nil || len(values) <= 0 {
+		panic("Cannot encrypt uninitialized or empty values")
+	}
 	return participant.encryptor.EncryptMK(newPlaintext(values, participant.ringQ, participant.encoder))
 }
 
 // Decrypt returns the decryption of the ciphertext given the partial decryption
 func (participant *mkParticipant) Decrypt(c0 *ring.Poly, partialDecryptions []*ring.Poly) []uint64 {
+
+	if c0 == nil {
+		panic("Cannot decrypt uninitialized ciphertext")
+	}
+
+	if partialDecryptions == nil || len(partialDecryptions) < 1 {
+		panic("Decryption necessitates at least one partialy decrypted ciphertext")
+	}
 
 	decrypted := participant.decryptor.MergeDec(c0, partialDecryptions)
 
@@ -57,10 +68,21 @@ func (participant *mkParticipant) GetPartialDecryption(ciphertext *MKCiphertext)
 
 // NewParticipant creates a participant for the multi key bfv scheme
 // the bfv parameters as well as the standard deviation used for partial decryption must be provided
-func NewParticipant(params *bfv.Parameters, sigmaSmudging float64) MKParticipant {
+func NewParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *MKDecomposedPoly) MKParticipant {
 
-	a := GenCommonPublicParam(params)
-	keys := KeyGen(params, a)
+	if crs == nil || params == nil {
+		panic("Uninitialized parameters. Cannot create new participant")
+	}
+
+	if sigmaSmudging < params.Sigma() {
+		panic("Sigma must be at least greater than the standard deviation of the gaussian distribution")
+	}
+
+	if len(crs.poly) != int(params.Beta()) {
+		panic("CRS must be the same dimention as returned by the function bfv.Parameters.Beta()")
+	}
+
+	keys := KeyGen(params, crs)
 
 	uid := hashPublicKey(keys.publicKey.key)
 

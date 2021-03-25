@@ -31,6 +31,10 @@ type mkEvaluator struct {
 // NewMKEvaluator returns an evaluator for the multi key ckks scheme.
 func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 
+	if params == nil {
+		panic("Cannot create evaluator with uninitilized parameters")
+	}
+
 	ringQ := GetRingQ(params)
 	ringQMul := GetRingQMul(params)
 
@@ -55,7 +59,14 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 }
 
 // Add adds the ciphertexts component wise and expend their list of involved peers
-func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext { // TODO: take into account scale and levels before operation
+func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
+
+	if c0 == nil || c1 == nil || c0.ciphertexts == nil || c1.ciphertexts == nil {
+		panic("Uninitialized ciphertexts")
+	}
+	if c0.ciphertexts.Degree() != c1.ciphertexts.Degree() {
+		panic("Ciphertexts must be of same degree before addition")
+	}
 
 	out := NewMKCiphertext(c0.peerIDs, eval.ringQ, eval.params, c0.ciphertexts.Level())
 

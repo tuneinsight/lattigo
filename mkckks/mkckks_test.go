@@ -232,9 +232,11 @@ func setupPeers(peerNbr uint64, paramsNbr int, sigmaSmudging float64) ([]MKParti
 
 	params := ckks.DefaultParams[paramsNbr]
 
+	a := GenCommonPublicParam(params)
+
 	for i := 0; i < int(peerNbr); i++ {
 
-		res[i] = NewParticipant(params, sigmaSmudging)
+		res[i] = NewParticipant(params, sigmaSmudging, a)
 	}
 
 	return res, params

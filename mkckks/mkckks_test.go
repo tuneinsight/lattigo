@@ -16,11 +16,26 @@ import (
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 var minPrec = 15.0
 
-func Test_EncryptionEqualsDecryption(t *testing.T) {
+func Test_MKCKKS(t *testing.T) {
+
+	//commented out since it takes too much memory to run on a laptop
+	/*	for i := range ckks.DefaultParams {
+		test_EncryptionEqualsDecryption(t, i)
+		test_Add(t, i)
+		test_AddFourParticipants(t, i)
+	}*/
+
+	test_EncryptionEqualsDecryption(t, 0)
+	test_Add(t, 0)
+	test_AddFourParticipants(t, 0)
+
+}
+
+func test_EncryptionEqualsDecryption(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 
-	participants, params := setupPeers(1, 0, sigma)
+	participants, params := setupPeers(1, paramsIndex, sigma)
 
 	// get random value
 	value := newTestValue(params, complex(-1, -1), complex(1, 1), t)
@@ -36,11 +51,11 @@ func Test_EncryptionEqualsDecryption(t *testing.T) {
 	verifyTestVectors(params, value, decrypted, t)
 }
 
-func Test_Add(t *testing.T) {
+func test_Add(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 
-	participants, params := setupPeers(2, 0, sigma)
+	participants, params := setupPeers(2, paramsIndex, sigma)
 
 	// generate new values
 	values1 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
@@ -72,11 +87,11 @@ func Test_Add(t *testing.T) {
 	verifyTestVectors(params, values1, decrypted, t)
 }
 
-func Test_AddFourParticipants(t *testing.T) {
+func test_AddFourParticipants(t *testing.T, paramsIndex int) {
 
 	sigma := 6.0
 
-	participants, params := setupPeers(4, 0, sigma)
+	participants, params := setupPeers(4, paramsIndex, sigma)
 
 	// generate test values
 	values1 := newTestValue(params, complex(-1, -1), complex(1, 1), t)

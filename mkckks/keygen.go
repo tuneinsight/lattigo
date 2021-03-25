@@ -159,7 +159,7 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *ckks.Parameters, p2 *MKDecompos
 	alpha := params.Alpha()
 	// dimension of the vectors (d)
 	beta := params.Beta()
-
+	ringQP := GetRingQP(params)
 	var index uint64
 
 	for i := uint64(0); i < beta; i++ {
@@ -168,7 +168,7 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *ckks.Parameters, p2 *MKDecompos
 
 			index = i*alpha + j
 
-			qi := params.Qi()[index] //same as ringQP.Modulus[index] ?
+			qi := ringQP.Modulus[index]
 			p0tmp := p1.Coeffs[index]
 			p1tmp := p2.poly[i].Coeffs[index]
 

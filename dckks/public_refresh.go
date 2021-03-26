@@ -45,7 +45,7 @@ func (refreshProtocol *RefreshProtocol) AllocateShares(levelStart int) (RefreshS
 }
 
 // GenShares generates the decryption and recryption shares of the Refresh protocol.
-func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nParties int, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
+func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nParties int, ciphertext *ckks.Ciphertext, targetScale float64, crs *ring.Poly, shareDecrypt RefreshShareDecrypt, shareRecrypt RefreshShareRecrypt) {
 
 	ringQ := refreshProtocol.dckksContext.ringQ
 	sigma := refreshProtocol.dckksContext.params.Sigma()
@@ -69,6 +69,22 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 
 	// h0 = mask (at level min)
 	ringQ.SetCoefficientsBigintLvl(levelStart, refreshProtocol.maskBigint, shareDecrypt)
+
+	inputScaleFlo := ring.NewFloat(ciphertext.Scale(), 256)
+	outputScaleFlo := ring.NewFloat(targetScale, 256)
+
+	inputScaleInt := new(big.Int)
+	outputScaleInt := new(big.Int)
+
+	inputScaleFlo.Int(inputScaleInt)
+	outputScaleFlo.Int(outputScaleInt)
+
+	// Scales the mask by the ratio between the two scales
+	for i := range refreshProtocol.maskBigint {
+		refreshProtocol.maskBigint[i].Mul(refreshProtocol.maskBigint[i], outputScaleInt)
+		refreshProtocol.maskBigint[i].Quo(refreshProtocol.maskBigint[i], inputScaleInt)
+	}
+
 	// h1 = mask (at level max)
 	ringQ.SetCoefficientsBigint(refreshProtocol.maskBigint, shareRecrypt)
 
@@ -112,9 +128,18 @@ func (refreshProtocol *RefreshProtocol) Decrypt(ciphertext *ckks.Ciphertext, sha
 }
 
 // Recode takes a masked decrypted ciphertext at modulus Q_0 and returns the same masked decrypted ciphertext at modulus Q_L, with Q_0 << Q_L.
-func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
+func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext, targetScale float64) {
 	dckksContext := refreshProtocol.dckksContext
 	ringQ := refreshProtocol.dckksContext.ringQ
+
+	inputScaleFlo := ring.NewFloat(ciphertext.Scale(), 256)
+	outputScaleFlo := ring.NewFloat(targetScale, 256)
+
+	inputScaleInt := new(big.Int)
+	outputScaleInt := new(big.Int)
+
+	inputScaleFlo.Int(inputScaleInt)
+	outputScaleFlo.Int(outputScaleInt)
 
 	ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
 
@@ -138,11 +163,16 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext) {
 		if sign == 1 || sign == 0 {
 			refreshProtocol.maskBigint[i].Sub(refreshProtocol.maskBigint[i], QStart)
 		}
+
+		refreshProtocol.maskBigint[i].Mul(refreshProtocol.maskBigint[i], outputScaleInt)
+		refreshProtocol.maskBigint[i].Quo(refreshProtocol.maskBigint[i], inputScaleInt)
 	}
 
 	ringQ.SetCoefficientsBigintLvl(ciphertext.Level(), refreshProtocol.maskBigint, ciphertext.Value()[0])
 
 	ringQ.NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+
+	ciphertext.SetScale(targetScale)
 }
 
 // Recrypt operates a masked recryption on the masked decrypted ciphertext.

@@ -175,6 +175,9 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
 
+		testContext.params.scale = DefaultScale
+		eval.(*evaluator).scale = DefaultScale
+
 	})
 }
 

@@ -111,8 +111,6 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 	btp.genSinePoly()
 	btp.genDFTMatrices()
 
-
-
 	btp.ctxpool = NewCiphertext(params, 1, params.MaxLevel(), 0)
 
 	return btp
@@ -395,10 +393,9 @@ func fftInvPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [
 	return
 }
 
+func (btp *Bootstrapper) GenCoeffsToSlotsMatrix(depth, logSlots, logdSlots int, ctsLevel []int, scaling [][]float64, diffScale complex128, repack bool, encoder Encoder) []*PtDiagMatrix {
 
-func (btp *Bootstrapper) GenCoeffsToSlotsMatrix(depth, logSlots, logdSlots int, ctsLevel []int, scaling [][]float64, diffScale complex128, repack bool, encoder Encoder) ([]*PtDiagMatrix){
-
-	slots := 1<<logSlots
+	slots := 1 << logSlots
 
 	roots := computeRoots(slots << 1)
 	pow5 := make([]int, (slots<<1)+1)
@@ -422,9 +419,9 @@ func (btp *Bootstrapper) GenCoeffsToSlotsMatrix(depth, logSlots, logdSlots int, 
 	return pDFTInv
 }
 
-func (btp *Bootstrapper) GenSlotsToCoeffsMatrix(depth, logSlots, logdSlots int, stcLevel []int, scaling [][]float64, diffScale complex128, repack bool, encoder Encoder) ([]*PtDiagMatrix){
+func (btp *Bootstrapper) GenSlotsToCoeffsMatrix(depth, logSlots, logdSlots int, stcLevel []int, scaling [][]float64, diffScale complex128, repack bool, encoder Encoder) []*PtDiagMatrix {
 
-	slots := 1<<logSlots
+	slots := 1 << logSlots
 
 	roots := computeRoots(slots << 1)
 	pow5 := make([]int, (slots<<1)+1)
@@ -447,7 +444,6 @@ func (btp *Bootstrapper) GenSlotsToCoeffsMatrix(depth, logSlots, logdSlots int, 
 
 	return pDFT
 }
-
 
 func (btp *Bootstrapper) computeDFTMatrices(roots []complex128, pow5 []int, diffscale complex128, forward bool) (plainVector []map[int][]complex128) {
 

@@ -520,7 +520,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShares(p.s, levelStart, parties, ciphertext, crp, p.share1, p.share2)
+			p.GenShares(p.s, levelStart, parties, ciphertext, testCtx.params.Scale(), crp, p.share1, p.share2)
 			if i > 0 {
 				P0.Aggregate(p.share1, P0.share1, P0.share1)
 				P0.Aggregate(p.share2, P0.share2, P0.share2)
@@ -528,9 +528,9 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		}
 
 		// We refresh the ciphertext with the simulated error
-		P0.Decrypt(ciphertext, P0.share1)      // Masked decryption
-		P0.Recode(ciphertext)                  // Masked re-encoding
-		P0.Recrypt(ciphertext, crp, P0.share2) // Masked re-encryption
+		P0.Decrypt(ciphertext, P0.share1)             // Masked decryption
+		P0.Recode(ciphertext, testCtx.params.Scale()) // Masked re-encoding
+		P0.Recrypt(ciphertext, crp, P0.share2)        // Masked re-encryption
 
 		require.Equal(t, ciphertext.Level(), testCtx.params.MaxLevel())
 

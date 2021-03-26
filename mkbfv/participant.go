@@ -14,7 +14,7 @@ type MKParticipant interface {
 	GetEvaluationKey() *MKEvaluationKey
 	GetPublicKey() *MKPublicKey
 	Encrypt(values []uint64) *MKCiphertext
-	Decrypt(c0 *ring.Poly, partialDecryptions []*ring.Poly) []uint64
+	Decrypt(cipher *MKCiphertext, partialDecryptions []*ring.Poly) []uint64
 	GetPartialDecryption(ciphertext *MKCiphertext) *ring.Poly
 }
 
@@ -51,9 +51,9 @@ func (participant *mkParticipant) Encrypt(values []uint64) *MKCiphertext {
 }
 
 // Decrypt returns the decryption of the ciphertext given the partial decryption
-func (participant *mkParticipant) Decrypt(c0 *ring.Poly, partialDecryptions []*ring.Poly) []uint64 {
+func (participant *mkParticipant) Decrypt(cipher *MKCiphertext, partialDecryptions []*ring.Poly) []uint64 {
 
-	if c0 == nil {
+	if cipher == nil || cipher.ciphertexts == nil {
 		panic("Cannot decrypt uninitialized ciphertext")
 	}
 
@@ -61,7 +61,7 @@ func (participant *mkParticipant) Decrypt(c0 *ring.Poly, partialDecryptions []*r
 		panic("Decryption necessitates at least one partialy decrypted ciphertext")
 	}
 
-	decrypted := participant.decryptor.MergeDec(c0, partialDecryptions)
+	decrypted := participant.decryptor.MergeDec(cipher.ciphertexts.Value()[0], partialDecryptions)
 
 	return participant.encoder.DecodeUintNew(decrypted)
 }

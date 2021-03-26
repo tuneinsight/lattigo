@@ -19,210 +19,227 @@ var minPrec = 15.0
 func Test_MKCKKS(t *testing.T) {
 
 	//skip parameter 4 due to memory consumption
-	for i := range ckks.DefaultParams {
+	for i, p := range ckks.DefaultParams {
 		if i != 4 && i != 9 {
-			testEncryptionEqualsDecryption(t, i)
-			testAdd(t, i)
-			testAddFourParticipants(t, i)
-			//testMul(t, i)
-			//testMulFourParticipants(t, i)
+			testEncryptionEqualsDecryption(t, p)
+			testAdd(t, p)
+			testAddFourParticipants(t, p)
+			//testMul(t, p)
+			//testMulFourParticipants(t, p)
 		}
 	}
 
 }
 
-func testEncryptionEqualsDecryption(t *testing.T, paramsIndex int) {
+func testEncryptionEqualsDecryption(t *testing.T, params *ckks.Parameters) {
 
 	sigma := 6.0
 
-	participants, params := setupPeers(1, paramsIndex, sigma)
+	participants := setupPeers(1, params, sigma)
 
-	// get random value
-	value := newTestValue(params, complex(-1, -1), complex(1, 1), t)
+	t.Run(testString("Test encryption equals decryption/", 1, params), func(t *testing.T) {
 
-	//encrypt
-	cipher := participants[0].Encrypt(value)
+		// get random value
+		value := newTestValue(params, complex(-1, -1), complex(1, 1))
 
-	// decrypt
-	partialDec := participants[0].GetPartialDecryption(cipher)
-	decrypted := participants[0].Decrypt(cipher, []*ring.Poly{partialDec})
+		//encrypt
+		cipher := participants[0].Encrypt(value)
 
-	// decode and check
-	verifyTestVectors(params, value, decrypted, t)
-}
+		// decrypt
+		partialDec := participants[0].GetPartialDecryption(cipher)
+		decrypted := participants[0].Decrypt(cipher, []*ring.Poly{partialDec})
 
-func testAdd(t *testing.T, paramsIndex int) {
-
-	sigma := 6.0
-
-	participants, params := setupPeers(2, paramsIndex, sigma)
-
-	// generate new values
-	values1 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
-	values2 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
-
-	// Encrypt
-	cipher1 := participants[0].Encrypt(values1)
-	cipher2 := participants[1].Encrypt(values2)
-
-	// pad and add
-	evaluator := NewMKEvaluator(params)
-
-	out1, out2 := PadCiphers(cipher1, cipher2, params)
-
-	resCipher := evaluator.Add(out1, out2)
-
-	// decrypt
-	partialDec1 := participants[0].GetPartialDecryption(resCipher)
-	partialDec2 := participants[1].GetPartialDecryption(resCipher)
-
-	decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
-
-	// perform the operation in the plaintext space
-	for i := 0; i < len(values1); i++ {
-		values1[i] += values2[i]
-	}
-
-	// check results
-	verifyTestVectors(params, values1, decrypted, t)
-}
-
-func testAddFourParticipants(t *testing.T, paramsIndex int) {
-
-	sigma := 6.0
-
-	participants, params := setupPeers(4, paramsIndex, sigma)
-
-	// generate test values
-	values1 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
-	values2 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
-	values3 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
-	values4 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
-
-	// Encrypt
-	cipher1 := participants[0].Encrypt(values1)
-	cipher2 := participants[1].Encrypt(values2)
-	cipher3 := participants[2].Encrypt(values3)
-	cipher4 := participants[3].Encrypt(values4)
-
-	// pad and add in 2 steps
-	evaluator := NewMKEvaluator(params)
-
-	out1, out2 := PadCiphers(cipher1, cipher2, params)
-	out3, out4 := PadCiphers(cipher3, cipher4, params)
-
-	resCipher1 := evaluator.Add(out1, out2)
-	resCipher2 := evaluator.Add(out3, out4)
-
-	finalOut1, finalOut2 := PadCiphers(resCipher1, resCipher2, params)
-
-	resCipher := evaluator.Add(finalOut1, finalOut2)
-
-	// decrypt
-	partialDec1 := participants[0].GetPartialDecryption(resCipher)
-	partialDec2 := participants[1].GetPartialDecryption(resCipher)
-	partialDec3 := participants[2].GetPartialDecryption(resCipher)
-	partialDec4 := participants[3].GetPartialDecryption(resCipher)
-
-	decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2, partialDec3, partialDec4})
-
-	// perform the operation in the plaintext space
-	for i := 0; i < len(values1); i++ {
-		values1[i] += values2[i] + values3[i] + values4[i]
-	}
-
-	// check results
-	verifyTestVectors(params, values1, decrypted, t)
+		// decode and check
+		verifyTestVectors(params, value, decrypted, t)
+	})
 
 }
 
-func testMul(t *testing.T, paramsIndex int) {
+func testAdd(t *testing.T, params *ckks.Parameters) {
 
 	sigma := 6.0
 
-	participants, params := setupPeers(2, paramsIndex, sigma)
+	participants := setupPeers(2, params, sigma)
 
-	// generate test values
-	values1 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
-	values2 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
+	t.Run(testString("Test add/", 2, params), func(t *testing.T) {
 
-	// Encrypt
-	cipher1 := participants[0].Encrypt(values1)
-	cipher2 := participants[1].Encrypt(values2)
+		// generate new values
+		values1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		values2 := newTestValue(params, complex(-1, -1), complex(1, 1))
 
-	// pad and add in 2 steps
-	evaluator := NewMKEvaluator(params)
-	evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
-	publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+		// Encrypt
+		cipher1 := participants[0].Encrypt(values1)
+		cipher2 := participants[1].Encrypt(values2)
 
-	out1, out2 := PadCiphers(cipher1, cipher2, params)
+		// pad and add
+		evaluator := NewMKEvaluator(params)
 
-	resCipher := evaluator.MultRelinDynamic(out1, out2, evalKeys, publicKeys)
+		out1, out2 := PadCiphers(cipher1, cipher2, params)
 
-	// decrypt
-	partialDec1 := participants[0].GetPartialDecryption(resCipher)
-	partialDec2 := participants[1].GetPartialDecryption(resCipher)
+		resCipher := evaluator.Add(out1, out2)
 
-	decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
 
-	// perform the operation in the plaintext space
-	for i := 0; i < len(values1); i++ {
-		values1[i] *= values2[i]
-	}
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
 
-	// check results
-	verifyTestVectors(params, values1, decrypted, t)
+		// perform the operation in the plaintext space
+		for i := 0; i < len(values1); i++ {
+			values1[i] += values2[i]
+		}
+
+		// check results
+		verifyTestVectors(params, values1, decrypted, t)
+	})
 
 }
 
-func testMulFourParticipants(t *testing.T, paramsIndex int) {
+func testAddFourParticipants(t *testing.T, params *ckks.Parameters) {
 
 	sigma := 6.0
 
-	participants, params := setupPeers(4, paramsIndex, sigma)
+	participants := setupPeers(4, params, sigma)
 
-	// generate test values
-	values1 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
-	values2 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
-	values3 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
-	values4 := newTestValue(params, complex(-1, -1), complex(1, 1), t)
+	t.Run(testString("Test add/", 4, params), func(t *testing.T) {
 
-	// Encrypt
-	cipher1 := participants[0].Encrypt(values1)
-	cipher2 := participants[1].Encrypt(values2)
-	cipher3 := participants[2].Encrypt(values3)
-	cipher4 := participants[3].Encrypt(values4)
+		// generate test values
+		values1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		values2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		values3 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		values4 := newTestValue(params, complex(-1, -1), complex(1, 1))
 
-	// pad and add in 2 steps
-	evaluator := NewMKEvaluator(params)
-	evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
-	publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
+		// Encrypt
+		cipher1 := participants[0].Encrypt(values1)
+		cipher2 := participants[1].Encrypt(values2)
+		cipher3 := participants[2].Encrypt(values3)
+		cipher4 := participants[3].Encrypt(values4)
 
-	out1, out2 := PadCiphers(cipher1, cipher2, params)
-	out3, out4 := PadCiphers(cipher3, cipher4, params)
+		// pad and add in 2 steps
+		evaluator := NewMKEvaluator(params)
 
-	resCipher1 := evaluator.MultRelinDynamic(out1, out2, evalKeys[:2], publicKeys[:2])
-	resCipher2 := evaluator.MultRelinDynamic(out3, out4, evalKeys[2:], publicKeys[2:])
+		out1, out2 := PadCiphers(cipher1, cipher2, params)
+		out3, out4 := PadCiphers(cipher3, cipher4, params)
 
-	finalOut1, finalOut2 := PadCiphers(resCipher1, resCipher2, params)
+		resCipher1 := evaluator.Add(out1, out2)
+		resCipher2 := evaluator.Add(out3, out4)
 
-	resCipher := evaluator.MultRelinDynamic(finalOut1, finalOut2, evalKeys, publicKeys)
+		finalOut1, finalOut2 := PadCiphers(resCipher1, resCipher2, params)
 
-	// decrypt
-	partialDec1 := participants[0].GetPartialDecryption(resCipher)
-	partialDec2 := participants[1].GetPartialDecryption(resCipher)
-	partialDec3 := participants[2].GetPartialDecryption(resCipher)
-	partialDec4 := participants[3].GetPartialDecryption(resCipher)
+		resCipher := evaluator.Add(finalOut1, finalOut2)
 
-	decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2, partialDec3, partialDec4})
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+		partialDec3 := participants[2].GetPartialDecryption(resCipher)
+		partialDec4 := participants[3].GetPartialDecryption(resCipher)
 
-	// perform the operation in the plaintext space
-	for i := 0; i < len(values1); i++ {
-		values1[i] *= values2[i] * values3[i] * values4[i]
-	}
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2, partialDec3, partialDec4})
 
-	// check results
-	verifyTestVectors(params, values1, decrypted, t)
+		// perform the operation in the plaintext space
+		for i := 0; i < len(values1); i++ {
+			values1[i] += values2[i] + values3[i] + values4[i]
+		}
+
+		// check results
+		verifyTestVectors(params, values1, decrypted, t)
+	})
+
+}
+
+func testMul(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	t.Run(testString("Test multiplication/", 2, params), func(t *testing.T) {
+
+		// generate test values
+		values1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		values2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// Encrypt
+		cipher1 := participants[0].Encrypt(values1)
+		cipher2 := participants[1].Encrypt(values2)
+
+		// pad and add in 2 steps
+		evaluator := NewMKEvaluator(params)
+		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+
+		out1, out2 := PadCiphers(cipher1, cipher2, params)
+
+		resCipher := evaluator.MultRelinDynamic(out1, out2, evalKeys, publicKeys)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(values1); i++ {
+			values1[i] *= values2[i]
+		}
+
+		// check results
+		verifyTestVectors(params, values1, decrypted, t)
+	})
+
+}
+
+func testMulFourParticipants(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(4, params, sigma)
+
+	t.Run(testString("Test multiplication/", 4, params), func(t *testing.T) {
+
+		// generate test values
+		values1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		values2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		values3 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		values4 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// Encrypt
+		cipher1 := participants[0].Encrypt(values1)
+		cipher2 := participants[1].Encrypt(values2)
+		cipher3 := participants[2].Encrypt(values3)
+		cipher4 := participants[3].Encrypt(values4)
+
+		// pad and add in 2 steps
+		evaluator := NewMKEvaluator(params)
+		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
+		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
+
+		out1, out2 := PadCiphers(cipher1, cipher2, params)
+		out3, out4 := PadCiphers(cipher3, cipher4, params)
+
+		resCipher1 := evaluator.MultRelinDynamic(out1, out2, evalKeys[:2], publicKeys[:2])
+		resCipher2 := evaluator.MultRelinDynamic(out3, out4, evalKeys[2:], publicKeys[2:])
+
+		finalOut1, finalOut2 := PadCiphers(resCipher1, resCipher2, params)
+
+		resCipher := evaluator.MultRelinDynamic(finalOut1, finalOut2, evalKeys, publicKeys)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+		partialDec3 := participants[2].GetPartialDecryption(resCipher)
+		partialDec4 := participants[3].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2, partialDec3, partialDec4})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(values1); i++ {
+			values1[i] *= values2[i] * values3[i] * values4[i]
+		}
+
+		// check results
+		verifyTestVectors(params, values1, decrypted, t)
+	})
 
 }
 func Test_Utils(t *testing.T) {
@@ -277,11 +294,9 @@ func equalsPoly(p1 *ring.Poly, p2 *ring.Poly) bool {
 
 // Generates keys for a set of peers identified by their peerID using a certain ckks parameter index
 // returns the slice of keys with the ckks parameters
-func setupPeers(peerNbr uint64, paramsNbr int, sigmaSmudging float64) ([]MKParticipant, *ckks.Parameters) {
+func setupPeers(peerNbr uint64, params *ckks.Parameters, sigmaSmudging float64) []MKParticipant {
 
 	res := make([]MKParticipant, peerNbr)
-
-	params := ckks.DefaultParams[paramsNbr]
 
 	a := GenCommonPublicParam(params)
 
@@ -290,10 +305,10 @@ func setupPeers(peerNbr uint64, paramsNbr int, sigmaSmudging float64) ([]MKParti
 		res[i] = NewParticipant(params, sigmaSmudging, a)
 	}
 
-	return res, params
+	return res
 }
 
-func newTestValue(params *ckks.Parameters, a, b complex128, t *testing.T) []complex128 {
+func newTestValue(params *ckks.Parameters, a, b complex128) []complex128 {
 
 	logSlots := params.LogSlots()
 

@@ -284,7 +284,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Refresh/Gen/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShares(p.s, levelStart, parties, ciphertext, crp, p.share1, p.share2)
+			p.GenShares(p.s, levelStart, parties, ciphertext, testCtx.params.Scale(), crp, p.share1, p.share2)
 		}
 	})
 
@@ -305,7 +305,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Refresh/Recode/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.Recode(ciphertext)
+			p.Recode(ciphertext, testCtx.params.Scale())
 		}
 	})
 

@@ -39,7 +39,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 		// and does an integer constant mult by round((Q0/Delta_m)/ctscle)
 
-		if math.Round(btp.prescale/ct.Scale()) == 0 {
+		if btp.prescale < ct.Scale() {
 			panic("ciphetext scale > Q[0]/(Q[0]/Delta_m)")
 		}
 		btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale()), ct)

@@ -71,12 +71,18 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 		di0 := evaluationKeys[i-1].key[0]
 		di1 := evaluationKeys[i-1].key[1]
 		di2 := evaluationKeys[i-1].key[2]
+
 		for j := uint64(1); j <= k; j++ {
+
 			decomposedIJ := GInverse(cipherParts[i*(k+1)+j], params)
-			Dot(decomposedIJ, publicKeys[j-1].key[0], tmpIJ, ringQ) // line 6
-			decomposedTmp := GInverse(tmpIJ, params)                // inverse and matric mult (line 7)
+
+			Dot(decomposedIJ, publicKeys[j].key[0], tmpIJ, ringQ) // line 6
+
+			decomposedTmp := GInverse(tmpIJ, params) // inverse and matric mult (line 7)
+
 			Dot(decomposedTmp, di0, tmpC0Prime, ringQ)
 			Dot(decomposedTmp, di1, tmpCIPrime, ringQ)
+
 			ringQ.Add(c0Prime, tmpC0Prime, c0Prime)
 			ringQ.Add(res[i], tmpCIPrime, res[i])
 

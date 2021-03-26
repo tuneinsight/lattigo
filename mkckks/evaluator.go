@@ -134,6 +134,7 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 	// Call Relin alg 2
 	RelinearizationOnTheFly(evalKeys, publicKeys, out, eval.params)
 
+	out.peerIDs = c1.peerIDs
 	return out
 }
 

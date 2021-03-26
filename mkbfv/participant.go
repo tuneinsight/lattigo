@@ -11,6 +11,8 @@ import (
 // MKParticipant is a type for participants in a multy key bfv scheme
 type MKParticipant interface {
 	GetID() uint64
+	GetEvaluationKey() *MKEvaluationKey
+	GetPublicKey() *MKPublicKey
 	Encrypt(values []uint64) *MKCiphertext
 	Decrypt(c0 *ring.Poly, partialDecryptions []*ring.Poly) []uint64
 	GetPartialDecryption(ciphertext *MKCiphertext) *ring.Poly
@@ -28,6 +30,16 @@ type mkParticipant struct {
 // GetID returns the id of the participant
 func (participant *mkParticipant) GetID() uint64 {
 	return participant.id
+}
+
+// GetEvaluationKey returns the evaluation key of the participant
+func (participant *mkParticipant) GetEvaluationKey() *MKEvaluationKey {
+	return participant.keys.evalKey
+}
+
+// GetPublicKey returns the publik key of the participant
+func (participant *mkParticipant) GetPublicKey() *MKPublicKey {
+	return participant.keys.publicKey
 }
 
 // Encrypt constructs a ciphertext from the given values

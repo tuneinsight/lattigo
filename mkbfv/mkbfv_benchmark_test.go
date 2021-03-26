@@ -20,9 +20,7 @@ func Benchmark_MKBFV(b *testing.B) {
 		benchEncrypt(b, p)
 		benchDecrypt(b, p)
 		benchPartialDecrypt(b, p)
-		/*
-			benchMultTwoCiphertexts(b, p)
-			benchRelinCiphertext(b, p)*/
+		//benchMultTwoCiphertexts(b, p)
 	}
 }
 
@@ -57,6 +55,31 @@ func benchAddTwoCiphertexts(b *testing.B, params *bfv.Parameters) {
 		for i := 0; i < b.N; i++ {
 			out1, out2 := PadCiphers(cipher1, cipher2, params)
 			evaluator.Add(out1, out2)
+		}
+	})
+}
+
+func benchMultTwoCiphertexts(b *testing.B, params *bfv.Parameters) {
+
+	participants := setupPeers(2, params, 6.0)
+
+	ringT := getRingT(params)
+
+	value1 := getRandomPlaintextValue(ringT, params)
+	value2 := getRandomPlaintextValue(ringT, params)
+
+	cipher1 := participants[0].Encrypt(value1)
+	cipher2 := participants[1].Encrypt(value2)
+
+	evaluator := NewMKEvaluator(params)
+	evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+	publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+
+	b.Run(testString("Mul/", 2, params), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+			out1, out2 := PadCiphers(cipher1, cipher2, params)
+			evaluator.MultRelinDynamic(out1, out2, evalKeys, publicKeys)
 		}
 	})
 }

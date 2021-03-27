@@ -29,17 +29,27 @@ func (eval *evaluator) RotateHoisted(ct0 *Ciphertext, rotations []int) (cOut map
 
 func (eval *evaluator) LinearTransform(vec *Ciphertext, linearTransform interface{}) (res []*Ciphertext) {
 
-	levelQ := vec.Level()
-
-	eval.DecompInternal(levelQ, vec.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
-
 	switch element := linearTransform.(type) {
 	case []*PtDiagMatrix:
 		res = make([]*Ciphertext, len(element))
+
+		var maxLevel int
+		for _, matrix := range element {
+			maxLevel = utils.MaxInt(maxLevel, matrix.Level)
+		}
+
+		minLevel := utils.MinInt(maxLevel, vec.Level())
+
+		eval.DecompInternal(minLevel, vec.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
+
 		for i, matrix := range element {
 			eval.multiplyByDiabMatrix(vec, res[i], matrix, eval.c2QiQDecomp, eval.c2QiPDecomp)
 		}
 	case *PtDiagMatrix:
+
+		minLevel := utils.MinInt(element.Level, vec.Level())
+		eval.DecompInternal(minLevel, vec.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
+
 		res = []*Ciphertext{NewCiphertext(eval.params, 1, vec.Level(), vec.Scale())}
 		eval.multiplyByDiabMatrix(vec, res[0], element, eval.c2QiQDecomp, eval.c2QiPDecomp)
 	}
@@ -302,7 +312,7 @@ func (eval *evaluator) multiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *P
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
-	levelQ := vec.Level()
+	levelQ := utils.MinInt(vec.Level(), matrix.Level)
 	levelP := eval.params.PiCount() - 1
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
@@ -412,7 +422,7 @@ func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
-	levelQ := vec.Level()
+	levelQ := utils.MinInt(vec.Level(), matrix.Level)
 	levelP := eval.params.PiCount() - 1
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)

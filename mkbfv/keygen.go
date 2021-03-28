@@ -134,10 +134,10 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGe
 
 	d1 := GetUniformDecomposed(uniformSampler, beta)
 
-	d0 := GetGaussianDecomposed(gaussianSampler, beta) // e1 <- Gauss(Rq^d)
-	d2 := GetGaussianDecomposed(gaussianSampler, beta) //e2 <- Gauss(Rq^d)
+	d0 := GetGaussianDecomposed(gaussianSampler, beta) // e1 <- Gauss(Rqp^d)
+	d2 := GetGaussianDecomposed(gaussianSampler, beta) //e2 <- Gauss(Rqp^d)
 
-	a := pk.key[1] // a <- U(Rq^d) second component of the public key
+	a := pk.key[1] // a <- U(Rqp^d) second component of the public key
 
 	for d := uint64(0); d < beta; d++ {
 		// Gaussian is not in NTT, so we convert it to NTT
@@ -148,6 +148,8 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGe
 	}
 
 	// the g_is mod q_i are either 0 or 1, so just need to compute sums of the correct random.Values
+	MultiplyByP(params, ringQP, randomValue) //scale up by p the random value
+	MultiplyByP(params, ringQP, mu)          //scale up by p the plaintext
 	MultiplyByBaseAndAdd(randomValue, params, d0)
 	MultiplyByBaseAndAdd(mu, params, d2)
 
@@ -244,4 +246,12 @@ func GenCommonPublicParam(params *bfv.Parameters) *MKDecomposedPoly {
 	uniformSampler := GetUniformSampler(params, ringQP, prng)
 
 	return GetUniformDecomposed(uniformSampler, params.Beta())
+}
+
+// MultiplyByP multiplies the polynomial p1 by the value P in ringQP, and stores the result in p1
+func MultiplyByP(params *bfv.Parameters, ringQP *ring.Ring, p1 *ring.Poly) {
+	pis := params.Pi()
+	for _, pi := range pis {
+		ringQP.MulScalar(p1, pi, p1) //scale up by p
+	}
 }

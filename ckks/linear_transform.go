@@ -43,15 +43,20 @@ func (eval *evaluator) LinearTransform(vec *Ciphertext, linearTransform interfac
 		eval.DecompInternal(minLevel, vec.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
 
 		for i, matrix := range element {
-			eval.multiplyByDiabMatrix(vec, res[i], matrix, eval.c2QiQDecomp, eval.c2QiPDecomp)
+			res[i] = NewCiphertext(eval.params, 1, minLevel, vec.Scale())
+			eval.MultiplyByDiabMatrix(vec, res[i], matrix, eval.c2QiQDecomp, eval.c2QiPDecomp)
 		}
+
 	case *PtDiagMatrix:
 
 		minLevel := utils.MinInt(element.Level, vec.Level())
 		eval.DecompInternal(minLevel, vec.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
 
-		res = []*Ciphertext{NewCiphertext(eval.params, 1, vec.Level(), vec.Scale())}
-		eval.multiplyByDiabMatrix(vec, res[0], element, eval.c2QiQDecomp, eval.c2QiPDecomp)
+		res = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, vec.Scale())}
+
+		
+
+		eval.MultiplyByDiabMatrix(vec, res[0], element, eval.c2QiQDecomp, eval.c2QiPDecomp)
 	}
 
 	return
@@ -97,31 +102,39 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, batchSize, n int, ctOut *Cipher
 		// eval.poolP[0]
 		// eval.poolP[1]
 
-		var state bool
+		state := false
+		copy := true
+		// Binary reading of the input n
 		for i, j := 0, n; j > 0; i, j = i+1, j>>1 {
 
+			// Starts by decomposing the input ciphertext
 			if i == 0 {
+				// If first iteration, then copies directly from the input ciphertext that hasn't been rotated
 				eval.DecompInternal(levelQ, ct0.value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
 			} else {
+				// Else copies from the rotated input ciphertext
 				eval.DecompInternal(levelQ, tmpc1, eval.c2QiQDecomp, eval.c2QiPDecomp)
 			}
 
+			// If the binary reading scans a 1
 			if j&1 == 1 {
 
 				k := n - (n & ((2 << i) - 1))
 				k *= batchSize
 
+				// If the rotation is not zero
 				if k != 0 {
 
 					// Rotate((tmpc0, tmpc1), k)
 					eval.permuteNTTHoistedNoModDown(levelQ, eval.c2QiQDecomp, eval.c2QiPDecomp, k, pool2Q, pool3Q, pool2P, pool3P)
 
 					// res += Rotate((tmpc0, tmpc1), k)
-					if i == 0 {
+					if copy {
 						ringQ.CopyLvl(levelQ, pool2Q, ct0OutQ)
 						ringQ.CopyLvl(levelQ, pool3Q, ct1OutQ)
 						ringP.Copy(pool2P, ct0OutP)
 						ringP.Copy(pool3P, ct1OutP)
+						copy = false
 					} else {
 						ringQ.AddLvl(levelQ, ct0OutQ, pool2Q, ct0OutQ)
 						ringQ.AddLvl(levelQ, ct1OutQ, pool3Q, ct1OutQ)
@@ -178,13 +191,14 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, batchSize, n int, ctOut *Cipher
 
 func (eval *evaluator) InnerSumNaive(ct0 *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
+
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
 	levelQ := ct0.Level()
 
-	QiOverF := eval.params.QiOverflowMargin(levelQ)
-	PiOverF := eval.params.PiOverflowMargin()
+	QiOverF := eval.params.QiOverflowMargin(levelQ)>>1
+	PiOverF := eval.params.PiOverflowMargin()>>1
 
 	// If sum with only the first element, then returns the input
 	if n == 1 {
@@ -290,7 +304,7 @@ func (eval *evaluator) InnerSumNaive(ct0 *Ciphertext, batchSize, n int, ctOut *C
 	}
 }
 
-func (eval *evaluator) multiplyByDiabMatrix(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
+func (eval *evaluator) MultiplyByDiabMatrix(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
 
 	if matrix.rotOnly {
 		for i := range matrix.Vec {
@@ -298,16 +312,16 @@ func (eval *evaluator) multiplyByDiabMatrix(vec, res *Ciphertext, matrix *PtDiag
 		}
 	} else {
 		if matrix.naive {
-			eval.multiplyByDiabMatrixNaive(vec, res, matrix, c2QiQDecomp, c2QiPDecomp)
+			eval.MultiplyByDiabMatrixNaive(vec, res, matrix, c2QiQDecomp, c2QiPDecomp)
 		} else {
-			eval.multiplyByDiabMatrixBSGS(vec, res, matrix, c2QiQDecomp, c2QiPDecomp)
+			eval.MultiplyByDiabMatrixBSGS(vec, res, matrix, c2QiQDecomp, c2QiPDecomp)
 		}
 	}
 
 	return
 }
 
-func (eval *evaluator) multiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
+func (eval *evaluator) MultiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
@@ -414,7 +428,7 @@ func (eval *evaluator) multiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *P
 	res.SetScale(matrix.Scale * vec.Scale())
 }
 
-func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
+func (eval *evaluator) MultiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
 
 	// N1*N2 = N
 	N1 := matrix.N1
@@ -578,7 +592,7 @@ func (eval *evaluator) multiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 
 			index := eval.permuteNTTIndex[galEl]
 
-			eval.switchKeysInPlaceNoModDown(levelQ, tmpQ1, rtk, pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
+			eval.SwitchKeysInPlaceNoModDown(levelQ, tmpQ1, rtk, pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
 
 			// Outer loop rotations
 			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, index, tmpQ1) // phi(tmpRes_0)

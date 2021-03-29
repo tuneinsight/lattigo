@@ -1635,7 +1635,7 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(level int, c2QiQDecomp, c2QiPD
 	ring.PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
 }
 
-func (eval *evaluator) switchKeysInPlaceNoModDown(level int, cx *ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
+func (eval *evaluator) SwitchKeysInPlaceNoModDown(level int, cx *ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
 
 	var reduce int
 
@@ -1714,7 +1714,7 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level int, cx *ring.Poly, evak
 // switchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
 func (eval *evaluator) switchKeysInPlace(level int, cx *ring.Poly, evakey *rlwe.SwitchingKey, p0, p1 *ring.Poly) {
 
-	eval.switchKeysInPlaceNoModDown(level, cx, evakey, p0, eval.poolP[1], p1, eval.poolP[2])
+	eval.SwitchKeysInPlaceNoModDown(level, cx, evakey, p0, eval.poolP[1], p1, eval.poolP[2])
 
 	eval.baseconverter.ModDownSplitNTTPQ(level, p0, eval.poolP[1], p0)
 	eval.baseconverter.ModDownSplitNTTPQ(level, p1, eval.poolP[2], p1)

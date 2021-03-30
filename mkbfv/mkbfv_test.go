@@ -14,8 +14,8 @@ func Test_MKBFV(t *testing.T) {
 		testEncryptionEqualsDecryption(t, p)
 		testAdd(t, p)
 		testAddFourParticipants(t, p)
-		//testMul(t, i)
-		//testMulFourParticipants(t, i)
+		//testMul(t, p)
+		//testMulFourParticipants(t, p)
 	}
 }
 

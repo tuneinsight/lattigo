@@ -1,6 +1,8 @@
 package mkbfv
 
 import (
+	"math/big"
+
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -147,11 +149,23 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGe
 		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[d], d2.poly[d])
 	}
 
+	scaledMu := ringQP.NewPoly()
+	scaledRandomValue := ringQP.NewPoly()
+
+	var pBigInt *big.Int
+	pis := params.Pi()
+	if len(pis) != 0 {
+		pBigInt = ring.NewUint(1)
+		for _, pi := range pis {
+			pBigInt.Mul(pBigInt, ring.NewUint(pi))
+		}
+	}
+
+	ringQP.MulScalarBigint(randomValue, pBigInt, scaledRandomValue)
+	ringQP.MulScalarBigint(mu, pBigInt, scaledMu)
 	// the g_is mod q_i are either 0 or 1, so just need to compute sums of the correct random.Values
-	MultiplyByP(params, ringQP, randomValue) //scale up by p the random value
-	MultiplyByP(params, ringQP, mu)          //scale up by p the plaintext
-	MultiplyByBaseAndAdd(randomValue, params, d0)
-	MultiplyByBaseAndAdd(mu, params, d2)
+	MultiplyByBaseAndAdd(scaledRandomValue, params, d0)
+	MultiplyByBaseAndAdd(scaledMu, params, d2)
 
 	return []*MKDecomposedPoly{d0, d1, d2}
 }
@@ -190,10 +204,10 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *MKDecompose
 }
 
 // Function used to generate the evaluation key. The evaluation key is the encryption of the secret key under itself using uniEnc
-func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQ *ring.Ring) *MKEvaluationKey {
+func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) *MKEvaluationKey {
 
 	return &MKEvaluationKey{
-		key:    uniEnc(sk.key.Value, sk, pk, generator, params, ringQ),
+		key:    uniEnc(sk.key.Value, sk, pk, generator, params, ringQP),
 		peerID: sk.peerID,
 	}
 }
@@ -246,12 +260,4 @@ func GenCommonPublicParam(params *bfv.Parameters) *MKDecomposedPoly {
 	uniformSampler := GetUniformSampler(params, ringQP, prng)
 
 	return GetUniformDecomposed(uniformSampler, params.Beta())
-}
-
-// MultiplyByP multiplies the polynomial p1 by the value P in ringQP, and stores the result in p1
-func MultiplyByP(params *bfv.Parameters, ringQP *ring.Ring, p1 *ring.Poly) {
-	pis := params.Pi()
-	for _, pi := range pis {
-		ringQP.MulScalar(p1, pi, p1) //scale up by p
-	}
 }

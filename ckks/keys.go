@@ -30,26 +30,26 @@ type BootstrappingKey EvaluationKey
 
 // NewSecretKey returns an allocated CKKS secret key with zero values.
 func NewSecretKey(params *Parameters) (sk *SecretKey) {
-	return &SecretKey{*rlwe.NewSecretKey(params.N(), params.QPiCount())}
+	return &SecretKey{*rlwe.NewSecretKey(params.RLWEParameters())}
 }
 
 // NewPublicKey returns an allocated CKKS public with zero values.
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
-	return &PublicKey{*rlwe.NewPublicKey(params.N(), params.QPiCount())}
+	return &PublicKey{*rlwe.NewPublicKey(params.RLWEParameters())}
 }
 
 // NewSwitchingKey returns an allocated CKKS public switching key with zero values.
 func NewSwitchingKey(params *Parameters) *SwitchingKey {
-	return &SwitchingKey{*rlwe.NewSwitchingKey(params.N(), params.QPiCount(), params.Beta())}
+	return &SwitchingKey{*rlwe.NewSwitchingKey(params.RLWEParameters())}
 }
 
 // NewRelinearizationKey returns an allocated CKKS public relinearization key with zero value.
 func NewRelinearizationKey(params *Parameters) *RelinearizationKey {
-	return &RelinearizationKey{*rlwe.NewRelinKey(2, params.N(), params.QPiCount(), params.Beta())}
+	return &RelinearizationKey{*rlwe.NewRelinKey(params.RLWEParameters(), 2)}
 }
 
 // NewRotationKeySet returns an allocated set of CKKS public rotation keys with zero values for each galois element
 // (i.e., for each supported rotation).
 func NewRotationKeySet(params *Parameters, galoisElements []uint64) *RotationKeySet {
-	return &RotationKeySet{*rlwe.NewRotationKeySet(galoisElements, params.N(), params.QPiCount(), params.Beta())}
+	return &RotationKeySet{*rlwe.NewRotationKeySet(params.RLWEParameters(), galoisElements)}
 }

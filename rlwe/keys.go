@@ -35,24 +35,25 @@ type RotationKeySet struct {
 }
 
 // NewSecretKey generates a new SecretKey with zero values.
-func NewSecretKey(ringDegree, moduliCount int) *SecretKey {
-
+func NewSecretKey(params *Parameters) *SecretKey {
 	sk := new(SecretKey)
-	sk.Value = ring.NewPoly(ringDegree, moduliCount)
+	sk.Value = ring.NewPoly(params.N(), params.QPCount())
 	return sk
 }
 
 // NewPublicKey returns a new PublicKey with zero values.
-func NewPublicKey(ringDegree, moduliCount int) (pk *PublicKey) {
+func NewPublicKey(params *Parameters) (pk *PublicKey) {
+	ringDegree := params.N()
+	moduliCount := params.QPCount()
 	return &PublicKey{Value: [2]*ring.Poly{ring.NewPoly(ringDegree, moduliCount), ring.NewPoly(ringDegree, moduliCount)}}
 }
 
 // NewRotationKeySet returns a new RotationKeySet with pre-allocated switching keys for each distinct galoisElement value.
-func NewRotationKeySet(galoisElement []uint64, ringDegree, moduliCount, decompSize int) (rotKey *RotationKeySet) {
+func NewRotationKeySet(params *Parameters, galoisElement []uint64) (rotKey *RotationKeySet) {
 	rotKey = new(RotationKeySet)
 	rotKey.Keys = make(map[uint64]*SwitchingKey, len(galoisElement))
 	for _, galEl := range galoisElement {
-		rotKey.Keys[galEl] = NewSwitchingKey(ringDegree, moduliCount, decompSize)
+		rotKey.Keys[galEl] = NewSwitchingKey(params)
 	}
 	return
 }
@@ -65,10 +66,12 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 }
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
-func NewSwitchingKey(ringDegree, moduliCount, decompSize int) *SwitchingKey {
+func NewSwitchingKey(params *Parameters) *SwitchingKey {
+	ringDegree := params.N()
+	moduliCount := params.QPCount()
+	decompSize := params.Beta()
 
 	swk := new(SwitchingKey)
-
 	swk.Value = make([][2]*ring.Poly, int(decompSize))
 
 	for i := 0; i < decompSize; i++ {
@@ -80,14 +83,14 @@ func NewSwitchingKey(ringDegree, moduliCount, decompSize int) *SwitchingKey {
 }
 
 // NewRelinKey creates a new EvaluationKey with zero values.
-func NewRelinKey(maxRelinDegree, ringDegree, moduliCount, decompSize int) (evakey *RelinearizationKey) {
+func NewRelinKey(params *Parameters, maxRelinDegree int) (evakey *RelinearizationKey) {
 
 	evakey = new(RelinearizationKey)
 
 	evakey.Keys = make([]*SwitchingKey, maxRelinDegree)
 
 	for d := 0; d < maxRelinDegree; d++ {
-		evakey.Keys[d] = NewSwitchingKey(ringDegree, moduliCount, decompSize)
+		evakey.Keys[d] = NewSwitchingKey(params)
 	}
 
 	return

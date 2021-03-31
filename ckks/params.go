@@ -8,6 +8,7 @@ import (
 	"math/bits"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -751,4 +752,9 @@ func genModuli(lm *LogModuli, logN int) (m *Moduli) {
 	}
 
 	return m
+}
+
+// Temporary getter, rlwe.Parameters should be embeded in type ckks.parameters
+func (p *Parameters) RLWEParameters() *rlwe.Parameters {
+	return rlwe.NewRLWEParameters(p.logN, p.qi, p.pi, p.sigma)
 }

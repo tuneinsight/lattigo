@@ -26,26 +26,26 @@ type EvaluationKey struct {
 
 // NewSecretKey returns an allocated BFV secret key with zero values.
 func NewSecretKey(params *Parameters) (sk *SecretKey) {
-	return &SecretKey{*rlwe.NewSecretKey(params.N(), params.QPiCount())}
+	return &SecretKey{*rlwe.NewSecretKey(params.RLWEParameters())}
 }
 
 // NewPublicKey returns an allocated BFV public with zero values.
 func NewPublicKey(params *Parameters) (pk *PublicKey) {
-	return &PublicKey{*rlwe.NewPublicKey(params.N(), params.QPiCount())}
+	return &PublicKey{*rlwe.NewPublicKey(params.RLWEParameters())}
 }
 
 // NewSwitchingKey returns an allocated BFV public switching key with zero values.
 func NewSwitchingKey(params *Parameters) *SwitchingKey {
-	return &SwitchingKey{*rlwe.NewSwitchingKey(params.N(), params.QPiCount(), params.Beta())}
+	return &SwitchingKey{*rlwe.NewSwitchingKey(params.RLWEParameters())}
 }
 
 // NewRelinearizationKey returns an allocated BFV public relinearization key with zero value for each degree in [2 < maxRelinDegree].
 func NewRelinearizationKey(params *Parameters, maxRelinDegree int) *RelinearizationKey {
-	return &RelinearizationKey{*rlwe.NewRelinKey(maxRelinDegree, params.N(), params.QPiCount(), params.Beta())}
+	return &RelinearizationKey{*rlwe.NewRelinKey(params.RLWEParameters(), maxRelinDegree)}
 }
 
 // NewRotationKeySet returns an allocated set of BFV public rotation keys with zero values for each galois element
 // (i.e., for each supported rotation).
 func NewRotationKeySet(params *Parameters, galoisElements []uint64) *RotationKeySet {
-	return &RotationKeySet{*rlwe.NewRotationKeySet(galoisElements, params.N(), params.QPiCount(), params.Beta())}
+	return &RotationKeySet{*rlwe.NewRotationKeySet(params.RLWEParameters(), galoisElements)}
 }

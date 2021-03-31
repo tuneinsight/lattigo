@@ -8,17 +8,19 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
+/*
 func Test_MKBFV(t *testing.T) {
 
 	for _, p := range bfv.DefaultParams {
-		testEncryptionEqualsDecryption(t, p)
-		testAdd(t, p)
-		testAddFourParticipants(t, p)
+		//testEncryptionEqualsDecryption(t, p)
+		//testAdd(t, p)
+		//testAddFourParticipants(t, p)
 		//testMul(t, p)
 		//testMulFourParticipants(t, p)
 	}
 }
 
+*/
 func testEncryptionEqualsDecryption(t *testing.T, params *bfv.Parameters) {
 
 	sigma := 6.0
@@ -155,7 +157,7 @@ func testAddFourParticipants(t *testing.T, params *bfv.Parameters) {
 
 }
 
-func Test_Dot(t *testing.T) {
+func test_Dot(t *testing.T) {
 
 	params := bfv.DefaultParams[0]
 
@@ -205,42 +207,50 @@ func Test_TensorProduct(t *testing.T) {
 
 	params := bfv.DefaultParams[0]
 
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
 	ringT := getRingT(params)
+	ringQ := GetRingQ(params)
 
-	t.Run(testString("Test Dot product/", 1, params), func(t *testing.T) {
+	t.Run(testString("Test Tensor product/", 2, params), func(t *testing.T) {
 
+		// Create two ciphertexts (c0,c1,0), (c0,0,c1) with c0 = 0, c1 = 1 and check that tensor product without rescaling = (0,0,0,0,0,0,0,1,0)
 		expected1 := getRandomPlaintextValue(ringT, params)
 		expected2 := getRandomPlaintextValue(ringT, params)
-		// perform the operation in the plaintext space
-		expected := ringT.NewPoly()
-		p1 := ringT.NewPoly()
-		p2 := ringT.NewPoly()
-		p3 := ringT.NewPoly()
-		copy(p1.Coeffs[0], expected1)
-		copy(p2.Coeffs[0], expected2)
 
-		ringT.Add(p1, p2, expected)
+		// encrypt
+		cipher1 := participants[0].Encrypt(expected1)
+		cipher2 := participants[1].Encrypt(expected2)
 
-		// perform dot product in the plaintext space : multiply (pt1,pt2) by (1,1) and compare with Add(pt1,pt2)
-
-		dotExpected := ringT.NewPoly()
-		decomposedPoly1 := NewDecomposedPoly(ringT, 2)
-		decomposedPoly1.poly[0] = p1
-		decomposedPoly1.poly[1] = p2
+		// Create 3 polynomials in ringQ then set coeffs to 1
+		p1 := ringQ.NewPoly()
 		const1Int := make([]uint64, len(p1.Coeffs[0]))
-		for i := uint64(0); i < uint64(len(const1Int)); i++ {
-			const1Int[i] = 1
+		for i := uint64(0); i < uint64(len(const1Int)-1); i++ {
+			const1Int[i] = 100
 		}
-		ringT.SetCoefficientsUint64(const1Int, p3)
+		const1Int[len(const1Int)-1] = 1
+		ringQ.SetCoefficientsUint64(const1Int, p1)
 
-		decomposedPoly2 := NewDecomposedPoly(ringT, 2)
-		decomposedPoly2.poly[0] = p3 // set equal to 1
-		decomposedPoly2.poly[1] = p3 // set equal to 1
+		p2 := ringQ.NewPoly()
+		ringQ.SetCoefficientsUint64(const1Int, p2)
 
-		Dot(decomposedPoly1, decomposedPoly2, dotExpected, ringT)
+		cipherPoly := make([]*ring.Poly, 2)
 
-		if !equalsSlice(dotExpected.Coeffs[0], expected.Coeffs[0]) {
-			t.Error("Dot error")
+		cipherPoly[0] = p1
+		cipherPoly[1] = p1
+
+		cipher1.ciphertexts.SetValue(cipherPoly)
+		cipher2.ciphertexts.SetValue(cipherPoly)
+
+		out1, out2 := PadCiphers(cipher1, cipher2, params) // (0,1,0), (0,0,1)
+
+		evaluator := NewMKEvaluator(params)
+		testPoly := evaluator.TensorAndRescale(out1.ciphertexts.El(), out2.ciphertexts.El())
+
+		if !equalsSlice(testPoly.ciphertexts.Value()[7].Coeffs[0], []uint64{0, 0, 0, 0, 0, 0, 0, 0, 1}) {
+			t.Error("tensor error")
 		}
 
 	})
@@ -283,14 +293,17 @@ func testMul(t *testing.T, params *bfv.Parameters) {
 		copy(p1.Coeffs[0], expected1)
 		copy(p2.Coeffs[0], expected2)
 		ringT.MulCoeffs(p1, p2, expected)
+		println("len(decrypted) = ", len(decrypted))
+		println("len(expected) = ", len(expected.Coeffs[0]))
+		println("T = ", params.T())
 		/*
 			for _, v := range decrypted {
 				println("decrypted : ", v)
 			}
 			for _, v := range expected.Coeffs[0] {
 				println("expected : ", v)
-			}
-		*/
+			}*/
+
 		if !equalsSlice(decrypted, expected.Coeffs[0]) {
 			t.Error("Homomorphic multiplication error")
 		}

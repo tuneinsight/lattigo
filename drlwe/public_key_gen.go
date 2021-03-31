@@ -17,7 +17,7 @@ type CollectivePublicKeyGenerator interface {
 
 // CKGProtocol is the structure storing the parameters and and precomputations for the collective key generation protocol.
 type CKGProtocol struct {
-	n uint64
+	params *rlwe.Parameters
 
 	ringQ           *ring.Ring
 	ringP           *ring.Ring
@@ -40,27 +40,20 @@ func (share *CKGShare) UnmarshalBinary(data []byte) error {
 }
 
 // NewCKGProtocol creates a new CKGProtocol instance
-func NewCKGProtocol(n uint64, q, p []uint64, sigma float64) *CKGProtocol { // TODO drlwe.Params
+func NewCKGProtocol(params *rlwe.Parameters) *CKGProtocol { // TODO drlwe.Params
 
 	ckg := new(CKGProtocol)
+	ckg.params = params
+	ckg.ringQ = params.RingQ()
+	ckg.ringP = params.RingP()
+	ckg.ringQP = params.RingQP()
+
 	var err error
-	if ckg.ringQ, err = ring.NewRing(n, q); err != nil {
-		panic(err) // TODO error
-	}
-
-	if ckg.ringP, err = ring.NewRing(n, p); err != nil {
-		panic(err)
-	}
-
-	if ckg.ringQP, err = ring.NewRing(n, append(q, p...)); err != nil {
-		panic(err)
-	}
-
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.ringQP, sigma, uint64(6*sigma))
+	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.ringQP, params.Sigma(), uint64(6*params.Sigma()))
 	return ckg
 }
 

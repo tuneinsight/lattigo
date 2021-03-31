@@ -13,7 +13,7 @@ type RTGProtocol struct {
 
 // NewRotKGProtocol creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
 func NewRotKGProtocol(params *ckks.Parameters) (rtg *RTGProtocol) {
-	return &RTGProtocol{*drlwe.NewRTGProtocol(params.N(), params.Qi(), params.Pi(), params.Sigma())}
+	return &RTGProtocol{*drlwe.NewRTGProtocol(params.RLWEParameters())}
 }
 
 // GenCKKSRotationKey populates the input RotationKeys struture with the Switching key computed from the protocol.

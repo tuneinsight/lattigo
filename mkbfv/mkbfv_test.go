@@ -267,28 +267,30 @@ func testMul(t *testing.T, params *bfv.Parameters) {
 		// pad
 		evaluator := NewMKEvaluator(params)
 		out1, out2 := PadCiphers(cipher1, cipher2, params)
-
 		// multiply using evaluation keys and publick keys
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
-
 		resCipher := evaluator.MultRelinDynamic(out1, out2, evalKeys, publicKeys)
-
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
 		partialDec2 := participants[1].GetPartialDecryption(resCipher)
 
 		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
-
 		// perform the operation in the plaintext space
 		expected := ringT.NewPoly()
 		p1 := ringT.NewPoly()
 		p2 := ringT.NewPoly()
 		copy(p1.Coeffs[0], expected1)
 		copy(p2.Coeffs[0], expected2)
-
 		ringT.MulCoeffs(p1, p2, expected)
-
+		/*
+			for _, v := range decrypted {
+				println("decrypted : ", v)
+			}
+			for _, v := range expected.Coeffs[0] {
+				println("expected : ", v)
+			}
+		*/
 		if !equalsSlice(decrypted, expected.Coeffs[0]) {
 			t.Error("Homomorphic multiplication error")
 		}

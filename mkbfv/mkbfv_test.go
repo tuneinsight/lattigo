@@ -8,19 +8,17 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-/*
 func Test_MKBFV(t *testing.T) {
 
 	for _, p := range bfv.DefaultParams {
-		//testEncryptionEqualsDecryption(t, p)
-		//testAdd(t, p)
-		//testAddFourParticipants(t, p)
+		testEncryptionEqualsDecryption(t, p)
+		testAdd(t, p)
+		testAddFourParticipants(t, p)
 		//testMul(t, p)
 		//testMulFourParticipants(t, p)
 	}
 }
 
-*/
 func testEncryptionEqualsDecryption(t *testing.T, params *bfv.Parameters) {
 
 	sigma := 6.0
@@ -157,7 +155,7 @@ func testAddFourParticipants(t *testing.T, params *bfv.Parameters) {
 
 }
 
-func test_Dot(t *testing.T) {
+func Test_Dot(t *testing.T) {
 
 	params := bfv.DefaultParams[0]
 
@@ -203,6 +201,7 @@ func test_Dot(t *testing.T) {
 
 }
 
+/*
 func Test_TensorProduct(t *testing.T) {
 
 	params := bfv.DefaultParams[0]
@@ -256,7 +255,7 @@ func Test_TensorProduct(t *testing.T) {
 	})
 
 }
-
+*/
 func testMul(t *testing.T, params *bfv.Parameters) {
 
 	sigma := 6.0

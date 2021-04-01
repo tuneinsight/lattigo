@@ -1,6 +1,8 @@
 package mkckks
 
 import (
+	"math/big"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -116,6 +118,7 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 	if err != nil {
 		panic(err)
 	}
+	randomValue := random.Value
 
 	uniformSampler := GetUniformSampler(params, ringQP, prng)
 	gaussianSampler := GetGaussianSampler(params, ringQP, prng)
@@ -133,34 +136,50 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 
 	d1 := GetUniformDecomposed(uniformSampler, beta)
 
-	d0 := GetGaussianDecomposed(gaussianSampler, beta) // e1 <- Gauss(Rq^d)
-	d2 := GetGaussianDecomposed(gaussianSampler, beta) //e2 <- Gauss(Rq^d)
+	d0 := GetGaussianDecomposed(gaussianSampler, beta) // e1 <- Gauss(Rqp^d)
+	d2 := GetGaussianDecomposed(gaussianSampler, beta) //e2 <- Gauss(Rqp^d)
 
-	a := pk.key[1] // a <- U(Rq^d) second component of the public key
+	a := pk.key[1] // a <- U(Rqp^d) second component of the public key
 
 	for d := uint64(0); d < beta; d++ {
 		// Gaussian is not in NTT, so we convert it to NTT
 		ringQP.NTT(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
 		ringQP.NTT(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
 		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
-		ringQP.MulCoeffsMontgomeryAndAdd(random.Value, a.poly[d], d2.poly[d])
+		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[d], d2.poly[d])
 	}
 
+	scaledMu := ringQP.NewPoly()
+	scaledRandomValue := ringQP.NewPoly()
+
+	var pBigInt *big.Int
+	pis := params.Pi()
+	if len(pis) != 0 {
+		pBigInt = ring.NewUint(1)
+		for _, pi := range pis {
+			pBigInt.Mul(pBigInt, ring.NewUint(pi))
+		}
+	}
+
+	ringQP.MulScalarBigint(randomValue, pBigInt, scaledRandomValue)
+	ringQP.MulScalarBigint(mu, pBigInt, scaledMu)
 	// the g_is mod q_i are either 0 or 1, so just need to compute sums of the correct random.Values
-	MultiplyByBaseAndAdd(random.Value, params, d0)
-	MultiplyByBaseAndAdd(mu, params, d2)
+	MultiplyByBaseAndAdd(scaledRandomValue, params, d0)
+	MultiplyByBaseAndAdd(scaledMu, params, d2)
 
 	return []*MKDecomposedPoly{d0, d1, d2}
 }
 
 // MultiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2
+// Takes into account Modulus variant by scaling up by factor P
 func MultiplyByBaseAndAdd(p1 *ring.Poly, params *ckks.Parameters, p2 *MKDecomposedPoly) {
 
 	alpha := params.Alpha()
 	// dimension of the vectors (d)
 	beta := params.Beta()
-	ringQP := GetRingQP(params)
+
 	var index uint64
+	ringQP := GetRingQP(params)
 
 	for i := uint64(0); i < beta; i++ {
 

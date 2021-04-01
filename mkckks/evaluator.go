@@ -11,7 +11,6 @@ import (
 // MKEvaluator is a wrapper for the ckks evaluator
 type MKEvaluator interface {
 	Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
-	MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, relinKey *MKRelinearizationKey) *MKCiphertext
 	MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
 	Rescale(c *MKCiphertext, out *MKCiphertext)
 }
@@ -115,121 +114,47 @@ func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
 	return out
 }
 
-// MultSharedRelinKey will compute the homomorphic multiplication and relinearize the resulting cyphertext using pre computed Relin key
-func (eval *mkEvaluator) MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, relinKey *MKRelinearizationKey) *MKCiphertext {
-
-	out := eval.tensor(c1.ciphertexts.Element, c2.ciphertexts.Element)
-
-	// Call Relin on the resulting ciphertext
-	RelinearizationWithSharedRelinKey(relinKey, out)
-
-	return out
-}
-
 // MultRelinDynamic will compute the homomorphic multiplication and relinearize the resulting cyphertext using dynamic relin
 func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
 
-	out := eval.tensor(c1.ciphertexts.Element, c2.ciphertexts.Element)
+	nbrElements := c1.ciphertexts.Degree() + 1 // k+1
+
+	outputDegree := nbrElements * nbrElements // (k+1)**2
+
+	el1 := c1.ciphertexts.Element
+	el2 := c2.ciphertexts.Element
+	level := utils.MinUint64(el1.Level(), el2.Level())
+
+	out := new(MKCiphertext)
+	out.ciphertexts = ckks.NewCiphertext(eval.params, outputDegree-1, level, el1.Scale()*el2.Scale())
+	out.peerIDs = c1.peerIDs
+
+	if !el1.IsNTT() {
+		panic("cannot MulRelinDynamic: op0 must be in NTT")
+	}
+
+	if !el2.IsNTT() {
+		panic("cannot MulRelinDynamic: op1 must be in NTT")
+	}
+
+	ringQ := eval.ringQ
+
+	tmp1 := ringQ.NewPoly()
+	tmp2 := ringQ.NewPoly()
+
+	for i, v1 := range c1.ciphertexts.Value() {
+
+		for j, v2 := range c2.ciphertexts.Value() {
+
+			ringQ.MFormLvl(level, v1, tmp1)
+			ringQ.MFormLvl(level, v2, tmp2)
+
+			ringQ.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, out.ciphertexts.Ciphertext().Value()[int(nbrElements)*i+j])
+		}
+	}
 
 	// Call Relin alg 2
 	RelinearizationOnTheFly(evalKeys, publicKeys, out, eval.params)
-
-	out.peerIDs = c1.peerIDs
-	return out
-}
-
-func (eval *mkEvaluator) modUpAndNTT(ct *ckks.Element, cQ, cQMul []*ring.Poly) {
-	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
-	for i := range ct.Value() {
-		eval.convertor.ModUpSplitQP(levelQ, ct.Value()[i], cQMul[i])
-		eval.ringQ.NTTLazy(ct.Value()[i], cQ[i])
-		eval.ringQMul.NTTLazy(cQMul[i], cQMul[i])
-	}
-}
-
-// tensor computes the tensor product between 2 ciphertexts and returns the result in out
-// c1 and c2 must have be of dimension k+1, where k = #participants
-// out has dimensions (k+1)**2
-func (eval *mkEvaluator) tensor(ct0, ct1 *ckks.Element) *MKCiphertext {
-
-	nbrElements := ct0.Degree() + 1 // k+1
-
-	outputDegree := nbrElements * nbrElements
-
-	out := new(MKCiphertext)
-	out.ciphertexts = ckks.NewCiphertext(eval.params, outputDegree-1, ct0.Level(), ct0.Scale())
-
-	c0Q1 := make([]*ring.Poly, nbrElements)
-	c0Q2 := make([]*ring.Poly, nbrElements)
-
-	for i := uint64(0); i < nbrElements; i++ {
-		c0Q1[i] = eval.ringQ.NewPoly()
-		c0Q2[i] = eval.ringQMul.NewPoly()
-	}
-
-	eval.modUpAndNTT(ct0, c0Q1, c0Q2) // split ct0 in ringQ and ringQMul
-
-	c2Q1 := make([]*ring.Poly, outputDegree) // prepare output
-	c2Q2 := make([]*ring.Poly, outputDegree)
-
-	for i := uint64(0); i < outputDegree; i++ {
-
-		c2Q1[i] = eval.ringQ.NewPoly()
-		c2Q2[i] = eval.ringQMul.NewPoly()
-	}
-
-	// Squaring case
-	if ct0 == ct1 {
-
-		c00Q1 := make([]*ring.Poly, nbrElements)
-		c00Q2 := make([]*ring.Poly, nbrElements)
-
-		for i := range ct0.Value() {
-
-			c00Q1[i] = eval.ringQ.NewPoly()
-			c00Q2[i] = eval.ringQMul.NewPoly()
-
-			eval.ringQ.MForm(c0Q1[i], c00Q1[i])
-			eval.ringQMul.MForm(c0Q2[i], c00Q2[i])
-		}
-
-		for i := uint64(0); i < nbrElements; i++ {
-			for j := i + 1; j < nbrElements; j++ {
-				eval.ringQ.MulCoeffsMontgomery(c00Q1[i], c0Q1[j], c2Q1[nbrElements*i+j])
-				eval.ringQMul.MulCoeffsMontgomery(c00Q2[i], c0Q2[j], c2Q2[nbrElements*i+j])
-
-				eval.ringQ.Add(c2Q1[i+j], c2Q1[i+j], c2Q1[nbrElements*i+j])
-				eval.ringQMul.Add(c2Q2[i+j], c2Q2[i+j], c2Q2[nbrElements*i+j])
-			}
-		}
-
-		for i := uint64(0); i < ct0.Degree()+1; i++ {
-			eval.ringQ.MulCoeffsMontgomeryAndAdd(c00Q1[i], c0Q1[i], c2Q1[i<<1])
-			eval.ringQMul.MulCoeffsMontgomeryAndAdd(c00Q2[i], c0Q2[i], c2Q2[i<<1])
-		}
-
-		// Normal case
-	} else {
-
-		c1Q1 := make([]*ring.Poly, nbrElements)
-		c1Q2 := make([]*ring.Poly, nbrElements)
-
-		for i := uint64(0); i < nbrElements; i++ {
-			c1Q1[i] = eval.ringQ.NewPoly()
-			c1Q2[i] = eval.ringQMul.NewPoly()
-		}
-
-		eval.modUpAndNTT(ct1, c1Q1, c1Q2)
-
-		for i := range ct0.Value() {
-			eval.ringQ.MForm(c0Q1[i], c0Q1[i])
-			eval.ringQMul.MForm(c0Q2[i], c0Q2[i])
-			for j := range ct1.Value() {
-				eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[int(nbrElements)+1*i+j])
-				eval.ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[int(nbrElements)*i+j])
-			}
-		}
-	}
 
 	return out
 }

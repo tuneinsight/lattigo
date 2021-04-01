@@ -305,7 +305,7 @@ func (switchkey *SwitchingKey) CopyNew() *SwitchingKey {
 		return nil
 	}
 	swk := &SwitchingKey{Value: make([][2]*ring.Poly, len(switchkey.Value))}
-	for i, el := range swk.Value {
+	for i, el := range switchkey.Value {
 		swk.Value[i] = [2]*ring.Poly{el[0].CopyNew(), el[1].CopyNew()}
 	}
 	return swk

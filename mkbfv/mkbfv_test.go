@@ -14,6 +14,13 @@ func Test_MKBFV(t *testing.T) {
 		testEncryptionEqualsDecryption(t, p)
 		testAdd(t, p)
 		testAddFourParticipants(t, p)
+		testAddPlaintext(t, p)
+		testAddPlaintextTwoParticipants(t, p)
+		testSub(t, p)
+		testSubPlaintext(t, p)
+		testSubPlaintextTwoParticipants(t, p)
+		testMulPlaintext(t, p)
+		testMulPlaintextTwoParticipants(t, p)
 		//testMul(t, p)
 		//testMulFourParticipants(t, p)
 	}
@@ -83,6 +90,250 @@ func testAdd(t *testing.T, params *bfv.Parameters) {
 		copy(p2.Coeffs[0], expected2)
 
 		ringT.Add(p1, p2, expected)
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic addition error")
+		}
+
+	})
+
+}
+
+func testSub(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	ringT := getRingT(params)
+
+	t.Run(testString("Test Substraction/", 2, params), func(t *testing.T) {
+		expected1 := getRandomPlaintextValue(ringT, params)
+		expected2 := getRandomPlaintextValue(ringT, params)
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(expected1)
+		cipher2 := participants[1].Encrypt(expected2)
+
+		// pad and add
+		evaluator := NewMKEvaluator(params)
+
+		out1, out2 := PadCiphers(cipher1, cipher2, params)
+
+		resCipher := evaluator.Sub(out1, out2)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		expected := ringT.NewPoly()
+		p1 := ringT.NewPoly()
+		p2 := ringT.NewPoly()
+		copy(p1.Coeffs[0], expected1)
+		copy(p2.Coeffs[0], expected2)
+
+		ringT.Sub(p1, p2, expected)
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic substraction error")
+		}
+
+	})
+
+}
+
+func testAddPlaintext(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	ringT := getRingT(params)
+
+	t.Run(testString("Test Plaintext Addition/", 1, params), func(t *testing.T) {
+
+		value1 := getRandomPlaintextValue(ringT, params)
+
+		// encrypt
+		cipher := participants[0].Encrypt(value1)
+
+		// add plaintext to ciphertext
+		evaluator := NewMKEvaluator(params)
+		value2 := getRandomPlaintextValue(ringT, params)
+
+		pt := evaluator.NewPlaintextFromValue(value2)
+		resCipher := evaluator.AddPlaintext(pt, cipher)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1})
+
+		// perform the operation in the plaintext space
+		expected := ringT.NewPoly()
+		p1 := ringT.NewPoly()
+		p2 := ringT.NewPoly()
+		copy(p1.Coeffs[0], value1)
+		copy(p2.Coeffs[0], value2)
+
+		ringT.Add(p1, p2, expected)
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic addition error")
+		}
+
+	})
+
+}
+
+func testAddPlaintextTwoParticipants(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	ringT := getRingT(params)
+
+	t.Run(testString("Test Plaintext Addition/", 2, params), func(t *testing.T) {
+
+		value1 := getRandomPlaintextValue(ringT, params)
+		value2 := getRandomPlaintextValue(ringT, params)
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(value1)
+		cipher2 := participants[1].Encrypt(value2)
+
+		// add plaintext to one of the ciphertext then add both ciphertexts
+		evaluator := NewMKEvaluator(params)
+		value3 := getRandomPlaintextValue(ringT, params)
+
+		pt := evaluator.NewPlaintextFromValue(value3)
+		resCipher1 := evaluator.AddPlaintext(pt, cipher1)
+
+		out1, out2 := PadCiphers(resCipher1, cipher2, params)
+
+		resCipher := evaluator.Add(out1, out2)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		expected := ringT.NewPoly()
+
+		p1 := ringT.NewPoly()
+		p2 := ringT.NewPoly()
+		p3 := ringT.NewPoly()
+		copy(p1.Coeffs[0], value1)
+		copy(p2.Coeffs[0], value2)
+		copy(p3.Coeffs[0], value3)
+
+		ringT.Add(p1, p2, expected)
+		ringT.Add(expected, p3, expected)
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic addition error")
+		}
+
+	})
+
+}
+
+func testSubPlaintext(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	ringT := getRingT(params)
+
+	t.Run(testString("Test Plaintext Substraction/", 1, params), func(t *testing.T) {
+
+		value1 := getRandomPlaintextValue(ringT, params)
+
+		// encrypt
+		cipher := participants[0].Encrypt(value1)
+
+		// sub plaintext to ciphertext
+		evaluator := NewMKEvaluator(params)
+		value2 := getRandomPlaintextValue(ringT, params)
+
+		pt := evaluator.NewPlaintextFromValue(value2)
+		resCipher := evaluator.SubPlaintext(pt, cipher)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1})
+
+		// perform the operation in the plaintext space
+		expected := ringT.NewPoly()
+		p1 := ringT.NewPoly()
+		p2 := ringT.NewPoly()
+		copy(p1.Coeffs[0], value1)
+		copy(p2.Coeffs[0], value2)
+
+		ringT.Sub(p1, p2, expected)
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic substraction error")
+		}
+
+	})
+
+}
+
+func testSubPlaintextTwoParticipants(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	ringT := getRingT(params)
+
+	t.Run(testString("Test Plaintext Substraction/", 2, params), func(t *testing.T) {
+
+		value1 := getRandomPlaintextValue(ringT, params)
+		value2 := getRandomPlaintextValue(ringT, params)
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(value1)
+		cipher2 := participants[1].Encrypt(value2)
+
+		// sub plaintext to one of the ciphertext then sub both ciphertexts
+		evaluator := NewMKEvaluator(params)
+		value3 := getRandomPlaintextValue(ringT, params)
+
+		pt := evaluator.NewPlaintextFromValue(value3)
+		resCipher1 := evaluator.SubPlaintext(pt, cipher1)
+
+		out1, out2 := PadCiphers(resCipher1, cipher2, params)
+
+		resCipher := evaluator.Sub(out1, out2)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		expected := ringT.NewPoly()
+
+		p1 := ringT.NewPoly()
+		p2 := ringT.NewPoly()
+		p3 := ringT.NewPoly()
+		copy(p1.Coeffs[0], value1)
+		copy(p2.Coeffs[0], value2)
+		copy(p3.Coeffs[0], value3)
+
+		ringT.Sub(p1, p2, expected)
+		ringT.Sub(expected, p3, expected)
 
 		if !equalsSlice(decrypted, expected.Coeffs[0]) {
 			t.Error("Homomorphic addition error")
@@ -256,6 +507,106 @@ func Test_TensorProduct(t *testing.T) {
 
 }
 */
+
+func testMulPlaintext(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	ringT := getRingT(params)
+
+	t.Run(testString("Test Plaintext Multiplication/", 1, params), func(t *testing.T) {
+
+		value1 := getRandomPlaintextValue(ringT, params)
+
+		// encrypt
+		cipher := participants[0].Encrypt(value1)
+
+		// multiply plaintext and ciphertext
+		evaluator := NewMKEvaluator(params)
+		value2 := getRandomPlaintextValue(ringT, params)
+
+		pt := evaluator.NewPlaintextMulFromValue(value2)
+		resCipher := evaluator.MultPlaintext(pt, cipher)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1})
+
+		// perform the operation in the plaintext space
+		expected := ringT.NewPoly()
+		p1 := ringT.NewPoly()
+		p2 := ringT.NewPoly()
+		copy(p1.Coeffs[0], value1)
+		copy(p2.Coeffs[0], value2)
+
+		ringT.MulCoeffs(p1, p2, expected)
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic multiplication error")
+		}
+
+	})
+
+}
+
+func testMulPlaintextTwoParticipants(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	ringT := getRingT(params)
+
+	t.Run(testString("Test Plaintext Multiplication/", 2, params), func(t *testing.T) {
+
+		value1 := getRandomPlaintextValue(ringT, params)
+		value2 := getRandomPlaintextValue(ringT, params)
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(value1)
+		cipher2 := participants[1].Encrypt(value2)
+
+		// add both ciphertexts then multiply by plaintext
+		evaluator := NewMKEvaluator(params)
+		value3 := getRandomPlaintextValue(ringT, params)
+
+		out1, out2 := PadCiphers(cipher1, cipher2, params)
+
+		resCipherTMP := evaluator.Add(out1, out2)
+
+		pt := evaluator.NewPlaintextMulFromValue(value3)
+		resCipher := evaluator.MultPlaintext(pt, resCipherTMP)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		expected := ringT.NewPoly()
+
+		p1 := ringT.NewPoly()
+		p2 := ringT.NewPoly()
+		p3 := ringT.NewPoly()
+		copy(p1.Coeffs[0], value1)
+		copy(p2.Coeffs[0], value2)
+		copy(p3.Coeffs[0], value3)
+
+		ringT.Add(p1, p2, expected)
+		ringT.MulCoeffs(expected, p3, expected)
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic multiplication error")
+		}
+
+	})
+
+}
+
 func testMul(t *testing.T, params *bfv.Parameters) {
 
 	sigma := 6.0

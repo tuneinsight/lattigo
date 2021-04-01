@@ -11,9 +11,15 @@ import (
 // MKEvaluator is a wrapper for the bfv evaluator
 type MKEvaluator interface {
 	Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
+	Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
+	AddPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext
+	SubPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext
+	MultPlaintext(pt *bfv.PlaintextMul, c *MKCiphertext) *MKCiphertext
 	MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, relinKey *MKRelinearizationKey) *MKCiphertext
 	MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
 	TensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext
+	NewPlaintextFromValue([]uint64) *bfv.Plaintext
+	NewPlaintextMulFromValue([]uint64) *bfv.PlaintextMul
 }
 
 type mkEvaluator struct {
@@ -26,6 +32,7 @@ type mkEvaluator struct {
 	polyPoolQ1      []*ring.Poly
 	polyPoolQ2      []*ring.Poly
 	convertor       *ring.FastBasisExtender
+	encoder         bfv.Encoder
 }
 
 // NewMKEvaluator returns an evaluator for the multi key bfv scheme.
@@ -55,7 +62,8 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 		ringQMul:        ringQMul,
 		pHalf:           pHalf,
 		samplerGaussian: sampler,
-		convertor:       convertor}
+		convertor:       convertor,
+		encoder:         bfv.NewEncoder(params)}
 }
 
 // Add adds the ciphertexts component wise and expend their list of involved peers
@@ -78,6 +86,103 @@ func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 	}
 
 	out.ciphertexts.SetValue(val)
+
+	return out
+}
+
+// Sub substracts the ciphertexts component wise and expend their list of involved peers
+func (eval *mkEvaluator) Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
+
+	if c1 == nil || c2 == nil || c1.ciphertexts == nil || c2.ciphertexts == nil {
+		panic("Uninitialized ciphertexts")
+	}
+	if c1.ciphertexts.Degree() != c2.ciphertexts.Degree() {
+		panic("Ciphertexts must be of same degree before addition")
+	}
+
+	out := NewMKCiphertext(c1.peerIDs, eval.ringQ, eval.params)
+
+	val := make([]*ring.Poly, len(c1.peerIDs)+1)
+
+	for i := uint64(0); i < uint64(len(c1.peerIDs)+1); i++ {
+		val[i] = eval.ringQ.NewPoly()
+		eval.ringQ.Sub(c1.ciphertexts.Value()[i], c2.ciphertexts.Value()[i], val[i])
+	}
+
+	out.ciphertexts.SetValue(val)
+
+	return out
+}
+
+// AddPlaintext adds the paintext to the ciphertexts component wise
+func (eval *mkEvaluator) AddPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext {
+
+	if c == nil || pt == nil || c.ciphertexts == nil || pt.Value() == nil {
+		panic("Uninitialized inputs")
+	}
+
+	if pt.Degree() != 0 {
+		panic("Plaintext must have degree 0")
+	}
+
+	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params)
+	val := make([]*ring.Poly, len(c.peerIDs)+1)
+
+	// copy values
+	for i := uint64(1); i < uint64(len(c.peerIDs)+1); i++ {
+		val[i] = c.ciphertexts.Value()[i].CopyNew()
+	}
+
+	// add the plaintext value in c0
+	val[0] = eval.ringQ.NewPoly()
+	eval.ringQ.Add(c.ciphertexts.Value()[0], pt.Value()[0], val[0])
+
+	out.ciphertexts.SetValue(val)
+
+	return out
+}
+
+// SubPlaintext substracts the plaintext to the ciphertext component wise
+func (eval *mkEvaluator) SubPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext {
+
+	if c == nil || pt == nil || c.ciphertexts == nil || pt.Value() == nil {
+		panic("Uninitialized inputs")
+	}
+
+	if pt.Degree() != 0 {
+		panic("Plaintext must have degree 0")
+	}
+
+	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params)
+	val := make([]*ring.Poly, len(c.peerIDs)+1)
+
+	// copy values
+	for i := uint64(1); i < uint64(len(c.peerIDs)+1); i++ {
+		val[i] = c.ciphertexts.Value()[i].CopyNew()
+	}
+
+	// add the plaintext value in c0
+	val[0] = eval.ringQ.NewPoly()
+	eval.ringQ.Sub(c.ciphertexts.Value()[0], pt.Value()[0], val[0])
+
+	out.ciphertexts.SetValue(val)
+
+	return out
+}
+
+func (eval *mkEvaluator) MultPlaintext(pt *bfv.PlaintextMul, c *MKCiphertext) *MKCiphertext {
+
+	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params)
+	out.peerIDs = c.peerIDs
+	val := make([]*ring.Poly, len(c.peerIDs)+1)
+
+	for i := range c.ciphertexts.Value() {
+		val[i] = eval.ringQ.NewPoly()
+	}
+
+	out.ciphertexts.SetValue(val)
+
+	eval.bfvEval.Mul(c.ciphertexts, pt, out.ciphertexts)
 
 	return out
 }
@@ -223,4 +328,25 @@ func (eval *mkEvaluator) quantize(c2Q1, c2Q2 []*ring.Poly, ctOut *bfv.Element) {
 		eval.ringQ.MulScalar(ctOut.Value()[i], eval.params.T(), ctOut.Value()[i])
 	}
 
+}
+
+// NewPlaintextFromValue returns a plaintext in ringQ scaled by Q/t
+func (eval *mkEvaluator) NewPlaintextFromValue(value []uint64) *bfv.Plaintext {
+
+	plaintext := bfv.NewPlaintext(eval.params)
+
+	// Encode
+	eval.encoder.EncodeUint(value, plaintext.Plaintext())
+
+	return plaintext.Plaintext()
+}
+
+// NewPlaintextMulFromValue returns a plaintext containing the provided values. This plaintext should only be used for multiplication
+func (eval *mkEvaluator) NewPlaintextMulFromValue(value []uint64) *bfv.PlaintextMul {
+
+	plaintext := bfv.NewPlaintextMul(eval.params)
+
+	eval.encoder.EncodeUintMul(value, plaintext)
+
+	return plaintext
 }

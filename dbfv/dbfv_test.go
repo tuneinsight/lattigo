@@ -31,14 +31,14 @@ type testContext struct {
 
 	encoder bfv.Encoder
 
-	sk0Shards []*bfv.SecretKey
-	sk0       *bfv.SecretKey
+	sk0Shards []*rlwe.SecretKey
+	sk0       *rlwe.SecretKey
 
-	sk1       *bfv.SecretKey
-	sk1Shards []*bfv.SecretKey
+	sk1       *rlwe.SecretKey
+	sk1Shards []*rlwe.SecretKey
 
-	pk0 *bfv.PublicKey
-	pk1 *bfv.PublicKey
+	pk0 *rlwe.PublicKey
+	pk1 *rlwe.PublicKey
 
 	encryptorPk0 bfv.Encryptor
 	decryptorSk0 bfv.Decryptor
@@ -90,13 +90,13 @@ func gentestContext(defaultParams *bfv.Parameters) (testCtx *testContext, err er
 	}
 
 	testCtx.encoder = bfv.NewEncoder(testCtx.params)
-	testCtx.evaluator = bfv.NewEvaluator(testCtx.params, bfv.EvaluationKey{})
+	testCtx.evaluator = bfv.NewEvaluator(testCtx.params, rlwe.EvaluationKey{})
 
 	kgen := bfv.NewKeyGenerator(testCtx.params)
 
 	// SecretKeys
-	testCtx.sk0Shards = make([]*bfv.SecretKey, parties)
-	testCtx.sk1Shards = make([]*bfv.SecretKey, parties)
+	testCtx.sk0Shards = make([]*rlwe.SecretKey, parties)
+	testCtx.sk1Shards = make([]*rlwe.SecretKey, parties)
 	tmp0 := testCtx.dbfvContext.ringQP.NewPoly()
 	tmp1 := testCtx.dbfvContext.ringQP.NewPoly()
 
@@ -144,7 +144,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.CKGProtocol = NewCKGProtocol(testCtx.params)
-			p.s = &sk0Shards[i].SecretKey
+			p.s = sk0Shards[i]
 			p.s1 = p.AllocateShares()
 			ckgParties[i] = p
 		}
@@ -162,7 +162,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		pk := bfv.NewPublicKey(testCtx.params)
-		P0.GenBFVPublicKey(P0.s1, crp, pk)
+		P0.GenPublicKey(P0.s1, crp, pk)
 
 		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
 		encryptorTest := bfv.NewEncryptorFromPk(testCtx.params, pk)
@@ -194,7 +194,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		for i := range rkgParties {
 			p := new(Party)
 			p.RKGProtocol = NewRKGProtocol(testCtx.params)
-			p.sk = &sk0Shards[i].SecretKey
+			p.sk = sk0Shards[i]
 			p.ephSk, p.share1, p.share2 = p.AllocateShares()
 			rkgParties[i] = p
 		}
@@ -228,9 +228,9 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		evk := bfv.NewRelinearizationKey(testCtx.params, 1)
-		P0.GenBFVRelinearizationKey(P0.share1, P0.share2, evk)
+		P0.GenRelinearizationKey(P0.share1, P0.share2, evk)
 
-		evaluator := testCtx.evaluator.WithKey(bfv.EvaluationKey{Rlk: evk, Rtks: nil})
+		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: evk, Rtks: nil})
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 		for i := range coeffs {
@@ -358,7 +358,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-			p.s = &sk0Shards[i].SecretKey
+			p.s = sk0Shards[i]
 			p.share = p.AllocateShares()
 			pcksParties[i] = p
 		}
@@ -388,7 +388,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
-		evaluator := testCtx.evaluator.WithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 		result := evaluator.RotateRowsNew(ciphertext)
 		coeffsWant := append(coeffs[testCtx.params.N()>>1:], coeffs[:testCtx.params.N()>>1]...)
 
@@ -415,7 +415,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 		for i := uint64(0); i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-			p.s = &sk0Shards[i].SecretKey
+			p.s = sk0Shards[i]
 			p.share = p.AllocateShares()
 			pcksParties[i] = p
 		}
@@ -449,7 +449,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 			P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
 		}
 
-		evaluator := testCtx.evaluator.WithKey(bfv.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 		for k := uint64(1); k < testCtx.params.N()>>1; k <<= 1 {
 			result := evaluator.RotateColumnsNew(ciphertext, int(k))
 			coeffsWant := utils.RotateUint64Slots(coeffs, int(k))
@@ -502,7 +502,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		copy(coeffsTmp, coeffs)
 
-		evaluator := testCtx.evaluator.WithKey(bfv.EvaluationKey{Rlk: rlk, Rtks: nil})
+		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
 		// Finds the maximum multiplicative depth
 		for {
 
@@ -652,7 +652,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 	t.Run(fmt.Sprintf("Marshalling/CPK/N=%d/limbQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(t *testing.T) {
 		keygenProtocol := NewCKGProtocol(testCtx.params)
 		KeyGenShareBefore := keygenProtocol.AllocateShares()
-		keygenProtocol.GenShare(&testCtx.sk0.SecretKey, crs, KeyGenShareBefore)
+		keygenProtocol.GenShare(testCtx.sk0, crs, KeyGenShareBefore)
 		//now we marshall it
 		data, err := KeyGenShareBefore.MarshalBinary()
 
@@ -768,7 +768,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		rotProto := NewRotKGProtocol(testCtx.params)
 		rtgShare := rotProto.AllocateShares()
-		rotProto.GenShare(&testCtx.sk1.SecretKey, galEl, crp, rtgShare)
+		rotProto.GenShare(testCtx.sk1, galEl, crp, rtgShare)
 
 		data, err := rtgShare.MarshalBinary()
 		if err != nil {
@@ -822,7 +822,7 @@ func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 		rlk := NewRKGProtocol(testCtx.params)
 
 		u, r1, r2 := rlk.AllocateShares()
-		rlk.GenShareRoundOne(&testCtx.sk0.SecretKey, crp, u, r1)
+		rlk.GenShareRoundOne(testCtx.sk0, crp, u, r1)
 		data, err := r1.MarshalBinary()
 		require.NoError(t, err)
 
@@ -837,7 +837,7 @@ func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 		// 	require.Equal(t, a.Coeffs[:moduli], b.Coeffs[:moduli])
 		// }
 
-		rlk.GenShareRoundTwo(u, &testCtx.sk0.SecretKey, r1, crp, r2)
+		rlk.GenShareRoundTwo(u, testCtx.sk0, r1, crp, r2)
 
 		data, err = r2.MarshalBinary()
 		require.NoError(t, err)

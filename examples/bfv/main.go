@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/bits"
 
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 
 	"github.com/ldsec/lattigo/v2/bfv"
@@ -65,7 +66,7 @@ func obliviousRiding() {
 
 	encryptorRiderSk := bfv.NewEncryptorFromSk(params, riderSk)
 
-	evaluator := bfv.NewEvaluator(params, bfv.EvaluationKey{})
+	evaluator := bfv.NewEvaluator(params, rlwe.EvaluationKey{})
 
 	fmt.Println("============================================")
 	fmt.Println("Homomorphic computations on batched integers")

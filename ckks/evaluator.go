@@ -52,8 +52,8 @@ type Evaluator interface {
 	MulRelin(op0, op1 Operand, ctOut *Ciphertext)
 	RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	Relinearize(ct0 *Ciphertext, ctOut *Ciphertext)
-	SwitchKeysNew(ct0 *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
-	SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
+	SwitchKeysNew(ct0 *Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *Ciphertext)
+	SwitchKeys(ct0 *Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *Ciphertext)
 	RotateNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext)
 	Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext)
 	RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut map[int]*Ciphertext)
@@ -66,7 +66,7 @@ type Evaluator interface {
 	EvaluatePoly(ct *Ciphertext, coeffs *Poly) (res *Ciphertext, err error)
 	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation) (res *Ciphertext, err error)
 	ShallowCopy() Evaluator
-	WithKey(EvaluationKey) Evaluator
+	WithKey(rlwe.EvaluationKey) Evaluator
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
@@ -75,8 +75,8 @@ type evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
 
-	rlk             *RelinearizationKey
-	rtks            *RotationKeySet
+	rlk             *rlwe.RelinearizationKey
+	rtks            *rlwe.RotationKeySet
 	permuteNTTIndex map[uint64][]uint64
 
 	baseconverter *ring.FastBasisExtender
@@ -132,7 +132,7 @@ func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on the Ciphertexts and/or Plaintexts. It stores a small pool of polynomials
 // and Ciphertexts that will be used for intermediate values.
-func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
+func NewEvaluator(params *Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
 	eval := new(evaluator)
 	eval.evaluatorBase = newEvaluatorBase(params)
 	eval.evaluatorBuffers = newEvaluatorBuffers(eval.evaluatorBase)
@@ -150,7 +150,7 @@ func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
 	return eval
 }
 
-func (eval *evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64][]uint64 {
+func (eval *evaluator) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[uint64][]uint64 {
 	if rtks == nil {
 		return &map[uint64][]uint64{}
 	}
@@ -177,7 +177,7 @@ func (eval *evaluator) ShallowCopy() Evaluator {
 
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
-func (eval *evaluator) WithKey(evaluationKey EvaluationKey) Evaluator {
+func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 	var indexes map[uint64][]uint64
 	if evaluationKey.Rtks == eval.rtks {
 		indexes = eval.permuteNTTIndex
@@ -1452,7 +1452,7 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 // SwitchKeysNew re-encrypts ct0 under a different key and returns the result in a newly created element.
 // It requires a SwitchingKey, which is computed from the key under which the Ciphertext is currently encrypted,
 // and the key under which the Ciphertext will be re-encrypted.
-func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext) {
+func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	eval.SwitchKeys(ct0, switchingKey, ctOut)
 	return
@@ -1461,7 +1461,7 @@ func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchingKey *SwitchingKey
 // SwitchKeys re-encrypts ct0 under a different key and returns the result in ctOut.
 // It requires a SwitchingKey, which is computed from the key under which the Ciphertext is currently encrypted,
 // and the key under which the Ciphertext will be re-encrypted.
-func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext) {
+func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot SwitchKeys: input and output Ciphertext must be of degree 1")
@@ -1470,7 +1470,7 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, c
 	level := utils.MinUint64(ct0.Level(), ctOut.Level())
 	ringQ := eval.ringQ
 
-	eval.switchKeysInPlace(level, ct0.value[1], &switchingKey.SwitchingKey, eval.poolQ[1], eval.poolQ[2])
+	eval.switchKeysInPlace(level, ct0.value[1], switchingKey, eval.poolQ[1], eval.poolQ[2])
 
 	ringQ.AddLvl(level, ct0.value[0], eval.poolQ[1], ctOut.value[0])
 	ringQ.CopyLvl(level, eval.poolQ[2], ctOut.value[1])

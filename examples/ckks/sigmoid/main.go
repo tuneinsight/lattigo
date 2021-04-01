@@ -6,6 +6,7 @@ import (
 	"math/cmplx"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -36,7 +37,7 @@ func chebyshevinterpolation() {
 	decryptor := ckks.NewDecryptor(params, sk)
 
 	// Evaluator
-	evaluator := ckks.NewEvaluator(params, ckks.EvaluationKey{Rlk: rlk})
+	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk})
 
 	// Values to encrypt
 	values := make([]complex128, params.Slots())

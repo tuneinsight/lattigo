@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -145,14 +146,14 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 	receiver := NewCiphertextRandom(testContext.prng, testContext.params, 2, testContext.params.MaxLevel(), testContext.params.Scale())
 
-	var rlk *RelinearizationKey
-	var rotkey *RotationKeySet
+	var rlk *rlwe.RelinearizationKey
+	var rotkey *rlwe.RotationKeySet
 	if testContext.params.PiCount() != 0 {
 		rlk = testContext.kgen.GenRelinearizationKey(testContext.sk)
 		rotkey = testContext.kgen.GenRotationKeysForRotations([]int{1}, true, testContext.sk)
 	}
 
-	eval := testContext.evaluator.WithKey(EvaluationKey{rlk, rotkey})
+	eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{rlk, rotkey})
 
 	b.Run(testString(testContext, "Evaluator/Add/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -275,7 +276,7 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 		}
 
 		rotkey := testContext.kgen.GenRotationKeysForRotations([]int{5}, false, testContext.sk)
-		evaluator := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotkey}).(*evaluator)
+		evaluator := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotkey}).(*evaluator)
 
 		ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 

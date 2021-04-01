@@ -3,6 +3,7 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -64,7 +65,7 @@ func (pcks *PCKSProtocol) AllocateShares(level uint64) (s PCKSShare) {
 // [s_i * ctx[0] + u_i * pk[0] + e_0i, u_i * pk[1] + e_1i]
 //
 // and broadcasts the result to the other j-1 parties.
-func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.Ciphertext, shareOut PCKSShare) {
+func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *rlwe.PublicKey, ct *ckks.Ciphertext, shareOut PCKSShare) {
 
 	// Planned improvement : adapt share size to ct.Level() to improve efficiency.
 

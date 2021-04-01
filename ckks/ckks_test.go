@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,9 +40,9 @@ type testParams struct {
 	prng        utils.PRNG
 	encoder     Encoder
 	kgen        KeyGenerator
-	sk          *SecretKey
-	pk          *PublicKey
-	rlk         *RelinearizationKey
+	sk          *rlwe.SecretKey
+	pk          *rlwe.PublicKey
+	rlk         *rlwe.RelinearizationKey
 	encryptorPk Encryptor
 	encryptorSk Encryptor
 	decryptor   Decryptor
@@ -130,7 +131,7 @@ func genTestParams(defaultParam *Parameters, hw uint64) (testContext *testParams
 	testContext.encryptorSk = NewEncryptorFromSk(testContext.params, testContext.sk)
 	testContext.decryptor = NewDecryptor(testContext.params, testContext.sk)
 
-	testContext.evaluator = NewEvaluator(testContext.params, EvaluationKey{testContext.rlk, nil})
+	testContext.evaluator = NewEvaluator(testContext.params, rlwe.EvaluationKey{testContext.rlk, nil})
 
 	return testContext, nil
 
@@ -910,9 +911,9 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 
 func testSwitchKeys(testContext *testParams, t *testing.T) {
 
-	var sk2 *SecretKey
+	var sk2 *rlwe.SecretKey
 	var decryptorSk2 Decryptor
-	var switchingKey *SwitchingKey
+	var switchingKey *rlwe.SwitchingKey
 
 	if testContext.params.PiCount() != 0 {
 		sk2 = testContext.kgen.GenSecretKey()
@@ -955,7 +956,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 	}
 	rots := []int{1, -1, 4, -4, 63, -63}
 	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
-	evaluator := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+	evaluator := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
 
 	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
 
@@ -1076,7 +1077,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		marshalledSk, err := testContext.sk.MarshalBinary()
 		require.NoError(t, err)
 
-		sk := new(SecretKey)
+		sk := new(rlwe.SecretKey)
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
@@ -1089,7 +1090,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		marshalledPk, err := testContext.pk.MarshalBinary()
 		require.NoError(t, err)
 
-		pk := new(PublicKey)
+		pk := new(rlwe.PublicKey)
 		err = pk.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
 
@@ -1108,7 +1109,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		data, err := evalKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resEvalKey := new(RelinearizationKey)
+		resEvalKey := new(rlwe.RelinearizationKey)
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
@@ -1134,7 +1135,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		data, err := switchingKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resSwitchingKey := new(SwitchingKey)
+		resSwitchingKey := new(rlwe.SwitchingKey)
 		err = resSwitchingKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
@@ -1165,7 +1166,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resRotationKey := new(RotationKeySet)
+		resRotationKey := new(rlwe.RotationKeySet)
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 

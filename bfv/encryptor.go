@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -73,23 +74,23 @@ type encryptor struct {
 
 type pkEncryptor struct {
 	encryptor
-	pk *PublicKey
+	pk *rlwe.PublicKey
 }
 
 type skEncryptor struct {
 	encryptor
-	sk *SecretKey
+	sk *rlwe.SecretKey
 }
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
+func NewEncryptorFromPk(params *Parameters, pk *rlwe.PublicKey) Encryptor {
 	return &pkEncryptor{newEncryptor(params), pk}
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
+func NewEncryptorFromSk(params *Parameters, sk *rlwe.SecretKey) Encryptor {
 	return &skEncryptor{newEncryptor(params), sk}
 }
 

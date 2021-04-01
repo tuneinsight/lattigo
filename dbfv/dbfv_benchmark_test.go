@@ -52,7 +52,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.CKGProtocol = NewCKGProtocol(testCtx.params)
-	p.s = &sk0Shards[0].SecretKey
+	p.s = sk0Shards[0]
 	p.s1 = p.AllocateShares()
 
 	b.Run(testString("PublicKeyGen/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
@@ -72,7 +72,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	pk := bfv.NewPublicKey(testCtx.params)
 	b.Run(testString("PublicKeyGen/Finalize", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.GenBFVPublicKey(p.s1, crp, pk)
+			p.GenPublicKey(p.s1, crp, pk)
 		}
 	})
 }
@@ -88,12 +88,12 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 		share1 *drlwe.RKGShare
 		share2 *drlwe.RKGShare
 
-		rlk *bfv.RelinearizationKey
+		rlk *rlwe.RelinearizationKey
 	}
 
 	p := new(Party)
 	p.RKGProtocol = NewRKGProtocol(testCtx.params)
-	p.sk = &sk0Shards[0].SecretKey
+	p.sk = sk0Shards[0]
 	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 	p.rlk = bfv.NewRelinearizationKey(testCtx.params, 2)
 
@@ -131,7 +131,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	b.Run(testString("RelinKeyGen/Finalize", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.GenBFVRelinearizationKey(p.share1, p.share2, p.rlk)
+			p.GenRelinearizationKey(p.share1, p.share2, p.rlk)
 		}
 	})
 }
@@ -231,7 +231,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 
 	p := new(Party)
 	p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-	p.s = &sk0Shards[0].SecretKey
+	p.s = sk0Shards[0]
 	p.share = p.AllocateShares()
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dbfvContext.ringQP)
@@ -259,7 +259,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RotKeyGen/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenBFVRotationKey(p.share, crp, rotKey)
+			p.GenRotationKey(p.share, crp, rotKey)
 		}
 	})
 }

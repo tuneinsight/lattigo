@@ -2,6 +2,8 @@ package bfv
 
 import (
 	"testing"
+
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 func BenchmarkBFV(b *testing.B) {
@@ -156,11 +158,11 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
 
-	var rotkey *RotationKeySet
+	var rotkey *rlwe.RotationKeySet
 	if testctx.params.PiCount() != 0 {
 		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk)
 	}
-	evaluator := testctx.evaluator.WithKey(EvaluationKey{testctx.rlk, rotkey})
+	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{testctx.rlk, rotkey})
 
 	b.Run(testString("Evaluator/Add/Ct/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

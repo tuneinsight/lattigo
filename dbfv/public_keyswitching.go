@@ -3,6 +3,7 @@ package dbfv
 import (
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -112,7 +113,7 @@ func (pcks *PCKSProtocol) AllocateShares() (s PCKSShare) {
 // [s_i * ctx[0] + (u_i * pk[0] + e_0i)/P, (u_i * pk[1] + e_1i)/P]
 //
 // and broadcasts the result to the other j-1 parties.
-func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Ciphertext, shareOut PCKSShare) {
+func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *rlwe.PublicKey, ct *bfv.Ciphertext, shareOut PCKSShare) {
 
 	ringQ := pcks.context.ringQ
 	ringQP := pcks.context.ringQP

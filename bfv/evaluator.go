@@ -32,15 +32,15 @@ type Evaluator interface {
 	MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext)
 	Relinearize(ct0 *Ciphertext, ctOut *Ciphertext)
 	RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext)
-	SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext)
-	SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext)
+	SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext)
+	SwitchKeysNew(ct0 *Ciphertext, switchkey *rlwe.SwitchingKey) (ctOut *Ciphertext)
 	RotateColumnsNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext)
 	RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext)
 	RotateRows(ct0 *Ciphertext, ctOut *Ciphertext)
 	RotateRowsNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	InnerSum(ct0 *Ciphertext, ctOut *Ciphertext)
 	ShallowCopy() Evaluator
-	WithKey(EvaluationKey) Evaluator
+	WithKey(rlwe.EvaluationKey) Evaluator
 }
 
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
@@ -49,8 +49,8 @@ type evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
 
-	rlk  *RelinearizationKey
-	rtks *RotationKeySet
+	rlk  *rlwe.RelinearizationKey
+	rtks *rlwe.RotationKeySet
 
 	baseconverterQ1Q2 *ring.FastBasisExtender
 	baseconverterQ1P  *ring.FastBasisExtender
@@ -137,7 +137,7 @@ func newEvaluatorBuffer(eval *evaluatorBase) *evaluatorBuffers {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a small pool of polynomials
 // and ciphertexts that will be used for intermediate values.
-func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
+func NewEvaluator(params *Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
 	ev := new(evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(params)
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
@@ -151,7 +151,7 @@ func NewEvaluator(params *Parameters, evaluationKey EvaluationKey) Evaluator {
 }
 
 // NewEvaluators creates n evaluators sharing the same read-only data-structures.
-func NewEvaluators(params *Parameters, evaluationKey EvaluationKey, n int) []Evaluator {
+func NewEvaluators(params *Parameters, evaluationKey rlwe.EvaluationKey, n int) []Evaluator {
 	if n <= 0 {
 		return []Evaluator{}
 	}
@@ -181,7 +181,7 @@ func (eval *evaluator) ShallowCopy() Evaluator {
 
 // ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
 // shared with the receiver but the EvaluationKey is evaluationKey.
-func (eval *evaluator) WithKey(evaluationKey EvaluationKey) Evaluator {
+func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 	return &evaluator{
 		evaluatorBase:     eval.evaluatorBase,
 		evaluatorBuffers:  eval.evaluatorBuffers,
@@ -619,13 +619,13 @@ func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 
 // SwitchKeys applies the key-switching procedure to the ciphertext ct0 and returns the result in ctOut. It requires as an additional input a valid switching-key:
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
-func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOut *Ciphertext) {
+func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot SwitchKeys: input and output must be of degree 1 to allow key switching")
 	}
 
-	eval.switchKeysInPlace(ct0.value[1], &switchKey.SwitchingKey, eval.poolQKS[1], eval.poolQKS[2])
+	eval.switchKeysInPlace(ct0.value[1], switchKey, eval.poolQKS[1], eval.poolQKS[2])
 
 	eval.ringQ.Add(ct0.value[0], eval.poolQKS[1], ctOut.value[0])
 	eval.ringQ.Copy(eval.poolQKS[2], ctOut.value[1])
@@ -633,7 +633,7 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *SwitchingKey, ctOu
 
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
-func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *SwitchingKey) (ctOut *Ciphertext) {
+func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchkey *rlwe.SwitchingKey) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1)
 	eval.SwitchKeys(ct0, switchkey, ctOut)
 	return

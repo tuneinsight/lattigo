@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -23,12 +24,12 @@ type Decryptor interface {
 type decryptor struct {
 	params *Parameters
 	ringQ  *ring.Ring
-	sk     *SecretKey
+	sk     *rlwe.SecretKey
 }
 
 // NewDecryptor instantiates a new Decryptor that will be able to decrypt ciphertexts
 // encrypted under the provided secret-key.
-func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
+func NewDecryptor(params *Parameters, sk *rlwe.SecretKey) Decryptor {
 
 	if sk.Value.Degree() != params.N() {
 		panic("secret_key is invalid for the provided parameters")

@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -15,8 +16,8 @@ func main() {
 	var btp *ckks.Bootstrapper
 	var kgen ckks.KeyGenerator
 	var encoder ckks.Encoder
-	var sk *ckks.SecretKey
-	var pk *ckks.PublicKey
+	var sk *rlwe.SecretKey
+	var pk *rlwe.PublicKey
 	var encryptor ckks.Encryptor
 	var decryptor ckks.Decryptor
 	var plaintext *ckks.Plaintext

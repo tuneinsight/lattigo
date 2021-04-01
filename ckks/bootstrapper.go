@@ -6,6 +6,7 @@ import (
 	"math/cmplx"
 
 	"github.com/ldsec/lattigo/v2/ckks/bettersine"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -59,10 +60,7 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 	if err = btp.CheckKeys(); err != nil {
 		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
 	}
-	btp.evaluator = btp.evaluator.WithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks}).(*evaluator)
-
-	btp.evaluator = btp.evaluator.WithKey(EvaluationKey{btpKey.Rlk, btpKey.Rtks}).(*evaluator)
-
+	btp.evaluator = btp.evaluator.WithKey(rlwe.EvaluationKey{btpKey.Rlk, btpKey.Rtks}).(*evaluator)
 	return btp, nil
 }
 
@@ -86,7 +84,7 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 	btp.postscale = btp.sinescale / btp.MessageRatio
 
 	btp.encoder = NewEncoder(params)
-	btp.evaluator = NewEvaluator(params, EvaluationKey{}).(*evaluator) // creates an evaluator without keys for genDFTMatrices
+	btp.evaluator = NewEvaluator(params, rlwe.EvaluationKey{}).(*evaluator) // creates an evaluator without keys for genDFTMatrices
 
 	btp.genSinePoly()
 	btp.genDFTMatrices()

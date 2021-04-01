@@ -16,8 +16,3 @@ type RKGProtocol struct {
 func NewRKGProtocol(params *bfv.Parameters) *RKGProtocol {
 	return &RKGProtocol{*drlwe.NewRKGProtocol(params.RLWEParameters(), 0.5)}
 }
-
-// GenBFVRelinearizationKey finalizes the protocol and returns the common EvaluationKey.
-func (ekg *RKGProtocol) GenBFVRelinearizationKey(round1 *drlwe.RKGShare, round2 *drlwe.RKGShare, evalKeyOut *bfv.RelinearizationKey) {
-	ekg.GenRelinearizationKey(round1, round2, &evalKeyOut.RelinearizationKey)
-}

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -27,9 +28,9 @@ type testContext struct {
 	uSampler    *ring.UniformSampler
 	encoder     Encoder
 	kgen        KeyGenerator
-	sk          *SecretKey
-	pk          *PublicKey
-	rlk         *RelinearizationKey
+	sk          *rlwe.SecretKey
+	pk          *rlwe.PublicKey
+	rlk         *rlwe.RelinearizationKey
 	encryptorPk Encryptor
 	encryptorSk Encryptor
 	decryptor   Decryptor
@@ -99,7 +100,7 @@ func genTestParams(params *Parameters) (testctx *testContext, err error) {
 	testctx.encryptorPk = NewEncryptorFromPk(testctx.params, testctx.pk)
 	testctx.encryptorSk = NewEncryptorFromSk(testctx.params, testctx.sk)
 	testctx.decryptor = NewDecryptor(testctx.params, testctx.sk)
-	testctx.evaluator = NewEvaluator(testctx.params, EvaluationKey{testctx.rlk, nil})
+	testctx.evaluator = NewEvaluator(testctx.params, rlwe.EvaluationKey{testctx.rlk, nil})
 	return
 
 }
@@ -624,7 +625,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 
 	rots := []int{1, -1, 4, -4, 63, -63}
 	rotkey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
-	evaluator := testctx.evaluator.WithKey(EvaluationKey{testctx.rlk, rotkey})
+	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{testctx.rlk, rotkey})
 
 	t.Run(testString("Evaluator/RotateRows/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
@@ -668,7 +669,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 	})
 
 	rotkey = testctx.kgen.GenRotationKeysForInnerSum(testctx.sk)
-	evaluator = evaluator.WithKey(EvaluationKey{testctx.rlk, rotkey})
+	evaluator = evaluator.WithKey(rlwe.EvaluationKey{testctx.rlk, rotkey})
 
 	t.Run(testString("Evaluator/Rotate/InnerSum/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
@@ -744,7 +745,7 @@ func testMarshalSK(testctx *testContext, t *testing.T) {
 		marshalledSk, err := testctx.sk.MarshalBinary()
 		require.NoError(t, err)
 
-		var sk SecretKey
+		var sk rlwe.SecretKey
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
@@ -759,7 +760,7 @@ func testMarshalPK(testctx *testContext, t *testing.T) {
 		marshalledPk, err := testctx.pk.MarshalBinary()
 		require.NoError(t, err)
 
-		var pk PublicKey
+		var pk rlwe.PublicKey
 		err = pk.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
 
@@ -843,7 +844,7 @@ func testMarshalRotKey(testctx *testContext, t *testing.T) {
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
 
-		var resRotationKey RotationKeySet
+		var resRotationKey rlwe.RotationKeySet
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 

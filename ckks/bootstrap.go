@@ -1,8 +1,9 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/v2/ring"
 	"math"
+
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.

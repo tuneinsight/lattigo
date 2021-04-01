@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ckks/bettersine"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -277,7 +278,7 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 		ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
 
 		// Creates an evaluator with the rotation keys
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
 
 		// Applies the homomorphic DFT
 		ct0, ct1 := CoeffsToSlots(ciphertext, CoeffsToSlotMatrices, eval)
@@ -343,7 +344,7 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
 
 		// Creates an evaluator with the rotation keys
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
 
 		// Generates a random test vectors that simulates the encoding of a real vector
 		values0 := make([]complex128, params.Slots())

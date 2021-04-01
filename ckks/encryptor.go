@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -67,17 +68,17 @@ type encryptor struct {
 
 type pkEncryptor struct {
 	encryptor
-	pk *PublicKey
+	pk *rlwe.PublicKey
 }
 
 type skEncryptor struct {
 	encryptor
-	sk *SecretKey
+	sk *rlwe.SecretKey
 }
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This Encryptor can be used to encrypt Plaintexts, using the stored key.
-func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
+func NewEncryptorFromPk(params *Parameters, pk *rlwe.PublicKey) Encryptor {
 	enc := newEncryptor(params)
 
 	if pk.Value[0].Degree() != params.N() || pk.Value[1].Degree() != params.N() {
@@ -89,7 +90,7 @@ func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This Encryptor can be used to encrypt Plaintexts, using the stored key.
-func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
+func NewEncryptorFromSk(params *Parameters, sk *rlwe.SecretKey) Encryptor {
 	enc := newEncryptor(params)
 
 	if sk.Value.Degree() != params.N() {

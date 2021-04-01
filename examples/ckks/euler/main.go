@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 func example() {
@@ -51,7 +52,7 @@ func example() {
 
 	encoder := ckks.NewEncoder(params)
 
-	evaluator := ckks.NewEvaluator(params, ckks.EvaluationKey{Rlk: rlk})
+	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk})
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

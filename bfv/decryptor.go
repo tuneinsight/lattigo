@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 // Decryptor is an interface for decryptors
@@ -19,13 +20,13 @@ type Decryptor interface {
 type decryptor struct {
 	params   *Parameters
 	ringQ    *ring.Ring
-	sk       *SecretKey
+	sk       *rlwe.SecretKey
 	polypool *ring.Poly
 }
 
 // NewDecryptor creates a new Decryptor from the parameters with the secret-key
 // given as input.
-func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
+func NewDecryptor(params *Parameters, sk *rlwe.SecretKey) Decryptor {
 
 	var ringQ *ring.Ring
 	var err error

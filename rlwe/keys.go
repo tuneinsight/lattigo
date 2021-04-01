@@ -34,6 +34,11 @@ type RotationKeySet struct {
 	Keys map[uint64]*SwitchingKey
 }
 
+type EvaluationKey struct {
+	Rlk  *RelinearizationKey
+	Rtks *RotationKeySet
+}
+
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params *Parameters) *SecretKey {
 	sk := new(SecretKey)
@@ -125,6 +130,13 @@ func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
+func (sk *SecretKey) CopyNew() *SecretKey {
+	if sk == nil || sk.Value == nil {
+		return nil
+	}
+	return &SecretKey{sk.Value.CopyNew()}
+}
+
 // GetDataLen returns the length in bytes of the target PublicKey.
 func (pk *PublicKey) GetDataLen(WithMetadata bool) (dataLen int) {
 
@@ -173,6 +185,13 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 	}
 
 	return nil
+}
+
+func (pk *PublicKey) CopyNew() *PublicKey {
+	if pk == nil || pk.Value[0] == nil || pk.Value[1] == nil {
+		return nil
+	}
+	return &PublicKey{[2]*ring.Poly{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
 }
 
 // GetDataLen returns the length in bytes of the target EvaluationKey.
@@ -232,6 +251,17 @@ func (evaluationkey *RelinearizationKey) UnmarshalBinary(data []byte) (err error
 	return nil
 }
 
+func (evaluationkey *RelinearizationKey) CopyNew() *RelinearizationKey {
+	if evaluationkey == nil || len(evaluationkey.Keys) == 0 {
+		return nil
+	}
+	rlk := &RelinearizationKey{Keys: make([]*SwitchingKey, len(evaluationkey.Keys))}
+	for i, swk := range evaluationkey.Keys {
+		rlk.Keys[i] = swk.CopyNew()
+	}
+	return rlk
+}
+
 // GetDataLen returns the length in bytes of the target SwitchingKey.
 func (switchkey *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen int) {
 
@@ -267,6 +297,17 @@ func (switchkey *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
 	}
 
 	return nil
+}
+
+func (switchkey *SwitchingKey) CopyNew() *SwitchingKey {
+	if switchkey == nil || len(switchkey.Value) == 0 {
+		return nil
+	}
+	swk := &SwitchingKey{Value: make([][2]*ring.Poly, len(switchkey.Value))}
+	for i, el := range swk.Value {
+		swk.Value[i] = [2]*ring.Poly{el[0].CopyNew(), el[1].CopyNew()}
+	}
+	return swk
 }
 
 func (switchkey *SwitchingKey) encode(pointer int, data []byte) (int, error) {

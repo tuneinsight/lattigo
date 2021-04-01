@@ -10,16 +10,16 @@ import (
 
 // KeyGenerator is an interface implementing the methods of the keyGenerator.
 type KeyGenerator interface {
-	GenSecretKey() (sk *SecretKey)
-	GenSecretkeyWithDistrib(p float64) (sk *SecretKey)
-	GenPublicKey(sk *SecretKey) (pk *PublicKey)
-	GenKeyPair() (sk *SecretKey, pk *PublicKey)
-	GenSwitchingKey(skIn, skOut *SecretKey) (evk *SwitchingKey)
-	GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey)
-	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
-	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
-	GenRotationKeysForRotations(ks []int, includeSwapRow bool, sk *SecretKey) (rks *RotationKeySet)
-	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
+	GenSecretKey() (sk *rlwe.SecretKey)
+	GenSecretkeyWithDistrib(p float64) (sk *rlwe.SecretKey)
+	GenPublicKey(sk *rlwe.SecretKey) (pk *rlwe.PublicKey)
+	GenKeyPair() (sk *rlwe.SecretKey, pk *rlwe.PublicKey)
+	GenSwitchingKey(skIn, skOut *rlwe.SecretKey) (evk *rlwe.SwitchingKey)
+	GenRelinearizationKey(sk *rlwe.SecretKey, maxDegree int) (evk *rlwe.RelinearizationKey)
+	GenSwitchingKeyForGalois(galEl uint64, sk *rlwe.SecretKey) (swk *rlwe.SwitchingKey)
+	GenRotationKeys(galEls []uint64, sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet)
+	GenRotationKeysForRotations(ks []int, includeSwapRow bool, sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet)
+	GenRotationKeysForInnerSum(sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet)
 }
 
 // keyGenerator is a structure that stores the elements required to create new keys,
@@ -67,28 +67,28 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 }
 
 // GenSecretKey creates a new SecretKey with the distribution [1/3, 1/3, 1/3].
-func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
+func (keygen *keyGenerator) GenSecretKey() (sk *rlwe.SecretKey) {
 	return keygen.GenSecretkeyWithDistrib(1.0 / 3)
 }
 
 // GenSecretkeyWithDistrib creates a new SecretKey with the distribution [(1-p)/2, p, (1-p)/2].
-func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *SecretKey) {
+func (keygen *keyGenerator) GenSecretkeyWithDistrib(p float64) (sk *rlwe.SecretKey) {
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.ringQP, p, true)
 
-	sk = new(SecretKey)
+	sk = new(rlwe.SecretKey)
 	sk.Value = ternarySamplerMontgomery.ReadNew()
 	keygen.ringQP.NTT(sk.Value, sk.Value)
 	return sk
 }
 
 // GenPublicKey generates a new PublicKey from the provided SecretKey.
-func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
+func (keygen *keyGenerator) GenPublicKey(sk *rlwe.SecretKey) (pk *rlwe.PublicKey) {
 
-	pk = new(PublicKey)
+	pk = new(rlwe.PublicKey)
 
 	ringQP := keygen.ringQP
 
@@ -105,23 +105,23 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 }
 
 // NewKeyPair generates a new SecretKey with distribution [1/3, 1/3, 1/3] and a corresponding PublicKey.
-func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
+func (keygen *keyGenerator) GenKeyPair() (sk *rlwe.SecretKey, pk *rlwe.PublicKey) {
 	sk = keygen.GenSecretKey()
 	return sk, keygen.GenPublicKey(sk)
 }
 
 // NewRelinKey generates a new evaluation key from the provided SecretKey. It will be used to relinearize a ciphertext (encrypted under a PublicKey generated from the provided SecretKey)
 // of degree > 1 to a ciphertext of degree 1. Max degree is the maximum degree of the ciphertext allowed to relinearize.
-func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey) {
+func (keygen *keyGenerator) GenRelinearizationKey(sk *rlwe.SecretKey, maxDegree int) (evk *rlwe.RelinearizationKey) {
 
 	if keygen.ringQP == nil {
 		panic("modulus P is empty")
 	}
 
-	evk = new(RelinearizationKey)
+	evk = new(rlwe.RelinearizationKey)
 	evk.Keys = make([]*rlwe.SwitchingKey, maxDegree)
 	for i := range evk.Keys {
-		evk.Keys[i] = &NewSwitchingKey(keygen.params).SwitchingKey
+		evk.Keys[i] = NewSwitchingKey(keygen.params)
 	}
 
 	keygen.polypool[0].Copy(sk.Value) // TODO Remove ?
@@ -141,7 +141,7 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) 
 }
 
 // GenSwitchingKey generates a new key-switching key, that will allow to re-encrypt under the output-key a ciphertext encrypted under the input-key.
-func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swkOut *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *rlwe.SecretKey) (swkOut *rlwe.SwitchingKey) {
 
 	if keygen.ringQP == nil {
 		panic("modulus P is empty")
@@ -150,31 +150,31 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swkOu
 	swkOut = NewSwitchingKey(keygen.params)
 
 	keygen.ringQP.Copy(skInput.Value, keygen.polypool[0]) // TODO: remove and pass skInput directly ?
-	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Value, &swkOut.SwitchingKey)
+	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Value, swkOut)
 	keygen.polypool[0].Zero()
 	return
 }
 
-func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *SecretKey) (swk *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *rlwe.SecretKey) (swk *rlwe.SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params)
-	keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galoisEl), &swk.SwitchingKey)
+	keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galoisEl), swk)
 	return
 }
 
 // GenRotationKeys generates a RotationKeySet from a list of galois element corresponding to the desired rotations
 // See also GenRotationKeysForRotations.
-func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet) {
+func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet) {
 	keys := make(map[uint64]*rlwe.SwitchingKey)
 	for _, galEl := range galEls {
-		keys[galEl] = &keygen.GenSwitchingKeyForGalois(galEl, sk).SwitchingKey
+		keys[galEl] = keygen.GenSwitchingKeyForGalois(galEl, sk)
 	}
-	return &RotationKeySet{rlwe.RotationKeySet{Keys: keys}}
+	return &rlwe.RotationKeySet{Keys: keys}
 }
 
 // GenRotationKeysForRotations generates a RotationKeySet supporting left rotations by k positions for all k in ks.
 // Negative k is equivalent to a right rotation by k positions
 // If includeConjugate is true, the resulting set contains the conjugation key.
-func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet) {
+func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet) {
 	galEls := make([]uint64, len(ks), len(ks)+1)
 	for i, k := range ks {
 		galEls[i] = keygen.params.GaloisElementForColumnRotationBy(k)
@@ -186,7 +186,7 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 }
 
 // GenRotationKeysForInnerSum generates a RotationKeySet supporting the InnerSum operation of the Evaluator
-func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet) {
+func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet) {
 	return keygen.GenRotationKeys(keygen.params.GaloisElementsForRowInnerSum(), sk)
 }
 

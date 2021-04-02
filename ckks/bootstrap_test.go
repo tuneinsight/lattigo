@@ -74,7 +74,7 @@ func testSin(testContext *testParams, btpParams *BootstrappingParameters, t *tes
 		deg := 127
 		K := float64(15)
 
-		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, -K+1, K-1, t)
+		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, btpParams, testContext.encryptorSk, -K+1, K-1, t)
 		eval.DropLevel(ciphertext, btpParams.CtSDepth(true)-1)
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
@@ -113,13 +113,13 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		eval.(*evaluator).scale = SineScale
 
 		K := 25
-		deg := 62
-		dev := float64(testContext.params.qi[0]) / DefaultScale
+		deg := 63
+		dev := btpParams.MessageRatio
 		scNum := 2
 
 		scFac := complex(float64(int(1<<scNum)), 0)
 
-		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
+		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, btpParams, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
 		eval.DropLevel(ciphertext, btpParams.CtSDepth(true)-1)
 
 		cheby := new(ChebyshevInterpolation)
@@ -184,6 +184,10 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 func testCos2(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
 	t.Run(testString(testContext, "Cos2/"), func(t *testing.T) {
 
+		if len(btpParams.SineEvalModuli.Qi) < 12 {
+			t.Skip()
+		}
+
 		var err error
 
 		eval := testContext.evaluator
@@ -201,7 +205,7 @@ func testCos2(testContext *testParams, btpParams *BootstrappingParameters, t *te
 
 		scFac := complex(float64(int(1<<scNum)), 0)
 
-		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
+		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, btpParams, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
 		eval.DropLevel(ciphertext, btpParams.CtSDepth(true)-1)
 
 		cheby := Approximate(cos2pi, -complex(float64(K), 0)/scFac, complex(float64(K), 0)/scFac, deg)
@@ -295,19 +299,17 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 	})
 }
 
-func newTestVectorsSineBootstrapp(testContext *testParams, encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectorsSineBootstrapp(testContext *testParams, btpParams *BootstrappingParameters, encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	logSlots := testContext.params.LogSlots()
 
 	values = make([]complex128, 1<<logSlots)
 
-	ratio := float64(testContext.params.Qi()[0]) / float64(35184372088832)
+	ratio := btpParams.MessageRatio
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
 		values[i] = complex(math.Round(utils.RandFloat64(a, b))+utils.RandFloat64(-1, 1)/ratio, 0)
 	}
-
-	values[0] = complex(3+27/ratio, 0)
 
 	plaintext = NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 

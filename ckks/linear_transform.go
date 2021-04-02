@@ -54,8 +54,6 @@ func (eval *evaluator) LinearTransform(vec *Ciphertext, linearTransform interfac
 
 		res = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, vec.Scale())}
 
-		
-
 		eval.MultiplyByDiabMatrix(vec, res[0], element, eval.c2QiQDecomp, eval.c2QiPDecomp)
 	}
 
@@ -191,14 +189,13 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, batchSize, n int, ctOut *Cipher
 
 func (eval *evaluator) InnerSumNaive(ct0 *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
-
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
 	levelQ := ct0.Level()
 
-	QiOverF := eval.params.QiOverflowMargin(levelQ)>>1
-	PiOverF := eval.params.PiOverflowMargin()>>1
+	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
+	PiOverF := eval.params.PiOverflowMargin() >> 1
 
 	// If sum with only the first element, then returns the input
 	if n == 1 {

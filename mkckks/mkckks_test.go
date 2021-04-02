@@ -24,6 +24,14 @@ func Test_MKCKKS(t *testing.T) {
 			testEncryptionEqualsDecryption(t, p)
 			testAdd(t, p)
 			testAddFourParticipants(t, p)
+			testAddPlaintext(t, p)
+			testAddPlaintextTwoParticipants(t, p)
+			testSub(t, p)
+			testSubPlaintext(t, p)
+			testNeg(t, p)
+			testSubPlaintextTwoParticipants(t, p)
+			testMulPlaintext(t, p)
+			testMulPlaintextTwoParticipants(t, p)
 			//testMul(t, p)
 			//testMulFourParticipants(t, p)
 		}
@@ -95,6 +103,242 @@ func testAdd(t *testing.T, params *ckks.Parameters) {
 
 }
 
+func testSub(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	t.Run(testString("Test Subtraction/", 2, params), func(t *testing.T) {
+
+		value1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		value2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(value1)
+		cipher2 := participants[1].Encrypt(value2)
+
+		// pad and add
+		evaluator := NewMKEvaluator(params)
+
+		out1, out2 := PadCiphers(cipher1, cipher2, params)
+
+		resCipher := evaluator.Sub(out1, out2)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		// perform the operation in the plaintext space
+		for i := 0; i < len(value1); i++ {
+			value1[i] -= value2[i]
+		}
+
+		// check results
+		verifyTestVectors(params, value1, decrypted, t)
+
+	})
+
+}
+
+func testAddPlaintext(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	t.Run(testString("Test Plaintext Addition/", 1, params), func(t *testing.T) {
+
+		value1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// encrypt
+		cipher := participants[0].Encrypt(value1)
+
+		// add plaintext to ciphertext
+		evaluator := NewMKEvaluator(params)
+		value2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		pt := evaluator.NewPlaintextFromValue(value2)
+		resCipher := evaluator.AddPlaintext(pt, cipher)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(value1); i++ {
+			value1[i] += value2[i]
+		}
+
+		// check results
+		verifyTestVectors(params, value1, decrypted, t)
+	})
+
+}
+
+func testAddPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	t.Run(testString("Test Plaintext Addition/", 2, params), func(t *testing.T) {
+
+		value1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		value2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(value1)
+		cipher2 := participants[1].Encrypt(value2)
+
+		// add plaintext to one of the ciphertext then add both ciphertexts
+		evaluator := NewMKEvaluator(params)
+		value3 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		pt := evaluator.NewPlaintextFromValue(value3)
+		resCipher1 := evaluator.AddPlaintext(pt, cipher1)
+
+		out1, out2 := PadCiphers(resCipher1, cipher2, params)
+
+		resCipher := evaluator.Add(out1, out2)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(value1); i++ {
+			value1[i] += value2[i] + value3[i]
+		}
+
+		// check results
+		verifyTestVectors(params, value1, decrypted, t)
+
+	})
+
+}
+
+func testSubPlaintext(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	t.Run(testString("Test Plaintext Subtraction/", 1, params), func(t *testing.T) {
+
+		value1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// encrypt
+		cipher := participants[0].Encrypt(value1)
+
+		// sub plaintext to ciphertext
+		evaluator := NewMKEvaluator(params)
+		value2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		pt := evaluator.NewPlaintextFromValue(value2)
+		resCipher := evaluator.SubPlaintext(pt, cipher)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(value1); i++ {
+			value1[i] -= value2[i]
+		}
+
+		// check results
+		verifyTestVectors(params, value1, decrypted, t)
+
+	})
+
+}
+
+func testSubPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	t.Run(testString("Test Plaintext Subtraction/", 2, params), func(t *testing.T) {
+
+		value1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		value2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(value1)
+		cipher2 := participants[1].Encrypt(value2)
+
+		// sub plaintext to one of the ciphertext then sub both ciphertexts
+		evaluator := NewMKEvaluator(params)
+		value3 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		pt := evaluator.NewPlaintextFromValue(value3)
+		resCipher1 := evaluator.SubPlaintext(pt, cipher1)
+
+		out1, out2 := PadCiphers(resCipher1, cipher2, params)
+
+		resCipher := evaluator.Sub(out1, out2)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(value1); i++ {
+			value1[i] -= value2[i] + value3[i]
+		}
+
+		// check results
+		verifyTestVectors(params, value1, decrypted, t)
+
+	})
+
+}
+
+func testNeg(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	t.Run(testString("Test Negation/", 1, params), func(t *testing.T) {
+
+		value1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// encrypt
+		cipher := participants[0].Encrypt(value1)
+
+		// add with negated ciphertext
+		evaluator := NewMKEvaluator(params)
+
+		resCipher := evaluator.Add(evaluator.Neg(cipher), cipher)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(value1); i++ {
+			value1[i] -= value1[i]
+		}
+
+		// check results
+		verifyTestVectors(params, value1, decrypted, t)
+
+	})
+}
+
 func testAddFourParticipants(t *testing.T, params *ckks.Parameters) {
 
 	sigma := 6.0
@@ -143,6 +387,87 @@ func testAddFourParticipants(t *testing.T, params *ckks.Parameters) {
 
 		// check results
 		verifyTestVectors(params, values1, decrypted, t)
+	})
+
+}
+
+func testMulPlaintext(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	t.Run(testString("Test Plaintext Multiplication/", 1, params), func(t *testing.T) {
+
+		value1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// encrypt
+		cipher := participants[0].Encrypt(value1)
+
+		// multiply plaintext and ciphertext
+		evaluator := NewMKEvaluator(params)
+		value2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		pt := evaluator.NewPlaintextFromValue(value2)
+		resCipher := evaluator.MultPlaintext(pt, cipher)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(value1); i++ {
+			value1[i] *= value2[i]
+		}
+
+		// check results
+		verifyTestVectors(params, value1, decrypted, t)
+
+	})
+
+}
+
+func testMulPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	t.Run(testString("Test Plaintext Multiplication/", 2, params), func(t *testing.T) {
+
+		value1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		value2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(value1)
+		cipher2 := participants[1].Encrypt(value2)
+
+		// add both ciphertexts then multiply by plaintext
+		evaluator := NewMKEvaluator(params)
+		value3 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		out1, out2 := PadCiphers(cipher1, cipher2, params)
+
+		resCipherTMP := evaluator.Add(out1, out2)
+
+		pt := evaluator.NewPlaintextFromValue(value3)
+		resCipher := evaluator.MultPlaintext(pt, resCipherTMP)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(value1); i++ {
+			value1[i] = (value1[i] + value2[i]) * value3[i]
+		}
+
+		// check results
+		verifyTestVectors(params, value1, decrypted, t)
+
 	})
 
 }

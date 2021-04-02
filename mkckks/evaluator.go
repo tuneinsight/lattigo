@@ -11,8 +11,14 @@ import (
 // MKEvaluator is a wrapper for the ckks evaluator
 type MKEvaluator interface {
 	Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
+	Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
+	AddPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
+	SubPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
+	Neg(c *MKCiphertext) *MKCiphertext
+	MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
 	MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
 	Rescale(c *MKCiphertext, out *MKCiphertext)
+	NewPlaintextFromValue([]complex128) *ckks.Plaintext
 }
 
 type mkEvaluator struct {
@@ -25,6 +31,7 @@ type mkEvaluator struct {
 	polyPoolQ1      []*ring.Poly
 	polyPoolQ2      []*ring.Poly
 	convertor       *ring.FastBasisExtender
+	encoder         ckks.Encoder
 }
 
 // NewMKEvaluator returns an evaluator for the multi key ckks scheme.
@@ -54,7 +61,9 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 		ringQMul:        ringQMul,
 		pHalf:           pHalf,
 		samplerGaussian: sampler,
-		convertor:       convertor}
+		convertor:       convertor,
+		encoder:         ckks.NewEncoder(params),
+	}
 }
 
 // Add adds the ciphertexts component wise and expend their list of involved peers
@@ -69,47 +78,92 @@ func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
 
 	out := NewMKCiphertext(c0.peerIDs, eval.ringQ, eval.params, c0.ciphertexts.Level())
 
-	var tmp0, tmp1 *ckks.Element
+	out.ciphertexts = eval.ckksEval.AddNew(c0.ciphertexts, c1.ciphertexts)
+	return out
+}
 
-	level := utils.MinUint64(utils.MinUint64(c0.ciphertexts.Level(), c1.ciphertexts.Level()), out.ciphertexts.Level())
+// Sub returns the component wise substraction of 2 ciphertexts
+func (eval *mkEvaluator) Sub(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
 
-	val := make([]*ring.Poly, len(c1.peerIDs)+1)
-	scale0 := c0.ciphertexts.Scale()
-	scale1 := c1.ciphertexts.Scale()
-
-	if scale1 > scale0 {
-
-		tmp0 = ckks.NewElement()
-
-		if uint64(scale1/scale0) != 0 {
-			eval.ckksEval.MultByConst(c0.ciphertexts.Ciphertext(), uint64(scale1/scale0), tmp0.Ciphertext())
-		}
-
-		tmp1 = c1.ciphertexts.El()
-
-	} else if scale0 > scale1 {
-
-		tmp1 = ckks.NewElement()
-
-		if uint64(scale0/scale1) != 0 {
-			eval.ckksEval.MultByConst(c1.ciphertexts.Ciphertext(), uint64(scale0/scale1), tmp1.Ciphertext())
-		}
-
-		tmp0 = c0.ciphertexts.El()
-
-	} else {
-		tmp0 = c0.ciphertexts.El()
-		tmp1 = c1.ciphertexts.El()
+	if c0 == nil || c1 == nil || c0.ciphertexts == nil || c1.ciphertexts == nil {
+		panic("Uninitialized ciphertexts")
+	}
+	if c0.ciphertexts.Degree() != c1.ciphertexts.Degree() {
+		panic("Ciphertexts must be of same degree before subtration")
 	}
 
-	for i := uint64(0); i < c0.ciphertexts.Degree()+1; i++ {
+	out := NewMKCiphertext(c0.peerIDs, eval.ringQ, eval.params, c0.ciphertexts.Level())
+
+	out.ciphertexts = eval.ckksEval.SubNew(c0.ciphertexts, c1.ciphertexts)
+	return out
+}
+
+// AddPlaintext adds the paintext to the ciphertexts component wise
+func (eval *mkEvaluator) AddPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext {
+
+	if c == nil || pt == nil || c.ciphertexts == nil || pt.Value() == nil {
+		panic("Uninitialized inputs")
+	}
+
+	if pt.Degree() != 0 {
+		panic("Plaintext must have degree 0")
+	}
+
+	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params, c.ciphertexts.Level())
+
+	out.ciphertexts = eval.ckksEval.AddNew(c.ciphertexts, pt)
+
+	return out
+}
+
+// SubPlaintext subtracts the plaintext from the ciphertext component wise
+func (eval *mkEvaluator) SubPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext {
+
+	if c == nil || pt == nil || c.ciphertexts == nil || pt.Value() == nil {
+		panic("Uninitialized inputs")
+	}
+
+	if pt.Degree() != 0 {
+		panic("Plaintext must have degree 0")
+	}
+
+	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params, c.ciphertexts.Level())
+
+	out.ciphertexts = eval.ckksEval.SubNew(c.ciphertexts, pt)
+
+	return out
+}
+
+// Neg returns the additive inverse of a cyphertext
+func (eval *mkEvaluator) Neg(c *MKCiphertext) *MKCiphertext {
+
+	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params, c.ciphertexts.Level())
+
+	out.ciphertexts = eval.ckksEval.NegNew(c.ciphertexts)
+
+	return out
+}
+
+// MultPlaintext multiplies a plaintext and a ciphertext
+func (eval *mkEvaluator) MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext {
+
+	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params, c.ciphertexts.Level())
+
+	out.ciphertexts.SetScale(pt.Scale() * c.ciphertexts.Scale())
+
+	val := make([]*ring.Poly, len(c.peerIDs)+1)
+
+	level := utils.MinUint64(c.ciphertexts.Level(), pt.Level())
+
+	tmp := eval.ringQ.NewPoly()
+	eval.ringQ.MFormLvl(level, pt.Value()[0], tmp)
+
+	for i, v := range c.ciphertexts.Value() {
 		val[i] = eval.ringQ.NewPoly()
-		eval.ringQ.AddLvl(level, tmp0.Value()[i], tmp1.Value()[i], val[i])
+		eval.ringQ.MulCoeffsMontgomeryLvl(level, tmp, v, val[i])
 	}
 
-	out.ciphertexts.SetScale(utils.MaxFloat64(scale0, scale1))
 	out.ciphertexts.SetValue(val)
-	out.peerIDs = c0.peerIDs
 
 	return out
 }
@@ -164,4 +218,10 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 func (eval *mkEvaluator) Rescale(c *MKCiphertext, out *MKCiphertext) {
 
 	eval.ckksEval.Rescale(c.ciphertexts, eval.params.Scale(), c.ciphertexts)
+}
+
+// NewPlaintextFromValue returns a plaintext from the provided values
+func (eval *mkEvaluator) NewPlaintextFromValue(values []complex128) *ckks.Plaintext {
+
+	return eval.encoder.EncodeNTTAtLvlNew(eval.params.MaxLevel(), values, eval.params.LogSlots())
 }

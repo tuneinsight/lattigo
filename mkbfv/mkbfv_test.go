@@ -18,6 +18,7 @@ func Test_MKBFV(t *testing.T) {
 		testAddPlaintextTwoParticipants(t, p)
 		testSub(t, p)
 		testSubPlaintext(t, p)
+		testNeg(t, p)
 		testSubPlaintextTwoParticipants(t, p)
 		testMulPlaintext(t, p)
 		testMulPlaintextTwoParticipants(t, p)
@@ -107,7 +108,7 @@ func testSub(t *testing.T, params *bfv.Parameters) {
 
 	ringT := getRingT(params)
 
-	t.Run(testString("Test Substraction/", 2, params), func(t *testing.T) {
+	t.Run(testString("Test Subtraction/", 2, params), func(t *testing.T) {
 		expected1 := getRandomPlaintextValue(ringT, params)
 		expected2 := getRandomPlaintextValue(ringT, params)
 
@@ -138,7 +139,7 @@ func testSub(t *testing.T, params *bfv.Parameters) {
 		ringT.Sub(p1, p2, expected)
 
 		if !equalsSlice(decrypted, expected.Coeffs[0]) {
-			t.Error("Homomorphic substraction error")
+			t.Error("Homomorphic subtraction error")
 		}
 
 	})
@@ -252,7 +253,7 @@ func testSubPlaintext(t *testing.T, params *bfv.Parameters) {
 
 	ringT := getRingT(params)
 
-	t.Run(testString("Test Plaintext Substraction/", 1, params), func(t *testing.T) {
+	t.Run(testString("Test Plaintext Subtraction/", 1, params), func(t *testing.T) {
 
 		value1 := getRandomPlaintextValue(ringT, params)
 
@@ -281,7 +282,7 @@ func testSubPlaintext(t *testing.T, params *bfv.Parameters) {
 		ringT.Sub(p1, p2, expected)
 
 		if !equalsSlice(decrypted, expected.Coeffs[0]) {
-			t.Error("Homomorphic substraction error")
+			t.Error("Homomorphic subtraction error")
 		}
 
 	})
@@ -296,7 +297,7 @@ func testSubPlaintextTwoParticipants(t *testing.T, params *bfv.Parameters) {
 
 	ringT := getRingT(params)
 
-	t.Run(testString("Test Plaintext Substraction/", 2, params), func(t *testing.T) {
+	t.Run(testString("Test Plaintext Subtraction/", 2, params), func(t *testing.T) {
 
 		value1 := getRandomPlaintextValue(ringT, params)
 		value2 := getRandomPlaintextValue(ringT, params)
@@ -341,6 +342,41 @@ func testSubPlaintextTwoParticipants(t *testing.T, params *bfv.Parameters) {
 
 	})
 
+}
+
+func testNeg(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	ringT := getRingT(params)
+
+	t.Run(testString("Test Negation/", 1, params), func(t *testing.T) {
+
+		value1 := getRandomPlaintextValue(ringT, params)
+
+		// encrypt
+		cipher := participants[0].Encrypt(value1)
+
+		// add with negated ciphertext
+		evaluator := NewMKEvaluator(params)
+
+		resCipher := evaluator.Add(evaluator.Neg(cipher), cipher)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1})
+
+		// should be 0
+		expected := ringT.NewPoly()
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic negation error")
+		}
+
+	})
 }
 
 func testAddFourParticipants(t *testing.T, params *bfv.Parameters) {

@@ -82,9 +82,7 @@ func testAdd(t *testing.T, params *ckks.Parameters) {
 		// pad and add
 		evaluator := NewMKEvaluator(params)
 
-		out1, out2 := PadCiphers(cipher1, cipher2, params)
-
-		resCipher := evaluator.Add(out1, out2)
+		resCipher := evaluator.Add(cipher1, cipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -121,9 +119,7 @@ func testSub(t *testing.T, params *ckks.Parameters) {
 		// pad and add
 		evaluator := NewMKEvaluator(params)
 
-		out1, out2 := PadCiphers(cipher1, cipher2, params)
-
-		resCipher := evaluator.Sub(out1, out2)
+		resCipher := evaluator.Sub(cipher1, cipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -202,9 +198,7 @@ func testAddPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
 		pt := evaluator.NewPlaintextFromValue(value3)
 		resCipher1 := evaluator.AddPlaintext(pt, cipher1)
 
-		out1, out2 := PadCiphers(resCipher1, cipher2, params)
-
-		resCipher := evaluator.Add(out1, out2)
+		resCipher := evaluator.Add(resCipher1, cipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -283,9 +277,7 @@ func testSubPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
 		pt := evaluator.NewPlaintextFromValue(value3)
 		resCipher1 := evaluator.SubPlaintext(pt, cipher1)
 
-		out1, out2 := PadCiphers(resCipher1, cipher2, params)
-
-		resCipher := evaluator.Sub(out1, out2)
+		resCipher := evaluator.Sub(resCipher1, cipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -362,15 +354,10 @@ func testAddFourParticipants(t *testing.T, params *ckks.Parameters) {
 		// pad and add in 2 steps
 		evaluator := NewMKEvaluator(params)
 
-		out1, out2 := PadCiphers(cipher1, cipher2, params)
-		out3, out4 := PadCiphers(cipher3, cipher4, params)
+		resCipher1 := evaluator.Add(cipher1, cipher2)
+		resCipher2 := evaluator.Add(cipher3, cipher4)
 
-		resCipher1 := evaluator.Add(out1, out2)
-		resCipher2 := evaluator.Add(out3, out4)
-
-		finalOut1, finalOut2 := PadCiphers(resCipher1, resCipher2, params)
-
-		resCipher := evaluator.Add(finalOut1, finalOut2)
+		resCipher := evaluator.Add(resCipher1, resCipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -447,9 +434,7 @@ func testMulPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
 		evaluator := NewMKEvaluator(params)
 		value3 := newTestValue(params, complex(-1, -1), complex(1, 1))
 
-		out1, out2 := PadCiphers(cipher1, cipher2, params)
-
-		resCipherTMP := evaluator.Add(out1, out2)
+		resCipherTMP := evaluator.Add(cipher1, cipher2)
 
 		pt := evaluator.NewPlaintextFromValue(value3)
 		resCipher := evaluator.MultPlaintext(pt, resCipherTMP)
@@ -493,9 +478,7 @@ func testMul(t *testing.T, params *ckks.Parameters) {
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
-		out1, out2 := PadCiphers(cipher1, cipher2, params)
-
-		resCipher := evaluator.MultRelinDynamic(out1, out2, evalKeys, publicKeys)
+		resCipher := evaluator.MultRelinDynamic(cipher1, cipher2, evalKeys, publicKeys)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -539,15 +522,10 @@ func testMulFourParticipants(t *testing.T, params *ckks.Parameters) {
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
 
-		out1, out2 := PadCiphers(cipher1, cipher2, params)
-		out3, out4 := PadCiphers(cipher3, cipher4, params)
+		resCipher1 := evaluator.MultRelinDynamic(cipher1, cipher2, evalKeys[:2], publicKeys[:2])
+		resCipher2 := evaluator.MultRelinDynamic(cipher3, cipher4, evalKeys[2:], publicKeys[2:])
 
-		resCipher1 := evaluator.MultRelinDynamic(out1, out2, evalKeys[:2], publicKeys[:2])
-		resCipher2 := evaluator.MultRelinDynamic(out3, out4, evalKeys[2:], publicKeys[2:])
-
-		finalOut1, finalOut2 := PadCiphers(resCipher1, resCipher2, params)
-
-		resCipher := evaluator.MultRelinDynamic(finalOut1, finalOut2, evalKeys, publicKeys)
+		resCipher := evaluator.MultRelinDynamic(resCipher1, resCipher2, evalKeys, publicKeys)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)

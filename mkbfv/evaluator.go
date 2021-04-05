@@ -77,9 +77,11 @@ func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 		panic("Ciphertexts must be of same degree before addition")
 	}
 
-	out := NewMKCiphertext(c1.peerIDs, eval.ringQ, eval.params)
+	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
-	out.ciphertexts = eval.bfvEval.AddNew(c1.ciphertexts, c2.ciphertexts)
+	out := NewMKCiphertext(padded1.peerIDs, eval.ringQ, eval.params)
+
+	out.ciphertexts = eval.bfvEval.AddNew(padded1.ciphertexts, padded2.ciphertexts)
 
 	return out
 }
@@ -94,9 +96,11 @@ func (eval *mkEvaluator) Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 		panic("Ciphertexts must be of same degree before subtraction")
 	}
 
-	out := NewMKCiphertext(c1.peerIDs, eval.ringQ, eval.params)
+	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
-	out.ciphertexts = eval.bfvEval.SubNew(c1.ciphertexts, c2.ciphertexts)
+	out := NewMKCiphertext(padded1.peerIDs, eval.ringQ, eval.params)
+
+	out.ciphertexts = eval.bfvEval.SubNew(padded1.ciphertexts, padded2.ciphertexts)
 
 	return out
 }
@@ -191,10 +195,12 @@ func (eval *mkEvaluator) MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, 
 // MultRelinDynamic will compute the homomorphic multiplication and relinearize the resulting cyphertext using dynamic relin
 func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
 
-	out := eval.TensorAndRescale(c1.ciphertexts.Element, c2.ciphertexts.Element)
+	padded1, padded2 := PadCiphers(c1, c2, eval.params)
+
+	out := eval.TensorAndRescale(padded1.ciphertexts.Element, padded2.ciphertexts.Element)
 	// Call Relin alg 2
 	RelinearizationOnTheFly(evalKeys, publicKeys, out, eval.params)
-	out.peerIDs = c1.peerIDs
+	out.peerIDs = padded1.peerIDs
 	return out
 }
 

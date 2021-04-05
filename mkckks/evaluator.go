@@ -76,9 +76,11 @@ func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
 		panic("Ciphertexts must be of same degree before addition")
 	}
 
-	out := NewMKCiphertext(c0.peerIDs, eval.ringQ, eval.params, c0.ciphertexts.Level())
+	padded1, padded2 := PadCiphers(c0, c1, eval.params)
 
-	out.ciphertexts = eval.ckksEval.AddNew(c0.ciphertexts, c1.ciphertexts)
+	out := NewMKCiphertext(padded1.peerIDs, eval.ringQ, eval.params, c0.ciphertexts.Level())
+
+	out.ciphertexts = eval.ckksEval.AddNew(padded1.ciphertexts, padded2.ciphertexts)
 	return out
 }
 
@@ -92,9 +94,11 @@ func (eval *mkEvaluator) Sub(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
 		panic("Ciphertexts must be of same degree before subtration")
 	}
 
-	out := NewMKCiphertext(c0.peerIDs, eval.ringQ, eval.params, c0.ciphertexts.Level())
+	padded1, padded2 := PadCiphers(c0, c1, eval.params)
 
-	out.ciphertexts = eval.ckksEval.SubNew(c0.ciphertexts, c1.ciphertexts)
+	out := NewMKCiphertext(padded1.peerIDs, eval.ringQ, eval.params, c0.ciphertexts.Level())
+
+	out.ciphertexts = eval.ckksEval.SubNew(padded1.ciphertexts, padded2.ciphertexts)
 	return out
 }
 
@@ -175,13 +179,15 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 
 	outputDegree := nbrElements * nbrElements // (k+1)**2
 
-	el1 := c1.ciphertexts.Element
-	el2 := c2.ciphertexts.Element
+	padded1, padded2 := PadCiphers(c1, c2, eval.params)
+
+	el1 := padded1.ciphertexts.Element
+	el2 := padded2.ciphertexts.Element
 	level := utils.MinUint64(el1.Level(), el2.Level())
 
 	out := new(MKCiphertext)
 	out.ciphertexts = ckks.NewCiphertext(eval.params, outputDegree-1, level, el1.Scale()*el2.Scale())
-	out.peerIDs = c1.peerIDs
+	out.peerIDs = padded1.peerIDs
 
 	if !el1.IsNTT() {
 		panic("cannot MulRelinDynamic: op0 must be in NTT")
@@ -196,9 +202,9 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 	tmp1 := ringQ.NewPoly()
 	tmp2 := ringQ.NewPoly()
 
-	for i, v1 := range c1.ciphertexts.Value() {
+	for i, v1 := range el1.Value() {
 
-		for j, v2 := range c2.ciphertexts.Value() {
+		for j, v2 := range el2.Value() {
 
 			ringQ.MFormLvl(level, v1, tmp1)
 			ringQ.MFormLvl(level, v2, tmp2)

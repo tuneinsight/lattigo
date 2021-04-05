@@ -248,13 +248,13 @@ func GetGaussianSampler(params *bfv.Parameters, r *ring.Ring, prng *utils.KeyedP
 	return ring.NewGaussianSampler(prng, r, params.Sigma(), uint64(6*params.Sigma()))
 }
 
-// GenCommonPublicParam generates the public parameter a <- U(R_qp^d) shared by all peers
-func GenCommonPublicParam(params *bfv.Parameters) *MKDecomposedPoly {
+// GenCommonPublicParam generates the public parameter a <- U(R_qp^d) shared by all peers given a prng
+func GenCommonPublicParam(params *bfv.Parameters, prng *utils.KeyedPRNG) *MKDecomposedPoly {
 
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
+	if prng == nil {
+		panic("Uninitialized prng")
 	}
+
 	ringQP := GetRingQP(params)
 
 	uniformSampler := GetUniformSampler(params, ringQP, prng)

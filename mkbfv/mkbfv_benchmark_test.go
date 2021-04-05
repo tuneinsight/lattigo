@@ -6,6 +6,7 @@ import (
 
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 func testString(opname string, parties uint64, params *bfv.Parameters) string {
@@ -26,7 +27,13 @@ func Benchmark_MKBFV(b *testing.B) {
 
 func benchKeyGen(b *testing.B, params *bfv.Parameters) {
 
-	crs := GenCommonPublicParam(params)
+	prng, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+
+	if err != nil {
+		panic(err)
+	}
+
+	crs := GenCommonPublicParam(params, prng)
 
 	b.Run(testString("KeyGen/", 1, params), func(b *testing.B) {
 

@@ -623,7 +623,13 @@ func setupPeers(peerNbr uint64, params *ckks.Parameters, sigmaSmudging float64) 
 
 	res := make([]MKParticipant, peerNbr)
 
-	a := GenCommonPublicParam(params)
+	prng, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+
+	if err != nil {
+		panic(err)
+	}
+
+	a := GenCommonPublicParam(params, prng)
 
 	for i := 0; i < int(peerNbr); i++ {
 

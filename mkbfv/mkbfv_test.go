@@ -6,6 +6,7 @@ import (
 
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 func Test_MKBFV(t *testing.T) {
@@ -819,8 +820,14 @@ func setupPeers(peersNbr uint64, params *bfv.Parameters, sigmaSmudging float64) 
 
 	res := make([]MKParticipant, peersNbr)
 
+	prng, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+
+	if err != nil {
+		panic(err)
+	}
+
 	// setup keys and public parameters
-	a := GenCommonPublicParam(params)
+	a := GenCommonPublicParam(params, prng)
 
 	for i := 0; i < int(peersNbr); i++ {
 

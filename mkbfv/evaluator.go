@@ -10,7 +10,8 @@ import (
 
 // MKEvaluator is a wrapper for the bfv evaluator
 type MKEvaluator interface {
-	Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
+	AddNew(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
+	Add(c1 *MKCiphertext, c2 *MKCiphertext, cout *MKCiphertext)
 	Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
 	AddPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext
 	SubPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext
@@ -67,14 +68,11 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 		encoder:         bfv.NewEncoder(params)}
 }
 
-// Add adds the ciphertexts component wise and expend their list of involved peers
-func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
+// AddNew adds the ciphertexts component wise and expend their list of involved peers. Returns a new ciphertext
+func (eval *mkEvaluator) AddNew(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 	if c1 == nil || c2 == nil || c1.ciphertexts == nil || c2.ciphertexts == nil {
 		panic("Uninitialized ciphertexts")
-	}
-	if c1.ciphertexts.Degree() != c2.ciphertexts.Degree() {
-		panic("Ciphertexts must be of same degree before addition")
 	}
 
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
@@ -86,14 +84,23 @@ func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 	return out
 }
 
+// Add adds the ciphertexts component wise and expend their list of involved peers
+func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext, cout *MKCiphertext) {
+
+	if c1 == nil || c2 == nil || cout == nil || c1.ciphertexts == nil || c2.ciphertexts == nil || cout.ciphertexts == nil {
+		panic("Uninitialized ciphertexts")
+	}
+
+	padded1, padded2 := PadCiphers(c1, c2, eval.params)
+
+	eval.bfvEval.Add(padded1.ciphertexts, padded2.ciphertexts, cout.ciphertexts)
+}
+
 // Sub substracts the ciphertexts component wise and expend their list of involved peers
 func (eval *mkEvaluator) Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 	if c1 == nil || c2 == nil || c1.ciphertexts == nil || c2.ciphertexts == nil {
 		panic("Uninitialized ciphertexts")
-	}
-	if c1.ciphertexts.Degree() != c2.ciphertexts.Degree() {
-		panic("Ciphertexts must be of same degree before subtraction")
 	}
 
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)

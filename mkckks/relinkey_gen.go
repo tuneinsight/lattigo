@@ -5,6 +5,7 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
+/*
 // Convert creates a switching key K_ij from the evaluation key of the i-th peer and the public key of the j-th peer.
 func Convert(D *MKEvaluationKey, publicKey *MKPublicKey, params *ckks.Parameters) *MKSwitchingKey {
 
@@ -62,40 +63,39 @@ func GenSharedRelinearizationKey(params *ckks.Parameters, pubKeys []*MKPublicKey
 	}
 
 	return res
-}
+}*/
 
 // GInverse is a method that returns the decomposition of a polynomial from R_qp to R_qp^beta
-func GInverse(p *ring.Poly, params *ckks.Parameters) *MKDecomposedPoly {
+func GInverse(p *ring.Poly, params *ckks.Parameters) (*MKDecomposedPoly, *MKDecomposedPoly) {
 
 	beta := params.Beta()
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
 
-	baseconverter := ring.NewFastBasisExtender(ringQ, ringP)
-
 	level := uint64(len(ringQ.Modulus)) - 1
-	res := new(MKDecomposedPoly)
+	resQ := new(MKDecomposedPoly)
+	resP := new(MKDecomposedPoly)
 
-	polynomials := make([]*ring.Poly, beta)
+	polynomialsQ := make([]*ring.Poly, beta)
+	polynomialsP := make([]*ring.Poly, beta)
 
-	c2QiQ := params.NewPolyQ()
-	c2QiP := params.NewPolyP()
 	invPoly := params.NewPolyQ()
 	ringQ.InvNTT(p, invPoly)
 
 	// generate each poly decomposed in the base
 	for i := uint64(0); i < beta; i++ {
 
-		decomposeAndSplitNTT(level, i, p, invPoly, c2QiQ, c2QiP, params, ringQ, ringP)
+		polynomialsQ[i] = ringQ.NewPoly()
+		polynomialsP[i] = ringP.NewPoly()
 
-		polynomials[i] = ringQ.NewPoly()
+		decomposeAndSplitNTT(level, i, p, invPoly, polynomialsQ[i], polynomialsP[i], params, ringQ, ringP)
 
-		baseconverter.ModDownSplitNTTPQ(level, c2QiQ, c2QiP, polynomials[i])
 	}
 
-	res.poly = polynomials
+	resQ.poly = polynomialsQ
+	resP.poly = polynomialsP
 
-	return res
+	return resQ, resP
 }
 
 // decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.

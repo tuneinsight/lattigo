@@ -70,7 +70,8 @@ func GInverse(p *ring.Poly, params *ckks.Parameters) *MKDecomposedPoly {
 	beta := params.Beta()
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
-	ringQP := GetRingQP(params)
+
+	baseconverter := ring.NewFastBasisExtender(ringQ, ringP)
 
 	level := uint64(len(ringQ.Modulus)) - 1
 	res := new(MKDecomposedPoly)
@@ -87,7 +88,9 @@ func GInverse(p *ring.Poly, params *ckks.Parameters) *MKDecomposedPoly {
 
 		decomposeAndSplitNTT(level, i, p, invPoly, c2QiQ, c2QiP, params, ringQ, ringP)
 
-		polynomials[i] = toRingQP(c2QiQ, c2QiP, ringQP)
+		polynomials[i] = ringQ.NewPoly()
+
+		baseconverter.ModDownSplitNTTPQ(level, c2QiQ, c2QiP, polynomials[i])
 	}
 
 	res.poly = polynomials
@@ -96,7 +99,7 @@ func GInverse(p *ring.Poly, params *ckks.Parameters) *MKDecomposedPoly {
 }
 
 // decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.
-// this function was copied from ckks evaluator.go in order not to break the encypsulation
+// this function was copied from ckks evaluator.go in order not to break the encapsulation
 func decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly, params *ckks.Parameters, ringQ, ringP *ring.Ring) {
 
 	decomposer := ring.NewDecomposer(ringQ.Modulus, ringP.Modulus)
@@ -126,15 +129,4 @@ func decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT, c2QiQ, c2QiP *rin
 	}
 	// c2QiP = c2 mod qi mod pj
 	ringP.NTTLazy(c2QiP, c2QiP)
-}
-
-// reassemble two elements of Rq and Rp in Rqp
-func toRingQP(p1, p2 *ring.Poly, ringQp *ring.Ring) *ring.Poly {
-
-	res := ringQp.NewPoly()
-
-	// copy coefficients
-	res.SetCoefficients(append(p1.Coeffs, p2.Coeffs...))
-
-	return res
 }

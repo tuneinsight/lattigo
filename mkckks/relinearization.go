@@ -112,18 +112,18 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 
 			Dot(decomposedTmp, di0, tmpC0, ringQP)
 			Dot(decomposedTmp, di1, tmpCi, ringQP)
-			ringQP.Add(cIJDoublePrime, tmpC0, cIJDoublePrime)
+			ringQP.Add(restmp[0], tmpC0, restmp[0])
 			ringQP.Add(restmp[i], tmpCi, restmp[i])
 
 			Dot(decomposedIJ, di2, tmpIJ, ringQP) // line 6 of algorithm
 			ringQP.Add(restmp[j], tmpIJ, restmp[j])
 		}
 	}
-	c0Prime := ringQ.NewPoly()
+
 	tmpModDown := ringQ.NewPoly()
 
 	baseconverter.ModDownPQ(levelQ, restmp[0], tmpModDown)
-	ringQ.Add(cipherParts[0], tmpModDown, c0Prime)
+	ringQ.Add(cipherParts[0], tmpModDown, res[0])
 
 	for i := uint64(1); i <= k; i++ {
 		ringQ.Add(cipherParts[i], cipherParts[(k+1)*i], res[i])
@@ -131,6 +131,6 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 		baseconverter.ModDownPQ(levelQ, restmp[i], tmpModDown)
 		ringQ.Add(res[i], tmpModDown, res[i])
 	}
-	res[0] = c0Prime
+
 	ciphertexts.ciphertexts.SetValue(res)
 }

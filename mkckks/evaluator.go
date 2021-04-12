@@ -182,11 +182,11 @@ func (eval *mkEvaluator) MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKC
 // MultRelinDynamic will compute the homomorphic multiplication and relinearize the resulting cyphertext using dynamic relin
 func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
 
-	nbrElements := c1.ciphertexts.Degree() + 1 // k+1
+	padded1, padded2 := PadCiphers(c1, c2, eval.params)
+
+	nbrElements := padded1.ciphertexts.Degree() + 1 // k+1
 
 	outputDegree := nbrElements * nbrElements // (k+1)**2
-
-	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
 	el1 := padded1.ciphertexts.Element
 	el2 := padded2.ciphertexts.Element
@@ -211,9 +211,10 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 
 	for i, v1 := range el1.Value() {
 
+		ringQ.MFormLvl(level, v1, tmp1)
+
 		for j, v2 := range el2.Value() {
 
-			ringQ.MFormLvl(level, v1, tmp1)
 			ringQ.MFormLvl(level, v2, tmp2)
 
 			ringQ.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, out.ciphertexts.Ciphertext().Value()[int(nbrElements)*i+j])

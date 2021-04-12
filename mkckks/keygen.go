@@ -127,15 +127,14 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 	// e1 <- sample(\psi^d)
 	// e2 <- sample(\psi^d)
 	// r  <- sample(\chi)
-	// d0 = -sk * d1 + e1 + r * g
+	// d0 = -sk * d1 + e1 + p * r * g
 	// d1 = U(Rq^d)
-	// d2 = r * a + e2 + mu * g
+	// d2 = r * a + e2 + p * mu * g
 
 	// Size of decomposition (d)
 	beta := params.Beta()
 
 	d1 := GetUniformDecomposed(uniformSampler, beta)
-
 	d0 := GetGaussianDecomposed(gaussianSampler, beta) // e1 <- Gauss(Rqp^d)
 	d2 := GetGaussianDecomposed(gaussianSampler, beta) //e2 <- Gauss(Rqp^d)
 
@@ -143,8 +142,12 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 
 	for d := uint64(0); d < beta; d++ {
 		// Gaussian is not in NTT, so we convert it to NTT
-		ringQP.NTT(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
-		ringQP.NTT(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
+		ringQP.NTTLazy(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
+		ringQP.NTTLazy(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
+
+		ringQP.MForm(d0.poly[d], d0.poly[d]) // pass e1_i in MForm
+		ringQP.MForm(d2.poly[d], d2.poly[d]) // pass e2_i in Mform
+
 		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
 		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[d], d2.poly[d])
 	}
@@ -163,6 +166,7 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 
 	ringQP.MulScalarBigint(randomValue, pBigInt, scaledRandomValue)
 	ringQP.MulScalarBigint(mu, pBigInt, scaledMu)
+
 	// the g_is mod q_i are either 0 or 1, so just need to compute sums of the correct random.Values
 	MultiplyByBaseAndAdd(scaledRandomValue, params, d0)
 	MultiplyByBaseAndAdd(scaledMu, params, d2)

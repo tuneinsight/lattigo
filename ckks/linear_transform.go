@@ -189,6 +189,7 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, batchSize, n int, ctOut *Cipher
 
 func (eval *evaluator) InnerSumNaive(ct0 *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
+
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
@@ -324,6 +325,7 @@ func (eval *evaluator) MultiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *P
 	ringP := eval.ringP
 
 	levelQ := utils.MinInt(vec.Level(), matrix.Level)
+	levelQ := utils.MinInt(res.Level(), utils.MinInt(vec.Level(), matrix.Level))
 	levelP := eval.params.PiCount() - 1
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
@@ -433,7 +435,7 @@ func (eval *evaluator) MultiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
-	levelQ := utils.MinInt(vec.Level(), matrix.Level)
+	levelQ := utils.MinInt(res.Level(), utils.MinInt(vec.Level(), matrix.Level))
 	levelP := eval.params.PiCount() - 1
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)

@@ -373,6 +373,57 @@ type PtDiagMatrix struct {
 	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
 }
 
+func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []int) {
+	index = make(map[int][]int)
+	rotations = []int{}
+	switch element := el.(type) {
+	case map[int][]complex128:
+		for key := range element {
+			key &= (slots - 1)
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+			if index[idx1] == nil {
+				index[idx1] = []int{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
+
+			if !utils.IsInSliceInt(idx2, rotations) {
+				rotations = append(rotations, idx2)
+			}
+		}
+	case map[int]bool:
+		for key := range element {
+			key &= (slots - 1)
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+			if index[idx1] == nil {
+				index[idx1] = []int{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
+			if !utils.IsInSliceInt(idx2, rotations) {
+				rotations = append(rotations, idx2)
+			}
+		}
+	case map[int][2]*ring.Poly:
+		for key := range element {
+			key &= (slots - 1)
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+			if index[idx1] == nil {
+				index[idx1] = []int{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
+			if !utils.IsInSliceInt(idx2, rotations) {
+				rotations = append(rotations, idx2)
+			}
+		}
+	}
+	return
+}
+
 // EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
 // It can then be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 // maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.MultiplyByDiagMatrice.
@@ -381,28 +432,15 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, vector map[in
 
 	matrix = new(PtDiagMatrix)
 	matrix.LogSlots = logSlots
-	matrix.N1 = findbestbabygiantstepsplit(vector, 1<<logSlots, maxM1N2Ratio)
-
-	var N, N1 int
-
-	ringQ := encoder.ringQ
+	slots := 1 << logSlots
+	matrix.N1 = findbestbabygiantstepsplit(vector, slots, maxM1N2Ratio)
 
 	// N1*N2 = N
-	N = ringQ.N
-	N1 = matrix.N1
+	N1 := matrix.N1
 
 	if len(vector) > 2 {
 
-		index := make(map[int][]int)
-		for key := range vector {
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
-			} else {
-				index[idx1] = append(index[idx1], idx2)
-			}
-		}
+		index, _ := bsgsIndex(vector, slots, N1)
 
 		matrix.Vec = make(map[int][2]*ring.Poly)
 
@@ -412,7 +450,13 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, vector map[in
 		for j := range index {
 
 			for _, i := range index[j] {
-				matrix.Vec[N1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, vector[N1*j+i], (N>>1)-(N1*j))
+
+				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
+				v := vector[N1*j+i]
+				if v == nil {
+					v = vector[-N1*j+i]
+				}
+				matrix.Vec[N1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(v, -N1*j))
 			}
 		}
 	} else {
@@ -423,19 +467,19 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, vector map[in
 		matrix.Scale = scale
 
 		for i := range vector {
-			matrix.Vec[i] = encoder.encodeDiagonal(logSlots, level, scale, vector[i], i)
+			matrix.Vec[i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(vector[i], i))
 		}
 	}
 
 	return
 }
 
-func (encoder *encoderComplex128) encodeDiagonal(logSlots, level int, scale float64, m []complex128, k int) [2]*ring.Poly {
+func (encoder *encoderComplex128) encodeDiagonal(logSlots, level int, scale float64, m []complex128) [2]*ring.Poly {
 
 	ringQ := encoder.ringQ
 	ringP := encoder.ringP
 
-	encoder.Embed(rotate(m, k), logSlots)
+	encoder.Embed(m, logSlots)
 
 	mQ := ringQ.NewPolyLvl(level + 1)
 	encoder.ScaleUp(mQ, scale, ringQ.Modulus[:level+1])
@@ -453,23 +497,11 @@ func (encoder *encoderComplex128) encodeDiagonal(logSlots, level int, scale floa
 }
 
 // Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func findbestbabygiantstepsplit(vector map[int][]complex128, maxN int, maxRatio float64) (minN int) {
+func findbestbabygiantstepsplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN int) {
 
 	for N1 := 1; N1 < maxN; N1 <<= 1 {
 
-		index := make(map[int][]int)
-
-		for key := range vector {
-
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
-			} else {
-				index[idx1] = append(index[idx1], idx2)
-			}
-		}
+		index, _ := bsgsIndex(diagMatrix, maxN, N1)
 
 		if len(index[0]) > 0 {
 

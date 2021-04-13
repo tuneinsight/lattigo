@@ -427,7 +427,7 @@ func (keygen *keyGenerator) GenRotationIndexesForBootstrapping(logSlots int, btp
 	// Coeffs to Slots rotations
 	for _, pVec := range indexCtS {
 
-		N1 := findbestbabygiantstepsplitIndexMap(pVec, dslots, btpParams.MaxN1N2Ratio)
+		N1 := findbestbabygiantstepsplit(pVec, dslots, btpParams.MaxN1N2Ratio)
 
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
 	}
@@ -437,7 +437,7 @@ func (keygen *keyGenerator) GenRotationIndexesForBootstrapping(logSlots int, btp
 	// Slots to Coeffs rotations
 	for i, pVec := range indexStC {
 
-		N1 := findbestbabygiantstepsplitIndexMap(pVec, dslots, btpParams.MaxN1N2Ratio)
+		N1 := findbestbabygiantstepsplit(pVec, dslots, btpParams.MaxN1N2Ratio)
 
 		if logSlots < logN-1 && i == 0 {
 			rotations = addMatrixRotToList(pVec, rotations, N1, slots, true)
@@ -512,54 +512,6 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward bool)
 	return
 }
 
-// Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func findbestbabygiantstepsplitIndexMap(vector map[int]bool, maxN int, maxRatio float64) (minN int) {
-
-	for N1 := 1; N1 < maxN; N1 <<= 1 {
-
-		index := make(map[int][]int)
-
-		for key := range vector {
-
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
-			} else {
-				index[idx1] = append(index[idx1], idx2)
-			}
-		}
-
-		if len(index[0]) > 0 {
-
-			hoisted := len(index[0]) - 1
-			normal := len(index) - 1
-
-			// The matrice is very sparse already
-			if normal == 0 {
-				return N1 / 2
-			}
-
-			if hoisted > normal {
-				// Finds the next split that has a ratio hoisted/normal greater or equal to maxRatio
-				for float64(hoisted)/float64(normal) < maxRatio {
-
-					if normal/2 == 0 {
-						break
-					}
-					N1 *= 2
-					hoisted = hoisted*2 + 1
-					normal = normal / 2
-				}
-				return N1
-			}
-		}
-	}
-
-	return 1
-}
-
 func genWfftIndexMap(logL, level int, forward bool) (vectors map[int]bool) {
 
 	var rot int
@@ -573,7 +525,7 @@ func genWfftIndexMap(logL, level int, forward bool) (vectors map[int]bool) {
 	vectors = make(map[int]bool)
 	vectors[0] = true
 	vectors[rot] = true
-	vectors[(1<<logL)-rot] = true
+	vectors[-rot] = true
 	return
 }
 
@@ -599,7 +551,7 @@ func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, forward bool
 	for i := range vec {
 		newVec[i] = true
 		newVec[(i+rot)&(N-1)] = true
-		newVec[(i+N-rot)&(N-1)] = true
+		newVec[(i-rot)&(N-1)] = true
 	}
 
 	return

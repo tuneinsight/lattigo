@@ -393,6 +393,15 @@ func fftInvPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [
 	return
 }
 
+// GenCoeffsToSlotsMatrix generates the factorized encoding matrix
+// depth : number of level consumed
+// logSlots : log(slots) of the plaintext to be homomorphically encoded
+// logdSlots : log(2*slots) if slots < N/2, else log(slots)
+// ctsLevel : level of the matrices in decreasing order (possiblity to have two matrices at the same level)
+// scaling : scaling of the matrices in decreasing order
+// diffScale : constant by witch the all the matrices will be multuplied by
+// repack : true if slots = N/2
+// encoder : ckks.Encoder
 func (btp *Bootstrapper) GenCoeffsToSlotsMatrix(depth, logSlots, logdSlots int, ctsLevel []int, scaling [][]float64, diffScale complex128, repack bool, encoder Encoder) []*PtDiagMatrix {
 
 	slots := 1 << logSlots
@@ -419,6 +428,15 @@ func (btp *Bootstrapper) GenCoeffsToSlotsMatrix(depth, logSlots, logdSlots int, 
 	return pDFTInv
 }
 
+// GenSlotsToCoeffsMatrix generates the factorized decoding matrix
+// depth : number of level consumed
+// logSlots : log(slots) of the plaintext to be homomorphically encoded
+// logdSlots : log(2*slots) if slots < N/2, else log(slots)
+// ctsLevel : level of the matrices in decreasing order (possiblity to have two matrices at the same level)
+// scaling : scaling of the matrices in decreasing order
+// diffScale : constant by witch the all the matrices will be multuplied by
+// repack : true if slots = N/2
+// encoder : ckks.Encoder
 func (btp *Bootstrapper) GenSlotsToCoeffsMatrix(depth, logSlots, logdSlots int, stcLevel []int, scaling [][]float64, diffScale complex128, repack bool, encoder Encoder) []*PtDiagMatrix {
 
 	slots := 1 << logSlots
@@ -593,7 +611,7 @@ func nextLevelfft(vec map[int][]complex128, logL, N, nextLevel int, a, b, c []co
 	for i := range vec {
 		addToDicVector(newVec, i, mul(vec[i], a))
 		addToDicVector(newVec, (i+rot)&(N-1), mul(rotate(vec[i], rot), b))
-		addToDicVector(newVec, (i+N-rot)&(N-1), mul(rotate(vec[i], N-rot), c))
+		addToDicVector(newVec, (i-rot)&(N-1), mul(rotate(vec[i], -rot), c))
 	}
 
 	return

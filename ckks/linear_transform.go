@@ -440,24 +440,7 @@ func (eval *evaluator) MultiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 	PiOverF := eval.params.PiOverflowMargin()
 
 	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
-	index := make(map[int][]int)
-	rotations := []int{}
-
-	for key := range matrix.Vec {
-
-		idx1 := key / N1
-		idx2 := key & (N1 - 1)
-
-		if index[idx1] == nil {
-			index[idx1] = []int{idx2}
-		} else {
-			index[idx1] = append(index[idx1], idx2)
-		}
-
-		if !utils.IsInSliceInt(idx2, rotations) {
-			rotations = append(rotations, idx2)
-		}
-	}
+	index, rotations := bsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
 	vecRotQ, vecRotP := eval.rotateHoistedNoModDown(vec, rotations, eval.c2QiQDecomp, eval.c2QiPDecomp)

@@ -384,7 +384,7 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(int
 	// Else resizes the receiver element
 	ctOut.Resize(eval.params, maxDegree)
 
-	if ctOut.Level() > level{
+	if ctOut.Level() > level {
 		eval.DropLevel(ctOut.Ciphertext(), ctOut.Level()-utils.MinInt(c0.Level(), c1.Level()))
 	}
 
@@ -393,16 +393,15 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(int
 	// and scales properly the element before the evaluation.
 	if ctOut == c0 {
 
-		if c0.Scale() > c1.Scale() && math.Floor(c0.Scale() / c1.Scale()) > 1 {
-
+		if c0.Scale() > c1.Scale() && math.Floor(c0.Scale()/c1.Scale()) > 1 {
 
 			tmp1 = eval.ctxpool.El()
 
-			eval.MultByConst(c1.Ciphertext(),  math.Floor(c0.Scale() / c1.Scale()), tmp1.Ciphertext())
+			eval.MultByConst(c1.Ciphertext(), math.Floor(c0.Scale()/c1.Scale()), tmp1.Ciphertext())
 
-		} else if c1.Scale() > c0.Scale() && math.Floor(c1.Scale() / c0.Scale()) > 1{
+		} else if c1.Scale() > c0.Scale() && math.Floor(c1.Scale()/c0.Scale()) > 1 {
 
-			eval.MultByConst(c0.Ciphertext(), math.Floor(c1.Scale() / c0.Scale()), c0.Ciphertext())
+			eval.MultByConst(c0.Ciphertext(), math.Floor(c1.Scale()/c0.Scale()), c0.Ciphertext())
 
 			c0.SetScale(c1.Scale())
 
@@ -417,15 +416,15 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(int
 
 	} else if ctOut == c1 {
 
-		if c1.Scale() > c0.Scale() && math.Floor(c1.Scale() / c0.Scale()) > 1 {
+		if c1.Scale() > c0.Scale() && math.Floor(c1.Scale()/c0.Scale()) > 1 {
 
 			tmp0 = eval.ctxpool.El()
-	
-			eval.MultByConst(c0.Ciphertext(), math.Floor(c1.Scale() / c0.Scale()), tmp0.Ciphertext())
-	
-		} else if c0.Scale() > c1.Scale() && math.Floor(c0.Scale() / c1.Scale()) > 1 {
 
-			eval.MultByConst(c1.Ciphertext(), math.Floor(c0.Scale() / c1.Scale()), ctOut.Ciphertext())
+			eval.MultByConst(c0.Ciphertext(), math.Floor(c1.Scale()/c0.Scale()), tmp0.Ciphertext())
+
+		} else if c0.Scale() > c1.Scale() && math.Floor(c0.Scale()/c1.Scale()) > 1 {
+
+			eval.MultByConst(c1.Ciphertext(), math.Floor(c0.Scale()/c1.Scale()), ctOut.Ciphertext())
 
 			ctOut.SetScale(c0.Scale())
 
@@ -440,19 +439,19 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut *Element, evaluate func(int
 
 	} else {
 
-		if c1.Scale() > c0.Scale() && math.Floor(c1.Scale() / c0.Scale()) > 1{
+		if c1.Scale() > c0.Scale() && math.Floor(c1.Scale()/c0.Scale()) > 1 {
 
 			tmp0 = eval.ctxpool.El()
 
-			eval.MultByConst(c0.Ciphertext(), math.Floor(c1.Scale() / c0.Scale()), tmp0.Ciphertext())
+			eval.MultByConst(c0.Ciphertext(), math.Floor(c1.Scale()/c0.Scale()), tmp0.Ciphertext())
 
 			tmp1 = c1
 
-		} else if c0.Scale() > c1.Scale() && math.Floor(c0.Scale() / c1.Scale()) > 1{
+		} else if c0.Scale() > c1.Scale() && math.Floor(c0.Scale()/c1.Scale()) > 1 {
 
 			tmp1 = eval.ctxpool.El()
 
-			eval.MultByConst(c1.Ciphertext(), math.Floor(c0.Scale() / c1.Scale()), tmp1.Ciphertext())
+			eval.MultByConst(c1.Ciphertext(), math.Floor(c0.Scale()/c1.Scale()), tmp1.Ciphertext())
 
 			tmp0 = c0
 
@@ -1469,8 +1468,8 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 		panic("cannot Relinearize: input Ciphertext is not of degree 2")
 	}
 
-	if ctOut.Level() > ct0.Level(){
-		eval.DropLevel(ctOut, ctOut.Level() - ct0.Level())
+	if ctOut.Level() > ct0.Level() {
+		eval.DropLevel(ctOut, ctOut.Level()-ct0.Level())
 	}
 
 	if ctOut != ct0 {

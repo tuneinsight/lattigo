@@ -189,7 +189,6 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, batchSize, n int, ctOut *Cipher
 
 func (eval *evaluator) InnerSumNaive(ct0 *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
-
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 

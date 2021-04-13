@@ -30,15 +30,15 @@ func TestBootstrap(t *testing.T) {
 
 		btpParams := bootstrapParams[paramSet]
 
+		// Insecure params for fast testing only
+		if !*flagLongTest {
+			btpParams.LogN = 14
+			btpParams.LogSlots = 13
+		}
+
 		params, err := btpParams.Params()
 		if err != nil {
 			panic(err)
-		}
-
-		// Insecure params for fast testing only
-		if !*flagLongTest {
-			params.logN = 14
-			params.logSlots = 13
 		}
 
 		if testContext, err = genTestParams(params, btpParams.H); err != nil {
@@ -253,7 +253,16 @@ func testCos2(testContext *testParams, btpParams *BootstrappingParameters, t *te
 	})
 }
 
+func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
+
+}
+
 func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
+
+	t.Run(testString(testContext, "Bootstrapp/CoeffsToSlots/"), func(t *testing.T) {
+
+	})
+
 	t.Run(testString(testContext, "Bootstrap/"), func(t *testing.T) {
 
 		params := testContext.params

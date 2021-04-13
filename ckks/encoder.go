@@ -428,19 +428,19 @@ func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 // It can then be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 // maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.MultiplyByDiagMatrice.
 // Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
-func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix *PtDiagMatrix) {
+func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix *PtDiagMatrix) {
 
 	matrix = new(PtDiagMatrix)
 	matrix.LogSlots = logSlots
 	slots := 1 << logSlots
-	matrix.N1 = findbestbabygiantstepsplit(vector, slots, maxM1N2Ratio)
+	matrix.N1 = findbestbabygiantstepsplit(diagMatrix, slots, maxM1N2Ratio)
 
 	// N1*N2 = N
 	N1 := matrix.N1
 
-	if len(vector) > 2 {
+	if len(diagMatrix) > 2 {
 
-		index, _ := bsgsIndex(vector, slots, N1)
+		index, _ := bsgsIndex(diagMatrix, slots, N1)
 
 		matrix.Vec = make(map[int][2]*ring.Poly)
 
@@ -452,9 +452,9 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, vector map[in
 			for _, i := range index[j] {
 
 				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
-				v := vector[N1*j+i]
+				v := diagMatrix[N1*j+i]
 				if v == nil {
-					v = vector[-N1*j+i]
+					v = diagMatrix[-N1*j+i]
 				}
 				matrix.Vec[N1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(v, -N1*j))
 			}
@@ -466,8 +466,8 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, vector map[in
 		matrix.Level = level
 		matrix.Scale = scale
 
-		for i := range vector {
-			matrix.Vec[i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(vector[i], i))
+		for i := range diagMatrix {
+			matrix.Vec[i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(diagMatrix[i], i))
 		}
 	}
 

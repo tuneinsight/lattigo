@@ -323,7 +323,6 @@ func (eval *evaluator) MultiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *P
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
-	levelQ := utils.MinInt(vec.Level(), matrix.Level)
 	levelQ := utils.MinInt(res.Level(), utils.MinInt(vec.Level(), matrix.Level))
 	levelP := eval.params.PiCount() - 1
 

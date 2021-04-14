@@ -75,7 +75,7 @@ func KeyGen(params *ckks.Parameters, a *MKDecomposedPoly) *MKKeys {
 	keyBag.publicKey.key[0] = genPublicKey(keyBag.secretKey.key, params, generator, ringQP, a)
 	keyBag.publicKey.key[1] = a
 
-	// generate evaluation key. The evaluation key is also used in the relinearization phase.
+	// generate evaluation key. The evaluation key is used in the relinearization phase.
 	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, generator, params, ringQP)
 
 	return keyBag

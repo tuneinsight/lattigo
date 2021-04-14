@@ -516,7 +516,7 @@ func testMul(t *testing.T, params *ckks.Parameters) {
 		cipher1 := participants[0].Encrypt(values1)
 		cipher2 := participants[1].Encrypt(values2)
 
-		// pad and add in 2 steps
+		// evaluate multiplication
 		evaluator := NewMKEvaluator(params)
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}

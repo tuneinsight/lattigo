@@ -77,7 +77,7 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 
 	var baseconverter *ring.FastBasisExtender
 	baseconverter = ring.NewFastBasisExtender(ringQ, ringP)
-	levelQ := uint64(len(ringQ.Modulus) - 1)
+	level := ciphertexts.ciphertexts.Level()
 
 	k := uint64(len(evaluationKeys))
 	restmpQ := make([]*ring.Poly, k+1)
@@ -109,49 +109,57 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 
 		for j := uint64(1); j < k; j++ {
 
-			cIJDoublePrimeQ := ringQP.NewPoly()
-			cIJDoublePrimeP := ringQP.NewPoly()
-			decomposedIJQ, decomposedIJP := GInverse(cipherParts[i*(k+1)+j], params)
+			cIJtmpQ := ringQ.NewPoly()
+			cIJtmpP := ringP.NewPoly()
+			decomposedIJQ, decomposedIJP := GInverse(cipherParts[i*(k+1)+j], params) // line 3
 
-			Dot(decomposedIJQ, publicKeys[j].key[0], cIJDoublePrimeQ, ringQ) // line 3
-			Dot(decomposedIJP, publicKeys[j].key[0], cIJDoublePrimeP, ringP)
+			DotLvl(level, decomposedIJQ, publicKeys[j].key[0], cIJtmpQ, ringQ)
+			Dot(decomposedIJP, publicKeys[j].key[0], cIJtmpP, ringP)
 			cIJPrime := ringQ.NewPoly()
 
-			baseconverter.ModDownSplitNTTPQ(levelQ, cIJDoublePrimeQ, cIJDoublePrimeP, cIJPrime) // line 4
+			baseconverter.ModDownSplitNTTPQ(level, cIJtmpQ, cIJtmpP, cIJPrime) // line 4
 
 			decomposedTmpQ, decomposedTmpP := GInverse(cIJPrime, params) // inverse and matrix mult (line 5)
 
-			Dot(decomposedTmpQ, di0, tmpC0Q, ringQ)
+			DotLvl(level, decomposedTmpQ, di0, tmpC0Q, ringQ)
 			Dot(decomposedTmpP, di0, tmpC0P, ringP)
 
-			Dot(decomposedTmpQ, di1, tmpCiQ, ringQ)
+			DotLvl(level, decomposedTmpQ, di1, tmpCiQ, ringQ)
 			Dot(decomposedTmpP, di1, tmpCiP, ringP)
 
-			ringQ.Add(restmpQ[0], tmpC0Q, restmpQ[0])
-			ringQ.Add(restmpQ[i], tmpCiQ, restmpQ[i])
+			ringQ.AddLvl(level, restmpQ[0], tmpC0Q, restmpQ[0])
+			ringQ.AddLvl(level, restmpQ[i], tmpCiQ, restmpQ[i])
+			ringQ.ReduceLvl(level, restmpQ[0], restmpQ[0])
+			ringQ.ReduceLvl(level, restmpQ[i], restmpQ[i])
 
 			ringP.Add(restmpP[0], tmpC0P, restmpP[0])
 			ringP.Add(restmpP[i], tmpCiP, restmpP[i])
+			ringP.Reduce(restmpP[0], restmpP[0])
+			ringP.Reduce(restmpP[i], restmpP[i])
 
-			Dot(decomposedIJQ, di2, tmpIJQ, ringQ) // line 6 of algorithm
+			DotLvl(level, decomposedIJQ, di2, tmpIJQ, ringQ) // line 6 of algorithm
 			Dot(decomposedIJP, di2, tmpIJP, ringP)
 
-			ringQ.Add(restmpQ[j], tmpIJQ, restmpQ[j])
+			ringQ.AddLvl(level, restmpQ[j], tmpIJQ, restmpQ[j])
 			ringP.Add(restmpP[j], tmpIJP, restmpP[j])
+			ringP.Reduce(restmpP[j], restmpP[j])
+			ringQ.ReduceLvl(level, restmpQ[j], restmpQ[j])
 		}
 	}
 
 	tmpModDown := ringQ.NewPoly()
 
-	baseconverter.ModDownSplitNTTPQ(levelQ, restmpQ[0], restmpP[0], tmpModDown)
-	ringQ.Add(cipherParts[0], tmpModDown, res[0])
+	baseconverter.ModDownSplitNTTPQ(level, restmpQ[0], restmpP[0], tmpModDown)
+	ringQ.AddLvl(level, cipherParts[0], tmpModDown, res[0])
+	ringQ.ReduceLvl(level, res[0], res[0])
 
 	for i := uint64(1); i <= k; i++ {
 
-		ringQ.Add(cipherParts[i], cipherParts[(k+1)*i], res[i])
+		ringQ.AddLvl(level, cipherParts[i], cipherParts[(k+1)*i], res[i])
 		tmpModDown := ringQ.NewPoly()
-		baseconverter.ModDownSplitNTTPQ(levelQ, restmpQ[i], restmpP[i], tmpModDown)
-		ringQ.Add(res[i], tmpModDown, res[i])
+		baseconverter.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
+		ringQ.AddLvl(level, res[i], tmpModDown, res[i])
+		ringQ.ReduceLvl(level, res[i], res[i])
 	}
 
 	ciphertexts.ciphertexts.SetValue(res)

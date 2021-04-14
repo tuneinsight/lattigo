@@ -150,6 +150,8 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 
 		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
 		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[d], d2.poly[d])
+		ringQP.Reduce(d0.poly[d], d0.poly[d])
+		ringQP.Reduce(d2.poly[d], d2.poly[d])
 	}
 
 	scaledMu := ringQP.NewPoly()
@@ -175,7 +177,6 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 }
 
 // MultiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2
-// Takes into account Modulus variant by scaling up by factor P
 func MultiplyByBaseAndAdd(p1 *ring.Poly, params *ckks.Parameters, p2 *MKDecomposedPoly) {
 
 	alpha := params.Alpha()

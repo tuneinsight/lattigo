@@ -33,6 +33,7 @@ func Test_MKCKKS(t *testing.T) {
 			testMulPlaintext(t, p)
 			testMulPlaintextTwoParticipants(t, p)
 			testAddInPlace(t, p)
+			//testSquare(t, p)
 			//testMul(t, p)
 			//testMulFourParticipants(t, p)
 		}
@@ -496,6 +497,43 @@ func testMulPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
 		// check results
 		verifyTestVectors(params, value1, decrypted, t)
 
+	})
+
+}
+
+func testSquare(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	t.Run(testString("Test multiplication/", 1, params), func(t *testing.T) {
+
+		// generate test value
+		values1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// Encrypt
+		cipher1 := participants[0].Encrypt(values1)
+
+		// evaluate multiplication
+		evaluator := NewMKEvaluator(params)
+		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey()}
+		publicKeys := []*MKPublicKey{participants[0].GetPublicKey()}
+
+		resCipher := evaluator.MultRelinDynamic(cipher1, cipher1, evalKeys, publicKeys)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(values1); i++ {
+			values1[i] *= values1[i]
+		}
+
+		// check results
+		verifyTestVectors(params, values1, decrypted, t)
 	})
 
 }

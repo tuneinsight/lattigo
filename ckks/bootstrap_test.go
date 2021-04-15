@@ -259,39 +259,50 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 
 		params := testContext.params
 
+		// Generates the encoding matrices
 		CoeffsToSlotMatrices := btpParams.GenCoeffsToSlotsMatrix(complex(math.Pow(1/float64(2*params.Slots()), 1.0/float64(btpParams.CtSDepth(false))), 0), testContext.encoder)
 
 		rotations := []int{}
 
+		// Compute what rotations are needed for each matrix
 		for i := range CoeffsToSlotMatrices {
 			rotations = AddMatrixRotToList(CoeffsToSlotMatrices[i], rotations, params.Slots(), false)
-
 		}
 
-		rotations = append(rotations, params.Slots())
+		// rotation for repacking sparse plaintexts
+		if params.LogSlots() < params.LogN()-1 {
+			rotations = append(rotations, params.Slots())
+		}
 
+		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
 
+		// Generates a random test vectors
 		values := make([]complex128, params.Slots())
 		for i := range values {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
+		// Encodes and encrypts the test vector
 		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
 		testContext.encoder.Encode(plaintext, values, params.logSlots)
 		ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
 
+		// Creates an evaluator with the rotation keys
 		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
+		// Applies the homomorphic DFT
 		ct0, ct1 := CoeffsToSlots(ciphertext, CoeffsToSlotMatrices, eval)
 
+		// Applies the same on the plaintext
 		encoder := testContext.encoder
-
 		invfft(values, params.Slots(), encoder.(*encoderComplex128).m, encoder.(*encoderComplex128).rotGroup, encoder.(*encoderComplex128).roots)
 		sliceBitReverseInPlaceComplex128(values, params.Slots())
 
+		// Verify the output values, and switch depending on if the original plaintext was sparse or not
 		if params.LogSlots() < params.LogN()-1 {
 			logSlots := params.LogSlots() + 1
+			// Split the real and imaginary parts, puts the real part in the first 2*slots/2 slots and the imaginary part in the last 2*slots/2 slots.
 			valuesFloat := make([]complex128, 1<<logSlots)
 			for i, idx, jdx := 0, 0, 1<<(logSlots-1); i < 1<<(logSlots-1); i, jdx, idx = i+1, jdx+1, idx+1 {
 				valuesFloat[idx] = complex(real(values[i]), 0)
@@ -301,6 +312,7 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 			verifyTestVectors(testContext, testContext.decryptor, valuesFloat, valuesTest, logSlots, 0, t)
 		} else {
 			logSlots := params.LogSlots()
+			// Splits the real and imaginary parts into two different slices.
 			valuesFloat0 := make([]complex128, 1<<logSlots)
 			valuesFloat1 := make([]complex128, 1<<logSlots)
 			for i, idx, jdx := 0, 0, 1<<logSlots; i < 1<<logSlots; i, jdx, idx = i+1, jdx+1, idx+1 {

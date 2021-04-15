@@ -46,10 +46,9 @@ func TestBootstrap(t *testing.T) {
 		}
 
 		for _, testSet := range []func(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T){
-			testSin,
-			testCos1,
-			testCos2,
+			testEvalSine,
 			testCoeffsToSlots,
+			testSlotsToCoeffs,
 			testbootstrap,
 		} {
 			testSet(testContext, btpParams, t)
@@ -58,7 +57,8 @@ func TestBootstrap(t *testing.T) {
 	}
 }
 
-func testSin(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
+func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
+
 	t.Run(testString(testContext, "Sin/"), func(t *testing.T) {
 
 		var err error
@@ -97,9 +97,7 @@ func testSin(testContext *testParams, btpParams *BootstrappingParameters, t *tes
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 	})
-}
 
-func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
 	t.Run(testString(testContext, "Cos1/"), func(t *testing.T) {
 
 		var err error
@@ -180,9 +178,7 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 		eval.(*evaluator).scale = DefaultScale
 
 	})
-}
 
-func testCos2(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
 	t.Run(testString(testContext, "Cos2/"), func(t *testing.T) {
 
 		if len(btpParams.SineEvalModuli.Qi) < 12 {
@@ -297,6 +293,8 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 		// Applies the same on the plaintext
 		encoder := testContext.encoder
 		invfft(values, params.Slots(), encoder.(*encoderComplex128).m, encoder.(*encoderComplex128).rotGroup, encoder.(*encoderComplex128).roots)
+
+		// Data is not bit-reversed
 		sliceBitReverseInPlaceComplex128(values, params.Slots())
 
 		// Verify the output values, and switch depending on if the original plaintext was sparse or not
@@ -327,9 +325,91 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 	})
 }
 
+func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
+	t.Run(testString(testContext, "SlotsToCoeffs/"), func(t *testing.T) {
+
+		params := testContext.params
+
+		// Generates the encoding matrices
+		SlotsToCoeffsMatrix := btpParams.GenSlotsToCoeffsMatrix(1.0, testContext.encoder)
+
+		rotations := []int{}
+
+		// Compute what rotations are needed for each matrix
+		for i := range SlotsToCoeffsMatrix {
+			rotations = AddMatrixRotToList(SlotsToCoeffsMatrix[i], rotations, params.Slots(), (i == 0) && (params.LogSlots() < params.LogN()-1))
+		}
+
+		// rotation for repacking sparse plaintexts
+		if params.LogSlots() < params.LogN()-1 {
+			rotations = append(rotations, params.Slots())
+		}
+
+		// Generates the rotation keys
+		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
+
+		// Creates an evaluator with the rotation keys
+		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+
+		// Generates a random test vectors that simulates the encoding of a real vector
+		values0 := make([]complex128, params.Slots())
+		values1 := make([]complex128, params.Slots())
+		for i := range values0 {
+			values0[i] = complex(utils.RandFloat64(-1, 1), 0)
+		}
+
+		for i := range values1[1:] {
+			values1[i+1] = -values0[len(values0)-i-1]
+		}
+
+		// If sparse, puts the second vector in the imaginary part of the first one
+		if params.LogSlots() < params.LogN()-1 {
+			for i := range values0 {
+				values0[i] += complex(0, real(values1[i]))
+			}
+		}
+
+		// Ouputs of the homomorphic FFT^-1 is bit-reversed
+		sliceBitReverseInPlaceComplex128(values0, params.Slots())
+		sliceBitReverseInPlaceComplex128(values1, params.Slots())
+
+		// Encodes and encrypts the test vectors
+		logSlots := params.LogSlots()
+		if params.LogSlots() < params.LogN()-1 {
+			logSlots++
+		}
+		encoder := testContext.encoder
+		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
+		encoder.Encode(plaintext, values0, logSlots)
+		ct0 := testContext.encryptorPk.EncryptNew(plaintext)
+		var ct1 *Ciphertext
+		if params.LogSlots() == params.LogN()-1 {
+			testContext.encoder.Encode(plaintext, values1, logSlots)
+			ct1 = testContext.encryptorPk.EncryptNew(plaintext)
+		}
+
+		// Applies the homomorphic DFT
+		res := SlotsToCoeffs(ct0, ct1, SlotsToCoeffsMatrix, eval)
+
+		// Applies the DFT on the plaintext
+		// If not sparse, puts the second vector in the imaginary part of the first one
+		if params.LogSlots() == params.LogN()-1 {
+			for i := range values0 {
+				values0[i] += complex(0, real(values1[i]))
+			}
+		}
+		sliceBitReverseInPlaceComplex128(values0, params.Slots())
+		fft(values0, params.Slots(), encoder.(*encoderComplex128).m, encoder.(*encoderComplex128).rotGroup, encoder.(*encoderComplex128).roots)
+
+		valuesTest := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(res), params.LogSlots(), 0)
+		verifyTestVectors(testContext, testContext.decryptor, values0, valuesTest, params.LogSlots(), 0, t)
+
+	})
+}
+
 func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
 
-	t.Run(testString(testContext, "Bootstrapping/FullCircuit"), func(t *testing.T) {
+	t.Run(testString(testContext, "Bootstrapping/FullCircuit/"), func(t *testing.T) {
 
 		params := testContext.params
 

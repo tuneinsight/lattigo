@@ -164,7 +164,7 @@ func CoeffsToSlots(vec *Ciphertext, pDFTInv []*PtDiagMatrix, eval Evaluator) (ct
 func SlotsToCoeffs(ct0, ct1 *Ciphertext, pDFT []*PtDiagMatrix, eval Evaluator) (ct *Ciphertext) {
 
 	// If full packing, the repacking can be done directly using ct0 and ct1.
-	if !(eval.(*evaluator).params.LogSlots() < eval.(*evaluator).params.LogN()-1) {
+	if ct1 != nil {
 		eval.MultByi(ct1, ct1)
 		eval.Add(ct0, ct1, ct0)
 	}

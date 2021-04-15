@@ -210,7 +210,7 @@ func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
-	precStats := ckks.GetPrecisionStats(params, nil, nil, valuesWant, valuesTest, 0)
+	precStats := ckks.GetPrecisionStats(params, nil, nil, valuesWant, valuesTest, params.LogSlots(), 0)
 
 	fmt.Println(precStats.String())
 

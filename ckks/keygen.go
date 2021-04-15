@@ -347,8 +347,6 @@ func (keygen *keyGenerator) GenRotationIndexesForDiagMatrix(matrix *PtDiagMatrix
 
 		for j := range matrix.Vec {
 
-			j &= (slots - 1)
-
 			if !utils.IsInSliceInt(j, rotKeyIndex) {
 				rotKeyIndex = append(rotKeyIndex, j)
 			}
@@ -357,8 +355,6 @@ func (keygen *keyGenerator) GenRotationIndexesForDiagMatrix(matrix *PtDiagMatrix
 	} else {
 
 		for j := range matrix.Vec {
-
-			j &= (slots - 1)
 
 			index = ((j / N1) * N1) & (slots - 1)
 
@@ -381,8 +377,6 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 
 	var index int
 	for j := range pVec {
-
-		j &= (slots - 1)
 
 		index = (j / N1) * N1
 

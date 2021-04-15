@@ -22,6 +22,10 @@ const MaxModuliSize = 60
 // DefaultSigma is the default error distribution standard deviation
 const DefaultSigma = 3.2
 
+// GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
+// The j-th ring automorphism takes the root zeta to zeta^(5j).
+const GaloisGen uint64 = 5
+
 type Parameters struct {
 	logN  int
 	qi    []uint64
@@ -163,4 +167,39 @@ func (p *Parameters) RingQP() *ring.Ring {
 		panic(err) // Parameter type invariant
 	}
 	return ringQP
+}
+
+// GaloisElementForColumnRotationBy returns the galois element for plaintext
+// column rotations by k position to the left. Providing a negative k is
+// equivalent to a right rotation.
+func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
+	twoN := 1 << (p.logN + 1)
+	mask := twoN - 1
+	kRed := uint64(k & mask)
+	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
+}
+
+// GaloisElementForRowRotation returns the galois element for generating the row
+// rotation automorphism
+func (p *Parameters) GaloisElementForRowRotation() uint64 {
+	return (1 << (p.logN + 1)) - 1
+}
+
+// GaloisElementsForRowInnerSum returns a list of all galois elements required to
+// perform an InnerSum operation. This corresponds to all the left rotations by
+// k-positions where k is a power of two and the row-rotation element.
+func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
+	galEls = make([]uint64, p.logN+1, p.logN+1)
+	galEls[0] = p.GaloisElementForRowRotation()
+	for i := 0; i < int(p.logN)-1; i++ {
+		galEls[i+1] = p.GaloisElementForColumnRotationBy(1 << i)
+	}
+	return galEls
+}
+
+// InverseGaloisElement takes a galois element and returns the galois element
+//  corresponding to the inverse automorphism
+func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
+	twoN := uint64(1 << (p.logN + 1))
+	return ring.ModExp(galEl, twoN-1, twoN)
 }

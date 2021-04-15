@@ -22,9 +22,6 @@ type Bootstrapper struct {
 
 	encoder Encoder // Encoder
 
-	plaintextSize int // Byte size of the plaintext DFT matrices
-
-	repack       bool                    // If true then can repack the CoeffsToSlots into on ciphertext
 	prescale     float64                 // Q[0]/(Q[0]/|m|)
 	postscale    float64                 // Qi sineeval/(Q[0]/|m|)
 	sinescale    float64                 // Qi sineeval
@@ -80,7 +77,6 @@ func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (bt
 	btp.dslots = params.Slots()
 	btp.logdslots = params.LogSlots()
 	if params.logSlots < params.MaxLogSlots() {
-		btp.repack = true
 		btp.dslots <<= 1
 		btp.logdslots++
 	}
@@ -126,7 +122,7 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 	return nil
 }
 
-func (btp *Bootstrapper) addMatrixRotToList(pVec *PtDiagMatrix, rotations []int, slots int, repack bool) {
+func AddMatrixRotToList(pVec *PtDiagMatrix, rotations []int, slots int, repack bool) []int {
 
 	var index int
 	for j := range pVec.Vec {
@@ -153,6 +149,8 @@ func (btp *Bootstrapper) addMatrixRotToList(pVec *PtDiagMatrix, rotations []int,
 			rotations = append(rotations, index)
 		}
 	}
+
+	return rotations
 }
 
 func (btp *Bootstrapper) genDFTMatrices() {
@@ -186,16 +184,12 @@ func (btp *Bootstrapper) genDFTMatrices() {
 
 	// Coeffs to Slots rotations
 	for _, pVec := range btp.pDFTInv {
-		btp.addMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
+		btp.rotKeyIndex = AddMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
 	}
 
 	// Slots to Coeffs rotations
 	for i, pVec := range btp.pDFT {
-		if i == 0 {
-			btp.addMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), btp.repack)
-		} else {
-			btp.addMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
-		}
+		btp.rotKeyIndex = AddMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), (i == 0) && (btp.params.logSlots < btp.params.MaxLogSlots()))
 	}
 }
 

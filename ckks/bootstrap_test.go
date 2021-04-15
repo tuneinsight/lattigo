@@ -49,6 +49,7 @@ func TestBootstrap(t *testing.T) {
 			testSin,
 			testCos1,
 			testCos2,
+			testCoeffsToSlots,
 			testbootstrap,
 		} {
 			testSet(testContext, btpParams, t)
@@ -91,7 +92,7 @@ func testSin(testContext *testParams, btpParams *BootstrappingParameters, t *tes
 			t.Error(err)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
@@ -140,7 +141,7 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
 		for i := range values {
 
@@ -173,7 +174,7 @@ func testCos1(testContext *testParams, btpParams *BootstrappingParameters, t *te
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
@@ -245,7 +246,7 @@ func testCos2(testContext *testParams, btpParams *BootstrappingParameters, t *te
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
+		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
@@ -254,16 +255,69 @@ func testCos2(testContext *testParams, btpParams *BootstrappingParameters, t *te
 }
 
 func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
+	t.Run(testString(testContext, "CoeffsToSlots/"), func(t *testing.T) {
 
+		params := testContext.params
+
+		CoeffsToSlotMatrices := btpParams.GenCoeffsToSlotsMatrix(complex(math.Pow(1/float64(2*params.Slots()), 1.0/float64(btpParams.CtSDepth(false))), 0), testContext.encoder)
+
+		rotations := []int{}
+
+		for i := range CoeffsToSlotMatrices {
+			rotations = AddMatrixRotToList(CoeffsToSlotMatrices[i], rotations, params.Slots(), false)
+
+		}
+
+		rotations = append(rotations, params.Slots())
+
+		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
+
+		values := make([]complex128, params.Slots())
+		for i := range values {
+			values[i] = utils.RandComplex128(-1, 1)
+		}
+
+		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
+		testContext.encoder.Encode(plaintext, values, params.logSlots)
+		ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
+
+		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+
+		ct0, ct1 := CoeffsToSlots(ciphertext, CoeffsToSlotMatrices, eval)
+
+		encoder := testContext.encoder
+
+		invfft(values, params.Slots(), encoder.(*encoderComplex128).m, encoder.(*encoderComplex128).rotGroup, encoder.(*encoderComplex128).roots)
+		sliceBitReverseInPlaceComplex128(values, params.Slots())
+
+		if params.LogSlots() < params.LogN()-1 {
+			logSlots := params.LogSlots() + 1
+			valuesFloat := make([]complex128, 1<<logSlots)
+			for i, idx, jdx := 0, 0, 1<<(logSlots-1); i < 1<<(logSlots-1); i, jdx, idx = i+1, jdx+1, idx+1 {
+				valuesFloat[idx] = complex(real(values[i]), 0)
+				valuesFloat[jdx] = complex(imag(values[i]), 0)
+			}
+			valuesTest := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct0), logSlots, 0)
+			verifyTestVectors(testContext, testContext.decryptor, valuesFloat, valuesTest, logSlots, 0, t)
+		} else {
+			logSlots := params.LogSlots()
+			valuesFloat0 := make([]complex128, 1<<logSlots)
+			valuesFloat1 := make([]complex128, 1<<logSlots)
+			for i, idx, jdx := 0, 0, 1<<logSlots; i < 1<<logSlots; i, jdx, idx = i+1, jdx+1, idx+1 {
+				valuesFloat0[idx] = complex(real(values[i]), 0)
+				valuesFloat1[idx] = complex(imag(values[i]), 0)
+			}
+			valuesTest0 := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct0), logSlots, 0)
+			valuesTest1 := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct1), logSlots, 0)
+			verifyTestVectors(testContext, testContext.decryptor, valuesFloat0, valuesTest0, logSlots, 0, t)
+			verifyTestVectors(testContext, testContext.decryptor, valuesFloat1, valuesTest1, logSlots, 0, t)
+		}
+	})
 }
 
 func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
 
-	t.Run(testString(testContext, "Bootstrapp/CoeffsToSlots/"), func(t *testing.T) {
-
-	})
-
-	t.Run(testString(testContext, "Bootstrap/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Bootstrapping/FullCircuit"), func(t *testing.T) {
 
 		params := testContext.params
 
@@ -302,7 +356,7 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 
 			ciphertext = btp.Bootstrapp(ciphertext)
 			//testContext.evaluator.SetScale(ciphertext, testContext.params.scale)
-			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t, 0)
+			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 		}
 
 	})

@@ -345,16 +345,20 @@ func (keygen *keyGenerator) GenRotationIndexesForDiagMatrix(matrix *PtDiagMatrix
 
 	if len(matrix.Vec) < 3 {
 
-		for key := range matrix.Vec {
+		for j := range matrix.Vec {
 
-			if !utils.IsInSliceInt(key, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, key)
+			j &= (slots - 1)
+
+			if !utils.IsInSliceInt(j, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, j)
 			}
 		}
 
 	} else {
 
 		for j := range matrix.Vec {
+
+			j &= (slots - 1)
 
 			index = ((j / N1) * N1) & (slots - 1)
 
@@ -377,6 +381,8 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 
 	var index int
 	for j := range pVec {
+
+		j &= (slots - 1)
 
 		index = (j / N1) * N1
 
@@ -426,9 +432,7 @@ func (keygen *keyGenerator) GenRotationIndexesForBootstrapping(logSlots int, btp
 
 	// Coeffs to Slots rotations
 	for _, pVec := range indexCtS {
-
 		N1 := findbestbabygiantstepsplit(pVec, dslots, btpParams.MaxN1N2Ratio)
-
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
 	}
 
@@ -436,14 +440,8 @@ func (keygen *keyGenerator) GenRotationIndexesForBootstrapping(logSlots int, btp
 
 	// Slots to Coeffs rotations
 	for i, pVec := range indexStC {
-
 		N1 := findbestbabygiantstepsplit(pVec, dslots, btpParams.MaxN1N2Ratio)
-
-		if logSlots < logN-1 && i == 0 {
-			rotations = addMatrixRotToList(pVec, rotations, N1, slots, true)
-		} else {
-			rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
-		}
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, logSlots < logN-1 && i == 0)
 	}
 
 	return
@@ -525,7 +523,7 @@ func genWfftIndexMap(logL, level int, forward bool) (vectors map[int]bool) {
 	vectors = make(map[int]bool)
 	vectors[0] = true
 	vectors[rot] = true
-	vectors[-rot] = true
+	vectors[(1<<logL)-rot] = true
 	return
 }
 

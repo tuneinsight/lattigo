@@ -60,7 +60,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	// Part 1 : Coeffs to slots
 
 	//t = time.Now()
-	ct0, ct1 = btp.coeffsToSlots(ct)
+	ct0, ct1 = CoeffsToSlots(ct, btp.pDFTInv, btp.evaluator)
 	//log.Println("After CtS    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 
 	// Part 2 : SineEval
@@ -70,7 +70,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 	// Part 3 : Slots to coeffs
 	//t = time.Now()
-	ct0 = btp.slotsToCoeffs(ct0, ct1)
+	ct0 = SlotsToCoeffs(ct0, ct1, btp.pDFT, btp.evaluator)
 
 	ct0.SetScale(math.Exp2(math.Round(math.Log2(ct0.Scale())))) // rounds to the nearest power of two
 	//log.Println("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
@@ -132,26 +132,26 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 	return ct
 }
 
-func (btp *Bootstrapper) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Ciphertext) {
+func CoeffsToSlots(vec *Ciphertext, pDFTInv []*PtDiagMatrix, eval Evaluator) (ct0, ct1 *Ciphertext) {
 
 	var zV, zVconj *Ciphertext
 
-	zV = btp.dft(vec, btp.pDFTInv, true)
+	zV = dft(vec, pDFTInv, true, eval)
 
-	zVconj = btp.ConjugateNew(zV)
+	zVconj = eval.ConjugateNew(zV)
 
 	// The real part is stored in ct0
-	ct0 = btp.AddNew(zV, zVconj)
+	ct0 = eval.AddNew(zV, zVconj)
 
 	// The imaginary part is stored in ct1
-	ct1 = btp.SubNew(zV, zVconj)
+	ct1 = eval.SubNew(zV, zVconj)
 
-	btp.DivByi(ct1, ct1)
+	eval.DivByi(ct1, ct1)
 
 	// If repacking, then ct0 and ct1 right n/2 slots are zero.
-	if btp.repack {
-		btp.Rotate(ct1, int(btp.params.Slots()), ct1)
-		btp.Add(ct0, ct1, ct0)
+	if eval.(*evaluator).params.LogSlots() < eval.(*evaluator).params.LogN()-1 {
+		eval.Rotate(ct1, eval.(*evaluator).params.Slots(), ct1)
+		eval.Add(ct0, ct1, ct0)
 		return ct0, nil
 	}
 
@@ -161,25 +161,26 @@ func (btp *Bootstrapper) coeffsToSlots(vec *Ciphertext) (ct0, ct1 *Ciphertext) {
 	return ct0, ct1
 }
 
-func (btp *Bootstrapper) slotsToCoeffs(ct0, ct1 *Ciphertext) (ct *Ciphertext) {
+func SlotsToCoeffs(ct0, ct1 *Ciphertext, pDFT []*PtDiagMatrix, eval Evaluator) (ct *Ciphertext) {
 
 	// If full packing, the repacking can be done directly using ct0 and ct1.
-	if !btp.repack {
-		btp.MultByi(ct1, ct1)
-		btp.Add(ct0, ct1, ct0)
+	if !(eval.(*evaluator).params.LogSlots() < eval.(*evaluator).params.LogN()-1) {
+		eval.MultByi(ct1, ct1)
+		eval.Add(ct0, ct1, ct0)
 	}
 
 	ct1 = nil
 
-	return btp.dft(ct0, btp.pDFT, false)
+	return dft(ct0, pDFT, false, eval)
 }
 
-func (btp *Bootstrapper) dft(vec *Ciphertext, plainVectors []*PtDiagMatrix, forward bool) *Ciphertext {
+func dft(vec *Ciphertext, plainVectors []*PtDiagMatrix, forward bool, eval Evaluator) *Ciphertext {
 
 	// Sequentially multiplies w with the provided dft matrices.
 	for _, plainVector := range plainVectors {
-		vec = btp.LinearTransform(vec, plainVector)[0]
-		if err := btp.Rescale(vec, btp.scale, vec); err != nil {
+		scale := vec.Scale()
+		vec = eval.LinearTransform(vec, plainVector)[0]
+		if err := eval.Rescale(vec, scale, vec); err != nil {
 			panic(err)
 		}
 	}

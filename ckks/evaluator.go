@@ -493,6 +493,8 @@ func (eval *evaluator) Neg(ct0 *Ciphertext, ctOut *Ciphertext) {
 	for i := range ct0.value {
 		eval.ringQ.NegLvl(level, ct0.value[i], ctOut.Value()[i])
 	}
+
+	ctOut.SetScale(ct0.Scale())
 }
 
 // NegNew negates ct0 and returns the result in a newly created element.
@@ -574,6 +576,8 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 	cReal, cImag, _ := eval.getConstAndScale(level, constant)
 
 	ringQ := eval.ringQ
+
+	ctOut.SetScale(ct0.Scale())
 
 	// Component wise addition of the following vector to the ciphertext:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
@@ -871,6 +875,8 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 
+	ctOut.SetScale(ct0.Scale())
+
 	for i := 0; i < level+1; i++ {
 
 		qi := ringQ.Modulus[i]
@@ -1121,6 +1127,8 @@ func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	ringQ := eval.ringQ
 
+	ctOut.SetScale(ct0.Scale())
+
 	var imag uint64
 
 	// Equivalent to a product by the monomial x^(3*n/2) outside of the NTT domain
@@ -1216,6 +1224,7 @@ func (eval *evaluator) MulByPow2New(ct0 *Ciphertext, pow2 int) (ctOut *Ciphertex
 // MulByPow2 multiplies ct0 by 2^pow2 and returns the result in ctOut.
 func (eval *evaluator) MulByPow2(ct0 *Element, pow2 int, ctOut *Element) {
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
+	ctOut.SetScale(ct0.Scale())
 	for i := range ctOut.Value() {
 		eval.ringQ.MulByPow2Lvl(level, ct0.value[i], pow2, ctOut.Value()[i])
 	}
@@ -1243,6 +1252,8 @@ func (eval *evaluator) Reduce(ct0 *Ciphertext, ctOut *Ciphertext) error {
 	for i := range ct0.value {
 		eval.ringQ.ReduceLvl(utils.MinInt(ct0.Level(), ctOut.Level()), ct0.value[i], ctOut.value[i])
 	}
+
+	ctOut.SetScale(ct0.Scale())
 
 	return nil
 }
@@ -1472,9 +1483,7 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 		eval.DropLevel(ctOut, ctOut.Level()-ct0.Level())
 	}
 
-	if ctOut != ct0 {
-		ctOut.SetScale(ct0.Scale())
-	}
+	ctOut.SetScale(ct0.Scale())
 
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	ringQ := eval.ringQ
@@ -1507,6 +1516,8 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, c
 
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	ringQ := eval.ringQ
+
+	ctOut.SetScale(ct0.Scale())
 
 	eval.SwitchKeysInPlace(level, ct0.value[1], &switchingKey.SwitchingKey, eval.poolQ[1], eval.poolQ[2])
 

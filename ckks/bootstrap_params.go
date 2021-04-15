@@ -319,9 +319,9 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x7fffe00001, // 39 StC
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x7fffe60001},
-				[]float64{0x7fffe40001},
-				[]float64{0x7fffe00001},
+				{0x7fffe60001},
+				{0x7fffe40001},
+				{0x7fffe00001},
 			},
 		},
 		SineEvalModuli: SineEvalModuli{
@@ -345,10 +345,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1000000002a0001, // 58 CtS
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x100000000060001},
-				[]float64{0xfffffffff00001},
-				[]float64{0xffffffffd80001},
-				[]float64{0x1000000002a0001},
+				{0x100000000060001},
+				{0xfffffffff00001},
+				{0xffffffffd80001},
+				{0x1000000002a0001},
 			},
 		},
 		H:            192,
@@ -389,9 +389,9 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x3ffffca0001, //42 StC
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x3ffffe80001},
-				[]float64{0x3ffffd20001},
-				[]float64{0x3ffffca0001},
+				{0x3ffffe80001},
+				{0x3ffffd20001},
+				{0x3ffffca0001},
 			},
 		},
 		SineEvalModuli: SineEvalModuli{
@@ -418,10 +418,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x4000000008a0001, // 58 CtS
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x400000000360001},
-				[]float64{0x3ffffffffbe0001},
-				[]float64{0x400000000660001},
-				[]float64{0x4000000008a0001},
+				{0x400000000360001},
+				{0x3ffffffffbe0001},
+				{0x400000000660001},
+				{0x4000000008a0001},
 			},
 		},
 		H:            192,
@@ -464,8 +464,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1000000000ce0001, // 60 StC  (30+30)
 			},
 			ScalingFactor: [][]float64{
-				[]float64{1073741824.0},
-				[]float64{1073741824.0062866, 1073741824.0062866},
+				{1073741824.0},
+				{1073741824.0062866, 1073741824.0062866},
 			},
 		},
 		SineEvalModuli: SineEvalModuli{
@@ -489,10 +489,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffffd80001, // 53 CtS
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x200000000e0001},
-				[]float64{0x20000000140001},
-				[]float64{0x20000000280001},
-				[]float64{0x1fffffffd80001},
+				{0x200000000e0001},
+				{0x20000000140001},
+				{0x20000000280001},
+				{0x1fffffffd80001},
 			},
 		},
 		H:            192,
@@ -538,8 +538,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0xffa0001,         // 28 StC
 			},
 			ScalingFactor: [][]float64{
-				[]float64{268435456.0007324, 268435456.0007324},
-				[]float64{0xffa0001},
+				{268435456.0007324, 268435456.0007324},
+				{0xffa0001},
 			},
 		},
 		SineEvalModuli: SineEvalModuli{
@@ -567,10 +567,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffffd80001, // 53 CtS
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x200000000e0001},
-				[]float64{0x20000000140001},
-				[]float64{0x20000000280001},
-				[]float64{0x1fffffffd80001},
+				{0x200000000e0001},
+				{0x20000000140001},
+				{0x20000000280001},
+				{0x1fffffffd80001},
 			},
 		},
 		H:            32768,
@@ -604,7 +604,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0xffffffffffc0001, // 60 StC (30+30)
 			},
 			ScalingFactor: [][]float64{
-				[]float64{1073741823.9998779, 1073741823.9998779},
+				{1073741823.9998779, 1073741823.9998779},
 			},
 		},
 		SineEvalModuli: SineEvalModuli{
@@ -626,8 +626,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1ffffffea0001, // 49 CtS
 			},
 			ScalingFactor: [][]float64{
-				[]float64{0x1fffffff50001},
-				[]float64{0x1ffffffea0001},
+				{0x1fffffff50001},
+				{0x1ffffffea0001},
 			},
 		},
 		H:            192,

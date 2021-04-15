@@ -369,7 +369,6 @@ type PtDiagMatrix struct {
 	Scale      float64               // Scale is the scale at which the matrix is encoded (can be circuit dependant)
 	Vec        map[int][2]*ring.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
 	naive      bool
-	rotOnly    bool // Only one diagonal of the form [1, ..., 1]
 	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
 }
 
@@ -433,12 +432,12 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix ma
 	matrix = new(PtDiagMatrix)
 	matrix.LogSlots = logSlots
 	slots := 1 << logSlots
-	matrix.N1 = findbestbabygiantstepsplit(diagMatrix, slots, maxM1N2Ratio)
-
-	// N1*N2 = N
-	N1 := matrix.N1
 
 	if len(diagMatrix) > 2 {
+
+		// N1*N2 = N
+		N1 := findbestbabygiantstepsplit(diagMatrix, slots, maxM1N2Ratio)
+		matrix.N1 = N1
 
 		index, _ := bsgsIndex(diagMatrix, slots, N1)
 
@@ -453,9 +452,10 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix ma
 
 				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
 				v := diagMatrix[N1*j+i]
-				if v == nil {
-					v = diagMatrix[-N1*j+i]
+				if len(v) == 0 {
+					v = diagMatrix[(N1*j+i)-slots]
 				}
+
 				matrix.Vec[N1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(v, -N1*j))
 			}
 		}
@@ -467,8 +467,15 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix ma
 		matrix.Scale = scale
 
 		for i := range diagMatrix {
-			matrix.Vec[i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(diagMatrix[i], i))
+
+			idx := i
+			if idx < 0 {
+				idx += slots
+			}
+			matrix.Vec[idx] = encoder.encodeDiagonal(logSlots, level, scale, diagMatrix[i])
 		}
+
+		matrix.naive = true
 	}
 
 	return

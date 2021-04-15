@@ -66,7 +66,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 			// Part 1 : Coeffs to slots
 			t = time.Now()
-			ct0, ct1 = btp.coeffsToSlots(ct)
+			ct0, ct1 = CoeffsToSlots(ct, btp.pDFTInv, btp.evaluator)
 			b.Log("After CtS    :", time.Since(t), ct0.Level(), ct0.Scale())
 
 			// Part 2 : SineEval
@@ -76,7 +76,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 			// Part 3 : Slots to coeffs
 			t = time.Now()
-			ct0 = btp.slotsToCoeffs(ct0, ct1)
+			ct0 = SlotsToCoeffs(ct0, ct1, btp.pDFT, btp.evaluator)
 			ct0.SetScale(math.Exp2(math.Round(math.Log2(ct0.Scale()))))
 			b.Log("After StC    :", time.Since(t), ct0.Level(), ct0.Scale())
 		}

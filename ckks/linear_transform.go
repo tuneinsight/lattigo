@@ -303,16 +303,10 @@ func (eval *evaluator) InnerSumNaive(ct0 *Ciphertext, batchSize, n int, ctOut *C
 
 func (eval *evaluator) MultiplyByDiabMatrix(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
 
-	if matrix.rotOnly {
-		for i := range matrix.Vec {
-			eval.permuteNTTHoisted(vec.Level(), vec.value[0], vec.value[1], c2QiQDecomp, c2QiPDecomp, i, res.value[0], res.value[1])
-		}
+	if matrix.naive {
+		eval.MultiplyByDiabMatrixNaive(vec, res, matrix, c2QiQDecomp, c2QiPDecomp)
 	} else {
-		if matrix.naive {
-			eval.MultiplyByDiabMatrixNaive(vec, res, matrix, c2QiQDecomp, c2QiPDecomp)
-		} else {
-			eval.MultiplyByDiabMatrixBSGS(vec, res, matrix, c2QiQDecomp, c2QiPDecomp)
-		}
+		eval.MultiplyByDiabMatrixBSGS(vec, res, matrix, c2QiQDecomp, c2QiPDecomp)
 	}
 
 	return
@@ -440,6 +434,7 @@ func (eval *evaluator) MultiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *Pt
 	PiOverF := eval.params.PiOverflowMargin()
 
 	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
+
 	index, rotations := bsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet

@@ -54,6 +54,14 @@ func NewPublicKey(params *Parameters) (pk *PublicKey) {
 	return &PublicKey{Value: [2]*ring.Poly{ring.NewPoly(ringDegree, moduliCount), ring.NewPoly(ringDegree, moduliCount)}}
 }
 
+func (pk *PublicKey) Equals(other *PublicKey) bool {
+	if pk == other {
+		return true
+	}
+	nilVal := [2]*ring.Poly{}
+	return pk.Value != nilVal && other.Value != nilVal && pk.Value[0].Equals(other.Value[0]) && pk.Value[1].Equals(other.Value[1])
+}
+
 // NewRotationKeySet returns a new RotationKeySet with pre-allocated switching keys for each distinct galoisElement value.
 func NewRotationKeySet(params *Parameters, galoisElement []uint64) (rotKey *RotationKeySet) {
 	rotKey = new(RotationKeySet)
@@ -195,6 +203,24 @@ func (pk *PublicKey) CopyNew() *PublicKey {
 	return &PublicKey{[2]*ring.Poly{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
 }
 
+func (evaluationkey *RelinearizationKey) Equals(other *RelinearizationKey) bool {
+	if evaluationkey == other {
+		return true
+	}
+	if (evaluationkey == nil) != (other == nil) {
+		return false
+	}
+	if len(evaluationkey.Keys) != len(other.Keys) {
+		return false
+	}
+	for i := range evaluationkey.Keys {
+		if !evaluationkey.Keys[i].Equals(other.Keys[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // GetDataLen returns the length in bytes of the target EvaluationKey.
 func (evaluationkey *RelinearizationKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
 
@@ -261,6 +287,24 @@ func (evaluationkey *RelinearizationKey) CopyNew() *RelinearizationKey {
 		rlk.Keys[i] = swk.CopyNew()
 	}
 	return rlk
+}
+
+func (switchKey *SwitchingKey) Equals(other *SwitchingKey) bool {
+	if switchKey == other {
+		return true
+	}
+	if (switchKey == nil) != (other == nil) {
+		return false
+	}
+	if len(switchKey.Value) != len(other.Value) {
+		return false
+	}
+	for i := range switchKey.Value {
+		if !(switchKey.Value[i][0].Equals(other.Value[i][0]) && switchKey.Value[i][1].Equals(other.Value[i][1])) {
+			return false
+		}
+	}
+	return true
 }
 
 // GetDataLen returns the length in bytes of the target SwitchingKey.
@@ -366,6 +410,31 @@ func (switchkey *SwitchingKey) decode(data []byte) (pointer uint64, err error) {
 	}
 
 	return pointer, nil
+}
+
+func (rtks *RotationKeySet) Equals(other *RotationKeySet) bool {
+	if rtks == other {
+		return true
+	}
+	if (rtks == nil) || (other == nil) {
+		return false
+	}
+	if len(rtks.Keys) != len(other.Keys) {
+		return false
+	}
+	return rtks.Includes(other)
+}
+
+func (rtks *RotationKeySet) Includes(other *RotationKeySet) bool {
+	if (rtks == nil) || (other == nil) {
+		return false
+	}
+	for galEl := range other.Keys {
+		if _, inSet := rtks.Keys[galEl]; !inSet {
+			return false
+		}
+	}
+	return true
 }
 
 // GetDataLen returns the length in bytes of the target RotationKeys.

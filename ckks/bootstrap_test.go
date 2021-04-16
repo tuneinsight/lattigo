@@ -5,6 +5,7 @@ import (
 	"math/cmplx"
 	"runtime"
 	"testing"
+	"fmt"
 
 	"github.com/ldsec/lattigo/v2/ckks/bettersine"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -32,8 +33,8 @@ func TestBootstrap(t *testing.T) {
 
 		// Insecure params for fast testing only
 		if !*flagLongTest {
-			btpParams.LogN = 14
-			btpParams.LogSlots = 13
+			btpParams.LogN = 5
+			btpParams.LogSlots = 3
 		}
 
 		params, err := btpParams.Params()
@@ -256,7 +257,7 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 		params := testContext.params
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices := btpParams.GenCoeffsToSlotsMatrix(complex(math.Pow(1/float64(2*params.Slots()), 1.0/float64(btpParams.CtSDepth(false))), 0), testContext.encoder)
+		CoeffsToSlotMatrices := btpParams.GenCoeffsToSlotsMatrix(1.0, testContext.encoder)
 
 		rotations := []int{}
 
@@ -276,8 +277,9 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 		// Generates a random test vectors
 		values := make([]complex128, params.Slots())
 		for i := range values {
-			values[i] = utils.RandComplex128(-1, 1)
+			values[i] = complex(float64(i+1), 0)
 		}
+
 
 		// Encodes and encrypts the test vector
 		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
@@ -292,10 +294,12 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 
 		// Applies the same on the plaintext
 		encoder := testContext.encoder
-		invfft(values, params.Slots(), encoder.(*encoderComplex128).m, encoder.(*encoderComplex128).rotGroup, encoder.(*encoderComplex128).roots)
 
 		// Data is not bit-reversed
 		sliceBitReverseInPlaceComplex128(values, params.Slots())
+		invfft(values, params.Slots(), encoder.(*encoderComplex128).m, encoder.(*encoderComplex128).rotGroup, encoder.(*encoderComplex128).roots)
+
+		
 
 		// Verify the output values, and switch depending on if the original plaintext was sparse or not
 		if params.LogSlots() < params.LogN()-1 {
@@ -306,10 +310,27 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 				valuesFloat[idx] = complex(real(values[i]), 0)
 				valuesFloat[jdx] = complex(imag(values[i]), 0)
 			}
+
+			ct0.MulScale(float64(int(1<<logSlots)))
+
 			valuesTest := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct0), logSlots, 0)
+
+			for i := range valuesFloat{
+				fmt.Println(i, valuesFloat[i], valuesTest[i])
+			}
+			fmt.Println()
+
+
+
 			verifyTestVectors(testContext, testContext.decryptor, valuesFloat, valuesTest, logSlots, 0, t)
 		} else {
 			logSlots := params.LogSlots()
+
+			for i := 0; i < 1<<(logSlots); i++{
+				fmt.Println(i, values[i])
+			}
+			fmt.Println()
+
 			// Splits the real and imaginary parts into two different slices.
 			valuesFloat0 := make([]complex128, 1<<logSlots)
 			valuesFloat1 := make([]complex128, 1<<logSlots)
@@ -317,8 +338,18 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 				valuesFloat0[idx] = complex(real(values[i]), 0)
 				valuesFloat1[idx] = complex(imag(values[i]), 0)
 			}
+
+			ct0.MulScale(float64(int(1<<logSlots)))
+			ct1.MulScale(float64(int(1<<logSlots)))
+
 			valuesTest0 := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct0), logSlots, 0)
 			valuesTest1 := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct1), logSlots, 0)
+
+
+			for i := 0 ; i < 1<<logSlots; i++ {
+				fmt.Println(i, valuesTest0[i], valuesTest1[i])
+			}
+
 			verifyTestVectors(testContext, testContext.decryptor, valuesFloat0, valuesTest0, logSlots, 0, t)
 			verifyTestVectors(testContext, testContext.decryptor, valuesFloat1, valuesTest1, logSlots, 0, t)
 		}
@@ -370,8 +401,8 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 		}
 
 		// Ouputs of the homomorphic FFT^-1 is bit-reversed
-		sliceBitReverseInPlaceComplex128(values0, params.Slots())
-		sliceBitReverseInPlaceComplex128(values1, params.Slots())
+		//sliceBitReverseInPlaceComplex128(values0, params.Slots())
+		//sliceBitReverseInPlaceComplex128(values1, params.Slots())
 
 		// Encodes and encrypts the test vectors
 		logSlots := params.LogSlots()
@@ -391,6 +422,8 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 		// Applies the homomorphic DFT
 		res := SlotsToCoeffs(ct0, ct1, SlotsToCoeffsMatrix, eval)
 
+		eval.Rotate(res, 1, res)
+
 		// Applies the DFT on the plaintext
 		// If not sparse, puts the second vector in the imaginary part of the first one
 		if params.LogSlots() == params.LogN()-1 {
@@ -398,10 +431,32 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 				values0[i] += complex(0, real(values1[i]))
 			}
 		}
-		sliceBitReverseInPlaceComplex128(values0, params.Slots())
+
+		for i := range values0{
+			fmt.Println(i, values0[i])
+		}
+		fmt.Println()
+
+
+		//sliceBitReverseInPlaceComplex128(values0, params.Slots())
 		fft(values0, params.Slots(), encoder.(*encoderComplex128).m, encoder.(*encoderComplex128).rotGroup, encoder.(*encoderComplex128).roots)
+		sliceBitReverseInPlaceComplex128(values0, params.Slots())
+
+		values0 = utils.RotateComplex128Slice(values0, 1)
+
+		for i := range values0{
+			fmt.Println(i, values0[i])
+		}
+		fmt.Println()
 
 		valuesTest := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(res), params.LogSlots(), 0)
+
+
+		for i := range values0{
+			fmt.Println(i, valuesTest[i], values0[i])
+		}
+		fmt.Println()
+
 		verifyTestVectors(testContext, testContext.decryptor, values0, valuesTest, params.LogSlots(), 0, t)
 
 	})

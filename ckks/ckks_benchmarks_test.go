@@ -200,8 +200,8 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		ringQ := testContext.ringQ
 
 		for i := 0; i < b.N; i++ {
-			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
-			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
+			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value[0])
+			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value[1])
 
 			b.StopTimer()
 			ciphertext1 = NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
@@ -217,8 +217,8 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 		galEL := testContext.params.GaloisElementForColumnRotationBy(1)
 		for i := 0; i < b.N; i++ {
-			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[0], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.value[0])
-			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.value[1], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.value[1])
+			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[0])
+			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[1])
 		}
 	})
 
@@ -283,7 +283,7 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 		ringQ := testContext.ringQ
 		ringP := testContext.ringP
 
-		c2NTT := ciphertext.value[1]
+		c2NTT := ciphertext.Value[1]
 		c2InvNTT := ringQ.NewPoly()
 		ringQ.InvNTTLvl(ciphertext.Level(), c2NTT, c2InvNTT)
 

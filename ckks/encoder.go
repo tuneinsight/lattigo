@@ -134,7 +134,7 @@ func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex1
 	encoder.Embed(values, logSlots)
 	encoder.ScaleUp(plaintext.value, plaintext.scale, encoder.ringQ.Modulus[:plaintext.Level()+1])
 	encoder.WipeInternalMemory()
-	plaintext.isNTT = false
+	plaintext.IsNTT = false
 }
 
 // EncodeNTTNew encodes a slice of complex128 of length slots = 2^{logSlots} on new plaintext at the maximum level.
@@ -156,7 +156,7 @@ func (encoder *encoderComplex128) EncodeNTTAtLvlNew(level uint64, values []compl
 func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []complex128, logSlots uint64) {
 	encoder.Encode(plaintext, values, logSlots)
 	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
-	plaintext.isNTT = true
+	plaintext.IsNTT = true
 }
 
 // Embed encodes a vector and stores internally the encoded values.
@@ -209,7 +209,7 @@ func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plai
 
 	scaleUpVecExact(values, plaintext.scale, encoder.ringQ.Modulus[:plaintext.Level()+1], plaintext.value.Coeffs)
 
-	plaintext.isNTT = false
+	plaintext.IsNTT = false
 }
 
 // EncodeCoefficients takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient
@@ -217,13 +217,13 @@ func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plai
 func (encoder *encoderComplex128) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
 	encoder.EncodeCoeffs(values, plaintext)
 	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
-	plaintext.isNTT = true
+	plaintext.IsNTT = true
 }
 
 // DecodeCoeffs takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
 func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
 
-	if plaintext.isNTT {
+	if plaintext.IsNTT {
 		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	} else {
 		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
@@ -285,7 +285,7 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, logSlots uint64) 
 
 	slots := uint64(1 << logSlots)
 
-	if plaintext.isNTT {
+	if plaintext.IsNTT {
 		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	} else {
 		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.value, encoder.polypool)
@@ -510,7 +510,7 @@ func (encoder *encoderBigComplex) EncodeNTTAtLvlNew(level uint64, values []*ring
 func (encoder *encoderBigComplex) EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots uint64) {
 	encoder.Encode(plaintext, values, logSlots)
 	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
-	plaintext.isNTT = true
+	plaintext.IsNTT = true
 }
 
 // Encode encodes a slice of ring.Complex of length slots = 2^{logSlots} on a plaintext at the input plaintext level.

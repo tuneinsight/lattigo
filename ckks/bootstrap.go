@@ -93,13 +93,13 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 
 	ringQ := btp.evaluator.ringQ
 
-	ct.InvNTT(ringQ, ct.El())
+	ct.InvNTT(ringQ, &ct.Element.Element)
 
 	// Extend the ciphertext with zero polynomials.
-	for u := range ct.Value() {
-		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, btp.params.MaxLevel())...)
+	for u := range ct.Value {
+		ct.Value[u].Coeffs = append(ct.Value[u].Coeffs, make([][]uint64, btp.params.MaxLevel())...)
 		for i := uint64(1); i < btp.params.MaxLevel()+1; i++ {
-			ct.Value()[u].Coeffs[i] = make([]uint64, btp.params.N())
+			ct.Value[u].Coeffs[i] = make([]uint64, btp.params.N())
 		}
 	}
 
@@ -108,26 +108,26 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 	bredparams := ringQ.GetBredParams()
 
 	var coeff, qi uint64
-	for u := range ct.Value() {
+	for u := range ct.Value {
 
 		for j := uint64(0); j < btp.params.N(); j++ {
 
-			coeff = ct.Value()[u].Coeffs[0][j]
+			coeff = ct.Value[u].Coeffs[0][j]
 
 			for i := uint64(1); i < btp.params.MaxLevel()+1; i++ {
 
 				qi = ringQ.Modulus[i]
 
 				if coeff > (Q >> 1) {
-					ct.Value()[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
+					ct.Value[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
 				} else {
-					ct.Value()[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
+					ct.Value[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
 				}
 			}
 		}
 	}
 
-	ct.NTT(ringQ, ct.El())
+	ct.NTT(ringQ, &ct.Element.Element)
 
 	return ct
 }
@@ -249,7 +249,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	N1Rot := 0
 	N2Rot := 0
 
-	c0 := vec.value[0].CopyNew()
+	c0 := vec.Value[0].CopyNew()
 
 	ringQ.MulScalarBigintLvl(levelQ, c0, ringP.ModulusBigint, c0) // P*c0
 
@@ -304,8 +304,8 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 			// If i == 0
 			if state {
 				N1Rot++
-				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[0], tmpQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
-				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[1], tmpQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
+				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.Value[0], tmpQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.Value[1], tmpQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
 			}
 
 			galEl := btp.params.GaloisElementForColumnRotationBy(int(N1 * j))
@@ -314,7 +314,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 
 			// Outer loop rotations
 			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, btp.permuteNTTIndex[galEl], tmpQ1) // phi(tmpRes_0)
-			ringQ.AddLvl(levelQ, res.value[0], tmpQ1, res.value[0])                       // res += phi(tmpRes)
+			ringQ.AddLvl(levelQ, res.Value[0], tmpQ1, res.Value[0])                       // res += phi(tmpRes)
 
 			rot := btp.permuteNTTIndex[galEl]
 
@@ -372,13 +372,13 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	btp.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ2, tmpP2, tmpQ2) // sum(phi(c0 * P + d0_QP))/P
 	btp.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ3, tmpP3, tmpQ3) // sum(phi(d1_QP))/P
 
-	ringQ.AddLvl(levelQ, res.value[0], tmpQ2, res.value[0]) // res += sum(phi(c0 * P + d0_QP))/P
-	ringQ.AddLvl(levelQ, res.value[1], tmpQ3, res.value[1]) // res += sum(phi(d1_QP))/P
+	ringQ.AddLvl(levelQ, res.Value[0], tmpQ2, res.Value[0]) // res += sum(phi(c0 * P + d0_QP))/P
+	ringQ.AddLvl(levelQ, res.Value[1], tmpQ3, res.Value[1]) // res += sum(phi(d1_QP))/P
 
 	if state { // Rotation by zero
 		N1Rot++
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[0], res.value[0]) // res += c0_Q * plaintext
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[1], res.value[1]) // res += c1_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.Value[0], res.Value[0]) // res += c0_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.Value[1], res.Value[1]) // res += c1_Q * plaintext
 	}
 
 	res.SetScale(plainVectors.Scale * vec.Scale())
@@ -398,7 +398,7 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint6
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
-	c2NTT := ct0.value[1]
+	c2NTT := ct0.Value[1]
 	c2InvNTT := ringQ.NewPoly() // IMPROVEMENT: maybe have a pre-allocated memory pool ?
 	ringQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
 

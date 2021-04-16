@@ -13,14 +13,9 @@ type Plaintext struct {
 // NewPlaintext creates a new Plaintext of level level and scale scale.
 func NewPlaintext(params *Parameters, level uint64, scale float64) *Plaintext {
 
-	plaintext := &Plaintext{&Element{}, nil}
-
-	plaintext.Element.value = []*ring.Poly{ring.NewPoly(params.N(), level+1)}
-
-	plaintext.value = plaintext.Element.value[0]
-
-	plaintext.scale = scale
-	plaintext.isNTT = true
+	plaintext := &Plaintext{Element: NewElement(params, 0, level, scale)}
+	plaintext.value = plaintext.Element.Value[0]
+	plaintext.IsNTT = true
 
 	return plaintext
 }

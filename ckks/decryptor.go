@@ -63,14 +63,14 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 
 	plaintext.SetScale(ciphertext.Scale())
 
-	decryptor.ringQ.CopyLvl(level, ciphertext.value[ciphertext.Degree()], plaintext.value)
+	decryptor.ringQ.CopyLvl(level, ciphertext.Value[ciphertext.Degree()], plaintext.value)
 
 	plaintext.value.Coeffs = plaintext.value.Coeffs[:ciphertext.Level()+1]
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
 
 		decryptor.ringQ.MulCoeffsMontgomeryLvl(level, plaintext.value, decryptor.sk.Value, plaintext.value)
-		decryptor.ringQ.AddLvl(level, plaintext.value, ciphertext.value[i-1], plaintext.value)
+		decryptor.ringQ.AddLvl(level, plaintext.value, ciphertext.Value[i-1], plaintext.value)
 
 		if i&7 == 7 {
 			decryptor.ringQ.ReduceLvl(level, plaintext.value, plaintext.value)

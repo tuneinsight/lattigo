@@ -60,7 +60,7 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly) (opOut *Cipherte
 
 	C := make(map[uint64]*Ciphertext)
 
-	C[1] = ct0.CopyNew().Ciphertext()
+	C[1] = ct0.CopyNew()
 
 	logDegree := uint64(bits.Len64(pol.Degree()))
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
@@ -94,7 +94,7 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 
 	C := make(map[uint64]*Ciphertext)
 
-	C[1] = op.CopyNew().Ciphertext()
+	C[1] = op.CopyNew()
 
 	logDegree := uint64(bits.Len64(cheby.Degree()))
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //

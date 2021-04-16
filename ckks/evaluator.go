@@ -186,7 +186,7 @@ func newEvaluatorBase(params *Parameters) *evaluatorBase {
 		panic(err)
 	}
 
-	if params.PiCount() != 0 {
+	if params.PCount() != 0 {
 		if ev.ringP, err = ring.NewRing(params.N(), params.pi); err != nil {
 			panic(err)
 		}
@@ -200,7 +200,7 @@ func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 	ringQ, ringP := evalBase.ringQ, evalBase.ringP
 	buff.poolQ = [6]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
 	buff.poolQMul = [3]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
-	if evalBase.params.PiCount() > 0 {
+	if evalBase.params.PCount() > 0 {
 		buff.poolP = [6]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
 
 		buff.c2QiQDecomp = make([]*ring.Poly, evalBase.params.Beta())
@@ -230,7 +230,7 @@ func NewEvaluator(params *Parameters, evaluationKey rlwe.EvaluationKey) Evaluato
 		eval.permuteNTTIndex = *eval.permuteNTTIndexesForKey(eval.rtks)
 	}
 
-	if params.PiCount() != 0 {
+	if params.PCount() != 0 {
 		eval.baseconverter = ring.NewFastBasisExtender(eval.ringQ, eval.ringP)
 	}
 
@@ -1635,7 +1635,7 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(level int, c2QiQDecomp, c2QiPD
 	pool3P := eval.poolP[1]
 
 	levelQ := level
-	levelP := eval.params.PiCount() - 1
+	levelP := eval.params.PCount() - 1
 
 	galEl := eval.params.GaloisElementForColumnRotationBy(k)
 

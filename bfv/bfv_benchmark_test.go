@@ -86,7 +86,7 @@ func benchKeyGen(testctx *testContext, b *testing.B) {
 
 	b.Run(testString("KeyGen/SwitchKeyGen/", testctx.params), func(b *testing.B) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -106,7 +106,7 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 
 	b.Run(testString("Encrypt/key=Pk/", testctx.params), func(b *testing.B) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -159,7 +159,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
 
 	var rotkey *rlwe.RotationKeySet
-	if testctx.params.PiCount() != 0 {
+	if testctx.params.PCount() != 0 {
 		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk)
 	}
 	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{testctx.rlk, rotkey})
@@ -220,7 +220,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 
 	b.Run(testString("Evaluator/Relin/", testctx.params), func(b *testing.B) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -231,7 +231,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 
 	b.Run(testString("Evaluator/RotateRows/", testctx.params), func(b *testing.B) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -242,7 +242,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 
 	b.Run(testString("Evaluator/RotateCols/", testctx.params), func(b *testing.B) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 

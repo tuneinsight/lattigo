@@ -117,7 +117,7 @@ func genTestParams(defaultParam *Parameters, hw int) (testContext *testParams, e
 		return nil, err
 	}
 
-	if testContext.params.PiCount() != 0 {
+	if testContext.params.PCount() != 0 {
 		if testContext.ringP, err = ring.NewRing(testContext.params.N(), testContext.params.pi); err != nil {
 			return nil, err
 		}
@@ -159,7 +159,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 
 		switch encryptor := encryptor.(type) {
 		case *pkEncryptor:
-			if testContext.params.PiCount() != 0 {
+			if testContext.params.PCount() != 0 {
 				ciphertext = encryptor.EncryptNew(plaintext)
 			} else {
 				ciphertext = encryptor.EncryptFastNew(plaintext)
@@ -251,7 +251,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Encryptor/EncryptFromPk/Lvl=Max/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -286,7 +286,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Encryptor/EncryptFromPk/Lvl=1/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -507,7 +507,7 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Rescale/Single/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -526,7 +526,7 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Rescale/Many/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -718,7 +718,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Mul/Relinearize(ct0*ct1->ct0)/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -739,7 +739,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Mul/Relinearize(ct0*ct1->ct1)/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -764,7 +764,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/PowerOf2/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -794,7 +794,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Power/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -817,7 +817,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Inverse/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -845,7 +845,7 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "EvaluatePoly/Exp/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -886,7 +886,7 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "ChebyshevInterpolator/Sin/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -922,7 +922,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "DecryptPublic/Sin/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -968,7 +968,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 	var decryptorSk2 Decryptor
 	var switchingKey *rlwe.SwitchingKey
 
-	if testContext.params.PiCount() != 0 {
+	if testContext.params.PCount() != 0 {
 		sk2 = testContext.kgen.GenSecretKey()
 		decryptorSk2 = NewDecryptor(testContext.params, sk2)
 		switchingKey = testContext.kgen.GenSwitchingKey(testContext.sk, sk2)
@@ -976,7 +976,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "SwitchKeys/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -989,7 +989,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "SwitchKeysNew/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -1004,7 +1004,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 func testAutomorphisms(testContext *testParams, t *testing.T) {
 
-	if testContext.params.PiCount() == 0 {
+	if testContext.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 	rots := []int{0, 1, -1, 4, -4, 63, -63}
@@ -1013,7 +1013,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Conjugate/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -1030,7 +1030,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "ConjugateNew/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -1081,7 +1081,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 func testInnerSum(testContext *testParams, t *testing.T) {
 
-	if testContext.params.PiCount() == 0 {
+	if testContext.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
@@ -1142,7 +1142,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 
 func testReplicate(testContext *testParams, t *testing.T) {
 
-	if testContext.params.PiCount() == 0 {
+	if testContext.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
@@ -1203,7 +1203,7 @@ func testReplicate(testContext *testParams, t *testing.T) {
 
 func testLinearTransform(testContext *testParams, t *testing.T) {
 
-	if testContext.params.PiCount() == 0 {
+	if testContext.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
@@ -1366,7 +1366,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Marshaller/EvaluationKey/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -1390,7 +1390,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Marshaller/SwitchingKey/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -1416,7 +1416,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Marshaller/RotationKey/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 

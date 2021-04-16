@@ -17,7 +17,7 @@ type CollectivePublicKeyGenerator interface {
 
 // CKGProtocol is the structure storing the parameters and and precomputations for the collective key generation protocol.
 type CKGProtocol struct {
-	params *rlwe.Parameters
+	params rlwe.Parameters
 
 	ringQ           *ring.Ring
 	ringP           *ring.Ring
@@ -40,7 +40,7 @@ func (share *CKGShare) UnmarshalBinary(data []byte) error {
 }
 
 // NewCKGProtocol creates a new CKGProtocol instance
-func NewCKGProtocol(params *rlwe.Parameters) *CKGProtocol { // TODO drlwe.Params
+func NewCKGProtocol(params rlwe.Parameters) *CKGProtocol { // TODO drlwe.Params
 
 	ckg := new(CKGProtocol)
 	ckg.params = params

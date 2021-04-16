@@ -14,12 +14,12 @@ type Element struct {
 }
 
 // NewElement returns a new Element with zero values.
-func NewElement(params *Parameters, degree int) *Element {
-	return NewElementAtLevel(params, degree, params.QiCount()-1)
+func NewElement(params Parameters, degree int) *Element {
+	return NewElementAtLevel(params, degree, params.QCount()-1)
 }
 
 // NewElement returns a new Element with zero values.
-func NewElementAtLevel(params *Parameters, degree, level int) *Element {
+func NewElementAtLevel(params Parameters, degree, level int) *Element {
 	el := new(Element)
 	el.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {
@@ -44,7 +44,7 @@ func (el *Element) Level() int {
 }
 
 // Resize resizes the degree of the target element.
-func (el *Element) Resize(params *Parameters, degree int) {
+func (el *Element) Resize(params Parameters, degree int) {
 	if el.Degree() > degree {
 		el.Value = el.Value[:degree+1]
 	} else if el.Degree() < degree {
@@ -127,9 +127,9 @@ func GetSmallestLargest(el0, el1 *Element) (smallest, largest *Element, sameDegr
 }
 
 // NewElementRandom creates a new rlwe.Element with random coefficients
-func PopulateElementRandom(prng utils.PRNG, params *Parameters, el *Element) {
+func PopulateElementRandom(prng utils.PRNG, params Parameters, el *Element) {
 
-	ringQ, err := ring.NewRing(params.N(), params.qi)
+	ringQ, err := ring.NewRing(params.N(), params.Q())
 	if err != nil {
 		panic(err)
 	}

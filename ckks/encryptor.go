@@ -115,7 +115,7 @@ func newEncryptor(params *Parameters) encryptor {
 
 	var baseconverter *ring.FastBasisExtender
 	var poolP [3]*ring.Poly
-	if params.PiCount() != 0 {
+	if params.PCount() != 0 {
 
 		if p, err = ring.NewRing(params.N(), params.pi); err != nil {
 			panic(err)

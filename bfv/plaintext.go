@@ -29,7 +29,7 @@ type PlaintextMul Plaintext
 // The plaintext will be in RingQ and scaled by Q/t.
 // Slower encoding and larger plaintext size
 func NewPlaintext(params *Parameters) *Plaintext {
-	plaintext := &Plaintext{newPlaintextElement(params), nil}
+	plaintext := &Plaintext{rlwe.NewElement(params, 0), nil}
 	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }
@@ -38,7 +38,7 @@ func NewPlaintext(params *Parameters) *Plaintext {
 // The plaintext will be in RingT.
 func NewPlaintextRingT(params *Parameters) *PlaintextRingT {
 
-	plaintext := &PlaintextRingT{newPlaintextRingTElement(params), nil}
+	plaintext := &PlaintextRingT{rlwe.NewElementAtLevel(params, 0, 0), nil}
 	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }
@@ -46,25 +46,7 @@ func NewPlaintextRingT(params *Parameters) *PlaintextRingT {
 // NewPlaintextMul creates and allocates a new plaintext optimized for ciphertext x plaintext multiplication.
 // The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
 func NewPlaintextMul(params *Parameters) *PlaintextMul {
-	plaintext := &PlaintextMul{newPlaintextMulElement(params), nil}
+	plaintext := &PlaintextMul{rlwe.NewElement(params, 0), nil}
 	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
-}
-
-func newPlaintextElement(params *Parameters) *rlwe.Element {
-	el := new(rlwe.Element)
-	el.Value = []*ring.Poly{ring.NewPoly(params.N(), params.QiCount())}
-	return el
-}
-
-func newPlaintextRingTElement(params *Parameters) *rlwe.Element {
-	el := new(rlwe.Element)
-	el.Value = []*ring.Poly{ring.NewPoly(params.N(), 1)}
-	return el
-}
-
-func newPlaintextMulElement(params *Parameters) *rlwe.Element {
-	el := new(rlwe.Element)
-	el.Value = []*ring.Poly{ring.NewPoly(params.N(), params.QiCount())}
-	return el
 }

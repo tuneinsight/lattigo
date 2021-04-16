@@ -93,7 +93,7 @@ func newEncoder(params *Parameters) encoder {
 	}
 
 	var p *ring.Ring
-	if params.PiCount() != 0 {
+	if params.PCount() != 0 {
 		if p, err = ring.NewRing(params.N(), params.pi); err != nil {
 			panic(err)
 		}

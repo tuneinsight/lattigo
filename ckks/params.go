@@ -8,7 +8,6 @@ import (
 	"math/bits"
 
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -277,17 +276,17 @@ func NewParametersFromLogModuli(logN int, lm *LogModuli) (p *Parameters, err err
 
 // NewPolyQ returns a new empty polynomial of degree 2^LogN in basis Qi.
 func (p *Parameters) NewPolyQ() *ring.Poly {
-	return ring.NewPoly(p.N(), p.QiCount())
+	return ring.NewPoly(p.N(), p.QCount())
 }
 
 // NewPolyP returns a new empty polynomial of degree 2^LogN in basis Pi.
 func (p *Parameters) NewPolyP() *ring.Poly {
-	return ring.NewPoly(p.N(), p.PiCount())
+	return ring.NewPoly(p.N(), p.PCount())
 }
 
 // NewPolyQP returns a new empty polynomial of degree 2^LogN in basis Qi + Pi.
 func (p *Parameters) NewPolyQP() *ring.Poly {
-	return ring.NewPoly(p.N(), p.QPiCount())
+	return ring.NewPoly(p.N(), p.QPCount())
 }
 
 // N returns the ring degree
@@ -307,12 +306,12 @@ func (p *Parameters) LogSlots() int {
 
 // MaxLevel returns the maximum ciphertext level
 func (p *Parameters) MaxLevel() int {
-	return p.QiCount() - 1
+	return p.QCount() - 1
 }
 
 // Levels returns then number of total levels enabled by the parameters
 func (p *Parameters) Levels() int {
-	return p.QiCount()
+	return p.QCount()
 }
 
 // Slots returns number of available plaintext slots
@@ -392,39 +391,46 @@ func (p *Parameters) PiOverflowMargin() int {
 // Moduli returns a struct Moduli with the moduli of the parameters
 func (p *Parameters) Moduli() (m *Moduli) {
 	m = new(Moduli)
-	m.Qi = make([]uint64, p.QiCount())
-	m.Pi = make([]uint64, p.PiCount())
+	m.Qi = make([]uint64, p.QCount())
+	m.Pi = make([]uint64, p.PCount())
 	copy(m.Qi, p.qi)
 	copy(m.Pi, p.pi)
 	return
 }
 
-// Qi returns a new slice with the factors of the ciphertext modulus q
-func (p *Parameters) Qi() []uint64 {
+// Q returns a new slice with the factors of the ciphertext modulus q
+func (p *Parameters) Q() []uint64 {
 	qi := make([]uint64, len(p.qi))
 	copy(qi, p.qi)
 	return qi
 }
 
-// QiCount returns the number of factors of the ciphertext modulus Q
-func (p *Parameters) QiCount() int {
+// QCount returns the number of factors of the ciphertext modulus Q
+func (p *Parameters) QCount() int {
 	return len(p.qi)
 }
 
-// Pi returns a new slice with the factors of the ciphertext modulus extension P
-func (p *Parameters) Pi() []uint64 {
+// P returns a new slice with the factors of the ciphertext modulus extension P
+func (p *Parameters) P() []uint64 {
 	pi := make([]uint64, len(p.pi))
 	copy(pi, p.pi)
 	return pi
 }
 
-// PiCount returns the number of factors of the ciphertext modulus extension P
-func (p *Parameters) PiCount() int {
+func (p *Parameters) QP() []uint64 {
+	qp := make([]uint64, len(p.qi)+len(p.pi))
+	copy(qp, p.qi)
+	copy(qp[len(p.qi):], p.pi)
+	return qp
+}
+
+// PCount returns the number of factors of the ciphertext modulus extension P
+func (p *Parameters) PCount() int {
 	return len(p.pi)
 }
 
-// QPiCount returns the number of factors of the ciphertext modulus + the modulus extension P
-func (p *Parameters) QPiCount() int {
+// QPCount returns the number of factors of the ciphertext modulus + the modulus extension P
+func (p *Parameters) QPCount() int {
 	return len(p.qi) + len(p.pi)
 }
 
@@ -457,12 +463,26 @@ func (p *Parameters) QLvl(level int) *big.Int {
 
 // LogQ returns the size of the modulus Q in bits
 func (p *Parameters) LogQ() int {
-	return p.LogQLvl(p.QiCount() - 1)
+	return p.LogQLvl(p.QCount() - 1)
 }
 
-// Q returns the product of all the moduli as a big.Int
-func (p *Parameters) Q() *big.Int {
-	return p.QLvl(p.QiCount() - 1)
+// QBigInt returns the product of all the moduli as a big.Int
+func (p *Parameters) QBigInt() *big.Int {
+	return p.QLvl(p.QCount() - 1)
+}
+
+func (p *Parameters) PBigInt() *big.Int {
+	pInt := big.NewInt(1)
+	for _, pi := range p.pi {
+		pInt.Mul(pInt, new(big.Int).SetUint64(pi))
+	}
+	return pInt
+}
+
+func (p *Parameters) QPBigInt() *big.Int {
+	pqInt := p.QBigInt()
+	pqInt.Mul(pqInt, p.PBigInt())
+	return pqInt
 }
 
 // LogP returns the size of the modulus P in bits
@@ -483,7 +503,7 @@ func (p *Parameters) LogP() int {
 // the key-switching wont be negligible.
 func (p *Parameters) LogQAlpha() int {
 
-	alpha := p.PiCount()
+	alpha := p.PCount()
 
 	if alpha == 0 {
 		return 0
@@ -491,11 +511,11 @@ func (p *Parameters) LogQAlpha() int {
 
 	res := ring.NewUint(0)
 	var j int
-	for i := 0; i < p.QiCount(); i = i + alpha {
+	for i := 0; i < p.QCount(); i = i + alpha {
 
 		j = i + alpha
-		if j > p.QiCount() {
-			j = p.QiCount()
+		if j > p.QCount() {
+			j = p.QCount()
 		}
 
 		tmp := ring.NewUint(1)
@@ -511,13 +531,13 @@ func (p *Parameters) LogQAlpha() int {
 
 // Alpha returns the number of moduli in in P
 func (p *Parameters) Alpha() int {
-	return p.PiCount()
+	return p.PCount()
 }
 
 // Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
 func (p *Parameters) Beta() int {
 	if p.Alpha() != 0 {
-		return int(math.Ceil(float64(p.QiCount()) / float64(p.Alpha())))
+		return int(math.Ceil(float64(p.QCount()) / float64(p.Alpha())))
 	}
 
 	return 0
@@ -599,14 +619,14 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 	// 8 byte : sigma
 	// 1 byte : #qi
 	// 1 byte : #pi
-	b := utils.NewBuffer(make([]byte, 0, 20+(p.QPiCount())<<3))
+	b := utils.NewBuffer(make([]byte, 0, 20+(p.QPCount())<<3))
 
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(p.logSlots))
 	b.WriteUint64(math.Float64bits(p.scale))
 	b.WriteUint64(math.Float64bits(p.sigma))
-	b.WriteUint8(uint8(p.QiCount()))
-	b.WriteUint8(uint8(p.PiCount()))
+	b.WriteUint8(uint8(p.QCount()))
+	b.WriteUint8(uint8(p.PCount()))
 	b.WriteUint64Slice(p.qi)
 	b.WriteUint64Slice(p.pi)
 
@@ -754,7 +774,29 @@ func genModuli(lm *LogModuli, logN int) (m *Moduli) {
 	return m
 }
 
-// Temporary getter, rlwe.Parameters should be embeded in type ckks.parameters
-func (p *Parameters) RLWEParameters() *rlwe.Parameters {
-	return rlwe.NewRLWEParameters(p.logN, p.qi, p.pi, p.sigma)
+func (p *Parameters) RingQ() *ring.Ring {
+	ringQ, err := ring.NewRing(p.N(), p.qi)
+	if err != nil {
+		panic(err) // Parameter type invariant
+	}
+	return ringQ
+}
+
+func (p *Parameters) RingP() *ring.Ring {
+	if len(p.pi) == 0 {
+		return nil
+	}
+	ringP, err := ring.NewRing(p.N(), p.pi)
+	if err != nil {
+		panic(err) // Parameter type invariant
+	}
+	return ringP
+}
+
+func (p *Parameters) RingQP() *ring.Ring {
+	ringQP, err := ring.NewRing(p.N(), append(p.qi, p.pi...))
+	if err != nil {
+		panic(err) // Parameter type invariant
+	}
+	return ringQP
 }

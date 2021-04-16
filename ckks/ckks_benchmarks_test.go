@@ -84,7 +84,7 @@ func benchKeyGen(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "KeyGen/SwitchKeyGen/"), func(b *testing.B) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -104,7 +104,7 @@ func benchEncrypt(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Encrypt/key=Pk/"), func(b *testing.B) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -149,7 +149,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	var rlk *rlwe.RelinearizationKey
 	var rotkey *rlwe.RotationKeySet
-	if testContext.params.PiCount() != 0 {
+	if testContext.params.PCount() != 0 {
 		rlk = testContext.kgen.GenRelinearizationKey(testContext.sk)
 		rotkey = testContext.kgen.GenRotationKeysForRotations([]int{1}, true, testContext.sk)
 	}
@@ -194,7 +194,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Evaluator/Rescale/"), func(b *testing.B) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -209,7 +209,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Evaluator/PermuteNTT/"), func(b *testing.B) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -222,7 +222,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Evaluator/Conjugate/"), func(b *testing.B) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -233,7 +233,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Evaluator/Relin/"), func(b *testing.B) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -244,7 +244,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Evaluator/Rotate/"), func(b *testing.B) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -263,7 +263,7 @@ func benchInnerSum(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "InnerSum/"), func(b *testing.B) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -279,7 +279,7 @@ func benchInnerSum(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "InnerSumLog/"), func(b *testing.B) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -299,7 +299,7 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "HoistedRotations/"), func(b *testing.B) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 

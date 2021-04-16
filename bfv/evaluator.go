@@ -11,6 +11,12 @@ import (
 	"unsafe"
 )
 
+// Operand is a common interface for Ciphertext and Plaintext.
+type Operand interface {
+	El() *rlwe.Element
+	Degree() uint64
+}
+
 // Evaluator is an interface implementing the public methodes of the eval.
 type Evaluator interface {
 	Add(op0, op1 Operand, ctOut *Ciphertext)
@@ -296,7 +302,7 @@ func (eval *evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertex
 }
 
 // tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
-func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
+func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Element) {
 
 	c0Q1 := eval.poolQ[0]
 	c0Q2 := eval.poolQmul[0]
@@ -327,7 +333,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 	eval.quantize(ctOut)
 }
 
-func (eval *evaluator) modUpAndNTT(ct *Element, cQ, cQMul []*ring.Poly) {
+func (eval *evaluator) modUpAndNTT(ct *rlwe.Element, cQ, cQMul []*ring.Poly) {
 	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
 	for i := range ct.Value {
 		eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct.Value[i], cQMul[i])
@@ -336,7 +342,7 @@ func (eval *evaluator) modUpAndNTT(ct *Element, cQ, cQMul []*ring.Poly) {
 	}
 }
 
-func (eval *evaluator) tensoreLowDeg(ct0, ct1 *Element) {
+func (eval *evaluator) tensoreLowDeg(ct0, ct1 *rlwe.Element) {
 
 	c0Q1 := eval.poolQ[0]
 	c0Q2 := eval.poolQmul[0]
@@ -396,7 +402,7 @@ func (eval *evaluator) tensoreLowDeg(ct0, ct1 *Element) {
 	}
 }
 
-func (eval *evaluator) tensortLargeDeg(ct0, ct1 *Element) {
+func (eval *evaluator) tensortLargeDeg(ct0, ct1 *rlwe.Element) {
 
 	c0Q1 := eval.poolQ[0]
 	c0Q2 := eval.poolQmul[0]
@@ -451,7 +457,7 @@ func (eval *evaluator) tensortLargeDeg(ct0, ct1 *Element) {
 	}
 }
 
-func (eval *evaluator) quantize(ctOut *Element) {
+func (eval *evaluator) quantize(ctOut *rlwe.Element) {
 
 	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
 	levelQMul := uint64(len(eval.ringQMul.Modulus) - 1)
@@ -803,7 +809,7 @@ func (eval *evaluator) switchKeysInPlace(cx *ring.Poly, evakey *rlwe.SwitchingKe
 	eval.baseconverterQ1P.ModDownSplitPQ(level, pool2Q, pool2P, pool2Q)
 	eval.baseconverterQ1P.ModDownSplitPQ(level, pool3Q, pool3P, pool3Q)
 }
-func (eval *evaluator) getRingQElem(op Operand) *Element {
+func (eval *evaluator) getRingQElem(op Operand) *rlwe.Element {
 	switch o := op.(type) {
 	case *Ciphertext, *Plaintext:
 		return o.El()
@@ -816,7 +822,7 @@ func (eval *evaluator) getRingQElem(op Operand) *Element {
 }
 
 // getElemAndCheckBinary unwraps the elements from the operands and checks that the receiver has sufficiently large degree.
-func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64, ensureRingQ bool) (el0, el1, elOut *Element) {
+func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDegree uint64, ensureRingQ bool) (el0, el1, elOut *rlwe.Element) {
 	if op0 == nil || op1 == nil || opOut == nil {
 		panic("operands cannot be nil")
 	}
@@ -836,7 +842,7 @@ func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDe
 	return op0.El(), op1.El(), opOut.El()
 }
 
-func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *Element) {
+func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree uint64) (el0, elOut *rlwe.Element) {
 	if op0 == nil || opOut == nil {
 		panic("operand cannot be nil")
 	}
@@ -853,9 +859,9 @@ func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree u
 }
 
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
-func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	smallest, largest, _ := GetSmallestLargest(el0, el1)
+	smallest, largest, _ := rlwe.GetSmallestLargest(el0, el1)
 
 	for i := uint64(0); i < smallest.Degree()+1; i++ {
 		evaluate(el0.Value[i], el1.Value[i], elOut.Value[i])
@@ -870,7 +876,7 @@ func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate 
 }
 
 // evaluateInPlaceUnary applies the provided function in place on el0 and returns the result in elOut.
-func evaluateInPlaceUnary(el0, elOut *Element, evaluate func(*ring.Poly, *ring.Poly)) {
+func evaluateInPlaceUnary(el0, elOut *rlwe.Element, evaluate func(*ring.Poly, *ring.Poly)) {
 	for i := range el0.Value {
 		evaluate(el0.Value[i], elOut.Value[i])
 	}

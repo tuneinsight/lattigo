@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 // Plaintext is a Element with only one Poly. It represents a Plaintext element in R_q that is the
@@ -10,7 +11,7 @@ import (
 // and will result in less efficient Ciphert-Plaintext multiplication than PlaintextMul. See bfv/encoder.go
 // for more information on plaintext types.
 type Plaintext struct {
-	*Element
+	*rlwe.Element
 	value *ring.Poly
 }
 
@@ -48,4 +49,22 @@ func NewPlaintextMul(params *Parameters) *PlaintextMul {
 	plaintext := &PlaintextMul{newPlaintextMulElement(params), nil}
 	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
+}
+
+func newPlaintextElement(params *Parameters) *rlwe.Element {
+	el := new(rlwe.Element)
+	el.Value = []*ring.Poly{ring.NewPoly(params.N(), params.QiCount())}
+	return el
+}
+
+func newPlaintextRingTElement(params *Parameters) *rlwe.Element {
+	el := new(rlwe.Element)
+	el.Value = []*ring.Poly{ring.NewPoly(params.N(), 1)}
+	return el
+}
+
+func newPlaintextMulElement(params *Parameters) *rlwe.Element {
+	el := new(rlwe.Element)
+	el.Value = []*ring.Poly{ring.NewPoly(params.N(), params.QiCount())}
+	return el
 }

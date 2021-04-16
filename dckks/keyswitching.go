@@ -75,7 +75,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 	ringQ := cks.dckksContext.ringQ
 	ringP := cks.dckksContext.ringP
 
-	ringQ.MulCoeffsMontgomeryConstantLvl(ct.Level(), ct.Value()[1], skDelta, shareOut)
+	ringQ.MulCoeffsMontgomeryConstantLvl(ct.Level(), ct.Value[1], skDelta, shareOut)
 
 	ringQ.MulScalarBigintLvl(ct.Level(), shareOut, ringP.ModulusBigint, shareOut)
 
@@ -103,6 +103,6 @@ func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut CKSShare) {
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (cks *CKSProtocol) KeySwitch(combined CKSShare, ct *ckks.Ciphertext, ctOut *ckks.Ciphertext) {
 	ctOut.SetScale(ct.Scale())
-	cks.dckksContext.ringQ.AddLvl(ct.Level(), ct.Value()[0], combined, ctOut.Value()[0])
-	cks.dckksContext.ringQ.CopyLvl(ct.Level(), ct.Value()[1], ctOut.Value()[1])
+	cks.dckksContext.ringQ.AddLvl(ct.Level(), ct.Value[0], combined, ctOut.Value[0])
+	cks.dckksContext.ringQ.CopyLvl(ct.Level(), ct.Value[1], ctOut.Value[1])
 }

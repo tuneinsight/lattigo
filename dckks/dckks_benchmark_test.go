@@ -344,8 +344,8 @@ func benchRefreshAndPermute(testCtx *testContext, b *testing.B) {
 
 	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, levelStart, testCtx.params.Scale())
 
-	crpGenerator.Readlvl(levelStart, ciphertext.Value()[0])
-	crpGenerator.Readlvl(levelStart, ciphertext.Value()[1])
+	crpGenerator.Readlvl(levelStart, ciphertext.Value[0])
+	crpGenerator.Readlvl(levelStart, ciphertext.Value[1])
 
 	permutation := make([]uint64, testCtx.params.Slots())
 

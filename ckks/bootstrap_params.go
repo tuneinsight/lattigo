@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"github.com/ldsec/lattigo/v2/utils"
 	"math"
 )
 
@@ -807,26 +808,26 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 		if logSlots != logdSlots && !inverse && i == 0 {
 
 			// Special initial matrix for the repacking before SlotsToCoeffs
-			plainVector[i] = genWfftRepack(logSlots, level)
+			plainVector[i] = genRepackMatrix(logSlots, level)
 
 			// Merges this special initial matrix with the first layer of SlotsToCoeffs DFT
-			plainVector[i] = nextLevelfft(plainVector[i], logSlots, 2<<logSlots, level, a[logSlots-level], b[logSlots-level], c[logSlots-level], inverse)
+			plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2<<logSlots, level, a[logSlots-level], b[logSlots-level], c[logSlots-level], inverse)
 
 			// Continues the merging with the next layers if the total depth requires it.
 			nextLevel = level - 1
 			for j := 0; j < merge[i]-1; j++ {
-				plainVector[i] = nextLevelfft(plainVector[i], logSlots, 2<<logSlots, nextLevel, a[logSlots-nextLevel], b[logSlots-nextLevel], c[logSlots-nextLevel], inverse)
+				plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2<<logSlots, nextLevel, a[logSlots-nextLevel], b[logSlots-nextLevel], c[logSlots-nextLevel], inverse)
 				nextLevel--
 			}
 
 		} else {
 			// First layer of the i-th level of the DFT
-			plainVector[i] = genWfft(logSlots, level, a[logSlots-level], b[logSlots-level], c[logSlots-level], inverse)
+			plainVector[i] = genFFTDiagMatrix(logSlots, level, a[logSlots-level], b[logSlots-level], c[logSlots-level], inverse)
 
 			// Merges the layer with the next levels of the DFT if the total depth requires it.
 			nextLevel = level - 1
 			for j := 0; j < merge[i]-1; j++ {
-				plainVector[i] = nextLevelfft(plainVector[i], logSlots, 1<<logSlots, nextLevel, a[logSlots-nextLevel], b[logSlots-nextLevel], c[logSlots-nextLevel], inverse)
+				plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 1<<logSlots, nextLevel, a[logSlots-nextLevel], b[logSlots-nextLevel], c[logSlots-nextLevel], inverse)
 				nextLevel--
 			}
 		}
@@ -855,7 +856,7 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 	return
 }
 
-func genWfft(logL, level int, a, b, c []complex128, forward bool) (vectors map[int][]complex128) {
+func genFFTDiagMatrix(logL, level int, a, b, c []complex128, forward bool) (vectors map[int][]complex128) {
 
 	var rot int
 
@@ -867,14 +868,14 @@ func genWfft(logL, level int, a, b, c []complex128, forward bool) (vectors map[i
 
 	vectors = make(map[int][]complex128)
 
-	addToDicVector(vectors, 0, a)
-	addToDicVector(vectors, rot, b)
-	addToDicVector(vectors, (1<<logL)-rot, c)
+	addToDiagMatrix(vectors, 0, a)
+	addToDiagMatrix(vectors, rot, b)
+	addToDiagMatrix(vectors, (1<<logL)-rot, c)
 
 	return
 }
 
-func genWfftRepack(logL, level int) (vectors map[int][]complex128) {
+func genRepackMatrix(logL, level int) (vectors map[int][]complex128) {
 
 	vectors = make(map[int][]complex128)
 
@@ -889,13 +890,13 @@ func genWfftRepack(logL, level int) (vectors map[int][]complex128) {
 		b[i+(1<<logL)] = complex(1, 0)
 	}
 
-	addToDicVector(vectors, 0, a)
-	addToDicVector(vectors, (1 << logL), b)
+	addToDiagMatrix(vectors, 0, a)
+	addToDiagMatrix(vectors, (1 << logL), b)
 
 	return
 }
 
-func nextLevelfft(vec map[int][]complex128, logL, N, nextLevel int, a, b, c []complex128, forward bool) (newVec map[int][]complex128) {
+func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLevel int, a, b, c []complex128, forward bool) (newVec map[int][]complex128) {
 
 	var rot int
 
@@ -908,19 +909,60 @@ func nextLevelfft(vec map[int][]complex128, logL, N, nextLevel int, a, b, c []co
 	}
 
 	for i := range vec {
-		addToDicVector(newVec, i, mul(vec[i], a))
-		addToDicVector(newVec, (i+rot)&(N-1), mul(rotate(vec[i], rot), b))
-		addToDicVector(newVec, (i-rot)&(N-1), mul(rotate(vec[i], -rot), c))
+		addToDiagMatrix(newVec, i, mul(vec[i], a))
+		addToDiagMatrix(newVec, (i+rot)&(N-1), mul(rotate(vec[i], rot), b))
+		addToDiagMatrix(newVec, (i-rot)&(N-1), mul(rotate(vec[i], -rot), c))
 	}
 
 	return
 }
 
-func addToDicVector(dic map[int][]complex128, index int, vec []complex128) {
-	if dic[index] == nil {
-		dic[index] = vec
+func transposeDiagMatrix(mat map[int][]complex128, N int) {
+	for i := range mat {
+		if i < N>>1 {
+			mat[i], mat[N-i] = mat[N-i], mat[i]
+		}
+	}
+}
+
+func conjugateDiagMatrix(mat map[int][]complex128) {
+	for i := range mat {
+
+		for j := range mat[i] {
+			c := mat[i][j]
+			mat[i][j] = complex(real(c), -imag(c))
+		}
+	}
+}
+
+func genBitReverseDiagMatrix(logN int) (diagMat map[int][]complex128) {
+
+	var N, iRev, diff int
+
+	diagMat = make(map[int][]complex128)
+
+	N = 1 << logN
+
+	for i := 0; i < N; i++ {
+		iRev = int(utils.BitReverse64(uint64(i), uint64(logN)))
+
+		diff = (i - iRev) & (N - 1)
+
+		if diagMat[diff] == nil {
+			diagMat[diff] = make([]complex128, N)
+		}
+
+		diagMat[diff][iRev] = complex(1, 0)
+	}
+
+	return
+}
+
+func addToDiagMatrix(diagMat map[int][]complex128, index int, vec []complex128) {
+	if diagMat[index] == nil {
+		diagMat[index] = vec
 	} else {
-		dic[index] = add(dic[index], vec)
+		diagMat[index] = add(diagMat[index], vec)
 	}
 }
 

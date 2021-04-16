@@ -124,29 +124,37 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 
 func AddMatrixRotToList(pVec *PtDiagMatrix, rotations []int, slots int, repack bool) []int {
 
-	var index int
-	for j := range pVec.Vec {
-
-		N1 := pVec.N1
-
-		index = ((j / N1) * N1)
-
-		if repack {
-			// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
-			index &= 2*slots - 1
-		} else {
-			// Other cases
-			index &= slots - 1
+	if pVec.naive {
+		for j := range pVec.Vec {
+			if !utils.IsInSliceInt(j, rotations) {
+				rotations = append(rotations, j)
+			}
 		}
+	} else {
+		var index int
+		for j := range pVec.Vec {
 
-		if index != 0 && !utils.IsInSliceInt(index, rotations) {
-			rotations = append(rotations, index)
-		}
+			N1 := pVec.N1
 
-		index = j & (N1 - 1)
+			index = ((j / N1) * N1)
 
-		if index != 0 && !utils.IsInSliceInt(index, rotations) {
-			rotations = append(rotations, index)
+			if repack {
+				// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
+				index &= 2*slots - 1
+			} else {
+				// Other cases
+				index &= slots - 1
+			}
+
+			if index != 0 && !utils.IsInSliceInt(index, rotations) {
+				rotations = append(rotations, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceInt(index, rotations) {
+				rotations = append(rotations, index)
+			}
 		}
 	}
 

@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
 	"math/bits"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -46,8 +46,16 @@ const (
 // DefaultSigma is the default error distribution standard deviation
 const DefaultSigma = 3.2
 
+type Parameters interface {
+	rlwe.Parameters
+	Moduli() *Moduli
+	LogModuli() *LogModuli
+	T() uint64
+	RingT() *ring.Ring
+}
+
 // DefaultParams is a set of default BFV parameters ensuring 128 bit security.
-var DefaultParams = []*Parameters{
+var DefaultParams = []*ParametersDef{
 
 	{
 		logN:  12,
@@ -156,8 +164,13 @@ func (m *LogModuli) Copy() LogModuli {
 	return LogModuli{LogQi, LogPi}
 }
 
-// Parameters represents a given parameter set for the BFV cryptosystem.
-type Parameters struct {
+type parameters struct {
+	rlwe.ParametersStruct
+	t uint64
+}
+
+// ParametersDef represents a given parameter set for the BFV cryptosystem.
+type ParametersDef struct {
 	logN  int // Log Ring degree (power of 2)
 	qi    []uint64
 	pi    []uint64
@@ -165,29 +178,30 @@ type Parameters struct {
 	sigma float64 // Gaussian sampling standard deviation
 }
 
-// NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromModuli(logN int, m *Moduli, t uint64) (p *Parameters, err error) {
+func NewParametersFromParamDef(paramDef *ParametersDef) (*parameters, error) {
+	m := new(Moduli)
+	m.Qi = make([]uint64, len(paramDef.qi))
+	copy(m.Qi, paramDef.qi)
+	m.Pi = make([]uint64, len(paramDef.pi))
+	copy(m.Pi, paramDef.pi)
+	return NewParametersFromModuli(paramDef.logN, m, paramDef.t)
+}
 
-	p = new(Parameters)
+// NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
+func NewParametersFromModuli(logN int, m *Moduli, t uint64) (p *parameters, err error) {
+
+	p = new(parameters)
 
 	if logN < MinLogN || logN > MaxLogN {
 		return nil, fmt.Errorf("invalid polynomial ring log degree: %d", logN)
 	}
-
-	p.logN = logN
 
 	// Checks if Moduli is valid
 	if err = checkModuli(m, logN); err != nil {
 		return nil, err
 	}
 
-	p.qi = make([]uint64, len(m.Qi))
-	copy(p.qi, m.Qi)
-
-	p.pi = make([]uint64, len(m.Pi))
-	copy(p.pi, m.Pi)
-
-	p.sigma = DefaultSigma
+	p.ParametersStruct = *rlwe.NewRLWEParameters(logN, m.Qi, m.Pi, DefaultSigma)
 
 	p.t = t
 
@@ -195,7 +209,7 @@ func NewParametersFromModuli(logN int, m *Moduli, t uint64) (p *Parameters, err 
 }
 
 // NewParametersFromLogModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromLogModuli(logN int, lm *LogModuli, t uint64) (p *Parameters, err error) {
+func NewParametersFromLogModuli(logN int, lm *LogModuli, t uint64) (p *parameters, err error) {
 
 	if err = checkLogModuli(lm); err != nil {
 		return nil, err
@@ -205,309 +219,310 @@ func NewParametersFromLogModuli(logN int, lm *LogModuli, t uint64) (p *Parameter
 	return NewParametersFromModuli(logN, genModuli(lm, logN), t)
 }
 
-// LogN returns the log of the degree of the polynomial ring
-func (p *Parameters) LogN() int {
-	return p.logN
-}
+// // LogN returns the log of the degree of the polynomial ring
+// func (p *ParametersDef) LogN() uint64 {
+// 	return p.logN
+// }
 
-// N returns power of two degree of the ring
-func (p *Parameters) N() int {
-	return 1 << p.logN
-}
+// // N returns power of two degree of the ring
+// func (p *ParametersDef) N() uint64 {
+// 	return 1 << p.logN
+// }
 
 // T returns the plaintext coefficient modulus t
-func (p *Parameters) T() uint64 {
+func (p *parameters) T() uint64 {
 	return p.t
 }
 
-// Sigma returns standard deviation of the noise distribution
-func (p *Parameters) Sigma() float64 {
-	return p.sigma
-}
+// // Sigma returns standard deviation of the noise distribution
+// func (p *ParametersDef) Sigma() float64 {
+// 	return p.sigma
+// }
 
-// SetT sets the plaintext coefficient modulus t
-func (p *Parameters) SetT(T uint64) {
-	p.t = T
-}
+// // SetT sets the plaintext coefficient modulus t
+// func (p *ParametersDef) SetT(T uint64) {
+// 	p.t = T
+// }
 
-// WithT returns a copy of the parmaters with a plaintext modulus set to T
-func (p *Parameters) WithT(T uint64) (pCopy *Parameters) {
-	pCopy = p.Copy()
-	pCopy.SetT(T)
-	return
-}
+// // WithT returns a copy of the parmaters with a plaintext modulus set to T
+// func (p *ParametersDef) WithT(T uint64) (pCopy *ParametersDef) {
+// 	pCopy = p.Copy()
+// 	pCopy.SetT(T)
+// 	return
+// }
 
 // LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
-func (p *Parameters) LogModuli() (lm *LogModuli) {
+func (p *parameters) LogModuli() (lm *LogModuli) {
 	lm = new(LogModuli)
-	lm.LogQi = make([]uint64, len(p.qi))
-	for i := range p.qi {
-		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.qi[i]))))
+	lm.LogQi = make([]uint64, len(p.Q()))
+	for i := range p.Q() {
+		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.Q()[i]))))
 	}
-	lm.LogPi = make([]uint64, len(p.pi))
-	for i := range p.pi {
-		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
+	lm.LogPi = make([]uint64, len(p.P()))
+	for i := range p.P() {
+		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.P()[i]))))
 	}
 	return
 }
 
 // Moduli returns a struct Moduli with the moduli of the parameters
-func (p *Parameters) Moduli() (m *Moduli) {
+func (p *parameters) Moduli() (m *Moduli) {
 	m = new(Moduli)
-	m.Qi = make([]uint64, len(p.qi))
-	copy(m.Qi, p.qi)
-	m.Pi = make([]uint64, len(p.pi))
-	copy(m.Pi, p.pi)
+	m.Qi = make([]uint64, len(p.Q()))
+	copy(m.Qi, p.Q())
+	m.Pi = make([]uint64, len(p.P()))
+	copy(m.Pi, p.P())
 	return
 }
 
-// Q returns a new slice with the factors of the ciphertext modulus q
-func (p *Parameters) Q() []uint64 {
-	qi := make([]uint64, len(p.qi))
-	copy(qi, p.qi)
-	return qi
-}
+// // Q returns a new slice with the factors of the ciphertext modulus q
+// func (p *ParametersDef) Q() []uint64 {
+// 	qi := make([]uint64, len(p.qi))
+// 	copy(qi, p.qi)
+// 	return qi
+// }
 
-// QCount returns the number of factors of the ciphertext modulus q
-func (p *Parameters) QCount() int {
-	return len(p.qi)
-}
+// // QCount returns the number of factors of the ciphertext modulus q
+// func (p *ParametersDef) QCount() uint64 {
+// 	return uint64(len(p.qi))
+// }
 
-func (p *Parameters) QBigInt() *big.Int {
-	q := big.NewInt(1)
-	for _, qi := range p.qi {
-		q.Mul(q, new(big.Int).SetUint64(qi))
-	}
-	return q
-}
+// func (p *ParametersDef) QBigInt() *big.Int {
+// 	q := big.NewInt(1)
+// 	for _, qi := range p.qi {
+// 		q.Mul(q, new(big.Int).SetUint64(qi))
+// 	}
+// 	return q
+// }
 
-// P returns a new slice with the factors of the ciphertext modulus extension P
-func (p *Parameters) P() []uint64 {
-	pi := make([]uint64, len(p.pi))
-	copy(pi, p.pi)
-	return pi
-}
+// // P returns a new slice with the factors of the ciphertext modulus extension P
+// func (p *ParametersDef) P() []uint64 {
+// 	pi := make([]uint64, len(p.pi))
+// 	copy(pi, p.pi)
+// 	return pi
+// }
 
-// PCount returns the number of factors of the ciphertext modulus extension P
-func (p *Parameters) PCount() int {
-	return len(p.pi)
-}
+// // PCount returns the number of factors of the ciphertext modulus extension P
+// func (p *ParametersDef) PCount() uint64 {
+// 	return uint64(len(p.pi))
+// }
 
-func (p *Parameters) PBigInt() *big.Int {
-	pInt := big.NewInt(1)
-	for _, pi := range p.pi {
-		pInt.Mul(pInt, new(big.Int).SetUint64(pi))
-	}
-	return pInt
-}
+// func (p *ParametersDef) PBigInt() *big.Int {
+// 	pInt := big.NewInt(1)
+// 	for _, pi := range p.pi {
+// 		pInt.Mul(pInt, new(big.Int).SetUint64(pi))
+// 	}
+// 	return pInt
+// }
 
-func (p *Parameters) QP() []uint64 {
-	qp := make([]uint64, len(p.qi)+len(p.pi))
-	copy(qp, p.qi)
-	copy(qp[len(p.qi):], p.pi)
-	return qp
-}
+// func (p *ParametersDef) QP() []uint64 {
+// 	qp := make([]uint64, len(p.qi)+len(p.pi))
+// 	copy(qp, p.qi)
+// 	copy(qp[len(p.qi):], p.pi)
+// 	return qp
+// }
 
-// QPCount returns the number of factors of the ciphertext modulus Q + the modulus extension P
-func (p *Parameters) QPCount() int {
-	return p.QCount() + p.PCount()
-}
+// // QPCount returns the number of factors of the ciphertext modulus Q + the modulus extension P
+// func (p *ParametersDef) QPCount() uint64 {
+// 	return p.QCount() + p.PCount()
+// }
 
-func (p *Parameters) QPBigInt() *big.Int {
-	pqInt := p.QBigInt()
-	pqInt.Mul(pqInt, p.PBigInt())
-	return pqInt
-}
+// func (p *ParametersDef) QPBigInt() *big.Int {
+// 	pqInt := p.QBigInt()
+// 	pqInt.Mul(pqInt, p.PBigInt())
+// 	return pqInt
+// }
 
-// LogQP returns the size of the extended modulus QP in bits
-func (p *Parameters) LogQP() int {
-	tmp := ring.NewUint(1)
-	for _, qi := range p.qi {
-		tmp.Mul(tmp, ring.NewUint(qi))
-	}
-	for _, pi := range p.pi {
-		tmp.Mul(tmp, ring.NewUint(pi))
-	}
-	return tmp.BitLen()
-}
+// // LogQP returns the size of the extended modulus QP in bits
+// func (p *ParametersDef) LogQP() uint64 {
+// 	tmp := ring.NewUint(1)
+// 	for _, qi := range p.qi {
+// 		tmp.Mul(tmp, ring.NewUint(qi))
+// 	}
+// 	for _, pi := range p.pi {
+// 		tmp.Mul(tmp, ring.NewUint(pi))
+// 	}
+// 	return uint64(tmp.BitLen())
+// }
 
-// LogQ returns the size of the modulus Q in bits
-func (p *Parameters) LogQ() int {
-	tmp := ring.NewUint(1)
-	for _, qi := range p.qi {
-		tmp.Mul(tmp, ring.NewUint(qi))
-	}
-	return tmp.BitLen()
-}
+// // LogQ returns the size of the modulus Q in bits
+// func (p *ParametersDef) LogQ() uint64 {
+// 	tmp := ring.NewUint(1)
+// 	for _, qi := range p.qi {
+// 		tmp.Mul(tmp, ring.NewUint(qi))
+// 	}
+// 	return uint64(tmp.BitLen())
+// }
 
-// LogP returns the size of the modulus P in bits
-func (p *Parameters) LogP() int {
-	tmp := ring.NewUint(1)
-	for _, pi := range p.pi {
-		tmp.Mul(tmp, ring.NewUint(pi))
-	}
-	return tmp.BitLen()
-}
+// // LogP returns the size of the modulus P in bits
+// func (p *ParametersDef) LogP() uint64 {
+// 	tmp := ring.NewUint(1)
+// 	for _, pi := range p.pi {
+// 		tmp.Mul(tmp, ring.NewUint(pi))
+// 	}
+// 	return uint64(tmp.BitLen())
+// }
 
-// LogQAlpha returns the size in bits of the sum of the norm of
-// each element of the special RNS decomposition basis for the
-// key-switching.
-// LogQAlpha is the size of the element that is multiplied by the
-// error during the keyswitching and then divided by P.
-// LogQAlpha should be smaller than P or the error added during
-// the key-switching wont be negligible.
-func (p *Parameters) LogQAlpha() int {
+// // LogQAlpha returns the size in bits of the sum of the norm of
+// // each element of the special RNS decomposition basis for the
+// // key-switching.
+// // LogQAlpha is the size of the element that is multiplied by the
+// // error during the keyswitching and then divided by P.
+// // LogQAlpha should be smaller than P or the error added during
+// // the key-switching wont be negligible.
+// func (p *ParametersDef) LogQAlpha() uint64 {
 
-	alpha := p.PCount()
+// 	alpha := p.PCount()
 
-	if alpha == 0 {
-		return 0
-	}
+// 	if alpha == 0 {
+// 		return 0
+// 	}
 
-	res := ring.NewUint(0)
-	var j int
-	for i := 0; i < p.QCount(); i = i + alpha {
+// 	res := ring.NewUint(0)
+// 	var j uint64
+// 	for i := uint64(0); i < p.QCount(); i = i + alpha {
 
-		j = i + alpha
-		if j > p.QCount() {
-			j = p.QCount()
-		}
+// 		j = i + alpha
+// 		if j > p.QCount() {
+// 			j = p.QCount()
+// 		}
 
-		tmp := ring.NewUint(1)
-		for _, qi := range p.qi[i:j] {
-			tmp.Mul(tmp, ring.NewUint(qi))
-		}
+// 		tmp := ring.NewUint(1)
+// 		for _, qi := range p.qi[i:j] {
+// 			tmp.Mul(tmp, ring.NewUint(qi))
+// 		}
 
-		res.Add(res, tmp)
-	}
+// 		res.Add(res, tmp)
+// 	}
 
-	return res.BitLen()
-}
+// 	return uint64(res.BitLen())
+// }
 
-// Alpha returns the number of moduli in in P
-func (p *Parameters) Alpha() int {
-	return p.PCount()
-}
+// // Alpha returns the number of moduli in in P
+// func (p *ParametersDef) Alpha() uint64 {
+// 	return p.PCount()
+// }
 
-// Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
-func (p *Parameters) Beta() int {
-	if p.Alpha() != 0 {
-		return int(math.Ceil(float64(p.QCount()) / float64(p.Alpha())))
-	}
+// // Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
+// func (p *ParametersDef) Beta() uint64 {
+// 	if p.Alpha() != 0 {
+// 		return uint64(math.Ceil(float64(p.QCount()) / float64(p.Alpha())))
+// 	}
 
-	return 0
-}
+// 	return 0
+// }
 
-// NewPolyQ returns a new empty polynomial of degree 2^logN in basis qi.
-func (p *Parameters) NewPolyQ() *ring.Poly {
-	return ring.NewPoly(p.N(), p.QCount())
-}
+// // NewPolyQ returns a new empty polynomial of degree 2^logN in basis qi.
+// func (p *ParametersDef) NewPolyQ() *ring.Poly {
+// 	return ring.NewPoly(p.N(), p.QCount())
+// }
 
-// NewPolyP returns a new empty polynomial of degree 2^logN in basis Pi.
-func (p *Parameters) NewPolyP() *ring.Poly {
-	return ring.NewPoly(p.N(), p.PCount())
-}
+// // NewPolyP returns a new empty polynomial of degree 2^logN in basis Pi.
+// func (p *ParametersDef) NewPolyP() *ring.Poly {
+// 	return ring.NewPoly(p.N(), p.PCount())
+// }
 
-// NewPolyQP returns a new empty polynomial of degree 2^logN in basis qi + Pi.
-func (p *Parameters) NewPolyQP() *ring.Poly {
-	return ring.NewPoly(p.N(), p.QPCount())
-}
+// // NewPolyQP returns a new empty polynomial of degree 2^logN in basis qi + Pi.
+// func (p *ParametersDef) NewPolyQP() *ring.Poly {
+// 	return ring.NewPoly(p.N(), p.QPCount())
+// }
 
-// GaloisElementForColumnRotationBy returns the galois element for plaintext
-// column rotations by k position to the left. Providing a negative k is
-// equivalent to a right rotation.
-func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
-	twoN := 1 << (p.logN + 1)
-	mask := twoN - 1
-	kRed := k & mask
-	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
-}
+// // GaloisElementForColumnRotationBy returns the galois element for plaintext
+// // column rotations by k position to the left. Providing a negative k is
+// // equivalent to a right rotation.
+// func (p *ParametersDef) GaloisElementForColumnRotationBy(k int) uint64 {
+// 	twoN := 1 << (p.logN + 1)
+// 	mask := twoN - 1
+// 	kRed := uint64(k & mask)
+// 	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
+// }
 
-// GaloisElementForRowRotation returns the galois element for generating the row
-// rotation automorphism
-func (p *Parameters) GaloisElementForRowRotation() uint64 {
-	return (1 << (p.logN + 1)) - 1
-}
+// // GaloisElementForRowRotation returns the galois element for generating the row
+// // rotation automorphism
+// func (p *ParametersDef) GaloisElementForRowRotation() uint64 {
+// 	return (1 << (p.logN + 1)) - 1
+// }
 
-// GaloisElementsForRowInnerSum returns a list of galois element corresponding to
-// all the left rotations by a k-position where k is a power of two.
-func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
-	galEls = make([]uint64, p.logN+1, p.logN+1)
-	galEls[0] = p.GaloisElementForRowRotation()
-	for i := 0; i < int(p.logN)-1; i++ {
-		galEls[i+1] = p.GaloisElementForColumnRotationBy(1 << i)
-	}
-	return galEls
-}
+// // GaloisElementsForRowInnerSum returns a list of all galois elements required to
+// // perform an InnerSum operation. This corresponds to all the left rotations by
+// // k-positions where k is a power of two and the row-rotation element.
+// func (p *ParametersDef) GaloisElementsForRowInnerSum() (galEls []uint64) {
+// 	galEls = make([]uint64, p.logN+1, p.logN+1)
+// 	galEls[0] = p.GaloisElementForRowRotation()
+// 	for i := 0; i < int(p.logN)-1; i++ {
+// 		galEls[i+1] = p.GaloisElementForColumnRotationBy(1 << i)
+// 	}
+// 	return galEls
+// }
 
-// InverseGaloisElement takes a galois element and returns the galois element
-//  corresponding to the inverse automorphism
-func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
-	twoN := 1 << (p.logN + 1)
-	return ring.ModExp(galEl, twoN-1, uint64(twoN))
-}
+// // InverseGaloisElement takes a galois element and returns the galois element
+// //  corresponding to the inverse automorphism
+// func (p *ParametersDef) InverseGaloisElement(galEl uint64) uint64 {
+// 	twoN := uint64(1 << (p.logN + 1))
+// 	return ring.ModExp(galEl, twoN-1, twoN)
+// }
 
-func (p *Parameters) RingQ() *ring.Ring {
-	ringQ, err := ring.NewRing(p.N(), p.qi)
-	if err != nil {
-		panic(err) // Parameter type invariant
-	}
-	return ringQ
-}
+// func (p *ParametersDef) RingQ() *ring.Ring {
+// 	ringQ, err := ring.NewRing(p.N(), p.qi)
+// 	if err != nil {
+// 		panic(err) // Parameter type invariant
+// 	}
+// 	return ringQ
+// }
 
-func (p *Parameters) RingP() *ring.Ring {
-	if len(p.pi) == 0 {
-		return nil
-	}
-	ringP, err := ring.NewRing(p.N(), p.pi)
-	if err != nil {
-		panic(err) // Parameter type invariant
-	}
-	return ringP
-}
+// func (p *ParametersDef) RingP() *ring.Ring {
+// 	if len(p.pi) == 0 {
+// 		return nil
+// 	}
+// 	ringP, err := ring.NewRing(p.N(), p.pi)
+// 	if err != nil {
+// 		panic(err) // Parameter type invariant
+// 	}
+// 	return ringP
+// }
 
-func (p *Parameters) RingQP() *ring.Ring {
-	ringQP, err := ring.NewRing(p.N(), append(p.qi, p.pi...))
+func (p *parameters) RingT() *ring.Ring {
+	ringQP, err := ring.NewRing(p.N(), []uint64{p.t})
 	if err != nil {
 		panic(err) // Parameter type invariant
 	}
 	return ringQP
 }
 
-// Copy creates a copy of the target Parameters.
-func (p *Parameters) Copy() (paramsCopy *Parameters) {
+// // Copy creates a copy of the target Parameters.
+// func (p *ParametersDef) Copy() (paramsCopy *ParametersDef) {
 
-	paramsCopy = new(Parameters)
-	paramsCopy.logN = p.logN
-	paramsCopy.t = p.t
-	paramsCopy.sigma = p.sigma
-	paramsCopy.qi = make([]uint64, len(p.qi))
-	copy(paramsCopy.qi, p.qi)
-	paramsCopy.pi = make([]uint64, len(p.pi))
-	copy(paramsCopy.pi, p.pi)
-	return
-}
+// 	paramsCopy = new(ParametersDef)
+// 	paramsCopy.logN = p.logN
+// 	paramsCopy.t = p.t
+// 	paramsCopy.sigma = p.sigma
+// 	paramsCopy.qi = make([]uint64, len(p.qi))
+// 	copy(paramsCopy.qi, p.qi)
+// 	paramsCopy.pi = make([]uint64, len(p.pi))
+// 	copy(paramsCopy.pi, p.pi)
+// 	return
+// }
 
 // Equals compares two sets of parameters for equality.
-func (p *Parameters) Equals(other *Parameters) (res bool) {
+func (p *parameters) Equals(other Parameters) (res bool) {
 
 	if p == other {
 		return true
 	}
 
-	res = p.logN == other.logN
-	res = res && (p.t == other.t)
-	res = res && (p.sigma == other.sigma)
+	res = p.LogN() == other.LogN()
+	res = res && (p.t == other.T())
+	res = res && (p.Sigma() == other.Sigma())
 
-	res = res && utils.EqualSliceUint64(p.qi, other.qi)
-	res = res && utils.EqualSliceUint64(p.pi, other.pi)
+	res = res && utils.EqualSliceUint64(p.Q(), other.Q())
+	res = res && utils.EqualSliceUint64(p.P(), other.P())
 
 	return
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
-func (p *Parameters) MarshalBinary() ([]byte, error) {
-	if p.logN == 0 { // if N is 0, then p is the zero value
+func (p *parameters) MarshalBinary() ([]byte, error) {
+	if p.LogN() == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
 
@@ -517,29 +532,29 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 	// 1 byte : #pi
 	// 8 byte : t
 	// 8 byte : sigma
-	b := utils.NewBuffer(make([]byte, 0, 19+(len(p.qi)+len(p.pi))<<3))
+	b := utils.NewBuffer(make([]byte, 0, 19+(len(p.Q())+len(p.P()))<<3))
 
-	b.WriteUint8(uint8(p.logN))
-	b.WriteUint8(uint8(len(p.qi)))
-	b.WriteUint8(uint8(len(p.pi)))
-	b.WriteUint64(p.t)
-	b.WriteUint64(math.Float64bits(p.sigma))
-	b.WriteUint64Slice(p.qi)
-	b.WriteUint64Slice(p.pi)
+	b.WriteUint8(uint8(p.LogN()))
+	b.WriteUint8(uint8(len(p.Q())))
+	b.WriteUint8(uint8(len(p.P())))
+	b.WriteUint64(p.T())
+	b.WriteUint64(math.Float64bits(p.Sigma()))
+	b.WriteUint64Slice(p.Q())
+	b.WriteUint64Slice(p.P())
 
 	return b.Bytes(), nil
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
-func (p *Parameters) UnmarshalBinary(data []byte) error {
+func (p *parameters) UnmarshalBinary(data []byte) error {
 	if len(data) < 19 {
 		return errors.New("invalid parameters encoding")
 	}
 	b := utils.NewBuffer(data)
 
-	p.logN = int(b.ReadUint8())
+	logN := int(b.ReadUint8())
 
-	if p.logN > MaxLogN {
+	if logN > MaxLogN {
 		return fmt.Errorf("logN larger than %d", MaxLogN)
 	}
 
@@ -547,14 +562,17 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	lenPi := b.ReadUint8()
 
 	p.t = b.ReadUint64()
-	p.sigma = math.Float64frombits(b.ReadUint64())
-	p.qi = make([]uint64, lenQi)
-	p.pi = make([]uint64, lenPi)
+	sigma := math.Float64frombits(b.ReadUint64())
+	qi := make([]uint64, lenQi)
+	pi := make([]uint64, lenPi)
 
-	b.ReadUint64Slice(p.qi)
-	b.ReadUint64Slice(p.pi)
+	b.ReadUint64Slice(qi)
+	b.ReadUint64Slice(pi)
 
-	err := checkModuli(p.Moduli(), p.logN)
+	err := checkModuli(p.Moduli(), logN)
+
+	p.ParametersStruct = *rlwe.NewRLWEParameters(logN, qi, pi, sigma)
+
 	if err != nil {
 		return err
 	}

@@ -36,7 +36,7 @@ func (share *CKSShare) UnmarshalBinary(data []byte) error {
 // NewCKSProtocol creates a new CKSProtocol that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
-func NewCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *CKSProtocol {
+func NewCKSProtocol(params bfv.Parameters, sigmaSmudging float64) *CKSProtocol {
 
 	context := newDbfvContext(params)
 

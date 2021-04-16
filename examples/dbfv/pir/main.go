@@ -193,7 +193,7 @@ func main() {
 		elapsedCKGParty+elapsedRKGParty+elapsedRTGParty+elapsedEncryptParty+elapsedRequestParty+elapsedPCKSParty+elapsedDecParty)
 }
 
-func cksphase(params *bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.Ciphertext {
+func cksphase(params *bfv.ParametersDef, P []*party, result *bfv.Ciphertext) *bfv.Ciphertext {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> CKS Phase")
@@ -224,7 +224,7 @@ func cksphase(params *bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.C
 	return encOut
 }
 
-func genparties(params *bfv.Parameters, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
+func genparties(params *bfv.ParametersDef, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
 
 	P := make([]*party, N)
 
@@ -245,7 +245,7 @@ func genparties(params *bfv.Parameters, N int, sampler *ring.TernarySampler, rin
 	return P
 }
 
-func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.PublicKey {
+func ckgphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -280,7 +280,7 @@ func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	return pk
 }
 
-func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -329,7 +329,7 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	return rlk
 }
 
-func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.RotationKeySet {
+func rtkphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party) *rlwe.RotationKeySet {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -370,7 +370,7 @@ func rtkphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	return rotKeySet
 }
 
-func genquery(params *bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryptor bfv.Encryptor) *bfv.Ciphertext {
+func genquery(params *bfv.ParametersDef, queryIndex int, encoder bfv.Encoder, encryptor bfv.Encryptor) *bfv.Ciphertext {
 	// Query ciphertext
 	queryCoeffs := make([]uint64, params.N())
 	queryCoeffs[queryIndex] = 1
@@ -384,7 +384,7 @@ func genquery(params *bfv.Parameters, queryIndex int, encoder bfv.Encoder, encry
 	return encQuery
 }
 
-func requestphase(params *bfv.Parameters, queryIndex, NGoRoutine int, encQuery *bfv.Ciphertext, encInputs []*bfv.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *rlwe.RelinearizationKey, rtk *rlwe.RotationKeySet) *bfv.Ciphertext {
+func requestphase(params *bfv.ParametersDef, queryIndex, NGoRoutine int, encQuery *bfv.Ciphertext, encInputs []*bfv.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *rlwe.RelinearizationKey, rtk *rlwe.RotationKeySet) *bfv.Ciphertext {
 
 	l := log.New(os.Stderr, "", 0)
 

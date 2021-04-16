@@ -25,7 +25,7 @@ type KeyGenerator interface {
 // keyGenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
 type keyGenerator struct {
-	params          *Parameters
+	params          Parameters
 	ringQP          *ring.Ring
 	pBigInt         *big.Int
 	polypool        [2]*ring.Poly
@@ -35,18 +35,15 @@ type keyGenerator struct {
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
-func NewKeyGenerator(params *Parameters) KeyGenerator {
+func NewKeyGenerator(params Parameters) KeyGenerator {
 
-	var ringQP *ring.Ring
 	var err error
-	if ringQP, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
-		panic(err)
-	}
+	ringQP := params.RingQP()
 
 	var pBigInt *big.Int
-	if len(params.pi) != 0 {
+	if params.PCount() != 0 {
 		pBigInt = ring.NewUint(1)
-		for _, pi := range params.pi {
+		for _, pi := range params.P() {
 			pBigInt.Mul(pBigInt, ring.NewUint(pi))
 		}
 	}
@@ -57,7 +54,7 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	}
 
 	return &keyGenerator{
-		params:          params.Copy(),
+		params:          params,
 		ringQP:          ringQP,
 		pBigInt:         pBigInt,
 		polypool:        [2]*ring.Poly{ringQP.NewPoly(), ringQP.NewPoly()},

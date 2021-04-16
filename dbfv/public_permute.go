@@ -21,7 +21,7 @@ type PermuteProtocol struct {
 }
 
 // NewPermuteProtocol creates a new instance of the PermuteProtocol.
-func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtocol) {
+func NewPermuteProtocol(params bfv.Parameters) (refreshProtocol *PermuteProtocol) {
 
 	context := newDbfvContext(params)
 

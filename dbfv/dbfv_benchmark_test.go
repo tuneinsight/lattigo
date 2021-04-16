@@ -11,9 +11,7 @@ import (
 
 func Benchmark_DBFV(b *testing.B) {
 
-	var err error
-
-	var defaultParams []*bfv.Parameters
+	var defaultParams []*bfv.ParametersDef
 
 	if testing.Short() {
 		defaultParams = bfv.DefaultParams[bfv.PN12QP109 : bfv.PN12QP109+3]
@@ -22,8 +20,9 @@ func Benchmark_DBFV(b *testing.B) {
 	}
 
 	for _, p := range defaultParams {
+		params, err := bfv.NewParametersFromParamDef(p)
 		var testCtx *testContext
-		if testCtx, err = gentestContext(p); err != nil {
+		if testCtx, err = gentestContext(params); err != nil {
 			panic(err)
 		}
 

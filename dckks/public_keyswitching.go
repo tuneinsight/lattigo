@@ -98,7 +98,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *rlwe.PublicKey, ct *ckks.C
 	pcks.baseconverter.ModDownNTTPQ(ct.Level(), pcks.share1tmp, shareOut[1])
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-	ringQ.MulCoeffsMontgomeryAndAddLvl(ct.Level(), ct.Value()[1], sk, shareOut[0])
+	ringQ.MulCoeffsMontgomeryAndAddLvl(ct.Level(), ct.Value[1], sk, shareOut[0])
 
 	pcks.tmp.Zero()
 }
@@ -119,6 +119,6 @@ func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *ckks.Cipherte
 
 	ctOut.SetScale(ct.Scale())
 
-	pcks.dckksContext.ringQ.AddLvl(ct.Level(), ct.Value()[0], combined[0], ctOut.Value()[0])
-	pcks.dckksContext.ringQ.CopyLvl(ct.Level(), combined[1], ctOut.Value()[1])
+	pcks.dckksContext.ringQ.AddLvl(ct.Level(), ct.Value[0], combined[0], ctOut.Value[0])
+	pcks.dckksContext.ringQ.CopyLvl(ct.Level(), combined[1], ctOut.Value[1])
 }

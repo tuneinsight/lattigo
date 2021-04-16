@@ -18,11 +18,6 @@ func (el *Element) El() *Element {
 	return el
 }
 
-// Level returns the level of the target element.
-func (el *Element) Level() int {
-	return len(el.Value[0].Coeffs) - 1
-}
-
 // Scale returns the scale of the target element.
 func (el *Element) Scale() float64 {
 	return el.scale

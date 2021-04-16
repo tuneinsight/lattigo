@@ -96,7 +96,7 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 	ringQ.NTT(shareRecrypt, shareRecrypt)
 
 	// h0 = sk*c1 + mask
-	ringQ.MulCoeffsMontgomeryAndAddLvl(levelStart, sk, ciphertext.Value()[1], shareDecrypt)
+	ringQ.MulCoeffsMontgomeryAndAddLvl(levelStart, sk, ciphertext.Value[1], shareDecrypt)
 
 	// h1 = sk*a + mask
 	ringQ.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
@@ -124,7 +124,7 @@ func (refreshProtocol *RefreshProtocol) Aggregate(share1, share2, shareOut *ring
 
 // Decrypt operates a masked decryption on the ciphertext with the given decryption share.
 func (refreshProtocol *RefreshProtocol) Decrypt(ciphertext *ckks.Ciphertext, shareDecrypt RefreshShareDecrypt) {
-	refreshProtocol.dckksContext.ringQ.AddLvl(ciphertext.Level(), ciphertext.Value()[0], shareDecrypt, ciphertext.Value()[0])
+	refreshProtocol.dckksContext.ringQ.AddLvl(ciphertext.Level(), ciphertext.Value[0], shareDecrypt, ciphertext.Value[0])
 }
 
 // Recode takes a masked decrypted ciphertext at modulus Q_0 and returns the same masked decrypted ciphertext at modulus Q_L, with Q_0 << Q_L.
@@ -141,9 +141,9 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext, targ
 	inputScaleFlo.Int(inputScaleInt)
 	outputScaleFlo.Int(outputScaleInt)
 
-	ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+	ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 
-	ringQ.PolyToBigint(ciphertext.Value()[0], refreshProtocol.maskBigint)
+	ringQ.PolyToBigint(ciphertext.Value[0], refreshProtocol.maskBigint)
 
 	QStart := ring.NewUint(ringQ.Modulus[0])
 	for i := 1; i < ciphertext.Level()+1; i++ {
@@ -153,8 +153,8 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext, targ
 	QHalf := new(big.Int).Rsh(QStart, 1)
 
 	for ciphertext.Level() != dckksContext.params.MaxLevel() {
-		ciphertext.Value()[0].Coeffs = append(ciphertext.Value()[0].Coeffs, make([][]uint64, 1)...)
-		ciphertext.Value()[0].Coeffs[ciphertext.Level()] = make([]uint64, dckksContext.n)
+		ciphertext.Value[0].Coeffs = append(ciphertext.Value[0].Coeffs, make([][]uint64, 1)...)
+		ciphertext.Value[0].Coeffs[ciphertext.Level()] = make([]uint64, dckksContext.n)
 	}
 
 	var sign int
@@ -168,9 +168,9 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext, targ
 		refreshProtocol.maskBigint[i].Quo(refreshProtocol.maskBigint[i], inputScaleInt)
 	}
 
-	ringQ.SetCoefficientsBigintLvl(ciphertext.Level(), refreshProtocol.maskBigint, ciphertext.Value()[0])
+	ringQ.SetCoefficientsBigintLvl(ciphertext.Level(), refreshProtocol.maskBigint, ciphertext.Value[0])
 
-	ringQ.NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+	ringQ.NTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 
 	ciphertext.SetScale(targetScale)
 }
@@ -178,7 +178,7 @@ func (refreshProtocol *RefreshProtocol) Recode(ciphertext *ckks.Ciphertext, targ
 // Recrypt operates a masked recryption on the masked decrypted ciphertext.
 func (refreshProtocol *RefreshProtocol) Recrypt(ciphertext *ckks.Ciphertext, crs *ring.Poly, shareRecrypt RefreshShareRecrypt) {
 
-	refreshProtocol.dckksContext.ringQ.Add(ciphertext.Value()[0], shareRecrypt, ciphertext.Value()[0])
+	refreshProtocol.dckksContext.ringQ.Add(ciphertext.Value[0], shareRecrypt, ciphertext.Value[0])
 	crs.Coeffs = crs.Coeffs[:ciphertext.Level()+1]
-	ciphertext.Value()[1] = crs.CopyNew()
+	ciphertext.Value[1] = crs.CopyNew()
 }

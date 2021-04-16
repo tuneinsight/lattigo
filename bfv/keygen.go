@@ -243,7 +243,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *rlwe
 			}
 
 			// Handles the case where nb pj does not divide nb qi
-			if index >= keygen.params.QiCount() {
+			if index >= keygen.params.QCount() {
 				break
 			}
 

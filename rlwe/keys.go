@@ -40,7 +40,7 @@ type EvaluationKey struct {
 }
 
 // NewSecretKey generates a new SecretKey with zero values.
-func NewSecretKey(params *Parameters) *SecretKey {
+func NewSecretKey(params Parameters) *SecretKey {
 
 	sk := new(SecretKey)
 	sk.Value = ring.NewPoly(params.N(), params.QPCount())
@@ -48,7 +48,7 @@ func NewSecretKey(params *Parameters) *SecretKey {
 }
 
 // NewPublicKey returns a new PublicKey with zero values.
-func NewPublicKey(params *Parameters) (pk *PublicKey) {
+func NewPublicKey(params Parameters) (pk *PublicKey) {
 	ringDegree := params.N()
 	moduliCount := params.QPCount()
 	return &PublicKey{Value: [2]*ring.Poly{ring.NewPoly(ringDegree, moduliCount), ring.NewPoly(ringDegree, moduliCount)}}
@@ -63,7 +63,7 @@ func (pk *PublicKey) Equals(other *PublicKey) bool {
 }
 
 // NewRotationKeySet returns a new RotationKeySet with pre-allocated switching keys for each distinct galoisElement value.
-func NewRotationKeySet(params *Parameters, galoisElement []uint64) (rotKey *RotationKeySet) {
+func NewRotationKeySet(params Parameters, galoisElement []uint64) (rotKey *RotationKeySet) {
 	rotKey = new(RotationKeySet)
 	rotKey.Keys = make(map[uint64]*SwitchingKey, len(galoisElement))
 	for _, galEl := range galoisElement {
@@ -80,7 +80,7 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 }
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
-func NewSwitchingKey(params *Parameters) *SwitchingKey {
+func NewSwitchingKey(params Parameters) *SwitchingKey {
 	ringDegree := params.N()
 	moduliCount := params.QPCount()
 	decompSize := params.Beta()
@@ -97,7 +97,7 @@ func NewSwitchingKey(params *Parameters) *SwitchingKey {
 }
 
 // NewRelinKey creates a new EvaluationKey with zero values.
-func NewRelinKey(params *Parameters, maxRelinDegree uint64) (evakey *RelinearizationKey) {
+func NewRelinKey(params Parameters, maxRelinDegree uint64) (evakey *RelinearizationKey) {
 
 	evakey = new(RelinearizationKey)
 

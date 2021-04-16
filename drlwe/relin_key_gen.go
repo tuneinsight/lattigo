@@ -19,7 +19,7 @@ type RelinearizationKeyGenerator interface {
 
 // RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
 type RKGProtocol struct {
-	params          *rlwe.Parameters
+	params          rlwe.Parameters
 	ringP           *ring.Ring
 	ringQP          *ring.Ring
 	gaussianSampler *ring.GaussianSampler
@@ -35,7 +35,7 @@ type RKGShare struct {
 }
 
 // NewRKGProtocol creates a new RKG protocol struct
-func NewRKGProtocol(params *rlwe.Parameters, ephSkPr float64) *RKGProtocol {
+func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
 	rkg := new(RKGProtocol)
 	rkg.params = params
 	rkg.ringP = params.RingP()
@@ -97,7 +97,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp []*ring.Poly, e
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= ekg.params.QiCount() {
+			if index >= ekg.params.QCount() {
 				break
 			}
 		}

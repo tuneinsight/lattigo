@@ -14,5 +14,5 @@ type RKGProtocol struct {
 // NewRKGProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
 func NewRKGProtocol(params *bfv.Parameters) *RKGProtocol {
-	return &RKGProtocol{*drlwe.NewRKGProtocol(params.RLWEParameters(), 0.5)}
+	return &RKGProtocol{*drlwe.NewRKGProtocol(params, 0.5)}
 }

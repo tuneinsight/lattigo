@@ -28,7 +28,7 @@ type CKSShare struct {
 // NewCKSProtocol creates a new CKSProtocol that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
-func NewCKSProtocol(params *rlwe.Parameters, sigmaSmudging float64) *CKSProtocol {
+func NewCKSProtocol(params *rlwe.ParametersStruct, sigmaSmudging float64) *CKSProtocol {
 	cks := new(CKSProtocol)
 	var err error
 	cks.ringQ, err = ring.NewRing(params.N(), params.Q())

@@ -24,14 +24,14 @@ type RTGShare struct {
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct { // TODO rename GaloisKeyGen ?
-	params          *rlwe.Parameters
+	params          rlwe.Parameters
 	ringQP          *ring.Ring
 	tmpPoly         [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
 }
 
 // NewRTGProtocol creates a RTGProtocol instance
-func NewRTGProtocol(params *rlwe.Parameters) *RTGProtocol {
+func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 	rtg := new(RTGProtocol)
 	rtg.params = params
 	rtg.ringQP = params.RingQP()
@@ -91,7 +91,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= rtg.params.QiCount() {
+			if index >= rtg.params.QCount() {
 				break
 			}
 		}

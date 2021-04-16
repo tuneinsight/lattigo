@@ -98,7 +98,7 @@ func main() {
 	}
 
 	// Ring for the common reference polynomials sampling
-	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
+	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Q(), params.P()...))
 
 	// Common reference polynomial generator that uses the PRNG
 	crsGen := ring.NewUniformSampler(lattigoPRNG, ringQP)

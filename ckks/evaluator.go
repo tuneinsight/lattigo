@@ -116,7 +116,7 @@ func newEvaluatorBase(params *Parameters) *evaluatorBase {
 		panic(err)
 	}
 
-	if params.PiCount() != 0 {
+	if params.PCount() != 0 {
 		if ev.ringP, err = ring.NewRing(params.N(), params.pi); err != nil {
 			panic(err)
 		}
@@ -130,7 +130,7 @@ func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 	ringQ, ringP := evalBase.ringQ, evalBase.ringP
 	buff.poolQ = [4]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
 	buff.poolQMul = [3]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
-	if evalBase.params.PiCount() > 0 {
+	if evalBase.params.PCount() > 0 {
 		buff.poolP = [3]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
 	}
 	buff.ctxpool = NewCiphertext(evalBase.params, 1, evalBase.params.MaxLevel(), evalBase.params.scale)
@@ -151,7 +151,7 @@ func NewEvaluator(params *Parameters, evaluationKey rlwe.EvaluationKey) Evaluato
 		eval.permuteNTTIndex = *eval.permuteNTTIndexesForKey(eval.rtks)
 	}
 
-	if params.PiCount() != 0 {
+	if params.PCount() != 0 {
 		eval.baseconverter = ring.NewFastBasisExtender(eval.ringQ, eval.ringP)
 	}
 

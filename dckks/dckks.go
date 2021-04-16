@@ -30,15 +30,15 @@ func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
 	context.beta = params.Beta()
 
 	var err error
-	if context.ringQ, err = ring.NewRing(params.N(), params.Qi()); err != nil {
+	if context.ringQ, err = ring.NewRing(params.N(), params.Q()); err != nil {
 		panic(err)
 	}
 
-	if context.ringP, err = ring.NewRing(params.N(), params.Pi()); err != nil {
+	if context.ringP, err = ring.NewRing(params.N(), params.P()); err != nil {
 		panic(err)
 	}
 
-	if context.ringQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
+	if context.ringQP, err = ring.NewRing(params.N(), append(params.Q(), params.P()...)); err != nil {
 		panic(err)
 	}
 

@@ -199,7 +199,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	ringQ := btp.ringQ
 	ringP := btp.ringP
 	levelQ := vec.Level()
-	levelP := btp.params.PiCount() - 1
+	levelP := btp.params.PCount() - 1
 
 	var N1 uint64
 
@@ -446,7 +446,7 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, 
 	pool3P := eval.poolP[1]
 
 	levelQ := ct0.Level()
-	levelP := eval.params.PiCount() - 1
+	levelP := eval.params.PCount() - 1
 
 	galEl := eval.params.GaloisElementForColumnRotationBy(int(k))
 	rtk := rotKeys.Keys[galEl]

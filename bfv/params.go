@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"math/bits"
 
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -261,33 +261,62 @@ func (p *Parameters) Moduli() (m *Moduli) {
 	return
 }
 
-// Qi returns a new slice with the factors of the ciphertext modulus q
-func (p *Parameters) Qi() []uint64 {
+// Q returns a new slice with the factors of the ciphertext modulus q
+func (p *Parameters) Q() []uint64 {
 	qi := make([]uint64, len(p.qi))
 	copy(qi, p.qi)
 	return qi
 }
 
-// QiCount returns the number of factors of the ciphertext modulus q
-func (p *Parameters) QiCount() uint64 {
+// QCount returns the number of factors of the ciphertext modulus q
+func (p *Parameters) QCount() uint64 {
 	return uint64(len(p.qi))
 }
 
-// Pi returns a new slice with the factors of the ciphertext modulus extension P
-func (p *Parameters) Pi() []uint64 {
+func (p *Parameters) QBigInt() *big.Int {
+	q := big.NewInt(1)
+	for _, qi := range p.qi {
+		q.Mul(q, new(big.Int).SetUint64(qi))
+	}
+	return q
+}
+
+// P returns a new slice with the factors of the ciphertext modulus extension P
+func (p *Parameters) P() []uint64 {
 	pi := make([]uint64, len(p.pi))
 	copy(pi, p.pi)
 	return pi
 }
 
-// PiCount returns the number of factors of the ciphertext modulus extension P
-func (p *Parameters) PiCount() uint64 {
+// PCount returns the number of factors of the ciphertext modulus extension P
+func (p *Parameters) PCount() uint64 {
 	return uint64(len(p.pi))
 }
 
-// QPiCount returns the number of factors of the ciphertext modulus Q + the modulus extension P
-func (p *Parameters) QPiCount() uint64 {
-	return p.QiCount() + p.PiCount()
+func (p *Parameters) PBigInt() *big.Int {
+	pInt := big.NewInt(1)
+	for _, pi := range p.pi {
+		pInt.Mul(pInt, new(big.Int).SetUint64(pi))
+	}
+	return pInt
+}
+
+func (p *Parameters) QP() []uint64 {
+	qp := make([]uint64, len(p.qi)+len(p.pi))
+	copy(qp, p.qi)
+	copy(qp[len(p.qi):], p.pi)
+	return qp
+}
+
+// QPCount returns the number of factors of the ciphertext modulus Q + the modulus extension P
+func (p *Parameters) QPCount() uint64 {
+	return p.QCount() + p.PCount()
+}
+
+func (p *Parameters) QPBigInt() *big.Int {
+	pqInt := p.QBigInt()
+	pqInt.Mul(pqInt, p.PBigInt())
+	return pqInt
 }
 
 // LogQP returns the size of the extended modulus QP in bits
@@ -329,7 +358,7 @@ func (p *Parameters) LogP() uint64 {
 // the key-switching wont be negligible.
 func (p *Parameters) LogQAlpha() uint64 {
 
-	alpha := p.PiCount()
+	alpha := p.PCount()
 
 	if alpha == 0 {
 		return 0
@@ -337,11 +366,11 @@ func (p *Parameters) LogQAlpha() uint64 {
 
 	res := ring.NewUint(0)
 	var j uint64
-	for i := uint64(0); i < p.QiCount(); i = i + alpha {
+	for i := uint64(0); i < p.QCount(); i = i + alpha {
 
 		j = i + alpha
-		if j > p.QiCount() {
-			j = p.QiCount()
+		if j > p.QCount() {
+			j = p.QCount()
 		}
 
 		tmp := ring.NewUint(1)
@@ -357,13 +386,13 @@ func (p *Parameters) LogQAlpha() uint64 {
 
 // Alpha returns the number of moduli in in P
 func (p *Parameters) Alpha() uint64 {
-	return p.PiCount()
+	return p.PCount()
 }
 
 // Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
 func (p *Parameters) Beta() uint64 {
 	if p.Alpha() != 0 {
-		return uint64(math.Ceil(float64(p.QiCount()) / float64(p.Alpha())))
+		return uint64(math.Ceil(float64(p.QCount()) / float64(p.Alpha())))
 	}
 
 	return 0
@@ -371,17 +400,17 @@ func (p *Parameters) Beta() uint64 {
 
 // NewPolyQ returns a new empty polynomial of degree 2^logN in basis qi.
 func (p *Parameters) NewPolyQ() *ring.Poly {
-	return ring.NewPoly(p.N(), p.QiCount())
+	return ring.NewPoly(p.N(), p.QCount())
 }
 
 // NewPolyP returns a new empty polynomial of degree 2^logN in basis Pi.
 func (p *Parameters) NewPolyP() *ring.Poly {
-	return ring.NewPoly(p.N(), p.PiCount())
+	return ring.NewPoly(p.N(), p.PCount())
 }
 
 // NewPolyQP returns a new empty polynomial of degree 2^logN in basis qi + Pi.
 func (p *Parameters) NewPolyQP() *ring.Poly {
-	return ring.NewPoly(p.N(), p.QPiCount())
+	return ring.NewPoly(p.N(), p.QPCount())
 }
 
 // GaloisElementForColumnRotationBy returns the galois element for plaintext
@@ -417,6 +446,33 @@ func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
 	twoN := uint64(1 << (p.logN + 1))
 	return ring.ModExp(galEl, twoN-1, twoN)
+}
+
+func (p *Parameters) RingQ() *ring.Ring {
+	ringQ, err := ring.NewRing(p.N(), p.qi)
+	if err != nil {
+		panic(err) // Parameter type invariant
+	}
+	return ringQ
+}
+
+func (p *Parameters) RingP() *ring.Ring {
+	if len(p.pi) == 0 {
+		return nil
+	}
+	ringP, err := ring.NewRing(p.N(), p.pi)
+	if err != nil {
+		panic(err) // Parameter type invariant
+	}
+	return ringP
+}
+
+func (p *Parameters) RingQP() *ring.Ring {
+	ringQP, err := ring.NewRing(p.N(), append(p.qi, p.pi...))
+	if err != nil {
+		panic(err) // Parameter type invariant
+	}
+	return ringQP
 }
 
 // Copy creates a copy of the target Parameters.
@@ -614,7 +670,7 @@ func genModuli(lm *LogModuli, logN uint64) (m *Moduli) {
 	return
 }
 
-// Temporary getter, rlwe.Parameters should be embeded in type bfv.parameters
-func (p *Parameters) RLWEParameters() *rlwe.Parameters {
-	return rlwe.NewRLWEParameters(p.logN, p.qi, p.pi, p.sigma)
-}
+// // Temporary getter, rlwe.Parameters should be embeded in type bfv.parameters
+// func (p *Parameters) RLWEParameters() *rlwe.ParametersStruct {
+// 	return rlwe.NewRLWEParameters(p.logN, p.qi, p.pi, p.sigma)
+// }

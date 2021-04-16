@@ -92,7 +92,7 @@ func genTestParams(params *Parameters) (testctx *testContext, err error) {
 	testctx.uSampler = ring.NewUniformSampler(testctx.prng, testctx.ringT)
 	testctx.kgen = NewKeyGenerator(testctx.params)
 	testctx.sk, testctx.pk = testctx.kgen.GenKeyPair()
-	if params.PiCount() != 0 {
+	if params.PCount() != 0 {
 		testctx.rlk = testctx.kgen.GenRelinearizationKey(testctx.sk, 1)
 	}
 
@@ -138,7 +138,7 @@ func newTestVectorsRingQ(testctx *testContext, encryptor Encryptor, t *testing.T
 	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
 	if encryptor != nil {
-		if testctx.params.PiCount() != 0 {
+		if testctx.params.PCount() != 0 {
 			ciphertext = testctx.encryptorPk.EncryptNew(plaintext)
 		} else {
 			ciphertext = testctx.encryptorPk.EncryptFastNew(plaintext)
@@ -258,7 +258,7 @@ func testEncryptor(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Encryptor/EncryptFromPk/", testctx.params), func(t *testing.T) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -575,7 +575,7 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Evaluator/Mul/Relinearize/", testctx.params), func(t *testing.T) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -596,7 +596,7 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 
 func testEvaluatorKeySwitch(testctx *testContext, t *testing.T) {
 
-	if testctx.params.PiCount() == 0 {
+	if testctx.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
@@ -619,7 +619,7 @@ func testEvaluatorKeySwitch(testctx *testContext, t *testing.T) {
 
 func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 
-	if testctx.params.PiCount() == 0 {
+	if testctx.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
@@ -776,7 +776,7 @@ func testMarshalPK(testctx *testContext, t *testing.T) {
 func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/EvaluationKey/", testctx.params), func(t *testing.T) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -806,7 +806,7 @@ func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
 func testMarshalSwitchingKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/SwitchingKey/", testctx.params), func(t *testing.T) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -835,7 +835,7 @@ func testMarshalSwitchingKey(testctx *testContext, t *testing.T) {
 func testMarshalRotKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/RotationKey/", testctx.params), func(t *testing.T) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 

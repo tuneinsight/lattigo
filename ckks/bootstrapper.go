@@ -507,7 +507,7 @@ func (btp *Bootstrapper) encodePVec(pVec map[uint64][]complex128, plaintextVec *
 		for _, i := range index[j] {
 
 			//  levels * n coefficients of 8 bytes each
-			btp.plaintextSize += 8 * N * (level + 1 + btp.params.PiCount())
+			btp.plaintextSize += 8 * N * (level + 1 + btp.params.PCount())
 
 			encoder.Embed(rotate(pVec[N1*j+uint64(i)], (N>>1)-(N1*j))[:btp.dslots], btp.logdslots)
 

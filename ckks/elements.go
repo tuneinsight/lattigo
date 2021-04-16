@@ -11,7 +11,7 @@ type Element struct {
 }
 
 func NewElement(params *Parameters, degree, level uint64, scale float64) *Element {
-	return &Element{*rlwe.NewElementAtLevel(params.RLWEParameters(), degree, level), scale}
+	return &Element{*rlwe.NewElementAtLevel(params, degree, level), scale}
 }
 
 func (el *Element) El() *Element {
@@ -40,7 +40,7 @@ func (el *Element) DivScale(scale float64) {
 
 // Resize resizes the degree of the target element.
 func (el *Element) Resize(params *Parameters, degree uint64) {
-	el.Element.Resize(params.RLWEParameters(), degree)
+	el.Element.Resize(params, degree)
 }
 
 func (el *Element) Copy(other *Element) {

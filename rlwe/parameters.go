@@ -26,15 +26,39 @@ const DefaultSigma = 3.2
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = 5
 
-type Parameters struct {
+type Parameters interface {
+	N() uint64
+	LogN() uint64
+	Sigma() float64
+	Q() []uint64
+	QCount() uint64
+	QBigInt() *big.Int
+	P() []uint64
+	PCount() uint64
+	PBigInt() *big.Int
+	QP() []uint64
+	QPCount() uint64
+	QPBigInt() *big.Int
+	LogQP() uint64
+	Alpha() uint64
+	Beta() uint64
+	RingQ() *ring.Ring
+	RingP() *ring.Ring
+	RingQP() *ring.Ring
+	GaloisElementForColumnRotationBy(k int) uint64
+	GaloisElementForRowRotation() uint64
+	GaloisElementsForRowInnerSum() (galEls []uint64)
+	InverseGaloisElement(galEl uint64) uint64
+}
+type ParametersStruct struct {
 	logN  uint64
 	qi    []uint64
 	pi    []uint64
 	sigma float64
 }
 
-func NewRLWEParameters(logn uint64, q, p []uint64, sigma float64) *Parameters { // TEMPORARY constructor
-	return &Parameters{
+func NewRLWEParameters(logn uint64, q, p []uint64, sigma float64) *ParametersStruct { // TEMPORARY constructor
+	return &ParametersStruct{
 		logN:  logn,
 		pi:    p,
 		qi:    q,
@@ -43,33 +67,33 @@ func NewRLWEParameters(logn uint64, q, p []uint64, sigma float64) *Parameters { 
 }
 
 // N returns the ring degree
-func (p *Parameters) N() uint64 {
+func (p *ParametersStruct) N() uint64 {
 	return 1 << p.logN
 }
 
 // LogN returns the log of the degree of the polynomial ring
-func (p *Parameters) LogN() uint64 {
+func (p *ParametersStruct) LogN() uint64 {
 	return p.logN
 }
 
 // Sigma returns standard deviation of the noise distribution
-func (p *Parameters) Sigma() float64 {
+func (p *ParametersStruct) Sigma() float64 {
 	return p.sigma
 }
 
 // Qi returns a new slice with the factors of the ciphertext modulus q
-func (p *Parameters) Q() []uint64 {
+func (p *ParametersStruct) Q() []uint64 {
 	qi := make([]uint64, len(p.qi))
 	copy(qi, p.qi)
 	return qi
 }
 
-// QiCount returns the number of factors of the ciphertext modulus Q
-func (p *Parameters) QiCount() uint64 {
+// QCount returns the number of factors of the ciphertext modulus Q
+func (p *ParametersStruct) QCount() uint64 {
 	return uint64(len(p.qi))
 }
 
-func (p *Parameters) QBigInt() *big.Int {
+func (p *ParametersStruct) QBigInt() *big.Int {
 	q := big.NewInt(1)
 	for _, qi := range p.qi {
 		q.Mul(q, new(big.Int).SetUint64(qi))
@@ -78,18 +102,18 @@ func (p *Parameters) QBigInt() *big.Int {
 }
 
 // Pi returns a new slice with the factors of the ciphertext modulus extension P
-func (p *Parameters) P() []uint64 {
+func (p *ParametersStruct) P() []uint64 {
 	pi := make([]uint64, len(p.pi))
 	copy(pi, p.pi)
 	return pi
 }
 
-// PiCount returns the number of factors of the ciphertext modulus extension P
-func (p *Parameters) PiCount() uint64 {
+// PCount returns the number of factors of the ciphertext modulus extension P
+func (p *ParametersStruct) PCount() uint64 {
 	return uint64(len(p.pi))
 }
 
-func (p *Parameters) PBigInt() *big.Int {
+func (p *ParametersStruct) PBigInt() *big.Int {
 	pInt := big.NewInt(1)
 	for _, pi := range p.pi {
 		pInt.Mul(pInt, new(big.Int).SetUint64(pi))
@@ -97,8 +121,7 @@ func (p *Parameters) PBigInt() *big.Int {
 	return pInt
 }
 
-// Pi returns a new slice with the factors of the ciphertext modulus extension P
-func (p *Parameters) QP() []uint64 {
+func (p *ParametersStruct) QP() []uint64 {
 	qp := make([]uint64, len(p.qi)+len(p.pi))
 	copy(qp, p.qi)
 	copy(qp[len(p.qi):], p.pi)
@@ -106,18 +129,18 @@ func (p *Parameters) QP() []uint64 {
 }
 
 // QPiCount returns the number of factors of the ciphertext modulus + the modulus extension P
-func (p *Parameters) QPCount() uint64 {
+func (p *ParametersStruct) QPCount() uint64 {
 	return uint64(len(p.qi) + len(p.pi))
 }
 
-func (p *Parameters) QPBigInt() *big.Int {
+func (p *ParametersStruct) QPBigInt() *big.Int {
 	pqInt := p.QBigInt()
 	pqInt.Mul(pqInt, p.PBigInt())
 	return pqInt
 }
 
 // LogQP returns the size of the extended modulus QP in bits
-func (p *Parameters) LogQP() uint64 {
+func (p *ParametersStruct) LogQP() uint64 {
 	tmp := ring.NewUint(1)
 	for _, qi := range p.qi {
 		tmp.Mul(tmp, ring.NewUint(qi))
@@ -129,20 +152,20 @@ func (p *Parameters) LogQP() uint64 {
 }
 
 // Alpha returns the number of moduli in in P
-func (p *Parameters) Alpha() uint64 {
-	return p.PiCount()
+func (p *ParametersStruct) Alpha() uint64 {
+	return p.PCount()
 }
 
 // Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
-func (p *Parameters) Beta() uint64 {
+func (p *ParametersStruct) Beta() uint64 {
 	if p.Alpha() != 0 {
-		return uint64(math.Ceil(float64(p.QiCount()) / float64(p.Alpha())))
+		return uint64(math.Ceil(float64(p.QCount()) / float64(p.Alpha())))
 	}
 
 	return 0
 }
 
-func (p *Parameters) RingQ() *ring.Ring {
+func (p *ParametersStruct) RingQ() *ring.Ring {
 	ringQ, err := ring.NewRing(p.N(), p.qi)
 	if err != nil {
 		panic(err) // Parameter type invariant
@@ -150,7 +173,7 @@ func (p *Parameters) RingQ() *ring.Ring {
 	return ringQ
 }
 
-func (p *Parameters) RingP() *ring.Ring {
+func (p *ParametersStruct) RingP() *ring.Ring {
 	if len(p.pi) == 0 {
 		return nil
 	}
@@ -161,7 +184,7 @@ func (p *Parameters) RingP() *ring.Ring {
 	return ringP
 }
 
-func (p *Parameters) RingQP() *ring.Ring {
+func (p *ParametersStruct) RingQP() *ring.Ring {
 	ringQP, err := ring.NewRing(p.N(), append(p.qi, p.pi...))
 	if err != nil {
 		panic(err) // Parameter type invariant
@@ -172,7 +195,7 @@ func (p *Parameters) RingQP() *ring.Ring {
 // GaloisElementForColumnRotationBy returns the galois element for plaintext
 // column rotations by k position to the left. Providing a negative k is
 // equivalent to a right rotation.
-func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
+func (p *ParametersStruct) GaloisElementForColumnRotationBy(k int) uint64 {
 	twoN := 1 << (p.logN + 1)
 	mask := twoN - 1
 	kRed := uint64(k & mask)
@@ -181,14 +204,14 @@ func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
 
 // GaloisElementForRowRotation returns the galois element for generating the row
 // rotation automorphism
-func (p *Parameters) GaloisElementForRowRotation() uint64 {
+func (p *ParametersStruct) GaloisElementForRowRotation() uint64 {
 	return (1 << (p.logN + 1)) - 1
 }
 
 // GaloisElementsForRowInnerSum returns a list of all galois elements required to
 // perform an InnerSum operation. This corresponds to all the left rotations by
 // k-positions where k is a power of two and the row-rotation element.
-func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
+func (p *ParametersStruct) GaloisElementsForRowInnerSum() (galEls []uint64) {
 	galEls = make([]uint64, p.logN+1, p.logN+1)
 	galEls[0] = p.GaloisElementForRowRotation()
 	for i := 0; i < int(p.logN)-1; i++ {
@@ -199,7 +222,7 @@ func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 
 // InverseGaloisElement takes a galois element and returns the galois element
 //  corresponding to the inverse automorphism
-func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
+func (p *ParametersStruct) InverseGaloisElement(galEl uint64) uint64 {
 	twoN := uint64(1 << (p.logN + 1))
 	return ring.ModExp(galEl, twoN-1, twoN)
 }

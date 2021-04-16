@@ -15,6 +15,6 @@ type CKGProtocol struct {
 func NewCKGProtocol(params *ckks.Parameters) *CKGProtocol {
 
 	ckg := new(CKGProtocol)
-	ckg.CKGProtocol = *drlwe.NewCKGProtocol(params.RLWEParameters())
+	ckg.CKGProtocol = *drlwe.NewCKGProtocol(params)
 	return ckg
 }

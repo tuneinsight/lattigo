@@ -197,7 +197,7 @@ func (keygen *keyGenerator) genrotKey(sk *ring.Poly, galEl uint64, swk *rlwe.Swi
 	skOut := keygen.polypool[1]
 
 	index := ring.PermuteNTTIndex(galEl, keygen.ringQP.N)
-	ring.PermuteNTTWithIndexLvl(keygen.params.QPiCount()-1, skIn, index, skOut)
+	ring.PermuteNTTWithIndexLvl(keygen.params.QPCount()-1, skIn, index, skOut)
 
 	keygen.newSwitchingKey(skIn, skOut, swk)
 
@@ -248,7 +248,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.Sw
 			}
 
 			// It handles the case where nb pj does not divide nb qi
-			if index >= keygen.params.QiCount() {
+			if index >= keygen.params.QCount() {
 				break
 			}
 		}

@@ -1314,8 +1314,8 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
 			require.Equal(t, ciphertextWant.Scale(), ciphertextTest.Scale())
 
-			for i := range ciphertextWant.value {
-				require.True(t, testContext.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]))
+			for i := range ciphertextWant.Value {
+				require.True(t, testContext.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
 			}
 		})
 
@@ -1333,7 +1333,7 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			require.Equal(t, ciphertext.Degree(), 0)
 			require.Equal(t, ciphertext.Level(), testContext.params.MaxLevel())
 			require.Equal(t, ciphertext.Scale(), testContext.params.Scale())
-			require.Equal(t, len(ciphertext.Value()), 1)
+			require.Equal(t, len(ciphertext.Value), 1)
 		})
 	})
 

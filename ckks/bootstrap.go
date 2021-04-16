@@ -94,13 +94,13 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 
 	ringQ := btp.evaluator.ringQ
 
-	ct.InvNTT(ringQ, ct.El())
+	ct.InvNTT(ringQ, &ct.Element.Element)
 
 	// Extend the ciphertext with zero polynomials.
-	for u := range ct.Value() {
-		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, btp.params.MaxLevel())...)
+	for u := range ct.Value {
+		ct.Value[u].Coeffs = append(ct.Value[u].Coeffs, make([][]uint64, btp.params.MaxLevel())...)
 		for i := 1; i < btp.params.MaxLevel()+1; i++ {
-			ct.Value()[u].Coeffs[i] = make([]uint64, btp.params.N())
+			ct.Value[u].Coeffs[i] = make([]uint64, btp.params.N())
 		}
 	}
 
@@ -109,26 +109,26 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 	bredparams := ringQ.BredParams
 
 	var coeff, qi uint64
-	for u := range ct.Value() {
+	for u := range ct.Value {
 
 		for j := 0; j < btp.params.N(); j++ {
 
-			coeff = ct.Value()[u].Coeffs[0][j]
+			coeff = ct.Value[u].Coeffs[0][j]
 
 			for i := 1; i < btp.params.MaxLevel()+1; i++ {
 
 				qi = ringQ.Modulus[i]
 
 				if coeff > (Q >> 1) {
-					ct.Value()[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
+					ct.Value[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
 				} else {
-					ct.Value()[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
+					ct.Value[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
 				}
 			}
 		}
 	}
 
-	ct.NTT(ringQ, ct.El())
+	ct.NTT(ringQ, &ct.Element.Element)
 
 	return ct
 }

@@ -13,15 +13,8 @@ type Ciphertext struct {
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
 func NewCiphertext(params *Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
 
-	ciphertext = &Ciphertext{&Element{}}
-
-	ciphertext.value = make([]*ring.Poly, degree+1)
-	for i := 0; i < degree+1; i++ {
-		ciphertext.value[i] = ring.NewPoly(params.N(), level+1)
-	}
-
-	ciphertext.scale = scale
-	ciphertext.isNTT = true
+	ciphertext = &Ciphertext{NewElement(params, degree, level, scale)}
+	ciphertext.Element.Element.IsNTT = true // TODO are Ciphertexts are NTT by default ?
 
 	return ciphertext
 }
@@ -37,8 +30,16 @@ func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level int,
 	sampler := ring.NewUniformSampler(prng, ringQ)
 	ciphertext = NewCiphertext(params, degree, level, scale)
 	for i := 0; i < degree+1; i++ {
-		sampler.Read(ciphertext.value[i])
+		sampler.Read(ciphertext.Value[i])
 	}
 
 	return ciphertext
+}
+
+func (ct *Ciphertext) Copy(ctp *Ciphertext) {
+	ct.Element.Copy(ctp.Element)
+}
+
+func (ct *Ciphertext) CopyNew() *Ciphertext {
+	return &Ciphertext{ct.Element.CopyNew()}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // Element is a generic type for ciphertext and plaintexts
@@ -133,4 +134,17 @@ func GetSmallestLargest(el0, el1 *Element) (smallest, largest *Element, sameDegr
 		return el0, el1, false
 	}
 	return el0, el1, true
+}
+
+// NewElementRandom creates a new rlwe.Element with random coefficients
+func PopulateElementRandom(prng utils.PRNG, params *Parameters, el *Element) {
+
+	ringQ, err := ring.NewRing(params.N(), params.qi)
+	if err != nil {
+		panic(err)
+	}
+	sampler := ring.NewUniformSampler(prng, ringQ)
+	for i := range el.Value {
+		sampler.Read(el.Value[i])
+	}
 }

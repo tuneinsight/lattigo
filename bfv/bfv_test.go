@@ -15,12 +15,12 @@ import (
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 
-func testString(opname string, p *Parameters) string {
-	return fmt.Sprintf("%sLogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.logN, p.LogQP(), p.Alpha(), p.Beta())
+func testString(opname string, p Parameters) string {
+	return fmt.Sprintf("%sLogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.LogN(), p.LogQP(), p.Alpha(), p.Beta())
 }
 
 type testContext struct {
-	params      *Parameters
+	params      Parameters
 	ringQ       *ring.Ring
 	ringQP      *ring.Ring
 	ringT       *ring.Ring
@@ -39,8 +39,6 @@ type testContext struct {
 
 func TestBFV(t *testing.T) {
 
-	var err error
-
 	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
@@ -52,8 +50,12 @@ func TestBFV(t *testing.T) {
 
 	for _, p := range defaultParams {
 
+		params, err := NewParametersFromParamDef(p)
+		if err != nil {
+			panic(err)
+		}
 		var testctx *testContext
-		if testctx, err = genTestParams(p); err != nil {
+		if testctx, err = genTestParams(params); err != nil {
 			panic(err)
 		}
 
@@ -68,26 +70,18 @@ func TestBFV(t *testing.T) {
 
 }
 
-func genTestParams(params *Parameters) (testctx *testContext, err error) {
+func genTestParams(params Parameters) (testctx *testContext, err error) {
 
 	testctx = new(testContext)
-	testctx.params = params.Copy()
+	testctx.params = params
 
 	if testctx.prng, err = utils.NewPRNG(); err != nil {
 		return nil, err
 	}
 
-	if testctx.ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
-		return nil, err
-	}
-
-	if testctx.ringQP, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
-		return nil, err
-	}
-
-	if testctx.ringT, err = ring.NewRing(params.N(), []uint64{params.t}); err != nil {
-		return nil, err
-	}
+	testctx.ringQ = params.RingQ()
+	testctx.ringQP = params.RingQP()
+	testctx.ringT = params.RingT()
 
 	testctx.uSampler = ring.NewUniformSampler(testctx.prng, testctx.ringT)
 	testctx.kgen = NewKeyGenerator(testctx.params)
@@ -107,13 +101,13 @@ func genTestParams(params *Parameters) (testctx *testContext, err error) {
 
 func testParameters(testctx *testContext, t *testing.T) {
 	t.Run("Parameters/NewParametersFromModuli/", func(t *testing.T) {
-		p, err := NewParametersFromModuli(testctx.params.logN, testctx.params.Moduli(), testctx.params.t)
+		p, err := NewParametersFromModuli(testctx.params.LogN(), testctx.params.Moduli(), testctx.params.T())
 		assert.NoError(t, err)
 		assert.True(t, p.Equals(testctx.params))
 	})
 
 	t.Run("Parameters/NewParametersFromLogModuli/", func(t *testing.T) {
-		p, err := NewParametersFromLogModuli(testctx.params.logN, testctx.params.LogModuli(), testctx.params.t)
+		p, err := NewParametersFromLogModuli(testctx.params.LogN(), testctx.params.LogModuli(), testctx.params.T())
 		assert.NoError(t, err)
 		assert.True(t, p.Equals(testctx.params))
 	})
@@ -195,7 +189,7 @@ func testEncoder(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Encoder/Encode&Decode/RingT/Int/", testctx.params), func(t *testing.T) {
 
-		T := testctx.params.t
+		T := testctx.params.T()
 		THalf := T >> 1
 		coeffs := testctx.uSampler.ReadNew()
 		coeffsInt := make([]int64, len(coeffs.Coeffs[0]))
@@ -221,7 +215,7 @@ func testEncoder(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Encoder/Encode&Decode/RingQ/Int/", testctx.params), func(t *testing.T) {
 
-		T := testctx.params.t
+		T := testctx.params.T()
 		THalf := T >> 1
 		coeffs := testctx.uSampler.ReadNew()
 		coeffsInt := make([]int64, len(coeffs.Coeffs[0]))
@@ -529,7 +523,7 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 
 		verifyTestVectors(testctx, testctx.decryptor, values1, receiver, t)
 
-		if testctx.params.logN < 13 {
+		if testctx.params.LogN() < 13 {
 			t.Skip()
 		}
 		receiver2 := NewCiphertext(testctx.params, receiver.Degree()+receiver.Degree())
@@ -683,7 +677,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 			sum += c
 		}
 
-		sum %= testctx.params.t
+		sum %= testctx.params.T()
 
 		for i := range values.Coeffs[0] {
 			values.Coeffs[0][i] = sum
@@ -703,19 +697,11 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 }
 
 func testMarshalParameters(testctx *testContext, t *testing.T) {
-	t.Run("Marshaller/Parameters/ZeroValue", func(t *testing.T) {
-		bytes, err := (&Parameters{}).MarshalBinary()
-		assert.Nil(t, err)
-		assert.Equal(t, []byte{}, bytes)
-		p := new(Parameters)
-		err = p.UnmarshalBinary(bytes)
-		assert.NotNil(t, err)
-	})
 
-	t.Run("Marshaller/Parameters/SupportedParams", func(t *testing.T) {
+	t.Run("Marshaller/Parameters", func(t *testing.T) {
 		bytes, err := testctx.params.MarshalBinary()
 		assert.Nil(t, err)
-		p := new(Parameters)
+		p := new(parameters)
 		err = p.UnmarshalBinary(bytes)
 		assert.Nil(t, err)
 		assert.Equal(t, testctx.params, p)

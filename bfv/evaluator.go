@@ -62,7 +62,7 @@ type evaluator struct {
 }
 
 type evaluatorBase struct {
-	params   *Parameters
+	params   Parameters
 	ringQ    *ring.Ring
 	ringP    *ring.Ring
 	ringQMul *ring.Ring
@@ -75,32 +75,26 @@ type evaluatorBase struct {
 	deltaMont []uint64
 }
 
-func newEvaluatorPrecomp(params *Parameters) *evaluatorBase {
+func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
 	var err error
 	ev := new(evaluatorBase)
 
-	ev.params = params.Copy()
+	ev.params = params
 
-	ev.t = params.t
+	ev.t = params.T()
 
-	if ev.ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
+	ev.ringQ = params.RingQ()
 
-	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), uint64(len(params.qi)))
-
+	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), params.QCount())
 	if ev.ringQMul, err = ring.NewRing(params.N(), qiMul); err != nil {
 		panic(err)
 	}
 
 	ev.pHalf = new(big.Int).Rsh(ev.ringQMul.ModulusBigint, 1)
-	ev.deltaMont = GenLiftParams(ev.ringQ, params.t)
+	ev.deltaMont = GenLiftParams(ev.ringQ, params.T())
 
-	if len(params.pi) != 0 {
-
-		if ev.ringP, err = ring.NewRing(params.N(), params.pi); err != nil {
-			panic(err)
-		}
+	if params.PCount() != 0 {
+		ev.ringP = params.RingP()
 		ev.decomposer = ring.NewDecomposer(ev.ringQ.Modulus, ev.ringP.Modulus)
 	}
 	return ev
@@ -141,12 +135,12 @@ func newEvaluatorBuffer(eval *evaluatorBase) *evaluatorBuffers {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a small pool of polynomials
 // and ciphertexts that will be used for intermediate values.
-func NewEvaluator(params *Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
+func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
 	ev := new(evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(params)
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
 	ev.baseconverterQ1Q2 = ring.NewFastBasisExtender(ev.ringQ, ev.ringQMul)
-	if len(params.pi) != 0 {
+	if params.PCount() != 0 {
 		ev.baseconverterQ1P = ring.NewFastBasisExtender(ev.ringQ, ev.ringP)
 	}
 	ev.rlk = evaluationKey.Rlk
@@ -155,7 +149,7 @@ func NewEvaluator(params *Parameters, evaluationKey rlwe.EvaluationKey) Evaluato
 }
 
 // NewEvaluators creates n evaluators sharing the same read-only data-structures.
-func NewEvaluators(params *Parameters, evaluationKey rlwe.EvaluationKey, n int) []Evaluator {
+func NewEvaluators(params Parameters, evaluationKey rlwe.EvaluationKey, n int) []Evaluator {
 	if n <= 0 {
 		return []Evaluator{}
 	}

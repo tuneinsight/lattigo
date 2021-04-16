@@ -18,7 +18,7 @@ type Decryptor interface {
 
 // decryptor is a structure used to decrypt ciphertexts. It stores the secret-key.
 type decryptor struct {
-	params   *Parameters
+	params   Parameters
 	ringQ    *ring.Ring
 	sk       *rlwe.SecretKey
 	polypool *ring.Poly
@@ -26,16 +26,12 @@ type decryptor struct {
 
 // NewDecryptor creates a new Decryptor from the parameters with the secret-key
 // given as input.
-func NewDecryptor(params *Parameters, sk *rlwe.SecretKey) Decryptor {
+func NewDecryptor(params Parameters, sk *rlwe.SecretKey) Decryptor {
 
-	var ringQ *ring.Ring
-	var err error
-	if ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
+	ringQ := params.RingQ()
 
 	return &decryptor{
-		params:   params.Copy(),
+		params:   params,
 		ringQ:    ringQ,
 		sk:       sk,
 		polypool: ringQ.NewPoly(),

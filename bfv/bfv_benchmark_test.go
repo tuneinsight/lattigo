@@ -7,9 +7,8 @@ import (
 )
 
 func BenchmarkBFV(b *testing.B) {
-	var err error
 
-	var defaultParams []*Parameters
+	var defaultParams []*ParametersDef
 
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
@@ -18,8 +17,10 @@ func BenchmarkBFV(b *testing.B) {
 	}
 
 	for _, p := range defaultParams {
+
+		params, err := NewParametersFromParamDef(p)
 		var testctx *testContext
-		if testctx, err = genTestParams(p); err != nil {
+		if testctx, err = genTestParams(params); err != nil {
 			panic(err)
 		}
 

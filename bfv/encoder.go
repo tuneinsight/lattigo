@@ -58,7 +58,7 @@ type Encoder interface {
 
 // Encoder is a structure that stores the parameters to encode values on a plaintext in a SIMD (Single-Instruction Multiple-Data) fashion.
 type encoder struct {
-	params *Parameters
+	params Parameters
 
 	ringQ *ring.Ring
 	ringT *ring.Ring
@@ -72,18 +72,10 @@ type encoder struct {
 }
 
 // NewEncoder creates a new encoder from the provided parameters.
-func NewEncoder(params *Parameters) Encoder {
+func NewEncoder(params Parameters) Encoder {
 
-	var ringQ, ringT *ring.Ring
-	var err error
-
-	if ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
-
-	if ringT, err = ring.NewRing(params.N(), []uint64{params.t}); err != nil {
-		panic(err)
-	}
+	ringQ := params.RingQ()
+	ringT := params.RingT()
 
 	var m, pos, index1, index2 uint64
 
@@ -110,12 +102,12 @@ func NewEncoder(params *Parameters) Encoder {
 	}
 
 	return &encoder{
-		params:      params.Copy(),
+		params:      params,
 		ringQ:       ringQ,
 		ringT:       ringT,
 		indexMatrix: indexMatrix,
-		deltaMont:   GenLiftParams(ringQ, params.t),
-		scaler:      ring.NewRNSScaler(params.t, ringQ),
+		deltaMont:   GenLiftParams(ringQ, params.T()),
+		scaler:      ring.NewRNSScaler(params.T(), ringQ),
 		tmpPoly:     ringT.NewPoly(),
 		tmpPtRt:     NewPlaintextRingT(params),
 	}
@@ -196,7 +188,7 @@ func (encoder *encoder) EncodeIntRingT(coeffs []int64, p *PlaintextRingT) {
 	for i := 0; i < len(coeffs); i++ {
 
 		if coeffs[i] < 0 {
-			p.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.params.t) + coeffs[i])
+			p.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.params.T()) + coeffs[i])
 		} else {
 			p.value.Coeffs[0][encoder.indexMatrix[i]] = uint64(coeffs[i])
 		}
@@ -333,7 +325,7 @@ func (encoder *encoder) DecodeInt(p interface{}, coeffs []int64) {
 
 	encoder.ringT.NTT(encoder.tmpPtRt.value, encoder.tmpPoly)
 
-	modulus := int64(encoder.params.t)
+	modulus := int64(encoder.params.T())
 	modulusHalf := modulus >> 1
 	var value int64
 	for i := uint64(0); i < encoder.ringQ.N; i++ {

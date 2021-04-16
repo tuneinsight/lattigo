@@ -58,7 +58,7 @@ type Encryptor interface {
 
 // encryptor is a structure that holds the parameters needed to encrypt plaintexts.
 type encryptor struct {
-	params   *Parameters
+	params   Parameters
 	ringQ    *ring.Ring
 	ringQP   *ring.Ring
 	polypool [3]*ring.Poly
@@ -84,36 +84,24 @@ type skEncryptor struct {
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func NewEncryptorFromPk(params *Parameters, pk *rlwe.PublicKey) Encryptor {
+func NewEncryptorFromPk(params Parameters, pk *rlwe.PublicKey) Encryptor {
 	return &pkEncryptor{newEncryptor(params), pk}
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func NewEncryptorFromSk(params *Parameters, sk *rlwe.SecretKey) Encryptor {
+func NewEncryptorFromSk(params Parameters, sk *rlwe.SecretKey) Encryptor {
 	return &skEncryptor{newEncryptor(params), sk}
 }
 
-func newEncryptor(params *Parameters) encryptor {
+func newEncryptor(params Parameters) encryptor {
 
-	var ringQ, ringQP *ring.Ring
-	var err error
-
-	if ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
-
-	if ringQP, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
-		panic(err)
-	}
+	ringQ := params.RingQ()
+	ringQP := params.RingQP()
 
 	var baseconverter *ring.FastBasisExtender
-	if len(params.pi) != 0 {
-		var ringP *ring.Ring
-		if ringP, err = ring.NewRing(params.N(), params.pi); err != nil {
-			panic(err)
-		}
-		baseconverter = ring.NewFastBasisExtender(ringQ, ringP)
+	if params.PCount() != 0 {
+		baseconverter = ring.NewFastBasisExtender(ringQ, params.RingP())
 	}
 
 	prng, err := utils.NewPRNG()
@@ -122,7 +110,7 @@ func newEncryptor(params *Parameters) encryptor {
 	}
 
 	return encryptor{
-		params:                     params.Copy(),
+		params:                     params,
 		ringQ:                      ringQ,
 		ringQP:                     ringQP,
 		polypool:                   [3]*ring.Poly{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()},

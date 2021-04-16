@@ -1,6 +1,7 @@
 package rlwe
 
 import (
+	"encoding"
 	"math"
 	"math/big"
 
@@ -49,6 +50,9 @@ type Parameters interface {
 	GaloisElementForRowRotation() uint64
 	GaloisElementsForRowInnerSum() (galEls []uint64)
 	InverseGaloisElement(galEl uint64) uint64
+
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
 }
 type ParametersStruct struct {
 	logN  uint64
@@ -58,12 +62,16 @@ type ParametersStruct struct {
 }
 
 func NewRLWEParameters(logn uint64, q, p []uint64, sigma float64) *ParametersStruct { // TEMPORARY constructor
-	return &ParametersStruct{
+
+	params := &ParametersStruct{
 		logN:  logn,
-		pi:    p,
-		qi:    q,
+		pi:    make([]uint64, len(p)),
+		qi:    make([]uint64, len(q)),
 		sigma: sigma,
 	}
+	copy(params.qi, q)
+	copy(params.pi, p)
+	return params
 }
 
 // N returns the ring degree

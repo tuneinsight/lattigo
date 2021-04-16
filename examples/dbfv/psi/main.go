@@ -163,7 +163,7 @@ func main() {
 
 }
 
-func encPhase(params *bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv.Encoder) (encInputs []*bfv.Ciphertext) {
+func encPhase(params *bfv.ParametersDef, P []*party, pk *rlwe.PublicKey, encoder bfv.Encoder) (encInputs []*bfv.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -190,7 +190,7 @@ func encPhase(params *bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bf
 	return
 }
 
-func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Ciphertext, rlk *rlwe.RelinearizationKey) (encRes *bfv.Ciphertext) {
+func evalPhase(params *bfv.ParametersDef, NGoRoutine int, encInputs []*bfv.Ciphertext, rlk *rlwe.RelinearizationKey) (encRes *bfv.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -261,7 +261,7 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Cipherte
 	return
 }
 
-func genparties(params *bfv.Parameters, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
+func genparties(params *bfv.ParametersDef, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := make([]*party, N)
@@ -275,7 +275,7 @@ func genparties(params *bfv.Parameters, N int, sampler *ring.TernarySampler, rin
 	return P
 }
 
-func genInputs(params *bfv.Parameters, P []*party) (expRes []uint64) {
+func genInputs(params *bfv.ParametersDef, P []*party) (expRes []uint64) {
 
 	expRes = make([]uint64, params.N())
 	for i := range expRes {
@@ -297,7 +297,7 @@ func genInputs(params *bfv.Parameters, P []*party) (expRes []uint64) {
 	return
 }
 
-func pcksPhase(params *bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertext, P []*party) (encOut *bfv.Ciphertext) {
+func pcksPhase(params *bfv.ParametersDef, tpk *rlwe.PublicKey, encRes *bfv.Ciphertext, P []*party) (encOut *bfv.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -332,7 +332,7 @@ func pcksPhase(params *bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Cipherte
 
 }
 
-func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -381,7 +381,7 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	return rlk
 }
 
-func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.PublicKey {
+func ckgphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 

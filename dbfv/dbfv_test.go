@@ -18,12 +18,12 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var parties uint64 = 3
 
-func testString(opname string, parties uint64, params *bfv.Parameters) string {
+func testString(opname string, parties uint64, params bfv.Parameters) string {
 	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN(), params.LogQP())
 }
 
 type testContext struct {
-	params *bfv.Parameters
+	params bfv.Parameters
 
 	dbfvContext *dbfvContext
 
@@ -48,8 +48,6 @@ type testContext struct {
 
 func Test_DBFV(t *testing.T) {
 
-	var err error
-
 	var defaultParams = bfv.DefaultParams[bfv.PN12QP109 : bfv.PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = bfv.DefaultParams[bfv.PN12QP109 : bfv.PN12QP109+2] // the short test runs for ring degree N=2^12, 2^13
@@ -59,8 +57,9 @@ func Test_DBFV(t *testing.T) {
 	}
 	for _, p := range defaultParams {
 
+		params, err := bfv.NewParametersFromParamDef(p)
 		var testCtx *testContext
-		if testCtx, err = gentestContext(p); err != nil {
+		if testCtx, err = gentestContext(params); err != nil {
 			panic(err)
 		}
 
@@ -77,11 +76,11 @@ func Test_DBFV(t *testing.T) {
 	}
 }
 
-func gentestContext(defaultParams *bfv.Parameters) (testCtx *testContext, err error) {
+func gentestContext(defaultParams bfv.Parameters) (testCtx *testContext, err error) {
 
 	testCtx = new(testContext)
 
-	testCtx.params = defaultParams.Copy()
+	testCtx.params = defaultParams
 
 	testCtx.dbfvContext = newDbfvContext(testCtx.params)
 

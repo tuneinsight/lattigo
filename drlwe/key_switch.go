@@ -48,7 +48,7 @@ func NewCKSProtocol(params *rlwe.Parameters, sigmaSmudging float64) *CKSProtocol
 	if err != nil {
 		panic(err)
 	}
-	cks.gaussianSampler = ring.NewGaussianSampler(prng, cks.ringQP, sigmaSmudging, uint64(6*sigmaSmudging))
+	cks.gaussianSampler = ring.NewGaussianSampler(prng, cks.ringQP, sigmaSmudging, int(6*sigmaSmudging))
 
 	cks.baseconverter = ring.NewFastBasisExtender(cks.ringQ, cks.ringP)
 
@@ -75,21 +75,21 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *ring.Poly, ct *rlwe.Element,
 
 func (cks *CKSProtocol) genShareDeltaBFV(skDelta *ring.Poly, ct *rlwe.Element, shareOut CKSShare) { // BFV
 
-	level := uint64(len(ct.Value()[1].Coeffs) - 1)
-	cks.ringQ.NTTLazy(ct.Value()[1], cks.tmpNtt)
+	level := len(ct.Value[1].Coeffs) - 1
+	cks.ringQ.NTTLazy(ct.Value[1], cks.tmpNtt)
 
 	cks.ringQ.MulCoeffsMontgomeryConstant(cks.tmpNtt, skDelta, shareOut.Value)
 	cks.ringQ.MulScalarBigint(shareOut.Value, cks.ringP.ModulusBigint, shareOut.Value)
 
 	cks.ringQ.InvNTTLazy(shareOut.Value, shareOut.Value)
 
-	cks.gaussianSampler.ReadLvl(uint64(len(cks.ringQP.Modulus)-1), cks.tmpNtt)
+	cks.gaussianSampler.ReadLvl(len(cks.ringQP.Modulus)-1, cks.tmpNtt)
 	cks.ringQ.AddNoMod(shareOut.Value, cks.tmpNtt, shareOut.Value)
 
 	for x, i := 0, uint64(len(cks.ringQ.Modulus)); i < uint64(len(cks.ringQP.Modulus)); x, i = x+1, i+1 {
 		tmphP := cks.hP.Coeffs[x]
 		tmpNTT := cks.tmpNtt.Coeffs[i]
-		for j := uint64(0); j < cks.ringQ.N; j++ {
+		for j := 0; j < cks.ringQ.N; j++ {
 			tmphP[j] += tmpNTT[j]
 		}
 	}
@@ -102,7 +102,7 @@ func (cks *CKSProtocol) genShareDeltaBFV(skDelta *ring.Poly, ct *rlwe.Element, s
 
 func (cks *CKSProtocol) genShareDeltaCKKS(skDelta *ring.Poly, ct *rlwe.Element, shareOut CKSShare) { // CKKS
 
-	cks.ringQ.MulCoeffsMontgomeryConstantLvl(ct.Level(), ct.Value()[1], skDelta, shareOut.Value)
+	cks.ringQ.MulCoeffsMontgomeryConstantLvl(ct.Level(), ct.Value[1], skDelta, shareOut.Value)
 	cks.ringQ.MulScalarBigintLvl(ct.Level(), shareOut.Value, cks.ringP.ModulusBigint, shareOut.Value)
 
 	cks.gaussianSampler.ReadLvl(ct.Level(), cks.tmpQ)
@@ -124,7 +124,7 @@ func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Pol
 	Q = ringQ.Modulus[0]
 	QHalf = Q >> 1
 
-	for j := uint64(0); j < ringQ.N; j++ {
+	for j := 0; j < ringQ.N; j++ {
 
 		coeff = polQ.Coeffs[0][j]
 

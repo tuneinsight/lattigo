@@ -497,7 +497,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		maxDepth := 0
 
-		ciphertextTmp := ciphertext.CopyNew().Ciphertext()
+		ciphertextTmp := ciphertext.CopyNew()
 		coeffsTmp := make([]uint64, len(coeffs))
 
 		copy(coeffsTmp, coeffs)
@@ -521,7 +521,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		// Simulated added error of size Q/(T^2) and add it to the fresh ciphertext
 		coeffsBigint := make([]*big.Int, testCtx.params.N())
-		testCtx.dbfvContext.ringQ.PolyToBigint(ciphertext.Value()[0], coeffsBigint)
+		testCtx.dbfvContext.ringQ.PolyToBigint(ciphertext.Value[0], coeffsBigint)
 
 		errorRange := new(big.Int).Set(testCtx.dbfvContext.ringQ.ModulusBigint)
 		errorRange.Quo(errorRange, testCtx.dbfvContext.ringT.ModulusBigint)
@@ -531,7 +531,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 			coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(errorRange))
 		}
 
-		testCtx.dbfvContext.ringQ.SetCoefficientsBigint(coeffsBigint, ciphertext.Value()[0])
+		testCtx.dbfvContext.ringQ.SetCoefficientsBigint(coeffsBigint, ciphertext.Value[0])
 
 		for i, p := range RefreshParties {
 			p.GenShares(p.s, ciphertext, crp, p.share)
@@ -604,9 +604,9 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 		}
 
 		// We refresh the ciphertext with the simulated error
-		P0.Decrypt(ciphertext, P0.share.RefreshShareDecrypt, P0.ptShare.Value()[0])      // Masked decryption
-		P0.Permute(P0.ptShare.Value()[0], permutation, P0.ptShare.Value()[0])            // Masked re-encoding
-		P0.Recrypt(P0.ptShare.Value()[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption$
+		P0.Decrypt(ciphertext, P0.share.RefreshShareDecrypt, P0.ptShare.Value[0])      // Masked decryption
+		P0.Permute(P0.ptShare.Value[0], permutation, P0.ptShare.Value[0])              // Masked re-encoding
+		P0.Recrypt(P0.ptShare.Value[0], crp, P0.share.RefreshShareRecrypt, ciphertext) // Masked re-encryption$
 
 		// The refresh also be called all at once with P0.Finalize(ciphertext, crp, P0.share, ctOut)
 

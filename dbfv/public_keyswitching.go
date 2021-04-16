@@ -143,7 +143,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *rlwe.PublicKey, ct *bfv.Ci
 	pcks.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, pcks.share1tmp, shareOut[1])
 
 	// tmp = s_i*c_1
-	ringQ.NTTLazy(ct.Value()[1], pcks.tmp)
+	ringQ.NTTLazy(ct.Value[1], pcks.tmp)
 	ringQ.MulCoeffsMontgomeryConstant(pcks.tmp, sk, pcks.tmp)
 	ringQ.InvNTT(pcks.tmp, pcks.tmp)
 
@@ -167,6 +167,6 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *bfv.Ciphertext) {
 
-	pcks.context.ringQ.Add(ct.Value()[0], combined[0], ctOut.Value()[0])
-	pcks.context.ringQ.Copy(combined[1], ctOut.Value()[1])
+	pcks.context.ringQ.Add(ct.Value[0], combined[0], ctOut.Value[0])
+	pcks.context.ringQ.Copy(combined[1], ctOut.Value[1])
 }

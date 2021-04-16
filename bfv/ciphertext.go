@@ -21,3 +21,7 @@ func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree uint64) (ci
 	rlwe.PopulateElementRandom(prng, params.RLWEParameters(), (*rlwe.Element)(ciphertext.Element))
 	return
 }
+
+func (ct *Ciphertext) CopyNew() *Ciphertext {
+	return &Ciphertext{ct.Element.CopyNew()}
+}

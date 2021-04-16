@@ -112,13 +112,13 @@ func (rfp *RefreshProtocol) AllocateShares() RefreshShare {
 // GenShares generates a share for the Refresh protocol.
 func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, share RefreshShare) {
 
-	level := uint64(len(ciphertext.Value()[1].Coeffs) - 1)
+	level := uint64(len(ciphertext.Value[1].Coeffs) - 1)
 
 	ringQ := rfp.context.ringQ
 	ringQP := rfp.context.ringQP
 
 	// h0 = s*ct[1]
-	ringQ.NTTLazy(ciphertext.Value()[1], rfp.tmp1)
+	ringQ.NTTLazy(ciphertext.Value[1], rfp.tmp1)
 	ringQ.MulCoeffsMontgomeryConstant(sk, rfp.tmp1, share.RefreshShareDecrypt)
 	ringQ.InvNTTLazy(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
 
@@ -171,7 +171,7 @@ func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
 
 // Decrypt operates a masked decryption on the input ciphertext using the provided decryption shares.
 func (rfp *RefreshProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt RefreshShareDecrypt, sharePlaintext *ring.Poly) {
-	rfp.context.ringQ.Add(ciphertext.Value()[0], shareDecrypt, sharePlaintext)
+	rfp.context.ringQ.Add(ciphertext.Value[0], shareDecrypt, sharePlaintext)
 }
 
 // Recode decodes and re-encode (removing the error) the masked decrypted ciphertext.
@@ -184,10 +184,10 @@ func (rfp *RefreshProtocol) Recode(sharePlaintext *ring.Poly, sharePlaintextOut 
 func (rfp *RefreshProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, shareRecrypt RefreshShareRecrypt, ciphertextOut *bfv.Ciphertext) {
 
 	// ciphertext[0] = (-crs*s + e')/P + m
-	rfp.context.ringQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value()[0])
+	rfp.context.ringQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value[0])
 
 	// ciphertext[1] = crs/P
-	rfp.baseconverter.ModDownPQ(uint64(len(ciphertextOut.Value()[1].Coeffs)-1), crs, ciphertextOut.Value()[1])
+	rfp.baseconverter.ModDownPQ(uint64(len(ciphertextOut.Value[1].Coeffs)-1), crs, ciphertextOut.Value[1])
 
 }
 

@@ -79,14 +79,14 @@ func (pp *PermuteProtocol) AllocateShares() RefreshShare {
 // GenShares generates the shares of the PermuteProtocol
 func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, permutation []uint64, share RefreshShare) {
 
-	level := uint64(len(ciphertext.Value()[1].Coeffs) - 1)
+	level := uint64(len(ciphertext.Value[1].Coeffs) - 1)
 
 	ringQ := pp.context.ringQ
 	ringT := pp.context.ringT
 	ringQP := pp.context.ringQP
 
 	// h0 = s*ct[1]
-	ringQ.NTTLazy(ciphertext.Value()[1], pp.tmp1)
+	ringQ.NTTLazy(ciphertext.Value[1], pp.tmp1)
 	ringQ.MulCoeffsMontgomeryConstant(sk, pp.tmp1, share.RefreshShareDecrypt)
 	ringQ.InvNTTLazy(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
 
@@ -155,7 +155,7 @@ func (pp *PermuteProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
 
 // Decrypt operates a masked decryption on the input ciphertext using the provided decryption shares.
 func (pp *PermuteProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt RefreshShareDecrypt, sharePlaintext *ring.Poly) {
-	pp.context.ringQ.Add(ciphertext.Value()[0], shareDecrypt, sharePlaintext)
+	pp.context.ringQ.Add(ciphertext.Value[0], shareDecrypt, sharePlaintext)
 }
 
 // Permute decodes and re-encode (removing the error) the masked decrypted ciphertext with a permutation of the plaintext slots.
@@ -178,10 +178,10 @@ func (pp *PermuteProtocol) Permute(sharePlaintext *ring.Poly, permutation []uint
 func (pp *PermuteProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, shareRecrypt RefreshShareRecrypt, ciphertextOut *bfv.Ciphertext) {
 
 	// ciphertext[0] = (-crs*s + e')/P + permute(m)
-	pp.context.ringQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value()[0])
+	pp.context.ringQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value[0])
 
 	// ciphertext[1] = crs/P
-	pp.baseconverter.ModDownPQ(uint64(len(ciphertextOut.Value()[1].Coeffs)-1), crs, ciphertextOut.Value()[1])
+	pp.baseconverter.ModDownPQ(uint64(len(ciphertextOut.Value[1].Coeffs)-1), crs, ciphertextOut.Value[1])
 
 }
 

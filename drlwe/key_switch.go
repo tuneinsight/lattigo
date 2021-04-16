@@ -75,8 +75,8 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *ring.Poly, ct *rlwe.Element,
 
 func (cks *CKSProtocol) genShareDeltaBFV(skDelta *ring.Poly, ct *rlwe.Element, shareOut CKSShare) { // BFV
 
-	level := uint64(len(ct.Value()[1].Coeffs) - 1)
-	cks.ringQ.NTTLazy(ct.Value()[1], cks.tmpNtt)
+	level := uint64(len(ct.Value[1].Coeffs) - 1)
+	cks.ringQ.NTTLazy(ct.Value[1], cks.tmpNtt)
 
 	cks.ringQ.MulCoeffsMontgomeryConstant(cks.tmpNtt, skDelta, shareOut.Value)
 	cks.ringQ.MulScalarBigint(shareOut.Value, cks.ringP.ModulusBigint, shareOut.Value)
@@ -102,7 +102,7 @@ func (cks *CKSProtocol) genShareDeltaBFV(skDelta *ring.Poly, ct *rlwe.Element, s
 
 func (cks *CKSProtocol) genShareDeltaCKKS(skDelta *ring.Poly, ct *rlwe.Element, shareOut CKSShare) { // CKKS
 
-	cks.ringQ.MulCoeffsMontgomeryConstantLvl(ct.Level(), ct.Value()[1], skDelta, shareOut.Value)
+	cks.ringQ.MulCoeffsMontgomeryConstantLvl(ct.Level(), ct.Value[1], skDelta, shareOut.Value)
 	cks.ringQ.MulScalarBigintLvl(ct.Level(), shareOut.Value, cks.ringP.ModulusBigint, shareOut.Value)
 
 	cks.gaussianSampler.ReadLvl(ct.Level(), cks.tmpQ)

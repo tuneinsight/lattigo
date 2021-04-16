@@ -1,6 +1,9 @@
 package bfv
 
-import "github.com/ldsec/lattigo/v2/utils"
+import (
+	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/ldsec/lattigo/v2/utils"
+)
 
 // Ciphertext is a *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
 type Ciphertext struct {
@@ -9,12 +12,12 @@ type Ciphertext struct {
 
 // NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
 func NewCiphertext(params *Parameters, degree uint64) (ciphertext *Ciphertext) {
-	return &Ciphertext{newCiphertextElement(params, degree)}
+	return &Ciphertext{(*Element)(rlwe.NewElement(params.RLWEParameters(), degree))}
 }
 
 // NewCiphertextRandom generates a new uniformly distributed ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree uint64) (ciphertext *Ciphertext) {
-	ciphertext = &Ciphertext{newCiphertextElement(params, degree)}
-	populateElementRandom(prng, params, ciphertext.Element)
+	ciphertext = &Ciphertext{(*Element)(rlwe.NewElement(params.RLWEParameters(), degree))}
+	populateElementRandom(prng, params, (*Element)(ciphertext.Element))
 	return
 }

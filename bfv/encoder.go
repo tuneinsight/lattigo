@@ -161,7 +161,7 @@ func (encoder *encoder) EncodeUintRingT(coeffs []uint64, p *PlaintextRingT) {
 
 // EncodeUint encodes an uint64 slice of size at most N on a plaintext.
 func (encoder *encoder) EncodeUint(coeffs []uint64, p *Plaintext) {
-	ptRt := &PlaintextRingT{p.Element, p.Element.value[0]}
+	ptRt := &PlaintextRingT{p.Element, p.Element.Value[0]}
 
 	// Encodes the values in RingT
 	encoder.EncodeUintRingT(coeffs, ptRt)
@@ -172,7 +172,7 @@ func (encoder *encoder) EncodeUint(coeffs []uint64, p *Plaintext) {
 
 func (encoder *encoder) EncodeUintMul(coeffs []uint64, p *PlaintextMul) {
 
-	ptRt := &PlaintextRingT{p.Element, p.Element.value[0]}
+	ptRt := &PlaintextRingT{p.Element, p.Element.Value[0]}
 
 	// Encodes the values in RingT
 	encoder.EncodeUintRingT(coeffs, ptRt)

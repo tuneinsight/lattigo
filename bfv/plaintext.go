@@ -29,7 +29,7 @@ type PlaintextMul Plaintext
 // Slower encoding and larger plaintext size
 func NewPlaintext(params *Parameters) *Plaintext {
 	plaintext := &Plaintext{newPlaintextElement(params), nil}
-	plaintext.value = plaintext.Element.value[0]
+	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }
 
@@ -38,7 +38,7 @@ func NewPlaintext(params *Parameters) *Plaintext {
 func NewPlaintextRingT(params *Parameters) *PlaintextRingT {
 
 	plaintext := &PlaintextRingT{newPlaintextRingTElement(params), nil}
-	plaintext.value = plaintext.Element.value[0]
+	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }
 
@@ -46,6 +46,6 @@ func NewPlaintextRingT(params *Parameters) *PlaintextRingT {
 // The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
 func NewPlaintextMul(params *Parameters) *PlaintextMul {
 	plaintext := &PlaintextMul{newPlaintextMulElement(params), nil}
-	plaintext.value = plaintext.Element.value[0]
+	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }

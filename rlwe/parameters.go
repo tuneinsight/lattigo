@@ -175,7 +175,7 @@ func (p *Parameters) RingQP() *ring.Ring {
 func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
 	twoN := 1 << (p.logN + 1)
 	mask := twoN - 1
-	kRed := uint64(k & mask)
+	kRed := k & mask
 	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
 }
 
@@ -200,6 +200,6 @@ func (p *Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 // InverseGaloisElement takes a galois element and returns the galois element
 //  corresponding to the inverse automorphism
 func (p *Parameters) InverseGaloisElement(galEl uint64) uint64 {
-	twoN := uint64(1 << (p.logN + 1))
-	return ring.ModExp(galEl, twoN-1, twoN)
+	twoN := 1 << (p.logN + 1)
+	return ring.ModExp(galEl, twoN-1, uint64(twoN))
 }

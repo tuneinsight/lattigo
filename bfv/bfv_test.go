@@ -733,8 +733,8 @@ func testMarshalCiphertext(testctx *testContext, t *testing.T) {
 		err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 		require.NoError(t, err)
 
-		for i := range ciphertextWant.value {
-			require.True(t, testctx.ringQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]))
+		for i := range ciphertextWant.Value {
+			require.True(t, testctx.ringQ.Equal(ciphertextWant.Value[i], ciphertextTest.Value[i]))
 		}
 	})
 }

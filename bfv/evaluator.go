@@ -225,7 +225,7 @@ func (eval *evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 
 	if el0.Degree() < el1.Degree() {
 		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
-			eval.ringQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
+			eval.ringQ.Neg(ctOut.Value[i], ctOut.Value[i])
 		}
 	}
 }
@@ -245,7 +245,7 @@ func (eval *evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 
 	if el0.Degree() < el1.Degree() {
 		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
-			eval.ringQ.Neg(ctOut.Value()[i], ctOut.Value()[i])
+			eval.ringQ.Neg(ctOut.Value[i], ctOut.Value[i])
 		}
 	}
 }
@@ -331,9 +331,9 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *Element) {
 
 func (eval *evaluator) modUpAndNTT(ct *Element, cQ, cQMul []*ring.Poly) {
 	levelQ := len(eval.ringQ.Modulus) - 1
-	for i := range ct.value {
-		eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct.value[i], cQMul[i])
-		eval.ringQ.NTTLazy(ct.value[i], cQ[i])
+	for i := range ct.Value {
+		eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct.Value[i], cQMul[i])
+		eval.ringQ.NTTLazy(ct.Value[i], cQ[i])
 		eval.ringQMul.NTTLazy(cQMul[i], cQMul[i])
 	}
 }
@@ -420,7 +420,7 @@ func (eval *evaluator) tensortLargeDeg(ct0, ct1 *Element) {
 		c00Q1 := eval.poolQ[3]
 		c00Q2 := eval.poolQmul[3]
 
-		for i := range ct0.value {
+		for i := range ct0.Value {
 			eval.ringQ.MForm(c0Q1[i], c00Q1[i])
 			eval.ringQMul.MForm(c0Q2[i], c00Q2[i])
 		}
@@ -442,10 +442,10 @@ func (eval *evaluator) tensortLargeDeg(ct0, ct1 *Element) {
 
 		// Normal case
 	} else {
-		for i := range ct0.value {
+		for i := range ct0.Value {
 			eval.ringQ.MForm(c0Q1[i], c0Q1[i])
 			eval.ringQMul.MForm(c0Q2[i], c0Q2[i])
-			for j := range ct1.value {
+			for j := range ct1.Value {
 				eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[i+j])
 				eval.ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[i+j])
 			}
@@ -463,7 +463,7 @@ func (eval *evaluator) quantize(ctOut *Element) {
 
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q
-	for i := range ctOut.value {
+	for i := range ctOut.Value {
 		eval.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
 		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
 
@@ -472,11 +472,11 @@ func (eval *evaluator) quantize(ctOut *Element) {
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
 		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
-		eval.baseconverterQ1Q2.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.value[i])
-		eval.ringQ.SubScalarBigint(ctOut.value[i], eval.pHalf, ctOut.value[i])
+		eval.baseconverterQ1Q2.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.Value[i])
+		eval.ringQ.SubScalarBigint(ctOut.Value[i], eval.pHalf, ctOut.Value[i])
 
 		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
-		eval.ringQ.MulScalar(ctOut.value[i], eval.t, ctOut.value[i])
+		eval.ringQ.MulScalar(ctOut.Value[i], eval.t, ctOut.Value[i])
 	}
 }
 
@@ -497,10 +497,10 @@ func (eval *evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
 }
 
 func (eval *evaluator) mulPlaintextMul(ct0 *Ciphertext, ptRt *PlaintextMul, ctOut *Ciphertext) {
-	for i := range ct0.value {
-		eval.ringQ.NTTLazy(ct0.value[i], ctOut.value[i])
-		eval.ringQ.MulCoeffsMontgomeryConstant(ctOut.value[i], ptRt.value, ctOut.value[i])
-		eval.ringQ.InvNTT(ctOut.value[i], ctOut.value[i])
+	for i := range ct0.Value {
+		eval.ringQ.NTTLazy(ct0.Value[i], ctOut.Value[i])
+		eval.ringQ.MulCoeffsMontgomeryConstant(ctOut.Value[i], ptRt.value, ctOut.Value[i])
+		eval.ringQ.InvNTT(ctOut.Value[i], ctOut.Value[i])
 	}
 }
 
@@ -510,18 +510,18 @@ func (eval *evaluator) mulPlaintextRingT(ct0 *Ciphertext, ptRt *PlaintextRingT, 
 	coeffs := ptRt.value.Coeffs[0]
 	coeffsNTT := eval.poolQ[0][0].Coeffs[0]
 
-	for i := range ct0.value {
+	for i := range ct0.Value {
 
 		// Copies the inputCT on the outputCT and switches to the NTT domain
-		eval.ringQ.NTTLazy(ct0.value[i], ctOut.value[i])
+		eval.ringQ.NTTLazy(ct0.Value[i], ctOut.Value[i])
 
 		// Switches the outputCT in the Montgomery domain
-		eval.ringQ.MForm(ctOut.value[i], ctOut.value[i])
+		eval.ringQ.MForm(ctOut.Value[i], ctOut.Value[i])
 
 		// For each qi in Q
 		for j := range ringQ.Modulus {
 
-			tmp := ctOut.value[i].Coeffs[j]
+			tmp := ctOut.Value[i].Coeffs[j]
 			qi := ringQ.Modulus[j]
 			nttPsi := ringQ.NttPsi[j]
 			bredParams := ringQ.BredParams[j]
@@ -548,7 +548,7 @@ func (eval *evaluator) mulPlaintextRingT(ct0 *Ciphertext, ptRt *PlaintextRingT, 
 		}
 
 		// Switches the ciphertext out of the NTT domain
-		eval.ringQ.InvNTT(ctOut.value[i], ctOut.value[i])
+		eval.ringQ.InvNTT(ctOut.Value[i], ctOut.Value[i])
 	}
 }
 
@@ -563,17 +563,17 @@ func (eval *evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext) 
 func (eval *evaluator) relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	if ctOut != ct0 {
-		eval.ringQ.Copy(ct0.value[0], ctOut.value[0])
-		eval.ringQ.Copy(ct0.value[1], ctOut.value[1])
+		eval.ringQ.Copy(ct0.Value[0], ctOut.Value[0])
+		eval.ringQ.Copy(ct0.Value[1], ctOut.Value[1])
 	}
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
-		eval.switchKeysInPlace(ct0.value[deg], eval.rlk.Keys[deg-2], eval.poolQKS[1], eval.poolQKS[2])
-		eval.ringQ.Add(ctOut.value[0], eval.poolQKS[1], ctOut.value[0])
-		eval.ringQ.Add(ctOut.value[1], eval.poolQKS[2], ctOut.value[1])
+		eval.switchKeysInPlace(ct0.Value[deg], eval.rlk.Keys[deg-2], eval.poolQKS[1], eval.poolQKS[2])
+		eval.ringQ.Add(ctOut.Value[0], eval.poolQKS[1], ctOut.Value[0])
+		eval.ringQ.Add(ctOut.Value[1], eval.poolQKS[2], ctOut.Value[1])
 	}
 
-	ctOut.SetValue(ctOut.value[:2])
+	ctOut.SetValue(ctOut.Value[:2])
 }
 
 // Relinearize relinearizes the ciphertext ct0 of degree > 1 until it is of degree 1, and returns the result in cOut.
@@ -625,10 +625,10 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey,
 		panic("cannot SwitchKeys: input and output must be of degree 1 to allow key switching")
 	}
 
-	eval.switchKeysInPlace(ct0.value[1], switchKey, eval.poolQKS[1], eval.poolQKS[2])
+	eval.switchKeysInPlace(ct0.Value[1], switchKey, eval.poolQKS[1], eval.poolQKS[2])
 
-	eval.ringQ.Add(ct0.value[0], eval.poolQKS[1], ctOut.value[0])
-	eval.ringQ.Copy(eval.poolQKS[2], ctOut.value[1])
+	eval.ringQ.Add(ct0.Value[0], eval.poolQKS[1], ctOut.Value[0])
+	eval.ringQ.Copy(eval.poolQKS[2], ctOut.Value[1])
 }
 
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
@@ -713,7 +713,7 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	for i := 1; i < int(eval.ringQ.N>>1); i <<= 1 {
 		eval.RotateColumns(ctOut, i, cTmp)
-		eval.Add(cTmp, ctOut, ctOut.Ciphertext())
+		eval.Add(cTmp, ctOut, ctOut)
 	}
 
 	eval.RotateRows(ctOut, cTmp)
@@ -723,12 +723,12 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, ctOut *Ciphertext) {
 // permute performs a column rotation on ct0 and returns the result in ctOut
 func (eval *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
 
-	eval.switchKeysInPlace(ct0.value[1], switchKey, eval.poolQKS[1], eval.poolQKS[2])
+	eval.switchKeysInPlace(ct0.Value[1], switchKey, eval.poolQKS[1], eval.poolQKS[2])
 
-	eval.ringQ.Add(eval.poolQKS[1], ct0.value[0], eval.poolQKS[1])
+	eval.ringQ.Add(eval.poolQKS[1], ct0.Value[0], eval.poolQKS[1])
 
-	eval.ringQ.Permute(eval.poolQKS[1], generator, ctOut.value[0])
-	eval.ringQ.Permute(eval.poolQKS[2], generator, ctOut.value[1])
+	eval.ringQ.Permute(eval.poolQKS[1], generator, ctOut.Value[0])
+	eval.ringQ.Permute(eval.poolQKS[2], generator, ctOut.Value[1])
 }
 
 // switchKeys applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
@@ -855,24 +855,24 @@ func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree i
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
 func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *Element, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	smallest, largest, _ := getSmallestLargest(el0, el1)
+	smallest, largest, _ := GetSmallestLargest(el0, el1)
 
 	for i := 0; i < smallest.Degree()+1; i++ {
-		evaluate(el0.value[i], el1.value[i], elOut.value[i])
+		evaluate(el0.Value[i], el1.Value[i], elOut.Value[i])
 	}
 
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
 	if largest != nil && largest != elOut { // checks to avoid unnecessary work.
 		for i := smallest.Degree() + 1; i < largest.Degree()+1; i++ {
-			elOut.value[i].Copy(largest.value[i])
+			elOut.Value[i].Copy(largest.Value[i])
 		}
 	}
 }
 
 // evaluateInPlaceUnary applies the provided function in place on el0 and returns the result in elOut.
 func evaluateInPlaceUnary(el0, elOut *Element, evaluate func(*ring.Poly, *ring.Poly)) {
-	for i := range el0.value {
-		evaluate(el0.value[i], elOut.value[i])
+	for i := range el0.Value {
+		evaluate(el0.Value[i], elOut.Value[i])
 	}
 }
 

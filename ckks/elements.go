@@ -50,7 +50,7 @@ func (el *Element) Resize(params *Parameters, degree int) {
 
 func (el *Element) Copy(other *Element) {
 	el.Element.Copy(&other.Element)
-	el.scale = el.scale
+	el.scale = other.scale
 }
 
 func (el *Element) CopyNew() *Element {

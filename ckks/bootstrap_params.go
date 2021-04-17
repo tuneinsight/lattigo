@@ -3,7 +3,7 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/v2/utils"
 	"math"
-	"fmt"
+	//"fmt"
 )
 
 // SinType is the type of function used during the bootstrapping
@@ -343,14 +343,14 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			Qi: []uint64{
 				0x100000000060001, // 58 CtS
 				0xfffffffff00001,  // 58 CtS
-				//0xffffffffd80001,  // 58 CtS
-				//0x1000000002a0001, // 58 CtS
+				0xffffffffd80001,  // 58 CtS
+				0x1000000002a0001, // 58 CtS
 			},
 			ScalingFactor: [][]float64{
 				{0x100000000060001},
 				{0xfffffffff00001},
-				//{0xffffffffd80001},
-				//{0x1000000002a0001},
+				{0xffffffffd80001},
+				{0x1000000002a0001},
 			},
 		},
 		H:            192,
@@ -770,7 +770,7 @@ func fftInvPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [
 
 func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, pow5 []int, diffscale complex128, inverse bool) (plainVector []map[int][]complex128) {
 
-	bitreversed := true
+	bitreversed := false
 
 	var fftLevel, depth, nextfftLevel int
 
@@ -856,19 +856,21 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 		}
 	}
 
-	for j := range plainVector {
-		for x := 0; x < 1<<logSlots; x++{
-			if plainVector[j][x] != nil{
-				fmt.Printf("%d :", x)
-				for i := range plainVector[j][x] {
-					fmt.Printf("%0.4f", plainVector[j][x][i])
+	/*
+		for j := range plainVector {
+			for x := 0; x < 1<<logSlots; x++{
+				if plainVector[j][x] != nil{
+					fmt.Printf("%d :", x)
+					for i := range plainVector[j][x] {
+						fmt.Printf("%0.4f", plainVector[j][x][i])
+					}
+					fmt.Printf("\n")
 				}
-				fmt.Printf("\n")
+
 			}
-			
+			fmt.Printf("\n")
 		}
-		fmt.Printf("\n")
-	}
+	*/
 
 	return
 }
@@ -877,7 +879,7 @@ func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, forward, bitreve
 
 	var rot int
 
-	if forward && !bitreversed || !forward && bitreversed{
+	if forward && !bitreversed || !forward && bitreversed {
 		rot = 1 << (fftLevel - 1)
 	} else {
 		rot = 1 << (logL - fftLevel)
@@ -885,10 +887,16 @@ func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, forward, bitreve
 
 	vectors = make(map[int][]complex128)
 
-	if bitreversed{
+	if bitreversed {
 		sliceBitReverseInPlaceComplex128(a, 1<<logL)
 		sliceBitReverseInPlaceComplex128(b, 1<<logL)
 		sliceBitReverseInPlaceComplex128(c, 1<<logL)
+
+		if len(a) > 1<<logL {
+			sliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
+			sliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
+			sliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
+		}
 	}
 
 	addToDiagMatrix(vectors, 0, a)
@@ -925,31 +933,79 @@ func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLe
 
 	newVec = make(map[int][]complex128)
 
-	if forward && !bitreversed || !forward && bitreversed{
+	if forward && !bitreversed || !forward && bitreversed {
 		rot = (1 << (nextLevel - 1)) & (N - 1)
 	} else {
 		rot = (1 << (logL - nextLevel)) & (N - 1)
 	}
 
-	if bitreversed{
-		sliceBitReverseInPlaceComplex128(a[:1<<logL], 1<<logL)
-		sliceBitReverseInPlaceComplex128(b[:1<<logL], 1<<logL)
-		sliceBitReverseInPlaceComplex128(c[:1<<logL], 1<<logL)
+	if bitreversed {
+		sliceBitReverseInPlaceComplex128(a, 1<<logL)
+		sliceBitReverseInPlaceComplex128(b, 1<<logL)
+		sliceBitReverseInPlaceComplex128(c, 1<<logL)
 
-		if 1<<logL < N{
+		if len(a) > 1<<logL {
 			sliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
 			sliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
 			sliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
 		}
 	}
 
-	fmt.Println(nextLevel, rot)
+	/*
+		fmt.Printf("W[%d]\n", nextLevel)
+		for x := 0; x < 1<<logL; x++{
+			if vec[x] != nil{
+				fmt.Printf("%d :", x)
+				for i := range vec[x] {
+					fmt.Printf("%0.4f", vec[x][i])
+				}
+				fmt.Printf("\n")
+			}
+
+		}
+		fmt.Printf("\n")
+
+		fmt.Printf("W[%d]\n", nextLevel-1)
+		fmt.Printf("%d :", 0)
+		for i := range a {
+			fmt.Printf("%0.4f", a[i])
+		}
+		fmt.Printf("\n")
+
+		fmt.Printf("%d :", rot)
+		for i := range b {
+			fmt.Printf("%0.4f", b[i])
+		}
+		fmt.Printf("\n")
+
+		fmt.Printf("%d :", N-rot)
+		for i := range c {
+			fmt.Printf("%0.4f", c[i])
+		}
+		fmt.Printf("\n")
+		fmt.Println()
+	*/
 
 	for i := range vec {
 		addToDiagMatrix(newVec, i, mul(vec[i], a))
 		addToDiagMatrix(newVec, (i+rot)&(N-1), mul(rotate(vec[i], rot), b))
 		addToDiagMatrix(newVec, (i-rot)&(N-1), mul(rotate(vec[i], -rot), c))
 	}
+
+	/*
+		fmt.Printf("W[%d] x W[%d]\n", nextLevel, nextLevel-1)
+		for x := 0; x < 1<<logL; x++{
+			if newVec[x] != nil{
+				fmt.Printf("%d :", x)
+				for i := range newVec[x] {
+					fmt.Printf("%0.4f", newVec[x][i])
+				}
+				fmt.Printf("\n")
+			}
+
+		}
+		fmt.Printf("\n")
+	*/
 
 	return
 }

@@ -381,7 +381,7 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 				rotations = append(rotations, j)
 			}
 		}
-	}else{
+	} else {
 		var index int
 		for j := range pVec {
 
@@ -451,6 +451,8 @@ func (keygen *keyGenerator) GenRotationIndexesForBootstrapping(logSlots int, btp
 
 func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward bool) (rotationMap []map[int]bool) {
 
+	bitreversed := false
+
 	var level, depth, nextLevel int
 
 	level = logSlots
@@ -485,23 +487,23 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward bool)
 			rotationMap[i] = genWfftRepackIndexMap(logSlots, level)
 
 			// Merges this special initial matrix with the first layer of SlotsToCoeffs DFT
-			rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, level, forward)
+			rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, level, forward, bitreversed)
 
 			// Continues the merging with the next layers if the total depth requires it.
 			nextLevel = level - 1
 			for j := 0; j < merge[i]-1; j++ {
-				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, nextLevel, forward)
+				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, nextLevel, forward, bitreversed)
 				nextLevel--
 			}
 
 		} else {
 			// First layer of the i-th level of the DFT
-			rotationMap[i] = genWfftIndexMap(logSlots, level, forward)
+			rotationMap[i] = genWfftIndexMap(logSlots, level, forward, bitreversed)
 
 			// Merges the layer with the next levels of the DFT if the total depth requires it.
 			nextLevel = level - 1
 			for j := 0; j < merge[i]-1; j++ {
-				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 1<<logSlots, nextLevel, forward)
+				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 1<<logSlots, nextLevel, forward, bitreversed)
 				nextLevel--
 			}
 		}
@@ -512,11 +514,11 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward bool)
 	return
 }
 
-func genWfftIndexMap(logL, level int, forward bool) (vectors map[int]bool) {
+func genWfftIndexMap(logL, level int, forward, bitreversed bool) (vectors map[int]bool) {
 
 	var rot int
 
-	if forward {
+	if forward && !bitreversed || !forward && bitreversed {
 		rot = 1 << (level - 1)
 	} else {
 		rot = 1 << (logL - level)
@@ -536,13 +538,13 @@ func genWfftRepackIndexMap(logL, level int) (vectors map[int]bool) {
 	return
 }
 
-func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, forward bool) (newVec map[int]bool) {
+func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, forward, bitreversed bool) (newVec map[int]bool) {
 
 	var rot int
 
 	newVec = make(map[int]bool)
 
-	if forward {
+	if forward && !bitreversed || !forward && bitreversed {
 		rot = (1 << (nextLevel - 1)) & (N - 1)
 	} else {
 		rot = (1 << (logL - nextLevel)) & (N - 1)

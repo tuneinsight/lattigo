@@ -9,14 +9,18 @@ import (
 )
 
 // Dot computes the dot product of two decomposed polynomials in R_QP^d and store the result in res
-func Dot(p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, res *ring.Poly, r *ring.Ring) {
+func Dot(p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ring) *ring.Poly {
 	if len(p1.poly) != len(p2.poly) {
 		panic("Cannot compute dot product on vectors of different size !")
 	}
 
+	res := r.NewPoly()
+
 	for l := uint64(0); l < uint64(len(p1.poly)); l++ {
 		r.MulCoeffsMontgomeryAndAdd(p1.poly[l], p2.poly[l], res)
 	}
+
+	return res
 }
 
 // MergeSlices merges two slices of uint64 and places the result in s3

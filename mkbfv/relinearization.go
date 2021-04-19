@@ -115,25 +115,23 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 		res[i] = ringQ.NewPoly()
 	}
 	cipherParts := ciphertexts.ciphertexts.Value()
-	tmpC0 := ringQP.NewPoly()
-	tmpCi := ringQP.NewPoly()
-	tmpIJ := ringQP.NewPoly()
+
 	for i := uint64(1); i <= k; i++ {
 		di0 := evaluationKeys[i-1].key[0]
 		di1 := evaluationKeys[i-1].key[1]
 		di2 := evaluationKeys[i-1].key[2]
 		for j := uint64(1); j <= k; j++ {
-			cIJDoublePrime := ringQP.NewPoly()
+
 			decomposedIJ := GInverse(cipherParts[i*(k+1)+j], params)
-			Dot(decomposedIJ, publicKeys[j-1].key[0], cIJDoublePrime, ringQP) // line 3
+			cIJDoublePrime := Dot(decomposedIJ, publicKeys[j-1].key[0], ringQP) // line 3
 			cIJPrime := ringQ.NewPoly()
 			baseconverter.ModDownPQ(levelQ, cIJDoublePrime, cIJPrime) // line 4
 			decomposedTmp := GInverse(cIJPrime, params)               // inverse and matrix mult (line 5)
-			Dot(decomposedTmp, di0, tmpC0, ringQP)
-			Dot(decomposedTmp, di1, tmpCi, ringQP)
+			tmpC0 := Dot(decomposedTmp, di0, ringQP)
+			tmpCi := Dot(decomposedTmp, di1, ringQP)
 			ringQP.Add(restmp[0], tmpC0, restmp[0])
 			ringQP.Add(restmp[i], tmpCi, restmp[i])
-			Dot(decomposedIJ, di2, tmpIJ, ringQP) // line 6 of algorithm
+			tmpIJ := Dot(decomposedIJ, di2, ringQP) // line 6 of algorithm
 			ringQP.Add(restmp[j], tmpIJ, restmp[j])
 		}
 	}

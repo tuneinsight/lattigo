@@ -92,14 +92,6 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 	}
 
 	cipherParts := ciphertexts.ciphertexts.Value()
-	tmpC0Q := ringQ.NewPoly()
-	tmpC0P := ringP.NewPoly()
-
-	tmpCiQ := ringQ.NewPoly()
-	tmpCiP := ringP.NewPoly()
-
-	tmpIJQ := ringQ.NewPoly()
-	tmpIJP := ringP.NewPoly()
 
 	for i := uint64(1); i <= k; i++ {
 
@@ -109,23 +101,22 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 
 		for j := uint64(1); j <= k; j++ {
 
-			cIJtmpQ := ringQ.NewPoly()
-			cIJtmpP := ringP.NewPoly()
 			decomposedIJQ, decomposedIJP := GInverse(cipherParts[i*(k+1)+j], params) // line 3
 
-			DotLvl(level, decomposedIJQ, publicKeys[j-1].key[0], cIJtmpQ, ringQ)
-			Dot(decomposedIJP, publicKeys[j-1].key[0], cIJtmpP, ringP)
+			cIJtmpQ := DotLvl(level, decomposedIJQ, publicKeys[j-1].key[0], ringQ)
+			cIJtmpP := Dot(decomposedIJP, publicKeys[j-1].key[0], ringP)
+
 			cIJPrime := ringQ.NewPoly()
 
 			baseconverter.ModDownSplitNTTPQ(level, cIJtmpQ, cIJtmpP, cIJPrime) // line 4
 
 			decomposedTmpQ, decomposedTmpP := GInverse(cIJPrime, params) // inverse and matrix mult (line 5)
 
-			DotLvl(level, decomposedTmpQ, di0, tmpC0Q, ringQ)
-			Dot(decomposedTmpP, di0, tmpC0P, ringP)
+			tmpC0Q := DotLvl(level, decomposedTmpQ, di0, ringQ)
+			tmpC0P := Dot(decomposedTmpP, di0, ringP)
 
-			DotLvl(level, decomposedTmpQ, di1, tmpCiQ, ringQ)
-			Dot(decomposedTmpP, di1, tmpCiP, ringP)
+			tmpCiQ := DotLvl(level, decomposedTmpQ, di1, ringQ)
+			tmpCiP := Dot(decomposedTmpP, di1, ringP)
 
 			ringQ.AddLvl(level, restmpQ[0], tmpC0Q, restmpQ[0])
 			ringQ.AddLvl(level, restmpQ[i], tmpCiQ, restmpQ[i])
@@ -137,13 +128,14 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 			ringP.Reduce(restmpP[0], restmpP[0])
 			ringP.Reduce(restmpP[i], restmpP[i])
 
-			DotLvl(level, decomposedIJQ, di2, tmpIJQ, ringQ) // line 6 of algorithm
-			Dot(decomposedIJP, di2, tmpIJP, ringP)
+			tmpIJQ := DotLvl(level, decomposedIJQ, di2, ringQ) // line 6 of algorithm
+			tmpIJP := Dot(decomposedIJP, di2, ringP)
 
 			ringQ.AddLvl(level, restmpQ[j], tmpIJQ, restmpQ[j])
 			ringP.Add(restmpP[j], tmpIJP, restmpP[j])
 			ringP.Reduce(restmpP[j], restmpP[j])
 			ringQ.ReduceLvl(level, restmpQ[j], restmpQ[j])
+
 		}
 	}
 

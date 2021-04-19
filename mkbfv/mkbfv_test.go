@@ -500,7 +500,6 @@ func Test_Dot(t *testing.T) {
 
 		// perform dot product in the plaintext space : multiply (pt1,pt2) by (1,1) and compare with Add(pt1,pt2)
 
-		dotExpected := ringT.NewPoly()
 		decomposedPoly1 := NewDecomposedPoly(ringT, 2)
 		decomposedPoly1.poly[0] = p1
 		decomposedPoly1.poly[1] = p2
@@ -514,7 +513,7 @@ func Test_Dot(t *testing.T) {
 		decomposedPoly2.poly[0] = p3 // set equal to 1
 		decomposedPoly2.poly[1] = p3 // set equal to 1
 
-		Dot(decomposedPoly1, decomposedPoly2, dotExpected, ringT)
+		dotExpected := Dot(decomposedPoly1, decomposedPoly2, ringT)
 
 		if !equalsSlice(dotExpected.Coeffs[0], expected.Coeffs[0]) {
 			t.Error("Dot error")

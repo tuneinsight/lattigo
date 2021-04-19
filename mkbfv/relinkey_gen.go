@@ -6,7 +6,7 @@ import (
 )
 
 // Convert creates a switching key K_ij from the evaluation key of the i-th peer and the public key of the j-th peer.
-func Convert(D *MKEvaluationKey, publicKey *MKPublicKey, params *bfv.Parameters) *MKSwitchingKey {
+/*func Convert(D *MKEvaluationKey, publicKey *MKPublicKey, params *bfv.Parameters) *MKSwitchingKey {
 
 	ringQP := GetRingQP(params)
 	res := NewMKSwitchingKey(ringQP, params)
@@ -62,7 +62,7 @@ func GenSharedRelinearizationKey(params *bfv.Parameters, pubKeys []*MKPublicKey,
 	}
 
 	return res
-}
+}*/
 
 // GInverse is a method that returns the decomposition of a polynomial from R_qp to R_qp^beta
 func GInverse(p *ring.Poly, params *bfv.Parameters) *MKDecomposedPoly {

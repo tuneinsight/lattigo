@@ -33,9 +33,9 @@ func Test_MKCKKS(t *testing.T) {
 			testMulPlaintext(t, p)
 			testMulPlaintextTwoParticipants(t, p)
 			testAddInPlace(t, p)
-			//testSquare(t, p)
-			//testMul(t, p)
-			//testMulFourParticipants(t, p)
+			/*testSquare(t, p)
+			testMul(t, p)
+			testMulFourParticipants(t, p)*/
 		}
 	}
 

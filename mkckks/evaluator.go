@@ -210,7 +210,7 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 	tmp2 := ringQ.NewPoly()
 
 	for i, v1 := range el1.Value() {
-
+		
 		ringQ.MFormLvl(level, v1, tmp1)
 
 		for j, v2 := range el2.Value() {
@@ -227,7 +227,7 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 	return out
 }
 
-// Rescale takes a ciphertext at level l reduces it until it reaches its original 
+// Rescale takes a ciphertext at level l reduces it until it reaches its original
 // this function is the same as in ckks/evaluator.go
 func (eval *mkEvaluator) Rescale(c *MKCiphertext, out *MKCiphertext) {
 

@@ -71,7 +71,7 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 // It does relin directly by linearizing each entry of the extended ciphertext and stores it in cPrime (of size k+1)
 // There are (k+1)**2 ciphertexts, and k pairs of (evaluation keys Di,bi)
 func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, ciphertexts *MKCiphertext, params *ckks.Parameters) {
-	ringQP := GetRingQP(params)
+
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
 
@@ -92,29 +92,29 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 	}
 
 	cipherParts := ciphertexts.ciphertexts.Value()
-	tmpC0Q := ringQP.NewPoly()
-	tmpC0P := ringQP.NewPoly()
+	tmpC0Q := ringQ.NewPoly()
+	tmpC0P := ringP.NewPoly()
 
-	tmpCiQ := ringQP.NewPoly()
-	tmpCiP := ringQP.NewPoly()
+	tmpCiQ := ringQ.NewPoly()
+	tmpCiP := ringP.NewPoly()
 
-	tmpIJQ := ringQP.NewPoly()
-	tmpIJP := ringQP.NewPoly()
+	tmpIJQ := ringQ.NewPoly()
+	tmpIJP := ringP.NewPoly()
 
-	for i := uint64(1); i < k; i++ {
+	for i := uint64(1); i <= k; i++ {
 
 		di0 := evaluationKeys[i-1].key[0]
 		di1 := evaluationKeys[i-1].key[1]
 		di2 := evaluationKeys[i-1].key[2]
 
-		for j := uint64(1); j < k; j++ {
+		for j := uint64(1); j <= k; j++ {
 
 			cIJtmpQ := ringQ.NewPoly()
 			cIJtmpP := ringP.NewPoly()
 			decomposedIJQ, decomposedIJP := GInverse(cipherParts[i*(k+1)+j], params) // line 3
 
-			DotLvl(level, decomposedIJQ, publicKeys[j].key[0], cIJtmpQ, ringQ)
-			Dot(decomposedIJP, publicKeys[j].key[0], cIJtmpP, ringP)
+			DotLvl(level, decomposedIJQ, publicKeys[j-1].key[0], cIJtmpQ, ringQ)
+			Dot(decomposedIJP, publicKeys[j-1].key[0], cIJtmpP, ringP)
 			cIJPrime := ringQ.NewPoly()
 
 			baseconverter.ModDownSplitNTTPQ(level, cIJtmpQ, cIJtmpP, cIJPrime) // line 4

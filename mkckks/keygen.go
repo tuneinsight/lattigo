@@ -196,8 +196,8 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *ckks.Parameters, p2 *MKDecompos
 			p0tmp := p1.Coeffs[index]
 			p1tmp := p2.poly[i].Coeffs[index]
 
-			for w := uint64(0); w < params.N(); w++ {
-				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi) // TODO: confirm code in next meeting (code review)
+			for w := uint64(0); w < ringQP.N; w++ {
+				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 			}
 
 			// Handles the case where nb pj does not divide nb qi

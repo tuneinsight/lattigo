@@ -2,8 +2,10 @@ package rlwe
 
 import (
 	"encoding"
+	"fmt"
 	"math"
 	"math/big"
+	"math/bits"
 
 	"github.com/ldsec/lattigo/v2/ring"
 )
@@ -43,6 +45,10 @@ type Parameters interface {
 	LogQP() uint64
 	Alpha() uint64
 	Beta() uint64
+
+	Moduli() *Moduli
+	LogModuli() *LogModuli
+
 	RingQ() *ring.Ring
 	RingP() *ring.Ring
 	RingQP() *ring.Ring
@@ -59,6 +65,42 @@ type ParametersStruct struct {
 	qi    []uint64
 	pi    []uint64
 	sigma float64
+}
+
+// Moduli stores the NTT primes of the RNS representation.
+type Moduli struct {
+	Qi []uint64 // Ciphertext prime moduli
+	Pi []uint64 // Keys additional prime moduli
+}
+
+// Copy creates a copy of the target Moduli.
+func (m *Moduli) Copy() Moduli {
+
+	qi := make([]uint64, len(m.Qi))
+	copy(qi, m.Qi)
+
+	pi := make([]uint64, len(m.Pi))
+	copy(pi, m.Pi)
+
+	return Moduli{qi, pi}
+}
+
+// LogModuli stores the bit-length of the NTT primes of the RNS representation.
+type LogModuli struct {
+	LogQi []uint64 // Ciphertext prime moduli bit-size
+	LogPi []uint64 // Keys additional prime moduli bit-size
+}
+
+// Copy creates a copy of the target LogModuli.
+func (m *LogModuli) Copy() LogModuli {
+
+	LogQi := make([]uint64, len(m.LogQi))
+	copy(LogQi, m.LogQi)
+
+	LogPi := make([]uint64, len(m.LogPi))
+	copy(LogPi, m.LogPi)
+
+	return LogModuli{LogQi, LogPi}
 }
 
 func NewRLWEParameters(logn uint64, q, p []uint64, sigma float64) *ParametersStruct { // TEMPORARY constructor
@@ -173,6 +215,30 @@ func (p *ParametersStruct) Beta() uint64 {
 	return 0
 }
 
+// LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
+func (p *ParametersStruct) LogModuli() (lm *LogModuli) {
+	lm = new(LogModuli)
+	lm.LogQi = make([]uint64, len(p.Q()))
+	for i := range p.Q() {
+		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.Q()[i]))))
+	}
+	lm.LogPi = make([]uint64, len(p.P()))
+	for i := range p.P() {
+		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.P()[i]))))
+	}
+	return
+}
+
+// Moduli returns a struct Moduli with the moduli of the parameters
+func (p *ParametersStruct) Moduli() (m *Moduli) {
+	m = new(Moduli)
+	m.Qi = make([]uint64, len(p.Q()))
+	copy(m.Qi, p.Q())
+	m.Pi = make([]uint64, len(p.P()))
+	copy(m.Pi, p.P())
+	return
+}
+
 func (p *ParametersStruct) RingQ() *ring.Ring {
 	ringQ, err := ring.NewRing(p.N(), p.qi)
 	if err != nil {
@@ -233,4 +299,110 @@ func (p *ParametersStruct) GaloisElementsForRowInnerSum() (galEls []uint64) {
 func (p *ParametersStruct) InverseGaloisElement(galEl uint64) uint64 {
 	twoN := uint64(1 << (p.logN + 1))
 	return ring.ModExp(galEl, twoN-1, twoN)
+}
+
+func CheckModuli(m *Moduli, logN uint64) error {
+
+	if len(m.Qi) > MaxModuliCount {
+		return fmt.Errorf("#Qi is larger than %d", MaxModuliCount)
+	}
+
+	if len(m.Pi) > MaxModuliCount {
+		return fmt.Errorf("#Pi is larger than %d", MaxModuliCount)
+	}
+
+	for i, qi := range m.Qi {
+		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
+			return fmt.Errorf("Qi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
+		}
+	}
+
+	for i, pi := range m.Pi {
+		if uint64(bits.Len64(pi)-1) > MaxModuliSize+2 {
+			return fmt.Errorf("Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
+		}
+	}
+
+	N := uint64(1 << logN)
+
+	for i, qi := range m.Qi {
+		if !ring.IsPrime(qi) || qi&((N<<1)-1) != 1 {
+			return fmt.Errorf("Qi (i=%d) is not an NTT prime", i)
+		}
+	}
+
+	for i, pi := range m.Pi {
+		if !ring.IsPrime(pi) || pi&((N<<1)-1) != 1 {
+			return fmt.Errorf("Pi (i=%d) is not an NTT prime", i)
+		}
+	}
+
+	return nil
+}
+
+func CheckLogModuli(m *LogModuli) error {
+
+	// Checks if the parameters are empty
+	if m.LogQi == nil || len(m.LogQi) == 0 {
+		return fmt.Errorf("nil or empty slice provided as LogModuli.LogQi")
+	}
+
+	if len(m.LogQi) > MaxModuliCount {
+		return fmt.Errorf("#LogQi is larger than %d", MaxModuliCount)
+	}
+
+	if len(m.LogPi) > MaxModuliCount {
+		return fmt.Errorf("#LogPi is larger than %d", MaxModuliCount)
+	}
+
+	for i, qi := range m.LogQi {
+		if qi > MaxModuliSize {
+			return fmt.Errorf("LogQi (i=%d) is larger than %d", i, MaxModuliSize)
+		}
+	}
+
+	for i, pi := range m.LogPi {
+		if pi > MaxModuliSize+1 {
+			return fmt.Errorf("LogPi (i=%d) is larger than %d", i, MaxModuliSize)
+		}
+	}
+
+	return nil
+}
+
+func GenModuli(lm *LogModuli, logN uint64) (m *Moduli) {
+
+	m = new(Moduli)
+
+	// Extracts all the different primes bit size and maps their number
+	primesbitlen := make(map[uint64]uint64)
+	for _, qi := range lm.LogQi {
+		primesbitlen[qi]++
+	}
+
+	for _, pj := range lm.LogPi {
+		primesbitlen[pj]++
+	}
+
+	// For each bit-size, finds that many primes
+	primes := make(map[uint64][]uint64)
+	for key, value := range primesbitlen {
+		primes[key] = ring.GenerateNTTPrimes(key, 2<<logN, value)
+	}
+
+	// Assigns the primes to the CKKS moduli chain
+	m.Qi = make([]uint64, len(lm.LogQi))
+	for i, qi := range lm.LogQi {
+		m.Qi[i] = primes[qi][0]
+		primes[qi] = primes[qi][1:]
+	}
+
+	// Assigns the primes to the special primes list for the extended ring
+	m.Pi = make([]uint64, len(lm.LogPi))
+	for i, pj := range lm.LogPi {
+		m.Pi[i] = primes[pj][0]
+		primes[pj] = primes[pj][1:]
+	}
+
+	return m
 }

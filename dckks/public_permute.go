@@ -20,7 +20,7 @@ type PermuteProtocol struct {
 }
 
 // NewPermuteProtocol creates a new instance of the PermuteProtocol.
-func NewPermuteProtocol(params *ckks.ParametersStruct) (pp *PermuteProtocol) {
+func NewPermuteProtocol(params ckks.Parameters) (pp *PermuteProtocol) {
 
 	prec := uint64(256)
 

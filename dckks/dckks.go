@@ -6,7 +6,7 @@ import (
 )
 
 type dckksContext struct {
-	params *ckks.ParametersStruct
+	params ckks.Parameters
 
 	n uint64
 
@@ -18,7 +18,7 @@ type dckksContext struct {
 	beta  uint64
 }
 
-func newDckksContext(params *ckks.ParametersStruct) (context *dckksContext) {
+func newDckksContext(params ckks.Parameters) (context *dckksContext) {
 
 	context = new(dckksContext)
 

@@ -23,7 +23,7 @@ type RefreshShareDecrypt *ring.Poly
 type RefreshShareRecrypt *ring.Poly
 
 // NewRefreshProtocol creates a new instance of the Refresh protocol.
-func NewRefreshProtocol(params *ckks.ParametersStruct) (refreshProtocol *RefreshProtocol) {
+func NewRefreshProtocol(params ckks.Parameters) (refreshProtocol *RefreshProtocol) {
 
 	refreshProtocol = new(RefreshProtocol)
 	dckksContext := newDckksContext(params)

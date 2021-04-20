@@ -34,8 +34,8 @@ func TestBootstrap(t *testing.T) {
 
 		// Insecure params for fast testing only
 		if !*flagLongTest {
-			paramsDef.logN = 14
-			paramsDef.logSlots = 13
+			paramsDef.LogN = 14
+			paramsDef.LogSlots = 13
 		}
 
 		params, err := NewParametersFromParamDef(paramsDef)

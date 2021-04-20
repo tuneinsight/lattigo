@@ -362,6 +362,14 @@ func CheckModuli(m *Moduli, logN uint64) error {
 	return nil
 }
 
+func (p *ParametersStruct) MarshalBinary() ([]byte, error) {
+	panic("not implemented")
+}
+
+func (p *ParametersStruct) UnmarshalBinary([]byte) error {
+	panic("not implemented")
+}
+
 func CheckLogModuli(m *LogModuli) error {
 
 	// Checks if the parameters are empty

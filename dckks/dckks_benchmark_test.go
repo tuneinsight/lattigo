@@ -11,9 +11,7 @@ import (
 
 func BenchmarkDCKKS(b *testing.B) {
 
-	var err error
-
-	var defaultParams []*ckks.ParametersStruct
+	var defaultParams []*ckks.ParametersDef
 
 	if testing.Short() {
 		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+3]
@@ -22,8 +20,14 @@ func BenchmarkDCKKS(b *testing.B) {
 	}
 
 	for _, p := range defaultParams {
+
+		params, err := ckks.NewParametersFromParamDef(p)
+		if err != nil {
+			panic(err)
+		}
+
 		var testCtx *testContext
-		if testCtx, err = genTestParams(p); err != nil {
+		if testCtx, err = genTestParams(params); err != nil {
 			panic(err)
 		}
 

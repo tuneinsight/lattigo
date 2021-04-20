@@ -18,8 +18,8 @@ func chebyshevinterpolation() {
 	// and approximates the function 1/(exp(-x) + 1) over the range [-8, 8].
 	// The result is then parsed and compared to the expected result.
 
-	// Scheme params
-	params := ckks.DefaultParams[ckks.PN14QP438]
+	// Scheme params are taken directly from the proposed defaults
+	params := ckks.GetDefaultParameters(ckks.PN14QP438)
 
 	encoder := ckks.NewEncoder(params)
 

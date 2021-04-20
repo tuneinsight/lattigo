@@ -78,9 +78,9 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 
 		// e + sk_in * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
-		for j := 0; j < rtg.params.Alpha(); j++ {
+		for j := 0; j < rtg.params.PCount(); j++ {
 
-			index = i*rtg.params.Alpha() + j
+			index = i*rtg.params.PCount() + j
 
 			qi := rtg.ringQP.Modulus[index]
 			tmp0 := rtg.tmpPoly[0].Coeffs[index]

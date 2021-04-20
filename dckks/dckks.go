@@ -26,7 +26,7 @@ func newDckksContext(params *ckks.ParametersStruct) (context *dckksContext) {
 
 	context.n = params.N()
 
-	context.alpha = params.Alpha()
+	context.alpha = params.PCount()
 	context.beta = params.Beta()
 
 	context.ringQ = params.RingQ()

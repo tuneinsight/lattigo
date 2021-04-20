@@ -21,18 +21,14 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 var minPrec float64 = 15.0
 var parties int = 3
 
-<<<<<<< HEAD
-func testString(opname string, parties int, params *ckks.Parameters) string {
-=======
-func testString(opname string, parties uint64, params *ckks.ParametersStruct) string {
->>>>>>> working rlwe.Parameter-based ckks.Parameters
+func testString(opname string, parties int, params *ckks.ParametersStruct) string {
 	return fmt.Sprintf("%sparties=%d/logN=%d/logQ=%d/levels=%d/alpha=%d/beta=%d",
 		opname,
 		parties,
 		params.LogN(),
 		params.LogQP(),
 		params.MaxLevel()+1,
-		params.Alpha(),
+		params.PCount(),
 		params.Beta())
 }
 

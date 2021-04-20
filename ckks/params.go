@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 
+	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -165,11 +167,13 @@ var DefaultParams = []*ParametersDef{
 type Parameters interface {
 	rlwe.Parameters
 
+	LogQLvl(level int) int
+	LogSlots() int
 	MaxLevel() int
 	MaxLogSlots() int
-	Slots() int
-	LogSlots() int
+	QLvl(level int) *big.Int
 	Scale() float64
+	Slots() int
 }
 
 type ParametersDef struct {
@@ -219,6 +223,17 @@ func NewParametersFromLogModuli(logN int, lm *rlwe.LogModuli, sigma float64, log
 
 	// If LogModuli is valid and then generates the moduli
 	return NewParametersFromModuli(logN, rlwe.GenModuli(lm, logN), sigma, logSlots, scale)
+}
+
+func GetDefaultParameters(paramsId int) *ParametersStruct {
+	if paramsId >= len(DefaultParams) {
+		panic(fmt.Errorf("paramsId %d does not exist", paramsId))
+	}
+	params, err := NewParametersFromParamDef(DefaultParams[paramsId])
+	if err != nil {
+		panic(err)
+	}
+	return params
 }
 
 // // NewPolyQ returns a new empty polynomial of degree 2^LogN in basis Qi.
@@ -381,20 +396,20 @@ func (p *ParametersStruct) Scale() float64 {
 // 	return uint64(tmp.BitLen())
 // }
 
-// // LogQLvl returns the size of the modulus Q in bits at a specific level
-// func (p *ParametersStruct) LogQLvl(level uint64) uint64 {
-// 	tmp := p.QLvl(level)
-// 	return uint64(tmp.BitLen())
-// }
+// LogQLvl returns the size of the modulus Q in bits at a specific level
+func (p *ParametersStruct) LogQLvl(level int) int {
+	tmp := p.QLvl(level)
+	return tmp.BitLen()
+}
 
-// // QLvl returns the product of the moduli at the given level as a big.Int
-// func (p *ParametersStruct) QLvl(level uint64) *big.Int {
-// 	tmp := ring.NewUint(1)
-// 	for _, qi := range p.qi[:level+1] {
-// 		tmp.Mul(tmp, ring.NewUint(qi))
-// 	}
-// 	return tmp
-// }
+// QLvl returns the product of the moduli at the given level as a big.Int
+func (p *ParametersStruct) QLvl(level int) *big.Int {
+	tmp := ring.NewUint(1)
+	for _, qi := range p.Q()[:level+1] {
+		tmp.Mul(tmp, ring.NewUint(qi))
+	}
+	return tmp
+}
 
 // // LogQ returns the size of the modulus Q in bits
 // func (p *ParametersStruct) LogQ() uint64 {
@@ -525,18 +540,6 @@ func (p *ParametersStruct) Scale() float64 {
 // 	copy(paramsCopy.pi, p.pi)
 // 	return
 // }
-
-// QiOverflowMargin returns floor(2^64 / max(Qi)), i.e. the number of times elements of Z_max{Qi} can
-// be added together before overflowing 2^64.
-func (p *ParametersStruct) QiOverflowMargin(level int) int {
-	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.Q()[:level+1])))
-}
-
-// PiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can
-// be added together before overflowing 2^64.
-func (p *ParametersStruct) PiOverflowMargin() int {
-	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.P())))
-}
 
 // Equals compares two sets of parameters for equality.
 func (p *ParametersStruct) Equals(other Parameters) (res bool) {

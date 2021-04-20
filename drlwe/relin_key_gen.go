@@ -86,8 +86,8 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp []*ring.Poly, e
 		ekg.ringQP.NTT(shareOut.value[i][0], shareOut.value[i][0])
 
 		// h = sk*CrtBaseDecompQi + e
-		for j := 0; j < ekg.params.Alpha(); j++ {
-			index := i*ekg.params.Alpha() + j
+		for j := 0; j < ekg.params.PCount(); j++ {
+			index := i*ekg.params.PCount() + j
 			qi := ekg.ringQP.Modulus[index]
 			skP := ekg.tmpPoly1.Coeffs[index]
 			h := shareOut.value[i][0].Coeffs[index]

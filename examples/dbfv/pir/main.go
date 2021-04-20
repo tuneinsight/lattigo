@@ -101,7 +101,13 @@ func main() {
 	// Index of the ciphertext to retrieve.
 	queryIndex := 2
 
-	params := bfv.DefaultParams[bfv.PN13QP218].WithT(65537) // Default params with N=8192
+	// Creating encryption parameters from a default params with N=8192
+	paramsDef := bfv.DefaultParams[bfv.PN13QP218]
+	paramsDef.T = 65537
+	params, err := bfv.NewParametersFromParamDef(paramsDef)
+	if err != nil {
+		panic(err)
+	}
 
 	// PRNG keyed with "lattigo"
 	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
@@ -110,7 +116,7 @@ func main() {
 	}
 
 	// Ring for the common reference polynomials sampling
-	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Q(), params.P()...))
+	ringQP := params.RingQP()
 
 	// Common reference polynomial generator that uses the PRNG
 	crsGen := ring.NewUniformSampler(lattigoPRNG, ringQP)
@@ -193,7 +199,7 @@ func main() {
 		elapsedCKGParty+elapsedRKGParty+elapsedRTGParty+elapsedEncryptParty+elapsedRequestParty+elapsedPCKSParty+elapsedDecParty)
 }
 
-func cksphase(params *bfv.ParametersDef, P []*party, result *bfv.Ciphertext) *bfv.Ciphertext {
+func cksphase(params bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.Ciphertext {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> CKS Phase")
@@ -204,7 +210,7 @@ func cksphase(params *bfv.ParametersDef, P []*party, result *bfv.Ciphertext) *bf
 		pi.cksShare = cks.AllocateShare()
 	}
 
-	zero := params.NewPolyQ()
+	zero := params.RingQ().NewPoly()
 	cksCombined := cks.AllocateShare()
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P[1:] {
@@ -224,7 +230,7 @@ func cksphase(params *bfv.ParametersDef, P []*party, result *bfv.Ciphertext) *bf
 	return encOut
 }
 
-func genparties(params *bfv.ParametersDef, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
+func genparties(params bfv.Parameters, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
 
 	P := make([]*party, N)
 
@@ -245,7 +251,7 @@ func genparties(params *bfv.ParametersDef, N int, sampler *ring.TernarySampler, 
 	return P
 }
 
-func ckgphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party) *rlwe.PublicKey {
+func ckgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -280,7 +286,7 @@ func ckgphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party
 	return pk
 }
 
-func rkgphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -329,7 +335,7 @@ func rkgphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party
 	return rlk
 }
 
-func rtkphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party) *rlwe.RotationKeySet {
+func rtkphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.RotationKeySet {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -370,7 +376,7 @@ func rtkphase(params *bfv.ParametersDef, crsGen *ring.UniformSampler, P []*party
 	return rotKeySet
 }
 
-func genquery(params *bfv.ParametersDef, queryIndex int, encoder bfv.Encoder, encryptor bfv.Encryptor) *bfv.Ciphertext {
+func genquery(params bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryptor bfv.Encryptor) *bfv.Ciphertext {
 	// Query ciphertext
 	queryCoeffs := make([]uint64, params.N())
 	queryCoeffs[queryIndex] = 1
@@ -384,7 +390,7 @@ func genquery(params *bfv.ParametersDef, queryIndex int, encoder bfv.Encoder, en
 	return encQuery
 }
 
-func requestphase(params *bfv.ParametersDef, queryIndex, NGoRoutine int, encQuery *bfv.Ciphertext, encInputs []*bfv.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *rlwe.RelinearizationKey, rtk *rlwe.RotationKeySet) *bfv.Ciphertext {
+func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *bfv.Ciphertext, encInputs []*bfv.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *rlwe.RelinearizationKey, rtk *rlwe.RotationKeySet) *bfv.Ciphertext {
 
 	l := log.New(os.Stderr, "", 0)
 

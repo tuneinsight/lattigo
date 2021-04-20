@@ -18,11 +18,7 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var parties int = 3
 
-<<<<<<< HEAD
-func testString(opname string, parties int, params *bfv.Parameters) string {
-=======
-func testString(opname string, parties uint64, params bfv.Parameters) string {
->>>>>>> working first draft of bfv.Parameter based on rlwe.Parameter
+func testString(opname string, parties int, params bfv.Parameters) string {
 	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN(), params.LogQP())
 }
 

@@ -41,73 +41,73 @@ type Parameters interface {
 var DefaultParams = []*ParametersDef{
 
 	{
-		logN:  12,
-		t:     65537,
-		qi:    []uint64{0x7ffffec001, 0x8000016001}, // 39 + 39 bits
-		pi:    []uint64{0x40002001},                 // 30 bits
-		sigma: rlwe.DefaultSigma,
+		LogN:  12,
+		T:     65537,
+		Q:     []uint64{0x7ffffec001, 0x8000016001}, // 39 + 39 bits
+		P:     []uint64{0x40002001},                 // 30 bits
+		Sigma: rlwe.DefaultSigma,
 	},
 
 	{
-		logN:  13,
-		t:     65537,
-		qi:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
-		pi:    []uint64{0x7ffffffffb4001},                                     // 55 bits
-		sigma: rlwe.DefaultSigma,
+		LogN:  13,
+		T:     65537,
+		Q:     []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
+		P:     []uint64{0x7ffffffffb4001},                                     // 55 bits
+		Sigma: rlwe.DefaultSigma,
 	},
 
 	{
-		logN: 14,
-		t:    65537,
-		qi: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
+		LogN: 14,
+		T:    65537,
+		Q: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
 			0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
-		pi:    []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
-		sigma: rlwe.DefaultSigma,
+		P:     []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
+		Sigma: rlwe.DefaultSigma,
 	},
 
 	{
-		logN: 15,
-		t:    65537,
-		qi: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
+		LogN: 15,
+		T:    65537,
+		Q: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
 			0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
 			0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
 			0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
-		pi:    []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
-		sigma: rlwe.DefaultSigma,
+		P:     []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
+		Sigma: rlwe.DefaultSigma,
 	},
 
 	{ // LogQP = 101.00005709794536
-		logN:  12,
-		t:     65537,
-		qi:    []uint64{0x800004001, 0x800008001}, // 2*35
-		pi:    []uint64{0x80014001},               // 1*31
-		sigma: rlwe.DefaultSigma,
+		LogN:  12,
+		T:     65537,
+		Q:     []uint64{0x800004001, 0x800008001}, // 2*35
+		P:     []uint64{0x80014001},               // 1*31
+		Sigma: rlwe.DefaultSigma,
 	},
 
 	{ // LogQP = 201.99999999994753
-		logN:  13,
-		t:     65537,
-		qi:    []uint64{0x7fffffffe0001, 0x7fffffffcc001, 0x3ffffffffc001}, // 2*51 + 50
-		pi:    []uint64{0x4000000024001},                                   // 50
-		sigma: rlwe.DefaultSigma,
+		LogN:  13,
+		T:     65537,
+		Q:     []uint64{0x7fffffffe0001, 0x7fffffffcc001, 0x3ffffffffc001}, // 2*51 + 50
+		P:     []uint64{0x4000000024001},                                   // 50
+		Sigma: rlwe.DefaultSigma,
 	},
 
 	{ // LogQP = 410.9999999999886
-		logN:  14,
-		t:     65537,
-		qi:    []uint64{0x7fffffffff18001, 0x8000000000f8001, 0x7ffffffffeb8001, 0x800000000158001, 0x7ffffffffe70001}, // 5*59
-		pi:    []uint64{0x7ffffffffe10001, 0x400000000068001},                                                          // 59+58
-		sigma: rlwe.DefaultSigma,
+		LogN:  14,
+		T:     65537,
+		Q:     []uint64{0x7fffffffff18001, 0x8000000000f8001, 0x7ffffffffeb8001, 0x800000000158001, 0x7ffffffffe70001}, // 5*59
+		P:     []uint64{0x7ffffffffe10001, 0x400000000068001},                                                          // 59+58
+		Sigma: rlwe.DefaultSigma,
 	},
 
 	{ // LogQP = 826.9999999999509
-		logN: 15,
-		t:    65537,
-		qi: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, 0x7ffffffffba0001, 0x8000000004a0001,
+		LogN: 15,
+		T:    65537,
+		Q: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, 0x7ffffffffba0001, 0x8000000004a0001,
 			0x7ffffffffb00001, 0x800000000890001, 0x8000000009d0001, 0x7ffffffff630001, 0x800000000a70001,
 			0x7ffffffff510001}, // 11*59
-		pi:    []uint64{0x800000000b80001, 0x800000000bb0001, 0xffffffffffc0001}, // 2*59+60
-		sigma: rlwe.DefaultSigma,
+		P:     []uint64{0x800000000b80001, 0x800000000bb0001, 0xffffffffffc0001}, // 2*59+60
+		Sigma: rlwe.DefaultSigma,
 	},
 }
 
@@ -118,20 +118,20 @@ type parameters struct {
 
 // ParametersDef represents a given parameter set for the BFV cryptosystem.
 type ParametersDef struct {
-	logN  uint64 // Log Ring degree (power of 2)
-	qi    []uint64
-	pi    []uint64
-	t     uint64  // Plaintext modulus
-	sigma float64 // Gaussian sampling standard deviation
+	LogN  uint64 // Log Ring degree (power of 2)
+	Q     []uint64
+	P     []uint64
+	T     uint64  // Plaintext modulus
+	Sigma float64 // Gaussian sampling standard deviation
 }
 
 func NewParametersFromParamDef(paramDef *ParametersDef) (*parameters, error) {
 	m := new(rlwe.Moduli)
-	m.Qi = make([]uint64, len(paramDef.qi))
-	copy(m.Qi, paramDef.qi)
-	m.Pi = make([]uint64, len(paramDef.pi))
-	copy(m.Pi, paramDef.pi)
-	return NewParametersFromModuli(paramDef.logN, m, paramDef.t)
+	m.Qi = make([]uint64, len(paramDef.Q))
+	copy(m.Qi, paramDef.Q)
+	m.Pi = make([]uint64, len(paramDef.P))
+	copy(m.Pi, paramDef.P)
+	return NewParametersFromModuli(paramDef.LogN, m, paramDef.T)
 }
 
 // NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.

@@ -28,11 +28,15 @@ func main() {
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.
-	params := ckks.DefaultBootstrapSchemeParams[0]
+	paramsDef := ckks.DefaultBootstrapSchemeParams[0]
+	params, err := ckks.NewParametersFromParamDef(paramsDef)
+	if err != nil {
+		panic(err)
+	}
 	btpParams := ckks.DefaultBootstrapParams[0]
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), btpParams.H, params.LogQP(), params.Levels(), math.Log2(params.Scale()), params.Sigma())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), btpParams.H, params.LogQP(), params.QCount(), math.Log2(params.Scale()), params.Sigma())
 
 	// Scheme context and keys
 	kgen = ckks.NewKeyGenerator(params)

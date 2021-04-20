@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 
+	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -165,11 +167,13 @@ var DefaultParams = []*ParametersDef{
 type Parameters interface {
 	rlwe.Parameters
 
+	LogQLvl(level uint64) uint64
+	LogSlots() uint64
 	MaxLevel() uint64
 	MaxLogSlots() uint64
-	Slots() uint64
-	LogSlots() uint64
+	QLvl(level uint64) *big.Int
 	Scale() float64
+	Slots() uint64
 }
 
 type ParametersDef struct {
@@ -219,6 +223,17 @@ func NewParametersFromLogModuli(logN uint64, lm *rlwe.LogModuli, sigma float64, 
 
 	// If LogModuli is valid and then generates the moduli
 	return NewParametersFromModuli(logN, rlwe.GenModuli(lm, logN), sigma, logSlots, scale)
+}
+
+func GetDefaultParameters(paramsId int) *ParametersStruct {
+	if paramsId >= len(DefaultParams) {
+		panic(fmt.Errorf("paramsId %d does not exist", paramsId))
+	}
+	params, err := NewParametersFromParamDef(DefaultParams[paramsId])
+	if err != nil {
+		panic(err)
+	}
+	return params
 }
 
 // // NewPolyQ returns a new empty polynomial of degree 2^LogN in basis Qi.
@@ -381,20 +396,20 @@ func (p *ParametersStruct) Scale() float64 {
 // 	return uint64(tmp.BitLen())
 // }
 
-// // LogQLvl returns the size of the modulus Q in bits at a specific level
-// func (p *ParametersStruct) LogQLvl(level uint64) uint64 {
-// 	tmp := p.QLvl(level)
-// 	return uint64(tmp.BitLen())
-// }
+// LogQLvl returns the size of the modulus Q in bits at a specific level
+func (p *ParametersStruct) LogQLvl(level uint64) uint64 {
+	tmp := p.QLvl(level)
+	return uint64(tmp.BitLen())
+}
 
-// // QLvl returns the product of the moduli at the given level as a big.Int
-// func (p *ParametersStruct) QLvl(level uint64) *big.Int {
-// 	tmp := ring.NewUint(1)
-// 	for _, qi := range p.qi[:level+1] {
-// 		tmp.Mul(tmp, ring.NewUint(qi))
-// 	}
-// 	return tmp
-// }
+// QLvl returns the product of the moduli at the given level as a big.Int
+func (p *ParametersStruct) QLvl(level uint64) *big.Int {
+	tmp := ring.NewUint(1)
+	for _, qi := range p.Q()[:level+1] {
+		tmp.Mul(tmp, ring.NewUint(qi))
+	}
+	return tmp
+}
 
 // // LogQ returns the size of the modulus Q in bits
 // func (p *ParametersStruct) LogQ() uint64 {

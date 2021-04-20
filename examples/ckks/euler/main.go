@@ -15,22 +15,21 @@ func example() {
 	var start time.Time
 	var err error
 
+	// Schemes parameters are created from scratch
 	LogN := uint64(14)
 	LogSlots := uint64(13)
 
-	LogModuli := ckks.LogModuli{
+	LogModuli := rlwe.LogModuli{
 		LogQi: []uint64{55, 40, 40, 40, 40, 40, 40, 40},
 		LogPi: []uint64{45, 45},
 	}
 
-	Scale := float64(1 << 40)
+	scale := float64(1 << 40)
 
-	params, err := ckks.NewParametersFromLogModuli(LogN, &LogModuli)
+	params, err := ckks.NewParametersFromLogModuli(LogN, &LogModuli, rlwe.DefaultSigma, LogSlots, scale)
 	if err != nil {
 		panic(err)
 	}
-	params.SetScale(Scale)
-	params.SetLogSlots(LogSlots)
 
 	fmt.Println()
 	fmt.Println("=========================================")

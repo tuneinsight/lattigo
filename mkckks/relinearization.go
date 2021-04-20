@@ -99,7 +99,8 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 		di2 := evaluationKeys[i-1].key[2]
 
 		for j := uint64(1); j <= k; j++ {
-			decomposedIJQ, decomposedIJP := GInverse(cipherParts[i*(k+1)+j], params) // line 3
+
+			decomposedIJQ, decomposedIJP := GInverse(cipherParts[i*(k+1)+j], params, level) // line 3
 
 			cIJtmpQ := DotLvl(level, decomposedIJQ, publicKeys[j-1].key[0], ringQ)
 			cIJtmpP := Dot(decomposedIJP, publicKeys[j-1].key[0], ringP)
@@ -108,7 +109,7 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 
 			baseconverter.ModDownSplitNTTPQ(level, cIJtmpQ, cIJtmpP, cIJPrime) // line 4
 
-			decomposedTmpQ, decomposedTmpP := GInverse(cIJPrime, params) // inverse and matrix mult (line 5)
+			decomposedTmpQ, decomposedTmpP := GInverse(cIJPrime, params, level) // inverse and matrix mult (line 5)
 
 			tmpC0Q := DotLvl(level, decomposedTmpQ, di0, ringQ)
 			tmpC0P := Dot(decomposedTmpP, di0, ringP)
@@ -146,10 +147,11 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 	for i := uint64(1); i <= k; i++ {
 
 		ringQ.AddLvl(level, cipherParts[i], cipherParts[(k+1)*i], res[i])
-		tmpModDown := ringQ.NewPoly()
+
 		baseconverter.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
 		ringQ.AddLvl(level, res[i], tmpModDown, res[i])
 		ringQ.ReduceLvl(level, res[i], res[i])
+
 	}
 
 	ciphertexts.ciphertexts.SetValue(res)

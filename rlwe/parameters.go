@@ -8,6 +8,7 @@ import (
 	"math/bits"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
@@ -43,8 +44,10 @@ type Parameters interface {
 	QPCount() int
 	QPBigInt() *big.Int
 	LogQP() int
-	Alpha() int
 	Beta() int
+
+	QiOverflowMargin(level int) int
+	PiOverflowMargin() int
 
 	Moduli() *Moduli
 	LogModuli() *LogModuli
@@ -85,6 +88,19 @@ func (m *Moduli) Copy() Moduli {
 	return Moduli{qi, pi}
 }
 
+// Print prints the moduli in hexadecimal
+func (m *Moduli) Print() {
+	for _, qi := range m.Qi {
+		fmt.Printf("0x%x,\n", qi)
+	}
+	fmt.Println()
+
+	for _, pj := range m.Pi {
+		fmt.Printf("0x%x,\n", pj)
+	}
+	fmt.Println()
+}
+
 // LogModuli stores the bit-length of the NTT primes of the RNS representation.
 type LogModuli struct {
 	LogQi []uint64 // Ciphertext prime moduli bit-size
@@ -103,7 +119,16 @@ func (m *LogModuli) Copy() LogModuli {
 	return LogModuli{LogQi, LogPi}
 }
 
-func NewRLWEParameters(logn int, q, p []uint64, sigma float64) *ParametersStruct { // TEMPORARY constructor
+func NewRLWEParameters(logn int, q, p []uint64, sigma float64) (*ParametersStruct, error) { // TEMPORARY constructor
+
+	if (logn < MinLogN) || (logn > MaxLogN) {
+		return nil, fmt.Errorf("invalid polynomial ring log degree: %d", logn)
+	}
+
+	// Checks if Moduli is valid
+	if err := CheckModuli(&Moduli{q, p}, logn); err != nil {
+		return nil, err
+	}
 
 	params := &ParametersStruct{
 		logN:  logn,
@@ -113,7 +138,7 @@ func NewRLWEParameters(logn int, q, p []uint64, sigma float64) *ParametersStruct
 	}
 	copy(params.qi, q)
 	copy(params.pi, p)
-	return params
+	return params, nil
 }
 
 // N returns the ring degree
@@ -201,18 +226,25 @@ func (p *ParametersStruct) LogQP() int {
 	return tmp.BitLen()
 }
 
-// Alpha returns the number of moduli in in P
-func (p *ParametersStruct) Alpha() int {
-	return p.PCount()
-}
-
 // Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
 func (p *ParametersStruct) Beta() int {
-	if p.Alpha() != 0 {
-		return int(math.Ceil(float64(p.QCount()) / float64(p.Alpha())))
+	if p.PCount() != 0 {
+		return int(math.Ceil(float64(p.QCount()) / float64(p.PCount())))
 	}
 
 	return 1
+}
+
+// QiOverflowMargin returns floor(2^64 / max(Qi)), i.e. the number of times elements of Z_max{Qi} can
+// be added together before overflowing 2^64.
+func (p *ParametersStruct) QiOverflowMargin(level int) int {
+	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.qi[:level+1])))
+}
+
+// PiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can
+// be added together before overflowing 2^64.
+func (p *ParametersStruct) PiOverflowMargin() int {
+	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.pi)))
 }
 
 // LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.

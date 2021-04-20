@@ -206,7 +206,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swkOut *rlwe
 
 	ringQP := keygen.ringQP
 
-	alpha := keygen.params.Alpha()
+	alpha := keygen.params.PCount()
 	beta := keygen.params.Beta()
 
 	var index int

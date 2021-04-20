@@ -80,7 +80,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 func (btp *Bootstrapper) subSum(ct *Ciphertext) *Ciphertext {
 
-	for i := btp.params.logSlots; i < btp.params.MaxLogSlots(); i++ {
+	for i := btp.params.LogSlots(); i < btp.params.MaxLogSlots(); i++ {
 
 		btp.evaluator.Rotate(ct, 1<<i, btp.evaluator.ctxpool)
 
@@ -199,12 +199,12 @@ func (btp *Bootstrapper) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphe
 
 	ct0 = btp.evaluateCheby(ct0)
 
-	ct0.DivScale(btp.MessageRatio * btp.postscale / btp.params.scale)
+	ct0.DivScale(btp.MessageRatio * btp.postscale / btp.params.Scale())
 
 	if ct1 != nil {
 		ct1.MulScale(btp.MessageRatio)
 		ct1 = btp.evaluateCheby(ct1)
-		ct1.DivScale(btp.MessageRatio * btp.postscale / btp.params.scale)
+		ct1.DivScale(btp.MessageRatio * btp.postscale / btp.params.Scale())
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.

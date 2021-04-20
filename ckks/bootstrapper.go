@@ -16,7 +16,7 @@ type Bootstrapper struct {
 	*evaluator
 	BootstrappingParameters
 	*BootstrappingKey
-	params *Parameters
+	params Parameters
 
 	dslots    int // Number of plaintext slots after the re-encoding
 	logdslots int
@@ -48,7 +48,7 @@ func cos2pi(x complex128) complex128 {
 }
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btpKey BootstrappingKey) (btp *Bootstrapper, err error) {
+func NewBootstrapper(params Parameters, btpParams *BootstrappingParameters, btpKey BootstrappingKey) (btp *Bootstrapper, err error) {
 
 	if btpParams.SinType == SinType(Sin) && btpParams.SinRescal != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
@@ -66,20 +66,20 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 
 // newBootstrapper is a constructor of "dummy" bootstrapper to enable the generation of bootstrapping-related constants
 // without providing a bootstrapping key. To be replaced by a proper factorization of the bootstrapping pre-computations.
-func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (btp *Bootstrapper) {
+func newBootstrapper(params Parameters, btpParams *BootstrappingParameters) (btp *Bootstrapper) {
 	btp = new(Bootstrapper)
 
-	btp.params = params.Copy()
+	btp.params = params
 	btp.BootstrappingParameters = *btpParams.Copy()
 
 	btp.dslots = params.Slots()
 	btp.logdslots = params.LogSlots()
-	if params.logSlots < params.MaxLogSlots() {
+	if params.LogSlots() < params.MaxLogSlots() {
 		btp.dslots <<= 1
 		btp.logdslots++
 	}
 
-	btp.prescale = math.Exp2(math.Round(math.Log2(float64(params.qi[0]) / btp.MessageRatio)))
+	btp.prescale = math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / btp.MessageRatio)))
 	btp.sinescale = math.Exp2(math.Round(math.Log2(btp.SineEvalModuli.ScalingFactor)))
 	btp.postscale = btp.sinescale / btp.MessageRatio
 
@@ -165,13 +165,13 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	a := real(btp.sineEvalPoly.a)
 	b := real(btp.sineEvalPoly.b)
 	n := float64(btp.params.N())
-	qDiff := float64(btp.params.qi[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.qi[0]))))
+	qDiff := float64(btp.params.Q()[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]))))
 
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
 	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*btp.scFac*qDiff), 1.0/float64(btp.CtSDepth(false))), 0)
 
 	// Rescaling factor to set the final ciphertext to the desired scale
-	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.scale)/btp.postscale, 1.0/float64(btp.StCDepth(false))), 0)
+	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.Scale())/btp.postscale, 1.0/float64(btp.StCDepth(false))), 0)
 
 	// CoeffsToSlots vectors
 	btp.pDFTInv = btp.BootstrappingParameters.GenCoeffsToSlotsMatrix(btp.coeffsToSlotsDiffScale, btp.encoder)
@@ -183,7 +183,7 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	btp.rotKeyIndex = []int{}
 
 	//SubSum rotation needed X -> Y^slots rotations
-	for i := btp.params.logSlots; i < btp.params.MaxLogSlots(); i++ {
+	for i := btp.params.LogSlots(); i < btp.params.MaxLogSlots(); i++ {
 		if !utils.IsInSliceInt(1<<i, btp.rotKeyIndex) {
 			btp.rotKeyIndex = append(btp.rotKeyIndex, 1<<i)
 		}
@@ -196,7 +196,7 @@ func (btp *Bootstrapper) genDFTMatrices() {
 
 	// Slots to Coeffs rotations
 	for i, pVec := range btp.pDFT {
-		btp.rotKeyIndex = AddMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), (i == 0) && (btp.params.logSlots < btp.params.MaxLogSlots()))
+		btp.rotKeyIndex = AddMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), (i == 0) && (btp.params.LogSlots() < btp.params.MaxLogSlots()))
 	}
 }
 

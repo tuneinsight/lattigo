@@ -28,7 +28,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		panic(err)
 	}
 
-	rotations := testContext.kgen.GenRotationIndexesForBootstrapping(testContext.params.logSlots, btpParams)
+	rotations := testContext.kgen.GenRotationIndexesForBootstrapping(testContext.params.LogSlots(), btpParams)
 
 	rotkeys := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
 
@@ -42,7 +42,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct := NewCiphertextRandom(testContext.prng, testContext.params, 1, 0, testContext.params.scale)
+			ct := NewCiphertextRandom(testContext.prng, testContext.params, 1, 0, testContext.params.Scale())
 			b.StartTimer()
 
 			var t time.Time

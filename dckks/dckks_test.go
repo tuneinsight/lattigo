@@ -21,7 +21,11 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 var minPrec float64 = 15.0
 var parties int = 3
 
+<<<<<<< HEAD
 func testString(opname string, parties int, params *ckks.Parameters) string {
+=======
+func testString(opname string, parties uint64, params *ckks.ParametersStruct) string {
+>>>>>>> working rlwe.Parameter-based ckks.Parameters
 	return fmt.Sprintf("%sparties=%d/logN=%d/logQ=%d/levels=%d/alpha=%d/beta=%d",
 		opname,
 		parties,
@@ -33,7 +37,7 @@ func testString(opname string, parties int, params *ckks.Parameters) string {
 }
 
 type testContext struct {
-	params *ckks.Parameters
+	params *ckks.ParametersStruct
 
 	dckksContext *dckksContext
 
@@ -86,7 +90,7 @@ func TestDCKKS(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParams *ckks.Parameters) (testCtx *testContext, err error) {
+func genTestParams(defaultParams *ckks.ParametersStruct) (testCtx *testContext, err error) {
 
 	testCtx = new(testContext)
 

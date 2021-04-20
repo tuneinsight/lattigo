@@ -28,12 +28,12 @@ func testString(testContext *testParams, opname string) string {
 		testContext.params.LogSlots(),
 		testContext.params.LogQP(),
 		testContext.params.MaxLevel()+1,
-		testContext.params.Alpha(),
+		testContext.params.PCount(),
 		testContext.params.Beta())
 }
 
 type testParams struct {
-	params      *Parameters
+	params      Parameters
 	ringQ       *ring.Ring
 	ringP       *ring.Ring
 	ringQP      *ring.Ring
@@ -51,7 +51,6 @@ type testParams struct {
 
 func TestCKKS(t *testing.T) {
 
-	var err error
 	defaultParams := DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
@@ -62,8 +61,12 @@ func TestCKKS(t *testing.T) {
 	}
 
 	for _, defaultParam := range defaultParams {
+		params, err := NewParametersFromParamDef(defaultParam)
+		if err != nil {
+			panic(err)
+		}
 		var testContext *testParams
-		if testContext, err = genTestParams(defaultParam, 0); err != nil {
+		if testContext, err = genTestParams(params, 0); err != nil {
 			panic(err)
 		}
 
@@ -95,11 +98,11 @@ func TestCKKS(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParam *Parameters, hw int) (testContext *testParams, err error) {
+func genTestParams(defaultParam Parameters, hw int) (testContext *testParams, err error) {
 
 	testContext = new(testParams)
 
-	testContext.params = defaultParam.Copy()
+	testContext.params = defaultParam
 
 	testContext.kgen = NewKeyGenerator(testContext.params)
 
@@ -109,19 +112,10 @@ func genTestParams(defaultParam *Parameters, hw int) (testContext *testParams, e
 		testContext.sk, testContext.pk = testContext.kgen.GenKeyPairSparse(hw)
 	}
 
-	if testContext.ringQ, err = ring.NewRing(testContext.params.N(), testContext.params.qi); err != nil {
-		return nil, err
-	}
-
-	if testContext.ringQP, err = ring.NewRing(testContext.params.N(), append(testContext.params.qi, testContext.params.pi...)); err != nil {
-		return nil, err
-	}
-
+	testContext.ringQ = defaultParam.RingQ()
+	testContext.ringQP = defaultParam.RingQP()
 	if testContext.params.PCount() != 0 {
-		if testContext.ringP, err = ring.NewRing(testContext.params.N(), testContext.params.pi); err != nil {
-			return nil, err
-		}
-
+		testContext.ringP = defaultParam.RingP()
 		testContext.rlk = testContext.kgen.GenRelinearizationKey(testContext.sk)
 	}
 
@@ -187,17 +181,13 @@ func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant 
 func testParameters(testContext *testParams, t *testing.T) {
 
 	t.Run("Parameters/NewParametersFromModuli/", func(t *testing.T) {
-		p, err := NewParametersFromModuli(testContext.params.LogN(), testContext.params.Moduli())
-		p.SetLogSlots(testContext.params.LogSlots())
-		p.SetScale(testContext.params.Scale())
+		p, err := NewParametersFromModuli(testContext.params.LogN(), testContext.params.Moduli(), testContext.params.Sigma(), testContext.params.LogSlots(), testContext.params.Scale())
 		assert.NoError(t, err)
 		assert.True(t, p.Equals(testContext.params))
 	})
 
 	t.Run("Parameters/NewParametersFromLogModuli/", func(t *testing.T) {
-		p, err := NewParametersFromLogModuli(testContext.params.LogN(), testContext.params.LogModuli())
-		p.SetLogSlots(testContext.params.LogSlots())
-		p.SetScale(testContext.params.Scale())
+		p, err := NewParametersFromLogModuli(testContext.params.LogN(), testContext.params.LogModuli(), testContext.params.Sigma(), testContext.params.LogSlots(), testContext.params.Scale())
 		assert.NoError(t, err)
 		assert.True(t, p.Equals(testContext.params))
 	})

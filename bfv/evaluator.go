@@ -882,7 +882,7 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta int, c2NTT, c2InvNTT, c2
 
 	eval.decomposer.DecomposeAndSplit(level, beta, c2InvNTT, c2QiQ, c2QiP)
 
-	p0idxst := beta * eval.params.Alpha()
+	p0idxst := beta * eval.params.PCount()
 	p0idxed := p0idxst + eval.decomposer.Xalpha()[beta]
 
 	// c2_qi = cx mod qi mod qi

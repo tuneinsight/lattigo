@@ -1,8 +1,10 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/v2/utils"
 	"math"
+
+	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/ldsec/lattigo/v2/utils"
 	//"fmt"
 )
 
@@ -40,18 +42,21 @@ type BootstrappingParameters struct {
 }
 
 // Params generates a new set of Parameters from the BootstrappingParameters
-func (b *BootstrappingParameters) Params() (p *Parameters, err error) {
+func (b *BootstrappingParameters) Params() (p Parameters, err error) {
 	Qi := append(b.ResidualModuli, b.SlotsToCoeffsModuli.Qi...)
 	Qi = append(Qi, b.SineEvalModuli.Qi...)
 	Qi = append(Qi, b.CoeffsToSlotsModuli.Qi...)
 
-	if p, err = NewParametersFromModuli(b.LogN, &Moduli{Qi, b.KeySwitchModuli}); err != nil {
+	if p, err = NewParametersFromParamDef(&ParametersDef{
+		qi:       Qi,
+		pi:       b.KeySwitchModuli,
+		logN:     b.LogN,
+		sigma:    b.Sigma,
+		scale:    b.Scale,
+		logSlots: b.LogSlots,
+	}); err != nil {
 		return nil, err
 	}
-
-	p.SetScale(b.Scale)
-	p.SetLogSlots(b.LogSlots)
-	p.SetSigma(b.Sigma)
 	return
 }
 
@@ -296,7 +301,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		LogN:     16,
 		LogSlots: 15,
 		Scale:    1 << 40,
-		Sigma:    DefaultSigma,
+		Sigma:    rlwe.DefaultSigma,
 		ResidualModuli: []uint64{
 			0x10000000006e0001, // 60 Q0
 			0x10000140001,      // 40
@@ -372,7 +377,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		LogN:     16,
 		LogSlots: 15,
 		Scale:    1 << 45,
-		Sigma:    DefaultSigma,
+		Sigma:    rlwe.DefaultSigma,
 		ResidualModuli: []uint64{
 			0x10000000006e0001, // 60 Q0
 			0x2000000a0001,     // 45
@@ -446,7 +451,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		LogN:     16,
 		LogSlots: 15,
 		Scale:    1 << 30,
-		Sigma:    DefaultSigma,
+		Sigma:    rlwe.DefaultSigma,
 		ResidualModuli: []uint64{
 			0x80000000080001,   // 55 Q0
 			0xffffffffffc0001,  // 60
@@ -518,7 +523,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		LogN:     16,
 		LogSlots: 15,
 		Scale:    1 << 40,
-		Sigma:    DefaultSigma,
+		Sigma:    rlwe.DefaultSigma,
 		ResidualModuli: []uint64{
 			0x4000000120001, // 60 Q0
 			0x10000140001,
@@ -597,7 +602,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		LogN:     15,
 		LogSlots: 14,
 		Scale:    1 << 25,
-		Sigma:    DefaultSigma,
+		Sigma:    rlwe.DefaultSigma,
 		ResidualModuli: []uint64{
 			0x1fff90001,     // 32 Q0
 			0x4000000420001, // 50

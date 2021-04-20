@@ -295,7 +295,7 @@ func recurse(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[i
 		level++
 	}
 
-	currentQi := float64(evaluator.params.qi[level])
+	currentQi := float64(evaluator.params.Q()[level])
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
@@ -368,7 +368,7 @@ func recurseCheby(targetScale float64, logSplit, logDegree int, coeffs *Poly, C 
 		level++
 	}
 
-	currentQi := float64(evaluator.params.qi[level])
+	currentQi := float64(evaluator.params.Q()[level])
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
@@ -426,7 +426,7 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[int]*Ci
 		return
 	}
 
-	currentQi := float64(evaluator.params.qi[C[coeffs.Degree()].Level()])
+	currentQi := float64(evaluator.params.Q()[C[coeffs.Degree()].Level()])
 
 	ctScale := targetScale * currentQi
 

@@ -62,7 +62,7 @@ type EncoderBigComplex interface {
 
 // encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
 type encoder struct {
-	params       *Parameters
+	params       Parameters
 	ringQ        *ring.Ring
 	ringP        *ring.Ring
 	bigintChain  []*big.Int
@@ -82,19 +82,19 @@ type encoderComplex128 struct {
 	roots       []complex128
 }
 
-func newEncoder(params *Parameters) encoder {
+func newEncoder(params Parameters) encoder {
 
 	m := 2 * params.N()
 
 	var q *ring.Ring
 	var err error
-	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
+	if q, err = ring.NewRing(params.N(), params.Q()); err != nil {
 		panic(err)
 	}
 
 	var p *ring.Ring
 	if params.PCount() != 0 {
-		if p, err = ring.NewRing(params.N(), params.pi); err != nil {
+		if p, err = ring.NewRing(params.N(), params.P()); err != nil {
 			panic(err)
 		}
 	}
@@ -115,10 +115,10 @@ func newEncoder(params *Parameters) encoder {
 	gaussianSampler := ring.NewGaussianSampler(prng, q, params.Sigma(), int(6*params.Sigma()))
 
 	return encoder{
-		params:          params.Copy(),
+		params:          params,
 		ringQ:           q,
 		ringP:           p,
-		bigintChain:     genBigIntChain(params.qi),
+		bigintChain:     genBigIntChain(params.Q()),
 		bigintCoeffs:    make([]*big.Int, m>>1),
 		qHalf:           ring.NewUint(0),
 		polypool:        q.NewPoly(),
@@ -129,7 +129,7 @@ func newEncoder(params *Parameters) encoder {
 }
 
 // NewEncoder creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a Plaintext.
-func NewEncoder(params *Parameters) Encoder {
+func NewEncoder(params Parameters) Encoder {
 
 	encoder := newEncoder(params)
 
@@ -157,7 +157,7 @@ func (encoder *encoderComplex128) EncodeNew(values []complex128, logSlots int) (
 
 // EncodeAtLvlNew encodes a slice of complex128 of length slots = 2^{logSlots} on new plaintext at the desired level.
 func (encoder *encoderComplex128) EncodeAtLvlNew(level int, values []complex128, logSlots int) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, level, encoder.params.scale)
+	plaintext = NewPlaintext(encoder.params, level, encoder.params.Scale())
 	encoder.Encode(plaintext, values, logSlots)
 	return
 }
@@ -179,7 +179,7 @@ func (encoder *encoderComplex128) EncodeNTTNew(values []complex128, logSlots int
 // EncodeNTTAtLvlNew encodes a slice of complex128 of length slots = 2^{logSlots} on new plaintext at the desired level.
 // Returns a plaintext in the NTT domain.
 func (encoder *encoderComplex128) EncodeNTTAtLvlNew(level int, values []complex128, logSlots int) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, level, encoder.params.scale)
+	plaintext = NewPlaintext(encoder.params, level, encoder.params.Scale())
 	encoder.EncodeNTT(plaintext, values, logSlots)
 	return
 }
@@ -741,7 +741,7 @@ type encoderBigComplex struct {
 }
 
 // NewEncoderBigComplex creates a new encoder using arbitrary precision complex arithmetic.
-func NewEncoderBigComplex(params *Parameters, logPrecision int) EncoderBigComplex {
+func NewEncoderBigComplex(params Parameters, logPrecision int) EncoderBigComplex {
 	encoder := newEncoder(params)
 
 	var PI = new(big.Float)
@@ -798,7 +798,7 @@ func (encoder *encoderBigComplex) EncodeNew(values []*ring.Complex, logSlots int
 
 // EncodeAtLvlNew encodes a slice of ring.Complex of length slots = 2^{logSlots} on a new plaintext at the desired level.
 func (encoder *encoderBigComplex) EncodeAtLvlNew(level int, values []*ring.Complex, logSlots int) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, level, encoder.params.scale)
+	plaintext = NewPlaintext(encoder.params, level, encoder.params.Scale())
 	encoder.Encode(plaintext, values, logSlots)
 	return
 }
@@ -812,7 +812,7 @@ func (encoder *encoderBigComplex) EncodeNTTNew(values []*ring.Complex, logSlots 
 // EncodeNTTAtLvlNew encodes a slice of ring.Complex of length slots = 2^{logSlots} on a plaintext at the desired level.
 // Returns a plaintext in the NTT domain.
 func (encoder *encoderBigComplex) EncodeNTTAtLvlNew(level int, values []*ring.Complex, logSlots int) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale())
 	encoder.EncodeNTT(plaintext, values, logSlots)
 	return
 }

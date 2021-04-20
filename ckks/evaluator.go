@@ -158,7 +158,7 @@ type evaluator struct {
 }
 
 type evaluatorBase struct {
-	params *Parameters
+	params Parameters
 	scale  float64
 
 	ringQ *ring.Ring
@@ -177,19 +177,14 @@ type evaluatorBuffers struct {
 	ctxpool     *Ciphertext  // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
 }
 
-func newEvaluatorBase(params *Parameters) *evaluatorBase {
-	var err error
+func newEvaluatorBase(params Parameters) *evaluatorBase {
 	ev := new(evaluatorBase)
-	ev.params = params.Copy()
-	ev.scale = params.scale
-	if ev.ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
+	ev.params = params
+	ev.scale = params.Scale()
+	ev.ringQ = params.RingQ()
 
 	if params.PCount() != 0 {
-		if ev.ringP, err = ring.NewRing(params.N(), params.pi); err != nil {
-			panic(err)
-		}
+		ev.ringP = params.RingP()
 		ev.decomposer = ring.NewDecomposer(ev.ringQ.Modulus, ev.ringP.Modulus)
 	}
 	return ev
@@ -212,14 +207,14 @@ func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 		}
 	}
 	buff.poolInvNTT = ringQ.NewPoly()
-	buff.ctxpool = NewCiphertext(evalBase.params, 2, evalBase.params.MaxLevel(), evalBase.params.scale)
+	buff.ctxpool = NewCiphertext(evalBase.params, 2, evalBase.params.MaxLevel(), evalBase.params.Scale())
 	return buff
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on the Ciphertexts and/or Plaintexts. It stores a small pool of polynomials
 // and Ciphertexts that will be used for intermediate values.
-func NewEvaluator(params *Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
+func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
 	eval := new(evaluator)
 	eval.evaluatorBase = newEvaluatorBase(params)
 	eval.evaluatorBuffers = newEvaluatorBuffers(eval.evaluatorBase)
@@ -1216,7 +1211,7 @@ func (eval *evaluator) ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext
 // SetScale sets the scale of the ciphertext to the input scale (consumes a level)
 func (eval *evaluator) SetScale(ct *Ciphertext, scale float64) {
 
-	var tmp = eval.params.scale
+	var tmp = eval.params.Scale()
 
 	eval.scale = scale
 
@@ -1617,7 +1612,7 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []int, 
 
 		if i != 0 {
 			cOutQ[i] = [2]*ring.Poly{ringQ.NewPolyLvl(level), ringQ.NewPolyLvl(level)}
-			cOutP[i] = [2]*ring.Poly{eval.params.NewPolyP(), eval.params.NewPolyP()}
+			cOutP[i] = [2]*ring.Poly{eval.ringP.NewPoly(), eval.ringP.NewPoly()}
 
 			eval.permuteNTTHoistedNoModDown(level, c2QiQDecomp, c2QiPDecomp, i, cOutQ[i][0], cOutQ[i][1], cOutP[i][0], cOutP[i][1])
 		}
@@ -1679,7 +1674,7 @@ func (eval *evaluator) SwitchKeysInPlaceNoModDown(level int, cx *ring.Poly, evak
 
 	reduce = 0
 
-	alpha := eval.params.Alpha()
+	alpha := eval.params.PCount()
 	beta := int(math.Ceil(float64(level+1) / float64(alpha)))
 
 	QiOverF := eval.params.QiOverflowMargin(level) >> 1
@@ -1747,7 +1742,7 @@ func (eval *evaluator) DecompInternal(levelQ int, c2NTT *ring.Poly, c2QiQDecomp,
 	c2InvNTT := eval.poolInvNTT
 	ringQ.InvNTTLvl(levelQ, c2NTT, c2InvNTT)
 
-	alpha := eval.params.Alpha()
+	alpha := eval.params.PCount()
 	beta := int(math.Ceil(float64(levelQ+1) / float64(alpha)))
 
 	for i := 0; i < beta; i++ {
@@ -1763,7 +1758,7 @@ func (eval *evaluator) decomposeAndSplitNTT(level, beta int, c2NTT, c2InvNTT, c2
 
 	eval.decomposer.DecomposeAndSplit(level, beta, c2InvNTT, c2QiQ, c2QiP)
 
-	p0idxst := beta * eval.params.Alpha()
+	p0idxst := beta * eval.params.PCount()
 	p0idxed := p0idxst + eval.decomposer.Xalpha()[beta]
 
 	// c2_qi = cx mod qi mod qi
@@ -1832,7 +1827,7 @@ func (eval *evaluator) keyswitchHoistedNoModDown(level int, c2QiQDecomp, c2QiPDe
 	ringQ := eval.ringQ
 	ringP := eval.ringP
 
-	alpha := eval.params.Alpha()
+	alpha := eval.params.PCount()
 	beta := int(math.Ceil(float64(level+1) / float64(alpha)))
 
 	evakey0Q := new(ring.Poly)

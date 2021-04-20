@@ -52,7 +52,7 @@ type Encryptor interface {
 
 // encryptor is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
 type encryptor struct {
-	params *Parameters
+	params Parameters
 
 	ringQ *ring.Ring
 	ringP *ring.Ring
@@ -78,7 +78,7 @@ type skEncryptor struct {
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This Encryptor can be used to encrypt Plaintexts, using the stored key.
-func NewEncryptorFromPk(params *Parameters, pk *rlwe.PublicKey) Encryptor {
+func NewEncryptorFromPk(params Parameters, pk *rlwe.PublicKey) Encryptor {
 	enc := newEncryptor(params)
 
 	if pk.Value[0].Degree() != params.N() || pk.Value[1].Degree() != params.N() {
@@ -90,7 +90,7 @@ func NewEncryptorFromPk(params *Parameters, pk *rlwe.PublicKey) Encryptor {
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This Encryptor can be used to encrypt Plaintexts, using the stored key.
-func NewEncryptorFromSk(params *Parameters, sk *rlwe.SecretKey) Encryptor {
+func NewEncryptorFromSk(params Parameters, sk *rlwe.SecretKey) Encryptor {
 	enc := newEncryptor(params)
 
 	if sk.Value.Degree() != params.N() {
@@ -100,11 +100,11 @@ func NewEncryptorFromSk(params *Parameters, sk *rlwe.SecretKey) Encryptor {
 	return &skEncryptor{enc, sk}
 }
 
-func newEncryptor(params *Parameters) encryptor {
+func newEncryptor(params Parameters) encryptor {
 
 	var q, p *ring.Ring
 	var err error
-	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
+	if q, err = ring.NewRing(params.N(), params.Q()); err != nil {
 		panic(err)
 	}
 
@@ -117,7 +117,7 @@ func newEncryptor(params *Parameters) encryptor {
 	var poolP [3]*ring.Poly
 	if params.PCount() != 0 {
 
-		if p, err = ring.NewRing(params.N(), params.pi); err != nil {
+		if p, err = ring.NewRing(params.N(), params.P()); err != nil {
 			panic(err)
 		}
 
@@ -127,7 +127,7 @@ func newEncryptor(params *Parameters) encryptor {
 	}
 
 	return encryptor{
-		params:          params.Copy(),
+		params:          params,
 		ringQ:           q,
 		ringP:           p,
 		poolQ:           [3]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly()},

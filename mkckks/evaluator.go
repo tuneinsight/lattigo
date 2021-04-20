@@ -76,7 +76,7 @@ func (eval *mkEvaluator) AddNew(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertex
 
 	padded1, padded2 := PadCiphers(c0, c1, eval.params)
 
-	out := NewMKCiphertext(padded1.peerIDs, eval.ringQ, eval.params, c0.ciphertexts.Level())
+	out := NewMKCiphertext(padded1.peerIDs, eval.ringQ, eval.params, padded1.ciphertexts.Level())
 
 	out.ciphertexts = eval.ckksEval.AddNew(padded1.ciphertexts, padded2.ciphertexts)
 	return out
@@ -103,7 +103,7 @@ func (eval *mkEvaluator) Sub(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
 
 	padded1, padded2 := PadCiphers(c0, c1, eval.params)
 
-	out := NewMKCiphertext(padded1.peerIDs, eval.ringQ, eval.params, c0.ciphertexts.Level())
+	out := NewMKCiphertext(padded1.peerIDs, eval.ringQ, eval.params, padded1.ciphertexts.Level())
 
 	out.ciphertexts = eval.ckksEval.SubNew(padded1.ciphertexts, padded2.ciphertexts)
 	return out
@@ -210,7 +210,7 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 	tmp2 := ringQ.NewPoly()
 
 	for i, v1 := range el1.Value() {
-		
+
 		ringQ.MFormLvl(level, v1, tmp1)
 
 		for j, v2 := range el2.Value() {

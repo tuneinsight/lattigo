@@ -66,13 +66,12 @@ func GenSharedRelinearizationKey(params *ckks.Parameters, pubKeys []*MKPublicKey
 }*/
 
 // GInverse is a method that returns the decomposition of a polynomial from R_qp to R_qp^beta
-func GInverse(p *ring.Poly, params *ckks.Parameters) (*MKDecomposedPoly, *MKDecomposedPoly) {
+func GInverse(p *ring.Poly, params *ckks.Parameters, level uint64) (*MKDecomposedPoly, *MKDecomposedPoly) {
 
 	beta := params.Beta()
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
 
-	level := uint64(len(ringQ.Modulus)) - 1
 	resQ := new(MKDecomposedPoly)
 	resP := new(MKDecomposedPoly)
 

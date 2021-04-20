@@ -49,8 +49,6 @@ func PadCiphers(c1, c2 *MKCiphertext, params *ckks.Parameters) (c1Out, c2Out *MK
 		}
 	}
 
-	// TODO: check if same level or not and Rescale or modulo to lower the largest level !!
-
 	c1out := NewMKCiphertext(allPeers, ringQ, params, c1.ciphertexts.Level())
 	c2out := NewMKCiphertext(allPeers, ringQ, params, c2.ciphertexts.Level())
 

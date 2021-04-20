@@ -1,5 +1,7 @@
 package ckks
 
+import "github.com/ldsec/lattigo/v2/rlwe"
+
 // BootstrappingParameters is a struct for the default bootstrapping parameters
 type BootstrappingParameters struct {
 	H            uint64   // Hamming weight of the secret key
@@ -51,7 +53,7 @@ func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
 }
 
 // DefaultBootstrapSchemeParams are default scheme params for the bootstrapping
-var DefaultBootstrapSchemeParams = []*Parameters{
+var DefaultBootstrapSchemeParams = []*ParametersDef{
 
 	{
 		logN:     16,
@@ -91,7 +93,7 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x100000000480001, // 56
 		},
 		scale: 1 << 45,
-		sigma: DefaultSigma,
+		sigma: rlwe.DefaultSigma,
 	},
 
 	{
@@ -129,7 +131,7 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x1fffffffff420001, // Pi 61
 		},
 		scale: 1 << 30,
-		sigma: DefaultSigma,
+		sigma: rlwe.DefaultSigma,
 	},
 
 	{
@@ -173,7 +175,7 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x1fffffffff380001, // Pi 61
 		},
 		scale: 1 << 45,
-		sigma: DefaultSigma,
+		sigma: rlwe.DefaultSigma,
 	},
 
 	{
@@ -200,7 +202,7 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x7c80000000001, // 50
 		},
 		scale: 1 << 25,
-		sigma: DefaultSigma,
+		sigma: rlwe.DefaultSigma,
 	},
 }
 

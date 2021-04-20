@@ -11,7 +11,7 @@ type Ciphertext struct {
 }
 
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
-func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float64) (ciphertext *Ciphertext) {
+func NewCiphertext(params Parameters, degree uint64, level uint64, scale float64) (ciphertext *Ciphertext) {
 
 	ciphertext = &Ciphertext{NewElement(params, degree, level, scale)}
 	ciphertext.IsNTT = true // TODO are Ciphertexts are NTT by default ?
@@ -20,9 +20,9 @@ func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float6
 }
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
-func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
+func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
 
-	ringQ, err := ring.NewRing(params.N(), params.qi[:level+1])
+	ringQ, err := ring.NewRing(params.N(), params.Q()[:level+1])
 	if err != nil {
 		panic(err)
 	}

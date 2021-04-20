@@ -10,9 +10,7 @@ import (
 
 func BenchmarkCKKSScheme(b *testing.B) {
 
-	var err error
-
-	var defaultParams []*Parameters
+	var defaultParams []*ParametersDef
 
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109+3 : PN12QP109+4]
@@ -21,8 +19,12 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	}
 
 	for _, defaultParams := range defaultParams {
+		params, err := NewParametersFromParamDef(defaultParams)
+		if err != nil {
+			panic(err)
+		}
 		var testContext *testParams
-		if testContext, err = genTestParams(defaultParams, 0); err != nil {
+		if testContext, err = genTestParams(params, 0); err != nil {
 			panic(err)
 		}
 
@@ -141,7 +143,7 @@ func benchDecrypt(testContext *testParams, b *testing.B) {
 
 func benchEvaluator(testContext *testParams, b *testing.B) {
 
-	plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.scale)
+	plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 	ciphertext1 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 	ciphertext2 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 	receiver := NewCiphertextRandom(testContext.prng, testContext.params, 2, testContext.params.MaxLevel(), testContext.params.Scale())

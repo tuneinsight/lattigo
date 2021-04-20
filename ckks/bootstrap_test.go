@@ -20,7 +20,6 @@ func TestBootstrap(t *testing.T) {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
 	}
 
-	var err error
 	var testContext = new(testParams)
 
 	paramSet := uint64(1)
@@ -30,16 +29,21 @@ func TestBootstrap(t *testing.T) {
 
 	for paramSet := range shemeParams {
 
-		params := shemeParams[paramSet]
+		paramsDef := shemeParams[paramSet]
 		btpParams := bootstrapParams[paramSet]
 
 		// Insecure params for fast testing only
 		if !*flagLongTest {
-			params.logN = 14
-			params.logSlots = 13
+			paramsDef.logN = 14
+			paramsDef.logSlots = 13
 		}
 
-		if testContext, err = genTestParams(params, btpParams.H); err != nil {
+		params, err := NewParametersFromParamDef(paramsDef)
+		if err != nil {
+			panic(err)
+		}
+
+		if testContext, err = genTestParams(params, btpParams.H); err != nil { // TODO: setting the param.scale field is not something the user can do
 			panic(err)
 		}
 
@@ -64,13 +68,13 @@ func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		params := testContext.params
 
-		DefaultScale := testContext.params.scale
+		DefaultScale := testContext.params.Scale()
 
-		q := params.qi[params.MaxLevel()-uint64(len(btpParams.CtSLevel))]
+		q := params.Q()[params.MaxLevel()-uint64(len(btpParams.CtSLevel))]
 
 		SineScale := math.Exp2(math.Round(math.Log2(float64(q))))
 
-		testContext.params.scale = SineScale
+		testContext.params.(*ParametersStruct).scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
 		deg := 127
@@ -95,7 +99,7 @@ func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
-		testContext.params.scale = DefaultScale
+		testContext.params.(*ParametersStruct).scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 	})
 }
@@ -109,18 +113,18 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		params := testContext.params
 
-		DefaultScale := testContext.params.scale
+		DefaultScale := testContext.params.Scale()
 
-		q := params.qi[params.MaxLevel()-uint64(len(btpParams.CtSLevel))]
+		q := params.Q()[params.MaxLevel()-uint64(len(btpParams.CtSLevel))]
 
 		SineScale := math.Exp2(math.Round(math.Log2(float64(q))))
 
-		testContext.params.scale = SineScale
+		testContext.params.(*ParametersStruct).scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
 		K := 21
 		deg := 52
-		dev := float64(testContext.params.qi[0]) / DefaultScale
+		dev := float64(testContext.params.Q()[0]) / DefaultScale
 		scNum := 2
 
 		scFac := complex(float64(int(1<<scNum)), 0)
@@ -172,7 +176,7 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
-		testContext.params.scale = DefaultScale
+		testContext.params.(*ParametersStruct).scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 
 	})
@@ -187,13 +191,13 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParamete
 
 		params := testContext.params
 
-		DefaultScale := testContext.params.scale
+		DefaultScale := testContext.params.Scale()
 
-		q := params.qi[params.MaxLevel()-uint64(len(btpParams.CtSLevel))]
+		q := params.Q()[params.MaxLevel()-uint64(len(btpParams.CtSLevel))]
 
 		SineScale := math.Exp2(math.Round(math.Log2(float64(q))))
 
-		testContext.params.scale = SineScale
+		testContext.params.(*ParametersStruct).scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
 		K := 257
@@ -244,7 +248,7 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParamete
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
-		testContext.params.scale = DefaultScale
+		testContext.params.(*ParametersStruct).scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 
 	})
@@ -255,26 +259,26 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 
 		params := testContext.params
 
-		btpKey := testContext.kgen.GenBootstrappingKey(testContext.params.logSlots, btpParams, testContext.sk)
+		btpKey := testContext.kgen.GenBootstrappingKey(testContext.params.LogSlots(), btpParams, testContext.sk)
 		btp, err := NewBootstrapper(testContext.params, btpParams, *btpKey)
 		if err != nil {
 			panic(err)
 		}
 
-		values := make([]complex128, 1<<params.logSlots)
+		values := make([]complex128, 1<<params.LogSlots())
 		for i := range values {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.9238795325112867, 0.3826834323650898)
 		values[1] = complex(0.9238795325112867, 0.3826834323650898)
-		if 1<<params.logSlots > 2 {
+		if 1<<params.LogSlots() > 2 {
 			values[2] = complex(0.9238795325112867, 0.3826834323650898)
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.scale)
-		testContext.encoder.Encode(plaintext, values, params.logSlots)
+		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
+		testContext.encoder.Encode(plaintext, values, params.LogSlots())
 
 		ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
 

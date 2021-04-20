@@ -85,6 +85,19 @@ func (m *Moduli) Copy() Moduli {
 	return Moduli{qi, pi}
 }
 
+// Print prints the moduli in hexadecimal
+func (m *Moduli) Print() {
+	for _, qi := range m.Qi {
+		fmt.Printf("0x%x,\n", qi)
+	}
+	fmt.Println()
+
+	for _, pj := range m.Pi {
+		fmt.Printf("0x%x,\n", pj)
+	}
+	fmt.Println()
+}
+
 // LogModuli stores the bit-length of the NTT primes of the RNS representation.
 type LogModuli struct {
 	LogQi []uint64 // Ciphertext prime moduli bit-size
@@ -103,7 +116,16 @@ func (m *LogModuli) Copy() LogModuli {
 	return LogModuli{LogQi, LogPi}
 }
 
-func NewRLWEParameters(logn uint64, q, p []uint64, sigma float64) *ParametersStruct { // TEMPORARY constructor
+func NewRLWEParameters(logn uint64, q, p []uint64, sigma float64) (*ParametersStruct, error) { // TEMPORARY constructor
+
+	if (logn < MinLogN) || (logn > MaxLogN) {
+		return nil, fmt.Errorf("invalid polynomial ring log degree: %d", logn)
+	}
+
+	// Checks if Moduli is valid
+	if err := CheckModuli(&Moduli{q, p}, logn); err != nil {
+		return nil, err
+	}
 
 	params := &ParametersStruct{
 		logN:  logn,
@@ -113,7 +135,7 @@ func NewRLWEParameters(logn uint64, q, p []uint64, sigma float64) *ParametersStr
 	}
 	copy(params.qi, q)
 	copy(params.pi, p)
-	return params
+	return params, nil
 }
 
 // N returns the ring degree

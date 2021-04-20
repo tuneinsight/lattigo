@@ -13,7 +13,7 @@ func BenchmarkDCKKS(b *testing.B) {
 
 	var err error
 
-	var defaultParams []*ckks.Parameters
+	var defaultParams []*ckks.ParametersStruct
 
 	if testing.Short() {
 		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+3]

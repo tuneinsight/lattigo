@@ -30,7 +30,7 @@ type KeyGenerator interface {
 // KeyGenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
 type keyGenerator struct {
-	params          *Parameters
+	params          Parameters
 	ringQP          *ring.Ring
 	pBigInt         *big.Int
 	polypool        [2]*ring.Poly
@@ -40,21 +40,10 @@ type keyGenerator struct {
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
-func NewKeyGenerator(params *Parameters) KeyGenerator {
+func NewKeyGenerator(params Parameters) KeyGenerator {
 
-	var qp *ring.Ring
-	var err error
-	if qp, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
-		panic(err)
-	}
-
-	var pBigInt *big.Int
-	if len(params.pi) != 0 {
-		pBigInt = ring.NewUint(1)
-		for _, pi := range params.pi {
-			pBigInt.Mul(pBigInt, ring.NewUint(pi))
-		}
-	}
+	qp := params.RingQP()
+	pBigInt := params.PBigInt()
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -62,11 +51,11 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	}
 
 	return &keyGenerator{
-		params:          params.Copy(),
+		params:          params,
 		ringQP:          qp,
 		pBigInt:         pBigInt,
 		polypool:        [2]*ring.Poly{qp.NewPoly(), qp.NewPoly()},
-		gaussianSampler: ring.NewGaussianSampler(prng, qp, params.sigma, uint64(6*params.sigma)),
+		gaussianSampler: ring.NewGaussianSampler(prng, qp, params.Sigma(), uint64(6*params.Sigma())),
 		uniformSampler:  ring.NewUniformSampler(prng, qp),
 	}
 }
@@ -145,7 +134,7 @@ func (keygen *keyGenerator) GenKeyPairSparse(hw uint64) (sk *rlwe.SecretKey, pk 
 // GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
 func (keygen *keyGenerator) GenRelinearizationKey(sk *rlwe.SecretKey) (rlk *rlwe.RelinearizationKey) {
 
-	if len(keygen.params.pi) == 0 {
+	if keygen.params.PCount() == 0 {
 		panic("Cannot GenRelinKey: modulus P is empty")
 	}
 
@@ -161,7 +150,7 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *rlwe.SecretKey) (rlk *rlwe
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *rlwe.SecretKey) (newevakey *rlwe.SwitchingKey) {
 
-	if len(keygen.params.pi) == 0 {
+	if keygen.params.PCount() == 0 {
 		panic("Cannot GenSwitchingKey: modulus P is empty")
 	}
 
@@ -292,7 +281,7 @@ func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *rlwe.SecretKey) (rks 
 // GenKeys generates the bootstrapping keys
 func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *rlwe.SecretKey) (btpKey *BootstrappingKey) {
 
-	rotUint := computeBootstrappingDFTRotationList(keygen.params.logN, logSlots, btpParams)
+	rotUint := computeBootstrappingDFTRotationList(keygen.params.LogN(), logSlots, btpParams)
 	rotInt := make([]int, len(rotUint), len(rotUint))
 	for i, r := range rotUint {
 		rotInt[i] = int(r)

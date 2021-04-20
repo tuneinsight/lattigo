@@ -11,7 +11,7 @@ type Plaintext struct {
 }
 
 // NewPlaintext creates a new Plaintext of level level and scale scale.
-func NewPlaintext(params *Parameters, level uint64, scale float64) *Plaintext {
+func NewPlaintext(params Parameters, level uint64, scale float64) *Plaintext {
 
 	plaintext := &Plaintext{Element: NewElement(params, 0, level, scale)}
 	plaintext.value = plaintext.Element.Value[0]

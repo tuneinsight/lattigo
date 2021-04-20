@@ -137,22 +137,12 @@ func NewParametersFromParamDef(paramDef *ParametersDef) (*parameters, error) {
 // NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
 func NewParametersFromModuli(logN uint64, m *rlwe.Moduli, t uint64) (p *parameters, err error) {
 
-	p = new(parameters)
-
-	if logN < rlwe.MinLogN || logN > rlwe.MaxLogN {
-		return nil, fmt.Errorf("invalid polynomial ring log degree: %d", logN)
-	}
-
-	// Checks if Moduli is valid
-	if err = rlwe.CheckModuli(m, logN); err != nil {
+	var rlweParams *rlwe.ParametersStruct
+	if rlweParams, err = rlwe.NewRLWEParameters(logN, m.Qi, m.Pi, rlwe.DefaultSigma); err != nil {
 		return nil, err
 	}
 
-	p.ParametersStruct = *rlwe.NewRLWEParameters(logN, m.Qi, m.Pi, rlwe.DefaultSigma)
-
-	p.t = t
-
-	return p, nil
+	return &parameters{*rlweParams, t}, nil
 }
 
 // NewParametersFromLogModuli creates a new Parameters struct and returns a pointer to it.
@@ -245,9 +235,12 @@ func (p *parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(qi)
 	b.ReadUint64Slice(pi)
 
-	err := rlwe.CheckModuli(p.Moduli(), logN)
-
-	p.ParametersStruct = *rlwe.NewRLWEParameters(logN, qi, pi, sigma)
+	var rlweParams *rlwe.ParametersStruct
+	var err error
+	if rlweParams, err = rlwe.NewRLWEParameters(logN, qi, pi, sigma); err != nil {
+		return err
+	}
+	p.ParametersStruct = *rlweParams
 
 	if err != nil {
 		return err

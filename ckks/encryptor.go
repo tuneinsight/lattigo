@@ -52,7 +52,7 @@ type Encryptor interface {
 
 // encryptor is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
 type encryptor struct {
-	params *Parameters
+	params Parameters
 
 	ringQ *ring.Ring
 	ringP *ring.Ring
@@ -79,7 +79,7 @@ type skEncryptor struct {
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This Encryptor can be used to encrypt Plaintexts, using the stored key.
-func NewEncryptorFromPk(params *Parameters, pk *rlwe.PublicKey) Encryptor {
+func NewEncryptorFromPk(params Parameters, pk *rlwe.PublicKey) Encryptor {
 	enc := newEncryptor(params)
 
 	if uint64(pk.Value[0].GetDegree()) != params.N() || uint64(pk.Value[1].GetDegree()) != params.N() {
@@ -91,7 +91,7 @@ func NewEncryptorFromPk(params *Parameters, pk *rlwe.PublicKey) Encryptor {
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This Encryptor can be used to encrypt Plaintexts, using the stored key.
-func NewEncryptorFromSk(params *Parameters, sk *rlwe.SecretKey) Encryptor {
+func NewEncryptorFromSk(params Parameters, sk *rlwe.SecretKey) Encryptor {
 	enc := newEncryptor(params)
 
 	if uint64(sk.Value.GetDegree()) != params.N() {
@@ -101,11 +101,11 @@ func NewEncryptorFromSk(params *Parameters, sk *rlwe.SecretKey) Encryptor {
 	return &skEncryptor{enc, sk}
 }
 
-func newEncryptor(params *Parameters) encryptor {
+func newEncryptor(params Parameters) encryptor {
 
 	var q, p *ring.Ring
 	var err error
-	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
+	if q, err = ring.NewRing(params.N(), params.Q()); err != nil {
 		panic(err)
 	}
 
@@ -119,7 +119,7 @@ func newEncryptor(params *Parameters) encryptor {
 	var uniformSamplerP *ring.UniformSampler
 	if params.PCount() != 0 {
 
-		if p, err = ring.NewRing(params.N(), params.pi); err != nil {
+		if p, err = ring.NewRing(params.N(), params.P()); err != nil {
 			panic(err)
 		}
 
@@ -131,13 +131,13 @@ func newEncryptor(params *Parameters) encryptor {
 	}
 
 	return encryptor{
-		params:           params.Copy(),
+		params:           params,
 		ringQ:            q,
 		ringP:            p,
 		poolQ:            [3]*ring.Poly{q.NewPoly(), q.NewPoly(), q.NewPoly()},
 		poolP:            poolP,
 		baseconverter:    baseconverter,
-		gaussianSamplerQ: ring.NewGaussianSampler(prng, q, params.sigma, uint64(6*params.sigma)),
+		gaussianSamplerQ: ring.NewGaussianSampler(prng, q, params.Sigma(), uint64(6*params.Sigma())),
 		ternarySamplerQ:  ring.NewTernarySampler(prng, q, 0.5, false),
 		uniformSamplerQ:  ring.NewUniformSampler(prng, q),
 		uniformSamplerP:  uniformSamplerP,

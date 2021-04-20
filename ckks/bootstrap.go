@@ -79,7 +79,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 func (btp *Bootstrapper) subSum(ct *Ciphertext) *Ciphertext {
 
-	for i := btp.params.logSlots; i < btp.params.MaxLogSlots(); i++ {
+	for i := btp.params.LogSlots(); i < btp.params.MaxLogSlots(); i++ {
 
 		btp.evaluator.Rotate(ct, 1<<i, btp.ctxpool)
 
@@ -395,12 +395,10 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint64, rotkeys *rlwe.RotationKeySet) (cOutQ, cOutP map[uint64][2]*ring.Poly) {
 
 	// Pre-computation for rotations using hoisting
-	ringQ := eval.ringQ
-	ringP := eval.ringP
 
 	c2NTT := ct0.Value[1]
-	c2InvNTT := ringQ.NewPoly() // IMPROVEMENT: maybe have a pre-allocated memory pool ?
-	ringQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
+	c2InvNTT := eval.ringQ.NewPoly() // IMPROVEMENT: maybe have a pre-allocated memory pool ?
+	eval.ringQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
 
 	alpha := eval.params.Alpha()
 	beta := uint64(math.Ceil(float64(ct0.Level()+1) / float64(alpha)))
@@ -410,8 +408,8 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint6
 	c2QiPDecomp := make([]*ring.Poly, beta)
 
 	for i := uint64(0); i < beta; i++ {
-		c2QiQDecomp[i] = ringQ.NewPoly()
-		c2QiPDecomp[i] = ringP.NewPoly()
+		c2QiQDecomp[i] = eval.ringQ.NewPoly()
+		c2QiPDecomp[i] = eval.ringP.NewPoly()
 		eval.decomposeAndSplitNTT(ct0.Level(), i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
 	}
 
@@ -419,14 +417,13 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint6
 
 	cOutQ = make(map[uint64][2]*ring.Poly)
 	cOutP = make(map[uint64][2]*ring.Poly)
-
 	for _, i := range rotations {
 
-		i &= ((ringQ.N >> 1) - 1)
+		i &= ((eval.ringQ.N >> 1) - 1)
 
 		if i != 0 {
 			cOutQ[i] = [2]*ring.Poly{eval.ringQ.NewPolyLvl(ct0.Level()), eval.ringQ.NewPolyLvl(ct0.Level())}
-			cOutP[i] = [2]*ring.Poly{eval.params.NewPolyP(), eval.params.NewPolyP()}
+			cOutP[i] = [2]*ring.Poly{eval.ringP.NewPoly(), eval.ringP.NewPoly()}
 			eval.permuteNTTHoistedNoModDown(ct0, c2QiQDecomp, c2QiPDecomp, i, rotkeys, cOutQ[i], cOutP[i])
 		}
 	}
@@ -471,18 +468,18 @@ func (btp *Bootstrapper) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphe
 	// the output scale after the polynomial evaluation followed by the double angle formula
 	// does not change the scale of the ciphertext.
 	for i := uint64(0); i < btp.SinRescal; i++ {
-		btp.scale *= float64(btp.params.qi[btp.StCLevel[0]+i+1])
+		btp.scale *= float64(btp.params.Q()[btp.StCLevel[0]+i+1])
 		btp.scale = math.Sqrt(btp.scale)
 	}
 
 	ct0 = btp.evaluateCheby(ct0)
 
-	ct0.DivScale(btp.deviation * btp.postscale / btp.params.scale)
+	ct0.DivScale(btp.deviation * btp.postscale / btp.params.Scale())
 
 	if ct1 != nil {
 		ct1.MulScale(btp.deviation)
 		ct1 = btp.evaluateCheby(ct1)
-		ct1.DivScale(btp.deviation * btp.postscale / btp.params.scale)
+		ct1.DivScale(btp.deviation * btp.postscale / btp.params.Scale())
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.

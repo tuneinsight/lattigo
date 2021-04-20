@@ -12,7 +12,7 @@ type CKGProtocol struct {
 }
 
 // NewCKGProtocol creates a new CKGProtocol instance
-func NewCKGProtocol(params *ckks.Parameters) *CKGProtocol {
+func NewCKGProtocol(params *ckks.ParametersStruct) *CKGProtocol {
 
 	ckg := new(CKGProtocol)
 	ckg.CKGProtocol = *drlwe.NewCKGProtocol(params)

@@ -91,7 +91,7 @@ type evaluator struct {
 }
 
 type evaluatorBase struct {
-	params *Parameters
+	params Parameters
 	scale  float64
 
 	ringQ *ring.Ring
@@ -107,19 +107,14 @@ type evaluatorBuffers struct {
 	ctxpool  *Ciphertext   // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
 }
 
-func newEvaluatorBase(params *Parameters) *evaluatorBase {
-	var err error
+func newEvaluatorBase(params Parameters) *evaluatorBase {
 	ev := new(evaluatorBase)
-	ev.params = params.Copy()
-	ev.scale = params.scale
-	if ev.ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
+	ev.params = params
+	ev.scale = params.Scale()
+	ev.ringQ = params.RingQ()
 
 	if params.PCount() != 0 {
-		if ev.ringP, err = ring.NewRing(params.N(), params.pi); err != nil {
-			panic(err)
-		}
+		ev.ringP = params.RingP()
 		ev.decomposer = ring.NewDecomposer(ev.ringQ.Modulus, ev.ringP.Modulus)
 	}
 	return ev
@@ -133,14 +128,14 @@ func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 	if evalBase.params.PCount() > 0 {
 		buff.poolP = [3]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
 	}
-	buff.ctxpool = NewCiphertext(evalBase.params, 1, evalBase.params.MaxLevel(), evalBase.params.scale)
+	buff.ctxpool = NewCiphertext(evalBase.params, 1, evalBase.params.MaxLevel(), evalBase.params.Scale())
 	return buff
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on the Ciphertexts and/or Plaintexts. It stores a small pool of polynomials
 // and Ciphertexts that will be used for intermediate values.
-func NewEvaluator(params *Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
+func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
 	eval := new(evaluator)
 	eval.evaluatorBase = newEvaluatorBase(params)
 	eval.evaluatorBuffers = newEvaluatorBuffers(eval.evaluatorBase)
@@ -1127,7 +1122,7 @@ func (eval *evaluator) ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext
 // SetScale sets the scale of the ciphertext to the input scale (consumes a level)
 func (eval *evaluator) SetScale(ct *Ciphertext, scale float64) {
 
-	var tmp = eval.params.scale
+	var tmp = eval.params.Scale()
 
 	eval.scale = scale
 

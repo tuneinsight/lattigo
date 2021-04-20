@@ -74,7 +74,6 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
-
 	var baseconverter *ring.FastBasisExtender
 	baseconverter = ring.NewFastBasisExtender(ringQ, ringP)
 	level := ciphertexts.ciphertexts.Level()
@@ -100,7 +99,6 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 		di2 := evaluationKeys[i-1].key[2]
 
 		for j := uint64(1); j <= k; j++ {
-
 			decomposedIJQ, decomposedIJP := GInverse(cipherParts[i*(k+1)+j], params) // line 3
 
 			cIJtmpQ := DotLvl(level, decomposedIJQ, publicKeys[j-1].key[0], ringQ)

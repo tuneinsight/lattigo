@@ -21,22 +21,23 @@ func Test_MKCKKS(t *testing.T) {
 	//skip parameter 4 due to memory consumption
 	for i, p := range ckks.DefaultParams {
 		if i != 4 && i != 9 {
-
-			testEncryptionEqualsDecryption(t, p)
-			testAdd(t, p)
-			testAddFourParticipants(t, p)
-			testAddPlaintext(t, p)
-			testAddPlaintextTwoParticipants(t, p)
-			testSub(t, p)
-			testSubPlaintext(t, p)
-			testNeg(t, p)
-			testSubPlaintextTwoParticipants(t, p)
-			testMulPlaintext(t, p)
-			testMulPlaintextTwoParticipants(t, p)
-			testAddInPlace(t, p)
-
-			if i == 0 {
-				testRelin(t, p)
+			/*
+				testEncryptionEqualsDecryption(t, p)
+				testAdd(t, p)
+				testAddFourParticipants(t, p)
+				testAddPlaintext(t, p)
+				testAddPlaintextTwoParticipants(t, p)
+				testSub(t, p)
+				testSubPlaintext(t, p)
+				testNeg(t, p)
+				testSubPlaintextTwoParticipants(t, p)
+				testMulPlaintext(t, p)
+				testMulPlaintextTwoParticipants(t, p)
+				testAddInPlace(t, p)
+			*/
+			if i == 1 {
+				//testRelinTrivial(t,p)
+				testRelinNonTrivial(t, p)
 			}
 			/*testSquare(t, p)
 			testMul(t, p)
@@ -543,7 +544,7 @@ func testSquare(t *testing.T, params *ckks.Parameters) {
 
 }
 
-func testRelin(t *testing.T, params *ckks.Parameters) {
+func testRelinTrivial(t *testing.T, params *ckks.Parameters) {
 
 	sigma := 6.0
 
@@ -585,9 +586,72 @@ func testRelin(t *testing.T, params *ckks.Parameters) {
 			publicKeys[i].key[0] = NewDecomposedPoly(GetRingQP(params), size1)
 		}
 		RelinearizationOnTheFly(evalKeys, publicKeys, out, params)
+		/*
+			for i := 0; i < len(out.ciphertexts.Value()); i++ {
+				fmt.Printf("value[%v] \n", i)
+				fmt.Printf("%v \n", out.ciphertexts.Value()[i])
+
+			} // uncomment to see the 0 result
+		*/
+	})
+
+}
+
+func testRelinNonTrivial(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	t.Run(testString("Test relinearization/", 2, params), func(t *testing.T) {
+		// generate test values
+		values1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		values2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// Encrypt
+		cipher1 := participants[0].Encrypt(values1)
+		cipher2 := participants[1].Encrypt(values2)
+		padded1, padded2 := PadCiphers(cipher1, cipher2, params)
+
+		nbrElements := padded1.ciphertexts.Degree() + 1 // k+1
+
+		outputDegree := nbrElements * nbrElements // (k+1)**2
+		el1 := padded1.ciphertexts.Element
+		el2 := padded2.ciphertexts.Element
+		level := utils.MinUint64(el1.Level(), el2.Level())
+
+		out := new(MKCiphertext)
+		out.ciphertexts = ckks.NewCiphertext(params, outputDegree-1, level, el1.Scale()*el2.Scale())
+		out.peerIDs = padded1.peerIDs
+		coeffToFill := make([][]uint64, out.ciphertexts.Value()[0].GetLenModuli())
+		for i := uint64(0); i < uint64(len(coeffToFill)); i++ {
+			for j := uint64(0); j < uint64(len(coeffToFill[0])); j++ {
+				coeffToFill[i][j] = 10000000 // set to non 0 essentially, value doesn't really matter
+			}
+		}
+		for i := uint64(0); i < nbrElements; i++ {
+			out.ciphertexts.Value()[i].SetCoefficients(coeffToFill)
+		}
+		// Set keys to 0
+		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+		for i := 0; i < len(evalKeys); i++ {
+			pid := evalKeys[i].peerID
+			evalKeys[i] = NewMKEvaluationKey(GetRingQP(params), pid, params)
+		}
+		for i := 0; i < len(publicKeys); i++ {
+			size0 := uint64(len(publicKeys[i].key[0].poly))
+			size1 := uint64(len(publicKeys[i].key[1].poly))
+			publicKeys[i].key[0] = NewDecomposedPoly(GetRingQP(params), size0)
+			publicKeys[i].key[0] = NewDecomposedPoly(GetRingQP(params), size1)
+		}
+		RelinearizationOnTheFly(evalKeys, publicKeys, out, params)
+
 		for i := 0; i < len(out.ciphertexts.Value()); i++ {
-			//fmt.Printf("value[%v] \n", i)
-			//fmt.Printf("%v \n", out.ciphertexts.Value()[i]) : unprint to check behaviour
+			if i < 1 {
+				fmt.Printf("value[%v] \n", i)
+				fmt.Printf("%v \n", out.ciphertexts.Value()[i])
+			}
 
 		}
 	})

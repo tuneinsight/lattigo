@@ -48,12 +48,12 @@ func (b *BootstrappingParameters) Params() (p Parameters, err error) {
 	Qi = append(Qi, b.CoeffsToSlotsModuli.Qi...)
 
 	if p, err = NewParametersFromParamDef(&ParametersDef{
-		qi:       Qi,
-		pi:       b.KeySwitchModuli,
-		logN:     b.LogN,
-		sigma:    b.Sigma,
-		scale:    b.Scale,
-		logSlots: b.LogSlots,
+		Q:        Qi,
+		P:        b.KeySwitchModuli,
+		LogN:     b.LogN,
+		Sigma:    b.Sigma,
+		Scale:    b.Scale,
+		LogSlots: b.LogSlots,
 	}); err != nil {
 		return nil, err
 	}

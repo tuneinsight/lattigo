@@ -104,7 +104,7 @@ func round(x complex128) complex128 {
 	return complex(a, b)
 }
 
-func printDebug(params *ckks.ParametersStruct, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
+func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
 
 	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
 

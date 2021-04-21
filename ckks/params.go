@@ -191,42 +191,19 @@ func NewParameters(rlweParams rlwe.Parameters, logSlot int, scale float64) (p Pa
 	return Parameters{rlweParams, logSlot, scale}, nil
 }
 
-func NewParametersFromParamDef(paramDef ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(paramDef.RLWEParameterLiteral())
+func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
+	rlweParams, err := rlwe.NewParametersFromLiteral(pl.RLWEParameterLiteral())
 	if err != nil {
 		return Parameters{}, err
 	}
-	return NewParameters(rlweParams, paramDef.LogSlots, paramDef.Scale)
-}
-
-// NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromModuli(logN int, m *rlwe.Moduli, sigma float64, logSlots int, scale float64) (p Parameters, err error) {
-
-	var rlweParams rlwe.Parameters
-	if rlweParams, err = rlwe.NewParameters(logN, m.Qi, m.Pi, sigma); err != nil {
-		return Parameters{}, err
-	}
-
-	return Parameters{rlweParams, logSlots, scale}, nil
-
-}
-
-// NewParametersFromLogModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromLogModuli(logN int, lm *rlwe.LogModuli, sigma float64, logSlots int, scale float64) (p Parameters, err error) {
-
-	if err = rlwe.CheckLogModuli(lm); err != nil {
-		return Parameters{}, err
-	}
-
-	// If LogModuli is valid and then generates the moduli
-	return NewParametersFromModuli(logN, rlwe.GenModuli(lm, logN), sigma, logSlots, scale)
+	return NewParameters(rlweParams, pl.LogSlots, pl.Scale)
 }
 
 func GetDefaultParameters(paramsId int) Parameters {
 	if paramsId >= len(DefaultParams) {
 		panic(fmt.Errorf("paramsId %d does not exist", paramsId))
 	}
-	params, err := NewParametersFromParamDef(DefaultParams[paramsId])
+	params, err := NewParametersFromLiteral(DefaultParams[paramsId])
 	if err != nil {
 		panic(err)
 	}
@@ -326,7 +303,7 @@ func (p Parameters) MarshalJSON() ([]byte, error) {
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params ParametersLiteral
 	json.Unmarshal(data, &params)
-	*p, err = NewParametersFromParamDef(params)
+	*p, err = NewParametersFromLiteral(params)
 	return
 }
 

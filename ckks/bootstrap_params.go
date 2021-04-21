@@ -47,7 +47,7 @@ func (b *BootstrappingParameters) Params() (p Parameters, err error) {
 	Qi = append(Qi, b.SineEvalModuli.Qi...)
 	Qi = append(Qi, b.CoeffsToSlotsModuli.Qi...)
 
-	if p, err = NewParametersFromParamDef(ParametersLiteral{
+	if p, err = NewParametersFromLiteral(ParametersLiteral{
 		Q:        Qi,
 		P:        b.KeySwitchModuli,
 		LogN:     b.LogN,

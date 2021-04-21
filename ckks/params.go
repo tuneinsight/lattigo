@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -37,12 +38,12 @@ const (
 )
 
 type ParametersLiteral struct {
+	LogN     int // Ring degree (power of 2)
 	Q        []uint64
 	P        []uint64
-	LogN     int // Ring degree (power of 2)
+	Sigma    float64 // Gaussian sampling variance
 	LogSlots int
 	Scale    float64
-	Sigma    float64 // Gaussian sampling variance
 }
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
@@ -201,7 +202,7 @@ func NewParametersFromParamDef(paramDef ParametersLiteral) (Parameters, error) {
 func NewParametersFromModuli(logN int, m *rlwe.Moduli, sigma float64, logSlots int, scale float64) (p Parameters, err error) {
 
 	var rlweParams rlwe.Parameters
-	if rlweParams, err = rlwe.NewRLWEParameters(logN, m.Qi, m.Pi, sigma); err != nil {
+	if rlweParams, err = rlwe.NewParameters(logN, m.Qi, m.Pi, sigma); err != nil {
 		return Parameters{}, err
 	}
 
@@ -315,4 +316,15 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	scale := math.Float64frombits(binary.BigEndian.Uint64(data[len(data)-8:]))
 	*p, err = NewParameters(rlweParams, logSlots, scale)
 	return err
+}
+
+func (p Parameters) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ParametersLiteral{p.LogN(), p.Q(), p.P(), p.Sigma(), p.logSlots, p.scale})
+}
+
+func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
+	var params ParametersLiteral
+	json.Unmarshal(data, &params)
+	*p, err = NewParametersFromParamDef(params)
+	return
 }

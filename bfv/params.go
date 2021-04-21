@@ -2,6 +2,8 @@ package bfv
 
 import (
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
@@ -32,8 +34,8 @@ type ParametersLiteral struct {
 	LogN  int // Log Ring degree (power of 2)
 	Q     []uint64
 	P     []uint64
-	T     uint64  // Plaintext modulus
 	Sigma float64 // Gaussian sampling standard deviation
+	T     uint64  // Plaintext modulus
 }
 
 // DefaultParams is a set of default BFV parameters ensuring 128 bit security.
@@ -110,6 +112,17 @@ var DefaultParams = []ParametersLiteral{
 	},
 }
 
+func GetDefaultParameters(paramsId int) Parameters {
+	if paramsId >= len(DefaultParams) {
+		panic(fmt.Errorf("paramsId %d does not exist", paramsId))
+	}
+	params, err := NewParametersFromParamDef(DefaultParams[paramsId])
+	if err != nil {
+		panic(err)
+	}
+	return params
+}
+
 type Parameters struct {
 	rlwe.Parameters
 	t uint64
@@ -128,7 +141,7 @@ func NewParametersFromParamDef(paramDef ParametersLiteral) (Parameters, error) {
 func NewParametersFromModuli(logN int, m *rlwe.Moduli, t uint64) (p Parameters, err error) {
 
 	var rlweParams rlwe.Parameters
-	if rlweParams, err = rlwe.NewRLWEParameters(logN, m.Qi, m.Pi, rlwe.DefaultSigma); err != nil {
+	if rlweParams, err = rlwe.NewParameters(logN, m.Qi, m.Pi, rlwe.DefaultSigma); err != nil {
 		return Parameters{}, err
 	}
 
@@ -193,4 +206,15 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	dataBfv := data[len(data)-8:]
 	p.t = binary.BigEndian.Uint64(dataBfv)
 	return nil
+}
+
+func (p Parameters) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ParametersLiteral{p.LogN(), p.Q(), p.P(), p.Sigma(), p.t})
+}
+
+func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
+	var params ParametersLiteral
+	json.Unmarshal(data, &params)
+	*p, err = NewParametersFromParamDef(params)
+	return
 }

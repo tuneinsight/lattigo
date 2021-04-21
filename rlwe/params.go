@@ -1,6 +1,7 @@
 package rlwe
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -28,6 +29,13 @@ const DefaultSigma = 3.2
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = 5
+
+type ParametersLiteral struct {
+	LogN  int
+	Q     []uint64
+	P     []uint64
+	Sigma float64
+}
 
 type Parameters struct {
 	logN  int
@@ -85,10 +93,10 @@ func (m *LogModuli) Copy() LogModuli {
 	return LogModuli{LogQi, LogPi}
 }
 
-func NewRLWEParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) { // TEMPORARY constructor
+func NewParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) {
 
-	if (logn < MinLogN) || (logn > MaxLogN) {
-		return Parameters{}, fmt.Errorf("invalid polynomial ring log degree: %d", logn)
+	if err := CheckSizeParams(logn, uint64(len(q)), uint64(len(p))); err != nil {
+		return Parameters{}, err
 	}
 
 	// Checks if Moduli is valid
@@ -105,6 +113,10 @@ func NewRLWEParameters(logn int, q, p []uint64, sigma float64) (Parameters, erro
 	copy(params.qi, q)
 	copy(params.pi, p)
 	return params, nil
+}
+
+func NewParametersFromLiteral(params ParametersLiteral) (Parameters, error) {
+	return NewParameters(params.LogN, params.Q, params.P, params.Sigma)
 }
 
 // N returns the ring degree
@@ -343,6 +355,14 @@ func CheckModuli(m *Moduli, logN int) error {
 	return nil
 }
 
+func (p *Parameters) Equals(other Parameters) bool {
+	res := p.logN == other.logN
+	res = res && utils.EqualSliceUint64(p.qi, other.qi)
+	res = res && utils.EqualSliceUint64(p.pi, other.pi)
+	res = res && (p.sigma == other.sigma)
+	return res
+}
+
 func (p *Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN() == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
@@ -384,16 +404,21 @@ func (params *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(p)
 
 	var err error
-	*params, err = NewRLWEParameters(logN, q, p, sigma)
+	*params, err = NewParameters(logN, q, p, sigma)
 	return err
 }
 
-func (p *Parameters) Equals(other Parameters) bool {
-	res := p.logN == other.logN
-	res = res && utils.EqualSliceUint64(p.qi, other.qi)
-	res = res && utils.EqualSliceUint64(p.pi, other.pi)
-	res = res && (p.sigma == other.sigma)
-	return res
+func (p Parameters) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&ParametersLiteral{p.logN, p.qi, p.pi, p.sigma})
+}
+
+func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
+	var params ParametersLiteral
+	if err = json.Unmarshal(data, &params); err != nil {
+		return err
+	}
+	*p, err = NewParametersFromLiteral(params)
+	return
 }
 
 func CheckSizeParams(logN int, lenQ, lenP uint64) error {

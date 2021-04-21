@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"errors"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"math/big"
@@ -35,6 +35,15 @@ const (
 	// PN16QP1654pq is the index in DefaultParams for logQP = 1654 (post quantum)
 	PN16QP1654pq
 )
+
+type ParametersLiteral struct {
+	Q        []uint64
+	P        []uint64
+	LogN     int // Ring degree (power of 2)
+	LogSlots int
+	Scale    float64
+	Sigma    float64 // Gaussian sampling variance
+}
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
 var DefaultParams = []ParametersLiteral{
@@ -164,21 +173,19 @@ var DefaultParams = []ParametersLiteral{
 	},
 }
 
-type ParametersLiteral struct {
-	Q        []uint64
-	P        []uint64
-	LogN     int // Ring degree (power of 2)
-	LogSlots int
-	Scale    float64
-	Sigma    float64 // Gaussian sampling variance
-}
-
 // Parameters represents a given parameter set for the CKKS cryptosystem.
 type Parameters struct {
 	rlwe.Parameters
 
 	logSlots int
 	scale    float64
+}
+
+func NewParameters(rlweParams rlwe.Parameters, logSlot int, scale float64) (p Parameters, err error) {
+	if logSlot > rlweParams.LogN()-1 {
+		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d", logSlot, rlweParams.LogN()-1)
+	}
+	return Parameters{rlweParams, logSlot, scale}, nil
 }
 
 func NewParametersFromParamDef(paramDef ParametersLiteral) (Parameters, error) {
@@ -269,31 +276,12 @@ func (p *Parameters) QLvl(level int) *big.Int {
 	return tmp
 }
 
-// // Copy creates a copy of the target parameters.
-// func (p *parameters) Copy() (paramsCopy *parameters) {
-
-// 	paramsCopy = new(parameters)
-// 	paramsCopy.Parameters = p.Parameters.Copy()
-// 	paramsCopy.logSlots = p.logSlots
-// 	paramsCopy.scale = p.scale
-// 	paramsCopy.sigma = p.sigma
-// 	paramsCopy.qi = make([]uint64, len(p.qi))
-// 	copy(paramsCopy.qi, p.qi)
-// 	paramsCopy.pi = make([]uint64, len(p.pi))
-// 	copy(paramsCopy.pi, p.pi)
-// 	return
-// }
-
 // Equals compares two sets of parameters for equality.
-func (p *Parameters) Equals(other Parameters) (res bool) {
-
-	res = p.LogN() == other.LogN()
+func (p *Parameters) Equals(other Parameters) bool {
+	res := p.Parameters.Equals(other.Parameters)
 	res = res && (p.logSlots == other.LogSlots())
 	res = res && (p.scale == other.Scale())
-	res = res && (p.Sigma() == other.Sigma())
-	res = res && utils.EqualSliceUint64(p.Q(), other.Q())
-	res = res && utils.EqualSliceUint64(p.P(), other.P())
-	return
+	return res
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
@@ -302,60 +290,29 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	// Data 21 byte + QPiCount * 8 byte:
-	// 1 byte : logN
+	rlweBytes, err := p.Parameters.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	// len(rlweBytes) : RLWE parameters
 	// 1 byte : logSlots
 	// 8 byte : scale
-	// 8 byte : sigma
-	// 1 byte : #qi
-	// 1 byte : #pi
-	b := utils.NewBuffer(make([]byte, 0, 20+(p.QPCount())<<3))
-
-	b.WriteUint8(uint8(p.LogN()))
+	b := utils.NewBuffer(make([]byte, 0, len(rlweBytes)+9))
+	b.WriteUint8Slice(rlweBytes)
 	b.WriteUint8(uint8(p.logSlots))
 	b.WriteUint64(math.Float64bits(p.scale))
-	b.WriteUint64(math.Float64bits(p.Sigma()))
-	b.WriteUint8(uint8(p.QCount()))
-	b.WriteUint8(uint8(p.PCount()))
-	b.WriteUint64Slice(p.Q())
-	b.WriteUint64Slice(p.P())
-
 	return b.Bytes(), nil
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
-
-	if len(data) < 20 {
-		return errors.New("invalid parameters encoding")
-	}
-
-	b := utils.NewBuffer(data)
-
-	logN := int(b.ReadUint8())
-	p.logSlots = int(b.ReadUint8())
-
-	if p.logSlots > logN-1 {
-		return fmt.Errorf("LogSlots larger than %d", rlwe.MaxLogN-1)
-	}
-
-	p.scale = math.Float64frombits(b.ReadUint64())
-	sigma := math.Float64frombits(b.ReadUint64())
-
-	lenQi := b.ReadUint8()
-	lenPi := b.ReadUint8()
-
-	qi := make([]uint64, lenQi)
-	pi := make([]uint64, lenPi)
-
-	b.ReadUint64Slice(qi)
-	b.ReadUint64Slice(pi)
-
-	rlweParams, err := rlwe.NewRLWEParameters(logN, qi, pi, sigma)
-	if err != nil {
+	var rlweParams rlwe.Parameters
+	if err := rlweParams.UnmarshalBinary(data); err != nil {
 		return err
 	}
-	p.Parameters = rlweParams
-
-	return nil
+	logSlots := int(data[len(data)-9])
+	scale := math.Float64frombits(binary.BigEndian.Uint64(data[len(data)-8:]))
+	*p, err = NewParameters(rlweParams, logSlots, scale)
+	return err
 }

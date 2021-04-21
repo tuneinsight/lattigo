@@ -344,11 +344,72 @@ func CheckModuli(m *Moduli, logN int) error {
 }
 
 func (p *Parameters) MarshalBinary() ([]byte, error) {
-	panic("not implemented")
+	if p.LogN() == 0 { // if N is 0, then p is the zero value
+		return []byte{}, nil
+	}
+
+	// 1 byte : logN
+	// 1 byte : #Q
+	// 1 byte : #P
+	// 8 byte : sigma
+	// 8 * (#Q) : Q
+	// 8 * (#P) : P
+	b := utils.NewBuffer(make([]byte, 0, 11+(len(p.qi)+len(p.pi))<<3))
+	b.WriteUint8(uint8(p.logN))
+	b.WriteUint8(uint8(len(p.qi)))
+	b.WriteUint8(uint8(len(p.pi)))
+	b.WriteUint64(math.Float64bits(p.sigma))
+	b.WriteUint64Slice(p.qi)
+	b.WriteUint64Slice(p.pi)
+	return b.Bytes(), nil
 }
 
-func (p *Parameters) UnmarshalBinary([]byte) error {
-	panic("not implemented")
+func (params *Parameters) UnmarshalBinary(data []byte) error {
+	if len(data) < 11 {
+		return fmt.Errorf("invalid rlwe.Parameter serialization")
+	}
+	b := utils.NewBuffer(data)
+	logN := int(b.ReadUint8())
+	lenQ := uint64(b.ReadUint8())
+	lenP := uint64(b.ReadUint8())
+	sigma := math.Float64frombits(b.ReadUint64())
+
+	if err := CheckSizeParams(logN, lenQ, lenP); err != nil {
+		return err
+	}
+
+	q := make([]uint64, lenQ)
+	p := make([]uint64, lenP)
+	b.ReadUint64Slice(q)
+	b.ReadUint64Slice(p)
+
+	var err error
+	*params, err = NewRLWEParameters(logN, q, p, sigma)
+	return err
+}
+
+func (p *Parameters) Equals(other Parameters) bool {
+	res := p.logN == other.logN
+	res = res && utils.EqualSliceUint64(p.qi, other.qi)
+	res = res && utils.EqualSliceUint64(p.pi, other.pi)
+	res = res && (p.sigma == other.sigma)
+	return res
+}
+
+func CheckSizeParams(logN int, lenQ, lenP uint64) error {
+	if logN > MaxLogN {
+		return fmt.Errorf("logN=%d is larger than MaxLogN=%d", logN, MaxLogN)
+	}
+	if logN < MinLogN {
+		return fmt.Errorf("logN=%d is smaller than MinLogN=%d", logN, MinLogN)
+	}
+	if lenQ > MaxModuliCount {
+		return fmt.Errorf("lenQ=%d is larger than MaxModuliCount=%d", lenQ, MaxModuliCount)
+	}
+	if lenP > MaxModuliCount {
+		return fmt.Errorf("lenP=%d is larger than MaxModuliCount=%d", lenP, MaxModuliCount)
+	}
+	return nil
 }
 
 func CheckLogModuli(m *LogModuli) error {

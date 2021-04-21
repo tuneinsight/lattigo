@@ -1289,6 +1289,15 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 
 	ringQP := testContext.ringQP
 
+	t.Run("Marshaller/Parameters", func(t *testing.T) {
+		bytes, err := testContext.params.MarshalBinary()
+		assert.Nil(t, err)
+		var p Parameters
+		err = p.UnmarshalBinary(bytes)
+		assert.Nil(t, err)
+		assert.Equal(t, testContext.params, p)
+	})
+
 	t.Run("Marshaller/Ciphertext/", func(t *testing.T) {
 		t.Run(testString(testContext, "EndToEnd/"), func(t *testing.T) {
 

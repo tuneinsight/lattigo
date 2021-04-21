@@ -138,8 +138,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 }
 
 func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
-	rlweParamDef := rlwe.ParametersLiteral{LogN: paramDef.LogN, Q: paramDef.Q, P: paramDef.P, LogQ: paramDef.LogQ, LogP: paramDef.LogP, Sigma: paramDef.Sigma}
-	rlweParams, err := rlwe.NewParametersFromLiteral(rlweParamDef)
+	rlweParams, err := rlwe.NewParametersFromLiteral(paramDef.RLWEParameterLiteral())
 	if err != nil {
 		return Parameters{}, err
 	}
@@ -225,4 +224,8 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	json.Unmarshal(data, &params)
 	*p, err = NewParametersFromLiteral(params)
 	return
+}
+
+func (pl ParametersLiteral) RLWEParameterLiteral() rlwe.ParametersLiteral {
+	return rlwe.ParametersLiteral{LogN: pl.LogN, Q: pl.Q, P: pl.P, LogQ: pl.LogQ, LogP: pl.LogP, Sigma: pl.Sigma}
 }

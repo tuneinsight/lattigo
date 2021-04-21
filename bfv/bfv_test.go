@@ -100,17 +100,6 @@ func genTestParams(params Parameters) (testctx *testContext, err error) {
 }
 
 func testParameters(testctx *testContext, t *testing.T) {
-	t.Run("Parameters/NewParametersFromModuli/", func(t *testing.T) {
-		p, err := NewParametersFromModuli(testctx.params.LogN(), testctx.params.Moduli(), testctx.params.T())
-		assert.NoError(t, err)
-		assert.True(t, p.Equals(testctx.params))
-	})
-
-	t.Run("Parameters/NewParametersFromLogModuli/", func(t *testing.T) {
-		p, err := NewParametersFromLogModuli(testctx.params.LogN(), testctx.params.LogModuli(), testctx.params.T())
-		assert.NoError(t, err)
-		assert.True(t, p.Equals(testctx.params))
-	})
 
 	t.Run("Parameters/InverseGaloisElement/", func(t *testing.T) {
 		for i := 1; i < int(testctx.params.N()/2); i++ {

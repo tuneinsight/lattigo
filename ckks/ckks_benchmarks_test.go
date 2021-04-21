@@ -19,7 +19,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	}
 
 	for _, defaultParams := range defaultParams {
-		params, err := NewParametersFromParamDef(defaultParams)
+		params, err := NewParametersFromLiteral(defaultParams)
 		if err != nil {
 			panic(err)
 		}

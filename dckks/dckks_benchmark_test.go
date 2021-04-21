@@ -21,7 +21,7 @@ func BenchmarkDCKKS(b *testing.B) {
 
 	for _, p := range defaultParams {
 
-		params, err := ckks.NewParametersFromParamDef(p)
+		params, err := ckks.NewParametersFromLiteral(p)
 		if err != nil {
 			panic(err)
 		}

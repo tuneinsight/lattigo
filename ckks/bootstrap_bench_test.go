@@ -18,7 +18,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	btpParams := DefaultBootstrapParams[3]
 	schemeParamsDef := DefaultBootstrapSchemeParams[3]
-	params, err := NewParametersFromParamDef(schemeParamsDef)
+	params, err := NewParametersFromLiteral(schemeParamsDef)
 	if err != nil {
 		panic(err)
 	}

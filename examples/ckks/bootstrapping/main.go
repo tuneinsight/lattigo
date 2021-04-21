@@ -29,7 +29,7 @@ func main() {
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.
 	paramsDef := ckks.DefaultBootstrapSchemeParams[0]
-	params, err := ckks.NewParametersFromParamDef(paramsDef)
+	params, err := ckks.NewParametersFromLiteral(paramsDef)
 	if err != nil {
 		panic(err)
 	}

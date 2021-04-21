@@ -145,27 +145,6 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	return NewParameters(rlweParams, paramDef.T)
 }
 
-// NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromModuli(logN uint64, m *rlwe.Moduli, t uint64) (p Parameters, err error) {
-	var rlweParams rlwe.Parameters
-	if rlweParams, err = rlwe.NewParameters(logN, m.Qi, m.Pi, rlwe.DefaultSigma); err != nil {
-		return Parameters{}, err
-	}
-
-	return Parameters{rlweParams, t}, nil
-}
-
-// NewParametersFromLogModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromLogModuli(logN uint64, lm *rlwe.LogModuli, t uint64) (p Parameters, err error) {
-
-	if err = rlwe.CheckLogModuli(lm); err != nil {
-		return Parameters{}, err
-	}
-
-	// If LogModuli is valid and then generates the moduli
-	return NewParametersFromModuli(logN, rlwe.GenModuli(lm, logN), t)
-}
-
 // T returns the plaintext coefficient modulus t
 func (p Parameters) T() uint64 {
 	return p.t

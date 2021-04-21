@@ -38,7 +38,7 @@ func TestBootstrap(t *testing.T) {
 			paramsDef.LogSlots = 13
 		}
 
-		params, err := NewParametersFromParamDef(paramsDef)
+		params, err := NewParametersFromLiteral(paramsDef)
 		if err != nil {
 			panic(err)
 		}

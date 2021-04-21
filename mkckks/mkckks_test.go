@@ -37,13 +37,13 @@ func Test_MKCKKS(t *testing.T) {
 			/*testRotation(t, p)
 			testRotationTwoParticipants(t, p)
 
-			if i == 1 {
-				//testRelinTrivial(t,p)
-				testRelinNonTrivial(t, p)
-			}
-			testSquare(t, p)
-			testMul(t, p)
-			testMulFourParticipants(t, p)*/
+				if i == 1 {
+					//testRelinTrivial(t,p)
+					testRelinNonTrivial(t, p)
+				}
+				testSquare(t, p)
+				testMul(t, p)
+				testMulFourParticipants(t, p)*/
 
 		}
 	}

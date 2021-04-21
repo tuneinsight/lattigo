@@ -234,6 +234,7 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Paramete
 	h0 := GetGaussianDecomposed(GetGaussianSampler(params, ringQP, prng), params.Beta())
 
 	for i := uint64(0); i < params.Beta(); i++ {
+		ringQP.NTT(h0.poly[i], h0.poly[i])
 		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, h1.poly[i], h0.poly[i])
 	}
 
@@ -249,8 +250,6 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Paramete
 
 	return res
 }
-
-
 
 // GetGaussianDecomposed samples from a gaussian distribution and build an element of Rq^d
 func GetGaussianDecomposed(sampler *ring.GaussianSampler, dimension uint64) *MKDecomposedPoly {

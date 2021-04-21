@@ -2,6 +2,7 @@ package mkckks
 
 import (
 	"math/big"
+	"sort"
 
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
@@ -19,6 +20,7 @@ type MKEvaluator interface {
 	MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
 	MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
 	Rescale(c *MKCiphertext, out *MKCiphertext)
+	RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
 	NewPlaintextFromValue([]complex128) *ckks.Plaintext
 }
 
@@ -182,6 +184,9 @@ func (eval *mkEvaluator) MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKC
 // MultRelinDynamic will compute the homomorphic multiplication and relinearize the resulting cyphertext using dynamic relin
 func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
 
+	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].peerID < evalKeys[j].peerID })
+	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].peerID < publicKeys[j].peerID })
+
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
 	nbrElements := padded1.ciphertexts.Degree() + 1 // k+1
@@ -232,6 +237,107 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 func (eval *mkEvaluator) Rescale(c *MKCiphertext, out *MKCiphertext) {
 
 	eval.ckksEval.Rescale(c.ciphertexts, eval.params.Scale(), c.ciphertexts)
+}
+
+// RotateNew rotate the columns of the ciphertext by n to the left and return the result in a new ciphertext
+func (eval *mkEvaluator) RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext {
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i].peerID < keys[j].peerID })
+
+	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params, c.ciphertexts.Level())
+
+	galEl := eval.params.GaloisElementForColumnRotationBy(n)
+
+	level := c.ciphertexts.Level()
+
+	ringP := GetRingP(eval.params)
+	ringQP := GetRingQP(eval.params)
+
+	baseconverter := ring.NewFastBasisExtender(eval.ringQ, ringP)
+
+	k := uint64(len(c.peerIDs))
+
+	res := make([]*ring.Poly, k+1)
+
+	restmpQ := make([]*ring.Poly, k+1)
+	restmpP := make([]*ring.Poly, k+1)
+
+	for i := uint64(0); i < k+1; i++ {
+		restmpQ[i] = eval.ringQ.NewPoly()
+		restmpP[i] = ringP.NewPoly()
+		res[i] = eval.ringQ.NewPoly()
+	}
+
+	for i := uint64(1); i <= k; i++ {
+
+		gal0Q, gal0P, gal1Q, gal1P := prepareGaloisEvaluationKey(i, level, uint64(len(eval.ringQ.Modulus)), eval.params.Beta(), keys)
+
+		permutedCipher := eval.ringQ.NewPoly()
+
+		index := ring.PermuteNTTIndex(galEl, ringQP.N)
+		ring.PermuteNTTWithIndexLvl(level, c.ciphertexts.Value()[i], index, permutedCipher)
+
+		decomposedPermutedQ, decomposedPermutedP := GInverse(permutedCipher, eval.params, level)
+
+		res0P := Dot(decomposedPermutedP, gal0P, ringP)
+		res0Q := DotLvl(level, decomposedPermutedQ, gal0Q, eval.ringQ)
+
+		ringP.Add(restmpP[0], res0P, restmpP[0])
+		eval.ringQ.AddLvl(level, restmpQ[0], res0Q, restmpQ[0])
+
+		restmpP[i] = Dot(decomposedPermutedP, gal1P, ringP)
+		restmpQ[i] = DotLvl(level, decomposedPermutedQ, gal1Q, eval.ringQ)
+	}
+
+	// finalize computation of c0'
+	index := ring.PermuteNTTIndex(galEl, ringQP.N)
+	ring.PermuteNTTWithIndexLvl(level, c.ciphertexts.Value()[0], index, res[0])
+
+	tmpModDown := eval.ringQ.NewPoly()
+	baseconverter.ModDownSplitNTTPQ(level, restmpQ[0], restmpP[0], tmpModDown)
+	eval.ringQ.AddLvl(level, res[0], tmpModDown, res[0])
+
+	// finalize computation of ci'
+	for i := uint64(1); i <= k; i++ {
+
+		baseconverter.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
+		eval.ringQ.AddLvl(level, res[i], tmpModDown, res[i])
+	}
+
+	out.ciphertexts.SetValue(res)
+
+	return out
+}
+
+// prepare galois evaluation keys for operations in split crt basis
+func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*MKEvalGalKey) (gal0Q, gal0P, gal1Q, gal1P *MKDecomposedPoly) {
+
+	gal0Q = new(MKDecomposedPoly)
+	gal0Q.poly = make([]*ring.Poly, beta)
+	gal0P = new(MKDecomposedPoly)
+	gal0P.poly = make([]*ring.Poly, beta)
+
+	gal1Q = new(MKDecomposedPoly)
+	gal1Q.poly = make([]*ring.Poly, beta)
+	gal1P = new(MKDecomposedPoly)
+	gal1P.poly = make([]*ring.Poly, beta)
+
+	for u := uint64(0); u < beta; u++ {
+		gal0Q.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal0Q.poly[u].Coeffs = gal0Q.poly[u].Coeffs[:level+1]
+
+		gal0P.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal0P.poly[u].Coeffs = gal0P.poly[u].Coeffs[modulus:]
+
+		gal1Q.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal1Q.poly[u].Coeffs = gal1Q.poly[u].Coeffs[:level+1]
+
+		gal1P.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal1P.poly[u].Coeffs = gal1P.poly[u].Coeffs[modulus:]
+
+	}
+
+	return gal0Q, gal0P, gal1Q, gal1P
 }
 
 // NewPlaintextFromValue returns a plaintext from the provided values

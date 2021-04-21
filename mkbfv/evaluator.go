@@ -2,6 +2,7 @@ package mkbfv
 
 import (
 	"math/big"
+	"sort"
 
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
@@ -204,8 +205,11 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
+	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].peerID < evalKeys[j].peerID })
+	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].peerID < publicKeys[j].peerID })
+
 	out := eval.TensorAndRescale(padded1.ciphertexts.Element, padded2.ciphertexts.Element)
-	// Call Relin alg 2
+
 	RelinearizationOnTheFly(evalKeys, publicKeys, out, eval.params)
 	out.peerIDs = padded1.peerIDs
 	return out

@@ -74,8 +74,8 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
-	var baseconverter *ring.FastBasisExtender
-	baseconverter = ring.NewFastBasisExtender(ringQ, ringP)
+
+	baseconverter := ring.NewFastBasisExtender(ringQ, ringP)
 	level := ciphertexts.ciphertexts.Level()
 
 	k := uint64(len(evaluationKeys))

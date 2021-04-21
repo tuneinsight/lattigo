@@ -31,7 +31,12 @@ type MKEvaluationKey struct {
 // MKSwitchingKey is a type for CKKS switching keys in a multi key context.
 type MKSwitchingKey struct {
 	key []*MKDecomposedPoly
-	//peerID uint64 // Commented because in relinkey_gen.Convert we might not need a peerID, or might need multiple
+}
+
+// MKEvalGalKey is a type for CKKS switching keys in a multi key context.
+type MKEvalGalKey struct {
+	key    []*MKDecomposedPoly
+	peerID uint64
 }
 
 // MKRelinearizationKey is a type for CKKS relinearization keys in a multi key context.

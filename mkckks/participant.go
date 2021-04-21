@@ -16,6 +16,7 @@ type MKParticipant interface {
 	Encrypt(values []complex128) *MKCiphertext
 	Decrypt(cipher *MKCiphertext, partialDecryptions []*ring.Poly) []complex128
 	GetPartialDecryption(ciphertext *MKCiphertext) *ring.Poly
+	GetRotationKeys(rot int) *MKEvalGalKey
 }
 
 type mkParticipant struct {
@@ -155,4 +156,15 @@ func (participant *mkParticipant) getCiphertextPart(ciphertext *MKCiphertext) *r
 
 	return nil
 
+}
+
+// GetRotationKeys returns the rotation key set associated with the given rotation
+func (participant *mkParticipant) GetRotationKeys(rot int) *MKEvalGalKey {
+
+	galEl := participant.params.GaloisElementForColumnRotationBy(rot)
+
+	evalKey := GaloisEvaluationKeyGen(galEl, participant.keys.secretKey, participant.params)
+	evalKey.peerID = participant.id
+
+	return evalKey
 }

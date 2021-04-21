@@ -217,6 +217,41 @@ func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyGenera
 	}
 }
 
+// GaloisEvaluationKeyGen returns a galois evaluation key for a given automorphism
+func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Parameters) *MKEvalGalKey {
+
+	res := new(MKEvalGalKey)
+	res.key = make([]*MKDecomposedPoly, 2)
+
+	ringQP := GetRingQP(params)
+
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	h1 := GetUniformDecomposed(GetUniformSampler(params, ringQP, prng), params.Beta())
+	h0 := GetGaussianDecomposed(GetGaussianSampler(params, ringQP, prng), params.Beta())
+
+	for i := uint64(0); i < params.Beta(); i++ {
+		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, h1.poly[i], h0.poly[i])
+	}
+
+	permutedSecretKey := ringQP.NewPoly()
+
+	index := ring.PermuteNTTIndex(galEl, ringQP.N)
+	ring.PermuteNTTWithIndexLvl(params.QPiCount()-1, sk.key.Value, index, permutedSecretKey)
+
+	MultiplyByBaseAndAdd(permutedSecretKey, params, h0)
+
+	res.key[0] = h0
+	res.key[1] = h1
+
+	return res
+}
+
+
+
 // GetGaussianDecomposed samples from a gaussian distribution and build an element of Rq^d
 func GetGaussianDecomposed(sampler *ring.GaussianSampler, dimension uint64) *MKDecomposedPoly {
 	res := new(MKDecomposedPoly)

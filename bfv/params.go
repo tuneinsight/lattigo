@@ -1,13 +1,10 @@
 package bfv
 
 import (
-	"errors"
-	"fmt"
-	"math"
+	"encoding/binary"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
 )
 
 const (
@@ -29,6 +26,15 @@ const (
 	// PN15QP827pq is the index in DefaultParams for logQP = 827 (post quantum)
 	PN15QP827pq
 )
+
+// ParametersLiteral represents a given parameter set for the BFV cryptosystem.
+type ParametersLiteral struct {
+	LogN  uint64 // Log Ring degree (power of 2)
+	Q     []uint64
+	P     []uint64
+	T     uint64  // Plaintext modulus
+	Sigma float64 // Gaussian sampling standard deviation
+}
 
 // DefaultParams is a set of default BFV parameters ensuring 128 bit security.
 var DefaultParams = []ParametersLiteral{
@@ -109,15 +115,6 @@ type Parameters struct {
 	t uint64
 }
 
-// ParametersLiteral represents a given parameter set for the BFV cryptosystem.
-type ParametersLiteral struct {
-	LogN  uint64 // Log Ring degree (power of 2)
-	Q     []uint64
-	P     []uint64
-	T     uint64  // Plaintext modulus
-	Sigma float64 // Gaussian sampling standard deviation
-}
-
 func NewParametersFromParamDef(paramDef ParametersLiteral) (Parameters, error) {
 	m := new(rlwe.Moduli)
 	m.Qi = make([]uint64, len(paramDef.Q))
@@ -163,16 +160,10 @@ func (p Parameters) RingT() *ring.Ring {
 }
 
 // Equals compares two sets of parameters for equality.
-func (p *Parameters) Equals(other Parameters) (res bool) {
-
-	res = p.LogN() == other.LogN()
+func (p *Parameters) Equals(other Parameters) bool {
+	res := p.Parameters.Equals(other.Parameters)
 	res = res && (p.t == other.T())
-	res = res && (p.Sigma() == other.Sigma())
-
-	res = res && utils.EqualSliceUint64(p.Q(), other.Q())
-	res = res && utils.EqualSliceUint64(p.P(), other.P())
-
-	return
+	return res
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
@@ -181,56 +172,25 @@ func (p *Parameters) MarshalBinary() ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	// data : 19 byte + len(QPi) * 8 byte
-	// 1 byte : logN
-	// 1 byte : #pi
-	// 1 byte : #pi
-	// 8 byte : t
-	// 8 byte : sigma
-	b := utils.NewBuffer(make([]byte, 0, 19+(len(p.Q())+len(p.P()))<<3))
+	rlweBytes, err := p.Parameters.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
 
-	b.WriteUint8(uint8(p.LogN()))
-	b.WriteUint8(uint8(len(p.Q())))
-	b.WriteUint8(uint8(len(p.P())))
-	b.WriteUint64(p.T())
-	b.WriteUint64(math.Float64bits(p.Sigma()))
-	b.WriteUint64Slice(p.Q())
-	b.WriteUint64Slice(p.P())
-
-	return b.Bytes(), nil
+	// len(rlweBytes) : RLWE parameters
+	// 8 byte : T
+	var tBytes [8]byte
+	binary.BigEndian.PutUint64(tBytes[:], p.t)
+	data := append(rlweBytes, tBytes[:]...)
+	return data, nil
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
 func (p *Parameters) UnmarshalBinary(data []byte) error {
-	if len(data) < 19 {
-		return errors.New("invalid parameters encoding")
-	}
-	b := utils.NewBuffer(data)
-
-	logN := uint64(b.ReadUint8())
-
-	if logN > rlwe.MaxLogN {
-		return fmt.Errorf("logN larger than %d", rlwe.MaxLogN)
-	}
-
-	lenQi := b.ReadUint8()
-	lenPi := b.ReadUint8()
-
-	p.t = b.ReadUint64()
-	sigma := math.Float64frombits(b.ReadUint64())
-	qi := make([]uint64, lenQi)
-	pi := make([]uint64, lenPi)
-
-	b.ReadUint64Slice(qi)
-	b.ReadUint64Slice(pi)
-
-	var err error
-	if p.Parameters, err = rlwe.NewRLWEParameters(logN, qi, pi, sigma); err != nil {
+	if err := p.Parameters.UnmarshalBinary(data); err != nil {
 		return err
 	}
-
-	if err != nil {
-		return err
-	}
+	dataBfv := data[len(data)-8:]
+	p.t = binary.BigEndian.Uint64(dataBfv)
 	return nil
 }

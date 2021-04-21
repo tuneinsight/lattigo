@@ -1051,6 +1051,22 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 		err = json.Unmarshal(data, &rlweParams)
 		assert.Nil(t, err)
 		assert.True(t, testctx.params.Parameters.Equals(rlweParams))
+
+		// checks that bfv.Paramters can be unmarshalled with log-moduli definition without error
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		var paramsWithLogModuli Parameters
+		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+		assert.Nil(t, err)
+		assert.Equal(t, uint64(2), paramsWithLogModuli.QCount())
+		assert.Equal(t, uint64(1), paramsWithLogModuli.PCount())
+
+		// checks that bfv.Paramters can be unmarshalled with log-moduli definition with empty P without error
+		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		var paramsWithLogModuliNoP Parameters
+		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
+		assert.Nil(t, err)
+		assert.Equal(t, uint64(2), paramsWithLogModuliNoP.QCount())
+		assert.Equal(t, uint64(0), paramsWithLogModuliNoP.PCount())
 	})
 
 	t.Run("Marshaller/Ciphertext/", func(t *testing.T) {

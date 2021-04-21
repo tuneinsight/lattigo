@@ -41,7 +41,9 @@ type ParametersLiteral struct {
 	LogN     uint64 // Ring degree (power of 2)
 	Q        []uint64
 	P        []uint64
-	Sigma    float64 // Gaussian sampling variance
+	LogQ     []uint64 `json:",omitempty"`
+	LogP     []uint64 `json:",omitempty"`
+	Sigma    float64  // Gaussian sampling variance
 	LogSlots uint64
 	Scale    float64
 }
@@ -190,12 +192,12 @@ func NewParameters(rlweParams rlwe.Parameters, logSlot uint64, scale float64) (p
 }
 
 func NewParametersFromParamDef(paramDef ParametersLiteral) (Parameters, error) {
-	m := new(rlwe.Moduli)
-	m.Qi = make([]uint64, len(paramDef.Q))
-	copy(m.Qi, paramDef.Q)
-	m.Pi = make([]uint64, len(paramDef.P))
-	copy(m.Pi, paramDef.P)
-	return NewParametersFromModuli(paramDef.LogN, m, paramDef.Sigma, paramDef.LogSlots, paramDef.Scale)
+	rlweParamDef := rlwe.ParametersLiteral{LogN: paramDef.LogN, Q: paramDef.Q, P: paramDef.P, LogQ: paramDef.LogQ, LogP: paramDef.LogP, Sigma: paramDef.Sigma}
+	rlweParams, err := rlwe.NewParametersFromLiteral(rlweParamDef)
+	if err != nil {
+		return Parameters{}, err
+	}
+	return NewParameters(rlweParams, paramDef.LogSlots, paramDef.Scale)
 }
 
 // NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
@@ -319,7 +321,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 }
 
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ParametersLiteral{p.LogN(), p.Q(), p.P(), p.Sigma(), p.logSlots, p.scale})
+	return json.Marshal(ParametersLiteral{LogN: p.LogN(), Q: p.Q(), P: p.P(), Sigma: p.Sigma(), LogSlots: p.logSlots, Scale: p.scale})
 }
 
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {

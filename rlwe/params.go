@@ -34,6 +34,8 @@ type ParametersLiteral struct {
 	LogN  uint64
 	Q     []uint64
 	P     []uint64
+	LogQ  []uint64 `json:",omitempty"`
+	LogP  []uint64 `json:",omitempty"`
 	Sigma float64
 }
 
@@ -115,8 +117,16 @@ func NewParameters(logn uint64, q, p []uint64, sigma float64) (Parameters, error
 	return params, nil
 }
 
-func NewParametersFromLiteral(params ParametersLiteral) (Parameters, error) {
-	return NewParameters(params.LogN, params.Q, params.P, params.Sigma)
+func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
+	switch {
+	case paramDef.Q != nil && paramDef.LogQ == nil && paramDef.P != nil && paramDef.LogP == nil:
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Sigma)
+	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.LogP != nil && paramDef.P == nil:
+		moduli := GenModuli(&LogModuli{LogQi: paramDef.LogQ, LogPi: paramDef.LogP}, paramDef.LogN)
+		return NewParameters(paramDef.LogN, moduli.Qi, moduli.Pi, paramDef.Sigma)
+	default:
+		return Parameters{}, fmt.Errorf("invalid parameter literal")
+	}
 }
 
 // N returns the ring degree
@@ -397,7 +407,7 @@ func (params *Parameters) UnmarshalBinary(data []byte) error {
 }
 
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&ParametersLiteral{p.logN, p.qi, p.pi, p.sigma})
+	return json.Marshal(&ParametersLiteral{LogN: p.logN, Q: p.qi, P: p.pi, Sigma: p.sigma})
 }
 
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {

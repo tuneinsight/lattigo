@@ -104,7 +104,7 @@ func main() {
 	// Creating encryption parameters from a default params with N=8192
 	paramsDef := bfv.DefaultParams[bfv.PN13QP218]
 	paramsDef.T = 65537
-	params, err := bfv.NewParametersFromParamDef(paramsDef)
+	params, err := bfv.NewParametersFromLiteral(paramsDef)
 	if err != nil {
 		panic(err)
 	}

@@ -54,7 +54,7 @@ func obliviousRiding() {
 	paramDef := bfv.DefaultParams[bfv.PN13QP218]
 	paramDef.T = 0x3ee0001
 
-	params, err := bfv.NewParametersFromParamDef(paramDef)
+	params, err := bfv.NewParametersFromLiteral(paramDef)
 	if err != nil {
 		panic(err)
 	}

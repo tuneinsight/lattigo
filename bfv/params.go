@@ -34,8 +34,10 @@ type ParametersLiteral struct {
 	LogN  uint64 // Log Ring degree (power of 2)
 	Q     []uint64
 	P     []uint64
-	Sigma float64 // Gaussian sampling standard deviation
-	T     uint64  // Plaintext modulus
+	LogQ  []uint64 `json:",omitempty"`
+	LogP  []uint64 `json:",omitempty"`
+	Sigma float64  // Gaussian sampling standard deviation
+	T     uint64   // Plaintext modulus
 }
 
 // DefaultParams is a set of default BFV parameters ensuring 128 bit security.
@@ -116,7 +118,7 @@ func GetDefaultParameters(paramsId int) Parameters {
 	if paramsId >= len(DefaultParams) {
 		panic(fmt.Errorf("paramsId %d does not exist", paramsId))
 	}
-	params, err := NewParametersFromParamDef(DefaultParams[paramsId])
+	params, err := NewParametersFromLiteral(DefaultParams[paramsId])
 	if err != nil {
 		panic(err)
 	}
@@ -128,18 +130,24 @@ type Parameters struct {
 	t uint64
 }
 
-func NewParametersFromParamDef(paramDef ParametersLiteral) (Parameters, error) {
-	m := new(rlwe.Moduli)
-	m.Qi = make([]uint64, len(paramDef.Q))
-	copy(m.Qi, paramDef.Q)
-	m.Pi = make([]uint64, len(paramDef.P))
-	copy(m.Pi, paramDef.P)
-	return NewParametersFromModuli(paramDef.LogN, m, paramDef.T)
+func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
+	if t > rlweParams.Q()[0] {
+		return Parameters{}, fmt.Errorf("t=%d is larger than Q[0]=%d", t, rlweParams.Q()[0])
+	}
+	return Parameters{rlweParams, t}, nil
+}
+
+func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
+	rlweParamDef := rlwe.ParametersLiteral{LogN: paramDef.LogN, Q: paramDef.Q, P: paramDef.P, LogQ: paramDef.LogQ, LogP: paramDef.LogP, Sigma: paramDef.Sigma}
+	rlweParams, err := rlwe.NewParametersFromLiteral(rlweParamDef)
+	if err != nil {
+		return Parameters{}, err
+	}
+	return NewParameters(rlweParams, paramDef.T)
 }
 
 // NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
 func NewParametersFromModuli(logN uint64, m *rlwe.Moduli, t uint64) (p Parameters, err error) {
-
 	var rlweParams rlwe.Parameters
 	if rlweParams, err = rlwe.NewParameters(logN, m.Qi, m.Pi, rlwe.DefaultSigma); err != nil {
 		return Parameters{}, err
@@ -209,12 +217,12 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 }
 
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ParametersLiteral{p.LogN(), p.Q(), p.P(), p.Sigma(), p.t})
+	return json.Marshal(ParametersLiteral{LogN: p.LogN(), Q: p.Q(), P: p.P(), Sigma: p.Sigma(), T: p.t})
 }
 
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params ParametersLiteral
 	json.Unmarshal(data, &params)
-	*p, err = NewParametersFromParamDef(params)
+	*p, err = NewParametersFromLiteral(params)
 	return
 }

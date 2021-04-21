@@ -1,6 +1,7 @@
 package bfv
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"testing"
@@ -698,13 +699,32 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 
 func testMarshalParameters(testctx *testContext, t *testing.T) {
 
-	t.Run("Marshaller/Parameters", func(t *testing.T) {
+	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
 		bytes, err := testctx.params.MarshalBinary()
 		assert.Nil(t, err)
 		var p Parameters
 		err = p.UnmarshalBinary(bytes)
 		assert.Nil(t, err)
 		assert.Equal(t, testctx.params, p)
+	})
+
+	t.Run("Marshaller/Parameters/JSON", func(t *testing.T) {
+		// checks that parameters can be marshalled without error
+		data, err := json.Marshal(testctx.params)
+		assert.Nil(t, err)
+		assert.NotNil(t, data)
+
+		// checks that bfv.Parameters can be unmarshalled without error
+		var paramsRec Parameters
+		err = json.Unmarshal(data, &paramsRec)
+		assert.Nil(t, err)
+		assert.True(t, testctx.params.Equals(paramsRec))
+
+		// checks that rlwe.Parameters can be unmarshalled without error
+		var rlweParams rlwe.Parameters
+		err = json.Unmarshal(data, &rlweParams)
+		assert.Nil(t, err)
+		assert.True(t, testctx.params.Parameters.Equals(rlweParams))
 	})
 }
 

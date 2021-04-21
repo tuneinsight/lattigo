@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math"
@@ -1020,23 +1021,42 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 	})
 }
 
-func testMarshaller(testContext *testParams, t *testing.T) {
+func testMarshaller(testctx *testParams, t *testing.T) {
 
-	ringQP := testContext.ringQP
+	ringQP := testctx.ringQP
 
-	t.Run("Marshaller/Parameters", func(t *testing.T) {
-		bytes, err := testContext.params.MarshalBinary()
+	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
+		bytes, err := testctx.params.MarshalBinary()
 		assert.Nil(t, err)
 		var p Parameters
 		err = p.UnmarshalBinary(bytes)
 		assert.Nil(t, err)
-		assert.Equal(t, testContext.params, p)
+		assert.Equal(t, testctx.params, p)
+	})
+
+	t.Run("Marshaller/Parameters/JSON", func(t *testing.T) {
+		// checks that parameters can be marshalled without error
+		data, err := json.Marshal(testctx.params)
+		assert.Nil(t, err)
+		assert.NotNil(t, data)
+
+		// checks that bfv.Parameters can be unmarshalled without error
+		var paramsRec Parameters
+		err = json.Unmarshal(data, &paramsRec)
+		assert.Nil(t, err)
+		assert.True(t, testctx.params.Equals(paramsRec))
+
+		// checks that rlwe.Parameters can be unmarshalled without error
+		var rlweParams rlwe.Parameters
+		err = json.Unmarshal(data, &rlweParams)
+		assert.Nil(t, err)
+		assert.True(t, testctx.params.Parameters.Equals(rlweParams))
 	})
 
 	t.Run("Marshaller/Ciphertext/", func(t *testing.T) {
-		t.Run(testString(testContext, "EndToEnd/"), func(t *testing.T) {
+		t.Run(testString(testctx, "EndToEnd/"), func(t *testing.T) {
 
-			ciphertextWant := NewCiphertextRandom(testContext.prng, testContext.params, 2, testContext.params.MaxLevel(), testContext.params.Scale())
+			ciphertextWant := NewCiphertextRandom(testctx.prng, testctx.params, 2, testctx.params.MaxLevel(), testctx.params.Scale())
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			require.NoError(t, err)
@@ -1049,13 +1069,13 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			require.Equal(t, ciphertextWant.Scale(), ciphertextTest.Scale())
 
 			for i := range ciphertextWant.Value {
-				require.True(t, testContext.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
+				require.True(t, testctx.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
 			}
 		})
 
-		t.Run(testString(testContext, "Minimal/"), func(t *testing.T) {
+		t.Run(testString(testctx, "Minimal/"), func(t *testing.T) {
 
-			ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 0, testContext.params.MaxLevel(), testContext.params.Scale())
+			ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 0, testctx.params.MaxLevel(), testctx.params.Scale())
 
 			marshalledCiphertext, err := ciphertext.MarshalBinary()
 			require.NoError(t, err)
@@ -1065,46 +1085,46 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
 
 			require.Equal(t, ciphertext.Degree(), uint64(0))
-			require.Equal(t, ciphertext.Level(), testContext.params.MaxLevel())
-			require.Equal(t, ciphertext.Scale(), testContext.params.Scale())
+			require.Equal(t, ciphertext.Level(), testctx.params.MaxLevel())
+			require.Equal(t, ciphertext.Scale(), testctx.params.Scale())
 			require.Equal(t, len(ciphertext.Value), 1)
 		})
 	})
 
-	t.Run(testString(testContext, "Marshaller/Sk/"), func(t *testing.T) {
+	t.Run(testString(testctx, "Marshaller/Sk/"), func(t *testing.T) {
 
-		marshalledSk, err := testContext.sk.MarshalBinary()
+		marshalledSk, err := testctx.sk.MarshalBinary()
 		require.NoError(t, err)
 
 		sk := new(rlwe.SecretKey)
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
-		require.True(t, ringQP.Equal(sk.Value, testContext.sk.Value))
+		require.True(t, ringQP.Equal(sk.Value, testctx.sk.Value))
 
 	})
 
-	t.Run(testString(testContext, "Marshaller/Pk/"), func(t *testing.T) {
+	t.Run(testString(testctx, "Marshaller/Pk/"), func(t *testing.T) {
 
-		marshalledPk, err := testContext.pk.MarshalBinary()
+		marshalledPk, err := testctx.pk.MarshalBinary()
 		require.NoError(t, err)
 
 		pk := new(rlwe.PublicKey)
 		err = pk.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
 
-		for k := range testContext.pk.Value {
-			require.Truef(t, ringQP.Equal(pk.Value[k], testContext.pk.Value[k]), "Marshal PublicKey element [%d]", k)
+		for k := range testctx.pk.Value {
+			require.Truef(t, ringQP.Equal(pk.Value[k], testctx.pk.Value[k]), "Marshal PublicKey element [%d]", k)
 		}
 	})
 
-	t.Run(testString(testContext, "Marshaller/EvaluationKey/"), func(t *testing.T) {
+	t.Run(testString(testctx, "Marshaller/EvaluationKey/"), func(t *testing.T) {
 
-		if testContext.params.PCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
-		evalKey := testContext.kgen.GenRelinearizationKey(testContext.sk)
+		evalKey := testctx.kgen.GenRelinearizationKey(testctx.sk)
 		data, err := evalKey.MarshalBinary()
 		require.NoError(t, err)
 
@@ -1122,15 +1142,15 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(testContext, "Marshaller/SwitchingKey/"), func(t *testing.T) {
+	t.Run(testString(testctx, "Marshaller/SwitchingKey/"), func(t *testing.T) {
 
-		if testContext.params.PCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
-		skOut := testContext.kgen.GenSecretKey()
+		skOut := testctx.kgen.GenSecretKey()
 
-		switchingKey := testContext.kgen.GenSwitchingKey(testContext.sk, skOut)
+		switchingKey := testctx.kgen.GenSwitchingKey(testctx.sk, skOut)
 		data, err := switchingKey.MarshalBinary()
 		require.NoError(t, err)
 
@@ -1148,19 +1168,19 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(testContext, "Marshaller/RotationKey/"), func(t *testing.T) {
+	t.Run(testString(testctx, "Marshaller/RotationKey/"), func(t *testing.T) {
 
-		if testContext.params.PCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
 		rots := []int{1, -1, 63, -63}
-		galEls := []uint64{testContext.params.GaloisElementForRowRotation()}
+		galEls := []uint64{testctx.params.GaloisElementForRowRotation()}
 		for _, n := range rots {
-			galEls = append(galEls, testContext.params.GaloisElementForColumnRotationBy(n))
+			galEls = append(galEls, testctx.params.GaloisElementForColumnRotationBy(n))
 		}
 
-		rotationKey := testContext.kgen.GenRotationKeys(galEls, testContext.sk)
+		rotationKey := testctx.kgen.GenRotationKeys(galEls, testctx.sk)
 
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)

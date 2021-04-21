@@ -699,7 +699,7 @@ func testMarshalParameters(testctx *testContext, t *testing.T) {
 	t.Run("Marshaller/Parameters", func(t *testing.T) {
 		bytes, err := testctx.params.MarshalBinary()
 		assert.Nil(t, err)
-		p := new(parameters)
+		var p Parameters
 		err = p.UnmarshalBinary(bytes)
 		assert.Nil(t, err)
 		assert.Equal(t, testctx.params, p)

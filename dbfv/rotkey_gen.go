@@ -12,5 +12,5 @@ type RTGProtocol struct {
 
 // NewRotKGProtocol creates a new rotkg object and will be used to generate collective rotation-keys from a shared secret-key among j parties.
 func NewRotKGProtocol(params bfv.Parameters) (rtg *RTGProtocol) {
-	return &RTGProtocol{*drlwe.NewRTGProtocol(params)}
+	return &RTGProtocol{*drlwe.NewRTGProtocol(params.Parameters)}
 }

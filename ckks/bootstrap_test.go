@@ -70,7 +70,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		SineScale := btpParams.SineEvalModuli.ScalingFactor
 
-		testContext.params.(*parameters).scale = SineScale
+		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
 		deg := 127
@@ -95,7 +95,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
-		testContext.params.(*parameters).scale = DefaultScale
+		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 	})
 
@@ -109,7 +109,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		SineScale := btpParams.SineEvalModuli.ScalingFactor
 
-		testContext.params.(*parameters).scale = SineScale
+		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
 		K := 25
@@ -175,7 +175,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
-		testContext.params.(*parameters).scale = DefaultScale
+		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 
 	})
@@ -194,7 +194,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		SineScale := btpParams.SineEvalModuli.ScalingFactor
 
-		testContext.params.(*parameters).scale = SineScale
+		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
 		K := 325
@@ -245,7 +245,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
-		testContext.params.(*parameters).scale = DefaultScale
+		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 
 	})

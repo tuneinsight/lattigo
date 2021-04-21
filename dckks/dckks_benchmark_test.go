@@ -11,7 +11,7 @@ import (
 
 func BenchmarkDCKKS(b *testing.B) {
 
-	var defaultParams []*ckks.ParametersDef
+	var defaultParams []ckks.ParametersLiteral
 
 	if testing.Short() {
 		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+3]

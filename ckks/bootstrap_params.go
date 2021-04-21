@@ -53,7 +53,7 @@ func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
 }
 
 // DefaultBootstrapSchemeParams are default scheme params for the bootstrapping
-var DefaultBootstrapSchemeParams = []*ParametersDef{
+var DefaultBootstrapSchemeParams = []ParametersLiteral{
 
 	{
 		LogN:     16,

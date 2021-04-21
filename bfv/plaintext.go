@@ -29,7 +29,7 @@ type PlaintextMul Plaintext
 // The plaintext will be in RingQ and scaled by Q/t.
 // Slower encoding and larger plaintext size
 func NewPlaintext(params Parameters) *Plaintext {
-	plaintext := &Plaintext{rlwe.NewElement(params, 0), nil}
+	plaintext := &Plaintext{rlwe.NewElement(params.Parameters, 0), nil}
 	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }
@@ -37,8 +37,7 @@ func NewPlaintext(params Parameters) *Plaintext {
 // NewPlaintextRingT creates and allocates a new plaintext in RingT (single modulus T).
 // The plaintext will be in RingT.
 func NewPlaintextRingT(params Parameters) *PlaintextRingT {
-
-	plaintext := &PlaintextRingT{rlwe.NewElementAtLevel(params, 0, 0), nil}
+	plaintext := &PlaintextRingT{rlwe.NewElementAtLevel(params.Parameters, 0, 0), nil}
 	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }
@@ -46,7 +45,7 @@ func NewPlaintextRingT(params Parameters) *PlaintextRingT {
 // NewPlaintextMul creates and allocates a new plaintext optimized for ciphertext x plaintext multiplication.
 // The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
 func NewPlaintextMul(params Parameters) *PlaintextMul {
-	plaintext := &PlaintextMul{rlwe.NewElement(params, 0), nil}
+	plaintext := &PlaintextMul{rlwe.NewElement(params.Parameters, 0), nil}
 	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }

@@ -8,7 +8,7 @@ import (
 
 func BenchmarkBFV(b *testing.B) {
 
-	var defaultParams []*ParametersDef
+	var defaultParams []ParametersLiteral
 
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]

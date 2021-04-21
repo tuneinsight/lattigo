@@ -11,7 +11,7 @@ import (
 
 func Benchmark_DBFV(b *testing.B) {
 
-	var defaultParams []*bfv.ParametersDef
+	var defaultParams []bfv.ParametersLiteral
 
 	if testing.Short() {
 		defaultParams = bfv.DefaultParams[bfv.PN12QP109 : bfv.PN12QP109+3]

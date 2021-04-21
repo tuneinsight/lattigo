@@ -74,7 +74,7 @@ func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		SineScale := math.Exp2(math.Round(math.Log2(float64(q))))
 
-		testContext.params.(*ParametersStruct).scale = SineScale
+		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
 		deg := 127
@@ -99,7 +99,7 @@ func testChebySin(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
-		testContext.params.(*ParametersStruct).scale = DefaultScale
+		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 	})
 }
@@ -119,7 +119,7 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		SineScale := math.Exp2(math.Round(math.Log2(float64(q))))
 
-		testContext.params.(*ParametersStruct).scale = SineScale
+		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
 		K := 21
@@ -176,7 +176,7 @@ func testChebyCos(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
-		testContext.params.(*ParametersStruct).scale = DefaultScale
+		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 
 	})
@@ -197,7 +197,7 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParamete
 
 		SineScale := math.Exp2(math.Round(math.Log2(float64(q))))
 
-		testContext.params.(*ParametersStruct).scale = SineScale
+		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
 
 		K := 257
@@ -248,7 +248,7 @@ func testChebyCosNaive(testContext *testParams, btpParams *BootstrappingParamete
 
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, t)
 
-		testContext.params.(*ParametersStruct).scale = DefaultScale
+		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 
 	})

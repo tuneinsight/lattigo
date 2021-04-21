@@ -37,7 +37,7 @@ const (
 )
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
-var DefaultParams = []*ParametersDef{
+var DefaultParams = []ParametersLiteral{
 
 	//LogQi = 109
 	{LogN: 12,
@@ -164,19 +164,7 @@ var DefaultParams = []*ParametersDef{
 	},
 }
 
-type Parameters interface {
-	rlwe.Parameters
-
-	LogQLvl(level uint64) uint64
-	LogSlots() uint64
-	MaxLevel() uint64
-	MaxLogSlots() uint64
-	QLvl(level uint64) *big.Int
-	Scale() float64
-	Slots() uint64
-}
-
-type ParametersDef struct {
+type ParametersLiteral struct {
 	Q        []uint64
 	P        []uint64
 	LogN     uint64 // Ring degree (power of 2)
@@ -185,15 +173,15 @@ type ParametersDef struct {
 	Sigma    float64 // Gaussian sampling variance
 }
 
-// parameters represents a given parameter set for the CKKS cryptosystem.
-type parameters struct {
+// Parameters represents a given parameter set for the CKKS cryptosystem.
+type Parameters struct {
 	rlwe.Parameters
 
 	logSlots uint64
 	scale    float64
 }
 
-func NewParametersFromParamDef(paramDef *ParametersDef) (*parameters, error) {
+func NewParametersFromParamDef(paramDef ParametersLiteral) (Parameters, error) {
 	m := new(rlwe.Moduli)
 	m.Qi = make([]uint64, len(paramDef.Q))
 	copy(m.Qi, paramDef.Q)
@@ -203,29 +191,29 @@ func NewParametersFromParamDef(paramDef *ParametersDef) (*parameters, error) {
 }
 
 // NewParametersFromModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromModuli(logN uint64, m *rlwe.Moduli, sigma float64, logSlots uint64, scale float64) (p *parameters, err error) {
+func NewParametersFromModuli(logN uint64, m *rlwe.Moduli, sigma float64, logSlots uint64, scale float64) (p Parameters, err error) {
 
-	var rlweParams *rlwe.ParametersStruct
+	var rlweParams rlwe.Parameters
 	if rlweParams, err = rlwe.NewRLWEParameters(logN, m.Qi, m.Pi, sigma); err != nil {
-		return nil, err
+		return Parameters{}, err
 	}
 
-	return &parameters{rlweParams, logSlots, scale}, nil
+	return Parameters{rlweParams, logSlots, scale}, nil
 
 }
 
 // NewParametersFromLogModuli creates a new Parameters struct and returns a pointer to it.
-func NewParametersFromLogModuli(logN uint64, lm *rlwe.LogModuli, sigma float64, logSlots uint64, scale float64) (p *parameters, err error) {
+func NewParametersFromLogModuli(logN uint64, lm *rlwe.LogModuli, sigma float64, logSlots uint64, scale float64) (p Parameters, err error) {
 
 	if err = rlwe.CheckLogModuli(lm); err != nil {
-		return nil, err
+		return Parameters{}, err
 	}
 
 	// If LogModuli is valid and then generates the moduli
 	return NewParametersFromModuli(logN, rlwe.GenModuli(lm, logN), sigma, logSlots, scale)
 }
 
-func GetDefaultParameters(paramsId int) *parameters {
+func GetDefaultParameters(paramsId int) Parameters {
 	if paramsId >= len(DefaultParams) {
 		panic(fmt.Errorf("paramsId %d does not exist", paramsId))
 	}
@@ -237,43 +225,43 @@ func GetDefaultParameters(paramsId int) *parameters {
 }
 
 // LogSlots returns the log of the number of slots
-func (p *parameters) LogSlots() uint64 {
+func (p *Parameters) LogSlots() uint64 {
 	return p.logSlots
 }
 
 // MaxLevel returns the maximum ciphertext level
-func (p *parameters) MaxLevel() uint64 {
+func (p *Parameters) MaxLevel() uint64 {
 	return p.QCount() - 1
 }
 
 // Slots returns number of available plaintext slots
-func (p *parameters) Slots() uint64 {
+func (p *Parameters) Slots() uint64 {
 	return 1 << p.logSlots
 }
 
 // MaxSlots returns the theoretical maximum of plaintext slots allowed by the ring degree
-func (p *parameters) MaxSlots() uint64 {
+func (p *Parameters) MaxSlots() uint64 {
 	return p.N() >> 1
 }
 
 // MaxLogSlots returns the log of the maximum number of slots enabled by the parameters
-func (p *parameters) MaxLogSlots() uint64 {
+func (p *Parameters) MaxLogSlots() uint64 {
 	return p.LogN() - 1
 }
 
 // Scale returns the default plaintext/ciphertext scale
-func (p *parameters) Scale() float64 {
+func (p *Parameters) Scale() float64 {
 	return p.scale
 }
 
 // LogQLvl returns the size of the modulus Q in bits at a specific level
-func (p *parameters) LogQLvl(level uint64) uint64 {
+func (p *Parameters) LogQLvl(level uint64) uint64 {
 	tmp := p.QLvl(level)
 	return uint64(tmp.BitLen())
 }
 
 // QLvl returns the product of the moduli at the given level as a big.Int
-func (p *parameters) QLvl(level uint64) *big.Int {
+func (p *Parameters) QLvl(level uint64) *big.Int {
 	tmp := ring.NewUint(1)
 	for _, qi := range p.Q()[:level+1] {
 		tmp.Mul(tmp, ring.NewUint(qi))
@@ -297,11 +285,7 @@ func (p *parameters) QLvl(level uint64) *big.Int {
 // }
 
 // Equals compares two sets of parameters for equality.
-func (p *parameters) Equals(other Parameters) (res bool) {
-
-	if p == other {
-		return true
-	}
+func (p *Parameters) Equals(other Parameters) (res bool) {
 
 	res = p.LogN() == other.LogN()
 	res = res && (p.logSlots == other.LogSlots())
@@ -313,7 +297,7 @@ func (p *parameters) Equals(other Parameters) (res bool) {
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
-func (p *parameters) MarshalBinary() ([]byte, error) {
+func (p *Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN() == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}
@@ -340,7 +324,7 @@ func (p *parameters) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct
-func (p *parameters) UnmarshalBinary(data []byte) (err error) {
+func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 
 	if len(data) < 20 {
 		return errors.New("invalid parameters encoding")

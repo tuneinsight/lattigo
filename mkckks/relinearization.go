@@ -94,46 +94,50 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 
 	for i := uint64(1); i <= k; i++ {
 
-		di0 := evaluationKeys[i-1].key[0]
-		di1 := evaluationKeys[i-1].key[1]
-		di2 := evaluationKeys[i-1].key[2]
+		d0Q, d1Q, d2Q, d0P, d1P, d2P := prepareEvalKey(i, level, uint64(len(ringQ.Modulus)), params.Beta(), evaluationKeys)
 
 		for j := uint64(1); j <= k; j++ {
 
+			pkQ, pkP := preparePublicKey(j, level, uint64(len(ringQ.Modulus)), params.Beta(), publicKeys)
+
 			decomposedIJQ, decomposedIJP := GInverse(cipherParts[i*(k+1)+j], params, level) // line 3
 
-			cIJtmpQ := DotLvl(level, decomposedIJQ, publicKeys[j-1].key[0], ringQ)
-			cIJtmpP := Dot(decomposedIJP, publicKeys[j-1].key[0], ringP)
+			cIJtmpQ := DotLvl(level, decomposedIJQ, pkQ, ringQ)
+			cIJtmpP := Dot(decomposedIJP, pkP, ringP)
+
+			//uncomment to test initialization
+			/*restmpQ[i] = cIJtmpQ
+			restmpP[i] = cIJtmpP
+			restmpQ[j] = cIJtmpQ
+			restmpP[j] = cIJtmpP*/
 
 			cIJPrime := ringQ.NewPoly()
 
 			baseconverter.ModDownSplitNTTPQ(level, cIJtmpQ, cIJtmpP, cIJPrime) // line 4
 
+			//uncomment to test initialization
+			/*res[i] = cIJPrime
+			res[j] = cIJPrime*/
+
 			decomposedTmpQ, decomposedTmpP := GInverse(cIJPrime, params, level) // inverse and matrix mult (line 5)
 
-			tmpC0Q := DotLvl(level, decomposedTmpQ, di0, ringQ)
-			tmpC0P := Dot(decomposedTmpP, di0, ringP)
+			tmpC0Q := DotLvl(level, decomposedTmpQ, d0Q, ringQ)
+			tmpC0P := Dot(decomposedTmpP, d0P, ringP)
 
-			tmpCiQ := DotLvl(level, decomposedTmpQ, di1, ringQ)
-			tmpCiP := Dot(decomposedTmpP, di1, ringP)
+			tmpCiQ := DotLvl(level, decomposedTmpQ, d1Q, ringQ)
+			tmpCiP := Dot(decomposedTmpP, d1P, ringP)
 
 			ringQ.AddLvl(level, restmpQ[0], tmpC0Q, restmpQ[0])
 			ringQ.AddLvl(level, restmpQ[i], tmpCiQ, restmpQ[i])
-			ringQ.ReduceLvl(level, restmpQ[0], restmpQ[0])
-			ringQ.ReduceLvl(level, restmpQ[i], restmpQ[i])
 
 			ringP.Add(restmpP[0], tmpC0P, restmpP[0])
 			ringP.Add(restmpP[i], tmpCiP, restmpP[i])
-			ringP.Reduce(restmpP[0], restmpP[0])
-			ringP.Reduce(restmpP[i], restmpP[i])
 
-			tmpIJQ := DotLvl(level, decomposedIJQ, di2, ringQ) // line 6 of algorithm
-			tmpIJP := Dot(decomposedIJP, di2, ringP)
+			tmpIJQ := DotLvl(level, decomposedIJQ, d2Q, ringQ) // line 6 of algorithm
+			tmpIJP := Dot(decomposedIJP, d2P, ringP)
 
 			ringQ.AddLvl(level, restmpQ[j], tmpIJQ, restmpQ[j])
 			ringP.Add(restmpP[j], tmpIJP, restmpP[j])
-			ringP.Reduce(restmpP[j], restmpP[j])
-			ringQ.ReduceLvl(level, restmpQ[j], restmpQ[j])
 
 		}
 	}
@@ -142,7 +146,6 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 
 	baseconverter.ModDownSplitNTTPQ(level, restmpQ[0], restmpP[0], tmpModDown)
 	ringQ.AddLvl(level, cipherParts[0], tmpModDown, res[0])
-	ringQ.ReduceLvl(level, res[0], res[0])
 
 	for i := uint64(1); i <= k; i++ {
 
@@ -150,9 +153,67 @@ func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MK
 
 		baseconverter.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
 		ringQ.AddLvl(level, res[i], tmpModDown, res[i])
-		ringQ.ReduceLvl(level, res[i], res[i])
 
 	}
 
 	ciphertexts.ciphertexts.SetValue(res)
+}
+
+// prepare evaluation key for operations in split crt basis
+func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluationKey) (d0Q, d1Q, d2Q, d0P, d1P, d2P *MKDecomposedPoly) {
+
+	di0 := evaluationKeys[i-1].key[0]
+	di1 := evaluationKeys[i-1].key[1]
+	di2 := evaluationKeys[i-1].key[2]
+
+	d0Q = new(MKDecomposedPoly)
+	d0Q.poly = make([]*ring.Poly, beta)
+	d1Q = new(MKDecomposedPoly)
+	d1Q.poly = make([]*ring.Poly, beta)
+	d2Q = new(MKDecomposedPoly)
+	d2Q.poly = make([]*ring.Poly, beta)
+	d0P = new(MKDecomposedPoly)
+	d0P.poly = make([]*ring.Poly, beta)
+	d1P = new(MKDecomposedPoly)
+	d1P.poly = make([]*ring.Poly, beta)
+	d2P = new(MKDecomposedPoly)
+	d2P.poly = make([]*ring.Poly, beta)
+
+	for u := uint64(0); u < beta; u++ {
+		d0Q.poly[u] = di0.poly[u].CopyNew()
+		d0Q.poly[u].Coeffs = d0Q.poly[u].Coeffs[:level+1]
+		d1Q.poly[u] = di1.poly[u].CopyNew()
+		d1Q.poly[u].Coeffs = d1Q.poly[u].Coeffs[:level+1]
+		d2Q.poly[u] = di2.poly[u].CopyNew()
+		d2Q.poly[u].Coeffs = d2Q.poly[u].Coeffs[:level+1]
+
+		d0P.poly[u] = di0.poly[u].CopyNew()
+		d0P.poly[u].Coeffs = d0P.poly[u].Coeffs[modulus:]
+		d1P.poly[u] = di1.poly[u].CopyNew()
+		d1P.poly[u].Coeffs = d1P.poly[u].Coeffs[modulus:]
+		d2P.poly[u] = di2.poly[u].CopyNew()
+		d2P.poly[u].Coeffs = d2P.poly[u].Coeffs[modulus:]
+	}
+
+	return
+}
+
+// prepare public key for operations in split crt basis
+func preparePublicKey(j, level, modulus, beta uint64, publicKeys []*MKPublicKey) (pkQ, pkP *MKDecomposedPoly) {
+
+	pkQ = new(MKDecomposedPoly)
+	pkQ.poly = make([]*ring.Poly, beta)
+	pkP = new(MKDecomposedPoly)
+	pkP.poly = make([]*ring.Poly, beta)
+
+	for u := uint64(0); u < beta; u++ {
+		pkQ.poly[u] = publicKeys[j-1].key[0].poly[u].CopyNew()
+		pkQ.poly[u].Coeffs = pkQ.poly[u].Coeffs[:level+1]
+
+		pkP.poly[u] = publicKeys[j-1].key[0].poly[u].CopyNew()
+		pkP.poly[u].Coeffs = pkP.poly[u].Coeffs[modulus:]
+
+	}
+
+	return
 }

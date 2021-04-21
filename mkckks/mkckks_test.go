@@ -21,27 +21,28 @@ func Test_MKCKKS(t *testing.T) {
 	//skip parameter 4 due to memory consumption
 	for i, p := range ckks.DefaultParams {
 		if i != 4 && i != 9 {
+
+			testEncryptionEqualsDecryption(t, p)
+			testAdd(t, p)
+			testAddFourParticipants(t, p)
+			testAddPlaintext(t, p)
+			testAddPlaintextTwoParticipants(t, p)
+			testSub(t, p)
+			testSubPlaintext(t, p)
+			testNeg(t, p)
+			testSubPlaintextTwoParticipants(t, p)
+			testMulPlaintext(t, p)
+			testMulPlaintextTwoParticipants(t, p)
+			testAddInPlace(t, p)
 			/*
-				testEncryptionEqualsDecryption(t, p)
-				testAdd(t, p)
-				testAddFourParticipants(t, p)
-				testAddPlaintext(t, p)
-				testAddPlaintextTwoParticipants(t, p)
-				testSub(t, p)
-				testSubPlaintext(t, p)
-				testNeg(t, p)
-				testSubPlaintextTwoParticipants(t, p)
-				testMulPlaintext(t, p)
-				testMulPlaintextTwoParticipants(t, p)
-				testAddInPlace(t, p)
+				if i == 1 {
+					//testRelinTrivial(t,p)
+					testRelinNonTrivial(t, p)
+				}
+				testSquare(t, p)
+				testMul(t, p)
+				testMulFourParticipants(t, p)
 			*/
-			if i == 1 {
-				//testRelinTrivial(t,p)
-				testRelinNonTrivial(t, p)
-			}
-			/*testSquare(t, p)
-			testMul(t, p)
-			testMulFourParticipants(t, p)*/
 		}
 	}
 

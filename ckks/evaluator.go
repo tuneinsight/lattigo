@@ -1579,7 +1579,7 @@ func (eval *evaluator) switchKeysInPlaceNoModDown(level uint64, cx *ring.Poly, e
 
 	// Key switching with CRT decomposition for the Qi
 	for i := uint64(0); i < beta; i++ {
-		// The G_inverse
+
 		eval.decomposeAndSplitNTT(level, i, cx, c2, c2QiQ, c2QiP)
 
 		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]

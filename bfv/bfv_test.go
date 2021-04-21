@@ -46,12 +46,11 @@ func TestBFV(t *testing.T) {
 	}
 	if *flagLongTest {
 		defaultParams = DefaultParams // the long test suite runs for all default parameters
-		fmt.Println("bfv running in long mode")
 	}
 
 	for _, p := range defaultParams {
 
-		params, err := NewParametersFromParamDef(p)
+		params, err := NewParametersFromLiteral(p)
 		if err != nil {
 			panic(err)
 		}
@@ -723,6 +722,22 @@ func testMarshalParameters(testctx *testContext, t *testing.T) {
 		err = json.Unmarshal(data, &rlweParams)
 		assert.Nil(t, err)
 		assert.True(t, testctx.params.Parameters.Equals(rlweParams))
+
+		// checks that bfv.Paramters can be unmarshalled with log-moduli definition without error
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		var paramsWithLogModuli Parameters
+		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+		assert.Nil(t, err)
+		assert.Equal(t, 2, paramsWithLogModuli.QCount())
+		assert.Equal(t, 1, paramsWithLogModuli.PCount())
+
+		// checks that bfv.Paramters can be unmarshalled with log-moduli definition with empty P without error
+		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		var paramsWithLogModuliNoP Parameters
+		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
+		assert.Nil(t, err)
+		assert.Equal(t, 2, paramsWithLogModuliNoP.QCount())
+		assert.Equal(t, 0, paramsWithLogModuliNoP.PCount())
 	})
 }
 

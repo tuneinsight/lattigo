@@ -18,7 +18,7 @@ func BenchmarkBFV(b *testing.B) {
 
 	for _, p := range defaultParams {
 
-		params, err := NewParametersFromParamDef(p)
+		params, err := NewParametersFromLiteral(p)
 		var testctx *testContext
 		if testctx, err = genTestParams(params); err != nil {
 			panic(err)

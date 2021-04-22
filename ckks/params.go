@@ -211,43 +211,43 @@ func GetDefaultParameters(paramsId int) Parameters {
 }
 
 // LogSlots returns the log of the number of slots
-func (p *Parameters) LogSlots() uint64 {
+func (p Parameters) LogSlots() uint64 {
 	return p.logSlots
 }
 
 // MaxLevel returns the maximum ciphertext level
-func (p *Parameters) MaxLevel() uint64 {
+func (p Parameters) MaxLevel() uint64 {
 	return p.QCount() - 1
 }
 
 // Slots returns number of available plaintext slots
-func (p *Parameters) Slots() uint64 {
+func (p Parameters) Slots() uint64 {
 	return 1 << p.logSlots
 }
 
 // MaxSlots returns the theoretical maximum of plaintext slots allowed by the ring degree
-func (p *Parameters) MaxSlots() uint64 {
+func (p Parameters) MaxSlots() uint64 {
 	return p.N() >> 1
 }
 
 // MaxLogSlots returns the log of the maximum number of slots enabled by the parameters
-func (p *Parameters) MaxLogSlots() uint64 {
+func (p Parameters) MaxLogSlots() uint64 {
 	return p.LogN() - 1
 }
 
 // Scale returns the default plaintext/ciphertext scale
-func (p *Parameters) Scale() float64 {
+func (p Parameters) Scale() float64 {
 	return p.scale
 }
 
 // LogQLvl returns the size of the modulus Q in bits at a specific level
-func (p *Parameters) LogQLvl(level uint64) uint64 {
+func (p Parameters) LogQLvl(level uint64) uint64 {
 	tmp := p.QLvl(level)
 	return uint64(tmp.BitLen())
 }
 
 // QLvl returns the product of the moduli at the given level as a big.Int
-func (p *Parameters) QLvl(level uint64) *big.Int {
+func (p Parameters) QLvl(level uint64) *big.Int {
 	tmp := ring.NewUint(1)
 	for _, qi := range p.Q()[:level+1] {
 		tmp.Mul(tmp, ring.NewUint(qi))
@@ -256,7 +256,7 @@ func (p *Parameters) QLvl(level uint64) *big.Int {
 }
 
 // Equals compares two sets of parameters for equality.
-func (p *Parameters) Equals(other Parameters) bool {
+func (p Parameters) Equals(other Parameters) bool {
 	res := p.Parameters.Equals(other.Parameters)
 	res = res && (p.logSlots == other.LogSlots())
 	res = res && (p.scale == other.Scale())
@@ -264,7 +264,7 @@ func (p *Parameters) Equals(other Parameters) bool {
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
-func (p *Parameters) MarshalBinary() ([]byte, error) {
+func (p Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN() == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}

@@ -159,14 +159,14 @@ func (p Parameters) RingT() *ring.Ring {
 }
 
 // Equals compares two sets of parameters for equality.
-func (p *Parameters) Equals(other Parameters) bool {
+func (p Parameters) Equals(other Parameters) bool {
 	res := p.Parameters.Equals(other.Parameters)
 	res = res && (p.t == other.T())
 	return res
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
-func (p *Parameters) MarshalBinary() ([]byte, error) {
+func (p Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN() == 0 { // if N is 0, then p is the zero value
 		return []byte{}, nil
 	}

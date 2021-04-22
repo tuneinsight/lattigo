@@ -279,17 +279,17 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*CKSProtocol
-			s0    *ring.Poly
-			s1    *ring.Poly
-			share CKSShare
+			s0    *rlwe.SecretKey
+			s1    *rlwe.SecretKey
+			share drlwe.CKSShare
 		}
 
 		cksParties := make([]*Party, parties)
 		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
-			p.s0 = sk0Shards[i].Value
-			p.s1 = sk1Shards[i].Value
+			p.s0 = sk0Shards[i]
+			p.s1 = sk1Shards[i]
 			p.share = p.AllocateShare()
 			cksParties[i] = p
 		}

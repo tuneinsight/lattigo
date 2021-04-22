@@ -148,15 +148,15 @@ func benchKeyswitching(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*CKSProtocol
-		s0    *ring.Poly
-		s1    *ring.Poly
-		share CKSShare
+		s0    *rlwe.SecretKey
+		s1    *rlwe.SecretKey
+		share drlwe.CKSShare
 	}
 
 	p := new(Party)
 	p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
-	p.s0 = sk0Shards[0].Value
-	p.s1 = sk1Shards[0].Value
+	p.s0 = sk0Shards[0]
+	p.s1 = sk1Shards[0]
 	p.share = p.AllocateShare()
 
 	ciphertext := bfv.NewCiphertextRandom(testCtx.prng, testCtx.params, 1)

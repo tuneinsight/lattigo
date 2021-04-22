@@ -79,7 +79,7 @@ func GInverse(p *ring.Poly, params *ckks.Parameters, level uint64) (*MKDecompose
 	polynomialsP := make([]*ring.Poly, beta)
 
 	invPoly := params.NewPolyQ()
-	ringQ.InvNTT(p, invPoly)
+	ringQ.InvNTTLvl(level, p, invPoly)
 
 	// generate each poly decomposed in the base
 	for i := uint64(0); i < beta; i++ {

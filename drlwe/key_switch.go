@@ -17,7 +17,7 @@ type CKSProtocol struct {
 	tmpP     *ring.Poly
 	tmpQ     *ring.Poly
 	tmpDelta *ring.Poly
-	tmpNtt   *ring.Poly
+	tmpQP    *ring.Poly
 	hP       *ring.Poly
 }
 
@@ -26,24 +26,25 @@ type CKSShare struct {
 	Value *ring.Poly
 }
 
+func (ckss *CKSShare) MarshalBinary() ([]byte, error) {
+	return ckss.Value.MarshalBinary()
+}
+
+func (ckss *CKSShare) UnmarshalBinary(data []byte) error {
+	if ckss.Value == nil {
+		ckss.Value = new(ring.Poly)
+	}
+	return ckss.Value.UnmarshalBinary(data)
+}
+
 // NewCKSProtocol creates a new CKSProtocol that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
 func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol {
 	cks := new(CKSProtocol)
-	var err error
-	cks.ringQ, err = ring.NewRing(params.N(), params.Q())
-	if err != nil {
-		panic(err)
-	}
-	cks.ringP, err = ring.NewRing(params.N(), params.P())
-	if err != nil {
-		panic(err)
-	}
-	cks.ringQP, err = ring.NewRing(params.N(), params.QP())
-	if err != nil {
-		panic(err)
-	}
+	cks.ringQ = params.RingQ()
+	cks.ringP = params.RingP() // TODO this assumes that P larger than 1
+	cks.ringQP = params.RingQP()
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -56,7 +57,7 @@ func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol 
 	cks.tmpQ = cks.ringQ.NewPoly()
 	cks.tmpP = cks.ringP.NewPoly()
 	cks.tmpDelta = cks.ringQ.NewPoly()
-	cks.tmpNtt = cks.ringQP.NewPoly()
+	cks.tmpQP = cks.ringQP.NewPoly()
 	cks.hP = cks.ringP.NewPoly()
 
 	return cks
@@ -67,58 +68,62 @@ func (cks *CKSProtocol) AllocateShare() CKSShare {
 	return CKSShare{cks.ringQ.NewPoly()}
 }
 
-// GenShare generates a party's share in the CKSProtocol
-func (cks *CKSProtocol) GenShare(skInput, skOutput *ring.Poly, ct *rlwe.Element, shareOut CKSShare) {
+func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciphertext, shareOut CKSShare) {
 
-	cks.ringQ.Sub(skInput, skOutput, cks.tmpDelta)
+	cks.ringQ.Sub(skInput.Value, skOutput.Value, cks.tmpDelta)
 
-	cks.genShareDeltaBFV(cks.tmpDelta, ct, shareOut)
-}
-
-func (cks *CKSProtocol) genShareDeltaBFV(skDelta *ring.Poly, ct *rlwe.Element, shareOut CKSShare) { // BFV
-
-	level := len(ct.Value[1].Coeffs) - 1
-	cks.ringQ.NTTLazy(ct.Value[1], cks.tmpNtt)
-
-	cks.ringQ.MulCoeffsMontgomeryConstant(cks.tmpNtt, skDelta, shareOut.Value)
-	cks.ringQ.MulScalarBigint(shareOut.Value, cks.ringP.ModulusBigint, shareOut.Value)
-
-	cks.ringQ.InvNTTLazy(shareOut.Value, shareOut.Value)
-
-	cks.gaussianSampler.ReadLvl(len(cks.ringQP.Modulus)-1, cks.tmpNtt)
-	cks.ringQ.AddNoMod(shareOut.Value, cks.tmpNtt, shareOut.Value)
-
-	for x, i := 0, uint64(len(cks.ringQ.Modulus)); i < uint64(len(cks.ringQP.Modulus)); x, i = x+1, i+1 {
-		tmphP := cks.hP.Coeffs[x]
-		tmpNTT := cks.tmpNtt.Coeffs[i]
-		for j := 0; j < cks.ringQ.N; j++ {
-			tmphP[j] += tmpNTT[j]
-		}
+	el := ct.RLWEElement()
+	ct1 := el.Value[1]
+	if !el.IsNTT {
+		cks.ringQ.NTTLazy(el.Value[1], cks.tmpQP)
+		ct1 = cks.tmpQP
 	}
 
-	cks.baseconverter.ModDownSplitPQ(level, shareOut.Value, cks.hP, shareOut.Value)
+	cks.ringQ.MulCoeffsMontgomeryConstantLvl(el.Level(), ct1, cks.tmpDelta, shareOut.Value)
+	cks.ringQ.MulScalarBigintLvl(el.Level(), shareOut.Value, cks.ringP.ModulusBigint, shareOut.Value)
 
-	cks.tmpNtt.Zero()
-	cks.hP.Zero()
+	if !el.IsNTT {
+		cks.ringQ.InvNTTLazy(shareOut.Value, shareOut.Value)
+
+		cks.gaussianSampler.ReadLvl(len(cks.ringQP.Modulus)-1, cks.tmpQP)
+		cks.ringQ.AddNoMod(shareOut.Value, cks.tmpQP, shareOut.Value)
+
+		for x, i := 0, uint64(len(cks.ringQ.Modulus)); i < uint64(len(cks.ringQP.Modulus)); x, i = x+1, i+1 {
+			tmphP := cks.hP.Coeffs[x]
+			tmpNTT := cks.tmpQP.Coeffs[i]
+			for j := 0; j < cks.ringQ.N; j++ {
+				tmphP[j] += tmpNTT[j]
+			}
+		}
+
+		cks.baseconverter.ModDownSplitPQ(el.Level(), shareOut.Value, cks.hP, shareOut.Value)
+		cks.hP.Zero() // hP is assumed 0 above
+	} else {
+		cks.gaussianSampler.ReadLvl(el.Level(), cks.tmpQ)
+
+		extendBasisSmallNormAndCenter(cks.ringQ, cks.ringP, cks.tmpQ, cks.tmpP)
+
+		cks.ringQ.NTTLvl(el.Level(), cks.tmpQ, cks.tmpQ)
+		cks.ringP.NTT(cks.tmpP, cks.tmpP)
+
+		cks.ringQ.AddLvl(el.Level(), shareOut.Value, cks.tmpQ, shareOut.Value)
+
+		cks.baseconverter.ModDownSplitNTTPQ(el.Level(), shareOut.Value, cks.tmpP, shareOut.Value)
+	}
 }
 
-func (cks *CKSProtocol) genShareDeltaCKKS(skDelta *ring.Poly, ct *rlwe.Element, shareOut CKSShare) { // CKKS
+// AggregateShares is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
+//
+// [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
+func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut CKSShare) {
+	cks.ringQ.AddLvl(len(share1.Value.Coeffs)-1, share1.Value, share2.Value, shareOut.Value)
+}
 
-	cks.ringQ.MulCoeffsMontgomeryConstantLvl(ct.Level(), ct.Value[1], skDelta, shareOut.Value)
-	cks.ringQ.MulScalarBigintLvl(ct.Level(), shareOut.Value, cks.ringP.ModulusBigint, shareOut.Value)
-
-	cks.gaussianSampler.ReadLvl(ct.Level(), cks.tmpQ)
-	extendBasisSmallNormAndCenter(cks.ringQ, cks.ringP, cks.tmpQ, cks.tmpP)
-
-	cks.ringQ.NTTLvl(ct.Level(), cks.tmpQ, cks.tmpQ)
-	cks.ringP.NTT(cks.tmpP, cks.tmpP)
-
-	cks.ringQ.AddLvl(ct.Level(), shareOut.Value, cks.tmpQ, shareOut.Value)
-
-	cks.baseconverter.ModDownSplitNTTPQ(ct.Level(), shareOut.Value, cks.tmpP, shareOut.Value)
-
-	cks.tmpQ.Zero()
-	cks.tmpP.Zero()
+// KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
+func (cks *CKSProtocol) KeySwitch(combined CKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext) {
+	el, elOut := ct.RLWEElement(), ctOut.RLWEElement()
+	cks.ringQ.AddLvl(el.Level(), el.Value[0], combined.Value, elOut.Value[0])
+	cks.ringQ.CopyLvl(el.Level(), el.Value[1], elOut.Value[1])
 }
 
 func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {

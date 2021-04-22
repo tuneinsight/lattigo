@@ -6,6 +6,7 @@ import (
 
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -21,6 +22,7 @@ type MKEvaluator interface {
 	MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
 	Rescale(c *MKCiphertext, out *MKCiphertext)
 	RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
+	SwitchKeysNew(ct *MKCiphertext, switchingKey *rlwe.SwitchingKey) (ctOut *MKCiphertext)
 	NewPlaintextFromValue([]complex128) *ckks.Plaintext
 }
 
@@ -253,8 +255,6 @@ func (eval *mkEvaluator) RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey)
 	ringP := GetRingP(eval.params)
 	ringQP := GetRingQP(eval.params)
 
-	baseconverter := ring.NewFastBasisExtender(eval.ringQ, ringP)
-
 	k := uint64(len(c.peerIDs))
 
 	res := make([]*ring.Poly, k+1)
@@ -294,13 +294,13 @@ func (eval *mkEvaluator) RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey)
 	ring.PermuteNTTWithIndexLvl(level, c.ciphertexts.Value()[0], index, res[0])
 
 	tmpModDown := eval.ringQ.NewPoly()
-	baseconverter.ModDownSplitNTTPQ(level, restmpQ[0], restmpP[0], tmpModDown)
+	eval.convertor.ModDownSplitNTTPQ(level, restmpQ[0], restmpP[0], tmpModDown)
 	eval.ringQ.AddLvl(level, res[0], tmpModDown, res[0])
 
 	// finalize computation of ci'
 	for i := uint64(1); i <= k; i++ {
 
-		baseconverter.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
+		eval.convertor.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
 		eval.ringQ.AddLvl(level, res[i], tmpModDown, res[i])
 	}
 
@@ -338,6 +338,83 @@ func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*MKEva
 	}
 
 	return gal0Q, gal0P, gal1Q, gal1P
+}
+
+// SwitchKeysNew perform the key switch for a ciphertext involving a participant
+func (eval *mkEvaluator) SwitchKeysNew(ct *MKCiphertext, switchingKey *rlwe.SwitchingKey) (ctOut *MKCiphertext) {
+	if ct.ciphertexts.Degree() != 1 {
+		panic("Key switch only work for degree 1 ciphertexts")
+	}
+	// TODO : if it is possible to perform key switch on multi-participant ciphertext
+	//implement it by searching for corresponding cipherpart and puting peerID in switchingKey
+	var reduce uint64
+
+	level := ct.ciphertexts.Level()
+
+	ringP := GetRingP(eval.params)
+
+	ctOut = NewMKCiphertext(ct.peerIDs, eval.ringQ, eval.params, level)
+
+	cipherQ, cipherP := GInverse(ct.ciphertexts.Value()[1], eval.params, level)
+
+	evakey0Q := new(ring.Poly)
+	evakey1Q := new(ring.Poly)
+	evakey0P := new(ring.Poly)
+	evakey1P := new(ring.Poly)
+
+	pool2Q := eval.ringQ.NewPoly()
+	pool3Q := eval.ringQ.NewPoly()
+	pool2P := ringP.NewPoly()
+	pool3P := ringP.NewPoly()
+
+	reduce = 0
+
+	for i := 0; i < int(eval.params.Beta()); i++ {
+
+		c2QiQ := cipherQ.poly[i]
+		c2QiP := cipherP.poly[i]
+
+		//prepare switching key for split computation
+		evakey0Q.Coeffs = switchingKey.Value[i][0].Coeffs[:level+1]
+		evakey1Q.Coeffs = switchingKey.Value[i][1].Coeffs[:level+1]
+		evakey0P.Coeffs = switchingKey.Value[i][0].Coeffs[len(eval.ringQ.Modulus):]
+		evakey1P.Coeffs = switchingKey.Value[i][1].Coeffs[len(eval.ringQ.Modulus):]
+
+		if i == 0 {
+			eval.ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey0Q, c2QiQ, pool2Q)
+			eval.ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey1Q, c2QiQ, pool3Q)
+			ringP.MulCoeffsMontgomeryConstant(evakey0P, c2QiP, pool2P)
+			ringP.MulCoeffsMontgomeryConstant(evakey1P, c2QiP, pool3P)
+		} else {
+			eval.ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey0Q, c2QiQ, pool2Q)
+			eval.ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey1Q, c2QiQ, pool3Q)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey0P, c2QiP, pool2P)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey1P, c2QiP, pool3P)
+		}
+
+		//
+		if reduce&3 == 3 {
+			eval.ringQ.ReduceConstantLvl(level, pool2Q, pool2Q)
+			eval.ringQ.ReduceConstantLvl(level, pool3Q, pool3Q)
+			ringP.ReduceConstant(pool2P, pool2P)
+			ringP.ReduceConstant(pool3P, pool3P)
+		}
+
+		reduce++
+	}
+
+	eval.ringQ.ReduceLvl(level, pool2Q, pool2Q)
+	eval.ringQ.ReduceLvl(level, pool3Q, pool3Q)
+	ringP.Reduce(pool2P, pool2P)
+	ringP.Reduce(pool3P, pool3P)
+
+	eval.convertor.ModDownSplitNTTPQ(level, pool2Q, pool2P, pool2Q)
+	eval.convertor.ModDownSplitNTTPQ(level, pool3Q, pool3P, pool3Q)
+
+	eval.ringQ.AddLvl(level, ct.ciphertexts.Value()[0], pool2Q, ctOut.ciphertexts.Value()[0])
+	eval.ringQ.CopyLvl(level, pool3Q, ctOut.ciphertexts.Value()[1])
+
+	return
 }
 
 // NewPlaintextFromValue returns a plaintext from the provided values

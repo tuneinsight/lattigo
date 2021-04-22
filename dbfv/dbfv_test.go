@@ -267,17 +267,17 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*CKSProtocol
-			s0    *ring.Poly
-			s1    *ring.Poly
-			share CKSShare
+			s0    *rlwe.SecretKey
+			s1    *rlwe.SecretKey
+			share drlwe.CKSShare
 		}
 
 		cksParties := make([]*Party, parties)
 		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
-			p.s0 = sk0Shards[i].Value
-			p.s1 = sk1Shards[i].Value
+			p.s0 = sk0Shards[i]
+			p.s1 = sk1Shards[i]
 			p.share = p.AllocateShare()
 			cksParties[i] = p
 		}
@@ -712,21 +712,21 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
 		cksshare := cksp.AllocateShare()
-		cksp.GenShare(testCtx.sk0.Value, testCtx.sk1.Value, Ciphertext, cksshare)
+		cksp.GenShare(testCtx.sk0, testCtx.sk1, Ciphertext, cksshare)
 
 		data, err := cksshare.MarshalBinary()
 		require.NoError(t, err)
-		cksshareAfter := new(CKSShare)
+		cksshareAfter := new(drlwe.CKSShare)
 		err = cksshareAfter.UnmarshalBinary(data)
 		require.NoError(t, err)
 
 		//now compare both shares.
 
-		require.Equal(t, cksshare.Degree(), cksshareAfter.Degree())
-		require.Equal(t, cksshare.LenModuli(), cksshareAfter.LenModuli())
+		require.Equal(t, cksshare.Value.Degree(), cksshareAfter.Value.Degree())
+		require.Equal(t, cksshare.Value.LenModuli(), cksshareAfter.Value.LenModuli())
 
-		moduli := cksshare.LenModuli()
-		require.Equal(t, cksshare.Coeffs[:moduli], cksshareAfter.Coeffs[:moduli])
+		moduli := cksshare.Value.LenModuli()
+		require.Equal(t, cksshare.Value.Coeffs[:moduli], cksshareAfter.Value.Coeffs[:moduli])
 	})
 
 	t.Run(fmt.Sprintf("Marshalling/Refresh/N=%d/limbQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(t *testing.T) {

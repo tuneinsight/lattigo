@@ -41,7 +41,7 @@ type party struct {
 	rkgShareOne *drlwe.RKGShare
 	rkgShareTwo *drlwe.RKGShare
 	rtgShare    *drlwe.RTGShare
-	cksShare    dbfv.CKSShare
+	cksShare    drlwe.CKSShare
 
 	input []uint64
 }
@@ -210,11 +210,11 @@ func cksphase(params bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.Ci
 		pi.cksShare = cks.AllocateShare()
 	}
 
-	zero := params.RingQ().NewPoly()
+	zero := bfv.NewSecretKey(params)
 	cksCombined := cks.AllocateShare()
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P[1:] {
-			cks.GenShare(pi.sk.Value, zero, result, pi.cksShare)
+			cks.GenShare(pi.sk, zero, result, pi.cksShare)
 		}
 	}, len(P)-1)
 

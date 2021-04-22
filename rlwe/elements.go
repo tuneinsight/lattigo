@@ -7,6 +7,10 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
+type Ciphertext interface {
+	RLWEElement() *Element
+}
+
 // Element is a generic type for ciphertext and plaintexts
 type Element struct {
 	Value []*ring.Poly
@@ -111,8 +115,13 @@ func (el *Element) Copy(ctxCopy *Element) {
 	}
 }
 
-// El sets the target element type to Element.
+// El returns a pointer to this Element
 func (el *Element) El() *Element {
+	return el
+}
+
+// RLWElement returns a pointer to this Element
+func (el *Element) RLWEElement() *Element {
 	return el
 }
 

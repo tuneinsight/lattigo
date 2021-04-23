@@ -5,6 +5,7 @@ import (
 
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -299,4 +300,85 @@ func GenCommonPublicParam(params *ckks.Parameters, prng *utils.KeyedPRNG) *MKDec
 	uniformSampler := GetUniformSampler(params, ringQP, prng)
 
 	return GetUniformDecomposed(uniformSampler, params.Beta())
+}
+
+// GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
+func GenSwitchingKey(skInput, skOutput *MKSecretKey, params *ckks.Parameters) (newSwitchingKey *rlwe.SwitchingKey) {
+
+	ringQP := GetRingQP(params)
+	keygenPool := new(ring.Poly)
+	ringQP.Copy(skInput.key.Value, keygenPool)
+	newEvalKey := *ckks.NewSwitchingKey(params)
+	NewSwitchingKey(keygenPool, skOutput.key.Value, &newEvalKey.SwitchingKey, params)
+	keygenPool.Zero()
+	return
+}
+
+func NewSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.SwitchingKey, params *ckks.Parameters) {
+
+	ringQP := GetRingQP(params)
+	var pBigInt *big.Int
+	pis := params.Pi()
+	if len(pis) != 0 {
+		pBigInt = ring.NewUint(1)
+		for _, pi := range pis {
+			pBigInt.Mul(pBigInt, ring.NewUint(pi))
+		}
+	}
+
+	// Computes P * skIn
+	ringQP.MulScalarBigint(skIn, pBigInt, skIn)
+
+	alpha := params.Alpha()
+	beta := params.Beta()
+
+	var index uint64
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	uniformSampler := GetUniformSampler(params, ringQP, prng)
+	gaussianSampler := GetGaussianSampler(params, ringQP, prng)
+
+	for i := uint64(0); i < beta; i++ {
+
+		// e
+		gaussianSampler.Read(swk.Value[i][0])
+		ringQP.NTTLazy(swk.Value[i][0], swk.Value[i][0])
+		ringQP.MForm(swk.Value[i][0], swk.Value[i][0])
+
+		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
+		uniformSampler.Read(swk.Value[i][1])
+
+		// e + (skIn * P) * (q_star * q_tild) mod QP
+		//
+		// q_prod = prod(q[i*alpha+j])
+		// q_star = Q/qprod
+		// q_tild = q_star^-1 mod q_prod
+		//
+		// Therefore : (skIn * P) * (q_star * q_tild) = sk*P mod q[i*alpha+j], else 0
+		for j := uint64(0); j < alpha; j++ {
+
+			index = i*alpha + j
+
+			qi := ringQP.Modulus[index]
+			p0tmp := skIn.Coeffs[index]
+			p1tmp := swk.Value[i][0].Coeffs[index]
+
+			for w := uint64(0); w < ringQP.N; w++ {
+				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
+			}
+
+			// It handles the case where nb pj does not divide nb qi
+			if index >= params.QiCount() {
+				break
+			}
+		}
+
+		// (skIn * P) * (q_star * q_tild) - a * skOut + e mod QP
+		ringQP.MulCoeffsMontgomeryAndSub(swk.Value[i][1], skOut, swk.Value[i][0])
+	}
+
+	return
 }

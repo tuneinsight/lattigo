@@ -21,29 +21,31 @@ func Test_MKCKKS(t *testing.T) {
 	//skip parameter 4 due to memory consumption
 	for i, p := range ckks.DefaultParams {
 		if i != 4 && i != 9 {
+			/*
+				testEncryptionEqualsDecryption(t, p)
+				testAdd(t, p)
+				testAddFourParticipants(t, p)
+				testAddPlaintext(t, p)
+				testAddPlaintextTwoParticipants(t, p)
+				testSub(t, p)
+				testSubPlaintext(t, p)
+				testNeg(t, p)
+				testSubPlaintextTwoParticipants(t, p)
+				testMulPlaintext(t, p)
+				testMulPlaintextTwoParticipants(t, p)
+				testAddInPlace(t, p)
+			*/
+			testRotation(t, p)
+			/*
+				testRotationTwoParticipants(t, p)
 
-			testEncryptionEqualsDecryption(t, p)
-			testAdd(t, p)
-			testAddFourParticipants(t, p)
-			testAddPlaintext(t, p)
-			testAddPlaintextTwoParticipants(t, p)
-			testSub(t, p)
-			testSubPlaintext(t, p)
-			testNeg(t, p)
-			testSubPlaintextTwoParticipants(t, p)
-			testMulPlaintext(t, p)
-			testMulPlaintextTwoParticipants(t, p)
-			testAddInPlace(t, p)
-			/*testRotation(t, p)
-			testRotationTwoParticipants(t, p)
-
-				if i == 1 {
-					//testRelinTrivial(t,p)
-					testRelinNonTrivial(t, p)
-				}
-				testSquare(t, p)
-				testMul(t, p)
-				testMulFourParticipants(t, p)*/
+					if i == 1 {
+						//testRelinTrivial(t,p)
+						testRelinNonTrivial(t, p)
+					}
+					testSquare(t, p)
+					testMul(t, p)
+					testMulFourParticipants(t, p)*/
 
 		}
 	}
@@ -596,6 +598,30 @@ func testRelinTrivial(t *testing.T, params *ckks.Parameters) {
 
 			} // uncomment to see the 0 result
 		*/
+	})
+
+}
+
+func testEncryptionEqualsDecryption(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	t.Run(testString("Test encryption equals decryption/", 1, params), func(t *testing.T) {
+
+		// get random value
+		value := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		//encrypt
+		cipher := participants[0].Encrypt(value)
+
+		// decrypt
+		partialDec := participants[0].GetPartialDecryption(cipher)
+		decrypted := participants[0].Decrypt(cipher, []*ring.Poly{partialDec})
+
+		// decode and check
+		verifyTestVectors(params, value, decrypted, t)
 	})
 
 }

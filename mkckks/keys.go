@@ -33,7 +33,7 @@ type MKSwitchingKey struct {
 	key []*MKDecomposedPoly
 }
 
-// MKEvalGalKey is a type for CKKS switching keys in a multi key context.
+// MKEvalGalKey is a type for CKKS rotation keys in a multi key context.
 type MKEvalGalKey struct {
 	key    []*MKDecomposedPoly
 	peerID uint64

@@ -7,7 +7,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// CollectivePublicKeyGenerator is an interface describing the local steps of a generic RLWE CKG protocol
+// CollectivePublicKeyGenerator is an interface describing the local steps of a generic RLWE CKG protocol.
 type CollectivePublicKeyGenerator interface {
 	AllocateShares() *CKGShare
 	GenShare(sk *rlwe.SecretKey, crs *ring.Poly, shareOut *CKGShare)

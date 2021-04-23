@@ -7,6 +7,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
+// Ciphertext is a common interface for RLWE ciphertexts.
 type Ciphertext interface {
 	RLWEElement() *Element
 }
@@ -120,7 +121,7 @@ func (el *Element) El() *Element {
 	return el
 }
 
-// RLWElement returns a pointer to this Element
+// RLWEElement returns a pointer to this Element
 func (el *Element) RLWEElement() *Element {
 	return el
 }

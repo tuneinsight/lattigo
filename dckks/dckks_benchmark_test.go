@@ -142,7 +142,7 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 		*CKSProtocol
 		s0    *rlwe.SecretKey
 		s1    *rlwe.SecretKey
-		share drlwe.CKSShare
+		share *drlwe.CKSShare
 	}
 
 	p := new(Party)
@@ -184,13 +184,13 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*PCKSProtocol
-		s     *ring.Poly
-		share PCKSShare
+		s     *rlwe.SecretKey
+		share *drlwe.PCKSShare
 	}
 
 	p := new(Party)
 	p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
-	p.s = sk0Shards[0].Value
+	p.s = sk0Shards[0]
 	p.share = p.AllocateShares(ciphertext.Level())
 
 	b.Run(testString("PublicKeySwitching/Gen/", parties, testCtx.params), func(b *testing.B) {

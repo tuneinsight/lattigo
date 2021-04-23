@@ -18,18 +18,18 @@ func NewCKSProtocol(params ckks.Parameters, sigmaSmudging float64) (cks *CKSProt
 	return &CKSProtocol{*drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)}
 }
 
-// GenShare is the first and unique round of the CKSProtocol protocol. Each party holding a ciphertext ctx encrypted under a collective publick-key must
-// compute the following :
-//
-// [(skInput_i - skOutput_i) * ctx[0] + e_i]
-//
-// Each party then broadcasts the result of this computation to the other j-1 parties.
-func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *ckks.Ciphertext, shareOut drlwe.CKSShare) {
-	cks.CKSProtocol.GenShare(skInput, skOutput, ct, shareOut)
-}
+// // GenShare is the first and unique round of the CKSProtocol protocol. Each party holding a ciphertext ctx encrypted under a collective publick-key must
+// // compute the following :
+// //
+// // [(skInput_i - skOutput_i) * ctx[0] + e_i]
+// //
+// // Each party then broadcasts the result of this computation to the other j-1 parties.
+// func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *ckks.Ciphertext, shareOut drlwe.CKSShare) {
+// 	cks.CKSProtocol.GenShare(skInput, skOutput, ct, shareOut)
+// }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (cks *CKSProtocol) KeySwitch(combined drlwe.CKSShare, ct *ckks.Ciphertext, ctOut *ckks.Ciphertext) {
-	ctOut.SetScale(ct.Scale())
+func (cks *CKSProtocol) KeySwitch(combined *drlwe.CKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext) {
+	ctOut.(*ckks.Ciphertext).SetScale(ct.(*ckks.Ciphertext).Scale())
 	cks.CKSProtocol.KeySwitch(combined, ct, ctOut)
 }

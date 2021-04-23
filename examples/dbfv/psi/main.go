@@ -40,7 +40,7 @@ type party struct {
 	ckgShare    *drlwe.CKGShare
 	rkgShareOne *drlwe.RKGShare
 	rkgShareTwo *drlwe.RKGShare
-	pcksShare   dbfv.PCKSShare
+	pcksShare   *drlwe.PCKSShare
 
 	input []uint64
 }
@@ -312,17 +312,17 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 	pcks := dbfv.NewPCKSProtocol(params, 3.19)
 
 	for _, pi := range P {
-		pi.pcksShare = pcks.AllocateShares()
+		pi.pcksShare = pcks.AllocateBFVShares()
 	}
 
 	l.Println("> PCKS Phase")
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P {
-			pcks.GenShare(pi.sk.Value, tpk, encRes, pi.pcksShare)
+			pcks.GenShare(pi.sk, tpk, encRes, pi.pcksShare)
 		}
 	}, len(P))
 
-	pcksCombined := pcks.AllocateShares()
+	pcksCombined := pcks.AllocateBFVShares()
 	encOut = bfv.NewCiphertext(params, 1)
 	elapsedPCKSCloud = runTimed(func() {
 		for _, pi := range P {

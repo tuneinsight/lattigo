@@ -25,8 +25,8 @@ func PadCiphers(c1, c2 *MKCiphertext, params *bfv.Parameters) (c1Out, c2Out *MKC
 	res2 := make([]*ring.Poly, k+1)
 
 	// put c0 in
-	res1[0] = c1.ciphertexts.Element.Value()[0]
-	res2[0] = c2.ciphertexts.Element.Value()[0]
+	res1[0] = c1.ciphertexts.Element.Value()[0].CopyNew()
+	res2[0] = c2.ciphertexts.Element.Value()[0].CopyNew()
 
 	// copy ciphertext values if participant involved
 	// else put a 0 polynomial

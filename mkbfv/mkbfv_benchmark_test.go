@@ -21,7 +21,6 @@ func Benchmark_MKBFV(b *testing.B) {
 		benchEncrypt(b, p)
 		benchDecrypt(b, p)
 		benchPartialDecrypt(b, p)
-		benchAddTwoCiphertextsInPlace(b, p)
 		//benchMultTwoCiphertexts(b, p)
 	}
 }
@@ -61,32 +60,7 @@ func benchAddTwoCiphertexts(b *testing.B, params *bfv.Parameters) {
 	b.Run(testString("Add/", 2, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			evaluator.AddNew(cipher1, cipher2)
-		}
-	})
-}
-
-func benchAddTwoCiphertextsInPlace(b *testing.B, params *bfv.Parameters) {
-
-	participants := setupPeers(2, params, 6.0)
-
-	ringT := getRingT(params)
-	ringQ := GetRingQ(params)
-
-	value1 := getRandomPlaintextValue(ringT, params)
-	value2 := getRandomPlaintextValue(ringT, params)
-
-	cipher1 := participants[0].Encrypt(value1)
-	cipher2 := participants[1].Encrypt(value2)
-
-	evaluator := NewMKEvaluator(params)
-
-	out := NewMKCiphertext(MergeSlices(cipher1.peerIDs, cipher2.peerIDs), ringQ, params)
-
-	b.Run(testString("Add in Place/", 2, params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			evaluator.Add(cipher1, cipher2, out)
+			evaluator.Add(cipher1, cipher2)
 		}
 	})
 }

@@ -94,7 +94,7 @@ func NewParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *MKDecomp
 		panic("CRS must be the same dimention as returned by the function bfv.Parameters.Beta()")
 	}
 
-	keys := KeyGen(params, crs)
+	keys := KeyGen(params, CopyNewDecomposed(crs))
 
 	uid := hashPublicKey(keys.publicKey.key)
 

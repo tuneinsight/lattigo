@@ -23,7 +23,6 @@ func Test_MKBFV(t *testing.T) {
 		testSubPlaintextTwoParticipants(t, p)
 		testMulPlaintext(t, p)
 		testMulPlaintextTwoParticipants(t, p)
-		testAddInPlace(t, p)
 		//testMul(t, p)
 		//testMulFourParticipants(t, p)
 	}
@@ -75,54 +74,7 @@ func testAdd(t *testing.T, params *bfv.Parameters) {
 		// pad and add
 		evaluator := NewMKEvaluator(params)
 
-		resCipher := evaluator.AddNew(cipher1, cipher2)
-
-		// decrypt
-		partialDec1 := participants[0].GetPartialDecryption(resCipher)
-		partialDec2 := participants[1].GetPartialDecryption(resCipher)
-
-		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
-
-		// perform the operation in the plaintext space
-		expected := ringT.NewPoly()
-		p1 := ringT.NewPoly()
-		p2 := ringT.NewPoly()
-		copy(p1.Coeffs[0], expected1)
-		copy(p2.Coeffs[0], expected2)
-
-		ringT.Add(p1, p2, expected)
-
-		if !equalsSlice(decrypted, expected.Coeffs[0]) {
-			t.Error("Homomorphic addition error")
-		}
-
-	})
-
-}
-
-func testAddInPlace(t *testing.T, params *bfv.Parameters) {
-
-	sigma := 6.0
-
-	participants := setupPeers(2, params, sigma)
-
-	ringT := getRingT(params)
-
-	ringQ := GetRingQ(params)
-
-	t.Run(testString("Test Addition in Place/", 2, params), func(t *testing.T) {
-		expected1 := getRandomPlaintextValue(ringT, params)
-		expected2 := getRandomPlaintextValue(ringT, params)
-
-		// encrypt
-		cipher1 := participants[0].Encrypt(expected1)
-		cipher2 := participants[1].Encrypt(expected2)
-
-		// pad and add
-		evaluator := NewMKEvaluator(params)
-
-		resCipher := NewMKCiphertext(MergeSlices(cipher1.peerIDs, cipher2.peerIDs), ringQ, params)
-		evaluator.Add(cipher1, cipher2, resCipher)
+		resCipher := evaluator.Add(cipher1, cipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -259,7 +211,7 @@ func testAddPlaintextTwoParticipants(t *testing.T, params *bfv.Parameters) {
 		pt := evaluator.NewPlaintextFromValue(value3)
 		resCipher1 := evaluator.AddPlaintext(pt, cipher1)
 
-		resCipher := evaluator.AddNew(resCipher1, cipher2)
+		resCipher := evaluator.Add(resCipher1, cipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -403,7 +355,7 @@ func testNeg(t *testing.T, params *bfv.Parameters) {
 		// add with negated ciphertext
 		evaluator := NewMKEvaluator(params)
 
-		resCipher := evaluator.AddNew(evaluator.Neg(cipher), cipher)
+		resCipher := evaluator.Add(evaluator.Neg(cipher), cipher)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -443,10 +395,10 @@ func testAddFourParticipants(t *testing.T, params *bfv.Parameters) {
 		// pad and add in 2 steps
 		evaluator := NewMKEvaluator(params)
 
-		resCipher1 := evaluator.AddNew(cipher1, cipher2)
-		resCipher2 := evaluator.AddNew(cipher3, cipher4)
+		resCipher1 := evaluator.Add(cipher1, cipher2)
+		resCipher2 := evaluator.Add(cipher3, cipher4)
 
-		resCipher := evaluator.AddNew(resCipher1, resCipher2)
+		resCipher := evaluator.Add(resCipher1, resCipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -644,7 +596,7 @@ func testMulPlaintextTwoParticipants(t *testing.T, params *bfv.Parameters) {
 		evaluator := NewMKEvaluator(params)
 		value3 := getRandomPlaintextValue(ringT, params)
 
-		resCipherTMP := evaluator.AddNew(cipher1, cipher2)
+		resCipherTMP := evaluator.Add(cipher1, cipher2)
 
 		pt := evaluator.NewPlaintextMulFromValue(value3)
 		resCipher := evaluator.MultPlaintext(pt, resCipherTMP)

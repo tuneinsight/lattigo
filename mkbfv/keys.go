@@ -86,3 +86,16 @@ func NewDecomposedPoly(r *ring.Ring, size uint64) *MKDecomposedPoly {
 
 	return res
 }
+
+// CopyNewDecomposed copy a decomposedd polynomial and return the copy
+func CopyNewDecomposed(p *MKDecomposedPoly) *MKDecomposedPoly {
+
+	res := new(MKDecomposedPoly)
+	res.poly = make([]*ring.Poly, len(p.poly))
+
+	for i := range p.poly {
+		res.poly[i] = p.poly[i].CopyNew()
+	}
+
+	return res
+}

@@ -6,6 +6,14 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
+// KeySwitchingProtocol is an interface describing the local steps of a generic RLWE CKS protocol
+type KeySwitchingProtocol interface {
+	AllocateShare() *CKSShare
+	GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciphertext, shareOut *CKSShare)
+	AggregateShares(share1, share2, shareOut *CKSShare)
+	KeySwitch(combined *CKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext)
+}
+
 // CKSProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
 type CKSProtocol struct {
 	ringQ           *ring.Ring
@@ -26,10 +34,12 @@ type CKSShare struct {
 	Value *ring.Poly
 }
 
+// MarshalBinary encodes a CKS share on a slice of bytes.
 func (ckss *CKSShare) MarshalBinary() ([]byte, error) {
 	return ckss.Value.MarshalBinary()
 }
 
+// UnmarshalBinary decodes marshaled CKS share on the target CKS share.
 func (ckss *CKSShare) UnmarshalBinary(data []byte) error {
 	if ckss.Value == nil {
 		ckss.Value = new(ring.Poly)
@@ -64,11 +74,12 @@ func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol 
 }
 
 // AllocateShare allocates the shares of the CKSProtocol
-func (cks *CKSProtocol) AllocateShare() CKSShare {
-	return CKSShare{cks.ringQ.NewPoly()}
+func (cks *CKSProtocol) AllocateShare() *CKSShare {
+	return &CKSShare{cks.ringQ.NewPoly()}
 }
 
-func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciphertext, shareOut CKSShare) {
+// GenShare computes a party's share in the CKS protocol.
+func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciphertext, shareOut *CKSShare) {
 
 	cks.ringQ.Sub(skInput.Value, skOutput.Value, cks.tmpDelta)
 
@@ -115,12 +126,12 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciph
 // AggregateShares is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
-func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut CKSShare) {
+func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut *CKSShare) {
 	cks.ringQ.AddLvl(len(share1.Value.Coeffs)-1, share1.Value, share2.Value, shareOut.Value)
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (cks *CKSProtocol) KeySwitch(combined CKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext) {
+func (cks *CKSProtocol) KeySwitch(combined *CKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext) {
 	el, elOut := ct.RLWEElement(), ctOut.RLWEElement()
 	cks.ringQ.AddLvl(el.Level(), el.Value[0], combined.Value, elOut.Value[0])
 	cks.ringQ.CopyLvl(el.Level(), el.Value[1], elOut.Value[1])

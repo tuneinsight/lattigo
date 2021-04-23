@@ -314,6 +314,7 @@ func GenSwitchingKey(skInput, skOutput *MKSecretKey, params *ckks.Parameters) (n
 	return
 }
 
+// NewSwitchingKey generates a new switching key based on the secret key input and output, and stores it in swk
 func NewSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.SwitchingKey, params *ckks.Parameters) {
 
 	ringQP := GetRingQP(params)

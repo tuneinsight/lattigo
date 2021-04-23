@@ -40,17 +40,11 @@ type MKEvalGalKey struct {
 	peerID uint64
 }
 
-// MKRelinearizationKey is a type for CKKS relinearization keys in a multi key context.
-type MKRelinearizationKey struct {
-	key [][]*MKSwitchingKey
-}
-
 // MKKeys is a type that contains all keys necessary for the multi key protocol.
 type MKKeys struct {
 	secretKey *MKSecretKey
 	publicKey *MKPublicKey
 	evalKey   *MKEvaluationKey
-	relinKey  *MKRelinearizationKey
 }
 
 // NewMKSwitchingKey allocate a MKSwitchingKey with zero polynomials in the ring r

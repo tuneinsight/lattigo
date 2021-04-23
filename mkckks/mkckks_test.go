@@ -35,18 +35,18 @@ func Test_MKCKKS(t *testing.T) {
 			testMulPlaintextTwoParticipants(t, p)
 			testAddInPlace(t, p)
 			testKeySwitch(t, p)
-			/*
-				testRotation(t, p)
-				testRotationTwoParticipants(t, p)
 
-				if i == 1 {
-					//testRelinTrivial(t,p)
-					testRelinNonTrivial(t, p)
-				}
-				testSquare(t, p)
-				testMul(t, p)
-				testMulFourParticipants(t, p)
-			*/
+			/*testRotation(t, p)
+			testRotationTwoParticipants(t, p)
+
+			if i == 1 {
+				//testRelinTrivial(t,p)
+				testRelinNonTrivial(t, p)
+			}
+			testSquare(t, p)
+			testMul(t, p)
+			testMulFourParticipants(t, p)*/
+
 		}
 	}
 
@@ -531,7 +531,7 @@ func testSquare(t *testing.T, params *ckks.Parameters) {
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey()}
 
-		resCipher := evaluator.MultRelinDynamic(cipher1, cipher1, evalKeys, publicKeys)
+		resCipher := evaluator.MultRelin(cipher1, cipher1, evalKeys, publicKeys)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -590,7 +590,7 @@ func testRelinTrivial(t *testing.T, params *ckks.Parameters) {
 			publicKeys[i].key[0] = NewDecomposedPoly(GetRingQP(params), size0)
 			publicKeys[i].key[0] = NewDecomposedPoly(GetRingQP(params), size1)
 		}
-		RelinearizationOnTheFly(evalKeys, publicKeys, out, params)
+		Relinearization(evalKeys, publicKeys, out, params)
 		/*
 			for i := 0; i < len(out.ciphertexts.Value()); i++ {
 				fmt.Printf("value[%v] \n", i)
@@ -685,7 +685,7 @@ func testRelinNonTrivial(t *testing.T, params *ckks.Parameters) {
 			publicKeys[i].key[0] = NewDecomposedPoly(GetRingQP(params), size0)
 			publicKeys[i].key[0] = NewDecomposedPoly(GetRingQP(params), size1)
 		}
-		RelinearizationOnTheFly(evalKeys, publicKeys, out, params)
+		Relinearization(evalKeys, publicKeys, out, params)
 
 		for i := 0; i < len(out.ciphertexts.Value()); i++ {
 			if i < 1 {
@@ -719,7 +719,7 @@ func testMul(t *testing.T, params *ckks.Parameters) {
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
-		resCipher := evaluator.MultRelinDynamic(cipher1, cipher2, evalKeys, publicKeys)
+		resCipher := evaluator.MultRelin(cipher1, cipher2, evalKeys, publicKeys)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -763,10 +763,10 @@ func testMulFourParticipants(t *testing.T, params *ckks.Parameters) {
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
 
-		resCipher1 := evaluator.MultRelinDynamic(cipher1, cipher2, evalKeys[:2], publicKeys[:2])
-		resCipher2 := evaluator.MultRelinDynamic(cipher3, cipher4, evalKeys[2:], publicKeys[2:])
+		resCipher1 := evaluator.MultRelin(cipher1, cipher2, evalKeys[:2], publicKeys[:2])
+		resCipher2 := evaluator.MultRelin(cipher3, cipher4, evalKeys[2:], publicKeys[2:])
 
-		resCipher := evaluator.MultRelinDynamic(resCipher1, resCipher2, evalKeys, publicKeys)
+		resCipher := evaluator.MultRelin(resCipher1, resCipher2, evalKeys, publicKeys)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)

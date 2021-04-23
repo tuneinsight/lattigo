@@ -37,13 +37,13 @@ func PadCiphers(c1, c2 *MKCiphertext, params *bfv.Parameters) (c1Out, c2Out *MKC
 		index2 := Contains(c2.peerIDs, peer)
 
 		if index1 >= 0 {
-			res1[index] = c1.ciphertexts.Element.Value()[index1+1]
+			res1[index] = c1.ciphertexts.Element.Value()[index1+1].CopyNew()
 		} else {
 			res1[index] = ringQ.NewPoly()
 		}
 
 		if index2 >= 0 {
-			res2[index] = c2.ciphertexts.Element.Value()[index2+1]
+			res2[index] = c2.ciphertexts.Element.Value()[index2+1].CopyNew()
 		} else {
 			res2[index] = ringQ.NewPoly()
 		}

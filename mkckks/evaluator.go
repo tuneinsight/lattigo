@@ -17,7 +17,7 @@ type MKEvaluator interface {
 	SubPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
 	Neg(c *MKCiphertext) *MKCiphertext
 	MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
-	MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
+	MultRelin(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
 	Rescale(c *MKCiphertext, out *MKCiphertext)
 	RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
 	SwitchKeysNew(ct *MKCiphertext, switchingKey *MKSwitchingKey) (ctOut *MKCiphertext)
@@ -175,13 +175,16 @@ func (eval *mkEvaluator) MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKC
 	return out
 }
 
-// MultRelinDynamic will compute the homomorphic multiplication and relinearize the resulting cyphertext using dynamic relin
-func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
+// MultRelin will compute the homomorphic multiplication and relinearize the resulting cyphertext using dynamic relin
+func (eval *mkEvaluator) MultRelin(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
 
 	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].peerID < evalKeys[j].peerID })
 	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].peerID < publicKeys[j].peerID })
 
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
+
+	checkParticipantsEvalKey(padded1.peerIDs, evalKeys)
+	checkParticipantsPubKey(padded1.peerIDs, publicKeys)
 
 	nbrElements := padded1.ciphertexts.Degree() + 1 // k+1
 
@@ -196,11 +199,11 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 	out.peerIDs = padded1.peerIDs
 
 	if !el1.IsNTT() {
-		panic("cannot MulRelinDynamic: op0 must be in NTT")
+		panic("cannot MulRelin: op0 must be in NTT")
 	}
 
 	if !el2.IsNTT() {
-		panic("cannot MulRelinDynamic: op1 must be in NTT")
+		panic("cannot MulRelin: op1 must be in NTT")
 	}
 
 	ringQ := eval.ringQ
@@ -215,13 +218,12 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 		for j, v2 := range el2.Value() {
 
 			ringQ.MFormLvl(level, v2, tmp2)
-
 			ringQ.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, out.ciphertexts.Ciphertext().Value()[int(nbrElements)*i+j])
 		}
 	}
 
 	// Call Relin alg 2
-	RelinearizationOnTheFly(evalKeys, publicKeys, out, eval.params)
+	Relinearization(evalKeys, publicKeys, out, eval.params)
 
 	return out
 }
@@ -237,6 +239,8 @@ func (eval *mkEvaluator) Rescale(c *MKCiphertext, out *MKCiphertext) {
 func (eval *mkEvaluator) RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext {
 
 	sort.Slice(keys, func(i, j int) bool { return keys[i].peerID < keys[j].peerID })
+
+	checkParticipantsGalKey(c.peerIDs, keys)
 
 	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params, c.ciphertexts.Level())
 
@@ -263,20 +267,19 @@ func (eval *mkEvaluator) RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey)
 
 		gal0Q, gal0P, gal1Q, gal1P := prepareGaloisEvaluationKey(i, level, uint64(len(eval.ringQ.Modulus)), eval.params.Beta(), keys)
 
-		permutedCipher := eval.ringQ.NewPoly()
-
+		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
 		index := ring.PermuteNTTIndex(galEl, ringQP.N)
 		ring.PermuteNTTWithIndexLvl(level, c.ciphertexts.Value()[i], index, permutedCipher)
 
 		decomposedPermutedQ, decomposedPermutedP := GInverse(permutedCipher, eval.params, level)
 
-		res0P := Dot(decomposedPermutedP, gal0P, eval.ringP)
+		res0P := Dot(decomposedPermutedP, gal0P, eval.ringP) // dot product and add in c0''
 		res0Q := DotLvl(level, decomposedPermutedQ, gal0Q, eval.ringQ)
 
 		eval.ringP.Add(restmpP[0], res0P, restmpP[0])
 		eval.ringQ.AddLvl(level, restmpQ[0], res0Q, restmpQ[0])
 
-		restmpP[i] = Dot(decomposedPermutedP, gal1P, eval.ringP)
+		restmpP[i] = Dot(decomposedPermutedP, gal1P, eval.ringP) // dot product and put in ci''
 		restmpQ[i] = DotLvl(level, decomposedPermutedQ, gal1Q, eval.ringQ)
 	}
 
@@ -292,7 +295,7 @@ func (eval *mkEvaluator) RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey)
 	for i := uint64(1); i <= k; i++ {
 
 		eval.convertor.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
-		eval.ringQ.AddLvl(level, res[i], tmpModDown, res[i])
+		eval.ringQ.CopyLvl(level, tmpModDown, res[i])
 	}
 
 	out.ciphertexts.SetValue(res)
@@ -429,4 +432,31 @@ func getCiphertextIndex(peerID uint64, ct *MKCiphertext) uint64 {
 	}
 
 	return 0
+}
+
+func checkParticipantsEvalKey(peerID []uint64, evalKeys []*MKEvaluationKey) {
+
+	for i, id := range peerID {
+		if id != evalKeys[i].peerID {
+			panic("Incorrect evaluation keys for the given ciphertexts")
+		}
+	}
+}
+
+func checkParticipantsPubKey(peerID []uint64, pubKeys []*MKPublicKey) {
+
+	for i, id := range peerID {
+		if id != pubKeys[i].peerID {
+			panic("Incorrect public keys for the given ciphertexts")
+		}
+	}
+}
+
+func checkParticipantsGalKey(peerID []uint64, galKeys []*MKEvalGalKey) {
+
+	for i, id := range peerID {
+		if id != galKeys[i].peerID {
+			panic("Incorrect galois evaluation keys for the given ciphertexts")
+		}
+	}
 }

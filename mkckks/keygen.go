@@ -113,12 +113,13 @@ func genPublicKey(sk *ckks.SecretKey, params *ckks.Parameters, generator ckks.Ke
 func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyGenerator, params *ckks.Parameters, ringQP *ring.Ring) []*MKDecomposedPoly {
 
 	random := generator.GenSecretKey() // random element as same distribution as the secret key
+	randomValue := random.Value
+	ringQP.NTT(randomValue, randomValue)
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	randomValue := random.Value
 
 	uniformSampler := GetUniformSampler(params, ringQP, prng)
 	gaussianSampler := GetGaussianSampler(params, ringQP, prng)

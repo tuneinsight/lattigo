@@ -172,7 +172,7 @@ func (participant *mkParticipant) GetRotationKeys(rot int) *MKEvalGalKey {
 }
 
 // GetSecretKey returns the secret key of the participant
-func (participant *mkParticipant) GetSecretKey() *MKSecretKey {
+func (participant *mkParticipant) GetSecretKey() *MKSecretKey { // TODO: remove these 2 functions and the key switch if not useful else run Keygen with new key
 	return participant.keys.secretKey
 }
 

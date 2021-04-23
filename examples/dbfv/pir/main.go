@@ -41,7 +41,7 @@ type party struct {
 	rkgShareOne *drlwe.RKGShare
 	rkgShareTwo *drlwe.RKGShare
 	rtgShare    *drlwe.RTGShare
-	cksShare    drlwe.CKSShare
+	cksShare    *drlwe.CKSShare
 
 	input []uint64
 }

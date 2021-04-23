@@ -278,19 +278,19 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 	t.Run(testString("Keyswitching/", parties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
-			*CKSProtocol
+			cks   drlwe.KeySwitchingProtocol
 			s0    *rlwe.SecretKey
 			s1    *rlwe.SecretKey
-			share drlwe.CKSShare
+			share *drlwe.CKSShare
 		}
 
 		cksParties := make([]*Party, parties)
 		for i := 0; i < parties; i++ {
 			p := new(Party)
-			p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
+			p.cks = NewCKSProtocol(testCtx.params, 6.36)
 			p.s0 = sk0Shards[i]
 			p.s1 = sk1Shards[i]
-			p.share = p.AllocateShare()
+			p.share = p.cks.AllocateShare()
 			cksParties[i] = p
 		}
 		P0 := cksParties[0]
@@ -299,19 +299,19 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 		// Each party creates its CKSProtocol instance with tmp = si-si'
 		for i, p := range cksParties {
-			p.GenShare(p.s0, p.s1, ciphertext, p.share)
+			p.cks.GenShare(p.s0, p.s1, ciphertext, p.share)
 			if i > 0 {
-				P0.AggregateShares(p.share, P0.share, P0.share)
+				P0.cks.AggregateShares(p.share, P0.share, P0.share)
 			}
 		}
 
-		ksCiphertext := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale())
+		ksCiphertext := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale()/2)
 
-		P0.KeySwitch(P0.share, ciphertext, ksCiphertext)
+		P0.cks.KeySwitch(P0.share, ciphertext, ksCiphertext)
 
 		verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
 
-		P0.KeySwitch(P0.share, ciphertext, ciphertext)
+		P0.cks.KeySwitch(P0.share, ciphertext, ciphertext)
 
 		verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
 
@@ -333,15 +333,15 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*PCKSProtocol
-			s     *ring.Poly
-			share PCKSShare
+			s     *rlwe.SecretKey
+			share *drlwe.PCKSShare
 		}
 
 		pcksParties := make([]*Party, parties)
 		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
-			p.s = sk0Shards[i].Value
+			p.s = sk0Shards[i]
 			p.share = p.AllocateShares(ciphertext.Level())
 			pcksParties[i] = p
 		}

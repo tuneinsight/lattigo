@@ -33,19 +33,18 @@ func Test_MKCKKS(t *testing.T) {
 			testSubPlaintextTwoParticipants(t, p)
 			testMulPlaintext(t, p)
 			testMulPlaintextTwoParticipants(t, p)
-			testAddInPlace(t, p)
 			testKeySwitch(t, p)
+			/*
+				testRotation(t, p)
+				testRotationTwoParticipants(t, p)
 
-			/*testRotation(t, p)
-			testRotationTwoParticipants(t, p)
-
-			if i == 1 {
-				//testRelinTrivial(t,p)
-				testRelinNonTrivial(t, p)
-			}
-			testSquare(t, p)
-			testMul(t, p)
-			testMulFourParticipants(t, p)*/
+				if i == 1 {
+					//testRelinTrivial(t,p)
+					testRelinNonTrivial(t, p)
+				}
+				testSquare(t, p)
+				testMul(t, p)
+				testMulFourParticipants(t, p)*/
 
 		}
 	}
@@ -95,49 +94,7 @@ func testAdd(t *testing.T, params *ckks.Parameters) {
 		// pad and add
 		evaluator := NewMKEvaluator(params)
 
-		resCipher := evaluator.AddNew(cipher1, cipher2)
-
-		// decrypt
-		partialDec1 := participants[0].GetPartialDecryption(resCipher)
-		partialDec2 := participants[1].GetPartialDecryption(resCipher)
-
-		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
-
-		// perform the operation in the plaintext space
-		for i := 0; i < len(values1); i++ {
-			values1[i] += values2[i]
-		}
-
-		// check results
-		verifyTestVectors(params, values1, decrypted, t)
-	})
-
-}
-
-func testAddInPlace(t *testing.T, params *ckks.Parameters) {
-
-	sigma := 6.0
-
-	participants := setupPeers(2, params, sigma)
-
-	ringQ := GetRingQ(params)
-
-	t.Run(testString("Test Add in place/", 2, params), func(t *testing.T) {
-
-		// generate new values
-		values1 := newTestValue(params, complex(-1, -1), complex(1, 1))
-		values2 := newTestValue(params, complex(-1, -1), complex(1, 1))
-
-		// Encrypt
-		cipher1 := participants[0].Encrypt(values1)
-		cipher2 := participants[1].Encrypt(values2)
-
-		// pad and add
-		evaluator := NewMKEvaluator(params)
-
-		resCipher := NewMKCiphertext(MergeSlices(cipher1.peerIDs, cipher2.peerIDs), ringQ, params, params.MaxLevel())
-
-		evaluator.Add(cipher1, cipher2, resCipher)
+		resCipher := evaluator.Add(cipher1, cipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -253,7 +210,7 @@ func testAddPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
 		pt := evaluator.NewPlaintextFromValue(value3)
 		resCipher1 := evaluator.AddPlaintext(pt, cipher1)
 
-		resCipher := evaluator.AddNew(resCipher1, cipher2)
+		resCipher := evaluator.Add(resCipher1, cipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -368,7 +325,7 @@ func testNeg(t *testing.T, params *ckks.Parameters) {
 		// add with negated ciphertext
 		evaluator := NewMKEvaluator(params)
 
-		resCipher := evaluator.AddNew(evaluator.Neg(cipher), cipher)
+		resCipher := evaluator.Add(evaluator.Neg(cipher), cipher)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -409,10 +366,10 @@ func testAddFourParticipants(t *testing.T, params *ckks.Parameters) {
 		// pad and add in 2 steps
 		evaluator := NewMKEvaluator(params)
 
-		resCipher1 := evaluator.AddNew(cipher1, cipher2)
-		resCipher2 := evaluator.AddNew(cipher3, cipher4)
+		resCipher1 := evaluator.Add(cipher1, cipher2)
+		resCipher2 := evaluator.Add(cipher3, cipher4)
 
-		resCipher := evaluator.AddNew(resCipher1, resCipher2)
+		resCipher := evaluator.Add(resCipher1, resCipher2)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -489,7 +446,7 @@ func testMulPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
 		evaluator := NewMKEvaluator(params)
 		value3 := newTestValue(params, complex(-1, -1), complex(1, 1))
 
-		resCipherTMP := evaluator.AddNew(cipher1, cipher2)
+		resCipherTMP := evaluator.Add(cipher1, cipher2)
 
 		pt := evaluator.NewPlaintextFromValue(value3)
 		resCipher := evaluator.MultPlaintext(pt, resCipherTMP)
@@ -809,7 +766,7 @@ func testRotation(t *testing.T, params *ckks.Parameters) {
 			rotKey := participants[0].GetRotationKeys(n)
 
 			values2 := utils.RotateComplex128Slice(values1, n)
-			resCipher := evaluator.RotateNew(cipher1, n, []*MKEvalGalKey{rotKey})
+			resCipher := evaluator.Rotate(cipher1, n, []*MKEvalGalKey{rotKey})
 
 			partialDec := participants[0].GetPartialDecryption(resCipher)
 
@@ -841,7 +798,7 @@ func testRotationTwoParticipants(t *testing.T, params *ckks.Parameters) {
 		evaluator := NewMKEvaluator(params)
 
 		// add both ciphertexts
-		added := evaluator.AddNew(cipher1, cipher2)
+		added := evaluator.Add(cipher1, cipher2)
 
 		// operate on plaintext space
 		for i := int(0); i < len(values1); i++ {
@@ -855,7 +812,7 @@ func testRotationTwoParticipants(t *testing.T, params *ckks.Parameters) {
 			rotKey2 := participants[1].GetRotationKeys(n)
 
 			rotated := utils.RotateComplex128Slice(values1, n)
-			resCipher := evaluator.RotateNew(added, n, []*MKEvalGalKey{rotKey1, rotKey2})
+			resCipher := evaluator.Rotate(added, n, []*MKEvalGalKey{rotKey1, rotKey2})
 
 			partialDec1 := participants[0].GetPartialDecryption(resCipher)
 			partialDec2 := participants[1].GetPartialDecryption(resCipher)

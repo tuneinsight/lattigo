@@ -16,10 +16,14 @@ func Dot(p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ring) *ring.Poly {
 
 	res := r.NewPoly()
 
-	for l := uint64(0); l < uint64(len(p1.poly)); l++ {
-		r.MulCoeffsMontgomeryAndAdd(p1.poly[l], p2.poly[l], res)
+	tmp0 := r.NewPoly()
+	tmp1 := r.NewPoly()
+
+	for i := uint64(0); i < uint64(len(p1.poly)); i++ {
+		r.MForm(p1.poly[i], tmp0)
+		r.MForm(p2.poly[i], tmp1)
+		r.MulCoeffsMontgomeryAndAdd(tmp0, tmp1, res)
 	}
-	r.Reduce(res, res)
 
 	return res
 }
@@ -32,10 +36,14 @@ func DotLvl(level uint64, p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ri
 
 	res := r.NewPoly()
 
-	for l := uint64(0); l < uint64(len(p1.poly)); l++ {
-		r.MulCoeffsMontgomeryAndAddLvl(level, p1.poly[l], p2.poly[l], res)
+	tmp0 := r.NewPoly()
+	tmp1 := r.NewPoly()
+
+	for i := uint64(0); i < uint64(len(p1.poly)); i++ {
+		r.MFormLvl(level, p1.poly[i], tmp0)
+		r.MFormLvl(level, p2.poly[i], tmp1)
+		r.MulCoeffsMontgomeryAndAddLvl(level, tmp0, tmp1, res)
 	}
-	r.ReduceLvl(level, res, res)
 
 	return res
 }

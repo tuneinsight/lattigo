@@ -114,7 +114,6 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 
 	random := generator.GenSecretKey() // random element as same distribution as the secret key
 	randomValue := random.Value
-	ringQP.NTT(randomValue, randomValue)
 
 	prng, err := utils.NewPRNG()
 	if err != nil {

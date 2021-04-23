@@ -98,7 +98,7 @@ func NewParticipant(params *ckks.Parameters, sigmaSmudging float64, crs *MKDecom
 		panic("CRS must be the same dimention as returned by the function ckks.Parameters.Beta()")
 	}
 
-	keys := KeyGen(params, crs)
+	keys := KeyGen(params, CopyNewDecomposed(crs))
 
 	uid := hashPublicKey(keys.publicKey.key)
 

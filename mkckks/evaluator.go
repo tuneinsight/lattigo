@@ -10,8 +10,7 @@ import (
 
 // MKEvaluator is a wrapper for the ckks evaluator
 type MKEvaluator interface {
-	AddNew(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
-	Add(c0 *MKCiphertext, c1 *MKCiphertext, cout *MKCiphertext)
+	Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
 	Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
 	AddPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
 	SubPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
@@ -19,7 +18,7 @@ type MKEvaluator interface {
 	MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
 	MultRelin(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
 	Rescale(c *MKCiphertext, out *MKCiphertext)
-	RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
+	Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
 	SwitchKeysNew(ct *MKCiphertext, switchingKey *MKSwitchingKey) (ctOut *MKCiphertext)
 	NewPlaintextFromValue([]complex128) *ckks.Plaintext
 }
@@ -63,8 +62,8 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 	}
 }
 
-// AddNew adds the ciphertexts component wise and expend their list of involved peers. A new ciphertext is returned
-func (eval *mkEvaluator) AddNew(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
+// Add adds the ciphertexts component wise and expend their list of involved peers. A new ciphertext is returned
+func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
 
 	if c0 == nil || c1 == nil || c0.ciphertexts == nil || c1.ciphertexts == nil {
 		panic("Uninitialized ciphertexts")
@@ -76,18 +75,6 @@ func (eval *mkEvaluator) AddNew(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertex
 
 	out.ciphertexts = eval.ckksEval.AddNew(padded1.ciphertexts, padded2.ciphertexts)
 	return out
-}
-
-// Add adds the ciphertexts component wise and expend their list of involved peers
-func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext, cout *MKCiphertext) {
-
-	if c0 == nil || cout == nil || c1 == nil || c0.ciphertexts == nil || c1.ciphertexts == nil || cout.ciphertexts == nil {
-		panic("Uninitialized ciphertexts")
-	}
-
-	padded1, padded2 := PadCiphers(c0, c1, eval.params)
-
-	eval.ckksEval.Add(padded1.ciphertexts, padded2.ciphertexts, cout.ciphertexts)
 }
 
 // Sub returns the component wise substraction of 2 ciphertexts
@@ -235,8 +222,8 @@ func (eval *mkEvaluator) Rescale(c *MKCiphertext, out *MKCiphertext) {
 	eval.ckksEval.Rescale(c.ciphertexts, eval.params.Scale(), c.ciphertexts)
 }
 
-// RotateNew rotate the columns of the ciphertext by n to the left and return the result in a new ciphertext
-func (eval *mkEvaluator) RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext {
+// Rotate rotate the columns of the ciphertext by n to the left and return the result in a new ciphertext
+func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext {
 
 	sort.Slice(keys, func(i, j int) bool { return keys[i].peerID < keys[j].peerID })
 

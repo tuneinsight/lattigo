@@ -30,7 +30,8 @@ type MKEvaluationKey struct {
 
 // MKSwitchingKey is a type for CKKS switching keys in a multi key context.
 type MKSwitchingKey struct {
-	key []*MKDecomposedPoly
+	key    []*MKDecomposedPoly
+	peerID uint64
 }
 
 // MKEvalGalKey is a type for CKKS rotation keys in a multi key context.
@@ -53,14 +54,16 @@ type MKKeys struct {
 }
 
 // NewMKSwitchingKey allocate a MKSwitchingKey with zero polynomials in the ring r
-func NewMKSwitchingKey(r *ring.Ring, params *ckks.Parameters) *MKSwitchingKey {
+func NewMKSwitchingKey(r *ring.Ring, params *ckks.Parameters, size, id uint64) *MKSwitchingKey {
 
 	key := new(MKSwitchingKey)
-	key.key = make([]*MKDecomposedPoly, 3)
+	key.key = make([]*MKDecomposedPoly, size)
 
-	key.key[0] = NewDecomposedPoly(r, params.Beta())
-	key.key[1] = NewDecomposedPoly(r, params.Beta())
-	key.key[2] = NewDecomposedPoly(r, params.Beta())
+	for i := uint64(0); i < size; i++ {
+		key.key[i] = NewDecomposedPoly(r, params.Beta())
+	}
+
+	key.peerID = id
 
 	return key
 }

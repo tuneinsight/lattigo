@@ -21,32 +21,32 @@ func Test_MKCKKS(t *testing.T) {
 	//skip parameter 4 due to memory consumption
 	for i, p := range ckks.DefaultParams {
 		if i != 4 && i != 9 {
+
+			testEncryptionEqualsDecryption(t, p)
+			testAdd(t, p)
+			testAddFourParticipants(t, p)
+			testAddPlaintext(t, p)
+			testAddPlaintextTwoParticipants(t, p)
+			testSub(t, p)
+			testSubPlaintext(t, p)
+			testNeg(t, p)
+			testSubPlaintextTwoParticipants(t, p)
+			testMulPlaintext(t, p)
+			testMulPlaintextTwoParticipants(t, p)
+			testAddInPlace(t, p)
+			testKeySwitch(t, p)
 			/*
-				testEncryptionEqualsDecryption(t, p)
-				testAdd(t, p)
-				testAddFourParticipants(t, p)
-				testAddPlaintext(t, p)
-				testAddPlaintextTwoParticipants(t, p)
-				testSub(t, p)
-				testSubPlaintext(t, p)
-				testNeg(t, p)
-				testSubPlaintextTwoParticipants(t, p)
-				testMulPlaintext(t, p)
-				testMulPlaintextTwoParticipants(t, p)
-				testAddInPlace(t, p)
-			*/
-			testRotation(t, p)
-			/*
+				testRotation(t, p)
 				testRotationTwoParticipants(t, p)
 
-					if i == 1 {
-						//testRelinTrivial(t,p)
-						testRelinNonTrivial(t, p)
-					}
-					testSquare(t, p)
-					testMul(t, p)
-					testMulFourParticipants(t, p)*/
-
+				if i == 1 {
+					//testRelinTrivial(t,p)
+					testRelinNonTrivial(t, p)
+				}
+				testSquare(t, p)
+				testMul(t, p)
+				testMulFourParticipants(t, p)
+			*/
 		}
 	}
 
@@ -602,13 +602,16 @@ func testRelinTrivial(t *testing.T, params *ckks.Parameters) {
 
 }
 
-func testEncryptionEqualsDecryption(t *testing.T, params *ckks.Parameters) {
+func testKeySwitch(t *testing.T, params *ckks.Parameters) {
 
 	sigma := 6.0
 
 	participants := setupPeers(1, params, sigma)
 
-	t.Run(testString("Test encryption equals decryption/", 1, params), func(t *testing.T) {
+	newKey := KeyGen(params, participants[0].GetPublicKey().key[1])
+	swk := GenSwitchingKey(participants[0].GetSecretKey(), newKey.secretKey, params)
+
+	t.Run(testString("Test key switch/", 1, params), func(t *testing.T) {
 
 		// get random value
 		value := newTestValue(params, complex(-1, -1), complex(1, 1))
@@ -616,9 +619,17 @@ func testEncryptionEqualsDecryption(t *testing.T, params *ckks.Parameters) {
 		//encrypt
 		cipher := participants[0].Encrypt(value)
 
+		// perform key switch
+		evaluator := NewMKEvaluator(params)
+
+		newCipher := evaluator.SwitchKeysNew(cipher, swk)
+
+		//participant changes its secret key for decryption
+		participants[0].SetSecretKey(newKey.secretKey)
+
 		// decrypt
-		partialDec := participants[0].GetPartialDecryption(cipher)
-		decrypted := participants[0].Decrypt(cipher, []*ring.Poly{partialDec})
+		partialDec := participants[0].GetPartialDecryption(newCipher)
+		decrypted := participants[0].Decrypt(newCipher, []*ring.Poly{partialDec})
 
 		// decode and check
 		verifyTestVectors(params, value, decrypted, t)

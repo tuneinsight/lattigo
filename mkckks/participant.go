@@ -17,6 +17,8 @@ type MKParticipant interface {
 	Decrypt(cipher *MKCiphertext, partialDecryptions []*ring.Poly) []complex128
 	GetPartialDecryption(ciphertext *MKCiphertext) *ring.Poly
 	GetRotationKeys(rot int) *MKEvalGalKey
+	GetSecretKey() *MKSecretKey
+	SetSecretKey(newKey *MKSecretKey)
 }
 
 type mkParticipant struct {
@@ -167,4 +169,14 @@ func (participant *mkParticipant) GetRotationKeys(rot int) *MKEvalGalKey {
 	evalKey.peerID = participant.id
 
 	return evalKey
+}
+
+// GetSecretKey returns the secret key of the participant
+func (participant *mkParticipant) GetSecretKey() *MKSecretKey {
+	return participant.keys.secretKey
+}
+
+// SetSecretKey changes the secret key of the participant
+func (participant *mkParticipant) SetSecretKey(newKey *MKSecretKey) {
+	participant.keys.secretKey = newKey
 }

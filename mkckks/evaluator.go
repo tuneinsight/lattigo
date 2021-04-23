@@ -1,12 +1,10 @@
 package mkckks
 
 import (
-	"math/big"
 	"sort"
 
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -22,7 +20,7 @@ type MKEvaluator interface {
 	MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
 	Rescale(c *MKCiphertext, out *MKCiphertext)
 	RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
-	SwitchKeysNew(ct *MKCiphertext, switchingKey *rlwe.SwitchingKey) (ctOut *MKCiphertext)
+	SwitchKeysNew(ct *MKCiphertext, switchingKey *MKSwitchingKey) (ctOut *MKCiphertext)
 	NewPlaintextFromValue([]complex128) *ckks.Plaintext
 }
 
@@ -30,11 +28,8 @@ type mkEvaluator struct {
 	ckksEval        ckks.Evaluator
 	params          *ckks.Parameters
 	ringQ           *ring.Ring
-	ringQMul        *ring.Ring
-	pHalf           *big.Int
+	ringP           *ring.Ring
 	samplerGaussian *ring.GaussianSampler
-	polyPoolQ1      []*ring.Poly
-	polyPoolQ2      []*ring.Poly
 	convertor       *ring.FastBasisExtender
 	encoder         ckks.Encoder
 }
@@ -47,7 +42,7 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 	}
 
 	ringQ := GetRingQ(params)
-	ringQMul := GetRingQMul(params)
+	ringP := GetRingP(params)
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -55,16 +50,13 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 	}
 
 	sampler := GetGaussianSampler(params, ringQ, prng)
-	convertor := ring.NewFastBasisExtender(ringQ, ringQMul)
-
-	pHalf := new(big.Int).Rsh(ringQMul.ModulusBigint, 1)
+	convertor := ring.NewFastBasisExtender(ringQ, ringP)
 
 	return &mkEvaluator{
 		ckksEval:        ckks.NewEvaluator(params, ckks.EvaluationKey{}),
 		params:          params,
 		ringQ:           ringQ,
-		ringQMul:        ringQMul,
-		pHalf:           pHalf,
+		ringP:           ringP,
 		samplerGaussian: sampler,
 		convertor:       convertor,
 		encoder:         ckks.NewEncoder(params),
@@ -252,7 +244,6 @@ func (eval *mkEvaluator) RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey)
 
 	level := c.ciphertexts.Level()
 
-	ringP := GetRingP(eval.params)
 	ringQP := GetRingQP(eval.params)
 
 	k := uint64(len(c.peerIDs))
@@ -264,7 +255,7 @@ func (eval *mkEvaluator) RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey)
 
 	for i := uint64(0); i < k+1; i++ {
 		restmpQ[i] = eval.ringQ.NewPoly()
-		restmpP[i] = ringP.NewPoly()
+		restmpP[i] = eval.ringP.NewPoly()
 		res[i] = eval.ringQ.NewPoly()
 	}
 
@@ -279,13 +270,13 @@ func (eval *mkEvaluator) RotateNew(c *MKCiphertext, n int, keys []*MKEvalGalKey)
 
 		decomposedPermutedQ, decomposedPermutedP := GInverse(permutedCipher, eval.params, level)
 
-		res0P := Dot(decomposedPermutedP, gal0P, ringP)
+		res0P := Dot(decomposedPermutedP, gal0P, eval.ringP)
 		res0Q := DotLvl(level, decomposedPermutedQ, gal0Q, eval.ringQ)
 
-		ringP.Add(restmpP[0], res0P, restmpP[0])
+		eval.ringP.Add(restmpP[0], res0P, restmpP[0])
 		eval.ringQ.AddLvl(level, restmpQ[0], res0Q, restmpQ[0])
 
-		restmpP[i] = Dot(decomposedPermutedP, gal1P, ringP)
+		restmpP[i] = Dot(decomposedPermutedP, gal1P, eval.ringP)
 		restmpQ[i] = DotLvl(level, decomposedPermutedQ, gal1Q, eval.ringQ)
 	}
 
@@ -340,22 +331,27 @@ func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*MKEva
 	return gal0Q, gal0P, gal1Q, gal1P
 }
 
-// SwitchKeysNew perform the key switch for a ciphertext involving a participant
-func (eval *mkEvaluator) SwitchKeysNew(ct *MKCiphertext, switchingKey *rlwe.SwitchingKey) (ctOut *MKCiphertext) {
+// SwitchKeysNew perform the key switch for a ciphertext involving one participant.
+// After the key switch, the participants's secret Key must be update with SetSecretKey
+func (eval *mkEvaluator) SwitchKeysNew(ct *MKCiphertext, switchingKey *MKSwitchingKey) (ctOut *MKCiphertext) {
+
 	if ct.ciphertexts.Degree() != 1 {
 		panic("Key switch only work for degree 1 ciphertexts")
 	}
-	// TODO : if it is possible to perform key switch on multi-participant ciphertext
-	//implement it by searching for corresponding cipherpart and puting peerID in switchingKey
+
+	index := getCiphertextIndex(switchingKey.peerID, ct)
+
+	if index == 0 {
+		panic("Participant not involved in ciphertext. Key switch impossible")
+	}
+
 	var reduce uint64
 
 	level := ct.ciphertexts.Level()
 
-	ringP := GetRingP(eval.params)
-
 	ctOut = NewMKCiphertext(ct.peerIDs, eval.ringQ, eval.params, level)
 
-	cipherQ, cipherP := GInverse(ct.ciphertexts.Value()[1], eval.params, level)
+	cipherQ, cipherP := GInverse(ct.ciphertexts.Value()[index], eval.params, level)
 
 	evakey0Q := new(ring.Poly)
 	evakey1Q := new(ring.Poly)
@@ -364,8 +360,8 @@ func (eval *mkEvaluator) SwitchKeysNew(ct *MKCiphertext, switchingKey *rlwe.Swit
 
 	pool2Q := eval.ringQ.NewPoly()
 	pool3Q := eval.ringQ.NewPoly()
-	pool2P := ringP.NewPoly()
-	pool3P := ringP.NewPoly()
+	pool2P := eval.ringP.NewPoly()
+	pool3P := eval.ringP.NewPoly()
 
 	reduce = 0
 
@@ -375,29 +371,29 @@ func (eval *mkEvaluator) SwitchKeysNew(ct *MKCiphertext, switchingKey *rlwe.Swit
 		c2QiP := cipherP.poly[i]
 
 		//prepare switching key for split computation
-		evakey0Q.Coeffs = switchingKey.Value[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = switchingKey.Value[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = switchingKey.Value[i][0].Coeffs[len(eval.ringQ.Modulus):]
-		evakey1P.Coeffs = switchingKey.Value[i][1].Coeffs[len(eval.ringQ.Modulus):]
+		evakey0Q.Coeffs = switchingKey.key[0].poly[i].Coeffs[:level+1]
+		evakey1Q.Coeffs = switchingKey.key[1].poly[i].Coeffs[:level+1]
+		evakey0P.Coeffs = switchingKey.key[0].poly[i].Coeffs[len(eval.ringQ.Modulus):]
+		evakey1P.Coeffs = switchingKey.key[1].poly[i].Coeffs[len(eval.ringQ.Modulus):]
 
 		if i == 0 {
 			eval.ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey0Q, c2QiQ, pool2Q)
 			eval.ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey1Q, c2QiQ, pool3Q)
-			ringP.MulCoeffsMontgomeryConstant(evakey0P, c2QiP, pool2P)
-			ringP.MulCoeffsMontgomeryConstant(evakey1P, c2QiP, pool3P)
+			eval.ringP.MulCoeffsMontgomeryConstant(evakey0P, c2QiP, pool2P)
+			eval.ringP.MulCoeffsMontgomeryConstant(evakey1P, c2QiP, pool3P)
 		} else {
 			eval.ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey0Q, c2QiQ, pool2Q)
 			eval.ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey1Q, c2QiQ, pool3Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey0P, c2QiP, pool2P)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey1P, c2QiP, pool3P)
+			eval.ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey0P, c2QiP, pool2P)
+			eval.ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey1P, c2QiP, pool3P)
 		}
 
 		//
 		if reduce&3 == 3 {
 			eval.ringQ.ReduceConstantLvl(level, pool2Q, pool2Q)
 			eval.ringQ.ReduceConstantLvl(level, pool3Q, pool3Q)
-			ringP.ReduceConstant(pool2P, pool2P)
-			ringP.ReduceConstant(pool3P, pool3P)
+			eval.ringP.ReduceConstant(pool2P, pool2P)
+			eval.ringP.ReduceConstant(pool3P, pool3P)
 		}
 
 		reduce++
@@ -405,14 +401,14 @@ func (eval *mkEvaluator) SwitchKeysNew(ct *MKCiphertext, switchingKey *rlwe.Swit
 
 	eval.ringQ.ReduceLvl(level, pool2Q, pool2Q)
 	eval.ringQ.ReduceLvl(level, pool3Q, pool3Q)
-	ringP.Reduce(pool2P, pool2P)
-	ringP.Reduce(pool3P, pool3P)
+	eval.ringP.Reduce(pool2P, pool2P)
+	eval.ringP.Reduce(pool3P, pool3P)
 
 	eval.convertor.ModDownSplitNTTPQ(level, pool2Q, pool2P, pool2Q)
 	eval.convertor.ModDownSplitNTTPQ(level, pool3Q, pool3P, pool3Q)
 
 	eval.ringQ.AddLvl(level, ct.ciphertexts.Value()[0], pool2Q, ctOut.ciphertexts.Value()[0])
-	eval.ringQ.CopyLvl(level, pool3Q, ctOut.ciphertexts.Value()[1])
+	eval.ringQ.CopyLvl(level, pool3Q, ctOut.ciphertexts.Value()[index])
 
 	return
 }
@@ -421,4 +417,16 @@ func (eval *mkEvaluator) SwitchKeysNew(ct *MKCiphertext, switchingKey *rlwe.Swit
 func (eval *mkEvaluator) NewPlaintextFromValue(values []complex128) *ckks.Plaintext {
 
 	return eval.encoder.EncodeNTTAtLvlNew(eval.params.MaxLevel(), values, eval.params.LogSlots())
+}
+
+func getCiphertextIndex(peerID uint64, ct *MKCiphertext) uint64 {
+
+	for i, id := range ct.peerIDs {
+
+		if id == peerID {
+			return uint64(i + 1)
+		}
+	}
+
+	return 0
 }

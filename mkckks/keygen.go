@@ -5,7 +5,6 @@ import (
 
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -141,20 +140,7 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 
 	a := pk.key[1] // a <- U(Rqp^d) second component of the public key
 
-	for d := uint64(0); d < beta; d++ {
-		// Gaussian is not in NTT, so we convert it to NTT
-		ringQP.NTTLazy(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
-		ringQP.NTTLazy(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
-
-		ringQP.MForm(d0.poly[d], d0.poly[d]) // pass e1_i in MForm
-		ringQP.MForm(d2.poly[d], d2.poly[d]) // pass e2_i in Mform
-
-		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
-		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[d], d2.poly[d])
-		ringQP.Reduce(d0.poly[d], d0.poly[d])
-		ringQP.Reduce(d2.poly[d], d2.poly[d])
-	}
-
+	// multiply by P
 	scaledMu := ringQP.NewPoly()
 	scaledRandomValue := ringQP.NewPoly()
 
@@ -170,43 +156,52 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 	ringQP.MulScalarBigint(randomValue, pBigInt, scaledRandomValue)
 	ringQP.MulScalarBigint(mu, pBigInt, scaledMu)
 
-	// the g_is mod q_i are either 0 or 1, so just need to compute sums of the correct random.Values
-	MultiplyByBaseAndAdd(scaledRandomValue, params, d0)
-	MultiplyByBaseAndAdd(scaledMu, params, d2)
+	for i := uint64(0); i < beta; i++ {
+		// Gaussian is not in NTT, so we convert it to NTT
+		ringQP.NTTLazy(d0.poly[i], d0.poly[i]) // pass e1_i in NTT
+		ringQP.NTTLazy(d2.poly[i], d2.poly[i]) // pass e2_i in NTT
+
+		ringQP.MForm(d0.poly[i], d0.poly[i]) // pass e1_i in MForm
+		ringQP.MForm(d2.poly[i], d2.poly[i]) // pass e2_i in Mform
+
+		// the g_is mod q_i are either 0 or 1, so just need to compute sums
+		MultiplyByBaseAndAdd(scaledRandomValue, params, d0.poly[i], i)
+		MultiplyByBaseAndAdd(scaledMu, params, d2.poly[i], i)
+
+		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[i], d0.poly[i])
+		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[i], d2.poly[i])
+
+	}
 
 	return []*MKDecomposedPoly{d0, d1, d2}
 }
 
 // MultiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2
-func MultiplyByBaseAndAdd(p1 *ring.Poly, params *ckks.Parameters, p2 *MKDecomposedPoly) {
+func MultiplyByBaseAndAdd(p1 *ring.Poly, params *ckks.Parameters, p2 *ring.Poly, beta uint64) {
 
 	alpha := params.Alpha()
-	// dimension of the vectors (d)
-	beta := params.Beta()
 
 	var index uint64
 	ringQP := GetRingQP(params)
 
-	for i := uint64(0); i < beta; i++ {
+	for j := uint64(0); j < alpha; j++ {
 
-		for j := uint64(0); j < alpha; j++ {
+		index = beta*alpha + j
 
-			index = i*alpha + j
+		qi := ringQP.Modulus[index]
+		p0tmp := p1.Coeffs[index]
+		p1tmp := p2.Coeffs[index]
 
-			qi := ringQP.Modulus[index]
-			p0tmp := p1.Coeffs[index]
-			p1tmp := p2.poly[i].Coeffs[index]
+		for w := uint64(0); w < ringQP.N; w++ {
+			p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
+		}
 
-			for w := uint64(0); w < ringQP.N; w++ {
-				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
-			}
-
-			// Handles the case where nb pj does not divide nb qi
-			if index >= params.QiCount() {
-				break
-			}
+		// Handles the case where nb pj does not divide nb qi
+		if index >= params.QiCount() {
+			break
 		}
 	}
+
 }
 
 // Function used to generate the evaluation key. The evaluation key is the encryption of the secret key under itself using uniEnc
@@ -234,17 +229,19 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Paramete
 	h1 := GetUniformDecomposed(GetUniformSampler(params, ringQP, prng), params.Beta())
 	h0 := GetGaussianDecomposed(GetGaussianSampler(params, ringQP, prng), params.Beta())
 
-	for i := uint64(0); i < params.Beta(); i++ {
-		ringQP.NTT(h0.poly[i], h0.poly[i])
-		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, h1.poly[i], h0.poly[i])
-	}
-
 	permutedSecretKey := ringQP.NewPoly()
 
 	index := ring.PermuteNTTIndex(galEl, ringQP.N)
 	ring.PermuteNTTWithIndexLvl(params.QPiCount()-1, sk.key.Value, index, permutedSecretKey)
 
-	MultiplyByBaseAndAdd(permutedSecretKey, params, h0)
+	for i := uint64(0); i < params.Beta(); i++ {
+		ringQP.NTT(h0.poly[i], h0.poly[i])
+		ringQP.MForm(h0.poly[i], h0.poly[i])
+
+		MultiplyByBaseAndAdd(permutedSecretKey, params, h0.poly[i], i)
+
+		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, h1.poly[i], h0.poly[i])
+	}
 
 	res.key[0] = h0
 	res.key[1] = h1
@@ -303,19 +300,19 @@ func GenCommonPublicParam(params *ckks.Parameters, prng *utils.KeyedPRNG) *MKDec
 }
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
-func GenSwitchingKey(skInput, skOutput *MKSecretKey, params *ckks.Parameters) (newSwitchingKey *rlwe.SwitchingKey) {
+func GenSwitchingKey(skInput, skOutput *MKSecretKey, params *ckks.Parameters) (switchingKey *MKSwitchingKey) {
 
 	ringQP := GetRingQP(params)
-	keygenPool := new(ring.Poly)
+	keygenPool := ringQP.NewPoly()
 	ringQP.Copy(skInput.key.Value, keygenPool)
-	newEvalKey := *ckks.NewSwitchingKey(params)
-	NewSwitchingKey(keygenPool, skOutput.key.Value, &newEvalKey.SwitchingKey, params)
+	switchingKey = NewMKSwitchingKey(ringQP, params, 2, skInput.peerID)
+	NewSwitchingKey(keygenPool, skOutput.key.Value, switchingKey, params)
 	keygenPool.Zero()
-	return
+	return switchingKey
 }
 
 // NewSwitchingKey generates a new switching key based on the secret key input and output, and stores it in swk
-func NewSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.SwitchingKey, params *ckks.Parameters) {
+func NewSwitchingKey(skIn, skOut *ring.Poly, swk *MKSwitchingKey, params *ckks.Parameters) {
 
 	ringQP := GetRingQP(params)
 	var pBigInt *big.Int
@@ -330,10 +327,8 @@ func NewSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.SwitchingKey, params *ckk
 	// Computes P * skIn
 	ringQP.MulScalarBigint(skIn, pBigInt, skIn)
 
-	alpha := params.Alpha()
 	beta := params.Beta()
 
-	var index uint64
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -345,12 +340,12 @@ func NewSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.SwitchingKey, params *ckk
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-		gaussianSampler.Read(swk.Value[i][0])
-		ringQP.NTTLazy(swk.Value[i][0], swk.Value[i][0])
-		ringQP.MForm(swk.Value[i][0], swk.Value[i][0])
+		gaussianSampler.Read(swk.key[0].poly[i])
+		ringQP.NTTLazy(swk.key[0].poly[i], swk.key[0].poly[i])
+		ringQP.MForm(swk.key[0].poly[i], swk.key[0].poly[i])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
-		uniformSampler.Read(swk.Value[i][1])
+		uniformSampler.Read(swk.key[1].poly[i])
 
 		// e + (skIn * P) * (q_star * q_tild) mod QP
 		//
@@ -359,26 +354,10 @@ func NewSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.SwitchingKey, params *ckk
 		// q_tild = q_star^-1 mod q_prod
 		//
 		// Therefore : (skIn * P) * (q_star * q_tild) = sk*P mod q[i*alpha+j], else 0
-		for j := uint64(0); j < alpha; j++ {
-
-			index = i*alpha + j
-
-			qi := ringQP.Modulus[index]
-			p0tmp := skIn.Coeffs[index]
-			p1tmp := swk.Value[i][0].Coeffs[index]
-
-			for w := uint64(0); w < ringQP.N; w++ {
-				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
-			}
-
-			// It handles the case where nb pj does not divide nb qi
-			if index >= params.QiCount() {
-				break
-			}
-		}
+		MultiplyByBaseAndAdd(skIn, params, swk.key[0].poly[i], i)
 
 		// (skIn * P) * (q_star * q_tild) - a * skOut + e mod QP
-		ringQP.MulCoeffsMontgomeryAndSub(swk.Value[i][1], skOut, swk.Value[i][0])
+		ringQP.MulCoeffsMontgomeryAndSub(swk.key[1].poly[i], skOut, swk.key[0].poly[i])
 	}
 
 	return

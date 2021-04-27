@@ -154,12 +154,12 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 
 // NewParametersFromLiteral instantiate a set of BFV parameters from a ParametersLiteral specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
-func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{LogN: paramDef.LogN, Q: paramDef.Q, P: paramDef.P, Sigma: paramDef.Sigma})
+func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
+	rlweParams, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{LogN: pl.LogN, Q: pl.Q, P: pl.P, LogQ: pl.LogQ, LogP: pl.LogP, Sigma: pl.Sigma})
 	if err != nil {
 		return Parameters{}, err
 	}
-	return NewParameters(rlweParams, paramDef.T)
+	return NewParameters(rlweParams, pl.T)
 }
 
 // T returns the plaintext coefficient modulus t

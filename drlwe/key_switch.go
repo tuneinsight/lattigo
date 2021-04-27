@@ -6,6 +6,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
+// CKSProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
 type CKSProtocol struct {
 	ringQ           *ring.Ring
 	ringP           *ring.Ring
@@ -66,6 +67,7 @@ func (cks *CKSProtocol) AllocateShare() CKSShare {
 	return CKSShare{cks.ringQ.NewPoly()}
 }
 
+// GenShare generates a party's share in the CKSProtocol
 func (cks *CKSProtocol) GenShare(skInput, skOutput *ring.Poly, ct *rlwe.Element, shareOut CKSShare) {
 
 	cks.ringQ.Sub(skInput, skOutput, cks.tmpDelta)

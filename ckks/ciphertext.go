@@ -13,7 +13,7 @@ type Ciphertext struct {
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
 func NewCiphertext(params Parameters, degree uint64, level uint64, scale float64) (ciphertext *Ciphertext) {
 
-	ciphertext = &Ciphertext{NewElement(params, degree, level, scale)}
+	ciphertext = &Ciphertext{newElement(params, degree, level, scale)}
 	ciphertext.IsNTT = true // TODO are Ciphertexts are NTT by default ?
 
 	return ciphertext
@@ -36,10 +36,12 @@ func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level uint6
 	return ciphertext
 }
 
+// Copy copies the given ciphertext ctp into the receiver ciphertext.
 func (ct *Ciphertext) Copy(ctp *Ciphertext) {
 	ct.Element.Copy(ctp.Element)
 }
 
+// CopyNew makes a deep copy of the receiver ciphertext and returns it.
 func (ct *Ciphertext) CopyNew() *Ciphertext {
 	return &Ciphertext{ct.Element.CopyNew()}
 }

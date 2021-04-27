@@ -94,7 +94,7 @@ func genTestParams(params Parameters) (testctx *testContext, err error) {
 	testctx.encryptorPk = NewEncryptorFromPk(testctx.params, testctx.pk)
 	testctx.encryptorSk = NewEncryptorFromSk(testctx.params, testctx.sk)
 	testctx.decryptor = NewDecryptor(testctx.params, testctx.sk)
-	testctx.evaluator = NewEvaluator(testctx.params, rlwe.EvaluationKey{testctx.rlk, nil})
+	testctx.evaluator = NewEvaluator(testctx.params, rlwe.EvaluationKey{Rlk: testctx.rlk})
 	return
 
 }
@@ -608,7 +608,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 
 	rots := []int{1, -1, 4, -4, 63, -63}
 	rotkey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
-	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{testctx.rlk, rotkey})
+	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
 
 	t.Run(testString("Evaluator/RotateRows/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
@@ -654,7 +654,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 	})
 
 	rotkey = testctx.kgen.GenRotationKeysForInnerSum(testctx.sk)
-	evaluator = evaluator.WithKey(rlwe.EvaluationKey{testctx.rlk, rotkey})
+	evaluator = evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
 
 	t.Run(testString("Evaluator/Rotate/InnerSum/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)

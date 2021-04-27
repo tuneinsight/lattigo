@@ -44,8 +44,8 @@ func Test_MKCKKS(t *testing.T) {
 				}
 				testSquare(t, p)
 				testMul(t, p)
-				testMulFourParticipants(t, p)*/
-
+				testMulFourParticipants(t, p)
+			*/
 		}
 	}
 
@@ -488,7 +488,9 @@ func testSquare(t *testing.T, params *ckks.Parameters) {
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey()}
 
-		resCipher := evaluator.MultRelin(cipher1, cipher1, evalKeys, publicKeys)
+		resCipher := evaluator.Mul(cipher1, cipher1)
+
+		evaluator.RelinInPlace(resCipher, evalKeys, publicKeys)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -676,7 +678,9 @@ func testMul(t *testing.T, params *ckks.Parameters) {
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
-		resCipher := evaluator.MultRelin(cipher1, cipher2, evalKeys, publicKeys)
+		resCipher := evaluator.Mul(cipher1, cipher2)
+
+		evaluator.RelinInPlace(resCipher, evalKeys, publicKeys)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -720,10 +724,15 @@ func testMulFourParticipants(t *testing.T, params *ckks.Parameters) {
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
 
-		resCipher1 := evaluator.MultRelin(cipher1, cipher2, evalKeys[:2], publicKeys[:2])
-		resCipher2 := evaluator.MultRelin(cipher3, cipher4, evalKeys[2:], publicKeys[2:])
+		resCipher1 := evaluator.Mul(cipher1, cipher2)
+		resCipher2 := evaluator.Mul(cipher3, cipher4)
 
-		resCipher := evaluator.MultRelin(resCipher1, resCipher2, evalKeys, publicKeys)
+		evaluator.RelinInPlace(resCipher1, evalKeys[:2], publicKeys[:2])
+		evaluator.RelinInPlace(resCipher2, evalKeys[2:], publicKeys[2:])
+
+		resCipher := evaluator.Mul(resCipher1, resCipher2)
+
+		evaluator.RelinInPlace(resCipher, evalKeys, publicKeys)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)

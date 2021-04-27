@@ -16,7 +16,8 @@ type MKEvaluator interface {
 	SubPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
 	Neg(c *MKCiphertext) *MKCiphertext
 	MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
-	MultRelin(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
+	Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
+	RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey)
 	Rescale(c *MKCiphertext, out *MKCiphertext)
 	Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
 	SwitchKeysNew(ct *MKCiphertext, switchingKey *MKSwitchingKey) (ctOut *MKCiphertext)
@@ -162,16 +163,10 @@ func (eval *mkEvaluator) MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKC
 	return out
 }
 
-// MultRelin will compute the homomorphic multiplication and relinearize the resulting cyphertext using dynamic relin
-func (eval *mkEvaluator) MultRelin(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
-
-	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].peerID < evalKeys[j].peerID })
-	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].peerID < publicKeys[j].peerID })
+// Mul will compute the tensor product and output a ciphertext with degree (k+1)**2
+func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
-
-	checkParticipantsEvalKey(padded1.peerIDs, evalKeys)
-	checkParticipantsPubKey(padded1.peerIDs, publicKeys)
 
 	nbrElements := padded1.ciphertexts.Degree() + 1 // k+1
 
@@ -209,10 +204,19 @@ func (eval *mkEvaluator) MultRelin(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys 
 		}
 	}
 
-	// Call Relin alg 2
-	Relinearization(evalKeys, publicKeys, out, eval.params)
-
 	return out
+}
+
+// Relinearize a ciphertext after a multiplication
+func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) {
+
+	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].peerID < evalKeys[j].peerID })
+	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].peerID < publicKeys[j].peerID })
+
+	checkParticipantsEvalKey(ct.peerIDs, evalKeys)
+	checkParticipantsPubKey(ct.peerIDs, publicKeys)
+
+	Relinearization(evalKeys, publicKeys, ct, eval.params)
 }
 
 // Rescale takes a ciphertext at level l reduces it until it reaches its original

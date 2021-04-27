@@ -29,6 +29,7 @@ func BenchmarkMKCKKS(b *testing.B) {
 		benchDecrypt(b, p)
 		benchPartialDecrypt(b, p)
 		//benchMultTwoCiphertexts(b, p)
+		//benchRelin(b, p)
 	}
 }
 
@@ -81,13 +82,35 @@ func benchMultTwoCiphertexts(b *testing.B, params *ckks.Parameters) {
 	cipher2 := participants[1].Encrypt(value2)
 
 	evaluator := NewMKEvaluator(params)
-	evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
-	publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
 	b.Run(testString("Mul/", 2, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			evaluator.MultRelin(cipher1, cipher2, evalKeys, publicKeys)
+			evaluator.Mul(cipher1, cipher2)
+		}
+	})
+}
+
+func benchRelin(b *testing.B, params *ckks.Parameters) {
+
+	participants := setupPeers(2, params, 6.0)
+
+	value1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+	value2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+	cipher1 := participants[0].Encrypt(value1)
+	cipher2 := participants[1].Encrypt(value2)
+
+	evaluator := NewMKEvaluator(params)
+	evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+	publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+
+	res := evaluator.Mul(cipher1, cipher2)
+
+	b.Run(testString("Relin/", 2, params), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+			evaluator.RelinInPlace(res, evalKeys, publicKeys)
 		}
 	})
 }

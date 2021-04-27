@@ -1,6 +1,7 @@
 package dbfv
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
@@ -11,16 +12,21 @@ import (
 
 func Benchmark_DBFV(b *testing.B) {
 
-	var defaultParams []bfv.ParametersLiteral
-
+	defaultParams := bfv.DefaultParams
 	if testing.Short() {
-		defaultParams = bfv.DefaultParams[bfv.PN12QP109 : bfv.PN12QP109+3]
-	} else {
-		defaultParams = bfv.DefaultParams
+		defaultParams = bfv.DefaultParams[:2]
+	}
+	if *flagParamString != "" {
+		var jsonParams bfv.ParametersLiteral
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		defaultParams = []bfv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
 		params, err := bfv.NewParametersFromLiteral(p)
+		if err != nil {
+			panic(err)
+		}
 		var testCtx *testContext
 		if testCtx, err = gentestContext(params); err != nil {
 			panic(err)

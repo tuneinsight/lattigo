@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ring"
@@ -10,12 +11,14 @@ import (
 
 func BenchmarkCKKSScheme(b *testing.B) {
 
-	var defaultParams []ParametersLiteral
-
+	defaultParams := DefaultParams
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109+3 : PN12QP109+4]
-	} else {
-		defaultParams = DefaultParams
+		defaultParams = DefaultParams[:2]
+	}
+	if *flagParamString != "" {
+		var jsonParams ParametersLiteral
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, defaultParams := range defaultParams {

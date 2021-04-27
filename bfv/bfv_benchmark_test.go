@@ -1,6 +1,7 @@
 package bfv
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/rlwe"
@@ -11,9 +12,15 @@ func BenchmarkBFV(b *testing.B) {
 	var defaultParams []ParametersLiteral
 
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
+		defaultParams = DefaultParams[:3]
 	} else {
 		defaultParams = DefaultParams
+	}
+
+	if *flagParamString != "" {
+		var jsonParams ParametersLiteral
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {

@@ -17,6 +17,7 @@ import (
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
+var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
 
@@ -52,13 +53,17 @@ type testParams struct {
 
 func TestCKKS(t *testing.T) {
 
-	defaultParams := DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	defaultParams := DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15, 2^16
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
+		defaultParams = DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
-
 	if *flagLongTest {
-		defaultParams = DefaultParams // the long test suite runs for all default parameters
+		defaultParams = append(defaultParams, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
+	}
+	if *flagParamString != "" {
+		var jsonParams ParametersLiteral
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, defaultParam := range defaultParams {
@@ -180,7 +185,7 @@ func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant 
 }
 
 func testParameters(testContext *testParams, t *testing.T) {
-	t.Skip()
+
 }
 
 func testEncoder(testContext *testParams, t *testing.T) {

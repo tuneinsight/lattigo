@@ -19,7 +19,10 @@ func chebyshevinterpolation() {
 	// The result is then parsed and compared to the expected result.
 
 	// Scheme params are taken directly from the proposed defaults
-	params := ckks.GetDefaultParameters(ckks.PN14QP438)
+	params, err := ckks.NewParametersFromLiteral(ckks.PN14QP438)
+	if err != nil {
+		panic(err)
+	}
 
 	encoder := ckks.NewEncoder(params)
 

@@ -1,6 +1,7 @@
 package dbfv
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -16,6 +17,7 @@ import (
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
+var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var parties int = 3
 
 func testString(opname string, parties int, params bfv.Parameters) string {
@@ -48,13 +50,19 @@ type testContext struct {
 
 func Test_DBFV(t *testing.T) {
 
-	var defaultParams = bfv.DefaultParams[bfv.PN12QP109 : bfv.PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	defaultParams := bfv.DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = bfv.DefaultParams[bfv.PN12QP109 : bfv.PN12QP109+2] // the short test runs for ring degree N=2^12, 2^13
+		defaultParams = bfv.DefaultParams[:2] // the short test runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
 		defaultParams = bfv.DefaultParams // the long test suite runs for all default parameters
 	}
+	if *flagParamString != "" {
+		var jsonParams bfv.ParametersLiteral
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		defaultParams = []bfv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+	}
+
 	for _, p := range defaultParams {
 
 		params, err := bfv.NewParametersFromLiteral(p)

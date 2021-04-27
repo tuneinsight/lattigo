@@ -102,7 +102,7 @@ func main() {
 	queryIndex := 2
 
 	// Creating encryption parameters from a default params with N=8192
-	paramsDef := bfv.DefaultParams[bfv.PN13QP218]
+	paramsDef := bfv.PN13QP218
 	paramsDef.T = 65537
 	params, err := bfv.NewParametersFromLiteral(paramsDef)
 	if err != nil {

@@ -12,33 +12,136 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// DefaultParametersID is an enumerated type representing a set of default paramters
-// hardcoded in the library.
-type DefaultParametersID int
-
 // Name of the different default parameter sets
-const (
-	// PN12QP109 is the index in DefaultParams for logQP = 109
-	PN12QP109 = DefaultParametersID(iota)
-	// PN13QP218 is the index in DefaultParams for logQP = 218
-	PN13QP218
-	// PN14QP438 is the index in DefaultParams for logQP = 438
-	PN14QP438
-	// PN15QP880 is the index in DefaultParams for logQP = 880
-	PN15QP880
-	// PN16QP1761 is the index in DefaultParams for logQP = 1761
-	PN16QP1761
+var (
+	// PN12QP109 is a default parameter set for logN=12 and logQP=109
+	PN12QP109 = ParametersLiteral{
+		LogN:     12,
+		LogSlots: 11,
+		Q: []uint64{0x200000e001, // 37 + 32
+			0x100006001},
+		P:     []uint64{0x3ffffea001}, // 38
+		Scale: 1 << 32,
+		Sigma: rlwe.DefaultSigma,
+	}
 
-	// PN12QP101pq is the index in DefaultParams for logQP = 101 (post quantum)
-	PN12QP101pq
-	// PN13QP202pq is the index in DefaultParams for logQP = 202 (post quantum)
-	PN13QP202pq
-	// PN14QP411pq is the index in DefaultParams for logQP = 411 (post quantum)
-	PN14QP411pq
-	// PN15QP827pq is the index in DefaultParams for logQP = 827 (post quantum)
-	PN15QP827pq
-	// PN16QP1654pq is the index in DefaultParams for logQP = 1654 (post quantum)
-	PN16QP1654pq
+	// PN13QP218 is a default parameter set for logN=13 and logQP=218
+	PN13QP218 = ParametersLiteral{
+		LogN:     13,
+		LogSlots: 12,
+		Q: []uint64{0x1fffec001, // 33 + 5 x 30
+			0x3fff4001,
+			0x3ffe8001,
+			0x40020001,
+			0x40038001,
+			0x3ffc0001},
+		P:     []uint64{0x800004001}, // 35
+		Scale: 1 << 30,
+		Sigma: rlwe.DefaultSigma,
+	}
+	// PN14QP438 is a default parameter set for logN=14 and logQP=438
+	PN14QP438 = ParametersLiteral{
+		LogN:     14,
+		LogSlots: 13,
+		Q: []uint64{0x200000008001, 0x400018001, // 45 + 9 x 34
+			0x3fffd0001, 0x400060001,
+			0x400068001, 0x3fff90001,
+			0x400080001, 0x4000a8001,
+			0x400108001, 0x3ffeb8001},
+		P:     []uint64{0x7fffffd8001, 0x7fffffc8001}, // 43, 43
+		Scale: 1 << 34,
+		Sigma: rlwe.DefaultSigma,
+	}
+
+	// PN15QP880 is a default parameter set for logN=15 and logQP=880
+	PN15QP880 = ParametersLiteral{
+		LogN:     15,
+		LogSlots: 14,
+		Q: []uint64{0x4000000120001, 0x10000140001, 0xffffe80001, // 50 + 17 x 40
+			0x10000290001, 0xffffc40001, 0x100003e0001,
+			0x10000470001, 0x100004b0001, 0xffffb20001,
+			0x10000500001, 0x10000650001, 0xffff940001,
+			0xffff8a0001, 0xffff820001, 0xffff780001,
+			0x10000890001, 0xffff750001, 0x10000960001},
+		P:     []uint64{0x40000001b0001, 0x3ffffffdf0001, 0x4000000270001}, // 50, 50, 50
+		Scale: 1 << 40,
+		Sigma: rlwe.DefaultSigma,
+	}
+	// PN16QP1761 is a default parameter set for logN=16 and logQP = 1761
+	PN16QP1761 = ParametersLiteral{
+		LogN:     16,
+		LogSlots: 15,
+		Q: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001, // 55 + 33 x 45
+			0x200000440001, 0x200000500001, 0x200000620001, 0x1fffff980001,
+			0x2000006a0001, 0x1fffff7e0001, 0x200000860001, 0x200000a60001,
+			0x200000aa0001, 0x200000b20001, 0x200000c80001, 0x1fffff360001,
+			0x200000e20001, 0x1fffff060001, 0x200000fe0001, 0x1ffffede0001,
+			0x1ffffeca0001, 0x1ffffeb40001, 0x200001520001, 0x1ffffe760001,
+			0x2000019a0001, 0x1ffffe640001, 0x200001a00001, 0x1ffffe520001,
+			0x200001e80001, 0x1ffffe0c0001, 0x1ffffdee0001, 0x200002480001,
+			0x1ffffdb60001, 0x200002560001},
+		P:     []uint64{0x80000000440001, 0x7fffffffba0001, 0x80000000500001, 0x7fffffffaa0001}, // 4 x 55
+		Scale: 1 << 45,
+		Sigma: rlwe.DefaultSigma,
+	}
+
+	// PN12QP101pq is a default (post quantum) parameter set for logN=12 and logQP=101
+	PN12QP101pq = ParametersLiteral{
+		LogN:     12,
+		LogSlots: 11,
+		Q:        []uint64{0x800004001, 0x40002001}, // 35 + 30
+		P:        []uint64{0x1000002001},            // 36
+		Scale:    1 << 30,
+		Sigma:    rlwe.DefaultSigma,
+	}
+	// PN13QP202pq is a default (post quantum) parameter set for logN=13 and logQP=202
+	PN13QP202pq = ParametersLiteral{
+		LogN:     13,
+		LogSlots: 12,
+		Q:        []uint64{0x1fffec001, 0x8008001, 0x8020001, 0x802c001, 0x7fa8001, 0x7f74001}, // 33 + 5 x 27
+		P:        []uint64{0x400018001},                                                        // 34
+		Scale:    1 << 27,
+		Sigma:    rlwe.DefaultSigma,
+	}
+
+	// PN14QP411pq is a default (post quantum) parameter set for logN=14 and logQP=411
+	PN14QP411pq = ParametersLiteral{
+		LogN:     14,
+		LogSlots: 13,
+		Q: []uint64{0x10000048001, 0x200038001, 0x1fff90001, 0x200080001, 0x1fff60001,
+			0x2000b8001, 0x200100001, 0x1fff00001, 0x1ffef0001, 0x200128001}, // 40 + 9 x 33
+
+		P:     []uint64{0x1ffffe0001, 0x1ffffc0001}, // 37, 37
+		Scale: 1 << 33,
+		Sigma: rlwe.DefaultSigma,
+	}
+
+	// PN15QP827pq is a default (post quantum) parameter set for logN=15 and logQP=827
+	PN15QP827pq = ParametersLiteral{
+		LogN:     15,
+		LogSlots: 14,
+		Q: []uint64{0x400000060001, 0x4000170001, 0x3fffe80001, 0x40002f0001, 0x4000300001,
+			0x3fffcf0001, 0x40003f0001, 0x3fffc10001, 0x4000450001, 0x3fffb80001,
+			0x3fffb70001, 0x40004a0001, 0x3fffb20001, 0x4000510001, 0x3fffaf0001,
+			0x4000540001, 0x4000560001, 0x4000590001}, // 46 + 17 x 38
+		P:     []uint64{0x2000000a0001, 0x2000000e0001, 0x2000001d0001}, // 3 x 45
+		Scale: 1 << 38,
+		Sigma: rlwe.DefaultSigma,
+	}
+	// PN16QP1654pq is a default (post quantum) parameter set for logN=16 and logQP=1654
+	PN16QP1654pq = ParametersLiteral{LogN: 16,
+		LogSlots: 15,
+		Q: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001, 0x200000440001,
+			0x200000500001, 0x200000620001, 0x1fffff980001, 0x2000006a0001, 0x1fffff7e0001,
+			0x200000860001, 0x200000a60001, 0x200000aa0001, 0x200000b20001, 0x200000c80001,
+			0x1fffff360001, 0x200000e20001, 0x1fffff060001, 0x200000fe0001, 0x1ffffede0001,
+			0x1ffffeca0001, 0x1ffffeb40001, 0x200001520001, 0x1ffffe760001, 0x2000019a0001,
+			0x1ffffe640001, 0x200001a00001, 0x1ffffe520001, 0x200001e80001, 0x1ffffe0c0001,
+			0x1ffffdee0001, 0x200002480001}, // 55 + 31 x 45
+		P:     []uint64{0x7fffffffe0001, 0x80000001c0001, 0x80000002c0001, 0x7ffffffd20001}, // 4 x 51
+		Scale: 1 << 45,
+		Sigma: rlwe.DefaultSigma,
+	}
 )
 
 // ParametersLiteral is a literal representation of BFV parameters.  It has public
@@ -56,145 +159,11 @@ type ParametersLiteral struct {
 	Scale    float64
 }
 
-// DefaultParams is a set of default CKKS parameters ensuring 128 bit security.
-var DefaultParams = []ParametersLiteral{
+// DefaultParams is a set of default CKKS parameters ensuring 128 bit security in a classic setting.
+var DefaultParams = []ParametersLiteral{PN12QP109, PN13QP218, PN14QP438, PN15QP880, PN16QP1761}
 
-	//LogQi = 109
-	{LogN: 12,
-		LogSlots: 11,
-		Q: []uint64{0x200000e001, // 37 + 32
-			0x100006001},
-		P:     []uint64{0x3ffffea001}, // 38
-		Scale: 1 << 32,
-		Sigma: rlwe.DefaultSigma,
-	},
-
-	//LogQi = 218
-	{LogN: 13,
-		LogSlots: 12,
-		Q: []uint64{0x1fffec001, // 33 + 5 x 30
-			0x3fff4001,
-			0x3ffe8001,
-			0x40020001,
-			0x40038001,
-			0x3ffc0001},
-		P:     []uint64{0x800004001}, // 35
-		Scale: 1 << 30,
-		Sigma: rlwe.DefaultSigma,
-	},
-
-	//LogQiP = 438
-	{LogN: 14,
-		LogSlots: 13,
-		Q: []uint64{0x200000008001, 0x400018001, // 45 + 9 x 34
-			0x3fffd0001, 0x400060001,
-			0x400068001, 0x3fff90001,
-			0x400080001, 0x4000a8001,
-			0x400108001, 0x3ffeb8001},
-		P:     []uint64{0x7fffffd8001, 0x7fffffc8001}, // 43, 43
-		Scale: 1 << 34,
-		Sigma: rlwe.DefaultSigma,
-	},
-
-	//LogQi = 880
-	{LogN: 15,
-		LogSlots: 14,
-		Q: []uint64{0x4000000120001, 0x10000140001, 0xffffe80001, // 50 + 17 x 40
-			0x10000290001, 0xffffc40001, 0x100003e0001,
-			0x10000470001, 0x100004b0001, 0xffffb20001,
-			0x10000500001, 0x10000650001, 0xffff940001,
-			0xffff8a0001, 0xffff820001, 0xffff780001,
-			0x10000890001, 0xffff750001, 0x10000960001},
-		P:     []uint64{0x40000001b0001, 0x3ffffffdf0001, 0x4000000270001}, // 50, 50, 50
-		Scale: 1 << 40,
-		Sigma: rlwe.DefaultSigma,
-	},
-
-	//LogQi = 1761
-	{LogN: 16,
-		LogSlots: 15,
-		Q: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001, // 55 + 33 x 45
-			0x200000440001, 0x200000500001, 0x200000620001, 0x1fffff980001,
-			0x2000006a0001, 0x1fffff7e0001, 0x200000860001, 0x200000a60001,
-			0x200000aa0001, 0x200000b20001, 0x200000c80001, 0x1fffff360001,
-			0x200000e20001, 0x1fffff060001, 0x200000fe0001, 0x1ffffede0001,
-			0x1ffffeca0001, 0x1ffffeb40001, 0x200001520001, 0x1ffffe760001,
-			0x2000019a0001, 0x1ffffe640001, 0x200001a00001, 0x1ffffe520001,
-			0x200001e80001, 0x1ffffe0c0001, 0x1ffffdee0001, 0x200002480001,
-			0x1ffffdb60001, 0x200002560001},
-		P:     []uint64{0x80000000440001, 0x7fffffffba0001, 0x80000000500001, 0x7fffffffaa0001}, // 4 x 55
-		Scale: 1 << 45,
-		Sigma: rlwe.DefaultSigma,
-	},
-
-	//LogQi = 101.00001186816735
-	{LogN: 12,
-		LogSlots: 11,
-		Q:        []uint64{0x800004001, 0x40002001}, // 35 + 30
-		P:        []uint64{0x1000002001},            // 36
-		Scale:    1 << 30,
-		Sigma:    rlwe.DefaultSigma,
-	},
-
-	//LogQi = 201.9936341352857
-	{LogN: 13,
-		LogSlots: 12,
-		Q:        []uint64{0x1fffec001, 0x8008001, 0x8020001, 0x802c001, 0x7fa8001, 0x7f74001}, // 33 + 5 x 27
-		P:        []uint64{0x400018001},                                                        // 34
-		Scale:    1 << 27,
-		Sigma:    rlwe.DefaultSigma,
-	},
-
-	//LogQiP = 411.0000787495673
-	{LogN: 14,
-		LogSlots: 13,
-		Q: []uint64{0x10000048001, 0x200038001, 0x1fff90001, 0x200080001, 0x1fff60001,
-			0x2000b8001, 0x200100001, 0x1fff00001, 0x1ffef0001, 0x200128001}, // 40 + 9 x 33
-
-		P:     []uint64{0x1ffffe0001, 0x1ffffc0001}, // 37, 37
-		Scale: 1 << 33,
-		Sigma: rlwe.DefaultSigma,
-	},
-
-	//LogQi = 827.0000771955918
-	{LogN: 15,
-		LogSlots: 14,
-		Q: []uint64{0x400000060001, 0x4000170001, 0x3fffe80001, 0x40002f0001, 0x4000300001,
-			0x3fffcf0001, 0x40003f0001, 0x3fffc10001, 0x4000450001, 0x3fffb80001,
-			0x3fffb70001, 0x40004a0001, 0x3fffb20001, 0x4000510001, 0x3fffaf0001,
-			0x4000540001, 0x4000560001, 0x4000590001}, // 46 + 17 x 38
-		P:     []uint64{0x2000000a0001, 0x2000000e0001, 0x2000001d0001}, // 3 x 45
-		Scale: 1 << 38,
-		Sigma: rlwe.DefaultSigma,
-	},
-
-	//LogQi = 1653.999999
-	{LogN: 16,
-		LogSlots: 15,
-		Q: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001, 0x200000440001,
-			0x200000500001, 0x200000620001, 0x1fffff980001, 0x2000006a0001, 0x1fffff7e0001,
-			0x200000860001, 0x200000a60001, 0x200000aa0001, 0x200000b20001, 0x200000c80001,
-			0x1fffff360001, 0x200000e20001, 0x1fffff060001, 0x200000fe0001, 0x1ffffede0001,
-			0x1ffffeca0001, 0x1ffffeb40001, 0x200001520001, 0x1ffffe760001, 0x2000019a0001,
-			0x1ffffe640001, 0x200001a00001, 0x1ffffe520001, 0x200001e80001, 0x1ffffe0c0001,
-			0x1ffffdee0001, 0x200002480001}, // 55 + 31 x 45
-		P:     []uint64{0x7fffffffe0001, 0x80000001c0001, 0x80000002c0001, 0x7ffffffd20001}, // 4 x 51
-		Scale: 1 << 45,
-		Sigma: rlwe.DefaultSigma,
-	},
-}
-
-// GetDefaultParameters instantiate and returns the default parameter set identified by DefaultParametersID.
-func GetDefaultParameters(paramsID DefaultParametersID) Parameters {
-	if int(paramsID) >= len(DefaultParams) {
-		panic(fmt.Errorf("paramsId %d does not exist", paramsID))
-	}
-	params, err := NewParametersFromLiteral(DefaultParams[paramsID])
-	if err != nil {
-		panic(err)
-	}
-	return params
-}
+// DefaultPostQuantumParams is a set of default CKKS parameters ensuring 128 bit security in a post-quantum setting.
+var DefaultPostQuantumParams = []ParametersLiteral{PN12QP101pq, PN13QP202pq, PN14QP411pq, PN15QP827pq, PN16QP1654pq}
 
 // Parameters represents a parameter set for the CKKS cryptosystem. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.

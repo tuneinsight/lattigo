@@ -15,6 +15,7 @@ import (
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
+var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 func testString(opname string, p Parameters) string {
 	return fmt.Sprintf("%sLogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.LogN(), p.LogQP(), p.Alpha(), p.Beta())
@@ -40,12 +41,17 @@ type testContext struct {
 
 func TestBFV(t *testing.T) {
 
-	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	var defaultParams = DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
+		defaultParams = DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
-		defaultParams = DefaultParams // the long test suite runs for all default parameters
+		defaultParams = append(defaultParams, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
+	}
+	if *flagParamString != "" {
+		var jsonParams ParametersLiteral
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {

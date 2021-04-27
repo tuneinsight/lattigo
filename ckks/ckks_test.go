@@ -130,7 +130,7 @@ func genTestParams(defaultParam Parameters, hw int) (testContext *testParams, er
 	testContext.encryptorSk = NewEncryptorFromSk(testContext.params, testContext.sk)
 	testContext.decryptor = NewDecryptor(testContext.params, testContext.sk)
 
-	testContext.evaluator = NewEvaluator(testContext.params, rlwe.EvaluationKey{testContext.rlk, nil})
+	testContext.evaluator = NewEvaluator(testContext.params, rlwe.EvaluationKey{Rlk: testContext.rlk})
 
 	return testContext, nil
 
@@ -989,7 +989,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 	}
 	rots := []int{0, 1, -1, 4, -4, 63, -63}
 	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
-	evaluator := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
+	evaluator := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 	t.Run(testString(testContext, "Conjugate/"), func(t *testing.T) {
 

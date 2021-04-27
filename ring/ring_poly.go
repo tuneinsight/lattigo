@@ -101,6 +101,7 @@ func (pol *Poly) Copy(p1 *Poly) {
 	}
 }
 
+// Equals returns true if the receiver Poly is equal to the provided other Poly.
 func (pol *Poly) Equals(other *Poly) bool {
 	if pol == other {
 		return true

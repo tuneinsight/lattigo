@@ -12,10 +12,14 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
+// DefaultParametersID is an enumerated type representing a set of default paramters
+// hardcoded in the library.
+type DefaultParametersID int
+
 // Name of the different default parameter sets
 const (
 	// PN12QP109 is the index in DefaultParams for logQP = 109
-	PN12QP109 = iota
+	PN12QP109 = DefaultParametersID(iota)
 	// PN13QP218 is the index in DefaultParams for logQP = 218
 	PN13QP218
 	// PN14QP438 is the index in DefaultParams for logQP = 438
@@ -37,6 +41,10 @@ const (
 	PN16QP1654pq
 )
 
+// ParametersLiteral is a literal representation of BFV parameters.  It has public
+// fields and is used to express unchecked user-defined parameters literally into
+// Go programs. The NewParametersFromLiteral function is used to generate the actual
+// checked parameters from the literal representation.
 type ParametersLiteral struct {
 	LogN     int // Ring degree (power of 2)
 	Q        []uint64
@@ -176,7 +184,20 @@ var DefaultParams = []ParametersLiteral{
 	},
 }
 
-// Parameters represents a given parameter set for the CKKS cryptosystem.
+// GetDefaultParameters instantiate and returns the default parameter set identified by DefaultParametersID.
+func GetDefaultParameters(paramsID DefaultParametersID) Parameters {
+	if int(paramsID) >= len(DefaultParams) {
+		panic(fmt.Errorf("paramsId %d does not exist", paramsID))
+	}
+	params, err := NewParametersFromLiteral(DefaultParams[paramsID])
+	if err != nil {
+		panic(err)
+	}
+	return params
+}
+
+// Parameters represents a parameter set for the CKKS cryptosystem. Its fields are private and
+// immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
 
@@ -184,30 +205,26 @@ type Parameters struct {
 	scale    float64
 }
 
+// NewParameters instantiate a set of CKKS parameters from the generic RLWE parameters and the CKKS-specific ones.
+// It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, logSlot int, scale float64) (p Parameters, err error) {
+	if rlweParams.Equals(rlwe.Parameters{}) {
+		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
+	}
 	if logSlot > rlweParams.LogN()-1 {
 		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d", logSlot, rlweParams.LogN()-1)
 	}
 	return Parameters{rlweParams, logSlot, scale}, nil
 }
 
+// NewParametersFromLiteral instantiate a set of CKKS parameters from a ParametersLiteral specification.
+// It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(pl.RLWEParameterLiteral())
+	rlweParams, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{LogN: pl.LogN, Q: pl.Q, P: pl.P, Sigma: pl.Sigma})
 	if err != nil {
 		return Parameters{}, err
 	}
 	return NewParameters(rlweParams, pl.LogSlots, pl.Scale)
-}
-
-func GetDefaultParameters(paramsId int) Parameters {
-	if paramsId >= len(DefaultParams) {
-		panic(fmt.Errorf("paramsId %d does not exist", paramsId))
-	}
-	params, err := NewParametersFromLiteral(DefaultParams[paramsId])
-	if err != nil {
-		panic(err)
-	}
-	return params
 }
 
 // LogSlots returns the log of the number of slots
@@ -296,17 +313,15 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return err
 }
 
+// MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ParametersLiteral{LogN: p.LogN(), Q: p.Q(), P: p.P(), Sigma: p.Sigma(), LogSlots: p.logSlots, Scale: p.scale})
 }
 
+// UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params ParametersLiteral
 	json.Unmarshal(data, &params)
 	*p, err = NewParametersFromLiteral(params)
 	return
-}
-
-func (pl ParametersLiteral) RLWEParameterLiteral() rlwe.ParametersLiteral {
-	return rlwe.ParametersLiteral{LogN: pl.LogN, Q: pl.Q, P: pl.P, LogQ: pl.LogQ, LogP: pl.LogP, Sigma: pl.Sigma}
 }

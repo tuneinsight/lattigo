@@ -18,7 +18,7 @@ func NewElement(params Parameters, degree int) *Element {
 	return NewElementAtLevel(params, degree, params.QCount()-1)
 }
 
-// NewElement returns a new Element with zero values.
+// NewElementAtLevel returns a new Element with zero values.
 func NewElementAtLevel(params Parameters, degree, level int) *Element {
 	el := new(Element)
 	el.Value = make([]*ring.Poly, degree+1)
@@ -116,6 +116,9 @@ func (el *Element) El() *Element {
 	return el
 }
 
+// GetSmallestLargest returns the provided element that has the smallest degree as a first
+// returned value and the largest degree as second return value. If the degree match, the
+// order is the same as for the input.
 func GetSmallestLargest(el0, el1 *Element) (smallest, largest *Element, sameDegree bool) {
 	switch {
 	case el0.Degree() > el1.Degree():
@@ -126,7 +129,7 @@ func GetSmallestLargest(el0, el1 *Element) (smallest, largest *Element, sameDegr
 	return el0, el1, true
 }
 
-// NewElementRandom creates a new rlwe.Element with random coefficients
+// PopulateElementRandom creates a new rlwe.Element with random coefficients
 func PopulateElementRandom(prng utils.PRNG, params Parameters, el *Element) {
 
 	ringQ, err := ring.NewRing(params.N(), params.Q())

@@ -22,6 +22,7 @@ func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree int) (cipher
 	return
 }
 
+// CopyNew creates a deep copy of the receiver ciphertext and returns it.
 func (ct *Ciphertext) CopyNew() *Ciphertext {
 	return &Ciphertext{ct.Element.CopyNew()}
 }

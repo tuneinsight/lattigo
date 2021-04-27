@@ -10,10 +10,11 @@ type Element struct {
 	scale float64
 }
 
-func NewElement(params Parameters, degree, level int, scale float64) *Element {
+func newElement(params Parameters, degree, level int, scale float64) *Element {
 	return &Element{*rlwe.NewElementAtLevel(params.Parameters, degree, level), scale}
 }
 
+// El returns itself.
 func (el *Element) El() *Element {
 	return el
 }
@@ -48,11 +49,13 @@ func (el *Element) Resize(params Parameters, degree int) {
 	el.Element.Resize(params.Parameters, degree)
 }
 
+// Copy copies the `other` into the reciever Element.
 func (el *Element) Copy(other *Element) {
 	el.Element.Copy(&other.Element)
 	el.scale = other.scale
 }
 
+// CopyNew creates a deep copy of the receiver Element and returns it.
 func (el *Element) CopyNew() *Element {
 	return &Element{*el.Element.CopyNew(), el.scale}
 }

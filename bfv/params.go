@@ -9,9 +9,13 @@ import (
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
+// DefaultParametersID is an enumerated type representing a set of default paramters
+// hardcoded in the library.
+type DefaultParametersID int
+
 const (
 	// PN12QP109 is a set of parameters with N = 2^12 and log(QP) = 109
-	PN12QP109 = iota
+	PN12QP109 = DefaultParametersID(iota)
 	// PN13QP218 is a set of parameters with N = 2^13 and log(QP) = 218
 	PN13QP218
 	// PN14QP438 is a set of parameters with N = 2^14 and log(QP) = 438
@@ -29,7 +33,10 @@ const (
 	PN15QP827pq
 )
 
-// ParametersLiteral represents a given parameter set for the BFV cryptosystem.
+// ParametersLiteral is a literal representation of BFV parameters.  It has public
+// fields and is used to express unchecked user-defined parameters literally into
+// Go programs. The NewParametersFromLiteral function is used to generate the actual
+// checked parameters from the literal representation.
 type ParametersLiteral struct {
 	LogN  int // Log Ring degree (power of 2)
 	Q     []uint64
@@ -114,31 +121,41 @@ var DefaultParams = []ParametersLiteral{
 	},
 }
 
-func GetDefaultParameters(paramsId int) Parameters {
-	if paramsId >= len(DefaultParams) {
-		panic(fmt.Errorf("paramsId %d does not exist", paramsId))
+// GetDefaultParameters instantiate and returns the default parameter set identified by DefaultParametersID
+func GetDefaultParameters(paramsID DefaultParametersID) Parameters {
+	if int(paramsID) >= len(DefaultParams) {
+		panic(fmt.Errorf("paramsId %d does not exist", paramsID))
 	}
-	params, err := NewParametersFromLiteral(DefaultParams[paramsId])
+	params, err := NewParametersFromLiteral(DefaultParams[paramsID])
 	if err != nil {
 		panic(err)
 	}
 	return params
 }
 
+// Parameters represents a parameter set for the BFV cryptosystem. Its fields are private and
+// immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
 	t uint64
 }
 
+// NewParameters instantiate a set of BFV parameters from the generic RLWE parameters and the BFV-specific ones.
+// It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
+	if rlweParams.Equals(rlwe.Parameters{}) {
+		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
+	}
 	if t > rlweParams.Q()[0] {
 		return Parameters{}, fmt.Errorf("t=%d is larger than Q[0]=%d", t, rlweParams.Q()[0])
 	}
 	return Parameters{rlweParams, t}, nil
 }
 
+// NewParametersFromLiteral instantiate a set of BFV parameters from a ParametersLiteral specification.
+// It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(paramDef.RLWEParameterLiteral())
+	rlweParams, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{LogN: paramDef.LogN, Q: paramDef.Q, P: paramDef.P, Sigma: paramDef.Sigma})
 	if err != nil {
 		return Parameters{}, err
 	}
@@ -150,6 +167,7 @@ func (p Parameters) T() uint64 {
 	return p.t
 }
 
+// RingT instantiates a new ring.Ring corresponding to the plaintext space ring R_t.
 func (p Parameters) RingT() *ring.Ring {
 	ringQP, err := ring.NewRing(p.N(), []uint64{p.t})
 	if err != nil {
@@ -194,17 +212,15 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ParametersLiteral{LogN: p.LogN(), Q: p.Q(), P: p.P(), Sigma: p.Sigma(), T: p.t})
 }
 
+// UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params ParametersLiteral
 	json.Unmarshal(data, &params)
 	*p, err = NewParametersFromLiteral(params)
 	return
-}
-
-func (pl ParametersLiteral) RLWEParameterLiteral() rlwe.ParametersLiteral {
-	return rlwe.ParametersLiteral{LogN: pl.LogN, Q: pl.Q, P: pl.P, LogQ: pl.LogQ, LogP: pl.LogP, Sigma: pl.Sigma}
 }

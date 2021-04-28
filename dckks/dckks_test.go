@@ -60,12 +60,12 @@ type testContext struct {
 
 func TestDCKKS(t *testing.T) {
 
-	var defaultParams = ckks.DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15, 2^16
+	var defaultParams = ckks.DefaultParams[:4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = ckks.DefaultParams[:2] // the short test runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
-		defaultParams = ckks.DefaultParams // the long test suite runs for all default parameters
+		defaultParams = append(ckks.DefaultParams, ckks.DefaultBootstrapSchemeParams...) // the long test suite runs for all default parameters
 	}
 	if *flagParamString != "" {
 		var jsonParams ckks.ParametersLiteral

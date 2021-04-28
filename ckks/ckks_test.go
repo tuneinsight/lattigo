@@ -53,12 +53,12 @@ type testParams struct {
 
 func TestCKKS(t *testing.T) {
 
-	defaultParams := DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15, 2^16
+	defaultParams := DefaultParams[:4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
-		defaultParams = append(defaultParams, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
+		defaultParams = append(DefaultParams, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
 	}
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral

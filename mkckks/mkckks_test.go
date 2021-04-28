@@ -35,18 +35,19 @@ func Test_MKCKKS(t *testing.T) {
 			testMulPlaintextTwoParticipants(t, p)
 			testKeySwitch(t, p)
 			/*testTensor(t, p)
+			testTensorTwoParticipants(t, p)
 
-			testRotation(t, p)
-			testRotationTwoParticipants(t, p)
+				testRotation(t, p)
+					testRotationTwoParticipants(t, p)
 
-			if i == 1 {
-				//testRelinTrivial(t,p)
-				testRelinNonTrivial(t, p)
-			}
-			testSquare(t, p)
-			testMul(t, p)
-			testMulFourParticipants(t, p)
-			*/
+					if i == 1 {
+						//testRelinTrivial(t,p)
+						testRelinNonTrivial(t, p)
+					}
+				testSquare(t, p)
+				testMul(t, p)
+				testMulFourParticipants(t, p)*/
+
 		}
 	}
 
@@ -470,7 +471,7 @@ func testMulPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
 
 }
 
-func testTensor(t *testing.T, params *ckks.Parameters) {
+func testTensorTwoParticipants(t *testing.T, params *ckks.Parameters) {
 	sigma := 6.0
 
 	participants := setupPeers(2, params, sigma)
@@ -499,6 +500,39 @@ func testTensor(t *testing.T, params *ckks.Parameters) {
 		// perform the operation in the plaintext space
 		for i := 0; i < len(values1); i++ {
 			values1[i] *= values2[i]
+		}
+
+		// check results
+		verifyTestVectors(params, values1, decrypted, t)
+	})
+}
+
+func testTensor(t *testing.T, params *ckks.Parameters) {
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	t.Run(testString("Test tensor/", 1, params), func(t *testing.T) {
+
+		// generate test values
+		values1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// Encrypt
+		cipher1 := participants[0].Encrypt(values1)
+
+		// evaluate multiplication
+		evaluator := NewMKEvaluator(params)
+
+		resCipher := evaluator.Mul(cipher1, cipher1)
+
+		// decrypt using all secret keys
+		sk1 := participants[0].GetSecretKey()
+
+		decrypted := Decrypt([]*MKSecretKey{sk1}, resCipher, params)
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(values1); i++ {
+			values1[i] *= values1[i]
 		}
 
 		// check results
@@ -1112,23 +1146,32 @@ func Decrypt(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []c
 	sort.Slice(keys, func(i, j int) bool { return keys[i].peerID < keys[j].peerID })
 
 	ringQ := GetRingQ(params)
+	ringQP := GetRingQP(params)
 
 	// Compute the tensor product of the secret keys : sk * sk
 	el := ct.ciphertexts.Element
 	level := utils.MinUint64(el.Level(), ct.ciphertexts.Level())
-	nbrElements := len(keys)
+	nbrElements := len(keys) + 1
 	tensorDim := nbrElements * nbrElements
+
+	// put sk in form (1, sk1, sk2,...)
+	concatKeys := make([]*ring.Poly, nbrElements)
+	concatKeys[0] = getOne(ringQP)
+
+	for i, k := range keys {
+		concatKeys[i+1] = k.key.Value
+	}
 
 	keyTensor := make([]*ring.Poly, tensorDim)
 	tmp1 := ringQ.NewPoly()
 	tmp2 := ringQ.NewPoly()
 
-	for i, v1 := range keys {
+	for i, v1 := range concatKeys {
 
-		ringQ.MFormLvl(level, v1.key.SecretKey.Value, tmp1)
+		ringQP.MFormLvl(level, v1, tmp1)
 
-		for j, v2 := range keys {
-			ringQ.MFormLvl(level, v2.key.SecretKey.Value, tmp2)
+		for j, v2 := range concatKeys {
+			ringQP.MFormLvl(level, v2, tmp2)
 			keyTensor[i*nbrElements+j] = ringQ.NewPoly()
 
 			ringQ.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, keyTensor[i*nbrElements+j])

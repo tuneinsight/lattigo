@@ -89,3 +89,21 @@ func GetRandomPoly(params *ckks.Parameters, r *ring.Ring) *ring.Poly {
 
 	return GetUniformSampler(params, r, prng).ReadNew()
 }
+
+// returns a polynomial with all coefficient set to 1
+func getOne(r *ring.Ring) *ring.Poly {
+
+	res := r.NewPoly()
+
+	coeffs := res.Coeffs
+
+	for _, c := range coeffs {
+		for index := range c {
+			c[index] = 1
+		}
+	}
+
+	res.SetCoefficients(coeffs)
+
+	return res
+}

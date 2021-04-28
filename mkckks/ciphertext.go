@@ -39,7 +39,7 @@ func PadCiphers(c1, c2 *MKCiphertext, params *ckks.Parameters) (c1Out, c2Out *MK
 		if index1 >= 0 {
 			res1[index] = c1.ciphertexts.Element.Value()[index1+1].CopyNew()
 		} else {
-			res1[index] = ringQ.NewPoly() //Put it in NTT ?????
+			res1[index] = ringQ.NewPoly()
 		}
 
 		if index2 >= 0 {

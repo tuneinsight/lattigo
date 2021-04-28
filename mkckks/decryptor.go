@@ -48,10 +48,7 @@ func (dec *mkDecryptor) PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *r
 	out := dec.samplerGaussian.ReadLvlNew(level) // TODO: in paper they want sigma > 3.2 for this error... but they don't tell how much...
 	dec.ringQ.NTTLvl(level, out, out)
 
-	tmp := dec.ringQ.NewPoly()
-	dec.ringQ.CopyLvl(level, ct, tmp)
-
-	dec.ringQ.MulCoeffsMontgomeryAndAddLvl(level, tmp, sk.key.Value, out)
+	dec.ringQ.MulCoeffsMontgomeryAndAddLvl(level, ct, sk.key.Value, out)
 
 	out.Coeffs = out.Coeffs[:level+1]
 

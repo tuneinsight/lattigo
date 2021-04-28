@@ -930,7 +930,6 @@ func equalsSlice(s1, s2 []uint64) bool {
 
 	for i, e := range s1 {
 		if e != s2[i] {
-			fmt.Printf("%d not equal to %d . Error at index %d", e, s2[i], i)
 			return false
 		}
 	}
@@ -1169,12 +1168,22 @@ func Decrypt(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []c
 
 		padddedKeys1[0] = getOne(ringQ)
 		ringQ.NTT(padddedKeys1[0], padddedKeys1[0])
-		padddedKeys1[1] = keys[0].key.Value
-		padddedKeys1[2] = ringQ.NewPoly()
-
 		padddedKeys2[0] = padddedKeys1[0]
-		padddedKeys2[1] = ringQ.NewPoly()
-		padddedKeys2[2] = keys[1].key.Value
+
+		// detect if ciphertext (c01 * c02, 0, ..) or (c01 * c02, c1 * c02, ..)
+		if equalsPoly(ringQ.NewPoly(), ct.ciphertexts.Value()[1]) {
+			padddedKeys1[1] = keys[0].key.Value
+			padddedKeys1[2] = ringQ.NewPoly()
+
+			padddedKeys2[1] = ringQ.NewPoly()
+			padddedKeys2[2] = keys[1].key.Value
+		} else {
+			padddedKeys1[2] = keys[0].key.Value
+			padddedKeys1[1] = ringQ.NewPoly()
+
+			padddedKeys2[2] = ringQ.NewPoly()
+			padddedKeys2[1] = keys[1].key.Value
+		}
 
 	} else {
 		panic("This function was only designed to process ciphertext up to degree 1")

@@ -20,7 +20,7 @@ func Test_MKCKKS(t *testing.T) {
 
 	//skip parameter 4 due to memory consumption
 	for i, p := range ckks.DefaultParams {
-		if i != 4 && i != 9 {
+		if i != 4 && i != 9 && i != ckks.PN12QP109 {
 
 			testEncryptionEqualsDecryption(t, p)
 			testAdd(t, p)
@@ -34,17 +34,18 @@ func Test_MKCKKS(t *testing.T) {
 			testMulPlaintext(t, p)
 			testMulPlaintextTwoParticipants(t, p)
 			testKeySwitch(t, p)
-			/*
-				testRotation(t, p)
-				testRotationTwoParticipants(t, p)
+			/*testTensor(t, p)
 
-				if i == 1 {
-					//testRelinTrivial(t,p)
-					testRelinNonTrivial(t, p)
-				}
-				testSquare(t, p)
-				testMul(t, p)
-				testMulFourParticipants(t, p)
+			testRotation(t, p)
+			testRotationTwoParticipants(t, p)
+
+			if i == 1 {
+				//testRelinTrivial(t,p)
+				testRelinNonTrivial(t, p)
+			}
+			testSquare(t, p)
+			testMul(t, p)
+			testMulFourParticipants(t, p)
 			*/
 		}
 	}
@@ -467,6 +468,42 @@ func testMulPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
 
 	})
 
+}
+
+func testTensor(t *testing.T, params *ckks.Parameters) {
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	t.Run(testString("Test tensor/", 2, params), func(t *testing.T) {
+
+		// generate test values
+		values1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		values2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// Encrypt
+		cipher1 := participants[0].Encrypt(values1)
+		cipher2 := participants[1].Encrypt(values2)
+
+		// evaluate multiplication
+		evaluator := NewMKEvaluator(params)
+
+		resCipher := evaluator.Mul(cipher1, cipher2)
+
+		// decrypt using all secret keys
+		sk1 := participants[0].GetSecretKey()
+		sk2 := participants[1].GetSecretKey()
+
+		decrypted := Decrypt([]*MKSecretKey{sk1, sk2}, resCipher, params)
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(values1); i++ {
+			values1[i] *= values2[i]
+		}
+
+		// check results
+		verifyTestVectors(params, values1, decrypted, t)
+	})
 }
 
 func testSquare(t *testing.T, params *ckks.Parameters) {
@@ -1069,28 +1106,48 @@ func calcmedian(values []complex128) (median complex128) {
 
 // Decrypt takes secret keys of k participants and a multikey ciphertext ct of dimension (k+1) ** 2 = ct1 * ct2
 // Computes < ct, sk*sk > in order to check that it is equal to <ct1,sk>.<ct2,sk>
-func Decrypt(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters, ring *ring.Ring) *ring.Poly {
+func Decrypt(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []complex128 {
+
+	// sort secret keys with respect to the ciphertext order
+	sort.Slice(keys, func(i, j int) bool { return keys[i].peerID < keys[j].peerID })
+
+	ringQ := GetRingQ(params)
 
 	// Compute the tensor product of the secret keys : sk * sk
 	el := ct.ciphertexts.Element
-	level := el.Level() // Not sure about this line
+	level := utils.MinUint64(el.Level(), ct.ciphertexts.Level())
 	nbrElements := len(keys)
 	tensorDim := nbrElements * nbrElements
-	keyTensor := make([]*ckks.SecretKey, tensorDim)
-	tmp1 := ring.NewPoly()
-	tmp2 := ring.NewPoly()
+
+	keyTensor := make([]*ring.Poly, tensorDim)
+	tmp1 := ringQ.NewPoly()
+	tmp2 := ringQ.NewPoly()
+
 	for i, v1 := range keys {
-		ring.MFormLvl(level, v1.key.SecretKey.Value, tmp1)
+
+		ringQ.MFormLvl(level, v1.key.SecretKey.Value, tmp1)
+
 		for j, v2 := range keys {
-			ring.MFormLvl(level, v2.key.SecretKey.Value, tmp2)
-			ring.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, keyTensor[i*nbrElements+j].Value)
+			ringQ.MFormLvl(level, v2.key.SecretKey.Value, tmp2)
+			keyTensor[i*nbrElements+j] = ringQ.NewPoly()
+
+			ringQ.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, keyTensor[i*nbrElements+j])
 		}
 	}
 
 	// Compute inner product of two matrices -> compute tr(ct^T  sk*sk)
-	res := ring.NewPoly()
+	res := ringQ.NewPoly()
+
 	for i := 0; i < tensorDim; i++ {
-		ring.MulCoeffsMontgomeryAndAddLvl(level, keyTensor[i].Value, ct.ciphertexts.Ciphertext().Value()[i], res)
+
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, keyTensor[i], ct.ciphertexts.Ciphertext().Value()[i], res)
 	}
-	return res
+
+	plaintext := ckks.NewPlaintext(params, level, ct.ciphertexts.Scale())
+
+	plaintext.SetValue([]*ring.Poly{res})
+
+	encoder := ckks.NewEncoder(params)
+
+	return encoder.Decode(plaintext, params.LogSlots())
 }

@@ -25,8 +25,8 @@ func PadCiphers(c1, c2 *MKCiphertext, params *ckks.Parameters) (c1Out, c2Out *MK
 	res2 := make([]*ring.Poly, k+1)
 
 	// put c0 in
-	res1[0] = c1.ciphertexts.Element.Value()[0].CopyNew()
-	res2[0] = c2.ciphertexts.Element.Value()[0].CopyNew()
+	res1[0] = c1.ciphertexts.Value()[0].CopyNew()
+	res2[0] = c2.ciphertexts.Value()[0].CopyNew()
 
 	// copy ciphertext values if participant involved
 	// else put a 0 polynomial
@@ -37,13 +37,13 @@ func PadCiphers(c1, c2 *MKCiphertext, params *ckks.Parameters) (c1Out, c2Out *MK
 		index2 := Contains(c2.peerIDs, peer)
 
 		if index1 >= 0 {
-			res1[index] = c1.ciphertexts.Element.Value()[index1+1].CopyNew()
+			res1[index] = c1.ciphertexts.Value()[index1+1].CopyNew()
 		} else {
 			res1[index] = ringQ.NewPoly()
 		}
 
 		if index2 >= 0 {
-			res2[index] = c2.ciphertexts.Element.Value()[index2+1].CopyNew()
+			res2[index] = c2.ciphertexts.Value()[index2+1].CopyNew()
 		} else {
 			res2[index] = ringQ.NewPoly()
 		}

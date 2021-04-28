@@ -37,17 +37,17 @@ func Test_MKCKKS(t *testing.T) {
 			/*testTensor(t, p)
 			testTensorTwoParticipants(t, p)
 
-				testRotation(t, p)
-					testRotationTwoParticipants(t, p)
+			testRotation(t, p)
+			testRotationTwoParticipants(t, p)
 
-					if i == 1 {
-						//testRelinTrivial(t,p)
-						testRelinNonTrivial(t, p)
-					}
-				testSquare(t, p)
-				testMul(t, p)
-				testMulFourParticipants(t, p)*/
-
+			if i == 1 {
+				//testRelinTrivial(t,p)
+				testRelinNonTrivial(t, p)
+			}
+			testSquare(t, p)
+			testMul(t, p)
+			testMulFourParticipants(t, p)
+			*/
 		}
 	}
 
@@ -1146,17 +1146,16 @@ func Decrypt(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []c
 	sort.Slice(keys, func(i, j int) bool { return keys[i].peerID < keys[j].peerID })
 
 	ringQ := GetRingQ(params)
-	ringQP := GetRingQP(params)
 
 	// Compute the tensor product of the secret keys : sk * sk
-	el := ct.ciphertexts.Element
-	level := utils.MinUint64(el.Level(), ct.ciphertexts.Level())
+	level := ct.ciphertexts.Level()
 	nbrElements := len(keys) + 1
 	tensorDim := nbrElements * nbrElements
 
 	// put sk in form (1, sk1, sk2,...)
 	concatKeys := make([]*ring.Poly, nbrElements)
-	concatKeys[0] = getOne(ringQP)
+	concatKeys[0] = getOne(ringQ)
+	ringQ.NTT(concatKeys[0], concatKeys[0])
 
 	for i, k := range keys {
 		concatKeys[i+1] = k.key.Value
@@ -1168,10 +1167,10 @@ func Decrypt(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []c
 
 	for i, v1 := range concatKeys {
 
-		ringQP.MFormLvl(level, v1, tmp1)
+		ringQ.MFormLvl(level, v1, tmp1)
 
 		for j, v2 := range concatKeys {
-			ringQP.MFormLvl(level, v2, tmp2)
+			ringQ.MFormLvl(level, v2, tmp2)
 			keyTensor[i*nbrElements+j] = ringQ.NewPoly()
 
 			ringQ.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, keyTensor[i*nbrElements+j])
@@ -1182,9 +1181,11 @@ func Decrypt(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []c
 	res := ringQ.NewPoly()
 
 	for i := 0; i < tensorDim; i++ {
-
-		ringQ.MulCoeffsMontgomeryAndAddLvl(level, keyTensor[i], ct.ciphertexts.Ciphertext().Value()[i], res)
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, keyTensor[i], ct.ciphertexts.Value()[i], res)
 	}
+
+	ringQ.ReduceLvl(level, res, res)
+	res.Coeffs = res.Coeffs[:level+1]
 
 	plaintext := ckks.NewPlaintext(params, level, ct.ciphertexts.Scale())
 
@@ -1192,5 +1193,5 @@ func Decrypt(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []c
 
 	encoder := ckks.NewEncoder(params)
 
-	return encoder.Decode(plaintext, params.LogSlots())
+	return encoder.Decode(plaintext.Plaintext(), params.LogSlots())
 }

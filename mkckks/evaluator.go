@@ -172,8 +172,8 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 	outputDegree := nbrElements * nbrElements // (k+1)**2
 
-	el1 := padded1.ciphertexts.Element
-	el2 := padded2.ciphertexts.Element
+	el1 := padded1.ciphertexts.Ciphertext()
+	el2 := padded2.ciphertexts.Ciphertext()
 	level := utils.MinUint64(el1.Level(), el2.Level())
 
 	out := new(MKCiphertext)
@@ -198,9 +198,8 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 		ringQ.MFormLvl(level, v1, tmp1)
 
 		for j, v2 := range el2.Value() {
-
 			ringQ.MFormLvl(level, v2, tmp2)
-			ringQ.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, out.ciphertexts.Ciphertext().Value()[int(nbrElements)*i+j])
+			ringQ.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, out.ciphertexts.Value()[int(nbrElements)*i+j])
 		}
 	}
 

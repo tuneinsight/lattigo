@@ -288,7 +288,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 		eval.ringQ.CopyLvl(level, tmpModDown, res[i])
 	}
 
-	out.ciphertexts.SetValue(res)
+	out.ciphertexts.Ciphertext().SetValue(res)
 
 	return out
 }

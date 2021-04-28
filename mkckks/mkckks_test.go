@@ -37,17 +37,17 @@ func Test_MKCKKS(t *testing.T) {
 			/*testTensor(t, p)
 			testTensorTwoParticipants(t, p)
 
-			testRotation(t, p)
-			testRotationTwoParticipants(t, p)
+				testRotation(t, p)
+				testRotationTwoParticipants(t, p)
 
-			if i == 1 {
-				//testRelinTrivial(t,p)
-				testRelinNonTrivial(t, p)
-			}
-			testSquare(t, p)
-			testMul(t, p)
-			testMulFourParticipants(t, p)
-			*/
+				if i == 1 {
+					//testRelinTrivial(t,p)
+					testRelinNonTrivial(t, p)
+				}
+				testSquare(t, p)
+				testMul(t, p)
+				testMulFourParticipants(t, p)*/
+
 		}
 	}
 
@@ -1152,24 +1152,43 @@ func Decrypt(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []c
 	nbrElements := len(keys) + 1
 	tensorDim := nbrElements * nbrElements
 
-	// put sk in form (1, sk1, sk2,...)
-	concatKeys := make([]*ring.Poly, nbrElements)
-	concatKeys[0] = getOne(ringQ)
-	ringQ.NTT(concatKeys[0], concatKeys[0])
+	// put sk in form (1, sk1, 0), (1, 0, sk2) or (1, sk) if square
+	padddedKeys1 := make([]*ring.Poly, nbrElements)
+	padddedKeys2 := make([]*ring.Poly, nbrElements)
 
-	for i, k := range keys {
-		concatKeys[i+1] = k.key.Value
+	if len(ct.peerIDs) == 1 {
+
+		padddedKeys1[0] = getOne(ringQ)
+		ringQ.NTT(padddedKeys1[0], padddedKeys1[0])
+		padddedKeys1[1] = keys[0].key.Value
+
+		padddedKeys2[0] = padddedKeys1[0]
+		padddedKeys2[1] = keys[0].key.Value
+
+	} else if len(ct.peerIDs) == 2 {
+
+		padddedKeys1[0] = getOne(ringQ)
+		ringQ.NTT(padddedKeys1[0], padddedKeys1[0])
+		padddedKeys1[1] = keys[0].key.Value
+		padddedKeys1[2] = ringQ.NewPoly()
+
+		padddedKeys2[0] = padddedKeys1[0]
+		padddedKeys2[1] = ringQ.NewPoly()
+		padddedKeys2[2] = keys[1].key.Value
+
+	} else {
+		panic("This function was only designed to process ciphertext up to degree 1")
 	}
 
 	keyTensor := make([]*ring.Poly, tensorDim)
 	tmp1 := ringQ.NewPoly()
 	tmp2 := ringQ.NewPoly()
 
-	for i, v1 := range concatKeys {
+	for i, v1 := range padddedKeys1 {
 
 		ringQ.MFormLvl(level, v1, tmp1)
 
-		for j, v2 := range concatKeys {
+		for j, v2 := range padddedKeys2 {
 			ringQ.MFormLvl(level, v2, tmp2)
 			keyTensor[i*nbrElements+j] = ringQ.NewPoly()
 

@@ -1066,3 +1066,31 @@ func calcmedian(values []complex128) (median complex128) {
 
 	return (values[index] + values[index+1]) / 2
 }
+
+// Decrypt takes secret keys of k participants and a multikey ciphertext ct of dimension (k+1) ** 2 = ct1 * ct2
+// Computes < ct, sk*sk > in order to check that it is equal to <ct1,sk>.<ct2,sk>
+func Decrypt(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters, ring *ring.Ring) *ring.Poly {
+
+	// Compute the tensor product of the secret keys : sk * sk
+	el := ct.ciphertexts.Element
+	level := el.Level() // Not sure about this line
+	nbrElements := len(keys)
+	tensorDim := nbrElements * nbrElements
+	keyTensor := make([]*ckks.SecretKey, tensorDim)
+	tmp1 := ring.NewPoly()
+	tmp2 := ring.NewPoly()
+	for i, v1 := range keys {
+		ring.MFormLvl(level, v1.key.SecretKey.Value, tmp1)
+		for j, v2 := range keys {
+			ring.MFormLvl(level, v2.key.SecretKey.Value, tmp2)
+			ring.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, keyTensor[i*nbrElements+j].Value)
+		}
+	}
+
+	// Compute inner product of two matrices -> compute tr(ct^T  sk*sk)
+	res := ring.NewPoly()
+	for i := 0; i < tensorDim; i++ {
+		ring.MulCoeffsMontgomeryAndAddLvl(level, keyTensor[i].Value, ct.ciphertexts.Ciphertext().Value()[i], res)
+	}
+	return res
+}

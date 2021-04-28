@@ -1,7 +1,7 @@
 # Lattigo: lattice-based multiparty homomorphic encryption library in Go
 
 <p align="center">
-	<img src="https://i.ibb.co/5vXt5mj/logo.png" />
+	<img src="logo.png" />
 </p>
 
 [![Build Status](https://travis-ci.com/ldsec/lattigo.svg?token=kz1BaknyyJcURGZurf6m&branch=master)](https://travis-ci.com/ldsec/lattigo)

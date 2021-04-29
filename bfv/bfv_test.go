@@ -116,6 +116,14 @@ func testParameters(testctx *testContext, t *testing.T) {
 			assert.Equal(t, uint64(1), res)
 		}
 	})
+
+	t.Run(testString("Parameters/CopyNew/", testctx.params), func(t *testing.T) {
+		params1, params2 := testctx.params.CopyNew(), testctx.params.CopyNew()
+		assert.True(t, params1.Equals(testctx.params) && params2.Equals(testctx.params))
+		params1.t = 7
+		assert.False(t, params1.Equals(testctx.params))
+		assert.True(t, params2.Equals(testctx.params))
+	})
 }
 
 func newTestVectorsRingQ(testctx *testContext, encryptor Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {

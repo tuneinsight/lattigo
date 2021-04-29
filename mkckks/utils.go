@@ -2,6 +2,7 @@ package mkckks
 
 import (
 	"sort"
+	"unsafe"
 
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
@@ -106,4 +107,28 @@ func getOne(r *ring.Ring) *ring.Poly {
 	res.SetCoefficients(coeffs)
 
 	return res
+}
+
+// MulCoeffsLvl multiplies p1 by p2 coefficient-wise at a certain level, performs a
+// Barrett modular reduction and writes the result on p3.
+func MulCoeffsLvl(p1, p2, p3 *ring.Poly, r *ring.Ring, level uint64) {
+	for i, qi := range r.Modulus[:level+1] {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		bredParams := r.BredParams[i]
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
+
+			z[0] = ring.BRed(x[0], y[0], qi, bredParams)
+			z[1] = ring.BRed(x[1], y[1], qi, bredParams)
+			z[2] = ring.BRed(x[2], y[2], qi, bredParams)
+			z[3] = ring.BRed(x[3], y[3], qi, bredParams)
+			z[4] = ring.BRed(x[4], y[4], qi, bredParams)
+			z[5] = ring.BRed(x[5], y[5], qi, bredParams)
+			z[6] = ring.BRed(x[6], y[6], qi, bredParams)
+			z[7] = ring.BRed(x[7], y[7], qi, bredParams)
+		}
+	}
 }

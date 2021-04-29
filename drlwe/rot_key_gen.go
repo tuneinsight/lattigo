@@ -3,6 +3,7 @@ package drlwe
 import (
 	"encoding/binary"
 	"errors"
+	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
@@ -26,6 +27,7 @@ type RTGShare struct {
 type RTGProtocol struct { // TODO rename GaloisKeyGen ?
 	params          rlwe.Parameters
 	ringQP          *ring.Ring
+	pBigInt         *big.Int
 	tmpPoly         [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
 }
@@ -35,6 +37,7 @@ func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 	rtg := new(RTGProtocol)
 	rtg.params = params
 	rtg.ringQP = params.RingQP()
+	rtg.pBigInt = params.PBigInt()
 	var err error
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -63,7 +66,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 
 	ring.PermuteNTT(sk.Value, galElInv, rtg.tmpPoly[1])
 
-	rtg.ringQP.MulScalarBigint(sk.Value, rtg.params.PBigInt(), rtg.tmpPoly[0])
+	rtg.ringQP.MulScalarBigint(sk.Value, rtg.pBigInt, rtg.tmpPoly[0])
 
 	var index uint64
 

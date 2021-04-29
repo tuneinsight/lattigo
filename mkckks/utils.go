@@ -2,6 +2,7 @@ package mkckks
 
 import (
 	"sort"
+	"unsafe"
 
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
@@ -16,13 +17,8 @@ func Dot(p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ring) *ring.Poly {
 
 	res := r.NewPoly()
 
-	tmp0 := r.NewPoly()
-	tmp1 := r.NewPoly()
-
 	for i := uint64(0); i < uint64(len(p1.poly)); i++ {
-		r.MForm(p1.poly[i], tmp0)
-		r.MForm(p2.poly[i], tmp1)
-		r.MulCoeffsMontgomeryAndAdd(tmp0, tmp1, res)
+		r.MulCoeffsAndAdd(p1.poly[i], p2.poly[i], res)
 	}
 
 	return res
@@ -36,13 +32,9 @@ func DotLvl(level uint64, p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ri
 
 	res := r.NewPoly()
 
-	tmp0 := r.NewPoly()
-	tmp1 := r.NewPoly()
-
 	for i := uint64(0); i < uint64(len(p1.poly)); i++ {
-		r.MFormLvl(level, p1.poly[i], tmp0)
-		r.MFormLvl(level, p2.poly[i], tmp1)
-		r.MulCoeffsMontgomeryAndAddLvl(level, tmp0, tmp1, res)
+
+		MulCoeffsAndAddLvl(level, p1.poly[i], p2.poly[i], res, r)
 	}
 
 	return res
@@ -106,4 +98,53 @@ func getOne(r *ring.Ring) *ring.Poly {
 	res.SetCoefficients(coeffs)
 
 	return res
+}
+
+// MulCoeffsAndAddLvl multiplies p1 by p2 coefficient-wise with
+// a Barret modular reduction up to q_leveland adds the result to p3.
+func MulCoeffsAndAddLvl(level uint64, p1, p2, p3 *ring.Poly, r *ring.Ring) {
+
+	for i, qi := range r.Modulus[:level+1] {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		bredParams := r.BredParams[i]
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
+
+			z[0] = ring.CRed(z[0]+ring.BRed(x[0], y[0], qi, bredParams), qi)
+			z[1] = ring.CRed(z[1]+ring.BRed(x[1], y[1], qi, bredParams), qi)
+			z[2] = ring.CRed(z[2]+ring.BRed(x[2], y[2], qi, bredParams), qi)
+			z[3] = ring.CRed(z[3]+ring.BRed(x[3], y[3], qi, bredParams), qi)
+			z[4] = ring.CRed(z[4]+ring.BRed(x[4], y[4], qi, bredParams), qi)
+			z[5] = ring.CRed(z[5]+ring.BRed(x[5], y[5], qi, bredParams), qi)
+			z[6] = ring.CRed(z[6]+ring.BRed(x[6], y[6], qi, bredParams), qi)
+			z[7] = ring.CRed(z[7]+ring.BRed(x[7], y[7], qi, bredParams), qi)
+		}
+	}
+}
+
+// MulCoeffsAndSubLvl multiplies p1 by p2 coefficient-wise with
+// a Barett modular reduction up to q_level and subtracts the result from p3.
+func MulCoeffsAndSubLvl(level uint64, p1, p2, p3 *ring.Poly, r *ring.Ring) {
+	for i, qi := range r.Modulus[:level+1] {
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		bredParams := r.BredParams[i]
+		for j := uint64(0); j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
+
+			z[0] = ring.CRed(z[0]+(qi-ring.BRed(x[0], y[0], qi, bredParams)), qi)
+			z[1] = ring.CRed(z[1]+(qi-ring.BRed(x[1], y[1], qi, bredParams)), qi)
+			z[2] = ring.CRed(z[2]+(qi-ring.BRed(x[2], y[2], qi, bredParams)), qi)
+			z[3] = ring.CRed(z[3]+(qi-ring.BRed(x[3], y[3], qi, bredParams)), qi)
+			z[4] = ring.CRed(z[4]+(qi-ring.BRed(x[4], y[4], qi, bredParams)), qi)
+			z[5] = ring.CRed(z[5]+(qi-ring.BRed(x[5], y[5], qi, bredParams)), qi)
+			z[6] = ring.CRed(z[6]+(qi-ring.BRed(x[6], y[6], qi, bredParams)), qi)
+			z[7] = ring.CRed(z[7]+(qi-ring.BRed(x[7], y[7], qi, bredParams)), qi)
+		}
+	}
 }

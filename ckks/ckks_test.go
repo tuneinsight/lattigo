@@ -181,7 +181,14 @@ func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant 
 }
 
 func testParameters(testContext *testParams, t *testing.T) {
-
+	t.Run(testString(testContext, "Parameters/CopyNew/"), func(t *testing.T) {
+		params1, params2 := testContext.params.CopyNew(), testContext.params.CopyNew()
+		assert.True(t, params1.Equals(testContext.params) && params2.Equals(testContext.params))
+		params1.logSlots = 7
+		params1.scale = 3.14
+		assert.False(t, params1.Equals(testContext.params))
+		assert.True(t, params2.Equals(testContext.params))
+	})
 }
 
 func testEncoder(testContext *testParams, t *testing.T) {

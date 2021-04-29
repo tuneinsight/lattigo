@@ -271,6 +271,15 @@ func (p Parameters) Equals(other Parameters) bool {
 	return res
 }
 
+// CopyNew makes a deep copy of the receiver and returns it.
+func (p Parameters) CopyNew() Parameters {
+	qi, pi := p.qi, p.pi
+	p.qi, p.pi = make([]uint64, len(p.qi)), make([]uint64, len(p.pi))
+	copy(p.qi, qi)
+	copy(p.pi, pi)
+	return p
+}
+
 // MarshalBinary returns a []byte representation of the parameter set.
 func (p Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN() == 0 { // if N is 0, then p is the zero value

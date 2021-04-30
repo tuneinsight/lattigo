@@ -161,9 +161,15 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 		ringQP.NTTLazy(d0.poly[i], d0.poly[i]) // pass e1_i in NTT
 		ringQP.NTTLazy(d2.poly[i], d2.poly[i]) // pass e2_i in NTT
 
+		ringQP.MForm(d0.poly[i], d0.poly[i]) // pass e1_i in MForm
+		ringQP.MForm(d2.poly[i], d2.poly[i]) // pass e2_i in MForm
+
 		// the g_is mod q_i are either 0 or 1, so just need to compute sums
 		MultiplyByBaseAndAdd(scaledRandomValue, params, d0.poly[i], i)
 		MultiplyByBaseAndAdd(scaledMu, params, d2.poly[i], i)
+
+		ringQP.InvMForm(d0.poly[i], d0.poly[i])
+		ringQP.InvMForm(d2.poly[i], d2.poly[i])
 
 		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[i], d0.poly[i])
 		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[i], d2.poly[i])
@@ -233,10 +239,14 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Paramete
 
 	for i := uint64(0); i < params.Beta(); i++ {
 		ringQP.NTT(h0.poly[i], h0.poly[i])
+		ringQP.MForm(h0.poly[i], h0.poly[i])
 
 		MultiplyByBaseAndAdd(permutedSecretKey, params, h0.poly[i], i)
 
+		ringQP.InvMForm(h0.poly[i], h0.poly[i])
+
 		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, h1.poly[i], h0.poly[i])
+
 	}
 
 	res.key[0] = h0

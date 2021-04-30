@@ -13,6 +13,7 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -77,6 +78,7 @@ func Test_DBFV(t *testing.T) {
 		testPublicKeySwitching(testCtx, t)
 		testRotKeyGenRotRows(testCtx, t)
 		testRotKeyGenRotCols(testCtx, t)
+		testEncToShares(testCtx, t)
 		testRefresh(testCtx, t)
 		testRefreshAndPermutation(testCtx, t)
 		testMarshalling(testCtx, t)
@@ -462,6 +464,51 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 			coeffsWant := utils.RotateUint64Slots(coeffs, int(k))
 			verifyTestVectors(testCtx, decryptorSk0, coeffsWant, result, t)
 		}
+	})
+}
+
+func testEncToShares(testCtx *testContext, t *testing.T) {
+
+	t.Run(testString("E2SProtocol/", parties, testCtx.params), func(t *testing.T) {
+
+		type Party struct {
+			*E2SProtocol
+			sk          *rlwe.SecretKey
+			publicShare *drlwe.CKSShare
+			secretShare AdditiveShare
+		}
+		params := testCtx.params
+		P := make([]Party, parties)
+		for i := range P {
+			P[i].E2SProtocol = NewE2SProtocol(params, 3.2)
+			P[i].sk = testCtx.sk0Shards[i]
+			P[i].publicShare = P[i].AllocateShare()
+			P[i].secretShare = AdditiveShare{Value: *testCtx.dbfvContext.ringT.NewPoly()}
+		}
+
+		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, t)
+
+		for i, p := range P {
+			p.GenShare(p.sk, ciphertext, p.secretShare, p.publicShare)
+			if i > 0 {
+				p.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+			}
+		}
+
+		P[0].Finalize(P[0].secretShare, P[0].publicShare, ciphertext, &P[0].secretShare)
+
+		rec := AdditiveShare{Value: *testCtx.dbfvContext.ringT.NewPoly()}
+		for _, p := range P {
+			//fmt.Println("P[", i, "] share:", p.secretShare.Value.Coeffs[0][:see])
+			testCtx.dbfvContext.ringT.Add(&rec.Value, &p.secretShare.Value, &rec.Value)
+		}
+
+		//fmt.Println("Want:", coeffs[:see])
+		//fmt.Println("Want Pt:", plaintext.Value[0].Coeffs[0][:see])
+		//fmt.Println("Have:", rec.Value.Coeffs[0][:see])
+
+		assert.True(t, utils.EqualSliceUint64(coeffs, rec.Value.Coeffs[0]))
+
 	})
 }
 

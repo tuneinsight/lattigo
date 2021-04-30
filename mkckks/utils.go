@@ -82,22 +82,37 @@ func GetRandomPoly(params *ckks.Parameters, r *ring.Ring) *ring.Poly {
 	return GetUniformSampler(params, r, prng).ReadNew()
 }
 
-// returns a polynomial with all coefficient set to 1
-func getOne(r *ring.Ring) *ring.Poly {
+// EqualsSlice returns true if both slices are equal
+func EqualsSlice(s1, s2 []uint64) bool {
 
-	res := r.NewPoly()
+	if len(s1) != len(s2) {
+		return false
+	}
 
-	coeffs := res.Coeffs
-
-	for _, c := range coeffs {
-		for index := range c {
-			c[index] = 1
+	for i, e := range s1 {
+		if e != s2[i] {
+			return false
 		}
 	}
 
-	res.SetCoefficients(coeffs)
+	return true
+}
 
-	return res
+// EqualsPoly returns true if both polynomials are equal
+func EqualsPoly(p1 *ring.Poly, p2 *ring.Poly) bool {
+
+	if len(p1.Coeffs) != len(p2.Coeffs) {
+		return false
+	}
+
+	for i, e := range p1.Coeffs {
+
+		if !EqualsSlice(e, p2.Coeffs[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // MulCoeffsAndAddLvl multiplies p1 by p2 coefficient-wise with

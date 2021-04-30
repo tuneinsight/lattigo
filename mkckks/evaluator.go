@@ -190,16 +190,23 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 	ringQ := eval.ringQ
 
-	/*tmp1 := ringQ.NewPoly()
-	tmp2 := ringQ.NewPoly()*/
+	tmp1 := ringQ.NewPoly()
+	tmp2 := ringQ.NewPoly()
+
+	resCipher := out.ciphertexts.Value()
 
 	for i, v1 := range el1.Value() {
 
-		//ringQ.MFormLvl(level, v1, tmp1)
+		ringQ.MFormLvl(level, v1, tmp1)
 
 		for j, v2 := range el2.Value() {
-			//ringQ.MFormLvl(level, v2, tmp2)
-			ringQ.MulCoeffs(v1, v2, out.ciphertexts.Value()[int(nbrElements)*i+j])
+
+			index := int(nbrElements)*i + j
+
+			ringQ.MFormLvl(level, v2, tmp2)
+			ringQ.MulCoeffsMontgomeryLvl(level, tmp1, tmp2, resCipher[index])
+
+			ringQ.InvMFormLvl(level, resCipher[index], resCipher[index])
 		}
 	}
 

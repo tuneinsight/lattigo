@@ -161,9 +161,6 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyG
 		ringQP.NTTLazy(d0.poly[i], d0.poly[i]) // pass e1_i in NTT
 		ringQP.NTTLazy(d2.poly[i], d2.poly[i]) // pass e2_i in NTT
 
-		ringQP.MForm(d0.poly[i], d0.poly[i]) // pass e1_i in MForm
-		ringQP.MForm(d2.poly[i], d2.poly[i]) // pass e2_i in Mform
-
 		// the g_is mod q_i are either 0 or 1, so just need to compute sums
 		MultiplyByBaseAndAdd(scaledRandomValue, params, d0.poly[i], i)
 		MultiplyByBaseAndAdd(scaledMu, params, d2.poly[i], i)
@@ -236,7 +233,6 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Paramete
 
 	for i := uint64(0); i < params.Beta(); i++ {
 		ringQP.NTT(h0.poly[i], h0.poly[i])
-		ringQP.MForm(h0.poly[i], h0.poly[i])
 
 		MultiplyByBaseAndAdd(permutedSecretKey, params, h0.poly[i], i)
 

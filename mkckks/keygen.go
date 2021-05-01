@@ -110,6 +110,7 @@ func genPublicKey(sk *ckks.SecretKey, params *ckks.Parameters, generator ckks.Ke
 }
 
 // Symmetric encryption of a single ring element (mu) under the secret key (sk).
+// the output is not in MForm
 func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyGenerator, params *ckks.Parameters, ringQP *ring.Ring) []*MKDecomposedPoly {
 
 	random := generator.GenSecretKey() // random element as same distribution as the secret key
@@ -217,6 +218,7 @@ func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, generator ckks.KeyGenera
 }
 
 // GaloisEvaluationKeyGen returns a galois evaluation key for a given automorphism
+// the output is not in MForm
 func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Parameters) *MKEvalGalKey {
 
 	res := new(MKEvalGalKey)

@@ -22,6 +22,7 @@ type MKEvaluator interface {
 	Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
 	SwitchKeysNew(ct *MKCiphertext, switchingKey *MKSwitchingKey) (ctOut *MKCiphertext)
 	NewPlaintextFromValue([]complex128) *ckks.Plaintext
+	DropLevel(ct *MKCiphertext, levels uint64)
 }
 
 type mkEvaluator struct {
@@ -230,6 +231,12 @@ func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluation
 func (eval *mkEvaluator) Rescale(c *MKCiphertext, out *MKCiphertext) {
 
 	eval.ckksEval.Rescale(c.ciphertexts, eval.params.Scale(), c.ciphertexts)
+}
+
+// DropLevel drops the level of the given ciphertext by levels. No rescaling is applied
+func (eval *mkEvaluator) DropLevel(ct *MKCiphertext, levels uint64) {
+
+	eval.ckksEval.DropLevel(ct.ciphertexts, levels)
 }
 
 // Rotate rotate the columns of the ciphertext by n to the left and return the result in a new ciphertext

@@ -17,7 +17,7 @@ func Dot(p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ring) *ring.Poly {
 	res := r.NewPoly()
 
 	for l := uint64(0); l < uint64(len(p1.poly)); l++ {
-		r.MulCoeffsMontgomeryAndAdd(p1.poly[l], p2.poly[l], res)
+		r.MulCoeffsAndAdd(p1.poly[l], p2.poly[l], res)
 	}
 
 	return res

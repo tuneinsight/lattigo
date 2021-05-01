@@ -110,15 +110,16 @@ func genPublicKey(sk *bfv.SecretKey, params *bfv.Parameters, generator bfv.KeyGe
 }
 
 // Symmetric encryption of a single ring element (mu) under the secret key (sk).
+// the output is not in MForm
 func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGenerator, params *bfv.Parameters, ringQP *ring.Ring) []*MKDecomposedPoly {
 
 	random := generator.GenSecretKey() // random element as same distribution as the secret key
+	randomValue := random.Value
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	randomValue := random.Value
 
 	uniformSampler := GetUniformSampler(params, ringQP, prng)
 	gaussianSampler := GetGaussianSampler(params, ringQP, prng)
@@ -127,28 +128,20 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGe
 	// e1 <- sample(\psi^d)
 	// e2 <- sample(\psi^d)
 	// r  <- sample(\chi)
-	// d0 = -sk * d1 + e1 + r * g
+	// d0 = -sk * d1 + e1 + p * r * g
 	// d1 = U(Rq^d)
-	// d2 = r * a + e2 + mu * g
+	// d2 = r * a + e2 + p * mu * g
 
 	// Size of decomposition (d)
 	beta := params.Beta()
 
 	d1 := GetUniformDecomposed(uniformSampler, beta)
-
 	d0 := GetGaussianDecomposed(gaussianSampler, beta) // e1 <- Gauss(Rqp^d)
 	d2 := GetGaussianDecomposed(gaussianSampler, beta) //e2 <- Gauss(Rqp^d)
 
 	a := pk.key[1] // a <- U(Rqp^d) second component of the public key
 
-	for d := uint64(0); d < beta; d++ {
-		// Gaussian is not in NTT, so we convert it to NTT
-		ringQP.NTT(d0.poly[d], d0.poly[d]) // pass e1_i in NTT
-		ringQP.NTT(d2.poly[d], d2.poly[d]) // pass e2_i in NTT
-		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[d], d0.poly[d])
-		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[d], d2.poly[d])
-	}
-
+	// multiply by P
 	scaledMu := ringQP.NewPoly()
 	scaledRandomValue := ringQP.NewPoly()
 
@@ -163,44 +156,56 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGe
 
 	ringQP.MulScalarBigint(randomValue, pBigInt, scaledRandomValue)
 	ringQP.MulScalarBigint(mu, pBigInt, scaledMu)
-	// the g_is mod q_i are either 0 or 1, so just need to compute sums of the correct random.Values
-	MultiplyByBaseAndAdd(scaledRandomValue, params, d0)
-	MultiplyByBaseAndAdd(scaledMu, params, d2)
+
+	for i := uint64(0); i < beta; i++ {
+		// Gaussian is not in NTT, so we convert it to NTT
+		ringQP.NTTLazy(d0.poly[i], d0.poly[i]) // pass e1_i in NTT
+		ringQP.NTTLazy(d2.poly[i], d2.poly[i]) // pass e2_i in NTT
+
+		ringQP.MForm(d0.poly[i], d0.poly[i]) // pass e1_i in MForm
+		ringQP.MForm(d2.poly[i], d2.poly[i]) // pass e2_i in MForm
+
+		// the g_is mod q_i are either 0 or 1, so just need to compute sums
+		MultiplyByBaseAndAdd(scaledRandomValue, params, d0.poly[i], i)
+		MultiplyByBaseAndAdd(scaledMu, params, d2.poly[i], i)
+
+		ringQP.InvMForm(d0.poly[i], d0.poly[i])
+		ringQP.InvMForm(d2.poly[i], d2.poly[i])
+
+		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[i], d0.poly[i])
+		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[i], d2.poly[i])
+
+	}
 
 	return []*MKDecomposedPoly{d0, d1, d2}
 }
 
 // MultiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2
-// Takes into account Modulus variant by scaling up by factor P
-func MultiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *MKDecomposedPoly) {
+func MultiplyByBaseAndAdd(p1 *ring.Poly, params *bfv.Parameters, p2 *ring.Poly, beta uint64) {
 
 	alpha := params.Alpha()
-	// dimension of the vectors (d)
-	beta := params.Beta()
 
 	var index uint64
 	ringQP := GetRingQP(params)
 
-	for i := uint64(0); i < beta; i++ {
+	for j := uint64(0); j < alpha; j++ {
 
-		for j := uint64(0); j < alpha; j++ {
+		index = beta*alpha + j
 
-			index = i*alpha + j
+		qi := ringQP.Modulus[index]
+		p0tmp := p1.Coeffs[index]
+		p1tmp := p2.Coeffs[index]
 
-			qi := ringQP.Modulus[index]
-			p0tmp := p1.Coeffs[index]
-			p1tmp := p2.poly[i].Coeffs[index]
+		for w := uint64(0); w < ringQP.N; w++ {
+			p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
+		}
 
-			for w := uint64(0); w < params.N(); w++ {
-				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi) // TODO: confirm code in next meeting (code review)
-			}
-
-			// Handles the case where nb pj does not divide nb qi
-			if index >= params.QiCount() {
-				break
-			}
+		// Handles the case where nb pj does not divide nb qi
+		if index >= params.QiCount() {
+			break
 		}
 	}
+
 }
 
 // Function used to generate the evaluation key. The evaluation key is the encryption of the secret key under itself using uniEnc

@@ -17,8 +17,8 @@ type MKEvaluator interface {
 	SubPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext
 	Neg(c *MKCiphertext) *MKCiphertext
 	MultPlaintext(pt *bfv.PlaintextMul, c *MKCiphertext) *MKCiphertext
-	MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, relinKey *MKRelinearizationKey) *MKCiphertext
-	MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
+	Mul(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
+	RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey)
 	TensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext
 	NewPlaintextFromValue([]uint64) *bfv.Plaintext
 	NewPlaintextMulFromValue([]uint64) *bfv.PlaintextMul
@@ -176,19 +176,8 @@ func (eval *mkEvaluator) MultPlaintext(pt *bfv.PlaintextMul, c *MKCiphertext) *M
 	return out
 }
 
-// MultSharedRelinKey will compute the homomorphic multiplication and relinearize the resulting cyphertext using pre computed Relin key
-func (eval *mkEvaluator) MultSharedRelinKey(c1 *MKCiphertext, c2 *MKCiphertext, relinKey *MKRelinearizationKey) *MKCiphertext {
-
-	out := eval.TensorAndRescale(c1.ciphertexts.Element, c2.ciphertexts.Element)
-
-	// Call Relin on the resulting ciphertext
-	RelinearizationWithSharedRelinKey(relinKey, out, eval.params)
-
-	return out
-}
-
-// MultRelinDynamic will compute the homomorphic multiplication and relinearize the resulting cyphertext using dynamic relin
-func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
+// Mul will compute the homomorphic multiplication. No relinearization is done.
+func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
 
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
@@ -196,10 +185,20 @@ func (eval *mkEvaluator) MultRelinDynamic(c1 *MKCiphertext, c2 *MKCiphertext, ev
 	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].peerID < publicKeys[j].peerID })
 
 	out := eval.TensorAndRescale(padded1.ciphertexts.Element, padded2.ciphertexts.Element)
-
-	RelinearizationOnTheFly(evalKeys, publicKeys, out, eval.params)
 	out.peerIDs = padded1.peerIDs
 	return out
+}
+
+// Relinearize a ciphertext after a multiplication
+func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) {
+
+	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].peerID < evalKeys[j].peerID })
+	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].peerID < publicKeys[j].peerID })
+
+	checkParticipantsEvalKey(ct.peerIDs, evalKeys)
+	checkParticipantsPubKey(ct.peerIDs, publicKeys)
+
+	Relinearization(evalKeys, publicKeys, ct, eval.params)
 }
 
 func (eval *mkEvaluator) modUpAndNTT(ct *bfv.Element, cQ, cQMul []*ring.Poly) {
@@ -208,6 +207,24 @@ func (eval *mkEvaluator) modUpAndNTT(ct *bfv.Element, cQ, cQMul []*ring.Poly) {
 		eval.convertor.ModUpSplitQP(levelQ, ct.Value()[i], cQMul[i])
 		eval.ringQ.NTTLazy(ct.Value()[i], cQ[i])
 		eval.ringQMul.NTTLazy(cQMul[i], cQMul[i])
+	}
+}
+
+func checkParticipantsEvalKey(peerID []uint64, evalKeys []*MKEvaluationKey) {
+
+	for i, id := range peerID {
+		if id != evalKeys[i].peerID {
+			panic("Incorrect evaluation keys for the given ciphertexts")
+		}
+	}
+}
+
+func checkParticipantsPubKey(peerID []uint64, pubKeys []*MKPublicKey) {
+
+	for i, id := range peerID {
+		if id != pubKeys[i].peerID {
+			panic("Incorrect public keys for the given ciphertexts")
+		}
 	}
 }
 
@@ -258,7 +275,6 @@ func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext {
 
 		for i := uint64(0); i < nbrElements; i++ {
 			for j := i + 1; j < nbrElements; j++ {
-				eval.ringQ.MulCoeffsMontgomery(c00Q1[i], c0Q1[j], c2Q1[nbrElements*i+j])
 				eval.ringQMul.MulCoeffsMontgomery(c00Q2[i], c0Q2[j], c2Q2[nbrElements*i+j])
 
 				eval.ringQ.Add(c2Q1[i+j], c2Q1[i+j], c2Q1[nbrElements*i+j])
@@ -305,10 +321,13 @@ func (eval *mkEvaluator) quantize(c2Q1, c2Q2 []*ring.Poly, ctOut *bfv.Element) {
 
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q
-	for i := range ctOut.Value() { // will iterate on (k + 1)^2 values.. TODO: check corectness !!!!!
-		println("i = ", i)
+	for i := range ctOut.Value() {
+
 		eval.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
 		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
+
+		eval.ringQ.InvMForm(c2Q1[i], c2Q1[i])
+		eval.ringQMul.InvMForm(c2Q2[i], c2Q2[i])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
 		eval.convertor.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
@@ -320,6 +339,7 @@ func (eval *mkEvaluator) quantize(c2Q1, c2Q2 []*ring.Poly, ctOut *bfv.Element) {
 
 		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
 		eval.ringQ.MulScalar(ctOut.Value()[i], eval.params.T(), ctOut.Value()[i])
+
 	}
 
 }

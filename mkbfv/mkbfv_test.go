@@ -1,7 +1,6 @@
 package mkbfv
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
@@ -651,12 +650,17 @@ func testMul(t *testing.T, params *bfv.Parameters) {
 		// multiply using evaluation keys and publick keys
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
-		resCipher := evaluator.MultRelinDynamic(cipher1, cipher2, evalKeys, publicKeys)
+
+		resCipher := evaluator.Mul(cipher1, cipher2, evalKeys, publicKeys)
+
+		evaluator.RelinInPlace(resCipher, evalKeys, publicKeys)
+
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
 		partialDec2 := participants[1].GetPartialDecryption(resCipher)
 
 		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
 		// perform the operation in the plaintext space
 		expected := ringT.NewPoly()
 		p1 := ringT.NewPoly()
@@ -664,16 +668,6 @@ func testMul(t *testing.T, params *bfv.Parameters) {
 		copy(p1.Coeffs[0], expected1)
 		copy(p2.Coeffs[0], expected2)
 		ringT.MulCoeffs(p1, p2, expected)
-		println("len(decrypted) = ", len(decrypted))
-		println("len(expected) = ", len(expected.Coeffs[0]))
-		println("T = ", params.T())
-		/*
-			for _, v := range decrypted {
-				println("decrypted : ", v)
-			}
-			for _, v := range expected.Coeffs[0] {
-				println("expected : ", v)
-			}*/
 
 		if !equalsSlice(decrypted, expected.Coeffs[0]) {
 			t.Error("Homomorphic multiplication error")
@@ -708,10 +702,10 @@ func testMulFourParticipants(t *testing.T, params *bfv.Parameters) {
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
 
-		resCipher1 := evaluator.MultRelinDynamic(cipher1, cipher2, evalKeys[:2], publicKeys[:2])
-		resCipher2 := evaluator.MultRelinDynamic(cipher3, cipher4, evalKeys[2:], publicKeys[2:])
+		resCipher1 := evaluator.Mul(cipher1, cipher2, evalKeys[:2], publicKeys[:2])
+		resCipher2 := evaluator.Mul(cipher3, cipher4, evalKeys[2:], publicKeys[2:])
 
-		resCipher := evaluator.MultRelinDynamic(resCipher1, resCipher2, evalKeys, publicKeys)
+		resCipher := evaluator.Mul(resCipher1, resCipher2, evalKeys, publicKeys)
 
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
@@ -768,7 +762,6 @@ func equalsSlice(s1, s2 []uint64) bool {
 
 	for i, e := range s1 {
 		if e != s2[i] {
-			fmt.Printf("%d not equal to %d . Error at index %d", e, s2[i], i)
 			return false
 		}
 	}

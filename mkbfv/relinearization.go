@@ -5,163 +5,210 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-// RelinearizationWithSharedRelinKey implements the algorithm 1 in section 3.3.1 of the Chen paper
-// It does relin using a precomputed shared key
-func RelinearizationWithSharedRelinKey(relinKey *MKRelinearizationKey, ciphertext *MKCiphertext, params *bfv.Parameters) {
-
-	ringQ := GetRingQ(params)
-	k := uint64(len(ciphertext.peerIDs))
-
-	res := make([]*ring.Poly, k+1)
-	for i := uint64(0); i < k+1; i++ {
-		res[i] = ringQ.NewPoly()
-	}
-
-	c0Prime := ciphertext.ciphertexts.Value()[0]
-	cipherParts := ciphertext.ciphertexts.Value()
-
-	for i := uint64(1); i <= k; i++ {
-		ringQ.Add(cipherParts[i], cipherParts[(k+1)*i], res[i])
-	}
-
-	for i := uint64(1); i <= k; i++ {
-
-		for j := uint64(1); j <= k; j++ {
-
-			decomposedIJ := GInverse(cipherParts[i*(k+1)+j], params)
-
-			c0, ci, cj := applySwitchingKey(decomposedIJ, relinKey.key[i][j], params)
-
-			ringQ.Add(c0Prime, c0, c0Prime)
-			ringQ.Add(res[i], ci, res[i])
-			ringQ.Add(res[j], cj, res[j])
-		}
-	}
-
-	res[0] = c0Prime
-	ciphertext.ciphertexts.SetValue(res)
-
-}
-
-/*
-// RelinearizationOnTheFly implements the algorithm 2 in section 3.3.1 of the Chen paper
+// Relinearization implements the algorithm 3 in the appendix of the Chen paper
 // It does relin directly by linearizing each entry of the extended ciphertext and stores it in cPrime (of size k+1)
 // There are (k+1)**2 ciphertexts, and k pairs of (evaluation keys Di,bi)
-func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, ciphertexts *MKCiphertext, params *bfv.Parameters) {
+func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, ciphertexts *MKCiphertext, params *bfv.Parameters) {
 
-	ringQ := GetRingQ(params)
-	k := uint64(len(evaluationKeys))
-	res := make([]*ring.Poly, k+1)
-
-	for i := uint64(0); i < k+1; i++ {
-		res[i] = ringQ.NewPoly()
-	}
-
-	cipherParts := ciphertexts.ciphertexts.Value()
-
-	c0Prime := cipherParts[0]
-	tmpIJ := ringQ.NewPoly()
-	tmpC0Prime := ringQ.NewPoly()
-	tmpCIPrime := ringQ.NewPoly()
-
-	for i := uint64(1); i <= k; i++ {
-		ringQ.Add(cipherParts[i], cipherParts[(k+1)*i], res[i])
-	}
-	for i := uint64(1); i <= k; i++ {
-
-		di0 := evaluationKeys[i-1].key[0]
-		di1 := evaluationKeys[i-1].key[1]
-		di2 := evaluationKeys[i-1].key[2]
-
-		for j := uint64(1); j <= k; j++ {
-
-			decomposedIJ := GInverse(cipherParts[i*(k+1)+j], params)
-
-			Dot(decomposedIJ, publicKeys[j].key[0], tmpIJ, ringQ) // line 6
-
-			decomposedTmp := GInverse(tmpIJ, params) // inverse and matric mult (line 7)
-
-			Dot(decomposedTmp, di0, tmpC0Prime, ringQ)
-			Dot(decomposedTmp, di1, tmpCIPrime, ringQ)
-
-			ringQ.Add(c0Prime, tmpC0Prime, c0Prime)
-			ringQ.Add(res[i], tmpCIPrime, res[i])
-
-			Dot(decomposedIJ, di2, tmpIJ, ringQ) // inverse and dot product (line8)
-			ringQ.Add(res[j], tmpIJ, res[j])
-		}
-	}
-	res[0] = c0Prime
-	ciphertexts.ciphertexts.SetValue(res)
-}
-*/
-
-// RelinearizationOnTheFly implements the algorithm 3 in the appendix of the Chen paper
-// It does relin directly by linearizing each entry of the extended ciphertext and stores it in cPrime (of size k+1)
-// There are (k+1)**2 ciphertexts, and k pairs of (evaluation keys Di,bi)
-func RelinearizationOnTheFly(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, ciphertexts *MKCiphertext, params *bfv.Parameters) {
-	ringQP := GetRingQP(params)
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
-	var baseconverter *ring.FastBasisExtender
-	baseconverter = ring.NewFastBasisExtender(ringQ, ringP)
-	levelQ := uint64(len(ringQ.Modulus) - 1)
+
+	baseconverter := ring.NewFastBasisExtender(ringQ, ringP)
+	level := uint64(len(ringQ.Modulus)) - 1
 
 	k := uint64(len(evaluationKeys))
-	restmp := make([]*ring.Poly, k+1)
+	restmpQ := make([]*ring.Poly, k+1)
 	res := make([]*ring.Poly, k+1)
+	restmpP := make([]*ring.Poly, k+1)
+
 	for i := uint64(0); i < k+1; i++ {
-		restmp[i] = ringQP.NewPoly()
+		restmpQ[i] = ringQ.NewPoly()
+		restmpP[i] = ringP.NewPoly()
+
 		res[i] = ringQ.NewPoly()
 	}
+
 	cipherParts := ciphertexts.ciphertexts.Value()
 
 	for i := uint64(1); i <= k; i++ {
-		di0 := evaluationKeys[i-1].key[0]
-		di1 := evaluationKeys[i-1].key[1]
-		di2 := evaluationKeys[i-1].key[2]
+
+		d0Q, d1Q, d2Q, d0P, d1P, d2P := prepareEvalKey(i, level, uint64(len(ringQ.Modulus)), params.Beta(), evaluationKeys)
+
 		for j := uint64(1); j <= k; j++ {
 
-			decomposedIJ := GInverse(cipherParts[i*(k+1)+j], params)
-			cIJDoublePrime := Dot(decomposedIJ, publicKeys[j-1].key[0], ringQP) // line 3
+			pkQ, pkP := preparePublicKey(j, level, uint64(len(ringQ.Modulus)), params.Beta(), publicKeys)
+
+			decomposedIJQ, decomposedIJP := GInverse(cipherParts[i*(k+1)+j], params) // line 3
+
+			cIJtmpQ := Dot(decomposedIJQ, pkQ, ringQ)
+			cIJtmpP := Dot(decomposedIJP, pkP, ringP)
+
 			cIJPrime := ringQ.NewPoly()
-			baseconverter.ModDownPQ(levelQ, cIJDoublePrime, cIJPrime) // line 4
-			decomposedTmp := GInverse(cIJPrime, params)               // inverse and matrix mult (line 5)
-			tmpC0 := Dot(decomposedTmp, di0, ringQP)
-			tmpCi := Dot(decomposedTmp, di1, ringQP)
-			ringQP.Add(restmp[0], tmpC0, restmp[0])
-			ringQP.Add(restmp[i], tmpCi, restmp[i])
-			tmpIJ := Dot(decomposedIJ, di2, ringQP) // line 6 of algorithm
-			ringQP.Add(restmp[j], tmpIJ, restmp[j])
+
+			baseconverter.ModDownSplitNTTPQ(level, cIJtmpQ, cIJtmpP, cIJPrime) // line 4
+
+			decomposedTmpQ, decomposedTmpP := GInverse(cIJPrime, params) // inverse and matrix mult (line 5)
+
+			tmpC0Q := Dot(decomposedTmpQ, d0Q, ringQ)
+			tmpC0P := Dot(decomposedTmpP, d0P, ringP)
+
+			tmpCiQ := Dot(decomposedTmpQ, d1Q, ringQ)
+			tmpCiP := Dot(decomposedTmpP, d1P, ringP)
+
+			ringQ.Add(restmpQ[0], tmpC0Q, restmpQ[0])
+			ringQ.Add(restmpQ[i], tmpCiQ, restmpQ[i])
+
+			ringP.Add(restmpP[0], tmpC0P, restmpP[0])
+			ringP.Add(restmpP[i], tmpCiP, restmpP[i])
+
+			tmpIJQ := Dot(decomposedIJQ, d2Q, ringQ) // line 6 of algorithm
+			tmpIJP := Dot(decomposedIJP, d2P, ringP)
+
+			ringQ.AddLvl(level, restmpQ[j], tmpIJQ, restmpQ[j])
+			ringP.Add(restmpP[j], tmpIJP, restmpP[j])
+
 		}
 	}
-	c0Prime := ringQ.NewPoly()
+
 	tmpModDown := ringQ.NewPoly()
-	baseconverter.ModDownPQ(levelQ, restmp[0], tmpModDown)
-	ringQ.Add(cipherParts[0], tmpModDown, c0Prime)
+
+	baseconverter.ModDownSplitNTTPQ(level, restmpQ[0], restmpP[0], tmpModDown)
+	ringQ.AddLvl(level, cipherParts[0], tmpModDown, res[0])
+
 	for i := uint64(1); i <= k; i++ {
-		ringQ.Add(cipherParts[i], cipherParts[(k+1)*i], res[i])
-		tmpModDown := ringQ.NewPoly()
-		baseconverter.ModDownPQ(levelQ, restmp[i], tmpModDown)
-		ringQ.Add(res[i], tmpModDown, res[i])
+
+		ringQ.AddLvl(level, cipherParts[i], cipherParts[(k+1)*i], res[i])
+
+		baseconverter.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
+		ringQ.AddLvl(level, res[i], tmpModDown, res[i])
+
 	}
-	res[0] = c0Prime
+
 	ciphertexts.ciphertexts.SetValue(res)
 }
 
-// Switching keys : D0 and D1
-func applySwitchingKey(decomposedCipher *MKDecomposedPoly, key *MKSwitchingKey, params *bfv.Parameters) (*ring.Poly, *ring.Poly, *ring.Poly) {
+// prepare evaluation key for operations in split crt basis
+func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluationKey) (d0Q, d1Q, d2Q, d0P, d1P, d2P *MKDecomposedPoly) {
 
-	ringQ := GetRingQ(params)
-	c0 := ringQ.NewPoly()
-	ci := ringQ.NewPoly()
-	cj := ringQ.NewPoly()
+	di0 := evaluationKeys[i-1].key[0]
+	di1 := evaluationKeys[i-1].key[1]
+	di2 := evaluationKeys[i-1].key[2]
 
-	for i := 0; i < int(params.Beta()); i++ {
-		ringQ.MulCoeffsMontgomeryAndAdd(decomposedCipher.poly[i], key.key[0].poly[i], c0)
-		ringQ.MulCoeffsMontgomeryAndAdd(decomposedCipher.poly[i], key.key[1].poly[i], ci)
-		ringQ.MulCoeffsMontgomeryAndAdd(decomposedCipher.poly[i], key.key[2].poly[i], cj)
+	d0Q = new(MKDecomposedPoly)
+	d0Q.poly = make([]*ring.Poly, beta)
+	d1Q = new(MKDecomposedPoly)
+	d1Q.poly = make([]*ring.Poly, beta)
+	d2Q = new(MKDecomposedPoly)
+	d2Q.poly = make([]*ring.Poly, beta)
+	d0P = new(MKDecomposedPoly)
+	d0P.poly = make([]*ring.Poly, beta)
+	d1P = new(MKDecomposedPoly)
+	d1P.poly = make([]*ring.Poly, beta)
+	d2P = new(MKDecomposedPoly)
+	d2P.poly = make([]*ring.Poly, beta)
+
+	for u := uint64(0); u < beta; u++ {
+		d0Q.poly[u] = di0.poly[u].CopyNew()
+		d0Q.poly[u].Coeffs = d0Q.poly[u].Coeffs[:level+1]
+		d1Q.poly[u] = di1.poly[u].CopyNew()
+		d1Q.poly[u].Coeffs = d1Q.poly[u].Coeffs[:level+1]
+		d2Q.poly[u] = di2.poly[u].CopyNew()
+		d2Q.poly[u].Coeffs = d2Q.poly[u].Coeffs[:level+1]
+
+		d0P.poly[u] = di0.poly[u].CopyNew()
+		d0P.poly[u].Coeffs = d0P.poly[u].Coeffs[modulus:]
+		d1P.poly[u] = di1.poly[u].CopyNew()
+		d1P.poly[u].Coeffs = d1P.poly[u].Coeffs[modulus:]
+		d2P.poly[u] = di2.poly[u].CopyNew()
+		d2P.poly[u].Coeffs = d2P.poly[u].Coeffs[modulus:]
 	}
 
-	return c0, ci, cj
+	return
+}
+
+// prepare public key for operations in split crt basis
+func preparePublicKey(j, level, modulus, beta uint64, publicKeys []*MKPublicKey) (pkQ, pkP *MKDecomposedPoly) {
+
+	pkQ = new(MKDecomposedPoly)
+	pkQ.poly = make([]*ring.Poly, beta)
+	pkP = new(MKDecomposedPoly)
+	pkP.poly = make([]*ring.Poly, beta)
+
+	for u := uint64(0); u < beta; u++ {
+		pkQ.poly[u] = publicKeys[j-1].key[0].poly[u].CopyNew()
+		pkQ.poly[u].Coeffs = pkQ.poly[u].Coeffs[:level+1]
+
+		pkP.poly[u] = publicKeys[j-1].key[0].poly[u].CopyNew()
+		pkP.poly[u].Coeffs = pkP.poly[u].Coeffs[modulus:]
+
+	}
+
+	return
+}
+
+// GInverse is a method that returns the decomposition of a polynomial from R_qp to R_qp^beta
+func GInverse(p *ring.Poly, params *bfv.Parameters) (*MKDecomposedPoly, *MKDecomposedPoly) {
+
+	beta := params.Beta()
+	ringQ := GetRingQ(params)
+	ringP := GetRingP(params)
+
+	resQ := new(MKDecomposedPoly)
+	resP := new(MKDecomposedPoly)
+
+	polynomialsQ := make([]*ring.Poly, beta)
+	polynomialsP := make([]*ring.Poly, beta)
+
+	invPoly := ringQ.NewPoly()
+	ringQ.InvNTT(p, invPoly)
+
+	level := uint64(len(ringQ.Modulus)) - 1
+
+	// generate each poly decomposed in the base
+	for i := uint64(0); i < beta; i++ {
+
+		polynomialsQ[i] = ringQ.NewPoly()
+		polynomialsP[i] = ringP.NewPoly()
+
+		decomposeAndSplitNTT(level, i, p, invPoly, polynomialsQ[i], polynomialsP[i], params, ringQ, ringP)
+
+	}
+
+	resQ.poly = polynomialsQ
+	resP.poly = polynomialsP
+
+	return resQ, resP
+}
+
+// decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.
+// this function was copied from ckks evaluator.go in order not to break the encapsulation
+func decomposeAndSplitNTT(level, beta uint64, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly, params *bfv.Parameters, ringQ, ringP *ring.Ring) {
+
+	decomposer := ring.NewDecomposer(ringQ.Modulus, ringP.Modulus)
+
+	decomposer.DecomposeAndSplit(level, beta, c2InvNTT, c2QiQ, c2QiP)
+
+	p0idxst := beta * params.Alpha()
+	p0idxed := p0idxst + decomposer.Xalpha()[beta]
+
+	// c2_qi = cx mod qi mod qi
+	for x := uint64(0); x < level+1; x++ {
+
+		qi := ringQ.Modulus[x]
+		nttPsi := ringQ.GetNttPsi()[x]
+		bredParams := ringQ.GetBredParams()[x]
+		mredParams := ringQ.GetMredParams()[x]
+
+		if p0idxst <= x && x < p0idxed {
+			p0tmp := c2NTT.Coeffs[x]
+			p1tmp := c2QiQ.Coeffs[x]
+			for j := uint64(0); j < ringQ.N; j++ {
+				p1tmp[j] = p0tmp[j]
+			}
+		} else {
+			ring.NTTLazy(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x], ringQ.N, nttPsi, qi, mredParams, bredParams)
+		}
+	}
+	// c2QiP = c2 mod qi mod pj
+	ringP.NTTLazy(c2QiP, c2QiP)
 }

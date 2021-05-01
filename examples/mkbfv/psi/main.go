@@ -215,7 +215,7 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiph
 			for task := range tasks {
 				task.elapsedmultTask = runTimed(func() {
 					// 1) Multiplication and Relinearization of two input vectors
-					task.res = evaluator.MultRelinDynamic(task.op1, task.op2, rlk, pubKeys)
+					task.res = evaluator.Mul(task.op1, task.op2, rlk, pubKeys)
 				})
 				task.wg.Done()
 			}

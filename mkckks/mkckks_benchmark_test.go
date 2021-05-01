@@ -28,8 +28,8 @@ func BenchmarkMKCKKS(b *testing.B) {
 		benchEncrypt(b, p)
 		benchDecrypt(b, p)
 		benchPartialDecrypt(b, p)
-		//benchMultTwoCiphertexts(b, p)
-		//benchRelin(b, p)
+		benchMultTwoCiphertexts(b, p)
+		benchRelin(b, p)
 	}
 }
 

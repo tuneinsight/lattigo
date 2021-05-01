@@ -84,7 +84,7 @@ func benchMultTwoCiphertexts(b *testing.B, params *bfv.Parameters) {
 	b.Run(testString("Mul/", 2, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			evaluator.MultRelinDynamic(cipher1, cipher2, evalKeys, publicKeys)
+			evaluator.Mul(cipher1, cipher2, evalKeys, publicKeys)
 		}
 	})
 }

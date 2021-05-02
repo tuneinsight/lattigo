@@ -8,13 +8,13 @@ import (
 // Relinearization implements the algorithm 3 in the appendix of the Chen paper
 // It does relin directly by linearizing each entry of the extended ciphertext and stores it in cPrime (of size k+1)
 // There are (k+1)**2 ciphertexts, and k pairs of (evaluation keys Di,bi)
-func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, ciphertexts *MKCiphertext, params *ckks.Parameters) {
+func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, ct *MKCiphertext, params *ckks.Parameters) {
 
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
 
 	baseconverter := ring.NewFastBasisExtender(ringQ, ringP)
-	level := ciphertexts.ciphertexts.Level()
+	level := ct.ciphertexts.Level()
 
 	k := uint64(len(evaluationKeys))
 	restmpQ := make([]*ring.Poly, k+1)
@@ -28,7 +28,7 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 		res[i] = ringQ.NewPoly()
 	}
 
-	cipherParts := ciphertexts.ciphertexts.Value()
+	cipherParts := ct.ciphertexts.Value()
 
 	for i := uint64(1); i <= k; i++ {
 
@@ -84,7 +84,7 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 
 	}
 
-	ciphertexts.ciphertexts.SetValue(res)
+	ct.ciphertexts.SetValue(res)
 }
 
 // prepare evaluation key for operations in split crt basis

@@ -649,7 +649,7 @@ func testMul(t *testing.T, params *bfv.Parameters) {
 		// pad
 		evaluator := NewMKEvaluator(params)
 
-		// multiply using evaluation keys and publick keys
+		// multiply using evaluation keys and public keys
 		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 

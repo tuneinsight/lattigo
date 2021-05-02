@@ -20,7 +20,7 @@ type MKEvaluator interface {
 	Mul(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
 	RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey)
 	Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
-	TensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext
+	TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertext
 	NewPlaintextFromValue([]uint64) *bfv.Plaintext
 	NewPlaintextMulFromValue([]uint64) *bfv.PlaintextMul
 }
@@ -191,7 +191,7 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKE
 	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].peerID < evalKeys[j].peerID })
 	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].peerID < publicKeys[j].peerID })
 
-	out := eval.TensorAndRescale(padded1.ciphertexts.Element, padded2.ciphertexts.Element)
+	out := eval.TensorAndRescale(padded1.ciphertexts.Ciphertext(), padded2.ciphertexts.Ciphertext())
 	out.peerIDs = padded1.peerIDs
 	return out
 }
@@ -208,7 +208,7 @@ func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluation
 	Relinearization(evalKeys, publicKeys, ct, eval.params)
 }
 
-func (eval *mkEvaluator) modUpAndNTT(ct *bfv.Element, cQ, cQMul []*ring.Poly) {
+func (eval *mkEvaluator) modUpAndNTT(ct *bfv.Ciphertext, cQ, cQMul []*ring.Poly) {
 	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
 	for i := range ct.Value() {
 		eval.convertorQQMul.ModUpSplitQP(levelQ, ct.Value()[i], cQMul[i])
@@ -247,7 +247,7 @@ func checkParticipantsGalKey(peerID []uint64, galKeys []*MKEvalGalKey) {
 // tensor computes the tensor product between 2 ciphertexts and returns the result in out
 // c1 and c2 must have be of dimension k+1, where k = #participants
 // out has dimensions (k+1)**2
-func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext {
+func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertext {
 
 	nbrElements := ct0.Degree() + 1 // k+1
 
@@ -326,6 +326,7 @@ func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext {
 	}
 
 	eval.quantize(c2Q1, c2Q2, out.ciphertexts.Element)
+
 	return out
 }
 
@@ -342,9 +343,6 @@ func (eval *mkEvaluator) quantize(c2Q1, c2Q2 []*ring.Poly, ctOut *bfv.Element) {
 		eval.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
 		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
 
-		eval.ringQ.InvMForm(c2Q1[i], c2Q1[i])
-		eval.ringQMul.InvMForm(c2Q2[i], c2Q2[i])
-
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
 		eval.convertorQQMul.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
 
@@ -357,7 +355,6 @@ func (eval *mkEvaluator) quantize(c2Q1, c2Q2 []*ring.Poly, ctOut *bfv.Element) {
 		eval.ringQ.MulScalar(ctOut.Value()[i], eval.params.T(), ctOut.Value()[i])
 
 	}
-
 }
 
 // Rotate rotate the columns of the ciphertext by n to the left and return the result in a new ciphertext
@@ -390,7 +387,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 
 	for i := uint64(1); i <= k; i++ {
 
-		gal0Q, gal0P, gal1Q, gal1P := prepareGaloisEvaluationKey(i, level, uint64(len(eval.ringQ.Modulus)), eval.params.Beta(), keys)
+		gal0Q, gal0P, gal1Q, gal1P := prepareGaloisEvaluationKey(i, level, eval.params.Beta(), keys)
 
 		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
 		index := ring.PermuteNTTIndex(galEl, ringQP.N)
@@ -429,7 +426,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 }
 
 // prepare galois evaluation keys for operations in split crt basis
-func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*MKEvalGalKey) (gal0Q, gal0P, gal1Q, gal1P *MKDecomposedPoly) {
+func prepareGaloisEvaluationKey(j, level, beta uint64, galKeys []*MKEvalGalKey) (gal0Q, gal0P, gal1Q, gal1P *MKDecomposedPoly) {
 
 	gal0Q = new(MKDecomposedPoly)
 	gal0Q.poly = make([]*ring.Poly, beta)
@@ -446,13 +443,13 @@ func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*MKEva
 		gal0Q.poly[u].Coeffs = gal0Q.poly[u].Coeffs[:level+1]
 
 		gal0P.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
-		gal0P.poly[u].Coeffs = gal0P.poly[u].Coeffs[modulus:]
+		gal0P.poly[u].Coeffs = gal0P.poly[u].Coeffs[level+1:]
 
 		gal1Q.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
 		gal1Q.poly[u].Coeffs = gal1Q.poly[u].Coeffs[:level+1]
 
 		gal1P.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
-		gal1P.poly[u].Coeffs = gal1P.poly[u].Coeffs[modulus:]
+		gal1P.poly[u].Coeffs = gal1P.poly[u].Coeffs[level+1:]
 
 	}
 

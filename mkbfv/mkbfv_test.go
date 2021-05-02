@@ -23,7 +23,9 @@ func Test_MKBFV(t *testing.T) {
 		testMulPlaintext(t, p)
 		testMulPlaintextTwoParticipants(t, p)
 		//testMul(t, p)
+		//testAddAfterMul(t, p)
 		//testMulFourParticipants(t, p)
+		//testRotation(t, p)
 	}
 }
 
@@ -676,6 +678,58 @@ func testMul(t *testing.T, params *bfv.Parameters) {
 
 }
 
+func testAddAfterMul(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	ringT := getRingT(params)
+
+	t.Run(testString("Test Addition after Multiplication/", 2, params), func(t *testing.T) {
+
+		expected1 := getRandomPlaintextValue(ringT, params)
+		expected2 := getRandomPlaintextValue(ringT, params)
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(expected1)
+		cipher2 := participants[1].Encrypt(expected2)
+
+		// pad
+		evaluator := NewMKEvaluator(params)
+
+		// multiply using evaluation keys and publick keys
+		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+
+		resCipher := evaluator.Mul(cipher1, cipher2, evalKeys, publicKeys)
+
+		evaluator.RelinInPlace(resCipher, evalKeys, publicKeys)
+
+		resCipher = evaluator.Add(resCipher, cipher1)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCipher)
+		partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		expected := ringT.NewPoly()
+		p1 := ringT.NewPoly()
+		p2 := ringT.NewPoly()
+		copy(p1.Coeffs[0], expected1)
+		copy(p2.Coeffs[0], expected2)
+		ringT.MulCoeffs(p1, p2, expected)
+		ringT.Add(expected, p1, expected)
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic multiplication error")
+		}
+	})
+
+}
+
 func testMulFourParticipants(t *testing.T, params *bfv.Parameters) {
 
 	sigma := 6.0
@@ -732,6 +786,44 @@ func testMulFourParticipants(t *testing.T, params *bfv.Parameters) {
 
 		if !equalsSlice(decrypted, expected.Coeffs[0]) {
 			t.Error("Homomorphic multiplication error")
+		}
+	})
+
+}
+
+func testRotation(t *testing.T, params *bfv.Parameters) {
+	sigma := 6.0
+
+	participants := setupPeers(1, params, sigma)
+
+	ringT := getRingT(params)
+
+	rots := []int{1, -1, 4, -4, 63, -63}
+
+	t.Run(testString("Test Rotation/", 1, params), func(t *testing.T) {
+
+		// generate test values
+		values1 := getRandomPlaintextValue(ringT, params)
+
+		// Encrypt
+		cipher1 := participants[0].Encrypt(values1)
+
+		evaluator := NewMKEvaluator(params)
+
+		for _, n := range rots {
+
+			rotKey := participants[0].GetRotationKeys(n)
+
+			values2 := utils.RotateUint64Slice(values1, n)
+			resCipher := evaluator.Rotate(cipher1, n, []*MKEvalGalKey{rotKey})
+
+			partialDec := participants[0].GetPartialDecryption(resCipher)
+
+			decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec})
+
+			if !utils.EqualSliceUint64(values2, decrypted) {
+				t.Errorf("Rotation error")
+			}
 		}
 	})
 

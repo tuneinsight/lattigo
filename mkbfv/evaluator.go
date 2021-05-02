@@ -19,6 +19,7 @@ type MKEvaluator interface {
 	MultPlaintext(pt *bfv.PlaintextMul, c *MKCiphertext) *MKCiphertext
 	Mul(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
 	RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey)
+	Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
 	TensorAndRescale(ct0, ct1 *bfv.Element) *MKCiphertext
 	NewPlaintextFromValue([]uint64) *bfv.Plaintext
 	NewPlaintextMulFromValue([]uint64) *bfv.PlaintextMul
@@ -28,12 +29,14 @@ type mkEvaluator struct {
 	bfvEval         bfv.Evaluator
 	params          *bfv.Parameters
 	ringQ           *ring.Ring
+	ringP           *ring.Ring
 	ringQMul        *ring.Ring
 	pHalf           *big.Int
 	samplerGaussian *ring.GaussianSampler
 	polyPoolQ1      []*ring.Poly
 	polyPoolQ2      []*ring.Poly
-	convertor       *ring.FastBasisExtender
+	convertorQQMul  *ring.FastBasisExtender
+	convertorQP     *ring.FastBasisExtender
 	encoder         bfv.Encoder
 }
 
@@ -45,6 +48,7 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 	}
 
 	ringQ := GetRingQ(params)
+	ringP := GetRingP(params)
 	ringQMul := GetRingQMul(params)
 
 	prng, err := utils.NewPRNG()
@@ -53,7 +57,8 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 	}
 
 	sampler := GetGaussianSampler(params, ringQ, prng)
-	convertor := ring.NewFastBasisExtender(ringQ, ringQMul)
+	convertorQQMul := ring.NewFastBasisExtender(ringQ, ringQMul)
+	convertorQP := ring.NewFastBasisExtender(ringQ, ringP)
 
 	pHalf := new(big.Int).Rsh(ringQMul.ModulusBigint, 1)
 
@@ -61,10 +66,12 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 		bfvEval:         bfv.NewEvaluator(params, bfv.EvaluationKey{}),
 		params:          params,
 		ringQ:           ringQ,
+		ringP:           ringP,
 		ringQMul:        ringQMul,
 		pHalf:           pHalf,
 		samplerGaussian: sampler,
-		convertor:       convertor,
+		convertorQQMul:  convertorQQMul,
+		convertorQP:     convertorQP,
 		encoder:         bfv.NewEncoder(params)}
 }
 
@@ -204,7 +211,7 @@ func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluation
 func (eval *mkEvaluator) modUpAndNTT(ct *bfv.Element, cQ, cQMul []*ring.Poly) {
 	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
 	for i := range ct.Value() {
-		eval.convertor.ModUpSplitQP(levelQ, ct.Value()[i], cQMul[i])
+		eval.convertorQQMul.ModUpSplitQP(levelQ, ct.Value()[i], cQMul[i])
 		eval.ringQ.NTTLazy(ct.Value()[i], cQ[i])
 		eval.ringQMul.NTTLazy(cQMul[i], cQMul[i])
 	}
@@ -224,6 +231,15 @@ func checkParticipantsPubKey(peerID []uint64, pubKeys []*MKPublicKey) {
 	for i, id := range peerID {
 		if id != pubKeys[i].peerID {
 			panic("Incorrect public keys for the given ciphertexts")
+		}
+	}
+}
+
+func checkParticipantsGalKey(peerID []uint64, galKeys []*MKEvalGalKey) {
+
+	for i, id := range peerID {
+		if id != galKeys[i].peerID {
+			panic("Incorrect galois evaluation keys for the given ciphertexts")
 		}
 	}
 }
@@ -330,11 +346,11 @@ func (eval *mkEvaluator) quantize(c2Q1, c2Q2 []*ring.Poly, ctOut *bfv.Element) {
 		eval.ringQMul.InvMForm(c2Q2[i], c2Q2[i])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		eval.convertor.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
+		eval.convertorQQMul.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
 		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
-		eval.convertor.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.Value()[i])
+		eval.convertorQQMul.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.Value()[i])
 		eval.ringQ.SubScalarBigint(ctOut.Value()[i], eval.pHalf, ctOut.Value()[i])
 
 		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
@@ -342,6 +358,105 @@ func (eval *mkEvaluator) quantize(c2Q1, c2Q2 []*ring.Poly, ctOut *bfv.Element) {
 
 	}
 
+}
+
+// Rotate rotate the columns of the ciphertext by n to the left and return the result in a new ciphertext
+func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext {
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i].peerID < keys[j].peerID })
+
+	checkParticipantsGalKey(c.peerIDs, keys)
+
+	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params)
+
+	galEl := eval.params.GaloisElementForColumnRotationBy(n)
+
+	level := uint64(len(eval.ringQ.Modulus)) - 1
+
+	ringQP := GetRingQP(eval.params)
+
+	k := uint64(len(c.peerIDs))
+
+	res := make([]*ring.Poly, k+1)
+
+	restmpQ := make([]*ring.Poly, k+1)
+	restmpP := make([]*ring.Poly, k+1)
+
+	for i := uint64(0); i < k+1; i++ {
+		restmpQ[i] = eval.ringQ.NewPoly()
+		restmpP[i] = eval.ringP.NewPoly()
+		res[i] = eval.ringQ.NewPoly()
+	}
+
+	for i := uint64(1); i <= k; i++ {
+
+		gal0Q, gal0P, gal1Q, gal1P := prepareGaloisEvaluationKey(i, level, uint64(len(eval.ringQ.Modulus)), eval.params.Beta(), keys)
+
+		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
+		index := ring.PermuteNTTIndex(galEl, ringQP.N)
+		ring.PermuteNTTWithIndexLvl(level, c.ciphertexts.Value()[i], index, permutedCipher)
+
+		decomposedPermutedQ, decomposedPermutedP := GInverse(permutedCipher, eval.params)
+
+		res0P := Dot(decomposedPermutedP, gal0P, eval.ringP) // dot product and add in c0''
+		res0Q := Dot(decomposedPermutedQ, gal0Q, eval.ringQ)
+
+		eval.ringP.Add(restmpP[0], res0P, restmpP[0])
+		eval.ringQ.AddLvl(level, restmpQ[0], res0Q, restmpQ[0])
+
+		restmpP[i] = Dot(decomposedPermutedP, gal1P, eval.ringP) // dot product and put in ci''
+		restmpQ[i] = Dot(decomposedPermutedQ, gal1Q, eval.ringQ)
+	}
+
+	// finalize computation of c0'
+	index := ring.PermuteNTTIndex(galEl, ringQP.N)
+	ring.PermuteNTTWithIndexLvl(level, c.ciphertexts.Value()[0], index, res[0])
+
+	tmpModDown := eval.ringQ.NewPoly()
+	eval.convertorQP.ModDownSplitNTTPQ(level, restmpQ[0], restmpP[0], tmpModDown)
+	eval.ringQ.AddLvl(level, res[0], tmpModDown, res[0])
+
+	// finalize computation of ci'
+	for i := uint64(1); i <= k; i++ {
+
+		eval.convertorQP.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
+		eval.ringQ.CopyLvl(level, tmpModDown, res[i])
+	}
+
+	out.ciphertexts.Ciphertext().SetValue(res)
+
+	return out
+}
+
+// prepare galois evaluation keys for operations in split crt basis
+func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*MKEvalGalKey) (gal0Q, gal0P, gal1Q, gal1P *MKDecomposedPoly) {
+
+	gal0Q = new(MKDecomposedPoly)
+	gal0Q.poly = make([]*ring.Poly, beta)
+	gal0P = new(MKDecomposedPoly)
+	gal0P.poly = make([]*ring.Poly, beta)
+
+	gal1Q = new(MKDecomposedPoly)
+	gal1Q.poly = make([]*ring.Poly, beta)
+	gal1P = new(MKDecomposedPoly)
+	gal1P.poly = make([]*ring.Poly, beta)
+
+	for u := uint64(0); u < beta; u++ {
+		gal0Q.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal0Q.poly[u].Coeffs = gal0Q.poly[u].Coeffs[:level+1]
+
+		gal0P.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal0P.poly[u].Coeffs = gal0P.poly[u].Coeffs[modulus:]
+
+		gal1Q.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal1Q.poly[u].Coeffs = gal1Q.poly[u].Coeffs[:level+1]
+
+		gal1P.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal1P.poly[u].Coeffs = gal1P.poly[u].Coeffs[modulus:]
+
+	}
+
+	return gal0Q, gal0P, gal1Q, gal1P
 }
 
 // NewPlaintextFromValue returns a plaintext in ringQ scaled by Q/t

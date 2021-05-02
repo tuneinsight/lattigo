@@ -34,9 +34,10 @@ type MKSwitchingKey struct {
 	//peerID uint64 // Commented because in relinkey_gen.Convert we might not need a peerID, or might need multiple
 }
 
-// MKRelinearizationKey is a type for BFV relinearization keys in a multi key context.
-type MKRelinearizationKey struct {
-	key [][]*MKSwitchingKey
+// MKEvalGalKey is a type for CKKS rotation keys in a multi key context.
+type MKEvalGalKey struct {
+	key    []*MKDecomposedPoly
+	peerID uint64
 }
 
 // MKKeys is a type that contains all keys necessary for the multi key protocol.
@@ -44,7 +45,6 @@ type MKKeys struct {
 	secretKey *MKSecretKey
 	publicKey *MKPublicKey
 	evalKey   *MKEvaluationKey
-	relinKey  *MKRelinearizationKey
 }
 
 // NewMKSwitchingKey allocate a MKSwitchingKey with zero polynomials in the ring r

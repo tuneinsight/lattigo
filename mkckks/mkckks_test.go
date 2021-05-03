@@ -911,9 +911,9 @@ func testAddAfterMul(t *testing.T, params *ckks.Parameters) {
 		evaluator.RelinInPlace(resCipher1, evalKeys[:2], publicKeys[:2])
 		evaluator.RelinInPlace(resCipher2, evalKeys[2:], publicKeys[2:])
 
-		evaluator.DropLevel(resCipher1, 4)
+		evaluator.DropLevel(resCipher1, 1)
 		evaluator.Rescale(resCipher1, resCipher1)
-		evaluator.DropLevel(resCipher2, 4)
+		evaluator.DropLevel(resCipher2, 1)
 		evaluator.Rescale(resCipher2, resCipher2)
 
 		// verify intermediate results

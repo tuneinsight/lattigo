@@ -469,33 +469,35 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 
 func testEncToShares(testCtx *testContext, t *testing.T) {
 
+	type Party struct {
+		e2s         *E2SProtocol
+		s2e         *S2EProtocol
+		sk          *rlwe.SecretKey
+		publicShare *drlwe.CKSShare
+		secretShare AdditiveShare
+	}
+	params := testCtx.params
+	P := make([]Party, parties)
+	for i := range P {
+		P[i].e2s = NewE2SProtocol(params, 3.2)
+		P[i].s2e = NewS2EProtocol(params, 3.2)
+		P[i].sk = testCtx.sk0Shards[i]
+		P[i].publicShare = P[i].e2s.AllocateShare()
+		P[i].secretShare = AdditiveShare{Value: *testCtx.dbfvContext.ringT.NewPoly()}
+	}
+
+	coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, t)
+
 	t.Run(testString("E2SProtocol/", parties, testCtx.params), func(t *testing.T) {
 
-		type Party struct {
-			*E2SProtocol
-			sk          *rlwe.SecretKey
-			publicShare *drlwe.CKSShare
-			secretShare AdditiveShare
-		}
-		params := testCtx.params
-		P := make([]Party, parties)
-		for i := range P {
-			P[i].E2SProtocol = NewE2SProtocol(params, 3.2)
-			P[i].sk = testCtx.sk0Shards[i]
-			P[i].publicShare = P[i].AllocateShare()
-			P[i].secretShare = AdditiveShare{Value: *testCtx.dbfvContext.ringT.NewPoly()}
-		}
-
-		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, t)
-
 		for i, p := range P {
-			p.GenShare(p.sk, ciphertext, p.secretShare, p.publicShare)
+			p.e2s.GenShare(p.sk, ciphertext, p.secretShare, p.publicShare)
 			if i > 0 {
-				p.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+				p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
 			}
 		}
 
-		P[0].Finalize(P[0].secretShare, P[0].publicShare, ciphertext, &P[0].secretShare)
+		P[0].e2s.Finalize(P[0].secretShare, P[0].publicShare, ciphertext, &P[0].secretShare)
 
 		rec := AdditiveShare{Value: *testCtx.dbfvContext.ringT.NewPoly()}
 		for _, p := range P {
@@ -509,6 +511,22 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 
 		assert.True(t, utils.EqualSliceUint64(coeffs, rec.Value.Coeffs[0]))
 
+	})
+	crs := ring.NewUniformSampler(testCtx.prng, testCtx.dbfvContext.ringQ)
+	c1 := crs.ReadNew()
+
+	t.Run(testString("S2EProtocol/", parties, testCtx.params), func(t *testing.T) {
+		for i, p := range P {
+			p.s2e.GenShare(p.sk, c1, p.secretShare, p.publicShare)
+			if i > 0 {
+				p.s2e.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+			}
+		}
+
+		ctRec := bfv.NewCiphertext(testCtx.params, 1)
+		P[0].s2e.Finalize(P[0].publicShare, c1, *ctRec)
+
+		verifyTestVectors(testCtx, testCtx.decryptorSk0, coeffs, ctRec, t)
 	})
 }
 

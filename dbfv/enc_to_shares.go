@@ -11,7 +11,7 @@ import (
 type E2SProtocol struct {
 	CKSProtocol
 
-	RingQ       *ring.Ring
+	ringQ       *ring.Ring
 	ringT       *ring.Ring
 	maskSampler *ring.UniformSampler
 	encoder     bfv.Encoder
@@ -28,7 +28,7 @@ type AdditiveShare struct {
 func NewE2SProtocol(params bfv.Parameters, sigmaSmudging float64) *E2SProtocol {
 	e2s := new(E2SProtocol)
 	e2s.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
-	e2s.RingQ = params.RingQ()
+	e2s.ringQ = params.RingQ()
 	e2s.ringT = params.RingT()
 	e2s.encoder = bfv.NewEncoder(params)
 	prng, err := utils.NewPRNG()
@@ -46,11 +46,11 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct *bfv.Ciphertext, secretS
 	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 	e2s.maskSampler.Read(&secretShareOut.Value)
 	e2s.encoder.EncodeUint(secretShareOut.Value.Coeffs[0], e2s.tmpPlaintext)
-	e2s.RingQ.Sub(publicShareOut.Value, e2s.tmpPlaintext.Value[0], publicShareOut.Value)
+	e2s.ringQ.Sub(publicShareOut.Value, e2s.tmpPlaintext.Value[0], publicShareOut.Value)
 }
 
 func (e2s *E2SProtocol) Finalize(secretShare AdditiveShare, aggregatePublicShare *drlwe.CKSShare, ct *bfv.Ciphertext, secretShareOut *AdditiveShare) {
-	e2s.RingQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintext.Value[0])
+	e2s.ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintext.Value[0])
 	e2s.encoder.DecodeUint(e2s.tmpPlaintext, e2s.tmpPlaintextRingT.Value[0].Coeffs[0])
 	e2s.ringT.Add(&secretShare.Value, e2s.tmpPlaintextRingT.Value[0], &secretShareOut.Value)
 }

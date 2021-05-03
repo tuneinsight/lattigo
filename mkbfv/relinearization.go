@@ -30,10 +30,8 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 
 	cipherParts := ct.ciphertexts.Value()
 
-	// pass ciphertext in NTT and out of MForm
 	for _, v := range cipherParts {
-		ringQ.InvMForm(v, v)
-		ringQ.NTTLazy(v, v)
+		ringQ.NTT(v, v)
 	}
 
 	for i := uint64(1); i <= k; i++ {
@@ -78,18 +76,20 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 
 	tmpModDown := ringQ.NewPoly()
 
-	ringQ.InvNTTLazy(res[0], res[0])
-	baseconverter.ModDownSplitPQ(level, restmpQ[0], restmpP[0], tmpModDown)
+	baseconverter.ModDownSplitNTTPQ(level, restmpQ[0], restmpP[0], tmpModDown)
 	ringQ.AddLvl(level, cipherParts[0], tmpModDown, res[0])
 
 	for i := uint64(1); i <= k; i++ {
 
 		ringQ.AddLvl(level, cipherParts[i], cipherParts[(k+1)*i], res[i])
 
-		ringQ.InvNTTLazy(res[i], res[i])
-		baseconverter.ModDownSplitPQ(level, restmpQ[i], restmpP[i], tmpModDown)
+		baseconverter.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
 		ringQ.AddLvl(level, res[i], tmpModDown, res[i])
 
+	}
+
+	for _, v := range res {
+		ringQ.InvNTT(v, v)
 	}
 
 	ct.ciphertexts.SetValue(res)

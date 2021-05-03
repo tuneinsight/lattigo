@@ -22,8 +22,8 @@ func Test_MKBFV(t *testing.T) {
 		testSubPlaintextTwoParticipants(t, p)
 		testMulPlaintext(t, p)
 		testMulPlaintextTwoParticipants(t, p)
-		//testMul(t, p)
-		//testAddAfterMul(t, p)
+		testMul(t, p)
+		testAddAfterMul(t, p)
 		//testMulFourParticipants(t, p)
 		//testRotation(t, p)
 	}

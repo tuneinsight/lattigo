@@ -28,7 +28,7 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 		res[i] = ringQ.NewPoly()
 	}
 
-	cipherParts := ct.ciphertexts.Value()
+	cipherParts := ct.Ciphertexts.Value()
 
 	for _, v := range cipherParts {
 		ringQ.NTT(v, v)
@@ -92,7 +92,7 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 		ringQ.InvNTT(v, v)
 	}
 
-	ct.ciphertexts.SetValue(res)
+	ct.Ciphertexts.SetValue(res)
 }
 
 // prepare evaluation key for operations in split crt basis

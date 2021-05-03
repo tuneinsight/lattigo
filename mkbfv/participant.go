@@ -55,7 +55,7 @@ func (participant *mkParticipant) Encrypt(values []uint64) *MKCiphertext {
 // Decrypt returns the decryption of the ciphertext given the partial decryption
 func (participant *mkParticipant) Decrypt(cipher *MKCiphertext, partialDecryptions []*ring.Poly) []uint64 {
 
-	if cipher == nil || cipher.ciphertexts == nil {
+	if cipher == nil || cipher.Ciphertexts == nil {
 		panic("Cannot decrypt uninitialized ciphertext")
 	}
 
@@ -63,7 +63,7 @@ func (participant *mkParticipant) Decrypt(cipher *MKCiphertext, partialDecryptio
 		panic("Decryption necessitates at least one partialy decrypted ciphertext")
 	}
 
-	decrypted := participant.decryptor.MergeDec(cipher.ciphertexts.Value()[0], partialDecryptions)
+	decrypted := participant.decryptor.MergeDec(cipher.Ciphertexts.Value()[0], partialDecryptions)
 
 	return participant.encoder.DecodeUintNew(decrypted)
 }
@@ -100,9 +100,9 @@ func NewParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *MKDecomp
 
 	uid := hashPublicKey(keys.publicKey.key)
 
-	keys.publicKey.peerID = uid
+	keys.publicKey.PeerID = uid
 	keys.secretKey.peerID = uid
-	keys.evalKey.peerID = uid
+	keys.evalKey.PeerID = uid
 
 	encryptor := NewMKEncryptor(keys.publicKey, params, uid)
 	decryptor := NewMKDecryptor(params, sigmaSmudging)
@@ -173,10 +173,10 @@ func (participant *mkParticipant) GetRotationKeys(rot int) *MKEvalGalKey {
 // returns the part of the ciphertext corresponding to the participant
 func (participant *mkParticipant) getCiphertextPart(ciphertext *MKCiphertext) *ring.Poly {
 
-	for i, v := range ciphertext.peerIDs {
+	for i, v := range ciphertext.PeerIDs {
 
 		if v == participant.id {
-			return ciphertext.ciphertexts.Value()[i+1]
+			return ciphertext.Ciphertexts.Value()[i+1]
 		}
 	}
 

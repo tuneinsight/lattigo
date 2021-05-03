@@ -213,7 +213,7 @@ func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, generator bfv.KeyGenerat
 
 	return &MKEvaluationKey{
 		key:    uniEnc(sk.key.Value, sk, pk, generator, params, ringQP),
-		peerID: sk.peerID,
+		PeerID: sk.peerID,
 	}
 }
 

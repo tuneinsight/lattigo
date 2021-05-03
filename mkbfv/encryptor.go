@@ -23,7 +23,7 @@ func NewMKEncryptor(pk *MKPublicKey, params *bfv.Parameters, id uint64) MKEncryp
 	bfvPublicKey.Value[0] = pk.key[0].poly[0] // b[0]
 	bfvPublicKey.Value[1] = pk.key[1].poly[0] // a[0]
 
-	return &mkEncryptor{bfv.NewEncryptorFromPk(params, bfvPublicKey), pk.peerID, params}
+	return &mkEncryptor{bfv.NewEncryptorFromPk(params, bfvPublicKey), pk.PeerID, params}
 }
 
 // EncryptMK encrypt the plaintext and put id in the ciphertext's peerIds
@@ -32,12 +32,12 @@ func (encryptor *mkEncryptor) EncryptMK(plaintext *bfv.Plaintext) *MKCiphertext 
 	mkCiphertext := new(MKCiphertext)
 
 	if encryptor.params.PiCount() != 0 {
-		mkCiphertext.ciphertexts = encryptor.bfvEncryptor.EncryptNew(plaintext)
+		mkCiphertext.Ciphertexts = encryptor.bfvEncryptor.EncryptNew(plaintext)
 	} else {
-		mkCiphertext.ciphertexts = encryptor.bfvEncryptor.EncryptFastNew(plaintext)
+		mkCiphertext.Ciphertexts = encryptor.bfvEncryptor.EncryptFastNew(plaintext)
 	}
 
-	mkCiphertext.peerIDs = []uint64{encryptor.peerID}
+	mkCiphertext.PeerIDs = []uint64{encryptor.peerID}
 
 	return mkCiphertext
 }

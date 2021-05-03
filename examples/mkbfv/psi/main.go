@@ -198,6 +198,9 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiph
 	encLvls = append(encLvls, encInputs)
 	for nLvl := len(encInputs) / 2; nLvl > 0; nLvl = nLvl >> 1 {
 		encLvl := make([]*mkbfv.MKCiphertext, nLvl)
+		for i := range encLvl {
+			encLvl[i] = mkbfv.NewMKCiphertext(nil, mkbfv.GetRingQ(params), params)
+		}
 		encLvls = append(encLvls, encLvl)
 	}
 	encRes = encLvls[len(encLvls)-1][0]
@@ -215,7 +218,11 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiph
 			for task := range tasks {
 				task.elapsedmultTask = runTimed(func() {
 					// 1) Multiplication and Relinearization of two input vectors
-					task.res = evaluator.Mul(task.op1, task.op2, rlk, pubKeys)
+					tmpRes := evaluator.Mul(task.op1, task.op2)
+					evaluator.RelinInPlace(tmpRes, getRelinKeyForParticipants(rlk, tmpRes.PeerIDs), getPublicKeyForParticipants(pubKeys, tmpRes.PeerIDs))
+					task.res.PeerIDs = tmpRes.PeerIDs
+					task.res.Ciphertexts.SetValue(tmpRes.Ciphertexts.Value())
+					println(task.res.Ciphertexts.Value()[0].Coeffs[0][0])
 				})
 				task.wg.Done()
 			}
@@ -280,4 +287,30 @@ func genInputs(params *bfv.Parameters, P []mkbfv.MKParticipant) (expRes []uint64
 	}
 
 	return
+}
+
+func getRelinKeyForParticipants(rlk []*mkbfv.MKEvaluationKey, peerID []uint64) []*mkbfv.MKEvaluationKey {
+
+	res := make([]*mkbfv.MKEvaluationKey, 0)
+
+	for _, v := range rlk {
+		if mkbfv.Contains(peerID, v.PeerID) >= 0 {
+			res = append(res, v)
+		}
+	}
+
+	return res
+}
+
+func getPublicKeyForParticipants(pk []*mkbfv.MKPublicKey, peerID []uint64) []*mkbfv.MKPublicKey {
+
+	res := make([]*mkbfv.MKPublicKey, 0)
+
+	for _, v := range pk {
+		if mkbfv.Contains(peerID, v.PeerID) >= 0 {
+			res = append(res, v)
+		}
+	}
+
+	return res
 }

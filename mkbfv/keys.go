@@ -14,7 +14,7 @@ type MKSecretKey struct {
 // MKPublicKey is a type for BFV public keys and ID in a multi key context. key[1] = a and key[0] = -s * a + e mod q
 type MKPublicKey struct {
 	key    [2]*MKDecomposedPoly
-	peerID uint64
+	PeerID uint64
 }
 
 // MKDecomposedPoly is a type for vectors decomposed in a basis w (belong to Rq^d)(gadget decomposition)
@@ -25,7 +25,7 @@ type MKDecomposedPoly struct {
 // MKEvaluationKey is a type for BFV evaluation keys in a multi key context.
 type MKEvaluationKey struct {
 	key    []*MKDecomposedPoly
-	peerID uint64
+	PeerID uint64
 }
 
 // MKSwitchingKey is a type for BFV switching keys in a multi key context.
@@ -70,7 +70,7 @@ func NewMKEvaluationKey(r *ring.Ring, id uint64, params *bfv.Parameters) *MKEval
 	key.key[1] = NewDecomposedPoly(r, params.Beta())
 	key.key[2] = NewDecomposedPoly(r, params.Beta())
 
-	key.peerID = id
+	key.PeerID = id
 	return key
 }
 

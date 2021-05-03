@@ -17,7 +17,7 @@ type MKEvaluator interface {
 	SubPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext
 	Neg(c *MKCiphertext) *MKCiphertext
 	MultPlaintext(pt *bfv.PlaintextMul, c *MKCiphertext) *MKCiphertext
-	Mul(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext
+	Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
 	RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey)
 	Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *MKCiphertext
 	TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertext
@@ -78,15 +78,15 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 // Add adds the ciphertexts component wise and expend their list of involved peers. Returns a new ciphertext
 func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
-	if c1 == nil || c2 == nil || c1.ciphertexts == nil || c2.ciphertexts == nil {
+	if c1 == nil || c2 == nil || c1.Ciphertexts == nil || c2.Ciphertexts == nil {
 		panic("Uninitialized ciphertexts")
 	}
 
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
-	out := NewMKCiphertext(padded1.peerIDs, eval.ringQ, eval.params)
+	out := NewMKCiphertext(padded1.PeerIDs, eval.ringQ, eval.params)
 
-	out.ciphertexts = eval.bfvEval.AddNew(padded1.ciphertexts, padded2.ciphertexts)
+	out.Ciphertexts = eval.bfvEval.AddNew(padded1.Ciphertexts, padded2.Ciphertexts)
 
 	return out
 }
@@ -94,15 +94,15 @@ func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 // Sub substracts the ciphertexts component wise and expend their list of involved peers
 func (eval *mkEvaluator) Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
-	if c1 == nil || c2 == nil || c1.ciphertexts == nil || c2.ciphertexts == nil {
+	if c1 == nil || c2 == nil || c1.Ciphertexts == nil || c2.Ciphertexts == nil {
 		panic("Uninitialized ciphertexts")
 	}
 
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
-	out := NewMKCiphertext(padded1.peerIDs, eval.ringQ, eval.params)
+	out := NewMKCiphertext(padded1.PeerIDs, eval.ringQ, eval.params)
 
-	out.ciphertexts = eval.bfvEval.SubNew(padded1.ciphertexts, padded2.ciphertexts)
+	out.Ciphertexts = eval.bfvEval.SubNew(padded1.Ciphertexts, padded2.Ciphertexts)
 
 	return out
 }
@@ -110,7 +110,7 @@ func (eval *mkEvaluator) Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 // AddPlaintext adds the paintext to the ciphertexts component wise
 func (eval *mkEvaluator) AddPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext {
 
-	if c == nil || pt == nil || c.ciphertexts == nil || pt.Value() == nil {
+	if c == nil || pt == nil || c.Ciphertexts == nil || pt.Value() == nil {
 		panic("Uninitialized inputs")
 	}
 
@@ -118,19 +118,19 @@ func (eval *mkEvaluator) AddPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCip
 		panic("Plaintext must have degree 0")
 	}
 
-	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params)
-	val := make([]*ring.Poly, len(c.peerIDs)+1)
+	out := NewMKCiphertext(c.PeerIDs, eval.ringQ, eval.params)
+	val := make([]*ring.Poly, len(c.PeerIDs)+1)
 
 	// copy values
-	for i := uint64(1); i < uint64(len(c.peerIDs)+1); i++ {
-		val[i] = c.ciphertexts.Value()[i].CopyNew()
+	for i := uint64(1); i < uint64(len(c.PeerIDs)+1); i++ {
+		val[i] = c.Ciphertexts.Value()[i].CopyNew()
 	}
 
 	// add the plaintext value in c0
 	val[0] = eval.ringQ.NewPoly()
-	eval.ringQ.Add(c.ciphertexts.Value()[0], pt.Value()[0], val[0])
+	eval.ringQ.Add(c.Ciphertexts.Value()[0], pt.Value()[0], val[0])
 
-	out.ciphertexts.SetValue(val)
+	out.Ciphertexts.SetValue(val)
 
 	return out
 }
@@ -138,7 +138,7 @@ func (eval *mkEvaluator) AddPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCip
 // SubPlaintext subtracts the plaintext to the ciphertext component wise
 func (eval *mkEvaluator) SubPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext {
 
-	if c == nil || pt == nil || c.ciphertexts == nil || pt.Value() == nil {
+	if c == nil || pt == nil || c.Ciphertexts == nil || pt.Value() == nil {
 		panic("Uninitialized inputs")
 	}
 
@@ -146,19 +146,19 @@ func (eval *mkEvaluator) SubPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCip
 		panic("Plaintext must have degree 0")
 	}
 
-	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params)
-	val := make([]*ring.Poly, len(c.peerIDs)+1)
+	out := NewMKCiphertext(c.PeerIDs, eval.ringQ, eval.params)
+	val := make([]*ring.Poly, len(c.PeerIDs)+1)
 
 	// copy values
-	for i := uint64(1); i < uint64(len(c.peerIDs)+1); i++ {
-		val[i] = c.ciphertexts.Value()[i].CopyNew()
+	for i := uint64(1); i < uint64(len(c.PeerIDs)+1); i++ {
+		val[i] = c.Ciphertexts.Value()[i].CopyNew()
 	}
 
 	// subtract the plaintext value to c0
 	val[0] = eval.ringQ.NewPoly()
-	eval.ringQ.Sub(c.ciphertexts.Value()[0], pt.Value()[0], val[0])
+	eval.ringQ.Sub(c.Ciphertexts.Value()[0], pt.Value()[0], val[0])
 
-	out.ciphertexts.SetValue(val)
+	out.Ciphertexts.SetValue(val)
 
 	return out
 }
@@ -166,9 +166,9 @@ func (eval *mkEvaluator) SubPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCip
 // Neg returns the additive inverse of a cyphertext
 func (eval *mkEvaluator) Neg(c *MKCiphertext) *MKCiphertext {
 
-	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params)
+	out := NewMKCiphertext(c.PeerIDs, eval.ringQ, eval.params)
 
-	out.ciphertexts = eval.bfvEval.NegNew(c.ciphertexts)
+	out.Ciphertexts = eval.bfvEval.NegNew(c.Ciphertexts)
 
 	return out
 }
@@ -176,34 +176,31 @@ func (eval *mkEvaluator) Neg(c *MKCiphertext) *MKCiphertext {
 // MultPlaintext multiplies a plaintext and a ciphertext
 func (eval *mkEvaluator) MultPlaintext(pt *bfv.PlaintextMul, c *MKCiphertext) *MKCiphertext {
 
-	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params)
+	out := NewMKCiphertext(c.PeerIDs, eval.ringQ, eval.params)
 
-	out.ciphertexts = eval.bfvEval.MulNew(c.ciphertexts, pt)
+	out.Ciphertexts = eval.bfvEval.MulNew(c.Ciphertexts, pt)
 
 	return out
 }
 
 // Mul will compute the homomorphic multiplication. No relinearization is done.
-func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) *MKCiphertext {
+func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
-	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].peerID < evalKeys[j].peerID })
-	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].peerID < publicKeys[j].peerID })
-
-	out := eval.TensorAndRescale(padded1.ciphertexts.Ciphertext(), padded2.ciphertexts.Ciphertext())
-	out.peerIDs = padded1.peerIDs
+	out := eval.TensorAndRescale(padded1.Ciphertexts.Ciphertext(), padded2.Ciphertexts.Ciphertext())
+	out.PeerIDs = padded1.PeerIDs
 	return out
 }
 
 // Relinearize a ciphertext after a multiplication
 func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*MKEvaluationKey, publicKeys []*MKPublicKey) {
 
-	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].peerID < evalKeys[j].peerID })
-	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].peerID < publicKeys[j].peerID })
+	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].PeerID < evalKeys[j].PeerID })
+	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].PeerID < publicKeys[j].PeerID })
 
-	checkParticipantsEvalKey(ct.peerIDs, evalKeys)
-	checkParticipantsPubKey(ct.peerIDs, publicKeys)
+	checkParticipantsEvalKey(ct.PeerIDs, evalKeys)
+	checkParticipantsPubKey(ct.PeerIDs, publicKeys)
 
 	Relinearization(evalKeys, publicKeys, ct, eval.params)
 }
@@ -220,7 +217,7 @@ func (eval *mkEvaluator) modUpAndNTT(ct *bfv.Ciphertext, cQ, cQMul []*ring.Poly)
 func checkParticipantsEvalKey(peerID []uint64, evalKeys []*MKEvaluationKey) {
 
 	for i, id := range peerID {
-		if id != evalKeys[i].peerID {
+		if id != evalKeys[i].PeerID {
 			panic("Incorrect evaluation keys for the given ciphertexts")
 		}
 	}
@@ -229,7 +226,7 @@ func checkParticipantsEvalKey(peerID []uint64, evalKeys []*MKEvaluationKey) {
 func checkParticipantsPubKey(peerID []uint64, pubKeys []*MKPublicKey) {
 
 	for i, id := range peerID {
-		if id != pubKeys[i].peerID {
+		if id != pubKeys[i].PeerID {
 			panic("Incorrect public keys for the given ciphertexts")
 		}
 	}
@@ -254,7 +251,7 @@ func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertex
 	outputDegree := nbrElements * nbrElements // (k+1)**2
 
 	out := new(MKCiphertext)
-	out.ciphertexts = bfv.NewCiphertext(eval.params, outputDegree-1)
+	out.Ciphertexts = bfv.NewCiphertext(eval.params, outputDegree-1)
 
 	c0Q1 := make([]*ring.Poly, nbrElements)
 	c0Q2 := make([]*ring.Poly, nbrElements)
@@ -325,7 +322,7 @@ func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertex
 		}
 	}
 
-	eval.quantize(c2Q1, c2Q2, out.ciphertexts.Element)
+	eval.quantize(c2Q1, c2Q2, out.Ciphertexts.Element)
 
 	return out
 }
@@ -362,9 +359,9 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 
 	sort.Slice(keys, func(i, j int) bool { return keys[i].peerID < keys[j].peerID })
 
-	checkParticipantsGalKey(c.peerIDs, keys)
+	checkParticipantsGalKey(c.PeerIDs, keys)
 
-	out := NewMKCiphertext(c.peerIDs, eval.ringQ, eval.params)
+	out := NewMKCiphertext(c.PeerIDs, eval.ringQ, eval.params)
 
 	galEl := eval.params.GaloisElementForColumnRotationBy(n)
 
@@ -372,7 +369,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 
 	ringQP := GetRingQP(eval.params)
 
-	k := uint64(len(c.peerIDs))
+	k := uint64(len(c.PeerIDs))
 
 	res := make([]*ring.Poly, k+1)
 
@@ -391,7 +388,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 
 		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
 		index := ring.PermuteNTTIndex(galEl, ringQP.N)
-		ring.PermuteNTTWithIndexLvl(level, c.ciphertexts.Value()[i], index, permutedCipher)
+		ring.PermuteNTTWithIndexLvl(level, c.Ciphertexts.Value()[i], index, permutedCipher)
 
 		decomposedPermutedQ, decomposedPermutedP := GInverse(permutedCipher, eval.params)
 
@@ -407,7 +404,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 
 	// finalize computation of c0'
 	index := ring.PermuteNTTIndex(galEl, ringQP.N)
-	ring.PermuteNTTWithIndexLvl(level, c.ciphertexts.Value()[0], index, res[0])
+	ring.PermuteNTTWithIndexLvl(level, c.Ciphertexts.Value()[0], index, res[0])
 
 	tmpModDown := eval.ringQ.NewPoly()
 	eval.convertorQP.ModDownSplitNTTPQ(level, restmpQ[0], restmpP[0], tmpModDown)
@@ -420,7 +417,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 		eval.ringQ.CopyLvl(level, tmpModDown, res[i])
 	}
 
-	out.ciphertexts.Ciphertext().SetValue(res)
+	out.Ciphertexts.Ciphertext().SetValue(res)
 
 	return out
 }

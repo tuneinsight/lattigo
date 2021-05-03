@@ -199,7 +199,7 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiph
 	for nLvl := len(encInputs) / 2; nLvl > 0; nLvl = nLvl >> 1 {
 		encLvl := make([]*mkbfv.MKCiphertext, nLvl)
 		for i := range encLvl {
-			encLvl[i] = mkbfv.NewMKCiphertext(nil, mkbfv.GetRingQ(params), params)
+			encLvl[i] = new(mkbfv.MKCiphertext)
 		}
 		encLvls = append(encLvls, encLvl)
 	}
@@ -221,8 +221,7 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiph
 					tmpRes := evaluator.Mul(task.op1, task.op2)
 					evaluator.RelinInPlace(tmpRes, getRelinKeyForParticipants(rlk, tmpRes.PeerIDs), getPublicKeyForParticipants(pubKeys, tmpRes.PeerIDs))
 					task.res.PeerIDs = tmpRes.PeerIDs
-					task.res.Ciphertexts.SetValue(tmpRes.Ciphertexts.Value())
-					println(task.res.Ciphertexts.Value()[0].Coeffs[0][0])
+					task.res.Ciphertexts = tmpRes.Ciphertexts
 				})
 				task.wg.Done()
 			}

@@ -49,7 +49,10 @@ func Test_MKCKKS(t *testing.T) {
 			testSquare(t, p)
 			testMul(t, p)
 			testMulAfterAdd(t, p)
-			testAddAfterMul(t, p)
+			if i != ckks.PN12QP101pq && i != ckks.PN13QP202pq {
+				testAddAfterMul(t, p)
+			}
+
 			testMulFourParticipants(t, p)
 
 		}

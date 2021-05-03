@@ -1,199 +1,199 @@
 package dbfv
 
-import (
-	"github.com/ldsec/lattigo/v2/bfv"
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
-)
+// import (
+// 	"math/bits"
 
-// PermuteProtocol is a struct storing the parameters for the PermuteProtocol protocol.
-type PermuteProtocol struct {
-	context         *dbfvContext
-	indexMatrix     []uint64
-	tmp1            *ring.Poly
-	tmp2            *ring.Poly
-	hP              *ring.Poly
-	baseconverter   *ring.FastBasisExtender
-	scaler          ring.Scaler
-	gaussianSampler *ring.GaussianSampler
-	sigma           float64
-	uniformSampler  *ring.UniformSampler
-}
+// 	"github.com/ldsec/lattigo/v2/bfv"
+// 	"github.com/ldsec/lattigo/v2/ring"
+// 	"github.com/ldsec/lattigo/v2/utils"
+// )
 
-// NewPermuteProtocol creates a new instance of the PermuteProtocol.
-func NewPermuteProtocol(params bfv.Parameters) (refreshProtocol *PermuteProtocol) {
+// // PermuteProtocol is a struct storing the parameters for the PermuteProtocol protocol.
+// type PermuteProtocol struct {
+// 	context         *dbfvContext
+// 	indexMatrix     []uint64
+// 	tmp1            *ring.Poly
+// 	tmp2            *ring.Poly
+// 	hP              *ring.Poly
+// 	baseconverter   *ring.FastBasisExtender
+// 	scaler          ring.Scaler
+// 	gaussianSampler *ring.GaussianSampler
+// 	uniformSampler  *ring.UniformSampler
+// }
 
-	context := newDbfvContext(params)
+// // NewPermuteProtocol creates a new instance of the PermuteProtocol.
+// func NewPermuteProtocol(params bfv.Parameters) (refreshProtocol *PermuteProtocol) {
 
-	refreshProtocol = new(PermuteProtocol)
-	refreshProtocol.context = context
-	refreshProtocol.tmp1 = context.ringQP.NewPoly()
-	refreshProtocol.tmp2 = context.ringQP.NewPoly()
-	refreshProtocol.hP = context.ringP.NewPoly()
+// 	context := newDbfvContext(params)
 
-	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.ringQ, context.ringP)
+// 	refreshProtocol = new(PermuteProtocol)
+// 	refreshProtocol.context = context
+// 	refreshProtocol.tmp1 = context.ringQP.NewPoly()
+// 	refreshProtocol.tmp2 = context.ringQP.NewPoly()
+// 	refreshProtocol.hP = context.ringP.NewPoly()
 
-	var m, pos, index1, index2 uint64
+// 	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.ringQ, context.ringP)
 
-	indexMatrix := make([]uint64, params.N())
+// 	var m, pos, index1, index2 uint64
 
-	logN := uint64(params.LogN())
+// 	indexMatrix := make([]uint64, params.N())
 
-	rowSize := params.N() >> 1
-	m = uint64(params.N()) << 1
-	pos = 1
+// 	logN := uint64(bits.Len64(params.N()) - 1)
 
-	for i := 0; i < rowSize; i++ {
+// 	rowSize := params.N() >> 1
+// 	m = (params.N() << 1)
+// 	pos = 1
 
-		index1 = (pos - 1) >> 1
-		index2 = (m - pos - 1) >> 1
+// 	for i := uint64(0); i < rowSize; i++ {
 
-		indexMatrix[i] = utils.BitReverse64(index1, logN)
-		indexMatrix[i|rowSize] = utils.BitReverse64(index2, logN)
+// 		index1 = (pos - 1) >> 1
+// 		index2 = (m - pos - 1) >> 1
 
-		pos *= bfv.GaloisGen
-		pos &= (m - 1)
-	}
+// 		indexMatrix[i] = utils.BitReverse64(index1, logN)
+// 		indexMatrix[i|rowSize] = utils.BitReverse64(index2, logN)
 
-	refreshProtocol.indexMatrix = indexMatrix
-	refreshProtocol.scaler = ring.NewRNSScaler(params.T(), context.ringQ)
+// 		pos *= bfv.GaloisGen
+// 		pos &= (m - 1)
+// 	}
 
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
+// 	refreshProtocol.indexMatrix = indexMatrix
+// 	refreshProtocol.scaler = ring.NewRNSScaler(params.T(), context.ringQ)
 
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQ, params.Sigma(), int(6*params.Sigma()))
-	refreshProtocol.sigma = params.Sigma()
-	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.ringT)
+// 	prng, err := utils.NewPRNG()
+// 	if err != nil {
+// 		panic(err)
+// 	}
 
-	return
-}
+// 	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQP, params.Sigma(), uint64(6*params.Sigma()))
+// 	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.ringT)
 
-// AllocateShares allocates the shares of the PermuteProtocol
-func (pp *PermuteProtocol) AllocateShares() RefreshShare {
-	return RefreshShare{pp.context.ringQ.NewPoly(),
-		pp.context.ringQ.NewPoly()}
-}
+// 	return
+// }
 
-// GenShares generates the shares of the PermuteProtocol
-func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, permutation []uint64, share RefreshShare) {
+// // AllocateShares allocates the shares of the PermuteProtocol
+// func (pp *PermuteProtocol) AllocateShares() RefreshShare {
+// 	return RefreshShare{pp.context.ringQ.NewPoly(),
+// 		pp.context.ringQ.NewPoly()}
+// }
 
-	level := len(ciphertext.Value[1].Coeffs) - 1
+// // GenShares generates the shares of the PermuteProtocol
+// func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, permutation []uint64, share RefreshShare) {
 
-	ringQ := pp.context.ringQ
-	ringT := pp.context.ringT
-	ringQP := pp.context.ringQP
+// 	level := uint64(len(ciphertext.Value[1].Coeffs) - 1)
 
-	// h0 = s*ct[1]
-	ringQ.NTTLazy(ciphertext.Value[1], pp.tmp1)
-	ringQ.MulCoeffsMontgomeryConstant(sk, pp.tmp1, share.RefreshShareDecrypt)
-	ringQ.InvNTTLazy(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
+// 	ringQ := pp.context.ringQ
+// 	ringT := pp.context.ringT
+// 	ringQP := pp.context.ringQP
 
-	// h0 = s*ct[1]*P
-	ringQ.MulScalarBigint(share.RefreshShareDecrypt, pp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
+// 	// h0 = s*ct[1]
+// 	ringQ.NTTLazy(ciphertext.Value[1], pp.tmp1)
+// 	ringQ.MulCoeffsMontgomeryConstant(sk, pp.tmp1, share.RefreshShareDecrypt)
+// 	ringQ.InvNTTLazy(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
 
-	// h0 = s*ct[1]*P + e
-	pp.gaussianSampler.ReadFromDistLvl(len(ringQP.Modulus)-1, pp.tmp1, ringQP, pp.sigma, int(6*pp.sigma))
-	ringQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
+// 	// h0 = s*ct[1]*P
+// 	ringQ.MulScalarBigint(share.RefreshShareDecrypt, pp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
 
-	for x, i := 0, len(ringQ.Modulus); i < len(pp.context.ringQP.Modulus); x, i = x+1, i+1 {
-		tmphP := pp.hP.Coeffs[x]
-		tmp1 := pp.tmp1.Coeffs[i]
-		for j := 0; j < ringQ.N; j++ {
-			tmphP[j] += tmp1[j]
-		}
-	}
+// 	// h0 = s*ct[1]*P + e
+// 	pp.gaussianSampler.ReadLvl(uint64(len(ringQP.Modulus)-1), pp.tmp1)
+// 	ringQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
 
-	// h0 = (s*ct[1]*P + e)/P
-	pp.baseconverter.ModDownSplitPQ(level, share.RefreshShareDecrypt, pp.hP, share.RefreshShareDecrypt)
+// 	for x, i := 0, uint64(len(ringQ.Modulus)); i < uint64(len(pp.context.ringQP.Modulus)); x, i = x+1, i+1 {
+// 		tmphP := pp.hP.Coeffs[x]
+// 		tmp1 := pp.tmp1.Coeffs[i]
+// 		for j := uint64(0); j < ringQ.N; j++ {
+// 			tmphP[j] += tmp1[j]
+// 		}
+// 	}
 
-	// h1 = -s*a
-	ringQP.Neg(crs, pp.tmp1)
-	ringQP.NTTLazy(pp.tmp1, pp.tmp1)
-	ringQP.MulCoeffsMontgomeryConstant(sk, pp.tmp1, pp.tmp2)
-	ringQP.InvNTTLazy(pp.tmp2, pp.tmp2)
+// 	// h0 = (s*ct[1]*P + e)/P
+// 	pp.baseconverter.ModDownSplitPQ(level, share.RefreshShareDecrypt, pp.hP, share.RefreshShareDecrypt)
 
-	// h1 = s*a + e'
-	pp.gaussianSampler.ReadAndAddFromDistLvl(len(ringQP.Modulus)-1, pp.tmp2, ringQP, pp.sigma, int(6*pp.sigma))
+// 	// h1 = -s*a
+// 	ringQP.Neg(crs, pp.tmp1)
+// 	ringQP.NTTLazy(pp.tmp1, pp.tmp1)
+// 	ringQP.MulCoeffsMontgomeryConstant(sk, pp.tmp1, pp.tmp2)
+// 	ringQP.InvNTTLazy(pp.tmp2, pp.tmp2)
 
-	// h1 = (-s*a + e')/P
-	pp.baseconverter.ModDownPQ(level, pp.tmp2, share.RefreshShareRecrypt)
+// 	// h1 = s*a + e'
+// 	pp.gaussianSampler.ReadAndAdd(pp.tmp2)
 
-	// mask = (uniform plaintext in [0, T-1]) * floor(Q/T)
+// 	// h1 = (-s*a + e')/P
+// 	pp.baseconverter.ModDownPQ(level, pp.tmp2, share.RefreshShareRecrypt)
 
-	// Mask in the time domain
-	coeffs := pp.uniformSampler.ReadNew()
+// 	// mask = (uniform plaintext in [0, T-1]) * floor(Q/T)
 
-	// Multiply by Q/t
-	lift(coeffs, pp.tmp1, pp.context)
+// 	// Mask in the time domain
+// 	coeffs := pp.uniformSampler.ReadNew()
 
-	// h0 = (s*ct[1]*P + e)/P + mask
-	ringQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
+// 	// Multiply by Q/t
+// 	lift(coeffs, pp.tmp1, pp.context)
 
-	// Mask in the spectral domain
-	ringT.NTT(coeffs, coeffs)
+// 	// h0 = (s*ct[1]*P + e)/P + mask
+// 	ringQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
 
-	// Permutation over the mask
-	pp.permuteWithIndex(coeffs, permutation, pp.tmp1)
+// 	// Mask in the spectral domain
+// 	ringT.NTT(coeffs, coeffs)
 
-	// Switch back the mask in the time domain
-	ringT.InvNTTLazy(pp.tmp1, coeffs)
+// 	// Permutation over the mask
+// 	pp.permuteWithIndex(coeffs, permutation, pp.tmp1)
 
-	// Multiply by Q/t
-	lift(coeffs, pp.tmp1, pp.context)
+// 	// Switch back the mask in the time domain
+// 	ringT.InvNTTLazy(pp.tmp1, coeffs)
 
-	// h1 = (-s*a + e')/P - permute(mask)
-	ringQ.Sub(share.RefreshShareRecrypt, pp.tmp1, share.RefreshShareRecrypt)
-}
+// 	// Multiply by Q/t
+// 	lift(coeffs, pp.tmp1, pp.context)
 
-// Aggregate sums share1 and share2 on shareOut.
-func (pp *PermuteProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
-	pp.context.ringQ.Add(share1.RefreshShareDecrypt, share2.RefreshShareDecrypt, shareOut.RefreshShareDecrypt)
-	pp.context.ringQ.Add(share1.RefreshShareRecrypt, share2.RefreshShareRecrypt, shareOut.RefreshShareRecrypt)
-}
+// 	// h1 = (-s*a + e')/P - permute(mask)
+// 	ringQ.Sub(share.RefreshShareRecrypt, pp.tmp1, share.RefreshShareRecrypt)
+// }
 
-// Decrypt operates a masked decryption on the input ciphertext using the provided decryption shares.
-func (pp *PermuteProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt RefreshShareDecrypt, sharePlaintext *ring.Poly) {
-	pp.context.ringQ.Add(ciphertext.Value[0], shareDecrypt, sharePlaintext)
-}
+// // Aggregate sums share1 and share2 on shareOut.
+// func (pp *PermuteProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
+// 	pp.context.ringQ.Add(share1.RefreshShareDecrypt, share2.RefreshShareDecrypt, shareOut.RefreshShareDecrypt)
+// 	pp.context.ringQ.Add(share1.RefreshShareRecrypt, share2.RefreshShareRecrypt, shareOut.RefreshShareRecrypt)
+// }
 
-// Permute decodes and re-encode (removing the error) the masked decrypted ciphertext with a permutation of the plaintext slots.
-func (pp *PermuteProtocol) Permute(sharePlaintext *ring.Poly, permutation []uint64, sharePlaintextOut *ring.Poly) {
+// // Decrypt operates a masked decryption on the input ciphertext using the provided decryption shares.
+// func (pp *PermuteProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt RefreshShareDecrypt, sharePlaintext *ring.Poly) {
+// 	pp.context.ringQ.Add(ciphertext.Value[0], shareDecrypt, sharePlaintext)
+// }
 
-	ringT := pp.context.ringT
+// // Permute decodes and re-encode (removing the error) the masked decrypted ciphertext with a permutation of the plaintext slots.
+// func (pp *PermuteProtocol) Permute(sharePlaintext *ring.Poly, permutation []uint64, sharePlaintextOut *ring.Poly) {
 
-	pp.scaler.DivByQOverTRounded(sharePlaintext, sharePlaintextOut)
+// 	ringT := pp.context.ringT
 
-	ringT.NTT(sharePlaintextOut, sharePlaintextOut)
+// 	pp.scaler.DivByQOverTRounded(sharePlaintext, sharePlaintextOut)
 
-	pp.permuteWithIndex(sharePlaintextOut, permutation, pp.tmp1)
+// 	ringT.NTT(sharePlaintextOut, sharePlaintextOut)
 
-	ringT.InvNTTLazy(pp.tmp1, sharePlaintextOut)
+// 	pp.permuteWithIndex(sharePlaintextOut, permutation, pp.tmp1)
 
-	lift(sharePlaintextOut, sharePlaintextOut, pp.context)
-}
+// 	ringT.InvNTTLazy(pp.tmp1, sharePlaintextOut)
 
-// Recrypt recrypts the input masked decrypted ciphertext with the recryption shares.
-func (pp *PermuteProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, shareRecrypt RefreshShareRecrypt, ciphertextOut *bfv.Ciphertext) {
+// 	lift(sharePlaintextOut, sharePlaintextOut, pp.context)
+// }
 
-	// ciphertext[0] = (-crs*s + e')/P + permute(m)
-	pp.context.ringQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value[0])
+// // Recrypt recrypts the input masked decrypted ciphertext with the recryption shares.
+// func (pp *PermuteProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, shareRecrypt RefreshShareRecrypt, ciphertextOut *bfv.Ciphertext) {
 
-	// ciphertext[1] = crs/P
-	pp.baseconverter.ModDownPQ(len(ciphertextOut.Value[1].Coeffs)-1, crs, ciphertextOut.Value[1])
+// 	// ciphertext[0] = (-crs*s + e')/P + permute(m)
+// 	pp.context.ringQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value[0])
 
-}
+// 	// ciphertext[1] = crs/P
+// 	pp.baseconverter.ModDownPQ(uint64(len(ciphertextOut.Value[1].Coeffs)-1), crs, ciphertextOut.Value[1])
 
-// Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (pp *PermuteProtocol) Finalize(ciphertext *bfv.Ciphertext, permutation []uint64, crs *ring.Poly, share RefreshShare, ciphertextOut *bfv.Ciphertext) {
-	pp.Decrypt(ciphertext, share.RefreshShareDecrypt, pp.tmp1)
-	pp.Permute(pp.tmp1, permutation, pp.tmp1)
-	pp.Recrypt(pp.tmp1, crs, share.RefreshShareRecrypt, ciphertextOut)
-}
+// }
 
-func (pp *PermuteProtocol) permuteWithIndex(polIn *ring.Poly, index []uint64, polOut *ring.Poly) {
-	for j := 0; j < len(polIn.Coeffs[0]); j++ {
-		polOut.Coeffs[0][pp.indexMatrix[j]] = polIn.Coeffs[0][pp.indexMatrix[index[j]]]
-	}
-}
+// // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
+// func (pp *PermuteProtocol) Finalize(ciphertext *bfv.Ciphertext, permutation []uint64, crs *ring.Poly, share RefreshShare, ciphertextOut *bfv.Ciphertext) {
+// 	pp.Decrypt(ciphertext, share.RefreshShareDecrypt, pp.tmp1)
+// 	pp.Permute(pp.tmp1, permutation, pp.tmp1)
+// 	pp.Recrypt(pp.tmp1, crs, share.RefreshShareRecrypt, ciphertextOut)
+// }
+
+// func (pp *PermuteProtocol) permuteWithIndex(polIn *ring.Poly, index []uint64, polOut *ring.Poly) {
+// 	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j++ {
+// 		polOut.Coeffs[0][pp.indexMatrix[j]] = polIn.Coeffs[0][pp.indexMatrix[index[j]]]
+// 	}
+// }

@@ -265,7 +265,6 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 	for i := uint64(1); i <= k; i++ {
 
 		gal0Q, gal0P, gal1Q, gal1P := prepareGaloisEvaluationKey(i, level, uint64(len(eval.ringQ.Modulus)), eval.params.Beta(), keys)
-
 		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
 		index := ring.PermuteNTTIndex(galEl, ringQP.N)
 		ring.PermuteNTTWithIndexLvl(level, c.ciphertexts.Value()[i], index, permutedCipher)
@@ -280,6 +279,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 
 		restmpP[i] = Dot(decomposedPermutedP, gal1P, eval.ringP) // dot product and put in ci''
 		restmpQ[i] = DotLvl(level, decomposedPermutedQ, gal1Q, eval.ringQ)
+
 	}
 
 	// finalize computation of c0'
@@ -294,7 +294,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 	for i := uint64(1); i <= k; i++ {
 
 		eval.convertor.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
-		eval.ringQ.CopyLvl(level, tmpModDown, res[i])
+		eval.ringQ.AddLvl(level, res[i], tmpModDown, res[i])
 	}
 
 	out.ciphertexts.Ciphertext().SetValue(res)
@@ -314,7 +314,6 @@ func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*MKEva
 	gal1Q.poly = make([]*ring.Poly, beta)
 	gal1P = new(MKDecomposedPoly)
 	gal1P.poly = make([]*ring.Poly, beta)
-
 	for u := uint64(0); u < beta; u++ {
 		gal0Q.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
 		gal0Q.poly[u].Coeffs = gal0Q.poly[u].Coeffs[:level+1]
@@ -322,10 +321,10 @@ func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*MKEva
 		gal0P.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
 		gal0P.poly[u].Coeffs = gal0P.poly[u].Coeffs[modulus:]
 
-		gal1Q.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal1Q.poly[u] = galKeys[j-1].key[1].poly[u].CopyNew()
 		gal1Q.poly[u].Coeffs = gal1Q.poly[u].Coeffs[:level+1]
 
-		gal1P.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal1P.poly[u] = galKeys[j-1].key[1].poly[u].CopyNew()
 		gal1P.poly[u].Coeffs = gal1P.poly[u].Coeffs[modulus:]
 
 	}

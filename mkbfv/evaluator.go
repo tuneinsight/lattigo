@@ -442,10 +442,10 @@ func prepareGaloisEvaluationKey(j, level, beta uint64, galKeys []*MKEvalGalKey) 
 		gal0P.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
 		gal0P.poly[u].Coeffs = gal0P.poly[u].Coeffs[level+1:]
 
-		gal1Q.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal1Q.poly[u] = galKeys[j-1].key[1].poly[u].CopyNew()
 		gal1Q.poly[u].Coeffs = gal1Q.poly[u].Coeffs[:level+1]
 
-		gal1P.poly[u] = galKeys[j-1].key[0].poly[u].CopyNew()
+		gal1P.poly[u] = galKeys[j-1].key[1].poly[u].CopyNew()
 		gal1P.poly[u].Coeffs = gal1P.poly[u].Coeffs[level+1:]
 
 	}

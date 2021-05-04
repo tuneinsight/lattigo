@@ -240,7 +240,7 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *bfv.Parameter
 	ring.PermuteNTTWithIndexLvl(params.QPiCount()-1, sk.key.Value, index, permutedSecretKey)
 
 	for i := uint64(0); i < params.Beta(); i++ {
-		ringQP.NTT(h0.poly[i], h0.poly[i])
+		ringQP.NTTLazy(h0.poly[i], h0.poly[i])
 		ringQP.MForm(h0.poly[i], h0.poly[i])
 
 		MultiplyByBaseAndAdd(permutedSecretKey, params, h0.poly[i], i)

@@ -1000,7 +1000,6 @@ func testRotation(t *testing.T, params *ckks.Parameters) {
 			partialDec := participants[0].GetPartialDecryption(resCipher)
 
 			decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec})
-
 			verifyTestVectors(params, values2, decrypted, t)
 		}
 	})

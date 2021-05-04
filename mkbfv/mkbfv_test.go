@@ -11,6 +11,7 @@ import (
 func Test_MKBFV(t *testing.T) {
 
 	for i, p := range bfv.DefaultParams {
+
 		testEncryptionEqualsDecryption(t, p)
 		testAdd(t, p)
 		testAddFourParticipants(t, p)

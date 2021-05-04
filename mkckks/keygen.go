@@ -235,14 +235,13 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Paramete
 	h0 := GetGaussianDecomposed(GetGaussianSampler(params, ringQP, prng), params.Beta())
 
 	permutedSecretKey := ringQP.NewPoly()
-
 	index := ring.PermuteNTTIndex(galEl, ringQP.N)
+
 	ring.PermuteNTTWithIndexLvl(params.QPiCount()-1, sk.key.Value, index, permutedSecretKey)
 
 	for i := uint64(0); i < params.Beta(); i++ {
-		ringQP.NTT(h0.poly[i], h0.poly[i])
+		ringQP.NTTLazy(h0.poly[i], h0.poly[i])
 		ringQP.MForm(h0.poly[i], h0.poly[i])
-
 		MultiplyByBaseAndAdd(permutedSecretKey, params, h0.poly[i], i)
 
 		ringQP.InvMForm(h0.poly[i], h0.poly[i])

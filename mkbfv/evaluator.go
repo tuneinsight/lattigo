@@ -424,8 +424,11 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 		eval.ringQ.CopyLvl(level, tmpModDown, res[i])
 	}
 
-	// pass ciphertext out of NTT domain
+	// pass input ciphertext and result out of NTT domain
 	for _, v := range res {
+		ringQ.InvNTT(v, v)
+	}
+	for _, v := range c.Ciphertexts.Value() {
 		ringQ.InvNTT(v, v)
 	}
 

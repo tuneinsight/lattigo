@@ -231,6 +231,15 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Paramete
 		panic(err)
 	}
 
+	var pBigInt *big.Int
+	pis := params.Pi()
+	if len(pis) != 0 {
+		pBigInt = ring.NewUint(1)
+		for _, pi := range pis {
+			pBigInt.Mul(pBigInt, ring.NewUint(pi))
+		}
+	}
+
 	h1 := GetUniformDecomposed(GetUniformSampler(params, ringQP, prng), params.Beta())
 	h0 := GetGaussianDecomposed(GetGaussianSampler(params, ringQP, prng), params.Beta())
 
@@ -238,6 +247,8 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Paramete
 	index := ring.PermuteNTTIndex(galEl, ringQP.N)
 
 	ring.PermuteNTTWithIndexLvl(uint64(len(ringQP.Modulus)-1), sk.key.Value, index, permutedSecretKey)
+
+	ringQP.MulScalarBigint(permutedSecretKey, pBigInt, permutedSecretKey)
 
 	for i := uint64(0); i < params.Beta(); i++ {
 		ringQP.NTTLazy(h0.poly[i], h0.poly[i])

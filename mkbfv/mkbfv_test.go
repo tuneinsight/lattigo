@@ -33,7 +33,8 @@ func Test_MKBFV(t *testing.T) {
 			testAddAfterMul(t, p)
 		}
 
-		//testRotation(t, p)
+		testRotation(t, p)
+		testRotationTwoParticipants(t, p)
 	}
 }
 
@@ -827,14 +828,76 @@ func testRotation(t *testing.T, params *bfv.Parameters) {
 
 			rotKey := participants[0].GetRotationKeys(n)
 
-			values2 := utils.RotateUint64Slice(values1, n)
 			resCipher := evaluator.Rotate(cipher1, n, []*MKEvalGalKey{rotKey})
 
 			partialDec := participants[0].GetPartialDecryption(resCipher)
 
 			decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec})
 
-			if !utils.EqualSliceUint64(values2, decrypted) {
+			// perform the operation in the plaintext space
+			expected := ringT.NewPoly()
+			copy(expected.Coeffs[0], values1)
+
+			nColumns := params.N() >> 1
+			valuesWant := append(utils.RotateUint64Slice(expected.Coeffs[0][:nColumns], n), utils.RotateUint64Slice(expected.Coeffs[0][nColumns:], n)...)
+
+			if !utils.EqualSliceUint64(valuesWant, decrypted) {
+				t.Errorf("Rotation error")
+			}
+		}
+	})
+
+}
+
+func testRotationTwoParticipants(t *testing.T, params *bfv.Parameters) {
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	ringT := getRingT(params)
+
+	rots := []int{1, -1, 4, -4, 63, -63}
+
+	t.Run(testString("Test Rotation/", 2, params), func(t *testing.T) {
+
+		// generate test values
+		values1 := getRandomPlaintextValue(ringT, params)
+		values2 := getRandomPlaintextValue(ringT, params)
+
+		// Encrypt
+		cipher1 := participants[0].Encrypt(values1)
+		cipher2 := participants[1].Encrypt(values2)
+
+		evaluator := NewMKEvaluator(params)
+
+		// add both ciphertexts
+		added := evaluator.Add(cipher1, cipher2)
+
+		for _, n := range rots {
+
+			rotKey1 := participants[0].GetRotationKeys(n)
+			rotKey2 := participants[1].GetRotationKeys(n)
+
+			resCipher := evaluator.Rotate(added, n, []*MKEvalGalKey{rotKey1, rotKey2})
+
+			partialDec1 := participants[0].GetPartialDecryption(resCipher)
+			partialDec2 := participants[1].GetPartialDecryption(resCipher)
+
+			decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
+
+			// perform the operation in the plaintext space
+			expected := ringT.NewPoly()
+			p1 := ringT.NewPoly()
+			copy(p1.Coeffs[0], values1)
+			p2 := ringT.NewPoly()
+			copy(p2.Coeffs[0], values2)
+
+			ringT.Add(p1, p2, expected)
+
+			nColumns := params.N() >> 1
+			valuesWant := append(utils.RotateUint64Slice(expected.Coeffs[0][:nColumns], n), utils.RotateUint64Slice(expected.Coeffs[0][nColumns:], n)...)
+
+			if !utils.EqualSliceUint64(valuesWant, decrypted) {
 				t.Errorf("Rotation error")
 			}
 		}

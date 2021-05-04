@@ -39,8 +39,8 @@ func Test_MKCKKS(t *testing.T) {
 			testTensor(t, p)
 			testTensorTwoParticipants(t, p)
 
-			//testRotation(t, p)
-			//testRotationTwoParticipants(t, p)
+			testRotation(t, p)
+			testRotationTwoParticipants(t, p)
 
 			testSquare(t, p)
 			testMul(t, p)

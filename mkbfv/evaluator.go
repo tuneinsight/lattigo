@@ -368,6 +368,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 	level := uint64(len(eval.ringQ.Modulus)) - 1
 
 	ringQP := GetRingQP(eval.params)
+	ringQ := GetRingQ(eval.params)
 
 	k := uint64(len(c.PeerIDs))
 
@@ -376,10 +377,16 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 	restmpQ := make([]*ring.Poly, k+1)
 	restmpP := make([]*ring.Poly, k+1)
 
+	restmpQ[0] = eval.ringQ.NewPoly()
+	restmpP[0] = eval.ringP.NewPoly()
+
 	for i := uint64(0); i < k+1; i++ {
-		restmpQ[i] = eval.ringQ.NewPoly()
-		restmpP[i] = eval.ringP.NewPoly()
 		res[i] = eval.ringQ.NewPoly()
+	}
+
+	// pass ciphertext in NTT
+	for _, v := range c.Ciphertexts.Value() {
+		ringQ.NTT(v, v)
 	}
 
 	for i := uint64(1); i <= k; i++ {
@@ -393,13 +400,13 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 		decomposedPermutedQ, decomposedPermutedP := GInverse(permutedCipher, eval.params)
 
 		res0P := Dot(decomposedPermutedP, gal0P, eval.ringP) // dot product and add in c0''
-		res0Q := Dot(decomposedPermutedQ, gal0Q, eval.ringQ)
+		res0Q := DotLvl(level, decomposedPermutedQ, gal0Q, eval.ringQ)
 
 		eval.ringP.Add(restmpP[0], res0P, restmpP[0])
 		eval.ringQ.AddLvl(level, restmpQ[0], res0Q, restmpQ[0])
 
 		restmpP[i] = Dot(decomposedPermutedP, gal1P, eval.ringP) // dot product and put in ci''
-		restmpQ[i] = Dot(decomposedPermutedQ, gal1Q, eval.ringQ)
+		restmpQ[i] = DotLvl(level, decomposedPermutedQ, gal1Q, eval.ringQ)
 	}
 
 	// finalize computation of c0'
@@ -415,6 +422,11 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 
 		eval.convertorQP.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
 		eval.ringQ.CopyLvl(level, tmpModDown, res[i])
+	}
+
+	// pass ciphertext out of NTT domain
+	for _, v := range res {
+		ringQ.InvNTT(v, v)
 	}
 
 	out.Ciphertexts.Ciphertext().SetValue(res)

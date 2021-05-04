@@ -255,16 +255,17 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*MKEvalGalKey) *M
 
 	restmpQ := make([]*ring.Poly, k+1)
 	restmpP := make([]*ring.Poly, k+1)
+	restmpQ[0] = eval.ringQ.NewPoly()
+	restmpP[0] = eval.ringP.NewPoly()
 
 	for i := uint64(0); i < k+1; i++ {
-		restmpQ[i] = eval.ringQ.NewPoly()
-		restmpP[i] = eval.ringP.NewPoly()
 		res[i] = eval.ringQ.NewPoly()
 	}
 
 	for i := uint64(1); i <= k; i++ {
 
 		gal0Q, gal0P, gal1Q, gal1P := prepareGaloisEvaluationKey(i, level, uint64(len(eval.ringQ.Modulus)), eval.params.Beta(), keys)
+		
 		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
 		index := ring.PermuteNTTIndex(galEl, ringQP.N)
 		ring.PermuteNTTWithIndexLvl(level, c.ciphertexts.Value()[i], index, permutedCipher)

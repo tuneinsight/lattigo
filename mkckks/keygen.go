@@ -237,7 +237,7 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *ckks.Paramete
 	permutedSecretKey := ringQP.NewPoly()
 	index := ring.PermuteNTTIndex(galEl, ringQP.N)
 
-	ring.PermuteNTTWithIndexLvl(params.QPiCount()-1, sk.key.Value, index, permutedSecretKey)
+	ring.PermuteNTTWithIndexLvl(uint64(len(ringQP.Modulus)-1), sk.key.Value, index, permutedSecretKey)
 
 	for i := uint64(0); i < params.Beta(); i++ {
 		ringQP.NTTLazy(h0.poly[i], h0.poly[i])

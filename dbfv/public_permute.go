@@ -1,199 +1,99 @@
 package dbfv
 
-// import (
-// 	"math/bits"
+import (
+	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/drlwe"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
+)
 
-// 	"github.com/ldsec/lattigo/v2/bfv"
-// 	"github.com/ldsec/lattigo/v2/ring"
-// 	"github.com/ldsec/lattigo/v2/utils"
-// )
+// MaskedTransformProtocol is a struct storing the parameters for the MaskedTransformProtocol protocol.
+type MaskedTransformProtocol struct {
+	e2s E2SProtocol
+	s2e S2EProtocol
 
-// // PermuteProtocol is a struct storing the parameters for the PermuteProtocol protocol.
-// type PermuteProtocol struct {
-// 	context         *dbfvContext
-// 	indexMatrix     []uint64
-// 	tmp1            *ring.Poly
-// 	tmp2            *ring.Poly
-// 	hP              *ring.Poly
-// 	baseconverter   *ring.FastBasisExtender
-// 	scaler          ring.Scaler
-// 	gaussianSampler *ring.GaussianSampler
-// 	uniformSampler  *ring.UniformSampler
-// }
+	encoder bfv.Encoder
+	ringQ   *ring.Ring
 
-// // NewPermuteProtocol creates a new instance of the PermuteProtocol.
-// func NewPermuteProtocol(params bfv.Parameters) (refreshProtocol *PermuteProtocol) {
+	tmpPt       bfv.Plaintext
+	tmpMask     *ring.Poly
+	tmpMaskPerm *ring.Poly
+}
 
-// 	context := newDbfvContext(params)
+// MaskedTransformShare is a struct storing the decryption and recryption shares.
+type MaskedTransformShare struct {
+	e2sShare drlwe.CKSShare
+	s2eShare drlwe.CKSShare
+}
 
-// 	refreshProtocol = new(PermuteProtocol)
-// 	refreshProtocol.context = context
-// 	refreshProtocol.tmp1 = context.ringQP.NewPoly()
-// 	refreshProtocol.tmp2 = context.ringQP.NewPoly()
-// 	refreshProtocol.hP = context.ringP.NewPoly()
+// MarshalBinary encodes a RefreshShare on a slice of bytes.
+func (share *MaskedTransformShare) MarshalBinary() ([]byte, error) {
+	e2sData, err := share.e2sShare.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	s2eData, err := share.s2eShare.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return append(e2sData, s2eData...), nil
+}
 
-// 	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.ringQ, context.ringP)
+// UnmarshalBinary decodes a marshaled RefreshShare on the target RefreshShare.
+func (share *MaskedTransformShare) UnmarshalBinary(data []byte) error {
+	shareLen := len(data) >> 1
+	share.e2sShare.UnmarshalBinary(data[:shareLen])
+	share.s2eShare.UnmarshalBinary(data[shareLen:])
+	return nil
+}
 
-// 	var m, pos, index1, index2 uint64
+// NewMaskedTransformProtocol creates a new instance of the PermuteProtocol.
+func NewMaskedTransformProtocol(params bfv.Parameters, sigmaSmudging float64) (rfp *MaskedTransformProtocol) {
 
-// 	indexMatrix := make([]uint64, params.N())
+	rfp = new(MaskedTransformProtocol)
+	rfp.e2s = *NewE2SProtocol(params, sigmaSmudging)
+	rfp.s2e = *NewS2EProtocol(params, sigmaSmudging)
 
-// 	logN := uint64(bits.Len64(params.N()) - 1)
+	rfp.encoder = rfp.e2s.encoder
 
-// 	rowSize := params.N() >> 1
-// 	m = (params.N() << 1)
-// 	pos = 1
+	rfp.ringQ = rfp.e2s.ringQ
+	rfp.tmpPt = *bfv.NewPlaintext(params)
+	rfp.tmpMask = rfp.ringQ.NewPoly()
+	rfp.tmpMaskPerm = rfp.ringQ.NewPoly()
+	return
+}
 
-// 	for i := uint64(0); i < rowSize; i++ {
+// AllocateShares allocates the shares of the PermuteProtocol
+func (rfp *MaskedTransformProtocol) AllocateShares() MaskedTransformShare {
+	return MaskedTransformShare{*rfp.e2s.AllocateShare(), *rfp.s2e.AllocateShare()}
+}
 
-// 		index1 = (pos - 1) >> 1
-// 		index2 = (m - pos - 1) >> 1
+// GenShares generates the shares of the PermuteProtocol
+func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs *ring.Poly, transform func(*ring.Poly, *ring.Poly), shareOut MaskedTransformShare) {
+	rfp.e2s.GenShare(sk, ciphertext, AdditiveShare{*rfp.tmpMask}, &shareOut.e2sShare)
+	mask := rfp.tmpMask
+	if transform != nil {
+		transform(rfp.tmpMask, rfp.tmpMaskPerm)
+		mask = rfp.tmpMaskPerm
+	}
+	rfp.s2e.GenShare(sk, crs, AdditiveShare{*mask}, &shareOut.s2eShare)
+}
 
-// 		indexMatrix[i] = utils.BitReverse64(index1, logN)
-// 		indexMatrix[i|rowSize] = utils.BitReverse64(index2, logN)
+// Aggregate sums share1 and share2 on shareOut.
+func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut MaskedTransformShare) {
+	rfp.ringQ.Add(share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
+	rfp.ringQ.Add(share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
+}
 
-// 		pos *= bfv.GaloisGen
-// 		pos &= (m - 1)
-// 	}
-
-// 	refreshProtocol.indexMatrix = indexMatrix
-// 	refreshProtocol.scaler = ring.NewRNSScaler(params.T(), context.ringQ)
-
-// 	prng, err := utils.NewPRNG()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQP, params.Sigma(), uint64(6*params.Sigma()))
-// 	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.ringT)
-
-// 	return
-// }
-
-// // AllocateShares allocates the shares of the PermuteProtocol
-// func (pp *PermuteProtocol) AllocateShares() RefreshShare {
-// 	return RefreshShare{pp.context.ringQ.NewPoly(),
-// 		pp.context.ringQ.NewPoly()}
-// }
-
-// // GenShares generates the shares of the PermuteProtocol
-// func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, permutation []uint64, share RefreshShare) {
-
-// 	level := uint64(len(ciphertext.Value[1].Coeffs) - 1)
-
-// 	ringQ := pp.context.ringQ
-// 	ringT := pp.context.ringT
-// 	ringQP := pp.context.ringQP
-
-// 	// h0 = s*ct[1]
-// 	ringQ.NTTLazy(ciphertext.Value[1], pp.tmp1)
-// 	ringQ.MulCoeffsMontgomeryConstant(sk, pp.tmp1, share.RefreshShareDecrypt)
-// 	ringQ.InvNTTLazy(share.RefreshShareDecrypt, share.RefreshShareDecrypt)
-
-// 	// h0 = s*ct[1]*P
-// 	ringQ.MulScalarBigint(share.RefreshShareDecrypt, pp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
-
-// 	// h0 = s*ct[1]*P + e
-// 	pp.gaussianSampler.ReadLvl(uint64(len(ringQP.Modulus)-1), pp.tmp1)
-// 	ringQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
-
-// 	for x, i := 0, uint64(len(ringQ.Modulus)); i < uint64(len(pp.context.ringQP.Modulus)); x, i = x+1, i+1 {
-// 		tmphP := pp.hP.Coeffs[x]
-// 		tmp1 := pp.tmp1.Coeffs[i]
-// 		for j := uint64(0); j < ringQ.N; j++ {
-// 			tmphP[j] += tmp1[j]
-// 		}
-// 	}
-
-// 	// h0 = (s*ct[1]*P + e)/P
-// 	pp.baseconverter.ModDownSplitPQ(level, share.RefreshShareDecrypt, pp.hP, share.RefreshShareDecrypt)
-
-// 	// h1 = -s*a
-// 	ringQP.Neg(crs, pp.tmp1)
-// 	ringQP.NTTLazy(pp.tmp1, pp.tmp1)
-// 	ringQP.MulCoeffsMontgomeryConstant(sk, pp.tmp1, pp.tmp2)
-// 	ringQP.InvNTTLazy(pp.tmp2, pp.tmp2)
-
-// 	// h1 = s*a + e'
-// 	pp.gaussianSampler.ReadAndAdd(pp.tmp2)
-
-// 	// h1 = (-s*a + e')/P
-// 	pp.baseconverter.ModDownPQ(level, pp.tmp2, share.RefreshShareRecrypt)
-
-// 	// mask = (uniform plaintext in [0, T-1]) * floor(Q/T)
-
-// 	// Mask in the time domain
-// 	coeffs := pp.uniformSampler.ReadNew()
-
-// 	// Multiply by Q/t
-// 	lift(coeffs, pp.tmp1, pp.context)
-
-// 	// h0 = (s*ct[1]*P + e)/P + mask
-// 	ringQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
-
-// 	// Mask in the spectral domain
-// 	ringT.NTT(coeffs, coeffs)
-
-// 	// Permutation over the mask
-// 	pp.permuteWithIndex(coeffs, permutation, pp.tmp1)
-
-// 	// Switch back the mask in the time domain
-// 	ringT.InvNTTLazy(pp.tmp1, coeffs)
-
-// 	// Multiply by Q/t
-// 	lift(coeffs, pp.tmp1, pp.context)
-
-// 	// h1 = (-s*a + e')/P - permute(mask)
-// 	ringQ.Sub(share.RefreshShareRecrypt, pp.tmp1, share.RefreshShareRecrypt)
-// }
-
-// // Aggregate sums share1 and share2 on shareOut.
-// func (pp *PermuteProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
-// 	pp.context.ringQ.Add(share1.RefreshShareDecrypt, share2.RefreshShareDecrypt, shareOut.RefreshShareDecrypt)
-// 	pp.context.ringQ.Add(share1.RefreshShareRecrypt, share2.RefreshShareRecrypt, shareOut.RefreshShareRecrypt)
-// }
-
-// // Decrypt operates a masked decryption on the input ciphertext using the provided decryption shares.
-// func (pp *PermuteProtocol) Decrypt(ciphertext *bfv.Ciphertext, shareDecrypt RefreshShareDecrypt, sharePlaintext *ring.Poly) {
-// 	pp.context.ringQ.Add(ciphertext.Value[0], shareDecrypt, sharePlaintext)
-// }
-
-// // Permute decodes and re-encode (removing the error) the masked decrypted ciphertext with a permutation of the plaintext slots.
-// func (pp *PermuteProtocol) Permute(sharePlaintext *ring.Poly, permutation []uint64, sharePlaintextOut *ring.Poly) {
-
-// 	ringT := pp.context.ringT
-
-// 	pp.scaler.DivByQOverTRounded(sharePlaintext, sharePlaintextOut)
-
-// 	ringT.NTT(sharePlaintextOut, sharePlaintextOut)
-
-// 	pp.permuteWithIndex(sharePlaintextOut, permutation, pp.tmp1)
-
-// 	ringT.InvNTTLazy(pp.tmp1, sharePlaintextOut)
-
-// 	lift(sharePlaintextOut, sharePlaintextOut, pp.context)
-// }
-
-// // Recrypt recrypts the input masked decrypted ciphertext with the recryption shares.
-// func (pp *PermuteProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, shareRecrypt RefreshShareRecrypt, ciphertextOut *bfv.Ciphertext) {
-
-// 	// ciphertext[0] = (-crs*s + e')/P + permute(m)
-// 	pp.context.ringQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value[0])
-
-// 	// ciphertext[1] = crs/P
-// 	pp.baseconverter.ModDownPQ(uint64(len(ciphertextOut.Value[1].Coeffs)-1), crs, ciphertextOut.Value[1])
-
-// }
-
-// // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-// func (pp *PermuteProtocol) Finalize(ciphertext *bfv.Ciphertext, permutation []uint64, crs *ring.Poly, share RefreshShare, ciphertextOut *bfv.Ciphertext) {
-// 	pp.Decrypt(ciphertext, share.RefreshShareDecrypt, pp.tmp1)
-// 	pp.Permute(pp.tmp1, permutation, pp.tmp1)
-// 	pp.Recrypt(pp.tmp1, crs, share.RefreshShareRecrypt, ciphertextOut)
-// }
-
-// func (pp *PermuteProtocol) permuteWithIndex(polIn *ring.Poly, index []uint64, polOut *ring.Poly) {
-// 	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j++ {
-// 		polOut.Coeffs[0][pp.indexMatrix[j]] = polIn.Coeffs[0][pp.indexMatrix[index[j]]]
-// 	}
-// }
+// Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
+func (rfp *MaskedTransformProtocol) Finalize(ciphertext *bfv.Ciphertext, transform func(*ring.Poly, *ring.Poly), crs *ring.Poly, share MaskedTransformShare, ciphertextOut *bfv.Ciphertext) {
+	rfp.e2s.Finalize(nil, &share.e2sShare, ciphertext, &AdditiveShare{*rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
+	mask := rfp.tmpMask
+	if transform != nil {
+		transform(rfp.tmpMask, rfp.tmpMaskPerm)
+		mask = rfp.tmpMaskPerm
+	}
+	rfp.encoder.EncodeUint(mask.Coeffs[0], &rfp.tmpPt) // tmpMask RingQ( Delta*(m - sum M_i))
+	rfp.ringQ.Add(rfp.tmpPt.Value[0], share.s2eShare.Value, ciphertextOut.Value[0])
+	rfp.s2e.Finalize(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, *ciphertextOut)
+}

@@ -49,7 +49,6 @@ func NewE2SProtocol(params bfv.Parameters, sigmaSmudging float64) *E2SProtocol {
 func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct *bfv.Ciphertext, secretShareOut AdditiveShare, publicShareOut *drlwe.CKSShare) {
 	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 	e2s.maskSampler.Read(&secretShareOut.Value)
-	secretShareOut.Value.Zero()
 	e2s.encoder.EncodeUint(secretShareOut.Value.Coeffs[0], e2s.tmpPlaintext)
 	e2s.ringQ.Sub(publicShareOut.Value, e2s.tmpPlaintext.Value[0], publicShareOut.Value)
 }

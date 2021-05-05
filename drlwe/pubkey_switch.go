@@ -84,36 +84,41 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct rl
 	// h_1 = u_i * pk_1
 	pcks.ringQP.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Value[1], pcks.share1tmp)
 
+	pcks.ringQP.InvNTT(pcks.share0tmp, pcks.share0tmp)
+	pcks.ringQP.InvNTT(pcks.share1tmp, pcks.share1tmp)
+
 	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSampler.Read(pcks.tmp)
-	pcks.ringQP.NTT(pcks.tmp, pcks.tmp)
-	pcks.ringQP.Add(pcks.share0tmp, pcks.tmp, pcks.share0tmp)
+	//pcks.gaussianSampler.Read(pcks.tmp)
+	//pcks.ringQP.NTT(pcks.tmp, pcks.tmp)
+	//pcks.ringQP.Add(pcks.share0tmp, pcks.tmp, pcks.share0tmp)
+	pcks.gaussianSampler.ReadAndAddLvl(len(pcks.ringQP.Modulus)-1, pcks.share0tmp)
+
 	// h_1 = u_i * pk_1 + e1
-	pcks.gaussianSampler.Read(pcks.tmp)
-	pcks.ringQP.NTT(pcks.tmp, pcks.tmp)
-	pcks.ringQP.Add(pcks.share1tmp, pcks.tmp, pcks.share1tmp)
+	//pcks.gaussianSampler.Read(pcks.tmp)
+	//pcks.ringQP.NTT(pcks.tmp, pcks.tmp)
+	//pcks.ringQP.Add(pcks.share1tmp, pcks.tmp, pcks.share1tmp)
+	pcks.gaussianSampler.ReadAndAddLvl(len(pcks.ringQP.Modulus)-1, pcks.share1tmp)
 
 	// h_0 = (u_i * pk_0 + e0)/P
-	pcks.baseconverter.ModDownNTTPQ(el.Level(), pcks.share0tmp, shareOut.Value[0])
+	pcks.baseconverter.ModDownPQ(el.Level(), pcks.share0tmp, shareOut.Value[0])
 
 	// h_1 = (u_i * pk_1 + e1)/P
 	// Cound be moved to the keyswitch part of the protocol, but the second element of the shares will be larger.
-	pcks.baseconverter.ModDownNTTPQ(el.Level(), pcks.share1tmp, shareOut.Value[1])
-
-	var c1NTT *ring.Poly
-	if el.IsNTT {
-		c1NTT = el.Value[1]
-	} else {
-		pcks.ringQ.NTT(el.Value[1], pcks.tmp)
-		c1NTT = pcks.tmp
-	}
+	pcks.baseconverter.ModDownPQ(el.Level(), pcks.share1tmp, shareOut.Value[1])
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-	pcks.ringQ.MulCoeffsMontgomeryAndAddLvl(el.Level(), c1NTT, sk.Value, shareOut.Value[0])
+	if el.IsNTT {
+		pcks.ringQ.NTTLvl(el.Level(), shareOut.Value[0], shareOut.Value[0])
+		pcks.ringQ.NTTLvl(el.Level(), shareOut.Value[1], shareOut.Value[1])
+		pcks.ringQ.MulCoeffsMontgomeryAndAddLvl(el.Level(), el.Value[1], sk.Value, shareOut.Value[0])
+	} else {
+		// tmp = s_i*c_1
+		pcks.ringQ.NTTLazy(el.Value[1], pcks.tmp)
+		pcks.ringQ.MulCoeffsMontgomeryConstant(pcks.tmp, sk.Value, pcks.tmp)
+		pcks.ringQ.InvNTT(pcks.tmp, pcks.tmp)
 
-	if !el.IsNTT { // if element was not in NTT, put it back in non-ntt form
-		pcks.ringQ.InvNTT(shareOut.Value[0], shareOut.Value[0])
-		pcks.ringQ.InvNTT(shareOut.Value[1], shareOut.Value[1])
+		// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
+		pcks.ringQ.Add(shareOut.Value[0], pcks.tmp, shareOut.Value[0])
 	}
 }
 

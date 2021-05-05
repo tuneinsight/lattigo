@@ -329,7 +329,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 
-		testCtx.evaluator.DropLevel(ciphertext, 1)
+		//testCtx.evaluator.DropLevel(ciphertext, 1)
 
 		type Party struct {
 			*PCKSProtocol

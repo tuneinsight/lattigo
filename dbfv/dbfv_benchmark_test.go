@@ -284,7 +284,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShares()
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
+	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
 	crp := crpGenerator.ReadNew()
 
 	ciphertext := bfv.NewCiphertextRandom(testCtx.prng, testCtx.params, 1)

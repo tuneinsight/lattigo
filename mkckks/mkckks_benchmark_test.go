@@ -23,7 +23,15 @@ func testString(opname string, parties uint64, params *ckks.Parameters) string {
 
 func BenchmarkMKCKKS(b *testing.B) {
 
-	for _, p := range ckks.DefaultParams {
+	for _, paramLit := range ckks.DefaultParams {
+
+		params, err := ckks.NewParametersFromLiteral(paramLit)
+		if err != nil {
+			panic(err)
+		}
+
+		p := &params
+
 		benchKeyGen(b, p)
 		benchAddTwoCiphertexts(b, p)
 		benchEncrypt(b, p)
@@ -42,12 +50,12 @@ func benchKeyGen(b *testing.B, params *ckks.Parameters) {
 		panic(err)
 	}
 
-	crs := mkrlwe.GenCommonPublicParam(params, prng)
+	crs := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
 
 	b.Run(testString("KeyGen/", 1, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			KeyGen(params, crs)
+			mkrlwe.KeyGen(&params.Parameters, crs)
 		}
 	})
 }
@@ -103,8 +111,8 @@ func benchRelin(b *testing.B, params *ckks.Parameters) {
 	cipher2 := participants[1].Encrypt(value2)
 
 	evaluator := NewMKEvaluator(params)
-	evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
-	publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+	evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+	publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
 	res := evaluator.Mul(cipher1, cipher2)
 

@@ -7,7 +7,6 @@ import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 // MKParticipant is a type for participants in a multi key ckks scheme
@@ -15,9 +14,9 @@ type MKParticipant interface {
 	GetID() uint64
 	GetEvaluationKey() *mkrlwe.MKEvaluationKey
 	GetPublicKey() *mkrlwe.MKPublicKey
-	Encrypt(values []complex128) *mkrlwe.MKCiphertext
-	Decrypt(cipher *mkrlwe.MKCiphertext, partialDecryptions []*ring.Poly) []complex128
-	GetPartialDecryption(ciphertext *mkrlwe.MKCiphertext) *ring.Poly
+	Encrypt(values []complex128) *MKCiphertext
+	Decrypt(cipher *MKCiphertext, partialDecryptions []*ring.Poly) []complex128
+	GetPartialDecryption(ciphertext *MKCiphertext) *ring.Poly
 	GetRotationKeys(rot int) *mkrlwe.MKEvalGalKey
 	GetSecretKey() *mkrlwe.MKSecretKey
 	SetSecretKey(newKey *mkrlwe.MKSecretKey)
@@ -30,7 +29,7 @@ type mkParticipant struct {
 	keys      *mkrlwe.MKKeys
 	encoder   ckks.Encoder
 	ringQ     *ring.Ring
-	params    *rlwe.Parameters
+	params    *ckks.Parameters
 }
 
 // GetID returns the id of the participant
@@ -49,7 +48,7 @@ func (participant *mkParticipant) GetPublicKey() *mkrlwe.MKPublicKey {
 }
 
 // Encrypt constructs a ciphertext from the given values
-func (participant *mkParticipant) Encrypt(values []complex128) *mkrlwe.MKCiphertext {
+func (participant *mkParticipant) Encrypt(values []complex128) *MKCiphertext {
 	if values == nil || len(values) <= 0 {
 		panic("Cannot encrypt uninitialized or empty values")
 	}
@@ -57,7 +56,7 @@ func (participant *mkParticipant) Encrypt(values []complex128) *mkrlwe.MKCiphert
 }
 
 // Decrypt returns the decryption of the ciphertext given the partial decryption
-func (participant *mkParticipant) Decrypt(cipher *mkrlwe.MKCiphertext, partialDecryptions []*ring.Poly) []complex128 {
+func (participant *mkParticipant) Decrypt(cipher *MKCiphertext, partialDecryptions []*ring.Poly) []complex128 {
 
 	if cipher == nil || cipher.Ciphertexts == nil || len(cipher.Ciphertexts.Value) < 2 {
 		panic("Cannot decrypt uninitialized ciphertext nor ciphertext containing only one value")
@@ -67,14 +66,18 @@ func (participant *mkParticipant) Decrypt(cipher *mkrlwe.MKCiphertext, partialDe
 		panic("Decryption necessitates at least one partialy decrypted ciphertext")
 	}
 
-	decrypted := participant.decryptor.MergeDec(cipher.Ciphertexts.Value[0], cipher.Ciphertexts.Scale(), cipher.Ciphertexts.Level(), partialDecryptions)
+	decrypted := participant.decryptor.MergeDec(cipher.Ciphertexts.Value[0], cipher.Ciphertexts.Level(), partialDecryptions)
 
-	return participant.encoder.Decode(decrypted, participant.params.LogSlots())
+	pt := ckks.NewPlaintext(*participant.params, cipher.Ciphertexts.Level(), cipher.Ciphertexts.Scale())
+
+	pt.SetValue(decrypted)
+
+	return participant.encoder.Decode(pt, participant.params.LogSlots())
 }
 
 // GetPartialDecryption returns the partial decryption of an element in the ciphertext
 // this function should only be used by participants that were involved in the given ciphertext
-func (participant *mkParticipant) GetPartialDecryption(ciphertext *mkrlwe.MKCiphertext) *ring.Poly {
+func (participant *mkParticipant) GetPartialDecryption(ciphertext *MKCiphertext) *ring.Poly {
 
 	cipherPart := participant.getCiphertextPart(ciphertext)
 
@@ -86,7 +89,7 @@ func (participant *mkParticipant) GetPartialDecryption(ciphertext *mkrlwe.MKCiph
 
 // NewParticipant creates a participant for the multi key ckks scheme
 // the ckks parameters as well as the standard deviation used for partial decryption must be provided
-func NewParticipant(params *rlwe.Parameters, sigmaSmudging float64, crs *mkrlwe.MKDecomposedPoly) MKParticipant {
+func NewParticipant(params *ckks.Parameters, sigmaSmudging float64, crs *mkrlwe.MKDecomposedPoly) MKParticipant {
 
 	if crs == nil || params == nil {
 		panic("Uninitialized parameters. Cannot create new participant")
@@ -100,7 +103,7 @@ func NewParticipant(params *rlwe.Parameters, sigmaSmudging float64, crs *mkrlwe.
 		panic("CRS must be the same dimention as returned by the function ckks.Parameters.Beta()")
 	}
 
-	keys := mkrlwe.KeyGen(params, mkrlwe.CopyNewDecomposed(crs))
+	keys := mkrlwe.KeyGen(&params.Parameters, mkrlwe.CopyNewDecomposed(crs))
 
 	uid := hashPublicKey(keys.PublicKey.Key)
 
@@ -109,9 +112,9 @@ func NewParticipant(params *rlwe.Parameters, sigmaSmudging float64, crs *mkrlwe.
 	keys.EvalKey.PeerID = uid
 
 	encryptor := NewMKEncryptor(keys.PublicKey, params, uid)
-	decryptor := mkrlwe.NewMKDecryptor(params, sigmaSmudging)
-	encoder := ckks.NewEncoder(params)
-	ringQ := mkrlwe.GetRingQ(params)
+	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, sigmaSmudging)
+	encoder := ckks.NewEncoder(*params)
+	ringQ := mkrlwe.GetRingQ(&params.Parameters)
 
 	return &mkParticipant{
 		id:        uid,
@@ -149,9 +152,9 @@ func uintToBytes(i uint64) []byte {
 }
 
 // returns the part of the ciphertext corresponding to the participant
-func (participant *mkParticipant) getCiphertextPart(ciphertext *mkrlwe.MKCiphertext) *ring.Poly {
+func (participant *mkParticipant) getCiphertextPart(ciphertext *MKCiphertext) *ring.Poly {
 
-	for i, v := range ciphertext.PeerIDs {
+	for i, v := range ciphertext.PeerID {
 
 		if v == participant.id {
 			return ciphertext.Ciphertexts.Value[i+1]
@@ -167,7 +170,7 @@ func (participant *mkParticipant) GetRotationKeys(rot int) *mkrlwe.MKEvalGalKey 
 
 	galEl := participant.params.GaloisElementForColumnRotationBy(rot)
 
-	evalKey := mkrlwe.GaloisEvaluationKeyGen(galEl, participant.keys.SecretKey, participant.params)
+	evalKey := mkrlwe.GaloisEvaluationKeyGen(galEl, participant.keys.SecretKey, &participant.params.Parameters)
 	evalKey.PeerID = participant.id
 
 	return evalKey

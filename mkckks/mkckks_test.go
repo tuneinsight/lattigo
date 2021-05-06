@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/require"
@@ -18,8 +19,15 @@ var minPrec = 13.0
 func Test_MKCKKS(t *testing.T) {
 
 	//skip parameter 4 due to memory consumption
-	for i, p := range ckks.DefaultParams {
-		if i != 4 && i != 9 && i != ckks.PN12QP109 {
+	for i, paramLit := range ckks.DefaultParams {
+
+		params, err := ckks.NewParametersFromLiteral(paramLit)
+		if err != nil {
+			panic(err)
+		}
+		p := &params
+
+		if i != 4 && i != 9 && i != 0 {
 
 			testEncryptionEqualsDecryption(t, p)
 			testEncryptionEqualsDecryptionWithSecretKey(t, p)
@@ -45,7 +53,7 @@ func Test_MKCKKS(t *testing.T) {
 			testSquare(t, p)
 			testMul(t, p)
 			testMulAfterAdd(t, p)
-			if i != ckks.PN12QP101pq && i != ckks.PN13QP202pq {
+			if i != 5 && i != 6 {
 				testAddAfterMul(t, p)
 				testMulFourParticipants(t, p)
 			}
@@ -561,7 +569,7 @@ func testTensorTwoParticipants(t *testing.T, params *ckks.Parameters) {
 		sk1 := participants[0].GetSecretKey()
 		sk2 := participants[1].GetSecretKey()
 
-		decrypted := DecryptMul([]*MKSecretKey{sk1, sk2}, resCipher, params)
+		decrypted := DecryptMul([]*mkrlwe.MKSecretKey{sk1, sk2}, resCipher, params)
 
 		// perform the operation in the plaintext space
 		for i := 0; i < len(values1); i++ {
@@ -594,7 +602,7 @@ func testTensor(t *testing.T, params *ckks.Parameters) {
 		// decrypt using all secret keys
 		sk1 := participants[0].GetSecretKey()
 
-		decrypted := DecryptMul([]*MKSecretKey{sk1}, resCipher, params)
+		decrypted := DecryptMul([]*mkrlwe.MKSecretKey{sk1}, resCipher, params)
 
 		// perform the operation in the plaintext space
 		for i := 0; i < len(values1); i++ {
@@ -627,22 +635,22 @@ func testTensor2(t *testing.T, params *ckks.Parameters) {
 		// decrypt using all secret keys
 		sk1 := participants[0].GetSecretKey()
 
-		innerP1, innerP2 := DecryptAndCompare([]*MKSecretKey{sk1}, resCipher, params, cipher1, cipher1)
+		innerP1, innerP2 := DecryptAndCompare([]*mkrlwe.MKSecretKey{sk1}, resCipher, params, cipher1, cipher1)
 
-		plaintext := ckks.NewPlaintext(params, cipher1.ciphertexts.Level(), cipher1.ciphertexts.Scale()*cipher1.ciphertexts.Scale())
+		plaintext := ckks.NewPlaintext(*params, cipher1.Ciphertexts.Level(), cipher1.Ciphertexts.Scale()*cipher1.Ciphertexts.Scale())
 
-		plaintext.SetValue([]*ring.Poly{innerP2})
+		plaintext.SetValue(innerP2)
 
-		encoder := ckks.NewEncoder(params)
+		encoder := ckks.NewEncoder(*params)
 
-		decrypted := encoder.Decode(plaintext.Plaintext(), params.LogSlots())
+		decrypted := encoder.Decode(plaintext, params.LogSlots())
 
 		// perform the operation in the plaintext space
 		for i := 0; i < len(values1); i++ {
 			values1[i] *= values1[i]
 		}
 
-		require.Equal(t, true, EqualsPoly(innerP1, innerP2))
+		require.Equal(t, true, mkrlwe.EqualsPoly(innerP1, innerP2))
 
 		verifyTestVectors(params, values1, decrypted, t)
 	})
@@ -664,8 +672,8 @@ func testSquare(t *testing.T, params *ckks.Parameters) {
 
 		// evaluate multiplication
 		evaluator := NewMKEvaluator(params)
-		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey()}
-		publicKeys := []*MKPublicKey{participants[0].GetPublicKey()}
+		evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey()}
+		publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey()}
 
 		resCipher := evaluator.Mul(cipher1, cipher1)
 
@@ -693,8 +701,8 @@ func testKeySwitch(t *testing.T, params *ckks.Parameters) {
 
 	participants := setupPeers(1, params, sigma)
 
-	newKey := KeyGen(params, participants[0].GetPublicKey().key[1])
-	swk := GenSwitchingKey(participants[0].GetSecretKey(), newKey.secretKey, params)
+	newKey := mkrlwe.KeyGen(&params.Parameters, participants[0].GetPublicKey().Key[1])
+	swk := mkrlwe.GenSwitchingKey(participants[0].GetSecretKey(), newKey.SecretKey, &params.Parameters)
 
 	t.Run(testString("Test key switch/", 1, params), func(t *testing.T) {
 
@@ -710,7 +718,7 @@ func testKeySwitch(t *testing.T, params *ckks.Parameters) {
 		newCipher := evaluator.SwitchKeysNew(cipher, swk)
 
 		//participant changes its secret key for decryption
-		participants[0].SetSecretKey(newKey.secretKey)
+		participants[0].SetSecretKey(newKey.SecretKey)
 
 		// decrypt
 		partialDec := participants[0].GetPartialDecryption(newCipher)
@@ -740,8 +748,8 @@ func testMul(t *testing.T, params *ckks.Parameters) {
 
 		// evaluate multiplication
 		evaluator := NewMKEvaluator(params)
-		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
-		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+		evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+		publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
 		resCipher := evaluator.Mul(cipher1, cipher2)
 
@@ -786,8 +794,8 @@ func testAddAfterMul(t *testing.T, params *ckks.Parameters) {
 
 		// pad and add in 2 steps
 		evaluator := NewMKEvaluator(params)
-		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
-		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
+		evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
+		publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
 
 		resCipher1 := evaluator.Mul(cipher1, cipher2)
 		resCipher2 := evaluator.Mul(cipher3, cipher4)
@@ -865,8 +873,8 @@ func testMulAfterAdd(t *testing.T, params *ckks.Parameters) {
 
 		// pad and add in 2 steps
 		evaluator := NewMKEvaluator(params)
-		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
-		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
+		evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
+		publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
 
 		resCipher1 := evaluator.Add(cipher1, cipher2)
 		resCipher2 := evaluator.Add(cipher3, cipher4)
@@ -916,8 +924,8 @@ func testMulFourParticipants(t *testing.T, params *ckks.Parameters) {
 
 		// pad and add in 2 steps
 		evaluator := NewMKEvaluator(params)
-		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
-		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
+		evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
+		publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
 
 		resCipher1 := evaluator.Mul(cipher1, cipher2)
 		resCipher2 := evaluator.Mul(cipher3, cipher4)
@@ -995,7 +1003,7 @@ func testRotation(t *testing.T, params *ckks.Parameters) {
 			rotKey := participants[0].GetRotationKeys(n)
 
 			values2 := utils.RotateComplex128Slice(values1, n)
-			resCipher := evaluator.Rotate(cipher1, n, []*MKEvalGalKey{rotKey})
+			resCipher := evaluator.Rotate(cipher1, n, []*mkrlwe.MKEvalGalKey{rotKey})
 
 			partialDec := participants[0].GetPartialDecryption(resCipher)
 
@@ -1040,7 +1048,7 @@ func testRotationTwoParticipants(t *testing.T, params *ckks.Parameters) {
 			rotKey2 := participants[1].GetRotationKeys(n)
 
 			rotated := utils.RotateComplex128Slice(values1, n)
-			resCipher := evaluator.Rotate(added, n, []*MKEvalGalKey{rotKey1, rotKey2})
+			resCipher := evaluator.Rotate(added, n, []*mkrlwe.MKEvalGalKey{rotKey1, rotKey2})
 
 			partialDec1 := participants[0].GetPartialDecryption(resCipher)
 			partialDec2 := participants[1].GetPartialDecryption(resCipher)
@@ -1061,9 +1069,9 @@ func Test_Utils(t *testing.T) {
 
 	expected := []uint64{0, 1, 2, 3, 7, 12}
 
-	res := MergeSlices(s1, s2)
+	res := mkrlwe.MergeSlices(s1, s2)
 
-	if !EqualsSlice(expected, res) {
+	if !mkrlwe.EqualsSlice(expected, res) {
 		t.Errorf("MergeSlices method failed test")
 	}
 
@@ -1081,7 +1089,7 @@ func setupPeers(peerNbr uint64, params *ckks.Parameters, sigmaSmudging float64) 
 		panic(err)
 	}
 
-	a := GenCommonPublicParam(params, prng)
+	a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
 
 	for i := 0; i < int(peerNbr); i++ {
 
@@ -1254,13 +1262,13 @@ func calcmedian(values []complex128) (median complex128) {
 
 // DecryptMul takes secret keys of k participants and a multikey ciphertext ct of dimension (k+1) ** 2 = ct1 * ct2
 // Computes < ct, sk*sk > in order to check that it is equal to the product of plaintexts
-func DecryptMul(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []complex128 {
+func DecryptMul(keys []*mkrlwe.MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []complex128 {
 
-	ringQ := GetRingQ(params)
-	ringQP := GetRingQP(params)
+	ringQ := mkrlwe.GetRingQ(&params.Parameters)
+	ringQP := mkrlwe.GetRingQP(&params.Parameters)
 
 	// Compute the tensor product of the secret keys : sk * sk
-	level := ct.ciphertexts.Level()
+	level := ct.Ciphertexts.Level()
 	nbrElements := len(keys) + 1
 	tensorDim := nbrElements * nbrElements
 
@@ -1270,25 +1278,25 @@ func DecryptMul(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) 
 		keyTensor[i] = ringQP.NewPoly()
 	}
 
-	if len(ct.peerIDs) == 1 {
+	if len(ct.PeerID) == 1 {
 
-		keyTensor[1] = keys[0].key.Value
-		keyTensor[2] = keys[0].key.Value
-		ringQP.MulCoeffsMontgomery(keys[0].key.Value, keys[0].key.Value, keyTensor[3])
+		keyTensor[1] = keys[0].Key.Value
+		keyTensor[2] = keys[0].Key.Value
+		ringQP.MulCoeffsMontgomery(keys[0].Key.Value, keys[0].Key.Value, keyTensor[3])
 
-	} else if len(ct.peerIDs) == 2 {
+	} else if len(ct.PeerID) == 2 {
 
 		// detect if ciphertext (c01 * c02, 0, ..) or (c01 * c02, c1 * c02, ..)
-		if EqualsPoly(ringQ.NewPoly(), ct.ciphertexts.Value()[1]) {
+		if mkrlwe.EqualsPoly(ringQ.NewPoly(), ct.Ciphertexts.Value[1]) {
 
-			keyTensor[2] = keys[1].key.Value
-			keyTensor[3] = keys[0].key.Value
-			ringQP.MulCoeffsMontgomery(keys[0].key.Value, keys[1].key.Value, keyTensor[5])
+			keyTensor[2] = keys[1].Key.Value
+			keyTensor[3] = keys[0].Key.Value
+			ringQP.MulCoeffsMontgomery(keys[0].Key.Value, keys[1].Key.Value, keyTensor[5])
 
 		} else {
-			keyTensor[1] = keys[1].key.Value
-			keyTensor[6] = keys[0].key.Value
-			ringQP.MulCoeffsMontgomery(keys[0].key.Value, keys[1].key.Value, keyTensor[7])
+			keyTensor[1] = keys[1].Key.Value
+			keyTensor[6] = keys[0].Key.Value
+			ringQP.MulCoeffsMontgomery(keys[0].Key.Value, keys[1].Key.Value, keyTensor[7])
 		}
 
 	} else {
@@ -1299,58 +1307,58 @@ func DecryptMul(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) 
 	res := ringQ.NewPoly()
 
 	for i := 1; i < tensorDim; i++ {
-		ringQ.MulCoeffsMontgomeryAndAddLvl(level, keyTensor[i], ct.ciphertexts.Value()[i], res)
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, keyTensor[i], ct.Ciphertexts.Value[i], res)
 	}
 
-	ringQ.AddLvl(level, res, ct.ciphertexts.Value()[0], res)
+	ringQ.AddLvl(level, res, ct.Ciphertexts.Value[0], res)
 
 	ringQ.ReduceLvl(level, res, res)
 	res.Coeffs = res.Coeffs[:level+1]
 
-	plaintext := ckks.NewPlaintext(params, level, ct.ciphertexts.Scale())
+	plaintext := ckks.NewPlaintext(*params, level, ct.Ciphertexts.Scale())
 
-	plaintext.SetValue([]*ring.Poly{res})
+	plaintext.SetValue(res)
 
-	encoder := ckks.NewEncoder(params)
+	encoder := ckks.NewEncoder(*params)
 
-	return encoder.Decode(plaintext.Plaintext(), params.LogSlots())
+	return encoder.Decode(plaintext, params.LogSlots())
 }
 
 // DecryptSimple decrypt a ciphertext with only 1 participant involved using a private key
-func DecryptSimple(key *MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []complex128 {
+func DecryptSimple(key *mkrlwe.MKSecretKey, ct *MKCiphertext, params *ckks.Parameters) []complex128 {
 
-	ringQ := GetRingQ(params)
+	ringQ := mkrlwe.GetRingQ(&params.Parameters)
 
 	// Compute the tensor product of the secret keys : sk * sk
-	level := ct.ciphertexts.Level()
+	level := ct.Ciphertexts.Level()
 
 	// derypt with secret key
 	res := ringQ.NewPoly()
 
-	ringQ.MulCoeffsMontgomeryAndAddLvl(level, key.key.Value, ct.ciphertexts.Value()[1], res)
-	ringQ.AddLvl(level, res, ct.ciphertexts.Value()[0], res)
+	ringQ.MulCoeffsMontgomeryAndAddLvl(level, key.Key.Value, ct.Ciphertexts.Value[1], res)
+	ringQ.AddLvl(level, res, ct.Ciphertexts.Value[0], res)
 
 	ringQ.ReduceLvl(level, res, res)
 	res.Coeffs = res.Coeffs[:level+1]
 
-	plaintext := ckks.NewPlaintext(params, level, ct.ciphertexts.Scale())
+	plaintext := ckks.NewPlaintext(*params, level, ct.Ciphertexts.Scale())
 
-	plaintext.SetValue([]*ring.Poly{res})
+	plaintext.SetValue(res)
 
-	encoder := ckks.NewEncoder(params)
+	encoder := ckks.NewEncoder(*params)
 
-	return encoder.Decode(plaintext.Plaintext(), params.LogSlots())
+	return encoder.Decode(plaintext, params.LogSlots())
 }
 
 // DecryptAndCompare takes secret keys of k participants and a multikey ciphertext ct of dimension (k+1) ** 2 = ct1 * ct2
 // Computes < ct, sk*sk > in order to check that it is equal to <ct1,sk1>.<ct2,sk2>
-func DecryptAndCompare(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Parameters, ct1 *MKCiphertext, ct2 *MKCiphertext) (*ring.Poly, *ring.Poly) {
+func DecryptAndCompare(keys []*mkrlwe.MKSecretKey, ct *MKCiphertext, params *ckks.Parameters, ct1 *MKCiphertext, ct2 *MKCiphertext) (*ring.Poly, *ring.Poly) {
 
-	ringQ := GetRingQ(params)
-	ringQP := GetRingQP(params)
+	ringQ := mkrlwe.GetRingQ(&params.Parameters)
+	ringQP := mkrlwe.GetRingQP(&params.Parameters)
 
 	// Compute the tensor product of the secret keys : sk * sk
-	level := ct.ciphertexts.Level()
+	level := ct.Ciphertexts.Level()
 	nbrElements := len(keys) + 1
 	tensorDim := nbrElements * nbrElements
 
@@ -1358,18 +1366,18 @@ func DecryptAndCompare(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Param
 	for i := 0; i < tensorDim; i++ {
 		keyTensor[i] = ringQP.NewPoly()
 	}
-	keyTensor[1] = keys[0].key.Value
-	keyTensor[2] = keys[0].key.Value
-	ringQP.MulCoeffsMontgomery(keys[0].key.Value, keys[0].key.Value, keyTensor[3])
+	keyTensor[1] = keys[0].Key.Value
+	keyTensor[2] = keys[0].Key.Value
+	ringQP.MulCoeffsMontgomery(keys[0].Key.Value, keys[0].Key.Value, keyTensor[3])
 
 	// Compute inner product of two matrices -> compute tr(ct^T  sk*sk)
 	res := ringQ.NewPoly()
 
 	for i := 1; i < tensorDim; i++ {
-		ringQ.MulCoeffsMontgomeryAndAddLvl(level, keyTensor[i], ct.ciphertexts.Value()[i], res)
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, keyTensor[i], ct.Ciphertexts.Value[i], res)
 	}
 
-	ringQ.AddLvl(level, res, ct.ciphertexts.Value()[0], res)
+	ringQ.AddLvl(level, res, ct.Ciphertexts.Value[0], res)
 
 	ringQ.ReduceLvl(level, res, res)
 	res.Coeffs = res.Coeffs[:level+1]
@@ -1378,11 +1386,11 @@ func DecryptAndCompare(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Param
 	innerProduct1 := ringQ.NewPoly()
 	innerProduct2 := ringQ.NewPoly()
 
-	ringQ.MulCoeffsMontgomeryAndAddLvl(level, keys[0].key.Value, ct1.ciphertexts.Value()[1], innerProduct1)
-	ringQ.AddLvl(level, innerProduct1, ct1.ciphertexts.Value()[0], innerProduct1)
+	ringQ.MulCoeffsMontgomeryAndAddLvl(level, keys[0].Key.Value, ct1.Ciphertexts.Value[1], innerProduct1)
+	ringQ.AddLvl(level, innerProduct1, ct1.Ciphertexts.Value[0], innerProduct1)
 
-	ringQ.MulCoeffsMontgomeryAndAddLvl(level, keys[0].key.Value, ct2.ciphertexts.Value()[1], innerProduct2)
-	ringQ.AddLvl(level, innerProduct2, ct2.ciphertexts.Value()[0], innerProduct2)
+	ringQ.MulCoeffsMontgomeryAndAddLvl(level, keys[0].Key.Value, ct2.Ciphertexts.Value[1], innerProduct2)
+	ringQ.AddLvl(level, innerProduct2, ct2.Ciphertexts.Value[0], innerProduct2)
 
 	ringQ.ReduceLvl(level, innerProduct1, innerProduct1)
 	ringQ.ReduceLvl(level, innerProduct2, innerProduct2)
@@ -1390,7 +1398,7 @@ func DecryptAndCompare(keys []*MKSecretKey, ct *MKCiphertext, params *ckks.Param
 	innerProduct2.Coeffs = innerProduct2.Coeffs[:level+1]
 
 	mulInnerProduct := ringQ.NewPoly()
-	MulCoeffsAndAddLvl(level, innerProduct1, innerProduct2, mulInnerProduct, ringQ)
+	mkrlwe.MulCoeffsAndAddLvl(level, innerProduct1, innerProduct2, mulInnerProduct, ringQ)
 	ringQ.ReduceLvl(level, mulInnerProduct, mulInnerProduct)
 	mulInnerProduct.Coeffs = mulInnerProduct.Coeffs[:level+1]
 	return res, mulInnerProduct

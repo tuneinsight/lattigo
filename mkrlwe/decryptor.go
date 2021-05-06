@@ -1,26 +1,26 @@
-package mkckks
+package mkrlwe
 
 import (
-	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// MKDecryptor is a type for ckks decryptor in a multi key context
+// MKDecryptor is a type for mkrlwe decryptor in a multi key context
 type MKDecryptor interface {
 	PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *ring.Poly
-	MergeDec(c0 *ring.Poly, scale float64, level uint64, partialKeys []*ring.Poly) *ckks.Plaintext
+	MergeDec(c0 *ring.Poly, scale float64, level uint64, partialKeys []*ring.Poly) *rlwe.Element
 }
 
 type mkDecryptor struct {
-	params          *ckks.Parameters
+	params          *rlwe.Parameters
 	ringQ           *ring.Ring
 	samplerGaussian *ring.GaussianSampler
 }
 
-// NewMKDecryptor returns a decryptor for ckks in a multi key context
+// NewMKDecryptor returns a decryptor for rlwe in a multi key context
 // the standard deviation for the partial decryption must be provided
-func NewMKDecryptor(params *ckks.Parameters, sigmaSmudging float64) MKDecryptor {
+func NewMKDecryptor(params *rlwe.Parameters, sigmaSmudging float64) MKDecryptor {
 
 	ringQ := GetRingQ(params)
 
@@ -48,7 +48,7 @@ func (dec *mkDecryptor) PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *r
 	out := dec.samplerGaussian.ReadLvlNew(level) // TODO: in paper they want sigma > 3.2 for this error... but they don't tell how much...
 	dec.ringQ.NTTLvl(level, out, out)
 
-	dec.ringQ.MulCoeffsMontgomeryAndAddLvl(level, ct, sk.key.Value, out)
+	dec.ringQ.MulCoeffsMontgomeryAndAddLvl(level, ct, sk.Key.Value, out)
 
 	out.Coeffs = out.Coeffs[:level+1]
 
@@ -56,9 +56,9 @@ func (dec *mkDecryptor) PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *r
 }
 
 // MergeDec merges the partial decription parts and returns the plaintext. The first component of the ciphertext vector must be provided (c0)
-func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, scale float64, level uint64, partialKeys []*ring.Poly) *ckks.Plaintext {
+func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, scale float64, level uint64, partialKeys []*ring.Poly) *rlwe.Element {
 
-	plaintext := ckks.NewPlaintext(dec.params, level, scale)
+	plaintext := rlwe.NewElementAtLevel(*dec.params, 1, level)
 
 	res := dec.ringQ.NewPoly()
 	dec.ringQ.CopyLvl(level, c0, res)
@@ -72,5 +72,5 @@ func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, scale float64, level uint64, par
 
 	plaintext.SetValue([]*ring.Poly{res})
 
-	return plaintext.Plaintext()
+	return plaintext
 }

@@ -2,11 +2,12 @@ package mkckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/mkrlwe"
 )
 
 // MKEncryptor is an interface wrapping the ckks.Encryptor with the ring used for encryption
 type MKEncryptor interface {
-	EncryptMK(plaintext *ckks.Plaintext) *MKCiphertext
+	EncryptMK(plaintext *ckks.Plaintext) *mkrlwe.MKCiphertext
 }
 
 // mkEncryptor is a struct wrapping the ckks.Encryptor with the ring used for encryption
@@ -17,27 +18,28 @@ type mkEncryptor struct {
 }
 
 // NewMKEncryptor creates a new ckks encryptor fromm the given MKPublicKey and the ckks parameters
-func NewMKEncryptor(pk *MKPublicKey, params *ckks.Parameters, id uint64) MKEncryptor {
+func NewMKEncryptor(pk *mkrlwe.MKPublicKey, params *ckks.Parameters, id uint64) MKEncryptor {
 
 	ckksPublicKey := new(ckks.PublicKey)
-	ckksPublicKey.Value[0] = pk.key[0].poly[0] // b[0]
-	ckksPublicKey.Value[1] = pk.key[1].poly[0] // a[0]
+	ckksPublicKey.Value[0] = pk.Key[0].Poly[0] // b[0]
+	ckksPublicKey.Value[1] = pk.Key[1].Poly[0] // a[0]
 
-	return &mkEncryptor{ckks.NewEncryptorFromPk(params, ckksPublicKey), pk.peerID, params}
+	return &mkEncryptor{ckks.NewEncryptorFromPk(params, ckksPublicKey), pk.PeerID, params}
 }
 
 // EncryptMK encrypt the plaintext and put id in the ciphertext's peerIds
-func (encryptor *mkEncryptor) EncryptMK(plaintext *ckks.Plaintext) *MKCiphertext {
+func (encryptor *mkEncryptor) EncryptMK(plaintext *ckks.Plaintext) *mkrlwe.MKCiphertext {
 
-	mkCiphertext := new(MKCiphertext)
+	mkCiphertext := new(mkrlwe.MKCiphertext)
 
 	if encryptor.params.PiCount() != 0 {
-		mkCiphertext.ciphertexts = encryptor.ckksEncryptor.EncryptNew(plaintext)
+		mkCiphertext.Ciphertexts = encryptor.ckksEncryptor.EncryptNew(plaintext)
+
 	} else {
-		mkCiphertext.ciphertexts = encryptor.ckksEncryptor.EncryptFastNew(plaintext)
+		mkCiphertext.Ciphertexts = encryptor.ckksEncryptor.EncryptFastNew(plaintext)
 	}
 
-	mkCiphertext.peerIDs = []uint64{encryptor.peerID}
+	mkCiphertext.PeerIDs = []uint64{encryptor.peerID}
 
 	return mkCiphertext
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -41,7 +42,7 @@ func benchKeyGen(b *testing.B, params *ckks.Parameters) {
 		panic(err)
 	}
 
-	crs := GenCommonPublicParam(params, prng)
+	crs := mkrlwe.GenCommonPublicParam(params, prng)
 
 	b.Run(testString("KeyGen/", 1, params), func(b *testing.B) {
 

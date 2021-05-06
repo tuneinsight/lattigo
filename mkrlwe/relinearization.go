@@ -14,7 +14,7 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 	ringP := GetRingP(params)
 
 	baseconverter := ring.NewFastBasisExtender(ringQ, ringP)
-	level := ct.ciphertexts.Level()
+	level := ct.Ciphertexts.Level()
 
 	k := uint64(len(evaluationKeys))
 	restmpQ := make([]*ring.Poly, k+1)
@@ -28,7 +28,7 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 		res[i] = ringQ.NewPoly()
 	}
 
-	cipherParts := ct.ciphertexts.Value
+	cipherParts := ct.Ciphertexts.Value
 
 	for i := uint64(1); i <= k; i++ {
 
@@ -84,43 +84,43 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 
 	}
 
-	ct.ciphertexts.SetValue(res)
+	ct.Ciphertexts.SetValue(res)
 }
 
 // prepare evaluation key for operations in split crt basis
 func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluationKey) (d0Q, d1Q, d2Q, d0P, d1P, d2P *MKDecomposedPoly) {
 
-	di0 := evaluationKeys[i-1].key[0]
-	di1 := evaluationKeys[i-1].key[1]
-	di2 := evaluationKeys[i-1].key[2]
+	di0 := evaluationKeys[i-1].Key[0]
+	di1 := evaluationKeys[i-1].Key[1]
+	di2 := evaluationKeys[i-1].Key[2]
 
 	d0Q = new(MKDecomposedPoly)
-	d0Q.poly = make([]*ring.Poly, beta)
+	d0Q.Poly = make([]*ring.Poly, beta)
 	d1Q = new(MKDecomposedPoly)
-	d1Q.poly = make([]*ring.Poly, beta)
+	d1Q.Poly = make([]*ring.Poly, beta)
 	d2Q = new(MKDecomposedPoly)
-	d2Q.poly = make([]*ring.Poly, beta)
+	d2Q.Poly = make([]*ring.Poly, beta)
 	d0P = new(MKDecomposedPoly)
-	d0P.poly = make([]*ring.Poly, beta)
+	d0P.Poly = make([]*ring.Poly, beta)
 	d1P = new(MKDecomposedPoly)
-	d1P.poly = make([]*ring.Poly, beta)
+	d1P.Poly = make([]*ring.Poly, beta)
 	d2P = new(MKDecomposedPoly)
-	d2P.poly = make([]*ring.Poly, beta)
+	d2P.Poly = make([]*ring.Poly, beta)
 
 	for u := uint64(0); u < beta; u++ {
-		d0Q.poly[u] = di0.poly[u].CopyNew()
-		d0Q.poly[u].Coeffs = d0Q.poly[u].Coeffs[:level+1]
-		d1Q.poly[u] = di1.poly[u].CopyNew()
-		d1Q.poly[u].Coeffs = d1Q.poly[u].Coeffs[:level+1]
-		d2Q.poly[u] = di2.poly[u].CopyNew()
-		d2Q.poly[u].Coeffs = d2Q.poly[u].Coeffs[:level+1]
+		d0Q.Poly[u] = di0.Poly[u].CopyNew()
+		d0Q.Poly[u].Coeffs = d0Q.Poly[u].Coeffs[:level+1]
+		d1Q.Poly[u] = di1.Poly[u].CopyNew()
+		d1Q.Poly[u].Coeffs = d1Q.Poly[u].Coeffs[:level+1]
+		d2Q.Poly[u] = di2.Poly[u].CopyNew()
+		d2Q.Poly[u].Coeffs = d2Q.Poly[u].Coeffs[:level+1]
 
-		d0P.poly[u] = di0.poly[u].CopyNew()
-		d0P.poly[u].Coeffs = d0P.poly[u].Coeffs[modulus:]
-		d1P.poly[u] = di1.poly[u].CopyNew()
-		d1P.poly[u].Coeffs = d1P.poly[u].Coeffs[modulus:]
-		d2P.poly[u] = di2.poly[u].CopyNew()
-		d2P.poly[u].Coeffs = d2P.poly[u].Coeffs[modulus:]
+		d0P.Poly[u] = di0.Poly[u].CopyNew()
+		d0P.Poly[u].Coeffs = d0P.Poly[u].Coeffs[modulus:]
+		d1P.Poly[u] = di1.Poly[u].CopyNew()
+		d1P.Poly[u].Coeffs = d1P.Poly[u].Coeffs[modulus:]
+		d2P.Poly[u] = di2.Poly[u].CopyNew()
+		d2P.Poly[u].Coeffs = d2P.Poly[u].Coeffs[modulus:]
 	}
 
 	return
@@ -130,16 +130,16 @@ func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluati
 func preparePublicKey(j, level, modulus, beta uint64, publicKeys []*MKPublicKey) (pkQ, pkP *MKDecomposedPoly) {
 
 	pkQ = new(MKDecomposedPoly)
-	pkQ.poly = make([]*ring.Poly, beta)
+	pkQ.Poly = make([]*ring.Poly, beta)
 	pkP = new(MKDecomposedPoly)
-	pkP.poly = make([]*ring.Poly, beta)
+	pkP.Poly = make([]*ring.Poly, beta)
 
 	for u := uint64(0); u < beta; u++ {
-		pkQ.poly[u] = publicKeys[j-1].key[0].poly[u].CopyNew()
-		pkQ.poly[u].Coeffs = pkQ.poly[u].Coeffs[:level+1]
+		pkQ.Poly[u] = publicKeys[j-1].Key[0].Poly[u].CopyNew()
+		pkQ.Poly[u].Coeffs = pkQ.Poly[u].Coeffs[:level+1]
 
-		pkP.poly[u] = publicKeys[j-1].key[0].poly[u].CopyNew()
-		pkP.poly[u].Coeffs = pkP.poly[u].Coeffs[modulus:]
+		pkP.Poly[u] = publicKeys[j-1].Key[0].Poly[u].CopyNew()
+		pkP.Poly[u].Coeffs = pkP.Poly[u].Coeffs[modulus:]
 
 	}
 
@@ -172,8 +172,8 @@ func GInverse(p *ring.Poly, params *rlwe.Parameters, level uint64) (*MKDecompose
 
 	}
 
-	resQ.poly = polynomialsQ
-	resP.poly = polynomialsP
+	resQ.Poly = polynomialsQ
+	resP.Poly = polynomialsP
 
 	return resQ, resP
 }

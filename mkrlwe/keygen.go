@@ -65,16 +65,16 @@ func KeyGen(params *rlwe.Parameters, a *MKDecomposedPoly) *MKKeys {
 	keyBag := new(MKKeys)
 
 	// generate private and public mkrlwe keys
-	keyBag.secretKey = new(MKSecretKey)
-	keyBag.secretKey.key = GenSecretKey(ringQP)
+	keyBag.SecretKey = new(MKSecretKey)
+	keyBag.SecretKey.Key = GenSecretKey(ringQP)
 
 	//Public key = (b, a)
-	keyBag.publicKey = new(MKPublicKey)
-	keyBag.publicKey.key[0] = genPublicKey(keyBag.secretKey.key, params, ringQP, a)
-	keyBag.publicKey.key[1] = a
+	keyBag.PublicKey = new(MKPublicKey)
+	keyBag.PublicKey.Key[0] = genPublicKey(keyBag.SecretKey.Key, params, ringQP, a)
+	keyBag.PublicKey.Key[1] = a
 
 	// generate evaluation key. The evaluation key is used in the relinearization phase.
-	keyBag.evalKey = evaluationKeyGen(keyBag.secretKey, keyBag.publicKey, params, ringQP)
+	keyBag.EvalKey = evaluationKeyGen(keyBag.SecretKey, keyBag.PublicKey, params, ringQP)
 
 	return keyBag
 }
@@ -118,9 +118,9 @@ func genPublicKey(sk *rlwe.SecretKey, params *rlwe.Parameters, ringQP *ring.Ring
 	res = GetGaussianDecomposed(GetGaussianSampler(params, ringQP, prng), beta) // e in Rqp^d
 
 	for d := uint64(0); d < beta; d++ {
-		current := res.poly[d]
+		current := res.Poly[d]
 		ringQP.NTT(current, current)                                   // Pass ei in NTT
-		ringQP.MulCoeffsMontgomeryAndSub(sk.Value, a.poly[d], current) // bi = -s * ai + ei (mod qp)
+		ringQP.MulCoeffsMontgomeryAndSub(sk.Value, a.Poly[d], current) // bi = -s * ai + ei (mod qp)
 	}
 
 	return res
@@ -156,7 +156,7 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parame
 	d0 := GetGaussianDecomposed(gaussianSampler, beta) // e1 <- Gauss(Rqp^d)
 	d2 := GetGaussianDecomposed(gaussianSampler, beta) //e2 <- Gauss(Rqp^d)
 
-	a := pk.key[1] // a <- U(Rqp^d) second component of the public key
+	a := pk.Key[1] // a <- U(Rqp^d) second component of the public key
 
 	// multiply by P
 	scaledMu := ringQP.NewPoly()
@@ -176,21 +176,21 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parame
 
 	for i := uint64(0); i < beta; i++ {
 		// Gaussian is not in NTT, so we convert it to NTT
-		ringQP.NTTLazy(d0.poly[i], d0.poly[i]) // pass e1_i in NTT
-		ringQP.NTTLazy(d2.poly[i], d2.poly[i]) // pass e2_i in NTT
+		ringQP.NTTLazy(d0.Poly[i], d0.Poly[i]) // pass e1_i in NTT
+		ringQP.NTTLazy(d2.Poly[i], d2.Poly[i]) // pass e2_i in NTT
 
-		ringQP.MForm(d0.poly[i], d0.poly[i]) // pass e1_i in MForm
-		ringQP.MForm(d2.poly[i], d2.poly[i]) // pass e2_i in MForm
+		ringQP.MForm(d0.Poly[i], d0.Poly[i]) // pass e1_i in MForm
+		ringQP.MForm(d2.Poly[i], d2.Poly[i]) // pass e2_i in MForm
 
 		// the g_is mod q_i are either 0 or 1, so just need to compute sums
-		MultiplyByBaseAndAdd(scaledRandomValue, params, d0.poly[i], i)
-		MultiplyByBaseAndAdd(scaledMu, params, d2.poly[i], i)
+		MultiplyByBaseAndAdd(scaledRandomValue, params, d0.Poly[i], i)
+		MultiplyByBaseAndAdd(scaledMu, params, d2.Poly[i], i)
 
-		ringQP.InvMForm(d0.poly[i], d0.poly[i])
-		ringQP.InvMForm(d2.poly[i], d2.poly[i])
+		ringQP.InvMForm(d0.Poly[i], d0.Poly[i])
+		ringQP.InvMForm(d2.Poly[i], d2.Poly[i])
 
-		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, d1.poly[i], d0.poly[i])
-		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.poly[i], d2.poly[i])
+		ringQP.MulCoeffsMontgomeryAndSub(sk.Key.Value, d1.Poly[i], d0.Poly[i])
+		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.Poly[i], d2.Poly[i])
 
 	}
 
@@ -229,8 +229,8 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *rlwe.Parameters, p2 *ring.Poly,
 func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parameters, ringQ *ring.Ring) *MKEvaluationKey {
 
 	return &MKEvaluationKey{
-		key:    uniEnc(sk.key.Value, sk, pk, params, ringQ),
-		peerID: sk.peerID,
+		Key:    uniEnc(sk.Key.Value, sk, pk, params, ringQ),
+		PeerID: sk.PeerID,
 	}
 }
 
@@ -239,7 +239,7 @@ func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parameters,
 func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Parameters) *MKEvalGalKey {
 
 	res := new(MKEvalGalKey)
-	res.key = make([]*MKDecomposedPoly, 2)
+	res.Key = make([]*MKDecomposedPoly, 2)
 
 	ringQP := GetRingQP(params)
 
@@ -263,23 +263,23 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Paramete
 	permutedSecretKey := ringQP.NewPoly()
 	index := ring.PermuteNTTIndex(galEl, ringQP.N)
 
-	ring.PermuteNTTWithIndexLvl(uint64(len(ringQP.Modulus)-1), sk.key.Value, index, permutedSecretKey)
+	ring.PermuteNTTWithIndexLvl(uint64(len(ringQP.Modulus)-1), sk.Key.Value, index, permutedSecretKey)
 
 	ringQP.MulScalarBigint(permutedSecretKey, pBigInt, permutedSecretKey)
 
 	for i := uint64(0); i < params.Beta(); i++ {
-		ringQP.NTTLazy(h0.poly[i], h0.poly[i])
-		ringQP.MForm(h0.poly[i], h0.poly[i])
-		MultiplyByBaseAndAdd(permutedSecretKey, params, h0.poly[i], i)
+		ringQP.NTTLazy(h0.Poly[i], h0.Poly[i])
+		ringQP.MForm(h0.Poly[i], h0.Poly[i])
+		MultiplyByBaseAndAdd(permutedSecretKey, params, h0.Poly[i], i)
 
-		ringQP.InvMForm(h0.poly[i], h0.poly[i])
+		ringQP.InvMForm(h0.Poly[i], h0.Poly[i])
 
-		ringQP.MulCoeffsMontgomeryAndSub(sk.key.Value, h1.poly[i], h0.poly[i])
+		ringQP.MulCoeffsMontgomeryAndSub(sk.Key.Value, h1.Poly[i], h0.Poly[i])
 
 	}
 
-	res.key[0] = h0
-	res.key[1] = h1
+	res.Key[0] = h0
+	res.Key[1] = h1
 
 	return res
 }
@@ -290,7 +290,7 @@ func GetGaussianDecomposed(sampler *ring.GaussianSampler, dimension uint64) *MKD
 
 	for d := uint64(0); d < dimension; d++ {
 
-		res.poly = append(res.poly, sampler.ReadNew())
+		res.Poly = append(res.Poly, sampler.ReadNew())
 	}
 
 	return res
@@ -302,7 +302,7 @@ func GetUniformDecomposed(sampler *ring.UniformSampler, dimension uint64) *MKDec
 
 	for d := uint64(0); d < dimension; d++ {
 
-		res.poly = append(res.poly, sampler.ReadNew())
+		res.Poly = append(res.Poly, sampler.ReadNew())
 	}
 
 	return res
@@ -339,9 +339,9 @@ func GenSwitchingKey(skInput, skOutput *MKSecretKey, params *rlwe.Parameters) (s
 
 	ringQP := GetRingQP(params)
 	keygenPool := ringQP.NewPoly()
-	ringQP.Copy(skInput.key.Value, keygenPool)
-	switchingKey = NewMKSwitchingKey(ringQP, params, 2, skInput.peerID)
-	NewSwitchingKey(keygenPool, skOutput.key.Value, switchingKey, params)
+	ringQP.Copy(skInput.Key.Value, keygenPool)
+	switchingKey = NewMKSwitchingKey(ringQP, params, 2, skInput.PeerID)
+	NewSwitchingKey(keygenPool, skOutput.Key.Value, switchingKey, params)
 	keygenPool.Zero()
 	return switchingKey
 }
@@ -375,12 +375,12 @@ func NewSwitchingKey(skIn, skOut *ring.Poly, swk *MKSwitchingKey, params *rlwe.P
 	for i := uint64(0); i < beta; i++ {
 
 		// e
-		gaussianSampler.Read(swk.key[0].poly[i])
-		ringQP.NTTLazy(swk.key[0].poly[i], swk.key[0].poly[i])
-		ringQP.MForm(swk.key[0].poly[i], swk.key[0].poly[i])
+		gaussianSampler.Read(swk.Key[0].Poly[i])
+		ringQP.NTTLazy(swk.Key[0].Poly[i], swk.Key[0].Poly[i])
+		ringQP.MForm(swk.Key[0].Poly[i], swk.Key[0].Poly[i])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
-		uniformSampler.Read(swk.key[1].poly[i])
+		uniformSampler.Read(swk.Key[1].Poly[i])
 
 		// e + (skIn * P) * (q_star * q_tild) mod QP
 		//
@@ -389,10 +389,10 @@ func NewSwitchingKey(skIn, skOut *ring.Poly, swk *MKSwitchingKey, params *rlwe.P
 		// q_tild = q_star^-1 mod q_prod
 		//
 		// Therefore : (skIn * P) * (q_star * q_tild) = sk*P mod q[i*alpha+j], else 0
-		MultiplyByBaseAndAdd(skIn, params, swk.key[0].poly[i], i)
+		MultiplyByBaseAndAdd(skIn, params, swk.Key[0].Poly[i], i)
 
 		// (skIn * P) * (q_star * q_tild) - a * skOut + e mod QP
-		ringQP.MulCoeffsMontgomeryAndSub(swk.key[1].poly[i], skOut, swk.key[0].poly[i])
+		ringQP.MulCoeffsMontgomeryAndSub(swk.Key[1].Poly[i], skOut, swk.Key[0].Poly[i])
 	}
 
 	return

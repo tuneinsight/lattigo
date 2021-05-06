@@ -11,14 +11,14 @@ import (
 
 // Dot computes the dot product of two decomposed polynomials in ring^d and store the result in res
 func Dot(p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ring) *ring.Poly {
-	if len(p1.poly) != len(p2.poly) {
+	if len(p1.Poly) != len(p2.Poly) {
 		panic("Cannot compute dot product on vectors of different size !")
 	}
 
 	res := r.NewPoly()
 
-	for i := uint64(0); i < uint64(len(p1.poly)); i++ {
-		r.MulCoeffsAndAdd(p1.poly[i], p2.poly[i], res)
+	for i := uint64(0); i < uint64(len(p1.Poly)); i++ {
+		r.MulCoeffsAndAdd(p1.Poly[i], p2.Poly[i], res)
 	}
 
 	return res
@@ -26,15 +26,15 @@ func Dot(p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ring) *ring.Poly {
 
 // DotLvl computes the dot product of two decomposed polynomials in ringQ^d up to q_level and store the result in res
 func DotLvl(level uint64, p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ring) *ring.Poly {
-	if len(p1.poly) != len(p2.poly) {
+	if len(p1.Poly) != len(p2.Poly) {
 		panic("Cannot compute dot product on vectors of different size !")
 	}
 
 	res := r.NewPoly()
 
-	for i := uint64(0); i < uint64(len(p1.poly)); i++ {
+	for i := uint64(0); i < uint64(len(p1.Poly)); i++ {
 
-		MulCoeffsAndAddLvl(level, p1.poly[i], p2.poly[i], res, r)
+		MulCoeffsAndAddLvl(level, p1.Poly[i], p2.Poly[i], res, r)
 	}
 
 	return res

@@ -9,6 +9,7 @@ import (
 
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/mkbfv"
+	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -74,11 +75,18 @@ func main() {
 	}
 
 	// Use the defaultparams logN=14, logQP=438 with a plaintext modulus T=65537
-	params := bfv.DefaultParams[bfv.PN14QP438].WithT(65537)
+
+	paramsDef := bfv.PN14QP438
+	paramsDef.T = 65537
+	p, err := bfv.NewParametersFromLiteral(paramsDef)
+	if err != nil {
+		panic(err)
+	}
+	params := &p
 
 	sigma := 6.0
 
-	crs := mkbfv.GenCommonPublicParam(params, prng)
+	crs := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
 
 	// Setup each participant
 	participants := genParticipants(crs, params, sigma, NParties)
@@ -123,7 +131,7 @@ func main() {
 
 }
 
-func genParticipants(crs *mkbfv.MKDecomposedPoly, params *bfv.Parameters, sigmaSmudging float64, nbrParties int) []mkbfv.MKParticipant {
+func genParticipants(crs *mkrlwe.MKDecomposedPoly, params *bfv.Parameters, sigmaSmudging float64, nbrParties int) []mkbfv.MKParticipant {
 
 	res := make([]mkbfv.MKParticipant, nbrParties)
 
@@ -147,9 +155,9 @@ func genPartialDecryption(participants []mkbfv.MKParticipant, cipher *mkbfv.MKCi
 	return res
 }
 
-func getEvaluationKeys(participants []mkbfv.MKParticipant) []*mkbfv.MKEvaluationKey {
+func getEvaluationKeys(participants []mkbfv.MKParticipant) []*mkrlwe.MKEvaluationKey {
 
-	res := make([]*mkbfv.MKEvaluationKey, len(participants))
+	res := make([]*mkrlwe.MKEvaluationKey, len(participants))
 
 	for i, p := range participants {
 		res[i] = p.GetEvaluationKey()
@@ -158,9 +166,9 @@ func getEvaluationKeys(participants []mkbfv.MKParticipant) []*mkbfv.MKEvaluation
 	return res
 }
 
-func getPublicKeys(participants []mkbfv.MKParticipant) []*mkbfv.MKPublicKey {
+func getPublicKeys(participants []mkbfv.MKParticipant) []*mkrlwe.MKPublicKey {
 
-	res := make([]*mkbfv.MKPublicKey, len(participants))
+	res := make([]*mkrlwe.MKPublicKey, len(participants))
 
 	for i, p := range participants {
 		res[i] = p.GetPublicKey()
@@ -190,7 +198,7 @@ func encPhase(P []mkbfv.MKParticipant, values [][]uint64) (encInputs []*mkbfv.MK
 	return
 }
 
-func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiphertext, rlk []*mkbfv.MKEvaluationKey, pubKeys []*mkbfv.MKPublicKey) (encRes *mkbfv.MKCiphertext) {
+func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiphertext, rlk []*mkrlwe.MKEvaluationKey, pubKeys []*mkrlwe.MKPublicKey) (encRes *mkbfv.MKCiphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -219,8 +227,8 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiph
 				task.elapsedmultTask = runTimed(func() {
 					// 1) Multiplication and Relinearization of two input vectors
 					tmpRes := evaluator.Mul(task.op1, task.op2)
-					evaluator.RelinInPlace(tmpRes, getRelinKeyForParticipants(rlk, tmpRes.PeerIDs), getPublicKeyForParticipants(pubKeys, tmpRes.PeerIDs))
-					task.res.PeerIDs = tmpRes.PeerIDs
+					evaluator.RelinInPlace(tmpRes, getRelinKeyForParticipants(rlk, tmpRes.PeerID), getPublicKeyForParticipants(pubKeys, tmpRes.PeerID))
+					task.res.PeerID = tmpRes.PeerID
 					task.res.Ciphertexts = tmpRes.Ciphertexts
 				})
 				task.wg.Done()
@@ -288,12 +296,12 @@ func genInputs(params *bfv.Parameters, P []mkbfv.MKParticipant) (expRes []uint64
 	return
 }
 
-func getRelinKeyForParticipants(rlk []*mkbfv.MKEvaluationKey, peerID []uint64) []*mkbfv.MKEvaluationKey {
+func getRelinKeyForParticipants(rlk []*mkrlwe.MKEvaluationKey, peerID []uint64) []*mkrlwe.MKEvaluationKey {
 
-	res := make([]*mkbfv.MKEvaluationKey, 0)
+	res := make([]*mkrlwe.MKEvaluationKey, 0)
 
 	for _, v := range rlk {
-		if mkbfv.Contains(peerID, v.PeerID) >= 0 {
+		if mkrlwe.Contains(peerID, v.PeerID) >= 0 {
 			res = append(res, v)
 		}
 	}
@@ -301,12 +309,12 @@ func getRelinKeyForParticipants(rlk []*mkbfv.MKEvaluationKey, peerID []uint64) [
 	return res
 }
 
-func getPublicKeyForParticipants(pk []*mkbfv.MKPublicKey, peerID []uint64) []*mkbfv.MKPublicKey {
+func getPublicKeyForParticipants(pk []*mkrlwe.MKPublicKey, peerID []uint64) []*mkrlwe.MKPublicKey {
 
-	res := make([]*mkbfv.MKPublicKey, 0)
+	res := make([]*mkrlwe.MKPublicKey, 0)
 
 	for _, v := range pk {
-		if mkbfv.Contains(peerID, v.PeerID) >= 0 {
+		if mkrlwe.Contains(peerID, v.PeerID) >= 0 {
 			res = append(res, v)
 		}
 	}

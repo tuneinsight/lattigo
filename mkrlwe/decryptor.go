@@ -9,7 +9,7 @@ import (
 // MKDecryptor is a type for mkrlwe decryptor in a multi key context
 type MKDecryptor interface {
 	PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *ring.Poly
-	MergeDec(c0 *ring.Poly, scale float64, level uint64, partialKeys []*ring.Poly) *rlwe.Element
+	MergeDec(c0 *ring.Poly, level uint64, partialKeys []*ring.Poly) *ring.Poly
 }
 
 type mkDecryptor struct {
@@ -44,7 +44,7 @@ func NewMKDecryptor(params *rlwe.Parameters, sigmaSmudging float64) MKDecryptor 
 func (dec *mkDecryptor) PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *ring.Poly {
 
 	// mu_i = c_i * sk_i + e_i mod q
-
+	//dec.ringQ.NTTLazy(ct, ct)
 	out := dec.samplerGaussian.ReadLvlNew(level) // TODO: in paper they want sigma > 3.2 for this error... but they don't tell how much...
 	dec.ringQ.NTTLvl(level, out, out)
 
@@ -56,9 +56,7 @@ func (dec *mkDecryptor) PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *r
 }
 
 // MergeDec merges the partial decription parts and returns the plaintext. The first component of the ciphertext vector must be provided (c0)
-func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, scale float64, level uint64, partialKeys []*ring.Poly) *rlwe.Element {
-
-	plaintext := rlwe.NewElementAtLevel(*dec.params, 1, level)
+func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, level uint64, partialKeys []*ring.Poly) *ring.Poly {
 
 	res := dec.ringQ.NewPoly()
 	dec.ringQ.CopyLvl(level, c0, res)
@@ -70,7 +68,5 @@ func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, scale float64, level uint64, par
 	dec.ringQ.ReduceLvl(level, res, res)
 	res.Coeffs = res.Coeffs[:level+1]
 
-	plaintext.SetValue([]*ring.Poly{res})
-
-	return plaintext
+	return res
 }

@@ -4,13 +4,20 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
 func Test_MKBFV(t *testing.T) {
 
-	for i, p := range bfv.DefaultParams {
+	for i, paramLit := range bfv.DefaultParams {
+
+		params, err := bfv.NewParametersFromLiteral(paramLit)
+		if err != nil {
+			panic(err)
+		}
+		p := &params
 
 		testEncryptionEqualsDecryption(t, p)
 		testAdd(t, p)
@@ -440,107 +447,6 @@ func testAddFourParticipants(t *testing.T, params *bfv.Parameters) {
 
 }
 
-func Test_Dot(t *testing.T) {
-
-	params := bfv.DefaultParams[0]
-
-	ringT := getRingT(params)
-
-	t.Run(testString("Test Dot product/", 1, params), func(t *testing.T) {
-
-		expected1 := getRandomPlaintextValue(ringT, params)
-		expected2 := getRandomPlaintextValue(ringT, params)
-		// perform the operation in the plaintext space
-		expected := ringT.NewPoly()
-		p1 := ringT.NewPoly()
-		p2 := ringT.NewPoly()
-		p3 := ringT.NewPoly()
-		copy(p1.Coeffs[0], expected1)
-		copy(p2.Coeffs[0], expected2)
-
-		ringT.Add(p1, p2, expected)
-
-		// perform dot product in the plaintext space : multiply (pt1,pt2) by (1,1) and compare with Add(pt1,pt2)
-
-		decomposedPoly1 := NewDecomposedPoly(ringT, 2)
-		decomposedPoly1.poly[0] = p1
-		decomposedPoly1.poly[1] = p2
-		const1Int := make([]uint64, len(p1.Coeffs[0]))
-		for i := uint64(0); i < uint64(len(const1Int)); i++ {
-			const1Int[i] = 1
-		}
-		ringT.SetCoefficientsUint64(const1Int, p3)
-
-		decomposedPoly2 := NewDecomposedPoly(ringT, 2)
-		decomposedPoly2.poly[0] = p3 // set equal to 1
-		decomposedPoly2.poly[1] = p3 // set equal to 1
-
-		dotExpected := Dot(decomposedPoly1, decomposedPoly2, ringT)
-
-		if !equalsSlice(dotExpected.Coeffs[0], expected.Coeffs[0]) {
-			t.Error("Dot error")
-		}
-
-	})
-
-}
-
-/*
-func Test_TensorProduct(t *testing.T) {
-
-	params := bfv.DefaultParams[0]
-
-	sigma := 6.0
-
-	participants := setupPeers(2, params, sigma)
-
-	ringT := getRingT(params)
-	ringQ := GetRingQ(params)
-
-	t.Run(testString("Test Tensor product/", 2, params), func(t *testing.T) {
-
-		// Create two ciphertexts (c0,c1,0), (c0,0,c1) with c0 = 0, c1 = 1 and check that tensor product without rescaling = (0,0,0,0,0,0,0,1,0)
-		expected1 := getRandomPlaintextValue(ringT, params)
-		expected2 := getRandomPlaintextValue(ringT, params)
-
-		// encrypt
-		cipher1 := participants[0].Encrypt(expected1)
-		cipher2 := participants[1].Encrypt(expected2)
-
-		// Create 3 polynomials in ringQ then set coeffs to 1
-		p1 := ringQ.NewPoly()
-		const1Int := make([]uint64, len(p1.Coeffs[0]))
-		for i := uint64(0); i < uint64(len(const1Int)-1); i++ {
-			const1Int[i] = 100
-		}
-		const1Int[len(const1Int)-1] = 1
-		ringQ.SetCoefficientsUint64(const1Int, p1)
-
-		p2 := ringQ.NewPoly()
-		ringQ.SetCoefficientsUint64(const1Int, p2)
-
-		cipherPoly := make([]*ring.Poly, 2)
-
-		cipherPoly[0] = p1
-		cipherPoly[1] = p1
-
-		cipher1.ciphertexts.SetValue(cipherPoly)
-		cipher2.ciphertexts.SetValue(cipherPoly)
-
-		out1, out2 := PadCiphers(cipher1, cipher2, params) // (0,1,0), (0,0,1)
-
-		evaluator := NewMKEvaluator(params)
-		testPoly := evaluator.TensorAndRescale(out1.ciphertexts.El(), out2.ciphertexts.El())
-
-		if !equalsSlice(testPoly.ciphertexts.Value()[7].Coeffs[0], []uint64{0, 0, 0, 0, 0, 0, 0, 0, 1}) {
-			t.Error("tensor error")
-		}
-
-	})
-
-}
-*/
-
 func testMulPlaintext(t *testing.T, params *bfv.Parameters) {
 
 	sigma := 6.0
@@ -659,8 +565,8 @@ func testMul(t *testing.T, params *bfv.Parameters) {
 		evaluator := NewMKEvaluator(params)
 
 		// multiply using evaluation keys and public keys
-		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
-		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+		evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+		publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
 		resCipher := evaluator.Mul(cipher1, cipher2)
 
@@ -708,8 +614,8 @@ func testAddAfterMul(t *testing.T, params *bfv.Parameters) {
 		evaluator := NewMKEvaluator(params)
 
 		// multiply using evaluation keys and publick keys
-		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
-		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+		evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+		publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
 		resCipher := evaluator.Mul(cipher1, cipher2)
 
@@ -762,8 +668,8 @@ func testMulFourParticipants(t *testing.T, params *bfv.Parameters) {
 
 		// pad and multiply in 2 steps
 		evaluator := NewMKEvaluator(params)
-		evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
-		publicKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
+		evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
+		publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
 
 		resCipher1 := evaluator.Mul(cipher1, cipher2)
 		resCipher2 := evaluator.Mul(cipher3, cipher4)
@@ -828,7 +734,7 @@ func testRotation(t *testing.T, params *bfv.Parameters) {
 
 			rotKey := participants[0].GetRotationKeys(n)
 
-			resCipher := evaluator.Rotate(cipher1, n, []*MKEvalGalKey{rotKey})
+			resCipher := evaluator.Rotate(cipher1, n, []*mkrlwe.MKEvalGalKey{rotKey})
 
 			partialDec := participants[0].GetPartialDecryption(resCipher)
 
@@ -878,7 +784,7 @@ func testRotationTwoParticipants(t *testing.T, params *bfv.Parameters) {
 			rotKey1 := participants[0].GetRotationKeys(n)
 			rotKey2 := participants[1].GetRotationKeys(n)
 
-			resCipher := evaluator.Rotate(added, n, []*MKEvalGalKey{rotKey1, rotKey2})
+			resCipher := evaluator.Rotate(added, n, []*mkrlwe.MKEvalGalKey{rotKey1, rotKey2})
 
 			partialDec1 := participants[0].GetPartialDecryption(resCipher)
 			partialDec2 := participants[1].GetPartialDecryption(resCipher)
@@ -913,7 +819,7 @@ func Test_Utils(t *testing.T) {
 
 	expected := []uint64{0, 1, 2, 3, 7, 12}
 
-	res := MergeSlices(s1, s2)
+	res := mkrlwe.MergeSlices(s1, s2)
 
 	if !equalsSlice(expected, res) {
 		t.Errorf("MergeSlices method failed test")
@@ -967,7 +873,7 @@ func setupPeers(peersNbr uint64, params *bfv.Parameters, sigmaSmudging float64) 
 	}
 
 	// setup keys and public parameters
-	a := GenCommonPublicParam(params, prng)
+	a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
 
 	for i := 0; i < int(peersNbr); i++ {
 
@@ -981,7 +887,7 @@ func setupPeers(peersNbr uint64, params *bfv.Parameters, sigmaSmudging float64) 
 // returns a uniformly random slice of uint64 in RingT
 func getRandomPlaintextValue(ringT *ring.Ring, params *bfv.Parameters) []uint64 {
 
-	return GetRandomPoly(params, ringT).Coeffs[0]
+	return mkrlwe.GetRandomPoly(&params.Parameters, ringT).Coeffs[0]
 }
 
 // getRingT returns the ring from which the plaintexts will be sampled

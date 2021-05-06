@@ -49,3 +49,9 @@ func NewPlaintextMul(params Parameters) *PlaintextMul {
 	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }
+
+// SetValue set the value of the plaintext with the given polynomial
+func (plaintext *Plaintext) SetValue(p *ring.Poly) {
+	plaintext.value = p
+	plaintext.Element.Value[0] = p
+}

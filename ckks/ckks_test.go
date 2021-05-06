@@ -21,7 +21,7 @@ var flagParamString = flag.String("params", "", "specify the test cryptographic 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
 
-var minPrec float64 = 15.0
+var minPrec = 15.0
 
 func testString(testContext *testParams, opname string) string {
 	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%d/levels=%d/a=%d/b=%d",

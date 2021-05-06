@@ -8,13 +8,12 @@ import (
 // Relinearization implements the algorithm 3 in the appendix of the Chen paper
 // It does relin directly by linearizing each entry of the extended ciphertext and stores it in cPrime (of size k+1)
 // There are (k+1)**2 ciphertexts, and k pairs of (evaluation keys Di,bi)
-func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, ct *MKCiphertext, params *rlwe.Parameters) {
+func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, ct *[]*ring.Poly, params *rlwe.Parameters, level uint64) {
 
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
 
 	baseconverter := ring.NewFastBasisExtender(ringQ, ringP)
-	level := ct.Ciphertexts.Level()
 
 	k := uint64(len(evaluationKeys))
 	restmpQ := make([]*ring.Poly, k+1)
@@ -28,8 +27,6 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 		res[i] = ringQ.NewPoly()
 	}
 
-	cipherParts := ct.Ciphertexts.Value
-
 	for i := uint64(1); i <= k; i++ {
 
 		d0Q, d1Q, d2Q, d0P, d1P, d2P := prepareEvalKey(i, level, uint64(len(ringQ.Modulus)), params.Beta(), evaluationKeys)
@@ -38,7 +35,7 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 
 			pkQ, pkP := preparePublicKey(j, level, uint64(len(ringQ.Modulus)), params.Beta(), publicKeys)
 
-			decomposedIJQ, decomposedIJP := GInverse(cipherParts[i*(k+1)+j], params, level) // line 3
+			decomposedIJQ, decomposedIJP := GInverse((*ct)[i*(k+1)+j], params, level) // line 3
 
 			cIJtmpQ := DotLvl(level, decomposedIJQ, pkQ, ringQ)
 			cIJtmpP := Dot(decomposedIJP, pkP, ringP)
@@ -73,18 +70,18 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 	tmpModDown := ringQ.NewPoly()
 
 	baseconverter.ModDownSplitNTTPQ(level, restmpQ[0], restmpP[0], tmpModDown)
-	ringQ.AddLvl(level, cipherParts[0], tmpModDown, res[0])
+	ringQ.AddLvl(level, (*ct)[0], tmpModDown, res[0])
 
 	for i := uint64(1); i <= k; i++ {
 
-		ringQ.AddLvl(level, cipherParts[i], cipherParts[(k+1)*i], res[i])
+		ringQ.AddLvl(level, (*ct)[i], (*ct)[(k+1)*i], res[i])
 
 		baseconverter.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
 		ringQ.AddLvl(level, res[i], tmpModDown, res[i])
 
 	}
 
-	ct.Ciphertexts.SetValue(res)
+	*ct = res
 }
 
 // prepare evaluation key for operations in split crt basis

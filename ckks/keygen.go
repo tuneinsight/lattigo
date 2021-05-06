@@ -338,7 +338,7 @@ func computeBootstrappingDFTRotationList(logN, logSlots uint64, btpParams *Boots
 	rotKeyIndex = []uint64{}
 
 	var slots uint64 = 1 << logSlots
-	var dslots uint64 = slots
+	var dslots = slots
 	if logSlots < logN-1 {
 		dslots <<= 1
 	}

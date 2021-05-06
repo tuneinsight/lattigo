@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -15,13 +16,20 @@ func testString(opname string, parties uint64, params *bfv.Parameters) string {
 
 func Benchmark_MKBFV(b *testing.B) {
 
-	for _, p := range bfv.DefaultParams {
+	for _, paramLit := range bfv.DefaultParams {
+
+		params, err := bfv.NewParametersFromLiteral(paramLit)
+		if err != nil {
+			panic(err)
+		}
+		p := &params
+
 		benchKeyGen(b, p)
 		benchAddTwoCiphertexts(b, p)
 		benchEncrypt(b, p)
 		benchDecrypt(b, p)
 		benchPartialDecrypt(b, p)
-		//benchMultTwoCiphertexts(b, p)
+		benchMultTwoCiphertexts(b, p)
 	}
 }
 
@@ -33,12 +41,12 @@ func benchKeyGen(b *testing.B, params *bfv.Parameters) {
 		panic(err)
 	}
 
-	crs := GenCommonPublicParam(params, prng)
+	crs := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
 
 	b.Run(testString("KeyGen/", 1, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			KeyGen(params, crs)
+			mkrlwe.KeyGen(&params.Parameters, crs)
 		}
 	})
 }
@@ -102,8 +110,8 @@ func benchRelin(b *testing.B, params *bfv.Parameters) {
 	evaluator := NewMKEvaluator(params)
 	res := evaluator.Mul(cipher1, cipher2)
 
-	evalKeys := []*MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
-	pubKeys := []*MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+	evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+	pubKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
 	b.Run(testString("Relin/", 2, params), func(b *testing.B) {
 

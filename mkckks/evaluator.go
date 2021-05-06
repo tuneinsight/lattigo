@@ -220,7 +220,7 @@ func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKEva
 	checkParticipantsEvalKey(ct.PeerID, evalKeys)
 	checkParticipantsPubKey(ct.PeerID, publicKeys)
 
-	mkrlwe.Relinearization(evalKeys, publicKeys, &ct.Ciphertexts.Value, ct.PeerID, &eval.params.Parameters, ct.Ciphertexts.Level())
+	mkrlwe.Relinearization(evalKeys, publicKeys, &ct.Ciphertexts.Value, &eval.params.Parameters, ct.Ciphertexts.Level())
 }
 
 // Rescale takes a ciphertext at level l reduces it until it reaches its original

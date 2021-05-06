@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 // Decryptor is an interface for decryptors
@@ -17,24 +18,20 @@ type Decryptor interface {
 
 // decryptor is a structure used to decrypt ciphertexts. It stores the secret-key.
 type decryptor struct {
-	params   *Parameters
+	params   Parameters
 	ringQ    *ring.Ring
-	sk       *SecretKey
+	sk       *rlwe.SecretKey
 	polypool *ring.Poly
 }
 
 // NewDecryptor creates a new Decryptor from the parameters with the secret-key
 // given as input.
-func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
+func NewDecryptor(params Parameters, sk *rlwe.SecretKey) Decryptor {
 
-	var ringQ *ring.Ring
-	var err error
-	if ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
+	ringQ := params.RingQ()
 
 	return &decryptor{
-		params:   params.Copy(),
+		params:   params,
 		ringQ:    ringQ,
 		sk:       sk,
 		polypool: ringQ.NewPoly(),
@@ -52,11 +49,11 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, p *Plaintext) {
 	ringQ := decryptor.ringQ
 	tmp := decryptor.polypool
 
-	ringQ.NTTLazy(ciphertext.value[ciphertext.Degree()], p.value)
+	ringQ.NTTLazy(ciphertext.Value[ciphertext.Degree()], p.value)
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
 		ringQ.MulCoeffsMontgomery(p.value, decryptor.sk.Value, p.value)
-		ringQ.NTTLazy(ciphertext.value[i-1], tmp)
+		ringQ.NTTLazy(ciphertext.Value[i-1], tmp)
 		ringQ.Add(p.value, tmp, p.value)
 
 		if i&3 == 3 {

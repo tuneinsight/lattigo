@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 
 	//"log"
@@ -78,7 +79,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 func (btp *Bootstrapper) subSum(ct *Ciphertext) *Ciphertext {
 
-	for i := btp.params.logSlots; i < btp.params.MaxLogSlots(); i++ {
+	for i := btp.params.LogSlots(); i < btp.params.MaxLogSlots(); i++ {
 
 		btp.evaluator.Rotate(ct, 1<<i, btp.ctxpool)
 
@@ -92,13 +93,13 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 
 	ringQ := btp.evaluator.ringQ
 
-	ct.InvNTT(ringQ, ct.El())
+	ct.InvNTT(ringQ, &ct.Element.Element)
 
 	// Extend the ciphertext with zero polynomials.
-	for u := range ct.Value() {
-		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, btp.params.MaxLevel())...)
+	for u := range ct.Value {
+		ct.Value[u].Coeffs = append(ct.Value[u].Coeffs, make([][]uint64, btp.params.MaxLevel())...)
 		for i := uint64(1); i < btp.params.MaxLevel()+1; i++ {
-			ct.Value()[u].Coeffs[i] = make([]uint64, btp.params.N())
+			ct.Value[u].Coeffs[i] = make([]uint64, btp.params.N())
 		}
 	}
 
@@ -107,26 +108,26 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 	bredparams := ringQ.GetBredParams()
 
 	var coeff, qi uint64
-	for u := range ct.Value() {
+	for u := range ct.Value {
 
 		for j := uint64(0); j < btp.params.N(); j++ {
 
-			coeff = ct.Value()[u].Coeffs[0][j]
+			coeff = ct.Value[u].Coeffs[0][j]
 
 			for i := uint64(1); i < btp.params.MaxLevel()+1; i++ {
 
 				qi = ringQ.Modulus[i]
 
 				if coeff > (Q >> 1) {
-					ct.Value()[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
+					ct.Value[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
 				} else {
-					ct.Value()[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
+					ct.Value[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
 				}
 			}
 		}
 	}
 
-	ct.NTT(ringQ, ct.El())
+	ct.NTT(ringQ, &ct.Element.Element)
 
 	return ct
 }
@@ -198,7 +199,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	ringQ := btp.ringQ
 	ringP := btp.ringP
 	levelQ := vec.Level()
-	levelP := btp.params.PiCount() - 1
+	levelP := btp.params.PCount() - 1
 
 	var N1 uint64
 
@@ -248,7 +249,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	N1Rot := 0
 	N2Rot := 0
 
-	c0 := vec.value[0].CopyNew()
+	c0 := vec.Value[0].CopyNew()
 
 	ringQ.MulScalarBigintLvl(levelQ, c0, ringP.ModulusBigint, c0) // P*c0
 
@@ -303,8 +304,8 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 			// If i == 0
 			if state {
 				N1Rot++
-				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[0], tmpQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
-				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.value[1], tmpQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
+				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.Value[0], tmpQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[N1*j][0], vec.Value[1], tmpQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
 			}
 
 			galEl := btp.params.GaloisElementForColumnRotationBy(int(N1 * j))
@@ -313,7 +314,7 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 
 			// Outer loop rotations
 			ring.PermuteNTTWithIndexLvl(levelQ, tmpQ0, btp.permuteNTTIndex[galEl], tmpQ1) // phi(tmpRes_0)
-			ringQ.AddLvl(levelQ, res.value[0], tmpQ1, res.value[0])                       // res += phi(tmpRes)
+			ringQ.AddLvl(levelQ, res.Value[0], tmpQ1, res.Value[0])                       // res += phi(tmpRes)
 
 			rot := btp.permuteNTTIndex[galEl]
 
@@ -371,13 +372,13 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 	btp.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ2, tmpP2, tmpQ2) // sum(phi(c0 * P + d0_QP))/P
 	btp.baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ3, tmpP3, tmpQ3) // sum(phi(d1_QP))/P
 
-	ringQ.AddLvl(levelQ, res.value[0], tmpQ2, res.value[0]) // res += sum(phi(c0 * P + d0_QP))/P
-	ringQ.AddLvl(levelQ, res.value[1], tmpQ3, res.value[1]) // res += sum(phi(d1_QP))/P
+	ringQ.AddLvl(levelQ, res.Value[0], tmpQ2, res.Value[0]) // res += sum(phi(c0 * P + d0_QP))/P
+	ringQ.AddLvl(levelQ, res.Value[1], tmpQ3, res.Value[1]) // res += sum(phi(d1_QP))/P
 
 	if state { // Rotation by zero
 		N1Rot++
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[0], res.value[0]) // res += c0_Q * plaintext
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.value[1], res.value[1]) // res += c1_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.Value[0], res.Value[0]) // res += c0_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plainVectors.Vec[0][0], vec.Value[1], res.Value[1]) // res += c1_Q * plaintext
 	}
 
 	res.SetScale(plainVectors.Scale * vec.Scale())
@@ -391,15 +392,13 @@ func (btp *Bootstrapper) multiplyByDiagMatrice(vec *Ciphertext, plainVectors *df
 
 // RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
 // rotation by one element of the list. It is much faster than sequential calls to RotateColumns.
-func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint64, rotkeys *RotationKeySet) (cOutQ, cOutP map[uint64][2]*ring.Poly) {
+func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint64, rotkeys *rlwe.RotationKeySet) (cOutQ, cOutP map[uint64][2]*ring.Poly) {
 
 	// Pre-computation for rotations using hoisting
-	ringQ := eval.ringQ
-	ringP := eval.ringP
 
-	c2NTT := ct0.value[1]
-	c2InvNTT := ringQ.NewPoly() // IMPROVEMENT: maybe have a pre-allocated memory pool ?
-	ringQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
+	c2NTT := ct0.Value[1]
+	c2InvNTT := eval.ringQ.NewPoly() // IMPROVEMENT: maybe have a pre-allocated memory pool ?
+	eval.ringQ.InvNTTLvl(ct0.Level(), c2NTT, c2InvNTT)
 
 	alpha := eval.params.Alpha()
 	beta := uint64(math.Ceil(float64(ct0.Level()+1) / float64(alpha)))
@@ -409,8 +408,8 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint6
 	c2QiPDecomp := make([]*ring.Poly, beta)
 
 	for i := uint64(0); i < beta; i++ {
-		c2QiQDecomp[i] = ringQ.NewPoly()
-		c2QiPDecomp[i] = ringP.NewPoly()
+		c2QiQDecomp[i] = eval.ringQ.NewPoly()
+		c2QiPDecomp[i] = eval.ringP.NewPoly()
 		eval.decomposeAndSplitNTT(ct0.Level(), i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
 	}
 
@@ -418,14 +417,13 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint6
 
 	cOutQ = make(map[uint64][2]*ring.Poly)
 	cOutP = make(map[uint64][2]*ring.Poly)
-
 	for _, i := range rotations {
 
-		i &= ((ringQ.N >> 1) - 1)
+		i &= ((eval.ringQ.N >> 1) - 1)
 
 		if i != 0 {
 			cOutQ[i] = [2]*ring.Poly{eval.ringQ.NewPolyLvl(ct0.Level()), eval.ringQ.NewPolyLvl(ct0.Level())}
-			cOutP[i] = [2]*ring.Poly{eval.params.NewPolyP(), eval.params.NewPolyP()}
+			cOutP[i] = [2]*ring.Poly{eval.ringP.NewPoly(), eval.ringP.NewPoly()}
 			eval.permuteNTTHoistedNoModDown(ct0, c2QiQDecomp, c2QiPDecomp, i, rotkeys, cOutQ[i], cOutP[i])
 		}
 	}
@@ -436,7 +434,7 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []uint6
 	return
 }
 
-func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k uint64, rotKeys *RotationKeySet, ctOutQ, ctOutP [2]*ring.Poly) {
+func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k uint64, rotKeys *rlwe.RotationKeySet, ctOutQ, ctOutP [2]*ring.Poly) {
 
 	pool2Q := eval.poolQ[0]
 	pool3Q := eval.poolQ[1]
@@ -445,7 +443,7 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(ct0 *Ciphertext, c2QiQDecomp, 
 	pool3P := eval.poolP[1]
 
 	levelQ := ct0.Level()
-	levelP := eval.params.PiCount() - 1
+	levelP := eval.params.PCount() - 1
 
 	galEl := eval.params.GaloisElementForColumnRotationBy(int(k))
 	rtk := rotKeys.Keys[galEl]
@@ -470,18 +468,18 @@ func (btp *Bootstrapper) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphe
 	// the output scale after the polynomial evaluation followed by the double angle formula
 	// does not change the scale of the ciphertext.
 	for i := uint64(0); i < btp.SinRescal; i++ {
-		btp.scale *= float64(btp.params.qi[btp.StCLevel[0]+i+1])
+		btp.scale *= float64(btp.params.Q()[btp.StCLevel[0]+i+1])
 		btp.scale = math.Sqrt(btp.scale)
 	}
 
 	ct0 = btp.evaluateCheby(ct0)
 
-	ct0.DivScale(btp.deviation * btp.postscale / btp.params.scale)
+	ct0.DivScale(btp.deviation * btp.postscale / btp.params.Scale())
 
 	if ct1 != nil {
 		ct1.MulScale(btp.deviation)
 		ct1 = btp.evaluateCheby(ct1)
-		ct1.DivScale(btp.deviation * btp.postscale / btp.params.scale)
+		ct1.DivScale(btp.deviation * btp.postscale / btp.params.Scale())
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.

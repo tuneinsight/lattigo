@@ -6,6 +6,7 @@ import (
 	"math/cmplx"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -17,8 +18,11 @@ func chebyshevinterpolation() {
 	// and approximates the function 1/(exp(-x) + 1) over the range [-8, 8].
 	// The result is then parsed and compared to the expected result.
 
-	// Scheme params
-	params := ckks.DefaultParams[ckks.PN14QP438]
+	// Scheme params are taken directly from the proposed defaults
+	params, err := ckks.NewParametersFromLiteral(ckks.PN14QP438)
+	if err != nil {
+		panic(err)
+	}
 
 	encoder := ckks.NewEncoder(params)
 
@@ -36,7 +40,7 @@ func chebyshevinterpolation() {
 	decryptor := ckks.NewDecryptor(params, sk)
 
 	// Evaluator
-	evaluator := ckks.NewEvaluator(params, ckks.EvaluationKey{Rlk: rlk})
+	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk})
 
 	// Values to encrypt
 	values := make([]complex128, params.Slots())
@@ -103,7 +107,7 @@ func round(x complex128) complex128 {
 	return complex(a, b)
 }
 
-func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
+func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
 
 	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
 

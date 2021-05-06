@@ -16,14 +16,18 @@ func BenchmarkBootstrapp(b *testing.B) {
 	var testContext = new(testParams)
 	var btp *Bootstrapper
 
-	paramSet := uint64(3)
-
-	btpParams := DefaultBootstrapParams[paramSet]
-	if testContext, err = genTestParams(DefaultBootstrapSchemeParams[paramSet], btpParams.H); err != nil {
+	btpParams := DefaultBootstrapParams[3]
+	schemeParamsDef := DefaultBootstrapSchemeParams[3]
+	params, err := NewParametersFromLiteral(schemeParamsDef)
+	if err != nil {
 		panic(err)
 	}
 
-	btpKey := testContext.kgen.GenBootstrappingKey(testContext.params.logSlots, btpParams, testContext.sk)
+	if testContext, err = genTestParams(params, btpParams.H); err != nil {
+		panic(err)
+	}
+
+	btpKey := testContext.kgen.GenBootstrappingKey(testContext.params.LogSlots(), btpParams, testContext.sk)
 
 	if btp, err = NewBootstrapper(testContext.params, btpParams, *btpKey); err != nil {
 		panic(err)
@@ -33,7 +37,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			b.StopTimer()
-			ct := NewCiphertextRandom(testContext.prng, testContext.params, 1, 0, testContext.params.scale)
+			ct := NewCiphertextRandom(testContext.prng, testContext.params, 1, 0, testContext.params.Scale())
 			b.StartTimer()
 
 			var t time.Time

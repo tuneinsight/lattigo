@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -57,7 +58,7 @@ type Encryptor interface {
 
 // encryptor is a structure that holds the parameters needed to encrypt plaintexts.
 type encryptor struct {
-	params   *Parameters
+	params   Parameters
 	ringQ    *ring.Ring
 	ringQP   *ring.Ring
 	polypool [3]*ring.Poly
@@ -73,46 +74,34 @@ type encryptor struct {
 
 type pkEncryptor struct {
 	encryptor
-	pk *PublicKey
+	pk *rlwe.PublicKey
 }
 
 type skEncryptor struct {
 	encryptor
-	sk *SecretKey
+	sk *rlwe.SecretKey
 }
 
 // NewEncryptorFromPk creates a new Encryptor with the provided public-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func NewEncryptorFromPk(params *Parameters, pk *PublicKey) Encryptor {
+func NewEncryptorFromPk(params Parameters, pk *rlwe.PublicKey) Encryptor {
 	return &pkEncryptor{newEncryptor(params), pk}
 }
 
 // NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
 // This encryptor can be used to encrypt plaintexts, using the stored key.
-func NewEncryptorFromSk(params *Parameters, sk *SecretKey) Encryptor {
+func NewEncryptorFromSk(params Parameters, sk *rlwe.SecretKey) Encryptor {
 	return &skEncryptor{newEncryptor(params), sk}
 }
 
-func newEncryptor(params *Parameters) encryptor {
+func newEncryptor(params Parameters) encryptor {
 
-	var ringQ, ringQP *ring.Ring
-	var err error
-
-	if ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
-
-	if ringQP, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
-		panic(err)
-	}
+	ringQ := params.RingQ()
+	ringQP := params.RingQP()
 
 	var baseconverter *ring.FastBasisExtender
-	if len(params.pi) != 0 {
-		var ringP *ring.Ring
-		if ringP, err = ring.NewRing(params.N(), params.pi); err != nil {
-			panic(err)
-		}
-		baseconverter = ring.NewFastBasisExtender(ringQ, ringP)
+	if params.PCount() != 0 {
+		baseconverter = ring.NewFastBasisExtender(ringQ, params.RingP())
 	}
 
 	prng, err := utils.NewPRNG()
@@ -121,7 +110,7 @@ func newEncryptor(params *Parameters) encryptor {
 	}
 
 	return encryptor{
-		params:                     params.Copy(),
+		params:                     params,
 		ringQ:                      ringQ,
 		ringQP:                     ringQP,
 		polypool:                   [3]*ring.Poly{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()},
@@ -189,14 +178,14 @@ func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast
 		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.Value[0], encryptor.polypool[0])
 		ringQ.MulCoeffsMontgomery(encryptor.polypool[2], encryptor.pk.Value[1], encryptor.polypool[1])
 
-		ringQ.InvNTT(encryptor.polypool[0], ciphertext.value[0])
-		ringQ.InvNTT(encryptor.polypool[1], ciphertext.value[1])
+		ringQ.InvNTT(encryptor.polypool[0], ciphertext.Value[0])
+		ringQ.InvNTT(encryptor.polypool[1], ciphertext.Value[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0])
+		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.Value[0])
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[1])
+		encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.Value[1])
 
 	} else {
 
@@ -221,12 +210,12 @@ func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast
 		encryptor.gaussianSamplerQP.ReadAndAdd(encryptor.polypool[1])
 
 		// We rescale the encryption of zero by the special prime, dividing the error by this prime
-		encryptor.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, encryptor.polypool[0], ciphertext.value[0])
-		encryptor.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, encryptor.polypool[1], ciphertext.value[1])
+		encryptor.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, encryptor.polypool[0], ciphertext.Value[0])
+		encryptor.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, encryptor.polypool[1], ciphertext.Value[1])
 	}
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
-	encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
+	encryptor.ringQ.Add(ciphertext.Value[0], p.value, ciphertext.Value[0])
 }
 
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
@@ -279,14 +268,14 @@ func (encryptor *skEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, crp 
 
 	ringQ := encryptor.ringQ
 
-	ringQ.MulCoeffsMontgomery(crp, encryptor.sk.Value, ciphertext.value[0])
-	ringQ.Neg(ciphertext.value[0], ciphertext.value[0])
+	ringQ.MulCoeffsMontgomery(crp, encryptor.sk.Value, ciphertext.Value[0])
+	ringQ.Neg(ciphertext.Value[0], ciphertext.Value[0])
 
-	ringQ.InvNTT(ciphertext.value[0], ciphertext.value[0])
-	ringQ.InvNTT(crp, ciphertext.value[1])
+	ringQ.InvNTT(ciphertext.Value[0], ciphertext.Value[0])
+	ringQ.InvNTT(crp, ciphertext.Value[1])
 
-	encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.value[0])
+	encryptor.gaussianSamplerQ.ReadAndAdd(ciphertext.Value[0])
 
 	// ct = [-a*s + m + e , a]
-	encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])
+	encryptor.ringQ.Add(ciphertext.Value[0], p.value, ciphertext.Value[0])
 }

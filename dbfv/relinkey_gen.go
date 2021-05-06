@@ -13,11 +13,6 @@ type RKGProtocol struct {
 
 // NewRKGProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
-func NewRKGProtocol(params *bfv.Parameters) *RKGProtocol {
-	return &RKGProtocol{*drlwe.NewRKGProtocol(params.N(), params.Qi(), params.Pi(), 0.5, params.Sigma())}
-}
-
-// GenBFVRelinearizationKey finalizes the protocol and returns the common EvaluationKey.
-func (ekg *RKGProtocol) GenBFVRelinearizationKey(round1 *drlwe.RKGShare, round2 *drlwe.RKGShare, evalKeyOut *bfv.RelinearizationKey) {
-	ekg.GenRelinearizationKey(round1, round2, &evalKeyOut.RelinearizationKey)
+func NewRKGProtocol(params bfv.Parameters) *RKGProtocol {
+	return &RKGProtocol{*drlwe.NewRKGProtocol(params.Parameters, 0.5)}
 }

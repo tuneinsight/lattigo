@@ -6,7 +6,7 @@ import (
 )
 
 type dbfvContext struct {
-	params *bfv.Parameters
+	params bfv.Parameters
 
 	// Polynomial degree
 	n uint64
@@ -21,7 +21,7 @@ type dbfvContext struct {
 	ringQP *ring.Ring
 }
 
-func newDbfvContext(params *bfv.Parameters) *dbfvContext {
+func newDbfvContext(params bfv.Parameters) *dbfvContext {
 
 	n := params.N()
 
@@ -30,17 +30,17 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 		panic(err)
 	}
 
-	ringQ, err := ring.NewRing(n, params.Qi())
+	ringQ, err := ring.NewRing(n, params.Q())
 	if err != nil {
 		panic(err)
 	}
 
-	ringP, err := ring.NewRing(n, params.Pi())
+	ringP, err := ring.NewRing(n, params.P())
 	if err != nil {
 		panic(err)
 	}
 
-	ringQP, err := ring.NewRing(n, append(params.Qi(), params.Pi()...))
+	ringQP, err := ring.NewRing(n, append(params.Q(), params.P()...))
 	if err != nil {
 		panic(err)
 	}
@@ -48,7 +48,7 @@ func newDbfvContext(params *bfv.Parameters) *dbfvContext {
 	deltaMont := bfv.GenLiftParams(ringQ, params.T())
 
 	return &dbfvContext{
-		params:    params.Copy(),
+		params:    params,
 		n:         n,
 		deltaMont: deltaMont,
 		ringT:     ringT,

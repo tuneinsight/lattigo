@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/bits"
 
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 
 	"github.com/ldsec/lattigo/v2/bfv"
@@ -50,7 +51,13 @@ func obliviousRiding() {
 	nbDrivers := uint64(2048) //max is N
 
 	// BFV parameters (128 bit security) with plaintext modulus 65929217
-	params := bfv.DefaultParams[bfv.PN13QP218].WithT(0x3ee0001)
+	paramDef := bfv.PN13QP218
+	paramDef.T = 0x3ee0001
+
+	params, err := bfv.NewParametersFromLiteral(paramDef)
+	if err != nil {
+		panic(err)
+	}
 
 	encoder := bfv.NewEncoder(params)
 
@@ -65,7 +72,7 @@ func obliviousRiding() {
 
 	encryptorRiderSk := bfv.NewEncryptorFromSk(params, riderSk)
 
-	evaluator := bfv.NewEvaluator(params, bfv.EvaluationKey{})
+	evaluator := bfv.NewEvaluator(params, rlwe.EvaluationKey{})
 
 	fmt.Println("============================================")
 	fmt.Println("Homomorphic computations on batched integers")

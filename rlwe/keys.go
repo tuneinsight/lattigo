@@ -34,25 +34,43 @@ type RotationKeySet struct {
 	Keys map[uint64]*SwitchingKey
 }
 
+// EvaluationKey is a type for storing generic RLWE public evaluation keys. An evaluation key is a union
+// of a relinearization key and a set of rotation keys.
+type EvaluationKey struct {
+	Rlk  *RelinearizationKey
+	Rtks *RotationKeySet
+}
+
 // NewSecretKey generates a new SecretKey with zero values.
-func NewSecretKey(ringDegree, moduliCount uint64) *SecretKey {
+func NewSecretKey(params Parameters) *SecretKey {
 
 	sk := new(SecretKey)
-	sk.Value = ring.NewPoly(ringDegree, moduliCount)
+	sk.Value = ring.NewPoly(params.N(), params.QPCount())
 	return sk
 }
 
 // NewPublicKey returns a new PublicKey with zero values.
-func NewPublicKey(ringDegree, moduliCount uint64) (pk *PublicKey) {
+func NewPublicKey(params Parameters) (pk *PublicKey) {
+	ringDegree := params.N()
+	moduliCount := params.QPCount()
 	return &PublicKey{Value: [2]*ring.Poly{ring.NewPoly(ringDegree, moduliCount), ring.NewPoly(ringDegree, moduliCount)}}
 }
 
+// Equals checks two PublicKey struct for equality.
+func (pk *PublicKey) Equals(other *PublicKey) bool {
+	if pk == other {
+		return true
+	}
+	nilVal := [2]*ring.Poly{}
+	return pk.Value != nilVal && other.Value != nilVal && pk.Value[0].Equals(other.Value[0]) && pk.Value[1].Equals(other.Value[1])
+}
+
 // NewRotationKeySet returns a new RotationKeySet with pre-allocated switching keys for each distinct galoisElement value.
-func NewRotationKeySet(galoisElement []uint64, ringDegree, moduliCount, decompSize uint64) (rotKey *RotationKeySet) {
+func NewRotationKeySet(params Parameters, galoisElement []uint64) (rotKey *RotationKeySet) {
 	rotKey = new(RotationKeySet)
 	rotKey.Keys = make(map[uint64]*SwitchingKey, len(galoisElement))
 	for _, galEl := range galoisElement {
-		rotKey.Keys[galEl] = NewSwitchingKey(ringDegree, moduliCount, decompSize)
+		rotKey.Keys[galEl] = NewSwitchingKey(params)
 	}
 	return
 }
@@ -65,10 +83,12 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 }
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
-func NewSwitchingKey(ringDegree, moduliCount, decompSize uint64) *SwitchingKey {
+func NewSwitchingKey(params Parameters) *SwitchingKey {
+	ringDegree := params.N()
+	moduliCount := params.QPCount()
+	decompSize := params.Beta()
 
 	swk := new(SwitchingKey)
-
 	swk.Value = make([][2]*ring.Poly, int(decompSize))
 
 	for i := uint64(0); i < decompSize; i++ {
@@ -80,14 +100,14 @@ func NewSwitchingKey(ringDegree, moduliCount, decompSize uint64) *SwitchingKey {
 }
 
 // NewRelinKey creates a new EvaluationKey with zero values.
-func NewRelinKey(maxRelinDegree, ringDegree, moduliCount, decompSize uint64) (evakey *RelinearizationKey) {
+func NewRelinKey(params Parameters, maxRelinDegree uint64) (evakey *RelinearizationKey) {
 
 	evakey = new(RelinearizationKey)
 
 	evakey.Keys = make([]*SwitchingKey, maxRelinDegree)
 
 	for d := uint64(0); d < maxRelinDegree; d++ {
-		evakey.Keys[d] = NewSwitchingKey(ringDegree, moduliCount, decompSize)
+		evakey.Keys[d] = NewSwitchingKey(params)
 	}
 
 	return
@@ -120,6 +140,14 @@ func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
 	}
 
 	return nil
+}
+
+// CopyNew creates a deep copy of the receiver secret key and returns it.
+func (sk *SecretKey) CopyNew() *SecretKey {
+	if sk == nil || sk.Value == nil {
+		return nil
+	}
+	return &SecretKey{sk.Value.CopyNew()}
 }
 
 // GetDataLen returns the length in bytes of the target PublicKey.
@@ -172,14 +200,41 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
+// CopyNew creates a deep copy of the receiver PublicKey and returns it.
+func (pk *PublicKey) CopyNew() *PublicKey {
+	if pk == nil || pk.Value[0] == nil || pk.Value[1] == nil {
+		return nil
+	}
+	return &PublicKey{[2]*ring.Poly{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
+}
+
+// Equals checks two RelinearizationKeys for equality.
+func (rlk *RelinearizationKey) Equals(other *RelinearizationKey) bool {
+	if rlk == other {
+		return true
+	}
+	if (rlk == nil) != (other == nil) {
+		return false
+	}
+	if len(rlk.Keys) != len(other.Keys) {
+		return false
+	}
+	for i := range rlk.Keys {
+		if !rlk.Keys[i].Equals(other.Keys[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // GetDataLen returns the length in bytes of the target EvaluationKey.
-func (evaluationkey *RelinearizationKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
+func (rlk *RelinearizationKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
 
 	if WithMetadata {
 		dataLen++
 	}
 
-	for _, evakey := range evaluationkey.Keys {
+	for _, evakey := range rlk.Keys {
 		dataLen += (*SwitchingKey)(evakey).GetDataLen(WithMetadata)
 	}
 
@@ -187,19 +242,19 @@ func (evaluationkey *RelinearizationKey) GetDataLen(WithMetadata bool) (dataLen 
 }
 
 // MarshalBinary encodes an EvaluationKey key in a byte slice.
-func (evaluationkey *RelinearizationKey) MarshalBinary() (data []byte, err error) {
+func (rlk *RelinearizationKey) MarshalBinary() (data []byte, err error) {
 
 	var pointer uint64
 
-	dataLen := evaluationkey.GetDataLen(true)
+	dataLen := rlk.GetDataLen(true)
 
 	data = make([]byte, dataLen)
 
-	data[0] = uint8(len(evaluationkey.Keys))
+	data[0] = uint8(len(rlk.Keys))
 
 	pointer++
 
-	for _, evakey := range evaluationkey.Keys {
+	for _, evakey := range rlk.Keys {
 
 		if pointer, err = (*SwitchingKey)(evakey).encode(pointer, data); err != nil {
 			return nil, err
@@ -210,17 +265,17 @@ func (evaluationkey *RelinearizationKey) MarshalBinary() (data []byte, err error
 }
 
 // UnmarshalBinary decodes a previously marshaled EvaluationKey in the target EvaluationKey.
-func (evaluationkey *RelinearizationKey) UnmarshalBinary(data []byte) (err error) {
+func (rlk *RelinearizationKey) UnmarshalBinary(data []byte) (err error) {
 
 	deg := uint64(data[0])
 
-	evaluationkey.Keys = make([]*SwitchingKey, deg)
+	rlk.Keys = make([]*SwitchingKey, deg)
 
 	pointer := uint64(1)
 	var inc uint64
 	for i := uint64(0); i < deg; i++ {
-		evaluationkey.Keys[i] = new(SwitchingKey)
-		if inc, err = evaluationkey.Keys[i].decode(data[pointer:]); err != nil {
+		rlk.Keys[i] = new(SwitchingKey)
+		if inc, err = rlk.Keys[i].decode(data[pointer:]); err != nil {
 			return err
 		}
 		pointer += inc
@@ -229,27 +284,58 @@ func (evaluationkey *RelinearizationKey) UnmarshalBinary(data []byte) (err error
 	return nil
 }
 
+// CopyNew creates a deep copy of the receiver RelinearizationKey and returns it.
+func (rlk *RelinearizationKey) CopyNew() *RelinearizationKey {
+	if rlk == nil || len(rlk.Keys) == 0 {
+		return nil
+	}
+	rlkb := &RelinearizationKey{Keys: make([]*SwitchingKey, len(rlk.Keys))}
+	for i, swk := range rlk.Keys {
+		rlkb.Keys[i] = swk.CopyNew()
+	}
+	return rlkb
+}
+
+// Equals checks two SwitchingKeys for equality.
+func (swk *SwitchingKey) Equals(other *SwitchingKey) bool {
+	if swk == other {
+		return true
+	}
+	if (swk == nil) != (other == nil) {
+		return false
+	}
+	if len(swk.Value) != len(other.Value) {
+		return false
+	}
+	for i := range swk.Value {
+		if !(swk.Value[i][0].Equals(other.Value[i][0]) && swk.Value[i][1].Equals(other.Value[i][1])) {
+			return false
+		}
+	}
+	return true
+}
+
 // GetDataLen returns the length in bytes of the target SwitchingKey.
-func (switchkey *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
+func (swk *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen uint64) {
 
 	if WithMetadata {
 		dataLen++
 	}
 
-	for j := uint64(0); j < uint64(len(switchkey.Value)); j++ {
-		dataLen += switchkey.Value[j][0].GetDataLen(WithMetadata)
-		dataLen += switchkey.Value[j][1].GetDataLen(WithMetadata)
+	for j := uint64(0); j < uint64(len(swk.Value)); j++ {
+		dataLen += swk.Value[j][0].GetDataLen(WithMetadata)
+		dataLen += swk.Value[j][1].GetDataLen(WithMetadata)
 	}
 
 	return
 }
 
 // MarshalBinary encodes an SwitchingKey in a byte slice.
-func (switchkey *SwitchingKey) MarshalBinary() (data []byte, err error) {
+func (swk *SwitchingKey) MarshalBinary() (data []byte, err error) {
 
-	data = make([]byte, switchkey.GetDataLen(true))
+	data = make([]byte, swk.GetDataLen(true))
 
-	if _, err = switchkey.encode(0, data); err != nil {
+	if _, err = swk.encode(0, data); err != nil {
 		return nil, err
 	}
 
@@ -257,34 +343,46 @@ func (switchkey *SwitchingKey) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decode a previously marshaled SwitchingKey in the target SwitchingKey.
-func (switchkey *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
+func (swk *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
 
-	if _, err = switchkey.decode(data); err != nil {
+	if _, err = swk.decode(data); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (switchkey *SwitchingKey) encode(pointer uint64, data []byte) (uint64, error) {
+// CopyNew creates a deep copy of the receiver SwitchingKey and returns it.
+func (swk *SwitchingKey) CopyNew() *SwitchingKey {
+	if swk == nil || len(swk.Value) == 0 {
+		return nil
+	}
+	swkb := &SwitchingKey{Value: make([][2]*ring.Poly, len(swk.Value))}
+	for i, el := range swk.Value {
+		swkb.Value[i] = [2]*ring.Poly{el[0].CopyNew(), el[1].CopyNew()}
+	}
+	return swkb
+}
+
+func (swk *SwitchingKey) encode(pointer uint64, data []byte) (uint64, error) {
 
 	var err error
 
 	var inc uint64
 
-	data[pointer] = uint8(len(switchkey.Value))
+	data[pointer] = uint8(len(swk.Value))
 
 	pointer++
 
-	for j := uint64(0); j < uint64(len(switchkey.Value)); j++ {
+	for j := uint64(0); j < uint64(len(swk.Value)); j++ {
 
-		if inc, err = switchkey.Value[j][0].WriteTo(data[pointer : pointer+switchkey.Value[j][0].GetDataLen(true)]); err != nil {
+		if inc, err = swk.Value[j][0].WriteTo(data[pointer : pointer+swk.Value[j][0].GetDataLen(true)]); err != nil {
 			return pointer, err
 		}
 
 		pointer += inc
 
-		if inc, err = switchkey.Value[j][1].WriteTo(data[pointer : pointer+switchkey.Value[j][1].GetDataLen(true)]); err != nil {
+		if inc, err = swk.Value[j][1].WriteTo(data[pointer : pointer+swk.Value[j][1].GetDataLen(true)]); err != nil {
 			return pointer, err
 		}
 
@@ -294,26 +392,26 @@ func (switchkey *SwitchingKey) encode(pointer uint64, data []byte) (uint64, erro
 	return pointer, nil
 }
 
-func (switchkey *SwitchingKey) decode(data []byte) (pointer uint64, err error) {
+func (swk *SwitchingKey) decode(data []byte) (pointer uint64, err error) {
 
 	decomposition := uint64(data[0])
 
 	pointer = uint64(1)
 
-	switchkey.Value = make([][2]*ring.Poly, decomposition)
+	swk.Value = make([][2]*ring.Poly, decomposition)
 
 	var inc uint64
 
 	for j := uint64(0); j < decomposition; j++ {
 
-		switchkey.Value[j][0] = new(ring.Poly)
-		if inc, err = switchkey.Value[j][0].DecodePolyNew(data[pointer:]); err != nil {
+		swk.Value[j][0] = new(ring.Poly)
+		if inc, err = swk.Value[j][0].DecodePolyNew(data[pointer:]); err != nil {
 			return pointer, err
 		}
 		pointer += inc
 
-		switchkey.Value[j][1] = new(ring.Poly)
-		if inc, err = switchkey.Value[j][1].DecodePolyNew(data[pointer:]); err != nil {
+		swk.Value[j][1] = new(ring.Poly)
+		if inc, err = swk.Value[j][1].DecodePolyNew(data[pointer:]); err != nil {
 			return pointer, err
 		}
 		pointer += inc
@@ -321,6 +419,33 @@ func (switchkey *SwitchingKey) decode(data []byte) (pointer uint64, err error) {
 	}
 
 	return pointer, nil
+}
+
+// Equals checks to RotationKeySets for equality.
+func (rtks *RotationKeySet) Equals(other *RotationKeySet) bool {
+	if rtks == other {
+		return true
+	}
+	if (rtks == nil) || (other == nil) {
+		return false
+	}
+	if len(rtks.Keys) != len(other.Keys) {
+		return false
+	}
+	return rtks.Includes(other)
+}
+
+// Includes checks whether the receiver RotationKeySet includes the given other RotationKeySet.
+func (rtks *RotationKeySet) Includes(other *RotationKeySet) bool {
+	if (rtks == nil) || (other == nil) {
+		return false
+	}
+	for galEl := range other.Keys {
+		if _, inSet := rtks.Keys[galEl]; !inSet {
+			return false
+		}
+	}
+	return true
 }
 
 // GetDataLen returns the length in bytes of the target RotationKeys.

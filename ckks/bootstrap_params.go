@@ -1,5 +1,7 @@
 package ckks
 
+import "github.com/ldsec/lattigo/v2/rlwe"
+
 // BootstrappingParameters is a struct for the default bootstrapping parameters
 type BootstrappingParameters struct {
 	H            uint64   // Hamming weight of the secret key
@@ -51,12 +53,12 @@ func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
 }
 
 // DefaultBootstrapSchemeParams are default scheme params for the bootstrapping
-var DefaultBootstrapSchemeParams = []*Parameters{
+var DefaultBootstrapSchemeParams = []ParametersLiteral{
 
 	{
-		logN:     16,
-		logSlots: 15,
-		qi: []uint64{
+		LogN:     16,
+		LogSlots: 15,
+		Q: []uint64{
 			0x80000000080001,  // 55 Q0
 			0x2000000a0001,    // 45
 			0x2000000e0001,    // 45
@@ -83,21 +85,21 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x20000000280001,  // 53 CtS
 			0x1fffffffd80001,  // 53 CtS
 		},
-		pi: []uint64{
+		P: []uint64{
 			0xfffffffff00001,  // 56
 			0xffffffffd80001,  // 56
 			0x1000000002a0001, // 56
 			0xffffffffd20001,  // 56
 			0x100000000480001, // 56
 		},
-		scale: 1 << 45,
-		sigma: DefaultSigma,
+		Scale: 1 << 45,
+		Sigma: rlwe.DefaultSigma,
 	},
 
 	{
-		logN:     16,
-		logSlots: 15,
-		qi: []uint64{
+		LogN:     16,
+		LogSlots: 15,
+		Q: []uint64{
 			0x80000000080001,   // 55 Q0
 			0xffffffffffc0001,  // 60
 			0x10000000006e0001, // 60
@@ -121,21 +123,21 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x20000000280001,   // 53 CtS
 			0x1fffffffd80001,   // 53 CtS
 		},
-		pi: []uint64{
+		P: []uint64{
 			0x1fffffffffe00001, // Pi 61
 			0x1fffffffffc80001, // Pi 61
 			0x1fffffffffb40001, // Pi 61
 			0x1fffffffff500001, // Pi 61
 			0x1fffffffff420001, // Pi 61
 		},
-		scale: 1 << 30,
-		sigma: DefaultSigma,
+		Scale: 1 << 30,
+		Sigma: rlwe.DefaultSigma,
 	},
 
 	{
-		logN:     16,
-		logSlots: 15,
-		qi: []uint64{
+		LogN:     16,
+		LogSlots: 15,
+		Q: []uint64{
 			0x80000000080001,   // 55 Q0
 			0x2000000a0001,     // 45
 			0x2000000e0001,     // 45
@@ -164,7 +166,7 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x20000000280001,   // 53 CtS
 			0x1fffffffd80001,   // 53 CtS
 		},
-		pi: []uint64{
+		P: []uint64{
 			0x1fffffffffe00001, // Pi 61
 			0x1fffffffffc80001, // Pi 61
 			0x1fffffffffb40001, // Pi 61
@@ -172,14 +174,14 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x1fffffffff420001, // Pi 61
 			0x1fffffffff380001, // Pi 61
 		},
-		scale: 1 << 45,
-		sigma: DefaultSigma,
+		Scale: 1 << 45,
+		Sigma: rlwe.DefaultSigma,
 	},
 
 	{
-		logN:     15,
-		logSlots: 14,
-		qi: []uint64{
+		LogN:     15,
+		LogSlots: 14,
+		Q: []uint64{
 			0x7fffb0001,       // 35 Q0
 			0x4000000420001,   // 50
 			0x1fc0001,         // 25
@@ -195,12 +197,12 @@ var DefaultBootstrapSchemeParams = []*Parameters{
 			0x1fffffff50001,   // 49 CtS
 			0x1ffffffea0001,   // 49 CtS
 		},
-		pi: []uint64{
+		P: []uint64{
 			0x7e40000000001, // 50
 			0x7c80000000001, // 50
 		},
-		scale: 1 << 25,
-		sigma: DefaultSigma,
+		Scale: 1 << 25,
+		Sigma: rlwe.DefaultSigma,
 	},
 }
 

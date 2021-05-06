@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 // Plaintext is a Element with only one Poly. It represents a Plaintext element in R_q that is the
@@ -10,7 +11,7 @@ import (
 // and will result in less efficient Ciphert-Plaintext multiplication than PlaintextMul. See bfv/encoder.go
 // for more information on plaintext types.
 type Plaintext struct {
-	*Element
+	*rlwe.Element
 	value *ring.Poly
 }
 
@@ -27,25 +28,24 @@ type PlaintextMul Plaintext
 // NewPlaintext creates and allocates a new plaintext in RingQ (multiple moduli of Q).
 // The plaintext will be in RingQ and scaled by Q/t.
 // Slower encoding and larger plaintext size
-func NewPlaintext(params *Parameters) *Plaintext {
-	plaintext := &Plaintext{newPlaintextElement(params), nil}
-	plaintext.value = plaintext.Element.value[0]
+func NewPlaintext(params Parameters) *Plaintext {
+	plaintext := &Plaintext{rlwe.NewElement(params.Parameters, 0), nil}
+	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }
 
 // NewPlaintextRingT creates and allocates a new plaintext in RingT (single modulus T).
 // The plaintext will be in RingT.
-func NewPlaintextRingT(params *Parameters) *PlaintextRingT {
-
-	plaintext := &PlaintextRingT{newPlaintextRingTElement(params), nil}
-	plaintext.value = plaintext.Element.value[0]
+func NewPlaintextRingT(params Parameters) *PlaintextRingT {
+	plaintext := &PlaintextRingT{rlwe.NewElementAtLevel(params.Parameters, 0, 0), nil}
+	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }
 
 // NewPlaintextMul creates and allocates a new plaintext optimized for ciphertext x plaintext multiplication.
 // The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
-func NewPlaintextMul(params *Parameters) *PlaintextMul {
-	plaintext := &PlaintextMul{newPlaintextMulElement(params), nil}
-	plaintext.value = plaintext.Element.value[0]
+func NewPlaintextMul(params Parameters) *PlaintextMul {
+	plaintext := &PlaintextMul{rlwe.NewElement(params.Parameters, 0), nil}
+	plaintext.value = plaintext.Element.Value[0]
 	return plaintext
 }

@@ -6,7 +6,7 @@ import (
 )
 
 type dckksContext struct {
-	params *ckks.Parameters
+	params ckks.Parameters
 
 	n uint64
 
@@ -18,29 +18,20 @@ type dckksContext struct {
 	beta  uint64
 }
 
-func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
+func newDckksContext(params ckks.Parameters) (context *dckksContext) {
 
 	context = new(dckksContext)
 
-	context.params = params.Copy()
+	context.params = params
 
 	context.n = params.N()
 
 	context.alpha = params.Alpha()
 	context.beta = params.Beta()
 
-	var err error
-	if context.ringQ, err = ring.NewRing(params.N(), params.Qi()); err != nil {
-		panic(err)
-	}
-
-	if context.ringP, err = ring.NewRing(params.N(), params.Pi()); err != nil {
-		panic(err)
-	}
-
-	if context.ringQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
-		panic(err)
-	}
+	context.ringQ = params.RingQ()
+	context.ringP = params.RingP()
+	context.ringQP = params.RingQP()
 
 	return
 }

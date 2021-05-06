@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -21,28 +22,22 @@ type Decryptor interface {
 
 // decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type decryptor struct {
-	params *Parameters
+	params Parameters
 	ringQ  *ring.Ring
-	sk     *SecretKey
+	sk     *rlwe.SecretKey
 }
 
 // NewDecryptor instantiates a new Decryptor that will be able to decrypt ciphertexts
 // encrypted under the provided secret-key.
-func NewDecryptor(params *Parameters, sk *SecretKey) Decryptor {
+func NewDecryptor(params Parameters, sk *rlwe.SecretKey) Decryptor {
 
 	if sk.Value.GetDegree() != int(params.N()) {
 		panic("secret_key is invalid for the provided parameters")
 	}
 
-	var q *ring.Ring
-	var err error
-	if q, err = ring.NewRing(params.N(), params.qi); err != nil {
-		panic(err)
-	}
-
 	return &decryptor{
-		params: params.Copy(),
-		ringQ:  q,
+		params: params,
+		ringQ:  params.RingQ(),
 		sk:     sk,
 	}
 }
@@ -62,14 +57,14 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 
 	plaintext.SetScale(ciphertext.Scale())
 
-	decryptor.ringQ.CopyLvl(level, ciphertext.value[ciphertext.Degree()], plaintext.value)
+	decryptor.ringQ.CopyLvl(level, ciphertext.Value[ciphertext.Degree()], plaintext.value)
 
 	plaintext.value.Coeffs = plaintext.value.Coeffs[:ciphertext.Level()+1]
 
 	for i := uint64(ciphertext.Degree()); i > 0; i-- {
 
 		decryptor.ringQ.MulCoeffsMontgomeryLvl(level, plaintext.value, decryptor.sk.Value, plaintext.value)
-		decryptor.ringQ.AddLvl(level, plaintext.value, ciphertext.value[i-1], plaintext.value)
+		decryptor.ringQ.AddLvl(level, plaintext.value, ciphertext.Value[i-1], plaintext.value)
 
 		if i&7 == 7 {
 			decryptor.ringQ.ReduceLvl(level, plaintext.value, plaintext.value)

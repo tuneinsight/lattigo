@@ -60,7 +60,7 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly) (opOut *Cipherte
 
 	C := make(map[uint64]*Ciphertext)
 
-	C[1] = ct0.CopyNew().Ciphertext()
+	C[1] = ct0.CopyNew()
 
 	logDegree := uint64(bits.Len64(pol.Degree()))
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
@@ -94,7 +94,7 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 
 	C := make(map[uint64]*Ciphertext)
 
-	C[1] = op.CopyNew().Ciphertext()
+	C[1] = op.CopyNew()
 
 	logDegree := uint64(bits.Len64(cheby.Degree()))
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
@@ -291,7 +291,7 @@ func recurse(targetScale float64, logSplit, logDegree uint64, coeffs *Poly, C ma
 		level++
 	}
 
-	currentQi := float64(evaluator.params.qi[level])
+	currentQi := float64(evaluator.params.Q()[level])
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
@@ -363,7 +363,7 @@ func recurseCheby(targetScale float64, logSplit, logDegree uint64, coeffs *Poly,
 		level++
 	}
 
-	currentQi := float64(evaluator.params.qi[level])
+	currentQi := float64(evaluator.params.Q()[level])
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
@@ -421,7 +421,7 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[uint64]
 		return
 	}
 
-	currentQi := float64(evaluator.params.qi[C[coeffs.Degree()].Level()])
+	currentQi := float64(evaluator.params.Q()[C[coeffs.Degree()].Level()])
 
 	ctScale := targetScale * currentQi
 

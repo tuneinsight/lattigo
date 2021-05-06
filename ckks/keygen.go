@@ -11,26 +11,26 @@ import (
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
 type KeyGenerator interface {
-	GenSecretKey() (sk *SecretKey)
-	GenSecretKeyGaussian() (sk *SecretKey)
-	GenSecretKeyWithDistrib(p float64) (sk *SecretKey)
-	GenSecretKeySparse(hw uint64) (sk *SecretKey)
-	GenPublicKey(sk *SecretKey) (pk *PublicKey)
-	GenKeyPair() (sk *SecretKey, pk *PublicKey)
-	GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey)
-	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
-	GenRelinearizationKey(sk *SecretKey) (evakey *RelinearizationKey)
-	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
-	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
-	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet)
-	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
-	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey)
+	GenSecretKey() (sk *rlwe.SecretKey)
+	GenSecretKeyGaussian() (sk *rlwe.SecretKey)
+	GenSecretKeyWithDistrib(p float64) (sk *rlwe.SecretKey)
+	GenSecretKeySparse(hw uint64) (sk *rlwe.SecretKey)
+	GenPublicKey(sk *rlwe.SecretKey) (pk *rlwe.PublicKey)
+	GenKeyPair() (sk *rlwe.SecretKey, pk *rlwe.PublicKey)
+	GenKeyPairSparse(hw uint64) (sk *rlwe.SecretKey, pk *rlwe.PublicKey)
+	GenSwitchingKey(skInput, skOutput *rlwe.SecretKey) (newevakey *rlwe.SwitchingKey)
+	GenRelinearizationKey(sk *rlwe.SecretKey) (evakey *rlwe.RelinearizationKey)
+	GenSwitchingKeyForGalois(galEl uint64, sk *rlwe.SecretKey) (swk *rlwe.SwitchingKey)
+	GenRotationKeys(galEls []uint64, sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet)
+	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet)
+	GenRotationKeysForInnerSum(sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet)
+	GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *rlwe.SecretKey) (btpKey *BootstrappingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
 type keyGenerator struct {
-	params          *Parameters
+	params          Parameters
 	ringQP          *ring.Ring
 	pBigInt         *big.Int
 	polypool        [2]*ring.Poly
@@ -40,21 +40,10 @@ type keyGenerator struct {
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
-func NewKeyGenerator(params *Parameters) KeyGenerator {
+func NewKeyGenerator(params Parameters) KeyGenerator {
 
-	var qp *ring.Ring
-	var err error
-	if qp, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
-		panic(err)
-	}
-
-	var pBigInt *big.Int
-	if len(params.pi) != 0 {
-		pBigInt = ring.NewUint(1)
-		for _, pi := range params.pi {
-			pBigInt.Mul(pBigInt, ring.NewUint(pi))
-		}
-	}
+	qp := params.RingQP()
+	pBigInt := params.PBigInt()
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -62,22 +51,22 @@ func NewKeyGenerator(params *Parameters) KeyGenerator {
 	}
 
 	return &keyGenerator{
-		params:          params.Copy(),
+		params:          params,
 		ringQP:          qp,
 		pBigInt:         pBigInt,
 		polypool:        [2]*ring.Poly{qp.NewPoly(), qp.NewPoly()},
-		gaussianSampler: ring.NewGaussianSampler(prng, qp, params.sigma, uint64(6*params.sigma)),
+		gaussianSampler: ring.NewGaussianSampler(prng, qp, params.Sigma(), uint64(6*params.Sigma())),
 		uniformSampler:  ring.NewUniformSampler(prng, qp),
 	}
 }
 
 // GenSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
-func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
+func (keygen *keyGenerator) GenSecretKey() (sk *rlwe.SecretKey) {
 	return keygen.GenSecretKeyWithDistrib(1.0 / 3)
 }
 
-func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
-	sk = new(SecretKey)
+func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *rlwe.SecretKey) {
+	sk = new(rlwe.SecretKey)
 
 	sk.Value = keygen.gaussianSampler.ReadNew()
 	keygen.ringQP.NTT(sk.Value, sk.Value)
@@ -85,37 +74,37 @@ func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 }
 
 // GenSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].
-func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
+func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *rlwe.SecretKey) {
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.ringQP, p, true)
 
-	sk = new(SecretKey)
+	sk = new(rlwe.SecretKey)
 	sk.Value = ternarySamplerMontgomery.ReadNew()
 	keygen.ringQP.NTT(sk.Value, sk.Value)
 	return sk
 }
 
 // GenSecretKeySparse generates a new SecretKey with exactly hw non-zero coefficients.
-func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *SecretKey) {
+func (keygen *keyGenerator) GenSecretKeySparse(hw uint64) (sk *rlwe.SecretKey) {
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 	ternarySamplerMontgomery := ring.NewTernarySamplerSparse(prng, keygen.ringQP, hw, true)
 
-	sk = new(SecretKey)
+	sk = new(rlwe.SecretKey)
 	sk.Value = ternarySamplerMontgomery.ReadNew()
 	keygen.ringQP.NTT(sk.Value, sk.Value)
 	return sk
 }
 
 // GenPublicKey generates a new public key from the provided SecretKey.
-func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
+func (keygen *keyGenerator) GenPublicKey(sk *rlwe.SecretKey) (pk *rlwe.PublicKey) {
 
-	pk = new(PublicKey)
+	pk = new(rlwe.PublicKey)
 
 	ringQP := keygen.ringQP
 
@@ -131,27 +120,27 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 }
 
 // GenKeyPair generates a new SecretKey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
-func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
+func (keygen *keyGenerator) GenKeyPair() (sk *rlwe.SecretKey, pk *rlwe.PublicKey) {
 	sk = keygen.GenSecretKey()
 	return sk, keygen.GenPublicKey(sk)
 }
 
 // GenKeyPairSparse generates a new SecretKey with exactly hw non zero coefficients [1/2, 0, 1/2].
-func (keygen *keyGenerator) GenKeyPairSparse(hw uint64) (sk *SecretKey, pk *PublicKey) {
+func (keygen *keyGenerator) GenKeyPairSparse(hw uint64) (sk *rlwe.SecretKey, pk *rlwe.PublicKey) {
 	sk = keygen.GenSecretKeySparse(hw)
 	return sk, keygen.GenPublicKey(sk)
 }
 
 // GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
-func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey) (rlk *RelinearizationKey) {
+func (keygen *keyGenerator) GenRelinearizationKey(sk *rlwe.SecretKey) (rlk *rlwe.RelinearizationKey) {
 
-	if len(keygen.params.pi) == 0 {
+	if keygen.params.PCount() == 0 {
 		panic("Cannot GenRelinKey: modulus P is empty")
 	}
 
 	rlk = NewRelinearizationKey(keygen.params)
 	keygen.ringQP.MulCoeffsMontgomery(sk.Value, sk.Value, keygen.polypool[0])
-	rlk.Keys[0] = &NewSwitchingKey(keygen.params).SwitchingKey
+	rlk.Keys[0] = NewSwitchingKey(keygen.params)
 	keygen.newSwitchingKey(keygen.polypool[0], sk.Value, rlk.Keys[0])
 	keygen.polypool[0].Zero()
 
@@ -159,35 +148,35 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey) (rlk *Relineari
 }
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
-func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *rlwe.SecretKey) (newevakey *rlwe.SwitchingKey) {
 
-	if len(keygen.params.pi) == 0 {
+	if keygen.params.PCount() == 0 {
 		panic("Cannot GenSwitchingKey: modulus P is empty")
 	}
 
 	keygen.ringQP.Copy(skInput.Value, keygen.polypool[0])
 	newevakey = NewSwitchingKey(keygen.params)
-	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Value, &newevakey.SwitchingKey)
+	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Value, newevakey)
 	keygen.polypool[0].Zero()
 	return
 }
 
-func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *SecretKey) (swk *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *rlwe.SecretKey) (swk *rlwe.SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params)
-	keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galoisEl), &swk.SwitchingKey)
+	keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galoisEl), swk)
 	return
 }
 
-func (keygen *keyGenerator) GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKeyForRotationBy(k int, sk *rlwe.SecretKey) (swk *rlwe.SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params)
 	galElInv := keygen.params.GaloisElementForColumnRotationBy(-int(k))
-	keygen.genrotKey(sk.Value, galElInv, &swk.SwitchingKey)
+	keygen.genrotKey(sk.Value, galElInv, swk)
 	return
 }
 
-func (keygen *keyGenerator) GenSwitchingKeyForConjugate(sk *SecretKey) (swk *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKeyForConjugate(sk *rlwe.SecretKey) (swk *rlwe.SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params)
-	keygen.genrotKey(sk.Value, keygen.params.GaloisElementForRowRotation(), &swk.SwitchingKey)
+	keygen.genrotKey(sk.Value, keygen.params.GaloisElementForRowRotation(), swk)
 	return
 }
 
@@ -197,7 +186,7 @@ func (keygen *keyGenerator) genrotKey(sk *ring.Poly, galEl uint64, swk *rlwe.Swi
 	skOut := keygen.polypool[1]
 
 	index := ring.PermuteNTTIndex(galEl, keygen.ringQP.N)
-	ring.PermuteNTTWithIndexLvl(keygen.params.QPiCount()-1, skIn, index, skOut)
+	ring.PermuteNTTWithIndexLvl(keygen.params.QPCount()-1, skIn, index, skOut)
 
 	keygen.newSwitchingKey(skIn, skOut, swk)
 
@@ -248,7 +237,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.Sw
 			}
 
 			// It handles the case where nb pj does not divide nb qi
-			if index >= keygen.params.QiCount() {
+			if index >= keygen.params.QCount() {
 				break
 			}
 		}
@@ -262,7 +251,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *rlwe.Sw
 
 // GenRotationKeys generates a RotationKeySet from a list of galois element corresponding to the desired rotations
 // See also GenRotationKeysForRotations.
-func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet) {
+func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet) {
 	rks = NewRotationKeySet(keygen.params, galEls)
 	for _, galEl := range galEls {
 		keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galEl), rks.Keys[galEl])
@@ -273,7 +262,7 @@ func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks
 // GenRotationKeysForRotations generates a RotationKeySet supporting left rotations by k positions for all k in ks.
 // Negative k is equivalent to a right rotation by k positions
 // If includeConjugate is true, the resulting set contains the conjugation key.
-func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet) {
+func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet) {
 	galEls := make([]uint64, len(ks), len(ks)+1)
 	for i, k := range ks {
 		galEls[i] = keygen.params.GaloisElementForColumnRotationBy(k)
@@ -285,14 +274,14 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 }
 
 // GenRotationKeysForInnerSum generates a RotationKeySet supporting the InnerSum operation of the Evaluator
-func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet) {
+func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *rlwe.SecretKey) (rks *rlwe.RotationKeySet) {
 	return keygen.GenRotationKeys(keygen.params.GaloisElementsForRowInnerSum(), sk)
 }
 
 // GenKeys generates the bootstrapping keys
-func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *SecretKey) (btpKey *BootstrappingKey) {
+func (keygen *keyGenerator) GenBootstrappingKey(logSlots uint64, btpParams *BootstrappingParameters, sk *rlwe.SecretKey) (btpKey *BootstrappingKey) {
 
-	rotUint := computeBootstrappingDFTRotationList(keygen.params.logN, logSlots, btpParams)
+	rotUint := computeBootstrappingDFTRotationList(keygen.params.LogN(), logSlots, btpParams)
 	rotInt := make([]int, len(rotUint), len(rotUint))
 	for i, r := range rotUint {
 		rotInt[i] = int(r)

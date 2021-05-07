@@ -401,9 +401,14 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGal
 		ringQ.NTT(v, v)
 	}
 
+	gal0Q := mkrlwe.NewDecomposedPoly(eval.ringQ, eval.params.Beta())
+	gal0P := mkrlwe.NewDecomposedPoly(eval.ringP, eval.params.Beta())
+	gal1Q := mkrlwe.NewDecomposedPoly(eval.ringQ, eval.params.Beta())
+	gal1P := mkrlwe.NewDecomposedPoly(eval.ringP, eval.params.Beta())
+
 	for i := uint64(1); i <= k; i++ {
 
-		gal0Q, gal0P, gal1Q, gal1P := prepareGaloisEvaluationKey(i, level, eval.params.Beta(), keys)
+		prepareGaloisEvaluationKey(i, level, eval.params.Beta(), keys, gal0Q, gal0P, gal1Q, gal1P)
 
 		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
 		index := ring.PermuteNTTIndex(galEl, ringQP.N)
@@ -450,17 +455,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGal
 }
 
 // prepare galois evaluation keys for operations in split crt basis
-func prepareGaloisEvaluationKey(j, level, beta uint64, galKeys []*mkrlwe.MKEvalGalKey) (gal0Q, gal0P, gal1Q, gal1P *mkrlwe.MKDecomposedPoly) {
-
-	gal0Q = new(mkrlwe.MKDecomposedPoly)
-	gal0Q.Poly = make([]*ring.Poly, beta)
-	gal0P = new(mkrlwe.MKDecomposedPoly)
-	gal0P.Poly = make([]*ring.Poly, beta)
-
-	gal1Q = new(mkrlwe.MKDecomposedPoly)
-	gal1Q.Poly = make([]*ring.Poly, beta)
-	gal1P = new(mkrlwe.MKDecomposedPoly)
-	gal1P.Poly = make([]*ring.Poly, beta)
+func prepareGaloisEvaluationKey(j, level, beta uint64, galKeys []*mkrlwe.MKEvalGalKey, gal0Q, gal0P, gal1Q, gal1P *mkrlwe.MKDecomposedPoly) {
 
 	for u := uint64(0); u < beta; u++ {
 		gal0Q.Poly[u] = galKeys[j-1].Key[0].Poly[u].CopyNew()
@@ -476,8 +471,6 @@ func prepareGaloisEvaluationKey(j, level, beta uint64, galKeys []*mkrlwe.MKEvalG
 		gal1P.Poly[u].Coeffs = gal1P.Poly[u].Coeffs[level+1:]
 
 	}
-
-	return gal0Q, gal0P, gal1Q, gal1P
 }
 
 // NewPlaintextFromValue returns a plaintext in ringQ scaled by Q/t

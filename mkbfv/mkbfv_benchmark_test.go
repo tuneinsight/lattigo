@@ -30,6 +30,8 @@ func Benchmark_MKBFV(b *testing.B) {
 		benchDecrypt(b, p)
 		benchPartialDecrypt(b, p)
 		benchMultTwoCiphertexts(b, p)
+		benchMulAndRelin(b, p)
+		benchRotate(b, p)
 	}
 }
 
@@ -73,6 +75,28 @@ func benchAddTwoCiphertexts(b *testing.B, params *bfv.Parameters) {
 	})
 }
 
+func benchRotate(b *testing.B, params *bfv.Parameters) {
+
+	participants := setupPeers(1, params, 6.0)
+
+	ringT := getRingT(params)
+
+	value1 := getRandomPlaintextValue(ringT, params)
+
+	cipher1 := participants[0].Encrypt(value1)
+
+	evaluator := NewMKEvaluator(params)
+
+	rotKey := participants[0].GetRotationKeys(15)
+
+	b.Run(testString("Rotate/", 1, params), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+			evaluator.Rotate(cipher1, 15, []*mkrlwe.MKEvalGalKey{rotKey})
+		}
+	})
+}
+
 func benchMultTwoCiphertexts(b *testing.B, params *bfv.Parameters) {
 
 	participants := setupPeers(2, params, 6.0)
@@ -95,7 +119,7 @@ func benchMultTwoCiphertexts(b *testing.B, params *bfv.Parameters) {
 	})
 }
 
-func benchRelin(b *testing.B, params *bfv.Parameters) {
+func benchMulAndRelin(b *testing.B, params *bfv.Parameters) {
 
 	participants := setupPeers(2, params, 6.0)
 
@@ -108,14 +132,14 @@ func benchRelin(b *testing.B, params *bfv.Parameters) {
 	cipher2 := participants[1].Encrypt(value2)
 
 	evaluator := NewMKEvaluator(params)
-	res := evaluator.Mul(cipher1, cipher2)
 
 	evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 	pubKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
-	b.Run(testString("Relin/", 2, params), func(b *testing.B) {
+	b.Run(testString("Mul and Relin/", 2, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
+			res := evaluator.Mul(cipher1, cipher2)
 			evaluator.RelinInPlace(res, evalKeys, pubKeys)
 		}
 	})

@@ -27,13 +27,23 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 		res[i] = ringQ.NewPoly()
 	}
 
+	d0Q := NewDecomposedPoly(ringQ, params.Beta())
+	d1Q := NewDecomposedPoly(ringQ, params.Beta())
+	d2Q := NewDecomposedPoly(ringQ, params.Beta())
+	d0P := NewDecomposedPoly(ringP, params.Beta())
+	d1P := NewDecomposedPoly(ringP, params.Beta())
+	d2P := NewDecomposedPoly(ringP, params.Beta())
+
+	pkQ := NewDecomposedPoly(ringQ, params.Beta())
+	pkP := NewDecomposedPoly(ringP, params.Beta())
+
 	for i := uint64(1); i <= k; i++ {
 
-		d0Q, d1Q, d2Q, d0P, d1P, d2P := prepareEvalKey(i, level, uint64(len(ringQ.Modulus)), params.Beta(), evaluationKeys)
+		prepareEvalKey(i, level, uint64(len(ringQ.Modulus)), params.Beta(), evaluationKeys, d0Q, d1Q, d2Q, d0P, d1P, d2P)
 
 		for j := uint64(1); j <= k; j++ {
 
-			pkQ, pkP := preparePublicKey(j, level, uint64(len(ringQ.Modulus)), params.Beta(), publicKeys)
+			preparePublicKey(j, level, uint64(len(ringQ.Modulus)), params.Beta(), publicKeys, pkQ, pkP)
 
 			decomposedIJQ, decomposedIJP := GInverse((*ct)[i*(k+1)+j], params, level) // line 3
 
@@ -85,25 +95,11 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 }
 
 // prepare evaluation key for operations in split crt basis
-func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluationKey) (d0Q, d1Q, d2Q, d0P, d1P, d2P *MKDecomposedPoly) {
+func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluationKey, d0Q, d1Q, d2Q, d0P, d1P, d2P *MKDecomposedPoly) {
 
 	di0 := evaluationKeys[i-1].Key[0]
 	di1 := evaluationKeys[i-1].Key[1]
 	di2 := evaluationKeys[i-1].Key[2]
-
-	d0Q = new(MKDecomposedPoly)
-	d0Q.Poly = make([]*ring.Poly, beta)
-	d1Q = new(MKDecomposedPoly)
-	d1Q.Poly = make([]*ring.Poly, beta)
-	d2Q = new(MKDecomposedPoly)
-	d2Q.Poly = make([]*ring.Poly, beta)
-	d0P = new(MKDecomposedPoly)
-	d0P.Poly = make([]*ring.Poly, beta)
-	d1P = new(MKDecomposedPoly)
-	d1P.Poly = make([]*ring.Poly, beta)
-	d2P = new(MKDecomposedPoly)
-	d2P.Poly = make([]*ring.Poly, beta)
-
 	for u := uint64(0); u < beta; u++ {
 		d0Q.Poly[u] = di0.Poly[u].CopyNew()
 		d0Q.Poly[u].Coeffs = d0Q.Poly[u].Coeffs[:level+1]
@@ -120,16 +116,10 @@ func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluati
 		d2P.Poly[u].Coeffs = d2P.Poly[u].Coeffs[modulus:]
 	}
 
-	return
 }
 
 // prepare public key for operations in split crt basis
-func preparePublicKey(j, level, modulus, beta uint64, publicKeys []*MKPublicKey) (pkQ, pkP *MKDecomposedPoly) {
-
-	pkQ = new(MKDecomposedPoly)
-	pkQ.Poly = make([]*ring.Poly, beta)
-	pkP = new(MKDecomposedPoly)
-	pkP.Poly = make([]*ring.Poly, beta)
+func preparePublicKey(j, level, modulus, beta uint64, publicKeys []*MKPublicKey, pkQ, pkP *MKDecomposedPoly) {
 
 	for u := uint64(0); u < beta; u++ {
 		pkQ.Poly[u] = publicKeys[j-1].Key[0].Poly[u].CopyNew()
@@ -140,7 +130,6 @@ func preparePublicKey(j, level, modulus, beta uint64, publicKeys []*MKPublicKey)
 
 	}
 
-	return
 }
 
 // GInverse is a method that returns the decomposition of a polynomial from R_qp to R_qp^beta

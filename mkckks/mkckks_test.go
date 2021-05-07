@@ -42,7 +42,6 @@ func Test_MKCKKS(t *testing.T) {
 			testSubPlaintextTwoParticipants(t, p)
 			testMulPlaintext(t, p)
 			testMulPlaintextTwoParticipants(t, p)
-			testKeySwitch(t, p)
 			testTensor2(t, p)
 			testTensor(t, p)
 			testTensorTwoParticipants(t, p)
@@ -691,41 +690,6 @@ func testSquare(t *testing.T, params *ckks.Parameters) {
 
 		// check results
 		verifyTestVectors(params, values1, decrypted, t)
-	})
-
-}
-
-func testKeySwitch(t *testing.T, params *ckks.Parameters) {
-
-	sigma := 6.0
-
-	participants := setupPeers(1, params, sigma)
-
-	newKey := mkrlwe.KeyGen(&params.Parameters, participants[0].GetPublicKey().Key[1])
-	swk := mkrlwe.GenSwitchingKey(participants[0].GetSecretKey(), newKey.SecretKey, &params.Parameters)
-
-	t.Run(testString("Test key switch/", 1, params), func(t *testing.T) {
-
-		// get random value
-		value := newTestValue(params, complex(-1, -1), complex(1, 1))
-
-		//encrypt
-		cipher := participants[0].Encrypt(value)
-
-		// perform key switch
-		evaluator := NewMKEvaluator(params)
-
-		newCipher := evaluator.SwitchKeysNew(cipher, swk)
-
-		//participant changes its secret key for decryption
-		participants[0].SetSecretKey(newKey.SecretKey)
-
-		// decrypt
-		partialDec := participants[0].GetPartialDecryption(newCipher)
-		decrypted := participants[0].Decrypt(newCipher, []*ring.Poly{partialDec})
-
-		// decode and check
-		verifyTestVectors(params, value, decrypted, t)
 	})
 
 }
@@ -1398,7 +1362,7 @@ func DecryptAndCompare(keys []*mkrlwe.MKSecretKey, ct *MKCiphertext, params *ckk
 	innerProduct2.Coeffs = innerProduct2.Coeffs[:level+1]
 
 	mulInnerProduct := ringQ.NewPoly()
-	mkrlwe.MulCoeffsAndAddLvl(level, innerProduct1, innerProduct2, mulInnerProduct, ringQ)
+	ringQ.MulCoeffsAndAdd(innerProduct1, innerProduct2, mulInnerProduct)
 	ringQ.ReduceLvl(level, mulInnerProduct, mulInnerProduct)
 	mulInnerProduct.Coeffs = mulInnerProduct.Coeffs[:level+1]
 	return res, mulInnerProduct

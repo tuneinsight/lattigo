@@ -458,17 +458,14 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGal
 func prepareGaloisEvaluationKey(j, level, beta uint64, galKeys []*mkrlwe.MKEvalGalKey, gal0Q, gal0P, gal1Q, gal1P *mkrlwe.MKDecomposedPoly) {
 
 	for u := uint64(0); u < beta; u++ {
-		gal0Q.Poly[u] = galKeys[j-1].Key[0].Poly[u].CopyNew()
-		gal0Q.Poly[u].Coeffs = gal0Q.Poly[u].Coeffs[:level+1]
 
-		gal0P.Poly[u] = galKeys[j-1].Key[0].Poly[u].CopyNew()
-		gal0P.Poly[u].Coeffs = gal0P.Poly[u].Coeffs[level+1:]
+		gal0Q.Poly[u].Coeffs = galKeys[j-1].Key[0].Poly[u].Coeffs[:level+1]
 
-		gal1Q.Poly[u] = galKeys[j-1].Key[1].Poly[u].CopyNew()
-		gal1Q.Poly[u].Coeffs = gal1Q.Poly[u].Coeffs[:level+1]
+		gal0P.Poly[u].Coeffs = galKeys[j-1].Key[0].Poly[u].Coeffs[level+1:]
 
-		gal1P.Poly[u] = galKeys[j-1].Key[1].Poly[u].CopyNew()
-		gal1P.Poly[u].Coeffs = gal1P.Poly[u].Coeffs[level+1:]
+		gal1Q.Poly[u].Coeffs = galKeys[j-1].Key[1].Poly[u].Coeffs[:level+1]
+
+		gal1P.Poly[u].Coeffs = galKeys[j-1].Key[1].Poly[u].Coeffs[level+1:]
 
 	}
 }

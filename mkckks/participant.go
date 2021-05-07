@@ -19,7 +19,6 @@ type MKParticipant interface {
 	GetPartialDecryption(ciphertext *MKCiphertext) *ring.Poly
 	GetRotationKeys(rot int) *mkrlwe.MKEvalGalKey
 	GetSecretKey() *mkrlwe.MKSecretKey
-	SetSecretKey(newKey *mkrlwe.MKSecretKey)
 }
 
 type mkParticipant struct {
@@ -177,11 +176,6 @@ func (participant *mkParticipant) GetRotationKeys(rot int) *mkrlwe.MKEvalGalKey 
 }
 
 // GetSecretKey returns the secret key of the participant
-func (participant *mkParticipant) GetSecretKey() *mkrlwe.MKSecretKey { // TODO: remove these 2 functions and the key switch if not useful else run Keygen with new key
+func (participant *mkParticipant) GetSecretKey() *mkrlwe.MKSecretKey {
 	return participant.keys.SecretKey
-}
-
-// SetSecretKey changes the secret key of the participant
-func (participant *mkParticipant) SetSecretKey(newKey *mkrlwe.MKSecretKey) {
-	participant.keys.SecretKey = newKey
 }

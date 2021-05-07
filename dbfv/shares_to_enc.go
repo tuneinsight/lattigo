@@ -13,8 +13,9 @@ type S2EProtocol struct {
 	ringQ   *ring.Ring
 	encoder bfv.Encoder
 
-	zero         *rlwe.SecretKey
-	tmpPlaintext *bfv.Plaintext
+	zero              *rlwe.SecretKey
+	tmpPlaintext      *bfv.Plaintext
+	tmpPlaintextRingT *bfv.PlaintextRingT
 }
 
 func NewS2EProtocol(params bfv.Parameters, sigmaSmudging float64) *S2EProtocol {
@@ -24,11 +25,14 @@ func NewS2EProtocol(params bfv.Parameters, sigmaSmudging float64) *S2EProtocol {
 	e2s.encoder = bfv.NewEncoder(params)
 	e2s.zero = rlwe.NewSecretKey(params.Parameters)
 	e2s.tmpPlaintext = bfv.NewPlaintext(params)
+	e2s.tmpPlaintextRingT = bfv.NewPlaintextRingT(params)
 	return e2s
 }
 
 func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare AdditiveShare, c0ShareOut *drlwe.CKSShare) {
-	s2e.encoder.EncodeUint(secretShare.Value.Coeffs[0], s2e.tmpPlaintext)
+	//s2e.encoder.EncodeUint(secretShare.Value.Coeffs[0], s2e.tmpPlaintext)
+	s2e.tmpPlaintextRingT.Value[0].Copy(&secretShare.Value)
+	s2e.encoder.ScaleUp(s2e.tmpPlaintextRingT, s2e.tmpPlaintext)
 	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Element{Value: []*ring.Poly{c0ShareOut.Value, c1}}, c0ShareOut)
 	s2e.ringQ.Add(c0ShareOut.Value, s2e.tmpPlaintext.Value[0], c0ShareOut.Value)
 }

@@ -522,13 +522,19 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 			testCtx.ringT.Add(&rec.Value, &p.secretShare.Value, &rec.Value)
 		}
 
-		//fmt.Println("Want:", coeffs[:see])
-		//fmt.Println("Want Pt:", plaintext.Value[0].Coeffs[0][:see])
-		//fmt.Println("Have:", rec.Value.Coeffs[0][:see])
+		ptRt := bfv.NewPlaintextRingT(testCtx.params)
+		ptRt.Value[0].Copy(&rec.Value)
 
-		assert.True(t, utils.EqualSliceUint64(coeffs, rec.Value.Coeffs[0]))
+		res := testCtx.encoder.DecodeUintNew(ptRt)
+
+		see := 25
+		fmt.Println("Want:", coeffs[:see])
+		fmt.Println("Have:", res[:see])
+
+		assert.True(t, utils.EqualSliceUint64(coeffs, res))
 
 	})
+
 	crs := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
 	c1 := crs.ReadNew()
 
@@ -687,9 +693,15 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 		}
 
 		permute := func(polIn, polOut *ring.Poly) {
-			for i := range polIn.Coeffs[0] {
-				polOut.Coeffs[0][i] = polIn.Coeffs[0][permutation[i]]
+			ptRt := bfv.NewPlaintextRingT(testCtx.params)
+			ptRt.Value[0].Copy(polIn)
+			coeffs := testCtx.encoder.DecodeUintNew(ptRt)
+			coeffsPerm := make([]uint64, len(coeffs))
+			for i := range coeffs {
+				coeffsPerm[i] = coeffs[permutation[i]]
 			}
+			testCtx.encoder.EncodeUintRingT(coeffsPerm, ptRt)
+			polOut.Copy(ptRt.Value[0])
 		}
 
 		for i, p := range RefreshParties {

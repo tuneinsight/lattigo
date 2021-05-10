@@ -692,16 +692,13 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 			permutation[i] = ring.RandUniform(testCtx.prng, N, N-1)
 		}
 
-		permute := func(polIn, polOut *ring.Poly) {
-			ptRt := bfv.NewPlaintextRingT(testCtx.params)
-			ptRt.Value.Copy(polIn)
-			coeffs := testCtx.encoder.DecodeUintNew(ptRt)
+		permute := func(ptIn, ptOut bfv.PlaintextRingT) {
+			coeffs := testCtx.encoder.DecodeUintNew(&ptIn)
 			coeffsPerm := make([]uint64, len(coeffs))
 			for i := range coeffs {
 				coeffsPerm[i] = coeffs[permutation[i]]
 			}
-			testCtx.encoder.EncodeUintRingT(coeffsPerm, ptRt)
-			polOut.Copy(ptRt.Value)
+			testCtx.encoder.EncodeUintRingT(coeffsPerm, &ptOut)
 		}
 
 		for i, p := range RefreshParties {

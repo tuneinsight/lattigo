@@ -79,6 +79,30 @@ func KeyGen(params *rlwe.Parameters, a *MKDecomposedPoly) *MKKeys {
 	return keyBag
 }
 
+// KeyGenWithSecretKey generated a secret key, a public key and a relinearization key
+// given rlwe paramters, the peer id, the vector "a" common to all participants and a bfv secret key
+func KeyGenWithSecretKey(params *rlwe.Parameters, a *MKDecomposedPoly, sk *rlwe.SecretKey) *MKKeys {
+
+	// create ring
+	ringQP := GetRingQP(params)
+
+	keyBag := new(MKKeys)
+
+	// generate private and public mkrlwe keys
+	keyBag.SecretKey = new(MKSecretKey)
+	keyBag.SecretKey.Key = sk
+
+	//Public key = (b, a)
+	keyBag.PublicKey = new(MKPublicKey)
+	keyBag.PublicKey.Key[0] = genPublicKey(keyBag.SecretKey.Key, params, ringQP, a)
+	keyBag.PublicKey.Key[1] = a
+
+	// generate evaluation key. The evaluation key is used in the relinearization phase.
+	keyBag.EvalKey = evaluationKeyGen(keyBag.SecretKey, keyBag.PublicKey, params, ringQP)
+
+	return keyBag
+}
+
 // GenSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
 func GenSecretKey(ringQP *ring.Ring) *rlwe.SecretKey {
 	return GenSecretKeyWithDistrib(1.0/3, ringQP)

@@ -30,6 +30,7 @@ func Test_MKBFV(t *testing.T) {
 		testSubPlaintextTwoParticipants(t, p)
 		testMulPlaintext(t, p)
 		testMulPlaintextTwoParticipants(t, p)
+		testBfvMkbfvBridge(t, p)
 
 		if i != 0 && i != 4 && i != 6 {
 			testMulFourParticipants(t, p)
@@ -809,6 +810,73 @@ func testRotationTwoParticipants(t *testing.T, params *bfv.Parameters) {
 		}
 	})
 
+}
+
+func testBfvMkbfvBridge(t *testing.T, params *bfv.Parameters) {
+
+	ringT := getRingT(params)
+	encoder := bfv.NewEncoder(*params)
+	keygen := bfv.NewKeyGenerator(*params)
+	sk, pk := keygen.GenKeyPair()
+	encryptorPK := bfv.NewEncryptorFromPk(*params, pk)
+
+	t.Run(testString("Test Bridge BFV-MKBFV/", 2, params), func(t *testing.T) {
+
+		// setup bfv environment and encrypt values in bfv
+		values1 := getRandomPlaintextValue(ringT, params)
+		plaintext := bfv.NewPlaintext(*params)
+		encoder.EncodeUint(values1, plaintext)
+
+		var ciphertext1 *bfv.Ciphertext
+
+		if params.PCount() != 0 {
+			ciphertext1 = encryptorPK.EncryptNew(plaintext)
+		} else {
+			ciphertext1 = encryptorPK.EncryptFastNew(plaintext)
+		}
+
+		// switch to multi key setting and operate with other participant
+
+		prng, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+
+		if err != nil {
+			panic(err)
+		}
+
+		// setup keys and public parameters
+		a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
+		part1 := NewParticipantFromSecretKey(params, 6.0, a, sk)
+		part2 := NewParticipant(params, 6.0, a)
+
+		// perform addition
+		values2 := getRandomPlaintextValue(ringT, params)
+		ciphertext2 := part2.Encrypt(values2)
+
+		evaluator := NewMKEvaluator(params)
+
+		res := evaluator.Add(ciphertext2, &MKCiphertext{Ciphertexts: ciphertext1, PeerID: []uint64{part1.GetID()}})
+
+		// decrypt
+
+		partDec1 := part1.GetPartialDecryption(res)
+		partDec2 := part2.GetPartialDecryption(res)
+
+		decrypted := part1.Decrypt(res, []*ring.Poly{partDec1, partDec2})
+
+		//verify
+
+		expected := ringT.NewPoly()
+		p1 := ringT.NewPoly()
+		p2 := ringT.NewPoly()
+		copy(p1.Coeffs[0], values1)
+		copy(p2.Coeffs[0], values2)
+
+		ringT.Add(p1, p2, expected)
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic addition error")
+		}
+	})
 }
 
 func Test_Utils(t *testing.T) {

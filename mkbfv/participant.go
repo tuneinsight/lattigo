@@ -7,6 +7,7 @@ import (
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 // MKParticipant is a type for participants in a multy key bfv scheme
@@ -116,6 +117,46 @@ func NewParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *mkrlwe.M
 	}
 
 	keys := mkrlwe.KeyGen(&params.Parameters, mkrlwe.CopyNewDecomposed(crs))
+
+	uid := hashPublicKey(keys.PublicKey.Key)
+
+	keys.PublicKey.PeerID = uid
+	keys.SecretKey.PeerID = uid
+	keys.EvalKey.PeerID = uid
+
+	encryptor := NewMKEncryptor(keys.PublicKey, params, uid)
+	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, sigmaSmudging)
+	encoder := bfv.NewEncoder(*params)
+	ringQ := mkrlwe.GetRingQ(&params.Parameters)
+
+	return &mkParticipant{
+		id:        uid,
+		encryptor: encryptor,
+		decryptor: decryptor,
+		params:    params,
+		keys:      keys,
+		encoder:   encoder,
+		ringQ:     ringQ,
+	}
+}
+
+// NewParticipantFromSecretKey creates a participant for the multi key bfv scheme from a bfv secret key
+// the bfv parameters as well as the standard deviation used for partial decryption must be provided
+func NewParticipantFromSecretKey(params *bfv.Parameters, sigmaSmudging float64, crs *mkrlwe.MKDecomposedPoly, sk *rlwe.SecretKey) MKParticipant {
+
+	if crs == nil || params == nil || sk == nil {
+		panic("Uninitialized parameters. Cannot create new participant")
+	}
+
+	if sigmaSmudging < params.Sigma() {
+		panic("Sigma must be at least greater than the standard deviation of the gaussian distribution")
+	}
+
+	if len(crs.Poly) != int(params.Beta()) {
+		panic("CRS must be the same dimention as returned by the function bfv.Parameters.Beta()")
+	}
+
+	keys := mkrlwe.KeyGenWithSecretKey(&params.Parameters, mkrlwe.CopyNewDecomposed(crs), sk)
 
 	uid := hashPublicKey(keys.PublicKey.Key)
 

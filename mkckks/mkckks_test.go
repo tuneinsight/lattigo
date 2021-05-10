@@ -45,6 +45,7 @@ func Test_MKCKKS(t *testing.T) {
 			testTensor2(t, p)
 			testTensor(t, p)
 			testTensorTwoParticipants(t, p)
+			testCkksMkbfvBridge(t, p)
 
 			testRotation(t, p)
 			testRotationTwoParticipants(t, p)
@@ -1023,6 +1024,63 @@ func testRotationTwoParticipants(t *testing.T, params *ckks.Parameters) {
 		}
 	})
 
+}
+
+func testCkksMkbfvBridge(t *testing.T, params *ckks.Parameters) {
+
+	encoder := ckks.NewEncoder(*params)
+	keygen := ckks.NewKeyGenerator(*params)
+	sk, pk := keygen.GenKeyPair()
+	encryptorPK := ckks.NewEncryptorFromPk(*params, pk)
+
+	t.Run(testString("Test Bridge BFV-MKBFV/", 2, params), func(t *testing.T) {
+
+		// setup bfv environment and encrypt values in bfv
+		values1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		plaintext := encoder.EncodeNTTAtLvlNew(params.MaxLevel(), values1, params.LogSlots())
+
+		var ciphertext1 *ckks.Ciphertext
+
+		if params.PCount() != 0 {
+			ciphertext1 = encryptorPK.EncryptNew(plaintext)
+		} else {
+			ciphertext1 = encryptorPK.EncryptFastNew(plaintext)
+		}
+
+		// switch to multi key setting and operate with other participant
+		prng, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+
+		if err != nil {
+			panic(err)
+		}
+
+		// setup keys and public parameters
+		a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
+		part1 := NewParticipantFromSecretKey(params, 6.0, a, sk)
+		part2 := NewParticipant(params, 6.0, a)
+
+		// perform addition
+		values2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		ciphertext2 := part2.Encrypt(values2)
+
+		evaluator := NewMKEvaluator(params)
+
+		res := evaluator.Add(ciphertext2, &MKCiphertext{Ciphertexts: ciphertext1, PeerID: []uint64{part1.GetID()}})
+
+		// decrypt
+
+		partDec1 := part1.GetPartialDecryption(res)
+		partDec2 := part2.GetPartialDecryption(res)
+
+		decrypted := part1.Decrypt(res, []*ring.Poly{partDec1, partDec2})
+
+		//verify
+		for i := range values1 {
+			values1[i] += values2[i]
+		}
+
+		verifyTestVectors(params, values1, decrypted, t)
+	})
 }
 
 func Test_Utils(t *testing.T) {

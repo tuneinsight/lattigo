@@ -49,19 +49,16 @@ func NewE2SProtocol(params bfv.Parameters, sigmaSmudging float64) *E2SProtocol {
 func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct *bfv.Ciphertext, secretShareOut AdditiveShare, publicShareOut *drlwe.CKSShare) {
 	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 	e2s.maskSampler.Read(&secretShareOut.Value)
-	//e2s.encoder.EncodeUint(secretShareOut.Value.Coeffs[0], e2s.tmpPlaintext)
-	e2s.tmpPlaintextRingT.Value[0].Copy(&secretShareOut.Value)
-	e2s.encoder.ScaleUp(e2s.tmpPlaintextRingT, e2s.tmpPlaintext)
-	e2s.ringQ.Sub(publicShareOut.Value, e2s.tmpPlaintext.Value[0], publicShareOut.Value)
+	e2s.encoder.ScaleUp(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: &secretShareOut.Value}}, e2s.tmpPlaintext)
+	e2s.ringQ.Sub(publicShareOut.Value, e2s.tmpPlaintext.Value, publicShareOut.Value)
 }
 
 func (e2s *E2SProtocol) Finalize(secretShare *AdditiveShare, aggregatePublicShare *drlwe.CKSShare, ct *bfv.Ciphertext, secretShareOut *AdditiveShare) {
-	e2s.ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintext.Value[0])
-	//e2s.encoder.DecodeUint(e2s.tmpPlaintext, e2s.tmpPlaintextRingT.Value[0].Coeffs[0])
+	e2s.ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintext.Value)
 	e2s.encoder.ScaleDown(e2s.tmpPlaintext, e2s.tmpPlaintextRingT)
 	if secretShare != nil {
-		e2s.ringT.Add(&secretShare.Value, e2s.tmpPlaintextRingT.Value[0], &secretShareOut.Value)
+		e2s.ringT.Add(&secretShare.Value, e2s.tmpPlaintextRingT.Value, &secretShareOut.Value)
 	} else {
-		secretShareOut.Value.Copy(e2s.tmpPlaintextRingT.Value[0])
+		secretShareOut.Value.Copy(e2s.tmpPlaintextRingT.Value)
 	}
 }

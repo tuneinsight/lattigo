@@ -49,21 +49,21 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, p *Plaintext) {
 	ringQ := decryptor.ringQ
 	tmp := decryptor.polypool
 
-	ringQ.NTTLazy(ciphertext.Value[ciphertext.Degree()], p.value)
+	ringQ.NTTLazy(ciphertext.Value[ciphertext.Degree()], p.Value)
 
 	for i := ciphertext.Degree(); i > 0; i-- {
-		ringQ.MulCoeffsMontgomery(p.value, decryptor.sk.Value, p.value)
+		ringQ.MulCoeffsMontgomery(p.Value, decryptor.sk.Value, p.Value)
 		ringQ.NTTLazy(ciphertext.Value[i-1], tmp)
-		ringQ.Add(p.value, tmp, p.value)
+		ringQ.Add(p.Value, tmp, p.Value)
 
 		if i&3 == 3 {
-			ringQ.Reduce(p.value, p.value)
+			ringQ.Reduce(p.Value, p.Value)
 		}
 	}
 
 	if (ciphertext.Degree())&3 != 3 {
-		ringQ.Reduce(p.value, p.value)
+		ringQ.Reduce(p.Value, p.Value)
 	}
 
-	ringQ.InvNTT(p.value, p.value)
+	ringQ.InvNTT(p.Value, p.Value)
 }

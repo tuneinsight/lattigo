@@ -215,7 +215,7 @@ func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast
 	}
 	// ct[0] = pk[0]*u + e0 + m
 	// ct[1] = pk[1]*u + e1
-	encryptor.ringQ.Add(ciphertext.Value[0], p.value, ciphertext.Value[0])
+	encryptor.ringQ.Add(ciphertext.Value[0], p.Value, ciphertext.Value[0])
 }
 
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
@@ -277,5 +277,5 @@ func (encryptor *skEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, crp 
 	encryptor.gaussianSamplerQ.ReadAndAddLvl(len(ringQ.Modulus)-1, ciphertext.Value[0])
 
 	// ct = [-a*s + m + e , a]
-	encryptor.ringQ.Add(ciphertext.Value[0], p.value, ciphertext.Value[0])
+	encryptor.ringQ.Add(ciphertext.Value[0], p.Value, ciphertext.Value[0])
 }

@@ -523,7 +523,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 		}
 
 		ptRt := bfv.NewPlaintextRingT(testCtx.params)
-		ptRt.Value[0].Copy(&rec.Value)
+		ptRt.Value.Copy(&rec.Value)
 
 		res := testCtx.encoder.DecodeUintNew(ptRt)
 
@@ -694,14 +694,14 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 
 		permute := func(polIn, polOut *ring.Poly) {
 			ptRt := bfv.NewPlaintextRingT(testCtx.params)
-			ptRt.Value[0].Copy(polIn)
+			ptRt.Value.Copy(polIn)
 			coeffs := testCtx.encoder.DecodeUintNew(ptRt)
 			coeffsPerm := make([]uint64, len(coeffs))
 			for i := range coeffs {
 				coeffsPerm[i] = coeffs[permutation[i]]
 			}
 			testCtx.encoder.EncodeUintRingT(coeffsPerm, ptRt)
-			polOut.Copy(ptRt.Value[0])
+			polOut.Copy(ptRt.Value)
 		}
 
 		for i, p := range RefreshParties {

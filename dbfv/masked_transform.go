@@ -16,8 +16,8 @@ type MaskedTransformProtocol struct {
 	ringQ   *ring.Ring
 	ringT   *ring.Ring
 
-	tmpPt       bfv.Plaintext
-	tmpPtRt     bfv.PlaintextRingT
+	tmpPt bfv.Plaintext
+	//	tmpPtRt     bfv.PlaintextRingT
 	tmpMask     *ring.Poly
 	tmpMaskPerm *ring.Poly
 }
@@ -61,7 +61,7 @@ func NewMaskedTransformProtocol(params bfv.Parameters, sigmaSmudging float64) (r
 	rfp.ringQ = rfp.e2s.ringQ
 	rfp.ringT = rfp.e2s.ringT
 	rfp.tmpPt = *bfv.NewPlaintext(params)
-	rfp.tmpPtRt = *bfv.NewPlaintextRingT(params)
+	//rfp.tmpPtRt = *bfv.NewPlaintextRingT(params)
 	rfp.tmpMask = rfp.ringT.NewPoly()
 	rfp.tmpMaskPerm = rfp.ringT.NewPoly()
 	return
@@ -97,9 +97,9 @@ func (rfp *MaskedTransformProtocol) Finalize(ciphertext *bfv.Ciphertext, transfo
 		transform(rfp.tmpMask, rfp.tmpMaskPerm)
 		mask = rfp.tmpMaskPerm
 	}
-	rfp.tmpPtRt.Value[0].Copy(mask)
-	rfp.encoder.ScaleUp(&rfp.tmpPtRt, &rfp.tmpPt)
+	//rfp.tmpPtRt.Value.Copy(mask)
+	rfp.encoder.ScaleUp(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, &rfp.tmpPt)
 	//rfp.encoder.EncodeUint(mask.Coeffs[0], &rfp.tmpPt) // tmpMask RingQ( Delta*(m - sum M_i))
-	rfp.ringQ.Add(rfp.tmpPt.Value[0], share.s2eShare.Value, ciphertextOut.Value[0])
+	rfp.ringQ.Add(rfp.tmpPt.Value, share.s2eShare.Value, ciphertextOut.Value[0])
 	rfp.s2e.Finalize(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, *ciphertextOut)
 }

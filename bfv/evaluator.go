@@ -497,7 +497,7 @@ func (eval *evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
 func (eval *evaluator) mulPlaintextMul(ct0 *Ciphertext, ptRt *PlaintextMul, ctOut *Ciphertext) {
 	for i := range ct0.Value {
 		eval.ringQ.NTTLazy(ct0.Value[i], ctOut.Value[i])
-		eval.ringQ.MulCoeffsMontgomeryConstant(ctOut.Value[i], ptRt.value, ctOut.Value[i])
+		eval.ringQ.MulCoeffsMontgomeryConstant(ctOut.Value[i], ptRt.Value, ctOut.Value[i])
 		eval.ringQ.InvNTT(ctOut.Value[i], ctOut.Value[i])
 	}
 }
@@ -505,7 +505,7 @@ func (eval *evaluator) mulPlaintextMul(ct0 *Ciphertext, ptRt *PlaintextMul, ctOu
 func (eval *evaluator) mulPlaintextRingT(ct0 *Ciphertext, ptRt *PlaintextRingT, ctOut *Ciphertext) {
 	ringQ := eval.ringQ
 
-	coeffs := ptRt.value.Coeffs[0]
+	coeffs := ptRt.Value.Coeffs[0]
 	coeffsNTT := eval.poolQ[0][0].Coeffs[0]
 
 	for i := range ct0.Value {
@@ -806,8 +806,8 @@ func (eval *evaluator) getRingQElem(op Operand) *rlwe.Element {
 	case *Ciphertext, *Plaintext:
 		return o.El()
 	case *PlaintextRingT:
-		scaleUp(eval.ringQ, eval.deltaMont, o.value, eval.tmpPt.value)
-		return eval.tmpPt.Element
+		scaleUp(eval.ringQ, eval.deltaMont, o.Value, eval.tmpPt.Value)
+		return eval.tmpPt.El()
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))
 	}

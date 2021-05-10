@@ -12,6 +12,38 @@ type Ciphertext interface {
 	RLWEElement() *Element
 }
 
+type Plaintext struct {
+	Value *ring.Poly
+}
+
+func NewPlaintext(params Parameters) *Plaintext {
+	return &Plaintext{Value: ring.NewPoly(params.N(), params.QCount())}
+}
+
+func NewPlaintextAtLevel(params Parameters, level int) *Plaintext {
+	return &Plaintext{Value: ring.NewPoly(params.N(), level+1)}
+}
+
+// Degree returns the degree of the target element.
+func (pt Plaintext) Degree() int {
+	return 0
+}
+
+// Level returns the level of the target element.
+func (pt Plaintext) Level() int {
+	return len(pt.Value.Coeffs) - 1
+}
+
+func (pt Plaintext) El() *Element {
+	return &Element{Value: []*ring.Poly{pt.Value}, IsNTT: true}
+}
+
+func (pt *Plaintext) Copy(other *Plaintext) {
+	if other != nil && other.Value != nil {
+		pt.Value.Copy(other.Value)
+	}
+}
+
 // Element is a generic type for ciphertext and plaintexts
 type Element struct {
 	Value []*ring.Poly

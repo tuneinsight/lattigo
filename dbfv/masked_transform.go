@@ -22,6 +22,8 @@ type MaskedTransformProtocol struct {
 	tmpMaskPerm *ring.Poly
 }
 
+type MaskedTransformFunc func(ptIn, ptOut bfv.PlaintextRingT)
+
 // MaskedTransformShare is a struct storing the decryption and recryption shares.
 type MaskedTransformShare struct {
 	e2sShare drlwe.CKSShare
@@ -73,11 +75,11 @@ func (rfp *MaskedTransformProtocol) AllocateShares() MaskedTransformShare {
 }
 
 // GenShares generates the shares of the PermuteProtocol
-func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs *ring.Poly, transform func(*ring.Poly, *ring.Poly), shareOut MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs *ring.Poly, transform MaskedTransformFunc, shareOut MaskedTransformShare) {
 	rfp.e2s.GenShare(sk, ciphertext, AdditiveShare{*rfp.tmpMask}, &shareOut.e2sShare)
 	mask := rfp.tmpMask
 	if transform != nil {
-		transform(rfp.tmpMask, rfp.tmpMaskPerm)
+		transform(bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: rfp.tmpMaskPerm}})
 		mask = rfp.tmpMaskPerm
 	}
 	rfp.s2e.GenShare(sk, crs, AdditiveShare{*mask}, &shareOut.s2eShare)
@@ -90,11 +92,11 @@ func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut MaskedTra
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *MaskedTransformProtocol) Finalize(ciphertext *bfv.Ciphertext, transform func(*ring.Poly, *ring.Poly), crs *ring.Poly, share MaskedTransformShare, ciphertextOut *bfv.Ciphertext) {
+func (rfp *MaskedTransformProtocol) Finalize(ciphertext *bfv.Ciphertext, transform MaskedTransformFunc, crs *ring.Poly, share MaskedTransformShare, ciphertextOut *bfv.Ciphertext) {
 	rfp.e2s.Finalize(nil, &share.e2sShare, ciphertext, &AdditiveShare{*rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
 	mask := rfp.tmpMask
 	if transform != nil {
-		transform(rfp.tmpMask, rfp.tmpMaskPerm)
+		transform(bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: rfp.tmpMaskPerm}})
 		mask = rfp.tmpMaskPerm
 	}
 	//rfp.tmpPtRt.Value.Copy(mask)

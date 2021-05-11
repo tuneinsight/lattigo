@@ -4,7 +4,7 @@
 	<img src="logo.png" />
 </p>
 
-[![Go tests](https://github.com/ldsec/lattigo/actions/workflows/ci.yml/badge.svg](https://github.com/ldsec/lattigo/actions/workflows/ci.yml)
+![Go tests](https://github.com/ldsec/lattigo/actions/workflows/ci.yml/badge.svg)
 
 Lattigo is a Go module that implements Ring-Learning-With-Errors-based homomorphic-encryption primitives and Multiparty-Homomorphic-Encryption-based secure protocols.
 The library features:

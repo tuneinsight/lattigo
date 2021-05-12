@@ -22,21 +22,15 @@ type MKDecomposedPoly struct {
 	Poly []*ring.Poly
 }
 
-// MKEvaluationKey is a type for CKKS evaluation keys in a multi key context.
+// MKEvaluationKey is a type for evaluation keys in a multi key context.
 type MKEvaluationKey struct {
-	Key    []*MKDecomposedPoly
+	Key    [3]*MKDecomposedPoly
 	PeerID uint64
 }
 
-// MKSwitchingKey is a type for CKKS switching keys in a multi key context.
-type MKSwitchingKey struct {
-	Key    []*MKDecomposedPoly
-	PeerID uint64
-}
-
-// MKEvalGalKey is a type for CKKS rotation keys in a multi key context.
+// MKEvalGalKey is a type for rotation keys in a multi key context.
 type MKEvalGalKey struct {
-	Key    []*MKDecomposedPoly
+	Key    [2]*MKDecomposedPoly
 	PeerID uint64
 }
 
@@ -47,32 +41,13 @@ type MKKeys struct {
 	EvalKey   *MKEvaluationKey
 }
 
-// NewMKSwitchingKey allocate a MKSwitchingKey with zero polynomials in the ring r
-func NewMKSwitchingKey(r *ring.Ring, params *rlwe.Parameters, size, id uint64) *MKSwitchingKey {
-
-	key := new(MKSwitchingKey)
-	key.Key = make([]*MKDecomposedPoly, size)
-
-	for i := uint64(0); i < size; i++ {
-		key.Key[i] = NewDecomposedPoly(r, params.Beta())
-	}
-
-	key.PeerID = id
-
-	return key
-}
-
 // NewMKEvaluationKey allocate a MKSwitchingKey with zero polynomials in the ring r adn with id = peerID
 func NewMKEvaluationKey(r *ring.Ring, id uint64, params *rlwe.Parameters) *MKEvaluationKey {
 
 	key := new(MKEvaluationKey)
-	key.Key = make([]*MKDecomposedPoly, 3)
-
-	key.Key[0] = NewDecomposedPoly(r, params.Beta())
-	key.Key[1] = NewDecomposedPoly(r, params.Beta())
-	key.Key[2] = NewDecomposedPoly(r, params.Beta())
-
+	key.Key = [3]*MKDecomposedPoly{NewDecomposedPoly(r, params.Beta()), NewDecomposedPoly(r, params.Beta()), NewDecomposedPoly(r, params.Beta())}
 	key.PeerID = id
+
 	return key
 }
 

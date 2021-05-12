@@ -19,7 +19,6 @@ A standard error greater than 3.2 must be provided to create a new Participant. 
 
         // create CRS and participant
         a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
-
 		p := NewParticipant(params, sigmaSmudging, a)
 
 		// encrypt
@@ -35,8 +34,8 @@ A standard error greater than 3.2 must be provided to create a new Participant. 
 It is possible to switch from the classic BFV setting to a multi key setting by creating a participant from an already existing secret key.
 It is also possible to use a bfv.Ciphertext and wrap it in a MKCiphertext.
 
-'''go
-
+```go
+		//standard BFV encryption
 		ciphertext1 = encryptorPK.EncryptFastNew(plaintext)
 
 		// setup keys and public parameters
@@ -44,13 +43,12 @@ It is also possible to use a bfv.Ciphertext and wrap it in a MKCiphertext.
 		part1 := NewParticipantFromSecretKey(params, 6.0, a, sk)
 		part2 := NewParticipant(params, 6.0, a)
 
-		// perform addition
+		// perform addition with a mkbfv ciphertext
 		values2 := getRandomPlaintextValue(ringT, params)
 		ciphertext2 := part2.Encrypt(values2)
-
 		evaluator := NewMKEvaluator(params)
 		res := evaluator.Add(ciphertext2, &MKCiphertext{Ciphertexts: ciphertext1, PeerID: []uint64{part1.GetID()}})
-'''
+```
 
 ### Evaluator
 

@@ -152,7 +152,7 @@ func genPublicKey(sk *rlwe.SecretKey, params *rlwe.Parameters, ringQP *ring.Ring
 
 // Symmetric encryption of a single ring element (mu) under the secret key (sk).
 // the output is not in MForm
-func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parameters, ringQP *ring.Ring) []*MKDecomposedPoly {
+func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parameters, ringQP *ring.Ring) [3]*MKDecomposedPoly {
 
 	random := GenSecretKey(ringQP) // random element as same distribution as the secret key
 	randomValue := random.Value
@@ -218,7 +218,7 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parame
 
 	}
 
-	return []*MKDecomposedPoly{d0, d1, d2}
+	return [3]*MKDecomposedPoly{d0, d1, d2}
 }
 
 // MultiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2
@@ -263,7 +263,6 @@ func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parameters,
 func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Parameters) *MKEvalGalKey {
 
 	res := new(MKEvalGalKey)
-	res.Key = make([]*MKDecomposedPoly, 2)
 
 	ringQP := GetRingQP(params)
 
@@ -302,8 +301,7 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Paramete
 
 	}
 
-	res.Key[0] = h0
-	res.Key[1] = h1
+	res.Key = [2]*MKDecomposedPoly{h0, h1}
 
 	return res
 }
@@ -356,68 +354,4 @@ func GenCommonPublicParam(params *rlwe.Parameters, prng *utils.KeyedPRNG) *MKDec
 	uniformSampler := GetUniformSampler(params, ringQP, prng)
 
 	return GetUniformDecomposed(uniformSampler, params.Beta())
-}
-
-// GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
-func GenSwitchingKey(skInput, skOutput *MKSecretKey, params *rlwe.Parameters) (switchingKey *MKSwitchingKey) {
-
-	ringQP := GetRingQP(params)
-	keygenPool := ringQP.NewPoly()
-	ringQP.Copy(skInput.Key.Value, keygenPool)
-	switchingKey = NewMKSwitchingKey(ringQP, params, 2, skInput.PeerID)
-	NewSwitchingKey(keygenPool, skOutput.Key.Value, switchingKey, params)
-	keygenPool.Zero()
-	return switchingKey
-}
-
-// NewSwitchingKey generates a new switching key based on the secret key input and output, and stores it in swk
-func NewSwitchingKey(skIn, skOut *ring.Poly, swk *MKSwitchingKey, params *rlwe.Parameters) {
-
-	ringQP := GetRingQP(params)
-	var pBigInt *big.Int
-	pis := params.P()
-	if len(pis) != 0 {
-		pBigInt = ring.NewUint(1)
-		for _, pi := range pis {
-			pBigInt.Mul(pBigInt, ring.NewUint(pi))
-		}
-	}
-
-	// Computes P * skIn
-	ringQP.MulScalarBigint(skIn, pBigInt, skIn)
-
-	beta := params.Beta()
-
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-
-	uniformSampler := GetUniformSampler(params, ringQP, prng)
-	gaussianSampler := GetGaussianSampler(params, ringQP, prng)
-
-	for i := uint64(0); i < beta; i++ {
-
-		// e
-		gaussianSampler.Read(swk.Key[0].Poly[i])
-		ringQP.NTTLazy(swk.Key[0].Poly[i], swk.Key[0].Poly[i])
-		ringQP.MForm(swk.Key[0].Poly[i], swk.Key[0].Poly[i])
-
-		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
-		uniformSampler.Read(swk.Key[1].Poly[i])
-
-		// e + (skIn * P) * (q_star * q_tild) mod QP
-		//
-		// q_prod = prod(q[i*alpha+j])
-		// q_star = Q/qprod
-		// q_tild = q_star^-1 mod q_prod
-		//
-		// Therefore : (skIn * P) * (q_star * q_tild) = sk*P mod q[i*alpha+j], else 0
-		MultiplyByBaseAndAdd(skIn, params, swk.Key[0].Poly[i], i)
-
-		// (skIn * P) * (q_star * q_tild) - a * skOut + e mod QP
-		ringQP.MulCoeffsMontgomeryAndSub(swk.Key[1].Poly[i], skOut, swk.Key[0].Poly[i])
-	}
-
-	return
 }

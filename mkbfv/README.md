@@ -76,3 +76,7 @@ The evaluator is similar to the one in the bfv package.
 		resCipher := evaluator.Add(resCipher1, resCipher2)
 
 ```
+
+## Tests and Benchmarks
+
+To run the tests simply type ```console go test -v``` and to run the benchmarks type ```console go test -bench MKBFV -run=^$```

@@ -32,6 +32,7 @@ func Benchmark_MKBFV(b *testing.B) {
 		benchMultTwoCiphertexts(b, p)
 		benchMulAndRelin(b, p)
 		benchRotate(b, p)
+		benchMemoryConsumption(b, p)
 
 		for i := uint64(2); i < 20; i++ {
 			benchDecryptionIncreasingParticipants(i, b, p)
@@ -351,11 +352,54 @@ func benchDecryptionIncreasingParticipants(nbrParticipants uint64, b *testing.B,
 
 	}
 
-	b.Run(testString("Deccryption Increasing number of participants/", nbrParticipants, params), func(b *testing.B) {
+	b.Run(testString("Decryption Increasing number of participants/", nbrParticipants, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			participants[0].Decrypt(resCipher, partialDec)
 		}
+	})
+
+}
+
+func benchMemoryConsumption(b *testing.B, params *bfv.Parameters) {
+
+	participants := setupPeers(1, params, 6.0)
+
+	pk := participants[0].GetPublicKey()
+	evalKey := participants[0].GetEvaluationKey()
+	evalGalKey := participants[0].GetRotationKeys(12)
+
+	b.Run("Measure Memory Public Key", func(b *testing.B) {
+
+		data, err := pk.MarshalBinary()
+
+		if err != nil {
+			b.Error("Couldn't marshal public key")
+		}
+
+		b.Logf("Size of public key: %d bytes", len(data[0])+len(data[1])+len(data[2]))
+	})
+
+	b.Run("Measure Memory Evaluation Key", func(b *testing.B) {
+
+		data, err := evalKey.MarshalBinary()
+
+		if err != nil {
+			b.Error("Couldn't marshal evaluation key")
+		}
+
+		b.Logf("Size of evaluation key: %d bytes", len(data[0])+len(data[1])+len(data[2])+len(data[3]))
+	})
+
+	b.Run("Measure Memory Galois Evaluation Key", func(b *testing.B) {
+
+		data, err := evalGalKey.MarshalBinary()
+
+		if err != nil {
+			b.Error("Couldn't marshal galois evaluation key")
+		}
+
+		b.Logf("Size of galois evaluation key: %d bytes", len(data[0])+len(data[1])+len(data[2]))
 	})
 
 }

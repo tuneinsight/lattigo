@@ -25,6 +25,7 @@ A standard error greater than 3.2 must be provided to create a new Participant. 
 		cipher := p.Encrypt(value)
 
         //-----------Perform some homomorphic operations-------------
+		evaluator := NewNewMKEvaluator(params) ....
 
 		// decrypt
 		partialDec := p.GetPartialDecryption(cipher)
@@ -79,4 +80,4 @@ The evaluator is similar to the one in the bfv package.
 
 ## Tests and Benchmarks
 
-To run the tests simply type ```console go test -v``` and to run the benchmarks type ```console go test -bench MKBFV -run=^$```
+To run the tests simply type ```go test -v``` and to run the benchmarks type ```go test -bench MKBFV -run=^$```

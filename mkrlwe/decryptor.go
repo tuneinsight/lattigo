@@ -44,8 +44,7 @@ func NewMKDecryptor(params *rlwe.Parameters, sigmaSmudging float64) MKDecryptor 
 func (dec *mkDecryptor) PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *ring.Poly {
 
 	// mu_i = c_i * sk_i + e_i mod q
-	//dec.ringQ.NTTLazy(ct, ct)
-	out := dec.samplerGaussian.ReadLvlNew(level) // TODO: in paper they want sigma > 3.2 for this error... but they don't tell how much...
+	out := dec.samplerGaussian.ReadLvlNew(level)
 	dec.ringQ.NTTLvl(level, out, out)
 
 	dec.ringQ.MulCoeffsMontgomeryAndAddLvl(level, ct, sk.Key.Value, out)

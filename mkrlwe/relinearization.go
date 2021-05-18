@@ -6,8 +6,8 @@ import (
 )
 
 // Relinearization implements the algorithm 3 in the appendix of the Chen paper
-// It does relin directly by linearizing each entry of the extended ciphertext and stores it in cPrime (of size k+1)
-// There are (k+1)**2 ciphertexts, and k pairs of (evaluation keys Di,bi)
+// It relinearize each entry of the extended ciphertext and stores it in cPrime (of size k+1)
+// There are (k+1)**2 ciphertexts, and k pairs of (evaluation keys Di,bi) as input
 func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, ct *[]*ring.Poly, params *rlwe.Parameters, level uint64) {
 
 	ringQ := GetRingQ(params)

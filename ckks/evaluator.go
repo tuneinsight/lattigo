@@ -97,6 +97,10 @@ type Evaluator interface {
 	InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	InnerSumNaive(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
+	// Replicatation (inverse of Inner sum)
+	Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
+	ReplicateNaive(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
+
 	// =============================
 	// === Ciphertext Management ===
 	// =============================

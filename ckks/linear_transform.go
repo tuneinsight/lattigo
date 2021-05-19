@@ -301,6 +301,14 @@ func (eval *evaluator) InnerSumNaive(ct0 *Ciphertext, batchSize, n int, ctOut *C
 	}
 }
 
+func (eval *evaluator) Replicate(ct0 *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+	eval.InnerSum(ct0, -batchSize, n, ctOut)
+}
+
+func (eval *evaluator) ReplicateNaive(ct0 *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+	eval.InnerSumNaive(ct0, -batchSize, n, ctOut)
+}
+
 func (eval *evaluator) MultiplyByDiabMatrix(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
 
 	if matrix.naive {

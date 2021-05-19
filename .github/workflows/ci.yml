@@ -1,0 +1,30 @@
+name: Go tests
+on:
+  push:
+jobs:
+  ci:
+    name: Go ${{ matrix.go }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: [ '1.16', '1.15', '1.14', '1.13' ]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ matrix.go }}
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build
+        run: go build ./...
+
+      - name: Run tests
+        run: make ci_test

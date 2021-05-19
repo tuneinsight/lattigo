@@ -14,7 +14,7 @@ func BenchmarkDCKKS(b *testing.B) {
 
 	defaultParams := ckks.DefaultParams
 	if testing.Short() {
-		defaultParams = ckks.DefaultParams[:3]
+		defaultParams = ckks.DefaultParams[:2]
 	}
 	if *flagParamString != "" {
 		var jsonParams ckks.ParametersLiteral

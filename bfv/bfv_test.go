@@ -41,7 +41,7 @@ type testContext struct {
 
 func TestBFV(t *testing.T) {
 
-	var defaultParams = DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	defaultParams := DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}

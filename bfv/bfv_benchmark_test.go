@@ -9,12 +9,11 @@ import (
 
 func BenchmarkBFV(b *testing.B) {
 
-	var defaultParams []ParametersLiteral
-
+	defaultParams := DefaultParams
 	if testing.Short() {
-		defaultParams = DefaultParams[:3]
+		defaultParams = DefaultParams[:2]
 	} else {
-		defaultParams = DefaultParams
+
 	}
 
 	if *flagParamString != "" {

@@ -14,7 +14,7 @@ type Ciphertext struct {
 func NewCiphertext(params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
 
 	ciphertext = &Ciphertext{newElement(params, degree, level, scale)}
-	ciphertext.Element.Element.IsNTT = true // TODO are Ciphertexts are NTT by default ?
+	ciphertext.Element.Element.IsNTT = true
 
 	return ciphertext
 }

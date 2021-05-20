@@ -26,17 +26,20 @@ type KeyGenerator interface {
 
 	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet)
 
-	GenRotationIndexesForBootstrapping(logSlots int, btpParams *BootstrappingParameters) []int
+	GenRotationsForSubSum(logSlots int) (rotations []int)
+	GenRotationsForCoeffsToSlots(logSlots int, btpParams *BootstrappingParameters) (rotations []int)
+	GenRotationsForSlotsToCoeffs(logSlots int, btpParams *BootstrappingParameters) (rotations []int)
+	GenRotationIndexesForBootstrapping(logSlots int, btpParams *BootstrappingParameters) (rotations []int)
 
-	GenRotationIndexesForInnerSum(batch, n int) []int
+	GenRotationIndexesForInnerSum(batch, n int) (rotations []int)
 
-	GenRotationIndexesForInnerSumNaive(batch, n int) []int
+	GenRotationIndexesForInnerSumNaive(batch, n int) (rotations []int)
 
 	GenRotationIndexesForReplicate(batch, n int) (rotations []int)
 
 	GenRotationIndexesForReplicateNaive(batch, n int) (rotations []int)
 
-	GenRotationIndexesForDiagMatrix(matrix *PtDiagMatrix) []int
+	GenRotationIndexesForDiagMatrix(matrix *PtDiagMatrix) (rotations []int)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -422,12 +425,72 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 	return rotations
 }
 
+func (keygen *keyGenerator) GenRotationsForSubSum(logSlots int) (rotations []int) {
+	rotations = []int{}
+
+	logN := keygen.params.logN
+
+	//SubSum rotation needed X -> Y^slots rotations
+	for i := logSlots; i < logN-1; i++ {
+		if !utils.IsInSliceInt(1<<i, rotations) {
+			rotations = append(rotations, 1<<i)
+		}
+	}
+
+	return
+}
+
+func (keygen *keyGenerator) GenRotationsForCoeffsToSlots(logSlots int, btpParams *BootstrappingParameters) (rotations []int) {
+	rotations = []int{}
+
+	logN := keygen.params.logN
+
+	slots := 1 << logSlots
+	dslots := slots
+	if logSlots < logN-1 {
+		dslots <<= 1
+		rotations = append(rotations, slots)
+	}
+
+	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(false), true)
+
+	// Coeffs to Slots rotations
+	for _, pVec := range indexCtS {
+		N1 := findbestbabygiantstepsplit(pVec, dslots, btpParams.MaxN1N2Ratio)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
+	}
+
+	return
+}
+
+func (keygen *keyGenerator) GenRotationsForSlotsToCoeffs(logSlots int, btpParams *BootstrappingParameters) (rotations []int) {
+	rotations = []int{}
+
+	logN := keygen.params.logN
+
+	slots := 1 << logSlots
+	dslots := slots
+	if logSlots < logN-1 {
+		dslots <<= 1
+	}
+
+	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(false), false)
+
+	// Slots to Coeffs rotations
+	for i, pVec := range indexStC {
+		N1 := findbestbabygiantstepsplit(pVec, dslots, btpParams.MaxN1N2Ratio)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, logSlots < logN-1 && i == 0)
+	}
+
+	return
+}
+
 func (keygen *keyGenerator) GenRotationIndexesForBootstrapping(logSlots int, btpParams *BootstrappingParameters) (rotations []int) {
 
 	// List of the rotation key values to needed for the bootstrapp
 	rotations = []int{}
 
-	logN := int(keygen.params.logN)
+	logN := keygen.params.logN
 
 	slots := 1 << logSlots
 	dslots := slots

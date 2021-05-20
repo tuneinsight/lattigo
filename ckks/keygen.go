@@ -452,7 +452,7 @@ func (keygen *keyGenerator) GenRotationIndexesForCoeffsToSlots(logSlots int, btp
 		rotations = append(rotations, slots)
 	}
 
-	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(false), true)
+	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(false), true, btpParams.BitReversed)
 
 	// Coeffs to Slots rotations
 	for _, pVec := range indexCtS {
@@ -474,7 +474,7 @@ func (keygen *keyGenerator) GenRotationIndexesForSlotsToCoeffs(logSlots int, btp
 		dslots <<= 1
 	}
 
-	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(false), false)
+	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(false), false, btpParams.BitReversed)
 
 	// Slots to Coeffs rotations
 	for i, pVec := range indexStC {
@@ -505,7 +505,7 @@ func (keygen *keyGenerator) GenRotationIndexesForBootstrapping(logSlots int, btp
 		}
 	}
 
-	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(false), true)
+	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.CtSDepth(false), true, btpParams.BitReversed)
 
 	// Coeffs to Slots rotations
 	for _, pVec := range indexCtS {
@@ -513,7 +513,7 @@ func (keygen *keyGenerator) GenRotationIndexesForBootstrapping(logSlots int, btp
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
 	}
 
-	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(false), false)
+	indexStC := computeBootstrappingDFTIndexMap(logN, logSlots, btpParams.StCDepth(false), false, btpParams.BitReversed)
 
 	// Slots to Coeffs rotations
 	for i, pVec := range indexStC {
@@ -524,9 +524,7 @@ func (keygen *keyGenerator) GenRotationIndexesForBootstrapping(logSlots int, btp
 	return
 }
 
-func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward bool) (rotationMap []map[int]bool) {
-
-	bitreversed := false
+func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward, bitreversed bool) (rotationMap []map[int]bool) {
 
 	var level, depth, nextLevel int
 

@@ -36,6 +36,7 @@ type BootstrappingParameters struct {
 	SinRescal    int     // Number of rescale and double angle formula (only applies for cos)
 	ArcSineDeg   int     // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
 	MaxN1N2Ratio float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
+	BitReversed  bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
 }
 
 // Params generates a new set of Parameters from the BootstrappingParameters
@@ -69,6 +70,7 @@ func (b *BootstrappingParameters) Copy() *BootstrappingParameters {
 		SinRescal:    b.SinRescal,
 		ArcSineDeg:   b.ArcSineDeg,
 		MaxN1N2Ratio: b.MaxN1N2Ratio,
+		BitReversed:  b.BitReversed,
 	}
 
 	// KeySwitchModuli
@@ -236,7 +238,7 @@ func (b *BootstrappingParameters) GenCoeffsToSlotsMatrix(scaling complex128, enc
 
 	// CoeffsToSlots vectors
 	pDFTInv := make([]*PtDiagMatrix, len(ctsLevels))
-	pVecDFTInv := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, true)
+	pVecDFTInv := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, true, b.BitReversed)
 	cnt := 0
 	for i := range b.CoeffsToSlotsModuli.ScalingFactor {
 		for j := range b.CoeffsToSlotsModuli.ScalingFactor[b.CtSDepth(true)-i-1] {
@@ -273,7 +275,7 @@ func (b *BootstrappingParameters) GenSlotsToCoeffsMatrix(scaling complex128, enc
 
 	// CoeffsToSlots vectors
 	pDFT := make([]*PtDiagMatrix, len(stcLevels))
-	pVecDFT := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, false)
+	pVecDFT := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, false, b.BitReversed)
 	cnt := 0
 	for i := range b.SlotsToCoeffsModuli.ScalingFactor {
 		for j := range b.SlotsToCoeffsModuli.ScalingFactor[b.StCDepth(true)-i-1] {
@@ -361,6 +363,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		SinRescal:    2,
 		ArcSineDeg:   0,
 		MaxN1N2Ratio: 16.0,
+		BitReversed:  false,
 	},
 
 	// SET II
@@ -434,6 +437,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		SinRescal:    2,
 		ArcSineDeg:   7,
 		MaxN1N2Ratio: 16.0,
+		BitReversed:  false,
 	},
 
 	// SET III
@@ -505,6 +509,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		SinRescal:    2,
 		ArcSineDeg:   0,
 		MaxN1N2Ratio: 16.0,
+		BitReversed:  false,
 	},
 
 	// Set IV
@@ -583,6 +588,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		SinRescal:    4,
 		ArcSineDeg:   0,
 		MaxN1N2Ratio: 16.0,
+		BitReversed:  false,
 	},
 
 	// Set V
@@ -640,6 +646,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 		SinRescal:    2,
 		ArcSineDeg:   0,
 		MaxN1N2Ratio: 16.0,
+		BitReversed:  false,
 	},
 }
 
@@ -768,9 +775,7 @@ func fftInvPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [
 	return
 }
 
-func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, pow5 []int, diffscale complex128, inverse bool) (plainVector []map[int][]complex128) {
-
-	bitreversed := false
+func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, pow5 []int, diffscale complex128, inverse, bitreversed bool) (plainVector []map[int][]complex128) {
 
 	var fftLevel, depth, nextfftLevel int
 

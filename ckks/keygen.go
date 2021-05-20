@@ -26,9 +26,9 @@ type KeyGenerator interface {
 
 	GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet)
 
-	GenRotationsForSubSum(logSlots int) (rotations []int)
-	GenRotationsForCoeffsToSlots(logSlots int, btpParams *BootstrappingParameters) (rotations []int)
-	GenRotationsForSlotsToCoeffs(logSlots int, btpParams *BootstrappingParameters) (rotations []int)
+	GenRotationIndexesForSubSum(logSlots int) (rotations []int)
+	GenRotationIndexesForCoeffsToSlots(logSlots int, btpParams *BootstrappingParameters) (rotations []int)
+	GenRotationIndexesForSlotsToCoeffs(logSlots int, btpParams *BootstrappingParameters) (rotations []int)
 	GenRotationIndexesForBootstrapping(logSlots int, btpParams *BootstrappingParameters) (rotations []int)
 
 	GenRotationIndexesForInnerSum(batch, n int) (rotations []int)
@@ -425,7 +425,7 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 	return rotations
 }
 
-func (keygen *keyGenerator) GenRotationsForSubSum(logSlots int) (rotations []int) {
+func (keygen *keyGenerator) GenRotationIndexesForSubSum(logSlots int) (rotations []int) {
 	rotations = []int{}
 
 	logN := keygen.params.logN
@@ -440,7 +440,7 @@ func (keygen *keyGenerator) GenRotationsForSubSum(logSlots int) (rotations []int
 	return
 }
 
-func (keygen *keyGenerator) GenRotationsForCoeffsToSlots(logSlots int, btpParams *BootstrappingParameters) (rotations []int) {
+func (keygen *keyGenerator) GenRotationIndexesForCoeffsToSlots(logSlots int, btpParams *BootstrappingParameters) (rotations []int) {
 	rotations = []int{}
 
 	logN := keygen.params.logN
@@ -463,7 +463,7 @@ func (keygen *keyGenerator) GenRotationsForCoeffsToSlots(logSlots int, btpParams
 	return
 }
 
-func (keygen *keyGenerator) GenRotationsForSlotsToCoeffs(logSlots int, btpParams *BootstrappingParameters) (rotations []int) {
+func (keygen *keyGenerator) GenRotationIndexesForSlotsToCoeffs(logSlots int, btpParams *BootstrappingParameters) (rotations []int) {
 	rotations = []int{}
 
 	logN := keygen.params.logN

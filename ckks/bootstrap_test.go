@@ -260,7 +260,7 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 		CoeffsToSlotMatrices := btpParams.GenCoeffsToSlotsMatrix(1.0, testContext.encoder)
 
 		// Gets the rotations indexes for CoeffsToSlots
-		rotations := kgen.GenRotationsForCoeffsToSlots(params.LogSlots(), btpParams)
+		rotations := kgen.GenRotationIndexesForCoeffsToSlots(params.LogSlots(), btpParams)
 
 		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
@@ -337,7 +337,7 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 		SlotsToCoeffsMatrix := btpParams.GenSlotsToCoeffsMatrix(1.0, testContext.encoder)
 
 		// Gets the rotations indexes for SlotsToCoeffs
-		rotations := kgen.GenRotationsForSlotsToCoeffs(params.LogSlots(), btpParams)
+		rotations := kgen.GenRotationIndexesForSlotsToCoeffs(params.LogSlots(), btpParams)
 
 		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)

@@ -304,7 +304,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 8 byte : sigma
 	// 8 * (#Q) : Q
 	// 8 * (#P) : P
-	b := utils.NewBuffer(make([]byte, 0, 11+(len(p.qi)+len(p.pi))<<3))
+	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(len(p.qi)))
 	b.WriteUint8(uint8(len(p.pi)))
@@ -337,6 +337,11 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	var err error
 	*p, err = NewParameters(logN, qi, pi, sigma)
 	return err
+}
+
+// MarshalBinarySize returns the length of the []byte encoding of the reciever.
+func (p Parameters) MarshalBinarySize() int {
+	return 11 + (len(p.qi)+len(p.pi))<<3
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

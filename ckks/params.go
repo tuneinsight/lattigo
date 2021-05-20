@@ -269,7 +269,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// len(rlweBytes) : RLWE parameters
 	// 1 byte : logSlots
 	// 8 byte : scale
-	b := utils.NewBuffer(make([]byte, 0, len(rlweBytes)+9))
+	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
 	b.WriteUint8Slice(rlweBytes)
 	b.WriteUint8(uint8(p.logSlots))
 	b.WriteUint64(math.Float64bits(p.scale))
@@ -286,6 +286,11 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	scale := math.Float64frombits(binary.BigEndian.Uint64(data[len(data)-8:]))
 	*p, err = NewParameters(rlweParams, logSlots, scale)
 	return err
+}
+
+// MarshalBinarySize returns the length of the []byte encoding of the reciever.
+func (p Parameters) MarshalBinarySize() int {
+	return p.Parameters.MarshalBinarySize() + 9
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

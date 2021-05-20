@@ -51,7 +51,7 @@ func main() {
 	rotations := kgen.GenRotationIndexesForBootstrapping(params.LogSlots(), btpParams)
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 	rlk := kgen.GenRelinearizationKey(sk)
-	btpKey := ckks.BootstrappingKey{rlk, rotkeys}
+	btpKey := ckks.BootstrappingKey{Rlk: rlk, Rtks: rotkeys}
 	if btp, err = ckks.NewBootstrapper(params, btpParams, btpKey); err != nil {
 		panic(err)
 	}
@@ -99,7 +99,7 @@ func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant
 	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 
-	precStats := ckks.GetPrecisionStats(params, nil, nil, valuesWant, valuesTest, params.LogSlots(), 0)
+	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, params.LogSlots(), 0)
 
 	fmt.Println(precStats.String())
 	fmt.Println()

@@ -152,14 +152,14 @@ func instanciateExperiment(params *ckks.Parameters, btpParams *ckks.Bootstrappin
 	encryptor = ckks.NewEncryptorFromPk(params, pk)
 	decryptor = ckks.NewDecryptor(params, sk)
 
-	evaluator = ckks.NewEvaluator(params, ckks.EvaluationKey{nil, nil})
+	evaluator = ckks.NewEvaluator(params, ckks.EvaluationKey{Rlk: nil, Rtks: nil})
 
 	log.Println("Generating the keys...")
 
 	rotations := keyGen.GenRotationIndexesForBootstrapping(params.LogSlots(), btpParams)
 	rotkeys := keyGen.GenRotationKeysForRotations(rotations, true, sk)
 	rlk := keyGen.GenRelinearizationKey(sk)
-	btpKey := ckks.BootstrappingKey{rlk, rotkeys}
+	btpKey := ckks.BootstrappingKey{Rlk: rlk, Rtks: rotkeys}
 
 	log.Println("Done")
 	bootstrapper, err = ckks.NewBootstrapper(params, btpParams, btpKey)

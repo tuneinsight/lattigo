@@ -336,12 +336,12 @@ func (keygen *keyGenerator) GenRotationIndexesForInnerSum(batch, n int) (rotatio
 	return
 }
 
-func (keygen *keyGenerator) GenRotationIndexesForReplicate(batch, n int) (rotations []int){
-	return keygen.GenRotationIndexesForInnerSum(-batch, n) 
+func (keygen *keyGenerator) GenRotationIndexesForReplicate(batch, n int) (rotations []int) {
+	return keygen.GenRotationIndexesForInnerSum(-batch, n)
 }
 
-func (keygen *keyGenerator) GenRotationIndexesForReplicateNaive(batch, n int) (rotations []int){
-	return keygen.GenRotationIndexesForInnerSumNaive(-batch, n) 
+func (keygen *keyGenerator) GenRotationIndexesForReplicateNaive(batch, n int) (rotations []int) {
+	return keygen.GenRotationIndexesForInnerSumNaive(-batch, n)
 }
 
 // GetRotationIndexForDiagMatrix generates of all the rotations needed for a the multiplication

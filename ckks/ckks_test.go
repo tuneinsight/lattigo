@@ -1090,7 +1090,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		batch := 2
 		n := 35
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSumNaive(batch,n), false, testContext.sk)
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSumNaive(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -1117,7 +1117,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		batch := 3
 		n := 15
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSum(batch,n), false, testContext.sk)
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSum(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -1151,7 +1151,7 @@ func testReplicate(testContext *testParams, t *testing.T) {
 		batch := 2
 		n := 35
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicateNaive(batch,n), false, testContext.sk)
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicateNaive(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -1178,7 +1178,7 @@ func testReplicate(testContext *testParams, t *testing.T) {
 		batch := 3
 		n := 15
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicate(batch,n), false, testContext.sk)
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicate(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)

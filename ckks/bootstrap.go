@@ -132,6 +132,7 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 	return ct
 }
 
+// CoeffsToSlots applies the homomorphic encoding
 func CoeffsToSlots(vec *Ciphertext, pDFTInv []*PtDiagMatrix, eval Evaluator) (ct0, ct1 *Ciphertext) {
 
 	var zV, zVconj *Ciphertext
@@ -161,6 +162,7 @@ func CoeffsToSlots(vec *Ciphertext, pDFTInv []*PtDiagMatrix, eval Evaluator) (ct
 	return ct0, ct1
 }
 
+// SlotsToCoeffs applies the homomorphic decoding
 func SlotsToCoeffs(ct0, ct1 *Ciphertext, pDFT []*PtDiagMatrix, eval Evaluator) (ct *Ciphertext) {
 
 	// If full packing, the repacking can be done directly using ct0 and ct1.

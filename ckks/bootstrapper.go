@@ -122,6 +122,7 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 	return nil
 }
 
+// AddMatrixRotToList adds the rotations neede to evaluate pVec to the list rotations
 func AddMatrixRotToList(pVec *PtDiagMatrix, rotations []int, slots int, repack bool) []int {
 
 	if pVec.naive {

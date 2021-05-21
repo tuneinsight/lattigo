@@ -9,6 +9,7 @@ import (
 // Operand is a common interface for Ciphertext and Plaintext types.
 type Operand interface {
 	El() *Element
+	IsNTT() bool
 	Degree() uint64
 	Level() uint64
 	Scale() float64

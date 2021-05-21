@@ -206,6 +206,15 @@ func (eval *evaluator) getElemAndCheckBinary(op0, op1, opOut Operand, opOutMinDe
 	if opOut.Degree() < opOutMinDegree {
 		panic("receiver operand degree is too small")
 	}
+
+	if !op0.IsNTT() {
+		panic("cannot evaluate: op0 must be in NTT")
+	}
+
+	if !op1.IsNTT() {
+		panic("cannot evaluate: op1 must be in NTT")
+	}
+
 	el0, el1, elOut = op0.El(), op1.El(), opOut.El()
 	return
 }
@@ -1332,14 +1341,6 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 
 	if el0.Degree() > 1 || el1.Degree() > 1 {
 		panic("cannot MulRelin: input elements must be of degree 0 or 1")
-	}
-
-	if !el0.IsNTT() {
-		panic("cannot MulRelin: op0 must be in NTT")
-	}
-
-	if !el1.IsNTT() {
-		panic("cannot MulRelin: op1 must be in NTT")
 	}
 
 	elOut.SetScale(el0.Scale() * el1.Scale())

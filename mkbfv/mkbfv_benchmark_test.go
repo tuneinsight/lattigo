@@ -402,4 +402,14 @@ func benchMemoryConsumption(b *testing.B, params *bfv.Parameters) {
 		b.Logf("Size of galois evaluation key: %d bytes", len(data[0])+len(data[1])+len(data[2]))
 	})
 
+	b.Run("Measure Memory Ciphertext", func(b *testing.B) {
+
+		value := getRandomPlaintextValue(getRingT(params), params)
+
+		cipher := participants[0].Encrypt(value)
+		data := cipher.MarshalBinary()
+
+		b.Logf("Size of ciphertext: %d bytes", len(data[0])+len(data[1]))
+	})
+
 }

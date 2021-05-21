@@ -43,6 +43,7 @@ func Test_MKBFV(t *testing.T) {
 
 		testRotation(t, p)
 		testRotationTwoParticipants(t, p)
+		testMarshaler(t, p)
 	}
 }
 
@@ -877,6 +878,49 @@ func testBfvMkbfvBridge(t *testing.T, params *bfv.Parameters) {
 			t.Error("Homomorphic addition error")
 		}
 	})
+}
+
+func testMarshaler(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	ringT := getRingT(params)
+
+	participants := setupPeers(2, params, sigma)
+
+	t.Run(testString("Test Marshaler/", 2, params), func(t *testing.T) {
+
+		// get random value
+		value1 := getRandomPlaintextValue(ringT, params)
+		value2 := getRandomPlaintextValue(ringT, params)
+
+		//encrypt
+		cipher1 := participants[0].Encrypt(value1)
+		cipher2 := participants[1].Encrypt(value2)
+
+		// add
+		evaluator := NewMKEvaluator(params)
+		res := evaluator.Add(cipher1, cipher2)
+
+		data := res.MarshalBinary()
+
+		unMarshaled := new(MKCiphertext)
+
+		unMarshaled.UnmarshalBinary(data)
+
+		if !mkrlwe.EqualsSlice(unMarshaled.PeerID, res.PeerID) {
+			t.Error("Marshaler error with peer IDs")
+		}
+
+		if !mkrlwe.EqualsPoly(res.Ciphertexts.Value[0], unMarshaled.Ciphertexts.Value[0]) ||
+			!mkrlwe.EqualsPoly(res.Ciphertexts.Value[1], unMarshaled.Ciphertexts.Value[1]) ||
+			!mkrlwe.EqualsPoly(res.Ciphertexts.Value[2], unMarshaled.Ciphertexts.Value[2]) {
+
+			t.Error("Marshaler error with ciphertext")
+		}
+
+	})
+
 }
 
 func Test_Utils(t *testing.T) {

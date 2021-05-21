@@ -390,7 +390,7 @@ func (p *Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
 	twoN := 1 << (p.logN + 1)
 	mask := twoN - 1
 	kRed := k & mask
-	return ring.ModExp(uint64(GaloisGen), kRed, uint64(twoN))
+	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
 }
 
 // GaloisElementForRowRotation returns the galois element for generating the row

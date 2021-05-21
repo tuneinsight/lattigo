@@ -12,7 +12,7 @@ import (
 
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
-const GaloisGen int = 5
+const GaloisGen uint64 = 5
 
 // Encoder is an interface for plaintext encoding and decoding operations. It provides methods to embed []uint64 and []int64 types into
 // the various plaintext types and the inverse operations. It also provides methodes to convert between the different plaintext types.
@@ -85,16 +85,16 @@ func NewEncoder(params *Parameters) Encoder {
 		panic(err)
 	}
 
-	var m, pos, index1, index2 int
+	var m, pos, index1, index2 uint64
 
 	slots := params.N()
 
 	indexMatrix := make([]uint64, slots)
 
-	logN := params.LogN()
+	logN := uint64(params.LogN())
 
 	rowSize := params.N() >> 1
-	m = (params.N() << 1)
+	m = uint64(params.N()) << 1
 	pos = 1
 
 	for i := 0; i < rowSize; i++ {
@@ -102,8 +102,8 @@ func NewEncoder(params *Parameters) Encoder {
 		index1 = (pos - 1) >> 1
 		index2 = (m - pos - 1) >> 1
 
-		indexMatrix[i] = utils.BitReverse64(uint64(index1), uint64(logN))
-		indexMatrix[i|rowSize] = utils.BitReverse64(uint64(index2), uint64(logN))
+		indexMatrix[i] = utils.BitReverse64(index1, logN)
+		indexMatrix[i|rowSize] = utils.BitReverse64(index2, logN)
 
 		pos *= GaloisGen
 		pos &= (m - 1)

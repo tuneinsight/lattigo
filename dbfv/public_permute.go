@@ -33,14 +33,14 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 
 	refreshProtocol.baseconverter = ring.NewFastBasisExtender(context.ringQ, context.ringP)
 
-	var m, pos, index1, index2 int
+	var m, pos, index1, index2 uint64
 
 	indexMatrix := make([]uint64, params.N())
 
-	logN := params.LogN()
+	logN := uint64(params.LogN())
 
 	rowSize := params.N() >> 1
-	m = (params.N() << 1)
+	m = uint64(params.N()) << 1
 	pos = 1
 
 	for i := 0; i < rowSize; i++ {
@@ -48,8 +48,8 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 		index1 = (pos - 1) >> 1
 		index2 = (m - pos - 1) >> 1
 
-		indexMatrix[i] = utils.BitReverse64(uint64(index1), uint64(logN))
-		indexMatrix[i|rowSize] = utils.BitReverse64(uint64(index2), uint64(logN))
+		indexMatrix[i] = utils.BitReverse64(index1, logN)
+		indexMatrix[i|rowSize] = utils.BitReverse64(index2, logN)
 
 		pos *= bfv.GaloisGen
 		pos &= (m - 1)

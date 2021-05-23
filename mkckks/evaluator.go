@@ -197,8 +197,13 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 	level := utils.MinUint64(el1.Level(), el2.Level())
 
 	out := new(MKCiphertext)
-	out.Ciphertexts = ckks.NewCiphertext(*eval.params, outputDegree-1, level, el1.Scale()*el2.Scale())
+	out.Ciphertexts = new(ckks.Ciphertext)
+	out.Ciphertexts.Element = new(ckks.Element)
+	out.Ciphertexts.Value = make([]*ring.Poly, outputDegree)
 	out.PeerID = padded1.PeerID
+	out.Ciphertexts.IsNTT = true
+
+	out.Ciphertexts.SetScale(el1.Scale() * el2.Scale())
 
 	if !el1.IsNTT {
 		panic("cannot MulRelin: op0 must be in NTT")
@@ -224,13 +229,14 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 			index := int(nbrElements)*i + j
 			if v1 != nil && v2 != nil {
+				resCipher[index] = ringQ.NewPoly()
 				ringQ.MulCoeffsMontgomeryLvl(level, tmp1, v2, resCipher[index])
 			}
 			if v1 == nil {
-				resCipher[index].Zero()
+				resCipher[index] = nil
 			}
 			if v2 == nil {
-				resCipher[index].Zero()
+				resCipher[index] = nil
 			}
 
 		}

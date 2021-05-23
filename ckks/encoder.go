@@ -263,8 +263,8 @@ func (encoder *encoderComplex128) WipeInternalMemory() {
 	}
 }
 
-// Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
-// Rounds the decimal part of the output (the bits under the scale) to "logPrecision" bits of precision.
+// DecodePublic decodes the Plaintext values to a slice of complex128 values of size at most N/2.
+// Adds a Gaussian error to the plaintext of variance sigma and bound floor(sqrt(2*pi)*sigma) before decoding
 func (encoder *encoderComplex128) DecodePublic(plaintext *Plaintext, logSlots int, bound float64) (res []complex128) {
 	return encoder.decodePublic(plaintext, logSlots, bound)
 }
@@ -563,7 +563,9 @@ func (encoder *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots in
 	}
 
 	// B = floor(sigma * sqrt(2*pi))
-	encoder.gaussianSampler.ReadAndAddLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma))
+	if sigma != 0 {
+		encoder.gaussianSampler.ReadAndAddLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma))
+	}
 
 	encoder.plaintextToComplex(plaintext.Level(), plaintext.Scale(), logSlots, encoder.polypool, encoder.values)
 
@@ -865,17 +867,17 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 	}
 }
 
-// Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
-// Rounds the decimal part of the output (the bits under the scale) to "logPrecision" bits of precision.
+// DecodePublic decodes the Plaintext values to a slice of complex128 values of size at most N/2.
+// Adds a Gaussian error to the plaintext of variance sigma and bound floor(sqrt(2*pi)*sigma) before decoding
 func (encoder *encoderBigComplex) DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) (res []*ring.Complex) {
 	return encoder.decodePublic(plaintext, logSlots, sigma)
 }
 
+// Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *encoderBigComplex) Decode(plaintext *Plaintext, logSlots int) (res []*ring.Complex) {
 	return encoder.decodePublic(plaintext, logSlots, 0)
 }
 
-// Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots int, sigma float64) (res []*ring.Complex) {
 
 	slots := 1 << logSlots

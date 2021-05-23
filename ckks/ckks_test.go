@@ -955,7 +955,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 
 		verifyTestVectors(testContext, nil, values, valuesHave, testContext.params.LogSlots(), 0, t)
 
-		sigma := testContext.encoder.GetErrSTDSlotDomain(values, valuesHave, plaintext.Scale())
+		sigma := testContext.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale())
 
 		valuesHave = testContext.encoder.DecodePublic(plaintext, testContext.params.LogSlots(), sigma)
 

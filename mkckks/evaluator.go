@@ -82,6 +82,7 @@ func (eval *mkEvaluator) AddNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext) 
 	return
 }
 
+// newCiphertextBinary takes two ckks operands  and returns a ckks ciphertext with max degree, max scale, min level
 func (eval *mkEvaluator) newCiphertextBinary(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext) {
 
 	maxDegree := utils.MaxUint64(op0.Degree(), op1.Degree())
@@ -105,11 +106,11 @@ func (eval *mkEvaluator) AddWithNil(op0, op1 ckks.Operand, ctOut *ckks.Ciphertex
 		}
 	}
 	if !isNil {
-		el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+		el0, el1, elOut := eval.getElem(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 
 		eval.evaluateInPlace(el0, el1, elOut, false, eval.ringQ.AddLvl)
 	} else {
-		el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, maxDegree)
+		el0, el1, elOut := eval.getElem(op0, op1, ctOut, maxDegree)
 		eval.evaluateInPlace(el0, el1, elOut, false, eval.ringQ.AddLvl)
 	}
 }
@@ -405,51 +406,12 @@ func checkParticipantsGalKey(peerID []uint64, galKeys []*mkrlwe.MKEvalGalKey) {
 	}
 }
 
-func (eval *mkEvaluator) getElemAndCheckBinary(op0, op1, opOut ckks.Operand, opOutMinDegree uint64) (el0, el1, elOut *ckks.Element) {
+func (eval *mkEvaluator) getElem(op0, op1, opOut ckks.Operand, opOutMinDegree uint64) (el0, el1, elOut *ckks.Element) {
 
-	if op0 == nil && op1 == nil && opOut == nil {
-		el0, el1, elOut = nil, nil, nil
-		return
-	}
-
-	if op0 == nil && op1 == nil && opOut != nil {
-		el0, el1, elOut = nil, nil, opOut.El()
-		return
-	}
-
-	if op0 == nil && op1 != nil && opOut == nil {
-		el0, el1, elOut = nil, op1.El(), nil
-		return
-	}
-
-	if op0 == nil && op1 != nil && opOut != nil {
-		el0, el1, elOut = nil, op1.El(), opOut.El()
-		return
-	}
-
-	if op0 != nil && op1 == nil && opOut == nil {
-		el0, el1, elOut = op0.El(), nil, nil
-		return
-	}
-
-	if op0 != nil && op1 == nil && opOut != nil {
-		el0, el1, elOut = op0.El(), nil, opOut.El()
-		return
-	}
-
-	if op0 != nil && op1 != nil && opOut == nil {
-		el0, el1, elOut = op0.El(), op1.El(), nil
-		return
-	}
-
-	if op0 != nil && op1 != nil && opOut != nil {
-		el0, el1, elOut = op0.El(), op1.El(), opOut.El()
-		return
-	}
-
-	return
+	return mkrlwe.GetThreeElementsckksWithNil(op0, op1, opOut)
 }
 
+// evaluateInPlace performs an evaluation of the evaluate function between c0 and c1, and stores the result into ctOut by optimizing the computation if there are nils. Subtraction needs to be handled ad-hoc and is indicated with isSub bool
 func (eval *mkEvaluator) evaluateInPlace(c0, c1, ctOut *ckks.Element, isSub bool, evaluate func(uint64, *ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	if c0 == nil && c1 == nil {
@@ -595,48 +557,19 @@ func (eval *mkEvaluator) SubNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext) 
 // SubWithNil subtracts op1 from op0 and returns the result in ctOut.
 func (eval *mkEvaluator) SubWithNil(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext) {
 
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := eval.getElem(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 
 	eval.evaluateInPlace(el0, el1, elOut, true, eval.ringQ.SubLvl)
 	level := uint64(0)
 	if el0 == nil || el1 == nil || elOut == nil {
-		if el0 == nil && el1 == nil && elOut == nil {
-			return
-		}
-
-		if el0 == nil && el1 == nil && elOut != nil {
-			level = elOut.Level()
-		}
-
-		if el0 == nil && el1 != nil && elOut == nil {
-			level = el1.Level()
-		}
-
-		if el0 == nil && el1 != nil && elOut != nil {
-			level = utils.MinUint64(el1.Level(), elOut.Level())
-		}
-
-		if el0 != nil && el1 == nil && elOut == nil {
-			level = el0.Level()
-		}
-
-		if el0 != nil && el1 == nil && elOut != nil {
-			level = utils.MinUint64(el0.Level(), elOut.Level())
-		}
-
-		if el0 != nil && el1 != nil && elOut == nil {
-			level = utils.MinUint64(el0.Level(), el1.Level())
-		}
-
-		if el0 != nil && el1 != nil && elOut != nil {
-			level = utils.MinUint64(utils.MinUint64(el0.Level(), el1.Level()), elOut.Level())
-			if el0.Degree() < el1.Degree() {
-				for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
-					eval.ringQ.NegLvl(level, elOut.Value[i], elOut.Value[i])
-				}
+		level = mkrlwe.MinLevelWithNil(el0, el1, elOut)
+	} else {
+		level = utils.MinUint64(utils.MinUint64(el0.Level(), el1.Level()), elOut.Level())
+		if el0.Degree() < el1.Degree() {
+			for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
+				eval.ringQ.NegLvl(level, elOut.Value[i], elOut.Value[i])
 			}
 		}
-
 	}
 
 }

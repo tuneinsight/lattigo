@@ -3,6 +3,8 @@ package mkrlwe
 import (
 	"sort"
 
+	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -113,4 +115,98 @@ func EqualsPoly(p1 *ring.Poly, p2 *ring.Poly) bool {
 	}
 
 	return true
+}
+
+// MinLevelWithNil returns the smallest level of the elements, taking into account that they can be nil, and 0 if they are all nil
+func MinLevelWithNil(el0, el1, elOut *ckks.Element) uint64 {
+	level := uint64(0)
+
+	if el0 == nil && el1 == nil && elOut != nil {
+		level = elOut.Level()
+	}
+
+	if el0 == nil && el1 != nil && elOut == nil {
+		level = el1.Level()
+	}
+
+	if el0 == nil && el1 != nil && elOut != nil {
+		level = utils.MinUint64(el1.Level(), elOut.Level())
+	}
+
+	if el0 != nil && el1 == nil && elOut == nil {
+		level = el0.Level()
+	}
+
+	if el0 != nil && el1 == nil && elOut != nil {
+		level = utils.MinUint64(el0.Level(), elOut.Level())
+	}
+
+	if el0 != nil && el1 != nil && elOut == nil {
+		level = utils.MinUint64(el0.Level(), el1.Level())
+	}
+	return level
+}
+
+// GetThreeElementsckksWithNil gets the elements of ckks operands and takes nil into account
+func GetThreeElementsckksWithNil(op0, op1, opOut ckks.Operand) (el0, el1, elOut *ckks.Element) {
+
+	if op0 == nil && op1 == nil && opOut == nil {
+		el0, el1, elOut = nil, nil, nil
+	}
+	if op0 == nil && op1 == nil && opOut != nil {
+		el0, el1, elOut = nil, nil, opOut.El()
+	}
+	if op0 == nil && op1 != nil && opOut == nil {
+		el0, el1, elOut = nil, op1.El(), nil
+	}
+	if op0 == nil && op1 != nil && opOut != nil {
+		el0, el1, elOut = nil, op1.El(), opOut.El()
+	}
+
+	if op0 != nil && op1 == nil && opOut == nil {
+		el0, el1, elOut = op0.El(), nil, nil
+	}
+
+	if op0 != nil && op1 == nil && opOut != nil {
+		el0, el1, elOut = op0.El(), nil, opOut.El()
+	}
+
+	if op0 != nil && op1 != nil && opOut == nil {
+		el0, el1, elOut = op0.El(), op1.El(), nil
+	} else {
+		el0, el1, elOut = op0.El(), op1.El(), opOut.El()
+	}
+	return
+}
+
+// GetThreeElementsbfvWithNil gets the elements of ckks operands and takes nil into account
+func GetThreeElementsbfvWithNil(op0, op1, opOut bfv.Operand) (el0, el1, elOut *rlwe.Element) {
+
+	if op0 == nil && op1 == nil && opOut == nil {
+		el0, el1, elOut = nil, nil, nil
+	}
+	if op0 == nil && op1 == nil && opOut != nil {
+		el0, el1, elOut = nil, nil, opOut.El()
+	}
+	if op0 == nil && op1 != nil && opOut == nil {
+		el0, el1, elOut = nil, op1.El(), nil
+	}
+	if op0 == nil && op1 != nil && opOut != nil {
+		el0, el1, elOut = nil, op1.El(), opOut.El()
+	}
+
+	if op0 != nil && op1 == nil && opOut == nil {
+		el0, el1, elOut = op0.El(), nil, nil
+	}
+
+	if op0 != nil && op1 == nil && opOut != nil {
+		el0, el1, elOut = op0.El(), nil, opOut.El()
+	}
+
+	if op0 != nil && op1 != nil && opOut == nil {
+		el0, el1, elOut = op0.El(), op1.El(), nil
+	} else {
+		el0, el1, elOut = op0.El(), op1.El(), opOut.El()
+	}
+	return
 }

@@ -242,7 +242,7 @@ func (b *BootstrappingParameters) GenCoeffsToSlotsMatrix(scaling complex128, enc
 	cnt := 0
 	for i := range b.CoeffsToSlotsModuli.ScalingFactor {
 		for j := range b.CoeffsToSlotsModuli.ScalingFactor[b.CtSDepth(true)-i-1] {
-			pDFTInv[cnt] = encoder.EncodeDiagMatrixAtLvl(ctsLevels[cnt], pVecDFTInv[cnt], b.CoeffsToSlotsModuli.ScalingFactor[b.CtSDepth(true)-i-1][j], b.MaxN1N2Ratio, logdSlots)
+			pDFTInv[cnt] = encoder.EncodeDiagMatrixBSGSAtLvl(ctsLevels[cnt], pVecDFTInv[cnt], b.CoeffsToSlotsModuli.ScalingFactor[b.CtSDepth(true)-i-1][j], b.MaxN1N2Ratio, logdSlots)
 			cnt++
 		}
 	}
@@ -279,7 +279,7 @@ func (b *BootstrappingParameters) GenSlotsToCoeffsMatrix(scaling complex128, enc
 	cnt := 0
 	for i := range b.SlotsToCoeffsModuli.ScalingFactor {
 		for j := range b.SlotsToCoeffsModuli.ScalingFactor[b.StCDepth(true)-i-1] {
-			pDFT[cnt] = encoder.EncodeDiagMatrixAtLvl(stcLevels[cnt], pVecDFT[cnt], b.SlotsToCoeffsModuli.ScalingFactor[b.StCDepth(true)-i-1][j], b.MaxN1N2Ratio, logdSlots)
+			pDFT[cnt] = encoder.EncodeDiagMatrixBSGSAtLvl(stcLevels[cnt], pVecDFT[cnt], b.SlotsToCoeffsModuli.ScalingFactor[b.StCDepth(true)-i-1][j], b.MaxN1N2Ratio, logdSlots)
 			cnt++
 		}
 	}

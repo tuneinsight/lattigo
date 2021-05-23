@@ -26,7 +26,8 @@ type Encoder interface {
 	EncodeNTTNew(values []complex128, logSlots int) (plaintext *Plaintext)
 	EncodeNTTAtLvlNew(level int, values []complex128, logSlots int) (plaintext *Plaintext)
 
-	EncodeDiagMatrixAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix *PtDiagMatrix)
+	EncodeDiagMatrixBSGSAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix *PtDiagMatrix)
+	EncodeDiagMatrixNaiveAtLvl(level int, vector map[int][]complex128, scale float64, logSlots int) (matrix *PtDiagMatrix)
 
 	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
 	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
@@ -423,60 +424,68 @@ func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 	return
 }
 
-// EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
-// It can then be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
-// maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.MultiplyByDiagMatrice.
+// EncodeDiagMatrixBSGSAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
+// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
+// Evaluation will use the optimized approach (doiuble hoisting and baby-step giant-step).
+// Faster if there is more than a few non-zero diagonals.
+// maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
 // Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
-func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix *PtDiagMatrix) {
+func (encoder *encoderComplex128) EncodeDiagMatrixBSGSAtLvl(level int, diagMatrix map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix *PtDiagMatrix) {
 
 	matrix = new(PtDiagMatrix)
 	matrix.LogSlots = logSlots
 	slots := 1 << logSlots
 
-	if len(diagMatrix) > 2 {
+	// N1*N2 = N
+	N1 := findbestbabygiantstepsplit(diagMatrix, slots, maxM1N2Ratio)
+	matrix.N1 = N1
 
-		// N1*N2 = N
-		N1 := findbestbabygiantstepsplit(diagMatrix, slots, maxM1N2Ratio)
-		matrix.N1 = N1
+	index, _ := bsgsIndex(diagMatrix, slots, N1)
 
-		index, _ := bsgsIndex(diagMatrix, slots, N1)
+	matrix.Vec = make(map[int][2]*ring.Poly)
 
-		matrix.Vec = make(map[int][2]*ring.Poly)
+	matrix.Level = level
+	matrix.Scale = scale
 
-		matrix.Level = level
-		matrix.Scale = scale
+	for j := range index {
 
-		for j := range index {
+		for _, i := range index[j] {
 
-			for _, i := range index[j] {
-
-				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
-				v := diagMatrix[N1*j+i]
-				if len(v) == 0 {
-					v = diagMatrix[(N1*j+i)-slots]
-				}
-
-				matrix.Vec[N1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(v, -N1*j))
+			// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
+			v := diagMatrix[N1*j+i]
+			if len(v) == 0 {
+				v = diagMatrix[(N1*j+i)-slots]
 			}
+
+			matrix.Vec[N1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(v, -N1*j))
 		}
-	} else {
-
-		matrix.Vec = make(map[int][2]*ring.Poly)
-
-		matrix.Level = level
-		matrix.Scale = scale
-
-		for i := range diagMatrix {
-
-			idx := i
-			if idx < 0 {
-				idx += slots
-			}
-			matrix.Vec[idx] = encoder.encodeDiagonal(logSlots, level, scale, diagMatrix[i])
-		}
-
-		matrix.naive = true
 	}
+
+	return
+}
+
+// EncodeDiagMatrixNaiveAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
+// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
+// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
+// Faster if there is only a few non-zero diagonals.
+func (encoder *encoderComplex128) EncodeDiagMatrixNaiveAtLvl(level int, diagMatrix map[int][]complex128, scale float64, logSlots int) (matrix *PtDiagMatrix) {
+
+	matrix = new(PtDiagMatrix)
+	matrix.Vec = make(map[int][2]*ring.Poly)
+	matrix.Level = level
+	matrix.Scale = scale
+	slots := 1 << logSlots
+
+	for i := range diagMatrix {
+
+		idx := i
+		if idx < 0 {
+			idx += slots
+		}
+		matrix.Vec[idx] = encoder.encodeDiagonal(logSlots, level, scale, diagMatrix[i])
+	}
+
+	matrix.naive = true
 
 	return
 }

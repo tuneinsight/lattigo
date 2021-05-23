@@ -30,31 +30,31 @@ type Evaluator interface {
 	SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext)
 
 	// Negation
-	Neg(ct0 *Ciphertext, ctOut *Ciphertext)
-	NegNew(ct0 *Ciphertext) (ctOut *Ciphertext)
+	Neg(ctIn *Ciphertext, ctOut *Ciphertext)
+	NegNew(ctIn *Ciphertext) (ctOut *Ciphertext)
 
 	// Constant Addition
-	AddConstNew(ct0 *Ciphertext, constant interface{}) (ctOut *Ciphertext)
-	AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext)
+	AddConstNew(ctIn *Ciphertext, constant interface{}) (ctOut *Ciphertext)
+	AddConst(ctIn *Ciphertext, constant interface{}, ctOut *Ciphertext)
 
 	// Constant Multiplication
-	MultByConstNew(ct0 *Ciphertext, constant interface{}) (ctOut *Ciphertext)
-	MultByConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext)
-	MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext)
+	MultByConstNew(ctIn *Ciphertext, constant interface{}) (ctOut *Ciphertext)
+	MultByConst(ctIn *Ciphertext, constant interface{}, ctOut *Ciphertext)
+	MultByGaussianInteger(ctIn *Ciphertext, cReal, cImag int64, ctOut *Ciphertext)
 
 	// Constant Multiplication with Addition
-	MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext)
-	MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext)
+	MultByConstAndAdd(ctIn *Ciphertext, constant interface{}, ctOut *Ciphertext)
+	MultByGaussianIntegerAndAdd(ctIn *Ciphertext, cReal, cImag int64, ctOut *Ciphertext)
 
 	// Multiplication by the imaginary unit
-	MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext)
-	MultByi(ct0 *Ciphertext, ct1 *Ciphertext)
-	DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext)
-	DivByi(ct0 *Ciphertext, ct1 *Ciphertext)
+	MultByiNew(ctIn *Ciphertext) (ctOut *Ciphertext)
+	MultByi(ctIn *Ciphertext, ctOut *Ciphertext)
+	DivByiNew(ctIn *Ciphertext) (ctOut *Ciphertext)
+	DivByi(ctIn *Ciphertext, ctOut *Ciphertext)
 
 	// Conjugation
-	ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext)
-	Conjugate(ct0 *Ciphertext, ctOut *Ciphertext)
+	ConjugateNew(ctIn *Ciphertext) (ctOut *Ciphertext)
+	Conjugate(ctIn *Ciphertext, ctOut *Ciphertext)
 
 	// Multiplication
 	Mul(op0, op1 Operand, ctOut *Ciphertext)
@@ -63,35 +63,35 @@ type Evaluator interface {
 	MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext)
 
 	// Slot Rotations
-	RotateNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext)
-	Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext)
-	RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut map[int]*Ciphertext)
+	RotateNew(ctIn *Ciphertext, k int) (ctOut *Ciphertext)
+	Rotate(ctIn *Ciphertext, k int, ctOut *Ciphertext)
+	RotateHoisted(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext)
 
 	// ===========================
 	// === Advanced Arithmetic ===
 	// ===========================
 
 	// Multiplication by 2^{s}
-	MulByPow2New(ct0 *Ciphertext, pow2 int) (ctOut *Ciphertext)
-	MulByPow2(ct0 *Element, pow2 int, ctOut *Element)
+	MulByPow2New(ctIn *Ciphertext, pow2 int) (ctOut *Ciphertext)
+	MulByPow2(ctIn *Element, pow2 int, ctOut *Element)
 
 	// Exponentiation
-	PowerOf2(el0 *Ciphertext, logPow2 int, elOut *Ciphertext)
-	Power(ct0 *Ciphertext, degree int, res *Ciphertext)
-	PowerNew(op *Ciphertext, degree int) (opOut *Ciphertext)
+	PowerOf2(ctIn *Ciphertext, logPow2 int, ctOut *Ciphertext)
+	Power(ctIn *Ciphertext, degree int, ctOut *Ciphertext)
+	PowerNew(ctIn *Ciphertext, degree int) (ctOut *Ciphertext)
 
 	// Polynomial evaluation
-	EvaluatePoly(ct *Ciphertext, coeffs *Poly, targetScale float64) (res *Ciphertext, err error)
-	EvaluateCheby(ct *Ciphertext, cheby *ChebyshevInterpolation, targetScale float64) (res *Ciphertext, err error)
+	EvaluatePoly(ctIn *Ciphertext, coeffs *Poly, targetScale float64) (ctOut *Ciphertext, err error)
+	EvaluateCheby(ctIn *Ciphertext, cheby *ChebyshevInterpolation, targetScale float64) (ctOut *Ciphertext, err error)
 
 	// Inversion
-	InverseNew(ct0 *Ciphertext, steps int) (res *Ciphertext)
+	InverseNew(ctIn *Ciphertext, steps int) (ctOut *Ciphertext)
 
 	// Linear Transformations
-	LinearTransform(vec *Ciphertext, linearTransform interface{}) (res []*Ciphertext)
-	MultiplyByDiabMatrix(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly)
-	MultiplyByDiabMatrixNaive(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly)
-	MultiplyByDiabMatrixBSGS(vec, res *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly)
+	LinearTransform(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
+	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
+	MultiplyByDiagMatrixNaive(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
+	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
 
 	// Inner sum
 	InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
@@ -106,30 +106,30 @@ type Evaluator interface {
 	// =============================
 
 	// Degree Management
-	RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext)
-	Relinearize(ct0 *Ciphertext, ctOut *Ciphertext)
+	RelinearizeNew(ctIn *Ciphertext) (ctOut *Ciphertext)
+	Relinearize(ctIn *Ciphertext, ctOut *Ciphertext)
 
 	// Scale Management
-	ScaleUpNew(ct0 *Ciphertext, scale float64) (ctOut *Ciphertext)
-	ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext)
-	SetScale(ct *Ciphertext, scale float64)
-	Rescale(ct0 *Ciphertext, minScale float64, c1 *Ciphertext) (err error)
+	ScaleUpNew(ctIn *Ciphertext, scale float64) (ctOut *Ciphertext)
+	ScaleUp(ctIn *Ciphertext, scale float64, ctOut *Ciphertext)
+	SetScale(ctIn *Ciphertext, scale float64)
+	Rescale(ctIn *Ciphertext, minScale float64, ctOut *Ciphertext) (err error)
 
 	// Level Management
-	DropLevelNew(ct0 *Ciphertext, levels int) (ctOut *Ciphertext)
-	DropLevel(ct0 *Ciphertext, levels int)
+	DropLevelNew(ctIn *Ciphertext, levels int) (ctOut *Ciphertext)
+	DropLevel(ctIn *Ciphertext, levels int)
 
 	// Modular Overflow Management
-	ReduceNew(ct0 *Ciphertext) (ctOut *Ciphertext)
-	Reduce(ct0 *Ciphertext, ctOut *Ciphertext) error
+	ReduceNew(ctIn *Ciphertext) (ctOut *Ciphertext)
+	Reduce(ctIn *Ciphertext, ctOut *Ciphertext) error
 
 	// ===================================
 	// === Access Structure Management ===
 	// ===================================
 
 	// Key-Switching
-	SwitchKeysNew(ct0 *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
-	SwitchKeys(ct0 *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
+	SwitchKeysNew(ctIn *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
+	SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
 
 	// ==============
 	// === Others ===

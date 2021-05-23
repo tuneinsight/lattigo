@@ -1234,7 +1234,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 			diagMatrix[15][i] = complex(1, 0)
 		}
 
-		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), 1.0, params.LogSlots())
+		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixBSGSAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), 1.0, params.LogSlots())
 
 		rots := testContext.kgen.GenRotationIndexesForDiagMatrix(ptDiagMatrix)
 
@@ -1275,7 +1275,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 			diagMatrix[0][i] = complex(1, 0)
 		}
 
-		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), 16.0, params.LogSlots())
+		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixNaiveAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), params.LogSlots())
 
 		rots := testContext.kgen.GenRotationIndexesForDiagMatrix(ptDiagMatrix)
 
@@ -1293,33 +1293,6 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 		}
 
 		verifyTestVectors(testContext, testContext.decryptor, values1, res, testContext.params.LogSlots(), 0, t)
-	})
-
-	t.Run(testString(testContext, "LinearTransform/rotOnly/"), func(t *testing.T) {
-
-		params := testContext.params
-
-		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		diagMatrix := make(map[int][]complex128)
-
-		diagMatrix[-1] = make([]complex128, params.Slots())
-
-		for i := 0; i < params.Slots(); i++ {
-			diagMatrix[-1][i] = complex(1, 0)
-		}
-
-		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), 16.0, params.LogSlots())
-
-		rots := testContext.kgen.GenRotationIndexesForDiagMatrix(ptDiagMatrix)
-
-		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
-
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
-
-		res := eval.LinearTransform(ciphertext1, ptDiagMatrix)[0]
-
-		verifyTestVectors(testContext, testContext.decryptor, utils.RotateComplex128Slice(values1, -1), res, testContext.params.LogSlots(), 0, t)
 	})
 }
 

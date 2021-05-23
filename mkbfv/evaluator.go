@@ -98,53 +98,13 @@ func (eval *mkEvaluator) AddNew(op0, op1 bfv.Operand) (ctOut *bfv.Ciphertext) {
 
 // Add adds op0 to op1 and returns the result in ctOut.
 func (eval *mkEvaluator) AddWithNil(op0, op1 bfv.Operand, ctOut *bfv.Ciphertext) {
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := eval.getElem(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	eval.evaluateInPlaceBinary(el0, el1, elOut, false, eval.ringQ.Add)
 }
 
-func (eval *mkEvaluator) getElemAndCheckBinary(op0, op1, opOut bfv.Operand, opOutMinDegree uint64) (el0, el1, elOut *rlwe.Element) {
+func (eval *mkEvaluator) getElem(op0, op1, opOut bfv.Operand, opOutMinDegree uint64) (el0, el1, elOut *rlwe.Element) {
 
-	if op0 == nil && op1 == nil && opOut == nil {
-		el0, el1, elOut = nil, nil, nil
-		return
-	}
-
-	if op0 == nil && op1 == nil && opOut != nil {
-		el0, el1, elOut = nil, nil, opOut.El()
-		return
-	}
-
-	if op0 == nil && op1 != nil && opOut == nil {
-		el0, el1, elOut = nil, op1.El(), nil
-		return
-	}
-
-	if op0 == nil && op1 != nil && opOut != nil {
-		el0, el1, elOut = nil, op1.El(), opOut.El()
-		return
-	}
-
-	if op0 != nil && op1 == nil && opOut == nil {
-		el0, el1, elOut = op0.El(), nil, nil
-		return
-	}
-
-	if op0 != nil && op1 == nil && opOut != nil {
-		el0, el1, elOut = op0.El(), nil, opOut.El()
-		return
-	}
-
-	if op0 != nil && op1 != nil && opOut == nil {
-		el0, el1, elOut = op0.El(), op1.El(), nil
-		return
-	}
-
-	if op0 != nil && op1 != nil && opOut != nil {
-		el0, el1, elOut = op0.El(), op1.El(), opOut.El()
-		return
-	}
-
-	return
+	return mkrlwe.GetThreeElementsbfvWithNil(op0, op1, opOut)
 }
 
 // Sub substracts the ciphertexts component wise and expend their list of involved peers
@@ -581,7 +541,7 @@ func (eval *mkEvaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Element, is
 
 // SubWithNil subtracts op1 from op0 and returns the result in cOut.
 func (eval *mkEvaluator) SubWithNil(op0, op1 bfv.Operand, ctOut *bfv.Ciphertext) {
-	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	el0, el1, elOut := eval.getElem(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
 	eval.evaluateInPlaceBinary(el0, el1, elOut, true, eval.ringQ.Sub)
 
 	if el0 != nil && el1 != nil && elOut != nil {

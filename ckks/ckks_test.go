@@ -206,14 +206,14 @@ func testParameters(testContext *testParams, t *testing.T) {
 
 func testEncoder(testContext *testParams, t *testing.T) {
 
-	t.Run(testString(testContext, "Encoder/Slots/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Encoder/Encode/"), func(t *testing.T) {
 
 		values, plaintext, _ := newTestVectors(testContext, nil, complex(-1, -1), complex(1, 1), t)
 
 		verifyTestVectors(testContext, testContext.decryptor, values, plaintext, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "Encoder/Coeffs/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Encoder/EncodeCoeffs/"), func(t *testing.T) {
 
 		slots := testContext.params.N()
 
@@ -356,7 +356,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 func testEvaluatorAdd(testContext *testParams, t *testing.T) {
 
-	t.Run(testString(testContext, "Evaluator/Add/CtCtInPlace/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Evaluator/Add/CtCt/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -370,7 +370,7 @@ func testEvaluatorAdd(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "Evaluator/Add/CtCtNew/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Evaluator/AddNew/CtCt/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -384,7 +384,7 @@ func testEvaluatorAdd(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext3, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "Evaluator/Add/CtPlainInPlace/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Evaluator/Add/CtPlain/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, plaintext2, _ := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -406,7 +406,7 @@ func testEvaluatorAdd(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "Evaluator/Add/CtPlainInPlaceNew/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Evaluator/AddNew/CtPlain/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, plaintext2, _ := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -428,7 +428,7 @@ func testEvaluatorAdd(testContext *testParams, t *testing.T) {
 
 func testEvaluatorSub(testContext *testParams, t *testing.T) {
 
-	t.Run(testString(testContext, "Evaluator/Sub/CtCtInPlace/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Evaluator/Sub/CtCt/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -442,7 +442,7 @@ func testEvaluatorSub(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "Evaluator/Sub/CtCtNew/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Evaluator/SubNew/CtCt/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -456,7 +456,7 @@ func testEvaluatorSub(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext3, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "Evaluator/Sub/CtPlainInPlace/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Evaluator/Sub/CtPlain/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, plaintext2, ciphertext2 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -479,7 +479,7 @@ func testEvaluatorSub(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, valuesTest, ciphertext2, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "Evaluator/Sub/CtPlainNew/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Evaluator/SubNew/CtPlain/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, plaintext2, _ := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -955,7 +955,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 
 		verifyTestVectors(testContext, nil, values, valuesHave, testContext.params.LogSlots(), 0, t)
 
-		sigma := testContext.encoder.GetErrSTDTimeDom(values, valuesHave, plaintext.Scale())
+		sigma := testContext.encoder.GetErrSTDSlotDomain(values, valuesHave, plaintext.Scale())
 
 		valuesHave = testContext.encoder.DecodePublic(plaintext, testContext.params.LogSlots(), sigma)
 
@@ -975,7 +975,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 		switchingKey = testContext.kgen.GenSwitchingKey(testContext.sk, sk2)
 	}
 
-	t.Run(testString(testContext, "SwitchKeys/InPlace/"), func(t *testing.T) {
+	t.Run(testString(testContext, "SwitchKeys/"), func(t *testing.T) {
 
 		if testContext.params.PiCount() == 0 {
 			t.Skip("#Pi is empty")
@@ -988,7 +988,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, decryptorSk2, values, ciphertext, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "SwitchKeys/New/"), func(t *testing.T) {
+	t.Run(testString(testContext, "SwitchKeysNew/"), func(t *testing.T) {
 
 		if testContext.params.PiCount() == 0 {
 			t.Skip("#Pi is empty")
@@ -1012,7 +1012,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
 	evaluator := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
-	t.Run(testString(testContext, "Conjugate/InPlace/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Conjugate/"), func(t *testing.T) {
 
 		if testContext.params.PiCount() == 0 {
 			t.Skip("#Pi is empty")
@@ -1029,7 +1029,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "Conjugate/New/"), func(t *testing.T) {
+	t.Run(testString(testContext, "ConjugateNew/"), func(t *testing.T) {
 
 		if testContext.params.PiCount() == 0 {
 			t.Skip("#Pi is empty")
@@ -1046,7 +1046,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "RotateColumns/InPlace/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Rotate/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1058,7 +1058,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(testContext, "RotateColumns/New/"), func(t *testing.T) {
+	t.Run(testString(testContext, "RotateNew/"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1086,7 +1086,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		t.Skip("#Pi is empty")
 	}
 
-	t.Run(testString(testContext, "InnerSum/Naive/"), func(t *testing.T) {
+	t.Run(testString(testContext, "InnerSumNaive/"), func(t *testing.T) {
 		batch := 2
 		n := 35
 
@@ -1112,7 +1112,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "InnerSum/Log/"), func(t *testing.T) {
+	t.Run(testString(testContext, "InnerSum/"), func(t *testing.T) {
 
 		batch := 3
 		n := 15
@@ -1147,7 +1147,7 @@ func testReplicate(testContext *testParams, t *testing.T) {
 		t.Skip("#Pi is empty")
 	}
 
-	t.Run(testString(testContext, "Replicate/Naive/"), func(t *testing.T) {
+	t.Run(testString(testContext, "ReplicateNaive/"), func(t *testing.T) {
 		batch := 2
 		n := 35
 
@@ -1173,7 +1173,7 @@ func testReplicate(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "Replicate/Log/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Replicate/"), func(t *testing.T) {
 
 		batch := 3
 		n := 15

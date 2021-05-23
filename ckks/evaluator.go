@@ -105,6 +105,10 @@ type Evaluator interface {
 	// === Ciphertext Management ===
 	// =============================
 
+	// Key-Switching
+	SwitchKeysNew(ctIn *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
+	SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
+
 	// Degree Management
 	RelinearizeNew(ctIn *Ciphertext) (ctOut *Ciphertext)
 	Relinearize(ctIn *Ciphertext, ctOut *Ciphertext)
@@ -122,14 +126,6 @@ type Evaluator interface {
 	// Modular Overflow Management
 	ReduceNew(ctIn *Ciphertext) (ctOut *Ciphertext)
 	Reduce(ctIn *Ciphertext, ctOut *Ciphertext) error
-
-	// ===================================
-	// === Access Structure Management ===
-	// ===================================
-
-	// Key-Switching
-	SwitchKeysNew(ctIn *Ciphertext, switchingKey *SwitchingKey) (ctOut *Ciphertext)
-	SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext)
 
 	// ==============
 	// === Others ===

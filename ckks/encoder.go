@@ -41,8 +41,8 @@ type Encoder interface {
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 	DecodeCoeffsPublic(plaintext *Plaintext, bound float64) (res []float64)
 
-	GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std float64)
-	GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std float64)
+	GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
+	GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
 }
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
@@ -216,8 +216,8 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots int) {
 	}
 }
 
-// GetErrSTDFreqDom returns the scaled standard deviation of the difference between two complex vectors in the slot domains
-func (encoder *encoderComplex128) GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std float64) {
+// GetErrSTDSlotDomain returns the scaled standard deviation of the difference between two complex vectors in the slot domains
+func (encoder *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 
 	var err complex128
 	for i := range valuesWant {
@@ -229,8 +229,8 @@ func (encoder *encoderComplex128) GetErrSTDFreqDom(valuesWant, valuesHave []comp
 	return StandardDeviation(encoder.valuesfloat[:len(valuesWant)*2], scale)
 }
 
-// GetErrSTDTimeDom returns the scaled standard deviation of the coefficient domain of the difference between two complex vectors in the slot domains
-func (encoder *encoderComplex128) GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std float64) {
+// GetErrSTDCoeffDomain returns the scaled standard deviation in the coefficient domain of the difference between two complex vectors in the slot domains
+func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 
 	for i := range valuesHave {
 		encoder.values[i] = (valuesWant[i] - valuesHave[i])

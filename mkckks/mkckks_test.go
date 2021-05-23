@@ -46,7 +46,7 @@ func Test_MKCKKS(t *testing.T) {
 
 			testTensor(t, p)
 
-			//testTensorTwoParticipants(t, p)
+			testTensorTwoParticipants(t, p)
 
 			testCkksMkbfvBridge(t, p)
 			testMarshaler(t, p)
@@ -54,11 +54,11 @@ func Test_MKCKKS(t *testing.T) {
 			testRotationTwoParticipants(t, p)
 			testSquare(t, p)
 
-			//testMul(t, p)
-			//testMulAfterAdd(t, p)
+			testMul(t, p)
+			testMulAfterAdd(t, p)
 			if i != 5 && i != 6 {
-				//testAddAfterMul(t, p)
-				//testMulFourParticipants(t, p)
+				testAddAfterMul(t, p)
+				testMulFourParticipants(t, p)
 			}
 
 		}

@@ -249,6 +249,12 @@ func (eval *mkEvaluator) MultPlaintext(pt *bfv.PlaintextMul, c *MKCiphertext) *M
 // Mul will compute the homomorphic multiplication. No relinearization is done.
 func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
+	if c1 == c2 { // squaring case
+		out := eval.TensorAndRescale(c1.Ciphertexts, c1.Ciphertexts)
+		out.PeerID = c1.PeerID
+		return out
+	}
+
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
 	out := eval.TensorAndRescale(padded1.Ciphertexts, padded2.Ciphertexts)
@@ -347,54 +353,38 @@ func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertex
 		c2Q2[i] = eval.ringQMul.NewPoly()
 	}
 
-	// Squaring case
-	if ct0 == ct1 {
-		c00Q1 := make([]*ring.Poly, nbrElements)
-		c00Q2 := make([]*ring.Poly, nbrElements)
+	c1Q1 := make([]*ring.Poly, nbrElements)
+	c1Q2 := make([]*ring.Poly, nbrElements)
 
-		for i := range ct0.Value {
+	for i := uint64(0); i < nbrElements; i++ {
+		c1Q1[i] = eval.ringQ.NewPoly()
+		c1Q2[i] = eval.ringQMul.NewPoly()
+	}
 
-			c00Q1[i] = eval.ringQ.NewPoly()
-			c00Q2[i] = eval.ringQMul.NewPoly()
+	eval.modUpAndNTT(ct1, c1Q1, c1Q2)
 
-			eval.ringQ.MForm(c0Q1[i], c00Q1[i])
-			eval.ringQMul.MForm(c0Q2[i], c00Q2[i])
-		}
+	for i := range ct0.Value {
 
-		for i := uint64(0); i < nbrElements; i++ {
-			for j := i + 1; j < nbrElements; j++ {
-				eval.ringQMul.MulCoeffsMontgomery(c00Q2[i], c0Q2[j], c2Q2[nbrElements*i+j])
-
-				eval.ringQ.Add(c2Q1[i+j], c2Q1[i+j], c2Q1[nbrElements*i+j])
-				eval.ringQMul.Add(c2Q2[i+j], c2Q2[i+j], c2Q2[nbrElements*i+j])
-			}
-		}
-
-		for i := uint64(0); i < ct0.Degree()+1; i++ {
-			eval.ringQ.MulCoeffsMontgomeryAndAdd(c00Q1[i], c0Q1[i], c2Q1[i<<1])
-			eval.ringQMul.MulCoeffsMontgomeryAndAdd(c00Q2[i], c0Q2[i], c2Q2[i<<1])
-		}
-
-		// Normal case
-	} else {
-		c1Q1 := make([]*ring.Poly, nbrElements)
-		c1Q2 := make([]*ring.Poly, nbrElements)
-
-		for i := uint64(0); i < nbrElements; i++ {
-			c1Q1[i] = eval.ringQ.NewPoly()
-			c1Q2[i] = eval.ringQMul.NewPoly()
-		}
-
-		eval.modUpAndNTT(ct1, c1Q1, c1Q2)
-
-		for i := range ct0.Value {
+		if ct0.Value[i] != nil {
 			eval.ringQ.MForm(c0Q1[i], c0Q1[i])
 			eval.ringQMul.MForm(c0Q2[i], c0Q2[i])
+
 			for j := range ct1.Value {
-				eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[int(nbrElements)*i+j])
-				eval.ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[int(nbrElements)*i+j])
+				if ct1.Value[j] != nil {
+					eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[int(nbrElements)*i+j])
+					eval.ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[int(nbrElements)*i+j])
+				} else {
+					c2Q1[int(nbrElements)*i+j].Zero()
+					c2Q2[int(nbrElements)*i+j].Zero()
+				}
+			}
+		} else {
+			for j := range ct1.Value {
+				c2Q1[int(nbrElements)*i+j].Zero()
+				c2Q2[int(nbrElements)*i+j].Zero()
 			}
 		}
+
 	}
 
 	eval.quantize(c2Q1, c2Q2, out.Ciphertexts.Element)
@@ -556,59 +546,29 @@ func (eval *mkEvaluator) NewPlaintextMulFromValue(value []uint64) *bfv.Plaintext
 
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
 func (eval *mkEvaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Element, isSub bool, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
-	smallestDeg := uint64(0)
-	if el0 == nil || el1 == nil {
-		if el0 == nil && el1 != nil {
-			smallestDeg = el1.Degree()
-		}
-		if el0 != nil && el1 == nil {
-			smallestDeg = el0.Degree()
-		}
-		if !isSub {
-			for i := uint64(0); i < smallestDeg+1; i++ {
-				if el0.Value[i] == nil && el1.Value[i] == nil {
-					elOut.Value[i] = nil
-				}
-				if el0.Value[i] == nil && el1.Value[i] != nil {
-					elOut.Value[i] = el1.Value[i]
-				}
-				if el0.Value[i] != nil && el1.Value[i] == nil {
-					elOut.Value[i] = el0.Value[i]
-				}
-				if el0.Value[i] != nil && el1.Value[i] != nil {
-					evaluate(el0.Value[i], el1.Value[i], elOut.Value[i])
-				}
-			}
-		} else {
 
-			for i := uint64(0); i < smallestDeg+1; i++ {
-				if el0.Value[i] == nil && el1.Value[i] == nil {
-					elOut.Value[i] = nil
-				}
-				if el0.Value[i] == nil && el1.Value[i] != nil {
-					elOut.Value[i] = el1.Value[i]
-				}
-				if el0.Value[i] != nil && el1.Value[i] == nil {
-					elOut.Value[i] = el0.Value[i]
-				}
-				if el0.Value[i] != nil && el1.Value[i] != nil {
-					evaluate(el0.Value[i], el1.Value[i], elOut.Value[i])
-				}
+	for i := uint64(0); i < el0.Degree()+1; i++ {
 
+		if el0.Value[i] == nil && el1.Value[i] == nil {
+			elOut.Value[i] = nil
+		}
+		if el0.Value[i] == nil && el1.Value[i] != nil {
+
+			if !isSub {
+				elOut.Value[i] = el1.Value[i]
+			} else {
+				eval.ringQ.Neg(el1.Value[i], elOut.Value[i])
 			}
 		}
+		if el0.Value[i] != nil && el1.Value[i] == nil {
+			elOut.Value[i] = el0.Value[i]
+		}
+		if el0.Value[i] != nil && el1.Value[i] != nil {
+			evaluate(el0.Value[i], el1.Value[i], elOut.Value[i])
+		}
+
 	}
 
-	if el0 != nil && el1 != nil {
-		smallest, largest, _ := rlwe.GetSmallestLargest(el0, el1)
-
-		// If the inputs degrees differ, it copies the remaining degree on the receiver.
-		if largest != nil && largest != elOut { // checks to avoid unnecessary work.
-			for i := smallest.Degree() + 1; i < largest.Degree()+1; i++ {
-				elOut.Value[i].Copy(largest.Value[i])
-			}
-		}
-	}
 }
 
 // SubWithNil subtracts op1 from op0 and returns the result in cOut.

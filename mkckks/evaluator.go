@@ -227,10 +227,10 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 				ringQ.MulCoeffsMontgomeryLvl(level, tmp1, v2, resCipher[index])
 			}
 			if v1 == nil {
-				resCipher[index] = v2
+				resCipher[index].Zero()
 			}
 			if v2 == nil {
-				resCipher[index] = v1
+				resCipher[index].Zero()
 			}
 
 		}
@@ -260,18 +260,7 @@ func (eval *mkEvaluator) Rescale(c *MKCiphertext, out *MKCiphertext) {
 // DropLevel drops the level of the given ciphertext by levels. No rescaling is applied
 func (eval *mkEvaluator) DropLevel(ct *MKCiphertext, levels uint64) {
 
-	eval.DropLevelWithNil(ct.Ciphertexts, levels)
-}
-
-// DropLevel reduces the level of ct0 by levels and returns the result in ct0.
-// No rescaling is applied during this procedure.
-func (eval *mkEvaluator) DropLevelWithNil(ct0 *ckks.Ciphertext, levels uint64) {
-	level := ct0.Level()
-	for i := range ct0.Value {
-		if ct0.Value[i] != nil {
-			ct0.Value[i].Coeffs = ct0.Value[i].Coeffs[:level+1-levels]
-		}
-	}
+	eval.ckksEval.DropLevel(ct.Ciphertexts, levels)
 }
 
 // Rotate rotate the columns of the ciphertext by n to the left and return the result in a new ciphertext
@@ -478,7 +467,7 @@ func (eval *mkEvaluator) evaluateInPlace(c0, c1, ctOut *ckks.Element, isSub bool
 
 	// Else resizes the receiver element
 	ctOut.Resize(*eval.params, maxDegree)
-	eval.ckksEval.DropLevel(&ckks.Ciphertext{ctOut}, ctOut.Level()-utils.MinUint64(c0.Level(), c1.Level()))
+	eval.ckksEval.DropLevel(&ckks.Ciphertext{Element: ctOut}, ctOut.Level()-utils.MinUint64(c0.Level(), c1.Level()))
 	// Checks whether or not the receiver element is the same as one of the input elements
 	// and acts accordingly to avoid unnecessary element creation or element overwriting,
 	// and scales properly the element before the evaluation.
@@ -488,13 +477,13 @@ func (eval *mkEvaluator) evaluateInPlace(c0, c1, ctOut *ckks.Element, isSub bool
 			tmp1 = new(ckks.Element)
 
 			if uint64(c0.Scale()/c1.Scale()) != 0 {
-				eval.ckksEval.MultByConst(&ckks.Ciphertext{c1}, uint64(c0.Scale()/c1.Scale()), &ckks.Ciphertext{tmp1})
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{Element: c1}, uint64(c0.Scale()/c1.Scale()), &ckks.Ciphertext{Element: tmp1})
 			}
 
 		} else if c1.Scale() > c0.Scale() {
 
 			if uint64(c1.Scale()/c0.Scale()) != 0 {
-				eval.ckksEval.MultByConst(&ckks.Ciphertext{c0}, uint64(c1.Scale()/c0.Scale()), &ckks.Ciphertext{c0})
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{Element: c0}, uint64(c1.Scale()/c0.Scale()), &ckks.Ciphertext{Element: c0})
 			}
 			c0.SetScale(c1.Scale())
 
@@ -511,12 +500,12 @@ func (eval *mkEvaluator) evaluateInPlace(c0, c1, ctOut *ckks.Element, isSub bool
 
 			tmp0 = new(ckks.Element)
 			if uint64(c1.Scale()/c0.Scale()) != 0 {
-				eval.ckksEval.MultByConst(&ckks.Ciphertext{c0}, uint64(c1.Scale()/c0.Scale()), &ckks.Ciphertext{tmp0})
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{Element: c0}, uint64(c1.Scale()/c0.Scale()), &ckks.Ciphertext{Element: tmp0})
 			}
 		} else if c0.Scale() > c1.Scale() {
 
 			if uint64(c0.Scale()/c1.Scale()) != 0 {
-				eval.ckksEval.MultByConst(&ckks.Ciphertext{c1}, uint64(c0.Scale()/c1.Scale()), &ckks.Ciphertext{ctOut})
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{Element: c1}, uint64(c0.Scale()/c1.Scale()), &ckks.Ciphertext{Element: ctOut})
 			}
 
 			ctOut.SetScale(c0.Scale())
@@ -533,7 +522,7 @@ func (eval *mkEvaluator) evaluateInPlace(c0, c1, ctOut *ckks.Element, isSub bool
 			tmp0 = new(ckks.Element)
 
 			if uint64(c1.Scale()/c0.Scale()) != 0 {
-				eval.ckksEval.MultByConst(&ckks.Ciphertext{c0}, uint64(c1.Scale()/c0.Scale()), &ckks.Ciphertext{tmp0})
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{Element: c0}, uint64(c1.Scale()/c0.Scale()), &ckks.Ciphertext{Element: tmp0})
 			}
 
 			tmp1 = c1
@@ -542,7 +531,7 @@ func (eval *mkEvaluator) evaluateInPlace(c0, c1, ctOut *ckks.Element, isSub bool
 			tmp1 = new(ckks.Element)
 
 			if uint64(c0.Scale()/c1.Scale()) != 0 {
-				eval.ckksEval.MultByConst(&ckks.Ciphertext{c1}, uint64(c0.Scale()/c1.Scale()), &ckks.Ciphertext{tmp1})
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{Element: c1}, uint64(c0.Scale()/c1.Scale()), &ckks.Ciphertext{Element: tmp1})
 			}
 
 			tmp0 = c0
@@ -552,40 +541,28 @@ func (eval *mkEvaluator) evaluateInPlace(c0, c1, ctOut *ckks.Element, isSub bool
 			tmp1 = c1
 		}
 	}
-	if !isSub {
-		for i := uint64(0); i < minDegree+1; i++ {
 
-			if tmp0.Value[i] == nil && tmp1.Value[i] == nil {
-				ctOut.Value[i] = nil
-			}
-			if tmp0.Value[i] == nil {
+	for i := uint64(0); i < minDegree+1; i++ {
+
+		if tmp0.Value[i] == nil && tmp1.Value[i] == nil {
+			ctOut.Value[i] = nil
+		}
+		if tmp0.Value[i] == nil && tmp1.Value[i] != nil {
+
+			if !isSub {
 				ctOut.Value[i] = tmp1.Value[i]
-			}
-			if tmp1.Value[i] == nil {
-				ctOut.Value[i] = tmp0.Value[i]
-			}
-
-			if tmp0.Value[i] != nil && tmp1.Value[i] != nil {
-				evaluate(level, tmp0.Value[i], tmp1.Value[i], ctOut.Value[i])
+			} else {
+				eval.ringQ.Neg(tmp1.Value[i], ctOut.Value[i])
 			}
 		}
-	} else {
-		for i := uint64(0); i < minDegree+1; i++ {
-
-			if tmp0.Value[i] == nil {
-				ctOut.Value[i] = tmp1.Value[i]
-			}
-			if tmp1.Value[i] == nil {
-				tmp1.Value[i] = eval.ringQ.NewPoly()
-			}
-			if tmp0.Value[i] == nil && tmp1.Value[i] == nil {
-				ctOut.Value[i] = nil
-			}
-			if tmp0.Value[i] != nil && tmp1.Value[i] != nil {
-				evaluate(level, tmp0.Value[i], tmp1.Value[i], ctOut.Value[i])
-			}
+		if tmp0.Value[i] != nil && tmp1.Value[i] == nil {
+			ctOut.Value[i] = tmp0.Value[i]
+		}
+		if tmp0.Value[i] != nil && tmp1.Value[i] != nil {
+			evaluate(level, tmp0.Value[i], tmp1.Value[i], ctOut.Value[i])
 		}
 	}
+
 	ctOut.SetScale(utils.MaxFloat64(c0.Scale(), c1.Scale()))
 
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.

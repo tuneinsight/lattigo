@@ -42,6 +42,9 @@ func NewMKDecryptor(params *rlwe.Parameters, sigmaSmudging float64) MKDecryptor 
 // PartDec computes a partial decription key for the ciphertext component of a given participant
 // for participant i, ski and cti must be used
 func (dec *mkDecryptor) PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *ring.Poly {
+	if ct == nil {
+		return nil
+	}
 
 	// mu_i = c_i * sk_i + e_i mod q
 	out := dec.samplerGaussian.ReadLvlNew(level)

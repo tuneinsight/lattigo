@@ -68,47 +68,69 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 // Add adds the ciphertexts component wise and expend their list of involved peers. A new ciphertext is returned
 func (eval *mkEvaluator) Add(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
 
-	if c0 == nil || c1 == nil || c0.Ciphertexts == nil || c1.Ciphertexts == nil {
-		panic("Uninitialized ciphertexts")
-	}
-
 	padded1, padded2 := PadCiphers(c0, c1, eval.params)
 
 	out := NewMKCiphertext(padded1.PeerID, eval.ringQ, eval.params, padded1.Ciphertexts.Level(), c0.Ciphertexts.Scale())
-
-	out.Ciphertexts = eval.ckksEval.AddNew(padded1.Ciphertexts, padded2.Ciphertexts)
+	out.Ciphertexts = eval.AddNew(padded1.Ciphertexts, padded2.Ciphertexts)
 	return out
+}
+
+// AddNew adds op0 to op1 and returns the result in a newly created element.
+func (eval *mkEvaluator) AddNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext) {
+	ctOut = eval.newCiphertextBinary(op0, op1)
+	eval.AddWithNil(op0, op1, ctOut)
+	return
+}
+
+func (eval *mkEvaluator) newCiphertextBinary(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext) {
+
+	maxDegree := utils.MaxUint64(op0.Degree(), op1.Degree())
+	maxScale := utils.MaxFloat64(op0.Scale(), op1.Scale())
+	minLevel := utils.MinUint64(op0.Level(), op1.Level())
+
+	return ckks.NewCiphertext(*eval.params, maxDegree, minLevel, maxScale)
+}
+
+// Add adds op0 to op1 and returns the result in ctOut.
+func (eval *mkEvaluator) AddWithNil(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext) {
+	maxDegree := uint64(0)
+	isNil := false
+	if op0 == nil || op1 == nil {
+		isNil = true
+		if op0 == nil {
+			maxDegree = op1.Degree()
+		}
+		if op1 == nil {
+			maxDegree = op0.Degree()
+		}
+	}
+	if !isNil {
+		el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+
+		eval.evaluateInPlace(el0, el1, elOut, false, eval.ringQ.AddLvl)
+	} else {
+		el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, maxDegree)
+		eval.evaluateInPlace(el0, el1, elOut, false, eval.ringQ.AddLvl)
+	}
 }
 
 // Sub returns the component wise substraction of 2 ciphertexts
 func (eval *mkEvaluator) Sub(c0 *MKCiphertext, c1 *MKCiphertext) *MKCiphertext {
 
-	if c0 == nil || c1 == nil || c0.Ciphertexts == nil || c1.Ciphertexts == nil {
-		panic("Uninitialized ciphertexts")
-	}
-
 	padded1, padded2 := PadCiphers(c0, c1, eval.params)
 
 	out := NewMKCiphertext(padded1.PeerID, eval.ringQ, eval.params, padded1.Ciphertexts.Level(), padded1.Ciphertexts.Scale())
 
-	out.Ciphertexts = eval.ckksEval.SubNew(padded1.Ciphertexts, padded2.Ciphertexts)
+	out.Ciphertexts = eval.SubNew(padded1.Ciphertexts, padded2.Ciphertexts)
 	return out
 }
 
 // AddPlaintext adds the paintext to the ciphertexts component wise
 func (eval *mkEvaluator) AddPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext {
 
-	if c == nil || pt == nil || c.Ciphertexts == nil || pt.Value == nil {
-		panic("Uninitialized inputs")
-	}
-
-	if pt.Degree() != 0 {
-		panic("Plaintext must have degree 0")
-	}
-
 	out := NewMKCiphertext(c.PeerID, eval.ringQ, eval.params, c.Ciphertexts.Level(), c.Ciphertexts.Scale())
 
-	out.Ciphertexts = eval.ckksEval.AddNew(c.Ciphertexts, pt)
+	out.Ciphertexts = eval.AddNew(c.Ciphertexts, pt)
 
 	return out
 }
@@ -116,17 +138,9 @@ func (eval *mkEvaluator) AddPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCi
 // SubPlaintext subtracts the plaintext from the ciphertext component wise
 func (eval *mkEvaluator) SubPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext {
 
-	if c == nil || pt == nil || c.Ciphertexts == nil || pt.Value == nil {
-		panic("Uninitialized inputs")
-	}
-
-	if pt.Degree() != 0 {
-		panic("Plaintext must have degree 0")
-	}
-
 	out := NewMKCiphertext(c.PeerID, eval.ringQ, eval.params, c.Ciphertexts.Level(), c.Ciphertexts.Scale())
 
-	out.Ciphertexts = eval.ckksEval.SubNew(c.Ciphertexts, pt)
+	out.Ciphertexts = eval.SubNew(c.Ciphertexts, pt)
 
 	return out
 }
@@ -136,7 +150,7 @@ func (eval *mkEvaluator) Neg(c *MKCiphertext) *MKCiphertext {
 
 	out := NewMKCiphertext(c.PeerID, eval.ringQ, eval.params, c.Ciphertexts.Level(), c.Ciphertexts.Scale())
 
-	out.Ciphertexts = eval.ckksEval.NegNew(c.Ciphertexts)
+	out.Ciphertexts = eval.NegNew(c.Ciphertexts)
 
 	return out
 }
@@ -157,7 +171,11 @@ func (eval *mkEvaluator) MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKC
 
 	for i, v := range c.Ciphertexts.Value {
 		val[i] = eval.ringQ.NewPoly()
-		eval.ringQ.MulCoeffsMontgomeryLvl(level, tmp, v, val[i])
+		if v == nil {
+			val[i] = tmp
+		} else {
+			eval.ringQ.MulCoeffsMontgomeryLvl(level, tmp, v, val[i])
+		}
 	}
 
 	out.Ciphertexts.SetValue(val)
@@ -198,12 +216,23 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 	for i, v1 := range el1.Value {
 
-		ringQ.MFormLvl(level, v1, tmp1)
+		if v1 != nil {
+			ringQ.MFormLvl(level, v1, tmp1)
+		}
 
 		for j, v2 := range el2.Value {
 
 			index := int(nbrElements)*i + j
-			ringQ.MulCoeffsMontgomeryLvl(level, tmp1, v2, resCipher[index])
+			if v1 != nil && v2 != nil {
+				ringQ.MulCoeffsMontgomeryLvl(level, tmp1, v2, resCipher[index])
+			}
+			if v1 == nil {
+				resCipher[index] = v2
+			}
+			if v2 == nil {
+				resCipher[index] = v1
+			}
+
 		}
 	}
 
@@ -218,7 +247,6 @@ func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKEva
 
 	checkParticipantsEvalKey(ct.PeerID, evalKeys)
 	checkParticipantsPubKey(ct.PeerID, publicKeys)
-
 	mkrlwe.Relinearization(evalKeys, publicKeys, &ct.Ciphertexts.Value, &eval.params.Parameters, ct.Ciphertexts.Level())
 }
 
@@ -232,7 +260,18 @@ func (eval *mkEvaluator) Rescale(c *MKCiphertext, out *MKCiphertext) {
 // DropLevel drops the level of the given ciphertext by levels. No rescaling is applied
 func (eval *mkEvaluator) DropLevel(ct *MKCiphertext, levels uint64) {
 
-	eval.ckksEval.DropLevel(ct.Ciphertexts, levels)
+	eval.DropLevelWithNil(ct.Ciphertexts, levels)
+}
+
+// DropLevel reduces the level of ct0 by levels and returns the result in ct0.
+// No rescaling is applied during this procedure.
+func (eval *mkEvaluator) DropLevelWithNil(ct0 *ckks.Ciphertext, levels uint64) {
+	level := ct0.Level()
+	for i := range ct0.Value {
+		if ct0.Value[i] != nil {
+			ct0.Value[i].Coeffs = ct0.Value[i].Coeffs[:level+1-levels]
+		}
+	}
 }
 
 // Rotate rotate the columns of the ciphertext by n to the left and return the result in a new ciphertext
@@ -368,5 +407,277 @@ func checkParticipantsGalKey(peerID []uint64, galKeys []*mkrlwe.MKEvalGalKey) {
 		if id != galKeys[i].PeerID {
 			panic("Incorrect galois evaluation keys for the given ciphertexts")
 		}
+	}
+}
+
+func (eval *mkEvaluator) getElemAndCheckBinary(op0, op1, opOut ckks.Operand, opOutMinDegree uint64) (el0, el1, elOut *ckks.Element) {
+
+	if op0 == nil && op1 == nil && opOut == nil {
+		el0, el1, elOut = nil, nil, nil
+		return
+	}
+
+	if op0 == nil && op1 == nil && opOut != nil {
+		el0, el1, elOut = nil, nil, opOut.El()
+		return
+	}
+
+	if op0 == nil && op1 != nil && opOut == nil {
+		el0, el1, elOut = nil, op1.El(), nil
+		return
+	}
+
+	if op0 == nil && op1 != nil && opOut != nil {
+		el0, el1, elOut = nil, op1.El(), opOut.El()
+		return
+	}
+
+	if op0 != nil && op1 == nil && opOut == nil {
+		el0, el1, elOut = op0.El(), nil, nil
+		return
+	}
+
+	if op0 != nil && op1 == nil && opOut != nil {
+		el0, el1, elOut = op0.El(), nil, opOut.El()
+		return
+	}
+
+	if op0 != nil && op1 != nil && opOut == nil {
+		el0, el1, elOut = op0.El(), op1.El(), nil
+		return
+	}
+
+	if op0 != nil && op1 != nil && opOut != nil {
+		el0, el1, elOut = op0.El(), op1.El(), opOut.El()
+		return
+	}
+
+	return
+}
+
+func (eval *mkEvaluator) evaluateInPlace(c0, c1, ctOut *ckks.Element, isSub bool, evaluate func(uint64, *ring.Poly, *ring.Poly, *ring.Poly)) {
+
+	if c0 == nil && c1 == nil {
+		ctOut = nil
+		return
+	}
+
+	if c0 == nil {
+		ctOut = c1
+	}
+
+	if c1 == nil {
+		ctOut = c0
+	}
+
+	var tmp0, tmp1 *ckks.Element
+	level := utils.MinUint64(utils.MinUint64(c0.Level(), c1.Level()), ctOut.Level())
+
+	maxDegree := utils.MaxUint64(c0.Degree(), c1.Degree())
+	minDegree := utils.MinUint64(c0.Degree(), c1.Degree())
+
+	// Else resizes the receiver element
+	ctOut.Resize(*eval.params, maxDegree)
+	eval.ckksEval.DropLevel(&ckks.Ciphertext{ctOut}, ctOut.Level()-utils.MinUint64(c0.Level(), c1.Level()))
+	// Checks whether or not the receiver element is the same as one of the input elements
+	// and acts accordingly to avoid unnecessary element creation or element overwriting,
+	// and scales properly the element before the evaluation.
+	if ctOut == c0 {
+
+		if c0.Scale() > c1.Scale() {
+			tmp1 = new(ckks.Element)
+
+			if uint64(c0.Scale()/c1.Scale()) != 0 {
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{c1}, uint64(c0.Scale()/c1.Scale()), &ckks.Ciphertext{tmp1})
+			}
+
+		} else if c1.Scale() > c0.Scale() {
+
+			if uint64(c1.Scale()/c0.Scale()) != 0 {
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{c0}, uint64(c1.Scale()/c0.Scale()), &ckks.Ciphertext{c0})
+			}
+			c0.SetScale(c1.Scale())
+
+			tmp1 = c1
+
+		} else {
+			tmp1 = c1
+		}
+
+		tmp0 = c0
+
+	} else if ctOut == c1 {
+		if c1.Scale() > c0.Scale() {
+
+			tmp0 = new(ckks.Element)
+			if uint64(c1.Scale()/c0.Scale()) != 0 {
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{c0}, uint64(c1.Scale()/c0.Scale()), &ckks.Ciphertext{tmp0})
+			}
+		} else if c0.Scale() > c1.Scale() {
+
+			if uint64(c0.Scale()/c1.Scale()) != 0 {
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{c1}, uint64(c0.Scale()/c1.Scale()), &ckks.Ciphertext{ctOut})
+			}
+
+			ctOut.SetScale(c0.Scale())
+			tmp0 = c0
+
+		} else {
+			tmp0 = c0
+		}
+
+		tmp1 = c1
+
+	} else {
+		if c1.Scale() > c0.Scale() {
+			tmp0 = new(ckks.Element)
+
+			if uint64(c1.Scale()/c0.Scale()) != 0 {
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{c0}, uint64(c1.Scale()/c0.Scale()), &ckks.Ciphertext{tmp0})
+			}
+
+			tmp1 = c1
+
+		} else if c0.Scale() > c1.Scale() {
+			tmp1 = new(ckks.Element)
+
+			if uint64(c0.Scale()/c1.Scale()) != 0 {
+				eval.ckksEval.MultByConst(&ckks.Ciphertext{c1}, uint64(c0.Scale()/c1.Scale()), &ckks.Ciphertext{tmp1})
+			}
+
+			tmp0 = c0
+
+		} else {
+			tmp0 = c0
+			tmp1 = c1
+		}
+	}
+	if !isSub {
+		for i := uint64(0); i < minDegree+1; i++ {
+
+			if tmp0.Value[i] == nil && tmp1.Value[i] == nil {
+				ctOut.Value[i] = nil
+			}
+			if tmp0.Value[i] == nil {
+				ctOut.Value[i] = tmp1.Value[i]
+			}
+			if tmp1.Value[i] == nil {
+				ctOut.Value[i] = tmp0.Value[i]
+			}
+
+			if tmp0.Value[i] != nil && tmp1.Value[i] != nil {
+				evaluate(level, tmp0.Value[i], tmp1.Value[i], ctOut.Value[i])
+			}
+		}
+	} else {
+		for i := uint64(0); i < minDegree+1; i++ {
+
+			if tmp0.Value[i] == nil {
+				ctOut.Value[i] = tmp1.Value[i]
+			}
+			if tmp1.Value[i] == nil {
+				tmp1.Value[i] = eval.ringQ.NewPoly()
+			}
+			if tmp0.Value[i] == nil && tmp1.Value[i] == nil {
+				ctOut.Value[i] = nil
+			}
+			if tmp0.Value[i] != nil && tmp1.Value[i] != nil {
+				evaluate(level, tmp0.Value[i], tmp1.Value[i], ctOut.Value[i])
+			}
+		}
+	}
+	ctOut.SetScale(utils.MaxFloat64(c0.Scale(), c1.Scale()))
+
+	// If the inputs degrees differ, it copies the remaining degree on the receiver.
+	// Also checks that the receiver is not one of the inputs to avoid unnecessary work.
+
+	if c0.Degree() > c1.Degree() && tmp0 != ctOut {
+		for i := minDegree + 1; i < maxDegree+1; i++ {
+			eval.ringQ.CopyLvl(level, tmp0.Value[i], ctOut.Value[i])
+		}
+	} else if c1.Degree() > c0.Degree() && tmp1 != ctOut {
+		for i := minDegree + 1; i < maxDegree+1; i++ {
+			eval.ringQ.CopyLvl(level, tmp1.Value[i], ctOut.Value[i])
+		}
+	}
+}
+
+// SubNew subtracts op1 from op0 and returns the result in a newly created element.
+func (eval *mkEvaluator) SubNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext) {
+	ctOut = eval.newCiphertextBinary(op0, op1)
+	eval.SubWithNil(op0, op1, ctOut)
+	return
+}
+
+// SubWithNil subtracts op1 from op0 and returns the result in ctOut.
+func (eval *mkEvaluator) SubWithNil(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext) {
+
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+
+	eval.evaluateInPlace(el0, el1, elOut, true, eval.ringQ.SubLvl)
+	level := uint64(0)
+	if el0 == nil || el1 == nil || elOut == nil {
+		if el0 == nil && el1 == nil && elOut == nil {
+			return
+		}
+
+		if el0 == nil && el1 == nil && elOut != nil {
+			level = elOut.Level()
+		}
+
+		if el0 == nil && el1 != nil && elOut == nil {
+			level = el1.Level()
+		}
+
+		if el0 == nil && el1 != nil && elOut != nil {
+			level = utils.MinUint64(el1.Level(), elOut.Level())
+		}
+
+		if el0 != nil && el1 == nil && elOut == nil {
+			level = el0.Level()
+		}
+
+		if el0 != nil && el1 == nil && elOut != nil {
+			level = utils.MinUint64(el0.Level(), elOut.Level())
+		}
+
+		if el0 != nil && el1 != nil && elOut == nil {
+			level = utils.MinUint64(el0.Level(), el1.Level())
+		}
+
+		if el0 != nil && el1 != nil && elOut != nil {
+			level = utils.MinUint64(utils.MinUint64(el0.Level(), el1.Level()), elOut.Level())
+			if el0.Degree() < el1.Degree() {
+				for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
+					eval.ringQ.NegLvl(level, elOut.Value[i], elOut.Value[i])
+				}
+			}
+		}
+
+	}
+
+}
+
+// NegNew negates ct0 and returns the result in a newly created element.
+func (eval *mkEvaluator) NegNew(ct0 *ckks.Ciphertext) (ctOut *ckks.Ciphertext) {
+	if ct0 == nil {
+		return nil
+	}
+	ctOut = ckks.NewCiphertext(*eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
+	eval.NegWithNil(ct0, ctOut)
+	return
+}
+
+// Neg negates the value of ct0 and returns the result in ctOut.
+func (eval *mkEvaluator) NegWithNil(ct0 *ckks.Ciphertext, ctOut *ckks.Ciphertext) {
+
+	level := utils.MinUint64(ct0.Level(), ctOut.Level())
+
+	if ct0.Degree() != ctOut.Degree() {
+		panic("cannot Negate: invalid receiver Ciphertext does not match input Ciphertext degree")
+	}
+
+	for i := range ct0.Value {
+		eval.ringQ.NegLvl(level, ct0.Value[i], ctOut.Value[i])
 	}
 }

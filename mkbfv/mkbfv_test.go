@@ -38,11 +38,11 @@ func Test_MKBFV(t *testing.T) {
 		}
 		if i != 6 {
 			testMul(t, p)
-			testAddAfterMul(t, p)
+			//testAddAfterMul(t, p)
 		}
 
 		testRotation(t, p)
-		testRotationTwoParticipants(t, p)
+		//testRotationTwoParticipants(t, p)
 		testMarshaler(t, p)
 	}
 }
@@ -565,21 +565,17 @@ func testMul(t *testing.T, params *bfv.Parameters) {
 
 		// pad
 		evaluator := NewMKEvaluator(params)
-
 		// multiply using evaluation keys and public keys
 		evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 		publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
-
 		resCipher := evaluator.Mul(cipher1, cipher2)
 
 		evaluator.RelinInPlace(resCipher, evalKeys, publicKeys)
-
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
 		partialDec2 := participants[1].GetPartialDecryption(resCipher)
 
 		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
-
 		// perform the operation in the plaintext space
 		expected := ringT.NewPoly()
 		p1 := ringT.NewPoly()
@@ -624,13 +620,11 @@ func testAddAfterMul(t *testing.T, params *bfv.Parameters) {
 		evaluator.RelinInPlace(resCipher, evalKeys, publicKeys)
 
 		resCipher = evaluator.Add(resCipher, cipher1)
-
 		// decrypt
 		partialDec1 := participants[0].GetPartialDecryption(resCipher)
 		partialDec2 := participants[1].GetPartialDecryption(resCipher)
 
 		decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
-
 		// perform the operation in the plaintext space
 		expected := ringT.NewPoly()
 		p1 := ringT.NewPoly()
@@ -639,7 +633,6 @@ func testAddAfterMul(t *testing.T, params *bfv.Parameters) {
 		copy(p2.Coeffs[0], expected2)
 		ringT.MulCoeffs(p1, p2, expected)
 		ringT.Add(expected, p1, expected)
-
 		if !equalsSlice(decrypted, expected.Coeffs[0]) {
 			t.Error("Homomorphic multiplication error")
 		}
@@ -739,7 +732,6 @@ func testRotation(t *testing.T, params *bfv.Parameters) {
 			resCipher := evaluator.Rotate(cipher1, n, []*mkrlwe.MKEvalGalKey{rotKey})
 
 			partialDec := participants[0].GetPartialDecryption(resCipher)
-
 			decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec})
 
 			// perform the operation in the plaintext space
@@ -780,7 +772,6 @@ func testRotationTwoParticipants(t *testing.T, params *bfv.Parameters) {
 
 		// add both ciphertexts
 		added := evaluator.Add(cipher1, cipher2)
-
 		for _, n := range rots {
 
 			rotKey1 := participants[0].GetRotationKeys(n)
@@ -792,7 +783,6 @@ func testRotationTwoParticipants(t *testing.T, params *bfv.Parameters) {
 			partialDec2 := participants[1].GetPartialDecryption(resCipher)
 
 			decrypted := participants[0].Decrypt(resCipher, []*ring.Poly{partialDec1, partialDec2})
-
 			// perform the operation in the plaintext space
 			expected := ringT.NewPoly()
 			p1 := ringT.NewPoly()
@@ -801,10 +791,8 @@ func testRotationTwoParticipants(t *testing.T, params *bfv.Parameters) {
 			copy(p2.Coeffs[0], values2)
 
 			ringT.Add(p1, p2, expected)
-
 			nColumns := params.N() >> 1
 			valuesWant := append(utils.RotateUint64Slice(expected.Coeffs[0][:nColumns], n), utils.RotateUint64Slice(expected.Coeffs[0][nColumns:], n)...)
-
 			if !utils.EqualSliceUint64(valuesWant, decrypted) {
 				t.Errorf("Rotation error")
 			}

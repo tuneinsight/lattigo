@@ -80,17 +80,71 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 // Add adds the ciphertexts component wise and expend their list of involved peers. Returns a new ciphertext
 func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
-	if c1 == nil || c2 == nil || c1.Ciphertexts == nil || c2.Ciphertexts == nil {
-		panic("Uninitialized ciphertexts")
-	}
-
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
 	out := NewMKCiphertext(padded1.PeerID, eval.ringQ, eval.params)
 
-	out.Ciphertexts = eval.bfvEval.AddNew(padded1.Ciphertexts, padded2.Ciphertexts)
+	out.Ciphertexts = eval.AddNew(padded1.Ciphertexts, padded2.Ciphertexts)
 
 	return out
+}
+
+// AddNew adds op0 to op1 and creates a new element ctOut to store the result.
+func (eval *mkEvaluator) AddNew(op0, op1 bfv.Operand) (ctOut *bfv.Ciphertext) {
+	ctOut = bfv.NewCiphertext(*eval.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	eval.AddWithNil(op0, op1, ctOut)
+	return
+}
+
+// Add adds op0 to op1 and returns the result in ctOut.
+func (eval *mkEvaluator) AddWithNil(op0, op1 bfv.Operand, ctOut *bfv.Ciphertext) {
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	eval.evaluateInPlaceBinary(el0, el1, elOut, false, eval.ringQ.Add)
+}
+
+func (eval *mkEvaluator) getElemAndCheckBinary(op0, op1, opOut bfv.Operand, opOutMinDegree uint64) (el0, el1, elOut *rlwe.Element) {
+
+	if op0 == nil && op1 == nil && opOut == nil {
+		el0, el1, elOut = nil, nil, nil
+		return
+	}
+
+	if op0 == nil && op1 == nil && opOut != nil {
+		el0, el1, elOut = nil, nil, opOut.El()
+		return
+	}
+
+	if op0 == nil && op1 != nil && opOut == nil {
+		el0, el1, elOut = nil, op1.El(), nil
+		return
+	}
+
+	if op0 == nil && op1 != nil && opOut != nil {
+		el0, el1, elOut = nil, op1.El(), opOut.El()
+		return
+	}
+
+	if op0 != nil && op1 == nil && opOut == nil {
+		el0, el1, elOut = op0.El(), nil, nil
+		return
+	}
+
+	if op0 != nil && op1 == nil && opOut != nil {
+		el0, el1, elOut = op0.El(), nil, opOut.El()
+		return
+	}
+
+	if op0 != nil && op1 != nil && opOut == nil {
+		el0, el1, elOut = op0.El(), op1.El(), nil
+		return
+	}
+
+	if op0 != nil && op1 != nil && opOut != nil {
+		el0, el1, elOut = op0.El(), op1.El(), opOut.El()
+		return
+	}
+
+	return
 }
 
 // Sub substracts the ciphertexts component wise and expend their list of involved peers
@@ -104,9 +158,16 @@ func (eval *mkEvaluator) Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 	out := NewMKCiphertext(padded1.PeerID, eval.ringQ, eval.params)
 
-	out.Ciphertexts = eval.bfvEval.SubNew(padded1.Ciphertexts, padded2.Ciphertexts)
+	out.Ciphertexts = eval.SubNew(padded1.Ciphertexts, padded2.Ciphertexts)
 
 	return out
+}
+
+// SubNew subtracts op1 from op0 and creates a new element ctOut to store the result.
+func (eval *mkEvaluator) SubNew(op0, op1 bfv.Operand) (ctOut *bfv.Ciphertext) {
+	ctOut = bfv.NewCiphertext(*eval.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	eval.SubWithNil(op0, op1, ctOut)
+	return
 }
 
 // AddPlaintext adds the paintext to the ciphertexts component wise
@@ -220,9 +281,14 @@ func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKEva
 func (eval *mkEvaluator) modUpAndNTT(ct *bfv.Ciphertext, cQ, cQMul []*ring.Poly) {
 	levelQ := uint64(len(eval.ringQ.Modulus) - 1)
 	for i := range ct.Value {
-		eval.convertorQQMul.ModUpSplitQP(levelQ, ct.Value[i], cQMul[i])
-		eval.ringQ.NTTLazy(ct.Value[i], cQ[i])
-		eval.ringQMul.NTTLazy(cQMul[i], cQMul[i])
+		if ct.Value[i] != nil {
+			eval.convertorQQMul.ModUpSplitQP(levelQ, ct.Value[i], cQMul[i])
+			eval.ringQ.NTTLazy(ct.Value[i], cQ[i])
+		}
+		if cQMul[i] != nil {
+			eval.ringQMul.NTTLazy(cQMul[i], cQMul[i])
+		}
+
 	}
 }
 
@@ -261,7 +327,6 @@ func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertex
 	nbrElements := ct0.Degree() + 1 // k+1
 
 	outputDegree := nbrElements * nbrElements // (k+1)**2
-
 	out := new(MKCiphertext)
 	out.Ciphertexts = bfv.NewCiphertext(*eval.params, outputDegree-1)
 
@@ -272,9 +337,7 @@ func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertex
 		c0Q1[i] = eval.ringQ.NewPoly()
 		c0Q2[i] = eval.ringQMul.NewPoly()
 	}
-
-	eval.modUpAndNTT(ct0, c0Q1, c0Q2) // split ct0 in ringQ and ringQMul
-
+	eval.modUpAndNTT(ct0, c0Q1, c0Q2)        // split ct0 in ringQ and ringQMul
 	c2Q1 := make([]*ring.Poly, outputDegree) // prepare output
 	c2Q2 := make([]*ring.Poly, outputDegree)
 
@@ -489,4 +552,75 @@ func (eval *mkEvaluator) NewPlaintextMulFromValue(value []uint64) *bfv.Plaintext
 	eval.encoder.EncodeUintMul(value, plaintext)
 
 	return plaintext
+}
+
+// evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
+func (eval *mkEvaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Element, isSub bool, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+	smallestDeg := uint64(0)
+	if el0 == nil || el1 == nil {
+		if el0 == nil && el1 != nil {
+			smallestDeg = el1.Degree()
+		}
+		if el0 != nil && el1 == nil {
+			smallestDeg = el0.Degree()
+		}
+		if !isSub {
+			for i := uint64(0); i < smallestDeg+1; i++ {
+				if el0.Value[i] == nil && el1.Value[i] == nil {
+					elOut.Value[i] = nil
+				}
+				if el0.Value[i] == nil && el1.Value[i] != nil {
+					elOut.Value[i] = el1.Value[i]
+				}
+				if el0.Value[i] != nil && el1.Value[i] == nil {
+					elOut.Value[i] = el0.Value[i]
+				}
+				if el0.Value[i] != nil && el1.Value[i] != nil {
+					evaluate(el0.Value[i], el1.Value[i], elOut.Value[i])
+				}
+			}
+		} else {
+
+			for i := uint64(0); i < smallestDeg+1; i++ {
+				if el0.Value[i] == nil && el1.Value[i] == nil {
+					elOut.Value[i] = nil
+				}
+				if el0.Value[i] == nil && el1.Value[i] != nil {
+					elOut.Value[i] = el1.Value[i]
+				}
+				if el0.Value[i] != nil && el1.Value[i] == nil {
+					elOut.Value[i] = el0.Value[i]
+				}
+				if el0.Value[i] != nil && el1.Value[i] != nil {
+					evaluate(el0.Value[i], el1.Value[i], elOut.Value[i])
+				}
+
+			}
+		}
+	}
+
+	if el0 != nil && el1 != nil {
+		smallest, largest, _ := rlwe.GetSmallestLargest(el0, el1)
+
+		// If the inputs degrees differ, it copies the remaining degree on the receiver.
+		if largest != nil && largest != elOut { // checks to avoid unnecessary work.
+			for i := smallest.Degree() + 1; i < largest.Degree()+1; i++ {
+				elOut.Value[i].Copy(largest.Value[i])
+			}
+		}
+	}
+}
+
+// SubWithNil subtracts op1 from op0 and returns the result in cOut.
+func (eval *mkEvaluator) SubWithNil(op0, op1 bfv.Operand, ctOut *bfv.Ciphertext) {
+	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
+	eval.evaluateInPlaceBinary(el0, el1, elOut, true, eval.ringQ.Sub)
+
+	if el0 != nil && el1 != nil && elOut != nil {
+		if el0.Degree() < el1.Degree() {
+			for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
+				eval.ringQ.Neg(ctOut.Value[i], ctOut.Value[i])
+			}
+		}
+	}
 }

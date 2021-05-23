@@ -55,13 +55,13 @@ func PadCiphers(c1, c2 *MKCiphertext, params *rlwe.Parameters) (c1Out, c2Out *MK
 		if index1 >= 0 {
 			res1[index] = c1.Value[index1+1].CopyNew()
 		} else {
-			res1[index] = ringQ.NewPoly()
+			res1[index] = nil
 		}
 
 		if index2 >= 0 {
 			res2[index] = c2.Value[index2+1].CopyNew()
 		} else {
-			res2[index] = ringQ.NewPoly()
+			res2[index] = nil
 		}
 	}
 

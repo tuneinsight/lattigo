@@ -259,6 +259,7 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 	out := eval.TensorAndRescale(padded1.Ciphertexts, padded2.Ciphertexts)
 	out.PeerID = padded1.PeerID
+
 	return out
 }
 
@@ -273,7 +274,9 @@ func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKEva
 
 	//pass ciphertext in NTT domain
 	for _, v := range ct.Ciphertexts.Value {
-		eval.ringQ.NTT(v, v)
+		if v != nil {
+			eval.ringQ.NTT(v, v)
+		}
 	}
 
 	mkrlwe.Relinearization(evalKeys, publicKeys, &ct.Ciphertexts.Value, &eval.params.Parameters, uint64(len(eval.ringQ.Modulus)-1))
@@ -334,7 +337,9 @@ func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertex
 
 	outputDegree := nbrElements * nbrElements // (k+1)**2
 	out := new(MKCiphertext)
-	out.Ciphertexts = bfv.NewCiphertext(*eval.params, outputDegree-1)
+	out.Ciphertexts = new(bfv.Ciphertext)
+	out.Ciphertexts.Element = new(rlwe.Element)
+	out.Ciphertexts.Value = make([]*ring.Poly, outputDegree)
 
 	c0Q1 := make([]*ring.Poly, nbrElements)
 	c0Q2 := make([]*ring.Poly, nbrElements)
@@ -374,14 +379,14 @@ func (eval *mkEvaluator) TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertex
 					eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[int(nbrElements)*i+j])
 					eval.ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[int(nbrElements)*i+j])
 				} else {
-					c2Q1[int(nbrElements)*i+j].Zero()
-					c2Q2[int(nbrElements)*i+j].Zero()
+					c2Q1[int(nbrElements)*i+j] = nil
+					c2Q2[int(nbrElements)*i+j] = nil
 				}
 			}
 		} else {
 			for j := range ct1.Value {
-				c2Q1[int(nbrElements)*i+j].Zero()
-				c2Q2[int(nbrElements)*i+j].Zero()
+				c2Q1[int(nbrElements)*i+j] = nil
+				c2Q2[int(nbrElements)*i+j] = nil
 			}
 		}
 
@@ -402,20 +407,23 @@ func (eval *mkEvaluator) quantize(c2Q1, c2Q2 []*ring.Poly, ctOut *rlwe.Element) 
 	// by t/q and reduces its basis from QP to Q
 	for i := range ctOut.Value {
 
-		eval.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
-		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
+		if c2Q1[i] != nil {
 
-		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		eval.convertorQQMul.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
+			ctOut.Value[i] = eval.ringQ.NewPoly()
+			eval.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
+			eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
 
-		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
-		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
-		eval.convertorQQMul.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.Value[i])
-		eval.ringQ.SubScalarBigint(ctOut.Value[i], eval.pHalf, ctOut.Value[i])
+			// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
+			eval.convertorQQMul.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
 
-		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
-		eval.ringQ.MulScalar(ctOut.Value[i], eval.params.T(), ctOut.Value[i])
+			// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
+			eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
+			eval.convertorQQMul.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.Value[i])
+			eval.ringQ.SubScalarBigint(ctOut.Value[i], eval.pHalf, ctOut.Value[i])
 
+			// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
+			eval.ringQ.MulScalar(ctOut.Value[i], eval.params.T(), ctOut.Value[i])
+		}
 	}
 }
 

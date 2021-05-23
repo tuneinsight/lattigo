@@ -42,40 +42,35 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 
 		for j := uint64(1); j <= k; j++ {
 
-			preparePublicKey(j, level, uint64(len(ringQ.Modulus)), params.Beta(), publicKeys, ringQ, ringP, pkQ, pkP)
-			decomposedIJQ, decomposedIJP := GInverse((*ct)[i*(k+1)+j], params, level) // line 3
-			cIJtmpQ := new(ring.Poly)
-			cIJtmpP := new(ring.Poly)
-			if decomposedIJQ != nil {
-				cIJtmpQ = DotLvl(level, decomposedIJQ, pkQ, ringQ)
-			} else {
-				cIJtmpQ = ringQ.NewPolyLvl(level)
+			if (*ct)[i*(k+1)+j] != nil {
+
+				preparePublicKey(j, level, uint64(len(ringQ.Modulus)), params.Beta(), publicKeys, ringQ, ringP, pkQ, pkP)
+				decomposedIJQ, decomposedIJP := GInverse((*ct)[i*(k+1)+j], params, level) // line 3
+
+				cIJtmpQ := DotLvl(level, decomposedIJQ, pkQ, ringQ)
+				cIJtmpP := Dot(decomposedIJP, pkP, ringP)
+
+				cIJPrime := ringQ.NewPoly()
+
+				baseconverter.ModDownSplitNTTPQ(level, cIJtmpQ, cIJtmpP, cIJPrime)  // line 4
+				decomposedTmpQ, decomposedTmpP := GInverse(cIJPrime, params, level) // inverse and matrix mult (line 5)
+
+				tmpC0Q := DotLvl(level, decomposedTmpQ, d0Q, ringQ)
+				tmpC0P := Dot(decomposedTmpP, d0P, ringP)
+
+				tmpCiQ := DotLvl(level, decomposedTmpQ, d1Q, ringQ)
+				tmpCiP := Dot(decomposedTmpP, d1P, ringP)
+
+				ringQ.AddLvl(level, restmpQ[0], tmpC0Q, restmpQ[0])
+				ringQ.AddLvl(level, restmpQ[i], tmpCiQ, restmpQ[i])
+
+				ringP.Add(restmpP[0], tmpC0P, restmpP[0])
+				ringP.Add(restmpP[i], tmpCiP, restmpP[i])
+				tmpIJQ := DotLvl(level, decomposedIJQ, d2Q, ringQ) // line 6 of algorithm
+				tmpIJP := Dot(decomposedIJP, d2P, ringP)
+				ringQ.AddLvl(level, restmpQ[j], tmpIJQ, restmpQ[j])
+				ringP.Add(restmpP[j], tmpIJP, restmpP[j])
 			}
-			if decomposedIJQ != nil {
-				cIJtmpP = Dot(decomposedIJP, pkP, ringP)
-			} else {
-				cIJtmpP = ringP.NewPoly()
-			}
-			cIJPrime := ringQ.NewPoly()
-
-			baseconverter.ModDownSplitNTTPQ(level, cIJtmpQ, cIJtmpP, cIJPrime)  // line 4
-			decomposedTmpQ, decomposedTmpP := GInverse(cIJPrime, params, level) // inverse and matrix mult (line 5)
-
-			tmpC0Q := DotLvl(level, decomposedTmpQ, d0Q, ringQ)
-			tmpC0P := Dot(decomposedTmpP, d0P, ringP)
-
-			tmpCiQ := DotLvl(level, decomposedTmpQ, d1Q, ringQ)
-			tmpCiP := Dot(decomposedTmpP, d1P, ringP)
-
-			ringQ.AddLvl(level, restmpQ[0], tmpC0Q, restmpQ[0])
-			ringQ.AddLvl(level, restmpQ[i], tmpCiQ, restmpQ[i])
-
-			ringP.Add(restmpP[0], tmpC0P, restmpP[0])
-			ringP.Add(restmpP[i], tmpCiP, restmpP[i])
-			tmpIJQ := DotLvl(level, decomposedIJQ, d2Q, ringQ) // line 6 of algorithm
-			tmpIJP := Dot(decomposedIJP, d2P, ringP)
-			ringQ.AddLvl(level, restmpQ[j], tmpIJQ, restmpQ[j])
-			ringP.Add(restmpP[j], tmpIJP, restmpP[j])
 
 		}
 	}
@@ -85,7 +80,13 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 	ringQ.AddLvl(level, (*ct)[0], tmpModDown, res[0])
 	for i := uint64(1); i <= k; i++ {
 
-		ringQ.AddLvl(level, (*ct)[i], (*ct)[(k+1)*i], res[i])
+		if (*ct)[i] != nil && (*ct)[(k+1)*i] != nil {
+			ringQ.AddLvl(level, (*ct)[i], (*ct)[(k+1)*i], res[i])
+		} else if (*ct)[i] != nil && (*ct)[(k+1)*i] == nil {
+			res[i] = (*ct)[i]
+		} else {
+			res[i] = (*ct)[(k+1)*i]
+		}
 
 		baseconverter.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
 		ringQ.AddLvl(level, res[i], tmpModDown, res[i])
@@ -141,19 +142,19 @@ func GInverse(p *ring.Poly, params *rlwe.Parameters, level uint64) (*MKDecompose
 	polynomialsQ := make([]*ring.Poly, beta)
 	polynomialsP := make([]*ring.Poly, beta)
 	invPoly := ringQ.NewPoly()
-	if p != nil {
-		ringQ.InvNTTLvl(level, p, invPoly)
-	}
+
+	ringQ.InvNTTLvl(level, p, invPoly)
+
 	// generate each poly decomposed in the base
 	for i := uint64(0); i < beta; i++ {
-		if p != nil {
-			polynomialsQ[i] = ringQ.NewPoly()
-			polynomialsP[i] = ringP.NewPoly()
-			decomposeAndSplitNTT(level, i, p, invPoly, polynomialsQ[i], polynomialsP[i], params, ringQ, ringP)
-			//pass polynomials in MForm
-			ringQ.MFormLvl(level, polynomialsQ[i], polynomialsQ[i])
-			ringP.MForm(polynomialsP[i], polynomialsP[i])
-		}
+
+		polynomialsQ[i] = ringQ.NewPoly()
+		polynomialsP[i] = ringP.NewPoly()
+		decomposeAndSplitNTT(level, i, p, invPoly, polynomialsQ[i], polynomialsP[i], params, ringQ, ringP)
+		//pass polynomials in MForm
+		ringQ.MFormLvl(level, polynomialsQ[i], polynomialsQ[i])
+		ringP.MForm(polynomialsP[i], polynomialsP[i])
+
 	}
 	resQ.Poly = polynomialsQ
 	resP.Poly = polynomialsP

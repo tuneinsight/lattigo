@@ -17,15 +17,8 @@ func Dot(p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ring) *ring.Poly {
 	res := r.NewPoly()
 
 	for i := uint64(0); i < uint64(len(p1.Poly)); i++ {
-		if p1.Poly[i] != nil && p2.Poly[i] != nil {
-			r.MulCoeffsMontgomeryAndAdd(p1.Poly[i], p2.Poly[i], res)
-		}
-		if p1.Poly[i] == nil && p2.Poly[i] != nil {
-			res = p2.Poly[i]
-		}
-		if p1.Poly[i] != nil && p2.Poly[i] == nil {
-			res = p1.Poly[i]
-		}
+
+		r.MulCoeffsMontgomeryAndAdd(p1.Poly[i], p2.Poly[i], res)
 	}
 
 	return res
@@ -40,15 +33,8 @@ func DotLvl(level uint64, p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, r *ring.Ri
 	res := r.NewPoly()
 
 	for i := uint64(0); i < uint64(len(p1.Poly)); i++ {
-		if p1.Poly[i] != nil && p2.Poly[i] != nil {
-			r.MulCoeffsMontgomeryAndAddLvl(level, p1.Poly[i], p2.Poly[i], res)
-		}
-		if p1.Poly[i] == nil && p2.Poly[i] != nil {
-			res = p2.Poly[i]
-		}
-		if p1.Poly[i] != nil && p2.Poly[i] == nil {
-			res = p1.Poly[i]
-		}
+
+		r.MulCoeffsMontgomeryAndAddLvl(level, p1.Poly[i], p2.Poly[i], res)
 	}
 
 	return res

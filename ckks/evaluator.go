@@ -90,16 +90,15 @@ type Evaluator interface {
 	// Linear Transformations
 	LinearTransform(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
 	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
-	MultiplyByDiagMatrixNaive(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
 	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
 
 	// Inner sum
+	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
-	InnerSumNaive(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
 	// Replicatation (inverse of Inner sum)
+	ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
-	ReplicateNaive(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
 	// =============================
 	// === Ciphertext Management ===

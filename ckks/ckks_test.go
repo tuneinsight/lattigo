@@ -51,9 +51,7 @@ type testParams struct {
 func TestCKKS(t *testing.T) {
 
 	var err error
-
-	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
-
+	defaultParams := DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
@@ -1086,16 +1084,16 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		t.Skip("#Pi is empty")
 	}
 
-	t.Run(testString(testContext, "InnerSumNaive/"), func(t *testing.T) {
+	t.Run(testString(testContext, "InnerSum/"), func(t *testing.T) {
 		batch := 2
 		n := 35
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSumNaive(batch, n), false, testContext.sk)
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSum(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		eval.InnerSumNaive(ciphertext1, batch, n, ciphertext1)
+		eval.InnerSum(ciphertext1, batch, n, ciphertext1)
 
 		tmp0 := make([]complex128, len(values1))
 		copy(tmp0, values1)
@@ -1112,17 +1110,17 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "InnerSum/"), func(t *testing.T) {
+	t.Run(testString(testContext, "InnerSumLog/"), func(t *testing.T) {
 
 		batch := 3
 		n := 15
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSum(batch, n), false, testContext.sk)
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSumLog(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		eval.InnerSum(ciphertext1, batch, n, ciphertext1)
+		eval.InnerSumLog(ciphertext1, batch, n, ciphertext1)
 
 		tmp0 := make([]complex128, len(values1))
 		copy(tmp0, values1)
@@ -1147,16 +1145,16 @@ func testReplicate(testContext *testParams, t *testing.T) {
 		t.Skip("#Pi is empty")
 	}
 
-	t.Run(testString(testContext, "ReplicateNaive/"), func(t *testing.T) {
+	t.Run(testString(testContext, "Replicate/"), func(t *testing.T) {
 		batch := 2
 		n := 35
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicateNaive(batch, n), false, testContext.sk)
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicate(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		eval.ReplicateNaive(ciphertext1, batch, n, ciphertext1)
+		eval.Replicate(ciphertext1, batch, n, ciphertext1)
 
 		tmp0 := make([]complex128, len(values1))
 		copy(tmp0, values1)
@@ -1173,17 +1171,17 @@ func testReplicate(testContext *testParams, t *testing.T) {
 		verifyTestVectors(testContext, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(testString(testContext, "Replicate/"), func(t *testing.T) {
+	t.Run(testString(testContext, "ReplicateLog/"), func(t *testing.T) {
 
 		batch := 3
 		n := 15
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicate(batch, n), false, testContext.sk)
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicateLog(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		eval.Replicate(ciphertext1, batch, n, ciphertext1)
+		eval.ReplicateLog(ciphertext1, batch, n, ciphertext1)
 
 		tmp0 := make([]complex128, len(values1))
 		copy(tmp0, values1)
@@ -1275,7 +1273,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 			diagMatrix[0][i] = complex(1, 0)
 		}
 
-		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixNaiveAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), params.LogSlots())
+		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), params.LogSlots())
 
 		rots := testContext.kgen.GenRotationIndexesForDiagMatrix(ptDiagMatrix)
 

@@ -139,17 +139,17 @@ func (m *Moduli) Copy() Moduli {
 
 // LogModuli stores the bit-length of the NTT primes of the RNS representation.
 type LogModuli struct {
-	LogQi []int // Ciphertext prime moduli bit-size
-	LogPi []int // Keys additional prime moduli bit-size
+	LogQi []uint64 // Ciphertext prime moduli bit-size
+	LogPi []uint64 // Keys additional prime moduli bit-size
 }
 
 // Copy creates a copy of the target LogModuli.
 func (m *LogModuli) Copy() LogModuli {
 
-	LogQi := make([]int, len(m.LogQi))
+	LogQi := make([]uint64, len(m.LogQi))
 	copy(LogQi, m.LogQi)
 
-	LogPi := make([]int, len(m.LogPi))
+	LogPi := make([]uint64, len(m.LogPi))
 	copy(LogPi, m.LogPi)
 
 	return LogModuli{LogQi, LogPi}
@@ -239,13 +239,13 @@ func (p *Parameters) WithT(T uint64) (pCopy *Parameters) {
 // LogModuli generates a LogModuli struct from the parameters' Moduli struct and returns it.
 func (p *Parameters) LogModuli() (lm *LogModuli) {
 	lm = new(LogModuli)
-	lm.LogQi = make([]int, len(p.qi))
+	lm.LogQi = make([]uint64, len(p.qi))
 	for i := range p.qi {
-		lm.LogQi[i] = int(math.Round(math.Log2(float64(p.qi[i]))))
+		lm.LogQi[i] = uint64(math.Round(math.Log2(float64(p.qi[i]))))
 	}
-	lm.LogPi = make([]int, len(p.pi))
+	lm.LogPi = make([]uint64, len(p.pi))
 	for i := range p.pi {
-		lm.LogPi[i] = int(math.Round(math.Log2(float64(p.pi[i]))))
+		lm.LogPi[i] = uint64(math.Round(math.Log2(float64(p.pi[i]))))
 	}
 	return
 }
@@ -579,7 +579,7 @@ func genModuli(lm *LogModuli, logN int) (m *Moduli) {
 	m = new(Moduli)
 
 	// Extracts all the different primes bit-size and maps their number
-	primesbitlen := make(map[int]int)
+	primesbitlen := make(map[uint64]int)
 
 	for _, qi := range lm.LogQi {
 		primesbitlen[qi]++
@@ -590,9 +590,9 @@ func genModuli(lm *LogModuli, logN int) (m *Moduli) {
 	}
 
 	// For each bit-size, it finds that many primes
-	primes := make(map[int][]uint64)
+	primes := make(map[uint64][]uint64)
 	for key, value := range primesbitlen {
-		primes[key] = ring.GenerateNTTPrimes(key, 2<<logN, value)
+		primes[key] = ring.GenerateNTTPrimes(int(key), 2<<logN, value)
 	}
 
 	// Assigns the primes to the BFV moduli chain

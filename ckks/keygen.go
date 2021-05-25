@@ -31,13 +31,11 @@ type KeyGenerator interface {
 	GenRotationIndexesForSlotsToCoeffs(logSlots int, btpParams *BootstrappingParameters) (rotations []int)
 	GenRotationIndexesForBootstrapping(logSlots int, btpParams *BootstrappingParameters) (rotations []int)
 
+	GenRotationIndexesForInnerSumLog(batch, n int) (rotations []int)
 	GenRotationIndexesForInnerSum(batch, n int) (rotations []int)
 
-	GenRotationIndexesForInnerSumNaive(batch, n int) (rotations []int)
-
+	GenRotationIndexesForReplicateLog(batch, n int) (rotations []int)
 	GenRotationIndexesForReplicate(batch, n int) (rotations []int)
-
-	GenRotationIndexesForReplicateNaive(batch, n int) (rotations []int)
 
 	GenRotationIndexesForDiagMatrix(matrix *PtDiagMatrix) (rotations []int)
 }
@@ -304,7 +302,7 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 // GenRotationIndexesForInnerSumNaive generates the rotation indexes for the
 // InnerSumNaive. To be then used with GenRotationKeysForRotations to generate
 // the RotationKeySet.
-func (keygen *keyGenerator) GenRotationIndexesForInnerSumNaive(batch, n int) (rotations []int) {
+func (keygen *keyGenerator) GenRotationIndexesForInnerSum(batch, n int) (rotations []int) {
 	rotations = []int{}
 	for i := 1; i < n; i++ {
 		rotations = append(rotations, i*batch)
@@ -315,7 +313,7 @@ func (keygen *keyGenerator) GenRotationIndexesForInnerSumNaive(batch, n int) (ro
 // GenRotationIndexesForInnerSum generates the rotation indexes for the
 // InnerSum. To be then used with GenRotationKeysForRotations to generate
 // the RotationKeySet.
-func (keygen *keyGenerator) GenRotationIndexesForInnerSum(batch, n int) (rotations []int) {
+func (keygen *keyGenerator) GenRotationIndexesForInnerSumLog(batch, n int) (rotations []int) {
 
 	rotations = []int{}
 	var k int
@@ -339,12 +337,12 @@ func (keygen *keyGenerator) GenRotationIndexesForInnerSum(batch, n int) (rotatio
 	return
 }
 
-func (keygen *keyGenerator) GenRotationIndexesForReplicate(batch, n int) (rotations []int) {
-	return keygen.GenRotationIndexesForInnerSum(-batch, n)
+func (keygen *keyGenerator) GenRotationIndexesForReplicateLog(batch, n int) (rotations []int) {
+	return keygen.GenRotationIndexesForInnerSumLog(-batch, n)
 }
 
-func (keygen *keyGenerator) GenRotationIndexesForReplicateNaive(batch, n int) (rotations []int) {
-	return keygen.GenRotationIndexesForInnerSumNaive(-batch, n)
+func (keygen *keyGenerator) GenRotationIndexesForReplicate(batch, n int) (rotations []int) {
+	return keygen.GenRotationIndexesForInnerSum(-batch, n)
 }
 
 // GetRotationIndexForDiagMatrix generates of all the rotations needed for a the multiplication

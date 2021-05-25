@@ -258,58 +258,37 @@ func benchInnerSum(testContext *testParams, b *testing.B) {
 	ciphertext1 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 
 	batch := 1
-	n := 7
+	n := 4
 
-	b.Run(testString(testContext, "InnerSum/Naive"), func(b *testing.B) {
-
-		if testContext.params.PiCount() == 0 {
-			b.Skip("#Pi is empty")
-		}
-
-		rots := []int{}
-		for i := 1; i < n; i++ {
-			rots = append(rots, i*batch)
-		}
-
-		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
-
-		for i := 0; i < b.N; i++ {
-			eval.InnerSumNaive(ciphertext1, batch, n, ciphertext1)
-		}
-	})
-
-	b.Run(testString(testContext, "InnerSum/Log"), func(b *testing.B) {
+	b.Run(testString(testContext, "InnerSum/"), func(b *testing.B) {
 
 		if testContext.params.PiCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
-		rots := []int{}
-		var rot int
-		for i := 1; i < n; i <<= 1 {
-
-			rot = i
-			rot *= batch
-
-			if !utils.IsInSliceInt(rot, rots) && rot != 0 {
-				rots = append(rots, rot)
-			}
-
-			rot = n - (n & ((i << 1) - 1))
-
-			rot *= batch
-
-			if !utils.IsInSliceInt(rot, rots) && rot != 0 {
-				rots = append(rots, rot)
-			}
-		}
-
-		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSum(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+
+		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
 			eval.InnerSum(ciphertext1, batch, n, ciphertext1)
+		}
+	})
+
+	b.Run(testString(testContext, "InnerSumLog/"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSumLog(batch, n), false, testContext.sk)
+		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			eval.InnerSumLog(ciphertext1, batch, n, ciphertext1)
 		}
 	})
 

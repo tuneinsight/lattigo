@@ -67,7 +67,7 @@ func NewBootstrapper(params *Parameters, btpParams *BootstrappingParameters, btp
 }
 
 // newBootstrapper is a constructor of "dummy" bootstrapper to enable the generation of bootstrapping-related constants
-// without providing a bootstrapping key. To be replaced by a propper factorization of the bootstrapping pre-computations.
+// without providing a bootstrapping key. To be replaced by a proper factorization of the bootstrapping pre-computations.
 func newBootstrapper(params *Parameters, btpParams *BootstrappingParameters) (btp *Bootstrapper) {
 	btp = new(Bootstrapper)
 

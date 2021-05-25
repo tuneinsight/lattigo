@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
@@ -82,14 +83,7 @@ func newEvaluatorPrecomp(params *Parameters) *evaluatorBase {
 	}
 
 	// Generates #QiMul primes such that Q * QMul > Q*Q*N
-	logQTimesN := ev.ringQ.ModulusBigint.BitLen() + params.LogN()
-	var nbQiMul, logQMul int
-	for logQMul < logQTimesN {
-		nbQiMul++
-		logQMul += 61
-	}
-
-	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), nbQiMul)
+	qiMul := ring.GenerateNTTPrimesP(61, 2*params.N(), int(math.Ceil(float64(ev.ringQ.ModulusBigint.BitLen()+params.LogN())/61.0)))
 
 	if ev.ringQMul, err = ring.NewRing(params.N(), qiMul); err != nil {
 		panic(err)

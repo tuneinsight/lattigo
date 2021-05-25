@@ -48,7 +48,12 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 
 		for i, matrix := range element {
 			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale())
-			eval.MultiplyByDiagMatrix(ctIn, matrix, eval.c2QiQDecomp, eval.c2QiPDecomp, ctOut[i])
+
+			if matrix.naive {
+				eval.MultiplyByDiagMatrix(ctIn, matrix, eval.c2QiQDecomp, eval.c2QiPDecomp, ctOut[i])
+			} else {
+				eval.MultiplyByDiagMatrixBSGS(ctIn, matrix, eval.c2QiQDecomp, eval.c2QiPDecomp, ctOut[i])
+			}
 		}
 
 	case *PtDiagMatrix:
@@ -58,19 +63,23 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 
 		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale())}
 
-		eval.MultiplyByDiagMatrix(ctIn, element, eval.c2QiQDecomp, eval.c2QiPDecomp, ctOut[0])
+		if element.naive {
+			eval.MultiplyByDiagMatrix(ctIn, element, eval.c2QiQDecomp, eval.c2QiPDecomp, ctOut[0])
+		} else {
+			eval.MultiplyByDiagMatrixBSGS(ctIn, element, eval.c2QiQDecomp, eval.c2QiPDecomp, ctOut[0])
+		}
 	}
 
 	return
 }
 
-// InnerSum applies an optimized inner sum on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
+// InnerSumLog applies an optimized inner sum on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
 // The inner sum is parameterized by its "batchSize" which
 // define the size of its individual elements (e.g. if batchSize = 4, then it will sum by tuples of 4 elements)
 // and "n" the number of consecutive tuples of size "batchSize" that need to be summed.
 // It sums its elements from right to left.
-// This method is faster than InnerSumNaive when the number of rotations is large.
-func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+// This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) insteadn of 'n' keys.
+func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
@@ -197,13 +206,13 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	}
 }
 
-// InnerSumNaive applies an naive inner sum on the ciphetext (n rotations with single hoisting).
+// InnerSum applies an naive inner sum on the ciphetext (n rotations with single hoisting).
 // The inner sum is parameterized by its "batchSize" which
 // define the size of its individual elements (e.g. if batchSize = 4, then it will sum by tuples of 4 elements)
 // and "n" the number of consecutive tuples of size "batchSize" that need to be summed.
 // It sums its elements from right to left.
-// This method is faster than InnerSum when the number of rotations is small.
-func (eval *evaluator) InnerSumNaive(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+// This method is faster than InnerSumLog when the number of rotations is small but uses 'n' keys instead of log(n) + HW(n).
+func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
@@ -317,49 +326,34 @@ func (eval *evaluator) InnerSumNaive(ctIn *Ciphertext, batchSize, n int, ctOut *
 	}
 }
 
-// Replicate applies an optimized replication on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
+// ReplicateLog applies an optimized replication on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
 // the number of time "n" they need to be replicated.
 // To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
 // two consecutive sub-vectors to replicate.
-// This method is faster than ReplicateNaive when the number of rotations is large.
-func (eval *evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
-	eval.InnerSum(ctIn, -batchSize, n, ctOut)
+// This method is faster than Replicate when the number of rotations is large and uses log2(n) + HW(n) instead of 'n'.
+func (eval *evaluator) ReplicateLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+	eval.InnerSumLog(ctIn, -batchSize, n, ctOut)
 }
 
-// ReplicateNaive applies naive replication on the ciphetext (n rotations with single hoisting).
+// Replicate applies naive replication on the ciphetext (n rotations with single hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
 // the number of time "n" they need to be replicated.
 // To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
 // two consecutive sub-vectors to replicate.
-// This method is faster than Replicate when the number of rotations is small.
-func (eval *evaluator) ReplicateNaive(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
-	eval.InnerSumNaive(ctIn, -batchSize, n, ctOut)
+// This method is faster than ReplicateLog when the number of rotations is small but uses 'n' keys instead of log2(n) + HW(n).
+func (eval *evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+	eval.InnerSum(ctIn, -batchSize, n, ctOut)
 }
 
 // MultiplyByDiagMatrix multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
 // "ctOut". Memory pools for the decomposed ciphertext c2QiQDecomp, c2QiPDecomp must be provided, those are list of poly of ringQ and ringP
 // respectively, each of size params.Beta().
-// MultiplyByDiagMatrix will select the appropriate approach to evaluate the plaintext matrix
-func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext) {
-
-	if matrix.naive {
-		eval.MultiplyByDiagMatrixNaive(ctIn, matrix, c2QiQDecomp, c2QiPDecomp, ctOut)
-	} else {
-		eval.MultiplyByDiagMatrixBSGS(ctIn, matrix, c2QiQDecomp, c2QiPDecomp, ctOut)
-	}
-
-	return
-}
-
-// MultiplyByDiagMatrixNaive multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
-// "ctOut". Memory pools for the decomposed ciphertext c2QiQDecomp, c2QiPDecomp must be provided, those are list of poly of ringQ and ringP
-// respectively, each of size params.Beta().
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
-// for matrix of only a few non-zero diagonals.
-func (eval *evaluator) MultiplyByDiagMatrixNaive(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext) {
+// for matrix of only a few non-zero diagonals but uses more keys.
+func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext) {
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
@@ -469,8 +463,8 @@ func (eval *evaluator) MultiplyByDiagMatrixNaive(ctIn *Ciphertext, matrix *PtDia
 // MultiplyByDiagMatrixBSGS multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
 // "ctOut". Memory pools for the decomposed ciphertext c2QiQDecomp, c2QiPDecomp must be provided, those are list of poly of ringQ and ringP
 // respectively, each of size params.Beta().
-// The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrixNaive
-// for matrix with more than a few non-zero diagonals.
+// The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
+// for matrix with more than a few non-zero diagonals and uses much less keys.
 func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext) {
 
 	// N1*N2 = N

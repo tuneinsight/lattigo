@@ -27,7 +27,7 @@ type Encoder interface {
 	EncodeNTTAtLvlNew(level int, values []complex128, logSlots int) (plaintext *Plaintext)
 
 	EncodeDiagMatrixBSGSAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix *PtDiagMatrix)
-	EncodeDiagMatrixNaiveAtLvl(level int, vector map[int][]complex128, scale float64, logSlots int) (matrix *PtDiagMatrix)
+	EncodeDiagMatrixAtLvl(level int, vector map[int][]complex128, scale float64, logSlots int) (matrix *PtDiagMatrix)
 
 	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
 	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
@@ -464,11 +464,11 @@ func (encoder *encoderComplex128) EncodeDiagMatrixBSGSAtLvl(level int, diagMatri
 	return
 }
 
-// EncodeDiagMatrixNaiveAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
+// EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
-// Faster if there is only a few non-zero diagonals.
-func (encoder *encoderComplex128) EncodeDiagMatrixNaiveAtLvl(level int, diagMatrix map[int][]complex128, scale float64, logSlots int) (matrix *PtDiagMatrix) {
+// Faster if there is only a few non-zero diagonals but uses more keys.
+func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix map[int][]complex128, scale float64, logSlots int) (matrix *PtDiagMatrix) {
 
 	matrix = new(PtDiagMatrix)
 	matrix.Vec = make(map[int][2]*ring.Poly)

@@ -63,7 +63,7 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 		panic(err)
 	}
 
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng)
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQ, params.Sigma(), int(6*params.Sigma()))
 	refreshProtocol.sigma = params.Sigma()
 	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.ringT)
 
@@ -94,7 +94,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	ringQ.MulScalarBigint(share.RefreshShareDecrypt, pp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
-	pp.gaussianSampler.ReadLvl(len(ringQP.Modulus)-1, pp.tmp1, ringQP, pp.sigma, int(6*pp.sigma))
+	pp.gaussianSampler.ReadFromDistLvl(len(ringQP.Modulus)-1, pp.tmp1, ringQP, pp.sigma, int(6*pp.sigma))
 	ringQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
 
 	for x, i := 0, len(ringQ.Modulus); i < len(pp.context.ringQP.Modulus); x, i = x+1, i+1 {
@@ -115,7 +115,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	ringQP.InvNTTLazy(pp.tmp2, pp.tmp2)
 
 	// h1 = s*a + e'
-	pp.gaussianSampler.ReadAndAdd(pp.tmp2, ringQP, pp.sigma, int(6*pp.sigma))
+	pp.gaussianSampler.ReadAndAddFromDistLvl(len(ringQP.Modulus)-1, pp.tmp2, ringQP, pp.sigma, int(6*pp.sigma))
 
 	// h1 = (-s*a + e')/P
 	pp.baseconverter.ModDownPQ(level, pp.tmp2, share.RefreshShareRecrypt)

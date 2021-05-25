@@ -98,7 +98,7 @@ func NewRefreshProtocol(params *bfv.Parameters) (refreshProtocol *RefreshProtoco
 	if err != nil {
 		panic(err)
 	}
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng)
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQ, params.Sigma(), int(6*params.Sigma()))
 	refreshProtocol.sigma = params.Sigma()
 	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.ringT)
 
@@ -128,7 +128,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	ringQ.MulScalarBigint(share.RefreshShareDecrypt, rfp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
-	rfp.gaussianSampler.ReadLvl(len(ringQP.Modulus)-1, rfp.tmp1, ringQP, rfp.sigma, int(6*rfp.sigma))
+	rfp.gaussianSampler.ReadFromDistLvl(len(ringQP.Modulus)-1, rfp.tmp1, ringQP, rfp.sigma, int(6*rfp.sigma))
 	ringQ.Add(share.RefreshShareDecrypt, rfp.tmp1, share.RefreshShareDecrypt)
 
 	for x, i := 0, len(ringQ.Modulus); i < len(rfp.context.ringQP.Modulus); x, i = x+1, i+1 {
@@ -149,7 +149,7 @@ func (rfp *RefreshProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext,
 	ringQP.InvNTTLazy(rfp.tmp2, rfp.tmp2)
 
 	// h1 = s*a + e'
-	rfp.gaussianSampler.ReadAndAdd(rfp.tmp2, ringQP, rfp.sigma, int(6*rfp.sigma))
+	rfp.gaussianSampler.ReadAndAddFromDistLvl(len(ringQP.Modulus)-1, rfp.tmp2, ringQP, rfp.sigma, int(6*rfp.sigma))
 
 	// h1 = (-s*a + e')/P
 	rfp.baseconverter.ModDownPQ(level, rfp.tmp2, share.RefreshShareRecrypt)

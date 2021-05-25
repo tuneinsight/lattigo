@@ -34,7 +34,6 @@ type RTGProtocol struct { // TODO rename GaloisKeyGen ?
 
 	tmpPoly         [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
-	sigma           float64
 }
 
 // NewRTGProtocol creates a RTGProtocol instance
@@ -61,8 +60,7 @@ func NewRTGProtocol(n int, q, p []uint64, sigma float64) *RTGProtocol {
 	if err != nil {
 		panic(err)
 	}
-	rtg.gaussianSampler = ring.NewGaussianSampler(prng)
-	rtg.sigma = sigma
+	rtg.gaussianSampler = ring.NewGaussianSampler(prng, rtg.ringQP, sigma, int(6*sigma))
 
 	rtg.tmpPoly = [2]*ring.Poly{rtg.ringQP.NewPoly(), rtg.ringQP.NewPoly()}
 
@@ -94,7 +92,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 	for i := 0; i < rtg.beta; i++ {
 
 		// e
-		rtg.gaussianSampler.Read(shareOut.Value[i], rtg.ringQP, rtg.sigma, int(6*rtg.sigma))
+		rtg.gaussianSampler.Read(shareOut.Value[i])
 		rtg.ringQP.NTTLazy(shareOut.Value[i], shareOut.Value[i])
 		rtg.ringQP.MForm(shareOut.Value[i], shareOut.Value[i])
 

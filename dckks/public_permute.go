@@ -47,7 +47,7 @@ func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
 	if err != nil {
 		panic(err)
 	}
-	pp.gaussianSampler = ring.NewGaussianSampler(prng)
+	pp.gaussianSampler = ring.NewGaussianSampler(prng, pp.dckksContext.ringQ, pp.dckksContext.params.Sigma(), int(6*pp.dckksContext.params.Sigma()))
 
 	return
 }
@@ -104,7 +104,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties int, ci
 	// h0 = sk*c1 + mask
 	ringQ.MulCoeffsMontgomeryAndAddLvl(levelStart, sk, ciphertext.Value()[1], shareDecrypt)
 	// h0 = sk*c1 + mask + e0
-	pp.gaussianSampler.ReadLvl(levelStart, pp.tmp, ringQ, sigma, int(6*sigma))
+	pp.gaussianSampler.ReadFromDistLvl(levelStart, pp.tmp, ringQ, sigma, int(6*sigma))
 	ringQ.NTTLvl(levelStart, pp.tmp, pp.tmp)
 	ringQ.AddLvl(levelStart, shareDecrypt, pp.tmp, shareDecrypt)
 
@@ -134,7 +134,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties int, ci
 	ringQ.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
 
 	// h1 = sk*a + mask + e1
-	pp.gaussianSampler.Read(pp.tmp, ringQ, sigma, int(6*sigma))
+	pp.gaussianSampler.ReadFromDistLvl(len(ringQ.Modulus)-1, pp.tmp, ringQ, sigma, int(6*sigma))
 	ringQ.NTT(pp.tmp, pp.tmp)
 	ringQ.Add(shareRecrypt, pp.tmp, shareRecrypt)
 

@@ -10,6 +10,8 @@ import (
 // GaussianSampler keeps the state of a truncated Gaussian polynomial sampler.
 type GaussianSampler struct {
 	baseSampler
+	sigma         float64
+	bound         int
 	randomBufferN []byte
 	ptr           uint64
 }
@@ -17,45 +19,81 @@ type GaussianSampler struct {
 // NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
 // Gaussian distribution parameters. Sigma is the desired standard deviation and bound is the maximum coefficient norm in absolute
 // value.
-func NewGaussianSampler(prng utils.PRNG) *GaussianSampler {
+func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, sigma float64, bound int) *GaussianSampler {
 	gaussianSampler := new(GaussianSampler)
 	gaussianSampler.prng = prng
 	gaussianSampler.randomBufferN = make([]byte, 1024)
 	gaussianSampler.ptr = 0
+	gaussianSampler.baseRing = baseRing
+	gaussianSampler.sigma = sigma
+	gaussianSampler.bound = bound
 	return gaussianSampler
 }
 
-// Read samples a polynomial at the maximum level into pol
-func (gaussianSampler *GaussianSampler) Read(pol *Poly, baseRing *Ring, sigma float64, bound int) {
-	gaussianSampler.ReadLvl(len(baseRing.Modulus)-1, pol, baseRing, sigma, bound)
+// Read samples a truncated Gaussian polynomial on "pol" at the maximum level in the default ring, standard deviation and bound.
+func (gaussianSampler *GaussianSampler) Read(pol *Poly) {
+	gaussianSampler.ReadLvl(len(gaussianSampler.baseRing.Modulus)-1, pol)
 }
 
-// ReadNew samples a new truncated Gaussian polynomial with
-// standard deviation sigma within the given bound using the Ziggurat algorithm.
-func (gaussianSampler *GaussianSampler) ReadNew(baseRing *Ring, sigma float64, bound int) (pol *Poly) {
-	pol = baseRing.NewPoly()
-	gaussianSampler.Read(pol, baseRing, sigma, bound)
+// ReadLvl samples a truncated Gaussian polynomial at the provided level, in the default ring, standard deviation and bound.
+func (gaussianSampler *GaussianSampler) ReadLvl(level int, pol *Poly) {
+	gaussianSampler.readLvl(level, pol, gaussianSampler.baseRing, gaussianSampler.sigma, gaussianSampler.bound)
+}
+
+// ReadNew samples a new truncated Gaussian polynomial at the maximum level in the default ring, standard deviation and bound.
+func (gaussianSampler *GaussianSampler) ReadNew() (pol *Poly) {
+	pol = gaussianSampler.baseRing.NewPoly()
+	gaussianSampler.Read(pol)
 	return pol
 }
 
-// ReadLvlNew samples a new truncated Gaussian polynomial with
-// standard deviation sigma within the given bound using the Ziggurat algorithm.
-func (gaussianSampler *GaussianSampler) ReadLvlNew(level int, baseRing *Ring, sigma float64, bound int) (pol *Poly) {
-	pol = baseRing.NewPolyLvl(level)
-	gaussianSampler.ReadLvl(level, pol, baseRing, sigma, bound)
+// ReadLvlNew samples a new truncated Gaussian polynomial at the provided level, in the default ring, standard deviation and bound.
+func (gaussianSampler *GaussianSampler) ReadLvlNew(level int) (pol *Poly) {
+	pol = gaussianSampler.baseRing.NewPolyLvl(level)
+	gaussianSampler.ReadLvl(level, pol)
 	return pol
 }
 
-// ReadLvl samples a polynomial at the given level into pol.
-func (gaussianSampler *GaussianSampler) ReadLvl(level int, pol *Poly, baseRing *Ring, sigma float64, bound int) {
+// ReadFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound.
+func (gaussianSampler *GaussianSampler) ReadFromDistLvl(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
+	gaussianSampler.readLvl(level, pol, ring, sigma, bound)
+}
 
+// ReadAndAddFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound and adds it on "pol".
+func (gaussianSampler *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
+	var coeffFlo float64
+	var coeffInt, sign uint64
+
+	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+
+	modulus := ring.Modulus[:level+1]
+
+	for i := 0; i < ring.N; i++ {
+
+		for {
+			coeffFlo, sign = gaussianSampler.normFloat64()
+
+			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= uint64(bound) {
+				break
+			}
+		}
+
+		for j, qi := range modulus {
+			pol.Coeffs[j][i] = CRed(pol.Coeffs[j][i]+((coeffInt*sign)|(qi-coeffInt)*(sign^1)), qi)
+		}
+	}
+}
+
+func (gaussianSampler *GaussianSampler) readLvl(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
 	var coeffFlo float64
 	var coeffInt uint64
 	var sign uint64
 
 	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
 
-	for i := 0; i < baseRing.N; i++ {
+	modulus := ring.Modulus[:level+1]
+
+	for i := 0; i < ring.N; i++ {
 
 		for {
 			coeffFlo, sign = gaussianSampler.normFloat64()
@@ -65,38 +103,8 @@ func (gaussianSampler *GaussianSampler) ReadLvl(level int, pol *Poly, baseRing *
 			}
 		}
 
-		for j, qi := range baseRing.Modulus[:level+1] {
+		for j, qi := range modulus {
 			pol.Coeffs[j][i] = (coeffInt * sign) | (qi-coeffInt)*(sign^1)
-		}
-	}
-}
-
-// ReadAndAdd adds on the input polynomial a truncated Gaussian polynomial of at the maximum level
-// with standard deviation sigma within the given bound using the Ziggurat algorithm.
-func (gaussianSampler *GaussianSampler) ReadAndAdd(pol *Poly, baseRing *Ring, sigma float64, bound int) {
-	gaussianSampler.ReadAndAddLvl(len(baseRing.Modulus)-1, pol, baseRing, sigma, bound)
-}
-
-// ReadAndAddLvl samples and adds a polynomial at the given level directly into pol. pol must be at the given level.
-func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level int, pol *Poly, baseRing *Ring, sigma float64, bound int) {
-
-	var coeffFlo float64
-	var coeffInt, sign uint64
-
-	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
-
-	for i := 0; i < baseRing.N; i++ {
-
-		for {
-			coeffFlo, sign = gaussianSampler.normFloat64()
-
-			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= uint64(bound) {
-				break
-			}
-		}
-
-		for j, qi := range baseRing.Modulus[:level+1] {
-			pol.Coeffs[j][i] = CRed(pol.Coeffs[j][i]+((coeffInt*sign)|(qi-coeffInt)*(sign^1)), qi)
 		}
 	}
 }

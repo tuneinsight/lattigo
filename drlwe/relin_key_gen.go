@@ -27,7 +27,6 @@ type RKGProtocol struct {
 	ringP           *ring.Ring
 	ringQP          *ring.Ring
 	gaussianSampler *ring.GaussianSampler
-	sigma           float64
 	ternarySampler  *ring.TernarySampler // sampling in Montgomerry form
 
 	tmpPoly1 *ring.Poly
@@ -63,8 +62,7 @@ func NewRKGProtocol(n int, q, p []uint64, ephSkPr, sigma float64) *RKGProtocol {
 	if err != nil {
 		panic(err) // TODO error
 	}
-	rkg.gaussianSampler = ring.NewGaussianSampler(prng)
-	rkg.sigma = sigma
+	rkg.gaussianSampler = ring.NewGaussianSampler(prng, rkg.ringQP, sigma, int(6*sigma))
 	rkg.ternarySampler = ring.NewTernarySampler(prng, rkg.ringQP, ephSkPr, true)
 	rkg.tmpPoly1, rkg.tmpPoly2 = rkg.ringQP.NewPoly(), rkg.ringQP.NewPoly()
 	return rkg
@@ -100,7 +98,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp []*ring.Poly, e
 
 	for i := 0; i < ekg.beta; i++ {
 		// h = e
-		ekg.gaussianSampler.Read(shareOut.value[i][0], ekg.ringQP, ekg.sigma, int(6*ekg.sigma))
+		ekg.gaussianSampler.Read(shareOut.value[i][0])
 		ekg.ringQP.NTT(shareOut.value[i][0], shareOut.value[i][0])
 
 		// h = sk*CrtBaseDecompQi + e
@@ -125,7 +123,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp []*ring.Poly, e
 
 		// Second Element
 		// e_2i
-		ekg.gaussianSampler.Read(shareOut.value[i][1], ekg.ringQP, ekg.sigma, int(6*ekg.sigma))
+		ekg.gaussianSampler.Read(shareOut.value[i][1])
 		ekg.ringQP.NTT(shareOut.value[i][1], shareOut.value[i][1])
 		// s*a + e_2i
 		ekg.ringQP.MulCoeffsMontgomeryAndAdd(sk.Value, crp[i], shareOut.value[i][1])
@@ -155,13 +153,13 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 		ekg.ringQP.MulCoeffsMontgomeryConstant(round1.value[i][0], sk.Value, shareOut.value[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
-		ekg.gaussianSampler.Read(ekg.tmpPoly2, ekg.ringQP, ekg.sigma, int(6*ekg.sigma))
+		ekg.gaussianSampler.Read(ekg.tmpPoly2)
 		ekg.ringQP.NTT(ekg.tmpPoly2, ekg.tmpPoly2)
 		ekg.ringQP.Add(shareOut.value[i][0], ekg.tmpPoly2, shareOut.value[i][0])
 
 		// second part
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
-		ekg.gaussianSampler.Read(shareOut.value[i][1], ekg.ringQP, ekg.sigma, int(6*ekg.sigma))
+		ekg.gaussianSampler.Read(shareOut.value[i][1])
 		ekg.ringQP.NTT(shareOut.value[i][1], shareOut.value[i][1])
 		ekg.ringQP.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round1.value[i][1], shareOut.value[i][1])
 	}

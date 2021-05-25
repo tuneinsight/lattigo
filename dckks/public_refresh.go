@@ -34,7 +34,7 @@ func NewRefreshProtocol(params *ckks.Parameters) (refreshProtocol *RefreshProtoc
 	if err != nil {
 		panic(err)
 	}
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng)
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, refreshProtocol.dckksContext.ringQ, refreshProtocol.dckksContext.params.Sigma(), int(6*refreshProtocol.dckksContext.params.Sigma()))
 
 	return
 }
@@ -102,12 +102,12 @@ func (refreshProtocol *RefreshProtocol) GenShares(sk *ring.Poly, levelStart, nPa
 	ringQ.MulCoeffsMontgomeryAndAdd(sk, crs, shareRecrypt)
 
 	// h0 = sk*c1 + mask + e0
-	refreshProtocol.gaussianSampler.ReadLvl(levelStart, refreshProtocol.tmp, ringQ, sigma, int(6*sigma))
+	refreshProtocol.gaussianSampler.ReadFromDistLvl(levelStart, refreshProtocol.tmp, ringQ, sigma, int(6*sigma))
 	ringQ.NTTLvl(levelStart, refreshProtocol.tmp, refreshProtocol.tmp)
 	ringQ.AddLvl(levelStart, shareDecrypt, refreshProtocol.tmp, shareDecrypt)
 
 	// h1 = sk*a + mask + e1
-	refreshProtocol.gaussianSampler.Read(refreshProtocol.tmp, ringQ, sigma, int(6*sigma))
+	refreshProtocol.gaussianSampler.ReadFromDistLvl(len(ringQ.Modulus)-1, refreshProtocol.tmp, ringQ, sigma, int(6*sigma))
 	ringQ.NTT(refreshProtocol.tmp, refreshProtocol.tmp)
 	ringQ.Add(shareRecrypt, refreshProtocol.tmp, shareRecrypt)
 

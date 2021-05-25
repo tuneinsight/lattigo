@@ -55,7 +55,7 @@ func NewCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *CKSProtocol 
 	if err != nil {
 		panic(err)
 	}
-	cks.gaussianSampler = ring.NewGaussianSampler(prng)
+	cks.gaussianSampler = ring.NewGaussianSampler(prng, cks.context.ringQP, sigmaSmudging, int(6*sigmaSmudging))
 
 	return cks
 }
@@ -85,7 +85,6 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 	level := len(ct.Value()[1].Coeffs) - 1
 
 	ringQ := cks.context.ringQ
-	ringQP := cks.context.ringQP
 
 	ringQ.NTTLazy(ct.Value()[1], cks.tmpNtt)
 	ringQ.MulCoeffsMontgomeryConstant(cks.tmpNtt, skDelta, shareOut.Poly)
@@ -93,7 +92,7 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *bfv.Ciphertext, sh
 
 	ringQ.InvNTTLazy(shareOut.Poly, shareOut.Poly)
 
-	cks.gaussianSampler.ReadLvl(len(ringQP.Modulus)-1, cks.tmpNtt, ringQP, cks.sigmaSmudging, int(6*cks.sigmaSmudging))
+	cks.gaussianSampler.Read(cks.tmpNtt)
 	ringQ.AddNoMod(shareOut.Poly, cks.tmpNtt, shareOut.Poly)
 
 	for x, i := 0, len(ringQ.Modulus); i < len(cks.context.ringQP.Modulus); x, i = x+1, i+1 {

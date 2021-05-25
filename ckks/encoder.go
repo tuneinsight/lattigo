@@ -112,7 +112,7 @@ func newEncoder(params *Parameters) encoder {
 		panic(err)
 	}
 
-	gaussianSampler := ring.NewGaussianSampler(prng)
+	gaussianSampler := ring.NewGaussianSampler(prng, q, params.Sigma(), int(6*params.Sigma()))
 
 	return encoder{
 		params:          params.Copy(),
@@ -564,7 +564,7 @@ func (encoder *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots in
 
 	// B = floor(sigma * sqrt(2*pi))
 	if sigma != 0 {
-		encoder.gaussianSampler.ReadAndAddLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma))
+		encoder.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma))
 	}
 
 	encoder.plaintextToComplex(plaintext.Level(), plaintext.Scale(), logSlots, encoder.polypool, encoder.values)
@@ -679,7 +679,7 @@ func (encoder *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma
 
 	if sigma != 0 {
 		// B = floor(sigma * sqrt(2*pi))
-		encoder.gaussianSampler.ReadAndAddLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma))
+		encoder.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma))
 	}
 
 	res = make([]float64, encoder.params.N())
@@ -890,7 +890,7 @@ func (encoder *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots in
 
 	if sigma != 0 {
 		// B = floor(sigma * sqrt(2*pi))
-		encoder.gaussianSampler.ReadAndAddLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma+0.5))
+		encoder.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma+0.5))
 	}
 
 	encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)

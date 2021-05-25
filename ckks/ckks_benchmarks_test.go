@@ -14,7 +14,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	var defaultParams []*Parameters
 
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
+		defaultParams = DefaultParams[PN12QP109+3 : PN12QP109+4]
 	} else {
 		defaultParams = DefaultParams
 	}

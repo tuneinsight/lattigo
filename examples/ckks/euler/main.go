@@ -18,8 +18,8 @@ func example() {
 	LogSlots := 13
 
 	LogModuli := ckks.LogModuli{
-		LogQi: []int{55, 40, 40, 40, 40, 40, 40, 40},
-		LogPi: []int{45, 45},
+		LogQi: []uint64{55, 40, 40, 40, 40, 40, 40, 40},
+		LogPi: []uint64{45, 45},
 	}
 
 	Scale := float64(1 << 40)

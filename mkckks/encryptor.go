@@ -32,8 +32,8 @@ func (encryptor *mkEncryptor) Encrypt(plaintext *ckks.Plaintext) *ckks.Ciphertex
 
 	if encryptor.params.PCount() != 0 {
 		return encryptor.ckksEncryptor.EncryptNew(plaintext)
-	} 
-	
+	}
+
 	return encryptor.ckksEncryptor.EncryptFastNew(plaintext)
-	
+
 }

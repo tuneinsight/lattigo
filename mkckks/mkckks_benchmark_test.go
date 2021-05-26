@@ -38,7 +38,7 @@ func BenchmarkMKCKKS(b *testing.B) {
 		benchDecrypt(b, p)
 		benchPartialDecrypt(b, p)
 		benchMultTwoCiphertexts(b, p)
-		benchMulAndRelin(b, p)
+		benchRelin(b, p)
 		benchRotate(b, p)
 		benchMemoryConsumption(b, p)
 
@@ -129,7 +129,7 @@ func benchMultTwoCiphertexts(b *testing.B, params *ckks.Parameters) {
 	})
 }
 
-func benchMulAndRelin(b *testing.B, params *ckks.Parameters) {
+func benchRelin(b *testing.B, params *ckks.Parameters) {
 
 	participants := setupPeers(2, params, 6.0)
 
@@ -143,10 +143,12 @@ func benchMulAndRelin(b *testing.B, params *ckks.Parameters) {
 	evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 	publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
 
-	b.Run(testString("Mul and Relin/", 2, params), func(b *testing.B) {
+	b.Run(testString("Relin/", 2, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
+			b.StopTimer()
 			res := evaluator.Mul(cipher1, cipher2)
+			b.StartTimer()
 			evaluator.RelinInPlace(res, evalKeys, publicKeys)
 		}
 	})
@@ -234,10 +236,19 @@ func benchMultIncreasingParticipants(nbrParticipants uint64, b *testing.B, param
 		pubKeys[2*i+1] = participants[2*i+1].GetPublicKey()
 	}
 
-	b.Run(testString("Mul + Relin Increasing number of participants/", nbrParticipants, params), func(b *testing.B) {
+	b.Run(testString("Mul Increasing number of participants/", nbrParticipants, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
+			evaluator.Mul(resCipher1, resCipher2)
+		}
+	})
+
+	b.Run(testString("Relin Increasing number of participants/", nbrParticipants, params), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
 			res := evaluator.Mul(resCipher1, resCipher2)
+			b.StartTimer()
 			evaluator.RelinInPlace(res, evalKeys, pubKeys)
 		}
 	})

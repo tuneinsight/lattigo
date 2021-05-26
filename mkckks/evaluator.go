@@ -24,6 +24,8 @@ type MKEvaluator interface {
 	Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGalKey) *MKCiphertext
 	NewPlaintextFromValue([]complex128) *ckks.Plaintext
 	DropLevel(ct *MKCiphertext, levels uint64)
+	ConvertToMKCiphertext(ct []*ckks.Ciphertext, ids []uint64) []*MKCiphertext
+	ConvertToCKKSCiphertext(mkCT *MKCiphertext) []*ckks.Ciphertext
 }
 
 type mkEvaluator struct {
@@ -40,7 +42,7 @@ type mkEvaluator struct {
 func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 
 	if params == nil {
-		panic("Cannot create evaluator with uninitilized parameters")
+		panic("Cannot create evaluator with uninitialized parameters")
 	}
 
 	ringQ := mkrlwe.GetRingQ(&params.Parameters)
@@ -63,6 +65,53 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 		convertor:       convertor,
 		encoder:         ckks.NewEncoder(*params),
 	}
+}
+
+// ConvertToMKCiphertext takes a slice of ckks ciphertexts and their ID and convert them to multi key ciphertexts
+// ciphers will be ordered with respect to their IDs (ascending order)
+func (eval *mkEvaluator) ConvertToMKCiphertext(ct []*ckks.Ciphertext, ids []uint64) []*MKCiphertext {
+
+	if len(ids) != len(ct) {
+		panic("ids and ciphertexts must be of ssame length")
+	}
+
+	res := make([]*MKCiphertext, len(ct))
+
+	for i, c := range ct {
+
+		if c.Degree() != 1 {
+			panic("Cannot convert ciphertexts of degree different than 1")
+		}
+
+		newCipher := new(MKCiphertext)
+		newCipher.Ciphertexts = c
+		newCipher.PeerID = []uint64{ids[i]}
+		res[i] = newCipher
+	}
+
+	return res
+}
+
+// ConvertToCKKSCiphertext transforms and MKCiphertext into ckks Ciphertexts containing c0 and a ciphertext part.
+// ciphers are outputed in ascending id order
+func (eval *mkEvaluator) ConvertToCKKSCiphertext(mkCT *MKCiphertext) []*ckks.Ciphertext {
+
+	res := make([]*ckks.Ciphertext, len(mkCT.PeerID))
+
+	c0 := mkCT.Ciphertexts.Value[0]
+
+	for i, v := range mkCT.Ciphertexts.Value {
+
+		if i != 0 {
+			newCipher := new(ckks.Ciphertext)
+			newCipher.Element = new(ckks.Element)
+			newCipher.Value = []*ring.Poly{c0, v}
+			newCipher.SetScale(mkCT.Ciphertexts.Scale())
+			res[i-1] = newCipher
+		}
+	}
+
+	return res
 }
 
 // Add adds the ciphertexts component wise and expend their list of involved peers. A new ciphertext is returned

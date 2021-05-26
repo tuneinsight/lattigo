@@ -39,11 +39,12 @@ func NewMKDecryptor(params *rlwe.Parameters, sigmaSmudging float64) MKDecryptor 
 
 }
 
-// PartDec computes a partial decription key for the ciphertext component of a given participant
-// for participant i, ski and cti must be used
+// PartDec computes a partial decription key for a given ciphertext.
+// the input polynomial must be in NTT form
 func (dec *mkDecryptor) PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *ring.Poly {
+
 	if ct == nil {
-		return nil
+		panic("Uninitilaized Ciphertext")
 	}
 
 	// mu_i = c_i * sk_i + e_i mod q
@@ -57,10 +58,17 @@ func (dec *mkDecryptor) PartDec(ct *ring.Poly, level uint64, sk *MKSecretKey) *r
 	return out
 }
 
-// MergeDec merges the partial decription parts and returns the plaintext. The first component of the ciphertext vector must be provided (c0)
+// MergeDec merges the partial decription parts and returns the plaintext.
+// the same ciphertext that was used for PartDec must be provided
+// the input polynomial must be in NTT form
 func (dec *mkDecryptor) MergeDec(c0 *ring.Poly, level uint64, partialKeys []*ring.Poly) *ring.Poly {
 
+	if c0 == nil {
+		panic("Uninitilaized polynomial")
+	}
+
 	res := dec.ringQ.NewPoly()
+
 	dec.ringQ.CopyLvl(level, c0, res)
 
 	for _, k := range partialKeys {

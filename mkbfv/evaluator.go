@@ -25,6 +25,8 @@ type MKEvaluator interface {
 	TensorAndRescale(ct0, ct1 *bfv.Ciphertext) *MKCiphertext
 	NewPlaintextFromValue([]uint64) *bfv.Plaintext
 	NewPlaintextMulFromValue([]uint64) *bfv.PlaintextMul
+	ConvertToMKCiphertext(ct []*bfv.Ciphertext, ids []uint64) []*MKCiphertext
+	ConvertToBFVCiphertext(mkCT *MKCiphertext) []*bfv.Ciphertext
 }
 
 type mkEvaluator struct {
@@ -75,6 +77,52 @@ func NewMKEvaluator(params *bfv.Parameters) MKEvaluator {
 		convertorQQMul:  convertorQQMul,
 		convertorQP:     convertorQP,
 		encoder:         bfv.NewEncoder(*params)}
+}
+
+// ConvertToMKCiphertext takes a slice of bfv ciphertexts and their ID and convert them to multi key ciphertexts
+// ciphers will be ordered with respect to their IDs (ascending order)
+func (eval *mkEvaluator) ConvertToMKCiphertext(ct []*bfv.Ciphertext, ids []uint64) []*MKCiphertext {
+
+	if len(ids) != len(ct) {
+		panic("ids and ciphertexts must be of ssame length")
+	}
+
+	res := make([]*MKCiphertext, len(ct))
+
+	for i, c := range ct {
+
+		if c.Degree() != 1 {
+			panic("Cannot convert ciphertexts of degree different than 1")
+		}
+
+		newCipher := new(MKCiphertext)
+		newCipher.Ciphertexts = c
+		newCipher.PeerID = []uint64{ids[i]}
+		res[i] = newCipher
+	}
+
+	return res
+}
+
+// ConvertToBFVCiphertext transforms and MKCiphertext into bfv Ciphertexts containing c0 and a ciphertext part.
+// ciphers are outputed in ascending id order
+func (eval *mkEvaluator) ConvertToBFVCiphertext(mkCT *MKCiphertext) []*bfv.Ciphertext {
+
+	res := make([]*bfv.Ciphertext, len(mkCT.PeerID))
+
+	c0 := mkCT.Ciphertexts.Value[0]
+
+	for i, v := range mkCT.Ciphertexts.Value {
+
+		if i != 0 {
+			newCipher := new(bfv.Ciphertext)
+			newCipher.Element = new(rlwe.Element)
+			newCipher.Value = []*ring.Poly{c0, v}
+			res[i-1] = newCipher
+		}
+	}
+
+	return res
 }
 
 // Add adds the ciphertexts component wise and expend their list of involved peers. Returns a new ciphertext

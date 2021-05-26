@@ -75,11 +75,12 @@ func benchAddTwoCiphertexts(b *testing.B, params *bfv.Parameters) {
 	cipher2 := participants[1].Encrypt(value2)
 
 	evaluator := NewMKEvaluator(params)
+	ciphers := evaluator.ConvertToMKCiphertext([]*bfv.Ciphertext{cipher1, cipher2}, []uint64{1, 2})
 
 	b.Run(testString("Add/", 2, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Add(cipher1, cipher2)
+			evaluator.Add(ciphers[0], ciphers[1])
 		}
 	})
 }
@@ -95,13 +96,15 @@ func benchRotate(b *testing.B, params *bfv.Parameters) {
 	cipher1 := participants[0].Encrypt(value1)
 
 	evaluator := NewMKEvaluator(params)
+	ciphers := evaluator.ConvertToMKCiphertext([]*bfv.Ciphertext{cipher1}, []uint64{1})
 
 	rotKey := participants[0].GetRotationKeys(15)
+	rotKey.PeerID = 1
 
 	b.Run(testString("Rotate/", 1, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Rotate(cipher1, 15, []*mkrlwe.MKEvalGalKey{rotKey})
+			evaluator.Rotate(ciphers[0], 15, []*mkrlwe.MKEvalGalKey{rotKey})
 		}
 	})
 }
@@ -119,11 +122,12 @@ func benchMultTwoCiphertexts(b *testing.B, params *bfv.Parameters) {
 	cipher2 := participants[1].Encrypt(value2)
 
 	evaluator := NewMKEvaluator(params)
+	ciphers := evaluator.ConvertToMKCiphertext([]*bfv.Ciphertext{cipher1, cipher2}, []uint64{1, 2})
 
 	b.Run(testString("Mul/", 2, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Mul(cipher1, cipher2)
+			evaluator.Mul(ciphers[0], ciphers[1])
 		}
 	})
 }
@@ -141,17 +145,29 @@ func benchRelin(b *testing.B, params *bfv.Parameters) {
 	cipher2 := participants[1].Encrypt(value2)
 
 	evaluator := NewMKEvaluator(params)
+	ciphers := evaluator.ConvertToMKCiphertext([]*bfv.Ciphertext{cipher1, cipher2}, []uint64{1, 2})
+
+	evk1 := participants[0].GetEvaluationKey()
+	evk1.PeerID = 1
+	evk2 := participants[1].GetEvaluationKey()
+	evk2.PeerID = 2
 
 	evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
-	pubKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey()}
+
+	pk1 := participants[0].GetPublicKey()
+	pk2 := participants[1].GetPublicKey()
+	pk1.PeerID = 1
+	pk2.PeerID = 2
+
+	publicKeys := []*mkrlwe.MKPublicKey{pk1, pk2}
 
 	b.Run(testString("Relin/", 2, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
-			res := evaluator.Mul(cipher1, cipher2)
+			res := evaluator.Mul(ciphers[0], ciphers[1])
 			b.StartTimer()
-			evaluator.RelinInPlace(res, evalKeys, pubKeys)
+			evaluator.RelinInPlace(res, evalKeys, publicKeys)
 		}
 	})
 }
@@ -215,15 +231,23 @@ func benchMultIncreasingParticipants(nbrParticipants uint64, b *testing.B, param
 
 	ringT := getRingT(params)
 
-	ciphers1 := make([]*MKCiphertext, nbrParticipants)
-	ciphers2 := make([]*MKCiphertext, nbrParticipants)
+	bfvCipher1 := make([]*bfv.Ciphertext, nbrParticipants)
+	bfvCipher2 := make([]*bfv.Ciphertext, nbrParticipants)
+
+	ids1 := make([]uint64, nbrParticipants)
+	ids2 := make([]uint64, nbrParticipants)
 
 	for i := uint64(0); i < nbrParticipants; i++ {
-		ciphers1[i] = participants[2*i].Encrypt(getRandomPlaintextValue(ringT, params))
-		ciphers2[i] = participants[2*i+1].Encrypt(getRandomPlaintextValue(ringT, params))
+		bfvCipher1[i] = participants[2*i].Encrypt(getRandomPlaintextValue(ringT, params))
+		bfvCipher2[i] = participants[2*i+1].Encrypt(getRandomPlaintextValue(ringT, params))
+		ids1[i] = 2 * i
+		ids2[i] = 2*i + 1
 	}
 
 	evaluator := NewMKEvaluator(params)
+
+	ciphers1 := evaluator.ConvertToMKCiphertext(bfvCipher1, ids1)
+	ciphers2 := evaluator.ConvertToMKCiphertext(bfvCipher2, ids2)
 
 	evalKeys := make([]*mkrlwe.MKEvaluationKey, 2*nbrParticipants)
 	pubKeys := make([]*mkrlwe.MKPublicKey, 2*nbrParticipants)
@@ -272,15 +296,23 @@ func benchAddIncreasingParticipants(nbrParticipants uint64, b *testing.B, params
 
 	ringT := getRingT(params)
 
-	ciphers1 := make([]*MKCiphertext, nbrParticipants)
-	ciphers2 := make([]*MKCiphertext, nbrParticipants)
+	bfvCipher1 := make([]*bfv.Ciphertext, nbrParticipants)
+	bfvCipher2 := make([]*bfv.Ciphertext, nbrParticipants)
+
+	ids1 := make([]uint64, nbrParticipants)
+	ids2 := make([]uint64, nbrParticipants)
 
 	for i := uint64(0); i < nbrParticipants; i++ {
-		ciphers1[i] = participants[2*i].Encrypt(getRandomPlaintextValue(ringT, params))
-		ciphers2[i] = participants[2*i+1].Encrypt(getRandomPlaintextValue(ringT, params))
+		bfvCipher1[i] = participants[2*i].Encrypt(getRandomPlaintextValue(ringT, params))
+		bfvCipher2[i] = participants[2*i+1].Encrypt(getRandomPlaintextValue(ringT, params))
+		ids1[i] = 2 * i
+		ids2[i] = 2*i + 1
 	}
 
 	evaluator := NewMKEvaluator(params)
+
+	ciphers1 := evaluator.ConvertToMKCiphertext(bfvCipher1, ids1)
+	ciphers2 := evaluator.ConvertToMKCiphertext(bfvCipher2, ids2)
 
 	// perform additions until ciphertexts concerns all participants and then Add both ciphertexts
 	resCipher1 := ciphers1[0]
@@ -301,17 +333,22 @@ func benchAddIncreasingParticipants(nbrParticipants uint64, b *testing.B, params
 }
 
 func benchRotIncreasingParticipants(nbrParticipants uint64, b *testing.B, params *bfv.Parameters) {
+
 	participants := setupPeers(nbrParticipants, params, 6.0)
 
 	ringT := getRingT(params)
 
-	ciphers := make([]*MKCiphertext, nbrParticipants)
+	bfvCiphers := make([]*bfv.Ciphertext, nbrParticipants)
+	ids := make([]uint64, nbrParticipants)
 
 	for i := uint64(0); i < nbrParticipants; i++ {
-		ciphers[i] = participants[i].Encrypt(getRandomPlaintextValue(ringT, params))
+		bfvCiphers[i] = participants[i].Encrypt(getRandomPlaintextValue(ringT, params))
+		ids[i] = i
 	}
 
 	evaluator := NewMKEvaluator(params)
+
+	ciphers := evaluator.ConvertToMKCiphertext(bfvCiphers, ids)
 
 	galKeys := make([]*mkrlwe.MKEvalGalKey, nbrParticipants)
 
@@ -341,32 +378,38 @@ func benchDecryptionIncreasingParticipants(nbrParticipants uint64, b *testing.B,
 
 	ringT := getRingT(params)
 
-	ciphers1 := make([]*MKCiphertext, nbrParticipants)
+	bfvCiphers := make([]*bfv.Ciphertext, nbrParticipants)
+	ids := make([]uint64, nbrParticipants)
 
 	for i := uint64(0); i < nbrParticipants; i++ {
-		ciphers1[i] = participants[i].Encrypt(getRandomPlaintextValue(ringT, params))
+		bfvCiphers[i] = participants[i].Encrypt(getRandomPlaintextValue(ringT, params))
+		ids[i] = i
 	}
 
 	evaluator := NewMKEvaluator(params)
 
+	ciphers := evaluator.ConvertToMKCiphertext(bfvCiphers, ids)
+
 	partialDec := make([]*ring.Poly, nbrParticipants)
 
 	// perform additions until ciphertexts concerns all participants and then Square + Relin
-	resCipher := ciphers1[0]
+	resCipher := ciphers[0]
 
 	for i := uint64(1); i < nbrParticipants; i++ {
-		resCipher = evaluator.Add(resCipher, ciphers1[i])
+		resCipher = evaluator.Add(resCipher, ciphers[i])
 	}
 
+	resBFV := evaluator.ConvertToBFVCiphertext(resCipher)
+
 	for i := uint64(0); i < nbrParticipants; i++ {
-		partialDec[i] = participants[i].GetPartialDecryption(resCipher)
+		partialDec[i] = participants[i].GetPartialDecryption(resBFV[i])
 
 	}
 
 	b.Run(testString("Decryption Increasing number of participants/", nbrParticipants, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			participants[0].Decrypt(resCipher, partialDec)
+			participants[0].Decrypt(resBFV[0], partialDec)
 		}
 	})
 
@@ -418,7 +461,8 @@ func benchMemoryConsumption(b *testing.B, params *bfv.Parameters) {
 		value := getRandomPlaintextValue(getRingT(params), params)
 
 		cipher := participants[0].Encrypt(value)
-		data := cipher.MarshalBinary()
+		mkCipher := &MKCiphertext{Ciphertexts: cipher, PeerID: []uint64{1}}
+		data := mkCipher.MarshalBinary()
 
 		b.Logf("Size of ciphertext: %d bytes", len(data[0])+len(data[1]))
 	})

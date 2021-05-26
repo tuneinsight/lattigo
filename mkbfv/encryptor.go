@@ -8,38 +8,31 @@ import (
 
 // MKEncryptor is an interface wrapping the bfv.Encryptor with the ring used for encryption
 type MKEncryptor interface {
-	EncryptMK(plaintext *bfv.Plaintext) *MKCiphertext
+	Encrypt(plaintext *bfv.Plaintext) *bfv.Ciphertext
 }
 
 // mkEncryptor is a struct wrapping the bfv.Encryptor with the ring used for encryption
 type mkEncryptor struct {
 	bfvEncryptor bfv.Encryptor
-	peerID       uint64
 	params       *bfv.Parameters
 }
 
 // NewMKEncryptor creates a new bfv encryptor fromm the given MKPublicKey and the bfv parameters
-func NewMKEncryptor(pk *mkrlwe.MKPublicKey, params *bfv.Parameters, id uint64) MKEncryptor {
+func NewMKEncryptor(pk *mkrlwe.MKPublicKey, params *bfv.Parameters) MKEncryptor {
 
 	bfvPublicKey := new(rlwe.PublicKey)
 	bfvPublicKey.Value[0] = pk.Key[0].Poly[0] // b[0]
 	bfvPublicKey.Value[1] = pk.Key[1].Poly[0] // a[0]
 
-	return &mkEncryptor{bfv.NewEncryptorFromPk(*params, bfvPublicKey), pk.PeerID, params}
+	return &mkEncryptor{bfv.NewEncryptorFromPk(*params, bfvPublicKey), params}
 }
 
 // EncryptMK encrypt the plaintext and put id in the ciphertext's peerIds
-func (encryptor *mkEncryptor) EncryptMK(plaintext *bfv.Plaintext) *MKCiphertext {
-
-	mkCiphertext := new(MKCiphertext)
+func (encryptor *mkEncryptor) Encrypt(plaintext *bfv.Plaintext) *bfv.Ciphertext {
 
 	if encryptor.params.PCount() != 0 {
-		mkCiphertext.Ciphertexts = encryptor.bfvEncryptor.EncryptNew(plaintext)
-	} else {
-		mkCiphertext.Ciphertexts = encryptor.bfvEncryptor.EncryptFastNew(plaintext)
+		return encryptor.bfvEncryptor.EncryptNew(plaintext)
 	}
 
-	mkCiphertext.PeerID = []uint64{encryptor.peerID}
-
-	return mkCiphertext
+	return encryptor.bfvEncryptor.EncryptFastNew(plaintext)
 }

@@ -101,17 +101,29 @@ func main() {
 	evalKeys := getEvaluationKeys(participants)
 	pubKeys := getPublicKeys(participants)
 
+	// create Evaluator and IDs
+	evaluator := mkbfv.NewMKEvaluator(params)
+
+	ids := make([]uint64, NParties)
+	for i := uint64(0); i < uint64(NParties); i++ {
+		ids[i] = i
+	}
+
+	ciphers := evaluator.ConvertToMKCiphertext(encrypted, ids)
+
 	// compute circuit
-	encryptedResult := evalPhase(params, NGoRoutine, encrypted, evalKeys, pubKeys)
+	encryptedResult := evalPhase(params, NGoRoutine, ciphers, evalKeys, pubKeys, evaluator)
+
+	resultBFV := evaluator.ConvertToBFVCiphertext(encryptedResult)
 
 	var decrypted []uint64
 
 	elapsedDecryptParty = runTimed(func() {
 
 		// gen partial decryption
-		partialDecryptions := genPartialDecryption(participants, encryptedResult)
+		partialDecryptions := genPartialDecryption(participants, resultBFV)
 		// decrypt
-		decrypted = participants[0].Decrypt(encryptedResult, partialDecryptions)
+		decrypted = participants[0].Decrypt(resultBFV[0], partialDecryptions)
 	})
 
 	// check result
@@ -131,57 +143,59 @@ func main() {
 
 }
 
-func genParticipants(crs *mkrlwe.MKDecomposedPoly, params *bfv.Parameters, sigmaSmudging float64, nbrParties int) []mkbfv.MKParticipant {
+func genParticipants(crs *mkrlwe.MKDecomposedPoly, params *bfv.Parameters, sigmaSmudging float64, nbrParties int) []participant {
 
-	res := make([]mkbfv.MKParticipant, nbrParties)
+	res := make([]participant, nbrParties)
 
 	for i := 0; i < nbrParties; i++ {
 
-		res[i] = mkbfv.NewParticipant(params, sigmaSmudging, crs)
+		res[i] = newParticipant(params, sigmaSmudging, crs)
 
 	}
 
 	return res
 }
 
-func genPartialDecryption(participants []mkbfv.MKParticipant, cipher *mkbfv.MKCiphertext) []*ring.Poly {
+func genPartialDecryption(participants []participant, cipher []*bfv.Ciphertext) []*ring.Poly {
 
 	res := make([]*ring.Poly, len(participants))
 
 	for i, p := range participants {
-		res[i] = p.GetPartialDecryption(cipher)
+		res[i] = p.GetPartialDecryption(cipher[i])
 	}
 
 	return res
 }
 
-func getEvaluationKeys(participants []mkbfv.MKParticipant) []*mkrlwe.MKEvaluationKey {
+func getEvaluationKeys(participants []participant) []*mkrlwe.MKEvaluationKey {
 
 	res := make([]*mkrlwe.MKEvaluationKey, len(participants))
 
 	for i, p := range participants {
 		res[i] = p.GetEvaluationKey()
+		res[i].PeerID = uint64(i)
 	}
 
 	return res
 }
 
-func getPublicKeys(participants []mkbfv.MKParticipant) []*mkrlwe.MKPublicKey {
+func getPublicKeys(participants []participant) []*mkrlwe.MKPublicKey {
 
 	res := make([]*mkrlwe.MKPublicKey, len(participants))
 
 	for i, p := range participants {
 		res[i] = p.GetPublicKey()
+		res[i].PeerID = uint64(i)
 	}
 
 	return res
 }
 
-func encPhase(P []mkbfv.MKParticipant, values [][]uint64) (encInputs []*mkbfv.MKCiphertext) {
+func encPhase(P []participant, values [][]uint64) (encInputs []*bfv.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
-	encInputs = make([]*mkbfv.MKCiphertext, len(P))
+	encInputs = make([]*bfv.Ciphertext, len(P))
 
 	// Each party encrypts its input vector
 	l.Println("> Encrypt Phase")
@@ -198,7 +212,7 @@ func encPhase(P []mkbfv.MKParticipant, values [][]uint64) (encInputs []*mkbfv.MK
 	return
 }
 
-func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiphertext, rlk []*mkrlwe.MKEvaluationKey, pubKeys []*mkrlwe.MKPublicKey) (encRes *mkbfv.MKCiphertext) {
+func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiphertext, rlk []*mkrlwe.MKEvaluationKey, pubKeys []*mkrlwe.MKPublicKey, evaluator mkbfv.MKEvaluator) (encRes *mkbfv.MKCiphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -212,8 +226,6 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiph
 		encLvls = append(encLvls, encLvl)
 	}
 	encRes = encLvls[len(encLvls)-1][0]
-
-	evaluator := mkbfv.NewMKEvaluator(params)
 
 	// Split the task among the Go routines
 	tasks := make(chan *multTask)
@@ -271,7 +283,7 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiph
 	return
 }
 
-func genInputs(params *bfv.Parameters, P []mkbfv.MKParticipant) (expRes []uint64, participantValues [][]uint64) {
+func genInputs(params *bfv.Parameters, P []participant) (expRes []uint64, participantValues [][]uint64) {
 
 	expRes = make([]uint64, params.N())
 	for i := range expRes {
@@ -320,4 +332,124 @@ func getPublicKeyForParticipants(pk []*mkrlwe.MKPublicKey, peerID []uint64) []*m
 	}
 
 	return res
+}
+
+//--------------------------------Participants interface for tests------------------------------------------
+
+// MKParticipant is a type for participants in a multy key bfv scheme
+type participant interface {
+	GetEvaluationKey() *mkrlwe.MKEvaluationKey
+	GetPublicKey() *mkrlwe.MKPublicKey
+	Encrypt(values []uint64) *bfv.Ciphertext
+	Decrypt(cipher *bfv.Ciphertext, partialDecryptions []*ring.Poly) []uint64
+	GetPartialDecryption(ciphertext *bfv.Ciphertext) *ring.Poly
+}
+
+type mkParticipant struct {
+	encryptor mkbfv.MKEncryptor
+	decryptor mkrlwe.MKDecryptor
+	params    *bfv.Parameters
+	keys      *mkrlwe.MKKeys
+	encoder   bfv.Encoder
+	ringQ     *ring.Ring
+}
+
+// GetEvaluationKey returns the evaluation key of the participant
+func (participant *mkParticipant) GetEvaluationKey() *mkrlwe.MKEvaluationKey {
+	return participant.keys.EvalKey
+}
+
+// GetPublicKey returns the publik key of the participant
+func (participant *mkParticipant) GetPublicKey() *mkrlwe.MKPublicKey {
+	return participant.keys.PublicKey
+}
+
+// Encrypt constructs a ciphertext from the given values
+func (participant *mkParticipant) Encrypt(values []uint64) *bfv.Ciphertext {
+	if values == nil || len(values) <= 0 {
+		panic("Cannot encrypt uninitialized or empty values")
+	}
+
+	pt := newPlaintext(values, participant.encoder, participant.params)
+
+	return participant.encryptor.Encrypt(pt)
+}
+
+// Decrypt returns the decryption of the ciphertext given the partial decryption
+func (participant *mkParticipant) Decrypt(cipher *bfv.Ciphertext, partialDecryptions []*ring.Poly) []uint64 {
+
+	if cipher == nil || cipher.Degree() != 1 {
+		panic("Cannot decrypt uninitialized ciphertext or cipher of degree greater than 1")
+	}
+
+	if partialDecryptions == nil || len(partialDecryptions) < 1 {
+		panic("Decryption necessitates at least one partialy decrypted ciphertext")
+	}
+
+	//pass cipher in NTT
+	participant.ringQ.NTT(cipher.Value[0], cipher.Value[0])
+
+	decrypted := participant.decryptor.MergeDec(cipher.Value[0], uint64(len(participant.ringQ.Modulus)-1), partialDecryptions)
+
+	//pass result out of NTT domain
+	participant.ringQ.InvNTT(decrypted, decrypted)
+
+	pt := bfv.NewPlaintext(*participant.params)
+	pt.SetValue(decrypted)
+
+	return participant.encoder.DecodeUintNew(pt)
+}
+
+// GetPartialDecryption returns the partial decryption of an element in the ciphertext
+// this function should only be used by participants that were involved in the given ciphertext
+func (participant *mkParticipant) GetPartialDecryption(cipher *bfv.Ciphertext) *ring.Poly {
+
+	//pass ciphertext in NTT before partial decryption
+	participant.ringQ.NTT(cipher.Value[1], cipher.Value[1])
+
+	return participant.decryptor.PartDec(cipher.Value[1], uint64(len(participant.ringQ.Modulus)-1), participant.keys.SecretKey)
+}
+
+// newParticipant creates a participant for the multi key bfv scheme
+// the bfv parameters as well as the standard deviation used for partial decryption must be provided
+func newParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *mkrlwe.MKDecomposedPoly) participant {
+
+	if crs == nil || params == nil {
+		panic("Uninitialized parameters. Cannot create new participant")
+	}
+
+	if sigmaSmudging < params.Sigma() {
+		panic("Sigma must be at least greater than the standard deviation of the gaussian distribution")
+	}
+
+	if len(crs.Poly) != int(params.Beta()) {
+		panic("CRS must be the same dimention as returned by the function bfv.Parameters.Beta()")
+	}
+
+	keys := mkrlwe.KeyGen(&params.Parameters, mkrlwe.CopyNewDecomposed(crs))
+
+	encryptor := mkbfv.NewMKEncryptor(keys.PublicKey, params)
+	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, sigmaSmudging)
+	encoder := bfv.NewEncoder(*params)
+	ringQ := mkrlwe.GetRingQ(&params.Parameters)
+
+	return &mkParticipant{
+		encryptor: encryptor,
+		decryptor: decryptor,
+		params:    params,
+		keys:      keys,
+		encoder:   encoder,
+		ringQ:     ringQ,
+	}
+}
+
+// newPlaintext initializes a new bfv Plaintext with an encoded slice of uint64
+func newPlaintext(value []uint64, encoder bfv.Encoder, params *bfv.Parameters) *bfv.Plaintext {
+
+	plaintext := bfv.NewPlaintext(*params)
+
+	// Encode
+	encoder.EncodeUint(value, plaintext)
+
+	return plaintext
 }

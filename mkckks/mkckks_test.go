@@ -1336,9 +1336,7 @@ func (participant *mkParticipant) Decrypt(cipher *ckks.Ciphertext, partialDecryp
 
 	pt.SetValue(decrypted)
 
-	res := participant.encoder.Decode(pt, participant.params.LogSlots())
-
-	return res
+	return participant.encoder.Decode(pt, participant.params.LogSlots())
 }
 
 // GetPartialDecryption returns the partial decryption of a ckks ciphertext.

@@ -12,6 +12,8 @@ test_examples:
 	go run ./examples/dbfv/pir &> /dev/null
 	go run ./examples/dbfv/psi &> /dev/null
 	go run ./examples/mkbfv/psi &> /dev/null
+	go run ./examples/mkbfv/simple_circuit &> /dev/null
+	go run ./examples/mkckks/simple_circuit &> /dev/null
 	@echo ok
 	@echo Building resources-heavy examples
 	go build -o /dev/null ./examples/ckks/bootstrapping

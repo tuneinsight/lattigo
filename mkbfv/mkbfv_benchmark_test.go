@@ -34,7 +34,7 @@ func Benchmark_MKBFV(b *testing.B) {
 		benchRotate(b, p)
 		benchMemoryConsumption(b, p)
 
-		for i := uint64(2); i < 20; i++ {
+		for i := uint64(1); i < 15; i++ {
 			benchDecryptionIncreasingParticipants(i, b, p)
 			benchRotIncreasingParticipants(i, b, p)
 			benchAddIncreasingParticipants(i, b, p)
@@ -256,9 +256,13 @@ func benchMultIncreasingParticipants(nbrParticipants uint64, b *testing.B, param
 	resCipher1 := ciphers1[0]
 	resCipher2 := ciphers2[0]
 	evalKeys[0] = participants[0].GetEvaluationKey()
+	evalKeys[0].PeerID = 0
 	pubKeys[0] = participants[0].GetPublicKey()
+	pubKeys[0].PeerID = 0
 	evalKeys[1] = participants[1].GetEvaluationKey()
+	evalKeys[1].PeerID = 1
 	pubKeys[1] = participants[1].GetPublicKey()
+	pubKeys[1].PeerID = 1
 
 	for i := uint64(1); i < nbrParticipants; i++ {
 		resCipher1 = evaluator.Add(resCipher1, ciphers1[i])
@@ -266,9 +270,13 @@ func benchMultIncreasingParticipants(nbrParticipants uint64, b *testing.B, param
 
 		// prepare public material
 		evalKeys[2*i] = participants[2*i].GetEvaluationKey()
+		evalKeys[2*i].PeerID = 2 * i
 		evalKeys[2*i+1] = participants[2*i+1].GetEvaluationKey()
+		evalKeys[2*i+1].PeerID = 2*i + 1
 		pubKeys[2*i] = participants[2*i].GetPublicKey()
+		pubKeys[2*i].PeerID = 2 * i
 		pubKeys[2*i+1] = participants[2*i+1].GetPublicKey()
+		pubKeys[2*i+1].PeerID = 2*i + 1
 	}
 
 	b.Run(testString("Mul Increasing number of participants/", nbrParticipants, params), func(b *testing.B) {
@@ -355,12 +363,14 @@ func benchRotIncreasingParticipants(nbrParticipants uint64, b *testing.B, params
 	// perform additions until ciphertexts concerns all participants and then Square + Relin
 	resCipher := ciphers[0]
 	galKeys[0] = participants[0].GetRotationKeys(15)
+	galKeys[0].PeerID = 0
 
 	for i := uint64(1); i < nbrParticipants; i++ {
 		resCipher = evaluator.Add(resCipher, ciphers[i])
 
 		// prepare public material
 		galKeys[i] = participants[i].GetRotationKeys(15)
+		galKeys[i].PeerID = i
 	}
 
 	b.Run(testString("Rotation Increasing number of participants/", nbrParticipants, params), func(b *testing.B) {

@@ -179,7 +179,7 @@ func (encoder *encoderComplex128) EncodeNTTNew(values []complex128, logSlots int
 // EncodeNTTAtLvlNew encodes a slice of complex128 of length slots = 2^{logSlots} on new plaintext at the desired level.
 // Returns a plaintext in the NTT domain.
 func (encoder *encoderComplex128) EncodeNTTAtLvlNew(level int, values []complex128, logSlots int) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.scale)
+	plaintext = NewPlaintext(encoder.params, level, encoder.params.scale)
 	encoder.EncodeNTT(plaintext, values, logSlots)
 	return
 }

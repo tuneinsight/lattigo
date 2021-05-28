@@ -191,10 +191,10 @@ func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast
 		ringQ.InvNTT(encryptor.polypool[1], ciphertext.value[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSampler.ReadAndAddFromDistLvl(len(ringQ.Modulus)-1, ciphertext.value[0], ringQ, encryptor.params.Sigma(), int(6*encryptor.params.Sigma()))
+		encryptor.gaussianSampler.ReadAndAddLvl(len(ringQ.Modulus)-1, ciphertext.value[0])
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSampler.ReadAndAddFromDistLvl(len(ringQ.Modulus)-1, ciphertext.value[1], ringQ, encryptor.params.Sigma(), int(6*encryptor.params.Sigma()))
+		encryptor.gaussianSampler.ReadAndAddLvl(len(ringQ.Modulus)-1, ciphertext.value[1])
 
 	} else {
 
@@ -213,10 +213,10 @@ func (encryptor *pkEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, fast
 		ringQP.InvNTTLazy(encryptor.polypool[1], encryptor.polypool[1])
 
 		// ct[0] = pk[0]*u + e0
-		encryptor.gaussianSampler.ReadAndAddFromDistLvl(len(ringQP.Modulus)-1, encryptor.polypool[0], ringQP, encryptor.params.Sigma(), int(6*encryptor.params.Sigma()))
+		encryptor.gaussianSampler.ReadAndAddLvl(len(ringQP.Modulus)-1, encryptor.polypool[0])
 
 		// ct[1] = pk[1]*u + e1
-		encryptor.gaussianSampler.ReadAndAddFromDistLvl(len(ringQP.Modulus)-1, encryptor.polypool[1], ringQP, encryptor.params.Sigma(), int(6*encryptor.params.Sigma()))
+		encryptor.gaussianSampler.ReadAndAddLvl(len(ringQP.Modulus)-1, encryptor.polypool[1])
 
 		// We rescale the encryption of zero by the special prime, dividing the error by this prime
 		encryptor.baseconverter.ModDownPQ(len(ringQ.Modulus)-1, encryptor.polypool[0], ciphertext.value[0])
@@ -283,7 +283,7 @@ func (encryptor *skEncryptor) encrypt(p *Plaintext, ciphertext *Ciphertext, crp 
 	ringQ.InvNTT(ciphertext.value[0], ciphertext.value[0])
 	ringQ.InvNTT(crp, ciphertext.value[1])
 
-	encryptor.gaussianSampler.ReadAndAddFromDistLvl(len(ringQ.Modulus)-1, ciphertext.value[0], ringQ, encryptor.params.Sigma(), int(6*encryptor.params.Sigma()))
+	encryptor.gaussianSampler.ReadAndAddLvl(len(ringQ.Modulus)-1, ciphertext.value[0])
 
 	// ct = [-a*s + m + e , a]
 	encryptor.ringQ.Add(ciphertext.value[0], p.value, ciphertext.value[0])

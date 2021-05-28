@@ -59,6 +59,11 @@ func (gaussianSampler *GaussianSampler) ReadFromDistLvl(level int, pol *Poly, ri
 	gaussianSampler.readLvl(level, pol, ring, sigma, bound)
 }
 
+// ReadAndAddLvl samples a truncated Gaussian polynomial at the given level for the receiver's default standard deviation and bound and adds it on "pol".
+func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level int, pol *Poly) {
+	gaussianSampler.ReadAndAddFromDistLvl(level, pol, gaussianSampler.baseRing, gaussianSampler.sigma, gaussianSampler.bound)
+}
+
 // ReadAndAddFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound and adds it on "pol".
 func (gaussianSampler *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
 	var coeffFlo float64

@@ -105,6 +105,7 @@ func (eval *mkEvaluator) ConvertToCKKSCiphertext(mkCT *MKCiphertext) []*ckks.Cip
 		if i != 0 {
 			newCipher := new(ckks.Ciphertext)
 			newCipher.Element = new(ckks.Element)
+			newCipher.Element.IsNTT = true
 			newCipher.Value = []*ring.Poly{c0, v}
 			newCipher.SetScale(mkCT.Ciphertexts.Scale())
 			res[i-1] = newCipher

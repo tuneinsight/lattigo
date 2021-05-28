@@ -18,7 +18,7 @@ func main() {
 	params, err := ckks.NewParametersFromLiteral(paramLit)
 
 	if err != nil {
-		panic("Couldn't retrieve default bfv parameters")
+		panic("Couldn't retrieve default ckks parameters")
 	}
 
 	// generation of crs
@@ -83,11 +83,11 @@ func main() {
 	ckksCipher1 := resCKKS[0]
 	ckksCipher2 := resCKKS[1]
 
-	part1 := decryptor1.PartDec(ckksCipher1.Value[1], ckksCipher1.Level(), keys1.SecretKey)
-	part2 := decryptor2.PartDec(ckksCipher2.Value[1], ckksCipher2.Level(), keys2.SecretKey)
+	part1 := decryptor1.PartDec(&ckksCipher1.El().Element, ckksCipher1.Level(), keys1.SecretKey)
+	part2 := decryptor2.PartDec(&ckksCipher2.El().Element, ckksCipher2.Level(), keys2.SecretKey)
 
 	// Final decryption using the partial shares
-	decrypted := decryptor1.MergeDec(ckksCipher1.Value[0], ckksCipher1.Level(), []*ring.Poly{part1, part2})
+	decrypted := decryptor1.MergeDec(&ckksCipher1.El().Element, ckksCipher1.Level(), []*ring.Poly{part1, part2})
 
 	// decode
 	pt := ckks.NewPlaintext(params, ckksCipher1.Level(), ckksCipher1.Scale())

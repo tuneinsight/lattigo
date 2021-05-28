@@ -998,12 +998,8 @@ func testBfvMkbfvBridge(t *testing.T, params *bfv.Parameters) {
 
 		resBFV := evaluator.ConvertToBFVCiphertext(res)
 
-		// pass result in NTT before decryption when not using participant interface
-		ringQ := mkrlwe.GetRingQ(&params.Parameters)
-		ringQ.NTT(resBFV[0].Value[1], resBFV[0].Value[1])
-
 		// decrypt
-		partDec1 := decryptor.PartDec(resBFV[0].Value[1], resBFV[0].Level(), keys.SecretKey)
+		partDec1 := decryptor.PartDec(resBFV[0].Element, resBFV[0].Level(), keys.SecretKey)
 		partDec2 := part2.GetPartialDecryption(resBFV[1])
 
 		decrypted := part2.Decrypt(resBFV[1], []*ring.Poly{partDec1, partDec2})
@@ -1210,13 +1206,7 @@ func (participant *mkParticipant) Decrypt(cipher *bfv.Ciphertext, partialDecrypt
 		panic("Decryption necessitates at least one partialy decrypted ciphertext")
 	}
 
-	//pass cipher in NTT
-	participant.ringQ.NTT(cipher.Value[0], cipher.Value[0])
-
-	decrypted := participant.decryptor.MergeDec(cipher.Value[0], uint64(len(participant.ringQ.Modulus)-1), partialDecryptions)
-
-	//pass result out of NTT domain
-	participant.ringQ.InvNTT(decrypted, decrypted)
+	decrypted := participant.decryptor.MergeDec(cipher.Element, uint64(len(participant.ringQ.Modulus)-1), partialDecryptions)
 
 	pt := bfv.NewPlaintext(*participant.params)
 	pt.SetValue(decrypted)
@@ -1228,10 +1218,7 @@ func (participant *mkParticipant) Decrypt(cipher *bfv.Ciphertext, partialDecrypt
 // this function should only be used by participants that were involved in the given ciphertext
 func (participant *mkParticipant) GetPartialDecryption(cipher *bfv.Ciphertext) *ring.Poly {
 
-	//pass ciphertext in NTT before partial decryption
-	participant.ringQ.NTT(cipher.Value[1], cipher.Value[1])
-
-	return participant.decryptor.PartDec(cipher.Value[1], uint64(len(participant.ringQ.Modulus)-1), participant.keys.SecretKey)
+	return participant.decryptor.PartDec(cipher.Element, uint64(len(participant.ringQ.Modulus)-1), participant.keys.SecretKey)
 }
 
 // newParticipant creates a participant for the multi key bfv scheme

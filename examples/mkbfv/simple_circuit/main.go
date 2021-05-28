@@ -32,9 +32,6 @@ func main() {
 		panic("Couldn't instanciate ringT")
 	}
 
-	// Ciphertext ring
-	ringQ := mkrlwe.GetRingQ(&params.Parameters)
-
 	// Participant 1
 	keys1 := mkrlwe.KeyGen(&params.Parameters, crs)
 	encryptor1 := mkbfv.NewMKEncryptor(keys1.PublicKey, &params)
@@ -91,20 +88,11 @@ func main() {
 	bfvCipher1 := resBFV[0]
 	bfvCipher2 := resBFV[1]
 
-	// pass second component of ciphertext in NTT before partial decryption
-	ringQ.NTT(bfvCipher1.Value[1], bfvCipher1.Value[1])
-	ringQ.NTT(bfvCipher2.Value[1], bfvCipher2.Value[1])
-	part1 := decryptor1.PartDec(bfvCipher1.Value[1], bfvCipher1.Level(), keys1.SecretKey)
-	part2 := decryptor2.PartDec(bfvCipher2.Value[1], bfvCipher2.Level(), keys2.SecretKey)
+	part1 := decryptor1.PartDec(bfvCipher1.Element, bfvCipher1.Level(), keys1.SecretKey)
+	part2 := decryptor2.PartDec(bfvCipher2.Element, bfvCipher2.Level(), keys2.SecretKey)
 
 	// Final decryption using the partial shares
-
-	// pass first component of ciphertext in NTT before Merge
-	ringQ.NTT(bfvCipher1.Value[0], bfvCipher1.Value[0])
-	decrypted := decryptor1.MergeDec(bfvCipher1.Value[0], bfvCipher1.Level(), []*ring.Poly{part1, part2})
-
-	//pass result out of NTT domain
-	ringQ.InvNTT(decrypted, decrypted)
+	decrypted := decryptor1.MergeDec(bfvCipher1.Element, bfvCipher1.Level(), []*ring.Poly{part1, part2})
 
 	// decode
 	pt := bfv.NewPlaintext(params)

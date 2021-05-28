@@ -1023,7 +1023,7 @@ func testCkksMkbfvBridge(t *testing.T, params *ckks.Parameters) {
 
 		// decrypt
 		decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, 0.6)
-		partDec1 := decryptor.PartDec(resCKKS[0].Value[1], resCKKS[0].Level(), keysPart2.SecretKey)
+		partDec1 := decryptor.PartDec(&resCKKS[0].El().Element, resCKKS[0].Level(), keysPart2.SecretKey)
 
 		partDec2 := part2.GetPartialDecryption(resCKKS[1])
 
@@ -1330,7 +1330,7 @@ func (participant *mkParticipant) Decrypt(cipher *ckks.Ciphertext, partialDecryp
 		panic("Decryption necessitates at least one partialy decrypted ciphertext")
 	}
 
-	decrypted := participant.decryptor.MergeDec(cipher.Value[0], cipher.Level(), partialDecryptions)
+	decrypted := participant.decryptor.MergeDec(&cipher.Element.Element, cipher.Level(), partialDecryptions)
 
 	pt := ckks.NewPlaintext(*participant.params, cipher.Level(), cipher.Scale())
 
@@ -1346,7 +1346,7 @@ func (participant *mkParticipant) GetPartialDecryption(ct *ckks.Ciphertext) *rin
 	if ct == nil || len(ct.Value) < 1 {
 		panic("Uninitialized ciphertext")
 	}
-	return participant.decryptor.PartDec(ct.Value[1], ct.Level(), participant.keys.SecretKey)
+	return participant.decryptor.PartDec(&ct.Element.Element, ct.Level(), participant.keys.SecretKey)
 }
 
 // newParticipant creates a participant for the multi key ckks scheme

@@ -17,66 +17,55 @@ All notable changes to this project will be documented in this file.
 ### Added
 #### CKKS
 ##### Improved Bootstrapping Code
-- More granular parameterization
-- Added optional Arcsine
-- Bootstrapping linear transform make use of the new linear transformation API
-- Encoding matrices can be generated directly from the bootstrapping parameters
-- `CoeffsToSlots` and `SlotsToCoeffs` can be called outside of the bootstrapping
-- Added flag in bootstrapping parameters for bit-reversed inputs (with bit-reversed output) CoeffsToSlots and SlotsToCoeffs
-- Added tests for `CoeffsToSlots` and `SlotsToCoeffs`
+- More granular parameterization.
+- Added optional Arcsine.
+- Bootstrapping linear transform make use of the new linear transformation API.
+- Encoding matrices can be generated directly from the bootstrapping parameters.
+- `CoeffsToSlots` and `SlotsToCoeffs` can be called outside of the bootstrapping.
+- Added flag in bootstrapping parameters for bit-reversed inputs (with bit-reversed output) CoeffsToSlots and SlotsToCoeffs.
+- Added tests for `CoeffsToSlots` and `SlotsToCoeffs`.
 
 ##### New Evaluator API
-- `RotateHoisted`: evaluate several rotations on a single ciphertext
-- `LinearTransform`: evaluate one or more `PtDiagMatrix` on a ciphertext using `MultiplyByDiagMatrix` or `MultiplyByDiagMatrixBSGS` according to the encoding of `PtDiagMatrix`
-- `MultiplyByDiagMatrix`: multiplies a ciphertext with a `PtDiagMatrix` using n rotations with single hoisting
-- `MultiplyByDiagMatrixBSGS`: multiplies a ciphertext with a `PtDiagMatrix` using 2sqrt(n) rotations with double-hoisting
-- `InnerSumLog`: optimal log approach that works for any value (not only powers of two) and can be parameterized to inner sum batches of values (sub-vectors)
-- `InnerSum`: naive approach that is faster for small values but needs more keys
-- `ReplicateLog`: optimal log approach that works for any value (not only powers of two) and can be parameterized to replicate batches of values (sub-vectors)
-- `Replicate`: naive approach that is faster for small values but needs more keys
-
-##### New KeyGenerator API
-- `GenRotationIndexesForSubSum` : returns the list of rotations needed for `SubSum` in the bootstrapping
-- `GenRotationIndexesForCoeffsToSlots`: returns the list of rotations needed for `CoeffsToSlots` in the bootstrapping
-- `GenRotationIndexesForSlotsToCoeffs`: returns the list of rotations needed for `SlotsToCoeffs` in the bootstrapping
-- `GenRotationIndexesForBootstrapping`: returns the list of rotations needed for the entire bootstrapping
-- `GenRotationIndexesForInnerSumLog`: returns the list of rotations needed for inner sum log
-- `GenRotationIndexesForInnerSum`: returns the list of rotations needed for inner sum
-- `GenRotationIndexesForReplicateLog`: returns the list of rotations needed for replicate log
-- `GenRotationIndexesForReplicate`: returns the list of rotations needed for replicate
-- `GenRotationIndexesForDiagMatrix`: returns the list of rotations needed to evaluate a `PtDiagMatrix` linear transform 
+- `RotateHoisted`: evaluate several rotations on a single ciphertext.
+- `LinearTransform`: evaluate one or more `PtDiagMatrix` on a ciphertext using `MultiplyByDiagMatrix` or `MultiplyByDiagMatrixBSGS` according to the encoding of `PtDiagMatrix`.
+- `MultiplyByDiagMatrix`: multiplies a ciphertext with a `PtDiagMatrix` using n rotations with single hoisting.
+- `MultiplyByDiagMatrixBSGS`: multiplies a ciphertext with a `PtDiagMatrix` using 2sqrt(n) rotations with double-hoisting.
+- `InnerSumLog`: optimal log approach that works for any value (not only powers of two) and can be parameterized to inner sum batches of values (sub-vectors).
+- `InnerSum`: naive approach that is faster for small values but needs more keys.
+- `ReplicateLog`: optimal log approach that works for any value (not only powers of two) and can be parameterized to replicate batches of values (sub-vectors).
+- `Replicate`: naive approach that is faster for small values but needs more keys.
 
 ##### New Encoder API
 - `PtDiagMatrix`: struct that represent a linear transformation
-- `EncodeDiagMatrixBSGSAtLvl`: encodes a `PtDiagMatrix` at a given level, with a given scale for the BSGS algorithm
-- `EncodeDiagMatrixAtLvl`: encodes a `PtDiagMatrix` at a given level, with a given scale for a naive evaluation
-- `DecodePublic`: adds a gaussian error of variance floor(sigma * sqrt(2*pi)) before the decoding step
-- `DecodeCoeffsPublic`: adds a gaussian error of variance floor(sigma * sqrt(2*pi)) before the decoding step
-- `GetErrSTDFreqDom` : get the error standard deviation in the frequency domain (slots)
-- `GetErrSTDTimeDom`: get the error standard deviation in the time domain (coefficients)
+- `EncodeDiagMatrixBSGSAtLvl`: encodes a `PtDiagMatrix` at a given level, with a given scale for the BSGS algorithm.
+- `EncodeDiagMatrixAtLvl`: encodes a `PtDiagMatrix` at a given level, with a given scale for a naive evaluation.
+- `DecodePublic`: adds a gaussian error of variance floor(sigma * sqrt(2*pi)) before the decoding step.
+- `DecodeCoeffsPublic`: adds a gaussian error of variance floor(sigma * sqrt(2*pi)) before the decoding step.
+- `GetErrSTDFreqDom` : get the error standard deviation in the frequency domain (slots).
+- `GetErrSTDTimeDom`: get the error standard deviation in the time domain (coefficients).
 
 ##### Others
 - Added SECURITY.md
-- Delay with reduction during key-switch is now dynamic and based on the primes bit-size
-- Added test for `Mul` and `MulNew` + `Relinearize`
-- PrecisionStats now also includes the standard deviation of the error in the slots and coefficients domain
+- Delay with reduction during key-switch is now dynamic and based on the primes bit-size.
+- Added test for `Mul` and `MulNew` + `Relinearize`.
+- PrecisionStats now also includes the standard deviation of the error in the slots and coefficients domain.
 
 #### Ring
-- RNS rescaling API is now inplace and can take a different poly as output
+- RNS rescaling API is now inplace and can take a different poly as output.
 - Added `ReadFromDistLvl` and `ReadAndAddFromDistLvl` to Gaussian sampler API.
 
 #### DCKKS
-- The API of public-refresh now takes a target desired output scale, which allows to refresh the ciphertext to the default scale
+- The API of public-refresh now takes a target desired output scale, which allows to refresh the ciphertext to the default scale.
 
 #### Others
-- All non arithmetic parameters have been changed to be "int" type to make it more consistent with the default type of Go.
+- Most non arithmetic parameters have been changed to be "int" type to make it more consistent with the default type of Go.
 
 
 ### Fixed
-- CKKS : `MultByi` now correctly sets the output ciphertext scale
-- CKKS : `Relinearize` now correctly sets the output ciphertext level
-- CKKS : matrix-vector multiplication now correctly manages ciphertext of higher level than the plaintext matrix
-- CKKS : matrix-vector encoding now properly works for negative diagonal indexes
+- CKKS : `MultByi` now correctly sets the output ciphertext scale.
+- CKKS : `Relinearize` now correctly sets the output ciphertext level.
+- CKKS : matrix-vector multiplication now correctly manages ciphertext of higher level than the plaintext matrix.
+- CKKS : matrix-vector encoding now properly works for negative diagonal indexes.
 
 ## [2.1.1] - 2020-12-23
 
@@ -87,9 +76,9 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - BFV/CKKS : pk is now (-as + e, a) instead of (-(as + e), a).
-- BFV : harmonized the EvaluationKey setter from `SetRelinKeys` to `Set`
-- CKKS : renamed `BootstrappParams` into `BootstrappingParameters`
-- CKKS : the `Evaluator.DropLevel`, `Parameters.SetLogSlots` and `Element.Copy` methods no longer return errors
+- BFV : harmonized the EvaluationKey setter from `SetRelinKeys` to `Set`.
+- CKKS : renamed `BootstrappParams` into `BootstrappingParameters`.
+- CKKS : the `Evaluator.DropLevel`, `Parameters.SetLogSlots` and `Element.Copy` methods no longer return errors.
 - RING : minimum poly degree modulus is 16 to ensure the NTT correctness.
 - RING : isPrime has been replaced by big.ProbablyPrime, which is deterministic for integers < 2^64.
 

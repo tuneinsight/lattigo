@@ -45,7 +45,6 @@ All notable changes to this project will be documented in this file.
 - `GetErrSTDTimeDom`: get the error standard deviation in the time domain (coefficients).
 
 ##### Others
-- Added SECURITY.md
 - Delay with reduction during key-switch is now dynamic and based on the primes bit-size.
 - Added test for `Mul` and `MulNew` + `Relinearize`.
 - PrecisionStats now also includes the standard deviation of the error in the slots and coefficients domain.
@@ -58,6 +57,7 @@ All notable changes to this project will be documented in this file.
 - The API of public-refresh now takes a target desired output scale, which allows to refresh the ciphertext to the default scale.
 
 #### Others
+- Added SECURITY.md
 - Most non arithmetic parameters have been changed to be "int" type to make it more consistent with the default type of Go.
 
 

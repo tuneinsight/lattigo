@@ -1,5 +1,7 @@
-# Security of Approximate-Numbers Homomorphic Encryption
+# Code Review
+Lattigo 2.0.0 has been code-reviewed by ELCA in November 2020 and, within the allocated time for the code review, no critical or high-risk issues were found.
 
+# Security of Approximate-Numbers Homomorphic Encryption
 Homomorphic encryption schemes are malleable schemes by definition and are therefore not secure against chosen ciphertext attacks (CPA security). They instead rely on the more relaxed security of being secure against chosen plaintext attacks (CPA security).  
 
 Classified as an _approximate decryption_ scheme, the CKKS scheme is secure as long as the plain decryption is only revealed to entities with knowledge of the secret-key. This is because, given a ciphertext (_-as + m + e_, _a_), the decryption will output a plaintext _m+e_ and using this plaintext, [Li and Micciancio](https://eprint.iacr.org/2020/1533) show that one recover the secret-key with ((_-as + m + e_) - (_m + e_)) * _a^-1 = asa^-1 = s_ (the probability of _a_ being invertible is overwhelming, and if _a_ is not invertible one only require a few more samples).

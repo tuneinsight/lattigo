@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 - RLWE : added a new `rlwe` package as common implementation base for the lattigo RLWE schemes
 - DRLWE : added a new `drlwe` package as a common implementation base for the lattigo multiparty RLWE schemes
 - BFV/CKKS : the schemes are now using a common implementation for their keys
-- BFV/CKKS : the rotation-keys are now indexed by their corresponding galois automorphism
+- BFV/CKKS : the rotation-keys are now indexed by their corresponding Galois automorphism
 - BFV/CKKS : the `Evaluator` interface now has a single method for all column rotations and one method for the row-rotation/conjugate. 
 - BFV/CKKS : the relinearization and rotation keys are now passed to the `Evaluator` constructor methods (and no longer to the operations methods)
 - DBFV/DCKKS : added a common interface and implementation for each multiparty key-generation protocols
@@ -39,8 +39,8 @@ All notable changes to this project will be documented in this file.
 - `PtDiagMatrix`: struct that represent a linear transformation
 - `EncodeDiagMatrixBSGSAtLvl`: encodes a `PtDiagMatrix` at a given level, with a given scale for the BSGS algorithm.
 - `EncodeDiagMatrixAtLvl`: encodes a `PtDiagMatrix` at a given level, with a given scale for a naive evaluation.
-- `DecodePublic`: adds a gaussian error of variance floor(sigma * sqrt(2*pi)) before the decoding step.
-- `DecodeCoeffsPublic`: adds a gaussian error of variance floor(sigma * sqrt(2*pi)) before the decoding step.
+- `DecodePublic`: adds a Gaussian error of variance floor(sigma * sqrt(2*pi)) before the decoding step.
+- `DecodeCoeffsPublic`: adds a Gaussian error of variance floor(sigma * sqrt(2*pi)) before the decoding step.
 - `GetErrSTDFreqDom` : get the error standard deviation in the frequency domain (slots).
 - `GetErrSTDTimeDom`: get the error standard deviation in the time domain (coefficients).
 
@@ -84,10 +84,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - ALL : reduced cyclomatic complexity of several functions.
-- ALL : fixed all instances reporeted by staticcheck and gosec excluding G103 (audit the use of unsafe).
+- ALL : fixed all instances reported by staticcheck and gosec excluding G103 (audit the use of unsafe).
 - ALL : test vectors are now generated using the crypto/rand instead of math/rand package.
 - ALL : fixed some unhandled errors.
-- BFV/CKKS :  improved the documentation: documentated several hardcoded values and fixed typos.
+- BFV/CKKS :  improved the documentation: documented several hard-coded values and fixed typos.
 - RING : fixed bias in sparse ternary sampling for some parameters.
 - RING : tests for the modular reduction algorithms are now deterministic.
 
@@ -151,7 +151,7 @@ All notable changes to this project will be documented in this file.
 - CKKS: EvaluatePolyFast(.) and EvaluatePolyEco(.) are replaced by EvaluatePoly(.).
 - CKKS: EvaluateChebyFast(.) and EvaluateChebyEco(.) are replaced by EvaluatePolyCheby(.).
 - CKKS: EvaluateChebyEcoSpecial(.) and EvaluateChebyFastSpecial(.) are replaced by EvaluatePolyChebySpecial(.).
-- RING: The Float128 type was removed due to cross-platform incompatility.
+- RING: The Float128 type was removed due to cross-platform incompatibility.
 
 ### Fixes
 - BFV: Fixed multiplication that was failing when #Qi != #QMul.
@@ -190,7 +190,7 @@ All notable changes to this project will be documented in this file.
 - RING: Enabled dense and sparse ternary polynomials sampling directly from the context.
 - RING: New API enabling "level"-wise polynomial arithmetic.
 - RING: New API for modulus switching with flooring and rounding.
-- UTILS: The pacakge utils now regroups all the utility methods which were previously duplicated among packages.
+- UTILS: The package utils now regroups all the utility methods which were previously duplicated among packages.
 ### Removed
 - BFV/CKKS/DBFV/DCKKS: Removed their respective context. Ring context remains public.
 - All schemes: Removed key-switching with bit decomposition. This option will however be re-introduced at a later stage since applications using small parameters can be impacted by this change.

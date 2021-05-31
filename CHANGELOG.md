@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added SECURITY.md
+- ALL: when possible, public functions now use `int` instead of `uint64` as parameters and return values.
+- RING : RNS rescaling API is now inplace and can take a different poly as output.
+- RING : added `ReadFromDistLvl` and `ReadAndAddFromDistLvl` to Gaussian sampler API.
 - RLWE : added a new `rlwe` package as common implementation base for the lattigo RLWE schemes
 - DRLWE : added a new `drlwe` package as a common implementation base for the lattigo multiparty RLWE schemes
 - BFV/CKKS : the schemes are now using a common implementation for their keys
@@ -11,21 +15,17 @@ All notable changes to this project will be documented in this file.
 - BFV/CKKS : the `Evaluator` interface now has a single method for all column rotations and one method for the row-rotation/conjugate. 
 - BFV/CKKS : the relinearization and rotation keys are now passed to the `Evaluator` constructor methods (and no longer to the operations methods)
 - DBFV/DCKKS : added a common interface and implementation for each multiparty key-generation protocols
+- DCKKS : public-refresh now takes a target desired output scale, which allows to refresh the ciphertext to the default scale.
+- CKKS : added methods for operating linear-transformation and improved several aspects listed below:
 
-## [2.2.0] - 2020-05-31
-
-### Added
-#### CKKS
-##### Improved Bootstrapping Code
-- More granular parameterization.
-- Added optional Arcsine.
-- Bootstrapping linear transform make use of the new linear transformation API.
-- Encoding matrices can be generated directly from the bootstrapping parameters.
-- `CoeffsToSlots` and `SlotsToCoeffs` can be called outside of the bootstrapping.
+#### CKKS Bootstrapping
+- The procedure now allows for a more granular parameterization.
 - Added flag in bootstrapping parameters for bit-reversed inputs (with bit-reversed output) CoeffsToSlots and SlotsToCoeffs.
-- Added tests for `CoeffsToSlots` and `SlotsToCoeffs`.
+- Added optional Arcsine .
+- The procedure now uses the new linear-transformation API.
+- `CoeffsToSlots` and `SlotsToCoeffs` are now standalone public functions.
 
-##### New Evaluator API
+#### New CKKS Evaluator methods 
 - `RotateHoisted`: evaluate several rotations on a single ciphertext.
 - `LinearTransform`: evaluate one or more `PtDiagMatrix` on a ciphertext using `MultiplyByDiagMatrix` or `MultiplyByDiagMatrixBSGS` according to the encoding of `PtDiagMatrix`.
 - `MultiplyByDiagMatrix`: multiplies a ciphertext with a `PtDiagMatrix` using n rotations with single hoisting.
@@ -35,7 +35,7 @@ All notable changes to this project will be documented in this file.
 - `ReplicateLog`: optimal log approach that works for any value (not only powers of two) and can be parameterized to replicate batches of values (sub-vectors).
 - `Replicate`: naive approach that is faster for small values but needs more keys.
 
-##### New Encoder API
+#### New CKKS Encoder methods
 - `PtDiagMatrix`: struct that represent a linear transformation
 - `EncodeDiagMatrixBSGSAtLvl`: encodes a `PtDiagMatrix` at a given level, with a given scale for the BSGS algorithm.
 - `EncodeDiagMatrixAtLvl`: encodes a `PtDiagMatrix` at a given level, with a given scale for a naive evaluation.
@@ -44,28 +44,14 @@ All notable changes to this project will be documented in this file.
 - `GetErrSTDFreqDom` : get the error standard deviation in the frequency domain (slots).
 - `GetErrSTDTimeDom`: get the error standard deviation in the time domain (coefficients).
 
-##### Others
-- Delay with reduction during key-switch is now dynamic and based on the primes bit-size.
-- Added test for `Mul` and `MulNew` + `Relinearize`.
-- PrecisionStats now also includes the standard deviation of the error in the slots and coefficients domain.
-
-#### Ring
-- RNS rescaling API is now inplace and can take a different poly as output.
-- Added `ReadFromDistLvl` and `ReadAndAddFromDistLvl` to Gaussian sampler API.
-
-#### DCKKS
-- The API of public-refresh now takes a target desired output scale, which allows to refresh the ciphertext to the default scale.
+#### CKKS Fixes
+- `MultByi` now correctly sets the output ciphertext scale.
+- `Relinearize` now correctly sets the output ciphertext level.
+- matrix-vector multiplication now correctly manages ciphertext of higher level than the plaintext matrix.
+- matrix-vector encoding now properly works for negative diagonal indexes.
 
 #### Others
-- Added SECURITY.md
-- Most non arithmetic parameters have been changed to be "int" type to make it more consistent with the default type of Go.
-
-
-### Fixed
-- CKKS : `MultByi` now correctly sets the output ciphertext scale.
-- CKKS : `Relinearize` now correctly sets the output ciphertext level.
-- CKKS : matrix-vector multiplication now correctly manages ciphertext of higher level than the plaintext matrix.
-- CKKS : matrix-vector encoding now properly works for negative diagonal indexes.
+- PrecisionStats now also includes the standard deviation of the error in the slots and coefficients domain.
 
 ## [2.1.1] - 2020-12-23
 

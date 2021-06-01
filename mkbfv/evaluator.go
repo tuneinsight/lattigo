@@ -128,34 +128,19 @@ func (eval *mkEvaluator) ConvertToBFVCiphertext(mkCT *MKCiphertext) []*bfv.Ciphe
 // Add adds the ciphertexts component wise and expend their list of involved peers. Returns a new ciphertext
 func (eval *mkEvaluator) Add(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
+	if c1 == nil || c2 == nil || c1.Ciphertexts == nil || c2.Ciphertexts == nil {
+		panic("Uninitialized ciphertexts")
+	}
+
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
 	out := NewMKCiphertext(padded1.PeerID, eval.ringQ, eval.params)
-
-	out.Ciphertexts = eval.AddNew(padded1.Ciphertexts, padded2.Ciphertexts)
+	eval.evaluateInPlaceBinary(padded1.Ciphertexts, padded2.Ciphertexts, out.Ciphertexts, false, eval.ringQ.Add)
 
 	return out
 }
 
-// AddNew adds op0 to op1 and creates a new element ctOut to store the result.
-func (eval *mkEvaluator) AddNew(op0, op1 bfv.Operand) (ctOut *bfv.Ciphertext) {
-	ctOut = bfv.NewCiphertext(*eval.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
-	eval.AddWithNil(op0, op1, ctOut)
-	return
-}
-
-// Add adds op0 to op1 and returns the result in ctOut.
-func (eval *mkEvaluator) AddWithNil(op0, op1 bfv.Operand, ctOut *bfv.Ciphertext) {
-	el0, el1, elOut := eval.getElem(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
-	eval.evaluateInPlaceBinary(el0, el1, elOut, false, eval.ringQ.Add)
-}
-
-func (eval *mkEvaluator) getElem(op0, op1, opOut bfv.Operand, opOutMinDegree uint64) (el0, el1, elOut *rlwe.Element) {
-
-	return mkrlwe.GetThreeElementsbfvWithNil(op0, op1, opOut)
-}
-
-// Sub substracts the ciphertexts component wise and expend their list of involved peers
+// Sub substracts the ciphertexts component wise and expend their list of involved peers. Returns a new ciphertext
 func (eval *mkEvaluator) Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 
 	if c1 == nil || c2 == nil || c1.Ciphertexts == nil || c2.Ciphertexts == nil {
@@ -165,43 +150,18 @@ func (eval *mkEvaluator) Sub(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 	padded1, padded2 := PadCiphers(c1, c2, eval.params)
 
 	out := NewMKCiphertext(padded1.PeerID, eval.ringQ, eval.params)
-
-	out.Ciphertexts = eval.SubNew(padded1.Ciphertexts, padded2.Ciphertexts)
+	eval.evaluateInPlaceBinary(padded1.Ciphertexts, padded2.Ciphertexts, out.Ciphertexts, true, eval.ringQ.Sub)
 
 	return out
-}
-
-// SubNew subtracts op1 from op0 and creates a new element ctOut to store the result.
-func (eval *mkEvaluator) SubNew(op0, op1 bfv.Operand) (ctOut *bfv.Ciphertext) {
-	ctOut = bfv.NewCiphertext(*eval.params, utils.MaxUint64(op0.Degree(), op1.Degree()))
-	eval.SubWithNil(op0, op1, ctOut)
-	return
 }
 
 // AddPlaintext adds the paintext to the ciphertexts component wise
 func (eval *mkEvaluator) AddPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext {
 
-	if c == nil || pt == nil || c.Ciphertexts == nil || pt.Value == nil {
-		panic("Uninitialized inputs")
-	}
+	out := new(MKCiphertext)
+	out.PeerID = c.PeerID
 
-	if pt.Degree() != 0 {
-		panic("Plaintext must have degree 0")
-	}
-
-	out := NewMKCiphertext(c.PeerID, eval.ringQ, eval.params)
-	val := make([]*ring.Poly, len(c.PeerID)+1)
-
-	// copy values
-	for i := uint64(1); i < uint64(len(c.PeerID)+1); i++ {
-		val[i] = c.Ciphertexts.Value[i].CopyNew()
-	}
-
-	// add the plaintext value in c0
-	val[0] = eval.ringQ.NewPoly()
-	eval.ringQ.Add(c.Ciphertexts.Value[0], pt.Value[0], val[0])
-
-	out.Ciphertexts.SetValue(val)
+	out.Ciphertexts = eval.bfvEval.AddNew(c.Ciphertexts, pt)
 
 	return out
 }
@@ -209,27 +169,10 @@ func (eval *mkEvaluator) AddPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCip
 // SubPlaintext subtracts the plaintext to the ciphertext component wise
 func (eval *mkEvaluator) SubPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCiphertext {
 
-	if c == nil || pt == nil || c.Ciphertexts == nil || pt.Value == nil {
-		panic("Uninitialized inputs")
-	}
+	out := new(MKCiphertext)
+	out.PeerID = c.PeerID
 
-	if pt.Degree() != 0 {
-		panic("Plaintext must have degree 0")
-	}
-
-	out := NewMKCiphertext(c.PeerID, eval.ringQ, eval.params)
-	val := make([]*ring.Poly, len(c.PeerID)+1)
-
-	// copy values
-	for i := uint64(1); i < uint64(len(c.PeerID)+1); i++ {
-		val[i] = c.Ciphertexts.Value[i].CopyNew()
-	}
-
-	// subtract the plaintext value to c0
-	val[0] = eval.ringQ.NewPoly()
-	eval.ringQ.Sub(c.Ciphertexts.Value[0], pt.Value[0], val[0])
-
-	out.Ciphertexts.SetValue(val)
+	out.Ciphertexts = eval.bfvEval.SubNew(c.Ciphertexts, pt)
 
 	return out
 }
@@ -237,7 +180,8 @@ func (eval *mkEvaluator) SubPlaintext(pt *bfv.Plaintext, c *MKCiphertext) *MKCip
 // Neg returns the additive inverse of a cyphertext
 func (eval *mkEvaluator) Neg(c *MKCiphertext) *MKCiphertext {
 
-	out := NewMKCiphertext(c.PeerID, eval.ringQ, eval.params)
+	out := new(MKCiphertext)
+	out.PeerID = c.PeerID
 
 	out.Ciphertexts = eval.bfvEval.NegNew(c.Ciphertexts)
 
@@ -247,7 +191,8 @@ func (eval *mkEvaluator) Neg(c *MKCiphertext) *MKCiphertext {
 // MultPlaintext multiplies a plaintext and a ciphertext
 func (eval *mkEvaluator) MultPlaintext(pt *bfv.PlaintextMul, c *MKCiphertext) *MKCiphertext {
 
-	out := NewMKCiphertext(c.PeerID, eval.ringQ, eval.params)
+	out := new(MKCiphertext)
+	out.PeerID = c.PeerID
 
 	out.Ciphertexts = eval.bfvEval.MulNew(c.Ciphertexts, pt)
 
@@ -561,42 +506,25 @@ func (eval *mkEvaluator) NewPlaintextMulFromValue(value []uint64) *bfv.Plaintext
 }
 
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
-func (eval *mkEvaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Element, isSub bool, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *mkEvaluator) evaluateInPlaceBinary(el0, el1, elOut *bfv.Ciphertext, isSub bool, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	for i := uint64(0); i < el0.Degree()+1; i++ {
 
 		if el0.Value[i] == nil && el1.Value[i] == nil {
 			elOut.Value[i] = nil
-		}
-		if el0.Value[i] == nil && el1.Value[i] != nil {
+		} else if el0.Value[i] == nil && el1.Value[i] != nil {
 
 			if !isSub {
 				elOut.Value[i] = el1.Value[i]
 			} else {
 				eval.ringQ.Neg(el1.Value[i], elOut.Value[i])
 			}
-		}
-		if el0.Value[i] != nil && el1.Value[i] == nil {
+		} else if el0.Value[i] != nil && el1.Value[i] == nil {
 			elOut.Value[i] = el0.Value[i]
-		}
-		if el0.Value[i] != nil && el1.Value[i] != nil {
+		} else {
 			evaluate(el0.Value[i], el1.Value[i], elOut.Value[i])
 		}
 
 	}
 
-}
-
-// SubWithNil subtracts op1 from op0 and returns the result in cOut.
-func (eval *mkEvaluator) SubWithNil(op0, op1 bfv.Operand, ctOut *bfv.Ciphertext) {
-	el0, el1, elOut := eval.getElem(op0, op1, ctOut, utils.MaxUint64(op0.Degree(), op1.Degree()))
-	eval.evaluateInPlaceBinary(el0, el1, elOut, true, eval.ringQ.Sub)
-
-	if el0 != nil && el1 != nil && elOut != nil {
-		if el0.Degree() < el1.Degree() {
-			for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
-				eval.ringQ.Neg(ctOut.Value[i], ctOut.Value[i])
-			}
-		}
-	}
 }

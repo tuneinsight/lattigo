@@ -27,6 +27,7 @@ func Test_MKBFV(t *testing.T) {
 		testSub(t, p)
 		testSubPlaintext(t, p)
 		testNeg(t, p)
+		testNegTwoParticipants(t, p)
 		testSubPlaintextTwoParticipants(t, p)
 		testMulPlaintext(t, p)
 		testMulPlaintextTwoParticipants(t, p)
@@ -406,6 +407,58 @@ func testNeg(t *testing.T, params *bfv.Parameters) {
 
 		// should be 0
 		expected := ringT.NewPoly()
+
+		if !equalsSlice(decrypted, expected.Coeffs[0]) {
+			t.Error("Homomorphic negation error")
+		}
+
+	})
+}
+
+func testNegTwoParticipants(t *testing.T, params *bfv.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	ringT := getRingT(params)
+
+	t.Run(testString("Test Negation/", 2, params), func(t *testing.T) {
+
+		value1 := getRandomPlaintextValue(ringT, params)
+		value2 := getRandomPlaintextValue(ringT, params)
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(value1)
+		cipher2 := participants[1].Encrypt(value2)
+
+		// add with negated ciphertext
+		evaluator := NewMKEvaluator(params)
+
+		ciphers := evaluator.ConvertToMKCiphertext([]*bfv.Ciphertext{cipher1, cipher2}, []uint64{1, 2})
+
+		added := evaluator.Add(ciphers[0], ciphers[1])
+
+		resCipher := evaluator.Neg(added)
+
+		resBFV := evaluator.ConvertToBFVCiphertext(resCipher)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resBFV[0])
+		partialDec2 := participants[1].GetPartialDecryption(resBFV[1])
+
+		decrypted := participants[0].Decrypt(resBFV[0], []*ring.Poly{partialDec1, partialDec2})
+
+		// perform plaintext operation
+		expected := ringT.NewPoly()
+		p1 := ringT.NewPoly()
+		p2 := ringT.NewPoly()
+		copy(p1.Coeffs[0], value1)
+		copy(p2.Coeffs[0], value2)
+
+		ringT.Add(p1, p2, expected)
+		ringT.Neg(expected, expected)
+		ringT.Reduce(expected, expected)
 
 		if !equalsSlice(decrypted, expected.Coeffs[0]) {
 			t.Error("Homomorphic negation error")
@@ -1088,6 +1141,7 @@ func equalsSlice(s1, s2 []uint64) bool {
 
 	for i, e := range s1 {
 		if e != s2[i] {
+
 			return false
 		}
 	}

@@ -17,7 +17,7 @@ type MKCiphertext struct {
 func NewMKCiphertext(peerIDs []uint64, r *ring.Ring, params *ckks.Parameters, level uint64, scale float64) *MKCiphertext {
 
 	res := new(MKCiphertext)
-	res.Ciphertexts = ckks.NewCiphertext(*params, uint64(len(peerIDs)+1), level, scale)
+	res.Ciphertexts = ckks.NewCiphertext(*params, uint64(len(peerIDs)), level, scale)
 	res.PeerID = peerIDs
 
 	return res

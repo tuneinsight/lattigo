@@ -38,6 +38,7 @@ func Test_MKCKKS(t *testing.T) {
 			testSub(t, p)
 			testSubPlaintext(t, p)
 			testNeg(t, p)
+			testNegTwoParticipants(t, p)
 			testSubPlaintextTwoParticipants(t, p)
 			testMulPlaintext(t, p)
 			testMulPlaintextTwoParticipants(t, p)
@@ -308,7 +309,7 @@ func testSubPlaintext(t *testing.T, params *ckks.Parameters) {
 		ciphers := evaluator.ConvertToMKCiphertext([]*ckks.Ciphertext{cipher}, []uint64{1})
 
 		pt := evaluator.NewPlaintextFromValue(value2)
-		resCipher := evaluator.SubPlaintext(pt, ciphers[0])
+		resCipher := evaluator.SubPlaintext(ciphers[0], pt)
 
 		resCKKS := evaluator.ConvertToCKKSCiphertext(resCipher)
 
@@ -350,7 +351,7 @@ func testSubPlaintextTwoParticipants(t *testing.T, params *ckks.Parameters) {
 		ciphers := evaluator.ConvertToMKCiphertext([]*ckks.Ciphertext{cipher1, cipher2}, []uint64{1, 2})
 
 		pt := evaluator.NewPlaintextFromValue(value3)
-		resCipher1 := evaluator.SubPlaintext(pt, ciphers[0])
+		resCipher1 := evaluator.SubPlaintext(ciphers[0], pt)
 
 		resCipher := evaluator.Sub(resCipher1, ciphers[1])
 
@@ -402,6 +403,47 @@ func testNeg(t *testing.T, params *ckks.Parameters) {
 		// perform the operation in the plaintext space
 		for i := 0; i < len(value1); i++ {
 			value1[i] -= value1[i]
+		}
+
+		// check results
+		verifyTestVectors(params, value1, decrypted, t)
+
+	})
+}
+
+func testNegTwoParticipants(t *testing.T, params *ckks.Parameters) {
+
+	sigma := 6.0
+
+	participants := setupPeers(2, params, sigma)
+
+	t.Run(testString("Test Negation/", 2, params), func(t *testing.T) {
+
+		value1 := newTestValue(params, complex(-1, -1), complex(1, 1))
+		value2 := newTestValue(params, complex(-1, -1), complex(1, 1))
+
+		// encrypt
+		cipher1 := participants[0].Encrypt(value1)
+		cipher2 := participants[1].Encrypt(value2)
+
+		// add with negated ciphertext
+		evaluator := NewMKEvaluator(params)
+		ciphers := evaluator.ConvertToMKCiphertext([]*ckks.Ciphertext{cipher1, cipher2}, []uint64{1, 2})
+		added := evaluator.Add(ciphers[1], ciphers[0])
+
+		resCipher := evaluator.Neg(added)
+
+		resCKKS := evaluator.ConvertToCKKSCiphertext(resCipher)
+
+		// decrypt
+		partialDec1 := participants[0].GetPartialDecryption(resCKKS[0])
+		partialDec2 := participants[1].GetPartialDecryption(resCKKS[1])
+
+		decrypted := participants[0].Decrypt(resCKKS[0], []*ring.Poly{partialDec1, partialDec2})
+
+		// perform the operation in the plaintext space
+		for i := 0; i < len(value1); i++ {
+			value1[i] = -value1[i] - value2[i]
 		}
 
 		// check results

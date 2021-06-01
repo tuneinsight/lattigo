@@ -1,93 +1,98 @@
 ## Description of the MKCKKS package
 This package contains an implementation of the "special modulus" variant of the CKKS-based MKHE scheme proposed by Chen & al. in their 2019 paper: "Efficient Multi-Key Homomorphic Encryptionwith Packed Ciphertexts with Applicationto Oblivious Neural Network Inference".
 
+In this scheme, each participant run the key generation. Then they all encrypt their data using their private key and send the encrypted data and public material (public keys and evaluation keys) to an evaluator. The evaluator computes a circuit homomorphically and sends the result to the participants. The participants then have to collectively compute the decryption.
 
+### Setup
+In the multi-key setting, each participant generates its own pair of public and private key. Ciphertexts encrypted with the public key can then be used to homomorphically compute circuits. 
+For multiplications, the evaluation key and the public key must be provided to the evaluator and for the rotation, the rotation key must be provided.
 
-### Participant
-
-The Participant interface encapsulate all the local computation like Encryption, decryption and keys generation (including evaluation keys).
-A standard error greater than 3.2 must be provided to create a new Participant. This will be used to compute the partial decryption of a ciphertext.
-
-#### Use example
-
-```go
-	// get random value
-	value := newTestValue(params, complex(-1, -1), complex(1, 1))
-
-	// security parameter for partial decryption
-	sigmaSmudging := 6.0 
-
-	// create CRS and participant
-	a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
-	p := NewParticipant(params, sigmaSmudging, a)
-
-	// encrypt
-	cipher := p.Encrypt(value)
-
-	//-----------Perform some homomorphic operations-------------
-	evaluator := NewNewMKEvaluator(params) ....
-
-	// decrypt
-	partialDec := p.GetPartialDecryption(cipher)
-	decrypted := p.Decrypt(cipher, []*ring.Poly{partialDec})
-```
-
-It is possible to switch from the classic CKKS setting to a multi key setting by creating a participant from an already existing secret key.
-It is also possible to use a ckks.Ciphertext and wrap it in a MKCiphertext.
+#### Setup Example
 
 ```go
-	// standard CKKS ciphertext
-	ciphertext1 = encryptorPK.EncryptFastNew(plaintext)
+	keys1 := mkrlwe.KeyGen(&params.Parameters, crs)
+	encryptor1 := mkckks.NewMKEncryptor(keys1.PublicKey, &params)
+	encoder1 := ckks.NewEncoder(params)
+	decryptor1 := mkrlwe.NewMKDecryptor(&params.Parameters, 0.6)
 
-	// setup keys and public parameters
-	a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
-	part1 := NewParticipantFromSecretKey(params, 6.0, a, sk)
-	part2 := NewParticipant(params, 6.0, a)
+	value1 := newTestValue(&params, complex(-1, -1), complex(1, 1))
+	plaintext1 := encoder1.EncodeNTTAtLvlNew(params.MaxLevel(), value1, params.LogSlots())
 
-	// perform addition with a mkckks ciphertext
-	values2 := newTestValue(params, complex(-1, -1), complex(1, 1))
-	ciphertext2 := part2.Encrypt(values2)
-	evaluator := NewMKEvaluator(params)
-	res := evaluator.Add(ciphertext2, &MKCiphertext{Ciphertexts: ciphertext1, PeerID: []uint64{part1.GetID()}})
+	cipher1 := encryptor1.Encrypt(plaintext1)
+	evk1 := keys1.EvalKey
+	pk1 := keys1.PublicKey
+
+
 ```
+
+### Ciphertexts
+
+The ciphertexts are the same as the one in the ckks package except in the evaluator. The evaluator uses ```MKCiphertexts```, ciphertexts containing data from multiple participants while the ciphertexts that comes out of the encryptor are classical ```ckks.Ciphertext```.
+
+This makes it possible to compute something using the ```dckks``` or ```ckks```package and then switch to the multi-key setting.
 
 ### Evaluator
 
-The evaluator is similar to the one in the ckks package. 
+The evaluator is similar to the one in the ckks in its usage. The only difference is that it converts the ```ckks.Ciphertext``` in ```mkckks.MKCiphertexts``` using a conversion function. Then it must decide on an indexing method for each participant (this can be done using IP addresses, public keys, certificates etc...). At the end of the evaluation phase, the ciphertexts must be converted back to ```ckks.Ciphertext``` and then sent to the participants for the collective decryption procedure.
 
-#### Use example
+#### Evaluation example
 
 ```go
-	// Create Evaluator
-	evaluator := NewMKEvaluator(params)
+	// create an evaluator
+	evaluator := mkckks.NewMKEvaluator(&params)
 
-	// Gather public keys and evaluation keys from all participants involved
-	evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey(), participants[2].GetEvaluationKey(), participants[3].GetEvaluationKey()}
-	publicKeys := []*mkrlwe.MKPublicKey{participants[0].GetPublicKey(), participants[1].GetPublicKey(), participants[2].GetPublicKey(), participants[3].GetPublicKey()}
+	// decide on an indexing method for the participants and their public material and ciphertexts
+	ids := []uint64{1, 2}
+	evk1.PeerID = 1
+	evk2.PeerID = 2
+	pk1.PeerID = 1
+	pk2.PeerID = 2
+	evalKeys := []*mkrlwe.MKEvaluationKey{evk1, evk2}
+	pubKeys := []*mkrlwe.MKPublicKey{pk1, pk2}
 
-	// Multiply
-	resCipher1 := evaluator.Mul(cipher1, cipher2)
-	resCipher2 := evaluator.Mul(cipher3, cipher4)
+	// convert the ckks ciphertexts into multi key ciphertexts
+	ciphers := evaluator.ConvertToMKCiphertext([]*ckks.Ciphertext{cipher1, cipher2}, ids)
 
-	// Relinearize
-	evaluator.RelinInPlace(resCipher1, evalKeys[:2], publicKeys[:2])
-	evaluator.RelinInPlace(resCipher2, evalKeys[2:], publicKeys[2:])
+	// evaluate circuit
+	res1 := evaluator.Sub(ciphers[0], ciphers[1])
+	res2 := evaluator.Add(ciphers[0], ciphers[1])
+	res := evaluator.Mul(res1, res2)
+	evaluator.RelinInPlace(res, evalKeys, pubKeys)
 
-	// Drop the level and rescale to reduce the noise
-	evaluator.DropLevel(resCipher1, 1)
-	evaluator.Rescale(resCipher1, resCipher1)
-	evaluator.DropLevel(resCipher2, 1)
-	evaluator.Rescale(resCipher2, resCipher2)
-
-	// Add the ciphhertexts resulting from the multiplication
-	resCipher := evaluator.Add(resCipher1, resCipher2)
-
+	// convert the multi key result into ckks ciphertexts for all participants
+	resCKKS := evaluator.ConvertToCKKSCiphertext(res)
 ```
 
-## Tests and Benchmarks
+### Decryption
+
+The decryption has two phases. First, all participants compute a share of the decryption using the ```MKDecryptor.PartDec``` function.
+Then they send it to all other participants and merge all the shares using the ```MKDecryptor.MergeDec``` function to recover the final result.
+
+#### Decryption example
+
+```go
+	part1 := decryptor1.PartDec(&ckksCipher1.El().Element, ckksCipher1.Level(), keys1.SecretKey)
+	part2 := decryptor2.PartDec(&ckksCipher2.El().Element, ckksCipher2.Level(), keys2.SecretKey)
+
+	// Final decryption using the partial shares
+	decrypted := decryptor1.MergeDec(&ckksCipher1.El().Element, ckksCipher1.Level(), []*ring.Poly{part1, part2})
+
+	// decode
+	pt := ckks.NewPlaintext(params, ckksCipher1.Level(), ckksCipher1.Scale())
+	pt.SetValue(decrypted)
+
+	finalValues := encoder1.Decode(pt, params.LogSlots())
+```
+
+
+### Tests and Benchmarks
 
 To run the tests simply type ```go test -v``` and to run the benchmarks type ```go test -bench MKCKKS -run=^$ -benchmem -timeout 99999s```
 
-## References
+### Performances
+
+Relinearization and multiplications are quadratic in the number of participants in both time and memory.
+
+### References
 
 1. Efficient Multi-Key Homomorphic Encryption with Packed Ciphertext with Application to Oblivious Neural Network Inference (<https://eprint.iacr.org/2019/524>)

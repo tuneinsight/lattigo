@@ -34,11 +34,14 @@ func Benchmark_MKBFV(b *testing.B) {
 		benchRotate(b, p)
 		benchMemoryConsumption(b, p)
 
-		for i := uint64(1); i < 15; i++ {
-			benchDecryptionIncreasingParticipants(i, b, p)
-			benchRotIncreasingParticipants(i, b, p)
+		for i := uint64(1); i < 11; i++ {
 			benchAddIncreasingParticipants(i, b, p)
 			benchMultIncreasingParticipants(i, b, p)
+		}
+
+		for i := uint64(1); i < 21; i++ {
+			benchDecryptionIncreasingParticipants(i, b, p)
+			benchRotIncreasingParticipants(i, b, p)
 		}
 
 	}

@@ -43,11 +43,14 @@ func BenchmarkMKCKKS(b *testing.B) {
 		benchMemoryConsumption(b, p)
 
 		if i != 4 {
-			for i := uint64(1); i < 15; i++ {
-				benchDecryptionIncreasingParticipants(i, b, p)
-				benchRotIncreasingParticipants(i, b, p)
+			for i := uint64(1); i < 11; i++ {
 				benchAddIncreasingParticipants(i, b, p)
 				benchMultIncreasingParticipants(i, b, p)
+			}
+
+			for i := uint64(1); i < 21; i++ {
+				benchDecryptionIncreasingParticipants(i, b, p)
+				benchRotIncreasingParticipants(i, b, p)
 			}
 		}
 	}

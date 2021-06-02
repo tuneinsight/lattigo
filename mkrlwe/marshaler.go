@@ -1,11 +1,6 @@
 package mkrlwe
 
-import (
-	"encoding/binary"
-
-	"github.com/ldsec/lattigo/v2/ring"
-)
-
+/*
 // MarshalBinary encodes a Galois evaluation key in a byte slice.
 func (pubKey *MKPublicKey) MarshalBinary() (data [3][]byte, err error) {
 
@@ -191,3 +186,4 @@ func UnMarshallPeerID(data []byte) []uint64 {
 
 	return res
 }
+*/

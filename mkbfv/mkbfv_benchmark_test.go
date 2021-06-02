@@ -32,7 +32,7 @@ func Benchmark_MKBFV(b *testing.B) {
 		benchMultTwoCiphertexts(b, p)
 		benchRelin(b, p)
 		benchRotate(b, p)
-		benchMemoryConsumption(b, p)
+		//benchMemoryConsumption(b, p)
 
 		for i := uint64(1); i < 11; i++ {
 			benchAddIncreasingParticipants(i, b, p)
@@ -428,6 +428,7 @@ func benchDecryptionIncreasingParticipants(nbrParticipants uint64, b *testing.B,
 
 }
 
+/*
 func benchMemoryConsumption(b *testing.B, params *bfv.Parameters) {
 
 	participants := setupPeers(1, params, 6.0)
@@ -481,3 +482,4 @@ func benchMemoryConsumption(b *testing.B, params *bfv.Parameters) {
 	})
 
 }
+*/

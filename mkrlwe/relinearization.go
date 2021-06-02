@@ -26,48 +26,41 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 
 		res[i] = ringQ.NewPoly()
 	}
-	d0Q := NewDecomposedPoly(ringQ, params.Beta())
-	d1Q := NewDecomposedPoly(ringQ, params.Beta())
-	d2Q := NewDecomposedPoly(ringQ, params.Beta())
-	d0P := NewDecomposedPoly(ringP, params.Beta())
-	d1P := NewDecomposedPoly(ringP, params.Beta())
-	d2P := NewDecomposedPoly(ringP, params.Beta())
+	d0QP := rlwe.NewSwitchingKey(*params)
+	d1QP := rlwe.NewSwitchingKey(*params)
+	d2QP := rlwe.NewSwitchingKey(*params)
 
 	pkQ := NewDecomposedPoly(ringQ, params.Beta())
 	pkP := NewDecomposedPoly(ringP, params.Beta())
 
 	for i := uint64(1); i <= k; i++ {
 
-		prepareEvalKey(i, level, uint64(len(ringQ.Modulus)), params.Beta(), evaluationKeys, ringQ, ringP, d0Q, d1Q, d2Q, d0P, d1P, d2P)
+		prepareEvalKeyKeySwitch(i, level, uint64(len(ringQ.Modulus)), params.Beta(), evaluationKeys, ringQ, ringP, d0QP, d1QP, d2QP)
 
 		for j := uint64(1); j <= k; j++ {
 
 			if (*ct)[i*(k+1)+j] != nil {
 
 				preparePublicKey(j, level, uint64(len(ringQ.Modulus)), params.Beta(), publicKeys, ringQ, ringP, pkQ, pkP)
-				decomposedIJQ, decomposedIJP := GInverse((*ct)[i*(k+1)+j], params, level) // line 3
+				decomposedIJQP := GInverseKeySwitch((*ct)[i*(k+1)+j], params, level) // line 3
 
-				cIJtmpQ := DotLvl(level, decomposedIJQ, pkQ, ringQ)
-				cIJtmpP := Dot(decomposedIJP, pkP, ringP)
+				cIJtmpQ, cIJtmpP := DotQP(level, pkQ, pkP, decomposedIJQP, ringQ, ringP)
 
 				cIJPrime := ringQ.NewPoly()
 
 				baseconverter.ModDownSplitNTTPQ(level, cIJtmpQ, cIJtmpP, cIJPrime)  // line 4
 				decomposedTmpQ, decomposedTmpP := GInverse(cIJPrime, params, level) // inverse and matrix mult (line 5)
 
-				tmpC0Q := DotLvl(level, decomposedTmpQ, d0Q, ringQ)
-				tmpC0P := Dot(decomposedTmpP, d0P, ringP)
-
-				tmpCiQ := DotLvl(level, decomposedTmpQ, d1Q, ringQ)
-				tmpCiP := Dot(decomposedTmpP, d1P, ringP)
+				tmpC0Q, tmpC0P := DotQP(level, decomposedTmpQ, decomposedTmpP, d0QP, ringQ, ringP)
+				tmpCiQ, tmpCiP := DotQP(level, decomposedTmpQ, decomposedTmpP, d1QP, ringQ, ringP)
 
 				ringQ.AddLvl(level, restmpQ[0], tmpC0Q, restmpQ[0])
 				ringQ.AddLvl(level, restmpQ[i], tmpCiQ, restmpQ[i])
 
 				ringP.Add(restmpP[0], tmpC0P, restmpP[0])
 				ringP.Add(restmpP[i], tmpCiP, restmpP[i])
-				tmpIJQ := DotLvl(level, decomposedIJQ, d2Q, ringQ) // line 6 of algorithm
-				tmpIJP := Dot(decomposedIJP, d2P, ringP)
+
+				tmpIJQ, tmpIJP := DotSwk(level, d2QP, decomposedIJQP, ringQ, ringP, params.Beta()) // line 6 of algorithm
 				ringQ.AddLvl(level, restmpQ[j], tmpIJQ, restmpQ[j])
 				ringP.Add(restmpP[j], tmpIJP, restmpP[j])
 			}
@@ -99,19 +92,39 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 // prepare evaluation key for operations in split crt basis
 func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluationKey, ringQ, ringP *ring.Ring, d0Q, d1Q, d2Q, d0P, d1P, d2P *MKDecomposedPoly) {
 
-	di0 := evaluationKeys[i-1].Key[0]
-	di1 := evaluationKeys[i-1].Key[1]
-	di2 := evaluationKeys[i-1].Key[2]
+	di01 := evaluationKeys[i-1].Key01
+	di2 := evaluationKeys[i-1].Key2
 
 	for u := uint64(0); u < beta; u++ {
 
-		d0Q.Poly[u].Coeffs = di0.Poly[u].Coeffs[:level+1]
-		d1Q.Poly[u].Coeffs = di1.Poly[u].Coeffs[:level+1]
+		d0Q.Poly[u].Coeffs = di01.Value[u][0].Coeffs[:level+1]
+		d1Q.Poly[u].Coeffs = di01.Value[u][1].Coeffs[:level+1]
 		d2Q.Poly[u].Coeffs = di2.Poly[u].Coeffs[:level+1]
 
-		d0P.Poly[u].Coeffs = di0.Poly[u].Coeffs[modulus:]
-		d1P.Poly[u].Coeffs = di1.Poly[u].Coeffs[modulus:]
+		d0P.Poly[u].Coeffs = di01.Value[u][0].Coeffs[modulus:]
+		d1P.Poly[u].Coeffs = di01.Value[u][1].Coeffs[modulus:]
 		d2P.Poly[u].Coeffs = di2.Poly[u].Coeffs[modulus:]
+
+	}
+
+}
+
+// prepare evaluation key for operations in split crt basis as three switching keys
+func prepareEvalKeyKeySwitch(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluationKey, ringQ, ringP *ring.Ring, d0QP, d1QP, d2QP *rlwe.SwitchingKey) {
+
+	di01 := evaluationKeys[i-1].Key01
+	di2 := evaluationKeys[i-1].Key2
+
+	for u := uint64(0); u < beta; u++ {
+
+		d0QP.Value[u][0].Coeffs = di01.Value[u][0].Coeffs[:level+1]
+		d0QP.Value[u][1].Coeffs = di01.Value[u][0].Coeffs[modulus:]
+
+		d1QP.Value[u][0].Coeffs = di01.Value[u][1].Coeffs[:level+1]
+		d1QP.Value[u][1].Coeffs = di01.Value[u][1].Coeffs[modulus:]
+
+		d2QP.Value[u][0].Coeffs = di2.Poly[u].Coeffs[:level+1]
+		d2QP.Value[u][1].Coeffs = di2.Poly[u].Coeffs[modulus:]
 
 	}
 
@@ -160,6 +173,45 @@ func GInverse(p *ring.Poly, params *rlwe.Parameters, level uint64) (*MKDecompose
 	resP.Poly = polynomialsP
 
 	return resQ, resP
+}
+
+// GInverseKeySwitch is a method that returns the decomposition of a polynomial from R_qp to R_qp^beta as a switching key
+// polynomials are returned in MForm
+func GInverseKeySwitch(p *ring.Poly, params *rlwe.Parameters, level uint64) *rlwe.SwitchingKey {
+
+	beta := params.Beta()
+	ringQ := GetRingQ(params)
+	ringP := GetRingP(params)
+
+	//resQ := new(MKDecomposedPoly)
+	//resP := new(MKDecomposedPoly)
+	swk := new(rlwe.SwitchingKey)
+	swk.Value = make([][2]*ring.Poly, int(beta))
+	res := new(rlwe.SwitchingKey)
+
+	polynomialsQ := make([]*ring.Poly, beta)
+	polynomialsP := make([]*ring.Poly, beta)
+	invPoly := ringQ.NewPoly()
+
+	ringQ.InvNTTLvl(level, p, invPoly)
+
+	// generate each poly decomposed in the base
+	for i := uint64(0); i < beta; i++ {
+
+		swk.Value[i][0] = ringQ.NewPoly()
+		swk.Value[i][1] = ringP.NewPoly()
+
+		polynomialsQ[i] = ringQ.NewPoly()
+		polynomialsP[i] = ringP.NewPoly()
+		decomposeAndSplitNTT(level, i, p, invPoly, swk.Value[i][0], swk.Value[i][1], params, ringQ, ringP)
+		//pass polynomials in MForm
+		ringQ.MFormLvl(level, swk.Value[i][0], swk.Value[i][0])
+		ringP.MForm(swk.Value[i][1], swk.Value[i][1])
+
+	}
+	res.Value = swk.Value
+
+	return res
 }
 
 // decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.

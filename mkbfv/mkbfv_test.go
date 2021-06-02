@@ -31,7 +31,7 @@ func Test_MKBFV(t *testing.T) {
 		testSubPlaintextTwoParticipants(t, p)
 		testMulPlaintext(t, p)
 		testMulPlaintextTwoParticipants(t, p)
-		testBfvMkbfvBridge(t, p)
+		//testBfvMkbfvBridge(t, p)
 
 		if i != 0 && i != 4 && i != 6 {
 			testMulFourParticipants(t, p)
@@ -44,7 +44,7 @@ func Test_MKBFV(t *testing.T) {
 
 		testRotation(t, p)
 		testRotationTwoParticipants(t, p)
-		testMarshaler(t, p)
+		//testMarshaler(t, p)
 		testSquare(t, p)
 	}
 }
@@ -1001,6 +1001,7 @@ func testRotationTwoParticipants(t *testing.T, params *bfv.Parameters) {
 
 }
 
+/*
 func testBfvMkbfvBridge(t *testing.T, params *bfv.Parameters) {
 
 	ringT := getRingT(params)
@@ -1115,6 +1116,7 @@ func testMarshaler(t *testing.T, params *bfv.Parameters) {
 	})
 
 }
+*/
 
 func Test_Utils(t *testing.T) {
 

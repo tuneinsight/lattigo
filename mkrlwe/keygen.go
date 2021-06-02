@@ -67,7 +67,6 @@ func KeyGen(params *rlwe.Parameters, a *MKDecomposedPoly) *MKKeys {
 	// generate private and public mkrlwe keys
 	keyBag.SecretKey = new(MKSecretKey)
 	keyBag.SecretKey.Key = GenSecretKey(ringQP)
-
 	//Public key = (b, a)
 	keyBag.PublicKey = new(MKPublicKey)
 	keyBag.PublicKey.Key[0] = genPublicKey(keyBag.SecretKey.Key, params, ringQP, a)
@@ -75,7 +74,6 @@ func KeyGen(params *rlwe.Parameters, a *MKDecomposedPoly) *MKKeys {
 
 	// generate evaluation key. The evaluation key is used in the relinearization phase.
 	keyBag.EvalKey = evaluationKeyGen(keyBag.SecretKey, keyBag.PublicKey, params, ringQP)
-
 	return keyBag
 }
 
@@ -152,7 +150,7 @@ func genPublicKey(sk *rlwe.SecretKey, params *rlwe.Parameters, ringQP *ring.Ring
 
 // Symmetric encryption of a single ring element (mu) under the secret key (sk).
 // the output is not in MForm
-func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parameters, ringQP *ring.Ring) [3]*MKDecomposedPoly {
+func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parameters, ringQP *ring.Ring) (*rlwe.SwitchingKey, *MKDecomposedPoly) {
 
 	random := GenSecretKey(ringQP) // random element as same distribution as the secret key
 	randomValue := random.Value
@@ -164,7 +162,6 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parame
 
 	uniformSampler := GetUniformSampler(params, ringQP, prng)
 	gaussianSampler := GetGaussianSampler(params, ringQP, prng)
-
 	// a  <- setup(1^\lambda)
 	// e1 <- sample(\psi^d)
 	// e2 <- sample(\psi^d)
@@ -176,10 +173,10 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parame
 	// Size of decomposition (d)
 	beta := params.Beta()
 
-	d1 := GetUniformDecomposed(uniformSampler, beta)
-	d0 := GetGaussianDecomposed(gaussianSampler, beta) // e1 <- Gauss(Rqp^d)
-	d2 := GetGaussianDecomposed(gaussianSampler, beta) //e2 <- Gauss(Rqp^d)
-
+	//d1 := GetUniformDecomposed(uniformSampler, beta)
+	//d02 := GetGaussian2D(gaussianSampler, beta)
+	d01 := GetUniformAndGaussian(gaussianSampler, uniformSampler, beta, params)
+	d2 := GetGaussianDecomposed(gaussianSampler, beta)
 	a := pk.Key[1] // a <- U(Rqp^d) second component of the public key
 
 	// multiply by P
@@ -200,25 +197,25 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parame
 
 	for i := uint64(0); i < beta; i++ {
 		// Gaussian is not in NTT, so we convert it to NTT
-		ringQP.NTTLazy(d0.Poly[i], d0.Poly[i]) // pass e1_i in NTT
-		ringQP.NTTLazy(d2.Poly[i], d2.Poly[i]) // pass e2_i in NTT
+		ringQP.NTTLazy(d01.Value[i][0], d01.Value[i][0]) // pass e1_i in NTT
+		ringQP.NTTLazy(d2.Poly[i], d2.Poly[i])           // pass e2_i in NTT
 
-		ringQP.MForm(d0.Poly[i], d0.Poly[i]) // pass e1_i in MForm
-		ringQP.MForm(d2.Poly[i], d2.Poly[i]) // pass e2_i in MForm
+		ringQP.MForm(d01.Value[i][0], d01.Value[i][0]) // pass e1_i in MForm
+		ringQP.MForm(d2.Poly[i], d2.Poly[i])           // pass e2_i in MForm
 
 		// the g_is mod q_i are either 0 or 1, so just need to compute sums
-		MultiplyByBaseAndAdd(scaledRandomValue, params, d0.Poly[i], i)
+		MultiplyByBaseAndAdd(scaledRandomValue, params, d01.Value[i][0], i)
 		MultiplyByBaseAndAdd(scaledMu, params, d2.Poly[i], i)
 
-		ringQP.InvMForm(d0.Poly[i], d0.Poly[i])
+		ringQP.InvMForm(d01.Value[i][0], d01.Value[i][0])
 		ringQP.InvMForm(d2.Poly[i], d2.Poly[i])
 
-		ringQP.MulCoeffsMontgomeryAndSub(sk.Key.Value, d1.Poly[i], d0.Poly[i])
+		ringQP.MulCoeffsMontgomeryAndSub(sk.Key.Value, d01.Value[i][1], d01.Value[i][0])
 		ringQP.MulCoeffsMontgomeryAndAdd(randomValue, a.Poly[i], d2.Poly[i])
 
 	}
 
-	return [3]*MKDecomposedPoly{d0, d1, d2}
+	return d01, d2
 }
 
 // MultiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2
@@ -251,9 +248,10 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *rlwe.Parameters, p2 *ring.Poly,
 
 // Function used to generate the evaluation key. The evaluation key is the encryption of the secret key under itself using uniEnc
 func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parameters, ringQ *ring.Ring) *MKEvaluationKey {
-
+	k01, k2 := uniEnc(sk.Key.Value, sk, pk, params, ringQ)
 	return &MKEvaluationKey{
-		Key:    uniEnc(sk.Key.Value, sk, pk, params, ringQ),
+		Key01:  k01,
+		Key2:   k2,
 		PeerID: sk.PeerID,
 	}
 }
@@ -280,8 +278,7 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Paramete
 		}
 	}
 
-	h1 := GetUniformDecomposed(GetUniformSampler(params, ringQP, prng), params.Beta())
-	h0 := GetGaussianDecomposed(GetGaussianSampler(params, ringQP, prng), params.Beta())
+	h := GetUniformAndGaussian(GetGaussianSampler(params, ringQP, prng), GetUniformSampler(params, ringQP, prng), params.Beta(), params)
 
 	permutedSecretKey := ringQP.NewPoly()
 	index := ring.PermuteNTTIndex(galEl, ringQP.N)
@@ -291,17 +288,40 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Paramete
 	ringQP.MulScalarBigint(permutedSecretKey, pBigInt, permutedSecretKey)
 
 	for i := uint64(0); i < params.Beta(); i++ {
-		ringQP.NTTLazy(h0.Poly[i], h0.Poly[i])
-		ringQP.MForm(h0.Poly[i], h0.Poly[i])
-		MultiplyByBaseAndAdd(permutedSecretKey, params, h0.Poly[i], i)
+		ringQP.NTTLazy(h.Value[i][0], h.Value[i][0])
+		ringQP.MForm(h.Value[i][0], h.Value[i][0])
+		MultiplyByBaseAndAdd(permutedSecretKey, params, h.Value[i][0], i)
 
-		ringQP.InvMForm(h0.Poly[i], h0.Poly[i])
+		ringQP.InvMForm(h.Value[i][0], h.Value[i][0])
 
-		ringQP.MulCoeffsMontgomeryAndSub(sk.Key.Value, h1.Poly[i], h0.Poly[i])
+		ringQP.MulCoeffsMontgomeryAndSub(sk.Key.Value, h.Value[i][1], h.Value[i][0])
 
 	}
 
-	res.Key = [2]*MKDecomposedPoly{h0, h1}
+	res.Key = h
+	return res
+}
+
+// GetGaussian2D samples from a gaussian distribution and builds d elements of Rq^2
+func GetGaussian2D(sampler *ring.GaussianSampler, dimension uint64) *rlwe.SwitchingKey {
+	res := new(rlwe.SwitchingKey)
+
+	for d := uint64(0); d < dimension; d++ {
+		for i := uint64(0); i < 2; i++ {
+			res.Value[d][i] = sampler.ReadNew()
+		}
+	}
+
+	return res
+}
+
+// GetUniformAndGaussian samples from a uniform and gaussian distribution and builds d elements of Rq^2
+func GetUniformAndGaussian(samplerGaussian *ring.GaussianSampler, samplerUniform *ring.UniformSampler, dimension uint64, params *rlwe.Parameters) *rlwe.SwitchingKey {
+	res := rlwe.NewSwitchingKey(*params)
+	for d := uint64(0); d < dimension; d++ {
+		res.Value[d][0] = samplerGaussian.ReadNew()
+		res.Value[d][1] = samplerUniform.ReadNew()
+	}
 
 	return res
 }

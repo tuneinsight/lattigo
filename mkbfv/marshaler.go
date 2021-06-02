@@ -1,10 +1,6 @@
 package mkbfv
 
-import (
-	"github.com/ldsec/lattigo/v2/bfv"
-	"github.com/ldsec/lattigo/v2/mkrlwe"
-)
-
+/*
 // MarshalBinary encodes a MKCiphertext in a byte slice.
 func (ciphertext *MKCiphertext) MarshalBinary() (data [2][]byte) {
 
@@ -29,3 +25,4 @@ func (ciphertext *MKCiphertext) UnmarshalBinary(data [2][]byte) (err error) {
 
 	return nil
 }
+*/

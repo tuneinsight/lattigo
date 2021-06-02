@@ -28,7 +28,6 @@ func Test_MKCKKS(t *testing.T) {
 		p := &params
 
 		if i != 4 && i != 9 && i != 0 {
-
 			testEncryptionEqualsDecryption(t, p)
 			testAdd(t, p)
 			testAddManyTimeSameCipher(t, p)
@@ -42,8 +41,8 @@ func Test_MKCKKS(t *testing.T) {
 			testSubPlaintextTwoParticipants(t, p)
 			testMulPlaintext(t, p)
 			testMulPlaintextTwoParticipants(t, p)
-			testCkksMkbfvBridge(t, p)
-			testMarshaler(t, p)
+			//	testCkksMkbfvBridge(t, p)
+			//	testMarshaler(t, p)
 			testRotation(t, p)
 			testRotationTwoParticipants(t, p)
 			testSquare(t, p)
@@ -63,21 +62,17 @@ func Test_MKCKKS(t *testing.T) {
 func testEncryptionEqualsDecryption(t *testing.T, params *ckks.Parameters) {
 
 	sigma := 6.0
-
 	participants := setupPeers(1, params, sigma)
 
 	t.Run(testString("Test encryption equals decryption/", 1, params), func(t *testing.T) {
 
 		// get random value
 		value := newTestValue(params, complex(-1, -1), complex(1, 1))
-
 		//encrypt
 		cipher := participants[0].Encrypt(value)
-
 		// decrypt
 		partialDec := participants[0].GetPartialDecryption(cipher)
 		decrypted := participants[0].Decrypt(cipher, []*ring.Poly{partialDec})
-
 		// decode and check
 		verifyTestVectors(params, value, decrypted, t)
 	})
@@ -1015,6 +1010,7 @@ func testRotationTwoParticipants(t *testing.T, params *ckks.Parameters) {
 
 }
 
+/*
 func testCkksMkbfvBridge(t *testing.T, params *ckks.Parameters) {
 
 	encoder := ckks.NewEncoder(*params)
@@ -1046,7 +1042,7 @@ func testCkksMkbfvBridge(t *testing.T, params *ckks.Parameters) {
 
 		// setup keys and public parameters
 		a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
-		part2 := newParticipant(params, 6.0, a)
+		part2 := newParticipant(params, a)
 
 		// keygen
 		keysPart2 := mkrlwe.KeyGenWithSecretKey(&params.Parameters, mkrlwe.CopyNewDecomposed(a), sk)
@@ -1064,8 +1060,8 @@ func testCkksMkbfvBridge(t *testing.T, params *ckks.Parameters) {
 		resCKKS := evaluator.ConvertToCKKSCiphertext(res)
 
 		// decrypt
-		decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, 0.6)
-		partDec1 := decryptor.PartDec(&resCKKS[0].El().Element, resCKKS[0].Level(), keysPart2.SecretKey)
+		decryptor := mkrlwe.NewMKDecryptor(&params.Parameters)
+		partDec1 := decryptor.PartDec(&resCKKS[0].El().Element, resCKKS[0].Level(), keysPart2.SecretKey, 0.6)
 
 		partDec2 := part2.GetPartialDecryption(resCKKS[1])
 
@@ -1121,6 +1117,7 @@ func testMarshaler(t *testing.T, params *ckks.Parameters) {
 	})
 
 }
+*/
 
 func Test_Utils(t *testing.T) {
 
@@ -1145,18 +1142,14 @@ func setupPeers(peerNbr uint64, params *ckks.Parameters, sigmaSmudging float64) 
 	res := make([]participant, peerNbr)
 
 	prng, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
-
 	if err != nil {
 		panic(err)
 	}
 
 	a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
-
 	for i := 0; i < int(peerNbr); i++ {
-
 		res[i] = newParticipant(params, sigmaSmudging, a)
 	}
-
 	return res
 }
 
@@ -1408,7 +1401,6 @@ func newParticipant(params *ckks.Parameters, sigmaSmudging float64, crs *mkrlwe.
 	}
 
 	keys := mkrlwe.KeyGen(&params.Parameters, mkrlwe.CopyNewDecomposed(crs))
-
 	encryptor := NewMKEncryptor(keys.PublicKey, params)
 	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, sigmaSmudging)
 	encoder := ckks.NewEncoder(*params)

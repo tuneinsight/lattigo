@@ -415,29 +415,24 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGal
 		ringQ.NTT(v, v)
 	}
 
-	gal0Q := mkrlwe.NewDecomposedPoly(eval.ringQ, eval.params.Beta())
-	gal0P := mkrlwe.NewDecomposedPoly(eval.ringP, eval.params.Beta())
-	gal1Q := mkrlwe.NewDecomposedPoly(eval.ringQ, eval.params.Beta())
-	gal1P := mkrlwe.NewDecomposedPoly(eval.ringP, eval.params.Beta())
+	gal0QP := rlwe.NewSwitchingKey(eval.params.Parameters)
+	gal1QP := rlwe.NewSwitchingKey(eval.params.Parameters)
 
 	for i := uint64(1); i <= k; i++ {
 
-		prepareGaloisEvaluationKey(i, level, eval.params.Beta(), keys, gal0Q, gal0P, gal1Q, gal1P)
+		prepareGaloisEvaluationKey(i, level, eval.params.Beta(), keys, gal0QP, gal1QP)
 
 		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
 		index := ring.PermuteNTTIndex(galEl, ringQP.N)
 		ring.PermuteNTTWithIndexLvl(level, c.Ciphertexts.Value[i], index, permutedCipher)
 
-		decomposedPermutedQ, decomposedPermutedP := mkrlwe.GInverse(permutedCipher, &eval.params.Parameters, uint64(len(eval.ringQ.Modulus)-1))
-
-		res0P := mkrlwe.Dot(decomposedPermutedP, gal0P, eval.ringP) // dot product and add in c0''
-		res0Q := mkrlwe.DotLvl(level, decomposedPermutedQ, gal0Q, eval.ringQ)
+		decomposedPermutedQP := mkrlwe.GInverseKeySwitch(permutedCipher, &eval.params.Parameters, uint64(len(eval.ringQ.Modulus)-1))
+		res0Q, res0P := mkrlwe.DotSwk(level, decomposedPermutedQP, gal0QP, eval.ringQ, eval.ringP, eval.params.Beta())
 
 		eval.ringP.Add(restmpP[0], res0P, restmpP[0])
 		eval.ringQ.AddLvl(level, restmpQ[0], res0Q, restmpQ[0])
 
-		restmpP[i] = mkrlwe.Dot(decomposedPermutedP, gal1P, eval.ringP) // dot product and put in ci''
-		restmpQ[i] = mkrlwe.DotLvl(level, decomposedPermutedQ, gal1Q, eval.ringQ)
+		restmpQ[i], restmpP[i] = mkrlwe.DotSwk(level, decomposedPermutedQP, gal1QP, eval.ringQ, eval.ringP, eval.params.Beta())
 	}
 
 	// finalize computation of c0'
@@ -469,17 +464,13 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGal
 }
 
 // prepare galois evaluation keys for operations in split crt basis
-func prepareGaloisEvaluationKey(j, level, beta uint64, galKeys []*mkrlwe.MKEvalGalKey, gal0Q, gal0P, gal1Q, gal1P *mkrlwe.MKDecomposedPoly) {
+func prepareGaloisEvaluationKey(j, level, beta uint64, galKeys []*mkrlwe.MKEvalGalKey, gal0QP, gal1QP *rlwe.SwitchingKey) {
 
 	for u := uint64(0); u < beta; u++ {
-
-		gal0Q.Poly[u].Coeffs = galKeys[j-1].Key[0].Poly[u].Coeffs[:level+1]
-
-		gal0P.Poly[u].Coeffs = galKeys[j-1].Key[0].Poly[u].Coeffs[level+1:]
-
-		gal1Q.Poly[u].Coeffs = galKeys[j-1].Key[1].Poly[u].Coeffs[:level+1]
-
-		gal1P.Poly[u].Coeffs = galKeys[j-1].Key[1].Poly[u].Coeffs[level+1:]
+		gal0QP.Value[u][0].Coeffs = galKeys[j-1].Key.Value[u][0].Coeffs[:level+1]
+		gal0QP.Value[u][1].Coeffs = galKeys[j-1].Key.Value[u][0].Coeffs[level+1:]
+		gal1QP.Value[u][0].Coeffs = galKeys[j-1].Key.Value[u][1].Coeffs[:level+1]
+		gal1QP.Value[u][1].Coeffs = galKeys[j-1].Key.Value[u][1].Coeffs[level+1:]
 
 	}
 }

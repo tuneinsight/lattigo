@@ -39,8 +39,8 @@ func BenchmarkMKCKKS(b *testing.B) {
 		benchPartialDecrypt(b, p)
 		benchMultTwoCiphertexts(b, p)
 		benchRelin(b, p)
-		benchRotate(b, p)
-		benchMemoryConsumption(b, p)
+		//benchRotate(b, p)
+		//benchMemoryConsumption(b, p)
 
 		if i != 4 {
 			for i := uint64(1); i < 11; i++ {
@@ -414,6 +414,7 @@ func benchDecryptionIncreasingParticipants(nbrParticipants uint64, b *testing.B,
 
 }
 
+/*
 func benchMemoryConsumption(b *testing.B, params *ckks.Parameters) {
 
 	participants := setupPeers(1, params, 6.0)
@@ -433,38 +434,41 @@ func benchMemoryConsumption(b *testing.B, params *ckks.Parameters) {
 		b.Logf("Size of public key: %d bytes", len(data[0])+len(data[1])+len(data[2]))
 	})
 
-	b.Run("Measure Memory Evaluation Key", func(b *testing.B) {
 
-		data, err := evalKey.MarshalBinary()
+		b.Run("Measure Memory Evaluation Key", func(b *testing.B) {
 
-		if err != nil {
-			b.Error("Couldn't marshal evaluation key")
-		}
+			data, err := evalKey.MarshalBinary()
 
-		b.Logf("Size of evaluation key: %d bytes", len(data[0])+len(data[1])+len(data[2])+len(data[3]))
-	})
+			if err != nil {
+				b.Error("Couldn't marshal evaluation key")
+			}
 
-	b.Run("Measure Memory Galois Evaluation Key", func(b *testing.B) {
+			b.Logf("Size of evaluation key: %d bytes", len(data[0])+len(data[1])+len(data[2])+len(data[3]))
+		})
 
-		data, err := evalGalKey.MarshalBinary()
+		b.Run("Measure Memory Galois Evaluation Key", func(b *testing.B) {
 
-		if err != nil {
-			b.Error("Couldn't marshal galois evaluation key")
-		}
+			data, err := evalGalKey.MarshalBinary()
 
-		b.Logf("Size of galois evaluation key: %d bytes", len(data[0])+len(data[1])+len(data[2]))
-	})
+			if err != nil {
+				b.Error("Couldn't marshal galois evaluation key")
+			}
 
-	b.Run("Measure Memory Ciphertext", func(b *testing.B) {
+			b.Logf("Size of galois evaluation key: %d bytes", len(data[0])+len(data[1])+len(data[2]))
+		})
 
-		value := newTestValue(params, complex(-1, -1), complex(1, 1))
 
-		cipher := participants[0].Encrypt(value)
-		mkCipher := &MKCiphertext{Ciphertexts: cipher, PeerID: []uint64{1}}
+		b.Run("Measure Memory Ciphertext", func(b *testing.B) {
 
-		data := mkCipher.MarshalBinary()
+			value := newTestValue(params, complex(-1, -1), complex(1, 1))
 
-		b.Logf("Size of ciphertext: %d bytes", len(data[0])+len(data[1]))
-	})
+			cipher := participants[0].Encrypt(value)
+			mkCipher := &MKCiphertext{Ciphertexts: cipher, PeerID: []uint64{1}}
+
+			data := mkCipher.MarshalBinary()
+
+			b.Logf("Size of ciphertext: %d bytes", len(data[0])+len(data[1]))
+		})
 
 }
+*/

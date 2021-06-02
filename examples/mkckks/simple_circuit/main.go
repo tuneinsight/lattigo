@@ -83,8 +83,8 @@ func main() {
 	ckksCipher1 := resCKKS[0]
 	ckksCipher2 := resCKKS[1]
 
-	part1 := decryptor1.PartDec(&ckksCipher1.El().Element, ckksCipher1.Level(), keys1.SecretKey)
-	part2 := decryptor2.PartDec(&ckksCipher2.El().Element, ckksCipher2.Level(), keys2.SecretKey)
+	part1 := decryptor1.PartDec(&ckksCipher1.El().Element, ckksCipher1.Level(), keys1.SecretKey, 0.6)
+	part2 := decryptor2.PartDec(&ckksCipher2.El().Element, ckksCipher2.Level(), keys2.SecretKey, 0.6)
 
 	// Final decryption using the partial shares
 	decrypted := decryptor1.MergeDec(&ckksCipher1.El().Element, ckksCipher1.Level(), []*ring.Poly{part1, part2})

@@ -24,13 +24,14 @@ type MKDecomposedPoly struct {
 
 // MKEvaluationKey is a type for evaluation keys in a multi key context.
 type MKEvaluationKey struct {
-	Key    [3]*MKDecomposedPoly
+	Key01  *rlwe.SwitchingKey
+	Key2   *MKDecomposedPoly
 	PeerID uint64
 }
 
 // MKEvalGalKey is a type for rotation keys in a multi key context.
 type MKEvalGalKey struct {
-	Key    [2]*MKDecomposedPoly
+	Key    *rlwe.SwitchingKey
 	PeerID uint64
 }
 
@@ -45,7 +46,8 @@ type MKKeys struct {
 func NewMKEvaluationKey(r *ring.Ring, id uint64, params *rlwe.Parameters) *MKEvaluationKey {
 
 	key := new(MKEvaluationKey)
-	key.Key = [3]*MKDecomposedPoly{NewDecomposedPoly(r, params.Beta()), NewDecomposedPoly(r, params.Beta()), NewDecomposedPoly(r, params.Beta())}
+	key.Key01 = rlwe.NewSwitchingKey(*params)      //D0 and D1 in Chen et Al's notation
+	key.Key2 = NewDecomposedPoly(r, params.Beta()) // D2 in Chen et Al's notation
 	key.PeerID = id
 
 	return key
@@ -75,4 +77,21 @@ func CopyNewDecomposed(p *MKDecomposedPoly) *MKDecomposedPoly {
 	}
 
 	return res
+}
+
+// FromDecomposedToSwitchingKey converts two decomposed Poly into an rlwe switching key
+func FromDecomposedToSwitchingKey(p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, params *rlwe.Parameters) *rlwe.SwitchingKey {
+
+	decompSize := params.Beta()
+
+	if len(p1.Poly) != int(decompSize) {
+		panic("Decomposed Poly should have same size as decomposition basis size")
+	}
+	swk := new(rlwe.SwitchingKey)
+	swk.Value = make([][2]*ring.Poly, int(decompSize))
+	for i := uint64(0); i < decompSize; i++ {
+		swk.Value[i][0] = p1.Poly[i]
+		swk.Value[i][1] = p2.Poly[i]
+	}
+	return swk
 }

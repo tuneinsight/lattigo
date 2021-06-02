@@ -81,6 +81,15 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 			}
 		}
 	}
+
+	if len(values) < len(coeffs[0]) {
+		for i := range moduli {
+			tmp := coeffs[i]
+			for j := len(values); j < len(coeffs[0]); j++ {
+				tmp[j] = 0
+			}
+		}
+	}
 }
 
 func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64, coeffs [][]uint64) {

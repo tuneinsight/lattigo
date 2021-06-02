@@ -273,7 +273,7 @@ func benchInnerSum(testContext *testParams, b *testing.B) {
 		}
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSum(batch, n), false, testContext.sk)
-		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		b.ResetTimer()
 
@@ -289,7 +289,7 @@ func benchInnerSum(testContext *testParams, b *testing.B) {
 		}
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSumLog(batch, n), false, testContext.sk)
-		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		b.ResetTimer()
 

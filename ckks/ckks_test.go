@@ -1082,7 +1082,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		n := 35
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSum(batch, n), false, testContext.sk)
-		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1109,7 +1109,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		n := 15
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSumLog(batch, n), false, testContext.sk)
-		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1143,7 +1143,7 @@ func testReplicate(testContext *testParams, t *testing.T) {
 		n := 35
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicate(batch, n), false, testContext.sk)
-		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1170,7 +1170,7 @@ func testReplicate(testContext *testParams, t *testing.T) {
 		n := 15
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicateLog(batch, n), false, testContext.sk)
-		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1231,7 +1231,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
 
-		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		res := eval.LinearTransform(ciphertext1, ptDiagMatrix)[0]
 
@@ -1272,7 +1272,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
 
-		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		res := eval.LinearTransform(ciphertext1, ptDiagMatrix)[0]
 

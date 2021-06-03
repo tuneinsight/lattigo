@@ -54,7 +54,7 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, p *Plaintext) {
 
 	ringQ.NTTLazy(ciphertext.value[ciphertext.Degree()], p.value)
 
-	for i := uint64(ciphertext.Degree()); i > 0; i-- {
+	for i := ciphertext.Degree(); i > 0; i-- {
 		ringQ.MulCoeffsMontgomery(p.value, decryptor.sk.Value, p.value)
 		ringQ.NTTLazy(ciphertext.value[i-1], tmp)
 		ringQ.Add(p.value, tmp, p.value)

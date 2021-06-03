@@ -10,8 +10,8 @@ import (
 type Operand interface {
 	El() *Element
 	IsNTT() bool
-	Degree() uint64
-	Level() uint64
+	Degree() int
+	Level() int
 	Scale() float64
 }
 
@@ -38,13 +38,13 @@ func (el *Element) SetValue(value []*ring.Poly) {
 }
 
 // Degree returns the degree of the target element.
-func (el *Element) Degree() uint64 {
-	return uint64(len(el.value) - 1)
+func (el *Element) Degree() int {
+	return len(el.value) - 1
 }
 
 // Level returns the level of the target element.
-func (el *Element) Level() uint64 {
-	return uint64(len(el.value[0].Coeffs) - 1)
+func (el *Element) Level() int {
+	return len(el.value[0].Coeffs) - 1
 }
 
 // Scale returns the scale of the target element.
@@ -68,14 +68,14 @@ func (el *Element) DivScale(scale float64) {
 }
 
 // Resize resizes the degree of the target element.
-func (el *Element) Resize(params *Parameters, degree uint64) {
+func (el *Element) Resize(params *Parameters, degree int) {
 	if el.Degree() > degree {
 		el.value = el.value[:degree+1]
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
 			el.value = append(el.value, []*ring.Poly{new(ring.Poly)}...)
 			el.value[el.Degree()].Coeffs = make([][]uint64, el.Level()+1)
-			for i := uint64(0); i < el.Level()+1; i++ {
+			for i := 0; i < el.Level()+1; i++ {
 				el.value[el.Degree()].Coeffs[i] = make([]uint64, params.N())
 			}
 		}

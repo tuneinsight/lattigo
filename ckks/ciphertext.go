@@ -11,12 +11,12 @@ type Ciphertext struct {
 }
 
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
-func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float64) (ciphertext *Ciphertext) {
+func NewCiphertext(params *Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
 
 	ciphertext = &Ciphertext{&Element{}}
 
 	ciphertext.value = make([]*ring.Poly, degree+1)
-	for i := uint64(0); i < degree+1; i++ {
+	for i := 0; i < degree+1; i++ {
 		ciphertext.value[i] = ring.NewPoly(params.N(), level+1)
 	}
 
@@ -27,7 +27,7 @@ func NewCiphertext(params *Parameters, degree uint64, level uint64, scale float6
 }
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
-func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level uint64, scale float64) (ciphertext *Ciphertext) {
+func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
 
 	ringQ, err := ring.NewRing(params.N(), params.qi[:level+1])
 	if err != nil {
@@ -36,7 +36,7 @@ func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level uint
 
 	sampler := ring.NewUniformSampler(prng, ringQ)
 	ciphertext = NewCiphertext(params, degree, level, scale)
-	for i := uint64(0); i < degree+1; i++ {
+	for i := 0; i < degree+1; i++ {
 		sampler.Read(ciphertext.value[i])
 	}
 

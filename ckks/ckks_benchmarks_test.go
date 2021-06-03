@@ -30,6 +30,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		benchEncrypt(testContext, b)
 		benchDecrypt(testContext, b)
 		benchEvaluator(testContext, b)
+		benchInnerSum(testContext, b)
 		benchHoistedRotations(testContext, b)
 	}
 }
@@ -42,7 +43,7 @@ func benchEncoder(testContext *testParams, b *testing.B) {
 	b.Run(testString(testContext, "Encoder/Encode/"), func(b *testing.B) {
 
 		values := make([]complex128, 1<<logSlots)
-		for i := uint64(0); i < 1<<logSlots; i++ {
+		for i := 0; i < 1<<logSlots; i++ {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
@@ -56,7 +57,7 @@ func benchEncoder(testContext *testParams, b *testing.B) {
 	b.Run(testString(testContext, "Encoder/Decode/"), func(b *testing.B) {
 
 		values := make([]complex128, 1<<logSlots)
-		for i := uint64(0); i < 1<<logSlots; i++ {
+		for i := 0; i < 1<<logSlots; i++ {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
@@ -174,19 +175,19 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "Evaluator/MulPlain/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MulRelin(ciphertext1, plaintext, receiver)
+			eval.Mul(ciphertext1, plaintext, ciphertext1)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Mul/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MulRelin(ciphertext1, ciphertext2, receiver)
+			eval.Mul(ciphertext1, ciphertext2, receiver)
 		}
 	})
 
 	b.Run(testString(testContext, "Evaluator/Square/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MulRelin(ciphertext1, ciphertext1, receiver)
+			eval.Mul(ciphertext1, ciphertext1, receiver)
 		}
 	})
 
@@ -196,15 +197,12 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 			b.Skip("#Pi is empty")
 		}
 
-		ringQ := testContext.ringQ
+		ciphertext1.SetScale(testContext.params.Scale() * testContext.params.Scale())
 
 		for i := 0; i < b.N; i++ {
-			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[0])
-			ringQ.DivRoundByLastModulusNTT(ciphertext1.Value()[1])
-
-			b.StopTimer()
-			ciphertext1 = NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
-			b.StartTimer()
+			if err := eval.Rescale(ciphertext1, testContext.params.Scale(), ciphertext2); err != nil {
+				panic(err)
+			}
 		}
 	})
 
@@ -243,17 +241,6 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/Conjugate/"), func(b *testing.B) {
-
-		if testContext.params.PiCount() == 0 {
-			b.Skip("#Pi is empty")
-		}
-
-		for i := 0; i < b.N; i++ {
-			eval.Conjugate(ciphertext1, ciphertext1)
-		}
-	})
-
 	b.Run(testString(testContext, "Evaluator/Rotate/"), func(b *testing.B) {
 
 		if testContext.params.PiCount() == 0 {
@@ -264,6 +251,47 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 			eval.Rotate(ciphertext1, 1, ciphertext1)
 		}
 	})
+}
+
+func benchInnerSum(testContext *testParams, b *testing.B) {
+
+	ciphertext1 := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
+
+	batch := 1
+	n := 4
+
+	b.Run(testString(testContext, "InnerSum/"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSum(batch, n), false, testContext.sk)
+		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			eval.InnerSum(ciphertext1, batch, n, ciphertext1)
+		}
+	})
+
+	b.Run(testString(testContext, "InnerSumLog/"), func(b *testing.B) {
+
+		if testContext.params.PiCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSumLog(batch, n), false, testContext.sk)
+		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			eval.InnerSumLog(ciphertext1, batch, n, ciphertext1)
+		}
+	})
+
 }
 
 func benchHoistedRotations(testContext *testParams, b *testing.B) {
@@ -289,14 +317,14 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 		c2QiQDecomp := make([]*ring.Poly, testContext.params.Beta())
 		c2QiPDecomp := make([]*ring.Poly, testContext.params.Beta())
 
-		for i := uint64(0); i < testContext.params.Beta(); i++ {
+		for i := 0; i < testContext.params.Beta(); i++ {
 			c2QiQDecomp[i] = ringQ.NewPoly()
 			c2QiPDecomp[i] = ringP.NewPoly()
 		}
 
 		b.Run(testString(testContext, "/DecomposeNTT/"), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				for j := uint64(0); j < testContext.params.Beta(); j++ {
+				for j := 0; j < testContext.params.Beta(); j++ {
 					evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
 				}
 			}
@@ -304,7 +332,7 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 
 		b.Run(testString(testContext, "RotateHoisted/"), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				evaluator.permuteNTTHoisted(ciphertext, c2QiQDecomp, c2QiPDecomp, 5, ciphertext)
+				evaluator.permuteNTTHoisted(ciphertext.Level(), ciphertext.value[0], ciphertext.value[1], c2QiQDecomp, c2QiPDecomp, 5, ciphertext.value[0], ciphertext.value[1])
 			}
 		})
 	})

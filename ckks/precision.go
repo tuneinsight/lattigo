@@ -16,6 +16,8 @@ type PrecisionStats struct {
 	MeanPrecision   complex128
 	MedianDelta     complex128
 	MedianPrecision complex128
+	STDFreq         float64
+	STDTime         float64
 
 	RealDist, ImagDist []struct {
 		Prec  float64
@@ -26,25 +28,27 @@ type PrecisionStats struct {
 }
 
 func (prec PrecisionStats) String() string {
-	return fmt.Sprintf("\nMinimum precision : (%.2f, %.2f) bits \n", real(prec.MinPrecision), imag(prec.MinPrecision)) +
-		fmt.Sprintf("Maximum precision : (%.2f, %.2f) bits \n", real(prec.MaxPrecision), imag(prec.MaxPrecision)) +
-		fmt.Sprintf("Mean    precision : (%.2f, %.2f) bits \n", real(prec.MeanPrecision), imag(prec.MeanPrecision)) +
-		fmt.Sprintf("Median  precision : (%.2f, %.2f) bits \n", real(prec.MedianPrecision), imag(prec.MedianPrecision))
+	return fmt.Sprintf("\nMIN Prec : (%.2f, %.2f) Log2 \n", real(prec.MinPrecision), imag(prec.MinPrecision)) +
+		fmt.Sprintf("MAX Prec : (%.2f, %.2f) Log2 \n", real(prec.MaxPrecision), imag(prec.MaxPrecision)) +
+		fmt.Sprintf("AVG Prec : (%.2f, %.2f) Log2 \n", real(prec.MeanPrecision), imag(prec.MeanPrecision)) +
+		fmt.Sprintf("MED Prec : (%.2f, %.2f) Log2 \n", real(prec.MedianPrecision), imag(prec.MedianPrecision)) +
+		fmt.Sprintf("Err stdF : %5.2f Log2 \n", math.Log2(prec.STDFreq)) +
+		fmt.Sprintf("Err stdT : %5.2f Log2 \n", math.Log2(prec.STDTime))
+
 }
 
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
-func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}) (prec PrecisionStats) {
+func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}, logSlots int, sigma float64) (prec PrecisionStats) {
 
 	var valuesTest []complex128
 
-	logSlots := params.LogSlots()
 	slots := uint64(1 << logSlots)
 
 	switch element := element.(type) {
 	case *Ciphertext:
-		valuesTest = encoder.Decode(decryptor.DecryptNew(element), logSlots)
+		valuesTest = encoder.DecodePublic(decryptor.DecryptNew(element), logSlots, sigma)
 	case *Plaintext:
-		valuesTest = encoder.Decode(element, logSlots)
+		valuesTest = encoder.DecodePublic(element, logSlots, sigma)
 	case []complex128:
 		valuesTest = element
 	}
@@ -112,6 +116,8 @@ func GetPrecisionStats(params *Parameters, encoder Encoder, decryptor Decryptor,
 	prec.MeanPrecision = deltaToPrecision(prec.MeanDelta)
 	prec.MedianDelta = calcmedian(diff)
 	prec.MedianPrecision = deltaToPrecision(prec.MedianDelta)
+	prec.STDFreq = encoder.GetErrSTDSlotDomain(valuesWant[:], valuesTest[:], params.Scale())
+	prec.STDTime = encoder.GetErrSTDCoeffDomain(valuesWant, valuesTest, params.Scale())
 	return prec
 }
 

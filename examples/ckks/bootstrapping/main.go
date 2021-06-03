@@ -27,8 +27,12 @@ func main() {
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.
-	params := ckks.DefaultBootstrapSchemeParams[0]
+
 	btpParams := ckks.DefaultBootstrapParams[0]
+	params, err := btpParams.Params()
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println()
 	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), btpParams.H, params.LogQP(), params.Levels(), math.Log2(params.Scale()), params.Sigma())
@@ -44,8 +48,11 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	btpKey := kgen.GenBootstrappingKey(params.LogSlots(), btpParams, sk)
-	if btp, err = ckks.NewBootstrapper(params, btpParams, *btpKey); err != nil {
+	rotations := kgen.GenRotationIndexesForBootstrapping(params.LogSlots(), btpParams)
+	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
+	rlk := kgen.GenRelinearizationKey(sk)
+	btpKey := ckks.BootstrappingKey{Rlk: rlk, Rtks: rotkeys}
+	if btp, err = ckks.NewBootstrapper(params, btpParams, btpKey); err != nil {
 		panic(err)
 	}
 	fmt.Println("Done")
@@ -92,7 +99,7 @@ func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant
 	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 
-	precStats := ckks.GetPrecisionStats(params, nil, nil, valuesWant, valuesTest)
+	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, params.LogSlots(), 0)
 
 	fmt.Println(precStats.String())
 	fmt.Println()

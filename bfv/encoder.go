@@ -91,13 +91,13 @@ func NewEncoder(params *Parameters) Encoder {
 
 	indexMatrix := make([]uint64, slots)
 
-	logN := params.LogN()
+	logN := uint64(params.LogN())
 
 	rowSize := params.N() >> 1
-	m = (params.N() << 1)
+	m = uint64(params.N()) << 1
 	pos = 1
 
-	for i := uint64(0); i < rowSize; i++ {
+	for i := 0; i < rowSize; i++ {
 
 		index1 = (pos - 1) >> 1
 		index2 = (m - pos - 1) >> 1
@@ -129,7 +129,7 @@ func GenLiftParams(ringQ *ring.Ring, t uint64) (deltaMont []uint64) {
 	deltaMont = make([]uint64, len(ringQ.Modulus))
 
 	tmp := new(big.Int)
-	bredParams := ringQ.GetBredParams()
+	bredParams := ringQ.BredParams
 	for i, Qi := range ringQ.Modulus {
 		deltaMont[i] = tmp.Mod(delta, ring.NewUint(Qi)).Uint64()
 		deltaMont[i] = ring.MForm(deltaMont[i], Qi, bredParams[i])
@@ -241,9 +241,9 @@ func scaleUp(ringQ *ring.Ring, deltaMont []uint64, pIn, pOut *ring.Poly) {
 		in := pIn.Coeffs[0]
 		d := deltaMont[i]
 		qi := ringQ.Modulus[i]
-		mredParams := ringQ.GetMredParams()[i]
+		mredParams := ringQ.MredParams[i]
 
-		for j := uint64(0); j < ringQ.N; j = j + 8 {
+		for j := 0; j < ringQ.N; j = j + 8 {
 
 			x := (*[8]uint64)(unsafe.Pointer(&in[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&out[j]))
@@ -312,7 +312,7 @@ func (encoder *encoder) DecodeUint(p interface{}, coeffs []uint64) {
 
 	encoder.ringT.NTT(ptRt.value, encoder.tmpPoly)
 
-	for i := uint64(0); i < encoder.ringQ.N; i++ {
+	for i := 0; i < encoder.ringQ.N; i++ {
 		coeffs[i] = encoder.tmpPoly.Coeffs[0][encoder.indexMatrix[i]]
 	}
 }
@@ -336,7 +336,7 @@ func (encoder *encoder) DecodeInt(p interface{}, coeffs []int64) {
 	modulus := int64(encoder.params.t)
 	modulusHalf := modulus >> 1
 	var value int64
-	for i := uint64(0); i < encoder.ringQ.N; i++ {
+	for i := 0; i < encoder.ringQ.N; i++ {
 
 		value = int64(encoder.tmpPoly.Coeffs[0][encoder.indexMatrix[i]])
 		coeffs[i] = value

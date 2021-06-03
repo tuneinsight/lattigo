@@ -120,7 +120,7 @@ func testParameters(testctx *testContext, t *testing.T) {
 	t.Run("Parameters/InverseGaloisElement/", func(t *testing.T) {
 		for i := 1; i < int(testctx.params.N()/2); i++ {
 			galEl := testctx.params.GaloisElementForColumnRotationBy(i)
-			mod := 2 * testctx.params.N()
+			mod := uint64(2 * testctx.params.N())
 			inv := testctx.params.InverseGaloisElement(galEl)
 			res := (inv * galEl) % mod
 			assert.Equal(t, uint64(1), res)
@@ -645,11 +645,10 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
 		receiver := NewCiphertext(testctx.params, 1)
-		for _, k := range rots {
+		for _, n := range rots {
 
-			evaluator.RotateColumns(ciphertext, k, receiver)
-			nColumns := testctx.params.N() >> 1
-			valuesWant := append(utils.RotateUint64Slice(values.Coeffs[0][:nColumns], k), utils.RotateUint64Slice(values.Coeffs[0][nColumns:], k)...)
+			evaluator.RotateColumns(ciphertext, n, receiver)
+			valuesWant := utils.RotateUint64Slots(values.Coeffs[0], n)
 
 			verifyTestVectors(testctx, testctx.decryptor, &ring.Poly{Coeffs: [][]uint64{valuesWant}}, receiver, t)
 		}
@@ -659,11 +658,10 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
 
-		for _, k := range rots {
+		for _, n := range rots {
 
-			receiver := evaluator.RotateColumnsNew(ciphertext, k)
-			nColumns := testctx.params.N() >> 1
-			valuesWant := append(utils.RotateUint64Slice(values.Coeffs[0][:nColumns], k), utils.RotateUint64Slice(values.Coeffs[0][nColumns:], k)...)
+			receiver := evaluator.RotateColumnsNew(ciphertext, n)
+			valuesWant := utils.RotateUint64Slots(values.Coeffs[0], n)
 
 			verifyTestVectors(testctx, testctx.decryptor, &ring.Poly{Coeffs: [][]uint64{valuesWant}}, receiver, t)
 		}

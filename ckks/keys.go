@@ -48,7 +48,7 @@ func NewRelinearizationKey(params *Parameters) *RelinearizationKey {
 	return &RelinearizationKey{*rlwe.NewRelinKey(2, params.N(), params.QPiCount(), params.Beta())}
 }
 
-// NewRotationKeySet return an allocated set of CKKS public rotation keys with zero values for each galois element
+// NewRotationKeySet returns an allocated set of CKKS public rotation keys with zero values for each galois element
 // (i.e., for each supported rotation).
 func NewRotationKeySet(params *Parameters, galoisElements []uint64) *RotationKeySet {
 	return &RotationKeySet{*rlwe.NewRotationKeySet(galoisElements, params.N(), params.QPiCount(), params.Beta())}

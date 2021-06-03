@@ -1,8 +1,6 @@
 package dbfv
 
 import (
-	"math/bits"
-
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -18,6 +16,7 @@ type PermuteProtocol struct {
 	baseconverter   *ring.FastBasisExtender
 	scaler          ring.Scaler
 	gaussianSampler *ring.GaussianSampler
+	sigma           float64
 	uniformSampler  *ring.UniformSampler
 }
 
@@ -38,13 +37,13 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 
 	indexMatrix := make([]uint64, params.N())
 
-	logN := uint64(bits.Len64(params.N()) - 1)
+	logN := uint64(params.LogN())
 
 	rowSize := params.N() >> 1
-	m = (params.N() << 1)
+	m = uint64(params.N()) << 1
 	pos = 1
 
-	for i := uint64(0); i < rowSize; i++ {
+	for i := 0; i < rowSize; i++ {
 
 		index1 = (pos - 1) >> 1
 		index2 = (m - pos - 1) >> 1
@@ -64,7 +63,8 @@ func NewPermuteProtocol(params *bfv.Parameters) (refreshProtocol *PermuteProtoco
 		panic(err)
 	}
 
-	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQP, params.Sigma(), uint64(6*params.Sigma()))
+	refreshProtocol.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQ, params.Sigma(), int(6*params.Sigma()))
+	refreshProtocol.sigma = params.Sigma()
 	refreshProtocol.uniformSampler = ring.NewUniformSampler(prng, context.ringT)
 
 	return
@@ -79,7 +79,7 @@ func (pp *PermuteProtocol) AllocateShares() RefreshShare {
 // GenShares generates the shares of the PermuteProtocol
 func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, crs *ring.Poly, permutation []uint64, share RefreshShare) {
 
-	level := uint64(len(ciphertext.Value()[1].Coeffs) - 1)
+	level := len(ciphertext.Value()[1].Coeffs) - 1
 
 	ringQ := pp.context.ringQ
 	ringT := pp.context.ringT
@@ -94,13 +94,13 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	ringQ.MulScalarBigint(share.RefreshShareDecrypt, pp.context.ringP.ModulusBigint, share.RefreshShareDecrypt)
 
 	// h0 = s*ct[1]*P + e
-	pp.gaussianSampler.ReadLvl(uint64(len(ringQP.Modulus)-1), pp.tmp1)
+	pp.gaussianSampler.ReadFromDistLvl(len(ringQP.Modulus)-1, pp.tmp1, ringQP, pp.sigma, int(6*pp.sigma))
 	ringQ.Add(share.RefreshShareDecrypt, pp.tmp1, share.RefreshShareDecrypt)
 
-	for x, i := 0, uint64(len(ringQ.Modulus)); i < uint64(len(pp.context.ringQP.Modulus)); x, i = x+1, i+1 {
+	for x, i := 0, len(ringQ.Modulus); i < len(pp.context.ringQP.Modulus); x, i = x+1, i+1 {
 		tmphP := pp.hP.Coeffs[x]
 		tmp1 := pp.tmp1.Coeffs[i]
-		for j := uint64(0); j < ringQ.N; j++ {
+		for j := 0; j < ringQ.N; j++ {
 			tmphP[j] += tmp1[j]
 		}
 	}
@@ -115,7 +115,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, ciphertext *bfv.Ciphertext, 
 	ringQP.InvNTTLazy(pp.tmp2, pp.tmp2)
 
 	// h1 = s*a + e'
-	pp.gaussianSampler.ReadAndAdd(pp.tmp2)
+	pp.gaussianSampler.ReadAndAddFromDistLvl(len(ringQP.Modulus)-1, pp.tmp2, ringQP, pp.sigma, int(6*pp.sigma))
 
 	// h1 = (-s*a + e')/P
 	pp.baseconverter.ModDownPQ(level, pp.tmp2, share.RefreshShareRecrypt)
@@ -181,7 +181,7 @@ func (pp *PermuteProtocol) Recrypt(sharePlaintext *ring.Poly, crs *ring.Poly, sh
 	pp.context.ringQ.Add(sharePlaintext, shareRecrypt, ciphertextOut.Value()[0])
 
 	// ciphertext[1] = crs/P
-	pp.baseconverter.ModDownPQ(uint64(len(ciphertextOut.Value()[1].Coeffs)-1), crs, ciphertextOut.Value()[1])
+	pp.baseconverter.ModDownPQ(len(ciphertextOut.Value()[1].Coeffs)-1, crs, ciphertextOut.Value()[1])
 
 }
 
@@ -193,7 +193,7 @@ func (pp *PermuteProtocol) Finalize(ciphertext *bfv.Ciphertext, permutation []ui
 }
 
 func (pp *PermuteProtocol) permuteWithIndex(polIn *ring.Poly, index []uint64, polOut *ring.Poly) {
-	for j := uint64(0); j < uint64(len(polIn.Coeffs[0])); j++ {
+	for j := 0; j < len(polIn.Coeffs[0]); j++ {
 		polOut.Coeffs[0][pp.indexMatrix[j]] = polIn.Coeffs[0][pp.indexMatrix[index[j]]]
 	}
 }

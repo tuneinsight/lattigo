@@ -40,11 +40,11 @@ func NewSwitchingKey(params *Parameters) *SwitchingKey {
 }
 
 // NewRelinearizationKey returns an allocated BFV public relinearization key with zero value for each degree in [2 < maxRelinDegree].
-func NewRelinearizationKey(params *Parameters, maxRelinDegree uint64) *RelinearizationKey {
+func NewRelinearizationKey(params *Parameters, maxRelinDegree int) *RelinearizationKey {
 	return &RelinearizationKey{*rlwe.NewRelinKey(maxRelinDegree, params.N(), params.QPiCount(), params.Beta())}
 }
 
-// NewRotationKeySet return an allocated set of BFV public rotation keys with zero values for each galois element
+// NewRotationKeySet returns an allocated set of BFV public rotation keys with zero values for each galois element
 // (i.e., for each supported rotation).
 func NewRotationKeySet(params *Parameters, galoisElements []uint64) *RotationKeySet {
 	return &RotationKeySet{*rlwe.NewRotationKeySet(galoisElements, params.N(), params.QPiCount(), params.Beta())}

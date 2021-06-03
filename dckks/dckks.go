@@ -8,14 +8,14 @@ import (
 type dckksContext struct {
 	params *ckks.Parameters
 
-	n uint64
+	n int
 
 	ringQ  *ring.Ring
 	ringP  *ring.Ring
 	ringQP *ring.Ring
 
-	alpha uint64
-	beta  uint64
+	alpha int
+	beta  int
 }
 
 func newDckksContext(params *ckks.Parameters) (context *dckksContext) {

@@ -12,23 +12,28 @@ type Poly struct {
 }
 
 // NewPoly creates a new polynomial with N coefficients set to zero and nbModuli moduli.
-func NewPoly(N, nbModuli uint64) (pol *Poly) {
+func NewPoly(N, nbModuli int) (pol *Poly) {
 	pol = new(Poly)
 	pol.Coeffs = make([][]uint64, nbModuli)
-	for i := uint64(0); i < nbModuli; i++ {
+	for i := 0; i < nbModuli; i++ {
 		pol.Coeffs[i] = make([]uint64, N)
 	}
 	return
 }
 
-// GetDegree returns the number of coefficients of the polynomial, which equals the degree of the Ring cyclotomic polynomial.
-func (pol *Poly) GetDegree() int {
+// Degree returns the number of coefficients of the polynomial, which equals the degree of the Ring cyclotomic polynomial.
+func (pol *Poly) Degree() int {
 	return len(pol.Coeffs[0])
 }
 
-// GetLenModuli returns the number of moduli.
-func (pol *Poly) GetLenModuli() int {
+// LenModuli returns the current number of moduli.
+func (pol *Poly) LenModuli() int {
 	return len(pol.Coeffs)
+}
+
+// Level returns the current number of moduli minus 1.
+func (pol *Poly) Level() int {
+	return len(pol.Coeffs) - 1
 }
 
 // Zero sets all coefficients of the target polynomial to 0.
@@ -62,7 +67,7 @@ func (r *Ring) Copy(p0, p1 *Poly) {
 	if p0 != p1 {
 		for i := range r.Modulus {
 			p0tmp, p1tmp := p0.Coeffs[i], p1.Coeffs[i]
-			for j := uint64(0); j < r.N; j++ {
+			for j := 0; j < r.N; j++ {
 				p1tmp[j] = p0tmp[j]
 			}
 		}
@@ -71,12 +76,12 @@ func (r *Ring) Copy(p0, p1 *Poly) {
 
 // CopyLvl copies the coefficients of p0 on p1 within the given Ring for the moduli from 0 to level.
 // Requires p1 to be as big as the target Ring.
-func (r *Ring) CopyLvl(level uint64, p0, p1 *Poly) {
+func (r *Ring) CopyLvl(level int, p0, p1 *Poly) {
 
 	if p0 != p1 {
-		for i := uint64(0); i < level+1; i++ {
+		for i := 0; i < level+1; i++ {
 			p0tmp, p1tmp := p0.Coeffs[i], p1.Coeffs[i]
-			for j := uint64(0); j < r.N; j++ {
+			for j := 0; j < r.N; j++ {
 				p1tmp[j] = p0tmp[j]
 			}
 		}
@@ -120,10 +125,10 @@ func (pol *Poly) GetCoefficients() (coeffs [][]uint64) {
 }
 
 // WriteCoeffsTo converts a matrix of coefficients to a byte array.
-func WriteCoeffsTo(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
+func WriteCoeffsTo(pointer, N, numberModuli int, coeffs [][]uint64, data []byte) (int, error) {
 	tmp := N << 3
-	for i := uint64(0); i < numberModuli; i++ {
-		for j := uint64(0); j < N; j++ {
+	for i := 0; i < numberModuli; i++ {
+		for j := 0; j < N; j++ {
 			binary.BigEndian.PutUint64(data[pointer+(j<<3):pointer+((j+1)<<3)], coeffs[i][j])
 		}
 		pointer += tmp
@@ -134,12 +139,12 @@ func WriteCoeffsTo(pointer, N, numberModuli uint64, coeffs [][]uint64, data []by
 
 // WriteTo writes the given poly to the data array.
 // It returns the number of written bytes, and the corresponding error, if it occurred.
-func (pol *Poly) WriteTo(data []byte) (uint64, error) {
+func (pol *Poly) WriteTo(data []byte) (int, error) {
 
-	N := uint64(pol.GetDegree())
-	numberModuli := uint64(pol.GetLenModuli())
+	N := pol.Degree()
+	numberModuli := pol.LenModuli()
 
-	if uint64(len(data)) < pol.GetDataLen(true) {
+	if len(data) < pol.GetDataLen(true) {
 		// The data is not big enough to write all the information
 		return 0, errors.New("data array is too small to write ring.Poly")
 	}
@@ -153,12 +158,12 @@ func (pol *Poly) WriteTo(data []byte) (uint64, error) {
 
 // WriteTo32 writes the given poly to the data array.
 // It returns the number of written bytes, and the corresponding error, if it occurred.
-func (pol *Poly) WriteTo32(data []byte) (uint64, error) {
+func (pol *Poly) WriteTo32(data []byte) (int, error) {
 
-	N := uint64(pol.GetDegree())
-	numberModuli := uint64(pol.GetLenModuli())
+	N := pol.Degree()
+	numberModuli := pol.LenModuli()
 
-	if uint64(len(data)) < pol.GetDataLen32(true) {
+	if len(data) < pol.GetDataLen32(true) {
 		//The data is not big enough to write all the information
 		return 0, errors.New("data array is too small to write ring.Poly")
 	}
@@ -171,10 +176,10 @@ func (pol *Poly) WriteTo32(data []byte) (uint64, error) {
 }
 
 // WriteCoeffsTo32 converts a matrix of coefficients to a byte array.
-func WriteCoeffsTo32(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
+func WriteCoeffsTo32(pointer, N, numberModuli int, coeffs [][]uint64, data []byte) (int, error) {
 	tmp := N << 2
-	for i := uint64(0); i < numberModuli; i++ {
-		for j := uint64(0); j < N; j++ {
+	for i := 0; i < numberModuli; i++ {
+		for j := 0; j < N; j++ {
 			binary.BigEndian.PutUint32(data[pointer+(j<<2):pointer+((j+1)<<2)], uint32(coeffs[i][j]))
 		}
 		pointer += tmp
@@ -185,8 +190,8 @@ func WriteCoeffsTo32(pointer, N, numberModuli uint64, coeffs [][]uint64, data []
 
 // GetDataLen32 returns the number of bytes the polynomial will take when written to data.
 // It can take into account meta data if necessary.
-func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt uint64) {
-	cnt = uint64((pol.GetLenModuli() * pol.GetDegree()) << 2)
+func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt int) {
+	cnt = (pol.LenModuli() * pol.Degree()) << 2
 
 	if WithMetadata {
 		cnt += 2
@@ -196,17 +201,15 @@ func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt uint64) {
 
 // WriteCoeffs writes the coefficients to the given data array.
 // It fails if the data array is not big enough to contain the ring.Poly
-func (pol *Poly) WriteCoeffs(data []byte) (uint64, error) {
-
-	cnt, err := WriteCoeffsTo(0, uint64(pol.GetDegree()), uint64(pol.GetLenModuli()), pol.Coeffs, data)
-	return cnt, err
+func (pol *Poly) WriteCoeffs(data []byte) (int, error) {
+	return WriteCoeffsTo(0, pol.Degree(), pol.LenModuli(), pol.Coeffs, data)
 
 }
 
 // GetDataLen returns the number of bytes the polynomial will take when written to data.
 // It can take into account meta data if necessary.
-func (pol *Poly) GetDataLen(WithMetadata bool) (cnt uint64) {
-	cnt = uint64((pol.GetLenModuli() * pol.GetDegree()) << 3)
+func (pol *Poly) GetDataLen(WithMetadata bool) (cnt int) {
+	cnt = (pol.LenModuli() * pol.Degree()) << 3
 
 	if WithMetadata {
 		cnt += 2
@@ -215,10 +218,10 @@ func (pol *Poly) GetDataLen(WithMetadata bool) (cnt uint64) {
 }
 
 // DecodeCoeffs converts a byte array to a matrix of coefficients.
-func DecodeCoeffs(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
+func DecodeCoeffs(pointer, N, numberModuli int, coeffs [][]uint64, data []byte) (int, error) {
 	tmp := N << 3
-	for i := uint64(0); i < numberModuli; i++ {
-		for j := uint64(0); j < N; j++ {
+	for i := 0; i < numberModuli; i++ {
+		for j := 0; j < N; j++ {
 			coeffs[i][j] = binary.BigEndian.Uint64(data[pointer+(j<<3) : pointer+((j+1)<<3)])
 		}
 		pointer += tmp
@@ -228,11 +231,11 @@ func DecodeCoeffs(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byt
 }
 
 // DecodeCoeffsNew converts a byte array to a matrix of coefficients.
-func DecodeCoeffsNew(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
+func DecodeCoeffsNew(pointer, N, numberModuli int, coeffs [][]uint64, data []byte) (int, error) {
 	tmp := N << 3
-	for i := uint64(0); i < numberModuli; i++ {
+	for i := 0; i < numberModuli; i++ {
 		coeffs[i] = make([]uint64, N)
-		for j := uint64(0); j < N; j++ {
+		for j := 0; j < N; j++ {
 			coeffs[i][j] = binary.BigEndian.Uint64(data[pointer+(j<<3) : pointer+((j+1)<<3)])
 		}
 		pointer += tmp
@@ -268,10 +271,10 @@ func (pol *Poly) UnmarshalBinary(data []byte) (err error) {
 
 // DecodePolyNew decodes a slice of bytes in the target polynomial returns the number of bytes
 // decoded.
-func (pol *Poly) DecodePolyNew(data []byte) (pointer uint64, err error) {
+func (pol *Poly) DecodePolyNew(data []byte) (pointer int, err error) {
 
-	N := uint64(1 << data[0])
-	numberModulies := uint64(data[1])
+	N := int(1 << data[0])
+	numberModulies := int(data[1])
 	pointer = 2
 
 	if pol.Coeffs == nil {
@@ -287,10 +290,10 @@ func (pol *Poly) DecodePolyNew(data []byte) (pointer uint64, err error) {
 
 // DecodePolyNew32 decodes a slice of bytes in the target polynomial returns the number of bytes
 // decoded.
-func (pol *Poly) DecodePolyNew32(data []byte) (pointer uint64, err error) {
+func (pol *Poly) DecodePolyNew32(data []byte) (pointer int, err error) {
 
-	N := uint64(1 << data[0])
-	numberModulies := uint64(data[1])
+	N := int(1 << data[0])
+	numberModulies := int(data[1])
 	pointer = 2
 
 	if pol.Coeffs == nil {
@@ -305,11 +308,11 @@ func (pol *Poly) DecodePolyNew32(data []byte) (pointer uint64, err error) {
 }
 
 // DecodeCoeffsNew32 converts a byte array to a matrix of coefficients.
-func DecodeCoeffsNew32(pointer, N, numberModuli uint64, coeffs [][]uint64, data []byte) (uint64, error) {
+func DecodeCoeffsNew32(pointer, N, numberModuli int, coeffs [][]uint64, data []byte) (int, error) {
 	tmp := N << 2
-	for i := uint64(0); i < numberModuli; i++ {
+	for i := 0; i < numberModuli; i++ {
 		coeffs[i] = make([]uint64, N)
-		for j := uint64(0); j < N; j++ {
+		for j := 0; j < N; j++ {
 			coeffs[i][j] = uint64(binary.BigEndian.Uint32(data[pointer+(j<<2) : pointer+((j+1)<<2)]))
 		}
 		pointer += tmp

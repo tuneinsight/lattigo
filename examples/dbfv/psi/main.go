@@ -344,7 +344,7 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	}
 
 	crp := make([]*ring.Poly, params.Beta()) // for the relinearization keys
-	for i := uint64(0); i < params.Beta(); i++ {
+	for i := 0; i < params.Beta(); i++ {
 		crp[i] = crsGen.ReadNew()
 	}
 

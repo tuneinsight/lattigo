@@ -73,7 +73,7 @@ func IsInSliceInt(x int, slice []int) (v bool) {
 	return
 }
 
-// MinUint64 returns the minimum value of the input slice of uint64 values.
+// MinUint64 returns the minimum value of the input of uint64 values.
 func MinUint64(a, b uint64) (r uint64) {
 	if a <= b {
 		return a
@@ -81,7 +81,15 @@ func MinUint64(a, b uint64) (r uint64) {
 	return b
 }
 
-// MaxUint64 returns the maximum value of the input slice of uint64 values.
+// MinInt returns the minimum value of the input of int values.
+func MinInt(a, b int) (r int) {
+	if a <= b {
+		return a
+	}
+	return b
+}
+
+// MaxUint64 returns the maximum value of the input of uint64 values.
 func MaxUint64(a, b uint64) (r uint64) {
 	if a >= b {
 		return a
@@ -89,12 +97,28 @@ func MaxUint64(a, b uint64) (r uint64) {
 	return b
 }
 
-// MaxFloat64 returns the maximum value of the input slice of uint64 values.
+// MaxInt returns the maximum value of the input of int values.
+func MaxInt(a, b int) (r int) {
+	if a >= b {
+		return a
+	}
+	return b
+}
+
+// MaxFloat64 returns the maximum value of the input slice of float64 values.
 func MaxFloat64(a, b float64) (r float64) {
 	if a >= b {
 		return a
 	}
 	return b
+}
+
+// MaxSliceUint64 returns the maximum value of the input slice of uint64 values.
+func MaxSliceUint64(slice []uint64) (max uint64) {
+	for i := range slice {
+		max = MaxUint64(max, slice[i])
+	}
+	return
 }
 
 // BitReverse64 returns the bit-reverse value of the input value, within a context of 2^bitLen.

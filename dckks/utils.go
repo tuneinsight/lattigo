@@ -9,7 +9,7 @@ func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Pol
 	Q = ringQ.Modulus[0]
 	QHalf = Q >> 1
 
-	for j := uint64(0); j < ringQ.N; j++ {
+	for j := 0; j < ringQ.N; j++ {
 
 		coeff = polQ.Coeffs[0][j]
 

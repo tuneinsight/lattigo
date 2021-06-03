@@ -92,7 +92,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
 	crp := make([]*ring.Poly, testCtx.params.Beta())
 
-	for i := uint64(0); i < testCtx.params.Beta(); i++ {
+	for i := 0; i < testCtx.params.Beta(); i++ {
 		crp[i] = crpGenerator.ReadNew()
 	}
 
@@ -227,7 +227,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQP)
 	crp := make([]*ring.Poly, testCtx.params.Beta())
 
-	for i := uint64(0); i < testCtx.params.Beta(); i++ {
+	for i := 0; i < testCtx.params.Beta(); i++ {
 		crp[i] = crpGenerator.ReadNew()
 	}
 	galEl := testCtx.params.GaloisElementForRowRotation()
@@ -262,7 +262,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	sk0Shards := testCtx.sk0Shards
 	ringQ := testCtx.dckksContext.ringQ
 
-	levelStart := uint64(3)
+	levelStart := 3
 
 	type Party struct {
 		*RefreshProtocol
@@ -284,7 +284,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Refresh/Gen/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShares(p.s, levelStart, parties, ciphertext, crp, p.share1, p.share2)
+			p.GenShares(p.s, levelStart, parties, ciphertext, testCtx.params.Scale(), crp, p.share1, p.share2)
 		}
 	})
 
@@ -305,7 +305,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Refresh/Recode/", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.Recode(ciphertext)
+			p.Recode(ciphertext, testCtx.params.Scale())
 		}
 	})
 
@@ -325,7 +325,7 @@ func benchRefreshAndPermute(testCtx *testContext, b *testing.B) {
 
 	sk0Shards := testCtx.sk0Shards
 
-	levelStart := uint64(2)
+	levelStart := 3
 
 	type Party struct {
 		*PermuteProtocol
@@ -350,7 +350,7 @@ func benchRefreshAndPermute(testCtx *testContext, b *testing.B) {
 	permutation := make([]uint64, testCtx.params.Slots())
 
 	for i := range permutation {
-		permutation[i] = ring.RandUniform(testCtx.prng, testCtx.params.Slots(), testCtx.params.Slots()-1)
+		permutation[i] = ring.RandUniform(testCtx.prng, uint64(testCtx.params.Slots()), uint64(testCtx.params.Slots()-1))
 	}
 
 	b.Run(testString("RefreshAndPermute/Gen/", parties, testCtx.params), func(b *testing.B) {

@@ -94,7 +94,7 @@ func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtoco
 	if err != nil {
 		panic(err)
 	}
-	pcks.gaussianSampler = ring.NewGaussianSampler(prng, context.ringQP, sigmaSmudging, uint64(6*sigmaSmudging))
+	pcks.gaussianSampler = ring.NewGaussianSampler(prng, pcks.context.ringQP, sigmaSmudging, int(6*sigmaSmudging))
 	pcks.ternarySamplerMontgomery = ring.NewTernarySampler(prng, context.ringQP, 0.5, true)
 
 	return pcks
@@ -115,31 +115,31 @@ func (pcks *PCKSProtocol) AllocateShares() (s PCKSShare) {
 func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Ciphertext, shareOut PCKSShare) {
 
 	ringQ := pcks.context.ringQ
-	contextKeys := pcks.context.ringQP
+	ringQP := pcks.context.ringQP
 
 	pcks.ternarySamplerMontgomery.Read(pcks.tmp)
-	contextKeys.NTTLazy(pcks.tmp, pcks.tmp)
+	ringQP.NTTLazy(pcks.tmp, pcks.tmp)
 
 	// h_0 = u_i * pk_0
-	contextKeys.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Value[0], pcks.share0tmp)
+	ringQP.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Value[0], pcks.share0tmp)
 	// h_1 = u_i * pk_1
-	contextKeys.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Value[1], pcks.share1tmp)
+	ringQP.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Value[1], pcks.share1tmp)
 
-	contextKeys.InvNTTLazy(pcks.share0tmp, pcks.share0tmp)
-	contextKeys.InvNTTLazy(pcks.share1tmp, pcks.share1tmp)
+	ringQP.InvNTTLazy(pcks.share0tmp, pcks.share0tmp)
+	ringQP.InvNTTLazy(pcks.share1tmp, pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSampler.ReadAndAdd(pcks.share0tmp)
+	pcks.gaussianSampler.ReadAndAddFromDistLvl(len(ringQP.Modulus)-1, pcks.share0tmp, ringQP, pcks.sigmaSmudging, int(6*pcks.sigmaSmudging))
 
 	// h_1 = u_i * pk_1 + e1
-	pcks.gaussianSampler.ReadAndAdd(pcks.share1tmp)
+	pcks.gaussianSampler.ReadAndAddFromDistLvl(len(ringQP.Modulus)-1, pcks.share1tmp, ringQP, pcks.sigmaSmudging, int(6*pcks.sigmaSmudging))
 
 	// h_0 = (u_i * pk_0 + e0)/P
-	pcks.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, pcks.share0tmp, shareOut[0])
+	pcks.baseconverter.ModDownPQ(len(ringQ.Modulus)-1, pcks.share0tmp, shareOut[0])
 
 	// h_0 = (u_i * pk_0 + e0)/P
 	// Could be moved to the keyswitch phase, but the second element of the shares will be larger
-	pcks.baseconverter.ModDownPQ(uint64(len(ringQ.Modulus))-1, pcks.share1tmp, shareOut[1])
+	pcks.baseconverter.ModDownPQ(len(ringQ.Modulus)-1, pcks.share1tmp, shareOut[1])
 
 	// tmp = s_i*c_1
 	ringQ.NTTLazy(ct.Value()[1], pcks.tmp)

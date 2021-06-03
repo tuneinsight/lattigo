@@ -76,7 +76,7 @@ func chebyshevinterpolation() {
 	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation); err != nil {
+	if ciphertext, err = evaluator.EvaluateCheby(ciphertext, chebyapproximation, ciphertext.Scale()); err != nil {
 		panic(err)
 	}
 
@@ -114,7 +114,7 @@ func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
-	precStats := ckks.GetPrecisionStats(params, nil, nil, valuesWant, valuesTest)
+	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, params.LogSlots(), 0)
 
 	fmt.Println(precStats.String())
 

@@ -1,11 +1,31 @@
 package ckks
 
 import (
+	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/big"
-
-	"github.com/ldsec/lattigo/v2/ring"
 )
+
+// StandardDeviation computes the scaled standard deviation of the input vector.
+func StandardDeviation(vec []float64, scale float64) (std float64) {
+	// We assume that the error is centered around zero
+	var err, tmp, mean, n float64
+
+	n = float64(len(vec))
+
+	for _, c := range vec {
+		mean += c
+	}
+
+	mean /= n
+
+	for _, c := range vec {
+		tmp = c - mean
+		err += tmp * tmp
+	}
+
+	return math.Sqrt(err/n) * scale
+}
 
 func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
@@ -94,7 +114,7 @@ func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]ui
 
 func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64, coeffs [][]uint64) {
 
-	prec := uint64(values[0].Prec())
+	prec := int(values[0].Prec())
 
 	xFlo := ring.NewFloat(0, prec)
 	xInt := new(big.Int)
@@ -167,18 +187,18 @@ func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 	for i := 0; i < len(Q); i++ {
 
 		params[i] = tmp.Mod(PBig, ring.NewUint(Q[i])).Uint64()
-		params[i] = ring.ModExp(params[i], Q[i]-2, Q[i])
+		params[i] = ring.ModExp(params[i], int(Q[i]-2), Q[i])
 		params[i] = ring.MForm(params[i], Q[i], ring.BRedParams(Q[i]))
 	}
 
 	return
 }
 
-func sliceBitReverseInPlaceComplex128(slice []complex128, N uint64) {
+func sliceBitReverseInPlaceComplex128(slice []complex128, N int) {
 
-	var bit, j uint64
+	var bit, j int
 
-	for i := uint64(1); i < N; i++ {
+	for i := 1; i < N; i++ {
 
 		bit = N >> 1
 
@@ -195,11 +215,11 @@ func sliceBitReverseInPlaceComplex128(slice []complex128, N uint64) {
 	}
 }
 
-func sliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N uint64) {
+func sliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
 
-	var bit, j uint64
+	var bit, j int
 
-	for i := uint64(1); i < N; i++ {
+	for i := 1; i < N; i++ {
 
 		bit = N >> 1
 

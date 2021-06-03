@@ -10,99 +10,106 @@ import (
 // GaussianSampler keeps the state of a truncated Gaussian polynomial sampler.
 type GaussianSampler struct {
 	baseSampler
+	sigma         float64
+	bound         int
 	randomBufferN []byte
 	ptr           uint64
-	sigma         float64
-	bound         uint64
 }
 
 // NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
 // Gaussian distribution parameters. Sigma is the desired standard deviation and bound is the maximum coefficient norm in absolute
 // value.
-func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, sigma float64, bound uint64) *GaussianSampler {
+func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, sigma float64, bound int) *GaussianSampler {
 	gaussianSampler := new(GaussianSampler)
-	gaussianSampler.baseRing = baseRing
 	gaussianSampler.prng = prng
-	gaussianSampler.randomBufferN = make([]byte, baseRing.N)
+	gaussianSampler.randomBufferN = make([]byte, 1024)
 	gaussianSampler.ptr = 0
+	gaussianSampler.baseRing = baseRing
 	gaussianSampler.sigma = sigma
 	gaussianSampler.bound = bound
 	return gaussianSampler
 }
 
-// Read samples a polynomial at the maximum level into pol
+// Read samples a truncated Gaussian polynomial on "pol" at the maximum level in the default ring, standard deviation and bound.
 func (gaussianSampler *GaussianSampler) Read(pol *Poly) {
-	gaussianSampler.ReadLvl(uint64(len(gaussianSampler.baseRing.Modulus)-1), pol)
+	gaussianSampler.ReadLvl(len(gaussianSampler.baseRing.Modulus)-1, pol)
 }
 
-// ReadNew samples a new truncated Gaussian polynomial with
-// standard deviation sigma within the given bound using the Ziggurat algorithm.
+// ReadLvl samples a truncated Gaussian polynomial at the provided level, in the default ring, standard deviation and bound.
+func (gaussianSampler *GaussianSampler) ReadLvl(level int, pol *Poly) {
+	gaussianSampler.readLvl(level, pol, gaussianSampler.baseRing, gaussianSampler.sigma, gaussianSampler.bound)
+}
+
+// ReadNew samples a new truncated Gaussian polynomial at the maximum level in the default ring, standard deviation and bound.
 func (gaussianSampler *GaussianSampler) ReadNew() (pol *Poly) {
 	pol = gaussianSampler.baseRing.NewPoly()
 	gaussianSampler.Read(pol)
 	return pol
 }
 
-// ReadLvlNew samples a new truncated Gaussian polynomial with
-// standard deviation sigma within the given bound using the Ziggurat algorithm.
-func (gaussianSampler *GaussianSampler) ReadLvlNew(level uint64) (pol *Poly) {
+// ReadLvlNew samples a new truncated Gaussian polynomial at the provided level, in the default ring, standard deviation and bound.
+func (gaussianSampler *GaussianSampler) ReadLvlNew(level int) (pol *Poly) {
 	pol = gaussianSampler.baseRing.NewPolyLvl(level)
 	gaussianSampler.ReadLvl(level, pol)
 	return pol
 }
 
-// ReadLvl samples a polynomial at the given level into pol.
-func (gaussianSampler *GaussianSampler) ReadLvl(level uint64, pol *Poly) {
+// ReadFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound.
+func (gaussianSampler *GaussianSampler) ReadFromDistLvl(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
+	gaussianSampler.readLvl(level, pol, ring, sigma, bound)
+}
 
+// ReadAndAddLvl samples a truncated Gaussian polynomial at the given level for the receiver's default standard deviation and bound and adds it on "pol".
+func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level int, pol *Poly) {
+	gaussianSampler.ReadAndAddFromDistLvl(level, pol, gaussianSampler.baseRing, gaussianSampler.sigma, gaussianSampler.bound)
+}
+
+// ReadAndAddFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound and adds it on "pol".
+func (gaussianSampler *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
 	var coeffFlo float64
-	var coeffInt uint64
-	var sign uint64
+	var coeffInt, sign uint64
 
 	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
 
-	for i := uint64(0); i < gaussianSampler.baseRing.N; i++ {
+	modulus := ring.Modulus[:level+1]
+
+	for i := 0; i < ring.N; i++ {
 
 		for {
 			coeffFlo, sign = gaussianSampler.normFloat64()
 
-			if coeffInt = uint64(coeffFlo * gaussianSampler.sigma); coeffInt <= gaussianSampler.bound {
+			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= uint64(bound) {
 				break
 			}
 		}
 
-		for j, qi := range gaussianSampler.baseRing.Modulus[:level+1] {
-			pol.Coeffs[j][i] = (coeffInt * sign) | (qi-coeffInt)*(sign^1)
+		for j, qi := range modulus {
+			pol.Coeffs[j][i] = CRed(pol.Coeffs[j][i]+((coeffInt*sign)|(qi-coeffInt)*(sign^1)), qi)
 		}
 	}
 }
 
-// ReadAndAdd adds on the input polynomial a truncated Gaussian polynomial of at the maximum level
-// with standard deviation sigma within the given bound using the Ziggurat algorithm.
-func (gaussianSampler *GaussianSampler) ReadAndAdd(pol *Poly) {
-	gaussianSampler.ReadAndAddLvl(uint64(len(gaussianSampler.baseRing.Modulus)-1), pol)
-}
-
-// ReadAndAddLvl samples and adds a polynomial at the given level directly into pol. pol must be at the given level.
-func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level uint64, pol *Poly) {
-
+func (gaussianSampler *GaussianSampler) readLvl(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
 	var coeffFlo float64
 	var coeffInt uint64
 	var sign uint64
 
 	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
 
-	for i := uint64(0); i < gaussianSampler.baseRing.N; i++ {
+	modulus := ring.Modulus[:level+1]
+
+	for i := 0; i < ring.N; i++ {
 
 		for {
 			coeffFlo, sign = gaussianSampler.normFloat64()
 
-			if coeffInt = uint64(coeffFlo * gaussianSampler.sigma); coeffInt <= gaussianSampler.bound {
+			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= uint64(bound) {
 				break
 			}
 		}
 
-		for j, qi := range gaussianSampler.baseRing.Modulus[:level+1] {
-			pol.Coeffs[j][i] = CRed(pol.Coeffs[j][i]+((coeffInt*sign)|(qi-coeffInt)*(sign^1)), qi)
+		for j, qi := range modulus {
+			pol.Coeffs[j][i] = (coeffInt * sign) | (qi-coeffInt)*(sign^1)
 		}
 	}
 }

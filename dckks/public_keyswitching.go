@@ -46,14 +46,14 @@ func NewPCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) *PCKSProtoc
 	if err != nil {
 		panic(err)
 	}
-	pcks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.ringQP, params.Sigma(), uint64(6*params.Sigma()))
+	pcks.gaussianSampler = ring.NewGaussianSampler(prng, dckksContext.ringQ, pcks.dckksContext.params.Sigma(), int(6*pcks.dckksContext.params.Sigma()))
 	pcks.ternarySamplerMontgomery = ring.NewTernarySampler(prng, dckksContext.ringQP, 0.5, true)
 
 	return pcks
 }
 
 // AllocateShares allocates the share of the PCKS protocol.
-func (pcks *PCKSProtocol) AllocateShares(level uint64) (s PCKSShare) {
+func (pcks *PCKSProtocol) AllocateShares(level int) (s PCKSShare) {
 	s[0] = pcks.dckksContext.ringQ.NewPolyLvl(level)
 	s[1] = pcks.dckksContext.ringQ.NewPolyLvl(level)
 	return
@@ -70,6 +70,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 
 	ringQ := pcks.dckksContext.ringQ
 	ringQP := pcks.dckksContext.ringQP
+	sigma := pcks.dckksContext.params.Sigma()
 
 	pcks.ternarySamplerMontgomery.Read(pcks.tmp)
 	ringQP.NTTLazy(pcks.tmp, pcks.tmp)
@@ -80,11 +81,11 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 	ringQP.MulCoeffsMontgomeryConstant(pcks.tmp, pk.Value[1], pcks.share1tmp)
 
 	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSampler.Read(pcks.tmp)
+	pcks.gaussianSampler.ReadFromDistLvl(len(ringQP.Modulus)-1, pcks.tmp, ringQP, sigma, int(sigma))
 	ringQP.NTT(pcks.tmp, pcks.tmp)
 	ringQP.Add(pcks.share0tmp, pcks.tmp, pcks.share0tmp)
 	// h_1 = u_i * pk_1 + e1
-	pcks.gaussianSampler.Read(pcks.tmp)
+	pcks.gaussianSampler.ReadFromDistLvl(len(ringQP.Modulus)-1, pcks.tmp, ringQP, sigma, int(sigma))
 	ringQP.NTT(pcks.tmp, pcks.tmp)
 	ringQP.Add(pcks.share1tmp, pcks.tmp, pcks.share1tmp)
 
@@ -107,7 +108,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
 func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
 
-	level := uint64(len(share1[0].Coeffs)) - 1
+	level := len(share1[0].Coeffs) - 1
 	pcks.dckksContext.ringQ.AddLvl(level, share1[0], share2[0], shareOut[0])
 	pcks.dckksContext.ringQ.AddLvl(level, share1[1], share2[1], shareOut[1])
 }

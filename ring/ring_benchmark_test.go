@@ -82,7 +82,7 @@ func benchSampling(testContext *testParams, b *testing.B) {
 		gaussianSampler := NewGaussianSampler(testContext.prng, testContext.ringQ, DefaultSigma, DefaultBound)
 
 		for i := 0; i < b.N; i++ {
-			gaussianSampler.ReadLvl(uint64(len(testContext.ringQ.Modulus)-1), pol)
+			gaussianSampler.ReadLvl(len(testContext.ringQ.Modulus)-1, pol)
 		}
 	})
 
@@ -279,7 +279,7 @@ func benchExtendBasis(testContext *testParams, b *testing.B) {
 	p0 := testContext.uniformSamplerQ.ReadNew()
 	p1 := testContext.uniformSamplerP.ReadNew()
 
-	level := uint64(len(testContext.ringQ.Modulus) - 1)
+	level := len(testContext.ringQ.Modulus) - 1
 
 	b.Run(fmt.Sprintf("ExtendBasis/ModUp/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -302,53 +302,30 @@ func benchExtendBasis(testContext *testParams, b *testing.B) {
 
 func benchDivByLastModulus(testContext *testParams, b *testing.B) {
 
-	var p0 *Poly
+	p0 := testContext.uniformSamplerQ.ReadNew()
+	p1 := testContext.ringQ.NewPolyLvl(p0.Level() - 1)
 
 	b.Run(testString("DivByLastModulus/Floor/", testContext.ringQ), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			p0 = testContext.uniformSamplerQ.ReadNew()
-			b.StartTimer()
-
-			testContext.ringQ.DivFloorByLastModulus(p0)
+			testContext.ringQ.DivFloorByLastModulus(p0, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/FloorNTT/", testContext.ringQ), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			p0 = testContext.uniformSamplerQ.ReadNew()
-			b.StartTimer()
-
-			testContext.ringQ.DivFloorByLastModulusNTT(p0)
+			testContext.ringQ.DivFloorByLastModulusNTT(p0, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/Round/", testContext.ringQ), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			p0 = testContext.uniformSamplerQ.ReadNew()
-			b.StartTimer()
-
-			testContext.ringQ.DivRoundByLastModulus(p0)
+			testContext.ringQ.DivRoundByLastModulus(p0, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/RoundNTT/", testContext.ringQ), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
-
-			b.StopTimer()
-			p0 = testContext.uniformSamplerQ.ReadNew()
-			b.StartTimer()
-
-			testContext.ringQ.DivRoundByLastModulusNTT(p0)
+			testContext.ringQ.DivRoundByLastModulusNTT(p0, p1)
 		}
 	})
 }
@@ -360,7 +337,7 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 		rescaler := NewSimpleScaler(T, testContext.ringQ)
 
 		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := uint64(0); i < testContext.ringQ.N; i++ {
+		for i := 0; i < testContext.ringQ.N; i++ {
 			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
 		}
 
@@ -379,7 +356,7 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 		rescaler := NewSimpleScaler(T, testContext.ringQ)
 
 		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := uint64(0); i < testContext.ringQ.N; i++ {
+		for i := 0; i < testContext.ringQ.N; i++ {
 			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
 		}
 
@@ -396,7 +373,7 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 	b.Run(testString("DivByRNSBasis/RNS/DivByQOverTRounded/", testContext.ringQ), func(b *testing.B) {
 
 		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := uint64(0); i < testContext.ringQ.N; i++ {
+		for i := 0; i < testContext.ringQ.N; i++ {
 			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
 		}
 

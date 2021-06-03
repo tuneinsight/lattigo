@@ -4,55 +4,96 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-- RLWE : added a new `rlwe` package as common implementation base for the lattigo RLWE schemes
-- DRLWE : added a new `drlwe` package as a common implementation base for the lattigo multiparty RLWE schemes
-- BFV/CKKS : the schemes are now using a common implementation for their keys
-- BFV/CKKS : the rotation-keys are now indexed by their corresponding galois automorphism
-- BFV/CKKS : the `Evaluator` interface now has a single method for all column rotations and one method for the row-rotation/conjugate. 
-- BFV/CKKS : the relinearization and rotation keys are now passed to the `Evaluator` constructor methods (and no longer to the operations methods)
-- DBFV/DCKKS : added a common interface and implementation for each multiparty key-generation protocols
+- Added SECURITY.md
+- ALL: when possible, public functions now use `int` instead of `uint64` as parameters and return values.
+- RING: RNS rescaling API is now inplace and can take a different poly as output.
+- RING: added `ReadFromDistLvl` and `ReadAndAddFromDistLvl` to Gaussian sampler API.
+- RLWE: added a new `rlwe` package as common implementation base for the lattigo RLWE schemes.
+- DRLWE: added a new `drlwe` package as a common implementation base for the lattigo multiparty RLWE schemes.
+- BFV/CKKS: the schemes are now using a common implementation for their keys.
+- BFV/CKKS: the rotation-keys are now indexed by their corresponding Galois automorphism.
+- BFV/CKKS: the `Evaluator` interface now has a single method for all column rotations and one method for the row-rotation/conjugate.
+- BFV/CKKS: the relinearization and rotation keys are now passed to the `Evaluator` constructor methods (and no longer to the operations methods).
+- DBFV/DCKKS: added a common interface and implementation for each multiparty key-generation protocol.
+- DCKKS: public-refresh now takes a target desired output scale, which allows to refresh the ciphertext to the default scale.
+- CKKS: added methods for operating linear-transformation and improved several aspects listed below:
+
+#### CKKS Bootstrapping
+- The procedure now allows for a more granular parameterization.
+- Added flag in bootstrapping parameters for bit-reversed inputs (with bit-reversed output) CoeffsToSlots and SlotsToCoeffs.
+- Added optional Arcsine.
+- The procedure now uses the new linear-transformation API.
+- `CoeffsToSlots` and `SlotsToCoeffs` are now standalone public functions.
+
+#### New CKKS Evaluator methods 
+- `RotateHoisted`: evaluate several rotations on a single ciphertext.
+- `LinearTransform`: evaluate one or more `PtDiagMatrix` on a ciphertext using `MultiplyByDiagMatrix` or `MultiplyByDiagMatrixBSGS` according to the encoding of `PtDiagMatrix`.
+- `MultiplyByDiagMatrix`: multiplies a ciphertext with a `PtDiagMatrix` using n rotations with single hoisting.
+- `MultiplyByDiagMatrixBSGS`: multiplies a ciphertext with a `PtDiagMatrix` using 2sqrt(n) rotations with double-hoisting.
+- `InnerSumLog`: optimal log approach that works for any value (not only powers of two) and can be parameterized to inner sum batches of values (sub-vectors).
+- `InnerSum`: naive approach that is faster for small values but needs more keys.
+- `ReplicateLog`: optimal log approach that works for any value (not only powers of two) and can be parameterized to replicate batches of values (sub-vectors).
+- `Replicate`: naive approach that is faster for small values but needs more keys.
+
+#### New CKKS Encoder methods
+- `PtDiagMatrix`: struct that represents a linear transformation.
+- `EncodeDiagMatrixBSGSAtLvl`: encodes a `PtDiagMatrix` at a given level, with a given scale for the BSGS algorithm.
+- `EncodeDiagMatrixAtLvl`: encodes a `PtDiagMatrix` at a given level, with a given scale for a naive evaluation.
+- `DecodePublic`: adds Gaussian noise of variance floor(sigma * sqrt(2*pi)) before the decoding step (see SECURITY.md).
+- `DecodeCoeffsPublic`: adds Gaussian noise of variance floor(sigma * sqrt(2*pi)) before the decoding step (see SECURITY.md).
+- `GetErrSTDFreqDom` : get the error standard deviation in the frequency domain (slots).
+- `GetErrSTDTimeDom`: get the error standard deviation in the time domain (coefficients).
+
+#### CKKS Fixes
+- `MultByi` now correctly sets the output ciphertext scale.
+- `Relinearize` now correctly sets the output ciphertext level.
+- matrix-vector multiplication now correctly manages ciphertext of higher level than the plaintext matrix.
+- matrix-vector encoding now properly works for negative diagonal indexes.
+
+#### Others
+- PrecisionStats now includes the standard deviation of the error in the slots and coefficients domains.
 
 ## [2.1.1] - 2020-12-23
 
 ### Added
-- BFV/CKKS : added a check for minimum polynomial degree when creating parameters.
-- BFV : added the `bfv.Element.Level` method.
-- RING : test for sparse ternary sampler.
+- BFV/CKKS: added a check for minimum polynomial degree when creating parameters.
+- BFV: added the `bfv.Element.Level` method.
+- RING: test for sparse ternary sampler.
 
 ### Changed
-- BFV/CKKS : pk is now (-as + e, a) instead of (-(as + e), a).
-- BFV : harmonized the EvaluationKey setter from `SetRelinKeys` to `Set`
-- CKKS : renamed `BootstrappParams` into `BootstrappingParameters`
-- CKKS : the `Evaluator.DropLevel`, `Parameters.SetLogSlots` and `Element.Copy` methods no longer return errors
-- RING : minimum poly degree modulus is 16 to ensure the NTT correctness.
-- RING : isPrime has been replaced by big.ProbablyPrime, which is deterministic for integers < 2^64.
+- BFV/CKKS: pk is now (-as + e, a) instead of (-(as + e), a).
+- BFV: harmonized the EvaluationKey setter from `SetRelinKeys` to `Set`.
+- CKKS: renamed `BootstrappParams` into `BootstrappingParameters`.
+- CKKS: the `Evaluator.DropLevel`, `Parameters.SetLogSlots` and `Element.Copy` methods no longer return errors.
+- RING: minimum poly degree modulus is 16 to ensure the NTT correctness.
+- RING: isPrime has been replaced by big.ProbablyPrime, which is deterministic for integers < 2^64.
 
 ### Fixed
-- ALL : reduced cyclomatic complexity of several functions.
-- ALL : fixed all instances reporeted by staticcheck and gosec excluding G103 (audit the use of unsafe).
-- ALL : test vectors are now generated using the crypto/rand instead of math/rand package.
-- ALL : fixed some unhandled errors.
-- BFV/CKKS :  improved the documentation: documentated several hardcoded values and fixed typos.
-- RING : fixed bias in sparse ternary sampling for some parameters.
-- RING : tests for the modular reduction algorithms are now deterministic.
+- ALL: reduced cyclomatic complexity of several functions.
+- ALL: fixed all instances reported by staticcheck and gosec excluding G103 (audit the use of unsafe).
+- ALL: test vectors are now generated using the crypto/rand instead of math/rand package.
+- ALL: fixed some unhandled errors.
+- BFV/CKKS:  improved the documentation: documented several hard-coded values and fixed typos.
+- RING: fixed bias in sparse ternary sampling for some parameters.
+- RING: tests for the modular reduction algorithms are now deterministic.
 
 ## [2.1.0] - 2020-12-11
 
 ### Added
-- BFV : special-purpose plaintext types (`PlaintextRingT` or `PlaintextMul`) for optimized ct-pt operations. See bfv/encoder.go and bfv/plaintext.go.
-- BFV : allocation-free `Encoder` methods
-- RING : `GenNTTPrimes` now takes the value `Nth` (for Nth primitive root) as input rather than `logN`.
+- BFV: special-purpose plaintext types (`PlaintextRingT` or `PlaintextMul`) for optimized ct-pt operations. See bfv/encoder.go and bfv/plaintext.go.
+- BFV: allocation-free `Encoder` methods.
+- RING: `GenNTTPrimes` now takes the value `Nth` (for Nth primitive root) as input rather than `logN`.
 
 ### Changed
-- BFV : the `Encoder.DecodeUint64` and `Encoder.DecodeInt64` methods now take the output slice as argument.
-- CKKS : API of `Evaluator.RotateColumns` becomes `Evaluator.Rotate`
-- CKKS : the change of variable in `Evaluator.EvaluateCheby` isn't done automatically anymore and the user must do it before calling the function to ensure correctness.
-- CKKS : when encoding, the number of slots must now be given in log2 basis. This is to prevent errors that would induced by zero values or non power of two values.
-- CKKS : new encoder API : `EncodeAtLvlNew` and `EncodeNTTAtLvlNew`, which allow a user to encode a plaintext at a specific level.
+- BFV: the `Encoder.DecodeUint64` and `Encoder.DecodeInt64` methods now take the output slice as argument.
+- CKKS: API of `Evaluator.RotateColumns` becomes `Evaluator.Rotate`.
+- CKKS: the change of variable in `Evaluator.EvaluateCheby` isn't done automatically anymore and the user must do it before calling the function to ensure correctness.
+- CKKS: when encoding, the number of slots must now be given in log2 basis. This is to prevent errors that would induced by zero values or non power of two values.
+- CKKS: new encoder API : `EncodeAtLvlNew` and `EncodeNTTAtLvlNew`, which allow a user to encode a plaintext at a specific level.
 
 ### Removed
-- CKKS : removed method `Evaluator.EvaluateChebySpecial`
-- BFV : removed `QiMul` field from `bfv.Parameters`. It is now automatically generated.
+- CKKS: removed method `Evaluator.EvaluateChebySpecial`.
+- BFV: removed `QiMul` field from `bfv.Parameters`. It is now automatically generated.
 
 ## [2.0.0] - 2020-10-07
 
@@ -96,7 +137,7 @@ All notable changes to this project will be documented in this file.
 - CKKS: EvaluatePolyFast(.) and EvaluatePolyEco(.) are replaced by EvaluatePoly(.).
 - CKKS: EvaluateChebyFast(.) and EvaluateChebyEco(.) are replaced by EvaluatePolyCheby(.).
 - CKKS: EvaluateChebyEcoSpecial(.) and EvaluateChebyFastSpecial(.) are replaced by EvaluatePolyChebySpecial(.).
-- RING: The Float128 type was removed due to cross-platform incompatility.
+- RING: The Float128 type was removed due to cross-platform incompatibility.
 
 ### Fixes
 - BFV: Fixed multiplication that was failing when #Qi != #QMul.
@@ -135,7 +176,7 @@ All notable changes to this project will be documented in this file.
 - RING: Enabled dense and sparse ternary polynomials sampling directly from the context.
 - RING: New API enabling "level"-wise polynomial arithmetic.
 - RING: New API for modulus switching with flooring and rounding.
-- UTILS: The pacakge utils now regroups all the utility methods which were previously duplicated among packages.
+- UTILS: The package utils now regroups all the utility methods which were previously duplicated among packages.
 ### Removed
 - BFV/CKKS/DBFV/DCKKS: Removed their respective context. Ring context remains public.
 - All schemes: Removed key-switching with bit decomposition. This option will however be re-introduced at a later stage since applications using small parameters can be impacted by this change.

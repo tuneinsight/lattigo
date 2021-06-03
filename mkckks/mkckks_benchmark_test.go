@@ -39,7 +39,7 @@ func BenchmarkMKCKKS(b *testing.B) {
 		benchPartialDecrypt(b, p)
 		benchMultTwoCiphertexts(b, p)
 		benchRelin(b, p)
-		//benchRotate(b, p)
+		benchRotate(b, p)
 		//benchMemoryConsumption(b, p)
 
 		if i != 4 {

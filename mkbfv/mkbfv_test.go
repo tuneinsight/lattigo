@@ -31,7 +31,7 @@ func Test_MKBFV(t *testing.T) {
 		testSubPlaintextTwoParticipants(t, p)
 		testMulPlaintext(t, p)
 		testMulPlaintextTwoParticipants(t, p)
-		//testBfvMkbfvBridge(t, p)
+		testBfvMkbfvBridge(t, p)
 
 		if i != 0 && i != 4 && i != 6 {
 			testMulFourParticipants(t, p)
@@ -1001,7 +1001,6 @@ func testRotationTwoParticipants(t *testing.T, params *bfv.Parameters) {
 
 }
 
-/*
 func testBfvMkbfvBridge(t *testing.T, params *bfv.Parameters) {
 
 	ringT := getRingT(params)
@@ -1037,7 +1036,7 @@ func testBfvMkbfvBridge(t *testing.T, params *bfv.Parameters) {
 		a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
 		part2 := newParticipant(params, 6.0, a)
 
-		decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, 6.0)
+		decryptor := mkrlwe.NewMKDecryptor(&params.Parameters)
 		keys := mkrlwe.KeyGenWithSecretKey(&params.Parameters, a, sk)
 
 		// perform addition
@@ -1053,7 +1052,7 @@ func testBfvMkbfvBridge(t *testing.T, params *bfv.Parameters) {
 		resBFV := evaluator.ConvertToBFVCiphertext(res)
 
 		// decrypt
-		partDec1 := decryptor.PartDec(resBFV[0].Element, resBFV[0].Level(), keys.SecretKey)
+		partDec1 := decryptor.PartDec(resBFV[0].Element, resBFV[0].Level(), keys.SecretKey, 6.0)
 		partDec2 := part2.GetPartialDecryption(resBFV[1])
 
 		decrypted := part2.Decrypt(resBFV[1], []*ring.Poly{partDec1, partDec2})
@@ -1073,6 +1072,7 @@ func testBfvMkbfvBridge(t *testing.T, params *bfv.Parameters) {
 	})
 }
 
+/*
 func testMarshaler(t *testing.T, params *bfv.Parameters) {
 
 	sigma := 6.0

@@ -41,7 +41,7 @@ func Test_MKCKKS(t *testing.T) {
 			testSubPlaintextTwoParticipants(t, p)
 			testMulPlaintext(t, p)
 			testMulPlaintextTwoParticipants(t, p)
-			//	testCkksMkbfvBridge(t, p)
+			testCkksMkckksBridge(t, p)
 			//	testMarshaler(t, p)
 			testRotation(t, p)
 			testRotationTwoParticipants(t, p)
@@ -1010,8 +1010,7 @@ func testRotationTwoParticipants(t *testing.T, params *ckks.Parameters) {
 
 }
 
-/*
-func testCkksMkbfvBridge(t *testing.T, params *ckks.Parameters) {
+func testCkksMkckksBridge(t *testing.T, params *ckks.Parameters) {
 
 	encoder := ckks.NewEncoder(*params)
 	keygen := ckks.NewKeyGenerator(*params)
@@ -1042,7 +1041,7 @@ func testCkksMkbfvBridge(t *testing.T, params *ckks.Parameters) {
 
 		// setup keys and public parameters
 		a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
-		part2 := newParticipant(params, a)
+		part2 := newParticipant(params, 6.0, a)
 
 		// keygen
 		keysPart2 := mkrlwe.KeyGenWithSecretKey(&params.Parameters, mkrlwe.CopyNewDecomposed(a), sk)
@@ -1076,6 +1075,7 @@ func testCkksMkbfvBridge(t *testing.T, params *ckks.Parameters) {
 	})
 }
 
+/*
 func testMarshaler(t *testing.T, params *ckks.Parameters) {
 
 	sigma := 6.0

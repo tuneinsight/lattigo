@@ -48,7 +48,7 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	rotations := kgen.GenRotationIndexesForBootstrapping(params.LogSlots(), btpParams)
+	rotations := btpParams.RotationsForBootstrapping(params.LogSlots())
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 	rlk := kgen.GenRelinearizationKey(sk)
 	btpKey := ckks.BootstrappingKey{Rlk: rlk, Rtks: rotkeys}

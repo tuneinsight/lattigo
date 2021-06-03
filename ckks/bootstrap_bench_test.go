@@ -28,7 +28,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		panic(err)
 	}
 
-	rotations := testContext.kgen.GenRotationIndexesForBootstrapping(testContext.params.LogSlots(), btpParams)
+	rotations := btpParams.RotationsForBootstrapping(testContext.params.LogSlots())
 
 	rotkeys := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
 

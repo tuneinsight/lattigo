@@ -255,13 +255,12 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 	t.Run(testString(testContext, "CoeffsToSlots/"), func(t *testing.T) {
 
 		params := testContext.params
-		kgen := testContext.kgen
 
 		// Generates the encoding matrices
 		CoeffsToSlotMatrices := btpParams.GenCoeffsToSlotsMatrix(1.0, testContext.encoder)
 
 		// Gets the rotations indexes for CoeffsToSlots
-		rotations := kgen.GenRotationIndexesForCoeffsToSlots(params.LogSlots(), btpParams)
+		rotations := btpParams.RotationsForCoeffsToSlots(params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
@@ -332,13 +331,12 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 	t.Run(testString(testContext, "SlotsToCoeffs/"), func(t *testing.T) {
 
 		params := testContext.params
-		kgen := testContext.kgen
 
 		// Generates the encoding matrices
 		SlotsToCoeffsMatrix := btpParams.GenSlotsToCoeffsMatrix(1.0, testContext.encoder)
 
 		// Gets the rotations indexes for SlotsToCoeffs
-		rotations := kgen.GenRotationIndexesForSlotsToCoeffs(params.LogSlots(), btpParams)
+		rotations := btpParams.RotationsForSlotsToCoeffs(params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
@@ -411,7 +409,7 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 
 		params := testContext.params
 
-		rotations := testContext.kgen.GenRotationIndexesForBootstrapping(testContext.params.LogSlots(), btpParams)
+		rotations := btpParams.RotationsForBootstrapping(testContext.params.LogSlots())
 		rotkeys := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
 		btpKey := BootstrappingKey{testContext.rlk, rotkeys}
 

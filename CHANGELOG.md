@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
 - BFV/CKKS: added a `-params=[params json]` flag for all test and bench suites for specifying parameters from the command line.
 - DBFV/DCKKS: added a common interface and implementation for each multiparty key-generation protocol.
 - DCKKS: public-refresh now takes a target desired output scale, which allows to refresh the ciphertext to the default scale.
+- CKKS: added `Parameter` methods computing the required rotations for relevant `Evaluator` operations.
 - CKKS: added methods for operating linear-transformation and improved several aspects listed below:
 
 #### CKKS Bootstrapping

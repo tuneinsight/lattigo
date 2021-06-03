@@ -241,6 +241,112 @@ func (p Parameters) QLvl(level int) *big.Int {
 	return tmp
 }
 
+// RotationsForInnerSum generates the rotations that will be performed by the
+// `Evaluator.InnerSum` operation when performed with parameters `batch` and `n`.
+func (p Parameters) RotationsForInnerSum(batch, n int) (rotations []int) {
+	rotations = []int{}
+	for i := 1; i < n; i++ {
+		rotations = append(rotations, i*batch)
+	}
+	return
+}
+
+// RotationsForInnerSumLog generates the rotations that will be performed by the
+// `Evaluator.InnerSumLog` operation when performed with parameters `batch` and `n`.
+func (p Parameters) RotationsForInnerSumLog(batch, n int) (rotations []int) {
+
+	rotations = []int{}
+	var k int
+	for i := 1; i < n; i <<= 1 {
+
+		k = i
+		k *= batch
+
+		if !utils.IsInSliceInt(k, rotations) && k != 0 {
+			rotations = append(rotations, k)
+		}
+
+		k = n - (n & ((i << 1) - 1))
+		k *= batch
+
+		if !utils.IsInSliceInt(k, rotations) && k != 0 {
+			rotations = append(rotations, k)
+		}
+	}
+
+	return
+}
+
+// RotationsForReplicate generates the rotations that will be performed by the
+// `Evaluator.Replicate` operation when performed with parameters `batch` and `n`.
+func (p Parameters) RotationsForReplicate(batch, n int) (rotations []int) {
+	return p.RotationsForInnerSum(-batch, n)
+}
+
+// RotationsForReplicateLog generates the rotations that will be performed by the
+// `Evaluator.ReplicateLog` operation when performed with parameters `batch` and `n`.
+func (p Parameters) RotationsForReplicateLog(batch, n int) (rotations []int) {
+	return p.RotationsForInnerSumLog(-batch, n)
+}
+
+// RotationsForSubSum generates the rotations that will be performed by the
+// `Evaluator.SubSum` operation.
+func (p Parameters) RotationsForSubSum(logSlots int) (rotations []int) {
+	rotations = []int{}
+
+	logN := p.LogN()
+
+	//SubSum rotation needed X -> Y^slots rotations
+	for i := logSlots; i < logN-1; i++ {
+		if !utils.IsInSliceInt(1<<i, rotations) {
+			rotations = append(rotations, 1<<i)
+		}
+	}
+
+	return
+}
+
+// RotationsForDiagMatrixMult generates of all the rotations needed for a the multiplication
+// with the provided diagonal plaintext matrix.
+func (p Parameters) RotationsForDiagMatrixMult(matrix *PtDiagMatrix) []int {
+	slots := 1 << matrix.LogSlots
+
+	rotKeyIndex := []int{}
+
+	var index int
+
+	N1 := matrix.N1
+
+	if len(matrix.Vec) < 3 {
+
+		for j := range matrix.Vec {
+
+			if !utils.IsInSliceInt(j, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, j)
+			}
+		}
+
+	} else {
+
+		for j := range matrix.Vec {
+
+			index = ((j / N1) * N1) & (slots - 1)
+
+			if index != 0 && !utils.IsInSliceInt(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceInt(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+		}
+	}
+
+	return rotKeyIndex
+}
+
 // Equals compares two sets of parameters for equality.
 func (p Parameters) Equals(other Parameters) bool {
 	res := p.Parameters.Equals(other.Parameters)

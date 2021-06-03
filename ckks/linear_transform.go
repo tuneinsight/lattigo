@@ -74,10 +74,8 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 }
 
 // InnerSumLog applies an optimized inner sum on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
-// The inner sum is parameterized by its "batchSize" which
-// define the size of its individual elements (e.g. if batchSize = 4, then it will sum by tuples of 4 elements)
-// and "n" the number of consecutive tuples of size "batchSize" that need to be summed.
-// It sums its elements from right to left.
+// The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
+// After the operation, the "leftmost" sub-vector in each group in ctOut is equal to the sum and all the other are zero.
 // This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) insteadn of 'n' keys.
 func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
@@ -207,10 +205,8 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 }
 
 // InnerSum applies an naive inner sum on the ciphetext (n rotations with single hoisting).
-// The inner sum is parameterized by its "batchSize" which
-// define the size of its individual elements (e.g. if batchSize = 4, then it will sum by tuples of 4 elements)
-// and "n" the number of consecutive tuples of size "batchSize" that need to be summed.
-// It sums its elements from right to left.
+// The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
+// After the operation, the "leftmost" sub-vector in each group in ctOut is equal to the sum and all the other are zero.
 // This method is faster than InnerSumLog when the number of rotations is small but uses 'n' keys instead of log(n) + HW(n).
 func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 

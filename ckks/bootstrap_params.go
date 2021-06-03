@@ -292,6 +292,87 @@ func (b *BootstrappingParameters) GenSlotsToCoeffsMatrix(scaling complex128, enc
 	return pDFT
 }
 
+// RotationsForCoeffsToSlots returns the list of rotations performed during the CoeffsToSlot operation.
+func (b *BootstrappingParameters) RotationsForCoeffsToSlots(logSlots int) (rotations []int) {
+	rotations = []int{}
+
+	slots := 1 << logSlots
+	dslots := slots
+	if logSlots < b.LogN-1 {
+		dslots <<= 1
+		rotations = append(rotations, slots)
+	}
+
+	indexCtS := computeBootstrappingDFTIndexMap(b.LogN, logSlots, b.CtSDepth(false), true, b.BitReversed)
+
+	// Coeffs to Slots rotations
+	for _, pVec := range indexCtS {
+		N1 := findbestbabygiantstepsplit(pVec, dslots, b.MaxN1N2Ratio)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
+	}
+
+	return
+}
+
+// RotationsForSlotsToCoeffs returns the list of rotations performed during the SlotsToCoeffs operation.
+func (b *BootstrappingParameters) RotationsForSlotsToCoeffs(logSlots int) (rotations []int) {
+	rotations = []int{}
+
+	slots := 1 << logSlots
+	dslots := slots
+	if logSlots < b.LogN-1 {
+		dslots <<= 1
+	}
+
+	indexStC := computeBootstrappingDFTIndexMap(b.LogN, logSlots, b.StCDepth(false), false, b.BitReversed)
+
+	// Slots to Coeffs rotations
+	for i, pVec := range indexStC {
+		N1 := findbestbabygiantstepsplit(pVec, dslots, b.MaxN1N2Ratio)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, logSlots < b.LogN-1 && i == 0)
+	}
+
+	return
+}
+
+// RotationsForBootstrapping returns the list of rotations performed during the Bootstrapping operation.
+func (b *BootstrappingParameters) RotationsForBootstrapping(logSlots int) (rotations []int) {
+
+	// List of the rotation key values to needed for the bootstrapp
+	rotations = []int{}
+
+	slots := 1 << logSlots
+	dslots := slots
+	if logSlots < b.LogN-1 {
+		dslots <<= 1
+	}
+
+	//SubSum rotation needed X -> Y^slots rotations
+	for i := logSlots; i < b.LogN-1; i++ {
+		if !utils.IsInSliceInt(1<<i, rotations) {
+			rotations = append(rotations, 1<<i)
+		}
+	}
+
+	indexCtS := computeBootstrappingDFTIndexMap(b.LogN, logSlots, b.CtSDepth(false), true, b.BitReversed)
+
+	// Coeffs to Slots rotations
+	for _, pVec := range indexCtS {
+		N1 := findbestbabygiantstepsplit(pVec, dslots, b.MaxN1N2Ratio)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
+	}
+
+	indexStC := computeBootstrappingDFTIndexMap(b.LogN, logSlots, b.StCDepth(false), false, b.BitReversed)
+
+	// Slots to Coeffs rotations
+	for i, pVec := range indexStC {
+		N1 := findbestbabygiantstepsplit(pVec, dslots, b.MaxN1N2Ratio)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, logSlots < b.LogN-1 && i == 0)
+	}
+
+	return
+}
+
 // DefaultBootstrapParams are default bootstrapping params for the bootstrapping.
 var DefaultBootstrapParams = []*BootstrappingParameters{
 
@@ -775,6 +856,151 @@ func fftInvPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [
 		}
 
 		index++
+	}
+
+	return
+}
+
+func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repack bool) []int {
+
+	if len(pVec) < 3 {
+		for j := range pVec {
+			if !utils.IsInSliceInt(j, rotations) {
+				rotations = append(rotations, j)
+			}
+		}
+	} else {
+		var index int
+		for j := range pVec {
+
+			index = (j / N1) * N1
+
+			if repack {
+				// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
+				index &= (2*slots - 1)
+			} else {
+				// Other cases
+				index &= (slots - 1)
+			}
+
+			if index != 0 && !utils.IsInSliceInt(index, rotations) {
+				rotations = append(rotations, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceInt(index, rotations) {
+				rotations = append(rotations, index)
+			}
+		}
+	}
+
+	return rotations
+}
+
+func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward, bitreversed bool) (rotationMap []map[int]bool) {
+
+	var level, depth, nextLevel int
+
+	level = logSlots
+
+	rotationMap = make([]map[int]bool, maxDepth)
+
+	// We compute the chain of merge in order or reverse order depending if its DFT or InvDFT because
+	// the way the levels are collapsed has an impact on the total number of rotations and keys to be
+	// stored. Ex. instead of using 255 + 64 plaintext vectors, we can use 127 + 128 plaintext vectors
+	// by reversing the order of the merging.
+	merge := make([]int, maxDepth)
+	for i := 0; i < maxDepth; i++ {
+
+		depth = int(math.Ceil(float64(level) / float64(maxDepth-i)))
+
+		if forward {
+			merge[i] = depth
+		} else {
+			merge[len(merge)-i-1] = depth
+
+		}
+
+		level -= depth
+	}
+
+	level = logSlots
+	for i := 0; i < maxDepth; i++ {
+
+		if logSlots < logN-1 && !forward && i == 0 {
+
+			// Special initial matrix for the repacking before SlotsToCoeffs
+			rotationMap[i] = genWfftRepackIndexMap(logSlots, level)
+
+			// Merges this special initial matrix with the first layer of SlotsToCoeffs DFT
+			rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, level, forward, bitreversed)
+
+			// Continues the merging with the next layers if the total depth requires it.
+			nextLevel = level - 1
+			for j := 0; j < merge[i]-1; j++ {
+				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, nextLevel, forward, bitreversed)
+				nextLevel--
+			}
+
+		} else {
+			// First layer of the i-th level of the DFT
+			rotationMap[i] = genWfftIndexMap(logSlots, level, forward, bitreversed)
+
+			// Merges the layer with the next levels of the DFT if the total depth requires it.
+			nextLevel = level - 1
+			for j := 0; j < merge[i]-1; j++ {
+				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 1<<logSlots, nextLevel, forward, bitreversed)
+				nextLevel--
+			}
+		}
+
+		level -= merge[i]
+	}
+
+	return
+}
+
+func genWfftIndexMap(logL, level int, forward, bitreversed bool) (vectors map[int]bool) {
+
+	var rot int
+
+	if forward && !bitreversed || !forward && bitreversed {
+		rot = 1 << (level - 1)
+	} else {
+		rot = 1 << (logL - level)
+	}
+
+	vectors = make(map[int]bool)
+	vectors[0] = true
+	vectors[rot] = true
+	vectors[(1<<logL)-rot] = true
+	return
+}
+
+func genWfftRepackIndexMap(logL, level int) (vectors map[int]bool) {
+	vectors = make(map[int]bool)
+	vectors[0] = true
+	vectors[(1 << logL)] = true
+	return
+}
+
+func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, forward, bitreversed bool) (newVec map[int]bool) {
+
+	var rot int
+
+	newVec = make(map[int]bool)
+
+	if forward && !bitreversed || !forward && bitreversed {
+		rot = (1 << (nextLevel - 1)) & (N - 1)
+	} else {
+		rot = (1 << (logL - nextLevel)) & (N - 1)
+	}
+
+	for i := range vec {
+		newVec[i] = true
+		newVec[(i+rot)&(N-1)] = true
+		newVec[(i-rot)&(N-1)] = true
 	}
 
 	return

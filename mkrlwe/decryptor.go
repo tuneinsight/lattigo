@@ -8,50 +8,48 @@ import (
 
 // MKDecryptor is a type for mkrlwe decryptor in a multi key context
 type MKDecryptor interface {
-	PartDec(ct *rlwe.Element, level uint64, sk *MKSecretKey) *ring.Poly
+	PartDec(ct *rlwe.Element, level uint64, sk *MKSecretKey, sigmaSmudging float64) *ring.Poly
 	MergeDec(ct *rlwe.Element, level uint64, partialKeys []*ring.Poly) *ring.Poly
 }
 
 type mkDecryptor struct {
-	params          *rlwe.Parameters
-	ringQ           *ring.Ring
-	samplerGaussian *ring.GaussianSampler
+	params *rlwe.Parameters
+	ringQ  *ring.Ring
 }
 
 // NewMKDecryptor returns a decryptor for rlwe in a multi key context
 // the standard deviation for the partial decryption must be provided
-func NewMKDecryptor(params *rlwe.Parameters, sigmaSmudging float64) MKDecryptor {
+func NewMKDecryptor(params *rlwe.Parameters) MKDecryptor {
 
-	ringQ := GetRingQ(params)
+	//sampler := ring.NewGaussianSampler(prng, ringQ, sigmaSmudging, uint64(6*sigmaSmudging))
+
+	return &mkDecryptor{
+		params: params,
+		ringQ:  GetRingQ(params),
+	}
+
+}
+
+// PartDec computes a partial decription key for a given ciphertext.
+func (dec *mkDecryptor) PartDec(ct *rlwe.Element, level uint64, sk *MKSecretKey, sigmaSmudging float64) *ring.Poly {
+
+	if ct == nil || ct.Degree() < 1 {
+		panic("Uninitialized Ciphertext")
+	}
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 
-	sampler := ring.NewGaussianSampler(prng, ringQ, sigmaSmudging, uint64(6*sigmaSmudging))
-
-	return &mkDecryptor{
-		params:          params,
-		ringQ:           ringQ,
-		samplerGaussian: sampler,
-	}
-
-}
-
-// PartDec computes a partial decription key for a given ciphertext.
-func (dec *mkDecryptor) PartDec(ct *rlwe.Element, level uint64, sk *MKSecretKey) *ring.Poly {
-
-	if ct == nil || ct.Degree() < 1 {
-		panic("Uninitilaized Ciphertext")
-	}
+	sampler := ring.NewGaussianSampler(prng, dec.ringQ, sigmaSmudging, uint64(6*sigmaSmudging))
 
 	if !ct.IsNTT {
 		dec.ringQ.NTT(ct.Value[1], ct.Value[1])
 	}
 
 	// mu_i = c_i * sk_i + e_i mod q
-	out := dec.samplerGaussian.ReadLvlNew(level)
+	out := sampler.ReadLvlNew(level)
 	dec.ringQ.NTTLvl(level, out, out)
 
 	dec.ringQ.MulCoeffsMontgomeryAndAddLvl(level, ct.Value[1], sk.Key.Value, out)

@@ -1037,7 +1037,7 @@ func testBfvMkbfvBridge(t *testing.T, params *bfv.Parameters) {
 		a := mkrlwe.GenCommonPublicParam(&params.Parameters, prng)
 		part2 := newParticipant(params, 6.0, a)
 
-		decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, 0.6)
+		decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, 6.0)
 		keys := mkrlwe.KeyGenWithSecretKey(&params.Parameters, a, sk)
 
 		// perform addition
@@ -1274,7 +1274,7 @@ func (participant *mkParticipant) Decrypt(cipher *bfv.Ciphertext, partialDecrypt
 // this function should only be used by participants that were involved in the given ciphertext
 func (participant *mkParticipant) GetPartialDecryption(cipher *bfv.Ciphertext) *ring.Poly {
 
-	return participant.decryptor.PartDec(cipher.Element, uint64(len(participant.ringQ.Modulus)-1), participant.keys.SecretKey)
+	return participant.decryptor.PartDec(cipher.Element, uint64(len(participant.ringQ.Modulus)-1), participant.keys.SecretKey, 6.0)
 }
 
 // newParticipant creates a participant for the multi key bfv scheme
@@ -1296,7 +1296,7 @@ func newParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *mkrlwe.M
 	keys := mkrlwe.KeyGen(&params.Parameters, mkrlwe.CopyNewDecomposed(crs))
 
 	encryptor := NewMKEncryptor(keys.PublicKey, params)
-	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, sigmaSmudging)
+	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters)
 	encoder := bfv.NewEncoder(*params)
 	ringQ := mkrlwe.GetRingQ(&params.Parameters)
 

@@ -1061,7 +1061,7 @@ func testCkksMkbfvBridge(t *testing.T, params *ckks.Parameters) {
 
 		// decrypt
 		decryptor := mkrlwe.NewMKDecryptor(&params.Parameters)
-		partDec1 := decryptor.PartDec(&resCKKS[0].El().Element, resCKKS[0].Level(), keysPart2.SecretKey, 0.6)
+		partDec1 := decryptor.PartDec(&resCKKS[0].El().Element, resCKKS[0].Level(), keysPart2.SecretKey, 6.0)
 
 		partDec2 := part2.GetPartialDecryption(resCKKS[1])
 

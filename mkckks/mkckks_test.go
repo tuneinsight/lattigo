@@ -1381,7 +1381,7 @@ func (participant *mkParticipant) GetPartialDecryption(ct *ckks.Ciphertext) *rin
 	if ct == nil || len(ct.Value) < 1 {
 		panic("Uninitialized ciphertext")
 	}
-	return participant.decryptor.PartDec(&ct.Element.Element, ct.Level(), participant.keys.SecretKey)
+	return participant.decryptor.PartDec(&ct.Element.Element, ct.Level(), participant.keys.SecretKey, 6.0)
 }
 
 // newParticipant creates a participant for the multi key ckks scheme
@@ -1402,7 +1402,7 @@ func newParticipant(params *ckks.Parameters, sigmaSmudging float64, crs *mkrlwe.
 
 	keys := mkrlwe.KeyGen(&params.Parameters, mkrlwe.CopyNewDecomposed(crs))
 	encryptor := NewMKEncryptor(keys.PublicKey, params)
-	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, sigmaSmudging)
+	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters)
 	encoder := ckks.NewEncoder(*params)
 	ringQ := mkrlwe.GetRingQ(&params.Parameters)
 

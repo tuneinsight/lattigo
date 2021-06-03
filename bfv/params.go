@@ -102,10 +102,10 @@ type ParametersLiteral struct {
 	LogN  int // Log Ring degree (power of 2)
 	Q     []uint64
 	P     []uint64
-	LogQ  []uint64 `json:",omitempty"`
-	LogP  []uint64 `json:",omitempty"`
-	Sigma float64  // Gaussian sampling standard deviation
-	T     uint64   // Plaintext modulus
+	LogQ  []int   `json:",omitempty"`
+	LogP  []int   `json:",omitempty"`
+	Sigma float64 // Gaussian sampling standard deviation
+	T     uint64  // Plaintext modulus
 }
 
 // Parameters represents a parameter set for the BFV cryptosystem. Its fields are private and

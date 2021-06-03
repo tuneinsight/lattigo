@@ -152,9 +152,9 @@ type ParametersLiteral struct {
 	LogN     int // Ring degree (power of 2)
 	Q        []uint64
 	P        []uint64
-	LogQ     []uint64 `json:",omitempty"`
-	LogP     []uint64 `json:",omitempty"`
-	Sigma    float64  // Gaussian sampling variance
+	LogQ     []int   `json:",omitempty"`
+	LogP     []int   `json:",omitempty"`
+	Sigma    float64 // Gaussian sampling variance
 	LogSlots int
 	Scale    float64
 }

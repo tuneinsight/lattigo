@@ -38,8 +38,8 @@ type ParametersLiteral struct {
 	LogN  int
 	Q     []uint64
 	P     []uint64
-	LogQ  []uint64 `json:",omitempty"`
-	LogP  []uint64 `json:",omitempty"`
+	LogQ  []int `json:",omitempty"`
+	LogP  []int `json:",omitempty"`
 	Sigma float64
 }
 
@@ -415,17 +415,17 @@ func checkSizeParams(logN int, lenQ, lenP int) error {
 	return nil
 }
 
-func checkModuliLogSize(logQ, logP []uint64) error {
+func checkModuliLogSize(logQ, logP []int) error {
 
 	for i, qi := range logQ {
-		if qi > MaxModuliSize {
-			return fmt.Errorf("LogQ[%d]=%d is larger than %d", i, qi, MaxModuliSize)
+		if qi <= 0 || qi > MaxModuliSize {
+			return fmt.Errorf("logQ[%d]=%d is not in ]0, %d]", i, qi, MaxModuliSize)
 		}
 	}
 
 	for i, pi := range logP {
-		if pi > MaxModuliSize+1 {
-			return fmt.Errorf("LogP[%d]=%d is larger than %d", i, pi, MaxModuliSize)
+		if pi <= 0 || pi > MaxModuliSize+1 {
+			return fmt.Errorf("logP[%d]=%d is not in ]0,%d]", i, pi, MaxModuliSize+1)
 		}
 	}
 
@@ -433,7 +433,7 @@ func checkModuliLogSize(logQ, logP []uint64) error {
 }
 
 // GenModuli generates a valid moduli chain from the provided moduli sizes.
-func GenModuli(logN int, logQ, logP []uint64) (q, p []uint64, err error) {
+func GenModuli(logN int, logQ, logP []int) (q, p []uint64, err error) {
 
 	if err = checkSizeParams(logN, len(logQ), len(logP)); err != nil {
 		return
@@ -444,7 +444,7 @@ func GenModuli(logN int, logQ, logP []uint64) (q, p []uint64, err error) {
 	}
 
 	// Extracts all the different primes bit size and maps their number
-	primesbitlen := make(map[uint64]uint64)
+	primesbitlen := make(map[int]int)
 	for _, qi := range logQ {
 		primesbitlen[qi]++
 	}
@@ -454,7 +454,7 @@ func GenModuli(logN int, logQ, logP []uint64) (q, p []uint64, err error) {
 	}
 
 	// For each bit-size, finds that many primes
-	primes := make(map[uint64][]uint64)
+	primes := make(map[int][]uint64)
 	for key, value := range primesbitlen {
 		primes[key] = ring.GenerateNTTPrimes(int(key), 2<<logN, int(value))
 	}

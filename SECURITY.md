@@ -11,7 +11,7 @@ This attack demonstrates that, when using an approximate homomorphic encryption 
 # CPA<sup>D</sup> Security for CKKS
 Lattigo implements tools to mitigate _Li and Micciancio_'s attack. In particular, the decoding step of CKKS (and its real-number variant R-CKKS) allows the user to add a key-independent error **_e_** of standard deviation **_σ_** to the decrypted plaintext before decoding.
 
-If at any point of an application, decrypted values have to be shared with external parties, then the user must ensure that each shared plaintext is first _sanitized_ before being shared. To do so, the user must use the **DecodePublic** method instead of the usual **Decode**. **DecodePublic** takes as additional input **_σ_**, and samples a key-independant error **_e_** with standard deviation **_σ_**, that is added to the plaintext before decoding.
+If at any point of an application, decrypted values have to be shared with external parties, then the user must ensure that each shared plaintext is first _sanitized_ before being shared. To do so, the user must use the **DecodePublic** method instead of the usual **Decode**. **DecodePublic** takes as additional input **_σ_**, and samples a key-independent error **_e_** with standard deviation **_σ_**, that is added to the plaintext before decoding.
 
 Estimating **_σ_** must be done carefully and we suggest the following iterative process to do so:
  1. Given a security parameter **_λ_** and a circuit **_C_** that takes as inputs length-**_n_** vectors **_ω_** following a distribution **_χ_**, select the appropriate parameters enabling the homomorphic evaluation of **_C(ω)_**, denoted by **_H(C(ω))_**, which includes the encoding, encryption, evaluation, decryption and decoding.

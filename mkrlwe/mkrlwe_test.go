@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 func Test_MKRLWE(t *testing.T) {
@@ -24,15 +25,12 @@ func testMarshaler(t *testing.T) {
 		ringQ := GetRingQ(&params.Parameters)
 
 		decPol := NewDecomposedPoly(ringQ, 3)
-
 		decPol.Poly[0].Coeffs[0][0] = 23
-
 		bytes, err2 := decPol.MarshalBinary()
 
 		if err2 != nil {
 			t.Fail()
 		}
-
 		resPol := new(MKDecomposedPoly)
 
 		resPol.UnmarshalBinary(bytes)
@@ -40,7 +38,6 @@ func testMarshaler(t *testing.T) {
 		if resPol.Poly[0].Coeffs[0][0] != 23 {
 			t.Error("Marshaling and Unmarshaling decomposed polynomial fails")
 		}
-
 	})
 
 	t.Run("Test marshaler MKEvaluationKey", func(t *testing.T) {
@@ -53,9 +50,7 @@ func testMarshaler(t *testing.T) {
 		ringQ := GetRingQ(&params.Parameters)
 
 		evalKey := NewMKEvaluationKey(ringQ, 3, &params.Parameters)
-
-		evalKey.Key[0].Poly[0].Coeffs[0][0] = 23
-
+		evalKey.Key01.Value[0][0].Coeffs[0][0] = 23
 		bytes, err2 := evalKey.MarshalBinary()
 
 		if err2 != nil {
@@ -63,10 +58,8 @@ func testMarshaler(t *testing.T) {
 		}
 
 		resKey := new(MKEvaluationKey)
-
 		resKey.UnmarshalBinary(bytes)
-
-		if resKey.PeerID != 3 || resKey.Key[0].Poly[0].Coeffs[0][0] != 23 {
+		if resKey.PeerID != 3 || resKey.Key01.Value[0][0].Coeffs[0][0] != 23 {
 			t.Error("Marshaling and Unmarshaling evaluation key fails")
 		}
 
@@ -79,11 +72,9 @@ func testMarshaler(t *testing.T) {
 			t.Fail()
 		}
 
-		ringQ := GetRingQ(&params.Parameters)
+		evalKey := &MKEvalGalKey{Key: rlwe.NewSwitchingKey(params.Parameters), PeerID: 3}
 
-		evalKey := &MKEvalGalKey{Key: [2]*MKDecomposedPoly{NewDecomposedPoly(ringQ, 2), NewDecomposedPoly(ringQ, 2)}, PeerID: 3}
-
-		evalKey.Key[0].Poly[0].Coeffs[0][0] = 23
+		evalKey.Key.Value[0][0].Coeffs[0][0] = 23
 
 		bytes, err2 := evalKey.MarshalBinary()
 
@@ -95,7 +86,7 @@ func testMarshaler(t *testing.T) {
 
 		resKey.UnmarshalBinary(bytes)
 
-		if resKey.PeerID != 3 || resKey.Key[0].Poly[0].Coeffs[0][0] != 23 {
+		if resKey.PeerID != 3 || resKey.Key.Value[0][0].Coeffs[0][0] != 23 {
 			t.Error("Marshaling and Unmarshaling galois evaluation key fails")
 		}
 

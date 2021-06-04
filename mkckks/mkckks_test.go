@@ -28,6 +28,7 @@ func Test_MKCKKS(t *testing.T) {
 		p := &params
 
 		if i != 4 && i != 9 && i != 0 {
+
 			testEncryptionEqualsDecryption(t, p)
 			testAdd(t, p)
 			testAddManyTimeSameCipher(t, p)
@@ -42,7 +43,9 @@ func Test_MKCKKS(t *testing.T) {
 			testMulPlaintext(t, p)
 			testMulPlaintextTwoParticipants(t, p)
 			testCkksMkckksBridge(t, p)
-			//	testMarshaler(t, p)
+
+			testMarshaler(t, p)
+
 			testRotation(t, p)
 			testRotationTwoParticipants(t, p)
 			testSquare(t, p)
@@ -50,6 +53,7 @@ func Test_MKCKKS(t *testing.T) {
 			testMulAfterAdd(t, p)
 
 			if i != 5 && i != 6 {
+
 				testAddAfterMul(t, p)
 				testMulFourParticipants(t, p)
 			}
@@ -1075,7 +1079,6 @@ func testCkksMkckksBridge(t *testing.T, params *ckks.Parameters) {
 	})
 }
 
-/*
 func testMarshaler(t *testing.T, params *ckks.Parameters) {
 
 	sigma := 6.0
@@ -1097,15 +1100,14 @@ func testMarshaler(t *testing.T, params *ckks.Parameters) {
 		ciphers := evaluator.ConvertToMKCiphertext([]*ckks.Ciphertext{cipher1, cipher2}, []uint64{1, 2})
 		res := evaluator.Add(ciphers[0], ciphers[1])
 
-		data := res.MarshalBinary()
+		data, err := res.MarshalBinary()
+		if err != nil {
+			t.Error("Could not marshall correctly")
+		}
 
 		unMarshaled := new(MKCiphertext)
 
 		unMarshaled.UnmarshalBinary(data)
-
-		if !mkrlwe.EqualsSlice(unMarshaled.PeerID, res.PeerID) {
-			t.Error("Marshaler error with peer IDs")
-		}
 
 		if !mkrlwe.EqualsPoly(res.Ciphertexts.Value[0], unMarshaled.Ciphertexts.Value[0]) ||
 			!mkrlwe.EqualsPoly(res.Ciphertexts.Value[1], unMarshaled.Ciphertexts.Value[1]) ||
@@ -1114,10 +1116,13 @@ func testMarshaler(t *testing.T, params *ckks.Parameters) {
 			t.Error("Marshaler error with ciphertext")
 		}
 
+		if !mkrlwe.EqualsSlice(unMarshaled.PeerID, res.PeerID) {
+			t.Error("Marshaler error with peer IDs")
+		}
+
 	})
 
 }
-*/
 
 func Test_Utils(t *testing.T) {
 

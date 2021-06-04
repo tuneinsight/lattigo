@@ -31,22 +31,21 @@ func NewMKCiphertext(peerIDs []uint64, r *ring.Ring, params *rlwe.Parameters) *M
 // PadCiphers pad two ciphertext corresponding to a different set of parties
 // to make their dimension match. ci = 0 if the participant i is not involved in the ciphertext
 // the peerIDs list is also updated to match the new dimension
-func PadCiphers(c1, c2 *MKCiphertext, params *rlwe.Parameters) (c1Out, c2Out *MKCiphertext) {
+func PadCiphers(c1, c2 *MKCiphertext, params *rlwe.Parameters) (res1, res2 []*ring.Poly, ids []uint64) {
 
-	ringQ := GetRingQ(params)
-	allPeers := MergeSlices(c1.PeerIDs, c2.PeerIDs)
-	k := len(allPeers)
+	ids = MergeSlices(c1.PeerIDs, c2.PeerIDs)
+	k := len(ids)
 
-	res1 := make([]*ring.Poly, k+1) // + 1 for c0
-	res2 := make([]*ring.Poly, k+1)
+	res1 = make([]*ring.Poly, k+1) // + 1 for c0
+	res2 = make([]*ring.Poly, k+1)
 
 	// put c0 in
 	res1[0] = c1.Value[0].CopyNew()
 	res2[0] = c2.Value[0].CopyNew()
 
 	// copy ciphertext values if participant involved
-	// else put a 0 polynomial
-	for i, peer := range allPeers {
+	// else put a nil value
+	for i, peer := range ids {
 		index := i + 1
 
 		index1 := Contains(c1.PeerIDs, peer)
@@ -65,11 +64,5 @@ func PadCiphers(c1, c2 *MKCiphertext, params *rlwe.Parameters) (c1Out, c2Out *MK
 		}
 	}
 
-	c1out := NewMKCiphertext(allPeers, ringQ, params)
-	c2out := NewMKCiphertext(allPeers, ringQ, params)
-
-	c1out.Value = res1
-	c2out.Value = res2
-
-	return c1out, c2out
+	return
 }

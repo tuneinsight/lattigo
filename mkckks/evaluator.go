@@ -19,7 +19,7 @@ type MKEvaluator interface {
 	Neg(c *MKCiphertext) *MKCiphertext
 	MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
 	Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
-	RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKRelinearizationKey, publicKeys []*mkrlwe.MKPublicKey)
+	RelinInPlace(ct *MKCiphertext, relinKeys []*mkrlwe.MKRelinearizationKey, publicKeys []*mkrlwe.MKPublicKey)
 	Rescale(c *MKCiphertext, out *MKCiphertext)
 	Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKRotationKey) *MKCiphertext
 	NewPlaintextFromValue([]complex128) *ckks.Plaintext
@@ -272,14 +272,14 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 }
 
 // Relinearize a ciphertext after a multiplication
-func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKRelinearizationKey, publicKeys []*mkrlwe.MKPublicKey) {
+func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, relinKeys []*mkrlwe.MKRelinearizationKey, publicKeys []*mkrlwe.MKPublicKey) {
 
-	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].PeerID < evalKeys[j].PeerID })
+	sort.Slice(relinKeys, func(i, j int) bool { return relinKeys[i].PeerID < relinKeys[j].PeerID })
 	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].PeerID < publicKeys[j].PeerID })
 
-	checkParticipantsEvalKey(ct.PeerID, evalKeys)
+	checkParticipantsRelinKey(ct.PeerID, relinKeys)
 	checkParticipantsPubKey(ct.PeerID, publicKeys)
-	mkrlwe.Relinearization(evalKeys, publicKeys, &ct.Ciphertexts.Value, &eval.params.Parameters, ct.Ciphertexts.Level())
+	mkrlwe.Relinearization(relinKeys, publicKeys, &ct.Ciphertexts.Value, &eval.params.Parameters, ct.Ciphertexts.Level())
 }
 
 // Rescale takes a ciphertext at level l reduces it until it reaches its original
@@ -300,7 +300,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKRotatio
 
 	sort.Slice(keys, func(i, j int) bool { return keys[i].PeerID < keys[j].PeerID })
 
-	checkParticipantsGalKey(c.PeerID, keys)
+	checkParticipantsRotKey(c.PeerID, keys)
 
 	out := NewMKCiphertext(c.PeerID, eval.ringQ, eval.params, c.Ciphertexts.Level(), c.Ciphertexts.Scale())
 
@@ -326,7 +326,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKRotatio
 
 	for i := uint64(1); i <= k; i++ {
 
-		prepareGaloisEvaluationKey(i, level, uint64(len(eval.ringQ.Modulus)), eval.params.Beta(), keys, gal0QP, gal1QP)
+		prepareRotationKey(i, level, uint64(len(eval.ringQ.Modulus)), eval.params.Beta(), keys, gal0QP, gal1QP)
 
 		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
 		index := ring.PermuteNTTIndex(galEl, eval.ringQP.N)
@@ -362,14 +362,14 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKRotatio
 	return out
 }
 
-// prepare galois evaluation keys for operations in split crt basis
-func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*mkrlwe.MKRotationKey, gal0QP, gal1QP *rlwe.SwitchingKey) {
+// prepare rotation keys for operations in split crt basis
+func prepareRotationKey(j, level, modulus, beta uint64, rotKeys []*mkrlwe.MKRotationKey, gal0QP, gal1QP *rlwe.SwitchingKey) {
 
 	for u := uint64(0); u < beta; u++ {
-		gal0QP.Value[u][0].Coeffs = galKeys[j-1].Key.Value[u][0].Coeffs[:level+1]
-		gal0QP.Value[u][1].Coeffs = galKeys[j-1].Key.Value[u][0].Coeffs[modulus:]
-		gal1QP.Value[u][0].Coeffs = galKeys[j-1].Key.Value[u][1].Coeffs[:level+1]
-		gal1QP.Value[u][1].Coeffs = galKeys[j-1].Key.Value[u][1].Coeffs[modulus:]
+		gal0QP.Value[u][0].Coeffs = rotKeys[j-1].Key.Value[u][0].Coeffs[:level+1]
+		gal0QP.Value[u][1].Coeffs = rotKeys[j-1].Key.Value[u][0].Coeffs[modulus:]
+		gal1QP.Value[u][0].Coeffs = rotKeys[j-1].Key.Value[u][1].Coeffs[:level+1]
+		gal1QP.Value[u][1].Coeffs = rotKeys[j-1].Key.Value[u][1].Coeffs[modulus:]
 	}
 
 }
@@ -392,10 +392,10 @@ func getCiphertextIndex(peerID uint64, ct *MKCiphertext) uint64 {
 	return 0
 }
 
-func checkParticipantsEvalKey(peerID []uint64, evalKeys []*mkrlwe.MKRelinearizationKey) {
+func checkParticipantsRelinKey(peerID []uint64, relinKeys []*mkrlwe.MKRelinearizationKey) {
 
 	for i, id := range peerID {
-		if id != evalKeys[i].PeerID {
+		if id != relinKeys[i].PeerID {
 			panic("Incorrect evaluation keys for the given ciphertexts")
 		}
 	}
@@ -410,10 +410,10 @@ func checkParticipantsPubKey(peerID []uint64, pubKeys []*mkrlwe.MKPublicKey) {
 	}
 }
 
-func checkParticipantsGalKey(peerID []uint64, galKeys []*mkrlwe.MKRotationKey) {
+func checkParticipantsRotKey(peerID []uint64, rotKeys []*mkrlwe.MKRotationKey) {
 
 	for i, id := range peerID {
-		if id != galKeys[i].PeerID {
+		if id != rotKeys[i].PeerID {
 			panic("Incorrect galois evaluation keys for the given ciphertexts")
 		}
 	}

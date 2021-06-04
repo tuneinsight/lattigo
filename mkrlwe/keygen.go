@@ -304,7 +304,9 @@ func RoationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Parameters) *MKRo
 
 // GetUniformAndGaussian samples from a uniform and gaussian distribution and builds d elements of Rq^2
 func GetUniformAndGaussian(samplerGaussian *ring.GaussianSampler, samplerUniform *ring.UniformSampler, dimension uint64, params *rlwe.Parameters) *rlwe.SwitchingKey {
-	res := rlwe.NewSwitchingKey(*params)
+	res := new(rlwe.SwitchingKey)
+	res.Value = make([][2]*ring.Poly, dimension)
+
 	for d := uint64(0); d < dimension; d++ {
 		res.Value[d][0] = samplerGaussian.ReadNew()
 		res.Value[d][1] = samplerUniform.ReadNew()
@@ -318,7 +320,6 @@ func GetGaussianDecomposed(sampler *ring.GaussianSampler, dimension uint64) *MKD
 	res := new(MKDecomposedPoly)
 
 	for d := uint64(0); d < dimension; d++ {
-
 		res.Poly = append(res.Poly, sampler.ReadNew())
 	}
 
@@ -330,7 +331,6 @@ func GetUniformDecomposed(sampler *ring.UniformSampler, dimension uint64) *MKDec
 	res := new(MKDecomposedPoly)
 
 	for d := uint64(0); d < dimension; d++ {
-
 		res.Poly = append(res.Poly, sampler.ReadNew())
 	}
 
@@ -357,7 +357,6 @@ func GenCommonPublicParam(params *rlwe.Parameters, prng *utils.KeyedPRNG) *MKDec
 	}
 
 	ringQP := GetRingQP(params)
-
 	uniformSampler := GetUniformSampler(params, ringQP, prng)
 
 	return GetUniformDecomposed(uniformSampler, params.Beta())

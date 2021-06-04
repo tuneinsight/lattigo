@@ -20,7 +20,7 @@ type MKEvaluator interface {
 	Neg(c *MKCiphertext) *MKCiphertext
 	MultPlaintext(pt *bfv.PlaintextMul, c *MKCiphertext) *MKCiphertext
 	Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
-	RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKRelinearizationKey, publicKeys []*mkrlwe.MKPublicKey)
+	RelinInPlace(ct *MKCiphertext, relinKeys []*mkrlwe.MKRelinearizationKey, publicKeys []*mkrlwe.MKPublicKey)
 	Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKRotationKey) *MKCiphertext
 	NewPlaintextFromValue([]uint64) *bfv.Plaintext
 	NewPlaintextMulFromValue([]uint64) *bfv.PlaintextMul
@@ -219,12 +219,12 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 }
 
 // Relinearize a ciphertext after a multiplication
-func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKRelinearizationKey, publicKeys []*mkrlwe.MKPublicKey) {
+func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, relinKeys []*mkrlwe.MKRelinearizationKey, publicKeys []*mkrlwe.MKPublicKey) {
 
-	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].PeerID < evalKeys[j].PeerID })
+	sort.Slice(relinKeys, func(i, j int) bool { return relinKeys[i].PeerID < relinKeys[j].PeerID })
 	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].PeerID < publicKeys[j].PeerID })
 
-	checkParticipantsEvalKey(ct.PeerID, evalKeys)
+	checkParticipantsEvalKey(ct.PeerID, relinKeys)
 	checkParticipantsPubKey(ct.PeerID, publicKeys)
 
 	//pass ciphertext in NTT domain
@@ -234,7 +234,7 @@ func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKRel
 		}
 	}
 
-	mkrlwe.Relinearization(evalKeys, publicKeys, &ct.Ciphertexts.Value, &eval.params.Parameters, uint64(len(eval.ringQ.Modulus)-1))
+	mkrlwe.Relinearization(relinKeys, publicKeys, &ct.Ciphertexts.Value, &eval.params.Parameters, uint64(len(eval.ringQ.Modulus)-1))
 
 	//pass ciphertext out of NTT domain
 	for _, v := range ct.Ciphertexts.Value {
@@ -256,10 +256,10 @@ func (eval *mkEvaluator) modUpAndNTT(ct *bfv.Ciphertext, cQ, cQMul []*ring.Poly)
 	}
 }
 
-func checkParticipantsEvalKey(peerID []uint64, evalKeys []*mkrlwe.MKRelinearizationKey) {
+func checkParticipantsEvalKey(peerID []uint64, relinKeys []*mkrlwe.MKRelinearizationKey) {
 
 	for i, id := range peerID {
-		if id != evalKeys[i].PeerID {
+		if id != relinKeys[i].PeerID {
 			panic("Incorrect evaluation keys for the given ciphertexts")
 		}
 	}
@@ -274,10 +274,10 @@ func checkParticipantsPubKey(peerID []uint64, pubKeys []*mkrlwe.MKPublicKey) {
 	}
 }
 
-func checkParticipantsGalKey(peerID []uint64, galKeys []*mkrlwe.MKRotationKey) {
+func checkParticipantsGalKey(peerID []uint64, rotKeys []*mkrlwe.MKRotationKey) {
 
 	for i, id := range peerID {
-		if id != galKeys[i].PeerID {
+		if id != rotKeys[i].PeerID {
 			panic("Incorrect galois evaluation keys for the given ciphertexts")
 		}
 	}
@@ -419,7 +419,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKRotatio
 
 	for i := uint64(1); i <= k; i++ {
 
-		prepareGaloisEvaluationKey(i, level, eval.params.Beta(), keys, gal0QP, gal1QP)
+		prepareRotationKey(i, level, eval.params.Beta(), keys, gal0QP, gal1QP)
 
 		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
 		index := ring.PermuteNTTIndex(galEl, eval.ringQP.N)
@@ -444,7 +444,6 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKRotatio
 
 	// finalize computation of ci'
 	for i := uint64(1); i <= k; i++ {
-
 		eval.convertorQP.ModDownSplitNTTPQ(level, restmpQ[i], restmpP[i], tmpModDown)
 		eval.ringQ.CopyLvl(level, tmpModDown, res[i])
 	}
@@ -462,14 +461,14 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKRotatio
 	return out
 }
 
-// prepare galois evaluation keys for operations in split crt basis
-func prepareGaloisEvaluationKey(j, level, beta uint64, galKeys []*mkrlwe.MKRotationKey, gal0QP, gal1QP *rlwe.SwitchingKey) {
+// prepare rotation keys for operations in split crt basis
+func prepareRotationKey(j, level, beta uint64, rotKeys []*mkrlwe.MKRotationKey, gal0QP, gal1QP *rlwe.SwitchingKey) {
 
 	for u := uint64(0); u < beta; u++ {
-		gal0QP.Value[u][0].Coeffs = galKeys[j-1].Key.Value[u][0].Coeffs[:level+1]
-		gal0QP.Value[u][1].Coeffs = galKeys[j-1].Key.Value[u][0].Coeffs[level+1:]
-		gal1QP.Value[u][0].Coeffs = galKeys[j-1].Key.Value[u][1].Coeffs[:level+1]
-		gal1QP.Value[u][1].Coeffs = galKeys[j-1].Key.Value[u][1].Coeffs[level+1:]
+		gal0QP.Value[u][0].Coeffs = rotKeys[j-1].Key.Value[u][0].Coeffs[:level+1]
+		gal0QP.Value[u][1].Coeffs = rotKeys[j-1].Key.Value[u][0].Coeffs[level+1:]
+		gal1QP.Value[u][0].Coeffs = rotKeys[j-1].Key.Value[u][1].Coeffs[:level+1]
+		gal1QP.Value[u][1].Coeffs = rotKeys[j-1].Key.Value[u][1].Coeffs[level+1:]
 
 	}
 }

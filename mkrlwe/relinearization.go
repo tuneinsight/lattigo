@@ -7,15 +7,15 @@ import (
 
 // Relinearization implements the algorithm 3 in the appendix of the Chen paper
 // It relinearize each entry of the extended ciphertext and stores it in cPrime (of size k+1)
-// There are (k+1)**2 ciphertexts, and k pairs of (evaluation keys Di,bi) as input
-func Relinearization(evaluationKeys []*MKRelinearizationKey, publicKeys []*MKPublicKey, ct *[]*ring.Poly, params *rlwe.Parameters, level uint64) {
+// There are (k+1)**2 ciphertexts, and k pairs of evaluation and public keys as input
+func Relinearization(relinKeys []*MKRelinearizationKey, publicKeys []*MKPublicKey, ct *[]*ring.Poly, params *rlwe.Parameters, level uint64) {
 
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
 
 	baseconverter := ring.NewFastBasisExtender(ringQ, ringP)
 
-	k := uint64(len(evaluationKeys))
+	k := uint64(len(relinKeys))
 	restmpQ := make([]*ring.Poly, k+1)
 	res := make([]*ring.Poly, k+1)
 	restmpP := make([]*ring.Poly, k+1)
@@ -35,7 +35,7 @@ func Relinearization(evaluationKeys []*MKRelinearizationKey, publicKeys []*MKPub
 
 	for i := uint64(1); i <= k; i++ {
 
-		prepareEvalKeyKeySwitch(i, level, uint64(len(ringQ.Modulus)), params.Beta(), evaluationKeys, ringQ, ringP, d0QP, d1QP, d2QP)
+		prepareRelinKeyKeySwitch(i, level, uint64(len(ringQ.Modulus)), params.Beta(), relinKeys, ringQ, ringP, d0QP, d1QP, d2QP)
 
 		for j := uint64(1); j <= k; j++ {
 
@@ -89,8 +89,8 @@ func Relinearization(evaluationKeys []*MKRelinearizationKey, publicKeys []*MKPub
 	*ct = res
 }
 
-// prepare evaluation key for operations in split crt basis
-func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKRelinearizationKey, ringQ, ringP *ring.Ring, d0Q, d1Q, d2Q, d0P, d1P, d2P *MKDecomposedPoly) {
+// prepare relinearization key for operations in split crt basis
+func prepareRelinKey(i, level, modulus, beta uint64, evaluationKeys []*MKRelinearizationKey, ringQ, ringP *ring.Ring, d0Q, d1Q, d2Q, d0P, d1P, d2P *MKDecomposedPoly) {
 
 	di01 := evaluationKeys[i-1].Key01
 	di2 := evaluationKeys[i-1].Key2
@@ -109,8 +109,8 @@ func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKRelinear
 
 }
 
-// prepare evaluation key for operations in split crt basis as three switching keys
-func prepareEvalKeyKeySwitch(i, level, modulus, beta uint64, evaluationKeys []*MKRelinearizationKey, ringQ, ringP *ring.Ring, d0QP, d1QP, d2QP *rlwe.SwitchingKey) {
+// prepare relinearization key for operations in split crt basis as three switching keys
+func prepareRelinKeyKeySwitch(i, level, modulus, beta uint64, evaluationKeys []*MKRelinearizationKey, ringQ, ringP *ring.Ring, d0QP, d1QP, d2QP *rlwe.SwitchingKey) {
 
 	di01 := evaluationKeys[i-1].Key01
 	di2 := evaluationKeys[i-1].Key2

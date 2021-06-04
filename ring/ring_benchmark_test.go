@@ -11,7 +11,7 @@ func BenchmarkRing(b *testing.B) {
 
 	var err error
 
-	var defaultParams []*Parameters
+	var defaultParams []Parameters
 
 	if testing.Short() {
 		defaultParams = DefaultParams[:3]

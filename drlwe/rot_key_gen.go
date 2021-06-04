@@ -3,7 +3,6 @@ package drlwe
 import (
 	"encoding/binary"
 	"errors"
-	"math"
 	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
@@ -26,51 +25,33 @@ type RTGShare struct {
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct { // TODO rename GaloisKeyGen ?
-	ringQP             *ring.Ring
-	ringPModulusBigint *big.Int
-	ringQModCount      int
-	alpha              int
-	beta               int
-
+	params          rlwe.Parameters
+	ringQP          *ring.Ring
+	pBigInt         *big.Int
 	tmpPoly         [2]*ring.Poly
 	gaussianSampler *ring.GaussianSampler
 }
 
 // NewRTGProtocol creates a RTGProtocol instance
-func NewRTGProtocol(n int, q, p []uint64, sigma float64) *RTGProtocol {
+func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 	rtg := new(RTGProtocol)
-	rtg.ringQModCount = len(q)
-	rtg.ringPModulusBigint = big.NewInt(1)
-	for _, pi := range p {
-		rtg.ringPModulusBigint.Mul(rtg.ringPModulusBigint, new(big.Int).SetUint64(pi))
-	}
-	rtg.alpha = len(p)
-	if rtg.alpha != 0 {
-		rtg.beta = int(math.Ceil(float64(len(q)) / float64(len(p))))
-	} else {
-		rtg.beta = 1
-	}
+	rtg.params = params
+	rtg.ringQP = params.RingQP()
+	rtg.pBigInt = params.PBigInt()
 	var err error
-	rtg.ringQP, err = ring.NewRing(n, append(q, p...))
-	if err != nil {
-		panic(err) // TODO error
-	}
-
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	rtg.gaussianSampler = ring.NewGaussianSampler(prng, rtg.ringQP, sigma, int(6*sigma))
-
+	rtg.gaussianSampler = ring.NewGaussianSampler(prng, rtg.ringQP, params.Sigma(), int(6*params.Sigma()))
 	rtg.tmpPoly = [2]*ring.Poly{rtg.ringQP.NewPoly(), rtg.ringQP.NewPoly()}
-
 	return rtg
 }
 
 // AllocateShares allocates a party's share in the RTG protocol
 func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare) {
 	rtgShare = new(RTGShare)
-	rtgShare.Value = make([]*ring.Poly, rtg.beta)
+	rtgShare.Value = make([]*ring.Poly, rtg.params.Beta())
 	for i := range rtgShare.Value {
 		rtgShare.Value[i] = rtg.ringQP.NewPoly()
 	}
@@ -85,11 +66,11 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 
 	ring.PermuteNTT(sk.Value, galElInv, rtg.tmpPoly[1])
 
-	rtg.ringQP.MulScalarBigint(sk.Value, rtg.ringPModulusBigint, rtg.tmpPoly[0])
+	rtg.ringQP.MulScalarBigint(sk.Value, rtg.pBigInt, rtg.tmpPoly[0])
 
 	var index int
 
-	for i := 0; i < rtg.beta; i++ {
+	for i := 0; i < rtg.params.Beta(); i++ {
 
 		// e
 		rtg.gaussianSampler.Read(shareOut.Value[i])
@@ -100,9 +81,9 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 
 		// e + sk_in * (qiBarre*qiStar) * 2^w
 		// (qiBarre*qiStar)%qi = 1, else 0
-		for j := 0; j < rtg.alpha; j++ {
+		for j := 0; j < rtg.params.PCount(); j++ {
 
-			index = i*rtg.alpha + j
+			index = i*rtg.params.PCount() + j
 
 			qi := rtg.ringQP.Modulus[index]
 			tmp0 := rtg.tmpPoly[0].Coeffs[index]
@@ -113,7 +94,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 			}
 
 			// Handles the case where nb pj does not divides nb qi
-			if index >= rtg.ringQModCount {
+			if index >= rtg.params.QCount() {
 				break
 			}
 		}
@@ -130,14 +111,14 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.P
 
 // Aggregate aggregates two shares in the Rotation Key Generation protocol
 func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut *RTGShare) {
-	for i := 0; i < rtg.beta; i++ {
+	for i := 0; i < rtg.params.Beta(); i++ {
 		rtg.ringQP.Add(share1.Value[i], share2.Value[i], shareOut.Value[i])
 	}
 }
 
 // GenRotationKey finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
 func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp []*ring.Poly, rotKey *rlwe.SwitchingKey) {
-	for i := 0; i < rtg.beta; i++ {
+	for i := 0; i < rtg.params.Beta(); i++ {
 		rtg.ringQP.Copy(share.Value[i], rotKey.Value[i][0])
 		rtg.ringQP.Copy(crp[i], rotKey.Value[i][1])
 	}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 func example() {
@@ -14,22 +15,18 @@ func example() {
 	var start time.Time
 	var err error
 
-	LogN := 14
-	LogSlots := 13
-
-	LogModuli := ckks.LogModuli{
-		LogQi: []uint64{55, 40, 40, 40, 40, 40, 40, 40},
-		LogPi: []uint64{45, 45},
-	}
-
-	Scale := float64(1 << 40)
-
-	params, err := ckks.NewParametersFromLogModuli(LogN, &LogModuli)
+	// Schemes parameters are created from scratch
+	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+		LogN:     14,
+		LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40},
+		LogP:     []int{45, 45},
+		Sigma:    rlwe.DefaultSigma,
+		LogSlots: 13,
+		Scale:    float64(1 << 40),
+	})
 	if err != nil {
 		panic(err)
 	}
-	params.SetScale(Scale)
-	params.SetLogSlots(LogSlots)
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -51,7 +48,7 @@ func example() {
 
 	encoder := ckks.NewEncoder(params)
 
-	evaluator := ckks.NewEvaluator(params, ckks.EvaluationKey{Rlk: rlk})
+	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk})
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
@@ -199,7 +196,7 @@ func example() {
 
 }
 
-func printDebug(params *ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
+func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
 
 	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
 

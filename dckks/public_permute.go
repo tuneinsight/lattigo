@@ -20,7 +20,7 @@ type PermuteProtocol struct {
 }
 
 // NewPermuteProtocol creates a new instance of the PermuteProtocol.
-func NewPermuteProtocol(params *ckks.Parameters) (pp *PermuteProtocol) {
+func NewPermuteProtocol(params ckks.Parameters) (pp *PermuteProtocol) {
 
 	prec := int(256)
 
@@ -102,7 +102,7 @@ func (pp *PermuteProtocol) GenShares(sk *ring.Poly, levelStart, nParties int, ci
 	ringQ.SetCoefficientsBigintLvl(levelStart, pp.maskBigint, shareDecrypt)
 	ringQ.NTTLvl(levelStart, shareDecrypt, shareDecrypt)
 	// h0 = sk*c1 + mask
-	ringQ.MulCoeffsMontgomeryAndAddLvl(levelStart, sk, ciphertext.Value()[1], shareDecrypt)
+	ringQ.MulCoeffsMontgomeryAndAddLvl(levelStart, sk, ciphertext.Value[1], shareDecrypt)
 	// h0 = sk*c1 + mask + e0
 	pp.gaussianSampler.ReadFromDistLvl(levelStart, pp.tmp, ringQ, sigma, int(6*sigma))
 	ringQ.NTTLvl(levelStart, pp.tmp, pp.tmp)
@@ -151,7 +151,7 @@ func (pp *PermuteProtocol) Aggregate(share1, share2, shareOut *ring.Poly) {
 
 // Decrypt operates a masked decryption on the ciphertext with the given decryption share.
 func (pp *PermuteProtocol) Decrypt(ciphertext *ckks.Ciphertext, shareDecrypt RefreshShareDecrypt) {
-	pp.dckksContext.ringQ.AddLvl(ciphertext.Level(), ciphertext.Value()[0], shareDecrypt, ciphertext.Value()[0])
+	pp.dckksContext.ringQ.AddLvl(ciphertext.Level(), ciphertext.Value[0], shareDecrypt, ciphertext.Value[0])
 }
 
 // Permute takes a masked decrypted ciphertext at modulus Q_0 and returns the same masked decrypted ciphertext at modulus Q_L, with Q_0 << Q_L.
@@ -160,9 +160,9 @@ func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []ui
 	dckksContext := pp.dckksContext
 	ringQ := pp.dckksContext.ringQ
 
-	ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+	ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 
-	ringQ.PolyToBigint(ciphertext.Value()[0], pp.maskBigint)
+	ringQ.PolyToBigint(ciphertext.Value[0], pp.maskBigint)
 
 	QStart := ring.NewUint(ringQ.Modulus[0])
 	for i := 1; i < ciphertext.Level()+1; i++ {
@@ -204,19 +204,19 @@ func (pp *PermuteProtocol) Permute(ciphertext *ckks.Ciphertext, permutation []ui
 	}
 
 	for ciphertext.Level() != dckksContext.params.MaxLevel() {
-		ciphertext.Value()[0].Coeffs = append(ciphertext.Value()[0].Coeffs, make([][]uint64, 1)...)
-		ciphertext.Value()[0].Coeffs[ciphertext.Level()] = make([]uint64, dckksContext.n)
+		ciphertext.Value[0].Coeffs = append(ciphertext.Value[0].Coeffs, make([][]uint64, 1)...)
+		ciphertext.Value[0].Coeffs[ciphertext.Level()] = make([]uint64, dckksContext.n)
 	}
 
-	ringQ.SetCoefficientsBigintLvl(ciphertext.Level(), pp.maskBigint, ciphertext.Value()[0])
+	ringQ.SetCoefficientsBigintLvl(ciphertext.Level(), pp.maskBigint, ciphertext.Value[0])
 
-	ringQ.NTTLvl(ciphertext.Level(), ciphertext.Value()[0], ciphertext.Value()[0])
+	ringQ.NTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 }
 
 // Recrypt operates a masked recryption on the masked decrypted ciphertext.
 func (pp *PermuteProtocol) Recrypt(ciphertext *ckks.Ciphertext, crs *ring.Poly, shareRecrypt RefreshShareRecrypt) {
 
-	pp.dckksContext.ringQ.Add(ciphertext.Value()[0], shareRecrypt, ciphertext.Value()[0])
+	pp.dckksContext.ringQ.Add(ciphertext.Value[0], shareRecrypt, ciphertext.Value[0])
 
-	ciphertext.Value()[1] = crs.CopyNew()
+	ciphertext.Value[1] = crs.CopyNew()
 }

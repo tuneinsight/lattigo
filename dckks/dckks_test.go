@@ -1,6 +1,7 @@
 package dckks
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math"
@@ -17,23 +18,24 @@ import (
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
+var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 var minPrec float64 = 15.0
 var parties int = 3
 
-func testString(opname string, parties int, params *ckks.Parameters) string {
+func testString(opname string, parties int, params ckks.Parameters) string {
 	return fmt.Sprintf("%sparties=%d/logN=%d/logQ=%d/levels=%d/alpha=%d/beta=%d",
 		opname,
 		parties,
 		params.LogN(),
 		params.LogQP(),
 		params.MaxLevel()+1,
-		params.Alpha(),
+		params.PCount(),
 		params.Beta())
 }
 
 type testContext struct {
-	params *ckks.Parameters
+	params ckks.Parameters
 
 	dckksContext *dckksContext
 
@@ -46,32 +48,40 @@ type testContext struct {
 	decryptorSk0 ckks.Decryptor
 	decryptorSk1 ckks.Decryptor
 
-	pk0 *ckks.PublicKey
-	pk1 *ckks.PublicKey
+	pk0 *rlwe.PublicKey
+	pk1 *rlwe.PublicKey
 
-	sk0 *ckks.SecretKey
-	sk1 *ckks.SecretKey
+	sk0 *rlwe.SecretKey
+	sk1 *rlwe.SecretKey
 
-	sk0Shards []*ckks.SecretKey
-	sk1Shards []*ckks.SecretKey
+	sk0Shards []*rlwe.SecretKey
+	sk1Shards []*rlwe.SecretKey
 }
 
 func TestDCKKS(t *testing.T) {
 
-	var err error
-
-	var defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	var defaultParams = ckks.DefaultParams[:4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = ckks.DefaultParams[ckks.PN12QP109 : ckks.PN12QP109+2] // the short test runs for ring degree N=2^12, 2^13
+		defaultParams = ckks.DefaultParams[:2] // the short test runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
 		defaultParams = ckks.DefaultParams // the long test suite runs for all default parameters
 	}
+	if *flagParamString != "" {
+		var jsonParams ckks.ParametersLiteral
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		defaultParams = []ckks.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+	}
 
 	for _, p := range defaultParams {
 
+		params, err := ckks.NewParametersFromLiteral(p)
+		if err != nil {
+			panic(err)
+		}
+
 		var testCtx *testContext
-		if testCtx, err = genTestParams(p); err != nil {
+		if testCtx, err = genTestParams(params); err != nil {
 			panic(err)
 		}
 
@@ -86,11 +96,11 @@ func TestDCKKS(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParams *ckks.Parameters) (testCtx *testContext, err error) {
+func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err error) {
 
 	testCtx = new(testContext)
 
-	testCtx.params = defaultParams.Copy()
+	testCtx.params = defaultParams
 
 	testCtx.dckksContext = newDckksContext(testCtx.params)
 
@@ -99,13 +109,13 @@ func genTestParams(defaultParams *ckks.Parameters) (testCtx *testContext, err er
 	}
 
 	testCtx.encoder = ckks.NewEncoder(testCtx.params)
-	testCtx.evaluator = ckks.NewEvaluator(testCtx.params, ckks.EvaluationKey{})
+	testCtx.evaluator = ckks.NewEvaluator(testCtx.params, rlwe.EvaluationKey{})
 
 	kgen := ckks.NewKeyGenerator(testCtx.params)
 
 	// SecretKeys
-	testCtx.sk0Shards = make([]*ckks.SecretKey, parties)
-	testCtx.sk1Shards = make([]*ckks.SecretKey, parties)
+	testCtx.sk0Shards = make([]*rlwe.SecretKey, parties)
+	testCtx.sk1Shards = make([]*rlwe.SecretKey, parties)
 	tmp0 := testCtx.dckksContext.ringQP.NewPoly()
 	tmp1 := testCtx.dckksContext.ringQP.NewPoly()
 
@@ -153,7 +163,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.CKGProtocol = NewCKGProtocol(testCtx.params)
-			p.s = &sk0Shards[i].SecretKey
+			p.s = sk0Shards[i]
 			p.s1 = p.AllocateShares()
 			ckgParties[i] = p
 		}
@@ -170,7 +180,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		pk := ckks.NewPublicKey(testCtx.params)
-		P0.GenCKKSPublicKey(P0.s1, crp, pk)
+		P0.GenPublicKey(P0.s1, crp, pk)
 
 		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
 		encryptorTest := ckks.NewEncryptorFromPk(testCtx.params, pk)
@@ -203,7 +213,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		for i := range rkgParties {
 			p := new(Party)
 			p.RKGProtocol = NewRKGProtocol(testCtx.params)
-			p.sk = &sk0Shards[i].SecretKey
+			p.sk = sk0Shards[i]
 			p.ephSk, p.share1, p.share2 = p.AllocateShares()
 			rkgParties[i] = p
 		}
@@ -237,7 +247,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		rlk := ckks.NewRelinearizationKey(testCtx.params)
-		P0.GenCKKSRelinearizationKey(P0.share1, P0.share2, rlk)
+		P0.GenRelinearizationKey(P0.share1, P0.share2, rlk)
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 
@@ -245,7 +255,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 			coeffs[i] *= coeffs[i]
 		}
 
-		evaluator := testCtx.evaluator.WithKey(ckks.EvaluationKey{Rlk: rlk, Rtks: nil})
+		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
 		evaluator.MulRelin(ciphertext, ciphertext, ciphertext)
 
 		evaluator.Rescale(ciphertext, testCtx.params.Scale(), ciphertext)
@@ -371,7 +381,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-			p.s = &sk0Shards[i].SecretKey
+			p.s = sk0Shards[i]
 			p.share = p.AllocateShares()
 			pcksParties[i] = p
 		}
@@ -401,7 +411,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 
-		evaluator := testCtx.evaluator.WithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 		evaluator.Conjugate(ciphertext, ciphertext)
 
 		coeffsWant := make([]complex128, ringQP.N>>1)
@@ -434,7 +444,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
-			p.s = &sk0Shards[i].SecretKey
+			p.s = sk0Shards[i]
 			p.share = p.AllocateShares()
 			pcksParties[i] = p
 		}
@@ -465,7 +475,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 			P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
 		}
 
-		evaluator := testCtx.evaluator.WithKey(ckks.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
+		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 
 		for k := 1; k < ringQP.N>>1; k <<= 1 {
 			evaluator.Rotate(ciphertext, int(k), receiver)

@@ -1,23 +1,32 @@
 package bfv
 
 import (
+	"encoding/json"
 	"testing"
+
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 func BenchmarkBFV(b *testing.B) {
-	var err error
 
-	var defaultParams []*Parameters
-
+	defaultParams := DefaultParams
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+3]
+		defaultParams = DefaultParams[:2]
 	} else {
-		defaultParams = DefaultParams
+
+	}
+
+	if *flagParamString != "" {
+		var jsonParams ParametersLiteral
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
+
+		params, err := NewParametersFromLiteral(p)
 		var testctx *testContext
-		if testctx, err = genTestParams(p); err != nil {
+		if testctx, err = genTestParams(params); err != nil {
 			panic(err)
 		}
 
@@ -84,7 +93,7 @@ func benchKeyGen(testctx *testContext, b *testing.B) {
 
 	b.Run(testString("KeyGen/SwitchKeyGen/", testctx.params), func(b *testing.B) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -104,7 +113,7 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 
 	b.Run(testString("Encrypt/key=Pk/", testctx.params), func(b *testing.B) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -156,11 +165,11 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
 
-	var rotkey *RotationKeySet
-	if testctx.params.PiCount() != 0 {
+	var rotkey *rlwe.RotationKeySet
+	if testctx.params.PCount() != 0 {
 		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk)
 	}
-	evaluator := testctx.evaluator.WithKey(EvaluationKey{testctx.rlk, rotkey})
+	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
 
 	b.Run(testString("Evaluator/Add/Ct/", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -218,7 +227,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 
 	b.Run(testString("Evaluator/Relin/", testctx.params), func(b *testing.B) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -229,7 +238,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 
 	b.Run(testString("Evaluator/RotateRows/", testctx.params), func(b *testing.B) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -240,7 +249,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 
 	b.Run(testString("Evaluator/RotateCols/", testctx.params), func(b *testing.B) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 

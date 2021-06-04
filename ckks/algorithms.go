@@ -11,7 +11,7 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 int, opOut *Ciphertext) 
 	if logPow2 == 0 {
 
 		if op != opOut {
-			opOut.Copy(op.El())
+			opOut.Copy(op)
 		}
 
 	} else {
@@ -56,7 +56,7 @@ func (eval *evaluator) Power(op *Ciphertext, degree int, opOut *Ciphertext) {
 	logDegree = bits.Len64(uint64(degree)) - 1
 	po2Degree = 1 << logDegree
 
-	eval.PowerOf2(tmpct0.Ciphertext(), logDegree, opOut)
+	eval.PowerOf2(tmpct0, logDegree, opOut)
 
 	degree -= po2Degree
 
@@ -67,7 +67,7 @@ func (eval *evaluator) Power(op *Ciphertext, degree int, opOut *Ciphertext) {
 
 		tmp := NewCiphertext(eval.params, 1, tmpct0.Level(), tmpct0.Scale())
 
-		eval.PowerOf2(tmpct0.Ciphertext(), logDegree, tmp)
+		eval.PowerOf2(tmpct0, logDegree, tmp)
 
 		eval.MulRelin(opOut.El(), tmp.El(), opOut)
 
@@ -88,11 +88,11 @@ func (eval *evaluator) InverseNew(op *Ciphertext, steps int) (opOut *Ciphertext)
 	eval.AddConst(cbar, 1, cbar)
 
 	tmp := eval.AddConstNew(cbar, 1)
-	opOut = tmp.CopyNew().Ciphertext()
+	opOut = tmp.CopyNew()
 
 	for i := 1; i < steps; i++ {
 
-		eval.MulRelin(cbar.El(), cbar.El(), cbar.Ciphertext())
+		eval.MulRelin(cbar.El(), cbar.El(), cbar)
 
 		if err := eval.Rescale(cbar, eval.scale, cbar); err != nil {
 			panic(err)
@@ -100,13 +100,13 @@ func (eval *evaluator) InverseNew(op *Ciphertext, steps int) (opOut *Ciphertext)
 
 		tmp = eval.AddConstNew(cbar, 1)
 
-		eval.MulRelin(tmp.El(), opOut.El(), tmp.Ciphertext())
+		eval.MulRelin(tmp.El(), opOut.El(), tmp)
 
 		if err := eval.Rescale(tmp, eval.scale, tmp); err != nil {
 			panic(err)
 		}
 
-		opOut = tmp.CopyNew().Ciphertext()
+		opOut = tmp.CopyNew()
 	}
 
 	return opOut

@@ -1,8 +1,9 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/v2/ring"
 	"math"
+
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
@@ -79,7 +80,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 func (btp *Bootstrapper) subSum(ct *Ciphertext) *Ciphertext {
 
-	for i := btp.params.logSlots; i < btp.params.MaxLogSlots(); i++ {
+	for i := btp.params.LogSlots(); i < btp.params.MaxLogSlots(); i++ {
 
 		btp.evaluator.Rotate(ct, 1<<i, btp.evaluator.ctxpool)
 
@@ -93,13 +94,13 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 
 	ringQ := btp.evaluator.ringQ
 
-	ct.InvNTT(ringQ, ct.El())
+	ct.InvNTT(ringQ, &ct.Element.Element)
 
 	// Extend the ciphertext with zero polynomials.
-	for u := range ct.Value() {
-		ct.Value()[u].Coeffs = append(ct.Value()[u].Coeffs, make([][]uint64, btp.params.MaxLevel())...)
+	for u := range ct.Value {
+		ct.Value[u].Coeffs = append(ct.Value[u].Coeffs, make([][]uint64, btp.params.MaxLevel())...)
 		for i := 1; i < btp.params.MaxLevel()+1; i++ {
-			ct.Value()[u].Coeffs[i] = make([]uint64, btp.params.N())
+			ct.Value[u].Coeffs[i] = make([]uint64, btp.params.N())
 		}
 	}
 
@@ -108,26 +109,26 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 	bredparams := ringQ.BredParams
 
 	var coeff, qi uint64
-	for u := range ct.Value() {
+	for u := range ct.Value {
 
 		for j := 0; j < btp.params.N(); j++ {
 
-			coeff = ct.Value()[u].Coeffs[0][j]
+			coeff = ct.Value[u].Coeffs[0][j]
 
 			for i := 1; i < btp.params.MaxLevel()+1; i++ {
 
 				qi = ringQ.Modulus[i]
 
 				if coeff > (Q >> 1) {
-					ct.Value()[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
+					ct.Value[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
 				} else {
-					ct.Value()[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
+					ct.Value[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
 				}
 			}
 		}
 	}
 
-	ct.NTT(ringQ, ct.El())
+	ct.NTT(ringQ, &ct.Element.Element)
 
 	return ct
 }
@@ -198,12 +199,12 @@ func (btp *Bootstrapper) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphe
 
 	ct0 = btp.evaluateCheby(ct0)
 
-	ct0.DivScale(btp.MessageRatio * btp.postscale / btp.params.scale)
+	ct0.DivScale(btp.MessageRatio * btp.postscale / btp.params.Scale())
 
 	if ct1 != nil {
 		ct1.MulScale(btp.MessageRatio)
 		ct1 = btp.evaluateCheby(ct1)
-		ct1.DivScale(btp.MessageRatio * btp.postscale / btp.params.scale)
+		ct1.DivScale(btp.MessageRatio * btp.postscale / btp.params.Scale())
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.

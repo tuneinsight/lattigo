@@ -346,12 +346,13 @@ type participant interface {
 }
 
 type mkParticipant struct {
-	encryptor mkbfv.MKEncryptor
-	decryptor mkrlwe.MKDecryptor
-	params    *bfv.Parameters
-	keys      *mkrlwe.MKKeys
-	encoder   bfv.Encoder
-	ringQ     *ring.Ring
+	encryptor     mkbfv.MKEncryptor
+	decryptor     mkrlwe.MKDecryptor
+	params        *bfv.Parameters
+	keys          *mkrlwe.MKKeys
+	encoder       bfv.Encoder
+	ringQ         *ring.Ring
+	sigmaSmudging float64
 }
 
 // GetEvaluationKey returns the evaluation key of the participant
@@ -398,7 +399,7 @@ func (participant *mkParticipant) Decrypt(cipher *bfv.Ciphertext, partialDecrypt
 // this function should only be used by participants that were involved in the given ciphertext
 func (participant *mkParticipant) GetPartialDecryption(cipher *bfv.Ciphertext) *ring.Poly {
 
-	return participant.decryptor.PartDec(cipher.Element, uint64(len(participant.ringQ.Modulus)-1), participant.keys.SecretKey)
+	return participant.decryptor.PartDec(cipher.Element, uint64(len(participant.ringQ.Modulus)-1), participant.keys.SecretKey, participant.sigmaSmudging)
 }
 
 // newParticipant creates a participant for the multi key bfv scheme
@@ -420,17 +421,18 @@ func newParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *mkrlwe.M
 	keys := mkrlwe.KeyGen(&params.Parameters, mkrlwe.CopyNewDecomposed(crs))
 
 	encryptor := mkbfv.NewMKEncryptor(keys.PublicKey, params)
-	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters, sigmaSmudging)
+	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters)
 	encoder := bfv.NewEncoder(*params)
 	ringQ := mkrlwe.GetRingQ(&params.Parameters)
 
 	return &mkParticipant{
-		encryptor: encryptor,
-		decryptor: decryptor,
-		params:    params,
-		keys:      keys,
-		encoder:   encoder,
-		ringQ:     ringQ,
+		encryptor:     encryptor,
+		decryptor:     decryptor,
+		params:        params,
+		keys:          keys,
+		encoder:       encoder,
+		ringQ:         ringQ,
+		sigmaSmudging: sigmaSmudging,
 	}
 }
 

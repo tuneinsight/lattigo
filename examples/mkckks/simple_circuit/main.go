@@ -33,7 +33,7 @@ func main() {
 	keys1 := mkrlwe.KeyGen(&params.Parameters, crs)
 	encryptor1 := mkckks.NewMKEncryptor(keys1.PublicKey, &params)
 	encoder1 := ckks.NewEncoder(params)
-	decryptor1 := mkrlwe.NewMKDecryptor(&params.Parameters, 0.6)
+	decryptor1 := mkrlwe.NewMKDecryptor(&params.Parameters)
 
 	value1 := newTestValue(&params, complex(-1, -1), complex(1, 1))
 	plaintext1 := encoder1.EncodeNTTAtLvlNew(params.MaxLevel(), value1, params.LogSlots())
@@ -46,7 +46,7 @@ func main() {
 	keys2 := mkrlwe.KeyGen(&params.Parameters, crs)
 	encryptor2 := mkckks.NewMKEncryptor(keys2.PublicKey, &params)
 	encoder2 := ckks.NewEncoder(params)
-	decryptor2 := mkrlwe.NewMKDecryptor(&params.Parameters, 0.6)
+	decryptor2 := mkrlwe.NewMKDecryptor(&params.Parameters)
 
 	value2 := newTestValue(&params, complex(-1, -1), complex(1, 1))
 	plaintext2 := encoder2.EncodeNTTAtLvlNew(params.MaxLevel(), value2, params.LogSlots())
@@ -83,8 +83,8 @@ func main() {
 	ckksCipher1 := resCKKS[0]
 	ckksCipher2 := resCKKS[1]
 
-	part1 := decryptor1.PartDec(&ckksCipher1.El().Element, ckksCipher1.Level(), keys1.SecretKey, 0.6)
-	part2 := decryptor2.PartDec(&ckksCipher2.El().Element, ckksCipher2.Level(), keys2.SecretKey, 0.6)
+	part1 := decryptor1.PartDec(&ckksCipher1.El().Element, ckksCipher1.Level(), keys1.SecretKey, 6.0)
+	part2 := decryptor2.PartDec(&ckksCipher2.El().Element, ckksCipher2.Level(), keys2.SecretKey, 6.0)
 
 	// Final decryption using the partial shares
 	decrypted := decryptor1.MergeDec(&ckksCipher1.El().Element, ckksCipher1.Level(), []*ring.Poly{part1, part2})

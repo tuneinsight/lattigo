@@ -1333,12 +1333,13 @@ type participant interface {
 }
 
 type mkParticipant struct {
-	encryptor MKEncryptor
-	decryptor mkrlwe.MKDecryptor
-	keys      *mkrlwe.MKKeys
-	encoder   ckks.Encoder
-	ringQ     *ring.Ring
-	params    *ckks.Parameters
+	encryptor     MKEncryptor
+	decryptor     mkrlwe.MKDecryptor
+	keys          *mkrlwe.MKKeys
+	encoder       ckks.Encoder
+	ringQ         *ring.Ring
+	params        *ckks.Parameters
+	sigmaSmudging float64
 }
 
 // GetEvaluationKey returns the evaluation key of the participant
@@ -1386,7 +1387,7 @@ func (participant *mkParticipant) GetPartialDecryption(ct *ckks.Ciphertext) *rin
 	if ct == nil || len(ct.Value) < 1 {
 		panic("Uninitialized ciphertext")
 	}
-	return participant.decryptor.PartDec(&ct.Element.Element, ct.Level(), participant.keys.SecretKey, 6.0)
+	return participant.decryptor.PartDec(&ct.Element.Element, ct.Level(), participant.keys.SecretKey, participant.sigmaSmudging)
 }
 
 // newParticipant creates a participant for the multi key ckks scheme
@@ -1412,12 +1413,13 @@ func newParticipant(params *ckks.Parameters, sigmaSmudging float64, crs *mkrlwe.
 	ringQ := mkrlwe.GetRingQ(&params.Parameters)
 
 	return &mkParticipant{
-		encryptor: encryptor,
-		decryptor: decryptor,
-		keys:      keys,
-		encoder:   encoder,
-		ringQ:     ringQ,
-		params:    params,
+		encryptor:     encryptor,
+		decryptor:     decryptor,
+		keys:          keys,
+		encoder:       encoder,
+		ringQ:         ringQ,
+		params:        params,
+		sigmaSmudging: sigmaSmudging,
 	}
 }
 

@@ -36,7 +36,7 @@ func main() {
 	keys1 := mkrlwe.KeyGen(&params.Parameters, crs)
 	encryptor1 := mkbfv.NewMKEncryptor(keys1.PublicKey, &params)
 	encoder1 := bfv.NewEncoder(params)
-	decryptor1 := mkrlwe.NewMKDecryptor(&params.Parameters, 0.6)
+	decryptor1 := mkrlwe.NewMKDecryptor(&params.Parameters)
 
 	value1 := mkrlwe.GetRandomPoly(&params.Parameters, ringT).Coeffs[0]
 	plaintext1 := bfv.NewPlaintext(params)
@@ -50,7 +50,7 @@ func main() {
 	keys2 := mkrlwe.KeyGen(&params.Parameters, crs)
 	encryptor2 := mkbfv.NewMKEncryptor(keys2.PublicKey, &params)
 	encoder2 := bfv.NewEncoder(params)
-	decryptor2 := mkrlwe.NewMKDecryptor(&params.Parameters, 0.6)
+	decryptor2 := mkrlwe.NewMKDecryptor(&params.Parameters)
 
 	value2 := mkrlwe.GetRandomPoly(&params.Parameters, ringT).Coeffs[0]
 	plaintext2 := bfv.NewPlaintext(params)
@@ -88,8 +88,8 @@ func main() {
 	bfvCipher1 := resBFV[0]
 	bfvCipher2 := resBFV[1]
 
-	part1 := decryptor1.PartDec(bfvCipher1.Element, bfvCipher1.Level(), keys1.SecretKey)
-	part2 := decryptor2.PartDec(bfvCipher2.Element, bfvCipher2.Level(), keys2.SecretKey)
+	part1 := decryptor1.PartDec(bfvCipher1.Element, bfvCipher1.Level(), keys1.SecretKey, 6.0)
+	part2 := decryptor2.PartDec(bfvCipher2.Element, bfvCipher2.Level(), keys2.SecretKey, 6.0)
 
 	// Final decryption using the partial shares
 	decrypted := decryptor1.MergeDec(bfvCipher1.Element, bfvCipher1.Level(), []*ring.Poly{part1, part2})

@@ -44,7 +44,7 @@ func Test_MKBFV(t *testing.T) {
 
 		testRotation(t, p)
 		testRotationTwoParticipants(t, p)
-		//testMarshaler(t, p)
+		testMarshaler(t, p)
 		testSquare(t, p)
 	}
 }
@@ -1072,7 +1072,6 @@ func testBfvMkbfvBridge(t *testing.T, params *bfv.Parameters) {
 	})
 }
 
-/*
 func testMarshaler(t *testing.T, params *bfv.Parameters) {
 
 	sigma := 6.0
@@ -1096,7 +1095,10 @@ func testMarshaler(t *testing.T, params *bfv.Parameters) {
 		ciphers := evaluator.ConvertToMKCiphertext([]*bfv.Ciphertext{cipher1, cipher2}, []uint64{1, 2})
 		res := evaluator.Add(ciphers[0], ciphers[1])
 
-		data := res.MarshalBinary()
+		data, err := res.MarshalBinary()
+		if err != nil {
+			t.Error("Could not marshall correctly ciphertext")
+		}
 
 		unMarshaled := new(MKCiphertext)
 
@@ -1116,7 +1118,6 @@ func testMarshaler(t *testing.T, params *bfv.Parameters) {
 	})
 
 }
-*/
 
 func Test_Utils(t *testing.T) {
 

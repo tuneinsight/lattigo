@@ -1102,7 +1102,7 @@ func testMarshaler(t *testing.T, params *ckks.Parameters) {
 
 		data, err := res.MarshalBinary()
 		if err != nil {
-			t.Error("Could not marshall correctly")
+			t.Error("Could not marshall correctly ciphertext")
 		}
 
 		unMarshaled := new(MKCiphertext)

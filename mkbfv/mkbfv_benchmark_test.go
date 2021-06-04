@@ -32,7 +32,7 @@ func Benchmark_MKBFV(b *testing.B) {
 		benchMultTwoCiphertexts(b, p)
 		benchRelin(b, p)
 		benchRotate(b, p)
-		//benchMemoryConsumption(b, p)
+		benchMemoryConsumption(b, p)
 
 		for i := uint64(1); i < 11; i++ {
 			benchAddIncreasingParticipants(i, b, p)
@@ -428,7 +428,6 @@ func benchDecryptionIncreasingParticipants(nbrParticipants uint64, b *testing.B,
 
 }
 
-/*
 func benchMemoryConsumption(b *testing.B, params *bfv.Parameters) {
 
 	participants := setupPeers(1, params, 6.0)
@@ -445,7 +444,7 @@ func benchMemoryConsumption(b *testing.B, params *bfv.Parameters) {
 			b.Error("Couldn't marshal public key")
 		}
 
-		b.Logf("Size of public key: %d bytes", len(data[0])+len(data[1])+len(data[2]))
+		b.Logf("Size of public key: %d bytes", len(data[8:]))
 	})
 
 	b.Run("Measure Memory Evaluation Key", func(b *testing.B) {
@@ -456,7 +455,7 @@ func benchMemoryConsumption(b *testing.B, params *bfv.Parameters) {
 			b.Error("Couldn't marshal evaluation key")
 		}
 
-		b.Logf("Size of evaluation key: %d bytes", len(data[0])+len(data[1])+len(data[2])+len(data[3]))
+		b.Logf("Size of evaluation key: %d bytes", len(data[8:]))
 	})
 
 	b.Run("Measure Memory Galois Evaluation Key", func(b *testing.B) {
@@ -467,7 +466,7 @@ func benchMemoryConsumption(b *testing.B, params *bfv.Parameters) {
 			b.Error("Couldn't marshal galois evaluation key")
 		}
 
-		b.Logf("Size of galois evaluation key: %d bytes", len(data[0])+len(data[1])+len(data[2]))
+		b.Logf("Size of galois evaluation key: %d bytes", len(data))
 	})
 
 	b.Run("Measure Memory Ciphertext", func(b *testing.B) {
@@ -476,10 +475,11 @@ func benchMemoryConsumption(b *testing.B, params *bfv.Parameters) {
 
 		cipher := participants[0].Encrypt(value)
 		mkCipher := &MKCiphertext{Ciphertexts: cipher, PeerID: []uint64{1}}
-		data := mkCipher.MarshalBinary()
-
-		b.Logf("Size of ciphertext: %d bytes", len(data[0])+len(data[1]))
+		data, err := mkCipher.MarshalBinary()
+		if err != nil {
+			b.Error("ciphertext not correctly marshalled")
+		}
+		b.Logf("Size of ciphertext: %d bytes", len(data[8:]))
 	})
 
 }
-*/

@@ -29,7 +29,7 @@ type testParams struct {
 	uniformSamplerP *UniformSampler
 }
 
-func genTestParams(defaultParams *Parameters) (testContext *testParams, err error) {
+func genTestParams(defaultParams Parameters) (testContext *testParams, err error) {
 
 	testContext = new(testParams)
 

@@ -101,6 +101,30 @@ func (pol *Poly) Copy(p1 *Poly) {
 	}
 }
 
+// Equals returns true if the receiver Poly is equal to the provided other Poly.
+// This function checks for strict equality between the polynomial coefficients
+// (i.e., it does not consider congruence as equality within the ring like
+// `Ring.Equals` does).
+func (pol *Poly) Equals(other *Poly) bool {
+	if pol == other {
+		return true
+	}
+	if pol != nil && other != nil && len(pol.Coeffs) == len(other.Coeffs) {
+		for i := range pol.Coeffs {
+			if len(other.Coeffs[i]) != len(pol.Coeffs[i]) {
+				return false
+			}
+			for j := range pol.Coeffs[i] {
+				if other.Coeffs[i][j] != pol.Coeffs[i][j] {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // SetCoefficients sets the coefficients of the polynomial directly from a CRT format (double slice).
 func (pol *Poly) SetCoefficients(coeffs [][]uint64) {
 	for i := range coeffs {

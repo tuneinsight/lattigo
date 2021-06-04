@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ckks/bettersine"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -41,7 +42,7 @@ func TestBootstrap(t *testing.T) {
 			panic(err)
 		}
 
-		if testContext, err = genTestParams(params, btpParams.H); err != nil {
+		if testContext, err = genTestParams(params, btpParams.H); err != nil { // TODO: setting the param.scale field is not something the user can do
 			panic(err)
 		}
 
@@ -65,7 +66,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		eval := testContext.evaluator
 
-		DefaultScale := testContext.params.scale
+		DefaultScale := testContext.params.Scale()
 
 		SineScale := btpParams.SineEvalModuli.ScalingFactor
 
@@ -104,7 +105,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		eval := testContext.evaluator
 
-		DefaultScale := testContext.params.scale
+		DefaultScale := testContext.params.Scale()
 
 		SineScale := btpParams.SineEvalModuli.ScalingFactor
 
@@ -189,7 +190,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		eval := testContext.evaluator
 
-		DefaultScale := testContext.params.scale
+		DefaultScale := testContext.params.Scale()
 
 		SineScale := btpParams.SineEvalModuli.ScalingFactor
 
@@ -254,13 +255,12 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 	t.Run(testString(testContext, "CoeffsToSlots/"), func(t *testing.T) {
 
 		params := testContext.params
-		kgen := testContext.kgen
 
 		// Generates the encoding matrices
 		CoeffsToSlotMatrices := btpParams.GenCoeffsToSlotsMatrix(1.0, testContext.encoder)
 
 		// Gets the rotations indexes for CoeffsToSlots
-		rotations := kgen.GenRotationIndexesForCoeffsToSlots(params.LogSlots(), btpParams)
+		rotations := btpParams.RotationsForCoeffsToSlots(params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
@@ -273,11 +273,11 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 
 		// Encodes and encrypts the test vector
 		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
-		testContext.encoder.Encode(plaintext, values, params.logSlots)
+		testContext.encoder.Encode(plaintext, values, params.LogSlots())
 		ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
 
 		// Creates an evaluator with the rotation keys
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		// Applies the homomorphic DFT
 		ct0, ct1 := CoeffsToSlots(ciphertext, CoeffsToSlotMatrices, eval)
@@ -331,19 +331,18 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 	t.Run(testString(testContext, "SlotsToCoeffs/"), func(t *testing.T) {
 
 		params := testContext.params
-		kgen := testContext.kgen
 
 		// Generates the encoding matrices
 		SlotsToCoeffsMatrix := btpParams.GenSlotsToCoeffsMatrix(1.0, testContext.encoder)
 
 		// Gets the rotations indexes for SlotsToCoeffs
-		rotations := kgen.GenRotationIndexesForSlotsToCoeffs(params.LogSlots(), btpParams)
+		rotations := btpParams.RotationsForSlotsToCoeffs(params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
 
 		// Creates an evaluator with the rotation keys
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		// Generates a random test vectors that simulates the encoding of a real vector
 		values0 := make([]complex128, params.Slots())
@@ -410,7 +409,7 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 
 		params := testContext.params
 
-		rotations := testContext.kgen.GenRotationIndexesForBootstrapping(testContext.params.logSlots, btpParams)
+		rotations := btpParams.RotationsForBootstrapping(testContext.params.LogSlots())
 		rotkeys := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
 		btpKey := BootstrappingKey{testContext.rlk, rotkeys}
 
@@ -419,20 +418,20 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 			panic(err)
 		}
 
-		values := make([]complex128, 1<<params.logSlots)
+		values := make([]complex128, 1<<params.LogSlots())
 		for i := range values {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.9238795325112867, 0.3826834323650898)
 		values[1] = complex(0.9238795325112867, 0.3826834323650898)
-		if 1<<params.logSlots > 2 {
+		if 1<<params.LogSlots() > 2 {
 			values[2] = complex(0.9238795325112867, 0.3826834323650898)
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
 		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
-		testContext.encoder.Encode(plaintext, values, params.logSlots)
+		testContext.encoder.Encode(plaintext, values, params.LogSlots())
 
 		ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
 

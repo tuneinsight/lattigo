@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math"
@@ -9,12 +10,14 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
+var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
 
@@ -27,21 +30,21 @@ func testString(testContext *testParams, opname string) string {
 		testContext.params.LogSlots(),
 		testContext.params.LogQP(),
 		testContext.params.MaxLevel()+1,
-		testContext.params.Alpha(),
+		testContext.params.PCount(),
 		testContext.params.Beta())
 }
 
 type testParams struct {
-	params      *Parameters
+	params      Parameters
 	ringQ       *ring.Ring
 	ringP       *ring.Ring
 	ringQP      *ring.Ring
 	prng        utils.PRNG
 	encoder     Encoder
 	kgen        KeyGenerator
-	sk          *SecretKey
-	pk          *PublicKey
-	rlk         *RelinearizationKey
+	sk          *rlwe.SecretKey
+	pk          *rlwe.PublicKey
+	rlk         *rlwe.RelinearizationKey
 	encryptorPk Encryptor
 	encryptorSk Encryptor
 	decryptor   Decryptor
@@ -50,19 +53,26 @@ type testParams struct {
 
 func TestCKKS(t *testing.T) {
 
-	var err error
-	defaultParams := DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	defaultParams := DefaultParams[:4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
+		defaultParams = DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
-
 	if *flagLongTest {
-		defaultParams = DefaultParams // the long test suite runs for all default parameters
+		defaultParams = append(DefaultParams, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
+	}
+	if *flagParamString != "" {
+		var jsonParams ParametersLiteral
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, defaultParam := range defaultParams {
+		params, err := NewParametersFromLiteral(defaultParam)
+		if err != nil {
+			panic(err)
+		}
 		var testContext *testParams
-		if testContext, err = genTestParams(defaultParam, 0); err != nil {
+		if testContext, err = genTestParams(params, 0); err != nil {
 			panic(err)
 		}
 
@@ -94,11 +104,11 @@ func TestCKKS(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParam *Parameters, hw int) (testContext *testParams, err error) {
+func genTestParams(defaultParam Parameters, hw int) (testContext *testParams, err error) {
 
 	testContext = new(testParams)
 
-	testContext.params = defaultParam.Copy()
+	testContext.params = defaultParam
 
 	testContext.kgen = NewKeyGenerator(testContext.params)
 
@@ -108,19 +118,10 @@ func genTestParams(defaultParam *Parameters, hw int) (testContext *testParams, e
 		testContext.sk, testContext.pk = testContext.kgen.GenKeyPairSparse(hw)
 	}
 
-	if testContext.ringQ, err = ring.NewRing(testContext.params.N(), testContext.params.qi); err != nil {
-		return nil, err
-	}
-
-	if testContext.ringQP, err = ring.NewRing(testContext.params.N(), append(testContext.params.qi, testContext.params.pi...)); err != nil {
-		return nil, err
-	}
-
-	if testContext.params.PiCount() != 0 {
-		if testContext.ringP, err = ring.NewRing(testContext.params.N(), testContext.params.pi); err != nil {
-			return nil, err
-		}
-
+	testContext.ringQ = defaultParam.RingQ()
+	testContext.ringQP = defaultParam.RingQP()
+	if testContext.params.PCount() != 0 {
+		testContext.ringP = defaultParam.RingP()
 		testContext.rlk = testContext.kgen.GenRelinearizationKey(testContext.sk)
 	}
 
@@ -134,7 +135,7 @@ func genTestParams(defaultParam *Parameters, hw int) (testContext *testParams, e
 	testContext.encryptorSk = NewEncryptorFromSk(testContext.params, testContext.sk)
 	testContext.decryptor = NewDecryptor(testContext.params, testContext.sk)
 
-	testContext.evaluator = NewEvaluator(testContext.params, EvaluationKey{testContext.rlk, nil})
+	testContext.evaluator = NewEvaluator(testContext.params, rlwe.EvaluationKey{Rlk: testContext.rlk})
 
 	return testContext, nil
 
@@ -158,7 +159,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 
 		switch encryptor := encryptor.(type) {
 		case *pkEncryptor:
-			if testContext.params.PiCount() != 0 {
+			if testContext.params.PCount() != 0 {
 				ciphertext = encryptor.EncryptNew(plaintext)
 			} else {
 				ciphertext = encryptor.EncryptFastNew(plaintext)
@@ -184,21 +185,13 @@ func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant 
 }
 
 func testParameters(testContext *testParams, t *testing.T) {
-
-	t.Run("Parameters/NewParametersFromModuli/", func(t *testing.T) {
-		p, err := NewParametersFromModuli(testContext.params.LogN(), testContext.params.Moduli())
-		p.SetLogSlots(testContext.params.LogSlots())
-		p.SetScale(testContext.params.Scale())
-		assert.NoError(t, err)
-		assert.True(t, p.Equals(testContext.params))
-	})
-
-	t.Run("Parameters/NewParametersFromLogModuli/", func(t *testing.T) {
-		p, err := NewParametersFromLogModuli(testContext.params.LogN(), testContext.params.LogModuli())
-		p.SetLogSlots(testContext.params.LogSlots())
-		p.SetScale(testContext.params.Scale())
-		assert.NoError(t, err)
-		assert.True(t, p.Equals(testContext.params))
+	t.Run(testString(testContext, "Parameters/CopyNew/"), func(t *testing.T) {
+		params1, params2 := testContext.params.CopyNew(), testContext.params.CopyNew()
+		assert.True(t, params1.Equals(testContext.params) && params2.Equals(testContext.params))
+		params1.logSlots = 7
+		params1.scale = 3.14
+		assert.False(t, params1.Equals(testContext.params))
+		assert.True(t, params2.Equals(testContext.params))
 	})
 }
 
@@ -250,7 +243,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Encryptor/EncryptFromPk/Lvl=Max/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -285,7 +278,7 @@ func testEncryptor(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Encryptor/EncryptFromPk/Lvl=1/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -506,7 +499,7 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Rescale/Single/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -525,7 +518,7 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Rescale/Many/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -717,7 +710,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Mul/Relinearize(ct0*ct1->ct0)/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -738,7 +731,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Mul/Relinearize(ct0*ct1->ct1)/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -763,7 +756,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/PowerOf2/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -793,7 +786,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Power/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -816,7 +809,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "Evaluator/Inverse/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -844,7 +837,7 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "EvaluatePoly/Exp/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -885,7 +878,7 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "ChebyshevInterpolator/Sin/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -921,7 +914,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "DecryptPublic/Sin/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -963,11 +956,11 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 
 func testSwitchKeys(testContext *testParams, t *testing.T) {
 
-	var sk2 *SecretKey
+	var sk2 *rlwe.SecretKey
 	var decryptorSk2 Decryptor
-	var switchingKey *SwitchingKey
+	var switchingKey *rlwe.SwitchingKey
 
-	if testContext.params.PiCount() != 0 {
+	if testContext.params.PCount() != 0 {
 		sk2 = testContext.kgen.GenSecretKey()
 		decryptorSk2 = NewDecryptor(testContext.params, sk2)
 		switchingKey = testContext.kgen.GenSwitchingKey(testContext.sk, sk2)
@@ -975,7 +968,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "SwitchKeys/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -988,7 +981,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "SwitchKeysNew/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -1003,16 +996,16 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 func testAutomorphisms(testContext *testParams, t *testing.T) {
 
-	if testContext.params.PiCount() == 0 {
+	if testContext.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 	rots := []int{0, 1, -1, 4, -4, 63, -63}
 	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
-	evaluator := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+	evaluator := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 	t.Run(testString(testContext, "Conjugate/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -1029,7 +1022,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 	t.Run(testString(testContext, "ConjugateNew/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -1080,7 +1073,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 func testInnerSum(testContext *testParams, t *testing.T) {
 
-	if testContext.params.PiCount() == 0 {
+	if testContext.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
@@ -1088,8 +1081,8 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		batch := 2
 		n := 35
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSum(batch, n), false, testContext.sk)
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.params.RotationsForInnerSum(batch, n), false, testContext.sk)
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1115,8 +1108,8 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		batch := 3
 		n := 15
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForInnerSumLog(batch, n), false, testContext.sk)
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.params.RotationsForInnerSumLog(batch, n), false, testContext.sk)
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1141,7 +1134,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 
 func testReplicate(testContext *testParams, t *testing.T) {
 
-	if testContext.params.PiCount() == 0 {
+	if testContext.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
@@ -1149,8 +1142,8 @@ func testReplicate(testContext *testParams, t *testing.T) {
 		batch := 2
 		n := 35
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicate(batch, n), false, testContext.sk)
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.params.RotationsForReplicate(batch, n), false, testContext.sk)
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1176,8 +1169,8 @@ func testReplicate(testContext *testParams, t *testing.T) {
 		batch := 3
 		n := 15
 
-		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.kgen.GenRotationIndexesForReplicateLog(batch, n), false, testContext.sk)
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.params.RotationsForReplicateLog(batch, n), false, testContext.sk)
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1202,7 +1195,7 @@ func testReplicate(testContext *testParams, t *testing.T) {
 
 func testLinearTransform(testContext *testParams, t *testing.T) {
 
-	if testContext.params.PiCount() == 0 {
+	if testContext.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
@@ -1234,11 +1227,11 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixBSGSAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), 1.0, params.LogSlots())
 
-		rots := testContext.kgen.GenRotationIndexesForDiagMatrix(ptDiagMatrix)
+		rots := testContext.params.RotationsForDiagMatrixMult(ptDiagMatrix)
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
 
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		res := eval.LinearTransform(ciphertext1, ptDiagMatrix)[0]
 
@@ -1275,11 +1268,11 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), params.LogSlots())
 
-		rots := testContext.kgen.GenRotationIndexesForDiagMatrix(ptDiagMatrix)
+		rots := testContext.params.RotationsForDiagMatrixMult(ptDiagMatrix)
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
 
-		eval := testContext.evaluator.WithKey(EvaluationKey{testContext.rlk, rotKey})
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		res := eval.LinearTransform(ciphertext1, ptDiagMatrix)[0]
 
@@ -1294,14 +1287,58 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 	})
 }
 
-func testMarshaller(testContext *testParams, t *testing.T) {
+func testMarshaller(testctx *testParams, t *testing.T) {
 
-	ringQP := testContext.ringQP
+	ringQP := testctx.ringQP
+
+	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
+		bytes, err := testctx.params.MarshalBinary()
+		assert.Nil(t, err)
+		var p Parameters
+		err = p.UnmarshalBinary(bytes)
+		assert.Nil(t, err)
+		assert.Equal(t, testctx.params, p)
+	})
+
+	t.Run("Marshaller/Parameters/JSON", func(t *testing.T) {
+		// checks that parameters can be marshalled without error
+		data, err := json.Marshal(testctx.params)
+		assert.Nil(t, err)
+		assert.NotNil(t, data)
+
+		// checks that bfv.Parameters can be unmarshalled without error
+		var paramsRec Parameters
+		err = json.Unmarshal(data, &paramsRec)
+		assert.Nil(t, err)
+		assert.True(t, testctx.params.Equals(paramsRec))
+
+		// checks that rlwe.Parameters can be unmarshalled without error
+		var rlweParams rlwe.Parameters
+		err = json.Unmarshal(data, &rlweParams)
+		assert.Nil(t, err)
+		assert.True(t, testctx.params.Parameters.Equals(rlweParams))
+
+		// checks that bfv.Paramters can be unmarshalled with log-moduli definition without error
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		var paramsWithLogModuli Parameters
+		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+		assert.Nil(t, err)
+		assert.Equal(t, 2, paramsWithLogModuli.QCount())
+		assert.Equal(t, 1, paramsWithLogModuli.PCount())
+
+		// checks that bfv.Paramters can be unmarshalled with log-moduli definition with empty P without error
+		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		var paramsWithLogModuliNoP Parameters
+		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
+		assert.Nil(t, err)
+		assert.Equal(t, 2, paramsWithLogModuliNoP.QCount())
+		assert.Equal(t, 0, paramsWithLogModuliNoP.PCount())
+	})
 
 	t.Run("Marshaller/Ciphertext/", func(t *testing.T) {
-		t.Run(testString(testContext, "EndToEnd/"), func(t *testing.T) {
+		t.Run(testString(testctx, "EndToEnd/"), func(t *testing.T) {
 
-			ciphertextWant := NewCiphertextRandom(testContext.prng, testContext.params, 2, testContext.params.MaxLevel(), testContext.params.Scale())
+			ciphertextWant := NewCiphertextRandom(testctx.prng, testctx.params, 2, testctx.params.MaxLevel(), testctx.params.Scale())
 
 			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 			require.NoError(t, err)
@@ -1313,14 +1350,14 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
 			require.Equal(t, ciphertextWant.Scale(), ciphertextTest.Scale())
 
-			for i := range ciphertextWant.value {
-				require.True(t, testContext.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value()[i], ciphertextTest.Value()[i]))
+			for i := range ciphertextWant.Value {
+				require.True(t, testctx.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
 			}
 		})
 
-		t.Run(testString(testContext, "Minimal/"), func(t *testing.T) {
+		t.Run(testString(testctx, "Minimal/"), func(t *testing.T) {
 
-			ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 0, testContext.params.MaxLevel(), testContext.params.Scale())
+			ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 0, testctx.params.MaxLevel(), testctx.params.Scale())
 
 			marshalledCiphertext, err := ciphertext.MarshalBinary()
 			require.NoError(t, err)
@@ -1330,50 +1367,50 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 			require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
 
 			require.Equal(t, ciphertext.Degree(), 0)
-			require.Equal(t, ciphertext.Level(), testContext.params.MaxLevel())
-			require.Equal(t, ciphertext.Scale(), testContext.params.Scale())
-			require.Equal(t, len(ciphertext.Value()), 1)
+			require.Equal(t, ciphertext.Level(), testctx.params.MaxLevel())
+			require.Equal(t, ciphertext.Scale(), testctx.params.Scale())
+			require.Equal(t, len(ciphertext.Value), 1)
 		})
 	})
 
-	t.Run(testString(testContext, "Marshaller/Sk/"), func(t *testing.T) {
+	t.Run(testString(testctx, "Marshaller/Sk/"), func(t *testing.T) {
 
-		marshalledSk, err := testContext.sk.MarshalBinary()
+		marshalledSk, err := testctx.sk.MarshalBinary()
 		require.NoError(t, err)
 
-		sk := new(SecretKey)
+		sk := new(rlwe.SecretKey)
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
-		require.True(t, ringQP.Equal(sk.Value, testContext.sk.Value))
+		require.True(t, ringQP.Equal(sk.Value, testctx.sk.Value))
 
 	})
 
-	t.Run(testString(testContext, "Marshaller/Pk/"), func(t *testing.T) {
+	t.Run(testString(testctx, "Marshaller/Pk/"), func(t *testing.T) {
 
-		marshalledPk, err := testContext.pk.MarshalBinary()
+		marshalledPk, err := testctx.pk.MarshalBinary()
 		require.NoError(t, err)
 
-		pk := new(PublicKey)
+		pk := new(rlwe.PublicKey)
 		err = pk.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
 
-		for k := range testContext.pk.Value {
-			require.Truef(t, ringQP.Equal(pk.Value[k], testContext.pk.Value[k]), "Marshal PublicKey element [%d]", k)
+		for k := range testctx.pk.Value {
+			require.Truef(t, ringQP.Equal(pk.Value[k], testctx.pk.Value[k]), "Marshal PublicKey element [%d]", k)
 		}
 	})
 
-	t.Run(testString(testContext, "Marshaller/EvaluationKey/"), func(t *testing.T) {
+	t.Run(testString(testctx, "Marshaller/EvaluationKey/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
-		evalKey := testContext.kgen.GenRelinearizationKey(testContext.sk)
+		evalKey := testctx.kgen.GenRelinearizationKey(testctx.sk)
 		data, err := evalKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resEvalKey := new(RelinearizationKey)
+		resEvalKey := new(rlwe.RelinearizationKey)
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
@@ -1387,19 +1424,19 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(testContext, "Marshaller/SwitchingKey/"), func(t *testing.T) {
+	t.Run(testString(testctx, "Marshaller/SwitchingKey/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
-		skOut := testContext.kgen.GenSecretKey()
+		skOut := testctx.kgen.GenSecretKey()
 
-		switchingKey := testContext.kgen.GenSwitchingKey(testContext.sk, skOut)
+		switchingKey := testctx.kgen.GenSwitchingKey(testctx.sk, skOut)
 		data, err := switchingKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resSwitchingKey := new(SwitchingKey)
+		resSwitchingKey := new(rlwe.SwitchingKey)
 		err = resSwitchingKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
@@ -1413,24 +1450,24 @@ func testMarshaller(testContext *testParams, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(testContext, "Marshaller/RotationKey/"), func(t *testing.T) {
+	t.Run(testString(testctx, "Marshaller/RotationKey/"), func(t *testing.T) {
 
-		if testContext.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
 		rots := []int{1, -1, 63, -63}
-		galEls := []uint64{testContext.params.GaloisElementForRowRotation()}
+		galEls := []uint64{testctx.params.GaloisElementForRowRotation()}
 		for _, n := range rots {
-			galEls = append(galEls, testContext.params.GaloisElementForColumnRotationBy(n))
+			galEls = append(galEls, testctx.params.GaloisElementForColumnRotationBy(n))
 		}
 
-		rotationKey := testContext.kgen.GenRotationKeys(galEls, testContext.sk)
+		rotationKey := testctx.kgen.GenRotationKeys(galEls, testctx.sk)
 
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
 
-		resRotationKey := new(RotationKeySet)
+		resRotationKey := new(rlwe.RotationKeySet)
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 

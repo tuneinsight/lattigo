@@ -34,7 +34,7 @@ func runTimedParty(f func(), N int) time.Duration {
 }
 
 type party struct {
-	sk         *bfv.SecretKey
+	sk         *rlwe.SecretKey
 	rlkEphemSk *rlwe.SecretKey
 
 	ckgShare    *drlwe.CKGShare
@@ -88,8 +88,13 @@ func main() {
 		check(err)
 	}
 
-	// Use the defaultparams logN=14, logQP=438 with a plaintext modulus T=65537
-	params := bfv.DefaultParams[bfv.PN14QP438].WithT(65537)
+	// Creating encryption parameters from a default params with logN=14, logQP=438 with a plaintext modulus T=65537
+	paramsDef := bfv.PN14QP438
+	paramsDef.T = 65537
+	params, err := bfv.NewParametersFromLiteral(paramsDef)
+	if err != nil {
+		panic(err)
+	}
 
 	// PRNG keyed with "lattigo"
 	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
@@ -98,7 +103,7 @@ func main() {
 	}
 
 	// Ring for the common reference polynomials sampling
-	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Qi(), params.Pi()...))
+	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Q(), params.P()...))
 
 	// Common reference polynomial generator that uses the PRNG
 	crsGen := ring.NewUniformSampler(lattigoPRNG, ringQP)
@@ -163,7 +168,7 @@ func main() {
 
 }
 
-func encPhase(params *bfv.Parameters, P []*party, pk *bfv.PublicKey, encoder bfv.Encoder) (encInputs []*bfv.Ciphertext) {
+func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv.Encoder) (encInputs []*bfv.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -190,7 +195,7 @@ func encPhase(params *bfv.Parameters, P []*party, pk *bfv.PublicKey, encoder bfv
 	return
 }
 
-func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Ciphertext, rlk *bfv.RelinearizationKey) (encRes *bfv.Ciphertext) {
+func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*bfv.Ciphertext, rlk *rlwe.RelinearizationKey) (encRes *bfv.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -205,7 +210,7 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Cipherte
 	}
 	encRes = encLvls[len(encLvls)-1][0]
 
-	evaluator := bfv.NewEvaluator(params, bfv.EvaluationKey{Rlk: rlk, Rtks: nil})
+	evaluator := bfv.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
 	// Split the task among the Go routines
 	tasks := make(chan *multTask)
 	workers := &sync.WaitGroup{}
@@ -261,7 +266,7 @@ func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*bfv.Cipherte
 	return
 }
 
-func genparties(params *bfv.Parameters, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
+func genparties(params bfv.Parameters, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := make([]*party, N)
@@ -275,7 +280,7 @@ func genparties(params *bfv.Parameters, N int, sampler *ring.TernarySampler, rin
 	return P
 }
 
-func genInputs(params *bfv.Parameters, P []*party) (expRes []uint64) {
+func genInputs(params bfv.Parameters, P []*party) (expRes []uint64) {
 
 	expRes = make([]uint64, params.N())
 	for i := range expRes {
@@ -297,7 +302,7 @@ func genInputs(params *bfv.Parameters, P []*party) (expRes []uint64) {
 	return
 }
 
-func pcksPhase(params *bfv.Parameters, tpk *bfv.PublicKey, encRes *bfv.Ciphertext, P []*party) (encOut *bfv.Ciphertext) {
+func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertext, P []*party) (encOut *bfv.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -332,7 +337,7 @@ func pcksPhase(params *bfv.Parameters, tpk *bfv.PublicKey, encRes *bfv.Ciphertex
 
 }
 
-func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.RelinearizationKey {
+func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -350,7 +355,7 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundOne(&pi.sk.SecretKey, crp, pi.rlkEphemSk, pi.rkgShareOne)
+			rkg.GenShareRoundOne(pi.sk, crp, pi.rlkEphemSk, pi.rkgShareOne)
 		}
 	}, len(P))
 
@@ -364,7 +369,7 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 
 	elapsedRKGParty += runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundTwo(pi.rlkEphemSk, &pi.sk.SecretKey, rkgCombined1, crp, pi.rkgShareTwo)
+			rkg.GenShareRoundTwo(pi.rlkEphemSk, pi.sk, rkgCombined1, crp, pi.rkgShareTwo)
 		}
 	}, len(P))
 
@@ -373,7 +378,7 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		for _, pi := range P {
 			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
 		}
-		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, &rlk.RelinearizationKey)
+		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
 	})
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedRKGCloud, elapsedRKGParty)
@@ -381,7 +386,7 @@ func rkgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 	return rlk
 }
 
-func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *bfv.PublicKey {
+func ckgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -396,7 +401,7 @@ func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 
 	elapsedCKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			ckg.GenShare(&pi.sk.SecretKey, crs, pi.ckgShare)
+			ckg.GenShare(pi.sk, crs, pi.ckgShare)
 		}
 	}, len(P))
 
@@ -408,7 +413,7 @@ func ckgphase(params *bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *
 		for _, pi := range P {
 			ckg.AggregateShares(pi.ckgShare, ckgCombined, ckgCombined)
 		}
-		ckg.GenBFVPublicKey(ckgCombined, crs, pk)
+		ckg.GenPublicKey(ckgCombined, crs, pk)
 	})
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKGCloud, elapsedCKGParty)

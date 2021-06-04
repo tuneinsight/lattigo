@@ -89,7 +89,7 @@ func MinInt(a, b int) (r int) {
 	return b
 }
 
-// MaxUint64 returns the maximum value of the input of uint64 values.
+// MaxUint64 returns the maximum value of the input slice of uint64 values.
 func MaxUint64(a, b uint64) (r uint64) {
 	if a >= b {
 		return a

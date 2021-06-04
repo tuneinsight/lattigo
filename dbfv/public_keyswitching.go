@@ -3,6 +3,7 @@ package dbfv
 import (
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -75,7 +76,7 @@ func (share *PCKSShare) UnmarshalBinary(data []byte) error {
 
 // NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
-func NewPCKSProtocol(params *bfv.Parameters, sigmaSmudging float64) *PCKSProtocol {
+func NewPCKSProtocol(params bfv.Parameters, sigmaSmudging float64) *PCKSProtocol {
 
 	context := newDbfvContext(params)
 
@@ -112,7 +113,7 @@ func (pcks *PCKSProtocol) AllocateShares() (s PCKSShare) {
 // [s_i * ctx[0] + (u_i * pk[0] + e_0i)/P, (u_i * pk[1] + e_1i)/P]
 //
 // and broadcasts the result to the other j-1 parties.
-func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Ciphertext, shareOut PCKSShare) {
+func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *rlwe.PublicKey, ct *bfv.Ciphertext, shareOut PCKSShare) {
 
 	ringQ := pcks.context.ringQ
 	ringQP := pcks.context.ringQP
@@ -142,7 +143,7 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *bfv.PublicKey, ct *bfv.Cip
 	pcks.baseconverter.ModDownPQ(len(ringQ.Modulus)-1, pcks.share1tmp, shareOut[1])
 
 	// tmp = s_i*c_1
-	ringQ.NTTLazy(ct.Value()[1], pcks.tmp)
+	ringQ.NTTLazy(ct.Value[1], pcks.tmp)
 	ringQ.MulCoeffsMontgomeryConstant(pcks.tmp, sk, pcks.tmp)
 	ringQ.InvNTT(pcks.tmp, pcks.tmp)
 
@@ -166,6 +167,6 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *bfv.Ciphertext) {
 
-	pcks.context.ringQ.Add(ct.Value()[0], combined[0], ctOut.Value()[0])
-	pcks.context.ringQ.Copy(combined[1], ctOut.Value()[1])
+	pcks.context.ringQ.Add(ct.Value[0], combined[0], ctOut.Value[0])
+	pcks.context.ringQ.Copy(combined[1], ctOut.Value[1])
 }

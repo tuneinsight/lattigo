@@ -11,25 +11,18 @@ type Ciphertext struct {
 }
 
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
-func NewCiphertext(params *Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
+func NewCiphertext(params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
 
-	ciphertext = &Ciphertext{&Element{}}
-
-	ciphertext.value = make([]*ring.Poly, degree+1)
-	for i := 0; i < degree+1; i++ {
-		ciphertext.value[i] = ring.NewPoly(params.N(), level+1)
-	}
-
-	ciphertext.scale = scale
-	ciphertext.isNTT = true
+	ciphertext = &Ciphertext{newElement(params, degree, level, scale)}
+	ciphertext.Element.Element.IsNTT = true
 
 	return ciphertext
 }
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
-func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
+func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
 
-	ringQ, err := ring.NewRing(params.N(), params.qi[:level+1])
+	ringQ, err := ring.NewRing(params.N(), params.Q()[:level+1])
 	if err != nil {
 		panic(err)
 	}
@@ -37,8 +30,18 @@ func NewCiphertextRandom(prng utils.PRNG, params *Parameters, degree, level int,
 	sampler := ring.NewUniformSampler(prng, ringQ)
 	ciphertext = NewCiphertext(params, degree, level, scale)
 	for i := 0; i < degree+1; i++ {
-		sampler.Read(ciphertext.value[i])
+		sampler.Read(ciphertext.Value[i])
 	}
 
 	return ciphertext
+}
+
+// Copy copies the given ciphertext ctp into the receiver ciphertext.
+func (ct *Ciphertext) Copy(ctp *Ciphertext) {
+	ct.Element.Copy(ctp.Element)
+}
+
+// CopyNew makes a deep copy of the receiver ciphertext and returns it.
+func (ct *Ciphertext) CopyNew() *Ciphertext {
+	return &Ciphertext{ct.Element.CopyNew()}
 }

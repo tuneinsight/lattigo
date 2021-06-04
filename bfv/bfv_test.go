@@ -1,6 +1,7 @@
 package bfv
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"testing"
@@ -9,17 +10,19 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
+var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
-func testString(opname string, p *Parameters) string {
-	return fmt.Sprintf("%sLogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.logN, p.LogQP(), p.Alpha(), p.Beta())
+func testString(opname string, p Parameters) string {
+	return fmt.Sprintf("%sLogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.LogN(), p.LogQP(), p.PCount(), p.Beta())
 }
 
 type testContext struct {
-	params      *Parameters
+	params      Parameters
 	ringQ       *ring.Ring
 	ringQP      *ring.Ring
 	ringT       *ring.Ring
@@ -27,9 +30,9 @@ type testContext struct {
 	uSampler    *ring.UniformSampler
 	encoder     Encoder
 	kgen        KeyGenerator
-	sk          *SecretKey
-	pk          *PublicKey
-	rlk         *RelinearizationKey
+	sk          *rlwe.SecretKey
+	pk          *rlwe.PublicKey
+	rlk         *rlwe.RelinearizationKey
 	encryptorPk Encryptor
 	encryptorSk Encryptor
 	decryptor   Decryptor
@@ -38,21 +41,27 @@ type testContext struct {
 
 func TestBFV(t *testing.T) {
 
-	var err error
-
-	var defaultParams = DefaultParams[PN12QP109 : PN12QP109+4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	defaultParams := DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = DefaultParams[PN12QP109 : PN12QP109+2] // the short test suite runs for ring degree N=2^12, 2^13
+		defaultParams = DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
-		defaultParams = DefaultParams // the long test suite runs for all default parameters
-		fmt.Println("bfv running in long mode")
+		defaultParams = append(defaultParams, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
+	}
+	if *flagParamString != "" {
+		var jsonParams ParametersLiteral
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
 
+		params, err := NewParametersFromLiteral(p)
+		if err != nil {
+			panic(err)
+		}
 		var testctx *testContext
-		if testctx, err = genTestParams(p); err != nil {
+		if testctx, err = genTestParams(params); err != nil {
 			panic(err)
 		}
 
@@ -67,31 +76,23 @@ func TestBFV(t *testing.T) {
 
 }
 
-func genTestParams(params *Parameters) (testctx *testContext, err error) {
+func genTestParams(params Parameters) (testctx *testContext, err error) {
 
 	testctx = new(testContext)
-	testctx.params = params.Copy()
+	testctx.params = params
 
 	if testctx.prng, err = utils.NewPRNG(); err != nil {
 		return nil, err
 	}
 
-	if testctx.ringQ, err = ring.NewRing(params.N(), params.qi); err != nil {
-		return nil, err
-	}
-
-	if testctx.ringQP, err = ring.NewRing(params.N(), append(params.qi, params.pi...)); err != nil {
-		return nil, err
-	}
-
-	if testctx.ringT, err = ring.NewRing(params.N(), []uint64{params.t}); err != nil {
-		return nil, err
-	}
+	testctx.ringQ = params.RingQ()
+	testctx.ringQP = params.RingQP()
+	testctx.ringT = params.RingT()
 
 	testctx.uSampler = ring.NewUniformSampler(testctx.prng, testctx.ringT)
 	testctx.kgen = NewKeyGenerator(testctx.params)
 	testctx.sk, testctx.pk = testctx.kgen.GenKeyPair()
-	if params.PiCount() != 0 {
+	if params.PCount() != 0 {
 		testctx.rlk = testctx.kgen.GenRelinearizationKey(testctx.sk, 1)
 	}
 
@@ -99,23 +100,12 @@ func genTestParams(params *Parameters) (testctx *testContext, err error) {
 	testctx.encryptorPk = NewEncryptorFromPk(testctx.params, testctx.pk)
 	testctx.encryptorSk = NewEncryptorFromSk(testctx.params, testctx.sk)
 	testctx.decryptor = NewDecryptor(testctx.params, testctx.sk)
-	testctx.evaluator = NewEvaluator(testctx.params, EvaluationKey{testctx.rlk, nil})
+	testctx.evaluator = NewEvaluator(testctx.params, rlwe.EvaluationKey{Rlk: testctx.rlk})
 	return
 
 }
 
 func testParameters(testctx *testContext, t *testing.T) {
-	t.Run("Parameters/NewParametersFromModuli/", func(t *testing.T) {
-		p, err := NewParametersFromModuli(testctx.params.logN, testctx.params.Moduli(), testctx.params.t)
-		assert.NoError(t, err)
-		assert.True(t, p.Equals(testctx.params))
-	})
-
-	t.Run("Parameters/NewParametersFromLogModuli/", func(t *testing.T) {
-		p, err := NewParametersFromLogModuli(testctx.params.logN, testctx.params.LogModuli(), testctx.params.t)
-		assert.NoError(t, err)
-		assert.True(t, p.Equals(testctx.params))
-	})
 
 	t.Run("Parameters/InverseGaloisElement/", func(t *testing.T) {
 		for i := 1; i < int(testctx.params.N()/2); i++ {
@@ -125,6 +115,14 @@ func testParameters(testctx *testContext, t *testing.T) {
 			res := (inv * galEl) % mod
 			assert.Equal(t, uint64(1), res)
 		}
+	})
+
+	t.Run(testString("Parameters/CopyNew/", testctx.params), func(t *testing.T) {
+		params1, params2 := testctx.params.CopyNew(), testctx.params.CopyNew()
+		assert.True(t, params1.Equals(testctx.params) && params2.Equals(testctx.params))
+		params1.t = 7
+		assert.False(t, params1.Equals(testctx.params))
+		assert.True(t, params2.Equals(testctx.params))
 	})
 }
 
@@ -137,7 +135,7 @@ func newTestVectorsRingQ(testctx *testContext, encryptor Encryptor, t *testing.T
 	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
 	if encryptor != nil {
-		if testctx.params.PiCount() != 0 {
+		if testctx.params.PCount() != 0 {
 			ciphertext = testctx.encryptorPk.EncryptNew(plaintext)
 		} else {
 			ciphertext = testctx.encryptorPk.EncryptFastNew(plaintext)
@@ -194,7 +192,7 @@ func testEncoder(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Encoder/Encode&Decode/RingT/Int/", testctx.params), func(t *testing.T) {
 
-		T := testctx.params.t
+		T := testctx.params.T()
 		THalf := T >> 1
 		coeffs := testctx.uSampler.ReadNew()
 		coeffsInt := make([]int64, len(coeffs.Coeffs[0]))
@@ -220,7 +218,7 @@ func testEncoder(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Encoder/Encode&Decode/RingQ/Int/", testctx.params), func(t *testing.T) {
 
-		T := testctx.params.t
+		T := testctx.params.T()
 		THalf := T >> 1
 		coeffs := testctx.uSampler.ReadNew()
 		coeffsInt := make([]int64, len(coeffs.Coeffs[0]))
@@ -257,7 +255,7 @@ func testEncryptor(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Encryptor/EncryptFromPk/", testctx.params), func(t *testing.T) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -528,7 +526,7 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 
 		verifyTestVectors(testctx, testctx.decryptor, values1, receiver, t)
 
-		if testctx.params.logN < 13 {
+		if testctx.params.LogN() < 13 {
 			t.Skip()
 		}
 		receiver2 := NewCiphertext(testctx.params, receiver.Degree()+receiver.Degree())
@@ -574,7 +572,7 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Evaluator/Mul/Relinearize/", testctx.params), func(t *testing.T) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -595,7 +593,7 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 
 func testEvaluatorKeySwitch(testctx *testContext, t *testing.T) {
 
-	if testctx.params.PiCount() == 0 {
+	if testctx.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
@@ -618,13 +616,13 @@ func testEvaluatorKeySwitch(testctx *testContext, t *testing.T) {
 
 func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 
-	if testctx.params.PiCount() == 0 {
+	if testctx.params.PCount() == 0 {
 		t.Skip("#Pi is empty")
 	}
 
 	rots := []int{1, -1, 4, -4, 63, -63}
 	rotkey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
-	evaluator := testctx.evaluator.WithKey(EvaluationKey{testctx.rlk, rotkey})
+	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
 
 	t.Run(testString("Evaluator/RotateRows/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
@@ -668,7 +666,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 	})
 
 	rotkey = testctx.kgen.GenRotationKeysForInnerSum(testctx.sk)
-	evaluator = evaluator.WithKey(EvaluationKey{testctx.rlk, rotkey})
+	evaluator = evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
 
 	t.Run(testString("Evaluator/Rotate/InnerSum/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
@@ -680,7 +678,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 			sum += c
 		}
 
-		sum %= testctx.params.t
+		sum %= testctx.params.T()
 
 		for i := range values.Coeffs[0] {
 			values.Coeffs[0][i] = sum
@@ -700,22 +698,49 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 }
 
 func testMarshalParameters(testctx *testContext, t *testing.T) {
-	t.Run("Marshaller/Parameters/ZeroValue", func(t *testing.T) {
-		bytes, err := (&Parameters{}).MarshalBinary()
-		assert.Nil(t, err)
-		assert.Equal(t, []byte{}, bytes)
-		p := new(Parameters)
-		err = p.UnmarshalBinary(bytes)
-		assert.NotNil(t, err)
-	})
 
-	t.Run("Marshaller/Parameters/SupportedParams", func(t *testing.T) {
+	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
 		bytes, err := testctx.params.MarshalBinary()
 		assert.Nil(t, err)
-		p := new(Parameters)
+		var p Parameters
 		err = p.UnmarshalBinary(bytes)
 		assert.Nil(t, err)
 		assert.Equal(t, testctx.params, p)
+	})
+
+	t.Run("Marshaller/Parameters/JSON", func(t *testing.T) {
+		// checks that parameters can be marshalled without error
+		data, err := json.Marshal(testctx.params)
+		assert.Nil(t, err)
+		assert.NotNil(t, data)
+
+		// checks that bfv.Parameters can be unmarshalled without error
+		var paramsRec Parameters
+		err = json.Unmarshal(data, &paramsRec)
+		assert.Nil(t, err)
+		assert.True(t, testctx.params.Equals(paramsRec))
+
+		// checks that rlwe.Parameters can be unmarshalled without error
+		var rlweParams rlwe.Parameters
+		err = json.Unmarshal(data, &rlweParams)
+		assert.Nil(t, err)
+		assert.True(t, testctx.params.Parameters.Equals(rlweParams))
+
+		// checks that bfv.Paramters can be unmarshalled with log-moduli definition without error
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		var paramsWithLogModuli Parameters
+		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+		assert.Nil(t, err)
+		assert.Equal(t, 2, paramsWithLogModuli.QCount())
+		assert.Equal(t, 1, paramsWithLogModuli.PCount())
+
+		// checks that bfv.Paramters can be unmarshalled with log-moduli definition with empty P without error
+		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		var paramsWithLogModuliNoP Parameters
+		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
+		assert.Nil(t, err)
+		assert.Equal(t, 2, paramsWithLogModuliNoP.QCount())
+		assert.Equal(t, 0, paramsWithLogModuliNoP.PCount())
 	})
 }
 
@@ -732,8 +757,8 @@ func testMarshalCiphertext(testctx *testContext, t *testing.T) {
 		err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
 		require.NoError(t, err)
 
-		for i := range ciphertextWant.value {
-			require.True(t, testctx.ringQ.Equal(ciphertextWant.value[i], ciphertextTest.value[i]))
+		for i := range ciphertextWant.Value {
+			require.True(t, testctx.ringQ.Equal(ciphertextWant.Value[i], ciphertextTest.Value[i]))
 		}
 	})
 }
@@ -744,7 +769,7 @@ func testMarshalSK(testctx *testContext, t *testing.T) {
 		marshalledSk, err := testctx.sk.MarshalBinary()
 		require.NoError(t, err)
 
-		var sk SecretKey
+		var sk rlwe.SecretKey
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
@@ -759,7 +784,7 @@ func testMarshalPK(testctx *testContext, t *testing.T) {
 		marshalledPk, err := testctx.pk.MarshalBinary()
 		require.NoError(t, err)
 
-		var pk PublicKey
+		var pk rlwe.PublicKey
 		err = pk.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
 
@@ -773,7 +798,7 @@ func testMarshalPK(testctx *testContext, t *testing.T) {
 func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/EvaluationKey/", testctx.params), func(t *testing.T) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -803,7 +828,7 @@ func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
 func testMarshalSwitchingKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/SwitchingKey/", testctx.params), func(t *testing.T) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -832,7 +857,7 @@ func testMarshalSwitchingKey(testctx *testContext, t *testing.T) {
 func testMarshalRotKey(testctx *testContext, t *testing.T) {
 	t.Run(testString("Marshaller/RotationKey/", testctx.params), func(t *testing.T) {
 
-		if testctx.params.PiCount() == 0 {
+		if testctx.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
 		}
 
@@ -843,7 +868,7 @@ func testMarshalRotKey(testctx *testContext, t *testing.T) {
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)
 
-		var resRotationKey RotationKeySet
+		var resRotationKey rlwe.RotationKeySet
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 

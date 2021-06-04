@@ -53,7 +53,7 @@ func (pubKey *MKPublicKey) UnmarshalBinary(data []byte) (err error) {
 }
 
 // MarshalBinary encodes a Galois evaluation key in a byte slice.
-func (evalGal *MKEvalGalKey) MarshalBinary() (data []byte, err error) {
+func (evalGal *MKRotationKey) MarshalBinary() (data []byte, err error) {
 
 	d1, err1 := MarshalSwitchingKey(evalGal.Key)
 	d2 := make([]byte, 8)
@@ -74,7 +74,7 @@ func (evalGal *MKEvalGalKey) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decodes a previously marshaled Galois Evaluation Key in the target MKEvalGalKey.
-func (evalGal *MKEvalGalKey) UnmarshalBinary(data []byte) (err error) {
+func (evalGal *MKRotationKey) UnmarshalBinary(data []byte) (err error) {
 
 	evalKey, err := UnmarshalSwitchingKey(data[:len(data)-8])
 	pid := binary.LittleEndian.Uint64(data[len(data)-8:])
@@ -89,7 +89,7 @@ func (evalGal *MKEvalGalKey) UnmarshalBinary(data []byte) (err error) {
 }
 
 // MarshalBinary encodes an evaluation key in a byte slice.
-func (evalKey *MKEvaluationKey) MarshalBinary() (data []byte, err error) {
+func (evalKey *MKRelinearizationKey) MarshalBinary() (data []byte, err error) {
 
 	// marshal each component of evalKey
 	d1, err1 := MarshalSwitchingKey(evalKey.Key01)
@@ -114,7 +114,7 @@ func (evalKey *MKEvaluationKey) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decodes a previously marshaled evaluation key in the target MKEvaluationKey.
-func (evalKey *MKEvaluationKey) UnmarshalBinary(data []byte) (err error) {
+func (evalKey *MKRelinearizationKey) UnmarshalBinary(data []byte) (err error) {
 
 	// Unmarshal the switchingKey first
 	separator := binary.LittleEndian.Uint64(data[:8])

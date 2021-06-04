@@ -73,32 +73,32 @@ func KeyGen(params *rlwe.Parameters, a *MKDecomposedPoly) *MKKeys {
 	keyBag.PublicKey.Key[1] = a
 
 	// generate evaluation key. The evaluation key is used in the relinearization phase.
-	keyBag.EvalKey = evaluationKeyGen(keyBag.SecretKey, keyBag.PublicKey, params, ringQP)
+	keyBag.RelinKey = evaluationKeyGen(keyBag.SecretKey, keyBag.PublicKey, params, ringQP)
 	return keyBag
 }
 
-// KeyGenWithSecretKey generated a secret key, a public key and a relinearization key
-// given rlwe paramters, the peer id, the vector "a" common to all participants and a bfv secret key
+// KeyGenWithSecretKey generates a public key and a relinearization key from a given rlwe.SecretKey
+// given rlwe parameters, the peer id, the vector "a" common to all participants (the crs) and a bfv secret key
 func KeyGenWithSecretKey(params *rlwe.Parameters, a *MKDecomposedPoly, sk *rlwe.SecretKey) *MKKeys {
 
 	// create ring
 	ringQP := GetRingQP(params)
 
-	keyBag := new(MKKeys)
+	keys := new(MKKeys)
 
 	// generate private and public mkrlwe keys
-	keyBag.SecretKey = new(MKSecretKey)
-	keyBag.SecretKey.Key = sk
+	keys.SecretKey = new(MKSecretKey)
+	keys.SecretKey.Key = sk
 
 	//Public key = (b, a)
-	keyBag.PublicKey = new(MKPublicKey)
-	keyBag.PublicKey.Key[0] = genPublicKey(keyBag.SecretKey.Key, params, ringQP, a)
-	keyBag.PublicKey.Key[1] = a
+	keys.PublicKey = new(MKPublicKey)
+	keys.PublicKey.Key[0] = genPublicKey(keys.SecretKey.Key, params, ringQP, a)
+	keys.PublicKey.Key[1] = a
 
 	// generate evaluation key. The evaluation key is used in the relinearization phase.
-	keyBag.EvalKey = evaluationKeyGen(keyBag.SecretKey, keyBag.PublicKey, params, ringQP)
+	keys.RelinKey = evaluationKeyGen(keys.SecretKey, keys.PublicKey, params, ringQP)
 
-	return keyBag
+	return keys
 }
 
 // GenSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
@@ -204,8 +204,8 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parame
 		ringQP.MForm(d2.Poly[i], d2.Poly[i])           // pass e2_i in MForm
 
 		// the g_is mod q_i are either 0 or 1, so just need to compute sums
-		MultiplyByBaseAndAdd(scaledRandomValue, params, d01.Value[i][0], i)
-		MultiplyByBaseAndAdd(scaledMu, params, d2.Poly[i], i)
+		multiplyByBaseAndAdd(scaledRandomValue, params, d01.Value[i][0], i)
+		multiplyByBaseAndAdd(scaledMu, params, d2.Poly[i], i)
 
 		ringQP.InvMForm(d01.Value[i][0], d01.Value[i][0])
 		ringQP.InvMForm(d2.Poly[i], d2.Poly[i])
@@ -218,8 +218,8 @@ func uniEnc(mu *ring.Poly, sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parame
 	return d01, d2
 }
 
-// MultiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2
-func MultiplyByBaseAndAdd(p1 *ring.Poly, params *rlwe.Parameters, p2 *ring.Poly, beta uint64) {
+// multiplyByBaseAndAdd multiplies a ring element p1 by the decomposition basis and adds it to p2
+func multiplyByBaseAndAdd(p1 *ring.Poly, params *rlwe.Parameters, p2 *ring.Poly, beta uint64) {
 
 	alpha := params.Alpha()
 
@@ -247,20 +247,20 @@ func MultiplyByBaseAndAdd(p1 *ring.Poly, params *rlwe.Parameters, p2 *ring.Poly,
 }
 
 // Function used to generate the evaluation key. The evaluation key is the encryption of the secret key under itself using uniEnc
-func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parameters, ringQ *ring.Ring) *MKEvaluationKey {
+func evaluationKeyGen(sk *MKSecretKey, pk *MKPublicKey, params *rlwe.Parameters, ringQ *ring.Ring) *MKRelinearizationKey {
 	k01, k2 := uniEnc(sk.Key.Value, sk, pk, params, ringQ)
-	return &MKEvaluationKey{
+	return &MKRelinearizationKey{
 		Key01:  k01,
 		Key2:   k2,
 		PeerID: sk.PeerID,
 	}
 }
 
-// GaloisEvaluationKeyGen returns a galois evaluation key for a given automorphism
+// RoationKeyGen returns a rotation key for a given automorphism
 // the output is not in MForm
-func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Parameters) *MKEvalGalKey {
+func RoationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Parameters) *MKRotationKey {
 
-	res := new(MKEvalGalKey)
+	res := new(MKRotationKey)
 
 	ringQP := GetRingQP(params)
 
@@ -290,7 +290,7 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Paramete
 	for i := uint64(0); i < params.Beta(); i++ {
 		ringQP.NTTLazy(h.Value[i][0], h.Value[i][0])
 		ringQP.MForm(h.Value[i][0], h.Value[i][0])
-		MultiplyByBaseAndAdd(permutedSecretKey, params, h.Value[i][0], i)
+		multiplyByBaseAndAdd(permutedSecretKey, params, h.Value[i][0], i)
 
 		ringQP.InvMForm(h.Value[i][0], h.Value[i][0])
 
@@ -299,19 +299,6 @@ func GaloisEvaluationKeyGen(galEl uint64, sk *MKSecretKey, params *rlwe.Paramete
 	}
 
 	res.Key = h
-	return res
-}
-
-// GetGaussian2D samples from a gaussian distribution and builds d elements of Rq^2
-func GetGaussian2D(sampler *ring.GaussianSampler, dimension uint64) *rlwe.SwitchingKey {
-	res := new(rlwe.SwitchingKey)
-
-	for d := uint64(0); d < dimension; d++ {
-		for i := uint64(0); i < 2; i++ {
-			res.Value[d][i] = sampler.ReadNew()
-		}
-	}
-
 	return res
 }
 

@@ -605,7 +605,7 @@ func testSquare(t *testing.T, params *ckks.Parameters) {
 
 		evk := participants[0].GetEvaluationKey()
 		evk.PeerID = 1
-		evalKeys := []*mkrlwe.MKEvaluationKey{evk}
+		evalKeys := []*mkrlwe.MKRelinearizationKey{evk}
 
 		pk := participants[0].GetPublicKey()
 		pk.PeerID = 1
@@ -658,7 +658,7 @@ func testMul(t *testing.T, params *ckks.Parameters) {
 		evk2 := participants[1].GetEvaluationKey()
 		evk2.PeerID = 2
 
-		evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+		evalKeys := []*mkrlwe.MKRelinearizationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 
 		pk1 := participants[0].GetPublicKey()
 		pk2 := participants[1].GetPublicKey()
@@ -721,7 +721,7 @@ func testAddAfterMul(t *testing.T, params *ckks.Parameters) {
 		evk4 := participants[3].GetEvaluationKey()
 		evk4.PeerID = 4
 
-		evalKeys := []*mkrlwe.MKEvaluationKey{evk1, evk2, evk3, evk4}
+		evalKeys := []*mkrlwe.MKRelinearizationKey{evk1, evk2, evk3, evk4}
 
 		pk1 := participants[0].GetPublicKey()
 		pk1.PeerID = 1
@@ -801,7 +801,7 @@ func testMulAfterAdd(t *testing.T, params *ckks.Parameters) {
 		evk4 := participants[3].GetEvaluationKey()
 		evk4.PeerID = 4
 
-		evalKeys := []*mkrlwe.MKEvaluationKey{evk1, evk2, evk3, evk4}
+		evalKeys := []*mkrlwe.MKRelinearizationKey{evk1, evk2, evk3, evk4}
 
 		pk1 := participants[0].GetPublicKey()
 		pk1.PeerID = 1
@@ -875,7 +875,7 @@ func testMulFourParticipants(t *testing.T, params *ckks.Parameters) {
 		evk4 := participants[3].GetEvaluationKey()
 		evk4.PeerID = 4
 
-		evalKeys := []*mkrlwe.MKEvaluationKey{evk1, evk2, evk3, evk4}
+		evalKeys := []*mkrlwe.MKRelinearizationKey{evk1, evk2, evk3, evk4}
 
 		pk1 := participants[0].GetPublicKey()
 		pk1.PeerID = 1
@@ -949,7 +949,7 @@ func testRotation(t *testing.T, params *ckks.Parameters) {
 			rotKey.PeerID = 1
 
 			values2 := utils.RotateComplex128Slice(values1, n)
-			resCipher := evaluator.Rotate(ciphers[0], n, []*mkrlwe.MKEvalGalKey{rotKey})
+			resCipher := evaluator.Rotate(ciphers[0], n, []*mkrlwe.MKRotationKey{rotKey})
 
 			resCKKS := evaluator.ConvertToCKKSCiphertext(resCipher)
 
@@ -999,7 +999,7 @@ func testRotationTwoParticipants(t *testing.T, params *ckks.Parameters) {
 			rotKey2.PeerID = 2
 
 			rotated := utils.RotateComplex128Slice(values1, n)
-			resCipher := evaluator.Rotate(added, n, []*mkrlwe.MKEvalGalKey{rotKey1, rotKey2})
+			resCipher := evaluator.Rotate(added, n, []*mkrlwe.MKRotationKey{rotKey1, rotKey2})
 
 			resCKKS := evaluator.ConvertToCKKSCiphertext(resCipher)
 
@@ -1323,12 +1323,12 @@ func calcmedian(values []complex128) (median complex128) {
 
 // MKParticipant is a type for participants in a multi key ckks scheme
 type participant interface {
-	GetEvaluationKey() *mkrlwe.MKEvaluationKey
+	GetEvaluationKey() *mkrlwe.MKRelinearizationKey
 	GetPublicKey() *mkrlwe.MKPublicKey
 	Encrypt(values []complex128) *ckks.Ciphertext
 	Decrypt(cipher *ckks.Ciphertext, partialDecryptions []*ring.Poly) []complex128
 	GetPartialDecryption(ciphertext *ckks.Ciphertext) *ring.Poly
-	GetRotationKeys(rot int) *mkrlwe.MKEvalGalKey
+	GetRotationKeys(rot int) *mkrlwe.MKRotationKey
 	GetSecretKey() *mkrlwe.MKSecretKey
 }
 
@@ -1343,8 +1343,8 @@ type mkParticipant struct {
 }
 
 // GetEvaluationKey returns the evaluation key of the participant
-func (participant *mkParticipant) GetEvaluationKey() *mkrlwe.MKEvaluationKey {
-	return participant.keys.EvalKey
+func (participant *mkParticipant) GetEvaluationKey() *mkrlwe.MKRelinearizationKey {
+	return participant.keys.RelinKey
 }
 
 // GetPublicKey returns the publik key of the participant
@@ -1424,13 +1424,13 @@ func newParticipant(params *ckks.Parameters, sigmaSmudging float64, crs *mkrlwe.
 }
 
 // GetRotationKeys returns the rotation key set associated with the given rotation
-func (participant *mkParticipant) GetRotationKeys(rot int) *mkrlwe.MKEvalGalKey {
+func (participant *mkParticipant) GetRotationKeys(rot int) *mkrlwe.MKRotationKey {
 
 	galEl := participant.params.GaloisElementForColumnRotationBy(rot)
 
-	evalKey := mkrlwe.GaloisEvaluationKeyGen(galEl, participant.keys.SecretKey, &participant.params.Parameters)
+	rotKey := mkrlwe.RoationKeyGen(galEl, participant.keys.SecretKey, &participant.params.Parameters)
 
-	return evalKey
+	return rotKey
 }
 
 // GetSecretKey returns the secret key of the participant

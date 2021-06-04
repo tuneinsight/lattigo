@@ -111,7 +111,7 @@ func benchRotate(b *testing.B, params *ckks.Parameters) {
 	b.Run(testString("Rotate/", 1, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			evaluator.Rotate(ciphers[0], 15, []*mkrlwe.MKEvalGalKey{rotKey})
+			evaluator.Rotate(ciphers[0], 15, []*mkrlwe.MKRotationKey{rotKey})
 		}
 	})
 }
@@ -155,7 +155,7 @@ func benchRelin(b *testing.B, params *ckks.Parameters) {
 	evk2 := participants[1].GetEvaluationKey()
 	evk2.PeerID = 2
 
-	evalKeys := []*mkrlwe.MKEvaluationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
+	evalKeys := []*mkrlwe.MKRelinearizationKey{participants[0].GetEvaluationKey(), participants[1].GetEvaluationKey()}
 
 	pk1 := participants[0].GetPublicKey()
 	pk2 := participants[1].GetPublicKey()
@@ -243,7 +243,7 @@ func benchMultIncreasingParticipants(nbrParticipants uint64, b *testing.B, param
 	ciphers1 := evaluator.ConvertToMKCiphertext(ckksCipher1, ids1)
 	ciphers2 := evaluator.ConvertToMKCiphertext(ckksCipher2, ids2)
 
-	evalKeys := make([]*mkrlwe.MKEvaluationKey, 2*nbrParticipants)
+	evalKeys := make([]*mkrlwe.MKRelinearizationKey, 2*nbrParticipants)
 	pubKeys := make([]*mkrlwe.MKPublicKey, 2*nbrParticipants)
 
 	// perform additions until ciphertexts concerns all participants and then Square + Relin
@@ -348,7 +348,7 @@ func benchRotIncreasingParticipants(nbrParticipants uint64, b *testing.B, params
 
 	ciphers := evaluator.ConvertToMKCiphertext(ciphersCKKS, ids)
 
-	galKeys := make([]*mkrlwe.MKEvalGalKey, nbrParticipants)
+	galKeys := make([]*mkrlwe.MKRotationKey, nbrParticipants)
 
 	// perform additions until ciphertexts concerns all participants and then Square + Relin
 	resCipher := ciphers[0]

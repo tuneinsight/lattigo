@@ -43,7 +43,7 @@ func main() {
 	encoder1.EncodeUint(value1, plaintext1)
 
 	cipher1 := encryptor1.Encrypt(plaintext1)
-	evk1 := keys1.EvalKey
+	evk1 := keys1.RelinKey
 	pk1 := keys1.PublicKey
 
 	// Participant 2
@@ -57,7 +57,7 @@ func main() {
 	encoder2.EncodeUint(value2, plaintext2)
 
 	cipher2 := encryptor2.Encrypt(plaintext2)
-	evk2 := keys2.EvalKey
+	evk2 := keys2.RelinKey
 	pk2 := keys2.PublicKey
 
 	// Evaluator: evaluates (c1 - c2) * (c1 + c2)
@@ -69,7 +69,7 @@ func main() {
 	evk2.PeerID = 2
 	pk1.PeerID = 1
 	pk2.PeerID = 2
-	evalKeys := []*mkrlwe.MKEvaluationKey{evk1, evk2}
+	evalKeys := []*mkrlwe.MKRelinearizationKey{evk1, evk2}
 	pubKeys := []*mkrlwe.MKPublicKey{pk1, pk2}
 
 	// convert the bfv ciphertexts into multi key ciphertexts

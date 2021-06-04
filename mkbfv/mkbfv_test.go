@@ -589,7 +589,7 @@ func testSquare(t *testing.T, params *bfv.Parameters) {
 
 		evk := participants[0].GetEvaluationKey()
 		evk.PeerID = 1
-		evalKeys := []*mkrlwe.MKEvaluationKey{evk}
+		evalKeys := []*mkrlwe.MKRelinearizationKey{evk}
 
 		pk := participants[0].GetPublicKey()
 		pk.PeerID = 1
@@ -707,7 +707,7 @@ func testMul(t *testing.T, params *bfv.Parameters) {
 		evk2 := participants[1].GetEvaluationKey()
 		evk1.PeerID = 1
 		evk2.PeerID = 2
-		evalKeys := []*mkrlwe.MKEvaluationKey{evk1, evk2}
+		evalKeys := []*mkrlwe.MKRelinearizationKey{evk1, evk2}
 
 		pk1 := participants[0].GetPublicKey()
 		pk2 := participants[1].GetPublicKey()
@@ -768,7 +768,7 @@ func testAddAfterMul(t *testing.T, params *bfv.Parameters) {
 		evk2 := participants[1].GetEvaluationKey()
 		evk1.PeerID = 1
 		evk2.PeerID = 2
-		evalKeys := []*mkrlwe.MKEvaluationKey{evk1, evk2}
+		evalKeys := []*mkrlwe.MKRelinearizationKey{evk1, evk2}
 
 		pk1 := participants[0].GetPublicKey()
 		pk2 := participants[1].GetPublicKey()
@@ -840,7 +840,7 @@ func testMulFourParticipants(t *testing.T, params *bfv.Parameters) {
 		evk4 := participants[3].GetEvaluationKey()
 		evk4.PeerID = 4
 
-		evalKeys := []*mkrlwe.MKEvaluationKey{evk1, evk2, evk3, evk4}
+		evalKeys := []*mkrlwe.MKRelinearizationKey{evk1, evk2, evk3, evk4}
 
 		pk1 := participants[0].GetPublicKey()
 		pk1.PeerID = 1
@@ -919,7 +919,7 @@ func testRotation(t *testing.T, params *bfv.Parameters) {
 			rotKey := participants[0].GetRotationKeys(n)
 			rotKey.PeerID = 1
 
-			resCipher := evaluator.Rotate(ciphers[0], n, []*mkrlwe.MKEvalGalKey{rotKey})
+			resCipher := evaluator.Rotate(ciphers[0], n, []*mkrlwe.MKRotationKey{rotKey})
 
 			resBFV := evaluator.ConvertToBFVCiphertext(resCipher)
 
@@ -974,7 +974,7 @@ func testRotationTwoParticipants(t *testing.T, params *bfv.Parameters) {
 			rotKey2 := participants[1].GetRotationKeys(n)
 			rotKey2.PeerID = 2
 
-			resCipher := evaluator.Rotate(added, n, []*mkrlwe.MKEvalGalKey{rotKey1, rotKey2})
+			resCipher := evaluator.Rotate(added, n, []*mkrlwe.MKRotationKey{rotKey1, rotKey2})
 
 			resBFV := evaluator.ConvertToBFVCiphertext(resCipher)
 
@@ -1214,12 +1214,12 @@ func getRingT(params *bfv.Parameters) *ring.Ring {
 
 // MKParticipant is a type for participants in a multy key bfv scheme
 type participant interface {
-	GetEvaluationKey() *mkrlwe.MKEvaluationKey
+	GetEvaluationKey() *mkrlwe.MKRelinearizationKey
 	GetPublicKey() *mkrlwe.MKPublicKey
 	Encrypt(values []uint64) *bfv.Ciphertext
 	Decrypt(cipher *bfv.Ciphertext, partialDecryptions []*ring.Poly) []uint64
 	GetPartialDecryption(ciphertext *bfv.Ciphertext) *ring.Poly
-	GetRotationKeys(rot int) *mkrlwe.MKEvalGalKey
+	GetRotationKeys(rot int) *mkrlwe.MKRotationKey
 }
 
 type mkParticipant struct {
@@ -1233,8 +1233,8 @@ type mkParticipant struct {
 }
 
 // GetEvaluationKey returns the evaluation key of the participant
-func (participant *mkParticipant) GetEvaluationKey() *mkrlwe.MKEvaluationKey {
-	return participant.keys.EvalKey
+func (participant *mkParticipant) GetEvaluationKey() *mkrlwe.MKRelinearizationKey {
+	return participant.keys.RelinKey
 }
 
 // GetPublicKey returns the publik key of the participant
@@ -1325,11 +1325,11 @@ func newPlaintext(value []uint64, encoder bfv.Encoder, params *bfv.Parameters) *
 }
 
 // GetRotationKeys returns the rotation key set associated with the given rotation
-func (participant *mkParticipant) GetRotationKeys(rot int) *mkrlwe.MKEvalGalKey {
+func (participant *mkParticipant) GetRotationKeys(rot int) *mkrlwe.MKRotationKey {
 
 	galEl := participant.params.GaloisElementForColumnRotationBy(rot)
 
-	evalKey := mkrlwe.GaloisEvaluationKeyGen(galEl, participant.keys.SecretKey, &participant.params.Parameters)
+	rotKey := mkrlwe.RoationKeyGen(galEl, participant.keys.SecretKey, &participant.params.Parameters)
 
-	return evalKey
+	return rotKey
 }

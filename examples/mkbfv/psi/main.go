@@ -167,9 +167,9 @@ func genPartialDecryption(participants []participant, cipher []*bfv.Ciphertext) 
 	return res
 }
 
-func getEvaluationKeys(participants []participant) []*mkrlwe.MKEvaluationKey {
+func getEvaluationKeys(participants []participant) []*mkrlwe.MKRelinearizationKey {
 
-	res := make([]*mkrlwe.MKEvaluationKey, len(participants))
+	res := make([]*mkrlwe.MKRelinearizationKey, len(participants))
 
 	for i, p := range participants {
 		res[i] = p.GetEvaluationKey()
@@ -212,7 +212,7 @@ func encPhase(P []participant, values [][]uint64) (encInputs []*bfv.Ciphertext) 
 	return
 }
 
-func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiphertext, rlk []*mkrlwe.MKEvaluationKey, pubKeys []*mkrlwe.MKPublicKey, evaluator mkbfv.MKEvaluator) (encRes *mkbfv.MKCiphertext) {
+func evalPhase(params *bfv.Parameters, NGoRoutine int, encInputs []*mkbfv.MKCiphertext, rlk []*mkrlwe.MKRelinearizationKey, pubKeys []*mkrlwe.MKPublicKey, evaluator mkbfv.MKEvaluator) (encRes *mkbfv.MKCiphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -308,9 +308,9 @@ func genInputs(params *bfv.Parameters, P []participant) (expRes []uint64, partic
 	return
 }
 
-func getRelinKeyForParticipants(rlk []*mkrlwe.MKEvaluationKey, peerID []uint64) []*mkrlwe.MKEvaluationKey {
+func getRelinKeyForParticipants(rlk []*mkrlwe.MKRelinearizationKey, peerID []uint64) []*mkrlwe.MKRelinearizationKey {
 
-	res := make([]*mkrlwe.MKEvaluationKey, 0)
+	res := make([]*mkrlwe.MKRelinearizationKey, 0)
 
 	for _, v := range rlk {
 		if mkrlwe.Contains(peerID, v.PeerID) >= 0 {
@@ -338,7 +338,7 @@ func getPublicKeyForParticipants(pk []*mkrlwe.MKPublicKey, peerID []uint64) []*m
 
 // MKParticipant is a type for participants in a multy key bfv scheme
 type participant interface {
-	GetEvaluationKey() *mkrlwe.MKEvaluationKey
+	GetEvaluationKey() *mkrlwe.MKRelinearizationKey
 	GetPublicKey() *mkrlwe.MKPublicKey
 	Encrypt(values []uint64) *bfv.Ciphertext
 	Decrypt(cipher *bfv.Ciphertext, partialDecryptions []*ring.Poly) []uint64
@@ -356,8 +356,8 @@ type mkParticipant struct {
 }
 
 // GetEvaluationKey returns the evaluation key of the participant
-func (participant *mkParticipant) GetEvaluationKey() *mkrlwe.MKEvaluationKey {
-	return participant.keys.EvalKey
+func (participant *mkParticipant) GetEvaluationKey() *mkrlwe.MKRelinearizationKey {
+	return participant.keys.RelinKey
 }
 
 // GetPublicKey returns the publik key of the participant

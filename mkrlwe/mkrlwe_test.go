@@ -49,7 +49,7 @@ func testMarshaler(t *testing.T) {
 
 		ringQ := GetRingQ(&params.Parameters)
 
-		evalKey := NewMKEvaluationKey(ringQ, 3, &params.Parameters)
+		evalKey := NewMKRelinearizationKey(ringQ, 3, &params.Parameters)
 		evalKey.Key01.Value[0][0].Coeffs[0][0] = 23
 		bytes, err2 := evalKey.MarshalBinary()
 
@@ -57,7 +57,7 @@ func testMarshaler(t *testing.T) {
 			t.Fail()
 		}
 
-		resKey := new(MKEvaluationKey)
+		resKey := new(MKRelinearizationKey)
 		resKey.UnmarshalBinary(bytes)
 		if resKey.PeerID != 3 || resKey.Key01.Value[0][0].Coeffs[0][0] != 23 {
 			t.Error("Marshaling and Unmarshaling evaluation key fails")
@@ -72,7 +72,7 @@ func testMarshaler(t *testing.T) {
 			t.Fail()
 		}
 
-		evalKey := &MKEvalGalKey{Key: rlwe.NewSwitchingKey(params.Parameters), PeerID: 3}
+		evalKey := &MKRotationKey{Key: rlwe.NewSwitchingKey(params.Parameters), PeerID: 3}
 
 		evalKey.Key.Value[0][0].Coeffs[0][0] = 23
 
@@ -82,7 +82,7 @@ func testMarshaler(t *testing.T) {
 			t.Fail()
 		}
 
-		resKey := new(MKEvalGalKey)
+		resKey := new(MKRotationKey)
 
 		resKey.UnmarshalBinary(bytes)
 

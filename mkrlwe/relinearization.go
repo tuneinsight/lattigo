@@ -8,7 +8,7 @@ import (
 // Relinearization implements the algorithm 3 in the appendix of the Chen paper
 // It relinearize each entry of the extended ciphertext and stores it in cPrime (of size k+1)
 // There are (k+1)**2 ciphertexts, and k pairs of (evaluation keys Di,bi) as input
-func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKey, ct *[]*ring.Poly, params *rlwe.Parameters, level uint64) {
+func Relinearization(evaluationKeys []*MKRelinearizationKey, publicKeys []*MKPublicKey, ct *[]*ring.Poly, params *rlwe.Parameters, level uint64) {
 
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
@@ -90,7 +90,7 @@ func Relinearization(evaluationKeys []*MKEvaluationKey, publicKeys []*MKPublicKe
 }
 
 // prepare evaluation key for operations in split crt basis
-func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluationKey, ringQ, ringP *ring.Ring, d0Q, d1Q, d2Q, d0P, d1P, d2P *MKDecomposedPoly) {
+func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKRelinearizationKey, ringQ, ringP *ring.Ring, d0Q, d1Q, d2Q, d0P, d1P, d2P *MKDecomposedPoly) {
 
 	di01 := evaluationKeys[i-1].Key01
 	di2 := evaluationKeys[i-1].Key2
@@ -110,7 +110,7 @@ func prepareEvalKey(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluati
 }
 
 // prepare evaluation key for operations in split crt basis as three switching keys
-func prepareEvalKeyKeySwitch(i, level, modulus, beta uint64, evaluationKeys []*MKEvaluationKey, ringQ, ringP *ring.Ring, d0QP, d1QP, d2QP *rlwe.SwitchingKey) {
+func prepareEvalKeyKeySwitch(i, level, modulus, beta uint64, evaluationKeys []*MKRelinearizationKey, ringQ, ringP *ring.Ring, d0QP, d1QP, d2QP *rlwe.SwitchingKey) {
 
 	di01 := evaluationKeys[i-1].Key01
 	di2 := evaluationKeys[i-1].Key2
@@ -183,8 +183,6 @@ func GInverseKeySwitch(p *ring.Poly, params *rlwe.Parameters, level uint64) *rlw
 	ringQ := GetRingQ(params)
 	ringP := GetRingP(params)
 
-	//resQ := new(MKDecomposedPoly)
-	//resP := new(MKDecomposedPoly)
 	swk := new(rlwe.SwitchingKey)
 	swk.Value = make([][2]*ring.Poly, int(beta))
 	res := new(rlwe.SwitchingKey)

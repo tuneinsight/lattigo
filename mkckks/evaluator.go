@@ -19,9 +19,9 @@ type MKEvaluator interface {
 	Neg(c *MKCiphertext) *MKCiphertext
 	MultPlaintext(pt *ckks.Plaintext, c *MKCiphertext) *MKCiphertext
 	Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext
-	RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKEvaluationKey, publicKeys []*mkrlwe.MKPublicKey)
+	RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKRelinearizationKey, publicKeys []*mkrlwe.MKPublicKey)
 	Rescale(c *MKCiphertext, out *MKCiphertext)
-	Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGalKey) *MKCiphertext
+	Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKRotationKey) *MKCiphertext
 	NewPlaintextFromValue([]complex128) *ckks.Plaintext
 	DropLevel(ct *MKCiphertext, levels uint64)
 	ConvertToMKCiphertext(ct []*ckks.Ciphertext, ids []uint64) []*MKCiphertext
@@ -33,6 +33,7 @@ type mkEvaluator struct {
 	params          *ckks.Parameters
 	ringQ           *ring.Ring
 	ringP           *ring.Ring
+	ringQP          *ring.Ring
 	samplerGaussian *ring.GaussianSampler
 	convertor       *ring.FastBasisExtender
 	encoder         ckks.Encoder
@@ -47,6 +48,7 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 
 	ringQ := mkrlwe.GetRingQ(&params.Parameters)
 	ringP := mkrlwe.GetRingP(&params.Parameters)
+	ringQP := mkrlwe.GetRingQP(&params.Parameters)
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -61,6 +63,7 @@ func NewMKEvaluator(params *ckks.Parameters) MKEvaluator {
 		params:          params,
 		ringQ:           ringQ,
 		ringP:           ringP,
+		ringQP:          ringQP,
 		samplerGaussian: sampler,
 		convertor:       convertor,
 		encoder:         ckks.NewEncoder(*params),
@@ -269,7 +272,7 @@ func (eval *mkEvaluator) Mul(c1 *MKCiphertext, c2 *MKCiphertext) *MKCiphertext {
 }
 
 // Relinearize a ciphertext after a multiplication
-func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKEvaluationKey, publicKeys []*mkrlwe.MKPublicKey) {
+func (eval *mkEvaluator) RelinInPlace(ct *MKCiphertext, evalKeys []*mkrlwe.MKRelinearizationKey, publicKeys []*mkrlwe.MKPublicKey) {
 
 	sort.Slice(evalKeys, func(i, j int) bool { return evalKeys[i].PeerID < evalKeys[j].PeerID })
 	sort.Slice(publicKeys, func(i, j int) bool { return publicKeys[i].PeerID < publicKeys[j].PeerID })
@@ -293,7 +296,7 @@ func (eval *mkEvaluator) DropLevel(ct *MKCiphertext, levels uint64) {
 }
 
 // Rotate rotates the columns of the ciphertext by n to the left and return the result in a new ciphertext
-func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGalKey) *MKCiphertext {
+func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKRotationKey) *MKCiphertext {
 
 	sort.Slice(keys, func(i, j int) bool { return keys[i].PeerID < keys[j].PeerID })
 
@@ -304,8 +307,6 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGal
 	galEl := eval.params.GaloisElementForColumnRotationBy(n)
 
 	level := c.Ciphertexts.Level()
-
-	ringQP := mkrlwe.GetRingQP(&eval.params.Parameters)
 
 	k := uint64(len(c.PeerID))
 
@@ -328,7 +329,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGal
 		prepareGaloisEvaluationKey(i, level, uint64(len(eval.ringQ.Modulus)), eval.params.Beta(), keys, gal0QP, gal1QP)
 
 		permutedCipher := eval.ringQ.NewPoly() // apply rotation to the ciphertext
-		index := ring.PermuteNTTIndex(galEl, ringQP.N)
+		index := ring.PermuteNTTIndex(galEl, eval.ringQP.N)
 		ring.PermuteNTTWithIndexLvl(level, c.Ciphertexts.Value[i], index, permutedCipher)
 
 		decomposedPermutedQP := mkrlwe.GInverseKeySwitch(permutedCipher, &eval.params.Parameters, level)
@@ -342,7 +343,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGal
 	}
 
 	// finalize computation of c0'
-	index := ring.PermuteNTTIndex(galEl, ringQP.N)
+	index := ring.PermuteNTTIndex(galEl, eval.ringQP.N)
 	ring.PermuteNTTWithIndexLvl(level, c.Ciphertexts.Value[0], index, res[0])
 
 	tmpModDown := eval.ringQ.NewPoly()
@@ -362,7 +363,7 @@ func (eval *mkEvaluator) Rotate(c *MKCiphertext, n int, keys []*mkrlwe.MKEvalGal
 }
 
 // prepare galois evaluation keys for operations in split crt basis
-func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*mkrlwe.MKEvalGalKey, gal0QP, gal1QP *rlwe.SwitchingKey) {
+func prepareGaloisEvaluationKey(j, level, modulus, beta uint64, galKeys []*mkrlwe.MKRotationKey, gal0QP, gal1QP *rlwe.SwitchingKey) {
 
 	for u := uint64(0); u < beta; u++ {
 		gal0QP.Value[u][0].Coeffs = galKeys[j-1].Key.Value[u][0].Coeffs[:level+1]
@@ -391,7 +392,7 @@ func getCiphertextIndex(peerID uint64, ct *MKCiphertext) uint64 {
 	return 0
 }
 
-func checkParticipantsEvalKey(peerID []uint64, evalKeys []*mkrlwe.MKEvaluationKey) {
+func checkParticipantsEvalKey(peerID []uint64, evalKeys []*mkrlwe.MKRelinearizationKey) {
 
 	for i, id := range peerID {
 		if id != evalKeys[i].PeerID {
@@ -409,7 +410,7 @@ func checkParticipantsPubKey(peerID []uint64, pubKeys []*mkrlwe.MKPublicKey) {
 	}
 }
 
-func checkParticipantsGalKey(peerID []uint64, galKeys []*mkrlwe.MKEvalGalKey) {
+func checkParticipantsGalKey(peerID []uint64, galKeys []*mkrlwe.MKRotationKey) {
 
 	for i, id := range peerID {
 		if id != galKeys[i].PeerID {

@@ -22,15 +22,15 @@ type MKDecomposedPoly struct {
 	Poly []*ring.Poly
 }
 
-// MKEvaluationKey is a type for evaluation keys in a multi key context.
-type MKEvaluationKey struct {
+// MKRelinearizationKey is a type for evaluation keys in a multi key context.
+type MKRelinearizationKey struct {
 	Key01  *rlwe.SwitchingKey
 	Key2   *MKDecomposedPoly
 	PeerID uint64
 }
 
-// MKEvalGalKey is a type for rotation keys in a multi key context.
-type MKEvalGalKey struct {
+// MKRotationKey is a type for rotation keys in a multi key context.
+type MKRotationKey struct {
 	Key    *rlwe.SwitchingKey
 	PeerID uint64
 }
@@ -39,13 +39,13 @@ type MKEvalGalKey struct {
 type MKKeys struct {
 	SecretKey *MKSecretKey
 	PublicKey *MKPublicKey
-	EvalKey   *MKEvaluationKey
+	RelinKey  *MKRelinearizationKey
 }
 
-// NewMKEvaluationKey allocate a MKSwitchingKey with zero polynomials in the ring r adn with id = peerID
-func NewMKEvaluationKey(r *ring.Ring, id uint64, params *rlwe.Parameters) *MKEvaluationKey {
+// NewMKRelinearizationKey allocate a MKSwitchingKey with zero polynomials in the ring r adn with id = peerID
+func NewMKRelinearizationKey(r *ring.Ring, id uint64, params *rlwe.Parameters) *MKRelinearizationKey {
 
-	key := new(MKEvaluationKey)
+	key := new(MKRelinearizationKey)
 	key.Key01 = rlwe.NewSwitchingKey(*params)      //D0 and D1 in Chen et Al's notation
 	key.Key2 = NewDecomposedPoly(r, params.Beta()) // D2 in Chen et Al's notation
 	key.PeerID = id
@@ -77,21 +77,4 @@ func CopyNewDecomposed(p *MKDecomposedPoly) *MKDecomposedPoly {
 	}
 
 	return res
-}
-
-// FromDecomposedToSwitchingKey converts two decomposed Poly into an rlwe switching key
-func FromDecomposedToSwitchingKey(p1 *MKDecomposedPoly, p2 *MKDecomposedPoly, params *rlwe.Parameters) *rlwe.SwitchingKey {
-
-	decompSize := params.Beta()
-
-	if len(p1.Poly) != int(decompSize) {
-		panic("Decomposed Poly should have same size as decomposition basis size")
-	}
-	swk := new(rlwe.SwitchingKey)
-	swk.Value = make([][2]*ring.Poly, int(decompSize))
-	for i := uint64(0); i < decompSize; i++ {
-		swk.Value[i][0] = p1.Poly[i]
-		swk.Value[i][1] = p2.Poly[i]
-	}
-	return swk
 }

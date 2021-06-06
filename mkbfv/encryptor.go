@@ -27,7 +27,7 @@ func NewMKEncryptor(pk *mkrlwe.MKPublicKey, params *bfv.Parameters) MKEncryptor 
 	return &mkEncryptor{bfv.NewEncryptorFromPk(*params, bfvPublicKey), params}
 }
 
-// EncryptMK encrypt the plaintext and put id in the ciphertext's peerIds
+// EncryptMK encrypt the plaintext using the underlying bfv encryptor
 func (encryptor *mkEncryptor) Encrypt(plaintext *bfv.Plaintext) *bfv.Ciphertext {
 
 	var res *bfv.Ciphertext

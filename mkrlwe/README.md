@@ -3,9 +3,6 @@ This package contains an implementation of the "special modulus" variant of the 
 
 This package contain code that is common to the ```mkbfv``` and ```mkckks``` package such as keys, decryption algorithm, key generation and relinearization.
 
-### Relinearization
-
-The relinearization algorithm is described in annexe A of the paper. Both the evaluation key and the public key must be provided to the relinearization algorithm.
 
 ### References
 

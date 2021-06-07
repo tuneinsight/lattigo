@@ -236,8 +236,8 @@ func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []
 	encoder.WipeInternalMemory()
 
 	nextPow2 := 1
-	for nextPow2 < len(valuesWant){
-		nextPow2<<=1
+	for nextPow2 < len(valuesWant) {
+		nextPow2 <<= 1
 	}
 
 	for i := range valuesHave {

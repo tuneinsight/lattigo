@@ -166,7 +166,6 @@ func (encoder *encoderComplex128) EncodeAtLvlNew(level int, values []complex128,
 func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex128, logSlots int) {
 	encoder.Embed(values, logSlots)
 	encoder.ScaleUp(plaintext.value, plaintext.scale, encoder.ringQ.Modulus[:plaintext.Level()+1])
-	encoder.WipeInternalMemory()
 	plaintext.Element.Element.IsNTT = false
 }
 
@@ -195,6 +194,8 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 // Embed encodes a vector and stores internally the encoded values.
 // To be used in conjunction with ScaleUp.
 func (encoder *encoderComplex128) Embed(values []complex128, logSlots int) {
+
+	encoder.WipeInternalMemory()
 
 	slots := 1 << logSlots
 
@@ -232,11 +233,18 @@ func (encoder *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []c
 // GetErrSTDCoeffDomain returns the scaled standard deviation in the coefficient domain of the difference between two complex vectors in the slot domains
 func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 
+	encoder.WipeInternalMemory()
+
+	nextPow2 := 1
+	for nextPow2 < len(valuesWant){
+		nextPow2<<=1
+	}
+
 	for i := range valuesHave {
 		encoder.values[i] = (valuesWant[i] - valuesHave[i])
 	}
 
-	invfft(encoder.values, len(valuesWant), encoder.m, encoder.rotGroup, encoder.roots)
+	invfft(encoder.values, nextPow2, encoder.m, encoder.rotGroup, encoder.roots)
 
 	for i := range valuesWant {
 		encoder.valuesfloat[2*i] = real(encoder.values[i])

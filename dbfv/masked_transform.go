@@ -22,6 +22,8 @@ type MaskedTransformProtocol struct {
 	tmpMaskPerm *ring.Poly
 }
 
+// MaskedTransformFunc is type of functions that can be operated on masked BFV plaintexts as a part of the
+// Masked Transform Protocol.
 type MaskedTransformFunc func(ptIn, ptOut bfv.PlaintextRingT)
 
 // MaskedTransformShare is a struct storing the decryption and recryption shares.
@@ -76,13 +78,13 @@ func (rfp *MaskedTransformProtocol) AllocateShares() MaskedTransformShare {
 
 // GenShares generates the shares of the PermuteProtocol
 func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs *ring.Poly, transform MaskedTransformFunc, shareOut MaskedTransformShare) {
-	rfp.e2s.GenShare(sk, ciphertext, AdditiveShare{*rfp.tmpMask}, &shareOut.e2sShare)
+	rfp.e2s.GenShare(sk, ciphertext, rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
 	mask := rfp.tmpMask
 	if transform != nil {
 		transform(bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: rfp.tmpMaskPerm}})
 		mask = rfp.tmpMaskPerm
 	}
-	rfp.s2e.GenShare(sk, crs, AdditiveShare{*mask}, &shareOut.s2eShare)
+	rfp.s2e.GenShare(sk, crs, rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
 }
 
 // Aggregate sums share1 and share2 on shareOut.
@@ -91,9 +93,9 @@ func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut MaskedTra
 	rfp.ringQ.Add(share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
 }
 
-// Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *MaskedTransformProtocol) Finalize(ciphertext *bfv.Ciphertext, transform MaskedTransformFunc, crs *ring.Poly, share MaskedTransformShare, ciphertextOut *bfv.Ciphertext) {
-	rfp.e2s.Finalize(nil, &share.e2sShare, ciphertext, &AdditiveShare{*rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
+// Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
+func (rfp *MaskedTransformProtocol) Transform(ciphertext *bfv.Ciphertext, transform MaskedTransformFunc, crs *ring.Poly, share MaskedTransformShare, ciphertextOut *bfv.Ciphertext) {
+	rfp.e2s.GetShare(nil, &share.e2sShare, ciphertext, &rlwe.AdditiveShare{Value: *rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
 	mask := rfp.tmpMask
 	if transform != nil {
 		transform(bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: rfp.tmpMaskPerm}})
@@ -103,5 +105,5 @@ func (rfp *MaskedTransformProtocol) Finalize(ciphertext *bfv.Ciphertext, transfo
 	rfp.encoder.ScaleUp(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, &rfp.tmpPt)
 	//rfp.encoder.EncodeUint(mask.Coeffs[0], &rfp.tmpPt) // tmpMask RingQ( Delta*(m - sum M_i))
 	rfp.ringQ.Add(rfp.tmpPt.Value, share.s2eShare.Value, ciphertextOut.Value[0])
-	rfp.s2e.Finalize(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, *ciphertextOut)
+	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, *ciphertextOut)
 }

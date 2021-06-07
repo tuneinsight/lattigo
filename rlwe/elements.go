@@ -12,14 +12,29 @@ type Ciphertext interface {
 	RLWEElement() *Element
 }
 
+// Plaintext is a common base type for RLWE plaintexts.
 type Plaintext struct {
 	Value *ring.Poly
 }
 
+// AdditiveShare is a type for storing additively shared values in the
+// polynomial ring.
+type AdditiveShare struct {
+	Value ring.Poly
+}
+
+// NewAdditiveShare instantiate a new additive share struct for the ring defined
+// by the given parameters.
+func NewAdditiveShare(params Parameters) AdditiveShare {
+	return AdditiveShare{Value: *ring.NewPoly(params.N(), 1)}
+}
+
+// NewPlaintext creates a new Plaintext at maximum level from the parameters.
 func NewPlaintext(params Parameters) *Plaintext {
 	return &Plaintext{Value: ring.NewPoly(params.N(), params.QCount())}
 }
 
+// NewPlaintextAtLevel creates a new Plaintext at level `level` from the parameters.
 func NewPlaintextAtLevel(params Parameters, level int) *Plaintext {
 	return &Plaintext{Value: ring.NewPoly(params.N(), level+1)}
 }
@@ -34,10 +49,13 @@ func (pt Plaintext) Level() int {
 	return len(pt.Value.Coeffs) - 1
 }
 
+// El returns the plaintext as a new `Element` for which the value points
+// to the receiver `Value` field.
 func (pt Plaintext) El() *Element {
 	return &Element{Value: []*ring.Poly{pt.Value}, IsNTT: true}
 }
 
+// Copy copies the `other` plaintext value into the reciever plaintext.
 func (pt *Plaintext) Copy(other *Plaintext) {
 	if other != nil && other.Value != nil {
 		pt.Value.Copy(other.Value)

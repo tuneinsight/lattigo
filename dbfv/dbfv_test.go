@@ -491,7 +491,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 		s2e         *S2EProtocol
 		sk          *rlwe.SecretKey
 		publicShare *drlwe.CKSShare
-		secretShare AdditiveShare
+		secretShare rlwe.AdditiveShare
 	}
 	params := testCtx.params
 	P := make([]Party, parties)
@@ -500,7 +500,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 		P[i].s2e = NewS2EProtocol(params, 3.2)
 		P[i].sk = testCtx.sk0Shards[i]
 		P[i].publicShare = P[i].e2s.AllocateShare()
-		P[i].secretShare = NewAdditiveShare(params)
+		P[i].secretShare = rlwe.NewAdditiveShare(params.Parameters)
 	}
 
 	coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, t)
@@ -514,9 +514,9 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		P[0].e2s.Finalize(&P[0].secretShare, P[0].publicShare, ciphertext, &P[0].secretShare)
+		P[0].e2s.GetShare(&P[0].secretShare, P[0].publicShare, ciphertext, &P[0].secretShare)
 
-		rec := NewAdditiveShare(params)
+		rec := rlwe.NewAdditiveShare(params.Parameters)
 		for _, p := range P {
 			//fmt.Println("P[", i, "] share:", p.secretShare.Value.Coeffs[0][:see])
 			testCtx.ringT.Add(&rec.Value, &p.secretShare.Value, &rec.Value)
@@ -547,7 +547,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 		}
 
 		ctRec := bfv.NewCiphertext(testCtx.params, 1)
-		P[0].s2e.Finalize(P[0].publicShare, c1, *ctRec)
+		P[0].s2e.GetEncryption(P[0].publicShare, c1, *ctRec)
 
 		verifyTestVectors(testCtx, testCtx.decryptorSk0, coeffs, ctRec, t)
 	})
@@ -708,7 +708,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		P0.Finalize(ciphertext, permute, crp, P0.share, ciphertext)
+		P0.Transform(ciphertext, permute, crp, P0.share, ciphertext)
 
 		coeffsPermute := make([]uint64, len(coeffs))
 		for i := range coeffsPermute {

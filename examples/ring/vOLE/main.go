@@ -17,18 +17,18 @@ type benchParams struct {
 }
 
 var params = []benchParams{
-	benchParams{logN: 13, logQ: [2]int{4, 60}, n: 1, plevel: 2, mlevel: 0},
-	benchParams{logN: 14, logQ: [2]int{6, 60}, n: 1, plevel: 3, mlevel: 0},
-	benchParams{logN: 14, logQ: [2]int{8, 60}, n: 1, plevel: 5, mlevel: 1},
-	benchParams{logN: 13, logQ: [2]int{4, 60}, n: 8, plevel: 2, mlevel: 0},
-	benchParams{logN: 14, logQ: [2]int{6, 60}, n: 8, plevel: 3, mlevel: 0},
-	benchParams{logN: 14, logQ: [2]int{8, 60}, n: 8, plevel: 5, mlevel: 1},
-	benchParams{logN: 13, logQ: [2]int{4, 60}, n: 64, plevel: 2, mlevel: 0},
-	benchParams{logN: 14, logQ: [2]int{6, 60}, n: 64, plevel: 3, mlevel: 0},
-	benchParams{logN: 14, logQ: [2]int{8, 60}, n: 64, plevel: 5, mlevel: 1},
-	benchParams{logN: 13, logQ: [2]int{4, 60}, n: 128, plevel: 2, mlevel: 0},
-	benchParams{logN: 14, logQ: [2]int{6, 60}, n: 128, plevel: 3, mlevel: 0},
-	benchParams{logN: 14, logQ: [2]int{8, 60}, n: 128, plevel: 5, mlevel: 1},
+	{logN: 13, logQ: [2]int{4, 60}, n: 1, plevel: 2, mlevel: 0},
+	{logN: 14, logQ: [2]int{6, 60}, n: 1, plevel: 3, mlevel: 0},
+	{logN: 14, logQ: [2]int{8, 60}, n: 1, plevel: 5, mlevel: 1},
+	{logN: 13, logQ: [2]int{4, 60}, n: 8, plevel: 2, mlevel: 0},
+	{logN: 14, logQ: [2]int{6, 60}, n: 8, plevel: 3, mlevel: 0},
+	{logN: 14, logQ: [2]int{8, 60}, n: 8, plevel: 5, mlevel: 1},
+	{logN: 13, logQ: [2]int{4, 60}, n: 64, plevel: 2, mlevel: 0},
+	{logN: 14, logQ: [2]int{6, 60}, n: 64, plevel: 3, mlevel: 0},
+	{logN: 14, logQ: [2]int{8, 60}, n: 64, plevel: 5, mlevel: 1},
+	{logN: 13, logQ: [2]int{4, 60}, n: 128, plevel: 2, mlevel: 0},
+	{logN: 14, logQ: [2]int{6, 60}, n: 128, plevel: 3, mlevel: 0},
+	{logN: 14, logQ: [2]int{8, 60}, n: 128, plevel: 5, mlevel: 1},
 }
 
 type vOLErings struct {

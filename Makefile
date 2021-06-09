@@ -6,6 +6,7 @@ Coding/bin/Makefile.base:
 .PHONY: test_examples
 test_examples:
 	@echo Running the examples
+	go run ./examples/ring/vOLE > /dev/null
 	go run ./examples/bfv > /dev/null
 	go run ./examples/ckks/euler > /dev/null
 	go run ./examples/ckks/sigmoid > /dev/null

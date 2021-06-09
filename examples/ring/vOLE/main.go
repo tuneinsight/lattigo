@@ -370,7 +370,7 @@ func main() {
 		}
 
 		elapsed = time.Since(start)
-		fmt.Printf("3.(3) : %s\n", elapsed)
+		fmt.Printf("3.(e) : %s\n", elapsed)
 		TotalTime += elapsed
 		AliceTime += elapsed
 

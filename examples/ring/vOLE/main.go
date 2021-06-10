@@ -8,12 +8,47 @@ import (
 	"time"
 )
 
+// Vectorized oblivious evaluation is a two-party protocol for the function f(x) = ax + b where a sender
+// inputs the field elements a, b, and a receiver inputs x and learns f(x).
+//
+// This example implements the secret-key and passively-secure vOLE protocol of Figure 5 of
+// "Efficient Protocols for Oblivious Linear Function Evaluation from Ring-LWE" by Baum C. et al.
+//
+//
+// We work in the ring R = Z_{Q}/(X^N + 1), for Q the product of k NTT friend primes and N a power of two.
+// We define Q > P > M with P|Q and M|Q and M|P, i.e. P and M are themselves factors of Q.
+// Thus we also have R_{M} -> R_{P} -> R_{Q} and a polynomial mod M implies that this polynomial is of R_{M},
+// and the same follows for mod P and mod Q.
+//
+// Given Alice and Bob, with their respective secret inputs v and u (mod M), the goal of this protocol is
+// for Alice and Bob to construct the values alpha, beta (mod M) such that alpha + beta = u*v (mod M).
+//
+// 1. Setup phase
+//		(a) Alice and Bob sample each a low-norm secret polynomial : skAlice and skBob (mod Q) and set
+//			sigmaAlice + sigmaBob = skAlice * skBob (mod Q)
+//		(b) Alice and Bob sample two public random polynomials : a and a' (mod Q)
+// 2. First Message. Given u (mod M), Bob's input
+//		(a) Bob samples a noise polynomial eBob (mod Q) from a small variance truncated-discrete Gaussian distribution
+// 			and sends c = (Q/P) * u + a*skBob + eBob to Alice (mod P)
+//		(b) Alice computes rhoAlice = (skAlice * c - a * sigmaAlice) * (P/Q) (mod P)
+//		(c) Bob computes rhoBob = -(a * sigmaBob) * (P/Q) (mod P)
+//
+// At this step, it should hold that u * skAlice = rhoAlice + rhoBob (mod P)
+//
+// 3. Second Message. Given v, Alice's input
+//		(a) Alice samples a noise polynomial eAlice (mod P) from a small variance truncated-discrete Gaussian distribution
+//			and sends d = (P/M) * v + (a'*skAlice + eAlice) (mod P) to Bob
+//		(b) Bob outputs beta = (u * d - a' * rhoBob) * (M/P) (mod M)
+//		(c) Alice outputs alpha = -(a' * rhoAlice) * (M/P) (mod M)
+//
+// It should hold that u * v = alpha + beta (mod M)
+
 type benchParams struct {
-	logN   int
-	logQ   [2]int
-	n      int
-	plevel int
-	mlevel int
+	logN   int    // Ring degree
+	logQ   [2]int // logQ[0] = #Primes, logQ[1] = Primes bit-size
+	n      int    // Number of vOLE to run
+	plevel int    // Maximum level of the modulus P (level 0 is the lowest)
+	mlevel int    // Maximum level of the modulus M (level 0 is the lowest)
 }
 
 var params = []benchParams{
@@ -32,9 +67,9 @@ var params = []benchParams{
 }
 
 type vOLErings struct {
-	ringQ *ring.Ring
-	qDivP *big.Int
-	pDivM *big.Int
+	ringQ *ring.Ring // Z_{Q}/(X^N+1)
+	qDivP *big.Int   // Q/P
+	pDivM *big.Int   // P/M
 }
 
 func newvOLErings(params benchParams) *vOLErings {
@@ -49,6 +84,7 @@ func newvOLErings(params benchParams) *vOLErings {
 
 	rings := new(vOLErings)
 
+	// Generates logQ[0] NTT friendly primes each close to 2^logQ[1]
 	primes := ring.GenerateNTTPrimes(params.logQ[1], 2*N, params.logQ[0])
 
 	if rings.ringQ, err = ring.NewRing(N, primes); err != nil {
@@ -80,6 +116,7 @@ func newLowNormSampler(baseRing *ring.Ring) (lns *lowNormSampler) {
 	return
 }
 
+// Samples a uniform polynomial in Z_{norm}/(X^N + 1)
 func (lns *lowNormSampler) newPolyLowNorm(norm []uint64) (pol *ring.Poly) {
 	bound := ring.NewUint(0)
 	for _, qi := range norm {
@@ -127,7 +164,7 @@ func main() {
 		var elapsed, TotalTime, AliceTime, BobTime time.Duration
 		start := time.Now()
 
-		// Generate Private Keys
+		// ********* 1. SETUP *********
 
 		// NTT(Mont(skBob))
 		skBob := ternarySamplerMontgomeryQ.ReadNew()
@@ -195,6 +232,8 @@ func main() {
 
 		elapsed = time.Since(start)
 		fmt.Printf("Gen Inputs : %s\n", elapsed)
+
+		// ********* 2. FIRST MESSAGE *********
 
 		//First Message starts (Bob)
 		start = time.Now()
@@ -267,7 +306,7 @@ func main() {
 		fmt.Printf("Alice time First Message : %s\n", AliceTime)
 		fmt.Printf("Bob   time First Message : %s\n", BobTime)
 
-		// Check
+		// ********* VERIFY CORRECTNESS *********
 
 		checkMessage1a := ringQ.NewPolyLvl(plevel)
 		checkMessage1b := ringQ.NewPolyLvl(plevel)
@@ -298,6 +337,8 @@ func main() {
 
 		fmt.Printf("Errors First Message : %d\n", nerrors)
 
+		// ********* 3. SECOND MESSAGE *********
+
 		//Second Message, Alice
 		start = time.Now()
 		ringQ.InvMFormLvl(plevel, skAlice, skAlice)
@@ -317,7 +358,7 @@ func main() {
 		}
 
 		elapsed = time.Since(start)
-		fmt.Printf("3.(b) : %s\n", elapsed)
+		fmt.Printf("3.(a) : %s\n", elapsed)
 		TotalTime = elapsed
 		AliceTime = elapsed
 
@@ -345,7 +386,7 @@ func main() {
 		}
 
 		elapsed = time.Since(start)
-		fmt.Printf("3.(d) : %s\n", elapsed)
+		fmt.Printf("3.(c) : %s\n", elapsed)
 		TotalTime += elapsed
 		BobTime = elapsed
 
@@ -370,7 +411,7 @@ func main() {
 		}
 
 		elapsed = time.Since(start)
-		fmt.Printf("3.(e) : %s\n", elapsed)
+		fmt.Printf("3.(d) : %s\n", elapsed)
 		TotalTime += elapsed
 		AliceTime += elapsed
 
@@ -378,7 +419,7 @@ func main() {
 		fmt.Printf("Alice time Second Message : %s\n", AliceTime)
 		fmt.Printf("Bob   time Second Message : %s\n", BobTime)
 
-		// Check
+		// ********* VERIFY CORRECTNESS *********
 		nerrors = 0
 		for i := 0; i < n; i++ {
 

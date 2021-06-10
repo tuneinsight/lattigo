@@ -24,9 +24,15 @@ type AdditiveShare struct {
 }
 
 // NewAdditiveShare instantiate a new additive share struct for the ring defined
-// by the given parameters.
+// by the given parameters at maximum level.
 func NewAdditiveShare(params Parameters) AdditiveShare {
 	return AdditiveShare{Value: *ring.NewPoly(params.N(), 1)}
+}
+
+// NewAdditiveShareAtLevel instantiate a new additive share struct for the ring defined
+// by the given parameters at level `level`.
+func NewAdditiveShareAtLevel(params Parameters, level int) AdditiveShare {
+	return AdditiveShare{Value: *ring.NewPoly(params.N(), level+1)}
 }
 
 // NewPlaintext creates a new Plaintext at maximum level from the parameters.

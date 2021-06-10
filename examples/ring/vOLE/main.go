@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/big"
 	"time"
@@ -45,7 +46,9 @@ import (
 //
 // It should hold that u * v = alpha + beta (mod M)
 
-type benchParams struct {
+var flagShort = flag.Bool("short", false, "run the example on the 3 first parameters sets only.")
+
+type parameters struct {
 	logN   int    // Ring degree
 	logQ   [2]int // logQ[0] = #Primes, logQ[1] = Primes bit-size
 	n      int    // Number of vOLE to run
@@ -53,7 +56,7 @@ type benchParams struct {
 	mlevel int    // Maximum level of the modulus M (level 0 is the lowest)
 }
 
-var params = []benchParams{
+var benchParameters = []parameters{
 	{logN: 13, logQ: [2]int{4, 60}, n: 1, plevel: 2, mlevel: 0},
 	{logN: 14, logQ: [2]int{6, 60}, n: 1, plevel: 3, mlevel: 0},
 	{logN: 14, logQ: [2]int{8, 60}, n: 1, plevel: 5, mlevel: 1},
@@ -74,7 +77,7 @@ type vOLErings struct {
 	pDivM *big.Int   // P/M
 }
 
-func newvOLErings(params benchParams) *vOLErings {
+func newvOLErings(params parameters) *vOLErings {
 
 	if params.mlevel >= params.plevel {
 		panic("mlevel must be strictly smaller than plevel")
@@ -138,7 +141,14 @@ func (lns *lowNormSampler) newPolyLowNorm(norm []uint64) (pol *ring.Poly) {
 
 func main() {
 
-	for _, param := range params {
+	flag.Parse()
+
+	paramsSets := benchParameters
+	if *flagShort {
+		paramsSets = paramsSets[:6] // skips the benchmarks for n=64 and 128 in -short mode
+	}
+
+	for _, param := range paramsSets {
 
 		// Crypto Context Initialization
 

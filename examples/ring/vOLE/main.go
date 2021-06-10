@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
 	"math/big"
 	"time"
+
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // Vectorized oblivious evaluation is a two-party protocol for the function f(x) = ax + b where a sender
@@ -13,22 +14,23 @@ import (
 //
 // This example implements the secret-key and passively-secure vOLE protocol of Figure 5 of
 // "Efficient Protocols for Oblivious Linear Function Evaluation from Ring-LWE" by Baum C. et al.
+// https://eprint.iacr.org/2020/970
 //
 //
-// We work in the ring R = Z_{Q}/(X^N + 1), for Q the product of k NTT friend primes and N a power of two.
+// We work in the ring R = Z_{Q}/(X^N + 1), for Q the product of k NTT-friendly primes and N a power of two.
 // We define Q > P > M with P|Q and M|Q and M|P, i.e. P and M are themselves factors of Q.
-// Thus we also have R_{M} -> R_{P} -> R_{Q} and a polynomial mod M implies that this polynomial is of R_{M},
-// and the same follows for mod P and mod Q.
+// Thus, we also have R_{M} -> R_{P} -> R_{Q}. A polynomial mod M implies that this polynomial belongs to R_{M};
+// the same follows for mod P and mod Q.
 //
-// Given Alice and Bob, with their respective secret inputs v and u (mod M), the goal of this protocol is
+// Given two parties Alice and Bob, with their respective secret inputs v and u (mod M), the goal of this protocol is
 // for Alice and Bob to construct the values alpha, beta (mod M) such that alpha + beta = u*v (mod M).
 //
 // 1. Setup phase
-//		(a) Alice and Bob sample each a low-norm secret polynomial : skAlice and skBob (mod Q) and set
+//		(a) Alice and Bob sample each a low-norm secret polynomial: skAlice and skBob (mod Q) respectively and set
 //			sigmaAlice + sigmaBob = skAlice * skBob (mod Q)
-//		(b) Alice and Bob sample two public random polynomials : a and a' (mod Q)
+//		(b) Alice and Bob sample two public random polynomials: a and a' (mod Q)
 // 2. First Message. Given u (mod M), Bob's input
-//		(a) Bob samples a noise polynomial eBob (mod Q) from a small variance truncated-discrete Gaussian distribution
+//		(a) Bob samples a noise polynomial eBob (mod Q) from a small-variance truncated discrete Gaussian distribution
 // 			and sends c = (Q/P) * u + a*skBob + eBob to Alice (mod P)
 //		(b) Alice computes rhoAlice = (skAlice * c - a * sigmaAlice) * (P/Q) (mod P)
 //		(c) Bob computes rhoBob = -(a * sigmaBob) * (P/Q) (mod P)
@@ -36,7 +38,7 @@ import (
 // At this step, it should hold that u * skAlice = rhoAlice + rhoBob (mod P)
 //
 // 3. Second Message. Given v, Alice's input
-//		(a) Alice samples a noise polynomial eAlice (mod P) from a small variance truncated-discrete Gaussian distribution
+//		(a) Alice samples a noise polynomial eAlice (mod P) from a small-variance truncated discrete Gaussian distribution
 //			and sends d = (P/M) * v + (a'*skAlice + eAlice) (mod P) to Bob
 //		(b) Bob outputs beta = (u * d - a' * rhoBob) * (M/P) (mod M)
 //		(c) Alice outputs alpha = -(a' * rhoAlice) * (M/P) (mod M)
@@ -84,7 +86,7 @@ func newvOLErings(params benchParams) *vOLErings {
 
 	rings := new(vOLErings)
 
-	// Generates logQ[0] NTT friendly primes each close to 2^logQ[1]
+	// Generate logQ[0] NTT-friendly primes each close to 2^logQ[1]
 	primes := ring.GenerateNTTPrimes(params.logQ[1], 2*N, params.logQ[0])
 
 	if rings.ringQ, err = ring.NewRing(N, primes); err != nil {
@@ -166,30 +168,30 @@ func main() {
 
 		// ********* 1. SETUP *********
 
-		// NTT(Mont(skBob))
+		// NTT(MForm(skBob))
 		skBob := ternarySamplerMontgomeryQ.ReadNew()
 		ringQ.NTT(skBob, skBob)
 
-		// NTT(Mont(skAlice))
+		// NTT(MForm(skAlice))
 		skAlice := ternarySamplerMontgomeryQ.ReadNew()
 		ringQ.NTT(skAlice, skAlice)
 
-		// NTT(Mont(sigmaAlicelice))
+		// NTT(MForm(sigmaAlicelice))
 		sigmaAlice := uniformSamplerQ.ReadNew()
 
-		// NTT(Mont(sigmaBobob))
+		// NTT(MForm(sigmaBobob))
 		sigmaBob := ringQ.NewPoly()
 
-		// NTT(Mont(skBob * skAlice))
+		// NTT(MForm(skBob * skAlice))
 		ringQ.MulCoeffsMontgomery(skAlice, skBob, sigmaBob)
 
-		// NTT(Mont(sigmaBob)) = NTT(Mont(ska_a * skAlice) - Mont(sigmaAlice))
+		// NTT(MForm(sigmaBob)) = NTT(MForm(ska_a * skAlice) - MForm(sigmaAlice))
 		ringQ.Sub(sigmaBob, sigmaAlice, sigmaBob)
 
 		a := make([]*ring.Poly, n)
 		aprime := make([]*ring.Poly, n)
 
-		//Sample common random poly vectors
+		// Sample common random poly vectors
 		// NTT(a) in Z_Q
 		// NTT(MForm(a')) in Z_P
 		for i := range a {
@@ -215,7 +217,7 @@ func main() {
 
 		for i := 0; i < n; i++ {
 
-			//Generation of uniform inputs u and v (in R_m) in the time domain
+			// Generate uniform inputs u and v (in R_m) in the time domain
 			u[i] = lowNormUniformQ.newPolyLowNorm(ringQ.Modulus[:mlevel+1])
 
 			ringQ.NTT(u[i], u[i])
@@ -235,7 +237,7 @@ func main() {
 
 		// ********* 2. FIRST MESSAGE *********
 
-		//First Message starts (Bob)
+		// First Message starts (Bob)
 		start = time.Now()
 		for i := 0; i < n; i++ {
 
@@ -251,7 +253,7 @@ func main() {
 			// c = NTT(u * (Q/P) + e)
 			ringQ.Add(c[i], tmp, c[i])
 
-			// c = NTT(u * (Q/P) + e) + NTT(a) * Mont(NTT(skAlice))
+			// c = NTT(u * (Q/P) + e) + NTT(a) * MForm(NTT(skAlice))
 			// c = NTT(u * (Q/P) + e + a*skAlice)
 			ringQ.MulCoeffsMontgomeryAndAdd(a[i], skBob, c[i])
 		}
@@ -261,15 +263,15 @@ func main() {
 		TotalTime = elapsed
 		BobTime = elapsed
 
-		//Alice
+		// Alice
 		start = time.Now()
 		for i := 0; i < n; i++ {
 
-			// rhoAlice = NTT(Mont(skBob)) * NTT(u * (Q/P) + e + a*skAlice)
+			// rhoAlice = NTT(MForm(skBob)) * NTT(u * (Q/P) + e + a*skAlice)
 			// rhoAlice = NTT(skBob * (u * (Q/P) + e + a*skAlice))
 			ringQ.MulCoeffsMontgomery(skAlice, c[i], rhoAlice[i])
 
-			// rhoAlice = NTT(skBob * (u * (Q/P) + e + a*skAlice)) - NTT(a) * NTT(Mont(sigmaAlice))
+			// rhoAlice = NTT(skBob * (u * (Q/P) + e + a*skAlice)) - NTT(a) * NTT(MForm(sigmaAlice))
 			// rhoAlice = NTT(skBob * (u * (Q/P) + e + a*skAlice) - a*sigmaAlice)
 			ringQ.MulCoeffsMontgomeryAndSub(a[i], sigmaAlice, rhoAlice[i])
 
@@ -282,11 +284,11 @@ func main() {
 		TotalTime += elapsed
 		AliceTime = elapsed
 
-		//Bob
+		// Bob
 		start = time.Now()
 		for i := 0; i < n; i++ {
 
-			// rhoBob = NTT(a) * NTT(Mont(sigmaBob))
+			// rhoBob = NTT(a) * NTT(MForm(sigmaBob))
 			// rhoBob = NTT(a * sigmaBob)
 			ringQ.MulCoeffsMontgomery(a[i], sigmaBob, rhoBob[i])
 
@@ -314,14 +316,14 @@ func main() {
 		nerrors := 0
 		for i := 0; i < n; i++ {
 
-			// checkMessage1a = NTT(u) * NTT(Mont(skBob))
+			// checkMessage1a = NTT(u) * NTT(MForm(skBob))
 
 			ringQ.MulCoeffsMontgomeryLvl(plevel, u[i], skAlice, checkMessage1a)
 
 			// rhoAlice = NTT(skBob * u)  + NTT(a*skBob*skAlice - a*sigmaAlice) * P/Q
 			// rhoBob = NTT(-a * sigmaBob) * P/Q
 
-			// NTT(a*skBob*skAlice - a*sigmaAlice) * (P/Q) = NTT(a*skBob*skAlice) - NTT(a) * NTT(Mont(ska_a * skAlice - sigmaBob)
+			// NTT(a*skBob*skAlice - a*sigmaAlice) * (P/Q) = NTT(a*skBob*skAlice) - NTT(a) * NTT(MForm(ska_a * skAlice - sigmaBob)
 			// = NTT(a*skBob*skAlice - a * (skBob*skAlice - sigmaBob))
 			// = NTT(a*skBob*skAlice - a*skBob*sk-b + a*sigmaBob)
 			// = NTT(a*sigmaBob) * P/Q
@@ -339,7 +341,7 @@ func main() {
 
 		// ********* 3. SECOND MESSAGE *********
 
-		//Second Message, Alice
+		// Second Message, Alice
 		start = time.Now()
 		ringQ.InvMFormLvl(plevel, skAlice, skAlice)
 		for i := 0; i < n; i++ {
@@ -366,7 +368,7 @@ func main() {
 		start = time.Now()
 		for i := 0; i < n; i++ {
 
-			// beta = NTT(v * (P/M) + e + a'*skAlice) * NTT(Mont(u))
+			// beta = NTT(v * (P/M) + e + a'*skAlice) * NTT(MForm(u))
 			//      = NTT(u * (v * (P/M) + e + a'*skAlice))
 
 			ringQ.MFormLvl(plevel, u[i], u[i])

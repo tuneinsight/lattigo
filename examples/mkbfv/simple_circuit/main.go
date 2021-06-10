@@ -5,6 +5,7 @@ import (
 	"github.com/ldsec/lattigo/v2/mkbfv"
 	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -34,7 +35,13 @@ func main() {
 
 	// Participant 1
 	keys1 := mkrlwe.KeyGen(&params.Parameters, crs)
-	encryptor1 := mkbfv.NewMKEncryptor(keys1.PublicKey, &params)
+
+	//create an encryptor from the first component of the public key
+	pk1 := new(rlwe.PublicKey)
+	pk1.Value[0] = keys1.PublicKey.Key[0].Poly[0] // b[0]
+	pk1.Value[1] = keys1.PublicKey.Key[1].Poly[0] // a[0]
+
+	encryptor1 := bfv.NewEncryptorFromPk(params, pk1)
 	encoder1 := bfv.NewEncoder(params)
 	decryptor1 := mkrlwe.NewMKDecryptor(&params.Parameters)
 
@@ -42,13 +49,19 @@ func main() {
 	plaintext1 := bfv.NewPlaintext(params)
 	encoder1.EncodeUint(value1, plaintext1)
 
-	cipher1 := encryptor1.Encrypt(plaintext1)
+	// data that will be sent to the evaluator
+	cipher1 := encryptor1.EncryptFastNew(plaintext1)
 	evk1 := keys1.RelinKey
-	pk1 := keys1.PublicKey
+	pubkey1 := keys1.PublicKey
 
 	// Participant 2
 	keys2 := mkrlwe.KeyGen(&params.Parameters, crs)
-	encryptor2 := mkbfv.NewMKEncryptor(keys2.PublicKey, &params)
+
+	pk2 := new(rlwe.PublicKey)
+	pk2.Value[0] = keys2.PublicKey.Key[0].Poly[0] // b[0]
+	pk2.Value[1] = keys2.PublicKey.Key[1].Poly[0] // a[0]
+
+	encryptor2 := bfv.NewEncryptorFromPk(params, pk2)
 	encoder2 := bfv.NewEncoder(params)
 	decryptor2 := mkrlwe.NewMKDecryptor(&params.Parameters)
 
@@ -56,9 +69,9 @@ func main() {
 	plaintext2 := bfv.NewPlaintext(params)
 	encoder2.EncodeUint(value2, plaintext2)
 
-	cipher2 := encryptor2.Encrypt(plaintext2)
+	cipher2 := encryptor2.EncryptFastNew(plaintext2)
 	evk2 := keys2.RelinKey
-	pk2 := keys2.PublicKey
+	pubkey2 := keys2.PublicKey
 
 	// Evaluator: evaluates (c1 - c2) * (c1 + c2)
 	evaluator := mkbfv.NewMKEvaluator(&params)
@@ -67,10 +80,10 @@ func main() {
 	ids := []uint64{1, 2}
 	evk1.PeerID = 1
 	evk2.PeerID = 2
-	pk1.PeerID = 1
-	pk2.PeerID = 2
+	pubkey1.PeerID = 1
+	pubkey2.PeerID = 2
 	evalKeys := []*mkrlwe.MKRelinearizationKey{evk1, evk2}
-	pubKeys := []*mkrlwe.MKPublicKey{pk1, pk2}
+	pubKeys := []*mkrlwe.MKPublicKey{pubkey1, pubkey2}
 
 	// convert the bfv ciphertexts into multi key ciphertexts
 	ciphers := evaluator.ConvertToMKCiphertext([]*bfv.Ciphertext{cipher1, cipher2}, ids)

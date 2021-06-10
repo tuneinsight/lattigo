@@ -18,16 +18,33 @@ The crs has to be shared with all participants:
 keys := mkrlwe.KeyGen(&params.Parameters, crs)
 ```
 
-Alongside the keys, an ```mkckks.MKEncryptor``` and a ```ckks.Encoder``` can be used in order to, first, wrap the values in a ```ckks.Plaintext``` and then encrypt them into standard ```ckks.Ciphertexts```:
+
+### Encryption
+
+The encryption is the same as in the ```ckks``` package. Since the public keys returned by ```mkrlwe.KeyGen``` are decomposed in the RNS basis, only the first component of the ```mkrlwe.MKPublicKey``` must be used to create the encryptor:
 ```go
-encryptor := mkckks.NewMKEncryptor(keys1.PublicKey, &params)
+//create an encryptor from the first component of the public key
+pk := new(rlwe.PublicKey)
+pk.Value[0] = keys.PublicKey.Key[0].Poly[0] // b[0]
+pk.Value[1] = keys.PublicKey.Key[1].Poly[0] // a[0]
+
+encryptor := ckks.NewEncryptorFromPk(params, pk)
+```
+It is important to verify that the public key that is sent to the evaluator is the one returned by the ```mkrlwe.KeyGen``` and not the temporary one created from the first compoenents and only used to create the ```ckks.Encryptor```.
+
+
+Alongside the ```ckks.Encryptor```, a ```ckks.Encoder``` can be used in order to, first, wrap the values in a ```ckks.Plaintext``` and then encrypt them into standard ```ckks.Ciphertexts```:
+```go
+encryptor := ckks.NewEncryptorFromPk(params, pk)
 encoder := ckks.NewEncoder(params)
 
 value := newTestValue(&params, complex(-1, -1), complex(1, 1))
-plaintext := encoder1.EncodeNTTAtLvlNew(params.MaxLevel(), value1, params.LogSlots())
+plaintext := encoder.EncodeNTTAtLvlNew(params.MaxLevel(), value, params.LogSlots())
+
+cipher := encryptor2.EncryptFastNew(plaintext)
 ```
 
-It is also possible to simply use a ```ckks.KeyGenerator``` and ```ckks.Encryptor``` to create the ciphertext if a one want to reuse an already existing ```rlwe.SecretKey```:
+It is also possible to simply use a ```ckks.KeyGenerator``` and a ```ckks.Encryptor``` to create the ciphertext if one wants to reuse an already existing ```rlwe.SecretKey```:
 ```go
 keygen := ckks.NewKeyGenerator(*params)
 sk, pk := keygen.GenKeyPair()
@@ -35,12 +52,11 @@ encryptorPK := ckks.NewEncryptorFromPk(*params, pk)
 ciphertext = encryptorPK.EncryptNew(plaintext)
 ```
 
-But, since the public key and relinearization key of the multi-key scheme are not compatible with the CKKS scheme, it is necessary to use the ```mkckks.KeyGenWithSecretKey``` function to create missing the keys from an already existing ```rlwe.SecretKey```:
+But, since the public key and relinearization key of the multi-key scheme are not compatible with the CKKS scheme, it is necessary to use the ```mkbfv.KeyGenWithSecretKey``` function to create the missing keys from the ```rlwe.SecretKey```:
 ```go
 // a is the crs common to all participants
-keys := mkrlwe.KeyGenWithSecretKey(&params.Parameters, a, sk)
+keys := mkrlwe.KeyGenWithSecretKey(&params.Parameters, a, sk) 
 ```
-
 
 ### Ciphertexts
 

@@ -6,6 +6,7 @@ import (
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -1223,7 +1224,7 @@ type participant interface {
 }
 
 type mkParticipant struct {
-	encryptor     MKEncryptor
+	encryptor     bfv.Encryptor
 	decryptor     mkrlwe.MKDecryptor
 	params        *bfv.Parameters
 	keys          *mkrlwe.MKKeys
@@ -1250,7 +1251,17 @@ func (participant *mkParticipant) Encrypt(values []uint64) *bfv.Ciphertext {
 
 	pt := newPlaintext(values, participant.encoder, participant.params)
 
-	return participant.encryptor.Encrypt(pt)
+	var res *bfv.Ciphertext
+
+	if participant.params.PCount() != 0 {
+		res = participant.encryptor.EncryptNew(pt)
+	} else {
+		res = participant.encryptor.EncryptFastNew(pt)
+	}
+
+	res.IsNTT = false
+
+	return res
 }
 
 // Decrypt returns the decryption of the ciphertext given the partial decryption
@@ -1297,7 +1308,7 @@ func newParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *mkrlwe.M
 
 	keys := mkrlwe.KeyGen(&params.Parameters, mkrlwe.CopyNewDecomposed(crs))
 
-	encryptor := NewMKEncryptor(keys.PublicKey, params)
+	encryptor := newEncryptor(keys.PublicKey, params)
 	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters)
 	encoder := bfv.NewEncoder(*params)
 	ringQ := mkrlwe.GetRingQ(&params.Parameters)
@@ -1311,6 +1322,15 @@ func newParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *mkrlwe.M
 		ringQ:         ringQ,
 		sigmaSmudging: sigmaSmudging,
 	}
+}
+
+func newEncryptor(pk *mkrlwe.MKPublicKey, params *bfv.Parameters) bfv.Encryptor {
+
+	bfvPublicKey := new(rlwe.PublicKey)
+	bfvPublicKey.Value[0] = pk.Key[0].Poly[0] // b[0]
+	bfvPublicKey.Value[1] = pk.Key[1].Poly[0] // a[0]
+
+	return bfv.NewEncryptorFromPk(*params, bfvPublicKey)
 }
 
 // newPlaintext initializes a new bfv Plaintext with an encoded slice of uint64

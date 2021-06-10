@@ -11,6 +11,7 @@ import (
 	"github.com/ldsec/lattigo/v2/mkbfv"
 	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -335,7 +336,6 @@ func getPublicKeyForParticipants(pk []*mkrlwe.MKPublicKey, peerID []uint64) []*m
 }
 
 //--------------------------------Participants interface for tests------------------------------------------
-
 // MKParticipant is a type for participants in a multy key bfv scheme
 type participant interface {
 	GetEvaluationKey() *mkrlwe.MKRelinearizationKey
@@ -343,10 +343,11 @@ type participant interface {
 	Encrypt(values []uint64) *bfv.Ciphertext
 	Decrypt(cipher *bfv.Ciphertext, partialDecryptions []*ring.Poly) []uint64
 	GetPartialDecryption(ciphertext *bfv.Ciphertext) *ring.Poly
+	GetRotationKeys(rot int) *mkrlwe.MKRotationKey
 }
 
 type mkParticipant struct {
-	encryptor     mkbfv.MKEncryptor
+	encryptor     bfv.Encryptor
 	decryptor     mkrlwe.MKDecryptor
 	params        *bfv.Parameters
 	keys          *mkrlwe.MKKeys
@@ -373,7 +374,17 @@ func (participant *mkParticipant) Encrypt(values []uint64) *bfv.Ciphertext {
 
 	pt := newPlaintext(values, participant.encoder, participant.params)
 
-	return participant.encryptor.Encrypt(pt)
+	var res *bfv.Ciphertext
+
+	if participant.params.PCount() != 0 {
+		res = participant.encryptor.EncryptNew(pt)
+	} else {
+		res = participant.encryptor.EncryptFastNew(pt)
+	}
+
+	res.IsNTT = false
+
+	return res
 }
 
 // Decrypt returns the decryption of the ciphertext given the partial decryption
@@ -420,7 +431,7 @@ func newParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *mkrlwe.M
 
 	keys := mkrlwe.KeyGen(&params.Parameters, mkrlwe.CopyNewDecomposed(crs))
 
-	encryptor := mkbfv.NewMKEncryptor(keys.PublicKey, params)
+	encryptor := newEncryptor(keys.PublicKey, params)
 	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters)
 	encoder := bfv.NewEncoder(*params)
 	ringQ := mkrlwe.GetRingQ(&params.Parameters)
@@ -436,6 +447,15 @@ func newParticipant(params *bfv.Parameters, sigmaSmudging float64, crs *mkrlwe.M
 	}
 }
 
+func newEncryptor(pk *mkrlwe.MKPublicKey, params *bfv.Parameters) bfv.Encryptor {
+
+	bfvPublicKey := new(rlwe.PublicKey)
+	bfvPublicKey.Value[0] = pk.Key[0].Poly[0] // b[0]
+	bfvPublicKey.Value[1] = pk.Key[1].Poly[0] // a[0]
+
+	return bfv.NewEncryptorFromPk(*params, bfvPublicKey)
+}
+
 // newPlaintext initializes a new bfv Plaintext with an encoded slice of uint64
 func newPlaintext(value []uint64, encoder bfv.Encoder, params *bfv.Parameters) *bfv.Plaintext {
 
@@ -445,4 +465,14 @@ func newPlaintext(value []uint64, encoder bfv.Encoder, params *bfv.Parameters) *
 	encoder.EncodeUint(value, plaintext)
 
 	return plaintext
+}
+
+// GetRotationKeys returns the rotation key set associated with the given rotation
+func (participant *mkParticipant) GetRotationKeys(rot int) *mkrlwe.MKRotationKey {
+
+	galEl := participant.params.GaloisElementForColumnRotationBy(rot)
+
+	rotKey := mkrlwe.RoationKeyGen(galEl, participant.keys.SecretKey, &participant.params.Parameters)
+
+	return rotKey
 }

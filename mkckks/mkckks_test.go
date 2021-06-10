@@ -9,6 +9,7 @@ import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/mkrlwe"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/require"
 )
@@ -1333,7 +1334,7 @@ type participant interface {
 }
 
 type mkParticipant struct {
-	encryptor     MKEncryptor
+	encryptor     ckks.Encryptor
 	decryptor     mkrlwe.MKDecryptor
 	keys          *mkrlwe.MKKeys
 	encoder       ckks.Encoder
@@ -1357,7 +1358,19 @@ func (participant *mkParticipant) Encrypt(values []complex128) *ckks.Ciphertext 
 	if values == nil || len(values) <= 0 {
 		panic("Cannot encrypt uninitialized or empty values")
 	}
-	return participant.encryptor.Encrypt(participant.encoder.EncodeNTTAtLvlNew(participant.params.MaxLevel(), values, participant.params.LogSlots()))
+
+	plaintext := participant.encoder.EncodeNTTAtLvlNew(participant.params.MaxLevel(), values, participant.params.LogSlots())
+	var res *ckks.Ciphertext
+
+	if participant.params.PCount() != 0 {
+		res = participant.encryptor.EncryptNew(plaintext)
+	} else {
+		res = participant.encryptor.EncryptFastNew(plaintext)
+	}
+
+	res.Element.Element.IsNTT = true
+
+	return res
 }
 
 // Decrypt returns the decryption of the ciphertext given the partial decryption
@@ -1407,7 +1420,7 @@ func newParticipant(params *ckks.Parameters, sigmaSmudging float64, crs *mkrlwe.
 	}
 
 	keys := mkrlwe.KeyGen(&params.Parameters, mkrlwe.CopyNewDecomposed(crs))
-	encryptor := NewMKEncryptor(keys.PublicKey, params)
+	encryptor := newEncryptor(keys.PublicKey, params)
 	decryptor := mkrlwe.NewMKDecryptor(&params.Parameters)
 	encoder := ckks.NewEncoder(*params)
 	ringQ := mkrlwe.GetRingQ(&params.Parameters)
@@ -1421,6 +1434,15 @@ func newParticipant(params *ckks.Parameters, sigmaSmudging float64, crs *mkrlwe.
 		params:        params,
 		sigmaSmudging: sigmaSmudging,
 	}
+}
+
+func newEncryptor(pk *mkrlwe.MKPublicKey, params *ckks.Parameters) ckks.Encryptor {
+
+	ckksPublicKey := new(rlwe.PublicKey)
+	ckksPublicKey.Value[0] = pk.Key[0].Poly[0] // b[0]
+	ckksPublicKey.Value[1] = pk.Key[1].Poly[0] // a[0]
+
+	return ckks.NewEncryptorFromPk(*params, ckksPublicKey)
 }
 
 // GetRotationKeys returns the rotation key set associated with the given rotation

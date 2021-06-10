@@ -1,4 +1,4 @@
-## Description of the MKCKKS package
+## Description of the MKBFV package
 This package contains an implementation of the "special modulus" variant of the BFV-based MKHE scheme proposed by Chen & al. in their 2019 paper: "Efficient Multi-Key Homomorphic Encryptionwith Packed Ciphertexts with Application to Oblivious Neural Network Inference".
 
 ### What is a multi-key homomorphic encryption scheme

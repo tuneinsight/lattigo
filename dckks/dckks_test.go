@@ -21,7 +21,7 @@ var flagLongTest = flag.Bool("long", false, "run the long test suite (all parame
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 var minPrec float64 = 15.0
-var parties int = 3
+var parties int = 1
 
 func testString(opname string, parties int, params ckks.Parameters) string {
 	return fmt.Sprintf("%sparties=%d/logN=%d/logQ=%d/levels=%d/alpha=%d/beta=%d",
@@ -92,8 +92,72 @@ func TestDCKKS(t *testing.T) {
 		testRotKeyGenConjugate(testCtx, t)
 		testRotKeyGenCols(testCtx, t)
 		testRefresh(testCtx, t)
+		testE2SProtocol(testCtx, t)
 		testRefreshAndPermute(testCtx, t)
 	}
+}
+
+func testE2SProtocol(testCtx *testContext, t *testing.T) {
+
+	type Party struct {
+		e2s         *E2SProtocol
+		s2e         *S2EProtocol
+		sk          *rlwe.SecretKey
+		publicShare *drlwe.CKSShare
+		secretShare rlwe.AdditiveShare
+	}
+
+	coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, 1, t)
+
+	params := testCtx.params
+	P := make([]Party, parties)
+	for i := range P {
+		P[i].e2s = NewE2SProtocol(params, 3.2)
+		P[i].s2e = NewS2EProtocol(params, 3.2)
+		P[i].sk = testCtx.sk0Shards[i]
+		P[i].publicShare = P[i].e2s.AllocateShare()
+		P[i].secretShare = rlwe.NewAdditiveShareAtLevel(params.Parameters, ciphertext.Level())
+	}
+
+	t.Run(testString("E2SProtocol/", parties, testCtx.params), func(t *testing.T) {
+
+		for i, p := range P {
+			p.e2s.GenShare(p.sk, len(P), ciphertext, p.secretShare, p.publicShare)
+			if i > 0 {
+				p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+			}
+		}
+
+		P[0].e2s.GetShare(&P[0].secretShare, P[0].publicShare, ciphertext, &P[0].secretShare)
+
+		rec := rlwe.NewAdditiveShareAtLevel(params.Parameters, ciphertext.Level())
+		for _, p := range P {
+			testCtx.dckksContext.ringQ.AddLvl(ciphertext.Level(), &rec.Value, &p.secretShare.Value, &rec.Value)
+		}
+
+		pt := ckks.NewPlaintext(testCtx.params, ciphertext.Level(), ciphertext.Scale())
+		pt.Value[0].Copy(&rec.Value)
+
+		verifyTestVectors(testCtx, nil, coeffs, pt, t)
+
+		crs := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQ)
+		c1 := crs.ReadLvlNew(ciphertext.Level())
+
+		for i, p := range P {
+
+			p.s2e.GenShare(p.sk, c1, p.secretShare, p.publicShare)
+
+			if i > 0 {
+				p.s2e.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+			}
+		}
+
+		ctRec := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale())
+		P[0].s2e.GetEncryption(P[0].publicShare, c1, *ctRec)
+
+		verifyTestVectors(testCtx, testCtx.decryptorSk0, coeffs, ctRec, t)
+
+	})
 }
 
 func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err error) {
@@ -644,19 +708,18 @@ func newTestVectors(testCtx *testContext, encryptor ckks.Encryptor, a float64, t
 
 func verifyTestVectors(testCtx *testContext, decryptor ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
-	var plaintextTest *ckks.Plaintext
 	var valuesTest []complex128
 
 	switch element := element.(type) {
 	case *ckks.Ciphertext:
-		plaintextTest = decryptor.DecryptNew(element)
+		valuesTest = testCtx.encoder.Decode(decryptor.DecryptNew(element), testCtx.params.LogSlots())
 	case *ckks.Plaintext:
-		plaintextTest = element
+		valuesTest = testCtx.encoder.Decode(element, testCtx.params.LogSlots())
+	case []complex128:
+		valuesTest = element
 	}
 
 	slots := testCtx.params.Slots()
-
-	valuesTest = testCtx.encoder.Decode(plaintextTest, testCtx.params.LogSlots())
 
 	var deltaReal, deltaImag float64
 

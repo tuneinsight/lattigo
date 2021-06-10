@@ -5,6 +5,7 @@ package ckks
 import (
 	"math"
 	"math/big"
+	"math/bits"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -235,16 +236,12 @@ func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []
 
 	encoder.WipeInternalMemory()
 
-	nextPow2 := 1
-	for nextPow2 < len(valuesWant) {
-		nextPow2 <<= 1
-	}
-
 	for i := range valuesHave {
 		encoder.values[i] = (valuesWant[i] - valuesHave[i])
 	}
 
-	invfft(encoder.values, nextPow2, encoder.m, encoder.rotGroup, encoder.roots)
+	// Runs FFT^-1 with the smallest power of two length that is greater than the input size
+	invfft(encoder.values, 1<<bits.Len64(uint64(len(valuesHave)-1)), encoder.m, encoder.rotGroup, encoder.roots)
 
 	for i := range valuesWant {
 		encoder.valuesfloat[2*i] = real(encoder.values[i])

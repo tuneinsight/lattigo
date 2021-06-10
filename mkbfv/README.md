@@ -1,14 +1,14 @@
 ## Description of the MKCKKS package
-This package contains an implementation of the "special modulus" variant of the BFV-based MKHE scheme proposed by Chen & al. in their 2019 paper: "Efficient Multi-Key Homomorphic Encryptionwith Packed Ciphertexts with Applicationto Oblivious Neural Network Inference".
+This package contains an implementation of the "special modulus" variant of the BFV-based MKHE scheme proposed by Chen & al. in their 2019 paper: "Efficient Multi-Key Homomorphic Encryptionwith Packed Ciphertexts with Application to Oblivious Neural Network Inference".
 
 ### What is a multi-key homomorphic encryption scheme
 
-A MKHE scheme is a type of MPC protocol in which each participant encrypt its input to the circuit with its own public key. An evaluator can then compute a function of these inputs and returns an encrypted result. A decryption algorithm is then run to recover the plaintext result.
+A MKHE scheme is a type of MPC protocol in which each participant encrypts its input to the circuit with its own public key. An evaluator can then compute a function of these inputs and returns an encrypted result. A decryption algorithm is then run to recover the plaintext result.
 
-In this specific scheme, the decryption algorithm is a multi-party protocol in the sens that one participant cannot decrypt the result without exchanging its decryption share with the other participants.
+In this specific scheme, the decryption algorithm is a multi-party protocol in the sense that one participant cannot decrypt the result without exchanging its decryption share with the other participants.
 
 ### Setup
-In the multi-key setting, each participant generates its own pair of public and private key. Ciphertexts encrypted with the public key can then be used to homomorphically compute circuits. 
+In the multi-key setting, each participant generates its own pair of public and private keys. Ciphertexts encrypted with the public key can then be used to homomorphically compute circuits. 
 For multiplications, the relinearization key and the public key must be provided to the evaluator and for the rotation, the rotation key must be provided.
 
 The ```mkrlwe.KeyGen``` algorithm can be used to generate the keys. The bfv parameters as well as the common reference string must be provided.
@@ -28,7 +28,7 @@ encoder.EncodeUint(value, plaintext)
 cipher := encryptor.Encrypt(plaintext)
 ```
 
-It is also possible to simply use a ```bfv.KeyGenerator``` and ```bfv.Encryptor``` to create the ciphertext if a one want to reuse an already existing ```rlwe.SecretKey```:
+It is also possible to simply use a ```bfv.KeyGenerator``` and ```bfv.Encryptor``` to create the ciphertext if one wants to reuse an already existing ```rlwe.SecretKey```:
 ```go
 keygen := bfv.NewKeyGenerator(*params)
 sk, pk := keygen.GenKeyPair()
@@ -38,7 +38,8 @@ ciphertext = encryptorPK.EncryptNew(plaintext)
 
 But, since the public key and relinearization key of the multi-key scheme are not compatible with the BFV scheme, it is necessary to use the ```mkbfv.KeyGenWithSecretKey``` function to create missing the keys from an already existing ```rlwe.SecretKey```:
 ```go
-keys := mkrlwe.KeyGenWithSecretKey(&params.Parameters, a, sk)
+// a is the crs common to all participants
+keys := mkrlwe.KeyGenWithSecretKey(&params.Parameters, a, sk) 
 ```
 
 
@@ -46,14 +47,14 @@ keys := mkrlwe.KeyGenWithSecretKey(&params.Parameters, a, sk)
 
 The ciphertexts are the same as the one in the bfv package except in the evaluator. The evaluator uses ```MKCiphertexts```, ciphertexts containing data from multiple participants while the ciphertexts that comes out of the encryptor are classical ```bfv.Ciphertext```.
 
-This makes it possible to compute something using the ```dbfv``` or ```bfv```package and then switch to the multi-key setting.
+This makes it possible to compute some value using the ```dbfv``` or ```bfv```package and then switch to the multi-key setting.
 
 The ```MKCiphertexts``` used by the evaluator grow linealry with the number of participants. Each one of them is made up of c0 (containing the encrypted values) and all the ciphertext "shares" of the involved participants.
 For example, the result of a binary operation between two freshly encrypted ciphertexts (c01, c1)  and (c02, c2) result in a ```MKCiphertexts``` (c0, c1, c2).
 
 ### Evaluator
 
-The evaluator is similar to the one in the bfv in its usage. The only difference is that it converts the ```bfv.Ciphertext``` in ```mkbfv.MKCiphertexts``` using a conversion function. Then it must decide on an indexing method for each participant (this can be done using IP addresses, public keys, certificates etc...). 
+The evaluator is similar to the one in the bfv in its usage. The only difference is that it converts the ```bfv.Ciphertext``` in ```mkbfv.MKCiphertexts``` using a conversion function. Then it must decide on an indexing method for each participant (this can be done using IP addresses, public keys, certificates etc...).  
 At the end of the evaluation phase, the ciphertexts must be converted back to ```bfv.Ciphertext``` and then sent to the participants for the collective decryption procedure.
 
 Creation of an evaluator:
@@ -116,6 +117,10 @@ pt.SetValue(decrypted)
 
 finalValues := encoder.DecodeUintNew(pt)
 ```
+
+### Examples and use cases 
+
+To see examples and use cases of the mkbfv package, under ```lattigo/examples/mkbfv``` you can find a simple circuit using the mkbfv scheme, as well as an application of **Private Set Intersection** .
 
 ### Tests and Benchmarks
 

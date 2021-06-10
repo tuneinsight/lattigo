@@ -1,11 +1,11 @@
 ## Description of the MKCKKS package
-This package contains an implementation of the "special modulus" variant of the CKKS-based MKHE scheme proposed by Chen & al. in their 2019 paper: "Efficient Multi-Key Homomorphic Encryptionwith Packed Ciphertexts with Applicationto Oblivious Neural Network Inference".
+This package contains an implementation of the "special modulus" variant of the CKKS-based MKHE scheme proposed by Chen & al. in their 2019 paper: "Efficient Multi-Key Homomorphic Encryptionwith Packed Ciphertexts with Application to Oblivious Neural Network Inference".
 
 ### What is a multi-key homomorphic encryption scheme
 
-A MKHE scheme is a type of MPC protocol in which each participant encrypt its input to the circuit with its own public key. An evaluator can then compute a function of these inputs and returns an encrypted result. A decryption algorithm is then run to recover the plaintext result.
+A MKHE scheme is a type of MPC protocol in which each participant encrypts its input to the circuit with its own public key. An evaluator can then compute a function of these inputs and returns an encrypted result. A decryption algorithm is then run to recover the plaintext result.
 
-In this specific scheme, the decryption algorithm is a multi-party protocol in the sens that one participant cannot decrypt the result without exchanging its decryption share with the other participants.
+In this specific scheme, the decryption algorithm is a multi-party protocol in the sense that one participant cannot decrypt the result without exchanging its decryption share with the other participants.
 
 ### Setup
 In the multi-key setting, each participant generates its own pair of public and private key. Ciphertexts encrypted with the public key can then be used to homomorphically compute circuits. 
@@ -37,6 +37,7 @@ ciphertext = encryptorPK.EncryptNew(plaintext)
 
 But, since the public key and relinearization key of the multi-key scheme are not compatible with the CKKS scheme, it is necessary to use the ```mkckks.KeyGenWithSecretKey``` function to create missing the keys from an already existing ```rlwe.SecretKey```:
 ```go
+// a is the crs common to all participants
 keys := mkrlwe.KeyGenWithSecretKey(&params.Parameters, a, sk)
 ```
 
@@ -115,6 +116,10 @@ pt.SetValue(decrypted)
 
 finalValues := encoder.Decode(pt, params.LogSlots())
 ```
+
+### Examples and use cases 
+
+To see an example and use case of the mkckks package, under ```lattigo/examples/mkckks``` you can find a simple circuit using the mkckks scheme.
 
 ### Tests and Benchmarks
 

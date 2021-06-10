@@ -678,6 +678,31 @@ func (r *Ring) MulCoeffsMontgomeryConstantAndAddNoModLvl(level int, p1, p2, p3 *
 	}
 }
 
+// MulCoeffsMontgomeryAndSubLvl multiplies p1 by p2 coefficient-wise with
+// a Montgomery modular reduction and subtracts the result from p3.
+func (r *Ring) MulCoeffsMontgomeryAndSubLvl(level int, p1, p2, p3 *Poly) {
+	for i := 0; i < level+1; i++ {
+		qi := r.Modulus[i]
+		p1tmp, p2tmp, p3tmp := p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i]
+		mredParams := r.MredParams[i]
+		for j := 0; j < r.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
+
+			z[0] = CRed(z[0]+(qi-MRed(x[0], y[0], qi, mredParams)), qi)
+			z[1] = CRed(z[1]+(qi-MRed(x[1], y[1], qi, mredParams)), qi)
+			z[2] = CRed(z[2]+(qi-MRed(x[2], y[2], qi, mredParams)), qi)
+			z[3] = CRed(z[3]+(qi-MRed(x[3], y[3], qi, mredParams)), qi)
+			z[4] = CRed(z[4]+(qi-MRed(x[4], y[4], qi, mredParams)), qi)
+			z[5] = CRed(z[5]+(qi-MRed(x[5], y[5], qi, mredParams)), qi)
+			z[6] = CRed(z[6]+(qi-MRed(x[6], y[6], qi, mredParams)), qi)
+			z[7] = CRed(z[7]+(qi-MRed(x[7], y[7], qi, mredParams)), qi)
+		}
+	}
+}
+
 // MulCoeffsMontgomeryAndSub multiplies p1 by p2 coefficient-wise with
 // a Montgomery modular reduction and subtracts the result from p3.
 func (r *Ring) MulCoeffsMontgomeryAndSub(p1, p2, p3 *Poly) {

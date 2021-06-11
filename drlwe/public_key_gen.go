@@ -19,8 +19,6 @@ type CollectivePublicKeyGenerator interface {
 type CKGProtocol struct {
 	params rlwe.Parameters
 
-	ringQ           *ring.Ring
-	ringP           *ring.Ring
 	ringQP          *ring.Ring
 	gaussianSampler *ring.GaussianSampler
 }
@@ -44,8 +42,6 @@ func NewCKGProtocol(params rlwe.Parameters) *CKGProtocol { // TODO drlwe.Params
 
 	ckg := new(CKGProtocol)
 	ckg.params = params
-	ckg.ringQ = params.RingQ()
-	ckg.ringP = params.RingP()
 	ckg.ringQP = params.RingQP()
 
 	var err error

@@ -341,44 +341,54 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("Keyswitching/", parties, testCtx.params), func(t *testing.T) {
 
-		type Party struct {
-			cks   drlwe.KeySwitchingProtocol
-			s0    *rlwe.SecretKey
-			s1    *rlwe.SecretKey
-			share *drlwe.CKSShare
+		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, 1, t)
+
+		for _, dropped := range []int{0, ciphertextFullLevels.Level()} { // runs the test for full and level zero
+			ciphertext := testCtx.evaluator.DropLevelNew(ciphertextFullLevels, dropped)
+
+			t.Run(fmt.Sprintf("atLevel=%d", ciphertext.Level()), func(t *testing.T) {
+
+				type Party struct {
+					cks   *CKSProtocol
+					s0    *rlwe.SecretKey
+					s1    *rlwe.SecretKey
+					share *drlwe.CKSShare
+				}
+
+				cksParties := make([]*Party, parties)
+				for i := 0; i < parties; i++ {
+					p := new(Party)
+					p.cks = NewCKSProtocol(testCtx.params, 6.36)
+					p.s0 = sk0Shards[i]
+					p.s1 = sk1Shards[i]
+					p.share = p.cks.AllocateShare()
+					cksParties[i] = p
+				}
+				P0 := cksParties[0]
+
+				// Checks that the protocol complies to the drlwe.KeySwitchingProtocol interface
+				var _ drlwe.KeySwitchingProtocol = P0.cks
+
+				// Each party creates its CKSProtocol instance with tmp = si-si'
+				for i, p := range cksParties {
+					p.cks.GenShare(p.s0, p.s1, ciphertext, p.share)
+					if i > 0 {
+						P0.cks.AggregateShares(p.share, P0.share, P0.share)
+					}
+				}
+
+				ksCiphertext := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale()/2)
+
+				P0.cks.KeySwitch(P0.share, ciphertext, ksCiphertext)
+
+				verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
+
+				P0.cks.KeySwitch(P0.share, ciphertext, ciphertext)
+
+				verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
+
+			})
 		}
-
-		cksParties := make([]*Party, parties)
-		for i := 0; i < parties; i++ {
-			p := new(Party)
-			p.cks = NewCKSProtocol(testCtx.params, 6.36)
-			p.s0 = sk0Shards[i]
-			p.s1 = sk1Shards[i]
-			p.share = p.cks.AllocateShare()
-			cksParties[i] = p
-		}
-		P0 := cksParties[0]
-
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
-
-		// Each party creates its CKSProtocol instance with tmp = si-si'
-		for i, p := range cksParties {
-			p.cks.GenShare(p.s0, p.s1, ciphertext, p.share)
-			if i > 0 {
-				P0.cks.AggregateShares(p.share, P0.share, P0.share)
-			}
-		}
-
-		ksCiphertext := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale()/2)
-
-		P0.cks.KeySwitch(P0.share, ciphertext, ksCiphertext)
-
-		verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
-
-		P0.cks.KeySwitch(P0.share, ciphertext, ciphertext)
-
-		verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
-
 	})
 }
 
@@ -391,38 +401,47 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("PublicKeySwitching/", parties, testCtx.params), func(t *testing.T) {
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
+		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, 1, t)
 
-		//testCtx.evaluator.DropLevel(ciphertext, 1)
+		for _, dropped := range []int{0, ciphertextFullLevels.Level()} { // runs the test for full and level zero
+			ciphertext := testCtx.evaluator.DropLevelNew(ciphertextFullLevels, dropped)
 
-		type Party struct {
-			*PCKSProtocol
-			s     *rlwe.SecretKey
-			share *drlwe.PCKSShare
+			t.Run(fmt.Sprintf("atLevel=%d", ciphertext.Level()), func(t *testing.T) {
+
+				type Party struct {
+					*PCKSProtocol
+					s     *rlwe.SecretKey
+					share *drlwe.PCKSShare
+				}
+
+				pcksParties := make([]*Party, parties)
+				for i := 0; i < parties; i++ {
+					p := new(Party)
+					p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
+					p.s = sk0Shards[i]
+					p.share = p.AllocateShares(ciphertext.Level())
+					pcksParties[i] = p
+				}
+				P0 := pcksParties[0]
+
+				// Checks that the protocol complies to the drlwe.KeySwitchingProtocol interface
+				var _ drlwe.PublicKeySwitchingProtocol = P0.PCKSProtocol
+
+				ciphertextSwitched := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale())
+
+				for i, p := range pcksParties {
+					p.GenShare(p.s, pk1, ciphertext, p.share)
+					if i > 0 {
+						P0.AggregateShares(p.share, P0.share, P0.share)
+					}
+				}
+
+				P0.KeySwitchCKKSCiphertext(P0.share, ciphertext, ciphertextSwitched)
+
+				verifyTestVectors(testCtx, decryptorSk1, coeffs, ciphertextSwitched, t)
+			})
 		}
 
-		pcksParties := make([]*Party, parties)
-		for i := 0; i < parties; i++ {
-			p := new(Party)
-			p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
-			p.s = sk0Shards[i]
-			p.share = p.AllocateShares(ciphertext.Level())
-			pcksParties[i] = p
-		}
-		P0 := pcksParties[0]
-
-		ciphertextSwitched := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale())
-
-		for i, p := range pcksParties {
-			p.GenShare(p.s, pk1, ciphertext, p.share)
-			if i > 0 {
-				P0.AggregateShares(p.share, P0.share, P0.share)
-			}
-		}
-
-		P0.KeySwitch(P0.share, ciphertext, ciphertextSwitched)
-
-		verifyTestVectors(testCtx, decryptorSk1, coeffs, ciphertextSwitched, t)
 	})
 }
 

@@ -285,7 +285,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 	t.Run(testString("Keyswitching/", parties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
-			cks   drlwe.KeySwitchingProtocol
+			cks   *CKSProtocol
 			s0    *rlwe.SecretKey
 			s1    *rlwe.SecretKey
 			share *drlwe.CKSShare
@@ -294,13 +294,16 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 		cksParties := make([]*Party, parties)
 		for i := 0; i < parties; i++ {
 			p := new(Party)
-			p.cks = drlwe.NewCKSProtocol(testCtx.params.Parameters, 6.36)
+			p.cks = NewCKSProtocol(testCtx.params, 6.36)
 			p.s0 = sk0Shards[i]
 			p.s1 = sk1Shards[i]
 			p.share = p.cks.AllocateShare()
 			cksParties[i] = p
 		}
 		P0 := cksParties[0]
+
+		// checks that the protocol complies to the drlwe.PublicKeySwitchingProtocol interface
+		var _ drlwe.KeySwitchingProtocol = P0.cks
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
@@ -348,6 +351,9 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 			pcksParties[i] = p
 		}
 		P0 := pcksParties[0]
+
+		// checks that the protocol complies to the drlwe.PublicKeySwitchingProtocol interface
+		var _ drlwe.PublicKeySwitchingProtocol = P0.PCKSProtocol
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 

@@ -8,7 +8,7 @@ import (
 
 // PublicKeySwitchingProtocol is an interface describing the local steps of a generic RLWE PCKS protocol.
 type PublicKeySwitchingProtocol interface {
-	AllocateShare(level uint64) *PCKSShare
+	AllocateShares(level int) *PCKSShare
 	GenShare(skInput *rlwe.SecretKey, pkOutput *rlwe.PublicKey, ct rlwe.Ciphertext, shareOut *PCKSShare)
 	AggregateShares(share1, share2, shareOut *PCKSShare)
 	KeySwitch(combined *PCKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext)

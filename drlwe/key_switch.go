@@ -77,34 +77,37 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciph
 
 	el := ct.RLWEElement()
 
+	ringQ := cks.ringQ
+	ringP := cks.ringP
+
 	level := el.Level()
 
-	cks.ringQ.SubLvl(level, skInput.Value, skOutput.Value, cks.tmpDelta)
+	ringQ.SubLvl(level, skInput.Value, skOutput.Value, cks.tmpDelta)
 
 	ct1 := el.Value[1]
 	if !el.IsNTT {
-		cks.ringQ.NTTLazyLvl(level, el.Value[1], cks.tmpQ)
+		ringQ.NTTLazyLvl(level, el.Value[1], cks.tmpQ)
 		ct1 = cks.tmpQ
 	}
 
 	// a * (skIn - skOut) mod Q
-	cks.ringQ.MulCoeffsMontgomeryConstantLvl(level, ct1, cks.tmpDelta, shareOut.Value)
+	ringQ.MulCoeffsMontgomeryConstantLvl(level, ct1, cks.tmpDelta, shareOut.Value)
 
 	// P * a * (skIn - skOut) mod QP (mod P = 0)
-	cks.ringQ.MulScalarBigintLvl(level, shareOut.Value, cks.ringP.ModulusBigint, shareOut.Value)
+	ringQ.MulScalarBigintLvl(level, shareOut.Value, cks.ringP.ModulusBigint, shareOut.Value)
 
 	if !el.IsNTT {
 		// InvNTT(P * a * (skIn - skOut)) mod QP (mod P = 0)
-		cks.ringQ.InvNTTLazyLvl(level, shareOut.Value, shareOut.Value)
+		ringQ.InvNTTLazyLvl(level, shareOut.Value, shareOut.Value)
 
 		// Samples e in Q
 		cks.gaussianSampler.ReadLvl(level, cks.tmpQ)
 
 		// Extend e to P (assumed to have norm < qi)
-		extendBasisSmallNormAndCenter(cks.ringQ, cks.ringP, cks.tmpQ, cks.tmpP)
+		extendBasisSmallNormAndCenter(ringQ.Modulus[0], ringP.Modulus, cks.tmpQ.Coeffs[0], cks.tmpP.Coeffs)
 
 		// InvNTT(P * a * (skIn - skOut) + e) mod QP (mod P = e)
-		cks.ringQ.AddNoModLvl(level, shareOut.Value, cks.tmpQ, shareOut.Value)
+		ringQ.AddNoModLvl(level, shareOut.Value, cks.tmpQ, shareOut.Value)
 
 		// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
 		cks.baseconverter.ModDownSplitPQ(level, shareOut.Value, cks.tmpP, shareOut.Value)
@@ -114,14 +117,14 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciph
 		cks.gaussianSampler.ReadLvl(el.Level(), cks.tmpQ)
 
 		// Extend e to P (assumed to have norm < qi)
-		extendBasisSmallNormAndCenter(cks.ringQ, cks.ringP, cks.tmpQ, cks.tmpP)
+		extendBasisSmallNormAndCenter(ringQ.Modulus[0], ringP.Modulus, cks.tmpQ.Coeffs[0], cks.tmpP.Coeffs)
 
 		// Takes the error to the NTT domain
-		cks.ringQ.NTTLvl(el.Level(), cks.tmpQ, cks.tmpQ)
-		cks.ringP.NTT(cks.tmpP, cks.tmpP)
+		ringQ.NTTLvl(el.Level(), cks.tmpQ, cks.tmpQ)
+		ringP.NTT(cks.tmpP, cks.tmpP)
 
 		// P * a * (skIn - skOut) + e mod Q (mod P = 0, so P = e)
-		cks.ringQ.AddLvl(el.Level(), shareOut.Value, cks.tmpQ, shareOut.Value)
+		ringQ.AddLvl(el.Level(), shareOut.Value, cks.tmpQ, shareOut.Value)
 
 		// (P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
 		cks.baseconverter.ModDownSplitNTTPQ(el.Level(), shareOut.Value, cks.tmpP, shareOut.Value)
@@ -140,25 +143,4 @@ func (cks *CKSProtocol) KeySwitch(combined *CKSShare, ct rlwe.Ciphertext, ctOut 
 	el, elOut := ct.RLWEElement(), ctOut.RLWEElement()
 	cks.ringQ.AddLvl(el.Level(), el.Value[0], combined.Value, elOut.Value[0])
 	cks.ringQ.CopyLvl(el.Level(), el.Value[1], elOut.Value[1])
-}
-
-func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {
-	Q := ringQ.Modulus[0]
-	QHalf := Q >> 1
-	PModuli := ringP.Modulus
-	coeffs := polQ.Coeffs[0]
-
-	var sign uint64
-	for j, c := range coeffs {
-
-		sign = 1
-		if c > QHalf {
-			c = Q - c
-			sign = 0
-		}
-
-		for i, pi := range PModuli {
-			polP.Coeffs[i][j] = (c * sign) | (pi-c)*(sign^1)
-		}
-	}
 }

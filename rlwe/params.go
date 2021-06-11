@@ -109,6 +109,11 @@ func (p Parameters) Sigma() float64 {
 	return p.sigma
 }
 
+// MaxLevel returns the maximum level of a ciphertext
+func (p Parameters) MaxLevel() int {
+	return p.QCount() - 1
+}
+
 // Q returns a new slice with the factors of the ciphertext modulus q
 func (p Parameters) Q() []uint64 {
 	qi := make([]uint64, len(p.qi))

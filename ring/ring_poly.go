@@ -3,6 +3,7 @@ package ring
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/ldsec/lattigo/v2/utils"
 	"math/bits"
 )
 
@@ -92,7 +93,10 @@ func (r *Ring) CopyLvl(level int, p0, p1 *Poly) {
 func (pol *Poly) Copy(p1 *Poly) {
 
 	if pol != p1 {
-		for i := range p1.Coeffs {
+
+		minLevel := utils.MinInt(len(pol.Coeffs)-1, len(p1.Coeffs)-1)
+
+		for i := range p1.Coeffs[:minLevel+1] {
 			p0tmp, p1tmp := pol.Coeffs[i], p1.Coeffs[i]
 			for j := range p1.Coeffs[i] {
 				p0tmp[j] = p1tmp[j]

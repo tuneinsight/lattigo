@@ -100,11 +100,12 @@ func TestDCKKS(t *testing.T) {
 func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 	type Party struct {
-		e2s         *E2SProtocol
-		s2e         *S2EProtocol
-		sk          *rlwe.SecretKey
-		publicShare *drlwe.CKSShare
-		secretShare rlwe.AdditiveShare
+		e2s            *E2SProtocol
+		s2e            *S2EProtocol
+		sk             *rlwe.SecretKey
+		publicShareE2S *drlwe.CKSShare
+		publicShareS2E *drlwe.CKSShare
+		secretShare    rlwe.AdditiveShare
 	}
 
 	coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, 1, t)
@@ -117,20 +118,21 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 		P[i].e2s = NewE2SProtocol(params, 3.2)
 		P[i].s2e = NewS2EProtocol(params, 3.2)
 		P[i].sk = testCtx.sk0Shards[i]
-		P[i].publicShare = P[i].e2s.AllocateShare()
+		P[i].publicShareE2S = P[i].e2s.AllocateShareLvl(ciphertext.Level())
+		P[i].publicShareS2E = P[i].s2e.AllocateShareLvl(params.Parameters.MaxLevel())
 		P[i].secretShare = rlwe.NewAdditiveShareAtLevel(params.Parameters, ciphertext.Level())
 	}
 
 	t.Run(testString("E2SProtocol/", parties, testCtx.params), func(t *testing.T) {
 
 		for i, p := range P {
-			p.e2s.GenShare(p.sk, len(P), ciphertext, p.secretShare, p.publicShare)
+			p.e2s.GenShare(p.sk, len(P), ciphertext, p.secretShare, p.publicShareE2S)
 			if i > 0 {
-				p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+				p.e2s.AggregateShares(P[0].publicShareE2S, p.publicShareE2S, P[0].publicShareE2S)
 			}
 		}
 
-		P[0].e2s.GetShare(&P[0].secretShare, P[0].publicShare, ciphertext, &P[0].secretShare)
+		P[0].e2s.GetShare(&P[0].secretShare, P[0].publicShareE2S, ciphertext, &P[0].secretShare)
 
 		rec := rlwe.NewAdditiveShareAtLevel(params.Parameters, ciphertext.Level())
 		for _, p := range P {
@@ -143,19 +145,19 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 		verifyTestVectors(testCtx, nil, coeffs, pt, t)
 
 		crs := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQ)
-		c1 := crs.ReadLvlNew(ciphertext.Level())
+		c1 := crs.ReadLvlNew(params.Parameters.MaxLevel())
 
 		for i, p := range P {
 
-			p.s2e.GenShare(p.sk, c1, p.secretShare, p.publicShare)
+			p.s2e.GenShare(p.sk, c1, p.secretShare, p.publicShareS2E)
 
 			if i > 0 {
-				p.s2e.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+				p.s2e.AggregateShares(P[0].publicShareS2E, p.publicShareS2E, P[0].publicShareS2E)
 			}
 		}
 
-		ctRec := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale())
-		P[0].s2e.GetEncryption(P[0].publicShare, c1, *ctRec)
+		ctRec := ckks.NewCiphertext(testCtx.params, 1, params.Parameters.MaxLevel(), ciphertext.Scale())
+		P[0].s2e.GetEncryption(P[0].publicShareS2E, c1, *ctRec)
 
 		verifyTestVectors(testCtx, testCtx.decryptorSk0, coeffs, ctRec, t)
 

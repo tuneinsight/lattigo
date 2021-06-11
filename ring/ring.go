@@ -342,9 +342,12 @@ func (r *Ring) PolyToString(p1 *Poly) []string {
 
 // PolyToBigint reconstructs p1 and returns the result in an array of Int.
 func (r *Ring) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
-	var qi uint64
+	r.PolyToBigintLvl(p1.Level(), p1, coeffsBigint)
+}
 
-	level := p1.Level()
+// PolyToBigintLvl reconstructs p1 and returns the result in an array of Int.
+func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, coeffsBigint []*big.Int) {
+	var qi uint64
 
 	crtReconstruction := make([]*big.Int, level+1)
 

@@ -65,7 +65,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, nbParties int, ct *ckks.Cip
 	ringQ.SetCoefficientsBigintLvl(ct.Level(), e2s.maskBigint, e2s.pool)
 
 	e2s.ringQ.CopyLvl(ct.Level(), e2s.pool, &secretShareOut.Value)
-	e2s.ringQ.Sub(publicShareOut.Value, e2s.pool, publicShareOut.Value)
+	e2s.ringQ.SubLvl(ct.Level(), publicShareOut.Value, e2s.pool, publicShareOut.Value)
 }
 
 // GetShare is the final step of the encryption-to-share protocol. It performs the masked decryption of the target ciphertext followed by a

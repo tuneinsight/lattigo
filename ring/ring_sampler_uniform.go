@@ -121,7 +121,7 @@ func (uniformSampler *UniformSampler) ReadNew() (Pol *Poly) {
 // Polynomial is created at the specified level.
 func (uniformSampler *UniformSampler) ReadLvlNew(level int) (Pol *Poly) {
 	Pol = uniformSampler.baseRing.NewPolyLvl(level)
-	uniformSampler.Read(Pol)
+	uniformSampler.Readlvl(level, Pol)
 	return
 }
 

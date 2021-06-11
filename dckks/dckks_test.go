@@ -109,6 +109,8 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 	coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, 1, t)
 
+	testCtx.evaluator.DropLevel(ciphertext, 1)
+
 	params := testCtx.params
 	P := make([]Party, parties)
 	for i := range P {

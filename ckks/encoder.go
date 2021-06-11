@@ -5,6 +5,7 @@ package ckks
 import (
 	"math"
 	"math/big"
+	"math/bits"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -166,7 +167,6 @@ func (encoder *encoderComplex128) EncodeAtLvlNew(level int, values []complex128,
 func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex128, logSlots int) {
 	encoder.Embed(values, logSlots)
 	encoder.ScaleUp(plaintext.value, plaintext.scale, encoder.ringQ.Modulus[:plaintext.Level()+1])
-	encoder.WipeInternalMemory()
 	plaintext.Element.Element.IsNTT = false
 }
 
@@ -195,6 +195,8 @@ func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []compl
 // Embed encodes a vector and stores internally the encoded values.
 // To be used in conjunction with ScaleUp.
 func (encoder *encoderComplex128) Embed(values []complex128, logSlots int) {
+
+	encoder.WipeInternalMemory()
 
 	slots := 1 << logSlots
 
@@ -232,11 +234,14 @@ func (encoder *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []c
 // GetErrSTDCoeffDomain returns the scaled standard deviation in the coefficient domain of the difference between two complex vectors in the slot domains
 func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 
+	encoder.WipeInternalMemory()
+
 	for i := range valuesHave {
 		encoder.values[i] = (valuesWant[i] - valuesHave[i])
 	}
 
-	invfft(encoder.values, len(valuesWant), encoder.m, encoder.rotGroup, encoder.roots)
+	// Runs FFT^-1 with the smallest power of two length that is greater than the input size
+	invfft(encoder.values, 1<<bits.Len64(uint64(len(valuesHave)-1)), encoder.m, encoder.rotGroup, encoder.roots)
 
 	for i := range valuesWant {
 		encoder.valuesfloat[2*i] = real(encoder.values[i])

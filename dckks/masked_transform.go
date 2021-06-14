@@ -65,7 +65,7 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, nbParties int,
 	rfp.e2s.GenShare(sk, nbParties, ct, rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
 	mask := rfp.tmpMask
 	if transform != nil {
-		transform(ckks.Plaintext{Value: mask, IsNTT: true, ct.Scale}, ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: rfp.tmpMaskPerm}, IsNTT: true, ct.Scale})
+		transform(ckks.Plaintext{Plaintext : &rlwe.Plaintext{Value: mask, IsNTT: true}, Scale:ct.Scale}, ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value:  rfp.tmpMaskPerm, IsNTT: true}, Scale:ct.Scale})
 		mask = rfp.tmpMaskPerm
 	}
 

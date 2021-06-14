@@ -139,8 +139,8 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 			testCtx.dckksContext.ringQ.AddLvl(ciphertext.Level(), &rec.Value, &p.secretShare.Value, &rec.Value)
 		}
 
-		pt := ckks.NewPlaintext(testCtx.params, ciphertext.Level(), ciphertext.Scale())
-		pt.Value[0].Copy(&rec.Value)
+		pt := ckks.NewPlaintext(testCtx.params, ciphertext.Level(), ciphertext.Scale)
+		pt.Value.Copy(&rec.Value)
 
 		verifyTestVectors(testCtx, nil, coeffs, pt, t)
 
@@ -156,7 +156,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		ctRec := ckks.NewCiphertext(testCtx.params, 1, params.Parameters.MaxLevel(), ciphertext.Scale())
+		ctRec := ckks.NewCiphertext(testCtx.params, 1, params.Parameters.MaxLevel(), ciphertext.Scale)
 		P[0].s2e.GetEncryption(P[0].publicShareS2E, c1, *ctRec)
 
 		verifyTestVectors(testCtx, testCtx.decryptorSk0, coeffs, ctRec, t)
@@ -381,7 +381,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 					}
 				}
 
-				ksCiphertext := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale()/2)
+				ksCiphertext := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale/2)
 
 				P0.cks.KeySwitch(P0.share, ciphertext, ksCiphertext)
 
@@ -431,7 +431,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 				// Checks that the protocol complies to the drlwe.KeySwitchingProtocol interface
 				var _ drlwe.PublicKeySwitchingProtocol = P0.PCKSProtocol
 
-				ciphertextSwitched := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale())
+				ciphertextSwitched := ckks.NewCiphertext(testCtx.params, 1, ciphertext.Level(), ciphertext.Scale)
 
 				for i, p := range pcksParties {
 					p.GenShare(p.s, pk1, ciphertext, p.share)
@@ -547,7 +547,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
 
-		receiver := ckks.NewCiphertext(testCtx.params, ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale())
+		receiver := ckks.NewCiphertext(testCtx.params, ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale)
 
 		galEls := testCtx.params.GaloisElementsForRowInnerSum()
 		rotKeySet := ckks.NewRotationKeySet(testCtx.params, galEls)

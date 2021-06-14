@@ -19,7 +19,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut ma
 		if i == 0 {
 			cOut[i] = ctIn.CopyNew()
 		} else {
-			cOut[i] = NewCiphertext(eval.params, 1, level, ctIn.Scale())
+			cOut[i] = NewCiphertext(eval.params, 1, level, ctIn.Scale)
 			eval.permuteNTTHoisted(level, ctIn.Value[0], ctIn.Value[1], eval.c2QiQDecomp, eval.c2QiPDecomp, i, cOut[i].Value[0], cOut[i].Value[1])
 		}
 	}
@@ -47,7 +47,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 		eval.DecompInternal(minLevel, ctIn.Value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
 
 		for i, matrix := range element {
-			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale())
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
 
 			if matrix.naive {
 				eval.MultiplyByDiagMatrix(ctIn, matrix, eval.c2QiQDecomp, eval.c2QiPDecomp, ctOut[i])
@@ -61,7 +61,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 		minLevel := utils.MinInt(element.Level, ctIn.Level())
 		eval.DecompInternal(minLevel, ctIn.Value[1], eval.c2QiQDecomp, eval.c2QiPDecomp)
 
-		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale())}
+		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
 
 		if element.naive {
 			eval.MultiplyByDiagMatrix(ctIn, element, eval.c2QiQDecomp, eval.c2QiPDecomp, ctOut[0])
@@ -453,7 +453,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix *PtDiagMatr
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0][0], ctIn.Value[1], ctOut.Value[1]) // ctOut += c1_Q * plaintext
 	}
 
-	ctOut.SetScale(matrix.Scale * ctIn.Scale())
+	ctOut.Scale = matrix.Scale * ctIn.Scale
 }
 
 // MultiplyByDiagMatrixBSGS multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
@@ -707,7 +707,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix *PtDiag
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0][0], ctIn.Value[1], ctOut.Value[1]) // ctOut += c1_Q * plaintext
 	}
 
-	ctOut.SetScale(matrix.Scale * ctIn.Scale())
+	ctOut.Scale = matrix.Scale * ctIn.Scale
 
 	vecRotQ, vecRotP = nil, nil
 }

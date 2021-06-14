@@ -118,8 +118,8 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 		P[i].e2s = NewE2SProtocol(params, 3.2)
 		P[i].s2e = NewS2EProtocol(params, 3.2)
 		P[i].sk = testCtx.sk0Shards[i]
-		P[i].publicShareE2S = P[i].e2s.AllocateShareLvl(ciphertext.Level())
-		P[i].publicShareS2E = P[i].s2e.AllocateShareLvl(params.Parameters.MaxLevel())
+		P[i].publicShareE2S = P[i].e2s.AllocateShareAtLevel(ciphertext.Level())
+		P[i].publicShareS2E = P[i].s2e.AllocateShareAtLevel(params.Parameters.MaxLevel())
 		P[i].secretShare = rlwe.NewAdditiveShareAtLevel(params.Parameters, ciphertext.Level())
 	}
 

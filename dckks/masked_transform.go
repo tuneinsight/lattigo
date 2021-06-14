@@ -112,11 +112,11 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, transform Mas
 	minLevel := utils.MinInt(crs.Level(), ct.Level())
 	maxLevel := utils.MaxInt(crs.Level(), ct.Level())
 
-	// Extends the level of the transformed LSSS to the recryption shares
+	// Extends the level of the transformed LSSS to the level of the recryption shares
 	centerAndExtendBasisLargeNorm(minLevel, maxLevel, rfp.ringQ, mask, rfp.vBigint, tmp)
 	
 	// Adds the aggregated recryption shares on the LSSS
-	rfp.ringQ.Add(tmp, share.s2eShare.Value, ciphertextOut.Value[0])
+	rfp.ringQ.AddLvl(maxLevel, tmp, share.s2eShare.Value, ciphertextOut.Value[0])
 
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, *ciphertextOut)

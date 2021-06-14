@@ -48,34 +48,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare 
 	minLevel := utils.MinInt(c1.Level(), secretShare.Value.Level())
 	maxLevel := utils.MaxInt(c1.Level(), secretShare.Value.Level())
 
-	// Bigint modulus at minimum level
-	QminLevel := ring.NewUint(ringQ.Modulus[0])
-	for i := 1; i < minLevel+1; i++ {
-		QminLevel.Mul(QminLevel, ring.NewUint(ringQ.Modulus[i]))
-	}
-
-	QminLevelHalf := new(big.Int).Rsh(QminLevel, 1)
-
-	// Sets the coefficients outside of the NTT domain
-	ringQ.InvNTTLvl(minLevel, &secretShare.Value, s2e.tmp)
-
-	// Sets the coefficients outside of the RNS domain
-	ringQ.PolyToBigintLvl(minLevel, s2e.tmp, s2e.ssBigint)
-
-	// Centers the coefficients
-	var sign int
-	for i := 0; i < ringQ.N; i++ {
-		sign = s2e.ssBigint[i].Cmp(QminLevelHalf)
-		if sign == 1 || sign == 0 {
-			s2e.ssBigint[i].Sub(s2e.ssBigint[i], QminLevel)
-		}
-	}
-
-	// Sets the coefficients back to the RNS domain
-	ringQ.SetCoefficientsBigintLvl(maxLevel, s2e.ssBigint, s2e.tmp)
-
-	// Sets the coefficients back to the RNS NTT domain
-	ringQ.NTTLvl(maxLevel, s2e.tmp, s2e.tmp)
+	centerAndExtendBasisLargeNorm(minLevel, maxLevel, ringQ, &secretShare.Value, s2e.ssBigint, s2e.tmp)
 
 	ringQ.AddLvl(maxLevel, c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
 }

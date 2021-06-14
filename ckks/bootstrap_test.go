@@ -37,6 +37,7 @@ func TestBootstrap(t *testing.T) {
 			btpParams.LogSlots = 10
 		}
 
+		// Tests homomorphic modular reduction encoding and bootstrapping on sparse slots
 		params, err := btpParams.Params()
 		if err != nil {
 			panic(err)
@@ -48,6 +49,35 @@ func TestBootstrap(t *testing.T) {
 
 		for _, testSet := range []func(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T){
 			testEvalSine,
+		} {
+			testSet(testContext, btpParams, t)
+			runtime.GC()
+		}
+
+		for _, testSet := range []func(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T){
+			testCoeffsToSlots,
+			testSlotsToCoeffs,
+			testbootstrap,
+		} {
+			testSet(testContext, btpParams, t)
+			runtime.GC()
+		}
+
+		if !*flagLongTest {
+			btpParams.LogSlots = 13
+		}
+
+		// Tests homomorphic encoding and bootstrapping on full slots
+		params, err = btpParams.Params()
+		if err != nil {
+			panic(err)
+		}
+
+		if testContext, err = genTestParams(params, btpParams.H); err != nil { // TODO: setting the param.scale field is not something the user can do
+			panic(err)
+		}
+
+		for _, testSet := range []func(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T){
 			testCoeffsToSlots,
 			testSlotsToCoeffs,
 			testbootstrap,
@@ -89,7 +119,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -161,7 +191,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -231,7 +261,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -299,7 +329,7 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 				valuesFloat[jdx] = complex(imag(values[i]), 0)
 			}
 
-			ct0.MulScale(float64(int(1 << logSlots)))
+			ct0.Scale *= float64(int(1 << logSlots))
 
 			valuesTest := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct0), logSlots, 0)
 
@@ -315,8 +345,8 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 				valuesFloat1[idx] = complex(imag(values[i]), 0)
 			}
 
-			ct0.MulScale(2 * float64(int(1<<logSlots)))
-			ct1.MulScale(2 * float64(int(1<<logSlots)))
+			ct0.Scale *= 2 * float64(int(1<<logSlots))
+			ct1.Scale *= 2 * float64(int(1<<logSlots))
 
 			valuesTest0 := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct0), logSlots, 0)
 			valuesTest1 := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct1), logSlots, 0)

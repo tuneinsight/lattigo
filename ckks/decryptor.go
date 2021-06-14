@@ -44,7 +44,7 @@ func NewDecryptor(params Parameters, sk *rlwe.SecretKey) Decryptor {
 
 func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
 
-	plaintext = NewPlaintext(decryptor.params, ciphertext.Level(), ciphertext.Scale())
+	plaintext = NewPlaintext(decryptor.params, ciphertext.Level(), ciphertext.Scale)
 
 	decryptor.Decrypt(ciphertext, plaintext)
 
@@ -55,25 +55,25 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 
 	level := utils.MinInt(ciphertext.Level(), plaintext.Level())
 
-	plaintext.SetScale(ciphertext.Scale())
+	plaintext.Scale = ciphertext.Scale
 
-	decryptor.ringQ.CopyLvl(level, ciphertext.Value[ciphertext.Degree()], plaintext.value)
+	decryptor.ringQ.CopyLvl(level, ciphertext.Value[ciphertext.Degree()], plaintext.Value)
 
-	plaintext.value.Coeffs = plaintext.value.Coeffs[:ciphertext.Level()+1]
+	plaintext.Value.Coeffs = plaintext.Value.Coeffs[:ciphertext.Level()+1]
 
 	for i := ciphertext.Degree(); i > 0; i-- {
 
-		decryptor.ringQ.MulCoeffsMontgomeryLvl(level, plaintext.value, decryptor.sk.Value, plaintext.value)
-		decryptor.ringQ.AddLvl(level, plaintext.value, ciphertext.Value[i-1], plaintext.value)
+		decryptor.ringQ.MulCoeffsMontgomeryLvl(level, plaintext.Value, decryptor.sk.Value, plaintext.Value)
+		decryptor.ringQ.AddLvl(level, plaintext.Value, ciphertext.Value[i-1], plaintext.Value)
 
 		if i&7 == 7 {
-			decryptor.ringQ.ReduceLvl(level, plaintext.value, plaintext.value)
+			decryptor.ringQ.ReduceLvl(level, plaintext.Value, plaintext.Value)
 		}
 	}
 
 	if (ciphertext.Degree())&7 != 7 {
-		decryptor.ringQ.ReduceLvl(level, plaintext.value, plaintext.value)
+		decryptor.ringQ.ReduceLvl(level, plaintext.Value, plaintext.Value)
 	}
 
-	plaintext.value.Coeffs = plaintext.value.Coeffs[:level+1]
+	plaintext.Value.Coeffs = plaintext.Value.Coeffs[:level+1]
 }

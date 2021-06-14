@@ -15,6 +15,7 @@ type Ciphertext interface {
 // Plaintext is a common base type for RLWE plaintexts.
 type Plaintext struct {
 	Value *ring.Poly
+	IsNTT bool
 }
 
 // AdditiveShare is a type for storing additively shared values in the

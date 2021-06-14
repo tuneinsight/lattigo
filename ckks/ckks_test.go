@@ -509,7 +509,7 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 
 		testContext.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
-		ciphertext.MulScale(float64(constant))
+		ciphertext.Scale *= float64(constant)
 
 		testContext.evaluator.Rescale(ciphertext, testContext.params.Scale(), ciphertext)
 
@@ -532,7 +532,7 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 		for i := 0; i < nbRescales; i++ {
 			constant := testContext.ringQ.Modulus[ciphertext.Level()-i]
 			testContext.evaluator.MultByConst(ciphertext, constant, ciphertext)
-			ciphertext.MulScale(float64(constant))
+			ciphertext.Scale *= float64(constant)
 		}
 
 		testContext.evaluator.Rescale(ciphertext, testContext.params.Scale(), ciphertext)
@@ -864,7 +864,7 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale()); err != nil {
+		if ciphertext, err = testContext.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -900,7 +900,7 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -936,7 +936,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 		eval.AddConst(ciphertext, (-cheby.a-cheby.b)/(cheby.b-cheby.a), ciphertext)
 		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale()); err != nil {
+		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -946,7 +946,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 
 		verifyTestVectors(testContext, nil, values, valuesHave, testContext.params.LogSlots(), 0, t)
 
-		sigma := testContext.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale())
+		sigma := testContext.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale)
 
 		valuesHave = testContext.encoder.DecodePublic(plaintext, testContext.params.LogSlots(), sigma)
 
@@ -1041,7 +1041,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		ciphertext2 := NewCiphertext(testContext.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
+		ciphertext2 := NewCiphertext(testContext.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale)
 
 		for _, n := range rots {
 			evaluator.Rotate(ciphertext1, n, ciphertext2)
@@ -1348,7 +1348,7 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 
 			require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
 			require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
-			require.Equal(t, ciphertextWant.Scale(), ciphertextTest.Scale())
+			require.Equal(t, ciphertextWant.Scale, ciphertextTest.Scale)
 
 			for i := range ciphertextWant.Value {
 				require.True(t, testctx.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
@@ -1368,7 +1368,7 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 
 			require.Equal(t, ciphertext.Degree(), 0)
 			require.Equal(t, ciphertext.Level(), testctx.params.MaxLevel())
-			require.Equal(t, ciphertext.Scale(), testctx.params.Scale())
+			require.Equal(t, ciphertext.Scale, testctx.params.Scale())
 			require.Equal(t, len(ciphertext.Value), 1)
 		})
 	})

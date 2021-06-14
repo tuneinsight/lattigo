@@ -150,7 +150,7 @@ func (encryptor *pkEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 		panic("Cannot EncryptNew : modulus P is empty -> use instead EncryptFastNew")
 	}
 
-	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
+	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale)
 	encryptor.encrypt(plaintext, ciphertext, false)
 
 	return ciphertext
@@ -166,7 +166,7 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Cipherte
 }
 
 func (encryptor *pkEncryptor) EncryptFastNew(plaintext *Plaintext) *Ciphertext {
-	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
+	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale)
 	encryptor.encrypt(plaintext, ciphertext, true)
 
 	return ciphertext
@@ -220,12 +220,12 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringQ.NTTLvl(lvl, poolQ0, poolQ0)
 		ringQ.AddLvl(lvl, ciphertext.Value[1], poolQ0, ciphertext.Value[1])
 
-		if !plaintext.IsNTT() {
+		if !plaintext.IsNTT {
 
 			// ct0 = u*pk0 + e0
 			encryptor.gaussianSampler.ReadLvl(lvl, poolQ0)
 			// ct0 = (u*pk0 + e0)/P + m
-			ringQ.AddLvl(lvl, poolQ0, plaintext.value, poolQ0)
+			ringQ.AddLvl(lvl, poolQ0, plaintext.Value, poolQ0)
 			ringQ.NTTLvl(lvl, poolQ0, poolQ0)
 			ringQ.AddLvl(lvl, ciphertext.Value[0], poolQ0, ciphertext.Value[0])
 
@@ -234,7 +234,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 			encryptor.gaussianSampler.ReadLvl(lvl, poolQ0)
 			ringQ.NTTLvl(lvl, poolQ0, poolQ0)
 			ringQ.AddLvl(lvl, ciphertext.Value[0], poolQ0, ciphertext.Value[0])
-			ringQ.AddLvl(lvl, ciphertext.Value[0], plaintext.value, ciphertext.Value[0])
+			ringQ.AddLvl(lvl, ciphertext.Value[0], plaintext.Value, ciphertext.Value[0])
 		}
 
 	} else {
@@ -288,28 +288,28 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		// ct1 = (u*pk1 + e1)/P
 		encryptor.baseconverter.ModDownSplitPQ(lvl, poolQ1, poolP1, ciphertext.Value[1])
 
-		if !plaintext.IsNTT() {
-			ringQ.AddLvl(lvl, ciphertext.Value[0], plaintext.value, ciphertext.Value[0])
+		if !plaintext.IsNTT {
+			ringQ.AddLvl(lvl, ciphertext.Value[0], plaintext.Value, ciphertext.Value[0])
 		}
 
 		// 2*#Q NTT
 		ringQ.NTTLvl(lvl, ciphertext.Value[0], ciphertext.Value[0])
 		ringQ.NTTLvl(lvl, ciphertext.Value[1], ciphertext.Value[1])
 
-		if plaintext.IsNTT() {
+		if plaintext.IsNTT {
 			// ct0 = (u*pk0 + e0)/P + m
-			ringQ.AddLvl(lvl, ciphertext.Value[0], plaintext.value, ciphertext.Value[0])
+			ringQ.AddLvl(lvl, ciphertext.Value[0], plaintext.Value, ciphertext.Value[0])
 		}
 	}
 
 	ciphertext.Value[0].Coeffs = ciphertext.Value[0].Coeffs[:lvl+1]
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:lvl+1]
 
-	ciphertext.Element.Element.IsNTT = true
+	ciphertext.IsNTT = true
 }
 
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
-	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
+	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale)
 	encryptor.Encrypt(plaintext, ciphertext)
 	return ciphertext
 }
@@ -327,7 +327,7 @@ func (encryptor *skEncryptor) EncryptFast(plaintext *Plaintext, ciphertext *Ciph
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
-	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale())
+	ciphertext := NewCiphertext(encryptor.params, 1, plaintext.Level(), plaintext.Scale)
 	encryptor.EncryptFromCRP(plaintext, ciphertext, crp)
 	return ciphertext
 }
@@ -355,14 +355,14 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.Value[1], encryptor.sk.Value, ciphertext.Value[0])
 	ringQ.NegLvl(lvl, ciphertext.Value[0], ciphertext.Value[0])
 
-	if plaintext.IsNTT() {
+	if plaintext.IsNTT {
 		encryptor.gaussianSampler.ReadLvl(lvl, poolQ0)
 		ringQ.NTTLvl(lvl, poolQ0, poolQ0)
 		ringQ.AddLvl(lvl, ciphertext.Value[0], poolQ0, ciphertext.Value[0])
-		ringQ.AddLvl(lvl, ciphertext.Value[0], plaintext.value, ciphertext.Value[0])
+		ringQ.AddLvl(lvl, ciphertext.Value[0], plaintext.Value, ciphertext.Value[0])
 	} else {
 		encryptor.gaussianSampler.ReadLvl(lvl, poolQ0)
-		ringQ.AddLvl(lvl, poolQ0, plaintext.value, poolQ0)
+		ringQ.AddLvl(lvl, poolQ0, plaintext.Value, poolQ0)
 		ringQ.NTTLvl(lvl, poolQ0, poolQ0)
 		ringQ.AddLvl(lvl, ciphertext.Value[0], poolQ0, ciphertext.Value[0])
 	}
@@ -370,7 +370,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	ciphertext.Value[0].Coeffs = ciphertext.Value[0].Coeffs[:lvl+1]
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:lvl+1]
 
-	ciphertext.Element.Element.IsNTT = true
+	ciphertext.IsNTT = true
 }
 
 func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {

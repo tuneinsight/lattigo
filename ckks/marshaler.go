@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 // GetDataLen returns the length in bytes of the target Ciphertext.
@@ -33,9 +34,9 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 
 	data[0] = uint8(ciphertext.Degree() + 1)
 
-	binary.LittleEndian.PutUint64(data[1:9], math.Float64bits(ciphertext.Scale()))
+	binary.LittleEndian.PutUint64(data[1:9], math.Float64bits(ciphertext.Scale))
 
-	if ciphertext.IsNTT() {
+	if ciphertext.IsNTT {
 		data[10] = 1
 	}
 
@@ -61,14 +62,14 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		return errors.New("too small bytearray")
 	}
 
-	ciphertext.Element = new(Element)
+	ciphertext.Element = new(rlwe.Element)
 
 	ciphertext.Value = make([]*ring.Poly, uint8(data[0]))
 
-	ciphertext.scale = math.Float64frombits(binary.LittleEndian.Uint64(data[1:9]))
+	ciphertext.Scale = math.Float64frombits(binary.LittleEndian.Uint64(data[1:9]))
 
 	if uint8(data[10]) == 1 {
-		ciphertext.Element.Element.IsNTT = true
+		ciphertext.IsNTT = true
 	}
 
 	var pointer, inc int

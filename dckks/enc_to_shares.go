@@ -1,12 +1,11 @@
 package dckks
 
 import (
-	"math/big"
-
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
+	"math/big"
 )
 
 // E2SProtocol is the structure storing the parameters and temporary buffers
@@ -63,6 +62,9 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, nbParties int, ct *ckks.Cip
 
 	// h0 = mask (at level min)
 	ringQ.SetCoefficientsBigintLvl(ct.Level(), e2s.maskBigint, e2s.pool)
+
+	// Switches the mask in the NTT domain
+	e2s.ringQ.NTTLvl(ct.Level(), e2s.pool, e2s.pool)
 
 	e2s.ringQ.CopyLvl(ct.Level(), e2s.pool, &secretShareOut.Value)
 	e2s.ringQ.SubLvl(ct.Level(), publicShareOut.Value, e2s.pool, publicShareOut.Value)

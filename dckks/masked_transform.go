@@ -1,24 +1,23 @@
 package dckks
 
 import (
-	"math/big"
-
-	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/ldsec/lattigo/v2/utils"
+	"math/big"
 )
 
 // MaskedTransformProtocol is a struct storing the parameters for the MaskedTransformProtocol protocol.
 type MaskedTransformProtocol struct {
-	e2s             E2SProtocol
-	s2e             S2EProtocol
+	e2s E2SProtocol
+	s2e S2EProtocol
 
-	ringQ           *ring.Ring
-	tmpMask         *ring.Poly
-	tmpMaskPerm     *ring.Poly
-	vBigint      []*big.Int
+	ringQ       *ring.Ring
+	tmpMask     *ring.Poly
+	tmpMaskPerm *ring.Poly
+	vBigint     []*big.Int
 }
 
 type MaskedTransformFunc func(coeffsIn, coeffsOut ckks.Plaintext)
@@ -64,8 +63,13 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, nbParties int,
 	// Generates the enc 2 share share
 	rfp.e2s.GenShare(sk, nbParties, ct, rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
 	mask := rfp.tmpMask
+
 	if transform != nil {
-		transform(ckks.Plaintext{Plaintext : &rlwe.Plaintext{Value: mask, IsNTT: true}, Scale:ct.Scale}, ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value:  rfp.tmpMaskPerm, IsNTT: true}, Scale:ct.Scale})
+
+		ptIn := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMask.Coeffs[:ct.Level()+1]}, IsNTT: true}, Scale: ct.Scale}
+		ptOut := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMaskPerm.Coeffs[:crs.Level()+1]}, IsNTT: true}, Scale: ct.Scale}
+
+		transform(ptIn, ptOut)
 		mask = rfp.tmpMaskPerm
 	}
 
@@ -75,11 +79,11 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, nbParties int,
 // Aggregate sums share1 and share2 on shareOut.
 func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut MaskedTransformShare) {
 
-	if share1.e2sShare.Value.Level() != share2.e2sShare.Value.Level() || share1.e2sShare.Value.Level() != shareOut.e2sShare.Value.Level(){
+	if share1.e2sShare.Value.Level() != share2.e2sShare.Value.Level() || share1.e2sShare.Value.Level() != shareOut.e2sShare.Value.Level() {
 		panic("all e2s shares must be at the same level")
 	}
 
-	if share1.s2eShare.Value.Level() != share2.s2eShare.Value.Level() || share1.s2eShare.Value.Level() != shareOut.s2eShare.Value.Level(){
+	if share1.s2eShare.Value.Level() != share2.s2eShare.Value.Level() || share1.s2eShare.Value.Level() != shareOut.s2eShare.Value.Level() {
 		panic("all s2e shares must be at the same level")
 	}
 
@@ -90,11 +94,11 @@ func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut MaskedTra
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
 func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, transform MaskedTransformFunc, crs *ring.Poly, share MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
 
-	if ct.Level() != share.e2sShare.Value.Level(){
+	if ct.Level() != share.e2sShare.Value.Level() {
 		panic("ciphertext level and e2s level must be the same")
 	}
 
-	if crs.Level() != share.s2eShare.Value.Level(){
+	if crs.Level() != share.s2eShare.Value.Level() {
 		panic("crs level and s2e level must be the same")
 	}
 
@@ -105,18 +109,37 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, transform Mas
 	mask := rfp.tmpMask
 	tmp := rfp.tmpMaskPerm
 	if transform != nil {
-		transform(ckks.Plaintext{Plaintext : &rlwe.Plaintext{Value: mask, IsNTT: true}, Scale:ct.Scale}, ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value:  rfp.tmpMaskPerm, IsNTT: true}, Scale:ct.Scale})
+
+		ptIn := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMask.Coeffs[:ct.Level()+1]}, IsNTT: true}, Scale: ct.Scale}
+		ptOut := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMaskPerm.Coeffs[:crs.Level()+1]}, IsNTT: true}, Scale: ct.Scale}
+
+		transform(ptIn, ptOut)
 		mask, tmp = rfp.tmpMaskPerm, rfp.tmpMask
 	}
 
 	minLevel := utils.MinInt(crs.Level(), ct.Level())
-	maxLevel := utils.MaxInt(crs.Level(), ct.Level())
+	maxLevel := crs.Level()
 
-	// Extends the level of the transformed LSSS to the level of the recryption shares
-	centerAndExtendBasisLargeNorm(minLevel, maxLevel, rfp.ringQ, mask, rfp.vBigint, tmp)
-	
-	// Adds the aggregated recryption shares on the LSSS
-	rfp.ringQ.AddLvl(maxLevel, tmp, share.s2eShare.Value, ciphertextOut.Value[0])
+	// Extend the levels of the ciphertext for future allocation
+	for ciphertextOut.Level() != crs.Level() {
+		level := ciphertextOut.Level() + 1
+
+		ciphertextOut.Value[0].Coeffs = append(ciphertextOut.Value[0].Coeffs, make([][]uint64, 1)...)
+		ciphertextOut.Value[0].Coeffs[level] = make([]uint64, rfp.ringQ.N)
+
+		ciphertextOut.Value[1].Coeffs = append(ciphertextOut.Value[1].Coeffs, make([][]uint64, 1)...)
+		ciphertextOut.Value[1].Coeffs[level] = make([]uint64, rfp.ringQ.N)
+	}
+
+	if minLevel < maxLevel {
+		// Extends the level of the transformed LSSS to the level of the recryption shares
+		centerAndExtendBasisLargeNorm(minLevel, maxLevel, rfp.ringQ, mask, rfp.vBigint, tmp)
+
+		// Adds the aggregated recryption shares on the LSSS
+		rfp.ringQ.AddLvl(maxLevel, tmp, share.s2eShare.Value, ciphertextOut.Value[0])
+	} else {
+		rfp.ringQ.AddLvl(maxLevel, mask, share.s2eShare.Value, ciphertextOut.Value[0])
+	}
 
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, *ciphertextOut)

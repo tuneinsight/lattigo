@@ -39,18 +39,17 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare 
 		panic("c1 and c0ShareOut level must be equal")
 	}
 
-	if secretShare.Value.Level() > c1.Level() {
-		panic("secretShare level cannot be greater than c1 or c0ShareOut level")
-	}
-
 	ringQ := s2e.ringQ
 
 	minLevel := utils.MinInt(c1.Level(), secretShare.Value.Level())
-	maxLevel := utils.MaxInt(c1.Level(), secretShare.Value.Level())
+	maxLevel := c1.Level()
 
-	centerAndExtendBasisLargeNorm(minLevel, maxLevel, ringQ, &secretShare.Value, s2e.ssBigint, s2e.tmp)
-
-	ringQ.AddLvl(maxLevel, c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
+	if minLevel < maxLevel {
+		centerAndExtendBasisLargeNorm(minLevel, maxLevel, ringQ, &secretShare.Value, s2e.ssBigint, s2e.tmp)
+		ringQ.AddLvl(maxLevel, c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
+	} else {
+		ringQ.AddLvl(maxLevel, c0ShareOut.Value, &secretShare.Value, c0ShareOut.Value)
+	}
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'

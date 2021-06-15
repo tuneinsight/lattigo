@@ -1,8 +1,8 @@
 package dckks
 
 import (
-	"math/big"
 	"github.com/ldsec/lattigo/v2/ring"
+	"math/big"
 )
 
 func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {
@@ -26,8 +26,7 @@ func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Pol
 	}
 }
 
-func centerAndExtendBasisLargeNorm(minLevel, maxLevel int, ringQ *ring.Ring, polIn *ring.Poly, vBigint []*big.Int, polOut *ring.Poly){
-	
+func centerAndExtendBasisLargeNorm(minLevel, maxLevel int, ringQ *ring.Ring, polIn *ring.Poly, vBigint []*big.Int, polOut *ring.Poly) {
 
 	// Bigint modulus at minimum level
 	QminLevel := ring.NewUint(ringQ.Modulus[0])

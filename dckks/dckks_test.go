@@ -93,6 +93,7 @@ func TestDCKKS(t *testing.T) {
 		testRotKeyGenCols(testCtx, t)
 		testRefresh(testCtx, t)
 		testE2SProtocol(testCtx, t)
+		testRefreshAndTransform(testCtx, t)
 		testRefreshAndPermute(testCtx, t)
 	}
 }
@@ -208,6 +209,78 @@ func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err err
 	testCtx.decryptorSk1 = ckks.NewDecryptor(testCtx.params, testCtx.sk1)
 
 	return
+}
+
+func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
+
+	encryptorPk0 := testCtx.encryptorPk0
+	sk0Shards := testCtx.sk0Shards
+	prec := int(256)
+	encoderBigFloat := ckks.NewEncoderBigComplex(testCtx.params, prec)
+	decryptorSk0 := testCtx.decryptorSk0
+
+	t.Run(testString("RefreshAndTransform/", parties, testCtx.params), func(t *testing.T) {
+
+		if testCtx.params.MaxLevel() < 2 {
+			t.Skip()
+		}
+
+		type Party struct {
+			*MaskedTransformProtocol
+			s       *rlwe.SecretKey
+			share   MaskedTransformShare
+			ptShare *ckks.Plaintext
+		}
+
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
+
+		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-2)
+
+		levelMin := ciphertext.Level()
+		levelMax := testCtx.params.MaxLevel()
+
+		RefreshParties := make([]*Party, parties)
+		for i := 0; i < parties; i++ {
+			p := new(Party)
+			p.MaskedTransformProtocol = NewMaskedTransformProtocol(testCtx.params, 3.2)
+			p.s = sk0Shards[i]
+			p.share = p.AllocateShares(levelMin, levelMax)
+			RefreshParties[i] = p
+		}
+
+		P0 := RefreshParties[0]
+
+		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQ)
+		crp := crpGenerator.ReadLvlNew(levelMax)
+
+		permute := func(ptIn, ptOut ckks.Plaintext) {
+
+			coeffsBig := encoderBigFloat.Decode(&ptIn, testCtx.params.LogSlots())
+
+			for i := range coeffsBig {
+				coeffsBig[i][0].Mul(coeffsBig[i][0], ring.NewFloat(0.9238795325112867, prec))
+				coeffsBig[i][1].Mul(coeffsBig[i][1], ring.NewFloat(0.7071067811865476, prec))
+			}
+			encoderBigFloat.EncodeNTT(&ptOut, coeffsBig, testCtx.params.LogSlots())
+
+			coeffsBig = encoderBigFloat.Decode(&ptOut, testCtx.params.LogSlots())
+		}
+
+		for i, p := range RefreshParties {
+			p.GenShares(p.s, parties, ciphertext, crp, permute, p.share)
+			if i > 0 {
+				P0.Aggregate(p.share, P0.share, P0.share)
+			}
+		}
+
+		P0.Transform(ciphertext, permute, crp, P0.share, ciphertext)
+
+		for i := range coeffs {
+			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)
+		}
+
+		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
+	})
 }
 
 func testPublicKeyGen(testCtx *testContext, t *testing.T) {

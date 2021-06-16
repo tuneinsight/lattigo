@@ -97,10 +97,26 @@ func main() {
 
 	// encrypt all values
 	encrypted := encPhase(participants, values)
+	encMem := 0
+	for _, v := range encrypted {
+		data, _ := v.MarshalBinary()
+		encMem += len(data[8:])
+	}
 
 	// gen keys for relin
 	evalKeys := getEvaluationKeys(participants)
+	evalKeysMem := 0
+	for _, v := range evalKeys {
+		data, _ := v.MarshalBinary()
+		evalKeysMem += len(data[8:])
+	}
+
 	pubKeys := getPublicKeys(participants)
+	pubKeysMem := 0
+	for _, v := range pubKeys {
+		data, _ := v.MarshalBinary()
+		pubKeysMem += len(data[8:])
+	}
 
 	// create Evaluator and IDs
 	evaluator := mkbfv.NewMKEvaluator(params)
@@ -111,11 +127,26 @@ func main() {
 	}
 
 	ciphers := evaluator.ConvertToMKCiphertext(encrypted, ids)
+	ciphersMem := 0
+	for _, v := range ciphers {
+		data, _ := v.MarshalBinary()
+		ciphersMem += len(data[8:])
+	}
 
 	// compute circuit
 	encryptedResult := evalPhase(params, NGoRoutine, ciphers, evalKeys, pubKeys, evaluator)
+	encResMem := 0
+
+	data, _ := encryptedResult.MarshalBinary()
+	encResMem += len(data[8:])
 
 	resultBFV := evaluator.ConvertToBFVCiphertext(encryptedResult)
+
+	resultBFVMem := 0
+	for _, v := range resultBFV {
+		data, _ := v.MarshalBinary()
+		resultBFVMem += len(data[8:])
+	}
 
 	var decrypted []uint64
 
@@ -137,10 +168,14 @@ func main() {
 		}
 	}
 
+	decMem := 8 * len(decrypted)
+	totalMemoryConsumption := encMem + evalKeysMem + pubKeysMem + ciphersMem + encResMem + resultBFVMem + decMem
+
 	l.Println("\tcorrect")
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",
 		elapsedEncryptCloud+elapsedEvalCloud,
 		elapsedEncryptParty+elapsedEvalParty+elapsedDecryptParty)
+	l.Printf(" > Finished (memory consumption) %v Bytes ( %v MB ) \n ", totalMemoryConsumption, totalMemoryConsumption/(1000000))
 
 }
 

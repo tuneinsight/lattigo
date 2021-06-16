@@ -75,7 +75,7 @@ func main() {
 	// arg2: number of Go routines
 
 	// Largest for n=8192: 512 parties
-	N := 8 // Default number of parties
+	N := 16 // Default number of parties
 	var err error
 	if len(os.Args[1:]) >= 1 {
 		N, err = strconv.Atoi(os.Args[1])
@@ -125,12 +125,23 @@ func main() {
 
 	// Inputs & expected result
 	expRes := genInputs(params, P)
+	expResMem := 8 * len(expRes)
 
 	// 1) Collective public key generation
 	pk := ckgphase(params, crsGen, P)
+	pkMem := 0
+	{
+		data, _ := pk.MarshalBinary()
+		pkMem += len(data)
+	}
 
 	// 2) Collective relinearization key generation
 	rlk := rkgphase(params, crsGen, P)
+	rlkMem := 0
+	{
+		data, _ := rlk.MarshalBinary()
+		rlkMem += len(data)
+	}
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n",
 		elapsedRKGCloud, elapsedRKGParty)
@@ -139,9 +150,25 @@ func main() {
 
 	encInputs := encPhase(params, P, pk, encoder)
 
+	encInputsMem := 0
+	for _, v := range encInputs {
+		data, _ := v.MarshalBinary()
+		encInputsMem += len(data)
+	}
+
 	encRes := evalPhase(params, NGoRoutine, encInputs, rlk)
+	encResMem := 0
+	{
+		data, _ := encRes.MarshalBinary()
+		encResMem += len(data)
+	}
 
 	encOut := pcksPhase(params, tpk, encRes, P)
+	encOutMem := 0
+	{
+		data, _ := encOut.MarshalBinary()
+		encOutMem += len(data)
+	}
 
 	// Decrypt the result with the target secret key
 	l.Println("> Result:")
@@ -161,10 +188,17 @@ func main() {
 			return
 		}
 	}
+
+	resMem := 8 * len(res)
+	totalMemoryConsumption := expResMem + pkMem + rlkMem + encInputsMem + encResMem + encOutMem + resMem
+
 	l.Println("\tcorrect")
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedEncryptCloud+elapsedEvalCloud+elapsedPCKSCloud,
 		elapsedCKGParty+elapsedRKGParty+elapsedEncryptParty+elapsedEvalParty+elapsedPCKSParty+elapsedDecParty)
+	l.Printf(" > Number of participants : %v \n", N)
+	l.Printf(" > Finished (memory consumption) %v Bytes ( %v MB ) \n ", totalMemoryConsumption, totalMemoryConsumption/(1000000))
+	l.Printf(" > Memory consumption : values input : %v Bytes, \n public keys (bytes) : %v \n relin Keys (bytes) : %v \n ciphertexts (bytes) : %v \n  results (bytes) : %v \n", expResMem, pkMem, rlkMem, encOutMem+encInputsMem+encResMem, resMem)
 
 }
 

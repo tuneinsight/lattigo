@@ -25,25 +25,24 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 	e2s.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
 	e2s.ringQ = params.RingQ()
 	e2s.zero = rlwe.NewSecretKey(params.Parameters)
-	e2s.maskBigint = make([]*big.Int, params.Slots())
+	e2s.maskBigint = make([]*big.Int, params.N())
+	for i := range e2s.maskBigint {
+		e2s.maskBigint[i] = new(big.Int)
+	}
 	e2s.pool = e2s.ringQ.NewPoly()
 	return e2s
 }
 
 // GenShare generates a party's share in the encryption-to-shares protocol. This share consist in the additive secret-share of the party
 // which is written in secretShareOut and in the public masked-decryption share written in publicShareOut.
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound int, ct *ckks.Ciphertext, secretShareOut rlwe.AdditiveShare, publicShareOut *drlwe.CKSShare) {
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, secretShareOut rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
-	// Generates the share
-	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
-
-	// Generates the mask
 	ringQ := e2s.ringQ
 
 	// Get the upperbound on the norm
 	// Ensures that bound >= 2^{128+logbound}
 	bound := ring.NewUint(1)
-	bound.Lsh(bound, 128 + uint(logBound))
+	bound.Lsh(bound, uint(logBound))
 
 	boundMax := ring.NewUint(ringQ.Modulus[0])
 	for i := 1; i < ct.Level()+1; i++ {
@@ -54,27 +53,42 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound int, ct *ckks.Ciph
 
 	sign = bound.Cmp(boundMax)
 
-	if sign == 1 || bound.Cmp(boundMax) == 1{
+	if sign == 1 || bound.Cmp(boundMax) == 1 {
 		panic("ciphertext level is not large enough for refresh correctness")
 	}
 
+	gap := ringQ.N / (2 << logSlots)
+
 	boundHalf := new(big.Int).Rsh(bound, 1)
-	
-	for i := range e2s.maskBigint {
-		e2s.maskBigint[i] = ring.RandInt(bound)
-		sign = e2s.maskBigint[i].Cmp(boundHalf)
-		if sign == 1 || sign == 0 {
-			e2s.maskBigint[i].Sub(e2s.maskBigint[i], bound)
+
+	// Generate the mask in Z[Y] for Y = X^{N/(2*slots)}
+	for i := 0; i < ringQ.N; i++ {
+
+		if i%gap == 0 {
+			e2s.maskBigint[i] = ring.RandInt(bound)
+			sign = e2s.maskBigint[i].Cmp(boundHalf)
+			if sign == 1 || sign == 0 {
+				e2s.maskBigint[i].Sub(e2s.maskBigint[i], bound)
+			}
+		} else {
+			e2s.maskBigint[i].SetUint64(0)
 		}
+
 	}
 
-	// h0 = mask (at level min)
-	ringQ.SetCoefficientsBigintLvl(ct.Level(), e2s.maskBigint, e2s.pool)
+	// Set the mask on the out secret-share
+	for i := range e2s.maskBigint {
+		secretShareOut.Value[i].Set(e2s.maskBigint[i])
+	}
 
-	// Switches the mask in the NTT domain
+	// Encrypt the mask
+	// Generates an encryption of zero and subtracts the mask
+	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
+	// Puts the mask in a poly
+	e2s.ringQ.SetCoefficientsBigintLvl(ct.Level(), secretShareOut.Value, e2s.pool)
+	// NTT the poly
 	e2s.ringQ.NTTLvl(ct.Level(), e2s.pool, e2s.pool)
-
-	e2s.ringQ.CopyLvl(ct.Level(), e2s.pool, &secretShareOut.Value)
+	// Substracts the mask to the encryption of zero
 	e2s.ringQ.SubLvl(ct.Level(), publicShareOut.Value, e2s.pool, publicShareOut.Value)
 }
 
@@ -83,11 +97,32 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound int, ct *ckks.Ciph
 // If the caller is not secret-key-share holder (i.e., didn't generate a decryption share), `secretShare` can be set to nil.
 // Therefore, in order to obtain an additive sharing of the message, only one party should call this method, and the other parties should use
 // the secretShareOut output of the GenShare method.
-func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShare, aggregatePublicShare *drlwe.CKSShare, ct *ckks.Ciphertext, secretShareOut *rlwe.AdditiveShare) {
+func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, ct *ckks.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint) {
+
+	e2s.pool.Zero()
+
+	// Adds the decryption share on the ciphertext and stores the result in a pool
 	e2s.ringQ.AddLvl(ct.Level(), aggregatePublicShare.Value, ct.Value[0], e2s.pool)
+
+	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
+	e2s.ringQ.InvNTTLvl(ct.Level(), e2s.pool, e2s.pool)
+
+	// Switches the LSSS RNS ciphertext outside of the RNS domain
+	e2s.ringQ.PolyToBigintCenteredLvl(ct.Level(), e2s.pool, e2s.maskBigint)
+
+	// Substracts the last mask
 	if secretShare != nil {
-		e2s.ringQ.AddLvl(ct.Level(), &secretShare.Value, e2s.pool, &secretShareOut.Value)
+		a := secretShareOut.Value
+		b := e2s.maskBigint
+		c := secretShare.Value
+		for i := range secretShareOut.Value {
+			a[i].Add(c[i], b[i])
+		}
 	} else {
-		secretShareOut.Value.Copy(e2s.pool)
+		a := secretShareOut.Value
+		b := e2s.maskBigint
+		for i := range secretShareOut.Value {
+			a[i].Set(b[i])
+		}
 	}
 }

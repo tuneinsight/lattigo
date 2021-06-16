@@ -5,7 +5,6 @@ import (
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
 	"math/big"
 )
 
@@ -32,24 +31,18 @@ func NewS2EProtocol(params ckks.Parameters, sigmaSmudging float64) *S2EProtocol 
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
 // polynomial sampled from the CRS `c1` and the party's secret share of the message.
-func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare rlwe.AdditiveShare, c0ShareOut *drlwe.CKSShare) {
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Element{Value: []*ring.Poly{c1, c1}, IsNTT: true}, c0ShareOut)
+func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
 
 	if c1.Level() != c0ShareOut.Value.Level() {
 		panic("c1 and c0ShareOut level must be equal")
 	}
 
-	ringQ := s2e.ringQ
+	// Generates an encryption share
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Element{Value: []*ring.Poly{c1, c1}, IsNTT: true}, c0ShareOut)
 
-	minLevel := utils.MinInt(c1.Level(), secretShare.Value.Level())
-	maxLevel := c1.Level()
-
-	if minLevel < maxLevel {
-		centerAndExtendBasisLargeNorm(minLevel, maxLevel, ringQ, &secretShare.Value, s2e.ssBigint, s2e.tmp)
-		ringQ.AddLvl(maxLevel, c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
-	} else {
-		ringQ.AddLvl(maxLevel, c0ShareOut.Value, &secretShare.Value, c0ShareOut.Value)
-	}
+	s2e.ringQ.SetCoefficientsBigintLvl(c1.Level(), secretShare.Value, s2e.tmp)
+	s2e.ringQ.NTTLvl(c1.Level(), s2e.tmp, s2e.tmp)
+	s2e.ringQ.AddLvl(c1.Level(), c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'

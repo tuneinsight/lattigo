@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"math"
-	"sort"
 	"testing"
+	"math"
+	"math/bits"
 
 	"github.com/stretchr/testify/require"
 
@@ -37,7 +37,8 @@ func testString(opname string, parties int, params ckks.Parameters) string {
 type testContext struct {
 	params ckks.Parameters
 
-	dckksContext *dckksContext
+	ringQ *ring.Ring
+	ringQP *ring.Ring
 
 	prng utils.PRNG
 
@@ -91,10 +92,9 @@ func TestDCKKS(t *testing.T) {
 		testPublicKeySwitching(testCtx, t)
 		testRotKeyGenConjugate(testCtx, t)
 		testRotKeyGenCols(testCtx, t)
-		testRefresh(testCtx, t)
 		testE2SProtocol(testCtx, t)
+		testRefresh(testCtx, t)
 		testRefreshAndTransform(testCtx, t)
-		testRefreshAndPermute(testCtx, t)
 	}
 }
 
@@ -109,7 +109,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 		secretShare    rlwe.AdditiveShare
 	}
 
-	coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, 1, t)
+	coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, -1, 1, t)
 
 	testCtx.evaluator.DropLevel(ciphertext, 1)
 
@@ -137,7 +137,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 		rec := rlwe.NewAdditiveShareAtLevel(params.Parameters, ciphertext.Level())
 		for _, p := range P {
-			testCtx.dckksContext.ringQ.AddLvl(ciphertext.Level(), &rec.Value, &p.secretShare.Value, &rec.Value)
+			testCtx.ringQ.AddLvl(ciphertext.Level(), &rec.Value, &p.secretShare.Value, &rec.Value)
 		}
 
 		pt := ckks.NewPlaintext(testCtx.params, ciphertext.Level(), ciphertext.Scale)
@@ -145,7 +145,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 		verifyTestVectors(testCtx, nil, coeffs, pt, t)
 
-		crs := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQ)
+		crs := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
 		c1 := crs.ReadLvlNew(params.Parameters.MaxLevel())
 
 		for i, p := range P {
@@ -171,7 +171,9 @@ func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err err
 
 	testCtx.params = defaultParams
 
-	testCtx.dckksContext = newDckksContext(testCtx.params)
+	testCtx.ringQ = defaultParams.RingQ()
+
+	testCtx.ringQP = defaultParams.RingQP()
 
 	if testCtx.prng, err = utils.NewPRNG(); err != nil {
 		return nil, err
@@ -185,14 +187,14 @@ func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err err
 	// SecretKeys
 	testCtx.sk0Shards = make([]*rlwe.SecretKey, parties)
 	testCtx.sk1Shards = make([]*rlwe.SecretKey, parties)
-	tmp0 := testCtx.dckksContext.ringQP.NewPoly()
-	tmp1 := testCtx.dckksContext.ringQP.NewPoly()
+	tmp0 := testCtx.ringQP.NewPoly()
+	tmp1 := testCtx.ringQP.NewPoly()
 
 	for j := 0; j < parties; j++ {
 		testCtx.sk0Shards[j] = kgen.GenSecretKey()
 		testCtx.sk1Shards[j] = kgen.GenSecretKey()
-		testCtx.dckksContext.ringQP.Add(tmp0, testCtx.sk0Shards[j].Value, tmp0)
-		testCtx.dckksContext.ringQP.Add(tmp1, testCtx.sk1Shards[j].Value, tmp1)
+		testCtx.ringQP.Add(tmp0, testCtx.sk0Shards[j].Value, tmp0)
+		testCtx.ringQP.Add(tmp1, testCtx.sk1Shards[j].Value, tmp1)
 	}
 
 	testCtx.sk0 = ckks.NewSecretKey(testCtx.params)
@@ -211,84 +213,12 @@ func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err err
 	return
 }
 
-func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
-
-	encryptorPk0 := testCtx.encryptorPk0
-	sk0Shards := testCtx.sk0Shards
-	prec := int(256)
-	encoderBigFloat := ckks.NewEncoderBigComplex(testCtx.params, prec)
-	decryptorSk0 := testCtx.decryptorSk0
-
-	t.Run(testString("RefreshAndTransform/", parties, testCtx.params), func(t *testing.T) {
-
-		if testCtx.params.MaxLevel() < 2 {
-			t.Skip()
-		}
-
-		type Party struct {
-			*MaskedTransformProtocol
-			s       *rlwe.SecretKey
-			share   MaskedTransformShare
-			ptShare *ckks.Plaintext
-		}
-
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
-
-		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-2)
-
-		levelMin := ciphertext.Level()
-		levelMax := testCtx.params.MaxLevel()
-
-		RefreshParties := make([]*Party, parties)
-		for i := 0; i < parties; i++ {
-			p := new(Party)
-			p.MaskedTransformProtocol = NewMaskedTransformProtocol(testCtx.params, 3.2)
-			p.s = sk0Shards[i]
-			p.share = p.AllocateShares(levelMin, levelMax)
-			RefreshParties[i] = p
-		}
-
-		P0 := RefreshParties[0]
-
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQ)
-		crp := crpGenerator.ReadLvlNew(levelMax)
-
-		permute := func(ptIn, ptOut ckks.Plaintext) {
-
-			coeffsBig := encoderBigFloat.Decode(&ptIn, testCtx.params.LogSlots())
-
-			for i := range coeffsBig {
-				coeffsBig[i][0].Mul(coeffsBig[i][0], ring.NewFloat(0.9238795325112867, prec))
-				coeffsBig[i][1].Mul(coeffsBig[i][1], ring.NewFloat(0.7071067811865476, prec))
-			}
-			encoderBigFloat.EncodeNTT(&ptOut, coeffsBig, testCtx.params.LogSlots())
-
-			coeffsBig = encoderBigFloat.Decode(&ptOut, testCtx.params.LogSlots())
-		}
-
-		for i, p := range RefreshParties {
-			p.GenShares(p.s, parties, ciphertext, crp, permute, p.share)
-			if i > 0 {
-				P0.Aggregate(p.share, P0.share, P0.share)
-			}
-		}
-
-		P0.Transform(ciphertext, permute, crp, P0.share, ciphertext)
-
-		for i := range coeffs {
-			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)
-		}
-
-		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
-	})
-}
-
 func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
+	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
 
 	t.Run(testString("PublicKeyGen/", parties, testCtx.params), func(t *testing.T) {
 
@@ -326,7 +256,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
 		encryptorTest := ckks.NewEncryptorFromPk(testCtx.params, pk)
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorTest, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorTest, -1, 1, t)
 
 		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
 	})
@@ -364,7 +294,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		// Checks that ckks.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
 		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
+		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
 		crp := make([]*ring.Poly, testCtx.params.Beta())
 
 		for i := 0; i < testCtx.params.Beta(); i++ {
@@ -390,7 +320,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		rlk := ckks.NewRelinearizationKey(testCtx.params)
 		P0.GenRelinearizationKey(P0.share1, P0.share2, rlk)
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
 		for i := range coeffs {
 			coeffs[i] *= coeffs[i]
@@ -418,7 +348,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("Keyswitching/", parties, testCtx.params), func(t *testing.T) {
 
-		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, 1, t)
+		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
 		for _, dropped := range []int{0, ciphertextFullLevels.Level()} { // runs the test for full and level zero
 			ciphertext := testCtx.evaluator.DropLevelNew(ciphertextFullLevels, dropped)
@@ -478,7 +408,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("PublicKeySwitching/", parties, testCtx.params), func(t *testing.T) {
 
-		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, 1, t)
+		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
 		for _, dropped := range []int{0, ciphertextFullLevels.Level()} { // runs the test for full and level zero
 			ciphertext := testCtx.evaluator.DropLevelNew(ciphertextFullLevels, dropped)
@@ -524,7 +454,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
-	ringQP := testCtx.dckksContext.ringQP
+	ringQP := testCtx.ringQP
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
@@ -550,7 +480,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		// checks that ckks.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQP)
+		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
 		crp := make([]*ring.Poly, testCtx.params.Beta())
 
 		for i := 0; i < testCtx.params.Beta(); i++ {
@@ -569,7 +499,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 		P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
 		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 		evaluator.Conjugate(ciphertext, ciphertext)
@@ -587,7 +517,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
-	ringQP := testCtx.dckksContext.ringQP
+	ringQP := testCtx.ringQP
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
@@ -618,7 +548,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 			crp[i] = crpGenerator.ReadNew()
 		}
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
 		receiver := ckks.NewCiphertext(testCtx.params, ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale)
 
@@ -647,268 +577,200 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 	})
 }
 
+func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
+
+	encryptorPk0 := testCtx.encryptorPk0
+	sk0Shards := testCtx.sk0Shards
+	
+	
+	decryptorSk0 := testCtx.decryptorSk0
+
+	t.Run(testString("RefreshAndTransform/", parties, testCtx.params), func(t *testing.T) {
+
+		logBound := int(math.Ceil(math.Log2(testCtx.params.Scale())))
+
+		bound := ring.NewUint(1)
+		bound.Lsh(bound, 128 + uint(logBound))
+
+		minLevel := -1
+		logQ := 0
+		for i:= 0; logQ < 128+logBound + int(math.Ceil(math.Log2(float64(parties)))); i++{
+
+			if i > testCtx.params.MaxLevel(){
+				t.Skip("Not enough levels to ensure correcness and 128 security")
+			}
+
+			logQ += bits.Len64(testCtx.params.Q()[i])
+			minLevel++
+		}
+
+		if testCtx.params.MaxLevel() < minLevel {
+			t.Skip("Not enough levels to ensure correcness and 128 security")
+		}
+
+		prec := bound.BitLen()
+		encoderBigFloat := ckks.NewEncoderBigComplex(testCtx.params, prec)
+
+		type Party struct {
+			*MaskedTransformProtocol
+			s       *rlwe.SecretKey
+			share   MaskedTransformShare
+			ptShare *ckks.Plaintext
+		}
+
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
+
+		// Drops the ciphertext to the minimum level that ensures correctness and 128-bit security
+		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel)
+
+		levelMin := ciphertext.Level()
+		levelMax := testCtx.params.MaxLevel()
+
+		RefreshParties := make([]*Party, parties)
+		for i := 0; i < parties; i++ {
+			p := new(Party)
+			p.MaskedTransformProtocol = NewMaskedTransformProtocol(testCtx.params, 3.2)
+			p.s = sk0Shards[i]
+			p.share = p.AllocateShares(levelMin, levelMax)
+			RefreshParties[i] = p
+		}
+
+		P0 := RefreshParties[0]
+
+		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crp := crpGenerator.ReadLvlNew(levelMax)
+
+		permute := func(ptIn, ptOut ckks.Plaintext) {
+
+			coeffsBig := encoderBigFloat.Decode(&ptIn, testCtx.params.LogSlots())
+
+			for i := range coeffsBig {
+				coeffsBig[i][0].Mul(coeffsBig[i][0], ring.NewFloat(0.9238795325112867, prec))
+				coeffsBig[i][1].Mul(coeffsBig[i][1], ring.NewFloat(0.7071067811865476, prec))
+			}
+
+			encoderBigFloat.EncodeNTT(&ptOut, coeffsBig, testCtx.params.LogSlots())
+			coeffsBig = encoderBigFloat.Decode(&ptOut, testCtx.params.LogSlots())
+		}
+
+
+		for i, p := range RefreshParties {
+			p.GenShares(p.s, logBound, ciphertext, crp, permute, p.share)
+			if i > 0 {
+				P0.Aggregate(p.share, P0.share, P0.share)
+			}
+		}
+
+		P0.Transform(ciphertext, permute, crp, P0.share, ciphertext)
+
+		for i := range coeffs {
+			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)
+		}
+
+		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
+	})
+}
+
 func testRefresh(testCtx *testContext, t *testing.T) {
 
-	evaluator := testCtx.evaluator
 	encryptorPk0 := testCtx.encryptorPk0
-	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
-
-	levelStart := 3
+	decryptorSk0 := testCtx.decryptorSk0
 
 	t.Run(testString("Refresh/", parties, testCtx.params), func(t *testing.T) {
 
-		if testCtx.params.MaxLevel() < 3 {
-			t.Skip("skipping test for params max level < 3")
+		logBound := int(math.Ceil(math.Log2(testCtx.params.Scale())))
+
+		bound := ring.NewUint(1)
+		bound.Lsh(bound, 128 + uint(logBound))
+
+		minLevel := -1
+		logQ := 0
+		for i:= 0; logQ < 128+logBound + int(math.Ceil(math.Log2(float64(parties)))); i++{
+
+			if i > testCtx.params.MaxLevel(){
+				t.Skip("Not enough levels to ensure correcness and 128 security")
+			}
+
+			logQ += bits.Len64(testCtx.params.Q()[i])
+			minLevel++
+		}
+
+		if testCtx.params.MaxLevel() < minLevel {
+			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
 		type Party struct {
 			*RefreshProtocol
-			s      *ring.Poly
-			share1 RefreshShareDecrypt
-			share2 RefreshShareRecrypt
+			s       *rlwe.SecretKey
+			share   RefreshShare
+			ptShare *ckks.Plaintext
 		}
+
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
+
+		// Brings ciphertext to level 2
+		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel)
+
+		levelMin := ciphertext.Level()
+		levelMax := testCtx.params.MaxLevel()
 
 		RefreshParties := make([]*Party, parties)
 		for i := 0; i < parties; i++ {
 			p := new(Party)
-			p.RefreshProtocol = NewRefreshProtocol(testCtx.params)
-			p.s = sk0Shards[i].Value
-			p.share1, p.share2 = p.AllocateShares(levelStart)
+			p.RefreshProtocol = NewRefreshProtocol(testCtx.params, 3.2)
+			p.s = sk0Shards[i]
+			p.share = p.AllocateShares(levelMin, levelMax)
 			RefreshParties[i] = p
 		}
 
 		P0 := RefreshParties[0]
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQ)
-		crp := crpGenerator.ReadNew()
-
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1.0, t)
-
-		for ciphertext.Level() != levelStart {
-			evaluator.DropLevel(ciphertext, 1)
-		}
+		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crp := crpGenerator.ReadLvlNew(levelMax)
 
 		for i, p := range RefreshParties {
-			p.GenShares(p.s, levelStart, parties, ciphertext, testCtx.params.Scale(), crp, p.share1, p.share2)
+			p.GenShares(p.s, logBound, ciphertext, crp, p.share)
 			if i > 0 {
-				P0.Aggregate(p.share1, P0.share1, P0.share1)
-				P0.Aggregate(p.share2, P0.share2, P0.share2)
+				P0.Aggregate(p.share, P0.share, P0.share)
 			}
 		}
 
-		// We refresh the ciphertext with the simulated error
-		P0.Decrypt(ciphertext, P0.share1)             // Masked decryption
-		P0.Recode(ciphertext, testCtx.params.Scale()) // Masked re-encoding
-		P0.Recrypt(ciphertext, crp, P0.share2)        // Masked re-encryption
-
-		require.Equal(t, ciphertext.Level(), testCtx.params.MaxLevel())
+		P0.Finalize(ciphertext, crp, P0.share, ciphertext)
 
 		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
-
 	})
 }
 
-func testRefreshAndPermute(testCtx *testContext, t *testing.T) {
+func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
 
-	evaluator := testCtx.evaluator
-	encryptorPk0 := testCtx.encryptorPk0
-	decryptorSk0 := testCtx.decryptorSk0
-	sk0Shards := testCtx.sk0Shards
+	logSlots := testContext.params.LogSlots()
 
-	levelStart := 3
+	values = make([]complex128, 1<<logSlots)
 
-	t.Run(testString("RefreshAndPermute/", parties, testCtx.params), func(t *testing.T) {
-
-		if testCtx.params.MaxLevel() < 3 {
-			t.Skip("skipping test for params max level < 3")
-		}
-
-		type Party struct {
-			*PermuteProtocol
-			s      *ring.Poly
-			share1 RefreshShareDecrypt
-			share2 RefreshShareRecrypt
-		}
-
-		RefreshParties := make([]*Party, parties)
-		for i := 0; i < parties; i++ {
-			p := new(Party)
-			p.PermuteProtocol = NewPermuteProtocol(testCtx.params)
-			p.s = sk0Shards[i].Value
-			p.share1, p.share2 = p.AllocateShares(levelStart)
-			RefreshParties[i] = p
-		}
-
-		P0 := RefreshParties[0]
-
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.dckksContext.ringQ)
-		crp := crpGenerator.ReadNew()
-
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, 1.0, t)
-
-		for ciphertext.Level() != levelStart {
-			evaluator.DropLevel(ciphertext, 1)
-		}
-
-		permutation := make([]uint64, testCtx.params.Slots())
-
-		for i := range permutation {
-			permutation[i] = ring.RandUniform(testCtx.prng, uint64(testCtx.params.Slots()), uint64(testCtx.params.Slots()-1))
-		}
-
-		for i, p := range RefreshParties {
-			p.GenShares(p.s, levelStart, parties, ciphertext, crp, testCtx.params.Slots(), permutation, p.share1, p.share2)
-			if i > 0 {
-				P0.Aggregate(p.share1, P0.share1, P0.share1)
-				P0.Aggregate(p.share2, P0.share2, P0.share2)
-			}
-		}
-
-		// We refresh the ciphertext with the simulated error
-		P0.Decrypt(ciphertext, P0.share1)                           // Masked decryption
-		P0.Permute(ciphertext, permutation, testCtx.params.Slots()) // Masked re-encoding
-		P0.Recrypt(ciphertext, crp, P0.share2)                      // Masked re-encryption
-
-		coeffsPermute := make([]complex128, len(coeffs))
-
-		for i := range coeffs {
-			coeffsPermute[i] = coeffs[permutation[i]]
-		}
-
-		require.Equal(t, ciphertext.Level(), testCtx.params.MaxLevel())
-
-		verifyTestVectors(testCtx, decryptorSk0, coeffsPermute, ciphertext, t)
-
-	})
-}
-
-func newTestVectors(testCtx *testContext, encryptor ckks.Encryptor, a float64, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
-
-	slots := testCtx.params.Slots()
-
-	values = make([]complex128, slots)
-
-	for i := 0; i < slots; i++ {
-		values[i] = utils.RandComplex128(-a, a)
+	for i := 0; i < 1<<logSlots; i++ {
+		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
 	}
 
-	values[0] = complex(0.607538, 0.555668)
+	values[0] = complex(0.607538, 0)
 
-	plaintext = testCtx.encoder.EncodeNew(values, testCtx.params.LogSlots())
+	plaintext = testContext.encoder.EncodeNTTAtLvlNew(testContext.params.MaxLevel(), values, logSlots)
 
-	ciphertext = encryptor.EncryptNew(plaintext)
+	if encryptor != nil {
+		ciphertext = encryptor.EncryptNew(plaintext)
+	}
 
 	return values, plaintext, ciphertext
 }
 
 func verifyTestVectors(testCtx *testContext, decryptor ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
-	var valuesTest []complex128
-
-	switch element := element.(type) {
-	case *ckks.Ciphertext:
-		valuesTest = testCtx.encoder.Decode(decryptor.DecryptNew(element), testCtx.params.LogSlots())
-	case *ckks.Plaintext:
-		valuesTest = testCtx.encoder.Decode(element, testCtx.params.LogSlots())
-	case []complex128:
-		valuesTest = element
-	}
-
-	slots := testCtx.params.Slots()
-
-	var deltaReal, deltaImag float64
-
-	var minprec, maxprec, meanprec, medianprec complex128
-
-	diff := make([]complex128, slots)
-
-	minprec = complex(0, 0)
-	maxprec = complex(1, 1)
-
-	meanprec = complex(0, 0)
-
-	distribReal := make(map[uint64]uint64)
-	distribImag := make(map[uint64]uint64)
-
-	for i := range valuesWant {
-
-		deltaReal = math.Abs(real(valuesTest[i]) - real(valuesWant[i]))
-		deltaImag = math.Abs(imag(valuesTest[i]) - imag(valuesWant[i]))
-
-		diff[i] += complex(deltaReal, 0)
-		diff[i] += complex(0, deltaImag)
-
-		meanprec += diff[i]
-
-		if real(diff[i]) > real(minprec) {
-			minprec = complex(real(diff[i]), 0)
-		}
-
-		if imag(diff[i]) > imag(minprec) {
-			minprec = complex(real(minprec), imag(diff[i]))
-		}
-
-		if real(diff[i]) < real(maxprec) {
-			maxprec = complex(real(diff[i]), 0)
-		}
-
-		if imag(diff[i]) < imag(maxprec) {
-			maxprec = complex(real(maxprec), imag(diff[i]))
-		}
-
-		distribReal[uint64(math.Floor(math.Log2(1/real(diff[i]))))]++
-		distribImag[uint64(math.Floor(math.Log2(1/imag(diff[i]))))]++
-	}
-
-	meanprec /= complex(float64(slots), 0)
-	medianprec = calcmedian(diff)
+	precStats := ckks.GetPrecisionStats(testCtx.params, testCtx.encoder, decryptor, valuesWant, element, testCtx.params.LogSlots(), 0)
 
 	if *printPrecisionStats {
-		t.Logf("Minimum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(minprec)), math.Log2(1/imag(minprec)))
-		t.Logf("Maximum precision : (%.2f, %.2f) bits \n", math.Log2(1/real(maxprec)), math.Log2(1/imag(maxprec)))
-		t.Logf("Mean    precision : (%.2f, %.2f) bits \n", math.Log2(1/real(meanprec)), math.Log2(1/imag(meanprec)))
-		t.Logf("Median  precision : (%.2f, %.2f) bits \n", math.Log2(1/real(medianprec)), math.Log2(1/imag(medianprec)))
-		t.Log()
+		t.Log(precStats.String())
 	}
 
-	require.GreaterOrEqual(t, math.Log2(1/real(medianprec)), minPrec)
-	require.GreaterOrEqual(t, math.Log2(1/imag(medianprec)), minPrec)
-}
-
-func calcmedian(values []complex128) (median complex128) {
-
-	tmp := make([]float64, len(values))
-
-	for i := range values {
-		tmp[i] = real(values[i])
-	}
-
-	sort.Float64s(tmp)
-
-	for i := range values {
-		values[i] = complex(tmp[i], imag(values[i]))
-	}
-
-	for i := range values {
-		tmp[i] = imag(values[i])
-	}
-
-	sort.Float64s(tmp)
-
-	for i := range values {
-		values[i] = complex(real(values[i]), tmp[i])
-	}
-
-	index := len(values) / 2
-
-	if len(values)&1 == 1 {
-		return values[index]
-	}
-
-	if index+1 == len(values) {
-		return values[index]
-	}
-
-	return (values[index] + values[index+1]) / 2
+	require.GreaterOrEqual(t, real(precStats.MeanPrecision), minPrec)
+	require.GreaterOrEqual(t, imag(precStats.MeanPrecision), minPrec)
 }

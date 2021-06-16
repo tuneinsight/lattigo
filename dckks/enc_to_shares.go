@@ -32,7 +32,7 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 
 // GenShare generates a party's share in the encryption-to-shares protocol. This share consist in the additive secret-share of the party
 // which is written in secretShareOut and in the public masked-decryption share written in publicShareOut.
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, nbParties int, ct *ckks.Ciphertext, secretShareOut rlwe.AdditiveShare, publicShareOut *drlwe.CKSShare) {
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound int, ct *ckks.Ciphertext, secretShareOut rlwe.AdditiveShare, publicShareOut *drlwe.CKSShare) {
 
 	// Generates the share
 	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
@@ -41,17 +41,25 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, nbParties int, ct *ckks.Cip
 	ringQ := e2s.ringQ
 
 	// Get the upperbound on the norm
-	bound := ring.NewUint(ringQ.Modulus[0])
+	// Ensures that bound >= 2^{128+logbound}
+	bound := ring.NewUint(1)
+	bound.Lsh(bound, 128 + uint(logBound))
+
+	boundMax := ring.NewUint(ringQ.Modulus[0])
 	for i := 1; i < ct.Level()+1; i++ {
-		bound.Mul(bound, ring.NewUint(ringQ.Modulus[i]))
+		boundMax.Mul(boundMax, ring.NewUint(ringQ.Modulus[i]))
 	}
 
-	// Divide the upperbound by 2*#Parties
-	bound.Quo(bound, ring.NewUint(uint64(2*nbParties)))
+	var sign int
+
+	sign = bound.Cmp(boundMax)
+
+	if sign == 1 || bound.Cmp(boundMax) == 1{
+		panic("ciphertext level is not large enough for refresh correctness")
+	}
 
 	boundHalf := new(big.Int).Rsh(bound, 1)
-
-	var sign int
+	
 	for i := range e2s.maskBigint {
 		e2s.maskBigint[i] = ring.RandInt(bound)
 		sign = e2s.maskBigint[i].Cmp(boundHalf)

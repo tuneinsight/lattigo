@@ -37,7 +37,6 @@ type testContext struct {
 	// Polynomial contexts
 	ringT  *ring.Ring
 	ringQ  *ring.Ring
-	ringP  *ring.Ring
 	ringQP *ring.Ring
 
 	prng utils.PRNG
@@ -106,7 +105,6 @@ func gentestContext(params bfv.Parameters) (testCtx *testContext, err error) {
 
 	testCtx.ringT = params.RingT()
 	testCtx.ringQ = params.RingQ()
-	testCtx.ringP = params.RingP()
 	testCtx.ringQP = params.RingQP()
 
 	testCtx.deltaMont = bfv.GenLiftParams(testCtx.ringQ, params.T())
@@ -531,13 +529,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 		ptRt := bfv.NewPlaintextRingT(testCtx.params)
 		ptRt.Value.Copy(&rec.Value)
 
-		res := testCtx.encoder.DecodeUintNew(ptRt)
-
-		see := 25
-		fmt.Println("Want:", coeffs[:see])
-		fmt.Println("Have:", res[:see])
-
-		assert.True(t, utils.EqualSliceUint64(coeffs, res))
+		assert.True(t, utils.EqualSliceUint64(coeffs, testCtx.encoder.DecodeUintNew(ptRt)))
 
 	})
 
@@ -750,11 +742,10 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 	crsGen := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
 	crs := crsGen.ReadNew()
 	ringQ := testCtx.ringQ
-	ringP := testCtx.ringP
 
 	Ciphertext := bfv.NewCiphertextRandom(testCtx.prng, testCtx.params, 1)
 
-	t.Run(fmt.Sprintf("Marshalling/CPK/N=%d/limbQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(t *testing.T) {
+	t.Run(fmt.Sprintf("Marshalling/CPK/N=%d/limbQ=%d/limbsP=%d", ringQ.N, testCtx.params.QCount(), testCtx.params.PCount()), func(t *testing.T) {
 		keygenProtocol := NewCKGProtocol(testCtx.params)
 		KeyGenShareBefore := keygenProtocol.AllocateShares()
 		keygenProtocol.GenShare(testCtx.sk0, crs, KeyGenShareBefore)
@@ -781,7 +772,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		require.Equal(t, KeyGenShareAfter.Coeffs[:moduli], KeyGenShareBefore.Coeffs[:moduli])
 	})
 
-	t.Run(fmt.Sprintf("Marshalling/PCKS/N=%d/limbQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(t *testing.T) {
+	t.Run(fmt.Sprintf("Marshalling/PCKS/N=%d/limbQ=%d/limbsP=%d", ringQ.N, testCtx.params.QCount(), testCtx.params.PCount()), func(t *testing.T) {
 		//Check marshalling for the PCKS
 
 		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
@@ -805,7 +796,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("Marshalling/CKS/N=%d/limbQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(t *testing.T) {
+	t.Run(fmt.Sprintf("Marshalling/CKS/N=%d/limbQ=%d/limbsP=%d", ringQ.N, testCtx.params.QCount(), testCtx.params.PCount()), func(t *testing.T) {
 
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
@@ -827,7 +818,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		require.Equal(t, cksshare.Value.Coeffs[:moduli], cksshareAfter.Value.Coeffs[:moduli])
 	})
 
-	t.Run(fmt.Sprintf("Marshalling/Refresh/N=%d/limbQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(t *testing.T) {
+	t.Run(fmt.Sprintf("Marshalling/Refresh/N=%d/limbQ=%d/limbsP=%d", ringQ.N, testCtx.params.QCount(), testCtx.params.PCount()), func(t *testing.T) {
 
 		//testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, 3.2)
@@ -858,7 +849,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("Marshalling/RTG/N=%d/limbQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(t *testing.T) {
+	t.Run(fmt.Sprintf("Marshalling/RTG/N=%d/limbQ=%d/limbsP=%d", ringQ.N, testCtx.params.QCount(), testCtx.params.PCount()), func(t *testing.T) {
 
 		//check RTGShare
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
@@ -912,7 +903,6 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 
 	ringQ := testCtx.ringQ
-	ringP := testCtx.ringP
 	modulus := testCtx.ringQ.Modulus
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
@@ -922,7 +912,7 @@ func testMarshallingRelin(testCtx *testContext, t *testing.T) {
 		crp[j] = crpGenerator.ReadNew()
 	}
 
-	t.Run(fmt.Sprintf("Marshalling/RLKG/N=%d/limbQ=%d/limbsP=%d", ringQ.N, len(ringQ.Modulus), len(ringP.Modulus)), func(t *testing.T) {
+	t.Run(fmt.Sprintf("Marshalling/RLKG/N=%d/limbQ=%d/limbsP=%d", ringQ.N, testCtx.params.QCount(), testCtx.params.PCount()), func(t *testing.T) {
 
 		rlk := NewRKGProtocol(testCtx.params)
 

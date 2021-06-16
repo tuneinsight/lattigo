@@ -60,18 +60,24 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, nbParties int,
 		panic("crs level must be equal to s2eShare")
 	}
 
+	minLevel := utils.MinInt(crs.Level(), ct.Level())
+	maxLevel := crs.Level()
+
 	// Generates the enc 2 share share
 	rfp.e2s.GenShare(sk, nbParties, ct, rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
 	mask := rfp.tmpMask
 
 	if transform != nil {
 
-		ptIn := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMask.Coeffs[:ct.Level()+1]}, IsNTT: true}, Scale: ct.Scale}
-		ptOut := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMaskPerm.Coeffs[:crs.Level()+1]}, IsNTT: true}, Scale: ct.Scale}
-
+		ptIn := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMask.Coeffs[:minLevel+1]}, IsNTT: true}, Scale: ct.Scale}
+		ptOut := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMaskPerm.Coeffs[:maxLevel+1]}, IsNTT: true}, Scale: ct.Scale}
 		transform(ptIn, ptOut)
-		mask = rfp.tmpMaskPerm
+		
+	}else{
+		centerAndExtendBasisLargeNorm(minLevel, maxLevel, rfp.ringQ, rfp.tmpMask, rfp.vBigint, rfp.tmpMaskPerm)
 	}
+
+	mask = rfp.tmpMaskPerm
 
 	rfp.s2e.GenShare(sk, crs, rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
 }
@@ -102,6 +108,10 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, transform Mas
 		panic("crs level and s2e level must be the same")
 	}
 
+	minLevel := utils.MinInt(crs.Level(), ct.Level())
+	maxLevel := crs.Level()
+
+
 	// Adds the aggregated decryption shares on the ciphertext (decrypts to LSSS)
 	rfp.e2s.GetShare(nil, &share.e2sShare, ct, &rlwe.AdditiveShare{Value: *rfp.tmpMask})
 
@@ -109,17 +119,16 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, transform Mas
 	mask := rfp.tmpMask
 	tmp := rfp.tmpMaskPerm
 	if transform != nil {
-
 		ptIn := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMask.Coeffs[:ct.Level()+1]}, IsNTT: true}, Scale: ct.Scale}
 		ptOut := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMaskPerm.Coeffs[:crs.Level()+1]}, IsNTT: true}, Scale: ct.Scale}
-
 		transform(ptIn, ptOut)
-		mask, tmp = rfp.tmpMaskPerm, rfp.tmpMask
+	}else{
+		centerAndExtendBasisLargeNorm(minLevel, maxLevel, rfp.ringQ, rfp.tmpMask, rfp.vBigint, rfp.tmpMaskPerm)
 	}
 
-	minLevel := utils.MinInt(crs.Level(), ct.Level())
-	maxLevel := crs.Level()
+	mask, tmp = rfp.tmpMaskPerm, rfp.tmpMask
 
+	
 	// Extend the levels of the ciphertext for future allocation
 	for ciphertextOut.Level() != crs.Level() {
 		level := ciphertextOut.Level() + 1

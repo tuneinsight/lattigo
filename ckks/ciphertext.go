@@ -37,12 +37,14 @@ func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, 
 	return ciphertext
 }
 
-func (c *Ciphertext) ScalingFactor() float64 {
-	return c.Scale
+// ScalingFactor returns the scaling factor of the ciphertext
+func (ct *Ciphertext) ScalingFactor() float64 {
+	return ct.Scale
 }
 
-func (p *Ciphertext) SetScalingFactor(scale float64) {
-	p.Scale = scale
+// SetScalingFactor sets the scaling factor of the ciphertext
+func (ct *Ciphertext) SetScalingFactor(scale float64) {
+	ct.Scale = scale
 }
 
 // Copy copies the given ciphertext ctp into the receiver ciphertext.

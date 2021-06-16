@@ -72,7 +72,7 @@ func (cks *CKSProtocol) AllocateShare() *CKSShare {
 	return &CKSShare{cks.ringQ.NewPoly()}
 }
 
-// AllocateShareLvl allocates the shares of the CKSProtocol
+// AllocateShareAtLevel allocates the shares of the CKSProtocol at the given level
 func (cks *CKSProtocol) AllocateShareAtLevel(level int) *CKSShare {
 	return &CKSShare{cks.ringQ.NewPolyLvl(level)}
 }

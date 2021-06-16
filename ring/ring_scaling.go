@@ -240,7 +240,7 @@ func (ss *SimpleScaler) DivByQOverTRounded(p1, p2 *Poly) {
 func (ss *SimpleScaler) reconstructThenScale(p1, p2 *Poly) {
 
 	// reconstruction
-	ss.ringQ.PolyToBigintNoAlloc(p1, ss.p1BI)
+	ss.ringQ.PolyToBigint(p1, ss.p1BI)
 
 	// scaling
 	for i, coeff := range ss.p1BI {

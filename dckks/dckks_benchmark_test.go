@@ -2,6 +2,8 @@ package dckks
 
 import (
 	"encoding/json"
+	"math"
+	"math/bits"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ckks"
@@ -39,6 +41,7 @@ func BenchmarkDCKKS(b *testing.B) {
 		benchKeySwitching(testCtx, b)
 		benchPublicKeySwitching(testCtx, b)
 		benchRotKeyGen(testCtx, b)
+		benchRefresh(testCtx, b)
 	}
 }
 
@@ -256,4 +259,72 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 			p.GenRotationKey(p.share, crp, rotKey)
 		}
 	})
+}
+
+func benchRefresh(testCtx *testContext, b *testing.B) {
+
+	skip := false
+
+	logBound := 128 + int(math.Ceil(math.Log2(testCtx.params.Scale())))
+
+	minLevel := -1
+	logQ := 0
+	for i := 0; logQ < logBound+int(math.Ceil(math.Log2(float64(parties))))+1; i++ {
+
+		if i > testCtx.params.MaxLevel() {
+			skip = true
+			break
+		}
+
+		logQ += bits.Len64(testCtx.params.Q()[i])
+		minLevel++
+	}
+
+	if testCtx.params.MaxLevel() < minLevel {
+		skip = true
+	}
+
+	if !skip {
+
+		sk0Shards := testCtx.sk0Shards
+
+		type Party struct {
+			*RefreshProtocol
+			s     *rlwe.SecretKey
+			share RefreshShare
+		}
+
+		p := new(Party)
+		p.RefreshProtocol = NewRefreshProtocol(testCtx.params, logBound, 3.2)
+		p.s = sk0Shards[0]
+		p.share = p.AllocateShares(minLevel, testCtx.params.MaxLevel())
+
+		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crp := crpGenerator.ReadNew()
+
+		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, minLevel, testCtx.params.Scale())
+
+		b.Run(testString("Refresh/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShares(p.s, logBound, testCtx.params.LogSlots(), ciphertext, crp, p.share)
+			}
+		})
+
+		b.Run(testString("Refresh/Round1/Agg", parties, testCtx.params), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Aggregate(p.share, p.share, p.share)
+			}
+		})
+
+		b.Run(testString("Refresh/Finalize", parties, testCtx.params), func(b *testing.B) {
+			ctOut := ckks.NewCiphertext(testCtx.params, 1, testCtx.params.MaxLevel(), testCtx.params.Scale())
+			for i := 0; i < b.N; i++ {
+				p.Finalize(ciphertext, testCtx.params.LogSlots(), crp, p.share, ctOut)
+			}
+		})
+	} else {
+		b.Log("bench skipped : not enough level to ensure correctness and 128 bit security")
+	}
 }

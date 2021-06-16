@@ -17,9 +17,9 @@ type RefreshShare struct {
 }
 
 // NewRefreshProtocol creates a new Refresh protocol instance.
-func NewRefreshProtocol(params ckks.Parameters, sigmaSmudging float64) (rfp *RefreshProtocol) {
+func NewRefreshProtocol(params ckks.Parameters, precision int, sigmaSmudging float64) (rfp *RefreshProtocol) {
 	rfp = new(RefreshProtocol)
-	rfp.MaskedTransformProtocol = *NewMaskedTransformProtocol(params, sigmaSmudging)
+	rfp.MaskedTransformProtocol = *NewMaskedTransformProtocol(params, precision, sigmaSmudging)
 	return
 }
 
@@ -29,8 +29,8 @@ func (rfp *RefreshProtocol) AllocateShares(minLevel, maxLevel int) RefreshShare 
 }
 
 // GenShares generates a share for the Refresh protocol.
-func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, nbParties int, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareOut RefreshShare) {
-	rfp.MaskedTransformProtocol.GenShares(sk, nbParties, ciphertext, crs, nil, shareOut.MaskedTransformShare)
+func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareOut RefreshShare) {
+	rfp.MaskedTransformProtocol.GenShares(sk, logBound, logSlots, ciphertext, crs, nil, shareOut.MaskedTransformShare)
 }
 
 // Aggregate aggregates two parties' shares in the Refresh protocol.
@@ -39,6 +39,6 @@ func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *RefreshProtocol) Finalize(ciphertext *ckks.Ciphertext, crs *ring.Poly, share RefreshShare, ciphertextOut *ckks.Ciphertext) {
-	rfp.MaskedTransformProtocol.Transform(ciphertext, nil, crs, share.MaskedTransformShare, ciphertextOut)
+func (rfp *RefreshProtocol) Finalize(ciphertext *ckks.Ciphertext, logSlots int, crs *ring.Poly, share RefreshShare, ciphertextOut *ckks.Ciphertext) {
+	rfp.MaskedTransformProtocol.Transform(ciphertext, logSlots, nil, crs, share.MaskedTransformShare, ciphertextOut)
 }

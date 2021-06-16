@@ -5,7 +5,6 @@ import (
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
 	"math/big"
 )
 
@@ -14,13 +13,17 @@ type MaskedTransformProtocol struct {
 	e2s E2SProtocol
 	s2e S2EProtocol
 
-	ringQ       *ring.Ring
-	tmpMask     *ring.Poly
-	tmpMaskPerm *ring.Poly
-	vBigint     []*big.Int
+	defaultScale *big.Int
+
+	ringQ         *ring.Ring
+	tmpMask       []*big.Int
+	tmpBigComplex []*ring.Complex
+	encoder       ckks.EncoderBigComplex
 }
 
-type MaskedTransformFunc func(coeffsIn, coeffsOut ckks.Plaintext)
+// MaskedTransformFunc is a method template for linear transforms that can be
+// evaluated on a ciphertext during its collective refresh
+type MaskedTransformFunc func(coeffsIn, coeffsOut []*ring.Complex)
 
 // MaskedTransformShare is a struct storing the decryption and recryption shares.
 type MaskedTransformShare struct {
@@ -28,19 +31,47 @@ type MaskedTransformShare struct {
 	s2eShare drlwe.CKSShare
 }
 
-func NewMaskedTransformProtocol(params ckks.Parameters, sigmaSmudging float64) (rfp *MaskedTransformProtocol) {
+// MarshalBinary encodes a RefreshShare on a slice of bytes.
+func (share *MaskedTransformShare) MarshalBinary() ([]byte, error) {
+	e2sData, err := share.e2sShare.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	s2eData, err := share.s2eShare.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return append(e2sData, s2eData...), nil
+}
+
+// UnmarshalBinary decodes a marshaled RefreshShare on the target RefreshShare.
+func (share *MaskedTransformShare) UnmarshalBinary(data []byte) error {
+	shareLen := len(data) >> 1
+	share.e2sShare.UnmarshalBinary(data[:shareLen])
+	share.s2eShare.UnmarshalBinary(data[shareLen:])
+	return nil
+}
+
+// NewMaskedTransformProtocol creates a new instance of the PermuteProtocol.
+func NewMaskedTransformProtocol(params ckks.Parameters, precision int, sigmaSmudging float64) (rfp *MaskedTransformProtocol) {
 
 	rfp = new(MaskedTransformProtocol)
 	rfp.e2s = *NewE2SProtocol(params, sigmaSmudging)
 	rfp.s2e = *NewS2EProtocol(params, sigmaSmudging)
 
+	rfp.defaultScale = new(big.Int)
+	ring.NewFloat(params.Scale(), precision).Int(rfp.defaultScale)
+
 	rfp.ringQ = rfp.e2s.ringQ
 
-	rfp.tmpMask = rfp.ringQ.NewPoly()
-	rfp.tmpMaskPerm = rfp.ringQ.NewPoly()
-
-	rfp.vBigint = make([]*big.Int, rfp.ringQ.N)
-
+	rfp.tmpMask = make([]*big.Int, rfp.ringQ.N)
+	rfp.tmpBigComplex = make([]*ring.Complex, rfp.ringQ.N>>1)
+	for i := range rfp.tmpBigComplex {
+		rfp.tmpMask[i*2] = new(big.Int)
+		rfp.tmpMask[i*2+1] = new(big.Int)
+		rfp.tmpBigComplex[i] = ring.NewComplex(ring.NewFloat(0, precision), ring.NewFloat(0, precision))
+	}
+	rfp.encoder = ckks.NewEncoderBigComplex(params, precision)
 	return
 }
 
@@ -50,7 +81,7 @@ func (rfp *MaskedTransformProtocol) AllocateShares(levelDecrypt, levelRecrypt in
 }
 
 // GenShares generates the shares of the PermuteProtocol
-func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, nbParties int, ct *ckks.Ciphertext, crs *ring.Poly, transform MaskedTransformFunc, shareOut MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, crs *ring.Poly, transform MaskedTransformFunc, shareOut MaskedTransformShare) {
 
 	if ct.Level() != shareOut.e2sShare.Value.Level() {
 		panic("ciphertext level must be equal to e2sShare")
@@ -60,26 +91,51 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, nbParties int,
 		panic("crs level must be equal to s2eShare")
 	}
 
-	minLevel := utils.MinInt(crs.Level(), ct.Level())
-	maxLevel := crs.Level()
+	// Generates the decryption share
+	// Returns [M_i] on rfp.tmpMask and [a*s_i -M_i + e] on e2sShare
+	rfp.e2s.GenShare(sk, logBound, logSlots, ct, rlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.e2sShare)
 
-	// Generates the enc 2 share share
-	rfp.e2s.GenShare(sk, nbParties, ct, rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
-	mask := rfp.tmpMask
+	slots := 1 << logSlots
+	gap := rfp.ringQ.N / (2 * slots)
 
+	// Applies LT(M_i)
 	if transform != nil {
+		// Extracts sparse coefficients
+		for i, jdx, idx := 0, rfp.ringQ.N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+			rfp.tmpBigComplex[idx][0].SetInt(rfp.tmpMask[idx])
+			rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
+		}
 
-		ptIn := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMask.Coeffs[:minLevel+1]}, IsNTT: true}, Scale: ct.Scale}
-		ptOut := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMaskPerm.Coeffs[:maxLevel+1]}, IsNTT: true}, Scale: ct.Scale}
-		transform(ptIn, ptOut)
-		
-	}else{
-		centerAndExtendBasisLargeNorm(minLevel, maxLevel, rfp.ringQ, rfp.tmpMask, rfp.vBigint, rfp.tmpMaskPerm)
+		// Decodes
+		rfp.encoder.FFT(rfp.tmpBigComplex, 1<<logSlots)
+
+		// Applies the linear transform
+		transform(rfp.tmpBigComplex, rfp.tmpBigComplex)
+
+		// Recodes
+		rfp.encoder.InvFFT(rfp.tmpBigComplex, 1<<logSlots)
+
+		// Puts the coefficient back
+		for i, jdx, idx := 0, rfp.ringQ.N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+			rfp.tmpBigComplex[i].Real().Int(rfp.tmpMask[idx])
+			rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
+		}
 	}
 
-	mask = rfp.tmpMaskPerm
+	// Applies LT(M_i) * diffscale
+	inputScaleInt := new(big.Int)
+	ring.NewFloat(ct.Scale, 256).Int(inputScaleInt)
 
-	rfp.s2e.GenShare(sk, crs, rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
+	// Scales the mask by the ratio between the two scales
+	for i := 0; i < rfp.ringQ.N; i++ {
+		if i%gap == 0 {
+			rfp.tmpMask[i].Mul(rfp.tmpMask[i], rfp.defaultScale)
+			rfp.tmpMask[i].Quo(rfp.tmpMask[i], inputScaleInt)
+		}
+	}
+
+	// Returns [-a*s_i + LT(M_i) * diffscale + e] on s2eShare
+	rfp.s2e.GenShare(sk, crs, rlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.s2eShare)
 }
 
 // Aggregate sums share1 and share2 on shareOut.
@@ -98,7 +154,7 @@ func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut MaskedTra
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, transform MaskedTransformFunc, crs *ring.Poly, share MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
+func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int, transform MaskedTransformFunc, crs *ring.Poly, share MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
 
 	if ct.Level() != share.e2sShare.Value.Level() {
 		panic("ciphertext level and e2s level must be the same")
@@ -108,27 +164,48 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, transform Mas
 		panic("crs level and s2e level must be the same")
 	}
 
-	minLevel := utils.MinInt(crs.Level(), ct.Level())
 	maxLevel := crs.Level()
 
+	// Returns -sum(M_i) + x (outside of the NTT domain)
+	rfp.e2s.GetShare(nil, &share.e2sShare, ct, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask})
 
-	// Adds the aggregated decryption shares on the ciphertext (decrypts to LSSS)
-	rfp.e2s.GetShare(nil, &share.e2sShare, ct, &rlwe.AdditiveShare{Value: *rfp.tmpMask})
+	slots := 1 << logSlots
+	gap := rfp.ringQ.N / (2 * slots)
 
-	// Applies the transform on the LSSS
-	mask := rfp.tmpMask
-	tmp := rfp.tmpMaskPerm
+	// Returns LT(-sum(M_i) + x)
 	if transform != nil {
-		ptIn := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMask.Coeffs[:ct.Level()+1]}, IsNTT: true}, Scale: ct.Scale}
-		ptOut := ckks.Plaintext{Plaintext: &rlwe.Plaintext{Value: &ring.Poly{rfp.tmpMaskPerm.Coeffs[:crs.Level()+1]}, IsNTT: true}, Scale: ct.Scale}
-		transform(ptIn, ptOut)
-	}else{
-		centerAndExtendBasisLargeNorm(minLevel, maxLevel, rfp.ringQ, rfp.tmpMask, rfp.vBigint, rfp.tmpMaskPerm)
+		// Extracts sparse coefficients
+		for i, jdx, idx := 0, rfp.ringQ.N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+			rfp.tmpBigComplex[idx][0].SetInt(rfp.tmpMask[idx])
+			rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
+		}
+
+		// Decodes
+		rfp.encoder.FFT(rfp.tmpBigComplex, 1<<logSlots)
+
+		// Applies the linear transform
+		transform(rfp.tmpBigComplex, rfp.tmpBigComplex)
+
+		// Recodes
+		rfp.encoder.InvFFT(rfp.tmpBigComplex, 1<<logSlots)
+
+		// Puts the coefficient back
+		for i, jdx, idx := 0, rfp.ringQ.N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+			rfp.tmpBigComplex[i].Real().Int(rfp.tmpMask[idx])
+			rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
+		}
 	}
 
-	mask, tmp = rfp.tmpMaskPerm, rfp.tmpMask
+	// Returns LT(-sum(M_i) + x) * diffscale
+	inputScaleInt := new(big.Int)
+	ring.NewFloat(ct.Scale, 256).Int(inputScaleInt)
 
-	
+	// Scales the mask by the ratio between the two scales
+	for i := range rfp.tmpMask {
+		rfp.tmpMask[i].Mul(rfp.tmpMask[i], rfp.defaultScale)
+		rfp.tmpMask[i].Quo(rfp.tmpMask[i], inputScaleInt)
+	}
+
 	// Extend the levels of the ciphertext for future allocation
 	for ciphertextOut.Level() != crs.Level() {
 		level := ciphertextOut.Level() + 1
@@ -140,15 +217,14 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, transform Mas
 		ciphertextOut.Value[1].Coeffs[level] = make([]uint64, rfp.ringQ.N)
 	}
 
-	if minLevel < maxLevel {
-		// Extends the level of the transformed LSSS to the level of the recryption shares
-		centerAndExtendBasisLargeNorm(minLevel, maxLevel, rfp.ringQ, mask, rfp.vBigint, tmp)
+	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
+	rfp.ringQ.SetCoefficientsBigintLvl(maxLevel, rfp.tmpMask, ciphertextOut.Value[0])
 
-		// Adds the aggregated recryption shares on the LSSS
-		rfp.ringQ.AddLvl(maxLevel, tmp, share.s2eShare.Value, ciphertextOut.Value[0])
-	} else {
-		rfp.ringQ.AddLvl(maxLevel, mask, share.s2eShare.Value, ciphertextOut.Value[0])
-	}
+	// Sets LT(-sum(M_i) + x) * diffscale in the NTT domain
+	rfp.ringQ.NTTLvl(maxLevel, ciphertextOut.Value[0], ciphertextOut.Value[0])
+
+	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
+	rfp.ringQ.AddLvl(maxLevel, ciphertextOut.Value[0], share.s2eShare.Value, ciphertextOut.Value[0])
 
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, *ciphertextOut)

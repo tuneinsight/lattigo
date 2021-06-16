@@ -2,6 +2,7 @@ package rlwe
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -18,10 +19,15 @@ type Plaintext struct {
 	IsNTT bool
 }
 
-// AdditiveShare is a type for storing additively shared values in the
-// polynomial ring.
+// AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)
 type AdditiveShare struct {
 	Value ring.Poly
+}
+
+// AdditiveShareBigint is a type for storing additively shared values
+// in Z (positional domain)
+type AdditiveShareBigint struct {
+	Value []*big.Int
 }
 
 // NewAdditiveShare instantiate a new additive share struct for the ring defined
@@ -34,6 +40,15 @@ func NewAdditiveShare(params Parameters) AdditiveShare {
 // by the given parameters at level `level`.
 func NewAdditiveShareAtLevel(params Parameters, level int) AdditiveShare {
 	return AdditiveShare{Value: *ring.NewPoly(params.N(), level+1)}
+}
+
+// NewAdditiveShareBigint instantiate a new additive share struct composed of big.Int elements
+func NewAdditiveShareBigint(params Parameters) AdditiveShareBigint {
+	v := make([]*big.Int, params.N())
+	for i := range v {
+		v[i] = new(big.Int)
+	}
+	return AdditiveShareBigint{Value: v}
 }
 
 // NewPlaintext creates a new Plaintext at maximum level from the parameters.

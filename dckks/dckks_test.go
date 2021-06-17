@@ -623,7 +623,6 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 			*RefreshProtocol
 			s       *rlwe.SecretKey
 			share   RefreshShare
-			ptShare *ckks.Plaintext
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
@@ -680,7 +679,6 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 			*MaskedTransformProtocol
 			s       *rlwe.SecretKey
 			share   MaskedTransformShare
-			ptShare *ckks.Plaintext
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)

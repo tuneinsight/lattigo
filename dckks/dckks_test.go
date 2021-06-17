@@ -621,8 +621,8 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*RefreshProtocol
-			s       *rlwe.SecretKey
-			share   RefreshShare
+			s     *rlwe.SecretKey
+			share RefreshShare
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
@@ -677,8 +677,8 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*MaskedTransformProtocol
-			s       *rlwe.SecretKey
-			share   MaskedTransformShare
+			s     *rlwe.SecretKey
+			share MaskedTransformShare
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)

@@ -29,6 +29,12 @@ func (rfp *RefreshProtocol) AllocateShares(minLevel, maxLevel int) RefreshShare 
 }
 
 // GenShares generates a share for the Refresh protocol.
+// This protocol requires additional inputs which are :
+// logBound : the bit length of the masks
+// logSlots : the bit length of the number of slots
+// 
+// The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the refresh can be called while still ensure 128-bits of security, as well as the
+// value for logBound.
 func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareOut RefreshShare) {
 	rfp.MaskedTransformProtocol.GenShares(sk, logBound, logSlots, ciphertext, crs, nil, shareOut.MaskedTransformShare)
 }

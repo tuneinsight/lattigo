@@ -1298,6 +1298,7 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 		err = p.UnmarshalBinary(bytes)
 		assert.Nil(t, err)
 		assert.Equal(t, testctx.params, p)
+		assert.Equal(t, testctx.params.RingQ(), p.RingQ())
 	})
 
 	t.Run("Marshaller/Parameters/JSON", func(t *testing.T) {

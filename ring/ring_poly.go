@@ -10,6 +10,8 @@ import (
 // Poly is the structure that contains the coefficients of a polynomial.
 type Poly struct {
 	Coeffs [][]uint64 // Coefficients in CRT representation
+	IsNTT bool
+	IsMForm bool
 }
 
 // NewPoly creates a new polynomial with N coefficients set to zero and nbModuli moduli.
@@ -58,6 +60,8 @@ func (pol *Poly) CopyNew() (p1 *Poly) {
 			p1tmp[j] = p0tmp[j]
 		}
 	}
+	p1.IsNTT = pol.IsNTT
+	p1.IsMForm = pol.IsMForm
 
 	return p1
 }
@@ -72,6 +76,9 @@ func (r *Ring) Copy(p0, p1 *Poly) {
 				p1tmp[j] = p0tmp[j]
 			}
 		}
+
+		p1.IsNTT = p0.IsNTT
+		p1.IsMForm = p0.IsMForm
 	}
 }
 
@@ -86,6 +93,9 @@ func (r *Ring) CopyLvl(level int, p0, p1 *Poly) {
 				p1tmp[j] = p0tmp[j]
 			}
 		}
+
+		p1.IsNTT = p0.IsNTT
+		p1.IsMForm = p0.IsMForm
 	}
 }
 
@@ -102,6 +112,9 @@ func (pol *Poly) Copy(p1 *Poly) {
 				p0tmp[j] = p1tmp[j]
 			}
 		}
+
+		pol.IsNTT = p1.IsNTT
+		pol.IsMForm = p1.IsMForm
 	}
 }
 
@@ -109,6 +122,7 @@ func (pol *Poly) Copy(p1 *Poly) {
 // This function checks for strict equality between the polynomial coefficients
 // (i.e., it does not consider congruence as equality within the ring like
 // `Ring.Equals` does).
+// Will not check if IsNTT and IsMForm flags are equal
 func (pol *Poly) Equals(other *Poly) bool {
 	if pol == other {
 		return true
@@ -178,8 +192,15 @@ func (pol *Poly) WriteTo(data []byte) (int, error) {
 	}
 	data[0] = uint8(bits.Len64(uint64(N)) - 1)
 	data[1] = uint8(numberModuli)
+	if pol.IsNTT{
+		data[2] = 1
+	}
 
-	cnt, err := WriteCoeffsTo(2, N, numberModuli, pol.Coeffs, data)
+	if pol.IsMForm{
+		data[3] = 1
+	}
+	
+	cnt, err := WriteCoeffsTo(4, N, numberModuli, pol.Coeffs, data)
 
 	return cnt, err
 }
@@ -197,8 +218,16 @@ func (pol *Poly) WriteTo32(data []byte) (int, error) {
 	}
 	data[0] = uint8(bits.Len64(uint64(N)) - 1)
 	data[1] = uint8(numberModuli)
+	if pol.IsNTT{
+		data[2] = 1
+	}
 
-	cnt, err := WriteCoeffsTo32(2, N, numberModuli, pol.Coeffs, data)
+	if pol.IsMForm{
+		data[3] = 1
+	}
+	
+
+	cnt, err := WriteCoeffsTo32(4, N, numberModuli, pol.Coeffs, data)
 
 	return cnt, err
 }
@@ -222,7 +251,7 @@ func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt int) {
 	cnt = (pol.LenModuli() * pol.Degree()) << 2
 
 	if WithMetadata {
-		cnt += 2
+		cnt += 4
 	}
 	return
 }
@@ -240,7 +269,7 @@ func (pol *Poly) GetDataLen(WithMetadata bool) (cnt int) {
 	cnt = (pol.LenModuli() * pol.Degree()) << 3
 
 	if WithMetadata {
-		cnt += 2
+		cnt += 4
 	}
 	return
 }
@@ -282,11 +311,20 @@ func (pol *Poly) MarshalBinary() (data []byte, err error) {
 // UnmarshalBinary decodes a slice of byte on the target polynomial.
 func (pol *Poly) UnmarshalBinary(data []byte) (err error) {
 
-	N := uint64(1 << data[0])
-	numberModulies := uint64(data[1])
-	pointer := uint64(2)
+	N := int(1 << data[0])
+	numberModulies := int(data[1])
 
-	if ((uint64(len(data)) - pointer) >> 3) != N*numberModulies {
+	if data[2] == 1{
+		pol.IsNTT = true
+	}
+
+	if data[3] == 1{
+		pol.IsMForm = true
+	}
+	
+	pointer := 4
+
+	if ((len(data) - pointer) >> 3) != N*numberModulies {
 		return errors.New("invalid polynomial encoding")
 	}
 
@@ -303,7 +341,16 @@ func (pol *Poly) DecodePolyNew(data []byte) (pointer int, err error) {
 
 	N := int(1 << data[0])
 	numberModulies := int(data[1])
-	pointer = 2
+
+	if data[2] == 1{
+		pol.IsNTT = true
+	}
+
+	if data[3] == 1{
+		pol.IsMForm = true
+	}
+
+	pointer = 4
 
 	if pol.Coeffs == nil {
 		pol.Coeffs = make([][]uint64, numberModulies)
@@ -322,7 +369,16 @@ func (pol *Poly) DecodePolyNew32(data []byte) (pointer int, err error) {
 
 	N := int(1 << data[0])
 	numberModulies := int(data[1])
-	pointer = 2
+
+	if data[2] == 1{
+		pol.IsNTT = true
+	}
+
+	if data[3] == 1{
+		pol.IsMForm = true
+	}
+
+	pointer = 4
 
 	if pol.Coeffs == nil {
 		pol.Coeffs = make([][]uint64, numberModulies)

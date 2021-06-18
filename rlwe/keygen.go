@@ -72,11 +72,11 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) 
 		evk.Keys[i] = NewSwitchingKey(keygen.params)
 	}
 
-	keygen.polypool[0].Copy(sk.Value) // TODO Remove ?
+	keygen.polypool[0].CopyValues(sk.Value) // TODO Remove ?
 
 	ringQP := keygen.ringQP
 
-	keygen.polypool[1].Copy(sk.Value)
+	keygen.polypool[1].CopyValues(sk.Value)
 	for i := 0; i < maxDegree; i++ {
 		ringQP.MulCoeffsMontgomery(keygen.polypool[1], sk.Value, keygen.polypool[1])
 		keygen.newSwitchingKey(keygen.polypool[1], sk.Value, evk.Keys[i])
@@ -198,7 +198,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newev
 		panic("Cannot GenSwitchingKey: modulus P is empty")
 	}
 
-	keygen.ringQP.Copy(skInput.Value, keygen.polypool[0])
+	ring.CopyValues(skInput.Value, keygen.polypool[0])
 	newevakey = NewSwitchingKey(keygen.params)
 	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Value, newevakey)
 	keygen.polypool[0].Zero()

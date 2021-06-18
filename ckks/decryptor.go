@@ -57,7 +57,7 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 
 	plaintext.Scale = ciphertext.Scale
 
-	decryptor.ringQ.CopyLvl(level, ciphertext.Value[ciphertext.Degree()], plaintext.Value)
+	ring.CopyValuesLvl(level, ciphertext.Value[ciphertext.Degree()], plaintext.Value)
 
 	plaintext.Value.Coeffs = plaintext.Value.Coeffs[:ciphertext.Level()+1]
 

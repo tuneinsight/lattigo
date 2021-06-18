@@ -564,7 +564,7 @@ func (encoder *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots in
 	if plaintext.Value.IsNTT {
 		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	} else {
-		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
+		ring.CopyValuesLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	}
 
 	// B = floor(sigma * sqrt(2*pi))
@@ -679,7 +679,7 @@ func (encoder *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma
 	if plaintext.Value.IsNTT {
 		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	} else {
-		encoder.ringQ.CopyLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
+		ring.CopyValuesLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	}
 
 	if sigma != 0 {

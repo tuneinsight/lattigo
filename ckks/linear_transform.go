@@ -89,8 +89,8 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 	if n == 1 {
 		if ctIn != ctOut {
-			ringQ.CopyLvl(levelQ, ctIn.Value[0], ctOut.Value[0])
-			ringQ.CopyLvl(levelQ, ctIn.Value[1], ctOut.Value[1])
+			ring.CopyValuesLvl(levelQ, ctIn.Value[0], ctOut.Value[0])
+			ring.CopyValuesLvl(levelQ, ctIn.Value[1], ctOut.Value[1])
 		}
 	} else {
 
@@ -146,10 +146,10 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 					// ctOut += Rotate((tmpc0, tmpc1), k)
 					if copy {
-						ringQ.CopyLvl(levelQ, pool2Q, ct0OutQ)
-						ringQ.CopyLvl(levelQ, pool3Q, ct1OutQ)
-						ringP.Copy(pool2P, ct0OutP)
-						ringP.Copy(pool3P, ct1OutP)
+						ring.CopyValuesLvl(levelQ, pool2Q, ct0OutQ)
+						ring.CopyValuesLvl(levelQ, pool3Q, ct1OutQ)
+						ring.CopyValues(pool2P, ct0OutP)
+						ring.CopyValues(pool3P, ct1OutP)
 						copy = false
 					} else {
 						ringQ.AddLvl(levelQ, ct0OutQ, pool2Q, ct0OutQ)
@@ -181,8 +181,10 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 						ringQ.AddLvl(levelQ, ct1OutQ, tmpc1, ctOut.Value[1])
 
 					} else {
-						ringQ.CopyLvl(levelQ, tmpc0, ctOut.Value[0])
-						ringQ.CopyLvl(levelQ, tmpc1, ctOut.Value[1])
+						ring.CopyValuesLvl(levelQ, tmpc0, ctOut.Value[0])
+						ring.CopyValuesLvl(levelQ, tmpc1, ctOut.Value[1])
+						ctOut.Value[0].IsNTT = true
+						ctOut.Value[1].IsNTT = true
 					}
 				}
 			}
@@ -224,8 +226,8 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 		// If the input-output points differ, copies on the output
 		if ctIn != ctOut {
-			ringQ.CopyLvl(levelQ, ctIn.Value[0], ctOut.Value[0])
-			ringQ.CopyLvl(levelQ, ctIn.Value[1], ctOut.Value[1])
+			ring.CopyValuesLvl(levelQ, ctIn.Value[0], ctOut.Value[0])
+			ring.CopyValuesLvl(levelQ, ctIn.Value[1], ctOut.Value[1])
 		}
 		// If sum on at least two elements
 	} else {
@@ -279,10 +281,10 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 			j := i * batchSize
 
 			if i == 1 {
-				ringQ.CopyLvl(levelQ, vecRotQ[j][0], tmpQ0)
-				ringQ.CopyLvl(levelQ, vecRotQ[j][1], tmpQ1)
-				ringP.Copy(vecRotP[j][0], pool2P)
-				ringP.Copy(vecRotP[j][1], pool3P)
+				ring.CopyValuesLvl(levelQ, vecRotQ[j][0], tmpQ0)
+				ring.CopyValuesLvl(levelQ, vecRotQ[j][1], tmpQ1)
+				ring.CopyValues(vecRotP[j][0], pool2P)
+				ring.CopyValues(vecRotP[j][1], pool3P)
 			} else {
 				ringQ.AddNoModLvl(levelQ, tmpQ0, vecRotQ[j][0], tmpQ0)
 				ringQ.AddNoModLvl(levelQ, tmpQ1, vecRotQ[j][1], tmpQ1)

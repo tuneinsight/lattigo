@@ -48,7 +48,7 @@ func PermuteNTTIndex(galEl, N uint64) (index []uint64) {
 // It maps the coefficients x^i to x^(gen*i)
 // It must be noted that the result cannot be in-place.
 func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
-	PermuteNTTLvl(minLevelBinary(polIn, polOut), polIn, gen, polOut)
+	PermuteNTTLvl(utils.MinInt(polIn.Level(), polOut.Level()), polIn, gen, polOut)
 }
 
 // PermuteNTTLvl applies the Galois transform on a polynomial in the NTT domain, up to a given level.

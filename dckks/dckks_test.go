@@ -580,7 +580,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 		}
 
 		pt := ckks.NewPlaintext(params, ciphertext.Level(), ciphertext.Scale)
-		pt.IsNTT = false
+		pt.Value.IsNTT = false
 		testCtx.ringQ.SetCoefficientsBigintLvl(pt.Level(), rec.Value, pt.Value)
 
 		verifyTestVectors(testCtx, nil, coeffs, pt, t)

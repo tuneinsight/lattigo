@@ -334,7 +334,7 @@ func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.
 }
 
 func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	encryptor.ringQ.Copy(crp, ciphertext.Value[1])
+	ring.CopyValues(crp, ciphertext.Value[1])
 	ciphertext.Value[0].Coeffs = ciphertext.Value[0].Coeffs[:len(crp.Coeffs)]
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:len(crp.Coeffs)]
 	encryptor.encrypt(plaintext, ciphertext, ciphertext.Value[1])

@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"fmt"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -261,7 +260,7 @@ func (encryptor *skEncryptor) encryptSample(plaintext *Plaintext, ciphertext *Ci
 }
 
 func (encryptor *skEncryptor) encryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	encryptor.ringQ.Copy(crp, encryptor.polypool[1])
+	ring.CopyValues(crp, encryptor.polypool[1])
 	encryptor.encrypt(plaintext, ciphertext, encryptor.polypool[1])
 }
 

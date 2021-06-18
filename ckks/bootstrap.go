@@ -94,7 +94,9 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 
 	ringQ := btp.evaluator.ringQ
 
-	ct.InvNTT(ringQ, ct.Element)
+	for i := range ct.Value {
+		ringQ.InvNTTLvl(ct.Level(), ct.Value[i], ct.Value[i])
+	}
 
 	// Extend the ciphertext with zero polynomials.
 	for u := range ct.Value {
@@ -128,7 +130,9 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 		}
 	}
 
-	ct.NTT(ringQ, ct.Element)
+	for i := range ct.Value {
+		ringQ.NTTLvl(ct.Level(), ct.Value[i], ct.Value[i])
+	}
 
 	return ct
 }

@@ -1,7 +1,6 @@
 package rlwe
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ldsec/lattigo/v2/ring"
@@ -16,7 +15,6 @@ type Ciphertext interface {
 // Plaintext is a common base type for RLWE plaintexts.
 type Plaintext struct {
 	Value *ring.Poly
-	IsNTT bool
 }
 
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)
@@ -74,7 +72,7 @@ func (pt Plaintext) Level() int {
 // El returns the plaintext as a new `Element` for which the value points
 // to the receiver `Value` field.
 func (pt Plaintext) El() *Element {
-	return &Element{Value: []*ring.Poly{pt.Value}, IsNTT: true}
+	return &Element{Value: []*ring.Poly{pt.Value}}
 }
 
 // Copy copies the `other` plaintext value into the reciever plaintext.
@@ -87,7 +85,6 @@ func (pt *Plaintext) Copy(other *Plaintext) {
 // Element is a generic type for ciphertext and plaintexts
 type Element struct {
 	Value []*ring.Poly
-	IsNTT bool
 }
 
 // NewElement returns a new Element with zero values.
@@ -121,6 +118,8 @@ func (el *Element) Level() int {
 }
 
 // Resize resizes the degree of the target element.
+// Sets the NTT flag of the added poly equal to the NTT flag
+// to the poly at degree zero.
 func (el *Element) Resize(params Parameters, degree int) {
 	if el.Degree() > degree {
 		el.Value = el.Value[:degree+1]
@@ -130,34 +129,9 @@ func (el *Element) Resize(params Parameters, degree int) {
 			el.Value[el.Degree()].Coeffs = make([][]uint64, el.Level()+1)
 			for i := 0; i < el.Level()+1; i++ {
 				el.Value[el.Degree()].Coeffs[i] = make([]uint64, params.N())
+				el.Value[el.Degree()].IsNTT = el.Value[0].IsNTT
 			}
 		}
-	}
-}
-
-// NTT puts the target element in the NTT domain and sets its isNTT flag to true. If it is already in the NTT domain, it does nothing.
-func (el *Element) NTT(ringQ *ring.Ring, c *Element) {
-	if el.Degree() != c.Degree() {
-		panic(fmt.Errorf("error: receiver element has invalid degree (it does not match)"))
-	}
-	if !el.IsNTT {
-		for i := range el.Value {
-			ringQ.NTTLvl(el.Level(), el.Value[i], c.Value[i])
-		}
-		c.IsNTT = true
-	}
-}
-
-// InvNTT puts the target element outside of the NTT domain, and sets its isNTT flag to false. If it is not in the NTT domain, it does nothing.
-func (el *Element) InvNTT(ringQ *ring.Ring, c *Element) {
-	if el.Degree() != c.Degree() {
-		panic(fmt.Errorf("error: receiver element invalid degree (it does not match)"))
-	}
-	if el.IsNTT {
-		for i := range el.Value {
-			ringQ.InvNTTLvl(el.Level(), el.Value[i], c.Value[i])
-		}
-		c.IsNTT = false
 	}
 }
 
@@ -171,8 +145,6 @@ func (el *Element) CopyNew() *Element {
 		ctxCopy.Value[i] = el.Value[i].CopyNew()
 	}
 
-	ctxCopy.IsNTT = el.IsNTT
-
 	return ctxCopy
 }
 
@@ -183,8 +155,6 @@ func (el *Element) Copy(ctxCopy *Element) {
 		for i := range ctxCopy.Value {
 			el.Value[i].Copy(ctxCopy.Value[i])
 		}
-
-		el.IsNTT = ctxCopy.IsNTT
 	}
 }
 

@@ -128,6 +128,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 				eval.DecompInternal(levelQ, ctIn.Value[1], eval.C2QiQDecomp, eval.C2QiPDecomp)
 			} else {
 				// Else copies from the rotated input ciphertext
+				tmpc1.IsNTT = true
 				eval.DecompInternal(levelQ, tmpc1, eval.C2QiQDecomp, eval.C2QiPDecomp)
 			}
 
@@ -609,6 +610,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix *PtDiag
 
 			index := eval.permuteNTTIndex[galEl]
 
+			tmpQ1.IsNTT = true
 			eval.SwitchKeysInPlaceNoModDown(levelQ, tmpQ1, rtk, pool2Q, pool2P, pool3Q, pool3P) // Switchkey(phi(tmpRes_1)) = (d0, d1) in base QP
 
 			// Outer loop rotations

@@ -112,7 +112,7 @@ type ParametersLiteral struct {
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
-	t uint64
+	ringT *ring.Ring
 }
 
 // NewParameters instantiate a set of BFV parameters from the generic RLWE parameters and the BFV-specific ones.
@@ -124,7 +124,13 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 	if t > rlweParams.Q()[0] {
 		return Parameters{}, fmt.Errorf("t=%d is larger than Q[0]=%d", t, rlweParams.Q()[0])
 	}
-	return Parameters{rlweParams, t}, nil
+
+	var ringT *ring.Ring
+	if ringT, err = ring.NewRing(rlweParams.N(), []uint64{t}); err != nil {
+		return Parameters{}, err
+	}
+
+	return Parameters{rlweParams, ringT}, nil
 }
 
 // NewParametersFromLiteral instantiate a set of BFV parameters from a ParametersLiteral specification.
@@ -139,22 +145,18 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 
 // T returns the plaintext coefficient modulus t
 func (p Parameters) T() uint64 {
-	return p.t
+	return p.ringT.Modulus[0]
 }
 
-// RingT instantiates a new ring.Ring corresponding to the plaintext space ring R_t.
+// RingT returns a pointer to the plaintext ring
 func (p Parameters) RingT() *ring.Ring {
-	ringQP, err := ring.NewRing(p.N(), []uint64{p.t})
-	if err != nil {
-		panic(err) // Parameter type invariant
-	}
-	return ringQP
+	return p.ringT
 }
 
 // Equals compares two sets of parameters for equality.
 func (p Parameters) Equals(other Parameters) bool {
 	res := p.Parameters.Equals(other.Parameters)
-	res = res && (p.t == other.T())
+	res = res && (p.T() == other.T())
 	return res
 }
 
@@ -178,18 +180,20 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// len(rlweBytes) : RLWE parameters
 	// 8 byte : T
 	var tBytes [8]byte
-	binary.BigEndian.PutUint64(tBytes[:], p.t)
+	binary.BigEndian.PutUint64(tBytes[:], p.T())
 	data := append(rlweBytes, tBytes[:]...)
 	return data, nil
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
-func (p *Parameters) UnmarshalBinary(data []byte) error {
+func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	if err := p.Parameters.UnmarshalBinary(data); err != nil {
 		return err
 	}
 	dataBfv := data[len(data)-8:]
-	p.t = binary.BigEndian.Uint64(dataBfv)
+	if p.ringT, err = ring.NewRing(p.N(), []uint64{binary.BigEndian.Uint64(dataBfv)}); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -200,7 +204,7 @@ func (p Parameters) MarshalBinarySize() int {
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ParametersLiteral{LogN: p.LogN(), Q: p.Q(), P: p.P(), Sigma: p.Sigma(), T: p.t})
+	return json.Marshal(ParametersLiteral{LogN: p.LogN(), Q: p.Q(), P: p.P(), Sigma: p.Sigma(), T: p.T()})
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.

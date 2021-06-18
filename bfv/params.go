@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
@@ -112,7 +113,8 @@ type ParametersLiteral struct {
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
-	ringT *ring.Ring
+	ringQMul *ring.Ring
+	ringT    *ring.Ring
 }
 
 // NewParameters instantiate a set of BFV parameters from the generic RLWE parameters and the BFV-specific ones.
@@ -125,12 +127,18 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		return Parameters{}, fmt.Errorf("t=%d is larger than Q[0]=%d", t, rlweParams.Q()[0])
 	}
 
-	var ringT *ring.Ring
+	var ringQMul, ringT *ring.Ring
+
+	nbQiMul := int(math.Ceil(float64(rlweParams.RingQ().ModulusBigint.BitLen()+rlweParams.LogN()) / 61.0))
+	if ringQMul, err = ring.NewRing(rlweParams.N(), ring.GenerateNTTPrimesP(61, 2*rlweParams.N(), nbQiMul)); err != nil {
+		return Parameters{}, err
+	}
+
 	if ringT, err = ring.NewRing(rlweParams.N(), []uint64{t}); err != nil {
 		return Parameters{}, err
 	}
 
-	return Parameters{rlweParams, ringT}, nil
+	return Parameters{rlweParams, ringQMul, ringT}, nil
 }
 
 // NewParametersFromLiteral instantiate a set of BFV parameters from a ParametersLiteral specification.
@@ -141,6 +149,11 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 		return Parameters{}, err
 	}
 	return NewParameters(rlweParams, pl.T)
+}
+
+// RingQMul returns a pointer to the ring of the extended basis for multiplication
+func (p Parameters) RingQMul() *ring.Ring {
+	return p.ringQMul
 }
 
 // T returns the plaintext coefficient modulus t
@@ -191,6 +204,12 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 		return err
 	}
 	dataBfv := data[len(data)-8:]
+
+	nbQiMul := int(math.Ceil(float64(p.RingQ().ModulusBigint.BitLen()+p.LogN()) / 61.0))
+	if p.ringQMul, err = ring.NewRing(p.N(), ring.GenerateNTTPrimesP(61, 2*p.N(), nbQiMul)); err != nil {
+		return err
+	}
+
 	if p.ringT, err = ring.NewRing(p.N(), []uint64{binary.BigEndian.Uint64(dataBfv)}); err != nil {
 		return err
 	}

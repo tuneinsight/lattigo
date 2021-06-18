@@ -136,7 +136,7 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct rl
 	pcks.baseconverter.ModDownSplitPQ(level, pcks.share1tmpQ, pcks.share1tmpP, shareOut.Value[1])
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-	if el.IsNTT {
+	if el.Value[0].IsNTT {
 		ringQ.NTTLvl(level, shareOut.Value[0], shareOut.Value[0])
 		ringQ.NTTLvl(level, shareOut.Value[1], shareOut.Value[1])
 		ringQ.MulCoeffsMontgomeryAndAddLvl(level, el.Value[1], sk.Value, shareOut.Value[0])
@@ -168,7 +168,7 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
 func (pcks *PCKSProtocol) KeySwitch(combined *PCKSShare, ct, ctOut rlwe.Ciphertext) {
 	el, elOut := ct.RLWEElement(), ctOut.RLWEElement()
 	pcks.ringQ.AddLvl(el.Level(), el.Value[0], combined.Value[0], elOut.Value[0])
-	pcks.ringQ.CopyLvl(el.Level(), combined.Value[1], elOut.Value[1])
+	ring.CopyValuesLvl(el.Level(), combined.Value[1], elOut.Value[1])
 }
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.

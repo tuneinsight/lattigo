@@ -15,7 +15,9 @@ type Ciphertext struct {
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
 func NewCiphertext(params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{Element: rlwe.NewElementAtLevel(params.Parameters, degree, level)}
-	ciphertext.IsNTT = true
+	for _, pol := range ciphertext.Value {
+		pol.IsNTT = true
+	}
 	ciphertext.Scale = scale
 	return ciphertext
 }

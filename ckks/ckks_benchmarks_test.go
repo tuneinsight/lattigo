@@ -331,7 +331,7 @@ func benchHoistedRotations(testContext *testParams, b *testing.B) {
 		b.Run(testString(testContext, "/DecomposeNTT/"), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				for j := 0; j < testContext.params.Beta(); j++ {
-					evaluator.decomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
+					evaluator.DecomposeAndSplitNTT(ciphertext.Level(), j, c2NTT, c2InvNTT, c2QiQDecomp[j], c2QiPDecomp[j])
 				}
 			}
 		})

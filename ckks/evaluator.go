@@ -149,12 +149,11 @@ type Evaluator interface {
 type evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
+	*rlwe.KeySwitcher
 
 	rlk             *rlwe.RelinearizationKey
 	rtks            *rlwe.RotationKeySet
 	permuteNTTIndex map[uint64][]uint64
-
-	baseconverter *ring.FastBasisExtender
 }
 
 type evaluatorBase struct {
@@ -163,17 +162,10 @@ type evaluatorBase struct {
 
 	ringQ *ring.Ring
 	ringP *ring.Ring
-
-	decomposer *ring.Decomposer
 }
 
 type evaluatorBuffers struct {
-	poolQ       [6]*ring.Poly // Memory pool in order : Decomp(c2), for NTT^-1(c2), res(c0', c1')
-	poolP       [6]*ring.Poly // Memory pool in order : Decomp(c2), res(c0', c1')
 	poolQMul    [3]*ring.Poly // Memory pool in order : for MForm(c0), MForm(c1), c2
-	poolInvNTT  *ring.Poly
-	c2QiQDecomp []*ring.Poly // Memory pool for the basis extension in hoisting
-	c2QiPDecomp []*ring.Poly // Memory pool for the basis extension in hoisting
 	ctxpool     *Ciphertext  // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
 }
 
@@ -182,31 +174,15 @@ func newEvaluatorBase(params Parameters) *evaluatorBase {
 	ev.params = params
 	ev.scale = params.Scale()
 	ev.ringQ = params.RingQ()
+	ev.ringP = params.RingP()
 
-	if params.PCount() != 0 {
-		ev.ringP = params.RingP()
-		ev.decomposer = ring.NewDecomposer(ev.ringQ.Modulus, ev.ringP.Modulus)
-	}
 	return ev
 }
 
 func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 	buff := new(evaluatorBuffers)
-	ringQ, ringP := evalBase.ringQ, evalBase.ringP
-	buff.poolQ = [6]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
+	ringQ := evalBase.ringQ
 	buff.poolQMul = [3]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
-	if evalBase.params.PCount() > 0 {
-		buff.poolP = [6]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
-
-		buff.c2QiQDecomp = make([]*ring.Poly, evalBase.params.Beta())
-		buff.c2QiPDecomp = make([]*ring.Poly, evalBase.params.Beta())
-
-		for i := 0; i < evalBase.params.Beta(); i++ {
-			buff.c2QiQDecomp[i] = ringQ.NewPoly()
-			buff.c2QiPDecomp[i] = ringP.NewPoly()
-		}
-	}
-	buff.poolInvNTT = ringQ.NewPoly()
 	buff.ctxpool = NewCiphertext(evalBase.params, 2, evalBase.params.MaxLevel(), evalBase.params.Scale())
 	return buff
 }
@@ -226,7 +202,7 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	}
 
 	if params.PCount() != 0 {
-		eval.baseconverter = ring.NewFastBasisExtender(eval.ringQ, eval.ringP)
+		eval.KeySwitcher = rlwe.NewKeySwitcher(params.Parameters)
 	}
 
 	return eval
@@ -249,11 +225,11 @@ func (eval *evaluator) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[u
 func (eval *evaluator) ShallowCopy() Evaluator {
 	return &evaluator{
 		evaluatorBase:    eval.evaluatorBase,
+		KeySwitcher:	  eval.KeySwitcher.ShallowCopy(),
 		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
 		rlk:              eval.rlk,
 		rtks:             eval.rtks,
 		permuteNTTIndex:  eval.permuteNTTIndex,
-		baseconverter:    eval.baseconverter.ShallowCopy(),
 	}
 }
 
@@ -267,12 +243,12 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 		indexes = *eval.permuteNTTIndexesForKey(evaluationKey.Rtks)
 	}
 	return &evaluator{
+		KeySwitcher:	  eval.KeySwitcher,
 		evaluatorBase:    eval.evaluatorBase,
 		evaluatorBuffers: eval.evaluatorBuffers,
 		rlk:              evaluationKey.Rlk,
 		rtks:             evaluationKey.Rtks,
 		permuteNTTIndex:  indexes,
-		baseconverter:    eval.baseconverter,
 	}
 }
 
@@ -1448,9 +1424,9 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		}
 
 		if relin {
-			eval.SwitchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.poolQ[1], eval.poolQ[2])
-			ringQ.AddLvl(level, c0, eval.poolQ[1], ctOut.Value[0])
-			ringQ.AddLvl(level, c1, eval.poolQ[2], ctOut.Value[1])
+			eval.SwitchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.PoolQ[1], eval.PoolQ[2])
+			ringQ.AddLvl(level, c0, eval.PoolQ[1], ctOut.Value[0])
+			ringQ.AddLvl(level, c1, eval.PoolQ[2], ctOut.Value[1])
 		}
 
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
@@ -1495,10 +1471,10 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	ringQ := eval.ringQ
 
-	eval.SwitchKeysInPlace(level, ct0.Value[2], eval.rlk.Keys[0], eval.poolQ[1], eval.poolQ[2])
+	eval.SwitchKeysInPlace(level, ct0.Value[2], eval.rlk.Keys[0], eval.PoolQ[1], eval.PoolQ[2])
 
-	ringQ.AddLvl(level, ct0.Value[0], eval.poolQ[1], ctOut.Value[0])
-	ringQ.AddLvl(level, ct0.Value[1], eval.poolQ[2], ctOut.Value[1])
+	ringQ.AddLvl(level, ct0.Value[0], eval.PoolQ[1], ctOut.Value[0])
+	ringQ.AddLvl(level, ct0.Value[1], eval.PoolQ[2], ctOut.Value[1])
 
 	ctOut.El().Resize(eval.params.Parameters, 1)
 }
@@ -1526,10 +1502,10 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *rlwe.SwitchingK
 
 	ctOut.Scale = ct0.Scale
 
-	eval.SwitchKeysInPlace(level, ct0.Value[1], switchingKey, eval.poolQ[1], eval.poolQ[2])
+	eval.SwitchKeysInPlace(level, ct0.Value[1], switchingKey, eval.PoolQ[1], eval.PoolQ[2])
 
-	ringQ.AddLvl(level, ct0.Value[0], eval.poolQ[1], ctOut.Value[0])
-	ringQ.CopyLvl(level, eval.poolQ[2], ctOut.Value[1])
+	ringQ.AddLvl(level, ct0.Value[0], eval.PoolQ[1], ctOut.Value[0])
+	ringQ.CopyLvl(level, eval.PoolQ[2], ctOut.Value[1])
 }
 
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
@@ -1591,8 +1567,8 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	index := eval.permuteNTTIndex[galEl]
-	pool2Q := eval.poolQ[1]
-	pool3Q := eval.poolQ[2]
+	pool2Q := eval.PoolQ[1]
+	pool3Q := eval.PoolQ[2]
 
 	eval.SwitchKeysInPlace(level, ct0.Value[1], rtk, pool2Q, pool3Q)
 
@@ -1626,11 +1602,11 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []int, 
 
 func (eval *evaluator) permuteNTTHoistedNoModDown(level int, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
 
-	pool2Q := eval.poolQ[0]
-	pool3Q := eval.poolQ[1]
+	pool2Q := eval.PoolQ[0]
+	pool3Q := eval.PoolQ[1]
 
-	pool2P := eval.poolP[0]
-	pool3P := eval.poolP[1]
+	pool2P := eval.PoolP[0]
+	pool3P := eval.PoolP[1]
 
 	levelQ := level
 	levelP := eval.params.PCount() - 1
@@ -1644,146 +1620,13 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(level int, c2QiQDecomp, c2QiPD
 	}
 	index := eval.permuteNTTIndex[galEl]
 
-	eval.keyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)
+	eval.KeyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
 	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ct0OutQ)
 	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ct1OutQ)
 
 	ring.PermuteNTTWithIndexLvl(levelP, pool2P, index, ct0OutP)
 	ring.PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
-}
-
-func (eval *evaluator) SwitchKeysInPlaceNoModDown(level int, cx *ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
-
-	var reduce int
-
-	ringQ := eval.ringQ
-	ringP := eval.ringP
-
-	// Pointers allocation
-	c2QiQ := eval.poolQ[0]
-	c2QiP := eval.poolP[0]
-
-	c2 := eval.poolInvNTT
-
-	evakey0Q := new(ring.Poly)
-	evakey1Q := new(ring.Poly)
-	evakey0P := new(ring.Poly)
-	evakey1P := new(ring.Poly)
-
-	// We switch the element on which the switching key operation will be conducted out of the NTT domain
-
-	ringQ.InvNTTLvl(level, cx, c2)
-
-	reduce = 0
-
-	alpha := eval.params.PCount()
-	beta := int(math.Ceil(float64(level+1) / float64(alpha)))
-
-	QiOverF := eval.params.QiOverflowMargin(level) >> 1
-	PiOverF := eval.params.PiOverflowMargin() >> 1
-
-	// Key switching with CRT decomposition for the Qi
-	for i := 0; i < beta; i++ {
-
-		eval.decomposeAndSplitNTT(level, i, cx, c2, c2QiQ, c2QiP)
-
-		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = evakey.Value[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = evakey.Value[i][0].Coeffs[len(ringQ.Modulus):]
-		evakey1P.Coeffs = evakey.Value[i][1].Coeffs[len(ringQ.Modulus):]
-
-		if i == 0 {
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey0Q, c2QiQ, pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey1Q, c2QiQ, pool3Q)
-			ringP.MulCoeffsMontgomeryConstant(evakey0P, c2QiP, pool2P)
-			ringP.MulCoeffsMontgomeryConstant(evakey1P, c2QiP, pool3P)
-		} else {
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey0Q, c2QiQ, pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey1Q, c2QiQ, pool3Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey0P, c2QiP, pool2P)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey1P, c2QiP, pool3P)
-		}
-
-		if reduce%QiOverF == QiOverF-1 {
-			ringQ.ReduceLvl(level, pool2Q, pool2Q)
-			ringQ.ReduceLvl(level, pool3Q, pool3Q)
-		}
-
-		if reduce%PiOverF == PiOverF-1 {
-			ringP.Reduce(pool2P, pool2P)
-			ringP.Reduce(pool3P, pool3P)
-		}
-
-		reduce++
-	}
-
-	if reduce%QiOverF != 0 {
-		ringQ.ReduceLvl(level, pool2Q, pool2Q)
-		ringQ.ReduceLvl(level, pool3Q, pool3Q)
-	}
-
-	if reduce%PiOverF != 0 {
-		ringP.Reduce(pool2P, pool2P)
-		ringP.Reduce(pool3P, pool3P)
-	}
-}
-
-// SwitchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
-func (eval *evaluator) SwitchKeysInPlace(level int, cx *ring.Poly, evakey *rlwe.SwitchingKey, p0, p1 *ring.Poly) {
-
-	eval.SwitchKeysInPlaceNoModDown(level, cx, evakey, p0, eval.poolP[1], p1, eval.poolP[2])
-
-	eval.baseconverter.ModDownSplitNTTPQ(level, p0, eval.poolP[1], p0)
-	eval.baseconverter.ModDownSplitNTTPQ(level, p1, eval.poolP[2], p1)
-}
-
-func (eval *evaluator) DecompInternal(levelQ int, c2NTT *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly) {
-
-	ringQ := eval.ringQ
-
-	c2InvNTT := eval.poolInvNTT
-	ringQ.InvNTTLvl(levelQ, c2NTT, c2InvNTT)
-
-	alpha := eval.params.PCount()
-	beta := int(math.Ceil(float64(levelQ+1) / float64(alpha)))
-
-	for i := 0; i < beta; i++ {
-		eval.decomposeAndSplitNTT(levelQ, i, c2NTT, c2InvNTT, c2QiQDecomp[i], c2QiPDecomp[i])
-	}
-}
-
-// decomposeAndSplitNTT decomposes the input polynomial into the target CRT basis.
-func (eval *evaluator) decomposeAndSplitNTT(level, beta int, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly) {
-
-	ringQ := eval.ringQ
-	ringP := eval.ringP
-
-	eval.decomposer.DecomposeAndSplit(level, beta, c2InvNTT, c2QiQ, c2QiP)
-
-	p0idxst := beta * eval.params.PCount()
-	p0idxed := p0idxst + eval.decomposer.Xalpha()[beta]
-
-	// c2_qi = cx mod qi mod qi
-	for x := 0; x < level+1; x++ {
-
-		qi := ringQ.Modulus[x]
-		nttPsi := ringQ.NttPsi[x]
-		bredParams := ringQ.BredParams[x]
-		mredParams := ringQ.MredParams[x]
-
-		if p0idxst <= x && x < p0idxed {
-			p0tmp := c2NTT.Coeffs[x]
-			p1tmp := c2QiQ.Coeffs[x]
-			for j := 0; j < ringQ.N; j++ {
-				p1tmp[j] = p0tmp[j]
-			}
-		} else {
-			ring.NTTLazy(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x], ringQ.N, nttPsi, qi, mredParams, bredParams)
-		}
-	}
-	// c2QiP = c2 mod qi mod pj
-	ringP.NTTLazy(c2QiP, c2QiP)
 }
 
 func (eval *evaluator) permuteNTTHoisted(level int, c0, c1 *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, cOut0, cOut1 *ring.Poly) {
@@ -1802,86 +1645,16 @@ func (eval *evaluator) permuteNTTHoisted(level int, c0, c1 *ring.Poly, c2QiQDeco
 
 	index := eval.permuteNTTIndex[galEl]
 
-	pool2Q := eval.poolQ[0]
-	pool3Q := eval.poolQ[1]
+	pool2Q := eval.PoolQ[0]
+	pool3Q := eval.PoolQ[1]
 
-	pool2P := eval.poolP[0]
-	pool3P := eval.poolP[1]
+	pool2P := eval.PoolP[0]
+	pool3P := eval.PoolP[1]
 
-	eval.keyswitchHoisted(level, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)
+	eval.KeyswitchHoisted(level, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
 	eval.ringQ.AddLvl(level, pool2Q, c0, pool2Q)
 
 	ring.PermuteNTTWithIndexLvl(level, pool2Q, index, cOut0)
 	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, cOut1)
-}
-
-func (eval *evaluator) keyswitchHoisted(level int, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
-
-	eval.keyswitchHoistedNoModDown(level, c2QiQDecomp, c2QiPDecomp, evakey, pool2Q, pool3Q, pool2P, pool3P)
-
-	// Computes pool2Q = pool2Q/pool2P and pool3Q = pool3Q/pool3P
-	eval.baseconverter.ModDownSplitNTTPQ(level, pool2Q, pool2P, pool2Q)
-	eval.baseconverter.ModDownSplitNTTPQ(level, pool3Q, pool3P, pool3Q)
-}
-
-func (eval *evaluator) keyswitchHoistedNoModDown(level int, c2QiQDecomp, c2QiPDecomp []*ring.Poly, evakey *rlwe.SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
-
-	ringQ := eval.ringQ
-	ringP := eval.ringP
-
-	alpha := eval.params.PCount()
-	beta := int(math.Ceil(float64(level+1) / float64(alpha)))
-
-	evakey0Q := new(ring.Poly)
-	evakey1Q := new(ring.Poly)
-	evakey0P := new(ring.Poly)
-	evakey1P := new(ring.Poly)
-
-	QiOverF := eval.params.QiOverflowMargin(level) >> 1
-	PiOverF := eval.params.PiOverflowMargin() >> 1
-
-	// Key switching with CRT decomposition for the Qi
-	var reduce int
-	for i := 0; i < beta; i++ {
-
-		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = evakey.Value[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = evakey.Value[i][0].Coeffs[len(ringQ.Modulus):]
-		evakey1P.Coeffs = evakey.Value[i][1].Coeffs[len(ringQ.Modulus):]
-
-		if i == 0 {
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey0Q, c2QiQDecomp[i], pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey1Q, c2QiQDecomp[i], pool3Q)
-			ringP.MulCoeffsMontgomeryConstant(evakey0P, c2QiPDecomp[i], pool2P)
-			ringP.MulCoeffsMontgomeryConstant(evakey1P, c2QiPDecomp[i], pool3P)
-		} else {
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey0Q, c2QiQDecomp[i], pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey1Q, c2QiQDecomp[i], pool3Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey0P, c2QiPDecomp[i], pool2P)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey1P, c2QiPDecomp[i], pool3P)
-		}
-
-		if reduce%QiOverF == QiOverF-1 {
-			ringQ.ReduceLvl(level, pool2Q, pool2Q)
-			ringQ.ReduceLvl(level, pool3Q, pool3Q)
-		}
-
-		if reduce%PiOverF == PiOverF-1 {
-			ringP.Reduce(pool2P, pool2P)
-			ringP.Reduce(pool3P, pool3P)
-		}
-
-		reduce++
-	}
-
-	if reduce%QiOverF != 0 {
-		ringQ.ReduceLvl(level, pool2Q, pool2Q)
-		ringQ.ReduceLvl(level, pool3Q, pool3Q)
-	}
-
-	if reduce%PiOverF != 0 {
-		ringP.Reduce(pool2P, pool2P)
-		ringP.Reduce(pool3P, pool3P)
-	}
 }

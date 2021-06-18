@@ -380,7 +380,7 @@ func (r *Ring) DivFloorByLastModulusManyNTT(p0, p1 *Poly, nbRescales int) {
 	if nbRescales == 0 {
 
 		if p0 != p1 {
-			r.CopyLvl(p1.Level(), p0, p1)
+			CopyValuesLvl(p1.Level(), p0, p1)
 		}
 
 	} else {
@@ -406,7 +406,7 @@ func (r *Ring) DivFloorByLastModulusMany(p0, p1 *Poly, nbRescales int) {
 	if nbRescales == 0 {
 
 		if p0 != p1 {
-			r.CopyLvl(p1.Level(), p0, p1)
+			CopyValuesLvl(p1.Level(), p0, p1)
 		}
 
 	} else {
@@ -586,7 +586,7 @@ func (r *Ring) DivRoundByLastModulusManyNTT(p0, p1 *Poly, nbRescales int) {
 	if nbRescales == 0 {
 
 		if p0 != p1 {
-			r.CopyLvl(p1.Level(), p0, p1)
+			CopyValuesLvl(p1.Level(), p0, p1)
 		}
 
 	} else {
@@ -618,7 +618,7 @@ func (r *Ring) DivRoundByLastModulusMany(p0, p1 *Poly, nbRescales int) {
 	if nbRescales == 0 {
 
 		if p0 != p1 {
-			r.CopyLvl(p1.Level(), p0, p1)
+			CopyValuesLvl(p1.Level(), p0, p1)
 		}
 
 	} else {

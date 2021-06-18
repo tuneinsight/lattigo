@@ -467,11 +467,11 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut Operand, evaluate func(int,
 
 	if c0.Degree() > c1.Degree() && tmp0 != ctOut.El() {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
-			eval.ringQ.CopyLvl(level, tmp0.Value[i], ctOut.El().Value[i])
+			ring.CopyValuesLvl(level, tmp0.Value[i], ctOut.El().Value[i])
 		}
 	} else if c1.Degree() > c0.Degree() && tmp1 != ctOut.El() {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
-			eval.ringQ.CopyLvl(level, tmp1.Value[i], ctOut.El().Value[i])
+			ring.CopyValuesLvl(level, tmp1.Value[i], ctOut.El().Value[i])
 		}
 	}
 }
@@ -1503,7 +1503,7 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *rlwe.SwitchingK
 	eval.SwitchKeysInPlace(level, ct0.Value[1], switchingKey, eval.PoolQ[1], eval.PoolQ[2])
 
 	ringQ.AddLvl(level, ct0.Value[0], eval.PoolQ[1], ctOut.Value[0])
-	ringQ.CopyValuesLvl(level, eval.PoolQ[2], ctOut.Value[1])
+	ring.CopyValuesLvl(level, eval.PoolQ[2], ctOut.Value[1])
 }
 
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.

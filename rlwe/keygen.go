@@ -59,35 +59,6 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 	}
 }
 
-// GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
-func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey) {
-
-	if keygen.ringQP == nil {
-		panic("modulus P is empty")
-	}
-
-	evk = new(RelinearizationKey)
-	evk.Keys = make([]*SwitchingKey, maxDegree)
-	for i := range evk.Keys {
-		evk.Keys[i] = NewSwitchingKey(keygen.params)
-	}
-
-	keygen.polypool[0].Copy(sk.Value) // TODO Remove ?
-
-	ringQP := keygen.ringQP
-
-	keygen.polypool[1].Copy(sk.Value)
-	for i := 0; i < maxDegree; i++ {
-		ringQP.MulCoeffsMontgomery(keygen.polypool[1], sk.Value, keygen.polypool[1])
-		keygen.newSwitchingKey(keygen.polypool[1], sk.Value, evk.Keys[i])
-	}
-
-	keygen.polypool[0].Zero()
-	keygen.polypool[1].Zero()
-
-	return
-}
-
 // GenSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
 func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 	return keygen.GenSecretKeyWithDistrib(1.0 / 3)
@@ -160,6 +131,35 @@ func (keygen *keyGenerator) GenKeyPairSparse(hw int) (sk *SecretKey, pk *PublicK
 	return sk, keygen.GenPublicKey(sk)
 }
 
+// GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
+func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey) {
+
+	if keygen.ringQP == nil {
+		panic("modulus P is empty")
+	}
+
+	evk = new(RelinearizationKey)
+	evk.Keys = make([]*SwitchingKey, maxDegree)
+	for i := range evk.Keys {
+		evk.Keys[i] = NewSwitchingKey(keygen.params)
+	}
+
+	keygen.polypool[0].CopyValues(sk.Value) // TODO Remove ?
+
+	ringQP := keygen.ringQP
+
+	keygen.polypool[1].CopyValues(sk.Value)
+	for i := 0; i < maxDegree; i++ {
+		ringQP.MulCoeffsMontgomery(keygen.polypool[1], sk.Value, keygen.polypool[1])
+		keygen.newSwitchingKey(keygen.polypool[1], sk.Value, evk.Keys[i])
+	}
+
+	keygen.polypool[0].Zero()
+	keygen.polypool[1].Zero()
+
+	return
+}
+
 // GenRotationKeys generates a RotationKeySet from a list of galois element corresponding to the desired rotations
 // See also GenRotationKeysForRotations.
 func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet) {
@@ -198,7 +198,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newev
 		panic("Cannot GenSwitchingKey: modulus P is empty")
 	}
 
-	keygen.ringQP.Copy(skInput.Value, keygen.polypool[0])
+	ring.CopyValues(skInput.Value, keygen.polypool[0])
 	newevakey = NewSwitchingKey(keygen.params)
 	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Value, newevakey)
 	keygen.polypool[0].Zero()

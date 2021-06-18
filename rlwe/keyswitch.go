@@ -65,10 +65,23 @@ func (ks *KeySwitcher) ShallowCopy() *KeySwitcher {
 }
 
 // SwitchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
+// Will return the result in the same NTT domain as the input cx.
 func (ks *KeySwitcher) SwitchKeysInPlace(level int, cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
 	ks.SwitchKeysInPlaceNoModDown(level, cx, evakey, p0, ks.PoolP[1], p1, ks.PoolP[2])
-	ks.Baseconverter.ModDownSplitNTTPQ(level, p0, ks.PoolP[1], p0)
-	ks.Baseconverter.ModDownSplitNTTPQ(level, p1, ks.PoolP[2], p1)
+
+	if cx.IsNTT {
+		ks.Baseconverter.ModDownSplitNTTPQ(level, p0, ks.PoolP[1], p0)
+		ks.Baseconverter.ModDownSplitNTTPQ(level, p1, ks.PoolP[2], p1)
+	} else {
+
+		ks.ringQ.InvNTTLazyLvl(level, p0, p0)
+		ks.ringQ.InvNTTLazyLvl(level, p1, p1)
+		ks.ringP.InvNTTLazy(ks.PoolP[1], ks.PoolP[1])
+		ks.ringP.InvNTTLazy(ks.PoolP[2], ks.PoolP[2])
+
+		ks.Baseconverter.ModDownSplitPQ(level, p0, ks.PoolP[1], p0)
+		ks.Baseconverter.ModDownSplitPQ(level, p1, ks.PoolP[2], p1)
+	}
 }
 
 // DecompInternal applies the full RNS basis decomposition for all q_alpha_i on c2.
@@ -148,7 +161,7 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(level int, cx *ring.Poly, evak
 	} else {
 		cxNTT = ks.PoolInvNTT
 		cxInvNTT = cx
-		ringQ.InvNTTLvl(level, cxInvNTT, cxNTT)
+		ringQ.NTTLvl(level, cxInvNTT, cxNTT)
 	}
 
 	evakey0Q := new(ring.Poly)

@@ -8,17 +8,17 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-func minLevelTernary(p1, p2, p3 *Poly) int {
-	return utils.MinInt(p1.Level(), utils.MinInt(p2.Level(), p3.Level()))
+func (r *Ring) minLevelTernary(p1, p2, p3 *Poly) int {
+	return utils.MinInt(utils.MinInt(len(r.Modulus)-1, p1.Level()), utils.MinInt(p2.Level(), p3.Level()))
 }
 
-func minLevelBinary(p1, p2 *Poly) int {
-	return utils.MinInt(p1.Level(), p2.Level())
+func (r *Ring) minLevelBinary(p1, p2 *Poly) int {
+	return utils.MinInt(utils.MinInt(len(r.Modulus)-1, p1.Level()), p2.Level())
 }
 
 // Add adds p1 to p2 coefficient-wise and writes the result on p3.
 func (r *Ring) Add(p1, p2, p3 *Poly) {
-	r.AddLvl(minLevelTernary(p1, p2, p3), p1, p2, p3)
+	r.AddLvl(r.minLevelTernary(p1, p2, p3), p1, p2, p3)
 }
 
 // AddLvl adds p1 to p2 coefficient-wise for the moduli from
@@ -48,7 +48,7 @@ func (r *Ring) AddLvl(level int, p1, p2, p3 *Poly) {
 // AddNoMod adds p1 to p2 coefficient-wise without
 // modular reduction and writes the result on p3.
 func (r *Ring) AddNoMod(p1, p2, p3 *Poly) {
-	r.AddNoModLvl(minLevelTernary(p1, p2, p3), p1, p2, p3)
+	r.AddNoModLvl(r.minLevelTernary(p1, p2, p3), p1, p2, p3)
 }
 
 // AddNoModLvl adds p1 to p2 coefficient-wise without modular reduction
@@ -76,7 +76,7 @@ func (r *Ring) AddNoModLvl(level int, p1, p2, p3 *Poly) {
 
 // Sub subtracts p2 to p1 coefficient-wise and writes the result on p3.
 func (r *Ring) Sub(p1, p2, p3 *Poly) {
-	r.SubLvl(minLevelTernary(p1, p2, p3), p1, p2, p3)
+	r.SubLvl(r.minLevelTernary(p1, p2, p3), p1, p2, p3)
 }
 
 // SubLvl subtracts p2 to p1 coefficient-wise and writes the result on p3.
@@ -105,7 +105,7 @@ func (r *Ring) SubLvl(level int, p1, p2, p3 *Poly) {
 // SubNoMod subtracts p2 to p1 coefficient-wise without
 // modular reduction and returns the result on p3.
 func (r *Ring) SubNoMod(p1, p2, p3 *Poly) {
-	r.SubNoModLvl(minLevelTernary(p1, p2, p3), p1, p2, p3)
+	r.SubNoModLvl(r.minLevelTernary(p1, p2, p3), p1, p2, p3)
 }
 
 // SubNoModLvl subtracts p2 to p1 coefficient-wise without modular reduction
@@ -134,7 +134,7 @@ func (r *Ring) SubNoModLvl(level int, p1, p2, p3 *Poly) {
 
 // Neg sets all coefficients of p1 to their additive inverse and writes the result on p2.
 func (r *Ring) Neg(p1, p2 *Poly) {
-	r.NegLvl(minLevelBinary(p1, p2), p1, p2)
+	r.NegLvl(r.minLevelBinary(p1, p2), p1, p2)
 }
 
 // NegLvl sets the coefficients of p1 to their additive inverse for
@@ -162,7 +162,7 @@ func (r *Ring) NegLvl(level int, p1, p2 *Poly) {
 
 // Reduce applies a modular reduction on the coefficients of p1 and writes the result on p2.
 func (r *Ring) Reduce(p1, p2 *Poly) {
-	r.ReduceLvl(minLevelBinary(p1, p2), p1, p2)
+	r.ReduceLvl(r.minLevelBinary(p1, p2), p1, p2)
 }
 
 // ReduceLvl applies a modular reduction on the coefficients of p1
@@ -192,7 +192,7 @@ func (r *Ring) ReduceLvl(level int, p1, p2 *Poly) {
 // ReduceConstant applies a modular reduction on the coefficients of p1 and writes the result on p2.
 // Return values in [0, 2q-1]
 func (r *Ring) ReduceConstant(p1, p2 *Poly) {
-	r.ReduceConstantLvl(minLevelBinary(p1, p2), p1, p2)
+	r.ReduceConstantLvl(r.minLevelBinary(p1, p2), p1, p2)
 }
 
 // ReduceConstantLvl applies a modular reduction on the coefficients of p1
@@ -317,7 +317,7 @@ func (r *Ring) MulCoeffsAndAddNoMod(p1, p2, p3 *Poly) {
 // MulCoeffsMontgomery multiplies p1 by p2 coefficient-wise with a
 // Montgomery modular reduction and returns the result on p3.
 func (r *Ring) MulCoeffsMontgomery(p1, p2, p3 *Poly) {
-	r.MulCoeffsMontgomeryLvl(minLevelTernary(p1, p2, p3), p1, p2, p3)
+	r.MulCoeffsMontgomeryLvl(r.minLevelTernary(p1, p2, p3), p1, p2, p3)
 }
 
 // MulCoeffsMontgomeryLvl multiplies p1 by p2 coefficient-wise with a Montgomery
@@ -348,7 +348,7 @@ func (r *Ring) MulCoeffsMontgomeryLvl(level int, p1, p2, p3 *Poly) {
 // MulCoeffsMontgomeryConstant multiplies p1 by p2 coefficient-wise with a
 // constant-time Montgomery modular reduction and writes the result on p3.
 func (r *Ring) MulCoeffsMontgomeryConstant(p1, p2, p3 *Poly) {
-	r.MulCoeffsMontgomeryConstantLvl(minLevelTernary(p1, p2, p3), p1, p2, p3)
+	r.MulCoeffsMontgomeryConstantLvl(r.minLevelTernary(p1, p2, p3), p1, p2, p3)
 }
 
 // MulCoeffsMontgomeryConstantLvl multiplies p1 by p2 coefficient-wise with a Montgomery
@@ -379,7 +379,7 @@ func (r *Ring) MulCoeffsMontgomeryConstantLvl(level int, p1, p2, p3 *Poly) {
 // MulCoeffsMontgomeryAndAdd multiplies p1 by p2 coefficient-wise with a
 // Montgomery modular reduction and adds the result to p3.
 func (r *Ring) MulCoeffsMontgomeryAndAdd(p1, p2, p3 *Poly) {
-	r.MulCoeffsMontgomeryAndAddLvl(minLevelTernary(p1, p2, p3), p1, p2, p3)
+	r.MulCoeffsMontgomeryAndAddLvl(r.minLevelTernary(p1, p2, p3), p1, p2, p3)
 }
 
 // MulCoeffsMontgomeryAndAddLvl multiplies p1 by p2 coefficient-wise with a Montgomery
@@ -410,7 +410,7 @@ func (r *Ring) MulCoeffsMontgomeryAndAddLvl(level int, p1, p2, p3 *Poly) {
 // MulCoeffsMontgomeryAndAddNoMod multiplies p1 by p2 coefficient-wise with a
 // Montgomery modular reduction and adds the result to p3 without modular reduction.
 func (r *Ring) MulCoeffsMontgomeryAndAddNoMod(p1, p2, p3 *Poly) {
-	r.MulCoeffsMontgomeryAndAddNoModLvl(minLevelTernary(p1, p2, p3), p1, p2, p3)
+	r.MulCoeffsMontgomeryAndAddNoModLvl(r.minLevelTernary(p1, p2, p3), p1, p2, p3)
 }
 
 // MulCoeffsMontgomeryAndAddNoModLvl multiplies p1 by p2 coefficient-wise with a Montgomery modular
@@ -442,7 +442,7 @@ func (r *Ring) MulCoeffsMontgomeryAndAddNoModLvl(level int, p1, p2, p3 *Poly) {
 // Montgomery modular reduction and adds the result to p3 without modular reduction.
 // Return values in [0, 3q-1]
 func (r *Ring) MulCoeffsMontgomeryConstantAndAddNoMod(p1, p2, p3 *Poly) {
-	r.MulCoeffsMontgomeryConstantAndAddNoModLvl(minLevelTernary(p1, p2, p3), p1, p2, p3)
+	r.MulCoeffsMontgomeryConstantAndAddNoModLvl(r.minLevelTernary(p1, p2, p3), p1, p2, p3)
 }
 
 // MulCoeffsMontgomeryConstantAndAddNoModLvl multiplies p1 by p2 coefficient-wise with a constant-time Montgomery
@@ -474,7 +474,7 @@ func (r *Ring) MulCoeffsMontgomeryConstantAndAddNoModLvl(level int, p1, p2, p3 *
 // MulCoeffsMontgomeryAndSub multiplies p1 by p2 coefficient-wise with
 // a Montgomery modular reduction and subtracts the result from p3.
 func (r *Ring) MulCoeffsMontgomeryAndSub(p1, p2, p3 *Poly) {
-	r.MulCoeffsMontgomeryAndSubLvl(minLevelTernary(p1, p2, p3), p1, p2, p3)
+	r.MulCoeffsMontgomeryAndSubLvl(r.minLevelTernary(p1, p2, p3), p1, p2, p3)
 }
 
 // MulCoeffsMontgomeryAndSubLvl multiplies p1 by p2 coefficient-wise with
@@ -640,7 +640,7 @@ func (r *Ring) SubScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 
 // MulScalar multiplies each coefficient of p1 by a scalar and writes the result on p2.
 func (r *Ring) MulScalar(p1 *Poly, scalar uint64, p2 *Poly) {
-	r.MulScalarLvl(minLevelBinary(p1, p2), p1, scalar, p2)
+	r.MulScalarLvl(r.minLevelBinary(p1, p2), p1, scalar, p2)
 }
 
 // MulScalarLvl multiplies each coefficient of p1 by a scalar for the moduli from q_0 up to q_level and writes the result on p2.
@@ -669,7 +669,7 @@ func (r *Ring) MulScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 
 // MulScalarBigint multiplies each coefficient of p1 by a big.Int scalar and writes the result on p2.
 func (r *Ring) MulScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
-	r.MulScalarBigintLvl(minLevelBinary(p1, p2), p1, scalar, p2)
+	r.MulScalarBigintLvl(r.minLevelBinary(p1, p2), p1, scalar, p2)
 }
 
 // MulScalarBigintLvl multiplies each coefficient of p1 by a big.Int scalar
@@ -709,7 +709,7 @@ func (r *Ring) Shift(p1 *Poly, n int, p2 *Poly) {
 
 // MForm switches p1 to the Montgomery domain and writes the result on p2.
 func (r *Ring) MForm(p1, p2 *Poly) {
-	r.MFormLvl(minLevelBinary(p1, p2), p1, p2)
+	r.MFormLvl(r.minLevelBinary(p1, p2), p1, p2)
 }
 
 // MFormLvl switches p1 to the Montgomery domain for the moduli from q_0 up to q_level and writes the result on p2.
@@ -737,7 +737,7 @@ func (r *Ring) MFormLvl(level int, p1, p2 *Poly) {
 
 // InvMForm switches back p1 from the Montgomery domain to the conventional domain and writes the result on p2.
 func (r *Ring) InvMForm(p1, p2 *Poly) {
-	r.InvMFormLvl(minLevelBinary(p1, p2), p1, p2)
+	r.InvMFormLvl(r.minLevelBinary(p1, p2), p1, p2)
 }
 
 // InvMFormLvl switches back p1 from the Montgomery domain to the conventional domain and writes the result on p2.
@@ -771,7 +771,7 @@ func (r *Ring) MulByPow2New(p1 *Poly, pow2 int) (p2 *Poly) {
 
 // MulByPow2 multiplies p1 by 2^pow2 and writes the result on p2.
 func (r *Ring) MulByPow2(p1 *Poly, pow2 int, p2 *Poly) {
-	r.MulByPow2Lvl(minLevelBinary(p1, p2), p1, pow2, p2)
+	r.MulByPow2Lvl(r.minLevelBinary(p1, p2), p1, pow2, p2)
 }
 
 // MulByPow2Lvl multiplies p1 by 2^pow2 for the moduli from q_0 up to q_level and writes the result on p2.

@@ -66,16 +66,16 @@ func (pol *Poly) CopyNew() (p1 *Poly) {
 // CopyValues copies the coefficients of p0 on p1 within the given Ring. It requires p1 to be at least as big p0.
 // Expects the degree of both polynomials to be identical.
 // Does not transfer the IsNTT and IsMForm flags.
-func (r *Ring) CopyValues(p0, p1 *Poly) {
-	r.CopyValuesLvl(minLevelBinary(p0, p1), p0, p1)
+func CopyValues(p0, p1 *Poly) {
+	CopyValuesLvl(utils.MinInt(p0.Level(), p1.Level()), p0, p1)
 
 }
 
 // Copy copies the coefficients of p0 on p1 within the given Ring. It requires p1 to be at least as big p0.
 // Expects the degree of both polynomials to be identical.
 // Transfers the IsNTT and IsMForm flags.
-func (r *Ring) Copy(p0, p1 *Poly) {
-	r.CopyValuesLvl(minLevelBinary(p0, p1), p0, p1)
+func Copy(p0, p1 *Poly) {
+	CopyValuesLvl(utils.MinInt(p0.Level(), p1.Level()), p0, p1)
 	p1.IsNTT = p0.IsNTT
 	p1.IsMForm = p0.IsMForm
 }
@@ -83,7 +83,7 @@ func (r *Ring) Copy(p0, p1 *Poly) {
 // CopyValuesLvl copies the coefficients of p0 on p1 within the given Ring for the moduli from 0 to level.
 // Expects the degree of both polynomials to be identical.
 // Does not transfer the IsNTT and IsMForm flags.
-func (r *Ring) CopyValuesLvl(level int, p0, p1 *Poly) {
+func CopyValuesLvl(level int, p0, p1 *Poly) {
 	if p0 != p1 {
 		for i := 0; i < level+1; i++ {
 			copy(p1.Coeffs[i], p0.Coeffs[i])
@@ -94,8 +94,8 @@ func (r *Ring) CopyValuesLvl(level int, p0, p1 *Poly) {
 // CopyLvl copies the coefficients of p0 on p1 within the given Ring for the moduli from 0 to level.
 // Expects the degree of both polynomials to be identical.
 // Transfers the IsNTT and IsMForm flags.
-func (r *Ring) CopyLvl(level int, p0, p1 *Poly) {
-	r.CopyValuesLvl(level, p0, p1)
+func CopyLvl(level int, p0, p1 *Poly) {
+	CopyValuesLvl(level, p0, p1)
 	p1.IsNTT = p0.IsNTT
 	p1.IsMForm = p0.IsMForm
 }

@@ -39,7 +39,8 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare 
 	}
 
 	// Generates an encryption share
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Element{Value: []*ring.Poly{c1, c1}, IsNTT: true}, c0ShareOut)
+	c1.IsNTT = true
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Element{Value: []*ring.Poly{nil, c1}}, c0ShareOut)
 
 	s2e.ringQ.SetCoefficientsBigintLvl(c1.Level(), secretShare.Value, s2e.tmp)
 	s2e.ringQ.NTTLvl(c1.Level(), s2e.tmp, s2e.tmp)

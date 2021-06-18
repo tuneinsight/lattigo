@@ -297,8 +297,8 @@ func (r *Ring) DivFloorByLastModulusNTT(p0, p1 *Poly) {
 
 func (r *Ring) divFloorByLastModulusNTT(level int, p0, p1 *Poly) {
 
-	pool0 := r.polypool.Coeffs[0]
-	pool1 := r.polypool.Coeffs[1]
+	pool0 := make([]uint64, len(p0.Coeffs[0]))
+	pool1 := make([]uint64, len(p0.Coeffs[0]))
 
 	InvNTTLazy(p0.Coeffs[level], pool0, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 
@@ -385,15 +385,15 @@ func (r *Ring) DivFloorByLastModulusManyNTT(p0, p1 *Poly, nbRescales int) {
 
 	} else {
 
-		r.InvNTTLvl(level, p0, r.polypool)
+		r.InvNTTLvl(level, p0, p1)
 
 		for i := 0; i < nbRescales; i++ {
-			r.divFloorByLastModulus(level-i, r.polypool, r.polypool)
+			r.divFloorByLastModulus(level-i, p1, p1)
 		}
 
 		p1.Coeffs = p1.Coeffs[:level-nbRescales+1]
 
-		r.NTTLvl(p1.Level(), r.polypool, p1)
+		r.NTTLvl(p1.Level(), p1, p1)
 	}
 }
 
@@ -412,14 +412,14 @@ func (r *Ring) DivFloorByLastModulusMany(p0, p1 *Poly, nbRescales int) {
 	} else {
 
 		if nbRescales > 1 {
-			r.divFloorByLastModulus(level, p0, r.polypool)
+			r.divFloorByLastModulus(level, p0, p1)
 
 			for i := 1; i < nbRescales; i++ {
 
 				if i == nbRescales-1 {
-					r.divFloorByLastModulus(level-i, r.polypool, p1)
+					r.divFloorByLastModulus(level-i, p1, p1)
 				} else {
-					r.divFloorByLastModulus(level-i, r.polypool, r.polypool)
+					r.divFloorByLastModulus(level-i, p1, p1)
 				}
 			}
 
@@ -443,8 +443,8 @@ func (r *Ring) divRoundByLastModulusNTT(level int, p0, p1 *Poly) {
 
 	var pHalf, pHalfNegQi uint64
 
-	pool0 := r.polypool.Coeffs[0]
-	pool1 := r.polypool.Coeffs[1]
+	pool0 := make([]uint64, len(p0.Coeffs[0]))
+	pool1 := make([]uint64, len(p0.Coeffs[0]))
 
 	InvNTT(p0.Coeffs[level], pool0, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 
@@ -593,13 +593,13 @@ func (r *Ring) DivRoundByLastModulusManyNTT(p0, p1 *Poly, nbRescales int) {
 
 		if nbRescales > 1 {
 
-			r.InvNTTLvl(level, p0, r.polypool)
+			r.InvNTTLvl(level, p0, p1)
 
 			for i := 0; i < nbRescales; i++ {
-				r.divRoundByLastModulus(level-i, r.polypool, r.polypool)
+				r.divRoundByLastModulus(level-i, p1, p1)
 			}
 
-			r.NTTLvl(p1.Level(), r.polypool, p1)
+			r.NTTLvl(p1.Level(), p1, p1)
 
 		} else {
 			r.divRoundByLastModulusNTT(level, p0, p1)
@@ -625,14 +625,14 @@ func (r *Ring) DivRoundByLastModulusMany(p0, p1 *Poly, nbRescales int) {
 
 		if nbRescales > 1 {
 
-			r.divRoundByLastModulus(level, p0, r.polypool)
+			r.divRoundByLastModulus(level, p0, p1)
 
 			for i := 1; i < nbRescales; i++ {
 
 				if i == nbRescales-1 {
-					r.divRoundByLastModulus(level-i, r.polypool, p1)
+					r.divRoundByLastModulus(level-i, p1, p1)
 				} else {
-					r.divRoundByLastModulus(level-i, r.polypool, r.polypool)
+					r.divRoundByLastModulus(level-i, p1, p1)
 				}
 			}
 

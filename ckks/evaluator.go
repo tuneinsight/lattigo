@@ -139,7 +139,7 @@ type Evaluator interface {
 	// === Others ===
 	// ==============
 
-	DecompInternal(level int, c2NTT *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly)
+	DecompInternal(level int, c2 *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly)
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 }
@@ -165,8 +165,8 @@ type evaluatorBase struct {
 }
 
 type evaluatorBuffers struct {
-	poolQMul    [3]*ring.Poly // Memory pool in order : for MForm(c0), MForm(c1), c2
-	ctxpool     *Ciphertext  // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
+	poolQMul [3]*ring.Poly // Memory pool in order : for MForm(c0), MForm(c1), c2
+	ctxpool  *Ciphertext   // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
 }
 
 func newEvaluatorBase(params Parameters) *evaluatorBase {
@@ -225,7 +225,7 @@ func (eval *evaluator) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[u
 func (eval *evaluator) ShallowCopy() Evaluator {
 	return &evaluator{
 		evaluatorBase:    eval.evaluatorBase,
-		KeySwitcher:	  eval.KeySwitcher.ShallowCopy(),
+		KeySwitcher:      eval.KeySwitcher.ShallowCopy(),
 		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
 		rlk:              eval.rlk,
 		rtks:             eval.rtks,
@@ -243,7 +243,7 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 		indexes = *eval.permuteNTTIndexesForKey(evaluationKey.Rtks)
 	}
 	return &evaluator{
-		KeySwitcher:	  eval.KeySwitcher,
+		KeySwitcher:      eval.KeySwitcher,
 		evaluatorBase:    eval.evaluatorBase,
 		evaluatorBuffers: eval.evaluatorBuffers,
 		rlk:              evaluationKey.Rlk,
@@ -265,12 +265,16 @@ func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 		panic("receiver operand degree is too small")
 	}
 
-	if !op0.El().IsNTT {
-		panic("cannot evaluate: op0 must be in NTT")
+	for _, pol := range op0.El().Value {
+		if !pol.IsNTT {
+			panic("cannot evaluate: op0 must be in NTT")
+		}
 	}
 
-	if !op1.El().IsNTT {
-		panic("cannot evaluate: op1 must be in NTT")
+	for _, pol := range op1.El().Value {
+		if !pol.IsNTT {
+			panic("cannot evaluate: op1 must be in NTT")
+		}
 	}
 
 	return
@@ -1306,7 +1310,6 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 	}
 
 	ctOut.Scale = ctIn.Scale
-	ctOut.IsNTT = true
 
 	var nbRescale int
 	// Divides the scale by each moduli of the modulus chain as long as the scale isn't smaller than minScale/2
@@ -1316,14 +1319,8 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 		nbRescale++
 	}
 
-	if ctIn.IsNTT {
-		for i := range ctOut.Value {
-			ringQ.DivRoundByLastModulusManyNTT(ctIn.Value[i], ctOut.Value[i], nbRescale)
-		}
-	} else {
-		for i := range ctOut.Value {
-			ringQ.DivRoundByLastModulusMany(ctIn.Value[i], ctOut.Value[i], nbRescale)
-		}
+	for i := range ctOut.Value {
+		ringQ.DivRoundByLastModulusManyNTT(ctIn.Value[i], ctOut.Value[i], nbRescale)
 	}
 
 	return nil
@@ -1424,6 +1421,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		}
 
 		if relin {
+			c2.IsNTT = true
 			eval.SwitchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.PoolQ[1], eval.PoolQ[2])
 			ringQ.AddLvl(level, c0, eval.PoolQ[1], ctOut.Value[0])
 			ringQ.AddLvl(level, c1, eval.PoolQ[2], ctOut.Value[1])
@@ -1505,7 +1503,7 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *rlwe.SwitchingK
 	eval.SwitchKeysInPlace(level, ct0.Value[1], switchingKey, eval.PoolQ[1], eval.PoolQ[2])
 
 	ringQ.AddLvl(level, ct0.Value[0], eval.PoolQ[1], ctOut.Value[0])
-	ringQ.CopyLvl(level, eval.PoolQ[2], ctOut.Value[1])
+	ringQ.CopyValuesLvl(level, eval.PoolQ[2], ctOut.Value[1])
 }
 
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.

@@ -16,7 +16,7 @@ func (ciphertext *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
 	// 9 byte : Scale
 	// 1 byte : isNTT
 	if WithMetaData {
-		dataLen += 11
+		dataLen += 10
 	}
 
 	for _, el := range ciphertext.Value {
@@ -36,13 +36,9 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 
 	binary.LittleEndian.PutUint64(data[1:9], math.Float64bits(ciphertext.Scale))
 
-	if ciphertext.IsNTT {
-		data[10] = 1
-	}
-
 	var pointer, inc int
 
-	pointer = 11
+	pointer = 10
 
 	for _, el := range ciphertext.Value {
 
@@ -58,7 +54,7 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a previously marshaled Ciphertext on the target Ciphertext.
 func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
-	if len(data) < 11 { // cf. ciphertext.GetDataLen()
+	if len(data) < 10 { // cf. ciphertext.GetDataLen()
 		return errors.New("too small bytearray")
 	}
 
@@ -68,12 +64,8 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 
 	ciphertext.Scale = math.Float64frombits(binary.LittleEndian.Uint64(data[1:9]))
 
-	if uint8(data[10]) == 1 {
-		ciphertext.IsNTT = true
-	}
-
 	var pointer, inc int
-	pointer = 11
+	pointer = 10
 
 	for i := range ciphertext.Value {
 

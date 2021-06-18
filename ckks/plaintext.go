@@ -13,7 +13,7 @@ type Plaintext struct {
 // NewPlaintext creates a new Plaintext of level level and scale scale.
 func NewPlaintext(params Parameters, level int, scale float64) *Plaintext {
 	pt := &Plaintext{Plaintext: rlwe.NewPlaintextAtLevel(params.Parameters, level), Scale: scale}
-	pt.IsNTT = true
+	pt.Value.IsNTT = true
 	return pt
 }
 

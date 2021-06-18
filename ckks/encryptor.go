@@ -220,7 +220,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringQ.NTTLvl(lvl, poolQ0, poolQ0)
 		ringQ.AddLvl(lvl, ciphertext.Value[1], poolQ0, ciphertext.Value[1])
 
-		if !plaintext.IsNTT {
+		if !plaintext.Value.IsNTT {
 
 			// ct0 = u*pk0 + e0
 			encryptor.gaussianSampler.ReadLvl(lvl, poolQ0)
@@ -288,7 +288,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		// ct1 = (u*pk1 + e1)/P
 		encryptor.baseconverter.ModDownSplitPQ(lvl, poolQ1, poolP1, ciphertext.Value[1])
 
-		if !plaintext.IsNTT {
+		if !plaintext.Value.IsNTT {
 			ringQ.AddLvl(lvl, ciphertext.Value[0], plaintext.Value, ciphertext.Value[0])
 		}
 
@@ -296,7 +296,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 		ringQ.NTTLvl(lvl, ciphertext.Value[0], ciphertext.Value[0])
 		ringQ.NTTLvl(lvl, ciphertext.Value[1], ciphertext.Value[1])
 
-		if plaintext.IsNTT {
+		if plaintext.Value.IsNTT {
 			// ct0 = (u*pk0 + e0)/P + m
 			ringQ.AddLvl(lvl, ciphertext.Value[0], plaintext.Value, ciphertext.Value[0])
 		}
@@ -305,7 +305,8 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	ciphertext.Value[0].Coeffs = ciphertext.Value[0].Coeffs[:lvl+1]
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:lvl+1]
 
-	ciphertext.IsNTT = true
+	ciphertext.Value[0].IsNTT = true
+	ciphertext.Value[1].IsNTT = true
 }
 
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
@@ -355,7 +356,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.Value[1], encryptor.sk.Value, ciphertext.Value[0])
 	ringQ.NegLvl(lvl, ciphertext.Value[0], ciphertext.Value[0])
 
-	if plaintext.IsNTT {
+	if plaintext.Value.IsNTT {
 		encryptor.gaussianSampler.ReadLvl(lvl, poolQ0)
 		ringQ.NTTLvl(lvl, poolQ0, poolQ0)
 		ringQ.AddLvl(lvl, ciphertext.Value[0], poolQ0, ciphertext.Value[0])
@@ -370,7 +371,8 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 	ciphertext.Value[0].Coeffs = ciphertext.Value[0].Coeffs[:lvl+1]
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:lvl+1]
 
-	ciphertext.IsNTT = true
+	ciphertext.Value[0].IsNTT = true
+	ciphertext.Value[1].IsNTT = true
 }
 
 func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {

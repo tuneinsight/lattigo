@@ -46,23 +46,26 @@ type ParametersLiteral struct {
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
-	logN  int
-	qi    []uint64
-	pi    []uint64
-	sigma float64
+	logN   int
+	qi     []uint64
+	pi     []uint64
+	sigma  float64
+	ringQ  *ring.Ring
+	ringP  *ring.Ring
+	ringQP *ring.Ring
 }
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
 func NewParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) {
-
-	if err := checkSizeParams(logn, len(q), len(p)); err != nil {
+	var err error
+	if err = checkSizeParams(logn, len(q), len(p)); err != nil {
 		return Parameters{}, err
 	}
 
 	// Checks if moduli are valid
-	if err := CheckModuli(q, p, logn); err != nil {
+	if err = CheckModuli(q, p, logn); err != nil {
 		return Parameters{}, err
 	}
 
@@ -72,6 +75,21 @@ func NewParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) {
 		qi:    make([]uint64, len(q)),
 		sigma: sigma,
 	}
+
+	if params.ringQ, err = ring.NewRing(1<<logn, q); err != nil {
+		return Parameters{}, err
+	}
+
+	if len(p) != 0 {
+		if params.ringP, err = ring.NewRing(1<<logn, p); err != nil {
+			return Parameters{}, err
+		}
+	}
+
+	if params.ringQP, err = ring.NewRing(1<<logn, append(q, p...)); err != nil {
+		return Parameters{}, err
+	}
+
 	copy(params.qi, q)
 	copy(params.pi, p)
 	return params, nil
@@ -102,6 +120,21 @@ func (p Parameters) N() int {
 // LogN returns the log of the degree of the polynomial ring
 func (p Parameters) LogN() int {
 	return p.logN
+}
+
+// RingQ returns a pointer to ringQ
+func (p Parameters) RingQ() *ring.Ring {
+	return p.ringQ
+}
+
+// RingP returns a pointer to ringP
+func (p Parameters) RingP() *ring.Ring {
+	return p.ringP
+}
+
+// RingQP returns a pointer to ringQP
+func (p Parameters) RingQP() *ring.Ring {
+	return p.ringQP
 }
 
 // Sigma returns standard deviation of the noise distribution
@@ -212,36 +245,6 @@ func (p *Parameters) QiOverflowMargin(level int) int {
 // be added together before overflowing 2^64.
 func (p *Parameters) PiOverflowMargin() int {
 	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.pi)))
-}
-
-// RingQ instantiates a new ring.Ring corresponding to the ciphertext space ring R_q.
-func (p Parameters) RingQ() *ring.Ring {
-	ringQ, err := ring.NewRing(p.N(), p.qi)
-	if err != nil {
-		panic(err) // Parameter type invariant
-	}
-	return ringQ
-}
-
-// RingP instantiates a new ring.Ring corresponding to the ciphertext space extention ring R_p.
-func (p Parameters) RingP() *ring.Ring {
-	if len(p.pi) == 0 {
-		return nil
-	}
-	ringP, err := ring.NewRing(p.N(), p.pi)
-	if err != nil {
-		panic(err) // Parameter type invariant
-	}
-	return ringP
-}
-
-// RingQP instantiates a new ring.Ring corresponding to the extended ciphertext space ring R_qp.
-func (p Parameters) RingQP() *ring.Ring {
-	ringQP, err := ring.NewRing(p.N(), append(p.qi, p.pi...))
-	if err != nil {
-		panic(err) // Parameter type invariant
-	}
-	return ringQP
 }
 
 // GaloisElementForColumnRotationBy returns the galois element for plaintext

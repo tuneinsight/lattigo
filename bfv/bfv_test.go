@@ -120,7 +120,7 @@ func testParameters(testctx *testContext, t *testing.T) {
 	t.Run(testString("Parameters/CopyNew/", testctx.params), func(t *testing.T) {
 		params1, params2 := testctx.params.CopyNew(), testctx.params.CopyNew()
 		assert.True(t, params1.Equals(testctx.params) && params2.Equals(testctx.params))
-		params1.t = 7
+		params1.ringT, _ = ring.NewRing(testctx.params.N(), []uint64{7})
 		assert.False(t, params1.Equals(testctx.params))
 		assert.True(t, params2.Equals(testctx.params))
 	})

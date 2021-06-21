@@ -40,7 +40,10 @@ func BenchmarkMKCKKS(b *testing.B) {
 		benchMultTwoCiphertexts(b, p)
 		benchRelin(b, p)
 		benchRotate(b, p)
-		benchMemoryConsumption(b, p)
+
+		if testing.Verbose() {
+			benchMemoryConsumption(b, p)
+		}
 
 		if i != 4 {
 			for i := uint64(1); i < 11; i++ {

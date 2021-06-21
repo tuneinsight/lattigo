@@ -62,19 +62,19 @@ func KeyGen(params *rlwe.Parameters, a *MKDecomposedPoly) *MKKeys {
 	// create ring
 	ringQP := GetRingQP(params)
 
-	keyBag := new(MKKeys)
+	keys := new(MKKeys)
 
 	// generate private and public mkrlwe keys
-	keyBag.SecretKey = new(MKSecretKey)
-	keyBag.SecretKey.Key = GenSecretKey(ringQP)
+	keys.SecretKey = new(MKSecretKey)
+	keys.SecretKey.Key = GenSecretKey(ringQP)
 	//Public key = (b, a)
-	keyBag.PublicKey = new(MKPublicKey)
-	keyBag.PublicKey.Key[0] = genPublicKey(keyBag.SecretKey.Key, params, ringQP, a)
-	keyBag.PublicKey.Key[1] = a
+	keys.PublicKey = new(MKPublicKey)
+	keys.PublicKey.Key[0] = genPublicKey(keys.SecretKey.Key, params, ringQP, a)
+	keys.PublicKey.Key[1] = a
 
 	// generate evaluation key. The evaluation key is used in the relinearization phase.
-	keyBag.RelinKey = evaluationKeyGen(keyBag.SecretKey, keyBag.PublicKey, params, ringQP)
-	return keyBag
+	keys.RelinKey = evaluationKeyGen(keys.SecretKey, keys.PublicKey, params, ringQP)
+	return keys
 }
 
 // KeyGenWithSecretKey generates a public key and a relinearization key from a given rlwe.SecretKey

@@ -77,7 +77,7 @@ func NewMaskedTransformProtocol(params ckks.Parameters, precision int, sigmaSmud
 
 // AllocateShares allocates the shares of the PermuteProtocol
 func (rfp *MaskedTransformProtocol) AllocateShares(levelDecrypt, levelRecrypt int) MaskedTransformShare {
-	return MaskedTransformShare{*rfp.e2s.AllocateShareAtLevel(levelDecrypt), *rfp.s2e.AllocateShareAtLevel(levelRecrypt)}
+	return MaskedTransformShare{*rfp.e2s.AllocateShare(levelDecrypt), *rfp.s2e.AllocateShare(levelRecrypt)}
 }
 
 // GenShares generates the shares of the PermuteProtocol

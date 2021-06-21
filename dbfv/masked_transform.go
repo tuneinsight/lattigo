@@ -73,7 +73,8 @@ func NewMaskedTransformProtocol(params bfv.Parameters, sigmaSmudging float64) (r
 
 // AllocateShares allocates the shares of the PermuteProtocol
 func (rfp *MaskedTransformProtocol) AllocateShares() MaskedTransformShare {
-	return MaskedTransformShare{*rfp.e2s.AllocateShare(), *rfp.s2e.AllocateShare()}
+	level := len(rfp.ringQ.Modulus) - 1
+	return MaskedTransformShare{*rfp.e2s.AllocateShare(level), *rfp.s2e.AllocateShare(level)}
 }
 
 // GenShares generates the shares of the PermuteProtocol

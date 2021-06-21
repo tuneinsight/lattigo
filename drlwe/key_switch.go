@@ -8,7 +8,7 @@ import (
 
 // KeySwitchingProtocol is an interface describing the local steps of a generic RLWE CKS protocol
 type KeySwitchingProtocol interface {
-	AllocateShare() *CKSShare
+	AllocateShare(level int) *CKSShare
 	GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciphertext, shareOut *CKSShare)
 	AggregateShares(share1, share2, shareOut *CKSShare)
 	KeySwitch(combined *CKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext)
@@ -68,12 +68,7 @@ func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol 
 }
 
 // AllocateShare allocates the shares of the CKSProtocol
-func (cks *CKSProtocol) AllocateShare() *CKSShare {
-	return &CKSShare{cks.ringQ.NewPoly()}
-}
-
-// AllocateShareAtLevel allocates the shares of the CKSProtocol at the given level
-func (cks *CKSProtocol) AllocateShareAtLevel(level int) *CKSShare {
+func (cks *CKSProtocol) AllocateShare(level int) *CKSShare {
 	return &CKSShare{cks.ringQ.NewPolyLvl(level)}
 }
 

@@ -480,7 +480,7 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 	})
 }
 
-func newTestVectorsSineBootstrapp(testContext *testParams, btpParams *BootstrappingParameters, encryptor Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectorsSineBootstrapp(testContext *testParams, btpParams *BootstrappingParameters, encryptor *Encryptor, a, b float64, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	logSlots := testContext.params.LogSlots()
 

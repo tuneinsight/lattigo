@@ -45,8 +45,8 @@ type testParams struct {
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
 	rlk         *rlwe.RelinearizationKey
-	encryptorPk Encryptor
-	encryptorSk Encryptor
+	encryptorPk *Encryptor
+	encryptorSk *Encryptor
 	decryptor   Decryptor
 	evaluator   Evaluator
 }
@@ -131,8 +131,8 @@ func genTestParams(defaultParam Parameters, hw int) (testContext *testParams, er
 
 	testContext.encoder = NewEncoder(testContext.params)
 
-	testContext.encryptorPk = NewEncryptorFromPk(testContext.params, testContext.pk)
-	testContext.encryptorSk = NewEncryptorFromSk(testContext.params, testContext.sk)
+	testContext.encryptorPk = NewEncryptor(testContext.params, testContext.pk)
+	testContext.encryptorSk = NewEncryptor(testContext.params, testContext.sk)
 	testContext.decryptor = NewDecryptor(testContext.params, testContext.sk)
 
 	testContext.evaluator = NewEvaluator(testContext.params, rlwe.EvaluationKey{Rlk: testContext.rlk})
@@ -141,7 +141,7 @@ func genTestParams(defaultParam Parameters, hw int) (testContext *testParams, er
 
 }
 
-func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectors(testContext *testParams, encryptor *Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	logSlots := testContext.params.LogSlots()
 
@@ -156,17 +156,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 	plaintext = testContext.encoder.EncodeNTTAtLvlNew(testContext.params.MaxLevel(), values, logSlots)
 
 	if encryptor != nil {
-
-		switch encryptor := encryptor.(type) {
-		case *pkEncryptor:
-			if testContext.params.PCount() != 0 {
-				ciphertext = encryptor.EncryptNew(plaintext)
-			} else {
-				ciphertext = encryptor.EncryptFastNew(plaintext)
-			}
-		case *skEncryptor:
-			ciphertext = encryptor.EncryptNew(plaintext)
-		}
+		ciphertext = encryptor.EncryptNew(plaintext)
 	}
 
 	return values, plaintext, ciphertext

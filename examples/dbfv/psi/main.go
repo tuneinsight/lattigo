@@ -75,7 +75,7 @@ func main() {
 	// arg2: number of Go routines
 
 	// Largest for n=8192: 512 parties
-	N := 16 // Default number of parties
+	N := 4 // Default number of parties
 	var err error
 	if len(os.Args[1:]) >= 1 {
 		N, err = strconv.Atoi(os.Args[1])
@@ -189,8 +189,10 @@ func main() {
 		}
 	}
 
+	pkMemTotal := pkMem * N
+	rlkMemTotal := rlkMem * N
 	resMem := 8 * len(res)
-	totalMemoryConsumption := expResMem + pkMem + rlkMem + encInputsMem + encResMem + encOutMem + resMem
+	totalMemoryConsumption := expResMem + pkMemTotal + rlkMemTotal + encInputsMem + encResMem + encOutMem + resMem
 
 	l.Println("\tcorrect")
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",
@@ -198,7 +200,7 @@ func main() {
 		elapsedCKGParty+elapsedRKGParty+elapsedEncryptParty+elapsedEvalParty+elapsedPCKSParty+elapsedDecParty)
 	l.Printf(" > Number of participants : %v \n", N)
 	l.Printf(" > Finished (memory consumption) %v Bytes ( %v MB ) \n ", totalMemoryConsumption, totalMemoryConsumption/(1000000))
-	l.Printf(" > Memory consumption : values input : %v Bytes, \n public keys (bytes) : %v \n relin Keys (bytes) : %v \n ciphertexts (bytes) : %v \n  results (bytes) : %v \n", expResMem, pkMem, rlkMem, encOutMem+encInputsMem+encResMem, resMem)
+	l.Printf(" > Memory consumption : values input : %v Bytes, \n public keys (bytes) : %v \n relin Keys (bytes) : %v \n ciphertexts (bytes) : %v \n  results (bytes) : %v \n", expResMem, pkMemTotal, rlkMemTotal, encOutMem+encInputsMem+encResMem, resMem)
 
 }
 

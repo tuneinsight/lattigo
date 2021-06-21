@@ -153,13 +153,13 @@ func benchKeyswitching(testCtx *testContext, b *testing.B) {
 		share *drlwe.CKSShare
 	}
 
+	ciphertext := bfv.NewCiphertextRandom(testCtx.prng, testCtx.params, 1)
+
 	p := new(Party)
 	p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
 	p.s0 = sk0Shards[0]
 	p.s1 = sk1Shards[0]
-	p.share = p.AllocateShare()
-
-	ciphertext := bfv.NewCiphertextRandom(testCtx.prng, testCtx.params, 1)
+	p.share = p.AllocateShare(ciphertext.Level())
 
 	b.Run(testString("Keyswitching/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
@@ -199,7 +199,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
 	p.s = sk0Shards[0]
-	p.share = p.AllocateBFVShares()
+	p.share = p.AllocateShares(ciphertext.Level())
 
 	b.Run(testString("PublicKeySwitching/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 

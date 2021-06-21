@@ -140,6 +140,8 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	sk1Shards := testCtx.sk1Shards
 	params := testCtx.params
 
+	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, params.MaxLevel(), params.Scale())
+
 	type Party struct {
 		*CKSProtocol
 		s0    *rlwe.SecretKey
@@ -151,9 +153,7 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	p.CKSProtocol = NewCKSProtocol(params, 6.36)
 	p.s0 = sk0Shards[0]
 	p.s1 = sk1Shards[0]
-	p.share = p.AllocateShare()
-
-	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, params.MaxLevel(), params.Scale())
+	p.share = p.AllocateShare(ciphertext.Level())
 
 	b.Run(testString("KeySwitching/Gen/", parties, params), func(b *testing.B) {
 

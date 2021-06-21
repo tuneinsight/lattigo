@@ -30,6 +30,19 @@ const DefaultSigma = 3.2
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = 5
 
+var (
+	// PN14QP438 is a set of default parameters with logN=14 and logQP=438
+	TestPN14QP438 = ParametersLiteral{
+		LogN: 14,
+		Q: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
+			0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
+		P:     []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
+		Sigma: DefaultSigma,
+	}
+)
+
+var TestParams = []ParametersLiteral{TestPN14QP438}
+
 // ParametersLiteral is a literal representation of BFV parameters.  It has public
 // fields and is used to express unchecked user-defined parameters literally into
 // Go programs. The NewParametersFromLiteral function is used to generate the actual

@@ -33,8 +33,8 @@ type testContext struct {
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
 	rlk         *rlwe.RelinearizationKey
-	encryptorPk Encryptor
-	encryptorSk Encryptor
+	encryptorPk *Encryptor
+	encryptorSk *Encryptor
 	decryptor   Decryptor
 	evaluator   Evaluator
 }
@@ -97,8 +97,8 @@ func genTestParams(params Parameters) (testctx *testContext, err error) {
 	}
 
 	testctx.encoder = NewEncoder(testctx.params)
-	testctx.encryptorPk = NewEncryptorFromPk(testctx.params, testctx.pk)
-	testctx.encryptorSk = NewEncryptorFromSk(testctx.params, testctx.sk)
+	testctx.encryptorPk = NewEncryptor(testctx.params, testctx.pk)
+	testctx.encryptorSk = NewEncryptor(testctx.params, testctx.sk)
 	testctx.decryptor = NewDecryptor(testctx.params, testctx.sk)
 	testctx.evaluator = NewEvaluator(testctx.params, rlwe.EvaluationKey{Rlk: testctx.rlk})
 	return
@@ -126,7 +126,7 @@ func testParameters(testctx *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectorsRingQ(testctx *testContext, encryptor Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectorsRingQ(testctx *testContext, encryptor *Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	coeffs = testctx.uSampler.ReadNew()
 
@@ -135,12 +135,7 @@ func newTestVectorsRingQ(testctx *testContext, encryptor Encryptor, t *testing.T
 	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 
 	if encryptor != nil {
-		if testctx.params.PCount() != 0 {
-			ciphertext = testctx.encryptorPk.EncryptNew(plaintext)
-		} else {
-			ciphertext = testctx.encryptorPk.EncryptFastNew(plaintext)
-		}
-
+		ciphertext = encryptor.EncryptNew(plaintext)
 	}
 
 	return coeffs, plaintext, ciphertext

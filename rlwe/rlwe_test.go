@@ -1,10 +1,10 @@
 package rlwe
 
 import (
-	"math/big"
 	"encoding/json"
 	"flag"
 	"math"
+	"math/big"
 	"runtime"
 	"testing"
 	//"github.com/ldsec/lattigo/v2/ring"
@@ -48,10 +48,9 @@ func TestRLWE(t *testing.T) {
 	}
 }
 
-func testGenKeyPair(kgen KeyGenerator, t *testing.T){
+func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 
-
-	t.Run("PKGen", func(t *testing.T){
+	t.Run("PKGen", func(t *testing.T) {
 		// Checks that sum([-as + e, a] + [as])) < N * 6 * sigma
 		params := kgen.(*keyGenerator).params
 
@@ -63,7 +62,7 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T){
 		ringQP.MulCoeffsMontgomeryAndAdd(sk.Value, pk.Value[1], pk.Value[0])
 		ringQP.InvNTT(pk.Value[0], pk.Value[0])
 		coeffsBigint := make([]*big.Int, ringQP.N)
-		for i := range coeffsBigint{
+		for i := range coeffsBigint {
 			coeffsBigint[i] = new(big.Int)
 		}
 		// Reconstruct the poly mod QP
@@ -71,12 +70,12 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T){
 
 		// Sums all coefficients
 		sum := new(big.Int).SetInt64(0)
-		for i := range coeffsBigint{
+		for i := range coeffsBigint {
 			sum.Add(sum, coeffsBigint[i].Abs(coeffsBigint[i]))
 		}
 
 		// Compares with the bound (6*sigma)*N
-		bound := new(big.Int).SetInt64(int64(math.Floor(DefaultSigma*6)))
+		bound := new(big.Int).SetInt64(int64(math.Floor(DefaultSigma * 6)))
 		bound.Mul(bound, new(big.Int).SetInt64(int64(params.N())))
 		sign := bound.Cmp(sum)
 
@@ -84,9 +83,9 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T){
 	})
 }
 
-func testSwitchKeyGen(kgen KeyGenerator, t *testing.T){
+func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 
-	t.Run("SWKGen", func(t *testing.T){
+	t.Run("SWKGen", func(t *testing.T) {
 
 		params := kgen.(*keyGenerator).params
 
@@ -100,7 +99,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T){
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
-		for j := range swk.Value{
+		for j := range swk.Value {
 			ringQ.MulCoeffsMontgomeryAndAdd(swk.Value[j][1], skOut.Value, swk.Value[j][0])
 		}
 
@@ -108,13 +107,13 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T){
 
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
 		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
-		for j := range swk.Value{
-			if j > 0{
+		for j := range swk.Value {
+			if j > 0 {
 				ringQ.Add(poly, swk.Value[j][0], poly)
 			}
 		}
 
-		// sOut * P 
+		// sOut * P
 		ringQ.MulScalarBigint(skIn.Value, kgen.(*keyGenerator).pBigInt, skIn.Value)
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
@@ -125,20 +124,20 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T){
 		ringQ.InvMForm(poly, poly)
 
 		coeffsBigint := make([]*big.Int, ringQ.N)
-		for i := range coeffsBigint{
+		for i := range coeffsBigint {
 			coeffsBigint[i] = new(big.Int)
 		}
 		ringQ.PolyToBigintCenteredLvl(params.QCount()-1, poly, coeffsBigint)
 
 		// Sums all coefficients
 		sum := new(big.Int).SetInt64(0)
-		for i := range coeffsBigint{
+		for i := range coeffsBigint {
 			sum.Add(sum, coeffsBigint[i].Abs(coeffsBigint[i]))
 		}
 
 		// Compares with the bound
-		bound := new(big.Int).SetInt64(int64(math.Floor(DefaultSigma*6)))
-		bound.Mul(bound, new(big.Int).SetInt64(int64(params.N() * len(swk.Value))))
+		bound := new(big.Int).SetInt64(int64(math.Floor(DefaultSigma * 6)))
+		bound.Mul(bound, new(big.Int).SetInt64(int64(params.N()*len(swk.Value))))
 		sign := bound.Cmp(sum)
 
 		require.Greater(t, sign, -1)

@@ -94,6 +94,7 @@ func TestDCKKS(t *testing.T) {
 		testE2SProtocol(testCtx, t)
 		testRefresh(testCtx, t)
 		testRefreshAndTransform(testCtx, t)
+		testMarshalling(testCtx, t)
 	}
 }
 
@@ -303,7 +304,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 					p.cks = NewCKSProtocol(params, 3.2)
 					p.s0 = sk0Shards[i]
 					p.s1 = sk1Shards[i]
-					p.share = p.cks.AllocateShare()
+					p.share = p.cks.AllocateShare(ciphertext.Level())
 					cksParties[i] = p
 				}
 				P0 := cksParties[0]
@@ -546,8 +547,8 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 			P[i].e2s = NewE2SProtocol(params, 3.2)
 			P[i].s2e = NewS2EProtocol(params, 3.2)
 			P[i].sk = testCtx.sk0Shards[i]
-			P[i].publicShareE2S = P[i].e2s.AllocateShareAtLevel(ciphertext.Level())
-			P[i].publicShareS2E = P[i].s2e.AllocateShareAtLevel(params.Parameters.MaxLevel())
+			P[i].publicShareE2S = P[i].e2s.AllocateShare(ciphertext.Level())
+			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.Parameters.MaxLevel())
 			P[i].secretShare = rlwe.NewAdditiveShareBigint(params.Parameters)
 		}
 
@@ -621,8 +622,8 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*RefreshProtocol
-			s       *rlwe.SecretKey
-			share   RefreshShare
+			s     *rlwe.SecretKey
+			share RefreshShare
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
@@ -677,8 +678,8 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*MaskedTransformProtocol
-			s       *rlwe.SecretKey
-			share   MaskedTransformShare
+			s     *rlwe.SecretKey
+			share MaskedTransformShare
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
@@ -724,6 +725,128 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 		}
 
 		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
+	})
+}
+
+func testMarshalling(testCtx *testContext, t *testing.T) {
+	crsGen := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
+	crs := crsGen.ReadNew()
+	params := testCtx.params
+
+	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, testCtx.params.MaxLevel()-1, testCtx.params.Scale())
+
+	t.Run(testString("Marshalling/CPK/", parties, params), func(t *testing.T) {
+		keygenProtocol := NewCKGProtocol(testCtx.params)
+		KeyGenShareBefore := keygenProtocol.AllocateShares()
+		keygenProtocol.GenShare(testCtx.sk0, crs, KeyGenShareBefore)
+		//now we marshall it
+		data, err := KeyGenShareBefore.MarshalBinary()
+
+		if err != nil {
+			t.Error("Could not marshal the CKGShare : ", err)
+
+		}
+
+		KeyGenShareAfter := new(drlwe.CKGShare)
+		err = KeyGenShareAfter.UnmarshalBinary(data)
+		if err != nil {
+			t.Error("Could not unmarshal the CKGShare : ", err)
+
+		}
+
+		//comparing the results
+		require.Equal(t, KeyGenShareBefore.Degree(), KeyGenShareAfter.Degree())
+		require.Equal(t, KeyGenShareBefore.LenModuli(), KeyGenShareAfter.LenModuli())
+
+		moduli := KeyGenShareBefore.LenModuli()
+		require.Equal(t, KeyGenShareAfter.Coeffs[:moduli], KeyGenShareBefore.Coeffs[:moduli])
+	})
+
+	t.Run(testString("Marshalling/PCKS/", parties, params), func(t *testing.T) {
+		//Check marshalling for the PCKS
+
+		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
+		SwitchShare := KeySwitchProtocol.AllocateShares(ciphertext.Level())
+		KeySwitchProtocol.GenShare(testCtx.sk0, testCtx.pk0, ciphertext, SwitchShare)
+
+		data, err := SwitchShare.MarshalBinary()
+		require.NoError(t, err)
+
+		SwitchShareReceiver := new(drlwe.PCKSShare)
+		err = SwitchShareReceiver.UnmarshalBinary(data)
+		require.NoError(t, err)
+
+		for i := 0; i < 2; i++ {
+			//compare the shares.
+			ringBefore := SwitchShare.Value[i]
+			ringAfter := SwitchShareReceiver.Value[i]
+			require.Equal(t, ringBefore.Degree(), ringAfter.Degree())
+			moduli := ringAfter.LenModuli()
+			require.Equal(t, ringAfter.Coeffs[:moduli], ringBefore.Coeffs[:moduli])
+		}
+	})
+
+	t.Run(testString("Marshalling/CKS/", parties, params), func(t *testing.T) {
+
+		//Now for CKSShare ~ its similar to PKSShare
+		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
+		cksshare := cksp.AllocateShare(ciphertext.Level())
+		cksp.GenShare(testCtx.sk0, testCtx.sk1, ciphertext, cksshare)
+
+		data, err := cksshare.MarshalBinary()
+		require.NoError(t, err)
+		cksshareAfter := new(drlwe.CKSShare)
+		err = cksshareAfter.UnmarshalBinary(data)
+		require.NoError(t, err)
+
+		//now compare both shares.
+
+		require.Equal(t, cksshare.Value.Degree(), cksshareAfter.Value.Degree())
+		require.Equal(t, cksshare.Value.LenModuli(), cksshareAfter.Value.LenModuli())
+
+		moduli := cksshare.Value.LenModuli()
+		require.Equal(t, cksshare.Value.Coeffs[:moduli], cksshareAfter.Value.Coeffs[:moduli])
+	})
+
+	t.Run(testString("Marshalling/Refresh/", parties, params), func(t *testing.T) {
+
+		var minLevel, logBound int
+		var ok bool
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q()); ok != true {
+			t.Skip("Not enough levels to ensure correcness and 128 security")
+		}
+
+		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, minLevel, testCtx.params.Scale())
+
+		crsLevel := crsGen.ReadLvlNew(params.MaxLevel())
+
+		//testing refresh shares
+		refreshproto := NewRefreshProtocol(testCtx.params, logBound, 3.2)
+		refreshshare := refreshproto.AllocateShares(ciphertext.Level(), ciphertext.Level())
+		refreshproto.GenShares(testCtx.sk0, logBound, params.LogSlots(), ciphertext, crsLevel, refreshshare)
+
+		data, err := refreshshare.MarshalBinary()
+		if err != nil {
+			t.Fatal("Could not marshal RefreshShare", err)
+		}
+		resRefreshShare := new(MaskedTransformShare)
+		err = resRefreshShare.UnmarshalBinary(data)
+
+		if err != nil {
+			t.Fatal("Could not unmarshal RefreshShare", err)
+		}
+		for i, r := range refreshshare.e2sShare.Value.Coeffs {
+			if !utils.EqualSliceUint64(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
+				t.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+			}
+
+		}
+		for i, r := range refreshshare.s2eShare.Value.Coeffs {
+			if !utils.EqualSliceUint64(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
+				t.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+			}
+
+		}
 	})
 }
 

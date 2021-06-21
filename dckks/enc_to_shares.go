@@ -38,7 +38,7 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 // This protocol requires additional inputs which are :
 // logBound : the bit length of the masks
 // logSlots : the bit length of the number of slots
-// 
+//
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which E2S can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
 func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, secretShareOut rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {

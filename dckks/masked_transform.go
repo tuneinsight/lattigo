@@ -77,14 +77,14 @@ func NewMaskedTransformProtocol(params ckks.Parameters, precision int, sigmaSmud
 
 // AllocateShares allocates the shares of the PermuteProtocol
 func (rfp *MaskedTransformProtocol) AllocateShares(levelDecrypt, levelRecrypt int) MaskedTransformShare {
-	return MaskedTransformShare{*rfp.e2s.AllocateShareAtLevel(levelDecrypt), *rfp.s2e.AllocateShareAtLevel(levelRecrypt)}
+	return MaskedTransformShare{*rfp.e2s.AllocateShare(levelDecrypt), *rfp.s2e.AllocateShare(levelRecrypt)}
 }
 
 // GenShares generates the shares of the PermuteProtocol
 // This protocol requires additional inputs which are :
 // logBound : the bit length of the masks
 // logSlots : the bit length of the number of slots
-// 
+//
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the masked transform can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
 func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, crs *ring.Poly, transform MaskedTransformFunc, shareOut MaskedTransformShare) {

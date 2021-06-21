@@ -282,6 +282,8 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("Keyswitching/", parties, testCtx.params), func(t *testing.T) {
 
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
+
 		type Party struct {
 			cks   *CKSProtocol
 			s0    *rlwe.SecretKey
@@ -295,15 +297,13 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 			p.cks = NewCKSProtocol(testCtx.params, 6.36)
 			p.s0 = sk0Shards[i]
 			p.s1 = sk1Shards[i]
-			p.share = p.cks.AllocateShare()
+			p.share = p.cks.AllocateShare(ciphertext.Level())
 			cksParties[i] = p
 		}
 		P0 := cksParties[0]
 
 		// checks that the protocol complies to the drlwe.PublicKeySwitchingProtocol interface
 		var _ drlwe.KeySwitchingProtocol = P0.cks
-
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
 		// Each party creates its CKSProtocol instance with tmp = si-si'
 		for i, p := range cksParties {
@@ -345,7 +345,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateBFVShares()
+			p.share = p.AllocateShares(testCtx.params.MaxLevel())
 			pcksParties[i] = p
 		}
 		P0 := pcksParties[0]
@@ -490,6 +490,8 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 
 func testEncToShares(testCtx *testContext, t *testing.T) {
 
+	coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, t)
+
 	type Party struct {
 		e2s         *E2SProtocol
 		s2e         *S2EProtocol
@@ -497,17 +499,17 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 		publicShare *drlwe.CKSShare
 		secretShare rlwe.AdditiveShare
 	}
+
 	params := testCtx.params
 	P := make([]Party, parties)
+
 	for i := range P {
 		P[i].e2s = NewE2SProtocol(params, 3.2)
 		P[i].s2e = NewS2EProtocol(params, 3.2)
 		P[i].sk = testCtx.sk0Shards[i]
-		P[i].publicShare = P[i].e2s.AllocateShare()
+		P[i].publicShare = P[i].e2s.AllocateShare(ciphertext.Level())
 		P[i].secretShare = rlwe.NewAdditiveShare(params.Parameters)
 	}
-
-	coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, t)
 
 	t.Run(testString("E2SProtocol/", parties, testCtx.params), func(t *testing.T) {
 
@@ -743,7 +745,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 	crs := crsGen.ReadNew()
 	ringQ := testCtx.ringQ
 
-	Ciphertext := bfv.NewCiphertextRandom(testCtx.prng, testCtx.params, 1)
+	ciphertext := bfv.NewCiphertextRandom(testCtx.prng, testCtx.params, 1)
 
 	t.Run(fmt.Sprintf("Marshalling/CPK/N=%d/limbQ=%d/limbsP=%d", ringQ.N, testCtx.params.QCount(), testCtx.params.PCount()), func(t *testing.T) {
 		keygenProtocol := NewCKGProtocol(testCtx.params)
@@ -776,8 +778,8 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		//Check marshalling for the PCKS
 
 		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
-		SwitchShare := KeySwitchProtocol.AllocateBFVShares()
-		KeySwitchProtocol.GenShare(testCtx.sk0, testCtx.pk0, Ciphertext, SwitchShare)
+		SwitchShare := KeySwitchProtocol.AllocateShares(ciphertext.Level())
+		KeySwitchProtocol.GenShare(testCtx.sk0, testCtx.pk0, ciphertext, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
 		require.NoError(t, err)
@@ -800,8 +802,8 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
-		cksshare := cksp.AllocateShare()
-		cksp.GenShare(testCtx.sk0, testCtx.sk1, Ciphertext, cksshare)
+		cksshare := cksp.AllocateShare(ciphertext.Level())
+		cksp.GenShare(testCtx.sk0, testCtx.sk1, ciphertext, cksshare)
 
 		data, err := cksshare.MarshalBinary()
 		require.NoError(t, err)
@@ -823,7 +825,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		//testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, 3.2)
 		refreshshare := refreshproto.AllocateShares()
-		refreshproto.GenShares(testCtx.sk0, Ciphertext, crs, refreshshare)
+		refreshproto.GenShares(testCtx.sk0, ciphertext, crs, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
 		if err != nil {

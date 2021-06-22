@@ -47,7 +47,7 @@ type testParams struct {
 	rlk         *rlwe.RelinearizationKey
 	encryptorPk *Encryptor
 	encryptorSk *Encryptor
-	decryptor   Decryptor
+	decryptor   *Decryptor
 	evaluator   Evaluator
 }
 
@@ -162,7 +162,7 @@ func newTestVectors(testContext *testParams, encryptor *Encryptor, a, b complex1
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
+func verifyTestVectors(testContext *testParams, decryptor *Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
 
 	precStats := GetPrecisionStats(testContext.params, testContext.encoder, decryptor, valuesWant, element, logSlots, bound)
 
@@ -947,7 +947,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 	var sk2 *rlwe.SecretKey
-	var decryptorSk2 Decryptor
+	var decryptorSk2 *Decryptor
 	var switchingKey *rlwe.SwitchingKey
 
 	if testContext.params.PCount() != 0 {

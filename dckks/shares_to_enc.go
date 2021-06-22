@@ -30,6 +30,7 @@ func NewS2EProtocol(params ckks.Parameters, sigmaSmudging float64) *S2EProtocol 
 	return s2e
 }
 
+// AllocateShare allocates a share of the S2E protocol
 func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 	share = s2e.CKSProtocol.AllocateShare(level)
 	share.Value.IsNTT = true

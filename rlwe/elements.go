@@ -49,13 +49,8 @@ func NewAdditiveShareBigint(params Parameters) *AdditiveShareBigint {
 	return &AdditiveShareBigint{Value: v}
 }
 
-// NewPlaintext creates a new Plaintext at maximum level from the parameters.
-func NewPlaintext(params Parameters) *Plaintext {
-	return &Plaintext{Value: ring.NewPoly(params.N(), params.QCount())}
-}
-
-// NewPlaintextAtLevel creates a new Plaintext at level `level` from the parameters.
-func NewPlaintextAtLevel(params Parameters, level int) *Plaintext {
+// NewPlaintext creates a new Plaintext at level `level` from the parameters.
+func NewPlaintext(params Parameters, level int) *Plaintext {
 	return &Plaintext{Value: ring.NewPoly(params.N(), level+1)}
 }
 
@@ -88,12 +83,7 @@ type Element struct {
 }
 
 // NewElement returns a new Element with zero values.
-func NewElement(params Parameters, degree int) *Element {
-	return NewElementAtLevel(params, degree, params.QCount()-1)
-}
-
-// NewElementAtLevel returns a new Element with zero values.
-func NewElementAtLevel(params Parameters, degree, level int) *Element {
+func NewElement(params Parameters, degree, level int) *Element {
 	el := new(Element)
 	el.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {

@@ -33,6 +33,7 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 	return e2s
 }
 
+// AllocateShare allocates a share of the E2S protocol
 func (e2s E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 	share = e2s.CKSProtocol.AllocateShare(level)
 	share.Value.IsNTT = true

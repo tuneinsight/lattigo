@@ -162,7 +162,7 @@ func main() {
 
 	// Ciphertexts encrypted under CPK and stored in the cloud
 	l.Println("> Encrypt Phase")
-	encryptor := bfv.NewEncryptorFromPk(params, pk)
+	encryptor := bfv.NewEncryptor(params, pk)
 	pt := bfv.NewPlaintext(params)
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
@@ -376,7 +376,7 @@ func rtkphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 	return rotKeySet
 }
 
-func genquery(params bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryptor bfv.Encryptor) *bfv.Ciphertext {
+func genquery(params bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryptor *bfv.Encryptor) *bfv.Ciphertext {
 	// Query ciphertext
 	queryCoeffs := make([]uint64, params.N())
 	queryCoeffs[queryIndex] = 1

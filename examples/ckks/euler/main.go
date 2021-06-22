@@ -42,7 +42,7 @@ func example() {
 
 	rlk := kgen.GenRelinearizationKey(sk)
 
-	encryptor := ckks.NewEncryptorFromSk(params, sk)
+	encryptor := ckks.NewEncryptor(params, sk)
 
 	decryptor := ckks.NewDecryptor(params, sk)
 
@@ -196,7 +196,7 @@ func example() {
 
 }
 
-func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
+func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor *ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
 
 	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
 

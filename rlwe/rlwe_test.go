@@ -3,11 +3,12 @@ package rlwe
 import (
 	"encoding/json"
 	"flag"
+	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/big"
+	"math/bits"
 	"runtime"
 	"testing"
-	//"github.com/ldsec/lattigo/v2/ring"
 	//"github.com/ldsec/lattigo/v2/utils"
 	//"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,6 +42,7 @@ func TestRLWE(t *testing.T) {
 		for _, testSet := range []func(kgen KeyGenerator, t *testing.T){
 			testGenKeyPair,
 			testSwitchKeyGen,
+			testEncryptor,
 		} {
 			testSet(kgen, t)
 			runtime.GC()
@@ -48,10 +50,77 @@ func TestRLWE(t *testing.T) {
 	}
 }
 
+// Returns the ceil(log2) of the sum of the absolute value of all the coefficients
+func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
+	sumRNS := make([]uint64, level+1)
+	var sum uint64
+	for i := 0; i < level+1; i++ {
+
+		qi := ringQ.Modulus[i]
+		qiHalf := qi >> 1
+		coeffs := poly.Coeffs[i]
+		sum = 0
+
+		for j := 0; j < ringQ.N; j++ {
+
+			v := coeffs[j]
+
+			if v >= qiHalf {
+				sum = ring.CRed(sum+qi-v, qi)
+			} else {
+				sum = ring.CRed(sum+v, qi)
+			}
+		}
+
+		sumRNS[i] = sum
+	}
+
+	var smallNorm = true
+	for i := 1; i < level+1; i++ {
+		smallNorm = smallNorm && (sumRNS[0] == sumRNS[i])
+	}
+
+	if !smallNorm {
+		var qi uint64
+		var crtReconstruction *big.Int
+
+		sumBigInt := ring.NewUint(0)
+		QiB := new(big.Int)
+		tmp := new(big.Int)
+		modulusBigint := ring.NewUint(1)
+
+		for i := 0; i < level+1; i++ {
+
+			qi = ringQ.Modulus[i]
+			QiB.SetUint64(qi)
+
+			modulusBigint.Mul(modulusBigint, QiB)
+
+			crtReconstruction = new(big.Int)
+			crtReconstruction.Quo(ringQ.ModulusBigint, QiB)
+			tmp.ModInverse(crtReconstruction, QiB)
+			tmp.Mod(tmp, QiB)
+			crtReconstruction.Mul(crtReconstruction, tmp)
+
+			sumBigInt.Add(sumBigInt, tmp.Mul(ring.NewUint(sumRNS[i]), crtReconstruction))
+		}
+
+		sumBigInt.Mod(sumBigInt, modulusBigint)
+
+		logSum = sumBigInt.BitLen()
+	} else {
+		logSum = bits.Len64(sumRNS[0])
+	}
+
+	return
+
+}
+
 func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 
+	// Checks that sum([-as + e, a] + [as])) <= N * 6 * sigma
 	t.Run("PKGen", func(t *testing.T) {
-		// Checks that sum([-as + e, a] + [as])) < N * 6 * sigma
+
 		params := kgen.(*keyGenerator).params
 
 		ringQP := params.RingQP()
@@ -61,30 +130,19 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 		// [-as + e] + [as]
 		ringQP.MulCoeffsMontgomeryAndAdd(sk.Value, pk.Value[1], pk.Value[0])
 		ringQP.InvNTT(pk.Value[0], pk.Value[0])
-		coeffsBigint := make([]*big.Int, ringQP.N)
-		for i := range coeffsBigint {
-			coeffsBigint[i] = new(big.Int)
-		}
-		// Reconstruct the poly mod QP
-		ringQP.PolyToBigintCenteredLvl(pk.Value[0].Level(), pk.Value[0], coeffsBigint)
 
-		// Sums all coefficients
-		sum := new(big.Int).SetInt64(0)
-		for i := range coeffsBigint {
-			sum.Add(sum, coeffsBigint[i].Abs(coeffsBigint[i]))
-		}
-
-		// Compares with the bound (6*sigma)*N
-		bound := new(big.Int).SetInt64(int64(math.Floor(DefaultSigma * 6)))
-		bound.Mul(bound, new(big.Int).SetInt64(int64(params.N())))
-		sign := bound.Cmp(sum)
-
-		require.Greater(t, sign, -1)
+		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Level(), ringQP, pk.Value[0]))
 	})
 }
 
 func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 
+	// Checks that switching keys are en encryption under the output key
+	// of the RNS decomposition of the input key by
+	// 1) Decrypting the RNS decomposed input key
+	// 2) Reconstructing the key
+	// 3) Checking that the difference with the input key has a small norm
 	t.Run("SWKGen", func(t *testing.T) {
 
 		params := kgen.(*keyGenerator).params
@@ -123,24 +181,116 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		ringQ.InvNTT(poly, poly)
 		ringQ.InvMForm(poly, poly)
 
-		coeffsBigint := make([]*big.Int, ringQ.N)
-		for i := range coeffsBigint {
-			coeffsBigint[i] = new(big.Int)
+		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value)))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, poly))
+	})
+}
+
+func testEncryptor(kgen KeyGenerator, t *testing.T) {
+
+	params := kgen.(*keyGenerator).params
+
+	sk, pk := kgen.GenKeyPair()
+
+	ringQ := params.RingQ()
+
+	t.Run("Encrypt/Pk/Fast/MaxLevel", func(t *testing.T) {
+		plaintext := NewPlaintext(params, params.MaxLevel())
+		plaintext.Value.IsNTT = true
+		encryptor := NewEncryptorFromPk(params, pk)
+		ciphertext := encryptor.EncryptFastNTTNew(plaintext)
+		require.Equal(t, plaintext.Level(), ciphertext.Level())
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
+		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
+		require.GreaterOrEqual(t, 12+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
+	})
+
+	t.Run("Encrypt/Pk/Fast/LowLevel", func(t *testing.T) {
+		plaintext := NewPlaintext(params, 0)
+		plaintext.Value.IsNTT = true
+		encryptor := NewEncryptorFromPk(params, pk)
+		ciphertext := encryptor.EncryptFastNTTNew(plaintext)
+		require.Equal(t, plaintext.Level(), ciphertext.Level())
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
+		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
+		require.GreaterOrEqual(t, 12+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
+	})
+
+	t.Run("Encrypt/Pk/Slow/MaxLevel", func(t *testing.T) {
+		if params.PCount() == 0 {
+			t.Skip()
 		}
-		ringQ.PolyToBigintCenteredLvl(params.QCount()-1, poly, coeffsBigint)
+		plaintext := NewPlaintext(params, params.MaxLevel())
+		plaintext.Value.IsNTT = true
+		encryptor := NewEncryptorFromPk(params, pk)
+		ciphertext := encryptor.EncryptNTTNew(plaintext)
+		require.Equal(t, plaintext.Level(), ciphertext.Level())
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
+		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
+		require.GreaterOrEqual(t, 9+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
+	})
 
-		// Sums all coefficients
-		sum := new(big.Int).SetInt64(0)
-		for i := range coeffsBigint {
-			sum.Add(sum, coeffsBigint[i].Abs(coeffsBigint[i]))
+	t.Run("Encrypt/Pk/Slow/LowLevel", func(t *testing.T) {
+		if params.PCount() == 0 {
+			t.Skip()
 		}
+		plaintext := NewPlaintext(params, 0)
+		plaintext.Value.IsNTT = true
+		encryptor := NewEncryptorFromPk(params, pk)
+		ciphertext := encryptor.EncryptNTTNew(plaintext)
+		require.Equal(t, plaintext.Level(), ciphertext.Level())
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
+		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
+		require.GreaterOrEqual(t, 9+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
+	})
 
-		// Compares with the bound
-		bound := new(big.Int).SetInt64(int64(math.Floor(DefaultSigma * 6)))
-		bound.Mul(bound, new(big.Int).SetInt64(int64(params.N()*len(swk.Value))))
-		sign := bound.Cmp(sum)
+	t.Run("Encrypt/Sk/MaxLevel", func(t *testing.T) {
+		plaintext := NewPlaintext(params, params.MaxLevel())
+		plaintext.Value.IsNTT = true
+		encryptor := NewEncryptorFromSk(params, sk)
+		ciphertext := encryptor.EncryptNTTNew(plaintext)
+		require.Equal(t, plaintext.Level(), ciphertext.Level())
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
+		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
+		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
+	})
 
-		require.Greater(t, sign, -1)
+	t.Run("Encrypt/Sk/LowLevel", func(t *testing.T) {
+		plaintext := NewPlaintext(params, 0)
+		plaintext.Value.IsNTT = true
+		encryptor := NewEncryptorFromSk(params, sk)
+		ciphertext := encryptor.EncryptNTTNew(plaintext)
+		require.Equal(t, plaintext.Level(), ciphertext.Level())
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
+		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
+		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
+	})
+}
 
+func testDecryptor(kgen KeyGenerator, t *testing.T) {
+	params := kgen.(*keyGenerator).params
+	sk := kgen.GenSecretKey()
+	ringQ := params.RingQ()
+	encryptor := NewEncryptorFromSk(params, sk)
+	decryptor := NewDecryptor(params, sk)
+
+	t.Run("Decrypt/MaxLevel", func(t *testing.T) {
+		plaintext := NewPlaintext(params, params.MaxLevel())
+		plaintext.Value.IsNTT = true
+		ciphertext := encryptor.EncryptNTTNew(plaintext)
+		plaintext = decryptor.DecryptNew(ciphertext)
+		require.Equal(t, plaintext.Level(), ciphertext.Level())
+		ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, plaintext.Value))
+	})
+
+	t.Run("Encrypt/LowLevel", func(t *testing.T) {
+		plaintext := NewPlaintext(params, 0)
+		plaintext.Value.IsNTT = true
+		ciphertext := encryptor.EncryptNTTNew(plaintext)
+		plaintext = decryptor.DecryptNew(ciphertext)
+		require.Equal(t, plaintext.Level(), ciphertext.Level())
+		ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, plaintext.Value))
 	})
 }

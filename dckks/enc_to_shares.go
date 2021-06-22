@@ -34,6 +34,13 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 	return e2s
 }
 
+// AllocateShare allocates a share of the E2S protocol
+func (e2s E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
+	share = e2s.CKSProtocol.AllocateShare(level)
+	share.Value.IsNTT = true
+	return
+}
+
 // GenShare generates a party's share in the encryption-to-shares protocol. This share consist in the additive secret-share of the party
 // which is written in secretShareOut and in the public masked-decryption share written in publicShareOut.
 // This protocol requires additional inputs which are :

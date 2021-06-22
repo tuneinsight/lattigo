@@ -179,7 +179,7 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv
 
 	// Each party encrypts its input vector
 	l.Println("> Encrypt Phase")
-	encryptor := bfv.NewEncryptorFromPk(params, pk)
+	encryptor := bfv.NewEncryptor(params, pk)
 
 	pt := bfv.NewPlaintext(params)
 	elapsedEncryptParty = runTimedParty(func() {

@@ -31,7 +31,7 @@ const DefaultSigma = 3.2
 const GaloisGen uint64 = 5
 
 var (
-	// PN14QP438 is a set of default parameters with logN=14 and logQP=438
+	// TestPN14QP438 is a set of default parameters with logN=14 and logQP=438
 	TestPN14QP438 = ParametersLiteral{
 		LogN: 14,
 		Q: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
@@ -41,6 +41,7 @@ var (
 	}
 )
 
+// TestParams is a set of test parameters for the correctness of the rlwe pacakge.
 var TestParams = []ParametersLiteral{TestPN14QP438}
 
 // ParametersLiteral is a literal representation of BFV parameters.  It has public

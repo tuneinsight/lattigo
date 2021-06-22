@@ -35,7 +35,7 @@ type testContext struct {
 	rlk         *rlwe.RelinearizationKey
 	encryptorPk *Encryptor
 	encryptorSk *Encryptor
-	decryptor   Decryptor
+	decryptor   *Decryptor
 	evaluator   Evaluator
 }
 
@@ -163,7 +163,7 @@ func newTestVectorsMul(testctx *testContext, t *testing.T) (coeffs *ring.Poly, p
 	return coeffs, plaintext
 }
 
-func verifyTestVectors(testctx *testContext, decryptor Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
+func verifyTestVectors(testctx *testContext, decryptor *Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
 
 	var coeffsTest []uint64
 

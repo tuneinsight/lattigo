@@ -67,7 +67,6 @@ func TestBFV(t *testing.T) {
 
 		testParameters(testctx, t)
 		testEncoder(testctx, t)
-		testEncryptor(testctx, t)
 		testEvaluator(testctx, t)
 		testEvaluatorKeySwitch(testctx, t)
 		testEvaluatorRotate(testctx, t)
@@ -235,39 +234,6 @@ func testEncoder(testctx *testContext, t *testing.T) {
 	t.Run(testString("Encoder/Encode&Decode/PlaintextMul/", testctx.params), func(t *testing.T) {
 		values, plaintext := newTestVectorsMul(testctx, t)
 		verifyTestVectors(testctx, nil, values, plaintext, t)
-	})
-}
-
-func testEncryptor(testctx *testContext, t *testing.T) {
-
-	coeffs := testctx.uSampler.ReadNew()
-
-	plaintextRingT := NewPlaintextRingT(testctx.params)
-	plaintext := NewPlaintext(testctx.params)
-
-	testctx.encoder.EncodeUintRingT(coeffs.Coeffs[0], plaintextRingT)
-	testctx.encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
-
-	t.Run(testString("Encryptor/EncryptFromPk/", testctx.params), func(t *testing.T) {
-
-		if testctx.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptNew(plaintext), t)
-	})
-
-	t.Run(testString("Encryptor/EncryptFromPkFast/", testctx.params), func(t *testing.T) {
-		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorPk.EncryptFastNew(plaintext), t)
-	})
-
-	t.Run(testString("Encryptor/EncryptFromSk/", testctx.params), func(t *testing.T) {
-		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorSk.EncryptNew(plaintext), t)
-	})
-
-	t.Run(testString("Encryptor/EncryptFromCRP/", testctx.params), func(t *testing.T) {
-		samplerQP := ring.NewUniformSampler(testctx.prng, testctx.ringQP)
-		verifyTestVectors(testctx, testctx.decryptor, coeffs, testctx.encryptorSk.EncryptFromCRPNew(plaintext, samplerQP.ReadNew()), t)
 	})
 }
 

@@ -179,7 +179,7 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv
 
 	// Each party encrypts its input vector
 	l.Println("> Encrypt Phase")
-	encryptor := bfv.NewEncryptorFromPk(params, pk)
+	encryptor := bfv.NewEncryptor(params, pk)
 
 	pt := bfv.NewPlaintext(params)
 	elapsedEncryptParty = runTimedParty(func() {
@@ -312,7 +312,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 	pcks := dbfv.NewPCKSProtocol(params, 3.19)
 
 	for _, pi := range P {
-		pi.pcksShare = pcks.AllocateBFVShares()
+		pi.pcksShare = pcks.AllocateShares(encRes.Level())
 	}
 
 	l.Println("> PCKS Phase")
@@ -322,7 +322,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 		}
 	}, len(P))
 
-	pcksCombined := pcks.AllocateBFVShares()
+	pcksCombined := pcks.AllocateShares(encRes.Level())
 	encOut = bfv.NewCiphertext(params, 1)
 	elapsedPCKSCloud = runTimed(func() {
 		for _, pi := range P {

@@ -44,9 +44,9 @@ type testContext struct {
 	encoder   ckks.Encoder
 	evaluator ckks.Evaluator
 
-	encryptorPk0 ckks.Encryptor
-	decryptorSk0 ckks.Decryptor
-	decryptorSk1 ckks.Decryptor
+	encryptorPk0 *ckks.Encryptor
+	decryptorSk0 *ckks.Decryptor
+	decryptorSk1 *ckks.Decryptor
 
 	pk0 *rlwe.PublicKey
 	pk1 *rlwe.PublicKey
@@ -139,7 +139,7 @@ func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err err
 	testCtx.pk0 = kgen.GenPublicKey(testCtx.sk0)
 	testCtx.pk1 = kgen.GenPublicKey(testCtx.sk1)
 
-	testCtx.encryptorPk0 = ckks.NewEncryptorFromPk(testCtx.params, testCtx.pk0)
+	testCtx.encryptorPk0 = ckks.NewEncryptor(testCtx.params, testCtx.pk0)
 	testCtx.decryptorSk0 = ckks.NewDecryptor(testCtx.params, testCtx.sk0)
 	testCtx.decryptorSk1 = ckks.NewDecryptor(testCtx.params, testCtx.sk1)
 
@@ -188,7 +188,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		P0.GenPublicKey(P0.s1, crp, pk)
 
 		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-		encryptorTest := ckks.NewEncryptorFromPk(params, pk)
+		encryptorTest := ckks.NewEncryptor(params, pk)
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorTest, -1, 1, t)
 
@@ -822,19 +822,22 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		//testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, logBound, 3.2)
-		refreshshare := refreshproto.AllocateShares(ciphertext.Level(), ciphertext.Level())
+		refreshshare := refreshproto.AllocateShares(minLevel, params.MaxLevel())
 		refreshproto.GenShares(testCtx.sk0, logBound, params.LogSlots(), ciphertext, crsLevel, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
+
 		if err != nil {
 			t.Fatal("Could not marshal RefreshShare", err)
 		}
+
 		resRefreshShare := new(MaskedTransformShare)
 		err = resRefreshShare.UnmarshalBinary(data)
 
 		if err != nil {
 			t.Fatal("Could not unmarshal RefreshShare", err)
 		}
+
 		for i, r := range refreshshare.e2sShare.Value.Coeffs {
 			if !utils.EqualSliceUint64(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
 				t.Fatal("Resulting of marshalling not the same as original : RefreshShare")
@@ -850,7 +853,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
+func newTestVectors(testContext *testContext, encryptor *ckks.Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
 
 	params := testContext.params
 
@@ -871,7 +874,7 @@ func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b com
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(testCtx *testContext, decryptor ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(testCtx *testContext, decryptor *ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	precStats := ckks.GetPrecisionStats(testCtx.params, testCtx.encoder, decryptor, valuesWant, element, testCtx.params.LogSlots(), 0)
 

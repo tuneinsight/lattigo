@@ -29,6 +29,12 @@ func NewS2EProtocol(params ckks.Parameters, sigmaSmudging float64) *S2EProtocol 
 	return s2e
 }
 
+func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
+	share = s2e.CKSProtocol.AllocateShare(level)
+	share.Value.IsNTT = true
+	return
+}
+
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
 // polynomial sampled from the CRS `c1` and the party's secret share of the message.
 func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {

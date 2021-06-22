@@ -162,7 +162,7 @@ func (encryptor *pkEncryptor) EncryptNew(plaintext *Plaintext) *Element {
 		panic("Cannot EncryptNew : modulus P is empty -> use instead EncryptFastNew")
 	}
 
-	ciphertext := NewElementAtLevel(encryptor.params, 1, plaintext.Level())
+	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	encryptor.encrypt(plaintext, ciphertext, false)
 
 	return ciphertext
@@ -179,7 +179,7 @@ func (encryptor *pkEncryptor) EncryptNTTNew(plaintext *Plaintext) *Element {
 		panic("Cannot EncryptNew : modulus P is empty -> use instead EncryptFastNew")
 	}
 
-	ciphertext := NewElementAtLevel(encryptor.params, 1, plaintext.Level())
+	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	ciphertext.Value[0].IsNTT = true
 	ciphertext.Value[1].IsNTT = true
 	encryptor.encrypt(plaintext, ciphertext, false)
@@ -197,14 +197,14 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Element)
 }
 
 func (encryptor *pkEncryptor) EncryptFastNew(plaintext *Plaintext) *Element {
-	ciphertext := NewElementAtLevel(encryptor.params, 1, plaintext.Level())
+	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	encryptor.encrypt(plaintext, ciphertext, true)
 
 	return ciphertext
 }
 
 func (encryptor *pkEncryptor) EncryptFastNTTNew(plaintext *Plaintext) *Element {
-	ciphertext := NewElementAtLevel(encryptor.params, 1, plaintext.Level())
+	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	ciphertext.Value[0].IsNTT = true
 	ciphertext.Value[1].IsNTT = true
 	encryptor.encrypt(plaintext, ciphertext, true)
@@ -367,13 +367,13 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element,
 }
 
 func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Element {
-	ciphertext := NewElementAtLevel(encryptor.params, 1, plaintext.Level())
+	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	encryptor.Encrypt(plaintext, ciphertext)
 	return ciphertext
 }
 
 func (encryptor *skEncryptor) EncryptNTTNew(plaintext *Plaintext) *Element {
-	ciphertext := NewElementAtLevel(encryptor.params, 1, plaintext.Level())
+	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	ciphertext.Value[0].IsNTT = true
 	ciphertext.Value[1].IsNTT = true
 	encryptor.Encrypt(plaintext, ciphertext)
@@ -398,13 +398,13 @@ func (encryptor *skEncryptor) EncryptFast(plaintext *Plaintext, ciphertext *Elem
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Element {
-	ciphertext := NewElementAtLevel(encryptor.params, 1, plaintext.Level())
+	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	encryptor.EncryptFromCRP(plaintext, ciphertext, crp)
 	return ciphertext
 }
 
 func (encryptor *skEncryptor) EncryptFromCRPNTTNew(plaintext *Plaintext, crp *ring.Poly) *Element {
-	ciphertext := NewElementAtLevel(encryptor.params, 1, plaintext.Level())
+	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	ciphertext.Value[0].IsNTT = true
 	ciphertext.Value[1].IsNTT = true
 	encryptor.EncryptFromCRP(plaintext, ciphertext, crp)

@@ -16,7 +16,7 @@ func NewDecryptor(params Parameters, sk *rlwe.SecretKey) *Decryptor {
 
 // DecryptNew calls rlwe.Decryptor.DecryptNew.
 func (decryptor *Decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
-	return &Plaintext{Plaintext: decryptor.Decryptor.DecryptNew(&rlwe.Element{ciphertext.Value}), Scale: ciphertext.Scale}
+	return &Plaintext{Plaintext: decryptor.Decryptor.DecryptNew(&rlwe.Element{Value: ciphertext.Value}), Scale: ciphertext.Scale}
 }
 
 // Decrypt calls rlwe.Decryptor.Decrypt.

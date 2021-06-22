@@ -29,7 +29,7 @@ func (encryptor *Encryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 
 // Encrypt calls rlwe.Encryptor.Encrypt.
 func (encryptor *Encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
-	encryptor.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Element{ciphertext.Value})
+	encryptor.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Element{Value: ciphertext.Value})
 }
 
 // EncryptFastNew calls rlwe.Encryptor.EncryptFastNew.
@@ -39,12 +39,12 @@ func (encryptor *Encryptor) EncryptFastNew(plaintext *Plaintext) *Ciphertext {
 
 // EncryptFast calls rlwe.Encryptor.EncryptFast.
 func (encryptor *Encryptor) EncryptFast(plaintext *Plaintext, ciphertext *Ciphertext) {
-	encryptor.Encryptor.EncryptFast(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Element{ciphertext.Value})
+	encryptor.Encryptor.EncryptFast(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Element{Value: ciphertext.Value})
 }
 
 // EncryptFromCRP calls rlwe.Encryptor.EncryptFromCRP.
 func (encryptor *Encryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	encryptor.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Element{ciphertext.Value}, crp)
+	encryptor.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Element{Value: ciphertext.Value}, crp)
 }
 
 // EncryptFromCRPNew calls rlwe.Encryptor.EncryptFromCRPNew.

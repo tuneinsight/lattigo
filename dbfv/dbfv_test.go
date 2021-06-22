@@ -52,9 +52,9 @@ type testContext struct {
 	pk0 *rlwe.PublicKey
 	pk1 *rlwe.PublicKey
 
-	encryptorPk0 bfv.Encryptor
-	decryptorSk0 bfv.Decryptor
-	decryptorSk1 bfv.Decryptor
+	encryptorPk0 *bfv.Encryptor
+	decryptorSk0 *bfv.Decryptor
+	decryptorSk1 *bfv.Decryptor
 	evaluator    bfv.Evaluator
 }
 
@@ -141,7 +141,7 @@ func gentestContext(params bfv.Parameters) (testCtx *testContext, err error) {
 	testCtx.pk0 = kgen.GenPublicKey(testCtx.sk0)
 	testCtx.pk1 = kgen.GenPublicKey(testCtx.sk1)
 
-	testCtx.encryptorPk0 = bfv.NewEncryptorFromPk(testCtx.params, testCtx.pk0)
+	testCtx.encryptorPk0 = bfv.NewEncryptor(testCtx.params, testCtx.pk0)
 	testCtx.decryptorSk0 = bfv.NewDecryptor(testCtx.params, testCtx.sk0)
 	testCtx.decryptorSk1 = bfv.NewDecryptor(testCtx.params, testCtx.sk1)
 
@@ -189,7 +189,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		P0.GenPublicKey(P0.s1, crp, pk)
 
 		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-		encryptorTest := bfv.NewEncryptorFromPk(testCtx.params, pk)
+		encryptorTest := bfv.NewEncryptor(testCtx.params, pk)
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorTest, t)
 
@@ -723,7 +723,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(testCtx *testContext, encryptor bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
+func newTestVectors(testCtx *testContext, encryptor *bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
 
 	uniformSampler := ring.NewUniformSampler(testCtx.prng, testCtx.ringT)
 
@@ -734,7 +734,7 @@ func newTestVectors(testCtx *testContext, encryptor bfv.Encryptor, t *testing.T)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 
-func verifyTestVectors(testCtx *testContext, decryptor bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
+func verifyTestVectors(testCtx *testContext, decryptor *bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
 	require.True(t, utils.EqualSliceUint64(coeffs, testCtx.encoder.DecodeUintNew(decryptor.DecryptNew(ciphertext))))
 }
 

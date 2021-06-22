@@ -3,6 +3,8 @@ package dckks
 import (
 	"math/big"
 
+	"encoding/binary"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
@@ -33,23 +35,32 @@ type MaskedTransformShare struct {
 }
 
 // MarshalBinary encodes a RefreshShare on a slice of bytes.
-func (share *MaskedTransformShare) MarshalBinary() ([]byte, error) {
-	e2sData, err := share.e2sShare.MarshalBinary()
-	if err != nil {
+func (share *MaskedTransformShare) MarshalBinary() (data []byte, err error) {
+	var e2sData, s2eData []byte
+	if e2sData, err = share.e2sShare.MarshalBinary(); err != nil {
 		return nil, err
 	}
-	s2eData, err := share.s2eShare.MarshalBinary()
-	if err != nil {
+	if s2eData, err = share.s2eShare.MarshalBinary(); err != nil {
 		return nil, err
 	}
-	return append(e2sData, s2eData...), nil
+	data = make([]byte, 8)
+	binary.LittleEndian.PutUint64(data, uint64(len(e2sData)))
+	data = append(data, e2sData...)
+	data = append(data, s2eData...)
+	return data, nil
 }
 
 // UnmarshalBinary decodes a marshaled RefreshShare on the target RefreshShare.
 func (share *MaskedTransformShare) UnmarshalBinary(data []byte) error {
-	shareLen := len(data) >> 1
-	share.e2sShare.UnmarshalBinary(data[:shareLen])
-	share.s2eShare.UnmarshalBinary(data[shareLen:])
+
+	e2sDataLen := binary.LittleEndian.Uint64(data[:8])
+
+	if err := share.e2sShare.UnmarshalBinary(data[8 : e2sDataLen+8]); err != nil {
+		return err
+	}
+	if err := share.s2eShare.UnmarshalBinary(data[8+e2sDataLen:]); err != nil {
+		return err
+	}
 	return nil
 }
 

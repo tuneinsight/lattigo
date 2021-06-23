@@ -14,8 +14,10 @@ type KeySwitcher struct {
 }
 
 type keySwitcherBuffer struct {
-	PoolQ       [6]*ring.Poly // Memory pool in order : Decomp(c2), for NTT^-1(c2), res(c0', c1')
-	PoolP       [6]*ring.Poly // Memory pool in order : Decomp(c2), res(c0', c1')
+	// PoolQ[0]/PoolP[0] : on the fly decomp(c2)
+	// PoolQ[1-5]/PoolP[1-5] : available
+	PoolQ       [6]*ring.Poly
+	PoolP       [6]*ring.Poly
 	PoolInvNTT  *ring.Poly
 	C2QiQDecomp []*ring.Poly // Memory pool for the basis extension in hoisting
 	C2QiPDecomp []*ring.Poly // Memory pool for the basis extension in hoisting

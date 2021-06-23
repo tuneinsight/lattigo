@@ -11,7 +11,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut ma
 
 	level := ctIn.Level()
 
-	eval.DecompInternal(level, ctIn.Value[1], eval.C2QiQDecomp, eval.C2QiPDecomp)
+	eval.DecomposeNTT(level, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 	cOut = make(map[int]*Ciphertext)
 	for _, i := range rotations {
@@ -20,7 +20,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut ma
 			cOut[i] = ctIn.CopyNew()
 		} else {
 			cOut[i] = NewCiphertext(eval.params, 1, level, ctIn.Scale)
-			eval.permuteNTTHoisted(level, ctIn.Value[0], ctIn.Value[1], eval.C2QiQDecomp, eval.C2QiPDecomp, i, cOut[i].Value[0], cOut[i].Value[1])
+			eval.permuteNTTHoisted(level, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP, i, cOut[i].Value[0], cOut[i].Value[1])
 		}
 	}
 
@@ -44,29 +44,29 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
-		eval.DecompInternal(minLevel, ctIn.Value[1], eval.C2QiQDecomp, eval.C2QiPDecomp)
+		eval.DecomposeNTT(minLevel, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 		for i, matrix := range element {
 			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
 
 			if matrix.naive {
-				eval.MultiplyByDiagMatrix(ctIn, matrix, eval.C2QiQDecomp, eval.C2QiPDecomp, ctOut[i])
+				eval.MultiplyByDiagMatrix(ctIn, matrix, eval.PoolDecompQ, eval.PoolDecompP, ctOut[i])
 			} else {
-				eval.MultiplyByDiagMatrixBSGS(ctIn, matrix, eval.C2QiQDecomp, eval.C2QiPDecomp, ctOut[i])
+				eval.MultiplyByDiagMatrixBSGS(ctIn, matrix, eval.PoolDecompQ, eval.PoolDecompP, ctOut[i])
 			}
 		}
 
 	case *PtDiagMatrix:
 
 		minLevel := utils.MinInt(element.Level, ctIn.Level())
-		eval.DecompInternal(minLevel, ctIn.Value[1], eval.C2QiQDecomp, eval.C2QiPDecomp)
+		eval.DecomposeNTT(minLevel, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
 
 		if element.naive {
-			eval.MultiplyByDiagMatrix(ctIn, element, eval.C2QiQDecomp, eval.C2QiPDecomp, ctOut[0])
+			eval.MultiplyByDiagMatrix(ctIn, element, eval.PoolDecompQ, eval.PoolDecompP, ctOut[0])
 		} else {
-			eval.MultiplyByDiagMatrixBSGS(ctIn, element, eval.C2QiQDecomp, eval.C2QiPDecomp, ctOut[0])
+			eval.MultiplyByDiagMatrixBSGS(ctIn, element, eval.PoolDecompQ, eval.PoolDecompP, ctOut[0])
 		}
 	}
 
@@ -125,11 +125,11 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 			// Starts by decomposing the input ciphertext
 			if i == 0 {
 				// If first iteration, then copies directly from the input ciphertext that hasn't been rotated
-				eval.DecompInternal(levelQ, ctIn.Value[1], eval.C2QiQDecomp, eval.C2QiPDecomp)
+				eval.DecomposeNTT(levelQ, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 			} else {
 				// Else copies from the rotated input ciphertext
 				tmpc1.IsNTT = true
-				eval.DecompInternal(levelQ, tmpc1, eval.C2QiQDecomp, eval.C2QiPDecomp)
+				eval.DecomposeNTT(levelQ, tmpc1, eval.PoolDecompQ, eval.PoolDecompP)
 			}
 
 			// If the binary reading scans a 1
@@ -142,7 +142,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 				if k != 0 {
 
 					// Rotate((tmpc0, tmpc1), k)
-					eval.permuteNTTHoistedNoModDown(levelQ, eval.C2QiQDecomp, eval.C2QiPDecomp, k, pool2Q, pool3Q, pool2P, pool3P)
+					eval.permuteNTTHoistedNoModDown(levelQ, eval.PoolDecompQ, eval.PoolDecompP, k, pool2Q, pool3Q, pool2P, pool3P)
 
 					// ctOut += Rotate((tmpc0, tmpc1), k)
 					if copy {
@@ -191,13 +191,13 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 			if !state {
 				if i == 0 {
-					eval.permuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.C2QiQDecomp, eval.C2QiPDecomp, (1<<i)*batchSize, tmpc0, tmpc1)
+					eval.permuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP, (1<<i)*batchSize, tmpc0, tmpc1)
 
 					ringQ.AddLvl(levelQ, tmpc0, ctIn.Value[0], tmpc0)
 					ringQ.AddLvl(levelQ, tmpc1, ctIn.Value[1], tmpc1)
 				} else {
 					// (tmpc0, tmpc1) = Rotate((tmpc0, tmpc1), 2^i)
-					eval.permuteNTTHoisted(levelQ, tmpc0, tmpc1, eval.C2QiQDecomp, eval.C2QiPDecomp, (1<<i)*batchSize, pool2Q, pool3Q)
+					eval.permuteNTTHoisted(levelQ, tmpc0, tmpc1, eval.PoolDecompQ, eval.PoolDecompP, (1<<i)*batchSize, pool2Q, pool3Q)
 					ringQ.AddLvl(levelQ, tmpc0, pool2Q, tmpc0)
 					ringQ.AddLvl(levelQ, tmpc1, pool3Q, tmpc1)
 				}
@@ -246,11 +246,11 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 		pool3P := eval.PoolP[2] // ctOut(c0', c1') from evaluator keyswitch memory pool
 
 		// Basis decomposition
-		eval.DecompInternal(levelQ, ctIn.Value[1], eval.C2QiQDecomp, eval.C2QiPDecomp)
+		eval.DecomposeNTT(levelQ, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 		// Pre-rotates all [1, ..., n-1] rotations
 		// Hoisted rotation without division by P
-		vecRotQ, vecRotP := eval.rotateHoistedNoModDown(ctIn, rotations, eval.C2QiQDecomp, eval.C2QiPDecomp)
+		vecRotQ, vecRotP := eval.rotateHoistedNoModDown(ctIn, rotations, eval.PoolDecompQ, eval.PoolDecompP)
 
 		// P*c0 -> tmpQ0
 		ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], ringP.ModulusBigint, tmpQ0)
@@ -348,11 +348,11 @@ func (eval *evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciph
 }
 
 // MultiplyByDiagMatrix multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
-// "ctOut". Memory pools for the decomposed ciphertext c2QiQDecomp, c2QiPDecomp must be provided, those are list of poly of ringQ and ringP
+// "ctOut". Memory pools for the decomposed ciphertext PoolDecompQ, PoolDecompP must be provided, those are list of poly of ringQ and ringP
 // respectively, each of size params.Beta().
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
 // for matrix of only a few non-zero diagonals but uses more keys.
-func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext) {
+func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix *PtDiagMatrix, PoolDecompQ, PoolDecompP []*ring.Poly, ctOut *Ciphertext) {
 
 	ringQ := eval.ringQ
 	ringP := eval.ringP
@@ -397,7 +397,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix *PtDiagMatr
 
 			index := eval.permuteNTTIndex[galEl]
 
-			eval.KeyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rtk, ksResQ0, ksResQ1, ksResP0, ksResP1)
+			eval.KeyswitchHoistedNoModDown(levelQ, PoolDecompQ, PoolDecompP, rtk, ksResQ0, ksResQ1, ksResP0, ksResP1)
 
 			ringQ.AddLvl(levelQ, ksResQ0, ct0TimesP, ksResQ0) // phi(d0_Q) += phi(P*c0)
 
@@ -460,11 +460,11 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix *PtDiagMatr
 }
 
 // MultiplyByDiagMatrixBSGS multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
-// "ctOut". Memory pools for the decomposed ciphertext c2QiQDecomp, c2QiPDecomp must be provided, those are list of poly of ringQ and ringP
+// "ctOut". Memory pools for the decomposed ciphertext PoolDecompQ, PoolDecompP must be provided, those are list of poly of ringQ and ringP
 // respectively, each of size params.Beta().
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses much less keys.
-func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext) {
+func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix *PtDiagMatrix, PoolDecompQ, PoolDecompP []*ring.Poly, ctOut *Ciphertext) {
 
 	// N1*N2 = N
 	N1 := matrix.N1
@@ -483,7 +483,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix *PtDiag
 	index, rotations := bsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	vecRotQ, vecRotP := eval.rotateHoistedNoModDown(ctIn, rotations, eval.C2QiQDecomp, eval.C2QiPDecomp)
+	vecRotQ, vecRotP := eval.rotateHoistedNoModDown(ctIn, rotations, eval.PoolDecompQ, eval.PoolDecompP)
 
 	// Accumulator inner loop
 	tmpQ0 := eval.poolQMul[0] // unused memory pool from evaluator

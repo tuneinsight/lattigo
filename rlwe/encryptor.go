@@ -20,13 +20,14 @@ type Encryptor interface {
 	// the result on a newly created ciphertext. The encryption is done by first
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
 	// The level of the output ciphertext is plaintext.Level().
+	// Output will be in the NTT domain.
 	EncryptNTTNew(plaintext *Plaintext) *Element
 
 	// Encrypt encrypts the input plaintext using the stored key, and returns
 	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
 	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
-	// Output domain will match ciphertext.Value[0].IsNTT value
+	// Output domain will match ciphertext.Value[0].IsNTT value.
 	Encrypt(plaintext *Plaintext, ciphertext *Element)
 
 	// EncryptFastNew encrypts the input plaintext using the stored key and returns
@@ -39,19 +40,21 @@ type Encryptor interface {
 	// the result on a newly created ciphertext. The encryption is done by first
 	// encrypting zero in Q and then adding the plaintext.
 	// The level of the output ciphertext is plaintext.Level().
+	// Output will be in the NTT domain.
 	EncryptFastNTTNew(plaintext *Plaintext) *Element
 
 	// EncryptFast encrypts the input plaintext using the stored-key, and returns
 	// the result on the receiver ciphertext. The encryption is done by first
 	// encrypting zero in Q and then adding the plaintext.
 	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
-	// Output domain will match ciphertext.Value[0].IsNTT value
+	// Output domain will match ciphertext.Value[0].IsNTT value.
 	EncryptFast(plaintext *Plaintext, ciphertext *Element)
 
 	// EncryptFromCRPNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first encrypting
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
+	// CRP is always treated as being in the NTT domain.
 	// The level of the output ciphertext is min(plaintext.Level(), len(CRP.Coeffs)-1).
 	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Element
 
@@ -60,6 +63,8 @@ type Encryptor interface {
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
 	// The level of the output ciphertext is min(plaintext.Level(), len(CRP.Coeffs)-1).
+	// CRP is always treated as being in the NTT domain.
+	// Output will be in the NTT domain.
 	EncryptFromCRPNTTNew(plaintext *Plaintext, crp *ring.Poly) *Element
 
 	// EncryptFromCRP encrypts the input plaintext using the stored key and returns
@@ -67,7 +72,8 @@ type Encryptor interface {
 	// zero in QP, using the provided polynomial as the uniform polynomial, dividing by P and
 	// then adding the plaintext.
 	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level(), len(CRP.Coeffs)-1).
-	// Output domain will match ciphertext.Value[0].IsNTT value
+	// CRP is always treated as being in the NTT domain.
+	// Output domain will match ciphertext.Value[0].IsNTT value.
 	EncryptFromCRP(plaintext *Plaintext, ciphertext *Element, crp *ring.Poly)
 }
 

@@ -138,8 +138,6 @@ type Evaluator interface {
 	// ==============
 	// === Others ===
 	// ==============
-
-	DecompInternal(level int, c2 *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly)
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 }

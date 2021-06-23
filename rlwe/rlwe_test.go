@@ -3,24 +3,73 @@ package rlwe
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/stretchr/testify/require"
 	"math"
 	"math/big"
 	"math/bits"
 	"runtime"
 	"testing"
-	//"github.com/ldsec/lattigo/v2/utils"
-	//"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
+var (
+	// PN12QP109 is a set of default parameters with logN=12 and logQP=109
+	TestPN12QP109 = ParametersLiteral{
+		LogN:  12,
+		Q:     []uint64{0x7ffffec001, 0x40002001}, // 39 + 39 bits
+		P:     []uint64{0x8000016001},             // 30 bits
+		Sigma: DefaultSigma,
+	}
+	// PN13QP218 is a set of default parameters with logN=13 and logQP=218
+	TestPN13QP218 = ParametersLiteral{
+		LogN:  13,
+		Q:     []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
+		P:     []uint64{0x7ffffffffb4001},                                     // 55 bits
+		Sigma: DefaultSigma,
+	}
+
+	// PN14QP438 is a set of default parameters with logN=14 and logQP=438
+	TestPN14QP438 = ParametersLiteral{
+		LogN: 14,
+		Q: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
+			0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
+		P:     []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
+		Sigma: DefaultSigma,
+	}
+
+	// PN15QP880 is a set of default parameters with logN=15 and logQP=880
+	TestPN15QP880 = ParametersLiteral{
+		LogN: 15,
+		Q: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
+			0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
+			0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
+			0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
+		P:     []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
+		Sigma: DefaultSigma,
+	}
+)
+
+// TestParams is a set of test parameters for the correctness of the rlwe pacakge.
+var TestParams = []ParametersLiteral{TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880}
+
+func testString(params Parameters, opname string) string {
+	return fmt.Sprintf("%slogN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
+		opname,
+		params.LogN(),
+		params.LogQ(),
+		params.LogP(),
+		params.QCount(),
+		params.PCount())
+}
+
 func TestRLWE(t *testing.T) {
-	defaultParams := TestParams[:1] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	defaultParams := TestParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = TestParams[:1] // the short test suite runs for ring degree N=2^12, 2^13
+		defaultParams = TestParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
 		defaultParams = append(TestParams) //, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
@@ -120,10 +169,10 @@ func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
 
 func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 
-	// Checks that sum([-as + e, a] + [as])) <= N * 6 * sigma
-	t.Run("PKGen", func(t *testing.T) {
+	params := kgen.(*keyGenerator).params
 
-		params := kgen.(*keyGenerator).params
+	// Checks that sum([-as + e, a] + [as])) <= N * 6 * sigma
+	t.Run(testString(params, "PKGen/"), func(t *testing.T) {
 
 		ringQP := params.RingQP()
 
@@ -140,14 +189,14 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 
 func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 
+	params := kgen.(*keyGenerator).params
+
 	// Checks that switching keys are en encryption under the output key
 	// of the RNS decomposition of the input key by
 	// 1) Decrypting the RNS decomposed input key
 	// 2) Reconstructing the key
 	// 3) Checking that the difference with the input key has a small norm
-	t.Run("SWKGen", func(t *testing.T) {
-
-		params := kgen.(*keyGenerator).params
+	t.Run(testString(params, "SWKGen/"), func(t *testing.T) {
 
 		ringQ := params.RingQ()
 		skIn := kgen.GenSecretKey()
@@ -196,7 +245,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 
 	ringQ := params.RingQ()
 
-	t.Run("Encrypt/Pk/Fast/MaxLevel", func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Pk/Fast/MaxLevel/"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
 		encryptor := NewEncryptorFromPk(params, pk)
@@ -207,7 +256,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 12+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
-	t.Run("Encrypt/Pk/Fast/LowLevel", func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Pk/Fast/MinLevel/"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, 0)
 		plaintext.Value.IsNTT = true
 		encryptor := NewEncryptorFromPk(params, pk)
@@ -218,7 +267,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 12+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
-	t.Run("Encrypt/Pk/Slow/MaxLevel", func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Pk/Slow/MaxLevel/"), func(t *testing.T) {
 		if params.PCount() == 0 {
 			t.Skip()
 		}
@@ -232,7 +281,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 9+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
-	t.Run("Encrypt/Pk/Slow/LowLevel", func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Pk/Slow/MinLevel/"), func(t *testing.T) {
 		if params.PCount() == 0 {
 			t.Skip()
 		}
@@ -246,7 +295,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 9+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
-	t.Run("Encrypt/Sk/MaxLevel", func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Sk/MaxLevel/"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
 		encryptor := NewEncryptorFromSk(params, sk)
@@ -257,7 +306,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
-	t.Run("Encrypt/Sk/LowLevel", func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Sk/MinLevel/"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, 0)
 		plaintext.Value.IsNTT = true
 		encryptor := NewEncryptorFromSk(params, sk)
@@ -276,7 +325,7 @@ func testDecryptor(kgen KeyGenerator, t *testing.T) {
 	encryptor := NewEncryptorFromSk(params, sk)
 	decryptor := NewDecryptor(params, sk)
 
-	t.Run("Decrypt/MaxLevel", func(t *testing.T) {
+	t.Run(testString(params, "Decrypt/MaxLevel/"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
 		ciphertext := encryptor.EncryptNTTNew(plaintext)
@@ -286,7 +335,7 @@ func testDecryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, plaintext.Value))
 	})
 
-	t.Run("Encrypt/LowLevel", func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/MinLevel/"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, 0)
 		plaintext.Value.IsNTT = true
 		ciphertext := encryptor.EncryptNTTNew(plaintext)
@@ -314,11 +363,11 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 
 	// Tests that a random polynomial decomposed is equal to its
 	// reconstruction mod each RNS
-	t.Run("DecompInternal", func(t *testing.T) {
+	t.Run(testString(params, "DecomposeNTT/"), func(t *testing.T) {
 
 		c2 := ciphertext.Value[1]
 
-		ks.DecompInternal(ciphertext.Level(), c2, ks.C2QiQDecomp, ks.C2QiPDecomp)
+		ks.DecomposeNTT(ciphertext.Level(), c2, ks.PoolDecompQ, ks.PoolDecompP)
 
 		coeffsBigintHave := make([]*big.Int, ringQ.N)
 		coeffsBigintRef := make([]*big.Int, ringQ.N)
@@ -332,7 +381,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 
 		ringQ.PolyToBigintCenteredLvl(len(ringQ.Modulus)-1, c2, coeffsBigintRef)
 
-		for i := 0; i < len(ks.C2QiQDecomp); i++ {
+		for i := 0; i < len(ks.PoolDecompQ); i++ {
 
 			// Compute q_alpha_i in bigInt
 			modulus := ring.NewInt(1)
@@ -347,7 +396,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 
 			// Reconstruct the decomposed polynomial
 			polyQP := new(ring.Poly)
-			polyQP.Coeffs = append(ks.C2QiQDecomp[i].Coeffs, ks.C2QiPDecomp[i].Coeffs...)
+			polyQP.Coeffs = append(ks.PoolDecompQ[i].Coeffs, ks.PoolDecompP[i].Coeffs...)
 			ringQP.PolyToBigintCenteredLvl(len(ringQP.Modulus)-1, polyQP, coeffsBigintHave)
 
 			// Checks that Reconstruct(NTT(c2 mod Q)) mod q_alpha_i == Reconstruct(NTT(Decomp(c2 mod Q, q_alpha-i) mod QP))
@@ -360,7 +409,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 	})
 
 	// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
-	t.Run("KeySwitch", func(t *testing.T) {
+	t.Run(testString(params, "KeySwitch/"), func(t *testing.T) {
 		swk := kgen.GenSwitchingKey(sk, skOut)
 		ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
 		ringQ.Add(ciphertext.Value[0], ks.PoolQ[1], ciphertext.Value[0])

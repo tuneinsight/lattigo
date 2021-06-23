@@ -3,6 +3,7 @@ package rlwe
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/big"
@@ -43,6 +44,7 @@ func TestRLWE(t *testing.T) {
 			testGenKeyPair,
 			testSwitchKeyGen,
 			testEncryptor,
+			testDecryptor,
 		} {
 			testSet(kgen, t)
 			runtime.GC()
@@ -278,7 +280,8 @@ func testDecryptor(kgen KeyGenerator, t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
 		ciphertext := encryptor.EncryptNTTNew(plaintext)
-		plaintext = decryptor.DecryptNew(ciphertext)
+		plaintext = decryptor.DecryptNTTNew(ciphertext)
+		fmt.Println(plaintext.Value.IsNTT)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, plaintext.Value))
@@ -288,7 +291,7 @@ func testDecryptor(kgen KeyGenerator, t *testing.T) {
 		plaintext := NewPlaintext(params, 0)
 		plaintext.Value.IsNTT = true
 		ciphertext := encryptor.EncryptNTTNew(plaintext)
-		plaintext = decryptor.DecryptNew(ciphertext)
+		plaintext = decryptor.DecryptNTTNew(ciphertext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, plaintext.Value))

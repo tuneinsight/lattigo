@@ -12,10 +12,17 @@ type Decryptor interface {
 	// The level of the output plaintext is ciphertext.Level().
 	DecryptNew(ciphertext *Element) (plaintext *Plaintext)
 
+	// DecryptNew decrypts the ciphertext and returns a newly created
+	// plaintext. A Horner method is used for evaluating the decryption.
+	// The level of the output plaintext is ciphertext.Level().
+	// Plaintext output is in the NTT domain.
+	DecryptNTTNew(ciphertext *Element) (plaintext *Plaintext)
+
 	// Decrypt decrypts the ciphertext and returns the result on the provided
 	// receiver plaintext. A Horner method is used for evaluating the
 	// decryption.
 	// The level of the output plaintext is min(ciphertext.Level(), plaintext.Level())
+	// Output domain will match plaintext.Value.IsNTT value.
 	Decrypt(ciphertext *Element, plaintext *Plaintext)
 }
 
@@ -46,6 +53,16 @@ func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 func (decryptor *decryptor) DecryptNew(ciphertext *Element) (plaintext *Plaintext) {
 
 	plaintext = NewPlaintext(decryptor.params, ciphertext.Level())
+
+	decryptor.Decrypt(ciphertext, plaintext)
+
+	return plaintext
+}
+
+func (decryptor *decryptor) DecryptNTTNew(ciphertext *Element) (plaintext *Plaintext) {
+
+	plaintext = NewPlaintext(decryptor.params, ciphertext.Level())
+	plaintext.Value.IsNTT = true
 
 	decryptor.Decrypt(ciphertext, plaintext)
 

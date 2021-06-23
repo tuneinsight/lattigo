@@ -3,7 +3,6 @@ package rlwe
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/big"
@@ -45,6 +44,7 @@ func TestRLWE(t *testing.T) {
 			testSwitchKeyGen,
 			testEncryptor,
 			testDecryptor,
+			testKeySwitcher,
 		} {
 			testSet(kgen, t)
 			runtime.GC()
@@ -281,7 +281,6 @@ func testDecryptor(kgen KeyGenerator, t *testing.T) {
 		plaintext.Value.IsNTT = true
 		ciphertext := encryptor.EncryptNTTNew(plaintext)
 		plaintext = decryptor.DecryptNTTNew(ciphertext)
-		fmt.Println(plaintext.Value.IsNTT)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, plaintext.Value))
@@ -295,5 +294,79 @@ func testDecryptor(kgen KeyGenerator, t *testing.T) {
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, plaintext.Value))
+	})
+}
+
+func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
+
+	params := kgen.(*keyGenerator).params
+	sk := kgen.GenSecretKey()
+	skOut := kgen.GenSecretKey()
+	ks := NewKeySwitcher(params)
+
+	ringQP := params.RingQP()
+	ringQ := params.RingQ()
+
+	plaintext := NewPlaintext(params, params.MaxLevel())
+	plaintext.Value.IsNTT = true
+	encryptor := NewEncryptorFromSk(params, sk)
+	ciphertext := encryptor.EncryptNTTNew(plaintext)
+
+	// Tests that a random polynomial decomposed is equal to its
+	// reconstruction mod each RNS
+	t.Run("DecompInternal", func(t *testing.T) {
+
+		c2 := ciphertext.Value[1]
+
+		ks.DecompInternal(ciphertext.Level(), c2, ks.C2QiQDecomp, ks.C2QiPDecomp)
+
+		coeffsBigintHave := make([]*big.Int, ringQ.N)
+		coeffsBigintRef := make([]*big.Int, ringQ.N)
+		coeffsBigintWant := make([]*big.Int, ringQ.N)
+
+		for i := range coeffsBigintRef {
+			coeffsBigintHave[i] = new(big.Int)
+			coeffsBigintRef[i] = new(big.Int)
+			coeffsBigintWant[i] = new(big.Int)
+		}
+
+		ringQ.PolyToBigintCenteredLvl(len(ringQ.Modulus)-1, c2, coeffsBigintRef)
+
+		for i := 0; i < len(ks.C2QiQDecomp); i++ {
+
+			// Compute q_alpha_i in bigInt
+			modulus := ring.NewInt(1)
+
+			for j := 0; j < params.PCount(); j++ {
+				idx := i*params.PCount() + j
+				if idx > params.QCount()-1 {
+					break
+				}
+				modulus.Mul(modulus, ring.NewUint(ringQ.Modulus[idx]))
+			}
+
+			// Reconstruct the decomposed polynomial
+			polyQP := new(ring.Poly)
+			polyQP.Coeffs = append(ks.C2QiQDecomp[i].Coeffs, ks.C2QiPDecomp[i].Coeffs...)
+			ringQP.PolyToBigintCenteredLvl(len(ringQP.Modulus)-1, polyQP, coeffsBigintHave)
+
+			// Checks that Reconstruct(NTT(c2 mod Q)) mod q_alpha_i == Reconstruct(NTT(Decomp(c2 mod Q, q_alpha-i) mod QP))
+			for i := range coeffsBigintWant {
+				coeffsBigintHave[i].Mod(coeffsBigintHave[i], modulus)
+				coeffsBigintWant[i].Mod(coeffsBigintRef[i], modulus)
+				require.Equal(t, coeffsBigintHave[i].Cmp(coeffsBigintWant[i]), 0)
+			}
+		}
+	})
+
+	// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
+	t.Run("KeySwitch", func(t *testing.T) {
+		swk := kgen.GenSwitchingKey(sk, skOut)
+		ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
+		ringQ.Add(ciphertext.Value[0], ks.PoolQ[1], ciphertext.Value[0])
+		ring.CopyValues(ks.PoolQ[2], ciphertext.Value[1])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value, ciphertext.Value[0])
+		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
+		require.GreaterOrEqual(t, 10+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 }

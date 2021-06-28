@@ -40,6 +40,7 @@ func BenchmarkDCKKS(b *testing.B) {
 		benchPublicKeySwitching(testCtx, b)
 		benchRotKeyGen(testCtx, b)
 		benchRefresh(testCtx, b)
+		benchMaskedTransform(testCtx, b)
 	}
 }
 
@@ -270,7 +271,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 
 	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q())
 
-	if !ok {
+	if ok {
 
 		sk0Shards := testCtx.sk0Shards
 
@@ -308,6 +309,65 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
 			for i := 0; i < b.N; i++ {
 				p.Finalize(ciphertext, params.LogSlots(), crp, p.share, ctOut)
+			}
+		})
+
+	} else {
+		b.Log("bench skipped : not enough level to ensure correctness and 128 bit security")
+	}
+}
+
+func benchMaskedTransform(testCtx *testContext, b *testing.B) {
+
+	params := testCtx.params
+
+	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q())
+
+	if ok {
+
+		sk0Shards := testCtx.sk0Shards
+
+		type Party struct {
+			*MaskedTransformProtocol
+			s     *rlwe.SecretKey
+			share MaskedTransformShare
+		}
+
+		p := new(Party)
+		p.MaskedTransformProtocol = NewMaskedTransformProtocol(params, logBound, 3.2)
+		p.s = sk0Shards[0]
+		p.share = p.AllocateShares(minLevel, params.MaxLevel())
+
+		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crp := crpGenerator.ReadNew()
+
+		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, minLevel, params.Scale())
+
+		permute := func(ptIn, ptOut []*ring.Complex) {
+			for i := range ptIn {
+				ptOut[i][0].Mul(ptIn[i][0], ring.NewFloat(0.9238795325112867, logBound))
+				ptOut[i][1].Mul(ptIn[i][1], ring.NewFloat(0.7071067811865476, logBound))
+			}
+		}
+
+		b.Run(testString("Refresh&Transform/Round1/Gen", parties, params), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, permute, p.share)
+			}
+		})
+
+		b.Run(testString("Refresh&Transform/Round1/Agg", parties, params), func(b *testing.B) {
+
+			for i := 0; i < b.N; i++ {
+				p.Aggregate(p.share, p.share, p.share)
+			}
+		})
+
+		b.Run(testString("Refresh&Transform/Transform", parties, params), func(b *testing.B) {
+			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
+			for i := 0; i < b.N; i++ {
+				p.Transform(ciphertext, params.LogSlots(), permute, crp, p.share, ctOut)
 			}
 		})
 

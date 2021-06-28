@@ -85,7 +85,7 @@ type encryptor struct {
 	ringP *ring.Ring
 
 	poolQ [1]*ring.Poly
-	poolP [2]*ring.Poly
+	poolP [3]*ring.Poly
 
 	baseconverter   *ring.FastBasisExtender
 	gaussianSampler *ring.GaussianSampler
@@ -138,10 +138,10 @@ func newEncryptor(params Parameters) encryptor {
 	}
 
 	var baseconverter *ring.FastBasisExtender
-	var poolP [2]*ring.Poly
+	var poolP [3]*ring.Poly
 	if params.PCount() != 0 {
 		baseconverter = ring.NewFastBasisExtender(ringQ, ringP)
-		poolP = [2]*ring.Poly{ringP.NewPoly(), ringP.NewPoly()}
+		poolP = [3]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
 	}
 
 	return encryptor{
@@ -246,6 +246,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element,
 	poolQ0 := encryptor.poolQ[0]
 	poolP0 := encryptor.poolP[0]
 	poolP1 := encryptor.poolP[1]
+	poolP2 := encryptor.poolP[2]
 
 	// We sample a R-WLE instance (encryption of zero) over the extended ring (ciphertext ring + special prime)
 
@@ -333,6 +334,16 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element,
 		ringQ.InvNTTLvl(lvl, ciphertext.Value[1], ciphertext.Value[1])
 		ringP.InvNTT(poolP0, poolP0)
 		ringP.InvNTT(poolP1, poolP1)
+
+		encryptor.gaussianSampler.ReadLvl(lvl, poolQ0)
+		extendBasisSmallNormAndCenter(ringQ, ringP, poolQ0, poolP2)
+		ringQ.AddLvl(lvl, ciphertext.Value[0], poolQ0, ciphertext.Value[0])
+		ringP.Add(poolP0, poolP2, poolP0)
+
+		encryptor.gaussianSampler.ReadLvl(lvl, poolQ0)
+		extendBasisSmallNormAndCenter(ringQ, ringP, poolQ0, poolP2)
+		ringQ.AddLvl(lvl, ciphertext.Value[1], poolQ0, ciphertext.Value[1])
+		ringP.Add(poolP1, poolP2, poolP1)
 
 		// ct0 = (u*pk0 + e0)/P
 		encryptor.baseconverter.ModDownSplitPQ(lvl, ciphertext.Value[0], poolP0, ciphertext.Value[0])

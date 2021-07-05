@@ -5,7 +5,7 @@ import (
 	"math/cmplx"
 	"runtime"
 	"testing"
-
+	"fmt"
 	"github.com/ldsec/lattigo/v2/ckks/bettersine"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -33,8 +33,8 @@ func TestBootstrap(t *testing.T) {
 
 		// Insecure params for fast testing only
 		if !*flagLongTest {
-			btpParams.LogN = 14
-			btpParams.LogSlots = 10
+			btpParams.LogN = 6
+			btpParams.LogSlots = 5
 		}
 
 		// Tests homomorphic modular reduction encoding and bootstrapping on sparse slots
@@ -64,7 +64,7 @@ func TestBootstrap(t *testing.T) {
 		}
 
 		if !*flagLongTest {
-			btpParams.LogSlots = 13
+			btpParams.LogSlots = 4
 		}
 
 		// Tests homomorphic encoding and bootstrapping on full slots
@@ -286,8 +286,10 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 
 		params := testContext.params
 
+		n := math.Pow(1.0/float64(2*params.Slots()), 1.0/float64(btpParams.CtSDepth(true)))
+
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices := btpParams.GenCoeffsToSlotsMatrix(1.0, testContext.encoder)
+		CoeffsToSlotMatrices := btpParams.GenCoeffsToSlotsMatrix(complex(n,0), testContext.encoder)
 
 		// Gets the rotations indexes for CoeffsToSlots
 		rotations := btpParams.RotationsForCoeffsToSlots(params.LogSlots())
@@ -329,8 +331,6 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 				valuesFloat[jdx] = complex(imag(values[i]), 0)
 			}
 
-			ct0.Scale *= float64(int(1 << logSlots))
-
 			valuesTest := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct0), logSlots, 0)
 
 			verifyTestVectors(testContext, testContext.decryptor, valuesFloat, valuesTest, logSlots, 0, t)
@@ -345,11 +345,22 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 				valuesFloat1[idx] = complex(imag(values[i]), 0)
 			}
 
-			ct0.Scale *= 2 * float64(int(1<<logSlots))
-			ct1.Scale *= 2 * float64(int(1<<logSlots))
-
 			valuesTest0 := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct0), logSlots, 0)
 			valuesTest1 := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct1), logSlots, 0)
+
+
+			coeffsFloatReal := testContext.encoder.DecodeCoeffsPublic(testContext.decryptor.DecryptNew(ct0), 0)
+
+			for i := range coeffsFloat{
+				fmt.Println(i, coeffsFloat[i])
+			}
+
+
+			coeffsFloatImag := testContext.encoder.DecodeCoeffsPublic(testContext.decryptor.DecryptNew(ct1), 0)
+
+			for i := range coeffsFloat{
+				fmt.Println(i, coeffsFloat[i])
+			}
 
 			verifyTestVectors(testContext, testContext.decryptor, valuesFloat0, valuesTest0, logSlots, 0, t)
 			verifyTestVectors(testContext, testContext.decryptor, valuesFloat1, valuesTest1, logSlots, 0, t)
@@ -359,6 +370,27 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 
 func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
 	t.Run(testString(testContext, "SlotsToCoeffs/"), func(t *testing.T) {
+
+		// This test tests the homomprhic decodinc
+		// It first generates a complex vector of size 2*slots
+		// if 2*slots == N, then two vectors are generated, one for the real part, one for the imaginary part :
+		//
+		// vReal and vReal (both floating point vectors because the encoding always result in a real vector)
+		//
+		// Then encode and encrypts the vectors :
+		//
+		// Enc(Ecd(vReal)) and Enc(Ecd(vImag))
+		//
+		// And applies the homomorphic decoding (will merge both vectors if there was two)
+		//
+		// Enc(FFT(Ecd(vReal) + i*Ecd(vImag)))
+		//
+		// The result should be the decoding of the initial vectors bit-reversed
+		//
+		// Enc(FFT(Ecd(vReal) + i*Ecd(vImag))) = Enc(BitReverse(Dcd(Ecd(vReal + i*vImag))))
+		//
+		// The first N/2 slots of the plaintext will be the real part while the last N/2 the imaginary part
+		// In case of 2*slots < N, then there is a gap of N/(2*slots) between each values
 
 		params := testContext.params
 
@@ -374,27 +406,24 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 		// Creates an evaluator with the rotation keys
 		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
-		// Generates a random test vectors that simulates the encoding of a real vector
-		values0 := make([]complex128, params.Slots())
-		values1 := make([]complex128, params.Slots())
-		for i := range values0 {
-			values0[i] = complex(utils.RandFloat64(-1, 1), 0)
+		// Generates the n first slots of the test vector (real part to encode)
+		valuesReal := make([]complex128, params.Slots())
+		for i := range valuesReal {
+			valuesReal[i] = complex(float64(i+1)/float64(params.Slots()), 0)
 		}
 
-		for i := range values1[1:] {
-			values1[i+1] = -values0[len(values0)-i-1]
+		// Generates the n first slots of the test vector (imaginary part to encode)
+		valuesImag := make([]complex128, params.Slots())
+		for i := range valuesImag {
+			valuesImag[i] = complex(1+float64(i+1)/float64(params.Slots()), 0)
 		}
 
-		// If sparse, puts the second vector in the imaginary part of the first one
+		// If sparse, there there is the space to store both vectors in one
 		if params.LogSlots() < params.LogN()-1 {
-			for i := range values0 {
-				values0[i] += complex(0, real(values1[i]))
+			for i := range valuesReal {
+				valuesReal[i] += complex(0, real(valuesImag[i]))
 			}
 		}
-
-		// Ouputs of the homomorphic FFT^-1 is bit-reversed
-		sliceBitReverseInPlaceComplex128(values0, params.Slots())
-		sliceBitReverseInPlaceComplex128(values1, params.Slots())
 
 		// Encodes and encrypts the test vectors
 		logSlots := params.LogSlots()
@@ -403,33 +432,40 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 		}
 		encoder := testContext.encoder.(*encoderComplex128)
 		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
-		encoder.Encode(plaintext, values0, logSlots)
+		encoder.Encode(plaintext, valuesReal, logSlots)
 		ct0 := testContext.encryptorPk.EncryptNew(plaintext)
 		var ct1 *Ciphertext
 		if params.LogSlots() == params.LogN()-1 {
-			testContext.encoder.Encode(plaintext, values1, logSlots)
+			testContext.encoder.Encode(plaintext, valuesImag, logSlots)
 			ct1 = testContext.encryptorPk.EncryptNew(plaintext)
 		}
 
 		// Applies the homomorphic DFT
 		res := SlotsToCoeffs(ct0, ct1, SlotsToCoeffsMatrix, eval)
 
-		// Applies the DFT on the plaintext
-		// If not sparse, puts the second vector in the imaginary part of the first one
+		// Decrypt and decode in the coefficient domain
+		coeffsFloat := testContext.encoder.DecodeCoeffsPublic(testContext.decryptor.DecryptNew(res), 0)
+
+		// Extracts the coefficients and contruct the complex vector 
+		// This is simply coefficient ordering
+		valuesTest := make([]complex128, params.Slots())
+		gap := params.N() / (2*params.Slots())
+		for i, idx := 0, 0; i < params.Slots(); i, idx = i+1, idx+gap {
+			valuesTest[i] = complex(coeffsFloat[idx], coeffsFloat[idx+(params.N()>>1)])
+		}
+
+		// The result is always returned as a single complex vector, so if full-packing (2 initial vectors)
+		// then repacks both vectors together
 		if params.LogSlots() == params.LogN()-1 {
-			for i := range values0 {
-				values0[i] += complex(0, real(values1[i]))
+			for i := range valuesReal {
+				valuesReal[i] += complex(0, real(valuesImag[i]))
 			}
 		}
 
-		sliceBitReverseInPlaceComplex128(values0, params.Slots())
-		fft(values0, params.Slots(), encoder.m, encoder.rotGroup, encoder.roots)
-		//sliceBitReverseInPlaceComplex128(values0, params.Slots())
+		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
+		sliceBitReverseInPlaceComplex128(valuesReal, params.Slots())
 
-		valuesTest := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(res), params.LogSlots(), 0)
-
-		verifyTestVectors(testContext, testContext.decryptor, values0, valuesTest, params.LogSlots(), 0, t)
-
+		verifyTestVectors(testContext, testContext.decryptor, valuesReal, valuesTest, params.LogSlots(), 0, t)
 	})
 }
 

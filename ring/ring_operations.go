@@ -814,9 +814,7 @@ func (r *Ring) MultByMonomial(p1 *Poly, monomialDeg int, p2 *Poly) {
 
 		for i := range r.Modulus {
 			p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
-			for j := 0; j < r.N; j++ {
-				p2tmp[j] = p1tmp[j]
-			}
+			copy(p2tmp, p1tmp)
 		}
 
 	} else {
@@ -827,9 +825,7 @@ func (r *Ring) MultByMonomial(p1 *Poly, monomialDeg int, p2 *Poly) {
 
 			for i := range r.Modulus {
 				p1tmp, tmpxT := p1.Coeffs[i], tmpx.Coeffs[i]
-				for j := 0; j < r.N; j++ {
-					tmpxT[j] = p1tmp[j]
-				}
+				copy(tmpxT, p1tmp)
 			}
 
 		} else {
@@ -852,6 +848,58 @@ func (r *Ring) MultByMonomial(p1 *Poly, monomialDeg int, p2 *Poly) {
 		}
 
 		for i := range r.Modulus {
+			p2tmp, tmpxT := p2.Coeffs[i], tmpx.Coeffs[i]
+			for j := shift; j < r.N; j++ {
+				p2tmp[j] = tmpxT[j-shift]
+
+			}
+		}
+	}
+}
+
+// MultByMonomial multiplies p1 by x^monomialDeg and writes the result on p2.
+func (r *Ring) MultByMonomialLvl(level int, p1 *Poly, monomialDeg int, p2 *Poly) {
+
+	shift := monomialDeg % (r.N << 1)
+
+	if shift == 0 {
+
+		for i := range r.Modulus[:level+1] {
+			p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+			copy(p2tmp, p1tmp)
+		}
+
+	} else {
+
+		tmpx := r.NewPoly()
+
+		if shift < r.N {
+
+			for i := range r.Modulus[:level+1] {
+				p1tmp, tmpxT := p1.Coeffs[i], tmpx.Coeffs[i]
+				copy(tmpxT, p1tmp)
+			}
+
+		} else {
+
+			for i, qi := range r.Modulus[:level+1] {
+				p1tmp, tmpxT := p1.Coeffs[i], tmpx.Coeffs[i]
+				for j := 0; j < r.N; j++ {
+					tmpxT[j] = qi - p1tmp[j]
+				}
+			}
+		}
+
+		shift %= r.N
+
+		for i, qi := range r.Modulus[:level+1] {
+			p2tmp, tmpxT := p2.Coeffs[i], tmpx.Coeffs[i]
+			for j := 0; j < shift; j++ {
+				p2tmp[j] = qi - tmpxT[r.N-shift+j]
+			}
+		}
+
+		for i := range r.Modulus[:level+1] {
 			p2tmp, tmpxT := p2.Coeffs[i], tmpx.Coeffs[i]
 			for j := shift; j < r.N; j++ {
 				p2tmp[j] = tmpxT[j-shift]

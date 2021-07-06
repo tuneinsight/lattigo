@@ -10,7 +10,6 @@ type CoeffsToSlotsParameters struct {
 	LevelStart    int
 	BitReversed   bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
 	BSGSRatio     float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
-	Qi            []uint64
 	ScalingFactor [][]float64
 }
 
@@ -34,7 +33,7 @@ func (cts *CoeffsToSlotsParameters) Depth(actual bool) (depth int) {
 // CtSLevels returns the index of the Qi used int CoeffsToSlots
 func (cts *CoeffsToSlotsParameters) Levels() (ctsLevel []int) {
 	ctsLevel = []int{}
-	for i := range cts.Qi {
+	for i := range cts.ScalingFactor {
 		for range cts.ScalingFactor[cts.Depth(true)-1-i] {
 			ctsLevel = append(ctsLevel, cts.LevelStart-i)
 		}
@@ -106,7 +105,6 @@ type SlotsToCoeffsParameters struct {
 	LevelStart    int
 	BitReversed   bool
 	BSGSRatio     float64
-	Qi            []uint64
 	ScalingFactor [][]float64
 }
 
@@ -130,7 +128,7 @@ func (stc *SlotsToCoeffsParameters) Depth(actual bool) (depth int) {
 // StCLevels returns the index of the Qi used in SlotsToCoeffs
 func (stc *SlotsToCoeffsParameters) Levels() (stcLevel []int) {
 	stcLevel = []int{}
-	for i := range stc.Qi {
+	for i := range stc.ScalingFactor {
 		for range stc.ScalingFactor[stc.Depth(true)-1-i] {
 			stcLevel = append(stcLevel, stc.LevelStart-i)
 		}
@@ -584,14 +582,14 @@ func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, forward, bitreve
 	vectors = make(map[int][]complex128)
 
 	if bitreversed {
-		sliceBitReverseInPlaceComplex128(a, 1<<logL)
-		sliceBitReverseInPlaceComplex128(b, 1<<logL)
-		sliceBitReverseInPlaceComplex128(c, 1<<logL)
+		SliceBitReverseInPlaceComplex128(a, 1<<logL)
+		SliceBitReverseInPlaceComplex128(b, 1<<logL)
+		SliceBitReverseInPlaceComplex128(c, 1<<logL)
 
 		if len(a) > 1<<logL {
-			sliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
-			sliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
-			sliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
+			SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
+			SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
+			SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
 		}
 	}
 
@@ -636,14 +634,14 @@ func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLe
 	}
 
 	if bitreversed {
-		sliceBitReverseInPlaceComplex128(a, 1<<logL)
-		sliceBitReverseInPlaceComplex128(b, 1<<logL)
-		sliceBitReverseInPlaceComplex128(c, 1<<logL)
+		SliceBitReverseInPlaceComplex128(a, 1<<logL)
+		SliceBitReverseInPlaceComplex128(b, 1<<logL)
+		SliceBitReverseInPlaceComplex128(c, 1<<logL)
 
 		if len(a) > 1<<logL {
-			sliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
-			sliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
-			sliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
+			SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
+			SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
+			SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
 		}
 	}
 

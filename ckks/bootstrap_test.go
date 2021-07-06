@@ -211,7 +211,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 	t.Run(testString(testContext, "Cos2/"), func(t *testing.T) {
 
-		if len(btpParams.SineEvalParameters.Qi) < 12 {
+		if btpParams.SineEvalParameters.LevelStart - btpParams.SlotsToCoeffsParameters.LevelStart < 12 {
 			t.Skip()
 		}
 
@@ -335,7 +335,7 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 		}
 
 		// Applies bit-reverse on the original complex vector
-		sliceBitReverseInPlaceComplex128(values, params.Slots())
+		SliceBitReverseInPlaceComplex128(values, params.Slots())
 
 		// Maps to a float vector
 		// Add gaps if sparse packing
@@ -469,7 +469,7 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 		}
 
 		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
-		sliceBitReverseInPlaceComplex128(valuesReal, params.Slots())
+		SliceBitReverseInPlaceComplex128(valuesReal, params.Slots())
 
 		verifyTestVectors(testContext, testContext.decryptor, valuesReal, valuesTest, params.LogSlots(), 0, t)
 	})

@@ -34,7 +34,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	btpKey := BootstrappingKey{testContext.rlk, rotkeys}
 
-	if btp, err = NewBootstrapper(testContext.params, btpParams, btpKey); err != nil {
+	if btp, err = NewBootstrapper(testContext.params, *btpParams, btpKey); err != nil {
 		panic(err)
 	}
 

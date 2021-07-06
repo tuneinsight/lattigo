@@ -97,7 +97,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		DefaultScale := testContext.params.Scale()
 
-		SineScale := btpParams.SineEvalModuli.ScalingFactor
+		SineScale := btpParams.SineEvalParameters.ScalingFactor
 
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
@@ -106,7 +106,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 		K := float64(15)
 
 		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, btpParams, testContext.encryptorSk, -K+1, K-1, t)
-		eval.DropLevel(ciphertext, btpParams.CtSDepth(true)-1)
+		eval.DropLevel(ciphertext, btpParams.CoeffsToSlotsParameters.Depth(true)-1)
 
 		cheby := Approximate(sin2pi2pi, -complex(K, 0), complex(K, 0), deg)
 
@@ -136,7 +136,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		DefaultScale := testContext.params.Scale()
 
-		SineScale := btpParams.SineEvalModuli.ScalingFactor
+		SineScale := btpParams.SineEvalParameters.ScalingFactor
 
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
@@ -149,7 +149,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 		scFac := complex(float64(int(1<<scNum)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, btpParams, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
-		eval.DropLevel(ciphertext, btpParams.CtSDepth(true)-1)
+		eval.DropLevel(ciphertext, btpParams.CoeffsToSlotsParameters.Depth(true)-1)
 
 		cheby := new(ChebyshevInterpolation)
 		cheby.coeffs = bettersine.Approximate(K, deg, dev, scNum)
@@ -211,7 +211,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 	t.Run(testString(testContext, "Cos2/"), func(t *testing.T) {
 
-		if len(btpParams.SineEvalModuli.Qi) < 12 {
+		if len(btpParams.SineEvalParameters.Qi) < 12 {
 			t.Skip()
 		}
 
@@ -221,7 +221,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		DefaultScale := testContext.params.Scale()
 
-		SineScale := btpParams.SineEvalModuli.ScalingFactor
+		SineScale := btpParams.SineEvalParameters.ScalingFactor
 
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
@@ -233,7 +233,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 		scFac := complex(float64(int(1<<scNum)), 0)
 
 		values, _, ciphertext := newTestVectorsSineBootstrapp(testContext, btpParams, testContext.encryptorSk, float64(-K+1), float64(K-1), t)
-		eval.DropLevel(ciphertext, btpParams.CtSDepth(true)-1)
+		eval.DropLevel(ciphertext, btpParams.CoeffsToSlotsParameters.Depth(true)-1)
 
 		cheby := Approximate(cos2pi, -complex(float64(K), 0)/scFac, complex(float64(K), 0)/scFac, deg)
 
@@ -302,15 +302,17 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 		//
 		// Then checks that Dcd(Dec(Enc(Ecd(vReal)))) = vReal and Dcd(Dec(Enc(Ecd(vImag)))) = vImag
 
+		ctsParams := btpParams.CoeffsToSlotsParameters
+
 		params := testContext.params
 
-		n := math.Pow(1.0/float64(2*params.Slots()), 1.0/float64(btpParams.CtSDepth(true)))
+		n := math.Pow(1.0/float64(2*params.Slots()), 1.0/float64(ctsParams.Depth(true)))
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices := btpParams.GenCoeffsToSlotsMatrix(complex(n, 0), testContext.encoder)
+		CoeffsToSlotMatrices := ctsParams.GenCoeffsToSlotsMatrix(&params, params.LogSlots(), complex(n, 0), testContext.encoder)
 
 		// Gets the rotations indexes for CoeffsToSlots
-		rotations := btpParams.RotationsForCoeffsToSlots(params.LogSlots())
+		rotations := ctsParams.RotationsForCoeffsToSlots(&params, params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
@@ -395,13 +397,14 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 		// The first N/2 slots of the plaintext will be the real part while the last N/2 the imaginary part
 		// In case of 2*slots < N, then there is a gap of N/(2*slots) between each values
 
+		stcParams := btpParams.SlotsToCoeffsParameters
 		params := testContext.params
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix := btpParams.GenSlotsToCoeffsMatrix(1.0, testContext.encoder)
+		SlotsToCoeffsMatrix := stcParams.GenSlotsToCoeffsMatrix(&params, params.LogSlots(), 1.0, testContext.encoder)
 
 		// Gets the rotations indexes for SlotsToCoeffs
-		rotations := btpParams.RotationsForSlotsToCoeffs(params.LogSlots())
+		rotations := stcParams.RotationsForSlotsToCoeffs(&params, params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
@@ -482,7 +485,7 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 		rotkeys := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
 		btpKey := BootstrappingKey{testContext.rlk, rotkeys}
 
-		btp, err := NewBootstrapper(testContext.params, btpParams, btpKey)
+		btp, err := NewBootstrapper(testContext.params, *btpParams, btpKey)
 		if err != nil {
 			panic(err)
 		}

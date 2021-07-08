@@ -41,8 +41,7 @@ type keyGenerator struct {
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params Parameters) KeyGenerator {
 
-	qp := params.RingQP()
-	pBigInt := params.PBigInt()
+	ringQP := params.RingQP()
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -51,11 +50,11 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 
 	return &keyGenerator{
 		params:          params,
-		ringQP:          qp,
-		pBigInt:         pBigInt,
-		polypool:        [2]*ring.Poly{qp.NewPoly(), qp.NewPoly()},
-		gaussianSampler: ring.NewGaussianSampler(prng, qp, params.Sigma(), int(6*params.Sigma())),
-		uniformSampler:  ring.NewUniformSampler(prng, qp),
+		ringQP:          ringQP,
+		pBigInt:         params.PBigInt(),
+		polypool:        [2]*ring.Poly{ringQP.NewPoly(), ringQP.NewPoly()},
+		gaussianSampler: ring.NewGaussianSampler(prng, ringQP, params.Sigma(), int(6*params.Sigma())),
+		uniformSampler:  ring.NewUniformSampler(prng, ringQP),
 	}
 }
 
@@ -107,7 +106,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	ringQP := keygen.ringQP
 
-	//pk[0] = [-(a*s + e)]
+	//pk[0] = [-as + e]
 	//pk[1] = [a]
 
 	pk.Value[0] = keygen.gaussianSampler.ReadNew()

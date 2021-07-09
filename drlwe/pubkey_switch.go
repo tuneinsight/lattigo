@@ -8,7 +8,7 @@ import (
 
 // PublicKeySwitchingProtocol is an interface describing the local steps of a generic RLWE PCKS protocol.
 type PublicKeySwitchingProtocol interface {
-	AllocateShares(level int) *PCKSShare
+	AllocateShare(level int) *PCKSShare
 	GenShare(skInput *rlwe.SecretKey, pkOutput *rlwe.PublicKey, ct rlwe.Ciphertext, shareOut *PCKSShare)
 	AggregateShares(share1, share2, shareOut *PCKSShare)
 	KeySwitch(combined *PCKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext)
@@ -64,8 +64,8 @@ func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *PCKSProtoco
 	return pcks
 }
 
-// AllocateShares allocates the shares of the PCKS protocol
-func (pcks *PCKSProtocol) AllocateShares(level int) (s *PCKSShare) {
+// AllocateShare allocates the shares of the PCKS protocol
+func (pcks *PCKSProtocol) AllocateShare(level int) (s *PCKSShare) {
 	s = new(PCKSShare)
 	s.Value[0] = pcks.ringQ.NewPolyLvl(level)
 	s.Value[1] = pcks.ringQ.NewPolyLvl(level)

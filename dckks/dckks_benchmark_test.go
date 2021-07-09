@@ -194,7 +194,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.PCKSProtocol = NewPCKSProtocol(params, 6.36)
 	p.s = sk0Shards[0]
-	p.share = p.AllocateShares(ciphertext.Level())
+	p.share = p.AllocateShare(ciphertext.Level())
 
 	b.Run(testString("PublicKeySwitching/Gen/", parties, params), func(b *testing.B) {
 

@@ -345,7 +345,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShares(testCtx.params.MaxLevel())
+			p.share = p.AllocateShare(testCtx.params.MaxLevel())
 			pcksParties[i] = p
 		}
 		P0 := pcksParties[0]
@@ -578,7 +578,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.RefreshProtocol = NewRefreshProtocol(testCtx.params, 3.2)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShares()
+			p.share = p.AllocateShare()
 			p.ptShare = bfv.NewPlaintext(testCtx.params)
 			RefreshParties[i] = p
 		}
@@ -674,7 +674,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.MaskedTransformProtocol = NewMaskedTransformProtocol(testCtx.params, 3.2)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShares()
+			p.share = p.AllocateShare()
 			p.ptShare = bfv.NewPlaintext(testCtx.params)
 			RefreshParties[i] = p
 		}
@@ -778,7 +778,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		//Check marshalling for the PCKS
 
 		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
-		SwitchShare := KeySwitchProtocol.AllocateShares(ciphertext.Level())
+		SwitchShare := KeySwitchProtocol.AllocateShare(ciphertext.Level())
 		KeySwitchProtocol.GenShare(testCtx.sk0, testCtx.pk0, ciphertext, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
@@ -824,7 +824,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		//testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, 3.2)
-		refreshshare := refreshproto.AllocateShares()
+		refreshshare := refreshproto.AllocateShare()
 		refreshproto.GenShares(testCtx.sk0, ciphertext, crs, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()

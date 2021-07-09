@@ -8,11 +8,18 @@ import (
 // CKSProtocol is a structure storing the parameters for the collective key-switching protocol.
 type CKSProtocol struct {
 	drlwe.CKSProtocol
+
+	params bfv.Parameters
 }
 
 // NewCKSProtocol creates a new CKSProtocol that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
 func NewCKSProtocol(params bfv.Parameters, sigmaSmudging float64) *CKSProtocol {
-	return &CKSProtocol{*drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)}
+	return &CKSProtocol{*drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging), params}
+}
+
+// AllocateShareBFV allocates the shares of one party in the CKS protocol for BFV.
+func (pcks *CKSProtocol) AllocateShareBFV() *drlwe.CKSShare {
+	return pcks.AllocateShare(pcks.params.MaxLevel())
 }

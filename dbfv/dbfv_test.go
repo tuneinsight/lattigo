@@ -497,7 +497,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 		s2e         *S2EProtocol
 		sk          *rlwe.SecretKey
 		publicShare *drlwe.CKSShare
-		secretShare rlwe.AdditiveShare
+		secretShare *rlwe.AdditiveShare
 	}
 
 	params := testCtx.params
@@ -520,7 +520,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		P[0].e2s.GetShare(&P[0].secretShare, P[0].publicShare, ciphertext, &P[0].secretShare)
+		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShare, ciphertext, P[0].secretShare)
 
 		rec := rlwe.NewAdditiveShare(params.Parameters)
 		for _, p := range P {
@@ -547,7 +547,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 		}
 
 		ctRec := bfv.NewCiphertext(testCtx.params, 1)
-		P[0].s2e.GetEncryption(P[0].publicShare, c1, *ctRec)
+		P[0].s2e.GetEncryption(P[0].publicShare, c1, ctRec)
 
 		verifyTestVectors(testCtx, testCtx.decryptorSk0, coeffs, ctRec, t)
 	})
@@ -569,7 +569,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		type Party struct {
 			*RefreshProtocol
 			s       *rlwe.SecretKey
-			share   RefreshShare
+			share   *RefreshShare
 			ptShare *bfv.Plaintext
 		}
 
@@ -665,7 +665,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 		type Party struct {
 			*MaskedTransformProtocol
 			s       *rlwe.SecretKey
-			share   MaskedTransformShare
+			share   *MaskedTransformShare
 			ptShare *bfv.Plaintext
 		}
 

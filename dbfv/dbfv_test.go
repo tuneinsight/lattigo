@@ -511,16 +511,17 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 		P[i].secretShare = rlwe.NewAdditiveShare(params.Parameters)
 	}
 
-	t.Run(testString("E2SProtocol/", parties, testCtx.params), func(t *testing.T) {
-
-		for i, p := range P {
-			p.e2s.GenShare(p.sk, ciphertext, p.secretShare, p.publicShare)
-			if i > 0 {
-				p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
-			}
+	// The E2S protocol is run in all tests, as a setup to the S2E test.
+	for i, p := range P {
+		p.e2s.GenShare(p.sk, ciphertext, p.secretShare, p.publicShare)
+		if i > 0 {
+			p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
 		}
+	}
 
-		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShare, ciphertext, P[0].secretShare)
+	P[0].e2s.GetShare(P[0].secretShare, P[0].publicShare, ciphertext, P[0].secretShare)
+
+	t.Run(testString("E2SProtocol/", parties, testCtx.params), func(t *testing.T) {
 
 		rec := rlwe.NewAdditiveShare(params.Parameters)
 		for _, p := range P {

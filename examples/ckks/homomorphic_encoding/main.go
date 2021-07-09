@@ -1,25 +1,25 @@
 package main
 
-import(
+import (
 	"fmt"
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/utils"
 	"time"
 )
 
-func main(){
-	var err error 
+func main() {
+	var err error
 	ParametersLiteral := ckks.ParametersLiteral{
 		LogN:     12,
 		LogSlots: 10,
 		Scale:    1 << 30,
 		Sigma:    rlwe.DefaultSigma,
 		Q: []uint64{
-			0xffff820001,   	// 40 Q0
-			0x2000000a0001, 	// 45 CtS
-			0x2000000e0001, 	// 45 CtS
+			0xffff820001,       // 40 Q0
+			0x2000000a0001,     // 45 CtS
+			0x2000000e0001,     // 45 CtS
 			0x10000140001,      // 40
 			0xffffe80001,       // 40
 			0xffffc40001,       // 40
@@ -36,7 +36,7 @@ func main(){
 			0x1000000000b00001, // 60 Sine
 			0x1000000000ce0001, // 60 Sine
 			0xfffffffff2a0001,  // 60 Sine
-			0x100000000060001, 	// 58 Repack
+			0x100000000060001,  // 58 Repack
 		},
 		P: []uint64{
 			0x1fffffffffe00001, // Pi 61
@@ -56,10 +56,9 @@ func main(){
 	H := 256
 
 	var params ckks.Parameters
-	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil{
+	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
 		panic(err)
 	}
-
 
 	ringQ := params.RingQ()
 	Q := ringQ.Modulus[0]
@@ -87,13 +86,13 @@ func main(){
 
 	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
 	// Must encode with 2*Slots because a real vector is returned
-	encoder.Encode(plaintext, values, utils.MinInt(params.LogSlots()+1, params.LogN()-1)) 
+	encoder.Encode(plaintext, values, utils.MinInt(params.LogSlots()+1, params.LogN()-1))
 	ct := encryptor.EncryptNew(plaintext)
 
 	// Homomorphic Decoding
 	ct = ckks.SlotsToCoeffs(ct, nil, SlotsToCoeffsMatrix, eval)
- 	
- 	// Decrypt and print coefficient domain
+
+	// Decrypt and print coefficient domain
 	coeffsFloat := encoder.DecodeCoeffsPublic(decryptor.DecryptNew(ct), 0)
 	valuesFloat := make([]complex128, params.Slots())
 	gap := params.N() / (2 * params.Slots())
@@ -107,7 +106,7 @@ func main(){
 
 	// Encode the LWE samples
 	lweEncoded := make([]complex128, params.Slots())
-	for i := 0; i < params.Slots(); i++{
+	for i := 0; i < params.Slots(); i++ {
 		lweEncoded[i] = complex(float64(lweReal[i].b[0]), float64(lweImag[i].b[0]))
 	}
 
@@ -120,31 +119,29 @@ func main(){
 	ring.CopyValues(sk.Value, skInvNTT)
 	ringQ.InvNTTLvl(0, skInvNTT, skInvNTT)
 
-
 	// Visual of some values
 	fmt.Println(valuesFloat[0], valuesFloat[params.Slots()-1])
-	fmt.Println(complex(DecryptLWE(ringQ, lweReal[0], params.Scale(), skInvNTT),DecryptLWE(ringQ, lweImag[0], params.Scale(), skInvNTT)),
-				complex(DecryptLWE(ringQ, lweReal[params.Slots()-1], params.Scale(), skInvNTT),DecryptLWE(ringQ, lweImag[params.Slots()-1], params.Scale(), skInvNTT)))
+	fmt.Println(complex(DecryptLWE(ringQ, lweReal[0], params.Scale(), skInvNTT), DecryptLWE(ringQ, lweImag[0], params.Scale(), skInvNTT)),
+		complex(DecryptLWE(ringQ, lweReal[params.Slots()-1], params.Scale(), skInvNTT), DecryptLWE(ringQ, lweImag[params.Slots()-1], params.Scale(), skInvNTT)))
 
 	ringQ.InvMFormLvl(0, skInvNTT, skInvNTT)
 
 	fmt.Println("Encrypt SK")
 	skFloat := make([]complex128, params.N())
 
-	for i, s := range skInvNTT.Coeffs[0]{
-		if s >= Q>>1{
+	for i, s := range skInvNTT.Coeffs[0] {
+		if s >= Q>>1 {
 			skFloat[i] = -complex(float64(Q-s), 0)
-		}else{
+		} else {
 			skFloat[i] = complex(float64(s), 0)
 		}
 	}
 
 	ringQ.InvMFormLvl(0, skInvNTT, skInvNTT)
 
-
 	ctSk := make([]*ckks.Ciphertext, params.N()/params.Slots())
 	ptSk := ckks.NewPlaintext(params, params.MaxLevel(), float64(params.Q()[params.MaxLevel()]))
-	for i := range ctSk{
+	for i := range ctSk {
 		encoder.Encode(ptSk, skFloat[i*params.Slots():(i+1)*params.Slots()], params.LogSlots())
 		ctSk[i] = encryptor.EncryptNew(ptSk)
 	}
@@ -159,14 +156,13 @@ func main(){
 	//
 	//			  N/n          1          N/n 		    1
 
-
 	// Constructs matrix
 
 	fmt.Println("Encode A")
 	AVectors := make([][]complex128, params.Slots())
-	for i := range AVectors{
+	for i := range AVectors {
 		tmp := make([]complex128, params.N())
-		for j := 0; j < params.N(); j++{
+		for j := 0; j < params.N(); j++ {
 			tmp[j] = complex(float64(lweReal[i].a.Coeffs[0][j]), float64(lweImag[i].a.Coeffs[0][j]))
 		}
 
@@ -176,11 +172,11 @@ func main(){
 	// Diagonalize
 	ptMatDiag := make([]*ckks.PtDiagMatrix, params.N()/params.Slots())
 	AMatDiag := make(map[int][]complex128)
-	for w := 0; w < params.N()/params.Slots(); w++{
-		for i := 0; i < params.Slots(); i++{
+	for w := 0; w < params.N()/params.Slots(); w++ {
+		for i := 0; i < params.Slots(); i++ {
 			tmp := make([]complex128, params.Slots())
-			for j := 0; j < params.Slots(); j++{
-				tmp[j] = AVectors[j][(j+i)%params.Slots() + w*params.Slots()]
+			for j := 0; j < params.Slots(); j++ {
+				tmp[j] = AVectors[j][(j+i)%params.Slots()+w*params.Slots()]
 			}
 
 			AMatDiag[i] = tmp
@@ -197,7 +193,7 @@ func main(){
 	fmt.Println("Start Repacking")
 	startTotal := time.Now()
 	ctAs := evalRepack.LinearTransform(ctSk[0], ptMatDiag[0])[0]
-	for i := 1; i < params.N()/params.Slots(); i++{
+	for i := 1; i < params.N()/params.Slots(); i++ {
 
 		startFrac := time.Now()
 		evalRepack.Add(ctAs, evalRepack.LinearTransform(ctSk[i], ptMatDiag[i])[0], ctAs)
@@ -211,40 +207,40 @@ func main(){
 	ctAs.Scale = params.Scale()
 
 	/*
-	v := encoder.DecodePublic(decryptor.DecryptNew(ctAs), params.LogSlots(), 0)
-	v2 := encoder.DecodePublic(ptLWE, params.LogSlots(), 0)
+		v := encoder.DecodePublic(decryptor.DecryptNew(ctAs), params.LogSlots(), 0)
+		v2 := encoder.DecodePublic(ptLWE, params.LogSlots(), 0)
 
-	for i := range v{
-		fmt.Println(i, v[i], lweReal[i].b[0], lweImag[i].b[0], v2[i])
-	}
+		for i := range v{
+			fmt.Println(i, v[i], lweReal[i].b[0], lweImag[i].b[0], v2[i])
+		}
 	*/
-}	
+}
 
-func DecryptLWE(ringQ *ring.Ring, lwe RNSLWESample, scale float64, skInvNTT *ring.Poly) (float64){
+func DecryptLWE(ringQ *ring.Ring, lwe RNSLWESample, scale float64, skInvNTT *ring.Poly) float64 {
 
 	tmp := ringQ.NewPolyLvl(0)
 	ringQ.MulCoeffsMontgomeryLvl(0, lwe.a, skInvNTT, tmp)
 	qi := ringQ.Modulus[0]
 	tmp0 := tmp.Coeffs[0]
 	tmp1 := lwe.b[0]
-	for j := 0; j < ringQ.N; j++{
+	for j := 0; j < ringQ.N; j++ {
 		tmp1 = ring.CRed(tmp1+tmp0[j], qi)
 	}
 
-	if tmp1 >= ringQ.Modulus[0]>>1{
-		tmp1 = ringQ.Modulus[0]-tmp1
-		return -float64(tmp1)/scale
-	}else{
-		return float64(tmp1)/scale
+	if tmp1 >= ringQ.Modulus[0]>>1 {
+		tmp1 = ringQ.Modulus[0] - tmp1
+		return -float64(tmp1) / scale
+	} else {
+		return float64(tmp1) / scale
 	}
 }
 
-type RNSLWESample struct{
+type RNSLWESample struct {
 	b []uint64
 	a *ring.Poly
 }
 
-func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (LWEReal, LWEImag []RNSLWESample){
+func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (LWEReal, LWEImag []RNSLWESample) {
 
 	ringQ := params.RingQ()
 
@@ -254,15 +250,15 @@ func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (
 	LWEReal = make([]RNSLWESample, params.Slots())
 	LWEImag = make([]RNSLWESample, params.Slots())
 
-	// Copies coefficients multiplied by X^{N-1} in reverse order : 
+	// Copies coefficients multiplied by X^{N-1} in reverse order :
 	// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
 	acc := ringQ.NewPolyLvl(ct.Level())
-	for i, qi := range ringQ.Modulus[:ct.Level()+1]{
+	for i, qi := range ringQ.Modulus[:ct.Level()+1] {
 		tmp0 := acc.Coeffs[i]
 		tmp1 := ct.Value[1].Coeffs[i]
 		tmp0[0] = tmp1[0]
-		for j := 1; j < ringQ.N; j++{
-			tmp0[j] = qi-tmp1[ringQ.N-j]
+		for j := 1; j < ringQ.N; j++ {
+			tmp0[j] = qi - tmp1[ringQ.N-j]
 		}
 	}
 
@@ -273,10 +269,10 @@ func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (
 	// Real values
 	for i, idx := 0, 0; i < params.Slots(); i, idx = i+1, idx+gap {
 
-		iRev := utils.BitReverse64(uint64(i), uint64(params.LogSlots())) 
+		iRev := utils.BitReverse64(uint64(i), uint64(params.LogSlots()))
 
 		LWEReal[iRev].b = make([]uint64, len(pol.Coeffs))
-		for j := range pol.Coeffs{
+		for j := range pol.Coeffs {
 			LWEReal[iRev].b[j] = pol.Coeffs[j][idx]
 		}
 
@@ -289,10 +285,10 @@ func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (
 	// Imaginary values
 	for i, idx := 0, 0; i < params.Slots(); i, idx = i+1, idx+gap {
 
-		iRev := utils.BitReverse64(uint64(i), uint64(params.LogSlots())) 
+		iRev := utils.BitReverse64(uint64(i), uint64(params.LogSlots()))
 
 		LWEImag[iRev].b = make([]uint64, len(pol.Coeffs))
-		for j := range pol.Coeffs{
+		for j := range pol.Coeffs {
 			LWEImag[iRev].b[j] = pol.Coeffs[j][idx+(params.N()>>1)]
 		}
 
@@ -304,11 +300,11 @@ func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (
 	return
 }
 
-func MulBySmallMonomial(ringQ *ring.Ring, pol *ring.Poly, n int){
-	for i, qi := range ringQ.Modulus[:pol.Level()+1]{
+func MulBySmallMonomial(ringQ *ring.Ring, pol *ring.Poly, n int) {
+	for i, qi := range ringQ.Modulus[:pol.Level()+1] {
 		pol.Coeffs[i] = append(pol.Coeffs[i][ringQ.N-n:], pol.Coeffs[i][:ringQ.N-n]...)
 		tmp := pol.Coeffs[i]
-		for j := 0; j < n; j++{
+		for j := 0; j < n; j++ {
 			tmp[j] = qi - tmp[j]
 		}
 	}

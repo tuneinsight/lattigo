@@ -25,7 +25,7 @@ type BootstrappingParameters struct {
 	SlotsToCoeffsParameters
 	SineEvalParameters
 	CoeffsToSlotsParameters
-	H        int // Hamming weight of the secret key
+	H int // Hamming weight of the secret key
 }
 
 // Params generates a new set of Parameters from the BootstrappingParameters
@@ -99,9 +99,9 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 
 	// SET I
 	// 1546
-	{   
-		H:        192,
-		ParametersLiteral:ParametersLiteral{
+	{
+		H: 192,
+		ParametersLiteral: ParametersLiteral{
 			LogN:     16,
 			LogSlots: 15,
 			Scale:    1 << 40,
@@ -117,9 +117,9 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0xffff940001,       // 40
 				0xffff8a0001,       // 40
 				0xffff820001,       // 40
-				0x7fffe60001, 		// 39 StC
-				0x7fffe40001, 		// 39 StC
-				0x7fffe00001, 		// 39 StC
+				0x7fffe60001,       // 39 StC
+				0x7fffe40001,       // 39 StC
+				0x7fffe00001,       // 39 StC
 				0xfffffffff840001,  // 60 Sine (double angle)
 				0x1000000000860001, // 60 Sine (double angle)
 				0xfffffffff6a0001,  // 60 Sine
@@ -128,10 +128,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1000000000b00001, // 60 Sine
 				0x1000000000ce0001, // 60 Sine
 				0xfffffffff2a0001,  // 60 Sine
-				0x100000000060001, // 58 CtS
-				0xfffffffff00001,  // 58 CtS
-				0xffffffffd80001,  // 58 CtS
-				0x1000000002a0001, // 58 CtS
+				0x100000000060001,  // 58 CtS
+				0xfffffffff00001,   // 58 CtS
+				0xffffffffd80001,   // 58 CtS
+				0x1000000002a0001,  // 58 CtS
 			},
 			P: []uint64{
 				0x1fffffffffe00001, // Pi 61
@@ -152,13 +152,13 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		SineEvalParameters: SineEvalParameters{
-			LevelStart:   20,
-			SinType:      Cos1,
-			MessageRatio: 256.0,
-			SinRange:     25,
-			SinDeg:       63,
-			SinRescal:    2,
-			ArcSineDeg:   0,
+			LevelStart:    20,
+			SinType:       Cos1,
+			MessageRatio:  256.0,
+			SinRange:      25,
+			SinDeg:        63,
+			SinRescal:     2,
+			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
 		CoeffsToSlotsParameters: CoeffsToSlotsParameters{
@@ -177,8 +177,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// SET II
 	// 1547
 	{
-		H:        192,
-		ParametersLiteral:ParametersLiteral{
+		H: 192,
+		ParametersLiteral: ParametersLiteral{
 			LogN:     16,
 			LogSlots: 15,
 			Scale:    1 << 45,
@@ -190,9 +190,9 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffc20001,     // 45
 				0x200000440001,     // 45
 				0x200000500001,     // 45
-				0x3ffffe80001, //42 StC
-				0x3ffffd20001, //42 StC
-				0x3ffffca0001, //42 StC
+				0x3ffffe80001,      //42 StC
+				0x3ffffd20001,      //42 StC
+				0x3ffffca0001,      //42 StC
 				0xffffffffffc0001,  // ArcSine
 				0xfffffffff240001,  // ArcSine
 				0x1000000000f00001, // ArcSine
@@ -204,10 +204,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1000000000b00001, // Sine
 				0x1000000000ce0001, // Sine
 				0xfffffffff2a0001,  // Sine
-				0x400000000360001, // 58 CtS
-				0x3ffffffffbe0001, // 58 CtS
-				0x400000000660001, // 58 CtS
-				0x4000000008a0001, // 58 CtS
+				0x400000000360001,  // 58 CtS
+				0x3ffffffffbe0001,  // 58 CtS
+				0x400000000660001,  // 58 CtS
+				0x4000000008a0001,  // 58 CtS
 			},
 			P: []uint64{
 				0x1fffffffffe00001, // Pi 61
@@ -227,13 +227,13 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		SineEvalParameters: SineEvalParameters{
-			LevelStart:   19,
-			SinType:      Cos1,
-			MessageRatio: 4.0,
-			SinRange:     25,
-			SinDeg:       63,
-			SinRescal:    2,
-			ArcSineDeg:   7,
+			LevelStart:    19,
+			SinType:       Cos1,
+			MessageRatio:  4.0,
+			SinRange:      25,
+			SinDeg:        63,
+			SinRescal:     2,
+			ArcSineDeg:    7,
 			ScalingFactor: 1 << 60,
 		},
 		CoeffsToSlotsParameters: CoeffsToSlotsParameters{
@@ -252,8 +252,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// SET III
 	// 1553
 	{
-		H:        192,
-		ParametersLiteral:ParametersLiteral{
+		H: 192,
+		ParametersLiteral: ParametersLiteral{
 			LogN:     16,
 			LogSlots: 15,
 			Scale:    1 << 30,
@@ -269,18 +269,18 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0xfffffffff5a0001,  // 60
 				0x1000000000b00001, // 60 StC  (30)
 				0x1000000000ce0001, // 60 StC  (30+30)
-				0x80000000440001, // 55 Sine (double angle)
-				0x7fffffffba0001, // 55 Sine (double angle)
-				0x80000000500001, // 55 Sine
-				0x7fffffffaa0001, // 55 Sine
-				0x800000005e0001, // 55 Sine
-				0x7fffffff7e0001, // 55 Sine
-				0x7fffffff380001, // 55 Sine
-				0x80000000ca0001, // 55 Sine
-				0x200000000e0001, // 53 CtS
-				0x20000000140001, // 53 CtS
-				0x20000000280001, // 53 CtS
-				0x1fffffffd80001, // 53 CtS
+				0x80000000440001,   // 55 Sine (double angle)
+				0x7fffffffba0001,   // 55 Sine (double angle)
+				0x80000000500001,   // 55 Sine
+				0x7fffffffaa0001,   // 55 Sine
+				0x800000005e0001,   // 55 Sine
+				0x7fffffff7e0001,   // 55 Sine
+				0x7fffffff380001,   // 55 Sine
+				0x80000000ca0001,   // 55 Sine
+				0x200000000e0001,   // 53 CtS
+				0x20000000140001,   // 53 CtS
+				0x20000000280001,   // 53 CtS
+				0x1fffffffd80001,   // 53 CtS
 			},
 			P: []uint64{
 				0x1fffffffffe00001, // Pi 61
@@ -300,13 +300,13 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		SineEvalParameters: SineEvalParameters{
-			LevelStart:   17,
-			SinType:      Cos1,
-			MessageRatio: 256.0,
-			SinRange:     25,
-			SinDeg:       63,
-			SinRescal:    2,
-			ArcSineDeg:   0,
+			LevelStart:    17,
+			SinType:       Cos1,
+			MessageRatio:  256.0,
+			SinRange:      25,
+			SinDeg:        63,
+			SinRescal:     2,
+			ArcSineDeg:    0,
 			ScalingFactor: 1 << 55,
 		},
 		CoeffsToSlotsParameters: CoeffsToSlotsParameters{
@@ -325,8 +325,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// Set IV
 	// 1792
 	{
-		H:        32768,
-		ParametersLiteral:ParametersLiteral{
+		H: 32768,
+		ParametersLiteral: ParametersLiteral{
 			LogN:     16,
 			LogSlots: 15,
 			Scale:    1 << 40,
@@ -342,8 +342,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0xffff940001,
 				0xffff8a0001,
 				0xffff820001,
-				0x100000000060001, // 56 StC (28 + 28)
-				0xffa0001,         // 28 StC
+				0x100000000060001,  // 56 StC (28 + 28)
+				0xffa0001,          // 28 StC
 				0xffffffffffc0001,  // 60 Sine (double angle)
 				0x10000000006e0001, // 60 Sine (double angle)
 				0xfffffffff840001,  // 60 Sine (double angle)
@@ -356,10 +356,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0xfffffffff2a0001,  // 60 Sine
 				0xfffffffff240001,  // 60 Sine
 				0x1000000000f00001, // 60 Sine
-				0x200000000e0001, // 53 CtS
-				0x20000000140001, // 53 CtS
-				0x20000000280001, // 53 CtS
-				0x1fffffffd80001, // 53 CtS
+				0x200000000e0001,   // 53 CtS
+				0x20000000140001,   // 53 CtS
+				0x20000000280001,   // 53 CtS
+				0x1fffffffd80001,   // 53 CtS
 			},
 			P: []uint64{
 				0x1fffffffffe00001, // Pi 61
@@ -380,13 +380,13 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		SineEvalParameters: SineEvalParameters{
-			LevelStart:   23,
-			SinType:      Cos2,
-			MessageRatio: 256.0,
-			SinRange:     325,
-			SinDeg:       255,
-			SinRescal:    4,
-			ArcSineDeg:   0,
+			LevelStart:    23,
+			SinType:       Cos2,
+			MessageRatio:  256.0,
+			SinRange:      325,
+			SinDeg:        255,
+			SinRescal:     4,
+			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
 		CoeffsToSlotsParameters: CoeffsToSlotsParameters{
@@ -405,27 +405,27 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// Set V
 	// 768
 	{
-		H:        192,
-		ParametersLiteral:ParametersLiteral{
+		H: 192,
+		ParametersLiteral: ParametersLiteral{
 			LogN:     15,
 			LogSlots: 14,
 			Scale:    1 << 25,
 			Sigma:    rlwe.DefaultSigma,
 			Q: []uint64{
-				0x1fff90001,     // 32 Q0
-				0x4000000420001, // 50
-				0x1fc0001,       // 25
+				0x1fff90001,       // 32 Q0
+				0x4000000420001,   // 50
+				0x1fc0001,         // 25
 				0xffffffffffc0001, // 60 StC (30+30)
-				0x4000000120001, // 50 Sine
-				0x40000001b0001, // 50 Sine
-				0x3ffffffdf0001, // 50 Sine
-				0x4000000270001, // 50 Sine
-				0x3ffffffd20001, // 50 Sine
-				0x3ffffffcd0001, // 50 Sine
-				0x4000000350001, // 50 Sine
-				0x3ffffffc70001, // 50 Sine
-				0x1fffffff50001, // 49 CtS
-				0x1ffffffea0001, // 49 CtS
+				0x4000000120001,   // 50 Sine
+				0x40000001b0001,   // 50 Sine
+				0x3ffffffdf0001,   // 50 Sine
+				0x4000000270001,   // 50 Sine
+				0x3ffffffd20001,   // 50 Sine
+				0x3ffffffcd0001,   // 50 Sine
+				0x4000000350001,   // 50 Sine
+				0x3ffffffc70001,   // 50 Sine
+				0x1fffffff50001,   // 49 CtS
+				0x1ffffffea0001,   // 49 CtS
 			},
 			P: []uint64{
 				0x7fffffffe0001, // 51
@@ -441,13 +441,13 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		SineEvalParameters: SineEvalParameters{
-			LevelStart:   11,
-			SinType:      Cos1,
-			MessageRatio: 256.0,
-			SinRange:     25,
-			SinDeg:       63,
-			SinRescal:    2,
-			ArcSineDeg:   0,
+			LevelStart:    11,
+			SinType:       Cos1,
+			MessageRatio:  256.0,
+			SinRange:      25,
+			SinDeg:        63,
+			SinRescal:     2,
+			ArcSineDeg:    0,
 			ScalingFactor: 1 << 50,
 		},
 		CoeffsToSlotsParameters: CoeffsToSlotsParameters{

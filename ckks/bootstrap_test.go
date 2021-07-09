@@ -211,7 +211,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 	t.Run(testString(testContext, "Cos2/"), func(t *testing.T) {
 
-		if btpParams.SineEvalParameters.LevelStart - btpParams.SlotsToCoeffsParameters.LevelStart < 12 {
+		if btpParams.SineEvalParameters.LevelStart-btpParams.SlotsToCoeffsParameters.LevelStart < 12 {
 			t.Skip()
 		}
 

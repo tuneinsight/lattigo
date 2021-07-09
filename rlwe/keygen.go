@@ -291,10 +291,10 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *Switchi
 // GenSwitchingKeyDimensionFrom generates a new key-switching key, that will re-encrypt a ciphertext encrypted
 // under skIn of dimension n to a ciphertext encrypted under sKOut of dimension N > n.
 // [-a*SkOut + w*P*skIn_{Y^{N/n}} + e, a] in X^{N}
-func (keygen *keyGenerator) GenSwitchingKeyDimensionFrom(paramsFrom *Parameters, skIn, skOut *ring.Poly) (swk *SwitchingKey){
+func (keygen *keyGenerator) GenSwitchingKeyDimensionFrom(paramsFrom *Parameters, skIn, skOut *ring.Poly) (swk *SwitchingKey) {
 
 	// From a small N to a larger N
-	if !(paramsFrom.N() < keygen.params.N()){
+	if !(paramsFrom.N() < keygen.params.N()) {
 		panic("paramsFrom dimension must be smaller than the keygenerator parameters dimension")
 	}
 
@@ -309,10 +309,10 @@ func (keygen *keyGenerator) GenSwitchingKeyDimensionFrom(paramsFrom *Parameters,
 	// Maps skIn Y = X^{N/n} -> X
 	keygen.polypool[0].Zero()
 	paramsFrom.RingQP().InvNTT(skOut, keygen.polypool[0])
-	gap := paramsFrom.N()/keygen.params.N()
-	for j := 0; j < len(ringQP.Modulus); j++{
+	gap := paramsFrom.N() / keygen.params.N()
+	for j := 0; j < len(ringQP.Modulus); j++ {
 		tmp := keygen.polypool[0].Coeffs[j]
-		for i := paramsFrom.RingQP().N-1; i>= 0; i--{
+		for i := paramsFrom.RingQP().N - 1; i >= 0; i-- {
 			tmp[i*gap], tmp[i] = tmp[i], tmp[i*gap]
 		}
 	}
@@ -358,19 +358,19 @@ func (keygen *keyGenerator) GenSwitchingKeyDimensionFrom(paramsFrom *Parameters,
 // under skIn of dimension N to a ciphertext encrypted under sKOut of dimension n < N.
 // [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}
 // The ciphetext moduli of paramsTo must be shared by the key generator.
-func (keygen *keyGenerator) NewSwitchingKeyDimensionTo(paramsTo *Parameters, skIn, skOut *ring.Poly) (swk *SwitchingKey){
+func (keygen *keyGenerator) NewSwitchingKeyDimensionTo(paramsTo *Parameters, skIn, skOut *ring.Poly) (swk *SwitchingKey) {
 
-	if !(paramsTo.N() < keygen.params.N()){
+	if !(paramsTo.N() < keygen.params.N()) {
 		panic("paramsTo dimension must be smaller than the keygenerator parameters dimension")
 	}
 
 	if keygen.params.PCount() == 0 {
 		panic("Cannot GenSwitchingKey: modulus P is empty")
 	}
-	
+
 	swk = NewSwitchingKey(keygen.params)
 
-	ringQP := paramsTo.RingQP() // uses paramsTo ringQP to ensure the output security 
+	ringQP := paramsTo.RingQP() // uses paramsTo ringQP to ensure the output security
 
 	// Concatenates modulus Q of small params with modulus P of large params
 	skInSmallQ := new(ring.Poly)
@@ -382,10 +382,10 @@ func (keygen *keyGenerator) NewSwitchingKeyDimensionTo(paramsTo *Parameters, skI
 	// Maps skOut Y = X^{N/n} -> X
 	keygen.polypool[1].Zero()
 	ringQP.InvNTT(skOut, keygen.polypool[1])
-	gap := paramsTo.N()/keygen.params.N()
-	for j := 0; j < len(ringQP.Modulus); j++{
+	gap := paramsTo.N() / keygen.params.N()
+	for j := 0; j < len(ringQP.Modulus); j++ {
 		tmp := keygen.polypool[1].Coeffs[j]
-		for i := paramsTo.RingQP().N-1; i>= 0; i--{
+		for i := paramsTo.RingQP().N - 1; i >= 0; i-- {
 			tmp[i*gap], tmp[i] = tmp[i], tmp[i*gap]
 		}
 	}
@@ -400,8 +400,6 @@ func (keygen *keyGenerator) NewSwitchingKeyDimensionTo(paramsTo *Parameters, skI
 
 		ringQP.NTTLazy(swk.Value[i][0], swk.Value[i][0])
 		ringQP.MForm(swk.Value[i][0], swk.Value[i][0])
-
-		
 
 		for j := 0; j < alpha; j++ {
 

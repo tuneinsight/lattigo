@@ -21,13 +21,13 @@ type S2EProtocol struct {
 
 // NewS2EProtocol creates a new S2EProtocol struct from the passed BFV parameters.
 func NewS2EProtocol(params bfv.Parameters, sigmaSmudging float64) *S2EProtocol {
-	e2s := new(S2EProtocol)
-	e2s.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
-	e2s.ringQ = params.RingQ()
-	e2s.encoder = bfv.NewEncoder(params)
-	e2s.zero = rlwe.NewSecretKey(params.Parameters)
-	e2s.tmpPlaintext = bfv.NewPlaintext(params)
-	return e2s
+	s2e := new(S2EProtocol)
+	s2e.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
+	s2e.ringQ = params.RingQ()
+	s2e.encoder = bfv.NewEncoder(params)
+	s2e.zero = rlwe.NewSecretKey(params.Parameters)
+	s2e.tmpPlaintext = bfv.NewPlaintext(params)
+	return s2e
 }
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common

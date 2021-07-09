@@ -24,21 +24,21 @@ func NewRefreshProtocol(params bfv.Parameters, sigmaSmudging float64) (rfp *Refr
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
-func (rfp *RefreshProtocol) AllocateShare() RefreshShare {
-	return RefreshShare{rfp.MaskedTransformProtocol.AllocateShare()}
+func (rfp *RefreshProtocol) AllocateShare() *RefreshShare {
+	return &RefreshShare{*rfp.MaskedTransformProtocol.AllocateShare()}
 }
 
 // GenShares generates a share for the Refresh protocol.
-func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs *ring.Poly, shareOut RefreshShare) {
-	rfp.MaskedTransformProtocol.GenShares(sk, ciphertext, crs, nil, shareOut.MaskedTransformShare)
+func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs *ring.Poly, shareOut *RefreshShare) {
+	rfp.MaskedTransformProtocol.GenShares(sk, ciphertext, crs, nil, &shareOut.MaskedTransformShare)
 }
 
 // Aggregate aggregates two parties' shares in the Refresh protocol.
-func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
-	rfp.MaskedTransformProtocol.Aggregate(share1.MaskedTransformShare, share2.MaskedTransformShare, shareOut.MaskedTransformShare)
+func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut *RefreshShare) {
+	rfp.MaskedTransformProtocol.Aggregate(&share1.MaskedTransformShare, &share2.MaskedTransformShare, &shareOut.MaskedTransformShare)
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *RefreshProtocol) Finalize(ciphertext *bfv.Ciphertext, crs *ring.Poly, share RefreshShare, ciphertextOut *bfv.Ciphertext) {
-	rfp.MaskedTransformProtocol.Transform(ciphertext, nil, crs, share.MaskedTransformShare, ciphertextOut)
+func (rfp *RefreshProtocol) Finalize(ciphertext *bfv.Ciphertext, crs *ring.Poly, share *RefreshShare, ciphertextOut *bfv.Ciphertext) {
+	rfp.MaskedTransformProtocol.Transform(ciphertext, nil, crs, &share.MaskedTransformShare, ciphertextOut)
 }

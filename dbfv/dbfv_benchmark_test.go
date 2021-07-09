@@ -276,7 +276,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	type Party struct {
 		*RefreshProtocol
 		s     *rlwe.SecretKey
-		share RefreshShare
+		share *RefreshShare
 	}
 
 	p := new(Party)

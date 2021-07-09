@@ -32,23 +32,23 @@ type AdditiveShareBigint struct {
 
 // NewAdditiveShare instantiate a new additive share struct for the ring defined
 // by the given parameters at maximum level.
-func NewAdditiveShare(params Parameters) AdditiveShare {
-	return AdditiveShare{Value: *ring.NewPoly(params.N(), 1)}
+func NewAdditiveShare(params Parameters) *AdditiveShare {
+	return &AdditiveShare{Value: *ring.NewPoly(params.N(), 1)}
 }
 
 // NewAdditiveShareAtLevel instantiate a new additive share struct for the ring defined
 // by the given parameters at level `level`.
-func NewAdditiveShareAtLevel(params Parameters, level int) AdditiveShare {
-	return AdditiveShare{Value: *ring.NewPoly(params.N(), level+1)}
+func NewAdditiveShareAtLevel(params Parameters, level int) *AdditiveShare {
+	return &AdditiveShare{Value: *ring.NewPoly(params.N(), level+1)}
 }
 
 // NewAdditiveShareBigint instantiate a new additive share struct composed of big.Int elements
-func NewAdditiveShareBigint(params Parameters) AdditiveShareBigint {
+func NewAdditiveShareBigint(params Parameters) *AdditiveShareBigint {
 	v := make([]*big.Int, params.N())
 	for i := range v {
 		v[i] = new(big.Int)
 	}
-	return AdditiveShareBigint{Value: v}
+	return &AdditiveShareBigint{Value: v}
 }
 
 // NewPlaintext creates a new Plaintext at maximum level from the parameters.

@@ -277,13 +277,13 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		type Party struct {
 			*RefreshProtocol
 			s     *rlwe.SecretKey
-			share RefreshShare
+			share *RefreshShare
 		}
 
 		p := new(Party)
 		p.RefreshProtocol = NewRefreshProtocol(params, logBound, 3.2)
 		p.s = sk0Shards[0]
-		p.share = p.AllocateShares(minLevel, params.MaxLevel())
+		p.share = p.AllocateShare(minLevel, params.MaxLevel())
 
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
 		crp := crpGenerator.ReadNew()

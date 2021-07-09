@@ -72,30 +72,30 @@ func NewMaskedTransformProtocol(params bfv.Parameters, sigmaSmudging float64) (r
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
-func (rfp *MaskedTransformProtocol) AllocateShare() MaskedTransformShare {
+func (rfp *MaskedTransformProtocol) AllocateShare() *MaskedTransformShare {
 	level := len(rfp.ringQ.Modulus) - 1
-	return MaskedTransformShare{*rfp.e2s.AllocateShare(level), *rfp.s2e.AllocateShare(level)}
+	return &MaskedTransformShare{*rfp.e2s.AllocateShare(level), *rfp.s2e.AllocateShare(level)}
 }
 
 // GenShares generates the shares of the PermuteProtocol
-func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs *ring.Poly, transform MaskedTransformFunc, shareOut MaskedTransformShare) {
-	rfp.e2s.GenShare(sk, ciphertext, rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
+func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs *ring.Poly, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
+	rfp.e2s.GenShare(sk, ciphertext, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
 	mask := rfp.tmpMask
 	if transform != nil {
 		transform(bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: rfp.tmpMaskPerm}})
 		mask = rfp.tmpMaskPerm
 	}
-	rfp.s2e.GenShare(sk, crs, rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
+	rfp.s2e.GenShare(sk, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
 }
 
 // Aggregate sums share1 and share2 on shareOut.
-func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut *MaskedTransformShare) {
 	rfp.ringQ.Add(share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
 	rfp.ringQ.Add(share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *MaskedTransformProtocol) Transform(ciphertext *bfv.Ciphertext, transform MaskedTransformFunc, crs *ring.Poly, share MaskedTransformShare, ciphertextOut *bfv.Ciphertext) {
+func (rfp *MaskedTransformProtocol) Transform(ciphertext *bfv.Ciphertext, transform MaskedTransformFunc, crs *ring.Poly, share *MaskedTransformShare, ciphertextOut *bfv.Ciphertext) {
 	rfp.e2s.GetShare(nil, &share.e2sShare, ciphertext, &rlwe.AdditiveShare{Value: *rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
 	mask := rfp.tmpMask
 	if transform != nil {
@@ -106,5 +106,5 @@ func (rfp *MaskedTransformProtocol) Transform(ciphertext *bfv.Ciphertext, transf
 	rfp.encoder.ScaleUp(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, &rfp.tmpPt)
 	//rfp.encoder.EncodeUint(mask.Coeffs[0], &rfp.tmpPt) // tmpMask RingQ( Delta*(m - sum M_i))
 	rfp.ringQ.Add(rfp.tmpPt.Value, share.s2eShare.Value, ciphertextOut.Value[0])
-	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, *ciphertextOut)
+	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
 }

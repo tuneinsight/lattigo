@@ -1,11 +1,12 @@
 package dckks
 
 import (
+	"math/big"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"math/big"
 )
 
 // E2SProtocol is the structure storing the parameters and temporary buffers
@@ -41,7 +42,7 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 //
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which E2S can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, secretShareOut rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
 	ringQ := e2s.ringQ
 

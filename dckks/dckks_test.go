@@ -818,7 +818,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, minLevel, testCtx.params.Scale())
 
-		crsLevel := crsGen.ReadLvlNew(params.MaxLevel())
+		crsLevel := crsGen.ReadLvlNew(minLevel)
 
 		//testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, logBound, 3.2)

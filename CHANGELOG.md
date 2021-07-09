@@ -10,7 +10,9 @@ All notable changes to this project will be documented in this file.
 - RING: added `ReadFromDistLvl` and `ReadAndAddFromDistLvl` to Gaussian sampler API.
 - RLWE: added a new `rlwe` package as common implementation base for the lattigo RLWE schemes.
 - RLWE: unified the `ckks.Parameters` and `bfv.Parameters` types with common `rlwe.Parameters` base type.
-- RLWE: extracted the `rlwe.Element` type as common base for BFV and CKKS plaintext and ciphertexts.
+- RLWE: extracted the `rlwe.Element` type as common base for BFV and CKKS ciphertexts.
+- RLWE: added the `rlwe.Ciphertext` interface as a common interface for BFV and CKKS ciphertexts
+- RLWE: extracted the `rlwe.Plaintext` type as common base for BFV and CKKS plaintext.
 - RLWE: renamed the `Parameters.Copy()` method to `Parameters.CopyNew()` for consistency.
 - RLWE: added `Parameter` methods to instantiate new `ring.Ring` structs directly.
 - RLWE: added equality and inclusion check methods for the `rlwe.RotatationKeySet` type.
@@ -25,7 +27,9 @@ All notable changes to this project will be documented in this file.
 - BFV/CKKS: added `encoding/json`-compatible JSON serialisers and deserialisers for the `Parameters` types.
 - BFV/CKKS: removed the scheme-specific key types.
 - BFV/CKKS: added a `-params=[params json]` flag for all test and bench suites for specifying parameters from the command line.
-- DBFV/DCKKS: added a common interface and implementation for each multiparty key-generation protocol.
+- DBFV/DCKKS: added a common interface and implementation for each multiparty protocol.
+- DBFV/DCKKS: added standalone Encryption-To-Shares (`E2SProtocol`) and Shares-To-Encryption (`S2EProtocol`) protocols for encrypted vs secret-shared domain switching.
+- DBFV/DCKKS: generalized the Refresh-and-permute protocol into generic `MaskedTransformProtocol` that accepts an arbitrary linear function.
 - DCKKS: public-refresh now takes a target desired output scale, which allows to refresh the ciphertext to the default scale.
 - CKKS: added `Parameter` methods computing the required rotations for relevant `Evaluator` operations.
 - CKKS: added methods for operating linear-transformation and improved several aspects listed below:

@@ -534,7 +534,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 			sk             *rlwe.SecretKey
 			publicShareE2S *drlwe.CKSShare
 			publicShareS2E *drlwe.CKSShare
-			secretShare    rlwe.AdditiveShareBigint
+			secretShare    *rlwe.AdditiveShareBigint
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, -1, 1, t)
@@ -566,7 +566,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 		}
 
 		// sum(-M_i) + x
-		P[0].e2s.GetShare(&P[0].secretShare, P[0].publicShareE2S, ciphertext, &P[0].secretShare)
+		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShareE2S, ciphertext, P[0].secretShare)
 
 		// sum(-M_i) + x + sum(M_i) = x
 		rec := rlwe.NewAdditiveShareBigint(params.Parameters)
@@ -598,7 +598,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 		}
 
 		ctRec := ckks.NewCiphertext(params, 1, params.Parameters.MaxLevel(), ciphertext.Scale)
-		P[0].s2e.GetEncryption(P[0].publicShareS2E, c1, *ctRec)
+		P[0].s2e.GetEncryption(P[0].publicShareS2E, c1, ctRec)
 
 		verifyTestVectors(testCtx, testCtx.decryptorSk0, coeffs, ctRec, t)
 
@@ -623,7 +623,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		type Party struct {
 			*RefreshProtocol
 			s     *rlwe.SecretKey
-			share RefreshShare
+			share *RefreshShare
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
@@ -639,7 +639,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.RefreshProtocol = NewRefreshProtocol(params, logBound, 3.2)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShares(levelMin, levelMax)
+			p.share = p.AllocateShare(levelMin, levelMax)
 			RefreshParties[i] = p
 		}
 
@@ -679,7 +679,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 		type Party struct {
 			*MaskedTransformProtocol
 			s     *rlwe.SecretKey
-			share MaskedTransformShare
+			share *MaskedTransformShare
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
@@ -822,7 +822,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		//testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, logBound, 3.2)
-		refreshshare := refreshproto.AllocateShares(ciphertext.Level(), ciphertext.Level())
+		refreshshare := refreshproto.AllocateShare(ciphertext.Level(), ciphertext.Level())
 		refreshproto.GenShares(testCtx.sk0, logBound, params.LogSlots(), ciphertext, crsLevel, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()

@@ -23,9 +23,9 @@ func NewRefreshProtocol(params ckks.Parameters, precision int, sigmaSmudging flo
 	return
 }
 
-// AllocateShares allocates the shares of the PermuteProtocol
-func (rfp *RefreshProtocol) AllocateShares(minLevel, maxLevel int) RefreshShare {
-	return RefreshShare{rfp.MaskedTransformProtocol.AllocateShares(minLevel, maxLevel)}
+// AllocateShare allocates the shares of the PermuteProtocol
+func (rfp *RefreshProtocol) AllocateShare(minLevel, maxLevel int) *RefreshShare {
+	return &RefreshShare{*rfp.MaskedTransformProtocol.AllocateShares(minLevel, maxLevel)}
 }
 
 // GenShares generates a share for the Refresh protocol.
@@ -35,16 +35,16 @@ func (rfp *RefreshProtocol) AllocateShares(minLevel, maxLevel int) RefreshShare 
 //
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the refresh can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareOut RefreshShare) {
-	rfp.MaskedTransformProtocol.GenShares(sk, logBound, logSlots, ciphertext, crs, nil, shareOut.MaskedTransformShare)
+func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareOut *RefreshShare) {
+	rfp.MaskedTransformProtocol.GenShares(sk, logBound, logSlots, ciphertext, crs, nil, &shareOut.MaskedTransformShare)
 }
 
 // Aggregate aggregates two parties' shares in the Refresh protocol.
-func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut RefreshShare) {
-	rfp.MaskedTransformProtocol.Aggregate(share1.MaskedTransformShare, share2.MaskedTransformShare, shareOut.MaskedTransformShare)
+func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut *RefreshShare) {
+	rfp.MaskedTransformProtocol.Aggregate(&share1.MaskedTransformShare, &share2.MaskedTransformShare, &shareOut.MaskedTransformShare)
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *RefreshProtocol) Finalize(ciphertext *ckks.Ciphertext, logSlots int, crs *ring.Poly, share RefreshShare, ciphertextOut *ckks.Ciphertext) {
-	rfp.MaskedTransformProtocol.Transform(ciphertext, logSlots, nil, crs, share.MaskedTransformShare, ciphertextOut)
+func (rfp *RefreshProtocol) Finalize(ciphertext *ckks.Ciphertext, logSlots int, crs *ring.Poly, share *RefreshShare, ciphertextOut *ckks.Ciphertext) {
+	rfp.MaskedTransformProtocol.Transform(ciphertext, logSlots, nil, crs, &share.MaskedTransformShare, ciphertextOut)
 }

@@ -695,7 +695,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.MaskedTransformProtocol = NewMaskedTransformProtocol(params, logBound, 3.2)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShares(levelMin, levelMax)
+			p.share = p.AllocateShare(levelMin, levelMax)
 			RefreshParties[i] = p
 		}
 

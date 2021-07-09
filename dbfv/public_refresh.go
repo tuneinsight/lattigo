@@ -23,9 +23,9 @@ func NewRefreshProtocol(params bfv.Parameters, sigmaSmudging float64) (rfp *Refr
 	return
 }
 
-// AllocateShares allocates the shares of the PermuteProtocol
-func (rfp *RefreshProtocol) AllocateShares() RefreshShare {
-	return RefreshShare{rfp.MaskedTransformProtocol.AllocateShares()}
+// AllocateShare allocates the shares of the PermuteProtocol
+func (rfp *RefreshProtocol) AllocateShare() RefreshShare {
+	return RefreshShare{rfp.MaskedTransformProtocol.AllocateShare()}
 }
 
 // GenShares generates a share for the Refresh protocol.

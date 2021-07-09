@@ -363,7 +363,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 					p := new(Party)
 					p.PCKSProtocol = NewPCKSProtocol(params, 3.2)
 					p.s = sk0Shards[i]
-					p.share = p.AllocateShares(ciphertext.Level())
+					p.share = p.AllocateShare(ciphertext.Level())
 					pcksParties[i] = p
 				}
 				P0 := pcksParties[0]
@@ -766,7 +766,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		//Check marshalling for the PCKS
 
 		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
-		SwitchShare := KeySwitchProtocol.AllocateShares(ciphertext.Level())
+		SwitchShare := KeySwitchProtocol.AllocateShare(ciphertext.Level())
 		KeySwitchProtocol.GenShare(testCtx.sk0, testCtx.pk0, ciphertext, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()

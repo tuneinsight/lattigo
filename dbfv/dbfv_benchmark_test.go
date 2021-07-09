@@ -199,7 +199,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
 	p.s = sk0Shards[0]
-	p.share = p.AllocateShares(ciphertext.Level())
+	p.share = p.AllocateShare(ciphertext.Level())
 
 	b.Run(testString("PublicKeySwitching/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
@@ -282,7 +282,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.RefreshProtocol = NewRefreshProtocol(testCtx.params, 3.2)
 	p.s = sk0Shards[0]
-	p.share = p.AllocateShares()
+	p.share = p.AllocateShare()
 
 	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
 	crp := crpGenerator.ReadNew()

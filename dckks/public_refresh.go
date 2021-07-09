@@ -25,7 +25,7 @@ func NewRefreshProtocol(params ckks.Parameters, precision int, sigmaSmudging flo
 
 // AllocateShare allocates the shares of the PermuteProtocol
 func (rfp *RefreshProtocol) AllocateShare(minLevel, maxLevel int) *RefreshShare {
-	return &RefreshShare{*rfp.MaskedTransformProtocol.AllocateShares(minLevel, maxLevel)}
+	return &RefreshShare{*rfp.MaskedTransformProtocol.AllocateShare(minLevel, maxLevel)}
 }
 
 // GenShares generates a share for the Refresh protocol.

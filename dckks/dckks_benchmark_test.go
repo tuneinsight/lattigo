@@ -330,18 +330,18 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		type Party struct {
 			*MaskedTransformProtocol
 			s     *rlwe.SecretKey
-			share MaskedTransformShare
+			share *MaskedTransformShare
 		}
+
+		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, minLevel, params.Scale())
 
 		p := new(Party)
 		p.MaskedTransformProtocol = NewMaskedTransformProtocol(params, logBound, 3.2)
 		p.s = sk0Shards[0]
-		p.share = p.AllocateShares(minLevel, params.MaxLevel())
+		p.share = p.AllocateShare(ciphertext.Level(), params.MaxLevel())
 
 		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
 		crp := crpGenerator.ReadNew()
-
-		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, minLevel, params.Scale())
 
 		permute := func(ptIn, ptOut []*ring.Complex) {
 			for i := range ptIn {

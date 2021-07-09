@@ -229,7 +229,7 @@ func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
 	// formula such that after it it has the scale it had before the polynomial
 	// evaluation
 	for i := 0; i < btp.SinRescal; i++ {
-		targetScale = math.Sqrt(targetScale * float64(btp.params.Q()[btp.SineEvalParameters.LevelStart-btp.SineEvalParameters.Depth()+i]))
+		targetScale = math.Sqrt(targetScale * float64(btp.params.Q()[btp.SineEvalParameters.LevelStart-btp.SineEvalParameters.Depth()+i+1]))
 	}
 
 	// Division by 1/2^r and change of variable for the Chebysehev evaluation

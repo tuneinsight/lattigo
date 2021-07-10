@@ -21,14 +21,7 @@ type encryptor struct {
 
 // NewEncryptor instanciate a new wrapped rlwe.Encryptor for BFV ciphertexts and plaintexts.
 func NewEncryptor(params Parameters, key interface{}) Encryptor {
-	switch key := key.(type) {
-	case *rlwe.PublicKey:
-		return &encryptor{rlwe.NewEncryptorFromPk(params.Parameters, key)}
-	case *rlwe.SecretKey:
-		return &encryptor{rlwe.NewEncryptorFromSk(params.Parameters, key)}
-	default:
-		panic("key must be either rlwe.PublicKey or rlwe.SecretKey")
-	}
+	return &encryptor{rlwe.NewEncryptor(params.Parameters, key)}
 }
 
 // EncryptNew calls rlwe.Encryptor.EncryptNew.

@@ -18,8 +18,8 @@ func main() {
 	var encoder ckks.Encoder
 	var sk *rlwe.SecretKey
 	var pk *rlwe.PublicKey
-	var encryptor *ckks.Encryptor
-	var decryptor *ckks.Decryptor
+	var encryptor ckks.Encryptor
+	var decryptor ckks.Decryptor
 	var plaintext *ckks.Plaintext
 
 	// Bootstrapping parameters
@@ -89,7 +89,7 @@ func main() {
 	printDebug(params, ciphertext2, valuesTest1, decryptor, encoder)
 }
 
-func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor *ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
+func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
 
 	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
 

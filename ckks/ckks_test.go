@@ -45,9 +45,9 @@ type testParams struct {
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
 	rlk         *rlwe.RelinearizationKey
-	encryptorPk *Encryptor
-	encryptorSk *Encryptor
-	decryptor   *Decryptor
+	encryptorPk Encryptor
+	encryptorSk Encryptor
+	decryptor   Decryptor
 	evaluator   Evaluator
 }
 
@@ -140,7 +140,7 @@ func genTestParams(defaultParam Parameters, hw int) (testContext *testParams, er
 
 }
 
-func newTestVectors(testContext *testParams, encryptor *Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	logSlots := testContext.params.LogSlots()
 
@@ -161,7 +161,7 @@ func newTestVectors(testContext *testParams, encryptor *Encryptor, a, b complex1
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(testContext *testParams, decryptor *Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
+func verifyTestVectors(testContext *testParams, decryptor Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
 
 	precStats := GetPrecisionStats(testContext.params, testContext.encoder, decryptor, valuesWant, element, logSlots, bound)
 
@@ -840,7 +840,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 	var sk2 *rlwe.SecretKey
-	var decryptorSk2 *Decryptor
+	var decryptorSk2 Decryptor
 	var switchingKey *rlwe.SwitchingKey
 
 	if testContext.params.PCount() != 0 {

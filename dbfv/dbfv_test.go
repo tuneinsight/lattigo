@@ -52,9 +52,9 @@ type testContext struct {
 	pk0 *rlwe.PublicKey
 	pk1 *rlwe.PublicKey
 
-	encryptorPk0 *bfv.Encryptor
-	decryptorSk0 *bfv.Decryptor
-	decryptorSk1 *bfv.Decryptor
+	encryptorPk0 bfv.Encryptor
+	decryptorSk0 bfv.Decryptor
+	decryptorSk1 bfv.Decryptor
 	evaluator    bfv.Evaluator
 }
 
@@ -723,7 +723,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(testCtx *testContext, encryptor *bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
+func newTestVectors(testCtx *testContext, encryptor bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
 
 	uniformSampler := ring.NewUniformSampler(testCtx.prng, testCtx.ringT)
 
@@ -734,7 +734,7 @@ func newTestVectors(testCtx *testContext, encryptor *bfv.Encryptor, t *testing.T
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 
-func verifyTestVectors(testCtx *testContext, decryptor *bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
+func verifyTestVectors(testCtx *testContext, decryptor bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
 	require.True(t, utils.EqualSliceUint64(coeffs, testCtx.encoder.DecodeUintNew(decryptor.DecryptNew(ciphertext))))
 }
 

@@ -44,9 +44,9 @@ type testContext struct {
 	encoder   ckks.Encoder
 	evaluator ckks.Evaluator
 
-	encryptorPk0 *ckks.Encryptor
-	decryptorSk0 *ckks.Decryptor
-	decryptorSk1 *ckks.Decryptor
+	encryptorPk0 ckks.Encryptor
+	decryptorSk0 ckks.Decryptor
+	decryptorSk1 ckks.Decryptor
 
 	pk0 *rlwe.PublicKey
 	pk1 *rlwe.PublicKey
@@ -853,7 +853,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(testContext *testContext, encryptor *ckks.Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
+func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
 
 	params := testContext.params
 
@@ -874,7 +874,7 @@ func newTestVectors(testContext *testContext, encryptor *ckks.Encryptor, a, b co
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(testCtx *testContext, decryptor *ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(testCtx *testContext, decryptor ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	precStats := ckks.GetPrecisionStats(testCtx.params, testCtx.encoder, decryptor, valuesWant, element, testCtx.params.LogSlots(), 0)
 

@@ -33,9 +33,9 @@ type testContext struct {
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
 	rlk         *rlwe.RelinearizationKey
-	encryptorPk *Encryptor
-	encryptorSk *Encryptor
-	decryptor   *Decryptor
+	encryptorPk Encryptor
+	encryptorSk Encryptor
+	decryptor   Decryptor
 	evaluator   Evaluator
 }
 
@@ -125,7 +125,7 @@ func testParameters(testctx *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectorsRingQ(testctx *testContext, encryptor *Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectorsRingQ(testctx *testContext, encryptor Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	coeffs = testctx.uSampler.ReadNew()
 
@@ -162,7 +162,7 @@ func newTestVectorsMul(testctx *testContext, t *testing.T) (coeffs *ring.Poly, p
 	return coeffs, plaintext
 }
 
-func verifyTestVectors(testctx *testContext, decryptor *Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
+func verifyTestVectors(testctx *testContext, decryptor Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
 
 	var coeffsTest []uint64
 

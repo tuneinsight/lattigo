@@ -249,7 +249,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Encrypt/Pk/Fast/MaxLevel/"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
-		encryptor := NewEncryptorFromPk(params, pk)
+		encryptor := NewEncryptor(params, pk)
 		ciphertext := encryptor.EncryptFastNTTNew(plaintext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
@@ -260,7 +260,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Encrypt/Pk/Fast/MinLevel/"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, 0)
 		plaintext.Value.IsNTT = true
-		encryptor := NewEncryptorFromPk(params, pk)
+		encryptor := NewEncryptor(params, pk)
 		ciphertext := encryptor.EncryptFastNTTNew(plaintext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
@@ -274,7 +274,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		}
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
-		encryptor := NewEncryptorFromPk(params, pk)
+		encryptor := NewEncryptor(params, pk)
 		ciphertext := encryptor.EncryptNTTNew(plaintext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
@@ -288,7 +288,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		}
 		plaintext := NewPlaintext(params, 0)
 		plaintext.Value.IsNTT = true
-		encryptor := NewEncryptorFromPk(params, pk)
+		encryptor := NewEncryptor(params, pk)
 		ciphertext := encryptor.EncryptNTTNew(plaintext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
@@ -299,7 +299,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Encrypt/Sk/MaxLevel/"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
-		encryptor := NewEncryptorFromSk(params, sk)
+		encryptor := NewEncryptor(params, sk)
 		ciphertext := encryptor.EncryptNTTNew(plaintext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
@@ -310,7 +310,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Encrypt/Sk/MinLevel/"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, 0)
 		plaintext.Value.IsNTT = true
-		encryptor := NewEncryptorFromSk(params, sk)
+		encryptor := NewEncryptor(params, sk)
 		ciphertext := encryptor.EncryptNTTNew(plaintext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value, ciphertext.Value[0])
@@ -323,7 +323,7 @@ func testDecryptor(kgen KeyGenerator, t *testing.T) {
 	params := kgen.(*keyGenerator).params
 	sk := kgen.GenSecretKey()
 	ringQ := params.RingQ()
-	encryptor := NewEncryptorFromSk(params, sk)
+	encryptor := NewEncryptor(params, sk)
 	decryptor := NewDecryptor(params, sk)
 
 	t.Run(testString(params, "Decrypt/MaxLevel/"), func(t *testing.T) {
@@ -359,7 +359,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 
 	plaintext := NewPlaintext(params, params.MaxLevel())
 	plaintext.Value.IsNTT = true
-	encryptor := NewEncryptorFromSk(params, sk)
+	encryptor := NewEncryptor(params, sk)
 	ciphertext := encryptor.EncryptNTTNew(plaintext)
 
 	// Tests that a random polynomial decomposed is equal to its

@@ -42,7 +42,7 @@ func benchHoistedKeySwitch(kgen KeyGenerator, keySwitcher *KeySwitcher, b *testi
 	skOut := kgen.GenSecretKey()
 	plaintext := NewPlaintext(params, params.MaxLevel())
 	plaintext.Value.IsNTT = true
-	encryptor := NewEncryptorFromSk(params, skIn)
+	encryptor := NewEncryptor(params, skIn)
 	ciphertext := encryptor.EncryptNTTNew(plaintext)
 
 	swk := kgen.GenSwitchingKey(skIn, skOut)

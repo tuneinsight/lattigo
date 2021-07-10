@@ -103,28 +103,23 @@ type skEncryptor struct {
 	sk *SecretKey
 }
 
-// NewEncryptorFromPk creates a new Encryptor with the provided public-key.
+// NewEncryptor creates a new Encryptor with the provided public or secret key.
 // This Encryptor can be used to encrypt Plaintexts, using the stored key.
-func NewEncryptorFromPk(params Parameters, pk *PublicKey) Encryptor {
-	enc := newEncryptor(params)
-
-	if pk.Value[0].Degree() != params.N() || pk.Value[1].Degree() != params.N() {
-		panic("cannot newEncryptor: pk ring degree does not match params ring degree")
+func NewEncryptor(params Parameters, key interface{}) Encryptor {
+	switch key := key.(type) {
+	case *PublicKey:
+		if key.Value[0].Degree() != params.N() || key.Value[1].Degree() != params.N() {
+			panic("cannot newEncryptor: pk ring degree does not match params ring degree")
+		}
+		return &pkEncryptor{newEncryptor(params), key}
+	case *SecretKey:
+		if key.Value.Degree() != params.N() {
+			panic("cannot newEncryptor: sk ring degree does not match params ring degree")
+		}
+		return &skEncryptor{newEncryptor(params), key}
+	default:
+		panic("key must be either rlwe.PublicKey or rlwe.SecretKey")
 	}
-
-	return &pkEncryptor{enc, pk}
-}
-
-// NewEncryptorFromSk creates a new Encryptor with the provided secret-key.
-// This Encryptor can be used to encrypt Plaintexts, using the stored key.
-func NewEncryptorFromSk(params Parameters, sk *SecretKey) Encryptor {
-	enc := newEncryptor(params)
-
-	if sk.Value.Degree() != params.N() {
-		panic("cannot newEncryptor: sk ring degree does not match params ring degree")
-	}
-
-	return &skEncryptor{enc, sk}
 }
 
 func newEncryptor(params Parameters) encryptor {

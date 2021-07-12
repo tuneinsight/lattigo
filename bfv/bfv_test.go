@@ -30,7 +30,7 @@ type testContext struct {
 	prng        utils.PRNG
 	uSampler    *ring.UniformSampler
 	encoder     Encoder
-	kgen        KeyGenerator
+	kgen        rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
 	rlk         *rlwe.RelinearizationKey

@@ -93,7 +93,7 @@ func benchKeyGen(testContext *testParams, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			kgen.GenRelinearizationKey(sk)
+			kgen.GenRelinearizationKey(sk, 2)
 		}
 	})
 }
@@ -155,7 +155,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 	var rlk *rlwe.RelinearizationKey
 	var rotkey *rlwe.RotationKeySet
 	if testContext.params.PCount() != 0 {
-		rlk = testContext.kgen.GenRelinearizationKey(testContext.sk)
+		rlk = testContext.kgen.GenRelinearizationKey(testContext.sk, 2)
 		rotkey = testContext.kgen.GenRotationKeysForRotations([]int{1}, true, testContext.sk)
 	}
 

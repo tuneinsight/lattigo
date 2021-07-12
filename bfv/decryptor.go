@@ -12,19 +12,22 @@ type Decryptor interface {
 
 type decryptor struct {
 	rlwe.Decryptor
+	params Parameters
 }
 
-// NewDecryptor instantiates a new rlwe.Decryptor wrapped for BFV ciphertexts and plaintexts.
+// NewDecryptor instantiates a Decryptor for the BFV scheme.
 func NewDecryptor(params Parameters, sk *rlwe.SecretKey) Decryptor {
-	return &decryptor{Decryptor: rlwe.NewDecryptor(params.Parameters, sk)}
+	return &decryptor{rlwe.NewDecryptor(params.Parameters, sk), params}
 }
 
-// DecryptNew calls rlwe.Decryptor.DecryptNew.
-func (dec *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
-	return &Plaintext{Plaintext: dec.Decryptor.DecryptNew(&rlwe.Ciphertext{Value: ciphertext.Value})}
+// Decrypt decrypts the ciphertext and write the result in ptOut.
+func (dec *decryptor) Decrypt(ct *Ciphertext, ptOut *Plaintext) {
+	dec.Decryptor.Decrypt(&rlwe.Ciphertext{Value: ct.Value}, &rlwe.Plaintext{Value: ptOut.Value})
 }
 
-// Decrypt calls rlwe.Decryptor.Decrypt.
-func (dec *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
-	dec.Decryptor.Decrypt(&rlwe.Ciphertext{Value: ciphertext.Value}, &rlwe.Plaintext{Value: plaintext.Value})
+// DecryptNew decrypts the ciphertext and returns the result in a newly allocated Plaintext.
+func (dec *decryptor) DecryptNew(ct *Ciphertext) (ptOut *Plaintext) {
+	pt := NewPlaintext(dec.params)
+	dec.Decryptor.Decrypt(ct.Ciphertext, pt.Plaintext)
+	return pt
 }

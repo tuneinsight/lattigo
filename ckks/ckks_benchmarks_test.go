@@ -101,6 +101,7 @@ func benchKeyGen(testContext *testParams, b *testing.B) {
 func benchEncrypt(testContext *testParams, b *testing.B) {
 
 	encryptorPk := testContext.encryptorPk
+	encryptorPkFast := NewFastEncryptor(testContext.params, testContext.pk)
 	encryptorSk := testContext.encryptorSk
 
 	plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
@@ -119,7 +120,7 @@ func benchEncrypt(testContext *testParams, b *testing.B) {
 
 	b.Run(testString(testContext, "EncryptFast/key=Pk/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encryptorPk.EncryptFast(plaintext, ciphertext)
+			encryptorPkFast.Encrypt(plaintext, ciphertext)
 		}
 	})
 

@@ -92,6 +92,17 @@ func NewElement(params Parameters, degree, level int) *Element {
 	return el
 }
 
+// NewElementNTT returns a new Element with zero values and the NTT flags set.
+func NewElementNTT(params Parameters, degree, level int) *Element {
+	el := new(Element)
+	el.Value = make([]*ring.Poly, degree+1)
+	for i := 0; i < degree+1; i++ {
+		el.Value[i] = ring.NewPoly(params.N(), level+1)
+		el.Value[i].IsNTT = true
+	}
+	return el
+}
+
 // SetValue sets the input slice of polynomials as the value of the target element.
 func (el *Element) SetValue(value []*ring.Poly) {
 	el.Value = value

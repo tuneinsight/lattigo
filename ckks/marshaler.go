@@ -58,7 +58,7 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		return errors.New("too small bytearray")
 	}
 
-	ciphertext.Element = new(rlwe.Element)
+	ciphertext.Ciphertext = new(rlwe.Ciphertext)
 
 	ciphertext.Value = make([]*ring.Poly, uint8(data[0]))
 

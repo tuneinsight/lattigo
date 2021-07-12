@@ -97,7 +97,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct 
 
 	// Encrypt the mask
 	// Generates an encryption of zero and subtracts the mask
-	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
+	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct.Ciphertext, publicShareOut)
 	// Puts the mask in a poly
 	e2s.ringQ.SetCoefficientsBigintLvl(ct.Level(), secretShareOut.Value, e2s.pool)
 	// NTT the poly

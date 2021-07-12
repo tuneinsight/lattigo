@@ -30,25 +30,25 @@ func NewFastEncryptor(params Parameters, key *rlwe.PublicKey) Encryptor {
 // EncryptNew calls rlwe.Encryptor.EncryptNew.
 func (enc *encryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 	ct := NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
-	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, ct.Element)
+	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, ct.Ciphertext)
 	return ct
 }
 
 // Encrypt calls rlwe.Encryptor.Encrypt.
 func (enc *encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
-	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Element{Value: ciphertext.Value})
+	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Ciphertext{Value: ciphertext.Value})
 	ciphertext.Scale = plaintext.Scale
 }
 
 // EncryptFromCRP calls rlwe.Encryptor.EncryptFromCRP.
 func (enc *encryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
-	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Element{Value: ciphertext.Value}, crp)
+	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Ciphertext{Value: ciphertext.Value}, crp)
 	ciphertext.Scale = plaintext.Scale
 }
 
 // EncryptFromCRPNew calls rlwe.Encryptor.EncryptFromCRPNew.
 func (enc *encryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
 	ct := NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
-	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, ct.Element, crp)
-	return &Ciphertext{Element: ct.Element, Scale: plaintext.Scale}
+	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, ct.Ciphertext, crp)
+	return &Ciphertext{Ciphertext: ct.Ciphertext, Scale: plaintext.Scale}
 }

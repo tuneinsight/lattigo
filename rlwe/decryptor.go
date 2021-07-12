@@ -10,20 +10,20 @@ type Decryptor interface {
 	// DecryptNew decrypts the ciphertext and returns a newly created
 	// plaintext. A Horner method is used for evaluating the decryption.
 	// The level of the output plaintext is ciphertext.Level().
-	DecryptNew(ciphertext *Element) (plaintext *Plaintext)
+	DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext)
 
 	// DecryptNew decrypts the ciphertext and returns a newly created
 	// plaintext. A Horner method is used for evaluating the decryption.
 	// The level of the output plaintext is ciphertext.Level().
 	// Plaintext output is in the NTT domain.
-	DecryptNTTNew(ciphertext *Element) (plaintext *Plaintext)
+	DecryptNTTNew(ciphertext *Ciphertext) (plaintext *Plaintext)
 
 	// Decrypt decrypts the ciphertext and returns the result on the provided
 	// receiver plaintext. A Horner method is used for evaluating the
 	// decryption.
 	// The level of the output plaintext is min(ciphertext.Level(), plaintext.Level())
 	// Output domain will match plaintext.Value.IsNTT value.
-	Decrypt(ciphertext *Element, plaintext *Plaintext)
+	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
 }
 
 // decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
@@ -50,7 +50,7 @@ func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 	}
 }
 
-func (decryptor *decryptor) DecryptNew(ciphertext *Element) (plaintext *Plaintext) {
+func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
 
 	plaintext = NewPlaintext(decryptor.params, ciphertext.Level())
 
@@ -59,7 +59,7 @@ func (decryptor *decryptor) DecryptNew(ciphertext *Element) (plaintext *Plaintex
 	return plaintext
 }
 
-func (decryptor *decryptor) DecryptNTTNew(ciphertext *Element) (plaintext *Plaintext) {
+func (decryptor *decryptor) DecryptNTTNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
 
 	plaintext = NewPlaintext(decryptor.params, ciphertext.Level())
 	plaintext.Value.IsNTT = true
@@ -69,7 +69,7 @@ func (decryptor *decryptor) DecryptNTTNew(ciphertext *Element) (plaintext *Plain
 	return plaintext
 }
 
-func (decryptor *decryptor) Decrypt(ciphertext *Element, plaintext *Plaintext) {
+func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
 	ringQ := decryptor.ringQ
 

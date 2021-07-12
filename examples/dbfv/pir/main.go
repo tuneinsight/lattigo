@@ -214,7 +214,7 @@ func cksphase(params bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.Ci
 	cksCombined := cks.AllocateShareBFV()
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P[1:] {
-			cks.GenShare(pi.sk, zero, result, pi.cksShare)
+			cks.GenShare(pi.sk, zero, result.Ciphertext, pi.cksShare)
 		}
 	}, len(P)-1)
 
@@ -223,7 +223,7 @@ func cksphase(params bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.Ci
 		for _, pi := range P {
 			cks.AggregateShares(pi.cksShare, cksCombined, cksCombined)
 		}
-		cks.KeySwitch(cksCombined, result, encOut)
+		cks.KeySwitch(cksCombined, result.Ciphertext, encOut.Ciphertext)
 	})
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKSCloud, elapsedPCKSParty)
 

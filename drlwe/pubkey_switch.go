@@ -9,9 +9,9 @@ import (
 // PublicKeySwitchingProtocol is an interface describing the local steps of a generic RLWE PCKS protocol.
 type PublicKeySwitchingProtocol interface {
 	AllocateShare(level int) *PCKSShare
-	GenShare(skInput *rlwe.SecretKey, pkOutput *rlwe.PublicKey, ct rlwe.Ciphertext, shareOut *PCKSShare)
+	GenShare(skInput *rlwe.SecretKey, pkOutput *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PCKSShare)
 	AggregateShares(share1, share2, shareOut *PCKSShare)
-	KeySwitch(combined *PCKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext)
+	KeySwitch(combined *PCKSShare, ct *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 }
 
 // PCKSShare represents a party's share in the PCKS protocol.
@@ -77,7 +77,7 @@ func (pcks *PCKSProtocol) AllocateShare(level int) (s *PCKSShare) {
 // [s_i * ctx[0] + (u_i * pk[0] + e_0i)/P, (u_i * pk[1] + e_1i)/P]
 //
 // and broadcasts the result to the other j-1 parties.
-func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct rlwe.Ciphertext, shareOut *PCKSShare) {
+func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PCKSShare) {
 
 	el := ct.RLWEElement()
 
@@ -165,7 +165,7 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (pcks *PCKSProtocol) KeySwitch(combined *PCKSShare, ct, ctOut rlwe.Ciphertext) {
+func (pcks *PCKSProtocol) KeySwitch(combined *PCKSShare, ct, ctOut *rlwe.Ciphertext) {
 	el, elOut := ct.RLWEElement(), ctOut.RLWEElement()
 	pcks.ringQ.AddLvl(el.Level(), el.Value[0], combined.Value[0], elOut.Value[0])
 	ring.CopyValuesLvl(el.Level(), combined.Value[1], elOut.Value[1])

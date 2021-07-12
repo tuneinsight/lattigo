@@ -31,7 +31,7 @@ func chebyshevinterpolation() {
 	sk, pk := kgen.GenKeyPair()
 
 	// Relinearization key
-	rlk := kgen.GenRelinearizationKey(sk)
+	rlk := kgen.GenRelinearizationKey(sk, 2)
 
 	// Encryptor
 	encryptor := ckks.NewEncryptor(params, pk)

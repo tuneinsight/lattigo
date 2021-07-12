@@ -14,7 +14,7 @@ func main() {
 	var err error
 
 	var btp *ckks.Bootstrapper
-	var kgen ckks.KeyGenerator
+	var kgen rlwe.KeyGenerator
 	var encoder ckks.Encoder
 	var sk *rlwe.SecretKey
 	var pk *rlwe.PublicKey
@@ -50,7 +50,7 @@ func main() {
 	fmt.Println("Generating bootstrapping keys...")
 	rotations := btpParams.RotationsForBootstrapping(params.LogSlots())
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
-	rlk := kgen.GenRelinearizationKey(sk)
+	rlk := kgen.GenRelinearizationKey(sk, 2)
 	btpKey := ckks.BootstrappingKey{Rlk: rlk, Rtks: rotkeys}
 	if btp, err = ckks.NewBootstrapper(params, btpParams, btpKey); err != nil {
 		panic(err)

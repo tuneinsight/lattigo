@@ -40,7 +40,7 @@ func example() {
 
 	sk := kgen.GenSecretKey()
 
-	rlk := kgen.GenRelinearizationKey(sk)
+	rlk := kgen.GenRelinearizationKey(sk, 2)
 
 	encryptor := ckks.NewEncryptor(params, sk)
 

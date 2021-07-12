@@ -108,7 +108,7 @@ type skEncryptor struct {
 func NewEncryptorFromPk(params Parameters, pk *PublicKey) Encryptor {
 	enc := newEncryptor(params)
 
-	if pk.Value[0].Degree() != params.N() || pk.Value[1].Degree() != params.N() {
+	if pk.Value[0][0].Degree() != params.N() || pk.Value[1][0].Degree() != params.N() {
 		panic("cannot newEncryptor: pk ring degree does not match params ring degree")
 	}
 
@@ -120,7 +120,7 @@ func NewEncryptorFromPk(params Parameters, pk *PublicKey) Encryptor {
 func NewEncryptorFromSk(params Parameters, sk *SecretKey) Encryptor {
 	enc := newEncryptor(params)
 
-	if sk.Value.Degree() != params.N() {
+	if sk.Value[0].Degree() != params.N() {
 		panic("cannot newEncryptor: sk ring degree does not match params ring degree")
 	}
 
@@ -261,9 +261,9 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element,
 		ringQ.MFormLvl(lvl, poolQ0, poolQ0)
 
 		// ct0 = u*pk0
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[0][0], ciphertext.Value[0])
 		// ct1 = u*pk1
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[1], ciphertext.Value[1])
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[1][0], ciphertext.Value[1])
 
 		if ciphertextNTT {
 
@@ -308,7 +308,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element,
 		ringP := encryptor.ringP
 
 		encryptor.ternarySampler.ReadLvl(lvl, poolQ0)
-		extendBasisSmallNormAndCenter(ringQ, ringP, poolQ0, poolP0)
+		ExtendBasisSmallNormAndCenter(ringQ, ringP, poolQ0, poolP0)
 
 		// (#Q + #P) NTT
 		ringQ.NTTLvl(lvl, poolQ0, poolQ0)
@@ -317,17 +317,12 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element,
 		ringQ.MFormLvl(lvl, poolQ0, poolQ0)
 		ringP.MForm(poolP0, poolP0)
 
-		pk0P := new(ring.Poly)
-		pk1P := new(ring.Poly)
-		pk0P.Coeffs = encryptor.pk.Value[0].Coeffs[len(ringQ.Modulus):]
-		pk1P.Coeffs = encryptor.pk.Value[1].Coeffs[len(ringQ.Modulus):]
-
 		// ct0 = u*pk0
 		// ct1 = u*pk1
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[0], ciphertext.Value[0])
-		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[1], ciphertext.Value[1])
-		ringP.MulCoeffsMontgomery(poolP0, pk1P, poolP1)
-		ringP.MulCoeffsMontgomery(poolP0, pk0P, poolP0)
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[0][0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[1][0], ciphertext.Value[1])
+		ringP.MulCoeffsMontgomery(poolP0, encryptor.pk.Value[1][1], poolP1)
+		ringP.MulCoeffsMontgomery(poolP0, encryptor.pk.Value[0][1], poolP0)
 
 		// 2*(#Q + #P) NTT
 		ringQ.InvNTTLvl(lvl, ciphertext.Value[0], ciphertext.Value[0])
@@ -336,12 +331,12 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element,
 		ringP.InvNTT(poolP1, poolP1)
 
 		encryptor.gaussianSampler.ReadLvl(lvl, poolQ0)
-		extendBasisSmallNormAndCenter(ringQ, ringP, poolQ0, poolP2)
+		ExtendBasisSmallNormAndCenter(ringQ, ringP, poolQ0, poolP2)
 		ringQ.AddLvl(lvl, ciphertext.Value[0], poolQ0, ciphertext.Value[0])
 		ringP.Add(poolP0, poolP2, poolP0)
 
 		encryptor.gaussianSampler.ReadLvl(lvl, poolQ0)
-		extendBasisSmallNormAndCenter(ringQ, ringP, poolQ0, poolP2)
+		ExtendBasisSmallNormAndCenter(ringQ, ringP, poolQ0, poolP2)
 		ringQ.AddLvl(lvl, ciphertext.Value[1], poolQ0, ciphertext.Value[1])
 		ringP.Add(poolP1, poolP2, poolP1)
 
@@ -443,7 +438,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element)
 
 	ciphertextNTT := ciphertext.Value[0].IsNTT
 
-	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.Value[1], encryptor.sk.Value, ciphertext.Value[0])
+	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.Value[1], encryptor.sk.Value[0], ciphertext.Value[0])
 	ringQ.NegLvl(lvl, ciphertext.Value[0], ciphertext.Value[0])
 
 	if ciphertextNTT {
@@ -485,25 +480,4 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element)
 
 	ciphertext.Value[0].Coeffs = ciphertext.Value[0].Coeffs[:lvl+1]
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:lvl+1]
-}
-
-func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {
-	var coeff, Q, QHalf, sign uint64
-	Q = ringQ.Modulus[0]
-	QHalf = Q >> 1
-
-	for j := 0; j < ringQ.N; j++ {
-
-		coeff = polQ.Coeffs[0][j]
-
-		sign = 1
-		if coeff > QHalf {
-			coeff = Q - coeff
-			sign = 0
-		}
-
-		for i, pi := range ringP.Modulus {
-			polP.Coeffs[i][j] = (coeff * sign) | (pi-coeff)*(sign^1)
-		}
-	}
 }

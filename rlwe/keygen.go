@@ -104,6 +104,7 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw int) (sk *SecretKey) {
 
 	sk = new(SecretKey)
 	sk.Value[0] = ternarySamplerMontgomery.ReadNew()
+	sk.Value[1] = keygen.ringP.NewPoly()
 	ExtendBasisSmallNormAndCenter(keygen.ringQ, keygen.ringP, sk.Value[0], sk.Value[1])
 	keygen.ringQ.MForm(sk.Value[0], sk.Value[0])
 	keygen.ringP.MForm(sk.Value[1], sk.Value[1])

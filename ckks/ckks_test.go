@@ -1172,7 +1172,8 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 func testMarshaller(testctx *testParams, t *testing.T) {
 
-	ringQP := testctx.ringQP
+	ringQ := testctx.ringQ
+	ringP := testctx.ringP
 
 	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
 		bytes, err := testctx.params.MarshalBinary()
@@ -1266,7 +1267,8 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 		err = sk.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
-		require.True(t, ringQP.Equal(sk.Value, testctx.sk.Value))
+		require.True(t, ringQ.Equal(sk.Value[0], testctx.sk.Value[0]))
+		require.True(t, ringP.Equal(sk.Value[1], testctx.sk.Value[1]))
 
 	})
 
@@ -1280,7 +1282,8 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 		require.NoError(t, err)
 
 		for k := range testctx.pk.Value {
-			require.Truef(t, ringQP.Equal(pk.Value[k], testctx.pk.Value[k]), "Marshal PublicKey element [%d]", k)
+			require.Truef(t, ringQ.Equal(pk.Value[k][0], testctx.pk.Value[k][0]), "Marshal PublicKey element [%d][0]", k)
+			require.Truef(t, ringP.Equal(pk.Value[k][1], testctx.pk.Value[k][1]), "Marshal PublicKey element [%d][1]", k)
 		}
 	})
 
@@ -1303,7 +1306,8 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 
 		for j := range evakeyWant {
 			for k := range evakeyWant[j] {
-				require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal EvaluationKey element [%d][%d]", j, k)
+				require.Truef(t, ringQ.Equal(evakeyWant[j][k][0], evakeyTest[j][k][0]), "Marshal EvaluationKey element [%d][%d][0]", j, k)
+				require.Truef(t, ringP.Equal(evakeyWant[j][k][1], evakeyTest[j][k][1]), "Marshal EvaluationKey element [%d][%d][1]", j, k)
 			}
 		}
 	})
@@ -1329,7 +1333,8 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 
 		for j := range evakeyWant {
 			for k := range evakeyWant[j] {
-				require.True(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]))
+				require.True(t, ringQ.Equal(evakeyWant[j][k][0], evakeyTest[j][k][0]))
+				require.True(t, ringP.Equal(evakeyWant[j][k][1], evakeyTest[j][k][1]))
 			}
 		}
 	})
@@ -1362,7 +1367,8 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 
 			for j := range evakeyWant {
 				for k := range evakeyWant[j] {
-					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateLeft %d element [%d][%d]", galEl, j, k)
+					require.Truef(t, ringQ.Equal(evakeyWant[j][k][0], evakeyTest[j][k][0]), "Marshal RotationKey RotateLeft %d element [%d][%d][0]", galEl, j, k)
+					require.Truef(t, ringP.Equal(evakeyWant[j][k][1], evakeyTest[j][k][1]), "Marshal RotationKey RotateLeft %d element [%d][%d][1]", galEl, j, k)
 				}
 			}
 		}

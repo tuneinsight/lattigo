@@ -28,7 +28,7 @@ type Encryptor interface {
 	// encrypting zero in QP, dividing by P and then adding the plaintext.
 	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 	// Output domain will match ciphertext.Value[0].IsNTT value.
-	Encrypt(plaintext *Plaintext, ciphertext *Element)
+	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 
 	// EncryptFastNew encrypts the input plaintext using the stored key and returns
 	// the result on a newly created ciphertext. The encryption is done by first
@@ -74,7 +74,7 @@ type Encryptor interface {
 	// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level(), len(CRP.Coeffs)-1).
 	// CRP is always treated as being in the NTT domain.
 	// Output domain will match ciphertext.Value[0].IsNTT value.
-	EncryptFromCRP(plaintext *Plaintext, ciphertext *Element, crp *ring.Poly)
+	EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly)
 }
 
 // encryptorBase is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
@@ -163,7 +163,7 @@ func newEncryptorBase(params Parameters) encryptorBase {
 	}
 }
 
-func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Element) {
+func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 	encryptor.encrypt(plaintext, ciphertext)
 }
 
@@ -172,7 +172,7 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Element)
 //
 // encrypt with pk: ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
 // encrypt with sk: ciphertext = [-a*sk + m + e, a]
-func (encryptor *pkEncryptor) EncryptNew(plaintext *Plaintext) *Element {
+func (encryptor *pkEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	encryptor.encrypt(plaintext, ciphertext)
 	return ciphertext
@@ -191,11 +191,11 @@ func (encryptor *pkEncryptor) EncryptNew(plaintext *Plaintext) *Element {
 // 	return ciphertext
 // }
 
-func (encryptor *pkFastEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Element) {
+func (encryptor *pkFastEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 	encryptor.encryptFast(plaintext, ciphertext)
 }
 
-func (encryptor *pkFastEncryptor) EncryptNew(plaintext *Plaintext) *Element {
+func (encryptor *pkFastEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	encryptor.encryptFast(plaintext, ciphertext)
 	return ciphertext
@@ -210,19 +210,19 @@ func (encryptor *pkFastEncryptor) EncryptNew(plaintext *Plaintext) *Element {
 // 	return ciphertext
 // }
 
-func (encryptor *encryptorBase) EncryptFromCRP(plaintext *Plaintext, ciphertext *Element, crp *ring.Poly) {
+func (encryptor *encryptorBase) EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
 	panic("Cannot encrypt with CRP using an encryptor created with the public-key")
 }
 
-func (encryptor *encryptorBase) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Element {
+func (encryptor *encryptorBase) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
 	panic("Cannot encrypt with CRP using an encryptor created with the public-key")
 }
 
-func (encryptor *encryptorBase) EncryptFromCRPNTTNew(plaintext *Plaintext, crp *ring.Poly) *Element {
+func (encryptor *encryptorBase) EncryptFromCRPNTTNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
 	panic("Cannot encrypt with CRP using an encryptor created with the public-key")
 }
 
-func (encryptor *pkFastEncryptor) encryptFast(plaintext *Plaintext, ciphertext *Element) {
+func (encryptor *pkFastEncryptor) encryptFast(plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	lvl := utils.MinInt(plaintext.Level(), ciphertext.Level())
 
@@ -291,7 +291,7 @@ func (encryptor *pkFastEncryptor) encryptFast(plaintext *Plaintext, ciphertext *
 //
 // encrypt with pk: ciphertext = [pk[0]*u + m + e_0, pk[1]*u + e_1]
 // encrypt with sk: ciphertext = [-a*sk + m + e, a]
-func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element) {
+func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	lvl := utils.MinInt(plaintext.Level(), ciphertext.Level())
 
@@ -381,7 +381,7 @@ func (encryptor *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element)
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:lvl+1]
 }
 
-func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Element {
+func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	encryptor.Encrypt(plaintext, ciphertext)
 	return ciphertext
@@ -395,12 +395,12 @@ func (encryptor *skEncryptor) EncryptNew(plaintext *Plaintext) *Element {
 // 	return ciphertext
 // }
 
-func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Element) {
+func (encryptor *skEncryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 	encryptor.uniformSampler.ReadLvl(utils.MinInt(plaintext.Level(), ciphertext.Level()), ciphertext.Value[1])
 	encryptor.encrypt(plaintext, ciphertext)
 }
 
-func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Element {
+func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
 	ciphertext := NewElement(encryptor.params, 1, plaintext.Level())
 	encryptor.EncryptFromCRP(plaintext, ciphertext, crp)
 	return ciphertext
@@ -414,12 +414,12 @@ func (encryptor *skEncryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.
 // 	return ciphertext
 // }
 
-func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *Element, crp *ring.Poly) {
+func (encryptor *skEncryptor) EncryptFromCRP(plaintext *Plaintext, ciphertext *Ciphertext, crp *ring.Poly) {
 	ring.CopyValues(crp, ciphertext.Value[1])
 	encryptor.encrypt(plaintext, ciphertext)
 }
 
-func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Element) {
+func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	ringQ := encryptor.ringQ
 

@@ -3,7 +3,6 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/drlwe"
-	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 // CKSProtocol is a structure storing the parameters for the collective key-switching protocol.
@@ -19,7 +18,7 @@ func NewCKSProtocol(params ckks.Parameters, sigmaSmudging float64) (cks *CKSProt
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (cks *CKSProtocol) KeySwitch(combined *drlwe.CKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext) {
-	ctOut.(*ckks.Ciphertext).Scale = (ct.(*ckks.Ciphertext).Scale)
-	cks.CKSProtocol.KeySwitch(combined, ct, ctOut)
+func (cks *CKSProtocol) KeySwitchCKKS(combined *drlwe.CKSShare, ct *ckks.Ciphertext, ctOut *ckks.Ciphertext) {
+	ctOut.Scale = ct.Scale
+	cks.CKSProtocol.KeySwitch(combined, ct.Ciphertext, ctOut.Ciphertext)
 }

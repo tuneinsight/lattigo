@@ -8,13 +8,13 @@ import (
 
 // Ciphertext is *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
 type Ciphertext struct {
-	*rlwe.Element
+	*rlwe.Ciphertext
 	Scale float64
 }
 
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
 func NewCiphertext(params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
-	ciphertext = &Ciphertext{Element: rlwe.NewElement(params.Parameters, degree, level)}
+	ciphertext = &Ciphertext{Ciphertext: rlwe.NewElement(params.Parameters, degree, level)}
 	for _, pol := range ciphertext.Value {
 		pol.IsNTT = true
 	}
@@ -51,12 +51,12 @@ func (ct *Ciphertext) SetScalingFactor(scale float64) {
 
 // Copy copies the given ciphertext ctp into the receiver ciphertext.
 func (ct *Ciphertext) Copy(ctp *Ciphertext) {
-	ct.Element.Copy(ctp.Element)
+	ct.Ciphertext.Copy(ctp.Ciphertext)
 	ct.Scale = ctp.Scale
 }
 
 // CopyNew makes a deep copy of the receiver ciphertext and returns it.
 func (ct *Ciphertext) CopyNew() (ctc *Ciphertext) {
-	ctc = &Ciphertext{Element: ct.Element.CopyNew(), Scale: ct.Scale}
+	ctc = &Ciphertext{Ciphertext: ct.Ciphertext.CopyNew(), Scale: ct.Scale}
 	return
 }

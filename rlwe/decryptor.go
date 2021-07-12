@@ -5,22 +5,9 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// Decryptor is an interface for decrypting Ciphertexts. A Decryptor stores the secret-key.
+// Decryptor is an interface generic RLWE encryption.
 type Decryptor interface {
-	// DecryptNew decrypts the ciphertext and returns a newly created
-	// plaintext. A Horner method is used for evaluating the decryption.
-	// The level of the output plaintext is ciphertext.Level().
-	DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext)
-
-	// DecryptNew decrypts the ciphertext and returns a newly created
-	// plaintext. A Horner method is used for evaluating the decryption.
-	// The level of the output plaintext is ciphertext.Level().
-	// Plaintext output is in the NTT domain.
-	DecryptNTTNew(ciphertext *Ciphertext) (plaintext *Plaintext)
-
-	// Decrypt decrypts the ciphertext and returns the result on the provided
-	// receiver plaintext. A Horner method is used for evaluating the
-	// decryption.
+	// Decrypt decrypts the ciphertext and write the result in ptOut.
 	// The level of the output plaintext is min(ciphertext.Level(), plaintext.Level())
 	// Output domain will match plaintext.Value.IsNTT value.
 	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
@@ -34,8 +21,7 @@ type decryptor struct {
 	sk     *SecretKey
 }
 
-// NewDecryptor instantiates a new Decryptor that will be able to decrypt ciphertexts
-// encrypted under the provided secret-key.
+// NewDecryptor instantiates a new generic RLWE Decryptor.
 func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 
 	if sk.Value.Degree() != params.N() {
@@ -50,25 +36,9 @@ func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 	}
 }
 
-func (decryptor *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
-
-	plaintext = NewPlaintext(decryptor.params, ciphertext.Level())
-
-	decryptor.Decrypt(ciphertext, plaintext)
-
-	return plaintext
-}
-
-func (decryptor *decryptor) DecryptNTTNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
-
-	plaintext = NewPlaintext(decryptor.params, ciphertext.Level())
-	plaintext.Value.IsNTT = true
-
-	decryptor.Decrypt(ciphertext, plaintext)
-
-	return plaintext
-}
-
+// Decrypt decrypts the ciphertext and write the result in ptOut.
+// The level of the output plaintext is min(ciphertext.Level(), plaintext.Level())
+// Output domain will match plaintext.Value.IsNTT value.
 func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
 	ringQ := decryptor.ringQ

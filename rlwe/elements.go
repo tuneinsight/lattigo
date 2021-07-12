@@ -87,8 +87,8 @@ func NewCiphertext(params Parameters, degree, level int) *Ciphertext {
 	return el
 }
 
-// NewElementNTT returns a new Element with zero values and the NTT flags set.
-func NewElementNTT(params Parameters, degree, level int) *Ciphertext {
+// NewCiphertextNTT returns a new Element with zero values and the NTT flags set.
+func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	el := new(Ciphertext)
 	el.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {

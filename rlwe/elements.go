@@ -7,14 +7,14 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// // Ciphertext is a common interface for RLWE ciphertexts.
-// type Ciphertext interface {
-// 	RLWEElement() *Element
-// }
-
 // Plaintext is a common base type for RLWE plaintexts.
 type Plaintext struct {
 	Value *ring.Poly
+}
+
+// Ciphertext is a generic type for RLWE ciphertext.
+type Ciphertext struct {
+	Value []*ring.Poly
 }
 
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)
@@ -77,13 +77,8 @@ func (pt *Plaintext) Copy(other *Plaintext) {
 	}
 }
 
-// Ciphertext is a generic type for ciphertext and plaintexts
-type Ciphertext struct {
-	Value []*ring.Poly
-}
-
-// NewElement returns a new Element with zero values.
-func NewElement(params Parameters, degree, level int) *Ciphertext {
+// NewCiphertext returns a new Element with zero values.
+func NewCiphertext(params Parameters, degree, level int) *Ciphertext {
 	el := new(Ciphertext)
 	el.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {

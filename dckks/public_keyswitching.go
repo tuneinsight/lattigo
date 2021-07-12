@@ -16,7 +16,7 @@ func NewPCKSProtocol(params ckks.Parameters, sigmaSmudging float64) *PCKSProtoco
 	return &PCKSProtocol{*drlwe.NewPCKSProtocol(params.Parameters, sigmaSmudging)}
 }
 
-// KeySwitchCKKSCiphertext performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
+// KeySwitchCKKS performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitchCKKS(combined *drlwe.PCKSShare, ct, ctOut *ckks.Ciphertext) {
 	pcks.PCKSProtocol.KeySwitch(combined, ct.Ciphertext, ctOut.Ciphertext)
 	ctOut.Scale = ct.Scale

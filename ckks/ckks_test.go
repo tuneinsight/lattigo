@@ -1172,8 +1172,6 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 func testMarshaller(testctx *testParams, t *testing.T) {
 
-	ringQP := testctx.ringQP
-
 	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
 		bytes, err := testctx.params.MarshalBinary()
 		assert.Nil(t, err)
@@ -1195,12 +1193,6 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 		err = json.Unmarshal(data, &paramsRec)
 		assert.Nil(t, err)
 		assert.True(t, testctx.params.Equals(paramsRec))
-
-		// checks that rlwe.Parameters can be unmarshalled without error
-		var rlweParams rlwe.Parameters
-		err = json.Unmarshal(data, &rlweParams)
-		assert.Nil(t, err)
-		assert.True(t, testctx.params.Parameters.Equals(rlweParams))
 
 		// checks that bfv.Paramters can be unmarshalled with log-moduli definition without error
 		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
@@ -1255,116 +1247,5 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 			require.Equal(t, ciphertext.Scale, testctx.params.Scale())
 			require.Equal(t, len(ciphertext.Value), 1)
 		})
-	})
-
-	t.Run(testString(testctx, "Marshaller/Sk/"), func(t *testing.T) {
-
-		marshalledSk, err := testctx.sk.MarshalBinary()
-		require.NoError(t, err)
-
-		sk := new(rlwe.SecretKey)
-		err = sk.UnmarshalBinary(marshalledSk)
-		require.NoError(t, err)
-
-		require.True(t, ringQP.Equal(sk.Value, testctx.sk.Value))
-
-	})
-
-	t.Run(testString(testctx, "Marshaller/Pk/"), func(t *testing.T) {
-
-		marshalledPk, err := testctx.pk.MarshalBinary()
-		require.NoError(t, err)
-
-		pk := new(rlwe.PublicKey)
-		err = pk.UnmarshalBinary(marshalledPk)
-		require.NoError(t, err)
-
-		for k := range testctx.pk.Value {
-			require.Truef(t, ringQP.Equal(pk.Value[k], testctx.pk.Value[k]), "Marshal PublicKey element [%d]", k)
-		}
-	})
-
-	t.Run(testString(testctx, "Marshaller/EvaluationKey/"), func(t *testing.T) {
-
-		if testctx.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		evalKey := testctx.kgen.GenRelinearizationKey(testctx.sk)
-		data, err := evalKey.MarshalBinary()
-		require.NoError(t, err)
-
-		resEvalKey := new(rlwe.RelinearizationKey)
-		err = resEvalKey.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		evakeyWant := evalKey.Keys[0].Value
-		evakeyTest := resEvalKey.Keys[0].Value
-
-		for j := range evakeyWant {
-			for k := range evakeyWant[j] {
-				require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal EvaluationKey element [%d][%d]", j, k)
-			}
-		}
-	})
-
-	t.Run(testString(testctx, "Marshaller/SwitchingKey/"), func(t *testing.T) {
-
-		if testctx.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		skOut := testctx.kgen.GenSecretKey()
-
-		switchingKey := testctx.kgen.GenSwitchingKey(testctx.sk, skOut)
-		data, err := switchingKey.MarshalBinary()
-		require.NoError(t, err)
-
-		resSwitchingKey := new(rlwe.SwitchingKey)
-		err = resSwitchingKey.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		evakeyWant := switchingKey.Value
-		evakeyTest := resSwitchingKey.Value
-
-		for j := range evakeyWant {
-			for k := range evakeyWant[j] {
-				require.True(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]))
-			}
-		}
-	})
-
-	t.Run(testString(testctx, "Marshaller/RotationKey/"), func(t *testing.T) {
-
-		if testctx.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		rots := []int{1, -1, 63, -63}
-		galEls := []uint64{testctx.params.GaloisElementForRowRotation()}
-		for _, n := range rots {
-			galEls = append(galEls, testctx.params.GaloisElementForColumnRotationBy(n))
-		}
-
-		rotationKey := testctx.kgen.GenRotationKeys(galEls, testctx.sk)
-
-		data, err := rotationKey.MarshalBinary()
-		require.NoError(t, err)
-
-		resRotationKey := new(rlwe.RotationKeySet)
-		err = resRotationKey.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		for _, galEl := range galEls {
-
-			evakeyWant := rotationKey.Keys[galEl].Value
-			evakeyTest := resRotationKey.Keys[galEl].Value
-
-			for j := range evakeyWant {
-				for k := range evakeyWant[j] {
-					require.Truef(t, ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "Marshal RotationKey RotateLeft %d element [%d][%d]", galEl, j, k)
-				}
-			}
-		}
 	})
 }

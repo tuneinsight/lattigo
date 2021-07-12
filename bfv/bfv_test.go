@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -65,14 +66,18 @@ func TestBFV(t *testing.T) {
 			panic(err)
 		}
 
-		testParameters(testctx, t)
-		testEncoder(testctx, t)
-		testEvaluator(testctx, t)
-		testEvaluatorKeySwitch(testctx, t)
-		testEvaluatorRotate(testctx, t)
-		testMarshaller(testctx, t)
+		for _, testSet := range []func(testctx *testContext, t *testing.T){
+			testParameters,
+			testEncoder,
+			testEvaluator,
+			testEvaluatorKeySwitch,
+			testEvaluatorRotate,
+			testMarshaller,
+		} {
+			testSet(testctx, t)
+			runtime.GC()
+		}
 	}
-
 }
 
 func genTestParams(params Parameters) (testctx *testContext, err error) {
@@ -649,16 +654,6 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 }
 
 func testMarshaller(testctx *testContext, t *testing.T) {
-	testMarshalParameters(testctx, t)
-	testMarshalCiphertext(testctx, t)
-	testMarshalSK(testctx, t)
-	testMarshalPK(testctx, t)
-	testMarshalEvaluationKey(testctx, t)
-	testMarshalSwitchingKey(testctx, t)
-	testMarshalRotKey(testctx, t)
-}
-
-func testMarshalParameters(testctx *testContext, t *testing.T) {
 
 	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
 		bytes, err := testctx.params.MarshalBinary()
@@ -681,12 +676,6 @@ func testMarshalParameters(testctx *testContext, t *testing.T) {
 		assert.Nil(t, err)
 		assert.True(t, testctx.params.Equals(paramsRec))
 
-		// checks that rlwe.Parameters can be unmarshalled without error
-		var rlweParams rlwe.Parameters
-		err = json.Unmarshal(data, &rlweParams)
-		assert.Nil(t, err)
-		assert.True(t, testctx.params.Parameters.Equals(rlweParams))
-
 		// checks that bfv.Paramters can be unmarshalled with log-moduli definition without error
 		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
 		var paramsWithLogModuli Parameters
@@ -703,9 +692,6 @@ func testMarshalParameters(testctx *testContext, t *testing.T) {
 		assert.Equal(t, 2, paramsWithLogModuliNoP.QCount())
 		assert.Equal(t, 0, paramsWithLogModuliNoP.PCount())
 	})
-}
-
-func testMarshalCiphertext(testctx *testContext, t *testing.T) {
 
 	t.Run(testString("Marshaller/Ciphertext/", testctx.params), func(t *testing.T) {
 
@@ -721,129 +707,5 @@ func testMarshalCiphertext(testctx *testContext, t *testing.T) {
 		for i := range ciphertextWant.Value {
 			require.True(t, testctx.ringQ.Equal(ciphertextWant.Value[i], ciphertextTest.Value[i]))
 		}
-	})
-}
-
-func testMarshalSK(testctx *testContext, t *testing.T) {
-	t.Run(testString("Marshaller/Sk/", testctx.params), func(t *testing.T) {
-
-		marshalledSk, err := testctx.sk.MarshalBinary()
-		require.NoError(t, err)
-
-		var sk rlwe.SecretKey
-		err = sk.UnmarshalBinary(marshalledSk)
-		require.NoError(t, err)
-
-		require.True(t, testctx.ringQP.Equal(sk.Value, testctx.sk.Value))
-	})
-}
-
-func testMarshalPK(testctx *testContext, t *testing.T) {
-
-	t.Run(testString("Marshaller/Pk/", testctx.params), func(t *testing.T) {
-
-		marshalledPk, err := testctx.pk.MarshalBinary()
-		require.NoError(t, err)
-
-		var pk rlwe.PublicKey
-		err = pk.UnmarshalBinary(marshalledPk)
-		require.NoError(t, err)
-
-		for k := range testctx.pk.Value {
-			require.True(t, testctx.ringQP.Equal(pk.Value[k], testctx.pk.Value[k]), k)
-		}
-	})
-
-}
-
-func testMarshalEvaluationKey(testctx *testContext, t *testing.T) {
-	t.Run(testString("Marshaller/EvaluationKey/", testctx.params), func(t *testing.T) {
-
-		if testctx.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		evalkey := testctx.kgen.GenRelinearizationKey(testctx.sk, 2)
-		data, err := evalkey.MarshalBinary()
-		require.NoError(t, err)
-
-		resEvalKey := NewRelinearizationKey(testctx.params, 2)
-		err = resEvalKey.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		for deg := range evalkey.Keys {
-
-			evakeyWant := evalkey.Keys[deg].Value
-			evakeyTest := resEvalKey.Keys[deg].Value
-
-			for j := range evakeyWant {
-
-				for k := range evakeyWant[j] {
-					require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "deg %d element [%d][%d]", deg, j, k)
-				}
-			}
-		}
-	})
-}
-
-func testMarshalSwitchingKey(testctx *testContext, t *testing.T) {
-	t.Run(testString("Marshaller/SwitchingKey/", testctx.params), func(t *testing.T) {
-
-		if testctx.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		skOut := testctx.kgen.GenSecretKey()
-
-		switchingKey := testctx.kgen.GenSwitchingKey(testctx.sk, skOut)
-		data, err := switchingKey.MarshalBinary()
-		require.NoError(t, err)
-
-		resSwitchingKey := NewSwitchingKey(testctx.params)
-		err = resSwitchingKey.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		evakeyWant := switchingKey.Value
-		evakeyTest := resSwitchingKey.Value
-
-		for j := range evakeyWant {
-
-			for k := range evakeyWant[j] {
-				require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshal SwitchingKey element [%d][%d]", j, k)
-			}
-		}
-	})
-}
-
-func testMarshalRotKey(testctx *testContext, t *testing.T) {
-	t.Run(testString("Marshaller/RotationKey/", testctx.params), func(t *testing.T) {
-
-		if testctx.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		rots := []int{1, 2, -3, -5}
-
-		rotationKey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
-
-		data, err := rotationKey.MarshalBinary()
-		require.NoError(t, err)
-
-		var resRotationKey rlwe.RotationKeySet
-		err = resRotationKey.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		for _, r := range rots {
-			galEl := testctx.params.GaloisElementForColumnRotationBy(r)
-			evakeyWant := rotationKey.Keys[galEl].Value
-			evakeyTest := resRotationKey.Keys[galEl].Value
-
-			for j := range evakeyWant {
-				for k := range evakeyWant[j] {
-					require.Truef(t, testctx.ringQP.Equal(evakeyWant[j][k], evakeyTest[j][k]), "marshalled rotation key element [%d][%d] does not match", j, k)
-				}
-			}
-		}
-
 	})
 }

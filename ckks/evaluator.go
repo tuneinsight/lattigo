@@ -13,7 +13,7 @@ import (
 
 // Operand is a common interface for Ciphertext and Plaintext types.
 type Operand interface {
-	El() *rlwe.Element
+	El() *rlwe.Ciphertext
 	Degree() int
 	Level() int
 	ScalingFactor() float64
@@ -363,7 +363,7 @@ func (eval *evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 
 func (eval *evaluator) evaluateInPlace(c0, c1, ctOut Operand, evaluate func(int, *ring.Poly, *ring.Poly, *ring.Poly)) {
 
-	var tmp0, tmp1 *rlwe.Element
+	var tmp0, tmp1 *rlwe.Ciphertext
 
 	level := utils.MinInt(utils.MinInt(c0.Level(), c1.Level()), ctOut.Level())
 
@@ -1395,7 +1395,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		}
 
 		// Avoid overwritting if the second input is the output
-		var tmp0, tmp1 *rlwe.Element
+		var tmp0, tmp1 *rlwe.Ciphertext
 		if op1.El() == ctOut.El() {
 			tmp0, tmp1 = op1.El(), op0.El()
 		} else {
@@ -1428,7 +1428,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
 	} else {
 
-		var tmp0, tmp1 *rlwe.Element
+		var tmp0, tmp1 *rlwe.Ciphertext
 
 		if op0.Degree() == 1 {
 			tmp0, tmp1 = op1.El(), op0.El()

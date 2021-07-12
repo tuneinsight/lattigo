@@ -21,10 +21,10 @@ func NewDecryptor(params Parameters, sk *rlwe.SecretKey) Decryptor {
 
 // DecryptNew calls rlwe.Decryptor.DecryptNew.
 func (dec *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
-	return &Plaintext{Plaintext: dec.Decryptor.DecryptNew(&rlwe.Element{Value: ciphertext.Value})}
+	return &Plaintext{Plaintext: dec.Decryptor.DecryptNew(&rlwe.Ciphertext{Value: ciphertext.Value})}
 }
 
 // Decrypt calls rlwe.Decryptor.Decrypt.
 func (dec *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
-	dec.Decryptor.Decrypt(&rlwe.Element{Value: ciphertext.Value}, &rlwe.Plaintext{Value: plaintext.Value})
+	dec.Decryptor.Decrypt(&rlwe.Ciphertext{Value: ciphertext.Value}, &rlwe.Plaintext{Value: plaintext.Value})
 }

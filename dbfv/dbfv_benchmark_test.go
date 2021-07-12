@@ -164,7 +164,7 @@ func benchKeyswitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Keyswitching/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s0, p.s1, ciphertext, p.share)
+			p.GenShare(p.s0, p.s1, ciphertext.Ciphertext, p.share)
 		}
 	})
 
@@ -178,7 +178,7 @@ func benchKeyswitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Keyswitching/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.KeySwitch(p.share, ciphertext, ciphertext)
+			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
 		}
 	})
 }
@@ -204,7 +204,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("PublicKeySwitching/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, pk1, ciphertext, p.share)
+			p.GenShare(p.s, pk1, ciphertext.Ciphertext, p.share)
 
 		}
 	})
@@ -219,7 +219,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("PublicKeySwitching/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.KeySwitch(p.share, ciphertext, ciphertext)
+			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
 		}
 	})
 }

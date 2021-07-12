@@ -9,9 +9,9 @@ import (
 // KeySwitchingProtocol is an interface describing the local steps of a generic RLWE CKS protocol
 type KeySwitchingProtocol interface {
 	AllocateShare(level int) *CKSShare
-	GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciphertext, shareOut *CKSShare)
+	GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *CKSShare)
 	AggregateShares(share1, share2, shareOut *CKSShare)
-	KeySwitch(combined *CKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext)
+	KeySwitch(combined *CKSShare, ct *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 }
 
 // CKSProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
@@ -75,7 +75,7 @@ func (cks *CKSProtocol) AllocateShare(level int) *CKSShare {
 // GenShare computes a party's share in the CKS protocol.
 // ct.Value[0] can be nil, computations are only done using ct.Value[1]
 // NTT flag for ct.Value[1] is expected to be set correctly
-func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciphertext, shareOut *CKSShare) {
+func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *CKSShare) {
 
 	el := ct.RLWEElement()
 
@@ -143,8 +143,7 @@ func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut *CKSShare) {
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (cks *CKSProtocol) KeySwitch(combined *CKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext) {
-	el, elOut := ct.RLWEElement(), ctOut.RLWEElement()
-	cks.ringQ.AddLvl(el.Level(), el.Value[0], combined.Value, elOut.Value[0])
-	ring.CopyValuesLvl(el.Level(), el.Value[1], elOut.Value[1])
+func (cks *CKSProtocol) KeySwitch(combined *CKSShare, ct *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
+	cks.ringQ.AddLvl(ct.Level(), ct.Value[0], combined.Value, ctOut.Value[0])
+	ring.CopyValuesLvl(ct.Level(), ct.Value[1], ctOut.Value[1])
 }

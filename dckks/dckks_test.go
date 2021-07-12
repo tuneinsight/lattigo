@@ -314,7 +314,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 				// Each party creates its CKSProtocol instance with tmp = si-si'
 				for i, p := range cksParties {
-					p.cks.GenShare(p.s0, p.s1, ciphertext, p.share)
+					p.cks.GenShare(p.s0, p.s1, ciphertext.Ciphertext, p.share)
 					if i > 0 {
 						P0.cks.AggregateShares(p.share, P0.share, P0.share)
 					}
@@ -322,11 +322,11 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 				ksCiphertext := ckks.NewCiphertext(params, 1, ciphertext.Level(), ciphertext.Scale/2)
 
-				P0.cks.KeySwitch(P0.share, ciphertext, ksCiphertext)
+				P0.cks.KeySwitchCKKS(P0.share, ciphertext, ksCiphertext)
 
 				verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
 
-				P0.cks.KeySwitch(P0.share, ciphertext, ciphertext)
+				P0.cks.KeySwitchCKKS(P0.share, ciphertext, ciphertext)
 
 				verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
 
@@ -374,13 +374,13 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 				ciphertextSwitched := ckks.NewCiphertext(params, 1, ciphertext.Level(), ciphertext.Scale)
 
 				for i, p := range pcksParties {
-					p.GenShare(p.s, pk1, ciphertext, p.share)
+					p.GenShare(p.s, pk1, ciphertext.Ciphertext, p.share)
 					if i > 0 {
 						P0.AggregateShares(p.share, P0.share, P0.share)
 					}
 				}
 
-				P0.KeySwitchCKKSCiphertext(P0.share, ciphertext, ciphertextSwitched)
+				P0.KeySwitchCKKS(P0.share, ciphertext, ciphertextSwitched)
 
 				verifyTestVectors(testCtx, decryptorSk1, coeffs, ciphertextSwitched, t)
 			})
@@ -767,7 +767,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
 		SwitchShare := KeySwitchProtocol.AllocateShare(ciphertext.Level())
-		KeySwitchProtocol.GenShare(testCtx.sk0, testCtx.pk0, ciphertext, SwitchShare)
+		KeySwitchProtocol.GenShare(testCtx.sk0, testCtx.pk0, ciphertext.Ciphertext, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
 		require.NoError(t, err)
@@ -791,7 +791,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
 		cksshare := cksp.AllocateShare(ciphertext.Level())
-		cksp.GenShare(testCtx.sk0, testCtx.sk1, ciphertext, cksshare)
+		cksp.GenShare(testCtx.sk0, testCtx.sk1, ciphertext.Ciphertext, cksshare)
 
 		data, err := cksshare.MarshalBinary()
 		require.NoError(t, err)

@@ -276,7 +276,6 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		ringQ.Sub(poly, skIn.Value, poly)
 
 		// Checks that the error is below the bound
-		// Worst error bound is N * floor(6*sigma) * #Keys
 		ringQ.InvNTT(poly, poly)
 		ringQ.InvMForm(poly, poly)
 
@@ -347,7 +346,6 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		ringQ.Sub(poly, skIn.Value, poly)
 
 		// Checks that the error is below the bound
-		// Worst error bound is N * floor(6*sigma) * #Keys
 		ringQ.InvNTT(poly, poly)
 		ringQ.InvMForm(poly, poly)
 

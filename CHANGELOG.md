@@ -20,7 +20,11 @@ All notable changes to this project will be documented in this file.
 - RLWE: renamed the `Parameters.Copy()` method to `Parameters.CopyNew()` for consistency.
 - RLWE: added `Parameter` methods to access relevant `ring.Ring` structs directly.
 - RLWE: added equality and inclusion check methods for the `rlwe.RotatationKeySet` type.
-- DRLWE : added a new `drlwe` package as a common implementation base for the lattigo multiparty RLWE schemes.
+- RLWE: added tests for encryption, decryption, key-generation and key-switching.
+- RLWE: moved keys related marshalling tests of `bfv` and `ckks` packages the `rlwe` package. 
+- DRLWE: added a new `drlwe` package as a common implementation base for the lattigo multiparty RLWE schemes.
+- DRLWE: added tests for the protocols.
+- DRLWE: moved keys related marshalling tests of `dbfv` and `dckks` packages the `drlwe` package. 
 - BFV/CKKS: the schemes are now using a common implementation for their keys.
 - BFV/CKKS: the rotation-keys are now indexed by their corresponding Galois automorphism.
 - BFV/CKKS: the `Evaluator` interface now has a single method for all column rotations and one method for the row-rotation/conjugate.
@@ -31,6 +35,7 @@ All notable changes to this project will be documented in this file.
 - BFV/CKKS: added `encoding/json`-compatible JSON serialisers and deserialisers for the `Parameters` types.
 - BFV/CKKS: removed the scheme-specific key types.
 - BFV/CKKS: added a `-params=[params json]` flag for all test and bench suites for specifying parameters from the command line.
+- CKKS: improved the tests for `CoeffsToSlots` and `SlotsToCoeffs`.
 - DBFV/DCKKS: added a common interface and implementation for each multiparty protocol.
 - DBFV/DCKKS: added standalone Encryption-To-Shares (`E2SProtocol`) and Shares-To-Encryption (`S2EProtocol`) protocols for encrypted vs secret-shared domain switching.
 - DBFV/DCKKS: generalized the Refresh-and-permute protocol into generic `MaskedTransformProtocol` that accepts an arbitrary linear function.

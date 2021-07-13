@@ -15,45 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
-
-var (
-	// PN12QP109 is a set of default parameters with logN=12 and logQP=109
-	TestPN12QP109 = ParametersLiteral{
-		LogN:  12,
-		Q:     []uint64{0x7ffffec001, 0x40002001}, // 39 + 39 bits
-		P:     []uint64{0x8000016001},             // 30 bits
-		Sigma: DefaultSigma,
-	}
-	// PN13QP218 is a set of default parameters with logN=13 and logQP=218
-	TestPN13QP218 = ParametersLiteral{
-		LogN:  13,
-		Q:     []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
-		P:     []uint64{0x7ffffffffb4001},                                     // 55 bits
-		Sigma: DefaultSigma,
-	}
-
-	// PN14QP438 is a set of default parameters with logN=14 and logQP=438
-	TestPN14QP438 = ParametersLiteral{
-		LogN: 14,
-		Q: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
-			0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
-		P:     []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
-		Sigma: DefaultSigma,
-	}
-
-	// PN15QP880 is a set of default parameters with logN=15 and logQP=880
-	TestPN15QP880 = ParametersLiteral{
-		LogN: 15,
-		Q: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
-			0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
-			0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
-			0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
-		P:     []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
-		Sigma: DefaultSigma,
-	}
-)
 
 // TestParams is a set of test parameters for the correctness of the rlwe pacakge.
 var TestParams = []ParametersLiteral{TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880}
@@ -73,9 +35,7 @@ func TestRLWE(t *testing.T) {
 	if testing.Short() {
 		defaultParams = TestParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
-	if *flagLongTest {
-		defaultParams = append(TestParams) //, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
-	}
+
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
 		json.Unmarshal([]byte(*flagParamString), &jsonParams)
@@ -167,7 +127,6 @@ func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
 	}
 
 	return
-
 }
 
 func testGenKeyPair(kgen KeyGenerator, t *testing.T) {

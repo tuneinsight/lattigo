@@ -153,7 +153,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 	params := testCtx.params
 
 	t.Run(testString("PublicKeyGen/", parties, params), func(t *testing.T) {
-
+		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
 		crp := crpGenerator.ReadNew()
 
 		type Party struct {
@@ -728,10 +728,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 
 func testMarshalling(testCtx *testContext, t *testing.T) {
 	crsGen := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-	crs := crsGen.ReadNew()
 	params := testCtx.params
-
-	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, testCtx.params.MaxLevel()-1, testCtx.params.Scale())
 
 	t.Run(testString("Marshalling/Refresh/", parties, params), func(t *testing.T) {
 

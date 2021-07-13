@@ -31,7 +31,7 @@ type RKGProtocol struct {
 
 // RKGShare is a share in the RKG protocol
 type RKGShare struct {
-	value [][2]*ring.Poly
+	Value [][2]*ring.Poly
 }
 
 // NewRKGProtocol creates a new RKG protocol struct
@@ -57,13 +57,13 @@ func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
 func (ekg *RKGProtocol) AllocateShares() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
 	ephSk = rlwe.NewSecretKey(ekg.params)
 	r1, r2 = new(RKGShare), new(RKGShare)
-	r1.value = make([][2]*ring.Poly, ekg.params.Beta())
-	r2.value = make([][2]*ring.Poly, ekg.params.Beta())
+	r1.Value = make([][2]*ring.Poly, ekg.params.Beta())
+	r2.Value = make([][2]*ring.Poly, ekg.params.Beta())
 	for i := 0; i < ekg.params.Beta(); i++ {
-		r1.value[i][0] = ekg.ringQP.NewPoly()
-		r1.value[i][1] = ekg.ringQP.NewPoly()
-		r2.value[i][0] = ekg.ringQP.NewPoly()
-		r2.value[i][1] = ekg.ringQP.NewPoly()
+		r1.Value[i][0] = ekg.ringQP.NewPoly()
+		r1.Value[i][1] = ekg.ringQP.NewPoly()
+		r2.Value[i][0] = ekg.ringQP.NewPoly()
+		r2.Value[i][1] = ekg.ringQP.NewPoly()
 	}
 	return
 }
@@ -83,15 +83,15 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp []*ring.Poly, e
 
 	for i := 0; i < ekg.params.Beta(); i++ {
 		// h = e
-		ekg.gaussianSampler.Read(shareOut.value[i][0])
-		ekg.ringQP.NTT(shareOut.value[i][0], shareOut.value[i][0])
+		ekg.gaussianSampler.Read(shareOut.Value[i][0])
+		ekg.ringQP.NTT(shareOut.Value[i][0], shareOut.Value[i][0])
 
 		// h = sk*CrtBaseDecompQi + e
 		for j := 0; j < ekg.params.PCount(); j++ {
 			index := i*ekg.params.PCount() + j
 			qi := ekg.ringQP.Modulus[index]
 			skP := ekg.tmpPoly1.Coeffs[index]
-			h := shareOut.value[i][0].Coeffs[index]
+			h := shareOut.Value[i][0].Coeffs[index]
 
 			for w := 0; w < ekg.ringQP.N; w++ {
 				h[w] = ring.CRed(h[w]+skP[w], qi)
@@ -104,17 +104,15 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp []*ring.Poly, e
 		}
 
 		// h = sk*CrtBaseDecompQi + -u*a + e
-		ekg.ringQP.MulCoeffsMontgomeryAndSub(ephSkOut.Value, crp[i], shareOut.value[i][0])
+		ekg.ringQP.MulCoeffsMontgomeryAndSub(ephSkOut.Value, crp[i], shareOut.Value[i][0])
 
 		// Second Element
 		// e_2i
-		ekg.gaussianSampler.Read(shareOut.value[i][1])
-		ekg.ringQP.NTT(shareOut.value[i][1], shareOut.value[i][1])
+		ekg.gaussianSampler.Read(shareOut.Value[i][1])
+		ekg.ringQP.NTT(shareOut.Value[i][1], shareOut.Value[i][1])
 		// s*a + e_2i
-		ekg.ringQP.MulCoeffsMontgomeryAndAdd(sk.Value, crp[i], shareOut.value[i][1])
+		ekg.ringQP.MulCoeffsMontgomeryAndAdd(sk.Value, crp[i], shareOut.Value[i][1])
 	}
-
-	//ekg.tmpPoly1.Zero()
 }
 
 // GenShareRoundTwo is the second of three rounds of the RKGProtocol protocol. Upon receiving the j-1 shares, each party computes :
@@ -135,18 +133,18 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 		// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
 		// (AggregateShareRoundTwo samples) * sk
-		ekg.ringQP.MulCoeffsMontgomeryConstant(round1.value[i][0], sk.Value, shareOut.value[i][0])
+		ekg.ringQP.MulCoeffsMontgomeryConstant(round1.Value[i][0], sk.Value, shareOut.Value[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
 		ekg.gaussianSampler.Read(ekg.tmpPoly2)
 		ekg.ringQP.NTT(ekg.tmpPoly2, ekg.tmpPoly2)
-		ekg.ringQP.Add(shareOut.value[i][0], ekg.tmpPoly2, shareOut.value[i][0])
+		ekg.ringQP.Add(shareOut.Value[i][0], ekg.tmpPoly2, shareOut.Value[i][0])
 
 		// second part
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
-		ekg.gaussianSampler.Read(shareOut.value[i][1])
-		ekg.ringQP.NTT(shareOut.value[i][1], shareOut.value[i][1])
-		ekg.ringQP.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round1.value[i][1], shareOut.value[i][1])
+		ekg.gaussianSampler.Read(shareOut.Value[i][1])
+		ekg.ringQP.NTT(shareOut.Value[i][1], shareOut.Value[i][1])
+		ekg.ringQP.MulCoeffsMontgomeryAndAdd(ekg.tmpPoly1, round1.Value[i][1], shareOut.Value[i][1])
 	}
 
 }
@@ -155,16 +153,16 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
 
 	for i := 0; i < ekg.params.Beta(); i++ {
-		ekg.ringQP.Add(share1.value[i][0], share2.value[i][0], shareOut.value[i][0])
-		ekg.ringQP.Add(share1.value[i][1], share2.value[i][1], shareOut.value[i][1])
+		ekg.ringQP.Add(share1.Value[i][0], share2.Value[i][0], shareOut.Value[i][0])
+		ekg.ringQP.Add(share1.Value[i][1], share2.Value[i][1], shareOut.Value[i][1])
 	}
 }
 
 // GenRelinearizationKey computes the generated RLK from the public shares and write the result in evalKeyOut
 func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut *rlwe.RelinearizationKey) {
 	for i := 0; i < ekg.params.Beta(); i++ {
-		ekg.ringQP.Add(round2.value[i][0], round2.value[i][1], evalKeyOut.Keys[0].Value[i][0])
-		evalKeyOut.Keys[0].Value[i][1].Copy(round1.value[i][1])
+		ekg.ringQP.Add(round2.Value[i][0], round2.Value[i][1], evalKeyOut.Keys[0].Value[i][0])
+		evalKeyOut.Keys[0].Value[i][1].Copy(round1.Value[i][1])
 
 		ekg.ringQP.MForm(evalKeyOut.Keys[0].Value[i][0], evalKeyOut.Keys[0].Value[i][0])
 		ekg.ringQP.MForm(evalKeyOut.Keys[0].Value[i][1], evalKeyOut.Keys[0].Value[i][1])
@@ -174,17 +172,17 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare
 // MarshalBinary encodes the target element on a slice of bytes.
 func (share *RKGShare) MarshalBinary() ([]byte, error) {
 	//we have modulus * bitLog * Len of 1 ring rings
-	rLength := (share.value[0])[0].GetDataLen(true)
-	data := make([]byte, 1+2*rLength*len(share.value))
-	if len(share.value) > 0xFF {
+	rLength := (share.Value[0])[0].GetDataLen(true)
+	data := make([]byte, 1+2*rLength*len(share.Value))
+	if len(share.Value) > 0xFF {
 		return []byte{}, errors.New("RKGShare : uint8 overflow on length")
 	}
-	data[0] = uint8(len(share.value))
+	data[0] = uint8(len(share.Value))
 
 	//write all of our rings in the data.
 	//write all the polys
 	ptr := 1
-	for _, elem := range share.value {
+	for _, elem := range share.Value {
 		_, err := elem[0].WriteTo(data[ptr : ptr+rLength])
 		if err != nil {
 			return []byte{}, err
@@ -206,22 +204,22 @@ func (share *RKGShare) UnmarshalBinary(data []byte) error {
 	lenShare := data[0]
 	rLength := (len(data) - 1) / (2 * int(lenShare))
 
-	if share.value == nil {
-		share.value = make([][2]*ring.Poly, lenShare)
+	if share.Value == nil {
+		share.Value = make([][2]*ring.Poly, lenShare)
 	}
 	ptr := (1)
 	for i := (0); i < int(lenShare); i++ {
-		if share.value[i][0] == nil || share.value[i][1] == nil {
-			share.value[i][0] = new(ring.Poly)
-			share.value[i][1] = new(ring.Poly)
+		if share.Value[i][0] == nil || share.Value[i][1] == nil {
+			share.Value[i][0] = new(ring.Poly)
+			share.Value[i][1] = new(ring.Poly)
 		}
 
-		err := share.value[i][0].UnmarshalBinary(data[ptr : ptr+rLength])
+		err := share.Value[i][0].UnmarshalBinary(data[ptr : ptr+rLength])
 		if err != nil {
 			return err
 		}
 		ptr += rLength
-		err = share.value[i][1].UnmarshalBinary(data[ptr : ptr+rLength])
+		err = share.Value[i][1].UnmarshalBinary(data[ptr : ptr+rLength])
 		if err != nil {
 			return err
 		}

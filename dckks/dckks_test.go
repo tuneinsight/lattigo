@@ -152,8 +152,6 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-
 	t.Run(testString("PublicKeyGen/", parties, params), func(t *testing.T) {
 
 		crp := crpGenerator.ReadNew()
@@ -734,79 +732,6 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 	params := testCtx.params
 
 	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, testCtx.params.MaxLevel()-1, testCtx.params.Scale())
-
-	t.Run(testString("Marshalling/CPK/", parties, params), func(t *testing.T) {
-		keygenProtocol := NewCKGProtocol(testCtx.params)
-		KeyGenShareBefore := keygenProtocol.AllocateShares()
-		keygenProtocol.GenShare(testCtx.sk0, crs, KeyGenShareBefore)
-		//now we marshall it
-		data, err := KeyGenShareBefore.MarshalBinary()
-
-		if err != nil {
-			t.Error("Could not marshal the CKGShare : ", err)
-
-		}
-
-		KeyGenShareAfter := new(drlwe.CKGShare)
-		err = KeyGenShareAfter.UnmarshalBinary(data)
-		if err != nil {
-			t.Error("Could not unmarshal the CKGShare : ", err)
-
-		}
-
-		//comparing the results
-		require.Equal(t, KeyGenShareBefore.Degree(), KeyGenShareAfter.Degree())
-		require.Equal(t, KeyGenShareBefore.LenModuli(), KeyGenShareAfter.LenModuli())
-
-		moduli := KeyGenShareBefore.LenModuli()
-		require.Equal(t, KeyGenShareAfter.Coeffs[:moduli], KeyGenShareBefore.Coeffs[:moduli])
-	})
-
-	t.Run(testString("Marshalling/PCKS/", parties, params), func(t *testing.T) {
-		//Check marshalling for the PCKS
-
-		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
-		SwitchShare := KeySwitchProtocol.AllocateShare(ciphertext.Level())
-		KeySwitchProtocol.GenShare(testCtx.sk0, testCtx.pk0, ciphertext.Ciphertext, SwitchShare)
-
-		data, err := SwitchShare.MarshalBinary()
-		require.NoError(t, err)
-
-		SwitchShareReceiver := new(drlwe.PCKSShare)
-		err = SwitchShareReceiver.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		for i := 0; i < 2; i++ {
-			//compare the shares.
-			ringBefore := SwitchShare.Value[i]
-			ringAfter := SwitchShareReceiver.Value[i]
-			require.Equal(t, ringBefore.Degree(), ringAfter.Degree())
-			moduli := ringAfter.LenModuli()
-			require.Equal(t, ringAfter.Coeffs[:moduli], ringBefore.Coeffs[:moduli])
-		}
-	})
-
-	t.Run(testString("Marshalling/CKS/", parties, params), func(t *testing.T) {
-
-		//Now for CKSShare ~ its similar to PKSShare
-		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
-		cksshare := cksp.AllocateShare(ciphertext.Level())
-		cksp.GenShare(testCtx.sk0, testCtx.sk1, ciphertext.Ciphertext, cksshare)
-
-		data, err := cksshare.MarshalBinary()
-		require.NoError(t, err)
-		cksshareAfter := new(drlwe.CKSShare)
-		err = cksshareAfter.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		//now compare both shares.
-
-		require.Equal(t, cksshare.Value.Degree(), cksshareAfter.Value.Degree())
-		require.Equal(t, cksshare.Value.LenModuli(), cksshareAfter.Value.LenModuli())
-
-		moduli := cksshare.Value.LenModuli()
-		require.Equal(t, cksshare.Value.Coeffs[:moduli], cksshareAfter.Value.Coeffs[:moduli])
-	})
 
 	t.Run(testString("Marshalling/Refresh/", parties, params), func(t *testing.T) {
 

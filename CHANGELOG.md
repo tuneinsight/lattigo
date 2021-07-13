@@ -8,13 +8,17 @@ All notable changes to this project will be documented in this file.
 - ALL: when possible, public functions now use `int` instead of `uint64` as parameters and return values.
 - RING: RNS rescaling API is now inplace and can take a different poly as output.
 - RING: added `ReadFromDistLvl` and `ReadAndAddFromDistLvl` to Gaussian sampler API.
+- RING: added `IsNTT` and `IsMForm` flags in the `ring.Poly` type. For now, these flags are never checked or changed by the `ring` package.
 - RLWE: added a new `rlwe` package as common implementation base for the lattigo RLWE schemes.
-- RLWE: unified the `ckks.Parameters` and `bfv.Parameters` types with common `rlwe.Parameters` base type.
-- RLWE: extracted the `rlwe.Element` type as common base for BFV and CKKS ciphertexts.
-- RLWE: added the `rlwe.Ciphertext` interface as a common interface for BFV and CKKS ciphertexts
+- RLWE: extracted the `rlwe.Parameters` type as common base for BFV and CKKS parameters.
+- RLWE: extracted the `rlwe.KeyGenerator` type as common key-generator for BFV and CKKS.
+- RLWE: extracted the `rlwe.Ciphertext` type as common base for BFV and CKKS ciphertexts.
 - RLWE: extracted the `rlwe.Plaintext` type as common base for BFV and CKKS plaintext.
+- RLWE: extracted the `rlwe.Encryptor`  type as common base for BFV and CKKS encryptors.
+- RLWE: extracted the `rlwe.Decryptor`  type as common base for BFV and CKKS decryptors.
+- RLWE: extracted the `rlwe.KeySwitcher` type as a common key-switching implementation for BFV and CKKS evaluators.
 - RLWE: renamed the `Parameters.Copy()` method to `Parameters.CopyNew()` for consistency.
-- RLWE: added `Parameter` methods to instantiate new `ring.Ring` structs directly.
+- RLWE: added `Parameter` methods to access relevant `ring.Ring` structs directly.
 - RLWE: added equality and inclusion check methods for the `rlwe.RotatationKeySet` type.
 - DRLWE : added a new `drlwe` package as a common implementation base for the lattigo multiparty RLWE schemes.
 - BFV/CKKS: the schemes are now using a common implementation for their keys.

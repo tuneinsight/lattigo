@@ -56,7 +56,7 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 			panic("cannot newEncryptor: pk ring degree does not match params ring degree")
 		}
 		encryptorBase := newEncryptorBase(params)
-		if params.QCount() > 0 {
+		if params.PCount() > 0 {
 			baseconverter := ring.NewFastBasisExtender(params.ringQ, params.ringP)
 			return &pkEncryptor{encryptorBase, key, baseconverter}
 		}

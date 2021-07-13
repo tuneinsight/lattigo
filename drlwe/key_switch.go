@@ -9,9 +9,9 @@ import (
 // KeySwitchingProtocol is an interface describing the local steps of a generic RLWE CKS protocol
 type KeySwitchingProtocol interface {
 	AllocateShare(level int) *CKSShare
-	GenShare(skInput, skOutput *rlwe.SecretKey, ct rlwe.Ciphertext, shareOut *CKSShare)
+	GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *CKSShare)
 	AggregateShares(share1, share2, shareOut *CKSShare)
-	KeySwitch(combined *CKSShare, ct rlwe.Ciphertext, ctOut rlwe.Ciphertext)
+	KeySwitch(combined *CKSShare, ct, ctOut *rlwe.Ciphertext)
 }
 
 // CKSProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.

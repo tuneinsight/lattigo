@@ -21,7 +21,7 @@ All notable changes to this project will be documented in this file.
 - RLWE: extracted the `rlwe.Decryptor`  type as common base for BFV and CKKS decryptors.
 - RLWE: extracted the `rlwe.KeySwitcher` type as a common key-switching implementation for BFV and CKKS evaluators.
 - RLWE: renamed the `Parameters.Copy()` method to `Parameters.CopyNew()` for consistency.
-- RLWE: added `Parameter` methods now generates and stores the `ring.Ring` instances, and they can be accessed with the relevant API.
+- RLWE: added `Parameter` struct now stores the relevant `ring.Ring` instances and has getter methods to access them.
 - RLWE: added equality and inclusion check methods for the `rlwe.RotatationKeySet` type.
 - RLWE: added tests for encryption, decryption, key-generation and key-switching.
 - RLWE: moved keys related marshalling tests of `bfv` and `ckks` packages the `rlwe` package. 

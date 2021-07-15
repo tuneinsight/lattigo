@@ -194,7 +194,8 @@ func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 	return
 }
 
-func sliceBitReverseInPlaceFloat64(slice []float64, N int) {
+// SliceBitReverseInPlaceFloat64 applies an in-place bit-reverse permuation on the input slice.
+func SliceBitReverseInPlaceFloat64(slice []float64, N int) {
 
 	var bit, j int
 
@@ -215,7 +216,8 @@ func sliceBitReverseInPlaceFloat64(slice []float64, N int) {
 	}
 }
 
-func sliceBitReverseInPlaceComplex128(slice []complex128, N int) {
+// SliceBitReverseInPlaceComplex128 applies an in-place bit-reverse permuation on the input slice.
+func SliceBitReverseInPlaceComplex128(slice []complex128, N int) {
 
 	var bit, j int
 
@@ -236,7 +238,8 @@ func sliceBitReverseInPlaceComplex128(slice []complex128, N int) {
 	}
 }
 
-func sliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
+// SliceBitReverseInPlaceRingComplex applies an in-place bit-reverse permuation on the input slice.
+func SliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
 
 	var bit, j int
 

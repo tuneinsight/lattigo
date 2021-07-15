@@ -52,7 +52,7 @@ func main() {
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 	rlk := kgen.GenRelinearizationKey(sk, 2)
 	btpKey := ckks.BootstrappingKey{Rlk: rlk, Rtks: rotkeys}
-	if btp, err = ckks.NewBootstrapper(params, btpParams, btpKey); err != nil {
+	if btp, err = ckks.NewBootstrapper(params, *btpParams, btpKey); err != nil {
 		panic(err)
 	}
 	fmt.Println("Done")

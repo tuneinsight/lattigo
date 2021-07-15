@@ -615,7 +615,7 @@ func invfft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 		values[i] /= complex(float64(N), 0)
 	}
 
-	sliceBitReverseInPlaceComplex128(values, N)
+	SliceBitReverseInPlaceComplex128(values, N)
 }
 
 func fft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
@@ -623,7 +623,7 @@ func fft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 	var lenh, lenq, gap, idx int
 	var u, v complex128
 
-	sliceBitReverseInPlaceComplex128(values, N)
+	SliceBitReverseInPlaceComplex128(values, N)
 
 	for len := 2; len <= N; len <<= 1 {
 		for i := 0; i < N; i += len {
@@ -981,7 +981,7 @@ func (encoder *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
 		values[i][1].Quo(values[i][1], NBig)
 	}
 
-	sliceBitReverseInPlaceRingComplex(values, N)
+	SliceBitReverseInPlaceRingComplex(values, N)
 }
 
 // FFT evaluates the decoding matrix on a slice fo ring.Complex values.
@@ -992,7 +992,7 @@ func (encoder *encoderBigComplex) FFT(values []*ring.Complex, N int) {
 	u := ring.NewComplex(nil, nil)
 	v := ring.NewComplex(nil, nil)
 
-	sliceBitReverseInPlaceRingComplex(values, N)
+	SliceBitReverseInPlaceRingComplex(values, N)
 
 	for len := 2; len <= N; len <<= 1 {
 		for i := 0; i < N; i += len {

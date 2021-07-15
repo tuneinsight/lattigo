@@ -161,9 +161,17 @@ func computePowerBasisCheby(n int, C map[int]*Ciphertext, evaluator *evaluator) 
 	if C[n] == nil {
 
 		// Computes the index required to compute the asked ring evaluation
-		a := int(math.Ceil(float64(n) / 2))
-		b := n >> 1
-		c := int(math.Abs(float64(a) - float64(b)))
+		var a, b, c int
+		if n&(n-1) == 0 {
+			a, b, c = n/2, n/2, 0 //Necessary for depth optimality
+		} else {
+			// [Lee et al. 2020] : High-Precision and Low-Complexity Approximate Homomorphic Encryption by Error Variance Minimization
+			// Maximize the number of odd terms of Chebyshev basis
+			k := int(math.Ceil(math.Log2(float64(n)))) - 1
+			a = (1 << k) - 1
+			b = n + 1 - (1 << k)
+			c = int(math.Abs(float64(a) - float64(b)))
+		}
 
 		// Recurses on the given indexes
 		if err = computePowerBasisCheby(a, C, evaluator); err != nil {

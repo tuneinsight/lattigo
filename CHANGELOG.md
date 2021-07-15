@@ -2,49 +2,49 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-## Unreleased
+## [2.2.0] - 2020-07-15
 
 - Added SECURITY.md
 - ALL: when possible, public functions now use `int` instead of `uint64` as parameters and return values.
 - ALL: `ring.Ring` are not instantiated once in the parameters and read only. They are then accessed by other structs, like the encryptor or evaluator.
-- RING: removed `MulyPoly` and its related tests.
-- RING: `ring.Ring` is now read only and thread safe.
-- RING: RNS rescaling API is now inplace and can take a different poly as output.
+- RING: removed `MulPoly` and its related tests.
+- RING: `ring.Ring` is now read-only and thread-safe.
+- RING: RNS rescaling API is now in place and can take a different poly as output.
 - RING: added `ReadFromDistLvl` and `ReadAndAddFromDistLvl` to Gaussian sampler API.
 - RING: added `IsNTT` and `IsMForm` flags in the `ring.Poly` type. For now, these flags are never checked or changed by the `ring` package.
-- RLWE: added a new `rlwe` package as common implementation base for the lattigo RLWE schemes.
-- RLWE: extracted the `rlwe.Parameters` type as common base for BFV and CKKS parameters.
+- RLWE: added a new `rlwe` package as common implementation base package for the Lattigo RLWE schemes.
+- RLWE: extracted the `rlwe.Parameters` type as common base struct for BFV and CKKS parameters.
 - RLWE: extracted the `rlwe.KeyGenerator` type as common key-generator for BFV and CKKS.
-- RLWE: extracted the `rlwe.Ciphertext` type as common base for BFV and CKKS ciphertexts.
-- RLWE: extracted the `rlwe.Plaintext` type as common base for BFV and CKKS plaintext.
-- RLWE: extracted the `rlwe.Encryptor`  type as common base for BFV and CKKS encryptors.
-- RLWE: extracted the `rlwe.Decryptor`  type as common base for BFV and CKKS decryptors.
+- RLWE: extracted the `rlwe.Ciphertext` type as common base struct for BFV and CKKS ciphertexts.
+- RLWE: extracted the `rlwe.Plaintext` type as common base struct for BFV and CKKS plaintext.
+- RLWE: extracted the `rlwe.Encryptor`  type as common base interface for BFV and CKKS encryptors.
+- RLWE: extracted the `rlwe.Decryptor`  type as common base interface for BFV and CKKS decryptors.
 - RLWE: extracted the `rlwe.KeySwitcher` type as a common key-switching implementation for BFV and CKKS evaluators.
 - RLWE: renamed the `Parameters.Copy()` method to `Parameters.CopyNew()` for consistency.
-- RLWE: added `Parameter` struct now stores the relevant `ring.Ring` instances and has getter methods to access them.
+- RLWE: added `Parameter` struct, that stores the relevant `ring.Ring` instances and has getter methods to access them.
 - RLWE: added equality and inclusion check methods for the `rlwe.RotatationKeySet` type.
 - RLWE: added tests for encryption, decryption, key-generation and key-switching.
-- RLWE: moved keys related marshalling tests of `bfv` and `ckks` packages the `rlwe` package. 
+- RLWE: moved keys related marshalling tests of `bfv` and `ckks` packages the `rlwe` package.
 - DRLWE: added a new `drlwe` package as a common implementation base for the lattigo multiparty RLWE schemes.
 - DRLWE: added tests for the protocols.
-- DRLWE: moved keys related marshalling tests of `dbfv` and `dckks` packages the `drlwe` package. 
-- BFV/CKKS: the schemes are now using a common implementation for their keys.
+- DRLWE: moved keys-related marshalling tests of `dbfv` and `dckks` packages to the `drlwe` package.
+- BFV/CKKS: the schemes now use a common implementation for their keys.
 - BFV/CKKS: the rotation-keys are now indexed by their corresponding Galois automorphism.
 - BFV/CKKS: the `Evaluator` interface now has a single method for all column rotations and one method for the row-rotation/conjugate.
 - BFV/CKKS: the relinearization and rotation keys are now passed to the `Evaluator` constructor methods (and no longer to the operations methods).
 - BFV/CKKS: added the ParameterLiteral type for literally specifying scheme parameters in Go programs.
 - BFV/CKKS: removed the now obsolete `Moduli` and `LogModuli` types and their associated `Parameters` constructors.
 - BFV/CKKS: `Parameters` types are now passed by value in most situations.
-- BFV/CKKS: added `encoding/json`-compatible JSON serialisers and deserialisers for the `Parameters` types.
+- BFV/CKKS: added `encoding/json`-compatible JSON serializers and deserializers for the `Parameters` types.
 - BFV/CKKS: removed the scheme-specific key types.
 - BFV/CKKS: added a `-params=[params json]` flag for all test and bench suites for specifying parameters from the command line.
 - DBFV/DCKKS: added a common interface and implementation for each multiparty protocol.
-- DBFV/DCKKS: added standalone Encryption-To-Shares (`E2SProtocol`) and Shares-To-Encryption (`S2EProtocol`) protocols for encrypted vs secret-shared domain switching.
+- DBFV/DCKKS: added standalone Encryption-To-Shares (`E2SProtocol`) and Shares-To-Encryption (`S2EProtocol`) protocols for domain switching between encryptions and secret-shares.
 - DBFV/DCKKS: generalized the Refresh-and-permute protocol into generic `MaskedTransformProtocol` that accepts an arbitrary linear function.
-- DCKKS: public-refresh now takes a target desired output scale, which allows to refresh the ciphertext to the default scale.
-- BFV: the moduli of `ringQMul` are not generated based on `N` and`Q`.
-- CKKS: added `Parameter` methods computing the required rotations for relevant `Evaluator` operations.
-- CKKS: added methods for operating linear-transformation and improved several aspects listed below:
+- DCKKS: public-refresh now takes a target desired output scale, which enables refreshing the ciphertext to the default scale.
+- BFV: the moduli of `ringQMul` are now generated based on `N` and`Q`.
+- CKKS: added `Parameter` methods that compute the required rotations for relevant `Evaluator` operations.
+- CKKS: added methods for performing linear-transformations and improved several aspects listed below.
 - CKKS: improved the tests for `CoeffsToSlots` and `SlotsToCoeffs`.
 
 #### CKKS Bootstrapping
@@ -55,8 +55,8 @@ All notable changes to this project will be documented in this file.
 - `CoeffsToSlots` and `SlotsToCoeffs` are now standalone public functions.
 
 #### New CKKS Evaluator methods 
-- `RotateHoisted`: evaluate several rotations on a single ciphertext.
-- `LinearTransform`: evaluate one or more `PtDiagMatrix` on a ciphertext using `MultiplyByDiagMatrix` or `MultiplyByDiagMatrixBSGS` according to the encoding of `PtDiagMatrix`.
+- `RotateHoisted`: evaluates several rotations on a single ciphertext.
+- `LinearTransform`: evaluates one or more `PtDiagMatrix` on a ciphertext using `MultiplyByDiagMatrix` or `MultiplyByDiagMatrixBSGS` according to the encoding of `PtDiagMatrix`.
 - `MultiplyByDiagMatrix`: multiplies a ciphertext with a `PtDiagMatrix` using n rotations with single hoisting.
 - `MultiplyByDiagMatrixBSGS`: multiplies a ciphertext with a `PtDiagMatrix` using 2sqrt(n) rotations with double-hoisting.
 - `InnerSumLog`: optimal log approach that works for any value (not only powers of two) and can be parameterized to inner sum batches of values (sub-vectors).
@@ -76,7 +76,7 @@ All notable changes to this project will be documented in this file.
 #### CKKS Fixes
 - `MultByi` now correctly sets the output ciphertext scale.
 - `Relinearize` now correctly sets the output ciphertext level.
-- matrix-vector multiplication now correctly manages ciphertext of higher level than the plaintext matrix.
+- matrix-vector multiplication now correctly manages ciphertexts of higher level than the plaintext matrix.
 - matrix-vector encoding now properly works for negative diagonal indexes.
 
 #### Others

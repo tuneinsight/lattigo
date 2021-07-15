@@ -27,6 +27,8 @@ The library exposes the following packages:
 
 - `lattigo/dbfv` and `lattigo/dckks`: Multiparty (a.k.a. distributed or threshold) versions of the BFV and CKKS schemes that enable secure multiparty computation solutions with secret-shared secret keys.
 
+- `lattigo/rlwe` and `lattigo/drlwe`: common base for generic RLWE-based multiparty homomorphic encryption. It is imported by the `lattigo/bfv` and `lattigo/ckks` packages.
+
 - `lattigo/examples`: Executable Go programs that demonstrate the use of the Lattigo library.
                       Each subpackage includes test files that further demonstrate the use of Lattigo primitives.
 
@@ -51,7 +53,7 @@ This library is still at an experimental stage and should be used for research p
 
 ## License
 
-Lattigo is licensed under the Apache 2.0 License.
+Lattigo is licensed under the Apache 2.0 License. See LICENSE.
 
 ## Contact
 
@@ -62,10 +64,10 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo v2.1.1},
+	    title = {Lattigo v2.2.0},
 	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
-	    month = dec,
-	    year = 2020,
+	    month = Jul,
+	    year = 2021,
 	    note = {EPFL-LDS}
     }
     

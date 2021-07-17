@@ -5,12 +5,74 @@ import (
 	"math"
 )
 
+// CoeffsToSlots applies the homomorphic encoding
+func (eval *evaluator) CoeffsToSlots(ctIn *Ciphertext, pDFTInv []PtDiagMatrix) (ctReal, ctImag *Ciphertext) {
+
+	var zV, zVconj *Ciphertext
+
+	zV = eval.dft(ctIn, pDFTInv)
+
+	zVconj = eval.ConjugateNew(zV)
+
+	// The real part is stored in ct0
+	ctReal = eval.AddNew(zV, zVconj)
+
+	// The imaginary part is stored in ct1
+	ctImag = eval.SubNew(zV, zVconj)
+
+	eval.DivByi(ctImag, ctImag)
+
+	// If repacking, then ct0 and ct1 right n/2 slots are zero.
+	if eval.params.LogSlots() < eval.params.LogN()-1 {
+		eval.Rotate(ctImag, eval.params.Slots(), ctImag)
+		eval.Add(ctReal, ctImag, ctReal)
+		return ctReal, nil
+	}
+
+	zV = nil
+	zVconj = nil
+
+	return ctReal, ctImag
+}
+
+// SlotsToCoeffs applies the homomorphic decoding
+func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *Ciphertext, pDFT []PtDiagMatrix) (ctOut *Ciphertext) {
+
+	// If full packing, the repacking can be done directly using ct0 and ct1.
+	if ctImag != nil {
+		eval.MultByi(ctImag, ctImag)
+		eval.Add(ctReal, ctImag, ctReal)
+	}
+
+	ctImag = nil
+
+	return eval.dft(ctReal, pDFT)
+}
+
+func (eval *evaluator) dft(vec *Ciphertext, plainVectors []PtDiagMatrix) *Ciphertext {
+
+	// Sequentially multiplies w with the provided dft matrices.
+	for _, plainVector := range plainVectors {
+		scale := vec.Scale
+		vec = eval.LinearTransform(vec, plainVector)[0]
+		if err := eval.Rescale(vec, scale, vec); err != nil {
+			panic(err)
+		}
+	}
+
+	return vec
+}
+
 // CoeffsToSlotsParameters is a list of the moduli used during he CoeffsToSlots step.
 type CoeffsToSlotsParameters struct {
 	LevelStart    int
 	BitReversed   bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
 	BSGSRatio     float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
 	ScalingFactor [][]float64
+}
+
+type CoeffsToSlotsMatrices struct {
+	Matrices []PtDiagMatrix
 }
 
 // Depth returns the number of levels allocated to CoeffsToSlots.
@@ -45,7 +107,7 @@ func (cts *CoeffsToSlotsParameters) Levels() (ctsLevel []int) {
 // GenCoeffsToSlotsMatrix generates the factorized encoding matrix
 // scaling : constant by witch the all the matrices will be multuplied by
 // encoder : ckks.Encoder
-func (cts *CoeffsToSlotsParameters) GenCoeffsToSlotsMatrix(p *Parameters, logSlots int, scaling complex128, encoder Encoder) []*PtDiagMatrix {
+func (cts *CoeffsToSlotsParameters) GenCoeffsToSlotsMatrix(p *Parameters, logSlots int, scaling complex128, encoder Encoder) []PtDiagMatrix {
 
 	slots := 1 << logSlots
 	depth := cts.Depth(false)
@@ -65,7 +127,7 @@ func (cts *CoeffsToSlotsParameters) GenCoeffsToSlotsMatrix(p *Parameters, logSlo
 	ctsLevels := cts.Levels()
 
 	// CoeffsToSlots vectors
-	pDFTInv := make([]*PtDiagMatrix, len(ctsLevels))
+	pDFTInv := make([]PtDiagMatrix, len(ctsLevels))
 	pVecDFTInv := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, true, cts.BitReversed)
 	cnt := 0
 	for i := range cts.ScalingFactor {
@@ -140,7 +202,7 @@ func (stc *SlotsToCoeffsParameters) Levels() (stcLevel []int) {
 // GenSlotsToCoeffsMatrix generates the factorized decoding matrix
 // scaling : constant by witch the all the matrices will be multuplied by
 // encoder : ckks.Encoder
-func (stc *SlotsToCoeffsParameters) GenSlotsToCoeffsMatrix(p *Parameters, logSlots int, scaling complex128, encoder Encoder) []*PtDiagMatrix {
+func (stc *SlotsToCoeffsParameters) GenSlotsToCoeffsMatrix(p *Parameters, logSlots int, scaling complex128, encoder Encoder) []PtDiagMatrix {
 
 	slots := 1 << logSlots
 	depth := stc.Depth(false)
@@ -160,7 +222,7 @@ func (stc *SlotsToCoeffsParameters) GenSlotsToCoeffsMatrix(p *Parameters, logSlo
 	stcLevels := stc.Levels()
 
 	// CoeffsToSlots vectors
-	pDFT := make([]*PtDiagMatrix, len(stcLevels))
+	pDFT := make([]PtDiagMatrix, len(stcLevels))
 	pVecDFT := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, false, stc.BitReversed)
 	cnt := 0
 	for i := range stc.ScalingFactor {

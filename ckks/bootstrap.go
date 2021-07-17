@@ -61,7 +61,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	// Part 1 : Coeffs to slots
 
 	//t = time.Now()
-	ct0, ct1 = CoeffsToSlots(ct, btp.pDFTInv, btp.evaluator)
+	ct0, ct1 = btp.evaluator.CoeffsToSlots(ct, btp.pDFTInv)
 	//log.Println("After CtS    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 
 	// Part 2 : SineEval
@@ -71,7 +71,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 	// Part 3 : Slots to coeffs
 	//t = time.Now()
-	ct0 = SlotsToCoeffs(ct0, ct1, btp.pDFT, btp.evaluator)
+	ct0 = btp.evaluator.SlotsToCoeffs(ct0, ct1, btp.pDFT)
 
 	ct0.Scale = math.Exp2(math.Round(math.Log2(ct0.Scale))) // rounds to the nearest power of two
 	//log.Println("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
@@ -135,64 +135,6 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 	}
 
 	return ct
-}
-
-// CoeffsToSlots applies the homomorphic encoding
-func CoeffsToSlots(vec *Ciphertext, pDFTInv []*PtDiagMatrix, eval Evaluator) (ct0, ct1 *Ciphertext) {
-
-	var zV, zVconj *Ciphertext
-
-	zV = dft(vec, pDFTInv, true, eval)
-
-	zVconj = eval.ConjugateNew(zV)
-
-	// The real part is stored in ct0
-	ct0 = eval.AddNew(zV, zVconj)
-
-	// The imaginary part is stored in ct1
-	ct1 = eval.SubNew(zV, zVconj)
-
-	eval.DivByi(ct1, ct1)
-
-	// If repacking, then ct0 and ct1 right n/2 slots are zero.
-	if eval.(*evaluator).params.LogSlots() < eval.(*evaluator).params.LogN()-1 {
-		eval.Rotate(ct1, eval.(*evaluator).params.Slots(), ct1)
-		eval.Add(ct0, ct1, ct0)
-		return ct0, nil
-	}
-
-	zV = nil
-	zVconj = nil
-
-	return ct0, ct1
-}
-
-// SlotsToCoeffs applies the homomorphic decoding
-func SlotsToCoeffs(ct0, ct1 *Ciphertext, pDFT []*PtDiagMatrix, eval Evaluator) (ct *Ciphertext) {
-
-	// If full packing, the repacking can be done directly using ct0 and ct1.
-	if ct1 != nil {
-		eval.MultByi(ct1, ct1)
-		eval.Add(ct0, ct1, ct0)
-	}
-
-	ct1 = nil
-
-	return dft(ct0, pDFT, false, eval)
-}
-
-func dft(vec *Ciphertext, plainVectors []*PtDiagMatrix, forward bool, eval Evaluator) *Ciphertext {
-
-	// Sequentially multiplies w with the provided dft matrices.
-	for _, plainVector := range plainVectors {
-		scale := vec.Scale
-		vec = eval.LinearTransform(vec, plainVector)[0]
-		if err := eval.Rescale(vec, scale, vec); err != nil {
-			panic(err)
-		}
-	}
-
-	return vec
 }
 
 // Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)

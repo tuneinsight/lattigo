@@ -355,7 +355,7 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		// Applies the homomorphic DFT
-		ct0, ct1 := CoeffsToSlots(ciphertext, CoeffsToSlotMatrices, eval)
+		ct0, ct1 := eval.CoeffsToSlots(ciphertext, CoeffsToSlotMatrices)
 
 		// Checks against the original coefficients
 		var coeffsReal, coeffsImag []complex128
@@ -447,7 +447,7 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 		}
 
 		// Applies the homomorphic DFT
-		res := SlotsToCoeffs(ct0, ct1, SlotsToCoeffsMatrix, eval)
+		res := eval.SlotsToCoeffs(ct0, ct1, SlotsToCoeffsMatrix)
 
 		// Decrypt and decode in the coefficient domain
 		coeffsFloat := testContext.encoder.DecodeCoeffsPublic(testContext.decryptor.DecryptNew(res), 0)

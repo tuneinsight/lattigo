@@ -98,8 +98,8 @@ type Evaluator interface {
 
 	// Linear Transformations
 	LinearTransform(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
-	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
-	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix *PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
+	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
+	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
 
 	// Inner sum
 	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
@@ -108,6 +108,10 @@ type Evaluator interface {
 	// Replicatation (inverse of Inner sum)
 	ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
+
+	// Homomorphic Encoding
+	CoeffsToSlots(ctIn *Ciphertext, pDFTInv []PtDiagMatrix) (ctReal, ctImag *Ciphertext)
+	SlotsToCoeffs(ctReal, ctImag *Ciphertext, pDFT []PtDiagMatrix) (ctOut *Ciphertext)
 
 	// =============================
 	// === Ciphertext Management ===

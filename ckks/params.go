@@ -308,7 +308,7 @@ func (p Parameters) RotationsForSubSum(logSlots int) (rotations []int) {
 
 // RotationsForDiagMatrixMult generates of all the rotations needed for a the multiplication
 // with the provided diagonal plaintext matrix.
-func (p Parameters) RotationsForDiagMatrixMult(matrix *PtDiagMatrix) []int {
+func (p Parameters) RotationsForDiagMatrixMult(matrix PtDiagMatrix) []int {
 	slots := 1 << matrix.LogSlots
 
 	rotKeyIndex := []int{}

@@ -31,10 +31,10 @@ type Bootstrapper struct {
 	sineEvalPoly *ChebyshevInterpolation // Coefficients of the Chebyshev Interpolation of sin(2*pi*x) or cos(2*pi*x/r)
 	arcSinePoly  *Poly                   // Coefficients of the Taylor series of arcsine(x)
 
-	coeffsToSlotsDiffScale complex128      // Matrice rescaling
-	slotsToCoeffsDiffScale complex128      // Matrice rescaling
-	pDFT                   []*PtDiagMatrix // Matrice vectors
-	pDFTInv                []*PtDiagMatrix // Matrice vectors
+	coeffsToSlotsDiffScale complex128     // Matrice rescaling
+	slotsToCoeffsDiffScale complex128     // Matrice rescaling
+	pDFT                   []PtDiagMatrix // Matrice vectors
+	pDFTInv                []PtDiagMatrix // Matrice vectors
 
 	rotKeyIndex []int // a list of the required rotation keys
 }
@@ -130,7 +130,7 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 }
 
 // AddMatrixRotToList adds the rotations neede to evaluate pVec to the list rotations
-func AddMatrixRotToList(pVec *PtDiagMatrix, rotations []int, slots int, repack bool) []int {
+func AddMatrixRotToList(pVec PtDiagMatrix, rotations []int, slots int, repack bool) []int {
 
 	if pVec.naive {
 		for j := range pVec.Vec {

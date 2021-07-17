@@ -309,10 +309,10 @@ func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParamete
 		n := math.Pow(1.0/float64(2*params.Slots()), 1.0/float64(ctsParams.Depth(true)))
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices := ctsParams.GenCoeffsToSlotsMatrix(&params, params.LogSlots(), complex(n, 0), testContext.encoder)
+		CoeffsToSlotMatrices := testContext.encoder.GenHomomorphicEncodingMatrices(ctsParams, complex(n, 0))
 
 		// Gets the rotations indexes for CoeffsToSlots
-		rotations := ctsParams.RotationsForCoeffsToSlots(&params, params.LogSlots())
+		rotations := ctsParams.Rotations(params.LogN(), params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
@@ -401,10 +401,10 @@ func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParamete
 		params := testContext.params
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix := stcParams.GenSlotsToCoeffsMatrix(&params, params.LogSlots(), 1.0, testContext.encoder)
+		SlotsToCoeffsMatrix := testContext.encoder.GenHomomorphicEncodingMatrices(stcParams, 1.0)
 
 		// Gets the rotations indexes for SlotsToCoeffs
-		rotations := stcParams.RotationsForSlotsToCoeffs(&params, params.LogSlots())
+		rotations := stcParams.Rotations(params.LogN(), params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)

@@ -31,10 +31,10 @@ type Bootstrapper struct {
 	sineEvalPoly *ChebyshevInterpolation // Coefficients of the Chebyshev Interpolation of sin(2*pi*x) or cos(2*pi*x/r)
 	arcSinePoly  *Poly                   // Coefficients of the Taylor series of arcsine(x)
 
-	coeffsToSlotsDiffScale complex128     // Matrice rescaling
-	slotsToCoeffsDiffScale complex128     // Matrice rescaling
-	pDFT                   []PtDiagMatrix // Matrice vectors
-	pDFTInv                []PtDiagMatrix // Matrice vectors
+	coeffsToSlotsDiffScale complex128 // Matrice rescaling
+	slotsToCoeffsDiffScale complex128 // Matrice rescaling
+	stcMatrices            EncodingMatrices
+	ctsMatrices            EncodingMatrices
 
 	rotKeyIndex []int // a list of the required rotation keys
 }
@@ -183,10 +183,10 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.Scale())/btp.postscale, 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
 
 	// CoeffsToSlots vectors
-	btp.pDFTInv = btp.CoeffsToSlotsParameters.GenCoeffsToSlotsMatrix(&btp.params, btp.LogSlots, btp.coeffsToSlotsDiffScale, btp.encoder)
+	btp.ctsMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.CoeffsToSlotsParameters, btp.coeffsToSlotsDiffScale)
 
 	// SlotsToCoeffs vectors
-	btp.pDFT = btp.SlotsToCoeffsParameters.GenSlotsToCoeffsMatrix(&btp.params, btp.LogSlots, btp.slotsToCoeffsDiffScale, btp.encoder)
+	btp.stcMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.SlotsToCoeffsParameters, btp.slotsToCoeffsDiffScale)
 
 	// List of the rotation key values to needed for the bootstrapp
 	btp.rotKeyIndex = []int{}
@@ -199,12 +199,12 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	}
 
 	// Coeffs to Slots rotations
-	for _, pVec := range btp.pDFTInv {
+	for _, pVec := range btp.ctsMatrices.Matrices {
 		btp.rotKeyIndex = AddMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
 	}
 
 	// Slots to Coeffs rotations
-	for i, pVec := range btp.pDFT {
+	for i, pVec := range btp.stcMatrices.Matrices {
 		btp.rotKeyIndex = AddMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), (i == 0) && (btp.params.LogSlots() < btp.params.MaxLogSlots()))
 	}
 }

@@ -110,8 +110,8 @@ type Evaluator interface {
 	Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
 	// Homomorphic Encoding
-	CoeffsToSlots(ctIn *Ciphertext, pDFTInv []PtDiagMatrix) (ctReal, ctImag *Ciphertext)
-	SlotsToCoeffs(ctReal, ctImag *Ciphertext, pDFT []PtDiagMatrix) (ctOut *Ciphertext)
+	CoeffsToSlots(ctIn *Ciphertext, ctsMatrices EncodingMatrices) (ctReal, ctImag *Ciphertext)
+	SlotsToCoeffs(ctReal, ctImag *Ciphertext, stcMatrices EncodingMatrices) (ctOut *Ciphertext)
 
 	// =============================
 	// === Ciphertext Management ===

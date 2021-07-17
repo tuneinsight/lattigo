@@ -42,6 +42,8 @@ type Encoder interface {
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 	DecodeCoeffsPublic(plaintext *Plaintext, bound float64) (res []float64)
 
+	GenHomomorphicEncodingMatrices(p EncodingMatricesParameters, scaling complex128) EncodingMatrices
+
 	GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
 	GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
 }

@@ -5,12 +5,117 @@ import (
 	"math"
 )
 
+// EncodingMatrices is a struct storing the factorized DFT matrix
+type EncodingMatrices struct {
+	Matrices []PtDiagMatrix
+}
+
+// EncodingMatricesParameters is a struct storing the parameters to generate the factorized DFT matrix
+type EncodingMatricesParameters struct {
+	Forward       bool // True : CoeffsToSlots (Encoding) - False : SlotsToCoeffs (Decoding)
+	LevelStart    int
+	BitReversed   bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
+	BSGSRatio     float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
+	ScalingFactor [][]float64
+}
+
+// Depth returns the number of levels allocated.
+// If actual == true then returns the number of moduli consumed, else
+// returns the factorization depth.
+func (mParams *EncodingMatricesParameters) Depth(actual bool) (depth int) {
+	if actual {
+		depth = len(mParams.ScalingFactor)
+	} else {
+		for i := range mParams.ScalingFactor {
+			for range mParams.ScalingFactor[i] {
+				depth++
+			}
+		}
+	}
+	return
+}
+
+// Levels returns the index of the Qi used int CoeffsToSlots
+func (mParams *EncodingMatricesParameters) Levels() (levels []int) {
+	levels = []int{}
+	trueDepth := mParams.Depth(true)
+	for i := range mParams.ScalingFactor {
+		for range mParams.ScalingFactor[trueDepth-1-i] {
+			levels = append(levels, mParams.LevelStart-i)
+		}
+	}
+
+	return
+}
+
+// Rotations returns the list of rotations performed during the CoeffsToSlot operation.
+func (mParams *EncodingMatricesParameters) Rotations(logN, logSlots int) (rotations []int) {
+	rotations = []int{}
+
+	slots := 1 << logSlots
+	dslots := slots
+	if logSlots < logN-1 {
+		dslots <<= 1
+		if mParams.Forward {
+			rotations = append(rotations, slots)
+		}
+	}
+
+	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, mParams.Depth(false), mParams.Forward, mParams.BitReversed)
+
+	// Coeffs to Slots rotations
+	for i, pVec := range indexCtS {
+		N1 := findbestbabygiantstepsplit(pVec, dslots, mParams.BSGSRatio)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, !mParams.Forward && logSlots < logN-1 && i == 0)
+	}
+
+	return
+}
+
+// GenCoeffsToSlotsMatrix generates the factorized encoding matrix
+// scaling : constant by witch the all the matrices will be multuplied by
+// encoder : ckks.Encoder
+func (encoder *encoderComplex128) GenHomomorphicEncodingMatrices(mParams EncodingMatricesParameters, scaling complex128) EncodingMatrices {
+	logSlots := encoder.params.LogSlots()
+
+	slots := 1 << logSlots
+	depth := mParams.Depth(false)
+	logdSlots := logSlots + 1
+	if logdSlots == encoder.params.LogN() {
+		logdSlots--
+	}
+
+	roots := computeRoots(slots << 1)
+	pow5 := make([]int, (slots<<1)+1)
+	pow5[0] = 1
+	for i := 1; i < (slots<<1)+1; i++ {
+		pow5[i] = pow5[i-1] * 5
+		pow5[i] &= (slots << 2) - 1
+	}
+
+	ctsLevels := mParams.Levels()
+
+	// CoeffsToSlots vectors
+	matrices := make([]PtDiagMatrix, len(ctsLevels))
+	pVecDFT := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, mParams.Forward, mParams.BitReversed)
+	cnt := 0
+	trueDepth := mParams.Depth(true)
+	for i := range mParams.ScalingFactor {
+		for j := range mParams.ScalingFactor[trueDepth-i-1] {
+			matrices[cnt] = encoder.EncodeDiagMatrixBSGSAtLvl(ctsLevels[cnt], pVecDFT[cnt], mParams.ScalingFactor[trueDepth-i-1][j], mParams.BSGSRatio, logdSlots)
+			cnt++
+		}
+	}
+
+	return EncodingMatrices{Matrices: matrices}
+}
+
 // CoeffsToSlots applies the homomorphic encoding
-func (eval *evaluator) CoeffsToSlots(ctIn *Ciphertext, pDFTInv []PtDiagMatrix) (ctReal, ctImag *Ciphertext) {
+func (eval *evaluator) CoeffsToSlots(ctIn *Ciphertext, ctsMatrices EncodingMatrices) (ctReal, ctImag *Ciphertext) {
 
 	var zV, zVconj *Ciphertext
 
-	zV = eval.dft(ctIn, pDFTInv)
+	zV = eval.dft(ctIn, ctsMatrices.Matrices)
 
 	zVconj = eval.ConjugateNew(zV)
 
@@ -36,7 +141,7 @@ func (eval *evaluator) CoeffsToSlots(ctIn *Ciphertext, pDFTInv []PtDiagMatrix) (
 }
 
 // SlotsToCoeffs applies the homomorphic decoding
-func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *Ciphertext, pDFT []PtDiagMatrix) (ctOut *Ciphertext) {
+func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *Ciphertext, stcMatrices EncodingMatrices) (ctOut *Ciphertext) {
 
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if ctImag != nil {
@@ -46,7 +151,7 @@ func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *Ciphertext, pDFT []PtDiagMa
 
 	ctImag = nil
 
-	return eval.dft(ctReal, pDFT)
+	return eval.dft(ctReal, stcMatrices.Matrices)
 }
 
 func (eval *evaluator) dft(vec *Ciphertext, plainVectors []PtDiagMatrix) *Ciphertext {
@@ -61,199 +166,6 @@ func (eval *evaluator) dft(vec *Ciphertext, plainVectors []PtDiagMatrix) *Cipher
 	}
 
 	return vec
-}
-
-// CoeffsToSlotsParameters is a list of the moduli used during he CoeffsToSlots step.
-type CoeffsToSlotsParameters struct {
-	LevelStart    int
-	BitReversed   bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
-	BSGSRatio     float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
-	ScalingFactor [][]float64
-}
-
-type CoeffsToSlotsMatrices struct {
-	Matrices []PtDiagMatrix
-}
-
-// Depth returns the number of levels allocated to CoeffsToSlots.
-// If actual == true then returns the number of moduli consumed, else
-// returns the factorization depth.
-func (cts *CoeffsToSlotsParameters) Depth(actual bool) (depth int) {
-	if actual {
-		depth = len(cts.ScalingFactor)
-	} else {
-		for i := range cts.ScalingFactor {
-			for range cts.ScalingFactor[i] {
-				depth++
-			}
-		}
-	}
-
-	return
-}
-
-// Levels returns the index of the Qi used int CoeffsToSlots
-func (cts *CoeffsToSlotsParameters) Levels() (ctsLevel []int) {
-	ctsLevel = []int{}
-	for i := range cts.ScalingFactor {
-		for range cts.ScalingFactor[cts.Depth(true)-1-i] {
-			ctsLevel = append(ctsLevel, cts.LevelStart-i)
-		}
-	}
-
-	return
-}
-
-// GenCoeffsToSlotsMatrix generates the factorized encoding matrix
-// scaling : constant by witch the all the matrices will be multuplied by
-// encoder : ckks.Encoder
-func (cts *CoeffsToSlotsParameters) GenCoeffsToSlotsMatrix(p *Parameters, logSlots int, scaling complex128, encoder Encoder) []PtDiagMatrix {
-
-	slots := 1 << logSlots
-	depth := cts.Depth(false)
-	logdSlots := logSlots + 1
-	if logdSlots == p.LogN() {
-		logdSlots--
-	}
-
-	roots := computeRoots(slots << 1)
-	pow5 := make([]int, (slots<<1)+1)
-	pow5[0] = 1
-	for i := 1; i < (slots<<1)+1; i++ {
-		pow5[i] = pow5[i-1] * 5
-		pow5[i] &= (slots << 2) - 1
-	}
-
-	ctsLevels := cts.Levels()
-
-	// CoeffsToSlots vectors
-	pDFTInv := make([]PtDiagMatrix, len(ctsLevels))
-	pVecDFTInv := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, true, cts.BitReversed)
-	cnt := 0
-	for i := range cts.ScalingFactor {
-		for j := range cts.ScalingFactor[cts.Depth(true)-i-1] {
-			pDFTInv[cnt] = encoder.EncodeDiagMatrixBSGSAtLvl(ctsLevels[cnt], pVecDFTInv[cnt], cts.ScalingFactor[cts.Depth(true)-i-1][j], cts.BSGSRatio, logdSlots)
-			cnt++
-		}
-	}
-
-	return pDFTInv
-}
-
-// RotationsForCoeffsToSlots returns the list of rotations performed during the CoeffsToSlot operation.
-func (cts *CoeffsToSlotsParameters) RotationsForCoeffsToSlots(p *Parameters, logSlots int) (rotations []int) {
-	rotations = []int{}
-
-	slots := 1 << logSlots
-	dslots := slots
-	if logSlots < p.LogN()-1 {
-		dslots <<= 1
-		rotations = append(rotations, slots)
-	}
-
-	indexCtS := computeBootstrappingDFTIndexMap(p.LogN(), logSlots, cts.Depth(false), true, cts.BitReversed)
-
-	// Coeffs to Slots rotations
-	for _, pVec := range indexCtS {
-		N1 := findbestbabygiantstepsplit(pVec, dslots, cts.BSGSRatio)
-		rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
-	}
-
-	return
-}
-
-// SlotsToCoeffsParameters is a list of the moduli used during the SlotsToCoeffs step.
-type SlotsToCoeffsParameters struct {
-	LevelStart    int
-	BitReversed   bool
-	BSGSRatio     float64
-	ScalingFactor [][]float64
-}
-
-// Depth returns the number of levels allocated to SlotToCoeffs.
-// If actual == true then returns the number of moduli consumed, else
-// returns the factorization depth.
-func (stc *SlotsToCoeffsParameters) Depth(actual bool) (depth int) {
-	if actual {
-		depth = len(stc.ScalingFactor)
-	} else {
-		for i := range stc.ScalingFactor {
-			for range stc.ScalingFactor[i] {
-				depth++
-			}
-		}
-	}
-
-	return
-}
-
-// Levels returns the index of the Qi used in SlotsToCoeffs
-func (stc *SlotsToCoeffsParameters) Levels() (stcLevel []int) {
-	stcLevel = []int{}
-	for i := range stc.ScalingFactor {
-		for range stc.ScalingFactor[stc.Depth(true)-1-i] {
-			stcLevel = append(stcLevel, stc.LevelStart-i)
-		}
-	}
-
-	return
-}
-
-// GenSlotsToCoeffsMatrix generates the factorized decoding matrix
-// scaling : constant by witch the all the matrices will be multuplied by
-// encoder : ckks.Encoder
-func (stc *SlotsToCoeffsParameters) GenSlotsToCoeffsMatrix(p *Parameters, logSlots int, scaling complex128, encoder Encoder) []PtDiagMatrix {
-
-	slots := 1 << logSlots
-	depth := stc.Depth(false)
-	logdSlots := logSlots + 1
-	if logdSlots == p.LogN() {
-		logdSlots--
-	}
-
-	roots := computeRoots(slots << 1)
-	pow5 := make([]int, (slots<<1)+1)
-	pow5[0] = 1
-	for i := 1; i < (slots<<1)+1; i++ {
-		pow5[i] = pow5[i-1] * 5
-		pow5[i] &= (slots << 2) - 1
-	}
-
-	stcLevels := stc.Levels()
-
-	// CoeffsToSlots vectors
-	pDFT := make([]PtDiagMatrix, len(stcLevels))
-	pVecDFT := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, false, stc.BitReversed)
-	cnt := 0
-	for i := range stc.ScalingFactor {
-		for j := range stc.ScalingFactor[stc.Depth(true)-i-1] {
-			pDFT[cnt] = encoder.EncodeDiagMatrixBSGSAtLvl(stcLevels[cnt], pVecDFT[cnt], stc.ScalingFactor[stc.Depth(true)-i-1][j], stc.BSGSRatio, logdSlots)
-			cnt++
-		}
-	}
-
-	return pDFT
-}
-
-// RotationsForSlotsToCoeffs returns the list of rotations performed during the SlotsToCoeffs operation.
-func (stc *SlotsToCoeffsParameters) RotationsForSlotsToCoeffs(p *Parameters, logSlots int) (rotations []int) {
-	rotations = []int{}
-
-	slots := 1 << logSlots
-	dslots := slots
-	if logSlots < p.LogN()-1 {
-		dslots <<= 1
-	}
-
-	indexStC := computeBootstrappingDFTIndexMap(p.LogN(), logSlots, stc.Depth(false), false, stc.BitReversed)
-
-	// Slots to Coeffs rotations
-	for i, pVec := range indexStC {
-		N1 := findbestbabygiantstepsplit(pVec, dslots, stc.BSGSRatio)
-		rotations = addMatrixRotToList(pVec, rotations, N1, slots, logSlots < p.LogN()-1 && i == 0)
-	}
-
-	return
 }
 
 func computeRoots(N int) (roots []complex128) {

@@ -22,10 +22,10 @@ const (
 // BootstrappingParameters is a struct for the default bootstrapping parameters
 type BootstrappingParameters struct {
 	ParametersLiteral
-	SlotsToCoeffsParameters
+	SlotsToCoeffsParameters EncodingMatricesParameters
 	SineEvalParameters
-	CoeffsToSlotsParameters
-	H int // Hamming weight of the secret key
+	CoeffsToSlotsParameters EncodingMatricesParameters
+	H                       int // Hamming weight of the secret key
 }
 
 // Params generates a new set of Parameters from the BootstrappingParameters
@@ -143,7 +143,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffffff420001, // Pi 61
 			},
 		},
-		SlotsToCoeffsParameters: SlotsToCoeffsParameters{
+		SlotsToCoeffsParameters: EncodingMatricesParameters{
+			Forward:     false,
 			LevelStart:  12,
 			BSGSRatio:   16.0,
 			BitReversed: false,
@@ -163,7 +164,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: CoeffsToSlotsParameters{
+		CoeffsToSlotsParameters: EncodingMatricesParameters{
+			Forward:     true,
 			LevelStart:  24,
 			BSGSRatio:   16.0,
 			BitReversed: false,
@@ -218,7 +220,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffffff500001, // Pi 61
 			},
 		},
-		SlotsToCoeffsParameters: SlotsToCoeffsParameters{
+		SlotsToCoeffsParameters: EncodingMatricesParameters{
+			Forward:     false,
 			LevelStart:  8,
 			BSGSRatio:   16.0,
 			BitReversed: false,
@@ -238,7 +241,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ArcSineDeg:    7,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: CoeffsToSlotsParameters{
+		CoeffsToSlotsParameters: EncodingMatricesParameters{
+			Forward:     true,
 			LevelStart:  23,
 			BSGSRatio:   16.0,
 			BitReversed: false,
@@ -292,7 +296,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffffff420001, // Pi 61
 			},
 		},
-		SlotsToCoeffsParameters: SlotsToCoeffsParameters{
+		SlotsToCoeffsParameters: EncodingMatricesParameters{
+			Forward:     false,
 			LevelStart:  9,
 			BSGSRatio:   16.0,
 			BitReversed: false,
@@ -311,7 +316,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 55,
 		},
-		CoeffsToSlotsParameters: CoeffsToSlotsParameters{
+		CoeffsToSlotsParameters: EncodingMatricesParameters{
+			Forward:     true,
 			LevelStart:  21,
 			BSGSRatio:   16.0,
 			BitReversed: false,
@@ -372,7 +378,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffffff380001, // Pi 61
 			},
 		},
-		SlotsToCoeffsParameters: SlotsToCoeffsParameters{
+		SlotsToCoeffsParameters: EncodingMatricesParameters{
+			Forward:     false,
 			LevelStart:  11,
 			BSGSRatio:   16.0,
 			BitReversed: false,
@@ -391,7 +398,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: CoeffsToSlotsParameters{
+		CoeffsToSlotsParameters: EncodingMatricesParameters{
+			Forward:     true,
 			LevelStart:  27,
 			BSGSRatio:   16.0,
 			BitReversed: false,
@@ -434,7 +442,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x8000000110001, // 51
 			},
 		},
-		SlotsToCoeffsParameters: SlotsToCoeffsParameters{
+		SlotsToCoeffsParameters: EncodingMatricesParameters{
+			Forward:     false,
 			LevelStart:  3,
 			BSGSRatio:   16.0,
 			BitReversed: false,
@@ -452,7 +461,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 50,
 		},
-		CoeffsToSlotsParameters: CoeffsToSlotsParameters{
+		CoeffsToSlotsParameters: EncodingMatricesParameters{
+			Forward:     true,
 			LevelStart:  13,
 			BSGSRatio:   16.0,
 			BitReversed: false,

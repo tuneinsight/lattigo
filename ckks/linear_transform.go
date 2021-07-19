@@ -5,6 +5,16 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
+// Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
+func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int) *Ciphertext {
+	for i := logSlots; i < eval.params.MaxLogSlots(); i++ {
+		eval.Rotate(ctIn, 1<<i, eval.ctxpool)
+		eval.Add(ctIn, eval.ctxpool, ctIn)
+	}
+
+	return ctIn
+}
+
 // RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
 // rotation by one element of the list. It is much faster than sequential calls to Rotate.
 func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut map[int]*Ciphertext) {

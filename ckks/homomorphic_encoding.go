@@ -5,18 +5,27 @@ import (
 	"math"
 )
 
+// LinearTransformType is a type used to distinguish different linear transformations.
+type LinearTransformType int
+
+// CoeffsToSlots and SlotsToCoeffs are two linear transformations.
+const (
+	CoeffsToSlots = LinearTransformType(0) // Homomorphic Encoding
+	SlotsToCoeffs = LinearTransformType(1) // Homomorphic Decoding
+)
+
 // EncodingMatrices is a struct storing the factorized DFT matrix
 type EncodingMatrices struct {
 	Matrices []PtDiagMatrix
 }
 
-// EncodingMatricesParameters is a struct storing the parameters to generate the factorized DFT matrix
+// EncodingMatricesParameters is a struct storing the parameters to generate the factorized DFT matrix.
 type EncodingMatricesParameters struct {
-	Forward       bool // True : CoeffsToSlots (Encoding) - False : SlotsToCoeffs (Decoding)
-	LevelStart    int
-	BitReversed   bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
-	BSGSRatio     float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
-	ScalingFactor [][]float64
+	LinearTransformType LinearTransformType
+	LevelStart          int     // Encoding level
+	BitReversed         bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
+	BSGSRatio           float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
+	ScalingFactor       [][]float64
 }
 
 // Depth returns the number of levels allocated.
@@ -35,7 +44,7 @@ func (mParams *EncodingMatricesParameters) Depth(actual bool) (depth int) {
 	return
 }
 
-// Levels returns the index of the Qi used int CoeffsToSlots
+// Levels returns the index of the Qi used int CoeffsToSlots.
 func (mParams *EncodingMatricesParameters) Levels() (levels []int) {
 	levels = []int{}
 	trueDepth := mParams.Depth(true)
@@ -56,25 +65,25 @@ func (mParams *EncodingMatricesParameters) Rotations(logN, logSlots int) (rotati
 	dslots := slots
 	if logSlots < logN-1 {
 		dslots <<= 1
-		if mParams.Forward {
+		if mParams.LinearTransformType == CoeffsToSlots {
 			rotations = append(rotations, slots)
 		}
 	}
 
-	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, mParams.Depth(false), mParams.Forward, mParams.BitReversed)
+	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, mParams.Depth(false), mParams.LinearTransformType, mParams.BitReversed)
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
 		N1 := findbestbabygiantstepsplit(pVec, dslots, mParams.BSGSRatio)
-		rotations = addMatrixRotToList(pVec, rotations, N1, slots, !mParams.Forward && logSlots < logN-1 && i == 0)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, mParams.LinearTransformType == SlotsToCoeffs && logSlots < logN-1 && i == 0)
 	}
 
 	return
 }
 
-// GenCoeffsToSlotsMatrix generates the factorized encoding matrix
-// scaling : constant by witch the all the matrices will be multuplied by
-// encoder : ckks.Encoder
+// GenCoeffsToSlotsMatrix generates the factorized encoding matrix.
+// scaling : constant by witch the all the matrices will be multuplied by.
+// encoder : ckks.Encoder.
 func (encoder *encoderComplex128) GenHomomorphicEncodingMatrices(mParams EncodingMatricesParameters, scaling complex128) EncodingMatrices {
 	logSlots := encoder.params.LogSlots()
 
@@ -97,7 +106,7 @@ func (encoder *encoderComplex128) GenHomomorphicEncodingMatrices(mParams Encodin
 
 	// CoeffsToSlots vectors
 	matrices := make([]PtDiagMatrix, len(ctsLevels))
-	pVecDFT := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, mParams.Forward, mParams.BitReversed)
+	pVecDFT := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, mParams.LinearTransformType, mParams.BitReversed)
 	cnt := 0
 	trueDepth := mParams.Depth(true)
 	for i := range mParams.ScalingFactor {
@@ -110,7 +119,7 @@ func (encoder *encoderComplex128) GenHomomorphicEncodingMatrices(mParams Encodin
 	return EncodingMatrices{Matrices: matrices}
 }
 
-// CoeffsToSlots applies the homomorphic encoding
+// CoeffsToSlots applies the homomorphic encoding.
 func (eval *evaluator) CoeffsToSlots(ctIn *Ciphertext, ctsMatrices EncodingMatrices) (ctReal, ctImag *Ciphertext) {
 
 	var zV, zVconj *Ciphertext
@@ -140,7 +149,7 @@ func (eval *evaluator) CoeffsToSlots(ctIn *Ciphertext, ctsMatrices EncodingMatri
 	return ctReal, ctImag
 }
 
-// SlotsToCoeffs applies the homomorphic decoding
+// SlotsToCoeffs applies the homomorphic decoding.
 func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *Ciphertext, stcMatrices EncodingMatrices) (ctOut *Ciphertext) {
 
 	// If full packing, the repacking can be done directly using ct0 and ct1.
@@ -330,7 +339,7 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 	return rotations
 }
 
-func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward, bitreversed bool) (rotationMap []map[int]bool) {
+func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, ltType LinearTransformType, bitreversed bool) (rotationMap []map[int]bool) {
 
 	var level, depth, nextLevel int
 
@@ -347,7 +356,7 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward, bitr
 
 		depth = int(math.Ceil(float64(level) / float64(maxDepth-i)))
 
-		if forward {
+		if ltType == CoeffsToSlots {
 			merge[i] = depth
 		} else {
 			merge[len(merge)-i-1] = depth
@@ -360,29 +369,29 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward, bitr
 	level = logSlots
 	for i := 0; i < maxDepth; i++ {
 
-		if logSlots < logN-1 && !forward && i == 0 {
+		if logSlots < logN-1 && ltType == SlotsToCoeffs && i == 0 {
 
 			// Special initial matrix for the repacking before SlotsToCoeffs
 			rotationMap[i] = genWfftRepackIndexMap(logSlots, level)
 
 			// Merges this special initial matrix with the first layer of SlotsToCoeffs DFT
-			rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, level, forward, bitreversed)
+			rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, level, ltType, bitreversed)
 
 			// Continues the merging with the next layers if the total depth requires it.
 			nextLevel = level - 1
 			for j := 0; j < merge[i]-1; j++ {
-				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, nextLevel, forward, bitreversed)
+				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, nextLevel, ltType, bitreversed)
 				nextLevel--
 			}
 
 		} else {
 			// First layer of the i-th level of the DFT
-			rotationMap[i] = genWfftIndexMap(logSlots, level, forward, bitreversed)
+			rotationMap[i] = genWfftIndexMap(logSlots, level, ltType, bitreversed)
 
 			// Merges the layer with the next levels of the DFT if the total depth requires it.
 			nextLevel = level - 1
 			for j := 0; j < merge[i]-1; j++ {
-				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 1<<logSlots, nextLevel, forward, bitreversed)
+				rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 1<<logSlots, nextLevel, ltType, bitreversed)
 				nextLevel--
 			}
 		}
@@ -393,11 +402,11 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, forward, bitr
 	return
 }
 
-func genWfftIndexMap(logL, level int, forward, bitreversed bool) (vectors map[int]bool) {
+func genWfftIndexMap(logL, level int, ltType LinearTransformType, bitreversed bool) (vectors map[int]bool) {
 
 	var rot int
 
-	if forward && !bitreversed || !forward && bitreversed {
+	if ltType == CoeffsToSlots && !bitreversed || ltType == SlotsToCoeffs && bitreversed {
 		rot = 1 << (level - 1)
 	} else {
 		rot = 1 << (logL - level)
@@ -417,13 +426,13 @@ func genWfftRepackIndexMap(logL, level int) (vectors map[int]bool) {
 	return
 }
 
-func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, forward, bitreversed bool) (newVec map[int]bool) {
+func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, ltType LinearTransformType, bitreversed bool) (newVec map[int]bool) {
 
 	var rot int
 
 	newVec = make(map[int]bool)
 
-	if forward && !bitreversed || !forward && bitreversed {
+	if ltType == CoeffsToSlots && !bitreversed || ltType == SlotsToCoeffs && bitreversed {
 		rot = (1 << (nextLevel - 1)) & (N - 1)
 	} else {
 		rot = (1 << (logL - nextLevel)) & (N - 1)
@@ -438,7 +447,7 @@ func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, forward, bit
 	return
 }
 
-func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, pow5 []int, diffscale complex128, inverse, bitreversed bool) (plainVector []map[int][]complex128) {
+func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, pow5 []int, diffscale complex128, ltType LinearTransformType, bitreversed bool) (plainVector []map[int][]complex128) {
 
 	var fftLevel, depth, nextfftLevel int
 
@@ -446,7 +455,7 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 
 	var a, b, c [][]complex128
 
-	if inverse {
+	if ltType == CoeffsToSlots {
 		a, b, c = fftInvPlainVec(logSlots, 1<<logdSlots, roots, pow5)
 	} else {
 		a, b, c = fftPlainVec(logSlots, 1<<logdSlots, roots, pow5)
@@ -463,7 +472,7 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 
 		depth = int(math.Ceil(float64(fftLevel) / float64(maxDepth-i)))
 
-		if inverse {
+		if ltType == CoeffsToSlots {
 			merge[i] = depth
 		} else {
 			merge[len(merge)-i-1] = depth
@@ -476,29 +485,29 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 	fftLevel = logSlots
 	for i := 0; i < maxDepth; i++ {
 
-		if logSlots != logdSlots && !inverse && i == 0 {
+		if logSlots != logdSlots && ltType == SlotsToCoeffs && i == 0 {
 
 			// Special initial matrix for the repacking before SlotsToCoeffs
 			plainVector[i] = genRepackMatrix(logSlots, bitreversed)
 
 			// Merges this special initial matrix with the first layer of SlotsToCoeffs DFT
-			plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2<<logSlots, fftLevel, a[logSlots-fftLevel], b[logSlots-fftLevel], c[logSlots-fftLevel], inverse, bitreversed)
+			plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2<<logSlots, fftLevel, a[logSlots-fftLevel], b[logSlots-fftLevel], c[logSlots-fftLevel], ltType, bitreversed)
 
 			// Continues the merging with the next layers if the total depth requires it.
 			nextfftLevel = fftLevel - 1
 			for j := 0; j < merge[i]-1; j++ {
-				plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2<<logSlots, nextfftLevel, a[logSlots-nextfftLevel], b[logSlots-nextfftLevel], c[logSlots-nextfftLevel], inverse, bitreversed)
+				plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2<<logSlots, nextfftLevel, a[logSlots-nextfftLevel], b[logSlots-nextfftLevel], c[logSlots-nextfftLevel], ltType, bitreversed)
 				nextfftLevel--
 			}
 
 		} else {
 			// First layer of the i-th level of the DFT
-			plainVector[i] = genFFTDiagMatrix(logSlots, fftLevel, a[logSlots-fftLevel], b[logSlots-fftLevel], c[logSlots-fftLevel], inverse, bitreversed)
+			plainVector[i] = genFFTDiagMatrix(logSlots, fftLevel, a[logSlots-fftLevel], b[logSlots-fftLevel], c[logSlots-fftLevel], ltType, bitreversed)
 
 			// Merges the layer with the next levels of the DFT if the total depth requires it.
 			nextfftLevel = fftLevel - 1
 			for j := 0; j < merge[i]-1; j++ {
-				plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 1<<logSlots, nextfftLevel, a[logSlots-nextfftLevel], b[logSlots-nextfftLevel], c[logSlots-nextfftLevel], inverse, bitreversed)
+				plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 1<<logSlots, nextfftLevel, a[logSlots-nextfftLevel], b[logSlots-nextfftLevel], c[logSlots-nextfftLevel], ltType, bitreversed)
 				nextfftLevel--
 			}
 		}
@@ -507,7 +516,7 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 	}
 
 	// Repacking after the CoeffsToSlots (we multiply the last DFT matrix with the vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0]).
-	if logSlots != logdSlots && inverse {
+	if logSlots != logdSlots && ltType == CoeffsToSlots {
 		for j := range plainVector[maxDepth-1] {
 			for x := 0; x < 1<<logSlots; x++ {
 				plainVector[maxDepth-1][j][x+(1<<logSlots)] = complex(0, 0)
@@ -543,11 +552,11 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 	return
 }
 
-func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, forward, bitreversed bool) (vectors map[int][]complex128) {
+func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, ltType LinearTransformType, bitreversed bool) (vectors map[int][]complex128) {
 
 	var rot int
 
-	if forward && !bitreversed || !forward && bitreversed {
+	if ltType == CoeffsToSlots && !bitreversed || ltType == SlotsToCoeffs && bitreversed {
 		rot = 1 << (fftLevel - 1)
 	} else {
 		rot = 1 << (logL - fftLevel)
@@ -595,13 +604,13 @@ func genRepackMatrix(logL int, bitreversed bool) (vectors map[int][]complex128) 
 	return
 }
 
-func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLevel int, a, b, c []complex128, forward, bitreversed bool) (newVec map[int][]complex128) {
+func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLevel int, a, b, c []complex128, ltType LinearTransformType, bitreversed bool) (newVec map[int][]complex128) {
 
 	var rot int
 
 	newVec = make(map[int][]complex128)
 
-	if forward && !bitreversed || !forward && bitreversed {
+	if ltType == CoeffsToSlots && !bitreversed || ltType == SlotsToCoeffs && bitreversed {
 		rot = (1 << (nextLevel - 1)) & (N - 1)
 	} else {
 		rot = (1 << (logL - nextLevel)) & (N - 1)

@@ -77,7 +77,7 @@ func (b *BootstrappingParameters) RotationsForBootstrapping(logSlots int) (rotat
 		}
 	}
 
-	indexCtS := computeBootstrappingDFTIndexMap(b.LogN, logSlots, b.CoeffsToSlotsParameters.Depth(false), true, b.CoeffsToSlotsParameters.BitReversed)
+	indexCtS := computeBootstrappingDFTIndexMap(b.LogN, logSlots, b.CoeffsToSlotsParameters.Depth(false), CoeffsToSlots, b.CoeffsToSlotsParameters.BitReversed)
 
 	// Coeffs to Slots rotations
 	for _, pVec := range indexCtS {
@@ -85,7 +85,7 @@ func (b *BootstrappingParameters) RotationsForBootstrapping(logSlots int) (rotat
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
 	}
 
-	indexStC := computeBootstrappingDFTIndexMap(b.LogN, logSlots, b.SlotsToCoeffsParameters.Depth(false), false, b.SlotsToCoeffsParameters.BitReversed)
+	indexStC := computeBootstrappingDFTIndexMap(b.LogN, logSlots, b.SlotsToCoeffsParameters.Depth(false), SlotsToCoeffs, b.SlotsToCoeffsParameters.BitReversed)
 
 	// Slots to Coeffs rotations
 	for i, pVec := range indexStC {
@@ -144,10 +144,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		SlotsToCoeffsParameters: EncodingMatricesParameters{
-			Forward:     false,
-			LevelStart:  12,
-			BSGSRatio:   16.0,
-			BitReversed: false,
+			LinearTransformType: SlotsToCoeffs,
+			LevelStart:          12,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x7fffe60001},
 				{0x7fffe40001},
@@ -165,10 +165,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ScalingFactor: 1 << 60,
 		},
 		CoeffsToSlotsParameters: EncodingMatricesParameters{
-			Forward:     true,
-			LevelStart:  24,
-			BSGSRatio:   16.0,
-			BitReversed: false,
+			LinearTransformType: CoeffsToSlots,
+			LevelStart:          24,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x100000000060001},
 				{0xfffffffff00001},
@@ -221,10 +221,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		SlotsToCoeffsParameters: EncodingMatricesParameters{
-			Forward:     false,
-			LevelStart:  8,
-			BSGSRatio:   16.0,
-			BitReversed: false,
+			LinearTransformType: SlotsToCoeffs,
+			LevelStart:          8,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x3ffffe80001},
 				{0x3ffffd20001},
@@ -242,10 +242,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ScalingFactor: 1 << 60,
 		},
 		CoeffsToSlotsParameters: EncodingMatricesParameters{
-			Forward:     true,
-			LevelStart:  23,
-			BSGSRatio:   16.0,
-			BitReversed: false,
+			LinearTransformType: CoeffsToSlots,
+			LevelStart:          23,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x400000000360001},
 				{0x3ffffffffbe0001},
@@ -297,10 +297,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		SlotsToCoeffsParameters: EncodingMatricesParameters{
-			Forward:     false,
-			LevelStart:  9,
-			BSGSRatio:   16.0,
-			BitReversed: false,
+			LinearTransformType: SlotsToCoeffs,
+			LevelStart:          9,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{1073741824.0},
 				{1073741824.0062866, 1073741824.0062866},
@@ -317,10 +317,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ScalingFactor: 1 << 55,
 		},
 		CoeffsToSlotsParameters: EncodingMatricesParameters{
-			Forward:     true,
-			LevelStart:  21,
-			BSGSRatio:   16.0,
-			BitReversed: false,
+			LinearTransformType: CoeffsToSlots,
+			LevelStart:          21,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x200000000e0001},
 				{0x20000000140001},
@@ -379,10 +379,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		SlotsToCoeffsParameters: EncodingMatricesParameters{
-			Forward:     false,
-			LevelStart:  11,
-			BSGSRatio:   16.0,
-			BitReversed: false,
+			LinearTransformType: SlotsToCoeffs,
+			LevelStart:          11,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{268435456.0007324, 268435456.0007324},
 				{0xffa0001},
@@ -399,10 +399,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ScalingFactor: 1 << 60,
 		},
 		CoeffsToSlotsParameters: EncodingMatricesParameters{
-			Forward:     true,
-			LevelStart:  27,
-			BSGSRatio:   16.0,
-			BitReversed: false,
+			LinearTransformType: CoeffsToSlots,
+			LevelStart:          27,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x200000000e0001},
 				{0x20000000140001},
@@ -443,10 +443,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		SlotsToCoeffsParameters: EncodingMatricesParameters{
-			Forward:     false,
-			LevelStart:  3,
-			BSGSRatio:   16.0,
-			BitReversed: false,
+			LinearTransformType: SlotsToCoeffs,
+			LevelStart:          3,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{1073741823.9998779, 1073741823.9998779},
 			},
@@ -462,10 +462,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ScalingFactor: 1 << 50,
 		},
 		CoeffsToSlotsParameters: EncodingMatricesParameters{
-			Forward:     true,
-			LevelStart:  13,
-			BSGSRatio:   16.0,
-			BitReversed: false,
+			LinearTransformType: CoeffsToSlots,
+			LevelStart:          13,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x1fffffff50001},
 				{0x1ffffffea0001},

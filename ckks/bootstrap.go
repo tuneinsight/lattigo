@@ -56,7 +56,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 	//SubSum X -> (N/dslots) * Y^dslots
 	//t = time.Now()
-	ct = btp.subSum(ct)
+	ct = btp.evaluator.Trace(ct, btp.params.LogSlots())
 	//log.Println("After SubSum :", time.Now().Sub(t), ct.Level(), ct.Scale())
 	// Part 1 : Coeffs to slots
 
@@ -76,18 +76,6 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	ct0.Scale = math.Exp2(math.Round(math.Log2(ct0.Scale))) // rounds to the nearest power of two
 	//log.Println("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 	return ct0
-}
-
-func (btp *Bootstrapper) subSum(ct *Ciphertext) *Ciphertext {
-
-	for i := btp.params.LogSlots(); i < btp.params.MaxLogSlots(); i++ {
-
-		btp.evaluator.Rotate(ct, 1<<i, btp.evaluator.ctxpool)
-
-		btp.evaluator.Add(ct, btp.evaluator.ctxpool, ct)
-	}
-
-	return ct
 }
 
 func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {

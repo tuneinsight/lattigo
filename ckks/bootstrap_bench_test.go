@@ -61,7 +61,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 			//SubSum X -> (N/dslots) * Y^dslots
 			t = time.Now()
-			ct = btp.subSum(ct)
+			ct = btp.evaluator.Trace(ct, btp.params.LogSlots())
 			b.Log("After SubSum :", time.Since(t), ct.Level(), ct.Scale)
 
 			// Part 1 : Coeffs to slots

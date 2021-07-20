@@ -113,6 +113,9 @@ type Evaluator interface {
 	CoeffsToSlots(ctIn *Ciphertext, ctsMatrices EncodingMatrices) (ctReal, ctImag *Ciphertext)
 	SlotsToCoeffs(ctReal, ctImag *Ciphertext, stcMatrices EncodingMatrices) (ctOut *Ciphertext)
 
+	// Homomorphic Modular Reduction
+	EvalMod(ct *Ciphertext, evalModPoly EvalModPoly, targetScale float64) *Ciphertext
+
 	// =============================
 	// === Ciphertext Management ===
 	// =============================

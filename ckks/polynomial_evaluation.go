@@ -14,6 +14,16 @@ type Poly struct {
 	lead   bool
 }
 
+// Depth returns the number of levels needed to evaluate the polynomial.
+func (p *Poly) Depth() int {
+	return int(math.Ceil(math.Log2(float64(len(p.coeffs)))))
+}
+
+// Degree returns the degree of the polynomial
+func (p *Poly) Degree() int {
+	return len(p.coeffs) - 1
+}
+
 // NewPoly creates a new Poly from the input coefficients
 func NewPoly(coeffs []complex128) (p *Poly) {
 
@@ -31,22 +41,17 @@ func NewPoly(coeffs []complex128) (p *Poly) {
 // to evaluate the polynomial.
 func checkEnoughLevels(levels int, pol *Poly, c complex128) (err error) {
 
-	logDegree := int(math.Log2(float64(len(pol.coeffs))) + 0.5)
+	depth := pol.Depth()
 
 	if real(c) != float64(int64(real(c))) || imag(c) != float64(int64(imag(c))) {
-		logDegree++
+		depth++
 	}
 
-	if levels < logDegree {
-		return fmt.Errorf("%d levels < %d log(d) -> cannot evaluate", levels, logDegree)
+	if levels < depth {
+		return fmt.Errorf("%d levels < %d log(d) -> cannot evaluate", levels, depth)
 	}
 
 	return nil
-}
-
-// Degree returns the degree of the polynomial
-func (p *Poly) Degree() int {
-	return len(p.coeffs) - 1
 }
 
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
@@ -303,7 +308,7 @@ func recurse(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[i
 		level++
 	}
 
-	currentQi := float64(evaluator.params.Q()[level])
+	currentQi := evaluator.params.QiFloat64(level)
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
@@ -376,7 +381,7 @@ func recurseCheby(targetScale float64, logSplit, logDegree int, coeffs *Poly, C 
 		level++
 	}
 
-	currentQi := float64(evaluator.params.Q()[level])
+	currentQi := evaluator.params.QiFloat64(level)
 
 	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
@@ -434,7 +439,7 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[int]*Ci
 		return
 	}
 
-	currentQi := float64(evaluator.params.Q()[C[coeffs.Degree()].Level()])
+	currentQi := evaluator.params.QiFloat64(C[coeffs.Degree()].Level())
 
 	ctScale := targetScale * currentQi
 

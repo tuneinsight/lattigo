@@ -131,65 +131,18 @@ func (btp *Bootstrapper) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphe
 	ct0.Scale *= btp.MessageRatio
 	btp.evaluator.scale = btp.sinescale // Reference scale is changed to the Qi used for the SineEval (which is also close to the new ciphetext scale)
 
-	ct0 = btp.evaluateCheby(ct0)
+	ct0 = btp.evaluator.EvalMod(ct0, btp.evalModPoly, btp.sinescale)
 
-	ct0.Scale /= (btp.MessageRatio * btp.postscale / btp.params.Scale())
+	ct0.Scale /= (btp.sinescale / btp.params.Scale())
 
 	if ct1 != nil {
 		ct1.Scale *= btp.MessageRatio
-		ct1 = btp.evaluateCheby(ct1)
-		ct1.Scale /= (btp.MessageRatio * btp.postscale / btp.params.Scale())
+		ct1 = btp.evaluator.EvalMod(ct1, btp.evalModPoly, btp.sinescale)
+		ct1.Scale /= (btp.sinescale / btp.params.Scale())
 	}
 
 	// Reference scale is changed back to the current ciphertext's scale.
 	btp.evaluator.scale = ct0.Scale
 
 	return ct0, ct1
-}
-
-func (btp *Bootstrapper) evaluateCheby(ct *Ciphertext) *Ciphertext {
-
-	var err error
-
-	cheby := btp.sineEvalPoly
-
-	targetScale := btp.sinescale
-
-	// Compute the scales that the ciphertext should have before the double angle
-	// formula such that after it it has the scale it had before the polynomial
-	// evaluation
-	for i := 0; i < btp.SinRescal; i++ {
-		targetScale = math.Sqrt(targetScale * float64(btp.params.Q()[btp.SineEvalParameters.LevelStart-btp.SineEvalParameters.Depth()+i+1]))
-	}
-
-	// Division by 1/2^r and change of variable for the Chebysehev evaluation
-	if btp.SinType == Cos1 || btp.SinType == Cos2 {
-		btp.AddConst(ct, -0.5/(complex(btp.scFac, 0)*(cheby.b-cheby.a)), ct)
-	}
-
-	// Chebyshev evaluation
-	if ct, err = btp.EvaluateCheby(ct, cheby, targetScale); err != nil {
-		panic(err)
-	}
-
-	// Double angle
-	sqrt2pi := btp.sqrt2pi
-	for i := 0; i < btp.SinRescal; i++ {
-		sqrt2pi *= sqrt2pi
-		btp.MulRelin(ct, ct, ct)
-		btp.Add(ct, ct, ct)
-		btp.AddConst(ct, -sqrt2pi, ct)
-		if err := btp.Rescale(ct, btp.evaluator.scale, ct); err != nil {
-			panic(err)
-		}
-	}
-
-	// ArcSine
-	if btp.ArcSineDeg > 0 {
-		if ct, err = btp.EvaluatePoly(ct, btp.arcSinePoly, ct.Scale); err != nil {
-			panic(err)
-		}
-	}
-
-	return ct
 }

@@ -1,29 +1,15 @@
 package ckks
 
 import (
-	"math"
-
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
-	//"fmt"
-)
-
-// SinType is the type of function used during the bootstrapping
-// for the homomorphic modular reduction
-type SinType uint64
-
-// Sin and Cos are the two proposed functions for SinType
-const (
-	Sin  = SinType(0) // Standard Chebyshev approximation of (1/2pi) * sin(2pix)
-	Cos1 = SinType(1) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
-	Cos2 = SinType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
 )
 
 // BootstrappingParameters is a struct for the default bootstrapping parameters
 type BootstrappingParameters struct {
 	ParametersLiteral
 	SlotsToCoeffsParameters EncodingMatricesParameters
-	SineEvalParameters
+	EvalModParameters
 	CoeffsToSlotsParameters EncodingMatricesParameters
 	H                       int // Hamming weight of the secret key
 }
@@ -34,28 +20,6 @@ func (b *BootstrappingParameters) Params() (p Parameters, err error) {
 		return Parameters{}, err
 	}
 	return
-}
-
-// SineEvalParameters a struct for the paramters of the EvalMod step
-// of the bootstrapping
-type SineEvalParameters struct {
-	LevelStart    int
-	ScalingFactor float64
-	SinType       SinType // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
-	MessageRatio  float64 // Ratio between Q0 and m, i.e. Q[0]/|m|
-	SinRange      int     // K parameter (interpolation in the range -K to K)
-	SinDeg        int     // Degree of the interpolation
-	SinRescal     int     // Number of rescale and double angle formula (only applies for cos)
-	ArcSineDeg    int     // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
-}
-
-// Depth returns the depth of the SineEval. If true, then also
-// counts the double angle formula.
-func (s *SineEvalParameters) Depth() int {
-	depth := int(math.Ceil(math.Log2(float64(s.SinDeg + 1))))
-	depth += s.SinRescal
-	depth += int(math.Ceil(math.Log2(float64(s.ArcSineDeg + 1))))
-	return depth
 }
 
 // RotationsForBootstrapping returns the list of rotations performed during the Bootstrapping operation.
@@ -154,13 +118,13 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				{0x7fffe00001},
 			},
 		},
-		SineEvalParameters: SineEvalParameters{
+		EvalModParameters: EvalModParameters{
 			LevelStart:    20,
-			SinType:       Cos1,
+			SineType:      Cos1,
 			MessageRatio:  256.0,
-			SinRange:      25,
-			SinDeg:        63,
-			SinRescal:     2,
+			K:             25,
+			SineDeg:       63,
+			DoubleAngle:   2,
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
@@ -231,13 +195,13 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				{0x3ffffca0001},
 			},
 		},
-		SineEvalParameters: SineEvalParameters{
+		EvalModParameters: EvalModParameters{
 			LevelStart:    19,
-			SinType:       Cos1,
+			SineType:      Cos1,
 			MessageRatio:  4.0,
-			SinRange:      25,
-			SinDeg:        63,
-			SinRescal:     2,
+			K:             25,
+			SineDeg:       63,
+			DoubleAngle:   2,
 			ArcSineDeg:    7,
 			ScalingFactor: 1 << 60,
 		},
@@ -306,13 +270,13 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				{1073741824.0062866, 1073741824.0062866},
 			},
 		},
-		SineEvalParameters: SineEvalParameters{
+		EvalModParameters: EvalModParameters{
 			LevelStart:    17,
-			SinType:       Cos1,
+			SineType:      Cos1,
 			MessageRatio:  256.0,
-			SinRange:      25,
-			SinDeg:        63,
-			SinRescal:     2,
+			K:             25,
+			SineDeg:       63,
+			DoubleAngle:   2,
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 55,
 		},
@@ -388,13 +352,13 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				{0xffa0001},
 			},
 		},
-		SineEvalParameters: SineEvalParameters{
+		EvalModParameters: EvalModParameters{
 			LevelStart:    23,
-			SinType:       Cos2,
+			SineType:      Cos2,
 			MessageRatio:  256.0,
-			SinRange:      325,
-			SinDeg:        255,
-			SinRescal:     4,
+			K:             325,
+			SineDeg:       255,
+			DoubleAngle:   4,
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
@@ -451,13 +415,13 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				{1073741823.9998779, 1073741823.9998779},
 			},
 		},
-		SineEvalParameters: SineEvalParameters{
+		EvalModParameters: EvalModParameters{
 			LevelStart:    11,
-			SinType:       Cos1,
+			SineType:      Cos1,
 			MessageRatio:  256.0,
-			SinRange:      25,
-			SinDeg:        63,
-			SinRescal:     2,
+			K:             25,
+			SineDeg:       63,
+			DoubleAngle:   2,
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 50,
 		},

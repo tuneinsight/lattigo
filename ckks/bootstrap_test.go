@@ -97,7 +97,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		DefaultScale := testContext.params.Scale()
 
-		SineScale := btpParams.SineEvalParameters.ScalingFactor
+		SineScale := btpParams.EvalModParameters.ScalingFactor
 
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
@@ -136,7 +136,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		DefaultScale := testContext.params.Scale()
 
-		SineScale := btpParams.SineEvalParameters.ScalingFactor
+		SineScale := btpParams.EvalModParameters.ScalingFactor
 
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale
@@ -211,7 +211,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 	t.Run(testString(testContext, "Cos2/"), func(t *testing.T) {
 
-		if btpParams.SineEvalParameters.LevelStart-btpParams.SlotsToCoeffsParameters.LevelStart < 12 {
+		if btpParams.EvalModParameters.LevelStart-btpParams.SlotsToCoeffsParameters.LevelStart < 12 {
 			t.Skip()
 		}
 
@@ -221,7 +221,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 
 		DefaultScale := testContext.params.Scale()
 
-		SineScale := btpParams.SineEvalParameters.ScalingFactor
+		SineScale := btpParams.EvalModParameters.ScalingFactor
 
 		testContext.params.scale = SineScale
 		eval.(*evaluator).scale = SineScale

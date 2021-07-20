@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/cmplx"
 
-	"github.com/ldsec/lattigo/v2/ckks/bettersine"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -23,18 +22,13 @@ type Bootstrapper struct {
 
 	encoder Encoder // Encoder
 
-	prescale     float64                 // Q[0]/(Q[0]/|m|)
-	postscale    float64                 // Qi sineeval/(Q[0]/|m|)
-	sinescale    float64                 // Qi sineeval
-	sqrt2pi      float64                 // (1/2pi)^{-2^r}
-	scFac        float64                 // 2^{r}
-	sineEvalPoly *ChebyshevInterpolation // Coefficients of the Chebyshev Interpolation of sin(2*pi*x) or cos(2*pi*x/r)
-	arcSinePoly  *Poly                   // Coefficients of the Taylor series of arcsine(x)
+	prescale  float64 // Q[0]/(Q[0]/|m|)
+	postscale float64 // Qi sineeval/(Q[0]/|m|)
+	sinescale float64 // Qi sineeval
 
-	coeffsToSlotsDiffScale complex128 // Matrice rescaling
-	slotsToCoeffsDiffScale complex128 // Matrice rescaling
-	stcMatrices            EncodingMatrices
-	ctsMatrices            EncodingMatrices
+	evalModPoly EvalModPoly
+	stcMatrices EncodingMatrices
+	ctsMatrices EncodingMatrices
 
 	rotKeyIndex []int // a list of the required rotation keys
 }
@@ -50,15 +44,15 @@ func cos2pi(x complex128) complex128 {
 // NewBootstrapper creates a new Bootstrapper.
 func NewBootstrapper(params Parameters, btpParams BootstrappingParameters, btpKey BootstrappingKey) (btp *Bootstrapper, err error) {
 
-	if btpParams.SinType == SinType(Sin) && btpParams.SinRescal != 0 {
-		return nil, fmt.Errorf("cannot use double angle formul for SinType = Sin -> must use SinType = Cos")
+	if btpParams.SineType == SineType(Sin) && btpParams.DoubleAngle != 0 {
+		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
 	}
 
-	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.SineEvalParameters.LevelStart {
+	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.EvalModParameters.LevelStart {
 		return nil, fmt.Errorf("starting level and depth of CoeffsToSlotsParameters inconsistent starting level of SineEvalParameters")
 	}
 
-	if btpParams.SineEvalParameters.LevelStart-btpParams.SineEvalParameters.Depth() != btpParams.SlotsToCoeffsParameters.LevelStart {
+	if btpParams.EvalModParameters.LevelStart-btpParams.EvalModParameters.Depth() != btpParams.SlotsToCoeffsParameters.LevelStart {
 		return nil, fmt.Errorf("starting level and depth of SineEvalParameters inconsistent starting level of CoeffsToSlotsParameters")
 	}
 
@@ -89,13 +83,13 @@ func newBootstrapper(params Parameters, btpParams BootstrappingParameters) (btp 
 	}
 
 	btp.prescale = math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / btp.MessageRatio)))
-	btp.sinescale = math.Exp2(math.Round(math.Log2(btp.SineEvalParameters.ScalingFactor)))
+	btp.sinescale = math.Exp2(math.Round(math.Log2(btp.EvalModParameters.ScalingFactor)))
 	btp.postscale = btp.sinescale / btp.MessageRatio
 
 	btp.encoder = NewEncoder(params)
 	btp.evaluator = NewEvaluator(params, rlwe.EvaluationKey{}).(*evaluator) // creates an evaluator without keys for genDFTMatrices
 
-	btp.genSinePoly()
+	btp.evalModPoly = btpParams.EvalModParameters.GenPoly()
 	btp.genDFTMatrices()
 
 	btp.ctxpool = NewCiphertext(params, 1, params.MaxLevel(), 0)
@@ -171,22 +165,20 @@ func AddMatrixRotToList(pVec PtDiagMatrix, rotations []int, slots int, repack bo
 
 func (btp *Bootstrapper) genDFTMatrices() {
 
-	a := real(btp.sineEvalPoly.a)
-	b := real(btp.sineEvalPoly.b)
+	a := real(btp.evalModPoly.SinePoly.a)
+	b := real(btp.evalModPoly.SinePoly.b)
 	n := float64(btp.params.N())
 	qDiff := float64(btp.params.Q()[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]))))
 
-	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
-	btp.coeffsToSlotsDiffScale = complex(math.Pow(2.0/((b-a)*n*btp.scFac*qDiff), 1.0/float64(btp.CoeffsToSlotsParameters.Depth(false))), 0)
-
-	// Rescaling factor to set the final ciphertext to the desired scale
-	btp.slotsToCoeffsDiffScale = complex(math.Pow((qDiff*btp.params.Scale())/btp.postscale, 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
-
 	// CoeffsToSlots vectors
-	btp.ctsMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.CoeffsToSlotsParameters, btp.coeffsToSlotsDiffScale)
+	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
+	coeffsToSlotsDiffScale := complex(math.Pow(2.0/((b-a)*n*btp.evalModPoly.ScFac*qDiff), 1.0/float64(btp.CoeffsToSlotsParameters.Depth(false))), 0)
+	btp.ctsMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.CoeffsToSlotsParameters, coeffsToSlotsDiffScale)
 
 	// SlotsToCoeffs vectors
-	btp.stcMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.SlotsToCoeffsParameters, btp.slotsToCoeffsDiffScale)
+	// Rescaling factor to set the final ciphertext to the desired scale
+	slotsToCoeffsDiffScale := complex(math.Pow((qDiff*btp.params.Scale())/btp.postscale, 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
+	btp.stcMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.SlotsToCoeffsParameters, slotsToCoeffsDiffScale)
 
 	// List of the rotation key values to needed for the bootstrapp
 	btp.rotKeyIndex = []int{}
@@ -206,58 +198,5 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	// Slots to Coeffs rotations
 	for i, pVec := range btp.stcMatrices.Matrices {
 		btp.rotKeyIndex = AddMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), (i == 0) && (btp.params.LogSlots() < btp.params.MaxLogSlots()))
-	}
-}
-
-func (btp *Bootstrapper) genSinePoly() {
-
-	K := int(btp.SinRange)
-	deg := int(btp.SinDeg)
-	btp.scFac = float64(int(1 << btp.SinRescal))
-
-	if btp.ArcSineDeg > 0 {
-		btp.sqrt2pi = 1.0
-
-		coeffs := make([]complex128, btp.ArcSineDeg+1)
-
-		coeffs[1] = 0.15915494309189535
-
-		for i := 3; i < btp.ArcSineDeg+1; i += 2 {
-
-			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)
-
-		}
-
-		btp.arcSinePoly = NewPoly(coeffs)
-
-	} else {
-		btp.sqrt2pi = math.Pow(0.15915494309189535, 1.0/btp.scFac)
-	}
-
-	if btp.SinType == Sin {
-
-		btp.sineEvalPoly = Approximate(sin2pi2pi, -complex(float64(K)/btp.scFac, 0), complex(float64(K)/btp.scFac, 0), deg)
-
-	} else if btp.SinType == Cos1 {
-
-		btp.sineEvalPoly = new(ChebyshevInterpolation)
-
-		btp.sineEvalPoly.coeffs = bettersine.Approximate(K, deg, btp.MessageRatio, int(btp.SinRescal))
-
-		btp.sineEvalPoly.maxDeg = btp.sineEvalPoly.Degree()
-		btp.sineEvalPoly.a = complex(float64(-K)/btp.scFac, 0)
-		btp.sineEvalPoly.b = complex(float64(K)/btp.scFac, 0)
-		btp.sineEvalPoly.lead = true
-
-	} else if btp.SinType == Cos2 {
-
-		btp.sineEvalPoly = Approximate(cos2pi, -complex(float64(K)/btp.scFac, 0), complex(float64(K)/btp.scFac, 0), deg)
-
-	} else {
-		panic("Bootstrapper -> invalid sineType")
-	}
-
-	for i := range btp.sineEvalPoly.coeffs {
-		btp.sineEvalPoly.coeffs[i] *= complex(btp.sqrt2pi, 0)
 	}
 }
